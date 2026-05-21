@@ -145,16 +145,23 @@ process you can `telnet localhost 4000` into.
 conventions in the smallest possible codebase.
 
 **Exit criteria:**
-- [ ] `cmd/anothermud` listens on a configurable TCP port
-- [ ] Multiple concurrent telnet connections work (each in its own goroutine)
-- [ ] Each connection gets a logger with `session_id` field attached to ctx
-- [ ] Server handles `SIGINT`/`SIGTERM` by cancelling root ctx and closing listeners cleanly
-- [ ] An `IConnection`-ish interface exists with at least `Read`, `Write`, `Close`, `ID()` — even if telnet is the only implementation
-- [ ] One integration test exercises connect → send line → receive echo → disconnect
+- [x] `cmd/anothermud` listens on a configurable TCP port (`ANOTHERMUD_ADDR`)
+- [x] Multiple concurrent telnet connections work (each in its own goroutine)
+- [x] Each connection gets a logger with `session_id` field attached to ctx
+- [x] Server handles `SIGINT`/`SIGTERM` by cancelling root ctx and closing listeners cleanly
+- [x] An `IConnection`-ish interface exists with at least `Read`, `Write`, `Close`, `ID()` — even if telnet is the only implementation (`internal/conn.Connection`, name dropped `I` prefix per Go convention)
+- [x] One integration test exercises connect → send line → receive echo → disconnect
+
+**Status:** ✅ complete.
 
 **Touches specs:** `networking-protocols` §IConnection, `session-lifecycle` §PlayerSession (minimal).
 
-**Known gaps after M0:** no telnet negotiation, no GMCP, no MSSP, no WebSocket, no flood/idle/link-dead, no real session manager.
+**Known gaps after M0** (deferred to later milestones, do not paper over):
+- No telnet IAC option negotiation, no GMCP, no MSSP, no WebSocket.
+- No tick loop, no `Clock` interface (deferred to M1 per F3).
+- No real `PlayerSession` — the connection plays that role; M4 splits them.
+- No flood protection, idle timeout, or link-dead detection (M4).
+- `EchoHandler` lives in `internal/server/` for convenience; when M1 lands the command dispatcher, the handler likely moves to its own package.
 
 ---
 
