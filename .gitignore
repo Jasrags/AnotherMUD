@@ -1,0 +1,17 @@
+# Binaries
+/anothermud
+/bin/
+/dist/
+
+# Go build/test artifacts
+*.exe
+*.test
+*.out
+*.prof
+coverage.*
+
+# Editor / OS
+.DS_Store
+.idea/
+.vscode/
+*.swp

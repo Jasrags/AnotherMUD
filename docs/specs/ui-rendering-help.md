@@ -1,0 +1,842 @@
+# UI, Rendering, and Help — Feature Specification
+
+**Status:** Draft · **Scope:** The color-tag rendering pipeline
+(semantic tags, literal color tags, brace shorthand), the theme
+registry that resolves tags to ANSI sequences, the IConnection
+decorator that applies the renderer transparently, the per-
+player prompt renderer, the panel-rendering primitive used by
+wizards and structured displays, and the help-topic registry and
+its query / list / disambiguation surface · **Audience:** Anyone
+reimplementing or porting this feature in any language.
+
+This document describes *what* the UI feature must do, not *how*
+to implement it. The specific color names, theme entries, tag
+vocabulary, and help-topic schemas are policy and live in
+content.
+
+---
+
+## 1. Overview
+
+Tapestry's UI surface is text. The engine assembles strings with
+embedded color tags; the rendering layer translates those tags
+into ANSI escape sequences (for terminal clients) or strips them
+to plain text (for clients without color support). On top of
+this, a set of structured-rendering helpers — prompts, panels,
+help topics — produce richer layouts while remaining string
+output.
+
+The pipeline:
+
+```
+feature → string with tags → ColorRenderingConnection
+                                  │
+                            chooses by SupportsAnsi
+                                  ↓
+                  ColorRenderer.RenderAnsi (with ThemeRegistry)
+                  ColorRenderer.RenderPlain (strip)
+                                  ↓
+                          send over IConnection
+```
+
+### Core concepts
+
+- **Color tag** — a markup construct in engine-emitted text
+  that names a presentation intent (`<highlight>`, `<danger>`,
+  `<item.rare>`). The renderer translates tags to ANSI based
+  on the active theme. Tags can be **semantic** (named in the
+  theme), **literal** (`<color fg="..." bg="...">`), or
+  **brace shorthand** (`{yellow}`).
+- **Theme registry** — the content-registered map from tag
+  name to `{fg, bg, html}` triple. Compiled at startup into a
+  fast lookup of ANSI open/close pairs.
+- **ColorRenderingConnection** — an IConnection decorator that
+  intercepts every send, runs it through the renderer, and
+  passes the result on. Wraps the network-layer connection
+  before the session sees it.
+- **PromptRenderer** — a small template engine that produces a
+  one-line prompt from a per-player template using `{token}`
+  substitutions for vital pools.
+- **Panel** — a structured `Sections of Rows of Cells` value
+  that the panel renderer turns into a multi-line boxed
+  string with width-aware alignment and wrapping. Used by
+  wizards and tabular displays.
+- **Help topic** — a content-defined `(id, title, category,
+  brief, body, syntax, keywords, see-also, role)` record
+  loaded from per-pack YAML and queried by the `help` command.
+
+### Goals
+
+1. Let features emit text with presentation intent without
+   knowing whether the recipient supports color.
+2. Let content control the theme without engine changes —
+   themes register tag mappings via YAML; the renderer
+   resolves at send time.
+3. Cache the rewrite of common strings so the same prompt or
+   line doesn't re-parse on every send.
+4. Provide a single panel primitive other features build on
+   (wizard screens, inventory tables, score panels, help
+   topics).
+5. Provide a help registry that loads content topics, exposes
+   query / list / disambiguation, and gates per-role
+   visibility.
+
+### Non-goals
+
+- Real-time UI (cursor positioning, animations, sprites).
+  Output is line-oriented.
+- HTML rendering for web clients. The theme registry exposes
+  an HTML map for GMCP clients to use locally, but the
+  server itself emits ANSI / plain text.
+- Color profile detection beyond the negotiation-time
+  capability flag (see `docs/specs/networking-protocols.md`
+  §7). Once a session's `SupportsAnsi` is set, it stays set.
+- Internationalization. Text is whatever the feature emitted.
+- A user-configurable theme per session. Themes are global —
+  changed by pack reload, not per-player.
+
+---
+
+## 2. Color tags
+
+### 2.1 Tag forms
+
+Three forms are recognized. All are case-insensitive on the
+tag / color name.
+
+**Semantic tags** name a registered theme entry:
+
+```
+<highlight>important</highlight>
+<item.rare>The Sword of Glimmer</item.rare>
+```
+
+Tag content is whatever the theme defines (foreground color,
+background color, possibly bold). Opening and closing tags
+must match by name; nested tags are NOT explicitly stacked —
+the renderer emits the inner content, then a single ANSI
+reset on close (§2.4).
+
+**Literal color tags** specify colors inline without naming a
+theme entry:
+
+```
+<color fg="red">danger</color>
+<color fg="yellow" bg="black">warning</color>
+```
+
+The `color` tag accepts `fg` and `bg` attributes whose values
+are color names (§2.3). Either or both may be present. The
+renderer ignores unrecognized attributes.
+
+**Brace shorthand** is a compact alternative for ad-hoc color
+that does not require closing:
+
+```
+{yellow}Important.{/} Continue.
+```
+
+Brace tokens are color names, plus the special `bold`, `dim`,
+`reset`, and `/` (synonym for `reset`). They emit the ANSI
+code immediately and do NOT auto-close — content must close
+explicitly with `{/}` or `{reset}`.
+
+### 2.2 Mixing
+
+The three forms compose freely within a single string. The
+renderer walks the input once and emits in input order. There
+is no precedence: each form contributes its escape sequence
+at the position where it appears.
+
+### 2.3 Color names
+
+The recognized color names are the 8 standard colors plus
+their bright variants:
+
+```
+black red green yellow blue magenta cyan white
+bright-black (dark-gray alias)
+bright-red bright-green bright-yellow bright-blue
+bright-magenta bright-cyan bright-white
+```
+
+The literal-tag form uses the hyphenated variant
+(`bright-red`); the brace-shorthand form uses the
+underscored variant (`bright_red`). This split is historical
+and is flagged as an open question.
+
+`bold`, `dim`, and `reset` are valid as brace shorthand but
+not as literal-tag colors.
+
+### 2.4 Closing semantics
+
+Both `<tag>…</tag>` and `<color …>…</color>` close by
+emitting an ANSI reset (`ESC[0m`). This means a tag nested
+inside another tag will reset the outer color when it
+closes, which can be surprising:
+
+```
+<a>outer <b>inner</b> still expected outer</a>
+                                ^
+                          but is uncolored after this
+```
+
+Content authors should avoid nesting semantic tags, OR
+explicitly re-open the outer tag after the inner closes. The
+brace form does not auto-reset and is safer for nested
+structure:
+
+```
+{red}outer {yellow}middle{red} back to red{/}
+```
+
+### 2.5 Unknown tags pass through
+
+The renderer recognizes a tag only when its name is in the
+theme registry. Unknown opening tags are passed through as
+literal characters (the `<` is emitted as-is, the rest of the
+input continues to be scanned).
+
+Closing tags follow a stricter rule: the renderer skips
+closing tags for known theme tags and for `color`. Unknown
+closing tags pass through. This way, a `<sometag>` typo emits
+the visible characters `<sometag>` (and its matching close)
+rather than mysteriously vanishing.
+
+**Acceptance criteria**
+
+- [ ] Semantic, literal, and brace forms are all recognized.
+- [ ] Case-insensitive matching for tag and color names.
+- [ ] Tag/color closes emit an ANSI reset.
+- [ ] Brace shorthand emits its code without auto-close.
+- [ ] Unknown opening tags pass through as literals.
+- [ ] Known closing tags are consumed; unknown closing tags
+      pass through.
+
+---
+
+## 3. Theme registry
+
+### 3.1 Entries
+
+A theme entry maps a tag name to:
+
+- `fg` — a foreground color name (see §2.3) or null.
+- `bg` — a background color name or null.
+- `html` — an HTML color string (e.g. `#FF6633`) or null.
+  Exposed via `GetHtmlMap()` for GMCP clients that want to
+  render with native CSS rather than ANSI translation.
+
+A theme is registered through pack content (typically a
+`theme.yaml` in the pack's strings directory). Pack authors
+declare entries; the theme registry stores them.
+
+### 3.2 Compilation
+
+After all packs load, the theme registry's `Compile()` step
+builds a fast lookup of `AnsiPair(open, close)` for every
+entry that has a non-empty open sequence (i.e. an `fg` or
+`bg` that resolves). Entries with only `html` (no `fg`/`bg`)
+produce no AnsiPair and the renderer treats them as no-op
+for terminal output — the inner content is emitted plain.
+
+The compiled map is read-only thereafter. Adding a tag at
+runtime requires another compile.
+
+### 3.3 Lookups
+
+- `IsKnown(tag)` — used by the renderer's allowlist check.
+  Returns true even for entries with no ANSI mapping, so
+  unknown-tag passthrough works on declared-but-color-less
+  tags.
+- `Resolve(tag)` — returns the AnsiPair or null. Null
+  signals "declared but no color" and the renderer emits the
+  inner content plain.
+- `GetHtmlMap()` — snapshot of `{tag → html}` for theme
+  entries declaring HTML colors. The GMCP layer uses this to
+  publish a stylesheet-like map to clients.
+
+### 3.4 Literal-color resolver
+
+`ResolveFgColor(name)` / `ResolveBgColor(name)` are static
+helpers that map a color name to its ANSI code without
+consulting the theme. Used by the literal-tag form (§2.1)
+since literal colors don't go through theme entries.
+
+These are exposed as static so other features can also emit
+"raw" color sequences without going through the renderer —
+useful for cases where the renderer's caching would be
+counterproductive (e.g. dynamic per-frame banners).
+
+**Acceptance criteria**
+
+- [ ] Compile is idempotent and produces an open/close pair
+      only when fg or bg resolves.
+- [ ] IsKnown returns true for declared-but-color-less
+      entries.
+- [ ] Resolve returns null for declared-but-color-less.
+- [ ] Static color resolvers do not require Compile.
+
+---
+
+## 4. The color renderer
+
+### 4.1 Two modes
+
+The renderer offers two entry points:
+
+- **RenderAnsi(s)** — emit ANSI escape sequences.
+- **RenderPlain(s)** — strip all tags, brace shorthand, and
+  emit just text.
+
+Internally both walk the input character by character with
+identical structural recognition; only the *emission* step
+differs. This guarantees that what you see plain is exactly
+what you see colored with the formatting removed.
+
+### 4.2 Caching
+
+Each entry point has a `ConcurrentDictionary<string, string>`
+cache keyed by input string. A render-of-the-same-input twice
+goes through the parser once. The cache grows monotonically
+across the process lifetime; there is no eviction.
+
+Cache identity is exact input. A line that differs only in
+whitespace from a previously-rendered line is a new entry.
+
+### 4.3 Scanning order
+
+The renderer scans left-to-right and handles, in order:
+
+1. `<tag>` (opening tag) — semantic or literal.
+2. `<color …>` — literal color (recognized before semantic
+   because `color` matches a different shape).
+3. `</tag>` (closing tag) — consumed when known.
+4. `{name}` — brace shorthand.
+5. Anything else — emitted as a literal character.
+
+When the renderer encounters an unmatched `<`, brace, or
+malformed sequence, the offending character is emitted as a
+literal and scanning continues at the next position.
+
+### 4.4 Literal-color parsing
+
+`<color fg="X" bg="Y">…</color>`:
+
+1. Find the closing `</color>`. If missing, treat the `<` as
+   a literal and continue scanning.
+2. Parse the `fg=` and `bg=` attribute values using simple
+   quote-delimited matching (regex-free, single-character
+   quotes only).
+3. In ANSI mode, emit the resolved fg + bg codes, then the
+   inner text, then a reset.
+4. In plain mode, emit only the inner text.
+
+### 4.5 Strict vs lenient
+
+The renderer is lenient: malformed input passes through as
+literal text rather than raising. A pack that writes
+`<highlight>missing close` emits the literal characters and
+the rest of the line is unstyled. This keeps content typos
+visible to authors instead of swallowing text.
+
+**Acceptance criteria**
+
+- [ ] Plain and ANSI modes recognize the same constructs.
+- [ ] Cached lookups never re-parse the same input.
+- [ ] Unmatched `<`, `{`, or `</…>` pass through as literal.
+- [ ] Literal-color attributes accept `fg`, `bg`, or both.
+
+---
+
+## 5. The color-rendering connection
+
+The renderer is exposed as an **IConnection decorator**:
+`ColorRenderingConnection` wraps a transport-level
+connection. The decorator intercepts `SendText` and
+`SendLine`:
+
+1. If the inner connection's `SupportsAnsi` is true, call
+   `RenderAnsi`.
+2. Otherwise call `RenderPlain`.
+3. Forward the rendered string to the inner connection.
+
+Every other IConnection member (id, IsConnected,
+SupportsAnsi, RemoteAddress, ClearScreen, Disconnect,
+echo control, all events) passes through unchanged.
+
+The session manager constructs the decorator once per
+connection at session bind time; features sending output via
+the session never see the underlying transport directly,
+which means features can emit color tags without per-call
+"does this client support color" checks.
+
+**Acceptance criteria**
+
+- [ ] Decorator chooses Ansi vs Plain based on `SupportsAnsi`
+      at send time, not at construction time.
+- [ ] All non-send members pass through identically.
+- [ ] Event subscriptions are forwarded (no shadowing).
+
+---
+
+## 6. Tag stripping helpers
+
+A small utility, `TagStripper`, exposes two static methods
+used by features that need to reason about *visible* length
+without rendering:
+
+- **`StripTags(s)`** — drops `<…>` markup, returning the
+  visible text. Used by the panel renderer to compute
+  column widths.
+- **`VisibleLength(s)`** — returns `StripTags(s).Length`,
+  with a fast path for strings containing no `<`.
+
+The stripper does NOT understand brace shorthand or
+literal-color attributes — it works only on angle-bracket
+constructs. This is sufficient because panel content is
+emitted with semantic tags only; brace shorthand is reserved
+for ad-hoc messages.
+
+A `<` without a matching `>` is treated as opening an
+indefinite tag — everything from `<` to end of string is
+dropped. This is conservative; it errs toward shorter
+visible length over emitting raw `<` characters.
+
+**Acceptance criteria**
+
+- [ ] `<tag>…</tag>` produces just `…`.
+- [ ] `<color fg="x">…</color>` produces just `…`.
+- [ ] A `<` with no closing `>` consumes the rest of the
+      input.
+- [ ] `VisibleLength` matches `StripTags(s).Length` for
+      every input.
+
+---
+
+## 7. Prompt rendering
+
+### 7.1 Template
+
+Each player has an optional `prompt_template` property — a
+string with `{token}` placeholders. When unset, a default
+template is used:
+
+```
+<hp>[HP]: {hp}/{maxhp}</hp> | <mana>...</mana> | <mv>...</mv>>
+```
+
+The template itself uses semantic color tags; the renderer
+processes them later as part of the normal send pipeline.
+
+### 7.2 Tokens
+
+The prompt renderer substitutes a fixed set of tokens
+(case-insensitive):
+
+| Token | Value |
+|---|---|
+| `{hp}` | current HP |
+| `{maxhp}` | maximum HP |
+| `{mana}` | current resource pool |
+| `{maxmana}` | maximum resource pool |
+| `{mv}` | current movement pool |
+| `{maxmv}` | maximum movement pool |
+| `{gold}` | current gold |
+
+Unrecognized tokens resolve to empty string, leaving a gap
+in the prompt. This is intentional — it keeps a
+typo-tolerant rendering path so a broken template doesn't
+silently delete every prompt.
+
+### 7.3 Flush
+
+The session manager's `FlushPrompts` (see `docs/specs/
+session-lifecycle.md` §3.5) calls the prompt renderer for
+sessions whose `NeedsPromptRefresh` flag is set. The
+rendered prompt is sent with a leading CR-LF so it sits on
+its own line at the bottom of the terminal.
+
+Prompts do NOT auto-render on player input — they render
+*after* the next content arrives, so the player's input
+echoes immediately above their fresh prompt.
+
+**Acceptance criteria**
+
+- [ ] The default template is used when the player has no
+      `prompt_template` property.
+- [ ] All listed tokens are substituted correctly.
+- [ ] Unknown tokens produce empty strings, not literal
+      `{x}`.
+- [ ] Tokens are matched case-insensitively.
+
+---
+
+## 8. Panel rendering
+
+### 8.1 Panel model
+
+A `Panel` is a value with:
+
+- A `Width` in visible characters (default 80).
+- An ordered list of `Section`s.
+
+A `Section` has an ordered list of `Row`s and a
+`SeparatorAbove` rule style (None / Minor / Major) used
+between sections.
+
+A `Row` is one of:
+
+- **EmptyRow** — a blank line within the panel frame.
+- **TitleRow** — `(left, right?)` with the left rendered as a
+  title tag and the right (optional) as a subtle tag,
+  padded to the panel width.
+- **TextRow** — `(content, align, wrap)` — single string
+  rendered with optional alignment and wrap.
+- **CellRow** — `(cells, showDividers)` — a horizontal row
+  of cells.
+- **FooterRow** — a single-content row rendered as a footer
+  (typically subtle styling).
+
+A `Cell` has:
+
+- `Content` — the rendered text (with embedded tags).
+- `Width` — either `Fixed(n)` or `Fill` (consumes remaining
+  width).
+- `Align` — Left / Right / Center.
+- `Wrap` — whether long content wraps to a second line.
+
+A specialized `ProgressCell` is a Cell with `Value` and
+`Max` integers, used by progress-bar renderers (the panel
+renderer builds the bar from the cell width and the value
+ratio — exact rendering is a renderer detail).
+
+### 8.2 Output shape
+
+The renderer emits a multi-line string with `\r\n` line
+endings. Lines are bracketed by a vertical "frame" tag
+(`<frame>|</frame>`) on each side, padded so every row is
+the same visible width regardless of how many tags it
+contains.
+
+Horizontal rules between sections use:
+
+- **Major** (`<frame>|===...|</frame>`) — strong separator.
+- **Minor** (`<frame>|---...|</frame>`) — light separator.
+- **None** — no rule emitted.
+
+The first and last rule of every panel is Major regardless
+of section configuration.
+
+### 8.3 Width-aware padding
+
+All width math uses `TagStripper.VisibleLength`. A cell with
+embedded color tags ends up padded by the *visible* length,
+so a colored cell aligns with a plain cell next to it.
+
+A title row whose left content plus right content exceeds
+the inner width truncates the left side, appending an
+ellipsis when there's room for one. (The renderer raises if
+the right side alone exceeds the inner width — that's a
+content authoring error.)
+
+### 8.4 Used by
+
+- Character creation wizards (§5 of `docs/specs/character-
+  creation.md`).
+- Inventory and score display (see `docs/specs/inventory-
+  equipment-items.md`).
+- Help disambiguation (§10 of this spec).
+- Admin reports.
+
+The renderer itself doesn't know about its callers; it just
+takes a Panel and returns a string.
+
+**Acceptance criteria**
+
+- [ ] All output lines are the same visible width.
+- [ ] Width math uses visible length, not raw length.
+- [ ] Sections emit their declared separator above; the
+      first separator is suppressed.
+- [ ] Major rules appear at panel top and bottom regardless
+      of section config.
+- [ ] Title-row right side exceeding inner width raises;
+      combined exceeding triggers truncation + ellipsis on
+      the left.
+
+---
+
+## 9. Help service
+
+### 9.1 Topic shape
+
+A help topic is loaded from per-pack YAML files (typically
+under `<pack>/help/*.yaml`). A topic carries:
+
+- A stable **id** (required) — bare or namespaced; the
+  service stores both forms (§9.3).
+- A **title** (required) — human-readable name.
+- A **category** — used by category listings.
+- A **brief** — one-line summary.
+- A **body** — multi-line free-form text. May contain color
+  tags.
+- A **syntax** list — example command syntaxes shown in a
+  dedicated section.
+- A **keywords** list — used by fuzzy match.
+- A **see-also** list — referenced topic ids.
+- A **role** — optional visibility gate (§9.5).
+- A computed **pack name** (set by the loader) and
+  **namespaced id** (`pack:id`).
+
+Topics missing `id` or `title` are skipped with a warning at
+load time.
+
+### 9.2 Per-pack loading
+
+The pack loader calls `LoadPack(packName, packRoot, helpGlob,
+loadOrder)`:
+
+1. Skip if `helpGlob` is blank.
+2. Resolve `<packRoot>/help`. Skip if the directory doesn't
+   exist.
+3. Walk every `*.yaml` recursively. Order is alphabetical
+   for stability.
+4. Deserialize each topic. Set its `PackName`. Add via
+   `AddTopic(topic, loadOrder)`.
+
+Additionally, the command-help generator (see `docs/specs/
+commands-and-dispatch.md` §8) calls `AddTopic` with a
+load-order of zero for every command that has arg
+definitions. This is how typed commands get help even when
+no pack ships a help file for them.
+
+### 9.3 Indexing
+
+Three indices:
+
+- **By id** — maps both bare id and namespaced id to the
+  topic. Both forms point at the same record.
+- **By title** — maps title (case-insensitive) to the
+  topic.
+- **By category** — maps category name to a list of topics.
+
+Each index entry also carries the load-order integer used to
+break duplicate registrations (§9.4).
+
+### 9.4 Load-order precedence
+
+When two topics register the same id (or title), the higher
+load-order wins. This lets a pack override an upstream
+pack's help, and lets pack help override the auto-generated
+command help (which loads at order 0).
+
+Categories accumulate every loaded topic, deduplicating by
+`(id, packName)` — so an override removes the previous
+entry and inserts the new one.
+
+### 9.5 Role tiers
+
+Topics may declare a `role` value drawn from a small
+hierarchy:
+
+```
+player < builder < admin
+```
+
+A topic with role `player` is visible to every player. A
+topic with role `builder` is visible to builders and admins.
+A topic with role `admin` is admin-only.
+
+The role tier of the *requester* is determined at query time
+from the entity id passed to the service. The default rule:
+
+- A query with no entity id (e.g. pre-login) sees only
+  role-less topics.
+- A query with any entity id sees role-less and `player`
+  topics. Builder / admin gating beyond that is not yet
+  implemented — it's a placeholder.
+
+Visibility filtering happens uniformly across query, list,
+and categories.
+
+### 9.6 Query
+
+`Query(entityId, term)` resolves a search:
+
+1. Determine the requester's tier.
+2. **Exact id.** If `term` matches an indexed id (bare or
+   namespaced) AND the topic is visible, return it with
+   status `ok`.
+3. **Exact title.** If `term` matches an indexed title AND
+   the topic is visible, return it with status `ok`.
+4. **Fuzzy.** Filter all topics (deduplicated by namespaced
+   id) for those visible to the tier AND matching the term
+   case-insensitively against either the title or any
+   keyword.
+   - If exactly one match → return with status `ok`.
+   - If multiple matches → return with status `multiple`
+     plus a list of summaries `(id, title, brief)`.
+5. **No match** → status `no_match` with the original term
+   echoed back.
+
+The match precedence is exact-id > exact-title > fuzzy.
+Within fuzzy, no further ranking is applied — multiple
+matches are returned alphabetically by the consumer's
+choice.
+
+### 9.7 List and categories
+
+- **List(entityId, category)** — every visible topic in
+  the category as summaries.
+- **Categories(entityId)** — every category name with at
+  least one visible topic, sorted alphabetically.
+
+Both pass through the role gate.
+
+**Acceptance criteria**
+
+- [ ] Loaded topics index by id, namespaced id, title, and
+      category.
+- [ ] Duplicate id / title / category-entry registrations
+      resolve by load-order (higher wins; equal preserves
+      newest).
+- [ ] Query precedence is exact-id → exact-title → fuzzy.
+- [ ] Role gate applies to query, list, and categories.
+- [ ] Topics missing required fields are skipped at load
+      with a warning.
+- [ ] The command-help generator's order-zero topics are
+      overridden by any pack-loaded help with positive
+      load-order.
+
+---
+
+## 10. Help rendering
+
+The help renderer is a static helper that builds three
+canonical string outputs:
+
+### 10.1 Topic render
+
+`RenderTopic(topic, width = 78)`:
+
+- A double-rule banner with the topic title centered.
+- A subtle-tagged brief.
+- A `Syntax:` section listing each syntax line indented.
+- The body, split on newlines, each line indented.
+- A `See also:` line listing referenced ids (when any).
+- A closing rule.
+
+The output carries color tags (`<subtle>`, etc.) intended
+for the color renderer downstream.
+
+### 10.2 Disambiguation
+
+`RenderDisambiguation(term, matches, width = 78)`:
+
+- A banner naming the queried term.
+- "Multiple matches found:" line.
+- One line per match — `id` padded to the longest id width
+  plus 4 spaces, then the title.
+- A footer hint "Type help [topic] for details."
+- A closing rule.
+
+### 10.3 No match
+
+`RenderNoMatch(term)` returns a single line: `No help found
+for '&lt;term&gt;'.`.
+
+The help command handler chooses which renderer to call
+based on the query's status field.
+
+**Acceptance criteria**
+
+- [ ] Topic render includes Syntax section iff the topic
+      declares syntax.
+- [ ] See-also section appears iff the topic declares
+      references.
+- [ ] Disambiguation rows align ids in a column.
+- [ ] No-match terminates with CR-LF.
+
+---
+
+## 11. Observable events
+
+The UI / rendering / help feature emits no engine events.
+Help loading is observed via the pack-loading log path
+(warnings on broken topics). Color rendering is fully
+internal to the send pipeline.
+
+The HTML map exposed by the theme registry (§3.3) is
+consumed by the GMCP layer if it chooses to publish a
+theme package; that publication, if any, lives in the
+networking spec's GMCP section.
+
+---
+
+## 12. Configuration surface
+
+The following are externally configurable and not fixed by
+this spec.
+
+| Policy | Where it applies |
+|---|---|
+| Theme entries (tag → fg/bg/html) | §3.1 |
+| Default prompt template | §7.1 |
+| Default panel width (today 80) | §8.1 |
+| Default help-render width (today 78) | §10.1 |
+| Role hierarchy (today player / builder / admin) | §9.5 |
+| Brace-color synonym aliases | §2.3 |
+| The set of recognized prompt tokens | §7.2 |
+
+---
+
+## 13. Open questions / future work
+
+- **Hyphen vs underscore color names.** Literal color tags
+  use `bright-red`; brace shorthand uses `bright_red`. The
+  split is historical and surprising. Normalizing on one
+  form (and accepting the other as an alias) would be a
+  small but real ergonomics win.
+- **Tag close emits unconditional reset.** Nested semantic
+  tags lose their outer color when the inner closes. A
+  stack-based renderer would preserve nesting, at the cost
+  of one stack frame per open.
+- **Render cache grows unbounded.** Both Ansi and Plain
+  caches accumulate every distinct input string for the
+  process lifetime. Pathological input (per-tick dynamic
+  banners with timestamps) leaks memory. An LRU with a
+  configurable cap would defend against this.
+- **No per-player theme.** Themes are global. Players who
+  want lower-contrast or color-blind-friendly variants
+  have no path. A theme-override property on the entity
+  could be consulted by the decorator.
+- **Help role gate is a placeholder.** Currently builder /
+  admin tiers don't actually elevate a player's tier — the
+  query always treats players at the `player` tier. The
+  hierarchy exists in code but the resolution function
+  returns the same value for everyone.
+- **Help fuzzy ranking is flat.** Multiple matches are
+  returned without prioritizing title-prefix matches over
+  keyword-substring matches. Adding a simple score would
+  surface obvious matches first.
+- **Prompt tokens are hardcoded.** The substitution table
+  is engine-built; content can't add tokens without
+  changing the renderer. A pack-registered token resolver
+  would let content add `{combat_target}` or `{room_name}`.
+- **Panel renderer raises on title overflow.** A right-side
+  title that overflows throws. Production code would prefer
+  to clamp + log rather than crash a render path.
+- **No image / mxp support.** The output is plain text plus
+  ANSI. Clients with richer rendering (MXP, MUSHclient
+  HTML, Mudlet GUI panels) get no extra structure beyond
+  what GMCP carries.
+- **GMCP HTML map is read-only after compile.** Themes
+  cannot be re-themed at runtime; a `recompile` operation
+  would let admins iterate without restart.
+- **Unknown brace tokens render as literal.** `{frobnitz}`
+  emits the literal text. Whether this is the right default
+  (vs warn or empty) is debatable.
+
+---
+
+<!-- Generated: 2026-05-21 · Scope: ColorRenderer + ThemeRegistry + ColorRenderingConnection + AnsiPair + ThemeEntry + TagStripper + PromptRenderer + PromptProperties + Panel + PanelRenderer + Section + Row + Cell + HelpService + HelpRenderer + HelpTopic + HelpTopicSummary · Spec style: narrative + acceptance criteria · Detail level: behavior only -->
