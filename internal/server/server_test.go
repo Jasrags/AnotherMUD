@@ -141,6 +141,51 @@ func TestEchoConcurrentClients(t *testing.T) {
 	}
 }
 
+func TestOversizedLineIsRejected(t *testing.T) {
+	s := &server.Server{Handler: server.EchoHandler}
+	addr, shutdown := runServer(t, s, listenLoopback(t))
+	defer shutdown()
+
+	c, err := net.Dial("tcp", addr)
+	if err != nil {
+		t.Fatalf("dial: %v", err)
+	}
+	defer c.Close()
+	_ = c.SetDeadline(time.Now().Add(5 * time.Second))
+
+	r := bufio.NewReader(c)
+	if _, err := r.ReadString('\n'); err != nil {
+		t.Fatalf("read greeting: %v", err)
+	}
+
+	// Send a payload larger than telnet.MaxLineBytes (1024) with no
+	// newline, then a normal line. Server must reject the oversized
+	// line, recover, and echo the next normal line.
+	huge := strings.Repeat("A", 4096)
+	if _, err := c.Write([]byte(huge + "\r\n")); err != nil {
+		t.Fatalf("write huge: %v", err)
+	}
+
+	got, err := r.ReadString('\n')
+	if err != nil {
+		t.Fatalf("read reject msg: %v", err)
+	}
+	if want := "input too long"; !strings.Contains(got, want) {
+		t.Fatalf("expected reject message containing %q, got %q", want, got)
+	}
+
+	if _, err := c.Write([]byte("hi\r\n")); err != nil {
+		t.Fatalf("write normal: %v", err)
+	}
+	echo, err := r.ReadString('\n')
+	if err != nil {
+		t.Fatalf("read echo after reject: %v", err)
+	}
+	if got := strings.TrimRight(echo, "\r\n"); got != "hi" {
+		t.Fatalf("post-recovery echo mismatch: got %q", got)
+	}
+}
+
 func TestServeReturnsAfterContextCancel(t *testing.T) {
 	s := &server.Server{Handler: server.EchoHandler}
 	ln := listenLoopback(t)

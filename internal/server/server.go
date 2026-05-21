@@ -43,11 +43,18 @@ type Server struct {
 }
 
 // Serve accepts connections on ln until ctx is cancelled or ln is
-// closed, then waits for in-flight handlers to return.
+// closed, then waits for in-flight handlers to return. The handler
+// drain runs on every exit path — including a genuine Accept error —
+// so callers never see Serve return while handler goroutines are
+// still holding live connections.
 func (s *Server) Serve(ctx context.Context, ln net.Listener) error {
 	if s.Handler == nil {
 		return errors.New("server.Serve: Handler is nil")
 	}
+
+	// Drain handlers on every exit path. Without this, the genuine
+	// Accept-error branch below would orphan in-flight connections.
+	defer s.wg.Wait()
 
 	// Close the listener when ctx is cancelled so Accept unblocks.
 	stop := make(chan struct{})
@@ -66,7 +73,6 @@ func (s *Server) Serve(ctx context.Context, ln net.Listener) error {
 		nc, err := ln.Accept()
 		if err != nil {
 			if ctx.Err() != nil || errors.Is(err, net.ErrClosed) {
-				s.wg.Wait()
 				return ErrServerClosed
 			}
 			return fmt.Errorf("server.Accept: %w", err)

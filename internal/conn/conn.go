@@ -9,12 +9,17 @@ package conn
 import (
 	"context"
 	"errors"
-	"io"
 )
 
 // ErrClosed is returned by Read/Write on a Connection whose Close has
 // already been called or whose underlying transport has gone away.
 var ErrClosed = errors.New("connection closed")
+
+// ErrLineTooLong is returned by Read when the peer sends more bytes
+// without a newline than the implementation is willing to buffer.
+// Distinct from io.EOF so callers can tell "peer closed cleanly" from
+// "peer flooded us." Caller should typically Close the connection.
+var ErrLineTooLong = errors.New("input line exceeds maximum length")
 
 // Connection is the minimal byte-stream abstraction over a player's
 // transport (telnet today; WebSocket, etc. later).
@@ -39,7 +44,3 @@ type Connection interface {
 	// Close releases transport resources. Safe to call more than once.
 	Close() error
 }
-
-// Compile-time check that io.EOF is the documented sentinel for peer
-// close; if we ever swap to a custom EOF this will catch the mistake.
-var _ error = io.EOF

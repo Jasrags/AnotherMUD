@@ -27,6 +27,12 @@ func EchoHandler(ctx context.Context, c conn.Connection) error {
 			if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
 				return nil
 			}
+			if errors.Is(err, conn.ErrLineTooLong) {
+				// Don't disconnect — just tell the peer and continue. Read
+				// has already drained to the next newline.
+				_, _ = c.Write(ctx, []byte("input too long, truncated\r\n"))
+				continue
+			}
 			return fmt.Errorf("read: %w", err)
 		}
 
@@ -38,7 +44,7 @@ func EchoHandler(ctx context.Context, c conn.Connection) error {
 			return nil
 		}
 
-		if _, err := c.Write(ctx, []byte(line+"\r\n")); err != nil {
+		if _, err := c.Write(ctx, []byte(trimmed+"\r\n")); err != nil {
 			return fmt.Errorf("write echo: %w", err)
 		}
 	}
