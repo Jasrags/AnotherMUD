@@ -20,6 +20,15 @@ go test ./...               # run tests (none yet)
 
 When asked to implement features, **read the relevant spec first** — they are the source of truth for behavior. The specs reference some Tapestry-specific names (e.g. `tapestry-core` engine namespace); treat those as placeholder strings unless/until renamed.
 
+### Roadmap and foundations
+
+- `docs/ROADMAP.md` — the milestone plan (M0 echo telnet → M1 two rooms → M2 pack loader → M3 persistence → M4 multi-session → …). Each milestone has exit-criteria checkboxes. Treat the current milestone as the one with unchecked boxes that no later milestone has started.
+- `docs/ROADMAP.md#foundations` — binding conventions adopted from day one. The short version, in case ROADMAP isn't loaded:
+  - **F1**: `ctx context.Context` is the first parameter on anything that does I/O, ticks, or is cancellable.
+  - **F2**: structured logging is `log/slog` with the logger carried on `ctx`. Field names follow the table in the ROADMAP foundations section (`session_id`, `entity_id`, `room_id`, `tick`, `event`, `pack`, `err`, …).
+  - **F4**: errors wrap with `fmt.Errorf("doing X: %w", err)` and use package-level sentinel `var Err... = errors.New(...)`.
+  - **F3 (deferred)**: a `Clock` interface lands in M1 with the tick loop. Once it exists, no direct `time.Now()` calls inside engine packages.
+
 ## Spec architecture
 
 Specs are layered bottom-up. The reading order in `docs/specs/README.md` is canonical:
