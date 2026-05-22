@@ -4,19 +4,20 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Repository status
 
-The repo is the **M1 slice** of the engine: a two-room hardcoded world, a tick loop, and a command dispatcher running over a telnet listener. The 17 behavior specs (under `docs/specs/`) are language-agnostic and remain the source of truth for behavior; the Go layout is filling in milestone by milestone (see `docs/ROADMAP.md`).
+The repo is the **M2 slice (data-only, color still pending)** of the engine: content packs loaded from `content/core/` populate a `world.World` at boot, a tick loop runs, a command dispatcher runs over a telnet listener. The 17 behavior specs (under `docs/specs/`) are language-agnostic and remain the source of truth for behavior; the Go layout is filling in milestone by milestone (see `docs/ROADMAP.md`).
 
 - **Language:** Go (module `github.com/Jasrags/AnotherMUD`, `go 1.26`)
-- **Entrypoint:** `cmd/anothermud/main.go` — seeds the world (`world_seed.go`), starts the tick loop, runs `server.Serve` with `session.Handler`.
-- **Packages in play:** `internal/clock` (F3 `Clock` interface + Real/Manual), `internal/tick` (game loop + handler registration), `internal/world` (Direction, Room, Exit, World + move primitive), `internal/command` (registry + dispatcher + builtins), `internal/session` (per-connection actor + read→dispatch loop), `internal/conn[/telnet]`, `internal/server`, `internal/logging`.
+- **Entrypoint:** `cmd/anothermud/main.go` — calls `pack.Load` against `ANOTHERMUD_CONTENT_DIR` (default `./content`), starts the tick loop, runs `server.Serve` with `session.Handler`. Starting room is `ANOTHERMUD_START_ROOM` (default `tapestry-core:town-square`).
+- **Packages in play:** `internal/clock` (F3 `Clock` interface + Real/Manual), `internal/tick` (game loop + handler registration), `internal/world` (Direction, Room, Area, World registry + move primitive), `internal/pack` (manifest, discovery, dep-ordering, two-phase content loader), `internal/command` (registry + dispatcher + builtins), `internal/session` (per-connection actor + read→dispatch loop), `internal/conn[/telnet]`, `internal/server`, `internal/logging`.
+- **Content packs:** `content/core/` ships the engine-namespace (`tapestry-core`) starter pack — two areas (town, wilderness) and four rooms (town-square, forge, market, village-gate). All room/area ids are namespaced (`tapestry-core:town-square`); unqualified ids in YAML resolve against the current pack's namespace, qualified ids (`other-pack:foo`) cross packs.
 - **F3 status:** the `Clock` interface exists. `time.Now()` is only called inside `clock.RealClock` and the `cmd/anothermud` binary; engine packages take a `Clock`.
-- **Scripting language:** undecided. The previous incarnation used Lua. The `scripting-and-packs` spec is written language-agnostically; the runtime choice (Lua via gopher-lua, JS via goja, Starlark, Wasm, etc.) is open and should be picked deliberately when pack loading lands in M2.
+- **Scripting language:** undecided. The previous incarnation used Lua. The `scripting-and-packs` spec is written language-agnostically; M2 is intentionally data-only so the runtime choice (Lua via gopher-lua, JS via goja, Starlark, Wasm, etc.) can be made on real evidence after content authoring exposes the gaps.
 
 ### Commands
 
 ```
 go build ./...              # build everything
-go run ./cmd/anothermud     # run the M1 server (telnet localhost 4000)
+go run ./cmd/anothermud     # run the server (telnet localhost 4000)
 go test -race ./...         # run tests (race detector mandatory)
 ```
 

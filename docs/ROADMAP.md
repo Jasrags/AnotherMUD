@@ -203,14 +203,22 @@ and the registry pattern without committing to a script runtime.
 Forces the pack-discovery and validation pipeline to exist.
 
 **Exit criteria:**
-- [ ] Pack discovery walks a configurable content directory
-- [ ] Pack manifest format defined (name, version, depends-on)
-- [ ] Two-phase load: phase 1 registers tags/properties, phase 2 instantiates content
-- [ ] Validation errors abort the load with actionable messages (which pack, which file, which field)
-- [ ] World, Area, Room registries are pack-populated
-- [ ] At least 3-4 rooms across 2 areas defined in pack files
-- [ ] Reload story documented (even if "restart the server" for now)
+- [x] Pack discovery walks a configurable content directory (`ANOTHERMUD_CONTENT_DIR`, default `./content`)
+- [x] Pack manifest format defined (name, version, depends-on)
+- [x] Two-phase load: phase 1 registers tags/properties, phase 2 instantiates content *(phase 1 is a manifest-list stub in M2 — tags/properties registries arrive with the milestone that needs them)*
+- [x] Validation errors abort the load with actionable messages (which pack, which file, which field)
+- [x] World, Area, Room registries are pack-populated
+- [x] At least 3-4 rooms across 2 areas defined in pack files (`content/core/` ships town + wilderness, 4 rooms)
+- [x] Reload story documented (even if "restart the server" for now) — see **Reload story** below
 - [ ] ANSI 16-color SGR support: small `internal/ansi` package (or equivalent) provides color helpers + a markup-or-helper format usable in pack-authored room text. Renderer applies it; per-session "color enabled?" flag exists (default on; off when `NO_COLOR` is set in the environment or the player runs `color off`). Plain-text fallback verified by integration test.
+
+**Reload story (M2):** restart the process. Hot reload is deliberately
+deferred — the loader is single-shot at boot, and `world.World` is not
+designed for concurrent mutation while sessions are live. Operators
+edit pack files, then `kill && go run ./cmd/anothermud` (or the
+equivalent for their deploy harness). The reload primitive lands when
+something forces the issue — most likely with the scripting runtime in
+M2.5+ or with admin-level commands later.
 
 **Touches specs:** `scripting-and-packs` §pack-discovery, §two-phase loading; `world-rooms-movement` §2.4 areas; `ui-rendering-help` (color subset only — themes, 256/truecolor, structured markup remain deferred).
 

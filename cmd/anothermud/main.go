@@ -1,11 +1,11 @@
 // Command anothermud is the MUD server entrypoint.
 //
-// M1 scope: configure logging, install signal-cancelled root ctx,
-// build the hardcoded two-room world, start the tick loop, open a TCP
+// M2 scope: configure logging, install signal-cancelled root ctx,
+// load the content packs into a world, start the tick loop, open a TCP
 // listener, hand it to server.Serve with the session handler.
-// Replaced piece by piece as later milestones land (M2 wires the pack
-// loader; M3 wires persistence and login; M4 splits the session
-// manager out of the connection layer).
+// Replaced piece by piece as later milestones land (M3 wires
+// persistence and login; M4 splits the session manager out of the
+// connection layer).
 package main
 
 import (
@@ -24,9 +24,11 @@ import (
 	"github.com/Jasrags/AnotherMUD/internal/clock"
 	"github.com/Jasrags/AnotherMUD/internal/command"
 	"github.com/Jasrags/AnotherMUD/internal/logging"
+	"github.com/Jasrags/AnotherMUD/internal/pack"
 	"github.com/Jasrags/AnotherMUD/internal/server"
 	"github.com/Jasrags/AnotherMUD/internal/session"
 	"github.com/Jasrags/AnotherMUD/internal/tick"
+	"github.com/Jasrags/AnotherMUD/internal/world"
 )
 
 // version is set via -ldflags "-X main.version=..." by the Makefile.
@@ -59,7 +61,13 @@ func run() error {
 		return fmt.Errorf("listen on %s: %w", cfg.Addr, err)
 	}
 
-	w := seedWorld()
+	w := world.New()
+	if err := pack.Load(ctx, cfg.ContentDir, nil, w); err != nil {
+		return fmt.Errorf("loading content from %s: %w", cfg.ContentDir, err)
+	}
+	if _, err := w.Room(cfg.StartRoom); err != nil {
+		return fmt.Errorf("starting room %q not in loaded world: %w", cfg.StartRoom, err)
+	}
 
 	cmds := command.New()
 	if err := command.RegisterBuiltins(cmds); err != nil {
@@ -88,12 +96,14 @@ func run() error {
 		slog.String("log_format", cfg.LogFormat),
 		slog.String("log_level", cfg.LogLevel),
 		slog.Duration("tick_interval", cfg.TickInterval),
+		slog.String("content_dir", cfg.ContentDir),
+		slog.String("start_room", string(cfg.StartRoom)),
 	)
 
 	handler := session.Handler(session.Config{
 		World:    w,
 		Commands: cmds,
-		StartID:  startingRoom,
+		StartID:  cfg.StartRoom,
 	})
 	srv := &server.Server{Handler: handler}
 	if err := srv.Serve(ctx, ln); err != nil && !errors.Is(err, server.ErrServerClosed) {
@@ -112,6 +122,8 @@ type config struct {
 	LogLevel     string
 	LogFormat    string
 	TickInterval time.Duration
+	ContentDir   string
+	StartRoom    world.RoomID
 }
 
 func loadConfig() config {
@@ -120,6 +132,8 @@ func loadConfig() config {
 		LogLevel:     strings.ToLower(envOr("ANOTHERMUD_LOG_LEVEL", "info")),
 		LogFormat:    strings.ToLower(envOr("ANOTHERMUD_LOG_FORMAT", "text")),
 		TickInterval: envDurationOr("ANOTHERMUD_TICK_INTERVAL", 100*time.Millisecond),
+		ContentDir:   envOr("ANOTHERMUD_CONTENT_DIR", "./content"),
+		StartRoom:    world.RoomID(envOr("ANOTHERMUD_START_ROOM", "tapestry-core:town-square")),
 	}
 }
 
