@@ -210,10 +210,11 @@ Forces the pack-discovery and validation pipeline to exist.
 - [ ] World, Area, Room registries are pack-populated
 - [ ] At least 3-4 rooms across 2 areas defined in pack files
 - [ ] Reload story documented (even if "restart the server" for now)
+- [ ] ANSI 16-color SGR support: small `internal/ansi` package (or equivalent) provides color helpers + a markup-or-helper format usable in pack-authored room text. Renderer applies it; per-session "color enabled?" flag exists (default on; off when `NO_COLOR` is set in the environment or the player runs `color off`). Plain-text fallback verified by integration test.
 
-**Touches specs:** `scripting-and-packs` §pack-discovery, §two-phase loading; `world-rooms-movement` §2.4 areas.
+**Touches specs:** `scripting-and-packs` §pack-discovery, §two-phase loading; `world-rooms-movement` §2.4 areas; `ui-rendering-help` (color subset only — themes, 256/truecolor, structured markup remain deferred).
 
-**Known gaps after M2:** no scripting runtime (data-only packs), no cross-pack reference resolution beyond what alphabetical order gives us, no hot reload.
+**Known gaps after M2:** no scripting runtime (data-only packs), no cross-pack reference resolution beyond what alphabetical order gives us, no hot reload. Color is ANSI-16 only; no telnet IAC capability negotiation (assume-on with opt-out), no themes, no 256/truecolor, no per-pack palettes — those land with the full `ui-rendering-help` slice in M10.
 
 **Decision point:** at the end of M2 we know whether packs really need
 a scripting language, or whether data + Go-side handlers cover the
@@ -287,8 +288,9 @@ is now real. Sketch of remaining vertical slices:
   tracks.
 - **M9 — Do something:** `abilities-and-effects`, the action queue,
   effects.
-- **M10 — Quests & UI polish:** `quests`, `ui-rendering-help` themes
-  and panels.
+- **M10 — Quests & UI polish:** `quests`, `ui-rendering-help` themes,
+  panels, 256/truecolor, and telnet capability negotiation. (Basic
+  ANSI-16 color already landed in M2.)
 - **M11 — Survive:** `economy-survival`, currency, shops, sustenance.
 - **M12 — Character creation wizard:** the full `character-creation`
   flow now that the systems it touches exist.
