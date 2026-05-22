@@ -1,0 +1,10 @@
+name: tapestry-core
+version: "0.1.0"
+description: |
+  Engine-scope starter pack — a small village and the wilderness path
+  that leads to it. M2 content (data-only).
+content:
+  areas:
+    - areas/*.yaml
+  rooms:
+    - rooms/*.yaml

@@ -1,0 +1,10 @@
+id: market
+area: town
+name: Market Row
+description: |
+  A line of canvas stalls runs the length of the street, each loaded
+  with whatever the morning brought in — root vegetables, mended pots,
+  bundled herbs, a basket of speckled eggs. The hum of haggling never
+  quite stops.
+exits:
+  west: town-square
