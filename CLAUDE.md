@@ -4,18 +4,20 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Repository status
 
-The repo is a **Go scaffold plus 17 behavior specs**. The specs (under `docs/specs/`) are language-agnostic and remain the source of truth for behavior; the Go layout is empty wiring waiting to be filled in.
+The repo is the **M1 slice** of the engine: a two-room hardcoded world, a tick loop, and a command dispatcher running over a telnet listener. The 17 behavior specs (under `docs/specs/`) are language-agnostic and remain the source of truth for behavior; the Go layout is filling in milestone by milestone (see `docs/ROADMAP.md`).
 
 - **Language:** Go (module `github.com/Jasrags/AnotherMUD`, `go 1.26`)
-- **Entrypoint:** `cmd/anothermud/main.go` — currently a no-op
-- **Scripting language:** undecided. The previous incarnation used Lua. The `scripting-and-packs` spec is written language-agnostically; the runtime choice (Lua via gopher-lua, JS via goja, Starlark, Wasm, etc.) is open and should be picked deliberately when pack loading lands.
+- **Entrypoint:** `cmd/anothermud/main.go` — seeds the world (`world_seed.go`), starts the tick loop, runs `server.Serve` with `session.Handler`.
+- **Packages in play:** `internal/clock` (F3 `Clock` interface + Real/Manual), `internal/tick` (game loop + handler registration), `internal/world` (Direction, Room, Exit, World + move primitive), `internal/command` (registry + dispatcher + builtins), `internal/session` (per-connection actor + read→dispatch loop), `internal/conn[/telnet]`, `internal/server`, `internal/logging`.
+- **F3 status:** the `Clock` interface exists. `time.Now()` is only called inside `clock.RealClock` and the `cmd/anothermud` binary; engine packages take a `Clock`.
+- **Scripting language:** undecided. The previous incarnation used Lua. The `scripting-and-packs` spec is written language-agnostically; the runtime choice (Lua via gopher-lua, JS via goja, Starlark, Wasm, etc.) is open and should be picked deliberately when pack loading lands in M2.
 
 ### Commands
 
 ```
 go build ./...              # build everything
-go run ./cmd/anothermud     # run the scaffold entrypoint
-go test ./...               # run tests (none yet)
+go run ./cmd/anothermud     # run the M1 server (telnet localhost 4000)
+go test -race ./...         # run tests (race detector mandatory)
 ```
 
 When asked to implement features, **read the relevant spec first** — they are the source of truth for behavior. The specs reference some Tapestry-specific names (e.g. `tapestry-core` engine namespace); treat those as placeholder strings unless/until renamed.

@@ -176,17 +176,19 @@ and `commands-and-dispatch`, and the first place `time-and-clock`'s
 tick loop is real. This is also where F3 (`Clock` interface) lands.
 
 **Exit criteria:**
-- [ ] `Room`, `Exit`, `World` types exist with the minimum fields needed
-- [ ] `Clock` interface introduced; `time.Now()` not called directly in engine packages
-- [ ] Tick loop runs at 100 ms cadence, driven by `Clock`, cancellable via ctx
-- [ ] At least one tick-handler registration mechanism exists, even if empty
-- [ ] Command dispatcher parses input and routes to a `Command` handler
-- [ ] `look`, `n`, `s`, `quit` work; unknown commands produce a clear message
-- [ ] A test advances the `Clock` and verifies tick handlers fire on schedule
+- [x] `Room`, `Exit`, `World` types exist with the minimum fields needed (`internal/world`)
+- [x] `Clock` interface introduced; `time.Now()` not called directly in engine packages (`internal/clock`; only `clock.RealClock` calls `time.Now`, engine packages take a `Clock`)
+- [x] Tick loop runs at 100 ms cadence, driven by `Clock`, cancellable via ctx (`internal/tick`; cadence configurable via `ANOTHERMUD_TICK_INTERVAL`)
+- [x] At least one tick-handler registration mechanism exists, even if empty (`tick.Loop.Register` + `SetPreTick`; main wires a no-op handler so the seam is exercised)
+- [x] Command dispatcher parses input and routes to a `Command` handler (`internal/command`; exact → prefix resolution, case-insensitive)
+- [x] `look`, `n`, `s`, `quit` work; unknown commands produce a clear message (`"Huh?"`)
+- [x] A test advances the `Clock` and verifies tick handlers fire on schedule (`internal/tick/loop_test.go::TestLoop_HandlerFiresOnCadence`)
+
+**Status:** ✅ complete.
 
 **Touches specs:** `time-and-clock` §2-3, `world-rooms-movement` §2, `commands-and-dispatch` §2.
 
-**Known gaps after M1:** no pack loading (world is hardcoded), no persistence (state dies on restart), no real entity model, no inventory, no other players visible to each other.
+**Known gaps after M1:** no pack loading (world is hardcoded in `cmd/anothermud/world_seed.go`), no persistence (state dies on restart), no real entity model (a "player" is just a `connActor` in `internal/session`), no inventory, no other players visible to each other. Command registry is minimal: no aliases, priority, roles, arg types, chain (`;`), or repeat (`Nverb`) — these land when a real consumer needs them. Tick loop has no consumers besides a no-op; the in-game `GameClock` (time-and-clock §3) is not wired yet because no feature subscribes to `time.hour.change` yet.
 
 ---
 
