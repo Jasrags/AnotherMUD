@@ -1,10 +1,10 @@
 id: forge
 area: town
-name: Hearthwick Forge
+name: "{Y}Hearthwick Forge{x}"
 description: |
   Heat presses against your face the moment you cross the threshold.
   An anvil squats in the centre of the floor, surrounded by racks of
-  half-finished hooks, hinges, and horseshoes. The forge fire pulses
-  with each draw of the bellows.
+  half-finished hooks, hinges, and horseshoes. The {R}forge fire{x}
+  pulses with each draw of the bellows.
 exits:
   south: town-square

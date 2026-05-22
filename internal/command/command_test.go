@@ -162,9 +162,10 @@ func TestBuiltins_Quit(t *testing.T) {
 // testActor is a command.Actor used by these tests; it captures every
 // Write so assertions can inspect output.
 type testActor struct {
-	mu    sync.Mutex
-	room  *world.Room
-	lines []string
+	mu     sync.Mutex
+	room   *world.Room
+	lines  []string
+	color  bool
 }
 
 func newTestActor(start *world.Room) *testActor {
@@ -190,6 +191,18 @@ func (a *testActor) Write(ctx context.Context, msg string) error {
 	defer a.mu.Unlock()
 	a.lines = append(a.lines, msg)
 	return nil
+}
+
+func (a *testActor) ColorEnabled() bool {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	return a.color
+}
+
+func (a *testActor) SetColorEnabled(v bool) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	a.color = v
 }
 
 func (a *testActor) lastLine() string {

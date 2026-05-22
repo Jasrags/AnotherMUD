@@ -98,12 +98,14 @@ func run() error {
 		slog.Duration("tick_interval", cfg.TickInterval),
 		slog.String("content_dir", cfg.ContentDir),
 		slog.String("start_room", string(cfg.StartRoom)),
+		slog.Bool("color_default", cfg.ColorDefault),
 	)
 
 	handler := session.Handler(session.Config{
-		World:    w,
-		Commands: cmds,
-		StartID:  cfg.StartRoom,
+		World:        w,
+		Commands:     cmds,
+		StartID:      cfg.StartRoom,
+		ColorEnabled: cfg.ColorDefault,
 	})
 	srv := &server.Server{Handler: handler}
 	if err := srv.Serve(ctx, ln); err != nil && !errors.Is(err, server.ErrServerClosed) {
@@ -124,6 +126,7 @@ type config struct {
 	TickInterval time.Duration
 	ContentDir   string
 	StartRoom    world.RoomID
+	ColorDefault bool
 }
 
 func loadConfig() config {
@@ -134,7 +137,19 @@ func loadConfig() config {
 		TickInterval: envDurationOr("ANOTHERMUD_TICK_INTERVAL", 100*time.Millisecond),
 		ContentDir:   envOr("ANOTHERMUD_CONTENT_DIR", "./content"),
 		StartRoom:    world.RoomID(envOr("ANOTHERMUD_START_ROOM", "tapestry-core:town-square")),
+		ColorDefault: colorDefault(),
 	}
+}
+
+// colorDefault honors the NO_COLOR convention (https://no-color.org)
+// for the per-session color default: if NO_COLOR is set to any
+// non-empty value, color is off by default for new connections.
+// Individual players can still re-enable with `color on`.
+func colorDefault() bool {
+	if v, ok := os.LookupEnv("NO_COLOR"); ok && v != "" {
+		return false
+	}
+	return true
 }
 
 func envDurationOr(key string, def time.Duration) time.Duration {

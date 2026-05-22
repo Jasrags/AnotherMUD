@@ -36,8 +36,15 @@ type Actor interface {
 	Room() *world.Room
 	SetRoom(*world.Room)
 	// Write sends a line of output to the actor. The implementation
-	// is responsible for any line-ending conventions.
+	// is responsible for any line-ending conventions and for expanding
+	// any pack-authored color markup (see internal/ansi).
 	Write(ctx context.Context, msg string) error
+	// ColorEnabled reports whether the actor currently wants ANSI
+	// color in their output. Used by the `color` command to read
+	// state for the no-arg form.
+	ColorEnabled() bool
+	// SetColorEnabled toggles color for this actor.
+	SetColorEnabled(bool)
 }
 
 // Context carries the per-invocation arguments passed to a Handler.

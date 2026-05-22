@@ -18,6 +18,7 @@ import (
 	"sync"
 	"unicode"
 
+	"github.com/Jasrags/AnotherMUD/internal/ansi"
 	"github.com/Jasrags/AnotherMUD/internal/command"
 	"github.com/Jasrags/AnotherMUD/internal/conn"
 	"github.com/Jasrags/AnotherMUD/internal/logging"
@@ -29,6 +30,9 @@ type Config struct {
 	World    *world.World
 	Commands *command.Registry
 	StartID  world.RoomID
+	// ColorEnabled is the per-session default for ANSI color output.
+	// Wired from NO_COLOR / ANOTHERMUD_COLOR in cmd/anothermud.
+	ColorEnabled bool
 }
 
 // Handler returns a server.Handler-compatible function that runs the
@@ -46,9 +50,9 @@ func run(ctx context.Context, c conn.Connection, cfg Config) error {
 		return fmt.Errorf("session: load starting room: %w", err)
 	}
 
-	a := &connActor{id: c.ID(), conn: c, room: start}
+	a := &connActor{id: c.ID(), conn: c, room: start, colorEnabled: cfg.ColorEnabled}
 
-	if _, err := c.Write(ctx, []byte("Welcome to AnotherMUD.\r\n")); err != nil {
+	if err := a.Write(ctx, "Welcome to AnotherMUD."); err != nil {
 		return fmt.Errorf("greet: %w", err)
 	}
 	if err := a.Write(ctx, command.RenderRoom(start)); err != nil {
@@ -90,8 +94,9 @@ type connActor struct {
 	id   string
 	conn conn.Connection
 
-	mu   sync.Mutex
-	room *world.Room
+	mu           sync.Mutex
+	room         *world.Room
+	colorEnabled bool
 }
 
 func (a *connActor) ID() string { return a.id }
@@ -108,8 +113,24 @@ func (a *connActor) SetRoom(r *world.Room) {
 	a.room = r
 }
 
+func (a *connActor) ColorEnabled() bool {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	return a.colorEnabled
+}
+
+func (a *connActor) SetColorEnabled(v bool) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	a.colorEnabled = v
+}
+
+// Write expands any color markup in msg (per internal/ansi) according
+// to the actor's current color preference, then writes the rendered
+// text plus CRLF to the connection.
 func (a *connActor) Write(ctx context.Context, msg string) error {
-	_, err := a.conn.Write(ctx, []byte(msg+"\r\n"))
+	rendered := ansi.Render(msg, a.ColorEnabled())
+	_, err := a.conn.Write(ctx, []byte(rendered+"\r\n"))
 	return err
 }
 

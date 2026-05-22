@@ -210,7 +210,7 @@ Forces the pack-discovery and validation pipeline to exist.
 - [x] World, Area, Room registries are pack-populated
 - [x] At least 3-4 rooms across 2 areas defined in pack files (`content/core/` ships town + wilderness, 4 rooms)
 - [x] Reload story documented (even if "restart the server" for now) — see **Reload story** below
-- [ ] ANSI 16-color SGR support: small `internal/ansi` package (or equivalent) provides color helpers + a markup-or-helper format usable in pack-authored room text. Renderer applies it; per-session "color enabled?" flag exists (default on; off when `NO_COLOR` is set in the environment or the player runs `color off`). Plain-text fallback verified by integration test.
+- [x] ANSI 16-color SGR support: small `internal/ansi` package (or equivalent) provides color helpers + a markup-or-helper format usable in pack-authored room text. Renderer applies it; per-session "color enabled?" flag exists (default on; off when `NO_COLOR` is set in the environment or the player runs `color off`). Plain-text fallback verified by integration test.
 
 **Reload story (M2):** restart the process. Hot reload is deliberately
 deferred — the loader is single-shot at boot, and `world.World` is not

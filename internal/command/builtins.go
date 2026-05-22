@@ -20,6 +20,7 @@ func RegisterBuiltins(r *Registry) error {
 	}{
 		{"look", LookHandler},
 		{"quit", QuitHandler},
+		{"color", ColorHandler},
 	}
 	for _, d := range []world.Direction{
 		world.DirNorth, world.DirSouth, world.DirEast, world.DirWest,
@@ -53,6 +54,31 @@ func LookHandler(ctx context.Context, c *Context) error {
 		return c.Actor.Write(ctx, "You float in formless void.")
 	}
 	return c.Actor.Write(ctx, RenderRoom(room))
+}
+
+// ColorHandler implements the `color` verb (spec ui-rendering-help —
+// color subset). With no argument it reports the current state; with
+// "on"/"off" it toggles the per-actor flag.
+func ColorHandler(ctx context.Context, c *Context) error {
+	if len(c.Args) == 0 {
+		state := "off"
+		if c.Actor.ColorEnabled() {
+			state = "on"
+		}
+		return c.Actor.Write(ctx, "Color is currently "+state+". Use 'color on' or 'color off'.")
+	}
+	switch strings.ToLower(c.Args[0]) {
+	case "on":
+		c.Actor.SetColorEnabled(true)
+		// Confirm in color so the user sees it took effect; the auto-reset
+		// in ansi.Render closes the sequence cleanly.
+		return c.Actor.Write(ctx, "{G}Color enabled.{x}")
+	case "off":
+		c.Actor.SetColorEnabled(false)
+		return c.Actor.Write(ctx, "Color disabled.")
+	default:
+		return c.Actor.Write(ctx, "Usage: color [on|off]")
+	}
 }
 
 // QuitHandler signals the session loop to disconnect cleanly.
