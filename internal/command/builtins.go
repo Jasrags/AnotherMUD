@@ -56,6 +56,12 @@ func LookHandler(ctx context.Context, c *Context) error {
 }
 
 // QuitHandler signals the session loop to disconnect cleanly.
+//
+// The farewell Write error is intentionally discarded: ErrQuit drives
+// the session loop to close the connection regardless of whether the
+// peer received the goodbye, and surfacing a write failure here would
+// only escalate a benign condition (peer already gone) into a warning
+// in the connection's tear-down path.
 func QuitHandler(ctx context.Context, c *Context) error {
 	_ = c.Actor.Write(ctx, "Goodbye.")
 	return ErrQuit

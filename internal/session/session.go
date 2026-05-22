@@ -14,7 +14,9 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"strings"
 	"sync"
+	"unicode"
 
 	"github.com/Jasrags/AnotherMUD/internal/command"
 	"github.com/Jasrags/AnotherMUD/internal/conn"
@@ -69,7 +71,7 @@ func run(ctx context.Context, c conn.Connection, cfg Config) error {
 			}
 		}
 
-		logging.From(ctx).Debug("input received", slog.String("line", line))
+		logging.From(ctx).Debug("input received", slog.String("line", sanitizeForLog(line)))
 
 		if err := cfg.Commands.Dispatch(ctx, cfg.World, a, line); err != nil {
 			if errors.Is(err, command.ErrQuit) {
@@ -109,4 +111,23 @@ func (a *connActor) SetRoom(r *world.Room) {
 func (a *connActor) Write(ctx context.Context, msg string) error {
 	_, err := a.conn.Write(ctx, []byte(msg+"\r\n"))
 	return err
+}
+
+// sanitizeForLog scrubs raw client input before it lands in a structured
+// log record. The peer is unauthenticated and can send arbitrary bytes,
+// including ANSI escapes or other control characters that could corrupt
+// downstream log viewers or hide content from operators. We coerce to
+// valid UTF-8 and replace any C0/C1 control rune (except tab) with U+FFFD
+// before the value reaches slog.
+func sanitizeForLog(s string) string {
+	s = strings.ToValidUTF8(s, string(unicode.ReplacementChar))
+	return strings.Map(func(r rune) rune {
+		if r == '\t' {
+			return r
+		}
+		if unicode.IsControl(r) {
+			return unicode.ReplacementChar
+		}
+		return r
+	}, s)
 }

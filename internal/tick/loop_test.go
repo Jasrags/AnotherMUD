@@ -30,11 +30,12 @@ func TestLoop_HandlerFiresOnCadence(t *testing.T) {
 
 	// Six ticks: handler "every1" fires 6 times, "every3" fires 2 times
 	// (at tick 3 and tick 6). Advance one tick at a time and wait for
-	// the loop to consume each before issuing the next so we don't
-	// collide with the ticker channel's drop-on-full semantics.
-	for i := uint64(1); i <= 6; i++ {
+	// every1 (the always-fires handler) to reflect that tick before
+	// issuing the next — this proves the tick's handlers have all run,
+	// since handlers fire in registration order on each tick.
+	for i := int64(1); i <= 6; i++ {
 		m.Advance(100 * time.Millisecond)
-		waitFor(t, func() bool { return loop.TickCount() >= i })
+		waitFor(t, func() bool { return every1.Load() >= i })
 	}
 
 	if got := every1.Load(); got != 6 {
@@ -111,9 +112,11 @@ func TestLoop_PanicIsIsolated(t *testing.T) {
 	go func() { defer wg.Done(); _ = loop.Run(ctx) }()
 	<-loop.Ready()
 
-	for i := uint64(1); i <= 3; i++ {
+	// sane is registered after bomb, so once sane reflects tick i the
+	// loop is guaranteed to have caught bomb's panic and moved on.
+	for i := int64(1); i <= 3; i++ {
 		m.Advance(time.Millisecond)
-		waitFor(t, func() bool { return loop.TickCount() >= i })
+		waitFor(t, func() bool { return sane.Load() >= i })
 	}
 	if got := sane.Load(); got != 3 {
 		t.Fatalf("sane handler fired %d times, want 3", got)
@@ -149,14 +152,24 @@ func mustRegister(t *testing.T, loop *tick.Loop, name string, interval uint64, h
 	}
 }
 
+// waitFor polls cond until it returns true or the timeout fires. It
+// uses only relative timers (time.After / time.NewTicker) — never
+// time.Now — so the tick package's own tests stay consistent with the
+// F3 convention that engine packages don't read wall-clock time
+// directly.
 func waitFor(t *testing.T, cond func() bool) {
 	t.Helper()
-	deadline := time.Now().Add(2 * time.Second)
-	for time.Now().Before(deadline) {
+	timeout := time.After(2 * time.Second)
+	poll := time.NewTicker(2 * time.Millisecond)
+	defer poll.Stop()
+	for {
 		if cond() {
 			return
 		}
-		time.Sleep(2 * time.Millisecond)
+		select {
+		case <-timeout:
+			t.Fatal("timeout waiting for condition")
+		case <-poll.C:
+		}
 	}
-	t.Fatal("timeout waiting for condition")
 }
