@@ -295,13 +295,48 @@ on a small surface now beats debugging races in M6 combat.
 
 ---
 
-### Beyond M4
+### M5 — Inventory & items
 
-The exact ordering past M4 is less load-bearing because the substrate
+**Slice:** items exist as first-class entities. A player can pick up
+a sword in town-square, look at their inventory, drop it, give it to
+another player, equip it, and have all of that survive logout. First
+content registry past rooms/areas, first mutable non-room entity, first
+player-save migration.
+
+**Why this:** every later milestone assumes items exist. Mobs (M6)
+drop loot, combat (M7) consumes weapons and armor, abilities (M9)
+target items, economy (M11) moves currency items. Keyword resolution
+(`get 2.sword`, `look red potion`) is the parser every later command
+will reuse for targeting. Getting the entity-instance model right
+here sets the shape M6 mob instances will follow.
+
+**Exit criteria:**
+- [ ] Item template registry loads from packs alongside rooms/areas; templates carry id, name, type, tags, keywords, property bag, modifier list per `inventory-equipment-items` §2.1–§2.2. `content/core/` ships at least one weapon, one wearable, one container, and one stackable consumable.
+- [ ] Item instantiation produces fresh entities with runtime ids distinct from template ids, transient `modifiers` rebuilt from template on load, `room_id` filtered out, modifier source keys tagged by entity id per §2.3. Two instances of the same template never collide.
+- [ ] Item instances are tracked in a global entity index per `world-rooms-movement` §4: Track/Untrack on instantiation/destruction, Get-by-id resolves tracked → room-scan fallback, Get-by-tag uses the read/write double-buffer with a swap at the tick boundary, Get-by-type filters the tracked set.
+- [ ] Slot registry accepts engine-baseline and pack-defined slots; snake_case enforced at registration; multi-cap slots use `name:index` keys packed from zero per §3.1–§3.2.
+- [ ] `equip` / `unequip` move items between holder contents and equipment, apply/reverse stat modifiers by `equipment:<entity id>` source key, auto-swap on full slot, emit `entity equipped` / `entity unequipped` with base slot name per §3.3–§3.4.
+- [ ] Inventory operations `get` / `drop` / `give` / `put` / `fill` validate atomically, emit one observable event each, return structured failure reasons per §4. Two-actor transfers (give, put) hold session locks in a consistent order — no deadlocks under race detector.
+- [ ] Stacking service groups contents read-only (no entity merging), respects extension-key registration order, preserves first-seen position per §5.1–§5.2. Look-at-inventory renders "3 healing potions" instead of three lines.
+- [ ] Keyword resolver handles `sword`, `red potion`, `2.ring`, `all`, `all.gem` with exact → prefix → substring precedence per §6; out-of-range ordinals return none; empty input never matches. Shared by every command that takes an item argument.
+- [ ] Player save shape adds `inventory` (item entity list) and `equipment` (slot key → item entity) blocks. `player.CurrentVersion` bumps 1 → 2 and the first real entry lands in the migration table; v1 saves load cleanly (empty inventory, empty equipment).
+- [ ] Race detector clean: `make test` stays green with stress tests covering concurrent get/drop/give between sessions in the same room.
+
+**Touches specs:** `inventory-equipment-items` substantially, `commands-and-dispatch` (new builtins + keyword resolver as shared infrastructure), `persistence` (save shape v2 + migration), `world-rooms-movement` (rooms hold item ids).
+
+**Known gaps after M5:** no shops, no currency auto-conversion (that's M11 — the `try-auto-convert` hook in §4.1 is a no-op stub for now), no rarity/essence colorization beyond plain text, no container weight limits enforced at runtime, no fillable-item sources placed in content.
+
+**Open decision before coding:** where item instances live. The global entity index required by `world-rooms-movement` §4 (Track/Untrack, Get-by-id, Get-by-tag, Get-by-type, with read/write double-buffer for tick consistency) has to land in M5 regardless, which rules out a pure denormalized-on-Room/Player layout. Two remaining homes:
+(a) extend `world.World` with the tracking machinery — cheapest but gives up World's boot-only-mutation invariant and pulls World's mutex into hot paths it currently doesn't touch.
+(b) a new `internal/entities` package that owns the index now and absorbs mob instances in M6 — more upfront work, cleanest separation, lines up with how the spec README distinguishes registries from tracked entities.
+
+---
+
+### Beyond M5
+
+The exact ordering past M5 is less load-bearing because the substrate
 is now real. Sketch of remaining vertical slices:
 
-- **M5 — Inventory & items:** `inventory-equipment-items`, slot system,
-  keyword resolution.
 - **M6 — Mobs walking around:** `mobs-ai-spawning`, mob templates,
   area-driven spawning, the AI tick.
 - **M7 — Hit something:** `combat`, engage/disengage, the heartbeat
