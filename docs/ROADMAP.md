@@ -287,7 +287,7 @@ on a small surface now beats debugging races in M6 combat.
 - [x] Idle timeout disconnects per `session-lifecycle` §5 (M4.3: per-session lastInputAt + warned latch + tick handler at cadence 300; admin-tag exemption deferred until a role system exists)
 - [x] Link-dead detection per `session-lifecycle` §7 (M4.4: phase enum on connActor, RemoveConnectionOnly / ReRegisterConnectionForSession on Manager, linkdead-cleanup tick handler at cadence 300, login reconnect path; Disabled fallback path preserved for tests)
 - [x] Takeover (same account logs in twice) handled per `session-lifecycle` spec (M4.5: yes/no prompt on new conn when existing session is in Playing phase; performTakeover notifies + Removes + closes old conn; takenOver latch short-circuits the stale dispatchTeardown so the old conn's eventual EOF cannot tear down indices the new session now owns)
-- [ ] Race detector clean: `make test` (which uses `-race`) stays green under load
+- [x] Race detector clean: `make test` (which uses `-race`) stays green under load (M4.6: stress tests in internal/session/stress_test.go exercise concurrent Add/Remove/SetRoom/SendToRoom/SendToAll/GetBy* across goroutines for a wall-budgeted run, plus 200×8-goroutine takeover-claim contention; both gated behind testing.Short() so the default suite stays fast)
 
 **Touches specs:** `session-lifecycle` substantially, `world-rooms-movement` (entity tracking layer).
 
