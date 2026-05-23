@@ -133,6 +133,53 @@ func TestIdleSweep_TimeoutClosesConn(t *testing.T) {
 	}
 }
 
+// A second sweep that arrives before the read loop has unwound the
+// disconnect MUST NOT re-deliver the timeout message or re-close the
+// connection.
+func TestIdleSweep_TimeoutIsIdempotent(t *testing.T) {
+	mgr, mc, _, fc := newIdleRig(t)
+	cfg := IdleConfig{
+		WarnAfter:      5 * time.Second,
+		TimeoutAfter:   10 * time.Second,
+		WarnMessage:    "warn",
+		TimeoutMessage: "GOODBYE",
+	}
+	mc.Advance(11 * time.Second)
+	mgr.IdleSweep(context.Background(), cfg, mc)
+	mgr.IdleSweep(context.Background(), cfg, mc) // second sweep, same state
+
+	goodbyes := 0
+	for _, s := range fc.writes() {
+		if strings.Contains(s, "GOODBYE") {
+			goodbyes++
+		}
+	}
+	if goodbyes != 1 {
+		t.Errorf("timeout message delivered %d times, want 1", goodbyes)
+	}
+}
+
+// A misconfigured policy (WarnAfter >= TimeoutAfter) must not produce
+// a warn message — the timeout fires first. We don't assert the slog
+// output but we do assert no warn was emitted.
+func TestIdleSweep_InvertedThresholdsSkipsWarn(t *testing.T) {
+	mgr, mc, _, fc := newIdleRig(t)
+	cfg := IdleConfig{
+		WarnAfter:      10 * time.Second,
+		TimeoutAfter:   5 * time.Second, // inverted
+		WarnMessage:    "WARN",
+		TimeoutMessage: "BYE",
+	}
+	mc.Advance(11 * time.Second)
+	mgr.IdleSweep(context.Background(), cfg, mc)
+
+	for _, s := range fc.writes() {
+		if strings.Contains(s, "WARN") {
+			t.Errorf("inverted-threshold sweep delivered warn: %q", s)
+		}
+	}
+}
+
 // A first-tick session (lastInputAt unset) is never timed out. Guards
 // against the case where the sweep fires before run() initializes
 // lastInputAt.

@@ -41,7 +41,6 @@ type testRig struct {
 type rigOpts struct {
 	color bool
 	flood session.FloodConfig
-	idle  session.IdleConfig
 	clk   clock.Clock
 }
 
@@ -77,7 +76,6 @@ func startRigOpts(t *testing.T, w *world.World, startID world.RoomID, opts rigOp
 		StartID:      startID,
 		ColorEnabled: opts.color,
 		Flood:        opts.flood,
-		Idle:         opts.idle,
 		Clock:        opts.clk,
 		Login: login.Config{
 			Accounts:        accs,
@@ -254,10 +252,13 @@ func TestSessionEndToEnd(t *testing.T) {
 	d.drainUntil("Goodbye.")
 }
 
-// TestSessionIdleTimeoutDisconnects is the M4.3 integration check:
-// a logged-in client who sits silent past TimeoutAfter must receive
-// the timeout message and have the TCP connection torn down. Uses
-// ManualClock so the test doesn't have to actually wait minutes.
+// TestSessionIdleTimeoutDisconnects is the M4.3 end-to-end check that
+// the IdleSweep → write → conn.Close → read loop unwind chain works
+// through a real TCP socket. Uses ManualClock so the test doesn't
+// have to wait minutes. Note: this test drives IdleSweep manually
+// rather than going through the tick loop — the tick-handler wiring
+// in main.go is intentionally not exercised here, just the session
+// teardown path.
 func TestSessionIdleTimeoutDisconnects(t *testing.T) {
 	w := world.New()
 	r := &world.Room{ID: "a", Name: "Room", Description: "."}
@@ -270,7 +271,7 @@ func TestSessionIdleTimeoutDisconnects(t *testing.T) {
 		WarnMessage:    "(Idle warning.)",
 		TimeoutMessage: "Disconnected: idle timeout.",
 	}
-	rig := startRigOpts(t, w, r.ID, rigOpts{idle: idle, clk: mc})
+	rig := startRigOpts(t, w, r.ID, rigOpts{clk: mc})
 	defer rig.stop(t)
 
 	d := dial(t, rig.ln.Addr().String())

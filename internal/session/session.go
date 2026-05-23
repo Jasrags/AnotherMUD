@@ -57,11 +57,6 @@ type Config struct {
 	// flood protection (the test default). Production wires
 	// DefaultFloodConfig.
 	Flood FloodConfig
-
-	// Idle is the warn / disconnect policy for inactive sessions. Zero
-	// WarnAfter and zero TimeoutAfter disable idle handling entirely
-	// (the test default). See docs/specs/session-lifecycle.md §5.
-	Idle IdleConfig
 }
 
 // Handler returns a server.Handler-compatible function that drives one
@@ -229,15 +224,16 @@ type connActor struct {
 
 	players *player.Store
 
-	mu           sync.Mutex
-	room         *world.Room
-	colorEnabled bool
-	save         *player.Save
-	dirty        bool
-	manager      *Manager
-	flood        *floodGate
-	lastInputAt  time.Time
-	idleWarned   bool
+	mu            sync.Mutex
+	room          *world.Room
+	colorEnabled  bool
+	save          *player.Save
+	dirty         bool
+	manager       *Manager
+	flood         *floodGate
+	lastInputAt   time.Time
+	idleWarned    bool
+	disconnecting bool // set when teardown (idle, flood, etc.) is in flight
 }
 
 func (a *connActor) ID() string { return a.id }

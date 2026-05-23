@@ -133,7 +133,6 @@ func run() error {
 		ColorEnabled: cfg.ColorDefault,
 		Clock:        clk,
 		Flood:        session.DefaultFloodConfig(),
-		Idle:         idleCfg,
 		Login: login.Config{
 			Accounts:        accounts,
 			Players:         players,

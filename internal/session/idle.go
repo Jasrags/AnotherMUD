@@ -39,11 +39,13 @@ func (c IdleConfig) disabled() bool {
 }
 
 // IdleSweep walks every active session and applies the idle policy:
-//   - If a session has been silent ≥ TimeoutAfter, send the timeout
-//     message and Close() the connection. The session's read loop
-//     unwinds naturally on the next Read error, taking the normal
-//     teardown path (Remove from manager + Persist + departure
-//     broadcast).
+//   - If a session has been silent ≥ TimeoutAfter, latch the actor's
+//     disconnecting flag, send the timeout message, and Close() the
+//     connection. The session's read loop unwinds naturally on the
+//     next Read error, taking the normal teardown path (Remove from
+//     manager + Persist + departure broadcast). The latch makes the
+//     timeout idempotent: a sweep that fires again before the read
+//     loop has unwound will not re-deliver the message or re-close.
 //   - Else if silent ≥ WarnAfter AND not previously warned, send the
 //     warn message and set the per-session idle-warned flag.
 //
@@ -52,11 +54,21 @@ func (c IdleConfig) disabled() bool {
 // the actor's mutex-protected lastInputAt so a concurrent input that
 // just landed cannot be racily timed out.
 //
+// Misconfiguration guard: when WarnAfter ≥ TimeoutAfter and both are
+// positive, the warn step is unreachable (the timeout check fires
+// first). The first sweep that observes this logs a warning so an
+// operator notices instead of silently losing the two-step sequence.
+//
 // Admin-tag exemption (spec §5.2 step 2) is deferred — the engine
 // has no role system yet.
 func (m *Manager) IdleSweep(ctx context.Context, cfg IdleConfig, clk clock.Clock) {
 	if cfg.disabled() {
 		return
+	}
+	if cfg.WarnAfter > 0 && cfg.TimeoutAfter > 0 && cfg.WarnAfter >= cfg.TimeoutAfter {
+		logging.From(ctx).Warn("idle: WarnAfter >= TimeoutAfter; warning will never fire",
+			slog.Duration("warn_after", cfg.WarnAfter),
+			slog.Duration("timeout_after", cfg.TimeoutAfter))
 	}
 	if clk == nil {
 		clk = clock.RealClock{}
@@ -102,18 +114,28 @@ const (
 )
 
 // idleDecision evaluates one actor against the policy. Takes the actor
-// lock to read lastInputAt and (on warn) flip idleWarned.
+// lock to read lastInputAt and to atomically flip both idleWarned and
+// disconnecting so two sweeps cannot double-warn or double-disconnect
+// the same session.
 func (a *connActor) idleDecision(now time.Time, cfg IdleConfig) idleAction {
 	a.mu.Lock()
 	defer a.mu.Unlock()
+	if a.disconnecting {
+		// Already on the way out; the read loop just hasn't unwound
+		// yet. Stay silent.
+		return idleQuiet
+	}
 	if a.lastInputAt.IsZero() {
-		// Session hasn't recorded its first tick yet. Treat as fresh
-		// so the very first sweep can't disconnect a just-spawned
-		// session that hasn't had a chance to type.
+		// Defensive: run() sets lastInputAt at construction, so a
+		// production actor never observes the zero value here. The
+		// guard exists for test setup that bypasses run() and for
+		// any future code path that adds an actor to the manager
+		// before recording its first tick.
 		return idleQuiet
 	}
 	idle := now.Sub(a.lastInputAt)
 	if cfg.TimeoutAfter > 0 && idle >= cfg.TimeoutAfter {
+		a.disconnecting = true
 		return idleTimeout
 	}
 	if cfg.WarnAfter > 0 && idle >= cfg.WarnAfter && !a.idleWarned {
