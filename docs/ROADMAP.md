@@ -283,7 +283,7 @@ on a small surface now beats debugging races in M6 combat.
 **Exit criteria:**
 - [x] `SessionManager` tracks active sessions with concurrency-safe access (M4.1: multi-index byConn/byPlayerID/byName/byAccount/byRoom under RWMutex)
 - [x] Player A sees "B has arrived" when B enters their room (M4.1)
-- [ ] Flood protection rejects abusive input rates per `session-lifecycle` §flood
+- [x] Flood protection rejects abusive input rates per `session-lifecycle` §flood (M4.2: per-session token bucket, strike threshold disconnects)
 - [ ] Idle timeout disconnects per `session-lifecycle` §5
 - [ ] Link-dead detection per `session-lifecycle` §7
 - [ ] Takeover (same account logs in twice) handled per `session-lifecycle` spec

@@ -19,6 +19,7 @@ import (
 	"unicode"
 
 	"github.com/Jasrags/AnotherMUD/internal/ansi"
+	"github.com/Jasrags/AnotherMUD/internal/clock"
 	"github.com/Jasrags/AnotherMUD/internal/command"
 	"github.com/Jasrags/AnotherMUD/internal/conn"
 	"github.com/Jasrags/AnotherMUD/internal/logging"
@@ -45,6 +46,16 @@ type Config struct {
 	// Manager tracks logged-in sessions for autosave + shutdown sweeps.
 	// Required.
 	Manager *Manager
+
+	// Clock is the time source for time-dependent session machinery
+	// (flood protection refill, idle timeouts). Defaults to
+	// clock.RealClock when nil so existing tests don't have to wire it.
+	Clock clock.Clock
+
+	// Flood is the per-session rate-limit policy. Zero value disables
+	// flood protection (the test default). Production wires
+	// DefaultFloodConfig.
+	Flood FloodConfig
 }
 
 // Handler returns a server.Handler-compatible function that drives one
@@ -76,6 +87,10 @@ func run(ctx context.Context, c conn.Connection, cfg Config) error {
 		return fmt.Errorf("session: resolve start room: %w", err)
 	}
 
+	clk := cfg.Clock
+	if clk == nil {
+		clk = clock.RealClock{}
+	}
 	a := &connActor{
 		id:           c.ID(),
 		conn:         c,
@@ -83,6 +98,7 @@ func run(ctx context.Context, c conn.Connection, cfg Config) error {
 		colorEnabled: cfg.ColorEnabled,
 		save:         loaded.Player,
 		players:      cfg.Players,
+		flood:        newFloodGate(cfg.Flood, clk),
 	}
 
 	// Keep the save's location in sync with the room we actually placed
@@ -139,6 +155,20 @@ func run(ctx context.Context, c conn.Connection, cfg Config) error {
 
 		logging.From(ctx).Debug("input received", slog.String("line", sanitizeForLog(line)))
 
+		// Flood gate runs before dispatch. The sendSlow callback must
+		// not loop back through the gate; Write bypasses it.
+		switch a.flood.Check(func(s string) { _ = a.Write(ctx, s) }) {
+		case floodAllow:
+			// proceed
+		case floodDrop:
+			continue
+		case floodDisconnect:
+			_ = a.Write(ctx, "Disconnected: command flooding.")
+			logging.From(ctx).Warn("session: disconnect on flood threshold",
+				slog.String("player", a.PlayerName()))
+			return nil
+		}
+
 		if err := cfg.Commands.Dispatch(ctx, cfg.World, cfg.Manager, a, line); err != nil {
 			if errors.Is(err, command.ErrQuit) {
 				return nil
@@ -177,6 +207,7 @@ type connActor struct {
 	save         *player.Save
 	dirty        bool
 	manager      *Manager
+	flood        *floodGate
 }
 
 func (a *connActor) ID() string { return a.id }

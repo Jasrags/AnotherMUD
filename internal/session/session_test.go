@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"net"
 	"strings"
 	"testing"
@@ -36,6 +37,10 @@ type testRig struct {
 }
 
 func startRig(t *testing.T, w *world.World, startID world.RoomID, color bool) *testRig {
+	return startRigWithFlood(t, w, startID, color, session.FloodConfig{})
+}
+
+func startRigWithFlood(t *testing.T, w *world.World, startID world.RoomID, color bool, flood session.FloodConfig) *testRig {
 	t.Helper()
 	dir := t.TempDir()
 	accs, err := account.NewService(dir, account.WithBcryptCost(account.MinBcryptCostForTests))
@@ -58,6 +63,7 @@ func startRig(t *testing.T, w *world.World, startID world.RoomID, color bool) *t
 		Manager:      mgr,
 		StartID:      startID,
 		ColorEnabled: color,
+		Flood:        flood,
 		Login: login.Config{
 			Accounts:        accs,
 			Players:         plrs,
@@ -230,6 +236,59 @@ func TestSessionEndToEnd(t *testing.T) {
 	d.drainUntil("Huh?")
 	d.writeLine("quit")
 	d.drainUntil("Goodbye.")
+}
+
+// TestSessionFloodDisconnect is the M4.2 integration check: an abusive
+// client whose input rate blows past the bucket should receive
+// "Slow down." and ultimately be disconnected with the canonical
+// "Disconnected: command flooding." message.
+func TestSessionFloodDisconnect(t *testing.T) {
+	w := world.New()
+	r := &world.Room{ID: "a", Name: "Room", Description: "."}
+	w.AddRoom(r)
+
+	// Tiny config: 1 token burst, very slow refill so consecutive
+	// inputs strike out fast.
+	flood := session.FloodConfig{
+		CommandsPerSecond:  0.01,
+		BurstSize:          1,
+		StrikeThreshold:    2,
+		StrikeDecaySeconds: 30,
+	}
+	rig := startRigWithFlood(t, w, r.ID, false, flood)
+	defer rig.stop(t)
+
+	d := dial(t, rig.ln.Addr().String())
+	defer d.close()
+	d.loginNew("Mallory", "mallory@example.com", "hunter22")
+	d.drainUntil("Room")
+
+	// First "look" consumes the only token (allow). Subsequent inputs
+	// strike: drop+warn, then drop+disconnect.
+	d.writeLine("look")
+	d.drainUntil("Room")
+	d.writeLine("look")
+	d.drainUntil("Slow down.")
+	d.writeLine("look")
+	d.drainUntil("Disconnected: command flooding.")
+
+	// Server closes the connection after the message; subsequent reads
+	// should hit EOF promptly.
+	_ = d.c.SetReadDeadline(time.Now().Add(2 * time.Second))
+	buf := make([]byte, 64)
+	if _, err := d.c.Read(buf); err == nil || !(errors.Is(err, io.EOF) || isNetClosed(err)) {
+		t.Errorf("expected EOF after flood disconnect, got err=%v", err)
+	}
+}
+
+func isNetClosed(err error) bool {
+	if err == nil {
+		return false
+	}
+	// net.OpError wrapping "use of closed network connection" or
+	// reset-by-peer also counts as the server tearing down.
+	return strings.Contains(err.Error(), "closed") ||
+		strings.Contains(err.Error(), "reset")
 }
 
 // TestTwoPlayersSeeEachOther is the M4.1 visible-payoff test:

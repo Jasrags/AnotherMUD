@@ -122,6 +122,8 @@ func run() error {
 		Manager:      mgr,
 		StartID:      cfg.StartRoom,
 		ColorEnabled: cfg.ColorDefault,
+		Clock:        clock.RealClock{},
+		Flood:        session.DefaultFloodConfig(),
 		Login: login.Config{
 			Accounts:        accounts,
 			Players:         players,
