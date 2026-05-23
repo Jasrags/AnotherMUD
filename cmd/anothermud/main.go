@@ -1,11 +1,9 @@
 // Command anothermud is the MUD server entrypoint.
 //
-// M2 scope: configure logging, install signal-cancelled root ctx,
-// load the content packs into a world, start the tick loop, open a TCP
-// listener, hand it to server.Serve with the session handler.
-// Replaced piece by piece as later milestones land (M3 wires
-// persistence and login; M4 splits the session manager out of the
-// connection layer).
+// M3 scope: configure logging, install signal-cancelled root ctx, load
+// content packs into a world, open the account+player stores, start the
+// tick loop with an autosave handler, open a TCP listener, hand it to
+// server.Serve with the session handler (which now runs login first).
 package main
 
 import (
@@ -21,10 +19,13 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/Jasrags/AnotherMUD/internal/account"
 	"github.com/Jasrags/AnotherMUD/internal/clock"
 	"github.com/Jasrags/AnotherMUD/internal/command"
 	"github.com/Jasrags/AnotherMUD/internal/logging"
+	"github.com/Jasrags/AnotherMUD/internal/login"
 	"github.com/Jasrags/AnotherMUD/internal/pack"
+	"github.com/Jasrags/AnotherMUD/internal/player"
 	"github.com/Jasrags/AnotherMUD/internal/server"
 	"github.com/Jasrags/AnotherMUD/internal/session"
 	"github.com/Jasrags/AnotherMUD/internal/tick"
@@ -69,17 +70,28 @@ func run() error {
 		return fmt.Errorf("starting room %q not in loaded world: %w", cfg.StartRoom, err)
 	}
 
+	accounts, err := account.NewService(cfg.SaveDir)
+	if err != nil {
+		return fmt.Errorf("open account store: %w", err)
+	}
+	players, err := player.NewStore(cfg.SaveDir)
+	if err != nil {
+		return fmt.Errorf("open player store: %w", err)
+	}
+
 	cmds := command.New()
 	if err := command.RegisterBuiltins(cmds); err != nil {
 		return fmt.Errorf("register builtins: %w", err)
 	}
 
+	mgr := session.NewManager()
+
 	loop := tick.New(clock.RealClock{}, cfg.TickInterval)
-	// M1 has no real tick consumers yet; register a no-op so the loop
-	// has something to demonstrate the seam. Removed when the first
-	// genuine handler (mob AI, autosave, …) arrives.
-	if err := loop.Register("noop", 1, func(ctx context.Context, n uint64) {}); err != nil {
-		return fmt.Errorf("register noop tick: %w", err)
+	autosaveInterval := autosaveTicks(cfg.TickInterval, cfg.AutosaveInterval)
+	if err := loop.Register("autosave", autosaveInterval, func(ctx context.Context, n uint64) {
+		mgr.SaveAll(ctx)
+	}); err != nil {
+		return fmt.Errorf("register autosave tick: %w", err)
 	}
 
 	var wg sync.WaitGroup
@@ -96,7 +108,9 @@ func run() error {
 		slog.String("log_format", cfg.LogFormat),
 		slog.String("log_level", cfg.LogLevel),
 		slog.Duration("tick_interval", cfg.TickInterval),
+		slog.Duration("autosave_interval", cfg.AutosaveInterval),
 		slog.String("content_dir", cfg.ContentDir),
+		slog.String("save_dir", cfg.SaveDir),
 		slog.String("start_room", string(cfg.StartRoom)),
 		slog.Bool("color_default", cfg.ColorDefault),
 	)
@@ -104,47 +118,77 @@ func run() error {
 	handler := session.Handler(session.Config{
 		World:        w,
 		Commands:     cmds,
+		Players:      players,
+		Manager:      mgr,
 		StartID:      cfg.StartRoom,
 		ColorEnabled: cfg.ColorDefault,
+		Login: login.Config{
+			Accounts:        accounts,
+			Players:         players,
+			DefaultLocation: string(cfg.StartRoom),
+		},
 	})
 	srv := &server.Server{Handler: handler}
-	if err := srv.Serve(ctx, ln); err != nil && !errors.Is(err, server.ErrServerClosed) {
-		return fmt.Errorf("serve: %w", err)
-	}
+	serveErr := srv.Serve(ctx, ln)
+
+	// Final flush so anyone still in-world has their state committed
+	// even if they didn't disconnect cleanly. Uses a fresh ctx that is
+	// not already cancelled.
+	flushCtx, cancelFlush := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)
+	mgr.SaveAll(flushCtx)
+	cancelFlush()
 
 	wg.Wait()
+	if serveErr != nil && !errors.Is(serveErr, server.ErrServerClosed) {
+		return fmt.Errorf("serve: %w", serveErr)
+	}
 	logging.From(ctx).Info("anothermud stopped cleanly")
 	return nil
 }
 
-// config is the M0 config knobs — env-only until we have more than
+// autosaveTicks converts a wall-clock interval into a tick cadence,
+// honoring the tick interval. Returns at least 1 so a misconfigured
+// interval doesn't trip tick.Register's > 0 check.
+func autosaveTicks(tickInterval, autosaveInterval time.Duration) uint64 {
+	if tickInterval <= 0 || autosaveInterval <= 0 {
+		return 1
+	}
+	n := uint64(autosaveInterval / tickInterval)
+	if n == 0 {
+		return 1
+	}
+	return n
+}
+
+// config is the M3 config knobs — env-only until we have more than
 // ~5 of them per the ROADMAP "not front-loaded" list.
 type config struct {
-	Addr         string
-	LogLevel     string
-	LogFormat    string
-	TickInterval time.Duration
-	ContentDir   string
-	StartRoom    world.RoomID
-	ColorDefault bool
+	Addr             string
+	LogLevel         string
+	LogFormat        string
+	TickInterval     time.Duration
+	AutosaveInterval time.Duration
+	ContentDir       string
+	SaveDir          string
+	StartRoom        world.RoomID
+	ColorDefault     bool
 }
 
 func loadConfig() config {
 	return config{
-		Addr:         envOr("ANOTHERMUD_ADDR", ":4000"),
-		LogLevel:     strings.ToLower(envOr("ANOTHERMUD_LOG_LEVEL", "info")),
-		LogFormat:    strings.ToLower(envOr("ANOTHERMUD_LOG_FORMAT", "text")),
-		TickInterval: envDurationOr("ANOTHERMUD_TICK_INTERVAL", 100*time.Millisecond),
-		ContentDir:   envOr("ANOTHERMUD_CONTENT_DIR", "./content"),
-		StartRoom:    world.RoomID(envOr("ANOTHERMUD_START_ROOM", "tapestry-core:town-square")),
-		ColorDefault: colorDefault(),
+		Addr:             envOr("ANOTHERMUD_ADDR", ":4000"),
+		LogLevel:         strings.ToLower(envOr("ANOTHERMUD_LOG_LEVEL", "info")),
+		LogFormat:        strings.ToLower(envOr("ANOTHERMUD_LOG_FORMAT", "text")),
+		TickInterval:     envDurationOr("ANOTHERMUD_TICK_INTERVAL", 100*time.Millisecond),
+		AutosaveInterval: envDurationOr("ANOTHERMUD_AUTOSAVE_INTERVAL", 30*time.Second),
+		ContentDir:       envOr("ANOTHERMUD_CONTENT_DIR", "./content"),
+		SaveDir:          envOr("ANOTHERMUD_SAVE_DIR", "./saves"),
+		StartRoom:        world.RoomID(envOr("ANOTHERMUD_START_ROOM", "tapestry-core:town-square")),
+		ColorDefault:     colorDefault(),
 	}
 }
 
-// colorDefault honors the NO_COLOR convention (https://no-color.org)
-// for the per-session color default: if NO_COLOR is set to any
-// non-empty value, color is off by default for new connections.
-// Individual players can still re-enable with `color on`.
+// colorDefault honors the NO_COLOR convention.
 func colorDefault() bool {
 	if v, ok := os.LookupEnv("NO_COLOR"); ok && v != "" {
 		return false

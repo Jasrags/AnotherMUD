@@ -1,11 +1,11 @@
 // Package session bridges the connection layer (internal/conn) to the
-// command dispatcher (internal/command) and the world (internal/world).
+// command dispatcher (internal/command), the world (internal/world), and
+// the M3 login + persistence layer.
 //
-// In M1 a "session" is the thinnest possible thing: one accepted
-// connection, one player in one room, one read→dispatch→render loop.
-// docs/specs/session-lifecycle.md splits PlayerSession from Connection
-// properly in M4; what lives here today is the seam that loop will
-// occupy.
+// In M3 a session is still one connection ↔ one character, but logged-
+// in characters are tracked in a Manager so autosave and shutdown can
+// iterate them. The connection/session split proper lands in M4 per
+// docs/specs/session-lifecycle.md.
 package session
 
 import (
@@ -22,6 +22,8 @@ import (
 	"github.com/Jasrags/AnotherMUD/internal/command"
 	"github.com/Jasrags/AnotherMUD/internal/conn"
 	"github.com/Jasrags/AnotherMUD/internal/logging"
+	"github.com/Jasrags/AnotherMUD/internal/login"
+	"github.com/Jasrags/AnotherMUD/internal/player"
 	"github.com/Jasrags/AnotherMUD/internal/world"
 )
 
@@ -29,15 +31,24 @@ import (
 type Config struct {
 	World    *world.World
 	Commands *command.Registry
-	StartID  world.RoomID
+	Players  *player.Store
+	Login    login.Config
+
+	// StartID is the fallback starting room when a character's saved
+	// location is not present in the loaded world (e.g. a room was
+	// removed from content between restarts).
+	StartID world.RoomID
+
 	// ColorEnabled is the per-session default for ANSI color output.
-	// Wired from NO_COLOR / ANOTHERMUD_COLOR in cmd/anothermud.
 	ColorEnabled bool
+
+	// Manager tracks logged-in sessions for autosave + shutdown sweeps.
+	// Required.
+	Manager *Manager
 }
 
-// Handler returns a server.Handler-compatible function that runs the
-// M1 game loop on each accepted connection. It is a method-less builder
-// so the server package does not need to depend on this package.
+// Handler returns a server.Handler-compatible function that drives one
+// connection through login and into the game loop.
 func Handler(cfg Config) func(ctx context.Context, c conn.Connection) error {
 	return func(ctx context.Context, c conn.Connection) error {
 		return run(ctx, c, cfg)
@@ -45,19 +56,59 @@ func Handler(cfg Config) func(ctx context.Context, c conn.Connection) error {
 }
 
 func run(ctx context.Context, c conn.Connection, cfg Config) error {
-	start, err := cfg.World.Room(cfg.StartID)
+	loaded, err := login.Run(ctx, c, cfg.Login)
 	if err != nil {
-		return fmt.Errorf("session: load starting room: %w", err)
+		if errors.Is(err, login.ErrAborted) {
+			return nil
+		}
+		// ErrPasswordCap / ErrEmailCap are terminal but not actionable
+		// for the server — log + close.
+		logging.From(ctx).Info("login ended", slog.Any("err", err))
+		return nil
 	}
 
-	a := &connActor{id: c.ID(), conn: c, room: start, colorEnabled: cfg.ColorEnabled}
+	ctx = logging.With(ctx,
+		slog.String("player", loaded.Player.Name),
+		slog.String("account_id", loaded.Account.ID))
 
-	if err := a.Write(ctx, "Welcome to AnotherMUD."); err != nil {
-		return fmt.Errorf("greet: %w", err)
+	start, err := resolveStartRoom(cfg, loaded.Player.Location)
+	if err != nil {
+		return fmt.Errorf("session: resolve start room: %w", err)
 	}
+
+	a := &connActor{
+		id:           c.ID(),
+		conn:         c,
+		room:         start,
+		colorEnabled: cfg.ColorEnabled,
+		save:         loaded.Player,
+		players:      cfg.Players,
+	}
+
+	// Keep the save's location in sync with the room we actually placed
+	// the player in. Mark dirty so the corrected location is flushed
+	// even if the player idles and disconnects before issuing any
+	// movement command (covers the saved-room-removed fallback case).
+	if a.save.Location != string(start.ID) {
+		a.save.Location = string(start.ID)
+		a.dirty = true
+	}
+
+	cfg.Manager.Add(a)
+	defer cfg.Manager.Remove(a)
+
 	if err := a.Write(ctx, command.RenderRoom(start)); err != nil {
-		return fmt.Errorf("greet render: %w", err)
+		return fmt.Errorf("first render: %w", err)
 	}
+
+	// Best-effort save on exit so quitting commits the player's final
+	// location. Errors are logged, not returned — the connection is
+	// already being torn down.
+	defer func() {
+		if err := a.Persist(ctx); err != nil {
+			logging.From(ctx).Warn("save on disconnect failed", slog.Any("err", err))
+		}
+	}()
 
 	for {
 		line, err := c.Read(ctx)
@@ -86,17 +137,28 @@ func run(ctx context.Context, c conn.Connection, cfg Config) error {
 	}
 }
 
-// connActor adapts a conn.Connection to the command.Actor interface.
-// The room pointer is guarded by a mutex so a future tick-driven event
-// (e.g. a mob shove from another goroutine) can safely re-locate the
-// player; M1 only mutates it from the read loop, but the seam is here.
+func resolveStartRoom(cfg Config, savedLoc string) (*world.Room, error) {
+	if savedLoc != "" {
+		if r, err := cfg.World.Room(world.RoomID(savedLoc)); err == nil {
+			return r, nil
+		}
+	}
+	return cfg.World.Room(cfg.StartID)
+}
+
+// connActor adapts a conn.Connection to the command.Actor interface and
+// carries the player save record so SetRoom can mark it dirty.
 type connActor struct {
 	id   string
 	conn conn.Connection
 
+	players *player.Store
+
 	mu           sync.Mutex
 	room         *world.Room
 	colorEnabled bool
+	save         *player.Save
+	dirty        bool
 }
 
 func (a *connActor) ID() string { return a.id }
@@ -111,6 +173,10 @@ func (a *connActor) SetRoom(r *world.Room) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	a.room = r
+	if a.save != nil {
+		a.save.Location = string(r.ID)
+		a.dirty = true
+	}
 }
 
 func (a *connActor) ColorEnabled() bool {
@@ -125,21 +191,57 @@ func (a *connActor) SetColorEnabled(v bool) {
 	a.colorEnabled = v
 }
 
-// Write expands any color markup in msg (per internal/ansi) according
-// to the actor's current color preference, then writes the rendered
-// text plus CRLF to the connection.
+// Write expands any color markup in msg per the actor's color
+// preference and writes the rendered text plus CRLF.
 func (a *connActor) Write(ctx context.Context, msg string) error {
 	rendered := ansi.Render(msg, a.ColorEnabled())
 	_, err := a.conn.Write(ctx, []byte(rendered+"\r\n"))
 	return err
 }
 
-// sanitizeForLog scrubs raw client input before it lands in a structured
-// log record. The peer is unauthenticated and can send arbitrary bytes,
-// including ANSI escapes or other control characters that could corrupt
-// downstream log viewers or hide content from operators. We coerce to
-// valid UTF-8 and replace any C0/C1 control rune (except tab) with U+FFFD
-// before the value reaches slog.
+// Persist writes the current player save through the store, but only
+// when something has changed since the last write. Safe to call from
+// any goroutine.
+//
+// The dirty flag is only cleared if the saved state has not been
+// mutated again while we were writing — otherwise an interleaved
+// SetRoom would be silently dropped: it would set dirty=true *while*
+// our Save is in flight, and we'd then clear that flag after writing
+// the older snapshot.
+func (a *connActor) Persist(ctx context.Context) error {
+	a.mu.Lock()
+	if !a.dirty || a.save == nil || a.players == nil {
+		a.mu.Unlock()
+		return nil
+	}
+	snapshot := *a.save
+	a.mu.Unlock()
+
+	if err := a.players.Save(ctx, &snapshot); err != nil {
+		return err
+	}
+	a.mu.Lock()
+	// Only clear dirty if no later mutation occurred. M3 tracks just
+	// Location; expand the comparison when the save grows more fields.
+	if a.save != nil && a.save.Location == snapshot.Location {
+		a.dirty = false
+	}
+	a.mu.Unlock()
+	return nil
+}
+
+// PlayerName returns the loaded character's name, used by the autosave
+// loop's structured logs. Returns "" for an actor that never finished
+// login (shouldn't happen after Manager.Add, but defensive).
+func (a *connActor) PlayerName() string {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	if a.save == nil {
+		return ""
+	}
+	return a.save.Name
+}
+
 func sanitizeForLog(s string) string {
 	s = strings.ToValidUTF8(s, string(unicode.ReplacementChar))
 	return strings.Map(func(r rune) rune {

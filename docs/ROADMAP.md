@@ -241,18 +241,32 @@ server restart.
 time we deal with atomic file I/O and the account/player split.
 
 **Exit criteria:**
-- [ ] Account file shape matches `persistence` save/load surface
-- [ ] Player file shape matches `persistence` save/load surface
-- [ ] Password hashing uses a vetted algorithm (bcrypt or argon2; pick and document)
-- [ ] File writes are atomic (write-temp-then-rename) so a crash mid-write doesn't corrupt
-- [ ] Login state machine matches `login` spec stages
-- [ ] Character location persists across restart
-- [ ] An autosave tick handler runs at a configurable cadence
-- [ ] Integration test: create account, log in, walk to room B, restart server, log in, verify in room B
+- [x] Account file shape matches `persistence` save/load surface (`internal/account`; minimum subset — verification fields present but workflow deferred)
+- [x] Player file shape matches `persistence` save/load surface (`internal/player`; minimum subset — version, ids, name, location)
+- [x] Password hashing uses a vetted algorithm (bcrypt via `golang.org/x/crypto/bcrypt`, default cost; documented in `internal/account`)
+- [x] File writes are atomic (write-tmp → rotate-to-.bak → rename → drop-.bak in `internal/persistence`)
+- [x] Login state machine matches `login` spec stages (`internal/login`; Name → returning Password | new Email → Password → confirmation → handoff)
+- [x] Character location persists across restart (verified by `session.TestSessionPersistsLocationAcrossRestart`)
+- [x] An autosave tick handler runs at a configurable cadence (`ANOTHERMUD_AUTOSAVE_INTERVAL`, default 30s; wired in `cmd/anothermud/main.go`)
+- [x] Integration test: create account, log in, walk to room B, restart server, log in, verify in room B (`internal/session/session_test.go::TestSessionPersistsLocationAcrossRestart`)
+
+**Status:** ✅ complete.
 
 **Touches specs:** `persistence`, `login`, `character-creation` (minimal — pre-existing test character is fine until full wizard lands).
 
-**Known gaps after M3:** no character creation wizard, no quest file, no email verification, no link-dead recovery across restart.
+**Known gaps after M3** (carried forward into later milestones, do not paper over):
+- No character creation wizard — name + email + password is the full new-player flow (spec §5.4 entity baseline is a single-room placement).
+- No quest file, no inventory file, no stats block on the player save — those land with M5/M8 when there's live state worth serializing. The migration table is scaffolded empty; bump `player.CurrentVersion` and append a migration when the shape changes.
+- No tagged-value envelope (`persistence` spec §4.4). Properties don't exist on the entity yet; the property registry (spec §2) lands when a feature needs typed props.
+- No session takeover, no link-dead reconnect, no per-account concurrency cap — M4 territory. The session.Manager exists but only tracks live actors for autosave.
+- No per-phase idle timeout in login (spec §6.1). `conn.Read` doesn't take a deadline yet; lands with M4's session-lifecycle work.
+- No name-gates (spec §3). Name validation is hardcoded ASCII letters + length; the pluggable gate list is deferred.
+- No email verification, no password reset / change command — out of scope per spec §1 non-goals.
+- Telnet echo suppression during password entry is a bare `IAC WILL/WONT ECHO` byte write; full IAC negotiation lands with the networking-protocols slice.
+- Autosave is single-shot synchronous (no snapshot-then-write split per spec §6.2). On a busy server this would stall the tick loop; revisit when M4 splits Session from Connection and a real entity model exists.
+- `account.Service` uses a single `sync.Mutex` (bcrypt runs outside it, but `LoadByID` / `AddCharacter` still do file I/O under the lock). Latency-bounded by account count today; revisit with per-account locking when load justifies it.
+- `player.Store` uses a single `sync.Mutex` across all character saves. Per-name locking would be more efficient; the simple cut is fine until concurrent autosave + disconnect-flush on many players is measurable.
+- Account email rename has no path (spec §10 open question).
 
 ---
 
