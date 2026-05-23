@@ -97,15 +97,33 @@ func run(ctx context.Context, c conn.Connection, cfg Config) error {
 
 	// Reconnect check: if a session for this player already exists,
 	// branch on its phase. LinkDead → reattach this new connection.
-	// Playing → reject (session takeover is M4.5).
+	// Playing → prompt for takeover per session-lifecycle §8.
 	if existing, ok := cfg.Manager.GetByPlayerID(loaded.Player.ID); ok {
 		if existing.isLinkDead() {
 			return reconnect(ctx, c, cfg, existing, clk)
 		}
-		_ = writeLine(ctx, c, "That character is already online.")
-		logging.From(ctx).Info("login rejected: character already online",
-			slog.String("player", loaded.Player.Name))
-		return nil
+		if !promptTakeoverConfirm(ctx, c) {
+			_ = writeLine(ctx, c, renderTakeoverDeclined())
+			logging.From(ctx).Info("login: takeover declined",
+				slog.String("player", loaded.Player.Name))
+			return nil
+		}
+		liveSave, _, ok := performTakeover(ctx, cfg, existing)
+		if !ok {
+			// Lost the takeover claim to a concurrent login.
+			_ = writeLine(ctx, c, renderTakeoverRaced())
+			logging.From(ctx).Info("login: takeover lost race",
+				slog.String("player", loaded.Player.Name))
+			return nil
+		}
+		// Override the stale-from-disk save loaded by login.Run with the
+		// live in-memory record from the displaced session. Without this
+		// any post-autosave movement / mutation on the old actor would
+		// be silently dropped (session-lifecycle §8: "same entity").
+		// resolveStartRoom below picks up the live Location automatically.
+		if liveSave != nil {
+			loaded.Player = liveSave
+		}
 	}
 
 	start, err := resolveStartRoom(cfg, loaded.Player.Location)
@@ -251,7 +269,20 @@ func pump(ctx context.Context, c conn.Connection, cfg Config, a *connActor, clk 
 func dispatchTeardown(ctx context.Context, cfg Config, a *connActor, exit pumpExit, clk clock.Clock) {
 	a.mu.Lock()
 	disc := a.disconnecting
+	taken := a.takenOver
 	a.mu.Unlock()
+
+	// §6.1 stale-event guard: a taken-over session's pump has unwound
+	// after the new session displaced it. Every index entry the old
+	// actor held has already been reassigned or cleared by
+	// performTakeover. Running fullTeardown here would re-broadcast
+	// "X has left" and delete byPlayerID / byRoom entries that now
+	// belong to the replacement session.
+	if taken {
+		logging.From(ctx).Debug("teardown: skipped (taken over)",
+			slog.String("player", a.PlayerName()))
+		return
+	}
 
 	if exit == exitConnGone && !disc && cfg.LinkDead.Enabled {
 		enterLinkDeadTeardown(ctx, cfg, a, clk)
@@ -394,6 +425,7 @@ type connActor struct {
 	disconnecting bool         // set when teardown (idle, flood, etc.) is in flight
 	phase         sessionPhase // playing | linkDead | tearing (M4.4)
 	linkDeadAt    time.Time    // when the actor entered linkDead phase
+	takenOver     bool         // §6.1/§8 stale-event guard: stale teardown is a no-op
 }
 
 func (a *connActor) ID() string { return a.id }

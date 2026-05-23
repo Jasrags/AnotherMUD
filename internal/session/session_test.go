@@ -567,6 +567,106 @@ func TestTwoPlayersSeeEachOther(t *testing.T) {
 	bob.drainUntil("Goodbye.")
 }
 
+// TestSessionTakeoverYesPath is the M4.5 happy path: Alice is online and
+// walks to a second room (state that has NOT yet been autosaved); a
+// second login for Alice answers "yes" to the takeover prompt; the
+// original socket sees the notice and is closed; the new socket lands
+// in-game on the same character at the *post-walk* room — proving the
+// live in-memory save was transferred to the new session rather than a
+// stale on-disk record being reloaded.
+func TestSessionTakeoverYesPath(t *testing.T) {
+	w := world.New()
+	a := &world.Room{ID: "a", Name: "Room Alpha", Description: "alpha"}
+	b := &world.Room{ID: "b", Name: "Room Beta", Description: "beta"}
+	a.Exits = map[world.Direction]world.Exit{world.DirNorth: {Target: b.ID}}
+	b.Exits = map[world.Direction]world.Exit{world.DirSouth: {Target: a.ID}}
+	w.AddRoom(a)
+	w.AddRoom(b)
+
+	rig := startRigOpts(t, w, a.ID, rigOpts{
+		// LinkDead disabled so the test cannot accidentally select the
+		// reconnect branch — takeover requires the existing session to
+		// be in Playing phase.
+		linkDead: session.LinkDeadConfig{Enabled: false},
+	})
+	defer rig.stop(t)
+
+	alice1 := dial(t, rig.ln.Addr().String())
+	alice1.loginNew("Alice", "alice@example.com", "hunter22")
+	alice1.drainUntil("Room Alpha")
+
+	// Walk north so the live in-memory save no longer matches the disk
+	// snapshot login.Run will load for the second connection.
+	alice1.writeLine("n")
+	alice1.drainUntil("Room Beta")
+
+	alice2 := dial(t, rig.ln.Addr().String())
+	defer alice2.close()
+	alice2.loginReturning("Alice", "hunter22")
+	alice2.drainUntil("Take over the existing session")
+	alice2.writeLine("yes")
+
+	// Old socket sees the takeover notice; new socket renders the room
+	// Alice was actually in (Beta), not the on-disk Alpha.
+	alice1.drainUntil("Another connection has taken over this character.")
+	alice2.drainUntil("Room Beta")
+
+	// Belt-and-braces: explicit "look" must also show Beta.
+	alice2.writeLine("look")
+	alice2.drainUntil("Room Beta")
+
+	alice1.close()
+
+	// Manager invariant: exactly one Alice indexed.
+	if got := rig.mgr.Count(); got != 1 {
+		t.Errorf("manager count = %d, want 1", got)
+	}
+	if _, ok := rig.mgr.GetByName("Alice"); !ok {
+		t.Fatal("Alice not indexed after takeover")
+	}
+
+	alice2.writeLine("quit")
+	alice2.drainUntil("Goodbye.")
+}
+
+// TestSessionTakeoverNoPath: the second login answers "no" to the
+// takeover prompt; the new connection is closed and the existing
+// session is untouched.
+func TestSessionTakeoverNoPath(t *testing.T) {
+	w := world.New()
+	r := &world.Room{ID: "a", Name: "Room Alpha", Description: "alpha"}
+	w.AddRoom(r)
+
+	rig := startRigOpts(t, w, r.ID, rigOpts{
+		linkDead: session.LinkDeadConfig{Enabled: false},
+	})
+	defer rig.stop(t)
+
+	alice1 := dial(t, rig.ln.Addr().String())
+	defer alice1.close()
+	alice1.loginNew("Alice", "alice@example.com", "hunter22")
+	alice1.drainUntil("Room Alpha")
+
+	alice2 := dial(t, rig.ln.Addr().String())
+	defer alice2.close()
+	alice2.loginReturning("Alice", "hunter22")
+	alice2.drainUntil("Take over the existing session")
+	alice2.writeLine("no")
+	alice2.drainUntil("Login cancelled")
+
+	// Existing session must still be in-game and responsive.
+	alice1.writeLine("look")
+	alice1.drainUntil("Room Alpha")
+
+	// Manager still has exactly one Alice.
+	if got := rig.mgr.Count(); got != 1 {
+		t.Errorf("manager count = %d, want 1", got)
+	}
+
+	alice1.writeLine("quit")
+	alice1.drainUntil("Goodbye.")
+}
+
 // TestSessionPersistsLocationAcrossRestart is the M3 integration
 // criterion: create, walk to room b, restart server (same save dir),
 // log in, verify the player is in b.
