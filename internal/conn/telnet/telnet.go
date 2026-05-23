@@ -1,8 +1,11 @@
 // Package telnet implements conn.Connection over a raw TCP socket.
 //
-// M0 scope: line-oriented reads, no telnet option negotiation. Anything
-// that arrives is treated as 7-bit ASCII text up to the next CRLF or LF.
-// Telnet IAC negotiation, GMCP, and MSSP land in a later milestone per
+// Line-oriented reads with minimal IAC awareness. We do not negotiate
+// telnet options, but we DO strip IAC sequences from the input stream
+// so the server-initiated WILL/WONT ECHO bytes (used by the login
+// password prompt) don't poison subsequent reads with the client's
+// reflexive DO/DONT reply. Full option negotiation, GMCP, MSSP, and
+// the like land with the networking-protocols milestone per
 // docs/specs/networking-protocols.md.
 package telnet
 
@@ -71,7 +74,7 @@ func (c *Conn) Read(ctx context.Context) (string, error) {
 	slice, err := c.r.ReadSlice('\n')
 	// slice aliases the bufio buffer, so copy what we need before
 	// any subsequent Read invalidates it.
-	line := strings.TrimRight(string(slice), "\r\n")
+	line := stripIAC(strings.TrimRight(string(slice), "\r\n"))
 
 	if err != nil {
 		if ctxErr := ctx.Err(); ctxErr != nil {
@@ -95,6 +98,75 @@ func (c *Conn) Read(ctx context.Context) (string, error) {
 		return "", fmt.Errorf("telnet.Read: %w", err)
 	}
 	return line, nil
+}
+
+// Telnet command bytes we recognize. Defined in RFC 854 / RFC 855.
+const (
+	tnIAC  byte = 0xFF
+	tnSB   byte = 0xFA // start of subnegotiation
+	tnSE   byte = 0xF0 // end of subnegotiation
+	tnWILL byte = 0xFB
+	tnWONT byte = 0xFC
+	tnDO   byte = 0xFD
+	tnDONT byte = 0xFE
+)
+
+// stripIAC removes telnet IAC sequences from line. We do not maintain
+// option state — we simply skip command bytes so they don't leak into
+// the line-oriented input the server sees.
+//
+// Recognized shapes:
+//
+//   - IAC IAC          → literal 0xFF byte (kept)
+//   - IAC WILL/WONT/DO/DONT <opt> → 3-byte negotiation, dropped
+//   - IAC SB ... IAC SE → subnegotiation block, dropped
+//   - IAC <other>      → 2-byte command, dropped
+//
+// A trailing lone IAC at the end of the buffer is dropped; the
+// likeliest cause is a truncated read, and emitting a stray 0xFF byte
+// would confuse later validators (e.g. login's ASCII check).
+func stripIAC(s string) string {
+	if strings.IndexByte(s, tnIAC) < 0 {
+		return s
+	}
+	out := make([]byte, 0, len(s))
+	for i := 0; i < len(s); i++ {
+		if s[i] != tnIAC {
+			out = append(out, s[i])
+			continue
+		}
+		// We saw IAC. Decide based on the following byte.
+		if i+1 >= len(s) {
+			break // truncated IAC; drop
+		}
+		cmd := s[i+1]
+		switch cmd {
+		case tnIAC:
+			// Escaped literal 0xFF.
+			out = append(out, tnIAC)
+			i++
+		case tnWILL, tnWONT, tnDO, tnDONT:
+			// 3-byte negotiation: IAC CMD OPT. Skip OPT.
+			if i+2 >= len(s) {
+				return string(out)
+			}
+			i += 2
+		case tnSB:
+			// Subnegotiation: skip until IAC SE.
+			i += 2
+			for i < len(s)-1 {
+				if s[i] == tnIAC && s[i+1] == tnSE {
+					i++
+					break
+				}
+				i++
+			}
+		default:
+			// 2-byte command (NOP, GA, etc).
+			i++
+		}
+	}
+	return string(out)
 }
 
 // discardToNewline reads and discards bytes until the next newline or
