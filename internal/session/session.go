@@ -94,6 +94,8 @@ func run(ctx context.Context, c conn.Connection, cfg Config) error {
 	a := &connActor{
 		id:           c.ID(),
 		conn:         c,
+		playerID:     loaded.Player.ID,
+		accountID:    loaded.Account.ID,
 		room:         start,
 		colorEnabled: cfg.ColorEnabled,
 		save:         loaded.Player,
@@ -155,9 +157,14 @@ func run(ctx context.Context, c conn.Connection, cfg Config) error {
 
 		logging.From(ctx).Debug("input received", slog.String("line", sanitizeForLog(line)))
 
-		// Flood gate runs before dispatch. The sendSlow callback must
-		// not loop back through the gate; Write bypasses it.
-		switch a.flood.Check(func(s string) { _ = a.Write(ctx, s) }) {
+		// Flood gate runs before dispatch. The warn write happens after
+		// the gate returns so no caller can accidentally re-enter the
+		// gate from inside the Write path.
+		decision, warn := a.flood.Check()
+		if warn {
+			_ = a.Write(ctx, "Slow down.")
+		}
+		switch decision {
 		case floodAllow:
 			// proceed
 		case floodDrop:
@@ -192,12 +199,21 @@ func resolveStartRoom(cfg Config, savedLoc string) (*world.Room, error) {
 //
 // The manager back-reference is set by Manager.Add and used by SetRoom
 // to keep the per-room broadcast index synchronized. Lock order is
-// Manager → actor: SetRoom releases the actor lock before calling back
-// into the manager so the manager's broadcast path (which also takes
-// actor locks via Write) cannot deadlock with the move.
+// Manager → actor: the broadcast path (which takes actor locks via
+// Write) snapshots its recipient list under the Manager lock and then
+// releases before writing. SetRoom releases the actor lock before
+// calling moveRoom for symmetry.
+//
+// playerID / accountID are immutable shadows of the save fields,
+// cached at construction so the manager can read them lock-free
+// during snapshot iteration. The Save record itself is only mutated
+// for Location today.
 type connActor struct {
 	id   string
 	conn conn.Connection
+
+	playerID  string
+	accountID string
 
 	players *player.Store
 
@@ -221,14 +237,10 @@ func (a *connActor) Name() string {
 	return a.save.Name
 }
 
-func (a *connActor) PlayerID() string {
-	a.mu.Lock()
-	defer a.mu.Unlock()
-	if a.save == nil {
-		return ""
-	}
-	return a.save.ID
-}
+// PlayerID is the immutable account-scoped identity of the character.
+// Read lock-free from the shadow field so manager snapshots don't have
+// to take the actor mutex.
+func (a *connActor) PlayerID() string { return a.playerID }
 
 func (a *connActor) Room() *world.Room {
 	a.mu.Lock()
@@ -243,17 +255,15 @@ func (a *connActor) SetRoom(r *world.Room) {
 		oldID = a.room.ID
 	}
 	a.room = r
-	pid := ""
 	if a.save != nil {
 		a.save.Location = string(r.ID)
 		a.dirty = true
-		pid = a.save.ID
 	}
 	mgr := a.manager
 	a.mu.Unlock()
 
 	if mgr != nil && oldID != r.ID {
-		mgr.moveRoom(a, pid, oldID, r.ID)
+		mgr.moveRoom(a, a.playerID, oldID, r.ID)
 	}
 }
 

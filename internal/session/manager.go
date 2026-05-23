@@ -25,9 +25,10 @@ type Manager struct {
 	mu         sync.RWMutex
 	byConn     map[string]*connActor
 	byPlayerID map[string]*connActor
-	byName     map[string]*connActor               // key: lowercased name
-	byAccount  map[string][]*connActor             // key: account id
-	byRoom     map[world.RoomID]map[string]*connActor
+	byName     map[string]*connActor                  // key: lowercased name
+	byAccount  map[string][]*connActor                // key: account id
+	byRoom     map[world.RoomID]map[string]*connActor // roomID → pid → actor
+	roomByPID  map[string]world.RoomID                // pid → current room
 }
 
 // NewManager returns an empty Manager.
@@ -38,31 +39,40 @@ func NewManager() *Manager {
 		byName:     make(map[string]*connActor),
 		byAccount:  make(map[string][]*connActor),
 		byRoom:     make(map[world.RoomID]map[string]*connActor),
+		roomByPID:  make(map[string]world.RoomID),
 	}
 }
 
 // Add registers a freshly-logged-in actor across every index. The
 // actor's manager back-reference is set so subsequent SetRoom calls
 // can keep the by-room index in sync.
+//
+// A duplicate Add (same connection id already indexed) is a no-op
+// guarded against double-registration: callers should never invoke
+// it but the contract is documented and tested rather than silently
+// producing diverging indices.
 func (m *Manager) Add(a *connActor) {
 	a.mu.Lock()
 	a.manager = m
 	var (
-		pid, acct, lcName string
-		roomID            world.RoomID
+		lcName string
+		roomID world.RoomID
 	)
 	if a.save != nil {
-		pid = a.save.ID
-		acct = a.save.AccountID
 		lcName = strings.ToLower(a.save.Name)
 	}
 	if a.room != nil {
 		roomID = a.room.ID
 	}
 	a.mu.Unlock()
+	pid := a.playerID
+	acct := a.accountID
 
 	m.mu.Lock()
 	defer m.mu.Unlock()
+	if _, exists := m.byConn[a.id]; exists {
+		return
+	}
 	m.byConn[a.id] = a
 	if pid != "" {
 		m.byPlayerID[pid] = a
@@ -71,18 +81,7 @@ func (m *Manager) Add(a *connActor) {
 		m.byName[lcName] = a
 	}
 	if acct != "" {
-		// Dedup: don't append twice for the same actor.
-		list := m.byAccount[acct]
-		found := false
-		for _, e := range list {
-			if e == a {
-				found = true
-				break
-			}
-		}
-		if !found {
-			m.byAccount[acct] = append(list, a)
-		}
+		m.byAccount[acct] = append(m.byAccount[acct], a)
 	}
 	if roomID != "" && pid != "" {
 		m.addToRoomLocked(roomID, pid, a)
@@ -91,27 +90,30 @@ func (m *Manager) Add(a *connActor) {
 
 // Remove clears the actor from every index. Safe to call multiple
 // times; absent entries are ignored.
+//
+// The room index is resolved from roomByPID under the manager lock,
+// NOT from a.room — a.room may have already been mutated by a
+// concurrent SetRoom whose moveRoom call has not yet landed. Using
+// the manager-owned mapping makes Remove and moveRoom commute under
+// the write lock.
 func (m *Manager) Remove(a *connActor) {
 	a.mu.Lock()
-	var (
-		pid, acct, lcName string
-		roomID            world.RoomID
-	)
+	var lcName string
 	if a.save != nil {
-		pid = a.save.ID
-		acct = a.save.AccountID
 		lcName = strings.ToLower(a.save.Name)
 	}
-	if a.room != nil {
-		roomID = a.room.ID
-	}
 	a.mu.Unlock()
+	pid := a.playerID
+	acct := a.accountID
 
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	delete(m.byConn, a.id)
 	if pid != "" {
 		delete(m.byPlayerID, pid)
+		if cur, ok := m.roomByPID[pid]; ok {
+			m.removeFromRoomLocked(cur, pid)
+		}
 	}
 	if lcName != "" {
 		// Only delete if it still points at this actor — guards
@@ -133,9 +135,6 @@ func (m *Manager) Remove(a *connActor) {
 		} else {
 			m.byAccount[acct] = out
 		}
-	}
-	if roomID != "" && pid != "" {
-		m.removeFromRoomLocked(roomID, pid)
 	}
 }
 
@@ -222,7 +221,10 @@ func (m *Manager) SendToPlayer(ctx context.Context, name, text string) bool {
 }
 
 // SendToAll delivers text to every active session, excluding any
-// player id in excludePlayerIDs.
+// player id in excludePlayerIDs. Snapshots recipients under the read
+// lock — without touching actor mutexes — and writes outside the
+// lock so Write callbacks cannot deadlock against future Manager
+// callers that take the actor lock.
 func (m *Manager) SendToAll(ctx context.Context, text string, excludePlayerIDs ...string) {
 	excl := make(map[string]struct{}, len(excludePlayerIDs))
 	for _, p := range excludePlayerIDs {
@@ -231,13 +233,7 @@ func (m *Manager) SendToAll(ctx context.Context, text string, excludePlayerIDs .
 	m.mu.RLock()
 	snapshot := make([]*connActor, 0, len(m.byConn))
 	for _, a := range m.byConn {
-		a.mu.Lock()
-		pid := ""
-		if a.save != nil {
-			pid = a.save.ID
-		}
-		a.mu.Unlock()
-		if _, skip := excl[pid]; skip {
+		if _, skip := excl[a.playerID]; skip {
 			continue
 		}
 		snapshot = append(snapshot, a)
@@ -245,21 +241,34 @@ func (m *Manager) SendToAll(ctx context.Context, text string, excludePlayerIDs .
 	m.mu.RUnlock()
 
 	for _, a := range snapshot {
-		_ = a.Write(ctx, text)
+		if err := a.Write(ctx, text); err != nil {
+			logging.From(ctx).Debug("SendToAll: write failed",
+				slog.String("player", a.PlayerName()),
+				slog.Any("err", err))
+		}
 	}
 }
 
-// moveRoom updates the per-room index when an actor's room changes.
-// Called by connActor.SetRoom after it has released the actor's lock.
-// Empty oldID / newID is tolerated (initial placement, departure).
-func (m *Manager) moveRoom(a *connActor, pid string, oldID, newID world.RoomID) {
+// moveRoom updates the per-room index to reflect that the actor is
+// now in newID. The previous room is read from the manager-owned
+// roomByPID index, not from a.room — that mapping is the authoritative
+// record of where each player currently lives in the broadcast index.
+//
+// Race guard: if Remove ran between SetRoom releasing the actor lock
+// and moveRoom acquiring the manager write lock, the actor is no
+// longer in byConn — performing the add anyway would orphan it in
+// byRoom and leak writes to a disconnected session.
+func (m *Manager) moveRoom(a *connActor, pid string, _ world.RoomID, newID world.RoomID) {
 	if pid == "" {
 		return
 	}
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	if oldID != "" {
-		m.removeFromRoomLocked(oldID, pid)
+	if _, live := m.byConn[a.id]; !live {
+		return
+	}
+	if cur, ok := m.roomByPID[pid]; ok && cur != newID {
+		m.removeFromRoomLocked(cur, pid)
 	}
 	if newID != "" {
 		m.addToRoomLocked(newID, pid, a)
@@ -273,6 +282,7 @@ func (m *Manager) addToRoomLocked(roomID world.RoomID, pid string, a *connActor)
 		m.byRoom[roomID] = occ
 	}
 	occ[pid] = a
+	m.roomByPID[pid] = roomID
 }
 
 func (m *Manager) removeFromRoomLocked(roomID world.RoomID, pid string) {
@@ -283,6 +293,9 @@ func (m *Manager) removeFromRoomLocked(roomID world.RoomID, pid string) {
 	delete(occ, pid)
 	if len(occ) == 0 {
 		delete(m.byRoom, roomID)
+	}
+	if cur, ok := m.roomByPID[pid]; ok && cur == roomID {
+		delete(m.roomByPID, pid)
 	}
 }
 

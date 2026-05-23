@@ -80,19 +80,20 @@ func (f *floodGate) disabled() bool {
 	return f.cfg.CommandsPerSecond <= 0 || f.cfg.BurstSize <= 0
 }
 
-// Check evaluates one input. sendSlow, if non-nil, is invoked to send
-// the "Slow down." reply at most once per decay cycle. The function is
-// called while the gate's lock is held; it MUST NOT call back into the
-// gate or block on a goroutine that does.
-func (f *floodGate) Check(sendSlow func(string)) floodDecision {
+// Check evaluates one input. The second return is true when the
+// caller should emit the "Slow down." reply (at most once per strike-
+// decay cycle). The gate's mutex is released before Check returns, so
+// the caller is free to write through any sink without risking a lock
+// cycle through the gate.
+func (f *floodGate) Check() (floodDecision, bool) {
 	if f.disabled() {
-		return floodAllow
+		return floodAllow, false
 	}
 	f.mu.Lock()
 	defer f.mu.Unlock()
 
 	if f.floodedOut {
-		return floodDisconnect
+		return floodDisconnect, false
 	}
 
 	now := f.clock.Now()
@@ -120,12 +121,13 @@ func (f *floodGate) Check(sendSlow func(string)) floodDecision {
 
 	if f.tokens >= 1.0 {
 		f.tokens -= 1.0
-		return floodAllow
+		return floodAllow, false
 	}
 
 	// Bucket empty: drop the input. Warn once per decay cycle.
-	if !f.warned && sendSlow != nil {
-		sendSlow("Slow down.")
+	warn := false
+	if !f.warned {
+		warn = true
 		f.warned = true
 	}
 	f.strikes++
@@ -133,7 +135,7 @@ func (f *floodGate) Check(sendSlow func(string)) floodDecision {
 
 	if f.cfg.StrikeThreshold > 0 && f.strikes >= f.cfg.StrikeThreshold {
 		f.floodedOut = true
-		return floodDisconnect
+		return floodDisconnect, warn
 	}
-	return floodDrop
+	return floodDrop, warn
 }

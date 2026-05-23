@@ -7,7 +7,7 @@ import (
 	"github.com/Jasrags/AnotherMUD/internal/clock"
 )
 
-func newTestGate() (*floodGate, *clock.ManualClock, *[]string) {
+func newTestGate() (*floodGate, *clock.ManualClock) {
 	mc := clock.NewManual(time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC))
 	cfg := FloodConfig{
 		CommandsPerSecond:  2, // small numbers keep arithmetic obvious
@@ -15,86 +15,105 @@ func newTestGate() (*floodGate, *clock.ManualClock, *[]string) {
 		StrikeThreshold:    3,
 		StrikeDecaySeconds: 5,
 	}
-	var sent []string
-	g := newFloodGate(cfg, mc)
-	return g, mc, &sent
-}
-
-func collect(out *[]string) func(string) {
-	return func(s string) { *out = append(*out, s) }
+	return newFloodGate(cfg, mc), mc
 }
 
 func TestFloodGate_DisabledAlwaysAllows(t *testing.T) {
 	g := newFloodGate(FloodConfig{}, clock.NewManual(time.Unix(0, 0)))
 	for i := 0; i < 50; i++ {
-		if got := g.Check(nil); got != floodAllow {
-			t.Fatalf("disabled gate returned %v at i=%d", got, i)
+		d, warn := g.Check()
+		if d != floodAllow || warn {
+			t.Fatalf("disabled gate i=%d: decision=%v warn=%v", i, d, warn)
 		}
 	}
 }
 
 // First Check initializes tokens to BurstSize; that many consecutive
-// calls succeed, the next one is dropped.
+// calls succeed, the next one is dropped and warns once.
 func TestFloodGate_BurstThenDrop(t *testing.T) {
-	g, _, out := newTestGate()
+	g, _ := newTestGate()
 	for i := 0; i < 3; i++ {
-		if got := g.Check(collect(out)); got != floodAllow {
-			t.Fatalf("burst call %d returned %v, want allow", i, got)
+		if d, _ := g.Check(); d != floodAllow {
+			t.Fatalf("burst call %d returned %v, want allow", i, d)
 		}
 	}
-	if got := g.Check(collect(out)); got != floodDrop {
-		t.Errorf("post-burst returned %v, want drop", got)
+	d, warn := g.Check()
+	if d != floodDrop {
+		t.Errorf("post-burst returned %v, want drop", d)
 	}
-	if len(*out) != 1 || (*out)[0] != "Slow down." {
-		t.Errorf("warn output = %v, want one 'Slow down.'", *out)
+	if !warn {
+		t.Errorf("first drop did not warn")
 	}
 }
 
-// "Slow down." is sent at most once per strike-decay cycle, regardless
-// of how many drops accumulate.
+// "Slow down." is signaled at most once per strike-decay cycle.
 func TestFloodGate_WarnOnceUntilDecay(t *testing.T) {
-	g, mc, out := newTestGate()
+	g, mc := newTestGate()
 	for i := 0; i < 3; i++ {
-		g.Check(collect(out)) // drain burst
+		g.Check() // drain burst
 	}
-	// Two drops, two strikes. Only one warn.
-	g.Check(collect(out))
-	g.Check(collect(out))
-	if len(*out) != 1 {
-		t.Errorf("got %d warn calls, want 1", len(*out))
+	_, warnA := g.Check()
+	_, warnB := g.Check()
+	if !warnA || warnB {
+		t.Errorf("first drop warn=%v, second=%v; want true, false", warnA, warnB)
 	}
 	// Advance past the decay window with no traffic; the next drop
-	// should re-warn.
+	// after the next allow cycle should re-warn.
 	mc.Advance(6 * time.Second)
-	// After 6s with cps=2, burst should refill to cap (3). Drain it.
+	// cps=2 → 6s refills past cap. Drain.
 	for i := 0; i < 3; i++ {
-		if got := g.Check(collect(out)); got != floodAllow {
-			t.Fatalf("post-decay refill call %d returned %v", i, got)
+		if d, _ := g.Check(); d != floodAllow {
+			t.Fatalf("post-decay refill call %d = %v", i, d)
 		}
 	}
-	// Now drop again — fresh warn.
-	g.Check(collect(out))
-	if len(*out) != 2 {
-		t.Errorf("got %d warn calls after decay, want 2", len(*out))
+	_, warnAfterDecay := g.Check()
+	if !warnAfterDecay {
+		t.Errorf("drop after decay did not re-warn")
+	}
+}
+
+// A drop that arrives at the exact decay boundary should reset and
+// re-warn — no quiet allow in between.
+func TestFloodGate_DropImmediatelyAfterDecayReWarns(t *testing.T) {
+	g, mc := newTestGate()
+	// Drain burst and rack up 1 strike (with warn).
+	for i := 0; i < 3; i++ {
+		g.Check()
+	}
+	if _, warn := g.Check(); !warn {
+		t.Fatal("setup: expected initial warn")
+	}
+	// Advance just past decay AND refill so the next drop triggers
+	// the decay path mid-Check.
+	mc.Advance(6 * time.Second)
+	// Drain refilled tokens (cap=3).
+	for i := 0; i < 3; i++ {
+		g.Check()
+	}
+	// Now drop: decay should reset warned=false, and this drop must
+	// warn fresh.
+	_, warn := g.Check()
+	if !warn {
+		t.Errorf("first drop after decay did not warn")
 	}
 }
 
 // Tokens refill over time and the gate allows again.
 func TestFloodGate_RefillOverTime(t *testing.T) {
-	g, mc, out := newTestGate()
+	g, mc := newTestGate()
 	for i := 0; i < 3; i++ {
-		g.Check(collect(out)) // drain burst
+		g.Check() // drain burst
 	}
-	if got := g.Check(collect(out)); got != floodDrop {
-		t.Fatalf("immediate after burst = %v, want drop", got)
+	if d, _ := g.Check(); d != floodDrop {
+		t.Fatalf("immediate after burst = %v, want drop", d)
 	}
 	// cps=2 → 500ms per token; advance 1s → 2 tokens.
 	mc.Advance(1 * time.Second)
-	if got := g.Check(collect(out)); got != floodAllow {
-		t.Errorf("after 1s refill = %v, want allow", got)
+	if d, _ := g.Check(); d != floodAllow {
+		t.Errorf("after 1s refill = %v, want allow", d)
 	}
-	if got := g.Check(collect(out)); got != floodAllow {
-		t.Errorf("second post-refill call = %v, want allow", got)
+	if d, _ := g.Check(); d != floodAllow {
+		t.Errorf("second post-refill call = %v, want allow", d)
 	}
 }
 
@@ -102,37 +121,35 @@ func TestFloodGate_RefillOverTime(t *testing.T) {
 // Check stays in floodDisconnect (so the caller tears down once and
 // only once).
 func TestFloodGate_StrikeThresholdDisconnects(t *testing.T) {
-	g, _, out := newTestGate()
-	// Drain burst.
+	g, _ := newTestGate()
 	for i := 0; i < 3; i++ {
-		g.Check(collect(out))
+		g.Check() // drain burst
 	}
-	// 3 strikes to disconnect.
 	var got floodDecision
 	for i := 0; i < 3; i++ {
-		got = g.Check(collect(out))
+		got, _ = g.Check()
 	}
 	if got != floodDisconnect {
 		t.Errorf("after 3 strikes got %v, want disconnect", got)
 	}
 	// Sticky: subsequent calls keep returning disconnect.
-	if again := g.Check(collect(out)); again != floodDisconnect {
+	if again, _ := g.Check(); again != floodDisconnect {
 		t.Errorf("post-disconnect call = %v, want disconnect (sticky)", again)
 	}
 }
 
 // Tokens cap at BurstSize even if a long quiet period elapses.
 func TestFloodGate_TokenCap(t *testing.T) {
-	g, mc, out := newTestGate()
-	g.Check(collect(out)) // initialize and use one token (2 left)
+	g, mc := newTestGate()
+	g.Check() // initialize and use one token (2 left)
 	mc.Advance(1 * time.Hour)
 	// Burst is 3; 2 + many >> 3 must cap at 3, so exactly 3 allows.
 	for i := 0; i < 3; i++ {
-		if got := g.Check(collect(out)); got != floodAllow {
-			t.Fatalf("cap-test allow %d = %v", i, got)
+		if d, _ := g.Check(); d != floodAllow {
+			t.Fatalf("cap-test allow %d = %v", i, d)
 		}
 	}
-	if got := g.Check(collect(out)); got != floodDrop {
-		t.Errorf("post-cap drain = %v, want drop", got)
+	if d, _ := g.Check(); d != floodDrop {
+		t.Errorf("post-cap drain = %v, want drop", d)
 	}
 }

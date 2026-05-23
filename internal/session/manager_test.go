@@ -125,9 +125,11 @@ func (f *fakeConn) writes() []string {
 func newFakeActor(connID, playerID, accountID, name string, room *world.Room) (*connActor, *fakeConn) {
 	fc := &fakeConn{id: connID}
 	return &connActor{
-		id:   connID,
-		conn: fc,
-		room: room,
+		id:        connID,
+		conn:      fc,
+		playerID:  playerID,
+		accountID: accountID,
+		room:      room,
 		save: &player.Save{
 			Version:   player.CurrentVersion,
 			ID:        playerID,
@@ -282,6 +284,61 @@ func TestManager_ConcurrentAddRemoveSendToRoom(t *testing.T) {
 	wg.Wait()
 	if mgr.Count() != 0 {
 		t.Errorf("after concurrent Remove, Count = %d, want 0", mgr.Count())
+	}
+}
+
+// TestManager_SetRoomRacingRemoveLeavesNoIndexLeak fires SetRoom and
+// Remove from two goroutines for many trials. After the dust settles
+// every byRoom map MUST be empty: no orphaned entry for a removed
+// actor. The race detector also runs.
+func TestManager_SetRoomRacingRemoveLeavesNoIndexLeak(t *testing.T) {
+	const trials = 200
+	r1 := &world.Room{ID: "x:1"}
+	r2 := &world.Room{ID: "x:2"}
+
+	for i := 0; i < trials; i++ {
+		mgr := NewManager()
+		a, _ := newFakeActor("c", "p", "acc", "Eve", r1)
+		mgr.Add(a)
+
+		var wg sync.WaitGroup
+		wg.Add(2)
+		go func() { defer wg.Done(); a.SetRoom(r2) }()
+		go func() { defer wg.Done(); mgr.Remove(a) }()
+		wg.Wait()
+
+		if mgr.Count() != 0 {
+			t.Fatalf("trial %d: Count=%d after Remove", i, mgr.Count())
+		}
+		// Snapshot byRoom; both rooms must be absent from the index.
+		mgr.mu.RLock()
+		leaked := len(mgr.byRoom) > 0
+		pidStuck := len(mgr.roomByPID) > 0
+		mgr.mu.RUnlock()
+		if leaked {
+			t.Fatalf("trial %d: byRoom not empty after Remove: %v", i, mgr.byRoom)
+		}
+		if pidStuck {
+			t.Fatalf("trial %d: roomByPID not empty after Remove: %v", i, mgr.roomByPID)
+		}
+	}
+}
+
+// TestManager_DuplicateAddIsNoOp verifies that a second Add of the
+// same actor does not double-insert into byAccount (which would leak
+// a dangling entry after Remove).
+func TestManager_DuplicateAddIsNoOp(t *testing.T) {
+	mgr := NewManager()
+	r := &world.Room{ID: "x:1"}
+	a, _ := newFakeActor("c1", "p1", "acc1", "Frank", r)
+	mgr.Add(a)
+	mgr.Add(a)
+	if list := mgr.GetByAccountID("acc1"); len(list) != 1 {
+		t.Errorf("duplicate Add produced %d account entries, want 1", len(list))
+	}
+	mgr.Remove(a)
+	if list := mgr.GetByAccountID("acc1"); len(list) != 0 {
+		t.Errorf("after Remove of duplicate-Added actor: %d account entries, want 0", len(list))
 	}
 }
 
