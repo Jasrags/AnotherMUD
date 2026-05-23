@@ -326,9 +326,20 @@ here sets the shape M6 mob instances will follow.
 
 **Known gaps after M5:** no shops, no currency auto-conversion (that's M11 — the `try-auto-convert` hook in §4.1 is a no-op stub for now), no rarity/essence colorization beyond plain text, no container weight limits enforced at runtime, no fillable-item sources placed in content.
 
-**Open decision before coding:** where item instances live. The global entity index required by `world-rooms-movement` §4 (Track/Untrack, Get-by-id, Get-by-tag, Get-by-type, with read/write double-buffer for tick consistency) has to land in M5 regardless, which rules out a pure denormalized-on-Room/Player layout. Two remaining homes:
-(a) extend `world.World` with the tracking machinery — cheapest but gives up World's boot-only-mutation invariant and pulls World's mutex into hot paths it currently doesn't touch.
-(b) a new `internal/entities` package that owns the index now and absorbs mob instances in M6 — more upfront work, cleanest separation, lines up with how the spec README distinguishes registries from tracked entities.
+**Decision — entity storage:** item instances live in a new `internal/entities` package, not on `world.World`. The package owns the tracking surface required by `world-rooms-movement` §4 (Track/Untrack, Get-by-id, Get-by-tag, Get-by-type, with the read/write double-buffer and a tick-handler swap at cadence 1). `world.World` keeps its boot-only-mutation invariant and stays a pure registry. `session.Manager` keeps its session indices. The three locks own disjoint state and do not nest.
+
+Rationale:
+- The tracking primitives are a coherent unit; bolting them onto `World` would give `World` two unrelated responsibilities.
+- M6 mobs need the same machinery — `MobInstance` slots into the same `Store` as another `Entity` implementation with no refactor.
+- Mirrors the `docs/specs/README.md` taxonomy that already separates registries from tracked entities.
+
+Minimal initial shape:
+```
+internal/entities/
+  entity.go   // Entity interface (ID, Type, Tags) + ItemInstance struct
+  store.go    // Store with byID + byTag (read/write double-buffer) + byType
+  tick.go     // SwapTagIndex tick handler at cadence 1
+```
 
 ---
 
