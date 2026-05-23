@@ -39,9 +39,10 @@ type testRig struct {
 }
 
 type rigOpts struct {
-	color bool
-	flood session.FloodConfig
-	clk   clock.Clock
+	color    bool
+	flood    session.FloodConfig
+	clk      clock.Clock
+	linkDead session.LinkDeadConfig
 }
 
 func startRig(t *testing.T, w *world.World, startID world.RoomID, color bool) *testRig {
@@ -77,6 +78,7 @@ func startRigOpts(t *testing.T, w *world.World, startID world.RoomID, opts rigOp
 		ColorEnabled: opts.color,
 		Flood:        opts.flood,
 		Clock:        opts.clk,
+		LinkDead:     opts.linkDead,
 		Login: login.Config{
 			Accounts:        accs,
 			Players:         plrs,
@@ -337,6 +339,162 @@ func TestSessionFloodDisconnect(t *testing.T) {
 	if _, err := d.c.Read(buf); err == nil || !(errors.Is(err, io.EOF) || isNetClosed(err)) {
 		t.Errorf("expected EOF after flood disconnect, got err=%v", err)
 	}
+}
+
+// TestSessionLinkDeadReconnect is the M4.4 visible-payoff test: Alice
+// logs in, her TCP socket drops, a peer sees the "lost their
+// connection" broadcast, the cleanup sweep does NOT reap her within
+// the grace window, and a fresh login on her character reattaches the
+// session (room render returns, dispatch works again).
+func TestSessionLinkDeadReconnect(t *testing.T) {
+	w := world.New()
+	r := &world.Room{ID: "a", Name: "Room Alpha", Description: "alpha"}
+	w.AddRoom(r)
+
+	mc := clock.NewManual(time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC))
+	rig := startRigOpts(t, w, r.ID, rigOpts{
+		clk:      mc,
+		linkDead: session.LinkDeadConfig{Enabled: true, TimeoutSeconds: 120},
+	})
+	defer rig.stop(t)
+
+	alice := dial(t, rig.ln.Addr().String())
+	alice.loginNew("Alice", "alice@example.com", "hunter22")
+	alice.drainUntil("Room Alpha")
+
+	bob := dial(t, rig.ln.Addr().String())
+	defer bob.close()
+	bob.loginNew("Bob", "bob@example.com", "hunter22")
+	bob.drainUntil("Room Alpha")
+	alice.drainUntil("Bob has arrived.") // peer sequencing sanity
+
+	// Drop Alice's TCP socket. The server's read loop sees EOF and
+	// (with link-dead enabled) parks her instead of full teardown.
+	alice.close()
+
+	// Bob must see the lost-connection broadcast. Then Bob must NOT
+	// see a "left" message until cleanup runs.
+	bob.drainUntil("Alice has lost their connection.")
+
+	// Wait for the link-dead transition to land (the read loop unwinds
+	// asynchronously). Poll for byPlayerID["alice"] to enter phase
+	// linkDead.
+	deadline := time.Now().Add(2 * time.Second)
+	var parked bool
+	for time.Now().Before(deadline) {
+		if rig.mgr.IsPlayerLinkDead("Alice") {
+			parked = true
+			break
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	if !parked {
+		t.Fatal("Alice never entered link-dead phase")
+	}
+
+	// Within the grace window, cleanup is a no-op.
+	mc.Advance(60 * time.Second)
+	rig.mgr.LinkDeadCleanup(context.Background(), session.LinkDeadConfig{Enabled: true, TimeoutSeconds: 120}, mc)
+	if _, ok := rig.mgr.GetByName("Alice"); !ok {
+		t.Fatal("Alice reaped within grace window")
+	}
+
+	// Reconnect: a new TCP socket logs in as Alice. Should hit the
+	// reconnect path and receive "Reconnected." plus a room render.
+	alice2 := dial(t, rig.ln.Addr().String())
+	defer alice2.close()
+	alice2.loginReturning("Alice", "hunter22")
+	alice2.drainUntil("Reconnected.")
+	alice2.drainUntil("Room Alpha")
+
+	// Pump is alive: an in-game command produces a response.
+	alice2.writeLine("look")
+	alice2.drainUntil("Room Alpha")
+
+	alice2.writeLine("quit")
+	alice2.drainUntil("Goodbye.")
+}
+
+// TestSessionLinkDeadCleanupReaps verifies the reaper actually removes
+// a parked session after the timeout, persisting the player and
+// broadcasting departure to room peers.
+func TestSessionLinkDeadCleanupReaps(t *testing.T) {
+	w := world.New()
+	r := &world.Room{ID: "a", Name: "Room Alpha", Description: "alpha"}
+	w.AddRoom(r)
+
+	mc := clock.NewManual(time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC))
+	cfg := session.LinkDeadConfig{Enabled: true, TimeoutSeconds: 30}
+	rig := startRigOpts(t, w, r.ID, rigOpts{clk: mc, linkDead: cfg})
+	defer rig.stop(t)
+
+	alice := dial(t, rig.ln.Addr().String())
+	alice.loginNew("Alice", "alice@example.com", "hunter22")
+	alice.drainUntil("Room Alpha")
+
+	bob := dial(t, rig.ln.Addr().String())
+	defer bob.close()
+	bob.loginNew("Bob", "bob@example.com", "hunter22")
+	bob.drainUntil("Room Alpha")
+	alice.drainUntil("Bob has arrived.")
+
+	alice.close()
+	bob.drainUntil("Alice has lost their connection.")
+
+	// Wait for park.
+	deadline := time.Now().Add(2 * time.Second)
+	for time.Now().Before(deadline) {
+		if rig.mgr.IsPlayerLinkDead("Alice") {
+			break
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+
+	// Past the timeout, the sweep must reap.
+	mc.Advance(31 * time.Second)
+	rig.mgr.LinkDeadCleanup(context.Background(), cfg, mc)
+
+	bob.drainUntil("Alice has left.")
+	if _, ok := rig.mgr.GetByName("Alice"); ok {
+		t.Error("Alice still indexed after timeout cleanup")
+	}
+
+	bob.writeLine("quit")
+	bob.drainUntil("Goodbye.")
+}
+
+// TestSessionLinkDeadDisabledFallsBackToFullTeardown: with link-dead
+// off, a socket drop still produces the M3 "has left." broadcast and
+// removes the session immediately.
+func TestSessionLinkDeadDisabledFallsBackToFullTeardown(t *testing.T) {
+	w := world.New()
+	r := &world.Room{ID: "a", Name: "Room Alpha", Description: "alpha"}
+	w.AddRoom(r)
+
+	rig := startRigOpts(t, w, r.ID, rigOpts{
+		linkDead: session.LinkDeadConfig{Enabled: false},
+	})
+	defer rig.stop(t)
+
+	alice := dial(t, rig.ln.Addr().String())
+	alice.loginNew("Alice", "alice@example.com", "hunter22")
+	alice.drainUntil("Room Alpha")
+
+	bob := dial(t, rig.ln.Addr().String())
+	defer bob.close()
+	bob.loginNew("Bob", "bob@example.com", "hunter22")
+	bob.drainUntil("Room Alpha")
+	alice.drainUntil("Bob has arrived.")
+
+	alice.close()
+	bob.drainUntil("Alice has left.")
+
+	if _, ok := rig.mgr.GetByName("Alice"); ok {
+		t.Error("Alice still indexed after disabled-linkdead disconnect")
+	}
+
+	bob.writeLine("quit")
+	bob.drainUntil("Goodbye.")
 }
 
 func isNetClosed(err error) bool {

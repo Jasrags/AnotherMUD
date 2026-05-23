@@ -103,6 +103,16 @@ func run() error {
 		return fmt.Errorf("register idle-sweep tick: %w", err)
 	}
 
+	linkDeadCfg := cfg.LinkDead
+	if linkDeadCfg.Enabled {
+		linkDeadCadence := cadenceTicks(cfg.TickInterval, cfg.LinkDeadSweepInterval)
+		if err := loop.Register("linkdead-cleanup", linkDeadCadence, func(ctx context.Context, n uint64) {
+			mgr.LinkDeadCleanup(ctx, linkDeadCfg, clk)
+		}); err != nil {
+			return fmt.Errorf("register linkdead-cleanup tick: %w", err)
+		}
+	}
+
 	var wg sync.WaitGroup
 	wg.Add(1)
 	go func() {
@@ -133,6 +143,7 @@ func run() error {
 		ColorEnabled: cfg.ColorDefault,
 		Clock:        clk,
 		Flood:        session.DefaultFloodConfig(),
+		LinkDead:     linkDeadCfg,
 		Login: login.Config{
 			Accounts:        accounts,
 			Players:         players,
@@ -181,30 +192,41 @@ func cadenceTicks(tickInterval, cadence time.Duration) uint64 {
 // config is the M3 config knobs — env-only until we have more than
 // ~5 of them per the ROADMAP "not front-loaded" list.
 type config struct {
-	Addr              string
-	LogLevel          string
-	LogFormat         string
-	TickInterval      time.Duration
-	AutosaveInterval  time.Duration
-	IdleSweepInterval time.Duration
-	ContentDir        string
-	SaveDir           string
-	StartRoom         world.RoomID
-	ColorDefault      bool
+	Addr                  string
+	LogLevel              string
+	LogFormat             string
+	TickInterval          time.Duration
+	AutosaveInterval      time.Duration
+	IdleSweepInterval     time.Duration
+	LinkDeadSweepInterval time.Duration
+	ContentDir            string
+	SaveDir               string
+	StartRoom             world.RoomID
+	ColorDefault          bool
+	LinkDead              session.LinkDeadConfig
 }
 
 func loadConfig() config {
+	ld := session.DefaultLinkDeadConfig()
+	if v, ok := os.LookupEnv("ANOTHERMUD_LINKDEAD_ENABLED"); ok && v != "" {
+		ld.Enabled = !(strings.EqualFold(v, "0") || strings.EqualFold(v, "false") || strings.EqualFold(v, "off"))
+	}
+	if d := envDurationOr("ANOTHERMUD_LINKDEAD_TIMEOUT", 0); d > 0 {
+		ld.TimeoutSeconds = int(d / time.Second)
+	}
 	return config{
-		Addr:              envOr("ANOTHERMUD_ADDR", ":4000"),
-		LogLevel:          strings.ToLower(envOr("ANOTHERMUD_LOG_LEVEL", "info")),
-		LogFormat:         strings.ToLower(envOr("ANOTHERMUD_LOG_FORMAT", "text")),
-		TickInterval:      envDurationOr("ANOTHERMUD_TICK_INTERVAL", 100*time.Millisecond),
-		AutosaveInterval:  envDurationOr("ANOTHERMUD_AUTOSAVE_INTERVAL", 30*time.Second),
-		IdleSweepInterval: envDurationOr("ANOTHERMUD_IDLE_SWEEP_INTERVAL", 30*time.Second),
-		ContentDir:        envOr("ANOTHERMUD_CONTENT_DIR", "./content"),
-		SaveDir:           envOr("ANOTHERMUD_SAVE_DIR", "./saves"),
-		StartRoom:         world.RoomID(envOr("ANOTHERMUD_START_ROOM", "tapestry-core:town-square")),
-		ColorDefault:      colorDefault(),
+		Addr:                  envOr("ANOTHERMUD_ADDR", ":4000"),
+		LogLevel:              strings.ToLower(envOr("ANOTHERMUD_LOG_LEVEL", "info")),
+		LogFormat:             strings.ToLower(envOr("ANOTHERMUD_LOG_FORMAT", "text")),
+		TickInterval:          envDurationOr("ANOTHERMUD_TICK_INTERVAL", 100*time.Millisecond),
+		AutosaveInterval:      envDurationOr("ANOTHERMUD_AUTOSAVE_INTERVAL", 30*time.Second),
+		IdleSweepInterval:     envDurationOr("ANOTHERMUD_IDLE_SWEEP_INTERVAL", 30*time.Second),
+		LinkDeadSweepInterval: envDurationOr("ANOTHERMUD_LINKDEAD_SWEEP_INTERVAL", 30*time.Second),
+		ContentDir:            envOr("ANOTHERMUD_CONTENT_DIR", "./content"),
+		SaveDir:               envOr("ANOTHERMUD_SAVE_DIR", "./saves"),
+		StartRoom:             world.RoomID(envOr("ANOTHERMUD_START_ROOM", "tapestry-core:town-square")),
+		ColorDefault:          colorDefault(),
+		LinkDead:              ld,
 	}
 }
 

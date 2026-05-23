@@ -75,6 +75,10 @@ func (m *Manager) IdleSweep(ctx context.Context, cfg IdleConfig, clk clock.Clock
 	}
 	now := clk.Now()
 
+	// byConn excludes link-dead actors (their conn-id entry was
+	// removed at link-dead transition per spec §7.2 / §5.3), so the
+	// idle sweep correctly ignores them: link-dead has its own
+	// cleanup handler.
 	m.mu.RLock()
 	snapshot := make([]*connActor, 0, len(m.byConn))
 	for _, a := range m.byConn {

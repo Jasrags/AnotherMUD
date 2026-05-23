@@ -285,7 +285,7 @@ on a small surface now beats debugging races in M6 combat.
 - [x] Player A sees "B has arrived" when B enters their room (M4.1)
 - [x] Flood protection rejects abusive input rates per `session-lifecycle` §flood (M4.2: per-session token bucket, strike threshold disconnects)
 - [x] Idle timeout disconnects per `session-lifecycle` §5 (M4.3: per-session lastInputAt + warned latch + tick handler at cadence 300; admin-tag exemption deferred until a role system exists)
-- [ ] Link-dead detection per `session-lifecycle` §7
+- [x] Link-dead detection per `session-lifecycle` §7 (M4.4: phase enum on connActor, RemoveConnectionOnly / ReRegisterConnectionForSession on Manager, linkdead-cleanup tick handler at cadence 300, login reconnect path; Disabled fallback path preserved for tests)
 - [ ] Takeover (same account logs in twice) handled per `session-lifecycle` spec
 - [ ] Race detector clean: `make test` (which uses `-race`) stays green under load
 

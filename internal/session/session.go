@@ -57,6 +57,13 @@ type Config struct {
 	// flood protection (the test default). Production wires
 	// DefaultFloodConfig.
 	Flood FloodConfig
+
+	// LinkDead is the link-dead survival policy (M4.4). When Enabled
+	// is false, every disconnect immediately runs full teardown (the
+	// M3 behavior). When true, an involuntary connection drop parks
+	// the session for TimeoutSeconds so a returning login can
+	// reattach. Zero value (Enabled=false) is the test default.
+	LinkDead LinkDeadConfig
 }
 
 // Handler returns a server.Handler-compatible function that drives one
@@ -83,15 +90,30 @@ func run(ctx context.Context, c conn.Connection, cfg Config) error {
 		slog.String("player", loaded.Player.Name),
 		slog.String("account_id", loaded.Account.ID))
 
+	clk := cfg.Clock
+	if clk == nil {
+		clk = clock.RealClock{}
+	}
+
+	// Reconnect check: if a session for this player already exists,
+	// branch on its phase. LinkDead → reattach this new connection.
+	// Playing → reject (session takeover is M4.5).
+	if existing, ok := cfg.Manager.GetByPlayerID(loaded.Player.ID); ok {
+		if existing.isLinkDead() {
+			return reconnect(ctx, c, cfg, existing, clk)
+		}
+		_ = writeLine(ctx, c, "That character is already online.")
+		logging.From(ctx).Info("login rejected: character already online",
+			slog.String("player", loaded.Player.Name))
+		return nil
+	}
+
 	start, err := resolveStartRoom(cfg, loaded.Player.Location)
 	if err != nil {
 		return fmt.Errorf("session: resolve start room: %w", err)
 	}
 
-	clk := cfg.Clock
-	if clk == nil {
-		clk = clock.RealClock{}
-	}
+	floodCfg := cfg.Flood
 	a := &connActor{
 		id:           c.ID(),
 		conn:         c,
@@ -101,7 +123,9 @@ func run(ctx context.Context, c conn.Connection, cfg Config) error {
 		colorEnabled: cfg.ColorEnabled,
 		save:         loaded.Player,
 		players:      cfg.Players,
-		flood:        newFloodGate(cfg.Flood, clk),
+		flood:        newFloodGate(floodCfg, clk),
+		floodCfg:     &floodCfg,
+		clk:          clk,
 		lastInputAt:  clk.Now(),
 	}
 
@@ -115,7 +139,6 @@ func run(ctx context.Context, c conn.Connection, cfg Config) error {
 	}
 
 	cfg.Manager.Add(a)
-	defer cfg.Manager.Remove(a)
 
 	// Announce arrival to the start room (excluding self) so anyone
 	// already there sees the new player materialize.
@@ -123,37 +146,56 @@ func run(ctx context.Context, c conn.Connection, cfg Config) error {
 		fmt.Sprintf("%s has arrived.", a.Name()), a.PlayerID())
 
 	if err := a.Write(ctx, command.RenderRoom(start)); err != nil {
+		// Initial render failed: the connection is unusable. Full
+		// teardown immediately — no point parking link-dead.
+		fullTeardown(ctx, cfg, a)
 		return fmt.Errorf("first render: %w", err)
 	}
 
-	// Best-effort save on exit so quitting commits the player's final
-	// location. Errors are logged, not returned — the connection is
-	// already being torn down. Also announce departure to the room the
-	// player was in at disconnect time.
-	defer func() {
-		room := a.Room()
-		if room != nil {
-			cfg.Manager.SendToRoom(ctx, room.ID,
-				fmt.Sprintf("%s has left.", a.Name()), a.PlayerID())
-		}
-		if err := a.Persist(ctx); err != nil {
-			logging.From(ctx).Warn("save on disconnect failed", slog.Any("err", err))
-		}
-	}()
+	exit := pump(ctx, c, cfg, a, clk)
+	dispatchTeardown(ctx, cfg, a, exit, clk)
+	return nil
+}
 
+// pumpExit is the reason the read loop unwound, used by the teardown
+// dispatcher to choose between link-dead and full teardown.
+type pumpExit int
+
+const (
+	// exitClientQuit: dispatcher returned ErrQuit (the player typed
+	// "quit"). Always full teardown — the player meant to leave.
+	exitClientQuit pumpExit = iota
+	// exitConnGone: Read returned EOF / ErrClosed — the transport
+	// went away. Eligible for link-dead if the actor's disconnecting
+	// latch is not set (i.e. the server didn't initiate the close).
+	exitConnGone
+	// exitCtxCancel: context was cancelled — server is shutting down.
+	// Always full teardown so SaveAll can commit and indices clear.
+	exitCtxCancel
+	// exitForced: server-initiated disconnect (flood threshold). The
+	// actor's disconnecting latch is set before the loop returns;
+	// teardown is unconditionally full.
+	exitForced
+)
+
+// pump is the per-connection read → dispatch loop. Extracted from run
+// so the reconnect path can re-enter it against the new connection.
+// Returns the reason for exit; teardown is dispatched by the caller.
+func pump(ctx context.Context, c conn.Connection, cfg Config, a *connActor, clk clock.Clock) pumpExit {
 	for {
 		line, err := c.Read(ctx)
 		if err != nil {
 			switch {
 			case errors.Is(err, io.EOF), errors.Is(err, conn.ErrClosed):
-				return nil
+				return exitConnGone
 			case errors.Is(err, context.Canceled), errors.Is(err, context.DeadlineExceeded):
-				return nil
+				return exitCtxCancel
 			case errors.Is(err, conn.ErrLineTooLong):
 				_ = a.Write(ctx, "Input too long; truncated.")
 				continue
 			default:
-				return fmt.Errorf("read: %w", err)
+				logging.From(ctx).Warn("read error", slog.Any("err", err))
+				return exitConnGone
 			}
 		}
 
@@ -180,16 +222,130 @@ func run(ctx context.Context, c conn.Connection, cfg Config) error {
 			_ = a.Write(ctx, "Disconnected: command flooding.")
 			logging.From(ctx).Warn("session: disconnect on flood threshold",
 				slog.String("player", a.PlayerName()))
-			return nil
+			a.mu.Lock()
+			a.disconnecting = true
+			a.mu.Unlock()
+			return exitForced
 		}
 
 		if err := cfg.Commands.Dispatch(ctx, cfg.World, cfg.Manager, a, line); err != nil {
 			if errors.Is(err, command.ErrQuit) {
-				return nil
+				return exitClientQuit
 			}
 			logging.From(ctx).Warn("command handler error", slog.Any("err", err))
 		}
 	}
+}
+
+// dispatchTeardown picks the right cleanup path for the actor based on
+// the exit reason, the disconnecting latch, and the link-dead policy.
+//
+// Routing:
+//   - exitClientQuit / exitCtxCancel / exitForced → full teardown.
+//   - exitConnGone with disconnecting set (idle sweep closed the
+//     connection from underneath us) → full teardown.
+//   - exitConnGone with LinkDead disabled → full teardown.
+//   - exitConnGone with LinkDead enabled and not disconnecting → park
+//     in LinkDead phase, broadcast "lost their connection", keep the
+//     actor in every index except byConn so a reconnect can find it.
+func dispatchTeardown(ctx context.Context, cfg Config, a *connActor, exit pumpExit, clk clock.Clock) {
+	a.mu.Lock()
+	disc := a.disconnecting
+	a.mu.Unlock()
+
+	if exit == exitConnGone && !disc && cfg.LinkDead.Enabled {
+		enterLinkDeadTeardown(ctx, cfg, a, clk)
+		return
+	}
+	fullTeardown(ctx, cfg, a)
+}
+
+// fullTeardown runs the M3 unwind in the canonical order
+// "broadcast → remove → persist". This matches LinkDeadCleanup so a
+// future refactor that consolidates the two paths cannot accidentally
+// transpose the order and introduce a use-after-remove. Safe on an
+// actor still in any phase; the manager's Remove is itself idempotent.
+func fullTeardown(ctx context.Context, cfg Config, a *connActor) {
+	room := a.Room()
+	if room != nil {
+		cfg.Manager.SendToRoom(ctx, room.ID,
+			fmt.Sprintf("%s has left.", a.Name()), a.PlayerID())
+	}
+	cfg.Manager.Remove(a)
+	if err := a.Persist(ctx); err != nil {
+		logging.From(ctx).Warn("save on disconnect failed", slog.Any("err", err))
+	}
+}
+
+// enterLinkDeadTeardown parks the actor in LinkDead phase per spec §7.2:
+// drop only the connection-id index, keep entity / name / account /
+// room indices intact, broadcast lost-connection. The cleanup tick
+// handler reaps if no reconnect arrives within the timeout.
+func enterLinkDeadTeardown(ctx context.Context, cfg Config, a *connActor, clk clock.Clock) {
+	if !a.enterLinkDead(clk.Now()) {
+		// Lost a race; another path already advanced the phase. Fall
+		// back to full teardown so we don't leak a dangling actor.
+		fullTeardown(ctx, cfg, a)
+		return
+	}
+	cfg.Manager.RemoveConnectionOnly(a)
+
+	room := a.Room()
+	if room != nil {
+		cfg.Manager.SendToRoom(ctx, room.ID,
+			fmt.Sprintf("%s has lost their connection.", a.Name()), a.PlayerID())
+	}
+	logging.From(ctx).Info("session: link-dead",
+		slog.String("player", a.PlayerName()),
+		slog.Int("timeout_seconds", cfg.LinkDead.TimeoutSeconds))
+}
+
+// reconnect attaches a freshly-authenticated connection to an existing
+// link-dead session and resumes the read loop. Per spec §7.4: swap
+// the connection, re-install the byConn mapping, send "Reconnected.",
+// re-render the room, then drop into pump.
+func reconnect(ctx context.Context, c conn.Connection, cfg Config, a *connActor, clk clock.Clock) error {
+	if !a.reattach(c, clk.Now()) {
+		// Cleanup beat us to it; the link-dead session has been
+		// reaped. Treat this connection as a fresh login fallback
+		// would be too disruptive at this layer — close the new
+		// connection with a friendly message and let the client try
+		// again. (Vanishingly rare in practice.)
+		_ = writeLine(ctx, c, "Your previous session has already ended; please reconnect.")
+		return nil
+	}
+	if err := cfg.Manager.ReRegisterConnectionForSession(a, c.ID()); err != nil {
+		logging.From(ctx).Warn("reconnect: re-register failed", slog.Any("err", err))
+		// The actor is now in an inconsistent state (phase=Playing
+		// but no byConn entry). Force full teardown to recover.
+		a.mu.Lock()
+		a.disconnecting = true
+		a.mu.Unlock()
+		fullTeardown(ctx, cfg, a)
+		return nil
+	}
+
+	logging.From(ctx).Info("session: reconnected",
+		slog.String("player", a.PlayerName()))
+
+	if err := a.Write(ctx, renderReconnect()); err != nil {
+		logging.From(ctx).Warn("reconnect: banner write failed", slog.Any("err", err))
+	}
+	if rendered := renderRoomForReconnect(a); rendered != "" {
+		_ = a.Write(ctx, rendered)
+	}
+
+	exit := pump(ctx, c, cfg, a, clk)
+	dispatchTeardown(ctx, cfg, a, exit, clk)
+	return nil
+}
+
+// writeLine is a tiny helper for raw-conn writes that don't need the
+// actor's color rendering (used before an actor exists, e.g. the
+// "already online" rejection).
+func writeLine(ctx context.Context, c conn.Connection, s string) error {
+	_, err := c.Write(ctx, []byte(s+"\r\n"))
+	return err
 }
 
 func resolveStartRoom(cfg Config, savedLoc string) (*world.Room, error) {
@@ -231,9 +387,13 @@ type connActor struct {
 	dirty         bool
 	manager       *Manager
 	flood         *floodGate
+	floodCfg      *FloodConfig // retained so reattach() can rebuild a fresh bucket
+	clk           clock.Clock  // retained for the same reason
 	lastInputAt   time.Time
 	idleWarned    bool
-	disconnecting bool // set when teardown (idle, flood, etc.) is in flight
+	disconnecting bool         // set when teardown (idle, flood, etc.) is in flight
+	phase         sessionPhase // playing | linkDead | tearing (M4.4)
+	linkDeadAt    time.Time    // when the actor entered linkDead phase
 }
 
 func (a *connActor) ID() string { return a.id }

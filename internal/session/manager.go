@@ -2,6 +2,7 @@ package session
 
 import (
 	"context"
+	"errors"
 	"log/slog"
 	"strings"
 	"sync"
@@ -9,6 +10,11 @@ import (
 	"github.com/Jasrags/AnotherMUD/internal/logging"
 	"github.com/Jasrags/AnotherMUD/internal/world"
 )
+
+// ErrSessionGone is returned by ReRegisterConnectionForSession when the
+// target actor has already been removed from the manager (e.g. the
+// link-dead cleanup sweep ran between the reattach and the re-register).
+var ErrSessionGone = errors.New("session: actor no longer registered")
 
 // Manager is the multi-index registry of logged-in sessions. It owns
 // every lookup ("which session is on this connection?", "is anyone
@@ -299,13 +305,96 @@ func (m *Manager) removeFromRoomLocked(roomID world.RoomID, pid string) {
 	}
 }
 
+// RemoveConnectionOnly drops only the byConn index entry for the
+// actor, leaving every other index (byPlayerID, byName, byAccount,
+// byRoom) intact. Used by the link-dead transition (spec §7.2 step 4)
+// so a returning login can still find the parked session.
+//
+// Safe to call multiple times; an actor whose conn-id is not in the
+// index is a no-op.
+func (m *Manager) RemoveConnectionOnly(a *connActor) {
+	if a == nil {
+		return
+	}
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	delete(m.byConn, a.id)
+}
+
+// ReRegisterConnectionForSession installs a new conn-id mapping for an
+// actor whose connection was just swapped (link-dead reconnect, spec
+// §7.4 step 2). Updates the actor's id field under the manager lock so
+// no observer sees a half-swapped pair.
+//
+// Returns ErrSessionGone if the actor is not present in any non-byConn
+// index — this means a concurrent Remove (e.g. the cleanup sweep) tore
+// the session down while the reconnect path was running. Returns nil
+// on success.
+func (m *Manager) ReRegisterConnectionForSession(a *connActor, newConnID string) error {
+	if a == nil {
+		return ErrSessionGone
+	}
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	// Liveness probe via byPlayerID: cleanup's Remove clears this
+	// entry, so a pointer-identity mismatch (or missing entry) means
+	// the actor was reaped between reattach and re-register.
+	if cur, ok := m.byPlayerID[a.playerID]; !ok || cur != a {
+		return ErrSessionGone
+	}
+	// Drop any stale byConn entry for the old id (defensive — the
+	// link-dead transition should already have removed it). a.id is
+	// still the OLD id here because reattach intentionally does not
+	// mutate it; we own that write under the manager lock so the
+	// (id, byConn) pair never goes out of sync.
+	delete(m.byConn, a.id)
+	a.id = newConnID
+	m.byConn[newConnID] = a
+	return nil
+}
+
+// AllLinkDeadSessions returns a snapshot of every actor currently in
+// LinkDead phase. Used by the cleanup tick handler. Takes the actor
+// lock per candidate to read the phase, so the result reflects a
+// consistent point-in-time view even under concurrent mutation.
+func (m *Manager) AllLinkDeadSessions() []*connActor {
+	m.mu.RLock()
+	// Iterate byPlayerID rather than byConn — link-dead actors have
+	// had their byConn entry removed but remain in byPlayerID.
+	snapshot := make([]*connActor, 0, len(m.byPlayerID))
+	for _, a := range m.byPlayerID {
+		snapshot = append(snapshot, a)
+	}
+	m.mu.RUnlock()
+
+	out := snapshot[:0]
+	for _, a := range snapshot {
+		if a.isLinkDead() {
+			out = append(out, a)
+		}
+	}
+	return out
+}
+
 // SaveAll persists every tracked actor, isolating per-actor errors so
 // one bad save does not abort the batch (persistence spec §6.3). Used
 // by the autosave tick handler and by graceful shutdown.
 func (m *Manager) SaveAll(ctx context.Context) {
 	m.mu.RLock()
-	snapshot := make([]*connActor, 0, len(m.byConn))
+	// Union byConn and byPlayerID. byConn covers live sessions;
+	// byPlayerID additionally covers link-dead actors whose byConn
+	// entry was removed at link-dead transition (spec §7.2). The
+	// dedup uses pointer identity since the same *connActor lives in
+	// both maps when playing.
+	seen := make(map[*connActor]struct{}, len(m.byConn)+len(m.byPlayerID))
 	for _, a := range m.byConn {
+		seen[a] = struct{}{}
+	}
+	for _, a := range m.byPlayerID {
+		seen[a] = struct{}{}
+	}
+	snapshot := make([]*connActor, 0, len(seen))
+	for a := range seen {
 		snapshot = append(snapshot, a)
 	}
 	m.mu.RUnlock()
