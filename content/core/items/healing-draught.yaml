@@ -1,0 +1,9 @@
+id: healing-draught
+name: a healing draught
+type: item
+tags: [consumable, potion, stackable]
+keywords: [draught, potion, healing]
+properties:
+  stackable: true
+  heals: 10
+  weight: 1

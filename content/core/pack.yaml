@@ -8,3 +8,5 @@ content:
     - areas/*.yaml
   rooms:
     - rooms/*.yaml
+  items:
+    - items/*.yaml

@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/Jasrags/AnotherMUD/internal/item"
 	"github.com/Jasrags/AnotherMUD/internal/world"
 )
 
@@ -56,8 +57,9 @@ exits:
 
 func TestLoadHappyPath(t *testing.T) {
 	root := minimalCorePack(t)
-	w := world.New()
-	if err := Load(context.Background(), root, nil, w); err != nil {
+	regs := NewRegistries()
+	w := regs.World
+	if err := Load(context.Background(), root, nil, regs); err != nil {
 		t.Fatalf("Load: %v", err)
 	}
 	a, err := w.Room("tapestry-core:a")
@@ -90,7 +92,7 @@ id: orphan
 area: ghost-area
 name: Orphan
 `)
-	err := Load(context.Background(), root, nil, world.New())
+	err := Load(context.Background(), root, nil, NewRegistries())
 	if !errors.Is(err, ErrMissingArea) {
 		t.Fatalf("err = %v, want ErrMissingArea", err)
 	}
@@ -109,7 +111,7 @@ content:
 	writeFile(t, filepath.Join(pack, "rooms/a.yaml"), "id: a\narea: town\nname: A\n")
 	writeFile(t, filepath.Join(pack, "rooms/a2.yaml"), "id: a\narea: town\nname: Dup\n")
 
-	err := Load(context.Background(), root, nil, world.New())
+	err := Load(context.Background(), root, nil, NewRegistries())
 	if !errors.Is(err, world.ErrDuplicateID) {
 		t.Fatalf("err = %v, want world.ErrDuplicateID", err)
 	}
@@ -132,7 +134,7 @@ name: A
 exits:
   north: nowhere
 `)
-	err := Load(context.Background(), root, nil, world.New())
+	err := Load(context.Background(), root, nil, NewRegistries())
 	if !errors.Is(err, ErrMissingExitRoom) {
 		t.Fatalf("err = %v, want ErrMissingExitRoom", err)
 	}
@@ -171,8 +173,9 @@ exits:
   west: "tapestry-core:a"
 `)
 
-	w := world.New()
-	if err := Load(context.Background(), root, nil, w); err != nil {
+	regs := NewRegistries()
+	w := regs.World
+	if err := Load(context.Background(), root, nil, regs); err != nil {
 		t.Fatalf("Load: %v", err)
 	}
 	b, err := w.Room("extra:b")
@@ -196,7 +199,7 @@ content:
 	writeFile(t, filepath.Join(pack, "areas/town.yaml"), "id: town\nname: Town\n")
 	writeFile(t, filepath.Join(pack, "rooms/bad.yaml"), "id: [unterminated\n")
 
-	err := Load(context.Background(), root, nil, world.New())
+	err := Load(context.Background(), root, nil, NewRegistries())
 	if !errors.Is(err, ErrInvalidContent) {
 		t.Fatalf("err = %v, want ErrInvalidContent", err)
 	}
@@ -219,7 +222,7 @@ name: A
 exits:
   sideways: a
 `)
-	err := Load(context.Background(), root, nil, world.New())
+	err := Load(context.Background(), root, nil, NewRegistries())
 	if !errors.Is(err, ErrInvalidContent) {
 		t.Fatalf("err = %v, want ErrInvalidContent", err)
 	}
@@ -235,7 +238,7 @@ content:
   rooms: [rooms/*.yaml]
 `)
 	// No content files at all.
-	if err := Load(context.Background(), root, nil, world.New()); err == nil {
+	if err := Load(context.Background(), root, nil, NewRegistries()); err == nil {
 		t.Fatal("expected error for empty glob match")
 	}
 }
@@ -253,7 +256,7 @@ content:
 `)
 	// Place a real file at the escape target so the glob finds something.
 	writeFile(t, filepath.Join(root, "escape/town.yaml"), "id: town\nname: Town\n")
-	err := Load(context.Background(), root, nil, world.New())
+	err := Load(context.Background(), root, nil, NewRegistries())
 	if err == nil {
 		t.Fatal("expected path-traversal rejection, got nil")
 	}
@@ -283,7 +286,7 @@ content:
 name: B's Town
 `)
 
-	err := Load(context.Background(), root, nil, world.New())
+	err := Load(context.Background(), root, nil, NewRegistries())
 	if !errors.Is(err, world.ErrDuplicateID) {
 		t.Fatalf("err = %v, want world.ErrDuplicateID", err)
 	}
@@ -302,7 +305,7 @@ content:
 	writeFile(t, filepath.Join(pack, "areas/town.yaml"), "id: \"  :town\"\nname: Town\n")
 	writeFile(t, filepath.Join(pack, "rooms/a.yaml"), "id: a\narea: town\nname: A\n")
 
-	err := Load(context.Background(), root, nil, world.New())
+	err := Load(context.Background(), root, nil, NewRegistries())
 	if !errors.Is(err, ErrInvalidContent) {
 		t.Fatalf("err = %v, want ErrInvalidContent", err)
 	}
@@ -322,8 +325,9 @@ func TestLoadRealCorePack(t *testing.T) {
 		t.Skipf("content/ not present at %s: %v", contentRoot, err)
 	}
 
-	w := world.New()
-	if err := Load(context.Background(), contentRoot, nil, w); err != nil {
+	regs := NewRegistries()
+	w := regs.World
+	if err := Load(context.Background(), contentRoot, nil, regs); err != nil {
 		t.Fatalf("Load(real core pack): %v", err)
 	}
 
@@ -343,5 +347,139 @@ func TestLoadRealCorePack(t *testing.T) {
 		if _, err := w.Area(id); err != nil {
 			t.Errorf("missing area %q: %v", id, err)
 		}
+	}
+	wantItems := []item.TemplateID{
+		"tapestry-core:short-sword",
+		"tapestry-core:leather-cap",
+		"tapestry-core:canvas-sack",
+		"tapestry-core:healing-draught",
+	}
+	for _, id := range wantItems {
+		if !regs.Items.Has(id) {
+			t.Errorf("missing item template %q", id)
+		}
+	}
+}
+
+func TestLoadItemsHappyPath(t *testing.T) {
+	root := t.TempDir()
+	pack := filepath.Join(root, "core")
+	writeFile(t, filepath.Join(pack, "pack.yaml"), `
+name: tapestry-core
+content:
+  areas: [areas/*.yaml]
+  rooms: [rooms/*.yaml]
+  items: [items/*.yaml]
+`)
+	writeFile(t, filepath.Join(pack, "areas/town.yaml"), `
+id: town
+name: Town
+`)
+	writeFile(t, filepath.Join(pack, "rooms/a.yaml"), `
+id: a
+area: town
+name: Room A
+`)
+	writeFile(t, filepath.Join(pack, "items/short-sword.yaml"), `
+id: short-sword
+name: a short sword
+type: item
+tags: [weapon, metal]
+keywords: [sword, short]
+properties:
+  damage: 4
+modifiers:
+  - stat: str
+    value: 1
+`)
+
+	regs := NewRegistries()
+	if err := Load(context.Background(), root, nil, regs); err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	tpl, err := regs.Items.Get("tapestry-core:short-sword")
+	if err != nil {
+		t.Fatalf("Get: %v", err)
+	}
+	if tpl.Name != "a short sword" {
+		t.Errorf("Name = %q", tpl.Name)
+	}
+	if tpl.Type != "item" {
+		t.Errorf("Type = %q, want item", tpl.Type)
+	}
+	if len(tpl.Tags) != 2 || tpl.Tags[0] != "weapon" {
+		t.Errorf("Tags = %v", tpl.Tags)
+	}
+	if len(tpl.Keywords) != 2 || tpl.Keywords[0] != "sword" {
+		t.Errorf("Keywords = %v", tpl.Keywords)
+	}
+	if got := tpl.Properties["damage"]; got != 4 {
+		t.Errorf("Properties[damage] = %v (%T), want 4", got, got)
+	}
+	if len(tpl.Modifiers) != 1 || tpl.Modifiers[0].Stat != "str" || tpl.Modifiers[0].Value != 1 {
+		t.Errorf("Modifiers = %+v", tpl.Modifiers)
+	}
+}
+
+func TestLoadItemsMissingType(t *testing.T) {
+	root := t.TempDir()
+	pack := filepath.Join(root, "core")
+	writeFile(t, filepath.Join(pack, "pack.yaml"), `
+name: tapestry-core
+content:
+  areas: [areas/*.yaml]
+  rooms: [rooms/*.yaml]
+  items: [items/*.yaml]
+`)
+	writeFile(t, filepath.Join(pack, "areas/town.yaml"), `
+id: town
+name: Town
+`)
+	writeFile(t, filepath.Join(pack, "rooms/a.yaml"), `
+id: a
+area: town
+name: Room A
+`)
+	writeFile(t, filepath.Join(pack, "items/broken.yaml"), `
+id: broken
+name: a broken thing
+`)
+	err := Load(context.Background(), root, nil, NewRegistries())
+	if !errors.Is(err, ErrInvalidContent) {
+		t.Errorf("err = %v, want ErrInvalidContent", err)
+	}
+}
+
+func TestLoadItemsCrossPackCollision(t *testing.T) {
+	root := t.TempDir()
+	a := filepath.Join(root, "a")
+	b := filepath.Join(root, "b")
+	writeFile(t, filepath.Join(a, "pack.yaml"), `
+name: shared
+content:
+  areas: [areas/*.yaml]
+  rooms: [rooms/*.yaml]
+  items: [items/*.yaml]
+`)
+	writeFile(t, filepath.Join(a, "areas/x.yaml"), `id: x
+name: X`)
+	writeFile(t, filepath.Join(a, "rooms/r.yaml"), `id: r
+area: x
+name: R`)
+	writeFile(t, filepath.Join(a, "items/dup.yaml"), `id: shared:dup
+name: from a
+type: item`)
+	writeFile(t, filepath.Join(b, "pack.yaml"), `
+name: other
+content:
+  items: [items/*.yaml]
+`)
+	writeFile(t, filepath.Join(b, "items/dup.yaml"), `id: shared:dup
+name: from b
+type: item`)
+
+	err := Load(context.Background(), root, nil, NewRegistries())
+	if err == nil {
+		t.Fatal("expected duplicate-id error, got nil")
 	}
 }

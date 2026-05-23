@@ -1,0 +1,9 @@
+id: canvas-sack
+name: a canvas sack
+type: container
+tags: [container, cloth]
+keywords: [sack, canvas]
+properties:
+  container_capacity: 10
+  container_weight_limit: 25
+  weight: 1

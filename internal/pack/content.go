@@ -12,6 +12,27 @@ type AreaFile struct {
 	Description string `yaml:"description,omitempty"`
 }
 
+// ItemFile is the YAML shape for an item-template file (spec
+// inventory-equipment-items §2.2). One file declares one template.
+//
+// Required: id, name, type. Optional: tags, keywords, properties,
+// modifiers. Bare ids resolve against the current pack namespace.
+type ItemFile struct {
+	ID         string         `yaml:"id"`
+	Name       string         `yaml:"name"`
+	Type       string         `yaml:"type"`
+	Tags       []string       `yaml:"tags,omitempty"`
+	Keywords   []string       `yaml:"keywords,omitempty"`
+	Properties map[string]any `yaml:"properties,omitempty"`
+	Modifiers  []ModifierFile `yaml:"modifiers,omitempty"`
+}
+
+// ModifierFile is one entry of an ItemFile.Modifiers list.
+type ModifierFile struct {
+	Stat  string `yaml:"stat"`
+	Value int    `yaml:"value"`
+}
+
 // RoomFile is the YAML shape for a single-room file.
 //
 // Exits is a map keyed by direction long-name ("north", "up") to keep

@@ -1,0 +1,8 @@
+id: leather-cap
+name: a leather cap
+type: item
+tags: [armor, leather, wearable]
+keywords: [cap, leather]
+properties:
+  slot: head
+  weight: 1

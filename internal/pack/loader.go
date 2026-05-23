@@ -10,6 +10,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/Jasrags/AnotherMUD/internal/item"
 	"github.com/Jasrags/AnotherMUD/internal/logging"
 	"github.com/Jasrags/AnotherMUD/internal/world"
 	"gopkg.in/yaml.v3"
@@ -23,15 +24,16 @@ var (
 )
 
 // Load discovers packs under root, orders them by dependencies, and
-// populates dst with the resulting areas + rooms (spec §3.3 phases 1+2).
+// populates dst's registries with the resulting content (spec §3.3
+// phases 1+2).
 //
-// M2 scope: data-only. Tags, properties, items, mobs, scripts are not
-// loaded — that arrives in later milestones. Phase 1 today records the
-// loaded manifest list; Phase 2 reads area + room YAML.
+// M5.1 scope: areas, rooms, item templates. Tags, properties, mobs,
+// scripts arrive in later milestones. Phase 1 records the loaded
+// manifest list; Phase 2 reads YAML into each registry.
 //
 // Filter, when non-empty, restricts discovery (spec §2.4). Pass nil to
 // load every active pack under root.
-func Load(ctx context.Context, root string, filter []string, dst *world.World) error {
+func Load(ctx context.Context, root string, filter []string, dst *Registries) error {
 	logger := logging.From(ctx).With(slog.String("event", "pack.load"), slog.String("root", root))
 
 	discovered, err := Discover(root, filter)
@@ -63,19 +65,19 @@ func Load(ctx context.Context, root string, filter []string, dst *world.World) e
 
 	// Cross-pack area validity check (spec §3.3 step 4) runs after every
 	// pack has been read so cross-pack room→area refs resolve.
-	if err := validateAreas(dst); err != nil {
+	if err := validateAreas(dst.World); err != nil {
 		return err
 	}
 
 	// Exit-target validation runs last for the same reason.
-	if err := validateExits(dst); err != nil {
+	if err := validateExits(dst.World); err != nil {
 		return err
 	}
 
 	return nil
 }
 
-func loadPackContent(ctx context.Context, p Discovered, dst *world.World) error {
+func loadPackContent(ctx context.Context, p Discovered, dst *Registries) error {
 	ns := p.Namespace()
 	logger := logging.From(ctx).With(slog.String("pack", p.Manifest.Name), slog.String("namespace", ns))
 
@@ -87,6 +89,10 @@ func loadPackContent(ctx context.Context, p Discovered, dst *world.World) error 
 	if err != nil {
 		return err
 	}
+	itemPaths, err := resolveGlobs(p.Dir, p.Manifest.Content.Items)
+	if err != nil {
+		return err
+	}
 
 	// Areas first — rooms reference them (spec §3.3 step 2). TryAddArea
 	// catches both intra-pack and cross-pack id collisions.
@@ -95,7 +101,7 @@ func loadPackContent(ctx context.Context, p Discovered, dst *world.World) error 
 		if err != nil {
 			return err
 		}
-		if err := dst.TryAddArea(a); err != nil {
+		if err := dst.World.TryAddArea(a); err != nil {
 			return fmt.Errorf("%w (in %s)", err, ap)
 		}
 	}
@@ -105,8 +111,20 @@ func loadPackContent(ctx context.Context, p Discovered, dst *world.World) error 
 		if err != nil {
 			return err
 		}
-		if err := dst.TryAddRoom(r); err != nil {
+		if err := dst.World.TryAddRoom(r); err != nil {
 			return fmt.Errorf("%w (in %s)", err, rp)
+		}
+	}
+
+	// Item templates are namespace-scoped like rooms; TryAdd guards
+	// cross-pack collisions. Spec inventory-equipment-items §2.1.
+	for _, ip := range itemPaths {
+		t, err := decodeItem(ip, ns)
+		if err != nil {
+			return err
+		}
+		if err := dst.Items.TryAdd(t); err != nil {
+			return fmt.Errorf("%w (in %s)", err, ip)
 		}
 	}
 
@@ -114,6 +132,7 @@ func loadPackContent(ctx context.Context, p Discovered, dst *world.World) error 
 		slog.String("event", "pack.content"),
 		slog.Int("areas", len(areaPaths)),
 		slog.Int("rooms", len(roomPaths)),
+		slog.Int("items", len(itemPaths)),
 	)
 	return nil
 }
@@ -230,6 +249,48 @@ func decodeRoom(path, ns string) (*world.Room, error) {
 		r.Exits[dir] = world.Exit{Target: world.RoomID(targetID)}
 	}
 	return r, nil
+}
+
+func decodeItem(path, ns string) (*item.Template, error) {
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		return nil, fmt.Errorf("reading item %s: %w", path, err)
+	}
+	var f ItemFile
+	if err := yaml.Unmarshal(raw, &f); err != nil {
+		return nil, fmt.Errorf("%w: %s: %v", ErrInvalidContent, path, err)
+	}
+	if strings.TrimSpace(f.ID) == "" {
+		return nil, fmt.Errorf("%w: %s: missing 'id'", ErrInvalidContent, path)
+	}
+	if strings.TrimSpace(f.Name) == "" {
+		return nil, fmt.Errorf("%w: %s: missing 'name'", ErrInvalidContent, path)
+	}
+	if strings.TrimSpace(f.Type) == "" {
+		return nil, fmt.Errorf("%w: %s: missing 'type'", ErrInvalidContent, path)
+	}
+	id, err := qualifyID(f.ID, ns)
+	if err != nil {
+		return nil, fmt.Errorf("%w: %s: %v", ErrInvalidContent, path, err)
+	}
+
+	mods := make([]item.Modifier, 0, len(f.Modifiers))
+	for i, m := range f.Modifiers {
+		if strings.TrimSpace(m.Stat) == "" {
+			return nil, fmt.Errorf("%w: %s: modifier[%d] missing 'stat'", ErrInvalidContent, path, i)
+		}
+		mods = append(mods, item.Modifier{Stat: m.Stat, Value: m.Value})
+	}
+
+	return &item.Template{
+		ID:         item.TemplateID(id),
+		Name:       f.Name,
+		Type:       f.Type,
+		Tags:       f.Tags,
+		Keywords:   f.Keywords,
+		Properties: f.Properties,
+		Modifiers:  mods,
+	}, nil
 }
 
 // qualifyID applies the namespace rule (spec §5.2): if id contains ':'

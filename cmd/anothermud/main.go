@@ -62,10 +62,11 @@ func run() error {
 		return fmt.Errorf("listen on %s: %w", cfg.Addr, err)
 	}
 
-	w := world.New()
-	if err := pack.Load(ctx, cfg.ContentDir, nil, w); err != nil {
+	registries := pack.NewRegistries()
+	if err := pack.Load(ctx, cfg.ContentDir, nil, registries); err != nil {
 		return fmt.Errorf("loading content from %s: %w", cfg.ContentDir, err)
 	}
+	w := registries.World
 	if _, err := w.Room(cfg.StartRoom); err != nil {
 		return fmt.Errorf("starting room %q not in loaded world: %w", cfg.StartRoom, err)
 	}

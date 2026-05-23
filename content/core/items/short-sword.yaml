@@ -1,0 +1,12 @@
+id: short-sword
+name: a short sword
+type: item
+tags: [weapon, metal, bladed]
+keywords: [sword, short]
+properties:
+  slot: wield
+  damage: 4
+  weight: 3
+modifiers:
+  - stat: str
+    value: 1
