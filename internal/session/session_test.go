@@ -232,6 +232,66 @@ func TestSessionEndToEnd(t *testing.T) {
 	d.drainUntil("Goodbye.")
 }
 
+// TestTwoPlayersSeeEachOther is the M4.1 visible-payoff test:
+// player A is already online when B logs in; A must observe B's
+// arrival, and when B walks away A must observe the departure.
+func TestTwoPlayersSeeEachOther(t *testing.T) {
+	w := world.New()
+	a := &world.Room{ID: "a", Name: "Room Alpha", Description: "alpha"}
+	b := &world.Room{ID: "b", Name: "Room Beta", Description: "beta"}
+	a.Exits = map[world.Direction]world.Exit{world.DirNorth: {Target: b.ID}}
+	b.Exits = map[world.Direction]world.Exit{world.DirSouth: {Target: a.ID}}
+	w.AddRoom(a)
+	w.AddRoom(b)
+
+	rig := startRig(t, w, a.ID, false)
+	defer rig.stop(t)
+
+	alice := dial(t, rig.ln.Addr().String())
+	defer alice.close()
+	alice.loginNew("Alice", "alice@example.com", "hunter22")
+	alice.drainUntil("Room Alpha")
+
+	bob := dial(t, rig.ln.Addr().String())
+	defer bob.close()
+	bob.loginNew("Bob", "bob@example.com", "hunter22")
+	bob.drainUntil("Room Alpha")
+
+	// Alice must have seen Bob arrive.
+	arrived := alice.drainUntil("Bob has arrived.")
+	if !strings.Contains(arrived, "Bob has arrived.") {
+		t.Errorf("alice did not see arrival, got: %q", arrived)
+	}
+
+	// Bob walks north. Alice should see him head off; Bob's render is
+	// the destination room.
+	bob.writeLine("n")
+	bob.drainUntil("Room Beta")
+	heads := alice.drainUntil("Bob heads north.")
+	if !strings.Contains(heads, "Bob heads north.") {
+		t.Errorf("alice did not see Bob depart, got: %q", heads)
+	}
+
+	// Alice walks north too — Bob should see her arrive from the south.
+	alice.writeLine("n")
+	alice.drainUntil("Room Beta")
+	bobSees := bob.drainUntil("Alice arrives from the south.")
+	if !strings.Contains(bobSees, "Alice arrives from the south.") {
+		t.Errorf("bob did not see Alice arrive, got: %q", bobSees)
+	}
+
+	// Alice quits: Bob (same room) must see her leave.
+	alice.writeLine("quit")
+	alice.drainUntil("Goodbye.")
+	left := bob.drainUntil("Alice has left.")
+	if !strings.Contains(left, "Alice has left.") {
+		t.Errorf("bob did not see Alice quit, got: %q", left)
+	}
+
+	bob.writeLine("quit")
+	bob.drainUntil("Goodbye.")
+}
+
 // TestSessionPersistsLocationAcrossRestart is the M3 integration
 // criterion: create, walk to room b, restart server (same save dir),
 // log in, verify the player is in b.

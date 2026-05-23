@@ -106,7 +106,27 @@ func movementHandler(dir world.Direction) Handler {
 			}
 			return c.Actor.Write(ctx, "Something blocks your way.")
 		}
+		srcID := room.ID
+		name := c.Actor.Name()
+		pid := c.Actor.PlayerID()
+		// Announce departure to the source room before the actor
+		// leaves so other occupants there see it. Broadcaster is
+		// optional (tests pass nil); skip the announcement when name
+		// or PlayerID is empty (test actors that don't participate in
+		// presence).
+		if c.Broadcaster != nil && name != "" {
+			c.Broadcaster.SendToRoom(ctx, srcID,
+				fmt.Sprintf("%s heads %s.", name, dir.Long()), pid)
+		}
 		c.Actor.SetRoom(dst)
+		if c.Broadcaster != nil && name != "" {
+			from := dir.Opposite().Long()
+			if from == "" {
+				from = "elsewhere"
+			}
+			c.Broadcaster.SendToRoom(ctx, dst.ID,
+				fmt.Sprintf("%s arrives from the %s.", name, from), pid)
+		}
 		return c.Actor.Write(ctx, RenderRoom(dst))
 	}
 }

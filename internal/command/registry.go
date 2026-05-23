@@ -35,6 +35,14 @@ type Actor interface {
 	ID() string
 	Room() *world.Room
 	SetRoom(*world.Room)
+	// Name returns the player's display name (mixed case as the player
+	// chose at character creation). Used by handlers that emit
+	// observable presence ("Alice heads north.").
+	Name() string
+	// PlayerID returns the stable player identifier used by the
+	// session manager's indices. Empty for test actors that don't
+	// participate in broadcast.
+	PlayerID() string
 	// Write sends a line of output to the actor. The implementation
 	// is responsible for any line-ending conventions and for expanding
 	// any pack-authored color markup (see internal/ansi).
@@ -47,13 +55,26 @@ type Actor interface {
 	SetColorEnabled(bool)
 }
 
+// Broadcaster is the small surface a handler needs to address other
+// players in the world. The session manager satisfies it. Handlers
+// MUST tolerate a nil Broadcaster (e.g. unit tests) and skip the
+// broadcast in that case.
+type Broadcaster interface {
+	// SendToRoom delivers text to every player whose current room
+	// matches roomID, excluding any player whose id appears in
+	// excludePlayerIDs. The implementation is responsible for any
+	// per-recipient formatting (color, prompts).
+	SendToRoom(ctx context.Context, roomID world.RoomID, text string, excludePlayerIDs ...string)
+}
+
 // Context carries the per-invocation arguments passed to a Handler.
 type Context struct {
-	Actor Actor
-	World *world.World
-	Raw   string   // raw input line, trimmed
-	Verb  string   // resolved verb (lowercase)
-	Args  []string // tokens after the verb (space-split)
+	Actor       Actor
+	World       *world.World
+	Broadcaster Broadcaster // may be nil in tests
+	Raw         string      // raw input line, trimmed
+	Verb        string      // resolved verb (lowercase)
+	Args        []string    // tokens after the verb (space-split)
 }
 
 // Handler is the function invoked for a matched command.
@@ -133,7 +154,10 @@ func (r *Registry) Resolve(verb string) Handler {
 // Dispatch parses a raw input line and routes it. Empty / whitespace
 // input is a no-op (spec §3.1 step 1). Unknown verbs send "Huh?" to
 // the actor and return nil (the bad-input tracker lands later).
-func (r *Registry) Dispatch(ctx context.Context, w *world.World, actor Actor, raw string) error {
+//
+// b is the broadcaster used by handlers that emit observable presence
+// (movement, future emotes). May be nil for tests; handlers must guard.
+func (r *Registry) Dispatch(ctx context.Context, w *world.World, b Broadcaster, actor Actor, raw string) error {
 	trimmed := strings.TrimSpace(raw)
 	if trimmed == "" {
 		return nil
@@ -147,10 +171,11 @@ func (r *Registry) Dispatch(ctx context.Context, w *world.World, actor Actor, ra
 		return actor.Write(ctx, "Huh?")
 	}
 	return h(ctx, &Context{
-		Actor: actor,
-		World: w,
-		Raw:   trimmed,
-		Verb:  strings.ToLower(verb),
-		Args:  args,
+		Actor:       actor,
+		World:       w,
+		Broadcaster: b,
+		Raw:         trimmed,
+		Verb:        strings.ToLower(verb),
+		Args:        args,
 	})
 }

@@ -97,14 +97,25 @@ func run(ctx context.Context, c conn.Connection, cfg Config) error {
 	cfg.Manager.Add(a)
 	defer cfg.Manager.Remove(a)
 
+	// Announce arrival to the start room (excluding self) so anyone
+	// already there sees the new player materialize.
+	cfg.Manager.SendToRoom(ctx, start.ID,
+		fmt.Sprintf("%s has arrived.", a.Name()), a.PlayerID())
+
 	if err := a.Write(ctx, command.RenderRoom(start)); err != nil {
 		return fmt.Errorf("first render: %w", err)
 	}
 
 	// Best-effort save on exit so quitting commits the player's final
 	// location. Errors are logged, not returned — the connection is
-	// already being torn down.
+	// already being torn down. Also announce departure to the room the
+	// player was in at disconnect time.
 	defer func() {
+		room := a.Room()
+		if room != nil {
+			cfg.Manager.SendToRoom(ctx, room.ID,
+				fmt.Sprintf("%s has left.", a.Name()), a.PlayerID())
+		}
 		if err := a.Persist(ctx); err != nil {
 			logging.From(ctx).Warn("save on disconnect failed", slog.Any("err", err))
 		}
@@ -128,7 +139,7 @@ func run(ctx context.Context, c conn.Connection, cfg Config) error {
 
 		logging.From(ctx).Debug("input received", slog.String("line", sanitizeForLog(line)))
 
-		if err := cfg.Commands.Dispatch(ctx, cfg.World, a, line); err != nil {
+		if err := cfg.Commands.Dispatch(ctx, cfg.World, cfg.Manager, a, line); err != nil {
 			if errors.Is(err, command.ErrQuit) {
 				return nil
 			}
@@ -148,6 +159,12 @@ func resolveStartRoom(cfg Config, savedLoc string) (*world.Room, error) {
 
 // connActor adapts a conn.Connection to the command.Actor interface and
 // carries the player save record so SetRoom can mark it dirty.
+//
+// The manager back-reference is set by Manager.Add and used by SetRoom
+// to keep the per-room broadcast index synchronized. Lock order is
+// Manager → actor: SetRoom releases the actor lock before calling back
+// into the manager so the manager's broadcast path (which also takes
+// actor locks via Write) cannot deadlock with the move.
 type connActor struct {
 	id   string
 	conn conn.Connection
@@ -159,9 +176,28 @@ type connActor struct {
 	colorEnabled bool
 	save         *player.Save
 	dirty        bool
+	manager      *Manager
 }
 
 func (a *connActor) ID() string { return a.id }
+
+func (a *connActor) Name() string {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	if a.save == nil {
+		return ""
+	}
+	return a.save.Name
+}
+
+func (a *connActor) PlayerID() string {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	if a.save == nil {
+		return ""
+	}
+	return a.save.ID
+}
 
 func (a *connActor) Room() *world.Room {
 	a.mu.Lock()
@@ -171,11 +207,22 @@ func (a *connActor) Room() *world.Room {
 
 func (a *connActor) SetRoom(r *world.Room) {
 	a.mu.Lock()
-	defer a.mu.Unlock()
+	var oldID world.RoomID
+	if a.room != nil {
+		oldID = a.room.ID
+	}
 	a.room = r
+	pid := ""
 	if a.save != nil {
 		a.save.Location = string(r.ID)
 		a.dirty = true
+		pid = a.save.ID
+	}
+	mgr := a.manager
+	a.mu.Unlock()
+
+	if mgr != nil && oldID != r.ID {
+		mgr.moveRoom(a, pid, oldID, r.ID)
 	}
 }
 

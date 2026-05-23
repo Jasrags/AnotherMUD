@@ -281,8 +281,8 @@ and that entities can observe each other. Getting concurrency right
 on a small surface now beats debugging races in M6 combat.
 
 **Exit criteria:**
-- [ ] `SessionManager` tracks active sessions with concurrency-safe access
-- [ ] Player A sees "B has arrived" when B enters their room
+- [x] `SessionManager` tracks active sessions with concurrency-safe access (M4.1: multi-index byConn/byPlayerID/byName/byAccount/byRoom under RWMutex)
+- [x] Player A sees "B has arrived" when B enters their room (M4.1)
 - [ ] Flood protection rejects abusive input rates per `session-lifecycle` §flood
 - [ ] Idle timeout disconnects per `session-lifecycle` §5
 - [ ] Link-dead detection per `session-lifecycle` §7

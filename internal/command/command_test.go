@@ -84,7 +84,7 @@ func TestDispatch_HuhOnUnknown(t *testing.T) {
 	t.Parallel()
 	r := command.New()
 	a := newTestActor(nil)
-	if err := r.Dispatch(context.Background(), nil, a, "wibble"); err != nil {
+	if err := r.Dispatch(context.Background(), nil, nil, a, "wibble"); err != nil {
 		t.Fatalf("Dispatch: %v", err)
 	}
 	if got := a.lastLine(); got != "Huh?" {
@@ -96,7 +96,7 @@ func TestDispatch_EmptyInputIsNoOp(t *testing.T) {
 	t.Parallel()
 	r := command.New()
 	a := newTestActor(nil)
-	if err := r.Dispatch(context.Background(), nil, a, "   "); err != nil {
+	if err := r.Dispatch(context.Background(), nil, nil, a, "   "); err != nil {
 		t.Fatalf("Dispatch: %v", err)
 	}
 	if a.lastLine() != "" {
@@ -121,14 +121,14 @@ func TestBuiltins_LookAndMove(t *testing.T) {
 
 	actor := newTestActor(a)
 
-	if err := r.Dispatch(context.Background(), w, actor, "look"); err != nil {
+	if err := r.Dispatch(context.Background(), w, nil, actor, "look"); err != nil {
 		t.Fatalf("look: %v", err)
 	}
 	if !strings.Contains(actor.lastLine(), "Room A") {
 		t.Fatalf("look did not render room: %q", actor.lastLine())
 	}
 
-	if err := r.Dispatch(context.Background(), w, actor, "n"); err != nil {
+	if err := r.Dispatch(context.Background(), w, nil, actor, "n"); err != nil {
 		t.Fatalf("n: %v", err)
 	}
 	if actor.Room().ID != "b" {
@@ -138,7 +138,7 @@ func TestBuiltins_LookAndMove(t *testing.T) {
 		t.Fatalf("move did not render destination: %q", actor.lastLine())
 	}
 
-	if err := r.Dispatch(context.Background(), w, actor, "n"); err != nil {
+	if err := r.Dispatch(context.Background(), w, nil, actor, "n"); err != nil {
 		t.Fatalf("n with no exit: %v", err)
 	}
 	if !strings.Contains(actor.lastLine(), "cannot go that way") {
@@ -153,7 +153,7 @@ func TestBuiltins_Quit(t *testing.T) {
 		t.Fatalf("RegisterBuiltins: %v", err)
 	}
 	a := newTestActor(&world.Room{ID: "void"})
-	err := r.Dispatch(context.Background(), world.New(), a, "quit")
+	err := r.Dispatch(context.Background(), world.New(), nil, a, "quit")
 	if !errors.Is(err, command.ErrQuit) {
 		t.Fatalf("quit returned %v, want ErrQuit", err)
 	}
@@ -172,7 +172,9 @@ func newTestActor(start *world.Room) *testActor {
 	return &testActor{room: start}
 }
 
-func (a *testActor) ID() string { return "test" }
+func (a *testActor) ID() string       { return "test" }
+func (a *testActor) Name() string     { return "" }
+func (a *testActor) PlayerID() string { return "" }
 
 func (a *testActor) Room() *world.Room {
 	a.mu.Lock()
