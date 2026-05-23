@@ -95,12 +95,14 @@ func TestManager_SaveAllIsolatesErrors(t *testing.T) {
 }
 
 // fakeConn is a no-op conn.Connection stand-in that records every Write
-// for assertions. Used by manager broadcast tests that don't need the
-// full network stack from session_test.go.
+// for assertions and tracks whether Close has been invoked. Used by
+// manager broadcast / idle tests that don't need the full network
+// stack from session_test.go.
 type fakeConn struct {
-	id    string
-	mu    sync.Mutex
-	lines []string
+	id       string
+	mu       sync.Mutex
+	lines    []string
+	closeHit bool
 }
 
 func (f *fakeConn) ID() string { return f.id }
@@ -111,8 +113,19 @@ func (f *fakeConn) Write(_ context.Context, p []byte) (int, error) {
 	return len(p), nil
 }
 func (f *fakeConn) Read(_ context.Context) (string, error) { return "", nil }
-func (f *fakeConn) Close() error                            { return nil }
-func (f *fakeConn) RemoteAddr() string                      { return "fake" }
+func (f *fakeConn) Close() error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.closeHit = true
+	return nil
+}
+func (f *fakeConn) RemoteAddr() string { return "fake" }
+
+func (f *fakeConn) closed() bool {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.closeHit
+}
 
 func (f *fakeConn) writes() []string {
 	f.mu.Lock()

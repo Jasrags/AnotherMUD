@@ -16,6 +16,7 @@ import (
 	"log/slog"
 	"strings"
 	"sync"
+	"time"
 	"unicode"
 
 	"github.com/Jasrags/AnotherMUD/internal/ansi"
@@ -56,6 +57,11 @@ type Config struct {
 	// flood protection (the test default). Production wires
 	// DefaultFloodConfig.
 	Flood FloodConfig
+
+	// Idle is the warn / disconnect policy for inactive sessions. Zero
+	// WarnAfter and zero TimeoutAfter disable idle handling entirely
+	// (the test default). See docs/specs/session-lifecycle.md §5.
+	Idle IdleConfig
 }
 
 // Handler returns a server.Handler-compatible function that drives one
@@ -101,6 +107,7 @@ func run(ctx context.Context, c conn.Connection, cfg Config) error {
 		save:         loaded.Player,
 		players:      cfg.Players,
 		flood:        newFloodGate(cfg.Flood, clk),
+		lastInputAt:  clk.Now(),
 	}
 
 	// Keep the save's location in sync with the room we actually placed
@@ -156,6 +163,11 @@ func run(ctx context.Context, c conn.Connection, cfg Config) error {
 		}
 
 		logging.From(ctx).Debug("input received", slog.String("line", sanitizeForLog(line)))
+
+		// Refresh the idle bookkeeping before the flood gate so even
+		// dropped input still counts as activity (a flooding client is
+		// not "idle"; the flood gate alone decides how it's punished).
+		a.noteInput(clk.Now())
 
 		// Flood gate runs before dispatch. The warn write happens after
 		// the gate returns so no caller can accidentally re-enter the
@@ -224,6 +236,8 @@ type connActor struct {
 	dirty        bool
 	manager      *Manager
 	flood        *floodGate
+	lastInputAt  time.Time
+	idleWarned   bool
 }
 
 func (a *connActor) ID() string { return a.id }

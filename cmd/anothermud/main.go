@@ -86,12 +86,21 @@ func run() error {
 
 	mgr := session.NewManager()
 
-	loop := tick.New(clock.RealClock{}, cfg.TickInterval)
+	clk := clock.RealClock{}
+	loop := tick.New(clk, cfg.TickInterval)
 	autosaveInterval := autosaveTicks(cfg.TickInterval, cfg.AutosaveInterval)
 	if err := loop.Register("autosave", autosaveInterval, func(ctx context.Context, n uint64) {
 		mgr.SaveAll(ctx)
 	}); err != nil {
 		return fmt.Errorf("register autosave tick: %w", err)
+	}
+
+	idleCfg := session.DefaultIdleConfig()
+	idleSweepCadence := cadenceTicks(cfg.TickInterval, cfg.IdleSweepInterval)
+	if err := loop.Register("idle-sweep", idleSweepCadence, func(ctx context.Context, n uint64) {
+		mgr.IdleSweep(ctx, idleCfg, clk)
+	}); err != nil {
+		return fmt.Errorf("register idle-sweep tick: %w", err)
 	}
 
 	var wg sync.WaitGroup
@@ -122,8 +131,9 @@ func run() error {
 		Manager:      mgr,
 		StartID:      cfg.StartRoom,
 		ColorEnabled: cfg.ColorDefault,
-		Clock:        clock.RealClock{},
+		Clock:        clk,
 		Flood:        session.DefaultFloodConfig(),
+		Idle:         idleCfg,
 		Login: login.Config{
 			Accounts:        accounts,
 			Players:         players,
@@ -152,10 +162,17 @@ func run() error {
 // honoring the tick interval. Returns at least 1 so a misconfigured
 // interval doesn't trip tick.Register's > 0 check.
 func autosaveTicks(tickInterval, autosaveInterval time.Duration) uint64 {
-	if tickInterval <= 0 || autosaveInterval <= 0 {
+	return cadenceTicks(tickInterval, autosaveInterval)
+}
+
+// cadenceTicks is the generic wall-clock → tick conversion used by
+// any handler that wants to fire on a real-time cadence rather than
+// every tick.
+func cadenceTicks(tickInterval, cadence time.Duration) uint64 {
+	if tickInterval <= 0 || cadence <= 0 {
 		return 1
 	}
-	n := uint64(autosaveInterval / tickInterval)
+	n := uint64(cadence / tickInterval)
 	if n == 0 {
 		return 1
 	}
@@ -165,28 +182,30 @@ func autosaveTicks(tickInterval, autosaveInterval time.Duration) uint64 {
 // config is the M3 config knobs — env-only until we have more than
 // ~5 of them per the ROADMAP "not front-loaded" list.
 type config struct {
-	Addr             string
-	LogLevel         string
-	LogFormat        string
-	TickInterval     time.Duration
-	AutosaveInterval time.Duration
-	ContentDir       string
-	SaveDir          string
-	StartRoom        world.RoomID
-	ColorDefault     bool
+	Addr              string
+	LogLevel          string
+	LogFormat         string
+	TickInterval      time.Duration
+	AutosaveInterval  time.Duration
+	IdleSweepInterval time.Duration
+	ContentDir        string
+	SaveDir           string
+	StartRoom         world.RoomID
+	ColorDefault      bool
 }
 
 func loadConfig() config {
 	return config{
-		Addr:             envOr("ANOTHERMUD_ADDR", ":4000"),
-		LogLevel:         strings.ToLower(envOr("ANOTHERMUD_LOG_LEVEL", "info")),
-		LogFormat:        strings.ToLower(envOr("ANOTHERMUD_LOG_FORMAT", "text")),
-		TickInterval:     envDurationOr("ANOTHERMUD_TICK_INTERVAL", 100*time.Millisecond),
-		AutosaveInterval: envDurationOr("ANOTHERMUD_AUTOSAVE_INTERVAL", 30*time.Second),
-		ContentDir:       envOr("ANOTHERMUD_CONTENT_DIR", "./content"),
-		SaveDir:          envOr("ANOTHERMUD_SAVE_DIR", "./saves"),
-		StartRoom:        world.RoomID(envOr("ANOTHERMUD_START_ROOM", "tapestry-core:town-square")),
-		ColorDefault:     colorDefault(),
+		Addr:              envOr("ANOTHERMUD_ADDR", ":4000"),
+		LogLevel:          strings.ToLower(envOr("ANOTHERMUD_LOG_LEVEL", "info")),
+		LogFormat:         strings.ToLower(envOr("ANOTHERMUD_LOG_FORMAT", "text")),
+		TickInterval:      envDurationOr("ANOTHERMUD_TICK_INTERVAL", 100*time.Millisecond),
+		AutosaveInterval:  envDurationOr("ANOTHERMUD_AUTOSAVE_INTERVAL", 30*time.Second),
+		IdleSweepInterval: envDurationOr("ANOTHERMUD_IDLE_SWEEP_INTERVAL", 30*time.Second),
+		ContentDir:        envOr("ANOTHERMUD_CONTENT_DIR", "./content"),
+		SaveDir:           envOr("ANOTHERMUD_SAVE_DIR", "./saves"),
+		StartRoom:         world.RoomID(envOr("ANOTHERMUD_START_ROOM", "tapestry-core:town-square")),
+		ColorDefault:      colorDefault(),
 	}
 }
 

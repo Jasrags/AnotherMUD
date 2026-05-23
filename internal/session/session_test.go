@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/Jasrags/AnotherMUD/internal/account"
+	"github.com/Jasrags/AnotherMUD/internal/clock"
 	"github.com/Jasrags/AnotherMUD/internal/command"
 	"github.com/Jasrags/AnotherMUD/internal/login"
 	"github.com/Jasrags/AnotherMUD/internal/player"
@@ -34,13 +35,25 @@ type testRig struct {
 	cancel   context.CancelFunc
 	done     chan error
 	startID  world.RoomID
+	clock    clock.Clock // populated by startRigOpts; nil for the default rig
+}
+
+type rigOpts struct {
+	color bool
+	flood session.FloodConfig
+	idle  session.IdleConfig
+	clk   clock.Clock
 }
 
 func startRig(t *testing.T, w *world.World, startID world.RoomID, color bool) *testRig {
-	return startRigWithFlood(t, w, startID, color, session.FloodConfig{})
+	return startRigOpts(t, w, startID, rigOpts{color: color})
 }
 
 func startRigWithFlood(t *testing.T, w *world.World, startID world.RoomID, color bool, flood session.FloodConfig) *testRig {
+	return startRigOpts(t, w, startID, rigOpts{color: color, flood: flood})
+}
+
+func startRigOpts(t *testing.T, w *world.World, startID world.RoomID, opts rigOpts) *testRig {
 	t.Helper()
 	dir := t.TempDir()
 	accs, err := account.NewService(dir, account.WithBcryptCost(account.MinBcryptCostForTests))
@@ -62,8 +75,10 @@ func startRigWithFlood(t *testing.T, w *world.World, startID world.RoomID, color
 		Players:      plrs,
 		Manager:      mgr,
 		StartID:      startID,
-		ColorEnabled: color,
-		Flood:        flood,
+		ColorEnabled: opts.color,
+		Flood:        opts.flood,
+		Idle:         opts.idle,
+		Clock:        opts.clk,
 		Login: login.Config{
 			Accounts:        accs,
 			Players:         plrs,
@@ -82,6 +97,7 @@ func startRigWithFlood(t *testing.T, w *world.World, startID world.RoomID, color
 	return &testRig{
 		t: t, world: w, cmds: cmds, accounts: accs, players: plrs, mgr: mgr,
 		ln: ln, cancel: cancel, done: done, startID: startID,
+		clock: opts.clk,
 	}
 }
 
@@ -236,6 +252,47 @@ func TestSessionEndToEnd(t *testing.T) {
 	d.drainUntil("Huh?")
 	d.writeLine("quit")
 	d.drainUntil("Goodbye.")
+}
+
+// TestSessionIdleTimeoutDisconnects is the M4.3 integration check:
+// a logged-in client who sits silent past TimeoutAfter must receive
+// the timeout message and have the TCP connection torn down. Uses
+// ManualClock so the test doesn't have to actually wait minutes.
+func TestSessionIdleTimeoutDisconnects(t *testing.T) {
+	w := world.New()
+	r := &world.Room{ID: "a", Name: "Room", Description: "."}
+	w.AddRoom(r)
+
+	mc := clock.NewManual(time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC))
+	idle := session.IdleConfig{
+		WarnAfter:      30 * time.Second,
+		TimeoutAfter:   60 * time.Second,
+		WarnMessage:    "(Idle warning.)",
+		TimeoutMessage: "Disconnected: idle timeout.",
+	}
+	rig := startRigOpts(t, w, r.ID, rigOpts{idle: idle, clk: mc})
+	defer rig.stop(t)
+
+	d := dial(t, rig.ln.Addr().String())
+	defer d.close()
+	d.loginNew("Idle", "idle@example.com", "hunter22")
+	d.drainUntil("Room")
+
+	// Manually drive the idle sweep: jump past warn, then past timeout.
+	mc.Advance(31 * time.Second)
+	rig.mgr.IdleSweep(context.Background(), idle, mc)
+	d.drainUntil("Idle warning.")
+
+	mc.Advance(31 * time.Second)
+	rig.mgr.IdleSweep(context.Background(), idle, mc)
+	d.drainUntil("Disconnected: idle timeout.")
+
+	// Server should close the connection promptly.
+	_ = d.c.SetReadDeadline(time.Now().Add(2 * time.Second))
+	buf := make([]byte, 64)
+	if _, err := d.c.Read(buf); err == nil || !(errors.Is(err, io.EOF) || isNetClosed(err)) {
+		t.Errorf("expected EOF after idle disconnect, got err=%v", err)
+	}
 }
 
 // TestSessionFloodDisconnect is the M4.2 integration check: an abusive
