@@ -22,6 +22,7 @@ import (
 	"sync"
 
 	"github.com/Jasrags/AnotherMUD/internal/entities"
+	"github.com/Jasrags/AnotherMUD/internal/eventbus"
 	"github.com/Jasrags/AnotherMUD/internal/slot"
 	"github.com/Jasrags/AnotherMUD/internal/stats"
 	"github.com/Jasrags/AnotherMUD/internal/world"
@@ -112,6 +113,10 @@ type Env struct {
 	// they're only needed at login time (respawnInventory /
 	// respawnEquipment) and live on session.Config.
 	Slots *slot.Registry
+	// Bus is the engine event bus. Handlers publish observable
+	// events after successful mutations. May be nil in tests that
+	// don't subscribe to anything — handlers MUST nil-guard.
+	Bus *eventbus.Bus
 }
 
 // Context carries the per-invocation arguments passed to a Handler.
@@ -122,9 +127,21 @@ type Context struct {
 	Items       *entities.Store     // may be nil in tests
 	Placement   *entities.Placement // may be nil in tests
 	Slots       *slot.Registry      // may be nil in tests
+	Bus         *eventbus.Bus       // may be nil in tests
 	Raw         string              // raw input line, trimmed
 	Verb        string              // resolved verb (lowercase)
 	Args        []string            // tokens after the verb (space-split)
+}
+
+// Publish is the nil-safe shortcut every handler should use to emit
+// an event. Centralizing the nil-guard once means a future handler
+// that forgets `if c.Bus != nil` cannot silently introduce a
+// nil-deref when called from a test fixture with a zero-value Env.
+func (c *Context) Publish(ctx context.Context, e eventbus.Event) {
+	if c.Bus == nil {
+		return
+	}
+	c.Bus.Publish(ctx, e)
 }
 
 // Handler is the function invoked for a matched command.
@@ -228,6 +245,7 @@ func (r *Registry) Dispatch(ctx context.Context, env Env, actor Actor, raw strin
 		Items:       env.Items,
 		Placement:   env.Placement,
 		Slots:       env.Slots,
+		Bus:         env.Bus,
 		Raw:         trimmed,
 		Verb:        strings.ToLower(verb),
 		Args:        args,

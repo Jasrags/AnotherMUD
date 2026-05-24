@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/Jasrags/AnotherMUD/internal/entities"
+	"github.com/Jasrags/AnotherMUD/internal/eventbus"
 	"github.com/Jasrags/AnotherMUD/internal/keyword"
 )
 
@@ -68,6 +69,11 @@ func GetHandler(ctx context.Context, c *Context) error {
 			fmt.Sprintf("%s picks up %s.", c.Actor.Name(), item.Name()),
 			c.Actor.PlayerID())
 	}
+	c.Publish(ctx, eventbus.ItemPickedUp{
+		HolderID: holderEntityIDForPlayer(c.Actor.PlayerID()),
+		RoomID:   room.ID,
+		ItemID:   item.ID(),
+	})
 	return nil
 }
 
@@ -113,6 +119,11 @@ func DropHandler(ctx context.Context, c *Context) error {
 			fmt.Sprintf("%s drops %s.", c.Actor.Name(), item.Name()),
 			c.Actor.PlayerID())
 	}
+	c.Publish(ctx, eventbus.ItemDropped{
+		HolderID: holderEntityIDForPlayer(c.Actor.PlayerID()),
+		RoomID:   room.ID,
+		ItemID:   item.ID(),
+	})
 	return nil
 }
 

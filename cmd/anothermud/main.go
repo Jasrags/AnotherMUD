@@ -23,6 +23,7 @@ import (
 	"github.com/Jasrags/AnotherMUD/internal/clock"
 	"github.com/Jasrags/AnotherMUD/internal/command"
 	"github.com/Jasrags/AnotherMUD/internal/entities"
+	"github.com/Jasrags/AnotherMUD/internal/eventbus"
 	"github.com/Jasrags/AnotherMUD/internal/logging"
 	"github.com/Jasrags/AnotherMUD/internal/login"
 	"github.com/Jasrags/AnotherMUD/internal/pack"
@@ -107,6 +108,7 @@ func run() error {
 	// when that path lands rather than fabricating one now.
 	entityStore := entities.NewStore()
 	placement := entities.NewPlacement()
+	bus := eventbus.New()
 
 	clk := clock.RealClock{}
 	loop := tick.New(clk, cfg.TickInterval)
@@ -168,6 +170,7 @@ func run() error {
 		Placement:    placement,
 		Templates:    registries.Items,
 		Slots:        registries.Slots,
+		Bus:          bus,
 		StartID:      cfg.StartRoom,
 		ColorEnabled: cfg.ColorDefault,
 		Clock:        clk,

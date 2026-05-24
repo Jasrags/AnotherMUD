@@ -25,6 +25,7 @@ import (
 	"github.com/Jasrags/AnotherMUD/internal/command"
 	"github.com/Jasrags/AnotherMUD/internal/conn"
 	"github.com/Jasrags/AnotherMUD/internal/entities"
+	"github.com/Jasrags/AnotherMUD/internal/eventbus"
 	"github.com/Jasrags/AnotherMUD/internal/item"
 	"github.com/Jasrags/AnotherMUD/internal/logging"
 	"github.com/Jasrags/AnotherMUD/internal/login"
@@ -56,6 +57,10 @@ type Config struct {
 	// command handler to validate slot names and look up capacities.
 	// May be nil in tests that don't exercise equipment.
 	Slots *slot.Registry
+	// Bus is the engine event bus, passed through command.Env to
+	// inventory/equipment handlers so they can publish observable
+	// events after successful mutations. May be nil in tests.
+	Bus *eventbus.Bus
 
 	// StartID is the fallback starting room when a character's saved
 	// location is not present in the loaded world (e.g. a room was
@@ -293,6 +298,7 @@ func pump(ctx context.Context, c conn.Connection, cfg Config, a *connActor, clk 
 			Items:       cfg.Items,
 			Placement:   cfg.Placement,
 			Slots:       cfg.Slots,
+			Bus:         cfg.Bus,
 		}
 		if err := cfg.Commands.Dispatch(ctx, env, a, line); err != nil {
 			if errors.Is(err, command.ErrQuit) {

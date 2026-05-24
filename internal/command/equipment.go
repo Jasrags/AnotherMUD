@@ -7,9 +7,11 @@ import (
 	"strings"
 
 	"github.com/Jasrags/AnotherMUD/internal/entities"
+	"github.com/Jasrags/AnotherMUD/internal/eventbus"
 	"github.com/Jasrags/AnotherMUD/internal/keyword"
 	"github.com/Jasrags/AnotherMUD/internal/slot"
 	"github.com/Jasrags/AnotherMUD/internal/stats"
+	"github.com/Jasrags/AnotherMUD/internal/world"
 )
 
 // EquipHandler implements `equip <item> <slot>` per spec
@@ -117,11 +119,33 @@ func EquipHandler(ctx context.Context, c *Context) error {
 	_ = c.Actor.Write(ctx, fmt.Sprintf("You equip %s.", item.Name()))
 
 	// Broadcast uses the base slot name (no :index) per §3.3 step 7.
-	if c.Broadcaster != nil && c.Actor.Room() != nil && c.Actor.Name() != "" {
-		c.Broadcaster.SendToRoom(ctx, c.Actor.Room().ID,
+	room := c.Actor.Room()
+	if c.Broadcaster != nil && room != nil && c.Actor.Name() != "" {
+		c.Broadcaster.SendToRoom(ctx, room.ID,
 			fmt.Sprintf("%s equips %s.", c.Actor.Name(), item.Name()),
 			c.Actor.PlayerID())
 	}
+	var roomID world.RoomID
+	if room != nil {
+		roomID = room.ID
+	}
+	holder := holderEntityIDForPlayer(c.Actor.PlayerID())
+	// Auto-swap (§3.3 step 3) emits its unequip event first so
+	// observers see the displaced removal before the new placement.
+	if displacedItem != nil {
+		c.Publish(ctx, eventbus.EntityUnequipped{
+			HolderID: holder,
+			RoomID:   roomID,
+			ItemID:   displacedItem.ID(),
+			SlotName: def.Name,
+		})
+	}
+	c.Publish(ctx, eventbus.EntityEquipped{
+		HolderID: holder,
+		RoomID:   roomID,
+		ItemID:   item.ID(),
+		SlotName: def.Name,
+	})
 	return nil
 }
 
@@ -193,11 +217,30 @@ func UnequipHandler(ctx context.Context, c *Context) error {
 	}
 
 	_ = c.Actor.Write(ctx, fmt.Sprintf("You stop using %s.", target.Name()))
-	if c.Broadcaster != nil && c.Actor.Room() != nil && c.Actor.Name() != "" {
-		c.Broadcaster.SendToRoom(ctx, c.Actor.Room().ID,
+	room := c.Actor.Room()
+	if c.Broadcaster != nil && room != nil && c.Actor.Name() != "" {
+		c.Broadcaster.SendToRoom(ctx, room.ID,
 			fmt.Sprintf("%s stops using %s.", c.Actor.Name(), target.Name()),
 			c.Actor.PlayerID())
 	}
+	// §3.4 step 4: event carries the BASE slot name, never the
+	// index suffix. ParseKey is a pure string operation so a
+	// stale slot key still parses; ignore the (rare) error and
+	// fall back to the raw key as the base name.
+	base, _, err := slot.ParseKey(slotKey)
+	if err != nil {
+		base = slotKey
+	}
+	var roomID world.RoomID
+	if room != nil {
+		roomID = room.ID
+	}
+	c.Publish(ctx, eventbus.EntityUnequipped{
+		HolderID: holderEntityIDForPlayer(c.Actor.PlayerID()),
+		RoomID:   roomID,
+		ItemID:   target.ID(),
+		SlotName: base,
+	})
 	return nil
 }
 
