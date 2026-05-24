@@ -7,7 +7,9 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/Jasrags/AnotherMUD/internal/entities"
 	"github.com/Jasrags/AnotherMUD/internal/player"
+	"github.com/Jasrags/AnotherMUD/internal/stats"
 )
 
 func newStore(t *testing.T) (*player.Store, string) {
@@ -119,10 +121,11 @@ func TestLoad_DefaultsVersionToOneWhenMissing(t *testing.T) {
 	}
 }
 
-func TestSaveLoad_V2RoundTripWithInventoryAndEquipment(t *testing.T) {
+func TestSaveLoad_V3RoundTripWithInventoryEquipmentStats(t *testing.T) {
 	ctx := context.Background()
 	st, _ := newStore(t)
 
+	src := entities.EquipmentSourceKey("entity-1")
 	save := &player.Save{
 		Version:   player.CurrentVersion,
 		ID:        "p-1",
@@ -130,7 +133,12 @@ func TestSaveLoad_V2RoundTripWithInventoryAndEquipment(t *testing.T) {
 		Name:      "Eve",
 		Location:  "tapestry-core:town-square",
 		Inventory: []string{"tapestry-core:short-sword", "tapestry-core:healing-draught"},
-		Equipment: map[string]string{"main-hand": "tapestry-core:short-sword"},
+		Equipment: map[string]player.EquippedItem{
+			"wield": {Template: "tapestry-core:short-sword", Entity: "entity-1"},
+		},
+		Stats: stats.Snapshot{
+			{Source: src, Modifiers: []stats.Modifier{{Stat: "str", Value: 1}}},
+		},
 	}
 	if err := st.Save(ctx, save); err != nil {
 		t.Fatalf("Save: %v", err)
@@ -140,20 +148,30 @@ func TestSaveLoad_V2RoundTripWithInventoryAndEquipment(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Load: %v", err)
 	}
-	if got.Version != 2 {
-		t.Errorf("Version = %d, want 2", got.Version)
+	if got.Version != 3 {
+		t.Errorf("Version = %d, want 3", got.Version)
 	}
 	if len(got.Inventory) != 2 || got.Inventory[0] != "tapestry-core:short-sword" {
 		t.Errorf("Inventory = %v", got.Inventory)
 	}
-	if got.Equipment["main-hand"] != "tapestry-core:short-sword" {
-		t.Errorf("Equipment = %v", got.Equipment)
+	eq, ok := got.Equipment["wield"]
+	if !ok {
+		t.Fatalf("Equipment missing wield slot: %v", got.Equipment)
+	}
+	if eq.Template != "tapestry-core:short-sword" || eq.Entity != "entity-1" {
+		t.Errorf("Equipment[wield] = %+v", eq)
+	}
+	if len(got.Stats) != 1 || got.Stats[0].Source != src {
+		t.Errorf("Stats = %+v", got.Stats)
+	}
+	if got.Stats[0].Modifiers[0].Stat != "str" || got.Stats[0].Modifiers[0].Value != 1 {
+		t.Errorf("Stats modifiers = %+v", got.Stats[0].Modifiers)
 	}
 }
 
-func TestLoad_V1MigratesToV2(t *testing.T) {
-	// A v1 file on disk must load cleanly and come back with v2 shape:
-	// empty inventory, empty equipment, version bumped.
+func TestLoad_V1MigratesToV3(t *testing.T) {
+	// A v1 file on disk must traverse both migration steps cleanly and
+	// come back at v3 with empty inventory, equipment, and stats.
 	ctx := context.Background()
 	st, dir := newStore(t)
 
@@ -171,8 +189,8 @@ func TestLoad_V1MigratesToV2(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Load: %v", err)
 	}
-	if got.Version != 2 {
-		t.Errorf("Version after migrate = %d, want 2", got.Version)
+	if got.Version != 3 {
+		t.Errorf("Version after migrate = %d, want 3", got.Version)
 	}
 	if len(got.Inventory) != 0 {
 		t.Errorf("Inventory = %v, want empty", got.Inventory)
@@ -180,8 +198,50 @@ func TestLoad_V1MigratesToV2(t *testing.T) {
 	if len(got.Equipment) != 0 {
 		t.Errorf("Equipment = %v, want empty", got.Equipment)
 	}
+	if len(got.Stats) != 0 {
+		t.Errorf("Stats = %v, want empty", got.Stats)
+	}
 	if got.Name != "OldUser" || got.Location != "tapestry-core:town-square" {
 		t.Errorf("preserved fields wrong: %+v", got)
+	}
+}
+
+func TestLoad_V2EquipmentMigratesToV3Struct(t *testing.T) {
+	// A v2 save with the old string-shaped equipment (theoretical — M5.5
+	// never wrote one in practice) should promote into the v3 struct
+	// shape with an empty entity id; the missing entity id leaves the
+	// stats block with no source key to rebind against, so the slot is
+	// effectively unequipped on next login. This is the documented
+	// behavior in migrateV2toV3.
+	ctx := context.Background()
+	st, dir := newStore(t)
+
+	playerDir := filepath.Join(dir, "players", "v2user")
+	if err := os.MkdirAll(playerDir, 0o755); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(playerDir, "player.yaml"),
+		[]byte("version: 2\nid: p-1\naccount_id: acct-1\nname: V2User\nlocation: tapestry-core:town-square\nequipment:\n  wield: tapestry-core:short-sword\n"),
+		0o600); err != nil {
+		t.Fatalf("write: %v", err)
+	}
+
+	got, err := st.Load(ctx, "v2user")
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if got.Version != 3 {
+		t.Errorf("Version = %d, want 3", got.Version)
+	}
+	eq, ok := got.Equipment["wield"]
+	if !ok {
+		t.Fatalf("Equipment[wield] missing after migrate: %v", got.Equipment)
+	}
+	if eq.Template != "tapestry-core:short-sword" {
+		t.Errorf("Equipment[wield].Template = %q", eq.Template)
+	}
+	if eq.Entity != "" {
+		t.Errorf("Equipment[wield].Entity = %q, want empty", eq.Entity)
 	}
 }
 

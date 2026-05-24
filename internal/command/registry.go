@@ -22,6 +22,8 @@ import (
 	"sync"
 
 	"github.com/Jasrags/AnotherMUD/internal/entities"
+	"github.com/Jasrags/AnotherMUD/internal/slot"
+	"github.com/Jasrags/AnotherMUD/internal/stats"
 	"github.com/Jasrags/AnotherMUD/internal/world"
 )
 
@@ -64,6 +66,21 @@ type Actor interface {
 	AddToInventory(entities.EntityID)
 	// RemoveFromInventory removes id; returns true if it was present.
 	RemoveFromInventory(entities.EntityID) bool
+
+	// Equipment returns slot key → entity id for currently-equipped
+	// items. Fresh map — safe to mutate.
+	Equipment() map[string]entities.EntityID
+	// Equip atomically moves id from inventory to equipment at
+	// slotKey and applies mods to the holder's stat block under
+	// EquipmentSourceKey(id). Returns false if id was not in
+	// inventory (TOCTOU loss to a concurrent drop). Auto-swap is the
+	// handler's responsibility — perform the unequip side first, then
+	// call Equip on the now-empty slot.
+	Equip(slotKey string, id entities.EntityID, mods []stats.Modifier) bool
+	// Unequip atomically removes the item at slotKey, returns it to
+	// inventory, and reverses its stat modifiers. Returns the removed
+	// entity id and true on success.
+	Unequip(slotKey string) (entities.EntityID, bool)
 }
 
 // Broadcaster is the small surface a handler needs to address other
@@ -90,18 +107,24 @@ type Env struct {
 	Broadcaster Broadcaster
 	Items       *entities.Store
 	Placement   *entities.Placement
+	// Slots is the equipment-slot registry, consumed by the equip
+	// command handler. Templates are deliberately NOT carried here —
+	// they're only needed at login time (respawnInventory /
+	// respawnEquipment) and live on session.Config.
+	Slots *slot.Registry
 }
 
 // Context carries the per-invocation arguments passed to a Handler.
 type Context struct {
 	Actor       Actor
 	World       *world.World
-	Broadcaster Broadcaster        // may be nil in tests
-	Items       *entities.Store    // may be nil in tests
+	Broadcaster Broadcaster         // may be nil in tests
+	Items       *entities.Store     // may be nil in tests
 	Placement   *entities.Placement // may be nil in tests
-	Raw         string             // raw input line, trimmed
-	Verb        string             // resolved verb (lowercase)
-	Args        []string           // tokens after the verb (space-split)
+	Slots       *slot.Registry      // may be nil in tests
+	Raw         string              // raw input line, trimmed
+	Verb        string              // resolved verb (lowercase)
+	Args        []string            // tokens after the verb (space-split)
 }
 
 // Handler is the function invoked for a matched command.
@@ -204,6 +227,7 @@ func (r *Registry) Dispatch(ctx context.Context, env Env, actor Actor, raw strin
 		Broadcaster: env.Broadcaster,
 		Items:       env.Items,
 		Placement:   env.Placement,
+		Slots:       env.Slots,
 		Raw:         trimmed,
 		Verb:        strings.ToLower(verb),
 		Args:        args,

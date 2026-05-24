@@ -167,6 +167,7 @@ func run() error {
 		Items:        entityStore,
 		Placement:    placement,
 		Templates:    registries.Items,
+		Slots:        registries.Slots,
 		StartID:      cfg.StartRoom,
 		ColorEnabled: cfg.ColorDefault,
 		Clock:        clk,

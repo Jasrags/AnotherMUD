@@ -14,6 +14,7 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -28,6 +29,8 @@ import (
 	"github.com/Jasrags/AnotherMUD/internal/logging"
 	"github.com/Jasrags/AnotherMUD/internal/login"
 	"github.com/Jasrags/AnotherMUD/internal/player"
+	"github.com/Jasrags/AnotherMUD/internal/slot"
+	"github.com/Jasrags/AnotherMUD/internal/stats"
 	"github.com/Jasrags/AnotherMUD/internal/world"
 )
 
@@ -49,6 +52,10 @@ type Config struct {
 	// Templates is the item-template registry used at login time to
 	// respawn persisted inventory entries into fresh instances.
 	Templates *item.Templates
+	// Slots is the equipment-slot registry. Required by the equip
+	// command handler to validate slot names and look up capacities.
+	// May be nil in tests that don't exercise equipment.
+	Slots *slot.Registry
 
 	// StartID is the fallback starting room when a character's saved
 	// location is not present in the loaded world (e.g. a room was
@@ -156,17 +163,27 @@ func run(ctx context.Context, c conn.Connection, cfg Config) error {
 		save:         loaded.Player,
 		players:      cfg.Players,
 		items:        cfg.Items,
+		equipment:    make(map[string]entities.EntityID),
+		stats:        stats.New(),
 		flood:        newFloodGate(floodCfg, clk),
 		floodCfg:     &floodCfg,
 		clk:          clk,
 		lastInputAt:  clk.Now(),
 	}
 
+	// Install the persisted stat block FIRST. respawnEquipment will then
+	// rebind each entry's source key from the saved entity id to the
+	// fresh one as it spawns the matching ItemInstance. Order matters:
+	// the block must hold the old source keys at the moment respawn
+	// runs so RebindSource has something to find.
+	a.stats.Restore(loaded.Player.Stats)
+
 	// Respawn persisted inventory into live ItemInstances. Done before
 	// the actor enters the manager / starts taking input so a takeover
 	// or autosave can't observe a partial inventory.
 	if cfg.Items != nil && cfg.Templates != nil {
 		respawnInventory(ctx, a, cfg.Items, cfg.Templates, loaded.Player.Inventory)
+		respawnEquipment(ctx, a, cfg.Items, cfg.Templates, loaded.Player.Equipment)
 	}
 
 	// Keep the save's location in sync with the room we actually placed
@@ -174,8 +191,10 @@ func run(ctx context.Context, c conn.Connection, cfg Config) error {
 	// even if the player idles and disconnects before issuing any
 	// movement command (covers the saved-room-removed fallback case).
 	if a.save.Location != string(start.ID) {
+		a.mu.Lock()
 		a.save.Location = string(start.ID)
-		a.dirty = true
+		a.markDirtyLocked()
+		a.mu.Unlock()
 	}
 
 	cfg.Manager.Add(a)
@@ -273,6 +292,7 @@ func pump(ctx context.Context, c conn.Connection, cfg Config, a *connActor, clk 
 			Broadcaster: cfg.Manager,
 			Items:       cfg.Items,
 			Placement:   cfg.Placement,
+			Slots:       cfg.Slots,
 		}
 		if err := cfg.Commands.Dispatch(ctx, env, a, line); err != nil {
 			if errors.Is(err, command.ErrQuit) {
@@ -379,18 +399,119 @@ func respawnInventory(ctx context.Context, a *connActor, store *entities.Store, 
 	// the runtime; flip dirty so the next persist trims it.
 	if len(survivors) != len(saved) {
 		a.save.Inventory = survivors
-		a.dirty = true
+		a.markDirtyLocked()
+	}
+	a.mu.Unlock()
+}
+
+// respawnEquipment creates fresh ItemInstances for each persisted
+// equipment entry and reattaches the persisted stat-block source keys
+// from the saved entity ids to the freshly-minted ones (§3.5). Slot
+// keys with unknown templates are dropped; the modifier set under
+// their old source key stays orphaned in the block until the next
+// Persist trims via syncStatsToSaveLocked (a.stats has no entry for
+// the dropped slot — the orphan is in a.save.Stats, not a.stats).
+// To keep the runtime block clean we also drop the matching modifier
+// set when a template lookup fails.
+//
+// Entries with an empty Entity id (legacy v2-migrated saves, §3.5
+// open question) install the item but skip the rebind — no source
+// key exists to migrate, so the modifier set is effectively absent
+// for that slot until the player re-equips.
+func respawnEquipment(ctx context.Context, a *connActor, store *entities.Store, tpls *item.Templates, saved map[string]player.EquippedItem) {
+	if len(saved) == 0 {
+		return
+	}
+	// Iterate slot keys in deterministic order so logs (and any future
+	// dependent-modifier semantics) don't churn across restarts.
+	keys := make([]string, 0, len(saved))
+	for k := range saved {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+
+	type respawned struct {
+		slot  string
+		newID entities.EntityID
+	}
+	survivors := make([]respawned, 0, len(keys))
+	dropped := make([]string, 0)
+
+	for _, slotKey := range keys {
+		entry := saved[slotKey]
+		tpl, err := tpls.Get(item.TemplateID(entry.Template))
+		if err != nil {
+			logging.From(ctx).Warn("equipment: dropping unknown template",
+				slog.String("slot_key", slotKey),
+				slog.String("template_id", entry.Template),
+				slog.String("player", a.PlayerName()),
+				slog.Any("err", err))
+			dropped = append(dropped, slotKey)
+			continue
+		}
+		inst, err := store.Spawn(tpl)
+		if err != nil {
+			logging.From(ctx).Warn("equipment: spawn failed",
+				slog.String("slot_key", slotKey),
+				slog.String("template_id", entry.Template),
+				slog.Any("err", err))
+			dropped = append(dropped, slotKey)
+			continue
+		}
+		survivors = append(survivors, respawned{slot: slotKey, newID: inst.ID()})
+
+		if entry.Entity == "" {
+			// Migrated-from-v2 entry: no old source key to rebind. The
+			// modifier set is absent for this slot until re-equip.
+			continue
+		}
+		oldSrc := entities.EquipmentSourceKey(entities.EntityID(entry.Entity))
+		newSrc := entities.EquipmentSourceKey(inst.ID())
+		if !a.stats.RebindSource(oldSrc, newSrc) {
+			// Either the persisted stat block had no entry for the old
+			// id (item was equipped but contributed no modifiers — fine)
+			// or the new source key collided with an existing entry
+			// (programming error — log and move on; the slot is still
+			// equipped, just without modifier reattachment).
+			logging.From(ctx).Debug("equipment: source-key rebind no-op",
+				slog.String("slot_key", slotKey),
+				slog.String("old", string(oldSrc)),
+				slog.String("new", string(newSrc)))
+		}
+	}
+
+	a.mu.Lock()
+	for _, r := range survivors {
+		a.equipment[r.slot] = r.newID
+	}
+	if len(dropped) > 0 {
+		// On-disk Equipment is now ahead of runtime; flip dirty so the
+		// next persist trims dead slot entries (and any orphaned stat
+		// modifier sets under their old source keys still sitting in
+		// a.save.Stats — syncStatsToSaveLocked rewrites from the live
+		// block, which doesn't contain them).
+		a.syncEquipmentToSaveLocked()
+		a.syncStatsToSaveLocked()
+		a.markDirtyLocked()
 	}
 	a.mu.Unlock()
 }
 
 // untrackInventory removes every item entity in the actor's inventory
-// from the runtime store. Called from teardown paths after the save has
-// been written so the next login can respawn from the template ids.
-// Safe to call with a nil store (tests) or empty inventory.
+// and equipment from the runtime store. Called from teardown paths
+// after the save has been written so the next login can respawn from
+// the template ids. Safe to call with a nil store (tests) or empty
+// containers.
 func untrackInventory(ctx context.Context, store *entities.Store, a *connActor) {
 	if store == nil {
 		return
+	}
+	for _, id := range a.Equipment() {
+		if err := store.Untrack(id); err != nil {
+			logging.From(ctx).Debug("equipment: untrack on teardown",
+				slog.String("entity_id", string(id)),
+				slog.Any("err", err))
+		}
 	}
 	for _, id := range a.Inventory() {
 		if err := store.Untrack(id); err != nil {
@@ -512,13 +633,37 @@ type connActor struct {
 	// inventory holds the runtime entity ids the actor is carrying.
 	// Mutations go through AddToInventory / RemoveFromInventory and
 	// flip the dirty bit so autosave commits the new contents.
+	//
+	// Invariant: an item id is in EXACTLY ONE of {inventory, equipment,
+	// Placement room buckets} at any time. The get/drop/equip/unequip
+	// paths pair their mutations so this never has to be reconciled
+	// after the fact. Teardown only untracks ids from inventory +
+	// equipment; Placement entries persist (items left in rooms stay).
 	inventory []entities.EntityID
+	// equipment maps slot key → equipped entity id. Slot keys are the
+	// strings produced by slot.BuildKey: bare name for cap-1 slots,
+	// "name:index" for multi-cap.
+	equipment map[string]entities.EntityID
+	// stats is the holder's sourced modifier set (M5.6). Equipment
+	// modifiers apply under EquipmentSourceKey(item.ID()); on save the
+	// snapshot is mirrored into a.save.Stats; on login Restore +
+	// RebindSource rewires persisted source keys onto the fresh entity
+	// ids spawned by respawnEquipment.
+	stats *stats.Block
 
 	mu            sync.Mutex
 	room          *world.Room
 	colorEnabled  bool
 	save          *player.Save
 	dirty         bool
+	// saveGen is incremented on every mutation that flips dirty. Persist
+	// captures the value at snapshot time and only clears dirty if the
+	// counter hasn't advanced — guards against a concurrent equip /
+	// inventory mutation getting lost because the in-flight Save wrote
+	// stale state and then cleared dirty on completion. Comparing
+	// individual fields (the M3-era approach, which compared only
+	// Location) doesn't scale as the save shape grows.
+	saveGen       uint64
 	manager       *Manager
 	flood         *floodGate
 	floodCfg      *FloodConfig // retained so reattach() can rebuild a fresh bucket
@@ -562,7 +707,7 @@ func (a *connActor) SetRoom(r *world.Room) {
 	a.room = r
 	if a.save != nil {
 		a.save.Location = string(r.ID)
-		a.dirty = true
+		a.markDirtyLocked()
 	}
 	mgr := a.manager
 	a.mu.Unlock()
@@ -596,31 +741,77 @@ func (a *connActor) Write(ctx context.Context, msg string) error {
 // when something has changed since the last write. Safe to call from
 // any goroutine.
 //
-// The dirty flag is only cleared if the saved state has not been
-// mutated again while we were writing — otherwise an interleaved
-// SetRoom would be silently dropped: it would set dirty=true *while*
-// our Save is in flight, and we'd then clear that flag after writing
-// the older snapshot.
+// The dirty flag is only cleared if no mutation occurred between
+// snapshot and completion (saveGen unchanged) — otherwise an
+// interleaved SetRoom / Equip / drop would be silently dropped: the
+// mutation sets dirty=true while our Save is in flight, and we'd
+// then clear that flag after writing the older snapshot.
+//
+// The snapshot deep-copies slice- and map-backed save fields so the
+// YAML encoder running on snapshot cannot race a concurrent
+// syncXxxToSaveLocked rewrite of a.save.
 func (a *connActor) Persist(ctx context.Context) error {
 	a.mu.Lock()
 	if !a.dirty || a.save == nil || a.players == nil {
 		a.mu.Unlock()
 		return nil
 	}
-	snapshot := *a.save
+	snapshot := snapshotSave(a.save)
+	gen := a.saveGen
 	a.mu.Unlock()
 
 	if err := a.players.Save(ctx, &snapshot); err != nil {
 		return err
 	}
 	a.mu.Lock()
-	// Only clear dirty if no later mutation occurred. M3 tracks just
-	// Location; expand the comparison when the save grows more fields.
-	if a.save != nil && a.save.Location == snapshot.Location {
+	if a.saveGen == gen {
 		a.dirty = false
 	}
 	a.mu.Unlock()
 	return nil
+}
+
+// snapshotSave produces an isolated copy of save suitable for a YAML
+// encode that may run after the actor lock is released. Strings/ints
+// copy by value; slices and maps need explicit duplication.
+func snapshotSave(save *player.Save) player.Save {
+	out := *save
+	if save.Inventory != nil {
+		dup := make([]string, len(save.Inventory))
+		copy(dup, save.Inventory)
+		out.Inventory = dup
+	}
+	if save.Equipment != nil {
+		dup := make(map[string]player.EquippedItem, len(save.Equipment))
+		for k, v := range save.Equipment {
+			dup[k] = v
+		}
+		out.Equipment = dup
+	}
+	if save.Stats != nil {
+		dup := make(stats.Snapshot, len(save.Stats))
+		for i, e := range save.Stats {
+			entryDup := e
+			if e.Modifiers != nil {
+				mods := make([]stats.Modifier, len(e.Modifiers))
+				copy(mods, e.Modifiers)
+				entryDup.Modifiers = mods
+			}
+			dup[i] = entryDup
+		}
+		out.Stats = dup
+	}
+	return out
+}
+
+// markDirtyLocked flips dirty and advances the save generation
+// counter. Caller MUST hold a.mu. Centralized so every mutation path
+// stays in step with Persist's "did anything change between snapshot
+// and completion?" check; a bare `dirty = true` would set the flag
+// but leave saveGen untouched and Persist would silently clear it.
+func (a *connActor) markDirtyLocked() {
+	a.dirty = true
+	a.saveGen++
 }
 
 // Inventory returns a snapshot of the actor's currently-held item
@@ -641,7 +832,7 @@ func (a *connActor) AddToInventory(id entities.EntityID) {
 	a.mu.Lock()
 	a.inventory = append(a.inventory, id)
 	a.syncInventoryToSaveLocked()
-	a.dirty = true
+	a.markDirtyLocked()
 	a.mu.Unlock()
 }
 
@@ -654,11 +845,118 @@ func (a *connActor) RemoveFromInventory(id entities.EntityID) bool {
 		if e == id {
 			a.inventory = append(a.inventory[:i], a.inventory[i+1:]...)
 			a.syncInventoryToSaveLocked()
-			a.dirty = true
+			a.markDirtyLocked()
 			return true
 		}
 	}
 	return false
+}
+
+// Equipment returns a snapshot of the actor's currently-equipped items
+// keyed by slot key. Fresh map — safe to mutate.
+func (a *connActor) Equipment() map[string]entities.EntityID {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	out := make(map[string]entities.EntityID, len(a.equipment))
+	for k, v := range a.equipment {
+		out[k] = v
+	}
+	return out
+}
+
+// Equip is the atomic equip-side mutation invoked by the equip
+// command handler: removes id from inventory, installs it at slotKey,
+// applies its modifiers to the holder's stat block under
+// EquipmentSourceKey(id), and marks the save dirty. Returns false if
+// id is not in inventory (the handler treats this as a TOCTOU loss to
+// a concurrent drop and surfaces the same "you aren't carrying that"
+// message).
+//
+// Auto-swap (§3.3 step 3) is NOT done here — the handler resolves the
+// displaced slot key BEFORE calling Equip so the unequip side of the
+// swap can be reported to the player. Equip is the leaf mutation.
+func (a *connActor) Equip(slotKey string, id entities.EntityID, mods []stats.Modifier) bool {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	// Verify id is in inventory and remove it atomically with the
+	// equipment insertion.
+	for i, e := range a.inventory {
+		if e == id {
+			a.inventory = append(a.inventory[:i], a.inventory[i+1:]...)
+			a.equipment[slotKey] = id
+			a.stats.Apply(entities.EquipmentSourceKey(id), mods)
+			a.syncInventoryToSaveLocked()
+			a.syncEquipmentToSaveLocked()
+			a.syncStatsToSaveLocked()
+			a.markDirtyLocked()
+			return true
+		}
+	}
+	return false
+}
+
+// Unequip is the atomic unequip-side mutation: removes the item at
+// slotKey, returns it to inventory, reverses its stat modifiers by
+// source key, marks dirty. Returns the entity id and true on success;
+// (empty, false) if the slot is unoccupied.
+func (a *connActor) Unequip(slotKey string) (entities.EntityID, bool) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	id, ok := a.equipment[slotKey]
+	if !ok {
+		return "", false
+	}
+	delete(a.equipment, slotKey)
+	a.inventory = append(a.inventory, id)
+	a.stats.Remove(entities.EquipmentSourceKey(id))
+	a.syncInventoryToSaveLocked()
+	a.syncEquipmentToSaveLocked()
+	a.syncStatsToSaveLocked()
+	a.markDirtyLocked()
+	return id, true
+}
+
+// StatsHas reports whether the holder's stat block carries any
+// modifiers under src. Test-facing helper; production code goes
+// through the equip/unequip mutations.
+func (a *connActor) StatsHas(src entities.SourceKey) bool {
+	return a.stats.Has(src)
+}
+
+// syncEquipmentToSaveLocked mirrors the runtime equipment map into the
+// save's Equipment field, capturing both the template id (so respawn
+// can locate the template) and the current entity id (so respawn can
+// rebind the stats block's source key from old to new). Caller MUST
+// hold a.mu.
+func (a *connActor) syncEquipmentToSaveLocked() {
+	if a.save == nil {
+		return
+	}
+	if len(a.equipment) == 0 {
+		a.save.Equipment = nil
+		return
+	}
+	out := make(map[string]player.EquippedItem, len(a.equipment))
+	for slotKey, id := range a.equipment {
+		tpl, ok := a.lookupTemplateID(id)
+		if !ok {
+			// Untracked entity — drop from save. Matches the silent
+			// drop policy in syncInventoryToSaveLocked.
+			continue
+		}
+		out[slotKey] = player.EquippedItem{Template: tpl, Entity: string(id)}
+	}
+	a.save.Equipment = out
+}
+
+// syncStatsToSaveLocked rewrites a.save.Stats from the live block.
+// Snapshot returns a fresh slice each call so the Persist path's
+// shallow *a.save copy doesn't share backing storage.
+func (a *connActor) syncStatsToSaveLocked() {
+	if a.save == nil {
+		return
+	}
+	a.save.Stats = a.stats.Snapshot()
 }
 
 // syncInventoryToSaveLocked mirrors the actor's runtime inventory

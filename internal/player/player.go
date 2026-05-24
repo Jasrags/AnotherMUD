@@ -25,6 +25,7 @@ import (
 
 	"github.com/Jasrags/AnotherMUD/internal/logging"
 	"github.com/Jasrags/AnotherMUD/internal/persistence"
+	"github.com/Jasrags/AnotherMUD/internal/stats"
 )
 
 // CurrentVersion is the version stamped on every save written today.
@@ -33,9 +34,16 @@ import (
 // v2 (M5.5): added `inventory` (list of item template ids) and
 // `equipment` (slot key → item template id) blocks. Per-instance state
 // is not yet persisted — items respawn fresh from their templates at
-// load time. When per-instance state lands (charges, condition, fill
-// amount), bump to v3 with a richer inventory entry shape.
-const CurrentVersion = 2
+// load time.
+//
+// v3 (M5.6): `equipment` value type widened from string to a struct
+// carrying both the template id and the runtime entity id from the
+// session that wrote the save. The entity id lets respawnEquipment
+// rebind persisted stat-block source keys onto the freshly-minted
+// entity ids on the next login (inventory-equipment-items §3.5).
+// `stats` block added to persist the holder's sourced modifier set
+// applied by equipment.
+const CurrentVersion = 3
 
 // Sentinel errors callers may check via errors.Is.
 var (
@@ -46,20 +54,39 @@ var (
 // Save is the on-disk record for a single character. The yaml tags use
 // snake_case per persistence spec §3.2.
 //
-// Inventory and Equipment store *template ids* (e.g. "tapestry-core:short-sword"),
-// not runtime entity ids. Runtime ids are reassigned each session, so
-// persisting them would be meaningless; the inventory feature respawns
-// fresh instances from the template registry at login. Equipment maps
-// slot key (e.g. "main-hand", "ring:0") to template id. Both are
-// optional and empty for v1 saves migrated forward.
+// Inventory stores *template ids*; runtime entity ids are reassigned
+// each session so persisting them would be meaningless, and inventory
+// items have no holder-side state crossing the boundary.
+//
+// Equipment is different: it persists both the template id AND the
+// entity id the session was using when it wrote the save. The entity
+// id is dead on disk (the next session mints fresh ids) but it is the
+// key that the persisted Stats block uses to identify which modifier
+// set came from which slot. respawnEquipment uses the saved entity id
+// to rebind those modifiers onto the new instance's id. See
+// inventory-equipment-items §3.5.
+//
+// Stats holds the holder's sourced modifier set — the cumulative
+// effect of every equipped item's modifiers — persisted under the
+// same source keys that were live when the save was written.
 type Save struct {
-	Version   int               `yaml:"version"`
-	ID        string            `yaml:"id"`
-	AccountID string            `yaml:"account_id"`
-	Name      string            `yaml:"name"`
-	Location  string            `yaml:"location"`
-	Inventory []string          `yaml:"inventory,omitempty"`
-	Equipment map[string]string `yaml:"equipment,omitempty"`
+	Version   int                      `yaml:"version"`
+	ID        string                   `yaml:"id"`
+	AccountID string                   `yaml:"account_id"`
+	Name      string                   `yaml:"name"`
+	Location  string                   `yaml:"location"`
+	Inventory []string                 `yaml:"inventory,omitempty"`
+	Equipment map[string]EquippedItem  `yaml:"equipment,omitempty"`
+	Stats     stats.Snapshot           `yaml:"stats,omitempty"`
+}
+
+// EquippedItem is one entry in the persisted equipment map (v3+). The
+// pair is what lets respawnEquipment reattach the persisted Stats
+// modifiers (sourced under EquipmentSourceKey(Entity)) to a freshly
+// re-spawned ItemInstance with a new runtime id.
+type EquippedItem struct {
+	Template string `yaml:"template"`
+	Entity   string `yaml:"entity"`
 }
 
 // Store is a file-backed player store. Directories live at
@@ -185,6 +212,7 @@ func (s *Store) Load(ctx context.Context, name string) (*Save, error) {
 // existing saves out there may still be at that version.
 var playerMigrations = map[int]func(map[string]any) (map[string]any, error){
 	1: migrateV1toV2,
+	2: migrateV2toV3,
 }
 
 // migrateV1toV2 adds the empty inventory/equipment blocks introduced
@@ -196,6 +224,76 @@ var playerMigrations = map[int]func(map[string]any) (map[string]any, error){
 // empty map identically.
 func migrateV1toV2(in map[string]any) (map[string]any, error) {
 	return in, nil
+}
+
+// migrateV2toV3 widens the `equipment` value shape from a bare template
+// id string to a {template, entity} struct, and admits an empty `stats`
+// block (real values land when the migrated save is next written by a
+// session that has actually equipped something).
+//
+// v2 in practice never wrote real equipment data — the field was
+// declared in M5.5 but no equip command existed to populate it. The
+// loop below handles the (theoretical) string-shaped legacy entries by
+// promoting them to the struct shape with an empty entity id; the
+// session layer treats an empty entity id as "no source key to rebind"
+// so the modifier set is simply absent for that slot. Safer than
+// silently dropping the equipment reference.
+func migrateV2toV3(in map[string]any) (map[string]any, error) {
+	raw, ok := in["equipment"]
+	if !ok || raw == nil {
+		return in, nil
+	}
+	eq, ok := toStringKeyMap(raw)
+	if !ok {
+		// Equipment present but not a map — drop it. A v2 save that
+		// fails this shape check is malformed; the alternative is
+		// returning an error and refusing to load, which is worse than
+		// losing equipment that almost certainly was never there.
+		delete(in, "equipment")
+		return in, nil
+	}
+	out := make(map[string]any, len(eq))
+	for slot, val := range eq {
+		switch v := val.(type) {
+		case string:
+			out[slot] = map[string]any{"template": v, "entity": ""}
+		case map[string]any:
+			out[slot] = v
+		case map[any]any:
+			// yaml.v3 hands nested maps back as map[any]any; promote.
+			promoted := make(map[string]any, len(v))
+			for k, vv := range v {
+				if ks, ok := k.(string); ok {
+					promoted[ks] = vv
+				}
+			}
+			out[slot] = promoted
+		default:
+			// Unknown shape — drop this slot, same reasoning as above.
+		}
+	}
+	in["equipment"] = out
+	return in, nil
+}
+
+// toStringKeyMap accepts either of yaml.v3's two map decodings.
+func toStringKeyMap(v any) (map[string]any, bool) {
+	switch m := v.(type) {
+	case map[string]any:
+		return m, true
+	case map[any]any:
+		out := make(map[string]any, len(m))
+		for k, vv := range m {
+			ks, ok := k.(string)
+			if !ok {
+				return nil, false
+			}
+			out[ks] = vv
+		}
+		return out, true
+	default:
+		return nil, false
+	}
 }
 
 func migrate(ctx context.Context, generic map[string]any, name string) (map[string]any, error) {

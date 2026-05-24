@@ -9,6 +9,7 @@ import (
 
 	"github.com/Jasrags/AnotherMUD/internal/command"
 	"github.com/Jasrags/AnotherMUD/internal/entities"
+	"github.com/Jasrags/AnotherMUD/internal/stats"
 	"github.com/Jasrags/AnotherMUD/internal/world"
 )
 
@@ -168,6 +169,8 @@ type testActor struct {
 	lines     []string
 	color     bool
 	inventory []entities.EntityID
+	equipment map[string]entities.EntityID
+	mods      map[entities.SourceKey][]stats.Modifier
 }
 
 func newTestActor(start *world.Room) *testActor {
@@ -233,6 +236,51 @@ func (a *testActor) RemoveFromInventory(id entities.EntityID) bool {
 		}
 	}
 	return false
+}
+
+func (a *testActor) Equipment() map[string]entities.EntityID {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	out := make(map[string]entities.EntityID, len(a.equipment))
+	for k, v := range a.equipment {
+		out[k] = v
+	}
+	return out
+}
+
+func (a *testActor) Equip(slotKey string, id entities.EntityID, mods []stats.Modifier) bool {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	for i, e := range a.inventory {
+		if e == id {
+			a.inventory = append(a.inventory[:i], a.inventory[i+1:]...)
+			if a.equipment == nil {
+				a.equipment = make(map[string]entities.EntityID)
+			}
+			a.equipment[slotKey] = id
+			if a.mods == nil {
+				a.mods = make(map[entities.SourceKey][]stats.Modifier)
+			}
+			dup := make([]stats.Modifier, len(mods))
+			copy(dup, mods)
+			a.mods[entities.EquipmentSourceKey(id)] = dup
+			return true
+		}
+	}
+	return false
+}
+
+func (a *testActor) Unequip(slotKey string) (entities.EntityID, bool) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	id, ok := a.equipment[slotKey]
+	if !ok {
+		return "", false
+	}
+	delete(a.equipment, slotKey)
+	a.inventory = append(a.inventory, id)
+	delete(a.mods, entities.EquipmentSourceKey(id))
+	return id, true
 }
 
 func (a *testActor) lastLine() string {
