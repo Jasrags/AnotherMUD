@@ -57,10 +57,27 @@ func GetHandler(ctx context.Context, c *Context) error {
 		return c.Actor.Write(ctx, fmt.Sprintf("You can't take %s.", item.Name()))
 	}
 
-	// Mutation order: drop placement first so concurrent `look` won't
-	// see the item in both places. AddToInventory before broadcast so
-	// the actor can immediately reference it.
-	c.Placement.Remove(item.ID())
+	// Placement.Remove is the atomic ownership claim. Two concurrent
+	// gets against the same placement entry both pass keyword.Resolve
+	// and hasAnyTag (which run outside any lock) — only the goroutine
+	// whose Remove call returns true actually got the item. The loser
+	// reports the same message it would for any other resolver miss,
+	// without leaking that a sibling session just snatched it.
+	//
+	// AddToInventory must happen AFTER the successful Remove so a
+	// failed claim can't leave the item present in both inventory and
+	// Placement. Broadcast follows so the actor can immediately
+	// reference the item by keyword if they pipeline commands.
+	//
+	// The gap between Remove and AddToInventory is safe because each
+	// concurrent caller owns its own Actor (one connection ↔ one
+	// connActor). The only shared mutable state is Placement, which
+	// the Remove already serialized. If a future path ever routes
+	// two sessions through a single shared Actor (group-loot,
+	// auto-split), revisit this section.
+	if !c.Placement.Remove(item.ID()) {
+		return c.Actor.Write(ctx, "You don't see that here.")
+	}
 	c.Actor.AddToInventory(item.ID())
 
 	_ = c.Actor.Write(ctx, fmt.Sprintf("You pick up %s.", item.Name()))

@@ -3,6 +3,8 @@ package command_test
 import (
 	"context"
 	"strings"
+	"sync"
+	"sync/atomic"
 	"testing"
 
 	"github.com/Jasrags/AnotherMUD/internal/command"
@@ -199,5 +201,74 @@ func TestGet_OrdinalSelection(t *testing.T) {
 	}
 	if _, ok := f.place.RoomOf(first.ID()); !ok {
 		t.Error("first sword should still be in room")
+	}
+}
+
+func TestGet_ConcurrentGetsOnSameItemPickOneWinner(t *testing.T) {
+	// Regression for M5-H1: two sessions in the same room both
+	// resolve the same placement entry and race to claim it. The
+	// fix treats Placement.Remove as the atomic ownership claim —
+	// exactly one goroutine's Remove returns true, the loser's
+	// returns false and surfaces "you don't see that here".
+	//
+	// Without the guard, both actors would AddToInventory the same
+	// id, leaving the item duplicated across inventories with the
+	// store / Placement showing it absent from the room. Stress
+	// the path with many rounds to make the bug detectable even
+	// when the race window is narrow.
+	const rounds = 200
+	const contenders = 4
+
+	for round := 0; round < rounds; round++ {
+		f := newInvFixture(t)
+		inst := f.spawnInRoom(t, sword())
+
+		// Independent actor per goroutine — they race for the same
+		// placement entry, but their inventories are separate so
+		// the test can count winners post-hoc.
+		actors := make([]*testActor, contenders)
+		for i := range actors {
+			actors[i] = newTestActor(f.room)
+		}
+
+		r := command.New()
+		if err := command.RegisterBuiltins(r); err != nil {
+			t.Fatalf("RegisterBuiltins: %v", err)
+		}
+
+		// Use a start-gate so every goroutine launches its dispatch
+		// at roughly the same instant, maximising race-detector
+		// signal and pressure on Placement.Remove.
+		var start sync.WaitGroup
+		var done sync.WaitGroup
+		start.Add(1)
+		var winners int64
+		for i := 0; i < contenders; i++ {
+			done.Add(1)
+			actor := actors[i]
+			go func() {
+				defer done.Done()
+				start.Wait()
+				if err := r.Dispatch(context.Background(), f.env(), actor, "get sword"); err != nil {
+					t.Errorf("dispatch: %v", err)
+					return
+				}
+				if len(actor.Inventory()) == 1 {
+					atomic.AddInt64(&winners, 1)
+				}
+			}()
+		}
+		start.Done()
+		done.Wait()
+
+		if got := atomic.LoadInt64(&winners); got != 1 {
+			t.Fatalf("round %d: winners = %d, want exactly 1 (item duplicated)", round, got)
+		}
+		// The placement index must not still show the item in the
+		// room — the winning goroutine's Remove cleared it, and the
+		// losers' Remove calls were no-ops.
+		if _, ok := f.place.RoomOf(inst.ID()); ok {
+			t.Fatalf("round %d: item still in placement after winner claimed it", round)
+		}
 	}
 }
