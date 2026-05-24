@@ -133,3 +133,51 @@ two ways to stay aligned: ..."
 
 Never silently implement something that conflicts with an existing convention
 or architectural boundary.
+
+## Deferred work tracking
+
+When a code review (or any other moment) surfaces issues that won't be
+addressed in the current commit, they must be persisted to memory so they
+resurface in a future session. Otherwise they become invisible debt.
+
+### When to defer vs. fix now
+
+Fix in the current change when:
+- The finding is CRITICAL or a security issue.
+- The fix is small (≤ a few lines) and lives in code already being
+  touched by the change.
+- Shipping without the fix would leave a known bug in a path users hit.
+
+Defer (and record) when:
+- The finding is HIGH/MEDIUM and lives outside the diff's natural scope.
+- The fix needs design work or coordinates with an upcoming milestone.
+- Bundling it would obscure the current commit's intent.
+
+A HIGH item should still come with a "fix-by" trigger (e.g. "before M6
+multi-session ships"), not just an open-ended deferral.
+
+### How to record a deferral
+
+Write a memory file named `m<N>-deferred-fixes.md` under
+`~/.claude/projects/-Users-jrags-Code-Jasrags-AnotherMUD/memory/`, then
+add a one-line entry to `MEMORY.md` so the index loads it. Existing
+examples to mirror: `m0-deferred-fixes.md`, `m1-deferred-fixes.md`,
+`m5-deferred-fixes.md`.
+
+Each entry in the file should include:
+1. **Severity** (HIGH/MEDIUM/LOW) and short title.
+2. **File:line** pointer to the code in question.
+3. **What's wrong** in one or two sentences.
+4. **Suggested fix** — concrete enough that future-you doesn't have to
+   re-derive the analysis.
+5. **When to fix** — a specific trigger ("next time `session.go` is
+   touched", "before M6", "if the test flakes").
+
+Link related deferral files with `[[m1-deferred-fixes]]` so the memory
+graph stays connected.
+
+### When to surface deferrals
+
+- At the start of a new milestone — read the relevant `m<N>-deferred-fixes.md` files first.
+- When editing a file named in a deferral entry — address that entry in the same change if it fits.
+- During "orient me" — call out outstanding deferrals as part of the open edges.
