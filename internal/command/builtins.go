@@ -21,6 +21,8 @@ func RegisterBuiltins(r *Registry) error {
 		{"look", LookHandler},
 		{"quit", QuitHandler},
 		{"color", ColorHandler},
+		{"get", GetHandler},
+		{"drop", DropHandler},
 	}
 	for _, d := range []world.Direction{
 		world.DirNorth, world.DirSouth, world.DirEast, world.DirWest,

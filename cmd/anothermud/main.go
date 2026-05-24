@@ -95,10 +95,18 @@ func run() error {
 
 	mgr := session.NewManager()
 
-	// entityStore is constructed at boot so the tag-swap tick handler
-	// can be wired immediately. Inventory operations (M5.4) will reach
-	// for it through the session layer when get/drop/give land.
+	// entityStore + placement are constructed at boot so the tag-swap
+	// tick handler can be wired immediately and the session layer can
+	// pass both into command dispatch for get/drop.
+	//
+	// Store.SetRoomScan is intentionally NOT wired today: every spawned
+	// item goes through Store.Spawn which auto-tracks, so the by-id
+	// index is always the source of truth. The §4.2 step-2 fallback
+	// becomes relevant only once items can enter the world without
+	// passing through Spawn (e.g. external loader); add the bridge
+	// when that path lands rather than fabricating one now.
 	entityStore := entities.NewStore()
+	placement := entities.NewPlacement()
 
 	clk := clock.RealClock{}
 	loop := tick.New(clk, cfg.TickInterval)
@@ -156,6 +164,9 @@ func run() error {
 		Commands:     cmds,
 		Players:      players,
 		Manager:      mgr,
+		Items:        entityStore,
+		Placement:    placement,
+		Templates:    registries.Items,
 		StartID:      cfg.StartRoom,
 		ColorEnabled: cfg.ColorDefault,
 		Clock:        clk,

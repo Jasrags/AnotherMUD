@@ -23,6 +23,8 @@ import (
 	"github.com/Jasrags/AnotherMUD/internal/clock"
 	"github.com/Jasrags/AnotherMUD/internal/command"
 	"github.com/Jasrags/AnotherMUD/internal/conn"
+	"github.com/Jasrags/AnotherMUD/internal/entities"
+	"github.com/Jasrags/AnotherMUD/internal/item"
 	"github.com/Jasrags/AnotherMUD/internal/logging"
 	"github.com/Jasrags/AnotherMUD/internal/login"
 	"github.com/Jasrags/AnotherMUD/internal/player"
@@ -35,6 +37,18 @@ type Config struct {
 	Commands *command.Registry
 	Players  *player.Store
 	Login    login.Config
+
+	// Items is the runtime entity store. Item instantiation, get/drop,
+	// and inventory restoration all go through it. May be nil only in
+	// tests that don't exercise inventory.
+	Items *entities.Store
+	// Placement is the room↔item index. Used by the session layer to
+	// spawn inventory items into the world without a room and by
+	// get/drop handlers to move items between rooms and contents.
+	Placement *entities.Placement
+	// Templates is the item-template registry used at login time to
+	// respawn persisted inventory entries into fresh instances.
+	Templates *item.Templates
 
 	// StartID is the fallback starting room when a character's saved
 	// location is not present in the loaded world (e.g. a room was
@@ -141,10 +155,18 @@ func run(ctx context.Context, c conn.Connection, cfg Config) error {
 		colorEnabled: cfg.ColorEnabled,
 		save:         loaded.Player,
 		players:      cfg.Players,
+		items:        cfg.Items,
 		flood:        newFloodGate(floodCfg, clk),
 		floodCfg:     &floodCfg,
 		clk:          clk,
 		lastInputAt:  clk.Now(),
+	}
+
+	// Respawn persisted inventory into live ItemInstances. Done before
+	// the actor enters the manager / starts taking input so a takeover
+	// or autosave can't observe a partial inventory.
+	if cfg.Items != nil && cfg.Templates != nil {
+		respawnInventory(ctx, a, cfg.Items, cfg.Templates, loaded.Player.Inventory)
 	}
 
 	// Keep the save's location in sync with the room we actually placed
@@ -246,7 +268,13 @@ func pump(ctx context.Context, c conn.Connection, cfg Config, a *connActor, clk 
 			return exitForced
 		}
 
-		if err := cfg.Commands.Dispatch(ctx, cfg.World, cfg.Manager, a, line); err != nil {
+		env := command.Env{
+			World:       cfg.World,
+			Broadcaster: cfg.Manager,
+			Items:       cfg.Items,
+			Placement:   cfg.Placement,
+		}
+		if err := cfg.Commands.Dispatch(ctx, env, a, line); err != nil {
 			if errors.Is(err, command.ErrQuit) {
 				return exitClientQuit
 			}
@@ -296,6 +324,11 @@ func dispatchTeardown(ctx context.Context, cfg Config, a *connActor, exit pumpEx
 // future refactor that consolidates the two paths cannot accidentally
 // transpose the order and introduce a use-after-remove. Safe on an
 // actor still in any phase; the manager's Remove is itself idempotent.
+//
+// After persist, any item entities the actor was carrying are
+// untracked so the entity store does not grow without bound across
+// reconnects. They will be respawned on the next login from the
+// freshly-saved Inventory list.
 func fullTeardown(ctx context.Context, cfg Config, a *connActor) {
 	room := a.Room()
 	if room != nil {
@@ -305,6 +338,66 @@ func fullTeardown(ctx context.Context, cfg Config, a *connActor) {
 	cfg.Manager.Remove(a)
 	if err := a.Persist(ctx); err != nil {
 		logging.From(ctx).Warn("save on disconnect failed", slog.Any("err", err))
+	}
+	untrackInventory(ctx, cfg.Items, a)
+}
+
+// respawnInventory creates fresh ItemInstances for each persisted
+// template id and attaches them to the actor. Missing templates are
+// logged and skipped — the player loses that item on this load, but
+// the rest of the inventory survives. Skipped slots are also dropped
+// from the save's Inventory so a successful persist clears the dead
+// reference.
+func respawnInventory(ctx context.Context, a *connActor, store *entities.Store, tpls *item.Templates, saved []string) {
+	if len(saved) == 0 {
+		return
+	}
+	survivors := make([]string, 0, len(saved))
+	for _, tid := range saved {
+		tpl, err := tpls.Get(item.TemplateID(tid))
+		if err != nil {
+			logging.From(ctx).Warn("inventory: dropping unknown template",
+				slog.String("template_id", tid),
+				slog.String("player", a.PlayerName()),
+				slog.Any("err", err))
+			continue
+		}
+		inst, err := store.Spawn(tpl)
+		if err != nil {
+			logging.From(ctx).Warn("inventory: spawn failed",
+				slog.String("template_id", tid),
+				slog.Any("err", err))
+			continue
+		}
+		a.mu.Lock()
+		a.inventory = append(a.inventory, inst.ID())
+		a.mu.Unlock()
+		survivors = append(survivors, tid)
+	}
+	a.mu.Lock()
+	// If respawn dropped any entries, the on-disk save is now ahead of
+	// the runtime; flip dirty so the next persist trims it.
+	if len(survivors) != len(saved) {
+		a.save.Inventory = survivors
+		a.dirty = true
+	}
+	a.mu.Unlock()
+}
+
+// untrackInventory removes every item entity in the actor's inventory
+// from the runtime store. Called from teardown paths after the save has
+// been written so the next login can respawn from the template ids.
+// Safe to call with a nil store (tests) or empty inventory.
+func untrackInventory(ctx context.Context, store *entities.Store, a *connActor) {
+	if store == nil {
+		return
+	}
+	for _, id := range a.Inventory() {
+		if err := store.Untrack(id); err != nil {
+			logging.From(ctx).Debug("inventory: untrack on teardown",
+				slog.String("entity_id", string(id)),
+				slog.Any("err", err))
+		}
 	}
 }
 
@@ -410,6 +503,16 @@ type connActor struct {
 	accountID string
 
 	players *player.Store
+
+	// items is the runtime entity store reference, captured at actor
+	// construction so syncInventoryToSaveLocked can resolve template
+	// ids without holding cfg in scope. Never reassigned after Add.
+	items *entities.Store
+
+	// inventory holds the runtime entity ids the actor is carrying.
+	// Mutations go through AddToInventory / RemoveFromInventory and
+	// flip the dirty bit so autosave commits the new contents.
+	inventory []entities.EntityID
 
 	mu            sync.Mutex
 	room          *world.Room
@@ -518,6 +621,90 @@ func (a *connActor) Persist(ctx context.Context) error {
 	}
 	a.mu.Unlock()
 	return nil
+}
+
+// Inventory returns a snapshot of the actor's currently-held item
+// entity ids in pickup order. Safe to mutate.
+func (a *connActor) Inventory() []entities.EntityID {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	out := make([]entities.EntityID, len(a.inventory))
+	copy(out, a.inventory)
+	return out
+}
+
+// AddToInventory appends id to contents and marks the save dirty so
+// autosave commits the new inventory list. The save's persisted
+// Inventory field is updated in lockstep so a concurrent Persist
+// snapshot is always self-consistent.
+func (a *connActor) AddToInventory(id entities.EntityID) {
+	a.mu.Lock()
+	a.inventory = append(a.inventory, id)
+	a.syncInventoryToSaveLocked()
+	a.dirty = true
+	a.mu.Unlock()
+}
+
+// RemoveFromInventory removes id from contents. Returns true on hit.
+// Marks the save dirty when something was actually removed.
+func (a *connActor) RemoveFromInventory(id entities.EntityID) bool {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	for i, e := range a.inventory {
+		if e == id {
+			a.inventory = append(a.inventory[:i], a.inventory[i+1:]...)
+			a.syncInventoryToSaveLocked()
+			a.dirty = true
+			return true
+		}
+	}
+	return false
+}
+
+// syncInventoryToSaveLocked mirrors the actor's runtime inventory
+// (entity ids) into the save's persisted Inventory field (template ids)
+// so the next Persist captures whatever pick-ups / drops have happened.
+// Caller MUST hold a.mu.
+func (a *connActor) syncInventoryToSaveLocked() {
+	if a.save == nil {
+		return
+	}
+	if len(a.inventory) == 0 {
+		a.save.Inventory = nil
+		return
+	}
+	tpls := make([]string, 0, len(a.inventory))
+	for _, id := range a.inventory {
+		tpl, ok := a.lookupTemplateID(id)
+		if !ok {
+			// Item is gone from the store between mutation and sync —
+			// drop it silently. The runtime inventory still references
+			// it, but persistence can only record what's resolvable.
+			continue
+		}
+		tpls = append(tpls, tpl)
+	}
+	a.save.Inventory = tpls
+}
+
+// lookupTemplateID resolves an entity id back to its template id by
+// asking the entity store. Returns ok=false if the store is unwired or
+// the entity is unknown / not an item. The store reference is set when
+// connActor is constructed (see session.run); it is never reassigned,
+// so reading it without holding a.mu is safe.
+func (a *connActor) lookupTemplateID(id entities.EntityID) (string, bool) {
+	if a.items == nil {
+		return "", false
+	}
+	e, ok := a.items.GetByID(id)
+	if !ok {
+		return "", false
+	}
+	it, ok := e.(*entities.ItemInstance)
+	if !ok {
+		return "", false
+	}
+	return string(it.TemplateID()), true
 }
 
 // PlayerName returns the loaded character's name, used by the autosave

@@ -29,7 +29,13 @@ import (
 
 // CurrentVersion is the version stamped on every save written today.
 // Append a migration to playerMigrations whenever this number bumps.
-const CurrentVersion = 1
+//
+// v2 (M5.5): added `inventory` (list of item template ids) and
+// `equipment` (slot key → item template id) blocks. Per-instance state
+// is not yet persisted — items respawn fresh from their templates at
+// load time. When per-instance state lands (charges, condition, fill
+// amount), bump to v3 with a richer inventory entry shape.
+const CurrentVersion = 2
 
 // Sentinel errors callers may check via errors.Is.
 var (
@@ -39,12 +45,21 @@ var (
 
 // Save is the on-disk record for a single character. The yaml tags use
 // snake_case per persistence spec §3.2.
+//
+// Inventory and Equipment store *template ids* (e.g. "tapestry-core:short-sword"),
+// not runtime entity ids. Runtime ids are reassigned each session, so
+// persisting them would be meaningless; the inventory feature respawns
+// fresh instances from the template registry at login. Equipment maps
+// slot key (e.g. "main-hand", "ring:0") to template id. Both are
+// optional and empty for v1 saves migrated forward.
 type Save struct {
-	Version   int    `yaml:"version"`
-	ID        string `yaml:"id"`
-	AccountID string `yaml:"account_id"`
-	Name      string `yaml:"name"`
-	Location  string `yaml:"location"`
+	Version   int               `yaml:"version"`
+	ID        string            `yaml:"id"`
+	AccountID string            `yaml:"account_id"`
+	Name      string            `yaml:"name"`
+	Location  string            `yaml:"location"`
+	Inventory []string          `yaml:"inventory,omitempty"`
+	Equipment map[string]string `yaml:"equipment,omitempty"`
 }
 
 // Store is a file-backed player store. Directories live at
@@ -168,10 +183,20 @@ func (s *Store) Load(ctx context.Context, name string) (*Save, error) {
 // playerMigrations is the append-only table from spec §7. Key N means
 // "transforms a v{N} dict into a v{N+1} dict". Never delete an entry;
 // existing saves out there may still be at that version.
+var playerMigrations = map[int]func(map[string]any) (map[string]any, error){
+	1: migrateV1toV2,
+}
+
+// migrateV1toV2 adds the empty inventory/equipment blocks introduced
+// in M5.5. Pre-existing fields are left untouched.
 //
-// Empty today (CurrentVersion is 1). When CurrentVersion bumps to 2,
-// add a function here that takes the v1 dict and returns a v2 dict.
-var playerMigrations = map[int]func(map[string]any) (map[string]any, error){}
+// The migrated dict is left without explicit `inventory` / `equipment`
+// keys when they're empty — yaml `omitempty` handles the serialization,
+// and the structured Save decoder treats absence and empty list /
+// empty map identically.
+func migrateV1toV2(in map[string]any) (map[string]any, error) {
+	return in, nil
+}
 
 func migrate(ctx context.Context, generic map[string]any, name string) (map[string]any, error) {
 	v, _ := asInt(generic["version"])

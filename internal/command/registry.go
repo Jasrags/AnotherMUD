@@ -21,6 +21,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/Jasrags/AnotherMUD/internal/entities"
 	"github.com/Jasrags/AnotherMUD/internal/world"
 )
 
@@ -53,6 +54,16 @@ type Actor interface {
 	ColorEnabled() bool
 	// SetColorEnabled toggles color for this actor.
 	SetColorEnabled(bool)
+
+	// Inventory returns the entity ids of items currently held by this
+	// actor, in the order they were picked up. Fresh slice — safe to
+	// mutate.
+	Inventory() []entities.EntityID
+	// AddToInventory appends id to the actor's contents. Mutating the
+	// holder marks the underlying save dirty.
+	AddToInventory(entities.EntityID)
+	// RemoveFromInventory removes id; returns true if it was present.
+	RemoveFromInventory(entities.EntityID) bool
 }
 
 // Broadcaster is the small surface a handler needs to address other
@@ -67,14 +78,30 @@ type Broadcaster interface {
 	SendToRoom(ctx context.Context, roomID world.RoomID, text string, excludePlayerIDs ...string)
 }
 
+// Env bundles the per-server singletons a handler may need beyond the
+// actor and the world. Carrying them in a struct lets future additions
+// (registries, services) land without re-widening Dispatch.
+//
+// All fields are optional. Handlers MUST tolerate nils — unit tests
+// for command groups that don't touch items routinely pass a zero-value
+// env.
+type Env struct {
+	World       *world.World
+	Broadcaster Broadcaster
+	Items       *entities.Store
+	Placement   *entities.Placement
+}
+
 // Context carries the per-invocation arguments passed to a Handler.
 type Context struct {
 	Actor       Actor
 	World       *world.World
-	Broadcaster Broadcaster // may be nil in tests
-	Raw         string      // raw input line, trimmed
-	Verb        string      // resolved verb (lowercase)
-	Args        []string    // tokens after the verb (space-split)
+	Broadcaster Broadcaster        // may be nil in tests
+	Items       *entities.Store    // may be nil in tests
+	Placement   *entities.Placement // may be nil in tests
+	Raw         string             // raw input line, trimmed
+	Verb        string             // resolved verb (lowercase)
+	Args        []string           // tokens after the verb (space-split)
 }
 
 // Handler is the function invoked for a matched command.
@@ -155,9 +182,10 @@ func (r *Registry) Resolve(verb string) Handler {
 // input is a no-op (spec §3.1 step 1). Unknown verbs send "Huh?" to
 // the actor and return nil (the bad-input tracker lands later).
 //
-// b is the broadcaster used by handlers that emit observable presence
-// (movement, future emotes). May be nil for tests; handlers must guard.
-func (r *Registry) Dispatch(ctx context.Context, w *world.World, b Broadcaster, actor Actor, raw string) error {
+// env carries the per-server singletons handlers may need (world,
+// broadcaster, item store, placement). Any field may be nil; handlers
+// MUST guard before dereferencing.
+func (r *Registry) Dispatch(ctx context.Context, env Env, actor Actor, raw string) error {
 	trimmed := strings.TrimSpace(raw)
 	if trimmed == "" {
 		return nil
@@ -172,8 +200,10 @@ func (r *Registry) Dispatch(ctx context.Context, w *world.World, b Broadcaster, 
 	}
 	return h(ctx, &Context{
 		Actor:       actor,
-		World:       w,
-		Broadcaster: b,
+		World:       env.World,
+		Broadcaster: env.Broadcaster,
+		Items:       env.Items,
+		Placement:   env.Placement,
 		Raw:         trimmed,
 		Verb:        strings.ToLower(verb),
 		Args:        args,

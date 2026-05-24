@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/Jasrags/AnotherMUD/internal/command"
+	"github.com/Jasrags/AnotherMUD/internal/entities"
 	"github.com/Jasrags/AnotherMUD/internal/world"
 )
 
@@ -84,7 +85,7 @@ func TestDispatch_HuhOnUnknown(t *testing.T) {
 	t.Parallel()
 	r := command.New()
 	a := newTestActor(nil)
-	if err := r.Dispatch(context.Background(), nil, nil, a, "wibble"); err != nil {
+	if err := r.Dispatch(context.Background(), command.Env{}, a, "wibble"); err != nil {
 		t.Fatalf("Dispatch: %v", err)
 	}
 	if got := a.lastLine(); got != "Huh?" {
@@ -96,7 +97,7 @@ func TestDispatch_EmptyInputIsNoOp(t *testing.T) {
 	t.Parallel()
 	r := command.New()
 	a := newTestActor(nil)
-	if err := r.Dispatch(context.Background(), nil, nil, a, "   "); err != nil {
+	if err := r.Dispatch(context.Background(), command.Env{}, a, "   "); err != nil {
 		t.Fatalf("Dispatch: %v", err)
 	}
 	if a.lastLine() != "" {
@@ -121,14 +122,14 @@ func TestBuiltins_LookAndMove(t *testing.T) {
 
 	actor := newTestActor(a)
 
-	if err := r.Dispatch(context.Background(), w, nil, actor, "look"); err != nil {
+	if err := r.Dispatch(context.Background(), command.Env{World: w}, actor, "look"); err != nil {
 		t.Fatalf("look: %v", err)
 	}
 	if !strings.Contains(actor.lastLine(), "Room A") {
 		t.Fatalf("look did not render room: %q", actor.lastLine())
 	}
 
-	if err := r.Dispatch(context.Background(), w, nil, actor, "n"); err != nil {
+	if err := r.Dispatch(context.Background(), command.Env{World: w}, actor, "n"); err != nil {
 		t.Fatalf("n: %v", err)
 	}
 	if actor.Room().ID != "b" {
@@ -138,7 +139,7 @@ func TestBuiltins_LookAndMove(t *testing.T) {
 		t.Fatalf("move did not render destination: %q", actor.lastLine())
 	}
 
-	if err := r.Dispatch(context.Background(), w, nil, actor, "n"); err != nil {
+	if err := r.Dispatch(context.Background(), command.Env{World: w}, actor, "n"); err != nil {
 		t.Fatalf("n with no exit: %v", err)
 	}
 	if !strings.Contains(actor.lastLine(), "cannot go that way") {
@@ -153,7 +154,7 @@ func TestBuiltins_Quit(t *testing.T) {
 		t.Fatalf("RegisterBuiltins: %v", err)
 	}
 	a := newTestActor(&world.Room{ID: "void"})
-	err := r.Dispatch(context.Background(), world.New(), nil, a, "quit")
+	err := r.Dispatch(context.Background(), command.Env{World: world.New()}, a, "quit")
 	if !errors.Is(err, command.ErrQuit) {
 		t.Fatalf("quit returned %v, want ErrQuit", err)
 	}
@@ -162,10 +163,11 @@ func TestBuiltins_Quit(t *testing.T) {
 // testActor is a command.Actor used by these tests; it captures every
 // Write so assertions can inspect output.
 type testActor struct {
-	mu     sync.Mutex
-	room   *world.Room
-	lines  []string
-	color  bool
+	mu        sync.Mutex
+	room      *world.Room
+	lines     []string
+	color     bool
+	inventory []entities.EntityID
 }
 
 func newTestActor(start *world.Room) *testActor {
@@ -205,6 +207,32 @@ func (a *testActor) SetColorEnabled(v bool) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	a.color = v
+}
+
+func (a *testActor) Inventory() []entities.EntityID {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	out := make([]entities.EntityID, len(a.inventory))
+	copy(out, a.inventory)
+	return out
+}
+
+func (a *testActor) AddToInventory(id entities.EntityID) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	a.inventory = append(a.inventory, id)
+}
+
+func (a *testActor) RemoveFromInventory(id entities.EntityID) bool {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	for i, e := range a.inventory {
+		if e == id {
+			a.inventory = append(a.inventory[:i], a.inventory[i+1:]...)
+			return true
+		}
+	}
+	return false
 }
 
 func (a *testActor) lastLine() string {
