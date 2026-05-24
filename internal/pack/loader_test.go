@@ -479,7 +479,44 @@ name: from b
 type: item`)
 
 	err := Load(context.Background(), root, nil, NewRegistries())
-	if err == nil {
-		t.Fatal("expected duplicate-id error, got nil")
+	if !errors.Is(err, item.ErrDuplicateID) {
+		t.Errorf("err = %v, want ErrDuplicateID", err)
+	}
+}
+
+func TestLoadItemsModifierMissingStat(t *testing.T) {
+	root := t.TempDir()
+	pack := filepath.Join(root, "core")
+	writeFile(t, filepath.Join(pack, "pack.yaml"), `
+name: tapestry-core
+content:
+  areas: [areas/*.yaml]
+  rooms: [rooms/*.yaml]
+  items: [items/*.yaml]
+`)
+	writeFile(t, filepath.Join(pack, "areas/town.yaml"), `id: town
+name: Town`)
+	writeFile(t, filepath.Join(pack, "rooms/a.yaml"), `id: a
+area: town
+name: Room A`)
+	writeFile(t, filepath.Join(pack, "items/broken.yaml"), `
+id: broken
+name: a broken thing
+type: item
+modifiers:
+  - value: 2
+`)
+	err := Load(context.Background(), root, nil, NewRegistries())
+	if !errors.Is(err, ErrInvalidContent) {
+		t.Errorf("err = %v, want ErrInvalidContent", err)
+	}
+}
+
+func TestLoadNilRegistriesRejected(t *testing.T) {
+	if err := Load(context.Background(), t.TempDir(), nil, nil); err == nil {
+		t.Error("Load(nil dst) returned nil, want error")
+	}
+	if err := Load(context.Background(), t.TempDir(), nil, &Registries{}); err == nil {
+		t.Error("Load(&Registries{}) returned nil, want error")
 	}
 }

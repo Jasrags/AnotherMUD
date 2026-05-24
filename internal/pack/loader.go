@@ -34,6 +34,9 @@ var (
 // Filter, when non-empty, restricts discovery (spec §2.4). Pass nil to
 // load every active pack under root.
 func Load(ctx context.Context, root string, filter []string, dst *Registries) error {
+	if dst == nil || dst.World == nil || dst.Items == nil {
+		return errors.New("pack.Load: dst has nil registry field; use pack.NewRegistries()")
+	}
 	logger := logging.From(ctx).With(slog.String("event", "pack.load"), slog.String("root", root))
 
 	discovered, err := Discover(root, filter)
