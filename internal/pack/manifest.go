@@ -70,6 +70,7 @@ type ContentPaths struct {
 	Areas []string `yaml:"areas,omitempty"`
 	Rooms []string `yaml:"rooms,omitempty"`
 	Items []string `yaml:"items,omitempty"`
+	Slots []string `yaml:"slots,omitempty"`
 }
 
 // IsActive reports whether the manifest is active (default true).

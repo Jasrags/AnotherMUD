@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/Jasrags/AnotherMUD/internal/item"
+	"github.com/Jasrags/AnotherMUD/internal/slot"
 	"github.com/Jasrags/AnotherMUD/internal/world"
 )
 
@@ -359,6 +360,18 @@ func TestLoadRealCorePack(t *testing.T) {
 			t.Errorf("missing item template %q", id)
 		}
 	}
+
+	// Pack-defined slot from content/core/slots/cloak.yaml. Engine
+	// baseline slots are NOT registered here (that's main.go's job),
+	// so only the pack slot is expected.
+	if !regs.Slots.Has("cloak") {
+		t.Error("missing pack-defined slot 'cloak'")
+	}
+	if def, err := regs.Slots.Get("cloak"); err != nil {
+		t.Errorf("Get(cloak): %v", err)
+	} else if def.Scope != slot.Scope("tapestry-core") {
+		t.Errorf("cloak.Scope = %q, want tapestry-core", def.Scope)
+	}
 }
 
 func TestLoadItemsHappyPath(t *testing.T) {
@@ -518,5 +531,167 @@ func TestLoadNilRegistriesRejected(t *testing.T) {
 	}
 	if err := Load(context.Background(), t.TempDir(), nil, &Registries{}); err == nil {
 		t.Error("Load(&Registries{}) returned nil, want error")
+	}
+}
+
+func TestLoadSlotsHappyPath(t *testing.T) {
+	root := t.TempDir()
+	pack := filepath.Join(root, "core")
+	writeFile(t, filepath.Join(pack, "pack.yaml"), `
+name: tapestry-core
+content:
+  areas: [areas/*.yaml]
+  rooms: [rooms/*.yaml]
+  slots: [slots/*.yaml]
+`)
+	writeFile(t, filepath.Join(pack, "areas/town.yaml"), `id: town
+name: Town`)
+	writeFile(t, filepath.Join(pack, "rooms/a.yaml"), `id: a
+area: town
+name: Room A`)
+	writeFile(t, filepath.Join(pack, "slots/cloak.yaml"), `
+name: cloak
+label: worn as cloak
+max: 1
+`)
+	writeFile(t, filepath.Join(pack, "slots/finger.yaml"), `
+name: finger
+label: worn on finger
+max: 2
+`)
+
+	regs := NewRegistries()
+	if err := Load(context.Background(), root, nil, regs); err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	cloak, err := regs.Slots.Get("cloak")
+	if err != nil {
+		t.Fatalf("Get(cloak): %v", err)
+	}
+	if cloak.Max != 1 || cloak.Scope != slot.Scope("tapestry-core") {
+		t.Errorf("cloak = %+v", cloak)
+	}
+	finger, _ := regs.Slots.Get("finger")
+	if finger.Max != 2 {
+		t.Errorf("finger.Max = %d, want 2", finger.Max)
+	}
+}
+
+func TestLoadSlotsInvalidName(t *testing.T) {
+	root := t.TempDir()
+	pack := filepath.Join(root, "core")
+	writeFile(t, filepath.Join(pack, "pack.yaml"), `
+name: tapestry-core
+content:
+  areas: [areas/*.yaml]
+  rooms: [rooms/*.yaml]
+  slots: [slots/*.yaml]
+`)
+	writeFile(t, filepath.Join(pack, "areas/town.yaml"), `id: town
+name: Town`)
+	writeFile(t, filepath.Join(pack, "rooms/a.yaml"), `id: a
+area: town
+name: Room A`)
+	writeFile(t, filepath.Join(pack, "slots/bad.yaml"), `
+name: Left-Hand
+label: invalid
+max: 1
+`)
+	err := Load(context.Background(), root, nil, NewRegistries())
+	if !errors.Is(err, slot.ErrInvalidName) {
+		t.Errorf("err = %v, want ErrInvalidName", err)
+	}
+}
+
+func TestLoadSlotsMissingMax(t *testing.T) {
+	root := t.TempDir()
+	pack := filepath.Join(root, "core")
+	writeFile(t, filepath.Join(pack, "pack.yaml"), `
+name: tapestry-core
+content:
+  areas: [areas/*.yaml]
+  rooms: [rooms/*.yaml]
+  slots: [slots/*.yaml]
+`)
+	writeFile(t, filepath.Join(pack, "areas/town.yaml"), `id: town
+name: Town`)
+	writeFile(t, filepath.Join(pack, "rooms/a.yaml"), `id: a
+area: town
+name: Room A`)
+	writeFile(t, filepath.Join(pack, "slots/bad.yaml"), `
+name: belt
+label: worn at waist
+`)
+	err := Load(context.Background(), root, nil, NewRegistries())
+	if !errors.Is(err, ErrInvalidContent) {
+		t.Errorf("err = %v, want ErrInvalidContent", err)
+	}
+}
+
+func TestLoadSlotsCollidesWithEngineBaseline(t *testing.T) {
+	root := t.TempDir()
+	pack := filepath.Join(root, "core")
+	writeFile(t, filepath.Join(pack, "pack.yaml"), `
+name: tapestry-core
+content:
+  areas: [areas/*.yaml]
+  rooms: [rooms/*.yaml]
+  slots: [slots/*.yaml]
+`)
+	writeFile(t, filepath.Join(pack, "areas/town.yaml"), `id: town
+name: Town`)
+	writeFile(t, filepath.Join(pack, "rooms/a.yaml"), `id: a
+area: town
+name: Room A`)
+	writeFile(t, filepath.Join(pack, "slots/wield.yaml"), `
+name: wield
+label: my own wield
+max: 1
+`)
+	regs := NewRegistries()
+	// Pre-register engine baseline so the pack collides.
+	if err := slot.RegisterEngineBaseline(regs.Slots); err != nil {
+		t.Fatalf("baseline: %v", err)
+	}
+	err := Load(context.Background(), root, nil, regs)
+	if !errors.Is(err, slot.ErrDuplicate) {
+		t.Errorf("err = %v, want ErrDuplicate", err)
+	}
+}
+
+func TestLoadSlotsCrossPackCollision(t *testing.T) {
+	// Two packs both registering "belt" must collide via the registry,
+	// just like cross-pack item id collisions.
+	root := t.TempDir()
+	a := filepath.Join(root, "a")
+	b := filepath.Join(root, "b")
+	writeFile(t, filepath.Join(a, "pack.yaml"), `
+name: pack-a
+content:
+  areas: [areas/*.yaml]
+  rooms: [rooms/*.yaml]
+  slots: [slots/*.yaml]
+`)
+	writeFile(t, filepath.Join(a, "areas/x.yaml"), `id: x
+name: X`)
+	writeFile(t, filepath.Join(a, "rooms/r.yaml"), `id: r
+area: x
+name: R`)
+	writeFile(t, filepath.Join(a, "slots/belt.yaml"), `name: belt
+label: worn at waist
+max: 1`)
+
+	writeFile(t, filepath.Join(b, "pack.yaml"), `
+name: pack-b
+content:
+  slots: [slots/*.yaml]
+`)
+	writeFile(t, filepath.Join(b, "slots/belt.yaml"), `name: belt
+label: also a belt
+max: 1`)
+
+	err := Load(context.Background(), root, nil, NewRegistries())
+	if !errors.Is(err, slot.ErrDuplicate) {
+		t.Errorf("err = %v, want ErrDuplicate", err)
 	}
 }

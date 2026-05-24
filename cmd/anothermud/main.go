@@ -29,6 +29,7 @@ import (
 	"github.com/Jasrags/AnotherMUD/internal/player"
 	"github.com/Jasrags/AnotherMUD/internal/server"
 	"github.com/Jasrags/AnotherMUD/internal/session"
+	"github.com/Jasrags/AnotherMUD/internal/slot"
 	"github.com/Jasrags/AnotherMUD/internal/tick"
 	"github.com/Jasrags/AnotherMUD/internal/world"
 )
@@ -64,6 +65,12 @@ func run() error {
 	}
 
 	registries := pack.NewRegistries()
+	// Engine baseline slots register before pack loading so packs that
+	// try to redefine baseline slots fail loudly at boot rather than
+	// silently overriding (spec inventory-equipment-items §3.1).
+	if err := slot.RegisterEngineBaseline(registries.Slots); err != nil {
+		return fmt.Errorf("register engine baseline slots: %w", err)
+	}
 	if err := pack.Load(ctx, cfg.ContentDir, nil, registries); err != nil {
 		return fmt.Errorf("loading content from %s: %w", cfg.ContentDir, err)
 	}

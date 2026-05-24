@@ -12,6 +12,7 @@ import (
 
 	"github.com/Jasrags/AnotherMUD/internal/item"
 	"github.com/Jasrags/AnotherMUD/internal/logging"
+	"github.com/Jasrags/AnotherMUD/internal/slot"
 	"github.com/Jasrags/AnotherMUD/internal/world"
 	"gopkg.in/yaml.v3"
 )
@@ -34,7 +35,7 @@ var (
 // Filter, when non-empty, restricts discovery (spec §2.4). Pass nil to
 // load every active pack under root.
 func Load(ctx context.Context, root string, filter []string, dst *Registries) error {
-	if dst == nil || dst.World == nil || dst.Items == nil {
+	if dst == nil || dst.World == nil || dst.Items == nil || dst.Slots == nil {
 		return errors.New("pack.Load: dst has nil registry field; use pack.NewRegistries()")
 	}
 	logger := logging.From(ctx).With(slog.String("event", "pack.load"), slog.String("root", root))
@@ -96,6 +97,10 @@ func loadPackContent(ctx context.Context, p Discovered, dst *Registries) error {
 	if err != nil {
 		return err
 	}
+	slotPaths, err := resolveGlobs(p.Dir, p.Manifest.Content.Slots)
+	if err != nil {
+		return err
+	}
 
 	// Areas first — rooms reference them (spec §3.3 step 2). TryAddArea
 	// catches both intra-pack and cross-pack id collisions.
@@ -131,11 +136,25 @@ func loadPackContent(ctx context.Context, p Discovered, dst *Registries) error {
 		}
 	}
 
+	// Slots: names are global (not namespaced); the pack namespace
+	// becomes the slot scope tag. Register surfaces collisions both
+	// within a pack and across packs/engine baseline.
+	for _, sp := range slotPaths {
+		d, err := decodeSlot(sp, ns)
+		if err != nil {
+			return err
+		}
+		if err := dst.Slots.Register(d); err != nil {
+			return fmt.Errorf("%w (in %s)", err, sp)
+		}
+	}
+
 	logger.Info("pack content loaded",
 		slog.String("event", "pack.content"),
 		slog.Int("areas", len(areaPaths)),
 		slog.Int("rooms", len(roomPaths)),
 		slog.Int("items", len(itemPaths)),
+		slog.Int("slots", len(slotPaths)),
 	)
 	return nil
 }
@@ -293,6 +312,35 @@ func decodeItem(path, ns string) (*item.Template, error) {
 		Keywords:   f.Keywords,
 		Properties: f.Properties,
 		Modifiers:  mods,
+	}, nil
+}
+
+func decodeSlot(path, ns string) (slot.Def, error) {
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		return slot.Def{}, fmt.Errorf("reading slot %s: %w", path, err)
+	}
+	var f SlotFile
+	if err := yaml.Unmarshal(raw, &f); err != nil {
+		return slot.Def{}, fmt.Errorf("%w: %s: %v", ErrInvalidContent, path, err)
+	}
+	if strings.TrimSpace(f.Name) == "" {
+		return slot.Def{}, fmt.Errorf("%w: %s: missing 'name'", ErrInvalidContent, path)
+	}
+	if strings.TrimSpace(f.Label) == "" {
+		return slot.Def{}, fmt.Errorf("%w: %s: missing 'label'", ErrInvalidContent, path)
+	}
+	if f.Max <= 0 {
+		// Cap-0 slots are useless and almost certainly an authoring
+		// mistake; reject at decode rather than waiting for the
+		// registry to surface it.
+		return slot.Def{}, fmt.Errorf("%w: %s: max must be > 0", ErrInvalidContent, path)
+	}
+	return slot.Def{
+		Name:  f.Name,
+		Label: f.Label,
+		Max:   f.Max,
+		Scope: slot.Scope(ns),
 	}, nil
 }
 

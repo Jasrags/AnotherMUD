@@ -1,0 +1,23 @@
+package slot
+
+// RegisterEngineBaseline installs the engine's default body-slot set
+// onto r. Called at boot before pack loading so packs can supplement
+// (and would error on collision if they try to redefine these).
+//
+// The baseline is deliberately small in M5.3 — just enough to make
+// the four starter item templates (short-sword → wield, leather-cap
+// → head, plus a multi-cap "finger" so the keying scheme is
+// exercised). Authoring more slots is a pack concern.
+func RegisterEngineBaseline(r *Registry) error {
+	baseline := []Def{
+		{Name: "wield", Label: "wielded", Max: 1, Scope: EngineScope},
+		{Name: "head", Label: "worn on head", Max: 1, Scope: EngineScope},
+		{Name: "finger", Label: "worn on finger", Max: 2, Scope: EngineScope},
+	}
+	for _, d := range baseline {
+		if err := r.Register(d); err != nil {
+			return err
+		}
+	}
+	return nil
+}

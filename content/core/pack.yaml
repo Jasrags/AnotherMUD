@@ -10,3 +10,5 @@ content:
     - rooms/*.yaml
   items:
     - items/*.yaml
+  slots:
+    - slots/*.yaml

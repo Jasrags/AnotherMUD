@@ -33,6 +33,17 @@ type ModifierFile struct {
 	Value int    `yaml:"value"`
 }
 
+// SlotFile is the YAML shape for a pack-defined equipment slot (spec
+// inventory-equipment-items §3.1). One file declares one slot. The
+// pack's namespace is recorded as the slot's scope tag; the slot's
+// name itself is NOT namespaced (slot names are global — see
+// internal/slot package doc).
+type SlotFile struct {
+	Name  string `yaml:"name"`
+	Label string `yaml:"label"`
+	Max   int    `yaml:"max"`
+}
+
 // RoomFile is the YAML shape for a single-room file.
 //
 // Exits is a map keyed by direction long-name ("north", "up") to keep
