@@ -25,6 +25,17 @@ func RegisterBuiltins(r *Registry) error {
 		{"drop", DropHandler},
 		{"equip", EquipHandler},
 		{"unequip", UnequipHandler},
+		// Display verbs (M5.7). Aliases are registered explicitly
+		// rather than relying on prefix match: `eq` would otherwise
+		// resolve to `equip` (registered earlier, lower order in the
+		// prefix-tiebreaker) instead of `equipment`. `i` is
+		// unambiguous today but reserving it explicitly avoids
+		// surprise the first time an `inspect` / `ignore` / `info`
+		// verb shows up.
+		{"inventory", InventoryHandler},
+		{"i", InventoryHandler},
+		{"equipment", EquipmentHandler},
+		{"eq", EquipmentHandler},
 	}
 	for _, d := range []world.Direction{
 		world.DirNorth, world.DirSouth, world.DirEast, world.DirWest,
