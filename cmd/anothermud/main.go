@@ -22,6 +22,7 @@ import (
 	"github.com/Jasrags/AnotherMUD/internal/account"
 	"github.com/Jasrags/AnotherMUD/internal/clock"
 	"github.com/Jasrags/AnotherMUD/internal/command"
+	"github.com/Jasrags/AnotherMUD/internal/entities"
 	"github.com/Jasrags/AnotherMUD/internal/logging"
 	"github.com/Jasrags/AnotherMUD/internal/login"
 	"github.com/Jasrags/AnotherMUD/internal/pack"
@@ -87,8 +88,16 @@ func run() error {
 
 	mgr := session.NewManager()
 
+	// entityStore is constructed at boot so the tag-swap tick handler
+	// can be wired immediately. Inventory operations (M5.4) will reach
+	// for it through the session layer when get/drop/give land.
+	entityStore := entities.NewStore()
+
 	clk := clock.RealClock{}
 	loop := tick.New(clk, cfg.TickInterval)
+	if err := entities.RegisterTagSwap(loop, entityStore); err != nil {
+		return fmt.Errorf("register entities tag-swap: %w", err)
+	}
 	autosaveInterval := autosaveTicks(cfg.TickInterval, cfg.AutosaveInterval)
 	if err := loop.Register("autosave", autosaveInterval, func(ctx context.Context, n uint64) {
 		mgr.SaveAll(ctx)
