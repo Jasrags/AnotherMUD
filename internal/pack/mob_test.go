@@ -50,7 +50,7 @@ equipment:
 `
 	root := mobPack(t, body)
 	regs := NewRegistries()
-	if err := Load(context.Background(), root, nil, regs, nil); err != nil {
+	if err := Load(context.Background(), root, nil, regs, nil, nil); err != nil {
 		t.Fatalf("Load: %v", err)
 	}
 	got, err := regs.Mobs.Get("tapestry-core:village-guard")
@@ -79,7 +79,7 @@ func TestLoad_MobMissingBehavior(t *testing.T) {
 id: bad
 name: a thing
 `)
-	err := Load(context.Background(), root, nil, NewRegistries(), nil)
+	err := Load(context.Background(), root, nil, NewRegistries(), nil, nil)
 	if !errors.Is(err, ErrInvalidContent) {
 		t.Fatalf("err = %v, want ErrInvalidContent", err)
 	}
@@ -90,7 +90,7 @@ func TestLoad_MobMissingID(t *testing.T) {
 name: nameless
 behavior: idle
 `)
-	err := Load(context.Background(), root, nil, NewRegistries(), nil)
+	err := Load(context.Background(), root, nil, NewRegistries(), nil, nil)
 	if !errors.Is(err, ErrInvalidContent) {
 		t.Fatalf("err = %v, want ErrInvalidContent", err)
 	}
@@ -103,7 +103,7 @@ name: a guard
 behavior: idle
 `)
 	regs := NewRegistries()
-	if err := Load(context.Background(), root, nil, regs, nil); err != nil {
+	if err := Load(context.Background(), root, nil, regs, nil, nil); err != nil {
 		t.Fatalf("Load: %v", err)
 	}
 	got, _ := regs.Mobs.Get("tapestry-core:guard")
@@ -120,7 +120,7 @@ type: monster
 behavior: territorial
 `)
 	regs := NewRegistries()
-	if err := Load(context.Background(), root, nil, regs, nil); err != nil {
+	if err := Load(context.Background(), root, nil, regs, nil, nil); err != nil {
 		t.Fatalf("Load: %v", err)
 	}
 	got, _ := regs.Mobs.Get("tapestry-core:dragon")
@@ -149,7 +149,7 @@ name: dup
 behavior: idle
 `)
 	}
-	err := Load(context.Background(), root, nil, NewRegistries(), nil)
+	err := Load(context.Background(), root, nil, NewRegistries(), nil, nil)
 	if !errors.Is(err, mob.ErrDuplicateID) {
 		t.Fatalf("err = %v, want mob.ErrDuplicateID", err)
 	}
@@ -176,7 +176,7 @@ behavior: idle
 `)
 	}
 	regs := NewRegistries()
-	if err := Load(context.Background(), root, nil, regs, nil); err != nil {
+	if err := Load(context.Background(), root, nil, regs, nil, nil); err != nil {
 		t.Fatalf("Load: %v", err)
 	}
 	if !regs.Mobs.Has("a:guard") {
@@ -202,7 +202,7 @@ equipment:
   - tapestry-core:nonexistent-blade
 `)
 	regs := NewRegistries()
-	if err := Load(context.Background(), root, nil, regs, nil); err != nil {
+	if err := Load(context.Background(), root, nil, regs, nil, nil); err != nil {
 		t.Fatalf("Load: %v (equipment validity is spawn-time, not load-time)", err)
 	}
 	got, _ := regs.Mobs.Get("tapestry-core:phantom")
@@ -216,7 +216,7 @@ equipment:
 func TestLoad_NilMobsRegistryRejected(t *testing.T) {
 	regs := NewRegistries()
 	regs.Mobs = nil
-	err := Load(context.Background(), t.TempDir(), nil, regs, nil)
+	err := Load(context.Background(), t.TempDir(), nil, regs, nil, nil)
 	if err == nil {
 		t.Fatal("Load with nil Mobs registry = nil, want error")
 	}

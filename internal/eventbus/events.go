@@ -26,6 +26,11 @@ const (
 	// cancellable pre-event: the spec lists no veto hook and the
 	// operation does not change ownership.
 	EventItemFilled = "item.filled"
+	// Post-fact notification fired after a mob has been instantiated
+	// and placed in a room (spec mobs-ai-spawning §3.1 step 10).
+	// No cancellable pre-event: spawn-time policy decisions belong
+	// in the spawn config layer, not in subscriber veto.
+	EventMobSpawned = "mob.spawned"
 )
 
 // ItemPickedUp fires after GetHandler successfully moves an item
@@ -182,3 +187,17 @@ type ItemFilled struct {
 
 // Name implements Event.
 func (ItemFilled) Name() string { return EventItemFilled }
+
+// MobSpawned fires after a mob has been instantiated, placed in a
+// room, and tracked in the entity store (spec mobs-ai-spawning §3.1
+// step 10). TemplateID is carried verbatim so loot listeners, area
+// reset accounting, and quest hooks can identify which template
+// produced this instance without a round-trip to the entity store.
+type MobSpawned struct {
+	EntityID   entities.EntityID
+	RoomID     world.RoomID
+	TemplateID string
+}
+
+// Name implements Event.
+func (MobSpawned) Name() string { return EventMobSpawned }

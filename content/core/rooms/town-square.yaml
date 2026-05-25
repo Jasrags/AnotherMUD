@@ -12,3 +12,5 @@ exits:
   south: village-gate
 items:
   - well
+mobs:
+  - village-guard

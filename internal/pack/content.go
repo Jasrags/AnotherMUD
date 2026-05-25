@@ -81,6 +81,12 @@ type MobFile struct {
 // room. Same qualifier rules as exit targets: bare ids resolve against
 // the pack namespace, "ns:name" crosses packs. Spec
 // world-rooms-movement §2.2.
+//
+// Mobs declares mob-template ids spawned into the room at boot. Same
+// qualifier rules as Items. Spec mobs-ai-spawning §3.1 (spawn
+// placement) — boot-time placement is the simplest path; area-driven
+// respawn cadence (spec §3.5) is a later slice. Validation runs in
+// the loader's post-pass: unknown ids surface as ErrMissingMobTemplate.
 type RoomFile struct {
 	ID          string            `yaml:"id"`
 	Area        string            `yaml:"area"`
@@ -88,4 +94,5 @@ type RoomFile struct {
 	Description string            `yaml:"description,omitempty"`
 	Exits       map[string]string `yaml:"exits,omitempty"`
 	Items       []string          `yaml:"items,omitempty"`
+	Mobs        []string          `yaml:"mobs,omitempty"`
 }

@@ -23,6 +23,7 @@ var (
 	ErrMissingArea         = errors.New("room references unknown area")
 	ErrMissingExitRoom     = errors.New("exit references unknown room")
 	ErrMissingItemTemplate = errors.New("room item references unknown template")
+	ErrMissingMobTemplate  = errors.New("room mob references unknown template")
 	ErrInvalidContent      = errors.New("invalid content file")
 )
 
@@ -41,12 +42,29 @@ type Spawner interface {
 	SpawnAndPlace(ctx context.Context, templateID string, roomID world.RoomID) error
 }
 
+// MobSpawner mirrors Spawner for mobs (spec mobs-ai-spawning §3.1).
+// Separate interface so test mocks can record items vs mobs
+// independently and so a host that wants one but not the other is
+// not forced to stub both. The signature shape matches Spawner; only
+// the entity-kind contract differs.
+type MobSpawner interface {
+	SpawnAndPlaceMob(ctx context.Context, templateID string, roomID world.RoomID) error
+}
+
 // pendingPlacement is one room→item entry collected during the pack
 // content pass and applied once all content has loaded. We accumulate
 // these rather than spawning inline so cross-pack template references
 // resolve (the target template may live in a pack that hasn't been
 // loaded yet at the time the referring room is parsed).
 type pendingPlacement struct {
+	RoomID     world.RoomID
+	TemplateID string
+}
+
+// pendingMobPlacement is the mob equivalent of pendingPlacement.
+// Kept as a separate type so applyMobPlacements doesn't need a kind
+// discriminator and the two error sites carry different sentinels.
+type pendingMobPlacement struct {
 	RoomID     world.RoomID
 	TemplateID string
 }
@@ -61,7 +79,7 @@ type pendingPlacement struct {
 //
 // Filter, when non-empty, restricts discovery (spec §2.4). Pass nil to
 // load every active pack under root.
-func Load(ctx context.Context, root string, filter []string, dst *Registries, spawner Spawner) error {
+func Load(ctx context.Context, root string, filter []string, dst *Registries, spawner Spawner, mobSpawner MobSpawner) error {
 	if dst == nil || dst.World == nil || dst.Items == nil || dst.Slots == nil || dst.Mobs == nil {
 		return errors.New("pack.Load: dst has nil registry field; use pack.NewRegistries()")
 	}
@@ -89,12 +107,14 @@ func Load(ctx context.Context, root string, filter []string, dst *Registries, sp
 
 	// Phase 2: content pass.
 	var placements []pendingPlacement
+	var mobPlacements []pendingMobPlacement
 	for _, p := range ordered {
-		pp, err := loadPackContent(ctx, p, dst)
+		pp, mp, err := loadPackContent(ctx, p, dst)
 		if err != nil {
 			return fmt.Errorf("pack %q: %w", p.Manifest.Name, err)
 		}
 		placements = append(placements, pp...)
+		mobPlacements = append(mobPlacements, mp...)
 	}
 
 	// Cross-pack area validity check (spec §3.3 step 4) runs after every
@@ -115,33 +135,36 @@ func Load(ctx context.Context, root string, filter []string, dst *Registries, sp
 	if err := applyPlacements(ctx, dst, placements, spawner); err != nil {
 		return err
 	}
+	if err := applyMobPlacements(ctx, dst, mobPlacements, mobSpawner); err != nil {
+		return err
+	}
 
 	return nil
 }
 
-func loadPackContent(ctx context.Context, p Discovered, dst *Registries) ([]pendingPlacement, error) {
+func loadPackContent(ctx context.Context, p Discovered, dst *Registries) ([]pendingPlacement, []pendingMobPlacement, error) {
 	ns := p.Namespace()
 	logger := logging.From(ctx).With(slog.String("pack", p.Manifest.Name), slog.String("namespace", ns))
 
 	areaPaths, err := resolveGlobs(p.Dir, p.Manifest.Content.Areas)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	roomPaths, err := resolveGlobs(p.Dir, p.Manifest.Content.Rooms)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	itemPaths, err := resolveGlobs(p.Dir, p.Manifest.Content.Items)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	slotPaths, err := resolveGlobs(p.Dir, p.Manifest.Content.Slots)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	mobPaths, err := resolveGlobs(p.Dir, p.Manifest.Content.Mobs)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	// Areas first — rooms reference them (spec §3.3 step 2). TryAddArea
@@ -149,24 +172,31 @@ func loadPackContent(ctx context.Context, p Discovered, dst *Registries) ([]pend
 	for _, ap := range areaPaths {
 		a, err := decodeArea(ap, ns)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		if err := dst.World.TryAddArea(a); err != nil {
-			return nil, fmt.Errorf("%w (in %s)", err, ap)
+			return nil, nil, fmt.Errorf("%w (in %s)", err, ap)
 		}
 	}
 
 	var placements []pendingPlacement
+	var mobPlacements []pendingMobPlacement
 	for _, rp := range roomPaths {
-		r, items, err := decodeRoom(rp, ns)
+		r, items, mobs, err := decodeRoom(rp, ns)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		if err := dst.World.TryAddRoom(r); err != nil {
-			return nil, fmt.Errorf("%w (in %s)", err, rp)
+			return nil, nil, fmt.Errorf("%w (in %s)", err, rp)
 		}
 		for _, tid := range items {
 			placements = append(placements, pendingPlacement{
+				RoomID:     r.ID,
+				TemplateID: tid,
+			})
+		}
+		for _, tid := range mobs {
+			mobPlacements = append(mobPlacements, pendingMobPlacement{
 				RoomID:     r.ID,
 				TemplateID: tid,
 			})
@@ -178,10 +208,10 @@ func loadPackContent(ctx context.Context, p Discovered, dst *Registries) ([]pend
 	for _, ip := range itemPaths {
 		t, err := decodeItem(ip, ns)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		if err := dst.Items.TryAdd(t); err != nil {
-			return nil, fmt.Errorf("%w (in %s)", err, ip)
+			return nil, nil, fmt.Errorf("%w (in %s)", err, ip)
 		}
 	}
 
@@ -191,10 +221,10 @@ func loadPackContent(ctx context.Context, p Discovered, dst *Registries) ([]pend
 	for _, sp := range slotPaths {
 		d, err := decodeSlot(sp, ns)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		if err := dst.Slots.Register(d); err != nil {
-			return nil, fmt.Errorf("%w (in %s)", err, sp)
+			return nil, nil, fmt.Errorf("%w (in %s)", err, sp)
 		}
 	}
 
@@ -206,10 +236,10 @@ func loadPackContent(ctx context.Context, p Discovered, dst *Registries) ([]pend
 	for _, mp := range mobPaths {
 		m, err := decodeMob(mp, ns)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		if err := dst.Mobs.TryAdd(m); err != nil {
-			return nil, fmt.Errorf("%w (in %s)", err, mp)
+			return nil, nil, fmt.Errorf("%w (in %s)", err, mp)
 		}
 	}
 
@@ -221,8 +251,9 @@ func loadPackContent(ctx context.Context, p Discovered, dst *Registries) ([]pend
 		slog.Int("slots", len(slotPaths)),
 		slog.Int("mobs", len(mobPaths)),
 		slog.Int("placements", len(placements)),
+		slog.Int("mob_placements", len(mobPlacements)),
 	)
-	return placements, nil
+	return placements, mobPlacements, nil
 }
 
 // resolveGlobs expands each pattern (relative to packDir) into matching
@@ -290,32 +321,32 @@ func decodeArea(path, ns string) (*world.Area, error) {
 	}, nil
 }
 
-func decodeRoom(path, ns string) (*world.Room, []string, error) {
+func decodeRoom(path, ns string) (*world.Room, []string, []string, error) {
 	raw, err := os.ReadFile(path)
 	if err != nil {
-		return nil, nil, fmt.Errorf("reading room %s: %w", path, err)
+		return nil, nil, nil, fmt.Errorf("reading room %s: %w", path, err)
 	}
 	var rf RoomFile
 	if err := yaml.Unmarshal(raw, &rf); err != nil {
-		return nil, nil, fmt.Errorf("%w: %s: %v", ErrInvalidContent, path, err)
+		return nil, nil, nil, fmt.Errorf("%w: %s: %v", ErrInvalidContent, path, err)
 	}
 	if strings.TrimSpace(rf.ID) == "" {
-		return nil, nil, fmt.Errorf("%w: %s: missing 'id'", ErrInvalidContent, path)
+		return nil, nil, nil, fmt.Errorf("%w: %s: missing 'id'", ErrInvalidContent, path)
 	}
 	if strings.TrimSpace(rf.Area) == "" {
-		return nil, nil, fmt.Errorf("%w: %s: missing 'area'", ErrInvalidContent, path)
+		return nil, nil, nil, fmt.Errorf("%w: %s: missing 'area'", ErrInvalidContent, path)
 	}
 	if strings.TrimSpace(rf.Name) == "" {
-		return nil, nil, fmt.Errorf("%w: %s: missing 'name'", ErrInvalidContent, path)
+		return nil, nil, nil, fmt.Errorf("%w: %s: missing 'name'", ErrInvalidContent, path)
 	}
 
 	roomID, err := qualifyID(rf.ID, ns)
 	if err != nil {
-		return nil, nil, fmt.Errorf("%w: %s: %v", ErrInvalidContent, path, err)
+		return nil, nil, nil, fmt.Errorf("%w: %s: %v", ErrInvalidContent, path, err)
 	}
 	areaID, err := qualifyID(rf.Area, ns)
 	if err != nil {
-		return nil, nil, fmt.Errorf("%w: %s: area: %v", ErrInvalidContent, path, err)
+		return nil, nil, nil, fmt.Errorf("%w: %s: area: %v", ErrInvalidContent, path, err)
 	}
 
 	r := &world.Room{
@@ -328,11 +359,11 @@ func decodeRoom(path, ns string) (*world.Room, []string, error) {
 	for dirStr, target := range rf.Exits {
 		dir, ok := world.ParseDirection(dirStr)
 		if !ok {
-			return nil, nil, fmt.Errorf("%w: %s: unknown direction %q", ErrInvalidContent, path, dirStr)
+			return nil, nil, nil, fmt.Errorf("%w: %s: unknown direction %q", ErrInvalidContent, path, dirStr)
 		}
 		targetID, err := qualifyID(target, ns)
 		if err != nil {
-			return nil, nil, fmt.Errorf("%w: %s: exit %s: %v", ErrInvalidContent, path, dirStr, err)
+			return nil, nil, nil, fmt.Errorf("%w: %s: exit %s: %v", ErrInvalidContent, path, dirStr, err)
 		}
 		r.Exits[dir] = world.Exit{Target: world.RoomID(targetID)}
 	}
@@ -340,18 +371,37 @@ func decodeRoom(path, ns string) (*world.Room, []string, error) {
 	// Item placements: qualify each template id now so we can validate
 	// in a single pass at the end. We do NOT touch dst.Items here —
 	// the template may live in a pack that hasn't been read yet.
-	items := make([]string, 0, len(rf.Items))
-	for i, raw := range rf.Items {
+	items, err := qualifyIDList(rf.Items, ns, path, "items")
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	// Mob placements: same shape as item placements (spec
+	// mobs-ai-spawning §3.1). Cross-pack mob refs deferred to the
+	// post-pass validation in applyMobPlacements.
+	mobs, err := qualifyIDList(rf.Mobs, ns, path, "mobs")
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	return r, items, mobs, nil
+}
+
+// qualifyIDList qualifies each entry in a room's placement list
+// (items or mobs) against the pack namespace. Empty entries are
+// rejected as ErrInvalidContent so authors get a precise error.
+// Extracted so the items + mobs paths can't drift.
+func qualifyIDList(raws []string, ns, path, field string) ([]string, error) {
+	out := make([]string, 0, len(raws))
+	for i, raw := range raws {
 		if strings.TrimSpace(raw) == "" {
-			return nil, nil, fmt.Errorf("%w: %s: items[%d] is empty", ErrInvalidContent, path, i)
+			return nil, fmt.Errorf("%w: %s: %s[%d] is empty", ErrInvalidContent, path, field, i)
 		}
 		tid, err := qualifyID(raw, ns)
 		if err != nil {
-			return nil, nil, fmt.Errorf("%w: %s: items[%d]: %v", ErrInvalidContent, path, i, err)
+			return nil, fmt.Errorf("%w: %s: %s[%d]: %v", ErrInvalidContent, path, field, i, err)
 		}
-		items = append(items, tid)
+		out = append(out, tid)
 	}
-	return r, items, nil
+	return out, nil
 }
 
 func decodeItem(path, ns string) (*item.Template, error) {
@@ -526,6 +576,25 @@ func applyPlacements(ctx context.Context, dst *Registries, placements []pendingP
 		}
 		if err := spawner.SpawnAndPlace(ctx, pl.TemplateID, pl.RoomID); err != nil {
 			return fmt.Errorf("placement room %q item %q: %w", pl.RoomID, pl.TemplateID, err)
+		}
+	}
+	return nil
+}
+
+// applyMobPlacements mirrors applyPlacements for mob templates.
+// Validation (template existence) runs whether or not a spawner is
+// supplied so missing-id content surfaces in template-only loads.
+// Spec mobs-ai-spawning §3.1.
+func applyMobPlacements(ctx context.Context, dst *Registries, placements []pendingMobPlacement, spawner MobSpawner) error {
+	for _, pl := range placements {
+		if !dst.Mobs.Has(mob.TemplateID(pl.TemplateID)) {
+			return fmt.Errorf("%w: room %q -> mob %q", ErrMissingMobTemplate, pl.RoomID, pl.TemplateID)
+		}
+		if spawner == nil {
+			continue
+		}
+		if err := spawner.SpawnAndPlaceMob(ctx, pl.TemplateID, pl.RoomID); err != nil {
+			return fmt.Errorf("placement room %q mob %q: %w", pl.RoomID, pl.TemplateID, err)
 		}
 	}
 	return nil

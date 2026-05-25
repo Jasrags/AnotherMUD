@@ -78,8 +78,11 @@ func (it *ItemInstance) Tags() []string {
 func (it *ItemInstance) Name() string { return it.name }
 
 // Keywords returns the per-instance keyword list (used by the keyword
-// resolver, §6).
-func (it *ItemInstance) Keywords() []string { return it.keywords }
+// resolver, §6). Returns a fresh slice so callers cannot alias the
+// backing storage — mirrors Tags() on the same type for consistency.
+func (it *ItemInstance) Keywords() []string {
+	return append([]string(nil), it.keywords...)
+}
 
 // Properties returns the per-instance property bag (the live map, not
 // a copy). Gameplay code is expected to mutate this directly for

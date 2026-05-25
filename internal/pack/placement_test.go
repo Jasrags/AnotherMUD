@@ -33,6 +33,18 @@ func (s *recordingSpawner) SpawnAndPlace(_ context.Context, tid string, rid worl
 	return nil
 }
 
+// SpawnAndPlaceMob lets the same recorder satisfy pack.MobSpawner.
+// Mob and item calls share the calls slice — tests inspect TemplateID
+// to distinguish — but the err field gates both kinds uniformly so a
+// single recorder can simulate either failure surface.
+func (s *recordingSpawner) SpawnAndPlaceMob(_ context.Context, tid string, rid world.RoomID) error {
+	if s.err != nil {
+		return s.err
+	}
+	s.calls = append(s.calls, spawnCall{TemplateID: tid, RoomID: rid})
+	return nil
+}
+
 // placementPack writes a minimal pack containing one room that
 // declares an `items:` list of qualified ids. Used by several tests
 // that just vary what's in the items field.
@@ -72,7 +84,7 @@ properties:
 func TestLoad_PlacesItemsFromRoomYAML(t *testing.T) {
 	root := placementPack(t, "items:\n  - well\n")
 	spawner := &recordingSpawner{}
-	if err := Load(context.Background(), root, nil, NewRegistries(), spawner); err != nil {
+	if err := Load(context.Background(), root, nil, NewRegistries(), spawner, nil); err != nil {
 		t.Fatalf("Load: %v", err)
 	}
 	if len(spawner.calls) != 1 {
@@ -89,7 +101,7 @@ func TestLoad_PlacesItemsFromRoomYAML(t *testing.T) {
 
 func TestLoad_PlacementUnknownTemplate(t *testing.T) {
 	root := placementPack(t, "items:\n  - ghost-item\n")
-	err := Load(context.Background(), root, nil, NewRegistries(), &recordingSpawner{})
+	err := Load(context.Background(), root, nil, NewRegistries(), &recordingSpawner{}, nil)
 	if !errors.Is(err, ErrMissingItemTemplate) {
 		t.Fatalf("err = %v, want ErrMissingItemTemplate", err)
 	}
@@ -102,7 +114,7 @@ func TestLoad_PlacementUnknownTemplate(t *testing.T) {
 // as a load error even in template-only paths.
 func TestLoad_PlacementValidatesEvenWithNilSpawner(t *testing.T) {
 	root := placementPack(t, "items:\n  - ghost-item\n")
-	err := Load(context.Background(), root, nil, NewRegistries(), nil)
+	err := Load(context.Background(), root, nil, NewRegistries(), nil, nil)
 	if !errors.Is(err, ErrMissingItemTemplate) {
 		t.Fatalf("err = %v, want ErrMissingItemTemplate (nil spawner should still validate)", err)
 	}
@@ -113,7 +125,7 @@ func TestLoad_NilSpawnerSkipsActualSpawning(t *testing.T) {
 	// (which is the point — a recordingSpawner would have caught any
 	// stray invocation).
 	root := placementPack(t, "items:\n  - well\n")
-	if err := Load(context.Background(), root, nil, NewRegistries(), nil); err != nil {
+	if err := Load(context.Background(), root, nil, NewRegistries(), nil, nil); err != nil {
 		t.Fatalf("Load: %v", err)
 	}
 }
@@ -126,7 +138,7 @@ func TestLoad_NilSpawnerSkipsActualSpawning(t *testing.T) {
 func TestLoad_DuplicateTemplateIDSpawnsMultipleInstances(t *testing.T) {
 	root := placementPack(t, "items:\n  - well\n  - well\n")
 	spawner := &recordingSpawner{}
-	if err := Load(context.Background(), root, nil, NewRegistries(), spawner); err != nil {
+	if err := Load(context.Background(), root, nil, NewRegistries(), spawner, nil); err != nil {
 		t.Fatalf("Load: %v", err)
 	}
 	if len(spawner.calls) != 2 {
@@ -142,7 +154,7 @@ func TestLoad_DuplicateTemplateIDSpawnsMultipleInstances(t *testing.T) {
 func TestLoad_EmptyItemsList(t *testing.T) {
 	root := placementPack(t, "items: []\n")
 	spawner := &recordingSpawner{}
-	if err := Load(context.Background(), root, nil, NewRegistries(), spawner); err != nil {
+	if err := Load(context.Background(), root, nil, NewRegistries(), spawner, nil); err != nil {
 		t.Fatalf("Load: %v", err)
 	}
 	if len(spawner.calls) != 0 {
@@ -189,7 +201,7 @@ keywords: [lantern]
 `)
 
 	spawner := &recordingSpawner{}
-	if err := Load(context.Background(), root, nil, NewRegistries(), spawner); err != nil {
+	if err := Load(context.Background(), root, nil, NewRegistries(), spawner, nil); err != nil {
 		t.Fatalf("Load: %v", err)
 	}
 	if len(spawner.calls) != 1 {
@@ -206,7 +218,7 @@ keywords: [lantern]
 func TestLoad_SpawnerErrorPropagates(t *testing.T) {
 	root := placementPack(t, "items:\n  - well\n")
 	spawner := &recordingSpawner{err: errors.New("boom")}
-	err := Load(context.Background(), root, nil, NewRegistries(), spawner)
+	err := Load(context.Background(), root, nil, NewRegistries(), spawner, nil)
 	if err == nil || !errors.Is(err, spawner.err) {
 		t.Fatalf("err = %v, want wrapping of spawner err", err)
 	}
@@ -218,7 +230,7 @@ func TestLoad_EmptyItemsEntryRejected(t *testing.T) {
 	// ErrInvalidContent at decode time so authors get a precise
 	// error.
 	root := placementPack(t, "items:\n  - \"\"\n")
-	err := Load(context.Background(), root, nil, NewRegistries(), nil)
+	err := Load(context.Background(), root, nil, NewRegistries(), nil, nil)
 	if !errors.Is(err, ErrInvalidContent) {
 		t.Fatalf("err = %v, want ErrInvalidContent", err)
 	}

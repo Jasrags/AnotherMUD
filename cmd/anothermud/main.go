@@ -26,6 +26,7 @@ import (
 	"github.com/Jasrags/AnotherMUD/internal/eventbus"
 	"github.com/Jasrags/AnotherMUD/internal/item"
 	"github.com/Jasrags/AnotherMUD/internal/logging"
+	"github.com/Jasrags/AnotherMUD/internal/mob"
 	"github.com/Jasrags/AnotherMUD/internal/login"
 	"github.com/Jasrags/AnotherMUD/internal/pack"
 	"github.com/Jasrags/AnotherMUD/internal/player"
@@ -86,8 +87,14 @@ func run() error {
 	contents := entities.NewContents()
 	bus := eventbus.New()
 
-	spawner := &bootSpawner{store: entityStore, placement: placement, templates: registries.Items}
-	if err := pack.Load(ctx, cfg.ContentDir, nil, registries, spawner); err != nil {
+	spawner := &bootSpawner{
+		store:        entityStore,
+		placement:    placement,
+		templates:    registries.Items,
+		mobTemplates: registries.Mobs,
+		bus:          bus,
+	}
+	if err := pack.Load(ctx, cfg.ContentDir, nil, registries, spawner, spawner); err != nil {
 		return fmt.Errorf("loading content from %s: %w", cfg.ContentDir, err)
 	}
 	w := registries.World
@@ -299,20 +306,24 @@ func envOr(key, def string) string {
 }
 
 // bootSpawner adapts the runtime entity store + placement index to
-// the pack.Spawner interface, letting room YAMLs declare items that
-// should exist at boot. Implemented here rather than in internal/
-// because it crosses package boundaries that don't otherwise meet
-// (entities + item + pack); keeping the adapter at the composition
-// root avoids inventing a shared adapter package for one user.
+// the pack.Spawner / pack.MobSpawner interfaces, letting room YAMLs
+// declare items AND mobs that should exist at boot. Implemented here
+// rather than in internal/ because it crosses package boundaries
+// that don't otherwise meet (entities + item + mob + eventbus + pack);
+// keeping the adapter at the composition root avoids inventing a
+// shared adapter package for two users.
 //
-// Spec: world-rooms-movement §2.2 (room item placement).
+// Specs: world-rooms-movement §2.2 (room item placement),
+// mobs-ai-spawning §3.1 (spawn placement + §3.1 step 10 event).
 type bootSpawner struct {
-	store     *entities.Store
-	placement *entities.Placement
-	templates *item.Templates
+	store        *entities.Store
+	placement    *entities.Placement
+	templates    *item.Templates
+	mobTemplates *mob.Templates
+	bus          *eventbus.Bus
 }
 
-// SpawnAndPlace looks up the template, mints an instance via the
+// SpawnAndPlace looks up the item template, mints an instance via the
 // store, and records its placement in roomID. Returns an error rather
 // than panicking on a missing template, even though the loader's
 // pre-validation should make that impossible — defense against a
@@ -327,6 +338,43 @@ func (b *bootSpawner) SpawnAndPlace(_ context.Context, templateID string, roomID
 		return fmt.Errorf("spawn: %w", err)
 	}
 	b.placement.Place(inst.ID(), roomID)
+	return nil
+}
+
+// SpawnAndPlaceMob implements §3.1's spawn-placement pipeline for
+// boot-time mob placement: resolve template, instantiate, place in
+// room, emit the mob.spawned event. Steps mapped to spec:
+//
+//   - §3.1 step 1 + 3 (resolve template, instantiate) → mobTemplates
+//     lookup + Store.SpawnMob
+//   - §3.1 step 2 (resolve room) — implicit; the loader validates the
+//     room exists before reaching here. A nil/missing room would
+//     surface from Placement.Place, but Placement is a forgiving map
+//     so we don't need a second world lookup here.
+//   - §3.1 step 5 (set entity location + add to room) → Placement.Place
+//   - §3.1 step 6 (track in entity store) → already done by SpawnMob
+//   - §3.1 step 10 (emit mob.spawned event)
+//
+// Deferred (no consumer yet): step 4 stat derivation, step 7 equipment
+// instantiation/equip, step 8 loot generation, step 9 ability
+// proficiencies — all tracked under M6 follow-on slices.
+func (b *bootSpawner) SpawnAndPlaceMob(ctx context.Context, templateID string, roomID world.RoomID) error {
+	tpl, err := b.mobTemplates.Get(mob.TemplateID(templateID))
+	if err != nil {
+		return fmt.Errorf("mob template lookup: %w", err)
+	}
+	inst, err := b.store.SpawnMob(tpl)
+	if err != nil {
+		return fmt.Errorf("spawn mob: %w", err)
+	}
+	b.placement.Place(inst.ID(), roomID)
+	if b.bus != nil {
+		b.bus.Publish(ctx, eventbus.MobSpawned{
+			EntityID:   inst.ID(),
+			RoomID:     roomID,
+			TemplateID: templateID,
+		})
+	}
 	return nil
 }
 

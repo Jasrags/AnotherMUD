@@ -60,7 +60,7 @@ func TestLoadHappyPath(t *testing.T) {
 	root := minimalCorePack(t)
 	regs := NewRegistries()
 	w := regs.World
-	if err := Load(context.Background(), root, nil, regs, nil); err != nil {
+	if err := Load(context.Background(), root, nil, regs, nil, nil); err != nil {
 		t.Fatalf("Load: %v", err)
 	}
 	a, err := w.Room("tapestry-core:a")
@@ -93,7 +93,7 @@ id: orphan
 area: ghost-area
 name: Orphan
 `)
-	err := Load(context.Background(), root, nil, NewRegistries(), nil)
+	err := Load(context.Background(), root, nil, NewRegistries(), nil, nil)
 	if !errors.Is(err, ErrMissingArea) {
 		t.Fatalf("err = %v, want ErrMissingArea", err)
 	}
@@ -112,7 +112,7 @@ content:
 	writeFile(t, filepath.Join(pack, "rooms/a.yaml"), "id: a\narea: town\nname: A\n")
 	writeFile(t, filepath.Join(pack, "rooms/a2.yaml"), "id: a\narea: town\nname: Dup\n")
 
-	err := Load(context.Background(), root, nil, NewRegistries(), nil)
+	err := Load(context.Background(), root, nil, NewRegistries(), nil, nil)
 	if !errors.Is(err, world.ErrDuplicateID) {
 		t.Fatalf("err = %v, want world.ErrDuplicateID", err)
 	}
@@ -135,7 +135,7 @@ name: A
 exits:
   north: nowhere
 `)
-	err := Load(context.Background(), root, nil, NewRegistries(), nil)
+	err := Load(context.Background(), root, nil, NewRegistries(), nil, nil)
 	if !errors.Is(err, ErrMissingExitRoom) {
 		t.Fatalf("err = %v, want ErrMissingExitRoom", err)
 	}
@@ -176,7 +176,7 @@ exits:
 
 	regs := NewRegistries()
 	w := regs.World
-	if err := Load(context.Background(), root, nil, regs, nil); err != nil {
+	if err := Load(context.Background(), root, nil, regs, nil, nil); err != nil {
 		t.Fatalf("Load: %v", err)
 	}
 	b, err := w.Room("extra:b")
@@ -200,7 +200,7 @@ content:
 	writeFile(t, filepath.Join(pack, "areas/town.yaml"), "id: town\nname: Town\n")
 	writeFile(t, filepath.Join(pack, "rooms/bad.yaml"), "id: [unterminated\n")
 
-	err := Load(context.Background(), root, nil, NewRegistries(), nil)
+	err := Load(context.Background(), root, nil, NewRegistries(), nil, nil)
 	if !errors.Is(err, ErrInvalidContent) {
 		t.Fatalf("err = %v, want ErrInvalidContent", err)
 	}
@@ -223,7 +223,7 @@ name: A
 exits:
   sideways: a
 `)
-	err := Load(context.Background(), root, nil, NewRegistries(), nil)
+	err := Load(context.Background(), root, nil, NewRegistries(), nil, nil)
 	if !errors.Is(err, ErrInvalidContent) {
 		t.Fatalf("err = %v, want ErrInvalidContent", err)
 	}
@@ -239,7 +239,7 @@ content:
   rooms: [rooms/*.yaml]
 `)
 	// No content files at all.
-	if err := Load(context.Background(), root, nil, NewRegistries(), nil); err == nil {
+	if err := Load(context.Background(), root, nil, NewRegistries(), nil, nil); err == nil {
 		t.Fatal("expected error for empty glob match")
 	}
 }
@@ -257,7 +257,7 @@ content:
 `)
 	// Place a real file at the escape target so the glob finds something.
 	writeFile(t, filepath.Join(root, "escape/town.yaml"), "id: town\nname: Town\n")
-	err := Load(context.Background(), root, nil, NewRegistries(), nil)
+	err := Load(context.Background(), root, nil, NewRegistries(), nil, nil)
 	if err == nil {
 		t.Fatal("expected path-traversal rejection, got nil")
 	}
@@ -287,7 +287,7 @@ content:
 name: B's Town
 `)
 
-	err := Load(context.Background(), root, nil, NewRegistries(), nil)
+	err := Load(context.Background(), root, nil, NewRegistries(), nil, nil)
 	if !errors.Is(err, world.ErrDuplicateID) {
 		t.Fatalf("err = %v, want world.ErrDuplicateID", err)
 	}
@@ -306,7 +306,7 @@ content:
 	writeFile(t, filepath.Join(pack, "areas/town.yaml"), "id: \"  :town\"\nname: Town\n")
 	writeFile(t, filepath.Join(pack, "rooms/a.yaml"), "id: a\narea: town\nname: A\n")
 
-	err := Load(context.Background(), root, nil, NewRegistries(), nil)
+	err := Load(context.Background(), root, nil, NewRegistries(), nil, nil)
 	if !errors.Is(err, ErrInvalidContent) {
 		t.Fatalf("err = %v, want ErrInvalidContent", err)
 	}
@@ -328,7 +328,7 @@ func TestLoadRealCorePack(t *testing.T) {
 
 	regs := NewRegistries()
 	w := regs.World
-	if err := Load(context.Background(), contentRoot, nil, regs, nil); err != nil {
+	if err := Load(context.Background(), contentRoot, nil, regs, nil, nil); err != nil {
 		t.Fatalf("Load(real core pack): %v", err)
 	}
 
@@ -407,7 +407,7 @@ modifiers:
 `)
 
 	regs := NewRegistries()
-	if err := Load(context.Background(), root, nil, regs, nil); err != nil {
+	if err := Load(context.Background(), root, nil, regs, nil, nil); err != nil {
 		t.Fatalf("Load: %v", err)
 	}
 	tpl, err := regs.Items.Get("tapestry-core:short-sword")
@@ -457,7 +457,7 @@ name: Room A
 id: broken
 name: a broken thing
 `)
-	err := Load(context.Background(), root, nil, NewRegistries(), nil)
+	err := Load(context.Background(), root, nil, NewRegistries(), nil, nil)
 	if !errors.Is(err, ErrInvalidContent) {
 		t.Errorf("err = %v, want ErrInvalidContent", err)
 	}
@@ -491,7 +491,7 @@ content:
 name: from b
 type: item`)
 
-	err := Load(context.Background(), root, nil, NewRegistries(), nil)
+	err := Load(context.Background(), root, nil, NewRegistries(), nil, nil)
 	if !errors.Is(err, item.ErrDuplicateID) {
 		t.Errorf("err = %v, want ErrDuplicateID", err)
 	}
@@ -519,17 +519,17 @@ type: item
 modifiers:
   - value: 2
 `)
-	err := Load(context.Background(), root, nil, NewRegistries(), nil)
+	err := Load(context.Background(), root, nil, NewRegistries(), nil, nil)
 	if !errors.Is(err, ErrInvalidContent) {
 		t.Errorf("err = %v, want ErrInvalidContent", err)
 	}
 }
 
 func TestLoadNilRegistriesRejected(t *testing.T) {
-	if err := Load(context.Background(), t.TempDir(), nil, nil, nil); err == nil {
+	if err := Load(context.Background(), t.TempDir(), nil, nil, nil, nil); err == nil {
 		t.Error("Load(nil dst) returned nil, want error")
 	}
-	if err := Load(context.Background(), t.TempDir(), nil, &Registries{}, nil); err == nil {
+	if err := Load(context.Background(), t.TempDir(), nil, &Registries{}, nil, nil); err == nil {
 		t.Error("Load(&Registries{}) returned nil, want error")
 	}
 }
@@ -561,7 +561,7 @@ max: 2
 `)
 
 	regs := NewRegistries()
-	if err := Load(context.Background(), root, nil, regs, nil); err != nil {
+	if err := Load(context.Background(), root, nil, regs, nil, nil); err != nil {
 		t.Fatalf("Load: %v", err)
 	}
 	cloak, err := regs.Slots.Get("cloak")
@@ -597,7 +597,7 @@ name: Left-Hand
 label: invalid
 max: 1
 `)
-	err := Load(context.Background(), root, nil, NewRegistries(), nil)
+	err := Load(context.Background(), root, nil, NewRegistries(), nil, nil)
 	if !errors.Is(err, slot.ErrInvalidName) {
 		t.Errorf("err = %v, want ErrInvalidName", err)
 	}
@@ -622,7 +622,7 @@ name: Room A`)
 name: belt
 label: worn at waist
 `)
-	err := Load(context.Background(), root, nil, NewRegistries(), nil)
+	err := Load(context.Background(), root, nil, NewRegistries(), nil, nil)
 	if !errors.Is(err, ErrInvalidContent) {
 		t.Errorf("err = %v, want ErrInvalidContent", err)
 	}
@@ -653,7 +653,7 @@ max: 1
 	if err := slot.RegisterEngineBaseline(regs.Slots); err != nil {
 		t.Fatalf("baseline: %v", err)
 	}
-	err := Load(context.Background(), root, nil, regs, nil)
+	err := Load(context.Background(), root, nil, regs, nil, nil)
 	if !errors.Is(err, slot.ErrDuplicate) {
 		t.Errorf("err = %v, want ErrDuplicate", err)
 	}
@@ -690,7 +690,7 @@ content:
 label: also a belt
 max: 1`)
 
-	err := Load(context.Background(), root, nil, NewRegistries(), nil)
+	err := Load(context.Background(), root, nil, NewRegistries(), nil, nil)
 	if !errors.Is(err, slot.ErrDuplicate) {
 		t.Errorf("err = %v, want ErrDuplicate", err)
 	}

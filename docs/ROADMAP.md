@@ -364,8 +364,20 @@ is now real. Sketch of remaining vertical slices:
     properties, stats, equipment ids). Pack loader decodes mob
     files via `content.mobs` glob and registers them. Equipment
     template ids are NOT validated at load (spec §3.1 specifies
-    fail-silent-at-spawn). No content shipped yet — first real
-    mob template lands with M6.2 instantiation.
+    fail-silent-at-spawn).
+  - **M6.2 (landed):** mob instantiation + boot-time spawn placement.
+    `entities.MobInstance` (Entity impl) and `Store.SpawnMob` perform
+    §2.3 instantiation steps 1-5 (build entity, drop implicit
+    type-tag, copy stats+behavior+templateID into properties).
+    `RoomFile.Mobs []string` parallels `Items`; loader gains
+    `MobSpawner` interface and `applyMobPlacements` post-pass
+    (validation + invocation). `bootSpawner` in `main.go` implements
+    both interfaces and publishes `mob.spawned` on placement
+    (§3.1 step 10). First content: `tapestry-core:village-guard`
+    placed in `town-square`. Deferred (no consumer yet): §3.1
+    step 4 stat derivation (M8), step 7 equipment instantiation,
+    step 8 loot generation, step 9 ability proficiencies; §2.3
+    steps 6-8 (patrol/idle/battle/disposition/scripts).
 - **M7 — Hit something:** `combat`, engage/disengage, the heartbeat
   bucket, death.
 - **M8 — Get better:** `progression`, stats, levels, races, classes,

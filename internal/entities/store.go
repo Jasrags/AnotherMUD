@@ -9,6 +9,7 @@ import (
 	"sync/atomic"
 
 	"github.com/Jasrags/AnotherMUD/internal/item"
+	"github.com/Jasrags/AnotherMUD/internal/mob"
 )
 
 // Errors callers may distinguish at the boundary.
@@ -16,7 +17,8 @@ var (
 	ErrNotFound        = errors.New("entity not found")
 	ErrAlreadyTracked  = errors.New("entity already tracked")
 	ErrNotTracked      = errors.New("entity is not tracked")
-	ErrUnknownTemplate = errors.New("item template unknown")
+	ErrUnknownTemplate    = errors.New("item template unknown")
+	ErrUnknownMobTemplate = errors.New("mob template unknown")
 )
 
 // Store is the runtime entity tracker. It owns the by-id index and the
@@ -196,9 +198,13 @@ func (s *Store) SwapTagIndex() {
 // ErrUnknownTemplate if tpl is nil so callers can pipeline a registry
 // lookup straight into Spawn without an extra nil check.
 //
-// Concurrency: Spawn holds the write lock end-to-end so id generation,
-// instance construction, and tracking happen atomically. Callers should
-// expect Spawn to be cheap but not free.
+// Concurrency: id generation is atomic via the idGen counter (no lock
+// needed); Track acquires the store's write lock for the index
+// insertion. The two steps are NOT in a single critical section, but
+// the atomic counter guarantees unique ids and Track guarantees the
+// id→entity mapping is consistent once it returns — a concurrent
+// reader either sees the new entity or does not, never a half-built
+// index entry.
 func (s *Store) Spawn(tpl *item.Template) (*ItemInstance, error) {
 	if tpl == nil {
 		return nil, ErrUnknownTemplate
@@ -209,6 +215,27 @@ func (s *Store) Spawn(tpl *item.Template) (*ItemInstance, error) {
 		// Track failure on a freshly minted id means the id generator
 		// is broken; surface immediately rather than swallow.
 		return nil, fmt.Errorf("spawn: tracking new instance: %w", err)
+	}
+	return inst, nil
+}
+
+// SpawnMob instantiates a mob from tpl per spec mobs-ai-spawning §2.3
+// (instantiation) and tracks the result. Mirrors Spawn for items in
+// shape and concurrency model — see Spawn's doc for the atomic-id +
+// Track-locked invariant. Spec steps §2.3 1-5 happen inside
+// buildMobFromTemplate; the remaining spawn-pipeline steps (§3.1
+// step 5 "set the entity's location and add it to the room", step 10
+// "emit a mob spawned event") are the caller's responsibility because
+// they require placement + bus refs that this package can't hold
+// without a cycle (eventbus → entities).
+func (s *Store) SpawnMob(tpl *mob.Template) (*MobInstance, error) {
+	if tpl == nil {
+		return nil, ErrUnknownMobTemplate
+	}
+	id := s.nextID()
+	inst := buildMobFromTemplate(tpl, id)
+	if err := s.Track(inst); err != nil {
+		return nil, fmt.Errorf("spawn mob: tracking new instance: %w", err)
 	}
 	return inst, nil
 }

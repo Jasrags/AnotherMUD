@@ -1,0 +1,10 @@
+id: village-guard
+name: a village guard
+type: npc
+behavior: stationary
+disposition: 0
+tags: [humanoid, guard]
+keywords: [guard, villager]
+stats:
+  hp_max: 40
+  str: 12

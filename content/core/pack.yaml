@@ -12,3 +12,5 @@ content:
     - items/*.yaml
   slots:
     - slots/*.yaml
+  mobs:
+    - mobs/*.yaml
