@@ -7,6 +7,7 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/Jasrags/AnotherMUD/internal/combat"
 	"github.com/Jasrags/AnotherMUD/internal/player"
 	"github.com/Jasrags/AnotherMUD/internal/world"
 )
@@ -150,6 +151,11 @@ func newFakeActor(connID, playerID, accountID, name string, room *world.Room) (*
 			Name:      name,
 			Location:  string(room.ID),
 		},
+		// M7.1: fakes get the same combat defaults as live actors so
+		// tests that touch the Combatant surface (consider, future
+		// combat manager) don't nil-deref on Vitals().
+		vitals:      combat.NewVitals(combat.DefaultPlayerMaxHP),
+		combatStats: combat.DefaultPlayerStats(),
 	}, fc
 }
 

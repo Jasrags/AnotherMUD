@@ -22,6 +22,7 @@ import (
 
 	"github.com/Jasrags/AnotherMUD/internal/ansi"
 	"github.com/Jasrags/AnotherMUD/internal/clock"
+	"github.com/Jasrags/AnotherMUD/internal/combat"
 	"github.com/Jasrags/AnotherMUD/internal/command"
 	"github.com/Jasrags/AnotherMUD/internal/conn"
 	"github.com/Jasrags/AnotherMUD/internal/entities"
@@ -182,10 +183,16 @@ func run(ctx context.Context, c conn.Connection, cfg Config) error {
 		contents:     cfg.Contents,
 		equipment:    make(map[string]entities.EntityID),
 		stats:        stats.New(),
-		flood:        newFloodGate(floodCfg, clk),
-		floodCfg:     &floodCfg,
-		clk:          clk,
-		lastInputAt:  clk.Now(),
+		// M7.1: every player gets the hardcoded combat block at login.
+		// Vitals start at full; persistence of current HP arrives with
+		// the M7.5 death flow. The race/class/level inputs that would
+		// derive real numbers here are M8 work.
+		vitals:      combat.NewVitals(combat.DefaultPlayerMaxHP),
+		combatStats: combat.DefaultPlayerStats(),
+		flood:       newFloodGate(floodCfg, clk),
+		floodCfg:    &floodCfg,
+		clk:         clk,
+		lastInputAt: clk.Now(),
 	}
 
 	// Install the persisted stat block FIRST. respawnEquipment will then
@@ -815,6 +822,18 @@ type connActor struct {
 	// ids spawned by respawnEquipment.
 	stats *stats.Block
 
+	// vitals is the actor's mutable HP state (M7.1). The pointer is
+	// established at login and never reassigned; combat applies damage
+	// and heals through the pointer under its own lock. Not persisted
+	// yet — every login starts at full HP until the M7.5 death flow
+	// lands the player-side save bump.
+	vitals *combat.Vitals
+	// combatStats is the actor's per-round combat block (HitMod, AC,
+	// STR) — combat §4.4-4.5 inputs. M7.1 reads a hardcoded default
+	// (combat.DefaultPlayerStats); M8 replaces it with a real
+	// race+class+level derivation.
+	combatStats combat.Stats
+
 	mu            sync.Mutex
 	room          *world.Room
 	colorEnabled  bool
@@ -1254,6 +1273,34 @@ func (a *connActor) lookupTemplateID(id entities.EntityID) (string, bool) {
 	}
 	return string(it.TemplateID()), true
 }
+
+// CombatantID returns the combat-side identity of this actor. The
+// PlayerPrefix keeps the namespace disjoint from mob ids (see
+// combat.CombatantID). PlayerID is account-scoped and stable across
+// reconnects so a fight started against this player survives a
+// link-dead reattach.
+func (a *connActor) CombatantID() combat.CombatantID {
+	return combat.NewPlayerCombatantID(a.playerID)
+}
+
+// Vitals returns the actor's mutable HP state. The pointer is set at
+// construction time in run() and is never reassigned for the life of
+// the connActor, so reading it without taking a.mu is safe (the
+// pointer itself; the Vitals struct carries its own internal lock).
+func (a *connActor) Vitals() *combat.Vitals { return a.vitals }
+
+// Stats returns a copy of the actor's combat stat block. M7.1 returns
+// the hardcoded default — equipment modifiers do not yet flow into the
+// combat stat block; the M5.6 stats.Block carries equipment-sourced
+// modifiers separately and a future slice (M8) will combine the two.
+//
+// LOCK NOTE: combatStats is written exactly once at construction
+// today, so this read is safe without a.mu. When M8 (progression)
+// adds a setter that mutates combatStats on a live actor — level-up,
+// equipment-driven derivation — the setter MUST take a.mu and this
+// method MUST start taking a.mu as well; combat.Stats is three
+// int fields and is not atomically readable as a unit.
+func (a *connActor) Stats() combat.Stats { return a.combatStats }
 
 // PlayerName returns the loaded character's name, used by the autosave
 // loop's structured logs. Returns "" for an actor that never finished

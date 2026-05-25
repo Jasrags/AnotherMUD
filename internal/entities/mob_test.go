@@ -5,6 +5,7 @@ import (
 	"sort"
 	"testing"
 
+	"github.com/Jasrags/AnotherMUD/internal/combat"
 	"github.com/Jasrags/AnotherMUD/internal/mob"
 )
 
@@ -191,5 +192,61 @@ func TestMobInstanceTagsReturnsCopy(t *testing.T) {
 	second := inst.Tags()
 	if second[0] == "MUTATED" {
 		t.Error("Tags() aliased backing storage; mutation leaked across calls")
+	}
+}
+
+// M7.1: MobInstance must satisfy combat.Combatant. The compile-time
+// assignment in this test pins the contract — a refactor that breaks
+// the interface fails here rather than at the (currently absent)
+// CombatManager call site.
+func TestMobInstanceImplementsCombatant(t *testing.T) {
+	s := NewStore()
+	inst, err := s.SpawnMob(guardTpl())
+	if err != nil {
+		t.Fatalf("SpawnMob: %v", err)
+	}
+	var c combat.Combatant = inst
+	if c.Name() != "a village guard" {
+		t.Errorf("Name() = %q, want %q", c.Name(), "a village guard")
+	}
+	want := string(combat.NewMobCombatantID(string(inst.ID())))
+	if got := string(c.CombatantID()); got != want {
+		t.Errorf("CombatantID() = %q, want %q", got, want)
+	}
+	cur, max := c.Vitals().Snapshot()
+	if cur != 40 || max != 40 {
+		t.Errorf("Vitals at spawn = (%d, %d), want (40, 40) per template hp_max", cur, max)
+	}
+	st := c.Stats()
+	if st.STR != 12 {
+		t.Errorf("Stats.STR = %d, want 12 from template", st.STR)
+	}
+	// Engine defaults fill in keys the template omitted.
+	if st.AC != combat.DefaultAC {
+		t.Errorf("Stats.AC = %d, want default %d", st.AC, combat.DefaultAC)
+	}
+}
+
+// Mobs spawned from a template with no Stats map at all must still
+// produce a working Combatant — engine defaults are non-zero so the
+// round loop has finite inputs.
+func TestSpawnMobBareTemplateGetsCombatDefaults(t *testing.T) {
+	s := NewStore()
+	tpl := &mob.Template{
+		ID:   "tapestry-core:silent-watcher",
+		Name: "a silent watcher",
+		Type: "npc",
+	}
+	inst, err := s.SpawnMob(tpl)
+	if err != nil {
+		t.Fatalf("SpawnMob: %v", err)
+	}
+	cur, max := inst.Vitals().Snapshot()
+	if cur != combat.DefaultMobMaxHP || max != combat.DefaultMobMaxHP {
+		t.Errorf("Vitals = (%d, %d), want (%d, %d)", cur, max, combat.DefaultMobMaxHP, combat.DefaultMobMaxHP)
+	}
+	st := inst.Stats()
+	if st.AC != combat.DefaultAC || st.STR != combat.DefaultSTR {
+		t.Errorf("Stats = %+v, want engine defaults", st)
 	}
 }

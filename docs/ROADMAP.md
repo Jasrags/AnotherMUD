@@ -452,6 +452,63 @@ is now real. Sketch of remaining vertical slices:
     subscriber until M7 combat lands.
 - **M7 — Hit something:** `combat`, engage/disengage, the heartbeat
   bucket, death.
+  - **M7.1 (landed):** Combatant + vitals — the prerequisite slice.
+    New `internal/combat` package: `Combatant` interface
+    (`CombatantID`, `Name`, `Vitals`, `Stats`), mutex-protected
+    `Vitals` type (HP/MaxHP with `ApplyDamage`/`Heal`/`SetMax`/
+    `Percent`/`IsDead`/`Snapshot`), value-typed `Stats` block
+    (`HitMod`, `AC`, `STR`), and `FromTemplateStats` helper that
+    lifts the combat-relevant keys out of a mob template's Stats
+    map with engine defaults (DefaultMobMaxHP=10, DefaultAC=10,
+    DefaultSTR=10). `MobInstance` implements `Combatant`: vitals
+    initialized from `stats.hp_max` at spawn, stat block derived
+    from the template's `Stats` map. `connActor` implements
+    `Combatant`: vitals from `DefaultPlayerMaxHP=20`, stats from
+    `DefaultPlayerStats()` — both hardcoded until M8 progression
+    lands real derivation. CombatantID namespaces are kept disjoint
+    by prefix (`mob:<entityID>`, `player:<playerID>`) so a future
+    unified Locator cannot cross-hit. New `consider <target>`
+    command (alias `con`) is the end-to-end check: resolves self
+    via name/me/self aliases, mobs via Placement + keyword
+    resolver, and players via the existing Locator surface;
+    surfaces HP/MaxHP, a coarse descriptor (uninjured → lightly →
+    moderately → badly wounded → near death → dead), and AC.
+    Player vitals are NOT persisted yet — every login starts at
+    full HP. Persistence (player.Save schema bump) ships with the
+    M7.5 death flow when there's something meaningful to save.
+  - **M7.2 (planned):** CombatManager primitives. Engage/disengage
+    (pair + all), primary-target promotion, "in combat" / list
+    queries, engagement refusals (safe-room tag, no-kill tag,
+    flee-cooldown, already-engaged). `kill <target>` command
+    resolves a Combatant in the room and calls engage. No round
+    resolution yet — bookkeeping + `engagement` / `combat ended`
+    events only.
+  - **M7.3 (planned):** Heartbeat bucket + round skeleton. New
+    tick handler on `combat.cadence` (configured ticks-per-round).
+    Snapshot combatants, run empty phase hooks in spec order
+    (ability → auto-attack → effects → wimpy), prove mid-round
+    add/remove safety. No damage yet.
+  - **M7.4 (planned):** Auto-attack swings. Pre-flight disengage
+    (dead/missing/distant), swing count = 1 + extra-attack
+    (stubbed 0), d20 hit roll with nat-1/nat-20 overrides, dice
+    damage expression parser (`NdM±K`), unarmed default,
+    `hit`/`miss`/`evade` events, `vital.depleted{hp}` on HP
+    reaching 0. Player-before-mob iteration for tie-breaking.
+  - **M7.5 (planned):** Death flow + downstream wiring.
+    Cancellable `death.check` bus event, killer attribution
+    (explicit > primary target > none), `kill` + `mob.killed`
+    events, disengage-all on uncancelled death. Wire
+    `mob.killed` → `spawn.Tracker.untrack` so M6.6 respawn
+    fires on combat deaths (closes the M6.6 deferred). Wire
+    `mob.aggro` (from M6.5) → `combat.Engage` so disposition
+    reactions actually start fights. Player vitals persistence
+    (player.Save v5 with `vitals` block) lands here so death +
+    log out at low HP round-trip.
+  - **M7.6 (planned):** Flee + wimpy. Wimpy check phase
+    (HP% ≤ threshold property), flee attempt (no-flee tag,
+    no-exits, random-exit + disengage-all + move + cooldown),
+    flee cooldown blocks engage but not being engaged. `flee`
+    command and `wimpy <pct>` setter.
 - **M8 — Get better:** `progression`, stats, levels, races, classes,
   tracks.
 - **M9 — Do something:** `abilities-and-effects`, the action queue,

@@ -41,6 +41,12 @@ func RegisterBuiltins(r *Registry) error {
 		{"i", InventoryHandler},
 		{"equipment", EquipmentHandler},
 		{"eq", EquipmentHandler},
+		// Combat status (M7.1). `con` would also match `color` by
+		// prefix (alphabetical), but `color` is registered earlier so
+		// its lower order wins the tiebreaker — `con` resolves to
+		// consider here. Spelled out for clarity.
+		{"consider", ConsiderHandler},
+		{"con", ConsiderHandler},
 	}
 	for _, d := range []world.Direction{
 		world.DirNorth, world.DirSouth, world.DirEast, world.DirWest,

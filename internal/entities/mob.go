@@ -1,6 +1,7 @@
 package entities
 
 import (
+	"github.com/Jasrags/AnotherMUD/internal/combat"
 	"github.com/Jasrags/AnotherMUD/internal/mob"
 )
 
@@ -26,6 +27,18 @@ type MobInstance struct {
 	keywords   []string
 	properties map[string]any
 	templateID mob.TemplateID
+
+	// vitals carries mutable HP state for the combat loop (M7.1). The
+	// pointer is established at spawn time from the template's
+	// hp_max (or the engine default) and never reassigned for the
+	// lifetime of the instance — combat applies damage/heal through
+	// the pointer, which carries its own mutex.
+	vitals *combat.Vitals
+	// stats is the per-mob derived block read by combat each round
+	// (combat §4.4-4.5). Captured at spawn from the template's Stats
+	// map; equipment-driven modifiers will overlay on top of this when
+	// mobs grow real equipment slots. Today it's a static snapshot.
+	stats combat.Stats
 }
 
 // Reserved property keys with engine-defined semantics on MobInstance.
@@ -83,6 +96,25 @@ func (m *MobInstance) Properties() map[string]any { return m.properties }
 // accessor so loot listeners and AI don't have to round-trip through
 // the property bag for a value that never changes).
 func (m *MobInstance) TemplateID() mob.TemplateID { return m.templateID }
+
+// CombatantID returns the combat-side identity of this mob. The
+// MobPrefix keeps the namespace disjoint from player ids (see
+// combat.CombatantID); resolves to a unique string within the run
+// because EntityID itself is unique within the entity store.
+func (m *MobInstance) CombatantID() combat.CombatantID {
+	return combat.NewMobCombatantID(string(m.id))
+}
+
+// Vitals returns the mob's mutable hit-point state. The pointer is
+// stable for the life of the instance; combat applies damage through
+// the pointer under its own lock.
+func (m *MobInstance) Vitals() *combat.Vitals { return m.vitals }
+
+// Stats returns a copy of the mob's combat stat block (combat §4.4-4.5).
+// A value copy is intentional — the round loop's hit/damage rolls read
+// a fresh block per swing so equipment changes between rounds cannot
+// tear the inputs to a single swing.
+func (m *MobInstance) Stats() combat.Stats { return m.stats }
 
 // buildMobFromTemplate is the §2.3 instantiation algorithm. The id is
 // assigned by the caller (Store.SpawnMob) so id generation stays
@@ -143,6 +175,14 @@ func buildMobFromTemplate(tpl *mob.Template, id EntityID) *MobInstance {
 
 	keywords := append([]string(nil), tpl.Keywords...)
 
+	// M7.1: derive combat-side state from the template's free-form
+	// Stats map. FromTemplateStats applies engine defaults for any
+	// missing keys so a template that forgot hp_max still spawns a
+	// fightable mob (better to be slightly off-balance than to spawn
+	// a corpse). Vitals start at full per spec §2.3 — current HP
+	// mirrors max at spawn.
+	statBlock, maxHP := combat.FromTemplateStats(tpl.Stats)
+
 	return &MobInstance{
 		id:         id,
 		typ:        tpl.Type,
@@ -151,5 +191,7 @@ func buildMobFromTemplate(tpl *mob.Template, id EntityID) *MobInstance {
 		keywords:   keywords,
 		properties: props,
 		templateID: tpl.ID,
+		vitals:     combat.NewVitals(maxHP),
+		stats:      statBlock,
 	}
 }

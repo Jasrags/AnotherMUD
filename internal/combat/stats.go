@@ -1,0 +1,102 @@
+package combat
+
+// Stats is the per-combatant derived stat block the hit and damage
+// rolls consume (spec combat §4.4-4.5). M7.1 carries only what combat
+// itself reads; richer attributes (DEX, CON, race, class, derived
+// modifiers) arrive with the M8 progression slice.
+//
+// Stats is a value type. Equipment changes between rounds publish a
+// fresh block; the round loop reads a copy each round so a swap in
+// mid-resolution cannot tear the inputs to a swing. Per-damage-type
+// AC tables live in M8+ — a single AC field fits every damage type
+// today.
+type Stats struct {
+	// HitMod is the modifier added to the attacker's d20 before the
+	// comparison to AC. May be negative.
+	HitMod int
+
+	// AC is the defender's armor class for the only damage type the
+	// M7.4 round loop will know how to compute. Higher = harder to
+	// hit. A default of 10 is "no armor, no defensive stats".
+	AC int
+
+	// STR is the attacker's strength score, consumed by the damage-
+	// scaling formula (combat §4.5). The formula itself is policy and
+	// lives with the damage roll in M7.4; Stats only carries the raw
+	// number.
+	STR int
+}
+
+// DefaultPlayerMaxHP is the hardcoded starting max HP applied to every
+// connActor at login. M8 (progression: race + class + level) replaces
+// this with a real derivation. Living next to DefaultPlayerStats so
+// "replace player defaults" is a single-PR change later.
+const DefaultPlayerMaxHP = 20
+
+// DefaultPlayerStats is the hardcoded stat block every connActor reads
+// today. Until M8 lands a real progression layer, every player rolls
+// with the same numbers — that is enough for the round loop to have a
+// non-zero input to compute against, and it puts off the
+// race/class/level questions until they're actually being designed.
+func DefaultPlayerStats() Stats {
+	return Stats{HitMod: 0, AC: 10, STR: 10}
+}
+
+// Reserved stat-name keys in mob.Template.Stats consumed by combat.
+// Templates may declare other keys; combat ignores them. M8 will
+// formalize a fuller schema, but the keys it cares about today are
+// listed here so a typo in a template is fixable by reading one file.
+const (
+	// StatKeyHPMax is the mob's maximum hit points. Defaulted to
+	// DefaultMobMaxHP when absent or non-positive — a mob template
+	// that forgot to declare HP still spawns and can fight rather
+	// than dying on the first damage tick.
+	StatKeyHPMax = "hp_max"
+	// StatKeyHitMod is the mob's d20 hit modifier. Default 0.
+	StatKeyHitMod = "hit_mod"
+	// StatKeyAC is the mob's armor class. Default DefaultAC.
+	StatKeyAC = "ac"
+	// StatKeySTR is the mob's strength score. Default DefaultSTR.
+	StatKeySTR = "str"
+)
+
+// DefaultMobMaxHP / DefaultAC / DefaultSTR are the spec-neutral
+// fallbacks FromTemplateStats applies when a mob template omits the
+// matching key. They are *engine* defaults, not balance defaults; a
+// game that wants different floors should override them at the
+// template level.
+const (
+	DefaultMobMaxHP = 10
+	DefaultAC       = 10
+	DefaultSTR      = 10
+)
+
+// FromTemplateStats lifts the combat-relevant fields out of a mob
+// template's free-form Stats map and returns the derived block plus
+// the spawn-time max HP. The split return is deliberate: max HP is a
+// constructor input to Vitals (which lives next to the combatant),
+// while the rest of the block is a value the combatant exposes
+// per-round.
+//
+// Missing keys fall back to engine defaults (see DefaultMobMaxHP
+// et al.) rather than zero — a template that declared no stats still
+// produces a working combatant. A non-positive hp_max is treated as
+// missing for the same reason: a template that accidentally wrote
+// `hp_max: 0` should not spawn corpses.
+func FromTemplateStats(in map[string]int) (Stats, int) {
+	s := Stats{HitMod: 0, AC: DefaultAC, STR: DefaultSTR}
+	maxHP := DefaultMobMaxHP
+	if v, ok := in[StatKeyHPMax]; ok && v > 0 {
+		maxHP = v
+	}
+	if v, ok := in[StatKeyHitMod]; ok {
+		s.HitMod = v
+	}
+	if v, ok := in[StatKeyAC]; ok {
+		s.AC = v
+	}
+	if v, ok := in[StatKeySTR]; ok {
+		s.STR = v
+	}
+	return s, maxHP
+}
