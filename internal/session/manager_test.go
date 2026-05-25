@@ -213,6 +213,38 @@ func TestManager_SendToRoomDeliversToOccupantsExcludesSender(t *testing.T) {
 	}
 }
 
+// TestManager_FindInRoom resolves by name within the requested room,
+// is case-insensitive, returns nil for unknown names, and does not
+// match an actor who is in a different room.
+func TestManager_FindInRoom(t *testing.T) {
+	mgr := NewManager()
+	r1 := &world.Room{ID: "x:1", Name: "Square"}
+	r2 := &world.Room{ID: "x:2", Name: "Forge"}
+	alice, _ := newFakeActor("c1", "p1", "acc1", "Alice", r1)
+	bob, _ := newFakeActor("c2", "p2", "acc2", "Bob", r2)
+	mgr.Add(alice)
+	mgr.Add(bob)
+
+	if got := mgr.FindInRoom(r1.ID, "alice"); got != alice {
+		t.Errorf("FindInRoom(r1, alice) = %v, want alice", got)
+	}
+	if got := mgr.FindInRoom(r1.ID, "ALICE"); got != alice {
+		t.Errorf("FindInRoom is not case-insensitive")
+	}
+	if got := mgr.FindInRoom(r1.ID, "bob"); got != nil {
+		t.Errorf("FindInRoom(r1, bob) = %v, want nil (bob is in r2)", got)
+	}
+	if got := mgr.FindInRoom(r2.ID, "bob"); got != bob {
+		t.Errorf("FindInRoom(r2, bob) = %v, want bob", got)
+	}
+	if got := mgr.FindInRoom(r1.ID, "ghost"); got != nil {
+		t.Errorf("FindInRoom unknown name = %v, want nil", got)
+	}
+	if got := mgr.FindInRoom(r1.ID, ""); got != nil {
+		t.Errorf("FindInRoom empty name = %v, want nil", got)
+	}
+}
+
 // TestManager_SetRoomUpdatesByRoomIndex verifies that connActor.SetRoom
 // migrates an actor between rooms in the manager's broadcast index.
 func TestManager_SetRoomUpdatesByRoomIndex(t *testing.T) {

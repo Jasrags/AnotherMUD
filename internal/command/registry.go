@@ -96,6 +96,18 @@ type Broadcaster interface {
 	SendToRoom(ctx context.Context, roomID world.RoomID, text string, excludePlayerIDs ...string)
 }
 
+// Locator finds an actor by display name within a room. The session
+// manager satisfies this via a small adapter so the give handler (and
+// future targeted verbs: tell, follow) can resolve a name argument
+// without each handler needing to know about session.Manager.
+//
+// Returns nil if no live actor matches. Name match is case-insensitive
+// on Name(). Handlers MUST tolerate a nil Locator (tests that don't
+// exercise target lookup pass a zero-value env).
+type Locator interface {
+	FindInRoom(roomID world.RoomID, name string) Actor
+}
+
 // Env bundles the per-server singletons a handler may need beyond the
 // actor and the world. Carrying them in a struct lets future additions
 // (registries, services) land without re-widening Dispatch.
@@ -117,6 +129,10 @@ type Env struct {
 	// events after successful mutations. May be nil in tests that
 	// don't subscribe to anything — handlers MUST nil-guard.
 	Bus *eventbus.Bus
+	// Locator resolves another actor by name + room. Consumed by the
+	// give command handler (and future targeted verbs). May be nil
+	// in tests; handlers MUST nil-guard.
+	Locator Locator
 }
 
 // Context carries the per-invocation arguments passed to a Handler.
@@ -128,6 +144,7 @@ type Context struct {
 	Placement   *entities.Placement // may be nil in tests
 	Slots       *slot.Registry      // may be nil in tests
 	Bus         *eventbus.Bus       // may be nil in tests
+	Locator     Locator             // may be nil in tests
 	Raw         string              // raw input line, trimmed
 	Verb        string              // resolved verb (lowercase)
 	Args        []string            // tokens after the verb (space-split)
@@ -246,6 +263,7 @@ func (r *Registry) Dispatch(ctx context.Context, env Env, actor Actor, raw strin
 		Placement:   env.Placement,
 		Slots:       env.Slots,
 		Bus:         env.Bus,
+		Locator:     env.Locator,
 		Raw:         trimmed,
 		Verb:        strings.ToLower(verb),
 		Args:        args,

@@ -299,6 +299,7 @@ func pump(ctx context.Context, c conn.Connection, cfg Config, a *connActor, clk 
 			Placement:   cfg.Placement,
 			Slots:       cfg.Slots,
 			Bus:         cfg.Bus,
+			Locator:     managerLocator{cfg.Manager},
 		}
 		if err := cfg.Commands.Dispatch(ctx, env, a, line); err != nil {
 			if errors.Is(err, command.ErrQuit) {
@@ -589,6 +590,22 @@ func reconnect(ctx context.Context, c conn.Connection, cfg Config, a *connActor,
 	exit := pump(ctx, c, cfg, a, clk)
 	dispatchTeardown(ctx, cfg, a, exit, clk)
 	return nil
+}
+
+// managerLocator adapts *Manager to command.Locator. The adapter
+// exists for one reason only: Manager.FindInRoom returns *connActor
+// (an unexported type), and assigning a typed-nil *connActor into a
+// command.Actor interface yields a non-nil interface — a classic Go
+// pitfall. Routing through this adapter lets us return an untyped
+// nil interface when the lookup misses.
+type managerLocator struct{ m *Manager }
+
+func (ml managerLocator) FindInRoom(roomID world.RoomID, name string) command.Actor {
+	a := ml.m.FindInRoom(roomID, name)
+	if a == nil {
+		return nil
+	}
+	return a
 }
 
 // writeLine is a tiny helper for raw-conn writes that don't need the

@@ -13,6 +13,7 @@ const (
 	EventItemDropped     = "entity.item_dropped"
 	EventEntityEquipped  = "entity.equipped"
 	EventEntityUnequipped = "entity.unequipped"
+	EventItemGiven       = "entity.item_given"
 )
 
 // ItemPickedUp fires after GetHandler successfully moves an item
@@ -75,3 +76,23 @@ type EntityUnequipped struct {
 
 // Name implements Event.
 func (EntityUnequipped) Name() string { return EventEntityUnequipped }
+
+// ItemGiven fires after GiveHandler successfully moves an item from
+// one holder's contents into another's (spec inventory-equipment-
+// items §4.4 step 4 → "entity item given"). Payload reflects the
+// post-state: ItemID is in RecipientID's contents, no longer in
+// GiverID's. RoomID is where the transfer happened (both holders
+// must be in the same room). TemplateID carries the originating
+// template so a future loot / quest listener can match without
+// having to round-trip back to the entity store.
+type ItemGiven struct {
+	GiverID     entities.EntityID
+	RecipientID entities.EntityID
+	RoomID      world.RoomID
+	ItemID      entities.EntityID
+	ItemName    string
+	TemplateID  string
+}
+
+// Name implements Event.
+func (ItemGiven) Name() string { return EventItemGiven }

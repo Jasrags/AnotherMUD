@@ -165,6 +165,9 @@ func TestBuiltins_Quit(t *testing.T) {
 // Write so assertions can inspect output.
 type testActor struct {
 	mu        sync.Mutex
+	id        string
+	name      string
+	playerID  string
 	room      *world.Room
 	lines     []string
 	color     bool
@@ -177,9 +180,26 @@ func newTestActor(start *world.Room) *testActor {
 	return &testActor{room: start}
 }
 
-func (a *testActor) ID() string       { return "test" }
-func (a *testActor) Name() string     { return "" }
-func (a *testActor) PlayerID() string { return "" }
+// newNamedTestActor builds an actor with a stable identity so tests
+// that exercise multi-actor flows (give, broadcast) can distinguish
+// sender from recipient.
+func newNamedTestActor(name, playerID string, start *world.Room) *testActor {
+	return &testActor{
+		id:       "test-" + playerID,
+		name:     name,
+		playerID: playerID,
+		room:     start,
+	}
+}
+
+func (a *testActor) ID() string {
+	if a.id != "" {
+		return a.id
+	}
+	return "test"
+}
+func (a *testActor) Name() string     { return a.name }
+func (a *testActor) PlayerID() string { return a.playerID }
 
 func (a *testActor) Room() *world.Room {
 	a.mu.Lock()

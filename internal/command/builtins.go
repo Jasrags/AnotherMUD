@@ -23,6 +23,7 @@ func RegisterBuiltins(r *Registry) error {
 		{"color", ColorHandler},
 		{"get", GetHandler},
 		{"drop", DropHandler},
+		{"give", GiveHandler},
 		{"equip", EquipHandler},
 		{"unequip", UnequipHandler},
 		// Display verbs (M5.7). Aliases are registered explicitly

@@ -181,6 +181,36 @@ func (m *Manager) GetByAccountID(id string) []*connActor {
 	return out
 }
 
+// FindInRoom returns the session in roomID whose display name matches
+// name (case-insensitive). Returns nil when no occupant matches. Used
+// by targeted verbs (give, future tell/follow) that need to resolve a
+// name argument against same-room presence.
+//
+// Lock order is Manager → actor (existing convention): we snapshot
+// candidate pointers under the manager read lock, release it, and
+// then call PlayerName() (which takes the actor lock) on the
+// snapshot. Holding both locks at once would invert the established
+// SendToRoom pattern.
+func (m *Manager) FindInRoom(roomID world.RoomID, name string) *connActor {
+	want := strings.ToLower(strings.TrimSpace(name))
+	if want == "" {
+		return nil
+	}
+	m.mu.RLock()
+	occupants := m.byRoom[roomID]
+	snapshot := make([]*connActor, 0, len(occupants))
+	for _, a := range occupants {
+		snapshot = append(snapshot, a)
+	}
+	m.mu.RUnlock()
+	for _, a := range snapshot {
+		if strings.ToLower(a.PlayerName()) == want {
+			return a
+		}
+	}
+	return nil
+}
+
 // SendToRoom delivers text to every session in roomID, excluding any
 // session whose player id appears in excludePlayerIDs. Snapshots the
 // recipient list under the read lock and then writes outside the lock
