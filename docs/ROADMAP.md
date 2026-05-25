@@ -400,6 +400,32 @@ is now real. Sketch of remaining vertical slices:
     step 4 stat derivation (M8), step 7 equipment instantiation,
     step 8 loot generation, step 9 ability proficiencies; §2.3
     steps 6-8 (patrol/idle/battle/disposition/scripts).
+  - **M6.6 (landed):** area-driven respawn (spec §3.5–3.7). New
+    `internal/spawn` package: `Tracker` indexes live mob instances
+    by `(area, ruleIdx)`; `Manager` subscribes to `area.tick` and
+    runs the §3.6 reset algorithm (purge dead → count → persistent
+    ceiling → per-slot rare-swap → spawn-and-track); `Scheduler`
+    accumulates game-tick deltas per area and emits `area.tick`
+    events at `base × occupiedModifier` cadence (per-area override
+    supported). `world.Area` gains `SpawnRules + ResetInterval`;
+    pack loader decodes `spawn_rules:` + `reset_interval:` YAML
+    and validates referenced rooms/templates at boot.
+    `cmd/anothermud/main.go` wires `spawn.Manager` +
+    `spawn.Scheduler`; new adapters `bootSpawnerAdapter`
+    (entity-id-returning Spawner) and `presenceSource`
+    (per-area player count via `world.RoomsInArea` +
+    `session.Manager.PlayersInRoom`). New error sentinels:
+    `ErrMissingSpawnRoom`. New events: `area.tick`. Sample
+    content migrated: `tapestry-core:town` ships
+    `spawn_rules: [{room: town-square, mob: village-guard,
+    count: 1, tags: [persistent]}]` with a 30s reset; the
+    village-guard now respawns automatically rather than being
+    hardcoded at boot via `room.mobs:`. Mobs are NOT persisted
+    across restart by design (spec §3.5: "tracking is purely
+    runtime state"). Deferred (no consumer yet): death-driven
+    purge (M7 combat — today's `alive` predicate only catches
+    explicit untracks); per-area runtime modifier overrides via
+    admin command (M10+).
   - **M6.5 (landed):** disposition reactions (spec §5). New
     `internal/ai/disposition.go` Evaluator with per-tick dedup +
     per-room reaction state caches, three hook points

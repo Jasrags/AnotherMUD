@@ -49,6 +49,12 @@ const (
 	// Post-fact notification fired on a fresh `friendly` reaction
 	// (spec §5.5). Same listener story as EventMobWary.
 	EventMobFriendly = "mob.friendly"
+	// Post-fact notification fired by the area-tick scheduler at
+	// each area's configured cadence (spec mobs-ai-spawning §3.7).
+	// The spawn manager subscribes and runs §3.6 area-reset on the
+	// signal. Carries a monotonic tick count + current player
+	// count so subscribers can adapt without re-querying.
+	EventAreaTick = "area.tick"
 )
 
 // ItemPickedUp fires after GetHandler successfully moves an item
@@ -273,3 +279,18 @@ type MobFriendly struct {
 
 // Name implements Event.
 func (MobFriendly) Name() string { return EventMobFriendly }
+
+// AreaTick fires at each area's configured cadence (spec
+// mobs-ai-spawning §3.7). TickCount is monotonic per area (not
+// global). PlayerCount is the snapshot value the scheduler used to
+// derive this cadence's "occupied modifier" — passed through so
+// subscribers can branch on activity without re-querying the
+// session manager.
+type AreaTick struct {
+	AreaID      world.AreaID
+	TickCount   uint64
+	PlayerCount int
+}
+
+// Name implements Event.
+func (AreaTick) Name() string { return EventAreaTick }

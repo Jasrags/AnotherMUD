@@ -12,5 +12,5 @@ exits:
   south: village-gate
 items:
   - well
-mobs:
-  - village-guard
+# Mobs now spawn via area-level spawn_rules (spec
+# mobs-ai-spawning §3.5). See areas/town.yaml.

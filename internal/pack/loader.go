@@ -24,6 +24,7 @@ var (
 	ErrMissingExitRoom     = errors.New("exit references unknown room")
 	ErrMissingItemTemplate = errors.New("room item references unknown template")
 	ErrMissingMobTemplate  = errors.New("room mob references unknown template")
+	ErrMissingSpawnRoom    = errors.New("spawn rule references unknown room")
 	ErrInvalidContent      = errors.New("invalid content file")
 )
 
@@ -139,6 +140,39 @@ func Load(ctx context.Context, root string, filter []string, dst *Registries, sp
 		return err
 	}
 
+	// Area spawn-rule references (rooms + mob templates) must resolve
+	// in the final world. Runs after every pack has loaded so
+	// cross-pack references (`other-pack:foo`) are valid.
+	if err := validateSpawnRules(dst); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// validateSpawnRules walks every area's SpawnRules and verifies that
+// each rule's room id resolves in the world registry and each
+// mob/rare template id resolves in the mob registry. Spec
+// mobs-ai-spawning §3.1 says spawn placement is fail-silent at
+// RUNTIME, but boot-time validation lets content authors catch typos
+// before they ship. Sentinel errors mirror placement validation:
+// `ErrMissingSpawnRoom` and `ErrMissingMobTemplate`.
+func validateSpawnRules(dst *Registries) error {
+	for _, area := range dst.World.Areas() {
+		for i, rule := range area.SpawnRules {
+			if _, err := dst.World.Room(rule.RoomID); err != nil {
+				return fmt.Errorf("%w: area %q spawn_rules[%d].room %q", ErrMissingSpawnRoom, area.ID, i, rule.RoomID)
+			}
+			if !dst.Mobs.Has(mob.TemplateID(rule.MobTemplateID)) {
+				return fmt.Errorf("%w: area %q spawn_rules[%d].mob %q", ErrMissingMobTemplate, area.ID, i, rule.MobTemplateID)
+			}
+			if rule.Rare != "" {
+				if !dst.Mobs.Has(mob.TemplateID(rule.Rare)) {
+					return fmt.Errorf("%w: area %q spawn_rules[%d].rare %q", ErrMissingMobTemplate, area.ID, i, rule.Rare)
+				}
+			}
+		}
+	}
 	return nil
 }
 
@@ -314,11 +348,73 @@ func decodeArea(path, ns string) (*world.Area, error) {
 	if err != nil {
 		return nil, fmt.Errorf("%w: %s: %v", ErrInvalidContent, path, err)
 	}
+	rules, err := decodeSpawnRules(af.SpawnRules, ns, path)
+	if err != nil {
+		return nil, err
+	}
 	return &world.Area{
-		ID:          world.AreaID(id),
-		Name:        af.Name,
-		Description: af.Description,
+		ID:            world.AreaID(id),
+		Name:          af.Name,
+		Description:   af.Description,
+		ResetInterval: af.ResetInterval,
+		SpawnRules:    rules,
 	}, nil
+}
+
+// decodeSpawnRules normalizes a list of YAML SpawnRuleFile entries
+// into the runtime world.SpawnRule slice. Required fields (`room`,
+// `mob`, `count`) are enforced at decode; cross-references (does the
+// room exist? does the mob template exist?) get checked in the
+// loader's post-pass after every pack has registered its content.
+//
+// Bare ids are qualified against the current pack namespace; fully
+// qualified `pack:id` form is preserved verbatim.
+func decodeSpawnRules(in []SpawnRuleFile, ns, path string) ([]world.SpawnRule, error) {
+	if len(in) == 0 {
+		return nil, nil
+	}
+	out := make([]world.SpawnRule, 0, len(in))
+	for i, sr := range in {
+		room := strings.TrimSpace(sr.Room)
+		mobID := strings.TrimSpace(sr.Mob)
+		if room == "" {
+			return nil, fmt.Errorf("%w: %s: spawn_rules[%d]: missing 'room'", ErrInvalidContent, path, i)
+		}
+		if mobID == "" {
+			return nil, fmt.Errorf("%w: %s: spawn_rules[%d]: missing 'mob'", ErrInvalidContent, path, i)
+		}
+		if sr.Count <= 0 {
+			return nil, fmt.Errorf("%w: %s: spawn_rules[%d]: 'count' must be > 0 (got %d)", ErrInvalidContent, path, i, sr.Count)
+		}
+		qRoom, err := qualifyID(room, ns)
+		if err != nil {
+			return nil, fmt.Errorf("%w: %s: spawn_rules[%d].room: %v", ErrInvalidContent, path, i, err)
+		}
+		qMob, err := qualifyID(mobID, ns)
+		if err != nil {
+			return nil, fmt.Errorf("%w: %s: spawn_rules[%d].mob: %v", ErrInvalidContent, path, i, err)
+		}
+		var qRare string
+		if rare := strings.TrimSpace(sr.Rare); rare != "" {
+			qRare, err = qualifyID(rare, ns)
+			if err != nil {
+				return nil, fmt.Errorf("%w: %s: spawn_rules[%d].rare: %v", ErrInvalidContent, path, i, err)
+			}
+			if sr.RareChance <= 0 || sr.RareChance > 1 {
+				return nil, fmt.Errorf("%w: %s: spawn_rules[%d]: 'rare_chance' must be in (0,1] when 'rare' is set (got %v)", ErrInvalidContent, path, i, sr.RareChance)
+			}
+		}
+		out = append(out, world.SpawnRule{
+			RoomID:        world.RoomID(qRoom),
+			MobTemplateID: qMob,
+			Count:         sr.Count,
+			Rare:          qRare,
+			RareChance:    sr.RareChance,
+			ResetInterval: sr.ResetInterval,
+			Tags:          sr.Tags,
+		})
+	}
+	return out, nil
 }
 
 func decodeRoom(path, ns string) (*world.Room, []string, []string, error) {

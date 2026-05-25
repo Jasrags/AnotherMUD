@@ -34,6 +34,7 @@ import (
 	"github.com/Jasrags/AnotherMUD/internal/server"
 	"github.com/Jasrags/AnotherMUD/internal/session"
 	"github.com/Jasrags/AnotherMUD/internal/slot"
+	"github.com/Jasrags/AnotherMUD/internal/spawn"
 	"github.com/Jasrags/AnotherMUD/internal/tick"
 	"github.com/Jasrags/AnotherMUD/internal/world"
 )
@@ -182,6 +183,40 @@ func run() error {
 	aiCadence := cadenceTicks(cfg.TickInterval, time.Second)
 	if err := loop.Register("ai-tick", aiCadence, aiDispatcher.Tick); err != nil {
 		return fmt.Errorf("register ai tick: %w", err)
+	}
+
+	// Area-driven respawn (spec mobs-ai-spawning §3.5–3.7). The
+	// tracker holds per-rule live-instance counts; the manager runs
+	// the §3.6 reset algorithm on each area.tick event; the
+	// scheduler emits those events at per-area cadence
+	// (base × occupiedModifier). First tick fires on the scheduler
+	// step boundary, populating areas from zero — no boot-time
+	// placement needed for mobs that live in areas with spawn_rules.
+	spawnTracker := spawn.NewTracker()
+	spawnManager := spawn.NewManager(spawn.Config{
+		World:   w,
+		Tracker: spawnTracker,
+		Spawner: &bootSpawnerAdapter{inner: spawner},
+		Store:   entityStore,
+		Bus:     bus,
+	})
+	_ = spawnManager // retained only for documentation of bus subscription
+
+	scheduler := spawn.NewScheduler(spawn.SchedulerConfig{
+		World:            w,
+		Bus:              bus,
+		Presence:         presenceSource{mgr: mgr, world: w},
+		DefaultReset:     cadenceTicks(cfg.TickInterval, 30*time.Second),
+		OccupiedModifier: 1.0,
+	})
+	// Register the scheduler at the same 1-second cadence the AI
+	// dispatcher uses, but pass the cadence in as deltaTicks so the
+	// scheduler advances its per-area accumulators in game-tick
+	// units (the same units Area.ResetInterval is authored in).
+	if err := loop.Register("area-tick", aiCadence, func(ctx context.Context, _ uint64) {
+		scheduler.Step(ctx, aiCadence)
+	}); err != nil {
+		return fmt.Errorf("register area tick: %w", err)
 	}
 
 	linkDeadCfg := cfg.LinkDead
@@ -399,13 +434,21 @@ func (b *bootSpawner) SpawnAndPlace(_ context.Context, templateID string, roomID
 // instantiation/equip, step 8 loot generation, step 9 ability
 // proficiencies — all tracked under M6 follow-on slices.
 func (b *bootSpawner) SpawnAndPlaceMob(ctx context.Context, templateID string, roomID world.RoomID) error {
+	_, err := b.spawnMob(ctx, templateID, roomID)
+	return err
+}
+
+// spawnMob is the shared implementation behind SpawnAndPlaceMob and
+// the spawn.Spawner adapter. Returns the new entity id so the area
+// reset manager can record the spawn against its rule.
+func (b *bootSpawner) spawnMob(ctx context.Context, templateID string, roomID world.RoomID) (entities.EntityID, error) {
 	tpl, err := b.mobTemplates.Get(mob.TemplateID(templateID))
 	if err != nil {
-		return fmt.Errorf("mob template lookup: %w", err)
+		return "", fmt.Errorf("mob template lookup: %w", err)
 	}
 	inst, err := b.store.SpawnMob(tpl)
 	if err != nil {
-		return fmt.Errorf("spawn mob: %w", err)
+		return "", fmt.Errorf("spawn mob: %w", err)
 	}
 	b.placement.Place(inst.ID(), roomID)
 	if b.bus != nil {
@@ -415,7 +458,38 @@ func (b *bootSpawner) SpawnAndPlaceMob(ctx context.Context, templateID string, r
 			TemplateID: templateID,
 		})
 	}
-	return nil
+	return inst.ID(), nil
+}
+
+// bootSpawnerAdapter wraps *bootSpawner to satisfy spawn.Spawner.
+// The adapter exists because spawn.Spawner's signature returns the
+// new entity id (the spawn manager records it against the rule)
+// while pack.MobSpawner just returns error (the pack loader doesn't
+// care about the id). Keeping two adapter methods avoids forcing
+// the pack interface to grow a return value it has no use for.
+type bootSpawnerAdapter struct{ inner *bootSpawner }
+
+func (a *bootSpawnerAdapter) Spawn(ctx context.Context, templateID string, roomID world.RoomID) (entities.EntityID, error) {
+	return a.inner.spawnMob(ctx, templateID, roomID)
+}
+
+// presenceSource adapts *session.Manager + *world.World to
+// spawn.PresenceSource. Per-area player count is derived by summing
+// per-room occupancy across the rooms in the area; the manager
+// has no native byArea index today and rebuilding one for one
+// consumer would be premature optimization. With ≤10 rooms per area
+// and once-per-second sampling the cost is negligible.
+type presenceSource struct {
+	mgr   *session.Manager
+	world *world.World
+}
+
+func (p presenceSource) PlayerCountInArea(areaID world.AreaID) int {
+	total := 0
+	for _, r := range p.world.RoomsInArea(areaID) {
+		total += len(p.mgr.PlayersInRoom(r.ID))
+	}
+	return total
 }
 
 // playerLookup adapts *session.Manager to ai.PlayerLookup. The

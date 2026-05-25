@@ -6,10 +6,39 @@ package pack
 // AreaFile is the YAML shape for an area-definition file. One file
 // may declare one area today. Multi-area-per-file can come later if
 // authors want it.
+//
+// SpawnRules + ResetInterval (spec mobs-ai-spawning §3.5) drive
+// area-driven respawn. Both are optional; an area with neither runs
+// no spawn cycles. ResetInterval is in ticks (engine default applies
+// when 0).
 type AreaFile struct {
-	ID          string `yaml:"id"`
-	Name        string `yaml:"name"`
-	Description string `yaml:"description,omitempty"`
+	ID            string                `yaml:"id"`
+	Name          string                `yaml:"name"`
+	Description   string                `yaml:"description,omitempty"`
+	ResetInterval uint64                `yaml:"reset_interval,omitempty"`
+	SpawnRules    []SpawnRuleFile       `yaml:"spawn_rules,omitempty"`
+}
+
+// SpawnRuleFile is the YAML shape for one entry of
+// AreaFile.SpawnRules (spec mobs-ai-spawning §3.5). Bare ids in
+// `room:` and `mob:` resolve against the current pack namespace;
+// fully-qualified `pack:id` form crosses packs.
+//
+// Rare/RareChance are paired: Rare names an alternate template, and
+// each missing slot rolls independently against RareChance to pick
+// rare vs. default (spec §3.6).
+//
+// Tags carries rule-level flags. The engine inspects `persistent`
+// today (treat Count as a ceiling). Content may carry other tags
+// for content-side filtering — they're stored verbatim.
+type SpawnRuleFile struct {
+	Room          string   `yaml:"room"`
+	Mob           string   `yaml:"mob"`
+	Count         int      `yaml:"count"`
+	Rare          string   `yaml:"rare,omitempty"`
+	RareChance    float64  `yaml:"rare_chance,omitempty"`
+	ResetInterval uint64   `yaml:"reset_interval,omitempty"`
+	Tags          []string `yaml:"tags,omitempty"`
 }
 
 // ItemFile is the YAML shape for an item-template file (spec

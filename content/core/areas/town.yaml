@@ -3,3 +3,11 @@ name: Hearthwick Village
 description: |
   A handful of cobblestone streets and timbered houses huddled around a
   central square. Smoke drifts up from a forge somewhere out of sight.
+# Reset cadence in ticks; ~30s at the default 100ms tick. Engine
+# default applies if omitted (spec mobs-ai-spawning §3.5).
+reset_interval: 300
+spawn_rules:
+  - room: town-square
+    mob: village-guard
+    count: 1
+    tags: [persistent]

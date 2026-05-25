@@ -15,12 +15,55 @@ type RoomID string
 type AreaID string
 
 // Area groups rooms for spawn-reset cadence, weather, and presentation
-// (spec world-rooms-movement §2.4). M2 fields cover only what the
-// pack loader populates and the cross-pack validator needs.
+// (spec world-rooms-movement §2.4 + mobs-ai-spawning §3.5).
+//
+// SpawnRules + ResetInterval drive the M6.6 respawn pipeline. Empty
+// SpawnRules means "no area-driven spawns" (legitimate: a quiet
+// roleplay zone). ResetInterval == 0 means "use the engine default";
+// each SpawnRule may also carry its own override.
 type Area struct {
-	ID          AreaID
-	Name        string
-	Description string
+	ID            AreaID
+	Name          string
+	Description   string
+	SpawnRules    []SpawnRule
+	ResetInterval uint64 // ticks; 0 → engine default
+}
+
+// SpawnRule is one entry in an area's spawn config (spec
+// mobs-ai-spawning §3.5). It declares which mob to populate, where,
+// and to what target count. A single rule maps to a single
+// (room, template, count) triple; multiple rules per area let one
+// area carry a varied population.
+//
+// Rare is an optional alternate template; when set, each "missing
+// slot" computed during a reset rolls independently against
+// RareChance (0.0–1.0) to decide whether to spawn the rare instead
+// of the default. Independent rolls per slot match spec §3.6
+// step "Rare-swap rolls are independent per missing slot."
+//
+// ResetInterval, when non-zero, overrides the area's default cadence
+// for this specific rule. Tags carry rule-level flags; today the
+// only flag the engine inspects is `persistent` (§3.6: when at or
+// above target, skip — i.e. the count is a ceiling).
+type SpawnRule struct {
+	RoomID         RoomID
+	MobTemplateID  string
+	Count          int
+	Rare           string
+	RareChance     float64
+	ResetInterval  uint64 // ticks; 0 → use area's
+	Tags           []string
+}
+
+// HasTag reports whether r carries the named tag. O(n) scan; rules
+// typically carry ≤2 tags so this stays cheap.
+func (r SpawnRule) HasTag(tag string) bool {
+	for _, t := range r.Tags {
+		if t == tag {
+			return true
+		}
+	}
+	return false
 }
 
 // Exit is a directed edge from one room to a target room id.
@@ -133,6 +176,35 @@ func (w *World) Rooms() []*Room {
 	out := make([]*Room, 0, len(w.rooms))
 	for _, r := range w.rooms {
 		out = append(out, r)
+	}
+	return out
+}
+
+// RoomsInArea returns a snapshot of every room whose AreaID matches.
+// Order is unspecified. Used by the area-tick scheduler to count
+// player presence per area (spec mobs-ai-spawning §3.7 occupied
+// modifier).
+func (w *World) RoomsInArea(id AreaID) []*Room {
+	w.mu.RLock()
+	defer w.mu.RUnlock()
+	out := make([]*Room, 0)
+	for _, r := range w.rooms {
+		if r.AreaID == id {
+			out = append(out, r)
+		}
+	}
+	return out
+}
+
+// Areas returns a snapshot of every registered area. Order is
+// unspecified. Used by the area-tick scheduler to iterate per-area
+// cadences at boot.
+func (w *World) Areas() []*Area {
+	w.mu.RLock()
+	defer w.mu.RUnlock()
+	out := make([]*Area, 0, len(w.areas))
+	for _, a := range w.areas {
+		out = append(out, a)
 	}
 	return out
 }
