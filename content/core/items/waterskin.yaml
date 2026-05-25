@@ -1,0 +1,8 @@
+id: waterskin
+name: a waterskin
+type: vessel
+tags: [container, leather]
+keywords: [waterskin, skin]
+properties:
+  max_charges: 5
+  weight: 1

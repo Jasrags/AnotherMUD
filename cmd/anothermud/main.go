@@ -111,6 +111,24 @@ func run() error {
 	contents := entities.NewContents()
 	bus := eventbus.New()
 
+	// TEMP(M5.9c): seed the town-square well as a fill source. The room
+	// description already names "the well at the square's centre," so
+	// the entity matches the prose. This is the deferred-#2 hack from
+	// memory/m5-9c-deferred-fixes.md — remove this block when real
+	// room-YAML placement (M5.10 candidate) lands and adds an `items:`
+	// list to the room schema. Failure here is non-fatal: a missing
+	// well template means content is broken in a way the loader would
+	// already have flagged.
+	if tpl, err := registries.Items.Get("tapestry-core:well"); err == nil {
+		if inst, err := entityStore.Spawn(tpl); err == nil {
+			placement.Place(inst.ID(), cfg.StartRoom)
+			logging.From(ctx).Info("TEMP seed: placed well in start room",
+				slog.String("entity_id", string(inst.ID())),
+				slog.String("room_id", string(cfg.StartRoom)),
+			)
+		}
+	}
+
 	clk := clock.RealClock{}
 	loop := tick.New(clk, cfg.TickInterval)
 	if err := entities.RegisterTagSwap(loop, entityStore); err != nil {
