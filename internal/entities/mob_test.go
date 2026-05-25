@@ -71,10 +71,13 @@ func TestSpawnMobDropsImplicitTypeTag(t *testing.T) {
 			t.Errorf("instance carries implicit type tag %q", tag)
 		}
 	}
-	// Other tags survived.
+	// Other tags survived, plus the synthetic TagMob applied at
+	// instantiation so the AI dispatcher can enumerate live mobs
+	// via Store.GetByTag("mob").
 	gotTags := append([]string(nil), inst.Tags()...)
 	sort.Strings(gotTags)
-	wantTags := []string{"guard", "humanoid"}
+	wantTags := []string{"guard", "humanoid", TagMob}
+	sort.Strings(wantTags)
 	if len(gotTags) != len(wantTags) {
 		t.Fatalf("Tags = %v, want %v", gotTags, wantTags)
 	}
@@ -82,6 +85,22 @@ func TestSpawnMobDropsImplicitTypeTag(t *testing.T) {
 		if gotTags[i] != want {
 			t.Errorf("Tags[%d] = %q, want %q", i, gotTags[i], want)
 		}
+	}
+}
+
+func TestSpawnMobAppliesSyntheticMobTag(t *testing.T) {
+	// Explicit coverage of the synthetic-tag invariant. SwapTagIndex
+	// to publish the write-side index into the read side, then
+	// GetByTag(TagMob) must surface this mob.
+	s := NewStore()
+	inst, err := s.SpawnMob(guardTpl())
+	if err != nil {
+		t.Fatalf("SpawnMob: %v", err)
+	}
+	s.SwapTagIndex()
+	got := s.GetByTag(TagMob)
+	if len(got) != 1 || got[0].ID() != inst.ID() {
+		t.Errorf("GetByTag(%q) = %v, want [%q]", TagMob, got, inst.ID())
 	}
 }
 

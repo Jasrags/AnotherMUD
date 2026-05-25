@@ -39,6 +39,16 @@ const (
 	PropBehavior = "behavior"
 )
 
+// TagMob is the synthetic tag applied to every MobInstance at
+// instantiation. Lets the AI dispatcher cheaply iterate all live
+// mobs via Store.GetByTag without needing a per-instance type
+// switch or a parallel registry. The tag is invisible to content
+// authors (a template that re-declares it would be a no-op because
+// §2.3 step 2 drops tags that match the implicit type) — but the
+// content-side mob type ("npc", "monster", etc.) is what the spec's
+// implicit-type-tag rule strips, not this engine-synthetic tag.
+const TagMob = "mob"
+
 // ID implements Entity.
 func (m *MobInstance) ID() EntityID { return m.id }
 
@@ -106,13 +116,29 @@ func buildMobFromTemplate(tpl *mob.Template, id EntityID) *MobInstance {
 	props[PropBehavior] = tpl.Behavior
 
 	// Tags: copy template tags minus any matching the entity's own
-	// type (§2.3 step 2 — "implicit").
-	tags := make([]string, 0, len(tpl.Tags))
+	// type (§2.3 step 2 — "implicit"). Append the engine-synthetic
+	// TagMob so Store.GetByTag("mob") enumerates every mob without
+	// the AI dispatcher needing a type switch over the by-id index.
+	//
+	// A template that accidentally declares `tags: [mob]` would
+	// otherwise produce a duplicate entry in the slice (the store's
+	// tag bucket is a map and dedupes silently, but the slice
+	// surface is observable via Tags() and shouldn't lie). Track
+	// whether the template already carried the synthetic tag and
+	// skip the second append in that case.
+	tags := make([]string, 0, len(tpl.Tags)+1)
+	hasMobTag := false
 	for _, t := range tpl.Tags {
 		if t == tpl.Type {
 			continue
 		}
+		if t == TagMob {
+			hasMobTag = true
+		}
 		tags = append(tags, t)
+	}
+	if !hasMobTag {
+		tags = append(tags, TagMob)
 	}
 
 	keywords := append([]string(nil), tpl.Keywords...)

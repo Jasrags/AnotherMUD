@@ -20,6 +20,7 @@ import (
 	"time"
 
 	"github.com/Jasrags/AnotherMUD/internal/account"
+	"github.com/Jasrags/AnotherMUD/internal/ai"
 	"github.com/Jasrags/AnotherMUD/internal/clock"
 	"github.com/Jasrags/AnotherMUD/internal/command"
 	"github.com/Jasrags/AnotherMUD/internal/entities"
@@ -143,6 +144,29 @@ func run() error {
 		mgr.IdleSweep(ctx, idleCfg, clk)
 	}); err != nil {
 		return fmt.Errorf("register idle-sweep tick: %w", err)
+	}
+
+	// AI tick (spec mobs-ai-spawning §4). Registers AFTER the
+	// tag-swap handler so the first dispatch sees the read-side tag
+	// index populated by the pack.Load placements. Cadence one
+	// second (10 ticks at the 100ms default) — fast enough that
+	// wander feels alive, slow enough not to dominate the loop.
+	aiReg := ai.NewRegistry()
+	if err := ai.RegisterEngineBaseline(aiReg); err != nil {
+		return fmt.Errorf("register ai baseline: %w", err)
+	}
+	aiDispatcher := ai.NewDispatcher(aiReg, ai.Deps{
+		World:       w,
+		Placement:   placement,
+		Store:       entityStore,
+		Bus:         bus,
+		Broadcaster: mgr,
+		Clock:       clk,
+		// Rand left nil — Dispatcher.Tick supplies a default.
+	})
+	aiCadence := cadenceTicks(cfg.TickInterval, time.Second)
+	if err := loop.Register("ai-tick", aiCadence, aiDispatcher.Tick); err != nil {
+		return fmt.Errorf("register ai tick: %w", err)
 	}
 
 	linkDeadCfg := cfg.LinkDead

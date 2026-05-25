@@ -1,7 +1,7 @@
 id: village-guard
 name: a village guard
 type: npc
-behavior: stationary
+behavior: wander
 disposition: 0
 tags: [humanoid, guard]
 keywords: [guard, villager]

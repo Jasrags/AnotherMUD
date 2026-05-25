@@ -365,6 +365,19 @@ is now real. Sketch of remaining vertical slices:
     files via `content.mobs` glob and registers them. Equipment
     template ids are NOT validated at load (spec §3.1 specifies
     fail-silent-at-spawn).
+  - **M6.4 (landed):** AI tick + first behaviors. New `internal/ai`
+    package with `Registry`, `Dispatcher`, and built-in
+    `stationary` + `wander` behaviors (spec §4.2-4.3). Dispatcher
+    iterates `Store.GetByTag("mob")` each second and invokes each
+    mob's behavior; errors are logged and skipped, never fatal.
+    Wander picks a random exit on a 5-second interval, updates
+    Placement, and broadcasts departure/arrival using the same
+    phrasing as player movement. `MobInstance` gains the synthetic
+    `mob` tag at instantiation so the dispatcher can iterate live
+    mobs without parallel state. The town-square village-guard's
+    behavior flipped from `stationary` to `wander` — guard now
+    walks the four-room loop on its own. Active-area filter (§4.1)
+    deferred: no perf issue at single-digit mob counts.
   - **M6.3 (landed):** room renderer surfaces placed entities. The
     `RenderRoom` signature widens to take optional `*Placement` +
     `*Store`; when both are supplied, a "You see here: a, b, c."
