@@ -221,3 +221,75 @@ func TestLoad_NilMobsRegistryRejected(t *testing.T) {
 		t.Fatal("Load with nil Mobs registry = nil, want error")
 	}
 }
+
+func TestLoad_DecodesDispositionRules(t *testing.T) {
+	body := `
+id: guard
+name: a guard
+behavior: stationary
+base_disposition: friendly
+disposition_rules:
+  default: friendly
+  rules:
+    - has_tag: outlaw
+      reaction: hostile
+    - min_alignment: -100
+      max_alignment: -50
+      reaction: hostile
+    - reaction: wary
+`
+	root := mobPack(t, body)
+	regs := NewRegistries()
+	if err := Load(context.Background(), root, nil, regs, nil, nil); err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	got, err := regs.Mobs.Get("tapestry-core:guard")
+	if err != nil {
+		t.Fatalf("Mobs.Get: %v", err)
+	}
+	if got.BaseDisposition != mob.ReactionFriendly {
+		t.Errorf("BaseDisposition = %q, want %q", got.BaseDisposition, mob.ReactionFriendly)
+	}
+	if got.DispositionRules == nil {
+		t.Fatal("DispositionRules = nil")
+	}
+	if got.DispositionRules.Default != mob.ReactionFriendly {
+		t.Errorf("Default = %q", got.DispositionRules.Default)
+	}
+	if n := len(got.DispositionRules.Rules); n != 3 {
+		t.Fatalf("rules = %d, want 3", n)
+	}
+	r0 := got.DispositionRules.Rules[0]
+	if r0.HasTag != "outlaw" || r0.Reaction != mob.ReactionHostile {
+		t.Errorf("rule[0] = %+v", r0)
+	}
+	r1 := got.DispositionRules.Rules[1]
+	if !r1.HasMinAlignment || r1.MinAlignment != -100 || !r1.HasMaxAlignment || r1.MaxAlignment != -50 {
+		t.Errorf("rule[1] alignment bounds = %+v", r1)
+	}
+	r2 := got.DispositionRules.Rules[2]
+	if r2.HasConditions() {
+		t.Errorf("rule[2] should be unconditional (fallback): %+v", r2)
+	}
+}
+
+func TestLoad_DispositionRuleMissingReactionIsRejected(t *testing.T) {
+	body := `
+id: guard
+name: a guard
+behavior: stationary
+disposition_rules:
+  default: friendly
+  rules:
+    - has_tag: outlaw
+`
+	root := mobPack(t, body)
+	regs := NewRegistries()
+	err := Load(context.Background(), root, nil, regs, nil, nil)
+	if err == nil {
+		t.Fatal("Load with rule missing 'reaction' = nil, want error")
+	}
+	if !errors.Is(err, ErrInvalidContent) {
+		t.Errorf("err = %v, want %v", err, ErrInvalidContent)
+	}
+}

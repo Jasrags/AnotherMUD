@@ -82,6 +82,13 @@ func BehaviorWander(ctx context.Context, m *entities.MobInstance, deps Deps) err
 	setNextWander(m, now)
 
 	announce(ctx, deps.Broadcaster, m.Name(), srcID, dst.ID, dir)
+
+	// Mob-entered-room hook (spec §4): evaluate the arriving mob
+	// against every player already in dst. Evaluator handles nil
+	// players / placement / store internally.
+	if deps.Evaluator != nil {
+		deps.Evaluator.OnMobEntered(ctx, m, dst.ID)
+	}
 	return nil
 }
 

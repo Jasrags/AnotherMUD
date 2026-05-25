@@ -151,6 +151,25 @@ type Env struct {
 	// give command handler (and future targeted verbs). May be nil
 	// in tests; handlers MUST nil-guard.
 	Locator Locator
+	// Disposition is the room-entry hook the disposition evaluator
+	// exposes (spec mobs-ai-spawning §4). May be nil in tests and
+	// in headless boot paths. Handlers MUST nil-guard.
+	Disposition DispositionHook
+}
+
+// DispositionHook is the seam movement and login flows call when a
+// player arrives in a new room. The immediate variant runs in
+// aggro-only mode before the room description renders; the deferred
+// variant runs full evaluation after the description so non-hostile
+// reactions don't appear above it (spec §4 + §5.4).
+//
+// Method signatures take primitives (string, []string) instead of an
+// ai-package type so the command package doesn't import ai. The
+// production implementation is an adapter that constructs an
+// ai.PlayerView internally.
+type DispositionHook interface {
+	OnPlayerEnteredImmediate(ctx context.Context, playerID, playerName string, tags []string, room world.RoomID)
+	OnPlayerEnteredDeferred(ctx context.Context, playerID, playerName string, tags []string, room world.RoomID)
 }
 
 // Context carries the per-invocation arguments passed to a Handler.
@@ -164,6 +183,7 @@ type Context struct {
 	Slots       *slot.Registry      // may be nil in tests
 	Bus         *eventbus.Bus       // may be nil in tests
 	Locator     Locator             // may be nil in tests
+	Disposition DispositionHook     // may be nil in tests
 	Raw         string              // raw input line, trimmed
 	Verb        string              // resolved verb (lowercase)
 	Args        []string            // tokens after the verb (space-split)
@@ -284,6 +304,7 @@ func (r *Registry) Dispatch(ctx context.Context, env Env, actor Actor, raw strin
 		Slots:       env.Slots,
 		Bus:         env.Bus,
 		Locator:     env.Locator,
+		Disposition: env.Disposition,
 		Raw:         trimmed,
 		Verb:        strings.ToLower(verb),
 		Args:        args,

@@ -68,6 +68,38 @@ type MobFile struct {
 	Properties  map[string]any `yaml:"properties,omitempty"`
 	Stats       map[string]int `yaml:"stats,omitempty"`
 	Equipment   []string       `yaml:"equipment,omitempty"`
+
+	// BaseDisposition is the static reaction string (spec §5.1).
+	// Optional; when present overrides player-state-driven rules
+	// only for the `hostile` value (§5.3 step 3).
+	BaseDisposition string `yaml:"base_disposition,omitempty"`
+
+	// DispositionRules carries the structured default + ordered
+	// rule list (spec §5.1, §5.3). Optional; mobs without rules
+	// just don't trigger reactions.
+	DispositionRules *DispositionFile `yaml:"disposition_rules,omitempty"`
+}
+
+// DispositionFile is the YAML shape for a mob's reaction policy
+// (spec mobs-ai-spawning §5.1 disposition definition).
+type DispositionFile struct {
+	Default string                 `yaml:"default,omitempty"`
+	Rules   []DispositionRuleFile  `yaml:"rules,omitempty"`
+}
+
+// DispositionRuleFile is one entry in DispositionFile.Rules. All
+// condition fields are optional; a rule with no conditions matches
+// any player (spec §5.3). Reaction is required at decode time.
+//
+// Alignment fields are accepted but not yet honored (M8 dependency).
+// They are decoded with pointer types so omitted-vs-zero is
+// distinguishable.
+type DispositionRuleFile struct {
+	HasTag       string   `yaml:"has_tag,omitempty"`
+	MinAlignment *int     `yaml:"min_alignment,omitempty"`
+	MaxAlignment *int     `yaml:"max_alignment,omitempty"`
+	Buckets      []string `yaml:"buckets,omitempty"`
+	Reaction     string   `yaml:"reaction"`
 }
 
 // RoomFile is the YAML shape for a single-room file.

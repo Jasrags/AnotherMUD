@@ -211,6 +211,39 @@ func (m *Manager) FindInRoom(roomID world.RoomID, name string) *connActor {
 	return nil
 }
 
+// PlayersInRoom returns a snapshot of (playerID, displayName) pairs
+// for every session currently in roomID. Designed for read-only
+// consumers (disposition evaluator, future scent / tracking systems)
+// that don't need full actor access.
+//
+// Result ordering is unspecified. Mirrors FindInRoom's lock
+// discipline: snapshot pointers under the manager read lock, release
+// it, then read per-actor fields (PlayerID, PlayerName) outside the
+// lock — those take the actor's own mutex.
+func (m *Manager) PlayersInRoom(roomID world.RoomID) []struct {
+	ID   string
+	Name string
+} {
+	m.mu.RLock()
+	occupants := m.byRoom[roomID]
+	snapshot := make([]*connActor, 0, len(occupants))
+	for _, a := range occupants {
+		snapshot = append(snapshot, a)
+	}
+	m.mu.RUnlock()
+	out := make([]struct {
+		ID   string
+		Name string
+	}, 0, len(snapshot))
+	for _, a := range snapshot {
+		out = append(out, struct {
+			ID   string
+			Name string
+		}{ID: a.PlayerID(), Name: a.PlayerName()})
+	}
+	return out
+}
+
 // SendToRoom delivers text to every session in roomID, excluding any
 // session whose player id appears in excludePlayerIDs. Snapshots the
 // recipient list under the read lock and then writes outside the lock

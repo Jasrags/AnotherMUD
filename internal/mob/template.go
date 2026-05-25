@@ -40,8 +40,25 @@ type Template struct {
 	ID          TemplateID
 	Name        string
 	Type        string // default "npc" applied at decode if unset
+	// Disposition is the legacy integer base disposition. Retained
+	// in the schema for content already authored against it; the
+	// runtime no longer reads it. The structured fields below own
+	// reaction policy (spec §5.1).
 	Disposition int
-	Behavior    string
+
+	// BaseDisposition is the spec §5.1 "static base disposition":
+	// a fixed reaction the mob uses regardless of player state.
+	// When set to ReactionHostile it short-circuits any
+	// DispositionRules and always emits hostile (§5.3 step 3).
+	// Empty means "no static reaction; consult DispositionRules".
+	BaseDisposition Reaction
+
+	// DispositionRules is the structured policy: default + ordered
+	// conditional rules. nil means "no rules" — combined with an
+	// empty BaseDisposition the mob never dispatches a reaction.
+	DispositionRules *Definition
+
+	Behavior string
 	Tags        []string
 	Keywords    []string
 	Properties  map[string]any

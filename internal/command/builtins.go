@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/Jasrags/AnotherMUD/internal/entities"
+	"github.com/Jasrags/AnotherMUD/internal/eventbus"
 	"github.com/Jasrags/AnotherMUD/internal/world"
 )
 
@@ -146,7 +147,30 @@ func movementHandler(dir world.Direction) Handler {
 			c.Broadcaster.SendToRoom(ctx, dst.ID,
 				fmt.Sprintf("%s arrives from the %s.", name, from), pid)
 		}
-		return c.Actor.Write(ctx, RenderRoom(dst, c.Placement, c.Items))
+		// Publish player.moved so the disposition evaluator can clear
+		// per-room reaction state for srcID (spec mobs-ai-spawning
+		// §5.2). Published unconditionally — even tests-without-bus
+		// flow through Publish's nil guard.
+		c.Publish(ctx, eventbus.PlayerMoved{
+			PlayerID: pid,
+			From:     srcID,
+			To:       dst.ID,
+		})
+		// Immediate (aggro-only) hook BEFORE the description so
+		// hostile reactions can dispatch to combat before the player
+		// sees the room. Players have no tags today; nil is safe.
+		if c.Disposition != nil && pid != "" {
+			c.Disposition.OnPlayerEnteredImmediate(ctx, pid, name, nil, dst.ID)
+		}
+		if err := c.Actor.Write(ctx, RenderRoom(dst, c.Placement, c.Items)); err != nil {
+			return err
+		}
+		// Deferred (full) hook AFTER the description so non-hostile
+		// reactions arrive below the room text.
+		if c.Disposition != nil && pid != "" {
+			c.Disposition.OnPlayerEnteredDeferred(ctx, pid, name, nil, dst.ID)
+		}
+		return nil
 	}
 }
 

@@ -478,18 +478,60 @@ func decodeMob(path, ns string) (*mob.Template, error) {
 		typ = defaultMobType
 	}
 
+	def, err := decodeDispositionRules(f.DispositionRules, path)
+	if err != nil {
+		return nil, err
+	}
+
 	return &mob.Template{
-		ID:          mob.TemplateID(id),
-		Name:        f.Name,
-		Type:        typ,
-		Disposition: f.Disposition,
-		Behavior:    f.Behavior,
-		Tags:        f.Tags,
-		Keywords:    f.Keywords,
-		Properties:  f.Properties,
-		Stats:       f.Stats,
-		Equipment:   f.Equipment,
+		ID:               mob.TemplateID(id),
+		Name:             f.Name,
+		Type:             typ,
+		Disposition:      f.Disposition,
+		BaseDisposition:  mob.Reaction(strings.TrimSpace(f.BaseDisposition)),
+		DispositionRules: def,
+		Behavior:         f.Behavior,
+		Tags:             f.Tags,
+		Keywords:         f.Keywords,
+		Properties:       f.Properties,
+		Stats:            f.Stats,
+		Equipment:        f.Equipment,
 	}, nil
+}
+
+// decodeDispositionRules converts the YAML shape into the runtime
+// Definition. Returns nil (no rules) when src is nil. Each rule must
+// declare a non-empty reaction; missing reactions are an
+// ErrInvalidContent surface so content authors don't ship a silently
+// inert rule.
+func decodeDispositionRules(src *DispositionFile, path string) (*mob.Definition, error) {
+	if src == nil {
+		return nil, nil
+	}
+	out := &mob.Definition{
+		Default: mob.Reaction(strings.TrimSpace(src.Default)),
+	}
+	for i, r := range src.Rules {
+		reaction := strings.TrimSpace(r.Reaction)
+		if reaction == "" {
+			return nil, fmt.Errorf("%w: %s: disposition_rules[%d]: missing 'reaction'", ErrInvalidContent, path, i)
+		}
+		rule := mob.Rule{
+			HasTag:   strings.TrimSpace(r.HasTag),
+			Reaction: mob.Reaction(reaction),
+			Buckets:  r.Buckets,
+		}
+		if r.MinAlignment != nil {
+			rule.MinAlignment = *r.MinAlignment
+			rule.HasMinAlignment = true
+		}
+		if r.MaxAlignment != nil {
+			rule.MaxAlignment = *r.MaxAlignment
+			rule.HasMaxAlignment = true
+		}
+		out.Rules = append(out.Rules, rule)
+	}
+	return out, nil
 }
 
 func decodeSlot(path, ns string) (slot.Def, error) {

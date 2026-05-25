@@ -67,6 +67,12 @@ type Config struct {
 	// events after successful mutations. May be nil in tests.
 	Bus *eventbus.Bus
 
+	// Disposition is the room-entry hook surface (spec
+	// mobs-ai-spawning §4). Passed through command.Env and called
+	// directly from initial-login + link-dead-reconnect render
+	// paths. May be nil in tests that don't exercise disposition.
+	Disposition command.DispositionHook
+
 	// StartID is the fallback starting room when a character's saved
 	// location is not present in the loaded world (e.g. a room was
 	// removed from content between restarts).
@@ -215,11 +221,29 @@ func run(ctx context.Context, c conn.Connection, cfg Config) error {
 	cfg.Manager.SendToRoom(ctx, start.ID,
 		fmt.Sprintf("%s has arrived.", a.Name()), a.PlayerID())
 
+	// Publish player.moved for the login spawn; From is empty since
+	// the player wasn't previously in any room (spec §5.2 — empty
+	// source room is a no-op for state clearing). Then run the
+	// immediate hook before the room description.
+	if cfg.Bus != nil {
+		cfg.Bus.Publish(ctx, eventbus.PlayerMoved{
+			PlayerID: a.PlayerID(),
+			To:       start.ID,
+		})
+	}
+	if cfg.Disposition != nil && a.PlayerID() != "" {
+		cfg.Disposition.OnPlayerEnteredImmediate(ctx, a.PlayerID(), a.Name(), nil, start.ID)
+	}
+
 	if err := a.Write(ctx, command.RenderRoom(start, cfg.Placement, cfg.Items)); err != nil {
 		// Initial render failed: the connection is unusable. Full
 		// teardown immediately — no point parking link-dead.
 		fullTeardown(ctx, cfg, a)
 		return fmt.Errorf("first render: %w", err)
+	}
+
+	if cfg.Disposition != nil && a.PlayerID() != "" {
+		cfg.Disposition.OnPlayerEnteredDeferred(ctx, a.PlayerID(), a.Name(), nil, start.ID)
 	}
 
 	exit := pump(ctx, c, cfg, a, clk)
@@ -307,6 +331,7 @@ func pump(ctx context.Context, c conn.Connection, cfg Config, a *connActor, clk 
 			Slots:       cfg.Slots,
 			Bus:         cfg.Bus,
 			Locator:     managerLocator{cfg.Manager},
+			Disposition: cfg.Disposition,
 		}
 		if err := cfg.Commands.Dispatch(ctx, env, a, line); err != nil {
 			if errors.Is(err, command.ErrQuit) {
@@ -670,8 +695,32 @@ func reconnect(ctx context.Context, c conn.Connection, cfg Config, a *connActor,
 	if err := a.Write(ctx, renderReconnect()); err != nil {
 		logging.From(ctx).Warn("reconnect: banner write failed", slog.Any("err", err))
 	}
+	// Treat reconnect as a fresh room entry for the disposition
+	// system (spec §5.2 — the player effectively just walked back
+	// in). Publish player.moved with From=To so any prior per-room
+	// state for this player is cleared, then run both hooks around
+	// the re-render. Capture the room once: a.Room() can in
+	// principle change between calls (reconnect runs before pump,
+	// so the window is near-zero today, but the snapshot keeps the
+	// immediate/deferred pair consistent regardless).
+	room := a.Room()
+	if room != nil {
+		if cfg.Bus != nil {
+			cfg.Bus.Publish(ctx, eventbus.PlayerMoved{
+				PlayerID: a.PlayerID(),
+				From:     room.ID,
+				To:       room.ID,
+			})
+		}
+		if cfg.Disposition != nil && a.PlayerID() != "" {
+			cfg.Disposition.OnPlayerEnteredImmediate(ctx, a.PlayerID(), a.Name(), nil, room.ID)
+		}
+	}
 	if rendered := renderRoomForReconnect(a, cfg); rendered != "" {
 		_ = a.Write(ctx, rendered)
+	}
+	if room != nil && cfg.Disposition != nil && a.PlayerID() != "" {
+		cfg.Disposition.OnPlayerEnteredDeferred(ctx, a.PlayerID(), a.Name(), nil, room.ID)
 	}
 
 	exit := pump(ctx, c, cfg, a, clk)

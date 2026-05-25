@@ -400,6 +400,30 @@ is now real. Sketch of remaining vertical slices:
     step 4 stat derivation (M8), step 7 equipment instantiation,
     step 8 loot generation, step 9 ability proficiencies; §2.3
     steps 6-8 (patrol/idle/battle/disposition/scripts).
+  - **M6.5 (landed):** disposition reactions (spec §5). New
+    `internal/ai/disposition.go` Evaluator with per-tick dedup +
+    per-room reaction state caches, three hook points
+    (OnPlayerEnteredImmediate aggro-only, OnPlayerEnteredDeferred
+    full, OnMobEntered full). `mob.Template` gains
+    `BaseDisposition` (static reaction string) and
+    `DispositionRules` (default + ordered rule list); pack
+    decoder accepts `base_disposition:` and `disposition_rules:`
+    YAML blocks. New bus events: `player.moved` (clears per-room
+    state on subscription), `mob.aggro`, `mob.wary`,
+    `mob.friendly`. Movement command, login spawn, and link-dead
+    reconnect publish player.moved and bracket RenderRoom with
+    the immediate/deferred hooks. AI dispatcher resets the
+    per-tick cache at the top of every tick; wander calls
+    OnMobEntered after a successful move. `command.DispositionHook`
+    interface keeps the command package free of an `ai` import;
+    adapters in `cmd/anothermud/main.go` (`playerLookup`,
+    `dispositionHook`) bridge `session.Manager` ↔ `ai.Evaluator`.
+    Content: `village-guard.yaml` ships a sample rule set
+    (default friendly; players tagged `outlaw` draw hostile).
+    Deferred: alignment-based rules (M8 — accepted by the
+    decoder but the evaluator currently treats alignment
+    conditions as unmatchable); `mob.aggro` has no engine
+    subscriber until M7 combat lands.
 - **M7 — Hit something:** `combat`, engage/disengage, the heartbeat
   bucket, death.
 - **M8 — Get better:** `progression`, stats, levels, races, classes,

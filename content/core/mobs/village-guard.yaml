@@ -8,3 +8,11 @@ keywords: [guard, villager]
 stats:
   hp_max: 40
   str: 12
+# Disposition policy (spec mobs-ai-spawning §5.1).
+# Default reaction is friendly to everyone in the village. Players
+# tagged `outlaw` (M8+: alignment-driven instead) draw aggro.
+disposition_rules:
+  default: friendly
+  rules:
+    - has_tag: outlaw
+      reaction: hostile

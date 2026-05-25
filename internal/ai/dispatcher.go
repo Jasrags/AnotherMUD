@@ -24,8 +24,9 @@ import (
 // cost is irrelevant; the filter lands when room renderer scaling
 // or area-reset cycles arrive.
 type Dispatcher struct {
-	reg  *Registry
-	deps Deps
+	reg       *Registry
+	deps      Deps
+	evaluator *Evaluator // optional; non-nil clears per-tick dedup at tick start
 }
 
 // NewDispatcher wires the dispatcher with the registry it dispatches
@@ -44,6 +45,14 @@ func NewDispatcher(reg *Registry, deps Deps) *Dispatcher {
 	return &Dispatcher{reg: reg, deps: deps}
 }
 
+// AttachEvaluator wires the disposition evaluator so Tick can reset
+// its per-tick dedup cache at the top of each cadence (spec §5.2).
+// Optional: passing nil is allowed (e.g. ai-only tests). Called by
+// bootstrap after both objects exist.
+func (d *Dispatcher) AttachEvaluator(e *Evaluator) {
+	d.evaluator = e
+}
+
 // Tick is the per-cadence handler registered against tick.Loop. It
 // reads the mob set from the store and invokes each mob's behavior.
 // Errors are logged and ignored so one buggy behavior cannot stall
@@ -58,6 +67,14 @@ func NewDispatcher(reg *Registry, deps Deps) *Dispatcher {
 // invariant is preserved against future re-entry).
 func (d *Dispatcher) Tick(ctx context.Context, tickCount uint64) {
 	logger := logging.From(ctx).With(slog.String("event", "ai.tick"))
+
+	// Per-tick disposition dedup is cleared first so any reaction
+	// fired during this tick (e.g. via OnMobEntered called from a
+	// wander) starts from a clean slate. Spec mobs-ai-spawning §5.2
+	// step 1.
+	if d.evaluator != nil {
+		d.evaluator.ResetTick()
+	}
 
 	mobs := d.deps.Store.GetByTag(entities.TagMob)
 	for _, e := range mobs {

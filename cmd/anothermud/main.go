@@ -155,6 +155,18 @@ func run() error {
 	if err := ai.RegisterEngineBaseline(aiReg); err != nil {
 		return fmt.Errorf("register ai baseline: %w", err)
 	}
+	// Disposition evaluator (spec mobs-ai-spawning §5). Constructed
+	// before the AI dispatcher so it can be passed in via Deps, and
+	// before session.Handler so the room-entry hook surface is
+	// available at first login.
+	evaluator := ai.NewEvaluator(ai.EvaluatorConfig{
+		Templates: registries.Mobs,
+		Players:   playerLookup{mgr: mgr},
+		Placement: placement,
+		Store:     entityStore,
+		Bus:       bus,
+	})
+
 	aiDispatcher := ai.NewDispatcher(aiReg, ai.Deps{
 		World:       w,
 		Placement:   placement,
@@ -162,8 +174,11 @@ func run() error {
 		Bus:         bus,
 		Broadcaster: mgr,
 		Clock:       clk,
+		Evaluator:   evaluator,
 		// Rand left nil — Dispatcher.Tick supplies a default.
 	})
+	aiDispatcher.AttachEvaluator(evaluator)
+
 	aiCadence := cadenceTicks(cfg.TickInterval, time.Second)
 	if err := loop.Register("ai-tick", aiCadence, aiDispatcher.Tick); err != nil {
 		return fmt.Errorf("register ai tick: %w", err)
@@ -211,6 +226,7 @@ func run() error {
 		Templates:    registries.Items,
 		Slots:        registries.Slots,
 		Bus:          bus,
+		Disposition:  dispositionHook{e: evaluator},
 		StartID:      cfg.StartRoom,
 		ColorEnabled: cfg.ColorDefault,
 		Clock:        clk,
@@ -400,6 +416,43 @@ func (b *bootSpawner) SpawnAndPlaceMob(ctx context.Context, templateID string, r
 		})
 	}
 	return nil
+}
+
+// playerLookup adapts *session.Manager to ai.PlayerLookup. The
+// adapter lives at the composition root for the same reason
+// bootSpawner does: ai and session don't directly depend on each
+// other, and stitching them here avoids inventing a shared package
+// just to host the bridge.
+type playerLookup struct{ mgr *session.Manager }
+
+func (p playerLookup) PlayersInRoom(_ context.Context, room world.RoomID) []ai.PlayerView {
+	pairs := p.mgr.PlayersInRoom(room)
+	out := make([]ai.PlayerView, 0, len(pairs))
+	for _, pr := range pairs {
+		out = append(out, ai.PlayerView{ID: pr.ID, Name: pr.Name})
+	}
+	return out
+}
+
+func (p playerLookup) PlayerByID(_ context.Context, id string) (ai.PlayerView, bool) {
+	a, ok := p.mgr.GetByPlayerID(id)
+	if !ok {
+		return ai.PlayerView{}, false
+	}
+	return ai.PlayerView{ID: a.PlayerID(), Name: a.PlayerName()}, true
+}
+
+// dispositionHook adapts *ai.Evaluator to command.DispositionHook
+// (primitive-typed) so the command package doesn't have to import
+// ai. Constructs ai.PlayerView from the primitives on each call.
+type dispositionHook struct{ e *ai.Evaluator }
+
+func (d dispositionHook) OnPlayerEnteredImmediate(ctx context.Context, playerID, playerName string, tags []string, room world.RoomID) {
+	d.e.OnPlayerEnteredImmediate(ctx, ai.PlayerView{ID: playerID, Name: playerName, Tags: tags}, room)
+}
+
+func (d dispositionHook) OnPlayerEnteredDeferred(ctx context.Context, playerID, playerName string, tags []string, room world.RoomID) {
+	d.e.OnPlayerEnteredDeferred(ctx, ai.PlayerView{ID: playerID, Name: playerName, Tags: tags}, room)
 }
 
 func newLogger(cfg config) *slog.Logger {

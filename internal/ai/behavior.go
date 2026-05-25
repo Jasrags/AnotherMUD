@@ -48,6 +48,13 @@ type Deps struct {
 	Broadcaster Broadcaster
 	Clock       clock.Clock
 	Rand        *rand.Rand
+
+	// Evaluator is optional; when present, behaviors that move a
+	// mob into a new room (today: wander) call OnMobEntered so the
+	// arriving mob is evaluated against every player already in
+	// the destination (spec mobs-ai-spawning §4 mob-entered-room
+	// hook).
+	Evaluator *Evaluator
 }
 
 // Behavior is one named AI handler. It runs once per tick for every

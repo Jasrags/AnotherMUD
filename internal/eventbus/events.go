@@ -31,6 +31,24 @@ const (
 	// No cancellable pre-event: spawn-time policy decisions belong
 	// in the spawn config layer, not in subscriber veto.
 	EventMobSpawned = "mob.spawned"
+	// Post-fact notification fired after a player has entered a new
+	// room (spec mobs-ai-spawning §5.2 — used to clear per-room
+	// reaction state). Publishes on movement, login spawn, and
+	// link-dead reconnect. Not cancellable.
+	EventPlayerMoved = "player.moved"
+	// Post-fact notification fired when a disposition evaluator
+	// dispatches a fresh hostile reaction (spec
+	// mobs-ai-spawning §5.5). Combat's engagement listener
+	// subscribes; engagement's own duplicate guard absorbs
+	// repeated emissions.
+	EventMobAggro = "mob.aggro"
+	// Post-fact notification fired on a fresh `wary` reaction
+	// (spec §5.5). No engine subscriber today; content/quest
+	// listeners may consume.
+	EventMobWary = "mob.wary"
+	// Post-fact notification fired on a fresh `friendly` reaction
+	// (spec §5.5). Same listener story as EventMobWary.
+	EventMobFriendly = "mob.friendly"
 )
 
 // ItemPickedUp fires after GetHandler successfully moves an item
@@ -201,3 +219,57 @@ type MobSpawned struct {
 
 // Name implements Event.
 func (MobSpawned) Name() string { return EventMobSpawned }
+
+// PlayerMoved fires after a player's room has changed (spec
+// mobs-ai-spawning §5.2). Sources today: movement command, login
+// spawn (From is zero), and link-dead reconnect (From may equal To
+// if the room hasn't changed but presence has).
+//
+// Used by the disposition evaluator to clear per-room reaction
+// state for the moving player. Other subscribers (e.g. future quest
+// triggers, scent trails) may attach later.
+type PlayerMoved struct {
+	PlayerID string
+	From     world.RoomID
+	To       world.RoomID
+}
+
+// Name implements Event.
+func (PlayerMoved) Name() string { return EventPlayerMoved }
+
+// MobAggro fires when the disposition evaluator dispatches a fresh
+// hostile reaction (spec §5.5). Combat's engagement listener
+// subscribes. RoomID is the location of the mob at dispatch time
+// (always equal to the player's room since the evaluator is hooked
+// at room-entry).
+type MobAggro struct {
+	MobID    entities.EntityID
+	MobName  string
+	PlayerID string
+	RoomID   world.RoomID
+}
+
+// Name implements Event.
+func (MobAggro) Name() string { return EventMobAggro }
+
+// MobWary fires on a fresh wary reaction (spec §5.5).
+type MobWary struct {
+	MobID    entities.EntityID
+	MobName  string
+	PlayerID string
+	RoomID   world.RoomID
+}
+
+// Name implements Event.
+func (MobWary) Name() string { return EventMobWary }
+
+// MobFriendly fires on a fresh friendly reaction (spec §5.5).
+type MobFriendly struct {
+	MobID    entities.EntityID
+	MobName  string
+	PlayerID string
+	RoomID   world.RoomID
+}
+
+// Name implements Event.
+func (MobFriendly) Name() string { return EventMobFriendly }
