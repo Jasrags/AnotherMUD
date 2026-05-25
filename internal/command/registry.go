@@ -82,6 +82,19 @@ type Actor interface {
 	// inventory, and reverses its stat modifiers. Returns the removed
 	// entity id and true on success.
 	Unequip(slotKey string) (entities.EntityID, bool)
+
+	// MarkContentsDirty re-syncs the actor's persisted inventory tree
+	// from runtime state and flips the save dirty bit. Called by
+	// handlers that mutate the Contents substrate without touching
+	// the actor's top-level inventory list (M5.9b put: the sword
+	// leaves inventory in one step, then lands in a container in a
+	// second step that the actor doesn't see, so the save tree built
+	// during the first step has an empty container; this method
+	// re-runs the build after the second step).
+	//
+	// Implementations that do not persist (test stubs) should make
+	// this a no-op.
+	MarkContentsDirty()
 }
 
 // Broadcaster is the small surface a handler needs to address other
@@ -120,6 +133,11 @@ type Env struct {
 	Broadcaster Broadcaster
 	Items       *entities.Store
 	Placement   *entities.Placement
+	// Contents is the container↔item index (M5.9b). Consumed by the
+	// put handler to move items between actor inventory and
+	// containers and to read container fullness. May be nil in tests
+	// that don't exercise containers.
+	Contents *entities.Contents
 	// Slots is the equipment-slot registry, consumed by the equip
 	// command handler. Templates are deliberately NOT carried here —
 	// they're only needed at login time (respawnInventory /
@@ -142,6 +160,7 @@ type Context struct {
 	Broadcaster Broadcaster         // may be nil in tests
 	Items       *entities.Store     // may be nil in tests
 	Placement   *entities.Placement // may be nil in tests
+	Contents    *entities.Contents  // may be nil in tests
 	Slots       *slot.Registry      // may be nil in tests
 	Bus         *eventbus.Bus       // may be nil in tests
 	Locator     Locator             // may be nil in tests
@@ -261,6 +280,7 @@ func (r *Registry) Dispatch(ctx context.Context, env Env, actor Actor, raw strin
 		Broadcaster: env.Broadcaster,
 		Items:       env.Items,
 		Placement:   env.Placement,
+		Contents:    env.Contents,
 		Slots:       env.Slots,
 		Bus:         env.Bus,
 		Locator:     env.Locator,

@@ -83,8 +83,8 @@ func TestUnequip_ReversesSyncs(t *testing.T) {
 	if len(a.save.Stats) != 0 {
 		t.Errorf("save.Stats not cleared: %+v", a.save.Stats)
 	}
-	if tpls := a.save.Inventory; len(tpls) != 1 || tpls[0] != "tapestry-core:short-sword" {
-		t.Errorf("save.Inventory after unequip = %v", tpls)
+	if tpls := a.save.Inventory; len(tpls) != 1 || tpls[0].Template != "tapestry-core:short-sword" {
+		t.Errorf("save.Inventory after unequip = %+v", tpls)
 	}
 }
 

@@ -45,8 +45,8 @@ func TestActor_AddInventory_SyncsSaveTemplateIDs(t *testing.T) {
 	if !a.dirty {
 		t.Error("dirty not set after AddToInventory")
 	}
-	if got := a.save.Inventory; len(got) != 1 || got[0] != string(tpl.ID) {
-		t.Errorf("save.Inventory = %v, want [%q]", got, tpl.ID)
+	if got := a.save.Inventory; len(got) != 1 || got[0].Template != string(tpl.ID) {
+		t.Errorf("save.Inventory = %+v, want one entry templated %q", got, tpl.ID)
 	}
 }
 
@@ -76,8 +76,8 @@ func TestRespawnInventory_RehydratesFromTemplates(t *testing.T) {
 	tpls.Add(swordTpl())
 
 	a := newInvActor(t, store)
-	respawnInventory(context.Background(), a, store, tpls,
-		[]string{"tapestry-core:short-sword"})
+	respawnInventory(context.Background(), a, store, nil, tpls,
+		[]player.InventoryEntry{{Template: "tapestry-core:short-sword"}})
 
 	if got := a.Inventory(); len(got) != 1 {
 		t.Fatalf("inventory = %v, want one entry", got)
@@ -94,17 +94,153 @@ func TestRespawnInventory_DropsUnknownTemplate(t *testing.T) {
 	tpls.Add(swordTpl())
 
 	a := newInvActor(t, store)
-	respawnInventory(context.Background(), a, store, tpls,
-		[]string{"tapestry-core:short-sword", "tapestry-core:does-not-exist"})
+	respawnInventory(context.Background(), a, store, nil, tpls,
+		[]player.InventoryEntry{
+			{Template: "tapestry-core:short-sword"},
+			{Template: "tapestry-core:does-not-exist"},
+		})
 
 	if got := a.Inventory(); len(got) != 1 {
 		t.Errorf("inventory = %v, want only the survivor", got)
 	}
-	if got := a.save.Inventory; len(got) != 1 || got[0] != "tapestry-core:short-sword" {
-		t.Errorf("save.Inventory = %v, want trimmed to survivor", got)
+	if got := a.save.Inventory; len(got) != 1 || got[0].Template != "tapestry-core:short-sword" {
+		t.Errorf("save.Inventory = %+v, want trimmed to survivor", got)
 	}
 	if !a.dirty {
 		t.Error("dirty not set after trimming dead reference")
+	}
+}
+
+// TestRespawnInventory_RoundTripContainerContents verifies the v4
+// save tree survives a save → respawn cycle: items inside a
+// container at save time end up back inside it (via Contents.Put)
+// after respawn, and the regenerated save list mirrors the input.
+func TestRespawnInventory_RoundTripContainerContents(t *testing.T) {
+	store := entities.NewStore()
+	contents := entities.NewContents()
+	tpls := item.NewTemplates()
+	tpls.Add(swordTpl())
+	tpls.Add(sackTplPersist())
+
+	a := newInvActor(t, store)
+	a.contents = contents
+
+	saved := []player.InventoryEntry{
+		{
+			Template: "tapestry-core:canvas-sack",
+			Contents: []player.InventoryEntry{
+				{Template: "tapestry-core:short-sword"},
+			},
+		},
+	}
+	respawnInventory(context.Background(), a, store, contents, tpls, saved)
+
+	inv := a.Inventory()
+	if len(inv) != 1 {
+		t.Fatalf("inventory = %v, want one (sack)", inv)
+	}
+	sackID := inv[0]
+	if got := contents.In(sackID); len(got) != 1 {
+		t.Fatalf("sack contents after respawn = %v, want one item", got)
+	}
+
+	// Now drive syncInventoryToSaveLocked indirectly and verify
+	// the save tree mirrors the input.
+	a.mu.Lock()
+	a.syncInventoryToSaveLocked()
+	a.mu.Unlock()
+	out := a.save.Inventory
+	if len(out) != 1 || out[0].Template != "tapestry-core:canvas-sack" {
+		t.Fatalf("save.Inventory top-level = %+v", out)
+	}
+	if len(out[0].Contents) != 1 || out[0].Contents[0].Template != "tapestry-core:short-sword" {
+		t.Errorf("save.Inventory nested = %+v", out[0].Contents)
+	}
+}
+
+// TestUntrackInventory_NoContentsIndexLeak pins the post-teardown
+// invariant that the Contents index is empty after sweeping a
+// container the actor was carrying. A naive recursion that called
+// Take on the parent instead of the children would leave phantom
+// byItem/byContainer entries that accumulate across reconnects.
+//
+// The current implementation walks children first (their recursive
+// frame calls Take on themselves, which removes byItem[child] and
+// prunes byContainer[parent] when the bucket empties), then Take
+// on the parent — which is correctly a no-op for top-level
+// containers and a real remove for nested ones.
+func TestUntrackInventory_NoContentsIndexLeak(t *testing.T) {
+	store := entities.NewStore()
+	contents := entities.NewContents()
+
+	a := newInvActor(t, store)
+	a.contents = contents
+
+	sword, _ := store.Spawn(swordTpl())
+	sack, _ := store.Spawn(sackTplPersist())
+	a.AddToInventory(sack.ID())
+	contents.Put(sack.ID(), sword.ID())
+
+	untrackInventory(context.Background(), store, contents, a)
+
+	if _, ok := contents.ContainerOf(sword.ID()); ok {
+		t.Error("byItem leak: sword still maps to a container")
+	}
+	if got := contents.In(sack.ID()); len(got) > 0 {
+		t.Errorf("byContainer leak: sack still has children %v", got)
+	}
+}
+
+// TestMarkContentsDirty_RebuildsSaveTreeAfterContentsPut is the
+// regression test for the put-handler persistence bug: the handler
+// does RemoveFromInventory (which re-syncs the save tree at a
+// moment when the item is in neither inventory nor the container)
+// then Contents.Put, then MarkContentsDirty. Without the
+// MarkContentsDirty call the save tree would persist the container
+// as empty.
+func TestMarkContentsDirty_RebuildsSaveTreeAfterContentsPut(t *testing.T) {
+	store := entities.NewStore()
+	contents := entities.NewContents()
+
+	a := newInvActor(t, store)
+	a.contents = contents
+
+	sword, err := store.Spawn(swordTpl())
+	if err != nil {
+		t.Fatalf("Spawn sword: %v", err)
+	}
+	sack, err := store.Spawn(sackTplPersist())
+	if err != nil {
+		t.Fatalf("Spawn sack: %v", err)
+	}
+	a.AddToInventory(sword.ID())
+	a.AddToInventory(sack.ID())
+
+	// Mirror the put handler's exact ordering.
+	if !a.RemoveFromInventory(sword.ID()) {
+		t.Fatal("RemoveFromInventory returned false")
+	}
+	contents.Put(sack.ID(), sword.ID())
+	a.MarkContentsDirty()
+
+	if len(a.save.Inventory) != 1 || a.save.Inventory[0].Template != "tapestry-core:canvas-sack" {
+		t.Fatalf("save top-level = %+v, want one sack", a.save.Inventory)
+	}
+	child := a.save.Inventory[0].Contents
+	if len(child) != 1 || child[0].Template != "tapestry-core:short-sword" {
+		t.Errorf("save sack contents = %+v, want one sword", child)
+	}
+}
+
+// sackTplPersist is the persistence test's container template.
+// Lives here rather than in the put tests so the session package
+// has no cross-package fixture dependency.
+func sackTplPersist() *item.Template {
+	return &item.Template{
+		ID:       "tapestry-core:canvas-sack",
+		Name:     "a canvas sack",
+		Type:     "container",
+		Keywords: []string{"sack"},
 	}
 }
 
@@ -114,7 +250,7 @@ func TestUntrackInventory_RemovesEntitiesFromStore(t *testing.T) {
 	inst, _ := store.Spawn(swordTpl())
 	a.AddToInventory(inst.ID())
 
-	untrackInventory(context.Background(), store, a)
+	untrackInventory(context.Background(), store, nil, a)
 
 	if _, ok := store.GetByID(inst.ID()); ok {
 		t.Error("entity still tracked after untrackInventory")

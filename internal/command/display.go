@@ -16,6 +16,14 @@ import (
 // silently (matches the syncInventoryToSaveLocked drop policy: a
 // runtime/store divergence is recoverable, not user-facing).
 //
+// Containers (M5.9b) get their contents listed one level deeper
+// with extra indentation so the player can see what they've put
+// where. Recursion stops at depth 1 — containers-in-containers
+// (a pouch inside a backpack) print "(contents not shown)" rather
+// than expand, on the theory that an unbounded tree could flood
+// the terminal. Deepening this is a UI policy choice; the
+// underlying Contents substrate supports arbitrary nesting.
+//
 // Stacking ("3 healing potions") lands when the stacking service
 // arrives — until then this is one line per instance.
 func InventoryHandler(ctx context.Context, c *Context) error {
@@ -23,17 +31,61 @@ func InventoryHandler(ctx context.Context, c *Context) error {
 		return c.Actor.Write(ctx, "You are carrying nothing.")
 	}
 	ids := c.Actor.Inventory()
-	names := resolveItemNames(c.Items, ids)
-	if len(names) == 0 {
+	if len(ids) == 0 {
 		return c.Actor.Write(ctx, "You are carrying nothing.")
 	}
 	var b strings.Builder
 	b.WriteString("You are carrying:")
-	for _, n := range names {
+	any := false
+	for _, id := range ids {
+		e, ok := c.Items.GetByID(id)
+		if !ok {
+			continue
+		}
+		it, ok := e.(*entities.ItemInstance)
+		if !ok {
+			continue
+		}
+		any = true
 		b.WriteString("\n  ")
-		b.WriteString(n)
+		b.WriteString(it.Name())
+		if c.Contents != nil && it.Type() == itemTypeContainer {
+			renderContainerContents(&b, c, it.ID(), 1)
+		}
+	}
+	if !any {
+		return c.Actor.Write(ctx, "You are carrying nothing.")
 	}
 	return c.Actor.Write(ctx, b.String())
+}
+
+// renderContainerContents appends the children of containerID to b
+// at one indent level deeper than the parent line. depth caps the
+// recursion: depth==1 prints children with name only; nested
+// containers are summarized as "(contents not shown)" rather than
+// expanded.
+func renderContainerContents(b *strings.Builder, c *Context, containerID entities.EntityID, depth int) {
+	children := c.Contents.In(containerID)
+	if len(children) == 0 {
+		return
+	}
+	indent := strings.Repeat("  ", depth+1)
+	for _, childID := range children {
+		e, ok := c.Items.GetByID(childID)
+		if !ok {
+			continue
+		}
+		child, ok := e.(*entities.ItemInstance)
+		if !ok {
+			continue
+		}
+		b.WriteString("\n")
+		b.WriteString(indent)
+		b.WriteString(child.Name())
+		if child.Type() == itemTypeContainer && len(c.Contents.In(child.ID())) > 0 {
+			b.WriteString(" (contents not shown)")
+		}
+	}
 }
 
 // EquipmentHandler implements `equipment` (alias `eq`) — renders

@@ -14,6 +14,13 @@ const (
 	EventEntityEquipped  = "entity.equipped"
 	EventEntityUnequipped = "entity.unequipped"
 	EventItemGiven       = "entity.item_given"
+	// Cancellable pre-event fired before a put-in-container commits.
+	// Spec inventory-equipment-items §4.5 step 5 — listeners can flip
+	// the cancel flag to veto (locks, quest gates, etc.).
+	EventContainerItemAdding = "container.item_adding"
+	// Post-fact notification fired after a successful put commits.
+	// Spec §4.5 step 7. Payload mirrors the pre-event.
+	EventContainerItemAdded = "container.item_added"
 )
 
 // ItemPickedUp fires after GetHandler successfully moves an item
@@ -96,3 +103,56 @@ type ItemGiven struct {
 
 // Name implements Event.
 func (ItemGiven) Name() string { return EventItemGiven }
+
+// ContainerItemAdding is the cancellable pre-event fired by
+// PutHandler before the actor → container transfer commits (spec
+// inventory-equipment-items §4.5 step 5). Listeners that flip the
+// embedded CancelFlag abort the operation; the handler then returns
+// the "cancelled" failure reason and emits no post-event.
+//
+// Payload reflects the *intended* post-state: ItemID is about to be
+// placed inside ContainerID by ActorID. RoomID is the room where the
+// put is happening (the actor's current room — useful for
+// room-scoped quest listeners).
+//
+// The CancelFlag is a pointer so siblings later in the dispatch loop
+// can observe an earlier listener's veto (per §dispatch semantics in
+// internal/eventbus/event.go).
+type ContainerItemAdding struct {
+	*CancelFlag
+	ActorID     entities.EntityID
+	ContainerID entities.EntityID
+	ItemID      entities.EntityID
+	RoomID      world.RoomID
+}
+
+// Name implements Event.
+func (ContainerItemAdding) Name() string { return EventContainerItemAdding }
+
+// NewContainerItemAdding wires up the cancel flag so the publisher
+// (PutHandler) does not have to remember to allocate it. Idiomatic
+// constructor mirroring how cancellable events should be built —
+// passing a zero-value struct would yield a nil CancelFlag and panic
+// the moment a listener calls Cancel().
+func NewContainerItemAdding(actor, container, item entities.EntityID, room world.RoomID) *ContainerItemAdding {
+	return &ContainerItemAdding{
+		CancelFlag:  &CancelFlag{},
+		ActorID:     actor,
+		ContainerID: container,
+		ItemID:      item,
+		RoomID:      room,
+	}
+}
+
+// ContainerItemAdded fires after a successful put-in-container
+// commits (spec §4.5 step 7). Post-state: ItemID is in ContainerID's
+// contents, no longer in ActorID's inventory.
+type ContainerItemAdded struct {
+	ActorID     entities.EntityID
+	ContainerID entities.EntityID
+	ItemID      entities.EntityID
+	RoomID      world.RoomID
+}
+
+// Name implements Event.
+func (ContainerItemAdded) Name() string { return EventContainerItemAdded }

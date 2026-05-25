@@ -290,6 +290,12 @@ func (a *testActor) Equip(slotKey string, id entities.EntityID, mods []stats.Mod
 	return false
 }
 
+// MarkContentsDirty is a no-op for the test actor — the testActor
+// does not persist, so there is no save tree to re-sync. The
+// connActor implementation is what production exercises (see
+// session.go).
+func (a *testActor) MarkContentsDirty() {}
+
 func (a *testActor) Unequip(slotKey string) (entities.EntityID, bool) {
 	a.mu.Lock()
 	defer a.mu.Unlock()

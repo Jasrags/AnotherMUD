@@ -108,6 +108,7 @@ func run() error {
 	// when that path lands rather than fabricating one now.
 	entityStore := entities.NewStore()
 	placement := entities.NewPlacement()
+	contents := entities.NewContents()
 	bus := eventbus.New()
 
 	clk := clock.RealClock{}
@@ -168,6 +169,7 @@ func run() error {
 		Manager:      mgr,
 		Items:        entityStore,
 		Placement:    placement,
+		Contents:     contents,
 		Templates:    registries.Items,
 		Slots:        registries.Slots,
 		Bus:          bus,

@@ -50,6 +50,11 @@ type Config struct {
 	// spawn inventory items into the world without a room and by
 	// get/drop handlers to move items between rooms and contents.
 	Placement *entities.Placement
+	// Contents is the container↔item index (M5.9b). Used by
+	// respawnInventory to restore container nesting and by the put
+	// handler to move items between actor inventory and containers.
+	// May be nil only in tests that don't exercise containers.
+	Contents *entities.Contents
 	// Templates is the item-template registry used at login time to
 	// respawn persisted inventory entries into fresh instances.
 	Templates *item.Templates
@@ -168,6 +173,7 @@ func run(ctx context.Context, c conn.Connection, cfg Config) error {
 		save:         loaded.Player,
 		players:      cfg.Players,
 		items:        cfg.Items,
+		contents:     cfg.Contents,
 		equipment:    make(map[string]entities.EntityID),
 		stats:        stats.New(),
 		flood:        newFloodGate(floodCfg, clk),
@@ -187,7 +193,7 @@ func run(ctx context.Context, c conn.Connection, cfg Config) error {
 	// the actor enters the manager / starts taking input so a takeover
 	// or autosave can't observe a partial inventory.
 	if cfg.Items != nil && cfg.Templates != nil {
-		respawnInventory(ctx, a, cfg.Items, cfg.Templates, loaded.Player.Inventory)
+		respawnInventory(ctx, a, cfg.Items, cfg.Contents, cfg.Templates, loaded.Player.Inventory)
 		respawnEquipment(ctx, a, cfg.Items, cfg.Templates, loaded.Player.Equipment)
 	}
 
@@ -297,6 +303,7 @@ func pump(ctx context.Context, c conn.Connection, cfg Config, a *connActor, clk 
 			Broadcaster: cfg.Manager,
 			Items:       cfg.Items,
 			Placement:   cfg.Placement,
+			Contents:    cfg.Contents,
 			Slots:       cfg.Slots,
 			Bus:         cfg.Bus,
 			Locator:     managerLocator{cfg.Manager},
@@ -366,49 +373,112 @@ func fullTeardown(ctx context.Context, cfg Config, a *connActor) {
 	if err := a.Persist(ctx); err != nil {
 		logging.From(ctx).Warn("save on disconnect failed", slog.Any("err", err))
 	}
-	untrackInventory(ctx, cfg.Items, a)
+	untrackInventory(ctx, cfg.Items, cfg.Contents, a)
 }
 
 // respawnInventory creates fresh ItemInstances for each persisted
-// template id and attaches them to the actor. Missing templates are
-// logged and skipped — the player loses that item on this load, but
-// the rest of the inventory survives. Skipped slots are also dropped
-// from the save's Inventory so a successful persist clears the dead
-// reference.
-func respawnInventory(ctx context.Context, a *connActor, store *entities.Store, tpls *item.Templates, saved []string) {
+// InventoryEntry and attaches them to the actor. Containers recurse
+// into their Contents: each child is spawned and pushed into the
+// freshly-minted container via contents.Put. Missing templates are
+// logged and skipped — the player loses that item (and anything
+// nested inside it, if it was a container) on this load.
+//
+// Whenever any entry is dropped (template gone, spawn failure, or a
+// non-container template with non-empty Contents), the in-memory
+// save is rebuilt from survivors and dirty is flipped so the next
+// Persist trims dead references.
+func respawnInventory(ctx context.Context, a *connActor, store *entities.Store, contents *entities.Contents, tpls *item.Templates, saved []player.InventoryEntry) {
 	if len(saved) == 0 {
 		return
 	}
-	survivors := make([]string, 0, len(saved))
-	for _, tid := range saved {
-		tpl, err := tpls.Get(item.TemplateID(tid))
+	survivors, dropped := spawnEntries(ctx, a, store, contents, tpls, saved, "")
+	for _, id := range survivors.ids {
+		a.mu.Lock()
+		a.inventory = append(a.inventory, id)
+		a.mu.Unlock()
+	}
+	if dropped {
+		a.mu.Lock()
+		a.save.Inventory = survivors.entries
+		a.markDirtyLocked()
+		a.mu.Unlock()
+	}
+}
+
+// spawnedSlice carries the parallel result of a respawn pass: the
+// top-level entity ids (so the caller can attach them to the
+// holder), and the post-prune save entries (so the caller can trim
+// the on-disk record when something didn't survive). Kept as a
+// dedicated type rather than two returns so the recursive call site
+// reads cleanly.
+type spawnedSlice struct {
+	ids     []entities.EntityID
+	entries []player.InventoryEntry
+}
+
+// spawnEntries is the recursive worker behind respawnInventory.
+// parentID is the container entity id to put children into; empty
+// means "top-level inventory, no put". Returns the spawned entity
+// ids in source order and the surviving entries; the dropped flag
+// tells the caller whether any entry was pruned (so a Persist can
+// trim).
+//
+// A non-container template carrying Contents in the save is a sign
+// of either a content edit (the template's type changed since save
+// time) or a corrupted save. Drop the Contents quietly and keep the
+// item — losing one container is better than refusing to load.
+func spawnEntries(ctx context.Context, a *connActor, store *entities.Store, contents *entities.Contents, tpls *item.Templates, saved []player.InventoryEntry, parentID entities.EntityID) (spawnedSlice, bool) {
+	out := spawnedSlice{
+		ids:     make([]entities.EntityID, 0, len(saved)),
+		entries: make([]player.InventoryEntry, 0, len(saved)),
+	}
+	dropped := false
+	for _, entry := range saved {
+		tpl, err := tpls.Get(item.TemplateID(entry.Template))
 		if err != nil {
 			logging.From(ctx).Warn("inventory: dropping unknown template",
-				slog.String("template_id", tid),
+				slog.String("template_id", entry.Template),
 				slog.String("player", a.PlayerName()),
 				slog.Any("err", err))
+			dropped = true
 			continue
 		}
 		inst, err := store.Spawn(tpl)
 		if err != nil {
 			logging.From(ctx).Warn("inventory: spawn failed",
-				slog.String("template_id", tid),
+				slog.String("template_id", entry.Template),
 				slog.Any("err", err))
+			dropped = true
 			continue
 		}
-		a.mu.Lock()
-		a.inventory = append(a.inventory, inst.ID())
-		a.mu.Unlock()
-		survivors = append(survivors, tid)
+		if parentID != "" && contents != nil {
+			contents.Put(parentID, inst.ID())
+		}
+
+		survivor := player.InventoryEntry{Template: entry.Template}
+		if len(entry.Contents) > 0 {
+			if tpl.Type != "container" || contents == nil {
+				// A non-container template carrying nested contents in
+				// the save can't be honored at runtime. Keep the
+				// outer item, drop the children.
+				logging.From(ctx).Warn("inventory: dropping nested contents on non-container",
+					slog.String("template_id", entry.Template),
+					slog.String("template_type", tpl.Type))
+				dropped = true
+			} else {
+				child, childDropped := spawnEntries(ctx, a, store, contents, tpls, entry.Contents, inst.ID())
+				if len(child.entries) > 0 {
+					survivor.Contents = child.entries
+				}
+				if childDropped {
+					dropped = true
+				}
+			}
+		}
+		out.ids = append(out.ids, inst.ID())
+		out.entries = append(out.entries, survivor)
 	}
-	a.mu.Lock()
-	// If respawn dropped any entries, the on-disk save is now ahead of
-	// the runtime; flip dirty so the next persist trims it.
-	if len(survivors) != len(saved) {
-		a.save.Inventory = survivors
-		a.markDirtyLocked()
-	}
-	a.mu.Unlock()
+	return out, dropped
 }
 
 // respawnEquipment creates fresh ItemInstances for each persisted
@@ -509,23 +579,40 @@ func respawnEquipment(ctx context.Context, a *connActor, store *entities.Store, 
 // after the save has been written so the next login can respawn from
 // the template ids. Safe to call with a nil store (tests) or empty
 // containers.
-func untrackInventory(ctx context.Context, store *entities.Store, a *connActor) {
+//
+// Container children (M5.9b) are swept recursively via Contents: a
+// carried sack with three items inside has all four entities
+// untracked. Contents entries are also cleared so the index doesn't
+// retain phantom mappings to untracked ids. A nil Contents skips
+// the recursion (tests that don't exercise containers).
+func untrackInventory(ctx context.Context, store *entities.Store, contents *entities.Contents, a *connActor) {
 	if store == nil {
 		return
 	}
 	for _, id := range a.Equipment() {
-		if err := store.Untrack(id); err != nil {
-			logging.From(ctx).Debug("equipment: untrack on teardown",
-				slog.String("entity_id", string(id)),
-				slog.Any("err", err))
-		}
+		untrackTree(ctx, store, contents, id)
 	}
 	for _, id := range a.Inventory() {
-		if err := store.Untrack(id); err != nil {
-			logging.From(ctx).Debug("inventory: untrack on teardown",
-				slog.String("entity_id", string(id)),
-				slog.Any("err", err))
+		untrackTree(ctx, store, contents, id)
+	}
+}
+
+// untrackTree untracks id and, if it's a container with Contents
+// entries, recurses into its children. Each child is also cleared
+// from the Contents index so the post-teardown state is clean.
+// Logs at Debug on failure: untracking an already-gone entity is
+// not a bug worth a Warn.
+func untrackTree(ctx context.Context, store *entities.Store, contents *entities.Contents, id entities.EntityID) {
+	if contents != nil {
+		for _, childID := range contents.In(id) {
+			untrackTree(ctx, store, contents, childID)
 		}
+		contents.Take(id)
+	}
+	if err := store.Untrack(id); err != nil {
+		logging.From(ctx).Debug("inventory: untrack on teardown",
+			slog.String("entity_id", string(id)),
+			slog.Any("err", err))
 	}
 }
 
@@ -652,6 +739,11 @@ type connActor struct {
 	// construction so syncInventoryToSaveLocked can resolve template
 	// ids without holding cfg in scope. Never reassigned after Add.
 	items *entities.Store
+	// contents is the container↔item index reference, captured at
+	// actor construction so syncInventoryToSaveLocked can walk
+	// container trees and untrackInventory can sweep child entries.
+	// Nil only in tests that don't exercise containers.
+	contents *entities.Contents
 
 	// inventory holds the runtime entity ids the actor is carrying.
 	// Mutations go through AddToInventory / RemoveFromInventory and
@@ -794,15 +886,32 @@ func (a *connActor) Persist(ctx context.Context) error {
 	return nil
 }
 
+// cloneInventoryEntries deep-copies an InventoryEntry tree so a
+// concurrent syncInventoryToSaveLocked rewrite of a.save.Inventory
+// can't race the YAML encode that runs after the actor lock is
+// released. The recursion stops naturally at leaves (empty
+// Contents).
+func cloneInventoryEntries(in []player.InventoryEntry) []player.InventoryEntry {
+	if len(in) == 0 {
+		return nil
+	}
+	out := make([]player.InventoryEntry, len(in))
+	for i, e := range in {
+		out[i] = player.InventoryEntry{
+			Template: e.Template,
+			Contents: cloneInventoryEntries(e.Contents),
+		}
+	}
+	return out
+}
+
 // snapshotSave produces an isolated copy of save suitable for a YAML
 // encode that may run after the actor lock is released. Strings/ints
 // copy by value; slices and maps need explicit duplication.
 func snapshotSave(save *player.Save) player.Save {
 	out := *save
 	if save.Inventory != nil {
-		dup := make([]string, len(save.Inventory))
-		copy(dup, save.Inventory)
-		out.Inventory = dup
+		out.Inventory = cloneInventoryEntries(save.Inventory)
 	}
 	if save.Equipment != nil {
 		dup := make(map[string]player.EquippedItem, len(save.Equipment))
@@ -946,6 +1055,23 @@ func (a *connActor) StatsHas(src entities.SourceKey) bool {
 	return a.stats.Has(src)
 }
 
+// MarkContentsDirty re-runs syncInventoryToSaveLocked so the save
+// tree picks up Contents mutations the actor itself didn't perform
+// (M5.9b put: the handler removes from inventory, then writes into
+// a container via the Contents substrate; the inventory-remove
+// re-sync ran before the Contents.Put so it captured an empty
+// container in the save tree). Re-syncing here closes the gap and
+// flips dirty so the corrected tree reaches disk on next Persist.
+//
+// Cheap: the tree walker is a recursive Contents.In() scan over
+// items the actor already carries.
+func (a *connActor) MarkContentsDirty() {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	a.syncInventoryToSaveLocked()
+	a.markDirtyLocked()
+}
+
 // syncEquipmentToSaveLocked mirrors the runtime equipment map into the
 // save's Equipment field, capturing both the template id (so respawn
 // can locate the template) and the current entity id (so respawn can
@@ -983,9 +1109,14 @@ func (a *connActor) syncStatsToSaveLocked() {
 }
 
 // syncInventoryToSaveLocked mirrors the actor's runtime inventory
-// (entity ids) into the save's persisted Inventory field (template ids)
-// so the next Persist captures whatever pick-ups / drops have happened.
-// Caller MUST hold a.mu.
+// into the save's persisted Inventory field, recursing into
+// container Contents so nested items round-trip across restart
+// (M5.9b). Caller MUST hold a.mu.
+//
+// Entities the store no longer knows about are dropped silently
+// (same policy as the leaf-only v3 implementation): the runtime
+// inventory may still reference them, but persistence can only
+// record what's resolvable.
 func (a *connActor) syncInventoryToSaveLocked() {
 	if a.save == nil {
 		return
@@ -994,18 +1125,65 @@ func (a *connActor) syncInventoryToSaveLocked() {
 		a.save.Inventory = nil
 		return
 	}
-	tpls := make([]string, 0, len(a.inventory))
-	for _, id := range a.inventory {
+	a.save.Inventory = a.buildSaveEntriesLocked(a.inventory)
+}
+
+// buildSaveEntriesLocked walks a slice of entity ids and emits the
+// matching InventoryEntry list, recursing into a.contents for any
+// container-typed entity. Caller MUST hold a.mu. Returns nil for an
+// all-dropped slice so the caller can decide whether to write `nil`
+// (top-level Inventory) or omit the Contents field on a leaf entry
+// (via omitempty).
+//
+// Lock-order note: this function acquires a.contents.mu (via
+// Contents.In) while a.mu is held. That is the canonical order
+// documented on entities.Contents — actor.mu → contents.mu. New
+// callers of Contents that mutate actor state in response MUST NOT
+// hold contents.mu while taking actor.mu; doing so would deadlock
+// against a concurrent autosave Persist on that actor.
+func (a *connActor) buildSaveEntriesLocked(ids []entities.EntityID) []player.InventoryEntry {
+	if len(ids) == 0 {
+		return nil
+	}
+	out := make([]player.InventoryEntry, 0, len(ids))
+	for _, id := range ids {
 		tpl, ok := a.lookupTemplateID(id)
 		if !ok {
-			// Item is gone from the store between mutation and sync —
-			// drop it silently. The runtime inventory still references
-			// it, but persistence can only record what's resolvable.
 			continue
 		}
-		tpls = append(tpls, tpl)
+		entry := player.InventoryEntry{Template: tpl}
+		if a.contents != nil && a.isContainerLocked(id) {
+			if child := a.buildSaveEntriesLocked(a.contents.In(id)); len(child) > 0 {
+				entry.Contents = child
+			}
+		}
+		out = append(out, entry)
 	}
-	a.save.Inventory = tpls
+	if len(out) == 0 {
+		return nil
+	}
+	return out
+}
+
+// isContainerLocked reports whether id resolves to a container-typed
+// item in the entity store. Used by the inventory tree builder to
+// decide whether to recurse into Contents. Cheap: the store does a
+// single map lookup. Returning false on store/type mismatch is
+// correct — a non-container can never legally appear in the
+// Contents index (the put handler enforces this).
+func (a *connActor) isContainerLocked(id entities.EntityID) bool {
+	if a.items == nil {
+		return false
+	}
+	e, ok := a.items.GetByID(id)
+	if !ok {
+		return false
+	}
+	it, ok := e.(*entities.ItemInstance)
+	if !ok {
+		return false
+	}
+	return it.Type() == "container"
 }
 
 // lookupTemplateID resolves an entity id back to its template id by

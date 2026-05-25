@@ -1,9 +1,11 @@
 package command_test
 
 import (
+	"context"
 	"strings"
 	"testing"
 
+	"github.com/Jasrags/AnotherMUD/internal/command"
 	"github.com/Jasrags/AnotherMUD/internal/item"
 )
 
@@ -57,6 +59,63 @@ func TestInventory_ListsItemsInPickupOrder(t *testing.T) {
 	if sword > ring {
 		t.Errorf("pickup order not preserved: sword at %d, ring at %d", sword, ring)
 	}
+}
+
+func TestInventory_RendersContainerContents(t *testing.T) {
+	f := newPutFixture(t)
+	a := newNamedTestActor("Alice", "p-alice", f.room)
+	gem := f.spawnInActorInventory(t, a, &item.Template{
+		ID: "tapestry-core:gem", Name: "a gem", Type: "treasure",
+		Keywords: []string{"gem"},
+	})
+	sack := f.spawnInActorInventory(t, a, sackTpl())
+	f.contents.Put(sack.ID(), gem.ID())
+	a.RemoveFromInventory(gem.ID()) // mirror what put does
+
+	r := command.New()
+	if err := command.RegisterBuiltins(r); err != nil {
+		t.Fatalf("RegisterBuiltins: %v", err)
+	}
+	if err := r.Dispatch(context.Background(), f.env(), a, "inventory"); err != nil {
+		t.Fatalf("dispatch: %v", err)
+	}
+	out := a.lastLine()
+	if !strings.Contains(out, "a canvas sack") {
+		t.Errorf("sack not rendered: %q", out)
+	}
+	if !strings.Contains(out, "a gem") {
+		t.Errorf("gem inside sack not rendered: %q", out)
+	}
+	// Indentation: gem line should have more leading space than sack
+	// line, so the visual nesting is obvious. The exact widths are
+	// pinned by the renderer (2-space per level).
+	lines := strings.Split(out, "\n")
+	var sackIdx, gemIdx int = -1, -1
+	for i, l := range lines {
+		if strings.Contains(l, "a canvas sack") {
+			sackIdx = i
+		}
+		if strings.Contains(l, "a gem") {
+			gemIdx = i
+		}
+	}
+	if sackIdx < 0 || gemIdx <= sackIdx {
+		t.Fatalf("ordering wrong: sack at %d, gem at %d", sackIdx, gemIdx)
+	}
+	if leadSpaces(lines[gemIdx]) <= leadSpaces(lines[sackIdx]) {
+		t.Errorf("gem not indented deeper than sack:\nsack=%q\ngem=%q", lines[sackIdx], lines[gemIdx])
+	}
+}
+
+func leadSpaces(s string) int {
+	n := 0
+	for _, r := range s {
+		if r != ' ' {
+			break
+		}
+		n++
+	}
+	return n
 }
 
 func TestInventory_AliasI(t *testing.T) {

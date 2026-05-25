@@ -121,7 +121,7 @@ func TestLoad_DefaultsVersionToOneWhenMissing(t *testing.T) {
 	}
 }
 
-func TestSaveLoad_V3RoundTripWithInventoryEquipmentStats(t *testing.T) {
+func TestSaveLoad_V4RoundTripWithInventoryEquipmentStats(t *testing.T) {
 	ctx := context.Background()
 	st, _ := newStore(t)
 
@@ -132,7 +132,10 @@ func TestSaveLoad_V3RoundTripWithInventoryEquipmentStats(t *testing.T) {
 		AccountID: "acct-1",
 		Name:      "Eve",
 		Location:  "tapestry-core:town-square",
-		Inventory: []string{"tapestry-core:short-sword", "tapestry-core:healing-draught"},
+		Inventory: []player.InventoryEntry{
+			{Template: "tapestry-core:short-sword"},
+			{Template: "tapestry-core:healing-draught"},
+		},
 		Equipment: map[string]player.EquippedItem{
 			"wield": {Template: "tapestry-core:short-sword", Entity: "entity-1"},
 		},
@@ -148,11 +151,11 @@ func TestSaveLoad_V3RoundTripWithInventoryEquipmentStats(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Load: %v", err)
 	}
-	if got.Version != 3 {
-		t.Errorf("Version = %d, want 3", got.Version)
+	if got.Version != player.CurrentVersion {
+		t.Errorf("Version = %d, want %d", got.Version, player.CurrentVersion)
 	}
-	if len(got.Inventory) != 2 || got.Inventory[0] != "tapestry-core:short-sword" {
-		t.Errorf("Inventory = %v", got.Inventory)
+	if len(got.Inventory) != 2 || got.Inventory[0].Template != "tapestry-core:short-sword" {
+		t.Errorf("Inventory = %+v", got.Inventory)
 	}
 	eq, ok := got.Equipment["wield"]
 	if !ok {
@@ -169,9 +172,10 @@ func TestSaveLoad_V3RoundTripWithInventoryEquipmentStats(t *testing.T) {
 	}
 }
 
-func TestLoad_V1MigratesToV3(t *testing.T) {
-	// A v1 file on disk must traverse both migration steps cleanly and
-	// come back at v3 with empty inventory, equipment, and stats.
+func TestLoad_V1MigratesToCurrent(t *testing.T) {
+	// A v1 file on disk must traverse every migration step cleanly and
+	// come back at CurrentVersion with empty inventory, equipment, and
+	// stats.
 	ctx := context.Background()
 	st, dir := newStore(t)
 
@@ -189,8 +193,8 @@ func TestLoad_V1MigratesToV3(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Load: %v", err)
 	}
-	if got.Version != 3 {
-		t.Errorf("Version after migrate = %d, want 3", got.Version)
+	if got.Version != player.CurrentVersion {
+		t.Errorf("Version after migrate = %d, want %d", got.Version, player.CurrentVersion)
 	}
 	if len(got.Inventory) != 0 {
 		t.Errorf("Inventory = %v, want empty", got.Inventory)
@@ -230,8 +234,8 @@ func TestLoad_V2EquipmentMigratesToV3Struct(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Load: %v", err)
 	}
-	if got.Version != 3 {
-		t.Errorf("Version = %d, want 3", got.Version)
+	if got.Version != player.CurrentVersion {
+		t.Errorf("Version = %d, want %d", got.Version, player.CurrentVersion)
 	}
 	eq, ok := got.Equipment["wield"]
 	if !ok {
@@ -242,6 +246,45 @@ func TestLoad_V2EquipmentMigratesToV3Struct(t *testing.T) {
 	}
 	if eq.Entity != "" {
 		t.Errorf("Equipment[wield].Entity = %q, want empty", eq.Entity)
+	}
+}
+
+func TestLoad_V3InventoryMigratesToV4Entries(t *testing.T) {
+	// A v3 save with the old flat string-list inventory must lift to
+	// v4 InventoryEntry{Template, Contents=nil} entries. The migration
+	// is a 1:1 promote per pre-v4 entries; v3 had no container nesting
+	// so Contents is always empty after migration.
+	ctx := context.Background()
+	st, dir := newStore(t)
+
+	playerDir := filepath.Join(dir, "players", "v3user")
+	if err := os.MkdirAll(playerDir, 0o755); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(playerDir, "player.yaml"),
+		[]byte("version: 3\nid: p-1\naccount_id: acct-1\nname: V3User\nlocation: tapestry-core:town-square\ninventory:\n  - tapestry-core:short-sword\n  - tapestry-core:healing-draught\n"),
+		0o600); err != nil {
+		t.Fatalf("write: %v", err)
+	}
+
+	got, err := st.Load(ctx, "v3user")
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if got.Version != player.CurrentVersion {
+		t.Errorf("Version = %d, want %d", got.Version, player.CurrentVersion)
+	}
+	if len(got.Inventory) != 2 {
+		t.Fatalf("Inventory length = %d, want 2: %+v", len(got.Inventory), got.Inventory)
+	}
+	if got.Inventory[0].Template != "tapestry-core:short-sword" {
+		t.Errorf("Inventory[0].Template = %q", got.Inventory[0].Template)
+	}
+	if got.Inventory[0].Contents != nil {
+		t.Errorf("Inventory[0].Contents = %v, want nil after v3 migration", got.Inventory[0].Contents)
+	}
+	if got.Inventory[1].Template != "tapestry-core:healing-draught" {
+		t.Errorf("Inventory[1].Template = %q", got.Inventory[1].Template)
 	}
 }
 

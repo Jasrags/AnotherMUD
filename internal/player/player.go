@@ -43,7 +43,15 @@ import (
 // entity ids on the next login (inventory-equipment-items §3.5).
 // `stats` block added to persist the holder's sourced modifier set
 // applied by equipment.
-const CurrentVersion = 3
+//
+// v4 (M5.9b): `inventory` value type widened from a bare template id
+// string to a {template, contents} struct so containers can persist
+// what they're carrying (inventory-equipment-items §4.5). The
+// `contents` field is itself a list of InventoryEntry — nesting
+// reflects real container nesting at session time. Empty Contents
+// serializes via `omitempty`, so leaf items round-trip as just
+// `{template: ...}`.
+const CurrentVersion = 4
 
 // Sentinel errors callers may check via errors.Is.
 var (
@@ -70,14 +78,29 @@ var (
 // effect of every equipped item's modifiers — persisted under the
 // same source keys that were live when the save was written.
 type Save struct {
-	Version   int                      `yaml:"version"`
-	ID        string                   `yaml:"id"`
-	AccountID string                   `yaml:"account_id"`
-	Name      string                   `yaml:"name"`
-	Location  string                   `yaml:"location"`
-	Inventory []string                 `yaml:"inventory,omitempty"`
-	Equipment map[string]EquippedItem  `yaml:"equipment,omitempty"`
-	Stats     stats.Snapshot           `yaml:"stats,omitempty"`
+	Version   int                     `yaml:"version"`
+	ID        string                  `yaml:"id"`
+	AccountID string                  `yaml:"account_id"`
+	Name      string                  `yaml:"name"`
+	Location  string                  `yaml:"location"`
+	Inventory []InventoryEntry        `yaml:"inventory,omitempty"`
+	Equipment map[string]EquippedItem `yaml:"equipment,omitempty"`
+	Stats     stats.Snapshot          `yaml:"stats,omitempty"`
+}
+
+// InventoryEntry is one carried item in the persisted inventory list
+// (v4+). Contents is non-empty only when the entry's template is a
+// container that held items at save time; nesting is recursive so a
+// pouch-inside-a-backpack round-trips by structure rather than by
+// foreign-key id (no stable per-instance id exists on disk because
+// entity ids are reassigned each session).
+//
+// The `omitempty` on Contents keeps the wire format compact: a leaf
+// item serializes as `{template: ...}`, indistinguishable from the
+// pre-v4 string shape after migration.
+type InventoryEntry struct {
+	Template string           `yaml:"template"`
+	Contents []InventoryEntry `yaml:"contents,omitempty"`
 }
 
 // EquippedItem is one entry in the persisted equipment map (v3+). The
@@ -213,6 +236,7 @@ func (s *Store) Load(ctx context.Context, name string) (*Save, error) {
 var playerMigrations = map[int]func(map[string]any) (map[string]any, error){
 	1: migrateV1toV2,
 	2: migrateV2toV3,
+	3: migrateV3toV4,
 }
 
 // migrateV1toV2 adds the empty inventory/equipment blocks introduced
@@ -273,6 +297,46 @@ func migrateV2toV3(in map[string]any) (map[string]any, error) {
 		}
 	}
 	in["equipment"] = out
+	return in, nil
+}
+
+// migrateV3toV4 widens the `inventory` value shape from a list of
+// bare template id strings to a list of {template, contents} entries
+// so containers can persist their contents (M5.9b, spec
+// inventory-equipment-items §4.5).
+//
+// v3 entries were all leaves (containers existed as templates but the
+// put verb didn't, so no save could carry container contents). The
+// migration is a 1:1 lift: every old string becomes a struct with
+// that template and no contents. Save-shape decoders treat a leaf
+// entry and a v3 string identically once migrated.
+//
+// Unrecognized entry shapes (somehow a non-string in the v3 list)
+// are dropped with no error: the alternative is refusing to load,
+// which is worse than losing a malformed inventory slot.
+func migrateV3toV4(in map[string]any) (map[string]any, error) {
+	raw, ok := in["inventory"]
+	if !ok || raw == nil {
+		return in, nil
+	}
+	list, ok := raw.([]any)
+	if !ok {
+		// Inventory present but not a list — drop it. Mirrors the
+		// equipment-malformed handling in migrateV2toV3.
+		delete(in, "inventory")
+		return in, nil
+	}
+	out := make([]any, 0, len(list))
+	for _, e := range list {
+		s, ok := e.(string)
+		if !ok {
+			// Unknown shape — drop this entry. A v3 save that
+			// contains anything other than strings is malformed.
+			continue
+		}
+		out = append(out, map[string]any{"template": s})
+	}
+	in["inventory"] = out
 	return in, nil
 }
 
