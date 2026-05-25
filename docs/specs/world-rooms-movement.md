@@ -141,6 +141,24 @@ A room MUST carry:
 - A weather-messages map and a time-messages map (per-room
   overrides — see §6.3).
 
+A room MAY additionally declare:
+
+- An ordered list of **boot-placed item template ids**. The pack
+  loader spawns one instance per list entry (duplicate entries
+  produce duplicate instances) and places each in the room during
+  a post-pass that runs after every pack has been read, so
+  cross-pack template references resolve regardless of load order.
+  Ids follow the same qualification rule as exit targets: bare ids
+  resolve against the current pack namespace, qualified ids
+  (`other-pack:foo`) cross packs. An unknown template id is a
+  fatal load error.
+
+Boot-placed items are static fixtures from the world's perspective:
+they have no respawn cadence and are not re-spawned if removed
+during play (e.g. `get`'d, despite the typical `no_get` tag).
+Mob spawning and area-reset cadence — when they land — own the
+respawn surface; this list is the simple "place X at boot" path.
+
 ### 2.3 Entity placement
 
 The world provides two primitive operations on a room:

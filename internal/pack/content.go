@@ -49,10 +49,17 @@ type SlotFile struct {
 // Exits is a map keyed by direction long-name ("north", "up") to keep
 // the format pleasant to author. Targets may be bare (resolved against
 // the current pack namespace) or fully qualified ("other-pack:foo").
+//
+// Items declares item-template ids the room owns at boot. The loader's
+// placement post-pass spawns one instance per id and places it in this
+// room. Same qualifier rules as exit targets: bare ids resolve against
+// the pack namespace, "ns:name" crosses packs. Spec
+// world-rooms-movement §2.2.
 type RoomFile struct {
 	ID          string            `yaml:"id"`
 	Area        string            `yaml:"area"`
 	Name        string            `yaml:"name"`
 	Description string            `yaml:"description,omitempty"`
 	Exits       map[string]string `yaml:"exits,omitempty"`
+	Items       []string          `yaml:"items,omitempty"`
 }

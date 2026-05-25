@@ -24,6 +24,7 @@ import (
 	"github.com/Jasrags/AnotherMUD/internal/command"
 	"github.com/Jasrags/AnotherMUD/internal/entities"
 	"github.com/Jasrags/AnotherMUD/internal/eventbus"
+	"github.com/Jasrags/AnotherMUD/internal/item"
 	"github.com/Jasrags/AnotherMUD/internal/logging"
 	"github.com/Jasrags/AnotherMUD/internal/login"
 	"github.com/Jasrags/AnotherMUD/internal/pack"
@@ -72,7 +73,21 @@ func run() error {
 	if err := slot.RegisterEngineBaseline(registries.Slots); err != nil {
 		return fmt.Errorf("register engine baseline slots: %w", err)
 	}
-	if err := pack.Load(ctx, cfg.ContentDir, nil, registries); err != nil {
+
+	// entityStore + placement are constructed at boot so the tag-swap
+	// tick handler can be wired immediately and the session layer can
+	// pass both into command dispatch for get/drop.
+	//
+	// They are also passed to pack.Load via the bootSpawner adapter so
+	// room YAML `items:` lists spawn-and-place at load time (spec
+	// world-rooms-movement §2.2).
+	entityStore := entities.NewStore()
+	placement := entities.NewPlacement()
+	contents := entities.NewContents()
+	bus := eventbus.New()
+
+	spawner := &bootSpawner{store: entityStore, placement: placement, templates: registries.Items}
+	if err := pack.Load(ctx, cfg.ContentDir, nil, registries, spawner); err != nil {
 		return fmt.Errorf("loading content from %s: %w", cfg.ContentDir, err)
 	}
 	w := registries.World
@@ -96,38 +111,12 @@ func run() error {
 
 	mgr := session.NewManager()
 
-	// entityStore + placement are constructed at boot so the tag-swap
-	// tick handler can be wired immediately and the session layer can
-	// pass both into command dispatch for get/drop.
-	//
 	// Store.SetRoomScan is intentionally NOT wired today: every spawned
 	// item goes through Store.Spawn which auto-tracks, so the by-id
 	// index is always the source of truth. The §4.2 step-2 fallback
 	// becomes relevant only once items can enter the world without
 	// passing through Spawn (e.g. external loader); add the bridge
 	// when that path lands rather than fabricating one now.
-	entityStore := entities.NewStore()
-	placement := entities.NewPlacement()
-	contents := entities.NewContents()
-	bus := eventbus.New()
-
-	// TEMP(M5.9c): seed the town-square well as a fill source. The room
-	// description already names "the well at the square's centre," so
-	// the entity matches the prose. This is the deferred-#2 hack from
-	// memory/m5-9c-deferred-fixes.md — remove this block when real
-	// room-YAML placement (M5.10 candidate) lands and adds an `items:`
-	// list to the room schema. Failure here is non-fatal: a missing
-	// well template means content is broken in a way the loader would
-	// already have flagged.
-	if tpl, err := registries.Items.Get("tapestry-core:well"); err == nil {
-		if inst, err := entityStore.Spawn(tpl); err == nil {
-			placement.Place(inst.ID(), cfg.StartRoom)
-			logging.From(ctx).Info("TEMP seed: placed well in start room",
-				slog.String("entity_id", string(inst.ID())),
-				slog.String("room_id", string(cfg.StartRoom)),
-			)
-		}
-	}
 
 	clk := clock.RealClock{}
 	loop := tick.New(clk, cfg.TickInterval)
@@ -307,6 +296,38 @@ func envOr(key, def string) string {
 		return v
 	}
 	return def
+}
+
+// bootSpawner adapts the runtime entity store + placement index to
+// the pack.Spawner interface, letting room YAMLs declare items that
+// should exist at boot. Implemented here rather than in internal/
+// because it crosses package boundaries that don't otherwise meet
+// (entities + item + pack); keeping the adapter at the composition
+// root avoids inventing a shared adapter package for one user.
+//
+// Spec: world-rooms-movement §2.2 (room item placement).
+type bootSpawner struct {
+	store     *entities.Store
+	placement *entities.Placement
+	templates *item.Templates
+}
+
+// SpawnAndPlace looks up the template, mints an instance via the
+// store, and records its placement in roomID. Returns an error rather
+// than panicking on a missing template, even though the loader's
+// pre-validation should make that impossible — defense against a
+// future caller bypassing the validation.
+func (b *bootSpawner) SpawnAndPlace(_ context.Context, templateID string, roomID world.RoomID) error {
+	tpl, err := b.templates.Get(item.TemplateID(templateID))
+	if err != nil {
+		return fmt.Errorf("template lookup: %w", err)
+	}
+	inst, err := b.store.Spawn(tpl)
+	if err != nil {
+		return fmt.Errorf("spawn: %w", err)
+	}
+	b.placement.Place(inst.ID(), roomID)
+	return nil
 }
 
 func newLogger(cfg config) *slog.Logger {

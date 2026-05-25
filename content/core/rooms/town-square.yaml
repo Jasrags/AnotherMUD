@@ -10,3 +10,5 @@ exits:
   north: forge
   east: market
   south: village-gate
+items:
+  - well

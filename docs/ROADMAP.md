@@ -324,7 +324,14 @@ here sets the shape M6 mob instances will follow.
 
 **Touches specs:** `inventory-equipment-items` substantially, `commands-and-dispatch` (new builtins + keyword resolver as shared infrastructure), `persistence` (save shape v2 + migration), `world-rooms-movement` (rooms hold item ids).
 
-**Known gaps after M5:** no shops, no currency auto-conversion (that's M11 — the `try-auto-convert` hook in §4.1 is a no-op stub for now), no rarity/essence colorization beyond plain text, no container weight limits enforced at runtime, no fillable-item sources placed in content.
+**Known gaps after M5:** no shops, no currency auto-conversion (that's M11 — the `try-auto-convert` hook in §4.1 is a no-op stub for now), no rarity/essence colorization beyond plain text, no container weight limits enforced at runtime.
+
+**M5.10 — Room item placement (post-M5.9c).** Adds an `items:` list
+to room YAML and a `Spawner` interface to `pack.Load`; the loader
+spawns and places one instance per id at boot, validating template
+existence cross-pack. Closes the "no fillable sources placed in
+content" gap (town-square now seeds its well via content, not via
+a temp hook in `main.go`). Spec: world-rooms-movement §2.2.
 
 **Decision — entity storage:** item instances live in a new `internal/entities` package, not on `world.World`. The package owns the tracking surface required by `world-rooms-movement` §4 (Track/Untrack, Get-by-id, Get-by-tag, Get-by-type, with the read/write double-buffer and a tick-handler swap at cadence 1). `world.World` keeps its boot-only-mutation invariant and stays a pure registry. `session.Manager` keeps its session indices. The three locks own disjoint state and do not nest.
 
