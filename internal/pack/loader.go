@@ -12,6 +12,7 @@ import (
 
 	"github.com/Jasrags/AnotherMUD/internal/item"
 	"github.com/Jasrags/AnotherMUD/internal/logging"
+	"github.com/Jasrags/AnotherMUD/internal/mob"
 	"github.com/Jasrags/AnotherMUD/internal/slot"
 	"github.com/Jasrags/AnotherMUD/internal/world"
 	"gopkg.in/yaml.v3"
@@ -61,7 +62,7 @@ type pendingPlacement struct {
 // Filter, when non-empty, restricts discovery (spec §2.4). Pass nil to
 // load every active pack under root.
 func Load(ctx context.Context, root string, filter []string, dst *Registries, spawner Spawner) error {
-	if dst == nil || dst.World == nil || dst.Items == nil || dst.Slots == nil {
+	if dst == nil || dst.World == nil || dst.Items == nil || dst.Slots == nil || dst.Mobs == nil {
 		return errors.New("pack.Load: dst has nil registry field; use pack.NewRegistries()")
 	}
 	logger := logging.From(ctx).With(slog.String("event", "pack.load"), slog.String("root", root))
@@ -138,6 +139,10 @@ func loadPackContent(ctx context.Context, p Discovered, dst *Registries) ([]pend
 	if err != nil {
 		return nil, err
 	}
+	mobPaths, err := resolveGlobs(p.Dir, p.Manifest.Content.Mobs)
+	if err != nil {
+		return nil, err
+	}
 
 	// Areas first — rooms reference them (spec §3.3 step 2). TryAddArea
 	// catches both intra-pack and cross-pack id collisions.
@@ -193,12 +198,28 @@ func loadPackContent(ctx context.Context, p Discovered, dst *Registries) ([]pend
 		}
 	}
 
+	// Mob templates are namespace-scoped like items; TryAdd guards
+	// cross-pack collisions. Spec mobs-ai-spawning §2.1. Equipment
+	// id validity is NOT checked here — spec §3.1 specifies
+	// fail-silent-at-spawn for missing-template lookups, and items
+	// from later-loaded packs would otherwise force a post-pass.
+	for _, mp := range mobPaths {
+		m, err := decodeMob(mp, ns)
+		if err != nil {
+			return nil, err
+		}
+		if err := dst.Mobs.TryAdd(m); err != nil {
+			return nil, fmt.Errorf("%w (in %s)", err, mp)
+		}
+	}
+
 	logger.Info("pack content loaded",
 		slog.String("event", "pack.content"),
 		slog.Int("areas", len(areaPaths)),
 		slog.Int("rooms", len(roomPaths)),
 		slog.Int("items", len(itemPaths)),
 		slog.Int("slots", len(slotPaths)),
+		slog.Int("mobs", len(mobPaths)),
 		slog.Int("placements", len(placements)),
 	)
 	return placements, nil
@@ -372,6 +393,52 @@ func decodeItem(path, ns string) (*item.Template, error) {
 		Keywords:   f.Keywords,
 		Properties: f.Properties,
 		Modifiers:  mods,
+	}, nil
+}
+
+// defaultMobType is the spec-defined default for MobFile.Type when
+// the YAML omits it (mobs-ai-spawning §2.2: "default `npc`").
+const defaultMobType = "npc"
+
+func decodeMob(path, ns string) (*mob.Template, error) {
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		return nil, fmt.Errorf("reading mob %s: %w", path, err)
+	}
+	var f MobFile
+	if err := yaml.Unmarshal(raw, &f); err != nil {
+		return nil, fmt.Errorf("%w: %s: %v", ErrInvalidContent, path, err)
+	}
+	if strings.TrimSpace(f.ID) == "" {
+		return nil, fmt.Errorf("%w: %s: missing 'id'", ErrInvalidContent, path)
+	}
+	if strings.TrimSpace(f.Name) == "" {
+		return nil, fmt.Errorf("%w: %s: missing 'name'", ErrInvalidContent, path)
+	}
+	if strings.TrimSpace(f.Behavior) == "" {
+		return nil, fmt.Errorf("%w: %s: missing 'behavior'", ErrInvalidContent, path)
+	}
+	id, err := qualifyID(f.ID, ns)
+	if err != nil {
+		return nil, fmt.Errorf("%w: %s: %v", ErrInvalidContent, path, err)
+	}
+
+	typ := strings.TrimSpace(f.Type)
+	if typ == "" {
+		typ = defaultMobType
+	}
+
+	return &mob.Template{
+		ID:          mob.TemplateID(id),
+		Name:        f.Name,
+		Type:        typ,
+		Disposition: f.Disposition,
+		Behavior:    f.Behavior,
+		Tags:        f.Tags,
+		Keywords:    f.Keywords,
+		Properties:  f.Properties,
+		Stats:       f.Stats,
+		Equipment:   f.Equipment,
 	}, nil
 }
 

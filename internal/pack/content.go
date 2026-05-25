@@ -44,6 +44,32 @@ type SlotFile struct {
 	Max   int    `yaml:"max"`
 }
 
+// MobFile is the YAML shape for a mob template (spec
+// mobs-ai-spawning §2.2). One file declares one template.
+//
+// Required: id, name, behavior. Type defaults to "npc" if omitted
+// (matches spec §2.2). Disposition defaults to 0 (neutral) if
+// omitted. Optional fields: tags, keywords, properties, stats,
+// equipment (item template ids equipped at spawn — validated at
+// spawn, not at load, per spec §3.1).
+//
+// Equipment ids may be bare (resolved against the current pack
+// namespace) or fully qualified ("other-pack:foo") at SPAWN time;
+// the loader stores them verbatim and the spawn pipeline (M6.2+)
+// performs qualification.
+type MobFile struct {
+	ID          string         `yaml:"id"`
+	Name        string         `yaml:"name"`
+	Type        string         `yaml:"type,omitempty"`
+	Disposition int            `yaml:"disposition,omitempty"`
+	Behavior    string         `yaml:"behavior"`
+	Tags        []string       `yaml:"tags,omitempty"`
+	Keywords    []string       `yaml:"keywords,omitempty"`
+	Properties  map[string]any `yaml:"properties,omitempty"`
+	Stats       map[string]int `yaml:"stats,omitempty"`
+	Equipment   []string       `yaml:"equipment,omitempty"`
+}
+
 // RoomFile is the YAML shape for a single-room file.
 //
 // Exits is a map keyed by direction long-name ("north", "up") to keep

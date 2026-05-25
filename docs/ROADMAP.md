@@ -357,6 +357,15 @@ is now real. Sketch of remaining vertical slices:
 
 - **M6 — Mobs walking around:** `mobs-ai-spawning`, mob templates,
   area-driven spawning, the AI tick.
+  - **M6.1 (landed):** mob template loader. New `internal/mob`
+    package with `Template` + `Templates` registry; `MobFile` YAML
+    schema with required (id/name/behavior) + scoped optionals
+    (type defaults to "npc", disposition, tags, keywords,
+    properties, stats, equipment ids). Pack loader decodes mob
+    files via `content.mobs` glob and registers them. Equipment
+    template ids are NOT validated at load (spec §3.1 specifies
+    fail-silent-at-spawn). No content shipped yet — first real
+    mob template lands with M6.2 instantiation.
 - **M7 — Hit something:** `combat`, engage/disengage, the heartbeat
   bucket, death.
 - **M8 — Get better:** `progression`, stats, levels, races, classes,

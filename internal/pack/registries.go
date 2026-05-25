@@ -2,6 +2,7 @@ package pack
 
 import (
 	"github.com/Jasrags/AnotherMUD/internal/item"
+	"github.com/Jasrags/AnotherMUD/internal/mob"
 	"github.com/Jasrags/AnotherMUD/internal/slot"
 	"github.com/Jasrags/AnotherMUD/internal/world"
 )
@@ -16,6 +17,7 @@ type Registries struct {
 	World *world.World
 	Items *item.Templates
 	Slots *slot.Registry
+	Mobs  *mob.Templates
 }
 
 // NewRegistries returns a Registries with every field initialized.
@@ -28,5 +30,6 @@ func NewRegistries() *Registries {
 		World: world.New(),
 		Items: item.NewTemplates(),
 		Slots: slot.NewRegistry(),
+		Mobs:  mob.NewTemplates(),
 	}
 }
