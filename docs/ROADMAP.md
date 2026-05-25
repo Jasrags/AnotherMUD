@@ -476,13 +476,35 @@ is now real. Sketch of remaining vertical slices:
     Player vitals are NOT persisted yet — every login starts at
     full HP. Persistence (player.Save schema bump) ships with the
     M7.5 death flow when there's something meaningful to save.
-  - **M7.2 (planned):** CombatManager primitives. Engage/disengage
-    (pair + all), primary-target promotion, "in combat" / list
-    queries, engagement refusals (safe-room tag, no-kill tag,
-    flee-cooldown, already-engaged). `kill <target>` command
-    resolves a Combatant in the room and calls engage. No round
-    resolution yet — bookkeeping + `engagement` / `combat ended`
-    events only.
+  - **M7.2 (landed):** CombatManager primitives. New
+    `combat.Manager` owns `map[CombatantID][]CombatantID` combat
+    lists under a single RWMutex; engage/disengage/disengage-all/
+    primary-target promotion + queries (InCombat, PrimaryTargetOf,
+    OpponentsOf snapshot copy, AllCombatants). Engage is symmetric
+    + idempotent (already-engaged is the spec §2.1 no-op; tag
+    refusals — safe-room, no-kill, flee-cooldown — deferred to
+    M7.6). DisengageAll snapshots opponents before mutating per
+    spec §2.3 and unconditionally emits CombatEnded for the
+    target. Events dispatch through a small `combat.EventSink`
+    interface, not directly through eventbus.Bus, because
+    eventbus imports entities and entities imports combat
+    (MobInstance carries Vitals fields from M7.1) — a combat →
+    eventbus edge would close that cycle. cmd/anothermud wires
+    a log-only sink today; M7.5/M7.6 swap in a real bus-backed
+    adapter when there's a subscriber. New `combat.Locator`
+    interface + `MapLocator` test helper resolves CombatantIDs
+    back to live Combatants by prefix (`mob:` → entities.Store,
+    `player:` → session.Manager via new
+    `Manager.CombatantByPlayerID`); a logged-out player drops
+    out of combat naturally via the §4.1 "missing target →
+    disengage" branch — no cross-package teardown contract.
+    `findMobByKeyword` from consider.go was promoted to a shared
+    `findCombatantInRoom` (mob via Placement + keyword resolver,
+    player via Locator) — closes M7.1 deferred #3. New
+    `kill <target>` command resolves a Combatant in the room,
+    refuses self / missing target / already-engaged / no-Combat-
+    env, and calls Engage; emits attacker-first-person and
+    room-broadcast lines.
   - **M7.3 (planned):** Heartbeat bucket + round skeleton. New
     tick handler on `combat.cadence` (configured ticks-per-round).
     Snapshot combatants, run empty phase hooks in spec order

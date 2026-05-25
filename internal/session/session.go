@@ -74,6 +74,12 @@ type Config struct {
 	// paths. May be nil in tests that don't exercise disposition.
 	Disposition command.DispositionHook
 
+	// Combat is the engage/disengage manager (spec combat §2),
+	// passed through to command.Env so the kill verb (and future
+	// flee / wimpy) can reach it. May be nil in tests that don't
+	// exercise combat verbs.
+	Combat *combat.Manager
+
 	// StartID is the fallback starting room when a character's saved
 	// location is not present in the loaded world (e.g. a room was
 	// removed from content between restarts).
@@ -339,6 +345,7 @@ func pump(ctx context.Context, c conn.Connection, cfg Config, a *connActor, clk 
 			Bus:         cfg.Bus,
 			Locator:     managerLocator{cfg.Manager},
 			Disposition: cfg.Disposition,
+			Combat:      cfg.Combat,
 		}
 		if err := cfg.Commands.Dispatch(ctx, env, a, line); err != nil {
 			if errors.Is(err, command.ErrQuit) {

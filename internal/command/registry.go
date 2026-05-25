@@ -21,6 +21,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/Jasrags/AnotherMUD/internal/combat"
 	"github.com/Jasrags/AnotherMUD/internal/entities"
 	"github.com/Jasrags/AnotherMUD/internal/eventbus"
 	"github.com/Jasrags/AnotherMUD/internal/slot"
@@ -155,6 +156,10 @@ type Env struct {
 	// exposes (spec mobs-ai-spawning §4). May be nil in tests and
 	// in headless boot paths. Handlers MUST nil-guard.
 	Disposition DispositionHook
+	// Combat is the engage/disengage manager (spec combat §2). The
+	// kill verb routes here; future combat verbs (flee, wimpy)
+	// follow. May be nil in tests that don't exercise combat verbs.
+	Combat *combat.Manager
 }
 
 // DispositionHook is the seam movement and login flows call when a
@@ -184,6 +189,7 @@ type Context struct {
 	Bus         *eventbus.Bus       // may be nil in tests
 	Locator     Locator             // may be nil in tests
 	Disposition DispositionHook     // may be nil in tests
+	Combat      *combat.Manager     // may be nil in tests
 	Raw         string              // raw input line, trimmed
 	Verb        string              // resolved verb (lowercase)
 	Args        []string            // tokens after the verb (space-split)
@@ -305,6 +311,7 @@ func (r *Registry) Dispatch(ctx context.Context, env Env, actor Actor, raw strin
 		Bus:         env.Bus,
 		Locator:     env.Locator,
 		Disposition: env.Disposition,
+		Combat:      env.Combat,
 		Raw:         trimmed,
 		Verb:        strings.ToLower(verb),
 		Args:        args,

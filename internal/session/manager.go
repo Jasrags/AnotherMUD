@@ -7,6 +7,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/Jasrags/AnotherMUD/internal/combat"
 	"github.com/Jasrags/AnotherMUD/internal/logging"
 	"github.com/Jasrags/AnotherMUD/internal/world"
 )
@@ -166,6 +167,25 @@ func (m *Manager) GetByPlayerID(id string) (*connActor, bool) {
 	defer m.mu.RUnlock()
 	s, ok := m.byPlayerID[id]
 	return s, ok
+}
+
+// CombatantByPlayerID returns the live combat.Combatant for an online
+// player id, used by the combat.Locator adapter wired in main. Returns
+// (nil, false) when the player is not online — the round loop's
+// §4.1 "missing target → disengage" branch then fires naturally.
+//
+// connActor satisfies combat.Combatant since M7.1; the public
+// connActor type stays internal to this package, so the adapter
+// boundary widens through this typed accessor rather than via an
+// external type assertion.
+func (m *Manager) CombatantByPlayerID(id string) (combat.Combatant, bool) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	s, ok := m.byPlayerID[id]
+	if !ok {
+		return nil, false
+	}
+	return s, true
 }
 
 // GetByAccountID returns a snapshot of sessions bound to the account.

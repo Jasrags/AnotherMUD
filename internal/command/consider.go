@@ -6,9 +6,6 @@ import (
 	"strings"
 
 	"github.com/Jasrags/AnotherMUD/internal/combat"
-	"github.com/Jasrags/AnotherMUD/internal/entities"
-	"github.com/Jasrags/AnotherMUD/internal/keyword"
-	"github.com/Jasrags/AnotherMUD/internal/world"
 )
 
 // ConsiderHandler implements `consider <target>` (aliased `con`) —
@@ -56,16 +53,8 @@ func ConsiderHandler(ctx context.Context, c *Context) error {
 		return c.Actor.Write(ctx, "You see nothing here.")
 	}
 
-	if mob := findMobByKeyword(c, room.ID, target); mob != nil {
-		return c.Actor.Write(ctx, renderConsider(mob.Name(), mob))
-	}
-
-	if c.Locator != nil {
-		if other := c.Locator.FindInRoom(room.ID, target); other != nil {
-			if cb, ok := other.(combat.Combatant); ok {
-				return c.Actor.Write(ctx, renderConsider(other.Name(), cb))
-			}
-		}
+	if cb, name, ok := findCombatantInRoom(c, room.ID, target); ok {
+		return c.Actor.Write(ctx, renderConsider(name, cb))
 	}
 
 	return c.Actor.Write(ctx, "You don't see them here.")
@@ -85,45 +74,6 @@ func isSelfReference(actorName, target string) bool {
 		return true
 	}
 	return strings.EqualFold(actorName, t)
-}
-
-// findMobByKeyword scans Placement-tracked entities in roomID, filters
-// to *MobInstance (item entities and any other future Entity type
-// drop out), and runs the shared keyword resolver. Returns nil if any
-// of Placement / Items is unwired (tests) or no mob matches.
-//
-// The resolver runs against a Named slice built from MobInstance
-// directly; mobs already expose Name() + Keywords() so no adapter is
-// needed.
-func findMobByKeyword(c *Context, roomID world.RoomID, target string) *entities.MobInstance {
-	if c.Placement == nil || c.Items == nil {
-		return nil
-	}
-	ids := c.Placement.InRoom(roomID)
-	if len(ids) == 0 {
-		return nil
-	}
-	candidates := make([]keyword.Named, 0, len(ids))
-	for _, id := range ids {
-		e, ok := c.Items.GetByID(id)
-		if !ok {
-			continue
-		}
-		mob, ok := e.(*entities.MobInstance)
-		if !ok {
-			continue
-		}
-		candidates = append(candidates, mob)
-	}
-	if len(candidates) == 0 {
-		return nil
-	}
-	hit := keyword.Resolve(candidates, target)
-	if hit == nil {
-		return nil
-	}
-	mob, _ := hit.(*entities.MobInstance)
-	return mob
 }
 
 // renderConsider formats the two-line HP/AC report for displayName.

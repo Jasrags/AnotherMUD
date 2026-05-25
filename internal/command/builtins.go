@@ -47,6 +47,11 @@ func RegisterBuiltins(r *Registry) error {
 		// consider here. Spelled out for clarity.
 		{"consider", ConsiderHandler},
 		{"con", ConsiderHandler},
+		// Combat engage (M7.2). `k` is too aggressive a prefix to
+		// commit (would collide with future verbs like `kick` /
+		// `keep`); deliberately not aliased. Spec verbs landing in
+		// later slices: flee (M7.6), wimpy (M7.6).
+		{"kill", KillHandler},
 	}
 	for _, d := range []world.Direction{
 		world.DirNorth, world.DirSouth, world.DirEast, world.DirWest,

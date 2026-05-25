@@ -22,6 +22,7 @@ import (
 	"github.com/Jasrags/AnotherMUD/internal/account"
 	"github.com/Jasrags/AnotherMUD/internal/ai"
 	"github.com/Jasrags/AnotherMUD/internal/clock"
+	"github.com/Jasrags/AnotherMUD/internal/combat"
 	"github.com/Jasrags/AnotherMUD/internal/command"
 	"github.com/Jasrags/AnotherMUD/internal/entities"
 	"github.com/Jasrags/AnotherMUD/internal/eventbus"
@@ -229,6 +230,16 @@ func run() error {
 		}
 	}
 
+	// Combat manager (spec combat §2, M7.2). Locator dispatches on the
+	// CombatantID prefix: mob: → entities.Store, player: →
+	// session.Manager. Sink is log-only today; M7.5 (mob.killed →
+	// spawn untrack) and M7.6 (combat.ended → flee cooldown clear)
+	// will replace it with a real eventbus-backed adapter when those
+	// subscribers exist.
+	combatLocator := combatLocator{entities: entityStore, sessions: mgr}
+	combatSink := loggingCombatSink{logger: logging.From(ctx)}
+	combatMgr := combat.NewManager(combatLocator, combatSink)
+
 	var wg sync.WaitGroup
 	wg.Add(1)
 	go func() {
@@ -262,6 +273,7 @@ func run() error {
 		Slots:        registries.Slots,
 		Bus:          bus,
 		Disposition:  dispositionHook{e: evaluator},
+		Combat:       combatMgr,
 		StartID:      cfg.StartRoom,
 		ColorEnabled: cfg.ColorDefault,
 		Clock:        clk,
@@ -527,6 +539,59 @@ func (d dispositionHook) OnPlayerEnteredImmediate(ctx context.Context, playerID,
 
 func (d dispositionHook) OnPlayerEnteredDeferred(ctx context.Context, playerID, playerName string, tags []string, room world.RoomID) {
 	d.e.OnPlayerEnteredDeferred(ctx, ai.PlayerView{ID: playerID, Name: playerName, Tags: tags}, room)
+}
+
+// combatLocator implements combat.Locator. Dispatches on the prefix
+// embedded in every CombatantID: "mob:" → entities.Store, "player:"
+// → session.Manager. A CombatantID with neither prefix (or an
+// unknown one) misses — same as a missing combatant, which the round
+// loop's §4.1 pre-flight handles by disengaging.
+type combatLocator struct {
+	entities *entities.Store
+	sessions *session.Manager
+}
+
+func (l combatLocator) LookupCombatant(id combat.CombatantID) (combat.Combatant, bool) {
+	s := string(id)
+	switch {
+	case strings.HasPrefix(s, combat.MobPrefix):
+		entityID := entities.EntityID(s[len(combat.MobPrefix):])
+		e, ok := l.entities.GetByID(entityID)
+		if !ok {
+			return nil, false
+		}
+		mob, ok := e.(*entities.MobInstance)
+		if !ok {
+			return nil, false
+		}
+		return mob, true
+	case strings.HasPrefix(s, combat.PlayerPrefix):
+		playerID := s[len(combat.PlayerPrefix):]
+		return l.sessions.CombatantByPlayerID(playerID)
+	}
+	return nil, false
+}
+
+// loggingCombatSink is the M7.2 production sink — logs every combat
+// event at Info so the engage/disengage path is observable in a
+// default-configured server. M7.5 (mob.killed → spawn untrack) and
+// M7.6 (combat.ended → flee cooldown clear) replace this with a real
+// eventbus-backed adapter when those subscribers exist; at that point
+// Info-level logging can drop to Debug since the event path itself
+// becomes the observability surface.
+type loggingCombatSink struct{ logger *slog.Logger }
+
+func (s loggingCombatSink) OnEngagement(_ context.Context, e combat.Engagement) {
+	s.logger.Info("combat.engagement",
+		slog.String("attacker", string(e.AttackerID)),
+		slog.String("target", string(e.TargetID)),
+		slog.String("room", string(e.RoomID)))
+}
+
+func (s loggingCombatSink) OnCombatEnded(_ context.Context, e combat.CombatEnded) {
+	s.logger.Info("combat.ended",
+		slog.String("combatant", string(e.CombatantID)),
+		slog.String("room", string(e.RoomID)))
 }
 
 func newLogger(cfg config) *slog.Logger {
