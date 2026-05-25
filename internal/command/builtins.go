@@ -7,6 +7,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/Jasrags/AnotherMUD/internal/entities"
 	"github.com/Jasrags/AnotherMUD/internal/world"
 )
 
@@ -71,7 +72,7 @@ func LookHandler(ctx context.Context, c *Context) error {
 	if room == nil {
 		return c.Actor.Write(ctx, "You float in formless void.")
 	}
-	return c.Actor.Write(ctx, RenderRoom(room))
+	return c.Actor.Write(ctx, RenderRoom(room, c.Placement, c.Items))
 }
 
 // ColorHandler implements the `color` verb (spec ui-rendering-help —
@@ -145,21 +146,67 @@ func movementHandler(dir world.Direction) Handler {
 			c.Broadcaster.SendToRoom(ctx, dst.ID,
 				fmt.Sprintf("%s arrives from the %s.", name, from), pid)
 		}
-		return c.Actor.Write(ctx, RenderRoom(dst))
+		return c.Actor.Write(ctx, RenderRoom(dst, c.Placement, c.Items))
 	}
 }
 
-// RenderRoom is the M1 room renderer. Replaced by the ui-rendering-help
-// pipeline in a later milestone; lives here for now so the session
-// layer has something to call.
-func RenderRoom(r *world.Room) string {
+// RenderRoom is the M1 room renderer, extended in M6.3 to include
+// Placement-tracked entities (items + mobs). Replaced by the
+// ui-rendering-help pipeline in a later milestone; lives here for now
+// so the session layer has something to call.
+//
+// placement and items may be nil — older callers and tests that only
+// care about geography pass nil for both. When supplied, the renderer
+// appends a "You see here:" line listing each placed entity by name
+// in insertion order. Entities nested inside containers are not
+// shown: those live in Contents, not Placement (the put pipeline
+// removes from Placement when nesting).
+func RenderRoom(r *world.Room, placement *entities.Placement, items *entities.Store) string {
 	var b strings.Builder
 	b.WriteString(r.Name)
 	b.WriteString("\n")
 	b.WriteString(r.Description)
 	b.WriteString("\n")
+	if line := renderRoomEntities(r, placement, items); line != "" {
+		b.WriteString(line)
+		b.WriteString("\n")
+	}
 	b.WriteString(renderExits(r))
 	return b.String()
+}
+
+// renderRoomEntities builds the "You see here: …" line. Returns the
+// empty string when there's nothing to show — Placement is nil, the
+// Store is nil, the room has no placed entities, or every placed id
+// fails resolution. Each branch is a silent skip rather than a panic
+// because the renderer is on the player-visible path; missing data
+// should look like nothing-here, not a runtime error.
+func renderRoomEntities(r *world.Room, placement *entities.Placement, items *entities.Store) string {
+	if placement == nil || items == nil {
+		return ""
+	}
+	ids := placement.InRoom(r.ID)
+	if len(ids) == 0 {
+		return ""
+	}
+	names := make([]string, 0, len(ids))
+	for _, id := range ids {
+		e, ok := items.GetByID(id)
+		if !ok {
+			continue
+		}
+		n, ok := e.(interface{ Name() string })
+		if !ok {
+			continue
+		}
+		if name := n.Name(); name != "" {
+			names = append(names, name)
+		}
+	}
+	if len(names) == 0 {
+		return ""
+	}
+	return "You see here: " + strings.Join(names, ", ") + "."
 }
 
 func renderExits(r *world.Room) string {

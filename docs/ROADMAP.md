@@ -365,6 +365,15 @@ is now real. Sketch of remaining vertical slices:
     files via `content.mobs` glob and registers them. Equipment
     template ids are NOT validated at load (spec §3.1 specifies
     fail-silent-at-spawn).
+  - **M6.3 (landed):** room renderer surfaces placed entities. The
+    `RenderRoom` signature widens to take optional `*Placement` +
+    `*Store`; when both are supplied, a "You see here: a, b, c."
+    line is inserted between description and exits, listing Placement-
+    tracked entities (items + mobs) in insertion order. Nil-safe so
+    existing tests and call sites that don't care about placement
+    pass nil. Updates the three live-game call sites (look, movement
+    arrival, link-dead reconnect). First user-visible payoff of M6:
+    the village guard actually shows up in town-square.
   - **M6.2 (landed):** mob instantiation + boot-time spawn placement.
     `entities.MobInstance` (Entity impl) and `Store.SpawnMob` perform
     §2.3 instantiation steps 1-5 (build entity, drop implicit

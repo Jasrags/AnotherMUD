@@ -215,7 +215,7 @@ func run(ctx context.Context, c conn.Connection, cfg Config) error {
 	cfg.Manager.SendToRoom(ctx, start.ID,
 		fmt.Sprintf("%s has arrived.", a.Name()), a.PlayerID())
 
-	if err := a.Write(ctx, command.RenderRoom(start)); err != nil {
+	if err := a.Write(ctx, command.RenderRoom(start, cfg.Placement, cfg.Items)); err != nil {
 		// Initial render failed: the connection is unusable. Full
 		// teardown immediately — no point parking link-dead.
 		fullTeardown(ctx, cfg, a)
@@ -670,7 +670,7 @@ func reconnect(ctx context.Context, c conn.Connection, cfg Config, a *connActor,
 	if err := a.Write(ctx, renderReconnect()); err != nil {
 		logging.From(ctx).Warn("reconnect: banner write failed", slog.Any("err", err))
 	}
-	if rendered := renderRoomForReconnect(a); rendered != "" {
+	if rendered := renderRoomForReconnect(a, cfg); rendered != "" {
 		_ = a.Write(ctx, rendered)
 	}
 

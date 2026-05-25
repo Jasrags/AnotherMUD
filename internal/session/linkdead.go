@@ -200,10 +200,10 @@ func renderReconnect() string {
 // returning player sees where they are. Kept as a helper to mirror the
 // "enqueue a look" step in spec §7.4 without dragging the dispatcher
 // into the reconnect path.
-func renderRoomForReconnect(a *connActor) string {
+func renderRoomForReconnect(a *connActor, cfg Config) string {
 	r := a.Room()
 	if r == nil {
 		return ""
 	}
-	return command.RenderRoom(r)
+	return command.RenderRoom(r, cfg.Placement, cfg.Items)
 }
