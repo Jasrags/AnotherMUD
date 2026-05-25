@@ -21,6 +21,11 @@ const (
 	// Post-fact notification fired after a successful put commits.
 	// Spec §4.5 step 7. Payload mirrors the pre-event.
 	EventContainerItemAdded = "container.item_added"
+	// Post-fact notification fired after a successful fill commits
+	// (spec inventory-equipment-items §4.6 step 7). Fill has no
+	// cancellable pre-event: the spec lists no veto hook and the
+	// operation does not change ownership.
+	EventItemFilled = "item.filled"
 )
 
 // ItemPickedUp fires after GetHandler successfully moves an item
@@ -156,3 +161,24 @@ type ContainerItemAdded struct {
 
 // Name implements Event.
 func (ContainerItemAdded) Name() string { return EventContainerItemAdded }
+
+// ItemFilled fires after a successful fill commits (spec
+// inventory-equipment-items §4.6 step 7). Post-state: TargetID's
+// `charges` property is at `max_charges` and its `fill_type` is set
+// to FillType; if SourceID declared a `fill_supply`, that value has
+// been decremented by one.
+//
+// FillType is the liquid label (e.g. "water", "wine"). It comes from
+// the source's `fill_source` property when set; otherwise the spec
+// fallback "water" applies when the source carried the `fill_source`
+// tag alone.
+type ItemFilled struct {
+	ActorID  entities.EntityID
+	SourceID entities.EntityID
+	TargetID entities.EntityID
+	RoomID   world.RoomID
+	FillType string
+}
+
+// Name implements Event.
+func (ItemFilled) Name() string { return EventItemFilled }
