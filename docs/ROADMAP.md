@@ -505,11 +505,19 @@ is now real. Sketch of remaining vertical slices:
     refuses self / missing target / already-engaged / no-Combat-
     env, and calls Engage; emits attacker-first-person and
     room-broadcast lines.
-  - **M7.3 (planned):** Heartbeat bucket + round skeleton. New
-    tick handler on `combat.cadence` (configured ticks-per-round).
-    Snapshot combatants, run empty phase hooks in spec order
-    (ability → auto-attack → effects → wimpy), prove mid-round
-    add/remove safety. No damage yet.
+  - **M7.3 (landed):** Heartbeat bucket + round skeleton. New
+    `combat.Heartbeat` with four optional `PhaseFunc` slots
+    (Ability, AutoAttack, Effects, Wimpy) registered as the
+    `combat-tick` handler at `cfg.CombatCadence` (env
+    `ANOTHERMUD_COMBAT_CADENCE`, default 3s). Each round snapshots
+    `AllCombatants` once, then runs each non-nil phase over the
+    snapshot in fixed spec-§3 priority order. Per-step
+    `InCombat` re-check skips combatants that disengaged or died
+    mid-round; mid-round Engage is NOT picked up until the next
+    round. Phase panics are isolated per combatant so one bad
+    callback can't abort the round. All four phases are nil in the
+    production wiring today — M7.4 fills AutoAttack, M7.5/M7.6
+    fill Effects/Wimpy, M9 fills Ability.
   - **M7.4 (planned):** Auto-attack swings. Pre-flight disengage
     (dead/missing/distant), swing count = 1 + extra-attack
     (stubbed 0), d20 hit roll with nat-1/nat-20 overrides, dice

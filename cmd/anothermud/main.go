@@ -240,6 +240,20 @@ func run() error {
 	combatSink := loggingCombatSink{logger: logging.From(ctx)}
 	combatMgr := combat.NewManager(combatLocator, combatSink)
 
+	// Combat heartbeat (spec combat §3, M7.3). Round skeleton at the
+	// configured cadence. Phases (ability / auto-attack / effects /
+	// wimpy) wire in M7.4-M7.6 + M9; the bucket lands now so those
+	// milestones drop into a stable shape rather than ship the round
+	// loop and the first phase in the same commit.
+	// No phases wired yet — M7.4 (AutoAttack), M7.5/M7.6
+	// (Effects/Wimpy), M9 (Ability) each pass their callback through
+	// here at boot.
+	combatHeartbeat := combat.NewHeartbeat(combatMgr, combat.Phases{})
+	combatCadence := cadenceTicks(cfg.TickInterval, cfg.CombatCadence)
+	if err := loop.Register("combat-tick", combatCadence, combatHeartbeat.Tick); err != nil {
+		return fmt.Errorf("register combat tick: %w", err)
+	}
+
 	var wg sync.WaitGroup
 	wg.Add(1)
 	go func() {
@@ -254,6 +268,7 @@ func run() error {
 		slog.String("log_format", cfg.LogFormat),
 		slog.String("log_level", cfg.LogLevel),
 		slog.Duration("tick_interval", cfg.TickInterval),
+		slog.Duration("combat_cadence", cfg.CombatCadence),
 		slog.Duration("autosave_interval", cfg.AutosaveInterval),
 		slog.String("content_dir", cfg.ContentDir),
 		slog.String("save_dir", cfg.SaveDir),
@@ -331,6 +346,7 @@ type config struct {
 	LogLevel              string
 	LogFormat             string
 	TickInterval          time.Duration
+	CombatCadence         time.Duration
 	AutosaveInterval      time.Duration
 	IdleSweepInterval     time.Duration
 	LinkDeadSweepInterval time.Duration
@@ -354,6 +370,7 @@ func loadConfig() config {
 		LogLevel:              strings.ToLower(envOr("ANOTHERMUD_LOG_LEVEL", "info")),
 		LogFormat:             strings.ToLower(envOr("ANOTHERMUD_LOG_FORMAT", "text")),
 		TickInterval:          envDurationOr("ANOTHERMUD_TICK_INTERVAL", 100*time.Millisecond),
+		CombatCadence:         envDurationOr("ANOTHERMUD_COMBAT_CADENCE", 3*time.Second),
 		AutosaveInterval:      envDurationOr("ANOTHERMUD_AUTOSAVE_INTERVAL", 30*time.Second),
 		IdleSweepInterval:     envDurationOr("ANOTHERMUD_IDLE_SWEEP_INTERVAL", 30*time.Second),
 		LinkDeadSweepInterval: envDurationOr("ANOTHERMUD_LINKDEAD_SWEEP_INTERVAL", 30*time.Second),
