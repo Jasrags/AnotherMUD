@@ -16,6 +16,7 @@ import (
 	"os/signal"
 	"strings"
 	"sync"
+	"math/rand/v2"
 	"syscall"
 	"time"
 
@@ -236,7 +237,7 @@ func run() error {
 	// spawn untrack) and M7.6 (combat.ended → flee cooldown clear)
 	// will replace it with a real eventbus-backed adapter when those
 	// subscribers exist.
-	combatLocator := combatLocator{entities: entityStore, sessions: mgr}
+	combatLocator := combatLocator{entities: entityStore, sessions: mgr, placement: placement}
 	combatSink := loggingCombatSink{logger: logging.From(ctx)}
 	combatMgr := combat.NewManager(combatLocator, combatSink)
 
@@ -245,10 +246,28 @@ func run() error {
 	// wimpy) wire in M7.4-M7.6 + M9; the bucket lands now so those
 	// milestones drop into a stable shape rather than ship the round
 	// loop and the first phase in the same commit.
-	// No phases wired yet — M7.4 (AutoAttack), M7.5/M7.6
-	// (Effects/Wimpy), M9 (Ability) each pass their callback through
-	// here at boot.
-	combatHeartbeat := combat.NewHeartbeat(combatMgr, combat.Phases{})
+	// M7.4 wires AutoAttack; M7.5/M7.6 (Effects/Wimpy) and M9
+	// (Ability) follow. The RNG is process-lifetime, seeded once at
+	// boot. *math/rand/v2.Rand satisfies combat.Roller via its IntN
+	// method; the locator already implements both combat.Locator and
+	// combat.RoomLocator from the §4.1 RoomOf addition above.
+	//
+	// CONCURRENCY: *math/rand/v2.Rand is NOT safe for concurrent use
+	// (see Roller doc in internal/combat/damage.go). Heartbeat.runPhase
+	// serializes every phase callback on the tick goroutine, so the
+	// shared RNG is safe today. A future phase that rolls from a
+	// separate goroutine MUST either pass its own Roller or wrap this
+	// one in a mutex; do not silently share the Rand pointer.
+	combatRNG := rand.New(rand.NewPCG(uint64(clk.Now().UnixNano()), 0))
+	autoAttackPhase := combat.NewAutoAttack(combat.AutoAttackConfig{
+		Locator:     combatLocator,
+		RoomLocator: combatLocator,
+		Sink:        combatSink,
+		Roller:      combatRNG,
+	})
+	combatHeartbeat := combat.NewHeartbeat(combatMgr, combat.Phases{
+		AutoAttack: autoAttackPhase,
+	})
 	combatCadence := cadenceTicks(cfg.TickInterval, cfg.CombatCadence)
 	if err := loop.Register("combat-tick", combatCadence, combatHeartbeat.Tick); err != nil {
 		return fmt.Errorf("register combat tick: %w", err)
@@ -564,8 +583,9 @@ func (d dispositionHook) OnPlayerEnteredDeferred(ctx context.Context, playerID, 
 // unknown one) misses — same as a missing combatant, which the round
 // loop's §4.1 pre-flight handles by disengaging.
 type combatLocator struct {
-	entities *entities.Store
-	sessions *session.Manager
+	entities  *entities.Store
+	sessions  *session.Manager
+	placement *entities.Placement
 }
 
 func (l combatLocator) LookupCombatant(id combat.CombatantID) (combat.Combatant, bool) {
@@ -589,6 +609,26 @@ func (l combatLocator) LookupCombatant(id combat.CombatantID) (combat.Combatant,
 	return nil, false
 }
 
+// RoomOf implements combat.RoomLocator. Mob rooms come from the
+// Placement index (the authority for "where is this entity right
+// now"); player rooms come from session.Manager.RoomOfPlayer
+// (authoritative for online players, returns false for offline or
+// mid-login). Both branches return ("", false) for unknown ids,
+// which the auto-attack pre-flight (§4.1) treats as "different
+// room" — pairwise-disengage and skip.
+func (l combatLocator) RoomOf(id combat.CombatantID) (world.RoomID, bool) {
+	s := string(id)
+	switch {
+	case strings.HasPrefix(s, combat.MobPrefix):
+		entityID := entities.EntityID(s[len(combat.MobPrefix):])
+		return l.placement.RoomOf(entityID)
+	case strings.HasPrefix(s, combat.PlayerPrefix):
+		playerID := s[len(combat.PlayerPrefix):]
+		return l.sessions.RoomOfPlayer(playerID)
+	}
+	return "", false
+}
+
 // loggingCombatSink is the M7.2 production sink — logs every combat
 // event at Info so the engage/disengage path is observable in a
 // default-configured server. M7.5 (mob.killed → spawn untrack) and
@@ -608,6 +648,42 @@ func (s loggingCombatSink) OnEngagement(_ context.Context, e combat.Engagement) 
 func (s loggingCombatSink) OnCombatEnded(_ context.Context, e combat.CombatEnded) {
 	s.logger.Info("combat.ended",
 		slog.String("combatant", string(e.CombatantID)),
+		slog.String("room", string(e.RoomID)))
+}
+
+func (s loggingCombatSink) OnHit(_ context.Context, e combat.Hit) {
+	s.logger.Info("combat.hit",
+		slog.String("attacker", string(e.AttackerID)),
+		slog.String("target", string(e.TargetID)),
+		slog.String("weapon", e.WeaponName),
+		slog.Int("damage", e.Damage),
+		slog.String("damage_type", e.DamageType),
+		slog.Bool("critical", e.IsCritical),
+		slog.String("room", string(e.RoomID)))
+}
+
+func (s loggingCombatSink) OnMiss(_ context.Context, e combat.Miss) {
+	s.logger.Info("combat.miss",
+		slog.String("attacker", string(e.AttackerID)),
+		slog.String("target", string(e.TargetID)),
+		slog.String("weapon", e.WeaponName),
+		slog.Bool("fumble", e.IsFumble),
+		slog.String("room", string(e.RoomID)))
+}
+
+func (s loggingCombatSink) OnEvade(_ context.Context, e combat.Evade) {
+	s.logger.Info("combat.evade",
+		slog.String("attacker", string(e.AttackerID)),
+		slog.String("target", string(e.TargetID)),
+		slog.String("ability", e.AbilityName),
+		slog.String("room", string(e.RoomID)))
+}
+
+func (s loggingCombatSink) OnVitalDepleted(_ context.Context, e combat.VitalDepleted) {
+	s.logger.Info("combat.vital_depleted",
+		slog.String("victim", string(e.VictimID)),
+		slog.String("attacker", string(e.AttackerID)),
+		slog.String("vital", e.Vital),
 		slog.String("room", string(e.RoomID)))
 }
 

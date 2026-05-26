@@ -233,3 +233,11 @@ func (r *recordingSink) OnCombatEnded(_ context.Context, e combat.CombatEnded) {
 	defer r.mu.Unlock()
 	r.ended = append(r.ended, e)
 }
+
+// M7.4 auto-attack events — the kill-command tests don't engage the
+// heartbeat loop, so these stay as no-op recorders. Defined to satisfy
+// the widened EventSink interface.
+func (r *recordingSink) OnHit(context.Context, combat.Hit)                     {}
+func (r *recordingSink) OnMiss(context.Context, combat.Miss)                   {}
+func (r *recordingSink) OnEvade(context.Context, combat.Evade)                 {}
+func (r *recordingSink) OnVitalDepleted(context.Context, combat.VitalDepleted) {}

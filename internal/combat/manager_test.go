@@ -15,6 +15,10 @@ type recordingSink struct {
 	mu      sync.Mutex
 	engaged []Engagement
 	ended   []CombatEnded
+	hits    []Hit
+	misses  []Miss
+	evades  []Evade
+	deaths  []VitalDepleted
 }
 
 func (r *recordingSink) OnEngagement(_ context.Context, e Engagement) {
@@ -27,6 +31,54 @@ func (r *recordingSink) OnCombatEnded(_ context.Context, e CombatEnded) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	r.ended = append(r.ended, e)
+}
+
+func (r *recordingSink) OnHit(_ context.Context, e Hit) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.hits = append(r.hits, e)
+}
+
+func (r *recordingSink) OnMiss(_ context.Context, e Miss) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.misses = append(r.misses, e)
+}
+
+func (r *recordingSink) OnEvade(_ context.Context, e Evade) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.evades = append(r.evades, e)
+}
+
+func (r *recordingSink) OnVitalDepleted(_ context.Context, e VitalDepleted) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.deaths = append(r.deaths, e)
+}
+
+func (r *recordingSink) snapshotHits() []Hit {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	out := make([]Hit, len(r.hits))
+	copy(out, r.hits)
+	return out
+}
+
+func (r *recordingSink) snapshotMisses() []Miss {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	out := make([]Miss, len(r.misses))
+	copy(out, r.misses)
+	return out
+}
+
+func (r *recordingSink) snapshotDeaths() []VitalDepleted {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	out := make([]VitalDepleted, len(r.deaths))
+	copy(out, r.deaths)
+	return out
 }
 
 func (r *recordingSink) engagedCount() int {

@@ -188,6 +188,28 @@ func (m *Manager) CombatantByPlayerID(id string) (combat.Combatant, bool) {
 	return s, true
 }
 
+// RoomOfPlayer returns the world room id of the online player with id,
+// or ("", false) if the player is offline / mid-login (no room yet).
+// Used by the combat.RoomLocator adapter in cmd/anothermud to power
+// the spec §4.1 "different room → disengage" pre-flight check.
+//
+// Takes Manager.mu in read mode and then enters the actor's lock via
+// Room(); the lock order is Manager.mu → actor.mu, matching every
+// other adapter on this type.
+func (m *Manager) RoomOfPlayer(id string) (world.RoomID, bool) {
+	m.mu.RLock()
+	s, ok := m.byPlayerID[id]
+	m.mu.RUnlock()
+	if !ok {
+		return "", false
+	}
+	room := s.Room()
+	if room == nil {
+		return "", false
+	}
+	return room.ID, true
+}
+
 // GetByAccountID returns a snapshot of sessions bound to the account.
 func (m *Manager) GetByAccountID(id string) []*connActor {
 	m.mu.RLock()

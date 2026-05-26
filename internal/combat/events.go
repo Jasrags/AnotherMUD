@@ -29,6 +29,13 @@ import (
 type EventSink interface {
 	OnEngagement(ctx context.Context, e Engagement)
 	OnCombatEnded(ctx context.Context, e CombatEnded)
+	// M7.4 auto-attack additions. Sinks that don't care about per-
+	// swing detail (e.g. the M7.2 log-only sink before M7.4) can
+	// embed nopSink to satisfy these.
+	OnHit(ctx context.Context, e Hit)
+	OnMiss(ctx context.Context, e Miss)
+	OnEvade(ctx context.Context, e Evade)
+	OnVitalDepleted(ctx context.Context, e VitalDepleted)
 }
 
 // Engagement is dispatched after both sides of an Engage have been
@@ -63,11 +70,83 @@ type CombatEnded struct {
 	RoomID        world.RoomID
 }
 
+// Hit is dispatched when an auto-attack swing connects (combat §4.3
+// step 4). Damage is the amount actually subtracted from Vitals, after
+// the §4.5 "at least 1 on a hit" clamp. DamageType is the per-damage-
+// type label used by AC tables; M7.4 ships a single type
+// (DamageTypePhysical) until M8 widens it.
+type Hit struct {
+	AttackerID   CombatantID
+	TargetID     CombatantID
+	AttackerName string
+	TargetName   string
+	WeaponName   string
+	Damage       int
+	DamageType   string
+	IsCritical   bool
+	RoomID       world.RoomID
+}
+
+// Miss is dispatched when a swing fails to land (combat §4.3 step 5).
+// IsFumble is true when the swing was decided by a natural-1 roll
+// (§4.4) rather than by AC math.
+type Miss struct {
+	AttackerID   CombatantID
+	TargetID     CombatantID
+	AttackerName string
+	TargetName   string
+	WeaponName   string
+	IsFumble     bool
+	RoomID       world.RoomID
+}
+
+// Evade is dispatched when a defensive passive ability pre-empts a
+// swing (combat §4.3 step 2). M7.4 has no passive-abilities surface
+// so this event is never emitted today — the type is reserved for
+// M9 abilities and lives here so the EventSink contract stabilizes
+// before that wiring lands.
+type Evade struct {
+	AttackerID   CombatantID
+	TargetID     CombatantID
+	AttackerName string
+	TargetName   string
+	AbilityName  string // empty until M9 abilities exist
+	RoomID       world.RoomID
+}
+
+// VitalDepleted is dispatched when a damage application drops a
+// combatant's named vital to zero (combat §4.3 step 4 "vital-
+// depleted", §6 "When an entity's HP reaches zero"). Today only
+// Vital="hp" is emitted; future vitals (stamina, mana) will reuse
+// the type. AttackerID is the attribution surface M7.5 will consume
+// to credit a kill.
+type VitalDepleted struct {
+	VictimID   CombatantID
+	VictimName string
+	AttackerID CombatantID
+	Vital      string
+	RoomID     world.RoomID
+}
+
+// DamageTypePhysical is the single damage-type label M7.4 emits on
+// every hit event. M8 widens the type space (slashing, piercing,
+// elemental, etc.) when AC tables exist to discriminate them.
+const DamageTypePhysical = "physical"
+
+// VitalHP is the canonical name of the hit-point vital in
+// VitalDepleted events. Lives next to the type so subscribers do not
+// re-spell the string literal at every comparison.
+const VitalHP = "hp"
+
 // nopSink is the EventSink used when Manager is constructed with a
 // nil sink. Centralized so the mutation path always has a non-nil
 // dispatch target and doesn't have to nil-guard at every emission
 // site.
 type nopSink struct{}
 
-func (nopSink) OnEngagement(context.Context, Engagement)   {}
-func (nopSink) OnCombatEnded(context.Context, CombatEnded) {}
+func (nopSink) OnEngagement(context.Context, Engagement)       {}
+func (nopSink) OnCombatEnded(context.Context, CombatEnded)     {}
+func (nopSink) OnHit(context.Context, Hit)                     {}
+func (nopSink) OnMiss(context.Context, Miss)                   {}
+func (nopSink) OnEvade(context.Context, Evade)                 {}
+func (nopSink) OnVitalDepleted(context.Context, VitalDepleted) {}

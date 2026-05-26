@@ -1,5 +1,7 @@
 package combat
 
+import "github.com/Jasrags/AnotherMUD/internal/world"
+
 // Locator resolves a CombatantID back to a live Combatant. The Manager
 // stores only CombatantIDs internally so a logged-out player (or an
 // untracked mob) drops out of the combat loop automatically via the
@@ -30,4 +32,34 @@ type MapLocator map[CombatantID]Combatant
 func (m MapLocator) LookupCombatant(id CombatantID) (Combatant, bool) {
 	c, ok := m[id]
 	return c, ok
+}
+
+// RoomLocator resolves a CombatantID to the world room the combatant
+// currently occupies. The auto-attack phase consults this for the spec
+// §4.1 "different room" pre-flight check that pairwise-disengages a
+// target who has moved or been removed from the world.
+//
+// Kept as a separate interface from Locator so the test-only MapLocator
+// can stay a plain map literal — autoattack tests that need rooms wire
+// a small mapRoomLocator helper alongside MapLocator. Production
+// wiring (cmd/anothermud combatLocator) satisfies both interfaces from
+// a single struct.
+//
+// RoomOf returns ok=false when the combatant is not in any tracked
+// room (logged-out player, despawned mob). The auto-attack phase
+// treats this identically to "different room" — the spec lumps
+// "missing" and "different room" together at §4.1.
+type RoomLocator interface {
+	RoomOf(id CombatantID) (world.RoomID, bool)
+}
+
+// MapRoomLocator is a tiny RoomLocator backed by a fixed map.
+// Intended for tests; production wiring uses the entities.Placement +
+// session.Manager adapter inside cmd/anothermud.
+type MapRoomLocator map[CombatantID]world.RoomID
+
+// RoomOf implements RoomLocator.
+func (m MapRoomLocator) RoomOf(id CombatantID) (world.RoomID, bool) {
+	r, ok := m[id]
+	return r, ok
 }

@@ -109,6 +109,12 @@ func (h *Heartbeat) Tick(ctx context.Context, tickCount uint64) {
 	if len(combatants) == 0 {
 		return
 	}
+	// Spec §4.1: "Player combatants SHOULD be ordered before mob
+	// combatants so that ties (e.g. mutual lethal swings on the same
+	// round) resolve in the player's favor." AllCombatants returns
+	// map-iteration order, so the snapshot needs a stable partition
+	// before any phase runs.
+	SortPlayersFirst(combatants)
 
 	log := logging.From(ctx)
 	log.Debug("combat round",

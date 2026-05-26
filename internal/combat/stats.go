@@ -25,7 +25,45 @@ type Stats struct {
 	// lives with the damage roll in M7.4; Stats only carries the raw
 	// number.
 	STR int
+
+	// Damage is the wielded-weapon damage expression (combat §4.5). A
+	// zero DiceExpr means "use the engine's unarmed default" — see
+	// EffectiveDamage. Real weapon-equipment plumbing arrives with M8+
+	// progression; for M7.4 every default combatant is unarmed.
+	Damage DiceExpr
+
+	// WeaponName is the display name carried on hit / miss events
+	// alongside Damage. Empty falls back to the unarmed name when the
+	// auto-attack phase composes its event payload.
+	WeaponName string
 }
+
+// EffectiveDamage returns the dice expression the auto-attack phase
+// should roll: the configured weapon damage if non-zero, otherwise the
+// engine's unarmed default. The split keeps the spec §4.5 "default
+// unarmed expression" rule in exactly one place.
+func (s Stats) EffectiveDamage() DiceExpr {
+	if s.Damage.IsZero() {
+		return DefaultUnarmedDamage()
+	}
+	return s.Damage
+}
+
+// EffectiveWeaponName returns the display name for hit/miss events:
+// the configured WeaponName if non-empty, otherwise the unarmed
+// default. Mirrors EffectiveDamage so callers don't have to coordinate
+// two fallback checks.
+func (s Stats) EffectiveWeaponName() string {
+	if s.WeaponName != "" {
+		return s.WeaponName
+	}
+	return DefaultUnarmedWeaponName
+}
+
+// DefaultUnarmedWeaponName is the label shown on hit/miss events when
+// no weapon is wielded. Centralized so a localization pass can swap
+// it out in one place.
+const DefaultUnarmedWeaponName = "fists"
 
 // DefaultPlayerMaxHP is the hardcoded starting max HP applied to every
 // connActor at login. M8 (progression: race + class + level) replaces

@@ -518,12 +518,25 @@ is now real. Sketch of remaining vertical slices:
     callback can't abort the round. All four phases are nil in the
     production wiring today — M7.4 fills AutoAttack, M7.5/M7.6
     fill Effects/Wimpy, M9 fills Ability.
-  - **M7.4 (planned):** Auto-attack swings. Pre-flight disengage
-    (dead/missing/distant), swing count = 1 + extra-attack
-    (stubbed 0), d20 hit roll with nat-1/nat-20 overrides, dice
-    damage expression parser (`NdM±K`), unarmed default,
-    `hit`/`miss`/`evade` events, `vital.depleted{hp}` on HP
-    reaching 0. Player-before-mob iteration for tie-breaking.
+  - **M7.4 (landed):** Auto-attack swings. New `combat.NewAutoAttack`
+    factory returns a `PhaseFunc` that the boot path slots into
+    `combat.Phases.AutoAttack`. §4.1 pre-flight: skip on no target,
+    pairwise-disengage on missing/dead/different-room target. §4.2
+    swing count = `1 + extraAttackCount` (M9 stub returns 0). §4.3
+    per-swing: defensive evade hook (M9 stub returns false), §4.4
+    d20 with nat-1 fumble / nat-20 critical overrides, §4.5 dice
+    damage via new `combat.DiceExpr` (NdM±K parser, `Roller`
+    interface satisfied by `*math/rand/v2.Rand`) + `STRBonus`
+    policy `(STR-10)/2`, clamped to ≥1, applied to `Vitals.
+    ApplyDamage`. Emits `hit` / `miss` / `evade` events; emits
+    `vital.depleted{hp}` and stops further swings when HP reaches
+    0. New `combat.RoomLocator` interface bridges to placement +
+    session.Manager.RoomOfPlayer (also new). Heartbeat snapshot
+    now sorts players-first via `SortPlayersFirst` for §4.1's
+    tie-break preference. Default unarmed damage `1d3` / weapon
+    name `"fists"` ship in `combat.Stats.EffectiveDamage` and
+    `EffectiveWeaponName`; real weapon plumbing arrives with
+    equipment-stat work post-M8.
   - **M7.5 (planned):** Death flow + downstream wiring.
     Cancellable `death.check` bus event, killer attribution
     (explicit > primary target > none), `kill` + `mob.killed`
