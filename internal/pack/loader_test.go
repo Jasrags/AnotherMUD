@@ -1045,3 +1045,119 @@ name: NoID
 		t.Errorf("err = %v, want ErrInvalidContent", err)
 	}
 }
+
+func TestLoadAbilitiesHappyPath(t *testing.T) {
+	root := t.TempDir()
+	pack := filepath.Join(root, "core")
+	writeFile(t, filepath.Join(pack, "pack.yaml"), `
+name: tapestry-core
+content:
+  areas: [areas/*.yaml]
+  rooms: [rooms/*.yaml]
+  abilities: [abilities/*.yaml]
+`)
+	writeFile(t, filepath.Join(pack, "areas/x.yaml"), `id: x
+name: X`)
+	writeFile(t, filepath.Join(pack, "rooms/r.yaml"), `id: r
+area: x
+name: R`)
+	writeFile(t, filepath.Join(pack, "abilities/kick.yaml"), `
+id: Kick
+name: Kick
+type: active
+category: skill
+default_cap: 75
+gain_base_chance: 25
+gain_failure_multiplier: 0.5
+gain_stat: dex
+gain_stat_scale: 0.1
+`)
+	writeFile(t, filepath.Join(pack, "abilities/second-attack.yaml"), `
+id: second-attack
+type: passive
+category: skill
+`)
+
+	regs := NewRegistries()
+	if err := Load(context.Background(), root, nil, regs, nil, nil); err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	a, ok := regs.Abilities.Get("KICK")
+	if !ok {
+		t.Fatal("ability kick not registered (case-insens)")
+	}
+	if a.ID != "kick" {
+		t.Errorf("ID = %q, want lowercased kick", a.ID)
+	}
+	if a.DisplayName != "Kick" {
+		t.Errorf("DisplayName = %q", a.DisplayName)
+	}
+	if a.DefaultCap != 75 {
+		t.Errorf("DefaultCap = %d, want 75", a.DefaultCap)
+	}
+	if a.GainStat != "dex" {
+		t.Errorf("GainStat = %q, want dex", a.GainStat)
+	}
+	if a.Pack != "tapestry-core" {
+		t.Errorf("Pack = %q", a.Pack)
+	}
+	// Display falls back to id when name omitted.
+	sa, _ := regs.Abilities.Get("second-attack")
+	if sa.DisplayName != "second-attack" {
+		t.Errorf("fallback DisplayName = %q, want second-attack", sa.DisplayName)
+	}
+	if sa.Type != "passive" {
+		t.Errorf("Type = %q, want passive", sa.Type)
+	}
+}
+
+func TestLoadAbilitiesRejectsInvalidType(t *testing.T) {
+	root := t.TempDir()
+	pack := filepath.Join(root, "core")
+	writeFile(t, filepath.Join(pack, "pack.yaml"), `
+name: tapestry-core
+content:
+  areas: [areas/*.yaml]
+  rooms: [rooms/*.yaml]
+  abilities: [abilities/*.yaml]
+`)
+	writeFile(t, filepath.Join(pack, "areas/x.yaml"), `id: x
+name: X`)
+	writeFile(t, filepath.Join(pack, "rooms/r.yaml"), `id: r
+area: x
+name: R`)
+	writeFile(t, filepath.Join(pack, "abilities/bad.yaml"), `
+id: bad
+type: bogus
+category: skill
+`)
+	err := Load(context.Background(), root, nil, NewRegistries(), nil, nil)
+	if !errors.Is(err, ErrInvalidContent) {
+		t.Errorf("err = %v, want ErrInvalidContent", err)
+	}
+}
+
+func TestLoadAbilitiesRejectsEmptyID(t *testing.T) {
+	root := t.TempDir()
+	pack := filepath.Join(root, "core")
+	writeFile(t, filepath.Join(pack, "pack.yaml"), `
+name: tapestry-core
+content:
+  areas: [areas/*.yaml]
+  rooms: [rooms/*.yaml]
+  abilities: [abilities/*.yaml]
+`)
+	writeFile(t, filepath.Join(pack, "areas/x.yaml"), `id: x
+name: X`)
+	writeFile(t, filepath.Join(pack, "rooms/r.yaml"), `id: r
+area: x
+name: R`)
+	writeFile(t, filepath.Join(pack, "abilities/bad.yaml"), `
+type: active
+category: skill
+`)
+	err := Load(context.Background(), root, nil, NewRegistries(), nil, nil)
+	if !errors.Is(err, ErrInvalidContent) {
+		t.Errorf("err = %v, want ErrInvalidContent", err)
+	}
+}

@@ -819,8 +819,71 @@ is now real. Sketch of remaining vertical slices:
     - [x] A handful of integration tests exercise: grant XP →
           level up → trains credited → `train str` succeeds →
           base STR increases → effective combat hit reflects it.
-- **M9 — Do something:** `abilities-and-effects`, the action queue,
-  effects.
+- **M9 — Abilities & effects:** `abilities-and-effects` — registry,
+  proficiency, action queue, validation pipeline, hit/miss
+  resolution, active effects, passive abilities. Six slices:
+
+  - **M9.1 (landed) — AbilityRegistry + ProficiencyManager.** New
+    `progression.Ability` + `AbilityRegistry` (id-keyed, priority
+    override, mirrors `ClassRegistry` shape — abilities are NOT
+    namespaced, matching the slot registry). New
+    `progression.ProficiencyManager` (per-entity prof + cap maps
+    with `[1, min(cap, 100)]` clamp on every mutation). Manager
+    satisfies the M8.6 `AbilityProficiency` seam so the existing
+    `train` / `practice` verbs become functional end-to-end
+    (closes the m8-6 "proficiency seam nop" deferral). Pack
+    loader gains `content.abilities: [...]` globs. Player save
+    bumps to v11 with an `abilities:` block (parallel proficiency
+    + cap maps); v10 migration is a no-op. `cmd/anothermud`
+    wires the manager + replaces `NewNopGranter` with the
+    proficiency-backed `Teach`. `content/core/abilities/`
+    ships `slash`, `parry`, and `basic-strike` so the M8.6
+    practice path and the M8.4 fighter level-1 grant land as
+    real proficiency entries.
+
+    - [x] `progression.AbilityRegistry` is id-keyed,
+          case-insensitive, with priority override semantics
+          mirroring `ClassRegistry`.
+    - [x] `progression.ProficiencyManager` exposes Learn,
+          Forget, Has, Proficiency, Cap, SetCap, AddProficiency,
+          LearnedAbilities, Snapshot, Restore, Drop.
+    - [x] Manager satisfies `progression.AbilityProficiency` so
+          `TryPractice` reports `PracticeSuccess` end-to-end
+          (closes m8-6 #1).
+    - [x] Manager satisfies `progression.AbilityGranter` so the
+          `ClassPathProcessor`'s level-up grants land as real
+          proficiency entries (replaces `NewNopGranter`).
+    - [x] Pack loader accepts `content.abilities` globs,
+          validates type (active/passive) + category
+          (skill/spell), rejects malformed entries at boot.
+    - [x] Player save v11 round-trips `abilities:` block;
+          `Persist` calls a `syncAbilitiesToSaveLocked` helper
+          that diffs against the previous snapshot so
+          training-driven mutations (which bypass the actor's
+          dirty bit) still autosave.
+    - [x] Session teardown calls `Proficiency.Drop` so the
+          manager's working set stays bounded to currently-
+          connected players.
+    - [x] `content/core/abilities/` ships ≥ 3 baseline
+          abilities; `Maerys`'s teach list resolves through the
+          registry; fighter's path entry teaches `basic-strike`
+          at level 1.
+
+  - **M9.2 — EffectManager (apply / tick / remove / expire).**
+    Single-instance rule, source-key dedup on stat modifiers,
+    batched expirations, events.
+  - **M9.3 — Action queue + validation pipeline.** Per-entity
+    queue as property; full §4.3 validation order with
+    structured fizzle reasons.
+  - **M9.4 — Resolution (hit/miss roll, resource deduct, pulse
+    delay, effect application, vital-depleted emit).** Wires
+    into the combat round's ability-resolution phase.
+  - **M9.5 — Passive abilities (binary check, scaling bonus,
+    hook discovery).** Replaces combat §4.3 "extra attack" and
+    defensive-check stubs with real passive rolls.
+  - **M9.6 — Content + verb surface.** Player-facing
+    `abilities` / `cast` / skill-named verbs; baseline content
+    (kick, heal, bless).
 - **M10 — Quests & UI polish:** `quests`, `ui-rendering-help` themes,
   panels, 256/truecolor, and telnet capability negotiation. (Basic
   ANSI-16 color already landed in M2.)

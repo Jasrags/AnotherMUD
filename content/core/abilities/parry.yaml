@@ -1,0 +1,14 @@
+id: parry
+name: Parry
+type: passive
+category: skill
+
+# Defensive passive — checked on incoming melee swings once the
+# defensive-check hook lands (M9.5). For M9.1 it ships only to
+# round-trip through the registry and Maerys's teach list.
+default_cap: 25
+
+gain_base_chance: 15
+gain_failure_multiplier: 1.0
+gain_stat: dex
+gain_stat_scale: 0.1

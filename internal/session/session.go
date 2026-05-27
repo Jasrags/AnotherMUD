@@ -125,6 +125,21 @@ type Config struct {
 	// missing registry means class-side effects never fire.
 	Classes *progression.ClassRegistry
 
+	// Proficiency is the M9.1 per-entity ability proficiency
+	// manager (spec abilities-and-effects §3). The session-load
+	// path restores the actor's persisted Abilities snapshot into
+	// it; logout drops the in-memory state. nil-safe: when nil,
+	// abilities are neither restored nor persisted (the actor
+	// behaves as if they have learned nothing).
+	Proficiency *progression.ProficiencyManager
+
+	// Abilities is the M9.1 ability registry. Consulted by the
+	// proficiency manager for DefaultCap and ability display
+	// names; passed through the session config so future verbs
+	// (M9.3+ abilities verb, M9.6 learn/forget admin) can read it
+	// without re-plumbing. nil-safe.
+	Abilities *progression.AbilityRegistry
+
 	// DefaultRace is the race id assigned to legacy saves with no
 	// `race` field, and to fresh characters that haven't been
 	// through a M12 character-creation flow yet. Empty means the
@@ -238,6 +253,7 @@ func run(ctx context.Context, c conn.Connection, cfg Config) error {
 		colorEnabled: cfg.ColorEnabled,
 		save:         loaded.Player,
 		players:      cfg.Players,
+		prof:         cfg.Proficiency,
 		items:        cfg.Items,
 		contents:     cfg.Contents,
 		equipment:    make(map[string]entities.EntityID),
@@ -366,6 +382,15 @@ func run(ctx context.Context, c conn.Connection, cfg Config) error {
 	// per spec §5.3).
 	if len(loaded.Player.Progression) > 0 {
 		a.progress.Restore(loaded.Player.Progression)
+	}
+
+	// M9.1: install persisted ability proficiency + cap maps
+	// (spec abilities-and-effects §3.1). Empty snapshot is a
+	// no-op — the ProficiencyManager's Restore short-circuits so
+	// fresh characters don't inflate manager state. Manager is
+	// nil-safe to keep test wiring minimal.
+	if cfg.Proficiency != nil {
+		cfg.Proficiency.Restore(loaded.Player.ID, loaded.Player.Abilities)
 	}
 
 	// Respawn persisted inventory into live ItemInstances. Done before
@@ -576,6 +601,14 @@ func fullTeardown(ctx context.Context, cfg Config, a *connActor) {
 		logging.From(ctx).Warn("save on disconnect failed", slog.Any("err", err))
 	}
 	untrackInventory(ctx, cfg.Items, cfg.Contents, a)
+
+	// M9.1: drop in-memory proficiency state so the manager's
+	// working set tracks currently-connected players only. Persist
+	// has already flushed the snapshot to disk so this is purely a
+	// memory release.
+	if cfg.Proficiency != nil {
+		cfg.Proficiency.Drop(a.PlayerID())
+	}
 }
 
 // respawnInventory creates fresh ItemInstances for each persisted
@@ -961,6 +994,13 @@ type connActor struct {
 
 	players *player.Store
 
+	// prof is the M9.1 ProficiencyManager reference captured at
+	// actor construction. Persist snapshots the actor's
+	// abilities into save before write; logout drops in-memory
+	// state. Nil-safe (mirrors the cfg.Proficiency nil-safety):
+	// when nil, abilities neither persist nor flush.
+	prof *progression.ProficiencyManager
+
 	// items is the runtime entity store reference, captured at actor
 	// construction so syncInventoryToSaveLocked can resolve template
 	// ids without holding cfg in scope. Never reassigned after Add.
@@ -1179,6 +1219,9 @@ func (a *connActor) Persist(ctx context.Context) error {
 	// from the combat tick (which never go through markDirtyLocked
 	// — combat doesn't know about session) participate in autosave.
 	if a.syncVitalsToSaveLocked() {
+		a.markDirtyLocked()
+	}
+	if a.syncAbilitiesToSaveLocked() {
 		a.markDirtyLocked()
 	}
 	if !a.dirty || a.save == nil || a.players == nil {
@@ -1787,6 +1830,72 @@ func (a *connActor) syncProgressionToSaveLocked() {
 		return
 	}
 	a.save.Progression = a.progress.Snapshot()
+}
+
+// syncAbilitiesToSaveLocked rewrites a.save.Abilities from the
+// live ProficiencyManager snapshot and returns true when the
+// snapshot differs from the previously-persisted one.
+//
+// M9.1 wires the proficiency manager outside the actor (the
+// TrainingManager mutates it directly via the AbilityProficiency
+// seam), so practice-driven cap raises don't flip the actor's
+// dirty bit at the mutation site. This sync runs unconditionally
+// at Persist before the dirty check, returning a delta signal so
+// autosave still commits training results. Caller MUST hold a.mu.
+//
+// Returns false (no change) when the manager is unwired or the
+// snapshot matches what's already on the save — autosave then
+// short-circuits unless some other path flipped dirty.
+//
+// **Drop/autosave race guard.** `fullTeardown` calls Persist
+// then Drop on the actor's goroutine, but an autosave tick may
+// hold an actor reference from before Manager.Remove and call
+// Persist after Drop has cleared the manager's state. In that
+// case Snapshot returns an empty AbilitySnapshot. If we accepted
+// the empty as truth, the diff would flip dirty and overwrite
+// the player's persisted abilities with nothing. Until a
+// Forget-style admin verb exists (M9.6+) a legitimate transition
+// from "has entries" to "has none" cannot happen, so we treat
+// the empty-snap-over-populated-save case as a Drop race and
+// skip. The deferred memory tracks this; a real eviction story
+// lands when the verb surface needs it.
+func (a *connActor) syncAbilitiesToSaveLocked() bool {
+	if a.save == nil || a.prof == nil {
+		return false
+	}
+	snap := a.prof.Snapshot(a.playerID)
+	if len(snap.Proficiency) == 0 && len(snap.Cap) == 0 &&
+		(len(a.save.Abilities.Proficiency) > 0 || len(a.save.Abilities.Cap) > 0) {
+		// Drop race or manager-not-populated-yet — preserve the
+		// persisted save until a real mutation re-fills the
+		// manager.
+		return false
+	}
+	if abilitySnapshotEqual(a.save.Abilities, snap) {
+		return false
+	}
+	a.save.Abilities = snap
+	return true
+}
+
+// abilitySnapshotEqual reports map-equality for two AbilitySnapshot
+// values. Empty maps and nil maps compare equal so a fresh load
+// (snapshot nil) matches an unmodified-since-load Restore (snapshot
+// nil) without re-marking the actor dirty.
+func abilitySnapshotEqual(a, b progression.AbilitySnapshot) bool {
+	return intMapEqual(a.Proficiency, b.Proficiency) && intMapEqual(a.Cap, b.Cap)
+}
+
+func intMapEqual(a, b map[string]int) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for k, v := range a {
+		if bv, ok := b[k]; !ok || bv != v {
+			return false
+		}
+	}
+	return true
 }
 
 // syncInventoryToSaveLocked mirrors the actor's runtime inventory

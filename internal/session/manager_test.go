@@ -101,6 +101,47 @@ func TestPersist_SyncsVitalsFromCombatTick(t *testing.T) {
 	}
 }
 
+// TestPersist_DroppedManagerDoesNotEraseAbilities pins the M9.1
+// Drop/autosave race guard. If fullTeardown's Drop runs before an
+// autosave-in-flight Persist (the snapshot returns empty), the
+// guard must NOT overwrite the populated save block with empty.
+// Regression coverage for the CRITICAL review finding.
+func TestPersist_DroppedManagerDoesNotEraseAbilities(t *testing.T) {
+	dir := t.TempDir()
+	st, err := player.NewStore(dir)
+	if err != nil {
+		t.Fatalf("NewStore: %v", err)
+	}
+	prof := progression.NewProficiencyManager(nil, progression.DefaultProficiencyConfig())
+	a := &connActor{
+		id: "c1", players: st, prof: prof,
+		playerID: "p1",
+		save: &player.Save{
+			Version: player.CurrentVersion, ID: "p1", AccountID: "a1",
+			Name: "Maevyn", Location: "x:1",
+			Abilities: progression.AbilitySnapshot{
+				Proficiency: map[string]int{"slash": 25},
+				Cap:         map[string]int{"slash": 50},
+			},
+		},
+	}
+	// Manager already Dropped this entity (snapshot returns empty).
+	// Mark dirty so Persist actually writes — we want to assert the
+	// save-on-disk preserves the pre-Drop abilities.
+	prof.Drop("p1")
+	a.dirty = true
+	if err := a.Persist(context.Background()); err != nil {
+		t.Fatalf("Persist: %v", err)
+	}
+	got, err := st.Load(context.Background(), "Maevyn")
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if got.Abilities.Proficiency["slash"] != 25 || got.Abilities.Cap["slash"] != 50 {
+		t.Errorf("dropped-manager Persist erased abilities: got %+v", got.Abilities)
+	}
+}
+
 func TestManager_SaveAllIsolatesErrors(t *testing.T) {
 	st, err := player.NewStore(t.TempDir())
 	if err != nil {

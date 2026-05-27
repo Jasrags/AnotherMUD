@@ -232,6 +232,29 @@ type ClassFile struct {
 	Priority          int                   `yaml:"priority,omitempty"`
 }
 
+// AbilityFile is the YAML shape for an ability definition (spec
+// abilities-and-effects §2.2). M9.1 covers the minimum surface used
+// by the registry + proficiency manager + training caps: identity,
+// classification, and learn-time defaults. Resolution fields (cost,
+// cooldown, target rules, effect template, variance, handler token,
+// metadata) land in later M9 slices as their consumers come online.
+//
+// Ability ids are NOT namespaced — the registry is global and the
+// override semantics §2.1 already permit a pack to replace a
+// baseline ability by id+priority (mirrors the slot registry).
+type AbilityFile struct {
+	ID                    string  `yaml:"id"`
+	Name                  string  `yaml:"name,omitempty"`
+	Type                  string  `yaml:"type"`
+	Category              string  `yaml:"category"`
+	DefaultCap            int     `yaml:"default_cap,omitempty"`
+	GainBaseChance        int     `yaml:"gain_base_chance,omitempty"`
+	GainFailureMultiplier float64 `yaml:"gain_failure_multiplier,omitempty"`
+	GainStat              string  `yaml:"gain_stat,omitempty"`
+	GainStatScale         float64 `yaml:"gain_stat_scale,omitempty"`
+	Priority              int     `yaml:"priority,omitempty"`
+}
+
 // RaceFile is the YAML shape for a race definition (spec
 // progression.md §3.1). Stat caps are keyed by lowercase StatType
 // strings ("str", "hp_max", etc.); the loader maps them onto the

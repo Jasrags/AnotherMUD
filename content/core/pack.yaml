@@ -20,3 +20,5 @@ content:
     - races/*.yaml
   classes:
     - classes/*.yaml
+  abilities:
+    - abilities/*.yaml

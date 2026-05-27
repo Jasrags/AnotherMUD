@@ -1,0 +1,13 @@
+id: basic-strike
+name: Basic Strike
+type: active
+category: skill
+
+# Granted to fighters at level 1 via classes/fighter.yaml path entry.
+# Default cap mirrors slash; subsequent practice tiers lift it.
+default_cap: 25
+
+gain_base_chance: 25
+gain_failure_multiplier: 0.5
+gain_stat: str
+gain_stat_scale: 0.1

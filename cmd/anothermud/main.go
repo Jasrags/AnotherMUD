@@ -266,6 +266,17 @@ func run() error {
 	// eventbus → entities import edge that would close a cycle.
 	progressionMgr := progression.NewManager(registries.Tracks, &progressionSink{bus: bus})
 
+	// M9.1: proficiency manager — per-entity ability prof+cap maps
+	// (spec abilities-and-effects §3). Bound to the AbilityRegistry
+	// so AbilityName lookups resolve and DefaultCap per ability is
+	// honored at Learn time. Satisfies the AbilityProficiency seam
+	// the TrainingManager declares (training.go), making the M8.6
+	// train + practice paths functional end-to-end.
+	proficiencyMgr := progression.NewProficiencyManager(
+		registries.Abilities,
+		progression.DefaultProficiencyConfig(),
+	)
+
 	// M8.5: alignment manager + bus-bridging sink. Config uses
 	// the engine defaults (-1000/+1000 bounds, ±500 bucket
 	// thresholds, history capacity 20) per the M8.5 ROADMAP
@@ -289,7 +300,7 @@ func run() error {
 	// is a package-level function.
 	classPath := &progression.ClassPathProcessor{
 		Classes:  registries.Classes,
-		Granter:  progression.NewNopGranter(),
+		Granter:  proficiencyMgr,
 		Notifier: notifierAdapter{mgr: mgr},
 	}
 	trainsCrediter := trainsAdapter{mgr: mgr}
@@ -565,8 +576,10 @@ func run() error {
 			progression.DefaultTrainingConfig(),
 			registries.Races,
 			session.NewTrainerSource(mgr, placement, entityStore),
-			nil, // M9 proficiency not wired yet; practice paths return NotLearned
+			proficiencyMgr,
 		),
+		Proficiency: proficiencyMgr,
+		Abilities:   registries.Abilities,
 		Races:        registries.Races,
 		Classes:      registries.Classes,
 		Alignment:    alignmentMgr,

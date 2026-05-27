@@ -652,3 +652,59 @@ func TestSave_RejectsUnsafeName(t *testing.T) {
 		t.Fatal("Save with traversal name succeeded, want error")
 	}
 }
+
+func TestSaveLoad_V11AbilitiesRoundTrip(t *testing.T) {
+	ctx := context.Background()
+	st, _ := newStore(t)
+	save := &player.Save{
+		Version:   player.CurrentVersion,
+		ID:        "p-1",
+		AccountID: "acct-1",
+		Name:      "Maevyn",
+		Location:  "tapestry-core:town-square",
+		Abilities: progression.AbilitySnapshot{
+			Proficiency: map[string]int{"slash": 12, "parry": 8},
+			Cap:         map[string]int{"slash": 25, "parry": 25},
+		},
+	}
+	if err := st.Save(ctx, save); err != nil {
+		t.Fatalf("Save: %v", err)
+	}
+	got, err := st.Load(ctx, "maevyn")
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if got.Version != player.CurrentVersion {
+		t.Errorf("Version = %d, want %d", got.Version, player.CurrentVersion)
+	}
+	if got.Abilities.Proficiency["slash"] != 12 || got.Abilities.Proficiency["parry"] != 8 {
+		t.Errorf("Abilities.Proficiency = %+v", got.Abilities.Proficiency)
+	}
+	if got.Abilities.Cap["slash"] != 25 || got.Abilities.Cap["parry"] != 25 {
+		t.Errorf("Abilities.Cap = %+v", got.Abilities.Cap)
+	}
+}
+
+func TestLoad_V10MigratesToV11(t *testing.T) {
+	ctx := context.Background()
+	st, dir := newStore(t)
+	playerDir := filepath.Join(dir, "players", "olduser")
+	if err := os.MkdirAll(playerDir, 0o755); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(playerDir, "player.yaml"),
+		[]byte("version: 10\nid: p-1\naccount_id: acct-1\nname: OldUser\nlocation: tapestry-core:town-square\n"),
+		0o600); err != nil {
+		t.Fatalf("write: %v", err)
+	}
+	got, err := st.Load(ctx, "olduser")
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if got.Version != player.CurrentVersion {
+		t.Errorf("Version after migrate = %d, want %d", got.Version, player.CurrentVersion)
+	}
+	if len(got.Abilities.Proficiency) != 0 || len(got.Abilities.Cap) != 0 {
+		t.Errorf("v10 migration produced non-empty abilities: %+v", got.Abilities)
+	}
+}

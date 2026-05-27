@@ -83,7 +83,7 @@ type pendingMobPlacement struct {
 // Filter, when non-empty, restricts discovery (spec §2.4). Pass nil to
 // load every active pack under root.
 func Load(ctx context.Context, root string, filter []string, dst *Registries, spawner Spawner, mobSpawner MobSpawner) error {
-	if dst == nil || dst.World == nil || dst.Items == nil || dst.Slots == nil || dst.Mobs == nil || dst.Tracks == nil || dst.Races == nil || dst.Classes == nil {
+	if dst == nil || dst.World == nil || dst.Items == nil || dst.Slots == nil || dst.Mobs == nil || dst.Tracks == nil || dst.Races == nil || dst.Classes == nil || dst.Abilities == nil {
 		return errors.New("pack.Load: dst has nil registry field; use pack.NewRegistries()")
 	}
 	logger := logging.From(ctx).With(slog.String("event", "pack.load"), slog.String("root", root))
@@ -214,6 +214,10 @@ func loadPackContent(ctx context.Context, p Discovered, dst *Registries) ([]pend
 	if err != nil {
 		return nil, nil, err
 	}
+	abilityPaths, err := resolveGlobs(p.Dir, p.Manifest.Content.Abilities)
+	if err != nil {
+		return nil, nil, err
+	}
 
 	// Areas first — rooms reference them (spec §3.3 step 2). TryAddArea
 	// catches both intra-pack and cross-pack id collisions.
@@ -329,6 +333,20 @@ func loadPackContent(ctx context.Context, p Discovered, dst *Registries) ([]pend
 		}
 	}
 
+	// Abilities: id-keyed registry with priority-based override.
+	// Ids are NOT namespaced (mirrors the slot registry); a pack that
+	// wants to replace a baseline ability sets Priority higher than
+	// the existing entry (spec abilities-and-effects §2.1).
+	for _, ap := range abilityPaths {
+		a, err := decodeAbility(ap, ns)
+		if err != nil {
+			return nil, nil, err
+		}
+		if err := dst.Abilities.Register(a); err != nil {
+			return nil, nil, fmt.Errorf("%w (in %s)", err, ap)
+		}
+	}
+
 	logger.Info("pack content loaded",
 		slog.String("event", "pack.content"),
 		slog.Int("areas", len(areaPaths)),
@@ -339,10 +357,56 @@ func loadPackContent(ctx context.Context, p Discovered, dst *Registries) ([]pend
 		slog.Int("tracks", len(trackPaths)),
 		slog.Int("races", len(racePaths)),
 		slog.Int("classes", len(classPaths)),
+		slog.Int("abilities", len(abilityPaths)),
 		slog.Int("placements", len(placements)),
 		slog.Int("mob_placements", len(mobPlacements)),
 	)
 	return placements, mobPlacements, nil
+}
+
+// decodeAbility reads an AbilityFile and builds a progression.Ability
+// (spec abilities-and-effects §2). Required: id, type, category.
+// Type and category strings are validated via the progression parsers
+// so unknown values surface at load with a precise error rather than
+// silently registering a malformed entry that the registry would then
+// reject.
+func decodeAbility(path, ns string) (*progression.Ability, error) {
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		return nil, fmt.Errorf("reading ability %s: %w", path, err)
+	}
+	var f AbilityFile
+	if err := yaml.Unmarshal(raw, &f); err != nil {
+		return nil, fmt.Errorf("%w: %s: %v", ErrInvalidContent, path, err)
+	}
+	if strings.TrimSpace(f.ID) == "" {
+		return nil, fmt.Errorf("%w: %s: missing 'id'", ErrInvalidContent, path)
+	}
+	typ, ok := progression.ParseAbilityType(f.Type)
+	if !ok {
+		return nil, fmt.Errorf("%w: %s: 'type' must be active or passive (got %q)", ErrInvalidContent, path, f.Type)
+	}
+	cat, ok := progression.ParseAbilityCategory(f.Category)
+	if !ok {
+		return nil, fmt.Errorf("%w: %s: 'category' must be skill or spell (got %q)", ErrInvalidContent, path, f.Category)
+	}
+	display := strings.TrimSpace(f.Name)
+	if display == "" {
+		display = strings.TrimSpace(f.ID)
+	}
+	return &progression.Ability{
+		ID:                    f.ID,
+		DisplayName:           display,
+		Type:                  typ,
+		Category:              cat,
+		DefaultCap:            f.DefaultCap,
+		GainBaseChance:        f.GainBaseChance,
+		GainFailureMultiplier: f.GainFailureMultiplier,
+		GainStat:              progression.StatType(strings.TrimSpace(f.GainStat)),
+		GainStatScale:         f.GainStatScale,
+		Pack:                  ns,
+		Priority:              f.Priority,
+	}, nil
 }
 
 // decodeTrack reads a TrackFile and builds a progression.TrackDef.

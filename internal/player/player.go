@@ -88,7 +88,15 @@ import (
 // default; AlignmentManager.Bucket lazy-resolves the bucket tag
 // on first read. History is runtime-only by design (spec §6.3
 // open question resolved to "no" for M8.5).
-const CurrentVersion = 10
+//
+// v11 (M9.1): `abilities` block — parallel proficiency + cap maps
+// keyed by lowercase ability id (spec abilities-and-effects §3.1).
+// Absent block (legacy v10 saves migrated forward) means "no
+// abilities learned"; the session-load path passes an empty
+// AbilitySnapshot to the ProficiencyManager and Restore is a
+// no-op. Caps are clamped to [0,100] and proficiency to [1,cap]
+// on ingest.
+const CurrentVersion = 11
 
 // Sentinel errors callers may check via errors.Is.
 var (
@@ -137,6 +145,13 @@ type Save struct {
 	// set; load tolerates anything but treats anything < 1 or > 100
 	// as disabled.
 	WimpyThreshold int `yaml:"wimpy,omitempty"`
+
+	// Abilities holds the persisted proficiency + cap maps for
+	// learned abilities (spec abilities-and-effects §3.1). Both
+	// maps key on lowercase ability id. Zero-value AbilitySnapshot
+	// (empty maps) round-trips as no `abilities:` key via the
+	// snapshot's own omitempty tags.
+	Abilities progression.AbilitySnapshot `yaml:"abilities,omitempty"`
 }
 
 // VitalsState is the persisted HP block (v5+). Pointer so an absent
@@ -303,7 +318,8 @@ var playerMigrations = map[int]func(map[string]any) (map[string]any, error){
 	6: migrateV6toV7,
 	7: migrateV7toV8,
 	8: migrateV8toV9,
-	9: migrateV9toV10,
+	9:  migrateV9toV10,
+	10: migrateV10toV11,
 }
 
 // migrateV1toV2 adds the empty inventory/equipment blocks introduced
@@ -462,6 +478,15 @@ func migrateV8toV9(in map[string]any) (map[string]any, error) {
 // (zero = neutral default). The session load path resolves the
 // bucket lazily via AlignmentManager.Bucket on first read.
 func migrateV9toV10(in map[string]any) (map[string]any, error) {
+	return in, nil
+}
+
+// migrateV10toV11 adds the `abilities` block introduced in M9.1
+// (spec abilities-and-effects §3.1). No-op on dict content: a
+// legacy v10 save carries no proficiency/cap maps, so the absence
+// is preserved (zero-value AbilitySnapshot = nothing learned).
+// The ProficiencyManager's Restore short-circuits on empty input.
+func migrateV10toV11(in map[string]any) (map[string]any, error) {
 	return in, nil
 }
 
