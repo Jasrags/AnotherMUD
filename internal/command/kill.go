@@ -75,23 +75,24 @@ func KillHandler(ctx context.Context, c *Context) error {
 	attackerID := attacker.CombatantID()
 	targetID := targetCombatant.CombatantID()
 
-	// Engage first; on refusal, disambiguate between "already
-	// fighting them" (the common spec §2.1 no-op) and "something
-	// else refused" (a future tag-check landing in M7.6). This
-	// single-call common path replaces the M7.2-initial two-round-trip
-	// pre-check + Engage pattern, which had a TOCTOU window: a
-	// concurrent engage between OpponentsOf and Engage would surface
-	// the wrong message. The post-refusal OpponentsOf snapshot races
-	// the other way (a concurrent disengage could leave us reporting
-	// "can't attack that" instead of "already fighting") — that's a
-	// strictly less misleading degradation.
-	if !c.Combat.Engage(ctx, attackerID, targetID, room.ID) {
-		for _, opp := range c.Combat.OpponentsOf(attackerID) {
-			if opp == targetID {
-				return c.Actor.Write(ctx,
-					fmt.Sprintf("You're already fighting %s.", targetName))
-			}
-		}
+	// Engage with explicit refusal code (M7.6 added tag and cooldown
+	// gates). Map each refusal to a precise player-facing message;
+	// the EngageWithReason result removes the TOCTOU window the
+	// M7.2 OpponentsOf-post-check had.
+	switch reason, ok := c.Combat.EngageWithReason(ctx, attackerID, targetID, room.ID); {
+	case ok:
+		// fall through to success path below.
+	case reason == combat.EngageRefusalAlreadyEngaged:
+		return c.Actor.Write(ctx,
+			fmt.Sprintf("You're already fighting %s.", targetName))
+	case reason == combat.EngageRefusalSafeRoom:
+		return c.Actor.Write(ctx, "Violence is forbidden here.")
+	case reason == combat.EngageRefusalNoKill:
+		return c.Actor.Write(ctx,
+			fmt.Sprintf("You can't bring yourself to attack %s.", targetName))
+	case reason == combat.EngageRefusalFleeCooldown:
+		return c.Actor.Write(ctx, "You're still catching your breath.")
+	default:
 		return c.Actor.Write(ctx, "You can't attack that.")
 	}
 

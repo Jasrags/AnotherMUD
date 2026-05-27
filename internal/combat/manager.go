@@ -46,7 +46,43 @@ type Manager struct {
 	lists   map[CombatantID][]CombatantID
 	locator Locator
 	sink    EventSink
+
+	// tags resolves the room / entity tags consulted by Engage's
+	// refusal checks (safe-room, no-kill, no-flee). Optional: a nil
+	// source means "tag refusals are skipped", which is the M7.2
+	// behavior preserved for tests that don't wire tags.
+	tags TagSource
+
+	// cooldowns is the §5.3 flee-cooldown gate: an attacker whose
+	// CombatantID has a future expiry tick value cannot Engage.
+	// nil clock + nil cooldowns means "no cooldown gating" so M7.2
+	// tests continue to pass with default Manager construction.
+	cooldowns *FleeCooldowns
 }
+
+// TagSource is the read surface Manager consults for §2.1 tag-based
+// engagement refusals. The two predicates are separate because room
+// tags (world side) and entity tags (entities + session side) live in
+// different stores; bundling them into one interface keeps the
+// Manager-side touch points to one field.
+//
+// Both methods MUST be safe for concurrent reads from the tick
+// goroutine. Implementations resolve through whatever index they
+// own — a session.Manager-backed implementation reads connActor tags;
+// an entities.Store-backed implementation reads MobInstance tags.
+type TagSource interface {
+	RoomHasTag(roomID world.RoomID, tag string) bool
+	EntityHasTag(id CombatantID, tag string) bool
+}
+
+// Tag constants consulted by Engage / flee. Spec text uses dashed
+// names ("safe-room", "no-kill", "no-flee"); the constants carry the
+// exact strings publishers and content packs declare in YAML.
+const (
+	TagSafeRoom = "safe-room"
+	TagNoKill   = "no-kill"
+	TagNoFlee   = "no-flee"
+)
 
 // NewManager returns an empty Manager. A nil locator is replaced by an
 // empty MapLocator (every Name lookup misses and events carry empty
@@ -54,16 +90,37 @@ type Manager struct {
 // is replaced by a no-op so the mutation path always has a non-nil
 // dispatch target.
 func NewManager(locator Locator, sink EventSink) *Manager {
-	if locator == nil {
-		locator = MapLocator{}
+	return NewManagerWith(ManagerConfig{Locator: locator, Sink: sink})
+}
+
+// ManagerConfig bundles Manager's constructor inputs. Locator and
+// Sink behave the same as in NewManager (nil tolerated). Tags and
+// Cooldowns are new in M7.6: both optional. A nil TagSource keeps
+// the M7.2 "no tag refusals" behavior; nil Cooldowns disables flee-
+// cooldown gating. Production wiring supplies both; tests pass only
+// what they exercise.
+type ManagerConfig struct {
+	Locator   Locator
+	Sink      EventSink
+	Tags      TagSource
+	Cooldowns *FleeCooldowns
+}
+
+// NewManagerWith is the option-shaped constructor introduced in
+// M7.6. NewManager wraps it for backwards-compatible call sites.
+func NewManagerWith(cfg ManagerConfig) *Manager {
+	if cfg.Locator == nil {
+		cfg.Locator = MapLocator{}
 	}
-	if sink == nil {
-		sink = nopSink{}
+	if cfg.Sink == nil {
+		cfg.Sink = nopSink{}
 	}
 	return &Manager{
-		lists:   make(map[CombatantID][]CombatantID),
-		locator: locator,
-		sink:    sink,
+		lists:     make(map[CombatantID][]CombatantID),
+		locator:   cfg.Locator,
+		sink:      cfg.Sink,
+		tags:      cfg.Tags,
+		cooldowns: cfg.Cooldowns,
 	}
 }
 
@@ -87,17 +144,74 @@ func NewManager(locator Locator, sink EventSink) *Manager {
 // itself does not consult it today, but listeners (UI, future quest
 // hooks) want it.
 func (m *Manager) Engage(ctx context.Context, attacker, target CombatantID, roomID world.RoomID) bool {
+	_, ok := m.engageWithReason(ctx, attacker, target, roomID)
+	return ok
+}
+
+// EngageRefusal explains why a non-successful Engage returned false.
+// Callers (the `kill` verb today, future verb layers) use this to
+// surface a precise message to the player rather than a generic
+// "you can't attack that".
+//
+// EngageRefusalNone is the success value; the matching boolean from
+// EngageWithReason is true. The other values are spec §2.1 refusals
+// in the order Engage evaluates them.
+type EngageRefusal int
+
+const (
+	EngageRefusalNone EngageRefusal = iota
+	EngageRefusalSelfTarget
+	EngageRefusalEmptyID
+	EngageRefusalAlreadyEngaged
+	EngageRefusalSafeRoom
+	EngageRefusalNoKill
+	EngageRefusalFleeCooldown
+)
+
+// EngageWithReason is the explicit-refusal variant of Engage. Returns
+// the refusal code and a boolean that's true iff the engagement
+// happened (refusal == EngageRefusalNone). Verbs that want to map a
+// refusal back to a message use this; callers that only care
+// about success/failure use Engage.
+func (m *Manager) EngageWithReason(ctx context.Context, attacker, target CombatantID, roomID world.RoomID) (EngageRefusal, bool) {
+	return m.engageWithReason(ctx, attacker, target, roomID)
+}
+
+func (m *Manager) engageWithReason(ctx context.Context, attacker, target CombatantID, roomID world.RoomID) (EngageRefusal, bool) {
 	if attacker == target {
-		return false
+		return EngageRefusalSelfTarget, false
 	}
 	if attacker == "" || target == "" {
-		return false
+		return EngageRefusalEmptyID, false
+	}
+
+	// Tag-based refusals (spec §2.1). Evaluated BEFORE the
+	// already-engaged check because the spec lists them first; a
+	// fresh engage that would have been refused by a tag should not
+	// silently succeed just because the pair happens to already be
+	// engaged from an earlier round. The tag source is optional —
+	// nil means "no tag gating" which preserves M7.2 test ergonomics.
+	if m.tags != nil {
+		if m.tags.RoomHasTag(roomID, TagSafeRoom) {
+			return EngageRefusalSafeRoom, false
+		}
+		if m.tags.EntityHasTag(target, TagNoKill) {
+			return EngageRefusalNoKill, false
+		}
+	}
+
+	// Flee-cooldown refusal (§5.3): an attacker whose cooldown has
+	// not yet expired cannot Engage but can be Engaged. Asymmetric on
+	// purpose — fleers don't get hidden from pursuit, they get a
+	// breather before they can re-initiate.
+	if m.cooldowns != nil && m.cooldowns.Active(attacker) {
+		return EngageRefusalFleeCooldown, false
 	}
 
 	m.mu.Lock()
 	if contains(m.lists[attacker], target) {
 		m.mu.Unlock()
-		return false
+		return EngageRefusalAlreadyEngaged, false
 	}
 	m.lists[attacker] = append(m.lists[attacker], target)
 	// Symmetric insertion: §2.1 step 2 guarantees both sides hold each
@@ -128,7 +242,7 @@ func (m *Manager) Engage(ctx context.Context, attacker, target CombatantID, room
 		TargetName:   targetName,
 		RoomID:       roomID,
 	})
-	return true
+	return EngageRefusalNone, true
 }
 
 // Disengage removes each from the other's combat list (spec §2.2).
