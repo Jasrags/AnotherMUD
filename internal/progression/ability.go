@@ -60,13 +60,13 @@ func ParseAbilityCategory(s string) (AbilityCategory, bool) {
 }
 
 // Ability is a content-defined ability definition (spec
-// abilities-and-effects §2). M9.1 carries the minimum surface used
-// by the registry + proficiency manager + training-cap raises:
-// identity, classification, and learn-time defaults. Resolution
-// fields (cost, cooldown, target rules, effect template, variance,
-// handler token, metadata) land as later M9 slices consume them
-// (M9.2 effects, M9.3 queue+validation, M9.4 resolution, M9.5
-// passives).
+// abilities-and-effects §2). M9.1 wired identity + classification +
+// gain. M9.3 grows the surface used by validation (spec §4.3):
+// cost, pulse-delay cooldown, initiate-only flag, target-type list,
+// equipment-slot requirement, alignment range, and an optional
+// effect template (consumed by §5.2 single-instance check + §5.1
+// build-on-hit). Resolution-only fields (variance, max-chance,
+// handler token, metadata) land in M9.4 as their consumers arrive.
 //
 // Value-typed for registry storage; the registry hands callers a
 // pointer to its own copy and callers MUST NOT mutate it.
@@ -109,6 +109,58 @@ type Ability struct {
 	// probability. Zero with a non-empty GainStat falls back to
 	// the proficiency-manager default.
 	GainStatScale float64
+
+	// Cost is the unmodified resource cost (spec §2.2 / §4.7).
+	// Race-adjusted at validation + deduction time. Zero means
+	// no resource check (the §4.3 step 9 check is skipped).
+	Cost int
+
+	// PulseDelay is the per-entity cooldown in pulses (spec §2.2
+	// / §4.3 step 8 / §4.5 step 3). Zero means no cooldown.
+	PulseDelay int
+
+	// InitiateOnly marks combat-opening moves that fizzle when
+	// the source is already in combat (spec §2.2 / §4.3 step 5).
+	InitiateOnly bool
+
+	// TargetTypes is the list of permitted target classifications
+	// ("enemy", "self", "ally") (spec §2.2). Empty = no
+	// per-ability restriction; the engine's offensive classifier
+	// (§4.6) still gates auto-target-current-enemy fallback.
+	// Stored normalized lowercase.
+	TargetTypes []string
+
+	// EquipmentSlot is the optional required slot id (spec §2.2
+	// / §4.3 step 4). Empty disables the slot check. Slot names
+	// are global (mirrors slot registry).
+	EquipmentSlot string
+
+	// EquipmentTag is the optional required tag on the item in
+	// EquipmentSlot (spec §2.2 / §4.3 step 4). Only consulted
+	// when EquipmentSlot is non-empty. Empty means any item in
+	// the slot satisfies the check.
+	EquipmentTag string
+
+	// HasAlignmentRange selects whether AlignmentMin / Max gate
+	// usage (spec §2.2 / §4.3 step 2). Necessary because zero
+	// is a valid alignment (neutral); we can't piggyback on
+	// "both zero == unset".
+	HasAlignmentRange bool
+
+	// AlignmentMin / AlignmentMax bound the entity's alignment
+	// inclusively when HasAlignmentRange is true (spec §2.2 /
+	// §4.3 step 2). When Min > Max the range is empty and every
+	// invocation fizzles `alignment_restricted`.
+	AlignmentMin int
+	AlignmentMax int
+
+	// Effect is the optional effect template applied to the
+	// target on hit (spec §2.2 / §5.1). When present, the
+	// effect-present validation check (§4.3 step 7) uses Effect.ID
+	// to decide whether the source already carries the effect.
+	// nil disables both build-on-hit and the effect-present
+	// check.
+	Effect *EffectTemplate
 
 	// Pack records the pack that registered this ability.
 	// Diagnostic only — mirrors Race.Pack / Class.Pack.
@@ -165,6 +217,39 @@ func (r *AbilityRegistry) Register(a *Ability) error {
 		clone.DefaultCap = 100
 	}
 	clone.GainStat = StatType(strings.ToLower(strings.TrimSpace(string(a.GainStat))))
+	if clone.Cost < 0 {
+		clone.Cost = 0
+	}
+	if clone.PulseDelay < 0 {
+		clone.PulseDelay = 0
+	}
+	clone.EquipmentSlot = strings.ToLower(strings.TrimSpace(a.EquipmentSlot))
+	clone.EquipmentTag = strings.ToLower(strings.TrimSpace(a.EquipmentTag))
+	if len(a.TargetTypes) > 0 {
+		tt := make([]string, 0, len(a.TargetTypes))
+		seen := make(map[string]struct{}, len(a.TargetTypes))
+		for _, t := range a.TargetTypes {
+			n := strings.ToLower(strings.TrimSpace(t))
+			if n == "" {
+				continue
+			}
+			if _, dup := seen[n]; dup {
+				continue
+			}
+			seen[n] = struct{}{}
+			tt = append(tt, n)
+		}
+		if len(tt) > 0 {
+			clone.TargetTypes = tt
+		} else {
+			clone.TargetTypes = nil
+		}
+	}
+	if a.Effect != nil {
+		eff := *a.Effect
+		eff.ID = strings.ToLower(strings.TrimSpace(eff.ID))
+		clone.Effect = &eff
+	}
 	r.items[id] = &clone
 	return nil
 }

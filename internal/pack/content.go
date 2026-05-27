@@ -243,16 +243,41 @@ type ClassFile struct {
 // override semantics §2.1 already permit a pack to replace a
 // baseline ability by id+priority (mirrors the slot registry).
 type AbilityFile struct {
-	ID                    string  `yaml:"id"`
-	Name                  string  `yaml:"name,omitempty"`
-	Type                  string  `yaml:"type"`
-	Category              string  `yaml:"category"`
-	DefaultCap            int     `yaml:"default_cap,omitempty"`
-	GainBaseChance        int     `yaml:"gain_base_chance,omitempty"`
-	GainFailureMultiplier float64 `yaml:"gain_failure_multiplier,omitempty"`
-	GainStat              string  `yaml:"gain_stat,omitempty"`
-	GainStatScale         float64 `yaml:"gain_stat_scale,omitempty"`
-	Priority              int     `yaml:"priority,omitempty"`
+	ID                    string   `yaml:"id"`
+	Name                  string   `yaml:"name,omitempty"`
+	Type                  string   `yaml:"type"`
+	Category              string   `yaml:"category"`
+	DefaultCap            int      `yaml:"default_cap,omitempty"`
+	GainBaseChance        int      `yaml:"gain_base_chance,omitempty"`
+	GainFailureMultiplier float64  `yaml:"gain_failure_multiplier,omitempty"`
+	GainStat              string   `yaml:"gain_stat,omitempty"`
+	GainStatScale         float64  `yaml:"gain_stat_scale,omitempty"`
+	Priority              int      `yaml:"priority,omitempty"`
+	// M9.3 validation surface (spec abilities-and-effects §2.2, §4.3).
+	Cost          int      `yaml:"cost,omitempty"`
+	PulseDelay    int      `yaml:"pulse_delay,omitempty"`
+	InitiateOnly  bool     `yaml:"initiate_only,omitempty"`
+	TargetTypes   []string `yaml:"target_types,omitempty"`
+	EquipmentSlot string   `yaml:"equipment_slot,omitempty"`
+	EquipmentTag  string   `yaml:"equipment_tag,omitempty"`
+	// AlignmentMin/Max are pointers so 0 (neutral) is distinguishable
+	// from omitted. When at least one is set the range gates usage
+	// (spec §4.3 step 2); the loader fills the missing bound with the
+	// content-friendly extreme (Min defaults to MinInt, Max to MaxInt).
+	AlignmentMin *int `yaml:"alignment_min,omitempty"`
+	AlignmentMax *int `yaml:"alignment_max,omitempty"`
+	// Effect is the optional template applied on hit (spec §5.1).
+	Effect *EffectFile `yaml:"effect,omitempty"`
+}
+
+// EffectFile is the YAML shape for an Ability.Effect template (spec
+// abilities-and-effects §5.1). Duration is in pulses; negative =
+// permanent. Modifiers and Flags are optional.
+type EffectFile struct {
+	ID        string         `yaml:"id"`
+	Duration  int            `yaml:"duration,omitempty"`
+	Modifiers []ModifierFile `yaml:"modifiers,omitempty"`
+	Flags     []string       `yaml:"flags,omitempty"`
 }
 
 // RaceFile is the YAML shape for a race definition (spec

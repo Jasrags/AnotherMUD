@@ -918,9 +918,62 @@ is now real. Sketch of remaining vertical slices:
           logout drops it. Stat modifiers persist with the
           entity's stat block by the same source-key path
           equipment uses.
-  - **M9.3 — Action queue + validation pipeline.** Per-entity
-    queue as property; full §4.3 validation order with
-    structured fizzle reasons.
+  - **M9.3 (landed) — Action queue + validation pipeline.**
+    `progression.Ability` grew the validation surface (cost,
+    pulse-delay, initiate-only, target-types, equipment slot+tag,
+    alignment range, optional effect template) and the pack
+    AbilityFile schema accepts the corresponding YAML fields plus
+    a nested `effect:` block. New `progression.ActionQueueManager`
+    is per-entity ordered + bounded (16-default, configurable),
+    snapshot-deep-copies, drops on logout. New
+    `progression.PulseDelayTracker` records next-ready pulse per
+    `(entity, ability)` and is consulted by the validator
+    (records land in M9.4 on resolution per spec §4.5 step 3).
+    New `progression.ValidationPipeline` runs the §4.3 nine-step
+    pipeline against a small `ValidationEntity` seam
+    (EntityID/IsResting/Alignment/EquippedTags/InCombat/
+    CurrentTarget/Movement/Mana/Race) and a `TargetLookup` seam.
+    Returns a `ValidationResult{Reason, Ability, ResolvedTarget}`
+    with first-failure-wins ordering. New `FizzleReason` typed
+    constants enumerate the §4.8 keyword set. Helpers:
+    `IsOffensive` (§4.6, conservatively returns false for spells
+    until M9.4 metadata lands) and `ResourceFor` (§4.7
+    skill→movement, spell→mana). No driver wired — the resolution
+    phase consumes the pipeline in M9.4.
+
+    - [x] `Ability` carries Cost, PulseDelay, InitiateOnly,
+          TargetTypes, EquipmentSlot, EquipmentTag,
+          HasAlignmentRange + AlignmentMin/Max, Effect template.
+          Registry normalizes (lowercase slot/tag, dedup target
+          types, defensive copy of Effect).
+    - [x] Pack `AbilityFile` decodes the new fields incl. a
+          nested `effect:` block with modifiers and flags;
+          missing `effect.id` is an `ErrInvalidContent` at load.
+          `content/core/abilities/slash.yaml` exercises the new
+          surface end-to-end.
+    - [x] `ActionQueueManager.Push` rejects empty ids and
+          over-cap pushes; `Pop` deletes the map slot when the
+          queue empties (spec §4.2 "If the queue ends up empty
+          the property is cleared"); `Snapshot` returns a deep
+          copy; `Drop` clears on logout.
+    - [x] `PulseDelayTracker.IsCoolingDown` returns true only
+          when `readyAt > currentPulse` (so a recorded readyAt
+          ==currentPulse means "ready THIS pulse"); `Sweep`
+          evicts stale entries; `Drop` on logout.
+    - [x] `ValidationPipeline.Validate` enforces §4.3 ordering:
+          rest → alignment → proficiency → equipment slot+tag →
+          initiate-only → target validity → offensive in-combat
+          → effect-present → pulse-delay → resource. Each step
+          pinned by a dedicated test.
+    - [x] Target resolution §4.4 covers explicit-id-resolves,
+          explicit-id-unresolvable→`invalid_target`, offensive
+          fallback to current combat target, and self-target for
+          non-offensive abilities.
+    - [x] `IsOffensive` returns true for skills and false for
+          spells (with or without effect) until M9.4 metadata
+          enables damage-spell detection. Resource selection
+          maps skill→movement, spell→mana; race-adjusted cost
+          via existing `AdjustCost`.
   - **M9.4 — Resolution (hit/miss roll, resource deduct, pulse
     delay, effect application, vital-depleted emit).** Wires
     into the combat round's ability-resolution phase.

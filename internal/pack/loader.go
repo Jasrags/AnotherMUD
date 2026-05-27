@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"math"
 	"os"
 	"path/filepath"
 	"sort"
@@ -16,6 +17,7 @@ import (
 	"github.com/Jasrags/AnotherMUD/internal/mob"
 	"github.com/Jasrags/AnotherMUD/internal/progression"
 	"github.com/Jasrags/AnotherMUD/internal/slot"
+	"github.com/Jasrags/AnotherMUD/internal/stats"
 	"github.com/Jasrags/AnotherMUD/internal/world"
 	"gopkg.in/yaml.v3"
 )
@@ -364,6 +366,33 @@ func loadPackContent(ctx context.Context, p Discovered, dst *Registries) ([]pend
 	return placements, mobPlacements, nil
 }
 
+// normalizeTargetTypes lowercases + trims + dedups a YAML
+// target_types list. Symmetric with EquipmentSlot/Tag normalization
+// at decode time so the resulting Ability is inspectable without
+// relying on AbilityRegistry.Register to re-normalize.
+func normalizeTargetTypes(in []string) []string {
+	if len(in) == 0 {
+		return nil
+	}
+	out := make([]string, 0, len(in))
+	seen := make(map[string]struct{}, len(in))
+	for _, t := range in {
+		n := strings.ToLower(strings.TrimSpace(t))
+		if n == "" {
+			continue
+		}
+		if _, dup := seen[n]; dup {
+			continue
+		}
+		seen[n] = struct{}{}
+		out = append(out, n)
+	}
+	if len(out) == 0 {
+		return nil
+	}
+	return out
+}
+
 // decodeAbility reads an AbilityFile and builds a progression.Ability
 // (spec abilities-and-effects §2). Required: id, type, category.
 // Type and category strings are validated via the progression parsers
@@ -394,6 +423,57 @@ func decodeAbility(path, ns string) (*progression.Ability, error) {
 	if display == "" {
 		display = strings.TrimSpace(f.ID)
 	}
+
+	// Alignment range: at least one bound set ⇒ HasAlignmentRange.
+	// Missing-side defaults to the extreme so the range is open.
+	var (
+		hasAlignRange bool
+		alignMin      int
+		alignMax      int
+	)
+	if f.AlignmentMin != nil || f.AlignmentMax != nil {
+		hasAlignRange = true
+		alignMin = math.MinInt
+		alignMax = math.MaxInt
+		if f.AlignmentMin != nil {
+			alignMin = *f.AlignmentMin
+		}
+		if f.AlignmentMax != nil {
+			alignMax = *f.AlignmentMax
+		}
+	}
+
+	// Effect template: decode modifiers; empty id is an authoring
+	// error because the single-instance + removal paths key on id.
+	var effect *progression.EffectTemplate
+	if f.Effect != nil {
+		if strings.TrimSpace(f.Effect.ID) == "" {
+			return nil, fmt.Errorf("%w: %s: effect.id required when effect block is present", ErrInvalidContent, path)
+		}
+		mods := make([]stats.Modifier, 0, len(f.Effect.Modifiers))
+		for i, m := range f.Effect.Modifiers {
+			if strings.TrimSpace(m.Stat) == "" {
+				return nil, fmt.Errorf("%w: %s: effect.modifiers[%d] missing 'stat'", ErrInvalidContent, path, i)
+			}
+			mods = append(mods, stats.Modifier{Stat: m.Stat, Value: m.Value})
+		}
+		var flags []string
+		if len(f.Effect.Flags) > 0 {
+			flags = make([]string, 0, len(f.Effect.Flags))
+			for _, fl := range f.Effect.Flags {
+				if t := strings.TrimSpace(fl); t != "" {
+					flags = append(flags, t)
+				}
+			}
+		}
+		effect = &progression.EffectTemplate{
+			ID:        f.Effect.ID,
+			Duration:  f.Effect.Duration,
+			Modifiers: mods,
+			Flags:     flags,
+		}
+	}
+
 	return &progression.Ability{
 		ID:                    f.ID,
 		DisplayName:           display,
@@ -404,6 +484,16 @@ func decodeAbility(path, ns string) (*progression.Ability, error) {
 		GainFailureMultiplier: f.GainFailureMultiplier,
 		GainStat:              progression.StatType(strings.TrimSpace(f.GainStat)),
 		GainStatScale:         f.GainStatScale,
+		Cost:                  f.Cost,
+		PulseDelay:            f.PulseDelay,
+		InitiateOnly:          f.InitiateOnly,
+		TargetTypes:           normalizeTargetTypes(f.TargetTypes),
+		EquipmentSlot:         strings.ToLower(strings.TrimSpace(f.EquipmentSlot)),
+		EquipmentTag:          strings.ToLower(strings.TrimSpace(f.EquipmentTag)),
+		HasAlignmentRange:     hasAlignRange,
+		AlignmentMin:          alignMin,
+		AlignmentMax:          alignMax,
+		Effect:                effect,
 		Pack:                  ns,
 		Priority:              f.Priority,
 	}, nil

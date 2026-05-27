@@ -15,3 +15,13 @@ gain_failure_multiplier: 0.5
 # abilities-and-effects §3.5 step 3).
 gain_stat: dex
 gain_stat_scale: 0.1
+
+# M9.3 validation surface: slash is a wield-locked melee skill.
+# Cost draws from movement (spec §4.7 skills→movement). Pulse delay
+# enforces a small cooldown so spam-queueing surfaces as fizzles.
+cost: 5
+pulse_delay: 1
+equipment_slot: wield
+equipment_tag: blade
+target_types:
+  - enemy
