@@ -12,11 +12,11 @@ package pack
 // no spawn cycles. ResetInterval is in ticks (engine default applies
 // when 0).
 type AreaFile struct {
-	ID            string                `yaml:"id"`
-	Name          string                `yaml:"name"`
-	Description   string                `yaml:"description,omitempty"`
-	ResetInterval uint64                `yaml:"reset_interval,omitempty"`
-	SpawnRules    []SpawnRuleFile       `yaml:"spawn_rules,omitempty"`
+	ID            string          `yaml:"id"`
+	Name          string          `yaml:"name"`
+	Description   string          `yaml:"description,omitempty"`
+	ResetInterval uint64          `yaml:"reset_interval,omitempty"`
+	SpawnRules    []SpawnRuleFile `yaml:"spawn_rules,omitempty"`
 }
 
 // SpawnRuleFile is the YAML shape for one entry of
@@ -112,8 +112,8 @@ type MobFile struct {
 // DispositionFile is the YAML shape for a mob's reaction policy
 // (spec mobs-ai-spawning §5.1 disposition definition).
 type DispositionFile struct {
-	Default string                 `yaml:"default,omitempty"`
-	Rules   []DispositionRuleFile  `yaml:"rules,omitempty"`
+	Default string                `yaml:"default,omitempty"`
+	Rules   []DispositionRuleFile `yaml:"rules,omitempty"`
 }
 
 // DispositionRuleFile is one entry in DispositionFile.Rules. All
@@ -156,4 +156,26 @@ type RoomFile struct {
 	Exits       map[string]string `yaml:"exits,omitempty"`
 	Items       []string          `yaml:"items,omitempty"`
 	Mobs        []string          `yaml:"mobs,omitempty"`
+}
+
+// TrackFile is the YAML shape for a progression-track definition
+// (spec progression.md §5.1). M8.2 supports the table form only;
+// formula-driven tracks live as Go-side TrackDef construction
+// (cmd/anothermud wiring) until the scripting milestone lands.
+//
+// Name is case-sensitive (spec §5.1). DisplayName falls back to
+// Name when empty.
+//
+// XPTable is indexed by level — XPTable[L] is the total XP required
+// to reach level L. Idiomatic shape: write XPTable[0] as 0 (level
+// 0 unused), XPTable[1] as 0 (level 1 threshold), then the real
+// thresholds for level 2 onward. The loader does not enforce that
+// pattern beyond rejecting a missing/empty table.
+type TrackFile struct {
+	ID           string  `yaml:"id"`
+	Name         string  `yaml:"name,omitempty"`
+	MaxLevel     int     `yaml:"max_level"`
+	XPTable      []int64 `yaml:"xp_table"`
+	DeathPenalty float64 `yaml:"death_penalty,omitempty"`
+	Priority     int     `yaml:"priority,omitempty"`
 }

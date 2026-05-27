@@ -619,48 +619,41 @@ is now real. Sketch of remaining vertical slices:
     internal clamp at M8.1 — StatBlock holds `hp_max` but does
     not own the current-vital integer that the spec §2.3
     re-clamp rule cares about. See m8-1-deferred-fixes.md.
-  - **M8.2 — Tracks + XP/level engine.** New `progression.Manager`
-    owning per-entity `(level, xp)` maps keyed by track name per
-    spec §5. `TrackDefinition` carries name + max level + EITHER
-    XP table OR XP formula + optional `OnLevelUp` callback. Pack
-    loader gains a `tracks/` directory and reads track definitions
-    into a registry; `content/core/` ships at least one starter
-    track (the class-bound one a future M8.4 class will consume).
-    `GrantExperience` adds XP, emits `progression.xp.gained`, then
-    cascades through every threshold the new total crosses
-    (emitting `progression.level.up` per step). `DeductExperience`
-    floors at the current level's threshold per §5.5 (cannot
-    de-level today — recorded in open questions). `GetTrackInfo`
-    returns the structured view (Xp, Level, XpToNext,
-    CurrentLevelThreshold, MaxLevel, Overflow) the score renderer
-    and GMCP will consume. New eventbus types: `XPGained`,
-    `XPLost`, `LevelUp`, `TrackReset`. Player save grows
-    `progression.tracks` (level + xp maps); save version bumps.
-    No class hookup yet — that lands in M8.4.
-    - [ ] Tracks load from `content/core/tracks/<name>.yaml` into
-          a pack-registry mirroring rooms/areas/items; case-sensitive
-          name lookup; higher-priority registrations override per
-          spec §4.2 semantics.
-    - [ ] Lazy initialization: first `GetLevel`/`GetTrackInfo`/
-          `GrantExperience` for a (entity, track) pair seeds
-          `(level=1, xp=0)`.
-    - [ ] `GrantExperience` emits `progression.xp.gained` exactly
-          once per call, then cascades through every crossed
-          threshold emitting `progression.level.up` per step; XP
-          past max level accumulates (overflow reported via
-          TrackInfo, not clamped).
-    - [ ] `DeductExperience` floors at current-level threshold;
-          emits `progression.xp.lost` only when actual loss > 0.
-    - [ ] `ResetTrack` sets `(1, 0)`, emits
-          `progression.track.reset`, does NOT re-enter the
-          level-up loop.
-    - [ ] Player save v7 carries `progression` block; v6 saves
-          load cleanly (empty maps lazy-init on first interaction).
-    - [ ] Admin `xp <player> <amount> [track]` command grants XP
-          end-to-end so the cascade is testable without a class.
-    - [ ] Race detector clean: concurrent `GrantExperience` /
-          `GetTrackInfo` from session + tick goroutines on the
-          same entity.
+  - **M8.2 (landed):** Tracks + XP/level engine. New
+    `progression.TrackDef` + `progression.TrackRegistry` (priority-
+    based override semantics, case-sensitive lookups); new
+    `progression.ProgressionState` (per-entity level/XP maps with
+    internal mutex + ordered Snapshot/Restore); new
+    `progression.Manager` operating on State with
+    `GrantExperience` (cascading through crossed thresholds),
+    `DeductExperience` (floors at current-level threshold —
+    cannot de-level, spec §5.5 open question recorded), `ResetTrack`,
+    and the structured `GetTrackInfo` view (XpToNext / Overflow /
+    CurrentLevelThreshold). Lazy init seeds `(level=1, xp=0)` on
+    first interaction. `progression.EventSink` interface keeps
+    progression free of an eventbus import (same pattern as
+    combat.EventSink); cmd/anothermud wires a `progressionSink`
+    adapter to `bus.Publish`. New eventbus types `XPGained`,
+    `XPLost`, `LevelUp`, `TrackReset` plus matching constants.
+    Pack loader gains `tracks` in ContentPaths + decode for
+    `tracks/*.yaml` (M8.2 supports XPTable form only; XPFormula
+    is reserved for Go-side construction until scripting lands).
+    `content/core/tracks/adventurer.yaml` ships a 10-level
+    triangular-curve track. Player save v7: `progression` block
+    (ordered `[]{name, level, xp}`); v6 → v7 migration is a
+    no-op. `connActor` holds `*ProgressionState` and exposes
+    `GrantXP` / `DeductXP` / `TrackInfo` wrapper methods that flip
+    the dirty bit so autosave commits the new state. New admin
+    `xp [<amount> [<track>]]` verb: no-args lists every track's
+    TrackInfo; arg form self-grants for end-to-end probing. Role
+    gate + target-by-name form land with the role system (M10+).
+    Deferred: class subscriber for `LevelUp` (M8.4 — the
+    StatGrowthSubscriber and ClassPathProcessor land then);
+    `OnLevelUp` per-track callback exists but no track wires it
+    until M8.4; M8.2 cannot de-level via `DeductExperience` and
+    `XPLost` callers don't yet test that branch end-to-end (the
+    spec open question is unresolved — see
+    m8-2-deferred-fixes.md).
   - **M8.3 — Races.** New `progression.Race` + `RaceRegistry`
     loaded from `content/core/races/<id>.yaml`. Race carries
     stat-caps map, cast-cost modifier, racial-flag list,

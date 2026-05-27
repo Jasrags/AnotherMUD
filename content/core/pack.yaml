@@ -14,3 +14,5 @@ content:
     - slots/*.yaml
   mobs:
     - mobs/*.yaml
+  tracks:
+    - tracks/*.yaml

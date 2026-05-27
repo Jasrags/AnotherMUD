@@ -56,6 +56,10 @@ func RegisterBuiltins(r *Registry) error {
 		// likewise spelled out.
 		{"flee", FleeHandler},
 		{"wimpy", WimpyHandler},
+		// Admin XP probe (M8.2). End-to-end test verb for the
+		// progression layer — self-grants XP. Role-gated grants
+		// + target-by-name form land with the role system (M10+).
+		{"xp", XPHandler},
 	}
 	for _, d := range []world.Direction{
 		world.DirNorth, world.DirSouth, world.DirEast, world.DirWest,

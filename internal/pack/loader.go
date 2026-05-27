@@ -13,6 +13,7 @@ import (
 	"github.com/Jasrags/AnotherMUD/internal/item"
 	"github.com/Jasrags/AnotherMUD/internal/logging"
 	"github.com/Jasrags/AnotherMUD/internal/mob"
+	"github.com/Jasrags/AnotherMUD/internal/progression"
 	"github.com/Jasrags/AnotherMUD/internal/slot"
 	"github.com/Jasrags/AnotherMUD/internal/world"
 	"gopkg.in/yaml.v3"
@@ -81,7 +82,7 @@ type pendingMobPlacement struct {
 // Filter, when non-empty, restricts discovery (spec §2.4). Pass nil to
 // load every active pack under root.
 func Load(ctx context.Context, root string, filter []string, dst *Registries, spawner Spawner, mobSpawner MobSpawner) error {
-	if dst == nil || dst.World == nil || dst.Items == nil || dst.Slots == nil || dst.Mobs == nil {
+	if dst == nil || dst.World == nil || dst.Items == nil || dst.Slots == nil || dst.Mobs == nil || dst.Tracks == nil {
 		return errors.New("pack.Load: dst has nil registry field; use pack.NewRegistries()")
 	}
 	logger := logging.From(ctx).With(slog.String("event", "pack.load"), slog.String("root", root))
@@ -200,6 +201,10 @@ func loadPackContent(ctx context.Context, p Discovered, dst *Registries) ([]pend
 	if err != nil {
 		return nil, nil, err
 	}
+	trackPaths, err := resolveGlobs(p.Dir, p.Manifest.Content.Tracks)
+	if err != nil {
+		return nil, nil, err
+	}
 
 	// Areas first — rooms reference them (spec §3.3 step 2). TryAddArea
 	// catches both intra-pack and cross-pack id collisions.
@@ -277,6 +282,19 @@ func loadPackContent(ctx context.Context, p Discovered, dst *Registries) ([]pend
 		}
 	}
 
+	// Tracks: progression-track definitions. Name-keyed registry
+	// with priority-based override semantics (spec
+	// progression.md §5.1). Cross-pack overrides honored.
+	for _, tp := range trackPaths {
+		td, err := decodeTrack(tp, ns)
+		if err != nil {
+			return nil, nil, err
+		}
+		if err := dst.Tracks.Register(td); err != nil {
+			return nil, nil, fmt.Errorf("%w (in %s)", err, tp)
+		}
+	}
+
 	logger.Info("pack content loaded",
 		slog.String("event", "pack.content"),
 		slog.Int("areas", len(areaPaths)),
@@ -284,10 +302,65 @@ func loadPackContent(ctx context.Context, p Discovered, dst *Registries) ([]pend
 		slog.Int("items", len(itemPaths)),
 		slog.Int("slots", len(slotPaths)),
 		slog.Int("mobs", len(mobPaths)),
+		slog.Int("tracks", len(trackPaths)),
 		slog.Int("placements", len(placements)),
 		slog.Int("mob_placements", len(mobPlacements)),
 	)
 	return placements, mobPlacements, nil
+}
+
+// decodeTrack reads a TrackFile and builds a progression.TrackDef.
+// Spec progression.md §5.1 — name is case-sensitive; max_level
+// must be > 0; xp_table must be present (formula-driven tracks
+// aren't authorable from YAML until scripting lands). The
+// registered Pack field records which pack registered the track
+// for diagnostics.
+func decodeTrack(path, ns string) (*progression.TrackDef, error) {
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		return nil, fmt.Errorf("reading track %s: %w", path, err)
+	}
+	var f TrackFile
+	if err := yaml.Unmarshal(raw, &f); err != nil {
+		return nil, fmt.Errorf("%w: %s: %v", ErrInvalidContent, path, err)
+	}
+	if strings.TrimSpace(f.ID) == "" {
+		return nil, fmt.Errorf("%w: %s: missing 'id'", ErrInvalidContent, path)
+	}
+	if f.MaxLevel <= 0 {
+		return nil, fmt.Errorf("%w: %s: 'max_level' must be > 0 (got %d)", ErrInvalidContent, path, f.MaxLevel)
+	}
+	if len(f.XPTable) == 0 {
+		return nil, fmt.Errorf("%w: %s: 'xp_table' required (M8.2 supports table-driven tracks only)", ErrInvalidContent, path)
+	}
+	// Table must declare a threshold for every reachable level
+	// (index 0 unused, index 1..max_level inclusive). Without
+	// this check a max_level=10 track with a 3-entry table loads
+	// cleanly and cascades silently halt past level 2 — a
+	// content-author footgun with no diagnostic at runtime.
+	if len(f.XPTable) < f.MaxLevel+1 {
+		return nil, fmt.Errorf("%w: %s: xp_table needs %d entries for max_level=%d (got %d)",
+			ErrInvalidContent, path, f.MaxLevel+1, f.MaxLevel, len(f.XPTable))
+	}
+	// XP table must be non-decreasing — a level threshold below the
+	// previous level's threshold would cause the cascade in
+	// GrantExperience to never resolve cleanly. Catch the authoring
+	// mistake at load.
+	for i := 1; i < len(f.XPTable); i++ {
+		if f.XPTable[i] < f.XPTable[i-1] {
+			return nil, fmt.Errorf("%w: %s: xp_table[%d]=%d is less than xp_table[%d]=%d (must be non-decreasing)",
+				ErrInvalidContent, path, i, f.XPTable[i], i-1, f.XPTable[i-1])
+		}
+	}
+	return &progression.TrackDef{
+		Name:         f.ID,
+		DisplayName:  strings.TrimSpace(f.Name),
+		MaxLevel:     f.MaxLevel,
+		XPTable:      append([]int64(nil), f.XPTable...),
+		DeathPenalty: f.DeathPenalty,
+		Pack:         ns,
+		Priority:     f.Priority,
+	}, nil
 }
 
 // resolveGlobs expands each pattern (relative to packDir) into matching

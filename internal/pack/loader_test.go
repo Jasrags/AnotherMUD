@@ -695,3 +695,127 @@ max: 1`)
 		t.Errorf("err = %v, want ErrDuplicate", err)
 	}
 }
+
+func TestLoadTracksHappyPath(t *testing.T) {
+	root := t.TempDir()
+	pack := filepath.Join(root, "core")
+	writeFile(t, filepath.Join(pack, "pack.yaml"), `
+name: tapestry-core
+content:
+  areas: [areas/*.yaml]
+  rooms: [rooms/*.yaml]
+  tracks: [tracks/*.yaml]
+`)
+	writeFile(t, filepath.Join(pack, "areas/x.yaml"), `id: x
+name: X`)
+	writeFile(t, filepath.Join(pack, "rooms/r.yaml"), `id: r
+area: x
+name: R`)
+	writeFile(t, filepath.Join(pack, "tracks/adventurer.yaml"), `
+id: adventurer
+name: Adventurer
+max_level: 5
+xp_table: [0, 0, 100, 300, 600, 1000]
+`)
+
+	regs := NewRegistries()
+	if err := Load(context.Background(), root, nil, regs, nil, nil); err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	td, ok := regs.Tracks.Get("adventurer")
+	if !ok {
+		t.Fatal("track adventurer not registered")
+	}
+	if td.MaxLevel != 5 {
+		t.Errorf("MaxLevel = %d, want 5", td.MaxLevel)
+	}
+	if td.GetXpForLevel(3) != 300 {
+		t.Errorf("GetXpForLevel(3) = %d, want 300", td.GetXpForLevel(3))
+	}
+	if td.Pack != "tapestry-core" {
+		t.Errorf("Pack = %q, want tapestry-core", td.Pack)
+	}
+}
+
+func TestLoadTracksRejectsNonMonotonicTable(t *testing.T) {
+	root := t.TempDir()
+	pack := filepath.Join(root, "core")
+	writeFile(t, filepath.Join(pack, "pack.yaml"), `
+name: tapestry-core
+content:
+  areas: [areas/*.yaml]
+  rooms: [rooms/*.yaml]
+  tracks: [tracks/*.yaml]
+`)
+	writeFile(t, filepath.Join(pack, "areas/x.yaml"), `id: x
+name: X`)
+	writeFile(t, filepath.Join(pack, "rooms/r.yaml"), `id: r
+area: x
+name: R`)
+	writeFile(t, filepath.Join(pack, "tracks/bad.yaml"), `
+id: bad
+max_level: 3
+xp_table: [0, 0, 100, 50]
+`)
+
+	err := Load(context.Background(), root, nil, NewRegistries(), nil, nil)
+	if !errors.Is(err, ErrInvalidContent) {
+		t.Errorf("err = %v, want ErrInvalidContent", err)
+	}
+}
+
+func TestLoadTracksRejectsEmptyTable(t *testing.T) {
+	root := t.TempDir()
+	pack := filepath.Join(root, "core")
+	writeFile(t, filepath.Join(pack, "pack.yaml"), `
+name: tapestry-core
+content:
+  areas: [areas/*.yaml]
+  rooms: [rooms/*.yaml]
+  tracks: [tracks/*.yaml]
+`)
+	writeFile(t, filepath.Join(pack, "areas/x.yaml"), `id: x
+name: X`)
+	writeFile(t, filepath.Join(pack, "rooms/r.yaml"), `id: r
+area: x
+name: R`)
+	writeFile(t, filepath.Join(pack, "tracks/bad.yaml"), `
+id: bad
+max_level: 3
+`)
+
+	err := Load(context.Background(), root, nil, NewRegistries(), nil, nil)
+	if !errors.Is(err, ErrInvalidContent) {
+		t.Errorf("err = %v, want ErrInvalidContent", err)
+	}
+}
+
+func TestLoadTracksRejectsTableShorterThanMaxLevel(t *testing.T) {
+	// max_level=10 but only 4 thresholds defined — silently halting
+	// cascade past level 3 is exactly the authoring footgun M8.2
+	// review flagged. Reject at load.
+	root := t.TempDir()
+	pack := filepath.Join(root, "core")
+	writeFile(t, filepath.Join(pack, "pack.yaml"), `
+name: tapestry-core
+content:
+  areas: [areas/*.yaml]
+  rooms: [rooms/*.yaml]
+  tracks: [tracks/*.yaml]
+`)
+	writeFile(t, filepath.Join(pack, "areas/x.yaml"), `id: x
+name: X`)
+	writeFile(t, filepath.Join(pack, "rooms/r.yaml"), `id: r
+area: x
+name: R`)
+	writeFile(t, filepath.Join(pack, "tracks/short.yaml"), `
+id: short
+max_level: 10
+xp_table: [0, 0, 100, 200]
+`)
+
+	err := Load(context.Background(), root, nil, NewRegistries(), nil, nil)
+	if !errors.Is(err, ErrInvalidContent) {
+		t.Errorf("err = %v, want ErrInvalidContent", err)
+	}
+}

@@ -24,6 +24,7 @@ import (
 	"github.com/Jasrags/AnotherMUD/internal/combat"
 	"github.com/Jasrags/AnotherMUD/internal/entities"
 	"github.com/Jasrags/AnotherMUD/internal/eventbus"
+	"github.com/Jasrags/AnotherMUD/internal/progression"
 	"github.com/Jasrags/AnotherMUD/internal/slot"
 	"github.com/Jasrags/AnotherMUD/internal/stats"
 	"github.com/Jasrags/AnotherMUD/internal/world"
@@ -98,6 +99,18 @@ type Actor interface {
 	MarkContentsDirty()
 }
 
+// ProgressionHolder is the M8.2 surface a handler needs to read and
+// mutate the actor's progression-track state. Separated from Actor
+// so tests / test actors that don't exercise XP can satisfy Actor
+// without a no-op stub forest. The xp verb (and future class
+// path-grant subscribers) type-asserts to this when wiring is
+// needed.
+type ProgressionHolder interface {
+	GrantXP(ctx context.Context, mgr *progression.Manager, track, source string, amount int64) progression.GrantResult
+	DeductXP(ctx context.Context, mgr *progression.Manager, track string, amount int64) progression.DeductResult
+	TrackInfo(mgr *progression.Manager, track string) (progression.TrackInfo, bool)
+}
+
 // Broadcaster is the small surface a handler needs to address other
 // players in the world. The session manager satisfies it. Handlers
 // MUST tolerate a nil Broadcaster (e.g. unit tests) and skip the
@@ -167,6 +180,11 @@ type Env struct {
 	// outcome so the verb can render a precise message. nil in
 	// tests that don't exercise the flee verb.
 	Flee func(ctx context.Context, c combat.CombatantID) combat.FleeOutcome
+
+	// Progression is the M8.2 XP/level service. The xp verb routes
+	// through it; future verbs (score, train, practice) will too.
+	// nil in tests that don't exercise progression verbs.
+	Progression *progression.Manager
 }
 
 // DispositionHook is the seam movement and login flows call when a
@@ -200,7 +218,9 @@ type Context struct {
 	// Flee is the M7.6 verb-driven §5.2 flee primitive closure. nil
 	// in tests that don't exercise the flee verb.
 	Flee func(ctx context.Context, c combat.CombatantID) combat.FleeOutcome
-	Raw  string              // raw input line, trimmed
+	// Progression is the M8.2 XP/level service. nil in tests.
+	Progression *progression.Manager
+	Raw         string              // raw input line, trimmed
 	Verb        string              // resolved verb (lowercase)
 	Args        []string            // tokens after the verb (space-split)
 }
@@ -323,6 +343,7 @@ func (r *Registry) Dispatch(ctx context.Context, env Env, actor Actor, raw strin
 		Disposition: env.Disposition,
 		Combat:      env.Combat,
 		Flee:        env.Flee,
+		Progression: env.Progression,
 		Raw:         trimmed,
 		Verb:        strings.ToLower(verb),
 		Args:        args,

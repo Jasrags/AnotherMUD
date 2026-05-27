@@ -409,6 +409,66 @@ func TestSave_RoundTripsStatsBase(t *testing.T) {
 	}
 }
 
+func TestLoad_V6MigratesToV7WithEmptyProgression(t *testing.T) {
+	// A v6 save carries no `progression` block. After migration to v7
+	// the field is still absent; the session-load path's
+	// empty-snapshot branch leaves the ProgressionState empty (lazy
+	// init on first interaction per spec §5.3).
+	ctx := context.Background()
+	st, dir := newStore(t)
+
+	playerDir := filepath.Join(dir, "players", "v6user")
+	if err := os.MkdirAll(playerDir, 0o755); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(playerDir, "player.yaml"),
+		[]byte("version: 6\nid: p-1\naccount_id: acct-1\nname: V6User\nlocation: tapestry-core:town-square\n"),
+		0o600); err != nil {
+		t.Fatalf("write: %v", err)
+	}
+
+	got, err := st.Load(ctx, "v6user")
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if got.Version != player.CurrentVersion {
+		t.Errorf("Version = %d, want %d", got.Version, player.CurrentVersion)
+	}
+	if len(got.Progression) != 0 {
+		t.Errorf("Progression = %v, want empty after v6 migration", got.Progression)
+	}
+}
+
+func TestSave_RoundTripsProgression(t *testing.T) {
+	ctx := context.Background()
+	st, _ := newStore(t)
+
+	want := &player.Save{
+		Version:   player.CurrentVersion,
+		ID:        "p-1",
+		AccountID: "acct-1",
+		Name:      "Veteran",
+		Location:  "tapestry-core:town-square",
+		Progression: progression.ProgressionSnapshot{
+			{Name: "adventurer", Level: 3, XP: 450},
+			{Name: "explorer", Level: 1, XP: 0},
+		},
+	}
+	if err := st.Save(ctx, want); err != nil {
+		t.Fatalf("Save: %v", err)
+	}
+	got, err := st.Load(ctx, "Veteran")
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if len(got.Progression) != 2 {
+		t.Fatalf("Progression len = %d, want 2", len(got.Progression))
+	}
+	if got.Progression[0].Name != "adventurer" || got.Progression[0].Level != 3 || got.Progression[0].XP != 450 {
+		t.Errorf("Progression[0] = %+v, want {adventurer, 3, 450}", got.Progression[0])
+	}
+}
+
 func TestSave_RejectsUnsafeName(t *testing.T) {
 	ctx := context.Background()
 	st, _ := newStore(t)

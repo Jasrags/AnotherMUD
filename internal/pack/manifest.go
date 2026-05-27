@@ -67,11 +67,12 @@ type Manifest struct {
 // ContentPaths enumerates per-category file globs (spec §2.2 "content"
 // block). Paths are relative to the pack directory.
 type ContentPaths struct {
-	Areas []string `yaml:"areas,omitempty"`
-	Rooms []string `yaml:"rooms,omitempty"`
-	Items []string `yaml:"items,omitempty"`
-	Slots []string `yaml:"slots,omitempty"`
-	Mobs  []string `yaml:"mobs,omitempty"`
+	Areas  []string `yaml:"areas,omitempty"`
+	Rooms  []string `yaml:"rooms,omitempty"`
+	Items  []string `yaml:"items,omitempty"`
+	Slots  []string `yaml:"slots,omitempty"`
+	Mobs   []string `yaml:"mobs,omitempty"`
+	Tracks []string `yaml:"tracks,omitempty"`
 }
 
 // IsActive reports whether the manifest is active (default true).

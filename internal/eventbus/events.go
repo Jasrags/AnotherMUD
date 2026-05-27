@@ -9,11 +9,11 @@ import (
 // the bus uses dots ("entity.equipped") because identifiers carry
 // better through code. The mapping is one-to-one and lives here.
 const (
-	EventItemPickedUp    = "entity.item_picked_up"
-	EventItemDropped     = "entity.item_dropped"
-	EventEntityEquipped  = "entity.equipped"
+	EventItemPickedUp     = "entity.item_picked_up"
+	EventItemDropped      = "entity.item_dropped"
+	EventEntityEquipped   = "entity.equipped"
 	EventEntityUnequipped = "entity.unequipped"
-	EventItemGiven       = "entity.item_given"
+	EventItemGiven        = "entity.item_given"
 	// Cancellable pre-event fired before a put-in-container commits.
 	// Spec inventory-equipment-items §4.5 step 5 — listeners can flip
 	// the cancel flag to veto (locks, quest gates, etc.).
@@ -93,6 +93,21 @@ const (
 	// step 2). Distinct from prevented (which is a policy refusal)
 	// so subscribers can render different messaging.
 	EventFleeFailed = "combat.flee_failed"
+	// XPGained fires after progression.Manager.GrantExperience adds
+	// XP to a track (spec progression.md §5.4). Carries the source
+	// string the granter passed in so quest / achievement listeners
+	// can filter on origin without parsing names.
+	EventXPGained = "progression.xp.gained"
+	// XPLost fires after progression.Manager.DeductExperience
+	// removes XP — only when the actual loss is > 0 (spec §5.5).
+	EventXPLost = "progression.xp.lost"
+	// LevelUp fires once per level-up step inside the cascade
+	// triggered by GrantExperience (spec §5.4). A single grant that
+	// crosses N thresholds emits N events.
+	EventLevelUp = "progression.level.up"
+	// TrackReset fires after ResetTrack (spec §5.7). No level-up
+	// follows: the reset is downward.
+	EventTrackReset = "progression.track.reset"
 )
 
 // ItemPickedUp fires after GetHandler successfully moves an item
@@ -473,3 +488,57 @@ type MobKilled struct {
 
 // Name implements Event.
 func (MobKilled) Name() string { return EventMobKilled }
+
+// XPGained fires after a progression XP grant lands (spec
+// progression.md §5.4). Source is the free-form attribution the
+// granter passed in ("kill:mob:wolf", "quest:rescue", "admin").
+// NewTotal is post-grant XP on this track.
+type XPGained struct {
+	EntityID string
+	Track    string
+	Amount   int64
+	NewTotal int64
+	Source   string
+}
+
+// Name implements Event.
+func (XPGained) Name() string { return EventXPGained }
+
+// XPLost fires after a progression XP deduction (spec §5.5).
+// Amount is the actual loss (may be < what the caller requested
+// if floored at the current level threshold).
+type XPLost struct {
+	EntityID string
+	Track    string
+	Amount   int64
+	NewTotal int64
+}
+
+// Name implements Event.
+func (XPLost) Name() string { return EventXPLost }
+
+// LevelUp fires once per level-up step in a cascade (spec §5.4).
+// A single grant crossing multiple thresholds publishes one
+// LevelUp event per step. OldLevel + 1 == NewLevel always; both
+// are present so subscribers can render the transition without
+// arithmetic.
+type LevelUp struct {
+	EntityID string
+	Track    string
+	OldLevel int
+	NewLevel int
+}
+
+// Name implements Event.
+func (LevelUp) Name() string { return EventLevelUp }
+
+// TrackReset fires after ResetTrack (spec §5.7). The post-reset
+// state is always (level=1, xp=0); no fields needed beyond entity
+// + track identity.
+type TrackReset struct {
+	EntityID string
+	Track    string
+}
+
+// Name implements Event.
+func (TrackReset) Name() string { return EventTrackReset }

@@ -88,6 +88,12 @@ type Config struct {
 	// nil in tests that don't exercise the flee verb.
 	Flee func(ctx context.Context, c combat.CombatantID) combat.FleeOutcome
 
+	// Progression is the M8.2 XP/level service. nil in tests that
+	// don't exercise progression; in production the composition root
+	// builds it from the pack-loaded track registry and a bus-backed
+	// EventSink.
+	Progression *progression.Manager
+
 	// StartID is the fallback starting room when a character's saved
 	// location is not present in the loaded world (e.g. a room was
 	// removed from content between restarts).
@@ -197,11 +203,12 @@ func run(ctx context.Context, c conn.Connection, cfg Config) error {
 		contents:     cfg.Contents,
 		equipment:    make(map[string]entities.EntityID),
 		statBlock:    progression.NewWithBase(progression.DefaultPlayerBase()),
+		progress:     progression.NewProgressionState(),
 		// M7.5: vitals restore from the persisted save when present;
 		// absent block (fresh character, migrated-from-v4 save) spawns
 		// at full HP via NewVitals. The race/class/level inputs that
 		// would derive real numbers for max HP here are M8.3/M8.4.
-		vitals: restorePlayerVitals(loaded.Player.Vitals),
+		vitals:      restorePlayerVitals(loaded.Player.Vitals),
 		flood:       newFloodGate(floodCfg, clk),
 		floodCfg:    &floodCfg,
 		clk:         clk,
@@ -228,6 +235,13 @@ func run(ctx context.Context, c conn.Connection, cfg Config) error {
 	// keys at the moment respawn runs so RebindSource has something
 	// to find.
 	a.statBlock.RestoreModifiers(loaded.Player.Stats)
+
+	// M8.2: install persisted progression state. Empty snapshot is
+	// a no-op (uninitialized tracks lazy-init on first interaction
+	// per spec §5.3).
+	if len(loaded.Player.Progression) > 0 {
+		a.progress.Restore(loaded.Player.Progression)
+	}
 
 	// Respawn persisted inventory into live ItemInstances. Done before
 	// the actor enters the manager / starts taking input so a takeover
@@ -368,6 +382,7 @@ func pump(ctx context.Context, c conn.Connection, cfg Config, a *connActor, clk 
 			Disposition: cfg.Disposition,
 			Combat:      cfg.Combat,
 			Flee:        cfg.Flee,
+			Progression: cfg.Progression,
 		}
 		if err := cfg.Commands.Dispatch(ctx, env, a, line); err != nil {
 			if errors.Is(err, command.ErrQuit) {
@@ -867,6 +882,15 @@ type connActor struct {
 	// landed with M7.5 (player.Save.Vitals).
 	vitals *combat.Vitals
 
+	// progress is the actor's progression-track state (M8.2 —
+	// docs/specs/progression.md §5.2). Holds per-track (level, xp)
+	// maps; mutated through progression.Manager operations and
+	// persisted in player.Save.Progression. The pointer is set at
+	// construction and never reassigned; ProgressionState carries
+	// its own internal lock so reads from a tick goroutine don't
+	// serialize on a.mu.
+	progress *progression.ProgressionState
+
 	// wimpyThreshold is the §5.1 HP%-threshold property. 0 disables
 	// wimpy. Set by the `wimpy <pct>` verb; read by combat's wimpy
 	// phase via the WimpyHolder interface (defined on combat package
@@ -881,11 +905,11 @@ type connActor struct {
 	// — but the field-level read stays lock-free.
 	wimpyThreshold atomic.Int32
 
-	mu            sync.Mutex
-	room          *world.Room
-	colorEnabled  bool
-	save          *player.Save
-	dirty         bool
+	mu           sync.Mutex
+	room         *world.Room
+	colorEnabled bool
+	save         *player.Save
+	dirty        bool
 	// saveGen is incremented on every mutation that flips dirty. Persist
 	// captures the value at snapshot time and only clears dirty if the
 	// counter hasn't advanced — guards against a concurrent equip /
@@ -1240,6 +1264,65 @@ func (a *connActor) StatsHas(src entities.SourceKey) bool {
 	return a.statBlock.HasSource(src)
 }
 
+// GrantXP grants amount XP on track via the supplied
+// progression.Manager and marks the actor dirty so the next
+// Persist commits the new state. Wraps Manager.GrantExperience —
+// callers go through this rather than reaching into a.progress
+// directly so the dirty bit is consistently flipped on every
+// mutation path (admin xp verb today, future combat-driven and
+// quest-driven sources later).
+//
+// Returns the structured result for renderers ("you reach level
+// 2!"). A nil manager is a no-op (returns TrackUnknown=true);
+// tests that don't wire Progression don't need to special-case.
+func (a *connActor) GrantXP(ctx context.Context, mgr *progression.Manager, track, source string, amount int64) progression.GrantResult {
+	if mgr == nil {
+		return progression.GrantResult{Track: track, TrackUnknown: true}
+	}
+	res := mgr.GrantExperience(ctx, a.progress, a.CombatantIDString(), track, amount, source)
+	if res.XPAdded > 0 || res.NewLevel != res.OldLevel {
+		a.mu.Lock()
+		a.syncProgressionToSaveLocked()
+		a.markDirtyLocked()
+		a.mu.Unlock()
+	}
+	return res
+}
+
+// DeductXP removes amount XP on track via the supplied Manager
+// and marks dirty if anything was lost. Wraps
+// Manager.DeductExperience.
+func (a *connActor) DeductXP(ctx context.Context, mgr *progression.Manager, track string, amount int64) progression.DeductResult {
+	if mgr == nil {
+		return progression.DeductResult{Track: track, TrackUnknown: true}
+	}
+	res := mgr.DeductExperience(ctx, a.progress, a.CombatantIDString(), track, amount)
+	if res.XPLost > 0 {
+		a.mu.Lock()
+		a.syncProgressionToSaveLocked()
+		a.markDirtyLocked()
+		a.mu.Unlock()
+	}
+	return res
+}
+
+// TrackInfo returns the structured per-track view (level, XP,
+// XpToNext, etc.) for renderers. Returns (zero, false) when track
+// is unknown.
+func (a *connActor) TrackInfo(mgr *progression.Manager, track string) (progression.TrackInfo, bool) {
+	if mgr == nil {
+		return progression.TrackInfo{}, false
+	}
+	return mgr.GetTrackInfo(a.progress, track)
+}
+
+// CombatantIDString returns the string form of CombatantID, used
+// as the entity-id payload in progression event emissions. Mirrors
+// the form combat already uses for player events.
+func (a *connActor) CombatantIDString() string {
+	return string(a.CombatantID())
+}
+
 // MarkContentsDirty re-runs syncInventoryToSaveLocked so the save
 // tree picks up Contents mutations the actor itself didn't perform
 // (M5.9b put: the handler removes from inventory, then writes into
@@ -1292,6 +1375,17 @@ func (a *connActor) syncStatsToSaveLocked() {
 	}
 	a.save.Stats = a.statBlock.ModifiersSnapshot()
 	a.save.StatsBase = a.statBlock.BaseSnapshot()
+}
+
+// syncProgressionToSaveLocked rewrites a.save.Progression from the
+// live state. Called from the Persist path before the dirty check
+// so XP grants from the combat tick or admin commands between
+// autosaves round-trip through disk. Caller MUST hold a.mu.
+func (a *connActor) syncProgressionToSaveLocked() {
+	if a.save == nil || a.progress == nil {
+		return
+	}
+	a.save.Progression = a.progress.Snapshot()
 }
 
 // syncInventoryToSaveLocked mirrors the actor's runtime inventory

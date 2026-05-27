@@ -11,12 +11,12 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"math/rand/v2"
 	"net"
 	"os"
 	"os/signal"
 	"strings"
 	"sync"
-	"math/rand/v2"
 	"syscall"
 	"time"
 
@@ -29,10 +29,11 @@ import (
 	"github.com/Jasrags/AnotherMUD/internal/eventbus"
 	"github.com/Jasrags/AnotherMUD/internal/item"
 	"github.com/Jasrags/AnotherMUD/internal/logging"
-	"github.com/Jasrags/AnotherMUD/internal/mob"
 	"github.com/Jasrags/AnotherMUD/internal/login"
+	"github.com/Jasrags/AnotherMUD/internal/mob"
 	"github.com/Jasrags/AnotherMUD/internal/pack"
 	"github.com/Jasrags/AnotherMUD/internal/player"
+	"github.com/Jasrags/AnotherMUD/internal/progression"
 	"github.com/Jasrags/AnotherMUD/internal/server"
 	"github.com/Jasrags/AnotherMUD/internal/session"
 	"github.com/Jasrags/AnotherMUD/internal/slot"
@@ -245,10 +246,10 @@ func run() error {
 	// setter after construction so the sink and manager can reference
 	// each other without an init cycle.
 	combatSink := &productionCombatSink{
-		logger:    logging.From(ctx),
-		bus:       bus,
-		locator:   combatLocator,
-		entities:  entityStore,
+		logger:   logging.From(ctx),
+		bus:      bus,
+		locator:  combatLocator,
+		entities: entityStore,
 	}
 	combatTags := combatTagSource{
 		entities: entityStore,
@@ -258,6 +259,12 @@ func run() error {
 		// a Tags slice the lookup wires through with no Engage-side
 		// changes.
 	}
+	// M8.2: progression manager backed by the pack-loaded track
+	// registry. The bus-backed sink bridges progression.EventSink
+	// to eventbus.Publish — keeps progression itself free of the
+	// eventbus → entities import edge that would close a cycle.
+	progressionMgr := progression.NewManager(registries.Tracks, &progressionSink{bus: bus})
+
 	combatCooldowns := combat.NewFleeCooldowns()
 	combatMgr := combat.NewManagerWith(combat.ManagerConfig{
 		Locator:   combatLocator,
@@ -472,21 +479,22 @@ func run() error {
 	)
 
 	handler := session.Handler(session.Config{
-		World:        w,
-		Commands:     cmds,
-		Players:      players,
-		Manager:      mgr,
-		Items:        entityStore,
-		Placement:    placement,
-		Contents:     contents,
-		Templates:    registries.Items,
-		Slots:        registries.Slots,
-		Bus:          bus,
-		Disposition:  dispositionHook{e: evaluator},
-		Combat:       combatMgr,
+		World:       w,
+		Commands:    cmds,
+		Players:     players,
+		Manager:     mgr,
+		Items:       entityStore,
+		Placement:   placement,
+		Contents:    contents,
+		Templates:   registries.Items,
+		Slots:       registries.Slots,
+		Bus:         bus,
+		Disposition: dispositionHook{e: evaluator},
+		Combat:      combatMgr,
 		Flee: func(ctx context.Context, c combat.CombatantID) combat.FleeOutcome {
 			return combat.Flee(ctx, c, fleeCfg)
 		},
+		Progression:  progressionMgr,
 		StartID:      cfg.StartRoom,
 		ColorEnabled: cfg.ColorDefault,
 		Clock:        clk,
@@ -1128,6 +1136,52 @@ func (b combatFleeBus) EmitFleeFailed(ctx context.Context, id combat.CombatantID
 	}
 	b.bus.Publish(ctx, eventbus.FleeFailed{
 		EntityID: string(id), EntityName: name, RoomID: room, Reason: reason,
+	})
+}
+
+// progressionSink bridges progression.EventSink to eventbus.Bus.
+// Lives in the composition root for the same reason
+// productionCombatSink does — progression itself does not import
+// eventbus (closing progression → eventbus → entities → progression
+// otherwise). Each method propagates the granter's ctx through to
+// bus.Publish so subscribers see the request-scoped logger fields
+// and respect cancellation.
+type progressionSink struct {
+	bus *eventbus.Bus
+}
+
+func (s *progressionSink) OnXPGained(ctx context.Context, entityID, track string, amount, newTotal int64, source string) {
+	s.bus.Publish(ctx, eventbus.XPGained{
+		EntityID: entityID,
+		Track:    track,
+		Amount:   amount,
+		NewTotal: newTotal,
+		Source:   source,
+	})
+}
+
+func (s *progressionSink) OnLevelUp(ctx context.Context, entityID, track string, oldLevel, newLevel int) {
+	s.bus.Publish(ctx, eventbus.LevelUp{
+		EntityID: entityID,
+		Track:    track,
+		OldLevel: oldLevel,
+		NewLevel: newLevel,
+	})
+}
+
+func (s *progressionSink) OnXPLost(ctx context.Context, entityID, track string, amount, newTotal int64) {
+	s.bus.Publish(ctx, eventbus.XPLost{
+		EntityID: entityID,
+		Track:    track,
+		Amount:   amount,
+		NewTotal: newTotal,
+	})
+}
+
+func (s *progressionSink) OnTrackReset(ctx context.Context, entityID, track string) {
+	s.bus.Publish(ctx, eventbus.TrackReset{
+		EntityID: entityID,
+		Track:    track,
 	})
 }
 

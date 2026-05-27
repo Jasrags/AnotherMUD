@@ -65,7 +65,12 @@ import (
 // v5 saves migrated forward) means "apply engine defaults at restore
 // time", which is what progression.DefaultPlayerBase covers via the
 // NewWithBase construction site before RestoreBase is even called.
-const CurrentVersion = 6
+//
+// v7 (M8.2): `progression` block added — the per-entity (level, xp)
+// state from progression.md §5.2. Absent block (legacy v6 saves
+// migrated forward) means "no tracks initialized yet"; the
+// ProgressionState restore path lazy-inits on first interaction.
+const CurrentVersion = 7
 
 // Sentinel errors callers may check via errors.Is.
 var (
@@ -92,16 +97,17 @@ var (
 // effect of every equipped item's modifiers — persisted under the
 // same source keys that were live when the save was written.
 type Save struct {
-	Version   int                     `yaml:"version"`
-	ID        string                  `yaml:"id"`
-	AccountID string                  `yaml:"account_id"`
-	Name      string                  `yaml:"name"`
-	Location  string                  `yaml:"location"`
-	Inventory []InventoryEntry        `yaml:"inventory,omitempty"`
-	Equipment map[string]EquippedItem `yaml:"equipment,omitempty"`
-	Stats     stats.Snapshot          `yaml:"stats,omitempty"`
-	StatsBase progression.BaseSnapshot `yaml:"stats_base,omitempty"`
-	Vitals    *VitalsState            `yaml:"vitals,omitempty"`
+	Version     int                             `yaml:"version"`
+	ID          string                          `yaml:"id"`
+	AccountID   string                          `yaml:"account_id"`
+	Name        string                          `yaml:"name"`
+	Location    string                          `yaml:"location"`
+	Inventory   []InventoryEntry                `yaml:"inventory,omitempty"`
+	Equipment   map[string]EquippedItem         `yaml:"equipment,omitempty"`
+	Stats       stats.Snapshot                  `yaml:"stats,omitempty"`
+	StatsBase   progression.BaseSnapshot        `yaml:"stats_base,omitempty"`
+	Progression progression.ProgressionSnapshot `yaml:"progression,omitempty"`
+	Vitals      *VitalsState                    `yaml:"vitals,omitempty"`
 	// WimpyThreshold is the §5.1 HP-percent threshold (0 = wimpy
 	// disabled). Added in M7.6 without a schema bump: zero-value
 	// is indistinguishable from "field absent" so legacy v5 saves
@@ -272,6 +278,7 @@ var playerMigrations = map[int]func(map[string]any) (map[string]any, error){
 	3: migrateV3toV4,
 	4: migrateV4toV5,
 	5: migrateV5toV6,
+	6: migrateV6toV7,
 }
 
 // migrateV1toV2 adds the empty inventory/equipment blocks introduced
@@ -392,6 +399,16 @@ func migrateV4toV5(in map[string]any) (map[string]any, error) {
 // field as soon as Persist runs after any base-attribute change (M8.4
 // stat growth, M8.6 train).
 func migrateV5toV6(in map[string]any) (map[string]any, error) {
+	return in, nil
+}
+
+// migrateV6toV7 adds the `progression` block introduced in M8.2.
+// No-op on dict content: a legacy v6 save carries no per-track
+// state, so the absence of `progression:` is preserved and the
+// session load path's empty-snapshot branch leaves the
+// ProgressionState empty (lazy-init on first interaction per spec
+// §5.3).
+func migrateV6toV7(in map[string]any) (map[string]any, error) {
 	return in, nil
 }
 

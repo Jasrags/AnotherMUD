@@ -1,0 +1,19 @@
+id: adventurer
+name: Adventurer
+max_level: 10
+# Triangular curve: threshold[L] ≈ L * (L+1) / 2 * 100. Hits 100, 300,
+# 600, 1000, 1500, 2100, 2800, 3600, 4500, 5500 for levels 1..10.
+# Index 0 is unused; index 1 is the level-1 threshold (0).
+xp_table:
+  - 0
+  - 0
+  - 100
+  - 300
+  - 600
+  - 1000
+  - 1500
+  - 2100
+  - 2800
+  - 3600
+  - 4500
+death_penalty: 0.0
