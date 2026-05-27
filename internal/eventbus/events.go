@@ -448,6 +448,12 @@ type PlayerRespawned struct {
 	From       world.RoomID
 	To         world.RoomID
 	RespawnHP  int
+	// MaxHP is the player's max HP at respawn time so listeners can
+	// compute RespawnHP as a percentage (renderers wanting "you
+	// wake at 1/50 HP", future XP-loss policies that scale on the
+	// fraction). Added at the same time as RespawnHP — listeners
+	// that only care about the absolute value ignore it.
+	MaxHP int
 }
 
 // Name implements Event.

@@ -342,19 +342,21 @@ func run() error {
 			// login will floor HP to 1.
 			return
 		}
+		// Heal FIRST so a failed start-room lookup below still leaves
+		// the player alive (in their death room, at 1 HP) instead of
+		// stuck at HP=0 with no teleport. Vitals.Heal(1) on a HP=0
+		// combatant yields HP=1 (Heal clamps to [0, max]).
+		actor.Vitals().Heal(1)
+
 		dst, err := w.Room(cfg.StartRoom)
 		if err != nil {
-			logging.From(ctx).Error("player respawn: start room missing",
+			logging.From(ctx).Error("player respawn: start room missing — player stays in death room at 1 HP",
 				slog.String("player", actor.PlayerName()),
 				slog.String("start_room", string(cfg.StartRoom)),
 				slog.Any("err", err))
+			_ = actor.Write(ctx, "You stir back to life where you fell.")
 			return
 		}
-
-		// Heal first so the player's Vitals stop reading IsDead the
-		// moment we publish PlayerRespawned. Vitals.Heal(1) on a
-		// HP=0 combatant yields HP=1 (Heal clamps to [0, max]).
-		actor.Vitals().Heal(1)
 
 		// Death-room broadcast — visible to anyone still standing
 		// over the corpse. Sent BEFORE SetRoom so the room id we
@@ -380,13 +382,17 @@ func run() error {
 		}
 
 		// Publish player.respawned for any future listener. From is
-		// the room they died in; To is the respawn room.
+		// the room they died in; To is the respawn room. MaxHP is
+		// snapshotted at publish time so listeners can compute the
+		// post-respawn fraction without a follow-up Vitals lookup.
+		_, maxHP := actor.Vitals().Snapshot()
 		bus.Publish(ctx, eventbus.PlayerRespawned{
 			PlayerID:   playerID,
 			PlayerName: actor.PlayerName(),
 			From:       k.RoomID,
 			To:         dst.ID,
 			RespawnHP:  1,
+			MaxHP:      maxHP,
 		})
 	})
 
