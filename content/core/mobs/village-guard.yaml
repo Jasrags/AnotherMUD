@@ -9,10 +9,16 @@ stats:
   hp_max: 40
   str: 12
 # Disposition policy (spec mobs-ai-spawning §5.1).
-# Default reaction is friendly to everyone in the village. Players
-# tagged `outlaw` (M8+: alignment-driven instead) draw aggro.
+# Default reaction is friendly to everyone in the village.
+# Players tagged `outlaw` (legacy explicit tag) and players whose
+# alignment has crossed into the evil bucket (M8.5: alignment-
+# driven) both draw aggro. Rule matching short-circuits on first
+# hit, so an outlaw who is also evil only fires the outlaw rule
+# (same reaction; order is documentation only).
 disposition_rules:
   default: friendly
   rules:
     - has_tag: outlaw
+      reaction: hostile
+    - buckets: [evil]
       reaction: hostile

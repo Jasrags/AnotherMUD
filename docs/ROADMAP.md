@@ -742,7 +742,7 @@ is now real. Sketch of remaining vertical slices:
     - [x] Player save v9 carries `class` id + `trains_available`
           integer; v8 saves load cleanly (no class, zero
           trains).
-  - **M8.5 — Alignment.** New `progression.AlignmentManager`
+  - **M8.5 (landed) — Alignment.** New `progression.AlignmentManager`
     backing the alignment integer property on entities per spec
     §6. Bounded by configured min/max (defaults -1000 / +1000),
     bucketed by configured evil/good thresholds. `Bucket` /
@@ -763,25 +763,27 @@ is now real. Sketch of remaining vertical slices:
     Player save grows `alignment` integer + `alignment_history`
     (or the latter stays runtime-only — recorded in the spec's
     open questions; pick one here).
-    - [ ] Alignment integer clamped to configured `[min, max]`
+    - [x] Alignment integer clamped to configured `[min, max]`
           on every write.
-    - [ ] Bucket tag is present and unique on every entity the
+    - [x] Bucket tag is present and unique on every entity the
           manager has touched; idempotent re-sync on every
           `Bucket` call.
-    - [ ] `Set` emits no events and does not append history;
+    - [x] `Set` emits no events and does not append history;
           `Shift` emits `alignment.shift.check` (cancellable +
           rewritable delta), then on actual change emits
           `alignment.shifted` and conditionally
           `alignment.bucket.changed`.
-    - [ ] `Shift` is a no-op for entities carrying the `admin`
+    - [x] `Shift` is a no-op for entities carrying the `admin`
           role tag.
-    - [ ] `ResolveBuckets` returns the correct `(min, max)`
+    - [x] `ResolveBuckets` returns the correct `(min, max)`
           range for every subset of `{evil, neutral, good}`
           including degenerate cases per spec §6.6.
-    - [ ] `village-guard.yaml` (or a sibling) gains a sample
+    - [x] `village-guard.yaml` (or a sibling) gains a sample
           alignment-conditioned disposition rule that fires
-          end-to-end; the M6.5 deferral is closed.
-    - [ ] Player save v10 carries `alignment`; v9 saves load
+          end-to-end; the M6.5 deferral is closed (AI evaluator
+          now consumes `PlayerView.Alignment` + `PlayerView.Bucket`
+          and matches min/max/buckets conditions).
+    - [x] Player save v10 carries `alignment`; v9 saves load
           cleanly (alignment = 0 / neutral bucket).
   - **M8.6 — Training.** New `progression.TrainingManager` with
     both operations from spec §7: `TryPractice(entityId,

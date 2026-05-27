@@ -371,3 +371,55 @@ func TestMobInstanceApplyRacialFlagsZeroAlignmentSkipsProperty(t *testing.T) {
 		t.Error("alignment property set to zero unexpectedly; should be absent")
 	}
 }
+
+func TestMobInstanceAlignmentRoundTrip(t *testing.T) {
+	s := NewStore()
+	tpl := &mob.Template{ID: "test:m", Name: "m", Type: "npc"}
+	inst, _ := s.SpawnMob(tpl)
+	if inst.Alignment() != 0 {
+		t.Errorf("default alignment = %d, want 0", inst.Alignment())
+	}
+	inst.SetAlignment(-600)
+	if inst.Alignment() != -600 {
+		t.Errorf("after SetAlignment: got %d, want -600", inst.Alignment())
+	}
+	// Property bag should reflect the write.
+	if v, _ := inst.Properties()[PropAlignment].(int); v != -600 {
+		t.Errorf("Properties[alignment] = %v, want -600", inst.Properties()[PropAlignment])
+	}
+}
+
+func TestMobInstanceSetAlignmentTagExclusive(t *testing.T) {
+	s := NewStore()
+	tpl := &mob.Template{ID: "test:m", Name: "m", Type: "npc", Tags: []string{"humanoid"}}
+	inst, _ := s.SpawnMob(tpl)
+
+	inst.SetAlignmentTag("alignment_evil")
+	if !inst.HasTag("alignment_evil") {
+		t.Error("alignment_evil not set")
+	}
+	if !inst.HasTag("humanoid") {
+		t.Error("template tags lost during alignment tag set")
+	}
+
+	// Switching the bucket removes the old tag.
+	inst.SetAlignmentTag("alignment_good")
+	if inst.HasTag("alignment_evil") {
+		t.Error("alignment_evil still present after switching to good")
+	}
+	if !inst.HasTag("alignment_good") {
+		t.Error("alignment_good not set")
+	}
+
+	// Empty tag clears all.
+	inst.SetAlignmentTag("")
+	for _, b := range []string{"alignment_evil", "alignment_neutral", "alignment_good"} {
+		if inst.HasTag(b) {
+			t.Errorf("tag %q still present after empty SetAlignmentTag", b)
+		}
+	}
+	// Non-bucket tags preserved across the clear.
+	if !inst.HasTag("humanoid") {
+		t.Error("template tag removed during alignment tag clear")
+	}
+}

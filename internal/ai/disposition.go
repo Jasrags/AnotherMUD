@@ -13,16 +13,21 @@ import (
 // PlayerView is the read-only projection of a player that the
 // disposition evaluator needs (spec mobs-ai-spawning §5.3 rule
 // matching). It is intentionally tiny: ID for caching and dispatch,
-// Name for log/event payloads, Tags for `has_tag` rules.
+// Name for log/event payloads, Tags for `has_tag` rules, Alignment +
+// Bucket for the M8.5 alignment matchers.
 //
-// Alignment fields land alongside M8 progression. The evaluator
-// already accepts and stores rules referencing alignment so content
-// can be authored ahead of the runtime support; they just never
-// match until that data exists.
+// HasAlignment distinguishes "alignment unknown (legacy view from
+// a pre-M8.5 caller)" from "alignment is zero (neutral default)".
+// The evaluator treats !HasAlignment as never-matches for any rule
+// that declares an alignment condition; HasAlignment=true with
+// value 0 properly satisfies a neutral-bucket rule.
 type PlayerView struct {
-	ID   string
-	Name string
-	Tags []string
+	ID           string
+	Name         string
+	Tags         []string
+	Alignment    int
+	Bucket       string // one of "evil" / "neutral" / "good" / ""
+	HasAlignment bool
 }
 
 // PlayerLookup is the seam the evaluator uses to find players. The
@@ -329,13 +334,42 @@ func ruleMatches(r mob.Rule, player PlayerView) bool {
 		}
 	}
 	if r.HasMinAlignment || r.HasMaxAlignment || len(r.Buckets) > 0 {
-		// Alignment data does not exist yet; treat as "this
-		// condition cannot be satisfied" so rules that depend on
-		// alignment never match prematurely. When the field
-		// arrives this branch becomes a real comparison.
-		return false
+		// M8.5: alignment matching. A view that lacks alignment
+		// data cannot satisfy any alignment condition — preserves
+		// the pre-M8.5 "never match" behavior for callers that
+		// haven't been updated, and closes the M6.5 deferred fix
+		// for callers that have.
+		if !player.HasAlignment {
+			return false
+		}
+		if r.HasMinAlignment && player.Alignment < r.MinAlignment {
+			return false
+		}
+		if r.HasMaxAlignment && player.Alignment > r.MaxAlignment {
+			return false
+		}
+		if len(r.Buckets) > 0 && !bucketMatch(r.Buckets, player.Bucket) {
+			return false
+		}
 	}
 	return true
+}
+
+// bucketMatch reports whether player's bucket is in the rule's
+// allow-list. Comparison is exact-string against the canonical
+// bucket names ("evil" / "neutral" / "good"). An empty player
+// bucket never matches; a rule whose list contains an unknown
+// string still requires an exact match.
+func bucketMatch(allowed []string, player string) bool {
+	if player == "" {
+		return false
+	}
+	for _, b := range allowed {
+		if b == player {
+			return true
+		}
+	}
+	return false
 }
 
 func playerHasTag(p PlayerView, tag string) bool {

@@ -266,6 +266,17 @@ func run() error {
 	// eventbus → entities import edge that would close a cycle.
 	progressionMgr := progression.NewManager(registries.Tracks, &progressionSink{bus: bus})
 
+	// M8.5: alignment manager + bus-bridging sink. Config uses
+	// the engine defaults (-1000/+1000 bounds, ±500 bucket
+	// thresholds, history capacity 20) per the M8.5 ROADMAP
+	// choice. NewAlignmentManager panics on a malformed config so
+	// the composition root catches misconfiguration at boot.
+	alignmentMgr := progression.NewAlignmentManager(
+		progression.DefaultAlignmentConfig(),
+		&alignmentSink{bus: bus},
+		clk.Now,
+	)
+
 	// M8.4: class-side level-up subscribers. Path processor grants
 	// abilities (logs as unknown until M9 abilities ship). Stat
 	// growth subscriber rolls per-level dice + credits trains.
@@ -552,6 +563,7 @@ func run() error {
 		Progression:  progressionMgr,
 		Races:        registries.Races,
 		Classes:      registries.Classes,
+		Alignment:    alignmentMgr,
 		DefaultRace:  cfg.DefaultRace,
 		StartID:      cfg.StartRoom,
 		ColorEnabled: cfg.ColorDefault,
@@ -823,7 +835,14 @@ func (p playerLookup) PlayersInRoom(_ context.Context, room world.RoomID) []ai.P
 	infos := p.mgr.PlayersInRoom(room)
 	out := make([]ai.PlayerView, 0, len(infos))
 	for _, info := range infos {
-		out = append(out, ai.PlayerView{ID: info.ID, Name: info.Name, Tags: info.Tags})
+		out = append(out, ai.PlayerView{
+			ID:           info.ID,
+			Name:         info.Name,
+			Tags:         info.Tags,
+			Alignment:    info.Alignment,
+			Bucket:       info.Bucket,
+			HasAlignment: info.Bucket != "",
+		})
 	}
 	return out
 }
@@ -833,7 +852,25 @@ func (p playerLookup) PlayerByID(_ context.Context, id string) (ai.PlayerView, b
 	if !ok {
 		return ai.PlayerView{}, false
 	}
-	return ai.PlayerView{ID: a.PlayerID(), Name: a.PlayerName(), Tags: a.Tags()}, true
+	tag := a.AlignmentTag()
+	view := ai.PlayerView{
+		ID:        a.PlayerID(),
+		Name:      a.PlayerName(),
+		Tags:      a.Tags(),
+		Alignment: a.Alignment(),
+	}
+	switch tag {
+	case progression.TagAlignmentEvil:
+		view.Bucket = string(progression.BucketEvil)
+		view.HasAlignment = true
+	case progression.TagAlignmentGood:
+		view.Bucket = string(progression.BucketGood)
+		view.HasAlignment = true
+	case progression.TagAlignmentNeutral:
+		view.Bucket = string(progression.BucketNeutral)
+		view.HasAlignment = true
+	}
+	return view, ok
 }
 
 // dispositionHook adapts *ai.Evaluator to command.DispositionHook
@@ -1258,6 +1295,53 @@ func (s *progressionSink) OnXPLost(ctx context.Context, entityID, track string, 
 		Track:    track,
 		Amount:   amount,
 		NewTotal: newTotal,
+	})
+}
+
+// alignmentSink bridges progression.AlignmentSink to eventbus.Bus.
+// Lives in the composition root for the same reason
+// progressionSink does — progression must not import eventbus.
+//
+// OnAlignmentShiftCheck constructs the cancellable event, publishes
+// it via PublishCancellable, then reads the (possibly rewritten)
+// SuggestedDelta off the event after dispatch. Listeners that flip
+// the cancel flag short-circuit the manager; a non-cancel listener
+// can call RewriteDelta to change the applied magnitude.
+type alignmentSink struct {
+	bus *eventbus.Bus
+}
+
+func (s *alignmentSink) OnAlignmentShiftCheck(ctx context.Context, entityID, reason string, suggested int) (int, bool) {
+	if s.bus == nil {
+		return suggested, false
+	}
+	ev := eventbus.NewAlignmentShiftCheck(entityID, reason, suggested)
+	cancelled := s.bus.PublishCancellable(ctx, ev)
+	return ev.SuggestedDelta(), cancelled
+}
+
+func (s *alignmentSink) OnAlignmentShifted(ctx context.Context, entityID, reason string, oldValue, newValue, actualDelta int, bucketChanged bool) {
+	if s.bus == nil {
+		return
+	}
+	s.bus.Publish(ctx, eventbus.AlignmentShifted{
+		EntityID:      entityID,
+		Reason:        reason,
+		OldValue:      oldValue,
+		NewValue:      newValue,
+		ActualDelta:   actualDelta,
+		BucketChanged: bucketChanged,
+	})
+}
+
+func (s *alignmentSink) OnAlignmentBucketChanged(ctx context.Context, entityID string, oldBucket, newBucket progression.Bucket) {
+	if s.bus == nil {
+		return
+	}
+	s.bus.Publish(ctx, eventbus.AlignmentBucketChanged{
+		EntityID:  entityID,
+		OldBucket: string(oldBucket),
+		NewBucket: string(newBucket),
 	})
 }
 

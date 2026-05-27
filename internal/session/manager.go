@@ -9,6 +9,7 @@ import (
 
 	"github.com/Jasrags/AnotherMUD/internal/combat"
 	"github.com/Jasrags/AnotherMUD/internal/logging"
+	"github.com/Jasrags/AnotherMUD/internal/progression"
 	"github.com/Jasrags/AnotherMUD/internal/world"
 )
 
@@ -259,9 +260,29 @@ func (m *Manager) FindInRoom(roomID world.RoomID, name string) *connActor {
 // flags (closes the M6.5 deferred "players have no Tags field yet"
 // note). Future projections (alignment, class, level) extend this.
 type PlayerInfo struct {
-	ID   string
-	Name string
-	Tags []string
+	ID        string
+	Name      string
+	Tags      []string
+	Alignment int    // M8.5 integer alignment for disposition matching
+	Bucket    string // M8.5 canonical bucket name ("evil"/"neutral"/"good")
+}
+
+// bucketFromTag translates an actor's mirrored alignment tag to
+// the canonical bucket name used in PlayerView (spec
+// progression.md §6.2). Empty input means the alignment manager
+// has never touched this actor — disposition matching treats the
+// resulting view as alignment-unknown.
+func bucketFromTag(tag string) string {
+	switch tag {
+	case progression.TagAlignmentEvil:
+		return string(progression.BucketEvil)
+	case progression.TagAlignmentGood:
+		return string(progression.BucketGood)
+	case progression.TagAlignmentNeutral:
+		return string(progression.BucketNeutral)
+	default:
+		return ""
+	}
 }
 
 // PlayersInRoom returns a snapshot of every session currently in
@@ -284,9 +305,11 @@ func (m *Manager) PlayersInRoom(roomID world.RoomID) []PlayerInfo {
 	out := make([]PlayerInfo, 0, len(snapshot))
 	for _, a := range snapshot {
 		out = append(out, PlayerInfo{
-			ID:   a.PlayerID(),
-			Name: a.PlayerName(),
-			Tags: a.Tags(),
+			ID:        a.PlayerID(),
+			Name:      a.PlayerName(),
+			Tags:      a.Tags(),
+			Alignment: a.Alignment(),
+			Bucket:    bucketFromTag(a.AlignmentTag()),
 		})
 	}
 	return out

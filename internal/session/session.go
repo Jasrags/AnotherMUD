@@ -102,6 +102,14 @@ type Config struct {
 	// declared race).
 	Races *progression.RaceRegistry
 
+	// Alignment is the M8.5 alignment manager. Consulted at
+	// login to seed initial alignment for fresh characters
+	// (race + class StartingAlignment summed) and to sync the
+	// bucket tag on every login. nil-safe: a missing manager
+	// leaves alignment at the persisted value with no tag
+	// (disposition rules that match on alignment won't fire).
+	Alignment *progression.AlignmentManager
+
 	// Classes is the M8.4 class registry. Consulted at login so
 	// the actor's classID is validated against loaded content, and
 	// passed through to ClassPathProcessor + ApplyStatGrowth on
@@ -267,6 +275,43 @@ func run(ctx context.Context, c conn.Connection, cfg Config) error {
 		a.markDirtyLocked()
 	}
 	a.mu.Unlock()
+
+	// M8.5: restore persisted alignment + sync bucket tag.
+	// AlignmentManager.Bucket is idempotent and sets the tag
+	// regardless of whether the integer changed, so a returning
+	// character always lands with a current tag. For a fresh
+	// character (loaded.New), seed initial alignment from race +
+	// class StartingAlignment (spec §3.1, §4.1 "presentation
+	// fields"). Set is the admin path — silent, no events, no
+	// history. AlignmentManager may be nil in tests.
+	a.mu.Lock()
+	a.alignment = loaded.Player.Alignment
+	a.mu.Unlock()
+	if cfg.Alignment != nil {
+		if loaded.New {
+			seed := 0
+			if cfg.Races != nil {
+				if r, ok := cfg.Races.Get(a.raceID); ok {
+					seed += r.StartingAlignment
+				}
+			}
+			if cfg.Classes != nil {
+				if c, ok := cfg.Classes.Get(a.classID); ok {
+					seed += c.StartingAlignment
+				}
+			}
+			if seed != 0 {
+				cfg.Alignment.Set(ctx, a, seed, "character-created")
+			} else {
+				// Even at zero, install the neutral bucket tag so
+				// rule matchers see a consistent tag set from
+				// first login forward.
+				_ = cfg.Alignment.Bucket(a)
+			}
+		} else {
+			_ = cfg.Alignment.Bucket(a)
+		}
+	}
 
 	// M8.4: publish character.created for brand-new characters so
 	// the class-path processor wired in cmd/anothermud can run the
@@ -975,6 +1020,21 @@ type connActor struct {
 	// dispatch and Persist also reads it.
 	trainsAvailable int
 
+	// alignment is the actor's integer alignment property
+	// (M8.5 — spec progression.md §6.1). Written through
+	// AlignmentManager.Set / Shift; read by AI disposition
+	// matching and by Persist via syncAlignmentToSaveLocked.
+	// Guarded by a.mu — same actor-lock discipline as
+	// trainsAvailable.
+	alignment int
+
+	// alignmentTag is the spec §6.2 bucket tag mirrored onto
+	// the actor (one of TagAlignmentEvil/Neutral/Good or empty
+	// for an actor the alignment manager has not touched yet).
+	// Tags() appends it to racialTags so the AI evaluator's
+	// PlayerView carries it for has_tag matchers.
+	alignmentTag string
+
 	// progress is the actor's progression-track state (M8.2 —
 	// docs/specs/progression.md §5.2). Holds per-track (level, xp)
 	// maps; mutated through progression.Manager operations and
@@ -1429,11 +1489,17 @@ func (a *connActor) RaceID() string { return a.raceID }
 // flags. Future per-actor tags (admin role, party affiliation,
 // curse effects) will join this list as their consumers arrive.
 func (a *connActor) Tags() []string {
-	if len(a.racialTags) == 0 {
+	a.mu.Lock()
+	at := a.alignmentTag
+	a.mu.Unlock()
+	if len(a.racialTags) == 0 && at == "" {
 		return nil
 	}
-	out := make([]string, len(a.racialTags))
-	copy(out, a.racialTags)
+	out := make([]string, 0, len(a.racialTags)+1)
+	out = append(out, a.racialTags...)
+	if at != "" {
+		out = append(out, at)
+	}
 	return out
 }
 
@@ -1508,6 +1574,69 @@ func (a *connActor) CreditTrains(_ context.Context, _ string, n int) {
 		a.save.TrainsAvailable = a.trainsAvailable
 	}
 	a.markDirtyLocked()
+}
+
+// Alignment returns the actor's current alignment integer
+// (M8.5 — spec §6.1). Reads under a.mu so the value is consistent
+// with concurrent Shift writes.
+func (a *connActor) Alignment() int {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	return a.alignment
+}
+
+// SetAlignment writes the alignment integer. Used by the
+// AlignmentEntity adapter under the manager's per-entity lock.
+// Marks the save dirty so the new value rides to disk on the
+// next Persist.
+func (a *connActor) SetAlignment(value int) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	a.alignment = value
+	if a.save != nil {
+		a.save.Alignment = value
+	}
+	a.markDirtyLocked()
+}
+
+// SetAlignmentTag mirrors the bucket tag onto the actor (spec
+// §6.2). Empty tag clears the slot. AI disposition matching
+// reads through Tags(), which appends the alignment tag to the
+// racial-flag list.
+func (a *connActor) SetAlignmentTag(tag string) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	a.alignmentTag = tag
+}
+
+// AlignmentTag returns the actor's current bucket tag (one of
+// progression.TagAlignment{Evil,Neutral,Good} or empty for an
+// untouched actor). Read by the session manager to populate
+// PlayerInfo.Bucket without needing a reference to the
+// AlignmentManager.
+func (a *connActor) AlignmentTag() string {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	return a.alignmentTag
+}
+
+// HasTag reports whether the actor carries tag. Used by the
+// AlignmentEntity adapter to detect the admin role bypass
+// (spec §6.4 Shift step 2). Scans racial flags + alignment tag
+// in a single locked section. racialTags is write-once at
+// construction today, but a future verb that mutates it would
+// race a tags reader without the lock — taking a.mu here keeps
+// the surface consistent with Tags() and future-proofs the
+// admin-tag addition (M10+ role system).
+func (a *connActor) HasTag(tag string) bool {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	for _, t := range a.racialTags {
+		if t == tag {
+			return true
+		}
+	}
+	return a.alignmentTag == tag
 }
 
 // StatBlock returns the actor's progression-layer stat block. The

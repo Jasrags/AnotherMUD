@@ -82,7 +82,13 @@ import (
 // growth subscriber short-circuit on empty class id. Zero trains
 // is the natural starting state; the M8.6 train verb is the only
 // consumer.
-const CurrentVersion = 9
+//
+// v10 (M8.5): `alignment` integer (spec progression.md §6.1).
+// Zero (legacy v9 saves migrated forward) is the neutral
+// default; AlignmentManager.Bucket lazy-resolves the bucket tag
+// on first read. History is runtime-only by design (spec §6.3
+// open question resolved to "no" for M8.5).
+const CurrentVersion = 10
 
 // Sentinel errors callers may check via errors.Is.
 var (
@@ -122,6 +128,7 @@ type Save struct {
 	Race            string                          `yaml:"race,omitempty"`
 	Class           string                          `yaml:"class,omitempty"`
 	TrainsAvailable int                             `yaml:"trains_available,omitempty"`
+	Alignment       int                             `yaml:"alignment,omitempty"`
 	Vitals          *VitalsState                    `yaml:"vitals,omitempty"`
 	// WimpyThreshold is the §5.1 HP-percent threshold (0 = wimpy
 	// disabled). Added in M7.6 without a schema bump: zero-value
@@ -296,6 +303,7 @@ var playerMigrations = map[int]func(map[string]any) (map[string]any, error){
 	6: migrateV6toV7,
 	7: migrateV7toV8,
 	8: migrateV8toV9,
+	9: migrateV9toV10,
 }
 
 // migrateV1toV2 adds the empty inventory/equipment blocks introduced
@@ -445,6 +453,15 @@ func migrateV7toV8(in map[string]any) (map[string]any, error) {
 // defaults to zero, which is the natural starting state for the
 // M8.6 train verb.
 func migrateV8toV9(in map[string]any) (map[string]any, error) {
+	return in, nil
+}
+
+// migrateV9toV10 adds the `alignment` integer introduced in M8.5
+// (spec progression.md §6.1). No-op on dict content: a legacy
+// v9 save carries no alignment, so the absence is preserved
+// (zero = neutral default). The session load path resolves the
+// bucket lazily via AlignmentManager.Bucket on first read.
+func migrateV9toV10(in map[string]any) (map[string]any, error) {
 	return in, nil
 }
 

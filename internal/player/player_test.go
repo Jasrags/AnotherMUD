@@ -562,6 +562,63 @@ func TestSave_RoundTripsClassAndTrains(t *testing.T) {
 	}
 }
 
+func TestLoad_V9MigratesToV10WithZeroAlignment(t *testing.T) {
+	// A v9 save carries no `alignment` field. After migration to
+	// v10 the field is still absent (int zero); the session-load
+	// path treats zero as neutral and the AlignmentManager
+	// installs the neutral bucket tag on first call.
+	ctx := context.Background()
+	st, dir := newStore(t)
+
+	playerDir := filepath.Join(dir, "players", "v9user")
+	if err := os.MkdirAll(playerDir, 0o755); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(playerDir, "player.yaml"),
+		[]byte("version: 9\nid: p-1\naccount_id: acct-1\nname: V9User\nlocation: tapestry-core:town-square\nrace: human\nclass: fighter\n"),
+		0o600); err != nil {
+		t.Fatalf("write: %v", err)
+	}
+
+	got, err := st.Load(ctx, "v9user")
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if got.Version != player.CurrentVersion {
+		t.Errorf("Version = %d, want %d", got.Version, player.CurrentVersion)
+	}
+	if got.Alignment != 0 {
+		t.Errorf("Alignment = %d, want 0 after v9 migration", got.Alignment)
+	}
+	if got.Class != "fighter" || got.Race != "human" {
+		t.Errorf("v9 fields not preserved: class=%q race=%q", got.Class, got.Race)
+	}
+}
+
+func TestSave_RoundTripsAlignment(t *testing.T) {
+	ctx := context.Background()
+	st, _ := newStore(t)
+
+	want := &player.Save{
+		Version:   player.CurrentVersion,
+		ID:        "p-1",
+		AccountID: "acct-1",
+		Name:      "EvilDoer",
+		Location:  "tapestry-core:town-square",
+		Alignment: -750,
+	}
+	if err := st.Save(ctx, want); err != nil {
+		t.Fatalf("Save: %v", err)
+	}
+	got, err := st.Load(ctx, "EvilDoer")
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if got.Alignment != -750 {
+		t.Errorf("Alignment = %d, want -750", got.Alignment)
+	}
+}
+
 func TestSave_RoundTripsRace(t *testing.T) {
 	ctx := context.Background()
 	st, _ := newStore(t)

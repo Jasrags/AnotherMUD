@@ -166,10 +166,92 @@ func (m *MobInstance) ApplyRacialFlags(flags []string, alignment int) {
 }
 
 // PropAlignment is the reserved property key for the integer
-// alignment value (spec progression.md §6.1). Read by the M8.5
-// alignment manager once it lands; M8.3 just seeds it from the
-// race's StartingAlignment at instantiation.
+// alignment value (spec progression.md §6.1). Written by the
+// M8.5 AlignmentManager via SetAlignment; M8.3 seeds it from
+// the race's StartingAlignment at instantiation.
 const PropAlignment = "alignment"
+
+// AlignmentBucketTags are the spec §6.2 mutually-exclusive
+// alignment tag strings managed by SetAlignmentTag.
+//
+// Kept as bare strings (not a typed enum) so the entities
+// package does not have to import progression; progression
+// re-declares the canonical values as TagAlignmentEvil/Neutral/
+// Good. Comparison is exact-string.
+var alignmentBucketTags = [...]string{"alignment_evil", "alignment_neutral", "alignment_good"}
+
+// Alignment returns the integer alignment stored in the property
+// bag, or 0 when missing / malformed. Consumed by the M8.5
+// AlignmentEntity adapter; matches the lenient-numeric handling
+// in WimpyThreshold (YAML decode produces int / int64 / float64).
+func (m *MobInstance) Alignment() int {
+	if m.properties == nil {
+		return 0
+	}
+	switch v := m.properties[PropAlignment].(type) {
+	case int:
+		return v
+	case int64:
+		return int(v)
+	case float64:
+		return int(v)
+	default:
+		return 0
+	}
+}
+
+// SetAlignment writes the integer alignment property. Used by
+// the AlignmentEntity adapter under the manager's lock. Does NOT
+// adjust tags — SetAlignmentTag is the paired call.
+func (m *MobInstance) SetAlignment(value int) {
+	if m.properties == nil {
+		m.properties = make(map[string]any)
+	}
+	m.properties[PropAlignment] = value
+}
+
+// SetAlignmentTag installs the bucket tag and removes the other
+// two alignment_* tags (spec §6.2 "exactly one present at a
+// time"). Empty tag clears all three.
+//
+// Mutates m.tags in place; the store's tag index does not
+// automatically reflect the change because re-indexing happens
+// only at Track/Untrack. AI disposition matching consumes
+// PlayerView/MobView tags built directly from the entity (not
+// from the store index), so the in-place mutation is sufficient
+// for M8.5's evaluator wiring. A future GetByTag consumer would
+// need a Store-side Retag mechanism — recorded as a deferred fix.
+func (m *MobInstance) SetAlignmentTag(tag string) {
+	out := m.tags[:0]
+	for _, t := range m.tags {
+		isBucket := false
+		for _, b := range alignmentBucketTags {
+			if t == b {
+				isBucket = true
+				break
+			}
+		}
+		if !isBucket {
+			out = append(out, t)
+		}
+	}
+	if tag != "" {
+		out = append(out, tag)
+	}
+	m.tags = out
+}
+
+// HasTag reports whether tag is present on the mob's tag list.
+// Used by the AlignmentEntity adapter to detect the admin role
+// bypass (spec §6.4 Shift step 2).
+func (m *MobInstance) HasTag(tag string) bool {
+	for _, t := range m.tags {
+		if t == tag {
+			return true
+		}
+	}
+	return false
+}
 
 // WimpyThreshold reports the mob's HP-percent flee threshold (spec
 // combat §5.1). Read from the template's properties bag at spawn

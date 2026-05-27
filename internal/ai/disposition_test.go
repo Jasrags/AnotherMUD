@@ -186,9 +186,10 @@ func TestDecideReaction_NoRulesNoStaticReturnsNoDispatch(t *testing.T) {
 	}
 }
 
-func TestDecideReaction_AlignmentConditionsDoNotMatchYet(t *testing.T) {
-	// Alignment rules are accepted but should never match today
-	// (M8 dependency). Falls through to default.
+func TestDecideReaction_AlignmentConditionsRequireData(t *testing.T) {
+	// A view without HasAlignment cannot satisfy any alignment
+	// condition (preserves pre-M8.5 "never match" for callers
+	// that haven't been updated to populate the field).
 	min := -100
 	tpl := &mob.Template{
 		ID: "core:m", Name: "m",
@@ -201,7 +202,97 @@ func TestDecideReaction_AlignmentConditionsDoNotMatchYet(t *testing.T) {
 	}
 	r, _ := decideReaction(tpl, PlayerView{ID: "p"})
 	if r != mob.ReactionFriendly {
-		t.Errorf("got %q, want friendly (alignment rule must not match)", r)
+		t.Errorf("got %q without HasAlignment, want friendly (rule must not match)", r)
+	}
+}
+
+func TestDecideReaction_AlignmentMin(t *testing.T) {
+	tpl := &mob.Template{
+		ID: "g", Name: "guard",
+		DispositionRules: &mob.Definition{
+			Default: mob.ReactionFriendly,
+			Rules: []mob.Rule{
+				{HasMinAlignment: true, MinAlignment: 100, Reaction: mob.ReactionHostile},
+			},
+		},
+	}
+	hostileView := PlayerView{ID: "h", Alignment: 100, HasAlignment: true}
+	if r, _ := decideReaction(tpl, hostileView); r != mob.ReactionHostile {
+		t.Errorf("at threshold: got %q, want hostile", r)
+	}
+	below := PlayerView{ID: "b", Alignment: 99, HasAlignment: true}
+	if r, _ := decideReaction(tpl, below); r != mob.ReactionFriendly {
+		t.Errorf("below threshold: got %q, want friendly", r)
+	}
+}
+
+func TestDecideReaction_AlignmentMax(t *testing.T) {
+	tpl := &mob.Template{
+		ID: "g", Name: "guard",
+		DispositionRules: &mob.Definition{
+			Default: mob.ReactionFriendly,
+			Rules: []mob.Rule{
+				{HasMaxAlignment: true, MaxAlignment: -100, Reaction: mob.ReactionHostile},
+			},
+		},
+	}
+	hit := PlayerView{ID: "h", Alignment: -100, HasAlignment: true}
+	if r, _ := decideReaction(tpl, hit); r != mob.ReactionHostile {
+		t.Errorf("at ceiling: got %q, want hostile", r)
+	}
+	above := PlayerView{ID: "a", Alignment: -99, HasAlignment: true}
+	if r, _ := decideReaction(tpl, above); r != mob.ReactionFriendly {
+		t.Errorf("above ceiling: got %q, want friendly", r)
+	}
+}
+
+func TestDecideReaction_BucketRule(t *testing.T) {
+	tpl := &mob.Template{
+		ID: "g", Name: "guard",
+		DispositionRules: &mob.Definition{
+			Default: mob.ReactionFriendly,
+			Rules: []mob.Rule{
+				{Buckets: []string{"evil"}, Reaction: mob.ReactionHostile},
+			},
+		},
+	}
+	evil := PlayerView{ID: "e", Alignment: -800, Bucket: "evil", HasAlignment: true}
+	if r, _ := decideReaction(tpl, evil); r != mob.ReactionHostile {
+		t.Errorf("evil player: got %q, want hostile", r)
+	}
+	good := PlayerView{ID: "g", Alignment: 800, Bucket: "good", HasAlignment: true}
+	if r, _ := decideReaction(tpl, good); r != mob.ReactionFriendly {
+		t.Errorf("good player: got %q, want friendly", r)
+	}
+	// Player with HasAlignment=true but unknown Bucket cannot match.
+	missing := PlayerView{ID: "m", Alignment: -800, HasAlignment: true}
+	if r, _ := decideReaction(tpl, missing); r != mob.ReactionFriendly {
+		t.Errorf("empty Bucket: got %q, want friendly", r)
+	}
+}
+
+func TestDecideReaction_CombinedAlignmentAndTag(t *testing.T) {
+	// A rule with both has_tag and alignment must satisfy ALL.
+	tpl := &mob.Template{
+		ID: "g", Name: "guard",
+		DispositionRules: &mob.Definition{
+			Default: mob.ReactionFriendly,
+			Rules: []mob.Rule{
+				{
+					HasTag:          "outlaw",
+					HasMinAlignment: true, MinAlignment: 500,
+					Reaction: mob.ReactionHostile,
+				},
+			},
+		},
+	}
+	both := PlayerView{ID: "x", Tags: []string{"outlaw"}, Alignment: 600, HasAlignment: true}
+	if r, _ := decideReaction(tpl, both); r != mob.ReactionHostile {
+		t.Errorf("tag+align both satisfied: got %q, want hostile", r)
+	}
+	tagOnly := PlayerView{ID: "x", Tags: []string{"outlaw"}, Alignment: 100, HasAlignment: true}
+	if r, _ := decideReaction(tpl, tagOnly); r != mob.ReactionFriendly {
+		t.Errorf("tag only (alignment too low): got %q, want friendly", r)
 	}
 }
 

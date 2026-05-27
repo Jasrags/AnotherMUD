@@ -115,6 +115,23 @@ const (
 	// with no progression state; the M12 character-creation wizard
 	// will own the canonical publish.
 	EventCharacterCreated = "character.created"
+	// AlignmentShiftCheck is the cancellable pre-event fired by
+	// AlignmentManager.Shift before applying the change (spec
+	// progression.md §6.4 step 3). Listeners may set the cancel
+	// flag to abort, or rewrite SuggestedDelta to alter the
+	// applied magnitude (e.g. an item that halves negative
+	// shifts). Spec is explicit that admin-tagged entities never
+	// reach this event — Shift's bypass returns before publish.
+	EventAlignmentShiftCheck = "alignment.shift.check"
+	// AlignmentShifted is the post-fact notification fired after
+	// AlignmentManager.Shift successfully applies a delta (spec
+	// §6.5 step 5). Fires only when the actual delta is non-zero;
+	// a clamped-to-bounds shift does not emit.
+	EventAlignmentShifted = "alignment.shifted"
+	// AlignmentBucketChanged fires IN ADDITION to alignment.shifted
+	// when the bucket boundary is crossed (spec §6.5 step 6). Two
+	// events fire on a bucket-crossing shift, in this order.
+	EventAlignmentBucketChanged = "alignment.bucket.changed"
 )
 
 // ItemPickedUp fires after GetHandler successfully moves an item
@@ -565,3 +582,94 @@ type CharacterCreated struct {
 
 // Name implements Event.
 func (CharacterCreated) Name() string { return EventCharacterCreated }
+
+// AlignmentShiftCheck is the cancellable pre-event fired by the
+// alignment manager before applying a shift (spec
+// progression.md §6.4 step 3). Listeners may flip the embedded
+// CancelFlag to abort, or rewrite SuggestedDelta via the
+// RewriteDelta method to alter the applied magnitude.
+//
+// EntityID is the bare id (no combat prefix). Reason carries the
+// gameplay-side attribution string the caller passed in
+// ("kill:mob:bandit-3", "quest:save-victor"). SuggestedDelta is
+// the value the shift would apply absent any listener edit.
+//
+// The mutable SuggestedDelta sits behind a pointer so siblings
+// later in the dispatch loop observe each earlier listener's
+// rewrite — mirrors how the engine handles other cancellable
+// events with mutable fields.
+type AlignmentShiftCheck struct {
+	*CancelFlag
+	EntityID        string
+	Reason          string
+	suggestedDelta  *int
+}
+
+// Name implements Event.
+func (AlignmentShiftCheck) Name() string { return EventAlignmentShiftCheck }
+
+// NewAlignmentShiftCheck constructs a fresh check event. The
+// cancel flag is freshly allocated; the suggested-delta pointer
+// is owned by the event so listeners can rewrite via
+// RewriteDelta without a separate allocation.
+func NewAlignmentShiftCheck(entityID, reason string, suggested int) *AlignmentShiftCheck {
+	d := suggested
+	return &AlignmentShiftCheck{
+		CancelFlag:     &CancelFlag{},
+		EntityID:       entityID,
+		Reason:         reason,
+		suggestedDelta: &d,
+	}
+}
+
+// SuggestedDelta returns the current proposed delta. Reads the
+// shared backing storage so siblings see prior rewrites.
+func (e *AlignmentShiftCheck) SuggestedDelta() int {
+	if e.suggestedDelta == nil {
+		return 0
+	}
+	return *e.suggestedDelta
+}
+
+// RewriteDelta lets a listener override the proposed delta. The
+// rewrite is observed by subsequent listeners and by the
+// AlignmentManager when the dispatch completes.
+func (e *AlignmentShiftCheck) RewriteDelta(v int) {
+	if e.suggestedDelta == nil {
+		d := v
+		e.suggestedDelta = &d
+		return
+	}
+	*e.suggestedDelta = v
+}
+
+// AlignmentShifted fires after an alignment shift successfully
+// applies a non-zero delta (spec §6.5 step 5). OldValue +
+// ActualDelta == NewValue always; BucketChanged is true iff the
+// shift crossed a bucket threshold (in which case
+// AlignmentBucketChanged also fires).
+type AlignmentShifted struct {
+	EntityID      string
+	Reason        string
+	OldValue      int
+	NewValue      int
+	ActualDelta   int
+	BucketChanged bool
+}
+
+// Name implements Event.
+func (AlignmentShifted) Name() string { return EventAlignmentShifted }
+
+// AlignmentBucketChanged fires in addition to AlignmentShifted
+// when the bucket boundary is crossed (spec §6.5 step 6). Carries
+// both the old and new bucket names so subscribers (renderers,
+// world tag index) can mirror the transition without a follow-up
+// lookup.
+type AlignmentBucketChanged struct {
+	EntityID  string
+	OldBucket string
+	NewBucket string
+}
+
+// Name implements Event.
+func (AlignmentBucketChanged) Name() string { return EventAlignmentBucketChanged }
