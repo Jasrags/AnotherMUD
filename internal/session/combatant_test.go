@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/Jasrags/AnotherMUD/internal/combat"
+	"github.com/Jasrags/AnotherMUD/internal/player"
 	"github.com/Jasrags/AnotherMUD/internal/world"
 )
 
@@ -30,6 +31,33 @@ func TestConnActorImplementsCombatant(t *testing.T) {
 	}
 	if c.Stats() != combat.DefaultPlayerStats() {
 		t.Errorf("Stats() = %+v, want DefaultPlayerStats()", c.Stats())
+	}
+}
+
+// TestRestorePlayerVitalsFloorsDeadAtLogin pins the safety floor in
+// restorePlayerVitals: a save written with HP <= 0 (player killed in
+// combat then disconnected before any §6.4 player-death subscriber
+// existed) must restore to at least 1 HP so login produces a playable
+// actor. Remove the floor when a real player-death subscriber
+// guarantees no save ever serializes a dead player.
+func TestRestorePlayerVitalsFloorsDeadAtLogin(t *testing.T) {
+	cases := []struct {
+		name   string
+		state  *player.VitalsState
+		wantHP int
+	}{
+		{"nil restores full HP", nil, combat.DefaultPlayerMaxHP},
+		{"HP=0 floors to 1", &player.VitalsState{HP: 0, MaxHP: 40}, 1},
+		{"HP=-5 floors to 1", &player.VitalsState{HP: -5, MaxHP: 40}, 1},
+		{"HP in range preserved", &player.VitalsState{HP: 12, MaxHP: 40}, 12},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			v := restorePlayerVitals(tc.state)
+			if got := v.Current(); got != tc.wantHP {
+				t.Errorf("Current() = %d, want %d", got, tc.wantHP)
+			}
+		})
 	}
 }
 

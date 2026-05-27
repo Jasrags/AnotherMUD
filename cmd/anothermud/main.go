@@ -812,6 +812,21 @@ func (s *productionCombatSink) OnVitalDepleted(ctx context.Context, e combat.Vit
 		s.logger.Info("combat.death_cancelled",
 			slog.String("victim", string(e.VictimID)),
 			slog.String("killer", string(killerID)))
+		// Spec §6.1 places the heal-to-non-dead obligation on the
+		// canceller. If the listener cancelled but did NOT restore
+		// HP, the victim is now permanently stuck: still in combat
+		// lists, HP=0, ApplyDamageIfAlive returns wasAlive=false on
+		// every future swing so VitalDepleted never re-emits and
+		// this death pipeline never re-runs. The engine can't undo
+		// damage on the canceller's behalf (we don't know what HP
+		// to restore to), but we can surface evidence so operators
+		// chase the buggy listener instead of the symptom.
+		if c, ok := s.locator.LookupCombatant(e.VictimID); ok && c.Vitals().IsDead() {
+			s.logger.Warn("combat.death_cancel_left_corpse",
+				slog.String("victim", string(e.VictimID)),
+				slog.String("killer", string(killerID)),
+				slog.String("hint", "cancelling listener must heal victim to >0 HP per combat spec §6.1"))
+		}
 		return
 	}
 

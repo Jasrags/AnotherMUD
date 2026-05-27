@@ -1000,7 +1000,20 @@ func restorePlayerVitals(v *player.VitalsState) *combat.Vitals {
 	if maxHP < 1 {
 		maxHP = combat.DefaultPlayerMaxHP
 	}
-	return combat.NewVitalsAt(v.HP, maxHP)
+	// Safety floor: a player whose save records HP <= 0 (killed in
+	// combat, then disconnected before any recovery path ran) would
+	// otherwise log back in dead, unable to act, with no way out
+	// short of operator intervention. Combat spec §6.4 says the
+	// player-death subscriber owns recovery (corpse, respawn, gear
+	// loss); until that lands (tracked in m7-5-deferred-fixes.md #1)
+	// clamp HP up to 1 on restore so login is at least playable.
+	// Removing this floor is safe the moment a real §6.4 subscriber
+	// guarantees no save ever serializes HP <= 0.
+	hp := v.HP
+	if hp <= 0 {
+		hp = 1
+	}
+	return combat.NewVitalsAt(hp, maxHP)
 }
 
 // syncVitalsToSaveLocked rewrites a.save.Vitals from a.vitals if the
