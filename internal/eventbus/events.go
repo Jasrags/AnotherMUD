@@ -108,6 +108,13 @@ const (
 	// TrackReset fires after ResetTrack (spec §5.7). No level-up
 	// follows: the reset is downward.
 	EventTrackReset = "progression.track.reset"
+	// CharacterCreated fires once when a brand-new character enters
+	// the world (spec progression.md §4.5 second bullet — the
+	// path processor treats it as level 1). M8.4 publishes from the
+	// session login path the first time it observes a fresh save
+	// with no progression state; the M12 character-creation wizard
+	// will own the canonical publish.
+	EventCharacterCreated = "character.created"
 )
 
 // ItemPickedUp fires after GetHandler successfully moves an item
@@ -542,3 +549,19 @@ type TrackReset struct {
 
 // Name implements Event.
 func (TrackReset) Name() string { return EventTrackReset }
+
+// CharacterCreated fires once when a brand-new character enters
+// the world (spec progression.md §4.5). M8.4's class-path
+// processor subscribes and treats it as a level-1 grant; the
+// M12 character-creation wizard will own the canonical publish.
+// EntityID carries the playerID (combatant prefix omitted —
+// progression keys are bare ids by convention, matching XPGained).
+// ClassID is the resolved class id at creation, may be empty if
+// the engine has no default class wired yet.
+type CharacterCreated struct {
+	EntityID string
+	ClassID  string
+}
+
+// Name implements Event.
+func (CharacterCreated) Name() string { return EventCharacterCreated }

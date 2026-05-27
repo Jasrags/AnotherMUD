@@ -19,8 +19,9 @@ type Registries struct {
 	Items  *item.Templates
 	Slots  *slot.Registry
 	Mobs   *mob.Templates
-	Tracks *progression.TrackRegistry
-	Races  *progression.RaceRegistry
+	Tracks  *progression.TrackRegistry
+	Races   *progression.RaceRegistry
+	Classes *progression.ClassRegistry
 }
 
 // NewRegistries returns a Registries with every field initialized.
@@ -34,7 +35,8 @@ func NewRegistries() *Registries {
 		Items:  item.NewTemplates(),
 		Slots:  slot.NewRegistry(),
 		Mobs:   mob.NewTemplates(),
-		Tracks: progression.NewTrackRegistry(),
-		Races:  progression.NewRaceRegistry(),
+		Tracks:  progression.NewTrackRegistry(),
+		Races:   progression.NewRaceRegistry(),
+		Classes: progression.NewClassRegistry(),
 	}
 }

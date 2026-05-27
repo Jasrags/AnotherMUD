@@ -102,6 +102,13 @@ type Config struct {
 	// declared race).
 	Races *progression.RaceRegistry
 
+	// Classes is the M8.4 class registry. Consulted at login so
+	// the actor's classID is validated against loaded content, and
+	// passed through to ClassPathProcessor + ApplyStatGrowth on
+	// level-up subscriptions wired in cmd/anothermud. nil-safe:
+	// missing registry means class-side effects never fire.
+	Classes *progression.ClassRegistry
+
 	// DefaultRace is the race id assigned to legacy saves with no
 	// `race` field, and to fresh characters that haven't been
 	// through a M12 character-creation flow yet. Empty means the
@@ -246,6 +253,31 @@ func run(ctx context.Context, c conn.Connection, cfg Config) error {
 		a.save.Race = a.raceID
 		a.markDirtyLocked()
 		a.mu.Unlock()
+	}
+
+	// M8.4: resolve and apply class. The class id is informational
+	// at session start (subscribers read it off the actor when a
+	// level.up event lands); the apply step just validates against
+	// the registry and snapshots the trains_available pool.
+	applyClass(a, &cfg, loaded.Player.Class)
+	a.mu.Lock()
+	a.trainsAvailable = loaded.Player.TrainsAvailable
+	if loaded.Player.Class != a.classID {
+		a.save.Class = a.classID
+		a.markDirtyLocked()
+	}
+	a.mu.Unlock()
+
+	// M8.4: publish character.created for brand-new characters so
+	// the class-path processor wired in cmd/anothermud can run the
+	// level-1 path grant. The M12 character-creation wizard will
+	// own the canonical publish; this is the M8.4 stand-in so the
+	// plumbing exists. Bus may be nil in tests — guard it.
+	if loaded.New && cfg.Bus != nil {
+		cfg.Bus.Publish(ctx, eventbus.CharacterCreated{
+			EntityID: loaded.Player.ID,
+			ClassID:  a.classID,
+		})
 	}
 
 	// Seed the lock-free wimpy threshold from the persisted save.
@@ -928,6 +960,21 @@ type connActor struct {
 	// registry on every read. Set once at construction.
 	racialTags []string
 
+	// classID is the actor's resolved class id (M8.4). Established
+	// at login from save; empty means no class (the path processor
+	// and stat-growth subscriber short-circuit). Lowercased on
+	// assignment for case-insensitive registry lookups. Never
+	// reassigned for the life of the actor — class swaps land with
+	// the M10+ admin verb / quest reward path.
+	classID string
+
+	// trainsAvailable is the actor's training pool (spec §4.6
+	// step 4 + §7.1). M8.4 credits via StatGrowthSubscriber on
+	// every level-up; the M8.6 train verb is the only consumer.
+	// Guarded by a.mu since the credit happens off the bus
+	// dispatch and Persist also reads it.
+	trainsAvailable int
+
 	// progress is the actor's progression-track state (M8.2 —
 	// docs/specs/progression.md §5.2). Holds per-track (level, xp)
 	// maps; mutated through progression.Manager operations and
@@ -1421,6 +1468,76 @@ func applyRace(a *connActor, cfg *Config, saved string) {
 		a.racialTags = make([]string, len(race.RacialFlags))
 		copy(a.racialTags, race.RacialFlags)
 	}
+}
+
+// ClassID returns the actor's resolved class id. Empty means
+// classless (no path / no stat growth on level-up). Set once at
+// construction; never mutates for the life of the actor.
+func (a *connActor) ClassID() string {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	return a.classID
+}
+
+// TrainsAvailable returns the actor's current training pool. Read
+// by the M8.6 train verb; surfaced on score panels later.
+func (a *connActor) TrainsAvailable() int {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	return a.trainsAvailable
+}
+
+// CreditTrains adds n to trainsAvailable and marks the actor
+// dirty so the next Persist commits the new pool. Used by the
+// M8.4 stat-growth subscriber on every bound-track level-up
+// (spec §4.6 step 4). Negative values are clamped at zero — the
+// train verb is the only path that subtracts and it handles
+// underflow itself.
+func (a *connActor) CreditTrains(_ context.Context, _ string, n int) {
+	if n == 0 {
+		return
+	}
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	if n < 0 && -n > a.trainsAvailable {
+		a.trainsAvailable = 0
+	} else {
+		a.trainsAvailable += n
+	}
+	if a.save != nil {
+		a.save.TrainsAvailable = a.trainsAvailable
+	}
+	a.markDirtyLocked()
+}
+
+// StatBlock returns the actor's progression-layer stat block. The
+// returned pointer is the live block — callers MUST treat it as
+// read-mostly and use StatBlock's own internal lock for any
+// mutation (AdjustBase, AddModifiers, etc.). Used by the M8.4
+// stat-growth subscriber to apply level-up growth dice without
+// having to thread a.mu through.
+func (a *connActor) StatBlock() *progression.StatBlock { return a.statBlock }
+
+// ProgressionState returns the actor's per-track (level, xp)
+// state. Same contract as StatBlock — the state has its own lock.
+func (a *connActor) ProgressionState() *progression.ProgressionState { return a.progress }
+
+// applyClass resolves the actor's class id from save. Empty saves
+// stay empty (no default class today; M12 character-creation owns
+// initial selection). A non-empty id that doesn't resolve in the
+// registry is treated as removed-content: the actor stays
+// classless with classID="" so no path/growth fires. Mirrors
+// applyRace's fail-soft policy.
+func applyClass(a *connActor, cfg *Config, saved string) {
+	candidate := strings.ToLower(strings.TrimSpace(saved))
+	if candidate == "" || cfg.Classes == nil {
+		return
+	}
+	cls, ok := cfg.Classes.Get(candidate)
+	if !ok {
+		return
+	}
+	a.classID = cls.ID
 }
 
 // MarkContentsDirty re-runs syncInventoryToSaveLocked so the save

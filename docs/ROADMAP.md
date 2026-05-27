@@ -693,7 +693,7 @@ is now real. Sketch of remaining vertical slices:
     re-targeted to whenever a consumer actually needs live
     stat derivation on mobs (M9 effects, or mob equipment if
     that ever lands).
-  - **M8.4 — Classes (path + growth).** New `progression.Class` +
+  - **M8.4 (landed) — Classes (path + growth).** New `progression.Class` +
     `ClassRegistry` (spec §4). Class carries stat-growth map
     (StatType → dice expression — reuses M7.4's `combat.DiceExpr`
     parser), growth-bonuses map (StatType → source StatType),
@@ -716,29 +716,30 @@ is now real. Sketch of remaining vertical slices:
     `GetEligibleClasses(raceCategory, gender)` lands but is
     consumed only by the M12 character-creation wizard;
     M8.4 ships it with a unit test.
-    - [ ] Classes load from packs into `ClassRegistry`; case-
+    - [x] Classes load from packs into `ClassRegistry`; case-
           insensitive id lookup; priority overrides; get / get-all /
           has / get-eligible-classes queries.
-    - [ ] `ClassPathProcessor` runs at level 1 on a
+    - [x] `ClassPathProcessor` runs at level 1 on a
           `character.created` event AND on every
           `progression.level.up` whose track equals the class's
           bound track (case-insensitive); skips entries with
           non-empty `unlockedVia`; logs and skips unknown ability
           ids without raising.
-    - [ ] `StatGrowthSubscriber` rolls dice for each entry, adds
+    - [x] `StatGrowthSubscriber` rolls dice for each entry, adds
           `max(0, (sourceStatValue - 10) / 2)` from the
           *effective* source-stat value when growth-bonus declares
           a source, increments base attributes via StatBlock,
           credits `trainsPerLevel` to `trains_available`.
-    - [ ] Stat-growth handler's track-gating behavior is
-          documented (open question §10 — pick "no gate" today
-          and record the decision in code comments).
-    - [ ] `content/core/` ships at least one class with a non-
+    - [x] Stat-growth handler's track-gating behavior is
+          documented (open question §10 — picked "no gate" today;
+          recorded in `level_up.go` ApplyStatGrowth doc + the
+          bus-wiring comment in `cmd/anothermud/main.go`).
+    - [x] `content/core/` ships at least one class with a non-
           empty path, growth map, and bound track; an
           end-to-end integration test grants enough XP to that
           class's bound track to cross 2-3 thresholds and
           asserts both subscribers fired.
-    - [ ] Player save v9 carries `class` id + `trains_available`
+    - [x] Player save v9 carries `class` id + `trains_available`
           integer; v8 saves load cleanly (no class, zero
           trains).
   - **M8.5 — Alignment.** New `progression.AlignmentManager`

@@ -75,7 +75,14 @@ import (
 // §3.1. Empty (legacy v7 saves migrated forward) means the session
 // layer applies the configured default race at construction; see
 // session.applyRace for the fallback policy.
-const CurrentVersion = 8
+//
+// v9 (M8.4): `class` id + `trains_available` integer (spec §4.1 /
+// §4.6 step 4). Empty class (legacy v8 saves migrated forward)
+// means the character has no class — the path processor and stat
+// growth subscriber short-circuit on empty class id. Zero trains
+// is the natural starting state; the M8.6 train verb is the only
+// consumer.
+const CurrentVersion = 9
 
 // Sentinel errors callers may check via errors.Is.
 var (
@@ -112,8 +119,10 @@ type Save struct {
 	Stats       stats.Snapshot                  `yaml:"stats,omitempty"`
 	StatsBase   progression.BaseSnapshot        `yaml:"stats_base,omitempty"`
 	Progression progression.ProgressionSnapshot `yaml:"progression,omitempty"`
-	Race        string                          `yaml:"race,omitempty"`
-	Vitals      *VitalsState                    `yaml:"vitals,omitempty"`
+	Race            string                          `yaml:"race,omitempty"`
+	Class           string                          `yaml:"class,omitempty"`
+	TrainsAvailable int                             `yaml:"trains_available,omitempty"`
+	Vitals          *VitalsState                    `yaml:"vitals,omitempty"`
 	// WimpyThreshold is the §5.1 HP-percent threshold (0 = wimpy
 	// disabled). Added in M7.6 without a schema bump: zero-value
 	// is indistinguishable from "field absent" so legacy v5 saves
@@ -286,6 +295,7 @@ var playerMigrations = map[int]func(map[string]any) (map[string]any, error){
 	5: migrateV5toV6,
 	6: migrateV6toV7,
 	7: migrateV7toV8,
+	8: migrateV8toV9,
 }
 
 // migrateV1toV2 adds the empty inventory/equipment blocks introduced
@@ -424,6 +434,17 @@ func migrateV6toV7(in map[string]any) (map[string]any, error) {
 // absence is preserved and the session load path applies the
 // configured default race at construction (see session.applyRace).
 func migrateV7toV8(in map[string]any) (map[string]any, error) {
+	return in, nil
+}
+
+// migrateV8toV9 adds the `class` + `trains_available` fields
+// introduced in M8.4 (spec progression.md §4). No-op on dict
+// content: a legacy v8 save carries no class id, so the absence
+// is preserved (empty class short-circuits the class-path
+// processor and stat-growth subscriber). trains_available
+// defaults to zero, which is the natural starting state for the
+// M8.6 train verb.
+func migrateV8toV9(in map[string]any) (map[string]any, error) {
 	return in, nil
 }
 

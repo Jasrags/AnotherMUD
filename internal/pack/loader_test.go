@@ -921,3 +921,127 @@ stat_caps:
 		t.Errorf("err = %v, want ErrInvalidContent", err)
 	}
 }
+
+func TestLoadClassesHappyPath(t *testing.T) {
+	root := t.TempDir()
+	pack := filepath.Join(root, "core")
+	writeFile(t, filepath.Join(pack, "pack.yaml"), `
+name: tapestry-core
+content:
+  areas: [areas/*.yaml]
+  rooms: [rooms/*.yaml]
+  classes: [classes/*.yaml]
+`)
+	writeFile(t, filepath.Join(pack, "areas/x.yaml"), `id: x
+name: X`)
+	writeFile(t, filepath.Join(pack, "rooms/r.yaml"), `id: r
+area: x
+name: R`)
+	writeFile(t, filepath.Join(pack, "classes/fighter.yaml"), `
+id: Fighter
+name: Fighter
+bound_track: adventurer
+stat_growth:
+  HP_MAX: 1d8
+  STR: 1d3
+growth_bonuses:
+  HP_MAX: CON
+trains_per_level: 5
+path:
+  - level: 1
+    ability: basic-strike
+  - level: 3
+    ability: cleave
+  - level: 5
+    ability: locked
+    unlocked_via: quest:vigil
+allowed_categories:
+  - humanoid
+`)
+
+	regs := NewRegistries()
+	if err := Load(context.Background(), root, nil, regs, nil, nil); err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	c, ok := regs.Classes.Get("FIGHTER")
+	if !ok {
+		t.Fatal("class fighter not registered (case-insens)")
+	}
+	if c.ID != "fighter" {
+		t.Errorf("ID = %q, want lowercased fighter", c.ID)
+	}
+	if c.BoundTrack != "adventurer" {
+		t.Errorf("BoundTrack = %q", c.BoundTrack)
+	}
+	if d, ok := c.StatGrowth["hp_max"]; !ok || d.Count != 1 || d.Sides != 8 {
+		t.Errorf("StatGrowth[hp_max] = %+v, want 1d8 (stat key lowercased)", d)
+	}
+	if src, ok := c.GrowthBonuses["hp_max"]; !ok || src != "con" {
+		t.Errorf("GrowthBonuses[hp_max] = %q, want con", src)
+	}
+	if c.TrainsPerLevel != 5 {
+		t.Errorf("TrainsPerLevel = %d, want 5", c.TrainsPerLevel)
+	}
+	if len(c.Path) != 3 {
+		t.Fatalf("Path len = %d, want 3 (including unlocked entries)", len(c.Path))
+	}
+	if c.Path[2].UnlockedVia != "quest:vigil" {
+		t.Errorf("path[2].UnlockedVia = %q", c.Path[2].UnlockedVia)
+	}
+	if c.Pack != "tapestry-core" {
+		t.Errorf("Pack = %q", c.Pack)
+	}
+}
+
+func TestLoadClassesRejectsMalformedDice(t *testing.T) {
+	root := t.TempDir()
+	pack := filepath.Join(root, "core")
+	writeFile(t, filepath.Join(pack, "pack.yaml"), `
+name: tapestry-core
+content:
+  areas: [areas/*.yaml]
+  rooms: [rooms/*.yaml]
+  classes: [classes/*.yaml]
+`)
+	writeFile(t, filepath.Join(pack, "areas/x.yaml"), `id: x
+name: X`)
+	writeFile(t, filepath.Join(pack, "rooms/r.yaml"), `id: r
+area: x
+name: R`)
+	writeFile(t, filepath.Join(pack, "classes/bad.yaml"), `
+id: bad
+bound_track: adventurer
+stat_growth:
+  hp_max: not-a-die
+`)
+
+	err := Load(context.Background(), root, nil, NewRegistries(), nil, nil)
+	if !errors.Is(err, ErrInvalidContent) {
+		t.Errorf("err = %v, want ErrInvalidContent", err)
+	}
+}
+
+func TestLoadClassesRejectsEmptyID(t *testing.T) {
+	root := t.TempDir()
+	pack := filepath.Join(root, "core")
+	writeFile(t, filepath.Join(pack, "pack.yaml"), `
+name: tapestry-core
+content:
+  areas: [areas/*.yaml]
+  rooms: [rooms/*.yaml]
+  classes: [classes/*.yaml]
+`)
+	writeFile(t, filepath.Join(pack, "areas/x.yaml"), `id: x
+name: X`)
+	writeFile(t, filepath.Join(pack, "rooms/r.yaml"), `id: r
+area: x
+name: R`)
+	writeFile(t, filepath.Join(pack, "classes/bad.yaml"), `
+name: NoID
+`)
+
+	err := Load(context.Background(), root, nil, NewRegistries(), nil, nil)
+	if !errors.Is(err, ErrInvalidContent) {
+		t.Errorf("err = %v, want ErrInvalidContent", err)
+	}
+}

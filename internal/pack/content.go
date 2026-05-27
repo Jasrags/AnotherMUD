@@ -184,6 +184,39 @@ type TrackFile struct {
 	Priority     int     `yaml:"priority,omitempty"`
 }
 
+// ClassPathEntryFile is one row in a class's level path. Mirrors
+// progression.ClassPathEntry. UnlockedVia (when non-empty) marks
+// the entry as owned by another subsystem (quest reward, scripted
+// hook); the path processor skips it at level-up per spec §4.5.
+type ClassPathEntryFile struct {
+	Level        int    `yaml:"level"`
+	AbilityID    string `yaml:"ability"`
+	UnlockedVia  string `yaml:"unlocked_via,omitempty"`
+}
+
+// ClassFile is the YAML shape for a class definition (spec
+// progression.md §4.1). Stat-growth dice are authored as strings
+// ("1d8") and parsed via combat.ParseDice at load. Growth bonuses
+// map a stat to the source stat whose modifier contributes a bonus
+// on every level-up roll. Bound track is case-insensitive at runtime
+// but stored verbatim for diagnostics.
+type ClassFile struct {
+	ID                string                `yaml:"id"`
+	Name              string                `yaml:"name,omitempty"`
+	Tagline           string                `yaml:"tagline,omitempty"`
+	Description       string                `yaml:"description,omitempty"`
+	LevelUpFlavor     string                `yaml:"level_up_flavor,omitempty"`
+	BoundTrack        string                `yaml:"bound_track,omitempty"`
+	StatGrowth        map[string]string     `yaml:"stat_growth,omitempty"`
+	GrowthBonuses     map[string]string     `yaml:"growth_bonuses,omitempty"`
+	Path              []ClassPathEntryFile  `yaml:"path,omitempty"`
+	TrainsPerLevel    int                   `yaml:"trains_per_level,omitempty"`
+	AllowedCategories []string              `yaml:"allowed_categories,omitempty"`
+	AllowedGenders    []string              `yaml:"allowed_genders,omitempty"`
+	StartingAlignment int                   `yaml:"starting_alignment,omitempty"`
+	Priority          int                   `yaml:"priority,omitempty"`
+}
+
 // RaceFile is the YAML shape for a race definition (spec
 // progression.md §3.1). Stat caps are keyed by lowercase StatType
 // strings ("str", "hp_max", etc.); the loader maps them onto the

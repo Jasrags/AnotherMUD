@@ -1,0 +1,59 @@
+id: fighter
+name: Fighter
+tagline: Steel in hand, steel in spine.
+description: |
+  The fighter is the realm's plain-spoken martial backbone — a
+  professional soldier or sworn arms-bearer trained to close
+  distance and end fights quickly. Fighters trade arcane breadth
+  for raw weapon mastery and the discipline to keep their feet
+  when the round drags on.
+level_up_flavor: |
+  Your stance settles. Each repetition cuts a little cleaner.
+
+# Bound to the adventurer track (the only track shipped in
+# tapestry-core). Stat growth + path entries fire on every level
+# of this track; level-ups on other tracks (if a player ever
+# crosses one) don't apply fighter growth or grant path abilities.
+bound_track: adventurer
+
+# Growth dice rolled at every bound-track level-up. hp_max grows
+# fastest; STR climbs deliberately; the others are static today
+# (training fills out the rest at M8.6).
+stat_growth:
+  hp_max: 1d8
+  str: 1d3
+
+# CON contributes its D&D-style modifier to the hp_max growth
+# roll. A fighter with CON=14 (+2) rolling 1d8 gains 3-10 hp per
+# level instead of 1-8.
+growth_bonuses:
+  hp_max: con
+
+# Standard 5 trains per level. Spec §4.6 step 4.
+trains_per_level: 5
+
+# Class path. Spec §4.5: the path processor fires on character
+# creation (treated as level 1) and on every bound-track level-up
+# whose level matches a path entry. Entries with non-empty
+# unlocked_via are skipped by the processor — they're declarative
+# only (a future quest reward will publish the grant itself).
+path:
+  - level: 1
+    ability: basic-strike
+  - level: 2
+    ability: power-attack
+  - level: 5
+    ability: oath-of-the-tower
+    unlocked_via: quest:tower-vigil
+
+# Eligibility — open to humanoid races, both genders. Empty list
+# on either axis means no restriction; the explicit list here
+# documents intent and exercises GetEligible in tests.
+allowed_categories:
+  - humanoid
+
+# starting_alignment 0 keeps fighters on the neutral axis at
+# creation; race override (e.g. dwarf's +50) still applies.
+starting_alignment: 0
+
+priority: 0

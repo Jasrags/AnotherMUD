@@ -73,7 +73,8 @@ type ContentPaths struct {
 	Slots  []string `yaml:"slots,omitempty"`
 	Mobs   []string `yaml:"mobs,omitempty"`
 	Tracks []string `yaml:"tracks,omitempty"`
-	Races  []string `yaml:"races,omitempty"`
+	Races   []string `yaml:"races,omitempty"`
+	Classes []string `yaml:"classes,omitempty"`
 }
 
 // IsActive reports whether the manifest is active (default true).

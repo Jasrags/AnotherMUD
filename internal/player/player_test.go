@@ -498,6 +498,70 @@ func TestLoad_V7MigratesToV8WithEmptyRace(t *testing.T) {
 	}
 }
 
+func TestLoad_V8MigratesToV9WithEmptyClassAndZeroTrains(t *testing.T) {
+	// A v8 save carries no `class` or `trains_available` fields.
+	// After migration to v9 both are absent / zero; the session-load
+	// path's applyClass step is a no-op on an empty class id.
+	ctx := context.Background()
+	st, dir := newStore(t)
+
+	playerDir := filepath.Join(dir, "players", "v8user")
+	if err := os.MkdirAll(playerDir, 0o755); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(playerDir, "player.yaml"),
+		[]byte("version: 8\nid: p-1\naccount_id: acct-1\nname: V8User\nlocation: tapestry-core:town-square\nrace: human\n"),
+		0o600); err != nil {
+		t.Fatalf("write: %v", err)
+	}
+
+	got, err := st.Load(ctx, "v8user")
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if got.Version != player.CurrentVersion {
+		t.Errorf("Version = %d, want %d", got.Version, player.CurrentVersion)
+	}
+	if got.Class != "" {
+		t.Errorf("Class = %q, want empty after v8 migration", got.Class)
+	}
+	if got.TrainsAvailable != 0 {
+		t.Errorf("TrainsAvailable = %d, want 0 after v8 migration", got.TrainsAvailable)
+	}
+	if got.Race != "human" {
+		t.Errorf("Race = %q, want preserved 'human' across migration", got.Race)
+	}
+}
+
+func TestSave_RoundTripsClassAndTrains(t *testing.T) {
+	ctx := context.Background()
+	st, _ := newStore(t)
+
+	want := &player.Save{
+		Version:         player.CurrentVersion,
+		ID:              "p-1",
+		AccountID:       "acct-1",
+		Name:            "Brawler",
+		Location:        "tapestry-core:town-square",
+		Race:            "human",
+		Class:           "fighter",
+		TrainsAvailable: 15,
+	}
+	if err := st.Save(ctx, want); err != nil {
+		t.Fatalf("Save: %v", err)
+	}
+	got, err := st.Load(ctx, "Brawler")
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if got.Class != "fighter" {
+		t.Errorf("Class = %q, want fighter", got.Class)
+	}
+	if got.TrainsAvailable != 15 {
+		t.Errorf("TrainsAvailable = %d, want 15", got.TrainsAvailable)
+	}
+}
+
 func TestSave_RoundTripsRace(t *testing.T) {
 	ctx := context.Background()
 	st, _ := newStore(t)

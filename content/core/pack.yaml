@@ -18,3 +18,5 @@ content:
     - tracks/*.yaml
   races:
     - races/*.yaml
+  classes:
+    - classes/*.yaml

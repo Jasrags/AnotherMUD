@@ -10,6 +10,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/Jasrags/AnotherMUD/internal/combat"
 	"github.com/Jasrags/AnotherMUD/internal/item"
 	"github.com/Jasrags/AnotherMUD/internal/logging"
 	"github.com/Jasrags/AnotherMUD/internal/mob"
@@ -82,7 +83,7 @@ type pendingMobPlacement struct {
 // Filter, when non-empty, restricts discovery (spec §2.4). Pass nil to
 // load every active pack under root.
 func Load(ctx context.Context, root string, filter []string, dst *Registries, spawner Spawner, mobSpawner MobSpawner) error {
-	if dst == nil || dst.World == nil || dst.Items == nil || dst.Slots == nil || dst.Mobs == nil || dst.Tracks == nil || dst.Races == nil {
+	if dst == nil || dst.World == nil || dst.Items == nil || dst.Slots == nil || dst.Mobs == nil || dst.Tracks == nil || dst.Races == nil || dst.Classes == nil {
 		return errors.New("pack.Load: dst has nil registry field; use pack.NewRegistries()")
 	}
 	logger := logging.From(ctx).With(slog.String("event", "pack.load"), slog.String("root", root))
@@ -209,6 +210,10 @@ func loadPackContent(ctx context.Context, p Discovered, dst *Registries) ([]pend
 	if err != nil {
 		return nil, nil, err
 	}
+	classPaths, err := resolveGlobs(p.Dir, p.Manifest.Content.Classes)
+	if err != nil {
+		return nil, nil, err
+	}
 
 	// Areas first — rooms reference them (spec §3.3 step 2). TryAddArea
 	// catches both intra-pack and cross-pack id collisions.
@@ -311,6 +316,19 @@ func loadPackContent(ctx context.Context, p Discovered, dst *Registries) ([]pend
 		}
 	}
 
+	// Classes: id-keyed registry mirroring races. Stat-growth dice
+	// expressions are parsed at decode so a malformed `1d8` surfaces
+	// at load rather than at first level-up (spec progression.md §4.1).
+	for _, cp := range classPaths {
+		c, err := decodeClass(cp, ns)
+		if err != nil {
+			return nil, nil, err
+		}
+		if err := dst.Classes.Register(c); err != nil {
+			return nil, nil, fmt.Errorf("%w (in %s)", err, cp)
+		}
+	}
+
 	logger.Info("pack content loaded",
 		slog.String("event", "pack.content"),
 		slog.Int("areas", len(areaPaths)),
@@ -320,6 +338,7 @@ func loadPackContent(ctx context.Context, p Discovered, dst *Registries) ([]pend
 		slog.Int("mobs", len(mobPaths)),
 		slog.Int("tracks", len(trackPaths)),
 		slog.Int("races", len(racePaths)),
+		slog.Int("classes", len(classPaths)),
 		slog.Int("placements", len(placements)),
 		slog.Int("mob_placements", len(mobPlacements)),
 	)
@@ -435,6 +454,94 @@ func decodeRace(path, ns string) (*progression.Race, error) {
 		StatCaps:          caps,
 		CastCostModifier:  f.CastCostModifier,
 		RacialFlags:       flags,
+		Pack:              ns,
+		Priority:          f.Priority,
+	}, nil
+}
+
+// decodeClass reads a ClassFile and builds a progression.Class.
+// Spec progression.md §4.1. The id is required; stat-growth dice are
+// parsed eagerly via combat.ParseDice so authoring errors surface at
+// load time rather than at first level-up. Stat keys are lowercased
+// to align with the runtime StatType convention.
+func decodeClass(path, ns string) (*progression.Class, error) {
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		return nil, fmt.Errorf("reading class %s: %w", path, err)
+	}
+	var f ClassFile
+	if err := yaml.Unmarshal(raw, &f); err != nil {
+		return nil, fmt.Errorf("%w: %s: %v", ErrInvalidContent, path, err)
+	}
+	if strings.TrimSpace(f.ID) == "" {
+		return nil, fmt.Errorf("%w: %s: missing 'id'", ErrInvalidContent, path)
+	}
+	var growth map[progression.StatType]combat.DiceExpr
+	if len(f.StatGrowth) > 0 {
+		growth = make(map[progression.StatType]combat.DiceExpr, len(f.StatGrowth))
+		for k, expr := range f.StatGrowth {
+			key := strings.ToLower(strings.TrimSpace(k))
+			if key == "" {
+				return nil, fmt.Errorf("%w: %s: stat_growth has empty key", ErrInvalidContent, path)
+			}
+			d, err := combat.ParseDice(expr)
+			if err != nil {
+				return nil, fmt.Errorf("%w: %s: stat_growth[%q]: %v", ErrInvalidContent, path, key, err)
+			}
+			growth[progression.StatType(key)] = d
+		}
+	}
+	var bonuses map[progression.StatType]progression.StatType
+	if len(f.GrowthBonuses) > 0 {
+		bonuses = make(map[progression.StatType]progression.StatType, len(f.GrowthBonuses))
+		for k, v := range f.GrowthBonuses {
+			key := strings.ToLower(strings.TrimSpace(k))
+			src := strings.ToLower(strings.TrimSpace(v))
+			if key == "" || src == "" {
+				return nil, fmt.Errorf("%w: %s: growth_bonuses[%q]=%q: empty key or source", ErrInvalidContent, path, k, v)
+			}
+			bonuses[progression.StatType(key)] = progression.StatType(src)
+		}
+	}
+	var path2 []progression.ClassPathEntry
+	if len(f.Path) > 0 {
+		path2 = make([]progression.ClassPathEntry, 0, len(f.Path))
+		for i, e := range f.Path {
+			if e.Level <= 0 {
+				return nil, fmt.Errorf("%w: %s: path[%d]: level must be > 0 (got %d)", ErrInvalidContent, path, i, e.Level)
+			}
+			if strings.TrimSpace(e.AbilityID) == "" {
+				return nil, fmt.Errorf("%w: %s: path[%d]: missing 'ability'", ErrInvalidContent, path, i)
+			}
+			path2 = append(path2, progression.ClassPathEntry{
+				Level:       e.Level,
+				AbilityID:   strings.TrimSpace(e.AbilityID),
+				UnlockedVia: strings.TrimSpace(e.UnlockedVia),
+			})
+		}
+	}
+	// trains_per_level: zero in YAML defaults to 5 (spec §4.1). A
+	// negative value clamps to 0 at Register; we let the loader pass
+	// it through so authors who explicitly write `-1` see the same
+	// result (no surprise mid-layer mutation).
+	trains := f.TrainsPerLevel
+	if trains == 0 {
+		trains = 5
+	}
+	return &progression.Class{
+		ID:                f.ID,
+		DisplayName:       strings.TrimSpace(f.Name),
+		Tagline:           f.Tagline,
+		Description:       f.Description,
+		LevelUpFlavor:     f.LevelUpFlavor,
+		BoundTrack:        strings.TrimSpace(f.BoundTrack),
+		StatGrowth:        growth,
+		GrowthBonuses:     bonuses,
+		Path:              path2,
+		TrainsPerLevel:    trains,
+		AllowedCategories: append([]string(nil), f.AllowedCategories...),
+		AllowedGenders:    append([]string(nil), f.AllowedGenders...),
+		StartingAlignment: f.StartingAlignment,
 		Pack:              ns,
 		Priority:          f.Priority,
 	}, nil

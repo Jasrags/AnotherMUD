@@ -266,6 +266,60 @@ func run() error {
 	// eventbus → entities import edge that would close a cycle.
 	progressionMgr := progression.NewManager(registries.Tracks, &progressionSink{bus: bus})
 
+	// M8.4: class-side level-up subscribers. Path processor grants
+	// abilities (logs as unknown until M9 abilities ship). Stat
+	// growth subscriber rolls per-level dice + credits trains.
+	//
+	// Both use a Roller backed by math/rand/v2's default source so
+	// every server process gets independent randomness — combat
+	// already follows the same convention for hit rolls. The
+	// progression.Roller is structurally the same as combat.Roller
+	// (IntN(int) int); we pass a closure wrapper since rand.IntN
+	// is a package-level function.
+	classPath := &progression.ClassPathProcessor{
+		Classes:  registries.Classes,
+		Granter:  progression.NewNopGranter(),
+		Notifier: notifierAdapter{mgr: mgr},
+	}
+	trainsCrediter := trainsAdapter{mgr: mgr}
+	growthRoller := stdRoller{}
+
+	bus.Subscribe(eventbus.EventLevelUp, func(ctx context.Context, ev eventbus.Event) {
+		e, ok := ev.(eventbus.LevelUp)
+		if !ok {
+			return
+		}
+		actor, ok := mgr.GetByPlayerID(e.EntityID)
+		if !ok {
+			return // player logged out between cascade emit and dispatch
+		}
+		classID := actor.ClassID()
+		if classID == "" {
+			return
+		}
+		classPath.Apply(ctx, e.EntityID, classID, e.Track, e.NewLevel)
+		if cls, ok := registries.Classes.Get(classID); ok {
+			// Spec §4.6 step 2: no track gate — stat growth runs on
+			// every level-up regardless of track. (M8.4 ROADMAP
+			// acceptance criterion: documented decision.)
+			progression.ApplyStatGrowth(ctx, cls, actor.StatBlock(), growthRoller, trainsCrediter, e.EntityID)
+		}
+	})
+
+	bus.Subscribe(eventbus.EventCharacterCreated, func(ctx context.Context, ev eventbus.Event) {
+		e, ok := ev.(eventbus.CharacterCreated)
+		if !ok {
+			return
+		}
+		if e.ClassID == "" {
+			return
+		}
+		// Spec §4.5 step 3: character-created is treated as level 1
+		// with no track gate. Pass empty trackName so Apply
+		// short-circuits the gate check.
+		classPath.Apply(ctx, e.EntityID, e.ClassID, "", 1)
+	})
+
 	combatCooldowns := combat.NewFleeCooldowns()
 	combatMgr := combat.NewManagerWith(combat.ManagerConfig{
 		Locator:   combatLocator,
@@ -497,6 +551,7 @@ func run() error {
 		},
 		Progression:  progressionMgr,
 		Races:        registries.Races,
+		Classes:      registries.Classes,
 		DefaultRace:  cfg.DefaultRace,
 		StartID:      cfg.StartRoom,
 		ColorEnabled: cfg.ColorDefault,
@@ -1212,6 +1267,53 @@ func (s *progressionSink) OnTrackReset(ctx context.Context, entityID, track stri
 		Track:    track,
 	})
 }
+
+// notifierAdapter bridges progression.Notifier to session.Manager.
+// Look up the actor by entity id (which is the player id at M8.4
+// — progression keys players by bare id, not the player: prefix)
+// and Write the message. A missing actor silently drops the
+// notification: a player disconnecting between level-up and notify
+// is a routine race, not an error.
+type notifierAdapter struct{ mgr *session.Manager }
+
+func (n notifierAdapter) Notify(ctx context.Context, entityID, msg string) {
+	a, ok := n.mgr.GetByPlayerID(entityID)
+	if !ok {
+		return
+	}
+	_ = a.Write(ctx, msg)
+}
+
+// trainsAdapter routes CreditTrains calls to the live actor. The
+// bus dispatches synchronously on the publishing goroutine (the
+// player session goroutine that called GrantExperience), so a
+// missing actor is impossible during a normal level-up cascade —
+// the actor cannot disconnect between Publish and the subscriber
+// returning. The lookup-miss branch is defensive for the future
+// case where progression XP grants come from a non-session origin
+// (admin tooling, async event source); we drop the credit
+// silently rather than fault.
+type trainsAdapter struct{ mgr *session.Manager }
+
+func (t trainsAdapter) CreditTrains(ctx context.Context, entityID string, n int) {
+	a, ok := t.mgr.GetByPlayerID(entityID)
+	if !ok {
+		return
+	}
+	a.CreditTrains(ctx, entityID, n)
+}
+
+// stdRoller satisfies combat.Roller using math/rand/v2's package-
+// level IntN, which is documented safe for concurrent use. The
+// level-up subscribers fire from whatever goroutine published
+// progression.level.up (the player session goroutine that called
+// GrantExperience), so a shared *rand.Rand would need its own
+// mutex; the package-level functions avoid that complexity. Not
+// used by combat itself — combat keeps a dedicated *rand.Rand
+// because its phase callbacks already serialize on the tick.
+type stdRoller struct{}
+
+func (stdRoller) IntN(n int) int { return rand.IntN(n) }
 
 func newLogger(cfg config) *slog.Logger {
 	var lvl slog.Level
