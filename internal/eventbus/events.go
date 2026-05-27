@@ -55,6 +55,24 @@ const (
 	// signal. Carries a monotonic tick count + current player
 	// count so subscribers can adapt without re-querying.
 	EventAreaTick = "area.tick"
+	// Cancellable pre-event fired before death-related disengagement
+	// (spec combat §6.1). Listeners (resurrection skills, phylactery
+	// items, soulbound effects) flip the embedded cancel flag to veto
+	// the death; cancellers are responsible for restoring the victim
+	// to a non-dead state. Carries the resolved killer attribution
+	// (may be empty per §6.2) so listeners can react asymmetrically.
+	EventDeathCheck = "combat.death_check"
+	// Post-fact notification fired when an uncancelled death-check
+	// commits (spec combat §6.3 step 1). Alignment / quest /
+	// achievement listeners subscribe here.
+	EventKill = "combat.kill"
+	// Post-fact notification fired in addition to combat.kill when
+	// the victim is a mob (spec combat §6.3 step 2). Carries the mob
+	// template id so loot / XP / template-keyed quest credit can
+	// match without a round-trip to the entity store. M7.5 wires the
+	// spawn manager's untrack subscriber here so area respawn fires
+	// on combat deaths.
+	EventMobKilled = "mob.killed"
 )
 
 // ItemPickedUp fires after GetHandler successfully moves an item
@@ -294,3 +312,74 @@ type AreaTick struct {
 
 // Name implements Event.
 func (AreaTick) Name() string { return EventAreaTick }
+
+// DeathCheck is the cancellable pre-event fired before combat-side
+// death disengagement (spec combat §6.1). VictimID is the combatant
+// identity (prefixed CombatantID-style string: "mob:<entityID>" or
+// "player:<playerID>") of the entity at zero HP. KillerID carries the
+// already-resolved attribution per §6.2 (explicit attacker on the
+// vital-depleted event > victim's primary target > empty). Listeners
+// MAY call Cancel() to veto disengagement; cancellers are responsible
+// for restoring victim HP to a non-dead value before the next round.
+//
+// VictimTemplateID is populated only for mob victims and is carried
+// here so a resurrection listener can decide whether THIS template
+// resurrects without re-walking the entity store.
+type DeathCheck struct {
+	*CancelFlag
+	VictimID         string
+	VictimName       string
+	KillerID         string
+	KillerName       string
+	RoomID           world.RoomID
+	VictimIsMob      bool
+	VictimTemplateID string
+}
+
+// Name implements Event.
+func (DeathCheck) Name() string { return EventDeathCheck }
+
+// NewDeathCheck constructs a cancellable death-check with the flag
+// wired so the publisher doesn't have to remember to allocate it.
+// Mirrors NewContainerItemAdding.
+func NewDeathCheck(victimID, victimName, killerID, killerName string, room world.RoomID, isMob bool, templateID string) *DeathCheck {
+	return &DeathCheck{
+		CancelFlag:       &CancelFlag{},
+		VictimID:         victimID,
+		VictimName:       victimName,
+		KillerID:         killerID,
+		KillerName:       killerName,
+		RoomID:           room,
+		VictimIsMob:      isMob,
+		VictimTemplateID: templateID,
+	}
+}
+
+// Kill fires after an uncancelled DeathCheck (spec combat §6.3
+// step 1). Killer fields may be empty when attribution is absent
+// (environmental damage, ability one-shots without attribution).
+type Kill struct {
+	VictimID   string
+	VictimName string
+	KillerID   string
+	KillerName string
+	RoomID     world.RoomID
+}
+
+// Name implements Event.
+func (Kill) Name() string { return EventKill }
+
+// MobKilled fires alongside Kill when the victim was a mob
+// (spec combat §6.3 step 2). TemplateID is the mob template, which
+// loot / XP / quest listeners key on.
+type MobKilled struct {
+	MobID      entities.EntityID
+	MobName    string
+	TemplateID string
+	KillerID   string
+	KillerName string
+	RoomID     world.RoomID
+}
+
+// Name implements Event.
+func (MobKilled) Name() string { return EventMobKilled }

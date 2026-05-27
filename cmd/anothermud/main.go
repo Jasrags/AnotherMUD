@@ -238,8 +238,60 @@ func run() error {
 	// will replace it with a real eventbus-backed adapter when those
 	// subscribers exist.
 	combatLocator := combatLocator{entities: entityStore, sessions: mgr, placement: placement}
-	combatSink := loggingCombatSink{logger: logging.From(ctx)}
+	// combatSink wires the production death flow (spec combat §6).
+	// OnVitalDepleted publishes the cancellable death.check; if not
+	// cancelled, publishes kill (+ mob.killed for mob victims) and
+	// calls combatMgr.DisengageAll. combatMgr is back-pointed via a
+	// setter after construction so the sink and manager can reference
+	// each other without an init cycle.
+	combatSink := &productionCombatSink{
+		logger:    logging.From(ctx),
+		bus:       bus,
+		locator:   combatLocator,
+		entities:  entityStore,
+	}
 	combatMgr := combat.NewManager(combatLocator, combatSink)
+	combatSink.mgr = combatMgr
+
+	// M7.5: mob.aggro → combat.Engage closes the M6.5 deferred. The
+	// disposition evaluator emits MobAggro for every fresh hostile
+	// reaction; combat.Manager.Engage is idempotent on duplicates
+	// (already-engaged returns false silently per §2.1), so a
+	// re-triggered aggro after a brief disengage simply re-engages.
+	bus.Subscribe(eventbus.EventMobAggro, func(ctx context.Context, ev eventbus.Event) {
+		e, ok := ev.(eventbus.MobAggro)
+		if !ok {
+			return
+		}
+		attacker := combat.NewMobCombatantID(string(e.MobID))
+		target := combat.NewPlayerCombatantID(e.PlayerID)
+		combatMgr.Engage(ctx, attacker, target, e.RoomID)
+	})
+
+	// M7.5: mob.killed → entity untrack closes M6.6's deferred death-
+	// driven purge. The spawn tracker's Purge predicate calls
+	// entities.Store.GetByID; an untracked mob fails that check on the
+	// next area-tick reset and the rule's missing count is recomputed,
+	// so the kill drives a respawn without spawn needing a direct
+	// mob.killed subscription. Subscription is process-lifetime, same
+	// convention as the spawn manager's own area.tick subscription.
+	bus.Subscribe(eventbus.EventMobKilled, func(ctx context.Context, ev eventbus.Event) {
+		e, ok := ev.(eventbus.MobKilled)
+		if !ok {
+			return
+		}
+		if err := entityStore.Untrack(e.MobID); err != nil {
+			// Already untracked — benign (a future caller may have
+			// untracked the mob via a corpse pipeline). Logged at
+			// debug so the kill path stays quiet on the happy path.
+			logging.From(ctx).Debug("mob.killed untrack noop",
+				slog.String("mob_id", string(e.MobID)),
+				slog.Any("err", err))
+		}
+		// Also clear the mob's room placement so a subsequent
+		// look/exits in the room doesn't list the corpse.
+		placement.Remove(e.MobID)
+	})
 
 	// Combat heartbeat (spec combat §3, M7.3). Round skeleton at the
 	// configured cadence. Phases (ability / auto-attack / effects /
@@ -629,29 +681,47 @@ func (l combatLocator) RoomOf(id combat.CombatantID) (world.RoomID, bool) {
 	return "", false
 }
 
-// loggingCombatSink is the M7.2 production sink — logs every combat
-// event at Info so the engage/disengage path is observable in a
-// default-configured server. M7.5 (mob.killed → spawn untrack) and
-// M7.6 (combat.ended → flee cooldown clear) replace this with a real
-// eventbus-backed adapter when those subscribers exist; at that point
-// Info-level logging can drop to Debug since the event path itself
-// becomes the observability surface.
-type loggingCombatSink struct{ logger *slog.Logger }
+// productionCombatSink is the runtime combat.EventSink. M7.2 shipped
+// this as a log-only sink (loggingCombatSink) so the engage/disengage
+// path was observable in the default-configured server; M7.5 promotes
+// it to the canonical death-flow handler per spec combat §6.
+//
+// OnVitalDepleted is the entry point for the death pipeline:
+//
+//  1. Resolve killer attribution (§6.2: explicit attacker > victim's
+//     primary target > empty).
+//  2. Resolve victim shape (mob vs player; mob carries template id for
+//     mob.killed payload + tracker untrack).
+//  3. Publish the cancellable DeathCheck (§6.1). If a listener cancels,
+//     stop — the canceller is responsible for restoring HP.
+//  4. Publish Kill, and MobKilled if the victim is a mob (§6.3).
+//  5. Call combatMgr.DisengageAll(victim) to clean both sides of every
+//     engagement (§6.3 step 3).
+//
+// All other event methods stay log-only; M7.6 will use OnCombatEnded
+// to clear flee cooldowns.
+type productionCombatSink struct {
+	logger   *slog.Logger
+	bus      *eventbus.Bus
+	locator  combatLocator
+	entities *entities.Store
+	mgr      *combat.Manager // back-pointer set after construction
+}
 
-func (s loggingCombatSink) OnEngagement(_ context.Context, e combat.Engagement) {
+func (s *productionCombatSink) OnEngagement(_ context.Context, e combat.Engagement) {
 	s.logger.Info("combat.engagement",
 		slog.String("attacker", string(e.AttackerID)),
 		slog.String("target", string(e.TargetID)),
 		slog.String("room", string(e.RoomID)))
 }
 
-func (s loggingCombatSink) OnCombatEnded(_ context.Context, e combat.CombatEnded) {
+func (s *productionCombatSink) OnCombatEnded(_ context.Context, e combat.CombatEnded) {
 	s.logger.Info("combat.ended",
 		slog.String("combatant", string(e.CombatantID)),
 		slog.String("room", string(e.RoomID)))
 }
 
-func (s loggingCombatSink) OnHit(_ context.Context, e combat.Hit) {
+func (s *productionCombatSink) OnHit(_ context.Context, e combat.Hit) {
 	s.logger.Info("combat.hit",
 		slog.String("attacker", string(e.AttackerID)),
 		slog.String("target", string(e.TargetID)),
@@ -662,7 +732,7 @@ func (s loggingCombatSink) OnHit(_ context.Context, e combat.Hit) {
 		slog.String("room", string(e.RoomID)))
 }
 
-func (s loggingCombatSink) OnMiss(_ context.Context, e combat.Miss) {
+func (s *productionCombatSink) OnMiss(_ context.Context, e combat.Miss) {
 	s.logger.Info("combat.miss",
 		slog.String("attacker", string(e.AttackerID)),
 		slog.String("target", string(e.TargetID)),
@@ -671,7 +741,7 @@ func (s loggingCombatSink) OnMiss(_ context.Context, e combat.Miss) {
 		slog.String("room", string(e.RoomID)))
 }
 
-func (s loggingCombatSink) OnEvade(_ context.Context, e combat.Evade) {
+func (s *productionCombatSink) OnEvade(_ context.Context, e combat.Evade) {
 	s.logger.Info("combat.evade",
 		slog.String("attacker", string(e.AttackerID)),
 		slog.String("target", string(e.TargetID)),
@@ -679,12 +749,95 @@ func (s loggingCombatSink) OnEvade(_ context.Context, e combat.Evade) {
 		slog.String("room", string(e.RoomID)))
 }
 
-func (s loggingCombatSink) OnVitalDepleted(_ context.Context, e combat.VitalDepleted) {
+func (s *productionCombatSink) OnVitalDepleted(ctx context.Context, e combat.VitalDepleted) {
 	s.logger.Info("combat.vital_depleted",
 		slog.String("victim", string(e.VictimID)),
 		slog.String("attacker", string(e.AttackerID)),
 		slog.String("vital", e.Vital),
 		slog.String("room", string(e.RoomID)))
+
+	// Only HP-depletion is a death today. A future stamina/mana
+	// depletion event would land here as a separate code path.
+	if e.Vital != combat.VitalHP {
+		return
+	}
+
+	// §6.2 killer attribution: explicit attacker on the depletion
+	// event wins; otherwise fall back to the victim's primary
+	// target at the moment of death; otherwise empty.
+	killerID := e.AttackerID
+	if killerID == "" && s.mgr != nil {
+		if pt, ok := s.mgr.PrimaryTargetOf(e.VictimID); ok {
+			killerID = pt
+		}
+	}
+	killerName := ""
+	if killerID != "" {
+		if c, ok := s.locator.LookupCombatant(killerID); ok {
+			killerName = c.Name()
+		}
+	}
+
+	// Victim resolution. A player victim is never untracked here
+	// (player teardown owns its own lifecycle); a mob victim drives
+	// MobKilled emission so the spawn manager's untrack subscriber
+	// fires.
+	isMob := strings.HasPrefix(string(e.VictimID), combat.MobPrefix)
+	var (
+		mobEntityID entities.EntityID
+		mobTemplate string
+	)
+	if isMob {
+		mobEntityID = entities.EntityID(string(e.VictimID)[len(combat.MobPrefix):])
+		if ent, ok := s.entities.GetByID(mobEntityID); ok {
+			if mi, ok := ent.(*entities.MobInstance); ok {
+				mobTemplate = string(mi.TemplateID())
+			}
+		}
+	}
+
+	// §6.1 cancellable death-check. A listener that cancels MUST
+	// restore the victim to a non-dead state (heal to 1 HP) before
+	// the next round — the engine does not undo damage on cancel.
+	check := eventbus.NewDeathCheck(
+		string(e.VictimID),
+		e.VictimName,
+		string(killerID),
+		killerName,
+		e.RoomID,
+		isMob,
+		mobTemplate,
+	)
+	if s.bus != nil && s.bus.PublishCancellable(ctx, check) {
+		s.logger.Info("combat.death_cancelled",
+			slog.String("victim", string(e.VictimID)),
+			slog.String("killer", string(killerID)))
+		return
+	}
+
+	// §6.3 emit kill (+ mob.killed) and disengage-all.
+	if s.bus != nil {
+		s.bus.Publish(ctx, eventbus.Kill{
+			VictimID:   string(e.VictimID),
+			VictimName: e.VictimName,
+			KillerID:   string(killerID),
+			KillerName: killerName,
+			RoomID:     e.RoomID,
+		})
+		if isMob {
+			s.bus.Publish(ctx, eventbus.MobKilled{
+				MobID:      mobEntityID,
+				MobName:    e.VictimName,
+				TemplateID: mobTemplate,
+				KillerID:   string(killerID),
+				KillerName: killerName,
+				RoomID:     e.RoomID,
+			})
+		}
+	}
+	if s.mgr != nil {
+		s.mgr.DisengageAll(ctx, e.VictimID, e.RoomID)
+	}
 }
 
 func newLogger(cfg config) *slog.Logger {
