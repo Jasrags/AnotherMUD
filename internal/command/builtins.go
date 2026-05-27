@@ -60,6 +60,14 @@ func RegisterBuiltins(r *Registry) error {
 		// progression layer — self-grants XP. Role-gated grants
 		// + target-by-name form land with the role system (M10+).
 		{"xp", XPHandler},
+		// Training verbs (M8.6 — progression.md §7). `train` bumps
+		// a base stat by spending a train credit; `practice` raises
+		// the cap on an ability via an in-room trainer. `pra` and
+		// `tra` aliases are NOT registered today — short prefixes
+		// would collide with `put` / `tra…` futures. Spell out the
+		// verbs.
+		{"train", TrainHandler},
+		{"practice", PracticeHandler},
 	}
 	for _, d := range []world.Direction{
 		world.DirNorth, world.DirSouth, world.DirEast, world.DirWest,

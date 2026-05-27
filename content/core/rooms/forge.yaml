@@ -8,3 +8,5 @@ description: |
   pulses with each draw of the bellows.
 exits:
   south: town-square
+mobs:
+  - training-master

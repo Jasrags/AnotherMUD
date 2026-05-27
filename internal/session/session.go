@@ -94,6 +94,14 @@ type Config struct {
 	// EventSink.
 	Progression *progression.Manager
 
+	// Training is the M8.6 training service (spec progression.md
+	// §7). The composition root builds it against the race
+	// registry + a TrainerSource that scans the entity store for
+	// `skill_trainer`-tagged mobs in the actor's room. nil-safe;
+	// the `train` and `practice` verbs print "training not
+	// enabled" when nil.
+	Training *progression.TrainingManager
+
 	// Races is the M8.3 race registry. Consulted at login to
 	// resolve the player's race id into RacialFlags + starting
 	// alignment. nil-safe: a missing registry means racial flags
@@ -500,6 +508,7 @@ func pump(ctx context.Context, c conn.Connection, cfg Config, a *connActor, clk 
 			Combat:      cfg.Combat,
 			Flee:        cfg.Flee,
 			Progression: cfg.Progression,
+			Training:    cfg.Training,
 		}
 		if err := cfg.Commands.Dispatch(ctx, env, a, line); err != nil {
 			if errors.Is(err, command.ErrQuit) {
@@ -1558,6 +1567,37 @@ func (a *connActor) TrainsAvailable() int {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	return a.trainsAvailable
+}
+
+// SpendTrain decrements the actor's training pool by one and
+// marks the save dirty. Returns false when the pool is already
+// zero (the train verb pre-checks but a concurrent grant/spend
+// could TOCTOU; the false branch keeps the manager honest).
+// M8.6 — progression.md §7.4 step 6.
+func (a *connActor) SpendTrain() bool {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	if a.trainsAvailable <= 0 {
+		return false
+	}
+	a.trainsAvailable--
+	if a.save != nil {
+		a.save.TrainsAvailable = a.trainsAvailable
+	}
+	a.markDirtyLocked()
+	return true
+}
+
+// HasRoomTag reports whether the actor's current room carries
+// tag. Used by the M8.6 training manager for the §7.4 step 2
+// safe-room gate. Room tags are not yet plumbed through world.Room
+// (m7-6 deferred fix); until that lands this stub returns false so
+// the safe-room gate is effectively disabled unless the host
+// flips RequireSafeRoomForStats and supplies a future room-tag
+// implementation. The unit-level training tests still cover the
+// manager's gate via a fake TrainingEntity.
+func (a *connActor) HasRoomTag(tag string) bool {
+	return false
 }
 
 // CreditTrains adds n to trainsAvailable and marks the actor

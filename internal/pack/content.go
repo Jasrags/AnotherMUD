@@ -111,6 +111,21 @@ type MobFile struct {
 	// rule list (spec §5.1, §5.3). Optional; mobs without rules
 	// just don't trigger reactions.
 	DispositionRules *DispositionFile `yaml:"disposition_rules,omitempty"`
+
+	// Trainer is the optional trainer config (M8.6 — progression.md
+	// §7.3). When present, the mob MUST also carry the
+	// `skill_trainer` tag; the pack loader rejects the pair when
+	// only one side is set.
+	Trainer *TrainerFile `yaml:"trainer,omitempty"`
+}
+
+// TrainerFile is the YAML shape for a mob's TrainerConfig (spec
+// progression.md §7.3). Tier is the canonical cap-tier name
+// ("novice"/"apprentice"/"journeyman"/"master"); Teach lists the
+// ability ids the trainer is willing to raise.
+type TrainerFile struct {
+	Tier  string   `yaml:"tier"`
+	Teach []string `yaml:"teach,omitempty"`
 }
 
 // DispositionFile is the YAML shape for a mob's reaction policy

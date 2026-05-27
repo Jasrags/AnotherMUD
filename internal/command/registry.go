@@ -185,6 +185,10 @@ type Env struct {
 	// through it; future verbs (score, train, practice) will too.
 	// nil in tests that don't exercise progression verbs.
 	Progression *progression.Manager
+	// Training is the M8.6 training service. The train + practice
+	// verbs route through it. nil in tests that don't exercise
+	// training.
+	Training *progression.TrainingManager
 }
 
 // DispositionHook is the seam movement and login flows call when a
@@ -220,6 +224,8 @@ type Context struct {
 	Flee func(ctx context.Context, c combat.CombatantID) combat.FleeOutcome
 	// Progression is the M8.2 XP/level service. nil in tests.
 	Progression *progression.Manager
+	// Training is the M8.6 training service. nil in tests.
+	Training    *progression.TrainingManager
 	Raw         string              // raw input line, trimmed
 	Verb        string              // resolved verb (lowercase)
 	Args        []string            // tokens after the verb (space-split)
@@ -344,6 +350,7 @@ func (r *Registry) Dispatch(ctx context.Context, env Env, actor Actor, raw strin
 		Combat:      env.Combat,
 		Flee:        env.Flee,
 		Progression: env.Progression,
+		Training:    env.Training,
 		Raw:         trimmed,
 		Verb:        strings.ToLower(verb),
 		Args:        args,

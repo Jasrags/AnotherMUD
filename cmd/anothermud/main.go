@@ -561,6 +561,12 @@ func run() error {
 			return combat.Flee(ctx, c, fleeCfg)
 		},
 		Progression:  progressionMgr,
+		Training: progression.NewTrainingManager(
+			progression.DefaultTrainingConfig(),
+			registries.Races,
+			session.NewTrainerSource(mgr, placement, entityStore),
+			nil, // M9 proficiency not wired yet; practice paths return NotLearned
+		),
 		Races:        registries.Races,
 		Classes:      registries.Classes,
 		Alignment:    alignmentMgr,

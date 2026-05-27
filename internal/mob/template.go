@@ -72,6 +72,21 @@ type Template struct {
 	// fail silently at spawn — matching the spec §3.1 mob-spawn
 	// "fail-silent on missing template" convention.
 	Race string
+
+	// TrainerTier is the cap-tier value (0/25/50/75/100) the mob
+	// can raise abilities TO when running as a `skill_trainer`
+	// (progression.md §7.3). Zero on non-trainer mobs. The pack
+	// loader pairs this with the `skill_trainer` tag — either
+	// both are present or neither — so the runtime can scan
+	// rooms by tag and trust the tier+list are set.
+	//
+	// Carried as primitives instead of a *progression.TrainerConfig
+	// to keep mob/entities independent of progression (avoids the
+	// entities→mob→progression→entities import cycle).
+	TrainerTier int
+	// TrainerTeach is the list of ability ids the mob teaches.
+	// Lowercased + de-trimmed by the loader.
+	TrainerTeach []string
 }
 
 // Errors callers may distinguish at the boundary.

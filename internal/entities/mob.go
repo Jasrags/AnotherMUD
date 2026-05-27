@@ -67,6 +67,16 @@ type MobInstance struct {
 	// flags via ApplyRacialFlags. Empty when the template declares
 	// no race.
 	race string
+
+	// trainerTier / trainerTeach are the primitive trainer payload
+	// copied from the template (M8.6 — progression.md §7.3). The
+	// session-side TrainerInRoom adapter reconstructs a
+	// *progression.TrainerConfig from these when a `practice`
+	// verb scans the room. Carrying primitives instead of
+	// pulling in progression keeps entities a lower-level
+	// package than the progression service it serves.
+	trainerTier  int
+	trainerTeach []string
 }
 
 // Reserved property keys with engine-defined semantics on MobInstance.
@@ -186,6 +196,21 @@ func (m *MobInstance) Vitals() *combat.Vitals { return m.vitals }
 // a fresh block per swing so equipment changes between rounds cannot
 // tear the inputs to a single swing.
 func (m *MobInstance) Stats() combat.Stats { return m.stats }
+
+// TrainerTier returns the cap-tier value (0/25/50/75/100) the
+// mob can raise abilities TO when acting as a `skill_trainer`
+// (M8.6 — progression.md §7.3). Zero on non-trainer mobs.
+func (m *MobInstance) TrainerTier() int { return m.trainerTier }
+
+// TrainerTeach returns a copy of the ability ids the mob teaches.
+// Returns nil for non-trainer mobs. Fresh slice on every call so
+// callers cannot alias the backing storage.
+func (m *MobInstance) TrainerTeach() []string {
+	if len(m.trainerTeach) == 0 {
+		return nil
+	}
+	return append([]string(nil), m.trainerTeach...)
+}
 
 // RaceID returns the optional race id copied from the template at
 // construction (M8.3 — progression.md §3.1). Empty for mobs whose
@@ -427,8 +452,10 @@ func buildMobFromTemplate(tpl *mob.Template, id EntityID) *MobInstance {
 		keywords:   keywords,
 		properties: props,
 		templateID: tpl.ID,
-		vitals:     combat.NewVitals(maxHP),
-		stats:      statBlock,
-		race:       tpl.Race,
+		vitals:       combat.NewVitals(maxHP),
+		stats:        statBlock,
+		race:         tpl.Race,
+		trainerTier:  tpl.TrainerTier,
+		trainerTeach: append([]string(nil), tpl.TrainerTeach...),
 	}
 }

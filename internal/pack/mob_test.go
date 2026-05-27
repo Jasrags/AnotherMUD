@@ -293,3 +293,74 @@ disposition_rules:
 		t.Errorf("err = %v, want %v", err, ErrInvalidContent)
 	}
 }
+
+func TestLoad_MobTrainerOK(t *testing.T) {
+	body := `
+id: trainer
+name: a trainer
+behavior: stationary
+tags: [skill_trainer]
+trainer:
+  tier: novice
+  teach: [slash, parry]
+`
+	root := mobPack(t, body)
+	regs := NewRegistries()
+	if err := Load(context.Background(), root, nil, regs, nil, nil); err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	got, _ := regs.Mobs.Get("tapestry-core:trainer")
+	if got.TrainerTier != 25 {
+		t.Errorf("TrainerTier = %d, want 25 (Novice)", got.TrainerTier)
+	}
+	if len(got.TrainerTeach) != 2 || got.TrainerTeach[0] != "slash" {
+		t.Errorf("TrainerTeach = %v", got.TrainerTeach)
+	}
+}
+
+func TestLoad_MobTrainerBlockWithoutTagRejected(t *testing.T) {
+	body := `
+id: trainer
+name: a trainer
+behavior: stationary
+trainer:
+  tier: novice
+  teach: [slash]
+`
+	root := mobPack(t, body)
+	err := Load(context.Background(), root, nil, NewRegistries(), nil, nil)
+	if !errors.Is(err, ErrInvalidContent) {
+		t.Fatalf("err = %v, want ErrInvalidContent", err)
+	}
+}
+
+func TestLoad_MobSkillTrainerTagWithoutBlockRejected(t *testing.T) {
+	body := `
+id: trainer
+name: a trainer
+behavior: stationary
+tags: [skill_trainer]
+`
+	root := mobPack(t, body)
+	err := Load(context.Background(), root, nil, NewRegistries(), nil, nil)
+	if !errors.Is(err, ErrInvalidContent) {
+		t.Fatalf("err = %v, want ErrInvalidContent", err)
+	}
+}
+
+func TestLoad_MobTrainerInvalidTierRejected(t *testing.T) {
+	body := `
+id: trainer
+name: a trainer
+behavior: stationary
+tags: [skill_trainer]
+trainer:
+  tier: archmage
+  teach: [slash]
+`
+	root := mobPack(t, body)
+	err := Load(context.Background(), root, nil, NewRegistries(), nil, nil)
+	if !errors.Is(err, ErrInvalidContent) {
+		t.Fatalf("err = %v, want ErrInvalidContent", err)
+	}
+}

@@ -836,6 +836,11 @@ func decodeMob(path, ns string) (*mob.Template, error) {
 		return nil, err
 	}
 
+	tier, teach, err := decodeTrainer(f.Trainer, f.Tags, path)
+	if err != nil {
+		return nil, err
+	}
+
 	return &mob.Template{
 		ID:               mob.TemplateID(id),
 		Name:             f.Name,
@@ -850,7 +855,62 @@ func decodeMob(path, ns string) (*mob.Template, error) {
 		Stats:            f.Stats,
 		Equipment:        f.Equipment,
 		Race:             strings.ToLower(strings.TrimSpace(f.Race)),
+		TrainerTier:      tier,
+		TrainerTeach:     teach,
 	}, nil
+}
+
+// decodeTrainer converts the YAML trainer block into a runtime
+// TrainerConfig. Validates that the tier name maps to one of the
+// fixed ladder values (Novice/Apprentice/Journeyman/Master, spec
+// §7.2). Also enforces the §7.3 pairing rule with the
+// `skill_trainer` tag: a trainer block without the tag, or the
+// tag without a block, is an authoring error caught at boot.
+//
+// Returns (0, nil, nil) when both the block and the tag are absent.
+func decodeTrainer(src *TrainerFile, tags []string, path string) (int, []string, error) {
+	hasTag := false
+	for _, t := range tags {
+		if strings.EqualFold(strings.TrimSpace(t), progression.TagSkillTrainer) {
+			hasTag = true
+			break
+		}
+	}
+	if src == nil && !hasTag {
+		return 0, nil, nil
+	}
+	if src == nil {
+		return 0, nil, fmt.Errorf("%w: %s: 'skill_trainer' tag requires a 'trainer' block", ErrInvalidContent, path)
+	}
+	if !hasTag {
+		return 0, nil, fmt.Errorf("%w: %s: 'trainer' block requires the 'skill_trainer' tag", ErrInvalidContent, path)
+	}
+
+	tierName := strings.ToLower(strings.TrimSpace(src.Tier))
+	var tier progression.CapTier
+	switch tierName {
+	case "novice":
+		tier = progression.CapNovice
+	case "apprentice":
+		tier = progression.CapApprentice
+	case "journeyman":
+		tier = progression.CapJourneyman
+	case "master":
+		tier = progression.CapMaster
+	default:
+		return 0, nil, fmt.Errorf("%w: %s: trainer.tier must be one of novice/apprentice/journeyman/master, got %q", ErrInvalidContent, path, src.Tier)
+	}
+
+	teach := make([]string, 0, len(src.Teach))
+	for _, a := range src.Teach {
+		id := strings.ToLower(strings.TrimSpace(a))
+		if id == "" {
+			continue
+		}
+		teach = append(teach, id)
+	}
+
+	return int(tier), teach, nil
 }
 
 // decodeDispositionRules converts the YAML shape into the runtime

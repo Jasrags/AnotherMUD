@@ -801,22 +801,22 @@ is now real. Sketch of remaining vertical slices:
     side until M9 (logs the would-have-trained ability + tier);
     stat training is fully wired against the StatBlock from
     M8.1 + race caps from M8.3.
-    - [ ] Trains-available defaults to 0 and increases only via
+    - [x] Trains-available defaults to 0 and increases only via
           class level-up credits (M8.4).
-    - [ ] Practice requires a learned ability (or a deferred-to-
+    - [x] Practice requires a learned ability (or a deferred-to-
           M9 stub) AND a matching in-room trainer; cannot skip
           tiers; does not consume a train.
-    - [ ] Stat training enforces safe-room rule only when
+    - [x] Stat training enforces safe-room rule only when
           `RequireSafeRoomForStats` config is true; honors
           per-race stat cap (default 25 when the race doesn't
           declare); fails with structured result for
           NotTrainable / UnsafeRoom / NoTrains / AtRaceCap.
-    - [ ] Catch-up boost bumps proficiency toward *prior* cap
+    - [x] Catch-up boost bumps proficiency toward *prior* cap
           (clamped), not the new cap.
-    - [ ] `content/core/` ships at least one trainer mob with
+    - [x] `content/core/` ships at least one trainer mob with
           `TrainerConfig` so `practice` and `train` commands are
           end-to-end testable.
-    - [ ] A handful of integration tests exercise: grant XP →
+    - [x] A handful of integration tests exercise: grant XP →
           level up → trains credited → `train str` succeeds →
           base STR increases → effective combat hit reflects it.
 - **M9 — Do something:** `abilities-and-effects`, the action queue,

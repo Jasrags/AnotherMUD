@@ -1,0 +1,19 @@
+id: training-master
+name: Maerys the Training Master
+type: npc
+behavior: stationary
+tags: [humanoid, skill_trainer]
+keywords: [maerys, master, trainer]
+stats:
+  hp_max: 60
+  str: 14
+disposition_rules:
+  default: friendly
+# M8.6: trainer payload. Tier is the cap value Maerys can raise an
+# ability TO (Novice = 25). Pair with the `skill_trainer` tag —
+# the pack loader rejects either one without the other.
+trainer:
+  tier: novice
+  teach:
+    - slash
+    - parry
