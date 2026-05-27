@@ -194,7 +194,8 @@ func run(ctx context.Context, c conn.Connection, cfg Config) error {
 		// absent block (fresh character, migrated-from-v4 save) spawns
 		// at full HP via NewVitals. The race/class/level inputs that
 		// would derive real numbers here are M8 work.
-		vitals:      restorePlayerVitals(loaded.Player.Vitals),
+		vitals:         restorePlayerVitals(loaded.Player.Vitals),
+		wimpyThreshold: clampWimpy(loaded.Player.WimpyThreshold),
 		combatStats: combat.DefaultPlayerStats(),
 		flood:       newFloodGate(floodCfg, clk),
 		floodCfg:    &floodCfg,
@@ -842,6 +843,13 @@ type connActor struct {
 	// race+class+level derivation.
 	combatStats combat.Stats
 
+	// wimpyThreshold is the §5.1 HP%-threshold property. 0 disables
+	// wimpy. Set by the `wimpy <pct>` verb; read by combat's wimpy
+	// phase via the WimpyHolder interface (defined on combat package
+	// side; this connActor satisfies it). Persistence lives with the
+	// rest of the save shape — see player.Save.WimpyThreshold.
+	wimpyThreshold int
+
 	mu            sync.Mutex
 	room          *world.Room
 	colorEnabled  bool
@@ -985,6 +993,17 @@ func cloneInventoryEntries(in []player.InventoryEntry) []player.InventoryEntry {
 		}
 	}
 	return out
+}
+
+// clampWimpy normalizes a persisted wimpy threshold into [0, 100].
+// Anything outside the range maps to 0 (disabled) — defensively
+// permissive so a hand-edited save with a nonsense value loads
+// cleanly into a known-good disabled state.
+func clampWimpy(pct int) int {
+	if pct < 0 || pct > 100 {
+		return 0
+	}
+	return pct
 }
 
 // restorePlayerVitals returns a fresh *combat.Vitals for a logging-in
@@ -1348,6 +1367,40 @@ func (a *connActor) lookupTemplateID(id entities.EntityID) (string, bool) {
 // link-dead reattach.
 func (a *connActor) CombatantID() combat.CombatantID {
 	return combat.NewPlayerCombatantID(a.playerID)
+}
+
+// WimpyThreshold returns the actor's configured wimpy HP-percent
+// threshold ([0,100]; 0 disables). Satisfies combat.WimpyHolder.
+// Safe to call from the tick goroutine — int reads are atomic on
+// every platform Go supports, and the only writer is SetWimpyThreshold
+// which holds a.mu.
+func (a *connActor) WimpyThreshold() int {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	return a.wimpyThreshold
+}
+
+// SetWimpyThreshold updates the wimpy property and marks the save
+// dirty so the new value persists on the next autosave. Clamps to
+// [0, 100]; values outside are silently coerced (the verb handler
+// already validates input, this is defense-in-depth).
+func (a *connActor) SetWimpyThreshold(pct int) {
+	if pct < 0 {
+		pct = 0
+	}
+	if pct > 100 {
+		pct = 100
+	}
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	if a.wimpyThreshold == pct {
+		return
+	}
+	a.wimpyThreshold = pct
+	if a.save != nil {
+		a.save.WimpyThreshold = pct
+		a.markDirtyLocked()
+	}
 }
 
 // Vitals returns the actor's mutable HP state. The pointer is set at

@@ -250,7 +250,21 @@ func run() error {
 		locator:   combatLocator,
 		entities:  entityStore,
 	}
-	combatMgr := combat.NewManager(combatLocator, combatSink)
+	combatTags := combatTagSource{
+		entities: entityStore,
+		// Rooms have no tag surface yet (spec §2.1 safe-room is
+		// deferred content work — see m7-6-deferred-fixes.md). The
+		// TagSource plumbing is in place so the moment rooms grow
+		// a Tags slice the lookup wires through with no Engage-side
+		// changes.
+	}
+	combatCooldowns := combat.NewFleeCooldowns()
+	combatMgr := combat.NewManagerWith(combat.ManagerConfig{
+		Locator:   combatLocator,
+		Sink:      combatSink,
+		Tags:      combatTags,
+		Cooldowns: combatCooldowns,
+	})
 	combatSink.mgr = combatMgr
 
 	// M7.5: mob.aggro → combat.Engage closes the M6.5 deferred. The
@@ -317,8 +331,29 @@ func run() error {
 		Sink:        combatSink,
 		Roller:      combatRNG,
 	})
+	// M7.6 wimpy phase — fires §5.2 flee when a combatant's HP%
+	// drops to or below its WimpyThreshold property. Shares the same
+	// FleeConfig the M7.6d `flee` verb uses; the verb path constructs
+	// its own config from the same dependencies.
+	fleeMover := combatMover{sessions: mgr, placement: placement, world: w, broadcaster: mgr, bus: bus}
+	fleeBusAdapter := combatFleeBus{bus: bus}
+	fleeCfg := combat.FleeConfig{
+		Mgr:           combatMgr,
+		Locator:       combatLocator,
+		RoomLocator:   combatLocator,
+		Rooms:         w,
+		Mover:         fleeMover,
+		Sink:          combatSink,
+		Bus:           fleeBusAdapter,
+		Cooldowns:     combatCooldowns,
+		Tags:          combatTags,
+		Rand:          combatRNG,
+		CooldownTicks: cadenceTicks(cfg.TickInterval, cfg.FleeCooldown),
+	}
+	wimpyPhase := combat.NewWimpy(fleeCfg)
 	combatHeartbeat := combat.NewHeartbeat(combatMgr, combat.Phases{
 		AutoAttack: autoAttackPhase,
+		Wimpy:      wimpyPhase,
 	})
 	combatCadence := cadenceTicks(cfg.TickInterval, cfg.CombatCadence)
 	if err := loop.Register("combat-tick", combatCadence, combatHeartbeat.Tick); err != nil {
@@ -418,6 +453,7 @@ type config struct {
 	LogFormat             string
 	TickInterval          time.Duration
 	CombatCadence         time.Duration
+	FleeCooldown          time.Duration
 	AutosaveInterval      time.Duration
 	IdleSweepInterval     time.Duration
 	LinkDeadSweepInterval time.Duration
@@ -442,6 +478,7 @@ func loadConfig() config {
 		LogFormat:             strings.ToLower(envOr("ANOTHERMUD_LOG_FORMAT", "text")),
 		TickInterval:          envDurationOr("ANOTHERMUD_TICK_INTERVAL", 100*time.Millisecond),
 		CombatCadence:         envDurationOr("ANOTHERMUD_COMBAT_CADENCE", 3*time.Second),
+		FleeCooldown:          envDurationOr("ANOTHERMUD_FLEE_COOLDOWN", 15*time.Second),
 		AutosaveInterval:      envDurationOr("ANOTHERMUD_AUTOSAVE_INTERVAL", 30*time.Second),
 		IdleSweepInterval:     envDurationOr("ANOTHERMUD_IDLE_SWEEP_INTERVAL", 30*time.Second),
 		LinkDeadSweepInterval: envDurationOr("ANOTHERMUD_LINKDEAD_SWEEP_INTERVAL", 30*time.Second),
@@ -853,6 +890,153 @@ func (s *productionCombatSink) OnVitalDepleted(ctx context.Context, e combat.Vit
 	if s.mgr != nil {
 		s.mgr.DisengageAll(ctx, e.VictimID, e.RoomID)
 	}
+}
+
+// combatTagSource implements combat.TagSource. Reads entity tags
+// from the entities.Store (mob side) or returns false for players
+// (no Tags surface today — tracked in M6.5 deferred fixes). Room
+// tags also return false until rooms grow a Tags field; the §2.1
+// safe-room refusal therefore never fires today, but the plumbing
+// is in place so it activates the moment content authors a tagged
+// room.
+type combatTagSource struct {
+	entities *entities.Store
+}
+
+func (t combatTagSource) RoomHasTag(_ world.RoomID, _ string) bool {
+	// Deferred until rooms expose tags. See m7-6-deferred-fixes.md.
+	return false
+}
+
+func (t combatTagSource) EntityHasTag(id combat.CombatantID, tag string) bool {
+	s := string(id)
+	switch {
+	case strings.HasPrefix(s, combat.MobPrefix):
+		entityID := entities.EntityID(s[len(combat.MobPrefix):])
+		e, ok := t.entities.GetByID(entityID)
+		if !ok {
+			return false
+		}
+		for _, t := range e.Tags() {
+			if t == tag {
+				return true
+			}
+		}
+		return false
+	case strings.HasPrefix(s, combat.PlayerPrefix):
+		// Players have no Tags surface yet (M6.5 deferred). The
+		// no-kill / no-flee refusals therefore never apply to a
+		// player combatant today. Wires through cleanly the moment
+		// connActor grows a Tags field.
+		return false
+	}
+	return false
+}
+
+// combatMover implements combat.Mover. Players move via
+// connActor.SetRoom (which keeps session presence indexes in sync);
+// mobs move via the placement index. Both paths announce the
+// arrival/departure in the rooms so other occupants see "X flees!"
+// rather than "X disappears."
+type combatMover struct {
+	sessions    *session.Manager
+	placement   *entities.Placement
+	world       *world.World
+	broadcaster *session.Manager // session.Manager implements SendToRoom
+	bus         *eventbus.Bus
+}
+
+func (m combatMover) Move(ctx context.Context, id combat.CombatantID, dst *world.Room) bool {
+	if dst == nil {
+		return false
+	}
+	s := string(id)
+	switch {
+	case strings.HasPrefix(s, combat.MobPrefix):
+		entityID := entities.EntityID(s[len(combat.MobPrefix):])
+		from, ok := m.placement.RoomOf(entityID)
+		if !ok {
+			return false
+		}
+		m.placement.Place(entityID, dst.ID)
+		// Announce the flee to both rooms so witnesses see it.
+		if m.broadcaster != nil {
+			m.broadcaster.SendToRoom(ctx, from, "Something bolts away!", "")
+			m.broadcaster.SendToRoom(ctx, dst.ID, "Something bolts in, panting.", "")
+		}
+		return true
+	case strings.HasPrefix(s, combat.PlayerPrefix):
+		playerID := s[len(combat.PlayerPrefix):]
+		actor, ok := m.sessions.GetByPlayerID(playerID)
+		if !ok {
+			return false
+		}
+		from, _ := m.sessions.RoomOfPlayer(playerID)
+		if m.broadcaster != nil && actor.PlayerName() != "" {
+			m.broadcaster.SendToRoom(ctx, from,
+				actor.PlayerName()+" flees!", playerID)
+		}
+		actor.SetRoom(dst)
+		if m.broadcaster != nil && actor.PlayerName() != "" {
+			m.broadcaster.SendToRoom(ctx, dst.ID,
+				actor.PlayerName()+" arrives, panting.", playerID)
+		}
+		// Publish player.moved so disposition + future hooks fire on
+		// flee-driven moves the same way they do on verb-driven ones.
+		if m.bus != nil {
+			m.bus.Publish(ctx, eventbus.PlayerMoved{
+				PlayerID: playerID,
+				From:     from,
+				To:       dst.ID,
+			})
+		}
+		return true
+	}
+	return false
+}
+
+// combatFleeBus implements combat.FleeBus by translating the three
+// narrow emission methods into eventbus.Publish calls. Keeps the
+// combat package free of the eventbus import.
+type combatFleeBus struct {
+	bus *eventbus.Bus
+}
+
+func (b combatFleeBus) EmitFlee(ctx context.Context, id combat.CombatantID, name string, from, to world.RoomID, dir string) {
+	if b.bus == nil {
+		return
+	}
+	b.bus.Publish(ctx, eventbus.Flee{
+		EntityID: string(id), EntityName: name,
+		From: from, To: to, Direction: dir,
+	})
+}
+
+func (b combatFleeBus) EmitFleePrevented(ctx context.Context, id combat.CombatantID, name string, room world.RoomID) {
+	if b.bus == nil {
+		return
+	}
+	b.bus.Publish(ctx, eventbus.FleePrevented{
+		EntityID: string(id), EntityName: name, RoomID: room,
+	})
+}
+
+func (b combatFleeBus) EmitFleeFailed(ctx context.Context, id combat.CombatantID, name string, room world.RoomID, reason string) {
+	if b.bus == nil {
+		return
+	}
+	// Translate combat's reason strings to eventbus's. They are
+	// the same values today, but the indirection insulates against
+	// either side renaming independently.
+	switch reason {
+	case combat.FleeReasonNoExits:
+		reason = eventbus.FleeFailedNoExits
+	case combat.FleeReasonUnknownRoom:
+		reason = eventbus.FleeFailedUnknownRoom
+	}
+	b.bus.Publish(ctx, eventbus.FleeFailed{
+		EntityID: string(id), EntityName: name, RoomID: room, Reason: reason,
+	})
 }
 
 func newLogger(cfg config) *slog.Logger {

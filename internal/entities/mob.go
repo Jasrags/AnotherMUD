@@ -116,6 +116,36 @@ func (m *MobInstance) Vitals() *combat.Vitals { return m.vitals }
 // tear the inputs to a single swing.
 func (m *MobInstance) Stats() combat.Stats { return m.stats }
 
+// WimpyThreshold reports the mob's HP-percent flee threshold (spec
+// combat §5.1). Read from the template's properties bag at spawn
+// time (key "wimpy_threshold"); 0 (or any non-int / out-of-range
+// value) disables wimpy. Satisfies combat.WimpyHolder so the wimpy
+// phase in the heartbeat triggers a §5.2 flee attempt at or below
+// the threshold.
+//
+// Reads m.properties under no lock — see Properties() for the data-
+// race note tracked in m6-4-deferred-fixes.md. The wimpy phase runs
+// from the heartbeat tick goroutine; AI tick is the same goroutine
+// today, so there is no live writer racing this read. The deferred
+// fix lifts when a non-tick reader appears.
+func (m *MobInstance) WimpyThreshold() int {
+	if m.properties == nil {
+		return 0
+	}
+	raw, ok := m.properties["wimpy_threshold"]
+	if !ok {
+		return 0
+	}
+	v, ok := raw.(int)
+	if !ok {
+		return 0
+	}
+	if v < 0 || v > 100 {
+		return 0
+	}
+	return v
+}
+
 // buildMobFromTemplate is the §2.3 instantiation algorithm. The id is
 // assigned by the caller (Store.SpawnMob) so id generation stays
 // under the store's lock.

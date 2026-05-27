@@ -93,6 +93,13 @@ type Save struct {
 	Equipment map[string]EquippedItem `yaml:"equipment,omitempty"`
 	Stats     stats.Snapshot          `yaml:"stats,omitempty"`
 	Vitals    *VitalsState            `yaml:"vitals,omitempty"`
+	// WimpyThreshold is the §5.1 HP-percent threshold (0 = wimpy
+	// disabled). Added in M7.6 without a schema bump: zero-value
+	// is indistinguishable from "field absent" so legacy v5 saves
+	// round-trip unchanged. The session layer enforces [0, 100] on
+	// set; load tolerates anything but treats anything < 1 or > 100
+	// as disabled.
+	WimpyThreshold int `yaml:"wimpy,omitempty"`
 }
 
 // VitalsState is the persisted HP block (v5+). Pointer so an absent

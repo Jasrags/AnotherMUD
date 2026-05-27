@@ -105,6 +105,14 @@ func (h *Heartbeat) Tick(ctx context.Context, tickCount uint64) {
 	if h.mgr == nil {
 		return
 	}
+	// Advance the flee-cooldown tracker (if any) to the current tick
+	// BEFORE phases run, so a swing or wimpy-flee that consults
+	// Active sees the right "now" for THIS round. The tracker is
+	// optional — nil means combat was constructed without flee
+	// support and there's nothing to advance.
+	if h.mgr.cooldowns != nil {
+		h.mgr.cooldowns.SetNow(tickCount)
+	}
 	combatants := h.mgr.AllCombatants()
 	if len(combatants) == 0 {
 		return
