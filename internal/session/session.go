@@ -32,6 +32,7 @@ import (
 	"github.com/Jasrags/AnotherMUD/internal/logging"
 	"github.com/Jasrags/AnotherMUD/internal/login"
 	"github.com/Jasrags/AnotherMUD/internal/player"
+	"github.com/Jasrags/AnotherMUD/internal/progression"
 	"github.com/Jasrags/AnotherMUD/internal/slot"
 	"github.com/Jasrags/AnotherMUD/internal/stats"
 	"github.com/Jasrags/AnotherMUD/internal/world"
@@ -195,14 +196,12 @@ func run(ctx context.Context, c conn.Connection, cfg Config) error {
 		items:        cfg.Items,
 		contents:     cfg.Contents,
 		equipment:    make(map[string]entities.EntityID),
-		stats:        stats.New(),
-		// M7.1: every player gets the hardcoded combat block at login.
+		statBlock:    progression.NewWithBase(progression.DefaultPlayerBase()),
 		// M7.5: vitals restore from the persisted save when present;
 		// absent block (fresh character, migrated-from-v4 save) spawns
 		// at full HP via NewVitals. The race/class/level inputs that
-		// would derive real numbers here are M8 work.
-		vitals:      restorePlayerVitals(loaded.Player.Vitals),
-		combatStats: combat.DefaultPlayerStats(),
+		// would derive real numbers for max HP here are M8.3/M8.4.
+		vitals: restorePlayerVitals(loaded.Player.Vitals),
 		flood:       newFloodGate(floodCfg, clk),
 		floodCfg:    &floodCfg,
 		clk:         clk,
@@ -216,12 +215,19 @@ func run(ctx context.Context, c conn.Connection, cfg Config) error {
 	// goroutine that owns the actor" pattern.
 	a.wimpyThreshold.Store(int32(clampWimpy(loaded.Player.WimpyThreshold)))
 
-	// Install the persisted stat block FIRST. respawnEquipment will then
-	// rebind each entry's source key from the saved entity id to the
-	// fresh one as it spawns the matching ItemInstance. Order matters:
-	// the block must hold the old source keys at the moment respawn
-	// runs so RebindSource has something to find.
-	a.stats.Restore(loaded.Player.Stats)
+	// Install the persisted base attributes (M8.1 v6) before modifiers
+	// so a level-up bump sitting on disk is in place before any equip-
+	// driven modifier overlays on top.
+	if len(loaded.Player.StatsBase) > 0 {
+		a.statBlock.RestoreBase(loaded.Player.StatsBase)
+	}
+	// Install the persisted modifier set FIRST relative to respawn.
+	// respawnEquipment will then rebind each entry's source key from
+	// the saved entity id to the fresh one as it spawns the matching
+	// ItemInstance. Order matters: the block must hold the old source
+	// keys at the moment respawn runs so RebindSource has something
+	// to find.
+	a.statBlock.RestoreModifiers(loaded.Player.Stats)
 
 	// Respawn persisted inventory into live ItemInstances. Done before
 	// the actor enters the manager / starts taking input so a takeover
@@ -599,7 +605,7 @@ func respawnEquipment(ctx context.Context, a *connActor, store *entities.Store, 
 		}
 		oldSrc := entities.EquipmentSourceKey(entities.EntityID(entry.Entity))
 		newSrc := entities.EquipmentSourceKey(inst.ID())
-		if !a.stats.RebindSource(oldSrc, newSrc) {
+		if !a.statBlock.RebindSource(oldSrc, newSrc) {
 			// Either the persisted stat block had no entry for the old
 			// id (item was equipped but contributed no modifiers — fine)
 			// or the new source key collided with an existing entry
@@ -838,24 +844,28 @@ type connActor struct {
 	// strings produced by slot.BuildKey: bare name for cap-1 slots,
 	// "name:index" for multi-cap.
 	equipment map[string]entities.EntityID
-	// stats is the holder's sourced modifier set (M5.6). Equipment
-	// modifiers apply under EquipmentSourceKey(item.ID()); on save the
-	// snapshot is mirrored into a.save.Stats; on login Restore +
-	// RebindSource rewires persisted source keys onto the fresh entity
-	// ids spawned by respawnEquipment.
-	stats *stats.Block
+	// statBlock is the actor's progression-layer stat block (M8.1 —
+	// docs/specs/progression.md §2). Holds base attributes (the six
+	// classics + vital maxima + the combat-derived hit_mod / ac slots
+	// today) plus the holder's sourced modifier set. Equipment
+	// modifiers apply under EquipmentSourceKey(item.ID()); on save
+	// the base and modifier snapshots are mirrored into a.save; on
+	// login they're restored before respawnEquipment rewires source
+	// keys onto fresh entity ids.
+	//
+	// statBlock subsumes the M5.6 stats.Block: the modifier-set
+	// surface lives inside StatBlock and the persisted shape
+	// (stats.Snapshot) round-trips unchanged. The pointer is
+	// established at construction and never reassigned for the life
+	// of the actor; StatBlock carries its own internal RWMutex so
+	// combat tick reads of Stats() do not serialize on a.mu.
+	statBlock *progression.StatBlock
 
 	// vitals is the actor's mutable HP state (M7.1). The pointer is
 	// established at login and never reassigned; combat applies damage
-	// and heals through the pointer under its own lock. Not persisted
-	// yet — every login starts at full HP until the M7.5 death flow
-	// lands the player-side save bump.
+	// and heals through the pointer under its own lock. Persistence
+	// landed with M7.5 (player.Save.Vitals).
 	vitals *combat.Vitals
-	// combatStats is the actor's per-round combat block (HitMod, AC,
-	// STR) — combat §4.4-4.5 inputs. M7.1 reads a hardcoded default
-	// (combat.DefaultPlayerStats); M8 replaces it with a real
-	// race+class+level derivation.
-	combatStats combat.Stats
 
 	// wimpyThreshold is the §5.1 HP%-threshold property. 0 disables
 	// wimpy. Set by the `wimpy <pct>` verb; read by combat's wimpy
@@ -1191,7 +1201,7 @@ func (a *connActor) Equip(slotKey string, id entities.EntityID, mods []stats.Mod
 		if e == id {
 			a.inventory = append(a.inventory[:i], a.inventory[i+1:]...)
 			a.equipment[slotKey] = id
-			a.stats.Apply(entities.EquipmentSourceKey(id), mods)
+			a.statBlock.AddModifiers(entities.EquipmentSourceKey(id), mods)
 			a.syncInventoryToSaveLocked()
 			a.syncEquipmentToSaveLocked()
 			a.syncStatsToSaveLocked()
@@ -1215,7 +1225,7 @@ func (a *connActor) Unequip(slotKey string) (entities.EntityID, bool) {
 	}
 	delete(a.equipment, slotKey)
 	a.inventory = append(a.inventory, id)
-	a.stats.Remove(entities.EquipmentSourceKey(id))
+	a.statBlock.RemoveBySource(entities.EquipmentSourceKey(id))
 	a.syncInventoryToSaveLocked()
 	a.syncEquipmentToSaveLocked()
 	a.syncStatsToSaveLocked()
@@ -1227,7 +1237,7 @@ func (a *connActor) Unequip(slotKey string) (entities.EntityID, bool) {
 // modifiers under src. Test-facing helper; production code goes
 // through the equip/unequip mutations.
 func (a *connActor) StatsHas(src entities.SourceKey) bool {
-	return a.stats.Has(src)
+	return a.statBlock.HasSource(src)
 }
 
 // MarkContentsDirty re-runs syncInventoryToSaveLocked so the save
@@ -1280,7 +1290,8 @@ func (a *connActor) syncStatsToSaveLocked() {
 	if a.save == nil {
 		return
 	}
-	a.save.Stats = a.stats.Snapshot()
+	a.save.Stats = a.statBlock.ModifiersSnapshot()
+	a.save.StatsBase = a.statBlock.BaseSnapshot()
 }
 
 // syncInventoryToSaveLocked mirrors the actor's runtime inventory
@@ -1428,18 +1439,27 @@ func (a *connActor) SetWimpyThreshold(pct int) {
 // pointer itself; the Vitals struct carries its own internal lock).
 func (a *connActor) Vitals() *combat.Vitals { return a.vitals }
 
-// Stats returns a copy of the actor's combat stat block. M7.1 returns
-// the hardcoded default — equipment modifiers do not yet flow into the
-// combat stat block; the M5.6 stats.Block carries equipment-sourced
-// modifiers separately and a future slice (M8) will combine the two.
+// Stats returns the actor's combat stat block derived from the
+// progression-layer StatBlock (M8.1). HitMod, AC, and STR are read
+// through the StatBlock's effective values — base attribute +
+// sum-of-modifiers — so equipment-driven modifiers now flow into
+// auto-attack and consider without a separate sync step.
 //
-// LOCK NOTE: combatStats is written exactly once at construction
-// today, so this read is safe without a.mu. When M8 (progression)
-// adds a setter that mutates combatStats on a live actor — level-up,
-// equipment-driven derivation — the setter MUST take a.mu and this
-// method MUST start taking a.mu as well; combat.Stats is three
-// int fields and is not atomically readable as a unit.
-func (a *connActor) Stats() combat.Stats { return a.combatStats }
+// Damage and WeaponName remain unset here at M8.1; combat falls
+// through to the engine's unarmed defaults via EffectiveDamage /
+// EffectiveWeaponName. Real weapon-equipment plumbing arrives with
+// the post-M8 equipment-stat work.
+//
+// LOCK NOTE: StatBlock carries its own RWMutex, so this method does
+// not take a.mu — Effective reads are safe to call concurrently with
+// session-side equip / unequip mutations.
+func (a *connActor) Stats() combat.Stats {
+	return combat.Stats{
+		HitMod: a.statBlock.Effective(progression.StatHitMod),
+		AC:     a.statBlock.Effective(progression.StatAC),
+		STR:    a.statBlock.Effective(progression.StatSTR),
+	}
+}
 
 // PlayerName returns the loaded character's name, used by the autosave
 // loop's structured logs. Returns "" for an actor that never finished

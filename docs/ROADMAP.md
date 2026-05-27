@@ -578,7 +578,242 @@ is now real. Sketch of remaining vertical slices:
     Heartbeat.Tick advances the cooldown tracker's "now" at the
     top of every round.
 - **M8 — Get better:** `progression`, stats, levels, races, classes,
-  tracks.
+  tracks, alignment, training. Six substrates from `docs/specs/
+  progression.md`. Slices land independently; later slices depend
+  on earlier ones (classes need tracks + races + stat block;
+  training needs races for caps).
+  - **M8.1 (landed):** Stat block. New `internal/progression`
+    package with `StatBlock` — string-keyed `StatType` base
+    attributes (six classics + `hp_max`/`resource_max`/`movement_max`
+    + the combat-derived `hit_mod`/`ac` slots carried alongside
+    until M8.4 derives them properly), composes the existing
+    `*stats.Block` for the sourced modifier set, and caches
+    effective values behind a dirty flag under a RWMutex.
+    Mutation surface: `SetBase`/`AdjustBase`/`AddModifier`/
+    `AddModifiers`/`RemoveBySource`/`RebindSource`/`Invalidate`;
+    read surface: `Base`/`Effective`/`AllEffective`/`HasSource`.
+    Persistence shape splits into two snapshots: `BaseSnapshot`
+    (new, ordered `[]{stat, value}`) and `ModifiersSnapshot` (the
+    existing M5.6 `stats.Snapshot` round-tripped unchanged). New
+    `StatDisplayNames` registry maps lowercased stat names to
+    display strings with overrides → defaults → raw-name
+    fallthrough; default set covers the canonical attributes plus
+    the legacy `hit_mod`/`ac`/`damage` combat surface. `connActor`
+    swaps its `*stats.Block` for a `*progression.StatBlock` seeded
+    with `progression.DefaultPlayerBase()`; `Stats()` now derives
+    `combat.Stats{HitMod, AC, STR}` from `Effective(...)` so
+    equipment modifiers flow into auto-attack and consider
+    without a separate sync step. Equip/unequip route through
+    `AddModifiers`/`RemoveBySource`; respawn rebinding uses the
+    new `RebindSource` wrapper. Player save v6: `stats_base`
+    block added carrying `progression.BaseSnapshot`; v5 → v6
+    migration is a no-op on dict content (absent block ⇒ engine
+    defaults at construction). M8.1 scope-bound: `MobInstance`
+    keeps its `combat.FromTemplateStats`-derived static block —
+    wiring mobs to a StatBlock would create an `entities →
+    progression → stats → entities` import cycle, deferred to
+    M8.3 when races become the natural reason to inject base
+    attributes into mobs (move `SourceKey` out of `entities`
+    then). Vital clamping under max-affecting recompute is also
+    deferred: current HP lives in `combat.Vitals` with its own
+    internal clamp at M8.1 — StatBlock holds `hp_max` but does
+    not own the current-vital integer that the spec §2.3
+    re-clamp rule cares about. See m8-1-deferred-fixes.md.
+  - **M8.2 — Tracks + XP/level engine.** New `progression.Manager`
+    owning per-entity `(level, xp)` maps keyed by track name per
+    spec §5. `TrackDefinition` carries name + max level + EITHER
+    XP table OR XP formula + optional `OnLevelUp` callback. Pack
+    loader gains a `tracks/` directory and reads track definitions
+    into a registry; `content/core/` ships at least one starter
+    track (the class-bound one a future M8.4 class will consume).
+    `GrantExperience` adds XP, emits `progression.xp.gained`, then
+    cascades through every threshold the new total crosses
+    (emitting `progression.level.up` per step). `DeductExperience`
+    floors at the current level's threshold per §5.5 (cannot
+    de-level today — recorded in open questions). `GetTrackInfo`
+    returns the structured view (Xp, Level, XpToNext,
+    CurrentLevelThreshold, MaxLevel, Overflow) the score renderer
+    and GMCP will consume. New eventbus types: `XPGained`,
+    `XPLost`, `LevelUp`, `TrackReset`. Player save grows
+    `progression.tracks` (level + xp maps); save version bumps.
+    No class hookup yet — that lands in M8.4.
+    - [ ] Tracks load from `content/core/tracks/<name>.yaml` into
+          a pack-registry mirroring rooms/areas/items; case-sensitive
+          name lookup; higher-priority registrations override per
+          spec §4.2 semantics.
+    - [ ] Lazy initialization: first `GetLevel`/`GetTrackInfo`/
+          `GrantExperience` for a (entity, track) pair seeds
+          `(level=1, xp=0)`.
+    - [ ] `GrantExperience` emits `progression.xp.gained` exactly
+          once per call, then cascades through every crossed
+          threshold emitting `progression.level.up` per step; XP
+          past max level accumulates (overflow reported via
+          TrackInfo, not clamped).
+    - [ ] `DeductExperience` floors at current-level threshold;
+          emits `progression.xp.lost` only when actual loss > 0.
+    - [ ] `ResetTrack` sets `(1, 0)`, emits
+          `progression.track.reset`, does NOT re-enter the
+          level-up loop.
+    - [ ] Player save v7 carries `progression` block; v6 saves
+          load cleanly (empty maps lazy-init on first interaction).
+    - [ ] Admin `xp <player> <amount> [track]` command grants XP
+          end-to-end so the cascade is testable without a class.
+    - [ ] Race detector clean: concurrent `GrantExperience` /
+          `GetTrackInfo` from session + tick goroutines on the
+          same entity.
+  - **M8.3 — Races.** New `progression.Race` + `RaceRegistry`
+    loaded from `content/core/races/<id>.yaml`. Race carries
+    stat-caps map, cast-cost modifier, racial-flag list,
+    category, optional starting alignment + tagline +
+    description (spec §3). `cost.AdjustCost(base, race)` helper
+    returns `max(0, base + race.CastCostModifier)`; abilities
+    feature (M9) will consume it. Mob spawn (`internal/spawn`)
+    and the future character-creation flow apply racial flags as
+    tags at instantiation. `content/core/` ships at least two
+    races (one to satisfy M8.4 class eligibility tests, one for
+    cap-difference coverage). Player save grows a `race` id;
+    save version bumps. Schemas are forward-compat so unknown
+    races on load fall back to a configured default rather than
+    erroring (open question — see §10 of spec; pick a default
+    behavior here and document it).
+    - [ ] Races load from packs into `RaceRegistry`; case-
+          insensitive id lookup; priority-based overrides; get /
+          get-all / has queries.
+    - [ ] `AdjustCost` clamps at zero; null race yields base cost
+          unchanged.
+    - [ ] Mob spawn applies `RacialFlags` as entity tags; existing
+          mob templates that don't declare a race still spawn
+          (race is optional on mobs).
+    - [ ] `content/core/` ships at least two race definitions
+          with distinct stat-caps and category strings.
+    - [ ] Player save v8 carries `race`; v7 saves load cleanly
+          (default race applied).
+    - [ ] Documentation note in `docs/specs/progression.md`
+          (or `docs/ROADMAP.md`) records the default-race fallback
+          behavior we chose.
+  - **M8.4 — Classes (path + growth).** New `progression.Class` +
+    `ClassRegistry` (spec §4). Class carries stat-growth map
+    (StatType → dice expression — reuses M7.4's `combat.DiceExpr`
+    parser), growth-bonuses map (StatType → source StatType),
+    bound track name, `path` list of `(level, abilityId,
+    unlockedVia)` entries, trains-per-level integer, allowed-
+    categories / allowed-genders lists. Two new subscribers on
+    `progression.level.up`: `ClassPathProcessor` (also listens
+    to `character.created` and treats it as level 1 — see open
+    question on character-created event source; for M8.4 wire it
+    to a one-shot publish at character-creation handoff so the
+    plumbing exists before M12) and `StatGrowthSubscriber`
+    (rolls dice + applies growth-bonus, increments base
+    attributes via StatBlock, credits trains-per-level). Path
+    entries with non-empty `unlockedVia` are skipped — those are
+    quest/script-owned and land later. Ability grants in the
+    path call out to abilities (M9) via a thin interface;
+    pre-M9 wiring logs the grant and queues a "you have
+    learned" notification without actually teaching anything
+    (M9 fills the proficiency side). Eligibility query
+    `GetEligibleClasses(raceCategory, gender)` lands but is
+    consumed only by the M12 character-creation wizard;
+    M8.4 ships it with a unit test.
+    - [ ] Classes load from packs into `ClassRegistry`; case-
+          insensitive id lookup; priority overrides; get / get-all /
+          has / get-eligible-classes queries.
+    - [ ] `ClassPathProcessor` runs at level 1 on a
+          `character.created` event AND on every
+          `progression.level.up` whose track equals the class's
+          bound track (case-insensitive); skips entries with
+          non-empty `unlockedVia`; logs and skips unknown ability
+          ids without raising.
+    - [ ] `StatGrowthSubscriber` rolls dice for each entry, adds
+          `max(0, (sourceStatValue - 10) / 2)` from the
+          *effective* source-stat value when growth-bonus declares
+          a source, increments base attributes via StatBlock,
+          credits `trainsPerLevel` to `trains_available`.
+    - [ ] Stat-growth handler's track-gating behavior is
+          documented (open question §10 — pick "no gate" today
+          and record the decision in code comments).
+    - [ ] `content/core/` ships at least one class with a non-
+          empty path, growth map, and bound track; an
+          end-to-end integration test grants enough XP to that
+          class's bound track to cross 2-3 thresholds and
+          asserts both subscribers fired.
+    - [ ] Player save v9 carries `class` id + `trains_available`
+          integer; v8 saves load cleanly (no class, zero
+          trains).
+  - **M8.5 — Alignment.** New `progression.AlignmentManager`
+    backing the alignment integer property on entities per spec
+    §6. Bounded by configured min/max (defaults -1000 / +1000),
+    bucketed by configured evil/good thresholds. `Bucket` /
+    `Set` / `Shift` operations; `Set` is silent (admin path),
+    `Shift` is the gameplay path with the cancellable
+    `alignment.shift.check` event (listeners may set `cancel`
+    or rewrite `suggestedDelta`). On apply: write value, sync
+    `alignment_evil` / `alignment_neutral` / `alignment_good`
+    tag (exactly one present at a time), append to bounded
+    `alignment_history` list (capacity 20), emit
+    `alignment.shifted` and — when bucket changed — also
+    `alignment.bucket.changed`. `ResolveBuckets(set)` helper
+    translates `{evil, good, neutral}` set names to `(min, max)`
+    range for disposition rules and ability gates. Admin entities
+    bypass Shift entirely. Closes the M6.5 disposition deferral:
+    the AI `Evaluator` consumes the helper and starts matching
+    alignment conditions instead of treating them as unmatchable.
+    Player save grows `alignment` integer + `alignment_history`
+    (or the latter stays runtime-only — recorded in the spec's
+    open questions; pick one here).
+    - [ ] Alignment integer clamped to configured `[min, max]`
+          on every write.
+    - [ ] Bucket tag is present and unique on every entity the
+          manager has touched; idempotent re-sync on every
+          `Bucket` call.
+    - [ ] `Set` emits no events and does not append history;
+          `Shift` emits `alignment.shift.check` (cancellable +
+          rewritable delta), then on actual change emits
+          `alignment.shifted` and conditionally
+          `alignment.bucket.changed`.
+    - [ ] `Shift` is a no-op for entities carrying the `admin`
+          role tag.
+    - [ ] `ResolveBuckets` returns the correct `(min, max)`
+          range for every subset of `{evil, neutral, good}`
+          including degenerate cases per spec §6.6.
+    - [ ] `village-guard.yaml` (or a sibling) gains a sample
+          alignment-conditioned disposition rule that fires
+          end-to-end; the M6.5 deferral is closed.
+    - [ ] Player save v10 carries `alignment`; v9 saves load
+          cleanly (alignment = 0 / neutral bucket).
+  - **M8.6 — Training.** New `progression.TrainingManager` with
+    both operations from spec §7: `TryPractice(entityId,
+    abilityId)` (cap-tier ladder Novice/Apprentice/Journeyman/
+    Master at 25/50/75/100, exact-next-tier-only, catch-up
+    boost when proficiency < prior cap) and `TryTrain(entityId,
+    stat)` (safe-room gate optional, trainable-list gate, race
+    cap gate, decrement `trains_available`, increment base
+    attribute, invalidate StatBlock). Trainers are mobs carrying
+    the `skill_trainer` tag + a `TrainerConfig` (tier +
+    teachable ability ids). New commands `practice <ability>`
+    and `train <stat>` that resolve via TrainingManager and
+    render result messages. `TrainerConfig` decoder added to
+    pack mob loader. Practice is a no-op on the proficiency
+    side until M9 (logs the would-have-trained ability + tier);
+    stat training is fully wired against the StatBlock from
+    M8.1 + race caps from M8.3.
+    - [ ] Trains-available defaults to 0 and increases only via
+          class level-up credits (M8.4).
+    - [ ] Practice requires a learned ability (or a deferred-to-
+          M9 stub) AND a matching in-room trainer; cannot skip
+          tiers; does not consume a train.
+    - [ ] Stat training enforces safe-room rule only when
+          `RequireSafeRoomForStats` config is true; honors
+          per-race stat cap (default 25 when the race doesn't
+          declare); fails with structured result for
+          NotTrainable / UnsafeRoom / NoTrains / AtRaceCap.
+    - [ ] Catch-up boost bumps proficiency toward *prior* cap
+          (clamped), not the new cap.
+    - [ ] `content/core/` ships at least one trainer mob with
+          `TrainerConfig` so `practice` and `train` commands are
+          end-to-end testable.
+    - [ ] A handful of integration tests exercise: grant XP →
+          level up → trains credited → `train str` succeeds →
+          base STR increases → effective combat hit reflects it.
 - **M9 — Do something:** `abilities-and-effects`, the action queue,
   effects.
 - **M10 — Quests & UI polish:** `quests`, `ui-rendering-help` themes,

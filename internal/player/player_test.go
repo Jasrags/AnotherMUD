@@ -9,6 +9,7 @@ import (
 
 	"github.com/Jasrags/AnotherMUD/internal/entities"
 	"github.com/Jasrags/AnotherMUD/internal/player"
+	"github.com/Jasrags/AnotherMUD/internal/progression"
 	"github.com/Jasrags/AnotherMUD/internal/stats"
 )
 
@@ -342,6 +343,69 @@ func TestSave_RoundTripsVitals(t *testing.T) {
 	}
 	if got.Vitals.HP != 12 || got.Vitals.MaxHP != 40 {
 		t.Errorf("Vitals = %+v, want {HP:12 MaxHP:40}", got.Vitals)
+	}
+}
+
+func TestLoad_V5MigratesToV6WithEmptyStatsBase(t *testing.T) {
+	// A v5 save carries no `stats_base` block. After migration to v6
+	// the field is still absent (the migration is a no-op on dict
+	// content); the session-load path leaves the StatBlock at the
+	// progression.DefaultPlayerBase already seeded at construction.
+	ctx := context.Background()
+	st, dir := newStore(t)
+
+	playerDir := filepath.Join(dir, "players", "v5user")
+	if err := os.MkdirAll(playerDir, 0o755); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(playerDir, "player.yaml"),
+		[]byte("version: 5\nid: p-1\naccount_id: acct-1\nname: V5User\nlocation: tapestry-core:town-square\n"),
+		0o600); err != nil {
+		t.Fatalf("write: %v", err)
+	}
+
+	got, err := st.Load(ctx, "v5user")
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if got.Version != player.CurrentVersion {
+		t.Errorf("Version = %d, want %d", got.Version, player.CurrentVersion)
+	}
+	if len(got.StatsBase) != 0 {
+		t.Errorf("StatsBase = %v, want empty after v5 migration", got.StatsBase)
+	}
+}
+
+func TestSave_RoundTripsStatsBase(t *testing.T) {
+	ctx := context.Background()
+	st, _ := newStore(t)
+
+	want := &player.Save{
+		Version:   player.CurrentVersion,
+		ID:        "p-1",
+		AccountID: "acct-1",
+		Name:      "BaseStats",
+		Location:  "tapestry-core:town-square",
+		StatsBase: progression.BaseSnapshot{
+			{Stat: progression.StatSTR, Value: 14},
+			{Stat: progression.StatHPMax, Value: 35},
+		},
+	}
+	if err := st.Save(ctx, want); err != nil {
+		t.Fatalf("Save: %v", err)
+	}
+	got, err := st.Load(ctx, "BaseStats")
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if len(got.StatsBase) != 2 {
+		t.Fatalf("StatsBase len = %d, want 2", len(got.StatsBase))
+	}
+	if got.StatsBase[0].Stat != progression.StatSTR || got.StatsBase[0].Value != 14 {
+		t.Errorf("StatsBase[0] = %+v, want {str 14}", got.StatsBase[0])
+	}
+	if got.StatsBase[1].Stat != progression.StatHPMax || got.StatsBase[1].Value != 35 {
+		t.Errorf("StatsBase[1] = %+v, want {hp_max 35}", got.StatsBase[1])
 	}
 }
 

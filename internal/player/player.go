@@ -25,6 +25,7 @@ import (
 
 	"github.com/Jasrags/AnotherMUD/internal/logging"
 	"github.com/Jasrags/AnotherMUD/internal/persistence"
+	"github.com/Jasrags/AnotherMUD/internal/progression"
 	"github.com/Jasrags/AnotherMUD/internal/stats"
 )
 
@@ -57,7 +58,14 @@ import (
 // but a player who logs out below full HP MUST come back at the same
 // HP). Absent block (legacy v4 saves migrated forward) means "spawn at
 // full HP", which is what NewVitals does.
-const CurrentVersion = 5
+//
+// v6 (M8.1): `stats_base` block added — the persisted intrinsic
+// attribute values held by the progression.StatBlock (the six classics
+// + vital maxima + the M8.1-carried hit_mod / ac). Absent block (legacy
+// v5 saves migrated forward) means "apply engine defaults at restore
+// time", which is what progression.DefaultPlayerBase covers via the
+// NewWithBase construction site before RestoreBase is even called.
+const CurrentVersion = 6
 
 // Sentinel errors callers may check via errors.Is.
 var (
@@ -92,6 +100,7 @@ type Save struct {
 	Inventory []InventoryEntry        `yaml:"inventory,omitempty"`
 	Equipment map[string]EquippedItem `yaml:"equipment,omitempty"`
 	Stats     stats.Snapshot          `yaml:"stats,omitempty"`
+	StatsBase progression.BaseSnapshot `yaml:"stats_base,omitempty"`
 	Vitals    *VitalsState            `yaml:"vitals,omitempty"`
 	// WimpyThreshold is the §5.1 HP-percent threshold (0 = wimpy
 	// disabled). Added in M7.6 without a schema bump: zero-value
@@ -262,6 +271,7 @@ var playerMigrations = map[int]func(map[string]any) (map[string]any, error){
 	2: migrateV2toV3,
 	3: migrateV3toV4,
 	4: migrateV4toV5,
+	5: migrateV5toV6,
 }
 
 // migrateV1toV2 adds the empty inventory/equipment blocks introduced
@@ -371,6 +381,17 @@ func migrateV3toV4(in map[string]any) (map[string]any, error) {
 // load path's nil-Vitals branch spawns the player at full HP. New
 // saves stamp the field as soon as Persist runs after first damage.
 func migrateV4toV5(in map[string]any) (map[string]any, error) {
+	return in, nil
+}
+
+// migrateV5toV6 adds the `stats_base` block introduced in M8.1. The
+// migration is a no-op on dict content: legacy v5 saves carry no
+// persisted base attributes, so the absence of `stats_base:` is
+// preserved and the session load path's empty-snapshot branch leaves
+// the StatBlock at progression.DefaultPlayerBase. New saves stamp the
+// field as soon as Persist runs after any base-attribute change (M8.4
+// stat growth, M8.6 train).
+func migrateV5toV6(in map[string]any) (map[string]any, error) {
 	return in, nil
 }
 

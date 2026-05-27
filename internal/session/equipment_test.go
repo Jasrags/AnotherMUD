@@ -7,6 +7,7 @@ import (
 	"github.com/Jasrags/AnotherMUD/internal/entities"
 	"github.com/Jasrags/AnotherMUD/internal/item"
 	"github.com/Jasrags/AnotherMUD/internal/player"
+	"github.com/Jasrags/AnotherMUD/internal/progression"
 	"github.com/Jasrags/AnotherMUD/internal/stats"
 )
 
@@ -22,7 +23,7 @@ func newEqActor(t *testing.T, store *entities.Store) *connActor {
 		save:      &player.Save{Version: player.CurrentVersion, Name: "Tester"},
 		items:     store,
 		equipment: make(map[string]entities.EntityID),
-		stats:     stats.New(),
+		statBlock: progression.New(),
 	}
 }
 
@@ -113,9 +114,9 @@ func TestRoundTrip_UnequipAfterRestartReversesMods(t *testing.T) {
 		save:      &saved,
 		items:     store2,
 		equipment: make(map[string]entities.EntityID),
-		stats:     stats.New(),
+		statBlock: progression.New(),
 	}
-	a2.stats.Restore(saved.Stats)
+	a2.statBlock.RestoreModifiers(saved.Stats)
 
 	// Build a minimal templates registry holding the sword.
 	tpls := newTestTemplates(t, tpl)
@@ -131,10 +132,10 @@ func TestRoundTrip_UnequipAfterRestartReversesMods(t *testing.T) {
 	}
 
 	// Critical: modifiers should now be keyed under the NEW id.
-	if !a2.stats.Has(entities.EquipmentSourceKey(id2)) {
+	if !a2.statBlock.HasSource(entities.EquipmentSourceKey(id2)) {
 		t.Errorf("modifiers not rebound to new source key %q", entities.EquipmentSourceKey(id2))
 	}
-	if a2.stats.Has(entities.EquipmentSourceKey(id1)) {
+	if a2.statBlock.HasSource(entities.EquipmentSourceKey(id1)) {
 		t.Errorf("modifiers still present under stale source key %q", entities.EquipmentSourceKey(id1))
 	}
 
@@ -143,7 +144,7 @@ func TestRoundTrip_UnequipAfterRestartReversesMods(t *testing.T) {
 	if _, ok := a2.Unequip("wield"); !ok {
 		t.Fatal("post-restart Unequip failed")
 	}
-	if a2.stats.Has(entities.EquipmentSourceKey(id2)) {
+	if a2.statBlock.HasSource(entities.EquipmentSourceKey(id2)) {
 		t.Error("modifiers leaked after post-restart unequip")
 	}
 }
@@ -187,6 +188,59 @@ func TestDirtyBit_SurvivesMutationDuringInFlightPersist(t *testing.T) {
 	if !a.dirty {
 		t.Fatal("dirty flipped off; equipment mutation would be lost on next persist")
 	}
+}
+
+// TestEquipModifiers_FlowIntoCombatStats verifies the M8.1
+// integration: equipment-sourced modifiers added under the
+// progression.StatBlock are reflected in connActor.Stats() (the
+// combat-side derivation surface). Pre-M8.1 the combat block was a
+// frozen hardcoded default that ignored equipment entirely; this test
+// is the regression guard for the rewired derivation.
+func TestEquipModifiers_FlowIntoCombatStats(t *testing.T) {
+	store := entities.NewStore()
+	a := newEqActor(t, store)
+	// Seed the engine-default base so Stats() reads the expected
+	// pre-equip baseline (STR=10, AC=10, HitMod=0).
+	a.statBlock.RestoreBase(toBaseSnapshot(progression.DefaultPlayerBase()))
+
+	if got := a.Stats(); got.STR != 10 || got.AC != 10 || got.HitMod != 0 {
+		t.Fatalf("pre-equip Stats = %+v, want STR=10 AC=10 HitMod=0", got)
+	}
+
+	inst, _ := store.Spawn(swordTplWithMods())
+	a.AddToInventory(inst.ID())
+	a.Equip("wield", inst.ID(), []stats.Modifier{
+		{Stat: "str", Value: 2},
+		{Stat: "hit_mod", Value: 1},
+	})
+
+	got := a.Stats()
+	if got.STR != 12 {
+		t.Errorf("post-equip STR = %d, want 12 (10 base + 2 sword)", got.STR)
+	}
+	if got.HitMod != 1 {
+		t.Errorf("post-equip HitMod = %d, want 1 (0 base + 1 sword)", got.HitMod)
+	}
+	if got.AC != 10 {
+		t.Errorf("post-equip AC = %d, want 10 (unchanged)", got.AC)
+	}
+
+	if _, ok := a.Unequip("wield"); !ok {
+		t.Fatal("Unequip returned false")
+	}
+	got = a.Stats()
+	if got.STR != 10 || got.HitMod != 0 || got.AC != 10 {
+		t.Errorf("post-unequip Stats = %+v, want baseline restored", got)
+	}
+}
+
+// toBaseSnapshot lifts a base map into the persisted snapshot shape
+// (deterministically ordered). Test helper only — the production
+// path uses NewWithBase at construction and BaseSnapshot/RestoreBase
+// for round-trip persistence.
+func toBaseSnapshot(base map[progression.StatType]int) progression.BaseSnapshot {
+	b := progression.NewWithBase(base)
+	return b.BaseSnapshot()
 }
 
 // newTestTemplates returns a templates registry holding one entry.

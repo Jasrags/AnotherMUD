@@ -9,6 +9,7 @@ import (
 
 	"github.com/Jasrags/AnotherMUD/internal/combat"
 	"github.com/Jasrags/AnotherMUD/internal/player"
+	"github.com/Jasrags/AnotherMUD/internal/progression"
 	"github.com/Jasrags/AnotherMUD/internal/world"
 )
 
@@ -192,9 +193,11 @@ func newFakeActor(connID, playerID, accountID, name string, room *world.Room) (*
 		},
 		// M7.1: fakes get the same combat defaults as live actors so
 		// tests that touch the Combatant surface (consider, future
-		// combat manager) don't nil-deref on Vitals().
-		vitals:      combat.NewVitals(combat.DefaultPlayerMaxHP),
-		combatStats: combat.DefaultPlayerStats(),
+		// combat manager) don't nil-deref on Vitals(). M8.1: the
+		// combat block now derives from the progression StatBlock,
+		// so stamp the engine-default base.
+		vitals:    combat.NewVitals(combat.DefaultPlayerMaxHP),
+		statBlock: progression.NewWithBase(progression.DefaultPlayerBase()),
 	}, fc
 }
 
