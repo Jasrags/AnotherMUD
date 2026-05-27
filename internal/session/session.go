@@ -17,6 +17,7 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 	"unicode"
 
@@ -200,14 +201,20 @@ func run(ctx context.Context, c conn.Connection, cfg Config) error {
 		// absent block (fresh character, migrated-from-v4 save) spawns
 		// at full HP via NewVitals. The race/class/level inputs that
 		// would derive real numbers here are M8 work.
-		vitals:         restorePlayerVitals(loaded.Player.Vitals),
-		wimpyThreshold: clampWimpy(loaded.Player.WimpyThreshold),
+		vitals:      restorePlayerVitals(loaded.Player.Vitals),
 		combatStats: combat.DefaultPlayerStats(),
 		flood:       newFloodGate(floodCfg, clk),
 		floodCfg:    &floodCfg,
 		clk:         clk,
 		lastInputAt: clk.Now(),
 	}
+
+	// Seed the lock-free wimpy threshold from the persisted save.
+	// Done after struct construction because atomic.Int32 has no
+	// natural composite-literal initializer; this is the canonical
+	// "Store the initial value before any reader can race the
+	// goroutine that owns the actor" pattern.
+	a.wimpyThreshold.Store(int32(clampWimpy(loaded.Player.WimpyThreshold)))
 
 	// Install the persisted stat block FIRST. respawnEquipment will then
 	// rebind each entry's source key from the saved entity id to the
@@ -855,7 +862,14 @@ type connActor struct {
 	// phase via the WimpyHolder interface (defined on combat package
 	// side; this connActor satisfies it). Persistence lives with the
 	// rest of the save shape — see player.Save.WimpyThreshold.
-	wimpyThreshold int
+	//
+	// Stored as atomic.Int32 so the read path (tick goroutine, every
+	// combat round) does NOT take a.mu. Persist holds a.mu across the
+	// autosave file write; routing every wimpy read through that lock
+	// would stall the combat tick for the duration of disk I/O. The
+	// write path still acquires a.mu because it also mutates a.save
+	// — but the field-level read stays lock-free.
+	wimpyThreshold atomic.Int32
 
 	mu            sync.Mutex
 	room          *world.Room
@@ -1378,13 +1392,11 @@ func (a *connActor) CombatantID() combat.CombatantID {
 
 // WimpyThreshold returns the actor's configured wimpy HP-percent
 // threshold ([0,100]; 0 disables). Satisfies combat.WimpyHolder.
-// Safe to call from the tick goroutine — int reads are atomic on
-// every platform Go supports, and the only writer is SetWimpyThreshold
-// which holds a.mu.
+// Lock-free: the underlying atomic.Int32 makes this safe to call
+// from the tick goroutine without touching a.mu, which Persist
+// holds across autosave file I/O.
 func (a *connActor) WimpyThreshold() int {
-	a.mu.Lock()
-	defer a.mu.Unlock()
-	return a.wimpyThreshold
+	return int(a.wimpyThreshold.Load())
 }
 
 // SetWimpyThreshold updates the wimpy property and marks the save
@@ -1400,10 +1412,10 @@ func (a *connActor) SetWimpyThreshold(pct int) {
 	}
 	a.mu.Lock()
 	defer a.mu.Unlock()
-	if a.wimpyThreshold == pct {
+	if int(a.wimpyThreshold.Load()) == pct {
 		return
 	}
-	a.wimpyThreshold = pct
+	a.wimpyThreshold.Store(int32(pct))
 	if a.save != nil {
 		a.save.WimpyThreshold = pct
 		a.markDirtyLocked()

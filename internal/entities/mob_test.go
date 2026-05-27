@@ -250,3 +250,40 @@ func TestSpawnMobBareTemplateGetsCombatDefaults(t *testing.T) {
 		t.Errorf("Stats = %+v, want engine defaults", st)
 	}
 }
+
+func TestWimpyThresholdAcceptsCommonYAMLNumericTypes(t *testing.T) {
+	// YAML decoding produces int OR int64 OR float64 depending on the
+	// magnitude and document context. WimpyThreshold must accept all
+	// three so a content-pack author who writes `wimpy_threshold: 30`
+	// gets the expected behavior regardless of which numeric type the
+	// decoder picked.
+	cases := []struct {
+		name string
+		raw  any
+		want int
+	}{
+		{"int", int(30), 30},
+		{"int64", int64(40), 40},
+		{"float64", float64(50), 50},
+		{"int out of range high", int(150), 0},
+		{"int out of range low", int(-1), 0},
+		{"string ignored", "30", 0},
+		{"nil missing key", nil, 0},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			tpl := guardTpl()
+			if tc.raw != nil {
+				tpl.Properties["wimpy_threshold"] = tc.raw
+			}
+			s := NewStore()
+			inst, err := s.SpawnMob(tpl)
+			if err != nil {
+				t.Fatalf("SpawnMob: %v", err)
+			}
+			if got := inst.WimpyThreshold(); got != tc.want {
+				t.Errorf("WimpyThreshold() = %d, want %d", got, tc.want)
+			}
+		})
+	}
+}

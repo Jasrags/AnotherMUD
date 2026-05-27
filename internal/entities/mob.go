@@ -136,8 +136,22 @@ func (m *MobInstance) WimpyThreshold() int {
 	if !ok {
 		return 0
 	}
-	v, ok := raw.(int)
-	if !ok {
+	// YAML decode produces int OR int64 OR float64 depending on the
+	// magnitude and document context. gopkg.in/yaml.v3 will pick
+	// int for small bare integers but int64 for some paths and
+	// float64 for any value with a decimal point. A naive raw.(int)
+	// silently maps int64-decoded 50 → 0, which would create a
+	// silent "my mob never flees" content-author trap. Switch over
+	// the common numeric types and convert.
+	var v int
+	switch t := raw.(type) {
+	case int:
+		v = t
+	case int64:
+		v = int(t)
+	case float64:
+		v = int(t)
+	default:
 		return 0
 	}
 	if v < 0 || v > 100 {
