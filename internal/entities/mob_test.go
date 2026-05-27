@@ -287,3 +287,87 @@ func TestWimpyThresholdAcceptsCommonYAMLNumericTypes(t *testing.T) {
 		})
 	}
 }
+
+func TestMobInstanceApplyRacialFlagsMergesTags(t *testing.T) {
+	s := NewStore()
+	tpl := &mob.Template{
+		ID:       "test:orc-warrior",
+		Name:     "an orc warrior",
+		Type:     "npc",
+		Behavior: "stationary",
+		Tags:     []string{"hostile"},
+		Race:     "orc",
+	}
+	inst, err := s.SpawnMob(tpl)
+	if err != nil {
+		t.Fatalf("SpawnMob: %v", err)
+	}
+	if inst.RaceID() != "orc" {
+		t.Errorf("RaceID = %q, want %q", inst.RaceID(), "orc")
+	}
+
+	inst.ApplyRacialFlags([]string{"darkvision", "common-tongue"}, -150)
+
+	tags := inst.Tags()
+	want := map[string]bool{"hostile": false, "mob": false, "darkvision": false, "common-tongue": false}
+	for _, tag := range tags {
+		if _, ok := want[tag]; ok {
+			want[tag] = true
+		}
+	}
+	for k, found := range want {
+		if !found {
+			t.Errorf("missing tag %q after ApplyRacialFlags; got %v", k, tags)
+		}
+	}
+
+	props := inst.Properties()
+	if got, ok := props[PropAlignment].(int); !ok || got != -150 {
+		t.Errorf("alignment property = %v, want -150", props[PropAlignment])
+	}
+}
+
+func TestMobInstanceApplyRacialFlagsDedupes(t *testing.T) {
+	s := NewStore()
+	tpl := &mob.Template{
+		ID:       "test:dwarf-soldier",
+		Name:     "a dwarf soldier",
+		Type:     "npc",
+		Behavior: "stationary",
+		Tags:     []string{"common-tongue"},
+		Race:     "dwarf",
+	}
+	inst, err := s.SpawnMob(tpl)
+	if err != nil {
+		t.Fatalf("SpawnMob: %v", err)
+	}
+
+	inst.ApplyRacialFlags([]string{"common-tongue", "darkvision"}, 0)
+	tags := inst.Tags()
+	count := 0
+	for _, t := range tags {
+		if t == "common-tongue" {
+			count++
+		}
+	}
+	if count != 1 {
+		t.Errorf("common-tongue appears %d times, want 1 (dedup)", count)
+	}
+}
+
+func TestMobInstanceApplyRacialFlagsZeroAlignmentSkipsProperty(t *testing.T) {
+	s := NewStore()
+	tpl := &mob.Template{
+		ID:       "test:human",
+		Name:     "a person",
+		Type:     "npc",
+		Behavior: "stationary",
+		Race:     "human",
+	}
+	inst, _ := s.SpawnMob(tpl)
+	inst.ApplyRacialFlags(nil, 0)
+
+	if _, ok := inst.Properties()[PropAlignment]; ok {
+		t.Error("alignment property set to zero unexpectedly; should be absent")
+	}
+}

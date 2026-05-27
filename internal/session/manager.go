@@ -253,19 +253,27 @@ func (m *Manager) FindInRoom(roomID world.RoomID, name string) *connActor {
 	return nil
 }
 
-// PlayersInRoom returns a snapshot of (playerID, displayName) pairs
-// for every session currently in roomID. Designed for read-only
-// consumers (disposition evaluator, future scent / tracking systems)
-// that don't need full actor access.
-//
-// Result ordering is unspecified. Mirrors FindInRoom's lock
-// discipline: snapshot pointers under the manager read lock, release
-// it, then read per-actor fields (PlayerID, PlayerName) outside the
-// lock — those take the actor's own mutex.
-func (m *Manager) PlayersInRoom(roomID world.RoomID) []struct {
+// PlayerInfo is the read-only projection of a session that
+// PlayersInRoom hands out. M8.3 grew the surface from (id, name)
+// to include Tags so the disposition evaluator can match on racial
+// flags (closes the M6.5 deferred "players have no Tags field yet"
+// note). Future projections (alignment, class, level) extend this.
+type PlayerInfo struct {
 	ID   string
 	Name string
-} {
+	Tags []string
+}
+
+// PlayersInRoom returns a snapshot of every session currently in
+// roomID as PlayerInfo. Designed for read-only consumers
+// (disposition evaluator, future scent / tracking systems) that
+// don't need full actor access.
+//
+// Result ordering is unspecified. Mirrors FindInRoom's lock
+// discipline: snapshot pointers under the manager read lock,
+// release it, then read per-actor fields outside the lock — each
+// per-actor read takes the actor's own mutex.
+func (m *Manager) PlayersInRoom(roomID world.RoomID) []PlayerInfo {
 	m.mu.RLock()
 	occupants := m.byRoom[roomID]
 	snapshot := make([]*connActor, 0, len(occupants))
@@ -273,15 +281,13 @@ func (m *Manager) PlayersInRoom(roomID world.RoomID) []struct {
 		snapshot = append(snapshot, a)
 	}
 	m.mu.RUnlock()
-	out := make([]struct {
-		ID   string
-		Name string
-	}, 0, len(snapshot))
+	out := make([]PlayerInfo, 0, len(snapshot))
 	for _, a := range snapshot {
-		out = append(out, struct {
-			ID   string
-			Name string
-		}{ID: a.PlayerID(), Name: a.PlayerName()})
+		out = append(out, PlayerInfo{
+			ID:   a.PlayerID(),
+			Name: a.PlayerName(),
+			Tags: a.Tags(),
+		})
 	}
 	return out
 }

@@ -819,3 +819,105 @@ xp_table: [0, 0, 100, 200]
 		t.Errorf("err = %v, want ErrInvalidContent", err)
 	}
 }
+
+func TestLoadRacesHappyPath(t *testing.T) {
+	root := t.TempDir()
+	pack := filepath.Join(root, "core")
+	writeFile(t, filepath.Join(pack, "pack.yaml"), `
+name: tapestry-core
+content:
+  areas: [areas/*.yaml]
+  rooms: [rooms/*.yaml]
+  races: [races/*.yaml]
+`)
+	writeFile(t, filepath.Join(pack, "areas/x.yaml"), `id: x
+name: X`)
+	writeFile(t, filepath.Join(pack, "rooms/r.yaml"), `id: r
+area: x
+name: R`)
+	writeFile(t, filepath.Join(pack, "races/human.yaml"), `
+id: human
+name: Human
+category: humanoid
+starting_alignment: 0
+stat_caps:
+  str: 22
+  con: 22
+cast_cost_modifier: 0
+racial_flags:
+  - common-tongue
+`)
+
+	regs := NewRegistries()
+	if err := Load(context.Background(), root, nil, regs, nil, nil); err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	r, ok := regs.Races.Get("human")
+	if !ok {
+		t.Fatal("race human not registered")
+	}
+	if r.DisplayName != "Human" || r.Category != "humanoid" {
+		t.Errorf("race = %+v", r)
+	}
+	if r.StatCaps["str"] != 22 {
+		t.Errorf("StatCaps[str] = %d, want 22", r.StatCaps["str"])
+	}
+	if len(r.RacialFlags) != 1 || r.RacialFlags[0] != "common-tongue" {
+		t.Errorf("RacialFlags = %v, want [common-tongue]", r.RacialFlags)
+	}
+	if r.Pack != "tapestry-core" {
+		t.Errorf("Pack = %q, want tapestry-core", r.Pack)
+	}
+}
+
+func TestLoadRacesRejectsEmptyID(t *testing.T) {
+	root := t.TempDir()
+	pack := filepath.Join(root, "core")
+	writeFile(t, filepath.Join(pack, "pack.yaml"), `
+name: tapestry-core
+content:
+  areas: [areas/*.yaml]
+  rooms: [rooms/*.yaml]
+  races: [races/*.yaml]
+`)
+	writeFile(t, filepath.Join(pack, "areas/x.yaml"), `id: x
+name: X`)
+	writeFile(t, filepath.Join(pack, "rooms/r.yaml"), `id: r
+area: x
+name: R`)
+	writeFile(t, filepath.Join(pack, "races/bad.yaml"), `
+name: Bad
+`)
+
+	err := Load(context.Background(), root, nil, NewRegistries(), nil, nil)
+	if !errors.Is(err, ErrInvalidContent) {
+		t.Errorf("err = %v, want ErrInvalidContent", err)
+	}
+}
+
+func TestLoadRacesRejectsNegativeStatCap(t *testing.T) {
+	root := t.TempDir()
+	pack := filepath.Join(root, "core")
+	writeFile(t, filepath.Join(pack, "pack.yaml"), `
+name: tapestry-core
+content:
+  areas: [areas/*.yaml]
+  rooms: [rooms/*.yaml]
+  races: [races/*.yaml]
+`)
+	writeFile(t, filepath.Join(pack, "areas/x.yaml"), `id: x
+name: X`)
+	writeFile(t, filepath.Join(pack, "rooms/r.yaml"), `id: r
+area: x
+name: R`)
+	writeFile(t, filepath.Join(pack, "races/bad.yaml"), `
+id: bad
+stat_caps:
+  str: -5
+`)
+
+	err := Load(context.Background(), root, nil, NewRegistries(), nil, nil)
+	if !errors.Is(err, ErrInvalidContent) {
+		t.Errorf("err = %v, want ErrInvalidContent", err)
+	}
+}

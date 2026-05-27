@@ -39,6 +39,13 @@ type MobInstance struct {
 	// map; equipment-driven modifiers will overlay on top of this when
 	// mobs grow real equipment slots. Today it's a static snapshot.
 	stats combat.Stats
+
+	// race is the optional race id copied from the template at
+	// construction (M8.3). The spawn pipeline reads this via
+	// RaceID() to resolve a *progression.Race and applies racial
+	// flags via ApplyRacialFlags. Empty when the template declares
+	// no race.
+	race string
 }
 
 // Reserved property keys with engine-defined semantics on MobInstance.
@@ -115,6 +122,54 @@ func (m *MobInstance) Vitals() *combat.Vitals { return m.vitals }
 // a fresh block per swing so equipment changes between rounds cannot
 // tear the inputs to a single swing.
 func (m *MobInstance) Stats() combat.Stats { return m.stats }
+
+// RaceID returns the optional race id copied from the template at
+// construction (M8.3 — progression.md §3.1). Empty for mobs whose
+// template declares no race. Spawn-side code reads this to resolve
+// the race definition and apply ApplyRacialFlags + alignment.
+func (m *MobInstance) RaceID() string { return m.race }
+
+// ApplyRacialFlags merges flags into the mob's tag list and seeds
+// the alignment property. Called from the spawn pipeline AFTER
+// Store.SpawnMob returns the freshly-tracked instance, so the tag
+// index sees the additional tags via the next tag-swap tick (the
+// underlying tags slice is appended to in place — duplicates are
+// deduped by callers if they care).
+//
+// Primitive arguments (no *progression.Race) so this method does
+// not pull progression into entities; the spawn-side adapter that
+// resolves the race against the registry passes already-extracted
+// materials in. Spec §3.1: racial flags + starting alignment apply
+// at instantiation.
+func (m *MobInstance) ApplyRacialFlags(flags []string, alignment int) {
+	// Dedupe against existing tags so a flag that overlaps with a
+	// template-declared tag doesn't produce two entries.
+	if len(flags) > 0 {
+		have := make(map[string]struct{}, len(m.tags))
+		for _, t := range m.tags {
+			have[t] = struct{}{}
+		}
+		for _, f := range flags {
+			if _, exists := have[f]; exists {
+				continue
+			}
+			m.tags = append(m.tags, f)
+			have[f] = struct{}{}
+		}
+	}
+	if alignment != 0 {
+		if m.properties == nil {
+			m.properties = make(map[string]any)
+		}
+		m.properties[PropAlignment] = alignment
+	}
+}
+
+// PropAlignment is the reserved property key for the integer
+// alignment value (spec progression.md §6.1). Read by the M8.5
+// alignment manager once it lands; M8.3 just seeds it from the
+// race's StartingAlignment at instantiation.
+const PropAlignment = "alignment"
 
 // WimpyThreshold reports the mob's HP-percent flee threshold (spec
 // combat §5.1). Read from the template's properties bag at spawn
@@ -237,5 +292,6 @@ func buildMobFromTemplate(tpl *mob.Template, id EntityID) *MobInstance {
 		templateID: tpl.ID,
 		vitals:     combat.NewVitals(maxHP),
 		stats:      statBlock,
+		race:       tpl.Race,
 	}
 }

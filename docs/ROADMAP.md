@@ -654,36 +654,45 @@ is now real. Sketch of remaining vertical slices:
     `XPLost` callers don't yet test that branch end-to-end (the
     spec open question is unresolved — see
     m8-2-deferred-fixes.md).
-  - **M8.3 — Races.** New `progression.Race` + `RaceRegistry`
-    loaded from `content/core/races/<id>.yaml`. Race carries
-    stat-caps map, cast-cost modifier, racial-flag list,
-    category, optional starting alignment + tagline +
-    description (spec §3). `cost.AdjustCost(base, race)` helper
-    returns `max(0, base + race.CastCostModifier)`; abilities
-    feature (M9) will consume it. Mob spawn (`internal/spawn`)
-    and the future character-creation flow apply racial flags as
-    tags at instantiation. `content/core/` ships at least two
-    races (one to satisfy M8.4 class eligibility tests, one for
-    cap-difference coverage). Player save grows a `race` id;
-    save version bumps. Schemas are forward-compat so unknown
-    races on load fall back to a configured default rather than
-    erroring (open question — see §10 of spec; pick a default
-    behavior here and document it).
-    - [ ] Races load from packs into `RaceRegistry`; case-
-          insensitive id lookup; priority-based overrides; get /
-          get-all / has queries.
-    - [ ] `AdjustCost` clamps at zero; null race yields base cost
-          unchanged.
-    - [ ] Mob spawn applies `RacialFlags` as entity tags; existing
-          mob templates that don't declare a race still spawn
-          (race is optional on mobs).
-    - [ ] `content/core/` ships at least two race definitions
-          with distinct stat-caps and category strings.
-    - [ ] Player save v8 carries `race`; v7 saves load cleanly
-          (default race applied).
-    - [ ] Documentation note in `docs/specs/progression.md`
-          (or `docs/ROADMAP.md`) records the default-race fallback
-          behavior we chose.
+  - **M8.3 (landed):** Races. New `progression.Race` +
+    `RaceRegistry` with priority-based override semantics and
+    case-insensitive lookups (id lowercased at registration);
+    StatCaps and RacialFlags are deep-cloned on Register so
+    caller-side post-registration mutation can't bleed through.
+    `cost.AdjustCost(base, race)` lives next door and returns
+    `max(0, base + race.CastCostModifier)` with nil-race
+    pass-through (consumed by M9 abilities). Pack loader gains
+    `races` in ContentPaths + `decodeRace` reading
+    `races/*.yaml` (validates non-empty id, rejects negative
+    stat caps, normalizes stat-cap keys to lowercase StatType).
+    `content/core/races/{human,dwarf}.yaml` ship with distinct
+    stat-caps, categories, and racial-flag sets. `mob.Template`
+    gains an optional `race` string; `decodeMob` lowercases on
+    decode. New `MobInstance.RaceID()` + `MobInstance.
+    ApplyRacialFlags(flags, alignment)` (primitive-typed to
+    avoid an entities → progression import cycle); the boot
+    spawner resolves the race registry after `Store.SpawnMob`
+    and applies flags + seeds the `alignment` reserved property
+    key. Unknown race id is a fail-silent debug log per spec
+    §3.1 mob-spawn convention. Player save v8: `race` string;
+    v7 → v8 migration is a no-op. `session.Config` grows
+    `Races` + `DefaultRace`; new `applyRace` resolution
+    function: saved id wins, empty falls through to
+    `cfg.DefaultRace` (configured via `ANOTHERMUD_DEFAULT_RACE`,
+    defaulting to "human"), unknown id leaves the actor
+    raceless (raceID="", no tags) rather than erroring. The
+    resolved id round-trips back to the save so the default
+    sticks on the next Persist. `connActor.Tags()` surfaces
+    racial flags to the disposition evaluator via the new
+    `session.PlayerInfo` projection (closes the M6.5 deferred
+    "players have no Tags field yet" note). M8.1's deferred
+    MobInstance-StatBlock + SourceKey extraction did NOT land
+    this slice — race contributes tags + alignment + cast-cost
+    + (training-time) caps, none of which require live
+    derivation through a per-mob StatBlock. The cycle break is
+    re-targeted to whenever a consumer actually needs live
+    stat derivation on mobs (M9 effects, or mob equipment if
+    that ever lands).
   - **M8.4 — Classes (path + growth).** New `progression.Class` +
     `ClassRegistry` (spec §4). Class carries stat-growth map
     (StatType → dice expression — reuses M7.4's `combat.DiceExpr`

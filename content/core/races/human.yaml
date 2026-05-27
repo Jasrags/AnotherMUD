@@ -1,0 +1,21 @@
+id: human
+name: Human
+tagline: The adaptable everyfolk of the realms.
+description: |
+  Humans are the most numerous and politically dominant of the
+  speaking peoples. They lack the longevity of elves or the
+  craft mastery of dwarves, but their adaptability — both in
+  body and in temperament — has carried them into every climate
+  and trade.
+category: humanoid
+starting_alignment: 0
+stat_caps:
+  str: 22
+  int: 22
+  wis: 22
+  dex: 22
+  con: 22
+  luck: 22
+cast_cost_modifier: 0
+racial_flags:
+  - common-tongue

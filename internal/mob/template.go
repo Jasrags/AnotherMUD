@@ -37,9 +37,9 @@ type TemplateID string
 // the canonical set, and validating here would prematurely freeze the
 // schema before that lands.
 type Template struct {
-	ID          TemplateID
-	Name        string
-	Type        string // default "npc" applied at decode if unset
+	ID   TemplateID
+	Name string
+	Type string // default "npc" applied at decode if unset
 	// Disposition is the legacy integer base disposition. Retained
 	// in the schema for content already authored against it; the
 	// runtime no longer reads it. The structured fields below own
@@ -58,12 +58,20 @@ type Template struct {
 	// empty BaseDisposition the mob never dispatches a reaction.
 	DispositionRules *Definition
 
-	Behavior string
-	Tags        []string
-	Keywords    []string
-	Properties  map[string]any
-	Stats       map[string]int
-	Equipment   []string // item template ids to equip at spawn (§3.3)
+	Behavior   string
+	Tags       []string
+	Keywords   []string
+	Properties map[string]any
+	Stats      map[string]int
+	Equipment  []string // item template ids to equip at spawn (§3.3)
+
+	// Race is the optional race id (progression.md §3.1). When set
+	// and the id resolves in the race registry at spawn time, the
+	// mob's RacialFlags are merged into its tag set (§3.1) and
+	// StartingAlignment seeds an alignment property. Unknown ids
+	// fail silently at spawn — matching the spec §3.1 mob-spawn
+	// "fail-silent on missing template" convention.
+	Race string
 }
 
 // Errors callers may distinguish at the boundary.

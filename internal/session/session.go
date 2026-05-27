@@ -94,6 +94,22 @@ type Config struct {
 	// EventSink.
 	Progression *progression.Manager
 
+	// Races is the M8.3 race registry. Consulted at login to
+	// resolve the player's race id into RacialFlags + starting
+	// alignment. nil-safe: a missing registry means racial flags
+	// are never applied to players (the engine falls back to
+	// "racially blank" — equivalent to a player with no
+	// declared race).
+	Races *progression.RaceRegistry
+
+	// DefaultRace is the race id assigned to legacy saves with no
+	// `race` field, and to fresh characters that haven't been
+	// through a M12 character-creation flow yet. Empty means the
+	// engine does not seed a default — players retain their
+	// (empty) saved race and no flags apply. Production sets this
+	// to "human" via ANOTHERMUD_DEFAULT_RACE.
+	DefaultRace string
+
 	// StartID is the fallback starting room when a character's saved
 	// location is not present in the loaded world (e.g. a room was
 	// removed from content between restarts).
@@ -213,6 +229,23 @@ func run(ctx context.Context, c conn.Connection, cfg Config) error {
 		floodCfg:    &floodCfg,
 		clk:         clk,
 		lastInputAt: clk.Now(),
+	}
+
+	// M8.3: resolve the actor's race id. Save's race wins; an
+	// empty saved race (legacy v7 or fresh character) falls back
+	// to cfg.DefaultRace. If the resolved id isn't registered, the
+	// actor stays raceless (raceID="", no flags) — see applyRace.
+	applyRace(a, &cfg, loaded.Player.Race)
+	// Keep save in sync with the resolved race so the next Persist
+	// commits the assigned default. Pre-publication (the actor has
+	// not entered the manager yet) the write would be safe without
+	// the lock, but matching the Location-sync pattern below keeps
+	// the surface consistent for future maintainers who copy this.
+	if loaded.Player.Race != a.raceID {
+		a.mu.Lock()
+		a.save.Race = a.raceID
+		a.markDirtyLocked()
+		a.mu.Unlock()
 	}
 
 	// Seed the lock-free wimpy threshold from the persisted save.
@@ -882,6 +915,19 @@ type connActor struct {
 	// landed with M7.5 (player.Save.Vitals).
 	vitals *combat.Vitals
 
+	// raceID is the canonical race id the actor was constructed
+	// with (M8.3). Established at login from save (or the
+	// configured default for legacy v7 saves / fresh characters)
+	// and never reassigned for the life of the actor — race-change
+	// at runtime is a M10+ admin verb. Lowercased on assignment.
+	raceID string
+
+	// racialTags is the snapshot of racial-flag strings the race
+	// definition contributed at construction. Stored alongside
+	// raceID so Tags() can surface them without re-resolving the
+	// registry on every read. Set once at construction.
+	racialTags []string
+
 	// progress is the actor's progression-track state (M8.2 —
 	// docs/specs/progression.md §5.2). Holds per-track (level, xp)
 	// maps; mutated through progression.Manager operations and
@@ -1321,6 +1367,60 @@ func (a *connActor) TrackInfo(mgr *progression.Manager, track string) (progressi
 // the form combat already uses for player events.
 func (a *connActor) CombatantIDString() string {
 	return string(a.CombatantID())
+}
+
+// RaceID returns the actor's resolved race id. Empty means
+// raceless (no flags applied, no cast-cost modifier). Set once at
+// construction; never mutates for the life of the actor.
+func (a *connActor) RaceID() string { return a.raceID }
+
+// Tags returns the actor's session-side tag set — today just the
+// racial flags from the race definition (M8.3). Returns a fresh
+// slice so callers cannot alias the backing storage. Surfaces to
+// the AI disposition evaluator via session.Manager.PlayersInRoom
+// and dispositionHook so `has_tag` rules can match on racial
+// flags. Future per-actor tags (admin role, party affiliation,
+// curse effects) will join this list as their consumers arrive.
+func (a *connActor) Tags() []string {
+	if len(a.racialTags) == 0 {
+		return nil
+	}
+	out := make([]string, len(a.racialTags))
+	copy(out, a.racialTags)
+	return out
+}
+
+// applyRace resolves the actor's race id from save (taking
+// cfg.DefaultRace as the fallback for an empty save value) and
+// snapshots the race's RacialFlags onto the actor for the life of
+// the session. Called once during construction in run(); the
+// resolved id is also written back to a.save.Race so the next
+// Persist commits the default-substitution. If the resolved id is
+// not in the registry (race removed between restarts) the actor
+// stays raceless with an empty raceID — fail-soft mirrors the mob
+// spawn behavior.
+func applyRace(a *connActor, cfg *Config, saved string) {
+	candidate := strings.ToLower(strings.TrimSpace(saved))
+	if candidate == "" {
+		candidate = strings.ToLower(strings.TrimSpace(cfg.DefaultRace))
+	}
+	if candidate == "" || cfg.Races == nil {
+		return
+	}
+	race, ok := cfg.Races.Get(candidate)
+	if !ok {
+		// Race id present on save but not in the registry —
+		// content removed it. Keep raceID empty so no stale flags
+		// apply. The next save still records the requested id so
+		// content authors who readd the race see their players
+		// reconnect with it.
+		return
+	}
+	a.raceID = race.ID
+	if len(race.RacialFlags) > 0 {
+		a.racialTags = make([]string, len(race.RacialFlags))
+		copy(a.racialTags, race.RacialFlags)
+	}
 }
 
 // MarkContentsDirty re-runs syncInventoryToSaveLocked so the save

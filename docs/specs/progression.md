@@ -210,6 +210,29 @@ abilities feature in both validation and deduction (§4.7 of
 `docs/specs/abilities-and-effects.md`). A null race yields the
 base cost unchanged.
 
+### 3.4 Default-race fallback
+
+A character record (player save, mob template) MAY carry an
+empty race id — legacy saves written before races existed, fresh
+characters that have not yet been through a character-creation
+flow, or content that deliberately omits the field. The runtime
+resolves an empty saved id against a host-configured **default
+race** (e.g. `human`). If the resolved id is not in the registry
+(race renamed or removed between restarts), the entity stays
+**raceless**: empty race id, no RacialFlags applied, no
+CastCostModifier, no StatCaps consulted by training.
+
+Raceless is a fail-soft state, not an error condition. A pack
+that removes a race in a content update does not break
+characters that referenced it — those characters simply do not
+benefit from any race contributions until they're explicitly
+re-raced (a future admin verb, or a M12 character-creation
+re-run).
+
+The resolved id is mirrored back into the save so the chosen
+default persists across logout. On a future load with a
+different configured default, the previously-recorded id wins.
+
 **Acceptance criteria**
 
 - [ ] Race lookups are case-insensitive on id.
@@ -217,6 +240,9 @@ base cost unchanged.
       duplicates are no-ops.
 - [ ] Adjusted cost is never negative.
 - [ ] A null race yields the unmodified base cost.
+- [ ] Empty saved race id resolves against the configured default
+      race; unknown ids leave the entity raceless without
+      erroring.
 
 ---
 

@@ -16,3 +16,5 @@ content:
     - mobs/*.yaml
   tracks:
     - tracks/*.yaml
+  races:
+    - races/*.yaml

@@ -82,7 +82,7 @@ type pendingMobPlacement struct {
 // Filter, when non-empty, restricts discovery (spec §2.4). Pass nil to
 // load every active pack under root.
 func Load(ctx context.Context, root string, filter []string, dst *Registries, spawner Spawner, mobSpawner MobSpawner) error {
-	if dst == nil || dst.World == nil || dst.Items == nil || dst.Slots == nil || dst.Mobs == nil || dst.Tracks == nil {
+	if dst == nil || dst.World == nil || dst.Items == nil || dst.Slots == nil || dst.Mobs == nil || dst.Tracks == nil || dst.Races == nil {
 		return errors.New("pack.Load: dst has nil registry field; use pack.NewRegistries()")
 	}
 	logger := logging.From(ctx).With(slog.String("event", "pack.load"), slog.String("root", root))
@@ -205,6 +205,10 @@ func loadPackContent(ctx context.Context, p Discovered, dst *Registries) ([]pend
 	if err != nil {
 		return nil, nil, err
 	}
+	racePaths, err := resolveGlobs(p.Dir, p.Manifest.Content.Races)
+	if err != nil {
+		return nil, nil, err
+	}
 
 	// Areas first — rooms reference them (spec §3.3 step 2). TryAddArea
 	// catches both intra-pack and cross-pack id collisions.
@@ -295,6 +299,18 @@ func loadPackContent(ctx context.Context, p Discovered, dst *Registries) ([]pend
 		}
 	}
 
+	// Races: id-keyed registry, case-insensitive lookups, same
+	// priority-based override semantics (spec progression.md §3.2).
+	for _, rp := range racePaths {
+		r, err := decodeRace(rp, ns)
+		if err != nil {
+			return nil, nil, err
+		}
+		if err := dst.Races.Register(r); err != nil {
+			return nil, nil, fmt.Errorf("%w (in %s)", err, rp)
+		}
+	}
+
 	logger.Info("pack content loaded",
 		slog.String("event", "pack.content"),
 		slog.Int("areas", len(areaPaths)),
@@ -303,6 +319,7 @@ func loadPackContent(ctx context.Context, p Discovered, dst *Registries) ([]pend
 		slog.Int("slots", len(slotPaths)),
 		slog.Int("mobs", len(mobPaths)),
 		slog.Int("tracks", len(trackPaths)),
+		slog.Int("races", len(racePaths)),
 		slog.Int("placements", len(placements)),
 		slog.Int("mob_placements", len(mobPlacements)),
 	)
@@ -360,6 +377,66 @@ func decodeTrack(path, ns string) (*progression.TrackDef, error) {
 		DeathPenalty: f.DeathPenalty,
 		Pack:         ns,
 		Priority:     f.Priority,
+	}, nil
+}
+
+// decodeRace reads a RaceFile and builds a progression.Race
+// (spec progression.md §3.1). The id is required and lowercased
+// at registration. Stat-cap keys are normalized to lowercase
+// StatType strings; an empty stat name in the map errors out so
+// authoring typos surface at load.
+func decodeRace(path, ns string) (*progression.Race, error) {
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		return nil, fmt.Errorf("reading race %s: %w", path, err)
+	}
+	var f RaceFile
+	if err := yaml.Unmarshal(raw, &f); err != nil {
+		return nil, fmt.Errorf("%w: %s: %v", ErrInvalidContent, path, err)
+	}
+	if strings.TrimSpace(f.ID) == "" {
+		return nil, fmt.Errorf("%w: %s: missing 'id'", ErrInvalidContent, path)
+	}
+
+	var caps map[progression.StatType]int
+	if len(f.StatCaps) > 0 {
+		caps = make(map[progression.StatType]int, len(f.StatCaps))
+		for k, v := range f.StatCaps {
+			key := strings.ToLower(strings.TrimSpace(k))
+			if key == "" {
+				return nil, fmt.Errorf("%w: %s: stat_caps has empty key", ErrInvalidContent, path)
+			}
+			if v < 0 {
+				return nil, fmt.Errorf("%w: %s: stat_caps[%q] = %d must be >= 0", ErrInvalidContent, path, key, v)
+			}
+			caps[progression.StatType(key)] = v
+		}
+	}
+
+	var flags []string
+	if len(f.RacialFlags) > 0 {
+		flags = make([]string, 0, len(f.RacialFlags))
+		for _, t := range f.RacialFlags {
+			t = strings.TrimSpace(t)
+			if t == "" {
+				continue
+			}
+			flags = append(flags, t)
+		}
+	}
+
+	return &progression.Race{
+		ID:                f.ID,
+		DisplayName:       strings.TrimSpace(f.Name),
+		Tagline:           f.Tagline,
+		Description:       f.Description,
+		Category:          strings.TrimSpace(f.Category),
+		StartingAlignment: f.StartingAlignment,
+		StatCaps:          caps,
+		CastCostModifier:  f.CastCostModifier,
+		RacialFlags:       flags,
+		Pack:              ns,
+		Priority:          f.Priority,
 	}, nil
 }
 
@@ -665,6 +742,7 @@ func decodeMob(path, ns string) (*mob.Template, error) {
 		Properties:       f.Properties,
 		Stats:            f.Stats,
 		Equipment:        f.Equipment,
+		Race:             strings.ToLower(strings.TrimSpace(f.Race)),
 	}, nil
 }
 

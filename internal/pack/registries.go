@@ -20,6 +20,7 @@ type Registries struct {
 	Slots  *slot.Registry
 	Mobs   *mob.Templates
 	Tracks *progression.TrackRegistry
+	Races  *progression.RaceRegistry
 }
 
 // NewRegistries returns a Registries with every field initialized.
@@ -34,5 +35,6 @@ func NewRegistries() *Registries {
 		Slots:  slot.NewRegistry(),
 		Mobs:   mob.NewTemplates(),
 		Tracks: progression.NewTrackRegistry(),
+		Races:  progression.NewRaceRegistry(),
 	}
 }

@@ -70,7 +70,12 @@ import (
 // state from progression.md §5.2. Absent block (legacy v6 saves
 // migrated forward) means "no tracks initialized yet"; the
 // ProgressionState restore path lazy-inits on first interaction.
-const CurrentVersion = 7
+//
+// v8 (M8.3): `race` string added — the race id from progression.md
+// §3.1. Empty (legacy v7 saves migrated forward) means the session
+// layer applies the configured default race at construction; see
+// session.applyRace for the fallback policy.
+const CurrentVersion = 8
 
 // Sentinel errors callers may check via errors.Is.
 var (
@@ -107,6 +112,7 @@ type Save struct {
 	Stats       stats.Snapshot                  `yaml:"stats,omitempty"`
 	StatsBase   progression.BaseSnapshot        `yaml:"stats_base,omitempty"`
 	Progression progression.ProgressionSnapshot `yaml:"progression,omitempty"`
+	Race        string                          `yaml:"race,omitempty"`
 	Vitals      *VitalsState                    `yaml:"vitals,omitempty"`
 	// WimpyThreshold is the §5.1 HP-percent threshold (0 = wimpy
 	// disabled). Added in M7.6 without a schema bump: zero-value
@@ -279,6 +285,7 @@ var playerMigrations = map[int]func(map[string]any) (map[string]any, error){
 	4: migrateV4toV5,
 	5: migrateV5toV6,
 	6: migrateV6toV7,
+	7: migrateV7toV8,
 }
 
 // migrateV1toV2 adds the empty inventory/equipment blocks introduced
@@ -409,6 +416,14 @@ func migrateV5toV6(in map[string]any) (map[string]any, error) {
 // ProgressionState empty (lazy-init on first interaction per spec
 // §5.3).
 func migrateV6toV7(in map[string]any) (map[string]any, error) {
+	return in, nil
+}
+
+// migrateV7toV8 adds the `race` field introduced in M8.3. No-op on
+// dict content: a legacy v7 save carries no race id, so the
+// absence is preserved and the session load path applies the
+// configured default race at construction (see session.applyRace).
+func migrateV7toV8(in map[string]any) (map[string]any, error) {
 	return in, nil
 }
 

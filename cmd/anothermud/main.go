@@ -97,6 +97,7 @@ func run() error {
 		placement:    placement,
 		templates:    registries.Items,
 		mobTemplates: registries.Mobs,
+		races:        registries.Races,
 		bus:          bus,
 	}
 	if err := pack.Load(ctx, cfg.ContentDir, nil, registries, spawner, spawner); err != nil {
@@ -495,6 +496,8 @@ func run() error {
 			return combat.Flee(ctx, c, fleeCfg)
 		},
 		Progression:  progressionMgr,
+		Races:        registries.Races,
+		DefaultRace:  cfg.DefaultRace,
 		StartID:      cfg.StartRoom,
 		ColorEnabled: cfg.ColorDefault,
 		Clock:        clk,
@@ -560,6 +563,7 @@ type config struct {
 	ContentDir            string
 	SaveDir               string
 	StartRoom             world.RoomID
+	DefaultRace           string
 	ColorDefault          bool
 	LinkDead              session.LinkDeadConfig
 }
@@ -585,6 +589,7 @@ func loadConfig() config {
 		ContentDir:            envOr("ANOTHERMUD_CONTENT_DIR", "./content"),
 		SaveDir:               envOr("ANOTHERMUD_SAVE_DIR", "./saves"),
 		StartRoom:             world.RoomID(envOr("ANOTHERMUD_START_ROOM", "tapestry-core:town-square")),
+		DefaultRace:           envOr("ANOTHERMUD_DEFAULT_RACE", "human"),
 		ColorDefault:          colorDefault(),
 		LinkDead:              ld,
 	}
@@ -632,6 +637,7 @@ type bootSpawner struct {
 	placement    *entities.Placement
 	templates    *item.Templates
 	mobTemplates *mob.Templates
+	races        *progression.RaceRegistry
 	bus          *eventbus.Bus
 }
 
@@ -687,6 +693,28 @@ func (b *bootSpawner) spawnMob(ctx context.Context, templateID string, roomID wo
 	if err != nil {
 		return "", fmt.Errorf("spawn mob: %w", err)
 	}
+	// M8.3: apply racial flags + starting alignment from the
+	// race registry. Unknown race id is a no-op (spec §3.1 mob
+	// spawn fail-silent) — the content author will notice via the
+	// missing tags rather than a boot failure.
+	if rid := inst.RaceID(); rid != "" && b.races != nil {
+		if race, ok := b.races.Get(rid); ok {
+			inst.ApplyRacialFlags(race.RacialFlags, race.StartingAlignment)
+		} else {
+			// Warn (not debug): a template referencing a missing
+			// race id is almost always an authoring error — a
+			// rename that didn't propagate, content removed
+			// between releases. Spec §3.1 mandates fail-silent on
+			// missing mob *templates*, but races aren't templates;
+			// the diagnostic should be loud enough that a content
+			// author running with default log level (info) sees
+			// it without combing through debug output.
+			logging.From(ctx).Warn("mob spawn: unknown race id; mob spawned without racial flags",
+				slog.String("mob", string(inst.ID())),
+				slog.String("template", templateID),
+				slog.String("race", rid))
+		}
+	}
 	b.placement.Place(inst.ID(), roomID)
 	if b.bus != nil {
 		b.bus.Publish(ctx, eventbus.MobSpawned{
@@ -737,10 +765,10 @@ func (p presenceSource) PlayerCountInArea(areaID world.AreaID) int {
 type playerLookup struct{ mgr *session.Manager }
 
 func (p playerLookup) PlayersInRoom(_ context.Context, room world.RoomID) []ai.PlayerView {
-	pairs := p.mgr.PlayersInRoom(room)
-	out := make([]ai.PlayerView, 0, len(pairs))
-	for _, pr := range pairs {
-		out = append(out, ai.PlayerView{ID: pr.ID, Name: pr.Name})
+	infos := p.mgr.PlayersInRoom(room)
+	out := make([]ai.PlayerView, 0, len(infos))
+	for _, info := range infos {
+		out = append(out, ai.PlayerView{ID: info.ID, Name: info.Name, Tags: info.Tags})
 	}
 	return out
 }
@@ -750,7 +778,7 @@ func (p playerLookup) PlayerByID(_ context.Context, id string) (ai.PlayerView, b
 	if !ok {
 		return ai.PlayerView{}, false
 	}
-	return ai.PlayerView{ID: a.PlayerID(), Name: a.PlayerName()}, true
+	return ai.PlayerView{ID: a.PlayerID(), Name: a.PlayerName(), Tags: a.Tags()}, true
 }
 
 // dispositionHook adapts *ai.Evaluator to command.DispositionHook

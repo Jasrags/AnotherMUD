@@ -469,6 +469,59 @@ func TestSave_RoundTripsProgression(t *testing.T) {
 	}
 }
 
+func TestLoad_V7MigratesToV8WithEmptyRace(t *testing.T) {
+	// A v7 save carries no `race` field. After migration to v8 the
+	// field is still absent (string zero); the session-load path's
+	// applyRace step seeds the configured default at construction.
+	ctx := context.Background()
+	st, dir := newStore(t)
+
+	playerDir := filepath.Join(dir, "players", "v7user")
+	if err := os.MkdirAll(playerDir, 0o755); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(playerDir, "player.yaml"),
+		[]byte("version: 7\nid: p-1\naccount_id: acct-1\nname: V7User\nlocation: tapestry-core:town-square\n"),
+		0o600); err != nil {
+		t.Fatalf("write: %v", err)
+	}
+
+	got, err := st.Load(ctx, "v7user")
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if got.Version != player.CurrentVersion {
+		t.Errorf("Version = %d, want %d", got.Version, player.CurrentVersion)
+	}
+	if got.Race != "" {
+		t.Errorf("Race = %q, want empty after v7 migration", got.Race)
+	}
+}
+
+func TestSave_RoundTripsRace(t *testing.T) {
+	ctx := context.Background()
+	st, _ := newStore(t)
+
+	want := &player.Save{
+		Version:   player.CurrentVersion,
+		ID:        "p-1",
+		AccountID: "acct-1",
+		Name:      "Dwarvish",
+		Location:  "tapestry-core:town-square",
+		Race:      "dwarf",
+	}
+	if err := st.Save(ctx, want); err != nil {
+		t.Fatalf("Save: %v", err)
+	}
+	got, err := st.Load(ctx, "Dwarvish")
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if got.Race != "dwarf" {
+		t.Errorf("Race = %q, want dwarf", got.Race)
+	}
+}
+
 func TestSave_RejectsUnsafeName(t *testing.T) {
 	ctx := context.Background()
 	st, _ := newStore(t)

@@ -1,0 +1,24 @@
+id: dwarf
+name: Dwarf
+tagline: Stout of frame, stouter of will.
+description: |
+  Dwarves are a short, broad-shouldered people whose history is
+  bound to stone and metal. Their constitution is legendary;
+  their patience for the fey arts somewhat less so. Most dwarves
+  worth speaking of are ill at ease with the kind of magic that
+  bends the elements to its caster's whim.
+category: humanoid
+starting_alignment: 50
+stat_caps:
+  str: 24
+  int: 18
+  wis: 22
+  dex: 18
+  con: 26
+  luck: 20
+# Dwarves find spellcasting expensive — every ability costs a bit
+# more resource. Read at ability validation/deduction time.
+cast_cost_modifier: 2
+racial_flags:
+  - common-tongue
+  - darkvision

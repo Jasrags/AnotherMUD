@@ -97,6 +97,10 @@ type MobFile struct {
 	Properties  map[string]any `yaml:"properties,omitempty"`
 	Stats       map[string]int `yaml:"stats,omitempty"`
 	Equipment   []string       `yaml:"equipment,omitempty"`
+	// Race is the optional race id (M8.3 — progression.md §3.1).
+	// Unknown ids are tolerated at load (validation runs at spawn,
+	// matching the spec's fail-silent convention).
+	Race string `yaml:"race,omitempty"`
 
 	// BaseDisposition is the static reaction string (spec §5.1).
 	// Optional; when present overrides player-state-driven rules
@@ -178,4 +182,23 @@ type TrackFile struct {
 	XPTable      []int64 `yaml:"xp_table"`
 	DeathPenalty float64 `yaml:"death_penalty,omitempty"`
 	Priority     int     `yaml:"priority,omitempty"`
+}
+
+// RaceFile is the YAML shape for a race definition (spec
+// progression.md §3.1). Stat caps are keyed by lowercase StatType
+// strings ("str", "hp_max", etc.); the loader maps them onto the
+// typed StatType keys at registration. CastCostModifier may be
+// negative — cost.AdjustCost clamps the final ability cost at
+// zero.
+type RaceFile struct {
+	ID                string         `yaml:"id"`
+	Name              string         `yaml:"name,omitempty"`
+	Tagline           string         `yaml:"tagline,omitempty"`
+	Description       string         `yaml:"description,omitempty"`
+	Category          string         `yaml:"category,omitempty"`
+	StartingAlignment int            `yaml:"starting_alignment,omitempty"`
+	StatCaps          map[string]int `yaml:"stat_caps,omitempty"`
+	CastCostModifier  int            `yaml:"cast_cost_modifier,omitempty"`
+	RacialFlags       []string       `yaml:"racial_flags,omitempty"`
+	Priority          int            `yaml:"priority,omitempty"`
 }
