@@ -555,11 +555,28 @@ is now real. Sketch of remaining vertical slices:
     `VitalsState` field; `Persist` syncs HP from the combat tick
     before the dirty check so damage taken between autosaves
     round-trips through disk.
-  - **M7.6 (planned):** Flee + wimpy. Wimpy check phase
-    (HP% ≤ threshold property), flee attempt (no-flee tag,
-    no-exits, random-exit + disengage-all + move + cooldown),
-    flee cooldown blocks engage but not being engaged. `flee`
-    command and `wimpy <pct>` setter.
+  - **M7.6 (landed):** Flee + wimpy. New combat.TagSource
+    (room + entity tag predicates) and combat.FleeCooldowns
+    (tick-stamped, asymmetric: gates Engage as attacker not as
+    target) plug into the M7.2 Manager via ManagerConfig; Engage
+    now refuses safe-room attackers, no-kill targets, and flee-
+    cooldown attackers per §2.1, and EngageWithReason surfaces the
+    refusal code to the verb layer. New combat.Flee primitive runs
+    the §5.2 sequence (no-flee tag check, exit enumeration,
+    deterministic random-pick via supplied Roller, DisengageAll
+    before Move, cooldown stamp after Move) with three new
+    eventbus types: Flee, FleePrevented, FleeFailed. combat.Mover
+    is the move seam (combat doesn't import session/entities for
+    movement); cmd/anothermud wires connActor.SetRoom for players
+    and placement.Place for mobs, plus broadcast announcements.
+    combat.NewWimpy is the §5.1 heartbeat phase that triggers
+    Flee on combatants whose Vitals.Percent() drops to or below
+    their WimpyHolder threshold. connActor and MobInstance both
+    satisfy WimpyHolder (player save grows a wimpy field without
+    a schema bump since zero=disabled is indistinguishable from
+    absent). New `flee` and `wimpy [<pct>|off]` commands.
+    Heartbeat.Tick advances the cooldown tracker's "now" at the
+    top of every round.
 - **M8 — Get better:** `progression`, stats, levels, races, classes,
   tracks.
 - **M9 — Do something:** `abilities-and-effects`, the action queue,

@@ -160,6 +160,13 @@ type Env struct {
 	// kill verb routes here; future combat verbs (flee, wimpy)
 	// follow. May be nil in tests that don't exercise combat verbs.
 	Combat *combat.Manager
+
+	// Flee is the verb-driven flee primitive (M7.6d). The function
+	// runs the §5.2 attempt against the configured Mover / Rooms /
+	// Bus / Cooldowns set up at the composition root and returns the
+	// outcome so the verb can render a precise message. nil in
+	// tests that don't exercise the flee verb.
+	Flee func(ctx context.Context, c combat.CombatantID) combat.FleeOutcome
 }
 
 // DispositionHook is the seam movement and login flows call when a
@@ -190,7 +197,10 @@ type Context struct {
 	Locator     Locator             // may be nil in tests
 	Disposition DispositionHook     // may be nil in tests
 	Combat      *combat.Manager     // may be nil in tests
-	Raw         string              // raw input line, trimmed
+	// Flee is the M7.6 verb-driven §5.2 flee primitive closure. nil
+	// in tests that don't exercise the flee verb.
+	Flee func(ctx context.Context, c combat.CombatantID) combat.FleeOutcome
+	Raw  string              // raw input line, trimmed
 	Verb        string              // resolved verb (lowercase)
 	Args        []string            // tokens after the verb (space-split)
 }
@@ -312,6 +322,7 @@ func (r *Registry) Dispatch(ctx context.Context, env Env, actor Actor, raw strin
 		Locator:     env.Locator,
 		Disposition: env.Disposition,
 		Combat:      env.Combat,
+		Flee:        env.Flee,
 		Raw:         trimmed,
 		Verb:        strings.ToLower(verb),
 		Args:        args,

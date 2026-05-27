@@ -395,6 +395,9 @@ func run() error {
 		Bus:          bus,
 		Disposition:  dispositionHook{e: evaluator},
 		Combat:       combatMgr,
+		Flee: func(ctx context.Context, c combat.CombatantID) combat.FleeOutcome {
+			return combat.Flee(ctx, c, fleeCfg)
+		},
 		StartID:      cfg.StartRoom,
 		ColorEnabled: cfg.ColorDefault,
 		Clock:        clk,

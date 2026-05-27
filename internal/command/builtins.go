@@ -49,9 +49,13 @@ func RegisterBuiltins(r *Registry) error {
 		{"con", ConsiderHandler},
 		// Combat engage (M7.2). `k` is too aggressive a prefix to
 		// commit (would collide with future verbs like `kick` /
-		// `keep`); deliberately not aliased. Spec verbs landing in
-		// later slices: flee (M7.6), wimpy (M7.6).
+		// `keep`); deliberately not aliased.
 		{"kill", KillHandler},
+		// Flee / wimpy (M7.6). `flee` has no short alias — running
+		// from combat shouldn't be a one-key reflex. `wimpy` is
+		// likewise spelled out.
+		{"flee", FleeHandler},
+		{"wimpy", WimpyHandler},
 	}
 	for _, d := range []world.Direction{
 		world.DirNorth, world.DirSouth, world.DirEast, world.DirWest,

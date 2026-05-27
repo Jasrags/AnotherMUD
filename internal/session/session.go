@@ -80,6 +80,12 @@ type Config struct {
 	// exercise combat verbs.
 	Combat *combat.Manager
 
+	// Flee is the verb-driven flee primitive (M7.6). The function
+	// closure captures the production FleeConfig built at the
+	// composition root; command.Context.Flee receives the same shape.
+	// nil in tests that don't exercise the flee verb.
+	Flee func(ctx context.Context, c combat.CombatantID) combat.FleeOutcome
+
 	// StartID is the fallback starting room when a character's saved
 	// location is not present in the loaded world (e.g. a room was
 	// removed from content between restarts).
@@ -348,6 +354,7 @@ func pump(ctx context.Context, c conn.Connection, cfg Config, a *connActor, clk 
 			Locator:     managerLocator{cfg.Manager},
 			Disposition: cfg.Disposition,
 			Combat:      cfg.Combat,
+			Flee:        cfg.Flee,
 		}
 		if err := cfg.Commands.Dispatch(ctx, env, a, line); err != nil {
 			if errors.Is(err, command.ErrQuit) {
