@@ -73,6 +73,19 @@ const (
 	// spawn manager's untrack subscriber here so area respawn fires
 	// on combat deaths.
 	EventMobKilled = "mob.killed"
+	// Post-fact notification fired when a combatant successfully
+	// flees through an exit (spec combat §5.2 step 3). Carries the
+	// chosen direction and both rooms so renderers / quest hooks can
+	// react without a follow-up world lookup.
+	EventFlee = "combat.flee"
+	// Post-fact notification fired when a flee attempt is refused
+	// because the entity carries the no-flee tag (spec §5.2 step 1).
+	EventFleePrevented = "combat.flee_prevented"
+	// Post-fact notification fired when a flee attempt fails for an
+	// environmental reason (no exits, missing room — spec §5.2
+	// step 2). Distinct from prevented (which is a policy refusal)
+	// so subscribers can render different messaging.
+	EventFleeFailed = "combat.flee_failed"
 )
 
 // ItemPickedUp fires after GetHandler successfully moves an item
@@ -368,6 +381,54 @@ type Kill struct {
 
 // Name implements Event.
 func (Kill) Name() string { return EventKill }
+
+// Flee fires when a combatant successfully fled through an exit
+// (spec combat §5.2 step 3). The direction string carries the
+// canonical world.Direction value (e.g. "north"); From and To are
+// the source and destination room ids.
+type Flee struct {
+	EntityID   string
+	EntityName string
+	From       world.RoomID
+	To         world.RoomID
+	Direction  string
+}
+
+// Name implements Event.
+func (Flee) Name() string { return EventFlee }
+
+// FleePrevented fires when a flee attempt is refused because the
+// entity carries the no-flee tag (spec §5.2 step 1). RoomID is the
+// room the entity was in when the attempt was made.
+type FleePrevented struct {
+	EntityID   string
+	EntityName string
+	RoomID     world.RoomID
+}
+
+// Name implements Event.
+func (FleePrevented) Name() string { return EventFleePrevented }
+
+// FleeFailed fires when a flee attempt fails environmentally —
+// either the entity is in an unknown room or the room has no exits
+// (spec §5.2 step 2). RoomID may be empty when the entity has no
+// tracked room. Reason is a short tag ("no-exits" / "unknown-room")
+// so renderers can pick a message without a string match on prose.
+type FleeFailed struct {
+	EntityID   string
+	EntityName string
+	RoomID     world.RoomID
+	Reason     string
+}
+
+// Name implements Event.
+func (FleeFailed) Name() string { return EventFleeFailed }
+
+// Reason values carried on FleeFailed.
+const (
+	FleeFailedNoExits     = "no-exits"
+	FleeFailedUnknownRoom = "unknown-room"
+)
 
 // MobKilled fires alongside Kill when the victim was a mob
 // (spec combat §6.3 step 2). TemplateID is the mob template, which
