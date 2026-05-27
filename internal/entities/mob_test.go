@@ -423,3 +423,47 @@ func TestMobInstanceSetAlignmentTagExclusive(t *testing.T) {
 		t.Error("template tag removed during alignment tag clear")
 	}
 }
+
+func TestMobInstanceProperty_ConcurrentReadWrite(t *testing.T) {
+	// Closes m6-4: tick-goroutine writer + session-goroutine
+	// reader must coexist safely. Race detector catches a regression
+	// if propsMu is removed or any path falls back to live-map access.
+	s := NewStore()
+	tpl := &mob.Template{ID: "test:m", Name: "m", Type: "npc", Behavior: "wander"}
+	inst, _ := s.SpawnMob(tpl)
+
+	const iters = 500
+	done := make(chan struct{})
+	go func() {
+		for i := 0; i < iters; i++ {
+			inst.SetProperty("wander_next_at", int64(i))
+		}
+		close(done)
+	}()
+	for i := 0; i < iters; i++ {
+		_, _ = inst.Property(PropBehavior)        // PropTemplateID-style read
+		_ = inst.Properties()                    // snapshot read
+		_ = inst.Alignment()                     // internal RLock path
+	}
+	<-done
+}
+
+func TestMobInstanceProperties_ReturnsSnapshotNotLiveMap(t *testing.T) {
+	// Closes m6-4: writes through the returned map MUST NOT flow
+	// back. Callers that need to mutate go through SetProperty.
+	s := NewStore()
+	tpl := &mob.Template{ID: "test:m", Name: "m", Type: "npc"}
+	inst, _ := s.SpawnMob(tpl)
+	inst.SetProperty("foo", "bar")
+
+	snap := inst.Properties()
+	snap["foo"] = "MUTATED"
+	snap["new_key"] = "leaked"
+
+	if v, _ := inst.Property("foo"); v != "bar" {
+		t.Errorf("snapshot mutation reached the live map: foo=%v, want bar", v)
+	}
+	if _, ok := inst.Property("new_key"); ok {
+		t.Error("snapshot key leak: new_key reached the live map")
+	}
+}

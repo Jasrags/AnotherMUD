@@ -187,8 +187,9 @@ func TestDispatcher_SkipsMobsWithEmptyBehavior(t *testing.T) {
 		ID: "tapestry-core:nameless", Name: "n", Type: "npc", Behavior: "x",
 	})
 	// Clear the behavior property after spawn to simulate the
-	// corrupted state.
-	inst.Properties()[entities.PropBehavior] = ""
+	// corrupted state. Use SetProperty since Properties() now
+	// returns a snapshot per the m6-4 fix.
+	inst.SetProperty(entities.PropBehavior, "")
 	store.SwapTagIndex()
 
 	called := false

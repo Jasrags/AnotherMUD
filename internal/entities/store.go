@@ -97,6 +97,50 @@ func (s *Store) Untrack(id EntityID) error {
 	return nil
 }
 
+// Retag refreshes the tag index for id after its underlying tag
+// slice has been mutated in place (e.g. ApplyRacialFlags adding
+// racial flags, SetAlignmentTag swapping bucket tags). Without
+// this, the store's tag index only reflects the tag state at
+// Track time and stale-by-construction once any in-place mutator
+// runs.
+//
+// Closes the m8-5 deferred fix: SetAlignmentTag on MobInstance
+// (and the equivalent path for racial flags from M8.3) modify
+// m.tags directly; this method republishes the entity into the
+// correct buckets so a subsequent GetByTag("alignment_evil")
+// returns it.
+//
+// Sweeps every bucket on the WRITE side and removes id, then
+// re-adds via addTagsLocked which uses the entity's current
+// Tags(). The cost is O(num_distinct_tags); typical engines have
+// O(10s) of tags so the sweep is cheap. Read index is unaffected
+// until the next SwapTagIndex tick — readers see the prior tag
+// set until then, matching how Track / Untrack already publish.
+//
+// Returns ErrNotTracked when id is not in the store.
+func (s *Store) Retag(id EntityID) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	e, ok := s.byID[id]
+	if !ok {
+		return fmt.Errorf("%w: %q", ErrNotTracked, id)
+	}
+	// Sweep write-side buckets removing this id wherever it
+	// appears. Cannot use removeTagsLocked because it iterates the
+	// entity's CURRENT tags and the index may carry stale entries
+	// from a prior tag set.
+	for tag, bucket := range s.tagsWrite {
+		if _, present := bucket[id]; present {
+			delete(bucket, id)
+			if len(bucket) == 0 {
+				delete(s.tagsWrite, tag)
+			}
+		}
+	}
+	s.addTagsLocked(e)
+	return nil
+}
+
 // Count returns the number of currently-tracked entities.
 func (s *Store) Count() int {
 	s.mu.RLock()

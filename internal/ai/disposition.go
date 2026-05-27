@@ -389,7 +389,8 @@ func (e *Evaluator) template(m *entities.MobInstance) (*mob.Template, bool) {
 	if e.templates == nil {
 		return nil, false
 	}
-	raw, ok := m.Properties()[entities.PropTemplateID].(string)
+	rawAny, _ := m.Property(entities.PropTemplateID)
+	raw, ok := rawAny.(string)
 	if !ok || raw == "" {
 		return nil, false
 	}

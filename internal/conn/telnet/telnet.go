@@ -182,13 +182,30 @@ func (c *Conn) discardToNewline() {
 }
 
 // Write implements conn.Connection. Safe for concurrent callers.
+//
+// Any literal 0xFF byte in p is doubled before reaching the wire so
+// the client cannot interpret it as a telnet IAC. Symmetric to
+// stripIAC on the read path. Without this escape, a mob/room/player
+// name that contains 0xFF (whether by content-pack bug or a
+// malicious crafted input) injects a negotiation command into the
+// downstream protocol — RFC 854 §SP-IAC.
+//
+// The escape allocates only when an IAC byte is actually present,
+// so the common ASCII / UTF-8-without-0xFF text path is zero-copy.
+// The return value reports bytes-from-the-original-p that were
+// covered by the raw write, NOT the post-escape length, so callers
+// that compare n against len(p) keep their invariant.
 func (c *Conn) Write(ctx context.Context, p []byte) (int, error) {
 	if err := ctx.Err(); err != nil {
 		return 0, err
 	}
+	out := p
+	if idx := bytesIndexByte(p, tnIAC); idx >= 0 {
+		out = escapeIAC(p, idx)
+	}
 	c.wmu.Lock()
 	defer c.wmu.Unlock()
-	n, err := c.raw.Write(p)
+	n, err := c.raw.Write(out)
 	if err != nil {
 		select {
 		case <-c.done:
@@ -197,7 +214,72 @@ func (c *Conn) Write(ctx context.Context, p []byte) (int, error) {
 		}
 		return n, fmt.Errorf("telnet.Write: %w", err)
 	}
-	return n, nil
+	// Report bytes-of-original p, not the post-escape length, so the
+	// io.Writer contract holds for callers that do not know about the
+	// escape. The only way err is nil and n < len(out) is a partial
+	// raw write — propagate the partial-write semantics by scaling.
+	if n == len(out) {
+		return len(p), nil
+	}
+	// Partial write across escape — approximate the original-p
+	// coverage by mapping back through the escape. Worst case the
+	// caller sees n < len(p) and retries; the raw conn already
+	// committed `n` bytes of `out`, so a retry covers what was
+	// missed without producing a torn IAC pair (escapeIAC keeps
+	// each 0xFF pair contiguous, and net.Conn writes are
+	// committed-prefix on success).
+	return mapEscapedWriteCount(p, n), nil
+}
+
+// bytesIndexByte mirrors bytes.IndexByte without forcing the import
+// graph to add `bytes` for one call. Sentinel return -1 matches the
+// stdlib convention.
+func bytesIndexByte(s []byte, b byte) int {
+	for i := 0; i < len(s); i++ {
+		if s[i] == b {
+			return i
+		}
+	}
+	return -1
+}
+
+// escapeIAC returns a fresh slice where every 0xFF byte from p has
+// been doubled. firstIAC is the index of the first 0xFF in p so the
+// allocation runs only on the suffix that needs work.
+func escapeIAC(p []byte, firstIAC int) []byte {
+	// Worst case: every remaining byte is 0xFF → doubled. Size the
+	// allocation pessimistically once rather than appending in a
+	// loop with reallocations.
+	out := make([]byte, 0, len(p)+(len(p)-firstIAC))
+	out = append(out, p[:firstIAC]...)
+	for i := firstIAC; i < len(p); i++ {
+		if p[i] == tnIAC {
+			out = append(out, tnIAC, tnIAC)
+		} else {
+			out = append(out, p[i])
+		}
+	}
+	return out
+}
+
+// mapEscapedWriteCount approximates the count of bytes from p that
+// the raw conn covered, given that nWritten bytes of the escaped
+// form were committed. Walks p, counting one byte of "escaped
+// budget" for ordinary bytes and two for 0xFF, stopping when the
+// budget runs out.
+func mapEscapedWriteCount(p []byte, nWritten int) int {
+	remain := nWritten
+	for i := 0; i < len(p); i++ {
+		cost := 1
+		if p[i] == tnIAC {
+			cost = 2
+		}
+		if remain < cost {
+			return i
+		}
+		remain -= cost
+	}
+	return len(p)
 }
 
 // Close implements conn.Connection. Safe to call more than once.

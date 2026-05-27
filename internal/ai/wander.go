@@ -96,7 +96,7 @@ func BehaviorWander(ctx context.Context, m *entities.MobInstance, deps Deps) err
 // non-int64 gate value is treated as 0, which means "ready" — the
 // first tick after spawn is always eligible.
 func readyToWander(m *entities.MobInstance, now time.Time) bool {
-	raw, ok := m.Properties()[PropWanderNextAt]
+	raw, ok := m.Property(PropWanderNextAt)
 	if !ok {
 		return true
 	}
@@ -113,7 +113,7 @@ func readyToWander(m *entities.MobInstance, now time.Time) bool {
 }
 
 func setNextWander(m *entities.MobInstance, now time.Time) {
-	m.Properties()[PropWanderNextAt] = now.Add(DefaultWanderInterval).UnixNano()
+	m.SetProperty(PropWanderNextAt, now.Add(DefaultWanderInterval).UnixNano())
 }
 
 // pickExit returns one direction the room has an exit in, chosen

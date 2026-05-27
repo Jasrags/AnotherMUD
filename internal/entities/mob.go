@@ -1,6 +1,8 @@
 package entities
 
 import (
+	"sync"
+
 	"github.com/Jasrags/AnotherMUD/internal/combat"
 	"github.com/Jasrags/AnotherMUD/internal/mob"
 )
@@ -25,8 +27,27 @@ type MobInstance struct {
 	name       string
 	tags       []string
 	keywords   []string
-	properties map[string]any
 	templateID mob.TemplateID
+
+	// propsMu guards properties access against the cross-goroutine
+	// reader/writer hazard from m6-4 deferred fix. Tick-side
+	// writers (ai/wander updating PropWanderNextAt) and session-
+	// side readers (disposition evaluator invoked from
+	// OnPlayerEnteredImmediate; future verb handlers reading mob
+	// state) coexist. Map access in Go is not concurrent-safe even
+	// for disjoint keys — the internal hashmap can reorganize
+	// under a concurrent write. All property access goes through
+	// Property / SetProperty / Properties, each of which holds
+	// the appropriate lock.
+	//
+	// Scope-bound: this lock covers properties ONLY. Tags share
+	// their own pre-existing surface (single-goroutine writers
+	// today: ApplyRacialFlags from boot spawner, SetAlignmentTag
+	// from manager which is itself caller-serialized). If tags
+	// grow a session-side mutator a follow-up slice will extend
+	// the lock; out of scope here.
+	propsMu    sync.RWMutex
+	properties map[string]any
 
 	// vitals carries mutable HP state for the combat loop (M7.1). The
 	// pointer is established at spawn time from the template's
@@ -93,10 +114,53 @@ func (m *MobInstance) Keywords() []string {
 	return append([]string(nil), m.keywords...)
 }
 
-// Properties returns the per-instance property bag (the live map,
-// not a copy). Spec §2.3 step 6 expects gameplay-mutable per-mob
-// state to live here.
-func (m *MobInstance) Properties() map[string]any { return m.properties }
+// Properties returns a SNAPSHOT of the per-instance property bag
+// (spec §2.3 step 6). Callers that need to mutate must use
+// SetProperty — the returned map is detached from m and writes to
+// it do not flow back. Returning a snapshot rather than the live
+// map closes the m6-4 deferred fix: a session-goroutine reader
+// (disposition evaluator's PropTemplateID lookup) no longer
+// races the tick-goroutine writer (ai/wander's PropWanderNextAt
+// update).
+//
+// Snapshot cost is O(n) per call where n is the property count
+// (typically small — under 10 for a normal mob). Hot-path
+// readers that need a single key should use Property(key) which
+// avoids the copy.
+func (m *MobInstance) Properties() map[string]any {
+	m.propsMu.RLock()
+	defer m.propsMu.RUnlock()
+	if len(m.properties) == 0 {
+		return nil
+	}
+	out := make(map[string]any, len(m.properties))
+	for k, v := range m.properties {
+		out[k] = v
+	}
+	return out
+}
+
+// Property reads a single property by key under RLock. Returns
+// (zero, false) on miss. Use for tick-hot paths where the
+// Properties() snapshot allocation is wasteful.
+func (m *MobInstance) Property(key string) (any, bool) {
+	m.propsMu.RLock()
+	defer m.propsMu.RUnlock()
+	v, ok := m.properties[key]
+	return v, ok
+}
+
+// SetProperty writes a property under Lock. Replaces any prior
+// value. The map is lazy-initialized — a mob whose template
+// carried no properties still admits SetProperty calls.
+func (m *MobInstance) SetProperty(key string, value any) {
+	m.propsMu.Lock()
+	defer m.propsMu.Unlock()
+	if m.properties == nil {
+		m.properties = make(map[string]any)
+	}
+	m.properties[key] = value
+}
 
 // TemplateID returns the source template id (§2.3 step 4 → set on
 // the entity's properties; here we additionally surface a typed
@@ -158,10 +222,7 @@ func (m *MobInstance) ApplyRacialFlags(flags []string, alignment int) {
 		}
 	}
 	if alignment != 0 {
-		if m.properties == nil {
-			m.properties = make(map[string]any)
-		}
-		m.properties[PropAlignment] = alignment
+		m.SetProperty(PropAlignment, alignment)
 	}
 }
 
@@ -185,9 +246,8 @@ var alignmentBucketTags = [...]string{"alignment_evil", "alignment_neutral", "al
 // AlignmentEntity adapter; matches the lenient-numeric handling
 // in WimpyThreshold (YAML decode produces int / int64 / float64).
 func (m *MobInstance) Alignment() int {
-	if m.properties == nil {
-		return 0
-	}
+	m.propsMu.RLock()
+	defer m.propsMu.RUnlock()
 	switch v := m.properties[PropAlignment].(type) {
 	case int:
 		return v
@@ -204,10 +264,7 @@ func (m *MobInstance) Alignment() int {
 // the AlignmentEntity adapter under the manager's lock. Does NOT
 // adjust tags — SetAlignmentTag is the paired call.
 func (m *MobInstance) SetAlignment(value int) {
-	if m.properties == nil {
-		m.properties = make(map[string]any)
-	}
-	m.properties[PropAlignment] = value
+	m.SetProperty(PropAlignment, value)
 }
 
 // SetAlignmentTag installs the bucket tag and removes the other
@@ -260,15 +317,13 @@ func (m *MobInstance) HasTag(tag string) bool {
 // phase in the heartbeat triggers a §5.2 flee attempt at or below
 // the threshold.
 //
-// Reads m.properties under no lock — see Properties() for the data-
-// race note tracked in m6-4-deferred-fixes.md. The wimpy phase runs
-// from the heartbeat tick goroutine; AI tick is the same goroutine
-// today, so there is no live writer racing this read. The deferred
-// fix lifts when a non-tick reader appears.
+// Reads via propsMu.RLock — closes the m6-4 deferred race
+// between the heartbeat tick goroutine and any session-side
+// property writer that might land later (M9 effects, M11
+// economy, etc.).
 func (m *MobInstance) WimpyThreshold() int {
-	if m.properties == nil {
-		return 0
-	}
+	m.propsMu.RLock()
+	defer m.propsMu.RUnlock()
 	raw, ok := m.properties["wimpy_threshold"]
 	if !ok {
 		return 0

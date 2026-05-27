@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/Jasrags/AnotherMUD/internal/item"
+	"github.com/Jasrags/AnotherMUD/internal/mob"
 )
 
 // fakeEntity is a minimal Entity for store-only tests that don't need
@@ -229,5 +230,64 @@ func TestStoreConcurrentSpawnAndQuery(t *testing.T) {
 
 	if got, want := s.Count(), writers*100; got != want {
 		t.Errorf("Count = %d, want %d", got, want)
+	}
+}
+
+func TestStore_RetagPicksUpInPlaceTagMutations(t *testing.T) {
+	// Closes m8-5: an entity whose tag slice mutates after Track
+	// is invisible to GetByTag until Retag republishes it.
+	s := NewStore()
+	tpl := &mob.Template{
+		ID: "test:dwarf", Name: "a dwarf", Type: "npc",
+		Tags: []string{"humanoid"},
+	}
+	inst, err := s.SpawnMob(tpl)
+	if err != nil {
+		t.Fatalf("SpawnMob: %v", err)
+	}
+	s.SwapTagIndex()
+
+	// Pre-Retag: alignment_evil is invisible because Track only
+	// captured the template tag set.
+	inst.SetAlignmentTag("alignment_evil")
+	s.SwapTagIndex()
+	if hits := s.GetByTag("alignment_evil"); len(hits) != 0 {
+		t.Errorf("pre-Retag: GetByTag(alignment_evil) = %d, want 0 (stale-index baseline)", len(hits))
+	}
+
+	// Retag republishes; next SwapTagIndex makes it visible to readers.
+	if err := s.Retag(inst.ID()); err != nil {
+		t.Fatalf("Retag: %v", err)
+	}
+	s.SwapTagIndex()
+	hits := s.GetByTag("alignment_evil")
+	if len(hits) != 1 || hits[0].ID() != inst.ID() {
+		t.Errorf("post-Retag: GetByTag(alignment_evil) = %+v, want [%s]", hits, inst.ID())
+	}
+	// Original tag still present.
+	if hits := s.GetByTag("humanoid"); len(hits) != 1 {
+		t.Errorf("humanoid tag lost during Retag: %+v", hits)
+	}
+
+	// Switching the bucket via SetAlignmentTag should remove the
+	// stale entry after Retag.
+	inst.SetAlignmentTag("alignment_good")
+	if err := s.Retag(inst.ID()); err != nil {
+		t.Fatalf("second Retag: %v", err)
+	}
+	s.SwapTagIndex()
+	if hits := s.GetByTag("alignment_evil"); len(hits) != 0 {
+		t.Errorf("alignment_evil still indexed after switch to good: %+v", hits)
+	}
+	if hits := s.GetByTag("alignment_good"); len(hits) != 1 {
+		t.Errorf("alignment_good not indexed after switch: %+v", hits)
+	}
+}
+
+func TestStore_RetagReturnsErrNotTracked(t *testing.T) {
+	s := NewStore()
+	err := s.Retag(EntityID("nonexistent"))
+	if !errors.Is(err, ErrNotTracked) {
+		t.Errorf("Retag on unknown id: err = %v, want ErrNotTracked", err)
 	}
 }

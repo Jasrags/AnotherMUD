@@ -105,7 +105,8 @@ func (d *Dispatcher) Tick(ctx context.Context, tickCount uint64) {
 			continue
 		}
 
-		name, _ := m.Properties()[entities.PropBehavior].(string)
+		rawBehavior, _ := m.Property(entities.PropBehavior)
+		name, _ := rawBehavior.(string)
 		if name == "" {
 			continue
 		}

@@ -767,6 +767,16 @@ func (b *bootSpawner) spawnMob(ctx context.Context, templateID string, roomID wo
 	if rid := inst.RaceID(); rid != "" && b.races != nil {
 		if race, ok := b.races.Get(rid); ok {
 			inst.ApplyRacialFlags(race.RacialFlags, race.StartingAlignment)
+			// Republish to the tag index now that racial flags have
+			// been merged into the mob's tag slice. SpawnMob's Track
+			// call captured only the template's tags; without this
+			// Retag, GetByTag("common-tongue") on a freshly-spawned
+			// dwarf would miss. Cheap O(num_tags) sweep.
+			if err := b.store.Retag(inst.ID()); err != nil {
+				logging.From(ctx).Warn("mob spawn: retag after racial flags failed",
+					slog.String("mob", string(inst.ID())),
+					slog.Any("err", err))
+			}
 		} else {
 			// Warn (not debug): a template referencing a missing
 			// race id is almost always an authoring error — a

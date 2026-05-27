@@ -252,11 +252,14 @@ func run(ctx context.Context, c conn.Connection, cfg Config) error {
 	// actor stays raceless (raceID="", no flags) — see applyRace.
 	applyRace(a, &cfg, loaded.Player.Race)
 	// Keep save in sync with the resolved race so the next Persist
-	// commits the assigned default. Pre-publication (the actor has
-	// not entered the manager yet) the write would be safe without
-	// the lock, but matching the Location-sync pattern below keeps
-	// the surface consistent for future maintainers who copy this.
-	if loaded.Player.Race != a.raceID {
+	// commits the assigned default. Only sync when the resolution
+	// produced a real id — if applyRace returned with a.raceID=""
+	// because the saved race isn't currently registered (content
+	// removed between restarts), we PRESERVE the original id on the
+	// save so re-adding the race later reattaches the character.
+	// Closes m8-4 "applyClass fail-soft erases saved id" item +
+	// the analogous m8-3 race-side concern in one symmetric fix.
+	if a.raceID != "" && loaded.Player.Race != a.raceID {
 		a.mu.Lock()
 		a.save.Race = a.raceID
 		a.markDirtyLocked()
@@ -267,10 +270,14 @@ func run(ctx context.Context, c conn.Connection, cfg Config) error {
 	// at session start (subscribers read it off the actor when a
 	// level.up event lands); the apply step just validates against
 	// the registry and snapshots the trains_available pool.
+	//
+	// Same fail-soft preservation as race above: an unresolved class
+	// id (a.classID="") leaves the save's class field untouched so
+	// re-adding the class later reattaches the character.
 	applyClass(a, &cfg, loaded.Player.Class)
 	a.mu.Lock()
 	a.trainsAvailable = loaded.Player.TrainsAvailable
-	if loaded.Player.Class != a.classID {
+	if a.classID != "" && loaded.Player.Class != a.classID {
 		a.save.Class = a.classID
 		a.markDirtyLocked()
 	}
