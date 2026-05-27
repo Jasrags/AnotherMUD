@@ -2,6 +2,7 @@ package progression
 
 import (
 	"context"
+	"strconv"
 	"strings"
 	"sync"
 )
@@ -89,28 +90,40 @@ const TagSkillTrainer = "skill_trainer"
 // room gate (matching the spec default "off") AND any stat
 // training (empty Trainable list = nothing trainable). Hosts should
 // build via DefaultTrainingConfig and tweak.
+//
+// **Lock contract.** RequireSafeRoomForStats, CatchUpBoost, and
+// DefaultRaceCap are construction-time fields: set them before
+// handing the config to a TrainingManager, then treat as
+// immutable. Only the Trainable map has a runtime mutator
+// (SetTrainable), and both Trainable and SetTrainable take
+// TrainingConfig.mu — a future admin verb that toggles the
+// other fields at runtime MUST grow accessors that take the
+// same lock.
 type TrainingConfig struct {
 	mu sync.RWMutex
 
 	// RequireSafeRoomForStats gates §7.4 step 2. When true, the
 	// entity's current room MUST carry the `safe` tag for
-	// TryTrain to succeed.
+	// TryTrain to succeed. Construction-time only (see lock
+	// contract above).
 	RequireSafeRoomForStats bool
 
 	// Trainable lists the lowercased stat names allowed for
 	// stat training (§7.4 step 3). The default is the six
 	// classic attributes. Content may add/remove via the
-	// SetTrainable runtime setter.
+	// SetTrainable runtime setter (which takes mu).
 	Trainable map[string]bool
 
 	// CatchUpBoost is the proficiency bump (§7.5) applied when
 	// TryPractice raises a cap and the entity's current
 	// proficiency lags the prior cap. Defaults to 5.
+	// Construction-time only.
 	CatchUpBoost int
 
 	// DefaultRaceCap is the per-stat cap consulted when the
 	// entity's race declares no entry for the stat OR when the
 	// entity is raceless. Spec §7.4 step 5 defaults to 25.
+	// Construction-time only.
 	DefaultRaceCap int
 }
 
@@ -281,8 +294,8 @@ type TrainerSource interface {
 // adds delta to current proficiency (clamped at the cap by the
 // implementation). All operations are case-insensitive on ids.
 type AbilityProficiency interface {
-	GetCap(entityID, abilityID string) (cap int, prof int, learned bool)
-	SetCap(entityID, abilityID string, cap int)
+	GetCap(entityID, abilityID string) (capValue int, prof int, learned bool)
+	SetCap(entityID, abilityID string, capValue int)
 	AddProficiency(entityID, abilityID string, delta int)
 	AbilityName(abilityID string) (string, bool)
 }
@@ -328,10 +341,10 @@ func (m *TrainingManager) TryPractice(ctx context.Context, entity TrainingEntity
 	// Proficiency seam — if it's not wired, every ability reads as
 	// not-learned, matching the spec §7.3 NotLearned case for
 	// content that hasn't taught a single ability yet.
-	cap, prof, learned := 0, 0, false
+	currentCap, prof, learned := 0, 0, false
 	var displayName string
 	if m.Proficiency != nil {
-		cap, prof, learned = m.Proficiency.GetCap(entityID, abilityID)
+		currentCap, prof, learned = m.Proficiency.GetCap(entityID, abilityID)
 		if name, ok := m.Proficiency.AbilityName(abilityID); ok {
 			displayName = name
 		}
@@ -376,7 +389,7 @@ func (m *TrainingManager) TryPractice(ctx context.Context, entity TrainingEntity
 	}
 
 	trainerCap := int(tc.Tier)
-	if cap >= trainerCap {
+	if currentCap >= trainerCap {
 		return PracticeResult{
 			Outcome:     PracticeAlreadyAtOrAboveTier,
 			AbilityID:   abilityID,
@@ -384,7 +397,7 @@ func (m *TrainingManager) TryPractice(ctx context.Context, entity TrainingEntity
 			Message:     "You have surpassed what " + trainerName + " can teach.",
 		}
 	}
-	if int(NextTier(cap)) != trainerCap {
+	if int(NextTier(currentCap)) != trainerCap {
 		return PracticeResult{
 			Outcome:     PracticeTierSkip,
 			AbilityID:   abilityID,
@@ -394,7 +407,7 @@ func (m *TrainingManager) TryPractice(ctx context.Context, entity TrainingEntity
 	}
 
 	// Apply the cap raise + optional catch-up boost (§7.5).
-	priorCap := cap
+	priorCap := currentCap
 	m.Proficiency.SetCap(entityID, abilityID, trainerCap)
 	boosted := false
 	if m.Config != nil && m.Config.CatchUpBoost > 0 && prof < priorCap {
@@ -422,8 +435,8 @@ func (m *TrainingManager) TryPractice(ctx context.Context, entity TrainingEntity
 // the integer when the value is not on the ladder (defensive — the
 // only path that produces a non-ladder value would be a content
 // authoring error).
-func tierLabel(cap int) string {
-	switch cap {
+func tierLabel(capValue int) string {
+	switch capValue {
 	case int(CapNovice):
 		return "Novice"
 	case int(CapApprentice):
@@ -433,7 +446,7 @@ func tierLabel(cap int) string {
 	case int(CapMaster):
 		return "Master"
 	default:
-		return ""
+		return strconv.Itoa(capValue)
 	}
 }
 
@@ -495,16 +508,16 @@ func (m *TrainingManager) TryTrain(ctx context.Context, entity TrainingEntity, s
 			Message: "You cannot train.",
 		}
 	}
-	cap := defaultRaceCapValue(m.Config)
+	raceCap := defaultRaceCapValue(m.Config)
 	if m.Races != nil {
 		if race, ok := m.Races.Get(entity.RaceID()); ok {
 			if v, has := race.StatCaps[StatType(stat)]; has {
-				cap = v
+				raceCap = v
 			}
 		}
 	}
 	current := sb.Effective(StatType(stat))
-	if current >= cap {
+	if current >= raceCap {
 		return TrainResult{
 			Outcome: TrainAtRaceCap,
 			Stat:    stat,

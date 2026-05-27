@@ -901,12 +901,20 @@ func decodeTrainer(src *TrainerFile, tags []string, path string) (int, []string,
 		return 0, nil, fmt.Errorf("%w: %s: trainer.tier must be one of novice/apprentice/journeyman/master, got %q", ErrInvalidContent, path, src.Tier)
 	}
 
+	// Dedupe the teach list so a content author shipping
+	// [slash, slash] doesn't waste a linear-scan comparison on
+	// every CanTeach call. Preserves first-occurrence order.
+	seen := make(map[string]struct{}, len(src.Teach))
 	teach := make([]string, 0, len(src.Teach))
 	for _, a := range src.Teach {
 		id := strings.ToLower(strings.TrimSpace(a))
 		if id == "" {
 			continue
 		}
+		if _, dup := seen[id]; dup {
+			continue
+		}
+		seen[id] = struct{}{}
 		teach = append(teach, id)
 	}
 

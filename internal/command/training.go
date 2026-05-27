@@ -55,7 +55,10 @@ func TrainHandler(ctx context.Context, c *Context) error {
 	}
 	res := c.Training.TryTrain(ctx, trainingEntityAdapter{a: holder}, c.Args[0])
 	if res.Outcome == progression.TrainSuccess {
-		msg := fmt.Sprintf("%s %s is now %d.", res.Message, res.Stat, res.NewEffective)
+		// Manager.Message already names the stat ("You feel
+		// stronger in str."); append only the new effective
+		// value so the player sees the bump take effect.
+		msg := fmt.Sprintf("%s (now %d)", res.Message, res.NewEffective)
 		return c.Actor.Write(ctx, msg)
 	}
 	return c.Actor.Write(ctx, res.Message)
