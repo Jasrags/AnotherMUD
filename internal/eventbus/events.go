@@ -73,6 +73,13 @@ const (
 	// spawn manager's untrack subscriber here so area respawn fires
 	// on combat deaths.
 	EventMobKilled = "mob.killed"
+	// Post-fact notification fired after the player-death subscriber
+	// has restored a dead player to a playable state (spec combat
+	// §6.4: "Player death recovery ... is owned by another feature
+	// subscribing to the vital-depleted or death events"). Carries
+	// the player id + the from/to rooms so renderers, quest hooks,
+	// and future XP-loss listeners can react.
+	EventPlayerRespawned = "player.respawned"
 	// Post-fact notification fired when a combatant successfully
 	// flees through an exit (spec combat §5.2 step 3). Carries the
 	// chosen direction and both rooms so renderers / quest hooks can
@@ -429,6 +436,22 @@ const (
 	FleeFailedNoExits     = "no-exits"
 	FleeFailedUnknownRoom = "unknown-room"
 )
+
+// PlayerRespawned fires after the player-death subscriber has
+// healed a dead player to a playable HP and moved them to the
+// respawn room (spec combat §6.4). RespawnHP carries the post-
+// respawn HP so listeners that want to render "you wake at 1 HP"
+// don't have to round-trip back to vitals.
+type PlayerRespawned struct {
+	PlayerID   string
+	PlayerName string
+	From       world.RoomID
+	To         world.RoomID
+	RespawnHP  int
+}
+
+// Name implements Event.
+func (PlayerRespawned) Name() string { return EventPlayerRespawned }
 
 // MobKilled fires alongside Kill when the victim was a mob
 // (spec combat §6.3 step 2). TemplateID is the mob template, which

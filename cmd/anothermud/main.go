@@ -312,6 +312,84 @@ func run() error {
 		placement.Remove(e.MobID)
 	})
 
+	// M7.6 follow-up: combat.kill → player respawn closes M7.5
+	// deferred #1 ("dead-but-walking player"). Combat spec §6.4 says
+	// player death recovery is owned by a separate feature
+	// subscribing to vital-depleted / kill. This subscriber heals
+	// the player to 1 HP, moves them to the configured start room,
+	// announces the death in the room they fell + the respawn in
+	// the room they wake in, and emits player.respawned for any
+	// downstream listener (renderers, XP-loss policies).
+	//
+	// Today's policy (chosen explicitly, see m7-6 review responses):
+	//   - Respawn room: ANOTHERMUD_START_ROOM (same as new-character).
+	//   - Respawn HP: 1 (penalty for dying, still playable).
+	//   - Gear: kept on the corpse-less respawn for now. Gear-loss
+	//     is a policy decision that lands with the corpse pipeline.
+	bus.Subscribe(eventbus.EventKill, func(ctx context.Context, ev eventbus.Event) {
+		k, ok := ev.(eventbus.Kill)
+		if !ok {
+			return
+		}
+		if !strings.HasPrefix(k.VictimID, combat.PlayerPrefix) {
+			return // mob deaths handled by the mob.killed subscriber above.
+		}
+		playerID := k.VictimID[len(combat.PlayerPrefix):]
+		actor, ok := mgr.GetByPlayerID(playerID)
+		if !ok {
+			// Player disconnected between vital-depleted and kill —
+			// nothing to respawn into; restorePlayerVitals on next
+			// login will floor HP to 1.
+			return
+		}
+		dst, err := w.Room(cfg.StartRoom)
+		if err != nil {
+			logging.From(ctx).Error("player respawn: start room missing",
+				slog.String("player", actor.PlayerName()),
+				slog.String("start_room", string(cfg.StartRoom)),
+				slog.Any("err", err))
+			return
+		}
+
+		// Heal first so the player's Vitals stop reading IsDead the
+		// moment we publish PlayerRespawned. Vitals.Heal(1) on a
+		// HP=0 combatant yields HP=1 (Heal clamps to [0, max]).
+		actor.Vitals().Heal(1)
+
+		// Death-room broadcast — visible to anyone still standing
+		// over the corpse. Sent BEFORE SetRoom so the room id we
+		// announce in is the room they actually died in.
+		if actor.PlayerName() != "" {
+			mgr.SendToRoom(ctx, k.RoomID,
+				actor.PlayerName()+"'s body fades from the world.",
+				playerID)
+		}
+
+		// Tell the dying player what happened, then move them. The
+		// two writes flank SetRoom so the messages render in the
+		// correct order even if RenderRoom races a re-prompt.
+		_ = actor.Write(ctx, "Everything goes black...")
+		actor.SetRoom(dst)
+		_ = actor.Write(ctx, "...and you wake, dazed, in another place.")
+
+		// Respawn-room broadcast.
+		if actor.PlayerName() != "" {
+			mgr.SendToRoom(ctx, dst.ID,
+				actor.PlayerName()+" appears, dazed and gasping.",
+				playerID)
+		}
+
+		// Publish player.respawned for any future listener. From is
+		// the room they died in; To is the respawn room.
+		bus.Publish(ctx, eventbus.PlayerRespawned{
+			PlayerID:   playerID,
+			PlayerName: actor.PlayerName(),
+			From:       k.RoomID,
+			To:         dst.ID,
+			RespawnHP:  1,
+		})
+	})
+
 	// Combat heartbeat (spec combat §3, M7.3). Round skeleton at the
 	// configured cadence. Phases (ability / auto-attack / effects /
 	// wimpy) wire in M7.4-M7.6 + M9; the bucket lands now so those
