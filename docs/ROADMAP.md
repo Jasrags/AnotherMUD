@@ -537,16 +537,24 @@ is now real. Sketch of remaining vertical slices:
     name `"fists"` ship in `combat.Stats.EffectiveDamage` and
     `EffectiveWeaponName`; real weapon plumbing arrives with
     equipment-stat work post-M8.
-  - **M7.5 (planned):** Death flow + downstream wiring.
-    Cancellable `death.check` bus event, killer attribution
-    (explicit > primary target > none), `kill` + `mob.killed`
-    events, disengage-all on uncancelled death. Wire
-    `mob.killed` → `spawn.Tracker.untrack` so M6.6 respawn
-    fires on combat deaths (closes the M6.6 deferred). Wire
-    `mob.aggro` (from M6.5) → `combat.Engage` so disposition
-    reactions actually start fights. Player vitals persistence
-    (player.Save v5 with `vitals` block) lands here so death +
-    log out at low HP round-trip.
+  - **M7.5 (landed):** Death flow + downstream wiring. New
+    `combat.Vitals.ApplyDamageIfAlive` atomic primitive (closes
+    M7.4 review obligation: single-lock liveness+damage so a
+    future DoT/ability can't race the killing blow into a double
+    VitalDepleted). New eventbus types `DeathCheck` (cancellable,
+    §6.1), `Kill` (§6.3 step 1), `MobKilled` (§6.3 step 2);
+    `productionCombatSink` (replacing M7.2's `loggingCombatSink`)
+    owns `OnVitalDepleted` as the death entry — killer attribution
+    per §6.2 (explicit attacker > victim's primary target > empty),
+    cancellable death-check publish, kill/mob.killed emission,
+    `combatMgr.DisengageAll(victim)`. Boot-time bus subscribers
+    wire `mob.aggro` → `combat.Engage` (closes M6.5 deferred) and
+    `mob.killed` → `entities.Store.Untrack` + `placement.Remove`
+    (closes M6.6 deferred #1 — area respawn now fires on combat
+    deaths). Player vitals persist via `player.Save` v5 + new
+    `VitalsState` field; `Persist` syncs HP from the combat tick
+    before the dirty check so damage taken between autosaves
+    round-trips through disk.
   - **M7.6 (planned):** Flee + wimpy. Wimpy check phase
     (HP% ≤ threshold property), flee attempt (no-flee tag,
     no-exits, random-exit + disengage-all + move + cooldown),

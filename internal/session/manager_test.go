@@ -61,6 +61,45 @@ func TestManager_SaveAllPersistsDirtyActors(t *testing.T) {
 	}
 }
 
+// TestPersist_SyncsVitalsFromCombatTick confirms M7.5 vitals
+// persistence: damage applied through the Combatant surface (which
+// never goes through markDirtyLocked — combat doesn't know about
+// session) still round-trips to disk via Persist's pre-dirty-check
+// vitals sync.
+func TestPersist_SyncsVitalsFromCombatTick(t *testing.T) {
+	dir := t.TempDir()
+	st, err := player.NewStore(dir)
+	if err != nil {
+		t.Fatalf("NewStore: %v", err)
+	}
+	a := &connActor{
+		id: "c1", players: st,
+		save: &player.Save{
+			Version: player.CurrentVersion, ID: "p1", AccountID: "a1",
+			Name: "Wounded", Location: "x:1",
+		},
+		vitals: combat.NewVitals(combat.DefaultPlayerMaxHP),
+	}
+	// Damage applied combat-side does NOT flip session's dirty bit.
+	a.vitals.ApplyDamage(7)
+
+	if err := a.Persist(context.Background()); err != nil {
+		t.Fatalf("Persist: %v", err)
+	}
+
+	got, err := st.Load(context.Background(), "Wounded")
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if got.Vitals == nil {
+		t.Fatalf("Vitals nil after Persist; want HP/MaxHP populated")
+	}
+	wantHP := combat.DefaultPlayerMaxHP - 7
+	if got.Vitals.HP != wantHP || got.Vitals.MaxHP != combat.DefaultPlayerMaxHP {
+		t.Errorf("Vitals = %+v, want {HP:%d MaxHP:%d}", got.Vitals, wantHP, combat.DefaultPlayerMaxHP)
+	}
+}
+
 func TestManager_SaveAllIsolatesErrors(t *testing.T) {
 	st, err := player.NewStore(t.TempDir())
 	if err != nil {

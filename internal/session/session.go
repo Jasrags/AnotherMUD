@@ -190,10 +190,11 @@ func run(ctx context.Context, c conn.Connection, cfg Config) error {
 		equipment:    make(map[string]entities.EntityID),
 		stats:        stats.New(),
 		// M7.1: every player gets the hardcoded combat block at login.
-		// Vitals start at full; persistence of current HP arrives with
-		// the M7.5 death flow. The race/class/level inputs that would
-		// derive real numbers here are M8 work.
-		vitals:      combat.NewVitals(combat.DefaultPlayerMaxHP),
+		// M7.5: vitals restore from the persisted save when present;
+		// absent block (fresh character, migrated-from-v4 save) spawns
+		// at full HP via NewVitals. The race/class/level inputs that
+		// would derive real numbers here are M8 work.
+		vitals:      restorePlayerVitals(loaded.Player.Vitals),
 		combatStats: combat.DefaultPlayerStats(),
 		flood:       newFloodGate(floodCfg, clk),
 		floodCfg:    &floodCfg,
@@ -942,6 +943,12 @@ func (a *connActor) Write(ctx context.Context, msg string) error {
 // syncXxxToSaveLocked rewrite of a.save.
 func (a *connActor) Persist(ctx context.Context) error {
 	a.mu.Lock()
+	// Sync vitals into save BEFORE the dirty check so HP changes
+	// from the combat tick (which never go through markDirtyLocked
+	// — combat doesn't know about session) participate in autosave.
+	if a.syncVitalsToSaveLocked() {
+		a.markDirtyLocked()
+	}
 	if !a.dirty || a.save == nil || a.players == nil {
 		a.mu.Unlock()
 		return nil
@@ -980,6 +987,42 @@ func cloneInventoryEntries(in []player.InventoryEntry) []player.InventoryEntry {
 	return out
 }
 
+// restorePlayerVitals returns a fresh *combat.Vitals for a logging-in
+// player. A nil persisted block (legacy v4 save, brand-new character)
+// spawns at full HP with the hardcoded player max. A persisted block
+// rehydrates via NewVitalsAt, which clamps to sane ranges if the saved
+// values are out of bounds (HP > MaxHP, MaxHP < 1).
+func restorePlayerVitals(v *player.VitalsState) *combat.Vitals {
+	if v == nil {
+		return combat.NewVitals(combat.DefaultPlayerMaxHP)
+	}
+	maxHP := v.MaxHP
+	if maxHP < 1 {
+		maxHP = combat.DefaultPlayerMaxHP
+	}
+	return combat.NewVitalsAt(v.HP, maxHP)
+}
+
+// syncVitalsToSaveLocked rewrites a.save.Vitals from a.vitals if the
+// live HP differs from what's currently in the save. Returns true if
+// the save record actually changed; callers use the result to decide
+// whether to bump the dirty flag.
+//
+// Caller MUST hold a.mu. Lives next to the other syncXxxToSaveLocked
+// helpers (inventory, equipment, stats) so the persist path has a
+// single read-vitals → write-save touchpoint.
+func (a *connActor) syncVitalsToSaveLocked() bool {
+	if a.save == nil || a.vitals == nil {
+		return false
+	}
+	cur, max := a.vitals.Snapshot()
+	if a.save.Vitals != nil && a.save.Vitals.HP == cur && a.save.Vitals.MaxHP == max {
+		return false
+	}
+	a.save.Vitals = &player.VitalsState{HP: cur, MaxHP: max}
+	return true
+}
+
 // snapshotSave produces an isolated copy of save suitable for a YAML
 // encode that may run after the actor lock is released. Strings/ints
 // copy by value; slices and maps need explicit duplication.
@@ -1007,6 +1050,10 @@ func snapshotSave(save *player.Save) player.Save {
 			dup[i] = entryDup
 		}
 		out.Stats = dup
+	}
+	if save.Vitals != nil {
+		v := *save.Vitals
+		out.Vitals = &v
 	}
 	return out
 }

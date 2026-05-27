@@ -288,6 +288,63 @@ func TestLoad_V3InventoryMigratesToV4Entries(t *testing.T) {
 	}
 }
 
+func TestLoad_V4MigratesToV5WithNilVitals(t *testing.T) {
+	// A v4 save carries no `vitals` block. After migration to v5 the
+	// field is still absent — Vitals == nil — and the session-load
+	// path treats that as "spawn at full HP". The migration itself is
+	// a no-op on dict content; only the version stamp advances.
+	ctx := context.Background()
+	st, dir := newStore(t)
+
+	playerDir := filepath.Join(dir, "players", "v4user")
+	if err := os.MkdirAll(playerDir, 0o755); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(playerDir, "player.yaml"),
+		[]byte("version: 4\nid: p-1\naccount_id: acct-1\nname: V4User\nlocation: tapestry-core:town-square\n"),
+		0o600); err != nil {
+		t.Fatalf("write: %v", err)
+	}
+
+	got, err := st.Load(ctx, "v4user")
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if got.Version != player.CurrentVersion {
+		t.Errorf("Version = %d, want %d", got.Version, player.CurrentVersion)
+	}
+	if got.Vitals != nil {
+		t.Errorf("Vitals = %+v, want nil after v4 migration", got.Vitals)
+	}
+}
+
+func TestSave_RoundTripsVitals(t *testing.T) {
+	ctx := context.Background()
+	st, _ := newStore(t)
+
+	want := &player.Save{
+		Version:   player.CurrentVersion,
+		ID:        "p-1",
+		AccountID: "acct-1",
+		Name:      "Vitalized",
+		Location:  "tapestry-core:town-square",
+		Vitals:    &player.VitalsState{HP: 12, MaxHP: 40},
+	}
+	if err := st.Save(ctx, want); err != nil {
+		t.Fatalf("Save: %v", err)
+	}
+	got, err := st.Load(ctx, "Vitalized")
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if got.Vitals == nil {
+		t.Fatalf("Vitals nil after round-trip")
+	}
+	if got.Vitals.HP != 12 || got.Vitals.MaxHP != 40 {
+		t.Errorf("Vitals = %+v, want {HP:12 MaxHP:40}", got.Vitals)
+	}
+}
+
 func TestSave_RejectsUnsafeName(t *testing.T) {
 	ctx := context.Background()
 	st, _ := newStore(t)

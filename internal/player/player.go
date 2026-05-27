@@ -51,7 +51,13 @@ import (
 // reflects real container nesting at session time. Empty Contents
 // serializes via `omitempty`, so leaf items round-trip as just
 // `{template: ...}`.
-const CurrentVersion = 4
+//
+// v5 (M7.5): `vitals` block added so HP state persists across logout
+// (combat spec §6.4 implies the player-death subscriber owns recovery
+// but a player who logs out below full HP MUST come back at the same
+// HP). Absent block (legacy v4 saves migrated forward) means "spawn at
+// full HP", which is what NewVitals does.
+const CurrentVersion = 5
 
 // Sentinel errors callers may check via errors.Is.
 var (
@@ -86,6 +92,17 @@ type Save struct {
 	Inventory []InventoryEntry        `yaml:"inventory,omitempty"`
 	Equipment map[string]EquippedItem `yaml:"equipment,omitempty"`
 	Stats     stats.Snapshot          `yaml:"stats,omitempty"`
+	Vitals    *VitalsState            `yaml:"vitals,omitempty"`
+}
+
+// VitalsState is the persisted HP block (v5+). Pointer so an absent
+// vitals block (legacy v4 saves migrated forward, fresh characters
+// pre-first-damage) serializes as no key at all rather than `vitals: {}`,
+// and the session-load path treats nil as "spawn at full HP" without
+// having to disambiguate zero-value from explicit-zero.
+type VitalsState struct {
+	HP    int `yaml:"hp"`
+	MaxHP int `yaml:"max_hp"`
 }
 
 // InventoryEntry is one carried item in the persisted inventory list
@@ -237,6 +254,7 @@ var playerMigrations = map[int]func(map[string]any) (map[string]any, error){
 	1: migrateV1toV2,
 	2: migrateV2toV3,
 	3: migrateV3toV4,
+	4: migrateV4toV5,
 }
 
 // migrateV1toV2 adds the empty inventory/equipment blocks introduced
@@ -337,6 +355,15 @@ func migrateV3toV4(in map[string]any) (map[string]any, error) {
 		out = append(out, map[string]any{"template": s})
 	}
 	in["inventory"] = out
+	return in, nil
+}
+
+// migrateV4toV5 adds the `vitals` block introduced in M7.5. The
+// migration is a no-op on dict content: legacy v4 saves carry no HP
+// state, so the absence of `vitals:` is preserved and the session
+// load path's nil-Vitals branch spawns the player at full HP. New
+// saves stamp the field as soon as Persist runs after first damage.
+func migrateV4toV5(in map[string]any) (map[string]any, error) {
 	return in, nil
 }
 
