@@ -132,6 +132,22 @@ const (
 	// when the bucket boundary is crossed (spec §6.5 step 6). Two
 	// events fire on a bucket-crossing shift, in this order.
 	EventAlignmentBucketChanged = "alignment.bucket.changed"
+	// EffectApplied fires after EffectManager.Apply successfully
+	// installs a new active effect on a target (spec
+	// abilities-and-effects §5.2 step 4). Single-instance
+	// refusals do NOT emit.
+	EventEffectApplied = "effect.applied"
+	// EffectRemoved fires after RemoveByID / RemoveByFlag /
+	// external dispel reverses an active effect (spec §5.3 step 4).
+	// Expiration uses EventEffectExpired instead, so subscribers
+	// can render different messaging for "spell wore off" vs "spell
+	// was dispelled".
+	EventEffectRemoved = "effect.removed"
+	// EffectExpired fires after Tick decrements an effect's
+	// remaining counter to zero and the batch expiration runs
+	// (spec §5.4). Distinct from EffectRemoved so renderers can
+	// distinguish duration-end from external removal.
+	EventEffectExpired = "effect.expired"
 )
 
 // ItemPickedUp fires after GetHandler successfully moves an item
@@ -673,3 +689,50 @@ type AlignmentBucketChanged struct {
 
 // Name implements Event.
 func (AlignmentBucketChanged) Name() string { return EventAlignmentBucketChanged }
+
+// EffectApplied fires after EffectManager.Apply installs a new
+// active effect on a target (spec abilities-and-effects §5.2
+// step 4). EntityID is the target the effect was attached to;
+// SourceAbilityID is the ability that produced the effect (empty
+// when applied without an ability source — admin grant, world
+// hook). Duration is the initial remaining-pulse counter (<0
+// for permanent).
+//
+// Single-instance refusals (spec §5.2 step 2) do NOT publish.
+type EffectApplied struct {
+	EntityID        string
+	EffectID        string
+	SourceAbilityID string
+	Duration        int
+}
+
+// Name implements Event.
+func (EffectApplied) Name() string { return EventEffectApplied }
+
+// EffectRemoved fires after RemoveByID / RemoveByFlag / external
+// dispel reverses an active effect (spec §5.3 step 4). A flag-
+// driven removal publishes one event per removed effect.
+// Expiration emits EffectExpired instead so renderers can
+// distinguish "wore off" from "dispelled".
+type EffectRemoved struct {
+	EntityID        string
+	EffectID        string
+	SourceAbilityID string
+}
+
+// Name implements Event.
+func (EffectRemoved) Name() string { return EventEffectRemoved }
+
+// EffectExpired fires after Tick's batch expiration removes an
+// active effect whose remaining counter reached zero (spec §5.4).
+// Distinct from EffectRemoved by event name only; payload shape
+// matches so subscribers that care about identity-only can share
+// a handler via a wrapper.
+type EffectExpired struct {
+	EntityID        string
+	EffectID        string
+	SourceAbilityID string
+}
+
+// Name implements Event.
+func (EffectExpired) Name() string { return EventEffectExpired }

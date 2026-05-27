@@ -277,6 +277,17 @@ func run() error {
 		progression.DefaultProficiencyConfig(),
 	)
 
+	// M9.2: effect manager — per-entity active effects (spec
+	// abilities-and-effects §5). Resolver walks the session
+	// manager's playerID index; sink bridges the applied /
+	// removed / expired transitions onto the eventbus. Manager
+	// is constructed before this block so the resolver can
+	// capture it directly.
+	effectMgr := progression.NewEffectManager(
+		session.NewEffectTargetResolver(mgr),
+		&effectSink{bus: bus},
+	)
+
 	// M8.5: alignment manager + bus-bridging sink. Config uses
 	// the engine defaults (-1000/+1000 bounds, ±500 bucket
 	// thresholds, history capacity 20) per the M8.5 ROADMAP
@@ -580,6 +591,7 @@ func run() error {
 		),
 		Proficiency: proficiencyMgr,
 		Abilities:   registries.Abilities,
+		Effects:     effectMgr,
 		Races:        registries.Races,
 		Classes:      registries.Classes,
 		Alignment:    alignmentMgr,
@@ -1360,6 +1372,50 @@ func (s *alignmentSink) OnAlignmentShifted(ctx context.Context, entityID, reason
 		NewValue:      newValue,
 		ActualDelta:   actualDelta,
 		BucketChanged: bucketChanged,
+	})
+}
+
+// effectSink bridges progression.EffectSink to eventbus.Bus.
+// Same composition-root pattern as alignmentSink / progressionSink
+// (progression must not import eventbus). Each callback maps 1:1
+// to an eventbus payload; nil bus is a silent no-op so tests that
+// wire the manager without a bus still exercise the rest of the
+// pipeline.
+type effectSink struct {
+	bus *eventbus.Bus
+}
+
+func (s *effectSink) EffectApplied(ctx context.Context, ev progression.EffectAppliedEvent) {
+	if s.bus == nil {
+		return
+	}
+	s.bus.Publish(ctx, eventbus.EffectApplied{
+		EntityID:        ev.EntityID,
+		EffectID:        ev.EffectID,
+		SourceAbilityID: ev.SourceAbilityID,
+		Duration:        ev.Duration,
+	})
+}
+
+func (s *effectSink) EffectRemoved(ctx context.Context, ev progression.EffectRemovedEvent) {
+	if s.bus == nil {
+		return
+	}
+	s.bus.Publish(ctx, eventbus.EffectRemoved{
+		EntityID:        ev.EntityID,
+		EffectID:        ev.EffectID,
+		SourceAbilityID: ev.SourceAbilityID,
+	})
+}
+
+func (s *effectSink) EffectExpired(ctx context.Context, ev progression.EffectExpiredEvent) {
+	if s.bus == nil {
+		return
+	}
+	s.bus.Publish(ctx, eventbus.EffectExpired{
+		EntityID:        ev.EntityID,
+		EffectID:        ev.EffectID,
+		SourceAbilityID: ev.SourceAbilityID,
 	})
 }
 

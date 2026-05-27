@@ -140,6 +140,16 @@ type Config struct {
 	// without re-plumbing. nil-safe.
 	Abilities *progression.AbilityRegistry
 
+	// Effects is the M9.2 active-effect manager (spec
+	// abilities-and-effects §5). Resolves targets via a closure
+	// over the session Manager so the package boundary stays
+	// clean. The session-load path does no per-actor restore
+	// today — active-effect state is ephemeral by spec §5.5 —
+	// but logout calls Effects.Drop to release in-memory state.
+	// nil-safe: when nil, the EffectTarget surface on connActor
+	// is never reached.
+	Effects *progression.EffectManager
+
 	// DefaultRace is the race id assigned to legacy saves with no
 	// `race` field, and to fresh characters that haven't been
 	// through a M12 character-creation flow yet. Empty means the
@@ -608,6 +618,18 @@ func fullTeardown(ctx context.Context, cfg Config, a *connActor) {
 	// memory release.
 	if cfg.Proficiency != nil {
 		cfg.Proficiency.Drop(a.PlayerID())
+	}
+
+	// M9.2: drop any active effects on logout. Spec §5.5 marks
+	// effect-list state as ephemeral (not persisted), so this is
+	// the canonical lifecycle endpoint — no Persist, no event.
+	// The stat-block snapshot has already been written by Persist
+	// above, which captured the effect-driven modifiers under
+	// their EffectSourceKey entries; whether those round-trip
+	// across login is a M9.4-era decision (the spec calls it an
+	// open question).
+	if cfg.Effects != nil {
+		cfg.Effects.Drop(a.PlayerID())
 	}
 }
 
@@ -1744,6 +1766,38 @@ func (a *connActor) HasTag(tag string) bool {
 // stat-growth subscriber to apply level-up growth dice without
 // having to thread a.mu through.
 func (a *connActor) StatBlock() *progression.StatBlock { return a.statBlock }
+
+// EntityID implements progression.EffectTarget (spec
+// abilities-and-effects §5). The id under which the
+// EffectManager keys active effects matches PlayerID; the alias
+// exists so connActor satisfies both the TrainingEntity and
+// EffectTarget interfaces directly without a wrapper adapter.
+func (a *connActor) EntityID() string { return a.playerID }
+
+// AddModifiers implements progression.EffectTarget by
+// delegating to the actor's stat block. The EffectManager calls
+// this when applying an active effect's stat deltas under
+// EffectSourceKey(effectID).
+func (a *connActor) AddModifiers(src entities.SourceKey, mods []stats.Modifier) {
+	a.statBlock.AddModifiers(src, mods)
+	a.mu.Lock()
+	a.markDirtyLocked()
+	a.mu.Unlock()
+}
+
+// RemoveBySource implements progression.EffectTarget by
+// delegating to the actor's stat block. Returns whether anything
+// was removed so the EffectManager can distinguish "effect was
+// flag-only" from "stat reversal happened" for diagnostics.
+func (a *connActor) RemoveBySource(src entities.SourceKey) bool {
+	removed := a.statBlock.RemoveBySource(src)
+	if removed {
+		a.mu.Lock()
+		a.markDirtyLocked()
+		a.mu.Unlock()
+	}
+	return removed
+}
 
 // ProgressionState returns the actor's per-track (level, xp)
 // state. Same contract as StatBlock — the state has its own lock.

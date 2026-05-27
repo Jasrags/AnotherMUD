@@ -869,9 +869,55 @@ is now real. Sketch of remaining vertical slices:
           registry; fighter's path entry teaches `basic-strike`
           at level 1.
 
-  - **M9.2 — EffectManager (apply / tick / remove / expire).**
-    Single-instance rule, source-key dedup on stat modifiers,
-    batched expirations, events.
+  - **M9.2 (landed) — EffectManager (apply / tick / remove /
+    expire).** New `progression.EffectTemplate` + `Effect`
+    types; `progression.EffectManager` owns per-entity active-
+    effect lists, applies / ticks / removes effects with the
+    single-instance rule (spec §5.2), batches expirations
+    safely against mid-iteration mutation (spec §5.4), and
+    emits applied / removed / expired events. Stat modifiers
+    flow through a small `EffectTarget` interface implemented
+    directly by `connActor` (EntityID + AddModifiers +
+    RemoveBySource); the modifier set is keyed under
+    `EffectSourceKey(effectID)` so removal reverses the exact
+    set. Effect flags are owned by the manager (per-entity
+    snapshot via `Flags` / `HasFlag`) — no entity-side Tags
+    surface in M9.2. `cmd/anothermud` wires the manager with
+    a session-Manager-backed `EffectTargetResolver` and a
+    bus-bridging `effectSink`. Logout calls `Effects.Drop`.
+
+    - [x] `progression.EffectManager` exposes Apply, Has,
+          Effects, Flags, HasFlag, RemoveByID, RemoveByFlag,
+          Tick, Drop.
+    - [x] Apply refuses single-instance re-application
+          cleanly: no event, no stat mutation (spec §5.2
+          step 2). Pinned by
+          `TestEffectManager_SingleInstanceRefusesReapply`.
+    - [x] Stat modifiers install + reverse under
+          `EffectSourceKey(id)`; modifier removal goes through
+          the same source-key path equipment uses, so M5.6's
+          dedup invariant carries.
+    - [x] RemoveByFlag batches every match in one pass; flag
+          and id lookups are case-insensitive. Permanent
+          effects (`Duration < 0`) survive every Tick until
+          explicitly removed.
+    - [x] Tick is safe against mid-tick removal — expirations
+          are batched, stat reversal + event emission happens
+          outside the manager lock. Pinned by
+          `TestEffectManager_TickConcurrentRemoveIsSafe`
+          under `-race`.
+    - [x] Three new eventbus payloads (`EffectApplied`,
+          `EffectRemoved`, `EffectExpired`); production
+          `effectSink` in the composition root bridges
+          manager → bus.
+    - [x] `session.connActor` satisfies `EffectTarget`
+          directly (no adapter); `session.EffectTargetResolver`
+          maps playerID → connActor via the existing manager
+          index. Mob targets land in M9.4.
+    - [x] Active-effect state is ephemeral per spec §5.5;
+          logout drops it. Stat modifiers persist with the
+          entity's stat block by the same source-key path
+          equipment uses.
   - **M9.3 — Action queue + validation pipeline.** Per-entity
     queue as property; full §4.3 validation order with
     structured fizzle reasons.

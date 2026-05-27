@@ -1,0 +1,142 @@
+package progression
+
+import (
+	"strings"
+
+	"github.com/Jasrags/AnotherMUD/internal/entities"
+	"github.com/Jasrags/AnotherMUD/internal/stats"
+)
+
+// EffectTemplate is the immutable description on an ability of the
+// effect it produces (spec abilities-and-effects §2.2, §5.1). M9.2
+// keeps this constructed programmatically — the ability YAML schema
+// grows the `effect:` block in M9.4 when resolution starts wiring
+// templates through ability invocations.
+//
+// Duration is in pulses. A negative value means **permanent** —
+// never decremented by Tick, removed only by explicit
+// RemoveByID/RemoveByFlag or by another system's dispel/cleanse.
+//
+// Modifiers and Flags are normalized at NewEffect time; callers do
+// not need to lowercase before passing.
+type EffectTemplate struct {
+	// ID is the stable case-insensitive effect id. Drives the
+	// single-instance rule (§5.2) — a target may carry at most
+	// one active effect per id.
+	ID string
+
+	// Duration is the remaining-pulse counter at apply time. >0
+	// for time-bounded effects; <0 for permanent.
+	Duration int
+
+	// Modifiers are the stat deltas applied to the target's stat
+	// block under a derived source key (EffectSourceKey). Empty
+	// list = the effect carries no numeric impact (flag-only).
+	Modifiers []stats.Modifier
+
+	// Flags are the string tags installed on the target via the
+	// EffectManager's per-entity flag set (M9.2 keeps flags
+	// owned by the manager rather than mutating an entity-side
+	// Tags surface — see m9-2 design note in ROADMAP).
+	Flags []string
+}
+
+// EffectSourceKey returns the entities.SourceKey used when an
+// effect's stat modifiers are applied to a target's stat block.
+// Derives from the effect id so removal can target the exact
+// modifier set without tracking the runtime Effect instance's
+// memory identity.
+//
+// Mirrors EquipmentSourceKey shape; the "effect:" prefix segregates
+// these from equipment keys so a typoed item id can't collide with
+// a real effect by accident.
+func EffectSourceKey(effectID string) entities.SourceKey {
+	return entities.SourceKey("effect:" + strings.ToLower(strings.TrimSpace(effectID)))
+}
+
+// Effect is the runtime instance of an EffectTemplate applied to a
+// target (spec §5.1). The manager owns the lifetime; callers query
+// via EffectManager.Effects / Has and mutate via Remove* / Tick.
+//
+// EntityID identifies the target (the entity the effect is
+// applied to). SourceEntityID identifies the caster — empty when
+// the effect was applied without an explicit source (admin grant,
+// world hook). SourceAbilityID names the ability that produced
+// the effect, empty when not driven by an ability invocation.
+//
+// Remaining is the live pulse counter. <0 == permanent (Tick
+// skips). 0 reached during Tick marks the effect for expiration
+// in the current tick's batch.
+//
+// The struct is value-typed for snapshot returns; manager-owned
+// pointers live in the active-list. Callers receive deep copies
+// from snapshot accessors and may freely mutate them.
+type Effect struct {
+	ID              string
+	EntityID        string
+	SourceEntityID  string
+	SourceAbilityID string
+	Remaining       int
+	Modifiers       []stats.Modifier
+	Flags           []string
+}
+
+// IsPermanent reports whether the effect's remaining counter
+// disables Tick decrement (spec §5.1 "negative duration means
+// permanent"). Wraps a magic comparison so call sites read
+// declaratively.
+func (e Effect) IsPermanent() bool { return e.Remaining < 0 }
+
+// HasFlag reports whether flag is in the effect's flag list,
+// case-insensitive. Used by RemoveByFlag's iteration and by
+// snapshot consumers (M9.5 passive matchers).
+func (e Effect) HasFlag(flag string) bool {
+	target := strings.ToLower(strings.TrimSpace(flag))
+	if target == "" {
+		return false
+	}
+	for _, f := range e.Flags {
+		if f == target {
+			return true
+		}
+	}
+	return false
+}
+
+// newEffectFromTemplate constructs a runtime Effect from a
+// template plus per-invocation identity. Defensive copies of the
+// modifier and flag slices isolate the runtime instance from
+// later template mutation (templates are content-defined and
+// nominally immutable, but a content author who reuses a slice
+// across templates would otherwise see surprising aliasing). All
+// string fields are normalized (lowercased, trimmed) at this
+// boundary so manager internals can rely on canonical form.
+func newEffectFromTemplate(tpl EffectTemplate, entityID, sourceEntityID, sourceAbilityID string) *Effect {
+	out := &Effect{
+		ID:              strings.ToLower(strings.TrimSpace(tpl.ID)),
+		EntityID:        strings.ToLower(strings.TrimSpace(entityID)),
+		SourceEntityID:  strings.ToLower(strings.TrimSpace(sourceEntityID)),
+		SourceAbilityID: strings.ToLower(strings.TrimSpace(sourceAbilityID)),
+		Remaining:       tpl.Duration,
+	}
+	if len(tpl.Modifiers) > 0 {
+		out.Modifiers = make([]stats.Modifier, len(tpl.Modifiers))
+		for i, m := range tpl.Modifiers {
+			out.Modifiers[i] = stats.Modifier{
+				Stat:  strings.ToLower(strings.TrimSpace(m.Stat)),
+				Value: m.Value,
+			}
+		}
+	}
+	if len(tpl.Flags) > 0 {
+		out.Flags = make([]string, 0, len(tpl.Flags))
+		for _, f := range tpl.Flags {
+			n := strings.ToLower(strings.TrimSpace(f))
+			if n == "" {
+				continue
+			}
+			out.Flags = append(out.Flags, n)
+		}
+	}
+	return out
+}
