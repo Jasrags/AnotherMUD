@@ -266,6 +266,11 @@ func run() error {
 		Cooldowns: combatCooldowns,
 	})
 	combatSink.mgr = combatMgr
+	// Wire the AI dispatcher's combat-state gate now that combatMgr
+	// exists. Without this the wander behavior keeps moving mobs
+	// between combat rounds and the auto-attack pre-flight then
+	// disengages on different-room — see ai/dispatcher.go gate.
+	aiDispatcher.AttachCombat(combatMgr)
 
 	// M7.5: mob.aggro → combat.Engage closes the M6.5 deferred. The
 	// disposition evaluator emits MobAggro for every fresh hostile

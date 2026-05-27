@@ -53,6 +53,16 @@ func (d *Dispatcher) AttachEvaluator(e *Evaluator) {
 	d.evaluator = e
 }
 
+// AttachCombat wires the combat-state gate so Tick skips behavior
+// dispatch for mobs currently engaged. Called by bootstrap after
+// both Dispatcher and combat.Manager exist — neither side can be
+// constructed before the other without inverting another seam, so
+// the late-attach pattern (mirroring AttachEvaluator) is the
+// cleanest cut. Optional: passing nil disables the gate.
+func (d *Dispatcher) AttachCombat(g CombatGate) {
+	d.deps.Combat = g
+}
+
 // Tick is the per-cadence handler registered against tick.Loop. It
 // reads the mob set from the store and invokes each mob's behavior.
 // Errors are logged and ignored so one buggy behavior cannot stall
@@ -85,6 +95,16 @@ func (d *Dispatcher) Tick(ctx context.Context, tickCount uint64) {
 			// rather than panic on the player-visible tick goroutine.
 			continue
 		}
+		// Combat gate (M7.6 follow-up): mobs in combat are owned by
+		// the round loop, not the AI tick. Skipping them here closes
+		// the wander-during-fight bug where the AI tick moved the
+		// mob between rounds and the auto-attack pre-flight then
+		// disengaged on different-room. nil gate disables (tests
+		// that don't wire combat).
+		if d.deps.Combat != nil && d.deps.Combat.InCombat(m.CombatantID()) {
+			continue
+		}
+
 		name, _ := m.Properties()[entities.PropBehavior].(string)
 		if name == "" {
 			continue

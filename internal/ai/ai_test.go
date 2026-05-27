@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/Jasrags/AnotherMUD/internal/clock"
+	"github.com/Jasrags/AnotherMUD/internal/combat"
 	"github.com/Jasrags/AnotherMUD/internal/entities"
 	"github.com/Jasrags/AnotherMUD/internal/mob"
 	"github.com/Jasrags/AnotherMUD/internal/world"
@@ -383,5 +384,96 @@ func TestBehaviorWander_NilBroadcasterTolerated(t *testing.T) {
 	}
 	if got, _ := f.place.RoomOf(m.ID()); got != "core:b" {
 		t.Errorf("mob did not move under nil broadcaster: at %q", got)
+	}
+}
+
+// fakeCombatGate is a programmable CombatGate. Records every
+// InCombat call so a test can assert the gate was actually
+// consulted, and returns the configured boolean.
+type fakeCombatGate struct {
+	inCombat bool
+	calls    []combat.CombatantID
+}
+
+func (g *fakeCombatGate) InCombat(id combat.CombatantID) bool {
+	g.calls = append(g.calls, id)
+	return g.inCombat
+}
+
+// TestDispatcher_SkipsCombatants confirms the M7.6 follow-up fix:
+// mobs whose CombatantID is in combat must NOT have their behavior
+// dispatched. Without this, BehaviorWander moves an engaged mob
+// between rounds and the auto-attack pre-flight then disengages on
+// different-room, ending the fight prematurely.
+func TestDispatcher_SkipsCombatants(t *testing.T) {
+	f := newWanderFixture(t)
+	m := f.spawn(t)
+
+	gate := &fakeCombatGate{inCombat: true}
+	deps := f.deps()
+	deps.Combat = gate
+
+	reg := NewRegistry()
+	if err := reg.Register(BehaviorNameWander, BehaviorWander); err != nil {
+		t.Fatalf("Register: %v", err)
+	}
+	disp := NewDispatcher(reg, deps)
+	// Publish the write-side tag index so GetByTag(TagMob) sees the
+	// spawned mob; production wires this via RegisterTagSwap on the
+	// tick loop, tests drive it manually.
+	f.store.SwapTagIndex()
+	disp.Tick(context.Background(), 1)
+
+	if got, _ := f.place.RoomOf(m.ID()); got != "core:a" {
+		t.Errorf("mob moved despite being in combat; now in %q", got)
+	}
+	if len(gate.calls) != 1 {
+		t.Errorf("InCombat calls = %d, want 1", len(gate.calls))
+	}
+	if len(gate.calls) > 0 && gate.calls[0] != m.CombatantID() {
+		t.Errorf("InCombat called with %v, want %v", gate.calls[0], m.CombatantID())
+	}
+}
+
+// Companion: gate that says NOT in combat → wander runs normally.
+func TestDispatcher_DispatchesNonCombatants(t *testing.T) {
+	f := newWanderFixture(t)
+	m := f.spawn(t)
+
+	gate := &fakeCombatGate{inCombat: false}
+	deps := f.deps()
+	deps.Combat = gate
+
+	reg := NewRegistry()
+	_ = reg.Register(BehaviorNameWander, BehaviorWander)
+	disp := NewDispatcher(reg, deps)
+	// Publish the write-side tag index so GetByTag(TagMob) sees the
+	// spawned mob; production wires this via RegisterTagSwap on the
+	// tick loop, tests drive it manually.
+	f.store.SwapTagIndex()
+	disp.Tick(context.Background(), 1)
+
+	if got, _ := f.place.RoomOf(m.ID()); got != "core:b" {
+		t.Errorf("mob did not wander with NOT-in-combat gate; at %q", got)
+	}
+}
+
+// Nil gate must preserve the M6.4 baseline (dispatch every mob).
+func TestDispatcher_NilCombatGateBaseline(t *testing.T) {
+	f := newWanderFixture(t)
+	m := f.spawn(t)
+
+	deps := f.deps() // Combat unset (nil)
+	reg := NewRegistry()
+	_ = reg.Register(BehaviorNameWander, BehaviorWander)
+	disp := NewDispatcher(reg, deps)
+	// Publish the write-side tag index so GetByTag(TagMob) sees the
+	// spawned mob; production wires this via RegisterTagSwap on the
+	// tick loop, tests drive it manually.
+	f.store.SwapTagIndex()
+	disp.Tick(context.Background(), 1)
+
+	if got, _ := f.place.RoomOf(m.ID()); got != "core:b" {
+		t.Errorf("mob did not wander with nil Combat gate; at %q", got)
 	}
 }

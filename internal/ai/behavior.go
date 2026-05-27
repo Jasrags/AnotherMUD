@@ -17,6 +17,7 @@ import (
 	"sync"
 
 	"github.com/Jasrags/AnotherMUD/internal/clock"
+	"github.com/Jasrags/AnotherMUD/internal/combat"
 	"github.com/Jasrags/AnotherMUD/internal/entities"
 	"github.com/Jasrags/AnotherMUD/internal/eventbus"
 	"github.com/Jasrags/AnotherMUD/internal/world"
@@ -29,6 +30,17 @@ import (
 // in just to call SendToRoom.
 type Broadcaster interface {
 	SendToRoom(ctx context.Context, roomID world.RoomID, text string, excludePlayerIDs ...string)
+}
+
+// CombatGate is the read-only surface the dispatcher consults to skip
+// behavior dispatch for mobs currently in combat (spec combat §3 +
+// §4.1 implies the round loop owns combatants; the AI tick MUST NOT
+// race a wander against an active fight). combat.Manager satisfies
+// it via InCombat. Defined here rather than depended on as a concrete
+// *combat.Manager so ai keeps its narrow dep surface — the same
+// pattern Broadcaster uses for session.Manager.
+type CombatGate interface {
+	InCombat(id combat.CombatantID) bool
 }
 
 // Deps bundles every external dependency a behavior may need. A
@@ -55,6 +67,15 @@ type Deps struct {
 	// the destination (spec mobs-ai-spawning §4 mob-entered-room
 	// hook).
 	Evaluator *Evaluator
+
+	// Combat is the optional combat-state gate (M7.6 follow-up).
+	// When non-nil, the dispatcher skips behavior dispatch for any
+	// mob whose CombatantID is currently in combat — preventing the
+	// wander-during-fight cascade where an AI tick moves the mob
+	// between rounds and the auto-attack pre-flight then
+	// disengages on different-room. nil disables gating (tests that
+	// don't wire combat don't need to know about it).
+	Combat CombatGate
 }
 
 // Behavior is one named AI handler. It runs once per tick for every
