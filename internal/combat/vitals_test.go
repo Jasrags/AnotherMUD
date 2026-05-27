@@ -105,6 +105,47 @@ func TestSetMaxAboveCurrentPreservesCurrent(t *testing.T) {
 	}
 }
 
+func TestApplyDamageIfAliveOnLiving(t *testing.T) {
+	v := NewVitalsAt(10, 10)
+	remaining, wasAlive := v.ApplyDamageIfAlive(3)
+	if !wasAlive {
+		t.Errorf("wasAlive = false on living combatant, want true")
+	}
+	if remaining != 7 {
+		t.Errorf("remaining = %d, want 7", remaining)
+	}
+}
+
+func TestApplyDamageIfAliveDealsKillingBlow(t *testing.T) {
+	v := NewVitalsAt(5, 10)
+	remaining, wasAlive := v.ApplyDamageIfAlive(100)
+	if !wasAlive {
+		t.Errorf("wasAlive = false; the killing blow's victim was alive at swing time, want true")
+	}
+	if remaining != 0 {
+		t.Errorf("remaining = %d, want 0", remaining)
+	}
+}
+
+func TestApplyDamageIfAliveSkipsDead(t *testing.T) {
+	v := NewVitalsAt(0, 10)
+	remaining, wasAlive := v.ApplyDamageIfAlive(50)
+	if wasAlive {
+		t.Errorf("wasAlive = true on dead combatant, want false")
+	}
+	if remaining != 0 {
+		t.Errorf("remaining = %d, want 0 (unchanged)", remaining)
+	}
+}
+
+func TestApplyDamageIfAliveNegativeClampsToZero(t *testing.T) {
+	v := NewVitalsAt(10, 10)
+	remaining, wasAlive := v.ApplyDamageIfAlive(-5)
+	if !wasAlive || remaining != 10 {
+		t.Errorf("got (%d, %v), want (10, true)", remaining, wasAlive)
+	}
+}
+
 // TestVitalsConcurrency confirms the internal mutex serializes
 // concurrent mutation. With -race the harness fails fast if the
 // mutex were missing. We do not assert a specific final HP; the

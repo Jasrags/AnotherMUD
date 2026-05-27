@@ -105,18 +105,13 @@ func runAutoAttack(ctx context.Context, attackerID CombatantID, mgr *Manager, cf
 	tgtName := target.Name()
 
 	for i := 0; i < swings; i++ {
-		// §4.3 step 1 — live check. A previous swing this round (or
-		// concurrent damage from another source) may have already
-		// dropped the target.
-		//
-		// SERIALIZATION INVARIANT: this IsDead() and the ApplyDamage()
-		// below are two separate Vitals lock acquisitions. They are
-		// safe only because every phase runs serially on the tick
-		// goroutine (Heartbeat.runPhase). If a future phase (M9
-		// abilities, M7.5 DoT) moves to a separate goroutine, these
-		// two ops MUST be folded into an atomic ApplyDamageIfAlive
-		// method on Vitals — otherwise two attackers can race to
-		// kill the same target and emit double VitalDepleted.
+		// §4.3 step 1 — live check is folded into ApplyDamageIfAlive
+		// below (single lock acquisition). Early-exit here if the
+		// target is already dead so we skip the full hit/damage
+		// computation; the canonical "did the swing land" decision
+		// still happens atomically at the damage-apply site, so a
+		// concurrent killer cannot trick this branch into double-
+		// emitting VitalDepleted.
 		if target.Vitals().IsDead() {
 			return
 		}
@@ -164,7 +159,16 @@ func runAutoAttack(ctx context.Context, attackerID CombatantID, mgr *Manager, cf
 			raw = 1
 		}
 
-		remainingHP := target.Vitals().ApplyDamage(raw)
+		remainingHP, wasAlive := target.Vitals().ApplyDamageIfAlive(raw)
+		if !wasAlive {
+			// A concurrent damage source (DoT effect, ability, racing
+			// swing from a future parallel phase) killed the target
+			// between the early-exit live check above and this
+			// damage-apply. Treat as if our swing never landed: no
+			// Hit event, no VitalDepleted (the other source emits it),
+			// and we stop swinging on a corpse.
+			return
+		}
 		cfg.Sink.OnHit(ctx, Hit{
 			AttackerID:   attackerID,
 			TargetID:     targetID,

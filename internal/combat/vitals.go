@@ -123,6 +123,43 @@ func (v *Vitals) ApplyDamage(amount int) int {
 	return v.hp
 }
 
+// ApplyDamageIfAlive is the atomic alternative to the IsDead+ApplyDamage
+// pair. It takes the lock once, checks liveness, and applies damage in
+// the same critical section.
+//
+// Returns (remaining, wasAlive):
+//   - wasAlive=false means the combatant was already at 0 HP when the
+//     call entered the lock. No damage is applied; remaining is the
+//     untouched current HP (always 0 in practice, since IsDead is hp <= 0
+//     and ApplyDamage clamps at 0).
+//   - wasAlive=true means the combatant was living. amount was subtracted
+//     (clamped to >= 0 like ApplyDamage); remaining is the new current.
+//     remaining == 0 here is the "killing blow" signal callers use to
+//     emit VitalDepleted exactly once per death.
+//
+// Spec combat §4.3 step 1 + step 4 says the per-swing live-check and
+// damage application are conceptually one step; this method makes that
+// literal. If two attackers (or a swing + a DoT effect) race for the
+// killing blow, only the goroutine whose call enters the lock with hp>0
+// observes wasAlive=true and the matching remaining=0 — preventing the
+// double VitalDepleted emission the M7.4 review surfaced as a latent
+// M9/M7.5-effects hazard.
+func (v *Vitals) ApplyDamageIfAlive(amount int) (remaining int, wasAlive bool) {
+	if amount < 0 {
+		amount = 0
+	}
+	v.mu.Lock()
+	defer v.mu.Unlock()
+	if v.hp <= 0 {
+		return v.hp, false
+	}
+	v.hp -= amount
+	if v.hp < 0 {
+		v.hp = 0
+	}
+	return v.hp, true
+}
+
 // Heal adds amount to current HP, capped at max. Returns the new
 // current HP. Negative amounts are clamped to zero (callers that want
 // to deal damage call ApplyDamage). Healing past zero from a dead
