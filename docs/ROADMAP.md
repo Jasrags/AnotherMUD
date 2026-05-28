@@ -1499,15 +1499,34 @@ is now real. Sketch of remaining vertical slices:
     `quest_advance` field, and the grant path needs the M10.10 accept
     Player adapter. Recorded for M10.10/a later content slice.
 
-  - **M10.10 (planned) — Commands + journal rendering.** `quests`
-    (journal), `accept`, `abandon` verbs calling the service; banner +
-    journal rendered through the M10.4 panel / M10.1 color primitives;
-    quest markers wired into room/entity name decorators.
+  - **M10.10a (landed) — Commands + journal rendering.** connActor
+    satisfies `quest.Player` (EntityID/Level/Class/SetClass/SetRace);
+    `quest.Service` flows through `command.Env`/`Context`. `accept`/
+    `abandon`/`quests` (+`journal`) verbs: accept resolves a term to a
+    quest id via `Registry.ResolveID` (bare id / namespaced / name) and
+    surfaces all six outcomes (banner on success); abandon checks the
+    quest is active+abandonable for precise feedback; `quests` renders
+    the active-quest journal through the M10.4 panel + M10.1 color
+    (title/classification, current-stage description, `[x]`/`[ ]`
+    objective rows with progress).
 
-    - [ ] `accept`/`abandon`/`quests` map to service ops with the spec
-          outcomes surfaced to the player.
-    - [ ] Banner + journal render through panel/color; markers appear
-          on quest-relevant entities in room/look output.
+    - [x] `accept`/`abandon`/`quests` map to service ops with the spec
+          outcomes surfaced (handler tests).
+    - [x] Banner + journal render through panel/color. Verified live:
+          accept → journal → move (watcher advances visit → stage
+          advance) → abandon all work end-to-end.
+
+  - **M10.10b (planned) — Reward adapters + event bridge + markers in
+    look.** Real reward dispatcher adapters (XP→progression,
+    ability→proficiency, item→entities pickup; gold nop until M11) +
+    the `quest.EventSink`→event-bus bridge, both wired at the
+    composition root. Quest markers (`Service.HasMarker`) wired into
+    `RenderRoom`/look output. Plus the deferred `quest_grant` item
+    side-channel (now that the accept Player resolver exists).
+
+    - [ ] Completing a quest grants its XP/abilities/items; quest
+          lifecycle events publish on the bus.
+    - [ ] Quest-relevant entities show a marker in look output.
 
 - **M11 — Survive:** `economy-survival`, currency, shops, sustenance.
 - **M12 — Character creation wizard:** the full `character-creation`

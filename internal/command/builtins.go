@@ -79,6 +79,14 @@ func RegisterBuiltins(r *Registry) error {
 		// Help (M10.5 — ui-rendering-help §9/§10). `help <topic>` queries
 		// the help service and renders topic / disambiguation / no-match.
 		{"help", HelpHandler},
+		// Quests (M10.10 — quests.md §3/§4). `accept`/`abandon` act on a
+		// quest by id or name; `quests` (alias `journal`) renders the
+		// active-quest journal. No short aliases for accept/abandon —
+		// these are deliberate, not reflex, actions.
+		{"accept", AcceptHandler},
+		{"abandon", AbandonHandler},
+		{"quests", QuestsHandler},
+		{"journal", QuestsHandler},
 	}
 	for _, d := range []world.Direction{
 		world.DirNorth, world.DirSouth, world.DirEast, world.DirWest,

@@ -26,6 +26,7 @@ import (
 	"github.com/Jasrags/AnotherMUD/internal/eventbus"
 	"github.com/Jasrags/AnotherMUD/internal/help"
 	"github.com/Jasrags/AnotherMUD/internal/progression"
+	"github.com/Jasrags/AnotherMUD/internal/quest"
 	"github.com/Jasrags/AnotherMUD/internal/slot"
 	"github.com/Jasrags/AnotherMUD/internal/stats"
 	"github.com/Jasrags/AnotherMUD/internal/world"
@@ -209,6 +210,10 @@ type Env struct {
 	// Help is the M10.5 help-topic service. The help verb queries it.
 	// nil in tests that don't exercise help.
 	Help *help.Service
+
+	// Quests is the M10.7 quest service. The accept/abandon/quests verbs
+	// route through it. nil in tests that don't exercise quests.
+	Quests *quest.Service
 }
 
 // DispositionHook is the seam movement and login flows call when a
@@ -253,9 +258,11 @@ type Context struct {
 	ActionQueue *progression.ActionQueueManager
 	// Help is the M10.5 help-topic service. nil in tests.
 	Help *help.Service
-	Raw  string   // raw input line, trimmed
-	Verb string   // resolved verb (lowercase)
-	Args []string // tokens after the verb (space-split)
+	// Quests is the M10.7 quest service. nil in tests.
+	Quests *quest.Service
+	Raw    string   // raw input line, trimmed
+	Verb   string   // resolved verb (lowercase)
+	Args   []string // tokens after the verb (space-split)
 }
 
 // Publish is the nil-safe shortcut every handler should use to emit
@@ -382,6 +389,7 @@ func (r *Registry) Dispatch(ctx context.Context, env Env, actor Actor, raw strin
 		Proficiency: env.Proficiency,
 		ActionQueue: env.ActionQueue,
 		Help:        env.Help,
+		Quests:      env.Quests,
 		Raw:         trimmed,
 		Verb:        strings.ToLower(verb),
 		Args:        args,

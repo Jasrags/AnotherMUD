@@ -147,6 +147,19 @@ func (s *Service) DropState(playerID string) {
 	delete(s.players, playerID)
 }
 
+// Definition returns the quest definition for id (read-only — see
+// Registry.Lookup). Exposed so the quests command can render objective
+// descriptions from the definition alongside the player's progress.
+func (s *Service) Definition(id string) (*Definition, bool) {
+	return s.registry.Lookup(id)
+}
+
+// ResolveID maps a player-supplied term (bare id / namespaced id / name)
+// to a registered quest id. Used by the accept command.
+func (s *Service) ResolveID(term string) (string, bool) {
+	return s.registry.ResolveID(term)
+}
+
 // Snapshot returns a deep copy of a player's state, or nil if absent.
 // Used by the persistence layer and the quests command.
 func (s *Service) Snapshot(playerID string) *State {

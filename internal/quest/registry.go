@@ -108,6 +108,34 @@ func (r *Registry) All() []*Definition {
 	return out
 }
 
+// ResolveID maps a player-supplied term to a single registered quest id:
+// a case-insensitive match against the full namespaced id, the bare id
+// (the part after the last ':'), or the display name. Returns
+// ("", false) when nothing matches or the term is ambiguous (matches
+// more than one quest).
+func (r *Registry) ResolveID(term string) (string, bool) {
+	t := strings.ToLower(strings.TrimSpace(term))
+	if t == "" {
+		return "", false
+	}
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	var matches []string
+	for id, d := range r.byID {
+		bare := id
+		if i := strings.LastIndex(id, ":"); i >= 0 {
+			bare = id[i+1:]
+		}
+		if strings.EqualFold(id, t) || strings.EqualFold(bare, t) || strings.EqualFold(d.Name, term) {
+			matches = append(matches, id)
+		}
+	}
+	if len(matches) == 1 {
+		return matches[0], true
+	}
+	return "", false
+}
+
 // Len returns the number of registered definitions.
 func (r *Registry) Len() int {
 	r.mu.RLock()

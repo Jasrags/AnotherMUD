@@ -606,6 +606,7 @@ func pump(ctx context.Context, c conn.Connection, cfg Config, a *connActor, clk 
 			Proficiency: cfg.Proficiency,
 			ActionQueue: cfg.ActionQueue,
 			Help:        cfg.Help,
+			Quests:      cfg.Quests,
 		}
 		if err := cfg.Commands.Dispatch(ctx, env, a, line); err != nil {
 			if errors.Is(err, command.ErrQuit) {
@@ -1784,6 +1785,51 @@ func (a *connActor) ClassID() string {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	return a.classID
+}
+
+// --- quest.Player (M10.10) ---
+//
+// connActor satisfies quest.Player so the accept verb and the quest
+// reward dispatcher can read prereq inputs and apply class/race unlocks.
+// EntityID is the player id; the methods below cover level, class, and
+// the unlock setters.
+
+// Class returns the actor's class id (quest.Player). Alias of ClassID.
+func (a *connActor) Class() string { return a.ClassID() }
+
+// Level returns the actor's level on a progression track (quest.Player),
+// defaulting to 1 when the track is uninitialized (spec quests.md §3.2).
+func (a *connActor) Level(track string) int {
+	lvl := a.progress.Level(track)
+	if lvl < 1 {
+		lvl = 1
+	}
+	return lvl
+}
+
+// SetClass applies a quest class-unlock (quest.Player, §5.4). Unlike
+// the construction-time classID (normally immutable), a quest reward may
+// rewrite it; the new id is mirrored into the save and the dirty bit is
+// flipped so it persists.
+func (a *connActor) SetClass(classID string) {
+	a.mu.Lock()
+	a.classID = classID
+	if a.save != nil {
+		a.save.Class = classID
+	}
+	a.markDirtyLocked()
+	a.mu.Unlock()
+}
+
+// SetRace applies a quest race-unlock (quest.Player, §5.4).
+func (a *connActor) SetRace(raceID string) {
+	a.mu.Lock()
+	a.raceID = raceID
+	if a.save != nil {
+		a.save.Race = raceID
+	}
+	a.markDirtyLocked()
+	a.mu.Unlock()
 }
 
 // TrainsAvailable returns the actor's current training pool. Read
