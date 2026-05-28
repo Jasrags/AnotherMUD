@@ -385,12 +385,20 @@ func loadPackContent(ctx context.Context, p Discovered, dst *Registries) ([]pend
 			return nil, nil, err
 		}
 		for _, t := range topics {
-			if dst.Help.AddTopic(t, p.Manifest.LoadOrder) {
-				helpTopics++
-			} else {
+			// Validate here so the warn fires only on genuinely invalid
+			// topics. A false from AddTopic alone is ambiguous — it also
+			// means "a higher load-order topic already won", which is the
+			// normal, expected outcome when packs shadow each other and
+			// must not be logged as an error.
+			if strings.TrimSpace(t.ID) == "" || strings.TrimSpace(t.Title) == "" {
 				logger.Warn("skipping help topic missing id/title",
 					slog.String("event", "pack.help.skip"),
-					slog.String("file", hp))
+					slog.String("file", hp),
+					slog.String("topic_id", t.ID))
+				continue
+			}
+			if dst.Help.AddTopic(t, p.Manifest.LoadOrder) {
+				helpTopics++
 			}
 		}
 	}

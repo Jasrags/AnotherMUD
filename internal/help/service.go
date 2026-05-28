@@ -56,10 +56,12 @@ func NewService() *Service {
 // AddTopic registers t at the given load order. A later registration of
 // the same id/title wins when its order is >= the incumbent's (higher
 // wins; equal keeps the newest — §9.4). Topics missing id or title are
-// rejected (returns false) so the loader can warn.
+// rejected (returns false); the loader validates separately so it can
+// distinguish that from a precedence-lost false.
 //
-// NamespacedID is computed from PackName + ID when a pack name is set;
-// otherwise the bare id doubles as the namespaced id.
+// NamespacedID is computed from PackName + ID (or the bare id) and
+// written into t under the write lock. The service takes ownership of t:
+// callers must not mutate or re-register the same pointer afterward.
 func (s *Service) AddTopic(t *Topic, order int) bool {
 	if t == nil || strings.TrimSpace(t.ID) == "" || strings.TrimSpace(t.Title) == "" {
 		return false
@@ -68,8 +70,6 @@ func (s *Service) AddTopic(t *Topic, order int) bool {
 	if t.PackName != "" {
 		ns = t.PackName + ":" + t.ID
 	}
-	t.NamespacedID = ns
-	e := entry{topic: t, order: order}
 
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -77,6 +77,8 @@ func (s *Service) AddTopic(t *Topic, order int) bool {
 	if cur, ok := s.byNS[ns]; ok && order < cur.order {
 		return false // a higher-order registration already won
 	}
+	t.NamespacedID = ns
+	e := entry{topic: t, order: order}
 	s.byNS[ns] = e
 	putIfHigher(s.byID, strings.ToLower(t.ID), e)
 	putIfHigher(s.byID, strings.ToLower(ns), e)

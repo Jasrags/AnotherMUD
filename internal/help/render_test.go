@@ -46,6 +46,33 @@ func TestRenderDisambiguationColumn(t *testing.T) {
 	}
 }
 
+func TestRenderTopicSanitizesWrappedFields(t *testing.T) {
+	// Title and Brief are wrapped in a semantic tag, so a value that
+	// tries to close it early or inject a tag must have its angle
+	// brackets stripped. Syntax/Body/See-also are emitted outside tags,
+	// so <placeholder> notation and body color tags pass through.
+	mal := &Topic{
+		ID: "x", Title: "Foo</title><danger>evil", Brief: "b<subtle>x",
+		Syntax: []string{"look <target>"}, SeeAlso: []string{"a"},
+		Body: "<highlight>body tags allowed</highlight>",
+	}
+	out := RenderTopic(mal, 40)
+	if strings.Contains(out, "Foo</title>") || strings.Contains(out, "<danger>") {
+		t.Errorf("title not sanitized:\n%s", out)
+	}
+	if strings.Contains(out, "b<subtle>x") {
+		t.Errorf("brief not sanitized:\n%s", out)
+	}
+	// syntax placeholder preserved verbatim.
+	if !strings.Contains(out, "look <target>") {
+		t.Errorf("syntax placeholder should pass through:\n%s", out)
+	}
+	// body keeps its tags.
+	if !strings.Contains(out, "<highlight>body tags allowed</highlight>") {
+		t.Errorf("body tags should be preserved:\n%s", out)
+	}
+}
+
 func TestRenderNoMatchSanitizesTerm(t *testing.T) {
 	out := RenderNoMatch("<danger>evil</danger>")
 	if strings.ContainsAny(out, "<>") {
