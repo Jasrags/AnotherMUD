@@ -3,6 +3,7 @@ package render
 import (
 	"errors"
 	"strings"
+	"unicode/utf8"
 )
 
 // Panel rendering (ui-rendering-help §8). A Panel is a structured value
@@ -366,9 +367,17 @@ func truncateVisible(s string, max int, ellipsis bool) string {
 			i += end + 1
 			continue
 		}
-		b.WriteByte(s[i])
-		visible++
-		i++
+		// Advance a whole rune at a time so a multi-byte UTF-8 sequence
+		// is never split (which would emit invalid bytes). Counting the
+		// rune's byte width toward the limit keeps this consistent with
+		// VisibleLength, which is byte-based.
+		_, size := utf8.DecodeRuneInString(s[i:])
+		if visible+size > limit {
+			break
+		}
+		b.WriteString(s[i : i+size])
+		visible += size
+		i += size
 	}
 	if ellipsis && max >= 3 {
 		b.WriteString("...")

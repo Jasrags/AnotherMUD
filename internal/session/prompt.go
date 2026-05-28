@@ -25,6 +25,11 @@ func (m *Manager) FlushPrompts(ctx context.Context) {
 	m.mu.RUnlock()
 
 	for _, a := range snapshot {
+		// byConn holds only live connections — the link-dead path removes
+		// the actor from byConn (keeping it in byPlayerID for reconnect),
+		// so this is normally false. It remains as a safety net for the
+		// brief reconnect window where an actor is re-added to byConn
+		// before its phase flips back to playing.
 		if a.isLinkDead() {
 			continue
 		}
@@ -78,6 +83,10 @@ func (a *connActor) promptVitals() render.PromptVitals {
 		mana = a.Mana()
 		mv = a.Movement()
 	}
+	// Thin pools (M9.4b): no current-pool tracking yet, so current ==
+	// max for mana/movement. When economy-survival (M11) adds real
+	// current pools + regen, Mana/Movement become the CURRENT values and
+	// MaxMana/MaxMV must switch to the resource_max / movement_max stats.
 	return render.PromptVitals{
 		HP:      hp,
 		MaxHP:   maxHP,

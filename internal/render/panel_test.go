@@ -218,3 +218,30 @@ func TestPanelEmptyCells(t *testing.T) {
 		t.Errorf("empty cell row width = %d, want 10", len(lines[1]))
 	}
 }
+
+func TestTruncateVisibleUTF8Safe(t *testing.T) {
+	// "café" is 5 bytes (é = 0xC3 0xA9). VisibleLength is byte-based, so
+	// "café" measures 5. Truncating to 3 bytes must NOT split the é —
+	// the result must be valid UTF-8.
+	got := truncateVisible("café", 3, false)
+	if !utf8ValidString(got) {
+		t.Errorf("truncated %q is not valid UTF-8 (% x)", got, got)
+	}
+	// 3 bytes budget: "caf" fits (3 ascii), é would push to 5 → stop.
+	if got != "caf" {
+		t.Errorf("truncateVisible(café,3) = %q, want caf", got)
+	}
+	// 4 bytes budget: "caf" (3) then é needs 2 → 5 > 4 → stop at caf.
+	if got := truncateVisible("café", 4, false); !utf8ValidString(got) {
+		t.Errorf("4-byte truncate not valid UTF-8: %q", got)
+	}
+}
+
+func utf8ValidString(s string) bool {
+	for _, r := range s {
+		if r == '�' {
+			return false
+		}
+	}
+	return true
+}
