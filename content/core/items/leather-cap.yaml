@@ -6,3 +6,9 @@ keywords: [cap, leather]
 properties:
   slot: head
   weight: 1
+# Starter armor. Raises the wearer's AC so attackers (d20 + hit_mod >= AC)
+# miss more often — a real defensive contribution through the combat
+# stat block.
+modifiers:
+  - stat: ac
+    value: 5

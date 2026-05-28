@@ -1,13 +1,13 @@
 id: village-guard
 name: a village guard
 type: npc
-behavior: wander
+behavior: stationary
 disposition: 0
 tags: [humanoid, guard]
 keywords: [guard, villager]
 stats:
-  hp_max: 40
-  str: 12
+  hp_max: 22
+  str: 10
 # Disposition policy (spec mobs-ai-spawning §5.1).
 # Default reaction is friendly to everyone in the village.
 # Players tagged `outlaw` (legacy explicit tag) and players whose

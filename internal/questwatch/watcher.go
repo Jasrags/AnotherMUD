@@ -9,6 +9,7 @@ package questwatch
 import (
 	"context"
 
+	"github.com/Jasrags/AnotherMUD/internal/combat"
 	"github.com/Jasrags/AnotherMUD/internal/entities"
 	"github.com/Jasrags/AnotherMUD/internal/eventbus"
 	"github.com/Jasrags/AnotherMUD/internal/quest"
@@ -46,8 +47,12 @@ func (w *Watcher) onMobKilled(_ context.Context, e eventbus.Event) {
 	if !ok || ev.KillerID == "" || ev.TemplateID == "" {
 		return
 	}
+	// KillerID is a combat-prefixed id ("player:<id>"); quest state is
+	// keyed by the bare player entity id. EntityIDOf strips the prefix
+	// (idempotent on an already-bare id).
+	killer := combat.EntityIDOf(combat.CombatantID(ev.KillerID))
 	target := ev.TemplateID
-	w.svc.AdvanceMatching(ev.KillerID, "kill", func(o quest.Objective) bool {
+	w.svc.AdvanceMatching(killer, "kill", func(o quest.Objective) bool {
 		return o.Target == target
 	})
 }

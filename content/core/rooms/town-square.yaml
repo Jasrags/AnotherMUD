@@ -12,5 +12,10 @@ exits:
   south: village-gate
 items:
   - well
+  # Starter gear: a fresh character can `get sword` / `get cap`, then
+  # `equip sword` / `equip cap` to stand a chance against the gate-patrol
+  # guard. Geared wins, ungeared loses.
+  - short-sword
+  - leather-cap
 # Mobs now spawn via area-level spawn_rules (spec
 # mobs-ai-spawning §3.5). See areas/town.yaml.

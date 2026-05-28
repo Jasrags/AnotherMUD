@@ -7,6 +7,13 @@ properties:
   slot: wield
   damage: 4
   weight: 3
+# Starter weapon stats. Combat reads STR (damage via the §4.5 STR bonus)
+# and hit_mod (accuracy) from the wielder's stat block, so these
+# modifiers make the sword meaningfully better than fighting unarmed.
+# (Weapon damage DICE — the `damage` property above — are not yet wired
+# into combat; that lands with the equipment-stat combat work.)
 modifiers:
   - stat: str
-    value: 1
+    value: 4
+  - stat: hit_mod
+    value: 3

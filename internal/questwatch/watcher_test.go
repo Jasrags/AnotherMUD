@@ -58,9 +58,12 @@ func progressOf(t *testing.T, svc *quest.Service, objID string) int {
 
 func TestKillAdvances(t *testing.T) {
 	svc, _, w := setup(t)
-	w.onMobKilled(context.Background(), eventbus.MobKilled{KillerID: "p1", TemplateID: "core:rat"})
+	// KillerID arrives combat-prefixed ("player:<id>") from the real
+	// death pipeline; the watcher must strip it to the bare player id the
+	// quest state is keyed by.
+	w.onMobKilled(context.Background(), eventbus.MobKilled{KillerID: "player:p1", TemplateID: "core:rat"})
 	if progressOf(t, svc, "s-kill-0") != 1 {
-		t.Error("kill did not advance")
+		t.Error("kill did not advance (prefixed killer id not normalized?)")
 	}
 	// wrong template doesn't advance
 	w.onMobKilled(context.Background(), eventbus.MobKilled{KillerID: "p1", TemplateID: "core:wolf"})
