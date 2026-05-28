@@ -1297,17 +1297,37 @@ is now real. Sketch of remaining vertical slices:
           by load order. Pinned by pack + session seam tests; boot
           smoke shows `theme=1` in the pack-content log.
 
-  - **M10.3 (planned) — Prompt renderer.** `PromptRenderer` with the
-    fixed token table (`{hp}`,`{maxhp}`,`{mana}`,`{maxmana}`,`{mv}`,
-    `{maxmv}`,`{gold}`), a default template, per-player
-    `prompt_template`, unknown-token→empty. Drive it from the
-    session-lifecycle prompt-flush path (§3.5) for sessions whose
-    refresh flag is set; prompt sits on its own line after content.
+  - **M10.3 — Prompt renderer.** Two slices: the pure renderer, then
+    the session flush wiring (the prompt-refresh state machine lands
+    with it since session-lifecycle §2.5/§3.5 doesn't exist yet).
 
-    - [ ] Default template used when player has no `prompt_template`.
-    - [ ] All listed tokens substituted; unknown tokens → empty (not
-          literal `{x}`); case-insensitive.
-    - [ ] Prompt renders after content arrives, not on raw input echo.
+    - **M10.3a (landed) — PromptRenderer (pure).** `render.RenderPrompt`
+      + `PromptVitals` + `DefaultPromptTemplate`: a `{token}`
+      substituter over the fixed table (`{hp}`,`{maxhp}`,`{mana}`,
+      `{maxmana}`,`{mv}`,`{maxmv}`,`{gold}`), case-insensitive,
+      unknown-letters-token→empty (§7.2 typo tolerance). Only
+      `{letters}` shapes are treated as tokens; other braces (`{1}`,
+      lone `{`, unterminated) are left verbatim so brace color shorthand
+      survives to the M10.1 renderer. Default template uses `<hp>`/
+      `<mana>`/`<mv>` semantic tags (§7.1) and composes with the color
+      renderer downstream.
+
+      - [x] Default template used when the template arg is empty.
+      - [x] All listed tokens substituted; unknown tokens → empty
+            (not literal `{x}`); case-insensitive. Composition with the
+            color renderer pinned by test.
+
+    - **M10.3b (planned) — Prompt flush wiring.** Per-player
+      `prompt_template` (player save), the §2.5 prompt-refresh flags
+      on the session, prompt-aware content send (§3.5
+      SendContentToSession), and a `FlushPrompts` drained at end of
+      tick so the prompt renders after content arrives, not on raw
+      input echo. connActor exposes the vital/gold pool values the
+      tokens read.
+
+      - [ ] Prompt renders after content arrives, on its own line.
+      - [ ] Refresh flags suppress prompt/content collisions; flow /
+            prompt-mode / link-dead sessions are skipped.
 
   - **M10.4 (planned) — Panel renderer.** `Panel`/`Section`/`Row`
     (Empty/Title/Text/Cell/Footer)/`Cell` (Fixed/Fill width, align,
