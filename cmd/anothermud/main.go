@@ -36,6 +36,7 @@ import (
 	"github.com/Jasrags/AnotherMUD/internal/progression"
 	"github.com/Jasrags/AnotherMUD/internal/quest"
 	"github.com/Jasrags/AnotherMUD/internal/queststore"
+	"github.com/Jasrags/AnotherMUD/internal/questwatch"
 	"github.com/Jasrags/AnotherMUD/internal/render"
 	"github.com/Jasrags/AnotherMUD/internal/server"
 	"github.com/Jasrags/AnotherMUD/internal/session"
@@ -122,14 +123,20 @@ func run() error {
 	// M10.8: quest persistence + service. The store implements
 	// quest.Persister (writes players/<name>/quests.yaml) and loads on
 	// login; the service drives accept/advance/abandon. Event sink +
-	// reward dispatcher stay at their no-op defaults for now — quest
-	// state can't yet be mutated (no accept verb / watcher until
-	// M10.9/M10.10), so the real reward adapters + bus bridge land then.
+	// reward dispatcher stay at their no-op defaults for now — the real
+	// reward adapters + event-bus bridge land with the M10.10 verbs.
 	questStore := queststore.NewStore(cfg.SaveDir, registries.Quests)
 	questSvc := quest.NewService(quest.Config{
 		Registry: registries.Quests,
 		Persist:  questStore,
 	})
+	// M10.9: the watcher routes mob-killed / item-picked-up / item-given
+	// / player-moved events into objective progress. It's live now, but
+	// dormant until a player accepts a quest (the accept verb lands in
+	// M10.10). The §7.2/§7.3 quest_grant / quest_advance side channels
+	// are deferred (room has no property bag; the pickup event has no
+	// quest_advance field; grant needs the M10.10 accept Player adapter).
+	questwatch.New(questSvc, entityStore).Subscribe(bus)
 
 	accounts, err := account.NewService(cfg.SaveDir)
 	if err != nil {

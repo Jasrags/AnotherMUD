@@ -1474,18 +1474,30 @@ is now real. Sketch of remaining vertical slices:
           (queststore tests). 86.8% store coverage; boot+login smoke
           clean.
 
-  - **M10.9 (planned) — Watcher + markers.** Watcher subscribes to
-    mob-killed/item-picked-up/item-given/player-moved → advance
-    matching `kill`/`collect`/`deliver`/`visit`; `quest_grant` on
-    item template + destination room; `quest_advance` on pickup
-    payload. Marker queries (single + bulk) per-definition giver +
-    current-stage deliver/collect, excluding kill + secret.
+  - **M10.9 (landed) — Watcher + markers.** `internal/questwatch.Watcher`
+    subscribes to mob-killed/item-picked-up/item-given/player-moved and
+    routes each to `Service.AdvanceMatching` for the source player
+    (`kill`/`collect`/`deliver`/`visit`); collect/deliver resolve the
+    instance id → template id through the entity store, and missing
+    source ids / missing entities are tolerated (§7.4). Markers live in
+    the pure quest package as `Service.HasMarker`/`MarkedTemplates`:
+    per-definition giver (always) + current-stage deliver-npc /
+    collect-target, excluding kill, with secret quests contributing
+    none. Watcher wired at the composition root (dormant until a player
+    accepts a quest).
 
-    - [ ] Watcher maps exactly the four events; custom types advanced
-          only explicitly; side channels honored; missing payload/
-          entities don't raise.
-    - [ ] Markers per-definition giver + current-stage deliver/collect;
-          kill excluded; secret contributes none; bulk ≤1 per entity.
+    - [x] Watcher maps exactly the four events via AdvanceMatching;
+          non-canonical types only advance explicitly; missing payload/
+          entities don't raise (watcher tests + bus-routing test).
+    - [x] Markers: per-definition giver + current-stage deliver/collect;
+          kill excluded; secret contributes none; bulk ≤1 per entity
+          (marker tests).
+
+    Deferred (§7.2/§7.3 side channels): `quest_grant` on an item
+    template or destination room, and `quest_advance` on the pickup
+    payload — room has no property bag, the pickup event has no
+    `quest_advance` field, and the grant path needs the M10.10 accept
+    Player adapter. Recorded for M10.10/a later content slice.
 
   - **M10.10 (planned) — Commands + journal rendering.** `quests`
     (journal), `accept`, `abandon` verbs calling the service; banner +
