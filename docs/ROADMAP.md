@@ -1452,13 +1452,27 @@ is now real. Sketch of remaining vertical slices:
           cache miss skips reward but still emits completed.
     - [x] Abandon silently rejected for non-abandonable. 96.3% cov.
 
-  - **M10.8 (planned) — Quest persistence.** Per-player
-    `players/<name>/quests.yaml`; write on every mutating op; load on
-    `player login` event (side-effect-only on error); orphan filter
-    when registry non-empty, skipped when empty.
+  - **M10.8 (landed) — Quest persistence + wiring.** `internal/
+    queststore.Store` implements `quest.Persister` (Save writes
+    `players/<lowercase name>/quests.yaml` via `AtomicWrite`; path
+    resolved from an id→name cache populated by Load) and `Load`
+    (reads + orphan-filters + caches the name; side-effect-only on
+    missing/unreadable). A `questFile` DTO keeps the pure quest package
+    free of YAML. Orphan filter drops active+completed entries unknown
+    to the registry, skipped when the registry is empty (§6.4). The
+    composition root builds the store + `quest.Service` (nop events/
+    rewards for now) and the session login path calls `Load` →
+    `LoadState`; teardown calls `DropState` + `Forget`.
 
-    - [ ] Every mutating op writes; load triggered by login event;
-          orphan filter gated on non-empty registry.
+    Deviation (noted): load is a direct synchronous session-config call,
+    not a bus event (spec §6.3) — consistent with the Effects/
+    Proficiency wiring and because load must finish before the player
+    issues commands (spec §11 flags the event load as racy).
+
+    - [x] Every mutating op writes (service calls Persist.Save); load on
+          login → LoadState; orphan filter gated on non-empty registry
+          (queststore tests). 86.8% store coverage; boot+login smoke
+          clean.
 
   - **M10.9 (planned) — Watcher + markers.** Watcher subscribes to
     mob-killed/item-picked-up/item-given/player-moved → advance

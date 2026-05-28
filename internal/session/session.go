@@ -34,6 +34,8 @@ import (
 	"github.com/Jasrags/AnotherMUD/internal/login"
 	"github.com/Jasrags/AnotherMUD/internal/player"
 	"github.com/Jasrags/AnotherMUD/internal/progression"
+	"github.com/Jasrags/AnotherMUD/internal/quest"
+	"github.com/Jasrags/AnotherMUD/internal/queststore"
 	"github.com/Jasrags/AnotherMUD/internal/render"
 	"github.com/Jasrags/AnotherMUD/internal/slot"
 	"github.com/Jasrags/AnotherMUD/internal/stats"
@@ -192,6 +194,19 @@ type Config struct {
 	// so the help verb can query it. nil-safe: the verb reports
 	// "help not available" when nil.
 	Help *help.Service
+
+	// Quests is the M10.7 quest service. The login path loads the
+	// player's persisted state into it; teardown drops the in-memory
+	// state. nil-safe (tests that don't exercise quests).
+	Quests *quest.Service
+	// QuestStore is the M10.8 quest persistence store. Login calls Load
+	// (which also caches the name for Save's path); teardown calls
+	// Forget. Deviation from spec §6.3: load is a direct synchronous
+	// call here rather than a bus event, consistent with how Effects /
+	// Proficiency are wired and because the load must complete before
+	// the player issues commands (the spec's §11 flags the event-driven
+	// load as racy). nil-safe.
+	QuestStore *queststore.Store
 
 	// Manager tracks logged-in sessions for autosave + shutdown sweeps.
 	// Required.
@@ -453,6 +468,16 @@ func run(ctx context.Context, c conn.Connection, cfg Config) error {
 
 	cfg.Manager.Add(a)
 
+	// M10.8: load the player's persisted quest state. QuestStore.Load
+	// caches the id→name mapping (so a later Save resolves its path even
+	// when the player has no quests file yet) and returns the
+	// orphan-filtered state when a file exists. nil-safe on both refs.
+	if cfg.QuestStore != nil {
+		if state, ok := cfg.QuestStore.Load(ctx, a.PlayerID(), a.Name()); ok && cfg.Quests != nil {
+			cfg.Quests.LoadState(a.PlayerID(), state)
+		}
+	}
+
 	// Announce arrival to the start room (excluding self) so anyone
 	// already there sees the new player materialize.
 	cfg.Manager.SendToRoom(ctx, start.ID,
@@ -674,6 +699,16 @@ func fullTeardown(ctx context.Context, cfg Config, a *connActor) {
 	}
 	if cfg.PulseDelay != nil {
 		cfg.PulseDelay.Drop(a.PlayerID())
+	}
+
+	// M10.8: drop in-memory quest state + the persistence name cache so
+	// the working sets track connected players only. Save has already
+	// flushed every mutation to disk, so this is a pure memory release.
+	if cfg.Quests != nil {
+		cfg.Quests.DropState(a.PlayerID())
+	}
+	if cfg.QuestStore != nil {
+		cfg.QuestStore.Forget(a.PlayerID())
 	}
 }
 

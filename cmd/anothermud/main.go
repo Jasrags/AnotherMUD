@@ -34,6 +34,8 @@ import (
 	"github.com/Jasrags/AnotherMUD/internal/pack"
 	"github.com/Jasrags/AnotherMUD/internal/player"
 	"github.com/Jasrags/AnotherMUD/internal/progression"
+	"github.com/Jasrags/AnotherMUD/internal/quest"
+	"github.com/Jasrags/AnotherMUD/internal/queststore"
 	"github.com/Jasrags/AnotherMUD/internal/render"
 	"github.com/Jasrags/AnotherMUD/internal/server"
 	"github.com/Jasrags/AnotherMUD/internal/session"
@@ -116,6 +118,18 @@ func run() error {
 	// theme overrides; no recompile happens at runtime.
 	registries.Theme.Compile()
 	colorRenderer := render.NewColorRenderer(registries.Theme)
+
+	// M10.8: quest persistence + service. The store implements
+	// quest.Persister (writes players/<name>/quests.yaml) and loads on
+	// login; the service drives accept/advance/abandon. Event sink +
+	// reward dispatcher stay at their no-op defaults for now — quest
+	// state can't yet be mutated (no accept verb / watcher until
+	// M10.9/M10.10), so the real reward adapters + bus bridge land then.
+	questStore := queststore.NewStore(cfg.SaveDir, registries.Quests)
+	questSvc := quest.NewService(quest.Config{
+		Registry: registries.Quests,
+		Persist:  questStore,
+	})
 
 	accounts, err := account.NewService(cfg.SaveDir)
 	if err != nil {
@@ -1000,6 +1014,8 @@ func run() error {
 		ColorEnabled: cfg.ColorDefault,
 		Render:       colorRenderer,
 		Help:         registries.Help,
+		Quests:       questSvc,
+		QuestStore:   questStore,
 		Clock:        clk,
 		Flood:        session.DefaultFloodConfig(),
 		LinkDead:     linkDeadCfg,
