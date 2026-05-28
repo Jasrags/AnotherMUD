@@ -88,6 +88,34 @@ func TestRegisterPreservesExplicitObjectiveID(t *testing.T) {
 	}
 }
 
+func TestRegisterRejectsDuplicateStageID(t *testing.T) {
+	r := NewRegistry()
+	d := &Definition{ID: "q", Stages: []Stage{
+		{ID: "boss", Objectives: []Objective{{Type: "kill", Target: "a"}}},
+		{ID: "boss", Objectives: []Objective{{Type: "kill", Target: "b"}}},
+	}}
+	if err := r.Register(d); !errors.Is(err, ErrDuplicateStage) {
+		t.Errorf("duplicate stage id = %v, want ErrDuplicateStage", err)
+	}
+}
+
+func TestRegisterAllowsEmptyStageIDsAcrossStages(t *testing.T) {
+	// Stages with no explicit id are fine — they fall back to stageN,
+	// which is unique by index, so objective ids don't collide.
+	r := NewRegistry()
+	d := &Definition{ID: "q", Stages: []Stage{
+		{Objectives: []Objective{{Type: "kill", Target: "a"}}},
+		{Objectives: []Objective{{Type: "kill", Target: "b"}}},
+	}}
+	if err := r.Register(d); err != nil {
+		t.Fatalf("empty stage ids should be allowed: %v", err)
+	}
+	got, _ := r.Lookup("q")
+	if got.Stages[0].Objectives[0].ID == got.Stages[1].Objectives[0].ID {
+		t.Error("objective ids across stage0/stage1 should be distinct")
+	}
+}
+
 func TestRegisterReplaces(t *testing.T) {
 	r := NewRegistry()
 	_ = r.Register(validDef())

@@ -658,9 +658,13 @@ func decodeHelp(path, ns string) ([]*help.Topic, error) {
 // quests.md §2). Ids that reference world content — the giver, objective
 // targets/npcs, prereq quest ids, and reward item template ids — are
 // namespace-qualified against ns so they match the namespaced ids the
-// runtime stores (qualified `pack:id` forms pass through). Reward
-// ability/class/race ids and objective types/descriptions are not
-// namespaced. abandonable defaults to true when absent.
+// runtime stores (qualified `pack:id` forms pass through).
+//
+// Ability, class (reward + prereq), and race ids are left bare BY
+// DESIGN: those registries are engine-global / not namespaced (the
+// ability registry mirrors the slot registry; classes/races are
+// id-keyed the same way), so a quest references them by the same bare id
+// the registry uses. abandonable defaults to true when absent.
 func decodeQuest(path, ns, packDir string) (*quest.Definition, error) {
 	raw, err := os.ReadFile(path)
 	if err != nil {
@@ -766,7 +770,9 @@ func qualifyOptional(id, ns, path, field string) (string, error) {
 }
 
 // qualifyQuestIDs namespace-qualifies a list of quest ids (prereq
-// references). Empty entries are an authoring error.
+// references). Empty/absent lists return nil (not an empty slice) so the
+// Prerequisite block's optional fields stay nil when unset. Empty
+// entries within a non-empty list are an authoring error.
 func qualifyQuestIDs(ids []string, ns, path, field string) ([]string, error) {
 	if len(ids) == 0 {
 		return nil, nil
