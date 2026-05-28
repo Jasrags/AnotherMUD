@@ -1427,22 +1427,30 @@ is now real. Sketch of remaining vertical slices:
           abandonable defaults true; loader namespaces ids (loader
           tests + boot smoke `quests=1`).
 
-  - **M10.7 (planned) — QuestService accept/advance/abandon +
-    rewards.** Accept (six outcomes, prereq gates, abandonable-only
-    cap, banner suppression), advance-objective + advance-stage +
-    complete + advance-by-predicate, abandon. Reward dispatcher over
-    four replaceable interfaces (progression/currency/proficiency/
-    item) each with a no-op default; class/race unlock as setters.
-    `quest started/objective advanced/stage advanced/completed/
-    abandoned` bus events.
+  - **M10.7 (landed) — QuestService accept/advance/abandon + rewards.**
+    `quest.Service` (single-mutex state machine over an in-memory
+    per-player `State`): `Accept` (six `AcceptStatus` outcomes, §3.2
+    prereq gates, §3.3 abandonable-only cap, §3.4 banner honoring
+    secret/silent), `AdvanceObjective` → `advanceStage` → `complete`,
+    `AdvanceMatching` (snapshot-then-advance, §4.4), `Abandon`. Reward
+    `Dispatcher` over four replaceable interfaces (`ExperienceGranter`/
+    `GoldGranter`/`AbilityTeacher`/`ItemGranter`) each with a no-op
+    default + functional options; class/race unlock via `Player`
+    setters. `EventSink` (Nop default) emits Started/ObjectiveAdvanced/
+    StageAdvanced/Completed/Abandoned; `Persister` (Nop default) saves
+    on every mutation. `LoadState`/`DropState`/`Snapshot` expose the
+    repo for the M10.8 persistence + M10.10 commands. Player cache
+    populated on Accept (§4.3). Package-only this slice — composition-
+    root wiring lands with M10.8+.
 
-    - [ ] Six acceptance outcomes distinguishable; cap counts only
-          abandonable; banner honors secret/silent/hook.
-    - [ ] Advance no-ops on missing/complete; progress clamped; stage
+    - [x] Six acceptance outcomes distinguishable; cap counts only
+          abandonable + bypassed for non-abandonable; banner honors
+          secret/silent.
+    - [x] Advance no-ops on missing/complete; progress clamped; stage
           seeds at zero; completion only on final-stage all-complete.
-    - [ ] Reward steps independent + silently no-op on null service;
+    - [x] Reward steps independent + silently no-op on nop service;
           cache miss skips reward but still emits completed.
-    - [ ] Abandon silently rejected for non-abandonable.
+    - [x] Abandon silently rejected for non-abandonable. 96.3% cov.
 
   - **M10.8 (planned) — Quest persistence.** Per-player
     `players/<name>/quests.yaml`; write on every mutating op; load on
