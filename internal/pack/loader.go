@@ -554,7 +554,11 @@ func decodeTheme(path string) (map[string]render.ThemeEntry, error) {
 	}
 	out := make(map[string]render.ThemeEntry, len(f.Tags))
 	for tag, e := range f.Tags {
-		if strings.TrimSpace(tag) == "" {
+		// Trim before keying: the registry lower-cases but does not trim
+		// on lookup, so a whitespace-padded tag would register an entry
+		// the renderer could never resolve.
+		tag = strings.TrimSpace(tag)
+		if tag == "" {
 			continue
 		}
 		out[tag] = render.ThemeEntry{FG: e.FG, BG: e.BG, HTML: e.HTML}

@@ -435,6 +435,11 @@ func (l *lineIO) writeCommand(ctx context.Context, b []byte) error {
 		_, err := cw.WriteCommand(ctx, b)
 		return err
 	}
+	// Fallback: a transport without WriteCommand is, by definition, not
+	// the telnet Conn — it's a test fake or a non-telnet protocol
+	// (e.g. WebSocket) that ignores telnet IAC sequences entirely. So
+	// even if its Write escapes 0xFF, the corrupted command is harmless
+	// junk to that client rather than a functional masking failure.
 	_, err := l.c.Write(ctx, b)
 	return err
 }

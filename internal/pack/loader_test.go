@@ -1307,6 +1307,7 @@ tags:
   highlight: { fg: bright-yellow }
   danger: { fg: red, bg: black }
   note: { html: "#888888" }
+  "  spacey  ": { fg: green }
 `)
 	regs := NewRegistries()
 	if err := Load(context.Background(), root, nil, regs, nil, nil); err != nil {
@@ -1316,6 +1317,11 @@ tags:
 
 	if !regs.Theme.IsKnown("highlight") {
 		t.Error("highlight not registered")
+	}
+	// Whitespace-padded tag is trimmed at decode so it resolves by its
+	// bare name (regression guard for the decodeTheme trim fix).
+	if !regs.Theme.IsKnown("spacey") {
+		t.Error("padded tag 'spacey' should be trimmed and known")
 	}
 	pair, ok := regs.Theme.Resolve("danger")
 	if !ok || pair.Open != "\x1b[31m\x1b[40m" {
