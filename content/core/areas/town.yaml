@@ -11,3 +11,9 @@ spawn_rules:
     mob: village-guard
     count: 1
     tags: [persistent]
+  # M11.2: a market merchant runs a shop (sells healing draughts +
+  # leather caps). Persistent so it's always present to trade with.
+  - room: market
+    mob: merchant
+    count: 1
+    tags: [persistent]

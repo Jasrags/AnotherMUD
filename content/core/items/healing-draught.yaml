@@ -7,3 +7,5 @@ properties:
   stackable: true
   heals: 10
   weight: 1
+  # Base value the shop prices buy/sell against (economy-survival §3.3).
+  value: 15

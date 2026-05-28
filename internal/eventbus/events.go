@@ -173,6 +173,13 @@ const (
 	// requested (NOT the clamped change), so a debit of 100 against a
 	// balance of 30 reports amount=100, NewTotal=0.
 	EventCurrencyDebited = "currency.debited"
+	// ShopBuy is the cancellable pre-event fired before a shop buy
+	// charges the player (spec economy-survival §3.5 step 5 / §3.10).
+	// A listener may Cancel() to veto the sale.
+	EventShopBuy = "shop.buy"
+	// ShopSell is the cancellable pre-event fired before a shop sell
+	// transfers the item (spec §3.6 step 5 / §3.10).
+	EventShopSell = "shop.sell"
 )
 
 // ItemPickedUp fires after GetHandler successfully moves an item
@@ -850,3 +857,42 @@ type CurrencyDebited struct {
 
 // Name implements Event.
 func (CurrencyDebited) Name() string { return EventCurrencyDebited }
+
+// ShopBuy is the cancellable pre-event a shop fires before charging a
+// buyer (spec §3.5 step 5). ActorID is the buyer, NpcID the shop,
+// TemplateID the item being bought, Price the computed buy price. A
+// listener calls Cancel() to veto.
+type ShopBuy struct {
+	*CancelFlag
+	ActorID    string
+	NpcID      string
+	TemplateID string
+	Price      int64
+}
+
+// Name implements Event.
+func (ShopBuy) Name() string { return EventShopBuy }
+
+// NewShopBuy constructs a fresh cancellable buy pre-event.
+func NewShopBuy(actorID, npcID, templateID string, price int64) *ShopBuy {
+	return &ShopBuy{CancelFlag: &CancelFlag{}, ActorID: actorID, NpcID: npcID, TemplateID: templateID, Price: price}
+}
+
+// ShopSell is the cancellable pre-event a shop fires before taking an
+// item from a seller (spec §3.6 step 5). Fields mirror ShopBuy;
+// Price is the computed sell price.
+type ShopSell struct {
+	*CancelFlag
+	ActorID    string
+	NpcID      string
+	TemplateID string
+	Price      int64
+}
+
+// Name implements Event.
+func (ShopSell) Name() string { return EventShopSell }
+
+// NewShopSell constructs a fresh cancellable sell pre-event.
+func NewShopSell(actorID, npcID, templateID string, price int64) *ShopSell {
+	return &ShopSell{CancelFlag: &CancelFlag{}, ActorID: actorID, NpcID: npcID, TemplateID: templateID, Price: price}
+}

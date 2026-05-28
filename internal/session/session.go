@@ -216,6 +216,11 @@ type Config struct {
 	// auto-convert is a no-op (currency items just enter inventory).
 	Currency *economy.CurrencyService
 
+	// Shop is the M11.2 shop service (spec §3). Passed through
+	// command.Env so the buy/sell/value/list verbs can reach it.
+	// nil-safe: the verbs report "no shop here" when unwired.
+	Shop *economy.ShopService
+
 	// Manager tracks logged-in sessions for autosave + shutdown sweeps.
 	// Required.
 	Manager *Manager
@@ -620,6 +625,7 @@ func pump(ctx context.Context, c conn.Connection, cfg Config, a *connActor, clk 
 			Help:        cfg.Help,
 			Quests:      cfg.Quests,
 			Currency:    cfg.Currency,
+			Shop:        cfg.Shop,
 		}
 		if err := cfg.Commands.Dispatch(ctx, env, a, line); err != nil {
 			if errors.Is(err, command.ErrQuit) {

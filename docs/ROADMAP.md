@@ -1587,7 +1587,7 @@ is now real. Sketch of remaining vertical slices:
     runs buy/sell/value through the currency service with cancellable
     `shop.buy`/`shop.sell` pre-events. Sliced a/b:
 
-    - **M11.2a (planned) — Service core.** `internal/economy/shop.go`:
+    - **M11.2a (landed) — Service core.** `internal/economy/shop.go`:
       `EconomyConfig` + `ShopConfig`, pricing, stock/inventory
       resolution, listings, and `Buy`/`Sell`/`Value` over a `Shopper`
       interface (the connActor satisfies it) + `ShopSink` for the
@@ -1595,24 +1595,36 @@ is now real. Sketch of remaining vertical slices:
       refund on spawn failure (spec §9 open question, kept as-is); sell
       auto-unequips silently and rejects `no_sell` / zero-value items.
 
-      - [ ] Pricing floors at 1; per-shop multipliers override the
+      - [x] Pricing floors at 1; per-shop multipliers override the
             global default only when positive (unit tests).
-      - [ ] Stock resolves by partial name; a prefix matching two
+      - [x] Stock resolves by partial name; a prefix matching two
             sells entries is ambiguous → no sale. Inventory resolves
             first-match (unit tests).
-      - [ ] Buy fires the cancellable `shop.buy` before charging;
+      - [x] Buy fires the cancellable `shop.buy` before charging;
             `InsufficientGold` returns the price; sell auto-unequips and
             rejects `no_sell` (unit tests).
-      - [ ] Value returns the inventory (sell) price first, then the
+      - [x] Value returns the inventory (sell) price first, then the
             stock (buy) price (unit tests).
 
-    - **M11.2b (planned) — Verbs + content + wiring.** `buy`/`sell`/
+    - **M11.2b (landed) — Verbs + content + wiring.** `buy`/`sell`/
       `value`/`list` verbs in `command/shop.go` (find the first
       `shop`-tagged mob in the room, parse `ShopConfig` from its
       properties); `shop.buy`/`shop.sell` bus events + a main-side sink
       bridge; `ShopService` wired through `session.Config`/`Env`. A
-      shopkeeper mob + a few sellable item templates ship in
-      `content/core` for live testing.
+      `merchant` mob (sells healing-draught + leather-cap) spawns in
+      Market Row; healing-draught / leather-cap gained `value` props.
+
+      - [x] Verbs route through the service and render each outcome
+            (command tests: list / buy / insufficient / sell / value /
+            no-shop).
+      - [x] Live-verified the full loop: `get coins` (+25) → `buy
+            healing` (−18) → `sell healing` (+8 = value 15×0.5) → 15
+            gold, with correct list pricing (15×1.2=18, 12×1.2=14).
+
+      Known limitation (spec §3.8, kept): shop name resolution is a
+      prefix on the full item name, so `sell sword` won't match "a
+      short sword" (only `sell short` does) — unlike `get`'s keyword
+      match. Recorded in m11-2-deferred-fixes.
   - **M11.3 (planned) — Sustenance.** Persisted `sustenance` pool,
     tiers + `GetRegenMultiplier`, character-created seed at 100, the
     drain world-tick subscriber + hunger reminders.

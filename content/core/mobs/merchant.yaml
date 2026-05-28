@@ -1,0 +1,26 @@
+id: merchant
+name: a market merchant
+type: npc
+behavior: stationary
+tags: [humanoid, shop]
+keywords: [merchant, shopkeeper, trader]
+stats:
+  hp_max: 18
+  str: 9
+# Friendly to everyone — a shopkeeper, not a threat.
+disposition_rules:
+  default: friendly
+# Shop config (economy-survival §3.1). `sells` lists the item template
+# ids on offer; buy_markup / sell_discount override the global economy
+# defaults (1.2 / 0.5) — omitted here so the defaults apply.
+#
+# Ids are namespace-qualified: the shop block is an arbitrary property
+# map, so the pack loader does NOT rewrite unqualified ids against the
+# pack namespace the way it does for exits / spawn mob refs. The shop
+# service looks these up verbatim in the item registry, whose keys are
+# namespaced (tapestry-core:<id>).
+properties:
+  shop:
+    sells:
+      - tapestry-core:healing-draught
+      - tapestry-core:leather-cap

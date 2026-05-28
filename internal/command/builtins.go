@@ -92,6 +92,14 @@ func RegisterBuiltins(r *Registry) error {
 		// collision (get / go / group) and the verb is rare enough to
 		// type in full.
 		{"gold", GoldHandler},
+		// Shop (M11.2 — economy-survival §3). buy/sell/value act on the
+		// shop NPC in the room; `list` shows its stock. No short
+		// aliases — all four are unambiguous full words and trading is
+		// deliberate, not reflex.
+		{"buy", BuyHandler},
+		{"sell", SellHandler},
+		{"value", ValueHandler},
+		{"list", ListHandler},
 	}
 	for _, d := range []world.Direction{
 		world.DirNorth, world.DirSouth, world.DirEast, world.DirWest,

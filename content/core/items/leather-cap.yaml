@@ -6,6 +6,8 @@ keywords: [cap, leather]
 properties:
   slot: head
   weight: 1
+  # Base value the shop prices buy/sell against (economy-survival §3.3).
+  value: 12
 # Starter armor. Raises the wearer's AC so attackers (d20 + hit_mod >= AC)
 # miss more often — a real defensive contribution through the combat
 # stat block.

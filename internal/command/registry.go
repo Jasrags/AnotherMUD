@@ -221,6 +221,12 @@ type Env struct {
 	// get/give auto-convert hook credits through it. nil in tests
 	// that don't exercise currency; handlers MUST nil-guard.
 	Currency *economy.CurrencyService
+
+	// Shop is the M11.2 shop service (spec §3). The buy/sell/value/
+	// list verbs route through it after locating a shop-tagged NPC in
+	// the room. nil in tests that don't exercise shops; handlers MUST
+	// nil-guard.
+	Shop *economy.ShopService
 }
 
 // DispositionHook is the seam movement and login flows call when a
@@ -269,9 +275,11 @@ type Context struct {
 	Quests *quest.Service
 	// Currency is the M11.1 economy currency service. nil in tests.
 	Currency *economy.CurrencyService
-	Raw      string   // raw input line, trimmed
-	Verb     string   // resolved verb (lowercase)
-	Args     []string // tokens after the verb (space-split)
+	// Shop is the M11.2 shop service. nil in tests.
+	Shop *economy.ShopService
+	Raw  string   // raw input line, trimmed
+	Verb string   // resolved verb (lowercase)
+	Args []string // tokens after the verb (space-split)
 }
 
 // Publish is the nil-safe shortcut every handler should use to emit
@@ -400,6 +408,7 @@ func (r *Registry) Dispatch(ctx context.Context, env Env, actor Actor, raw strin
 		Help:        env.Help,
 		Quests:      env.Quests,
 		Currency:    env.Currency,
+		Shop:        env.Shop,
 		Raw:         trimmed,
 		Verb:        strings.ToLower(verb),
 		Args:        args,

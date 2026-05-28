@@ -358,6 +358,11 @@ func run() error {
 	// granter can route through it.
 	currencySvc := economy.NewCurrencyService(&currencySink{bus: bus})
 
+	// M11.2: shop service over the item registry + entity store +
+	// currency, with the global economy defaults and a bus-bridging
+	// cancellable sink for shop.buy/shop.sell.
+	shopSvc := economy.NewShopService(registries.Items, entityStore, currencySvc, economy.DefaultEconomyConfig(), &shopSink{bus: bus})
+
 	// M10.7-M10.10: quest service, now that the reward dependencies
 	// (manager, progression, proficiency, item templates, entity store,
 	// currency) all exist. Rewards grant XP / abilities / items / gold on
@@ -1047,6 +1052,7 @@ func run() error {
 		Quests:       questSvc,
 		QuestStore:   questStore,
 		Currency:     currencySvc,
+		Shop:         shopSvc,
 		Clock:        clk,
 		Flood:        session.DefaultFloodConfig(),
 		LinkDead:     linkDeadCfg,
@@ -2120,6 +2126,27 @@ func (s *currencySink) OnGoldDebited(ctx context.Context, entityID string, amoun
 		Reason:   reason,
 		NewTotal: newTotal,
 	})
+}
+
+// shopSink bridges economy.ShopSink to the bus's cancellable publish
+// (M11.2 — spec §3.10). Returns whether a listener vetoed; a nil bus
+// never cancels.
+type shopSink struct {
+	bus *eventbus.Bus
+}
+
+func (s *shopSink) OnShopBuy(ctx context.Context, actorID, npcID, templateID string, price int64) bool {
+	if s.bus == nil {
+		return false
+	}
+	return s.bus.PublishCancellable(ctx, eventbus.NewShopBuy(actorID, npcID, templateID, price))
+}
+
+func (s *shopSink) OnShopSell(ctx context.Context, actorID, npcID, templateID string, price int64) bool {
+	if s.bus == nil {
+		return false
+	}
+	return s.bus.PublishCancellable(ctx, eventbus.NewShopSell(actorID, npcID, templateID, price))
 }
 
 // notifierAdapter bridges progression.Notifier to session.Manager.
