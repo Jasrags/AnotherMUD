@@ -1342,19 +1342,29 @@ is now real. Sketch of remaining vertical slices:
       until new-character stat seeding populates resource/movement max;
       gold is 0 until economy-survival (M11).
 
-  - **M10.4 (planned) — Panel renderer.** `Panel`/`Section`/`Row`
-    (Empty/Title/Text/Cell/Footer)/`Cell` (Fixed/Fill width, align,
-    wrap)/`ProgressCell`, and a `PanelRenderer` that emits a framed
-    multi-line string with width math via `TagStripper.VisibleLength`,
-    Major/Minor/None separators (first+last always Major), and
-    title truncation+ellipsis.
+  - **M10.4 (landed) — Panel renderer.** `render.Panel`/`Section`/`Row`
+    (EmptyRow/TitleRow/TextRow/CellRow/FooterRow constructors) /`Cell`
+    (Fixed `Width` or `Fill`, `Align`, progress via `Progress`+
+    `Value`/`Max`). `Panel.Render() (string, error)` emits a `<frame>`-
+    bordered multi-line string (\r\n) with all width math through
+    `VisibleLength` so colored cells align with plain ones; Major/Minor/
+    None section separators (first suppressed, top+bottom always Major);
+    title left-truncation+ellipsis with `ErrPanelTitleOverflow` when the
+    right side alone overflows; TextRow word-wrap; Fill cells split
+    leftover width; ASCII progress bars (keep VisibleLength byte-correct).
 
-    - [ ] All output lines equal visible width; width math uses visible
-          length.
-    - [ ] Section separators honored; first suppressed; top+bottom
+    - [x] All output lines equal visible width; width math uses visible
+          length (colored-cell-aligns-with-plain test).
+    - [x] Section separators honored; first suppressed; top+bottom
           Major regardless of config.
-    - [ ] Title right side over inner width raises; combined over
-          triggers left truncation+ellipsis.
+    - [x] Title right side over inner width raises
+          (`ErrPanelTitleOverflow`); combined over triggers left
+          truncation+ellipsis.
+
+    Scope note: cells render single-line (truncate to width); per-cell
+    multi-line wrap (different-height cells in one CellRow) is deferred
+    — TextRow covers the multi-line body-text case. Spec §13's
+    "raise on title overflow" is followed (vs clamp+log).
 
   - **M10.5 (planned) — Help service + `help` command + renderer.**
     `HelpService` (by-id/by-title/by-category indices with load-order
