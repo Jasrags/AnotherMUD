@@ -1408,17 +1408,24 @@ is now real. Sketch of remaining vertical slices:
 
   Quest track (after UI):
 
-  - **M10.6 (planned) — Quest registry + definitions + loader.**
-    `internal/quest` with `QuestRegistry` (id-keyed, register/replace,
-    lookup, enumerate, pack-dir load via `content.quests` globs) and
-    objective-id normalization (stable generated ids from
-    stage+type+position when absent). Definition required fields
-    (id, ≥1 stage each with ≥1 objective, reward block) with sensible
-    defaults for prereq/repeatable/abandonable/secret.
+  - **M10.6 (landed) — Quest registry + definitions + loader.**
+    `internal/quest`: `Definition`/`Stage`/`Objective`/`Prerequisite`/
+    `Reward` model + `Registry` (id-keyed `Register` that validates
+    [non-empty id, ≥1 stage each with ≥1 objective] + normalizes
+    objectives [count→≥1, generated stable ids `stageKey-type-index`
+    when absent], `Lookup`/`All`/`Len`). Pack loader: `content.quests`
+    globs → `QuestFile`/`decodeQuest` → `Registries.Quests`;
+    `decodeQuest` namespace-qualifies giver / objective target+npc /
+    prereq quest ids / reward item ids (qualified `pack:id` passes
+    through), defaults `abandonable` to true, and sets `PackDir`.
+    `content/core/quests/patrol.yaml` ships a sample (gate-patrol).
 
-    - [ ] Definitions register by id; later replace earlier; objective
-          ids generated when absent + stable across reloads.
-    - [ ] Missing reward/prereq/flag values default without error.
+    - [x] Definitions register by id; later replace earlier; objective
+          ids generated when absent + stable across reloads (registry
+          tests).
+    - [x] Missing reward/prereq/flag values default without error;
+          abandonable defaults true; loader namespaces ids (loader
+          tests + boot smoke `quests=1`).
 
   - **M10.7 (planned) — QuestService accept/advance/abandon +
     rewards.** Accept (six outcomes, prereq gates, abandonable-only

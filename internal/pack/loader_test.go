@@ -1372,3 +1372,87 @@ tags:
 		t.Errorf("override = %q, want green (pack-b wins)", pair.Open)
 	}
 }
+
+func TestLoadQuestNamespacingAndDefaults(t *testing.T) {
+	root := t.TempDir()
+	pack := filepath.Join(root, "core")
+	writeFile(t, filepath.Join(pack, "pack.yaml"), `
+name: tapestry-core
+content:
+  areas: [areas/*.yaml]
+  rooms: [rooms/*.yaml]
+  quests: [quests/*.yaml]
+`)
+	writeFile(t, filepath.Join(pack, "areas/x.yaml"), `id: x
+name: X`)
+	writeFile(t, filepath.Join(pack, "rooms/r.yaml"), `id: r
+area: x
+name: R`)
+	writeFile(t, filepath.Join(pack, "quests/q.yaml"), `
+id: gate
+name: Gate
+giver: master
+stages:
+  - id: go
+    objectives:
+      - type: visit
+        target: gate-room
+      - type: kill
+        target: other-pack:boss
+reward:
+  items: [reward-item]
+`)
+	regs := NewRegistries()
+	if err := Load(context.Background(), root, nil, regs, nil, nil); err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	d, ok := regs.Quests.Lookup("tapestry-core:gate")
+	if !ok {
+		t.Fatal("quest not registered under namespaced id")
+	}
+	if d.Giver != "tapestry-core:master" {
+		t.Errorf("giver = %q, want tapestry-core:master", d.Giver)
+	}
+	if d.Stages[0].Objectives[0].Target != "tapestry-core:gate-room" {
+		t.Errorf("visit target = %q", d.Stages[0].Objectives[0].Target)
+	}
+	// qualified id crosses packs verbatim
+	if d.Stages[0].Objectives[1].Target != "other-pack:boss" {
+		t.Errorf("kill target = %q, want other-pack:boss", d.Stages[0].Objectives[1].Target)
+	}
+	if d.Reward.Items[0] != "tapestry-core:reward-item" {
+		t.Errorf("reward item = %q", d.Reward.Items[0])
+	}
+	// abandonable absent -> defaults true; objective ids normalized
+	if !d.Abandonable {
+		t.Error("abandonable should default to true")
+	}
+	if d.Stages[0].Objectives[0].ID != "go-visit-0" {
+		t.Errorf("objective id = %q, want go-visit-0", d.Stages[0].Objectives[0].ID)
+	}
+}
+
+func TestLoadQuestRejectsMissingStages(t *testing.T) {
+	root := t.TempDir()
+	pack := filepath.Join(root, "core")
+	writeFile(t, filepath.Join(pack, "pack.yaml"), `
+name: tapestry-core
+content:
+  areas: [areas/*.yaml]
+  rooms: [rooms/*.yaml]
+  quests: [quests/*.yaml]
+`)
+	writeFile(t, filepath.Join(pack, "areas/x.yaml"), `id: x
+name: X`)
+	writeFile(t, filepath.Join(pack, "rooms/r.yaml"), `id: r
+area: x
+name: R`)
+	writeFile(t, filepath.Join(pack, "quests/bad.yaml"), `
+id: empty
+name: Empty
+`)
+	err := Load(context.Background(), root, nil, NewRegistries(), nil, nil)
+	if err == nil {
+		t.Fatal("expected error for quest with no stages")
+	}
+}

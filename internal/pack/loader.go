@@ -17,6 +17,7 @@ import (
 	"github.com/Jasrags/AnotherMUD/internal/logging"
 	"github.com/Jasrags/AnotherMUD/internal/mob"
 	"github.com/Jasrags/AnotherMUD/internal/progression"
+	"github.com/Jasrags/AnotherMUD/internal/quest"
 	"github.com/Jasrags/AnotherMUD/internal/render"
 	"github.com/Jasrags/AnotherMUD/internal/slot"
 	"github.com/Jasrags/AnotherMUD/internal/stats"
@@ -87,7 +88,7 @@ type pendingMobPlacement struct {
 // Filter, when non-empty, restricts discovery (spec §2.4). Pass nil to
 // load every active pack under root.
 func Load(ctx context.Context, root string, filter []string, dst *Registries, spawner Spawner, mobSpawner MobSpawner) error {
-	if dst == nil || dst.World == nil || dst.Items == nil || dst.Slots == nil || dst.Mobs == nil || dst.Tracks == nil || dst.Races == nil || dst.Classes == nil || dst.Abilities == nil || dst.Theme == nil || dst.Help == nil {
+	if dst == nil || dst.World == nil || dst.Items == nil || dst.Slots == nil || dst.Mobs == nil || dst.Tracks == nil || dst.Races == nil || dst.Classes == nil || dst.Abilities == nil || dst.Theme == nil || dst.Help == nil || dst.Quests == nil {
 		return errors.New("pack.Load: dst has nil registry field; use pack.NewRegistries()")
 	}
 	logger := logging.From(ctx).With(slog.String("event", "pack.load"), slog.String("root", root))
@@ -227,6 +228,10 @@ func loadPackContent(ctx context.Context, p Discovered, dst *Registries) ([]pend
 		return nil, nil, err
 	}
 	helpPaths, err := resolveGlobs(p.Dir, p.Manifest.Content.Help)
+	if err != nil {
+		return nil, nil, err
+	}
+	questPaths, err := resolveGlobs(p.Dir, p.Manifest.Content.Quests)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -403,6 +408,20 @@ func loadPackContent(ctx context.Context, p Discovered, dst *Registries) ([]pend
 		}
 	}
 
+	// Quests: id-keyed registry (spec quests.md §2). Later registrations
+	// replace earlier ones. decodeQuest namespaces the giver, objective
+	// targets/npcs, prereq quest ids, and reward item ids against the
+	// pack namespace; Register validates + normalizes objective ids.
+	for _, qp := range questPaths {
+		d, err := decodeQuest(qp, ns, p.Dir)
+		if err != nil {
+			return nil, nil, err
+		}
+		if err := dst.Quests.Register(d); err != nil {
+			return nil, nil, fmt.Errorf("%w (in %s)", err, qp)
+		}
+	}
+
 	logger.Info("pack content loaded",
 		slog.String("event", "pack.content"),
 		slog.Int("areas", len(areaPaths)),
@@ -416,6 +435,7 @@ func loadPackContent(ctx context.Context, p Discovered, dst *Registries) ([]pend
 		slog.Int("abilities", len(abilityPaths)),
 		slog.Int("theme", len(themePaths)),
 		slog.Int("help", helpTopics),
+		slog.Int("quests", len(questPaths)),
 		slog.Int("placements", len(placements)),
 		slog.Int("mob_placements", len(mobPlacements)),
 	)
@@ -632,6 +652,126 @@ func decodeHelp(path, ns string) ([]*help.Topic, error) {
 		})
 	}
 	return out, nil
+}
+
+// decodeQuest reads a QuestFile and builds a quest.Definition (spec
+// quests.md §2). Ids that reference world content — the giver, objective
+// targets/npcs, prereq quest ids, and reward item template ids — are
+// namespace-qualified against ns so they match the namespaced ids the
+// runtime stores (qualified `pack:id` forms pass through). Reward
+// ability/class/race ids and objective types/descriptions are not
+// namespaced. abandonable defaults to true when absent.
+func decodeQuest(path, ns, packDir string) (*quest.Definition, error) {
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		return nil, fmt.Errorf("reading quest %s: %w", path, err)
+	}
+	var f QuestFile
+	if err := yaml.Unmarshal(raw, &f); err != nil {
+		return nil, fmt.Errorf("%w: %s: %v", ErrInvalidContent, path, err)
+	}
+
+	id, err := qualifyID(f.ID, ns)
+	if err != nil {
+		return nil, fmt.Errorf("%w: %s: id: %v", ErrInvalidContent, path, err)
+	}
+	giver, err := qualifyOptional(f.Giver, ns, path, "giver")
+	if err != nil {
+		return nil, err
+	}
+
+	stages := make([]quest.Stage, 0, len(f.Stages))
+	for si, sf := range f.Stages {
+		objs := make([]quest.Objective, 0, len(sf.Objectives))
+		for oi, of := range sf.Objectives {
+			target, err := qualifyOptional(of.Target, ns, path, fmt.Sprintf("stage[%d].objective[%d].target", si, oi))
+			if err != nil {
+				return nil, err
+			}
+			npc, err := qualifyOptional(of.NPC, ns, path, fmt.Sprintf("stage[%d].objective[%d].npc", si, oi))
+			if err != nil {
+				return nil, err
+			}
+			objs = append(objs, quest.Objective{
+				ID:          of.ID,
+				Type:        of.Type,
+				Target:      target,
+				NPC:         npc,
+				Count:       of.Count,
+				Description: of.Description,
+			})
+		}
+		stages = append(stages, quest.Stage{
+			ID:          sf.ID,
+			Description: sf.Description,
+			Hint:        sf.Hint,
+			Objectives:  objs,
+		})
+	}
+
+	prereqDone, err := qualifyQuestIDs(f.Prerequisite.QuestsCompleted, ns, path, "quests_completed")
+	if err != nil {
+		return nil, err
+	}
+	prereqNotDone, err := qualifyQuestIDs(f.Prerequisite.QuestsNotCompleted, ns, path, "quests_not_completed")
+	if err != nil {
+		return nil, err
+	}
+	rewardItems, err := qualifyIDList(f.Reward.Items, ns, path, "reward.items")
+	if err != nil {
+		return nil, err
+	}
+
+	abandonable := f.Abandonable == nil || *f.Abandonable
+
+	return &quest.Definition{
+		ID:             id,
+		Name:           f.Name,
+		Classification: f.Classification,
+		Giver:          giver,
+		Repeatable:     f.Repeatable,
+		Abandonable:    abandonable,
+		Secret:         f.Secret,
+		Prereq: quest.Prerequisite{
+			MinLevel:           f.Prerequisite.MinLevel,
+			Class:              f.Prerequisite.Class,
+			QuestsCompleted:    prereqDone,
+			QuestsNotCompleted: prereqNotDone,
+		},
+		Stages: stages,
+		Reward: quest.Reward{
+			XP:          f.Reward.XP,
+			Gold:        f.Reward.Gold,
+			Items:       rewardItems,
+			Abilities:   f.Reward.Abilities,
+			ClassUnlock: f.Reward.ClassUnlock,
+			RaceUnlock:  f.Reward.RaceUnlock,
+		},
+		Script:  f.Script,
+		PackDir: packDir,
+	}, nil
+}
+
+// qualifyOptional namespace-qualifies id when non-empty; an empty id
+// returns "" without error (the field is optional).
+func qualifyOptional(id, ns, path, field string) (string, error) {
+	if strings.TrimSpace(id) == "" {
+		return "", nil
+	}
+	q, err := qualifyID(id, ns)
+	if err != nil {
+		return "", fmt.Errorf("%w: %s: %s: %v", ErrInvalidContent, path, field, err)
+	}
+	return q, nil
+}
+
+// qualifyQuestIDs namespace-qualifies a list of quest ids (prereq
+// references). Empty entries are an authoring error.
+func qualifyQuestIDs(ids []string, ns, path, field string) ([]string, error) {
+	if len(ids) == 0 {
+		return nil, nil
+	}
+	return qualifyIDList(ids, ns, path, field)
 }
 
 // decodeTrack reads a TrackFile and builds a progression.TrackDef.

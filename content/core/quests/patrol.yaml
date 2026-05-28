@@ -1,0 +1,29 @@
+# tapestry-core starter quest (quests.md §2). Unqualified ids resolve
+# against the pack namespace (tapestry-core) at load.
+id: gate-patrol
+name: Gate Patrol
+classification: side
+giver: training-master
+abandonable: true
+prerequisite:
+  min_level: 1
+stages:
+  - id: report
+    description: The training master asks you to check the village gate.
+    hint: Head south to the village gate.
+    objectives:
+      - type: visit
+        target: village-gate
+        description: Visit the village gate.
+  - id: clear
+    description: Drive off the troublemaker lurking at the gate.
+    objectives:
+      - type: kill
+        target: village-guard
+        count: 1
+        description: Defeat the rogue guard.
+reward:
+  xp: 100
+  gold: 25
+  items:
+    - healing-draught

@@ -354,6 +354,61 @@ type HelpTopicFile struct {
 	Role     string   `yaml:"role,omitempty"`
 }
 
+// QuestFile is the YAML shape for a quest definition (spec quests.md
+// §2). `abandonable` is a pointer so an absent value defaults to true
+// (the spec default); repeatable/secret default false via the zero
+// value. Objective/giver/target ids are namespace-qualified by the
+// loader; ability/class/race reward ids and objective types are not.
+type QuestFile struct {
+	ID             string           `yaml:"id"`
+	Name           string           `yaml:"name,omitempty"`
+	Classification string           `yaml:"classification,omitempty"`
+	Giver          string           `yaml:"giver,omitempty"`
+	Repeatable     bool             `yaml:"repeatable,omitempty"`
+	Abandonable    *bool            `yaml:"abandonable,omitempty"`
+	Secret         bool             `yaml:"secret,omitempty"`
+	Prerequisite   PrerequisiteFile `yaml:"prerequisite,omitempty"`
+	Stages         []QuestStageFile `yaml:"stages,omitempty"`
+	Reward         RewardFile       `yaml:"reward,omitempty"`
+	Script         string           `yaml:"script,omitempty"`
+}
+
+// PrerequisiteFile is the YAML shape for a quest prerequisite block.
+type PrerequisiteFile struct {
+	MinLevel           int      `yaml:"min_level,omitempty"`
+	Class              string   `yaml:"class,omitempty"`
+	QuestsCompleted    []string `yaml:"quests_completed,omitempty"`
+	QuestsNotCompleted []string `yaml:"quests_not_completed,omitempty"`
+}
+
+// QuestStageFile is the YAML shape for a quest stage.
+type QuestStageFile struct {
+	ID          string               `yaml:"id,omitempty"`
+	Description string               `yaml:"description,omitempty"`
+	Hint        string               `yaml:"hint,omitempty"`
+	Objectives  []QuestObjectiveFile `yaml:"objectives,omitempty"`
+}
+
+// QuestObjectiveFile is the YAML shape for a quest objective.
+type QuestObjectiveFile struct {
+	ID          string `yaml:"id,omitempty"`
+	Type        string `yaml:"type,omitempty"`
+	Target      string `yaml:"target,omitempty"`
+	NPC         string `yaml:"npc,omitempty"`
+	Count       int    `yaml:"count,omitempty"`
+	Description string `yaml:"description,omitempty"`
+}
+
+// RewardFile is the YAML shape for a quest reward block.
+type RewardFile struct {
+	XP          int64    `yaml:"xp,omitempty"`
+	Gold        int      `yaml:"gold,omitempty"`
+	Items       []string `yaml:"items,omitempty"`
+	Abilities   []string `yaml:"abilities,omitempty"`
+	ClassUnlock string   `yaml:"class_unlock,omitempty"`
+	RaceUnlock  string   `yaml:"race_unlock,omitempty"`
+}
+
 // RaceFile is the YAML shape for a race definition (spec
 // progression.md §3.1). Stat caps are keyed by lowercase StatType
 // strings ("str", "hp_max", etc.); the loader maps them onto the

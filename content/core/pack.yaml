@@ -26,3 +26,5 @@ content:
     - theme/*.yaml
   help:
     - help/*.yaml
+  quests:
+    - quests/*.yaml

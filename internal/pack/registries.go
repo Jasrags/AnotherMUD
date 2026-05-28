@@ -5,6 +5,7 @@ import (
 	"github.com/Jasrags/AnotherMUD/internal/item"
 	"github.com/Jasrags/AnotherMUD/internal/mob"
 	"github.com/Jasrags/AnotherMUD/internal/progression"
+	"github.com/Jasrags/AnotherMUD/internal/quest"
 	"github.com/Jasrags/AnotherMUD/internal/render"
 	"github.com/Jasrags/AnotherMUD/internal/slot"
 	"github.com/Jasrags/AnotherMUD/internal/world"
@@ -32,6 +33,10 @@ type Registries struct {
 	// Help is the M10.5 help-topic service. Packs register topics from
 	// their help/*.yaml files; the help command queries it.
 	Help *help.Service
+	// Quests is the M10.6 quest-definition registry. Packs register
+	// quests from their quests/*.yaml files; the quest service (M10.7)
+	// reads it.
+	Quests *quest.Registry
 }
 
 // NewRegistries returns a Registries with every field initialized.
@@ -51,5 +56,6 @@ func NewRegistries() *Registries {
 		Abilities: progression.NewAbilityRegistry(),
 		Theme:     render.NewThemeRegistry(),
 		Help:      help.NewService(),
+		Quests:    quest.NewRegistry(),
 	}
 }

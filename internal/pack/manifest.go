@@ -78,6 +78,7 @@ type ContentPaths struct {
 	Abilities []string `yaml:"abilities,omitempty"`
 	Theme     []string `yaml:"theme,omitempty"`
 	Help      []string `yaml:"help,omitempty"`
+	Quests    []string `yaml:"quests,omitempty"`
 }
 
 // IsActive reports whether the manifest is active (default true).
