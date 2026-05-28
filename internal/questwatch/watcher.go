@@ -17,19 +17,30 @@ import (
 
 // Watcher subscribes quest tracking to the world event bus.
 //
-// Deferred (not wired this slice): the §7.2/§7.3 side channels —
-// `quest_grant` on an item template or destination room, and
-// `quest_advance` on the pickup payload. Room has no property bag yet,
-// the pickup event carries no quest_advance field, and the grant path
-// needs the Accept Player resolver that lands with the M10.10 verbs.
+// Still deferred: `quest_grant` on a destination ROOM (world.Room has no
+// property bag yet) and `quest_advance` on the pickup payload (the event
+// carries no such field — a scripting-era channel). The item-template
+// `quest_grant` side channel (§7.2) is wired when an Accept resolver is
+// provided via SetItemGrant.
 type Watcher struct {
 	svc   *quest.Service
 	store *entities.Store // resolves entity ids → template ids for collect/deliver
+	// grant resolves a player id to a quest.Player for the §7.2
+	// quest_grant item side channel. nil disables it.
+	grant func(playerID string) (quest.Player, bool)
 }
 
 // New builds a watcher over the quest service and entity store.
 func New(svc *quest.Service, store *entities.Store) *Watcher {
 	return &Watcher{svc: svc, store: store}
+}
+
+// SetItemGrant enables the §7.2 quest_grant item side channel: picking up
+// an item whose template carries a `quest_grant` property auto-accepts
+// that quest for the picker (resolver maps the picker's id to a
+// quest.Player). Silent — acceptance failures are ignored per spec.
+func (w *Watcher) SetItemGrant(resolver func(playerID string) (quest.Player, bool)) {
+	w.grant = resolver
 }
 
 // Subscribe registers the watcher's handlers on the bus (§7.1).
@@ -58,21 +69,47 @@ func (w *Watcher) onMobKilled(_ context.Context, e eventbus.Event) {
 }
 
 // onItemPickedUp advances `collect` objectives whose target is the
-// picked-up item's template id, for the picker (§7.1). The pickup event
-// carries only the instance id, so the template is resolved through the
-// entity store; a missing instance is tolerated (§7.4).
+// picked-up item's template id, for the picker (§7.1), and honors the
+// `quest_grant` item side channel (§7.2). The pickup event carries only
+// the instance id, so the instance is resolved through the entity store;
+// a missing instance is tolerated (§7.4).
 func (w *Watcher) onItemPickedUp(_ context.Context, e eventbus.Event) {
 	ev, ok := e.(eventbus.ItemPickedUp)
 	if !ok || ev.HolderID == "" {
 		return
 	}
-	target := w.itemTemplate(ev.ItemID)
-	if target == "" {
+	inst := w.itemInstance(ev.ItemID)
+	if inst == nil {
 		return
 	}
-	w.svc.AdvanceMatching(string(ev.HolderID), "collect", func(o quest.Objective) bool {
-		return o.Target == target
-	})
+	holder := string(ev.HolderID)
+	if target := string(inst.TemplateID()); target != "" {
+		w.svc.AdvanceMatching(holder, "collect", func(o quest.Objective) bool {
+			return o.Target == target
+		})
+	}
+	w.maybeGrant(inst, holder)
+}
+
+// maybeGrant honors the §7.2 quest_grant property on the picked-up item:
+// it accepts the named quest for the picker (silent; failures ignored).
+// The property value may be a bare or namespaced quest id — ResolveID
+// maps it to the registered id.
+func (w *Watcher) maybeGrant(inst *entities.ItemInstance, holder string) {
+	if w.grant == nil {
+		return
+	}
+	raw, ok := inst.Properties()["quest_grant"].(string)
+	if !ok || raw == "" {
+		return
+	}
+	questID, ok := w.svc.ResolveID(raw)
+	if !ok {
+		return
+	}
+	if player, ok := w.grant(holder); ok {
+		w.svc.Accept(player, questID, true)
+	}
 }
 
 // onItemGiven advances `deliver` objectives whose item target matches the
@@ -105,20 +142,18 @@ func (w *Watcher) onPlayerMoved(_ context.Context, e eventbus.Event) {
 	})
 }
 
-// itemTemplate resolves an item instance id to its template id, or ""
+// itemInstance resolves an item instance id to its *ItemInstance, or nil
 // when the instance is gone or is not an item.
-func (w *Watcher) itemTemplate(id entities.EntityID) string {
+func (w *Watcher) itemInstance(id entities.EntityID) *entities.ItemInstance {
 	if w.store == nil {
-		return ""
+		return nil
 	}
 	ent, ok := w.store.GetByID(id)
 	if !ok {
-		return ""
+		return nil
 	}
-	if inst, ok := ent.(*entities.ItemInstance); ok {
-		return string(inst.TemplateID())
-	}
-	return ""
+	inst, _ := ent.(*entities.ItemInstance)
+	return inst
 }
 
 // mobTemplate resolves a mob instance id to its template id, or "" when

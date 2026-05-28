@@ -323,6 +323,8 @@ func run() error {
 		bus:      bus,
 		locator:  combatLocator,
 		entities: entityStore,
+		sessions: mgr,
+		nameOf:   combatantName,
 	}
 	combatTags := combatTagSource{
 		entities: entityStore,
@@ -361,7 +363,18 @@ func run() error {
 		Rewards:  session.NewQuestRewards(mgr, progressionMgr, proficiencyMgr, registries.Items, entityStore),
 		Events:   questLogSink{logger: logging.From(ctx)},
 	})
-	questwatch.New(questSvc, entityStore).Subscribe(bus)
+	questWatcher := questwatch.New(questSvc, entityStore)
+	// §7.2 quest_grant item side channel: resolve a picker's id to a
+	// quest.Player (connActor) so picking up a quest_grant item
+	// auto-accepts its quest.
+	questWatcher.SetItemGrant(func(playerID string) (quest.Player, bool) {
+		a, ok := mgr.GetByPlayerID(playerID)
+		if !ok {
+			return nil, false
+		}
+		return a, true
+	})
+	questWatcher.Subscribe(bus)
 
 	// M9.2: effect manager — per-entity active effects (spec
 	// abilities-and-effects §5). Resolver walks the session
@@ -1431,6 +1444,35 @@ type productionCombatSink struct {
 	locator  combatLocator
 	entities *entities.Store
 	mgr      *combat.Manager // back-pointer set after construction
+	// M10 combat rendering: sessions sends combat messages to player
+	// participants; nameOf resolves a combatant id to a display name.
+	sessions *session.Manager
+	nameOf   func(bareID string) string
+}
+
+// tell sends msg to the combatant if it is an online player (M10 combat
+// rendering). Mobs and offline players are skipped.
+func (s *productionCombatSink) tell(ctx context.Context, id combat.CombatantID, msg string) {
+	if s.sessions == nil || !strings.HasPrefix(string(id), combat.PlayerPrefix) {
+		return
+	}
+	if a, ok := s.sessions.GetByPlayerID(combat.EntityIDOf(id)); ok {
+		_ = a.Write(ctx, msg)
+	}
+}
+
+// announce sends msg to everyone in room except the listed combatants
+// (the second-person participants, who get their own tell). Mob ids in
+// exclude are harmless — they never match a session.
+func (s *productionCombatSink) announce(ctx context.Context, room world.RoomID, msg string, exclude ...combat.CombatantID) {
+	if s.sessions == nil {
+		return
+	}
+	ex := make([]string, 0, len(exclude))
+	for _, c := range exclude {
+		ex = append(ex, combat.EntityIDOf(c))
+	}
+	s.sessions.SendToRoom(ctx, room, msg, ex...)
 }
 
 func (s *productionCombatSink) OnEngagement(_ context.Context, e combat.Engagement) {
@@ -1446,7 +1488,7 @@ func (s *productionCombatSink) OnCombatEnded(_ context.Context, e combat.CombatE
 		slog.String("room", string(e.RoomID)))
 }
 
-func (s *productionCombatSink) OnHit(_ context.Context, e combat.Hit) {
+func (s *productionCombatSink) OnHit(ctx context.Context, e combat.Hit) {
 	s.logger.Info("combat.hit",
 		slog.String("attacker", string(e.AttackerID)),
 		slog.String("target", string(e.TargetID)),
@@ -1455,15 +1497,37 @@ func (s *productionCombatSink) OnHit(_ context.Context, e combat.Hit) {
 		slog.String("damage_type", e.DamageType),
 		slog.Bool("critical", e.IsCritical),
 		slog.String("room", string(e.RoomID)))
+
+	// M10 rendering: second-person to each player participant, third to
+	// the room. damage numbers are now visible (closes m9-6 #2).
+	an := s.nameOf(string(e.AttackerID))
+	tn := s.nameOf(string(e.TargetID))
+	crit := ""
+	if e.IsCritical {
+		crit = " <danger>A critical hit!</danger>"
+	}
+	s.tell(ctx, e.AttackerID, fmt.Sprintf("<good>You hit %s for %d damage.</good>%s", tn, e.Damage, crit))
+	s.tell(ctx, e.TargetID, fmt.Sprintf("<danger>%s hits you for %d damage.</danger>", an, e.Damage))
+	s.announce(ctx, e.RoomID, fmt.Sprintf("%s hits %s.", an, tn), e.AttackerID, e.TargetID)
 }
 
-func (s *productionCombatSink) OnMiss(_ context.Context, e combat.Miss) {
+func (s *productionCombatSink) OnMiss(ctx context.Context, e combat.Miss) {
 	s.logger.Info("combat.miss",
 		slog.String("attacker", string(e.AttackerID)),
 		slog.String("target", string(e.TargetID)),
 		slog.String("weapon", e.WeaponName),
 		slog.Bool("fumble", e.IsFumble),
 		slog.String("room", string(e.RoomID)))
+
+	an := s.nameOf(string(e.AttackerID))
+	tn := s.nameOf(string(e.TargetID))
+	second, third := "miss", "misses" // attacker-perspective, observer-perspective
+	if e.IsFumble {
+		second, third = "fumble and miss", "fumbles and misses"
+	}
+	s.tell(ctx, e.AttackerID, fmt.Sprintf("You %s %s.", second, tn))
+	s.tell(ctx, e.TargetID, fmt.Sprintf("%s %s you.", an, third))
+	s.announce(ctx, e.RoomID, fmt.Sprintf("%s %s %s.", an, third, tn), e.AttackerID, e.TargetID)
 }
 
 func (s *productionCombatSink) OnEvade(_ context.Context, e combat.Evade) {
@@ -1575,6 +1639,16 @@ func (s *productionCombatSink) OnVitalDepleted(ctx context.Context, e combat.Vit
 			})
 		}
 	}
+
+	// M10 rendering: announce the kill. The slayer (if a player) gets a
+	// second-person line; the room gets the death. A player victim's own
+	// "you wake, dazed" message comes from the respawn flow, and a mob
+	// killer never matches a session, so neither is double-messaged.
+	if killerID != "" {
+		s.tell(ctx, killerID, fmt.Sprintf("<good>You have slain %s!</good>", e.VictimName))
+	}
+	s.announce(ctx, e.RoomID, fmt.Sprintf("<danger>%s is dead!</danger>", e.VictimName), killerID)
+
 	if s.mgr != nil {
 		s.mgr.DisengageAll(ctx, e.VictimID, e.RoomID)
 	}

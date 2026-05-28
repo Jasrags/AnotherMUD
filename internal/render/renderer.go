@@ -115,11 +115,10 @@ const (
 // closing tags (</name>), literal color (<color …>), and semantic tags
 // (<name>). Unknown opening tags consume 0 so they pass through (§2.5).
 func (r *ColorRenderer) scanAngle(s string, i int, ansi bool, b *strings.Builder) (int, openState) {
-	end := strings.IndexByte(s[i:], '>')
+	end := tagEnd(s, i)
 	if end < 0 {
 		return 0, openNone // unmatched '<'
 	}
-	end += i
 	inner := s[i+1 : end] // between '<' and '>'
 	total := end - i + 1  // includes '<' and '>'
 
@@ -201,6 +200,27 @@ func (r *ColorRenderer) scanBrace(s string, i int, ansi bool, b *strings.Builder
 		return end - i + 1, openOpen
 	}
 	return end - i + 1, openNone
+}
+
+// tagEnd returns the index of the '>' that closes the tag opening at
+// s[i] (which is '<'), skipping any '>' inside a single- or double-quoted
+// attribute value so e.g. <color fg=">"...> is not truncated at the
+// quoted '>'. Returns -1 when there is no closing '>'.
+func tagEnd(s string, i int) int {
+	var quote byte
+	for j := i + 1; j < len(s); j++ {
+		switch c := s[j]; {
+		case quote != 0:
+			if c == quote {
+				quote = 0
+			}
+		case c == '"' || c == '\'':
+			quote = c
+		case c == '>':
+			return j
+		}
+	}
+	return -1
 }
 
 // attrValue extracts a quoted attribute value from a tag's inner text,

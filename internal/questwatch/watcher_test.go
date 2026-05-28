@@ -152,3 +152,54 @@ func TestSubscribeRoutesThroughBus(t *testing.T) {
 	}
 	_ = store
 }
+
+func TestQuestGrantOnPickup(t *testing.T) {
+	reg := quest.NewRegistry()
+	if err := reg.Register(&quest.Definition{
+		ID: "core:scroll-quest", Name: "Scroll Quest", Abandonable: true,
+		Stages: []quest.Stage{{ID: "s", Objectives: []quest.Objective{{Type: "visit", Target: "core:x", Count: 1}}}},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	svc := quest.NewService(quest.Config{Registry: reg})
+	store := entities.NewStore()
+	w := New(svc, store)
+	w.SetItemGrant(func(id string) (quest.Player, bool) {
+		if id != "p1" {
+			return nil, false
+		}
+		return player{id: id}, true
+	})
+
+	// quest_grant uses a bare id; ResolveID maps it to the namespaced id.
+	scroll, _ := store.Spawn(&item.Template{
+		ID: "core:scroll", Name: "a scroll", Type: "item",
+		Properties: map[string]any{"quest_grant": "scroll-quest"},
+	})
+	w.onItemPickedUp(context.Background(), eventbus.ItemPickedUp{HolderID: "p1", ItemID: scroll.ID()})
+
+	snap := svc.Snapshot("p1")
+	if snap == nil || len(snap.Active) != 1 || snap.Active[0].QuestID != "core:scroll-quest" {
+		t.Errorf("quest_grant did not accept the quest: %+v", snap)
+	}
+}
+
+func TestQuestGrantNoResolverNoop(t *testing.T) {
+	svc, store, w := setup(t) // no SetItemGrant called
+	scroll, _ := store.Spawn(&item.Template{
+		ID: "core:scroll", Name: "a scroll", Type: "item",
+		Properties: map[string]any{"quest_grant": "q"},
+	})
+	// picking up a plain item (no collect objective for it) with no
+	// resolver must not panic or grant anything.
+	before := svc.Snapshot("p1")
+	n := 0
+	if before != nil {
+		n = len(before.Active)
+	}
+	w.onItemPickedUp(context.Background(), eventbus.ItemPickedUp{HolderID: "p1", ItemID: scroll.ID()})
+	after := svc.Snapshot("p1")
+	if after != nil && len(after.Active) != n {
+		t.Error("quest_grant fired without a resolver")
+	}
+}

@@ -147,3 +147,18 @@ func stripSGR(s string) string {
 	}
 	return string(out)
 }
+
+func TestRenderQuotedAngleNotTruncated(t *testing.T) {
+	r := NewColorRenderer(newTestTheme())
+	// A '>' inside a quoted attribute value must not truncate the tag.
+	// fg=">" is not a real color, so the open produces no SGR; the
+	// <color> close emits a (harmless) reset. The key property: "x"
+	// renders with no garbled trailing text (the m10-1 #2 fix).
+	if got := r.RenderAnsi(`<color fg=">">x</color>`); got != "x"+Reset {
+		t.Errorf("quoted '>' truncated the tag: %q", got)
+	}
+	// bg after a quoted '>' is still parsed (boundary not lost early).
+	if got := r.RenderAnsi(`<color fg="red" bg=">">y</color>`); got != "\x1b[31my"+Reset {
+		t.Errorf("attr after quoted '>' lost: %q", got)
+	}
+}
