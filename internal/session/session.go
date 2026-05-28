@@ -28,6 +28,7 @@ import (
 	"github.com/Jasrags/AnotherMUD/internal/conn"
 	"github.com/Jasrags/AnotherMUD/internal/entities"
 	"github.com/Jasrags/AnotherMUD/internal/eventbus"
+	"github.com/Jasrags/AnotherMUD/internal/help"
 	"github.com/Jasrags/AnotherMUD/internal/item"
 	"github.com/Jasrags/AnotherMUD/internal/logging"
 	"github.com/Jasrags/AnotherMUD/internal/login"
@@ -186,6 +187,11 @@ type Config struct {
 	// read-only across all sessions. nil-safe: when nil, Write falls
 	// back to the minimal M2 ansi.Render so tests need not wire it.
 	Render *render.ColorRenderer
+
+	// Help is the M10.5 help-topic service, passed through command.Env
+	// so the help verb can query it. nil-safe: the verb reports
+	// "help not available" when nil.
+	Help *help.Service
 
 	// Manager tracks logged-in sessions for autosave + shutdown sweeps.
 	// Required.
@@ -570,6 +576,7 @@ func pump(ctx context.Context, c conn.Connection, cfg Config, a *connActor, clk 
 			Abilities:   cfg.Abilities,
 			Proficiency: cfg.Proficiency,
 			ActionQueue: cfg.ActionQueue,
+			Help:        cfg.Help,
 		}
 		if err := cfg.Commands.Dispatch(ctx, env, a, line); err != nil {
 			if errors.Is(err, command.ErrQuit) {

@@ -24,3 +24,5 @@ content:
     - abilities/*.yaml
   theme:
     - theme/*.yaml
+  help:
+    - help/*.yaml

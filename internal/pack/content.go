@@ -322,6 +322,38 @@ type ThemeTagEntry struct {
 	HTML string `yaml:"html,omitempty"`
 }
 
+// HelpFile is the YAML shape for a pack help file (spec
+// ui-rendering-help §9.1). A file carries one or more topics under
+// `topics`. Each topic's `role` is optional (player/builder/admin;
+// absent = visible to all).
+//
+//	topics:
+//	  - id: look
+//	    title: Look
+//	    category: commands
+//	    brief: Examine your surroundings.
+//	    body: |
+//	      Shows the current room and its exits.
+//	    syntax: ["look", "look <target>"]
+//	    keywords: [examine, l]
+//	    see_also: [examine, scan]
+type HelpFile struct {
+	Topics []HelpTopicFile `yaml:"topics"`
+}
+
+// HelpTopicFile is one topic in a HelpFile.
+type HelpTopicFile struct {
+	ID       string   `yaml:"id"`
+	Title    string   `yaml:"title"`
+	Category string   `yaml:"category,omitempty"`
+	Brief    string   `yaml:"brief,omitempty"`
+	Body     string   `yaml:"body,omitempty"`
+	Syntax   []string `yaml:"syntax,omitempty"`
+	Keywords []string `yaml:"keywords,omitempty"`
+	SeeAlso  []string `yaml:"see_also,omitempty"`
+	Role     string   `yaml:"role,omitempty"`
+}
+
 // RaceFile is the YAML shape for a race definition (spec
 // progression.md §3.1). Stat caps are keyed by lowercase StatType
 // strings ("str", "hp_max", etc.); the loader maps them onto the

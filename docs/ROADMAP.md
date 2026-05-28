@@ -1388,18 +1388,23 @@ is now real. Sketch of remaining vertical slices:
             disambiguation (id column), no-match (term sanitized). 92%
             coverage.
 
-    - **M10.5b (planned) — Pack loading + `help` command + wiring.**
+    - **M10.5b (landed) — Pack loading + `help` command + wiring.**
       Per-pack `<pack>/help/*.yaml` loading via `content.help` globs
-      (missing-field topics skipped with a warn); `Registries.Help`;
-      the `help` command (Query → renderer by status); `content/core`
-      starter topics. The §9.2 command-help generator is N/A here (the
-      command registry has no typed arg definitions yet) and is
-      deferred.
+      → `HelpFile`/`decodeHelp` → `Registries.Help.AddTopic` at the
+      pack's load order (PackName = pack namespace); topics missing
+      id/title are skipped with a `pack.help.skip` warn. The `help`
+      command (wired through `command.Env`/`Context` + `session.Config`)
+      runs `Query` and renders topic / disambiguation / no-match by
+      status, plus a no-arg category index. `content/core/help/
+      commands.yaml` ships help/look/movement/combat topics. The §9.2
+      command-help generator is N/A (the registry has no typed arg
+      definitions) and is deferred.
 
-      - [ ] `help <topic>` renders topic; ambiguous term renders
-            disambiguation; miss renders no-match.
-      - [ ] Missing-field topics skipped with a load warn; help loads
-            at boot (smoke).
+      - [x] `help <topic>` renders topic; ambiguous term renders
+            disambiguation; miss renders no-match (handler tests +
+            live smoke).
+      - [x] Missing-field topics skipped with a load warn; help loads
+            at boot (smoke shows `help=4`).
 
   Quest track (after UI):
 

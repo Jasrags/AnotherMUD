@@ -12,6 +12,7 @@ import (
 	"strings"
 
 	"github.com/Jasrags/AnotherMUD/internal/combat"
+	"github.com/Jasrags/AnotherMUD/internal/help"
 	"github.com/Jasrags/AnotherMUD/internal/item"
 	"github.com/Jasrags/AnotherMUD/internal/logging"
 	"github.com/Jasrags/AnotherMUD/internal/mob"
@@ -86,7 +87,7 @@ type pendingMobPlacement struct {
 // Filter, when non-empty, restricts discovery (spec §2.4). Pass nil to
 // load every active pack under root.
 func Load(ctx context.Context, root string, filter []string, dst *Registries, spawner Spawner, mobSpawner MobSpawner) error {
-	if dst == nil || dst.World == nil || dst.Items == nil || dst.Slots == nil || dst.Mobs == nil || dst.Tracks == nil || dst.Races == nil || dst.Classes == nil || dst.Abilities == nil || dst.Theme == nil {
+	if dst == nil || dst.World == nil || dst.Items == nil || dst.Slots == nil || dst.Mobs == nil || dst.Tracks == nil || dst.Races == nil || dst.Classes == nil || dst.Abilities == nil || dst.Theme == nil || dst.Help == nil {
 		return errors.New("pack.Load: dst has nil registry field; use pack.NewRegistries()")
 	}
 	logger := logging.From(ctx).With(slog.String("event", "pack.load"), slog.String("root", root))
@@ -222,6 +223,10 @@ func loadPackContent(ctx context.Context, p Discovered, dst *Registries) ([]pend
 		return nil, nil, err
 	}
 	themePaths, err := resolveGlobs(p.Dir, p.Manifest.Content.Theme)
+	if err != nil {
+		return nil, nil, err
+	}
+	helpPaths, err := resolveGlobs(p.Dir, p.Manifest.Content.Help)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -368,6 +373,28 @@ func loadPackContent(ctx context.Context, p Discovered, dst *Registries) ([]pend
 		}
 	}
 
+	// Help: per-pack topics (spec ui-rendering-help §9.2). Topics are
+	// registered with the pack's load order so a higher-order pack can
+	// override an upstream topic. PackName is the pack namespace so the
+	// namespaced id matches the room/item convention. Topics missing id
+	// or title are skipped with a warn rather than failing the boot.
+	helpTopics := 0
+	for _, hp := range helpPaths {
+		topics, err := decodeHelp(hp, ns)
+		if err != nil {
+			return nil, nil, err
+		}
+		for _, t := range topics {
+			if dst.Help.AddTopic(t, p.Manifest.LoadOrder) {
+				helpTopics++
+			} else {
+				logger.Warn("skipping help topic missing id/title",
+					slog.String("event", "pack.help.skip"),
+					slog.String("file", hp))
+			}
+		}
+	}
+
 	logger.Info("pack content loaded",
 		slog.String("event", "pack.content"),
 		slog.Int("areas", len(areaPaths)),
@@ -380,6 +407,7 @@ func loadPackContent(ctx context.Context, p Discovered, dst *Registries) ([]pend
 		slog.Int("classes", len(classPaths)),
 		slog.Int("abilities", len(abilityPaths)),
 		slog.Int("theme", len(themePaths)),
+		slog.Int("help", helpTopics),
 		slog.Int("placements", len(placements)),
 		slog.Int("mob_placements", len(mobPlacements)),
 	)
@@ -562,6 +590,38 @@ func decodeTheme(path string) (map[string]render.ThemeEntry, error) {
 			continue
 		}
 		out[tag] = render.ThemeEntry{FG: e.FG, BG: e.BG, HTML: e.HTML}
+	}
+	return out, nil
+}
+
+// decodeHelp reads a HelpFile and builds help.Topic values (spec
+// ui-rendering-help §9.1), setting PackName to the pack namespace. Field
+// validity (required id/title) is enforced by the help service's
+// AddTopic, which the loader calls so it can warn-and-skip; decodeHelp
+// only translates the YAML shape.
+func decodeHelp(path, ns string) ([]*help.Topic, error) {
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		return nil, fmt.Errorf("reading help %s: %w", path, err)
+	}
+	var f HelpFile
+	if err := yaml.Unmarshal(raw, &f); err != nil {
+		return nil, fmt.Errorf("%w: %s: %v", ErrInvalidContent, path, err)
+	}
+	out := make([]*help.Topic, 0, len(f.Topics))
+	for _, tf := range f.Topics {
+		out = append(out, &help.Topic{
+			ID:       tf.ID,
+			Title:    tf.Title,
+			Category: tf.Category,
+			Brief:    tf.Brief,
+			Body:     tf.Body,
+			Syntax:   tf.Syntax,
+			Keywords: tf.Keywords,
+			SeeAlso:  tf.SeeAlso,
+			Role:     help.ParseRole(tf.Role),
+			PackName: ns,
+		})
 	}
 	return out, nil
 }

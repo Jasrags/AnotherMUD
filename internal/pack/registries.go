@@ -1,6 +1,7 @@
 package pack
 
 import (
+	"github.com/Jasrags/AnotherMUD/internal/help"
 	"github.com/Jasrags/AnotherMUD/internal/item"
 	"github.com/Jasrags/AnotherMUD/internal/mob"
 	"github.com/Jasrags/AnotherMUD/internal/progression"
@@ -28,6 +29,9 @@ type Registries struct {
 	// tag → {fg,bg,html} entries; the composition root compiles it
 	// once after Load and binds a render.ColorRenderer to it.
 	Theme *render.ThemeRegistry
+	// Help is the M10.5 help-topic service. Packs register topics from
+	// their help/*.yaml files; the help command queries it.
+	Help *help.Service
 }
 
 // NewRegistries returns a Registries with every field initialized.
@@ -46,5 +50,6 @@ func NewRegistries() *Registries {
 		Classes:   progression.NewClassRegistry(),
 		Abilities: progression.NewAbilityRegistry(),
 		Theme:     render.NewThemeRegistry(),
+		Help:      help.NewService(),
 	}
 }

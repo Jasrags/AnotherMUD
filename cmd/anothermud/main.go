@@ -999,6 +999,7 @@ func run() error {
 		StartID:      cfg.StartRoom,
 		ColorEnabled: cfg.ColorDefault,
 		Render:       colorRenderer,
+		Help:         registries.Help,
 		Clock:        clk,
 		Flood:        session.DefaultFloodConfig(),
 		LinkDead:     linkDeadCfg,

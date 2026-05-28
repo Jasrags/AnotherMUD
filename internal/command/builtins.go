@@ -76,6 +76,9 @@ func RegisterBuiltins(r *Registry) error {
 		{"abilities", AbilitiesHandler},
 		{"abi", AbilitiesHandler},
 		{"cast", CastHandler},
+		// Help (M10.5 — ui-rendering-help §9/§10). `help <topic>` queries
+		// the help service and renders topic / disambiguation / no-match.
+		{"help", HelpHandler},
 	}
 	for _, d := range []world.Direction{
 		world.DirNorth, world.DirSouth, world.DirEast, world.DirWest,

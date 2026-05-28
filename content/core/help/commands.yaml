@@ -1,0 +1,60 @@
+# tapestry-core starter help topics (ui-rendering-help §9.1).
+topics:
+  - id: help
+    title: Help
+    category: general
+    brief: How to find help on commands and topics.
+    body: |
+      Type 'help' on its own to list the help categories, or 'help
+      <topic>' to read a specific topic. You can search by command name,
+      title, or a keyword - if several topics match you'll get a list to
+      choose from.
+    syntax:
+      - "help"
+      - "help <topic>"
+    keywords: [help, topics, commands]
+    see_also: [look, movement]
+
+  - id: look
+    title: Look
+    category: commands
+    brief: Examine your surroundings.
+    body: |
+      Look shows the name and description of the room you are in, the
+      items and characters present, and the visible exits.
+    syntax:
+      - "look"
+    keywords: [look, l, examine, room]
+    see_also: [movement]
+
+  - id: movement
+    title: Movement
+    category: commands
+    brief: Move between rooms.
+    body: |
+      Travel by typing a direction: north, south, east, west, up, or
+      down. Each direction also has a one-letter shortcut (n, s, e, w,
+      u, d). Exits available from your current room are listed when you
+      look.
+    syntax:
+      - "north"
+      - "n"
+    keywords: [move, movement, walk, go, north, south, east, west, directions]
+    see_also: [look]
+
+  - id: combat
+    title: Combat
+    category: commands
+    brief: Fighting, fleeing, and staying alive.
+    body: |
+      Attack a target with 'kill <target>'. Once fighting, you trade
+      blows automatically each round. Use 'flee' to try to escape, and
+      'wimpy <percent>' to flee automatically when your health drops
+      below a threshold. 'consider <target>' sizes up an opponent before
+      you commit.
+    syntax:
+      - "kill <target>"
+      - "flee"
+      - "wimpy <percent>"
+      - "consider <target>"
+    keywords: [combat, fight, kill, attack, flee, wimpy, consider]
