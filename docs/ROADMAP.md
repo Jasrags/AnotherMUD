@@ -1230,9 +1230,169 @@ is now real. Sketch of remaining vertical slices:
       - Mob effect-stat install still blocked by the stats↔entities
         cycle (m8-1 #1): mobs are damageable + killable by abilities,
         but a debuff effect applied to a mob remains inert.
-- **M10 — Quests & UI polish:** `quests`, `ui-rendering-help` themes,
-  panels, 256/truecolor, and telnet capability negotiation. (Basic
-  ANSI-16 color already landed in M2.)
+- **M10 — Quests & UI polish:** `ui-rendering-help` + `quests`. Basic
+  ANSI-16 brace color already landed in M2 (`internal/ansi`); M10
+  builds the full rendering surface (themes, semantic/literal tags,
+  prompt, panel, help) and then the quest system on top. Two tracks;
+  UI ships first because quest banners/journals render through the UI
+  primitives and because it pays the deferred "combat damage/heal
+  numbers are log-only / invisible" debt (m9-6).
+
+  **Deviation note (decorator → send seam):** the spec models color as
+  a `ColorRenderingConnection` IConnection decorator (§5). This repo's
+  `conn.Connection` is byte-only (ID/Read/Write/Close) with no
+  `SupportsAnsi`/`SendLine`; color is already applied at the
+  `connActor.Write` seam via `ansi.Render(msg, ColorEnabled())`. M10
+  keeps rendering at that seam (swapping the minimal renderer for the
+  full one) rather than introducing a transport decorator — the seam
+  already satisfies "features emit tags without per-call capability
+  checks." `ColorEnabled()` plays the role of `SupportsAnsi`.
+
+  UI track:
+
+  - **M10.1 (planned) — Theme registry + full color renderer.** Grow
+    `internal/ansi` (or a sibling `internal/render`) into the spec's
+    pipeline: a `ThemeRegistry` mapping semantic tag → `{fg,bg,html}`
+    with a `Compile()` step producing `AnsiPair(open,close)` lookups;
+    a `ColorRenderer` with `RenderAnsi`/`RenderPlain` recognizing
+    semantic tags (`<highlight>`), literal color tags
+    (`<color fg=".." bg="..">`), and brace shorthand (`{yellow}` /
+    existing `{r}` codes), each with identical structural scanning and
+    a per-mode input→output cache; static `ResolveFgColor`/
+    `ResolveBgColor`; and a `TagStripper` (`StripTags`,
+    `VisibleLength`). Theme entries load from pack content
+    (`theme.yaml`).
+
+    - [ ] Semantic, literal, and brace forms all recognized;
+          case-insensitive tag/color names.
+    - [ ] `Compile()` idempotent; produces an open/close pair only
+          when fg or bg resolves; `IsKnown` true for declared-but-
+          colorless; `Resolve` null for same.
+    - [ ] Unknown opening tags pass through as literals; known closing
+          tags consumed, unknown closing tags pass through.
+    - [ ] Plain and ANSI modes recognize the same constructs; cache
+          never re-parses identical input.
+    - [ ] `TagStripper.VisibleLength(s) == len(StripTags(s))` for every
+          input; a `<` with no `>` consumes the rest.
+
+  - **M10.2 (planned) — Wire the renderer into the send seam.**
+    Replace the `connActor.Write` call to the minimal `ansi.Render`
+    with the M10.1 renderer driven by `ColorEnabled()` (Ansi vs
+    Plain chosen at send time). Theme registry is constructed at boot
+    in `cmd/anothermud` after packs load and compiled once.
+
+    - [ ] `connActor.Write` renders through the themed renderer;
+          color-disabled sessions get `RenderPlain`.
+    - [ ] Existing M2 brace codes still render (back-compat); new
+          semantic tags resolve against the compiled theme.
+    - [ ] Theme compiled exactly once at boot; renderer is shared
+          read-only across sessions.
+
+  - **M10.3 (planned) — Prompt renderer.** `PromptRenderer` with the
+    fixed token table (`{hp}`,`{maxhp}`,`{mana}`,`{maxmana}`,`{mv}`,
+    `{maxmv}`,`{gold}`), a default template, per-player
+    `prompt_template`, unknown-token→empty. Drive it from the
+    session-lifecycle prompt-flush path (§3.5) for sessions whose
+    refresh flag is set; prompt sits on its own line after content.
+
+    - [ ] Default template used when player has no `prompt_template`.
+    - [ ] All listed tokens substituted; unknown tokens → empty (not
+          literal `{x}`); case-insensitive.
+    - [ ] Prompt renders after content arrives, not on raw input echo.
+
+  - **M10.4 (planned) — Panel renderer.** `Panel`/`Section`/`Row`
+    (Empty/Title/Text/Cell/Footer)/`Cell` (Fixed/Fill width, align,
+    wrap)/`ProgressCell`, and a `PanelRenderer` that emits a framed
+    multi-line string with width math via `TagStripper.VisibleLength`,
+    Major/Minor/None separators (first+last always Major), and
+    title truncation+ellipsis.
+
+    - [ ] All output lines equal visible width; width math uses visible
+          length.
+    - [ ] Section separators honored; first suppressed; top+bottom
+          Major regardless of config.
+    - [ ] Title right side over inner width raises; combined over
+          triggers left truncation+ellipsis.
+
+  - **M10.5 (planned) — Help service + `help` command + renderer.**
+    `HelpService` (by-id/by-title/by-category indices with load-order
+    precedence, role gate placeholder player<builder<admin, query
+    exact-id→exact-title→fuzzy, list, categories); per-pack
+    `<pack>/help/*.yaml` loading + the command-help generator at
+    load-order 0; `help` command; `HelpRenderer` (topic /
+    disambiguation / no-match) emitting tags for the M10.1 renderer.
+
+    - [ ] Topics index by id, namespaced id, title, category; dup
+          registrations resolve by load-order (higher wins).
+    - [ ] Query precedence exact-id → exact-title → fuzzy; role gate
+          on query/list/categories; missing-field topics skipped with
+          a warn at load.
+    - [ ] Pack help (positive order) overrides order-0 command help.
+    - [ ] `help <topic>` renders topic; ambiguous term renders
+          disambiguation; miss renders no-match.
+
+  Quest track (after UI):
+
+  - **M10.6 (planned) — Quest registry + definitions + loader.**
+    `internal/quest` with `QuestRegistry` (id-keyed, register/replace,
+    lookup, enumerate, pack-dir load via `content.quests` globs) and
+    objective-id normalization (stable generated ids from
+    stage+type+position when absent). Definition required fields
+    (id, ≥1 stage each with ≥1 objective, reward block) with sensible
+    defaults for prereq/repeatable/abandonable/secret.
+
+    - [ ] Definitions register by id; later replace earlier; objective
+          ids generated when absent + stable across reloads.
+    - [ ] Missing reward/prereq/flag values default without error.
+
+  - **M10.7 (planned) — QuestService accept/advance/abandon +
+    rewards.** Accept (six outcomes, prereq gates, abandonable-only
+    cap, banner suppression), advance-objective + advance-stage +
+    complete + advance-by-predicate, abandon. Reward dispatcher over
+    four replaceable interfaces (progression/currency/proficiency/
+    item) each with a no-op default; class/race unlock as setters.
+    `quest started/objective advanced/stage advanced/completed/
+    abandoned` bus events.
+
+    - [ ] Six acceptance outcomes distinguishable; cap counts only
+          abandonable; banner honors secret/silent/hook.
+    - [ ] Advance no-ops on missing/complete; progress clamped; stage
+          seeds at zero; completion only on final-stage all-complete.
+    - [ ] Reward steps independent + silently no-op on null service;
+          cache miss skips reward but still emits completed.
+    - [ ] Abandon silently rejected for non-abandonable.
+
+  - **M10.8 (planned) — Quest persistence.** Per-player
+    `players/<name>/quests.yaml`; write on every mutating op; load on
+    `player login` event (side-effect-only on error); orphan filter
+    when registry non-empty, skipped when empty.
+
+    - [ ] Every mutating op writes; load triggered by login event;
+          orphan filter gated on non-empty registry.
+
+  - **M10.9 (planned) — Watcher + markers.** Watcher subscribes to
+    mob-killed/item-picked-up/item-given/player-moved → advance
+    matching `kill`/`collect`/`deliver`/`visit`; `quest_grant` on
+    item template + destination room; `quest_advance` on pickup
+    payload. Marker queries (single + bulk) per-definition giver +
+    current-stage deliver/collect, excluding kill + secret.
+
+    - [ ] Watcher maps exactly the four events; custom types advanced
+          only explicitly; side channels honored; missing payload/
+          entities don't raise.
+    - [ ] Markers per-definition giver + current-stage deliver/collect;
+          kill excluded; secret contributes none; bulk ≤1 per entity.
+
+  - **M10.10 (planned) — Commands + journal rendering.** `quests`
+    (journal), `accept`, `abandon` verbs calling the service; banner +
+    journal rendered through the M10.4 panel / M10.1 color primitives;
+    quest markers wired into room/entity name decorators.
+
+    - [ ] `accept`/`abandon`/`quests` map to service ops with the spec
+          outcomes surfaced to the player.
+    - [ ] Banner + journal render through panel/color; markers appear
+          on quest-relevant entities in room/look output.
+
 - **M11 — Survive:** `economy-survival`, currency, shops, sustenance.
 - **M12 — Character creation wizard:** the full `character-creation`
   flow now that the systems it touches exist.
