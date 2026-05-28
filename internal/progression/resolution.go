@@ -362,39 +362,50 @@ func (r *AbilityResolver) rollHit(entityID, abilityID string, ability *Ability) 
 // manager re-clamps so the AddProficiency is a no-op there), or no
 // gainer is wired.
 func (r *AbilityResolver) rollGain(source ResolutionSource, abilityID string, ability *Ability, hit bool) {
-	if r.gainer == nil || ability.GainBaseChance <= 0 {
+	if r.gainer == nil {
 		return
 	}
 	entityID := source.EntityID()
 	prof := r.proficiencyOf(entityID, abilityID)
-	// Spec §3.5: gain probability collapses to zero at the EFFECTIVE
-	// cap = min(cap, 100), not always 100. Read the cap through the
-	// richer manager surface when available; a Has-only reader yields
-	// the 100 default so the guard still fires at the global ceiling.
-	if prof >= r.effectiveCapOf(entityID, abilityID) {
+	// step 3: stat factor when the ability declares a gain stat.
+	statFactor := 1.0
+	if ability.GainStat != "" && ability.GainStatScale != 0 {
+		statFactor = 1 + float64(source.StatValue(ability.GainStat))*ability.GainStatScale
+	}
+	threshold := gainThreshold(
+		ability.GainBaseChance, prof, r.effectiveCapOf(entityID, abilityID),
+		statFactor, ability.GainFailureMultiplier, hit,
+	)
+	if threshold == 0 {
 		return
 	}
-
-	chance := float64(ability.GainBaseChance)
-	chance *= 1 - float64(prof)/100 // step 2: taper toward cap.
-
-	// step 3: stat factor when the ability declares a gain stat.
-	if ability.GainStat != "" && ability.GainStatScale != 0 {
-		statVal := source.StatValue(ability.GainStat)
-		chance *= 1 + float64(statVal)*ability.GainStatScale
+	if r.roller.IntN(100)+1 <= threshold {
+		r.gainer.AddProficiency(entityID, abilityID, 1)
 	}
+}
 
-	// step 4: failure multiplier on a miss.
-	if !hit {
-		mult := ability.GainFailureMultiplier
+// gainThreshold computes the spec §3.5 proficiency-gain probability as
+// an integer 1..100 roll threshold (0 ⇒ no roll). Shared by the active
+// resolver and the passive resolver so the taper / failure-multiplier
+// / cap-guard semantics stay identical. statFactor is the §3.5 step-3
+// multiplier (1 + statVal×scale); callers that omit the stat factor
+// pass 1.0. Returns 0 when base is non-positive or proficiency has
+// reached the effective cap (gain collapses to zero at min(cap,100)).
+func gainThreshold(baseChance, prof, effectiveCap int, statFactor, failureMult float64, hit bool) int {
+	if baseChance <= 0 || prof >= effectiveCap {
+		return 0
+	}
+	chance := float64(baseChance) * (1 - float64(prof)/100) // step 2: taper.
+	chance *= statFactor
+	if !hit { // step 4: failure multiplier on a miss.
+		mult := failureMult
 		if mult <= 0 {
 			mult = 1 // unset ⇒ miss gains at the same rate as hit.
 		}
 		chance *= mult
 	}
-
 	if chance <= 0 {
-		return
+		return 0
 	}
 	threshold := int(chance)
 	if threshold < 1 {
@@ -403,10 +414,7 @@ func (r *AbilityResolver) rollGain(source ResolutionSource, abilityID string, ab
 	if threshold > 100 {
 		threshold = 100
 	}
-	roll := r.roller.IntN(100) + 1
-	if roll <= threshold {
-		r.gainer.AddProficiency(entityID, abilityID, 1)
-	}
+	return threshold
 }
 
 // proficiencyOf reads the source's current proficiency for abilityID
@@ -416,7 +424,21 @@ func (r *AbilityResolver) rollGain(source ResolutionSource, abilityID string, ab
 // roll at the full base rate, the conservative default for a fake
 // that didn't bother wiring values.
 func (r *AbilityResolver) proficiencyOf(entityID, abilityID string) int {
-	if pr, ok := r.proficient.(interface {
+	return proficiencyValueOf(r.proficient, entityID, abilityID)
+}
+
+// effectiveCapOf returns min(cap, 100) for (entityID, abilityID).
+func (r *AbilityResolver) effectiveCapOf(entityID, abilityID string) int {
+	return effectiveCapValueOf(r.proficient, entityID, abilityID)
+}
+
+// proficiencyValueOf reads the current proficiency for (entityID,
+// abilityID) through a ProficiencyReader that also exposes the richer
+// Proficiency accessor (ProficiencyManager does). A bare Has-only
+// reader yields 0 — the conservative default. Free function so both
+// the active resolver and the passive resolver share one implementation.
+func proficiencyValueOf(reader ProficiencyReader, entityID, abilityID string) int {
+	if pr, ok := reader.(interface {
 		Proficiency(entityID, abilityID string) (int, bool)
 	}); ok {
 		if v, known := pr.Proficiency(entityID, abilityID); known {
@@ -426,14 +448,14 @@ func (r *AbilityResolver) proficiencyOf(entityID, abilityID string) int {
 	return 0
 }
 
-// effectiveCapOf returns min(cap, 100) for (entityID, abilityID),
+// effectiveCapValueOf returns min(cap, 100) for (entityID, abilityID),
 // read through the richer ProficiencyReader surface when it exposes
 // Cap (ProficiencyManager does). A bare Has-only reader yields 100 —
-// the global ceiling — so the §3.5 gain guard still fires at prof
-// 100 even without per-ability cap knowledge.
-func (r *AbilityResolver) effectiveCapOf(entityID, abilityID string) int {
+// the global ceiling — so the §3.5 gain guard still fires at prof 100
+// even without per-ability cap knowledge.
+func effectiveCapValueOf(reader ProficiencyReader, entityID, abilityID string) int {
 	capValue := 100
-	if cr, ok := r.proficient.(interface {
+	if cr, ok := reader.(interface {
 		Cap(entityID, abilityID string) int
 	}); ok {
 		capValue = cr.Cap(entityID, abilityID)

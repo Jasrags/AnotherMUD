@@ -198,6 +198,20 @@ type Ability struct {
 	// when they could target an enemy (§4.6). Empty ⇒ no heal.
 	HealDice string
 
+	// Hook is the passive-discovery key (spec §6.3): subsystems
+	// iterate "all passive abilities tagged with hook H" to find the
+	// passives that apply to an event. Canonical hooks today are
+	// "extra_attack" (combat §4.2 swing count) and "defensive"
+	// (combat §4.3 step 2 evade), but the set is content-defined.
+	// Only meaningful on passive abilities. Stored lowercase.
+	Hook string
+
+	// MaxBonus is the ceiling for the §6.2 scaling-bonus building
+	// block: the bonus a passive contributes is MaxBonus ×
+	// proficiency / 100. Zero ⇒ no scaling contribution. Independent
+	// of the §6.1 binary check (which uses Variance + MaxHitChance).
+	MaxBonus int
+
 	// Pack records the pack that registered this ability.
 	// Diagnostic only — mirrors Race.Pack / Class.Pack.
 	Pack string
@@ -284,6 +298,10 @@ func (r *AbilityRegistry) Register(a *Ability) error {
 	clone.HandlerToken = strings.ToLower(strings.TrimSpace(a.HandlerToken))
 	clone.DamageDice = strings.TrimSpace(a.DamageDice)
 	clone.HealDice = strings.TrimSpace(a.HealDice)
+	clone.Hook = strings.ToLower(strings.TrimSpace(a.Hook))
+	if clone.MaxBonus < 0 {
+		clone.MaxBonus = 0
+	}
 	if len(a.TargetTypes) > 0 {
 		tt := make([]string, 0, len(a.TargetTypes))
 		seen := make(map[string]struct{}, len(a.TargetTypes))
@@ -359,6 +377,31 @@ func (r *AbilityRegistry) ByType(t AbilityType) []*Ability {
 		if a.Type == t {
 			out = append(out, a)
 		}
+	}
+	return out
+}
+
+// ByHook returns every PASSIVE ability whose Hook matches hook, in
+// id-sorted order (spec §6.3 hook-based discovery). The match is by
+// metadata hook key, never by hardcoded ability id, so content can
+// add new passives to an existing hook without engine changes. An
+// empty hook argument returns nil (a passive with no hook is not
+// discoverable). Active abilities are never returned — they resolve
+// through the queue, not hooks.
+func (r *AbilityRegistry) ByHook(hook string) []*Ability {
+	h := strings.ToLower(strings.TrimSpace(hook))
+	if h == "" {
+		return nil
+	}
+	all := r.All()
+	out := make([]*Ability, 0)
+	for _, a := range all {
+		if a.Type == AbilityPassive && a.Hook == h {
+			out = append(out, a)
+		}
+	}
+	if len(out) == 0 {
+		return nil
 	}
 	return out
 }

@@ -1061,8 +1061,55 @@ is now real. Sketch of remaining vertical slices:
       - The whole ability path is **dormant until M9.6** — no verb
         enqueues actions yet.
   - **M9.5 — Passive abilities (binary check, scaling bonus,
-    hook discovery).** Replaces combat §4.3 "extra attack" and
-    defensive-check stubs with real passive rolls.
+    hook discovery).** Replaces combat §4.2 extra-attack and §4.3
+    defensive-check stubs with real passive rolls. Split into two
+    slices: M9.5a (progression primitives) + M9.5b (combat seam +
+    content).
+
+    - **M9.5a (landed) — Passive building blocks + resolver.**
+      `Ability` gained `Hook` (the §6.3 discovery key) + `MaxBonus`
+      (the §6.2 scaling ceiling). `AbilityRegistry.ByHook(hook)`
+      returns the PASSIVE abilities for a hook, id-sorted, matched by
+      metadata not hardcoded id. New `internal/progression/passive.go`:
+      - `PassiveBinaryCheck(prof, variance, maxChance, roller)` —
+        §6.1 (`prof×variance/100`, or `prof×maxChance/100` when
+        variance ≥ 100; roll 1..100).
+      - `PassiveScalingBonus(maxBonus, prof)` — §6.2
+        (`maxBonus×prof/100`).
+      - `PassiveResolver.ExtraAttacks(entityID)` — binary-checks each
+        `extra_attack` passive, +1 swing per success (the chosen
+        model; §6.1 "does it fire on this opportunity").
+      - `PassiveResolver.DefensiveEvade(defenderID)` — first
+        `defensive` passive (id-order) that wins its binary check
+        evades.
+      - Both roll a §6.3 proficiency gain on a firing passive, via a
+        shared `gainThreshold` extracted from the active resolver's
+        `rollGain` (DRY; behavior-preserving — the §3.5 stat factor /
+        failure-multiplier / cap-guard now live in one helper, with
+        `proficiencyValueOf` / `effectiveCapValueOf` as free funcs).
+      - [x] Primitives + `ByHook` + resolver pinned by
+            `passive_test.go`; unlearned passives never fire or roll
+            (prof-0 short-circuit); resolver refactor verified by the
+            existing resolution tests.
+
+      Known gaps (carried to M9.5b / deferrals):
+      - **Stat factor omitted from passive gain.** The §3.5 step-3
+        gain stat factor (e.g. parry's `gain_stat: dex`) needs an
+        entity-stat-by-id host seam that doesn't exist; passive gain
+        uses base × taper × failure-mult only for now.
+      - No combat wiring yet — the auto-attack `extraAttackCount` /
+        `defensiveEvade` stubs still return zero. M9.5b adds the
+        combat `PassiveEvaluator` seam + the host adapter + content
+        (`second-attack`, `parry` hook) + fighter grants.
+      - Hook YAML surface (`hook` / `max_bonus` on `AbilityFile`) +
+        content land in M9.5b.
+
+    - **M9.5b (planned) — Combat seam + content.** A combat-defined
+      `PassiveEvaluator` injected via `AutoAttackConfig` (nil-safe);
+      the two stubs call through it. Host adapter wraps the M9.5a
+      `PassiveResolver` (prefix-stripping the combatant ids). Pack
+      `AbilityFile` gains `hook`/`max_bonus`; `second-attack`
+      (extra_attack) + `parry` (defensive) content; fighter grants.
   - **M9.6 — Content + verb surface.** Player-facing
     `abilities` / `cast` / skill-named verbs; baseline content
     (kick, heal, bless). Split into two slices: M9.6a (verb
