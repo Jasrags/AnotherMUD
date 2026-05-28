@@ -1366,22 +1366,40 @@ is now real. Sketch of remaining vertical slices:
     — TextRow covers the multi-line body-text case. Spec §13's
     "raise on title overflow" is followed (vs clamp+log).
 
-  - **M10.5 (planned) — Help service + `help` command + renderer.**
-    `HelpService` (by-id/by-title/by-category indices with load-order
-    precedence, role gate placeholder player<builder<admin, query
-    exact-id→exact-title→fuzzy, list, categories); per-pack
-    `<pack>/help/*.yaml` loading + the command-help generator at
-    load-order 0; `help` command; `HelpRenderer` (topic /
-    disambiguation / no-match) emitting tags for the M10.1 renderer.
+  - **M10.5 — Help service + `help` command + renderer.** Two slices:
+    the pure `internal/help` package, then the pack/command wiring.
 
-    - [ ] Topics index by id, namespaced id, title, category; dup
-          registrations resolve by load-order (higher wins).
-    - [ ] Query precedence exact-id → exact-title → fuzzy; role gate
-          on query/list/categories; missing-field topics skipped with
-          a warn at load.
-    - [ ] Pack help (positive order) overrides order-0 command help.
-    - [ ] `help <topic>` renders topic; ambiguous term renders
-          disambiguation; miss renders no-match.
+    - **M10.5a (landed) — Help package.** `internal/help`: `Service`
+      (byNS canonical set + byID incl. namespaced / byTitle indices,
+      `putIfHigher` load-order precedence, integer role tiers
+      none<player<builder<admin with the §9.5 placeholder
+      `requesterTier`, `Query` exact-id→exact-title→fuzzy, `List`,
+      `Categories`); `Topic` + `Summary` + `ParseRole`; `RenderTopic`/
+      `RenderDisambiguation`/`RenderNoMatch` emitting `<title>`/`<subtle>`
+      tags for the M10.1 renderer (term sanitized against tag injection).
+
+      - [x] Topics index by id, namespaced id, title, category; dup
+            registrations resolve by load-order (higher wins, equal
+            keeps newest).
+      - [x] Query precedence exact-id → exact-title → fuzzy; role gate
+            on query/list/categories (admin hidden from player; player
+            hidden pre-login).
+      - [x] Renderers: topic (Syntax/See-also sections iff present),
+            disambiguation (id column), no-match (term sanitized). 92%
+            coverage.
+
+    - **M10.5b (planned) — Pack loading + `help` command + wiring.**
+      Per-pack `<pack>/help/*.yaml` loading via `content.help` globs
+      (missing-field topics skipped with a warn); `Registries.Help`;
+      the `help` command (Query → renderer by status); `content/core`
+      starter topics. The §9.2 command-help generator is N/A here (the
+      command registry has no typed arg definitions yet) and is
+      deferred.
+
+      - [ ] `help <topic>` renders topic; ambiguous term renders
+            disambiguation; miss renders no-match.
+      - [ ] Missing-field topics skipped with a load warn; help loads
+            at boot (smoke).
 
   Quest track (after UI):
 
