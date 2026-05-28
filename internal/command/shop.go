@@ -180,20 +180,26 @@ func shopConfigFromMob(mob *entities.MobInstance) economy.ShopConfig {
 	}
 }
 
-// stringSlice coerces a YAML list (decoded as []any) into []string,
-// dropping non-string entries.
+// stringSlice coerces a list property into []string. yaml.v3 into a
+// map[string]any always yields []any for sequences, but a typed
+// decoder or an in-process config builder may hand over []string
+// directly — accept both so a non-YAML caller can't silently empty
+// the shop's stock. Non-string entries in the []any form are dropped.
 func stringSlice(v any) []string {
-	list, ok := v.([]any)
-	if !ok {
+	switch t := v.(type) {
+	case []string:
+		return t
+	case []any:
+		out := make([]string, 0, len(t))
+		for _, e := range t {
+			if s, ok := e.(string); ok {
+				out = append(out, s)
+			}
+		}
+		return out
+	default:
 		return nil
 	}
-	out := make([]string, 0, len(list))
-	for _, e := range list {
-		if s, ok := e.(string); ok {
-			out = append(out, s)
-		}
-	}
-	return out
 }
 
 // floatProp coerces a numeric YAML scalar to float64, zero when

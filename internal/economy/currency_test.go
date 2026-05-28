@@ -191,6 +191,63 @@ func TestAddGoldConcurrent(t *testing.T) {
 	}
 }
 
+func TestDebit(t *testing.T) {
+	sink := &captureSink{}
+	svc := NewCurrencyService(sink)
+	e := &fakeEntity{id: "p1", gold: 50}
+
+	// Affordable charge applies and emits a debit event.
+	if got, ok := svc.Debit(context.Background(), e, 30, "buy"); !ok || got != 20 {
+		t.Fatalf("Debit(30) = (%d,%v), want (20,true)", got, ok)
+	}
+	if sink.debitCalls != 1 || sink.lastAmount != 30 || sink.lastTotal != 20 {
+		t.Errorf("debit event = calls %d amount %d total %d, want 1/30/20", sink.debitCalls, sink.lastAmount, sink.lastTotal)
+	}
+
+	// Unaffordable charge is refused: balance unchanged, no event.
+	if got, ok := svc.Debit(context.Background(), e, 999, "buy"); ok || got != 20 {
+		t.Errorf("Debit(999) = (%d,%v), want (20,false)", got, ok)
+	}
+	if sink.debitCalls != 1 {
+		t.Errorf("refused debit must emit no event, got %d", sink.debitCalls)
+	}
+}
+
+// TestDebitConcurrent pins the atomicity that closes the shop
+// gate→charge double-spend: with exactly enough gold for ONE charge,
+// N concurrent debits must let exactly one succeed. Run with -race.
+func TestDebitConcurrent(t *testing.T) {
+	svc := NewCurrencyService(nil)
+	e := &lockedEntity{id: "p1", gold: 100}
+
+	const workers = 40
+	results := make(chan bool, workers)
+	var wg sync.WaitGroup
+	wg.Add(workers)
+	for i := 0; i < workers; i++ {
+		go func() {
+			defer wg.Done()
+			_, ok := svc.Debit(context.Background(), e, 100, "race")
+			results <- ok
+		}()
+	}
+	wg.Wait()
+	close(results)
+
+	wins := 0
+	for ok := range results {
+		if ok {
+			wins++
+		}
+	}
+	if wins != 1 {
+		t.Errorf("successful debits = %d, want exactly 1 (no over-spend)", wins)
+	}
+	if e.Gold() != 0 {
+		t.Errorf("final gold = %d, want 0", e.Gold())
+	}
+}
+
 func TestNilSinkIsSafe(t *testing.T) {
 	svc := NewCurrencyService(nil)
 	e := &fakeEntity{id: "p1"}

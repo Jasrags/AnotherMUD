@@ -100,7 +100,15 @@ func (s *ShopService) Buy(ctx context.Context, sh Shopper, npcID string, shop Sh
 		return BuyResult{Outcome: ShopItemNotForSale, ItemName: tpl.Name, Price: price, Gold: gold}
 	}
 
-	newGold := s.currency.AddGold(ctx, sh, -int(price), "shop_buy:"+npcID)
+	// Charge atomically (spec §3.5 step 6). The early gate above proved
+	// price <= gold <= MaxInt (gold is an int balance), so int(price)
+	// cannot truncate here. Debit re-checks funds under the lock to
+	// close the gate→charge TOCTOU; a balance that dropped since the
+	// gate (a concurrent charge) yields ok=false → InsufficientGold.
+	newGold, ok := s.currency.Debit(ctx, sh, int(price), "shop_buy:"+npcID)
+	if !ok {
+		return BuyResult{Outcome: ShopInsufficientGold, ItemName: tpl.Name, Price: price, Gold: newGold}
+	}
 
 	inst, err := s.store.Spawn(tpl)
 	if err != nil {

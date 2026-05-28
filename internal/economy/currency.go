@@ -154,6 +154,41 @@ func (s *CurrencyService) AddGold(ctx context.Context, e Entity, delta int, reas
 	return next
 }
 
+// Debit atomically charges amount (a positive magnitude) only if the
+// entity can afford it. The funds check and the subtraction happen
+// under the same lock, so two concurrent debits on the same entity
+// can't both pass an "affordable?" gate and over-spend — exactly the
+// double-charge a separate Read-then-AddGold sequence is exposed to.
+// Returns the resulting balance and whether the charge applied; on
+// insufficient funds the balance is returned unchanged with ok=false
+// and NO event fires. A negative amount is treated as its magnitude.
+// Nil-safe: a nil entity returns (0, false).
+//
+// This is the primitive shop Buy uses at its charge step (spec §3.5
+// step 6): the pre-flight gold gate (step 4) is an early-out for the
+// InsufficientGold message, but Debit is the authoritative guard that
+// closes the gap between the gate and the actual charge.
+func (s *CurrencyService) Debit(ctx context.Context, e Entity, amount int, reason string) (int, bool) {
+	if e == nil {
+		return 0, false
+	}
+	if amount < 0 {
+		amount = -amount
+	}
+	s.mu.Lock()
+	cur := e.Gold()
+	if cur < amount {
+		s.mu.Unlock()
+		return cur, false
+	}
+	next := cur - amount
+	e.SetGold(next)
+	s.mu.Unlock()
+
+	s.sink.OnGoldDebited(ctx, e.ID(), amount, reason, next)
+	return next, true
+}
+
 // SetGold forces the entity's balance to amount, which MUST be
 // non-negative (spec §2.2 — "Throws on negative input"). Always
 // emits currency.credited regardless of whether the balance rose or
