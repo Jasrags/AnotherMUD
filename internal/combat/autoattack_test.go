@@ -60,7 +60,19 @@ type autoAttackRig struct {
 	locator  MapLocator
 	rooms    MapRoomLocator
 	roller   *scriptedRoller
+	passives PassiveEvaluator // nil ⇒ pre-M9.5 behavior
 }
+
+// fakePassives is a deterministic PassiveEvaluator for the §4.2/§4.3
+// auto-attack hook tests — fixed extra-swing count + a canned evade.
+type fakePassives struct {
+	extra     int
+	evadeName string
+	evade     bool
+}
+
+func (f fakePassives) ExtraAttacks(string) int              { return f.extra }
+func (f fakePassives) DefensiveEvade(string) (string, bool) { return f.evadeName, f.evade }
 
 func newAutoAttackRig(t *testing.T, atkStats, defStats Stats, atkHP, defHP int, rollSeq []int) *autoAttackRig {
 	t.Helper()
@@ -89,6 +101,7 @@ func (r *autoAttackRig) phase() PhaseFunc {
 		RoomLocator: r.rooms,
 		Sink:        r.sink,
 		Roller:      r.roller,
+		Passives:    r.passives,
 	})
 }
 
@@ -309,4 +322,45 @@ func equalIDs(a, b []CombatantID) bool {
 		}
 	}
 	return true
+}
+
+// M9.5b: the PassiveEvaluator's ExtraAttacks raises the per-round
+// swing count (§4.2). extra=1 ⇒ two swings ⇒ two hits on a target
+// that survives both.
+func TestAutoAttackExtraAttackGrantsSwing(t *testing.T) {
+	atkStats := Stats{HitMod: 100, STR: 10} // auto-hit vs low AC; STR 10 → +0 dmg
+	defStats := Stats{AC: 5}
+	rig := newAutoAttackRig(t, atkStats, defStats, 10, 20, []int{
+		5, 0, // swing 1: d20 6 hit, 1d3 → 1 damage
+		5, 0, // swing 2: d20 6 hit, 1d3 → 1 damage
+	})
+	rig.passives = fakePassives{extra: 1}
+	rig.phase()(context.Background(), rig.attacker.id, rig.mgr, 0)
+
+	if hits := rig.sink.snapshotHits(); len(hits) != 2 {
+		t.Fatalf("extra=1 must yield 2 swings/hits, got %d (misses=%d)",
+			len(hits), len(rig.sink.snapshotMisses()))
+	}
+}
+
+// M9.5b: a defensive passive that fires pre-empts the swing (§4.3
+// step 2) — an evade event, no hit/miss, and (critically) no hit-roll
+// consumed. The nil roller seq would fatal if a roll were attempted.
+func TestAutoAttackDefensiveEvadeSkipsSwing(t *testing.T) {
+	atkStats := Stats{HitMod: 100, STR: 10}
+	defStats := Stats{AC: 5}
+	rig := newAutoAttackRig(t, atkStats, defStats, 10, 20, nil) // no rolls expected
+	rig.passives = fakePassives{evade: true, evadeName: "Parry"}
+	rig.phase()(context.Background(), rig.attacker.id, rig.mgr, 0)
+
+	evades := rig.sink.snapshotEvades()
+	if len(evades) != 1 {
+		t.Fatalf("want 1 evade, got %d", len(evades))
+	}
+	if evades[0].AbilityName != "Parry" {
+		t.Errorf("evade ability name = %q, want Parry", evades[0].AbilityName)
+	}
+	if n := len(rig.sink.snapshotHits()) + len(rig.sink.snapshotMisses()); n != 0 {
+		t.Errorf("evaded swing must produce no hit/miss, got %d", n)
+	}
 }

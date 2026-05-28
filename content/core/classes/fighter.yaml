@@ -52,6 +52,15 @@ path:
     ability: heal
   - level: 1
     ability: bless
+  # M9.5: passive abilities — second-attack (extra_attack hook, §4.2)
+  # and parry (defensive hook, §4.3). Granted at level 1 so a fresh
+  # fighter exercises the passive swing-count + evade paths. They fire
+  # off proficiency, so a brand-new fighter (prof 1) almost never
+  # triggers them until practice raises the skill.
+  - level: 1
+    ability: second-attack
+  - level: 1
+    ability: parry
   - level: 2
     ability: power-attack
   - level: 5

@@ -73,6 +73,14 @@ func (r *recordingSink) snapshotMisses() []Miss {
 	return out
 }
 
+func (r *recordingSink) snapshotEvades() []Evade {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	out := make([]Evade, len(r.evades))
+	copy(out, r.evades)
+	return out
+}
+
 func (r *recordingSink) snapshotDeaths() []VitalDepleted {
 	r.mu.Lock()
 	defer r.mu.Unlock()

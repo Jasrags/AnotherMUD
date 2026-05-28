@@ -495,6 +495,8 @@ func decodeAbility(path, ns string) (*progression.Ability, error) {
 		HandlerToken:          strings.ToLower(strings.TrimSpace(f.Handler)),
 		DamageDice:            strings.TrimSpace(f.Damage),
 		HealDice:              strings.TrimSpace(f.Heal),
+		Hook:                  strings.ToLower(strings.TrimSpace(f.Hook)),
+		MaxBonus:              f.MaxBonus,
 		HasAlignmentRange:     hasAlignRange,
 		AlignmentMin:          alignMin,
 		AlignmentMax:          alignMax,

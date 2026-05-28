@@ -1104,12 +1104,34 @@ is now real. Sketch of remaining vertical slices:
       - Hook YAML surface (`hook` / `max_bonus` on `AbilityFile`) +
         content land in M9.5b.
 
-    - **M9.5b (planned) — Combat seam + content.** A combat-defined
-      `PassiveEvaluator` injected via `AutoAttackConfig` (nil-safe);
-      the two stubs call through it. Host adapter wraps the M9.5a
-      `PassiveResolver` (prefix-stripping the combatant ids). Pack
-      `AbilityFile` gains `hook`/`max_bonus`; `second-attack`
-      (extra_attack) + `parry` (defensive) content; fighter grants.
+    - **M9.5b (landed) — Combat seam + content.** A combat-defined
+      `PassiveEvaluator` interface (`ExtraAttacks` / `DefensiveEvade`,
+      bare-id keyed) added to `AutoAttackConfig` (nil-safe → pre-M9.5
+      behavior). The auto-attack `extraAttackCount` / `defensiveEvade`
+      helpers now delegate through it, prefix-stripping the combatant
+      id via `EntityIDOf`. `*progression.PassiveResolver` satisfies the
+      interface structurally — no adapter; `cmd/anothermud` builds one
+      (sharing `combatRNG` + the proficiency manager) and passes it in.
+      Pack `AbilityFile` gained `hook` / `max_bonus`; `second-attack`
+      (extra_attack) + `parry` (defensive, now hooked) content; fighter
+      L1 grants both.
+
+      - [x] Extra-attack raises swing count; defensive evade pre-empts
+            a swing + emits `combat.Evade` without consuming a hit
+            roll. Pinned by `autoattack_test.go` (fake evaluator).
+      - [x] `hook` / `max_bonus` decode + `ByHook` discovery pinned by
+            `loader_test.go`.
+
+      Known gaps (deferrals):
+      - Passive gain still omits the §3.5 stat factor (carried from
+        M9.5a — needs an entity-stat-by-id seam).
+      - `PassiveScalingBonus` (§6.2) has no wired consumer yet — the
+        two hooks use the §6.1 binary check. It ships as a tested
+        building block for future scaling passives (extra-damage,
+        crit-chance).
+      - Mob passives: mobs never enqueue and have no proficiency map,
+        so they grant no extra attacks / evades. Player-only until a
+        mob proficiency surface lands.
   - **M9.6 — Content + verb surface.** Player-facing
     `abilities` / `cast` / skill-named verbs; baseline content
     (kick, heal, bless). Split into two slices: M9.6a (verb

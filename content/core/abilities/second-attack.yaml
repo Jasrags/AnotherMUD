@@ -1,0 +1,22 @@
+id: second-attack
+name: Second Attack
+type: passive
+category: skill
+
+# Offensive passive (spec abilities-and-effects §6). The auto-attack
+# §4.2 swing-count step (M9.5b) iterates the `extra_attack` hook and
+# binary-checks each passive the attacker knows; every success grants
+# one extra swing this round.
+default_cap: 25
+
+gain_base_chance: 20
+gain_failure_multiplier: 1.0
+gain_stat: dex
+gain_stat_scale: 0.1
+
+# §6.3 discovery hook + §6.1 binary-check tuning. variance < 100 ⇒
+# effective extra-swing chance is proficiency × variance/100 (at cap
+# 25, variance 80 ⇒ up to ~20% chance of a bonus swing). The attacker
+# must learn it for it to fire (prof 0 never grants a swing).
+hook: extra_attack
+variance: 80

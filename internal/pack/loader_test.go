@@ -1158,6 +1158,54 @@ heal: 2d4
 	}
 }
 
+func TestLoadAbilitiesDecodesHookAndMaxBonus(t *testing.T) {
+	root := t.TempDir()
+	pack := filepath.Join(root, "core")
+	writeFile(t, filepath.Join(pack, "pack.yaml"), `
+name: tapestry-core
+content:
+  areas: [areas/*.yaml]
+  rooms: [rooms/*.yaml]
+  abilities: [abilities/*.yaml]
+`)
+	writeFile(t, filepath.Join(pack, "areas/x.yaml"), `id: x
+name: X`)
+	writeFile(t, filepath.Join(pack, "rooms/r.yaml"), `id: r
+area: x
+name: R`)
+	writeFile(t, filepath.Join(pack, "abilities/second-attack.yaml"), `
+id: second-attack
+type: passive
+category: skill
+hook: Extra_Attack
+max_bonus: 3
+variance: 100
+max_hit_chance: 50
+`)
+
+	regs := NewRegistries()
+	if err := Load(context.Background(), root, nil, regs, nil, nil); err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	sa, _ := regs.Abilities.Get("second-attack")
+	if sa.Hook != "extra_attack" { // lowercased on decode
+		t.Errorf("Hook = %q, want extra_attack", sa.Hook)
+	}
+	if sa.MaxBonus != 3 {
+		t.Errorf("MaxBonus = %d, want 3", sa.MaxBonus)
+	}
+	// variance >= 100 ⇒ the §6.1 binary check uses max_hit_chance, so
+	// it must decode (a 0 here would make the passive silently never
+	// fire — see m9-5-deferred-fixes loader-validation footgun).
+	if sa.MaxHitChance != 50 {
+		t.Errorf("MaxHitChance = %d, want 50", sa.MaxHitChance)
+	}
+	// Discoverable by hook.
+	if hits := regs.Abilities.ByHook("extra_attack"); len(hits) != 1 || hits[0].ID != "second-attack" {
+		t.Errorf("ByHook(extra_attack) did not return the decoded passive")
+	}
+}
+
 func TestLoadAbilitiesRejectsInvalidType(t *testing.T) {
 	root := t.TempDir()
 	pack := filepath.Join(root, "core")

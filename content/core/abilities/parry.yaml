@@ -3,12 +3,19 @@ name: Parry
 type: passive
 category: skill
 
-# Defensive passive — checked on incoming melee swings once the
-# defensive-check hook lands (M9.5). For M9.1 it ships only to
-# round-trip through the registry and Maerys's teach list.
+# Defensive passive (spec abilities-and-effects §6). The auto-attack
+# §4.3 step-2 evade check (M9.5b) iterates the `defensive` hook and
+# binary-checks each passive the defender knows.
 default_cap: 25
 
 gain_base_chance: 15
 gain_failure_multiplier: 1.0
 gain_stat: dex
 gain_stat_scale: 0.1
+
+# §6.3 discovery hook + §6.1 binary-check tuning. variance < 100 ⇒
+# effective evade chance is proficiency × variance/100 (at cap 25,
+# variance 60 ⇒ up to ~15% evade). A defender must learn parry for it
+# to fire (prof 0 never evades).
+hook: defensive
+variance: 60

@@ -15,6 +15,28 @@ type AutoAttackConfig struct {
 	RoomLocator RoomLocator
 	Sink        EventSink
 	Roller      Roller
+	// Passives evaluates the §4.2 extra-attack and §4.3 defensive-
+	// evade passive hooks. combat must not import the abilities
+	// feature, so the host injects an implementation (a
+	// progression.PassiveResolver satisfies this interface
+	// structurally). nil-safe: a config without it falls back to the
+	// pre-M9.5 behavior (one swing, no evades).
+	Passives PassiveEvaluator
+}
+
+// PassiveEvaluator is the combat-side seam to the passive-abilities
+// feature (spec abilities-and-effects §6). It is keyed on BARE entity
+// ids; the auto-attack phase strips the combatant prefix via
+// EntityIDOf before calling. Kept to the two hooks combat consumes
+// today (small interface, host-implemented).
+type PassiveEvaluator interface {
+	// ExtraAttacks returns the extra swings entityID earns this round
+	// (combat §4.2 swing count).
+	ExtraAttacks(entityID string) int
+	// DefensiveEvade reports whether one of defenderID's defensive
+	// passives pre-empts an incoming swing, and the evading ability's
+	// display name (combat §4.3 step 2).
+	DefensiveEvade(defenderID string) (string, bool)
 }
 
 // NewAutoAttack returns a PhaseFunc implementing combat §4 (pre-
@@ -91,11 +113,11 @@ func runAutoAttack(ctx context.Context, attackerID CombatantID, mgr *Manager, cf
 		return
 	}
 
-	// §4.2 swing count = 1 + extra-attack. Extra-attack is a passive
-	// abilities concern (M9); today it is always zero, so every
-	// combatant gets exactly one swing per round. The constant lives
-	// in extraAttackCount so the M9 wiring has a single touch-point.
-	swings := 1 + extraAttackCount(attacker)
+	// §4.2 swing count = 1 + extra-attack. Extra-attack is a passive-
+	// abilities concern: the evaluator binary-checks the attacker's
+	// extra_attack passives once per round (spec abilities §6). nil
+	// evaluator (tests / headless) ⇒ exactly one swing.
+	swings := 1 + extraAttackCount(cfg.Passives, attacker)
 
 	atkStats := attacker.Stats()
 	defStats := target.Stats()
@@ -116,10 +138,10 @@ func runAutoAttack(ctx context.Context, attackerID CombatantID, mgr *Manager, cf
 			return
 		}
 
-		// §4.3 step 2 — defensive passive evade. No passive-ability
-		// surface exists in M7.4; the helper returns ("", false)
-		// today and is the M9 attachment point.
-		if ability, evaded := defensiveEvade(attacker, target); evaded {
+		// §4.3 step 2 — defensive passive evade. The evaluator
+		// binary-checks the DEFENDER's defensive passives; the first
+		// that fires pre-empts this swing. nil evaluator ⇒ no evades.
+		if ability, evaded := defensiveEvade(cfg.Passives, target); evaded {
 			cfg.Sink.OnEvade(ctx, Evade{
 				AttackerID:   attackerID,
 				TargetID:     targetID,
@@ -219,23 +241,25 @@ func rollHit(r Roller, hitMod, ac int) hitOutcome {
 	return hitOutcome{hit: raw+hitMod >= ac}
 }
 
-// extraAttackCount is the §4.2 passive-ability hook. Returns zero
-// today; M9 abilities thread a real value through (probably via a
-// new interface method on Combatant or a Manager-side accumulator).
-// The unused-param lint is silenced by the assignment to _.
-func extraAttackCount(c Combatant) int {
-	_ = c
-	return 0
+// extraAttackCount is the §4.2 passive-ability hook. Delegates to the
+// injected PassiveEvaluator, keyed on the attacker's bare entity id.
+// nil evaluator ⇒ zero (one swing).
+func extraAttackCount(p PassiveEvaluator, c Combatant) int {
+	if p == nil {
+		return 0
+	}
+	return p.ExtraAttacks(EntityIDOf(c.CombatantID()))
 }
 
-// defensiveEvade is the §4.3 step 2 passive-ability hook. Returns
-// the evading ability's name + true if a defender's passive pre-
-// empted the swing; today always ("", false). M9 abilities replace
-// the body.
-func defensiveEvade(attacker, defender Combatant) (string, bool) {
-	_ = attacker
-	_ = defender
-	return "", false
+// defensiveEvade is the §4.3 step 2 passive-ability hook. Delegates to
+// the injected PassiveEvaluator with the DEFENDER's bare entity id;
+// returns the evading ability's display name + true when a defensive
+// passive pre-empts the swing. nil evaluator ⇒ ("", false).
+func defensiveEvade(p PassiveEvaluator, defender Combatant) (string, bool) {
+	if p == nil {
+		return "", false
+	}
+	return p.DefensiveEvade(EntityIDOf(defender.CombatantID()))
 }
 
 // SortPlayersFirst reorders a snapshot in place so player combatants
@@ -277,4 +301,3 @@ func isPlayerID(id CombatantID) bool {
 	s := string(id)
 	return len(s) >= len(PlayerPrefix) && s[:len(PlayerPrefix)] == PlayerPrefix
 }
-

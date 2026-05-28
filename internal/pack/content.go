@@ -284,6 +284,11 @@ type AbilityFile struct {
 	Handler string `yaml:"handler,omitempty"`
 	Damage  string `yaml:"damage,omitempty"`
 	Heal    string `yaml:"heal,omitempty"`
+	// M9.5 passive surface (spec §6). Hook is the discovery key a
+	// subsystem iterates ("extra_attack", "defensive"); MaxBonus is
+	// the §6.2 scaling ceiling. Only meaningful on passive abilities.
+	Hook     string `yaml:"hook,omitempty"`
+	MaxBonus int    `yaml:"max_bonus,omitempty"`
 }
 
 // EffectFile is the YAML shape for an Ability.Effect template (spec

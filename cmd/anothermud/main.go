@@ -628,11 +628,20 @@ func run() error {
 	// separate goroutine MUST either pass its own Roller or wrap this
 	// one in a mutex; do not silently share the Rand pointer.
 	combatRNG := rand.New(rand.NewPCG(uint64(clk.Now().UnixNano()), 0))
+	// M9.5: passive-ability evaluator for the auto-attack §4.2/§4.3
+	// hooks. Shares combatRNG (same single-goroutine tick context as
+	// the swing rolls) and the proficiency manager (read + §6.3 gain).
+	// *progression.PassiveResolver satisfies combat.PassiveEvaluator
+	// structurally — no adapter needed.
+	passiveResolver := progression.NewPassiveResolver(
+		registries.Abilities, proficiencyMgr, proficiencyMgr, combatRNG,
+	)
 	autoAttackPhase := combat.NewAutoAttack(combat.AutoAttackConfig{
 		Locator:     combatLocator,
 		RoomLocator: combatLocator,
 		Sink:        combatSink,
 		Roller:      combatRNG,
+		Passives:    passiveResolver,
 	})
 	// M7.6 wimpy phase — fires §5.2 flee when a combatant's HP%
 	// drops to or below its WimpyThreshold property. Shares the same
