@@ -11,3 +11,13 @@ gain_base_chance: 25
 gain_failure_multiplier: 0.5
 gain_stat: str
 gain_stat_scale: 0.1
+
+# M9.6b: the fighter's level-1 attack now deals damage. variance 0 ⇒
+# always lands; the "damage" handler rolls 1d4 onto the target's HP
+# and emits a combat.Hit (§4.5 step 8). Skill + damage dice make it
+# offensive (§4.6), so it needs a combat target.
+variance: 0
+target_types:
+  - enemy
+handler: damage
+damage: 1d4

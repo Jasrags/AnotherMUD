@@ -130,6 +130,22 @@ func TestResolve_VarianceZeroAlwaysHits(t *testing.T) {
 	}
 }
 
+func TestResolve_HandlerTokenPropagatesOnUsed(t *testing.T) {
+	src := &fakeSource{id: "p1"}
+	sink := &recordingSink{}
+	r := NewAbilityResolver(DefaultResolutionConfig(), newProfStub(), nil, nil, nil, nil, sink, nil)
+	ab := &Ability{ID: "kick", DisplayName: "Kick", Category: AbilitySkill, Variance: 0, HandlerToken: "damage"}
+
+	r.Resolve(context.Background(), src, ab, "m1", 0)
+
+	if len(sink.used) != 1 {
+		t.Fatalf("want 1 used event, got %d", len(sink.used))
+	}
+	if sink.used[0].HandlerToken != "damage" {
+		t.Errorf("HandlerToken = %q, want %q", sink.used[0].HandlerToken, "damage")
+	}
+}
+
 func TestResolve_DeductsRaceAdjustedCost(t *testing.T) {
 	src := &fakeSource{id: "p1", movement: 50, race: &Race{CastCostModifier: 3}}
 	r := NewAbilityResolver(DefaultResolutionConfig(), newProfStub(), nil, nil, nil, nil, nil, nil)

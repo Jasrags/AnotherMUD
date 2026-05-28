@@ -75,13 +75,17 @@ type AbilitySink interface {
 // AbilityUsedEvent is the payload published on a hit (spec §4.5
 // step 8). Category is the engine's classification, useful for
 // per-pool ("you cast …" vs "you …") rendering downstream.
+// HandlerToken is the §4.5 step-8 dispatch key — the side-effect
+// subscriber (M9.6b damage/heal handler) switches on it; empty for
+// abilities with no engine side effect (e.g. effect-only buffs).
 type AbilityUsedEvent struct {
-	SourceID    string
-	AbilityID   string
-	AbilityName string
-	Category    AbilityCategory
-	TargetID    string
-	TargetName  string
+	SourceID     string
+	AbilityID    string
+	AbilityName  string
+	Category     AbilityCategory
+	HandlerToken string
+	TargetID     string
+	TargetName   string
 }
 
 // AbilityMissedEvent is the payload published on a miss (spec §4.5

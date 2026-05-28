@@ -177,6 +177,27 @@ type Ability struct {
 	// configured ceiling (default 100).
 	MaxHitChance int
 
+	// HandlerToken is the §4.5 step-8 dispatch key carried on the
+	// "ability used" event so a subscriber knows which side effect
+	// to apply (M9.6b: "damage" rolls DamageDice onto the target's
+	// HP; "heal" rolls HealDice; empty ⇒ no engine side effect, e.g.
+	// an effect-only buff like bless whose payload the resolver
+	// already applied in §4.5 step 7). When scripting lands the
+	// token becomes the script dispatch key. Stored lowercase.
+	HandlerToken string
+
+	// DamageDice is the NdM±K expression the "damage" handler rolls
+	// against the target's HP (spec §4.6 "damage dice metadata").
+	// Non-empty also makes a spell-with-no-effect offensive (§4.6).
+	// Parsed by the host handler, not the registry, so progression
+	// stays free of the combat dice type. Empty ⇒ no damage.
+	DamageDice string
+
+	// HealDice is the NdM±K expression the "heal" handler rolls to
+	// restore the target's HP. Heal abilities are NOT offensive even
+	// when they could target an enemy (§4.6). Empty ⇒ no heal.
+	HealDice string
+
 	// Pack records the pack that registered this ability.
 	// Diagnostic only — mirrors Race.Pack / Class.Pack.
 	Pack string
@@ -260,6 +281,9 @@ func (r *AbilityRegistry) Register(a *Ability) error {
 	}
 	clone.EquipmentSlot = strings.ToLower(strings.TrimSpace(a.EquipmentSlot))
 	clone.EquipmentTag = strings.ToLower(strings.TrimSpace(a.EquipmentTag))
+	clone.HandlerToken = strings.ToLower(strings.TrimSpace(a.HandlerToken))
+	clone.DamageDice = strings.TrimSpace(a.DamageDice)
+	clone.HealDice = strings.TrimSpace(a.HealDice)
 	if len(a.TargetTypes) > 0 {
 		tt := make([]string, 0, len(a.TargetTypes))
 		seen := make(map[string]struct{}, len(a.TargetTypes))

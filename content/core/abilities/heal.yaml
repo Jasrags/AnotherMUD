@@ -1,0 +1,30 @@
+id: heal
+name: Heal
+type: active
+category: spell
+
+# Default learn cap for fresh learners; trainers raise it via the
+# practice path (spec progression.md §7.5).
+default_cap: 30
+
+# 20% base gain chance on use, halved on a (rare) miss.
+gain_base_chance: 20
+gain_failure_multiplier: 0.5
+
+# WIS governs the gain roll (spec §3.5 step 3).
+gain_stat: wis
+gain_stat_scale: 0.1
+
+# Spell ⇒ draws from mana (§4.7). variance 0 ⇒ always succeeds.
+# pulse_delay throttles re-casting. No target_types ⇒ resolves to
+# self (§4.4 step 3); `cast heal on <ally>` heals that target
+# instead. No damage dice + no effect ⇒ NON-offensive (§4.6), so it
+# needs no combat target.
+cost: 10
+pulse_delay: 2
+variance: 0
+
+# M9.6b side effect: the "heal" handler rolls these dice and restores
+# the target's HP (target-or-self).
+handler: heal
+heal: 2d4

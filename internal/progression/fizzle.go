@@ -55,12 +55,11 @@ const (
 //   - Its category is spell AND it has no effect template AND its
 //     metadata declares damage dice.
 //
-// M9.3 has no metadata surface yet (lands in M9.4 with handler
-// tokens). For now a spell with no effect is treated as
-// non-offensive — content authoring a damage-spell-without-effect
-// would carry the damage_dice metadata once available. This is
-// conservative: it never auto-routes a non-combat spell into the
-// "must be in combat" check.
+// M9.6b wired the damage-dice metadata (Ability.DamageDice), so a
+// damage spell with no effect now classifies offensive. A heal spell
+// (HealDice set, DamageDice empty) stays non-offensive even if it can
+// target an enemy — the conservative branch never auto-routes a
+// non-damage spell into the "must be in combat" check.
 func IsOffensive(a *Ability) bool {
 	if a == nil {
 		return false
@@ -68,10 +67,10 @@ func IsOffensive(a *Ability) bool {
 	if a.Category == AbilitySkill {
 		return true
 	}
-	// Spell branch: requires both no-effect AND damage_dice.
-	// Metadata surface lands in M9.4; until then no spell is
-	// offensive.
-	return false
+	// Spell branch (§4.6): offensive only when it has no effect
+	// template AND declares damage dice. DamageDice is trimmed at
+	// registration, so a bare != "" check is sufficient.
+	return a.Effect == nil && a.DamageDice != ""
 }
 
 // ResourcePool names the entity-side resource pool an ability

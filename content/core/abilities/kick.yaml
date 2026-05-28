@@ -1,0 +1,34 @@
+id: kick
+name: Kick
+type: active
+category: skill
+
+# Default learn cap for fresh learners; trainers raise it via the
+# practice path (spec progression.md §7.5).
+default_cap: 25
+
+# 25% base gain chance on use, halved on miss.
+gain_base_chance: 25
+gain_failure_multiplier: 0.5
+
+# STR contributes to gain-roll probability (spec
+# abilities-and-effects §3.5 step 3).
+gain_stat: str
+gain_stat_scale: 0.1
+
+# Unarmed strike — no equipment requirement (unlike slash's blade).
+# Skill ⇒ draws from movement (§4.7). variance 0 ⇒ always lands
+# (the M9.4 hit-chance band is dormant here; the value is the swing
+# you queued). pulse_delay throttles spam-queueing.
+cost: 5
+pulse_delay: 1
+variance: 0
+target_types:
+  - enemy
+
+# M9.6b side effect: the "damage" handler rolls these dice onto the
+# target's HP and emits a combat.Hit (spec §4.5 step 8 / §4.6). The
+# damage dice + skill category make kick offensive (§4.6), so it
+# requires a combat target.
+handler: damage
+damage: 1d6

@@ -38,15 +38,18 @@ trains_per_level: 5
 # unlocked_via are skipped by the processor — they're declarative
 # only (a future quest reward will publish the grant itself).
 path:
+  # M9.6: tapestry-core ships a single class, so the fighter doubles
+  # as the showcase for the baseline ability surface — a damage skill
+  # (basic-strike / kick), a heal spell, and an effect-only buff
+  # (bless), all granted at level 1 so a fresh fighter exercises every
+  # M9.6 handler path end-to-end. power-attack stays declarative:
+  # Teach no-ops because no abilities/power-attack.yaml exists yet.
   - level: 1
     ability: basic-strike
-  # M9.6: tapestry-core ships a single class, so the fighter doubles
-  # as the showcase for the baseline ability surface. `bless` is the
-  # effect-only spell that resolves end-to-end on the M9.6a verb path
-  # (no damage handler needed). basic-strike (above) is a real active
-  # skill and resolves too, but deals no damage until the M9.6b
-  # ability.used handler lands. power-attack stays declarative —
-  # Teach no-ops because no abilities/power-attack.yaml exists yet.
+  - level: 1
+    ability: kick
+  - level: 1
+    ability: heal
   - level: 1
     ability: bless
   - level: 2

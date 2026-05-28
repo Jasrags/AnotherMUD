@@ -1113,12 +1113,54 @@ is now real. Sketch of remaining vertical slices:
       - **AbilityUsedEvent has no handler token** (m9-4 deferral
         #2) — added with the M9.6b handler-dispatch path.
 
-    - **M9.6b (planned) — Damage/heal handler + content.**
-      `ability.used` subscriber applies damage/heal to
-      `combat.Vitals`; `Ability`/`AbilityUsed` gain a handler
-      token; `ability.vital_depleted` bridges to the cancellable
-      combat death check; kick (offensive skill) + heal (spell)
-      content.
+    - **M9.6b (landed) — Damage/heal handler + content.**
+      Abilities now change HP. `Ability` gained `HandlerToken` +
+      `DamageDice`/`HealDice` (YAML `handler`/`damage`/`heal`);
+      `IsOffensive` (§4.6) now classifies a no-effect spell with
+      damage dice as offensive. `AbilityUsedEvent` +
+      `eventbus.AbilityUsed` carry the handler token (closes m9-4
+      deferral #2). Two `cmd/anothermud` bus subscribers:
+      - `ability.used` side-effect handler dispatches on the token —
+        `damage` rolls `DamageDice` via `ApplyDamageIfAlive` and
+        emits a `combat.Hit` (so ability damage shares the combat
+        sink/log + future renderer); `heal` rolls `HealDice` onto
+        the target-or-self. Dice are pre-parsed at boot
+        (`combat.ParseDice`; a bad expr warns + disables that
+        ability's effect). It runs synchronously inside the
+        resolver's §4.5 step-8 emit, so the damage is committed
+        before the resolver's step-9 HP probe.
+      - `ability.vital_depleted` bridge re-prefixes the bare ids and
+        calls `productionCombatSink.OnVitalDepleted`, reusing the
+        cancellable death-check/Kill flow auto-attack uses (player
+        respawn + mob untrack fire identically). The handler never
+        emits the death itself — step 9 owns it, so there is no
+        double signal.
+      - Content: `kick.yaml` (skill, 1d6), `heal.yaml` (spell, 2d4),
+        and `basic-strike.yaml` upgraded to deal 1d4 (it was a
+        granted no-op skill). Fighter L1 path grants kick/heal/bless.
+      - Renderer fix: the M9.6a `ability.used`/`.missed` renderers
+        resolved a placeholder target name (the resolver has no name
+        registry — "id doubles as name"); they now resolve the live
+        name from `TargetID` via a `combatantName` host helper.
+
+      - [x] `IsOffensive` damage-spell case + `HandlerToken`
+            propagation + `decodeAbility` handler/dice pinned by
+            unit tests (`validation_test.go`, `resolution_test.go`,
+            `loader_test.go`).
+      - [x] Bare-id contract for the bridge hardened: the host
+            helpers normalize via `EntityIDOf` before re-prefixing
+            (idempotent on bare ids), so a future prefixed
+            `ResolutionSource` id can't misroute the death bridge.
+
+      Known gaps (deferrals):
+      - The damage/heal handler + death bridge live in the
+        composition root and are integration-only (no unit test),
+        same as the M9.6a renderers. Player-facing damage/heal
+        NUMBERS are still invisible — combat hits are log-only until
+        the M10 ui-rendering pass.
+      - Mob effect-stat install still blocked by the stats↔entities
+        cycle (m8-1 #1): mobs are damageable + killable by abilities,
+        but a debuff effect applied to a mob remains inert.
 - **M10 — Quests & UI polish:** `quests`, `ui-rendering-help` themes,
   panels, 256/truecolor, and telnet capability negotiation. (Basic
   ANSI-16 color already landed in M2.)

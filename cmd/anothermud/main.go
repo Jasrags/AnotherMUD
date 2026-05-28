@@ -257,6 +257,33 @@ func run() error {
 	// will replace it with a real eventbus-backed adapter when those
 	// subscribers exist.
 	combatLocator := combatLocator{entities: entityStore, sessions: mgr, placement: placement}
+
+	// combatantName resolves a bare entity id (player.Save.ID or mob
+	// store id) to its live display name, trying the mob then player
+	// namespace. The ability events carry the bare TargetID and a
+	// placeholder TargetName (the resolver has no name registry —
+	// "id doubles as name", M9.4a), so the ability renderers + side-
+	// effect handler use this to show a real name. Falls back to the
+	// id when the target has despawned/logged out mid-pulse.
+	combatantName := func(bareID string) string {
+		if bareID == "" {
+			return ""
+		}
+		// Defensive: the ability events carry bare ids by contract
+		// (connActor.EntityID + CurrentTarget both return prefix-
+		// stripped ids), but EntityIDOf is idempotent on an already-
+		// bare id, so normalizing first means a future prefixed id
+		// can't silently miss both namespace probes.
+		bareID = combat.EntityIDOf(combat.CombatantID(bareID))
+		if c, ok := combatLocator.LookupCombatant(combat.NewMobCombatantID(bareID)); ok {
+			return c.Name()
+		}
+		if c, ok := combatLocator.LookupCombatant(combat.NewPlayerCombatantID(bareID)); ok {
+			return c.Name()
+		}
+		return bareID
+	}
+
 	// combatSink wires the production death flow (spec combat §6).
 	// OnVitalDepleted publishes the cancellable death.check; if not
 	// cancelled, publishes kill (+ mob.killed for mob victims) and
@@ -398,9 +425,12 @@ func run() error {
 		verb, verbThird := abilityVerbWords(e.Category)
 		selfMsg := fmt.Sprintf("You %s %s", verb, e.AbilityName)
 		roomMsg := fmt.Sprintf("%s %s %s", actor.Name(), verbThird, e.AbilityName)
-		if e.TargetName != "" {
-			selfMsg += " on " + e.TargetName
-			roomMsg += " on " + e.TargetName
+		// TargetID == "" is a self-cast (buff/heal-self); only name a
+		// target when the ability resolved against another entity.
+		if e.TargetID != "" && e.TargetID != e.SourceID {
+			tn := combatantName(e.TargetID)
+			selfMsg += " on " + tn
+			roomMsg += " on " + tn
 		}
 		_ = actor.Write(ctx, selfMsg+".")
 		if room := actor.Room(); room != nil {
@@ -418,9 +448,10 @@ func run() error {
 		}
 		selfMsg := fmt.Sprintf("You try %s", e.AbilityName)
 		roomMsg := fmt.Sprintf("%s tries %s", actor.Name(), e.AbilityName)
-		if e.TargetName != "" {
-			selfMsg += " on " + e.TargetName
-			roomMsg += " on " + e.TargetName
+		if e.TargetID != "" && e.TargetID != e.SourceID {
+			tn := combatantName(e.TargetID)
+			selfMsg += " on " + tn
+			roomMsg += " on " + tn
 		}
 		_ = actor.Write(ctx, selfMsg+", but misses.")
 		if room := actor.Room(); room != nil {
@@ -666,6 +697,180 @@ func run() error {
 		return 0, false
 	})
 	abilitySink := &abilitySink{bus: bus}
+
+	// M9.6b: ability side-effect handler (damage / heal) + the
+	// ability-death bridge.
+	//
+	// Pre-parse each ability's dice once at boot so the hot path (an
+	// ability hit) parses nothing and a malformed NdM±K surfaces here
+	// as a warning instead of silently dealing no damage.
+	type abilityDice struct {
+		damage    combat.DiceExpr
+		hasDamage bool
+		heal      combat.DiceExpr
+		hasHeal   bool
+	}
+	abilityDiceByID := make(map[string]abilityDice)
+	for _, ab := range registries.Abilities.All() {
+		var d abilityDice
+		if ab.DamageDice != "" {
+			if expr, err := combat.ParseDice(ab.DamageDice); err != nil {
+				logging.From(ctx).Warn("ability damage dice unparsable; ability deals no damage",
+					slog.String("ability", ab.ID), slog.String("dice", ab.DamageDice), slog.Any("err", err))
+			} else {
+				d.damage, d.hasDamage = expr, true
+			}
+		}
+		if ab.HealDice != "" {
+			if expr, err := combat.ParseDice(ab.HealDice); err != nil {
+				logging.From(ctx).Warn("ability heal dice unparsable; ability heals nothing",
+					slog.String("ability", ab.ID), slog.String("dice", ab.HealDice), slog.Any("err", err))
+			} else {
+				d.heal, d.hasHeal = expr, true
+			}
+		}
+		if d.hasDamage || d.hasHeal {
+			abilityDiceByID[ab.ID] = d
+		}
+	}
+
+	// resolveCombatant maps a bare entity id to its live Combatant +
+	// prefixed CombatantID (mob namespace first, then player), the
+	// same try-both shape the ability target lookups use.
+	//
+	// INVARIANT: the ability events carry bare ids — SourceID/TargetID
+	// from the resolver (connActor.EntityID + CurrentTarget are
+	// prefix-stripped), VictimID/KillerID likewise. EntityIDOf is
+	// idempotent on a bare id, so the leading normalize is a cheap
+	// guard that keeps the two namespace probes correct even if a
+	// future ResolutionSource handed us a prefixed id.
+	resolveCombatant := func(bareID string) (combat.Combatant, combat.CombatantID, bool) {
+		bareID = combat.EntityIDOf(combat.CombatantID(bareID))
+		mobID := combat.NewMobCombatantID(bareID)
+		if c, ok := combatLocator.LookupCombatant(mobID); ok {
+			return c, mobID, true
+		}
+		playerID := combat.NewPlayerCombatantID(bareID)
+		if c, ok := combatLocator.LookupCombatant(playerID); ok {
+			return c, playerID, true
+		}
+		return nil, "", false
+	}
+
+	// ability.used side-effect handler. Runs synchronously inside the
+	// resolver's §4.5 step-8 emit (tick goroutine), BEFORE the
+	// resolver's step-9 HP probe — so damage it applies is visible to
+	// the post-hit death check, which then emits ability.vital_depleted
+	// (bridged below). Shares combatRNG + combatSink with auto-attack
+	// on the same goroutine, so no new concurrency is introduced.
+	//
+	// Dispatch is by the §4.5 handler token: "damage" rolls DamageDice
+	// onto the target's HP and emits a combat.Hit (so ability damage
+	// flows through the same sink/renderer as a weapon swing); "heal"
+	// rolls HealDice onto the target-or-self HP. An empty/unknown token
+	// is a no-op — effect-only abilities (bless) already had their
+	// payload applied by the resolver in step 7.
+	bus.Subscribe(eventbus.EventAbilityUsed, func(ctx context.Context, ev eventbus.Event) {
+		e, ok := ev.(eventbus.AbilityUsed)
+		if !ok {
+			return
+		}
+		dice := abilityDiceByID[e.AbilityID]
+		switch e.HandlerToken {
+		case "damage":
+			if !dice.hasDamage || e.TargetID == "" {
+				return
+			}
+			target, targetCID, ok := resolveCombatant(e.TargetID)
+			if !ok {
+				return
+			}
+			amount := dice.damage.Roll(combatRNG)
+			if amount < 1 {
+				amount = 1
+			}
+			if _, wasAlive := target.Vitals().ApplyDamageIfAlive(amount); !wasAlive {
+				return // already a corpse; another source owns the death emit.
+			}
+			// Source is a player by construction (only players enqueue);
+			// resolveCombatant normalizes + probes both namespaces. The
+			// fallback below uses the normalized bare id so a logged-out
+			// source can't produce a double-prefixed CombatantID.
+			attackerBare := combat.EntityIDOf(combat.CombatantID(e.SourceID))
+			attackerCID := combat.NewPlayerCombatantID(attackerBare)
+			attackerName := attackerBare
+			if c, acid, ok := resolveCombatant(e.SourceID); ok {
+				attackerCID, attackerName = acid, c.Name()
+			}
+			room, _ := combatLocator.RoomOf(targetCID)
+			// Emit through the combat sink so ability damage shares the
+			// hit log (and any future hit renderer) with weapon swings.
+			// The §4.5 step-9 probe owns the death emit, so we do NOT
+			// emit VitalDepleted here (avoids a double death signal).
+			combatSink.OnHit(ctx, combat.Hit{
+				AttackerID:   attackerCID,
+				TargetID:     targetCID,
+				AttackerName: attackerName,
+				TargetName:   target.Name(),
+				WeaponName:   e.AbilityName,
+				Damage:       amount,
+				DamageType:   combat.DamageTypePhysical,
+				RoomID:       room,
+			})
+		case "heal":
+			if !dice.hasHeal {
+				return
+			}
+			targetID := e.TargetID
+			if targetID == "" {
+				targetID = e.SourceID // self-heal
+			}
+			target, _, ok := resolveCombatant(targetID)
+			if !ok {
+				return
+			}
+			amount := dice.heal.Roll(combatRNG)
+			if amount < 1 {
+				amount = 1
+			}
+			target.Vitals().Heal(amount)
+			logging.From(ctx).Info("ability.heal",
+				slog.String("source", e.SourceID),
+				slog.String("target", targetID),
+				slog.String("ability", e.AbilityID),
+				slog.Int("amount", amount))
+		}
+	})
+
+	// ability.vital_depleted → combat death bridge. The resolver emits
+	// this on its own topic (M9.4b) to avoid a progression→combat edge;
+	// nothing consumed it until ability damage existed. Translate the
+	// bare ids back to prefixed CombatantIDs and feed the SAME
+	// cancellable death-check/Kill flow auto-attack uses, so an ability
+	// kill respawns players / untracks mobs identically.
+	bus.Subscribe(eventbus.EventAbilityVitalDepleted, func(ctx context.Context, ev eventbus.Event) {
+		e, ok := ev.(eventbus.AbilityVitalDepleted)
+		if !ok {
+			return
+		}
+		victim, victimCID, ok := resolveCombatant(e.VictimID)
+		if !ok {
+			return // victim gone between the probe and now; nothing to kill.
+		}
+		var killerCID combat.CombatantID
+		if _, kcid, ok := resolveCombatant(e.KillerID); ok {
+			killerCID = kcid
+		}
+		room, _ := combatLocator.RoomOf(victimCID)
+		combatSink.OnVitalDepleted(ctx, combat.VitalDepleted{
+			VictimID:   victimCID,
+			VictimName: victim.Name(),
+			AttackerID: killerCID,
+			Vital:      combat.VitalHP,
+			RoomID:     room,
+		})
+	})
+
 	abilityPipeline := progression.NewValidationPipeline(
 		registries.Abilities, proficiencyMgr, effectMgr, pulseDelayTracker, abilityTargets,
 	)
@@ -1632,12 +1837,13 @@ func (s *abilitySink) OnAbilityUsed(ctx context.Context, ev progression.AbilityU
 		return
 	}
 	s.bus.Publish(ctx, eventbus.AbilityUsed{
-		SourceID:    ev.SourceID,
-		AbilityID:   ev.AbilityID,
-		AbilityName: ev.AbilityName,
-		Category:    string(ev.Category),
-		TargetID:    ev.TargetID,
-		TargetName:  ev.TargetName,
+		SourceID:     ev.SourceID,
+		AbilityID:    ev.AbilityID,
+		AbilityName:  ev.AbilityName,
+		Category:     string(ev.Category),
+		HandlerToken: ev.HandlerToken,
+		TargetID:     ev.TargetID,
+		TargetName:   ev.TargetName,
 	})
 }
 

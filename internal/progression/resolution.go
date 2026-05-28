@@ -290,12 +290,13 @@ func (r *AbilityResolver) Resolve(ctx context.Context, source ResolutionSource, 
 	// 8. On hit, always: emit ability-used, roll gain (success).
 	if r.sink != nil {
 		r.sink.OnAbilityUsed(ctx, AbilityUsedEvent{
-			SourceID:    entityID,
-			AbilityID:   abilityID,
-			AbilityName: ability.DisplayName,
-			Category:    ability.Category,
-			TargetID:    resolvedTarget,
-			TargetName:  targetName,
+			SourceID:     entityID,
+			AbilityID:    abilityID,
+			AbilityName:  ability.DisplayName,
+			Category:     ability.Category,
+			HandlerToken: ability.HandlerToken,
+			TargetID:     resolvedTarget,
+			TargetName:   targetName,
 		})
 	}
 	r.rollGain(source, abilityID, ability, true)

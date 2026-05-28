@@ -631,9 +631,9 @@ func (CharacterCreated) Name() string { return EventCharacterCreated }
 // events with mutable fields.
 type AlignmentShiftCheck struct {
 	*CancelFlag
-	EntityID        string
-	Reason          string
-	suggestedDelta  *int
+	EntityID       string
+	Reason         string
+	suggestedDelta *int
 }
 
 // Name implements Event.
@@ -759,12 +759,13 @@ func (EffectExpired) Name() string { return EventEffectExpired }
 // Category lets renderers distinguish "you cast …" (spell) from
 // "you …" (skill).
 type AbilityUsed struct {
-	SourceID    string
-	AbilityID   string
-	AbilityName string
-	Category    string
-	TargetID    string
-	TargetName  string
+	SourceID     string
+	AbilityID    string
+	AbilityName  string
+	Category     string
+	HandlerToken string
+	TargetID     string
+	TargetName   string
 }
 
 // Name implements Event.

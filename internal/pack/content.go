@@ -204,9 +204,9 @@ type TrackFile struct {
 // the entry as owned by another subsystem (quest reward, scripted
 // hook); the path processor skips it at level-up per spec §4.5.
 type ClassPathEntryFile struct {
-	Level        int    `yaml:"level"`
-	AbilityID    string `yaml:"ability"`
-	UnlockedVia  string `yaml:"unlocked_via,omitempty"`
+	Level       int    `yaml:"level"`
+	AbilityID   string `yaml:"ability"`
+	UnlockedVia string `yaml:"unlocked_via,omitempty"`
 }
 
 // ClassFile is the YAML shape for a class definition (spec
@@ -216,20 +216,20 @@ type ClassPathEntryFile struct {
 // on every level-up roll. Bound track is case-insensitive at runtime
 // but stored verbatim for diagnostics.
 type ClassFile struct {
-	ID                string                `yaml:"id"`
-	Name              string                `yaml:"name,omitempty"`
-	Tagline           string                `yaml:"tagline,omitempty"`
-	Description       string                `yaml:"description,omitempty"`
-	LevelUpFlavor     string                `yaml:"level_up_flavor,omitempty"`
-	BoundTrack        string                `yaml:"bound_track,omitempty"`
-	StatGrowth        map[string]string     `yaml:"stat_growth,omitempty"`
-	GrowthBonuses     map[string]string     `yaml:"growth_bonuses,omitempty"`
-	Path              []ClassPathEntryFile  `yaml:"path,omitempty"`
-	TrainsPerLevel    int                   `yaml:"trains_per_level,omitempty"`
-	AllowedCategories []string              `yaml:"allowed_categories,omitempty"`
-	AllowedGenders    []string              `yaml:"allowed_genders,omitempty"`
-	StartingAlignment int                   `yaml:"starting_alignment,omitempty"`
-	Priority          int                   `yaml:"priority,omitempty"`
+	ID                string               `yaml:"id"`
+	Name              string               `yaml:"name,omitempty"`
+	Tagline           string               `yaml:"tagline,omitempty"`
+	Description       string               `yaml:"description,omitempty"`
+	LevelUpFlavor     string               `yaml:"level_up_flavor,omitempty"`
+	BoundTrack        string               `yaml:"bound_track,omitempty"`
+	StatGrowth        map[string]string    `yaml:"stat_growth,omitempty"`
+	GrowthBonuses     map[string]string    `yaml:"growth_bonuses,omitempty"`
+	Path              []ClassPathEntryFile `yaml:"path,omitempty"`
+	TrainsPerLevel    int                  `yaml:"trains_per_level,omitempty"`
+	AllowedCategories []string             `yaml:"allowed_categories,omitempty"`
+	AllowedGenders    []string             `yaml:"allowed_genders,omitempty"`
+	StartingAlignment int                  `yaml:"starting_alignment,omitempty"`
+	Priority          int                  `yaml:"priority,omitempty"`
 }
 
 // AbilityFile is the YAML shape for an ability definition (spec
@@ -243,16 +243,16 @@ type ClassFile struct {
 // override semantics §2.1 already permit a pack to replace a
 // baseline ability by id+priority (mirrors the slot registry).
 type AbilityFile struct {
-	ID                    string   `yaml:"id"`
-	Name                  string   `yaml:"name,omitempty"`
-	Type                  string   `yaml:"type"`
-	Category              string   `yaml:"category"`
-	DefaultCap            int      `yaml:"default_cap,omitempty"`
-	GainBaseChance        int      `yaml:"gain_base_chance,omitempty"`
-	GainFailureMultiplier float64  `yaml:"gain_failure_multiplier,omitempty"`
-	GainStat              string   `yaml:"gain_stat,omitempty"`
-	GainStatScale         float64  `yaml:"gain_stat_scale,omitempty"`
-	Priority              int      `yaml:"priority,omitempty"`
+	ID                    string  `yaml:"id"`
+	Name                  string  `yaml:"name,omitempty"`
+	Type                  string  `yaml:"type"`
+	Category              string  `yaml:"category"`
+	DefaultCap            int     `yaml:"default_cap,omitempty"`
+	GainBaseChance        int     `yaml:"gain_base_chance,omitempty"`
+	GainFailureMultiplier float64 `yaml:"gain_failure_multiplier,omitempty"`
+	GainStat              string  `yaml:"gain_stat,omitempty"`
+	GainStatScale         float64 `yaml:"gain_stat_scale,omitempty"`
+	Priority              int     `yaml:"priority,omitempty"`
 	// M9.3 validation surface (spec abilities-and-effects §2.2, §4.3).
 	Cost          int      `yaml:"cost,omitempty"`
 	PulseDelay    int      `yaml:"pulse_delay,omitempty"`
@@ -274,6 +274,16 @@ type AbilityFile struct {
 	AlignmentMax *int `yaml:"alignment_max,omitempty"`
 	// Effect is the optional template applied on hit (spec §5.1).
 	Effect *EffectFile `yaml:"effect,omitempty"`
+	// M9.6b resolution side-effect surface (spec §4.5 step 8, §4.6).
+	// Handler is the dispatch token the "ability used" subscriber
+	// switches on ("damage" / "heal" / empty). Damage / Heal are
+	// NdM±K dice the matching handler rolls; Damage also makes a
+	// no-effect spell offensive (§4.6). Dice are parsed by the host
+	// (cmd/anothermud) so the pack/progression layers stay free of
+	// the combat dice type.
+	Handler string `yaml:"handler,omitempty"`
+	Damage  string `yaml:"damage,omitempty"`
+	Heal    string `yaml:"heal,omitempty"`
 }
 
 // EffectFile is the YAML shape for an Ability.Effect template (spec

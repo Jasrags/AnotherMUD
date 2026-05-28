@@ -332,8 +332,14 @@ func TestIsOffensive(t *testing.T) {
 	}{
 		{"nil", nil, false},
 		{"skill", &progression.Ability{Category: progression.AbilitySkill}, true},
-		{"spell-no-effect", &progression.Ability{Category: progression.AbilitySpell}, false},
+		{"spell-no-effect-no-damage", &progression.Ability{Category: progression.AbilitySpell}, false},
 		{"spell-with-effect", &progression.Ability{Category: progression.AbilitySpell, Effect: &progression.EffectTemplate{ID: "x"}}, false},
+		// M9.6b: a damage spell with no effect is offensive (§4.6).
+		{"spell-damage-no-effect", &progression.Ability{Category: progression.AbilitySpell, DamageDice: "1d6"}, true},
+		// Effect present overrides damage dice → non-offensive.
+		{"spell-damage-with-effect", &progression.Ability{Category: progression.AbilitySpell, DamageDice: "1d6", Effect: &progression.EffectTemplate{ID: "x"}}, false},
+		// A heal spell (heal dice, no damage) is never offensive.
+		{"spell-heal", &progression.Ability{Category: progression.AbilitySpell, HealDice: "2d4"}, false},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

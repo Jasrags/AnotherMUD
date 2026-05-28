@@ -1111,6 +1111,53 @@ category: skill
 	}
 }
 
+func TestLoadAbilitiesDecodesHandlerAndDice(t *testing.T) {
+	root := t.TempDir()
+	pack := filepath.Join(root, "core")
+	writeFile(t, filepath.Join(pack, "pack.yaml"), `
+name: tapestry-core
+content:
+  areas: [areas/*.yaml]
+  rooms: [rooms/*.yaml]
+  abilities: [abilities/*.yaml]
+`)
+	writeFile(t, filepath.Join(pack, "areas/x.yaml"), `id: x
+name: X`)
+	writeFile(t, filepath.Join(pack, "rooms/r.yaml"), `id: r
+area: x
+name: R`)
+	writeFile(t, filepath.Join(pack, "abilities/kick.yaml"), `
+id: kick
+type: active
+category: skill
+handler: Damage
+damage: 1d6
+`)
+	writeFile(t, filepath.Join(pack, "abilities/heal.yaml"), `
+id: heal
+type: active
+category: spell
+handler: heal
+heal: 2d4
+`)
+
+	regs := NewRegistries()
+	if err := Load(context.Background(), root, nil, regs, nil, nil); err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	kick, _ := regs.Abilities.Get("kick")
+	if kick.HandlerToken != "damage" { // lowercased on decode
+		t.Errorf("HandlerToken = %q, want damage", kick.HandlerToken)
+	}
+	if kick.DamageDice != "1d6" {
+		t.Errorf("DamageDice = %q, want 1d6", kick.DamageDice)
+	}
+	heal, _ := regs.Abilities.Get("heal")
+	if heal.HandlerToken != "heal" || heal.HealDice != "2d4" {
+		t.Errorf("heal decode = token %q heal %q", heal.HandlerToken, heal.HealDice)
+	}
+}
+
 func TestLoadAbilitiesRejectsInvalidType(t *testing.T) {
 	root := t.TempDir()
 	pack := filepath.Join(root, "core")
