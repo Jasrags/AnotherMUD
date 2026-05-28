@@ -22,6 +22,7 @@ import (
 	"sync"
 
 	"github.com/Jasrags/AnotherMUD/internal/combat"
+	"github.com/Jasrags/AnotherMUD/internal/economy"
 	"github.com/Jasrags/AnotherMUD/internal/entities"
 	"github.com/Jasrags/AnotherMUD/internal/eventbus"
 	"github.com/Jasrags/AnotherMUD/internal/help"
@@ -214,6 +215,12 @@ type Env struct {
 	// Quests is the M10.7 quest service. The accept/abandon/quests verbs
 	// route through it. nil in tests that don't exercise quests.
 	Quests *quest.Service
+
+	// Currency is the M11.1 economy currency service (spec
+	// economy-survival §2). The `gold` verb reads through it and the
+	// get/give auto-convert hook credits through it. nil in tests
+	// that don't exercise currency; handlers MUST nil-guard.
+	Currency *economy.CurrencyService
 }
 
 // DispositionHook is the seam movement and login flows call when a
@@ -260,9 +267,11 @@ type Context struct {
 	Help *help.Service
 	// Quests is the M10.7 quest service. nil in tests.
 	Quests *quest.Service
-	Raw    string   // raw input line, trimmed
-	Verb   string   // resolved verb (lowercase)
-	Args   []string // tokens after the verb (space-split)
+	// Currency is the M11.1 economy currency service. nil in tests.
+	Currency *economy.CurrencyService
+	Raw      string   // raw input line, trimmed
+	Verb     string   // resolved verb (lowercase)
+	Args     []string // tokens after the verb (space-split)
 }
 
 // Publish is the nil-safe shortcut every handler should use to emit
@@ -390,6 +399,7 @@ func (r *Registry) Dispatch(ctx context.Context, env Env, actor Actor, raw strin
 		ActionQueue: env.ActionQueue,
 		Help:        env.Help,
 		Quests:      env.Quests,
+		Currency:    env.Currency,
 		Raw:         trimmed,
 		Verb:        strings.ToLower(verb),
 		Args:        args,

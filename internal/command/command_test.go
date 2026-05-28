@@ -174,6 +174,21 @@ type testActor struct {
 	inventory []entities.EntityID
 	equipment map[string]entities.EntityID
 	mods      map[entities.SourceKey][]stats.Modifier
+	gold      int
+}
+
+// Gold / SetGold make testActor satisfy economy.Entity so the
+// currency verb and the get/give auto-convert hook can be exercised.
+func (a *testActor) Gold() int {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	return a.gold
+}
+
+func (a *testActor) SetGold(v int) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	a.gold = v
 }
 
 func newTestActor(start *world.Room) *testActor {

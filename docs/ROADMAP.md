@@ -1536,7 +1536,63 @@ is now real. Sketch of remaining vertical slices:
     event-bus bridge (no consumer yet — logging sink for now) and the
     `quest_grant` item/room side channels.
 
-- **M11 — Survive:** `economy-survival`, currency, shops, sustenance.
+- **M11 — Survive:** `economy-survival`. Four small, loosely-coupled
+  subsystems that share the same shape (a service over an entity
+  property, integrating through events): currency, shops, sustenance,
+  rest, and the consumable pipeline that feeds the first three. This
+  milestone also pays the M9 deferral "real pools + regen land with
+  M11" — sustenance and rest only expose regen *multipliers*; the
+  vitals-regen heartbeat that composes them is built in the last slice.
+
+  Sliced bottom-up so each lands behind the last:
+
+  - **M11.1 (landed) — Currency core.** A single integer `gold`
+    property on the player, plus the `CurrencyService` that mutates it
+    (spec §2). New `internal/economy` package mirroring the
+    `AlignmentManager` seam: an `Entity` interface (`ID`/`Gold`/
+    `SetGold`) the `connActor` satisfies, a `Sink` bridged to the bus
+    at the composition root, and `AddGold`/`SetGold`/`Read`. Gold
+    floors at zero on every mutation; `AddGold` fires
+    `currency.credited` on non-negative deltas and `currency.debited`
+    on negative; `SetGold` rejects negative input. `gold` persists on
+    the player save (v11→v12, no-op migration). The quest reward
+    `GoldGranter` nop is replaced with a real adapter resolving
+    entityId→actor→service (closes the M10.10b "gold stays nop"
+    note). The `TryAutoConvert` pickup hook (spec §2.3, referenced by
+    inventory §4.1) lands in the `get`/`give` paths: a `currency`-
+    tagged item with a positive `value` is credited as gold and
+    untracked instead of entering inventory, suppressing the normal
+    pickup/give event. A `gold` verb reads the balance. A
+    `gold-coins` currency template ships in `content/core` and is
+    placed in town-square for live testing.
+
+    - [x] Gold floors at zero; `AddGold` fires credited/debited by
+          delta sign; `SetGold` rejects negative (economy unit tests).
+    - [x] `gold` persists across save/load (v12 round-trip + v11→v12
+          migration tests).
+    - [x] Auto-convert credits gold + untracks the item for a
+          `currency`-tagged positive-value item on `get`/`give`,
+          only for player destinations, suppressing the pickup/give
+          event (command tests cover convert / zero-value / no-service
+          / give-to-recipient).
+    - [x] Quest gold reward credits the player through the service
+          (wiring test; nil-service stays a no-op).
+
+  - **M11.2 (planned) — Shops.** `ShopConfig` + `shop` tag content,
+    `ShopService` (buy/sell/value/listings), cancellable `shop.buy`/
+    `shop.sell`, buy/sell/value/list verbs, shopkeeper content.
+  - **M11.3 (planned) — Sustenance.** Persisted `sustenance` pool,
+    tiers + `GetRegenMultiplier`, character-created seed at 100, the
+    drain world-tick subscriber + hunger reminders.
+  - **M11.4 (planned) — Rest.** Transient rest-state machine,
+    `SetRestState`, the combat-engage wake subscriber,
+    `GetRestMultiplier`, rest/sleep/wake verbs, `healing_rate` room
+    property.
+  - **M11.5 (planned) — Consumables + regen.** `ConsumableService.
+    Consume`, `item.consuming`/`item.consumed`, eat/drink/use verbs,
+    and the vitals-regen heartbeat composing sustenance × rest × room
+    multipliers (the M9 pools/regen obligation).
+
 - **M12 — Character creation wizard:** the full `character-creation`
   flow now that the systems it touches exist.
 

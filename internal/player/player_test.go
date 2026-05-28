@@ -685,6 +685,56 @@ func TestSaveLoad_V11AbilitiesRoundTrip(t *testing.T) {
 	}
 }
 
+func TestSave_RoundTripsGold(t *testing.T) {
+	ctx := context.Background()
+	st, _ := newStore(t)
+
+	want := &player.Save{
+		Version:   player.CurrentVersion,
+		ID:        "p-1",
+		AccountID: "acct-1",
+		Name:      "Moneybags",
+		Location:  "tapestry-core:town-square",
+		Gold:      4200,
+	}
+	if err := st.Save(ctx, want); err != nil {
+		t.Fatalf("Save: %v", err)
+	}
+	got, err := st.Load(ctx, "Moneybags")
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if got.Gold != 4200 {
+		t.Errorf("Gold = %d, want 4200", got.Gold)
+	}
+}
+
+func TestLoad_V11MigratesToV12(t *testing.T) {
+	ctx := context.Background()
+	st, dir := newStore(t)
+	playerDir := filepath.Join(dir, "players", "olduser")
+	if err := os.MkdirAll(playerDir, 0o755); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+	// A v11 save carries no gold key; migration must preserve the
+	// absence as a zero balance (the documented default).
+	if err := os.WriteFile(filepath.Join(playerDir, "player.yaml"),
+		[]byte("version: 11\nid: p-1\naccount_id: acct-1\nname: OldUser\nlocation: tapestry-core:town-square\n"),
+		0o600); err != nil {
+		t.Fatalf("write: %v", err)
+	}
+	got, err := st.Load(ctx, "olduser")
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if got.Version != player.CurrentVersion {
+		t.Errorf("Version after migrate = %d, want %d", got.Version, player.CurrentVersion)
+	}
+	if got.Gold != 0 {
+		t.Errorf("v11 migration produced non-zero gold: %d", got.Gold)
+	}
+}
+
 func TestLoad_V10MigratesToV11(t *testing.T) {
 	ctx := context.Background()
 	st, dir := newStore(t)

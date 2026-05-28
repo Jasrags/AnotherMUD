@@ -163,6 +163,16 @@ const (
 	// step 9). Distinct topic from combat.death_check; a subscriber
 	// that bridges to the cancellable death flow forwards it.
 	EventAbilityVitalDepleted = "ability.vital_depleted"
+	// CurrencyCredited fires after CurrencyService.AddGold applies a
+	// non-negative delta, and after every SetGold regardless of
+	// direction (spec economy-survival §2.2). Amount is the absolute
+	// magnitude requested; NewTotal is the post-mutation balance.
+	EventCurrencyCredited = "currency.credited"
+	// CurrencyDebited fires after CurrencyService.AddGold applies a
+	// negative delta (§2.2). Amount is the absolute magnitude
+	// requested (NOT the clamped change), so a debit of 100 against a
+	// balance of 30 reports amount=100, NewTotal=0.
+	EventCurrencyDebited = "currency.debited"
 )
 
 // ItemPickedUp fires after GetHandler successfully moves an item
@@ -811,3 +821,32 @@ type AbilityVitalDepleted struct {
 
 // Name implements Event.
 func (AbilityVitalDepleted) Name() string { return EventAbilityVitalDepleted }
+
+// CurrencyCredited fires after gold is added to or set on an entity
+// (spec economy-survival §2.2). EntityID is the bare holder id;
+// Amount is the absolute magnitude of the change; Reason is the
+// caller-supplied tag (e.g. "quest_reward", "pickup:<templateId>");
+// NewTotal is the post-mutation balance.
+type CurrencyCredited struct {
+	EntityID string
+	Amount   int
+	Reason   string
+	NewTotal int
+}
+
+// Name implements Event.
+func (CurrencyCredited) Name() string { return EventCurrencyCredited }
+
+// CurrencyDebited fires after gold is subtracted from an entity
+// (spec §2.2). Field semantics mirror CurrencyCredited; Amount is
+// the absolute magnitude requested, which may exceed the actual
+// change when the balance floored at zero.
+type CurrencyDebited struct {
+	EntityID string
+	Amount   int
+	Reason   string
+	NewTotal int
+}
+
+// Name implements Event.
+func (CurrencyDebited) Name() string { return EventCurrencyDebited }

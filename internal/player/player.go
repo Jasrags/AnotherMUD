@@ -96,7 +96,13 @@ import (
 // AbilitySnapshot to the ProficiencyManager and Restore is a
 // no-op. Caps are clamped to [0,100] and proficiency to [1,cap]
 // on ingest.
-const CurrentVersion = 11
+//
+// v12 (M11.1): `gold` integer (spec economy-survival §2.1). Zero
+// (legacy v11 saves migrated forward, omitempty-absent) is the
+// valid default — "missing entries are treated as zero". The
+// CurrencyService floors it at zero on every mutation, so a save
+// never carries a negative balance.
+const CurrentVersion = 12
 
 // Sentinel errors callers may check via errors.Is.
 var (
@@ -137,7 +143,12 @@ type Save struct {
 	Class           string                          `yaml:"class,omitempty"`
 	TrainsAvailable int                             `yaml:"trains_available,omitempty"`
 	Alignment       int                             `yaml:"alignment,omitempty"`
-	Vitals          *VitalsState                    `yaml:"vitals,omitempty"`
+	// Gold is the §2.1 integer currency balance (v12+). Zero serializes
+	// as no `gold:` key via omitempty, indistinguishable from a legacy
+	// v11 save where the field never existed — both load as a zero
+	// balance, which is the documented default.
+	Gold   int          `yaml:"gold,omitempty"`
+	Vitals *VitalsState `yaml:"vitals,omitempty"`
 	// WimpyThreshold is the §5.1 HP-percent threshold (0 = wimpy
 	// disabled). Added in M7.6 without a schema bump: zero-value
 	// is indistinguishable from "field absent" so legacy v5 saves
@@ -329,6 +340,7 @@ var playerMigrations = map[int]func(map[string]any) (map[string]any, error){
 	8:  migrateV8toV9,
 	9:  migrateV9toV10,
 	10: migrateV10toV11,
+	11: migrateV11toV12,
 }
 
 // migrateV1toV2 adds the empty inventory/equipment blocks introduced
@@ -496,6 +508,14 @@ func migrateV9toV10(in map[string]any) (map[string]any, error) {
 // is preserved (zero-value AbilitySnapshot = nothing learned).
 // The ProficiencyManager's Restore short-circuits on empty input.
 func migrateV10toV11(in map[string]any) (map[string]any, error) {
+	return in, nil
+}
+
+// migrateV11toV12 adds the `gold` integer introduced in M11.1 (spec
+// economy-survival §2.1). No-op on dict content: a legacy v11 save
+// carries no gold key, and absence decodes to a zero balance — the
+// documented default ("missing entries are treated as zero").
+func migrateV11toV12(in map[string]any) (map[string]any, error) {
 	return in, nil
 }
 

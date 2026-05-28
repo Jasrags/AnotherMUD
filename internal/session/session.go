@@ -26,6 +26,7 @@ import (
 	"github.com/Jasrags/AnotherMUD/internal/combat"
 	"github.com/Jasrags/AnotherMUD/internal/command"
 	"github.com/Jasrags/AnotherMUD/internal/conn"
+	"github.com/Jasrags/AnotherMUD/internal/economy"
 	"github.com/Jasrags/AnotherMUD/internal/entities"
 	"github.com/Jasrags/AnotherMUD/internal/eventbus"
 	"github.com/Jasrags/AnotherMUD/internal/help"
@@ -208,6 +209,13 @@ type Config struct {
 	// load as racy). nil-safe.
 	QuestStore *queststore.Store
 
+	// Currency is the M11.1 economy currency service (spec
+	// economy-survival §2). Passed through command.Env so the `gold`
+	// verb and the get/give auto-convert hook can credit/read the
+	// actor's balance. nil-safe: the gold verb reports zero and
+	// auto-convert is a no-op (currency items just enter inventory).
+	Currency *economy.CurrencyService
+
 	// Manager tracks logged-in sessions for autosave + shutdown sweeps.
 	// Required.
 	Manager *Manager
@@ -371,6 +379,10 @@ func run(ctx context.Context, c conn.Connection, cfg Config) error {
 	// history. AlignmentManager may be nil in tests.
 	a.mu.Lock()
 	a.alignment = loaded.Player.Alignment
+	// M11.1: restore persisted gold balance (spec §2.1). No manager
+	// involvement at login — gold has no bucket/tag derivation like
+	// alignment; the raw integer is the whole state.
+	a.gold = loaded.Player.Gold
 	a.mu.Unlock()
 	if cfg.Alignment != nil {
 		if loaded.New {
@@ -607,6 +619,7 @@ func pump(ctx context.Context, c conn.Connection, cfg Config, a *connActor, clk 
 			ActionQueue: cfg.ActionQueue,
 			Help:        cfg.Help,
 			Quests:      cfg.Quests,
+			Currency:    cfg.Currency,
 		}
 		if err := cfg.Commands.Dispatch(ctx, env, a, line); err != nil {
 			if errors.Is(err, command.ErrQuit) {
@@ -1232,6 +1245,16 @@ type connActor struct {
 	// Tags() appends it to racialTags so the AI evaluator's
 	// PlayerView carries it for has_tag matchers.
 	alignmentTag string
+
+	// gold is the actor's integer currency balance (M11.1 — spec
+	// economy-survival §2.1). Written through economy.CurrencyService
+	// (AddGold / SetGold) via the SetGold adapter below; read by the
+	// `gold` verb and the auto-convert hook. Guarded by a.mu — same
+	// actor-lock discipline as alignment; SetGold mirrors into
+	// a.save.Gold under the lock so Persist needs no separate sync
+	// step (the value is always already in the save when the dirty
+	// bit is set).
+	gold int
 
 	// progress is the actor's progression-track state (M8.2 —
 	// docs/specs/progression.md §5.2). Holds per-track (level, xp)
@@ -1945,6 +1968,31 @@ func (a *connActor) AlignmentTag() string {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	return a.alignmentTag
+}
+
+// Gold returns the actor's current balance (M11.1 — spec §2.1).
+// Reads under a.mu so the value is consistent with concurrent
+// AddGold / SetGold writes. Satisfies economy.Entity.
+func (a *connActor) Gold() int {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	return a.gold
+}
+
+// SetGold writes the balance. Used by the economy.CurrencyService
+// adapter; the service always passes a value already floored at
+// zero. Mirrors the value into a.save.Gold and marks the save
+// dirty so the new balance rides to disk on the next Persist —
+// same write-through discipline as SetAlignment. Satisfies
+// economy.Entity.
+func (a *connActor) SetGold(value int) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	a.gold = value
+	if a.save != nil {
+		a.save.Gold = value
+	}
+	a.markDirtyLocked()
 }
 
 // HasTag reports whether the actor carries tag. Used by the

@@ -87,6 +87,11 @@ func RegisterBuiltins(r *Registry) error {
 		{"abandon", AbandonHandler},
 		{"quests", QuestsHandler},
 		{"journal", QuestsHandler},
+		// Currency (M11.1 — economy-survival §2.2). `gold` reports the
+		// actor's balance. No short alias — `g` is a likely future
+		// collision (get / go / group) and the verb is rare enough to
+		// type in full.
+		{"gold", GoldHandler},
 	}
 	for _, d := range []world.Direction{
 		world.DirNorth, world.DirSouth, world.DirEast, world.DirWest,

@@ -1,0 +1,11 @@
+id: gold-coins
+name: a pile of gold coins
+type: treasure
+# `currency` triggers the §2.3 auto-convert hook: picking these up (or
+# receiving them via give) credits the player's gold balance and removes
+# the item from the world rather than stacking it in inventory. `value`
+# is the credited amount.
+tags: [currency]
+keywords: [coins, gold, pile]
+properties:
+  value: 25

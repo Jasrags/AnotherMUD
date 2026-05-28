@@ -78,6 +78,23 @@ func GetHandler(ctx context.Context, c *Context) error {
 	if !c.Placement.Remove(item.ID()) {
 		return c.Actor.Write(ctx, "You don't see that here.")
 	}
+
+	// Currency auto-convert (spec §2.3): a currency-tagged item with a
+	// positive value is credited as gold instead of entering inventory.
+	// The item is now off the floor; the hook untracks it and credits
+	// the holder. We still broadcast the visible pickup (others see the
+	// coins grabbed) but suppress the ItemPickedUp bus event per §2.3
+	// step 7 — the currency feature emits its own currency.credited.
+	if value, converted := tryAutoConvert(ctx, c, c.Actor, item); converted {
+		_ = c.Actor.Write(ctx, fmt.Sprintf("You pick up %s (%d gold).", item.Name(), value))
+		if c.Broadcaster != nil && c.Actor.Name() != "" {
+			c.Broadcaster.SendToRoom(ctx, room.ID,
+				fmt.Sprintf("%s picks up %s.", c.Actor.Name(), item.Name()),
+				c.Actor.PlayerID())
+		}
+		return nil
+	}
+
 	c.Actor.AddToInventory(item.ID())
 
 	_ = c.Actor.Write(ctx, fmt.Sprintf("You pick up %s.", item.Name()))

@@ -25,6 +25,7 @@ import (
 	"github.com/Jasrags/AnotherMUD/internal/clock"
 	"github.com/Jasrags/AnotherMUD/internal/combat"
 	"github.com/Jasrags/AnotherMUD/internal/command"
+	"github.com/Jasrags/AnotherMUD/internal/economy"
 	"github.com/Jasrags/AnotherMUD/internal/entities"
 	"github.com/Jasrags/AnotherMUD/internal/eventbus"
 	"github.com/Jasrags/AnotherMUD/internal/item"
@@ -351,16 +352,23 @@ func run() error {
 		progression.DefaultProficiencyConfig(),
 	)
 
+	// M11.1: currency service (spec economy-survival §2). Bus-bridging
+	// sink mirrors alignmentSink so economy stays free of an eventbus
+	// import. Constructed before the quest service so the gold reward
+	// granter can route through it.
+	currencySvc := economy.NewCurrencyService(&currencySink{bus: bus})
+
 	// M10.7-M10.10: quest service, now that the reward dependencies
-	// (manager, progression, proficiency, item templates, entity store)
-	// all exist. Rewards grant XP / abilities / items on completion; the
-	// event sink logs the lifecycle (a typed event-bus bridge can land
-	// when a consumer needs it). The watcher routes mob-killed /
-	// item-picked-up / item-given / player-moved into objective progress.
+	// (manager, progression, proficiency, item templates, entity store,
+	// currency) all exist. Rewards grant XP / abilities / items / gold on
+	// completion; the event sink logs the lifecycle (a typed event-bus
+	// bridge can land when a consumer needs it). The watcher routes
+	// mob-killed / item-picked-up / item-given / player-moved into
+	// objective progress.
 	questSvc := quest.NewService(quest.Config{
 		Registry: registries.Quests,
 		Persist:  questStore,
-		Rewards:  session.NewQuestRewards(mgr, progressionMgr, proficiencyMgr, registries.Items, entityStore),
+		Rewards:  session.NewQuestRewards(mgr, progressionMgr, proficiencyMgr, registries.Items, entityStore, currencySvc),
 		Events:   questLogSink{logger: logging.From(ctx)},
 	})
 	questWatcher := questwatch.New(questSvc, entityStore)
@@ -1038,6 +1046,7 @@ func run() error {
 		Help:         registries.Help,
 		Quests:       questSvc,
 		QuestStore:   questStore,
+		Currency:     currencySvc,
 		Clock:        clk,
 		Flood:        session.DefaultFloodConfig(),
 		LinkDead:     linkDeadCfg,
@@ -2078,6 +2087,38 @@ func (s *progressionSink) OnTrackReset(ctx context.Context, entityID, track stri
 	s.bus.Publish(ctx, eventbus.TrackReset{
 		EntityID: entityID,
 		Track:    track,
+	})
+}
+
+// currencySink bridges economy.Sink to eventbus.Bus (M11.1 — spec
+// economy-survival §2.2). Same composition-root pattern as
+// alignmentSink: the economy package must not import eventbus, so the
+// service reports through this adapter and we map 1:1 to the bus.
+type currencySink struct {
+	bus *eventbus.Bus
+}
+
+func (s *currencySink) OnGoldCredited(ctx context.Context, entityID string, amount int, reason string, newTotal int) {
+	if s.bus == nil {
+		return
+	}
+	s.bus.Publish(ctx, eventbus.CurrencyCredited{
+		EntityID: entityID,
+		Amount:   amount,
+		Reason:   reason,
+		NewTotal: newTotal,
+	})
+}
+
+func (s *currencySink) OnGoldDebited(ctx context.Context, entityID string, amount int, reason string, newTotal int) {
+	if s.bus == nil {
+		return
+	}
+	s.bus.Publish(ctx, eventbus.CurrencyDebited{
+		EntityID: entityID,
+		Amount:   amount,
+		Reason:   reason,
+		NewTotal: newTotal,
 	})
 }
 

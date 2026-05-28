@@ -31,9 +31,9 @@ import (
 //     comment below for why we do not hold both locks at once.
 //  5. Emit one ItemGiven event.
 //
-// Currency auto-convert (§4.4 step 3) is intentionally skipped: the
-// hook lands with M11 economy. When it arrives, the consumed branch
-// should suppress the visible message AND the ItemGiven event.
+// Currency auto-convert (§4.4 step 3 / economy-survival §2.3) runs
+// after the item leaves the giver: a currency-tagged item given to a
+// player credits their gold and suppresses the ItemGiven event.
 func GiveHandler(ctx context.Context, c *Context) error {
 	if c.Items == nil {
 		return c.Actor.Write(ctx, "You can't give anything right now.")
@@ -98,10 +98,29 @@ func GiveHandler(ctx context.Context, c *Context) error {
 		// (or a concurrent give from another sender — only one wins).
 		return c.Actor.Write(ctx, "You aren't carrying that.")
 	}
-	target.AddToInventory(item.ID())
 
 	giverName := c.Actor.Name()
 	recipName := target.Name()
+
+	// Currency auto-convert (spec §2.3 / §4.4 step 3): giving a
+	// currency-tagged item to a player credits their gold instead of
+	// placing the item in their inventory. The item has already left
+	// the giver; the hook untracks it and credits the recipient. The
+	// visible give is suppressed of its ItemGiven bus event (the
+	// currency feature emits currency.credited on the recipient).
+	if value, converted := tryAutoConvert(ctx, c, target, item); converted {
+		_ = c.Actor.Write(ctx, fmt.Sprintf("You give %s to %s.", item.Name(), recipName))
+		_ = target.Write(ctx, fmt.Sprintf("%s gives you %s (%d gold).", giverName, item.Name(), value))
+		if c.Broadcaster != nil && giverName != "" {
+			c.Broadcaster.SendToRoom(ctx, room.ID,
+				fmt.Sprintf("%s gives %s to %s.", giverName, item.Name(), recipName),
+				c.Actor.PlayerID(), target.PlayerID())
+		}
+		return nil
+	}
+
+	target.AddToInventory(item.ID())
+
 	_ = c.Actor.Write(ctx, fmt.Sprintf("You give %s to %s.", item.Name(), recipName))
 	_ = target.Write(ctx, fmt.Sprintf("%s gives you %s.", giverName, item.Name()))
 	if c.Broadcaster != nil && giverName != "" {

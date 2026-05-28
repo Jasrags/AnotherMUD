@@ -17,5 +17,8 @@ items:
   # guard. Geared wins, ungeared loses.
   - short-sword
   - leather-cap
+  # M11.1: a pile of coins to exercise currency auto-convert — `get
+  # coins` credits gold instead of adding an item to inventory.
+  - gold-coins
 # Mobs now spawn via area-level spawn_rules (spec
 # mobs-ai-spawning §3.5). See areas/town.yaml.

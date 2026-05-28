@@ -3,6 +3,7 @@ package session
 import (
 	"context"
 
+	"github.com/Jasrags/AnotherMUD/internal/economy"
 	"github.com/Jasrags/AnotherMUD/internal/entities"
 	"github.com/Jasrags/AnotherMUD/internal/item"
 	"github.com/Jasrags/AnotherMUD/internal/progression"
@@ -13,22 +14,49 @@ import (
 // engine services (M10.10b, quests.md §5). XP grants through the
 // progression manager onto the recipient's track; abilities through the
 // proficiency manager (whose Learn already matches quest.AbilityTeacher);
-// items spawn from a template into the recipient's inventory. Gold has no
-// service yet (economy-survival, M11), so it stays a no-op. Each granter
-// resolves the recipient via the session manager and is a silent no-op
-// when the player is offline or the template is missing (§5.2).
+// items spawn from a template into the recipient's inventory; gold
+// credits through the currency service (M11.1 — closes the M10.10b
+// "gold stays nop" note). Each granter resolves the recipient via the
+// session manager and is a silent no-op when the player is offline or
+// the template is missing (§5.2). currency may be nil (tests / headless
+// boots that don't wire economy), in which case gold stays a no-op.
 func NewQuestRewards(
 	mgr *Manager,
 	prog *progression.Manager,
 	prof *progression.ProficiencyManager,
 	tpls *item.Templates,
 	store *entities.Store,
+	currency *economy.CurrencyService,
 ) *quest.Dispatcher {
-	return quest.NewDispatcher(
+	opts := []quest.DispatcherOption{
 		quest.WithExperience(questXP{mgr: mgr, prog: prog}),
 		quest.WithAbilities(prof),
 		quest.WithItems(questItems{mgr: mgr, tpls: tpls, store: store}),
-	)
+	}
+	if currency != nil {
+		opts = append(opts, quest.WithGold(questGold{mgr: mgr, currency: currency}))
+	}
+	return quest.NewDispatcher(opts...)
+}
+
+// questGold bridges the quest GoldGranter (entityId-addressed) to the
+// economy CurrencyService (entity-addressed) by resolving the recipient
+// actor through the session manager. Offline recipients are skipped
+// silently (§5.2). The quest interface carries no ctx — mirroring
+// questXP, the grant uses a background context, which is acceptable for
+// a detached reward credit (the currency.credited event still fires on
+// the bus).
+type questGold struct {
+	mgr      *Manager
+	currency *economy.CurrencyService
+}
+
+func (q questGold) AddGold(entityID string, delta int, reason string) {
+	a, ok := q.mgr.GetByPlayerID(entityID)
+	if !ok {
+		return
+	}
+	q.currency.AddGold(context.Background(), a, delta, reason)
 }
 
 // questMarkerFor builds a RenderRoom marker checker for a player from the
