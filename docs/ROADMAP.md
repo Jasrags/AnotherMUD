@@ -1317,17 +1317,30 @@ is now real. Sketch of remaining vertical slices:
             (not literal `{x}`); case-insensitive. Composition with the
             color renderer pinned by test.
 
-    - **M10.3b (planned) — Prompt flush wiring.** Per-player
-      `prompt_template` (player save), the §2.5 prompt-refresh flags
-      on the session, prompt-aware content send (§3.5
-      SendContentToSession), and a `FlushPrompts` drained at end of
-      tick so the prompt renders after content arrives, not on raw
-      input echo. connActor exposes the vital/gold pool values the
-      tokens read.
+    - **M10.3b (landed) — Prompt flush wiring.** connActor gains the
+      §2.5 prompt-refresh flags (`promptDisplayed`/`receivedInput`/
+      `needsPromptRefresh`, under a.mu). `Write` is the content-send
+      half of §3.5: it breaks the line ahead of content when a prompt
+      is displayed and unanswered, then arms the refresh. `noteInput`
+      sets `receivedInput`. `connActor.flushPrompt` renders the
+      template (default or per-player) through `RenderPrompt` + the
+      color renderer and writes it on its own line (no trailing
+      newline); `Manager.FlushPrompts` drives it for every non-
+      link-dead session, registered as a cadence-1 `prompt-flush`
+      tick handler. Player save gains an optional `prompt_template`
+      (no schema bump; absent → default). `promptVitals` reads HP from
+      Vitals and mana/movement from their max stats (thin pools).
 
-      - [ ] Prompt renders after content arrives, on its own line.
-      - [ ] Refresh flags suppress prompt/content collisions; flow /
-            prompt-mode / link-dead sessions are skipped.
+      - [x] Prompt renders after content arrives, on its own line
+            (verified live + unit tests).
+      - [x] Refresh flags suppress prompt/content collisions; link-dead
+            sessions skipped. Flow / prompt-mode skips are N/A until
+            character-creation (M12) adds those input modes.
+
+      Deferrals: no `prompt` verb sets the per-player template yet
+      (lands with the M10 command surface); mana/movement render 0/0
+      until new-character stat seeding populates resource/movement max;
+      gold is 0 until economy-survival (M11).
 
   - **M10.4 (planned) — Panel renderer.** `Panel`/`Section`/`Row`
     (Empty/Title/Text/Cell/Footer)/`Cell` (Fixed/Fill width, align,

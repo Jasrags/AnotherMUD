@@ -123,16 +123,16 @@ var (
 // effect of every equipped item's modifiers — persisted under the
 // same source keys that were live when the save was written.
 type Save struct {
-	Version     int                             `yaml:"version"`
-	ID          string                          `yaml:"id"`
-	AccountID   string                          `yaml:"account_id"`
-	Name        string                          `yaml:"name"`
-	Location    string                          `yaml:"location"`
-	Inventory   []InventoryEntry                `yaml:"inventory,omitempty"`
-	Equipment   map[string]EquippedItem         `yaml:"equipment,omitempty"`
-	Stats       stats.Snapshot                  `yaml:"stats,omitempty"`
-	StatsBase   progression.BaseSnapshot        `yaml:"stats_base,omitempty"`
-	Progression progression.ProgressionSnapshot `yaml:"progression,omitempty"`
+	Version         int                             `yaml:"version"`
+	ID              string                          `yaml:"id"`
+	AccountID       string                          `yaml:"account_id"`
+	Name            string                          `yaml:"name"`
+	Location        string                          `yaml:"location"`
+	Inventory       []InventoryEntry                `yaml:"inventory,omitempty"`
+	Equipment       map[string]EquippedItem         `yaml:"equipment,omitempty"`
+	Stats           stats.Snapshot                  `yaml:"stats,omitempty"`
+	StatsBase       progression.BaseSnapshot        `yaml:"stats_base,omitempty"`
+	Progression     progression.ProgressionSnapshot `yaml:"progression,omitempty"`
 	Race            string                          `yaml:"race,omitempty"`
 	Class           string                          `yaml:"class,omitempty"`
 	TrainsAvailable int                             `yaml:"trains_available,omitempty"`
@@ -145,6 +145,15 @@ type Save struct {
 	// set; load tolerates anything but treats anything < 1 or > 100
 	// as disabled.
 	WimpyThreshold int `yaml:"wimpy,omitempty"`
+
+	// PromptTemplate is the player's custom prompt format
+	// (ui-rendering-help §7.1). Empty means "use the engine default".
+	// Added in M10.3b without a schema bump: an absent field decodes to
+	// "" which is exactly the default-template signal, so legacy saves
+	// round-trip unchanged. No verb sets it yet (a `prompt` command
+	// lands with the M10 command surface); the field exists so the
+	// flush path honors per-player templates the moment one can be set.
+	PromptTemplate string `yaml:"prompt_template,omitempty"`
 
 	// Abilities holds the persisted proficiency + cap maps for
 	// learned abilities (spec abilities-and-effects §3.1). Both
@@ -310,14 +319,14 @@ func (s *Store) Load(ctx context.Context, name string) (*Save, error) {
 // "transforms a v{N} dict into a v{N+1} dict". Never delete an entry;
 // existing saves out there may still be at that version.
 var playerMigrations = map[int]func(map[string]any) (map[string]any, error){
-	1: migrateV1toV2,
-	2: migrateV2toV3,
-	3: migrateV3toV4,
-	4: migrateV4toV5,
-	5: migrateV5toV6,
-	6: migrateV6toV7,
-	7: migrateV7toV8,
-	8: migrateV8toV9,
+	1:  migrateV1toV2,
+	2:  migrateV2toV3,
+	3:  migrateV3toV4,
+	4:  migrateV4toV5,
+	5:  migrateV5toV6,
+	6:  migrateV6toV7,
+	7:  migrateV7toV8,
+	8:  migrateV8toV9,
 	9:  migrateV9toV10,
 	10: migrateV10toV11,
 }

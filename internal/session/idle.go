@@ -155,5 +155,9 @@ func (a *connActor) noteInput(now time.Time) {
 	a.mu.Lock()
 	a.lastInputAt = now
 	a.idleWarned = false
+	// Prompt-refresh §2.5: input has arrived since the prompt was
+	// displayed, so the next content send must NOT break the line (the
+	// player's own keystroke already moved the cursor off the prompt).
+	a.receivedInput = true
 	a.mu.Unlock()
 }

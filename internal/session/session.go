@@ -1212,8 +1212,18 @@ type connActor struct {
 	mu           sync.Mutex
 	room         *world.Room
 	colorEnabled bool
-	save         *player.Save
-	dirty        bool
+	// Prompt-refresh state machine (session-lifecycle §2.5, M10.3b).
+	// All three are guarded by a.mu.
+	//   promptDisplayed    — the most recent send left a prompt at the
+	//                        bottom of the screen.
+	//   receivedInput      — input has arrived since that prompt.
+	//   needsPromptRefresh — content was sent since the last prompt;
+	//                        the end-of-tick flush should re-render.
+	promptDisplayed    bool
+	receivedInput      bool
+	needsPromptRefresh bool
+	save               *player.Save
+	dirty              bool
 	// saveGen is incremented on every mutation that flips dirty. Persist
 	// captures the value at snapshot time and only clears dirty if the
 	// counter hasn't advanced — guards against a concurrent equip /
@@ -1290,8 +1300,24 @@ func (a *connActor) SetColorEnabled(v bool) {
 // Write expands any color markup in msg per the actor's color
 // preference and writes the rendered text plus CRLF.
 func (a *connActor) Write(ctx context.Context, msg string) error {
+	// Content-send half of the prompt-refresh state machine
+	// (session-lifecycle §3.5). If a prompt is sitting at the bottom of
+	// the screen and the player hasn't typed since, break the line first
+	// so the new content doesn't run into the prompt. Then mark that a
+	// prompt refresh is owed at end of tick.
+	a.mu.Lock()
+	breakPrompt := a.promptDisplayed && !a.receivedInput
+	a.promptDisplayed = false
+	a.receivedInput = false
+	a.needsPromptRefresh = true
+	a.mu.Unlock()
+
 	rendered := a.render(msg)
-	_, err := a.conn.Write(ctx, []byte(rendered+"\r\n"))
+	payload := rendered + "\r\n"
+	if breakPrompt {
+		payload = "\r\n" + payload
+	}
+	_, err := a.conn.Write(ctx, []byte(payload))
 	return err
 }
 

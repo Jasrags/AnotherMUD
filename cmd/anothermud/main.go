@@ -177,6 +177,16 @@ func run() error {
 		return fmt.Errorf("register idle-sweep tick: %w", err)
 	}
 
+	// Prompt flush (ui-rendering-help §7.3 / session-lifecycle §3.5).
+	// Every tick, render a fresh prompt for any session that has had
+	// content sent since its last prompt, so the prompt settles after
+	// output rather than mid-stream. Cadence 1 = end of every tick.
+	if err := loop.Register("prompt-flush", 1, func(ctx context.Context, _ uint64) {
+		mgr.FlushPrompts(ctx)
+	}); err != nil {
+		return fmt.Errorf("register prompt-flush tick: %w", err)
+	}
+
 	// AI tick (spec mobs-ai-spawning §4). Registers AFTER the
 	// tag-swap handler so the first dispatch sees the read-side tag
 	// index populated by the pack.Load placements. Cadence one
