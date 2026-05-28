@@ -558,6 +558,9 @@ func pump(ctx context.Context, c conn.Connection, cfg Config, a *connActor, clk 
 			Flee:        cfg.Flee,
 			Progression: cfg.Progression,
 			Training:    cfg.Training,
+			Abilities:   cfg.Abilities,
+			Proficiency: cfg.Proficiency,
+			ActionQueue: cfg.ActionQueue,
 		}
 		if err := cfg.Commands.Dispatch(ctx, env, a, line); err != nil {
 			if errors.Is(err, command.ErrQuit) {

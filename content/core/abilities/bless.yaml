@@ -1,0 +1,41 @@
+id: bless
+name: Bless
+type: active
+category: spell
+
+# Default learn cap for fresh learners; trainers raise it via the
+# practice path (spec progression.md §7.5).
+default_cap: 30
+
+# 20% base gain chance on use, halved on a (rare) miss.
+gain_base_chance: 20
+gain_failure_multiplier: 0.5
+
+# WIS contributes to gain-roll probability (spec
+# abilities-and-effects §3.5 step 3) — a fitting governing stat for
+# a divine buff.
+gain_stat: wis
+gain_stat_scale: 0.1
+
+# Spell ⇒ draws from the mana pool (spec §4.7). A buff should not
+# whiff, so variance 0 makes it always hit (spec §4.5 step 4).
+# pulse_delay throttles re-casting; the effect's own single-instance
+# rule (§5.2) blocks stacking before the cooldown even matters.
+cost: 8
+pulse_delay: 4
+variance: 0
+
+# Self-targeted divine favor. No target_types ⇒ resolution falls back
+# to the caster (spec §4.4 step 3), and the spell-with-effect rule
+# makes it non-offensive (§4.6) so it needs no combat target.
+#
+# Effect: a short to-hit + armor blessing. Re-casting before it lapses
+# fizzles as effect_present (§4.3 step 7) rather than refreshing.
+effect:
+  id: bless
+  duration: 12
+  modifiers:
+    - stat: hit_mod
+      value: 2
+    - stat: ac
+      value: 1

@@ -189,6 +189,21 @@ type Env struct {
 	// verbs route through it. nil in tests that don't exercise
 	// training.
 	Training *progression.TrainingManager
+
+	// Abilities is the M9.1 ability registry (spec
+	// abilities-and-effects §2). The `abilities` verb reads it for
+	// display names + classification; the enqueue verbs (cast +
+	// skill-named) look an ability up before queueing. nil in tests
+	// that don't exercise ability verbs.
+	Abilities *progression.AbilityRegistry
+	// Proficiency is the M9.1 per-entity proficiency manager. The
+	// `abilities` verb reads the actor's learned set + caps from it.
+	// nil in tests.
+	Proficiency *progression.ProficiencyManager
+	// ActionQueue is the M9.3 per-entity action queue (spec §4.1).
+	// The enqueue verbs Push onto it; the combat ability phase
+	// drains it. nil in tests.
+	ActionQueue *progression.ActionQueueManager
 }
 
 // DispositionHook is the seam movement and login flows call when a
@@ -225,10 +240,15 @@ type Context struct {
 	// Progression is the M8.2 XP/level service. nil in tests.
 	Progression *progression.Manager
 	// Training is the M8.6 training service. nil in tests.
-	Training    *progression.TrainingManager
-	Raw         string              // raw input line, trimmed
-	Verb        string              // resolved verb (lowercase)
-	Args        []string            // tokens after the verb (space-split)
+	Training *progression.TrainingManager
+	// Abilities / Proficiency / ActionQueue are the M9.6 ability-verb
+	// seam. nil in tests that don't exercise ability verbs.
+	Abilities   *progression.AbilityRegistry
+	Proficiency *progression.ProficiencyManager
+	ActionQueue *progression.ActionQueueManager
+	Raw         string   // raw input line, trimmed
+	Verb        string   // resolved verb (lowercase)
+	Args        []string // tokens after the verb (space-split)
 }
 
 // Publish is the nil-safe shortcut every handler should use to emit
@@ -351,6 +371,9 @@ func (r *Registry) Dispatch(ctx context.Context, env Env, actor Actor, raw strin
 		Flee:        env.Flee,
 		Progression: env.Progression,
 		Training:    env.Training,
+		Abilities:   env.Abilities,
+		Proficiency: env.Proficiency,
+		ActionQueue: env.ActionQueue,
 		Raw:         trimmed,
 		Verb:        strings.ToLower(verb),
 		Args:        args,

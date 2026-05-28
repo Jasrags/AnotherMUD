@@ -121,6 +121,23 @@ func run() error {
 	if err := command.RegisterBuiltins(cmds); err != nil {
 		return fmt.Errorf("register builtins: %w", err)
 	}
+	// M9.6: register one enqueue verb per ACTIVE ability id so a
+	// player can invoke an ability by its own name ("kick goblin",
+	// "bless"). Passive abilities are hook-driven (§6) and never
+	// queued, so they get no verb. A collision with an existing
+	// builtin (e.g. a content ability literally named "cast" or a
+	// movement direction) is skipped with a warning rather than
+	// aborting boot — the generic `cast <ability>` verb still reaches
+	// the shadowed ability.
+	for _, ab := range registries.Abilities.All() {
+		if ab.Type != progression.AbilityActive {
+			continue
+		}
+		if err := cmds.Register(ab.ID, command.AbilityVerb(ab.ID)); err != nil {
+			logging.From(ctx).Warn("skill-named verb skipped (keyword taken)",
+				slog.String("ability", ab.ID), slog.Any("err", err))
+		}
+	}
 
 	mgr := session.NewManager()
 
@@ -361,6 +378,67 @@ func run() error {
 		// with no track gate. Pass empty trackName so Apply
 		// short-circuits the gate check.
 		classPath.Apply(ctx, e.EntityID, e.ClassID, "", 1)
+	})
+
+	// M9.6: render ability resolution outcomes to players. The
+	// ability phase + resolver emit ability.used / .missed / .fizzled
+	// into the bus (M9.4b) but nothing surfaced them to the caster
+	// until the verb path landed. SourceID is the bare player entity
+	// id; only players have an enqueue path today, so a GetByPlayerID
+	// miss means the source was a mob/logged-out and we stay silent.
+	bus.Subscribe(eventbus.EventAbilityUsed, func(ctx context.Context, ev eventbus.Event) {
+		e, ok := ev.(eventbus.AbilityUsed)
+		if !ok {
+			return
+		}
+		actor, ok := mgr.GetByPlayerID(e.SourceID)
+		if !ok {
+			return
+		}
+		verb, verbThird := abilityVerbWords(e.Category)
+		selfMsg := fmt.Sprintf("You %s %s", verb, e.AbilityName)
+		roomMsg := fmt.Sprintf("%s %s %s", actor.Name(), verbThird, e.AbilityName)
+		if e.TargetName != "" {
+			selfMsg += " on " + e.TargetName
+			roomMsg += " on " + e.TargetName
+		}
+		_ = actor.Write(ctx, selfMsg+".")
+		if room := actor.Room(); room != nil {
+			mgr.SendToRoom(ctx, room.ID, roomMsg+".", actor.PlayerID())
+		}
+	})
+	bus.Subscribe(eventbus.EventAbilityMissed, func(ctx context.Context, ev eventbus.Event) {
+		e, ok := ev.(eventbus.AbilityMissed)
+		if !ok {
+			return
+		}
+		actor, ok := mgr.GetByPlayerID(e.SourceID)
+		if !ok {
+			return
+		}
+		selfMsg := fmt.Sprintf("You try %s", e.AbilityName)
+		roomMsg := fmt.Sprintf("%s tries %s", actor.Name(), e.AbilityName)
+		if e.TargetName != "" {
+			selfMsg += " on " + e.TargetName
+			roomMsg += " on " + e.TargetName
+		}
+		_ = actor.Write(ctx, selfMsg+", but misses.")
+		if room := actor.Room(); room != nil {
+			mgr.SendToRoom(ctx, room.ID, roomMsg+", but misses.", actor.PlayerID())
+		}
+	})
+	bus.Subscribe(eventbus.EventAbilityFizzled, func(ctx context.Context, ev eventbus.Event) {
+		e, ok := ev.(eventbus.AbilityFizzled)
+		if !ok {
+			return
+		}
+		actor, ok := mgr.GetByPlayerID(e.SourceID)
+		if !ok {
+			return
+		}
+		// Fizzles are a private validation failure — caster only, no
+		// room broadcast.
+		_ = actor.Write(ctx, fizzleMessage(e.AbilityName, e.Reason))
 	})
 
 	combatCooldowns := combat.NewFleeCooldowns()
@@ -653,18 +731,18 @@ func run() error {
 		Flee: func(ctx context.Context, c combat.CombatantID) combat.FleeOutcome {
 			return combat.Flee(ctx, c, fleeCfg)
 		},
-		Progression:  progressionMgr,
+		Progression: progressionMgr,
 		Training: progression.NewTrainingManager(
 			progression.DefaultTrainingConfig(),
 			registries.Races,
 			session.NewTrainerSource(mgr, placement, entityStore),
 			proficiencyMgr,
 		),
-		Proficiency: proficiencyMgr,
-		Abilities:   registries.Abilities,
-		Effects:     effectMgr,
-		ActionQueue: actionQueueMgr,
-		PulseDelay:  pulseDelayTracker,
+		Proficiency:  proficiencyMgr,
+		Abilities:    registries.Abilities,
+		Effects:      effectMgr,
+		ActionQueue:  actionQueueMgr,
+		PulseDelay:   pulseDelayTracker,
 		Races:        registries.Races,
 		Classes:      registries.Classes,
 		Alignment:    alignmentMgr,
@@ -1490,6 +1568,49 @@ func (s *effectSink) EffectExpired(ctx context.Context, ev progression.EffectExp
 		EffectID:        ev.EffectID,
 		SourceAbilityID: ev.SourceAbilityID,
 	})
+}
+
+// abilityVerbWords returns the (second-person, third-person) verb a
+// renderer uses for an ability of the given category. Spells are
+// "cast / casts"; everything else (skills, unknown) is "use / uses".
+func abilityVerbWords(category string) (string, string) {
+	if category == string(progression.AbilitySpell) {
+		return "cast", "casts"
+	}
+	return "use", "uses"
+}
+
+// fizzleMessage renders a §4.8 fizzle reason into a caster-facing
+// line. The reason is the lower-case keyword from the bus event; an
+// unrecognized keyword falls back to a generic line so a future
+// engine/content reason doesn't render as a blank message.
+func fizzleMessage(abilityName, reason string) string {
+	switch reason {
+	case "unknown_ability":
+		return "You don't know how to do that."
+	case "asleep":
+		return "You can't do that right now."
+	case "alignment_restricted":
+		return fmt.Sprintf("Your conscience won't let you use %s.", abilityName)
+	case "no_proficiency":
+		return fmt.Sprintf("You haven't learned %s.", abilityName)
+	case "equipment_required":
+		return fmt.Sprintf("You aren't wielding the right equipment for %s.", abilityName)
+	case "initiate_only":
+		return fmt.Sprintf("You can only use %s to start a fight.", abilityName)
+	case "invalid_target":
+		return "You don't see your target here."
+	case "not_in_combat":
+		return fmt.Sprintf("You have to be fighting to use %s.", abilityName)
+	case "effect_present":
+		return fmt.Sprintf("%s is already in effect.", abilityName)
+	case "pulse_delay":
+		return fmt.Sprintf("You can't use %s again so soon.", abilityName)
+	case "insufficient_resources":
+		return fmt.Sprintf("You're too exhausted to use %s.", abilityName)
+	default:
+		return fmt.Sprintf("Your %s fizzles.", abilityName)
+	}
 }
 
 // abilitySink bridges progression.AbilitySink to eventbus.Bus

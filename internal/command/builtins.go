@@ -68,6 +68,14 @@ func RegisterBuiltins(r *Registry) error {
 		// verbs.
 		{"train", TrainHandler},
 		{"practice", PracticeHandler},
+		// Ability verbs (M9.6 — abilities-and-effects §3/§4). `abilities`
+		// lists the actor's learned set; `cast` enqueues an ability by
+		// name. Skill-named verbs (kick, bless, …) are registered
+		// separately from the loaded ability registry in cmd/anothermud.
+		// `abi` aliases the listing — short and unambiguous today.
+		{"abilities", AbilitiesHandler},
+		{"abi", AbilitiesHandler},
+		{"cast", CastHandler},
 	}
 	for _, d := range []world.Direction{
 		world.DirNorth, world.DirSouth, world.DirEast, world.DirWest,

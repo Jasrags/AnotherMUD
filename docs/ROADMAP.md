@@ -1065,7 +1065,60 @@ is now real. Sketch of remaining vertical slices:
     defensive-check stubs with real passive rolls.
   - **M9.6 — Content + verb surface.** Player-facing
     `abilities` / `cast` / skill-named verbs; baseline content
-    (kick, heal, bless).
+    (kick, heal, bless). Split into two slices: M9.6a (verb
+    surface + effect-only content) + M9.6b (ability.used
+    damage/heal handler + offensive/heal content).
+
+    - **M9.6a (landed) — Verb surface + bless.** The dormant
+      M9.4 ability path is now player-driven. `command.Env` /
+      `Context` carry the M9.1/M9.3 managers (`Abilities`,
+      `Proficiency`, `ActionQueue`); session threads them from
+      `Config`. New verbs in `internal/command/abilities.go`:
+      `abilities` (+ `abi`) lists the actor's learned set with
+      proficiency/cap + skill/spell classification;
+      `cast <ability> [on] <target>` enqueues a `QueuedAction`;
+      `AbilityVerb(id)` is the skill-named-verb factory, and
+      `cmd/anothermud` registers one verb per **active** ability id
+      at boot (collision with a builtin is skipped with a warning).
+      A new `ability.{used,missed,fizzled}` bus subscriber renders
+      resolution outcomes to the caster (+ room for used/missed);
+      `fizzleMessage` maps each §4.8 reason to a player line.
+      Content: `abilities/bless.yaml` — an effect-only spell
+      (hit_mod +2 / ac +1 for 12 pulses, variance 0) granted on the
+      fighter path at level 1 so a fresh fighter casts it
+      end-to-end. Resolution stays **combat-only** (the ability
+      phase iterates `AllCombatants`); a queued buff sits until the
+      caster is in a round.
+
+      - [x] `abilities` lists learned set; empty + unregistered
+            (declarative-grant) cases handled. Pinned by
+            `abilities_test.go`.
+      - [x] `cast` / skill-named verbs enqueue with optional
+            target resolution (Locator/Placement via
+            `findCombatantInRoom`, prefix-stripped to the bare
+            entity id); unknown ability, missing target, and
+            queue-full refusals covered.
+      - [x] bless resolves through the existing resolver's
+            on-hit effect application (connActor EffectTarget);
+            no damage handler needed.
+
+      Known gaps (carried to M9.6b / deferrals):
+      - **No damage/heal yet.** basic-strike (granted, active
+        skill) and any offensive ability resolve hit/miss +
+        proficiency gain but apply no HP change — the resolver
+        emits `ability.used` and leaves damage to a handler
+        (spec §4.5 step 9). kick/heal content + the handler are
+        M9.6b. The `ability.vital_depleted` → combat-death bridge
+        also lands in M9.6b (no ability kills today).
+      - **AbilityUsedEvent has no handler token** (m9-4 deferral
+        #2) — added with the M9.6b handler-dispatch path.
+
+    - **M9.6b (planned) — Damage/heal handler + content.**
+      `ability.used` subscriber applies damage/heal to
+      `combat.Vitals`; `Ability`/`AbilityUsed` gain a handler
+      token; `ability.vital_depleted` bridges to the cancellable
+      combat death check; kick (offensive skill) + heal (spell)
+      content.
 - **M10 — Quests & UI polish:** `quests`, `ui-rendering-help` themes,
   panels, 256/truecolor, and telnet capability negotiation. (Basic
   ANSI-16 color already landed in M2.)
