@@ -1578,9 +1578,41 @@ is now real. Sketch of remaining vertical slices:
     - [x] Quest gold reward credits the player through the service
           (wiring test; nil-service stays a no-op).
 
-  - **M11.2 (planned) — Shops.** `ShopConfig` + `shop` tag content,
-    `ShopService` (buy/sell/value/listings), cancellable `shop.buy`/
-    `shop.sell`, buy/sell/value/list verbs, shopkeeper content.
+  - **M11.2 — Shops.** A shop NPC carries the `shop` tag and a config
+    record (sells list + optional per-shop buy markup / sell discount,
+    falling back to the global economy defaults 1.2 / 0.5). The
+    `ShopService` (spec §3) prices items (`max(1, round(V×mult))`,
+    int64), resolves stock by partial name with ambiguity guarding
+    (§3.7) and inventory by first-match (§3.8), lists stock (§3.4), and
+    runs buy/sell/value through the currency service with cancellable
+    `shop.buy`/`shop.sell` pre-events. Sliced a/b:
+
+    - **M11.2a (planned) — Service core.** `internal/economy/shop.go`:
+      `EconomyConfig` + `ShopConfig`, pricing, stock/inventory
+      resolution, listings, and `Buy`/`Sell`/`Value` over a `Shopper`
+      interface (the connActor satisfies it) + `ShopSink` for the
+      cancellable events. Buy charges before item creation with no
+      refund on spawn failure (spec §9 open question, kept as-is); sell
+      auto-unequips silently and rejects `no_sell` / zero-value items.
+
+      - [ ] Pricing floors at 1; per-shop multipliers override the
+            global default only when positive (unit tests).
+      - [ ] Stock resolves by partial name; a prefix matching two
+            sells entries is ambiguous → no sale. Inventory resolves
+            first-match (unit tests).
+      - [ ] Buy fires the cancellable `shop.buy` before charging;
+            `InsufficientGold` returns the price; sell auto-unequips and
+            rejects `no_sell` (unit tests).
+      - [ ] Value returns the inventory (sell) price first, then the
+            stock (buy) price (unit tests).
+
+    - **M11.2b (planned) — Verbs + content + wiring.** `buy`/`sell`/
+      `value`/`list` verbs in `command/shop.go` (find the first
+      `shop`-tagged mob in the room, parse `ShopConfig` from its
+      properties); `shop.buy`/`shop.sell` bus events + a main-side sink
+      bridge; `ShopService` wired through `session.Config`/`Env`. A
+      shopkeeper mob + a few sellable item templates ship in
+      `content/core` for live testing.
   - **M11.3 (planned) — Sustenance.** Persisted `sustenance` pool,
     tiers + `GetRegenMultiplier`, character-created seed at 100, the
     drain world-tick subscriber + hunger reminders.
