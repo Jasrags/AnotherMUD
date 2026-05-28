@@ -2,6 +2,9 @@ package telnet
 
 import (
 	"bytes"
+	"context"
+	"io"
+	"net"
 	"testing"
 )
 
@@ -64,5 +67,60 @@ func TestMapEscapedWriteCount(t *testing.T) {
 		if got := mapEscapedWriteCount(p, c.nWritten); got != c.want {
 			t.Errorf("mapEscapedWriteCount(%d) = %d, want %d", c.nWritten, got, c.want)
 		}
+	}
+}
+
+// TestWriteCommandDoesNotEscapeIAC pins the password-masking fix: a
+// telnet command sequence (IAC WILL ECHO) must reach the wire verbatim,
+// NOT IAC-doubled the way Write escapes content. net.Pipe is unbuffered,
+// so the reader runs concurrently.
+func TestWriteCommandDoesNotEscapeIAC(t *testing.T) {
+	srv, cli := net.Pipe()
+	defer srv.Close()
+	defer cli.Close()
+	c := New("t1", srv)
+
+	cmd := []byte{0xFF, 0xFB, 0x01} // IAC WILL ECHO
+	got := make([]byte, len(cmd))
+	readErr := make(chan error, 1)
+	go func() {
+		_, err := io.ReadFull(cli, got)
+		readErr <- err
+	}()
+	if _, err := c.WriteCommand(context.Background(), cmd); err != nil {
+		t.Fatalf("WriteCommand: %v", err)
+	}
+	if err := <-readErr; err != nil {
+		t.Fatalf("read: %v", err)
+	}
+	if !bytes.Equal(got, cmd) {
+		t.Errorf("wire = % x, want verbatim % x (no IAC doubling)", got, cmd)
+	}
+}
+
+// TestWriteStillEscapesIAC is the companion: ordinary content Write keeps
+// doubling 0xFF so untrusted text can't inject telnet commands.
+func TestWriteStillEscapesIAC(t *testing.T) {
+	srv, cli := net.Pipe()
+	defer srv.Close()
+	defer cli.Close()
+	c := New("t2", srv)
+
+	in := []byte{'h', 0xFF, 'i'}
+	want := []byte{'h', 0xFF, 0xFF, 'i'}
+	got := make([]byte, len(want))
+	readErr := make(chan error, 1)
+	go func() {
+		_, err := io.ReadFull(cli, got)
+		readErr <- err
+	}()
+	if _, err := c.Write(context.Background(), in); err != nil {
+		t.Fatalf("Write: %v", err)
+	}
+	if err := <-readErr; err != nil {
+		t.Fatalf("read: %v", err)
+	}
+	if !bytes.Equal(got, want) {
+		t.Errorf("wire = % x, want escaped % x", got, want)
 	}
 }

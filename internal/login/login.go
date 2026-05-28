@@ -364,7 +364,7 @@ func promptEmail(ctx context.Context, lio *lineIO, cfg Config) (string, error) {
 }
 
 func promptPassword(ctx context.Context, lio *lineIO, prompt string) (string, error) {
-	if err := lio.writeRaw(ctx, iacWillEcho); err != nil {
+	if err := lio.writeCommand(ctx, iacWillEcho); err != nil {
 		return "", err
 	}
 	if err := lio.writeRaw(ctx, []byte(prompt)); err != nil {
@@ -373,7 +373,7 @@ func promptPassword(ctx context.Context, lio *lineIO, prompt string) (string, er
 	pw, readErr := lio.readln(ctx)
 	// Restore echo before doing anything else so the next prompt is
 	// visible — even if Read errored.
-	if err := lio.writeRaw(ctx, iacWontEcho); err != nil {
+	if err := lio.writeCommand(ctx, iacWontEcho); err != nil {
 		if readErr == nil {
 			return "", err
 		}
@@ -413,6 +413,28 @@ func (l *lineIO) writeln(ctx context.Context, s string) error {
 }
 
 func (l *lineIO) writeRaw(ctx context.Context, b []byte) error {
+	_, err := l.c.Write(ctx, b)
+	return err
+}
+
+// commandWriter is implemented by transports (telnet) that can write a
+// raw protocol command sequence without the IAC-escaping their normal
+// Write applies. Defined here, at the use site, per the small-interface
+// convention.
+type commandWriter interface {
+	WriteCommand(ctx context.Context, p []byte) (int, error)
+}
+
+// writeCommand sends a telnet command sequence (e.g. IAC WILL ECHO)
+// verbatim. On a transport that escapes IAC in Write (telnet), it MUST
+// bypass that escaping or the command is corrupted — so it prefers the
+// commandWriter path and only falls back to Write for transports that
+// don't escape (or don't speak telnet at all, like test fakes).
+func (l *lineIO) writeCommand(ctx context.Context, b []byte) error {
+	if cw, ok := l.c.(commandWriter); ok {
+		_, err := cw.WriteCommand(ctx, b)
+		return err
+	}
 	_, err := l.c.Write(ctx, b)
 	return err
 }

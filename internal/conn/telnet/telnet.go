@@ -231,6 +231,34 @@ func (c *Conn) Write(ctx context.Context, p []byte) (int, error) {
 	return mapEscapedWriteCount(p, n), nil
 }
 
+// WriteCommand writes a pre-formed telnet command sequence verbatim,
+// WITHOUT the IAC-doubling that Write applies. The bytes ARE telnet
+// protocol (a leading IAC 0xFF followed by a command), so escaping them
+// would corrupt the command — e.g. the login echo-suppression sequence
+// IAC WILL ECHO {0xFF,0xFB,0x01} would reach the client as
+// {0xFF,0xFF,0xFB,0x01}, which it reads as a literal 0xFF (rendered as
+// garbage) plus a malformed negotiation, leaving password masking off.
+//
+// Callers must pass only well-formed telnet command sequences; arbitrary
+// user/content text must go through Write so its 0xFF bytes are escaped.
+func (c *Conn) WriteCommand(ctx context.Context, p []byte) (int, error) {
+	if err := ctx.Err(); err != nil {
+		return 0, err
+	}
+	c.wmu.Lock()
+	defer c.wmu.Unlock()
+	n, err := c.raw.Write(p)
+	if err != nil {
+		select {
+		case <-c.done:
+			return n, conn.ErrClosed
+		default:
+		}
+		return n, fmt.Errorf("telnet.WriteCommand: %w", err)
+	}
+	return n, nil
+}
+
 // bytesIndexByte mirrors bytes.IndexByte without forcing the import
 // graph to add `bytes` for one call. Sentinel return -1 matches the
 // stdlib convention.
