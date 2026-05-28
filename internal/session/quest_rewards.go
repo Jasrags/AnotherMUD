@@ -52,8 +52,12 @@ func (q questXP) GrantExperience(entityID string, amount int64, track, source st
 	if !ok {
 		return
 	}
-	// Reward grants are detached from the triggering request, so a
-	// background context is appropriate for the XP grant's logging.
+	// quest.ExperienceGranter has no ctx, so XP-grant logging loses the
+	// session-scoped fields and the GrantResult (level-up message) is
+	// discarded — the level-up still fires on the bus, and the quest
+	// completion itself is the player's feedback. Acceptable for a
+	// detached reward grant; threading ctx would mean widening the
+	// reward interface all the way from Accept.
 	a.GrantXP(context.Background(), q.prog, track, source, amount)
 }
 

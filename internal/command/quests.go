@@ -3,8 +3,10 @@ package command
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"strings"
 
+	"github.com/Jasrags/AnotherMUD/internal/logging"
 	"github.com/Jasrags/AnotherMUD/internal/quest"
 	"github.com/Jasrags/AnotherMUD/internal/render"
 )
@@ -26,6 +28,10 @@ func AcceptHandler(ctx context.Context, c *Context) error {
 	}
 	player, ok := c.Actor.(quest.Player)
 	if !ok {
+		// connActor implements quest.Player; a miss here is a wiring
+		// regression in a new actor type, not a player-facing condition.
+		logging.From(ctx).Warn("accept: actor does not implement quest.Player",
+			slog.String("actor", fmt.Sprintf("%T", c.Actor)))
 		return c.Actor.Write(ctx, "You can't accept quests.")
 	}
 	res := c.Quests.Accept(player, questID, false)

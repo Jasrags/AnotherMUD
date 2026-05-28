@@ -1778,9 +1778,10 @@ func applyRace(a *connActor, cfg *Config, saved string) {
 	}
 }
 
-// ClassID returns the actor's resolved class id. Empty means
-// classless (no path / no stat growth on level-up). Set once at
-// construction; never mutates for the life of the actor.
+// ClassID returns the actor's current class id. Empty means classless
+// (no path / no stat growth on level-up). Normally set once at
+// construction, but a quest class-unlock reward may rewrite it via
+// SetClass (M10.10) — readers must not cache it as immutable.
 func (a *connActor) ClassID() string {
 	a.mu.Lock()
 	defer a.mu.Unlock()

@@ -126,7 +126,9 @@ func (r *Registry) ResolveID(term string) (string, bool) {
 		if i := strings.LastIndex(id, ":"); i >= 0 {
 			bare = id[i+1:]
 		}
-		if strings.EqualFold(id, t) || strings.EqualFold(bare, t) || strings.EqualFold(d.Name, term) {
+		// All three branches compare against the normalized t (EqualFold
+		// is case-insensitive; t is also trimmed).
+		if strings.EqualFold(id, t) || strings.EqualFold(bare, t) || strings.EqualFold(d.Name, t) {
 			matches = append(matches, id)
 		}
 	}

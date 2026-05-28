@@ -60,6 +60,22 @@ func TestAcceptByBareIDAndName(t *testing.T) {
 	}
 }
 
+func TestAcceptByDisplayName(t *testing.T) {
+	svc := questService(t)
+	// by mixed-case display name — EqualFold makes it case-insensitive
+	for _, term := range []string{"Gate Patrol", "gate patrol"} {
+		s2 := questService(t)
+		c, a := acceptCtx(s2, strings.Fields(term)...)
+		if err := command.AcceptHandler(context.Background(), c); err != nil {
+			t.Fatal(err)
+		}
+		if !strings.Contains(a.lastLine(), "Gate Patrol") {
+			t.Errorf("accept by name %q = %q", term, a.lastLine())
+		}
+	}
+	_ = svc
+}
+
 func TestAcceptUnknownQuest(t *testing.T) {
 	svc := questService(t)
 	c, a := acceptCtx(svc, "nonsense")

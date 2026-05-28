@@ -337,6 +337,16 @@ func (s *Service) advanceStageLocked(playerID string, active *ActiveQuest, def *
 // completeLocked removes the quest, records completion, dispatches
 // rewards, and emits the completed event (§4.3). Caller holds s.mu; it
 // does NOT persist (the public wrapper does, off-lock).
+//
+// LOCK ORDER (load-bearing): reward Dispatch runs here under s.mu and
+// reaches into the recipient's session — questXP/questItems take the
+// Manager lock then the connActor lock, and SetClass/SetRace take the
+// connActor lock. The acquire order is therefore s.mu → Manager.mu →
+// connActor.mu. To avoid deadlock, NO caller may hold the Manager or a
+// connActor lock while calling a Service method that can reach here
+// (Accept/AdvanceObjective/AdvanceMatching) or that takes s.mu
+// (HasMarker/Snapshot/Abandon). Today all such calls originate from the
+// command/login/teardown paths with no session lock held — keep it so.
 func (s *Service) completeLocked(playerID string, st *State, questID string) {
 	st.removeActive(questID)
 	st.Completed = append(st.Completed, questID)
