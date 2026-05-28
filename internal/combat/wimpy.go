@@ -45,7 +45,7 @@ func NewWimpy(cfg FleeConfig) PhaseFunc {
 		panic("combat.NewWimpy: nil Mover")
 	}
 
-	return func(ctx context.Context, c CombatantID, mgr *Manager) {
+	return func(ctx context.Context, c CombatantID, mgr *Manager, _ uint64) {
 		cb, ok := cfg.Locator.LookupCombatant(c)
 		if !ok {
 			return

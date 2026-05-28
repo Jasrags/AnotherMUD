@@ -50,3 +50,89 @@ func (nopSink) OnXPGained(context.Context, string, string, int64, int64, string)
 func (nopSink) OnLevelUp(context.Context, string, string, int, int)              {}
 func (nopSink) OnXPLost(context.Context, string, string, int64, int64)           {}
 func (nopSink) OnTrackReset(context.Context, string, string)                     {}
+
+// AbilitySink is the optional event-emission seam consumed by the
+// ability resolution phase (spec abilities-and-effects §7). It
+// mirrors the EffectSink / combat.EventSink shape: cheap,
+// non-blocking, ctx-first. Implementations adapt to the production
+// eventbus.Bus in cmd/anothermud; tests use a recording fake.
+// nil-safe: a resolver constructed without a sink runs silently.
+//
+// The four methods cover the four resolution-phase event names spec
+// §7 enumerates:
+//   - ability used (hit) — OnAbilityUsed
+//   - ability missed (miss) — OnAbilityMissed
+//   - ability fizzled (validation failure) — OnAbilityFizzled,
+//     emitted by the per-pulse driver in M9.4b
+//   - vital-depleted (hp ≤ 0 during resolution) — OnVitalDepleted
+type AbilitySink interface {
+	OnAbilityUsed(ctx context.Context, ev AbilityUsedEvent)
+	OnAbilityMissed(ctx context.Context, ev AbilityMissedEvent)
+	OnAbilityFizzled(ctx context.Context, ev AbilityFizzledEvent)
+	OnVitalDepleted(ctx context.Context, ev VitalDepletedEvent)
+}
+
+// AbilityUsedEvent is the payload published on a hit (spec §4.5
+// step 8). Category is the engine's classification, useful for
+// per-pool ("you cast …" vs "you …") rendering downstream.
+type AbilityUsedEvent struct {
+	SourceID    string
+	AbilityID   string
+	AbilityName string
+	Category    AbilityCategory
+	TargetID    string
+	TargetName  string
+}
+
+// AbilityMissedEvent is the payload published on a miss (spec §4.5
+// step 6). Same shape minus Category — the renderer typically uses
+// the source's pronoun + the ability name.
+type AbilityMissedEvent struct {
+	SourceID    string
+	AbilityID   string
+	AbilityName string
+	TargetID    string
+	TargetName  string
+}
+
+// AbilityFizzledEvent is the payload published when the per-pulse
+// driver drops a queued invocation because validation rejected it
+// (spec §4.2 step 2, §4.8). Reason carries the lower-case keyword
+// surface; clients SHOULD treat unknown reasons as opaque strings.
+// Emitted by the M9.4b driver; defined here so the AbilitySink
+// surface is stable before that wiring lands.
+type AbilityFizzledEvent struct {
+	SourceID    string
+	AbilityID   string
+	AbilityName string
+	Reason      FizzleReason
+}
+
+// VitalDepletedEvent is the payload published when the resolver's
+// post-hit death-check observes the target's HP at or below zero
+// (spec §4.5 step 9). The progression layer never applies damage
+// itself; this event signals combat that a queued resolution
+// landed a lethal blow so combat can run its cancellable death
+// check (combat §6.1). KillerID == SourceID always today.
+//
+// Distinct from combat.VitalDepleted (which is emitted by the
+// damage-application path inside combat) — keeping the two
+// separate avoids a progression → combat dependency. The production
+// bus-bridge in cmd/anothermud forwards both onto the same bus
+// topic.
+type VitalDepletedEvent struct {
+	VictimID string
+	KillerID string
+	Vital    string
+}
+
+// VitalHP is the canonical vital identifier emitted in
+// VitalDepletedEvent.Vital today. Mirrors combat.VitalHP so
+// subscribers comparing across the two event families don't need
+// to re-spell the literal.
+const VitalHP = "hp"
+
+func (nopSink) OnAbilityUsed(context.Context, AbilityUsedEvent)       {}
+func (nopSink) OnAbilityMissed(context.Context, AbilityMissedEvent)   {}
+func (nopSink) OnAbilityFizzled(context.Context, AbilityFizzledEvent) {}
+func (nopSink) OnVitalDepleted(context.Context, VitalDepletedEvent)   {}

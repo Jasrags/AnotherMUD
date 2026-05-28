@@ -14,6 +14,8 @@
 // participating in the same combat loop as mobs.
 package combat
 
+import "strings"
+
 // CombatantID is the identity used by combat-side code to refer to a
 // combatant. The string space is shared by mobs and players but kept
 // disjoint at construction time: mob ids carry the MobPrefix and
@@ -46,6 +48,26 @@ func NewMobCombatantID(entityID string) CombatantID {
 // account-scoped identity (player.Save.ID).
 func NewPlayerCombatantID(playerID string) CombatantID {
 	return CombatantID(PlayerPrefix + playerID)
+}
+
+// EntityIDOf strips the namespace prefix from a CombatantID, yielding
+// the bare runtime entity id (mob store id or player.Save.ID). The
+// inverse of NewMobCombatantID / NewPlayerCombatantID. An id with no
+// recognized prefix is returned unchanged — callers that need to know
+// the namespace should dispatch on the prefix constants directly.
+//
+// Used by the M9.4 ability phase: combat tracks targets as prefixed
+// CombatantIDs, but the progression layer (effect manager, resolver)
+// keys on the bare entity id.
+func EntityIDOf(c CombatantID) string {
+	s := string(c)
+	if strings.HasPrefix(s, MobPrefix) {
+		return s[len(MobPrefix):]
+	}
+	if strings.HasPrefix(s, PlayerPrefix) {
+		return s[len(PlayerPrefix):]
+	}
+	return s
 }
 
 // Combatant is the surface combat.Manager and the round loop consult.

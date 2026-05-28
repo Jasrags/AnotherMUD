@@ -1,0 +1,230 @@
+package progression
+
+import (
+	"context"
+	"testing"
+
+	"github.com/Jasrags/AnotherMUD/internal/combat"
+	"github.com/Jasrags/AnotherMUD/internal/world"
+)
+
+// driverRig bundles the real managers + a recording sink so each
+// test drives the §4.2 loop end-to-end through the production
+// ValidationPipeline + AbilityResolver rather than fakes.
+type driverRig struct {
+	queue *ActionQueueManager
+	prof  *profStub
+	sink  *recordingSink
+	phase combat.PhaseFunc
+	src   *fakeSource
+}
+
+// newDriverRig wires a driver whose only ability-capable source is
+// src, reachable under combatant id "player:p1". Abilities passed in
+// are registered; the source's proficiency map is seeded so learned
+// abilities pass the §4.3 proficiency gate.
+func newDriverRig(t *testing.T, src *fakeSource, learned []string, abilities ...*Ability) *driverRig {
+	t.Helper()
+	reg := NewAbilityRegistry()
+	for _, a := range abilities {
+		if err := reg.Register(a); err != nil {
+			t.Fatalf("register %q: %v", a.ID, err)
+		}
+	}
+	prof := newProfStub()
+	for _, id := range learned {
+		prof.vals[id] = 1
+	}
+	queue := NewActionQueueManager(ActionQueueConfig{})
+	pipeline := NewValidationPipeline(reg, prof, nil, nil, nil)
+	sink := &recordingSink{}
+	resolver := NewAbilityResolver(DefaultResolutionConfig(), prof, nil, nil, nil, nil, sink, nil)
+	lookup := ResolutionSourceLookupFunc(func(id string) (ResolutionSource, bool) {
+		if id == "player:p1" {
+			return src, true
+		}
+		return nil, false
+	})
+	phase := NewAbilityPhaseDriver(queue, pipeline, resolver, lookup, sink)
+	return &driverRig{queue: queue, prof: prof, sink: sink, phase: phase, src: src}
+}
+
+// selfSpell is a non-offensive (spell, no effect) ability that
+// resolves as a self-cast, so the §4.3 target/in-combat checks pass
+// without a combat target wired into the fake source.
+func selfSpell(id string) *Ability {
+	return &Ability{ID: id, DisplayName: id, Type: AbilityActive, Category: AbilitySpell, Variance: 0}
+}
+
+func TestDriver_EmptyQueueNoOp(t *testing.T) {
+	rig := newDriverRig(t, &fakeSource{id: "p1"}, []string{"heal"}, selfSpell("heal"))
+	rig.phase(context.Background(), "player:p1", nil, 0)
+	if len(rig.sink.used)+len(rig.sink.missed)+len(rig.sink.fizzled) != 0 {
+		t.Fatalf("empty queue must emit nothing")
+	}
+}
+
+func TestDriver_UnknownSourceNoOp(t *testing.T) {
+	rig := newDriverRig(t, &fakeSource{id: "p1"}, []string{"heal"}, selfSpell("heal"))
+	// Push a valid entry, then drive an unrelated combatant id.
+	rig.queue.Push("p1", QueuedAction{AbilityID: "heal"})
+	rig.phase(context.Background(), "mob:wolf-1", nil, 0)
+	if rig.queue.Len("p1") != 1 {
+		t.Fatalf("unknown source must not touch p1's queue")
+	}
+	if len(rig.sink.used) != 0 {
+		t.Fatalf("unknown source must resolve nothing")
+	}
+}
+
+func TestDriver_ValidResolvesDropsStops(t *testing.T) {
+	rig := newDriverRig(t, &fakeSource{id: "p1"}, []string{"heal"}, selfSpell("heal"))
+	rig.queue.Push("p1", QueuedAction{AbilityID: "heal"})
+
+	rig.phase(context.Background(), "player:p1", nil, 0)
+
+	if rig.queue.Len("p1") != 0 {
+		t.Fatalf("resolved entry must be dropped, queue len=%d", rig.queue.Len("p1"))
+	}
+	if len(rig.sink.used) != 1 || rig.sink.used[0].AbilityID != "heal" {
+		t.Fatalf("want 1 used(heal), got %+v", rig.sink.used)
+	}
+}
+
+func TestDriver_FizzleDropsAndContinuesToValid(t *testing.T) {
+	src := &fakeSource{id: "p1"}
+	// Only "heal" is learned; "cure" is registered but not learned, so
+	// it fizzles no_proficiency. The fizzle must NOT consume the slot —
+	// the loop should continue to "heal" and resolve it.
+	rig := newDriverRig(t, src, []string{"heal"}, selfSpell("heal"), selfSpell("cure"))
+	rig.queue.Push("p1", QueuedAction{AbilityID: "cure"})
+	rig.queue.Push("p1", QueuedAction{AbilityID: "heal"})
+
+	rig.phase(context.Background(), "player:p1", nil, 0)
+
+	if rig.queue.Len("p1") != 0 {
+		t.Fatalf("both entries should be consumed, queue len=%d", rig.queue.Len("p1"))
+	}
+	if len(rig.sink.fizzled) != 1 || rig.sink.fizzled[0].Reason != FizzleNoProficiency {
+		t.Fatalf("want 1 no_proficiency fizzle, got %+v", rig.sink.fizzled)
+	}
+	if len(rig.sink.used) != 1 || rig.sink.used[0].AbilityID != "heal" {
+		t.Fatalf("want heal resolved after fizzle, got %+v", rig.sink.used)
+	}
+}
+
+func TestDriver_AtMostOneValidExecutionPerPulse(t *testing.T) {
+	rig := newDriverRig(t, &fakeSource{id: "p1"}, []string{"heal", "bless"},
+		selfSpell("heal"), selfSpell("bless"))
+	rig.queue.Push("p1", QueuedAction{AbilityID: "heal"})
+	rig.queue.Push("p1", QueuedAction{AbilityID: "bless"})
+
+	rig.phase(context.Background(), "player:p1", nil, 0)
+
+	// First valid entry resolves and stops; the second stays queued
+	// for the next pulse (spec §4.2 "at most one valid execution per
+	// entity per pulse").
+	if rig.queue.Len("p1") != 1 {
+		t.Fatalf("second valid entry should remain queued, len=%d", rig.queue.Len("p1"))
+	}
+	if len(rig.sink.used) != 1 || rig.sink.used[0].AbilityID != "heal" {
+		t.Fatalf("want exactly heal resolved, got %+v", rig.sink.used)
+	}
+	remaining, _ := rig.queue.Peek("p1")
+	if remaining.AbilityID != "bless" {
+		t.Fatalf("want bless still at front, got %q", remaining.AbilityID)
+	}
+}
+
+func TestDriver_UnknownAbilityFizzles(t *testing.T) {
+	rig := newDriverRig(t, &fakeSource{id: "p1"}, nil, selfSpell("heal"))
+	rig.queue.Push("p1", QueuedAction{AbilityID: "nonexistent"})
+
+	rig.phase(context.Background(), "player:p1", nil, 0)
+
+	if rig.queue.Len("p1") != 0 {
+		t.Fatalf("unknown ability entry must be dropped")
+	}
+	if len(rig.sink.fizzled) != 1 || rig.sink.fizzled[0].Reason != FizzleUnknownAbility {
+		t.Fatalf("want unknown_ability fizzle, got %+v", rig.sink.fizzled)
+	}
+	if rig.sink.fizzled[0].AbilityID != "nonexistent" {
+		t.Fatalf("unknown-ability fizzle should carry the raw id, got %q", rig.sink.fizzled[0].AbilityID)
+	}
+}
+
+// TestDriver_ThroughCombatHeartbeat is the M9.4b integration test:
+// it drives a queued ability through the REAL combat.Heartbeat so
+// the full PhaseFunc path (round snapshot → InCombat gate → ability
+// phase → driver → resolver) is exercised, including the tick-count
+// → pulse threading the heartbeat performs.
+func TestDriver_ThroughCombatHeartbeat(t *testing.T) {
+	mgr := combat.NewManager(nil, nil)
+	ctx := context.Background()
+	player := combat.NewPlayerCombatantID("p1")
+	mob := combat.NewMobCombatantID("m1")
+	mgr.Engage(ctx, player, mob, world.RoomID("room-1"))
+
+	reg := NewAbilityRegistry()
+	if err := reg.Register(selfSpell("heal")); err != nil {
+		t.Fatal(err)
+	}
+	prof := newProfStub()
+	prof.vals["heal"] = 1
+	queue := NewActionQueueManager(ActionQueueConfig{})
+	tracker := NewPulseDelayTracker()
+	sink := &recordingSink{}
+	pipeline := NewValidationPipeline(reg, prof, nil, tracker, nil)
+	resolver := NewAbilityResolver(DefaultResolutionConfig(), prof, nil, tracker, nil, nil, sink, nil)
+	src := &fakeSource{id: "p1"}
+	sources := ResolutionSourceLookupFunc(func(id string) (ResolutionSource, bool) {
+		if id == string(player) {
+			return src, true
+		}
+		return nil, false // mob is not an ability source
+	})
+	phase := NewAbilityPhaseDriver(queue, pipeline, resolver, sources, sink)
+
+	hb := combat.NewHeartbeat(mgr, combat.Phases{Ability: phase})
+	queue.Push("p1", QueuedAction{AbilityID: "heal"})
+
+	hb.Tick(ctx, 9) // pulse 9
+
+	if queue.Len("p1") != 0 {
+		t.Fatalf("heal should resolve + drain through the heartbeat, len=%d", queue.Len("p1"))
+	}
+	if len(sink.used) != 1 || sink.used[0].AbilityID != "heal" {
+		t.Fatalf("want heal used via heartbeat, got %+v", sink.used)
+	}
+}
+
+func TestDriver_PulseThreadedToResolver(t *testing.T) {
+	// A pulse-delay ability records next-ready = pulse + delay + 1.
+	// Driving at pulse 7 with delay 2 must record readyAt 10, proving
+	// the heartbeat's tick count threads through to the resolver.
+	tracker := NewPulseDelayTracker()
+	reg := NewAbilityRegistry()
+	ab := &Ability{ID: "heal", DisplayName: "heal", Type: AbilityActive, Category: AbilitySpell, PulseDelay: 2}
+	if err := reg.Register(ab); err != nil {
+		t.Fatal(err)
+	}
+	prof := newProfStub()
+	prof.vals["heal"] = 1
+	queue := NewActionQueueManager(ActionQueueConfig{})
+	pipeline := NewValidationPipeline(reg, prof, nil, tracker, nil)
+	sink := &recordingSink{}
+	resolver := NewAbilityResolver(DefaultResolutionConfig(), prof, nil, tracker, nil, nil, sink, nil)
+	src := &fakeSource{id: "p1"}
+	lookup := ResolutionSourceLookupFunc(func(id string) (ResolutionSource, bool) {
+		return src, id == "player:p1"
+	})
+	phase := NewAbilityPhaseDriver(queue, pipeline, resolver, lookup, sink)
+	queue.Push("p1", QueuedAction{AbilityID: "heal"})
+
+	phase(context.Background(), "player:p1", nil, 7)
+
+	readyAt, ok := tracker.ReadyAt("p1", "heal")
+	if !ok || readyAt != 10 {
+		t.Fatalf("want readyAt 10 (pulse 7 + delay 2 + 1), got %d ok=%v", readyAt, ok)
+	}
+}

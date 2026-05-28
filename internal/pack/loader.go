@@ -490,6 +490,8 @@ func decodeAbility(path, ns string) (*progression.Ability, error) {
 		TargetTypes:           normalizeTargetTypes(f.TargetTypes),
 		EquipmentSlot:         strings.ToLower(strings.TrimSpace(f.EquipmentSlot)),
 		EquipmentTag:          strings.ToLower(strings.TrimSpace(f.EquipmentTag)),
+		Variance:              f.Variance,
+		MaxHitChance:          f.MaxHitChance,
 		HasAlignmentRange:     hasAlignRange,
 		AlignmentMin:          alignMin,
 		AlignmentMax:          alignMax,

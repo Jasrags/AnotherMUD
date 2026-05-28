@@ -288,6 +288,16 @@ func run() error {
 		&effectSink{bus: bus},
 	)
 
+	// M9.3/M9.4: per-entity action queue + pulse-delay cooldown
+	// tracker. The M9.4 ability phase pops from the queue each pulse
+	// and records cooldowns into the tracker; the validation pipeline
+	// reads the tracker. Both are handed to the session Config so
+	// logout drops the entity's working set. No enqueue path exists
+	// until the M9.6 verb surface, so the queue stays empty in
+	// production today — the wiring is live but dormant.
+	actionQueueMgr := progression.NewActionQueueManager(progression.ActionQueueConfig{})
+	pulseDelayTracker := progression.NewPulseDelayTracker()
+
 	// M8.5: alignment manager + bus-bridging sink. Config uses
 	// the engine defaults (-1000/+1000 bounds, ±500 bucket
 	// thresholds, history capacity 20) per the M8.5 ROADMAP
@@ -535,7 +545,68 @@ func run() error {
 		CooldownTicks: cadenceTicks(cfg.TickInterval, cfg.FleeCooldown),
 	}
 	wimpyPhase := combat.NewWimpy(fleeCfg)
+
+	// M9.4: ability-resolution phase. The driver pops each
+	// combatant's queued actions, runs the §4.3 validation pipeline,
+	// and resolves the first valid entry per pulse (§4.5).
+	//
+	// Three host seams bridge the bare entity ids the progression
+	// layer uses to the combat-side combatant namespace:
+	//   - abilitySources: combatant id → ResolutionSource. Players
+	//     resolve to their connActor; mobs have no queue/AI enqueue
+	//     path in M9.4 so they are never ability sources yet.
+	//   - abilityTargets: bare entity id → exists? Resolves players
+	//     and mobs via the shared combat locator (try both prefixes).
+	//   - abilityTargetHP: bare entity id → current HP, for the §4.5
+	//     post-hit death check. Works for mobs (they carry Vitals)
+	//     even though effect-stat installation on mobs is deferred
+	//     (the stats↔entities import-cycle, m8-1 #1).
+	abilitySources := progression.ResolutionSourceLookupFunc(func(combatantID string) (progression.ResolutionSource, bool) {
+		if !strings.HasPrefix(combatantID, combat.PlayerPrefix) {
+			return nil, false // only players queue abilities in M9.4.
+		}
+		a, ok := mgr.GetByPlayerID(combat.EntityIDOf(combat.CombatantID(combatantID)))
+		if !ok {
+			return nil, false
+		}
+		return a, true
+	})
+	abilityTargets := progression.TargetLookupFunc(func(entityID string) bool {
+		if _, ok := combatLocator.LookupCombatant(combat.NewPlayerCombatantID(entityID)); ok {
+			return true
+		}
+		_, ok := combatLocator.LookupCombatant(combat.NewMobCombatantID(entityID))
+		return ok
+	})
+	abilityTargetHP := progression.TargetHPLookupFunc(func(entityID string) (int, bool) {
+		if c, ok := combatLocator.LookupCombatant(combat.NewPlayerCombatantID(entityID)); ok {
+			return c.Vitals().Current(), true
+		}
+		if c, ok := combatLocator.LookupCombatant(combat.NewMobCombatantID(entityID)); ok {
+			return c.Vitals().Current(), true
+		}
+		return 0, false
+	})
+	abilitySink := &abilitySink{bus: bus}
+	abilityPipeline := progression.NewValidationPipeline(
+		registries.Abilities, proficiencyMgr, effectMgr, pulseDelayTracker, abilityTargets,
+	)
+	abilityResolver := progression.NewAbilityResolver(
+		progression.DefaultResolutionConfig(),
+		proficiencyMgr, // ProficiencyReader (hit chance + cap)
+		proficiencyMgr, // ProficiencyMutator (gain)
+		pulseDelayTracker,
+		effectMgr,
+		abilityTargetHP,
+		abilitySink,
+		combatRNG, // shared single-goroutine RNG (see CONCURRENCY note above)
+	)
+	abilityPhase := progression.NewAbilityPhaseDriver(
+		actionQueueMgr, abilityPipeline, abilityResolver, abilitySources, abilitySink,
+	)
+
 	combatHeartbeat := combat.NewHeartbeat(combatMgr, combat.Phases{
+		Ability:    abilityPhase,
 		AutoAttack: autoAttackPhase,
 		Wimpy:      wimpyPhase,
 	})
@@ -592,6 +663,8 @@ func run() error {
 		Proficiency: proficiencyMgr,
 		Abilities:   registries.Abilities,
 		Effects:     effectMgr,
+		ActionQueue: actionQueueMgr,
+		PulseDelay:  pulseDelayTracker,
 		Races:        registries.Races,
 		Classes:      registries.Classes,
 		Alignment:    alignmentMgr,
@@ -1416,6 +1489,70 @@ func (s *effectSink) EffectExpired(ctx context.Context, ev progression.EffectExp
 		EntityID:        ev.EntityID,
 		EffectID:        ev.EffectID,
 		SourceAbilityID: ev.SourceAbilityID,
+	})
+}
+
+// abilitySink bridges progression.AbilitySink to eventbus.Bus
+// (M9.4). Same composition-root pattern as effectSink: progression
+// must not import eventbus, so each resolution-phase callback maps
+// 1:1 to a bus payload. nil bus is a silent no-op.
+//
+// The vital-depleted callback publishes AbilityVitalDepleted on its
+// own topic rather than reaching into combat's death flow directly —
+// a future subscriber bridges it to the cancellable death check
+// (combat §6.1). Today no ability applies damage, so the callback
+// stays dark in production.
+type abilitySink struct {
+	bus *eventbus.Bus
+}
+
+func (s *abilitySink) OnAbilityUsed(ctx context.Context, ev progression.AbilityUsedEvent) {
+	if s.bus == nil {
+		return
+	}
+	s.bus.Publish(ctx, eventbus.AbilityUsed{
+		SourceID:    ev.SourceID,
+		AbilityID:   ev.AbilityID,
+		AbilityName: ev.AbilityName,
+		Category:    string(ev.Category),
+		TargetID:    ev.TargetID,
+		TargetName:  ev.TargetName,
+	})
+}
+
+func (s *abilitySink) OnAbilityMissed(ctx context.Context, ev progression.AbilityMissedEvent) {
+	if s.bus == nil {
+		return
+	}
+	s.bus.Publish(ctx, eventbus.AbilityMissed{
+		SourceID:    ev.SourceID,
+		AbilityID:   ev.AbilityID,
+		AbilityName: ev.AbilityName,
+		TargetID:    ev.TargetID,
+		TargetName:  ev.TargetName,
+	})
+}
+
+func (s *abilitySink) OnAbilityFizzled(ctx context.Context, ev progression.AbilityFizzledEvent) {
+	if s.bus == nil {
+		return
+	}
+	s.bus.Publish(ctx, eventbus.AbilityFizzled{
+		SourceID:    ev.SourceID,
+		AbilityID:   ev.AbilityID,
+		AbilityName: ev.AbilityName,
+		Reason:      string(ev.Reason),
+	})
+}
+
+func (s *abilitySink) OnVitalDepleted(ctx context.Context, ev progression.VitalDepletedEvent) {
+	if s.bus == nil {
+		return
+	}
+	s.bus.Publish(ctx, eventbus.AbilityVitalDepleted{
+		VictimID: ev.VictimID,
+		KillerID: ev.KillerID,
+		Vital:    ev.Vital,
 	})
 }
 

@@ -162,6 +162,21 @@ type Ability struct {
 	// check.
 	Effect *EffectTemplate
 
+	// Variance is the hit-chance variance band in percentage
+	// points (spec §4.5 step 4). Zero means the invocation always
+	// hits (no roll). Otherwise the engine computes
+	// `chance = clamp(proficiency × variance / 100, 1,
+	// MaxHitChance|100)` and rolls 1..100; hit when roll ≤ chance.
+	// Values are clamped to [0, 100] at registration.
+	Variance int
+
+	// MaxHitChance optionally caps the rolled hit chance at the
+	// top end so even a fully-proficient invocation can still
+	// miss (spec §4.5 / §8 "engine configuration"). Zero ⇒ no
+	// ability-specific cap; the resolver falls back to its
+	// configured ceiling (default 100).
+	MaxHitChance int
+
 	// Pack records the pack that registered this ability.
 	// Diagnostic only — mirrors Race.Pack / Class.Pack.
 	Pack string
@@ -217,11 +232,31 @@ func (r *AbilityRegistry) Register(a *Ability) error {
 		clone.DefaultCap = 100
 	}
 	clone.GainStat = StatType(strings.ToLower(strings.TrimSpace(string(a.GainStat))))
+	// A negative failure multiplier is meaningless (gain can't be
+	// negative); normalize to 0 so rollGain's `<= 0 ⇒ default 1.0`
+	// guard treats it as "unset". A value > 1.0 (miss gains faster
+	// than hit) is left as-authored — unusual but a deliberate
+	// content choice the spec doesn't forbid.
+	if clone.GainFailureMultiplier < 0 {
+		clone.GainFailureMultiplier = 0
+	}
 	if clone.Cost < 0 {
 		clone.Cost = 0
 	}
 	if clone.PulseDelay < 0 {
 		clone.PulseDelay = 0
+	}
+	if clone.Variance < 0 {
+		clone.Variance = 0
+	}
+	if clone.Variance > 100 {
+		clone.Variance = 100
+	}
+	if clone.MaxHitChance < 0 {
+		clone.MaxHitChance = 0
+	}
+	if clone.MaxHitChance > 100 {
+		clone.MaxHitChance = 100
 	}
 	clone.EquipmentSlot = strings.ToLower(strings.TrimSpace(a.EquipmentSlot))
 	clone.EquipmentTag = strings.ToLower(strings.TrimSpace(a.EquipmentTag))

@@ -101,7 +101,7 @@ func TestAutoAttackNaturalTwentyAlwaysHits(t *testing.T) {
 		19, // d20: 19+1 = 20, crit
 		0,  // damage 1d3: 0+1 = 1
 	})
-	rig.phase()(context.Background(), rig.attacker.id, rig.mgr)
+	rig.phase()(context.Background(), rig.attacker.id, rig.mgr, 0)
 
 	hits := rig.sink.snapshotHits()
 	if len(hits) != 1 {
@@ -121,7 +121,7 @@ func TestAutoAttackNaturalOneAlwaysMisses(t *testing.T) {
 	atkStats := Stats{HitMod: 100, STR: 10}
 	defStats := Stats{AC: 5}
 	rig := newAutoAttackRig(t, atkStats, defStats, 10, 20, []int{0})
-	rig.phase()(context.Background(), rig.attacker.id, rig.mgr)
+	rig.phase()(context.Background(), rig.attacker.id, rig.mgr, 0)
 
 	misses := rig.sink.snapshotMisses()
 	if len(misses) != 1 {
@@ -141,7 +141,7 @@ func TestAutoAttackHitAppliesDamageClampedToOne(t *testing.T) {
 		9, // d20: 10
 		0, // damage 1d3: 1
 	})
-	rig.phase()(context.Background(), rig.attacker.id, rig.mgr)
+	rig.phase()(context.Background(), rig.attacker.id, rig.mgr, 0)
 
 	hits := rig.sink.snapshotHits()
 	if len(hits) != 1 {
@@ -166,7 +166,7 @@ func TestAutoAttackDepletesVitalAndStops(t *testing.T) {
 		9, // d20: 10, auto-hit vs AC 5
 		2, // damage 1d3: 3 → +5 STR = 8 damage on 3HP target
 	})
-	rig.phase()(context.Background(), rig.attacker.id, rig.mgr)
+	rig.phase()(context.Background(), rig.attacker.id, rig.mgr, 0)
 
 	deaths := rig.sink.snapshotDeaths()
 	if len(deaths) != 1 {
@@ -190,7 +190,7 @@ func TestAutoAttackPreflightDifferentRoomDisengages(t *testing.T) {
 	rig := newAutoAttackRig(t, Stats{}, Stats{AC: 10}, 10, 10, nil)
 	rig.rooms[rig.target.id] = roomB // target moved
 
-	rig.phase()(context.Background(), rig.attacker.id, rig.mgr)
+	rig.phase()(context.Background(), rig.attacker.id, rig.mgr, 0)
 
 	if len(rig.sink.snapshotHits())+len(rig.sink.snapshotMisses()) != 0 {
 		t.Error("preflight should skip the swing entirely")
@@ -204,7 +204,7 @@ func TestAutoAttackPreflightDeadTargetDisengages(t *testing.T) {
 	rig := newAutoAttackRig(t, Stats{}, Stats{AC: 10}, 10, 10, nil)
 	rig.target.vitals.ApplyDamage(100) // pre-kill target
 
-	rig.phase()(context.Background(), rig.attacker.id, rig.mgr)
+	rig.phase()(context.Background(), rig.attacker.id, rig.mgr, 0)
 
 	if len(rig.sink.snapshotHits())+len(rig.sink.snapshotMisses()) != 0 {
 		t.Error("preflight should skip the swing on dead target")
@@ -221,7 +221,7 @@ func TestAutoAttackPreflightAttackerMissingFromLocatorDisengages(t *testing.T) {
 	// has the attacker engaged because nothing cleaned it up yet.
 	delete(rig.locator, rig.attacker.id)
 
-	rig.phase()(context.Background(), rig.attacker.id, rig.mgr)
+	rig.phase()(context.Background(), rig.attacker.id, rig.mgr, 0)
 
 	if len(rig.sink.snapshotHits())+len(rig.sink.snapshotMisses()) != 0 {
 		t.Error("missing attacker should produce no swing events")
@@ -241,7 +241,7 @@ func TestAutoAttackPreflightAttackerRoomMissingDisengages(t *testing.T) {
 	// Attacker resolves via locator but has no tracked room.
 	delete(rig.rooms, rig.attacker.id)
 
-	rig.phase()(context.Background(), rig.attacker.id, rig.mgr)
+	rig.phase()(context.Background(), rig.attacker.id, rig.mgr, 0)
 
 	if len(rig.sink.snapshotHits())+len(rig.sink.snapshotMisses()) != 0 {
 		t.Error("attacker with no room should produce no swing events")
@@ -257,7 +257,7 @@ func TestAutoAttackPreflightNoTargetReturns(t *testing.T) {
 	rig.mgr.DisengageAll(context.Background(), rig.attacker.id, roomA)
 
 	// Must not panic, must not emit anything.
-	rig.phase()(context.Background(), rig.attacker.id, rig.mgr)
+	rig.phase()(context.Background(), rig.attacker.id, rig.mgr, 0)
 
 	if len(rig.sink.snapshotHits())+len(rig.sink.snapshotMisses()) != 0 {
 		t.Error("no swings should emit when attacker has no target")

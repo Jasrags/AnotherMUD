@@ -40,7 +40,7 @@ func TestWimpyTriggersFleeAtOrBelowThreshold(t *testing.T) {
 	cfg.Mgr.Engage(context.Background(), id, other, fromRoom)
 
 	phase := NewWimpy(cfg)
-	phase(context.Background(), id, cfg.Mgr)
+	phase(context.Background(), id, cfg.Mgr, 0)
 
 	if len(bus.flees) != 1 {
 		t.Fatalf("flee events = %d, want 1", len(bus.flees))
@@ -62,7 +62,7 @@ func TestWimpyExactlyAtThresholdStillFlees(t *testing.T) {
 	roomLoc[id] = fromRoom
 
 	phase := NewWimpy(cfg)
-	phase(context.Background(), id, cfg.Mgr)
+	phase(context.Background(), id, cfg.Mgr, 0)
 	if len(bus.flees) != 1 {
 		t.Errorf("flee events = %d, want 1 (boundary inclusive)", len(bus.flees))
 	}
@@ -80,7 +80,7 @@ func TestWimpyAboveThresholdNoFlee(t *testing.T) {
 	roomLoc[id] = fromRoom
 
 	phase := NewWimpy(cfg)
-	phase(context.Background(), id, cfg.Mgr)
+	phase(context.Background(), id, cfg.Mgr, 0)
 	if len(bus.flees) != 0 {
 		t.Errorf("flee events = %d, want 0", len(bus.flees))
 	}
@@ -98,7 +98,7 @@ func TestWimpyZeroThresholdDisables(t *testing.T) {
 	roomLoc[id] = fromRoom
 
 	phase := NewWimpy(cfg)
-	phase(context.Background(), id, cfg.Mgr)
+	phase(context.Background(), id, cfg.Mgr, 0)
 	if len(bus.flees) != 0 {
 		t.Errorf("zero threshold should disable wimpy; got %d flee events", len(bus.flees))
 	}
@@ -117,7 +117,7 @@ func TestWimpySkipsDeadCombatant(t *testing.T) {
 	roomLoc[id] = fromRoom
 
 	phase := NewWimpy(cfg)
-	phase(context.Background(), id, cfg.Mgr)
+	phase(context.Background(), id, cfg.Mgr, 0)
 	if len(bus.flees) != 0 || len(bus.prevented) != 0 || len(bus.failed) != 0 {
 		t.Errorf("wimpy fired on dead combatant: flees=%d prevented=%d failed=%d",
 			len(bus.flees), len(bus.prevented), len(bus.failed))
@@ -134,7 +134,7 @@ func TestWimpyIgnoresNonHolder(t *testing.T) {
 	roomLoc[id] = fromRoom
 
 	phase := NewWimpy(cfg)
-	phase(context.Background(), id, cfg.Mgr)
+	phase(context.Background(), id, cfg.Mgr, 0)
 	if len(bus.flees) != 0 {
 		t.Error("wimpy fired for non-WimpyHolder combatant")
 	}

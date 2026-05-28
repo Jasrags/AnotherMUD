@@ -80,7 +80,13 @@ type Phases struct {
 // Manager-side cleanup (§4.1 missing-target → disengage) lands in
 // the AutoAttack phase in M7.4; until then a nil resolution path is
 // the right default.
-type PhaseFunc func(ctx context.Context, c CombatantID, mgr *Manager)
+//
+// pulse is the round's tick count (the same value passed to
+// Heartbeat.Tick). It is the monotonic "current pulse" the M9.4
+// ability phase records pulse-delay cooldowns against (spec
+// abilities-and-effects §4.5 step 3). Phases that don't track
+// per-pulse state (auto-attack, wimpy) ignore it.
+type PhaseFunc func(ctx context.Context, c CombatantID, mgr *Manager, pulse uint64)
 
 // NewHeartbeat constructs a heartbeat that will run phases against
 // mgr. The Phases value is captured by copy — the four PhaseFunc
@@ -147,7 +153,7 @@ func (h *Heartbeat) Tick(ctx context.Context, tickCount uint64) {
 		if p.fn == nil {
 			continue
 		}
-		h.runPhase(ctx, p.name, p.fn, combatants)
+		h.runPhase(ctx, p.name, p.fn, combatants, tickCount)
 	}
 }
 
@@ -160,16 +166,16 @@ func (h *Heartbeat) Tick(ctx context.Context, tickCount uint64) {
 // not abort the rest of the iteration. This mirrors tick.Loop's
 // safeCall behavior — one bad combatant should not stop the round
 // for the others.
-func (h *Heartbeat) runPhase(ctx context.Context, name string, fn PhaseFunc, snapshot []CombatantID) {
+func (h *Heartbeat) runPhase(ctx context.Context, name string, fn PhaseFunc, snapshot []CombatantID, pulse uint64) {
 	for _, c := range snapshot {
 		if !h.mgr.InCombat(c) {
 			continue
 		}
-		h.safeCallPhase(ctx, name, c, fn)
+		h.safeCallPhase(ctx, name, c, fn, pulse)
 	}
 }
 
-func (h *Heartbeat) safeCallPhase(ctx context.Context, name string, c CombatantID, fn PhaseFunc) {
+func (h *Heartbeat) safeCallPhase(ctx context.Context, name string, c CombatantID, fn PhaseFunc, pulse uint64) {
 	defer func() {
 		if rec := recover(); rec != nil {
 			logging.From(ctx).Error("combat phase panicked",
@@ -179,5 +185,5 @@ func (h *Heartbeat) safeCallPhase(ctx context.Context, name string, c CombatantI
 			)
 		}
 	}()
-	fn(ctx, c, h.mgr)
+	fn(ctx, c, h.mgr, pulse)
 }

@@ -260,6 +260,12 @@ type AbilityFile struct {
 	TargetTypes   []string `yaml:"target_types,omitempty"`
 	EquipmentSlot string   `yaml:"equipment_slot,omitempty"`
 	EquipmentTag  string   `yaml:"equipment_tag,omitempty"`
+	// M9.4 resolution surface (spec abilities-and-effects §4.5).
+	// Variance is the hit-chance band (0 ⇒ always hits); MaxHitChance
+	// optionally caps the rolled chance so even high proficiency can
+	// miss. Both clamp to [0, 100] at registration.
+	Variance     int `yaml:"variance,omitempty"`
+	MaxHitChance int `yaml:"max_hit_chance,omitempty"`
 	// AlignmentMin/Max are pointers so 0 (neutral) is distinguishable
 	// from omitted. When at least one is set the range gates usage
 	// (spec §4.3 step 2); the loader fills the missing bound with the

@@ -21,7 +21,7 @@ type phaseCall struct {
 }
 
 func (r *recordingPhase) makeFunc(name string) PhaseFunc {
-	return func(_ context.Context, c CombatantID, _ *Manager) {
+	return func(_ context.Context, c CombatantID, _ *Manager, _ uint64) {
 		r.mu.Lock()
 		r.calls = append(r.calls, phaseCall{phase: name, c: c})
 		r.mu.Unlock()
@@ -107,8 +107,8 @@ func TestHeartbeatSnapshotExcludesMidRoundEngages(t *testing.T) {
 	// taken at round start, so c/d MUST NOT receive a phase call this
 	// round (spec §3 "iteration is over a snapshot").
 	hb := NewHeartbeat(mgr, Phases{
-		Ability: func(ctx context.Context, c CombatantID, m *Manager) {
-			rec.makeFunc("ability")(ctx, c, m)
+		Ability: func(ctx context.Context, c CombatantID, m *Manager, _ uint64) {
+			rec.makeFunc("ability")(ctx, c, m, 0)
 			if c == ids[0] {
 				m.Engage(ctx, ids[2], ids[3], testRoom)
 			}
@@ -143,8 +143,8 @@ func TestHeartbeatLivenessSkipsMidRoundDisengage(t *testing.T) {
 	// in the round-start snapshot but must be skipped now that they
 	// are no longer InCombat.
 	hb := NewHeartbeat(mgr, Phases{
-		Ability: func(ctx context.Context, c CombatantID, m *Manager) {
-			rec.makeFunc("ability")(ctx, c, m)
+		Ability: func(ctx context.Context, c CombatantID, m *Manager, _ uint64) {
+			rec.makeFunc("ability")(ctx, c, m, 0)
 			if c == ids[0] {
 				m.DisengageAll(ctx, ids[2], testRoom)
 				m.DisengageAll(ctx, ids[3], testRoom)
@@ -172,11 +172,11 @@ func TestHeartbeatPhasePanicDoesNotAbortRound(t *testing.T) {
 
 	rec := &recordingPhase{}
 	hb := NewHeartbeat(mgr, Phases{
-		Ability: func(ctx context.Context, c CombatantID, m *Manager) {
+		Ability: func(ctx context.Context, c CombatantID, m *Manager, _ uint64) {
 			if c == ids[0] {
 				panic("test panic")
 			}
-			rec.makeFunc("ability")(ctx, c, m)
+			rec.makeFunc("ability")(ctx, c, m, 0)
 		},
 		AutoAttack: rec.makeFunc("auto-attack"),
 	})

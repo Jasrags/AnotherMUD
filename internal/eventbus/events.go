@@ -148,6 +148,21 @@ const (
 	// (spec §5.4). Distinct from EffectRemoved so renderers can
 	// distinguish duration-end from external removal.
 	EventEffectExpired = "effect.expired"
+	// AbilityUsed fires when the ability-resolution phase resolves a
+	// queued invocation as a hit (spec abilities-and-effects §4.5
+	// step 8).
+	EventAbilityUsed = "ability.used"
+	// AbilityMissed fires when a queued invocation resolves as a miss
+	// (spec §4.5 step 6).
+	EventAbilityMissed = "ability.missed"
+	// AbilityFizzled fires when the per-pulse driver drops a queued
+	// invocation that failed validation (spec §4.2 step 2, §4.8).
+	EventAbilityFizzled = "ability.fizzled"
+	// AbilityVitalDepleted fires when the resolver's post-hit death
+	// check observes the target's HP at or below zero (spec §4.5
+	// step 9). Distinct topic from combat.death_check; a subscriber
+	// that bridges to the cancellable death flow forwards it.
+	EventAbilityVitalDepleted = "ability.vital_depleted"
 )
 
 // ItemPickedUp fires after GetHandler successfully moves an item
@@ -736,3 +751,62 @@ type EffectExpired struct {
 
 // Name implements Event.
 func (EffectExpired) Name() string { return EventEffectExpired }
+
+// AbilityUsed fires when the ability-resolution phase resolves a
+// queued invocation as a hit (spec abilities-and-effects §4.5
+// step 8). SourceID is the invoking entity; TargetID is the bare
+// entity id the ability resolved against ("" for a pure self-cast).
+// Category lets renderers distinguish "you cast …" (spell) from
+// "you …" (skill).
+type AbilityUsed struct {
+	SourceID    string
+	AbilityID   string
+	AbilityName string
+	Category    string
+	TargetID    string
+	TargetName  string
+}
+
+// Name implements Event.
+func (AbilityUsed) Name() string { return EventAbilityUsed }
+
+// AbilityMissed fires when a queued invocation resolves as a miss
+// (spec §4.5 step 6).
+type AbilityMissed struct {
+	SourceID    string
+	AbilityID   string
+	AbilityName string
+	TargetID    string
+	TargetName  string
+}
+
+// Name implements Event.
+func (AbilityMissed) Name() string { return EventAbilityMissed }
+
+// AbilityFizzled fires when the per-pulse driver drops a queued
+// invocation that failed validation (spec §4.2 step 2, §4.8).
+// Reason is the lower-case keyword; clients SHOULD treat unknown
+// reasons as opaque strings.
+type AbilityFizzled struct {
+	SourceID    string
+	AbilityID   string
+	AbilityName string
+	Reason      string
+}
+
+// Name implements Event.
+func (AbilityFizzled) Name() string { return EventAbilityFizzled }
+
+// AbilityVitalDepleted fires when the resolver's post-hit death
+// check observes the target at HP ≤ 0 (spec §4.5 step 9). KillerID
+// is the invoking entity. A subscriber bridges this to the
+// cancellable combat death flow; the separate topic keeps the
+// progression layer from importing combat.
+type AbilityVitalDepleted struct {
+	VictimID string
+	KillerID string
+	Vital    string
+}
+
+// Name implements Event.
+func (AbilityVitalDepleted) Name() string { return EventAbilityVitalDepleted }

@@ -150,6 +150,19 @@ type Config struct {
 	// is never reached.
 	Effects *progression.EffectManager
 
+	// ActionQueue is the M9.3 per-entity action queue (spec
+	// abilities-and-effects §4.1). The M9.4 ability phase pops from
+	// it each pulse; logout calls Drop to release queued entries.
+	// nil-safe: when nil, logout skips the queue drop. No enqueue
+	// path exists until the M9.6 verb surface, so today this stays
+	// empty in production.
+	ActionQueue *progression.ActionQueueManager
+
+	// PulseDelay is the M9.3 per-entity ability-cooldown tracker
+	// (spec §4.5 step 3). The resolver records cooldowns into it;
+	// logout calls Drop. nil-safe like ActionQueue.
+	PulseDelay *progression.PulseDelayTracker
+
 	// DefaultRace is the race id assigned to legacy saves with no
 	// `race` field, and to fresh characters that haven't been
 	// through a M12 character-creation flow yet. Empty means the
@@ -264,6 +277,7 @@ func run(ctx context.Context, c conn.Connection, cfg Config) error {
 		save:         loaded.Player,
 		players:      cfg.Players,
 		prof:         cfg.Proficiency,
+		combat:       cfg.Combat,
 		items:        cfg.Items,
 		contents:     cfg.Contents,
 		equipment:    make(map[string]entities.EntityID),
@@ -630,6 +644,17 @@ func fullTeardown(ctx context.Context, cfg Config, a *connActor) {
 	// open question).
 	if cfg.Effects != nil {
 		cfg.Effects.Drop(a.PlayerID())
+	}
+
+	// M9.4b: release queued actions + recorded pulse-delays so the
+	// managers' working sets track connected players only. Both are
+	// ephemeral (queued actions are mid-pulse intent; cooldowns are
+	// in-memory per spec §2.2) — no persist, no event.
+	if cfg.ActionQueue != nil {
+		cfg.ActionQueue.Drop(a.PlayerID())
+	}
+	if cfg.PulseDelay != nil {
+		cfg.PulseDelay.Drop(a.PlayerID())
 	}
 }
 
@@ -1022,6 +1047,34 @@ type connActor struct {
 	// state. Nil-safe (mirrors the cfg.Proficiency nil-safety):
 	// when nil, abilities neither persist nor flush.
 	prof *progression.ProficiencyManager
+
+	// combat is the engage/disengage manager reference (M9.4b),
+	// captured so the ResolutionSource seam can answer InCombat /
+	// CurrentTarget for the ability-resolution phase. Nil-safe:
+	// when nil (tests that don't wire combat) both report
+	// not-in-combat / no-target.
+	combat *combat.Manager
+
+	// race is the resolved *progression.Race (M9.4b), captured at
+	// applyRace so the ResolutionSource seam can supply it to
+	// AdjustCost for race-adjusted ability costs (spec §4.7). Nil
+	// when the actor is raceless or the race isn't registered;
+	// AdjustCost handles the nil case.
+	//
+	// Write-before-publish: set in applyRace (during construction,
+	// before cfg.Manager.Add makes the actor reachable) and never
+	// reassigned. Race() reads it lock-free from the tick goroutine;
+	// the happens-before edge is Manager.mu, which both Add (writer
+	// side) and the driver's mgr.GetByPlayerID lookup (reader side)
+	// acquire. Same publish discipline as raceID / racialTags.
+	race *progression.Race
+
+	// lastAbility is the spec §4.5 step 2 "last ability used"
+	// property, recorded by the resolver on every resolution.
+	// In-memory only today (not persisted) — it's a transient
+	// combat-feedback property, not durable character state.
+	// Guarded by a.mu.
+	lastAbility string
 
 	// items is the runtime entity store reference, captured at actor
 	// construction so syncInventoryToSaveLocked can resolve template
@@ -1611,6 +1664,7 @@ func applyRace(a *connActor, cfg *Config, saved string) {
 		return
 	}
 	a.raceID = race.ID
+	a.race = race
 	if len(race.RacialFlags) > 0 {
 		a.racialTags = make([]string, len(race.RacialFlags))
 		copy(a.racialTags, race.RacialFlags)
@@ -1802,6 +1856,134 @@ func (a *connActor) RemoveBySource(src entities.SourceKey) bool {
 // ProgressionState returns the actor's per-track (level, xp)
 // state. Same contract as StatBlock — the state has its own lock.
 func (a *connActor) ProgressionState() *progression.ProgressionState { return a.progress }
+
+// --- progression.ResolutionSource / ValidationEntity (M9.4b) -------
+//
+// connActor satisfies progression.ResolutionSource so the ability-
+// resolution phase can validate (§4.3) and resolve (§4.5) a player's
+// queued abilities. ResolutionSource embeds ValidationEntity, so this
+// block supplies both surfaces. EntityID / Alignment are already
+// defined above (shared with EffectTarget / AlignmentEntity).
+
+// IsResting reports the §4.3 step-1 rest-state gate. No rest/sleep
+// state exists for players yet (it lands with economy-survival,
+// M11), so players are never resting — abilities are always
+// rest-permitted today.
+func (a *connActor) IsResting() bool { return false }
+
+// EquippedTags returns the tag list of the item equipped in slot
+// (spec §4.3 step 4). Second return is false when the slot is empty
+// or the item can't be resolved in the store. ItemInstance.Tags()
+// already returns a fresh copy, so the result is caller-owned.
+//
+// a.mu is held across the store lookup so the slot→id read and the
+// item resolution are atomic against a concurrent Unequip on the
+// connection goroutine. Without this, the ability phase (tick
+// goroutine) could read a slot id, have Unequip return that item to
+// inventory, and then still resolve its tags — validating a
+// slot-required ability against gear the actor no longer wears.
+// Lock ordering is a.mu → Store's internal RWMutex; no Store path
+// re-enters connActor under its lock, so this can't deadlock.
+func (a *connActor) EquippedTags(slot string) ([]string, bool) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	id, ok := a.equipment[slot]
+	if !ok || a.items == nil {
+		return nil, false
+	}
+	ent, ok := a.items.GetByID(id)
+	if !ok {
+		return nil, false
+	}
+	it, ok := ent.(*entities.ItemInstance)
+	if !ok {
+		return nil, false
+	}
+	return it.Tags(), true
+}
+
+// InCombat reports whether the actor is engaged (spec §4.3 steps
+// 5-6). Reads the combat manager keyed by the actor's CombatantID.
+// Nil-safe: an actor built without a combat manager is never in
+// combat.
+func (a *connActor) InCombat() bool {
+	if a.combat == nil {
+		return false
+	}
+	return a.combat.InCombat(a.CombatantID())
+}
+
+// CurrentTarget returns the actor's primary combat target as a bare
+// entity id (spec §4.4 step 2). Combat tracks targets as prefixed
+// CombatantIDs ("mob:wolf-3"); the resolver / effect manager key on
+// the bare entity id, so we strip the prefix here. Second return is
+// false when the actor has no combat target.
+func (a *connActor) CurrentTarget() (string, bool) {
+	if a.combat == nil {
+		return "", false
+	}
+	t, ok := a.combat.PrimaryTargetOf(a.CombatantID())
+	if !ok {
+		return "", false
+	}
+	return combat.EntityIDOf(t), true
+}
+
+// Movement returns the actor's current movement pool for the §4.7
+// skill resource check. No current-pool tracking exists yet — the
+// actor reports its movement_max stat as the available pool. Real
+// current-pool + regen lands with economy-survival (M11); until
+// then DeductMovement is a documented no-op, so the pool always
+// reads full.
+func (a *connActor) Movement() int {
+	return a.statBlock.Effective(progression.StatMovementMax)
+}
+
+// Mana returns the actor's current mana pool for the §4.7 spell
+// resource check. Same thin-pool treatment as Movement: reports
+// resource_max until current-pool tracking lands.
+func (a *connActor) Mana() int {
+	return a.statBlock.Effective(progression.StatResourceMax)
+}
+
+// Race returns the actor's resolved race for §4.7 cost adjustment.
+// nil when raceless; AdjustCost handles the nil case.
+func (a *connActor) Race() *progression.Race { return a.race }
+
+// DeductMovement is the §4.5 step-1 movement spend. DORMANT: no
+// current movement pool exists yet (see Movement). The method is
+// part of the ResolutionSource contract so the resolver compiles and
+// the resource path is exercised end-to-end; the actual subtraction
+// wires in when economy-survival adds current pools + regen.
+func (a *connActor) DeductMovement(amount int) { _ = amount }
+
+// DeductMana is the §4.5 step-1 mana spend. DORMANT for the same
+// reason as DeductMovement.
+func (a *connActor) DeductMana(amount int) { _ = amount }
+
+// SetLastAbility records the §4.5 step-2 "last ability used"
+// property. In-memory only (transient combat feedback, not durable
+// save state).
+func (a *connActor) SetLastAbility(abilityID string) {
+	a.mu.Lock()
+	a.lastAbility = abilityID
+	a.mu.Unlock()
+}
+
+// LastAbility returns the most recently resolved ability id (or "").
+// Exposed for the M9.6 UI surface + tests.
+func (a *connActor) LastAbility() string {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	return a.lastAbility
+}
+
+// StatValue returns the actor's effective value for stat, used by
+// the §3.5 proficiency-gain stat factor. Pass-through to the stat
+// block's effective (base + modifiers) read.
+func (a *connActor) StatValue(stat progression.StatType) int {
+	return a.statBlock.Effective(stat)
+}
 
 // applyClass resolves the actor's class id from save. Empty saves
 // stay empty (no default class today; M12 character-creation owns

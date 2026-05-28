@@ -44,7 +44,7 @@ func NewAutoAttack(cfg AutoAttackConfig) PhaseFunc {
 		panic("combat.NewAutoAttack: nil Roller")
 	}
 
-	return func(ctx context.Context, attackerID CombatantID, mgr *Manager) {
+	return func(ctx context.Context, attackerID CombatantID, mgr *Manager, _ uint64) {
 		runAutoAttack(ctx, attackerID, mgr, cfg)
 	}
 }

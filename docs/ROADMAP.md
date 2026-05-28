@@ -976,7 +976,90 @@ is now real. Sketch of remaining vertical slices:
           via existing `AdjustCost`.
   - **M9.4 — Resolution (hit/miss roll, resource deduct, pulse
     delay, effect application, vital-depleted emit).** Wires
-    into the combat round's ability-resolution phase.
+    into the combat round's ability-resolution phase. Split into
+    two slices: M9.4a (resolver core) + M9.4b (per-pulse driver +
+    wiring + mob targets).
+
+    - **M9.4a (landed) — AbilityResolver core.** New
+      `progression.AbilityResolver` executes spec §4.5 for one
+      validated invocation: deduct race-adjusted resource (§4.7),
+      record last-used, roll hit/miss (§4.5 step 4), on hit record
+      pulse delay + apply effect template + emit `ability used`, on
+      miss emit `ability missed`, roll proficiency gain on both
+      paths (§3.5), and run the post-hit `vital-depleted` death
+      check (§4.5 step 9). New seams: `Roller` (mirrors
+      combat.Roller so production shares one `*rand.Rand`),
+      `ResolutionSource` (embeds `ValidationEntity` + DeductMovement
+      / DeductMana / SetLastAbility / StatValue), `TargetHPLookup`,
+      `ProficiencyMutator`, and `AbilitySink` (used / missed /
+      fizzled / vital-depleted event family). `Ability` grew
+      `Variance` + `MaxHitChance`; pack `AbilityFile` decodes both.
+      No driver wired — M9.4b consumes the resolver in the combat
+      `Ability` phase.
+
+      - [x] Pulse delay recorded on hit only (spec §4.8 acceptance
+            criterion overrides the §4.5 step-3 narrative ordering).
+      - [x] Variance 0 ⇒ always hits (no roll); otherwise
+            `chance = clamp(prof × variance / 100, 1,
+            MaxHitChance|default)` vs uniform 1..100.
+      - [x] Resource deduction uses the race-adjusted cost; skills
+            draw movement, spells draw mana.
+      - [x] Proficiency gain rolled on hit AND miss with the §3.5
+            taper `(1 - prof/100)`, optional stat factor, and
+            failure multiplier; no gain at prof 100.
+      - [x] `vital-depleted` emitted only when the resolved target
+            is non-self and probes HP ≤ 0; self-cast never
+            death-checks. Emit-only plumbing until M9.6 lands
+            damage-bearing abilities.
+      - [x] `progression.VitalDepletedEvent` is distinct from
+            `combat.VitalDepleted` to avoid a progression → combat
+            edge; the production bus-bridge forwards both.
+
+    - **M9.4b (landed) — Per-pulse driver + wiring + mob
+      targeting.** New `progression.AbilityPhaseDriver` implements
+      the §4.2 loop (peek → validate → fizzle-drop-continue OR
+      resolve-drop-stop; at most one valid execution per entity per
+      pulse) and returns a `combat.PhaseFunc`, wired as
+      `combat.Phases.Ability` in `cmd/anothermud`. `combat.PhaseFunc`
+      gained a `pulse uint64` param (the round's tick count, threaded
+      from `Heartbeat.Tick`) so the resolver records pulse-delay
+      cooldowns against it; auto-attack + wimpy ignore it.
+      `session.connActor` now satisfies `progression.ResolutionSource`
+      (the validation + resolution seam). New
+      `eventbus.Ability{Used,Missed,Fizzled,VitalDepleted}` events +
+      a bus-bridging `abilitySink`. Logout drops the action queue +
+      pulse-delay tracker. New `combat.EntityIDOf` strips the
+      combatant prefix.
+
+      - [x] Driver enforces §4.2: invalid entries fizzle + drop
+            without consuming the pulse's single execution slot;
+            first valid entry resolves + drops + stops. Pinned by
+            `ability_phase_test.go` (fizzle-continue, one-per-pulse,
+            unknown-ability) + a real-heartbeat integration test.
+      - [x] `connActor` ResolutionSource: InCombat / CurrentTarget
+            via the combat manager (prefix-stripped target id),
+            EquippedTags via the equipment map + item store (lock
+            held across the store lookup), Alignment / Race / StatValue
+            wired. Pinned by `TestConnActor_SatisfiesResolutionSource`.
+      - [x] Mob *targeting* + *death*: the cmd TargetLookup resolves
+            mob existence and TargetHPLookup reads mob `combat.Vitals`
+            so a queued ability can target a mob and the post-hit
+            death check fires for mob victims.
+
+      Known gaps (carried as deferrals):
+      - **THIN POOLS:** players have no current movement/mana pool
+        yet. `connActor.Movement()/Mana()` report the `movement_max`
+        / `resource_max` stat; `DeductMovement/Mana` are no-ops.
+        Real pools + regen land with economy-survival (M11).
+      - **Mob effect-stat install is NOT delivered** (revises the
+        original "mob targets" plan). `MobInstance` can't implement
+        `progression.EffectTarget` because `stats` imports
+        `entities` (cycle), and it holds a flat `combat.Stats`
+        snapshot rather than a source-keyed block. Effects applied
+        to a mob are tracked but install no modifiers. This is the
+        m8-1 #1 SourceKey-extraction slice.
+      - The whole ability path is **dormant until M9.6** — no verb
+        enqueues actions yet.
   - **M9.5 — Passive abilities (binary check, scaling bonus,
     hook discovery).** Replaces combat §4.3 "extra attack" and
     defensive-check stubs with real passive rolls.
