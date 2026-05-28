@@ -468,3 +468,52 @@ func TestNewServiceNilRegistryPanics(t *testing.T) {
 	}()
 	NewService(Config{})
 }
+
+// capturePersist records the snapshots handed to Save so tests can verify
+// the off-lock clone is isolated from later service mutations.
+type capturePersist struct {
+	snaps []*State
+}
+
+func (c *capturePersist) Save(_ string, s *State) { c.snaps = append(c.snaps, s) }
+
+func TestPersistReceivesIsolatedSnapshot(t *testing.T) {
+	reg := NewRegistry()
+	_ = reg.Register(twoStageDef("q"))
+	cp := &capturePersist{}
+	svc := NewService(Config{Registry: reg, Persist: cp})
+	p := &fakePlayer{id: "p1"}
+	svc.Accept(p, "q", false) // snapshot #0: stage 0, objective at 0
+	svc.AdvanceObjective("p1", "q", "s0-kill-0", 1)
+
+	if len(cp.snaps) < 2 {
+		t.Fatalf("expected >=2 snapshots, got %d", len(cp.snaps))
+	}
+	// The accept snapshot must still show objective progress 0 even though
+	// a later advance bumped the live state — i.e. it's a real clone.
+	accept := cp.snaps[0]
+	if accept.Active[0].Objectives[0].Current != 0 {
+		t.Errorf("accept snapshot mutated by later advance: %+v", accept.Active[0].Objectives)
+	}
+}
+
+func TestAdvanceMatchingPersistsOnce(t *testing.T) {
+	// Two quests both with a matching kill objective; one AdvanceMatching
+	// advances both but must persist exactly once (consolidated).
+	reg := NewRegistry()
+	for _, id := range []string{"a", "b"} {
+		_ = reg.Register(&Definition{ID: id, Abandonable: true, Stages: []Stage{
+			{ID: "s", Objectives: []Objective{{ID: "s-kill-0", Type: "kill", Target: "core:rat", Count: 5}}},
+		}})
+	}
+	cp := &capturePersist{}
+	svc := NewService(Config{Registry: reg, Persist: cp})
+	p := &fakePlayer{id: "p1"}
+	svc.Accept(p, "a", false)
+	svc.Accept(p, "b", false)
+	before := len(cp.snaps)
+	svc.AdvanceMatching("p1", "kill", func(o Objective) bool { return o.Target == "core:rat" })
+	if got := len(cp.snaps) - before; got != 1 {
+		t.Errorf("AdvanceMatching persisted %d times, want 1", got)
+	}
+}

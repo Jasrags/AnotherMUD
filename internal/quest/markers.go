@@ -19,7 +19,12 @@ func (s *Service) HasMarker(playerID, templateID string) bool {
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	return s.hasMarkerLocked(playerID, templateID)
+}
 
+// hasMarkerLocked is the marker check assuming s.mu is held. Caller holds
+// s.mu.
+func (s *Service) hasMarkerLocked(playerID, templateID string) bool {
 	st, ok := s.states[playerID]
 	if !ok {
 		return false
@@ -50,12 +55,14 @@ func (s *Service) HasMarker(playerID, templateID string) bool {
 
 // MarkedTemplates returns the subset of templateIDs that carry a marker
 // for the player (§8.1 bulk query), preserving input order. Each entity
-// resolves to at most one marker (HasMarker short-circuits on the first
-// matching active quest).
+// resolves to at most one marker. The lock is taken once for the whole
+// batch rather than per id.
 func (s *Service) MarkedTemplates(playerID string, templateIDs []string) []string {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	var out []string
 	for _, id := range templateIDs {
-		if s.HasMarker(playerID, id) {
+		if id != "" && s.hasMarkerLocked(playerID, id) {
 			out = append(out, id)
 		}
 	}

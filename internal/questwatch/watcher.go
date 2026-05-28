@@ -23,12 +23,12 @@ import (
 // needs the Accept Player resolver that lands with the M10.10 verbs.
 type Watcher struct {
 	svc   *quest.Service
-	items *entities.Store // resolves entity ids → template ids for collect/deliver
+	store *entities.Store // resolves entity ids → template ids for collect/deliver
 }
 
 // New builds a watcher over the quest service and entity store.
-func New(svc *quest.Service, items *entities.Store) *Watcher {
-	return &Watcher{svc: svc, items: items}
+func New(svc *quest.Service, store *entities.Store) *Watcher {
+	return &Watcher{svc: svc, store: store}
 }
 
 // Subscribe registers the watcher's handlers on the bus (§7.1).
@@ -103,10 +103,10 @@ func (w *Watcher) onPlayerMoved(_ context.Context, e eventbus.Event) {
 // itemTemplate resolves an item instance id to its template id, or ""
 // when the instance is gone or is not an item.
 func (w *Watcher) itemTemplate(id entities.EntityID) string {
-	if w.items == nil {
+	if w.store == nil {
 		return ""
 	}
-	ent, ok := w.items.GetByID(id)
+	ent, ok := w.store.GetByID(id)
 	if !ok {
 		return ""
 	}
@@ -119,10 +119,10 @@ func (w *Watcher) itemTemplate(id entities.EntityID) string {
 // mobTemplate resolves a mob instance id to its template id, or "" when
 // the instance is gone or is not a mob.
 func (w *Watcher) mobTemplate(id entities.EntityID) string {
-	if w.items == nil {
+	if w.store == nil {
 		return ""
 	}
-	ent, ok := w.items.GetByID(id)
+	ent, ok := w.store.GetByID(id)
 	if !ok {
 		return ""
 	}

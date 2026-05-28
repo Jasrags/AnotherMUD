@@ -25,11 +25,10 @@ type Player interface {
 // The default is a no-op; the M10.8 persistence service supplies the
 // file-writing implementation.
 //
-// Save MUST serialize synchronously and MUST NOT retain the *State
-// pointer after it returns: the pointer is the service's live, mutable
-// state and is only safe to read during the call (the service holds its
-// lock across Save). A persister that needs to defer the write must copy
-// what it needs before returning.
+// Save is called OFF the service lock with a private deep-copy snapshot
+// the persister owns, so it may take as long as a synchronous disk write
+// needs without stalling other quest operations, and may retain the
+// pointer freely.
 type Persister interface {
 	Save(playerID string, state *State)
 }
@@ -162,6 +161,16 @@ func (s *Service) Snapshot(playerID string) *State {
 
 // Accept attempts to grant questID to player (§3.1).
 func (s *Service) Accept(player Player, questID string, silent bool) AcceptResult {
+	// Persist a snapshot AFTER the lock is released (§6.2): defers run
+	// LIFO, so the Unlock below runs before this closure, keeping the
+	// synchronous disk write off the service mutex.
+	var pid string
+	var snap *State
+	defer func() {
+		if snap != nil {
+			s.persist.Save(pid, snap)
+		}
+	}()
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -169,7 +178,7 @@ func (s *Service) Accept(player Player, questID string, silent bool) AcceptResul
 	if !ok {
 		return AcceptResult{Status: NotFound}
 	}
-	pid := player.EntityID()
+	pid = player.EntityID()
 	st := s.stateLocked(pid)
 
 	if st.findActive(questID) != nil {
@@ -196,7 +205,7 @@ func (s *Service) Accept(player Player, questID string, silent bool) AcceptResul
 		banner = buildBanner(def, &active)
 	}
 	s.events.Started(StartedEvent{PlayerID: pid, QuestID: questID, Banner: banner})
-	s.persist.Save(pid, st)
+	snap = st.clone() // persisted after unlock by the deferred closure
 	return AcceptResult{Status: Accepted, Banner: banner}
 }
 
@@ -234,22 +243,41 @@ func (s *Service) countAbandonableLocked(st *State) int {
 	return n
 }
 
-// AdvanceObjective moves a single objective forward (§4.1).
-func (s *Service) AdvanceObjective(playerID, questID, objectiveID string, amount int) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	s.advanceObjectiveLocked(playerID, questID, objectiveID, amount)
+// snapshotLocked deep-copies the player's state for an out-of-lock Save,
+// or nil when the player has no state. Caller holds s.mu.
+func (s *Service) snapshotLocked(playerID string) *State {
+	if st, ok := s.states[playerID]; ok {
+		return st.clone()
+	}
+	return nil
 }
 
-// advanceObjectiveLocked is the §4.1 primitive. Caller holds s.mu.
-func (s *Service) advanceObjectiveLocked(playerID, questID, objectiveID string, amount int) {
+// AdvanceObjective moves a single objective forward (§4.1).
+func (s *Service) AdvanceObjective(playerID, questID, objectiveID string, amount int) {
+	var snap *State
+	defer func() {
+		if snap != nil {
+			s.persist.Save(playerID, snap)
+		}
+	}()
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.advanceObjectiveLocked(playerID, questID, objectiveID, amount) {
+		snap = s.snapshotLocked(playerID)
+	}
+}
+
+// advanceObjectiveLocked is the §4.1 primitive. It returns whether it
+// mutated state (so the caller knows to persist). Caller holds s.mu; it
+// does NOT persist (the public wrapper does, off-lock).
+func (s *Service) advanceObjectiveLocked(playerID, questID, objectiveID string, amount int) bool {
 	st, ok := s.states[playerID]
 	if !ok {
-		return
+		return false
 	}
 	active := st.findActive(questID)
 	if active == nil {
-		return
+		return false
 	}
 	var obj *ObjectiveProgress
 	for i := range active.Objectives {
@@ -259,7 +287,7 @@ func (s *Service) advanceObjectiveLocked(playerID, questID, objectiveID string, 
 		}
 	}
 	if obj == nil || obj.Complete() {
-		return // absent or already complete → no-op
+		return false // absent or already complete → no-op
 	}
 	obj.Current += amount
 	if obj.Current > obj.Required {
@@ -271,16 +299,15 @@ func (s *Service) advanceObjectiveLocked(playerID, questID, objectiveID string, 
 	})
 
 	if !active.stageComplete() {
-		s.persist.Save(playerID, st)
-		return
+		return true
 	}
 	def, ok := s.registry.Lookup(questID)
 	if ok && active.StageIndex+1 < len(def.Stages) {
 		s.advanceStageLocked(playerID, active, def)
-		s.persist.Save(playerID, st)
-		return
+		return true
 	}
 	s.completeLocked(playerID, st, questID)
+	return true
 }
 
 // advanceStageLocked moves active to its next stage (§4.2). Caller holds
@@ -295,7 +322,8 @@ func (s *Service) advanceStageLocked(playerID string, active *ActiveQuest, def *
 }
 
 // completeLocked removes the quest, records completion, dispatches
-// rewards, and emits the completed event (§4.3). Caller holds s.mu.
+// rewards, and emits the completed event (§4.3). Caller holds s.mu; it
+// does NOT persist (the public wrapper does, off-lock).
 func (s *Service) completeLocked(playerID string, st *State, questID string) {
 	st.removeActive(questID)
 	st.Completed = append(st.Completed, questID)
@@ -313,13 +341,18 @@ func (s *Service) completeLocked(playerID string, st *State, questID string) {
 		Items: reward.Items, Abilities: reward.Abilities,
 		ClassUnlock: reward.ClassUnlock, RaceUnlock: reward.RaceUnlock,
 	})
-	s.persist.Save(playerID, st)
 }
 
 // AdvanceMatching advances every current-stage objective of the given
 // type whose definition satisfies predicate, for the named player (§4.4).
 // The watcher (M10.9) uses this.
 func (s *Service) AdvanceMatching(playerID, objType string, predicate func(Objective) bool) {
+	var snap *State
+	defer func() {
+		if snap != nil {
+			s.persist.Save(playerID, snap)
+		}
+	}()
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -347,8 +380,14 @@ func (s *Service) AdvanceMatching(playerID, objType string, predicate func(Objec
 			}
 		}
 	}
+	mutated := false
 	for _, h := range hits {
-		s.advanceObjectiveLocked(playerID, h.questID, h.objectiveID, 1)
+		if s.advanceObjectiveLocked(playerID, h.questID, h.objectiveID, 1) {
+			mutated = true
+		}
+	}
+	if mutated {
+		snap = s.snapshotLocked(playerID)
 	}
 }
 
@@ -356,6 +395,12 @@ func (s *Service) AdvanceMatching(playerID, objType string, predicate func(Objec
 // (§4.5). Silently no-ops when the quest is missing, not abandonable, or
 // not active.
 func (s *Service) Abandon(playerID, questID string) {
+	var snap *State
+	defer func() {
+		if snap != nil {
+			s.persist.Save(playerID, snap)
+		}
+	}()
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -371,7 +416,7 @@ func (s *Service) Abandon(playerID, questID string) {
 		return
 	}
 	s.events.Abandoned(AbandonedEvent{PlayerID: playerID, QuestID: questID})
-	s.persist.Save(playerID, st)
+	snap = st.clone()
 }
 
 // buildBanner renders the player-visible acceptance banner (§3.4). It

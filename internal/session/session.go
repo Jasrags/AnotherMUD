@@ -466,17 +466,21 @@ func run(ctx context.Context, c conn.Connection, cfg Config) error {
 		a.mu.Unlock()
 	}
 
-	cfg.Manager.Add(a)
-
-	// M10.8: load the player's persisted quest state. QuestStore.Load
-	// caches the id→name mapping (so a later Save resolves its path even
-	// when the player has no quests file yet) and returns the
-	// orphan-filtered state when a file exists. nil-safe on both refs.
+	// M10.8: load the player's persisted quest state BEFORE Add makes the
+	// actor visible to the autosave tick and the quest watcher — so an
+	// autosave or a same-tick watcher advance can't observe empty quest
+	// state (mirrors how inventory/effects are restored pre-Add).
+	// QuestStore.Load also caches the id→name mapping (so a later Save
+	// resolves its path even when the player has no quests file yet).
+	// nil-safe: Quests and QuestStore are wired together (both set or
+	// both nil) at the composition root.
 	if cfg.QuestStore != nil {
 		if state, ok := cfg.QuestStore.Load(ctx, a.PlayerID(), a.Name()); ok && cfg.Quests != nil {
 			cfg.Quests.LoadState(a.PlayerID(), state)
 		}
 	}
+
+	cfg.Manager.Add(a)
 
 	// Announce arrival to the start room (excluding self) so anyone
 	// already there sees the new player materialize.
