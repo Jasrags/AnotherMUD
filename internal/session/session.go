@@ -33,6 +33,7 @@ import (
 	"github.com/Jasrags/AnotherMUD/internal/login"
 	"github.com/Jasrags/AnotherMUD/internal/player"
 	"github.com/Jasrags/AnotherMUD/internal/progression"
+	"github.com/Jasrags/AnotherMUD/internal/render"
 	"github.com/Jasrags/AnotherMUD/internal/slot"
 	"github.com/Jasrags/AnotherMUD/internal/stats"
 	"github.com/Jasrags/AnotherMUD/internal/world"
@@ -179,6 +180,13 @@ type Config struct {
 	// ColorEnabled is the per-session default for ANSI color output.
 	ColorEnabled bool
 
+	// Render is the M10.2 themed color renderer (internal/render),
+	// built and compiled once at boot against the pack-loaded theme.
+	// connActor.Write runs every outbound line through it. Shared
+	// read-only across all sessions. nil-safe: when nil, Write falls
+	// back to the minimal M2 ansi.Render so tests need not wire it.
+	Render *render.ColorRenderer
+
 	// Manager tracks logged-in sessions for autosave + shutdown sweeps.
 	// Required.
 	Manager *Manager
@@ -270,6 +278,7 @@ func run(ctx context.Context, c conn.Connection, cfg Config) error {
 	a := &connActor{
 		id:           c.ID(),
 		conn:         c,
+		renderer:     cfg.Render,
 		playerID:     loaded.Player.ID,
 		accountID:    loaded.Account.ID,
 		room:         start,
@@ -1039,6 +1048,14 @@ type connActor struct {
 	id   string
 	conn conn.Connection
 
+	// renderer is the M10.2 themed color renderer, captured at actor
+	// construction from cfg.Render. Write runs every outbound line
+	// through it (RenderAnsi when color is enabled, RenderPlain
+	// otherwise). Nil-safe: when nil (tests that don't wire it) Write
+	// falls back to the minimal M2 ansi.Render. Read-only after
+	// construction, so it needs no lock.
+	renderer *render.ColorRenderer
+
 	playerID  string
 	accountID string
 
@@ -1273,9 +1290,23 @@ func (a *connActor) SetColorEnabled(v bool) {
 // Write expands any color markup in msg per the actor's color
 // preference and writes the rendered text plus CRLF.
 func (a *connActor) Write(ctx context.Context, msg string) error {
-	rendered := ansi.Render(msg, a.ColorEnabled())
+	rendered := a.render(msg)
 	_, err := a.conn.Write(ctx, []byte(rendered+"\r\n"))
 	return err
+}
+
+// render applies the themed color renderer when wired, choosing
+// RenderAnsi vs RenderPlain by the session's color flag (the spec's
+// SupportsAnsi role, §5). Falls back to the minimal M2 ansi.Render
+// when no renderer is configured (tests).
+func (a *connActor) render(msg string) string {
+	if a.renderer == nil {
+		return ansi.Render(msg, a.ColorEnabled())
+	}
+	if a.ColorEnabled() {
+		return a.renderer.RenderAnsi(msg)
+	}
+	return a.renderer.RenderPlain(msg)
 }
 
 // Persist writes the current player save through the store, but only

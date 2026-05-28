@@ -16,6 +16,7 @@ import (
 	"github.com/Jasrags/AnotherMUD/internal/logging"
 	"github.com/Jasrags/AnotherMUD/internal/mob"
 	"github.com/Jasrags/AnotherMUD/internal/progression"
+	"github.com/Jasrags/AnotherMUD/internal/render"
 	"github.com/Jasrags/AnotherMUD/internal/slot"
 	"github.com/Jasrags/AnotherMUD/internal/stats"
 	"github.com/Jasrags/AnotherMUD/internal/world"
@@ -85,7 +86,7 @@ type pendingMobPlacement struct {
 // Filter, when non-empty, restricts discovery (spec §2.4). Pass nil to
 // load every active pack under root.
 func Load(ctx context.Context, root string, filter []string, dst *Registries, spawner Spawner, mobSpawner MobSpawner) error {
-	if dst == nil || dst.World == nil || dst.Items == nil || dst.Slots == nil || dst.Mobs == nil || dst.Tracks == nil || dst.Races == nil || dst.Classes == nil || dst.Abilities == nil {
+	if dst == nil || dst.World == nil || dst.Items == nil || dst.Slots == nil || dst.Mobs == nil || dst.Tracks == nil || dst.Races == nil || dst.Classes == nil || dst.Abilities == nil || dst.Theme == nil {
 		return errors.New("pack.Load: dst has nil registry field; use pack.NewRegistries()")
 	}
 	logger := logging.From(ctx).With(slog.String("event", "pack.load"), slog.String("root", root))
@@ -220,6 +221,10 @@ func loadPackContent(ctx context.Context, p Discovered, dst *Registries) ([]pend
 	if err != nil {
 		return nil, nil, err
 	}
+	themePaths, err := resolveGlobs(p.Dir, p.Manifest.Content.Theme)
+	if err != nil {
+		return nil, nil, err
+	}
 
 	// Areas first — rooms reference them (spec §3.3 step 2). TryAddArea
 	// catches both intra-pack and cross-pack id collisions.
@@ -349,6 +354,20 @@ func loadPackContent(ctx context.Context, p Discovered, dst *Registries) ([]pend
 		}
 	}
 
+	// Theme: global (not namespaced) semantic-tag → color map. Later
+	// packs override earlier entries by tag name (Register replaces),
+	// mirroring the theme spec's "downstream pack can re-theme" rule.
+	// The composition root compiles the registry once after Load.
+	for _, tp := range themePaths {
+		entries, err := decodeTheme(tp)
+		if err != nil {
+			return nil, nil, err
+		}
+		for tag, e := range entries {
+			dst.Theme.Register(tag, e)
+		}
+	}
+
 	logger.Info("pack content loaded",
 		slog.String("event", "pack.content"),
 		slog.Int("areas", len(areaPaths)),
@@ -360,6 +379,7 @@ func loadPackContent(ctx context.Context, p Discovered, dst *Registries) ([]pend
 		slog.Int("races", len(racePaths)),
 		slog.Int("classes", len(classPaths)),
 		slog.Int("abilities", len(abilityPaths)),
+		slog.Int("theme", len(themePaths)),
 		slog.Int("placements", len(placements)),
 		slog.Int("mob_placements", len(mobPlacements)),
 	)
@@ -515,6 +535,31 @@ func decodeAbility(path, ns string) (*progression.Ability, error) {
 		Pack:                  ns,
 		Priority:              f.Priority,
 	}, nil
+}
+
+// decodeTheme reads a ThemeFile and returns its tag → render.ThemeEntry
+// map (spec ui-rendering-help §3.1). Color name validity is NOT checked
+// here: an unrecognized fg/bg simply resolves to no SGR at Compile (the
+// entry becomes declared-but-color-less), so a typo degrades to plain
+// output rather than failing the boot. Entries with a blank tag name
+// are skipped.
+func decodeTheme(path string) (map[string]render.ThemeEntry, error) {
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		return nil, fmt.Errorf("reading theme %s: %w", path, err)
+	}
+	var f ThemeFile
+	if err := yaml.Unmarshal(raw, &f); err != nil {
+		return nil, fmt.Errorf("%w: %s: %v", ErrInvalidContent, path, err)
+	}
+	out := make(map[string]render.ThemeEntry, len(f.Tags))
+	for tag, e := range f.Tags {
+		if strings.TrimSpace(tag) == "" {
+			continue
+		}
+		out[tag] = render.ThemeEntry{FG: e.FG, BG: e.BG, HTML: e.HTML}
+	}
+	return out, nil
 }
 
 // decodeTrack reads a TrackFile and builds a progression.TrackDef.

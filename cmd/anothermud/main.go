@@ -34,6 +34,7 @@ import (
 	"github.com/Jasrags/AnotherMUD/internal/pack"
 	"github.com/Jasrags/AnotherMUD/internal/player"
 	"github.com/Jasrags/AnotherMUD/internal/progression"
+	"github.com/Jasrags/AnotherMUD/internal/render"
 	"github.com/Jasrags/AnotherMUD/internal/server"
 	"github.com/Jasrags/AnotherMUD/internal/session"
 	"github.com/Jasrags/AnotherMUD/internal/slot"
@@ -107,6 +108,14 @@ func run() error {
 	if _, err := w.Room(cfg.StartRoom); err != nil {
 		return fmt.Errorf("starting room %q not in loaded world: %w", cfg.StartRoom, err)
 	}
+
+	// M10.2: compile the pack-loaded theme once and bind a shared,
+	// read-only color renderer. connActor.Write routes every outbound
+	// line through it (RenderAnsi/RenderPlain by the session color
+	// flag). Compiling after Load means the renderer sees every pack's
+	// theme overrides; no recompile happens at runtime.
+	registries.Theme.Compile()
+	colorRenderer := render.NewColorRenderer(registries.Theme)
 
 	accounts, err := account.NewService(cfg.SaveDir)
 	if err != nil {
@@ -979,6 +988,7 @@ func run() error {
 		DefaultRace:  cfg.DefaultRace,
 		StartID:      cfg.StartRoom,
 		ColorEnabled: cfg.ColorDefault,
+		Render:       colorRenderer,
 		Clock:        clk,
 		Flood:        session.DefaultFloodConfig(),
 		LinkDead:     linkDeadCfg,

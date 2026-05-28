@@ -1,0 +1,34 @@
+# tapestry-core default theme (ui-rendering-help §3.1).
+#
+# Maps semantic tag names emitted by the engine to terminal colors.
+# fg/bg are color names (§2.3): the 8 standard colors plus bright
+# variants (bright-red, dark-gray, …). html is optional and only used
+# by GMCP clients. Tag names are global; a downstream pack can override
+# any of these by registering the same tag.
+tags:
+  # Vital pools — used by the prompt template and score/status output.
+  hp:    { fg: green,  html: "#33CC33" }
+  mana:  { fg: blue,   html: "#3366FF" }
+  mv:    { fg: yellow, html: "#CCCC33" }
+
+  # General emphasis.
+  highlight: { fg: bright-white,  html: "#FFFFFF" }
+  subtle:    { fg: dark-gray,     html: "#888888" }
+  title:     { fg: bright-cyan,   html: "#33FFFF" }
+  good:      { fg: bright-green,  html: "#33FF33" }
+  warning:   { fg: bright-yellow, html: "#FFFF33" }
+  danger:    { fg: bright-red,    html: "#FF3333" }
+
+  # Combat feedback (M9.6 damage/heal numbers become visible once
+  # combat output is rendered through these tags).
+  damage: { fg: red,        html: "#CC3333" }
+  heal:   { fg: green,      html: "#33CC66" }
+
+  # Structural framing used by the panel renderer (M10.4).
+  frame: { fg: dark-gray, html: "#666666" }
+
+  # Item rarity tiers.
+  item.common:    { fg: white }
+  item.uncommon:  { fg: green,        html: "#33CC33" }
+  item.rare:      { fg: bright-blue,  html: "#3399FF" }
+  item.legendary: { fg: bright-magenta, html: "#FF66FF" }

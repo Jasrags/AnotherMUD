@@ -301,6 +301,27 @@ type EffectFile struct {
 	Flags     []string       `yaml:"flags,omitempty"`
 }
 
+// ThemeFile is the YAML shape for a pack theme (spec
+// ui-rendering-help §3.1). Each entry under `tags` maps a semantic tag
+// name to a foreground/background color name (§2.3) and/or an HTML
+// color for GMCP clients. Tag names are global (not namespaced) and
+// later packs override earlier entries.
+//
+//	tags:
+//	  highlight: { fg: bright-yellow }
+//	  danger:    { fg: red, bg: black }
+//	  item.rare: { fg: cyan, html: "#00FFFF" }
+type ThemeFile struct {
+	Tags map[string]ThemeTagEntry `yaml:"tags"`
+}
+
+// ThemeTagEntry is one tag's presentation in a ThemeFile.
+type ThemeTagEntry struct {
+	FG   string `yaml:"fg,omitempty"`
+	BG   string `yaml:"bg,omitempty"`
+	HTML string `yaml:"html,omitempty"`
+}
+
 // RaceFile is the YAML shape for a race definition (spec
 // progression.md §3.1). Stat caps are keyed by lowercase StatType
 // strings ("str", "hp_max", etc.); the loader maps them onto the

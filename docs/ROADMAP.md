@@ -1275,18 +1275,27 @@ is now real. Sketch of remaining vertical slices:
     - [ ] `TagStripper.VisibleLength(s) == len(StripTags(s))` for every
           input; a `<` with no `>` consumes the rest.
 
-  - **M10.2 (planned) — Wire the renderer into the send seam.**
-    Replace the `connActor.Write` call to the minimal `ansi.Render`
-    with the M10.1 renderer driven by `ColorEnabled()` (Ansi vs
-    Plain chosen at send time). Theme registry is constructed at boot
-    in `cmd/anothermud` after packs load and compiled once.
+  - **M10.2 (landed) — Wire the renderer into the send seam.**
+    `connActor` gains a `renderer *render.ColorRenderer` (from a new
+    `session.Config.Render`), and `connActor.Write` routes every line
+    through `connActor.render` — `RenderAnsi` when `ColorEnabled()`,
+    `RenderPlain` otherwise; nil renderer falls back to the minimal M2
+    `ansi.Render` so tests need no wiring. Theme loads from pack
+    content: `content.theme: [...]` globs → `ThemeFile`/`decodeTheme`
+    → `Registries.Theme` (global, later packs override). The
+    composition root compiles the theme once after `pack.Load` and
+    binds a shared read-only `ColorRenderer`. `content/core/theme/
+    theme.yaml` ships the starter semantic palette (hp/mana/mv,
+    highlight/subtle/title/danger, damage/heal, frame, item.*).
 
-    - [ ] `connActor.Write` renders through the themed renderer;
-          color-disabled sessions get `RenderPlain`.
-    - [ ] Existing M2 brace codes still render (back-compat); new
-          semantic tags resolve against the compiled theme.
-    - [ ] Theme compiled exactly once at boot; renderer is shared
-          read-only across sessions.
+    - [x] `connActor.Write` renders through the themed renderer;
+          color-disabled sessions get `RenderPlain` (no ANSI).
+    - [x] Existing M2 brace codes still render (back-compat via the
+          renderer's ROM token table + the nil-renderer fallback).
+    - [x] Theme compiled exactly once at boot; renderer shared
+          read-only across sessions; cross-pack tag override resolves
+          by load order. Pinned by pack + session seam tests; boot
+          smoke shows `theme=1` in the pack-content log.
 
   - **M10.3 (planned) — Prompt renderer.** `PromptRenderer` with the
     fixed token table (`{hp}`,`{maxhp}`,`{mana}`,`{maxmana}`,`{mv}`,

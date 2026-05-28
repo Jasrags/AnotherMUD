@@ -1286,3 +1286,83 @@ category: skill
 		t.Errorf("err = %v, want ErrInvalidContent", err)
 	}
 }
+
+func TestLoadThemeHappyPath(t *testing.T) {
+	root := t.TempDir()
+	pack := filepath.Join(root, "core")
+	writeFile(t, filepath.Join(pack, "pack.yaml"), `
+name: tapestry-core
+content:
+  areas: [areas/*.yaml]
+  rooms: [rooms/*.yaml]
+  theme: [theme/*.yaml]
+`)
+	writeFile(t, filepath.Join(pack, "areas/x.yaml"), `id: x
+name: X`)
+	writeFile(t, filepath.Join(pack, "rooms/r.yaml"), `id: r
+area: x
+name: R`)
+	writeFile(t, filepath.Join(pack, "theme/theme.yaml"), `
+tags:
+  highlight: { fg: bright-yellow }
+  danger: { fg: red, bg: black }
+  note: { html: "#888888" }
+`)
+	regs := NewRegistries()
+	if err := Load(context.Background(), root, nil, regs, nil, nil); err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	regs.Theme.Compile()
+
+	if !regs.Theme.IsKnown("highlight") {
+		t.Error("highlight not registered")
+	}
+	pair, ok := regs.Theme.Resolve("danger")
+	if !ok || pair.Open != "\x1b[31m\x1b[40m" {
+		t.Errorf("danger resolve = %+v ok=%v", pair, ok)
+	}
+	// html-only tag is known but has no ANSI pair.
+	if !regs.Theme.IsKnown("note") {
+		t.Error("note should be known")
+	}
+	if _, ok := regs.Theme.Resolve("note"); ok {
+		t.Error("note should not resolve (no fg/bg)")
+	}
+	if regs.Theme.GetHtmlMap()["note"] != "#888888" {
+		t.Error("note html missing")
+	}
+}
+
+func TestLoadThemeCrossPackOverride(t *testing.T) {
+	root := t.TempDir()
+	// Two packs; b depends on a so it loads after and overrides the tag.
+	writeFile(t, filepath.Join(root, "a/pack.yaml"), `
+name: pack-a
+content:
+  theme: [theme/*.yaml]
+`)
+	writeFile(t, filepath.Join(root, "a/theme/t.yaml"), `
+tags:
+  highlight: { fg: red }
+`)
+	writeFile(t, filepath.Join(root, "b/pack.yaml"), `
+name: pack-b
+dependencies:
+  pack-a: "*"
+content:
+  theme: [theme/*.yaml]
+`)
+	writeFile(t, filepath.Join(root, "b/theme/t.yaml"), `
+tags:
+  highlight: { fg: green }
+`)
+	regs := NewRegistries()
+	if err := Load(context.Background(), root, nil, regs, nil, nil); err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	regs.Theme.Compile()
+	pair, _ := regs.Theme.Resolve("highlight")
+	if pair.Open != "\x1b[32m" {
+		t.Errorf("override = %q, want green (pack-b wins)", pair.Open)
+	}
+}

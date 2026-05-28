@@ -4,6 +4,7 @@ import (
 	"github.com/Jasrags/AnotherMUD/internal/item"
 	"github.com/Jasrags/AnotherMUD/internal/mob"
 	"github.com/Jasrags/AnotherMUD/internal/progression"
+	"github.com/Jasrags/AnotherMUD/internal/render"
 	"github.com/Jasrags/AnotherMUD/internal/slot"
 	"github.com/Jasrags/AnotherMUD/internal/world"
 )
@@ -15,14 +16,18 @@ import (
 // All fields MUST be non-nil. NewRegistries is the supported way to
 // construct one.
 type Registries struct {
-	World  *world.World
-	Items  *item.Templates
-	Slots  *slot.Registry
-	Mobs   *mob.Templates
-	Tracks  *progression.TrackRegistry
+	World     *world.World
+	Items     *item.Templates
+	Slots     *slot.Registry
+	Mobs      *mob.Templates
+	Tracks    *progression.TrackRegistry
 	Races     *progression.RaceRegistry
 	Classes   *progression.ClassRegistry
 	Abilities *progression.AbilityRegistry
+	// Theme is the M10 UI theme registry. Packs register semantic
+	// tag → {fg,bg,html} entries; the composition root compiles it
+	// once after Load and binds a render.ColorRenderer to it.
+	Theme *render.ThemeRegistry
 }
 
 // NewRegistries returns a Registries with every field initialized.
@@ -32,13 +37,14 @@ type Registries struct {
 // try to redefine baseline slots).
 func NewRegistries() *Registries {
 	return &Registries{
-		World:  world.New(),
-		Items:  item.NewTemplates(),
-		Slots:  slot.NewRegistry(),
-		Mobs:   mob.NewTemplates(),
-		Tracks:  progression.NewTrackRegistry(),
+		World:     world.New(),
+		Items:     item.NewTemplates(),
+		Slots:     slot.NewRegistry(),
+		Mobs:      mob.NewTemplates(),
+		Tracks:    progression.NewTrackRegistry(),
 		Races:     progression.NewRaceRegistry(),
 		Classes:   progression.NewClassRegistry(),
 		Abilities: progression.NewAbilityRegistry(),
+		Theme:     render.NewThemeRegistry(),
 	}
 }
