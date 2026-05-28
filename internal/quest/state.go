@@ -24,6 +24,13 @@ type ActiveQuest struct {
 // stageComplete reports whether every objective in the active stage is
 // done.
 func (a *ActiveQuest) stageComplete() bool {
+	// An objective-less stage is "not done" rather than instantly
+	// complete. Registry validation forbids empty stages, but a
+	// corrupted/hand-edited save could install one via LoadState; this
+	// keeps that from triggering an immediate stage-advance/completion.
+	if len(a.Objectives) == 0 {
+		return false
+	}
 	for i := range a.Objectives {
 		if !a.Objectives[i].Complete() {
 			return false
@@ -59,6 +66,11 @@ func (s *State) hasCompleted(questID string) bool {
 
 // removeActive drops every active entry for questID, returning whether
 // any were removed.
+//
+// The in-place filter is safe: `range` copies each ActiveQuest value
+// before the loop body runs, and `append` only ever writes to a prefix
+// slot (len(kept) <= current index), so it never clobbers an element the
+// range has not yet read.
 func (s *State) removeActive(questID string) bool {
 	kept := s.Active[:0]
 	removed := false

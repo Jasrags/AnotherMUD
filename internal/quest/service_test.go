@@ -406,3 +406,65 @@ func TestBuildBannerWithoutClassification(t *testing.T) {
 		t.Errorf("banner = %q", got)
 	}
 }
+
+func TestLoadStateClonesInput(t *testing.T) {
+	svc, _, _ := newTestService(t)
+	in := &State{Completed: []string{"intro"}}
+	svc.LoadState("p1", in)
+	// mutate the caller's slice after handoff — service must be isolated.
+	in.Completed[0] = "tampered"
+	in.Completed = append(in.Completed, "extra")
+	snap := svc.Snapshot("p1")
+	if len(snap.Completed) != 1 || snap.Completed[0] != "intro" {
+		t.Errorf("LoadState did not isolate input: %+v", snap.Completed)
+	}
+}
+
+func TestAdvanceMatchingThroughCompletion(t *testing.T) {
+	// Single-stage quest so a matching advance completes it.
+	reg := NewRegistry()
+	_ = reg.Register(&Definition{ID: "q", Abandonable: true, Stages: []Stage{
+		{ID: "s", Objectives: []Objective{{ID: "s-kill-0", Type: "kill", Target: "core:rat", Count: 1}}},
+	}})
+	sink := &recSink{}
+	svc := NewService(Config{Registry: reg, Events: sink})
+	svc.Accept(&fakePlayer{id: "p1"}, "q", false)
+	svc.AdvanceMatching("p1", "kill", func(o Objective) bool { return o.Target == "core:rat" })
+	if len(sink.completed) != 1 {
+		t.Errorf("matching advance should complete the quest: %d", len(sink.completed))
+	}
+	if snap := svc.Snapshot("p1"); len(snap.Active) != 0 || !snap.hasCompleted("q") {
+		t.Errorf("post-completion state: %+v", snap)
+	}
+}
+
+func TestAbandonNonActiveNoOp(t *testing.T) {
+	svc, _, sink := newTestService(t)
+	svc.LoadState("p1", &State{})
+	svc.Abandon("p1", "q") // active list empty
+	if len(sink.abandoned) != 0 {
+		t.Errorf("abandon of non-active quest should not emit: %d", len(sink.abandoned))
+	}
+}
+
+func TestCapCountsMissingDefAsAbandonable(t *testing.T) {
+	reg := NewRegistry()
+	_ = reg.Register(twoStageDef("a"))
+	svc := NewService(Config{Registry: reg, Cap: 1})
+	// inject an active quest whose definition is NOT registered.
+	svc.LoadState("p1", &State{Active: []ActiveQuest{{QuestID: "ghost"}}})
+	// the ghost counts toward the cap (missing def == abandonable), so
+	// accepting an abandonable quest at cap 1 is rejected.
+	if r := svc.Accept(&fakePlayer{id: "p1"}, "a", false); r.Status != CapReached {
+		t.Errorf("missing-def active should count toward cap: %v", r.Status)
+	}
+}
+
+func TestNewServiceNilRegistryPanics(t *testing.T) {
+	defer func() {
+		if recover() == nil {
+			t.Error("expected panic on nil Registry")
+		}
+	}()
+	NewService(Config{})
+}

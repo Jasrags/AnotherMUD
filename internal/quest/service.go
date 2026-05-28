@@ -24,6 +24,12 @@ type Player interface {
 // Persister writes a player's full quest state on every mutation (§6.2).
 // The default is a no-op; the M10.8 persistence service supplies the
 // file-writing implementation.
+//
+// Save MUST serialize synchronously and MUST NOT retain the *State
+// pointer after it returns: the pointer is the service's live, mutable
+// state and is only safe to read during the call (the service holds its
+// lock across Save). A persister that needs to defer the write must copy
+// what it needs before returning.
 type Persister interface {
 	Save(playerID string, state *State)
 }
@@ -79,8 +85,11 @@ type Service struct {
 	track    string
 }
 
-// NewService builds a service from cfg.
+// NewService builds a service from cfg. cfg.Registry is required.
 func NewService(cfg Config) *Service {
+	if cfg.Registry == nil {
+		panic("quest.NewService: nil Registry")
+	}
 	s := &Service{
 		registry: cfg.Registry,
 		rewards:  cfg.Rewards,
@@ -120,15 +129,15 @@ func (s *Service) stateLocked(playerID string) *State {
 	return st
 }
 
-// LoadState installs a player's persisted state (M10.8 login load). It
-// overwrites any existing in-memory state for the player.
+// LoadState installs a player's persisted state (M10.8 login load),
+// overwriting any existing in-memory state. The state is cloned so the
+// service owns its copy outright — a caller (e.g. the persistence layer)
+// that retains the pointer it passed in cannot then observe the
+// service's in-place mutations.
 func (s *Service) LoadState(playerID string, state *State) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	if state == nil {
-		state = &State{}
-	}
-	s.states[playerID] = state
+	s.states[playerID] = state.clone() // clone handles nil → empty State
 }
 
 // DropState releases a player's in-memory state + cache entry (logout).
