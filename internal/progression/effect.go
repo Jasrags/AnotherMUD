@@ -51,7 +51,22 @@ type EffectTemplate struct {
 // these from equipment keys so a typoed item id can't collide with
 // a real effect by accident.
 func EffectSourceKey(effectID string) entities.SourceKey {
-	return entities.SourceKey("effect:" + strings.ToLower(strings.TrimSpace(effectID)))
+	return entities.SourceKey(effectSourcePrefix + strings.ToLower(strings.TrimSpace(effectID)))
+}
+
+// effectSourcePrefix segregates effect-installed stat modifiers from
+// equipment ("equipment:") and any other source. Exported behavior is
+// via IsEffectSource so callers don't hardcode the literal.
+const effectSourcePrefix = "effect:"
+
+// IsEffectSource reports whether src was produced by EffectSourceKey.
+// The persistence layer uses it to keep effect-driven stat modifiers
+// out of the saved stat block: active effects are ephemeral (spec
+// abilities-and-effects §5.5 — the effect LIST is not persisted), so
+// their stat mods must be equally ephemeral, otherwise a buff active
+// at logout round-trips into a permanent bonus.
+func IsEffectSource(src entities.SourceKey) bool {
+	return strings.HasPrefix(string(src), effectSourcePrefix)
 }
 
 // Effect is the runtime instance of an EffectTemplate applied to a

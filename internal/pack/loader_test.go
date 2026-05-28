@@ -1206,6 +1206,36 @@ max_hit_chance: 50
 	}
 }
 
+func TestLoadAbilitiesRejectsDeadPassive(t *testing.T) {
+	root := t.TempDir()
+	pack := filepath.Join(root, "core")
+	writeFile(t, filepath.Join(pack, "pack.yaml"), `
+name: tapestry-core
+content:
+  areas: [areas/*.yaml]
+  rooms: [rooms/*.yaml]
+  abilities: [abilities/*.yaml]
+`)
+	writeFile(t, filepath.Join(pack, "areas/x.yaml"), `id: x
+name: X`)
+	writeFile(t, filepath.Join(pack, "rooms/r.yaml"), `id: r
+area: x
+name: R`)
+	// Passive with variance>=100 and no max_hit_chance ⇒ §6.1 binary
+	// check is always 0 ⇒ never fires. Must be rejected at load.
+	writeFile(t, filepath.Join(pack, "abilities/dead.yaml"), `
+id: dead
+type: passive
+category: skill
+hook: defensive
+variance: 100
+`)
+	err := Load(context.Background(), root, nil, NewRegistries(), nil, nil)
+	if !errors.Is(err, ErrInvalidContent) {
+		t.Errorf("err = %v, want ErrInvalidContent for dead passive", err)
+	}
+}
+
 func TestLoadAbilitiesRejectsInvalidType(t *testing.T) {
 	root := t.TempDir()
 	pack := filepath.Join(root, "core")

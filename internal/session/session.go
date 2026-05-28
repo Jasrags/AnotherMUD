@@ -2052,11 +2052,26 @@ func (a *connActor) syncEquipmentToSaveLocked() {
 // syncStatsToSaveLocked rewrites a.save.Stats from the live block.
 // Snapshot returns a fresh slice each call so the Persist path's
 // shallow *a.save copy doesn't share backing storage.
+//
+// Effect-driven modifiers (source "effect:…") are filtered OUT of the
+// persisted snapshot: active effects are ephemeral (spec
+// abilities-and-effects §5.5 — the effect list is dropped at logout,
+// not saved), so a buff active when Persist runs must not round-trip
+// into a permanent bonus on reload. Equipment modifiers persist as
+// before; respawnEquipment rebinds their source keys at login.
 func (a *connActor) syncStatsToSaveLocked() {
 	if a.save == nil {
 		return
 	}
-	a.save.Stats = a.statBlock.ModifiersSnapshot()
+	snap := a.statBlock.ModifiersSnapshot()
+	persisted := make(stats.Snapshot, 0, len(snap))
+	for _, e := range snap {
+		if progression.IsEffectSource(e.Source) {
+			continue
+		}
+		persisted = append(persisted, e)
+	}
+	a.save.Stats = persisted
 	a.save.StatsBase = a.statBlock.BaseSnapshot()
 }
 

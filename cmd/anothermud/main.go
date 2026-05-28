@@ -903,6 +903,22 @@ func run() error {
 		Wimpy:      wimpyPhase,
 	})
 	combatCadence := cadenceTicks(cfg.TickInterval, cfg.CombatCadence)
+	// M9.2 #1 / spec abilities-and-effects §5.4: advance active-effect
+	// durations one pulse per combat round. EffectManager.Tick is
+	// global (decrements every entity's effects + expires the
+	// zero-counter ones, reversing their stat mods) so it runs as its
+	// own loop handler rather than the per-combatant heartbeat Effects
+	// slot — which stays reserved for future per-entity DoT/HoT that
+	// needs in-round death checks. Registered BEFORE combat-tick so an
+	// effect applied during this round's ability phase is not
+	// decremented in the same pulse. Runs at the combat cadence
+	// regardless of whether anyone is engaged, so a buff cast in combat
+	// still expires after combat ends.
+	if err := loop.Register("effect-tick", combatCadence, func(ctx context.Context, _ uint64) {
+		effectMgr.Tick(ctx)
+	}); err != nil {
+		return fmt.Errorf("register effect tick: %w", err)
+	}
 	if err := loop.Register("combat-tick", combatCadence, combatHeartbeat.Tick); err != nil {
 		return fmt.Errorf("register combat tick: %w", err)
 	}

@@ -112,3 +112,40 @@ func TestConnActor_SatisfiesEffectTarget(t *testing.T) {
 	// not used" if future refactors drop the runtime calls).
 	_ = entities.SourceKey("")
 }
+
+// TestSyncStats_ExcludesEffectModifiers pins the m9-2 #3 fix: a buff
+// active when the stat block is persisted must NOT round-trip into a
+// permanent bonus. syncStatsToSaveLocked drops effect-sourced
+// modifiers from save.Stats while keeping equipment-sourced ones
+// (active effects are ephemeral per spec §5.5; equipment persists +
+// rebinds at login).
+func TestSyncStats_ExcludesEffectModifiers(t *testing.T) {
+	a := &connActor{
+		playerID:  "p-1",
+		save:      &player.Save{Version: player.CurrentVersion, Name: "Tester"},
+		statBlock: progression.NewWithBase(progression.DefaultPlayerBase()),
+		equipment: map[string]entities.EntityID{},
+	}
+	equipSrc := entities.EquipmentSourceKey("sword-1")
+	effectSrc := progression.EffectSourceKey("bless")
+	a.statBlock.AddModifiers(equipSrc, []stats.Modifier{{Stat: "hit_mod", Value: 1}})
+	a.statBlock.AddModifiers(effectSrc, []stats.Modifier{{Stat: "hit_mod", Value: 2}})
+
+	a.syncStatsToSaveLocked()
+
+	var sawEquip, sawEffect bool
+	for _, e := range a.save.Stats {
+		if e.Source == equipSrc {
+			sawEquip = true
+		}
+		if progression.IsEffectSource(e.Source) {
+			sawEffect = true
+		}
+	}
+	if !sawEquip {
+		t.Error("equipment modifier must persist in save.Stats")
+	}
+	if sawEffect {
+		t.Error("effect modifier must NOT persist (ephemeral per §5.5) — buff would become permanent on reload")
+	}
+}

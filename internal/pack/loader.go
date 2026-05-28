@@ -424,6 +424,17 @@ func decodeAbility(path, ns string) (*progression.Ability, error) {
 		display = strings.TrimSpace(f.ID)
 	}
 
+	// Dead-passive guard (spec §6.1): a passive whose §6.1 binary
+	// check would always evaluate to zero can never fire. The
+	// variance >= 100 branch uses max_hit_chance; with max_hit_chance
+	// 0 the effective chance is prof × 0/100 = 0 forever. Reject at
+	// load so a content author sees the mistake instead of shipping a
+	// silently-inert passive. (Active abilities fall back to the
+	// resolver's DefaultMaxHitChance, so this only applies to passives.)
+	if typ == progression.AbilityPassive && f.Variance >= 100 && f.MaxHitChance == 0 {
+		return nil, fmt.Errorf("%w: %s: passive with variance>=100 requires max_hit_chance>0 (else its §6.1 binary check never fires)", ErrInvalidContent, path)
+	}
+
 	// Alignment range: at least one bound set ⇒ HasAlignmentRange.
 	// Missing-side defaults to the extreme so the range is open.
 	var (
