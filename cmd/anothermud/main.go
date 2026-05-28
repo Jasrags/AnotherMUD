@@ -120,23 +120,11 @@ func run() error {
 	registries.Theme.Compile()
 	colorRenderer := render.NewColorRenderer(registries.Theme)
 
-	// M10.8: quest persistence + service. The store implements
-	// quest.Persister (writes players/<name>/quests.yaml) and loads on
-	// login; the service drives accept/advance/abandon. Event sink +
-	// reward dispatcher stay at their no-op defaults for now — the real
-	// reward adapters + event-bus bridge land with the M10.10 verbs.
+	// M10.8: quest persistence store (writes players/<name>/quests.yaml,
+	// loads on login). The quest service itself is constructed later
+	// (after the progression / proficiency managers it grants rewards
+	// through exist).
 	questStore := queststore.NewStore(cfg.SaveDir, registries.Quests)
-	questSvc := quest.NewService(quest.Config{
-		Registry: registries.Quests,
-		Persist:  questStore,
-	})
-	// M10.9: the watcher routes mob-killed / item-picked-up / item-given
-	// / player-moved events into objective progress. It's live now, but
-	// dormant until a player accepts a quest (the accept verb lands in
-	// M10.10). The §7.2/§7.3 quest_grant / quest_advance side channels
-	// are deferred (room has no property bag; the pickup event has no
-	// quest_advance field; grant needs the M10.10 accept Player adapter).
-	questwatch.New(questSvc, entityStore).Subscribe(bus)
 
 	accounts, err := account.NewService(cfg.SaveDir)
 	if err != nil {
@@ -360,6 +348,20 @@ func run() error {
 		registries.Abilities,
 		progression.DefaultProficiencyConfig(),
 	)
+
+	// M10.7-M10.10: quest service, now that the reward dependencies
+	// (manager, progression, proficiency, item templates, entity store)
+	// all exist. Rewards grant XP / abilities / items on completion; the
+	// event sink logs the lifecycle (a typed event-bus bridge can land
+	// when a consumer needs it). The watcher routes mob-killed /
+	// item-picked-up / item-given / player-moved into objective progress.
+	questSvc := quest.NewService(quest.Config{
+		Registry: registries.Quests,
+		Persist:  questStore,
+		Rewards:  session.NewQuestRewards(mgr, progressionMgr, proficiencyMgr, registries.Items, entityStore),
+		Events:   questLogSink{logger: logging.From(ctx)},
+	})
+	questwatch.New(questSvc, entityStore).Subscribe(bus)
 
 	// M9.2: effect manager — per-entity active effects (spec
 	// abilities-and-effects §5). Resolver walks the session
@@ -1806,6 +1808,41 @@ func (s *alignmentSink) OnAlignmentShifted(ctx context.Context, entityID, reason
 // to an eventbus payload; nil bus is a silent no-op so tests that
 // wire the manager without a bus still exercise the rest of the
 // pipeline.
+// questLogSink is the M10.10b quest.EventSink: it logs the quest
+// lifecycle so completions/abandons are observable. A typed event-bus
+// bridge (quests.md §9) can replace this when a consumer (achievement /
+// GMCP) needs the events; for now there is none.
+type questLogSink struct {
+	logger *slog.Logger
+}
+
+func (s questLogSink) Started(e quest.StartedEvent) {
+	s.logger.Info("quest started", slog.String("event", "quest.started"),
+		slog.String("entity_id", e.PlayerID), slog.String("quest", e.QuestID))
+}
+
+func (s questLogSink) ObjectiveAdvanced(e quest.ObjectiveAdvancedEvent) {
+	s.logger.Debug("quest objective advanced", slog.String("event", "quest.objective_advanced"),
+		slog.String("entity_id", e.PlayerID), slog.String("quest", e.QuestID),
+		slog.String("objective", e.ObjectiveID), slog.Int("current", e.Current), slog.Int("required", e.Required))
+}
+
+func (s questLogSink) StageAdvanced(e quest.StageAdvancedEvent) {
+	s.logger.Debug("quest stage advanced", slog.String("event", "quest.stage_advanced"),
+		slog.String("entity_id", e.PlayerID), slog.String("quest", e.QuestID), slog.Int("stage", e.StageIndex))
+}
+
+func (s questLogSink) Completed(e quest.CompletedEvent) {
+	s.logger.Info("quest completed", slog.String("event", "quest.completed"),
+		slog.String("entity_id", e.PlayerID), slog.String("quest", e.QuestID),
+		slog.Int64("xp", e.XP), slog.Int("gold", e.Gold))
+}
+
+func (s questLogSink) Abandoned(e quest.AbandonedEvent) {
+	s.logger.Info("quest abandoned", slog.String("event", "quest.abandoned"),
+		slog.String("entity_id", e.PlayerID), slog.String("quest", e.QuestID))
+}
+
 type effectSink struct {
 	bus *eventbus.Bus
 }

@@ -119,4 +119,3 @@ func vitalsDescriptor(cur, max int) string {
 		return "near death"
 	}
 }
-

@@ -153,6 +153,19 @@ func classification(def *quest.Definition) string {
 	return ""
 }
 
+// questMarker returns a marker checker bound to the actor for RenderRoom,
+// or nil when quests aren't wired. It reports whether a template id is
+// relevant to one of the actor's active quests (§8).
+func (c *Context) questMarker() func(templateID string) bool {
+	if c.Quests == nil {
+		return nil
+	}
+	pid := c.Actor.PlayerID()
+	return func(templateID string) bool {
+		return c.Quests.HasMarker(pid, templateID)
+	}
+}
+
 func activeHas(s *quest.State, questID string) bool {
 	for i := range s.Active {
 		if s.Active[i].QuestID == questID {

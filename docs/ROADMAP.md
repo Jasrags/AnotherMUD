@@ -1516,17 +1516,25 @@ is now real. Sketch of remaining vertical slices:
           accept → journal → move (watcher advances visit → stage
           advance) → abandon all work end-to-end.
 
-  - **M10.10b (planned) — Reward adapters + event bridge + markers in
-    look.** Real reward dispatcher adapters (XP→progression,
-    ability→proficiency, item→entities pickup; gold nop until M11) +
-    the `quest.EventSink`→event-bus bridge, both wired at the
-    composition root. Quest markers (`Service.HasMarker`) wired into
-    `RenderRoom`/look output. Plus the deferred `quest_grant` item
-    side-channel (now that the accept Player resolver exists).
+  - **M10.10b (landed) — Reward adapters + event sink + markers in
+    look.** `session.NewQuestRewards` builds the reward dispatcher:
+    XP→`connActor.GrantXP` via the progression manager, abilities→the
+    proficiency manager directly (its `Learn` matches `AbilityTeacher`),
+    items→`entities.Store.Spawn` + `AddToInventory` + `MarkContentsDirty`
+    (gold stays nop until M11). `quest.Service` is now constructed after
+    those managers exist, with a `questLogSink` logging the lifecycle.
+    `RenderRoom` gained a marker checker; `look`/movement/login/reconnect
+    pass one bound to `Service.HasMarker`, so quest givers / current-stage
+    deliver-npcs / collect-targets show a `(!)` glyph.
 
-    - [ ] Completing a quest grants its XP/abilities/items; quest
-          lifecycle events publish on the bus.
-    - [ ] Quest-relevant entities show a marker in look output.
+    - [x] Completing a quest grants its XP/abilities/items (reward
+          adapters wired; dispatch unit-tested in the service).
+    - [x] Quest-relevant entities show a marker in look output (render
+          test + verified live: the giver shows `(!)` after accept).
+
+    Deferred (still tracked in m10-9-deferred-fixes): the typed
+    event-bus bridge (no consumer yet — logging sink for now) and the
+    `quest_grant` item/room side channels.
 
 - **M11 — Survive:** `economy-survival`, currency, shops, sustenance.
 - **M12 — Character creation wizard:** the full `character-creation`

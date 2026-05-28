@@ -205,5 +205,5 @@ func renderRoomForReconnect(a *connActor, cfg Config) string {
 	if r == nil {
 		return ""
 	}
-	return command.RenderRoom(r, cfg.Placement, cfg.Items)
+	return command.RenderRoom(r, cfg.Placement, cfg.Items, questMarkerFor(cfg.Quests, a.PlayerID()))
 }

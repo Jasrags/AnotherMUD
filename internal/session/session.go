@@ -501,7 +501,7 @@ func run(ctx context.Context, c conn.Connection, cfg Config) error {
 		cfg.Disposition.OnPlayerEnteredImmediate(ctx, a.PlayerID(), a.Name(), nil, start.ID)
 	}
 
-	if err := a.Write(ctx, command.RenderRoom(start, cfg.Placement, cfg.Items)); err != nil {
+	if err := a.Write(ctx, command.RenderRoom(start, cfg.Placement, cfg.Items, questMarkerFor(cfg.Quests, a.PlayerID()))); err != nil {
 		// Initial render failed: the connection is unusable. Full
 		// teardown immediately — no point parking link-dead.
 		fullTeardown(ctx, cfg, a)

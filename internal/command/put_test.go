@@ -226,7 +226,7 @@ func TestPut_Full(t *testing.T) {
 func TestPut_TooHeavy(t *testing.T) {
 	f := newPutFixture(t)
 	a := newNamedTestActor("Alice", "p-alice", f.room)
-	sack := f.spawnInActorInventory(t, a, heavySackTpl()) // weight_limit=3
+	sack := f.spawnInActorInventory(t, a, heavySackTpl())     // weight_limit=3
 	heavy := f.spawnInActorInventory(t, a, swordWithWeight()) // weight=5
 
 	dispatchPut(t, f, a, "put sword sack")

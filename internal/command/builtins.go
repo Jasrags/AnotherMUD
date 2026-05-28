@@ -119,7 +119,7 @@ func LookHandler(ctx context.Context, c *Context) error {
 	if room == nil {
 		return c.Actor.Write(ctx, "You float in formless void.")
 	}
-	return c.Actor.Write(ctx, RenderRoom(room, c.Placement, c.Items))
+	return c.Actor.Write(ctx, RenderRoom(room, c.Placement, c.Items, c.questMarker()))
 }
 
 // ColorHandler implements the `color` verb (spec ui-rendering-help —
@@ -208,7 +208,7 @@ func movementHandler(dir world.Direction) Handler {
 		if c.Disposition != nil && pid != "" {
 			c.Disposition.OnPlayerEnteredImmediate(ctx, pid, name, nil, dst.ID)
 		}
-		if err := c.Actor.Write(ctx, RenderRoom(dst, c.Placement, c.Items)); err != nil {
+		if err := c.Actor.Write(ctx, RenderRoom(dst, c.Placement, c.Items, c.questMarker())); err != nil {
 			return err
 		}
 		// Deferred (full) hook AFTER the description so non-hostile
@@ -231,13 +231,17 @@ func movementHandler(dir world.Direction) Handler {
 // in insertion order. Entities nested inside containers are not
 // shown: those live in Contents, not Placement (the put pipeline
 // removes from Placement when nesting).
-func RenderRoom(r *world.Room, placement *entities.Placement, items *entities.Store) string {
+// RenderRoom renders a room's name, description, entities, and exits.
+// marker, when non-nil, reports whether an entity's template id carries a
+// quest marker for the viewer (M10.10b); such entities get a marker glyph
+// before their name. Pass nil to skip marker decoration.
+func RenderRoom(r *world.Room, placement *entities.Placement, items *entities.Store, marker func(templateID string) bool) string {
 	var b strings.Builder
 	b.WriteString(r.Name)
 	b.WriteString("\n")
 	b.WriteString(r.Description)
 	b.WriteString("\n")
-	if line := renderRoomEntities(r, placement, items); line != "" {
+	if line := renderRoomEntities(r, placement, items, marker); line != "" {
 		b.WriteString(line)
 		b.WriteString("\n")
 	}
@@ -251,7 +255,7 @@ func RenderRoom(r *world.Room, placement *entities.Placement, items *entities.St
 // fails resolution. Each branch is a silent skip rather than a panic
 // because the renderer is on the player-visible path; missing data
 // should look like nothing-here, not a runtime error.
-func renderRoomEntities(r *world.Room, placement *entities.Placement, items *entities.Store) string {
+func renderRoomEntities(r *world.Room, placement *entities.Placement, items *entities.Store, marker func(templateID string) bool) string {
 	if placement == nil || items == nil {
 		return ""
 	}
@@ -269,14 +273,34 @@ func renderRoomEntities(r *world.Room, placement *entities.Placement, items *ent
 		if !ok {
 			continue
 		}
-		if name := n.Name(); name != "" {
-			names = append(names, name)
+		name := n.Name()
+		if name == "" {
+			continue
 		}
+		if marker != nil {
+			if tid := templateIDOf(e); tid != "" && marker(tid) {
+				name = "<good>(!)</good> " + name
+			}
+		}
+		names = append(names, name)
 	}
 	if len(names) == 0 {
 		return ""
 	}
 	return "You see here: " + strings.Join(names, ", ") + "."
+}
+
+// templateIDOf returns the content template id of an entity (item or
+// mob), or "" when it has none.
+func templateIDOf(e entities.Entity) string {
+	switch inst := e.(type) {
+	case *entities.ItemInstance:
+		return string(inst.TemplateID())
+	case *entities.MobInstance:
+		return string(inst.TemplateID())
+	default:
+		return ""
+	}
 }
 
 func renderExits(r *world.Room) string {

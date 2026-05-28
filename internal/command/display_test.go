@@ -253,4 +253,3 @@ func TestInventory_SkipsUntrackedEntities(t *testing.T) {
 		t.Errorf("untracked item leaked: %q", out)
 	}
 }
-

@@ -33,12 +33,12 @@ func TestRegistry_Resolve(t *testing.T) {
 		nilWant bool
 	}{
 		{"look", "look", false},
-		{"LOOK", "look", false},   // case-insensitive exact
-		{"loo", "look", false},    // prefix
-		{"n", "n", false},         // exact wins over prefix to "north"
-		{"nor", "north", false},   // prefix
-		{"q", "quit", false},      // prefix unique
-		{"xyz", "", true},         // no match
+		{"LOOK", "look", false}, // case-insensitive exact
+		{"loo", "look", false},  // prefix
+		{"n", "n", false},       // exact wins over prefix to "north"
+		{"nor", "north", false}, // prefix
+		{"q", "quit", false},    // prefix unique
+		{"xyz", "", true},       // no match
 	}
 	for _, c := range cases {
 		c := c

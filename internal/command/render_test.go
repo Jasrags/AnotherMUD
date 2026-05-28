@@ -59,7 +59,7 @@ func TestRenderRoom_NilPlacementAndStoreSkipsEntityLine(t *testing.T) {
 	// Pins backward-compat: tests / call sites that don't care about
 	// placement can pass nil for both args without any "you see" line.
 	f := newRenderFixture()
-	out := command.RenderRoom(f.room, nil, nil)
+	out := command.RenderRoom(f.room, nil, nil, nil)
 	if strings.Contains(out, "You see here") {
 		t.Errorf("nil placement+store produced entity line:\n%s", out)
 	}
@@ -75,7 +75,7 @@ func TestRenderRoom_EmptyPlacementSkipsEntityLine(t *testing.T) {
 	// Placement + store supplied but no entities in the room — same
 	// shape as the nil case (no "You see here" line).
 	f := newRenderFixture()
-	out := command.RenderRoom(f.room, f.place, f.store)
+	out := command.RenderRoom(f.room, f.place, f.store, nil)
 	if strings.Contains(out, "You see here") {
 		t.Errorf("empty room produced entity line:\n%s", out)
 	}
@@ -88,7 +88,7 @@ func TestRenderRoom_ListsPlacedItem(t *testing.T) {
 		Name: "a stone well",
 		Type: "fixture",
 	})
-	out := command.RenderRoom(f.room, f.place, f.store)
+	out := command.RenderRoom(f.room, f.place, f.store, nil)
 	if !strings.Contains(out, "You see here: a stone well.") {
 		t.Errorf("missing item in render:\n%s", out)
 	}
@@ -102,7 +102,7 @@ func TestRenderRoom_ListsPlacedMob(t *testing.T) {
 		Type:     "npc",
 		Behavior: "idle",
 	})
-	out := command.RenderRoom(f.room, f.place, f.store)
+	out := command.RenderRoom(f.room, f.place, f.store, nil)
 	if !strings.Contains(out, "You see here: a village guard.") {
 		t.Errorf("missing mob in render:\n%s", out)
 	}
@@ -118,7 +118,7 @@ func TestRenderRoom_PreservesInsertionOrderAcrossMixedEntities(t *testing.T) {
 	f := newRenderFixture()
 	f.placeItem(t, &item.Template{ID: "tapestry-core:well", Name: "a stone well", Type: "fixture"})
 	f.placeMob(t, &mob.Template{ID: "tapestry-core:guard", Name: "a village guard", Type: "npc", Behavior: "idle"})
-	out := command.RenderRoom(f.room, f.place, f.store)
+	out := command.RenderRoom(f.room, f.place, f.store, nil)
 	idxWell := strings.Index(out, "a stone well")
 	idxGuard := strings.Index(out, "a village guard")
 	if idxWell == -1 || idxGuard == -1 {
@@ -143,7 +143,7 @@ func TestRenderRoom_EmptyNameEntitySilentlySkipped(t *testing.T) {
 	// than the whole line being absent for some other reason).
 	f.placeItem(t, &item.Template{ID: "tapestry-core:well", Name: "a stone well", Type: "fixture"})
 	f.placeItem(t, &item.Template{ID: "tapestry-core:nameless", Name: "", Type: "fixture"})
-	out := command.RenderRoom(f.room, f.place, f.store)
+	out := command.RenderRoom(f.room, f.place, f.store, nil)
 	if !strings.Contains(out, "You see here: a stone well.") {
 		t.Errorf("expected named entity intact, empty-name entity omitted:\n%s", out)
 	}
@@ -159,7 +159,7 @@ func TestRenderRoom_EntityLinePlacedBetweenDescriptionAndExits(t *testing.T) {
 	// the test.
 	f := newRenderFixture()
 	f.placeItem(t, &item.Template{ID: "tapestry-core:well", Name: "a stone well", Type: "fixture"})
-	out := command.RenderRoom(f.room, f.place, f.store)
+	out := command.RenderRoom(f.room, f.place, f.store, nil)
 	idxDesc := strings.Index(out, "cobblestone")
 	idxWell := strings.Index(out, "a stone well")
 	idxExits := strings.Index(out, "Exits:")
@@ -179,10 +179,27 @@ func TestRenderRoom_EntityLinePlacedBetweenDescriptionAndExits(t *testing.T) {
 func TestRenderRoom_UnresolvedPlacementIDSilentlySkipped(t *testing.T) {
 	f := newRenderFixture()
 	f.place.Place(entities.EntityID("ghost-id"), f.room.ID)
-	out := command.RenderRoom(f.room, f.place, f.store)
+	out := command.RenderRoom(f.room, f.place, f.store, nil)
 	// Ghost id resolves to nothing; line should be absent OR not
 	// mention any entity name.
 	if strings.Contains(out, "You see here") {
 		t.Errorf("ghost id produced a visible entity line:\n%s", out)
+	}
+}
+
+func TestRenderRoom_MarkerDecoratesEntity(t *testing.T) {
+	f := newRenderFixture()
+	f.placeItem(t, &item.Template{ID: "tapestry-core:gem", Name: "a quest gem", Type: "treasure"})
+	f.placeItem(t, &item.Template{ID: "tapestry-core:rock", Name: "a plain rock", Type: "junk"})
+
+	// marker fires only for the gem template.
+	marker := func(tid string) bool { return tid == "tapestry-core:gem" }
+	out := command.RenderRoom(f.room, f.place, f.store, marker)
+
+	if !strings.Contains(out, "(!)</good> a quest gem") {
+		t.Errorf("quest item not marked:\n%s", out)
+	}
+	if strings.Contains(out, "(!)</good> a plain rock") {
+		t.Errorf("non-quest item should not be marked:\n%s", out)
 	}
 }

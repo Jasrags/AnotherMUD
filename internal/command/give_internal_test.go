@@ -10,10 +10,10 @@ import "testing"
 func TestParseGiveArgs(t *testing.T) {
 	t.Parallel()
 	cases := []struct {
-		name           string
-		args           []string
-		item, target   string
-		ok             bool
+		name         string
+		args         []string
+		item, target string
+		ok           bool
 	}{
 		{"two-token-implicit", []string{"sword", "bob"}, "sword", "bob", true},
 		{"to-form", []string{"sword", "to", "bob"}, "sword", "bob", true},
