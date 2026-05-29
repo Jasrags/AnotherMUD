@@ -27,5 +27,9 @@ items:
 # small additive regen bonus the vitals-regen heartbeat applies to
 # anyone recovering here.
 healing_rate: 1
+# Cluster 2: the town square is a safe hub. `safe-room` blocks combat
+# engagement here (combat §2.1); `safe` satisfies the training safe-room
+# gate (progression §7.4) if a host enables RequireSafeRoomForStats.
+tags: [safe-room, safe]
 # Mobs now spawn via area-level spawn_rules (spec
 # mobs-ai-spawning §3.5). See areas/town.yaml.

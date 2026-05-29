@@ -178,6 +178,9 @@ type RoomFile struct {
 	// HealingRate is the §5.7 additive room regen bonus (economy-
 	// survival). Absent → 0 (no bonus).
 	HealingRate int `yaml:"healing_rate,omitempty"`
+	// Tags are content-defined room flags (e.g. "safe-room", "safe").
+	// Copied onto world.Room.Tags at load. Absent → no tags.
+	Tags []string `yaml:"tags,omitempty"`
 }
 
 // TrackFile is the YAML shape for a progression-track definition

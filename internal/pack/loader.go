@@ -1144,6 +1144,7 @@ func decodeRoom(path, ns string) (*world.Room, []string, []string, error) {
 		Description: rf.Description,
 		Exits:       make(map[world.Direction]world.Exit, len(rf.Exits)),
 		HealingRate: rf.HealingRate,
+		Tags:        append([]string(nil), rf.Tags...),
 	}
 	for dirStr, target := range rf.Exits {
 		dir, ok := world.ParseDirection(dirStr)

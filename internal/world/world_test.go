@@ -7,6 +7,22 @@ import (
 	"github.com/Jasrags/AnotherMUD/internal/world"
 )
 
+func TestRoomHasTag(t *testing.T) {
+	r := &world.Room{ID: "x:1", Tags: []string{"safe-room", "safe"}}
+	if !r.HasTag("safe-room") {
+		t.Error("HasTag(safe-room) = false, want true")
+	}
+	if !r.HasTag("safe") {
+		t.Error("HasTag(safe) = false, want true")
+	}
+	if r.HasTag("indoors") {
+		t.Error("HasTag(indoors) = true, want false")
+	}
+	if (&world.Room{ID: "x:2"}).HasTag("safe") {
+		t.Error("untagged room should report no tags")
+	}
+}
+
 func TestParseDirection(t *testing.T) {
 	t.Parallel()
 	cases := []struct {

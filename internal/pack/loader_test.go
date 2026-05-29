@@ -78,6 +78,39 @@ func TestLoadHappyPath(t *testing.T) {
 	}
 }
 
+func TestLoadRoomTagsAndHealingRate(t *testing.T) {
+	root := t.TempDir()
+	pack := filepath.Join(root, "core")
+	writeFile(t, filepath.Join(pack, "pack.yaml"), `
+name: tapestry-core
+content:
+  areas: [areas/*.yaml]
+  rooms: [rooms/*.yaml]
+`)
+	writeFile(t, filepath.Join(pack, "areas/town.yaml"), "id: town\nname: Town\n")
+	writeFile(t, filepath.Join(pack, "rooms/hub.yaml"), `
+id: hub
+area: town
+name: Hub
+healing_rate: 2
+tags: [safe-room, safe]
+`)
+	regs := NewRegistries()
+	if err := Load(context.Background(), root, nil, regs, nil, nil); err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	r, err := regs.World.Room("tapestry-core:hub")
+	if err != nil {
+		t.Fatalf("room hub missing: %v", err)
+	}
+	if r.HealingRate != 2 {
+		t.Errorf("HealingRate = %d, want 2", r.HealingRate)
+	}
+	if !r.HasTag("safe-room") || !r.HasTag("safe") {
+		t.Errorf("room tags = %v, want safe-room + safe", r.Tags)
+	}
+}
+
 func TestLoadMissingArea(t *testing.T) {
 	root := t.TempDir()
 	pack := filepath.Join(root, "core")

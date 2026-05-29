@@ -367,11 +367,8 @@ func run() error {
 	}
 	combatTags := combatTagSource{
 		entities: entityStore,
-		// Rooms have no tag surface yet (spec §2.1 safe-room is
-		// deferred content work — see m7-6-deferred-fixes.md). The
-		// TagSource plumbing is in place so the moment rooms grow
-		// a Tags slice the lookup wires through with no Engage-side
-		// changes.
+		world:    w,
+		mgr:      mgr,
 	}
 	// M8.2: progression manager backed by the pack-loaded track
 	// registry. The bus-backed sink bridges progression.EventSink
@@ -1731,20 +1728,25 @@ func (s *productionCombatSink) OnVitalDepleted(ctx context.Context, e combat.Vit
 	}
 }
 
-// combatTagSource implements combat.TagSource. Reads entity tags
-// from the entities.Store (mob side) or returns false for players
-// (no Tags surface today — tracked in M6.5 deferred fixes). Room
-// tags also return false until rooms grow a Tags field; the §2.1
-// safe-room refusal therefore never fires today, but the plumbing
-// is in place so it activates the moment content authors a tagged
-// room.
+// combatTagSource implements combat.TagSource (cluster 2). Room tags
+// come from world.Room.Tags (the §2.1 safe-room engage refusal); entity
+// tags from the entities.Store (mob side) or the session manager's
+// connActor.Tags() (player side — racial flags + alignment bucket).
 type combatTagSource struct {
 	entities *entities.Store
+	world    *world.World
+	mgr      *session.Manager
 }
 
-func (t combatTagSource) RoomHasTag(_ world.RoomID, _ string) bool {
-	// Deferred until rooms expose tags. See m7-6-deferred-fixes.md.
-	return false
+func (t combatTagSource) RoomHasTag(roomID world.RoomID, tag string) bool {
+	if t.world == nil {
+		return false
+	}
+	r, err := t.world.Room(roomID)
+	if err != nil {
+		return false
+	}
+	return r.HasTag(tag)
 }
 
 func (t combatTagSource) EntityHasTag(id combat.CombatantID, tag string) bool {
@@ -1756,18 +1758,29 @@ func (t combatTagSource) EntityHasTag(id combat.CombatantID, tag string) bool {
 		if !ok {
 			return false
 		}
-		for _, t := range e.Tags() {
-			if t == tag {
-				return true
-			}
-		}
-		return false
+		return hasTag(e.Tags(), tag)
 	case strings.HasPrefix(s, combat.PlayerPrefix):
-		// Players have no Tags surface yet (M6.5 deferred). The
-		// no-kill / no-flee refusals therefore never apply to a
-		// player combatant today. Wires through cleanly the moment
-		// connActor grows a Tags field.
-		return false
+		// Player tags are the connActor's Tags() surface (racial flags
+		// + alignment bucket). A content author can thus mark a race
+		// no-flee / no-kill; a general persisted player-tag slice +
+		// admin grant remains deferred to the role system (m7-6 #2).
+		if t.mgr == nil {
+			return false
+		}
+		a, ok := t.mgr.GetByPlayerID(s[len(combat.PlayerPrefix):])
+		if !ok {
+			return false
+		}
+		return hasTag(a.Tags(), tag)
+	}
+	return false
+}
+
+func hasTag(tags []string, want string) bool {
+	for _, t := range tags {
+		if t == want {
+			return true
+		}
 	}
 	return false
 }

@@ -2012,24 +2012,16 @@ func (a *connActor) SpendTrain() bool {
 	return true
 }
 
-// HasRoomTag reports whether the actor's current room carries
-// tag. Used by the M8.6 training manager for the §7.4 step 2
-// safe-room gate. Room tags are not yet plumbed through world.Room
-// (m7-6 deferred fix); until that lands this stub returns false.
-//
-// **OPERATIONAL WARNING.** Because this stub always returns false,
-// any host that flips `TrainingConfig.RequireSafeRoomForStats` to
-// true will lock every player out of stat training — `TryTrain`
-// will short-circuit with UnsafeRoom for every attempt. The
-// default config keeps the flag OFF, so default builds are
-// unaffected. Do NOT enable the gate until `world.Room.Tags`
-// lands AND this stub is replaced with a real tag scan.
-//
-// The unit-level training tests still cover the manager's gate
-// via a fake TrainingEntity, so the gate's behavior is verified
-// independently of this stub.
+// HasRoomTag reports whether the actor's current room carries tag.
+// Used by the M8.6 training manager for the §7.4 step 2 safe-room gate
+// (tag "safe"). Now backed by world.Room.Tags (cluster 2): a host can
+// enable TrainingConfig.RequireSafeRoomForStats and tag rooms `safe`.
+// Reads a.room under a.mu (SetRoom mutates it from the move path).
 func (a *connActor) HasRoomTag(tag string) bool {
-	return false
+	a.mu.Lock()
+	room := a.room
+	a.mu.Unlock()
+	return room != nil && room.HasTag(tag)
 }
 
 // CreditTrains adds n to trainsAvailable and marks the actor

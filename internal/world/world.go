@@ -90,6 +90,24 @@ type Room struct {
 	// property bag — rooms have no property map and this is the only
 	// room-scoped numeric knob so far.
 	HealingRate int
+
+	// Tags are content-defined room flags consulted by the combat
+	// safe-room engage refusal (combat §2.1, "safe-room"), the training
+	// safe-room gate (progression §7.4, "safe"), and any future
+	// room-scoped rule. Loaded from the room YAML `tags:` key. Mirrors
+	// MobInstance.Tags. Empty for an untagged room.
+	Tags []string
+}
+
+// HasTag reports whether the room carries tag. O(n) scan; rooms carry a
+// handful of tags so this stays cheap. Mirrors SpawnRule.HasTag.
+func (r *Room) HasTag(tag string) bool {
+	for _, t := range r.Tags {
+		if t == tag {
+			return true
+		}
+	}
+	return false
 }
 
 // Errors that callers may distinguish at the boundary.
