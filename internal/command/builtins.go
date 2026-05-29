@@ -108,6 +108,14 @@ func RegisterBuiltins(r *Registry) error {
 		{"sleep", SleepHandler},
 		{"wake", WakeHandler},
 		{"stand", WakeHandler},
+		// Consumables (M11.5 — economy-survival §6). Each verb consumes
+		// only items whose consume_method matches it (eat food, drink
+		// potions, use misc). The service spends a charge / destroys the
+		// item and replenishes sustenance; effect application is a
+		// decoupled subscriber (§6.3).
+		{"eat", EatHandler},
+		{"drink", DrinkHandler},
+		{"use", UseHandler},
 	}
 	for _, d := range []world.Direction{
 		world.DirNorth, world.DirSouth, world.DirEast, world.DirWest,

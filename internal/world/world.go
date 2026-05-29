@@ -46,13 +46,13 @@ type Area struct {
 // only flag the engine inspects is `persistent` (§3.6: when at or
 // above target, skip — i.e. the count is a ceiling).
 type SpawnRule struct {
-	RoomID         RoomID
-	MobTemplateID  string
-	Count          int
-	Rare           string
-	RareChance     float64
-	ResetInterval  uint64 // ticks; 0 → use area's
-	Tags           []string
+	RoomID        RoomID
+	MobTemplateID string
+	Count         int
+	Rare          string
+	RareChance    float64
+	ResetInterval uint64 // ticks; 0 → use area's
+	Tags          []string
 }
 
 // HasTag reports whether r carries the named tag. O(n) scan; rules
@@ -83,6 +83,13 @@ type Room struct {
 	Name        string
 	Description string
 	Exits       map[Direction]Exit
+	// HealingRate is the §5.7 additive room-level regen bonus
+	// (economy-survival): inns / infirmaries / shrines set it so the
+	// M11.5 vitals-regen heartbeat heals resting occupants faster. Zero
+	// (the default) means no bonus. A typed field rather than a generic
+	// property bag — rooms have no property map and this is the only
+	// room-scoped numeric knob so far.
+	HealingRate int
 }
 
 // Errors that callers may distinguish at the boundary.

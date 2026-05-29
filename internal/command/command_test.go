@@ -179,6 +179,22 @@ type testActor struct {
 	restState      string
 	restTarget     string
 	sleepStartTick uint64
+	sust           int
+}
+
+// Sustenance / SetSustenance make testActor satisfy
+// economy.SustenanceEntity (and thus economy.Consumer) so the
+// eat/drink/use verbs can be exercised.
+func (a *testActor) Sustenance() int {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	return a.sust
+}
+
+func (a *testActor) SetSustenance(v int) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	a.sust = v
 }
 
 // RestState / SetRestState / SetRestTarget / SetSleepStart make

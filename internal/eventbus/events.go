@@ -186,6 +186,16 @@ const (
 	// player-initiated transition. The combat-wake path (§5.4) publishes
 	// the same event with Reason="combat" but ignores the veto.
 	EventRestStateChanged = "entity.rest_state.changed"
+
+	// ItemConsuming is the cancellable pre-event a consume fires before
+	// spending a charge or destroying the item (spec economy-survival
+	// §6.2 step 5). A listener may Cancel() to veto.
+	EventItemConsuming = "item.consuming"
+	// ItemConsumed fires after a successful consume but BEFORE the item
+	// is destroyed (spec §6.2 step 9), so subscribers (the effects
+	// feature) can still read the item's state and the carried effect
+	// parameters.
+	EventItemConsumed = "item.consumed"
 )
 
 // ItemPickedUp fires after GetHandler successfully moves an item
@@ -924,3 +934,41 @@ func (RestStateChanged) Name() string { return EventRestStateChanged }
 func NewRestStateChanged(entityID, oldState, newState, reason string) *RestStateChanged {
 	return &RestStateChanged{CancelFlag: &CancelFlag{}, EntityID: entityID, OldState: oldState, NewState: newState, Reason: reason}
 }
+
+// ItemConsuming is the cancellable pre-event a consume fires before
+// spending a charge / destroying the item (spec economy-survival §6.2
+// step 5). ActorID is the consumer, ItemID the item, Method its
+// consume_method. A listener calls Cancel() to veto.
+type ItemConsuming struct {
+	*CancelFlag
+	ActorID entities.EntityID
+	ItemID  entities.EntityID
+	Method  string
+}
+
+// Name implements Event.
+func (ItemConsuming) Name() string { return EventItemConsuming }
+
+// NewItemConsuming constructs a fresh cancellable consume pre-event.
+func NewItemConsuming(actorID, itemID entities.EntityID, method string) *ItemConsuming {
+	return &ItemConsuming{CancelFlag: &CancelFlag{}, ActorID: actorID, ItemID: itemID, Method: method}
+}
+
+// ItemConsumed fires after a successful consume, before the item is
+// destroyed (spec §6.2 step 9). It carries the effect parameters the
+// effects feature subscribes to (§6.3) — the consume path does NOT
+// apply the effect itself. EffectData is a transient int-keyed map; nil
+// when the item declares none.
+type ItemConsumed struct {
+	ActorID         entities.EntityID
+	ItemID          entities.EntityID
+	ItemName        string
+	Method          string
+	EffectID        string
+	EffectDuration  int
+	EffectData      map[string]int
+	SustenanceValue int
+}
+
+// Name implements Event.
+func (ItemConsumed) Name() string { return EventItemConsumed }

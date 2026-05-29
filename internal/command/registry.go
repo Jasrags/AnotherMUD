@@ -232,6 +232,11 @@ type Env struct {
 	// verbs drive transitions through it. nil in tests that don't
 	// exercise rest; handlers MUST nil-guard.
 	Rest *economy.RestService
+
+	// Consumable is the M11.5 consumable service (spec §6). The
+	// eat/drink/use verbs route through it. nil in tests that don't
+	// exercise consumables; handlers MUST nil-guard.
+	Consumable *economy.ConsumableService
 }
 
 // DispositionHook is the seam movement and login flows call when a
@@ -284,9 +289,11 @@ type Context struct {
 	Shop *economy.ShopService
 	// Rest is the M11.4 rest service. nil in tests.
 	Rest *economy.RestService
-	Raw  string   // raw input line, trimmed
-	Verb string   // resolved verb (lowercase)
-	Args []string // tokens after the verb (space-split)
+	// Consumable is the M11.5 consumable service. nil in tests.
+	Consumable *economy.ConsumableService
+	Raw        string   // raw input line, trimmed
+	Verb       string   // resolved verb (lowercase)
+	Args       []string // tokens after the verb (space-split)
 }
 
 // Publish is the nil-safe shortcut every handler should use to emit
@@ -417,6 +424,7 @@ func (r *Registry) Dispatch(ctx context.Context, env Env, actor Actor, raw strin
 		Currency:    env.Currency,
 		Shop:        env.Shop,
 		Rest:        env.Rest,
+		Consumable:  env.Consumable,
 		Raw:         trimmed,
 		Verb:        strings.ToLower(verb),
 		Args:        args,

@@ -175,6 +175,9 @@ type RoomFile struct {
 	Exits       map[string]string `yaml:"exits,omitempty"`
 	Items       []string          `yaml:"items,omitempty"`
 	Mobs        []string          `yaml:"mobs,omitempty"`
+	// HealingRate is the §5.7 additive room regen bonus (economy-
+	// survival). Absent → 0 (no bonus).
+	HealingRate int `yaml:"healing_rate,omitempty"`
 }
 
 // TrackFile is the YAML shape for a progression-track definition

@@ -20,5 +20,12 @@ items:
   # M11.1: a pile of coins to exercise currency auto-convert — `get
   # coins` credits gold instead of adding an item to inventory.
   - gold-coins
+  # M11.5: a trail ration to exercise the consume pipeline — `get
+  # ration` then `eat ration` restores sustenance.
+  - trail-ration
+# M11.5 (economy-survival §5.7): the square is a gentle rest spot — a
+# small additive regen bonus the vitals-regen heartbeat applies to
+# anyone recovering here.
+healing_rate: 1
 # Mobs now spawn via area-level spawn_rules (spec
 # mobs-ai-spawning §3.5). See areas/town.yaml.

@@ -7,5 +7,10 @@ properties:
   stackable: true
   heals: 10
   weight: 1
+  # M11.5 consumable (economy-survival §6.1): `drink draught` consumes
+  # it (single-use → destroyed). The `heals` property is legacy and not
+  # applied by the consume path; instant-heal-on-drink waits on the
+  # effects subscriber (§6.3 — no effect-id registry yet).
+  consume_method: drink
   # Base value the shop prices buy/sell against (economy-survival §3.3).
   value: 15

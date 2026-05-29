@@ -586,6 +586,56 @@ func (m *Manager) DrainSustenance(ctx context.Context, svc *economy.SustenanceSe
 	}
 }
 
+// RegenTick heals every logged-in player by the composed regen amount
+// (spec economy-survival §4.3 × §5.5 + §5.7): base × sustenance
+// multiplier × rest multiplier, plus the room's healing_rate. This is
+// the body of the vitals-regen world-tick handler registered at the
+// composition root; it pays the M9 "real pools + regen" deferral. No-op
+// when either service is nil.
+//
+// A player is skipped when dead (HP ≤ 0 — revival is the death system's
+// job, not regen), already at full HP, or currently in combat (combat
+// HP is the combat system's concern; passive regen must not fight it).
+// The healed HP rides to disk on the next autosave via Persist's
+// vitals sync, exactly like combat damage.
+func (m *Manager) RegenTick(ctx context.Context, sustSvc *economy.SustenanceService, restSvc *economy.RestService, cfg economy.RegenConfig) {
+	if sustSvc == nil || restSvc == nil {
+		return
+	}
+	m.mu.RLock()
+	seen := make(map[*connActor]struct{}, len(m.byConn)+len(m.byPlayerID))
+	for _, a := range m.byConn {
+		seen[a] = struct{}{}
+	}
+	for _, a := range m.byPlayerID {
+		seen[a] = struct{}{}
+	}
+	snapshot := make([]*connActor, 0, len(seen))
+	for a := range seen {
+		snapshot = append(snapshot, a)
+	}
+	m.mu.RUnlock()
+
+	for _, a := range snapshot {
+		if a.vitals == nil || a.InCombat() {
+			continue
+		}
+		cur, max := a.vitals.Snapshot()
+		if cur <= 0 || cur >= max {
+			continue
+		}
+		sustMult := sustSvc.GetRegenMultiplier(a.Sustenance())
+		restMult := restSvc.GetRestMultiplier(economy.RestState(a.RestState()))
+		healingRate := 0
+		if room := a.Room(); room != nil {
+			healingRate = room.HealingRate
+		}
+		if amount := economy.RegenAmount(cfg.BaseHP, sustMult, restMult, healingRate); amount > 0 {
+			a.vitals.Heal(amount)
+		}
+	}
+}
+
 // hungerReminder returns the nudge message for a below-Full tier (spec
 // §4.4 "hunger reminder messages"). Full returns "" (no reminder).
 func hungerReminder(tier economy.Tier) string {

@@ -233,6 +233,11 @@ type Config struct {
 	// here. nil-safe: the verbs report they can't be used when unwired.
 	Rest *economy.RestService
 
+	// Consumable is the M11.5 consumable service (spec §6). Passed
+	// through command.Env so the eat/drink/use verbs can consume items.
+	// nil-safe: the verbs report they can't be used when unwired.
+	Consumable *economy.ConsumableService
+
 	// Manager tracks logged-in sessions for autosave + shutdown sweeps.
 	// Required.
 	Manager *Manager
@@ -657,6 +662,7 @@ func pump(ctx context.Context, c conn.Connection, cfg Config, a *connActor, clk 
 			Currency:    cfg.Currency,
 			Shop:        cfg.Shop,
 			Rest:        cfg.Rest,
+			Consumable:  cfg.Consumable,
 		}
 		if err := cfg.Commands.Dispatch(ctx, env, a, line); err != nil {
 			if errors.Is(err, command.ErrQuit) {

@@ -1694,11 +1694,42 @@ is now real. Sketch of remaining vertical slices:
     room property (spec §5.7). `world.Room` has no property bag and the
     only consumer is the M11.5 regen heartbeat, so it lands with that
     consumer rather than shipping a field nothing reads.
-  - **M11.5 (planned) — Consumables + regen.** `ConsumableService.
-    Consume`, `item.consuming`/`item.consumed`, eat/drink/use verbs,
-    the `healing_rate` room property (spec §5.7, moved from M11.4), and
-    the vitals-regen heartbeat composing sustenance × rest × room
-    multipliers (the M9 pools/regen obligation).
+  - **M11.5 (landed) — Consumables + regen.** The eat/drink/use
+    pipeline (spec §6), the `healing_rate` room property (§5.7), and the
+    vitals-regen heartbeat that composes the sustenance × rest × room
+    multipliers — paying the M9 "real pools + regen" obligation and
+    closing M11. New `internal/economy/consumable.go`:
+    `ConsumableService.Consume` over the entity store runs the §6.2
+    pipeline — top-level-only resolution (§6.5), charge gate
+    (`NoCharges` before the pre-event), cancellable `item.consuming`,
+    sustenance replenish via the M11.3 service (clamped at 100),
+    `item.consumed` emitted BEFORE destruction so the effects subscriber
+    can read the item, then destroy/untrack (single-use, or charged with
+    `destroy_on_empty`). Effect application is decoupled (§6.3): the
+    event carries `effect_id`/duration/data but no subscriber applies it
+    yet (no effect-id registry — recorded in m11-5-deferred-fixes).
+    `internal/economy/regen.go`: `RegenConfig` + `RegenAmount` (base ×
+    sustMult × restMult, + room healing_rate additive, famished → 0).
+    `Manager.RegenTick` heals living, out-of-combat, below-max players;
+    registered as the `vitals-regen` world-tick handler. `world.Room`
+    gained a typed `HealingRate` field (loader + RoomFile). eat/drink/use
+    verbs gate on the item's `consume_method`. Content: a `trail-ration`
+    food item, `consume_method: drink` on the healing-draught, and
+    `healing_rate: 1` on town-square.
+
+    - [x] Consume requires a top-level item; zero-charge items fail
+          `NoCharges` without firing the pre-event; cancel keeps the
+          charge + item; single-use destroys; `destroy_on_empty=false`
+          survives empty; sustenance clamps at 100; `item.consumed` fires
+          before destruction (economy unit tests).
+    - [x] eat/drink/use route through the service and gate on
+          consume_method (command tests; live-verified `get ration` →
+          `eat ration`).
+    - [x] Regen composes sustenance × rest + room healing_rate; famished
+          heals nothing; full HP / in-combat / nil-service are skipped
+          (session tests).
+    - [x] `healing_rate` loads from room YAML onto `world.Room`
+          (pack tests).
 
 - **M12 — Character creation wizard:** the full `character-creation`
   flow now that the systems it touches exist.

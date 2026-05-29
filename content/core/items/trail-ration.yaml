@@ -1,0 +1,13 @@
+id: trail-ration
+name: a trail ration
+type: item
+tags: [consumable, food]
+keywords: [ration, food, trail]
+properties:
+  weight: 1
+  # M11.5 consumable (economy-survival §6.1): `eat ration` restores
+  # sustenance. Single-use (no charges), so it is destroyed on consume.
+  consume_method: eat
+  sustenance_value: 40
+  # Base value the shop prices buy/sell against (economy-survival §3.3).
+  value: 5

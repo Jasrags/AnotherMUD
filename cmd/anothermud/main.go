@@ -218,6 +218,23 @@ func run() error {
 	// the combat sink for combat-wake (set after combatSink is built).
 	restSvc := economy.NewRestService(economy.DefaultRestConfig(), &restSink{bus: bus}, loop.TickCount)
 
+	// M11.5: consumable service (spec economy-survival §6) — eat/drink/
+	// use over the entity store, replenishing sustenance and emitting
+	// item.consuming/consumed. Effect application is a decoupled
+	// subscriber (§6.3); none is wired yet (no effect-id registry).
+	consumableSvc := economy.NewConsumableService(entityStore, sustenanceSvc, &consumableSink{bus: bus})
+
+	// M11.5: vitals-regen heartbeat (spec §4.3 × §5.5 + §5.7). Composes
+	// the sustenance and rest multipliers + room healing_rate to heal
+	// living, out-of-combat players below max HP. Pays the M9 "real
+	// pools + regen" deferral.
+	regenCfg := economy.DefaultRegenConfig()
+	if err := loop.Register("vitals-regen", regenCfg.Cadence, func(ctx context.Context, _ uint64) {
+		mgr.RegenTick(ctx, sustenanceSvc, restSvc, regenCfg)
+	}); err != nil {
+		return fmt.Errorf("register vitals-regen tick: %w", err)
+	}
+
 	// AI tick (spec mobs-ai-spawning §4). Registers AFTER the
 	// tag-swap handler so the first dispatch sees the read-side tag
 	// index populated by the pack.Load placements. Cadence one
@@ -1077,6 +1094,7 @@ func run() error {
 		Shop:         shopSvc,
 		Sustenance:   sustenanceSvc,
 		Rest:         restSvc,
+		Consumable:   consumableSvc,
 		Clock:        clk,
 		Flood:        session.DefaultFloodConfig(),
 		LinkDead:     linkDeadCfg,
@@ -2202,6 +2220,37 @@ func (s *restSink) OnRestStateChange(ctx context.Context, entityID string, oldSt
 		return false
 	}
 	return s.bus.PublishCancellable(ctx, eventbus.NewRestStateChanged(entityID, string(oldState), string(newState), reason))
+}
+
+// consumableSink bridges economy.ConsumableSink to the bus (M11.5 —
+// economy-survival §6.2). OnItemConsuming is the cancellable pre-event;
+// OnItemConsumed is the post notification carrying the effect params for
+// the (future) effects subscriber.
+type consumableSink struct {
+	bus *eventbus.Bus
+}
+
+func (s *consumableSink) OnItemConsuming(ctx context.Context, actorID, itemID entities.EntityID, method string) bool {
+	if s.bus == nil {
+		return false
+	}
+	return s.bus.PublishCancellable(ctx, eventbus.NewItemConsuming(actorID, itemID, method))
+}
+
+func (s *consumableSink) OnItemConsumed(ctx context.Context, actorID entities.EntityID, r economy.ConsumeResult) {
+	if s.bus == nil {
+		return
+	}
+	s.bus.Publish(ctx, eventbus.ItemConsumed{
+		ActorID:         actorID,
+		ItemID:          r.ItemID,
+		ItemName:        r.ItemName,
+		Method:          r.Method,
+		EffectID:        r.EffectID,
+		EffectDuration:  r.EffectDuration,
+		EffectData:      r.EffectData,
+		SustenanceValue: r.SustenanceValue,
+	})
 }
 
 // notifierAdapter bridges progression.Notifier to session.Manager.
