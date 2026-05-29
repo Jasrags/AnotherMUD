@@ -175,7 +175,7 @@ func (s *ConsumableService) Consume(ctx context.Context, consumer Consumer, acto
 	destroy := false
 	if hasCharges {
 		charges--
-		it.Properties()[PropCharges] = charges
+		it.SetProperty(PropCharges, charges)
 		if charges <= 0 && destroyOnEmpty(it) {
 			destroy = true
 		}
@@ -202,7 +202,7 @@ func (s *ConsumableService) Consume(ctx context.Context, consumer Consumer, acto
 // destroyOnEmpty reads the destroy_on_empty flag, defaulting to true
 // (spec §6.1 / §6.2 step 7).
 func destroyOnEmpty(it *entities.ItemInstance) bool {
-	v, ok := it.Properties()[PropDestroyOnEmpty]
+	v, ok := it.Property(PropDestroyOnEmpty)
 	if !ok {
 		return true
 	}
@@ -225,14 +225,15 @@ func containsID(ids []entities.EntityID, want entities.EntityID) bool {
 // hasProp reports whether the property key is present (distinguishes
 // "charges: 0" from "no charges key" for the §6.2 step 3 gate).
 func hasProp(it *entities.ItemInstance, key string) bool {
-	_, ok := it.Properties()[key]
+	_, ok := it.Property(key)
 	return ok
 }
 
 // intProp reads an integer property, normalizing the int/int64/float64
 // shapes yaml.v3 produces. Zero when absent or non-numeric.
 func intProp(it *entities.ItemInstance, key string) int {
-	switch n := it.Properties()[key].(type) {
+	v, _ := it.Property(key)
+	switch n := v.(type) {
 	case int:
 		return n
 	case int64:
@@ -246,8 +247,10 @@ func intProp(it *entities.ItemInstance, key string) int {
 
 // stringProp reads a string property, empty when absent or non-string.
 func stringProp(it *entities.ItemInstance, key string) string {
-	if s, ok := it.Properties()[key].(string); ok {
-		return s
+	if v, ok := it.Property(key); ok {
+		if s, ok := v.(string); ok {
+			return s
+		}
 	}
 	return ""
 }
@@ -255,7 +258,7 @@ func stringProp(it *entities.ItemInstance, key string) string {
 // intMapProp reads a map[string]int property (effect_data), tolerating
 // the map[string]any decode yaml.v3 produces. Nil when absent.
 func intMapProp(it *entities.ItemInstance, key string) map[string]int {
-	raw, ok := it.Properties()[key]
+	raw, ok := it.Property(key)
 	if !ok {
 		return nil
 	}

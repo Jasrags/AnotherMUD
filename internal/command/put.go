@@ -331,7 +331,7 @@ func parsePutArgs(args []string) (itemArg, containerArg string, ok bool) {
 // decoding produces int / int64 / float64 depending on the literal;
 // the switch normalizes all three.
 func intProp(item *entities.ItemInstance, key string) int {
-	v, ok := item.Properties()[key]
+	v, ok := item.Property(key)
 	if !ok {
 		return 0
 	}

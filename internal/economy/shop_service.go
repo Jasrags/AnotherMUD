@@ -247,7 +247,8 @@ func (s *ShopService) matchItem(id entities.EntityID, q string) *entities.ItemIn
 // instanceValue reads the integer `value` property off an item
 // instance (int / int64 / float64), zero when absent.
 func instanceValue(inst *entities.ItemInstance) int {
-	switch n := inst.Properties()[PropValue].(type) {
+	v, _ := inst.Property(PropValue)
+	switch n := v.(type) {
 	case int:
 		return n
 	case int64:

@@ -4,10 +4,40 @@ import (
 	"errors"
 	"reflect"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/Jasrags/AnotherMUD/internal/item"
 )
+
+// TestItemInstancePropertiesConcurrentAccess pins the m11-5 fix: with
+// the unguarded live-map Properties() this races (and `go test -race`
+// fails); with the propsMu-guarded snapshot/Property/SetProperty it is
+// safe. Mirrors the MobInstance guard.
+func TestItemInstancePropertiesConcurrentAccess(t *testing.T) {
+	s := NewStore()
+	it, err := s.Spawn(&item.Template{
+		ID: "core:potion", Name: "a potion", Type: "item",
+		Properties: map[string]any{"charges": 5},
+	})
+	if err != nil {
+		t.Fatalf("Spawn: %v", err)
+	}
+
+	var wg sync.WaitGroup
+	for i := 0; i < 8; i++ {
+		wg.Add(1)
+		go func(n int) {
+			defer wg.Done()
+			for j := 0; j < 200; j++ {
+				it.SetProperty("charges", n+j) // writer
+				_, _ = it.Property("charges")  // single-key reader
+				_ = it.Properties()            // snapshot reader
+			}
+		}(i)
+	}
+	wg.Wait()
+}
 
 func TestSpawnAssignsFreshIDAndCopiesFields(t *testing.T) {
 	s := NewStore()

@@ -126,15 +126,15 @@ func FillHandler(ctx context.Context, c *Context) error {
 	// it was a finite source. Order is target-first so a future
 	// supply-write failure (currently impossible — these are in-memory
 	// maps) doesn't leave the target unset.
-	target.Properties()[propCharges] = maxCharges
-	target.Properties()[propFillType] = fillType
+	target.SetProperty(propCharges, maxCharges)
+	target.SetProperty(propFillType, fillType)
 	// Per-instance property mutation only marks dirty in the save tree
 	// if MarkContentsDirty is wired to walk properties. Today the save
 	// tree carries template ids only, so this Mutation is intentionally
 	// not persisted; see persistence caveat in the package comment.
 
 	if hasFillSupply(source) {
-		source.Properties()[propFillSupply] = intProp(source, propFillSupply) - 1
+		source.SetProperty(propFillSupply, intProp(source, propFillSupply)-1)
 	}
 
 	_ = c.Actor.Write(ctx, fmt.Sprintf("You fill %s with %s from %s.",
@@ -202,14 +202,14 @@ func sourceFillType(it *entities.ItemInstance) (string, bool) {
 // property at all. A source without the property is treated as
 // infinite; a source with the property and value <= 0 is empty.
 func hasFillSupply(it *entities.ItemInstance) bool {
-	_, ok := it.Properties()[propFillSupply]
+	_, ok := it.Property(propFillSupply)
 	return ok
 }
 
 // stringProp returns the string-typed value at key, or ("", false) if
 // the property is missing or non-string.
 func stringProp(it *entities.ItemInstance, key string) (string, bool) {
-	v, ok := it.Properties()[key]
+	v, ok := it.Property(key)
 	if !ok {
 		return "", false
 	}

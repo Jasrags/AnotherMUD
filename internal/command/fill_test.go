@@ -217,7 +217,7 @@ func TestFill_SourceEmpty(t *testing.T) {
 	skin := f.spawnInActorInventory(t, a, waterskinTpl())
 	// Drain a finite source by setting fill_supply to 0 directly.
 	spring := f.spawnInRoom(t, finiteSpringTpl())
-	spring.Properties()[propFillSupply] = 0
+	spring.SetProperty(propFillSupply, 0)
 
 	dispatchFill(t, f, a, "fill skin spring")
 
@@ -235,8 +235,8 @@ func TestFill_MixedLiquids(t *testing.T) {
 	skin := f.spawnInActorInventory(t, a, waterskinTpl())
 	// Pre-fill with water so the mixed_liquids guard kicks in when we
 	// try to top up from a wine fountain.
-	skin.Properties()[propCharges] = 3
-	skin.Properties()[propFillType] = "water"
+	skin.SetProperty(propCharges, 3)
+	skin.SetProperty(propFillType, "water")
 	f.spawnInRoom(t, wineFountainTpl())
 
 	dispatchFill(t, f, a, "fill skin wine")
@@ -259,8 +259,8 @@ func TestFill_EmptyTargetAcceptsAnyLiquid(t *testing.T) {
 	f := newPutFixture(t)
 	a := newNamedTestActor("Alice", "p-alice", f.room)
 	skin := f.spawnInActorInventory(t, a, waterskinTpl())
-	skin.Properties()[propCharges] = 0
-	skin.Properties()[propFillType] = "water" // stale label
+	skin.SetProperty(propCharges, 0)
+	skin.SetProperty(propFillType, "water") // stale label
 	f.spawnInRoom(t, wineFountainTpl())
 
 	dispatchFill(t, f, a, "fill skin wine")
@@ -279,8 +279,8 @@ func TestFill_MatchingLiquidTopsUp(t *testing.T) {
 	f := newPutFixture(t)
 	a := newNamedTestActor("Alice", "p-alice", f.room)
 	skin := f.spawnInActorInventory(t, a, waterskinTpl())
-	skin.Properties()[propCharges] = 2
-	skin.Properties()[propFillType] = "water"
+	skin.SetProperty(propCharges, 2)
+	skin.SetProperty(propFillType, "water")
 	f.spawnInRoom(t, fountainTpl())
 
 	dispatchFill(t, f, a, "fill skin fountain")

@@ -1,6 +1,8 @@
 package entities
 
 import (
+	"sync"
+
 	"github.com/Jasrags/AnotherMUD/internal/item"
 	"github.com/Jasrags/AnotherMUD/internal/srckey"
 )
@@ -57,11 +59,21 @@ type InstanceModifier struct {
 // Tags and Keywords are likewise per-instance copies of the template's
 // lists so per-instance retag does not bleed into the template.
 type ItemInstance struct {
-	id         EntityID
-	typ        string
-	name       string
-	tags       []string
-	keywords   []string
+	id       EntityID
+	typ      string
+	name     string
+	tags     []string
+	keywords []string
+	// propsMu guards properties against concurrent access. Like
+	// MobInstance (see its propsMu doc), the map is read on the command
+	// goroutine (consume/fill/shop/quest reads) and written there too,
+	// but a tick-goroutine reader/writer is now plausible (an item DoT,
+	// decay sweep, or charge regen) — and Go maps are not safe under
+	// concurrent access even for disjoint keys. All property access goes
+	// through Properties / Property / SetProperty, each holding the
+	// appropriate lock. Covers properties ONLY (tags/keywords are
+	// write-once at construction).
+	propsMu    sync.RWMutex
 	properties map[string]any
 	modifiers  []InstanceModifier
 	templateID item.TemplateID
@@ -91,20 +103,55 @@ func (it *ItemInstance) Keywords() []string {
 	return append([]string(nil), it.keywords...)
 }
 
-// Properties returns the per-instance property bag (the live map, not
-// a copy). Gameplay code is expected to mutate this directly for
-// per-instance state like fill amount or condition.
+// Properties returns a SNAPSHOT of the per-instance property bag, not
+// the live map. Callers that need to mutate MUST use SetProperty — the
+// returned map is detached and writes to it do not flow back. Returning
+// a copy under RLock (rather than the live map) closes the m11-5 race:
+// a concurrent goroutine touching the same item's properties no longer
+// corrupts the underlying hashmap. Mirrors MobInstance.Properties().
 //
-// Reserved keys are off-limits to mutation: PropTemplateID is set at
-// instantiation (§2.3 step 5) and is what stacking, persistence, and
-// loot listeners use to identify the recipe; PropRoomID is filtered at
-// instantiation and must never be re-added by gameplay code (template
-// instances do not own a room — placement lives on the room/holder).
-// Writing to either of these keys is a programming error.
+// Snapshot cost is O(n) per call; hot single-key readers should use
+// Property(key), which avoids the copy.
 //
-// A typed Property/SetProperty pair may replace this raw accessor once
-// M5.4 introduces real call sites and the access patterns are visible.
-func (it *ItemInstance) Properties() map[string]any { return it.properties }
+// Reserved keys remain off-limits to mutation: PropTemplateID is set at
+// instantiation (§2.3 step 5) and identifies the recipe for stacking,
+// persistence, and loot listeners; PropRoomID is filtered at
+// instantiation and must never be re-added.
+func (it *ItemInstance) Properties() map[string]any {
+	it.propsMu.RLock()
+	defer it.propsMu.RUnlock()
+	if len(it.properties) == 0 {
+		return nil
+	}
+	out := make(map[string]any, len(it.properties))
+	for k, v := range it.properties {
+		out[k] = v
+	}
+	return out
+}
+
+// Property reads a single property by key under RLock. Returns
+// (zero, false) on miss. Use on hot paths where the Properties()
+// snapshot allocation is wasteful (e.g. the consume / fill / shop
+// readers that pull one key at a time).
+func (it *ItemInstance) Property(key string) (any, bool) {
+	it.propsMu.RLock()
+	defer it.propsMu.RUnlock()
+	v, ok := it.properties[key]
+	return v, ok
+}
+
+// SetProperty writes a property under Lock, replacing any prior value.
+// The map is lazy-initialized. Callers MUST NOT write the reserved keys
+// (PropTemplateID / PropRoomID) — doing so is a programming error.
+func (it *ItemInstance) SetProperty(key string, value any) {
+	it.propsMu.Lock()
+	defer it.propsMu.Unlock()
+	if it.properties == nil {
+		it.properties = make(map[string]any)
+	}
+	it.properties[key] = value
+}
 
 // Modifiers returns the transient per-instance stat modifiers (§2.3
 // step 6). Equip-time application reads this list; nothing else writes

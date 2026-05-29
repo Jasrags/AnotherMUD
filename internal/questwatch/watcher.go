@@ -99,7 +99,8 @@ func (w *Watcher) maybeGrant(inst *entities.ItemInstance, holder string) {
 	if w.grant == nil {
 		return
 	}
-	raw, ok := inst.Properties()["quest_grant"].(string)
+	pv, _ := inst.Property("quest_grant")
+	raw, ok := pv.(string)
 	if !ok || raw == "" {
 		return
 	}
