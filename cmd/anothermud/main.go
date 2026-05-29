@@ -434,7 +434,7 @@ func run() error {
 	// is constructed before this block so the resolver can
 	// capture it directly.
 	effectMgr := progression.NewEffectManager(
-		session.NewEffectTargetResolver(mgr),
+		session.NewEffectTargetResolver(mgr, entityStore),
 		&effectSink{bus: bus},
 	)
 

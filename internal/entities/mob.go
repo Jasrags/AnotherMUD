@@ -5,6 +5,9 @@ import (
 
 	"github.com/Jasrags/AnotherMUD/internal/combat"
 	"github.com/Jasrags/AnotherMUD/internal/mob"
+	"github.com/Jasrags/AnotherMUD/internal/progression"
+	"github.com/Jasrags/AnotherMUD/internal/srckey"
+	"github.com/Jasrags/AnotherMUD/internal/stats"
 )
 
 // MobInstance is a live mob built from a mob.Template. Mirrors
@@ -55,11 +58,15 @@ type MobInstance struct {
 	// lifetime of the instance — combat applies damage/heal through
 	// the pointer, which carries its own mutex.
 	vitals *combat.Vitals
-	// stats is the per-mob derived block read by combat each round
-	// (combat §4.4-4.5). Captured at spawn from the template's Stats
-	// map; equipment-driven modifiers will overlay on top of this when
-	// mobs grow real equipment slots. Today it's a static snapshot.
-	stats combat.Stats
+	// statBlock is the per-mob progression stat block read by combat
+	// each round (combat §4.4-4.5) via Stats(). Built at spawn from the
+	// template's Stats map; effect-driven modifiers (a poison/bless cast
+	// on the mob) overlay through AddModifiers/RemoveBySource — the
+	// MobInstance now satisfies progression.EffectTarget. The block
+	// carries its own RWMutex, so Stats() reads and effect writes are
+	// safe across the combat / effect tick goroutines without
+	// MobInstance-level locking. Mirrors the player's connActor.statBlock.
+	statBlock *progression.StatBlock
 
 	// race is the optional race id copied from the template at
 	// construction (M8.3). The spawn pipeline reads this via
@@ -191,11 +198,37 @@ func (m *MobInstance) CombatantID() combat.CombatantID {
 // the pointer under its own lock.
 func (m *MobInstance) Vitals() *combat.Vitals { return m.vitals }
 
-// Stats returns a copy of the mob's combat stat block (combat §4.4-4.5).
-// A value copy is intentional — the round loop's hit/damage rolls read
-// a fresh block per swing so equipment changes between rounds cannot
-// tear the inputs to a single swing.
-func (m *MobInstance) Stats() combat.Stats { return m.stats }
+// Stats derives the mob's combat stat block from its progression
+// StatBlock (combat §4.4-4.5), applying any live effect modifiers via
+// Effective(). A value is returned per call so the round loop's
+// hit/damage rolls read a consistent snapshot per swing. Mirrors
+// connActor.Stats() on the player side.
+func (m *MobInstance) Stats() combat.Stats {
+	return combat.Stats{
+		HitMod: m.statBlock.Effective(progression.StatHitMod),
+		AC:     m.statBlock.Effective(progression.StatAC),
+		STR:    m.statBlock.Effective(progression.StatSTR),
+	}
+}
+
+// EntityID implements progression.EffectTarget: the bare id the effect
+// manager keys this mob under.
+func (m *MobInstance) EntityID() string { return string(m.id) }
+
+// AddModifiers implements progression.EffectTarget — installs an
+// effect's stat modifiers on the mob's block under src (combat-wise:
+// a poison lowering AC/STR, a bless raising hit_mod). Reversed by
+// RemoveBySource when the effect expires.
+func (m *MobInstance) AddModifiers(src srckey.SourceKey, mods []stats.Modifier) {
+	m.statBlock.AddModifiers(src, mods)
+}
+
+// RemoveBySource implements progression.EffectTarget — drops the
+// modifier set installed under src; reports whether anything was
+// removed.
+func (m *MobInstance) RemoveBySource(src srckey.SourceKey) bool {
+	return m.statBlock.RemoveBySource(src)
+}
 
 // TrainerTier returns the cap-tier value (0/25/50/75/100) the
 // mob can raise abilities TO when acting as a `skill_trainer`
@@ -436,26 +469,49 @@ func buildMobFromTemplate(tpl *mob.Template, id EntityID) *MobInstance {
 
 	keywords := append([]string(nil), tpl.Keywords...)
 
-	// M7.1: derive combat-side state from the template's free-form
-	// Stats map. FromTemplateStats applies engine defaults for any
-	// missing keys so a template that forgot hp_max still spawns a
-	// fightable mob (better to be slightly off-balance than to spawn
-	// a corpse). Vitals start at full per spec §2.3 — current HP
-	// mirrors max at spawn.
-	statBlock, maxHP := combat.FromTemplateStats(tpl.Stats)
+	// Derive combat-side state from the template's free-form Stats map
+	// into a progression StatBlock (so effects can later modify it).
+	// Engine defaults fill any missing key so a template that forgot
+	// hp_max still spawns a fightable mob. Vitals start at full per spec
+	// §2.3 — current HP mirrors the block's effective hp_max at spawn.
+	sb := mobStatBlock(tpl.Stats)
+	maxHP := sb.Effective(progression.StatHPMax)
 
 	return &MobInstance{
-		id:         id,
-		typ:        tpl.Type,
-		name:       tpl.Name,
-		tags:       tags,
-		keywords:   keywords,
-		properties: props,
-		templateID: tpl.ID,
+		id:           id,
+		typ:          tpl.Type,
+		name:         tpl.Name,
+		tags:         tags,
+		keywords:     keywords,
+		properties:   props,
+		templateID:   tpl.ID,
 		vitals:       combat.NewVitals(maxHP),
-		stats:        statBlock,
+		statBlock:    sb,
 		race:         tpl.Race,
 		trainerTier:  tpl.TrainerTier,
 		trainerTeach: append([]string(nil), tpl.TrainerTeach...),
 	}
+}
+
+// mobStatBlock builds a progression.StatBlock seeded from a mob
+// template's free-form Stats map, falling back to the combat-side mob
+// defaults for any missing combat stat (matching combat.FromTemplateStats'
+// old behavior). Template keys are the StatType string values
+// ("hit_mod"/"ac"/"str"/"hp_max"), so they map directly. A non-positive
+// hp_max is treated as absent so a misconfigured template gets the
+// default rather than a zero-HP corpse.
+func mobStatBlock(tplStats map[string]int) *progression.StatBlock {
+	base := map[progression.StatType]int{
+		progression.StatSTR:    combat.DefaultSTR,
+		progression.StatAC:     combat.DefaultAC,
+		progression.StatHitMod: 0,
+		progression.StatHPMax:  combat.DefaultMobMaxHP,
+	}
+	for k, v := range tplStats {
+		base[progression.StatType(k)] = v
+	}
+	if base[progression.StatHPMax] <= 0 {
+		base[progression.StatHPMax] = combat.DefaultMobMaxHP
+	}
+	return progression.NewWithBase(base)
 }

@@ -5,10 +5,38 @@ import (
 	"testing"
 
 	"github.com/Jasrags/AnotherMUD/internal/entities"
+	"github.com/Jasrags/AnotherMUD/internal/mob"
 	"github.com/Jasrags/AnotherMUD/internal/player"
 	"github.com/Jasrags/AnotherMUD/internal/progression"
 	"github.com/Jasrags/AnotherMUD/internal/stats"
 )
+
+// The resolver now resolves a live mob id to the MobInstance, so an
+// effect cast on a mob installs its modifiers (cluster 1 payoff).
+func TestEffectTargetResolver_ResolvesMob(t *testing.T) {
+	store := entities.NewStore()
+	m, err := store.SpawnMob(&mob.Template{
+		ID: "core:goblin", Name: "a goblin", Type: "npc",
+		Stats: map[string]int{"hp_max": 12, "ac": 8},
+	})
+	if err != nil {
+		t.Fatalf("SpawnMob: %v", err)
+	}
+	// nil manager: a player lookup always misses, so resolution must
+	// fall through to the store.
+	r := NewEffectTargetResolver(nil, store)
+
+	tgt, ok := r.ResolveTarget(string(m.ID()))
+	if !ok {
+		t.Fatal("resolver should resolve a live mob id")
+	}
+	if tgt.EntityID() != string(m.ID()) {
+		t.Errorf("resolved EntityID = %q, want %q", tgt.EntityID(), m.ID())
+	}
+	if _, ok := r.ResolveTarget("core:nope"); ok {
+		t.Error("unknown id should not resolve")
+	}
+}
 
 // TestConnActor_SatisfiesResolutionSource pins the M9.4b wiring: a
 // connActor must satisfy progression.ResolutionSource (which embeds
