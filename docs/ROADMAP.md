@@ -1625,9 +1625,39 @@ is now real. Sketch of remaining vertical slices:
       prefix on the full item name, so `sell sword` won't match "a
       short sword" (only `sell short` does) — unlike `get`'s keyword
       match. Recorded in m11-2-deferred-fixes.
-  - **M11.3 (planned) — Sustenance.** Persisted `sustenance` pool,
-    tiers + `GetRegenMultiplier`, character-created seed at 100, the
-    drain world-tick subscriber + hunger reminders.
+  - **M11.3 (landed) — Sustenance.** Persisted `sustenance` pool
+    (spec §4) on the player, the `SustenanceService` over a small
+    `SustenanceEntity` interface (the connActor satisfies it), tier
+    derivation (`TierOf`: full/hungry/famished at 67/34) +
+    `GetRegenMultiplier` (1.0/0.5/0.0), and the drain world-tick
+    subscriber with throttled hunger reminders. New `internal/economy/
+    sustenance.go`: `SustenanceConfig` (thresholds, multipliers, drain
+    amount/cadence, reminder interval) + `DefaultSustenanceConfig`,
+    `Set`/`Add`/`Drain`/`Read` all clamped to `[0, MaxSustenance=100]`.
+    Sustenance emits NO bus events (spec §7 — value + helpers only), so
+    unlike currency it carries no Sink. `sustenance` persists on the
+    player save (v12→v13); the v12→v13 migration is the first
+    value-injecting migration — it seeds legacy characters to full so
+    they don't load famished. A fresh character is seeded to 100 inline
+    in the session load path (mirroring the alignment seed, NOT a
+    `character.created` bus subscriber, because the actor is not yet
+    registered with the Manager at publish time). `Manager.DrainSustenance`
+    is the drain body — registered in `cmd/anothermud` at `DrainCadence`
+    (300 ticks), it decrements every logged-in actor and emits one
+    hunger reminder per `ReminderIntervalTicks` (3000) per player.
+
+    - [x] Tiers honor configured thresholds (full ≥ 67 / hungry ≥ 34 /
+          famished < 34); regen multiplier is 1.0 / 0.5 / 0.0 (unit
+          tests).
+    - [x] Set / Add / Drain clamp to `[0, 100]` and Drain floors at zero
+          (unit tests); sustenance never modifies vitals directly — only
+          the multiplier is exposed.
+    - [x] `sustenance` persists across save/load (v13 round-trip,
+          including the famished-zero omitempty round-trip + v12→v13
+          seeds-full migration tests).
+    - [x] Drain decrements every logged-in actor and emits a throttled
+          below-Full reminder; Full tier and nil service are silent
+          (session tests).
   - **M11.4 (planned) — Rest.** Transient rest-state machine,
     `SetRestState`, the combat-engage wake subscriber,
     `GetRestMultiplier`, rest/sleep/wake verbs, `healing_rate` room

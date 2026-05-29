@@ -102,7 +102,15 @@ import (
 // valid default — "missing entries are treated as zero". The
 // CurrencyService floors it at zero on every mutation, so a save
 // never carries a negative balance.
-const CurrentVersion = 12
+//
+// v13 (M11.3): `sustenance` integer (spec economy-survival §4.1) in
+// [0, 100]. Unlike the gold no-op, the v12→v13 migration is the first
+// value-injecting migration: it seeds existing characters to full
+// (100) so a returning player isn't suddenly famished. A fresh
+// character is seeded to 100 inline at login; a value legitimately
+// drained to 0 serializes as absent (omitempty) and reloads as 0 —
+// which is the famished floor, so the round-trip is lossless.
+const CurrentVersion = 13
 
 // Sentinel errors callers may check via errors.Is.
 var (
@@ -147,8 +155,14 @@ type Save struct {
 	// as no `gold:` key via omitempty, indistinguishable from a legacy
 	// v11 save where the field never existed — both load as a zero
 	// balance, which is the documented default.
-	Gold   int          `yaml:"gold,omitempty"`
-	Vitals *VitalsState `yaml:"vitals,omitempty"`
+	Gold int `yaml:"gold,omitempty"`
+	// Sustenance is the §4.1 hunger pool in [0, 100] (v13+). Seeded to
+	// 100 at character creation; a value of 0 (famished floor) and an
+	// absent key both decode to 0 — consistent, since 0 is the
+	// legitimate famished state. The v12→v13 migration injects 100 for
+	// legacy saves so existing characters don't load famished.
+	Sustenance int          `yaml:"sustenance,omitempty"`
+	Vitals     *VitalsState `yaml:"vitals,omitempty"`
 	// WimpyThreshold is the §5.1 HP-percent threshold (0 = wimpy
 	// disabled). Added in M7.6 without a schema bump: zero-value
 	// is indistinguishable from "field absent" so legacy v5 saves
@@ -341,6 +355,7 @@ var playerMigrations = map[int]func(map[string]any) (map[string]any, error){
 	9:  migrateV9toV10,
 	10: migrateV10toV11,
 	11: migrateV11toV12,
+	12: migrateV12toV13,
 }
 
 // migrateV1toV2 adds the empty inventory/equipment blocks introduced
@@ -516,6 +531,22 @@ func migrateV10toV11(in map[string]any) (map[string]any, error) {
 // carries no gold key, and absence decodes to a zero balance — the
 // documented default ("missing entries are treated as zero").
 func migrateV11toV12(in map[string]any) (map[string]any, error) {
+	return in, nil
+}
+
+// migrateV12toV13 adds the `sustenance` integer introduced in M11.3
+// (spec economy-survival §4.1). Unlike the prior no-op migrations, this
+// one INJECTS a value: a legacy v12 character has no sustenance, and
+// letting it decode to the zero default would land them at the famished
+// floor on first login. Seeding 100 (full) matches the
+// character-creation default so an existing character is unaffected by
+// the feature's arrival. Idempotent on a dict already carrying a value
+// (only fills when absent), though in practice this only runs on v12
+// dicts that never had the key.
+func migrateV12toV13(in map[string]any) (map[string]any, error) {
+	if _, ok := in["sustenance"]; !ok {
+		in["sustenance"] = 100
+	}
 	return in, nil
 }
 

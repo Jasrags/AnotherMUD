@@ -8,6 +8,7 @@ import (
 	"sync"
 
 	"github.com/Jasrags/AnotherMUD/internal/combat"
+	"github.com/Jasrags/AnotherMUD/internal/economy"
 	"github.com/Jasrags/AnotherMUD/internal/logging"
 	"github.com/Jasrags/AnotherMUD/internal/progression"
 	"github.com/Jasrags/AnotherMUD/internal/world"
@@ -539,5 +540,61 @@ func (m *Manager) SaveAll(ctx context.Context) {
 				slog.String("player", a.PlayerName()),
 				slog.Any("err", err))
 		}
+	}
+}
+
+// DrainSustenance applies one drain tick (spec economy-survival §4.4)
+// to every logged-in actor and emits a throttled hunger reminder to any
+// player that has dropped below the Full tier. `now` is the current
+// engine tick, used to gate the per-player reminder interval. This is
+// the body of the sustenance-drain world-tick handler registered at the
+// composition root at the config's DrainCadence; keeping it here (rather
+// than inline in main.go) gives it direct access to the actor set and
+// each actor's reminder-throttle state. No-op when svc is nil.
+//
+// The actor snapshot is the same byConn ∪ byPlayerID union SaveAll
+// uses, so link-dead actors are drained too — their sustenance persists
+// like everything else, and a reminder Write to a dead connection is a
+// harmless no-op.
+func (m *Manager) DrainSustenance(ctx context.Context, svc *economy.SustenanceService, now uint64) {
+	if svc == nil {
+		return
+	}
+	m.mu.RLock()
+	seen := make(map[*connActor]struct{}, len(m.byConn)+len(m.byPlayerID))
+	for _, a := range m.byConn {
+		seen[a] = struct{}{}
+	}
+	for _, a := range m.byPlayerID {
+		seen[a] = struct{}{}
+	}
+	snapshot := make([]*connActor, 0, len(seen))
+	for a := range seen {
+		snapshot = append(snapshot, a)
+	}
+	m.mu.RUnlock()
+
+	interval := svc.Config().ReminderIntervalTicks
+	for _, a := range snapshot {
+		_, tier := svc.Drain(a)
+		if tier == economy.TierFull {
+			continue
+		}
+		if msg := hungerReminder(tier); msg != "" && a.shouldRemindHunger(now, interval) {
+			_ = a.Write(ctx, msg)
+		}
+	}
+}
+
+// hungerReminder returns the nudge message for a below-Full tier (spec
+// §4.4 "hunger reminder messages"). Full returns "" (no reminder).
+func hungerReminder(tier economy.Tier) string {
+	switch tier {
+	case economy.TierHungry:
+		return "You are feeling hungry."
+	case economy.TierFamished:
+		return "You are famished and need to eat something soon!"
+	default:
+		return ""
 	}
 }

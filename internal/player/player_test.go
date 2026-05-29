@@ -709,6 +709,87 @@ func TestSave_RoundTripsGold(t *testing.T) {
 	}
 }
 
+func TestSave_RoundTripsSustenance(t *testing.T) {
+	ctx := context.Background()
+	st, _ := newStore(t)
+
+	want := &player.Save{
+		Version:    player.CurrentVersion,
+		ID:         "p-1",
+		AccountID:  "acct-1",
+		Name:       "Peckish",
+		Location:   "tapestry-core:town-square",
+		Sustenance: 42,
+	}
+	if err := st.Save(ctx, want); err != nil {
+		t.Fatalf("Save: %v", err)
+	}
+	got, err := st.Load(ctx, "Peckish")
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if got.Sustenance != 42 {
+		t.Errorf("Sustenance = %d, want 42", got.Sustenance)
+	}
+}
+
+// A famished player at 0 serializes as an absent key (omitempty) and
+// must reload as 0 — the legitimate famished floor, not a migration
+// artifact. (Version is already current, so no migration runs.)
+func TestSave_SustenanceZeroRoundTrips(t *testing.T) {
+	ctx := context.Background()
+	st, _ := newStore(t)
+
+	want := &player.Save{
+		Version:    player.CurrentVersion,
+		ID:         "p-1",
+		AccountID:  "acct-1",
+		Name:       "Starving",
+		Location:   "tapestry-core:town-square",
+		Sustenance: 0,
+	}
+	if err := st.Save(ctx, want); err != nil {
+		t.Fatalf("Save: %v", err)
+	}
+	got, err := st.Load(ctx, "Starving")
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if got.Sustenance != 0 {
+		t.Errorf("Sustenance = %d, want 0", got.Sustenance)
+	}
+}
+
+// The v12→v13 migration is the first value-injecting migration: a
+// legacy v12 save carries no sustenance, and the migration must seed it
+// to full (100) so an existing character doesn't load famished.
+func TestLoad_V12MigratesToV13SeedsFull(t *testing.T) {
+	ctx := context.Background()
+	st, dir := newStore(t)
+	playerDir := filepath.Join(dir, "players", "olduser")
+	if err := os.MkdirAll(playerDir, 0o755); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(playerDir, "player.yaml"),
+		[]byte("version: 12\nid: p-1\naccount_id: acct-1\nname: OldUser\nlocation: tapestry-core:town-square\ngold: 10\n"),
+		0o600); err != nil {
+		t.Fatalf("write: %v", err)
+	}
+	got, err := st.Load(ctx, "olduser")
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if got.Version != player.CurrentVersion {
+		t.Errorf("Version after migrate = %d, want %d", got.Version, player.CurrentVersion)
+	}
+	if got.Sustenance != 100 {
+		t.Errorf("v12→v13 migration seeded sustenance = %d, want 100", got.Sustenance)
+	}
+	if got.Gold != 10 {
+		t.Errorf("migration disturbed gold = %d, want 10", got.Gold)
+	}
+}
+
 func TestLoad_V11MigratesToV12(t *testing.T) {
 	ctx := context.Background()
 	st, dir := newStore(t)

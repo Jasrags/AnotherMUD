@@ -197,6 +197,20 @@ func run() error {
 		return fmt.Errorf("register prompt-flush tick: %w", err)
 	}
 
+	// M11.3: sustenance drain (spec economy-survival §4.4). The service
+	// owns the value semantics + tier/multiplier helpers; the world-tick
+	// handler decrements every logged-in player's pool at DrainCadence
+	// and emits throttled hunger reminders. Constructed here so both the
+	// handler and the session.Config seed path (below) share one
+	// instance. Sustenance emits no bus events (§7), so unlike currency
+	// it needs no sink bridge.
+	sustenanceSvc := economy.NewSustenanceService(economy.DefaultSustenanceConfig())
+	if err := loop.Register("sustenance-drain", sustenanceSvc.Config().DrainCadence, func(ctx context.Context, n uint64) {
+		mgr.DrainSustenance(ctx, sustenanceSvc, n)
+	}); err != nil {
+		return fmt.Errorf("register sustenance-drain tick: %w", err)
+	}
+
 	// AI tick (spec mobs-ai-spawning §4). Registers AFTER the
 	// tag-swap handler so the first dispatch sees the read-side tag
 	// index populated by the pack.Load placements. Cadence one
@@ -1053,6 +1067,7 @@ func run() error {
 		QuestStore:   questStore,
 		Currency:     currencySvc,
 		Shop:         shopSvc,
+		Sustenance:   sustenanceSvc,
 		Clock:        clk,
 		Flood:        session.DefaultFloodConfig(),
 		LinkDead:     linkDeadCfg,

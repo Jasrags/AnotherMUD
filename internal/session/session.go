@@ -221,6 +221,12 @@ type Config struct {
 	// nil-safe: the verbs report "no shop here" when unwired.
 	Shop *economy.ShopService
 
+	// Sustenance is the M11.3 sustenance service (spec §4). Used at
+	// login to seed a fresh character's pool to full and by the
+	// sustenance-drain world-tick subscriber (via Manager.DrainSustenance).
+	// nil-safe: no seed and no drain when unwired (the test default).
+	Sustenance *economy.SustenanceService
+
 	// Manager tracks logged-in sessions for autosave + shutdown sweeps.
 	// Required.
 	Manager *Manager
@@ -388,6 +394,11 @@ func run(ctx context.Context, c conn.Connection, cfg Config) error {
 	// involvement at login — gold has no bucket/tag derivation like
 	// alignment; the raw integer is the whole state.
 	a.gold = loaded.Player.Gold
+	// M11.3: restore persisted sustenance pool (spec §4.1). For a
+	// returning character this is the saved value (legacy v12 saves were
+	// migrated to 100); a fresh character carries 0 here and is seeded
+	// to full below.
+	a.sustenance = loaded.Player.Sustenance
 	a.mu.Unlock()
 	if cfg.Alignment != nil {
 		if loaded.New {
@@ -413,6 +424,19 @@ func run(ctx context.Context, c conn.Connection, cfg Config) error {
 		} else {
 			_ = cfg.Alignment.Bucket(a)
 		}
+	}
+
+	// M11.3: seed a fresh character's sustenance pool to full (spec
+	// §4.1 — "starts at 100 on character creation"). Done inline rather
+	// than via a character.created bus subscriber because the actor is
+	// not yet registered with the Manager at the publish below (Add
+	// happens later in this function), so a subscriber resolving the
+	// actor by id would miss it. Mirrors the alignment seed above. The
+	// service write-through marks the save dirty so the seeded value is
+	// persisted on the first autosave. nil in tests → the field stays
+	// at its restored value.
+	if loaded.New && cfg.Sustenance != nil {
+		cfg.Sustenance.Set(a, economy.MaxSustenance)
 	}
 
 	// M8.4: publish character.created for brand-new characters so
@@ -1262,6 +1286,21 @@ type connActor struct {
 	// bit is set).
 	gold int
 
+	// sustenance is the actor's hunger pool in [0, 100] (M11.3 — spec
+	// economy-survival §4.1). Written through economy.SustenanceService
+	// (Set / Add / Drain) via the SetSustenance adapter below; read by
+	// the drain world-tick subscriber and (M11.5) the regen heartbeat.
+	// Guarded by a.mu — same write-through-to-save discipline as gold.
+	sustenance int
+
+	// lastHungerReminderTick is the engine tick at which the most
+	// recent hunger reminder was sent to this player. The drain
+	// subscriber consults it to throttle reminders to at most one per
+	// SustenanceConfig.ReminderIntervalTicks (spec §4.4) so a hungry
+	// player isn't nudged on every drain tick. Zero means "never
+	// reminded" — the first reminder fires immediately. Guarded by a.mu.
+	lastHungerReminderTick uint64
+
 	// progress is the actor's progression-track state (M8.2 —
 	// docs/specs/progression.md §5.2). Holds per-track (level, xp)
 	// maps; mutated through progression.Manager operations and
@@ -1999,6 +2038,45 @@ func (a *connActor) SetGold(value int) {
 		a.save.Gold = value
 	}
 	a.markDirtyLocked()
+}
+
+// Sustenance returns the actor's current hunger pool (M11.3 — spec
+// §4.1). Reads under a.mu so the value is consistent with concurrent
+// Drain / consume writes. Satisfies economy.SustenanceEntity.
+func (a *connActor) Sustenance() int {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	return a.sustenance
+}
+
+// SetSustenance writes the pool. Used by the economy.SustenanceService
+// adapter; the service always passes a value already clamped to
+// [0, MaxSustenance]. Mirrors into a.save.Sustenance and marks dirty so
+// the value rides to disk on the next Persist — same write-through
+// discipline as SetGold. Satisfies economy.SustenanceEntity.
+func (a *connActor) SetSustenance(value int) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	a.sustenance = value
+	if a.save != nil {
+		a.save.Sustenance = value
+	}
+	a.markDirtyLocked()
+}
+
+// shouldRemindHunger reports whether a hunger reminder may be sent to
+// this player at tick now, recording the tick when it returns true.
+// Throttles to at most one reminder per interval ticks (spec §4.4). A
+// zero lastHungerReminderTick (never reminded) always fires. Mutates
+// under a.mu so the drain tick goroutine's read-and-set is atomic.
+func (a *connActor) shouldRemindHunger(now, interval uint64) bool {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	if a.lastHungerReminderTick != 0 && now-a.lastHungerReminderTick < interval {
+		return false
+	}
+	a.lastHungerReminderTick = now
+	return true
 }
 
 // HasTag reports whether the actor carries tag. Used by the
