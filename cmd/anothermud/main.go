@@ -211,6 +211,13 @@ func run() error {
 		return fmt.Errorf("register sustenance-drain tick: %w", err)
 	}
 
+	// M11.4: rest service (spec economy-survival §5). The cancellable
+	// change event bridges to the bus; loop.TickCount stamps sleep-start
+	// for well-rested credit (consumed by the M11.5 regen heartbeat).
+	// Wired into session.Config for the rest/sleep/wake verbs and into
+	// the combat sink for combat-wake (set after combatSink is built).
+	restSvc := economy.NewRestService(economy.DefaultRestConfig(), &restSink{bus: bus}, loop.TickCount)
+
 	// AI tick (spec mobs-ai-spawning §4). Registers AFTER the
 	// tag-swap handler so the first dispatch sees the read-side tag
 	// index populated by the pack.Load placements. Cadence one
@@ -562,6 +569,7 @@ func run() error {
 		Cooldowns: combatCooldowns,
 	})
 	combatSink.mgr = combatMgr
+	combatSink.rest = restSvc
 	// Wire the AI dispatcher's combat-state gate now that combatMgr
 	// exists. Without this the wander behavior keeps moving mobs
 	// between combat rounds and the auto-attack pre-flight then
@@ -1068,6 +1076,7 @@ func run() error {
 		Currency:     currencySvc,
 		Shop:         shopSvc,
 		Sustenance:   sustenanceSvc,
+		Rest:         restSvc,
 		Clock:        clk,
 		Flood:        session.DefaultFloodConfig(),
 		LinkDead:     linkDeadCfg,
@@ -1478,6 +1487,9 @@ type productionCombatSink struct {
 	// participants; nameOf resolves a combatant id to a display name.
 	sessions *session.Manager
 	nameOf   func(bareID string) string
+	// rest is the M11.4 rest service. OnEngagement forcibly wakes a
+	// resting/sleeping target (spec §5.4). nil disables combat wake.
+	rest *economy.RestService
 }
 
 // tell sends msg to the combatant if it is an online player (M10 combat
@@ -1505,11 +1517,24 @@ func (s *productionCombatSink) announce(ctx context.Context, room world.RoomID, 
 	s.sessions.SendToRoom(ctx, room, msg, ex...)
 }
 
-func (s *productionCombatSink) OnEngagement(_ context.Context, e combat.Engagement) {
+func (s *productionCombatSink) OnEngagement(ctx context.Context, e combat.Engagement) {
 	s.logger.Info("combat.engagement",
 		slog.String("attacker", string(e.AttackerID)),
 		slog.String("target", string(e.TargetID)),
 		slog.String("room", string(e.RoomID)))
+
+	// M11.4 combat wake (spec §5.4): a resting/sleeping target is
+	// forcibly woken when engaged, bypassing the cancellable check. Only
+	// players carry rest state; a non-player target (mob) resolves to no
+	// session and is skipped. ForceAwake returns true only if the target
+	// was actually resting/sleeping, so the jolt message fires once.
+	if s.rest != nil && s.sessions != nil && strings.HasPrefix(string(e.TargetID), combat.PlayerPrefix) {
+		if a, ok := s.sessions.GetByPlayerID(combat.EntityIDOf(e.TargetID)); ok {
+			if s.rest.ForceAwake(ctx, a, "combat") {
+				_ = a.Write(ctx, "You are jolted awake as combat begins!")
+			}
+		}
+	}
 }
 
 func (s *productionCombatSink) OnCombatEnded(_ context.Context, e combat.CombatEnded) {
@@ -2162,6 +2187,21 @@ func (s *shopSink) OnShopSell(ctx context.Context, actorID, npcID, templateID st
 		return false
 	}
 	return s.bus.PublishCancellable(ctx, eventbus.NewShopSell(actorID, npcID, templateID, price))
+}
+
+// restSink bridges economy.RestSink to the bus's cancellable publish
+// (M11.4 — economy-survival §5.3/§5.4). Returns the cancelled flag so
+// the rest service can veto a player-initiated transition; the
+// combat-wake path calls through here too but discards the result.
+type restSink struct {
+	bus *eventbus.Bus
+}
+
+func (s *restSink) OnRestStateChange(ctx context.Context, entityID string, oldState, newState economy.RestState, reason string) bool {
+	if s.bus == nil {
+		return false
+	}
+	return s.bus.PublishCancellable(ctx, eventbus.NewRestStateChanged(entityID, string(oldState), string(newState), reason))
 }
 
 // notifierAdapter bridges progression.Notifier to session.Manager.

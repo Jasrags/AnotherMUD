@@ -100,6 +100,14 @@ func RegisterBuiltins(r *Registry) error {
 		{"sell", SellHandler},
 		{"value", ValueHandler},
 		{"list", ListHandler},
+		// Rest (M11.4 — economy-survival §5). rest/sleep enter the
+		// resting/sleeping states; wake (and the `stand` alias) return to
+		// awake. Combat forcibly wakes a resting/sleeping target via a
+		// composition-root subscriber, not a verb.
+		{"rest", RestHandler},
+		{"sleep", SleepHandler},
+		{"wake", WakeHandler},
+		{"stand", WakeHandler},
 	}
 	for _, d := range []world.Direction{
 		world.DirNorth, world.DirSouth, world.DirEast, world.DirWest,

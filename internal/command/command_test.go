@@ -175,6 +175,37 @@ type testActor struct {
 	equipment map[string]entities.EntityID
 	mods      map[entities.SourceKey][]stats.Modifier
 	gold      int
+
+	restState      string
+	restTarget     string
+	sleepStartTick uint64
+}
+
+// RestState / SetRestState / SetRestTarget / SetSleepStart make
+// testActor satisfy economy.RestEntity so the rest/sleep/wake verbs can
+// be exercised.
+func (a *testActor) RestState() string {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	return a.restState
+}
+
+func (a *testActor) SetRestState(s string) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	a.restState = s
+}
+
+func (a *testActor) SetRestTarget(id string) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	a.restTarget = id
+}
+
+func (a *testActor) SetSleepStart(tick uint64) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	a.sleepStartTick = tick
 }
 
 // Gold / SetGold make testActor satisfy economy.Entity so the

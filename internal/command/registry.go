@@ -227,6 +227,11 @@ type Env struct {
 	// the room. nil in tests that don't exercise shops; handlers MUST
 	// nil-guard.
 	Shop *economy.ShopService
+
+	// Rest is the M11.4 rest service (spec §5). The rest/sleep/wake
+	// verbs drive transitions through it. nil in tests that don't
+	// exercise rest; handlers MUST nil-guard.
+	Rest *economy.RestService
 }
 
 // DispositionHook is the seam movement and login flows call when a
@@ -277,6 +282,8 @@ type Context struct {
 	Currency *economy.CurrencyService
 	// Shop is the M11.2 shop service. nil in tests.
 	Shop *economy.ShopService
+	// Rest is the M11.4 rest service. nil in tests.
+	Rest *economy.RestService
 	Raw  string   // raw input line, trimmed
 	Verb string   // resolved verb (lowercase)
 	Args []string // tokens after the verb (space-split)
@@ -409,6 +416,7 @@ func (r *Registry) Dispatch(ctx context.Context, env Env, actor Actor, raw strin
 		Quests:      env.Quests,
 		Currency:    env.Currency,
 		Shop:        env.Shop,
+		Rest:        env.Rest,
 		Raw:         trimmed,
 		Verb:        strings.ToLower(verb),
 		Args:        args,

@@ -227,6 +227,12 @@ type Config struct {
 	// nil-safe: no seed and no drain when unwired (the test default).
 	Sustenance *economy.SustenanceService
 
+	// Rest is the M11.4 rest service (spec §5). Passed through
+	// command.Env so the rest/sleep/wake verbs can drive transitions.
+	// The combat-wake subscriber lives at the composition root, not
+	// here. nil-safe: the verbs report they can't be used when unwired.
+	Rest *economy.RestService
+
 	// Manager tracks logged-in sessions for autosave + shutdown sweeps.
 	// Required.
 	Manager *Manager
@@ -650,6 +656,7 @@ func pump(ctx context.Context, c conn.Connection, cfg Config, a *connActor, clk 
 			Quests:      cfg.Quests,
 			Currency:    cfg.Currency,
 			Shop:        cfg.Shop,
+			Rest:        cfg.Rest,
 		}
 		if err := cfg.Commands.Dispatch(ctx, env, a, line); err != nil {
 			if errors.Is(err, command.ErrQuit) {
@@ -1300,6 +1307,17 @@ type connActor struct {
 	// player isn't nudged on every drain tick. Zero means "never
 	// reminded" — the first reminder fires immediately. Guarded by a.mu.
 	lastHungerReminderTick uint64
+
+	// restState / restTargetID / sleepStartTick are the M11.4 rest
+	// machine's transient fields (spec economy-survival §5.1/§5.2).
+	// Written through economy.RestService via the RestEntity adapter
+	// below; read by the M11.5 regen heartbeat. ALL THREE ARE TRANSIENT
+	// — they are never synced to the save (the setters do not mark
+	// dirty), so a disconnect while resting/sleeping restores as awake
+	// (the zero-value "" normalizes to awake). Guarded by a.mu.
+	restState      string
+	restTargetID   string
+	sleepStartTick uint64
 
 	// progress is the actor's progression-track state (M8.2 —
 	// docs/specs/progression.md §5.2). Holds per-track (level, xp)
@@ -2062,6 +2080,40 @@ func (a *connActor) SetSustenance(value int) {
 		a.save.Sustenance = value
 	}
 	a.markDirtyLocked()
+}
+
+// RestState returns the actor's current rest state ("" == awake). Reads
+// under a.mu. Satisfies economy.RestEntity.
+func (a *connActor) RestState() string {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	return a.restState
+}
+
+// SetRestState writes the transient rest state. Used by the
+// economy.RestService adapter. Does NOT mark the save dirty — rest
+// state never persists (spec §5.1). Satisfies economy.RestEntity.
+func (a *connActor) SetRestState(state string) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	a.restState = state
+}
+
+// SetRestTarget sets (or clears, with "") the furniture id being rested
+// on (spec §5.2). Transient; no save write-through. Satisfies
+// economy.RestEntity.
+func (a *connActor) SetRestTarget(furnitureID string) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	a.restTargetID = furnitureID
+}
+
+// SetSleepStart records the tick sleeping began (spec §5.2). Transient;
+// no save write-through. Satisfies economy.RestEntity.
+func (a *connActor) SetSleepStart(tick uint64) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	a.sleepStartTick = tick
 }
 
 // shouldRemindHunger reports whether a hunger reminder may be sent to

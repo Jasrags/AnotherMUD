@@ -180,6 +180,12 @@ const (
 	// ShopSell is the cancellable pre-event fired before a shop sell
 	// transfers the item (spec §3.6 step 5 / §3.10).
 	EventShopSell = "shop.sell"
+
+	// RestStateChanged is the cancellable rest-state change event (spec
+	// economy-survival §5.3 step 3). A listener may Cancel() to veto a
+	// player-initiated transition. The combat-wake path (§5.4) publishes
+	// the same event with Reason="combat" but ignores the veto.
+	EventRestStateChanged = "entity.rest_state.changed"
 )
 
 // ItemPickedUp fires after GetHandler successfully moves an item
@@ -895,4 +901,26 @@ func (ShopSell) Name() string { return EventShopSell }
 // NewShopSell constructs a fresh cancellable sell pre-event.
 func NewShopSell(actorID, npcID, templateID string, price int64) *ShopSell {
 	return &ShopSell{CancelFlag: &CancelFlag{}, ActorID: actorID, NpcID: npcID, TemplateID: templateID, Price: price}
+}
+
+// RestStateChanged is the cancellable event a RestService fires when an
+// entity's rest state changes (spec economy-survival §5.3 step 3). On
+// the player-initiated path a listener may Cancel() to veto. On the
+// combat-wake path (§5.4) it is published with Reason="combat" as an
+// informational notification — the publisher ignores the veto. OldState
+// / NewState are the wire names ("awake"/"resting"/"sleeping").
+type RestStateChanged struct {
+	*CancelFlag
+	EntityID string
+	OldState string
+	NewState string
+	Reason   string
+}
+
+// Name implements Event.
+func (RestStateChanged) Name() string { return EventRestStateChanged }
+
+// NewRestStateChanged constructs a fresh cancellable rest-change event.
+func NewRestStateChanged(entityID, oldState, newState, reason string) *RestStateChanged {
+	return &RestStateChanged{CancelFlag: &CancelFlag{}, EntityID: entityID, OldState: oldState, NewState: newState, Reason: reason}
 }

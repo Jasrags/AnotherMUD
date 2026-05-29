@@ -1658,13 +1658,46 @@ is now real. Sketch of remaining vertical slices:
     - [x] Drain decrements every logged-in actor and emits a throttled
           below-Full reminder; Full tier and nil service are silent
           (session tests).
-  - **M11.4 (planned) — Rest.** Transient rest-state machine,
-    `SetRestState`, the combat-engage wake subscriber,
-    `GetRestMultiplier`, rest/sleep/wake verbs, `healing_rate` room
-    property.
+  - **M11.4 (landed) — Rest.** Transient rest-state machine (spec §5)
+    on the player, the `RestService` over a small `RestEntity`
+    interface (the connActor satisfies it), the combat-engage wake, and
+    rest/sleep/wake verbs. New `internal/economy/rest.go`: `RestState`
+    (awake/resting/sleeping), `RestConfig` (multipliers 2.0/3.0,
+    `MinSleepTicksForWellRested` 120) + `GetRestMultiplier`,
+    `SetRestState` (cancellable `entity.rest_state.changed` pre-event
+    via a `RestSink`, returns `(ok, reason)`), and `ForceAwake` (combat
+    wake — same event with reason `combat`, veto ignored). Rest state is
+    TRANSIENT: stored as zero-value-awake fields on the connActor whose
+    setters never mark the save dirty, so a disconnect while
+    resting/sleeping restores as awake — no persistence change, no
+    schema bump. Sleep-start tick is stamped from `loop.TickCount` for
+    the M11.5 well-rested credit. The combat-wake lives at the
+    composition root (`productionCombatSink.OnEngagement` → `ForceAwake`
+    on the target), not in a verb. `rest`/`sleep`/`wake` (+`stand`
+    alias) verbs route through the service.
+
+    - [x] Rest state defaults to awake when unset; SetRestState fails on
+          same-state (`already_in_state`) and cancelled events
+          (`cancelled`) (economy unit tests).
+    - [x] Transition to sleeping records the start tick; transition to
+          awake clears the rest target (unit tests).
+    - [x] Combat-engage forces a resting/sleeping target back to awake
+          and emits `entity.rest_state.changed` with reason `combat`,
+          bypassing the cancellable check (ForceAwake unit test; wired
+          through OnEngagement at the composition root).
+    - [x] Multipliers are 2.0 (resting) / 3.0 (sleeping), 1.0 otherwise
+          (unit tests).
+    - [x] rest/sleep/wake verbs route through the service and render
+          each outcome (command tests).
+
+    Deferred to M11.5 (see m11-4-deferred-fixes): the `healing_rate`
+    room property (spec §5.7). `world.Room` has no property bag and the
+    only consumer is the M11.5 regen heartbeat, so it lands with that
+    consumer rather than shipping a field nothing reads.
   - **M11.5 (planned) — Consumables + regen.** `ConsumableService.
     Consume`, `item.consuming`/`item.consumed`, eat/drink/use verbs,
-    and the vitals-regen heartbeat composing sustenance × rest × room
+    the `healing_rate` room property (spec §5.7, moved from M11.4), and
+    the vitals-regen heartbeat composing sustenance × rest × room
     multipliers (the M9 pools/regen obligation).
 
 - **M12 — Character creation wizard:** the full `character-creation`
