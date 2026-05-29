@@ -1095,6 +1095,10 @@ func run() error {
 		Sustenance:   sustenanceSvc,
 		Rest:         restSvc,
 		Consumable:   consumableSvc,
+		// M12.3: interactive character-creation wizard built from the
+		// race/class registries. Nil when neither is populated → the §2
+		// "no flow → immediate commit" path.
+		CreationFlow: session.NewCreationFlow(registries.Races, registries.Classes),
 		Clock:        clk,
 		Flood:        session.DefaultFloodConfig(),
 		LinkDead:     linkDeadCfg,

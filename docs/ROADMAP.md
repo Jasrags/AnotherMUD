@@ -1800,9 +1800,42 @@ is now real. Sketch of remaining vertical slices:
     spawn-room "any room" last resort (exercised once M12.3's interactive
     flow holds the actor in Creating).
 
-  - **M12.3 (planned) — Content flow + rendering.** The race/class
-    creation flow defined in content + registered against the new-player
-    trigger, and any plain-text wizard-progress rendering.
+  - **M12.3 (landed) — Interactive creation flow.** `NewCreationFlow`
+    builds the engine-default flow from the race + class registries
+    (intro → race choice → class choice → confirm); `runCreation` drives
+    the wizard primitive over the connection as a post-login, pre-actor
+    phase (spec §3-§7), so the chosen race/class land on the baseline
+    save and the existing M12.2 build/seed/commit path consumes them
+    unchanged. A `creationIO` renders step text through the session's
+    themed renderer and toggles telnet echo for secret steps; input
+    routes only to the wizard with §4 help passthrough (`?` / `help` via
+    the help service, without advancing the step); a confirm "no" fails
+    validation and restarts against a fresh pending entity (§7); a
+    disconnect mid-creation returns before any build/commit, so nothing
+    is persisted (§8 — the real Creating window the M12.2 no-content path
+    couldn't open). `CreationFlow` wired through `session.Config` from the
+    composition root; nil keeps the §2 immediate-commit path.
+
+    - [x] A new player chooses race/class interactively; the choices
+          persist (live-verified: Dwarf/Fighter round-trips to disk, and
+          the class-path level-1 ability grants now deliver because
+          character.created publishes post-Add).
+    - [x] Help passthrough answers `?`/`help` without advancing the step;
+          non-help input never reaches the command router (the actor/
+          command loop doesn't exist yet during creation).
+    - [x] Confirm "no" restarts the flow against a fresh baseline; a
+          mid-creation disconnect persists nothing (session unit tests
+          with a scripted connection).
+    - [x] Choice steps accept index or unique prefix (inherited from the
+          M12.1 primitive); no-content registries yield a nil flow → §2
+          immediate commit.
+
+    Deferred (m12-3-deferred-fixes): §5 structured flow-step events /
+    GMCP wizard-progress panel (nil sink — no negotiated client channel;
+    plain clients get the prompt + numbered options the spec specifies);
+    Option.Description carried but not surfaced in the menu (needs an
+    inspect/help-on-race step); trigger-keyed multi-flow registry (still
+    a single nil-able CreationFlow). **M12 complete.**
 
 Each of these will get its own M2-style exit-criteria section when it's
 the next milestone in flight.

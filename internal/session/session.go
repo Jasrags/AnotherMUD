@@ -40,6 +40,7 @@ import (
 	"github.com/Jasrags/AnotherMUD/internal/render"
 	"github.com/Jasrags/AnotherMUD/internal/slot"
 	"github.com/Jasrags/AnotherMUD/internal/stats"
+	"github.com/Jasrags/AnotherMUD/internal/wizard"
 	"github.com/Jasrags/AnotherMUD/internal/world"
 )
 
@@ -238,6 +239,14 @@ type Config struct {
 	// nil-safe: the verbs report they can't be used when unwired.
 	Consumable *economy.ConsumableService
 
+	// CreationFlow is the M12.3 interactive character-creation wizard
+	// (spec character-creation §2/§3). When set, a new player runs it
+	// after login to choose race/class before commit; nil takes the §2
+	// "no flow → immediate commit" path (the M12.2 behavior). Built from
+	// the race/class registries via NewCreationFlow at the composition
+	// root.
+	CreationFlow *wizard.Flow
+
 	// Manager tracks logged-in sessions for autosave + shutdown sweeps.
 	// Required.
 	Manager *Manager
@@ -317,6 +326,23 @@ func run(ctx context.Context, c conn.Connection, cfg Config) error {
 		// resolveStartRoom below picks up the live Location automatically.
 		if liveSave != nil {
 			loaded.Player = liveSave
+		}
+	}
+
+	// M12.3: a new player runs the interactive creation wizard (spec
+	// §3-§7) BEFORE the runtime actor is built, so the chosen race/class
+	// land on loaded.Player and the downstream applyRace/applyClass +
+	// alignment seed + commit consume them unchanged. A disconnect here
+	// persists nothing (§8 — the actor isn't built or in the Manager).
+	// A nil CreationFlow takes the §2 immediate-commit path (no-op).
+	if loaded.New {
+		if err := runCreation(ctx, c, cfg, loaded); err != nil {
+			// The only errors are connection failures (disconnect mid-
+			// creation). Nothing was persisted; close quietly.
+			logging.From(ctx).Info("creation: aborted before commit",
+				slog.String("player", loaded.Player.Name),
+				slog.Any("err", err))
+			return nil
 		}
 	}
 
