@@ -2,6 +2,7 @@ package entities
 
 import (
 	"github.com/Jasrags/AnotherMUD/internal/item"
+	"github.com/Jasrags/AnotherMUD/internal/srckey"
 )
 
 // Reserved property keys with engine-defined semantics. Listed here
@@ -24,13 +25,19 @@ const (
 // §3.3 step 6: every modifier the equipment subsystem applies must
 // carry a source that uniquely identifies the item instance, so unequip
 // can reverse exactly the right set.
-type SourceKey string
+//
+// The type now lives in the leaf package internal/srckey so that stats
+// and progression can depend on it without importing entities (which
+// would block entities from importing progression). This alias keeps
+// every existing entities.SourceKey caller working unchanged.
+type SourceKey = srckey.SourceKey
 
 // EquipmentSourceKey returns the source key used when equipment
 // applies an item's stat modifiers to its holder. Centralized so the
-// equip and unequip paths cannot drift apart.
+// equip and unequip paths cannot drift apart. Thin wrapper over
+// srckey.Equipment so the EntityID-typed call sites stay ergonomic.
 func EquipmentSourceKey(id EntityID) SourceKey {
-	return SourceKey("equipment:" + string(id))
+	return srckey.Equipment(string(id))
 }
 
 // InstanceModifier is one source-tagged stat modifier carried on an
@@ -152,8 +159,8 @@ func normalizeValue(v any) any {
 // generation stays under the store's lock.
 func buildInstanceFromTemplate(tpl *item.Template, id EntityID) *ItemInstance {
 	props := normalizeProperties(tpl.Properties)
-	delete(props, PropRoomID)                  // §2.3 step 4: never honor a template-supplied room_id.
-	props[PropTemplateID] = string(tpl.ID)     // §2.3 step 5.
+	delete(props, PropRoomID)              // §2.3 step 4: never honor a template-supplied room_id.
+	props[PropTemplateID] = string(tpl.ID) // §2.3 step 5.
 
 	// §2.3 step 2: tags from the template, minus the implicit tag that
 	// matches the entity's own type (which is implied and never

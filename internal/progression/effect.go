@@ -3,7 +3,7 @@ package progression
 import (
 	"strings"
 
-	"github.com/Jasrags/AnotherMUD/internal/entities"
+	"github.com/Jasrags/AnotherMUD/internal/srckey"
 	"github.com/Jasrags/AnotherMUD/internal/stats"
 )
 
@@ -41,7 +41,7 @@ type EffectTemplate struct {
 	Flags []string
 }
 
-// EffectSourceKey returns the entities.SourceKey used when an
+// EffectSourceKey returns the srckey.SourceKey used when an
 // effect's stat modifiers are applied to a target's stat block.
 // Derives from the effect id so removal can target the exact
 // modifier set without tracking the runtime Effect instance's
@@ -50,8 +50,8 @@ type EffectTemplate struct {
 // Mirrors EquipmentSourceKey shape; the "effect:" prefix segregates
 // these from equipment keys so a typoed item id can't collide with
 // a real effect by accident.
-func EffectSourceKey(effectID string) entities.SourceKey {
-	return entities.SourceKey(effectSourcePrefix + strings.ToLower(strings.TrimSpace(effectID)))
+func EffectSourceKey(effectID string) srckey.SourceKey {
+	return srckey.SourceKey(effectSourcePrefix + strings.ToLower(strings.TrimSpace(effectID)))
 }
 
 // effectSourcePrefix segregates effect-installed stat modifiers from
@@ -65,7 +65,7 @@ const effectSourcePrefix = "effect:"
 // abilities-and-effects §5.5 — the effect LIST is not persisted), so
 // their stat mods must be equally ephemeral, otherwise a buff active
 // at logout round-trips into a permanent bonus.
-func IsEffectSource(src entities.SourceKey) bool {
+func IsEffectSource(src srckey.SourceKey) bool {
 	return strings.HasPrefix(string(src), effectSourcePrefix)
 }
 

@@ -6,7 +6,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/Jasrags/AnotherMUD/internal/entities"
+	"github.com/Jasrags/AnotherMUD/internal/srckey"
 	"github.com/Jasrags/AnotherMUD/internal/stats"
 )
 
@@ -35,18 +35,14 @@ type EffectTarget interface {
 	RemoveBySource(src StatModifierSource) bool
 }
 
-// StatModifierSource is the source-key alias the EffectTarget
-// surface uses. It re-exports entities.SourceKey behind a
-// progression-package identifier so the EffectTarget interface
-// (which the session package implements) doesn't force a
-// transitive `internal/entities` import on callers that already
-// depend on `internal/progression`. Concrete value is the same
-// entities.SourceKey produced by EffectSourceKey.
-//
-// Defined as a string alias rather than a fresh type so casts
-// to/from entities.SourceKey are zero-cost and don't need a
-// conversion helper in either direction.
-type StatModifierSource = entities.SourceKey
+// StatModifierSource is the source-key alias the EffectTarget surface
+// uses — a progression-package name for srckey.SourceKey. Using the
+// leaf type (rather than entities.SourceKey) is what lets entities
+// import progression without a cycle; it is an alias rather than a
+// fresh type so casts to/from srckey.SourceKey (and the
+// entities.SourceKey alias) are zero-cost. Concrete value is the same
+// key EffectSourceKey produces.
+type StatModifierSource = srckey.SourceKey
 
 // EffectSink is the optional event-emission seam the
 // EffectManager uses when applied/removed/expired transitions
@@ -147,17 +143,17 @@ func NewEffectManager(resolver TargetResolver, sink EffectSink) *EffectManager {
 // effect lacks an explicit source (admin grant, world hook).
 //
 // Successful application:
-//   1. Resolves the target via TargetResolver. If the target is
-//      gone (resolver returns false), the manager records the
-//      effect in its active-list so Tick / RemoveByID still see
-//      it but no stat modifiers are written. This matches the
-//      spec's "ephemeral effect-list state" model — the stat
-//      block has already been persisted by the equipment path,
-//      and a target that comes back online will rehydrate via
-//      Restore (M9.4-era extension).
-//   2. Writes stat modifiers under EffectSourceKey(tpl.ID).
-//   3. Appends the runtime Effect to the entity's active list.
-//   4. Emits EffectApplied via the sink.
+//  1. Resolves the target via TargetResolver. If the target is
+//     gone (resolver returns false), the manager records the
+//     effect in its active-list so Tick / RemoveByID still see
+//     it but no stat modifiers are written. This matches the
+//     spec's "ephemeral effect-list state" model — the stat
+//     block has already been persisted by the equipment path,
+//     and a target that comes back online will rehydrate via
+//     Restore (M9.4-era extension).
+//  2. Writes stat modifiers under EffectSourceKey(tpl.ID).
+//  3. Appends the runtime Effect to the entity's active list.
+//  4. Emits EffectApplied via the sink.
 func (m *EffectManager) Apply(ctx context.Context, entityID string, tpl EffectTemplate, sourceEntityID, sourceAbilityID string) bool {
 	eid := strings.ToLower(strings.TrimSpace(entityID))
 	id := strings.ToLower(strings.TrimSpace(tpl.ID))

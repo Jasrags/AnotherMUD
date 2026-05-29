@@ -27,7 +27,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/Jasrags/AnotherMUD/internal/entities"
+	"github.com/Jasrags/AnotherMUD/internal/srckey"
 	"github.com/Jasrags/AnotherMUD/internal/stats"
 )
 
@@ -247,7 +247,7 @@ func (b *StatBlock) AllEffective() map[StatType]int {
 // existing entry under the same source (consistent with stats.Block
 // semantics: a fresh equip is a full replacement, not an append).
 // Invalidates the effective cache.
-func (b *StatBlock) AddModifier(src entities.SourceKey, stat StatType, value int) {
+func (b *StatBlock) AddModifier(src srckey.SourceKey, stat StatType, value int) {
 	b.AddModifiers(src, []stats.Modifier{{Stat: string(stat), Value: value}})
 }
 
@@ -263,7 +263,7 @@ func (b *StatBlock) AddModifier(src entities.SourceKey, stat StatType, value int
 // case-typo would silently produce a zero-contribution modifier —
 // the kind of bug that surfaces only when a content author wonders
 // "why doesn't my +2 STR sword work."
-func (b *StatBlock) AddModifiers(src entities.SourceKey, mods []stats.Modifier) {
+func (b *StatBlock) AddModifiers(src srckey.SourceKey, mods []stats.Modifier) {
 	normalized := mods
 	if len(mods) > 0 {
 		normalized = make([]stats.Modifier, len(mods))
@@ -284,7 +284,7 @@ func (b *StatBlock) AddModifiers(src entities.SourceKey, mods []stats.Modifier) 
 // operation (spec §2.4: "remove-by-source is the canonical lifecycle
 // pattern"). Returns true if anything was removed. Invalidates the
 // effective cache only when something actually changed.
-func (b *StatBlock) RemoveBySource(src entities.SourceKey) bool {
+func (b *StatBlock) RemoveBySource(src srckey.SourceKey) bool {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	if !b.mods.Remove(src) {
@@ -295,7 +295,7 @@ func (b *StatBlock) RemoveBySource(src entities.SourceKey) bool {
 }
 
 // HasSource reports whether any modifiers are installed under src.
-func (b *StatBlock) HasSource(src entities.SourceKey) bool {
+func (b *StatBlock) HasSource(src srckey.SourceKey) bool {
 	b.mu.RLock()
 	defer b.mu.RUnlock()
 	return b.mods.Has(src)
@@ -307,7 +307,7 @@ func (b *StatBlock) HasSource(src entities.SourceKey) bool {
 // items §3.5). Returns false on the same conditions as
 // stats.Block.RebindSource: missing old set, or new already
 // occupied.
-func (b *StatBlock) RebindSource(old, new entities.SourceKey) bool {
+func (b *StatBlock) RebindSource(old, new srckey.SourceKey) bool {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	if !b.mods.RebindSource(old, new) {

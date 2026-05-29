@@ -20,7 +20,7 @@ import (
 	"sort"
 	"sync"
 
-	"github.com/Jasrags/AnotherMUD/internal/entities"
+	"github.com/Jasrags/AnotherMUD/internal/srckey"
 )
 
 // Modifier is one (stat, value) pair applied under some source. The
@@ -40,20 +40,20 @@ type Modifier struct {
 // own mutex while calling Apply/Remove/RebindSource during equip and
 // unequip. No method on Block calls back out into the actor.
 type Block struct {
-	mu   sync.Mutex
-	bySrc map[entities.SourceKey][]Modifier
+	mu    sync.Mutex
+	bySrc map[srckey.SourceKey][]Modifier
 }
 
 // New returns an empty Block.
 func New() *Block {
-	return &Block{bySrc: make(map[entities.SourceKey][]Modifier)}
+	return &Block{bySrc: make(map[srckey.SourceKey][]Modifier)}
 }
 
 // Apply installs mods under src. Idempotent in the sense that
 // repeating the call with the same src replaces (does not append) —
 // equip is supposed to be a fresh application, so a stale set under
 // the same key is overwritten rather than doubled.
-func (b *Block) Apply(src entities.SourceKey, mods []Modifier) {
+func (b *Block) Apply(src srckey.SourceKey, mods []Modifier) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	if len(mods) == 0 {
@@ -68,7 +68,7 @@ func (b *Block) Apply(src entities.SourceKey, mods []Modifier) {
 // Remove drops the modifier set under src. Returns true if anything
 // was removed (lets unequip distinguish "actually had modifiers" from
 // "item carried none" for diagnostics).
-func (b *Block) Remove(src entities.SourceKey) bool {
+func (b *Block) Remove(src srckey.SourceKey) bool {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	if _, ok := b.bySrc[src]; !ok {
@@ -85,7 +85,7 @@ func (b *Block) Remove(src entities.SourceKey) bool {
 // — a collision would mean two items are claiming the same source,
 // which is a programming error worth surfacing rather than silently
 // merging.
-func (b *Block) RebindSource(old, new entities.SourceKey) bool {
+func (b *Block) RebindSource(old, new srckey.SourceKey) bool {
 	if old == new {
 		return true
 	}
@@ -104,7 +104,7 @@ func (b *Block) RebindSource(old, new entities.SourceKey) bool {
 }
 
 // Has reports whether any modifiers are installed under src.
-func (b *Block) Has(src entities.SourceKey) bool {
+func (b *Block) Has(src srckey.SourceKey) bool {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	_, ok := b.bySrc[src]
@@ -128,7 +128,7 @@ func (b *Block) Snapshot() Snapshot {
 	sort.Strings(keys)
 	out := make(Snapshot, 0, len(keys))
 	for _, k := range keys {
-		src := entities.SourceKey(k)
+		src := srckey.SourceKey(k)
 		mods := b.bySrc[src]
 		dup := make([]Modifier, len(mods))
 		copy(dup, mods)
@@ -143,7 +143,7 @@ func (b *Block) Snapshot() Snapshot {
 func (b *Block) Restore(snap Snapshot) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
-	b.bySrc = make(map[entities.SourceKey][]Modifier, len(snap))
+	b.bySrc = make(map[srckey.SourceKey][]Modifier, len(snap))
 	for _, e := range snap {
 		if len(e.Modifiers) == 0 {
 			continue
@@ -156,8 +156,8 @@ func (b *Block) Restore(snap Snapshot) {
 
 // Entry is one source's modifier set in serialized form.
 type Entry struct {
-	Source    entities.SourceKey `yaml:"source"`
-	Modifiers []Modifier         `yaml:"modifiers"`
+	Source    srckey.SourceKey `yaml:"source"`
+	Modifiers []Modifier       `yaml:"modifiers"`
 }
 
 // Snapshot is the persisted shape of a Block — an ordered list of
