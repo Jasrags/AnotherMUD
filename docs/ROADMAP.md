@@ -1732,7 +1732,47 @@ is now real. Sketch of remaining vertical slices:
           (pack tests).
 
 - **M12 — Character creation wizard:** the full `character-creation`
-  flow now that the systems it touches exist.
+  flow now that the systems it touches exist. Sliced bottom-up:
+
+  - **M12.1 (landed) — Wizard primitive.** New `internal/wizard`
+    package: the engine-side flow primitive (spec §3-§5), with NO
+    session/login/telnet dependency. `Flow` (ordered `Step`s + trigger +
+    cancellable + `OnComplete` validation handler + optional
+    wizard-progress labels); `Instance` state machine driven one input
+    line at a time (`Start`/`Input` → `StatusAwaitingInput` /
+    `StatusCompleted`); the four step types (`InfoStep` auto-advances,
+    `ChoiceStep` resolves 1-based index OR unique case-insensitive label
+    prefix, `TextStep` with optional validation + secret-echo toggle,
+    `ConfirmStep` y/yes/n/no); skip predicates evaluated before
+    rendering; and the structured `StepEvent` sink (the §5 seam — the
+    plain-text path is real, the GMCP wizard-panel renderer is deferred,
+    no negotiated client channel yet). Operates over an opaque `Entity`
+    (handlers are content closures) and an `IO` interface (the session
+    wires the real conn in M12.2). The completion pipeline (§6),
+    restart (§7), and login handoff are M12.2 — the Instance only
+    sequences steps and reports completion + exposes the assembled
+    entity.
+
+    - [x] Info auto-advances; choice accepts index + unique prefix and
+          repeats on invalid/ambiguous; text runs validation; secret
+          text toggles echo off-at-render / on-before-next-output; confirm
+          treats y/n variants and rejects everything else; skip predicates
+          bypass render + handlers (unit tests, 88% cov).
+    - [x] Every rendered step emits a StepEvent with type + prompt
+          (+ options for choice), the §5 structured seam (unit tests).
+
+  - **M12.2 (planned) — Creating phase + completion pipeline.** Add
+    `phaseCreating`, the login→Creating handoff, input routing to the
+    flow (help passthrough §4, no flood consume), the completion
+    pipeline (§6: alignment seeding, validation, atomic commit with
+    name-conflict last-chance, spawn-room resolution, character.created,
+    MOTD+look enqueue), restart on validation failure (§7), and
+    mid-creation disconnect cleanup (§8). Reshapes the current login
+    inline character assembly.
+
+  - **M12.3 (planned) — Content flow + rendering.** The race/class
+    creation flow defined in content + registered against the new-player
+    trigger, and any plain-text wizard-progress rendering.
 
 Each of these will get its own M2-style exit-criteria section when it's
 the next milestone in flight.
