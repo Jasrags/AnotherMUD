@@ -450,17 +450,10 @@ func run(ctx context.Context, c conn.Connection, cfg Config) error {
 		cfg.Sustenance.Set(a, economy.MaxSustenance)
 	}
 
-	// M8.4: publish character.created for brand-new characters so
-	// the class-path processor wired in cmd/anothermud can run the
-	// level-1 path grant. The M12 character-creation wizard will
-	// own the canonical publish; this is the M8.4 stand-in so the
-	// plumbing exists. Bus may be nil in tests — guard it.
-	if loaded.New && cfg.Bus != nil {
-		cfg.Bus.Publish(ctx, eventbus.CharacterCreated{
-			EntityID: loaded.Player.ID,
-			ClassID:  a.classID,
-		})
-	}
+	// M12.2: character.created now publishes from the completion pipeline
+	// (after commit + placement, §6.4 step 6), not here — see the block
+	// after Manager.Add below. Publishing pre-commit would grant level-1
+	// abilities to a character a last-chance name conflict then discards.
 
 	// Seed the lock-free wimpy threshold from the persisted save.
 	// Done after struct construction because atomic.Int32 has no
@@ -532,7 +525,48 @@ func run(ctx context.Context, c conn.Connection, cfg Config) error {
 		}
 	}
 
+	// M12.2: character-creation completion pipeline (spec §6.4). A new
+	// character's entity is fully assembled above (race/class/alignment/
+	// sustenance seeded, location synced) but has NOT touched disk yet —
+	// so a disconnect before this point leaves nothing persisted (§8).
+	// commitCreation persists it under the last-chance name-conflict
+	// guard. Returning players skip this entirely (already on disk).
+	//
+	// The interactive wizard that would run BETWEEN assembly and commit,
+	// plus restart-on-validation (§7) and input routing (§4), lands in
+	// M12.3; M12.2 takes the §2 "no flow registered → immediate commit"
+	// path, so the Creating phase is synchronous here.
+	if loaded.New {
+		a.mu.Lock()
+		a.phase = phaseCreating
+		a.mu.Unlock()
+		if err := commitCreation(ctx, cfg, a); err != nil {
+			if errors.Is(err, ErrNameConflict) {
+				_ = a.Write(ctx, "Sorry — that name was just taken. Please reconnect and choose another.")
+				logging.From(ctx).Info("creation: last-chance name conflict",
+					slog.String("name", a.Name()))
+				return nil // server closes the conn; actor never entered the Manager
+			}
+			return fmt.Errorf("session: %w", err)
+		}
+		a.mu.Lock()
+		a.phase = phasePlaying
+		a.mu.Unlock()
+		_ = a.Write(ctx, fmt.Sprintf("Welcome, %s.", a.Name()))
+	}
+
 	cfg.Manager.Add(a)
+
+	// M12.2: publish character.created AFTER commit + placement (§6.4
+	// step 6) so the class-path processor's level-1 grant runs only for a
+	// character that actually committed, and so the actor is already in
+	// the Manager when the notifier resolves it. Bus may be nil in tests.
+	if loaded.New && cfg.Bus != nil {
+		cfg.Bus.Publish(ctx, eventbus.CharacterCreated{
+			EntityID: loaded.Player.ID,
+			ClassID:  a.classID,
+		})
+	}
 
 	// Announce arrival to the start room (excluding self) so anyone
 	// already there sees the new player materialize.

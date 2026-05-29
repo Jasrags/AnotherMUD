@@ -269,7 +269,7 @@ func newCharacterOnExistingAccount(ctx context.Context, lio *lineIO, cfg Config,
 		}
 		return nil, fmt.Errorf("auth by email: %w", err)
 	}
-	return commitNewCharacter(ctx, lio, cfg, acc, name)
+	return buildNewCharacter(ctx, lio, cfg, acc, name)
 }
 
 // newCharacterOnNewAccount runs the password policy + confirmation
@@ -304,7 +304,7 @@ func newCharacterOnNewAccount(ctx context.Context, lio *lineIO, cfg Config, emai
 		}
 		return nil, fmt.Errorf("create account: %w", err)
 	}
-	return commitNewCharacter(ctx, lio, cfg, acc, name)
+	return buildNewCharacter(ctx, lio, cfg, acc, name)
 }
 
 func validateNewPassword(pw string, cfg Config) string {
@@ -314,7 +314,20 @@ func validateNewPassword(pw string, cfg Config) string {
 	return ""
 }
 
-func commitNewCharacter(ctx context.Context, lio *lineIO, cfg Config, acc *account.Account, name string) (*Loaded, error) {
+// buildNewCharacter constructs the in-memory baseline entity for a new
+// character and hands it to the session layer WITHOUT persisting it
+// (character-creation §2: "constructs an initial entity using the
+// new-player baseline" — it does not commit).
+//
+// Persistence, account linking, the welcome line, and the
+// "character created" log are deferred to the session's completion
+// pipeline (character-creation §6.4), which runs after the creation
+// wizard finishes. This is what lets a mid-creation disconnect leave no
+// on-disk character (§8): nothing is written until commit. The
+// authoritative name-uniqueness guard is the commit-time re-check under
+// a mutex (§6.4 step 1), not this path — the earlier Players.Exists
+// branch in Run is only a soft pre-check.
+func buildNewCharacter(ctx context.Context, lio *lineIO, cfg Config, acc *account.Account, name string) (*Loaded, error) {
 	id, err := newPlayerID()
 	if err != nil {
 		return nil, fmt.Errorf("new player id: %w", err)
@@ -325,18 +338,6 @@ func commitNewCharacter(ctx context.Context, lio *lineIO, cfg Config, acc *accou
 		AccountID: acc.ID,
 		Name:      name,
 		Location:  cfg.DefaultLocation,
-	}
-	if err := cfg.Players.Save(ctx, save); err != nil {
-		return nil, fmt.Errorf("save new player: %w", err)
-	}
-	if err := cfg.Accounts.AddCharacter(ctx, acc.ID, name); err != nil {
-		return nil, fmt.Errorf("link character to account: %w", err)
-	}
-	logging.From(ctx).Info("character created",
-		slog.String("name", name),
-		slog.String("account_id", acc.ID))
-	if err := lio.writeln(ctx, fmt.Sprintf("Welcome, %s.", name)); err != nil {
-		return nil, err
 	}
 	return &Loaded{Account: acc, Player: save, New: true}, nil
 }

@@ -26,6 +26,15 @@ const (
 	// claimed an actor for teardown. Reconnect aborts if it sees this
 	// phase, so the same actor cannot be both reconnected and reaped.
 	phaseTearing
+	// phaseCreating is the character-creation window (character-creation
+	// §2): a new character's actor exists locally but is NOT yet
+	// persisted, in the world, or in the session Manager. The completion
+	// pipeline (§6.4) flips it to phasePlaying at commit. With the M12.2
+	// no-content flow the window is synchronous (immediate commit); the
+	// M12.3 interactive flow holds the actor here while it reads wizard
+	// input, at which point a mid-creation disconnect (§8) leaves nothing
+	// on disk because commit hasn't run.
+	phaseCreating
 )
 
 // LinkDeadConfig is the policy for surviving connection drops, per

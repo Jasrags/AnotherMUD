@@ -1761,14 +1761,44 @@ is now real. Sketch of remaining vertical slices:
     - [x] Every rendered step emits a StepEvent with type + prompt
           (+ options for choice), the §5 structured seam (unit tests).
 
-  - **M12.2 (planned) — Creating phase + completion pipeline.** Add
-    `phaseCreating`, the login→Creating handoff, input routing to the
-    flow (help passthrough §4, no flood consume), the completion
-    pipeline (§6: alignment seeding, validation, atomic commit with
-    name-conflict last-chance, spawn-room resolution, character.created,
-    MOTD+look enqueue), restart on validation failure (§7), and
-    mid-creation disconnect cleanup (§8). Reshapes the current login
-    inline character assembly.
+  - **M12.2 (landed) — Creating phase + commit pipeline.** The
+    spec-faithful persistence reshape: `login` now BUILDS a new
+    character's baseline entity but does NOT persist it
+    (`buildNewCharacter` drops the old inline `Players.Save` +
+    `AddCharacter` + welcome), so a mid-creation disconnect leaves
+    nothing on disk (§8). The session owns the §6.4 commit: a new
+    character's entity is assembled in `run()` (race/class/alignment/
+    sustenance seeded), then `commitCreation` — under a process-wide
+    creation mutex — re-checks the canonical name is free
+    (`ErrNameConflict` last-chance → message + close, nothing written),
+    persists the save, and links it to the account. `phaseCreating`
+    added; set during the (synchronous, immediate-commit) creation
+    window and flipped to `phasePlaying` at commit. `character.created`
+    moved to AFTER commit + `Manager.Add` (§6.4 step 6) so the class-path
+    level-1 grant never fires for a name-conflict loser and the notifier
+    can resolve the now-registered actor. Returning players skip the
+    pipeline entirely. M12.2 takes the §2 "no flow registered → immediate
+    commit" path; the interactive wizard, input routing (§4), restart
+    (§7), and the live mid-creation-disconnect window move to M12.3.
+
+    - [x] New characters are not persisted at login; the commit pipeline
+          is the first disk write (live-verified: new player reaches the
+          world and `players/<name>/player.yaml` appears only after
+          commit).
+    - [x] Commit is mutually exclusive; a persisted name collision at
+          commit returns `ErrNameConflict`, the session closes with a
+          message, and the winner's record is untouched (session unit
+          tests).
+    - [x] Returning players are unaffected (end-to-end + takeover/
+          link-dead tests stay green).
+    - [x] `character.created` publishes after commit + placement.
+
+    Deferred (see m12-2-deferred-fixes): MOTD enqueue (§6.4 step 9 — no
+    MOTD content/command exists; welcome+look only); trigger-keyed
+    multi-flow resolution (§2 — single nil-able flow seam suffices,
+    lands with M12.3's flow); §8 disconnect-during-await cleanup +
+    spawn-room "any room" last resort (exercised once M12.3's interactive
+    flow holds the actor in Creating).
 
   - **M12.3 (planned) — Content flow + rendering.** The race/class
     creation flow defined in content + registered against the new-player
