@@ -79,6 +79,13 @@ func RegisterBuiltins(r *Registry) error {
 		{Keyword: "tell", Handler: TellHandler, Brief: "Send a private message to another player.", Syntax: []string{"tell <name> <message>"}},
 		{Keyword: "reply", Handler: ReplyHandler, Brief: "Reply to the player you last spoke with privately.", Syntax: []string{"reply <message>"}},
 		{Keyword: "tells", Handler: TellsHandler, Brief: "Review the tells you've received this session.", Syntax: []string{"tells"}},
+
+		// Channels (M13.6). Per-channel publish verbs (ooc, admin,
+		// pack channels) are registered dynamically at composition
+		// time from chat.Registry; these are the static management
+		// verbs.
+		{Keyword: "channels", Aliases: []string{"chanlist"}, Handler: ChatListHandler, Brief: "List the chat channels available to you.", Syntax: []string{"channels"}},
+		{Keyword: "chathistory", Aliases: []string{"chhist"}, Handler: ChatHistoryHandler, Brief: "Show recent messages on a channel.", Syntax: []string{"chathistory <channel>", "chathistory <channel> <n>"}},
 	}
 	for _, c := range commands {
 		if err := r.RegisterCommand(c); err != nil {

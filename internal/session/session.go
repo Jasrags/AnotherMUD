@@ -22,6 +22,7 @@ import (
 	"unicode"
 
 	"github.com/Jasrags/AnotherMUD/internal/ansi"
+	"github.com/Jasrags/AnotherMUD/internal/chat"
 	"github.com/Jasrags/AnotherMUD/internal/clock"
 	"github.com/Jasrags/AnotherMUD/internal/combat"
 	"github.com/Jasrags/AnotherMUD/internal/command"
@@ -225,6 +226,18 @@ type Config struct {
 	// session.Manager (online) + player.Store (offline). nil-safe;
 	// when nil the tell verbs print "Tells are not enabled."
 	TellResolver command.TellResolver
+
+	// ChatRegistry is the M13.6 channel catalog. Threaded through
+	// to command.Env for chat verbs. nil-safe.
+	ChatRegistry *chat.Registry
+
+	// ChatSubscribers returns the online-subscriber set for a
+	// channel. v1: every online player is subscribed.
+	ChatSubscribers command.ChatSubscribers
+
+	// ChatScrollbacks returns the per-channel ring buffer for the
+	// chat history verb and the publish-time append.
+	ChatScrollbacks command.ChatScrollbacks
 
 	// Currency is the M11.1 economy currency service (spec
 	// economy-survival §2). Passed through command.Env so the `gold`
@@ -723,30 +736,33 @@ func pump(ctx context.Context, c conn.Connection, cfg Config, a *connActor, clk 
 		}
 
 		env := command.Env{
-			World:         cfg.World,
-			Broadcaster:   cfg.Manager,
-			Items:         cfg.Items,
-			Placement:     cfg.Placement,
-			Contents:      cfg.Contents,
-			Slots:         cfg.Slots,
-			Bus:           cfg.Bus,
-			Locator:       managerLocator{cfg.Manager},
-			Disposition:   cfg.Disposition,
-			Combat:        cfg.Combat,
-			Flee:          cfg.Flee,
-			Progression:   cfg.Progression,
-			Training:      cfg.Training,
-			Abilities:     cfg.Abilities,
-			Proficiency:   cfg.Proficiency,
-			ActionQueue:   cfg.ActionQueue,
-			Help:          cfg.Help,
-			Quests:        cfg.Quests,
-			Currency:      cfg.Currency,
-			Shop:          cfg.Shop,
-			Rest:          cfg.Rest,
-			Consumable:    cfg.Consumable,
-			Notifications: cfg.Notifications,
-			TellResolver:  cfg.TellResolver,
+			World:           cfg.World,
+			Broadcaster:     cfg.Manager,
+			Items:           cfg.Items,
+			Placement:       cfg.Placement,
+			Contents:        cfg.Contents,
+			Slots:           cfg.Slots,
+			Bus:             cfg.Bus,
+			Locator:         managerLocator{cfg.Manager},
+			Disposition:     cfg.Disposition,
+			Combat:          cfg.Combat,
+			Flee:            cfg.Flee,
+			Progression:     cfg.Progression,
+			Training:        cfg.Training,
+			Abilities:       cfg.Abilities,
+			Proficiency:     cfg.Proficiency,
+			ActionQueue:     cfg.ActionQueue,
+			Help:            cfg.Help,
+			Quests:          cfg.Quests,
+			Currency:        cfg.Currency,
+			Shop:            cfg.Shop,
+			Rest:            cfg.Rest,
+			Consumable:      cfg.Consumable,
+			Notifications:   cfg.Notifications,
+			TellResolver:    cfg.TellResolver,
+			ChatRegistry:    cfg.ChatRegistry,
+			ChatSubscribers: cfg.ChatSubscribers,
+			ChatScrollbacks: cfg.ChatScrollbacks,
 		}
 		if err := cfg.Commands.Dispatch(ctx, env, a, line); err != nil {
 			if errors.Is(err, command.ErrQuit) {

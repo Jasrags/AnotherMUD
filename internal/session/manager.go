@@ -400,6 +400,37 @@ func (m *Manager) SendToPlayer(ctx context.Context, name, text string) bool {
 // lock — without touching actor mutexes — and writes outside the
 // lock so Write callbacks cannot deadlock against future Manager
 // callers that take the actor lock.
+// OnlinePlayers returns a fresh entity-id → canonical-name map of
+// every player currently in the byConn index. Used by the M13.6
+// channel-subscribers adapter as the "every online player is
+// subscribed" v1 stand-in. Canonical name matches what
+// player.CanonicalName produces so it aligns with the per-player
+// save-directory addressing convention.
+func (m *Manager) OnlinePlayers() map[string]string {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	out := make(map[string]string, len(m.byConn))
+	for _, a := range m.byConn {
+		if a.playerID == "" {
+			continue
+		}
+		// byName already holds the canonical (lowercased) form.
+		// Pull directly from the actor's save record to avoid a
+		// second map walk.
+		a.mu.Lock()
+		var name string
+		if a.save != nil {
+			name = strings.ToLower(a.save.Name)
+		}
+		a.mu.Unlock()
+		if name == "" {
+			continue
+		}
+		out[a.playerID] = name
+	}
+	return out
+}
+
 func (m *Manager) SendToAll(ctx context.Context, text string, excludePlayerIDs ...string) {
 	excl := make(map[string]struct{}, len(excludePlayerIDs))
 	for _, p := range excludePlayerIDs {

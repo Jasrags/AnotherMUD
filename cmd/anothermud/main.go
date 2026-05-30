@@ -36,6 +36,7 @@ import (
 	"github.com/Jasrags/AnotherMUD/internal/player"
 	"github.com/Jasrags/AnotherMUD/internal/progression"
 	"github.com/Jasrags/AnotherMUD/internal/quest"
+	"github.com/Jasrags/AnotherMUD/internal/chat"
 	"github.com/Jasrags/AnotherMUD/internal/notifications"
 	"github.com/Jasrags/AnotherMUD/internal/queststore"
 	"github.com/Jasrags/AnotherMUD/internal/questwatch"
@@ -189,6 +190,24 @@ func run() error {
 		// own logger.
 		_ = notifMgr.Unregister(context.Background(), playerID)
 	})
+
+	// M13.6: channel registry + engine baseline. Baseline channels
+	// are registered programmatically in v1; the pack-loaded
+	// content path (content/core/channels/*.yaml) lands in M13.6b.
+	// Per-channel scrollback is in-memory only for now.
+	chatRegistry := chat.NewRegistry()
+	chatScrollbacks := make(map[string]*chat.Scrollback)
+	registerBaselineChannels(chatRegistry, chatScrollbacks)
+	subscribers := chatSubscribers{mgr: mgr}
+	scrollbackLookup := chatScrollbackLookup{m: chatScrollbacks}
+	// Per-channel verbs are registered now so chat.Registry.All()
+	// drives the command surface; missing here would mean a
+	// configured channel has no verb.
+	for _, ch := range chatRegistry.All() {
+		if err := cmds.Register(ch.DisplayName, command.MakeChannelHandler(ch)); err != nil {
+			return fmt.Errorf("register channel verb %q: %w", ch.DisplayName, err)
+		}
+	}
 
 	loop := tick.New(clk, cfg.TickInterval)
 	if err := entities.RegisterTagSwap(loop, entityStore); err != nil {
@@ -1111,10 +1130,13 @@ func run() error {
 		ColorEnabled: cfg.ColorDefault,
 		Render:       colorRenderer,
 		Help:         registries.Help,
-		Quests:        questSvc,
-		QuestStore:    questStore,
-		Notifications: notifMgr,
-		TellResolver:  session.TellResolver{Manager: mgr, Players: players},
+		Quests:          questSvc,
+		QuestStore:      questStore,
+		Notifications:   notifMgr,
+		TellResolver:    session.TellResolver{Manager: mgr, Players: players},
+		ChatRegistry:    chatRegistry,
+		ChatSubscribers: subscribers,
+		ChatScrollbacks: scrollbackLookup,
 		Currency:     currencySvc,
 		Shop:         shopSvc,
 		Sustenance:   sustenanceSvc,
@@ -2367,4 +2389,54 @@ func newLogger(cfg config) *slog.Logger {
 		h = slog.NewTextHandler(os.Stderr, opts)
 	}
 	return slog.New(h)
+}
+
+// registerBaselineChannels populates the engine baseline channel
+// set. v1 ships ooc only; admin lands when the role-tag system
+// is fully real (M10+). Per spec §3.1 (resolved 2026-05-30) the
+// channels live under the engine namespace; the YAML loader that
+// would also place admin/etc. lands in M13.6b.
+func registerBaselineChannels(reg *chat.Registry, scrollbacks map[string]*chat.Scrollback) {
+	baseline := []chat.Channel{
+		{
+			ID:          "tapestry-core:ooc",
+			DisplayName: "ooc",
+			Kind:        chat.KindPublic,
+			DefaultOn:   true,
+			Persisted:   true,
+			BufferCap:   100,
+		},
+	}
+	for _, ch := range baseline {
+		if err := reg.Register(ch); err != nil {
+			// Baseline collisions would be a coding bug, not a
+			// runtime condition. Panic at boot makes the failure
+			// loud rather than silently dropping a channel.
+			panic(fmt.Sprintf("baseline channel %q: %v", ch.ID, err))
+		}
+		cap := ch.BufferCap
+		if cap <= 0 {
+			cap = chat.DefaultBufferCap
+		}
+		scrollbacks[ch.ID] = chat.NewScrollback(cap)
+	}
+}
+
+// chatSubscribers adapts session.Manager to command.ChatSubscribers.
+// v1: every online player is subscribed to every channel.
+type chatSubscribers struct{ mgr *session.Manager }
+
+func (cs chatSubscribers) Subscribers(_ string) map[string]string {
+	if cs.mgr == nil {
+		return nil
+	}
+	return cs.mgr.OnlinePlayers()
+}
+
+// chatScrollbackLookup adapts the composition-root scrollback map to
+// command.ChatScrollbacks.
+type chatScrollbackLookup struct{ m map[string]*chat.Scrollback }
+
+func (l chatScrollbackLookup) Scrollback(channelID string) *chat.Scrollback {
+	return l.m[channelID]
 }

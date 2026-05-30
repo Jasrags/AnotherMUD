@@ -26,6 +26,7 @@ import (
 	"github.com/Jasrags/AnotherMUD/internal/economy"
 	"github.com/Jasrags/AnotherMUD/internal/entities"
 	"github.com/Jasrags/AnotherMUD/internal/eventbus"
+	"github.com/Jasrags/AnotherMUD/internal/chat"
 	"github.com/Jasrags/AnotherMUD/internal/help"
 	"github.com/Jasrags/AnotherMUD/internal/notifications"
 	"github.com/Jasrags/AnotherMUD/internal/progression"
@@ -250,6 +251,20 @@ type Env struct {
 	// choose between immediate delivery and persisted enqueue.
 	// nil-safe alongside Notifications.
 	TellResolver TellResolver
+
+	// ChatRegistry is the M13.6 channel catalog. Read by chat list /
+	// chat history and by the dynamically-registered per-channel
+	// verbs (ooc / admin / pack channels). nil-safe.
+	ChatRegistry *chat.Registry
+
+	// ChatSubscribers returns the online-subscriber set for a channel
+	// (entity id → canonical name). v1 returns every online player
+	// for every channel.
+	ChatSubscribers ChatSubscribers
+
+	// ChatScrollbacks returns the per-channel ring buffer. The
+	// publish path appends after fan-out; chat history reads tails.
+	ChatScrollbacks ChatScrollbacks
 }
 
 // TellResolver maps a player name to a recipient route. Returns
@@ -328,9 +343,14 @@ type Context struct {
 	// "Tells are not enabled." when either this or Notifications is
 	// nil.
 	TellResolver TellResolver
-	Raw          string   // raw input line, trimmed
-	Verb         string   // resolved verb (lowercase)
-	Args         []string // tokens after the verb (space-split)
+	// ChatRegistry / ChatSubscribers / ChatScrollbacks are the M13.6
+	// channel seams. nil in tests that don't exercise chat verbs.
+	ChatRegistry    *chat.Registry
+	ChatSubscribers ChatSubscribers
+	ChatScrollbacks ChatScrollbacks
+	Raw             string   // raw input line, trimmed
+	Verb            string   // resolved verb (lowercase)
+	Args            []string // tokens after the verb (space-split)
 }
 
 // Publish is the nil-safe shortcut every handler should use to emit
@@ -593,10 +613,13 @@ func (r *Registry) Dispatch(ctx context.Context, env Env, actor Actor, raw strin
 		Shop:        env.Shop,
 		Rest:          env.Rest,
 		Consumable:    env.Consumable,
-		Notifications: env.Notifications,
-		TellResolver:  env.TellResolver,
-		Raw:           trimmed,
-		Verb:          strings.ToLower(verb),
-		Args:          args,
+		Notifications:   env.Notifications,
+		TellResolver:    env.TellResolver,
+		ChatRegistry:    env.ChatRegistry,
+		ChatSubscribers: env.ChatSubscribers,
+		ChatScrollbacks: env.ChatScrollbacks,
+		Raw:             trimmed,
+		Verb:            strings.ToLower(verb),
+		Args:            args,
 	})
 }
