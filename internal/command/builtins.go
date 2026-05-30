@@ -74,6 +74,11 @@ func RegisterBuiltins(r *Registry) error {
 		{Keyword: "eat", Handler: EatHandler, Brief: "Eat food to restore sustenance.", Syntax: []string{"eat <food>"}},
 		{Keyword: "drink", Handler: DrinkHandler, Brief: "Drink to restore sustenance.", Syntax: []string{"drink <item>"}},
 		{Keyword: "use", Handler: UseHandler, Brief: "Use a consumable item.", Syntax: []string{"use <item>"}},
+
+		// Tells (M13.5).
+		{Keyword: "tell", Handler: TellHandler, Brief: "Send a private message to another player.", Syntax: []string{"tell <name> <message>"}},
+		{Keyword: "reply", Handler: ReplyHandler, Brief: "Reply to the player you last spoke with privately.", Syntax: []string{"reply <message>"}},
+		{Keyword: "tells", Handler: TellsHandler, Brief: "Review the tells you've received this session.", Syntax: []string{"tells"}},
 	}
 	for _, c := range commands {
 		if err := r.RegisterCommand(c); err != nil {

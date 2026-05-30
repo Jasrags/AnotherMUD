@@ -407,25 +407,32 @@ enqueued.
 
 ### 7.1 Storage layout
 
+**Resolved 2026-05-30 (M13 open-Q pass):** the substrate's
+`notifications.yaml` (see [notifications](notifications.md)
+§6.3) is the single source of truth for the offline
+backlog. There is *no* separate `tells.yaml` inbox file in
+v1 — tells, channel posts, and any future addressed message
+share one priority-ordered queue per recipient. The earlier
+spec wording that called for a dedicated `tells.yaml` inbox
+was written before M13.1 landed; it would have been
+double-persistence.
+
+The `last_tell_from` slot (the `reply` target) lives **in-
+memory on the session actor** for v1: set when a tell is
+delivered, cleared on logout. A server restart drops it; a
+reconnecting player gets `NoReplyTarget` until a new tell
+arrives. Persistence can be added later (as a tiny per-
+player file, or as a field on player.yaml) if the UX hit
+proves real.
+
 ```
 saves/
   players/
     <name>/
       player.yaml
-      tells.yaml      ← per-player tell inbox + last-sender slot
+      notifications.yaml   ← substrate queue, holds offline tells
+                              alongside any channel/system posts
 ```
-
-The `tells.yaml` file holds:
-
-- **inbox** — ordered list of undelivered tells, oldest
-  first. Each entry: `published_at`, `sender_name`,
-  `sender_id`, `text`.
-- **last_tell_from** — name of the player whose tell most
-  recently arrived (for `reply`). Cleared only on explicit
-  player action (not on read).
-
-`tells.yaml` is written atomically with the same rotation as
-`player.yaml`.
 
 ### 7.2 Drain on reconnect
 
@@ -435,11 +442,14 @@ Tell-priority notifications drain first. Each drained tell:
 
 1. Is written to the session writer with framing copy owned
    by this spec (e.g., `--- Tells while you were away ---`).
-2. Is removed from `tells.yaml` once the writer accepts the
-   line. (The notifications substrate guarantees this.)
+2. Is removed from the substrate queue once the writer
+   accepts the line. (The notifications substrate
+   guarantees this.)
 
 The `last_tell_from` slot is set to the *most recent* tell's
-sender after drain, so `reply` works immediately on login.
+sender after drain, so `reply` works immediately on login
+within the same process. After a server restart the slot is
+empty until a fresh tell arrives.
 
 ### 7.3 Inbox cap
 
@@ -453,15 +463,19 @@ tell evicts the oldest tell, **not** the new one:
 
 ### Acceptance — tells inbox
 
-- [ ] Tells received while offline appear in `tells.yaml`
-      and are delivered on the next login in publish order.
-- [ ] `tells.yaml` survives process restart and atomic-write
-      crashes the same way `player.yaml` does.
-- [ ] Inbox cap evicts oldest tell, not newest.
-- [ ] `last_tell_from` is set after drain so `reply` works
-      on the freshly-logged-in player.
-- [ ] An online player receives a tell with no inbox writes
-      (immediate delivery only).
+- [ ] Tells received while offline appear in
+      `notifications.yaml` (substrate queue) and are
+      delivered on the next login in publish order.
+- [ ] The substrate queue survives process restart and
+      atomic-write crashes the same way `player.yaml` does.
+- [ ] Substrate queue cap evicts oldest lowest-priority
+      entry, not newest (already enforced by notifications
+      §6.1).
+- [ ] `last_tell_from` (in-memory on the session actor) is
+      set after drain so `reply` works on the freshly-
+      logged-in player within the current process lifetime.
+- [ ] An online player receives a tell with no on-disk
+      writes (immediate delivery only).
 
 ---
 
@@ -560,8 +574,9 @@ layer emits:
 | Channel ring buffer cap (default) | 50 | Per-channel scrollback size when channel doesn't override. |
 | Channel ring buffer cap (override) | per-channel field | Channels may set their own (admin = 20, ooc = 100, etc.). |
 | Channel save cadence | autosave cadence | When to flush ring buffer to disk. |
-| Tell inbox cap | 50 | Max queued tells per offline player. Matches the notifications queue cap. |
-| Tell inbox TTL | none in v1 | No time-based expiry; cap-only eviction (oldest tell drops when full). |
+| Tell inbox cap | n/a — uses notifications queue cap (50) | Tells share the substrate's per-entity priority queue. |
+| Tell inbox TTL | n/a — uses notifications policy (none in v1) | Same. |
+| `last_tell_from` storage | in-memory on session actor (v1) | Survives within process lifetime; reset on server restart. Persistence can land later if UX demands it. |
 | Channel history default N | 20 | Default count for `chat history <channel>`. |
 | Tells session-history cap | 50 | In-memory recent-tells for `tells` verb. |
 | Subscriptions storage key | `chat.subscriptions` on player | Player-file location. |

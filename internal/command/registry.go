@@ -27,6 +27,7 @@ import (
 	"github.com/Jasrags/AnotherMUD/internal/entities"
 	"github.com/Jasrags/AnotherMUD/internal/eventbus"
 	"github.com/Jasrags/AnotherMUD/internal/help"
+	"github.com/Jasrags/AnotherMUD/internal/notifications"
 	"github.com/Jasrags/AnotherMUD/internal/progression"
 	"github.com/Jasrags/AnotherMUD/internal/quest"
 	"github.com/Jasrags/AnotherMUD/internal/slot"
@@ -238,6 +239,33 @@ type Env struct {
 	// eat/drink/use verbs route through it. nil in tests that don't
 	// exercise consumables; handlers MUST nil-guard.
 	Consumable *economy.ConsumableService
+
+	// Notifications is the M13.1 notification manager. The tell /
+	// reply verbs publish through it. nil-safe: with no manager
+	// wired the tell verbs print "Tells are not enabled."
+	Notifications *notifications.Manager
+
+	// TellResolver maps a player name to a recipient route (online
+	// actor or offline save). The tell / reply verbs consult it to
+	// choose between immediate delivery and persisted enqueue.
+	// nil-safe alongside Notifications.
+	TellResolver TellResolver
+}
+
+// TellResolver maps a player name to a recipient route. Returns
+// online actors when the recipient has a live session, or an
+// offline route (entity id + canonical name) when only a save file
+// exists. Implementations must match names case-insensitively
+// (spec chat-channels-and-tells §10: exact match, case-insensitive).
+type TellResolver interface {
+	// ResolveOnline returns the live actor named `name` if one is
+	// currently logged in.
+	ResolveOnline(name string) (Actor, bool)
+	// ResolveOffline returns (entityID, canonicalName, true) when a
+	// player save by that name exists but no session is live. The
+	// canonicalName is what notifications.Manager uses to find the
+	// recipient's notifications.yaml.
+	ResolveOffline(ctx context.Context, name string) (string, string, bool)
 }
 
 // DispositionHook is the seam movement and login flows call when a
@@ -292,9 +320,17 @@ type Context struct {
 	Rest *economy.RestService
 	// Consumable is the M11.5 consumable service. nil in tests.
 	Consumable *economy.ConsumableService
-	Raw        string   // raw input line, trimmed
-	Verb       string   // resolved verb (lowercase)
-	Args       []string // tokens after the verb (space-split)
+	// Notifications is the M13.1 notification manager. tell/reply
+	// publish through it. nil in tests that don't exercise tells.
+	Notifications *notifications.Manager
+	// TellResolver maps a player name to a recipient route. nil in
+	// tests that don't exercise tells; tell verbs surface
+	// "Tells are not enabled." when either this or Notifications is
+	// nil.
+	TellResolver TellResolver
+	Raw          string   // raw input line, trimmed
+	Verb         string   // resolved verb (lowercase)
+	Args         []string // tokens after the verb (space-split)
 }
 
 // Publish is the nil-safe shortcut every handler should use to emit
@@ -555,10 +591,12 @@ func (r *Registry) Dispatch(ctx context.Context, env Env, actor Actor, raw strin
 		Quests:      env.Quests,
 		Currency:    env.Currency,
 		Shop:        env.Shop,
-		Rest:        env.Rest,
-		Consumable:  env.Consumable,
-		Raw:         trimmed,
-		Verb:        strings.ToLower(verb),
-		Args:        args,
+		Rest:          env.Rest,
+		Consumable:    env.Consumable,
+		Notifications: env.Notifications,
+		TellResolver:  env.TellResolver,
+		Raw:           trimmed,
+		Verb:          strings.ToLower(verb),
+		Args:          args,
 	})
 }

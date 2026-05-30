@@ -220,6 +220,12 @@ type Config struct {
 	// releases. nil-safe.
 	Notifications *notifications.Manager
 
+	// TellResolver is the M13.5 player-name resolver consumed by
+	// the tell / reply verbs. Wired by the composition root from
+	// session.Manager (online) + player.Store (offline). nil-safe;
+	// when nil the tell verbs print "Tells are not enabled."
+	TellResolver command.TellResolver
+
 	// Currency is the M11.1 economy currency service (spec
 	// economy-survival §2). Passed through command.Env so the `gold`
 	// verb and the get/give auto-convert hook can credit/read the
@@ -717,28 +723,30 @@ func pump(ctx context.Context, c conn.Connection, cfg Config, a *connActor, clk 
 		}
 
 		env := command.Env{
-			World:       cfg.World,
-			Broadcaster: cfg.Manager,
-			Items:       cfg.Items,
-			Placement:   cfg.Placement,
-			Contents:    cfg.Contents,
-			Slots:       cfg.Slots,
-			Bus:         cfg.Bus,
-			Locator:     managerLocator{cfg.Manager},
-			Disposition: cfg.Disposition,
-			Combat:      cfg.Combat,
-			Flee:        cfg.Flee,
-			Progression: cfg.Progression,
-			Training:    cfg.Training,
-			Abilities:   cfg.Abilities,
-			Proficiency: cfg.Proficiency,
-			ActionQueue: cfg.ActionQueue,
-			Help:        cfg.Help,
-			Quests:      cfg.Quests,
-			Currency:    cfg.Currency,
-			Shop:        cfg.Shop,
-			Rest:        cfg.Rest,
-			Consumable:  cfg.Consumable,
+			World:         cfg.World,
+			Broadcaster:   cfg.Manager,
+			Items:         cfg.Items,
+			Placement:     cfg.Placement,
+			Contents:      cfg.Contents,
+			Slots:         cfg.Slots,
+			Bus:           cfg.Bus,
+			Locator:       managerLocator{cfg.Manager},
+			Disposition:   cfg.Disposition,
+			Combat:        cfg.Combat,
+			Flee:          cfg.Flee,
+			Progression:   cfg.Progression,
+			Training:      cfg.Training,
+			Abilities:     cfg.Abilities,
+			Proficiency:   cfg.Proficiency,
+			ActionQueue:   cfg.ActionQueue,
+			Help:          cfg.Help,
+			Quests:        cfg.Quests,
+			Currency:      cfg.Currency,
+			Shop:          cfg.Shop,
+			Rest:          cfg.Rest,
+			Consumable:    cfg.Consumable,
+			Notifications: cfg.Notifications,
+			TellResolver:  cfg.TellResolver,
 		}
 		if err := cfg.Commands.Dispatch(ctx, env, a, line); err != nil {
 			if errors.Is(err, command.ErrQuit) {
@@ -1442,6 +1450,16 @@ type connActor struct {
 	needsPromptRefresh bool
 	save               *player.Save
 	dirty              bool
+	// lastTellPartner is the display name of the most recent
+	// counterparty in a tell conversation (set on both publish and
+	// receive). The `reply` verb reads it. v1 in-memory only: a
+	// server restart clears it. Guarded by mu. (Spec
+	// chat-channels-and-tells §7.1.)
+	lastTellPartner string
+	// recentTells is a session-scoped ring of recently-received tell
+	// lines for the `tells` verb (a brief review of what scrolled past).
+	// In-memory only. Capped by tellsSessionHistoryCap. Guarded by mu.
+	recentTells []string
 	// saveGen is incremented on every mutation that flips dirty. Persist
 	// captures the value at snapshot time and only clears dirty if the
 	// counter hasn't advanced — guards against a concurrent equip /
@@ -1513,6 +1531,59 @@ func (a *connActor) SetColorEnabled(v bool) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	a.colorEnabled = v
+}
+
+// tellsSessionHistoryCap bounds connActor.recentTells (spec
+// chat-channels-and-tells §10). When the ring is full, the oldest
+// line evicts.
+const tellsSessionHistoryCap = 50
+
+// LastTellPartner returns the display name of the most recent
+// tell counterparty for this actor, or "" if none.
+func (a *connActor) LastTellPartner() string {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	return a.lastTellPartner
+}
+
+// SetLastTellPartner updates the reply slot. Empty strings are
+// silently ignored so a delivery that produced no sender name
+// can't blank an existing slot.
+func (a *connActor) SetLastTellPartner(name string) {
+	if name == "" {
+		return
+	}
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	a.lastTellPartner = name
+}
+
+// RecentTells returns a fresh copy of the in-session tell history
+// (oldest first). Safe for the caller to mutate.
+func (a *connActor) RecentTells() []string {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	if len(a.recentTells) == 0 {
+		return nil
+	}
+	out := make([]string, len(a.recentTells))
+	copy(out, a.recentTells)
+	return out
+}
+
+// AppendRecentTell pushes a line onto the session history ring.
+// Drops the oldest entry once the cap is reached.
+func (a *connActor) AppendRecentTell(line string) {
+	if line == "" {
+		return
+	}
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	a.recentTells = append(a.recentTells, line)
+	if len(a.recentTells) > tellsSessionHistoryCap {
+		// drop oldest
+		a.recentTells = a.recentTells[len(a.recentTells)-tellsSessionHistoryCap:]
+	}
 }
 
 // Write expands any color markup in msg per the actor's color

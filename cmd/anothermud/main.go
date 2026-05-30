@@ -1114,6 +1114,7 @@ func run() error {
 		Quests:        questSvc,
 		QuestStore:    questStore,
 		Notifications: notifMgr,
+		TellResolver:  session.TellResolver{Manager: mgr, Players: players},
 		Currency:     currencySvc,
 		Shop:         shopSvc,
 		Sustenance:   sustenanceSvc,
