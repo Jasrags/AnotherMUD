@@ -73,6 +73,20 @@ type Template struct {
 	// "fail-silent on missing template" convention.
 	Race string
 
+	// Class is the optional class id (progression.md §4.1). When
+	// set together with a positive Level, spawn applies
+	// `averageDice(class.StatGrowth[stat]) × level` to each
+	// stat-growth entry on the mob's StatBlock — the M14.3
+	// implementation of mobs-ai-spawning §3.2. Unknown class ids
+	// fail silently at spawn (consistent with race).
+	Class string
+
+	// Level is the mob's effective level for class-growth
+	// derivation. Zero (the default) disables the growth path
+	// regardless of Class — a templated mob with `class: fighter`
+	// but no level still spawns at base stats.
+	Level int
+
 	// TrainerTier is the cap-tier value (0/25/50/75/100) the mob
 	// can raise abilities TO when running as a `skill_trainer`
 	// (progression.md §7.3). Zero on non-trainer mobs. The pack

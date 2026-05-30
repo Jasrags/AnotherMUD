@@ -106,6 +106,7 @@ func run() error {
 		templates:    registries.Items,
 		mobTemplates: registries.Mobs,
 		races:        registries.Races,
+		classes:      registries.Classes,
 		bus:          bus,
 	}
 	if err := pack.Load(ctx, cfg.ContentDir, nil, registries, spawner, spawner); err != nil {
@@ -1332,6 +1333,7 @@ type bootSpawner struct {
 	templates    *item.Templates
 	mobTemplates *mob.Templates
 	races        *progression.RaceRegistry
+	classes      *progression.ClassRegistry
 	bus          *eventbus.Bus
 }
 
@@ -1419,6 +1421,30 @@ func (b *bootSpawner) spawnMob(ctx context.Context, templateID string, roomID wo
 				slog.String("race", rid))
 		}
 	}
+
+	// M14.3: class-bound stat growth (mobs-ai-spawning §3.2). If
+	// the template declares class + non-zero level, apply
+	// averageDice(growth) × level to each stat-growth entry under
+	// the srckey.ClassGrowth source key. Vitals.SetMax fires
+	// automatically through the M14.1 listener; spec §3.2 then
+	// requires current vitals reset to max so the level-applied HP
+	// is immediately available — Heal-to-full handles that.
+	if tpl.Class != "" && tpl.Level > 0 && b.classes != nil {
+		if cls, ok := b.classes.Get(tpl.Class); ok {
+			if progression.ApplyMobClassGrowth(inst.StatBlock(), cls, tpl.Level) {
+				if v := inst.Vitals(); v != nil {
+					_ = v.Heal(v.Max()) // top up to whatever the new max is
+				}
+			}
+		} else {
+			logging.From(ctx).Warn("mob spawn: unknown class id; mob spawned without growth",
+				slog.String("mob", string(inst.ID())),
+				slog.String("template", templateID),
+				slog.String("class", tpl.Class),
+				slog.Int("level", tpl.Level))
+		}
+	}
+
 	b.placement.Place(inst.ID(), roomID)
 	if b.bus != nil {
 		b.bus.Publish(ctx, eventbus.MobSpawned{

@@ -28,3 +28,11 @@ type SourceKey string
 func Equipment(id string) SourceKey {
 	return SourceKey("equipment:" + id)
 }
+
+// ClassGrowth returns the source key the mob-spawn class-growth path
+// (mobs-ai-spawning §3.2) applies its averaged-dice stat deltas
+// under. id is the class id. Removable as a unit if the mob's class
+// is ever rebound at runtime.
+func ClassGrowth(id string) SourceKey {
+	return SourceKey("class-growth:" + id)
+}

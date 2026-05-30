@@ -223,6 +223,16 @@ func (m *MobInstance) AddModifiers(src srckey.SourceKey, mods []stats.Modifier) 
 	m.statBlock.AddModifiers(src, mods)
 }
 
+// StatBlock returns the mob's underlying progression.StatBlock for
+// callers that need to read or compose against it directly — e.g.
+// the M14.3 spawn path running progression.ApplyMobClassGrowth.
+// The returned pointer is the live block, not a snapshot; StatBlock
+// owns its own mutex so concurrent callers do not need to
+// coordinate.
+func (m *MobInstance) StatBlock() *progression.StatBlock {
+	return m.statBlock
+}
+
 // RemoveBySource implements progression.EffectTarget — drops the
 // modifier set installed under src; reports whether anything was
 // removed.

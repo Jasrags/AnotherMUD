@@ -157,3 +157,36 @@ func TestDefaultUnarmedDamageIsNonZero(t *testing.T) {
 		t.Errorf("DefaultUnarmedDamage = %q, expected 1d<sides>", d.String())
 	}
 }
+
+// TestDiceExprAverage pins the M14.3 mob class-growth math:
+// integer averaging for NdM±K is (N*(M+1))/2 + K.
+func TestDiceExprAverage(t *testing.T) {
+	cases := []struct {
+		expr string
+		want int
+	}{
+		{"1d6", 3},      // (1*(6+1))/2 = 3
+		{"2d6", 7},      // (2*(6+1))/2 = 7
+		{"1d10", 5},     // (1*(10+1))/2 = 5
+		{"1d10+2", 7},   // 5 + 2
+		{"3d6+1", 11},   // 3*7/2 + 1 = 10 + 1 = 11
+		{"1d2", 1},      // (1*3)/2 = 1 (integer truncation)
+		{"1d4-1", 1},    // (1*5)/2 - 1 = 2 - 1 = 1
+	}
+	for _, c := range cases {
+		d, err := ParseDice(c.expr)
+		if err != nil {
+			t.Fatalf("ParseDice %q: %v", c.expr, err)
+		}
+		if got := d.Average(); got != c.want {
+			t.Errorf("Average(%q) = %d, want %d", c.expr, got, c.want)
+		}
+	}
+}
+
+func TestDiceExprAverageZeroExpr(t *testing.T) {
+	var d DiceExpr
+	if got := d.Average(); got != 0 {
+		t.Errorf("Average(zero) = %d, want 0", got)
+	}
+}

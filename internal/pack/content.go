@@ -102,6 +102,15 @@ type MobFile struct {
 	// matching the spec's fail-silent convention).
 	Race string `yaml:"race,omitempty"`
 
+	// Class is the optional class id (M14.3 — mobs-ai-spawning §3.2).
+	// When set together with a positive Level, the mob spawner
+	// applies class-growth × level to stat-growth entries.
+	Class string `yaml:"class,omitempty"`
+
+	// Level is the optional level (M14.3). Zero disables class
+	// growth even when Class is set.
+	Level int `yaml:"level,omitempty"`
+
 	// BaseDisposition is the static reaction string (spec §5.1).
 	// Optional; when present overrides player-state-driven rules
 	// only for the `hostile` value (§5.3 step 3).

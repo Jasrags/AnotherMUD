@@ -1316,6 +1316,8 @@ func decodeMob(path, ns string) (*mob.Template, error) {
 		Stats:            f.Stats,
 		Equipment:        f.Equipment,
 		Race:             strings.ToLower(strings.TrimSpace(f.Race)),
+		Class:            strings.ToLower(strings.TrimSpace(f.Class)),
+		Level:            f.Level,
 		TrainerTier:      tier,
 		TrainerTeach:     teach,
 	}, nil

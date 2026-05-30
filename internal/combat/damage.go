@@ -79,6 +79,22 @@ func ParseDice(s string) (DiceExpr, error) {
 	return DiceExpr{Count: count, Sides: sides, Modifier: mod}, nil
 }
 
+// Average returns the integer arithmetic mean of the dice expression
+// (mobs-ai-spawning §3.2 mob class-growth derivation). For NdM±K the
+// mean is `count*(sides+1)/2 + modifier` using integer division —
+// 1d6 → 3, 2d6 → 7, 1d10+2 → 7. A zero expression returns 0.
+//
+// Used at mob spawn for class-bound stat growth: `Average() × level`
+// is added to the relevant base stats once and stored on the
+// StatBlock under srckey.ClassGrowth so the result is observable
+// to combat and to renderers without re-deriving each tick.
+func (d DiceExpr) Average() int {
+	if d.Count <= 0 || d.Sides <= 0 {
+		return 0
+	}
+	return d.Count*(d.Sides+1)/2 + d.Modifier
+}
+
 // Roll evaluates the expression using r. Each die contributes a value
 // in [1, Sides]. The flat Modifier is added once at the end. A nil
 // receiver-equivalent (zero DiceExpr) returns 0; callers that want a
