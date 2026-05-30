@@ -1842,6 +1842,48 @@ the next milestone in flight.
 
 ---
 
+### M13 — Social MUD
+
+**Slice:** players can talk to each other across the world, not just in
+their current room. Notification queue substrate, then tells, then
+multi-recipient channels, then emotes. First themed milestone driven by
+`docs/THEME-AXIS-PLAN.md` (Theme A).
+
+**Why this:** the world is real but socially flat — players in different
+rooms have no way to interact. This is the single highest-leverage
+product addition for a single-developer MUD; everything else (combat,
+quests, training) gains weight once players can actually coordinate.
+
+**Live plan + current step:** `docs/themes/social-mud-plan.md`.
+
+**Pre-decisions locked (2026-05-30):**
+- Channels: hybrid (engine baseline + pack-defined additions)
+- History: per-channel global ring buffer + per-player persisted tell inbox
+- Ignore/block: deferred to a follow-up after channels land
+- GMCP: plain telnet only (GMCP `Comm.Channel` is Theme B's job)
+
+**Sub-milestones (exit criteria filled in during spec phase):**
+- [ ] **M13.1 — Notification queue.** Per-entity priority queue substrate.
+      Spec + impl. Smallest, isolated.
+- [ ] **M13.2 — Tells.** Per-player `tells.yaml` inbox. Offline tells
+      deliver on next login. `tell` + `reply` verbs.
+- [ ] **M13.3 — Channels.** Hybrid ownership. Global per-channel ring
+      buffer in `saves/channels/<id>.yaml`. Engine baseline `ooc` +
+      `admin`; pack-channel YAML schema. Verbs per channel.
+- [ ] **M13.4 — Emotes.** Registry-driven emote table with actor/target/
+      room pronoun substitution. `smile`, `nod`, etc.
+
+**Touches specs:** new `social-and-notifications.md` spec (or extension
+to `session-lifecycle` + `commands-and-dispatch`; decided in M13.1).
+`persistence` (new `saves/channels/` dir + `tells.yaml` shape + player-
+save version bump for inbox pointer if needed).
+
+**Demo target:** Two players in different rooms chat over `ooc`; one
+tells the other privately; one emotes; both see channel history on
+reconnect; the offline tell delivers when the recipient logs back in.
+
+---
+
 ## How to use this document
 
 - The **current milestone** is whichever section above has unchecked

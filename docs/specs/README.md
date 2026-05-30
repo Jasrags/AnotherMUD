@@ -33,6 +33,9 @@ The pieces that everything else stands on.
   discovery, two-phase loading, JS runtime, validation.
 - [networking-protocols](networking-protocols.md) — IConnection,
   telnet negotiation, GMCP, MSSP, WebSocket envelopes.
+- [notifications](notifications.md) — per-entity priority queue
+  for asynchronous addressed messages (tells, channel posts,
+  system notices); offline routing and bounded growth.
 
 ### 2. World and entities
 
@@ -66,6 +69,14 @@ The verbs players use and the systems that resolve them.
   objectives, rewards, auto-tracking watcher, markers.
 - [economy-survival](economy-survival.md) — currency, shops,
   sustenance, rest, consumables.
+- [chat-channels-and-tells](chat-channels-and-tells.md) —
+  multi-recipient channels (engine baseline + pack-defined),
+  one-to-one private tells with offline inbox, per-channel
+  global scrollback; consumer of the notifications substrate.
+- [emotes](emotes.md) — table-driven and freeform room-scoped
+  social actions with actor/target/room view substitution;
+  uses the per-room broadcast path, not the notifications
+  queue.
 
 ### 4. Player lifecycle
 
@@ -149,6 +160,15 @@ Each spec calls out what it persists. The aggregate view:
   equipment, inventory, flat item list.
 - **Quest file** (sibling of player file) — active list,
   completed list.
+- **Notifications file** (sibling of player file) — per-entity
+  priority queue of undelivered messages awaiting drain on
+  reconnect; see [notifications](notifications.md) §6.3.
+- **Tells file** (sibling of player file) — per-player tell
+  inbox (offline-delivery queue) + `last_tell_from` slot for
+  `reply`; see [chat-channels-and-tells](chat-channels-and-tells.md) §7.1.
+- **Channel files** — global per-channel ring buffer of recent
+  messages, shared scrollback across all players; lives under
+  `saves/channels/`; see [chat-channels-and-tells](chat-channels-and-tells.md) §4.
 - **Connection records** — content-defined, loaded by the pack
   pipeline after content load.
 - **NOT persisted** — sessions, link-dead state, in-game time,
