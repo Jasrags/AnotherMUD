@@ -1884,6 +1884,58 @@ reconnect; the offline tell delivers when the recipient logs back in.
 
 ---
 
+### M14 — Engine Debt
+
+**Slice:** close the half-wired deferrals that accumulated across
+M8-M11. The import cycle is already resolved (cluster 1, `af94b0c`);
+this milestone finishes the consumers. No user-visible demo by
+design — Theme E is internal cleanup that unblocks Themes B / C / D.
+
+**Why this:** several real bugs hide behind these gaps today. A
+potion's `effect_id` is published but never applied. A stat-change
+event that raises max-HP doesn't bump current-HP. A mob's declared
+race+class never shapes its actual stats. Each is a small piece;
+together they're the engine substrate showing through.
+
+**Live plan + current step:** `docs/themes/engine-debt-plan.md`.
+
+**Sub-milestones (order: independent block first, then chained):**
+- [ ] **M14.1 — Vital re-clamp on max-affecting stat recompute.**
+      Listener seam on the stats recompute path; max changes flow
+      to `combat.Vitals.SetMax` with current clamped as needed.
+- [ ] **M14.2 — Consumable EffectTemplate registry.** New
+      `internal/effect.Registry` + pack-loaded `effects/*.yaml` +
+      subscriber on `item.consumed` that resolves `effect_id` and
+      applies via `effectMgr.Apply`.
+- [ ] **M14.3 — Mob stat derivation from race + class.** Wire the
+      race / class lookups into `Store.SpawnMob`; apply modifiers
+      to `MobInstance.StatBlock` under `race:<id>` and `class:<id>`
+      source keys at spawn.
+- [ ] **M14.4 — Property registry on persistence.** New
+      `internal/property.Registry` + tagged-value envelope codec;
+      integrate with player save and entity instance properties.
+- [ ] **M14.5 — `world.Room.Property` bag.** Depends on M14.4.
+      Adds the property bag to `world.Room`; pack-loadable.
+- [ ] **M14.6 — `quest_grant` on room.** Depends on M14.5. Quest
+      watcher extends its existing item-side grant handler to
+      read room properties on room-entry.
+
+**Touches specs:** `progression` (vital re-clamp), `mobs-ai-spawning`
+§3.2 (stat derivation), `economy-survival` (consumables),
+`persistence` §2/§4.4 (property registry), `world-rooms-movement`
+§2.2 (room property bag), `quests` (room-side grant).
+
+**Pre-decisions (see plan doc):** PD-1 through PD-6 — package
+location for property + effect registries, tagged-value envelope
+type system, vital re-clamp mechanism, mob derivation timing,
+pack-file glob additions.
+
+**Closes from memory:** `m8-1` (vital re-clamp + mob StatBlock
+consumer), `m11-5` (item.consumed effect application), `m10-9`
+(quest_grant on room), `m6-2` (mob stat derivation).
+
+---
+
 ## How to use this document
 
 - The **current milestone** is whichever section above has unchecked
