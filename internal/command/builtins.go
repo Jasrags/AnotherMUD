@@ -86,6 +86,11 @@ func RegisterBuiltins(r *Registry) error {
 		// verbs.
 		{Keyword: "channels", Aliases: []string{"chanlist"}, Handler: ChatListHandler, Brief: "List the chat channels available to you.", Syntax: []string{"channels"}},
 		{Keyword: "chathistory", Aliases: []string{"chhist"}, Handler: ChatHistoryHandler, Brief: "Show recent messages on a channel.", Syntax: []string{"chathistory <channel>", "chathistory <channel> <n>"}},
+
+		// Emotes (M13.7). Table-driven emote verbs (smile, nod,
+		// wave, …) are registered dynamically at composition time
+		// from emote.Registry; this is the freeform pose verb.
+		{Keyword: "emote", Aliases: []string{"pose"}, Handler: EmoteFreeformHandler, Brief: "Emote freeform text to the room.", Syntax: []string{"emote <text>"}},
 	}
 	for _, c := range commands {
 		if err := r.RegisterCommand(c); err != nil {

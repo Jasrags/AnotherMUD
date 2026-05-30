@@ -37,6 +37,7 @@ import (
 	"github.com/Jasrags/AnotherMUD/internal/progression"
 	"github.com/Jasrags/AnotherMUD/internal/quest"
 	"github.com/Jasrags/AnotherMUD/internal/chat"
+	"github.com/Jasrags/AnotherMUD/internal/emote"
 	"github.com/Jasrags/AnotherMUD/internal/notifications"
 	"github.com/Jasrags/AnotherMUD/internal/queststore"
 	"github.com/Jasrags/AnotherMUD/internal/questwatch"
@@ -206,6 +207,23 @@ func run() error {
 	for _, ch := range chatRegistry.All() {
 		if err := cmds.Register(ch.DisplayName, command.MakeChannelHandler(ch)); err != nil {
 			return fmt.Errorf("register channel verb %q: %w", ch.DisplayName, err)
+		}
+	}
+
+	// M13.7: emote registry + engine baseline. Like channels, the
+	// pack-loaded YAML path is M13.7b. Per-emote verbs (and any
+	// declared aliases) register into the command registry now.
+	emoteRegistry := emote.NewRegistry()
+	registerBaselineEmotes(emoteRegistry)
+	for _, e := range emoteRegistry.All() {
+		handler := command.MakeEmoteHandler(e)
+		if err := cmds.Register(e.DisplayName, handler); err != nil {
+			return fmt.Errorf("register emote verb %q: %w", e.DisplayName, err)
+		}
+		for _, alias := range e.Aliases {
+			if err := cmds.Register(alias, handler); err != nil {
+				return fmt.Errorf("register emote alias %q: %w", alias, err)
+			}
 		}
 	}
 
@@ -2439,4 +2457,101 @@ type chatScrollbackLookup struct{ m map[string]*chat.Scrollback }
 
 func (l chatScrollbackLookup) Scrollback(channelID string) *chat.Scrollback {
 	return l.m[channelID]
+}
+
+// registerBaselineEmotes seeds the engine emote set. Per spec §8 the
+// minimum baseline is smile/nod/wave/bow/grin/shrug/laugh; v1 ships
+// the full set here. M13.7b moves these into pack content YAML.
+func registerBaselineEmotes(reg *emote.Registry) {
+	baseline := []emote.Emote{
+		{
+			ID: "tapestry-core:smile", DisplayName: "smile",
+			NoTarget: emote.View{
+				ActorView: "You smile.",
+				RoomView:  "$n smiles.",
+			},
+			Targeted: emote.View{
+				ActorView:  "You smile at $N.",
+				TargetView: "$n smiles at you.",
+				RoomView:   "$n smiles at $N.",
+			},
+		},
+		{
+			ID: "tapestry-core:nod", DisplayName: "nod",
+			NoTarget: emote.View{
+				ActorView: "You nod.",
+				RoomView:  "$n nods.",
+			},
+			Targeted: emote.View{
+				ActorView:  "You nod to $N.",
+				TargetView: "$n nods to you.",
+				RoomView:   "$n nods to $N.",
+			},
+		},
+		{
+			ID: "tapestry-core:wave", DisplayName: "wave",
+			NoTarget: emote.View{
+				ActorView: "You wave.",
+				RoomView:  "$n waves.",
+			},
+			Targeted: emote.View{
+				ActorView:  "You wave to $N.",
+				TargetView: "$n waves to you.",
+				RoomView:   "$n waves to $N.",
+			},
+		},
+		{
+			ID: "tapestry-core:bow", DisplayName: "bow",
+			NoTarget: emote.View{
+				ActorView: "You bow deeply.",
+				RoomView:  "$n bows deeply.",
+			},
+			Targeted: emote.View{
+				ActorView:  "You bow to $N.",
+				TargetView: "$n bows to you.",
+				RoomView:   "$n bows to $N.",
+			},
+		},
+		{
+			ID: "tapestry-core:grin", DisplayName: "grin",
+			NoTarget: emote.View{
+				ActorView: "You grin.",
+				RoomView:  "$n grins.",
+			},
+			Targeted: emote.View{
+				ActorView:  "You grin at $N.",
+				TargetView: "$n grins at you.",
+				RoomView:   "$n grins at $N.",
+			},
+		},
+		{
+			ID: "tapestry-core:shrug", DisplayName: "shrug",
+			NoTarget: emote.View{
+				ActorView: "You shrug.",
+				RoomView:  "$n shrugs.",
+			},
+			Targeted: emote.View{
+				ActorView:  "You shrug at $N.",
+				TargetView: "$n shrugs at you.",
+				RoomView:   "$n shrugs at $N.",
+			},
+		},
+		{
+			ID: "tapestry-core:laugh", DisplayName: "laugh",
+			NoTarget: emote.View{
+				ActorView: "You laugh.",
+				RoomView:  "$n laughs.",
+			},
+			Targeted: emote.View{
+				ActorView:  "You laugh at $N.",
+				TargetView: "$n laughs at you.",
+				RoomView:   "$n laughs at $N.",
+			},
+		},
+	}
+	for _, e := range baseline {
+		if err := reg.Register(e); err != nil {
+			panic(fmt.Sprintf("baseline emote %q: %v", e.ID, err))
+		}
+	}
 }
