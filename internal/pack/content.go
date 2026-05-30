@@ -190,6 +190,10 @@ type RoomFile struct {
 	// Tags are content-defined room flags (e.g. "safe-room", "safe").
 	// Copied onto world.Room.Tags at load. Absent → no tags.
 	Tags []string `yaml:"tags,omitempty"`
+	// Properties is the M14.5 free-form property bag (spec §2.2).
+	// Each entry's name is validated against the property registry
+	// at load (snake_case, registered, type-matched). Absent → empty.
+	Properties map[string]any `yaml:"properties,omitempty"`
 }
 
 // TrackFile is the YAML shape for a progression-track definition

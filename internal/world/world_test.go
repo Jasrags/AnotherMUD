@@ -117,3 +117,70 @@ func TestWorld_Move(t *testing.T) {
 		}
 	})
 }
+
+// TestRoomPropertyAccessors pins the M14.5 property bag surface:
+// typed accessors return (value, true) when the property is set
+// AND of the right type, otherwise (zero, false).
+func TestRoomPropertyAccessors(t *testing.T) {
+	r := &world.Room{Properties: map[string]any{
+		"quest_grant": "tapestry-core:village-welcome",
+		"some_count":  3,
+		"is_special":  true,
+		"wrong_type":  "not an int",
+	}}
+
+	// Raw Property always returns the stored value.
+	if v, ok := r.Property("quest_grant"); !ok || v != "tapestry-core:village-welcome" {
+		t.Errorf("Property = %v ok=%v", v, ok)
+	}
+
+	// PropertyString
+	if s, ok := r.PropertyString("quest_grant"); !ok || s != "tapestry-core:village-welcome" {
+		t.Errorf("PropertyString quest_grant = %q ok=%v", s, ok)
+	}
+	if _, ok := r.PropertyString("some_count"); ok {
+		t.Error("PropertyString on int: want miss")
+	}
+
+	// PropertyInt
+	if n, ok := r.PropertyInt("some_count"); !ok || n != 3 {
+		t.Errorf("PropertyInt some_count = %d ok=%v", n, ok)
+	}
+	if _, ok := r.PropertyInt("wrong_type"); ok {
+		t.Error("PropertyInt on string: want miss")
+	}
+
+	// PropertyBool
+	if b, ok := r.PropertyBool("is_special"); !ok || !b {
+		t.Errorf("PropertyBool is_special = %v ok=%v", b, ok)
+	}
+
+	// Absent key
+	if _, ok := r.Property("nope"); ok {
+		t.Error("Property absent: want miss")
+	}
+}
+
+// TestRoomPropertyNilSafety: a nil Room or a Room with nil
+// Properties returns zero/false on every accessor without
+// panicking.
+func TestRoomPropertyNilSafety(t *testing.T) {
+	var r *world.Room
+	if _, ok := r.Property("anything"); ok {
+		t.Error("nil receiver: want miss")
+	}
+
+	empty := &world.Room{}
+	if _, ok := empty.Property("anything"); ok {
+		t.Error("nil Properties: want miss")
+	}
+	if _, ok := empty.PropertyString("x"); ok {
+		t.Error("nil Properties PropertyString: want miss")
+	}
+	if _, ok := empty.PropertyInt("x"); ok {
+		t.Error("nil Properties PropertyInt: want miss")
+	}
+	if _, ok := empty.PropertyBool("x"); ok {
+		t.Error("nil Properties PropertyBool: want miss")
+	}
+}

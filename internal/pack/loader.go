@@ -18,6 +18,7 @@ import (
 	"github.com/Jasrags/AnotherMUD/internal/logging"
 	"github.com/Jasrags/AnotherMUD/internal/mob"
 	"github.com/Jasrags/AnotherMUD/internal/progression"
+	"github.com/Jasrags/AnotherMUD/internal/property"
 	"github.com/Jasrags/AnotherMUD/internal/quest"
 	"github.com/Jasrags/AnotherMUD/internal/render"
 	"github.com/Jasrags/AnotherMUD/internal/slot"
@@ -259,6 +260,13 @@ func loadPackContent(ctx context.Context, p Discovered, dst *Registries) ([]pend
 		r, items, mobs, err := decodeRoom(rp, ns)
 		if err != nil {
 			return nil, nil, err
+		}
+		// M14.5: validate Properties against the property registry
+		// before the room is committed to the world. Snake-case,
+		// known-name, and type-match are all enforced here so a
+		// content error surfaces at boot rather than at first read.
+		if err := validateRoomProperties(r, dst.Properties, ns); err != nil {
+			return nil, nil, fmt.Errorf("%w (in %s)", err, rp)
 		}
 		if err := dst.World.TryAddRoom(r); err != nil {
 			return nil, nil, fmt.Errorf("%w (in %s)", err, rp)
@@ -1169,6 +1177,7 @@ func decodeRoom(path, ns string) (*world.Room, []string, []string, error) {
 		Exits:       make(map[world.Direction]world.Exit, len(rf.Exits)),
 		HealingRate: rf.HealingRate,
 		Tags:        append([]string(nil), rf.Tags...),
+		Properties:  copyProperties(rf.Properties),
 	}
 	for dirStr, target := range rf.Exits {
 		dir, ok := world.ParseDirection(dirStr)
@@ -1537,4 +1546,83 @@ func validateExits(dst *world.World) error {
 		}
 	}
 	return nil
+}
+
+// copyProperties returns a fresh copy of the input map so the loaded
+// world.Room owns its property bag without sharing storage with the
+// transient YAML decode struct. nil input → nil output.
+func copyProperties(src map[string]any) map[string]any {
+	if len(src) == 0 {
+		return nil
+	}
+	out := make(map[string]any, len(src))
+	for k, v := range src {
+		out[k] = v
+	}
+	return out
+}
+
+// validateRoomProperties checks every entry in r.Properties against
+// the supplied property registry. Errors when:
+//   - the property name is not registered (looked up with `ns` as
+//     the current-pack shorthand context),
+//   - the stored value does not match the registered ValueType.
+//
+// Skips silently when reg is nil (room-only tests with no registry
+// wired) or when the room has no Properties — empty bags are valid.
+//
+// Spec: docs/specs/persistence.md §2 (registry); spec
+// world-rooms-movement §2.2 (room property bag).
+func validateRoomProperties(r *world.Room, reg *property.Registry, ns string) error {
+	if r == nil || len(r.Properties) == 0 || reg == nil {
+		return nil
+	}
+	for name, raw := range r.Properties {
+		entry, ok := reg.Get(name, ns)
+		if !ok {
+			return fmt.Errorf("%w: room %q property %q is not registered",
+				ErrInvalidContent, r.ID, name)
+		}
+		if !valueMatchesType(raw, entry.Type) {
+			return fmt.Errorf("%w: room %q property %q: value %T does not match registered type %s",
+				ErrInvalidContent, r.ID, name, raw, entry.Type)
+		}
+	}
+	return nil
+}
+
+// valueMatchesType reports whether v's runtime type satisfies the
+// registered ValueType. YAML decode produces Go primitives directly
+// for the simple cases; the int / int64 distinction is intentional
+// — int registers as int, an authoring `1` in YAML decodes as int,
+// while `int64` is reserved for explicit long-form values the engine
+// supplies in code.
+func valueMatchesType(v interface{}, t property.ValueType) bool {
+	switch t {
+	case property.TypeString:
+		_, ok := v.(string)
+		return ok
+	case property.TypeInt:
+		_, ok := v.(int)
+		return ok
+	case property.TypeInt64:
+		_, ok := v.(int64)
+		return ok
+	case property.TypeFloat64:
+		_, ok := v.(float64)
+		return ok
+	case property.TypeBool:
+		_, ok := v.(bool)
+		return ok
+	case property.TypeMapInt:
+		_, ok := v.(map[string]int)
+		return ok
+	case property.TypeMapString:
+		_, ok := v.(map[string]string)
+		return ok
+	case property.TypeListString:
+		_, ok := v.([]string)
+		return ok
+	}
+	return false
 }

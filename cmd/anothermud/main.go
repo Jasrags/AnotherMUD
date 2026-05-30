@@ -39,6 +39,7 @@ import (
 	"github.com/Jasrags/AnotherMUD/internal/chat"
 	"github.com/Jasrags/AnotherMUD/internal/emote"
 	"github.com/Jasrags/AnotherMUD/internal/notifications"
+	"github.com/Jasrags/AnotherMUD/internal/property"
 	"github.com/Jasrags/AnotherMUD/internal/queststore"
 	"github.com/Jasrags/AnotherMUD/internal/questwatch"
 	"github.com/Jasrags/AnotherMUD/internal/render"
@@ -86,6 +87,14 @@ func run() error {
 	// silently overriding (spec inventory-equipment-items §3.1).
 	if err := slot.RegisterEngineBaseline(registries.Slots); err != nil {
 		return fmt.Errorf("register engine baseline slots: %w", err)
+	}
+	// M14.5: engine baseline property registrations. The room loader
+	// (and any future entity-side property validator) consults this
+	// registry. Pack-scoped property registrations belong in their
+	// owning feature's init code; the engine declares only what every
+	// pack can rely on existing.
+	if err := registerEngineBaselineProperties(registries.Properties); err != nil {
+		return fmt.Errorf("register engine baseline properties: %w", err)
 	}
 
 	// entityStore + placement are constructed at boot so the tag-swap
@@ -2517,6 +2526,32 @@ type chatScrollbackLookup struct{ m map[string]*chat.Scrollback }
 
 func (l chatScrollbackLookup) Scrollback(channelID string) *chat.Scrollback {
 	return l.m[channelID]
+}
+
+// registerEngineBaselineProperties seeds the engine-known property
+// keys. Today's set is small — quest_grant on rooms is the only new
+// consumer in M14.5; the registration shape is the seam that future
+// engine-side properties (door state, weather override, etc.) will
+// extend. Pack-scoped properties belong in their owning feature's
+// boot code via Registry.RegisterPack.
+func registerEngineBaselineProperties(reg *property.Registry) error {
+	if reg == nil {
+		return nil
+	}
+	baseline := []property.Entry{
+		{
+			Name:        "quest_grant",
+			Type:        property.TypeString,
+			Description: "Quest id auto-accepted on item pickup or room entry (spec quests §7.2).",
+			AppliesTo:   []string{"item", "room"},
+		},
+	}
+	for _, e := range baseline {
+		if err := reg.RegisterEngine(e); err != nil {
+			return fmt.Errorf("baseline property %q: %w", e.Name, err)
+		}
+	}
+	return nil
 }
 
 // registerBaselineEmotes seeds the engine emote set. Per spec §8 the

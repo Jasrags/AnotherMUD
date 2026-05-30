@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/Jasrags/AnotherMUD/internal/item"
+	"github.com/Jasrags/AnotherMUD/internal/property"
 	"github.com/Jasrags/AnotherMUD/internal/slot"
 	"github.com/Jasrags/AnotherMUD/internal/world"
 )
@@ -1548,5 +1549,119 @@ content:
 	err := Load(context.Background(), root, nil, NewRegistries(), nil, nil)
 	if err == nil {
 		t.Fatal("duplicate effect id: expected error")
+	}
+}
+
+// TestLoadRoomProperties_Validated pins the M14.5 room property
+// bag: a known property of the right type loads onto world.Room.
+func TestLoadRoomProperties_Validated(t *testing.T) {
+	root := t.TempDir()
+	pack := filepath.Join(root, "core")
+	writeFile(t, filepath.Join(pack, "pack.yaml"), `
+name: tapestry-core
+content:
+  areas: [areas/*.yaml]
+  rooms: [rooms/*.yaml]
+`)
+	writeFile(t, filepath.Join(pack, "areas/town.yaml"), "id: town\nname: Town\n")
+	writeFile(t, filepath.Join(pack, "rooms/inn.yaml"), `
+id: inn
+area: town
+name: Inn
+properties:
+  quest_grant: village-welcome
+`)
+
+	regs := NewRegistries()
+	if err := regs.Properties.RegisterEngine(property.Entry{
+		Name: "quest_grant", Type: property.TypeString,
+	}); err != nil {
+		t.Fatalf("baseline register: %v", err)
+	}
+	if err := Load(context.Background(), root, nil, regs, nil, nil); err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	inn, err := regs.World.Room("tapestry-core:inn")
+	if err != nil {
+		t.Fatalf("Room: %v", err)
+	}
+	if s, ok := inn.PropertyString("quest_grant"); !ok || s != "village-welcome" {
+		t.Errorf("inn quest_grant = %q ok=%v", s, ok)
+	}
+}
+
+// TestLoadRoomProperties_UnknownNameRejected pins that an
+// unregistered property name fails the load loudly.
+func TestLoadRoomProperties_UnknownNameRejected(t *testing.T) {
+	root := t.TempDir()
+	pack := filepath.Join(root, "core")
+	writeFile(t, filepath.Join(pack, "pack.yaml"), `
+name: tapestry-core
+content:
+  areas: [areas/*.yaml]
+  rooms: [rooms/*.yaml]
+`)
+	writeFile(t, filepath.Join(pack, "areas/town.yaml"), "id: town\nname: Town\n")
+	writeFile(t, filepath.Join(pack, "rooms/inn.yaml"), `
+id: inn
+area: town
+name: Inn
+properties:
+  banana_count: 5
+`)
+	regs := NewRegistries()
+	if err := Load(context.Background(), root, nil, regs, nil, nil); err == nil {
+		t.Fatal("unknown property: want error")
+	}
+}
+
+// TestLoadRoomProperties_TypeMismatchRejected pins that a known
+// name but wrong type fails the load with a clear message.
+func TestLoadRoomProperties_TypeMismatchRejected(t *testing.T) {
+	root := t.TempDir()
+	pack := filepath.Join(root, "core")
+	writeFile(t, filepath.Join(pack, "pack.yaml"), `
+name: tapestry-core
+content:
+  areas: [areas/*.yaml]
+  rooms: [rooms/*.yaml]
+`)
+	writeFile(t, filepath.Join(pack, "areas/town.yaml"), "id: town\nname: Town\n")
+	writeFile(t, filepath.Join(pack, "rooms/inn.yaml"), `
+id: inn
+area: town
+name: Inn
+properties:
+  quest_grant: 42
+`)
+	regs := NewRegistries()
+	_ = regs.Properties.RegisterEngine(property.Entry{Name: "quest_grant", Type: property.TypeString})
+	err := Load(context.Background(), root, nil, regs, nil, nil)
+	if err == nil {
+		t.Fatal("type mismatch: want error")
+	}
+}
+
+// TestLoadRoomProperties_EmptyBagOK pins that a room without a
+// properties block (or with an empty one) loads without error.
+func TestLoadRoomProperties_EmptyBagOK(t *testing.T) {
+	root := t.TempDir()
+	pack := filepath.Join(root, "core")
+	writeFile(t, filepath.Join(pack, "pack.yaml"), `
+name: tapestry-core
+content:
+  areas: [areas/*.yaml]
+  rooms: [rooms/*.yaml]
+`)
+	writeFile(t, filepath.Join(pack, "areas/town.yaml"), "id: town\nname: Town\n")
+	writeFile(t, filepath.Join(pack, "rooms/inn.yaml"), "id: inn\narea: town\nname: Inn\n")
+
+	regs := NewRegistries()
+	if err := Load(context.Background(), root, nil, regs, nil, nil); err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	inn, _ := regs.World.Room("tapestry-core:inn")
+	if len(inn.Properties) != 0 {
+		t.Errorf("empty bag: got %v", inn.Properties)
 	}
 }

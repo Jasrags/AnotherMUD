@@ -6,6 +6,7 @@ import (
 	"github.com/Jasrags/AnotherMUD/internal/item"
 	"github.com/Jasrags/AnotherMUD/internal/mob"
 	"github.com/Jasrags/AnotherMUD/internal/progression"
+	"github.com/Jasrags/AnotherMUD/internal/property"
 	"github.com/Jasrags/AnotherMUD/internal/quest"
 	"github.com/Jasrags/AnotherMUD/internal/render"
 	"github.com/Jasrags/AnotherMUD/internal/slot"
@@ -43,6 +44,12 @@ type Registries struct {
 	// item.consumed subscriber resolves an event's effect_id through
 	// this registry before calling EffectManager.Apply.
 	Effects *effect.Registry
+	// Properties is the M14.4 property-key registry. Engine code
+	// registers known property keys at boot (RegisterEngine); pack
+	// init code may register pack-scoped keys (RegisterPack). The
+	// room loader validates each room's Properties bag against this
+	// registry — snake_case + known-name + type-match.
+	Properties *property.Registry
 }
 
 // NewRegistries returns a Registries with every field initialized.
@@ -62,7 +69,8 @@ func NewRegistries() *Registries {
 		Abilities: progression.NewAbilityRegistry(),
 		Theme:     render.NewThemeRegistry(),
 		Help:      help.NewService(),
-		Quests:    quest.NewRegistry(),
-		Effects:   effect.NewRegistry(),
+		Quests:     quest.NewRegistry(),
+		Effects:    effect.NewRegistry(),
+		Properties: property.NewRegistry(),
 	}
 }
