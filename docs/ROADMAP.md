@@ -1936,6 +1936,50 @@ consumer), `m11-5` (item.consumed effect application), `m10-9`
 
 ---
 
+### M15 — World Depth
+
+**Slice:** the world has state beyond rooms and exits. Doors that
+open + lock + need keys; portals that expire on a tick; weather
+that shifts per area; recall as a saved return point. Closes
+gap-matrix §1.8 (doors+locks) and §3 (portals / weather / recall).
+
+**Why this:** the engine substrate is real now; the four-room town
+feels flat without environmental state. Each item is contained
+(no cross-cutting substrate work) and ships visible texture for
+playtesting.
+
+**Live plan + current step:** `docs/themes/world-depth-plan.md`.
+
+**Sub-milestones (order: doors → portals → recall → weather):**
+- [ ] **M15.1 — Doors + locks.** Per-exit state with paired
+      reverse-side sync; open/close/lock/unlock verbs; key items;
+      area-reset restoration. Spec §5.1-§5.5 already complete.
+- [ ] **M15.2 — Portals (temporary keyword exits).** Runtime
+      keyword exits with TTL; cleanup tick handler; observable
+      creation/expiry events. Spec §5.6 complete.
+- [ ] **M15.3 — Recall / return-home.** Per-character return
+      address + `set recall` + `recall` verbs. Spec to be written
+      before impl (no existing coverage).
+- [ ] **M15.4 — Weather.** Area-scoped weather zones; hour-driven
+      rolls subscribing to the in-game clock; per-state message
+      tables; weather-exposed rooms render current state. Spec §6
+      complete.
+
+**Touches specs:** `world-rooms-movement` §5 (doors + portals), §6
+(weather); new `recall.md` (or §7 section) for M15.3.
+
+**Pre-decisions (see plan doc):** PD-1 (door state home — exit
+field vs. service), PD-2 (closed: spec already picks per-area
+weather), PD-3 (recall scope — verb-only vs. cooldown/cost/hooks),
+PD-4 (door key entities — tag vs. property), PD-5 (portal creator
+surface — admin / content / scripting).
+
+**Order rationale:** Doors smallest and well-spec'd; portals reuse
+the per-exit pattern; recall is tiny once its spec lands; weather
+last because it crosses into the render path and the in-game clock.
+
+---
+
 ## How to use this document
 
 - The **current milestone** is whichever section above has unchecked
