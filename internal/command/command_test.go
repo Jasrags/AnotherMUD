@@ -9,6 +9,7 @@ import (
 
 	"github.com/Jasrags/AnotherMUD/internal/command"
 	"github.com/Jasrags/AnotherMUD/internal/entities"
+	"github.com/Jasrags/AnotherMUD/internal/help"
 	"github.com/Jasrags/AnotherMUD/internal/stats"
 	"github.com/Jasrags/AnotherMUD/internal/world"
 )
@@ -79,6 +80,106 @@ func TestRegistry_RejectsDuplicateAndEmpty(t *testing.T) {
 	}
 	if err := r.Register("K", noop); err == nil {
 		t.Fatal("expected error on duplicate (case-insensitive)")
+	}
+}
+
+func TestRegisterCommand_AliasesAndMetadata(t *testing.T) {
+	t.Parallel()
+	r := command.New()
+	noop := func(ctx context.Context, c *command.Context) error { return nil }
+
+	if err := r.RegisterCommand(command.Command{
+		Keyword: "equipment",
+		Aliases: []string{"eq"},
+		Brief:   "Show equipped items.",
+		Syntax:  []string{"equipment"},
+		Handler: noop,
+	}); err != nil {
+		t.Fatalf("RegisterCommand: %v", err)
+	}
+	// Both the primary and the alias resolve.
+	if r.Resolve("equipment") == nil || r.Resolve("eq") == nil {
+		t.Fatal("primary or alias did not resolve")
+	}
+
+	cmds := r.Commands()
+	if len(cmds) != 1 {
+		t.Fatalf("Commands() = %d entries, want 1 (alias excluded)", len(cmds))
+	}
+	got := cmds[0]
+	if got.Keyword != "equipment" || got.Category != "commands" || got.Brief != "Show equipped items." {
+		t.Errorf("metadata = %+v", got)
+	}
+	if len(got.Aliases) != 1 || got.Aliases[0] != "eq" {
+		t.Errorf("aliases = %v", got.Aliases)
+	}
+}
+
+func TestRegisterCommand_AliasCollisionLeavesNothingRegistered(t *testing.T) {
+	t.Parallel()
+	r := command.New()
+	noop := func(ctx context.Context, c *command.Context) error { return nil }
+
+	if err := r.Register("look", noop); err != nil {
+		t.Fatalf("seed: %v", err)
+	}
+	// "consider" is free but its alias "look" collides → whole command rejected.
+	if err := r.RegisterCommand(command.Command{
+		Keyword: "consider",
+		Aliases: []string{"look"},
+		Brief:   "x",
+		Handler: noop,
+	}); err == nil {
+		t.Fatal("expected alias-collision error")
+	}
+	if r.Resolve("consider") != nil {
+		t.Fatal("primary registered despite alias collision")
+	}
+}
+
+func TestRegister_BareCommandNotListed(t *testing.T) {
+	t.Parallel()
+	r := command.New()
+	noop := func(ctx context.Context, c *command.Context) error { return nil }
+	if err := r.Register("xp", noop); err != nil {
+		t.Fatalf("register: %v", err)
+	}
+	if len(r.Commands()) != 0 {
+		t.Fatalf("bare Register surfaced in Commands(): %v", r.Commands())
+	}
+}
+
+func TestGenerateHelpTopics_SkipsAuthored(t *testing.T) {
+	t.Parallel()
+	r := command.New()
+	if err := command.RegisterBuiltins(r); err != nil {
+		t.Fatalf("RegisterBuiltins: %v", err)
+	}
+	svc := help.NewService()
+	// Authored topic for `look` must win over the generated one.
+	svc.AddTopic(&help.Topic{PackName: "core", ID: "look", Title: "Look", Category: "commands", Brief: "Authored."}, 1)
+
+	command.GenerateHelpTopics(r, svc)
+
+	// A verb with no authored topic gets generated and is listed.
+	if !svc.HasTopic("kill") {
+		t.Error("expected generated topic for kill")
+	}
+	res := svc.Query("p1", "kill")
+	if res.Topic == nil || !strings.Contains(res.Topic.Brief, "Attack") {
+		t.Errorf("kill topic = %+v", res.Topic)
+	}
+	// Authored look brief survives (generation skipped it).
+	look := svc.Query("p1", "look")
+	if look.Topic == nil || look.Topic.Brief != "Authored." {
+		t.Errorf("authored look was overwritten: %+v", look.Topic)
+	}
+	// Movement directions and the admin xp probe are not generated.
+	if svc.HasTopic("north") {
+		t.Error("direction verb should not be generated")
+	}
+	if svc.HasTopic("xp") {
+		t.Error("bare xp verb should not be generated")
 	}
 }
 

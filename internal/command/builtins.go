@@ -12,130 +12,94 @@ import (
 	"github.com/Jasrags/AnotherMUD/internal/world"
 )
 
-// RegisterBuiltins binds the M1 verbs into r: look, quit, and one
-// keyword per movement direction (long + short form). Movement uses
-// world.World.Move; look renders the actor's current room.
+// RegisterBuiltins binds the engine verbs into r. Each verb carries the
+// listing metadata (category, brief, syntax, aliases) that help generation
+// turns into a discoverable topic (spec commands-and-dispatch §8): typing
+// `help commands` lists them and `help <verb>` shows usage. Movement
+// directions and the admin `xp` probe register bare (no metadata) so they
+// stay out of the player-facing command list — movement has its own
+// authored topic, and `xp` is gated until the role system lands.
+//
+// Aliases route to the same handler via an exact match, so prefix-collision
+// concerns (e.g. `eq`→`equip`, `con`→`color`) are moot: an exact alias
+// short-circuits the prefix scan.
 func RegisterBuiltins(r *Registry) error {
-	bindings := []struct {
-		key string
-		h   Handler
-	}{
-		{"look", LookHandler},
-		{"quit", QuitHandler},
-		{"color", ColorHandler},
-		{"get", GetHandler},
-		{"drop", DropHandler},
-		{"give", GiveHandler},
-		{"put", PutHandler},
-		{"fill", FillHandler},
-		{"equip", EquipHandler},
-		{"unequip", UnequipHandler},
-		// Display verbs (M5.7). Aliases are registered explicitly
-		// rather than relying on prefix match: `eq` would otherwise
-		// resolve to `equip` (registered earlier, lower order in the
-		// prefix-tiebreaker) instead of `equipment`. `i` is
-		// unambiguous today but reserving it explicitly avoids
-		// surprise the first time an `inspect` / `ignore` / `info`
-		// verb shows up.
-		{"inventory", InventoryHandler},
-		{"i", InventoryHandler},
-		{"equipment", EquipmentHandler},
-		{"eq", EquipmentHandler},
-		// Combat status (M7.1). `con` would also match `color` by
-		// prefix (alphabetical), but `color` is registered earlier so
-		// its lower order wins the tiebreaker — `con` resolves to
-		// consider here. Spelled out for clarity.
-		{"consider", ConsiderHandler},
-		{"con", ConsiderHandler},
-		// Combat engage (M7.2). `k` is too aggressive a prefix to
-		// commit (would collide with future verbs like `kick` /
-		// `keep`); deliberately not aliased.
-		{"kill", KillHandler},
-		// Flee / wimpy (M7.6). `flee` has no short alias — running
-		// from combat shouldn't be a one-key reflex. `wimpy` is
-		// likewise spelled out.
-		{"flee", FleeHandler},
-		{"wimpy", WimpyHandler},
-		// Admin XP probe (M8.2). End-to-end test verb for the
-		// progression layer — self-grants XP. Role-gated grants
-		// + target-by-name form land with the role system (M10+).
-		{"xp", XPHandler},
-		// Training verbs (M8.6 — progression.md §7). `train` bumps
-		// a base stat by spending a train credit; `practice` raises
-		// the cap on an ability via an in-room trainer. `pra` and
-		// `tra` aliases are NOT registered today — short prefixes
-		// would collide with `put` / `tra…` futures. Spell out the
-		// verbs.
-		{"train", TrainHandler},
-		{"practice", PracticeHandler},
-		// Ability verbs (M9.6 — abilities-and-effects §3/§4). `abilities`
-		// lists the actor's learned set; `cast` enqueues an ability by
-		// name. Skill-named verbs (kick, bless, …) are registered
-		// separately from the loaded ability registry in cmd/anothermud.
-		// `abi` aliases the listing — short and unambiguous today.
-		{"abilities", AbilitiesHandler},
-		{"abi", AbilitiesHandler},
-		{"cast", CastHandler},
-		// Help (M10.5 — ui-rendering-help §9/§10). `help <topic>` queries
-		// the help service and renders topic / disambiguation / no-match.
-		{"help", HelpHandler},
-		// Quests (M10.10 — quests.md §3/§4). `accept`/`abandon` act on a
-		// quest by id or name; `quests` (alias `journal`) renders the
-		// active-quest journal. No short aliases for accept/abandon —
-		// these are deliberate, not reflex, actions.
-		{"accept", AcceptHandler},
-		{"abandon", AbandonHandler},
-		{"quests", QuestsHandler},
-		{"journal", QuestsHandler},
-		// Currency (M11.1 — economy-survival §2.2). `gold` reports the
-		// actor's balance. No short alias — `g` is a likely future
-		// collision (get / go / group) and the verb is rare enough to
-		// type in full.
-		{"gold", GoldHandler},
-		// Shop (M11.2 — economy-survival §3). buy/sell/value act on the
-		// shop NPC in the room; `list` shows its stock. No short
-		// aliases — all four are unambiguous full words and trading is
-		// deliberate, not reflex.
-		{"buy", BuyHandler},
-		{"sell", SellHandler},
-		{"value", ValueHandler},
-		{"list", ListHandler},
-		// Rest (M11.4 — economy-survival §5). rest/sleep enter the
-		// resting/sleeping states; wake (and the `stand` alias) return to
-		// awake. Combat forcibly wakes a resting/sleeping target via a
-		// composition-root subscriber, not a verb.
-		{"rest", RestHandler},
-		{"sleep", SleepHandler},
-		{"wake", WakeHandler},
-		{"stand", WakeHandler},
-		// Consumables (M11.5 — economy-survival §6). Each verb consumes
-		// only items whose consume_method matches it (eat food, drink
-		// potions, use misc). The service spends a charge / destroys the
-		// item and replenishes sustenance; effect application is a
-		// decoupled subscriber (§6.3).
-		{"eat", EatHandler},
-		{"drink", DrinkHandler},
-		{"use", UseHandler},
+	commands := []Command{
+		{Keyword: "look", Handler: LookHandler, Brief: "Examine your surroundings or a target.", Syntax: []string{"look", "look <target>"}},
+		{Keyword: "quit", Handler: QuitHandler, Brief: "Leave the game; your progress is saved.", Syntax: []string{"quit"}},
+		{Keyword: "color", Handler: ColorHandler, Brief: "Toggle ANSI color, or show the current setting.", Syntax: []string{"color", "color on", "color off"}},
+
+		// Items (M5.5-M5.9).
+		{Keyword: "get", Handler: GetHandler, Brief: "Pick up an item from the room or a container.", Syntax: []string{"get <item>", "get <item> from <container>"}},
+		{Keyword: "drop", Handler: DropHandler, Brief: "Drop an item from your inventory.", Syntax: []string{"drop <item>"}},
+		{Keyword: "give", Handler: GiveHandler, Brief: "Give an item to another character.", Syntax: []string{"give <item> <target>"}},
+		{Keyword: "put", Handler: PutHandler, Brief: "Put an item into a container.", Syntax: []string{"put <item> in <container>"}},
+		{Keyword: "fill", Handler: FillHandler, Brief: "Fill a container from a source.", Syntax: []string{"fill <container>"}},
+		{Keyword: "equip", Handler: EquipHandler, Brief: "Wear or wield an item from your inventory.", Syntax: []string{"equip <item>"}},
+		{Keyword: "unequip", Handler: UnequipHandler, Brief: "Remove an equipped item.", Syntax: []string{"unequip <item>"}},
+		{Keyword: "inventory", Aliases: []string{"i"}, Handler: InventoryHandler, Brief: "List the items you are carrying.", Syntax: []string{"inventory"}},
+		{Keyword: "equipment", Aliases: []string{"eq"}, Handler: EquipmentHandler, Brief: "Show what you have equipped.", Syntax: []string{"equipment"}},
+
+		// Combat (M7).
+		{Keyword: "consider", Aliases: []string{"con"}, Handler: ConsiderHandler, Brief: "Size up a target before fighting.", Syntax: []string{"consider <target>"}},
+		{Keyword: "kill", Handler: KillHandler, Brief: "Attack a target.", Syntax: []string{"kill <target>"}},
+		{Keyword: "flee", Handler: FleeHandler, Brief: "Try to escape from combat.", Syntax: []string{"flee"}},
+		{Keyword: "wimpy", Handler: WimpyHandler, Brief: "Auto-flee when your health drops below a percent.", Syntax: []string{"wimpy <percent>"}},
+
+		// Progression (M8.6).
+		{Keyword: "train", Handler: TrainHandler, Brief: "Spend a train credit to raise a stat.", Syntax: []string{"train <stat>"}},
+		{Keyword: "practice", Handler: PracticeHandler, Brief: "Raise an ability's cap at a trainer.", Syntax: []string{"practice <ability>"}},
+
+		// Abilities (M9.6).
+		{Keyword: "abilities", Aliases: []string{"abi"}, Handler: AbilitiesHandler, Brief: "List the abilities you have learned.", Syntax: []string{"abilities"}},
+		{Keyword: "cast", Handler: CastHandler, Brief: "Use an ability by name.", Syntax: []string{"cast <ability>", "cast <ability> <target>"}},
+
+		// Help (M10.5).
+		{Keyword: "help", Handler: HelpHandler, Brief: "Find help on commands and topics.", Syntax: []string{"help", "help <topic>"}, Category: "general"},
+
+		// Quests (M10.10).
+		{Keyword: "accept", Handler: AcceptHandler, Brief: "Accept an offered quest.", Syntax: []string{"accept <quest>"}},
+		{Keyword: "abandon", Handler: AbandonHandler, Brief: "Abandon an active quest.", Syntax: []string{"abandon <quest>"}},
+		{Keyword: "quests", Aliases: []string{"journal"}, Handler: QuestsHandler, Brief: "Show your active quests.", Syntax: []string{"quests"}},
+
+		// Economy (M11).
+		{Keyword: "gold", Handler: GoldHandler, Brief: "Show how much gold you carry.", Syntax: []string{"gold"}},
+		{Keyword: "buy", Handler: BuyHandler, Brief: "Buy an item from a shop.", Syntax: []string{"buy <item>"}},
+		{Keyword: "sell", Handler: SellHandler, Brief: "Sell an item to a shop.", Syntax: []string{"sell <item>"}},
+		{Keyword: "value", Handler: ValueHandler, Brief: "Ask a shop what it pays for an item.", Syntax: []string{"value <item>"}},
+		{Keyword: "list", Handler: ListHandler, Brief: "List a shop's wares.", Syntax: []string{"list"}},
+		{Keyword: "rest", Handler: RestHandler, Brief: "Rest to recover faster.", Syntax: []string{"rest"}},
+		{Keyword: "sleep", Handler: SleepHandler, Brief: "Sleep to recover fastest.", Syntax: []string{"sleep"}},
+		{Keyword: "wake", Aliases: []string{"stand"}, Handler: WakeHandler, Brief: "Stop resting or sleeping.", Syntax: []string{"wake"}},
+		{Keyword: "eat", Handler: EatHandler, Brief: "Eat food to restore sustenance.", Syntax: []string{"eat <food>"}},
+		{Keyword: "drink", Handler: DrinkHandler, Brief: "Drink to restore sustenance.", Syntax: []string{"drink <item>"}},
+		{Keyword: "use", Handler: UseHandler, Brief: "Use a consumable item.", Syntax: []string{"use <item>"}},
 	}
+	for _, c := range commands {
+		if err := r.RegisterCommand(c); err != nil {
+			return err
+		}
+	}
+
+	// Admin XP probe (M8.2): self-grants XP, role-gated form lands with
+	// the role system (M10+). Bare registration keeps it routable but out
+	// of the player-facing command list.
+	if err := r.Register("xp", XPHandler); err != nil {
+		return err
+	}
+
+	// Movement: one keyword per direction (long + short). Registered bare
+	// — the authored `movement` help topic covers them, so per-direction
+	// generated topics would just be noise.
 	for _, d := range []world.Direction{
 		world.DirNorth, world.DirSouth, world.DirEast, world.DirWest,
 		world.DirUp, world.DirDown,
 	} {
-		dir := d
-		mh := movementHandler(dir)
-		bindings = append(bindings,
-			struct {
-				key string
-				h   Handler
-			}{dir.Long(), mh},
-			struct {
-				key string
-				h   Handler
-			}{dir.Short(), mh},
-		)
-	}
-	for _, b := range bindings {
-		if err := r.Register(b.key, b.h); err != nil {
+		mh := movementHandler(d)
+		if err := r.Register(d.Long(), mh); err != nil {
+			return err
+		}
+		if err := r.Register(d.Short(), mh); err != nil {
 			return err
 		}
 	}

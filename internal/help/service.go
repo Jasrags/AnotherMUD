@@ -167,6 +167,20 @@ func topicMatches(t *Topic, term string) bool {
 	return false
 }
 
+// HasTopic reports whether a topic with the given bare or namespaced id is
+// registered (any visibility tier). Used by command help generation to skip
+// verbs that already have an authored topic, so pack content always wins.
+func (s *Service) HasTopic(id string) bool {
+	key := strings.ToLower(strings.TrimSpace(id))
+	if key == "" {
+		return false
+	}
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	_, ok := s.byID[key]
+	return ok
+}
+
 // List returns visible topic summaries in a category (§9.7).
 func (s *Service) List(entityID, category string) []Summary {
 	tier := requesterTier(entityID)

@@ -17,6 +17,7 @@ package command
 import (
 	"context"
 	"errors"
+	"fmt"
 	"sort"
 	"strings"
 	"sync"
@@ -310,10 +311,62 @@ func (c *Context) Publish(ctx context.Context, e eventbus.Event) {
 // Handler is the function invoked for a matched command.
 type Handler func(ctx context.Context, c *Context) error
 
+// defaultCommandCategory is the bucket a command's generated help topic
+// lands in when its registration leaves Category unset (spec
+// commands-and-dispatch §8).
+const defaultCommandCategory = "commands"
+
+// Command is a full command registration (spec commands-and-dispatch
+// §2.1). Beyond the keyword + handler that Register takes, it carries the
+// optional metadata listing and help-generation UIs need: aliases that
+// route to the same handler, a category, a one-line brief, and synthesized
+// syntax lines. A registration that supplies any of this metadata becomes
+// discoverable via Commands() (and thus help generation); a bare
+// keyword+handler does not.
+type Command struct {
+	Keyword  string
+	Aliases  []string
+	Category string // defaults to "commands" when any metadata is present
+	Brief    string
+	Syntax   []string
+	Keywords []string
+	Handler  Handler
+}
+
+// CommandInfo is the read-only view of a registered command's metadata,
+// returned by Commands() for listing and help-generation UIs. Slice fields
+// are fresh copies — safe to mutate.
+type CommandInfo struct {
+	Keyword  string
+	Aliases  []string
+	Category string
+	Brief    string
+	Syntax   []string
+	Keywords []string
+}
+
+// cmdMeta is the stored metadata for a primary command registration. It is
+// non-nil only on the primary entry of a RegisterCommand call that carried
+// metadata; bare Register and alias entries leave it nil so they're
+// excluded from listings.
+type cmdMeta struct {
+	category string
+	brief    string
+	syntax   []string
+	keywords []string
+	aliases  []string
+}
+
 type registration struct {
 	keyword string
 	order   int
 	handler Handler
+	// alias marks an entry that routes to a primary's handler under an
+	// alternate keyword; aliases never appear in Commands().
+	alias bool
+	// meta is non-nil only on a primary registration that carried
+	// metadata. It is the source for Commands() / help generation.
+	meta *cmdMeta
 }
 
 // Registry holds the command keyword → handler bindings.
@@ -332,25 +385,104 @@ func New() *Registry {
 	return &Registry{byKey: make(map[string]registration)}
 }
 
-// Register binds keyword to h. Keywords are stored lowercased.
-// Duplicate keywords return an error.
+// Register binds keyword to h with no listing metadata. Keywords are
+// stored lowercased. Duplicate keywords return an error. Commands
+// registered this way are routable but invisible to Commands() / help
+// generation — use RegisterCommand to make a command discoverable.
 func (r *Registry) Register(keyword string, h Handler) error {
-	if keyword == "" {
-		return errors.New("command.Register: empty keyword")
+	return r.RegisterCommand(Command{Keyword: keyword, Handler: h})
+}
+
+// RegisterCommand binds c.Keyword (and each alias) to c.Handler. Keywords
+// and aliases are stored lowercased; an exact match on any of them resolves
+// to the handler. If c carries any metadata (category, brief, syntax,
+// keywords, or aliases) the primary keyword becomes discoverable via
+// Commands(). A duplicate primary keyword or alias returns an error, and
+// alias collisions are detected before any mutation so a partial command is
+// never left registered.
+func (r *Registry) RegisterCommand(c Command) error {
+	if c.Keyword == "" {
+		return errors.New("command.RegisterCommand: empty keyword")
 	}
-	if h == nil {
-		return errors.New("command.Register: nil handler")
+	if c.Handler == nil {
+		return errors.New("command.RegisterCommand: nil handler")
 	}
-	k := strings.ToLower(keyword)
+
+	var meta *cmdMeta
+	if c.Category != "" || c.Brief != "" || len(c.Syntax) > 0 || len(c.Keywords) > 0 || len(c.Aliases) > 0 {
+		cat := c.Category
+		if cat == "" {
+			cat = defaultCommandCategory
+		}
+		meta = &cmdMeta{
+			category: cat,
+			brief:    c.Brief,
+			syntax:   append([]string(nil), c.Syntax...),
+			keywords: append([]string(nil), c.Keywords...),
+			aliases:  append([]string(nil), c.Aliases...),
+		}
+	}
+
+	k := strings.ToLower(c.Keyword)
 	r.mu.Lock()
 	defer r.mu.Unlock()
+
 	if _, exists := r.byKey[k]; exists {
-		return errors.New("command.Register: duplicate keyword " + k)
+		return fmt.Errorf("command.RegisterCommand: duplicate keyword %q", k)
 	}
+	// Pre-validate aliases so a mid-list collision can't leave the
+	// primary registered without its aliases.
+	lowered := make([]string, 0, len(c.Aliases))
+	for _, a := range c.Aliases {
+		la := strings.ToLower(a)
+		if la == "" {
+			return fmt.Errorf("command.RegisterCommand: empty alias for %q", k)
+		}
+		if la == k {
+			return fmt.Errorf("command.RegisterCommand: alias equals keyword %q", k)
+		}
+		if _, exists := r.byKey[la]; exists {
+			return fmt.Errorf("command.RegisterCommand: duplicate alias %q", la)
+		}
+		lowered = append(lowered, la)
+	}
+
 	r.order++
-	r.byKey[k] = registration{keyword: k, order: r.order, handler: h}
+	r.byKey[k] = registration{keyword: k, order: r.order, handler: c.Handler, meta: meta}
 	r.ordered = append(r.ordered, k)
+	for _, la := range lowered {
+		r.order++
+		r.byKey[la] = registration{keyword: la, order: r.order, handler: c.Handler, alias: true}
+		r.ordered = append(r.ordered, la)
+	}
 	return nil
+}
+
+// Commands returns the metadata for every discoverable primary command
+// (those registered via RegisterCommand with metadata), sorted by keyword.
+// Aliases and bare Register entries are excluded. Used by listing UIs and
+// help generation.
+func (r *Registry) Commands() []CommandInfo {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	var out []CommandInfo
+	for _, k := range r.ordered {
+		reg := r.byKey[k]
+		if reg.alias || reg.meta == nil {
+			continue
+		}
+		out = append(out, CommandInfo{
+			Keyword:  reg.keyword,
+			Aliases:  append([]string(nil), reg.meta.aliases...),
+			Category: reg.meta.category,
+			Brief:    reg.meta.brief,
+			Syntax:   append([]string(nil), reg.meta.syntax...),
+			Keywords: append([]string(nil), reg.meta.keywords...),
+		})
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].Keyword < out[j].Keyword })
+	return out
 }
 
 // Resolve returns the handler that the verb routes to, or nil if no

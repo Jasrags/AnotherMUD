@@ -85,6 +85,45 @@ func RenderDisambiguation(term string, matches []Summary, width int) string {
 	return b.String()
 }
 
+// RenderCategory lists the topics in a category (§9.7), aligning ids in a
+// column with their brief. Used when `help <category>` resolves to a
+// category rather than a single topic. The category name is sanitized so a
+// user-supplied value cannot inject color tags.
+func RenderCategory(category string, items []Summary, width int) string {
+	if width <= 0 {
+		width = DefaultHelpWidth
+	}
+	rule := strings.Repeat("=", width)
+	idWidth := 0
+	for _, it := range items {
+		if l := len(it.ID); l > idWidth {
+			idWidth = l
+		}
+	}
+	var b strings.Builder
+	b.WriteString(rule)
+	b.WriteString("\r\n")
+	b.WriteString(center("<title>"+Capitalize(sanitizeContent(category))+"</title>", width))
+	b.WriteString("\r\n")
+	b.WriteString(rule)
+	b.WriteString("\r\n")
+	for _, it := range items {
+		// Id cells are content-safe; the brief is emitted outside any tag
+		// so worst case is cosmetic colorization.
+		// Brief may be pack-authored, so strip angle brackets the same
+		// way the topic renderer treats Brief content (§9.1 reserves tag
+		// passthrough for Body only).
+		if it.Brief != "" {
+			b.WriteString(fmt.Sprintf("  %-*s   %s\r\n", idWidth, it.ID, sanitizeContent(it.Brief)))
+		} else {
+			b.WriteString("  " + it.ID + "\r\n")
+		}
+	}
+	b.WriteString("<subtle>Type 'help <topic>' for details.</subtle>\r\n")
+	b.WriteString(rule)
+	return b.String()
+}
+
 // RenderNoMatch is the single-line miss (§10.3). The term is sanitized so
 // a query containing angle brackets cannot inject color tags.
 func RenderNoMatch(term string) string {
@@ -103,6 +142,17 @@ func center(s string, width int) string {
 	}
 	left := pad / 2
 	return strings.Repeat(" ", left) + s
+}
+
+// Capitalize upper-cases the first byte of s for a display header.
+// Topic ids and category names are lowercase ASCII, so a byte-level
+// capitalize is sufficient and matches the rest of this package's
+// approximate-ASCII rendering.
+func Capitalize(s string) string {
+	if s == "" {
+		return s
+	}
+	return strings.ToUpper(s[:1]) + s[1:]
 }
 
 var angleStripper = strings.NewReplacer("<", "", ">", "")

@@ -157,6 +157,11 @@ func run() error {
 				slog.String("ability", ab.ID), slog.Any("err", err))
 		}
 	}
+	// Backfill help topics from command registration metadata (spec
+	// commands-and-dispatch §8). Runs after builtins + ability verbs are
+	// registered and after pack help loaded (pack.Load above), so authored
+	// topics shadow generated ones and `help commands` lists every verb.
+	command.GenerateHelpTopics(cmds, registries.Help)
 
 	mgr := session.NewManager()
 

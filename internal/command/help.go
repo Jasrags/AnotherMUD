@@ -22,6 +22,14 @@ func HelpHandler(ctx context.Context, c *Context) error {
 		return c.Actor.Write(ctx, renderHelpIndex(c.Help, entityID))
 	}
 
+	// A category name drills into its topic list (§9.7) before falling
+	// back to a topic query. Without this, `help commands` would fuzzy-
+	// match the `commands` keyword on the help topic instead of listing
+	// the commands category — the dead-end a new player hits first.
+	if items := c.Help.List(entityID, term); len(items) > 0 {
+		return c.Actor.Write(ctx, help.RenderCategory(term, items, 0))
+	}
+
 	res := c.Help.Query(entityID, term)
 	switch res.Status {
 	case help.StatusOK:
@@ -48,6 +56,47 @@ func renderHelpIndex(svc *help.Service, entityID string) string {
 	for _, cat := range cats {
 		b.WriteString("  " + cat + "\r\n")
 	}
-	b.WriteString("<subtle>Type 'help <topic>' for a specific topic.</subtle>")
+	b.WriteString("<subtle>Type 'help <category>' to list its topics (e.g. 'help commands'),\r\n")
+	b.WriteString("or 'help <topic>' to read a specific one.</subtle>")
 	return b.String()
 }
+
+// GenerateHelpTopics backfills the help service with a topic for every
+// discoverable command (spec commands-and-dispatch §8). A verb that already
+// has an authored topic is skipped so pack content always wins; the rest
+// get a topic built from their registration metadata at load order 0, the
+// lowest precedence. Idempotent only at the service level — call once at
+// boot after RegisterBuiltins and after pack help has loaded.
+func GenerateHelpTopics(r *Registry, svc *help.Service) {
+	if r == nil || svc == nil {
+		return
+	}
+	for _, cmd := range r.Commands() {
+		if svc.HasTopic(cmd.Keyword) {
+			continue
+		}
+		// Keywords seed fuzzy search: the primary plus multi-char aliases
+		// (single-letter aliases like `i` would match too broadly).
+		keywords := []string{cmd.Keyword}
+		for _, a := range cmd.Aliases {
+			if len(a) > 1 {
+				keywords = append(keywords, a)
+			}
+		}
+		var body string
+		if len(cmd.Aliases) > 0 {
+			body = "Aliases: " + strings.Join(cmd.Aliases, ", ")
+		}
+		svc.AddTopic(&help.Topic{
+			ID:       cmd.Keyword,
+			Title:    help.Capitalize(cmd.Keyword),
+			Category: cmd.Category,
+			Brief:    cmd.Brief,
+			Body:     body,
+			Syntax:   cmd.Syntax,
+			Keywords: keywords,
+			Role:     help.RoleNone,
+		}, 0)
+	}
+}
+
