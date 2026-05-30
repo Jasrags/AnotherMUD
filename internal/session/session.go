@@ -33,6 +33,7 @@ import (
 	"github.com/Jasrags/AnotherMUD/internal/item"
 	"github.com/Jasrags/AnotherMUD/internal/logging"
 	"github.com/Jasrags/AnotherMUD/internal/login"
+	"github.com/Jasrags/AnotherMUD/internal/notifications"
 	"github.com/Jasrags/AnotherMUD/internal/player"
 	"github.com/Jasrags/AnotherMUD/internal/progression"
 	"github.com/Jasrags/AnotherMUD/internal/quest"
@@ -209,6 +210,15 @@ type Config struct {
 	// the player issues commands (the spec's §11 flags the event-driven
 	// load as racy). nil-safe.
 	QuestStore *queststore.Store
+
+	// Notifications is the M13.1 per-entity notification manager
+	// (spec notifications.md). Bound at the post-Add moment so the
+	// active-phase drain delivers any tells / channel posts that
+	// arrived while the player was offline. Unregister fires from
+	// every "session gone" path (fullTeardown, linkdead reap,
+	// takeover) so the queue persists and in-memory state
+	// releases. nil-safe.
+	Notifications *notifications.Manager
 
 	// Currency is the M11.1 economy currency service (spec
 	// economy-survival §2). Passed through command.Env so the `gold`
@@ -583,6 +593,12 @@ func run(ctx context.Context, c conn.Connection, cfg Config) error {
 
 	cfg.Manager.Add(a)
 
+	// M13.1c: bind to the notifications manager and drain any
+	// persisted backlog (offline tells / channel posts that arrived
+	// while away). Done post-Add so the welcome line and in-room
+	// arrival broadcast settle before the drain text appears.
+	notifRegister(ctx, cfg, a)
+
 	// M12.2: publish character.created AFTER commit + placement (§6.4
 	// step 6) so the class-path processor's level-1 grant runs only for a
 	// character that actually committed, and so the actor is already in
@@ -831,6 +847,9 @@ func fullTeardown(ctx context.Context, cfg Config, a *connActor) {
 	if cfg.QuestStore != nil {
 		cfg.QuestStore.Forget(a.PlayerID())
 	}
+	// Note: notification-queue unregister fires from session.Manager.Remove
+	// above (M13.1c), so takeover and linkdead-reap pick it up via the
+	// same central path.
 }
 
 // respawnInventory creates fresh ItemInstances for each persisted

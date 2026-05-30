@@ -36,6 +36,7 @@ import (
 	"github.com/Jasrags/AnotherMUD/internal/player"
 	"github.com/Jasrags/AnotherMUD/internal/progression"
 	"github.com/Jasrags/AnotherMUD/internal/quest"
+	"github.com/Jasrags/AnotherMUD/internal/notifications"
 	"github.com/Jasrags/AnotherMUD/internal/queststore"
 	"github.com/Jasrags/AnotherMUD/internal/questwatch"
 	"github.com/Jasrags/AnotherMUD/internal/render"
@@ -173,6 +174,22 @@ func run() error {
 	// when that path lands rather than fabricating one now.
 
 	clk := clock.RealClock{}
+
+	// M13.1c: notification queue substrate. Per spec §10 the
+	// per-entity cap is 50 (matches tells inbox). The Manager and
+	// Store mirror the queststore convention so future notifications
+	// readers (M13.5 tells, M13.6 channels) see one shape.
+	const notifQueueCap = 50
+	notifStore := notifications.NewStore(cfg.SaveDir, notifQueueCap)
+	notifMgr := notifications.NewManager(notifStore, notifQueueCap, clk)
+	mgr.SetOnRemove(func(playerID string) {
+		// Bridge session.Manager.Remove → notifications.Manager.Unregister.
+		// Background ctx because session.Manager has no per-call ctx;
+		// errors are logged inside Unregister via the notif store's
+		// own logger.
+		_ = notifMgr.Unregister(context.Background(), playerID)
+	})
+
 	loop := tick.New(clk, cfg.TickInterval)
 	if err := entities.RegisterTagSwap(loop, entityStore); err != nil {
 		return fmt.Errorf("register entities tag-swap: %w", err)
@@ -180,6 +197,10 @@ func run() error {
 	autosaveInterval := autosaveTicks(cfg.TickInterval, cfg.AutosaveInterval)
 	if err := loop.Register("autosave", autosaveInterval, func(ctx context.Context, n uint64) {
 		mgr.SaveAll(ctx)
+		// M13.1c: flush dirty notification queues alongside player
+		// state so a crash loses at most one autosave-interval of
+		// queued tells / channel posts (spec §6.3).
+		notifMgr.SaveAll(ctx)
 	}); err != nil {
 		return fmt.Errorf("register autosave tick: %w", err)
 	}
@@ -1090,8 +1111,9 @@ func run() error {
 		ColorEnabled: cfg.ColorDefault,
 		Render:       colorRenderer,
 		Help:         registries.Help,
-		Quests:       questSvc,
-		QuestStore:   questStore,
+		Quests:        questSvc,
+		QuestStore:    questStore,
+		Notifications: notifMgr,
 		Currency:     currencySvc,
 		Shop:         shopSvc,
 		Sustenance:   sustenanceSvc,
@@ -1118,6 +1140,7 @@ func run() error {
 	// not already cancelled.
 	flushCtx, cancelFlush := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)
 	mgr.SaveAll(flushCtx)
+	notifMgr.SaveAll(flushCtx)
 	cancelFlush()
 
 	wg.Wait()

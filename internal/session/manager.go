@@ -38,6 +38,19 @@ type Manager struct {
 	byAccount  map[string][]*connActor                // key: account id
 	byRoom     map[world.RoomID]map[string]*connActor // roomID → pid → actor
 	roomByPID  map[string]world.RoomID                // pid → current room
+
+	// onRemove is invoked after Remove has scrubbed the indices for
+	// a fully-removed actor. Set via SetOnRemove from the composition
+	// root to hook session-gone events (notification unregister,
+	// future per-feature teardown). nil-safe; never called from
+	// RemoveConnectionOnly (link-dead transition keeps the actor
+	// tracked).
+	//
+	// The callback receives the gone-actor's player id rather than
+	// the *connActor pointer because the cleanup only needs that id
+	// and a pointer-typed callback would force the composition root
+	// to depend on the unexported actor type.
+	onRemove func(playerID string)
 }
 
 // NewManager returns an empty Manager.
@@ -50,6 +63,18 @@ func NewManager() *Manager {
 		byRoom:     make(map[world.RoomID]map[string]*connActor),
 		roomByPID:  make(map[string]world.RoomID),
 	}
+}
+
+// SetOnRemove installs a callback fired after every full Remove.
+// Used by the composition root to bridge to subsystems that need
+// to react to a session disappearing (e.g., notifications.Manager
+// unregister). The callback receives the gone-actor's player id
+// and runs outside Manager.mu. Safe to call once at startup;
+// subsequent calls overwrite.
+func (m *Manager) SetOnRemove(fn func(playerID string)) {
+	m.mu.Lock()
+	m.onRemove = fn
+	m.mu.Unlock()
 }
 
 // Add registers a freshly-logged-in actor across every index. The
@@ -116,7 +141,6 @@ func (m *Manager) Remove(a *connActor) {
 	acct := a.accountID
 
 	m.mu.Lock()
-	defer m.mu.Unlock()
 	delete(m.byConn, a.id)
 	if pid != "" {
 		delete(m.byPlayerID, pid)
@@ -144,6 +168,16 @@ func (m *Manager) Remove(a *connActor) {
 		} else {
 			m.byAccount[acct] = out
 		}
+	}
+	cb := m.onRemove
+	m.mu.Unlock()
+
+	// Fire the post-remove callback outside the manager lock so
+	// the callback can re-enter Manager (e.g., to look up the
+	// player by name) without deadlocking, and so per-callback
+	// I/O does not extend the index-scrub critical section.
+	if cb != nil && pid != "" {
+		cb(pid)
 	}
 }
 

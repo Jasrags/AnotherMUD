@@ -274,6 +274,39 @@ func TestManager_IndicesPopulated(t *testing.T) {
 	}
 }
 
+func TestManager_SetOnRemoveFiresOnRemove(t *testing.T) {
+	mgr := NewManager()
+	r := &world.Room{ID: "x:1", Name: "X"}
+	a, _ := newFakeActor("c1", "p-id-1", "acc1", "Alice", r)
+	mgr.Add(a)
+
+	var seen []string
+	mgr.SetOnRemove(func(pid string) {
+		seen = append(seen, pid)
+	})
+	mgr.Remove(a)
+
+	if len(seen) != 1 || seen[0] != "p-id-1" {
+		t.Errorf("onRemove fired with %v, want [p-id-1]", seen)
+	}
+}
+
+func TestManager_SetOnRemoveNotFiredByRemoveConnectionOnly(t *testing.T) {
+	mgr := NewManager()
+	r := &world.Room{ID: "x:1", Name: "X"}
+	a, _ := newFakeActor("c1", "p-id-1", "acc1", "Alice", r)
+	mgr.Add(a)
+
+	var fired bool
+	mgr.SetOnRemove(func(string) { fired = true })
+
+	mgr.RemoveConnectionOnly(a) // link-dead transition; keep actor tracked
+
+	if fired {
+		t.Errorf("onRemove fired on RemoveConnectionOnly; should fire only on full Remove")
+	}
+}
+
 // TestManager_SendToRoomDeliversToOccupantsExcludesSender stages two
 // actors in the same room and verifies SendToRoom hits the right one.
 func TestManager_SendToRoomDeliversToOccupantsExcludesSender(t *testing.T) {
