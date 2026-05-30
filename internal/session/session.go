@@ -409,6 +409,24 @@ func run(ctx context.Context, c conn.Connection, cfg Config) error {
 		lastInputAt: clk.Now(),
 	}
 
+	// M14.1: bind Vitals.SetMax to StatBlock hp_max changes so an
+	// effect or level-up that raises hp_max actually moves the
+	// player's max-HP ceiling, and a drop in hp_max clamps current
+	// HP down. The listener fires outside the StatBlock lock; it
+	// only takes Vitals.mu briefly.
+	//
+	// Registered BEFORE RestoreBase / RestoreModifiers below. This
+	// makes StatBlock the canonical source of hp_max on login: any
+	// mismatch between persisted Vitals.maxHP and the freshly-
+	// restored StatBlock pulls Vitals into line with StatBlock. The
+	// typical case is that they agree (both were last persisted in
+	// sync); the exceptional case (effect-boosted Vitals.maxHP
+	// persisted before the effect was stripped, etc.) heals on
+	// login rather than carrying stale debt forward.
+	a.statBlock.OnMaxChange(progression.StatHPMax, func(_, newMax int) {
+		a.vitals.SetMax(newMax)
+	})
+
 	// M8.3: resolve the actor's race id. Save's race wins; an
 	// empty saved race (legacy v7 or fresh character) falls back
 	// to cfg.DefaultRace. If the resolved id isn't registered, the

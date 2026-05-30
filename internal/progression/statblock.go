@@ -149,7 +149,32 @@ type StatBlock struct {
 	// base setter and every modifier mutation. Cleared in Effective
 	// after a successful recompute.
 	dirty bool
+
+	// maxListeners holds OnMaxChange subscribers keyed by stat. Used
+	// by combat.Vitals to keep `current/max HP` consistent when a
+	// max-affecting effect or stat change recomputes (M14.1, spec
+	// progression "Vital re-clamp under max-affecting stat
+	// recompute"). nil when no consumer has registered — keeps the
+	// notification path a fast no-op for paths that don't care.
+	maxListeners map[StatType][]MaxChangeListener
+
+	// lastWatched caches the most recent effective value for every
+	// stat that has at least one OnMaxChange listener. Lets the
+	// notifier compare new vs. old without re-running the diff
+	// against an external source of truth.
+	lastWatched map[StatType]int
 }
+
+// MaxChangeListener is called when a stat's effective value changes
+// AND the stat has been registered via StatBlock.OnMaxChange. Fired
+// outside the StatBlock lock so the listener may safely acquire
+// other locks (e.g., combat.Vitals.SetMax which takes Vitals.mu);
+// listeners MUST NOT call back into the same StatBlock or take any
+// lock held by the StatBlock caller — the notification fires on the
+// mutating goroutine after the mutation lands.
+//
+// Spec: progression "Vital re-clamp" (M14.1).
+type MaxChangeListener func(oldMax, newMax int)
 
 // New returns an empty StatBlock with no base attributes and no
 // modifiers. Callers populate base via SetBase or the WithBase
@@ -185,9 +210,11 @@ func (b *StatBlock) Base(stat StatType) int {
 // effective cache.
 func (b *StatBlock) SetBase(stat StatType, value int) {
 	b.mu.Lock()
-	defer b.mu.Unlock()
 	b.base[stat] = value
 	b.dirty = true
+	deferred := b.notifyMaxLocked()
+	b.mu.Unlock()
+	fireDeferred(deferred)
 }
 
 // AdjustBase increments the intrinsic value of stat by delta (which
@@ -196,10 +223,13 @@ func (b *StatBlock) SetBase(stat StatType, value int) {
 // Returns the new base value.
 func (b *StatBlock) AdjustBase(stat StatType, delta int) int {
 	b.mu.Lock()
-	defer b.mu.Unlock()
 	b.base[stat] += delta
 	b.dirty = true
-	return b.base[stat]
+	newBase := b.base[stat]
+	deferred := b.notifyMaxLocked()
+	b.mu.Unlock()
+	fireDeferred(deferred)
+	return newBase
 }
 
 // Effective returns the cached effective value (`base + sum of
@@ -275,9 +305,11 @@ func (b *StatBlock) AddModifiers(src srckey.SourceKey, mods []stats.Modifier) {
 		}
 	}
 	b.mu.Lock()
-	defer b.mu.Unlock()
 	b.mods.Apply(src, normalized)
 	b.dirty = true
+	deferred := b.notifyMaxLocked()
+	b.mu.Unlock()
+	fireDeferred(deferred)
 }
 
 // RemoveBySource drops every modifier installed under src in one
@@ -286,11 +318,14 @@ func (b *StatBlock) AddModifiers(src srckey.SourceKey, mods []stats.Modifier) {
 // effective cache only when something actually changed.
 func (b *StatBlock) RemoveBySource(src srckey.SourceKey) bool {
 	b.mu.Lock()
-	defer b.mu.Unlock()
 	if !b.mods.Remove(src) {
+		b.mu.Unlock()
 		return false
 	}
 	b.dirty = true
+	deferred := b.notifyMaxLocked()
+	b.mu.Unlock()
+	fireDeferred(deferred)
 	return true
 }
 
@@ -309,11 +344,14 @@ func (b *StatBlock) HasSource(src srckey.SourceKey) bool {
 // occupied.
 func (b *StatBlock) RebindSource(old, new srckey.SourceKey) bool {
 	b.mu.Lock()
-	defer b.mu.Unlock()
 	if !b.mods.RebindSource(old, new) {
+		b.mu.Unlock()
 		return false
 	}
 	b.dirty = true
+	deferred := b.notifyMaxLocked()
+	b.mu.Unlock()
+	fireDeferred(deferred)
 	return true
 }
 
@@ -326,8 +364,10 @@ func (b *StatBlock) RebindSource(old, new srckey.SourceKey) bool {
 // RebindSource all invalidate automatically.
 func (b *StatBlock) Invalidate() {
 	b.mu.Lock()
-	defer b.mu.Unlock()
 	b.dirty = true
+	deferred := b.notifyMaxLocked()
+	b.mu.Unlock()
+	fireDeferred(deferred)
 }
 
 // ModifiersSnapshot returns the persisted shape of the sourced
@@ -366,9 +406,11 @@ func (b *StatBlock) RestoreModifiers(snap stats.Snapshot) {
 		}
 	}
 	b.mu.Lock()
-	defer b.mu.Unlock()
 	b.mods.Restore(normalized)
 	b.dirty = true
+	deferred := b.notifyMaxLocked()
+	b.mu.Unlock()
+	fireDeferred(deferred)
 }
 
 // BaseSnapshot returns a deterministically-ordered serialization of
@@ -408,7 +450,6 @@ func (b *StatBlock) BaseSnapshot() BaseSnapshot {
 // Invalidates the effective cache.
 func (b *StatBlock) RestoreBase(snap BaseSnapshot) {
 	b.mu.Lock()
-	defer b.mu.Unlock()
 	if b.base == nil {
 		b.base = make(map[StatType]int, len(snap))
 	}
@@ -416,6 +457,77 @@ func (b *StatBlock) RestoreBase(snap BaseSnapshot) {
 		b.base[e.Stat] = e.Value
 	}
 	b.dirty = true
+	deferred := b.notifyMaxLocked()
+	b.mu.Unlock()
+	fireDeferred(deferred)
+}
+
+// OnMaxChange registers a listener to fire whenever the effective
+// value of stat changes from the previously-observed value. The
+// initial effective value is snapshotted into lastWatched at
+// registration time; the listener fires on the NEXT change, not
+// for the registration itself.
+//
+// Callers register one listener per (stat, consumer). Multiple
+// listeners on the same stat fire in registration order, all
+// outside the StatBlock lock.
+//
+// Spec: progression "Vital re-clamp under max-affecting stat
+// recompute" (M14.1).
+func (b *StatBlock) OnMaxChange(stat StatType, fn MaxChangeListener) {
+	if fn == nil {
+		return
+	}
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	if b.maxListeners == nil {
+		b.maxListeners = make(map[StatType][]MaxChangeListener)
+	}
+	if b.lastWatched == nil {
+		b.lastWatched = make(map[StatType]int)
+	}
+	b.maxListeners[stat] = append(b.maxListeners[stat], fn)
+	// Snapshot the current effective so the first real change has
+	// a baseline. Force a recompute if dirty so the baseline is
+	// not stale.
+	b.recomputeLocked()
+	b.lastWatched[stat] = b.effective[stat]
+}
+
+// notifyMaxLocked walks every watched stat, compares the freshly
+// recomputed effective value against lastWatched, and returns a
+// slice of zero-arg functions the caller invokes after releasing
+// b.mu. Returns nil when no listeners are registered — keeps the
+// notification path a no-op for the common case.
+//
+// Callers MUST hold b.mu write-locked.
+func (b *StatBlock) notifyMaxLocked() []func() {
+	if len(b.maxListeners) == 0 {
+		return nil
+	}
+	b.recomputeLocked()
+	var out []func()
+	for stat, listeners := range b.maxListeners {
+		newVal := b.effective[stat]
+		oldVal := b.lastWatched[stat]
+		if newVal == oldVal {
+			continue
+		}
+		b.lastWatched[stat] = newVal
+		for _, l := range listeners {
+			l := l // capture loop var
+			out = append(out, func() { l(oldVal, newVal) })
+		}
+	}
+	return out
+}
+
+// fireDeferred runs every callback in the slice. Safe to call with
+// a nil slice. Always called AFTER releasing b.mu.
+func fireDeferred(out []func()) {
+	for _, fn := range out {
+		fn()
+	}
 }
 
 // recomputeLocked rebuilds the effective cache from scratch.

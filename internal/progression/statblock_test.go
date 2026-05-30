@@ -321,3 +321,100 @@ func TestStatBlockConcurrentAccess(t *testing.T) {
 	// is not corrupt. Read once more under no contention.
 	_ = b.Effective(progression.StatSTR)
 }
+
+// TestOnMaxChangeFiresOnBaseSet pins the M14.1 vital-reclamp seam:
+// SetBase on a watched stat fires the registered listener exactly
+// once with (oldEffective, newEffective).
+func TestOnMaxChangeFiresOnBaseSet(t *testing.T) {
+	b := progression.NewWithBase(map[progression.StatType]int{
+		progression.StatHPMax: 40,
+	})
+	var (
+		mu        sync.Mutex
+		oldVals   []int
+		newVals   []int
+	)
+	b.OnMaxChange(progression.StatHPMax, func(oldMax, newMax int) {
+		mu.Lock()
+		defer mu.Unlock()
+		oldVals = append(oldVals, oldMax)
+		newVals = append(newVals, newMax)
+	})
+
+	b.SetBase(progression.StatHPMax, 50)
+
+	mu.Lock()
+	defer mu.Unlock()
+	if len(newVals) != 1 || oldVals[0] != 40 || newVals[0] != 50 {
+		t.Errorf("listener fired with (old=%v,new=%v), want [(40,50)]", oldVals, newVals)
+	}
+}
+
+// TestOnMaxChangeFiresOnModifierAddRemove confirms add+remove of a
+// max-affecting modifier each produce one listener fire.
+func TestOnMaxChangeFiresOnModifierAddRemove(t *testing.T) {
+	b := progression.NewWithBase(map[progression.StatType]int{
+		progression.StatHPMax: 40,
+	})
+	var fires int
+	var lastNew int
+	b.OnMaxChange(progression.StatHPMax, func(_, newMax int) {
+		fires++
+		lastNew = newMax
+	})
+
+	src := entities.SourceKey("effect:potion")
+	b.AddModifier(src, progression.StatHPMax, 10)
+	if fires != 1 || lastNew != 50 {
+		t.Errorf("after AddModifier: fires=%d lastNew=%d, want 1 / 50", fires, lastNew)
+	}
+
+	b.RemoveBySource(src)
+	if fires != 2 || lastNew != 40 {
+		t.Errorf("after RemoveBySource: fires=%d lastNew=%d, want 2 / 40", fires, lastNew)
+	}
+}
+
+// TestOnMaxChangeNoFireWhenValueUnchanged confirms that a mutation
+// that leaves the effective value of the watched stat unchanged
+// (e.g., a modifier on a different stat) does NOT fire the listener.
+func TestOnMaxChangeNoFireWhenValueUnchanged(t *testing.T) {
+	b := progression.NewWithBase(map[progression.StatType]int{
+		progression.StatHPMax: 40,
+		progression.StatSTR:   12,
+	})
+	var fires int
+	b.OnMaxChange(progression.StatHPMax, func(_, _ int) { fires++ })
+
+	b.AddModifier(entities.SourceKey("effect:strength"), progression.StatSTR, 4)
+
+	if fires != 0 {
+		t.Errorf("listener fired %d times after unrelated mutation, want 0", fires)
+	}
+}
+
+// TestOnMaxChangeMultipleListenersFireInOrder confirms that multiple
+// listeners registered on the same stat all fire, in registration
+// order.
+func TestOnMaxChangeMultipleListenersFireInOrder(t *testing.T) {
+	b := progression.NewWithBase(map[progression.StatType]int{
+		progression.StatHPMax: 40,
+	})
+	var order []string
+	b.OnMaxChange(progression.StatHPMax, func(_, _ int) { order = append(order, "first") })
+	b.OnMaxChange(progression.StatHPMax, func(_, _ int) { order = append(order, "second") })
+	b.SetBase(progression.StatHPMax, 50)
+	if len(order) != 2 || order[0] != "first" || order[1] != "second" {
+		t.Errorf("order = %v, want [first second]", order)
+	}
+}
+
+// TestOnMaxChangeNilListenerIgnored guards the public surface
+// against a stray nil registration.
+func TestOnMaxChangeNilListenerIgnored(t *testing.T) {
+	b := progression.NewWithBase(map[progression.StatType]int{
+		progression.StatHPMax: 40,
+	})
+	b.OnMaxChange(progression.StatHPMax, nil) // must not panic
+	b.SetBase(progression.StatHPMax, 50)      // must not panic
+}

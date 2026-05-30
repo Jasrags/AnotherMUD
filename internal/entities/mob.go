@@ -477,7 +477,7 @@ func buildMobFromTemplate(tpl *mob.Template, id EntityID) *MobInstance {
 	sb := mobStatBlock(tpl.Stats)
 	maxHP := sb.Effective(progression.StatHPMax)
 
-	return &MobInstance{
+	mob := &MobInstance{
 		id:           id,
 		typ:          tpl.Type,
 		name:         tpl.Name,
@@ -491,6 +491,14 @@ func buildMobFromTemplate(tpl *mob.Template, id EntityID) *MobInstance {
 		trainerTier:  tpl.TrainerTier,
 		trainerTeach: append([]string(nil), tpl.TrainerTeach...),
 	}
+	// M14.1: keep Vitals.Max in lockstep with StatBlock's effective
+	// hp_max so an effect that raises CON / hp_max actually changes
+	// the mob's max-HP ceiling. Vitals.SetMax also clamps current
+	// down when the new max is lower.
+	mob.statBlock.OnMaxChange(progression.StatHPMax, func(_, newMax int) {
+		mob.vitals.SetMax(newMax)
+	})
+	return mob
 }
 
 // mobStatBlock builds a progression.StatBlock seeded from a mob
