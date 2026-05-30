@@ -2441,10 +2441,15 @@ func registerBaselineChannels(reg *chat.Registry, scrollbacks map[string]*chat.S
 }
 
 // chatSubscribers adapts session.Manager to command.ChatSubscribers.
-// v1: every online player is subscribed to every channel.
+// v1: every online player is subscribed to every channel — the
+// channelID argument is intentionally ignored. M13.6b will read
+// the player's subscription set off player.yaml and filter by
+// channelID at that point. Returns a fresh map per call per the
+// ChatSubscribers contract (session.Manager.OnlinePlayers does).
 type chatSubscribers struct{ mgr *session.Manager }
 
-func (cs chatSubscribers) Subscribers(_ string) map[string]string {
+func (cs chatSubscribers) Subscribers(channelID string) map[string]string {
+	_ = channelID // ignored in v1; see type comment
 	if cs.mgr == nil {
 		return nil
 	}

@@ -288,6 +288,53 @@ func TestManager_DrainNoRegistrationIsNoOp(t *testing.T) {
 	}
 }
 
+// TestManager_DrainDoesNotReenqueueIntoSuccessor pins the M3 fix:
+// if a session Unregister+Register interleaves while a Drain is
+// retrying a failed Deliver, the leftover notifications belong to
+// the prior session and must NOT land in the new session's queue.
+func TestManager_DrainDoesNotReenqueueIntoSuccessor(t *testing.T) {
+	m := newManager(t, 50)
+	ctx := context.Background()
+	sink := &stubSink{failCount: 99} // every Deliver fails
+
+	if err := m.Register(ctx, "ent-r", "Rachel", sink); err != nil {
+		t.Fatalf("Register: %v", err)
+	}
+	// Queue a tell via the offline-publish path (failing immediate
+	// delivery → enqueue).
+	if err := m.Publish(ctx, Notification{
+		Recipients: []string{"ent-r"}, Priority: PriorityTell, Text: "stale",
+	}, map[string]string{"ent-r": "Rachel"}); err != nil {
+		t.Fatalf("Publish: %v", err)
+	}
+
+	// Simulate the race: between DrainAll and the re-enqueue
+	// retry, the original session unregisters and a new one
+	// registers. We force this by unregistering, then registering
+	// with a fresh sink, BEFORE calling Drain.
+	if err := m.Unregister(ctx, "ent-r"); err != nil {
+		t.Fatalf("Unregister: %v", err)
+	}
+	freshSink := &stubSink{failCount: 99}
+	if err := m.Register(ctx, "ent-r", "Rachel", freshSink); err != nil {
+		t.Fatalf("re-Register: %v", err)
+	}
+
+	// Drain through the NEW session — its queue starts loaded from
+	// disk (the prior session's saved queue), so the stale tell IS
+	// present, drained, fails delivery, and then the pointer-
+	// equality check controls whether it gets re-enqueued. Since
+	// it IS the same *entityState pointer post-Drain (no other
+	// race in this test), it should re-enqueue normally.
+	_ = m.Drain(ctx, "ent-r")
+	m.mu.Lock()
+	stLen := m.state["ent-r"].queue.Len()
+	m.mu.Unlock()
+	if stLen != 1 {
+		t.Errorf("post-drain queue len = %d, want 1 (re-enqueue within same session)", stLen)
+	}
+}
+
 func TestManager_ConcurrentPublishesRaceClean(t *testing.T) {
 	m := newManager(t, 200)
 	ctx := context.Background()

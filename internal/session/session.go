@@ -763,6 +763,7 @@ func pump(ctx context.Context, c conn.Connection, cfg Config, a *connActor, clk 
 			ChatRegistry:    cfg.ChatRegistry,
 			ChatSubscribers: cfg.ChatSubscribers,
 			ChatScrollbacks: cfg.ChatScrollbacks,
+			Clock:           cfg.Clock,
 		}
 		if err := cfg.Commands.Dispatch(ctx, env, a, line); err != nil {
 			if errors.Is(err, command.ErrQuit) {

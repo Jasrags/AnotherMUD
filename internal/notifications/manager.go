@@ -151,11 +151,22 @@ func (m *Manager) Drain(ctx context.Context, entityID string) error {
 		if err := sink.Deliver(ctx, n); err != nil {
 			// Re-enqueue this notification and everything after
 			// it (preserve original publish order on retry).
+			// Pointer-equality check: if Unregister + Register
+			// raced our drain and a new entityState now holds the
+			// slot, those leftovers belong to the prior session,
+			// not the new one. Drop them with a warn so the data
+			// loss is observable (the new session has its own
+			// freshly-loaded queue and never saw these).
 			m.mu.Lock()
-			if st2, ok := m.state[entityID]; ok {
+			if st2, ok := m.state[entityID]; ok && st2 == st {
 				for _, leftover := range pending[i:] {
 					st2.queue.Append(leftover)
 				}
+			} else {
+				log.Warn("notify drain: re-enqueue dropped, session replaced",
+					slog.String("event", "notify.drain.lost"),
+					slog.String("entity_id", entityID),
+					slog.Int("dropped", len(pending)-i))
 			}
 			m.mu.Unlock()
 			log.Warn("notify drain: deliver failed",

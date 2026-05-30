@@ -27,6 +27,7 @@ import (
 	"github.com/Jasrags/AnotherMUD/internal/entities"
 	"github.com/Jasrags/AnotherMUD/internal/eventbus"
 	"github.com/Jasrags/AnotherMUD/internal/chat"
+	"github.com/Jasrags/AnotherMUD/internal/clock"
 	"github.com/Jasrags/AnotherMUD/internal/help"
 	"github.com/Jasrags/AnotherMUD/internal/notifications"
 	"github.com/Jasrags/AnotherMUD/internal/progression"
@@ -265,6 +266,13 @@ type Env struct {
 	// ChatScrollbacks returns the per-channel ring buffer. The
 	// publish path appends after fan-out; chat history reads tails.
 	ChatScrollbacks ChatScrollbacks
+
+	// Clock is the engine time source. Handlers that need to stamp
+	// timestamps (e.g., chat scrollback PublishedAt) MUST use it
+	// rather than time.Now(); see ROADMAP foundation F3. nil-safe;
+	// handlers MUST nil-guard and fall back to a sensible default
+	// for test fixtures.
+	Clock clock.Clock
 }
 
 // TellResolver maps a player name to a recipient route. Returns
@@ -348,6 +356,9 @@ type Context struct {
 	ChatRegistry    *chat.Registry
 	ChatSubscribers ChatSubscribers
 	ChatScrollbacks ChatScrollbacks
+	// Clock is the engine time source (foundation F3). nil in
+	// tests that don't stamp timestamps.
+	Clock           clock.Clock
 	Raw             string   // raw input line, trimmed
 	Verb            string   // resolved verb (lowercase)
 	Args            []string // tokens after the verb (space-split)
@@ -618,6 +629,7 @@ func (r *Registry) Dispatch(ctx context.Context, env Env, actor Actor, raw strin
 		ChatRegistry:    env.ChatRegistry,
 		ChatSubscribers: env.ChatSubscribers,
 		ChatScrollbacks: env.ChatScrollbacks,
+		Clock:           env.Clock,
 		Raw:             trimmed,
 		Verb:            strings.ToLower(verb),
 		Args:            args,

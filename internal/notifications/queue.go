@@ -152,7 +152,7 @@ func (q *Queue) oldestAtTier(tier Priority) int {
 	// Caller-side invariant: tail tier must exist when this is
 	// called. If it doesn't, the eviction logic is wrong; panic
 	// rather than silently corrupt.
-	panic("notifications: oldestAtTier called for absent tier")
+	panic(fmt.Sprintf("notifications: oldestAtTier: tier %s absent in queue of %d", tier, len(q.items)))
 }
 
 // drainLess reports whether a should drain before b. Higher

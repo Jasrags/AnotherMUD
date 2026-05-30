@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/Jasrags/AnotherMUD/internal/chat"
+	"github.com/Jasrags/AnotherMUD/internal/clock"
 	"github.com/Jasrags/AnotherMUD/internal/notifications"
 )
 
@@ -160,7 +161,7 @@ func doChannelPublish(ctx context.Context, c *Context, ch *chat.Channel, msg str
 	if c.ChatScrollbacks != nil {
 		if sb := c.ChatScrollbacks.Scrollback(ch.ID); sb != nil {
 			sb.Append(chat.Message{
-				PublishedAt: time.Now(),
+				PublishedAt: nowFromCtx(c),
 				SenderID:    senderID,
 				SenderName:  senderName,
 				Text:        rendered,
@@ -171,10 +172,27 @@ func doChannelPublish(ctx context.Context, c *Context, ch *chat.Channel, msg str
 	return c.Actor.Write(ctx, fmt.Sprintf("You %s: %s", ch.DisplayName, msg))
 }
 
-// parsePositiveInt returns a non-negative integer parsed from s, or
-// an error. Tiny local helper so chat.go doesn't pull in strconv at
-// the package level.
+// nowFromCtx returns the engine-clock current time. Falls back to
+// the stdlib wall clock when the Context has no Clock wired (test
+// fixtures); production paths always pass the real clock through
+// session.Config so the F3 foundation rule (no direct time.Now in
+// engine packages) holds for live traffic.
+func nowFromCtx(c *Context) time.Time {
+	if c.Clock != nil {
+		return c.Clock.Now()
+	}
+	return clock.RealClock{}.Now()
+}
+
+// parsePositiveInt returns a strictly positive integer parsed from
+// s, or an error. "0" is rejected — the chat history verb's count
+// argument must be >= 1 so the no-arg-default fall-through stays
+// distinguishable from "user asked for nothing". Empty input,
+// non-digit characters, and overflow are all errors.
 func parsePositiveInt(s string) (int, error) {
+	if s == "" {
+		return 0, fmt.Errorf("empty")
+	}
 	var n int
 	for _, r := range s {
 		if r < '0' || r > '9' {
@@ -185,8 +203,8 @@ func parsePositiveInt(s string) (int, error) {
 			return 0, fmt.Errorf("too big: %q", s)
 		}
 	}
-	if n == 0 && s == "" {
-		return 0, fmt.Errorf("empty")
+	if n == 0 {
+		return 0, fmt.Errorf("must be positive: %q", s)
 	}
 	return n, nil
 }
