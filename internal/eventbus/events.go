@@ -214,6 +214,17 @@ const (
 	// the move failed so they can decorate the "you can't go that
 	// way" path with door-specific text.
 	EventDoorBlocked = "door.blocked"
+
+	// EventPortalOpened fires after the portal service creates a
+	// runtime keyword exit (spec world-rooms-movement §5.6).
+	// CreatePaired emits once for the primary side; the partner
+	// registration is silent.
+	EventPortalOpened = "portal.opened"
+	// EventPortalClosed fires after a portal is torn down — by
+	// explicit Remove, by auto-expiry on area tick, or as the
+	// paired-partner removal triggered by either of those. Paired
+	// removals emit once for the primary side only.
+	EventPortalClosed = "portal.closed"
 )
 
 // ItemPickedUp fires after GetHandler successfully moves an item
@@ -1044,3 +1055,31 @@ type DoorBlocked struct{ DoorEvent }
 
 // Name implements Event.
 func (DoorBlocked) Name() string { return EventDoorBlocked }
+
+// PortalEvent is the shared payload for portal.opened / portal.closed.
+// Carries enough state for renderers to announce the portal in the
+// affected rooms and for subscribers (admin tooling, scripting) to
+// react without a follow-up service lookup.
+//
+// Spec: world-rooms-movement §5.6.
+type PortalEvent struct {
+	PortalID    string
+	SourceRoom  world.RoomID
+	TargetRoom  world.RoomID
+	Keyword     string // lowercased
+	DisplayName string
+	ExpiryTick  uint64 // 0 = no expiry
+	PairedID    string // empty for one-way portals
+}
+
+// PortalOpened is the portal.opened payload.
+type PortalOpened struct{ PortalEvent }
+
+// Name implements Event.
+func (PortalOpened) Name() string { return EventPortalOpened }
+
+// PortalClosed is the portal.closed payload.
+type PortalClosed struct{ PortalEvent }
+
+// Name implements Event.
+func (PortalClosed) Name() string { return EventPortalClosed }

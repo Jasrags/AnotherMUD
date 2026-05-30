@@ -39,6 +39,7 @@ import (
 	"github.com/Jasrags/AnotherMUD/internal/chat"
 	"github.com/Jasrags/AnotherMUD/internal/emote"
 	"github.com/Jasrags/AnotherMUD/internal/notifications"
+	"github.com/Jasrags/AnotherMUD/internal/portal"
 	"github.com/Jasrags/AnotherMUD/internal/property"
 	"github.com/Jasrags/AnotherMUD/internal/queststore"
 	"github.com/Jasrags/AnotherMUD/internal/questwatch"
@@ -381,6 +382,27 @@ func run() error {
 				slog.Int("transitions", n))
 		}
 	})
+
+	// M15.2: portal service + auto-expiry on area.tick (spec §5.6).
+	// The portal sink bridges service-level lifecycle hooks to the
+	// engine bus so subscribers (renderer, AI, future scripting)
+	// see portal.opened / portal.closed events. ExpireUpTo runs on
+	// every area-tick using the event's monotonic TickCount as the
+	// authoritative clock.
+	portalSvc := portal.NewService(w, &portalBusSink{bus: bus})
+	bus.Subscribe(eventbus.EventAreaTick, func(ctx context.Context, ev eventbus.Event) {
+		t, ok := ev.(eventbus.AreaTick)
+		if !ok {
+			return
+		}
+		if n := portalSvc.ExpireUpTo(t.AreaID, t.TickCount); n > 0 {
+			logging.From(ctx).Debug("portals expired on area tick",
+				slog.String("event", "portal.expired"),
+				slog.String("area", string(t.AreaID)),
+				slog.Int("count", n))
+		}
+	})
+	_ = portalSvc // retained for future verb wiring (M15.2b admin verb)
 
 	scheduler := spawn.NewScheduler(spawn.SchedulerConfig{
 		World:            w,
@@ -2556,6 +2578,42 @@ type chatScrollbackLookup struct{ m map[string]*chat.Scrollback }
 
 func (l chatScrollbackLookup) Scrollback(channelID string) *chat.Scrollback {
 	return l.m[channelID]
+}
+
+// portalBusSink bridges portal.Service lifecycle hooks to the
+// engine event bus. M15.2 — subscribes are anything that wants to
+// hear portal.opened / portal.closed (renderer, AI hooks, future
+// scripting).
+type portalBusSink struct{ bus *eventbus.Bus }
+
+func (s *portalBusSink) OnPortalOpened(p portal.Portal) {
+	if s.bus == nil {
+		return
+	}
+	s.bus.Publish(context.Background(), eventbus.PortalOpened{
+		PortalEvent: portalEventOf(p),
+	})
+}
+
+func (s *portalBusSink) OnPortalClosed(p portal.Portal) {
+	if s.bus == nil {
+		return
+	}
+	s.bus.Publish(context.Background(), eventbus.PortalClosed{
+		PortalEvent: portalEventOf(p),
+	})
+}
+
+func portalEventOf(p portal.Portal) eventbus.PortalEvent {
+	return eventbus.PortalEvent{
+		PortalID:    p.ID,
+		SourceRoom:  p.SourceRoom,
+		TargetRoom:  p.TargetRoom,
+		Keyword:     p.Keyword,
+		DisplayName: p.DisplayName,
+		ExpiryTick:  p.ExpiryTick,
+		PairedID:    p.PairedID,
+	}
 }
 
 // registerEngineBaselineProperties seeds the engine-known property

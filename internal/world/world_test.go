@@ -508,3 +508,67 @@ func TestResetDoorsInArea_NoChangeWhenAlreadyDefault(t *testing.T) {
 		t.Errorf("already-at-default: transitions = %d, want 0", n)
 	}
 }
+
+// TestKeywordExit_Lifecycle pins the M15.2 keyword exit substrate:
+// add/has/remove, plus MoveByKeyword with case-insensitive lookup.
+func TestKeywordExit_Lifecycle(t *testing.T) {
+	w := world.New()
+	w.AddRoom(&world.Room{ID: "a", Name: "A"})
+	w.AddRoom(&world.Room{ID: "b", Name: "B"})
+
+	if !w.AddKeywordExit("a", "Portal", "b") {
+		t.Fatal("AddKeywordExit failed")
+	}
+	if !w.HasKeywordExit("a", "PORTAL") {
+		t.Error("HasKeywordExit case-insensitive miss")
+	}
+
+	dst, err := w.MoveByKeyword("a", "portal")
+	if err != nil {
+		t.Fatalf("MoveByKeyword: %v", err)
+	}
+	if dst.ID != "b" {
+		t.Errorf("dst = %q, want b", dst.ID)
+	}
+
+	if !w.RemoveKeywordExit("a", "portal") {
+		t.Error("RemoveKeywordExit returned false")
+	}
+	if w.HasKeywordExit("a", "portal") {
+		t.Error("HasKeywordExit after remove: want false")
+	}
+	if _, err := w.MoveByKeyword("a", "portal"); !errors.Is(err, world.ErrNoExit) {
+		t.Errorf("MoveByKeyword after remove: err = %v, want ErrNoExit", err)
+	}
+}
+
+func TestKeywordExit_RejectsCollision(t *testing.T) {
+	w := world.New()
+	w.AddRoom(&world.Room{ID: "a"})
+	w.AddRoom(&world.Room{ID: "b"})
+	w.AddRoom(&world.Room{ID: "c"})
+	w.AddKeywordExit("a", "gate", "b")
+	if w.AddKeywordExit("a", "GATE", "c") {
+		t.Error("AddKeywordExit collision: want false (case-insensitive)")
+	}
+}
+
+func TestKeywordExit_RejectsMissingRoom(t *testing.T) {
+	w := world.New()
+	w.AddRoom(&world.Room{ID: "a"})
+	if w.AddKeywordExit("a", "void", "no:such") {
+		t.Error("missing target: want false")
+	}
+	if w.AddKeywordExit("ghost", "gate", "a") {
+		t.Error("missing source: want false")
+	}
+}
+
+func TestKeywordExit_RejectsEmpty(t *testing.T) {
+	w := world.New()
+	w.AddRoom(&world.Room{ID: "a"})
+	w.AddRoom(&world.Room{ID: "b"})
+	if w.AddKeywordExit("a", "   ", "b") {
+		t.Error("empty keyword: want false")
+	}
+}
