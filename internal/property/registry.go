@@ -3,6 +3,7 @@ package property
 import (
 	"fmt"
 	"regexp"
+	"strings"
 	"sync"
 )
 
@@ -145,23 +146,22 @@ func (r *Registry) RegisterEngine(e Entry) error {
 // property is an error.
 //
 // Spec: §2.3 "A pack property MUST NOT shadow an engine property
-// — attempting to do so MUST raise."
+// — attempting to do so MUST raise." Shadow check happens under the
+// same write lock as the duplicate-key check so concurrent
+// registrations cannot both pass the gate in a TOCTOU window.
 func (r *Registry) RegisterPack(packName string, e Entry) error {
 	if packName == "" {
 		return fmt.Errorf("property.RegisterPack %q: empty packName", e.Name)
 	}
 	e.Pack = packName
-	r.mu.RLock()
-	_, shadows := r.entries[e.Name] // bare engine key
-	r.mu.RUnlock()
-	if shadows {
-		return fmt.Errorf("property.RegisterPack %q: shadows engine property", e.Name)
-	}
 	return r.registerLocked(e)
 }
 
 // registerLocked validates and installs e under e.Key(). Acquires
-// r.mu for the write.
+// r.mu for the write. Pack-scoped entries additionally check for
+// shadowing an engine property under the same lock so the spec's
+// "MUST raise" contract holds even under (today hypothetical)
+// concurrent registration.
 func (r *Registry) registerLocked(e Entry) error {
 	if e.Name == "" {
 		return fmt.Errorf("property.Register: empty Name")
@@ -175,6 +175,11 @@ func (r *Registry) registerLocked(e Entry) error {
 	key := e.Key()
 	r.mu.Lock()
 	defer r.mu.Unlock()
+	if e.Pack != "" {
+		if _, shadows := r.entries[e.Name]; shadows {
+			return fmt.Errorf("property.RegisterPack %q: shadows engine property", e.Name)
+		}
+	}
 	if _, dup := r.entries[key]; dup {
 		return fmt.Errorf("property.Register %q: duplicate key", key)
 	}
@@ -211,7 +216,7 @@ func (r *Registry) Get(name, currentPack string) (Entry, bool) {
 		r.mu.RUnlock()
 		return e, true
 	}
-	if currentPack != "" && !containsColon(name) {
+	if currentPack != "" && !strings.Contains(name, ":") {
 		key := currentPack + ":" + name
 		if e, ok := r.entries[key]; ok {
 			r.mu.RUnlock()
@@ -274,11 +279,3 @@ func (r *Registry) Len() int {
 	return len(r.entries)
 }
 
-func containsColon(s string) bool {
-	for i := 0; i < len(s); i++ {
-		if s[i] == ':' {
-			return true
-		}
-	}
-	return false
-}

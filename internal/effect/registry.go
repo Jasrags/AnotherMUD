@@ -6,6 +6,7 @@ import (
 	"sync"
 
 	"github.com/Jasrags/AnotherMUD/internal/progression"
+	"github.com/Jasrags/AnotherMUD/internal/stats"
 )
 
 // Registry holds effect templates by id. Ids are case-insensitive
@@ -48,6 +49,10 @@ func (r *Registry) Register(tpl progression.EffectTemplate) error {
 }
 
 // Get returns the template registered under id (case-insensitive).
+// The returned value is deep-copied — the Modifiers and Flags slices
+// are fresh, so callers may mutate the returned template freely
+// without polluting the registry. The cost is a small per-call
+// allocation; effect templates are tiny (typically <5 modifiers).
 func (r *Registry) Get(id string) (progression.EffectTemplate, bool) {
 	key := strings.ToLower(strings.TrimSpace(id))
 	if key == "" {
@@ -56,17 +61,43 @@ func (r *Registry) Get(id string) (progression.EffectTemplate, bool) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 	tpl, ok := r.byID[key]
-	return tpl, ok
+	if !ok {
+		return progression.EffectTemplate{}, false
+	}
+	return cloneTemplate(tpl), true
 }
 
-// All returns every registered template in insertion order. Fresh
-// slice; callers may mutate it.
+// All returns every registered template in insertion order. Both
+// the outer slice AND each template's inner slices are fresh
+// copies; callers may mutate any of it without affecting the
+// registry's stored state.
 func (r *Registry) All() []progression.EffectTemplate {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 	out := make([]progression.EffectTemplate, 0, len(r.ordered))
 	for _, id := range r.ordered {
-		out = append(out, r.byID[id])
+		out = append(out, cloneTemplate(r.byID[id]))
+	}
+	return out
+}
+
+// cloneTemplate deep-copies an EffectTemplate so the registry can
+// hand out tear-off copies that callers are free to mutate. The
+// progression package has no exported clone for this shape and the
+// type is small enough that defining the copy here is cleaner than
+// extending its API.
+func cloneTemplate(t progression.EffectTemplate) progression.EffectTemplate {
+	out := progression.EffectTemplate{
+		ID:       t.ID,
+		Duration: t.Duration,
+	}
+	if len(t.Modifiers) > 0 {
+		out.Modifiers = make([]stats.Modifier, len(t.Modifiers))
+		copy(out.Modifiers, t.Modifiers)
+	}
+	if len(t.Flags) > 0 {
+		out.Flags = make([]string, len(t.Flags))
+		copy(out.Flags, t.Flags)
 	}
 	return out
 }

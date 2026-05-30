@@ -54,6 +54,14 @@ func IsTagged(v interface{}) bool {
 	return false
 }
 
+// maxUnwrapDepth bounds Unwrap's nested-envelope walk so a
+// pathological input (a YAML file with thousands of nested
+// kind/value wrappers) cannot spin the loader. Content is pack-
+// trusted today, so the cap is defense-in-depth rather than
+// security-critical — a real authoring bug producing more than a
+// few levels of nesting is already pathological.
+const maxUnwrapDepth = 16
+
 // Unwrap returns the unwrapped value AND the kind string of the
 // deepest non-tagged inner value. Per spec §4.5 step 2, accidental
 // nested envelopes (`{kind, value: {kind, value: ...}}`) are
@@ -64,20 +72,23 @@ func IsTagged(v interface{}) bool {
 // Returns (originalValue, "", false) when v is not a tagged
 // envelope at all. nil tolerance and double-wrapping are both
 // silent — recoverable bugs in prior serializers must not break
-// today's loader.
+// today's loader. After maxUnwrapDepth iterations the walk stops
+// and treats the remaining value as the inner — preventing a
+// runaway loop on adversarial input.
 func Unwrap(v interface{}) (inner interface{}, kind string, wasTagged bool) {
 	current := v
 	deepestKind := ""
 	tagged := false
-	for {
-		k, inner, ok := unwrapOne(current)
+	for depth := 0; depth < maxUnwrapDepth; depth++ {
+		k, next, ok := unwrapOne(current)
 		if !ok {
 			return current, deepestKind, tagged
 		}
 		tagged = true
 		deepestKind = k
-		current = inner
+		current = next
 	}
+	return current, deepestKind, tagged
 }
 
 // unwrapOne returns (kind, innerValue, true) if v is a tagged

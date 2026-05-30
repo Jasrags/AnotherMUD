@@ -94,3 +94,44 @@ func TestRegistry_GetEmptyKey(t *testing.T) {
 		t.Errorf("Get whitespace: want miss")
 	}
 }
+
+// TestRegistry_GetReturnsDeepCopy pins the post-review H1 fix:
+// mutating slices on the returned EffectTemplate must not affect
+// the registry's stored entry.
+func TestRegistry_GetReturnsDeepCopy(t *testing.T) {
+	r := NewRegistry()
+	if err := r.Register(bless()); err != nil {
+		t.Fatalf("Register: %v", err)
+	}
+	got, _ := r.Get("bless")
+	if len(got.Modifiers) != 1 {
+		t.Fatalf("Modifiers len = %d, want 1", len(got.Modifiers))
+	}
+	// Mutate the returned slice.
+	got.Modifiers[0].Value = 9999
+	// Re-fetch and confirm the stored entry is untouched.
+	again, _ := r.Get("bless")
+	if again.Modifiers[0].Value != 2 {
+		t.Errorf("stored Modifiers[0].Value = %d after caller mutation; want 2 (defensive copy broken)",
+			again.Modifiers[0].Value)
+	}
+}
+
+// TestRegistry_AllReturnsDeepCopy pins the same H1 guarantee for All.
+func TestRegistry_AllReturnsDeepCopy(t *testing.T) {
+	r := NewRegistry()
+	_ = r.Register(bless())
+	out := r.All()
+	out[0].Flags = append(out[0].Flags, "tampered")
+	out[0].Modifiers[0].Value = 9999
+
+	got, _ := r.Get("bless")
+	if got.Modifiers[0].Value != 2 {
+		t.Errorf("stored Modifiers[0].Value = %d after caller mutation via All", got.Modifiers[0].Value)
+	}
+	for _, f := range got.Flags {
+		if f == "tampered" {
+			t.Error("stored Flags carries tampered entry")
+		}
+	}
+}

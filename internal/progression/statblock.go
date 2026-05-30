@@ -514,8 +514,9 @@ func (b *StatBlock) notifyMaxLocked() []func() {
 			continue
 		}
 		b.lastWatched[stat] = newVal
+		// go 1.22+ gives each iteration its own l; no shadow
+		// needed. oldVal/newVal are int and captured by value.
 		for _, l := range listeners {
-			l := l // capture loop var
 			out = append(out, func() { l(oldVal, newVal) })
 		}
 	}

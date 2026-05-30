@@ -1606,8 +1606,15 @@ func valueMatchesType(v interface{}, t property.ValueType) bool {
 		_, ok := v.(int)
 		return ok
 	case property.TypeInt64:
-		_, ok := v.(int64)
-		return ok
+		// go-yaml decodes untagged integers as `int` on 64-bit
+		// platforms; accept both so a content-side `1000000` does
+		// not bounce off a TypeInt64-registered property just
+		// because the YAML decoder chose the narrower type.
+		switch v.(type) {
+		case int64, int:
+			return true
+		}
+		return false
 	case property.TypeFloat64:
 		_, ok := v.(float64)
 		return ok
