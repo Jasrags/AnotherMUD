@@ -498,6 +498,35 @@ func run() error {
 		&effectSink{bus: bus},
 	)
 
+	// M14.2: item.consumed → effect.Registry lookup → effectMgr.Apply.
+	// Closes the m11-5 deferral. Items declaring effect_id (e.g. the
+	// bless-potion) get their effect applied to the consumer after the
+	// consume path emits ItemConsumed. Empty effect_id is a legacy /
+	// non-effect consumable (e.g., trail-ration) — silently skipped.
+	bus.Subscribe(eventbus.EventItemConsumed, func(ctx context.Context, ev eventbus.Event) {
+		e, ok := ev.(eventbus.ItemConsumed)
+		if !ok || e.EffectID == "" {
+			return
+		}
+		tpl, ok := registries.Effects.Get(e.EffectID)
+		if !ok {
+			logging.From(ctx).Warn("item.consumed: unknown effect_id",
+				slog.String("event", "effect.consumed.unknown"),
+				slog.String("actor", string(e.ActorID)),
+				slog.String("item", e.ItemName),
+				slog.String("effect_id", e.EffectID))
+			return
+		}
+		// Per-event duration override: a potion can declare a longer
+		// or shorter duration than the template default by setting
+		// effect_duration in its properties. 0 (the default) means
+		// "use template duration".
+		if e.EffectDuration != 0 {
+			tpl.Duration = e.EffectDuration
+		}
+		effectMgr.Apply(ctx, string(e.ActorID), tpl, string(e.ActorID), "")
+	})
+
 	// M9.3/M9.4: per-entity action queue + pulse-delay cooldown
 	// tracker. The M9.4 ability phase pops from the queue each pulse
 	// and records cooldowns into the tracker; the validation pipeline

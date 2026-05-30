@@ -1,0 +1,10 @@
+# M14.2: starter effect template. Referenced from item.consumed events
+# by effect_id; the post-consume subscriber resolves this template
+# through the effect.Registry and calls progression.EffectManager.Apply
+# on the actor. Modifier-only effect (no flags); 300 ticks = 30s at
+# the default tick rate.
+id: bless
+duration: 300
+modifiers:
+  - stat: hit_mod
+    value: 2

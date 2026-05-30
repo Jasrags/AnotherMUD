@@ -1,0 +1,16 @@
+id: bless-potion
+name: a bless potion
+type: item
+tags: [consumable, potion, stackable]
+keywords: [potion, bless]
+properties:
+  stackable: true
+  weight: 1
+  # M14.2: drink applies the bless effect (id-keyed via the
+  # effect.Registry) for 300 ticks. The duration on the event can
+  # override the registry default; this potion uses the registry
+  # default by leaving effect_duration unset.
+  consume_method: drink
+  effect_id: bless
+  # Base shop value.
+  value: 25

@@ -1,6 +1,7 @@
 package pack
 
 import (
+	"github.com/Jasrags/AnotherMUD/internal/effect"
 	"github.com/Jasrags/AnotherMUD/internal/help"
 	"github.com/Jasrags/AnotherMUD/internal/item"
 	"github.com/Jasrags/AnotherMUD/internal/mob"
@@ -37,6 +38,11 @@ type Registries struct {
 	// quests from their quests/*.yaml files; the quest service (M10.7)
 	// reads it.
 	Quests *quest.Registry
+	// Effects is the M14.2 effect-template registry. Packs register
+	// effect templates from their effects/*.yaml files; the
+	// item.consumed subscriber resolves an event's effect_id through
+	// this registry before calling EffectManager.Apply.
+	Effects *effect.Registry
 }
 
 // NewRegistries returns a Registries with every field initialized.
@@ -57,5 +63,6 @@ func NewRegistries() *Registries {
 		Theme:     render.NewThemeRegistry(),
 		Help:      help.NewService(),
 		Quests:    quest.NewRegistry(),
+		Effects:   effect.NewRegistry(),
 	}
 }

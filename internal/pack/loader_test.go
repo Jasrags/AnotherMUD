@@ -1489,3 +1489,64 @@ name: Empty
 		t.Fatal("expected error for quest with no stages")
 	}
 }
+
+// TestLoadEffects pins the M14.2 pack loader hook: effects/*.yaml
+// in a pack manifest registers progression.EffectTemplate values
+// into registries.Effects, addressable by id.
+func TestLoadEffects(t *testing.T) {
+	root := t.TempDir()
+	pack := filepath.Join(root, "core")
+	writeFile(t, filepath.Join(pack, "pack.yaml"), `
+name: tapestry-core
+content:
+  effects: [effects/*.yaml]
+`)
+	writeFile(t, filepath.Join(pack, "effects/bless.yaml"), `
+id: bless
+duration: 300
+modifiers:
+  - stat: hit_mod
+    value: 2
+`)
+	writeFile(t, filepath.Join(pack, "effects/cursed.yaml"), `
+id: cursed
+duration: -1
+flags: [cursed]
+`)
+
+	regs := NewRegistries()
+	if err := Load(context.Background(), root, nil, regs, nil, nil); err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if regs.Effects.Len() != 2 {
+		t.Errorf("effects Len = %d, want 2", regs.Effects.Len())
+	}
+	bless, ok := regs.Effects.Get("bless")
+	if !ok || bless.Duration != 300 || len(bless.Modifiers) != 1 {
+		t.Errorf("bless = %+v ok=%v", bless, ok)
+	}
+	cursed, ok := regs.Effects.Get("CURSED") // case-insensitive
+	if !ok || cursed.Duration != -1 || len(cursed.Flags) != 1 {
+		t.Errorf("cursed = %+v ok=%v", cursed, ok)
+	}
+}
+
+// TestLoadEffectsRejectsDuplicateID confirms two packs (or one pack
+// with two files for the same id) fail the load at the second
+// Register call.
+func TestLoadEffectsRejectsDuplicateID(t *testing.T) {
+	root := t.TempDir()
+	pack := filepath.Join(root, "core")
+	writeFile(t, filepath.Join(pack, "pack.yaml"), `
+name: tapestry-core
+content:
+  effects: [effects/*.yaml]
+`)
+	writeFile(t, filepath.Join(pack, "effects/a.yaml"), "id: dup\nduration: 10\n")
+	writeFile(t, filepath.Join(pack, "effects/b.yaml"), "id: dup\nduration: 20\n")
+
+	err := Load(context.Background(), root, nil, NewRegistries(), nil, nil)
+	if err == nil {
+		t.Fatal("duplicate effect id: expected error")
+	}
+}

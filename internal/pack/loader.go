@@ -12,6 +12,7 @@ import (
 	"strings"
 
 	"github.com/Jasrags/AnotherMUD/internal/combat"
+	"github.com/Jasrags/AnotherMUD/internal/effect"
 	"github.com/Jasrags/AnotherMUD/internal/help"
 	"github.com/Jasrags/AnotherMUD/internal/item"
 	"github.com/Jasrags/AnotherMUD/internal/logging"
@@ -235,6 +236,10 @@ func loadPackContent(ctx context.Context, p Discovered, dst *Registries) ([]pend
 	if err != nil {
 		return nil, nil, err
 	}
+	effectPaths, err := resolveGlobs(p.Dir, p.Manifest.Content.Effects)
+	if err != nil {
+		return nil, nil, err
+	}
 
 	// Areas first — rooms reference them (spec §3.3 step 2). TryAddArea
 	// catches both intra-pack and cross-pack id collisions.
@@ -422,6 +427,24 @@ func loadPackContent(ctx context.Context, p Discovered, dst *Registries) ([]pend
 		}
 	}
 
+	// Effects: id-keyed registry (M14.2). Ids are case-insensitive;
+	// duplicate registration across packs is a load-time error.
+	for _, ep := range effectPaths {
+		data, err := os.ReadFile(ep)
+		if err != nil {
+			return nil, nil, fmt.Errorf("read effect %s: %w", ep, err)
+		}
+		tpl, err := effect.Decode(data)
+		if err != nil {
+			return nil, nil, fmt.Errorf("%w (in %s)", err, ep)
+		}
+		if dst.Effects != nil {
+			if err := dst.Effects.Register(tpl); err != nil {
+				return nil, nil, fmt.Errorf("%w (in %s)", err, ep)
+			}
+		}
+	}
+
 	logger.Info("pack content loaded",
 		slog.String("event", "pack.content"),
 		slog.Int("areas", len(areaPaths)),
@@ -436,6 +459,7 @@ func loadPackContent(ctx context.Context, p Discovered, dst *Registries) ([]pend
 		slog.Int("theme", len(themePaths)),
 		slog.Int("help", helpTopics),
 		slog.Int("quests", len(questPaths)),
+		slog.Int("effects", len(effectPaths)),
 		slog.Int("placements", len(placements)),
 		slog.Int("mob_placements", len(mobPlacements)),
 	)
