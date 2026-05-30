@@ -90,18 +90,33 @@ Open questions for the spec:
 
 ---
 
-## Open pre-decisions still in spec phase
+## Resolved in the M13 open-Q pass (2026-05-30)
 
-- **Ring buffer size per channel.** Default `last 50` is a placeholder.
-  Pin in M13.2 spec.
-- **Tell inbox cap and eviction policy.** When inbox is at cap, drop
-  oldest or refuse new? Pin in M13.2 spec.
-- **Channel pack-declaration schema.** YAML shape, namespacing
-  (`tapestry-core:ooc` vs. bare `ooc`), role-gate field. Pin in M13.2.
-- **Engine baseline channel set.** Just `ooc` + `admin`, or also
-  `newbie` and `gossip`? Lean small: `ooc` + `admin` only. Pin in M13.2.
-- **Emote substitution grammar.** `$n` actor, `$N` target, possessive
-  forms — match a known MUD convention or design our own. Pin in M13.3.
+All spec-phase open questions have been answered. Headlines:
+
+- **Queue cap:** 50 per entity (matches tells inbox cap).
+- **TTL:** none in v1 — cap-only eviction.
+- **Drain rate:** unbounded (flush whole backlog on reconnect).
+- **Multi-recipient publish:** partial success acceptable.
+- **Engine baseline channels:** ship as `tapestry-core` content
+  (`content/core/channels/*.yaml`) — same convention as every other
+  registry. Verbs use bare display names.
+- **Engine baseline set:** `ooc` (public, default-on) and `admin`
+  (gated, default-off, ephemeral).
+- **Channel ring buffer:** 50 messages global per channel (override
+  per channel).
+- **Tells inbox:** 50, oldest evicts when full, no TTL.
+- **Publisher self-echo:** confirmation copy only (mirrors `tell` flow).
+- **Tell-name resolution:** exact match, case-insensitive.
+- **History authorization:** current listen gate (demotion revokes).
+- **Channel mute:** not in v1; only tune/untune.
+- **Emote targeting:** items and mobs both allowed.
+- **Pronouns:** default `they/them` for everyone in v1.
+- **Freeform emote punctuation:** space-prepend, no special handling.
+
+Per-spec config-surface tables now hold the normative values.
+Remaining open items in each spec are explicitly out of v1 scope
+(cancellation seam, ignore interaction, two-target emotes, etc.).
 
 ---
 

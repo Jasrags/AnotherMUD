@@ -130,15 +130,28 @@ Each channel carries:
 ### 3.1 Engine baseline
 
 The engine ships a minimum baseline set so chat works out of
-the box without any packs. The default baseline is `ooc`
-(public, default-on, persisted) and `admin` (gated,
-default-off, may be ephemeral). The exact baseline is
-configurable in §10; pinning the names here is not the
-spec's job.
+the box. The baseline set lives in the **engine content pack**
+(`tapestry-core`, per `internal/pack/manifest.go`'s
+`EngineNamespace`), not in engine code. This matches the
+existing convention for every other engine-baseline content
+type (rooms, areas, mobs, items, races, classes, abilities).
 
-Baseline channels load from engine code, not pack YAML, and
-register with the channel registry before pack discovery
-runs.
+The default baseline is `tapestry-core:ooc` (public,
+default-on, persisted) and `tapestry-core:admin` (gated,
+default-off, ephemeral). The exact baseline is configurable
+in §10.
+
+Baseline channels load through the same `pack.Load` pipeline
+as every other registry — they are not a special case. Verb
+dispatch uses the channel's display name (`ooc`, `admin`),
+not the namespaced id, so the player-facing surface is
+unchanged.
+
+> **Implication:** removing the `tapestry-core` pack removes
+> the baseline channels along with every other piece of
+> engine content (rooms, mobs, etc.). This is the same
+> constraint that already applies to every other registry;
+> no new forking concern.
 
 ### 3.2 Pack-defined channels
 
@@ -540,63 +553,53 @@ layer emits:
 
 ## 10. Configuration surface
 
-| Setting | Default (suggested) | Meaning |
+| Setting | Default | Meaning |
 |---|---|---|
-| Engine baseline channels | `ooc` (public, default-on, persisted), `admin` (gated, default-off, ephemeral) | The set that exists with no packs loaded |
-| Pack channel filename | `channels/*.yaml` under pack root | Loader glob |
-| Channel ring buffer cap (default) | 50 | Per-channel scrollback size when channel doesn't override |
-| Channel ring buffer cap (override) | per-channel field | Channels may set their own (admin = 20, ooc = 100, etc.) |
-| Channel save cadence | autosave cadence | When to flush ring buffer to disk |
-| Tell inbox cap | 50 | Max queued tells per offline player |
-| Tell inbox TTL | none in v1 | Older tells discarded — see notifications spec §11 |
-| Channel history default N | 20 | Default count for `chat history <channel>` |
-| Tells session-history cap | 50 | In-memory recent-tells for `tells` verb |
-| Subscriptions storage key | `chat.subscriptions` on player | Player-file location |
-| Admin role tag | (open — see §11) | Tag used as the default admin gate |
+| Engine baseline channels | `tapestry-core:ooc` (public, default-on, persisted), `tapestry-core:admin` (gated, default-off, ephemeral) | Ship in the `content/core/channels/` directory of the engine content pack. |
+| Pack channel filename | `channels/*.yaml` under pack root | Loader glob (same pattern as `rooms/*.yaml`, `mobs/*.yaml`, etc.). |
+| Channel ring buffer cap (default) | 50 | Per-channel scrollback size when channel doesn't override. |
+| Channel ring buffer cap (override) | per-channel field | Channels may set their own (admin = 20, ooc = 100, etc.). |
+| Channel save cadence | autosave cadence | When to flush ring buffer to disk. |
+| Tell inbox cap | 50 | Max queued tells per offline player. Matches the notifications queue cap. |
+| Tell inbox TTL | none in v1 | No time-based expiry; cap-only eviction (oldest tell drops when full). |
+| Channel history default N | 20 | Default count for `chat history <channel>`. |
+| Tells session-history cap | 50 | In-memory recent-tells for `tells` verb. |
+| Subscriptions storage key | `chat.subscriptions` on player | Player-file location. |
+| Admin role tag | `role:admin` | Default speak/listen gate for `tapestry-core:admin`. Pin in M13.6 impl if the role-tag convention differs. |
+| Publisher self-echo | confirmation copy only | Channel publisher sees `You ooc: hi`; they are NOT in the recipient set (mirrors `tell` flow). |
+| Tell-name resolution | exact match, case-insensitive | No prefix/substring matching on player names; avoids spoofing-via-collision. |
+| History authorization | current listen gate | Re-checked at history-verb invocation against current role tags; demotion revokes access. |
+| Channel mute | not in v1 | Only tune/untune in v1; mute as a third subscription state is a follow-up. |
 
 ---
 
 ## 11. Open questions
 
-- **Does the publisher see their own channel message?** Two
-  conventions: (a) echo from the channel publish (publisher
-  is in recipient set, sees `[ooc] Alice: hi` like everyone
-  else); (b) immediate local echo only (`You ooc: hi`), no
-  re-echo of own broadcast. Lean: (b) — matches existing
-  `tell` flow where the publisher gets confirmation copy,
-  not a self-tell. Pin in M13.5/M13.6 impl.
-- **Per-player channel mute.** A player has tuned in but
-  wants to silence the channel temporarily without
-  untuning. Add as a third subscription state, or only
-  expose untune in v1? Lean: only untune in v1; mute is a
-  follow-up.
-- **Tells from offline-to-offline.** Can a player publish a
-  tell to someone who has never logged in (i.e., name
-  doesn't match a save file)? `NoSuchPlayer` covers the
-  not-on-disk case. Pin: tell to a known-but-offline
-  player succeeds; tell to an unknown name fails.
-- **What counts as a "player name" for tell resolution?**
-  Lowercased exact match against the player save directory?
-  Allow `tell ali` to resolve to Alice? Lean: exact match
-  only in v1 (no fuzzy resolution). Otherwise spoofing risk
-  and ambiguity.
-- **Channel publish ordering across recipients.** If Alice
-  and Bob both publish on `ooc` in the same tick, the
-  channel ring buffer needs a stable order. Notifications
-  substrate stamps `published_at`; ties broken by publish
-  arrival order. Confirm with notifications spec author
-  (same author here, but pin it).
-- **History verb authorization.** Should `chat history
-  admin` work for a non-admin if they were once on the
-  channel? Lean: history respects the *current* listen
-  gate, not historical subscription. If a player loses
-  the admin role they lose history access.
-- **Engine namespace for baseline channels.** Are `ooc`
-  and `admin` truly engine-baseline, or are they
-  `tapestry-core` content? Hybrid model says engine; but
-  `tapestry-core` is the engine namespace today. Decide:
-  do baseline channels register in pack registry (so they
-  appear in tooling/dumps) or stay engine-only?
+Resolved during the M13 open-Q pass (2026-05-30): publisher
+self-echo (confirmation-only), tell-name resolution (exact
+match, case-insensitive), engine-baseline namespace
+(`tapestry-core` content), history authorization (current
+listen gate), tell to offline-known vs. unknown (offline
+succeeds, unknown fails), per-player channel mute (deferred
+to follow-up). Those decisions live in §3.1, §6, §8, and §10.
+
+Remaining items, all noted for during-impl decisions:
+
+- **Channel publish ordering within a tick.** If two players
+  publish on `ooc` in the same tick, the ring buffer needs
+  a stable order. Spec posture: notifications substrate
+  stamps `published_at` from the engine `Clock`; ties
+  broken by publish arrival order (FIFO within a tier).
+  Confirm during M13.1 implementation that arrival order is
+  actually deterministic under the writer lock.
+- **Pack-channel filename collision.** Two packs each ship
+  `channels/trade.yaml` with bare id `trade` — both qualify
+  the bare id against their own pack, so the resulting
+  qualified ids are `<pack1>:trade` and `<pack2>:trade`. No
+  collision on qualified ids; but both packs register a
+  display-name verb `trade`, and *that* collides. Pin
+  during M13.6: either require packs to namespace their
+  display names too, or first-wins with a load-warn.
 
 ---
 

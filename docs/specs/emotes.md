@@ -326,53 +326,49 @@ of `character-creation` / `progression`, not this spec.
 
 ## 8. Configuration surface
 
-| Setting | Default (suggested) | Meaning |
+| Setting | Default | Meaning |
 |---|---|---|
-| Engine baseline emotes | `smile`, `nod`, `wave`, `bow`, `grin`, `shrug`, `laugh` | The set that exists with no packs loaded |
-| Pack emote filename glob | `emotes/*.yaml` under pack root | Loader glob |
-| Substitution token syntax | `$n`, `$N`, `$s`, `$S`, `$m`, `$M` (Diku-derived) | Token grammar |
-| Freeform verb name | `emote` | Canonical name for the freeform form |
-| Default pronoun set | `they/them` | Used when a character has no pronoun set assigned |
-| Pronoun-form fallback | subjective form | Used when a pronoun set is missing a specific form |
-| Target receives separate view | `true` | If `false`, target sees the room view instead |
-| Self-target allowed | `true` | Whether `smile self` resolves |
+| Engine baseline emotes | `tapestry-core:smile`, `nod`, `wave`, `bow`, `grin`, `shrug`, `laugh` | Ship in the `content/core/emotes/` directory of the engine content pack (same convention as channels per `chat-channels-and-tells` §3.1). |
+| Pack emote filename glob | `emotes/*.yaml` under pack root | Loader glob. |
+| Substitution token syntax | `$n`, `$N`, `$s`, `$S`, `$m`, `$M` (Diku-derived) | Token grammar. |
+| Freeform verb name | `emote` | Canonical name for the freeform form. |
+| Default pronoun set | `they/them` (everyone in v1) | No character-creation pronoun prompt in v1; a `pronouns` verb may land in a follow-up or in M12 work. |
+| Pronoun-form fallback | subjective form | Used when a pronoun set is missing a specific form. |
+| Target receives separate view | `true` | If `false`, target sees the room view instead. |
+| Self-target allowed | `true` | Whether `smile self` resolves. |
+| Item targeting allowed | `true` | Items resolve like any other room entity; pronoun set defaults to `it/its`. |
+| Mob targeting allowed | `true` | Mob is targetable; no AI reaction hook in v1 (mob ignores the emote). |
+| Freeform punctuation handling | space-prepend, no special case | `emote 's cape billows` → `Alice 's cape billows`. Players use `emote ,grins` for comma-first forms. |
 
 ---
 
 ## 9. Open questions
 
-- **Item targeting.** Can a player `smile` at an item? The
-  keyword resolver makes it cheap to allow; the substitution
-  layer needs to know an item's "name" and pronoun set
-  (probably `it/its`). Lean: allow it in v1, ship reasonable
-  defaults. Pin during impl.
-- **Mob targeting.** Same question for mobs. Lean: yes.
-  Aggressive mobs probably shouldn't react to a `wave` —
-  but reaction is an AI concern, not this spec's. Lean:
-  emote succeeds; mob ignores. Pin during impl.
-- **Ignore interaction.** When ignore lands, does the
+Resolved during the M13 open-Q pass (2026-05-30): item
+targeting (yes), mob targeting (yes; mob ignores reaction in
+v1), pronoun-set source (default `they/them` for everyone in
+v1), freeform punctuation handling (space-prepend, no special
+case). Those decisions live in §5 and §8.
+
+Remaining items, all explicitly *out of v1 scope*:
+
+- **Ignore interaction.** When the deferred ignore feature
+  lands (see `chat-channels-and-tells` §1.1), does the
   ignorer see the ignored player's room-view emotes? Pin
-  when ignore lands; not this spec's call.
-- **Pronoun set source.** v1 may not have a character
-  creation step that asks for pronouns. Default
-  `they/them` for everyone in v1; add a `pronouns` verb
-  in M13.7 polish OR push to character-creation work.
-- **Freeform punctuation.** `emote 's cape billows`
-  expects the actor's name + `'s cape billows` → `Alice's
-  cape billows`. Some MUDs strip the leading space when
-  the text starts with `'`. Lean: simple
-  space-after-name with no special handling; players
-  learn to type `emote ,` (comma start) or punctuation-
-  starting freeform forms work as space-prepended. Pin.
-- **Two-target emotes.** `introduce alice to bob`. Out of
-  v1 scope; the template / dispatch model supports it
-  with `$N` plus a `$T` (third party), but no v1 emote
-  uses it.
-- **Emote rate-limit / flood gate.** Should the existing
-  session flood gate (see `session-lifecycle`) catch
-  emote spam without a special carve-out? Lean: yes,
-  the existing gate is sufficient. No emote-specific
-  cooldown in v1.
+  in the ignore-feature spec, not here.
+- **Two-target emotes.** `introduce alice to bob`. Template
+  /dispatch model supports it with `$N` plus a `$T` token,
+  but no v1 emote uses it. Add if a content need appears.
+- **Emote rate-limit / flood gate.** v1 relies on the
+  existing session flood gate (see `session-lifecycle`) to
+  catch emote spam — no emote-specific cooldown. Revisit
+  only if profiling shows the gate is insufficient for
+  emote-shaped traffic.
+- **`pronouns` verb.** v1 hardcodes `they/them` for every
+  player. A future `pronouns <set>` verb (or a
+  character-creation prompt) lets players choose their
+  own. Pin in whichever milestone picks it up — not this
+  spec's call.
 
 ---
 

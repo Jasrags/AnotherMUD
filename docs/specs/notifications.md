@@ -366,52 +366,43 @@ at `debug` (so a live MUD does not flood its logs).
 Everything externally policy-driven lives here. The substrate
 must read these from configuration; it must not hardcode them.
 
-| Setting | Default (suggested) | Meaning |
+| Setting | Default | Meaning |
 |---|---|---|
 | Priority tier names | `system, tell, channel` | The enumeration. Adding a tier appends; removing a tier is a content-breaking change. |
-| Per-entity queue cap | (open — see §11) | Max notifications held per recipient |
-| Per-tier TTL | (open — see §11) | Max wall-time-equivalent age before discard |
-| Drain rate per tick | (open — see §11) | Max notifications to deliver to a single session per engine tick |
-| Persistence cadence | autosave cadence | When to flush mutated queues to disk |
-| Queue file name | `notifications.yaml` (within per-player save dir) | On-disk filename, parallel to `player.yaml` |
-| TTL sweep cadence | (open — see §11) | How often to walk all queues to discard expired entries (or "on next inspection only") |
+| Per-entity queue cap | 50 | Max notifications held per recipient. Matches the tells inbox cap so the mental model is one mailbox. |
+| Per-tier TTL | none in v1 | No time-based expiry. Cap-only eviction (oldest lowest-priority drops when full). |
+| Drain rate per tick | unbounded | Flush the entire backlog in the tick the session enters active phase. Cap is small enough that writer pressure is bounded. |
+| Persistence cadence | autosave cadence | When to flush mutated queues to disk. |
+| Queue file name | `notifications.yaml` (within per-player save dir) | On-disk filename, parallel to `player.yaml`. |
+| TTL sweep cadence | n/a in v1 | No sweep — TTL is off. If TTL is added later, expiry is lazy (checked on publish/drain) unless profiling shows accumulation. |
 
 ---
 
 ## 11. Open questions
 
-- **Default queue cap.** 100? 500? A function of priority tier
-  (more system-tier headroom)? Pin before M13.5 (tells impl).
-- **Default TTLs.** Tells expire? Channel notifications expire
-  faster than tells? Or no TTL in v1 (rely solely on cap)?
-- **Drain rate.** Bound per session, per tick, per tier? A
-  single number across all tiers risks starving low-priority;
-  per-tier means three numbers and more knobs. Lean: one
-  number, the cap is reached so rarely it doesn't matter.
-- **Periodic sweep vs. lazy expiry.** Lazy expiry (TTL checked
-  only on publish/drain) is cheap but a player who never
-  reconnects accumulates expired ghosts on disk. A periodic
-  sweep is correct but adds a tick handler. Default: lazy in
-  v1, add sweep if it becomes a real problem.
-- **Cross-restart immediate-delivery.** A player who is online
-  at publish time, link-deads before the writer flushes, and
-  reconnects after a server restart — does their notification
-  survive? Spec says yes (because writer failure re-enqueues
-  per §5). Confirm the implementation actually does this.
-- **Future cancellation seam.** Out of v1 scope explicitly. If
-  added later (admin recall, content takedown), the cancellable
-  event bus is the right surface — not a hole in the publish
-  API.
-- **Multi-recipient publish atomicity.** If publish to recipient
-  A succeeds and to recipient B fails, the notification was
-  partially delivered. Acceptable for v1 (tells/channels
-  re-publish on retry). Confirm that no caller needs all-or-
-  nothing semantics.
-- **Mob/NPC queues.** Spec says queues are per-entity, not
-  per-player, to keep the door open. No mob actually consumes
-  notifications today. Confirm we want to keep the door open
-  (vs. simplifying to player-only and burning the bridge until
-  there's a real consumer).
+Resolved during the M13 open-Q pass (2026-05-30): queue cap,
+TTL policy, drain rate, expiry strategy, multi-recipient
+atomicity, mob/NPC queue scope. Those decisions live in §10
+and the body sections above.
+
+Remaining genuinely-open items, all explicitly *out of v1
+scope*:
+
+- **Future cancellation seam.** No "unsend" or admin recall
+  in v1. If added later (content takedown, mod tooling),
+  the cancellable event bus is the right surface — not a
+  hole in the publish API.
+- **Periodic TTL sweep.** v1 ships no TTL, so no sweep. If
+  TTL is added later, default to lazy (check on
+  publish/drain); add a sweep only if a real
+  ghost-accumulation problem appears.
+- **Cross-restart immediate-delivery edge case.** A player
+  online at publish time, link-deads before the writer
+  flushes, reconnects after a server restart — spec says
+  the notification survives because writer failure
+  re-enqueues per §5. Confirm during M13.1 implementation
+  that the writer-failure path actually re-enqueues
+  (not silently drops).
 
 ---
 
