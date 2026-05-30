@@ -295,9 +295,11 @@ the channel's `who` (if/when that verb lands).
   permits.
 - Gated channels (`default-on: false` or listen gate fails)
   require an explicit tune-in.
-- The subscription set is stored on the player file
-  (under a new `chat.subscriptions` key) so it survives
-  logout.
+- The subscription set is persisted in a sibling file
+  `saves/players/<canonical-name>/chat.yaml`, independent
+  of `player.yaml`, so the chat-state schema versions on
+  its own cadence. Locked 2026-05-30 (was: open question
+  on player.yaml field vs. sibling file vs. in-memory).
 
 ### 5.2 Tune / untune
 
@@ -579,7 +581,7 @@ layer emits:
 | `last_tell_from` storage | in-memory on session actor (v1) | Survives within process lifetime; reset on server restart. Persistence can land later if UX demands it. |
 | Channel history default N | 20 | Default count for `chat history <channel>`. |
 | Tells session-history cap | 50 | In-memory recent-tells for `tells` verb. |
-| Subscriptions storage key | `chat.subscriptions` on player | Player-file location. |
+| Subscriptions storage | `saves/players/<canonical-name>/chat.yaml` (sibling of player.yaml) | Per-player file; independent schema versioning from `player.yaml`. |
 | Admin role tag | `role:admin` | Default speak/listen gate for `tapestry-core:admin`. Pin in M13.6 impl if the role-tag convention differs. |
 | Publisher self-echo | confirmation copy only | Channel publisher sees `You ooc: hi`; they are NOT in the recipient set (mirrors `tell` flow). |
 | Tell-name resolution | exact match, case-insensitive | No prefix/substring matching on player names; avoids spoofing-via-collision. |
@@ -623,7 +625,7 @@ Remaining items, all noted for during-impl decisions:
 - `notifications` — the queue substrate this spec
   publishes through; tells and channels are consumers.
 - `persistence` — atomic-write rotation, save directory
-  layout, player save shape (`chat.subscriptions` key).
+  layout, sibling-file convention (`chat.yaml` per player).
 - `commands-and-dispatch` — verb registration, argument
   resolution, role tag evaluation, keyword resolver
   (player name lookup for `tell`).

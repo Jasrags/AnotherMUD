@@ -163,6 +163,10 @@ Each spec calls out what it persists. The aggregate view:
 - **Notifications file** (sibling of player file) — per-entity
   priority queue of undelivered messages awaiting drain on
   reconnect; see [notifications](notifications.md) §6.3.
+- **Chat subscriptions file** (sibling of player file) — per-player
+  channel subscription set (which channels the player is currently
+  tuned in to); schema independent of `player.yaml`; see
+  [chat-channels-and-tells](chat-channels-and-tells.md) §5.1.
 - **Channel files** — global per-channel ring buffer of recent
   messages, shared scrollback across all players; lives under
   `saves/channels/`; see [chat-channels-and-tells](chat-channels-and-tells.md) §4.

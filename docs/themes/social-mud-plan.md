@@ -148,6 +148,37 @@ reconnect; the offline tell delivers when the recipient logs back in.
 
 ---
 
+## M13.6b backlog (post-v1 channel polish)
+
+Recorded so M13.6b starts with the architectural decisions made.
+
+- **Subscription persistence:** per-player sibling file
+  `saves/players/<canonical-name>/chat.yaml`, independent of
+  `player.yaml`. Locked 2026-05-30. Holds the tuned-in channel
+  set + future flags (mute, future per-channel preferences).
+- **Channel scrollback persistence:** global per-channel file
+  `saves/channels/<id>.yaml` (pack channels use `<pack>__<id>.yaml`
+  per spec §4.1). Already in the spec; not yet implemented.
+- **Pack-loaded channel YAML:** add a `channels: ["channels/*.yaml"]`
+  entry to `pack.ContentPaths` and decode through the existing
+  two-phase loader. Ship `content/core/channels/ooc.yaml` (and
+  `admin.yaml` once role gates are real).
+- **`chat tune` / `chat untune`:** the sibling-file storage above
+  gives these somewhere to land. Verb-naming convention is
+  single-word in this codebase, so likely `tune <channel>` and
+  `untune <channel>` rather than the spec's sub-verb form.
+- **Admin channel + role gates:** depends on the role-tag system
+  reaching a point where non-admin demotion actually revokes.
+  Tracked in `m6-5-deferred-fixes` and the M10+ role work.
+
+The chat publisher self-echo, in-memory `lastTellPartner`, and
+"every online player auto-subscribed" stand-ins all stay as-is
+until the sibling-file persistence lands; M13.6b's first commit
+will replace the v1 stand-in `chatSubscribers.Subscribers` adapter
+with a real subscription-set reader.
+
+---
+
 ## Tracking
 
 - This file owns the live sequence + current step.
