@@ -29,6 +29,13 @@ type Store struct {
 
 	mu    sync.RWMutex
 	names map[string]string // entityID → canonical name (for Save's path)
+
+	// nameLocks serialises the offline load-append-save path for a
+	// given canonical name so two concurrent Publish calls to the
+	// same offline recipient cannot lose one notification through a
+	// read-modify-write race. Lock acquisition order: nameLocks
+	// entry → s.mu (Load takes s.mu.Lock for the names cache).
+	nameLocks sync.Map // canonName → *sync.Mutex
 }
 
 // NewStore returns a store rooted under saveDir. Cap bounds the
@@ -166,15 +173,19 @@ func (s *Store) Load(ctx context.Context, entityID, name string) (*Queue, error)
 	return q, nil
 }
 
-// Save writes the entity's queue snapshot to disk. The path is
-// resolved from the entityID→name cache populated by Load. A Save
-// for an uncached entity (never logged in this process) is logged
-// and skipped — same posture as queststore.
+// Save writes the snapshot to disk. The caller is responsible for
+// producing a stable snapshot (e.g., via Queue.Snapshot under a
+// lock); Save itself does NOT touch any Queue, so the snapshot
+// cannot tear even if the source queue mutates concurrently.
 //
-// An empty queue writes an empty-entries file (rather than
+// The path is resolved from the entityID→name cache populated by
+// Load. A Save for an uncached entity (never logged in this
+// process) is logged and skipped — same posture as queststore.
+//
+// An empty snapshot writes an empty-entries file (rather than
 // deleting); the loader treats empty file and missing file
 // identically (§6.3).
-func (s *Store) Save(entityID string, q *Queue) error {
+func (s *Store) Save(entityID string, snap []Notification) error {
 	s.mu.RLock()
 	name, ok := s.names[entityID]
 	s.mu.RUnlock()
@@ -194,7 +205,7 @@ func (s *Store) Save(entityID string, q *Queue) error {
 		return fmt.Errorf("notifications save: %w", err)
 	}
 
-	data, err := yaml.Marshal(toFile(q.Snapshot()))
+	data, err := yaml.Marshal(toFile(snap))
 	if err != nil {
 		s.logger.Warn("notifications save: marshal failed",
 			slog.String("event", "notify.save.err"),
@@ -211,6 +222,35 @@ func (s *Store) Save(entityID string, q *Queue) error {
 		return fmt.Errorf("notifications save: write: %w", err)
 	}
 	return nil
+}
+
+// AppendOne is the serialised offline-publish path: load the
+// recipient's persisted queue, append n, write it back atomically.
+// Serialisation is per canonical name, so concurrent AppendOne
+// calls for the same recipient cannot lose a notification to a
+// read-modify-write race (closes the M1 finding from the Theme A
+// code review).
+//
+// Returns the same AppendResult shape as Queue.Append plus the
+// post-append queue size so the caller can log under the same
+// shape as the in-memory enqueue path.
+func (s *Store) AppendOne(ctx context.Context, entityID, name string, n Notification) (AppendResult, int, error) {
+	canon := player.CanonicalName(name)
+
+	muIface, _ := s.nameLocks.LoadOrStore(canon, &sync.Mutex{})
+	mu := muIface.(*sync.Mutex)
+	mu.Lock()
+	defer mu.Unlock()
+
+	q, err := s.Load(ctx, entityID, name)
+	if err != nil {
+		return AppendResult{}, 0, fmt.Errorf("notifications AppendOne: load: %w", err)
+	}
+	res := q.Append(n)
+	if err := s.Save(entityID, q.Snapshot()); err != nil {
+		return AppendResult{}, 0, fmt.Errorf("notifications AppendOne: save: %w", err)
+	}
+	return res, q.Len(), nil
 }
 
 // Forget drops the cached entityID→name mapping. Call on logout.

@@ -15,6 +15,11 @@ import (
 // of online subscribers. The composition root implements it against
 // session.Manager. v1 returns "every online player" for every channel
 // (everyone auto-subscribed); M13.6b adds explicit subscription state.
+//
+// The returned map is the caller's to mutate. Implementations MUST
+// return a fresh map per call — the chat publish path filters the
+// publisher out by deleting their entry before fan-out, and concurrent
+// publishes on the same channel would race if the map were shared.
 type ChatSubscribers interface {
 	Subscribers(channelID string) map[string]string
 }
@@ -114,9 +119,20 @@ func doChannelPublish(ctx context.Context, c *Context, ch *chat.Channel, msg str
 	// Build recipient set: every online subscriber except the
 	// publisher (self-echo is confirmation-only per the locked
 	// decision in docs/themes/social-mud-plan.md).
-	subs := c.ChatSubscribers.Subscribers(ch.ID)
-	if senderID != "" {
-		delete(subs, senderID)
+	//
+	// Defensive clone: the ChatSubscribers contract requires
+	// implementations to return a fresh map per call, but the
+	// publish path is hot enough — and the failure mode (silent
+	// cross-publish data races) bad enough — that we copy here
+	// too. The wasted allocation is bounded by the active
+	// online set.
+	src := c.ChatSubscribers.Subscribers(ch.ID)
+	subs := make(map[string]string, len(src))
+	for id, name := range src {
+		if id == senderID {
+			continue
+		}
+		subs[id] = name
 	}
 
 	if len(subs) > 0 {

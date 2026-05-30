@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log/slog"
 	"sync"
+	"sync/atomic"
 
 	"github.com/Jasrags/AnotherMUD/internal/clock"
 	"github.com/Jasrags/AnotherMUD/internal/logging"
@@ -34,8 +35,14 @@ type Manager struct {
 	cap   int
 	clock clock.Clock
 
-	mu     sync.Mutex
-	state  map[string]*entityState // entityID → state
+	mu    sync.Mutex
+	state map[string]*entityState // entityID → state
+
+	// fallbackSeq disambiguates IDs minted on the crypto/rand
+	// failure path. Combined with clock.Now() it guarantees per-
+	// process uniqueness without the rand failure cascading into
+	// a silent ID collision.
+	fallbackSeq atomic.Uint64
 }
 
 // entityState holds the in-memory queue + bound sink for a tracked
@@ -102,11 +109,17 @@ func (m *Manager) Unregister(ctx context.Context, entityID string) error {
 	}
 	delete(m.state, entityID)
 	dirty := st.dirty
-	queueSnap := st.queue
+	// Snapshot under the lock so the bytes handed to Save cannot
+	// tear if a concurrent goroutine raced our delete (e.g., a
+	// Publish that captured st before we removed it).
+	var snap []Notification
+	if dirty {
+		snap = st.queue.Snapshot()
+	}
 	m.mu.Unlock()
 
 	if dirty {
-		if err := m.store.Save(entityID, queueSnap); err != nil {
+		if err := m.store.Save(entityID, snap); err != nil {
 			return fmt.Errorf("notifications.Unregister: save: %w", err)
 		}
 	}
@@ -180,7 +193,7 @@ func (m *Manager) Drain(ctx context.Context, entityID string) error {
 // is OK per spec §11.
 func (m *Manager) Publish(ctx context.Context, n Notification, routeNames map[string]string) error {
 	if n.ID == "" {
-		n.ID = newID()
+		n.ID = m.newID()
 	}
 	if n.PublishedAt.IsZero() {
 		n.PublishedAt = m.clock.Now()
@@ -239,22 +252,22 @@ func (m *Manager) routeOne(ctx context.Context, n Notification, entityID, name s
 	if online {
 		res := st.queue.Append(n)
 		st.dirty = true
+		queueLen := st.queue.Len()
 		m.mu.Unlock()
-		m.logAppend(ctx, entityID, n, res, st.queue.Len())
+		m.logAppend(ctx, entityID, n, res, queueLen)
 		return nil
 	}
 	m.mu.Unlock()
 
-	// Offline: load, append, save synchronously.
-	q, err := m.store.Load(ctx, entityID, name)
+	// Offline: route through Store.AppendOne, which serialises
+	// the load-append-save sequence per canonical name so two
+	// concurrent publishes to the same offline recipient cannot
+	// race and lose a message.
+	res, queueLen, err := m.store.AppendOne(ctx, entityID, name, n)
 	if err != nil {
-		return fmt.Errorf("offline load: %w", err)
+		return err
 	}
-	res := q.Append(n)
-	if err := m.store.Save(entityID, q); err != nil {
-		return fmt.Errorf("offline save: %w", err)
-	}
-	m.logAppend(ctx, entityID, n, res, q.Len())
+	m.logAppend(ctx, entityID, n, res, queueLen)
 	return nil
 }
 
@@ -288,16 +301,20 @@ func (m *Manager) logAppend(ctx context.Context, entityID string, n Notification
 // SaveAll flushes every dirty in-memory queue to disk. Called by
 // the autosave tick handler. Per-entity errors are logged and
 // isolated; one bad save does not abort the batch.
+//
+// Snapshots are taken under m.mu so the bytes handed to Save are
+// stable even if a concurrent Publish / Drain mutates the live
+// Queue between this collection and the per-entry Save call.
 func (m *Manager) SaveAll(ctx context.Context) {
 	m.mu.Lock()
 	type entry struct {
-		id    string
-		queue *Queue
+		id   string
+		snap []Notification
 	}
 	pending := make([]entry, 0, len(m.state))
 	for id, st := range m.state {
 		if st.dirty {
-			pending = append(pending, entry{id: id, queue: st.queue})
+			pending = append(pending, entry{id: id, snap: st.queue.Snapshot()})
 			st.dirty = false
 		}
 	}
@@ -305,11 +322,18 @@ func (m *Manager) SaveAll(ctx context.Context) {
 
 	log := logging.From(ctx)
 	for _, e := range pending {
-		if err := m.store.Save(e.id, e.queue); err != nil {
+		if err := m.store.Save(e.id, e.snap); err != nil {
 			// Re-mark dirty so a subsequent SaveAll retries.
+			// If the entity was Unregistered between the snapshot
+			// and now, the in-memory state is gone — log a warn so
+			// the data-loss case is observable rather than silent.
 			m.mu.Lock()
 			if st, ok := m.state[e.id]; ok {
 				st.dirty = true
+			} else {
+				log.Warn("notify SaveAll: entity unregistered before save retry",
+					slog.String("event", "notify.save.lost"),
+					slog.String("entity_id", e.id))
 			}
 			m.mu.Unlock()
 			log.Warn("notify SaveAll: per-entity save failed",
@@ -321,13 +345,17 @@ func (m *Manager) SaveAll(ctx context.Context) {
 }
 
 // newID returns an opaque per-process unique notification id.
-func newID() string {
+// On the (extraordinarily rare) crypto/rand failure path the
+// fallback combines the engine clock and an atomic per-Manager
+// sequence number so concurrent failures still produce unique
+// IDs — the previous implementation emitted the same zeroed-
+// buffer string for every fallback caller, defeating dedup
+// downstream.
+func (m *Manager) newID() string {
 	var buf [12]byte
-	if _, err := rand.Read(buf[:]); err != nil {
-		// crypto/rand failure is extraordinarily rare; fall back
-		// to a clock-derived id (only on the publish path, never
-		// at boot).
-		return fmt.Sprintf("notif-fallback-%x", buf[:])
+	if _, err := rand.Read(buf[:]); err == nil {
+		return "n-" + hex.EncodeToString(buf[:])
 	}
-	return "n-" + hex.EncodeToString(buf[:])
+	seq := m.fallbackSeq.Add(1)
+	return fmt.Sprintf("notif-fallback-%d-%d", m.clock.Now().UnixNano(), seq)
 }

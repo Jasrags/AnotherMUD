@@ -2,9 +2,12 @@ package notifications
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"path/filepath"
+	"sync"
 	"testing"
+	"time"
 )
 
 func tmpStore(t *testing.T, cap int) (*Store, string) {
@@ -44,7 +47,7 @@ func TestStore_RoundTrip(t *testing.T) {
 	q.Append(mk("t1", PriorityTell, 1))
 	q.Append(mk("s1", PrioritySystem, 2))
 
-	if err := s.Save("ent-1", q); err != nil {
+	if err := s.Save("ent-1", q.Snapshot()); err != nil {
 		t.Fatalf("Save: %v", err)
 	}
 
@@ -77,7 +80,7 @@ func TestStore_SaveWithoutLoadIsSkipped(t *testing.T) {
 
 	// No Load was called for "ent-2"; Save should be a no-op
 	// (logged warn, no error).
-	if err := s.Save("ent-2", q); err != nil {
+	if err := s.Save("ent-2", q.Snapshot()); err != nil {
 		t.Errorf("Save unknown entity: err = %v, want nil", err)
 	}
 }
@@ -204,7 +207,7 @@ func TestStore_SaveEmptyQueueWritesFile(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Load: %v", err)
 	}
-	if err := s.Save("ent-7", q); err != nil {
+	if err := s.Save("ent-7", q.Snapshot()); err != nil {
 		t.Fatalf("Save: %v", err)
 	}
 	// File exists; subsequent load yields empty queue.
@@ -234,7 +237,7 @@ func TestStore_Forget(t *testing.T) {
 	// Save without a cached name should now be a no-op.
 	q := NewQueue(50)
 	q.Append(mk("a", PriorityTell, 0))
-	if err := s.Save("ent-8", q); err != nil {
+	if err := s.Save("ent-8", q.Snapshot()); err != nil {
 		t.Errorf("Save after Forget: err = %v, want nil", err)
 	}
 }
@@ -249,5 +252,48 @@ func TestStore_LoadBadPathReturnsEmpty(t *testing.T) {
 	}
 	if q == nil || q.Len() != 0 {
 		t.Errorf("bad-path Load: q=%v Len=%d", q, q.Len())
+	}
+}
+
+// TestStore_AppendOneSerialisesConcurrentPublishes pins the M1
+// fix: N concurrent AppendOne calls for the same canonical name
+// must accumulate N notifications rather than losing some to a
+// read-modify-write race.
+func TestStore_AppendOneSerialisesConcurrentPublishes(t *testing.T) {
+	s, _ := tmpStore(t, 200)
+	ctx := context.Background()
+	if _, err := s.Load(ctx, "ent-race", "Race"); err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+
+	const n = 50
+	var wg sync.WaitGroup
+	wg.Add(n)
+	for i := 0; i < n; i++ {
+		i := i
+		go func() {
+			defer wg.Done()
+			notif := Notification{
+				ID:          fmt.Sprintf("r-%d", i),
+				Recipients:  []string{"ent-race"},
+				Priority:    PriorityChannel,
+				Kind:        "channel",
+				Text:        fmt.Sprintf("msg-%d", i),
+				PublishedAt: testBase.Add(time.Duration(i) * time.Microsecond),
+			}
+			if _, _, err := s.AppendOne(ctx, "ent-race", "Race", notif); err != nil {
+				t.Errorf("AppendOne %d: %v", i, err)
+			}
+		}()
+	}
+	wg.Wait()
+
+	q, err := s.Load(ctx, "ent-race", "Race")
+	if err != nil {
+		t.Fatalf("post-race Load: %v", err)
+	}
+	got := q.DrainAll()
+	if len(got) != n {
+		t.Errorf("post-race count = %d, want %d (lost messages to race)", len(got), n)
 	}
 }
