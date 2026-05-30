@@ -66,10 +66,52 @@ func (r SpawnRule) HasTag(tag string) bool {
 	return false
 }
 
-// Exit is a directed edge from one room to a target room id.
-// M1 scope: target only. Doors / display name / conditions land later.
+// Exit is a directed edge from one room to a target room id. Doors
+// land on the optional Door field (M15.1 — spec §5).
 type Exit struct {
 	Target RoomID
+	// Door is the optional per-exit door state. nil means "no
+	// door"; movement passes freely. A closed door blocks
+	// movement; a locked door prevents the unlock-then-open
+	// transition without a key. Reverse-side synchronization is
+	// the World's responsibility (spec §5.2 step 4).
+	Door *DoorState
+}
+
+// DoorState carries the per-exit door state (spec §5.1). Mutations
+// flow through World.OpenDoor / CloseDoor / LockDoor / UnlockDoor
+// so the paired reverse-side invariant is maintained centrally.
+type DoorState struct {
+	// Name is the door's display name. The space-split tokens
+	// double as match keywords for command-layer resolution
+	// ("open iron gate" matches a door named "iron gate"); see
+	// ResolveDoorTarget.
+	Name string
+	// Keywords is the matchable-tokens slice. Derived from Name
+	// at load time when not explicitly supplied so content
+	// authors do not have to write both.
+	Keywords []string
+	// Closed reports the current closed/open state. Movement
+	// through a closed door is blocked (spec §3.3 step 4).
+	Closed bool
+	// Locked reports the current lock state. A locked door is
+	// always closed and cannot be opened without unlocking first.
+	Locked bool
+	// KeyID names the item template id required to unlock the
+	// door. Empty means the door has no key — it can be
+	// unlocked by anyone who can reach it.
+	KeyID string
+	// Pickable reports whether a lockpick-style verb can attempt
+	// to bypass the lock without the key. v1 wires the flag but
+	// the pick verb itself is deferred.
+	Pickable bool
+	// PickDifficulty is the per-door pick check threshold;
+	// meaningful only when Pickable is true.
+	PickDifficulty int
+	// DefaultClosed / DefaultLocked are the values area reset
+	// restores the door to (spec §5.4).
+	DefaultClosed bool
+	DefaultLocked bool
 }
 
 // Room is a node in the world graph (spec §2.2).
@@ -173,6 +215,11 @@ var (
 	ErrAreaNotFound = errors.New("area not found")
 	ErrNoExit       = errors.New("no exit in that direction")
 	ErrDuplicateID  = errors.New("duplicate id in world registry")
+	// ErrDoorClosed is returned by Move when the exit has a door
+	// and the door is currently closed (spec §3.3 step 4). The
+	// command layer translates this into a "the door is closed"
+	// user message and emits the door.blocked event.
+	ErrDoorClosed = errors.New("the door is closed")
 )
 
 // World is the room + area registry. Safe for concurrent reads;
@@ -303,13 +350,17 @@ func (w *World) Room(id RoomID) (*Room, error) {
 }
 
 // Move resolves the exit in dir from src and returns the target room.
-// This is the M1 cut of the move primitive (spec §3.3): no entity
-// list, no door check, no event emission. The caller (session layer)
-// is responsible for tracking the player's current room and rendering.
+// The move primitive (spec §3.3) is otherwise pure: no entity list,
+// no event emission. The caller (session layer) is responsible for
+// tracking the player's current room and rendering.
 //
 // Errors:
 //   - ErrRoomNotFound if src or the target room is unregistered.
 //   - ErrNoExit if src has no exit in dir.
+//   - ErrDoorClosed if the exit has a door that is currently closed
+//     (M15.1 — spec §3.3 step 4). A locked door is also closed, so
+//     callers that want to distinguish lock from close should query
+//     GetDoor before attempting the move.
 func (w *World) Move(srcID RoomID, dir Direction) (*Room, error) {
 	w.mu.RLock()
 	defer w.mu.RUnlock()
@@ -321,9 +372,173 @@ func (w *World) Move(srcID RoomID, dir Direction) (*Room, error) {
 	if !ok {
 		return nil, fmt.Errorf("world.Move %s from %q: %w", dir, srcID, ErrNoExit)
 	}
+	if exit.Door != nil && exit.Door.Closed {
+		return nil, fmt.Errorf("world.Move %s from %q: %w", dir, srcID, ErrDoorClosed)
+	}
 	dst, ok := w.rooms[exit.Target]
 	if !ok {
 		return nil, fmt.Errorf("world.Move %s from %q to %q: %w", dir, srcID, exit.Target, ErrRoomNotFound)
 	}
 	return dst, nil
+}
+
+// CanPass reports whether a move from srcID in dir is unblocked at
+// this instant. True iff the exit exists AND (it has no door OR the
+// door is not closed). Used by the command layer to surface a
+// "you can't go that way" / "the door is closed" distinction without
+// racing the actual Move (which also re-checks under the world
+// lock).
+//
+// Spec: §5.3 first query.
+func (w *World) CanPass(srcID RoomID, dir Direction) bool {
+	w.mu.RLock()
+	defer w.mu.RUnlock()
+	src, ok := w.rooms[srcID]
+	if !ok {
+		return false
+	}
+	exit, ok := src.Exits[dir]
+	if !ok {
+		return false
+	}
+	return exit.Door == nil || !exit.Door.Closed
+}
+
+// GetDoor returns a snapshot of the door state on the exit in dir
+// from srcID, or (nil, false) if the exit or its door is absent.
+// The returned value is a shallow copy — modifying it does not
+// affect the world; mutations must go through Open/Close/Lock/Unlock.
+//
+// Spec: §5.3 second query.
+func (w *World) GetDoor(srcID RoomID, dir Direction) (DoorState, bool) {
+	w.mu.RLock()
+	defer w.mu.RUnlock()
+	src, ok := w.rooms[srcID]
+	if !ok {
+		return DoorState{}, false
+	}
+	exit, ok := src.Exits[dir]
+	if !ok || exit.Door == nil {
+		return DoorState{}, false
+	}
+	return *exit.Door, true
+}
+
+// OpenDoor opens the door on the exit in dir from srcID. Per spec
+// §5.2:
+//
+//   - No-ops silently when the exit is absent, the exit has no door,
+//     or the door is already open.
+//   - Synchronizes the reverse-side door on the destination room's
+//     opposite-direction exit, when one exists. A one-way door
+//     (reverse exit absent or doorless) is allowed and not an error.
+//   - Returns true when the operation actually transitioned a door
+//     from closed to open (one side or both); false otherwise. The
+//     caller uses the bool to decide whether to emit the
+//     door.opened event.
+func (w *World) OpenDoor(srcID RoomID, dir Direction) bool {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	return w.mutateDoorLocked(srcID, dir, doorOpen)
+}
+
+// CloseDoor closes the door on the exit in dir from srcID, with
+// the same shape as OpenDoor.
+func (w *World) CloseDoor(srcID RoomID, dir Direction) bool {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	return w.mutateDoorLocked(srcID, dir, doorClose)
+}
+
+// LockDoor locks the door on the exit in dir from srcID. Per spec
+// §5.2, lock requires the door to be currently closed AND not
+// already locked; otherwise the op is a silent no-op.
+func (w *World) LockDoor(srcID RoomID, dir Direction) bool {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	return w.mutateDoorLocked(srcID, dir, doorLock)
+}
+
+// UnlockDoor unlocks the door on the exit in dir from srcID.
+// Key-holder check is NOT enforced here per spec §5.2 ("key-holder
+// check is a query exposed to the command layer; whether a command
+// requires a key for a given operation is policy"). The command
+// verb calls HasKey via the caller-supplied resolver first.
+func (w *World) UnlockDoor(srcID RoomID, dir Direction) bool {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	return w.mutateDoorLocked(srcID, dir, doorUnlock)
+}
+
+// doorOp enumerates the four door mutations. Internal to keep the
+// public Open/Close/Lock/Unlock surface stable while sharing the
+// reverse-sync code path.
+type doorOp int
+
+const (
+	doorOpen doorOp = iota
+	doorClose
+	doorLock
+	doorUnlock
+)
+
+// mutateDoorLocked applies op to the door at (srcID, dir) and the
+// paired reverse-side door (if any). Caller MUST hold w.mu write-
+// locked. Returns true iff at least one side actually transitioned.
+func (w *World) mutateDoorLocked(srcID RoomID, dir Direction, op doorOp) bool {
+	src, ok := w.rooms[srcID]
+	if !ok {
+		return false
+	}
+	exit, ok := src.Exits[dir]
+	if !ok || exit.Door == nil {
+		return false
+	}
+	changed := applyDoorOp(exit.Door, op)
+
+	// Reverse-side sync: look up the destination room's exit in
+	// the opposite direction. If the reverse exit is doorless
+	// (one-way door) or absent, that's allowed — spec §5.2
+	// step 4 calls reverse-side absence "not an error".
+	if dst, ok := w.rooms[exit.Target]; ok {
+		if rev, ok := dst.Exits[dir.Opposite()]; ok && rev.Door != nil {
+			if applyDoorOp(rev.Door, op) {
+				changed = true
+			}
+		}
+	}
+	return changed
+}
+
+// applyDoorOp performs the precondition check + mutation for op on
+// d. Returns true iff the door's state actually changed. Spec §5.2
+// step 2: every op fails silently on its precondition.
+func applyDoorOp(d *DoorState, op doorOp) bool {
+	switch op {
+	case doorOpen:
+		if !d.Closed {
+			return false
+		}
+		d.Closed = false
+		return true
+	case doorClose:
+		if d.Closed {
+			return false
+		}
+		d.Closed = true
+		return true
+	case doorLock:
+		if !d.Closed || d.Locked {
+			return false
+		}
+		d.Locked = true
+		return true
+	case doorUnlock:
+		if !d.Locked {
+			return false
+		}
+		d.Locked = false
+		return true
+	}
+	return false
 }

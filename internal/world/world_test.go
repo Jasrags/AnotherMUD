@@ -184,3 +184,176 @@ func TestRoomPropertyNilSafety(t *testing.T) {
 		t.Error("nil Properties PropertyBool: want miss")
 	}
 }
+
+// twoRoomWorld returns a world with two rooms ("a" and "b") and
+// paired north/south exits between them. The exits may carry doors
+// per the supplied closures.
+func twoRoomWorld(t *testing.T, doorA, doorB *world.DoorState) *world.World {
+	t.Helper()
+	w := world.New()
+	w.AddRoom(&world.Room{
+		ID:   "a",
+		Name: "Room A",
+		Exits: map[world.Direction]world.Exit{
+			world.DirNorth: {Target: "b", Door: doorA},
+		},
+	})
+	w.AddRoom(&world.Room{
+		ID:   "b",
+		Name: "Room B",
+		Exits: map[world.Direction]world.Exit{
+			world.DirSouth: {Target: "a", Door: doorB},
+		},
+	})
+	return w
+}
+
+func newDoor() *world.DoorState {
+	return &world.DoorState{
+		Name:          "iron gate",
+		Keywords:      []string{"iron", "gate"},
+		Closed:        true,
+		Locked:        false,
+		DefaultClosed: true,
+	}
+}
+
+// TestMoveBlockedByClosedDoor pins spec §3.3 step 4.
+func TestMoveBlockedByClosedDoor(t *testing.T) {
+	w := twoRoomWorld(t, newDoor(), newDoor())
+	_, err := w.Move("a", world.DirNorth)
+	if !errors.Is(err, world.ErrDoorClosed) {
+		t.Errorf("Move through closed door: err = %v, want ErrDoorClosed", err)
+	}
+}
+
+func TestMoveAllowedWhenDoorOpen(t *testing.T) {
+	d := newDoor()
+	d.Closed = false
+	w := twoRoomWorld(t, d, nil)
+	if _, err := w.Move("a", world.DirNorth); err != nil {
+		t.Errorf("Move through open door: %v", err)
+	}
+}
+
+func TestMoveDoorless(t *testing.T) {
+	w := twoRoomWorld(t, nil, nil)
+	if _, err := w.Move("a", world.DirNorth); err != nil {
+		t.Errorf("doorless move: %v", err)
+	}
+}
+
+func TestCanPass(t *testing.T) {
+	w := twoRoomWorld(t, newDoor(), nil)
+	if w.CanPass("a", world.DirNorth) {
+		t.Error("CanPass through closed door: want false")
+	}
+	if !w.CanPass("b", world.DirSouth) {
+		t.Error("CanPass through doorless exit: want true")
+	}
+	if w.CanPass("a", world.DirEast) {
+		t.Error("CanPass through no-exit: want false")
+	}
+	if w.CanPass("nowhere", world.DirNorth) {
+		t.Error("CanPass from unknown room: want false")
+	}
+}
+
+func TestGetDoor(t *testing.T) {
+	d := newDoor()
+	w := twoRoomWorld(t, d, nil)
+	got, ok := w.GetDoor("a", world.DirNorth)
+	if !ok || got.Name != "iron gate" {
+		t.Errorf("GetDoor = %+v ok=%v", got, ok)
+	}
+	if _, ok := w.GetDoor("b", world.DirSouth); ok {
+		t.Error("GetDoor on doorless exit: want false")
+	}
+}
+
+func TestOpenCloseRoundTripWithReverseSync(t *testing.T) {
+	w := twoRoomWorld(t, newDoor(), newDoor())
+
+	if !w.OpenDoor("a", world.DirNorth) {
+		t.Fatal("OpenDoor returned false")
+	}
+	// Both sides should now be open.
+	if d, _ := w.GetDoor("a", world.DirNorth); d.Closed {
+		t.Error("a-side door still closed after OpenDoor")
+	}
+	if d, _ := w.GetDoor("b", world.DirSouth); d.Closed {
+		t.Error("b-side door not synchronized")
+	}
+
+	// Re-opening an already-open door returns false (silent no-op).
+	if w.OpenDoor("a", world.DirNorth) {
+		t.Error("OpenDoor on already-open door returned true")
+	}
+
+	if !w.CloseDoor("a", world.DirNorth) {
+		t.Fatal("CloseDoor returned false")
+	}
+	if d, _ := w.GetDoor("b", world.DirSouth); !d.Closed {
+		t.Error("b-side door not synchronized on close")
+	}
+}
+
+func TestLockRequiresClosed(t *testing.T) {
+	d := newDoor()
+	d.Closed = false
+	w := twoRoomWorld(t, d, nil)
+	if w.LockDoor("a", world.DirNorth) {
+		t.Error("LockDoor on open door returned true")
+	}
+}
+
+func TestLockUnlockRoundTrip(t *testing.T) {
+	w := twoRoomWorld(t, newDoor(), newDoor()) // closed, unlocked
+	if !w.LockDoor("a", world.DirNorth) {
+		t.Fatal("LockDoor returned false")
+	}
+	if d, _ := w.GetDoor("b", world.DirSouth); !d.Locked {
+		t.Error("b-side not synchronized on lock")
+	}
+	// Already locked → no-op
+	if w.LockDoor("a", world.DirNorth) {
+		t.Error("LockDoor on already-locked door returned true")
+	}
+
+	if !w.UnlockDoor("a", world.DirNorth) {
+		t.Fatal("UnlockDoor returned false")
+	}
+	if d, _ := w.GetDoor("b", world.DirSouth); d.Locked {
+		t.Error("b-side not synchronized on unlock")
+	}
+}
+
+// TestOneWayDoorReverseAbsentIsOK pins spec §5.2 step 4: a
+// reverse-side absent door (one-way door, or asymmetric mapping)
+// is allowed, not an error.
+func TestOneWayDoorReverseAbsentIsOK(t *testing.T) {
+	w := twoRoomWorld(t, newDoor(), nil) // only the a-side has a door
+	if !w.OpenDoor("a", world.DirNorth) {
+		t.Error("OpenDoor one-way: want true")
+	}
+	if d, _ := w.GetDoor("a", world.DirNorth); d.Closed {
+		t.Error("a-side door still closed")
+	}
+}
+
+func TestDoorOpsOnUnknownRoomNoop(t *testing.T) {
+	w := twoRoomWorld(t, newDoor(), newDoor())
+	if w.OpenDoor("nowhere", world.DirNorth) {
+		t.Error("OpenDoor on unknown room: want false")
+	}
+	if w.CloseDoor("nowhere", world.DirNorth) {
+		t.Error("CloseDoor on unknown room: want false")
+	}
+}
+
+func TestDoorOpsOnDoorlessExitNoop(t *testing.T) {
+	w := twoRoomWorld(t, nil, nil)
+	if w.OpenDoor("a", world.DirNorth) {
+		t.Error("OpenDoor on doorless exit: want false")
+	}
+}
