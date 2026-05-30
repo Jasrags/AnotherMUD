@@ -194,6 +194,40 @@ type RoomFile struct {
 	// Each entry's name is validated against the property registry
 	// at load (snake_case, registered, type-matched). Absent → empty.
 	Properties map[string]any `yaml:"properties,omitempty"`
+	// Doors is the M15.1 per-exit door declaration (spec §5.1).
+	// Keys are the direction name (short or long) matching one of
+	// the Exits entries; values declare the door's display name +
+	// optional flags. Loaded into world.Exit.Door and synchronized
+	// with the reverse side at load when both sides declare.
+	Doors map[string]DoorFile `yaml:"doors,omitempty"`
+}
+
+// DoorFile is the YAML shape for one door declaration. All fields
+// are optional except Name; the rest follow the spec §5.1 defaults
+// (closed=true, locked=false, unkeyed).
+type DoorFile struct {
+	// Name is the door's display name; space-split tokens double
+	// as match keywords for command-layer resolution.
+	Name string `yaml:"name"`
+	// Keywords explicitly lists match keywords. When absent the
+	// decoder splits Name on whitespace and lowercases each token.
+	// Provide explicit Keywords when Name contains characters
+	// that should not become keywords (a quoted display name).
+	Keywords []string `yaml:"keywords,omitempty"`
+	// Closed defaults true (a door is closed unless content says
+	// otherwise). Use `closed: false` to leave the door propped open
+	// at boot.
+	Closed *bool `yaml:"closed,omitempty"`
+	// Locked defaults false. A locked door is also closed; the
+	// decoder enforces that constraint.
+	Locked bool `yaml:"locked,omitempty"`
+	// Key names the item template id required to unlock the door.
+	// Optional; an unkeyed door can be unlocked by anyone.
+	Key string `yaml:"key,omitempty"`
+	// Pickable + PickDifficulty wire the M15.1 substrate fields;
+	// the lockpick verb itself is deferred.
+	Pickable       bool `yaml:"pickable,omitempty"`
+	PickDifficulty int  `yaml:"pick_difficulty,omitempty"`
 }
 
 // TrackFile is the YAML shape for a progression-track definition

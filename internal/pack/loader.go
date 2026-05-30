@@ -1191,6 +1191,28 @@ func decodeRoom(path, ns string) (*world.Room, []string, []string, error) {
 		r.Exits[dir] = world.Exit{Target: world.RoomID(targetID)}
 	}
 
+	// M15.1: decode doors, attach to the matching exit. Each door key
+	// MUST name a direction that already exists in Exits — a door
+	// without an exit is content authoring error caught at load.
+	for dirStr, df := range rf.Doors {
+		dir, ok := world.ParseDirection(dirStr)
+		if !ok {
+			return nil, nil, nil, fmt.Errorf("%w: %s: door direction %q is not a Direction",
+				ErrInvalidContent, path, dirStr)
+		}
+		exit, hasExit := r.Exits[dir]
+		if !hasExit {
+			return nil, nil, nil, fmt.Errorf("%w: %s: door %s has no matching exit",
+				ErrInvalidContent, path, dirStr)
+		}
+		door, err := buildDoorState(df, ns)
+		if err != nil {
+			return nil, nil, nil, fmt.Errorf("%w: %s: door %s: %v", ErrInvalidContent, path, dirStr, err)
+		}
+		exit.Door = door
+		r.Exits[dir] = exit
+	}
+
 	// Item placements: qualify each template id now so we can validate
 	// in a single pass at the end. We do NOT touch dst.Items here —
 	// the template may live in a pack that hasn't been read yet.
@@ -1632,4 +1654,80 @@ func valueMatchesType(v interface{}, t property.ValueType) bool {
 		return ok
 	}
 	return false
+}
+
+// buildDoorState materializes a *world.DoorState from a DoorFile.
+// Validates the constraints the YAML shape allows (locked implies
+// closed) and falls back to spec §5.1 defaults for omitted fields:
+//
+//   - Closed defaults true.
+//   - Locked defaults false.
+//   - Keywords default to the space-split lowercased tokens of Name
+//     when not explicitly listed.
+//   - Key is namespaced against the current pack via qualifyID, so a
+//     bare `key: village-gate-key` resolves to `<ns>:village-gate-key`
+//     while a qualified `othr-pack:foo-key` crosses packs.
+//
+// DefaultClosed / DefaultLocked are seeded from the runtime values
+// so area reset restores the boot-time configuration (spec §5.4).
+func buildDoorState(df DoorFile, ns string) (*world.DoorState, error) {
+	if strings.TrimSpace(df.Name) == "" {
+		return nil, fmt.Errorf("door requires a name")
+	}
+	closed := true
+	if df.Closed != nil {
+		closed = *df.Closed
+	}
+	if df.Locked && !closed {
+		return nil, fmt.Errorf("locked: true requires closed: true (a locked door is closed)")
+	}
+	kw := df.Keywords
+	if len(kw) == 0 {
+		kw = doorKeywordsFromName(df.Name)
+	} else {
+		kw = lowerStrings(kw)
+	}
+	var keyID string
+	if df.Key != "" {
+		qualified, err := qualifyID(df.Key, ns)
+		if err != nil {
+			return nil, fmt.Errorf("key: %v", err)
+		}
+		keyID = qualified
+	}
+	return &world.DoorState{
+		Name:           df.Name,
+		Keywords:       kw,
+		Closed:         closed,
+		Locked:         df.Locked,
+		KeyID:          keyID,
+		Pickable:       df.Pickable,
+		PickDifficulty: df.PickDifficulty,
+		DefaultClosed:  closed,
+		DefaultLocked:  df.Locked,
+	}, nil
+}
+
+// doorKeywordsFromName returns the lowercased non-empty tokens of
+// name split on whitespace. Used when a DoorFile omits explicit
+// Keywords.
+func doorKeywordsFromName(name string) []string {
+	parts := strings.Fields(name)
+	if len(parts) == 0 {
+		return nil
+	}
+	out := make([]string, 0, len(parts))
+	for _, p := range parts {
+		out = append(out, strings.ToLower(p))
+	}
+	return out
+}
+
+// lowerStrings returns a fresh slice with each element lowercased.
+func lowerStrings(in []string) []string {
+	out := make([]string, len(in))
+	for i, s := range in {
+		out[i] = strings.ToLower(s)
+	}
+	return out
 }

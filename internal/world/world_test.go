@@ -357,3 +357,82 @@ func TestDoorOpsOnDoorlessExitNoop(t *testing.T) {
 		t.Error("OpenDoor on doorless exit: want false")
 	}
 }
+
+// crossroads returns a room with three doors: north (iron gate),
+// east (oak gate), and south (no door — just an exit).
+func crossroads() *world.World {
+	w := world.New()
+	w.AddRoom(&world.Room{
+		ID:   "x",
+		Name: "Crossroads",
+		Exits: map[world.Direction]world.Exit{
+			world.DirNorth: {Target: "n", Door: &world.DoorState{Name: "iron gate", Keywords: []string{"iron", "gate"}, Closed: true}},
+			world.DirEast:  {Target: "e", Door: &world.DoorState{Name: "oak gate", Keywords: []string{"oak", "gate"}, Closed: true}},
+			world.DirSouth: {Target: "s"},
+		},
+	})
+	w.AddRoom(&world.Room{ID: "n"})
+	w.AddRoom(&world.Room{ID: "e"})
+	w.AddRoom(&world.Room{ID: "s"})
+	return w
+}
+
+func TestResolveDoorTarget_DirectionWins(t *testing.T) {
+	w := crossroads()
+	res := w.ResolveDoorTarget("x", "north")
+	if !res.Ok || res.Direction != world.DirNorth {
+		t.Errorf("direction north: %+v", res)
+	}
+	// Direction parse works even for a doorless exit (south).
+	res = w.ResolveDoorTarget("x", "south")
+	if !res.Ok || res.Direction != world.DirSouth {
+		t.Errorf("doorless direction: %+v", res)
+	}
+}
+
+func TestResolveDoorTarget_KeywordUnique(t *testing.T) {
+	w := crossroads()
+	res := w.ResolveDoorTarget("x", "iron")
+	if !res.Ok || res.Direction != world.DirNorth {
+		t.Errorf("iron: %+v", res)
+	}
+}
+
+func TestResolveDoorTarget_KeywordAmbiguous(t *testing.T) {
+	w := crossroads()
+	res := w.ResolveDoorTarget("x", "gate")
+	if !res.Ambiguous {
+		t.Errorf("gate (ambiguous): %+v", res)
+	}
+}
+
+func TestResolveDoorTarget_OrdinalDisambiguates(t *testing.T) {
+	w := crossroads()
+	if res := w.ResolveDoorTarget("x", "1.gate"); !res.Ok || res.Direction != world.DirNorth {
+		t.Errorf("1.gate: %+v", res)
+	}
+	if res := w.ResolveDoorTarget("x", "2.gate"); !res.Ok || res.Direction != world.DirEast {
+		t.Errorf("2.gate: %+v", res)
+	}
+	// Out-of-range ordinal returns miss.
+	if res := w.ResolveDoorTarget("x", "5.gate"); res.Ok {
+		t.Errorf("5.gate: want miss, got %+v", res)
+	}
+}
+
+func TestResolveDoorTarget_UnknownKeyword(t *testing.T) {
+	w := crossroads()
+	if res := w.ResolveDoorTarget("x", "trapdoor"); res.Ok || res.Ambiguous {
+		t.Errorf("trapdoor: want plain miss, got %+v", res)
+	}
+}
+
+func TestResolveDoorTarget_EmptyAndUnknownRoom(t *testing.T) {
+	w := crossroads()
+	if res := w.ResolveDoorTarget("x", ""); res.Ok {
+		t.Errorf("empty arg: %+v", res)
+	}
+	if res := w.ResolveDoorTarget("nowhere", "gate"); res.Ok {
+		t.Errorf("unknown room: %+v", res)
+	}
+}

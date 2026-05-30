@@ -91,6 +91,14 @@ func RegisterBuiltins(r *Registry) error {
 		// wave, …) are registered dynamically at composition time
 		// from emote.Registry; this is the freeform pose verb.
 		{Keyword: "emote", Aliases: []string{"pose"}, Handler: EmoteFreeformHandler, Brief: "Emote freeform text to the room.", Syntax: []string{"emote <text>"}},
+
+		// Doors (M15.1). Operate the door on an exit; target is
+		// either a direction or a door keyword (with optional
+		// ordinal for disambiguation).
+		{Keyword: "open", Handler: OpenHandler, Brief: "Open a door.", Syntax: []string{"open <direction>", "open <door>"}},
+		{Keyword: "close", Aliases: []string{"shut"}, Handler: CloseHandler, Brief: "Close a door.", Syntax: []string{"close <direction>", "close <door>"}},
+		{Keyword: "lock", Handler: LockHandler, Brief: "Lock a door (requires the key).", Syntax: []string{"lock <direction>", "lock <door>"}},
+		{Keyword: "unlock", Handler: UnlockHandler, Brief: "Unlock a door (requires the key).", Syntax: []string{"unlock <direction>", "unlock <door>"}},
 	}
 	for _, c := range commands {
 		if err := r.RegisterCommand(c); err != nil {

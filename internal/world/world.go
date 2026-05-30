@@ -3,6 +3,8 @@ package world
 import (
 	"errors"
 	"fmt"
+	"strconv"
+	"strings"
 	"sync"
 )
 
@@ -468,6 +470,119 @@ func (w *World) UnlockDoor(srcID RoomID, dir Direction) bool {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 	return w.mutateDoorLocked(srcID, dir, doorUnlock)
+}
+
+// DoorTargetResolution is the outcome of resolving a command-layer
+// text input ("open gate", "close 2.door", "open north") to a
+// direction. Ok=false with Ambiguous=true means the keyword matched
+// multiple doors and no ordinal was supplied — the command layer
+// reports the ambiguity; otherwise an Ok=false result means
+// "nothing matched".
+//
+// Spec: docs/specs/world-rooms-movement.md §5.5.
+type DoorTargetResolution struct {
+	Direction Direction
+	Ok        bool
+	Ambiguous bool
+}
+
+// ResolveDoorTarget translates a free-form text argument into a
+// Direction. Resolution order per spec §5.5:
+//
+//  1. Direction parse — if the input parses to a Direction AND the
+//     room has an exit there, that direction wins regardless of
+//     whether the exit has a door (so `open north` keeps working
+//     on a doorless north exit; the verb's own
+//     "no-such-door" message handles that downstream).
+//  2. Ordinal split — `<int>.<keyword>` separates the disambiguator
+//     from the keyword; bare keyword means ordinal 0.
+//  3. Candidate collection — every direction in the room whose exit
+//     has a door whose Keywords contain the (lowercased) keyword.
+//  4. Disambiguate — 0 candidates → Ok=false; ordinal 0 + multiple
+//     candidates → Ambiguous; ordinal 0 + 1 candidate → that
+//     direction; in-range ordinal → 1-indexed pick.
+func (w *World) ResolveDoorTarget(srcID RoomID, arg string) DoorTargetResolution {
+	w.mu.RLock()
+	defer w.mu.RUnlock()
+	src, ok := w.rooms[srcID]
+	if !ok {
+		return DoorTargetResolution{}
+	}
+
+	trimmed := strings.TrimSpace(arg)
+	if trimmed == "" {
+		return DoorTargetResolution{}
+	}
+
+	// 1. Direction parse.
+	if d, ok := ParseDirection(trimmed); ok {
+		if _, exists := src.Exits[d]; exists {
+			return DoorTargetResolution{Direction: d, Ok: true}
+		}
+	}
+
+	// 2. Ordinal split.
+	ordinal := 0
+	keyword := trimmed
+	if idx := strings.IndexByte(trimmed, '.'); idx > 0 && idx < len(trimmed)-1 {
+		head, tail := trimmed[:idx], trimmed[idx+1:]
+		if n, err := strconv.Atoi(head); err == nil && n > 0 {
+			ordinal = n
+			keyword = tail
+		}
+	}
+	keyword = strings.ToLower(keyword)
+
+	// 3. Candidate collection.
+	type candidate struct {
+		dir Direction
+	}
+	candidates := make([]candidate, 0, 4)
+	// Iterate in canonical direction order so ordinal picks are
+	// deterministic across map iteration randomization.
+	for _, d := range canonicalDirections {
+		exit, ok := src.Exits[d]
+		if !ok || exit.Door == nil {
+			continue
+		}
+		if doorKeywordMatch(exit.Door, keyword) {
+			candidates = append(candidates, candidate{dir: d})
+		}
+	}
+
+	// 4. Disambiguate.
+	switch {
+	case len(candidates) == 0:
+		return DoorTargetResolution{}
+	case ordinal == 0 && len(candidates) > 1:
+		return DoorTargetResolution{Ambiguous: true}
+	case ordinal == 0:
+		return DoorTargetResolution{Direction: candidates[0].dir, Ok: true}
+	case ordinal > 0 && ordinal <= len(candidates):
+		return DoorTargetResolution{Direction: candidates[ordinal-1].dir, Ok: true}
+	default:
+		return DoorTargetResolution{}
+	}
+}
+
+// doorKeywordMatch reports whether keyword (already lowercased) is
+// one of the door's keywords. Match is case-insensitive on stored
+// keywords as well so content that writes mixed-case keywords
+// still resolves under lowercase command input.
+func doorKeywordMatch(d *DoorState, keyword string) bool {
+	for _, k := range d.Keywords {
+		if strings.EqualFold(k, keyword) {
+			return true
+		}
+	}
+	return false
+}
+
+// canonicalDirections is the iteration order ResolveDoorTarget
+// uses to give deterministic ordinal picks (map iteration in Go
+// is randomized).
+var canonicalDirections = []Direction{
+	DirNorth, DirEast, DirSouth, DirWest, DirUp, DirDown,
 }
 
 // doorOp enumerates the four door mutations. Internal to keep the

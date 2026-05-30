@@ -2556,6 +2556,12 @@ func registerEngineBaselineProperties(reg *property.Registry) error {
 			Description: "Quest id auto-accepted on item pickup or room entry (spec quests §7.2).",
 			AppliesTo:   []string{"item", "room"},
 		},
+		{
+			Name:        "key_for",
+			Type:        property.TypeString,
+			Description: "Door id this item unlocks (spec world-rooms-movement §5.3 + PD-4).",
+			AppliesTo:   []string{"item"},
+		},
 	}
 	for _, e := range baseline {
 		if err := reg.RegisterEngine(e); err != nil {

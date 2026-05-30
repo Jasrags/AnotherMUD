@@ -1665,3 +1665,201 @@ content:
 		t.Errorf("empty bag: got %v", inn.Properties)
 	}
 }
+
+// TestLoadRoomDoor_HappyPath pins the M15.1b decoder: a doors:
+// block on a room file attaches a DoorState to the matching Exit.
+func TestLoadRoomDoor_HappyPath(t *testing.T) {
+	root := t.TempDir()
+	pack := filepath.Join(root, "core")
+	writeFile(t, filepath.Join(pack, "pack.yaml"), `
+name: tapestry-core
+content:
+  areas: [areas/*.yaml]
+  rooms: [rooms/*.yaml]
+`)
+	writeFile(t, filepath.Join(pack, "areas/town.yaml"), "id: town\nname: Town\n")
+	writeFile(t, filepath.Join(pack, "rooms/square.yaml"), `
+id: square
+area: town
+name: Square
+exits:
+  north: gate
+`)
+	writeFile(t, filepath.Join(pack, "rooms/gate.yaml"), `
+id: gate
+area: town
+name: Gate
+exits:
+  south: square
+doors:
+  south:
+    name: iron gate
+    closed: true
+    locked: true
+    key: gate-key
+`)
+
+	regs := NewRegistries()
+	if err := Load(context.Background(), root, nil, regs, nil, nil); err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	gate, _ := regs.World.Room("tapestry-core:gate")
+	exit := gate.Exits[world.DirSouth]
+	if exit.Door == nil {
+		t.Fatal("south exit has no door")
+	}
+	if !exit.Door.Closed || !exit.Door.Locked {
+		t.Errorf("door state: closed=%v locked=%v, want both true", exit.Door.Closed, exit.Door.Locked)
+	}
+	if exit.Door.KeyID != "tapestry-core:gate-key" {
+		t.Errorf("KeyID = %q, want tapestry-core:gate-key", exit.Door.KeyID)
+	}
+	wantKW := []string{"iron", "gate"}
+	if len(exit.Door.Keywords) != 2 || exit.Door.Keywords[0] != wantKW[0] || exit.Door.Keywords[1] != wantKW[1] {
+		t.Errorf("Keywords = %v, want %v", exit.Door.Keywords, wantKW)
+	}
+}
+
+// TestLoadRoomDoor_DefaultsClosedTrue pins the §5.1 default that
+// an omitted `closed:` field means closed=true (a door is closed
+// unless content explicitly opens it).
+func TestLoadRoomDoor_DefaultsClosedTrue(t *testing.T) {
+	root := t.TempDir()
+	pack := filepath.Join(root, "core")
+	writeFile(t, filepath.Join(pack, "pack.yaml"), `
+name: tapestry-core
+content:
+  areas: [areas/*.yaml]
+  rooms: [rooms/*.yaml]
+`)
+	writeFile(t, filepath.Join(pack, "areas/town.yaml"), "id: town\nname: Town\n")
+	writeFile(t, filepath.Join(pack, "rooms/square.yaml"), `
+id: square
+area: town
+name: Square
+exits:
+  north: gate
+doors:
+  north:
+    name: gate
+`)
+	writeFile(t, filepath.Join(pack, "rooms/gate.yaml"), `
+id: gate
+area: town
+name: Gate
+`)
+	regs := NewRegistries()
+	if err := Load(context.Background(), root, nil, regs, nil, nil); err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	sq, _ := regs.World.Room("tapestry-core:square")
+	d := sq.Exits[world.DirNorth].Door
+	if d == nil || !d.Closed {
+		t.Errorf("default closed: door = %+v", d)
+	}
+}
+
+// TestLoadRoomDoor_ExplicitlyOpenable pins that closed: false
+// leaves the door open at boot.
+func TestLoadRoomDoor_ExplicitlyOpenable(t *testing.T) {
+	root := t.TempDir()
+	pack := filepath.Join(root, "core")
+	writeFile(t, filepath.Join(pack, "pack.yaml"), `
+name: tapestry-core
+content:
+  areas: [areas/*.yaml]
+  rooms: [rooms/*.yaml]
+`)
+	writeFile(t, filepath.Join(pack, "areas/town.yaml"), "id: town\nname: Town\n")
+	writeFile(t, filepath.Join(pack, "rooms/square.yaml"), `
+id: square
+area: town
+name: Square
+exits:
+  north: gate
+doors:
+  north:
+    name: archway
+    closed: false
+`)
+	writeFile(t, filepath.Join(pack, "rooms/gate.yaml"), `
+id: gate
+area: town
+name: Gate
+`)
+	regs := NewRegistries()
+	if err := Load(context.Background(), root, nil, regs, nil, nil); err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	sq, _ := regs.World.Room("tapestry-core:square")
+	d := sq.Exits[world.DirNorth].Door
+	if d == nil || d.Closed {
+		t.Errorf("closed: false: door = %+v", d)
+	}
+}
+
+// TestLoadRoomDoor_RejectsLockedOpen confirms locked: true without
+// closed: true fails at load.
+func TestLoadRoomDoor_RejectsLockedOpen(t *testing.T) {
+	root := t.TempDir()
+	pack := filepath.Join(root, "core")
+	writeFile(t, filepath.Join(pack, "pack.yaml"), `
+name: tapestry-core
+content:
+  areas: [areas/*.yaml]
+  rooms: [rooms/*.yaml]
+`)
+	writeFile(t, filepath.Join(pack, "areas/town.yaml"), "id: town\nname: Town\n")
+	writeFile(t, filepath.Join(pack, "rooms/square.yaml"), `
+id: square
+area: town
+name: Square
+exits:
+  north: gate
+doors:
+  north:
+    name: gate
+    closed: false
+    locked: true
+`)
+	writeFile(t, filepath.Join(pack, "rooms/gate.yaml"), `
+id: gate
+area: town
+name: Gate
+`)
+	if err := Load(context.Background(), root, nil, NewRegistries(), nil, nil); err == nil {
+		t.Fatal("locked + open: want error")
+	}
+}
+
+// TestLoadRoomDoor_RejectsMissingExit confirms a doors entry whose
+// direction has no matching exit fails at load.
+func TestLoadRoomDoor_RejectsMissingExit(t *testing.T) {
+	root := t.TempDir()
+	pack := filepath.Join(root, "core")
+	writeFile(t, filepath.Join(pack, "pack.yaml"), `
+name: tapestry-core
+content:
+  areas: [areas/*.yaml]
+  rooms: [rooms/*.yaml]
+`)
+	writeFile(t, filepath.Join(pack, "areas/town.yaml"), "id: town\nname: Town\n")
+	writeFile(t, filepath.Join(pack, "rooms/square.yaml"), `
+id: square
+area: town
+name: Square
+exits:
+  north: gate
+doors:
+  south:
+    name: phantom-door
+`)
+	writeFile(t, filepath.Join(pack, "rooms/gate.yaml"), `
+id: gate
+area: town
+name: Gate
+`)
+	if err := Load(context.Background(), root, nil, NewRegistries(), nil, nil); err == nil {
+		t.Fatal("door without matching exit: want error")
+	}
+}
