@@ -13,21 +13,28 @@ import (
 	"github.com/Jasrags/AnotherMUD/internal/entities"
 	"github.com/Jasrags/AnotherMUD/internal/eventbus"
 	"github.com/Jasrags/AnotherMUD/internal/quest"
+	"github.com/Jasrags/AnotherMUD/internal/world"
 )
 
 // Watcher subscribes quest tracking to the world event bus.
 //
-// Still deferred: `quest_grant` on a destination ROOM (world.Room has no
-// property bag yet) and `quest_advance` on the pickup payload (the event
+// Still deferred: `quest_advance` on the pickup payload (the event
 // carries no such field — a scripting-era channel). The item-template
-// `quest_grant` side channel (§7.2) is wired when an Accept resolver is
-// provided via SetItemGrant.
+// `quest_grant` side channel (§7.2) is wired when an Accept resolver
+// is provided via SetItemGrant; the room-side variant (M14.6) is
+// wired through SetRoomGrant.
 type Watcher struct {
 	svc   *quest.Service
 	store *entities.Store // resolves entity ids → template ids for collect/deliver
-	// grant resolves a player id to a quest.Player for the §7.2
-	// quest_grant item side channel. nil disables it.
+	// grant resolves a player id to a quest.Player for both the §7.2
+	// quest_grant item side channel and the M14.6 room-side variant.
+	// nil disables both.
 	grant func(playerID string) (quest.Player, bool)
+	// roomGrant resolves a room id to its quest_grant property value
+	// (bare or namespaced quest id), or "" when the room has no
+	// grant set. nil disables the room-side channel even when grant
+	// is wired.
+	roomGrant func(world.RoomID) string
 }
 
 // New builds a watcher over the quest service and entity store.
@@ -39,8 +46,23 @@ func New(svc *quest.Service, store *entities.Store) *Watcher {
 // an item whose template carries a `quest_grant` property auto-accepts
 // that quest for the picker (resolver maps the picker's id to a
 // quest.Player). Silent — acceptance failures are ignored per spec.
+//
+// Also enables the M14.6 room-side variant when SetRoomGrant is also
+// wired; the same player resolver serves both channels.
 func (w *Watcher) SetItemGrant(resolver func(playerID string) (quest.Player, bool)) {
 	w.grant = resolver
+}
+
+// SetRoomGrant enables the M14.6 quest_grant room side channel: moving
+// into a room whose Properties bag carries a `quest_grant` string
+// auto-accepts that quest for the mover. resolver returns the room's
+// quest_grant property value (or "" when absent / not a string).
+//
+// SetItemGrant MUST also be wired — the room-side channel reuses the
+// player resolver. A room grant set without an item grant is logged
+// as a partial wiring and is otherwise a no-op.
+func (w *Watcher) SetRoomGrant(resolver func(world.RoomID) string) {
+	w.roomGrant = resolver
 }
 
 // Subscribe registers the watcher's handlers on the bus (§7.1).
@@ -131,7 +153,10 @@ func (w *Watcher) onItemGiven(_ context.Context, e eventbus.Event) {
 }
 
 // onPlayerMoved advances `visit` objectives whose target is the
-// destination room id, for the mover (§7.1).
+// destination room id, for the mover (§7.1). Also honors the M14.6
+// room-side `quest_grant` channel: if the destination room declares
+// a quest_grant property and both grant resolvers are wired, the
+// quest is auto-accepted for the mover.
 func (w *Watcher) onPlayerMoved(_ context.Context, e eventbus.Event) {
 	ev, ok := e.(eventbus.PlayerMoved)
 	if !ok || ev.PlayerID == "" || ev.To == "" {
@@ -141,6 +166,27 @@ func (w *Watcher) onPlayerMoved(_ context.Context, e eventbus.Event) {
 	w.svc.AdvanceMatching(ev.PlayerID, "visit", func(o quest.Objective) bool {
 		return o.Target == to
 	})
+	w.maybeRoomGrant(ev.PlayerID, ev.To)
+}
+
+// maybeRoomGrant honors the M14.6 quest_grant property on the
+// destination room: it accepts the named quest for the mover
+// (silent; failures ignored, matching the item-side path).
+func (w *Watcher) maybeRoomGrant(playerID string, roomID world.RoomID) {
+	if w.roomGrant == nil || w.grant == nil {
+		return
+	}
+	raw := w.roomGrant(roomID)
+	if raw == "" {
+		return
+	}
+	questID, ok := w.svc.ResolveID(raw)
+	if !ok {
+		return
+	}
+	if player, ok := w.grant(playerID); ok {
+		w.svc.Accept(player, questID, true)
+	}
 }
 
 // itemInstance resolves an item instance id to its *ItemInstance, or nil

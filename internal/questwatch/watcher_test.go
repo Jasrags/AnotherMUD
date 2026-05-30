@@ -9,6 +9,7 @@ import (
 	"github.com/Jasrags/AnotherMUD/internal/item"
 	"github.com/Jasrags/AnotherMUD/internal/mob"
 	"github.com/Jasrags/AnotherMUD/internal/quest"
+	"github.com/Jasrags/AnotherMUD/internal/world"
 )
 
 // player satisfies quest.Player for accepting a quest in tests.
@@ -201,5 +202,100 @@ func TestQuestGrantNoResolverNoop(t *testing.T) {
 	after := svc.Snapshot("p1")
 	if after != nil && len(after.Active) != n {
 		t.Error("quest_grant fired without a resolver")
+	}
+}
+
+// TestQuestGrantOnRoomEntry pins the M14.6 room-side variant: a
+// PlayerMoved event into a room whose quest_grant resolver returns
+// a quest id auto-accepts that quest for the mover.
+func TestQuestGrantOnRoomEntry(t *testing.T) {
+	reg := quest.NewRegistry()
+	if err := reg.Register(&quest.Definition{
+		ID: "core:village-welcome", Name: "Welcome", Abandonable: true,
+		Stages: []quest.Stage{{ID: "s", Objectives: []quest.Objective{{Type: "visit", Target: "core:x", Count: 1}}}},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	svc := quest.NewService(quest.Config{Registry: reg})
+	w := New(svc, entities.NewStore())
+	w.SetItemGrant(func(id string) (quest.Player, bool) {
+		if id != "p1" {
+			return nil, false
+		}
+		return player{id: id}, true
+	})
+	w.SetRoomGrant(func(rid world.RoomID) string {
+		if rid == "core:town-square" {
+			return "village-welcome" // bare id resolved via ResolveID
+		}
+		return ""
+	})
+
+	w.onPlayerMoved(context.Background(), eventbus.PlayerMoved{
+		PlayerID: "p1",
+		From:     "core:somewhere-else",
+		To:       "core:town-square",
+	})
+
+	snap := svc.Snapshot("p1")
+	if snap == nil || len(snap.Active) != 1 || snap.Active[0].QuestID != "core:village-welcome" {
+		t.Errorf("room quest_grant did not accept: %+v", snap)
+	}
+}
+
+// TestQuestGrantOnRoomEntryNoResolverNoop confirms the room-side
+// path is dormant without both resolvers wired.
+func TestQuestGrantOnRoomEntryNoResolverNoop(t *testing.T) {
+	svc, _, w := setup(t) // no SetItemGrant, no SetRoomGrant
+	// Just SetRoomGrant without item grant: player resolver missing
+	// so the grant path drops silently.
+	w.SetRoomGrant(func(world.RoomID) string { return "q" })
+
+	w.onPlayerMoved(context.Background(), eventbus.PlayerMoved{
+		PlayerID: "p1", From: "core:a", To: "core:b",
+	})
+	snap := svc.Snapshot("p1")
+	if snap == nil || len(snap.Active) != 1 {
+		t.Errorf("snap = %+v", snap)
+	}
+}
+
+// TestQuestGrantOnRoomEntryEmptyPropertyNoop confirms moving into a
+// room whose resolver returns "" is a no-op.
+func TestQuestGrantOnRoomEntryEmptyPropertyNoop(t *testing.T) {
+	svc, _, w := setup(t)
+	w.SetItemGrant(func(id string) (quest.Player, bool) {
+		return player{id: id}, true
+	})
+	w.SetRoomGrant(func(world.RoomID) string { return "" }) // no grant on any room
+
+	before := svc.Snapshot("p1")
+	beforeN := len(before.Active)
+
+	w.onPlayerMoved(context.Background(), eventbus.PlayerMoved{
+		PlayerID: "p1", From: "core:a", To: "core:b",
+	})
+	after := svc.Snapshot("p1")
+	if len(after.Active) != beforeN {
+		t.Errorf("empty room grant changed active count: %d → %d", beforeN, len(after.Active))
+	}
+}
+
+// TestQuestGrantOnRoomEntryUnknownQuestIDNoop confirms a room
+// resolver returning a string that doesn't resolve to any
+// registered quest is a no-op.
+func TestQuestGrantOnRoomEntryUnknownQuestIDNoop(t *testing.T) {
+	svc, _, w := setup(t)
+	w.SetItemGrant(func(id string) (quest.Player, bool) {
+		return player{id: id}, true
+	})
+	w.SetRoomGrant(func(world.RoomID) string { return "bogus-quest" })
+
+	beforeN := len(svc.Snapshot("p1").Active)
+	w.onPlayerMoved(context.Background(), eventbus.PlayerMoved{
+		PlayerID: "p1", From: "core:a", To: "core:b",
+	})
+	if got := len(svc.Snapshot("p1").Active); got != beforeN {
+		t.Errorf("unknown quest id should be a no-op; active %d → %d", beforeN, got)
 	}
 }

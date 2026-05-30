@@ -495,6 +495,17 @@ func run() error {
 		}
 		return a, true
 	})
+	// M14.6: room-side quest_grant. Reads the destination room's
+	// quest_grant property and auto-accepts. Reuses the item-grant
+	// player resolver above.
+	questWatcher.SetRoomGrant(func(roomID world.RoomID) string {
+		r, err := registries.World.Room(roomID)
+		if err != nil {
+			return ""
+		}
+		s, _ := r.PropertyString("quest_grant")
+		return s
+	})
 	questWatcher.Subscribe(bus)
 
 	// M9.2: effect manager — per-entity active effects (spec
