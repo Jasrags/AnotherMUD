@@ -196,6 +196,24 @@ const (
 	// feature) can still read the item's state and the carried effect
 	// parameters.
 	EventItemConsumed = "item.consumed"
+
+	// EventDoorOpened / EventDoorClosed / EventDoorLocked /
+	// EventDoorUnlocked fire after a successful door state mutation
+	// from the corresponding verb (spec world-rooms-movement §5.2
+	// step 5). The reverse-side door is mutated under the same world
+	// lock as the near side but the event fires once — the payload
+	// names the near room + direction so subscribers can derive the
+	// reverse side themselves if they care.
+	EventDoorOpened   = "door.opened"
+	EventDoorClosed   = "door.closed"
+	EventDoorLocked   = "door.locked"
+	EventDoorUnlocked = "door.unlocked"
+	// EventDoorBlocked fires when a move attempt is rejected
+	// because the exit's door is closed (spec §3.3 step 4). The
+	// payload tells listeners (renderer, AI, future scripting) why
+	// the move failed so they can decorate the "you can't go that
+	// way" path with door-specific text.
+	EventDoorBlocked = "door.blocked"
 )
 
 // ItemPickedUp fires after GetHandler successfully moves an item
@@ -972,3 +990,57 @@ type ItemConsumed struct {
 
 // Name implements Event.
 func (ItemConsumed) Name() string { return EventItemConsumed }
+
+// DoorEvent is the shared payload for door.opened / door.closed /
+// door.locked / door.unlocked / door.blocked. Spec §5.2 step 5
+// requires room id, direction (short form), actor id, door name on
+// every door event; the lock/unlock events also carry the door's
+// key id for subscribers that want to know which key was used.
+//
+// One struct serves all five events because the field set is the
+// same; the event name distinguishes lifecycle stage. KeyID is
+// empty on opened/closed/blocked (and on lock/unlock for a keyless
+// door).
+type DoorEvent struct {
+	RoomID    world.RoomID
+	Direction string // short-form ("n", "s", "e", "w", "u", "d")
+	ActorID   entities.EntityID
+	DoorName  string
+	KeyID     string
+}
+
+// doorEventName picks the event name based on which builder was
+// used. We keep five distinct constructors rather than a tagged-
+// union because subscribers register by event name; the builder
+// pattern keeps Name() trivial per type.
+
+// DoorOpened is the door.opened payload.
+type DoorOpened struct{ DoorEvent }
+
+// Name implements Event.
+func (DoorOpened) Name() string { return EventDoorOpened }
+
+// DoorClosed is the door.closed payload.
+type DoorClosed struct{ DoorEvent }
+
+// Name implements Event.
+func (DoorClosed) Name() string { return EventDoorClosed }
+
+// DoorLocked is the door.locked payload.
+type DoorLocked struct{ DoorEvent }
+
+// Name implements Event.
+func (DoorLocked) Name() string { return EventDoorLocked }
+
+// DoorUnlocked is the door.unlocked payload.
+type DoorUnlocked struct{ DoorEvent }
+
+// Name implements Event.
+func (DoorUnlocked) Name() string { return EventDoorUnlocked }
+
+// DoorBlocked is the door.blocked payload. Fires from the
+// movement-command path when world.Move returns ErrDoorClosed.
+type DoorBlocked struct{ DoorEvent }
+
+// Name implements Event.
+func (DoorBlocked) Name() string { return EventDoorBlocked }

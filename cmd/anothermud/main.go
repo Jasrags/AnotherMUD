@@ -363,6 +363,25 @@ func run() error {
 	})
 	_ = spawnManager // retained only for documentation of bus subscription
 
+	// M15.1c: door reset on area.tick (spec
+	// world-rooms-movement §5.4). Mirrors the spawn manager's
+	// area-tick subscriber; restores every door in the area to
+	// its (DefaultClosed, DefaultLocked) state with paired
+	// reverse-side sync. Logged at debug so a busy reset window
+	// does not flood production output.
+	bus.Subscribe(eventbus.EventAreaTick, func(ctx context.Context, ev eventbus.Event) {
+		t, ok := ev.(eventbus.AreaTick)
+		if !ok {
+			return
+		}
+		if n := w.ResetDoorsInArea(t.AreaID); n > 0 {
+			logging.From(ctx).Debug("doors reset on area tick",
+				slog.String("event", "door.reset"),
+				slog.String("area", string(t.AreaID)),
+				slog.Int("transitions", n))
+		}
+	})
+
 	scheduler := spawn.NewScheduler(spawn.SchedulerConfig{
 		World:            w,
 		Bus:              bus,

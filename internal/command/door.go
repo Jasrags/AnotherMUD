@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/Jasrags/AnotherMUD/internal/entities"
+	"github.com/Jasrags/AnotherMUD/internal/eventbus"
 	"github.com/Jasrags/AnotherMUD/internal/item"
 	"github.com/Jasrags/AnotherMUD/internal/world"
 )
@@ -90,6 +91,7 @@ func handleOpen(ctx context.Context, c *Context, src world.RoomID, dir world.Dir
 	if !c.World.OpenDoor(src, dir) {
 		return c.Actor.Write(ctx, fmt.Sprintf("%s won't budge.", capitalize(door.Name)))
 	}
+	c.Publish(ctx, eventbus.DoorOpened{DoorEvent: doorEvent(c, src, dir, door, "")})
 	return c.Actor.Write(ctx, fmt.Sprintf("You open %s.", door.Name))
 }
 
@@ -100,6 +102,7 @@ func handleClose(ctx context.Context, c *Context, src world.RoomID, dir world.Di
 	if !c.World.CloseDoor(src, dir) {
 		return c.Actor.Write(ctx, fmt.Sprintf("%s won't budge.", capitalize(door.Name)))
 	}
+	c.Publish(ctx, eventbus.DoorClosed{DoorEvent: doorEvent(c, src, dir, door, "")})
 	return c.Actor.Write(ctx, fmt.Sprintf("You close %s.", door.Name))
 }
 
@@ -116,6 +119,7 @@ func handleLock(ctx context.Context, c *Context, src world.RoomID, dir world.Dir
 	if !c.World.LockDoor(src, dir) {
 		return c.Actor.Write(ctx, fmt.Sprintf("%s won't lock.", capitalize(door.Name)))
 	}
+	c.Publish(ctx, eventbus.DoorLocked{DoorEvent: doorEvent(c, src, dir, door, door.KeyID)})
 	return c.Actor.Write(ctx, fmt.Sprintf("You lock %s.", door.Name))
 }
 
@@ -129,7 +133,21 @@ func handleUnlock(ctx context.Context, c *Context, src world.RoomID, dir world.D
 	if !c.World.UnlockDoor(src, dir) {
 		return c.Actor.Write(ctx, fmt.Sprintf("%s won't unlock.", capitalize(door.Name)))
 	}
+	c.Publish(ctx, eventbus.DoorUnlocked{DoorEvent: doorEvent(c, src, dir, door, door.KeyID)})
 	return c.Actor.Write(ctx, fmt.Sprintf("You unlock %s.", door.Name))
+}
+
+// doorEvent builds the shared DoorEvent payload for the five door
+// lifecycle events. KeyID is only meaningful on lock / unlock; the
+// open / close / blocked builders pass an empty string.
+func doorEvent(c *Context, src world.RoomID, dir world.Direction, door world.DoorState, keyID string) eventbus.DoorEvent {
+	return eventbus.DoorEvent{
+		RoomID:    src,
+		Direction: dir.Short(),
+		ActorID:   entities.EntityID(c.Actor.PlayerID()),
+		DoorName:  door.Name,
+		KeyID:     keyID,
+	}
 }
 
 // actorHasKey reports whether the actor's inventory carries any

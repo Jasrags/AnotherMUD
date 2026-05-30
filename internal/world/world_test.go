@@ -436,3 +436,75 @@ func TestResolveDoorTarget_EmptyAndUnknownRoom(t *testing.T) {
 		t.Errorf("unknown room: %+v", res)
 	}
 }
+
+// TestResetDoorsInArea_RestoresDefaults pins spec §5.4 — area
+// reset restores doors to their DefaultClosed / DefaultLocked.
+func TestResetDoorsInArea_RestoresDefaults(t *testing.T) {
+	d := newDoor()           // closed, unlocked, DefaultClosed=true
+	d.DefaultLocked = true   // pretend the boot state was locked too
+	d.Locked = true          // and lock it now to test re-lock from unlocked
+	d.Closed = true
+	w := twoRoomWorld(t, d, nil)
+	w.AddArea(&world.Area{ID: "town"})
+
+	// Open + unlock — diverges from defaults.
+	w.UnlockDoor("a", world.DirNorth)
+	w.OpenDoor("a", world.DirNorth)
+	if got, _ := w.GetDoor("a", world.DirNorth); !got.Closed != true || got.Locked != false {
+		// expect now Closed=false, Locked=false
+	}
+
+	// Reset — should restore Closed=true, Locked=true.
+	// But: roomA's id is "a", not "town:a", so area=town won't
+	// match. Skip prefix-keyed test and pass area="" which matches
+	// the bare-id form... actually the test rooms use bare ids
+	// ("a", "b") so we need to query by area="a" to match room "a".
+	if n := w.ResetDoorsInArea("a"); n == 0 {
+		t.Errorf("ResetDoorsInArea returned 0 transitions; want at least 1")
+	}
+	got, _ := w.GetDoor("a", world.DirNorth)
+	if !got.Closed || !got.Locked {
+		t.Errorf("after reset: Closed=%v Locked=%v, want both true", got.Closed, got.Locked)
+	}
+}
+
+// TestResetDoorsInArea_MatchesPrefix pins the area-prefix match
+// rule (rooms named "<area>:<sub>" reset under area).
+func TestResetDoorsInArea_MatchesPrefix(t *testing.T) {
+	w := world.New()
+	d := &world.DoorState{
+		Name: "iron gate", Keywords: []string{"gate"},
+		Closed:        false, // diverges from default below
+		Locked:        false,
+		DefaultClosed: true,
+		DefaultLocked: false,
+	}
+	w.AddRoom(&world.Room{
+		ID:   "town:square",
+		Name: "Town Square",
+		Exits: map[world.Direction]world.Exit{
+			world.DirNorth: {Target: "town:gate", Door: d},
+		},
+	})
+	w.AddRoom(&world.Room{
+		ID:   "town:gate",
+		Name: "Gate",
+	})
+
+	if n := w.ResetDoorsInArea("town"); n == 0 {
+		t.Error("prefix match reset: want at least 1 transition")
+	}
+	got, _ := w.GetDoor("town:square", world.DirNorth)
+	if !got.Closed {
+		t.Error("door not restored to closed after area reset")
+	}
+}
+
+// TestResetDoorsInArea_NoChangeWhenAlreadyDefault is a no-op when
+// doors are already at their defaults.
+func TestResetDoorsInArea_NoChangeWhenAlreadyDefault(t *testing.T) {
+	w := twoRoomWorld(t, newDoor(), newDoor())
+	if n := w.ResetDoorsInArea("a"); n != 0 {
+		t.Errorf("already-at-default: transitions = %d, want 0", n)
+	}
+}

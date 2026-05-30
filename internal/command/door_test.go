@@ -262,3 +262,34 @@ func TestDoorVerb_OrdinalDisambiguates(t *testing.T) {
 		t.Errorf("ordinal 2: %q", got)
 	}
 }
+
+// TestRenderExits_DecoratesDoorState pins the M15.1c render hook:
+// exit listing shows (closed)/(locked) decorators when the exit
+// carries a door, plain direction when doorless or open.
+func TestRenderExits_DecoratesDoorState(t *testing.T) {
+	w := world.New()
+	w.AddRoom(&world.Room{
+		ID:   "x",
+		Name: "Crossroads",
+		Exits: map[world.Direction]world.Exit{
+			world.DirNorth: {Target: "n", Door: &world.DoorState{Name: "iron gate", Closed: true, Locked: true}},
+			world.DirEast:  {Target: "e", Door: &world.DoorState{Name: "oak gate", Closed: true}},
+			world.DirSouth: {Target: "s", Door: &world.DoorState{Name: "open arch", Closed: false}},
+			world.DirWest:  {Target: "ww"},
+		},
+	})
+	r, _ := w.Room("x")
+	out := command.RenderRoom(r, nil, nil, nil)
+	if !strings.Contains(out, "north (locked)") {
+		t.Errorf("locked decorator missing: %q", out)
+	}
+	if !strings.Contains(out, "east (closed)") {
+		t.Errorf("closed decorator missing: %q", out)
+	}
+	if !strings.Contains(out, "south,") && !strings.HasSuffix(out, "south") {
+		t.Errorf("open door should render plain: %q", out)
+	}
+	if !strings.Contains(out, "west") {
+		t.Errorf("doorless exit missing: %q", out)
+	}
+}

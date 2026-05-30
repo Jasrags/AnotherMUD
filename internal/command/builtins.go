@@ -188,6 +188,23 @@ func movementHandler(dir world.Direction) Handler {
 			if errors.Is(err, world.ErrNoExit) {
 				return c.Actor.Write(ctx, "You cannot go that way.")
 			}
+			if errors.Is(err, world.ErrDoorClosed) {
+				// M15.1c: publish door.blocked so subscribers
+				// (renderer, AI, future scripting) can react. The
+				// door is the one on the source exit; look it up
+				// before rendering so KeyID + name come from the
+				// authoritative state.
+				if door, ok := c.World.GetDoor(room.ID, dir); ok {
+					c.Publish(ctx, eventbus.DoorBlocked{DoorEvent: eventbus.DoorEvent{
+						RoomID:    room.ID,
+						Direction: dir.Short(),
+						ActorID:   entities.EntityID(c.Actor.PlayerID()),
+						DoorName:  door.Name,
+					}})
+					return c.Actor.Write(ctx, fmt.Sprintf("%s is closed.", capitalize(door.Name)))
+				}
+				return c.Actor.Write(ctx, "The way is closed.")
+			}
 			return c.Actor.Write(ctx, "Something blocks your way.")
 		}
 		srcID := room.ID
@@ -325,10 +342,38 @@ func renderExits(r *world.Room) string {
 	if len(r.Exits) == 0 {
 		return "Exits: none"
 	}
-	dirs := make([]string, 0, len(r.Exits))
-	for d := range r.Exits {
-		dirs = append(dirs, d.Long())
+	// Build a slice of (long-name, decorated-name) pairs so we can
+	// sort by long-name (stable, alphabetical) while emitting the
+	// decorated form (M15.1c: doors render their state).
+	type labelled struct{ key, label string }
+	out := make([]labelled, 0, len(r.Exits))
+	for d, e := range r.Exits {
+		out = append(out, labelled{key: d.Long(), label: decorateExit(d, e)})
 	}
-	sort.Strings(dirs)
-	return fmt.Sprintf("Exits: %s", strings.Join(dirs, ", "))
+	sort.Slice(out, func(i, j int) bool { return out[i].key < out[j].key })
+	labels := make([]string, len(out))
+	for i, lb := range out {
+		labels[i] = lb.label
+	}
+	return fmt.Sprintf("Exits: %s", strings.Join(labels, ", "))
+}
+
+// decorateExit returns the exit's long-name with door state appended
+// when the exit carries a door. Format: "north (closed)",
+// "north (locked)", "north (open)". An unlocked open door renders
+// as a plain direction since "open" is the implicit default; an
+// open BUT locked door cannot exist (locked implies closed).
+func decorateExit(d world.Direction, e world.Exit) string {
+	long := d.Long()
+	if e.Door == nil {
+		return long
+	}
+	switch {
+	case e.Door.Locked:
+		return long + " (locked)"
+	case e.Door.Closed:
+		return long + " (closed)"
+	default:
+		return long
+	}
 }

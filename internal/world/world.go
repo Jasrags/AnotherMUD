@@ -585,6 +585,86 @@ var canonicalDirections = []Direction{
 	DirNorth, DirEast, DirSouth, DirWest, DirUp, DirDown,
 }
 
+// ResetDoorsInArea restores every door in the area to its default
+// (DefaultClosed, DefaultLocked) state. Per spec §5.4 every room
+// whose id is prefixed by the area id (or equals it for a
+// singleton-room area) is in scope. Reverse-side sync runs the
+// same way as the verb-driven mutations.
+//
+// Subscribed to area.tick from the composition root so reset
+// happens at the same cadence as mob respawn (spec §3.7).
+//
+// Returns the number of door SIDES that actually transitioned —
+// a door whose Closed flag flipped on both sides counts twice.
+// Used for slog observability.
+func (w *World) ResetDoorsInArea(areaID AreaID) int {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	transitions := 0
+	prefix := string(areaID) + ":"
+	bare := string(areaID)
+	for roomID, room := range w.rooms {
+		idStr := string(roomID)
+		if idStr != bare && !strings.HasPrefix(idStr, prefix) {
+			continue
+		}
+		for dir, exit := range room.Exits {
+			if exit.Door == nil {
+				continue
+			}
+			// Closed flag — restore the default if it differs.
+			if exit.Door.Closed != exit.Door.DefaultClosed {
+				op := doorClose
+				if !exit.Door.DefaultClosed {
+					op = doorOpen
+				}
+				if applyDoorOp(exit.Door, op) {
+					transitions++
+					w.syncReverseLocked(roomID, dir, op, &transitions)
+				}
+			}
+			// Locked flag — same shape.
+			if exit.Door.Locked != exit.Door.DefaultLocked {
+				op := doorLock
+				if !exit.Door.DefaultLocked {
+					op = doorUnlock
+				}
+				if applyDoorOp(exit.Door, op) {
+					transitions++
+					w.syncReverseLocked(roomID, dir, op, &transitions)
+				}
+			}
+		}
+	}
+	return transitions
+}
+
+// syncReverseLocked propagates a door op to the paired reverse-side
+// door without rerunning the near-side mutation. Caller MUST hold
+// w.mu.Lock; counts a transition into *transitions if the reverse
+// door actually flipped.
+func (w *World) syncReverseLocked(srcID RoomID, dir Direction, op doorOp, transitions *int) {
+	src, ok := w.rooms[srcID]
+	if !ok {
+		return
+	}
+	exit, ok := src.Exits[dir]
+	if !ok {
+		return
+	}
+	dst, ok := w.rooms[exit.Target]
+	if !ok {
+		return
+	}
+	rev, ok := dst.Exits[dir.Opposite()]
+	if !ok || rev.Door == nil {
+		return
+	}
+	if applyDoorOp(rev.Door, op) {
+		*transitions++
+	}
+}
+
 // doorOp enumerates the four door mutations. Internal to keep the
 // public Open/Close/Lock/Unlock surface stable while sharing the
 // reverse-sync code path.
