@@ -6,9 +6,17 @@ import (
 	"fmt"
 	"strings"
 	"sync"
+	"sync/atomic"
 
 	"github.com/Jasrags/AnotherMUD/internal/world"
 )
+
+// fallbackSeq is the monotonic counter the newPortalID fallback
+// uses when crypto/rand fails. Mirrors the M14.2 fix in
+// internal/notifications (which had the same zeroed-buffer
+// fallback bug); shared package-level state because portal ids
+// are not bound to a Service instance.
+var fallbackSeq atomic.Uint64
 
 // Portal is a single live keyword exit record. The Service owns
 // the registry; world.Room.KeywordExits holds the on-the-room
@@ -28,17 +36,24 @@ type Portal struct {
 }
 
 // Service is the in-memory portal registry. Safe for concurrent
-// use; the mutex serializes the entire create / remove / expire
-// surface so paired-portal operations are atomic (spec §5.6
-// "concurrent create/remove operations on temporary exits are
-// atomic — no orphaned half-pair").
+// use; the mutex serializes create / remove / expire so paired
+// operations are atomic (spec §5.6 "no orphaned half-pair"). Read
+// methods (Get, All, Len) take the read lock so a busy area-tick
+// expire pass does not block status queries.
 //
 // The service holds a *World reference because every create /
 // remove must register the keyword exit on the room itself.
+//
+// Lock order: portal.Service.mu → world.World.mu. Service writes
+// always call into AddKeywordExit / RemoveKeywordExit (which take
+// world.mu) while holding s.mu. Any future caller that needs to
+// query the portal service from inside a world-locked path MUST
+// preserve this order — taking s.mu while holding w.mu inverts
+// it and would deadlock under contention.
 type Service struct {
-	mu     sync.Mutex
-	world  *world.World
-	byID   map[string]*Portal
+	mu    sync.RWMutex
+	world *world.World
+	byID  map[string]*Portal
 	// byRoomKeyword indexes (room, keyword) → portal id for fast
 	// lookup-by-location (used to refuse double-register on the
 	// same keyword at a room).
@@ -256,8 +271,8 @@ func (s *Service) ExpireUpTo(areaID world.AreaID, currentTick uint64) int {
 // Get returns a snapshot of the portal under id. The returned
 // value is a copy; mutating it does not affect the registry.
 func (s *Service) Get(id string) (Portal, bool) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
+	s.mu.RLock()
+	defer s.mu.RUnlock()
 	p, ok := s.byID[id]
 	if !ok {
 		return Portal{}, false
@@ -268,8 +283,8 @@ func (s *Service) Get(id string) (Portal, bool) {
 // All returns every active portal in arbitrary order. Fresh
 // slice; callers may mutate it.
 func (s *Service) All() []Portal {
-	s.mu.Lock()
-	defer s.mu.Unlock()
+	s.mu.RLock()
+	defer s.mu.RUnlock()
 	out := make([]Portal, 0, len(s.byID))
 	for _, p := range s.byID {
 		out = append(out, *p)
@@ -279,20 +294,20 @@ func (s *Service) All() []Portal {
 
 // Len returns the number of active portals.
 func (s *Service) Len() int {
-	s.mu.Lock()
-	defer s.mu.Unlock()
+	s.mu.RLock()
+	defer s.mu.RUnlock()
 	return len(s.byID)
 }
 
-// newPortalID returns an opaque process-unique portal id.
+// newPortalID returns an opaque process-unique portal id. The
+// happy path uses 64 bits of crypto/rand. The fallback path
+// (crypto/rand returning an error — vanishingly rare in practice)
+// uses an atomic counter so two concurrent fallbacks still get
+// distinct ids. Mirrors the M14.2 notifications.newID fix.
 func newPortalID() string {
 	var buf [8]byte
 	if _, err := rand.Read(buf[:]); err == nil {
 		return "p-" + hex.EncodeToString(buf[:])
 	}
-	// Falling back to a deterministic-ish id keeps the registry
-	// usable even if crypto/rand briefly fails; the registry's
-	// duplicate-id check is by id presence in byID, so a single
-	// fallback never collides with an in-flight rand-derived id.
-	return fmt.Sprintf("p-fallback-%d", len(buf))
+	return fmt.Sprintf("p-fallback-%d", fallbackSeq.Add(1))
 }
