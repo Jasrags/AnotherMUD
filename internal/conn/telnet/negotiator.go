@@ -115,22 +115,36 @@ func (n *negotiator) snapshot() Capabilities {
 	return out
 }
 
+// InitialOfferBytes is the exact number of wire bytes the server
+// emits on the first Read of every connection — currently:
+//
+//	IAC DO TTYPE   (3)
+//	IAC DO NAWS    (3)
+//	IAC WILL GMCP  (3)
+//
+// Exposed so callers (tests, future framing readers) can drain the
+// negotiation prologue without hard-coding the length and breaking
+// every time we add an option.
+const InitialOfferBytes = 9
+
 // sendInitialOffers writes the server-initiated negotiation offers
-// for the options M16.1 supports. Lazy — invoked from feed() on the
-// first byte the read loop processes. Caller MUST NOT hold any
-// lock; WriteCommand takes the conn's write mutex.
+// for the options this negotiator advertises (TTYPE + NAWS as
+// server-side DOs; GMCP as a server-side WILL). Lazy — invoked from
+// feed() on the first byte the read loop processes. Caller MUST
+// NOT hold any lock; WriteCommand takes the conn's write mutex.
 func (n *negotiator) sendInitialOffers(ctx context.Context) {
 	if n.offersSent {
 		return
 	}
 	n.offersSent = true
-	// IAC DO TTYPE + IAC DO NAWS. The conn write mutex serializes
-	// against other senders; a write error here is logged but not
-	// fatal (a peer that closes mid-negotiation will surface the
-	// error on the next regular Write).
+	// The conn write mutex serializes against other senders; a
+	// write error here is logged but not fatal (a peer that closes
+	// mid-negotiation surfaces the error on the next regular
+	// Write).
 	pkt := []byte{
 		negIAC, negDO, optTTYPE,
 		negIAC, negDO, optNAWS,
+		negIAC, negWILL, optGMCP,
 	}
 	if _, err := n.conn.WriteCommand(ctx, pkt); err != nil {
 		logging.From(ctx).Debug("telnet.negotiator: initial offer write failed",
@@ -261,6 +275,15 @@ func (n *negotiator) handleNegotiation(ctx context.Context, verb, opt byte) {
 			n.option(opt).enabled = true
 			// NAWS: client emits SB unsolicited on resize; nothing
 			// further to request.
+		case optGMCP:
+			// M16.3: GMCP is bidirectional. A client that says
+			// WILL GMCP is offering to also send SB GMCP frames
+			// to us. Acknowledge with DO GMCP and activate (if
+			// we hadn't already from a prior DO ↔ WILL exchange).
+			// Some clients send WILL first, others DO first; both
+			// paths end at "active with full bidirectional GMCP."
+			n.conn.gmcp.activate()
+			n.sendCommand(ctx, negDO, opt)
 		default:
 			n.sendCommand(ctx, negDONT, opt)
 		}
@@ -282,11 +305,28 @@ func (n *negotiator) handleNegotiation(ctx context.Context, verb, opt byte) {
 			n.sendSubneg(ctx, optMSSP, mssp.Encode(*n.conn.mssp))
 			return
 		}
+		// M16.3: GMCP activation — our initial WILL GMCP offer
+		// gets a DO GMCP in reply when the client speaks GMCP.
+		// Flip the per-conn active flag; SendGmcp becomes a real
+		// emit and SB GMCP frames start dispatching to the
+		// handler.
+		if opt == optGMCP {
+			n.conn.gmcp.activate()
+			return
+		}
 		n.sendCommand(ctx, negWONT, opt)
 	case negDONT:
 		// Peer refuses to let us do an option. We weren't doing any,
 		// so silently acknowledge by ignoring (per Q-method: only
 		// reply WONT if we were enabled, which we never are).
+		// M16.3 exception: GMCP. Our WILL GMCP was server-initiated
+		// and the active flag tracks "negotiated"; a DONT GMCP
+		// from the peer means tear it down. Future Send calls
+		// become no-ops; the supports set is preserved in case
+		// negotiation resumes.
+		if opt == optGMCP {
+			n.conn.gmcp.deactivate()
+		}
 	}
 }
 
@@ -303,6 +343,11 @@ func (n *negotiator) handleSubneg(ctx context.Context, opt byte, payload []byte)
 	case optMSSP:
 		// Spec §8.3: MSSP never receives subneg payloads from the
 		// client. If one arrives (malformed crawler), ignore it.
+	case optGMCP:
+		// M16.3: route through the GMCP state. Core.Supports.*
+		// updates the per-conn subscription set; every other
+		// package dispatches to the engine callback.
+		n.conn.gmcp.handleSubneg(ctx, payload)
 	default:
 		logging.From(ctx).Debug("telnet.negotiator: ignoring unknown subneg",
 			slog.String("session_id", n.conn.ID()),

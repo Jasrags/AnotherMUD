@@ -2037,9 +2037,16 @@ already well-abstracted so the blast radius is bounded.
       accepted conn. PLAYERS / UPTIME via dynamic factories
       against `session.Manager.Count()` and server start time.
       Spec §8.
-- [ ] **M16.3 — GMCP option negotiation + envelope.** Wire
-      format + Core.Supports state machine. Spec §5.1, §5.3,
-      §5.5.
+- [x] **M16.3 — GMCP option negotiation + envelope.** Wire
+      format + Core.Supports state machine. WILL GMCP added to
+      initial offers; `IAC DO GMCP` activates; `IAC SB GMCP
+      <pkg> SPACE <json> IAC SE` framing with IAC-doubled
+      payload bytes; `Conn.SendGmcp / SupportsPackage /
+      GmcpActive / SetGmcpHandler` surface; Core.Supports.Set
+      / Add / Remove handled inside the negotiator (permissive
+      default, prefix match per spec §5.3); other inbound
+      packages dispatch to the engine-installed callback.
+      Spec §5.1, §5.3, §5.5.
 - [ ] **M16.4 — GMCP packages.** Char.Vitals → Room.Info →
       Char.Items → Char.Combat → Char.Effects →
       Char.Experience → Comm.Channel → Char.Login. Spec §7.

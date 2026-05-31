@@ -53,6 +53,12 @@ type Conn struct {
 	// pointer is shared across connections (the composition root
 	// builds one Config per server).
 	mssp *mssp.Config
+
+	// gmcp is the M16.3 GMCP per-connection state — the active
+	// flag, the supports set, and the inbound dispatch callback.
+	// Always non-nil so SendGmcp / SupportsPackage / handleSubneg
+	// can read fields without nil-checking.
+	gmcp *gmcpState
 }
 
 // New wraps an established net.Conn. id should be a stable identifier
@@ -70,6 +76,7 @@ func New(id string, c net.Conn, opts ...Option) *Conn {
 		raw:  c,
 		r:    bufio.NewReaderSize(c, MaxLineBytes),
 		done: make(chan struct{}),
+		gmcp: newGmcpState(),
 	}
 	tc.neg = newNegotiator(tc)
 	for _, opt := range opts {

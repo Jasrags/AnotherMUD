@@ -28,6 +28,21 @@ func pairConn(t *testing.T) (server *Conn, client net.Conn) {
 	return server, c2
 }
 
+// runReadLoop drives the server-side Read until the conn closes.
+// Tests that send multiple lines/subneg blocks need this so a
+// later write doesn't block on a full pipe — net.Pipe is
+// synchronous, so the read side must keep consuming. Errors are
+// discarded; the loop exits when Read returns any non-nil err
+// (typically conn.ErrClosed on test cleanup).
+func runReadLoop(server *Conn) {
+	for {
+		_, err := server.Read(context.Background())
+		if err != nil {
+			return
+		}
+	}
+}
+
 // readBytes reads up to want bytes from c (with deadline). Helps
 // tests inspect the server's outbound IAC commands.
 func readBytes(t *testing.T, c net.Conn, want int) []byte {
@@ -52,9 +67,9 @@ func TestNegotiator_FirstReadSendsInitialOffers(t *testing.T) {
 		_, _ = server.Read(context.Background())
 	}()
 
-	// Expect: IAC DO TTYPE  IAC DO NAWS  (6 bytes total).
-	got := readBytes(t, client, 6)
-	want := []byte{negIAC, negDO, optTTYPE, negIAC, negDO, optNAWS}
+	// Expect: IAC DO TTYPE  IAC DO NAWS  IAC WILL GMCP (9 bytes).
+	got := readBytes(t, client, InitialOfferBytes)
+	want := []byte{negIAC, negDO, optTTYPE, negIAC, negDO, optNAWS, negIAC, negWILL, optGMCP}
 	for i, b := range want {
 		if got[i] != b {
 			t.Errorf("initial offer[%d] = %#x, want %#x (full: %x)", i, got[i], b, got)
@@ -76,7 +91,7 @@ func TestNegotiator_TTYPENegotiationCapturesName(t *testing.T) {
 	}()
 
 	// Drain the initial offers (6 bytes).
-	_ = readBytes(t, client, 6)
+	_ = readBytes(t, client, InitialOfferBytes)
 
 	// Client agrees: IAC WILL TTYPE.
 	_, _ = client.Write([]byte{negIAC, negWILL, optTTYPE})
@@ -96,7 +111,7 @@ func TestNegotiator_TTYPENegotiationCapturesName(t *testing.T) {
 	reply = append(reply, negIAC, negSE)
 	_, _ = client.Write(reply)
 
-	// Second SEND should fire (rotation query).
+	// Second SEND should fire (rotation query: IAC SB TTYPE SEND IAC SE = 6 bytes).
 	_ = readBytes(t, client, 6)
 
 	// Client returns same name → rotation wrap, no further send.
@@ -124,12 +139,12 @@ func TestNegotiator_TTYPERotationCapturesMultiple(t *testing.T) {
 		got <- line
 	}()
 
-	_ = readBytes(t, client, 6) // initial offers
+	_ = readBytes(t, client, InitialOfferBytes) // initial offers
 	_, _ = client.Write([]byte{negIAC, negWILL, optTTYPE})
 
 	// Client rotates: Mudlet → MTTS → Mudlet (wrap).
 	for i, name := range []string{"Mudlet", "MTTS 2575", "Mudlet"} {
-		_ = readBytes(t, client, 6) // SEND request
+		_ = readBytes(t, client, 6) // IAC SB TTYPE SEND IAC SE
 		reply := []byte{negIAC, negSB, optTTYPE, ttypeIS}
 		reply = append(reply, []byte(name)...)
 		reply = append(reply, negIAC, negSE)
@@ -157,7 +172,7 @@ func TestNegotiator_NAWSCapturesWindowSize(t *testing.T) {
 		got <- line
 	}()
 
-	_ = readBytes(t, client, 6) // initial offers
+	_ = readBytes(t, client, InitialOfferBytes) // initial offers
 	_, _ = client.Write([]byte{negIAC, negWILL, optNAWS})
 
 	// Client emits NAWS unsolicited: IAC SB NAWS 0 80 0 24 IAC SE
@@ -185,7 +200,7 @@ func TestNegotiator_NAWSReemitUpdatesCapabilities(t *testing.T) {
 		got <- line
 	}()
 
-	_ = readBytes(t, client, 6)
+	_ = readBytes(t, client, InitialOfferBytes)
 	_, _ = client.Write([]byte{negIAC, negWILL, optNAWS})
 
 	_, _ = client.Write([]byte{negIAC, negSB, optNAWS, 0, 80, 0, 24, negIAC, negSE})
@@ -206,7 +221,7 @@ func TestNegotiator_UnknownWILLOptionRefused(t *testing.T) {
 	server, client := pairConn(t)
 
 	go func() { _, _ = server.Read(context.Background()) }()
-	_ = readBytes(t, client, 6)
+	_ = readBytes(t, client, InitialOfferBytes)
 
 	// Client offers an unknown option (LINEMODE = 34).
 	_, _ = client.Write([]byte{negIAC, negWILL, 34})
@@ -227,7 +242,7 @@ func TestNegotiator_UnknownDOOptionRefused(t *testing.T) {
 	server, client := pairConn(t)
 
 	go func() { _, _ = server.Read(context.Background()) }()
-	_ = readBytes(t, client, 6)
+	_ = readBytes(t, client, InitialOfferBytes)
 
 	// Client asks us to DO an option we don't offer (e.g. SUPPRESS-GO-AHEAD = 3).
 	_, _ = client.Write([]byte{negIAC, negDO, 3})
@@ -258,7 +273,7 @@ func TestNegotiator_IACBetweenLinesDoesNotPolluteRead(t *testing.T) {
 		}
 	}()
 
-	_ = readBytes(t, client, 6) // initial offers
+	_ = readBytes(t, client, InitialOfferBytes) // initial offers
 
 	// Send: "hel" + IAC WILL NAWS + "lo\n" + NAWS subneg + "world\n"
 	_, _ = client.Write([]byte("hel"))
@@ -292,7 +307,7 @@ func TestNegotiator_EscapedIACInLineSurfacesAsData(t *testing.T) {
 		got <- line
 	}()
 
-	_ = readBytes(t, client, 6)
+	_ = readBytes(t, client, InitialOfferBytes)
 
 	// Send doubled IAC mid-line.
 	_, _ = client.Write([]byte{'a', negIAC, negIAC, 'b', '\n'})
@@ -317,7 +332,7 @@ func TestNegotiator_SubnegBufferOverflowDiscardsBlock(t *testing.T) {
 		got <- line
 	}()
 
-	_ = readBytes(t, client, 6) // initial offers
+	_ = readBytes(t, client, InitialOfferBytes) // initial offers
 
 	// IAC SB <fake-opt 200> + (MaxLineBytes+10) data bytes + NO IAC SE.
 	header := []byte{negIAC, negSB, 200}
@@ -362,7 +377,7 @@ func TestNegotiator_UnexpectedByteAfterIACInsideSBClosesBlock(t *testing.T) {
 	server, client := pairConn(t)
 
 	go func() { _, _ = server.Read(context.Background()) }()
-	_ = readBytes(t, client, 6)
+	_ = readBytes(t, client, InitialOfferBytes)
 
 	// IAC SB NAWS 0 80 0 24 IAC <unexpected byte 0x42 'B'>.
 	// The negotiator should treat this as end-of-block and
@@ -387,7 +402,7 @@ func TestNegotiator_DONTForUnneededOptionIsSilent(t *testing.T) {
 	server, client := pairConn(t)
 
 	go func() { _, _ = server.Read(context.Background()) }()
-	_ = readBytes(t, client, 6)
+	_ = readBytes(t, client, InitialOfferBytes)
 
 	// DONT for a random option (LINEMODE = 34). We never offered
 	// to enable it — no reply expected.
@@ -425,7 +440,7 @@ func TestNegotiator_DOMSSPEmitsSubnegWhenConfigured(t *testing.T) {
 	})
 
 	go func() { _, _ = server.Read(context.Background()) }()
-	_ = readBytes(t, c2, 6) // initial offers
+	_ = readBytes(t, c2, InitialOfferBytes) // initial offers
 
 	_, _ = c2.Write([]byte{negIAC, negDO, optMSSP})
 
@@ -457,7 +472,7 @@ func TestNegotiator_DOMSSPWithoutConfigRefused(t *testing.T) {
 	server, client := pairConn(t)
 
 	go func() { _, _ = server.Read(context.Background()) }()
-	_ = readBytes(t, client, 6)
+	_ = readBytes(t, client, InitialOfferBytes)
 
 	_, _ = client.Write([]byte{negIAC, negDO, optMSSP})
 
@@ -485,7 +500,7 @@ func TestNegotiator_InboundSBMSSPSilentlyIgnored(t *testing.T) {
 		got <- line
 	}()
 
-	_ = readBytes(t, client, 6)
+	_ = readBytes(t, client, InitialOfferBytes)
 
 	// Junk SB MSSP block followed by a normal line.
 	_, _ = client.Write([]byte{negIAC, negSB, optMSSP, 'g', 'a', 'r', 'b', 'a', 'g', 'e', negIAC, negSE})
@@ -519,3 +534,244 @@ func readUntilIACSE(t *testing.T, c net.Conn) []byte {
 	return nil
 }
 
+
+func TestNegotiator_InitialOffersIncludeWILLGMCP(t *testing.T) {
+	// Pin the offer block ordering: the initial 9 bytes after
+	// connection accept are IAC DO TTYPE, IAC DO NAWS, IAC WILL GMCP.
+	server, client := pairConn(t)
+	go func() { _, _ = server.Read(context.Background()) }()
+	got := readBytes(t, client, InitialOfferBytes)
+	want := []byte{
+		negIAC, negDO, optTTYPE,
+		negIAC, negDO, optNAWS,
+		negIAC, negWILL, optGMCP,
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Errorf("offer[%d] = %#x, want %#x (full %x)", i, got[i], want[i], got)
+		}
+	}
+	_, _ = client.Write([]byte("\n"))
+}
+
+func TestNegotiator_DOGMCPActivatesSendPath(t *testing.T) {
+	// Before DO GMCP arrives, SendGmcp returns ErrGmcpNotActive
+	// and emits no bytes. After DO GMCP, SendGmcp serializes the
+	// frame and writes through the conn.
+	server, client := pairConn(t)
+	go runReadLoop(server)
+	_ = readBytes(t, client, InitialOfferBytes)
+
+	// Pre-activation send must refuse.
+	if err := server.SendGmcp(context.Background(), "Char.Vitals", []byte(`{"hp":10}`)); err == nil {
+		t.Error("pre-activation SendGmcp returned nil; want ErrGmcpNotActive")
+	}
+
+	// Client activates.
+	_, _ = client.Write([]byte{negIAC, negDO, optGMCP})
+	// Wait until the negotiator processes the DO. Drive a junk
+	// line through to flush the per-byte loop.
+	_, _ = client.Write([]byte("ping\n"))
+	// Drain the initial Read goroutine's result via a small wait;
+	// the GmcpActive flag should be true by now.
+	deadline := time.Now().Add(time.Second)
+	for !server.GmcpActive() && time.Now().Before(deadline) {
+		time.Sleep(5 * time.Millisecond)
+	}
+	if !server.GmcpActive() {
+		t.Fatal("GMCP did not activate after DO GMCP")
+	}
+
+	// Post-activation SendGmcp from a separate goroutine so the
+	// pipe can drain through the test thread.
+	sendDone := make(chan error, 1)
+	go func() {
+		sendDone <- server.SendGmcp(context.Background(), "Char.Vitals", []byte(`{"hp":10}`))
+	}()
+	frame := readUntilIACSE(t, client)
+	if err := <-sendDone; err != nil {
+		t.Fatalf("post-activation SendGmcp err: %v", err)
+	}
+	// Frame after stripping IAC SB GMCP header: "Char.Vitals {...}".
+	if !bytes.HasPrefix(frame, []byte{negIAC, negSB, optGMCP}) {
+		t.Errorf("frame missing IAC SB GMCP prefix: %x", frame)
+	}
+	body := frame[3:]
+	if !bytes.Contains(body, []byte("Char.Vitals")) {
+		t.Errorf("frame missing package name: %x", body)
+	}
+	if !bytes.Contains(body, []byte(`{"hp":10}`)) {
+		t.Errorf("frame missing payload JSON: %x", body)
+	}
+}
+
+func TestNegotiator_DONTGMCPDeactivates(t *testing.T) {
+	server, client := pairConn(t)
+	// Loop reads forever so subsequent writes don't block the pipe.
+	// Exits when the conn closes (test cleanup).
+	go runReadLoop(server)
+	_ = readBytes(t, client, InitialOfferBytes)
+	_, _ = client.Write([]byte{negIAC, negDO, optGMCP})
+	_, _ = client.Write([]byte("ping\n"))
+	deadline := time.Now().Add(time.Second)
+	for !server.GmcpActive() && time.Now().Before(deadline) {
+		time.Sleep(5 * time.Millisecond)
+	}
+	if !server.GmcpActive() {
+		t.Fatal("precondition: GMCP should be active")
+	}
+
+	// Tear down.
+	_, _ = client.Write([]byte{negIAC, negDONT, optGMCP})
+	_, _ = client.Write([]byte("ping2\n"))
+	deadline = time.Now().Add(time.Second)
+	for server.GmcpActive() && time.Now().Before(deadline) {
+		time.Sleep(5 * time.Millisecond)
+	}
+	if server.GmcpActive() {
+		t.Error("GMCP still active after DONT GMCP")
+	}
+	if err := server.SendGmcp(context.Background(), "Char.Vitals", []byte("{}")); err == nil {
+		t.Error("post-DONT SendGmcp returned nil; want ErrGmcpNotActive")
+	}
+}
+
+func TestNegotiator_CoreSupportsSetAndPrefixMatch(t *testing.T) {
+	// Activate GMCP, then send Core.Supports.Set ["Char 1"] and
+	// verify the prefix match (Char matches Char.Vitals) per
+	// spec §5.3.
+	server, client := pairConn(t)
+	go runReadLoop(server)
+	_ = readBytes(t, client, InitialOfferBytes)
+	_, _ = client.Write([]byte{negIAC, negDO, optGMCP})
+
+	// Permissive default before Set: every package matches.
+	if !server.SupportsPackage("Anything.Goes") {
+		t.Error("pre-Set SupportsPackage should be permissive")
+	}
+
+	// Send Core.Supports.Set ["Char 1"]
+	setFrame := buildGmcpFrame("Core.Supports.Set", []byte(`["Char 1"]`))
+	_, _ = client.Write(setFrame)
+	_, _ = client.Write([]byte("ping\n"))
+
+	deadline := time.Now().Add(time.Second)
+	for time.Now().Before(deadline) {
+		if !server.SupportsPackage("Anything.Goes") {
+			break
+		}
+		time.Sleep(5 * time.Millisecond)
+	}
+	if server.SupportsPackage("Anything.Goes") {
+		t.Error("post-Set: random package should not match")
+	}
+	if !server.SupportsPackage("Char") {
+		t.Error("Char (exact key) should match")
+	}
+	if !server.SupportsPackage("Char.Vitals") {
+		t.Error("Char.Vitals (dotted descendant of Char) should match")
+	}
+	if server.SupportsPackage("CharFu") {
+		t.Error("CharFu (not a dotted descendant) should NOT match")
+	}
+}
+
+func TestNegotiator_CoreSupportsAddAndRemove(t *testing.T) {
+	server, client := pairConn(t)
+	go runReadLoop(server)
+	_ = readBytes(t, client, InitialOfferBytes)
+	_, _ = client.Write([]byte{negIAC, negDO, optGMCP})
+
+	// Set ["Char.Vitals 1"]
+	_, _ = client.Write(buildGmcpFrame("Core.Supports.Set", []byte(`["Char.Vitals 1"]`)))
+	// Add ["Room.Info 1"]
+	_, _ = client.Write(buildGmcpFrame("Core.Supports.Add", []byte(`["Room.Info 1"]`)))
+	_, _ = client.Write([]byte("ping\n"))
+
+	deadline := time.Now().Add(time.Second)
+	for !server.SupportsPackage("Room.Info") && time.Now().Before(deadline) {
+		time.Sleep(5 * time.Millisecond)
+	}
+	if !server.SupportsPackage("Char.Vitals") {
+		t.Error("Char.Vitals should be supported after Set")
+	}
+	if !server.SupportsPackage("Room.Info") {
+		t.Error("Room.Info should be supported after Add")
+	}
+
+	// Remove ["Char.Vitals 1"]
+	_, _ = client.Write(buildGmcpFrame("Core.Supports.Remove", []byte(`["Char.Vitals"]`)))
+	_, _ = client.Write([]byte("ping2\n"))
+	deadline = time.Now().Add(time.Second)
+	for server.SupportsPackage("Char.Vitals") && time.Now().Before(deadline) {
+		time.Sleep(5 * time.Millisecond)
+	}
+	if server.SupportsPackage("Char.Vitals") {
+		t.Error("Char.Vitals should be removed")
+	}
+	if !server.SupportsPackage("Room.Info") {
+		t.Error("Room.Info should still be supported")
+	}
+}
+
+func TestNegotiator_InboundPackageDispatchesToHandler(t *testing.T) {
+	// A non-Core.Supports inbound frame must reach the installed
+	// handler with the package name + raw JSON payload.
+	server, client := pairConn(t)
+	type capture struct {
+		pkg     string
+		payload []byte
+	}
+	got := make(chan capture, 1)
+	server.SetGmcpHandler(func(_ context.Context, pkg string, payload []byte) {
+		got <- capture{pkg, payload}
+	})
+
+	go runReadLoop(server)
+	_ = readBytes(t, client, InitialOfferBytes)
+	_, _ = client.Write([]byte{negIAC, negDO, optGMCP})
+	_, _ = client.Write(buildGmcpFrame("Char.Login", []byte(`{"name":"alice"}`)))
+	_, _ = client.Write([]byte("ping\n"))
+
+	select {
+	case c := <-got:
+		if c.pkg != "Char.Login" {
+			t.Errorf("pkg = %q, want Char.Login", c.pkg)
+		}
+		if string(c.payload) != `{"name":"alice"}` {
+			t.Errorf("payload = %q", c.payload)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("handler not invoked within 1s")
+	}
+}
+
+func TestNegotiator_SendGmcpEscapesIACInPayload(t *testing.T) {
+	// A payload byte equal to 0xFF must be doubled on the wire
+	// per spec §3.5 (subneg payloads).
+	server, client := pairConn(t)
+	go runReadLoop(server)
+	_ = readBytes(t, client, InitialOfferBytes)
+	_, _ = client.Write([]byte{negIAC, negDO, optGMCP})
+	_, _ = client.Write([]byte("ping\n"))
+	deadline := time.Now().Add(time.Second)
+	for !server.GmcpActive() && time.Now().Before(deadline) {
+		time.Sleep(5 * time.Millisecond)
+	}
+
+	sendDone := make(chan error, 1)
+	go func() {
+		// Payload contains a literal 0xFF byte mid-string.
+		sendDone <- server.SendGmcp(context.Background(), "P", []byte{'"', 0xFF, '"'})
+	}()
+	frame := readUntilIACSE(t, client)
+	if err := <-sendDone; err != nil {
+		t.Fatalf("SendGmcp: %v", err)
+	}
+	// After the IAC SB GMCP header + "P " prefix, the payload
+	// should be: " 0xFF 0xFF " — the 0xFF doubled.
+	want := []byte{negIAC, negSB, optGMCP, 'P', ' ', '"', 0xFF, 0xFF, '"'}
+	if !bytes.Equal(frame, want) {
+		t.Errorf("frame = %x, want %x", frame, want)
+	}
+}

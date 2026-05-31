@@ -25,6 +25,13 @@ const (
 	// config (set via WithMssp) provides the variable table; a
 	// conn without one refuses DO MSSP with WONT.
 	optMSSP byte = 70
+
+	// optGMCP — Generic MUD Communication Protocol (M16.3).
+	// Server advertises WILL GMCP at boot; client responds
+	// DO GMCP to activate. After activation both sides exchange
+	// IAC SB GMCP <utf-8 package + space + json> IAC SE frames.
+	// Spec networking-protocols §5.
+	optGMCP byte = 201
 )
 
 // Option is the functional-options shape for telnet.New. Each

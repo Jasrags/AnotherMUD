@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/Jasrags/AnotherMUD/internal/conn/telnet"
 	"github.com/Jasrags/AnotherMUD/internal/server"
 )
 
@@ -237,12 +238,12 @@ func itoa(i int) string {
 	return string(buf[pos:])
 }
 
-// drainTelnetOffers reads the initial 6-byte IAC sequence the
-// telnet negotiator (M16.1) emits on every connection's first
-// server-side Read: IAC DO TTYPE + IAC DO NAWS. The echo-style
-// tests that pre-date negotiation MUST drop these bytes before
-// reading the application-layer reply or string comparisons see
-// "����reply" instead of "reply".
+// drainTelnetOffers reads the initial IAC sequence the telnet
+// negotiator emits on every connection's first server-side Read:
+// IAC DO TTYPE + IAC DO NAWS + IAC WILL GMCP (telnet.InitialOfferBytes
+// total). The echo-style tests that pre-date negotiation MUST drop
+// these bytes before reading the application-layer reply or string
+// comparisons see "����reply" instead of "reply".
 func drainTelnetOffers(t *testing.T, r *bufio.Reader) {
 	t.Helper()
 	if err := drainTelnetOffersErr(r); err != nil {
@@ -255,6 +256,6 @@ func drainTelnetOffers(t *testing.T, r *bufio.Reader) {
 // so callers running off the main test goroutine can route it
 // through their own error channel.
 func drainTelnetOffersErr(r *bufio.Reader) error {
-	_, err := r.Discard(6)
+	_, err := r.Discard(telnet.InitialOfferBytes)
 	return err
 }
