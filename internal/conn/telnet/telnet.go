@@ -39,6 +39,11 @@ type Conn struct {
 	wmu  sync.Mutex
 	once sync.Once
 	done chan struct{}
+
+	// neg owns the M16.1 IAC negotiation state machine — option
+	// state, subnegotiation buffer, captured Capabilities. Driven
+	// from Read (single goroutine); accessors take their own lock.
+	neg *negotiator
 }
 
 // New wraps an established net.Conn. id should be a stable identifier
@@ -47,12 +52,22 @@ func New(id string, c net.Conn) *Conn {
 	// bufio over LimitReader caps total bytes read across the connection
 	// lifetime, which would be wrong here — we want a per-Read cap. Track
 	// the limit in Read itself via bufio.Reader.Buffered / Peek instead.
-	return &Conn{
+	tc := &Conn{
 		id:   id,
 		raw:  c,
 		r:    bufio.NewReaderSize(c, MaxLineBytes),
 		done: make(chan struct{}),
 	}
+	tc.neg = newNegotiator(tc)
+	return tc
+}
+
+// Capabilities returns the per-connection client-capability snapshot
+// populated by the IAC negotiator (M16.1). Safe for concurrent
+// callers; returns the zero value before negotiation completes (or
+// if the client refused both TTYPE and NAWS).
+func (c *Conn) Capabilities() Capabilities {
+	return c.neg.snapshot()
 }
 
 // ID implements conn.Connection.
@@ -61,46 +76,73 @@ func (c *Conn) ID() string { return c.id }
 // Read implements conn.Connection. It returns one line at a time with
 // the trailing CR/LF stripped.
 //
-// Uses bufio.Reader.ReadSlice rather than ReadString/ReadBytes so the
-// per-line buffer is hard-capped at MaxLineBytes — ReadString grows
-// the buffer past its initial size, which would defeat the cap.
+// M16.1: driven through the per-connection IAC negotiator
+// (negotiator.feed) so subnegotiations arriving mid-line, between
+// lines, or unsolicited (NAWS resize) are consumed without
+// polluting the line buffer. Data bytes — anything the negotiator
+// surfaces as "payload" — accumulate into the line builder; the
+// call returns on \n with the trailing CR stripped.
+//
+// On the first Read of a connection, the negotiator emits the
+// initial server-side offers (IAC DO TTYPE, IAC DO NAWS). Doing it
+// lazily here keeps New() I/O-free and lets ctx cancellation flow
+// through the regular Read error path.
 func (c *Conn) Read(ctx context.Context) (string, error) {
 	// Honor ctx cancellation by closing the underlying conn so the
-	// blocked ReadSlice returns. Standard Go pattern for ctx-aware
+	// blocked ReadByte returns. Standard Go pattern for ctx-aware
 	// net.Conn reads without an extra goroutine per Read.
 	stop := c.watchCancel(ctx)
 	defer stop()
 
-	slice, err := c.r.ReadSlice('\n')
-	// slice aliases the bufio buffer, so copy what we need before
-	// any subsequent Read invalidates it.
-	line := stripIAC(strings.TrimRight(string(slice), "\r\n"))
+	c.neg.sendInitialOffers(ctx)
 
-	if err != nil {
-		if ctxErr := ctx.Err(); ctxErr != nil {
-			return "", ctxErr
+	// Line buffer caps at MaxLineBytes of POST-protocol data. A peer
+	// streaming subneg bytes can't fill it; only real payload counts.
+	buf := make([]byte, 0, 64)
+	for {
+		b, err := c.r.ReadByte()
+		if err != nil {
+			if ctxErr := ctx.Err(); ctxErr != nil {
+				return "", ctxErr
+			}
+			if errors.Is(err, io.EOF) {
+				// Return whatever payload we'd accumulated so a peer
+				// that closed mid-line still surfaces a final line on
+				// the EOF (matches the pre-M16.1 behavior).
+				return strings.TrimRight(string(buf), "\r"), io.EOF
+			}
+			select {
+			case <-c.done:
+				return "", conn.ErrClosed
+			default:
+			}
+			return "", fmt.Errorf("telnet.Read: %w", err)
 		}
-		if errors.Is(err, bufio.ErrBufferFull) {
-			// Peer sent MaxLineBytes without a newline. Drain whatever
-			// remains of this oversized line so a subsequent Read doesn't
-			// return its tail as a phantom "line".
-			c.discardToNewline()
+
+		data, isData := c.neg.feed(ctx, b)
+		if !isData {
+			continue
+		}
+		if data == '\n' {
+			return strings.TrimRight(string(buf), "\r"), nil
+		}
+		if len(buf) >= MaxLineBytes {
+			// Drain remaining bytes of the oversized line so the
+			// next Read aligns to a clean line boundary. Subneg
+			// state is preserved across this drain — the negotiator
+			// keeps consuming protocol bytes correctly.
+			c.discardToNewline(ctx)
 			return "", conn.ErrLineTooLong
 		}
-		if errors.Is(err, io.EOF) {
-			return line, io.EOF
-		}
-		select {
-		case <-c.done:
-			return "", conn.ErrClosed
-		default:
-		}
-		return "", fmt.Errorf("telnet.Read: %w", err)
+		buf = append(buf, data)
 	}
-	return line, nil
 }
 
 // Telnet command bytes we recognize. Defined in RFC 854 / RFC 855.
+// Duplicated here against negotiator.go's neg* constants so the
+// write-side helpers (escapeIAC, IAC byte literals in
+// WriteCommand callers) read in terms of the same names without
+// taking a cross-file dependency.
 const (
 	tnIAC  byte = 0xFF
 	tnSB   byte = 0xFA // start of subnegotiation
@@ -111,20 +153,11 @@ const (
 	tnDONT byte = 0xFE
 )
 
-// stripIAC removes telnet IAC sequences from line. We do not maintain
-// option state — we simply skip command bytes so they don't leak into
-// the line-oriented input the server sees.
-//
-// Recognized shapes:
-//
-//   - IAC IAC          → literal 0xFF byte (kept)
-//   - IAC WILL/WONT/DO/DONT <opt> → 3-byte negotiation, dropped
-//   - IAC SB ... IAC SE → subnegotiation block, dropped
-//   - IAC <other>      → 2-byte command, dropped
-//
-// A trailing lone IAC at the end of the buffer is dropped; the
-// likeliest cause is a truncated read, and emitting a stray 0xFF byte
-// would confuse later validators (e.g. login's ASCII check).
+// stripIAC is retained for the write-side round-trip test below;
+// production reads go through the byte-level negotiator
+// (negotiator.feed) since M16.1. Kept rather than deleted because
+// the round-trip property test still validates that escapeIAC's
+// output decodes back to the original on the receive path.
 func stripIAC(s string) string {
 	if strings.IndexByte(s, tnIAC) < 0 {
 		return s
@@ -135,24 +168,20 @@ func stripIAC(s string) string {
 			out = append(out, s[i])
 			continue
 		}
-		// We saw IAC. Decide based on the following byte.
 		if i+1 >= len(s) {
-			break // truncated IAC; drop
+			break
 		}
 		cmd := s[i+1]
 		switch cmd {
 		case tnIAC:
-			// Escaped literal 0xFF.
 			out = append(out, tnIAC)
 			i++
 		case tnWILL, tnWONT, tnDO, tnDONT:
-			// 3-byte negotiation: IAC CMD OPT. Skip OPT.
 			if i+2 >= len(s) {
 				return string(out)
 			}
 			i += 2
 		case tnSB:
-			// Subnegotiation: skip until IAC SE.
 			i += 2
 			for i < len(s)-1 {
 				if s[i] == tnIAC && s[i+1] == tnSE {
@@ -162,20 +191,25 @@ func stripIAC(s string) string {
 				i++
 			}
 		default:
-			// 2-byte command (NOP, GA, etc).
 			i++
 		}
 	}
 	return string(out)
 }
 
-// discardToNewline reads and discards bytes until the next newline or
-// any error. Called after ErrLineTooLong so the buffer is realigned to
-// the next real line boundary.
-func (c *Conn) discardToNewline() {
+// discardToNewline reads bytes through the negotiator until a data
+// '\n' surfaces or any error occurs. Called after ErrLineTooLong so
+// the buffer realigns to the next real line boundary. Drives the
+// negotiator (rather than ReadSlice) so subnegotiations that arrive
+// in the discarded tail keep updating option state cleanly.
+func (c *Conn) discardToNewline(ctx context.Context) {
 	for {
-		_, err := c.r.ReadSlice('\n')
-		if err == nil || !errors.Is(err, bufio.ErrBufferFull) {
+		b, err := c.r.ReadByte()
+		if err != nil {
+			return
+		}
+		data, isData := c.neg.feed(ctx, b)
+		if isData && data == '\n' {
 			return
 		}
 	}

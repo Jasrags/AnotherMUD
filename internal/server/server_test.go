@@ -60,6 +60,7 @@ func TestEchoSingleClient(t *testing.T) {
 	if _, err := r.ReadString('\n'); err != nil { // greeting
 		t.Fatalf("read greeting: %v", err)
 	}
+	drainTelnetOffers(t, r)
 
 	if _, err := c.Write([]byte("hello world\r\n")); err != nil {
 		t.Fatalf("write: %v", err)
@@ -112,6 +113,10 @@ func TestEchoConcurrentClients(t *testing.T) {
 				errs <- err
 				return
 			}
+			if _, err := r.Discard(6); err != nil { // initial telnet IAC offers
+				errs <- err
+				return
+			}
 
 			for j := 0; j < lines; j++ {
 				msg := "client-" + itoa(i) + "-line-" + itoa(j)
@@ -157,6 +162,7 @@ func TestOversizedLineIsRejected(t *testing.T) {
 	if _, err := r.ReadString('\n'); err != nil {
 		t.Fatalf("read greeting: %v", err)
 	}
+	drainTelnetOffers(t, r)
 
 	// Send a payload larger than telnet.MaxLineBytes (1024) with no
 	// newline, then a normal line. Server must reject the oversized
@@ -229,4 +235,17 @@ func itoa(i int) string {
 		buf[pos] = '-'
 	}
 	return string(buf[pos:])
+}
+
+// drainTelnetOffers reads the initial 6-byte IAC sequence the
+// telnet negotiator (M16.1) emits on every connection's first
+// server-side Read: IAC DO TTYPE + IAC DO NAWS. The echo-style
+// tests that pre-date negotiation MUST drop these bytes before
+// reading the application-layer reply or string comparisons see
+// "����reply" instead of "reply".
+func drainTelnetOffers(t *testing.T, r *bufio.Reader) {
+	t.Helper()
+	if _, err := r.Discard(6); err != nil {
+		t.Fatalf("drain telnet offers: %v", err)
+	}
 }

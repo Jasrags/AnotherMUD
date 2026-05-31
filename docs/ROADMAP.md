@@ -2005,6 +2005,61 @@ last because it crosses into the render path and the in-game clock.
 
 ---
 
+### M16 — Modern Client
+
+**Slice:** Mudlet / MUSHclient / Blightmud / browser clients see
+real HUDs and panels instead of just scrolling text. Closes
+gap-matrix §1.2 (GMCP), §1.3 (telnet IAC negotiation), §1.4
+(WebSocket), §2 networking-protocols MSSP variables, and §2
+ui-rendering-help 256/truecolor.
+
+**Why this:** Theme C closed the world-state work; the next
+user-visible payoff is what the *client* sees. `internal/conn` is
+already well-abstracted so the blast radius is bounded.
+
+**Live plan + current step:** `docs/themes/modern-client-plan.md`.
+
+**Sub-milestones (order: IAC+TTYPE+NAWS → MSSP → GMCP transport
+→ GMCP packages → WebSocket → 256/truecolor):**
+
+- [x] **M16.1 — Telnet IAC + TTYPE + NAWS.** Per-connection
+      IAC subnegotiation state machine driven from Read.
+      Server-initiated `IAC DO TTYPE` / `IAC DO NAWS` on first
+      Read. TTYPE rotation captured per PD-5 (stop when name
+      already seen). NAWS width/height tracked per re-emit.
+      Capabilities exposed via `telnet.Conn.Capabilities()`.
+      Spec §3.3-§3.4 + §4.1-§4.4.
+- [ ] **M16.2 — MSSP.** Server-discovery variables; lets
+      crawlers list us. Spec §8.
+- [ ] **M16.3 — GMCP option negotiation + envelope.** Wire
+      format + Core.Supports state machine. Spec §5.1, §5.3,
+      §5.5.
+- [ ] **M16.4 — GMCP packages.** Char.Vitals → Room.Info →
+      Char.Items → Char.Combat → Char.Effects →
+      Char.Experience → Comm.Channel → Char.Login. Spec §7.
+- [ ] **M16.5 — WebSocket transport.** Parallel-shippable;
+      same package payloads, JSON envelope. Spec §6.
+- [ ] **M16.6 — 256 / truecolor.** Per-session render tier
+      selection driven by captured TTYPE.
+
+**Touches specs:** `networking-protocols` end-to-end; eventually
+`ui-rendering-help` §3 for the color tier follow-up.
+
+**Pre-decisions (see plan doc):** PD-1 (per-client subscribe
+model — defer to M16.3), PD-2 (payload shape — defer to M16.4a),
+PD-3 (vitals batching — defer to M16.4a), PD-4 (HTTP listener
+— defer to M16.5), PD-5 (TTYPE rotation policy — closed in M16.1
+as "stop when name already seen").
+
+**Order rationale:** TTYPE+NAWS is cheapest and gives immediate
+panel-width data even before GMCP. MSSP follows naturally (same
+IAC machinery, tiny payload). GMCP transport is the headline;
+packages are small individually but plural. WebSocket runs
+parallel because internal/conn is clean. Truecolor closes the
+loop once clients have advertised their tier via TTYPE.
+
+---
+
 ## How to use this document
 
 - The **current milestone** is whichever section above has unchecked
