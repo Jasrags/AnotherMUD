@@ -73,6 +73,45 @@ func TestStore_RoundTrip(t *testing.T) {
 	}
 }
 
+func TestStore_RoundTrip_PreservesChannelField(t *testing.T) {
+	// M16.4g: a channel-kind notification's Channel id must survive
+	// the YAML round-trip so an offline backlog drained on next
+	// login still emits Comm.Channel.Text GMCP frames rather than
+	// silently falling back to main-window-text-only.
+	s, _ := tmpStore(t, 50)
+	ctx := context.Background()
+
+	q, err := s.Load(ctx, "ent-1", "Alice")
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	n := mk("c1", PriorityChannel, 0)
+	n.Kind = "channel"
+	n.Sender = "Bob"
+	n.Channel = "ooc"
+	q.Append(n)
+
+	if err := s.Save("ent-1", q.Snapshot()); err != nil {
+		t.Fatalf("Save: %v", err)
+	}
+
+	s2 := NewStore(filepath.Dir(s.root), 50)
+	q2, err := s2.Load(ctx, "ent-1", "Alice")
+	if err != nil {
+		t.Fatalf("Load(2): %v", err)
+	}
+	got := q2.DrainAll()
+	if len(got) != 1 {
+		t.Fatalf("loaded count = %d, want 1", len(got))
+	}
+	if got[0].Channel != "ooc" {
+		t.Errorf("round-tripped Channel = %q, want ooc", got[0].Channel)
+	}
+	if got[0].Sender != "Bob" {
+		t.Errorf("round-tripped Sender = %q, want Bob", got[0].Sender)
+	}
+}
+
 func TestStore_SaveWithoutLoadIsSkipped(t *testing.T) {
 	s, _ := tmpStore(t, 50)
 	q := NewQueue(50)

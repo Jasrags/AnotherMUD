@@ -73,6 +73,15 @@ const (
 	// profile rendering a single bar can pick the bound-class track
 	// or the first entry.
 	PackageCharExperience = "Char.Experience"
+
+	// PackageCommChannelText — a single message on a chat channel
+	// (spec chat-channels-and-tells §11). Event-driven (NOT poll-
+	// driven): emitted once per delivered channel notification,
+	// alongside the plain-text Deliver path that writes the
+	// rendered line to the wire. Drives the Mudlet chat panel,
+	// which routes per-channel rather than scraping the main
+	// game window.
+	PackageCommChannelText = "Comm.Channel.Text"
 )
 
 // Char.Items "location" string constants per spec §7. Tapestry-
@@ -293,6 +302,28 @@ type CharExperienceTrack struct {
 // hasn't registered any tracks yet.
 type CharExperience struct {
 	Tracks []CharExperienceTrack `json:"tracks"`
+}
+
+// CommChannelText is the spec §11 Comm.Channel.Text payload — one
+// message on one channel, delivered to one subscribed actor.
+//
+// Tapestry-shape (PD-2) so bundled Mudlet chat profiles route
+// without remapping:
+//   - `channel` is the canonical channel id (`ooc`, `tapestry-
+//     core:trade`). The panel uses it as the tab key.
+//   - `talker` is the speaker's display name. Empty for system
+//     announcements; the panel can render those without an
+//     attribution prefix.
+//   - `text` is the FULL rendered line as it appears in the main
+//     window (`[ooc] Alice: hello`). Mudlet chat plugins
+//     typically strip the channel prefix client-side from this
+//     field rather than expecting a pre-stripped body — keeping
+//     `text` identical to the main-window line maximizes
+//     plugin compatibility.
+type CommChannelText struct {
+	Channel string `json:"channel"`
+	Talker  string `json:"talker,omitempty"`
+	Text    string `json:"text"`
 }
 
 // CharEffectsList is the spec §5 Char.Effects payload — every

@@ -136,6 +136,7 @@ func (s *Store) Load(ctx context.Context, entityID, name string) (*Queue, error)
 			Text:        e.Text,
 			PublishedAt: e.PublishedAt,
 			Sender:      e.Sender,
+			Channel:     e.Channel,
 		})
 	}
 

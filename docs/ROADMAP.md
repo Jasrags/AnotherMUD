@@ -2110,6 +2110,23 @@ already well-abstracted so the blast radius is bounded.
         handler; link-dead reattach resets the shadow.
         Progression manager wired onto connActor at
         construction.
+  - [x] **M16.4g — Comm.Channel.** `gmcp.CommChannelText`
+        (channel + talker + text). Event-driven, NOT poll-
+        and-diff: parallel-emit from `actorSink.Deliver` on
+        every `Kind=="channel"` notification, alongside the
+        plain-text write that ships to the main window. Routes
+        the FULL rendered line (`[ooc] Alice: hello`) so
+        bundled Mudlet chat plugins compatible with Tapestry's
+        Comm.Channel.Text shape strip the prefix client-side.
+        System messages (empty Sender) emit with `talker`
+        omitted via omitempty. Required new field:
+        `notifications.Notification.Channel` (populated by the
+        chat verb in `command/chat.go`). Empty Channel id on a
+        channel-kind notification silently skips the GMCP emit
+        — main-window text still ships. GMCP send failures
+        log at Debug rather than bubbling (would otherwise
+        trigger notification re-enqueue and double-write the
+        text line).
 - [ ] **M16.5 — WebSocket transport.** Parallel-shippable;
       same package payloads, JSON envelope. Spec §6.
 - [ ] **M16.6 — 256 / truecolor.** Per-session render tier

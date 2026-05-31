@@ -282,3 +282,48 @@ func TestCharExperience_PackageConstant(t *testing.T) {
 		t.Errorf("PackageCharExperience = %q, want Char.Experience", gmcp.PackageCharExperience)
 	}
 }
+
+func TestCommChannelText_FullPayload(t *testing.T) {
+	out, _ := json.Marshal(gmcp.CommChannelText{
+		Channel: "ooc",
+		Talker:  "Alice",
+		Text:    "[ooc] Alice: hello",
+	})
+	want := `{"channel":"ooc","talker":"Alice","text":"[ooc] Alice: hello"}`
+	if string(out) != want {
+		t.Errorf("payload = %q, want %q", string(out), want)
+	}
+}
+
+func TestCommChannelText_SystemMessageOmitsTalker(t *testing.T) {
+	// System announcements (no speaker) drop the talker field so
+	// the panel can render without an attribution prefix.
+	out, _ := json.Marshal(gmcp.CommChannelText{
+		Channel: "admin",
+		Text:    "[admin] Server restart in 5 minutes.",
+	})
+	got := string(out)
+	if strings.Contains(got, `"talker"`) {
+		t.Errorf("system message should omit talker, got %q", got)
+	}
+}
+
+func TestCommChannelText_RequiredFieldsAlwaysEmit(t *testing.T) {
+	// channel + text always emit even when empty — an empty
+	// channel id is malformed but the encoder must surface it so
+	// callers see the bug rather than silently dropping the
+	// payload.
+	out, _ := json.Marshal(gmcp.CommChannelText{})
+	got := string(out)
+	for _, key := range []string{`"channel"`, `"text"`} {
+		if !strings.Contains(got, key) {
+			t.Errorf("required field %s missing in %q", key, got)
+		}
+	}
+}
+
+func TestCommChannel_PackageConstant(t *testing.T) {
+	if gmcp.PackageCommChannelText != "Comm.Channel.Text" {
+		t.Errorf("PackageCommChannelText = %q, want Comm.Channel.Text", gmcp.PackageCommChannelText)
+	}
+}

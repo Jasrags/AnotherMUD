@@ -38,4 +38,11 @@ type Notification struct {
 	// the speaking player for tells). May be empty for system
 	// notifications.
 	Sender string
+
+	// Channel optionally identifies the chat channel id for
+	// Kind=="channel" notifications (e.g. `ooc`, `tapestry-core:
+	// trade`). Empty for other kinds. The M16.4g Comm.Channel GMCP
+	// flusher reads it to build a structured channel-text payload
+	// in parallel with the plain-text Deliver path.
+	Channel string
 }

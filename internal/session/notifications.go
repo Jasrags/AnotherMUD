@@ -2,9 +2,11 @@ package session
 
 import (
 	"context"
+	"encoding/json"
 	"log/slog"
 
 	"github.com/Jasrags/AnotherMUD/internal/command"
+	"github.com/Jasrags/AnotherMUD/internal/gmcp"
 	"github.com/Jasrags/AnotherMUD/internal/logging"
 	"github.com/Jasrags/AnotherMUD/internal/notifications"
 	"github.com/Jasrags/AnotherMUD/internal/player"
@@ -28,11 +30,52 @@ func (s actorSink) Deliver(ctx context.Context, n notifications.Notification) er
 	if err := s.a.Write(ctx, n.Text); err != nil {
 		return err
 	}
-	if n.Kind == "tell" {
+	switch n.Kind {
+	case "tell":
 		s.a.SetLastTellPartner(n.Sender)
 		s.a.AppendRecentTell(n.Text)
+	case "channel":
+		// M16.4g: parallel-emit a Comm.Channel.Text GMCP frame so
+		// clients with a chat panel can route per-channel. The
+		// text field carries the FULL rendered line (same string
+		// the main window got) for plugin compatibility — Mudlet
+		// chat profiles typically strip the prefix client-side.
+		// Empty Channel id (notification not produced by the chat
+		// verb) silently skips the GMCP emit; the main-window
+		// text still went out above.
+		if n.Channel != "" {
+			s.a.sendCommChannelText(ctx, n.Channel, n.Sender, n.Text)
+		}
 	}
 	return nil
+}
+
+// sendCommChannelText emits one Comm.Channel.Text GMCP frame on
+// the actor's conn. Silent no-op when the conn doesn't speak GMCP
+// or GMCP hasn't been negotiated. JSON marshal / SendGmcp errors
+// log at Debug — the main-window line already shipped, so a GMCP
+// send failure must not bubble up and trigger notification re-
+// enqueue (which would double-write the text line).
+func (a *connActor) sendCommChannelText(ctx context.Context, channelID, talker, text string) {
+	sender, ok := a.conn.(gmcpSender)
+	if !ok || !sender.GmcpActive() {
+		return
+	}
+	payload := gmcp.CommChannelText{
+		Channel: channelID,
+		Talker:  talker,
+		Text:    text,
+	}
+	data, err := json.Marshal(payload)
+	if err != nil {
+		return
+	}
+	if err := sender.SendGmcp(ctx, gmcp.PackageCommChannelText, data); err != nil {
+		logging.From(ctx).Debug("gmcp comm.channel send failed",
+			slog.String("player", a.PlayerName()),
+			slog.String("channel", channelID),
+			slog.Any("err", err))
+	}
 }
 
 // notifRegister binds the actor to the notifications manager and

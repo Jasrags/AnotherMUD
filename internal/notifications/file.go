@@ -22,6 +22,12 @@ type notificationEntry struct {
 	Text        string    `yaml:"text"`
 	PublishedAt time.Time `yaml:"published_at"`
 	Sender      string    `yaml:"sender,omitempty"`
+	// Channel carries the chat channel id for Kind=="channel"
+	// entries (M16.4g). Empty for other kinds. Persisted so an
+	// offline backlog drained on next login still routes through
+	// the GMCP Comm.Channel.Text emitter rather than silently
+	// falling back to main-window-text-only.
+	Channel string `yaml:"channel,omitempty"`
 }
 
 // toFile converts a list of notifications to its on-disk shape.
@@ -39,6 +45,7 @@ func toFile(ns []Notification) notificationFile {
 			Text:        n.Text,
 			PublishedAt: n.PublishedAt,
 			Sender:      n.Sender,
+			Channel:     n.Channel,
 		})
 	}
 	return out

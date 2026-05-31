@@ -149,6 +149,7 @@ func doChannelPublish(ctx context.Context, c *Context, ch *chat.Channel, msg str
 			Kind:       "channel",
 			Text:       rendered,
 			Sender:     senderName,
+			Channel:    ch.ID,
 		}
 		if err := c.Notifications.Publish(ctx, n, subs); err != nil {
 			// Substrate logs detail; surface a single generic line.
