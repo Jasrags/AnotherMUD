@@ -107,11 +107,11 @@ func (a *connActor) snapshotCombat() gmcp.CharCombat {
 		if target, ok := a.combatLocator.LookupCombatant(targetID); ok {
 			out.Target = target.Name()
 			if vit := target.Vitals(); vit != nil {
-				hp, max := vit.Snapshot()
+				hp, hpMax := vit.Snapshot()
 				out.TargetHP = hp
-				out.TargetMaxHP = max
-				if max > 0 {
-					out.TargetHPPercent = (hp * 100) / max
+				out.TargetMaxHP = hpMax
+				if hpMax > 0 {
+					out.TargetHPPercent = (hp * 100) / hpMax
 				}
 			}
 		}

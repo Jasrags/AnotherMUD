@@ -332,3 +332,45 @@ func TestFlushGmcpCombat_PayloadShape(t *testing.T) {
 	}
 	t.Errorf("no Char.Combat frame matched expected shape; frames=%v", fc.framesSnapshot())
 }
+
+func TestFlushGmcpCombat_TargetWithNilVitalsShipsNameOnly(t *testing.T) {
+	// Defends the `if vit := target.Vitals(); vit != nil` guard:
+	// a Combatant implementation that returns nil Vitals (rare
+	// but possible — the staticCombatant test fake in combat
+	// package does this) must not crash the flusher. The payload
+	// ships in_combat + target name + target_id, with HP fields
+	// staying zero (and omitting via omitempty on the wire).
+	a, fc, mgr, locator := newCombatGmcpActor(t, "p-1", "Alice")
+	fc.setActive(true)
+
+	nilVitalsTarget := &fakeCombatant{
+		id:     "mob:ghost",
+		name:   "an ethereal shade",
+		vitals: nil, // explicit nil — exercises the guard
+	}
+	locator[nilVitalsTarget.id] = nilVitalsTarget
+	mgr.Engage(context.Background(), a.CombatantID(), nilVitalsTarget.id, "test-room")
+
+	// Must not panic.
+	a.flushGmcpCombat(context.Background())
+
+	frames := combatFrames(t, fc)
+	if len(frames) != 1 {
+		t.Fatalf("flushed %d frames, want 1", len(frames))
+	}
+	got := frames[0]
+	if !got.InCombat {
+		t.Errorf("InCombat = false, want true")
+	}
+	if got.Target != "an ethereal shade" {
+		t.Errorf("Target = %q, want %q", got.Target, "an ethereal shade")
+	}
+	if got.TargetID != "mob:ghost" {
+		t.Errorf("TargetID = %q", got.TargetID)
+	}
+	// HP fields must remain zero (the guard short-circuited the
+	// Snapshot call) and serialize as omitted on the wire.
+	if got.TargetHP != 0 || got.TargetMaxHP != 0 || got.TargetHPPercent != 0 {
+		t.Errorf("HP fields populated despite nil Vitals: %+v", got)
+	}
+}
