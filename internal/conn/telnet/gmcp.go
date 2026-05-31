@@ -13,6 +13,17 @@ import (
 	"github.com/Jasrags/AnotherMUD/internal/logging"
 )
 
+// maxSupportsEntries caps the per-connection supports map so a
+// peer that streams hundreds of Core.Supports.Add calls can't
+// grow memory without bound. A single Add is bounded by
+// MaxLineBytes (the subneg buffer cap) at ~100 entries, but
+// repeated calls across a long session would otherwise stack.
+// 256 fits every realistic client (Mudlet ships ~10 packages,
+// MUSHclient ~20) with comfortable headroom. Entries past the
+// cap are dropped with a debug log; existing entries are
+// preserved.
+const maxSupportsEntries = 256
+
 // GmcpHandler is the inbound dispatch callback for non-Core.Supports
 // GMCP packages. Set via Conn.SetGmcpHandler; nil leaves inbound
 // packages discarded (with a debug log).
@@ -101,35 +112,56 @@ func (g *gmcpState) supportsPackage(name string) bool {
 
 // applyCoreSupportsSet replaces the supports set with the names in
 // arr (spec §5.3). The `<name> <version>` form is split on the
-// first space; only the name half is stored.
-func (g *gmcpState) applyCoreSupportsSet(arr []string) {
+// first space; only the name half is stored. Insertions stop at
+// maxSupportsEntries; the dropped count is returned for the
+// caller to log.
+func (g *gmcpState) applyCoreSupportsSet(arr []string) (dropped int) {
 	g.mu.Lock()
 	defer g.mu.Unlock()
-	g.supports = make(map[string]struct{}, len(arr))
+	g.supports = make(map[string]struct{}, min(len(arr), maxSupportsEntries))
 	g.supportsReceived = true
 	for _, s := range arr {
 		if name := packageNameFromSupportsEntry(s); name != "" {
+			if len(g.supports) >= maxSupportsEntries {
+				dropped++
+				continue
+			}
 			g.supports[name] = struct{}{}
 		}
 	}
+	return dropped
 }
 
 // applyCoreSupportsAdd merges the names in arr into the existing
 // supports set. Calling Add before any Set marks the set as
 // received (the client has expressed an explicit preference) and
-// the permissive default ends.
-func (g *gmcpState) applyCoreSupportsAdd(arr []string) {
+// the permissive default ends. Honors the maxSupportsEntries cap;
+// returns the dropped count for the caller to log.
+func (g *gmcpState) applyCoreSupportsAdd(arr []string) (dropped int) {
 	g.mu.Lock()
 	defer g.mu.Unlock()
 	if g.supports == nil {
-		g.supports = make(map[string]struct{}, len(arr))
+		g.supports = make(map[string]struct{}, min(len(arr), maxSupportsEntries))
 	}
 	g.supportsReceived = true
 	for _, s := range arr {
-		if name := packageNameFromSupportsEntry(s); name != "" {
-			g.supports[name] = struct{}{}
+		name := packageNameFromSupportsEntry(s)
+		if name == "" {
+			continue
 		}
+		// Already-present entries don't count against the cap —
+		// re-adding "Char" when "Char" is already in the map is a
+		// no-op, not an insertion attempt.
+		if _, ok := g.supports[name]; ok {
+			continue
+		}
+		if len(g.supports) >= maxSupportsEntries {
+			dropped++
+			continue
+		}
+		g.supports[name] = struct{}{}
 	}
+	return dropped
 }
 
 // applyCoreSupportsRemove removes the names in arr from the
@@ -303,14 +335,22 @@ func (g *gmcpState) handleSubneg(ctx context.Context, payload []byte) {
 			logging.From(ctx).Debug("telnet.gmcp: malformed Core.Supports.Set", slog.Int("len", len(body)))
 			return
 		}
-		g.applyCoreSupportsSet(arr)
+		if dropped := g.applyCoreSupportsSet(arr); dropped > 0 {
+			logging.From(ctx).Debug("telnet.gmcp: Core.Supports.Set entries past cap dropped",
+				slog.Int("dropped", dropped),
+				slog.Int("cap", maxSupportsEntries))
+		}
 	case "Core.Supports.Add":
 		arr, ok := decodeStringArray(body)
 		if !ok {
 			logging.From(ctx).Debug("telnet.gmcp: malformed Core.Supports.Add", slog.Int("len", len(body)))
 			return
 		}
-		g.applyCoreSupportsAdd(arr)
+		if dropped := g.applyCoreSupportsAdd(arr); dropped > 0 {
+			logging.From(ctx).Debug("telnet.gmcp: Core.Supports.Add entries past cap dropped",
+				slog.Int("dropped", dropped),
+				slog.Int("cap", maxSupportsEntries))
+		}
 	case "Core.Supports.Remove":
 		arr, ok := decodeStringArray(body)
 		if !ok {
