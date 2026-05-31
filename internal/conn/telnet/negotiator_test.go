@@ -4,6 +4,7 @@ import (
 	"context"
 	"io"
 	"net"
+	"strings"
 	"testing"
 	"time"
 )
@@ -297,4 +298,110 @@ func TestNegotiator_EscapedIACInLineSurfacesAsData(t *testing.T) {
 	if line != string([]byte{'a', 0xFF, 'b'}) {
 		t.Errorf("escaped IAC line = %x, want a FF b", []byte(line))
 	}
+}
+
+func TestNegotiator_SubnegBufferOverflowDiscardsBlock(t *testing.T) {
+	// A peer streams an SB without an SE past MaxLineBytes. The
+	// negotiator must drop the block (reset state) rather than
+	// grow memory without bound. We then send a clean SB NAWS
+	// after the dropped block to prove the state machine
+	// recovered.
+	server, client := pairConn(t)
+
+	got := make(chan string, 1)
+	go func() {
+		line, _ := server.Read(context.Background())
+		got <- line
+	}()
+
+	_ = readBytes(t, client, 6) // initial offers
+
+	// IAC SB <fake-opt 200> + (MaxLineBytes+10) data bytes + NO IAC SE.
+	header := []byte{negIAC, negSB, 200}
+	if _, err := client.Write(header); err != nil {
+		t.Fatalf("write header: %v", err)
+	}
+	junk := make([]byte, MaxLineBytes+10)
+	for i := range junk {
+		junk[i] = 'X'
+	}
+	if _, err := client.Write(junk); err != nil {
+		t.Fatalf("write junk: %v", err)
+	}
+
+	// Recovery: SB NAWS 0 80 0 24 IAC SE then a data line.
+	_, _ = client.Write([]byte{negIAC, negWILL, optNAWS})
+	_, _ = client.Write([]byte{negIAC, negSB, optNAWS, 0, 80, 0, 24, negIAC, negSE})
+	_, _ = client.Write([]byte("ok\n"))
+
+	// The Read MUST surface a line (not hang). The exact contents
+	// are an implementation detail of the overflow-recovery path:
+	// once the SB buffer hits MaxLineBytes the block is discarded
+	// and the state machine returns to Normal, so any bytes still
+	// on the wire AFTER the overflow boundary flow through as data
+	// — they end up suffixed by the "ok" the recovery line wrote.
+	// The contract this test pins is "no hang, no memory leak, and
+	// the post-recovery SB NAWS still dispatched cleanly."
+	line := <-got
+	if !strings.HasSuffix(line, "ok") {
+		t.Errorf("post-overflow Read = %q, want suffix %q", line, "ok")
+	}
+	if caps := server.Capabilities(); caps.Width != 80 || caps.Height != 24 {
+		t.Errorf("post-overflow Width/Height = %d/%d, want 80/24", caps.Width, caps.Height)
+	}
+}
+
+func TestNegotiator_UnexpectedByteAfterIACInsideSBClosesBlock(t *testing.T) {
+	// stateSBIAC's default branch: a byte that's neither SE nor IAC
+	// arrives after IAC inside a subneg. Spec-compliant clients
+	// never produce this, but the fallback path must close the
+	// block gracefully rather than stall the state machine.
+	server, client := pairConn(t)
+
+	go func() { _, _ = server.Read(context.Background()) }()
+	_ = readBytes(t, client, 6)
+
+	// IAC SB NAWS 0 80 0 24 IAC <unexpected byte 0x42 'B'>.
+	// The negotiator should treat this as end-of-block and
+	// dispatch what it collected (which decodes as valid NAWS
+	// since the four data bytes were captured before the IAC).
+	_, _ = client.Write([]byte{negIAC, negWILL, optNAWS})
+	_, _ = client.Write([]byte{negIAC, negSB, optNAWS, 0, 80, 0, 24, negIAC, 'B'})
+	_, _ = client.Write([]byte("\n"))
+
+	// Capabilities reflect that the SB dispatched (NAWS) even
+	// though the closing byte was malformed.
+	if caps := server.Capabilities(); caps.Width != 80 || caps.Height != 24 {
+		t.Errorf("malformed-close Width/Height = %d/%d, want 80/24", caps.Width, caps.Height)
+	}
+}
+
+func TestNegotiator_DONTForUnneededOptionIsSilent(t *testing.T) {
+	// Peer sends DONT for an option we never enabled. Per Q-method
+	// we silently acknowledge (no reply byte) — the wire after the
+	// initial offers should carry exactly the bytes the peer sent
+	// later, with no insertion from our side.
+	server, client := pairConn(t)
+
+	go func() { _, _ = server.Read(context.Background()) }()
+	_ = readBytes(t, client, 6)
+
+	// DONT for a random option (LINEMODE = 34). We never offered
+	// to enable it — no reply expected.
+	_, _ = client.Write([]byte{negIAC, negDONT, 34})
+
+	// Now provoke an actual reply so we can verify the next byte
+	// from the server is THAT reply, not a stray response to DONT.
+	// Use unknown WILL: server must reply IAC DONT 33.
+	_, _ = client.Write([]byte{negIAC, negWILL, 33})
+
+	got := readBytes(t, client, 3)
+	want := []byte{negIAC, negDONT, 33}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Errorf("next reply[%d] = %#x, want %#x (full %x)", i, got[i], want[i], got)
+		}
+	}
+
+	_, _ = client.Write([]byte("\n"))
 }

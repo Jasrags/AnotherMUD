@@ -21,6 +21,13 @@ const (
 	negDONT byte = 0xFE
 )
 
+// ttypeMaxRotations bounds the number of times we'll query a peer
+// for its TTYPE. RFC 1091 has no explicit cap; 3 covers the Mudlet
+// rotation pattern (display-name → MTTS hex → terminal-name) plus
+// a safety margin while preventing a degenerate client from making
+// us query forever.
+const ttypeMaxRotations = 3
+
 // parserState is the IAC-level state machine the negotiator drives
 // against each incoming byte.
 type parserState int
@@ -51,9 +58,15 @@ type optionPolicy struct {
 type negotiator struct {
 	conn *Conn
 
-	state    parserState
-	sbOption byte
-	sbBuf    []byte
+	state parserState
+	// pendingVerb stashes WILL/WONT/DO/DONT between the IAC and
+	// option-code bytes so handleNegotiation knows which verb
+	// to dispatch against. Dedicated field (rather than reusing
+	// sbOption) so the two state machine slots can't accidentally
+	// alias.
+	pendingVerb byte
+	sbOption    byte
+	sbBuf       []byte
 
 	options map[byte]*optionPolicy
 
@@ -149,7 +162,7 @@ func (n *negotiator) feed(ctx context.Context, b byte) (byte, bool) {
 			n.state = stateNormal
 			return negIAC, true
 		case negWILL, negWONT, negDO, negDONT:
-			n.sbOption = b // reuse to remember which verb
+			n.pendingVerb = b
 			n.state = stateOption
 			return 0, false
 		case negSB:
@@ -162,8 +175,7 @@ func (n *negotiator) feed(ctx context.Context, b byte) (byte, bool) {
 		}
 
 	case stateOption:
-		verb := n.sbOption
-		n.handleNegotiation(ctx, verb, b)
+		n.handleNegotiation(ctx, n.pendingVerb, b)
 		n.state = stateNormal
 		return 0, false
 
@@ -325,11 +337,7 @@ func (n *negotiator) handleTTYPESubneg(ctx context.Context, payload []byte) {
 		slog.String("name", name),
 		slog.Int("rotation", rotations))
 
-	// Cap rotations at 3 so a degenerate client that returns a fresh
-	// name every query doesn't make us query forever. RFC 1091 does
-	// not bound this explicitly; 3 covers the Mudlet pattern
-	// (display-name, mtts hex, terminal-name) plus a safety margin.
-	if rotations >= 3 {
+	if rotations >= ttypeMaxRotations {
 		return
 	}
 	// Query again.

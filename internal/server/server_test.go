@@ -113,7 +113,7 @@ func TestEchoConcurrentClients(t *testing.T) {
 				errs <- err
 				return
 			}
-			if _, err := r.Discard(6); err != nil { // initial telnet IAC offers
+			if err := drainTelnetOffersErr(r); err != nil {
 				errs <- err
 				return
 			}
@@ -245,7 +245,16 @@ func itoa(i int) string {
 // "����reply" instead of "reply".
 func drainTelnetOffers(t *testing.T, r *bufio.Reader) {
 	t.Helper()
-	if _, err := r.Discard(6); err != nil {
+	if err := drainTelnetOffersErr(r); err != nil {
 		t.Fatalf("drain telnet offers: %v", err)
 	}
+}
+
+// drainTelnetOffersErr is the goroutine-friendly twin of
+// drainTelnetOffers: returns the error instead of calling Fatalf
+// so callers running off the main test goroutine can route it
+// through their own error channel.
+func drainTelnetOffersErr(r *bufio.Reader) error {
+	_, err := r.Discard(6)
+	return err
 }
