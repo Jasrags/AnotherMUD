@@ -2065,6 +2065,13 @@ already well-abstracted so the blast radius is bounded.
         reattach. Cardinals flatten to short-form direction
         codes (n/s/e/w/u/d); M15.2 keyword exits land under
         their own keys.
+  - [x] **M16.4c — Char.Items.** `gmcp.CharItem` +
+        `gmcp.CharItemsList` (location-keyed: `inv` and
+        `wear`). Poll-and-diff like Vitals with per-LOCATION
+        shadows so an inventory change skips the wear frame
+        and vice versa. Registered as `gmcp-items-flush`
+        cadence-1 tick handler; link-dead reattach resets
+        both shadows for a baseline frame on the new peer.
 - [ ] **M16.5 — WebSocket transport.** Parallel-shippable;
       same package payloads, JSON envelope. Spec §6.
 - [ ] **M16.6 — 256 / truecolor.** Per-session render tier

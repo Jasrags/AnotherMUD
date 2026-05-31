@@ -113,6 +113,10 @@ func (a *connActor) reattach(newConn conn.Connection, now time.Time) bool {
 	// conn; the new client expects a fresh baseline even when the
 	// engine state hasn't changed across the drop.
 	a.resetGmcpVitalsShadow()
+	// M16.4c: same reset for the Char.Items shadows so the new
+	// peer's inventory panel gets a baseline for both inv and
+	// wear locations.
+	a.resetGmcpItemsShadow()
 	return true
 }
 

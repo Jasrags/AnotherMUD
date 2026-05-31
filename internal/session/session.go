@@ -1538,6 +1538,18 @@ type connActor struct {
 	gmcpVitalsMu        sync.Mutex
 	gmcpLastVitals      gmcp.CharVitals
 	gmcpLastVitalsValid bool // false = never sent / reset; next flush emits unconditionally
+
+	// gmcpItems* are the M16.4c per-location shadows for
+	// Char.Items.List. Tracked per-location (inv / wear) so a
+	// pure-inventory change skips the wear frame and vice versa.
+	// Both slices are kept sorted by item id (entityIDsToCharItems)
+	// so the diff compare is stable. The single valid flag covers
+	// both — reset on link-dead reattach gives the new peer a
+	// baseline frame for each location.
+	gmcpItemsMu        sync.Mutex
+	gmcpItemsLastInv   []gmcp.CharItem
+	gmcpItemsLastWear  []gmcp.CharItem
+	gmcpItemsLastValid bool
 	// recentTells is a session-scoped ring of recently-received tell
 	// lines for the `tells` verb (a brief review of what scrolled past).
 	// In-memory only. Capped by tellsSessionHistoryCap. Guarded by mu.

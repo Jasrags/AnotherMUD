@@ -286,6 +286,16 @@ func run() error {
 		return fmt.Errorf("register gmcp-vitals-flush tick: %w", err)
 	}
 
+	// M16.4c: GMCP Char.Items flush. Same cadence-1 poll-and-diff
+	// shape as the vitals flusher. Per-location (inv / wear) shadows
+	// inside FlushGmcpItems so a get/drop emits only the inv frame
+	// and an equip emits only the wear frame.
+	if err := loop.Register("gmcp-items-flush", 1, func(ctx context.Context, _ uint64) {
+		mgr.FlushGmcpItems(ctx)
+	}); err != nil {
+		return fmt.Errorf("register gmcp-items-flush tick: %w", err)
+	}
+
 	// M11.3: sustenance drain (spec economy-survival §4.4). The service
 	// owns the value semantics + tier/multiplier helpers; the world-tick
 	// handler decrements every logged-in player's pool at DrainCadence

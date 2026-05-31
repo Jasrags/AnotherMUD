@@ -93,3 +93,45 @@ func TestRoomInfo_PackageConstant(t *testing.T) {
 		t.Errorf("PackageRoomInfo = %q, want Room.Info", gmcp.PackageRoomInfo)
 	}
 }
+
+func TestCharItemsList_EmptyItemsSliceEmitsAsArray(t *testing.T) {
+	// Callers MUST initialize Items as an empty slice (not nil)
+	// so JSON marshals as `[]`, not `null`. The session flusher
+	// upholds this via entityIDsToCharItems which uses make().
+	// This test pins the contract from the encoder side.
+	out, _ := json.Marshal(gmcp.CharItemsList{
+		Location: gmcp.LocationInventory,
+		Items:    []gmcp.CharItem{}, // explicit empty, NOT nil
+	})
+	got := string(out)
+	if !strings.Contains(got, `"items":[]`) {
+		t.Errorf("empty (non-nil) Items must emit as [], got %q", got)
+	}
+}
+
+func TestCharItemsList_FullPayload(t *testing.T) {
+	out, _ := json.Marshal(gmcp.CharItemsList{
+		Location: gmcp.LocationWear,
+		Items: []gmcp.CharItem{
+			{ID: "item-1", Name: "a leather cap"},
+			{ID: "item-2", Name: "a short sword"},
+		},
+	})
+	got := string(out)
+	want := `{"location":"wear","items":[{"id":"item-1","name":"a leather cap"},{"id":"item-2","name":"a short sword"}]}`
+	if got != want {
+		t.Errorf("payload = %q, want %q", got, want)
+	}
+}
+
+func TestCharItems_LocationConstants(t *testing.T) {
+	if gmcp.LocationInventory != "inv" {
+		t.Errorf("LocationInventory = %q, want inv", gmcp.LocationInventory)
+	}
+	if gmcp.LocationWear != "wear" {
+		t.Errorf("LocationWear = %q, want wear", gmcp.LocationWear)
+	}
+	if gmcp.PackageCharItemsList != "Char.Items.List" {
+		t.Errorf("PackageCharItemsList = %q", gmcp.PackageCharItemsList)
+	}
+}

@@ -33,6 +33,25 @@ const (
 	// build the live map; one frame per transition is the spec
 	// contract.
 	PackageRoomInfo = "Room.Info"
+
+	// PackageCharItemsList — full item list at a named location.
+	// LocationInventory and LocationWear are the two locations
+	// M16.4c ships; room placement and container contents follow
+	// in later slices. Poll-and-diff like Char.Vitals: at most
+	// one frame per location per tick, only when the snapshot
+	// changed since last emission.
+	PackageCharItemsList = "Char.Items.List"
+)
+
+// Char.Items "location" string constants per spec §7. Tapestry-
+// compatible names so bundled Mudlet inventory modules wire up
+// without renaming.
+const (
+	// LocationInventory — items the character is carrying (not
+	// equipped, not in containers).
+	LocationInventory = "inv"
+	// LocationWear — items equipped in slots.
+	LocationWear = "wear"
 )
 
 // CharVitals is the spec §7 Char.Vitals payload — the player's
@@ -95,4 +114,40 @@ type RoomInfo struct {
 	Keywords map[string]string `json:"keywords,omitempty"`
 	Terrain  string            `json:"terrain,omitempty"`
 	Details  string            `json:"details,omitempty"`
+}
+
+// CharItem is one entry in a Char.Items.List payload.
+//
+// Tapestry shape:
+//   - `id` is the runtime entity id (string in our engine; numeric
+//     in Tapestry — clients consume both forms as opaque strings
+//     for the panel's row key).
+//   - `name` is the display name the panel renders. Mudlet's
+//     inventory tile uses this directly.
+//
+// Tapestry also ships an `attrib` field carrying single-char
+// flags (w=wearable, l=liquid, e=edible, …). Deferred until the
+// engine has an item-classification surface — none of the M16.4c
+// callers can populate it meaningfully, and emitting empty
+// attrib would just be noise.
+type CharItem struct {
+	ID   string `json:"id"`
+	Name string `json:"name"`
+}
+
+// CharItemsList is the spec §7 Char.Items.List payload — every
+// item at one named location. Used for the initial panel
+// population AND for full-refresh updates after any change at
+// the location (M16.4c emits a fresh list rather than per-item
+// Add/Remove deltas because the diff is cheap and the panel
+// renders identically either way).
+//
+// Items must be a non-nil (possibly empty) slice. A nil slice
+// marshals as JSON `null` which is ambiguous with "no change";
+// callers initialize via `make([]CharItem, 0, n)` so the wire
+// always carries `[]` for an empty list. The session flusher
+// honors this via entityIDsToCharItems.
+type CharItemsList struct {
+	Location string     `json:"location"`
+	Items    []CharItem `json:"items"`
 }
