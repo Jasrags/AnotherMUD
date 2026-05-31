@@ -32,17 +32,15 @@ func TestPeriodFor_DefaultBoundaries(t *testing.T) {
 		{23, gameclock.PeriodNight},
 	}
 	for _, tc := range cases {
-		c := gameclock.New(gameclock.Config{})
-		// Drive the clock to `hour` by direct tick advancement —
-		// 1 tick/hour for the test to keep advances cheap.
-		fastClock := gameclock.New(gameclock.Config{TicksPerGameHour: 1})
+		// Drive a fresh clock to `hour` by direct tick advancement
+		// — 1 tick/hour to keep the test cheap.
+		c := gameclock.New(gameclock.Config{TicksPerGameHour: 1})
 		for i := 0; i < tc.hour; i++ {
-			fastClock.Tick(context.Background())
+			c.Tick(context.Background())
 		}
-		if got := fastClock.CurrentPeriod(); got != tc.want {
+		if got := c.CurrentPeriod(); got != tc.want {
 			t.Errorf("hour %d period = %q, want %q", tc.hour, got, tc.want)
 		}
-		_ = c
 	}
 }
 

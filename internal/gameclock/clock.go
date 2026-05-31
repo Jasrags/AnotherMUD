@@ -56,6 +56,16 @@ const DefaultTicksPerGameHour = 600
 // [0,23]. New does not validate (spec §3.2 "The clock does not
 // validate them"); operators ship sane defaults.
 //
+// A zero-value PeriodBoundaries ([0,0,0,0]) is treated as
+// "unset" and collapses to DefaultPeriodBoundaries. The
+// theoretically-valid all-zero boundary set (which would read
+// every hour past 0 as Night via the ≥night_start branch) is
+// not expressible through Config — author intent is impossible
+// to distinguish from a forgotten field. Callers that genuinely
+// want a degenerate boundary set can override with e.g.
+// [4]int{0, 0, 0, 1} which dodges the zero-check while
+// preserving the same effective behavior.
+//
 // Bus is optional (nil-safe) so tests that only exercise the
 // state machine can omit it.
 type Config struct {
@@ -109,8 +119,13 @@ func New(cfg Config) *Clock {
 
 // Tick advances the internal counter (spec §3.1 step 1) and, on
 // every TicksPerGameHour-th call, performs an hour advance with
-// the §3.1 step-3 publish sequence. Safe to call from one
-// goroutine only.
+// the §3.1 step-3 publish sequence.
+//
+// Production topology is single-writer: the spec §4.2 "game-clock"
+// tick handler is the sole caller. The mutex still protects
+// against accidental concurrent callers (the cadence and event
+// emission stay correct if two goroutines race the Tick call),
+// but no production path exercises that fallback.
 //
 // Returns true when the call resulted in an hour advance, false
 // otherwise. The bool is for tests and observability hooks; the
