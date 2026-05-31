@@ -82,6 +82,29 @@ const (
 	// which routes per-channel rather than scraping the main
 	// game window.
 	PackageCommChannelText = "Comm.Channel.Text"
+
+	// PackageCharLogin — actor identity at login (name + account).
+	// Emit-once-then-watch: shipped on the first GMCP-active flush
+	// after login, then re-shipped only on link-dead reattach
+	// (the new peer needs the baseline). No content here ever
+	// changes during a session — name is immutable; account id is
+	// the persistent account row.
+	PackageCharLogin = "Char.Login"
+
+	// PackageCharStatusVars — declares the variable catalogue
+	// available in Char.Status frames. Static for the engine's
+	// lifetime; shipped once per GMCP-active session. Clients
+	// without a hard-coded var list use this to build their
+	// status panel dynamically.
+	PackageCharStatusVars = "Char.StatusVars"
+
+	// PackageCharStatus — runtime identity status (race, class,
+	// alignment, alignment bucket tag). Poll-and-diff like
+	// Char.Vitals; at most one frame per session per tick, only
+	// when any field differs from the last-sent shadow. Drives
+	// the Mudlet character-info panel without redundant scrapes
+	// of `score` output.
+	PackageCharStatus = "Char.Status"
 )
 
 // Char.Items "location" string constants per spec §7. Tapestry-
@@ -302,6 +325,56 @@ type CharExperienceTrack struct {
 // hasn't registered any tracks yet.
 type CharExperience struct {
 	Tracks []CharExperienceTrack `json:"tracks"`
+}
+
+// CharLogin is the boot-time identity payload (spec networking-
+// protocols.md §7 — Tapestry-compatible Char.Name analogue).
+//
+// Fields:
+//   - `name` is the actor's canonical display name (short form).
+//   - `fullname` is the longer display form when distinct. Today
+//     the engine carries no separate full-name surface, so it
+//     mirrors `name`. Reserved for future title/honorific work.
+//   - `account` is the actor's account id (opaque string). Useful
+//     to the client for cross-character bookkeeping (e.g. a
+//     Mudlet profile that remembers per-account UI state).
+//
+// All three fields always emit even when empty: a panel that
+// reads `name` defensively must see the empty string rather than
+// silently inheriting a stale value from a prior login.
+type CharLogin struct {
+	Name     string `json:"name"`
+	FullName string `json:"fullname"`
+	Account  string `json:"account"`
+}
+
+// CharStatusVars declares the variable catalogue available in
+// future Char.Status frames. Tapestry-shape: a flat map from var
+// name to human-facing caption. Clients without a hard-coded
+// vocabulary use it to build the status panel dynamically.
+//
+// Single field so the encoder marshals as `{vars: {…}}` rather
+// than as a bare top-level map; the envelope is easier for
+// clients to discriminate from other Char.* packages and matches
+// the pattern Tapestry shipped.
+type CharStatusVars struct {
+	Vars map[string]string `json:"vars"`
+}
+
+// CharStatus is the runtime identity status payload (race +
+// class + alignment + alignment bucket tag).
+//
+// All four fields use `omitempty`: a fresh actor with no race or
+// class assigned emits a minimal payload that the panel renders
+// as "(none)". Alignment is an int with a meaningful zero
+// (neutral) — kept always-emitted via no omitempty so the panel
+// can distinguish "neutral" (alignment=0) from "missing"
+// (alignment field absent).
+type CharStatus struct {
+	Race         string `json:"race,omitempty"`
+	Class        string `json:"class,omitempty"`
+	Alignment    int    `json:"alignment"`
+	AlignmentTag string `json:"alignment_tag,omitempty"`
 }
 
 // CommChannelText is the spec §11 Comm.Channel.Text payload — one

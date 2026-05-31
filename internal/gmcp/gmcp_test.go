@@ -327,3 +327,88 @@ func TestCommChannel_PackageConstant(t *testing.T) {
 		t.Errorf("PackageCommChannelText = %q, want Comm.Channel.Text", gmcp.PackageCommChannelText)
 	}
 }
+
+func TestCharLogin_AllFieldsAlwaysEmit(t *testing.T) {
+	// name/fullname/account all always emit so a panel can read
+	// any of them defensively without inheriting a stale value
+	// from a prior login.
+	out, _ := json.Marshal(gmcp.CharLogin{})
+	got := string(out)
+	for _, key := range []string{`"name"`, `"fullname"`, `"account"`} {
+		if !strings.Contains(got, key) {
+			t.Errorf("required field %s missing in %q", key, got)
+		}
+	}
+}
+
+func TestCharLogin_FullPayload(t *testing.T) {
+	out, _ := json.Marshal(gmcp.CharLogin{
+		Name:     "Alice",
+		FullName: "Alice the Bold",
+		Account:  "acc-7",
+	})
+	want := `{"name":"Alice","fullname":"Alice the Bold","account":"acc-7"}`
+	if string(out) != want {
+		t.Errorf("payload = %q, want %q", string(out), want)
+	}
+}
+
+func TestCharStatusVars_EnvelopeShape(t *testing.T) {
+	// Vars wrapped in a `vars` envelope (not bare top-level map)
+	// so clients can discriminate from other Char.* packages.
+	out, _ := json.Marshal(gmcp.CharStatusVars{
+		Vars: map[string]string{"class": "Class"},
+	})
+	want := `{"vars":{"class":"Class"}}`
+	if string(out) != want {
+		t.Errorf("envelope = %q, want %q", string(out), want)
+	}
+}
+
+func TestCharStatus_AlignmentZeroEmits(t *testing.T) {
+	// alignment=0 is meaningful (neutral); must emit explicitly
+	// so the panel can distinguish neutral from "missing".
+	out, _ := json.Marshal(gmcp.CharStatus{})
+	got := string(out)
+	if !strings.Contains(got, `"alignment":0`) {
+		t.Errorf("alignment=0 must emit, got %q", got)
+	}
+}
+
+func TestCharStatus_OptionalFieldsOmitWhenEmpty(t *testing.T) {
+	out, _ := json.Marshal(gmcp.CharStatus{Alignment: 100})
+	got := string(out)
+	for _, key := range []string{"race", "class", "alignment_tag"} {
+		if strings.Contains(got, `"`+key+`"`) {
+			t.Errorf("optional %q should omit when empty, got %q", key, got)
+		}
+	}
+}
+
+func TestCharStatus_FullPayload(t *testing.T) {
+	out, _ := json.Marshal(gmcp.CharStatus{
+		Race:         "human",
+		Class:        "fighter",
+		Alignment:    -50,
+		AlignmentTag: "evil",
+	})
+	want := `{"race":"human","class":"fighter","alignment":-50,"alignment_tag":"evil"}`
+	if string(out) != want {
+		t.Errorf("payload = %q, want %q", string(out), want)
+	}
+}
+
+func TestCharLoginStatus_PackageConstants(t *testing.T) {
+	cases := []struct {
+		got, want string
+	}{
+		{gmcp.PackageCharLogin, "Char.Login"},
+		{gmcp.PackageCharStatusVars, "Char.StatusVars"},
+		{gmcp.PackageCharStatus, "Char.Status"},
+	}
+	for _, c := range cases {
+		if c.got != c.want {
+			t.Errorf("constant = %q, want %q", c.got, c.want)
+		}
+	}
+}

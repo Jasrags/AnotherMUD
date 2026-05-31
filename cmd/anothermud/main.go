@@ -323,6 +323,17 @@ func run() error {
 		return fmt.Errorf("register gmcp-experience-flush tick: %w", err)
 	}
 
+	// M16.4h: GMCP Char.Login + Char.StatusVars (emit-once-per-
+	// activation) + Char.Status (poll-and-diff). One tick handler
+	// covers the three boot-identity packages — login + vars fire
+	// on the first GMCP-active flush per session, Char.Status
+	// follows the same per-tick diff cadence as Vitals.
+	if err := loop.Register("gmcp-charstatus-flush", 1, func(ctx context.Context, _ uint64) {
+		mgr.FlushGmcpCharStatus(ctx)
+	}); err != nil {
+		return fmt.Errorf("register gmcp-charstatus-flush tick: %w", err)
+	}
+
 	// M11.3: sustenance drain (spec economy-survival §4.4). The service
 	// owns the value semantics + tier/multiplier helpers; the world-tick
 	// handler decrements every logged-in player's pool at DrainCadence

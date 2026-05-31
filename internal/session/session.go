@@ -1611,6 +1611,19 @@ type connActor struct {
 	gmcpExperienceMu        sync.Mutex
 	gmcpLastExperience      []gmcp.CharExperienceTrack
 	gmcpLastExperienceValid bool
+
+	// gmcpCharStatus* are the M16.4h shadow set covering the
+	// boot-identity packages: Char.Login + Char.StatusVars are
+	// emit-once-then-watch (re-emit on link-dead reattach);
+	// Char.Status is poll-and-diff like the rest. The single mutex
+	// guards all three valid flags + the last Status snapshot so
+	// the flusher can run a one-shot login/vars-emit branch in the
+	// same critical section as the diff compare.
+	gmcpCharStatusMu        sync.Mutex
+	gmcpLoginSent           bool
+	gmcpStatusVarsSent      bool
+	gmcpLastStatus          gmcp.CharStatus
+	gmcpLastStatusValid     bool
 	// recentTells is a session-scoped ring of recently-received tell
 	// lines for the `tells` verb (a brief review of what scrolled past).
 	// In-memory only. Capped by tellsSessionHistoryCap. Guarded by mu.

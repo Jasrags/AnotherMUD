@@ -127,6 +127,10 @@ func (a *connActor) reattach(newConn conn.Connection, now time.Time) bool {
 	// M16.4f: same reset for the Char.Experience shadow so the
 	// new peer's XP-bar gets a baseline frame on reattach.
 	a.resetGmcpExperienceShadow()
+	// M16.4h: clear the boot-identity sent flags so the new peer
+	// gets fresh Char.Login + Char.StatusVars + Char.Status
+	// baseline frames on reattach.
+	a.resetGmcpCharStatusShadow()
 	return true
 }
 

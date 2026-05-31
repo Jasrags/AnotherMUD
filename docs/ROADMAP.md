@@ -2047,7 +2047,7 @@ already well-abstracted so the blast radius is bounded.
       default, prefix match per spec §5.3); other inbound
       packages dispatch to the engine-installed callback.
       Spec §5.1, §5.3, §5.5.
-- [ ] **M16.4 — GMCP packages.** Char.Vitals → Room.Info →
+- [x] **M16.4 — GMCP packages.** Char.Vitals → Room.Info →
       Char.Items → Char.Combat → Char.Effects →
       Char.Experience → Comm.Channel → Char.Login. Spec §7.
   - [x] **M16.4a — Char.Vitals.** New `internal/gmcp` package
@@ -2127,6 +2127,20 @@ already well-abstracted so the blast radius is bounded.
         log at Debug rather than bubbling (would otherwise
         trigger notification re-enqueue and double-write the
         text line).
+  - [x] **M16.4h — Char.Login + Char.StatusVars + Char.Status.**
+        `gmcp.CharLogin` (name + fullname + account; all-emit),
+        `gmcp.CharStatusVars` (static var→caption catalogue,
+        `{vars:{…}}` envelope), `gmcp.CharStatus` (race + class +
+        alignment + alignment_tag; alignment always-emits since 0
+        is meaningful "neutral", others omitempty). Char.Login +
+        Char.StatusVars are emit-once-per-activation (sent flags
+        on the actor); Char.Status is poll-and-diff per tick.
+        Static catalogue lives at package scope (every session
+        sees the same map). One tick handler
+        `gmcp-charstatus-flush` cadence-1 covers all three;
+        link-dead reattach resets all three flags so the new
+        peer's panels get fresh baseline identity frames.
+        Closes M16.4.
 - [ ] **M16.5 — WebSocket transport.** Parallel-shippable;
       same package payloads, JSON envelope. Spec §6.
 - [ ] **M16.6 — 256 / truecolor.** Per-session render tier
