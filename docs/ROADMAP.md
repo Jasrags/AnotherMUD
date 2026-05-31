@@ -2072,6 +2072,15 @@ already well-abstracted so the blast radius is bounded.
         and vice versa. Registered as `gmcp-items-flush`
         cadence-1 tick handler; link-dead reattach resets
         both shadows for a baseline frame on the new peer.
+  - [x] **M16.4d — Char.Combat.** `gmcp.CharCombat`
+        (in_combat + primary target name / id / HP /
+        hp_percent). Poll-and-diff per actor; resolves the
+        target via the same combat.Locator the combat package
+        uses (threaded through Session.Config.CombatLocator).
+        Registered as `gmcp-combat-flush` cadence-1 tick
+        handler. Nil-locator path emits just the in_combat
+        flag + TargetID so the wiring is opt-in for tests
+        and future non-combat transports.
 - [ ] **M16.5 — WebSocket transport.** Parallel-shippable;
       same package payloads, JSON envelope. Spec §6.
 - [ ] **M16.6 — 256 / truecolor.** Per-session render tier

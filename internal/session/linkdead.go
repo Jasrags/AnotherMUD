@@ -117,6 +117,10 @@ func (a *connActor) reattach(newConn conn.Connection, now time.Time) bool {
 	// peer's inventory panel gets a baseline for both inv and
 	// wear locations.
 	a.resetGmcpItemsShadow()
+	// M16.4d: same reset for the Char.Combat shadow so the new
+	// peer's combat HUD gets a baseline frame even when the
+	// engagement state didn't change across the drop.
+	a.resetGmcpCombatShadow()
 	return true
 }
 

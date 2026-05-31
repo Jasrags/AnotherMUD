@@ -296,6 +296,15 @@ func run() error {
 		return fmt.Errorf("register gmcp-items-flush tick: %w", err)
 	}
 
+	// M16.4d: GMCP Char.Combat flush. Same cadence-1 shape; one
+	// frame per session per tick when the combat snapshot (in-
+	// combat flag + primary target name/HP) changes.
+	if err := loop.Register("gmcp-combat-flush", 1, func(ctx context.Context, _ uint64) {
+		mgr.FlushGmcpCombat(ctx)
+	}); err != nil {
+		return fmt.Errorf("register gmcp-combat-flush tick: %w", err)
+	}
+
 	// M11.3: sustenance drain (spec economy-survival §4.4). The service
 	// owns the value semantics + tier/multiplier helpers; the world-tick
 	// handler decrements every logged-in player's pool at DrainCadence
@@ -1283,7 +1292,8 @@ func run() error {
 		Slots:       registries.Slots,
 		Bus:         bus,
 		Disposition: dispositionHook{e: evaluator},
-		Combat:      combatMgr,
+		Combat:        combatMgr,
+		CombatLocator: combatLocator,
 		Flee: func(ctx context.Context, c combat.CombatantID) combat.FleeOutcome {
 			return combat.Flee(ctx, c, fleeCfg)
 		},

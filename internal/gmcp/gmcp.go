@@ -41,6 +41,13 @@ const (
 	// one frame per location per tick, only when the snapshot
 	// changed since last emission.
 	PackageCharItemsList = "Char.Items.List"
+
+	// PackageCharCombat — current combat status: in-combat flag,
+	// primary target name + id + HP. Poll-and-diff like
+	// Char.Vitals; at most one frame per session per tick, only
+	// when the snapshot differs from the last-sent shadow.
+	// Drives the Mudlet combat HUD's target panel.
+	PackageCharCombat = "Char.Combat"
 )
 
 // Char.Items "location" string constants per spec §7. Tapestry-
@@ -150,4 +157,38 @@ type CharItem struct {
 type CharItemsList struct {
 	Location string     `json:"location"`
 	Items    []CharItem `json:"items"`
+}
+
+// CharCombat is the spec §7 Char.Combat payload — the actor's
+// current combat status and primary target snapshot.
+//
+// `in_combat` is the master flag. When false the target fields
+// are omitted via omitempty so the panel can simply hide the
+// target tile rather than render "Target: (none)".
+//
+// Target fields when in combat:
+//   - target — display name of the primary target (head of the
+//     actor's combat list per combat spec §2.5).
+//   - target_id — the engine CombatantID string (`mob:...` or
+//     `player:...`). Opaque to the client; useful for the panel
+//     to dedupe consecutive updates on the same target.
+//   - target_hp / target_max_hp — current vital pool of the
+//     target. Per the spec the percent is more useful to a HUD
+//     than raw HP (some MUDs hide raw HP from PvP opponents);
+//     we ship both so clients can render either.
+//   - target_hp_percent — convenience 0-100 derived from
+//     target_hp / target_max_hp. Pre-computed so the client
+//     doesn't have to handle the max=0 divide-by-zero edge.
+//
+// Other opponents (the rest of the actor's combat list past
+// the primary) are intentionally omitted in M16.4d — multi-
+// target HUDs are rare and the spec leaves the shape open.
+// Add an `opponents` field here when a UI need surfaces.
+type CharCombat struct {
+	InCombat        bool   `json:"in_combat"`
+	Target          string `json:"target,omitempty"`
+	TargetID        string `json:"target_id,omitempty"`
+	TargetHP        int    `json:"target_hp,omitempty"`
+	TargetMaxHP     int    `json:"target_max_hp,omitempty"`
+	TargetHPPercent int    `json:"target_hp_percent,omitempty"`
 }

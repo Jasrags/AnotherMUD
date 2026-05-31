@@ -135,3 +135,34 @@ func TestCharItems_LocationConstants(t *testing.T) {
 		t.Errorf("PackageCharItemsList = %q", gmcp.PackageCharItemsList)
 	}
 }
+
+func TestCharCombat_NotInCombatOmitsTargetFields(t *testing.T) {
+	// in_combat=false → just the flag; target_* fields all omit
+	// so the panel can hide the target tile.
+	out, _ := json.Marshal(gmcp.CharCombat{InCombat: false})
+	got := string(out)
+	if got != `{"in_combat":false}` {
+		t.Errorf("not-in-combat payload = %q, want minimal flag-only", got)
+	}
+}
+
+func TestCharCombat_FullPayloadShape(t *testing.T) {
+	out, _ := json.Marshal(gmcp.CharCombat{
+		InCombat:        true,
+		Target:          "a village guard",
+		TargetID:        "mob:e-1",
+		TargetHP:        25,
+		TargetMaxHP:     50,
+		TargetHPPercent: 50,
+	})
+	want := `{"in_combat":true,"target":"a village guard","target_id":"mob:e-1","target_hp":25,"target_max_hp":50,"target_hp_percent":50}`
+	if string(out) != want {
+		t.Errorf("full payload = %q, want %q", string(out), want)
+	}
+}
+
+func TestCharCombat_PackageConstant(t *testing.T) {
+	if gmcp.PackageCharCombat != "Char.Combat" {
+		t.Errorf("PackageCharCombat = %q, want Char.Combat", gmcp.PackageCharCombat)
+	}
+}

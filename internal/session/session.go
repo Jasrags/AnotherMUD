@@ -92,6 +92,15 @@ type Config struct {
 	// exercise combat verbs.
 	Combat *combat.Manager
 
+	// CombatLocator resolves a CombatantID back to a live
+	// Combatant — needed by the M16.4d Char.Combat flusher to
+	// look up the target's name + Vitals snapshot. Production
+	// wires the same combatLocator the combat package uses
+	// (composition root in cmd/anothermud). nil-safe: when
+	// unset, FlushGmcpCombat skips the target-resolved fields
+	// and only ships the in_combat flag.
+	CombatLocator combat.Locator
+
 	// Flee is the verb-driven flee primitive (M7.6). The function
 	// closure captures the production FleeConfig built at the
 	// composition root; command.Context.Flee receives the same shape.
@@ -402,7 +411,8 @@ func run(ctx context.Context, c conn.Connection, cfg Config) error {
 		save:         loaded.Player,
 		players:      cfg.Players,
 		prof:         cfg.Proficiency,
-		combat:       cfg.Combat,
+		combat:        cfg.Combat,
+		combatLocator: cfg.CombatLocator,
 		items:        cfg.Items,
 		contents:     cfg.Contents,
 		equipment:    make(map[string]entities.EntityID),
@@ -1329,6 +1339,13 @@ type connActor struct {
 	// not-in-combat / no-target.
 	combat *combat.Manager
 
+	// combatLocator resolves a CombatantID to a live Combatant for
+	// the M16.4d Char.Combat flusher (needs the target's name +
+	// Vitals). Wired from Config.CombatLocator at construction.
+	// Read-only after construction; safe lock-free. nil-safe: the
+	// flusher only ships the in_combat flag when this is nil.
+	combatLocator combat.Locator
+
 	// race is the resolved *progression.Race (M9.4b), captured at
 	// applyRace so the ResolutionSource seam can supply it to
 	// AdjustCost for race-adjusted ability costs (spec §4.7). Nil
@@ -1550,6 +1567,14 @@ type connActor struct {
 	gmcpItemsLastInv   []gmcp.CharItem
 	gmcpItemsLastWear  []gmcp.CharItem
 	gmcpItemsLastValid bool
+
+	// gmcpCombat* are the M16.4d shadow for Char.Combat. Single
+	// snapshot per actor since each player has at most one primary
+	// target. Reset on link-dead reattach gives the new peer a
+	// baseline frame for the combat HUD.
+	gmcpCombatMu        sync.Mutex
+	gmcpLastCombat      gmcp.CharCombat
+	gmcpLastCombatValid bool
 	// recentTells is a session-scoped ring of recently-received tell
 	// lines for the `tells` verb (a brief review of what scrolled past).
 	// In-memory only. Capped by tellsSessionHistoryCap. Guarded by mu.
