@@ -25,6 +25,14 @@ const (
 	// diffs per tick: at most one Char.Vitals frame per session
 	// per tick, and only when the snapshot changed.
 	PackageCharVitals = "Char.Vitals"
+
+	// PackageRoomInfo — room identity + exits + ambience flags.
+	// Event-driven (NOT poll-driven): emitted on every room
+	// transition (movement, recall, login spawn, link-dead
+	// reattach). Mudlet's room mapper relies on this package to
+	// build the live map; one frame per transition is the spec
+	// contract.
+	PackageRoomInfo = "Room.Info"
 )
 
 // CharVitals is the spec §7 Char.Vitals payload — the player's
@@ -51,4 +59,40 @@ type CharVitals struct {
 	MV         int `json:"mv,omitempty"`
 	MaxMV      int `json:"maxmv,omitempty"`
 	Sustenance int `json:"sustenance,omitempty"`
+}
+
+// RoomInfo is the spec §7 Room.Info payload — the actor's current
+// room identity, exits, and ambience flags. Mudlet's bundled
+// mapper module subscribes to this package to build the live map
+// (each frame becomes one map node + edges).
+//
+// Tapestry-shape per PD-2:
+//   - `num` is the room id string (Tapestry uses an integer for
+//     numeric muds; our engine uses dotted namespaced ids, which
+//     Mudlet handles fine as map-key strings).
+//   - `name` is the room's display name.
+//   - `area` is the area id (Mudlet groups rooms by area for the
+//     mapper's "zone" concept).
+//   - `exits` is a map from direction code (short form: n/s/e/
+//     w/ne/nw/se/sw/u/d) to the target room id. Engine cardinals
+//     today are n/s/e/w/u/d; the longer diagonals are reserved
+//     for content that ships them.
+//   - `keywords` is the optional map of non-cardinal keyword exits
+//     (portals from M15.2) mapping keyword → target room id.
+//     Omitted when the room has none.
+//   - `terrain` is the M15.4 terrain classifier (outdoors / indoors
+//     / underground / etc.) — drives weather-eligibility and is
+//     useful for the mapper's "indoor" overlay. Omitted when
+//     empty (most rooms inherit the default).
+//   - `details` is the room description text. Some clients render
+//     it in a side panel; others ignore it. Always emitted so
+//     Mudlet's room-tooltip layer has it.
+type RoomInfo struct {
+	Num      string            `json:"num"`
+	Name     string            `json:"name"`
+	Area     string            `json:"area,omitempty"`
+	Exits    map[string]string `json:"exits"`
+	Keywords map[string]string `json:"keywords,omitempty"`
+	Terrain  string            `json:"terrain,omitempty"`
+	Details  string            `json:"details,omitempty"`
 }

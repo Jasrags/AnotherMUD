@@ -689,6 +689,12 @@ func run(ctx context.Context, c conn.Connection, cfg Config) error {
 		fullTeardown(ctx, cfg, a)
 		return fmt.Errorf("first render: %w", err)
 	}
+	// M16.4b: emit Room.Info for the login spawn. Construction
+	// assigned a.room directly (not via SetRoom) so the SetRoom
+	// hook didn't fire; emit explicitly here so a Mudlet client
+	// that activated GMCP during login has its mapper panel
+	// populated for the starting room.
+	a.sendGmcpRoomInfo(ctx, start)
 
 	if cfg.Disposition != nil && a.PlayerID() != "" {
 		cfg.Disposition.OnPlayerEnteredDeferred(ctx, a.PlayerID(), a.Name(), nil, start.ID)
@@ -1231,6 +1237,11 @@ func reconnect(ctx context.Context, c conn.Connection, cfg Config, a *connActor,
 	if rendered := renderRoomForReconnect(a, cfg); rendered != "" {
 		_ = a.Write(ctx, rendered)
 	}
+	// M16.4b: emit a Room.Info frame so the new peer's mapper
+	// panel has a baseline. Goes through sendGmcpRoomInfo's
+	// nil/no-GMCP guards so a non-GMCP client just sees no
+	// effect.
+	a.sendGmcpRoomInfo(ctx, room)
 	if room != nil && cfg.Disposition != nil && a.PlayerID() != "" {
 		cfg.Disposition.OnPlayerEnteredDeferred(ctx, a.PlayerID(), a.Name(), nil, room.ID)
 	}
@@ -1590,6 +1601,13 @@ func (a *connActor) SetRoom(r *world.Room) {
 	if mgr != nil && oldID != r.ID {
 		mgr.moveRoom(a, a.playerID, oldID, r.ID)
 	}
+	// M16.4b: emit a Room.Info GMCP frame on every transition so
+	// Mudlet's mapper module sees the move. context.Background()
+	// because SetRoom is called from many sites that don't thread
+	// a ctx (the actual GMCP write is a quick fire-and-forget
+	// through the conn's own write mutex). No-op when GMCP isn't
+	// negotiated or the conn doesn't speak it.
+	a.sendGmcpRoomInfo(context.Background(), r)
 }
 
 func (a *connActor) ColorEnabled() bool {

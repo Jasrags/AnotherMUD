@@ -2058,6 +2058,13 @@ already well-abstracted so the blast radius is bounded.
         zero frames when nothing changed, one frame per session
         per tick max, no instrumentation across Vitals
         mutators.
+  - [x] **M16.4b — Room.Info.** `gmcp.RoomInfo` payload
+        (num/name/area/exits/keywords/terrain/details).
+        Event-driven (no shadow): emitted from `connActor.SetRoom`
+        on every transition + login spawn render + link-dead
+        reattach. Cardinals flatten to short-form direction
+        codes (n/s/e/w/u/d); M15.2 keyword exits land under
+        their own keys.
 - [ ] **M16.5 — WebSocket transport.** Parallel-shippable;
       same package payloads, JSON envelope. Spec §6.
 - [ ] **M16.6 — 256 / truecolor.** Per-session render tier

@@ -57,3 +57,39 @@ func TestCharVitals_PackageNameConstant(t *testing.T) {
 		t.Errorf("PackageCharVitals = %q, want Char.Vitals", gmcp.PackageCharVitals)
 	}
 }
+
+func TestRoomInfo_RequiredFieldsAlwaysEmit(t *testing.T) {
+	// num / name / exits always emit so a mapper panel can always
+	// build a node, even for rooms with no exits.
+	out, _ := json.Marshal(gmcp.RoomInfo{
+		Num:   "tapestry-core:square",
+		Name:  "Town Square",
+		Exits: map[string]string{},
+	})
+	got := string(out)
+	for _, key := range []string{`"num"`, `"name"`, `"exits"`} {
+		if !strings.Contains(got, key) {
+			t.Errorf("required field %s missing in %q", key, got)
+		}
+	}
+}
+
+func TestRoomInfo_OptionalFieldsOmitWhenZero(t *testing.T) {
+	out, _ := json.Marshal(gmcp.RoomInfo{
+		Num:   "x",
+		Name:  "y",
+		Exits: map[string]string{},
+	})
+	got := string(out)
+	for _, key := range []string{"area", "keywords", "terrain", "details"} {
+		if strings.Contains(got, `"`+key+`"`) {
+			t.Errorf("optional %q should omit, got %q", key, got)
+		}
+	}
+}
+
+func TestRoomInfo_PackageConstant(t *testing.T) {
+	if gmcp.PackageRoomInfo != "Room.Info" {
+		t.Errorf("PackageRoomInfo = %q, want Room.Info", gmcp.PackageRoomInfo)
+	}
+}
