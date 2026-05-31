@@ -2081,6 +2081,20 @@ already well-abstracted so the blast radius is bounded.
         handler. Nil-locator path emits just the in_combat
         flag + TargetID so the wiring is opt-in for tests
         and future non-combat transports.
+  - [x] **M16.4e — Char.Effects.** `gmcp.CharEffect` +
+        `gmcp.CharEffectsList` (id + remaining + permanent
+        flag + per-effect flags + source ability). Poll-and-
+        diff per actor sourcing `progression.EffectManager.
+        Effects(playerID)`; manager already returns a deep
+        copy sorted by id so the shadow compare is stable.
+        Permanent effects (negative duration) set
+        `permanent:true` and drop `remaining`; time-bounded
+        effects emit the live pulse counter. Registered as
+        `gmcp-effects-flush` cadence-1 tick handler; link-
+        dead reattach resets the shadow for a baseline frame
+        on the new peer. Effects manager is wired onto
+        connActor at construction so the flusher doesn't
+        cross the cfg boundary.
 - [ ] **M16.5 — WebSocket transport.** Parallel-shippable;
       same package payloads, JSON envelope. Spec §6.
 - [ ] **M16.6 — 256 / truecolor.** Per-session render tier

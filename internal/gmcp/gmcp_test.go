@@ -166,3 +166,55 @@ func TestCharCombat_PackageConstant(t *testing.T) {
 		t.Errorf("PackageCharCombat = %q, want Char.Combat", gmcp.PackageCharCombat)
 	}
 }
+
+func TestCharEffectsList_EmptyEffectsEmitsAsArray(t *testing.T) {
+	// Empty (non-nil) slice must marshal as `[]`, not `null`, so
+	// the panel can distinguish "no active effects" from "no
+	// change". The session flusher uses make() to uphold this.
+	out, _ := json.Marshal(gmcp.CharEffectsList{Effects: []gmcp.CharEffect{}})
+	got := string(out)
+	if got != `{"effects":[]}` {
+		t.Errorf("empty list = %q, want {\"effects\":[]}", got)
+	}
+}
+
+func TestCharEffect_OptionalFieldsOmitWhenZero(t *testing.T) {
+	// remaining=0 + permanent=false + empty flags + empty source
+	// → only `id` emits. Lets a flag-only permanent-via-default
+	// effect ship a minimal payload.
+	out, _ := json.Marshal(gmcp.CharEffect{ID: "bless"})
+	got := string(out)
+	if got != `{"id":"bless"}` {
+		t.Errorf("minimal effect = %q, want {\"id\":\"bless\"}", got)
+	}
+}
+
+func TestCharEffect_PermanentEmitsFlagOmitsRemaining(t *testing.T) {
+	// Permanent effects suppress remaining (0 is meaningless for
+	// them) and set permanent=true so the panel renders the
+	// infinity glyph.
+	out, _ := json.Marshal(gmcp.CharEffect{ID: "blessed-by-the-light", Permanent: true})
+	got := string(out)
+	if got != `{"id":"blessed-by-the-light","permanent":true}` {
+		t.Errorf("permanent effect = %q", got)
+	}
+}
+
+func TestCharEffectsList_FullPayloadShape(t *testing.T) {
+	out, _ := json.Marshal(gmcp.CharEffectsList{
+		Effects: []gmcp.CharEffect{
+			{ID: "bless", Remaining: 60, Flags: []string{"buff"}, Source: "ability:bless"},
+			{ID: "poisoned", Remaining: 30, Flags: []string{"debuff", "poison"}},
+		},
+	})
+	want := `{"effects":[{"id":"bless","remaining":60,"flags":["buff"],"source":"ability:bless"},{"id":"poisoned","remaining":30,"flags":["debuff","poison"]}]}`
+	if string(out) != want {
+		t.Errorf("full payload = %q, want %q", string(out), want)
+	}
+}
+
+func TestCharEffects_PackageConstant(t *testing.T) {
+	if gmcp.PackageCharEffects != "Char.Effects" {
+		t.Errorf("PackageCharEffects = %q, want Char.Effects", gmcp.PackageCharEffects)
+	}
+}

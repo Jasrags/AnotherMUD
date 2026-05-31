@@ -48,6 +48,18 @@ const (
 	// when the snapshot differs from the last-sent shadow.
 	// Drives the Mudlet combat HUD's target panel.
 	PackageCharCombat = "Char.Combat"
+
+	// PackageCharEffects — full list of active effects on the
+	// actor (spec abilities-and-effects §5). Poll-and-diff like
+	// Char.Vitals; at most one frame per session per tick, only
+	// when the snapshot differs from the last-sent shadow. Drives
+	// the Mudlet active-effects panel (the column that shows
+	// buffs/debuffs with remaining-pulse countdowns).
+	//
+	// Single-frame full-list emission (no per-effect Add/Remove
+	// deltas) mirrors Char.Items.List: the diff is cheap and the
+	// panel renders identically either way.
+	PackageCharEffects = "Char.Effects"
 )
 
 // Char.Items "location" string constants per spec §7. Tapestry-
@@ -191,4 +203,47 @@ type CharCombat struct {
 	TargetHP        int    `json:"target_hp,omitempty"`
 	TargetMaxHP     int    `json:"target_max_hp,omitempty"`
 	TargetHPPercent int    `json:"target_hp_percent,omitempty"`
+}
+
+// CharEffect is one entry in a Char.Effects payload (spec
+// abilities-and-effects §5). The effect manager owns lifetime; the
+// session flusher snapshots and translates to this shape.
+//
+// Fields:
+//   - `id` is the effect's stable id (lowercased at apply-time).
+//     The panel uses it as the row key and to fetch a display
+//     label from a client-side effect catalog.
+//   - `remaining` is the remaining-pulse counter for time-bounded
+//     effects. Omitted when the effect is permanent (the panel
+//     should render an infinity glyph rather than a countdown).
+//   - `permanent` is true for negative-duration effects per
+//     progression.Effect.IsPermanent. Omitted (false) for the
+//     common time-bounded case.
+//   - `flags` is the effect's flag list (lowercased). Omitted
+//     when empty. Lets the panel color-code by flag (`buff` vs.
+//     `debuff`, etc.) without needing a client-side template
+//     mirror.
+//   - `source` is the SourceAbilityID — the ability that produced
+//     the effect. Empty for admin-applied or world-hook effects;
+//     omitted in that case so the panel can hide the source label.
+type CharEffect struct {
+	ID        string   `json:"id"`
+	Remaining int      `json:"remaining,omitempty"`
+	Permanent bool     `json:"permanent,omitempty"`
+	Flags     []string `json:"flags,omitempty"`
+	Source    string   `json:"source,omitempty"`
+}
+
+// CharEffectsList is the spec §5 Char.Effects payload — every
+// active effect on the actor. Used for the initial panel
+// population AND for full-refresh updates after any change
+// (apply/remove/expire) because the diff cost stays low and the
+// panel renders identically either way.
+//
+// Effects must be a non-nil (possibly empty) slice. A nil slice
+// marshals as JSON `null` which is ambiguous with "no change";
+// the session flusher initializes via `make([]CharEffect, 0, n)`
+// so the wire always carries `[]` for "no effects active".
+type CharEffectsList struct {
+	Effects []CharEffect `json:"effects"`
 }

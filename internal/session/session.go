@@ -413,6 +413,7 @@ func run(ctx context.Context, c conn.Connection, cfg Config) error {
 		prof:         cfg.Proficiency,
 		combat:        cfg.Combat,
 		combatLocator: cfg.CombatLocator,
+		effects:       cfg.Effects,
 		items:        cfg.Items,
 		contents:     cfg.Contents,
 		equipment:    make(map[string]entities.EntityID),
@@ -1346,6 +1347,13 @@ type connActor struct {
 	// flusher only ships the in_combat flag when this is nil.
 	combatLocator combat.Locator
 
+	// effects is the M9.2 active-effect manager reference, captured
+	// here so the M16.4e Char.Effects flusher can snapshot active
+	// effects without holding cfg in scope. Wired from
+	// Config.Effects at construction. Read-only after construction;
+	// safe lock-free. Nil-safe: the flusher returns early when nil.
+	effects *progression.EffectManager
+
 	// race is the resolved *progression.Race (M9.4b), captured at
 	// applyRace so the ResolutionSource seam can supply it to
 	// AdjustCost for race-adjusted ability costs (spec §4.7). Nil
@@ -1575,6 +1583,16 @@ type connActor struct {
 	gmcpCombatMu        sync.Mutex
 	gmcpLastCombat      gmcp.CharCombat
 	gmcpLastCombatValid bool
+
+	// gmcpEffects* are the M16.4e shadow for Char.Effects. Full
+	// list per actor (sorted by id by EffectManager.Effects). The
+	// diff compare runs over the slice; equality requires same
+	// length and same per-row id/remaining/permanent/source/flag
+	// tuple. Reset on link-dead reattach gives the new peer a
+	// baseline frame for the effects panel.
+	gmcpEffectsMu        sync.Mutex
+	gmcpLastEffects      []gmcp.CharEffect
+	gmcpLastEffectsValid bool
 	// recentTells is a session-scoped ring of recently-received tell
 	// lines for the `tells` verb (a brief review of what scrolled past).
 	// In-memory only. Capped by tellsSessionHistoryCap. Guarded by mu.

@@ -305,6 +305,15 @@ func run() error {
 		return fmt.Errorf("register gmcp-combat-flush tick: %w", err)
 	}
 
+	// M16.4e: GMCP Char.Effects flush. Same cadence-1 shape; one
+	// full Char.Effects list per session per tick when the active-
+	// effect snapshot (id + remaining + flags + source) changes.
+	if err := loop.Register("gmcp-effects-flush", 1, func(ctx context.Context, _ uint64) {
+		mgr.FlushGmcpEffects(ctx)
+	}); err != nil {
+		return fmt.Errorf("register gmcp-effects-flush tick: %w", err)
+	}
+
 	// M11.3: sustenance drain (spec economy-survival §4.4). The service
 	// owns the value semantics + tier/multiplier helpers; the world-tick
 	// handler decrements every logged-in player's pool at DrainCadence

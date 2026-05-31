@@ -121,6 +121,9 @@ func (a *connActor) reattach(newConn conn.Connection, now time.Time) bool {
 	// peer's combat HUD gets a baseline frame even when the
 	// engagement state didn't change across the drop.
 	a.resetGmcpCombatShadow()
+	// M16.4e: same reset for the Char.Effects shadow so the new
+	// peer's effects panel gets a baseline frame on reattach.
+	a.resetGmcpEffectsShadow()
 	return true
 }
 
