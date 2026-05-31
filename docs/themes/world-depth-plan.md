@@ -63,18 +63,30 @@ distinguishes direction-keyed from keyword-keyed exits).
 
 **Shape:** small. ~3-5 days.
 
-### M15.3 — Recall / return-home
+### M15.3 — Recall / return-home  ✅ SHIPPED
 
-**Spec:** *missing* — write before implementing.
+**Spec:** `docs/specs/recall.md` (written for this milestone).
 **Gap matrix:** §3 "Recall / return-home".
 
 Per-character return-address service: tracks the last `set recall`
 point. The `recall` verb teleports to that point.
 
-**Pre-decisions in §"Open pre-decisions" below.**
+**What landed:**
+- Player save v14 with the `recall` string field; v13→v14
+  migration is a no-op (legacy saves load with no recall point
+  bound, the documented default).
+- `connActor.Recall()` / `SetRecall()` getter/setter pair
+  hydrated from save at construction.
+- `set recall` and `recall` verbs in `internal/command/recall.go`.
+- Five bus events: `recall.set`, `recall.before` (cancellable),
+  `recall.after`, `recall.no_point`, `recall.unresolved`.
+- Source / destination room broadcasts ("vanishes" / "appears
+  in a swirl of light"), suppressed for the same-room no-op.
+- Unresolved saved id (content drift) is non-destructive: the
+  save field is left alone so a future content patch can
+  restore the address.
 
-**Shape:** small-medium (spec + impl). ~3-5 days for impl after the
-spec lands; spec writing is ~half a day.
+**Pre-decisions in §"Open pre-decisions" below.**
 
 ### M15.4 — Weather
 

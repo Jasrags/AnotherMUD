@@ -790,6 +790,60 @@ func TestLoad_V12MigratesToV13SeedsFull(t *testing.T) {
 	}
 }
 
+// The v13→v14 migration is a no-op on dict content: a legacy v13
+// save carries no recall key, and absence must decode to empty
+// (the documented "no recall point set" default per recall.md §6).
+// Unlike sustenance, the migration does NOT inject a value.
+func TestLoad_V13MigratesToV14EmptyRecall(t *testing.T) {
+	ctx := context.Background()
+	st, dir := newStore(t)
+	playerDir := filepath.Join(dir, "players", "olduser")
+	if err := os.MkdirAll(playerDir, 0o755); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(playerDir, "player.yaml"),
+		[]byte("version: 13\nid: p-1\naccount_id: acct-1\nname: OldUser\nlocation: tapestry-core:town-square\nsustenance: 50\n"),
+		0o600); err != nil {
+		t.Fatalf("write: %v", err)
+	}
+	got, err := st.Load(ctx, "olduser")
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if got.Version != player.CurrentVersion {
+		t.Errorf("Version after migrate = %d, want %d", got.Version, player.CurrentVersion)
+	}
+	if got.Recall != "" {
+		t.Errorf("v13→v14 should preserve empty recall, got %q", got.Recall)
+	}
+	if got.Sustenance != 50 {
+		t.Errorf("migration disturbed sustenance = %d, want 50", got.Sustenance)
+	}
+}
+
+// Recall round-trips through save/load unchanged when set.
+func TestSave_RoundTripsRecall(t *testing.T) {
+	ctx := context.Background()
+	st, _ := newStore(t)
+	original := &player.Save{
+		ID:        "p-1",
+		AccountID: "acct-1",
+		Name:      "Alice",
+		Location:  "tapestry-core:town-square",
+		Recall:    "tapestry-core:tavern",
+	}
+	if err := st.Save(ctx, original); err != nil {
+		t.Fatalf("Save: %v", err)
+	}
+	got, err := st.Load(ctx, "Alice")
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if got.Recall != "tapestry-core:tavern" {
+		t.Errorf("Recall round-trip = %q, want %q", got.Recall, "tapestry-core:tavern")
+	}
+}
+
 func TestLoad_V11MigratesToV12(t *testing.T) {
 	ctx := context.Background()
 	st, dir := newStore(t)

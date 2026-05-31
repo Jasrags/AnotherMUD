@@ -225,6 +225,35 @@ const (
 	// paired-partner removal triggered by either of those. Paired
 	// removals emit once for the primary side only.
 	EventPortalClosed = "portal.closed"
+
+	// EventRecallSet fires after `set recall` commits a new
+	// recall address on a character (spec recall.md §5).
+	EventRecallSet = "recall.set"
+	// EventRecallBefore is the cancellable pre-event fired when
+	// `recall` resolves a destination and is about to teleport
+	// (spec recall.md §3.1 step 5 / §5). Subscribers (cooldowns,
+	// holy ground, combat blocks supplied by content) flip the
+	// cancel flag to veto. The actor-facing message on cancel is
+	// intentionally generic so subscribers can write their own
+	// specific reason.
+	EventRecallBefore = "recall.before"
+	// EventRecallAfter fires once after an uncancelled recall
+	// teleport commits (spec recall.md §5). The room change
+	// itself still publishes player.moved through the SetRoom
+	// path; recall.after is the higher-level "the verb resolved"
+	// signal that content packs subscribe to for cooldown/cost
+	// post-hooks.
+	EventRecallAfter = "recall.after"
+	// EventRecallNoPoint fires when `recall` is invoked with no
+	// saved recall point (spec recall.md §5). Observability-only
+	// — useful for content packs that want to nudge new players
+	// toward `set recall`.
+	EventRecallNoPoint = "recall.no_point"
+	// EventRecallUnresolved fires when the saved recall room no
+	// longer resolves in the world registry — content drift
+	// (spec recall.md §4 / §5). The operator log records the
+	// missing room id; the actor-facing line stays generic.
+	EventRecallUnresolved = "recall.unresolved"
 )
 
 // ItemPickedUp fires after GetHandler successfully moves an item
@@ -1083,3 +1112,74 @@ type PortalClosed struct{ PortalEvent }
 
 // Name implements Event.
 func (PortalClosed) Name() string { return EventPortalClosed }
+
+// RecallSet is the recall.set payload — `set recall` committed a
+// new bind point on the character. Spec recall.md §5.
+type RecallSet struct {
+	PlayerID string
+	RoomID   world.RoomID
+}
+
+// Name implements Event.
+func (RecallSet) Name() string { return EventRecallSet }
+
+// RecallBefore is the cancellable pre-event fired by the recall
+// verb after a destination is resolved and before the teleport
+// commits (spec recall.md §3.1 step 5 / §5). Listeners flip the
+// embedded CancelFlag to veto; the verb emits a generic
+// "cancelled" message on veto so subscribers own the specific
+// reason.
+type RecallBefore struct {
+	*CancelFlag
+	PlayerID string
+	From     world.RoomID
+	To       world.RoomID
+}
+
+// Name implements Event.
+func (RecallBefore) Name() string { return EventRecallBefore }
+
+// NewRecallBefore constructs a cancellable recall.before with the
+// flag wired so the publisher doesn't have to remember to allocate
+// it. Mirrors NewDeathCheck / NewContainerItemAdding.
+func NewRecallBefore(playerID string, from, to world.RoomID) *RecallBefore {
+	return &RecallBefore{
+		CancelFlag: &CancelFlag{},
+		PlayerID:   playerID,
+		From:       from,
+		To:         to,
+	}
+}
+
+// RecallAfter is the post-fact event fired after an uncancelled
+// recall teleport commits (spec recall.md §5). The room-change
+// itself still publishes player.moved through the SetRoom path;
+// recall.after is the higher-level verb-resolved signal.
+type RecallAfter struct {
+	PlayerID string
+	From     world.RoomID
+	To       world.RoomID
+}
+
+// Name implements Event.
+func (RecallAfter) Name() string { return EventRecallAfter }
+
+// RecallNoPoint fires when `recall` runs against an empty save
+// field (spec recall.md §5).
+type RecallNoPoint struct {
+	PlayerID string
+}
+
+// Name implements Event.
+func (RecallNoPoint) Name() string { return EventRecallNoPoint }
+
+// RecallUnresolved fires when the saved recall room id no longer
+// resolves in the world registry (spec recall.md §4 / §5). The
+// missing id is carried so the operator log can name it.
+type RecallUnresolved struct {
+	PlayerID    string
+	MissingRoom world.RoomID
+}
+
+// Name implements Event.
+func (RecallUnresolved) Name() string { return EventRecallUnresolved }

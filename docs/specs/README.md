@@ -77,6 +77,9 @@ The verbs players use and the systems that resolve them.
   social actions with actor/target/room view substitution;
   uses the per-room broadcast path, not the notifications
   queue.
+- [recall](recall.md) — per-character recall room bookmark;
+  `set recall` / `recall` verbs; cancellable pre-event for
+  content-layer cost/cooldown policies.
 
 ### 4. Player lifecycle
 
@@ -118,6 +121,7 @@ operation. The set of cancellable events across the engine:
 | `container.item_adding` | [inventory-equipment-items](inventory-equipment-items.md) §4.5 |
 | `item.consuming` | [economy-survival](economy-survival.md) §6.2 |
 | `shop.buy`, `shop.sell` | [economy-survival](economy-survival.md) §3 |
+| `recall.before` | [recall](recall.md) §3.1 |
 
 ### Registries and content
 

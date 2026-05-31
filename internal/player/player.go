@@ -110,7 +110,15 @@ import (
 // character is seeded to 100 inline at login; a value legitimately
 // drained to 0 serializes as absent (omitempty) and reloads as 0 —
 // which is the famished floor, so the round-trip is lossless.
-const CurrentVersion = 13
+//
+// v14 (M15.3): `recall` string — the per-character recall room id
+// from recall.md §6. Empty (legacy v13 saves migrated forward,
+// fresh characters) is the documented "no recall point set"
+// default; the `recall` verb short-circuits on empty with the
+// no-point message. No injected value: a legacy character loads
+// with no recall point and must bind one explicitly with
+// `set recall`.
+const CurrentVersion = 14
 
 // Sentinel errors callers may check via errors.Is.
 var (
@@ -163,6 +171,11 @@ type Save struct {
 	// legacy saves so existing characters don't load famished.
 	Sustenance int          `yaml:"sustenance,omitempty"`
 	Vitals     *VitalsState `yaml:"vitals,omitempty"`
+	// Recall is the saved recall room id (v14+). Empty = no recall
+	// point set (the documented default per recall.md §6); the
+	// recall verb short-circuits on empty. Stored as a bare string
+	// (not world.RoomID) so the save package doesn't import world.
+	Recall string `yaml:"recall,omitempty"`
 	// WimpyThreshold is the §5.1 HP-percent threshold (0 = wimpy
 	// disabled). Added in M7.6 without a schema bump: zero-value
 	// is indistinguishable from "field absent" so legacy v5 saves
@@ -356,6 +369,7 @@ var playerMigrations = map[int]func(map[string]any) (map[string]any, error){
 	10: migrateV10toV11,
 	11: migrateV11toV12,
 	12: migrateV12toV13,
+	13: migrateV13toV14,
 }
 
 // migrateV1toV2 adds the empty inventory/equipment blocks introduced
@@ -547,6 +561,18 @@ func migrateV12toV13(in map[string]any) (map[string]any, error) {
 	if _, ok := in["sustenance"]; !ok {
 		in["sustenance"] = 100
 	}
+	return in, nil
+}
+
+// migrateV13toV14 adds the `recall` string introduced in M15.3 (spec
+// recall.md §6). No-op on dict content: a legacy v13 save carries no
+// recall key, and absence decodes to an empty string — the
+// documented "no recall point set" default. Unlike sustenance, this
+// migration does NOT inject a value: a returning character should
+// log in with no recall point and bind one explicitly with
+// `set recall`, not be quietly bound to wherever they last logged
+// out.
+func migrateV13toV14(in map[string]any) (map[string]any, error) {
 	return in, nil
 }
 

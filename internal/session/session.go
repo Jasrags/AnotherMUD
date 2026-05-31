@@ -535,6 +535,13 @@ func run(ctx context.Context, c conn.Connection, cfg Config) error {
 	// goroutine that owns the actor" pattern.
 	a.wimpyThreshold.Store(int32(clampWimpy(loaded.Player.WimpyThreshold)))
 
+	// M15.3: hydrate the recall room id from the persisted save.
+	// Empty = no recall point bound (the documented default for
+	// fresh / migrated characters). The verb path validates the
+	// id against the world at recall time per recall.md §4 — no
+	// load-time validation here.
+	a.recall = loaded.Player.Recall
+
 	// Install the persisted base attributes (M8.1 v6) before modifiers
 	// so a level-up bump sitting on disk is in place before any equip-
 	// driven modifier overlays on top.
@@ -1491,6 +1498,12 @@ type connActor struct {
 	// server restart clears it. Guarded by mu. (Spec
 	// chat-channels-and-tells §7.1.)
 	lastTellPartner string
+	// recall is the saved recall room id (recall.md §6, M15.3). Empty
+	// = no recall point set. Guarded by mu — read/write only by the
+	// verb path, never from the tick loop, so an atomic isn't worth
+	// it. Hydrated from save.Recall at construction; SetRecall
+	// updates both this field and save.Recall under the lock.
+	recall string
 	// recentTells is a session-scoped ring of recently-received tell
 	// lines for the `tells` verb (a brief review of what scrolled past).
 	// In-memory only. Capped by tellsSessionHistoryCap. Guarded by mu.
@@ -2804,6 +2817,36 @@ func (a *connActor) SetWimpyThreshold(pct int) {
 	a.wimpyThreshold.Store(int32(pct))
 	if a.save != nil {
 		a.save.WimpyThreshold = pct
+		a.markDirtyLocked()
+	}
+}
+
+// Recall returns the actor's persisted recall room id (recall.md §6).
+// Empty string means no recall point is bound. Satisfies the
+// command-package recallController contract.
+func (a *connActor) Recall() string {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	return a.recall
+}
+
+// SetRecall binds the actor's recall to roomID and marks the save
+// dirty so the new address persists on the next autosave. Empty
+// roomID is rejected silently so a misuse can't quietly erase a
+// bound recall (the verb path never passes empty — defense in
+// depth).
+func (a *connActor) SetRecall(roomID string) {
+	if roomID == "" {
+		return
+	}
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	if a.recall == roomID {
+		return
+	}
+	a.recall = roomID
+	if a.save != nil {
+		a.save.Recall = roomID
 		a.markDirtyLocked()
 	}
 }

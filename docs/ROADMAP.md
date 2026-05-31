@@ -1957,9 +1957,11 @@ playtesting.
 - [ ] **M15.2 — Portals (temporary keyword exits).** Runtime
       keyword exits with TTL; cleanup tick handler; observable
       creation/expiry events. Spec §5.6 complete.
-- [ ] **M15.3 — Recall / return-home.** Per-character return
-      address + `set recall` + `recall` verbs. Spec to be written
-      before impl (no existing coverage).
+- [x] **M15.3 — Recall / return-home.** Per-character return
+      address + `set recall` + `recall` verbs. Spec written
+      (`docs/specs/recall.md`); player-save v14 carries the
+      `recall` field; cancellable `recall.before` + post-fact
+      `recall.after` events let content layers gate or react.
 - [ ] **M15.4 — Weather.** Area-scoped weather zones; hour-driven
       rolls subscribing to the in-game clock; per-state message
       tables; weather-exposed rooms render current state. Spec §6

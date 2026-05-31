@@ -99,6 +99,12 @@ func RegisterBuiltins(r *Registry) error {
 		{Keyword: "close", Aliases: []string{"shut"}, Handler: CloseHandler, Brief: "Close a door.", Syntax: []string{"close <direction>", "close <door>"}},
 		{Keyword: "lock", Handler: LockHandler, Brief: "Lock a door (requires the key).", Syntax: []string{"lock <direction>", "lock <door>"}},
 		{Keyword: "unlock", Handler: UnlockHandler, Brief: "Unlock a door (requires the key).", Syntax: []string{"unlock <direction>", "unlock <door>"}},
+
+		// Recall (M15.3). `set recall` binds the current room as the
+		// character's return point; `recall` teleports back to it.
+		// Spec: docs/specs/recall.md.
+		{Keyword: "set", Handler: SetHandler, Brief: "Configure a personal setting.", Syntax: []string{"set recall"}},
+		{Keyword: "recall", Handler: RecallHandler, Brief: "Return to your bound recall point.", Syntax: []string{"recall"}},
 	}
 	for _, c := range commands {
 		if err := r.RegisterCommand(c); err != nil {
