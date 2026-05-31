@@ -1974,11 +1974,19 @@ playtesting.
         `weather.changed` bus event. Callable-only — no YAML
         loader, no composition-root wiring. M15.4b lands those
         alongside the in-game clock.
-  - [ ] **M15.4b — Wiring.** Pack loader extensions
-        (terrain + exposure on Room, weather_zone on Area,
-        zone YAML schema), in-game clock implementation
-        (time-and-clock §3), composition-root subscriber
-        binding `time.hour.change` → `Service.HourChanged`.
+  - [ ] **M15.4b — Wiring.** Split into two sub-slices:
+    - [x] **M15.4b₁ — In-game clock.** `internal/gameclock`
+          implementing time-and-clock §3 (CurrentHour, DayCount,
+          TicksPerGameHour cadence, period boundary lookup,
+          `time.hour.change` + `time.period.change` events).
+          Pure substrate; no tick-handler registration yet.
+    - [ ] **M15.4b₂ — Loader + subscriber + render.** Pack
+          loader extensions (zone YAML, area `weather_zone`,
+          room `terrain` / `weather_exposed` / `time_exposed`);
+          composition-root binding (`game-clock` tick handler;
+          `time.hour.change` → `Service.HourChanged`;
+          `time.period.change` → `Service.PeriodChanged`);
+          room render integration for current weather state.
 
 **Touches specs:** `world-rooms-movement` §5 (doors + portals), §6
 (weather); new `recall.md` (or §7 section) for M15.3.

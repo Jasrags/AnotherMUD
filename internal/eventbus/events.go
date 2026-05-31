@@ -263,6 +263,20 @@ const (
 	// react to the transition asymmetrically without keeping
 	// their own previous-state shadow.
 	EventWeatherChanged = "weather.changed"
+
+	// EventTimeHourChange fires on every in-game hour advance
+	// (spec time-and-clock §3.3). The payload carries the new
+	// hour [0,23], the period the new hour falls into, and the
+	// running day count. Consumers include the weather service
+	// (hour-interval rolls) and any content that wants per-hour
+	// flavor.
+	EventTimeHourChange = "time.hour.change"
+	// EventTimePeriodChange fires ONLY on a real period
+	// transition (spec time-and-clock §3.4). Two consecutive
+	// hour advances within the same period produce two
+	// time.hour.change events and zero time.period.change
+	// events.
+	EventTimePeriodChange = "time.period.change"
 )
 
 // ItemPickedUp fires after GetHandler successfully moves an item
@@ -1211,3 +1225,31 @@ type WeatherChanged struct {
 
 // Name implements Event.
 func (WeatherChanged) Name() string { return EventWeatherChanged }
+
+// TimeHourChange is the time.hour.change payload — the in-game
+// clock just advanced one hour (spec time-and-clock §3.3). Hour
+// is [0,23]; Period is the lowercased name of the period Hour
+// falls into; DayCount is the running count of full day wraps
+// since boot.
+type TimeHourChange struct {
+	Hour     int
+	Period   string
+	DayCount uint64
+}
+
+// Name implements Event.
+func (TimeHourChange) Name() string { return EventTimeHourChange }
+
+// TimePeriodChange is the time.period.change payload — the
+// in-game clock just crossed from one period to another (spec
+// time-and-clock §3.4). PreviousPeriod is the period the clock
+// just left; Period is the period the clock entered; Hour is
+// the new hour that triggered the transition.
+type TimePeriodChange struct {
+	Period         string
+	PreviousPeriod string
+	Hour           int
+}
+
+// Name implements Event.
+func (TimePeriodChange) Name() string { return EventTimePeriodChange }
