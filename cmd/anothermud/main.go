@@ -475,7 +475,6 @@ func run() error {
 	}); err != nil {
 		return fmt.Errorf("register game-clock tick: %w", err)
 	}
-	_ = weatherSvc // retained for documentation; consumer is the subscribers above
 
 	// Combat manager (spec combat §2, M7.2). Locator dispatches on the
 	// CombatantID prefix: mob: → entities.Store, player: →

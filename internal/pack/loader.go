@@ -20,10 +20,10 @@ import (
 	"github.com/Jasrags/AnotherMUD/internal/progression"
 	"github.com/Jasrags/AnotherMUD/internal/property"
 	"github.com/Jasrags/AnotherMUD/internal/quest"
-	"github.com/Jasrags/AnotherMUD/internal/weather"
 	"github.com/Jasrags/AnotherMUD/internal/render"
 	"github.com/Jasrags/AnotherMUD/internal/slot"
 	"github.com/Jasrags/AnotherMUD/internal/stats"
+	"github.com/Jasrags/AnotherMUD/internal/weather"
 	"github.com/Jasrags/AnotherMUD/internal/world"
 	"gopkg.in/yaml.v3"
 )
