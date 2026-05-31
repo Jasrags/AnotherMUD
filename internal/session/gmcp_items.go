@@ -79,18 +79,18 @@ func (a *connActor) flushGmcpItems(ctx context.Context) {
 	a.gmcpItemsMu.Unlock()
 
 	if invChanged {
-		a.sendItemsListLocked(ctx, sender, gmcp.LocationInventory, inv)
+		a.sendItemsList(ctx, sender, gmcp.LocationInventory, inv)
 	}
 	if wearChanged {
-		a.sendItemsListLocked(ctx, sender, gmcp.LocationWear, wear)
+		a.sendItemsList(ctx, sender, gmcp.LocationWear, wear)
 	}
 }
 
-// sendItemsListLocked builds + ships one Char.Items.List frame.
-// "Locked" is in the same sense as the rest of the codebase — the
-// caller (flushGmcpItems) has already taken/released the relevant
-// mutex; this helper does no locking of its own.
-func (a *connActor) sendItemsListLocked(ctx context.Context, sender gmcpSender, location string, items []gmcp.CharItem) {
+// sendItemsList builds + ships one Char.Items.List frame. Does
+// no locking itself — the caller (flushGmcpItems) has already
+// released gmcpItemsMu by the time it gets here, so the send
+// runs only under the conn's own write mutex.
+func (a *connActor) sendItemsList(ctx context.Context, sender gmcpSender, location string, items []gmcp.CharItem) {
 	payload := gmcp.CharItemsList{Location: location, Items: items}
 	data, err := json.Marshal(payload)
 	if err != nil {
