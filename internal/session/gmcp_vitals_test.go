@@ -194,3 +194,75 @@ func TestManagerFlushGmcpVitals_FansOutToLiveActors(t *testing.T) {
 		t.Errorf("a2 received %d frames, want 1", len(fc2.framesSnapshot()))
 	}
 }
+
+func TestFlushGmcpVitals_SendsOnMaxHPOnlyChange(t *testing.T) {
+	// A level-up that bumps MaxHP without touching current HP must
+	// still trigger a send — the panel needs to redraw the bar
+	// scale even when the fill stays the same.
+	a, fc := newGmcpActor("p-1", 50, 100)
+	fc.setActive(true)
+	a.flushGmcpVitals(context.Background()) // baseline
+
+	a.vitals.SetMax(150) // HP stays 50, MaxHP changes to 150
+	a.flushGmcpVitals(context.Background())
+
+	frames := fc.framesSnapshot()
+	if len(frames) != 2 {
+		t.Fatalf("post-maxhp-change flush count = %d, want 2", len(frames))
+	}
+	got := string(frames[1].payload)
+	if !strings.Contains(got, `"hp":50`) || !strings.Contains(got, `"maxhp":150`) {
+		t.Errorf("post-maxhp payload = %s, want hp:50 maxhp:150", got)
+	}
+}
+
+func TestFlushGmcpVitals_ShadowResetForcesResend(t *testing.T) {
+	// Simulates the link-dead reattach path: the actor's engine
+	// state hasn't changed, but the shadow reset forces the next
+	// flush to emit a fresh baseline frame to the new peer.
+	a, fc := newGmcpActor("p-1", 50, 100)
+	fc.setActive(true)
+	a.flushGmcpVitals(context.Background()) // baseline send
+
+	// Second flush with no state change → no send.
+	a.flushGmcpVitals(context.Background())
+	if got := len(fc.framesSnapshot()); got != 1 {
+		t.Fatalf("post-baseline flush count = %d, want 1 (no resend)", got)
+	}
+
+	// Reset the shadow (the reattach hook does this) — next
+	// flush emits even though state is unchanged.
+	a.resetGmcpVitalsShadow()
+	a.flushGmcpVitals(context.Background())
+	frames := fc.framesSnapshot()
+	if len(frames) != 2 {
+		t.Errorf("post-reset flush count = %d, want 2 (forced resend)", len(frames))
+	}
+	// The second frame's payload still reflects the unchanged
+	// engine state — same HP/MaxHP/Sustenance as the first.
+	if string(frames[0].payload) != string(frames[1].payload) {
+		t.Errorf("post-reset payload differs: %s vs %s",
+			frames[0].payload, frames[1].payload)
+	}
+}
+
+func TestFlushGmcpVitals_ZeroVitalsAfterResetStillSends(t *testing.T) {
+	// Defends the valid-flag distinction in resetGmcpVitalsShadow:
+	// a HP=0/MaxHP=0 actor that reattaches must still receive a
+	// baseline frame. The valid flag (not the payload bytes) is
+	// what gates "have we sent before?"
+	a, fc := newGmcpActor("p-1", 0, 0)
+	a.sustenance = 0
+	fc.setActive(true)
+
+	a.flushGmcpVitals(context.Background())
+	if got := len(fc.framesSnapshot()); got != 1 {
+		t.Fatalf("first flush of zero state = %d frames, want 1", got)
+	}
+
+	a.resetGmcpVitalsShadow()
+	a.flushGmcpVitals(context.Background())
+	if got := len(fc.framesSnapshot()); got != 2 {
+		t.Errorf("post-reset flush of zero state = %d frames, want 2", got)
+	}
+}

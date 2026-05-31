@@ -1524,8 +1524,9 @@ type connActor struct {
 	// with the actor's own mutators (write paths don't dirty-flag
 	// — see the Manager.FlushGmcpVitals doc for why poll-and-diff
 	// is preferred over instrumentation at every Vitals mutator).
-	gmcpVitalsMu   sync.Mutex
-	gmcpLastVitals gmcp.CharVitals
+	gmcpVitalsMu        sync.Mutex
+	gmcpLastVitals      gmcp.CharVitals
+	gmcpLastVitalsValid bool // false = never sent / reset; next flush emits unconditionally
 	// recentTells is a session-scoped ring of recently-received tell
 	// lines for the `tells` verb (a brief review of what scrolled past).
 	// In-memory only. Capped by tellsSessionHistoryCap. Guarded by mu.
@@ -2909,19 +2910,25 @@ func (a *connActor) flushGmcpVitals(ctx context.Context) {
 	if !ok || !sender.GmcpActive() {
 		return
 	}
-	hp, max := a.vitals.Snapshot()
+	hp, hpMax := a.vitals.Snapshot()
 	payload := gmcp.CharVitals{
 		HP:         hp,
-		MaxHP:      max,
+		MaxHP:      hpMax,
 		Sustenance: a.Sustenance(),
 	}
 
 	a.gmcpVitalsMu.Lock()
-	if a.gmcpLastVitals == payload {
+	// Skip the send when we've sent the same payload before. The
+	// valid flag distinguishes "never sent" (always emit) from
+	// "sent and matches" (skip) — without it, a fresh-reset
+	// shadow at zero would silently swallow a legitimate
+	// HP=0/MaxHP=0 snapshot (player dead at link-dead reconnect).
+	if a.gmcpLastVitalsValid && a.gmcpLastVitals == payload {
 		a.gmcpVitalsMu.Unlock()
 		return
 	}
 	a.gmcpLastVitals = payload
+	a.gmcpLastVitalsValid = true
 	a.gmcpVitalsMu.Unlock()
 
 	data, err := json.Marshal(payload)
@@ -2931,7 +2938,29 @@ func (a *connActor) flushGmcpVitals(ctx context.Context) {
 	}
 	// SendGmcp drops silently when the peer's Core.Supports set
 	// excludes the package, so we don't pre-check SupportsPackage.
-	_ = sender.SendGmcp(ctx, gmcp.PackageCharVitals, data)
+	// A real I/O error means the wire's broken; log at debug so
+	// operators can spot a chronic write failure but don't promote
+	// it (the next tick sees GmcpActive=false and skips).
+	if err := sender.SendGmcp(ctx, gmcp.PackageCharVitals, data); err != nil {
+		logging.From(ctx).Debug("gmcp vitals send failed",
+			slog.String("player", a.PlayerName()),
+			slog.Any("err", err))
+	}
+}
+
+// resetGmcpVitalsShadow marks the last-sent shadow invalid so the
+// next flushGmcpVitals call emits unconditionally. Called on
+// link-dead reattach (and any future conn rebind path) so the
+// new peer — which has its own fresh Core.Supports set and
+// panel state — gets a baseline Char.Vitals frame even when
+// nothing has changed on the engine side since the previous
+// peer's last frame. Flipping only the valid flag (not the
+// payload bytes) avoids the "shadow == zero vitals" collision
+// that would otherwise drop a HP=0/MaxHP=0 reattach.
+func (a *connActor) resetGmcpVitalsShadow() {
+	a.gmcpVitalsMu.Lock()
+	a.gmcpLastVitalsValid = false
+	a.gmcpVitalsMu.Unlock()
 }
 
 // Stats returns the actor's combat stat block derived from the

@@ -107,6 +107,12 @@ func (a *connActor) reattach(newConn conn.Connection, now time.Time) bool {
 	if a.floodCfg != nil {
 		a.flood = newFloodGate(*a.floodCfg, a.clk)
 	}
+	// M16.4a follow-up: clear the GMCP Char.Vitals shadow so the
+	// next gmcp-vitals-flush tick emits a baseline frame to the
+	// new peer. The previous peer's panel state is gone with its
+	// conn; the new client expects a fresh baseline even when the
+	// engine state hasn't changed across the drop.
+	a.resetGmcpVitalsShadow()
 	return true
 }
 
