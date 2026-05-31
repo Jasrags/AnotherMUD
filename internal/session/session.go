@@ -414,6 +414,7 @@ func run(ctx context.Context, c conn.Connection, cfg Config) error {
 		combat:        cfg.Combat,
 		combatLocator: cfg.CombatLocator,
 		effects:       cfg.Effects,
+		progression:   cfg.Progression,
 		items:        cfg.Items,
 		contents:     cfg.Contents,
 		equipment:    make(map[string]entities.EntityID),
@@ -1354,6 +1355,14 @@ type connActor struct {
 	// safe lock-free. Nil-safe: the flusher returns early when nil.
 	effects *progression.EffectManager
 
+	// progression is the M8.2 XP/level manager reference, captured
+	// here so the M16.4f Char.Experience flusher can enumerate
+	// registered tracks and call GetTrackInfo without holding cfg
+	// in scope. Wired from Config.Progression at construction.
+	// Read-only after construction; safe lock-free. Nil-safe: the
+	// flusher returns early when nil.
+	progression *progression.Manager
+
 	// race is the resolved *progression.Race (M9.4b), captured at
 	// applyRace so the ResolutionSource seam can supply it to
 	// AdjustCost for race-adjusted ability costs (spec §4.7). Nil
@@ -1593,6 +1602,15 @@ type connActor struct {
 	gmcpEffectsMu        sync.Mutex
 	gmcpLastEffects      []gmcp.CharEffect
 	gmcpLastEffectsValid bool
+
+	// gmcpExperience* are the M16.4f shadow for Char.Experience.
+	// Per-track list, ordered by TrackRegistry.All (sorted by name).
+	// Equality requires same per-row track/level/xp/xpnext/at_max/
+	// overflow tuple. Reset on link-dead reattach gives the new
+	// peer a baseline frame for the XP-bar panel.
+	gmcpExperienceMu        sync.Mutex
+	gmcpLastExperience      []gmcp.CharExperienceTrack
+	gmcpLastExperienceValid bool
 	// recentTells is a session-scoped ring of recently-received tell
 	// lines for the `tells` verb (a brief review of what scrolled past).
 	// In-memory only. Capped by tellsSessionHistoryCap. Guarded by mu.

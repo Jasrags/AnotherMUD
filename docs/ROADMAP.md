@@ -2095,6 +2095,21 @@ already well-abstracted so the blast radius is bounded.
         on the new peer. Effects manager is wired onto
         connActor at construction so the flusher doesn't
         cross the cfg boundary.
+  - [x] **M16.4f — Char.Experience.** `gmcp.CharExperience` +
+        `gmcp.CharExperienceTrack` (track + display name +
+        level + xp + xpnext + maxlevel + at_max + overflow).
+        Multi-track shape — one entry per registered track via
+        `TrackRegistry.All`. Poll-and-diff per actor sourcing
+        `progression.Manager.GetTrackInfo` per track; lazy-init
+        seeds (level=1, xp=0) for never-touched tracks so the
+        baseline frame is stable. Max-level tracks set
+        `at_max:true` + `overflow` and drop `xpnext`. Display
+        name omits when equal to track id (saves wire bytes
+        for content that doesn't configure separate labels).
+        Registered as `gmcp-experience-flush` cadence-1 tick
+        handler; link-dead reattach resets the shadow.
+        Progression manager wired onto connActor at
+        construction.
 - [ ] **M16.5 — WebSocket transport.** Parallel-shippable;
       same package payloads, JSON envelope. Spec §6.
 - [ ] **M16.6 — 256 / truecolor.** Per-session render tier

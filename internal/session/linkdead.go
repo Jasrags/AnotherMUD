@@ -124,6 +124,9 @@ func (a *connActor) reattach(newConn conn.Connection, now time.Time) bool {
 	// M16.4e: same reset for the Char.Effects shadow so the new
 	// peer's effects panel gets a baseline frame on reattach.
 	a.resetGmcpEffectsShadow()
+	// M16.4f: same reset for the Char.Experience shadow so the
+	// new peer's XP-bar gets a baseline frame on reattach.
+	a.resetGmcpExperienceShadow()
 	return true
 }
 

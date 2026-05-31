@@ -314,6 +314,15 @@ func run() error {
 		return fmt.Errorf("register gmcp-effects-flush tick: %w", err)
 	}
 
+	// M16.4f: GMCP Char.Experience flush. Same cadence-1 shape; one
+	// full per-track list per session per tick when any track's
+	// (level, xp, xpnext) tuple changes.
+	if err := loop.Register("gmcp-experience-flush", 1, func(ctx context.Context, _ uint64) {
+		mgr.FlushGmcpExperience(ctx)
+	}); err != nil {
+		return fmt.Errorf("register gmcp-experience-flush tick: %w", err)
+	}
+
 	// M11.3: sustenance drain (spec economy-survival §4.4). The service
 	// owns the value semantics + tier/multiplier helpers; the world-tick
 	// handler decrements every logged-in player's pool at DrainCadence

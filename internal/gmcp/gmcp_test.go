@@ -218,3 +218,67 @@ func TestCharEffects_PackageConstant(t *testing.T) {
 		t.Errorf("PackageCharEffects = %q, want Char.Effects", gmcp.PackageCharEffects)
 	}
 }
+
+func TestCharExperience_EmptyTracksEmitsAsArray(t *testing.T) {
+	out, _ := json.Marshal(gmcp.CharExperience{Tracks: []gmcp.CharExperienceTrack{}})
+	got := string(out)
+	if got != `{"tracks":[]}` {
+		t.Errorf("empty tracks = %q, want {\"tracks\":[]}", got)
+	}
+}
+
+func TestCharExperienceTrack_MinimalShape(t *testing.T) {
+	// track/level/xp/maxlevel always emit. name/xpnext/at_max/
+	// overflow omit when zero/empty so a level-1, zero-XP, with-
+	// cap-but-not-at-max snapshot stays minimal.
+	out, _ := json.Marshal(gmcp.CharExperienceTrack{
+		Track:    "adventurer",
+		Level:    1,
+		XP:       0,
+		MaxLevel: 50,
+	})
+	got := string(out)
+	want := `{"track":"adventurer","level":1,"xp":0,"maxlevel":50}`
+	if got != want {
+		t.Errorf("minimal track = %q, want %q", got, want)
+	}
+}
+
+func TestCharExperienceTrack_MaxLevelEmitsFlag(t *testing.T) {
+	// at_max=true + overflow emit; xpnext stays at 0 (omitted by
+	// omitempty), so the panel reads "max level reached".
+	out, _ := json.Marshal(gmcp.CharExperienceTrack{
+		Track:    "adventurer",
+		Level:    50,
+		XP:       1000000,
+		MaxLevel: 50,
+		AtMax:    true,
+		Overflow: 12345,
+	})
+	got := string(out)
+	if !strings.Contains(got, `"at_max":true`) || !strings.Contains(got, `"overflow":12345`) {
+		t.Errorf("at-max payload = %q", got)
+	}
+	if strings.Contains(got, `"xpnext"`) {
+		t.Errorf("at-max payload should omit xpnext, got %q", got)
+	}
+}
+
+func TestCharExperience_FullPayloadShape(t *testing.T) {
+	out, _ := json.Marshal(gmcp.CharExperience{
+		Tracks: []gmcp.CharExperienceTrack{
+			{Track: "adventurer", Name: "Adventurer", Level: 12, XP: 8500, XPNext: 1500, MaxLevel: 50},
+			{Track: "crafting", Level: 3, XP: 250, XPNext: 50, MaxLevel: 20},
+		},
+	})
+	want := `{"tracks":[{"track":"adventurer","name":"Adventurer","level":12,"xp":8500,"xpnext":1500,"maxlevel":50},{"track":"crafting","level":3,"xp":250,"xpnext":50,"maxlevel":20}]}`
+	if string(out) != want {
+		t.Errorf("full payload = %q, want %q", string(out), want)
+	}
+}
+
+func TestCharExperience_PackageConstant(t *testing.T) {
+	if gmcp.PackageCharExperience != "Char.Experience" {
+		t.Errorf("PackageCharExperience = %q, want Char.Experience", gmcp.PackageCharExperience)
+	}
+}

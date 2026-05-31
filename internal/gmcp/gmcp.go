@@ -60,6 +60,19 @@ const (
 	// deltas) mirrors Char.Items.List: the diff is cheap and the
 	// panel renders identically either way.
 	PackageCharEffects = "Char.Effects"
+
+	// PackageCharExperience — per-track progression snapshot (spec
+	// progression.md §5). Drives the Mudlet XP-bar panel. Poll-
+	// and-diff like Char.Vitals; at most one frame per session per
+	// tick, only when any track's (level, xp, xpnext) tuple differs
+	// from the last-sent shadow.
+	//
+	// Multi-track shape (one entry per registered track) so a MUD
+	// with multiple parallel ladders — adventurer, crafting,
+	// reputation — surfaces them all in the same payload. A Mudlet
+	// profile rendering a single bar can pick the bound-class track
+	// or the first entry.
+	PackageCharExperience = "Char.Experience"
 )
 
 // Char.Items "location" string constants per spec §7. Tapestry-
@@ -232,6 +245,54 @@ type CharEffect struct {
 	Permanent bool     `json:"permanent,omitempty"`
 	Flags     []string `json:"flags,omitempty"`
 	Source    string   `json:"source,omitempty"`
+}
+
+// CharExperienceTrack is one (track, level, xp, threshold) tuple in
+// a Char.Experience payload (spec progression.md §5).
+//
+// Fields:
+//   - `track` is the canonical case-sensitive track name. The
+//     panel uses it as the row key and as the lookup into a
+//     client-side track catalog.
+//   - `name` is the human-facing display label. Omitted when
+//     equal to track so the wire payload stays minimal for the
+//     common case (no separate display name configured).
+//   - `level` is the entity's current level on the track.
+//   - `xp` is the entity's total XP on the track (cumulative).
+//   - `xpnext` is the XP needed from the current snapshot to
+//     reach the next level. Zero at max level — the panel
+//     should render the max-level glyph rather than `0`.
+//   - `maxlevel` is the track cap. Always emitted so the panel
+//     can render "level 12 / 50" without a separate request.
+//   - `at_max` is true once Level >= MaxLevel; lets the panel
+//     hide the to-next progress bar without doing the compare.
+//     Omitted (false) below cap.
+//   - `overflow` is the over-cap XP accumulated past the
+//     max-level threshold (progression spec §5.4). Zero below
+//     cap; omitted in that case.
+type CharExperienceTrack struct {
+	Track    string `json:"track"`
+	Name     string `json:"name,omitempty"`
+	Level    int    `json:"level"`
+	XP       int64  `json:"xp"`
+	XPNext   int64  `json:"xpnext,omitempty"`
+	MaxLevel int    `json:"maxlevel"`
+	AtMax    bool   `json:"at_max,omitempty"`
+	Overflow int64  `json:"overflow,omitempty"`
+}
+
+// CharExperience is the spec §5 Char.Experience payload — every
+// registered track the actor has access to. Multi-track shape so
+// a MUD with parallel XP ladders (adventurer / crafting /
+// reputation) surfaces them in one panel update.
+//
+// Tracks must be a non-nil (possibly empty) slice. A nil slice
+// marshals as JSON `null` which is ambiguous with "no change";
+// the session flusher initializes via `make([]CharExperienceTrack,
+// 0, n)` so the wire always carries `[]` for an engine that
+// hasn't registered any tracks yet.
+type CharExperience struct {
+	Tracks []CharExperienceTrack `json:"tracks"`
 }
 
 // CharEffectsList is the spec §5 Char.Effects payload — every
