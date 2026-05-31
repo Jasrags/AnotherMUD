@@ -202,7 +202,14 @@ Recommended: opt-in only (silent until `Core.Supports.Set`).
 Matches the spec letter and avoids burning bandwidth on packages
 the client will discard. **Decide before M16.3 ships.**
 
-### PD-2 — Payload shape: clone Tapestry's JSON or design our own
+### PD-2 — Payload shape: clone Tapestry's JSON or design our own  ✅ LOCKED (M16.4a)
+
+**Resolved:** clone Tapestry-style short keys (`hp`, `maxhp`,
+`mp`, `maxmp`, `mv`, `maxmv`) so bundled Mudlet profiles work
+without remapping. Engine-specific fields with no Tapestry
+analogue (e.g. `sustenance`) use the obvious lowercase
+short-form key in the same package. Established by the M16.4a
+Char.Vitals encoder.
 
 **Affects:** M16.4 (every package).
 
@@ -215,7 +222,14 @@ Recommended: clone Tapestry's where they have one; design our own
 only for packages Tapestry never shipped. **Decide before M16.4a
 ships** (Char.Vitals).
 
-### PD-3 — Dirty-batching strategy for Char.Vitals
+### PD-3 — Dirty-batching strategy for Char.Vitals  ✅ LOCKED (M16.4a)
+
+**Resolved:** poll-and-diff (per-actor last-sent shadow compared
+on every tick). The "dirty bit" hint in the original PD became
+a polling shadow because instrumenting every Vitals.ApplyDamage
+/ Heal / SetMax call site was strictly more invasive than the
+poll. User-observable contract preserved: zero frames when
+nothing changed, one frame per session per tick max.
 
 **Affects:** M16.4a.
 

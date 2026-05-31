@@ -275,6 +275,17 @@ func run() error {
 		return fmt.Errorf("register prompt-flush tick: %w", err)
 	}
 
+	// M16.4a: GMCP Char.Vitals flush. Cadence 1 = every tick (100ms
+	// at the default). Per-actor poll-and-diff inside FlushGmcpVitals
+	// means a no-op when nothing changed; a real wire frame goes out
+	// only when the snapshot differs. PD-3: at most one Char.Vitals
+	// frame per session per tick.
+	if err := loop.Register("gmcp-vitals-flush", 1, func(ctx context.Context, _ uint64) {
+		mgr.FlushGmcpVitals(ctx)
+	}); err != nil {
+		return fmt.Errorf("register gmcp-vitals-flush tick: %w", err)
+	}
+
 	// M11.3: sustenance drain (spec economy-survival §4.4). The service
 	// owns the value semantics + tier/multiplier helpers; the world-tick
 	// handler decrements every logged-in player's pool at DrainCadence

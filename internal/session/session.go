@@ -10,6 +10,7 @@ package session
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -30,6 +31,7 @@ import (
 	"github.com/Jasrags/AnotherMUD/internal/economy"
 	"github.com/Jasrags/AnotherMUD/internal/entities"
 	"github.com/Jasrags/AnotherMUD/internal/eventbus"
+	"github.com/Jasrags/AnotherMUD/internal/gmcp"
 	"github.com/Jasrags/AnotherMUD/internal/help"
 	"github.com/Jasrags/AnotherMUD/internal/item"
 	"github.com/Jasrags/AnotherMUD/internal/logging"
@@ -1513,6 +1515,17 @@ type connActor struct {
 	// it. Hydrated from save.Recall at construction; SetRecall
 	// updates both this field and save.Recall under the lock.
 	recall string
+	// gmcpLastVitals is the M16.4a poll-and-diff shadow for the
+	// Char.Vitals package — the most recent snapshot the manager
+	// emitted to the peer. The gmcp-vitals-flush tick handler
+	// recomputes the current snapshot every tick and only sends
+	// when it differs from this shadow. Guarded by gmcpVitalsMu
+	// because the flush goroutine reads/writes it concurrently
+	// with the actor's own mutators (write paths don't dirty-flag
+	// — see the Manager.FlushGmcpVitals doc for why poll-and-diff
+	// is preferred over instrumentation at every Vitals mutator).
+	gmcpVitalsMu   sync.Mutex
+	gmcpLastVitals gmcp.CharVitals
 	// recentTells is a session-scoped ring of recently-received tell
 	// lines for the `tells` verb (a brief review of what scrolled past).
 	// In-memory only. Capped by tellsSessionHistoryCap. Guarded by mu.
@@ -2865,6 +2878,61 @@ func (a *connActor) SetRecall(roomID string) {
 // the connActor, so reading it without taking a.mu is safe (the
 // pointer itself; the Vitals struct carries its own internal lock).
 func (a *connActor) Vitals() *combat.Vitals { return a.vitals }
+
+// gmcpSender is the subset of telnet.Conn the GMCP vitals flusher
+// needs. Defined here at the use site (small-interface convention)
+// so the session package doesn't import internal/conn/telnet for
+// the GMCP-aware connections — non-telnet transports (test fakes,
+// future WebSocket) opt in by satisfying the interface.
+type gmcpSender interface {
+	GmcpActive() bool
+	SendGmcp(ctx context.Context, pkg string, payload []byte) error
+}
+
+// flushGmcpVitals snapshots the actor's current vitals + sustenance
+// and emits a Char.Vitals frame to the peer when the payload has
+// changed since the last emission (the M16.4a poll-and-diff
+// pattern from PD-3). Silent no-op when:
+//
+//   - the underlying conn doesn't speak GMCP (test fakes, future
+//     non-GMCP transports);
+//   - GMCP hasn't been negotiated (peer never sent DO GMCP);
+//   - the payload matches the last-sent shadow exactly.
+//
+// Safe to call concurrently with the actor's own mutators: the
+// payload snapshot reads cheap thread-safe accessors (Vitals
+// carries its own lock, Sustenance reads under a.mu), and the
+// shadow compare-and-swap is guarded by gmcpVitalsMu so two
+// flusher invocations can't race a partial update.
+func (a *connActor) flushGmcpVitals(ctx context.Context) {
+	sender, ok := a.conn.(gmcpSender)
+	if !ok || !sender.GmcpActive() {
+		return
+	}
+	hp, max := a.vitals.Snapshot()
+	payload := gmcp.CharVitals{
+		HP:         hp,
+		MaxHP:      max,
+		Sustenance: a.Sustenance(),
+	}
+
+	a.gmcpVitalsMu.Lock()
+	if a.gmcpLastVitals == payload {
+		a.gmcpVitalsMu.Unlock()
+		return
+	}
+	a.gmcpLastVitals = payload
+	a.gmcpVitalsMu.Unlock()
+
+	data, err := json.Marshal(payload)
+	if err != nil {
+		// Marshal never fails on this struct shape; defensive only.
+		return
+	}
+	// SendGmcp drops silently when the peer's Core.Supports set
+	// excludes the package, so we don't pre-check SupportsPackage.
+	_ = sender.SendGmcp(ctx, gmcp.PackageCharVitals, data)
+}
 
 // Stats returns the actor's combat stat block derived from the
 // progression-layer StatBlock (M8.1). HitMod, AC, and STR are read

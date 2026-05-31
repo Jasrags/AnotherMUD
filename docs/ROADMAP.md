@@ -2050,6 +2050,14 @@ already well-abstracted so the blast radius is bounded.
 - [ ] **M16.4 — GMCP packages.** Char.Vitals → Room.Info →
       Char.Items → Char.Combat → Char.Effects →
       Char.Experience → Comm.Channel → Char.Login. Spec §7.
+  - [x] **M16.4a — Char.Vitals.** New `internal/gmcp` package
+        (Tapestry-shape payload types per PD-2); per-actor
+        last-sent shadow + `Manager.FlushGmcpVitals` walker
+        registered as the cadence-1 `gmcp-vitals-flush` tick
+        handler. Poll-and-diff implementation of PD-3:
+        zero frames when nothing changed, one frame per session
+        per tick max, no instrumentation across Vitals
+        mutators.
 - [ ] **M16.5 — WebSocket transport.** Parallel-shippable;
       same package payloads, JSON envelope. Spec §6.
 - [ ] **M16.6 — 256 / truecolor.** Per-session render tier
