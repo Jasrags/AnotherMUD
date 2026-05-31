@@ -278,12 +278,19 @@ func (n *negotiator) handleNegotiation(ctx context.Context, verb, opt byte) {
 		case optGMCP:
 			// M16.3: GMCP is bidirectional. A client that says
 			// WILL GMCP is offering to also send SB GMCP frames
-			// to us. Acknowledge with DO GMCP and activate (if
-			// we hadn't already from a prior DO ↔ WILL exchange).
-			// Some clients send WILL first, others DO first; both
-			// paths end at "active with full bidirectional GMCP."
+			// to us. Acknowledge with DO GMCP and activate.
+			// Some clients send WILL first, others respond DO to
+			// our initial WILL GMCP; both paths end at "active
+			// with full bidirectional GMCP." Suppress the DO reply
+			// when we've already activated (typical Mudlet
+			// sequence: server WILL → client DO activates → client
+			// also sends WILL as bidirectional offer) to avoid a
+			// redundant byte triple on the wire.
+			alreadyActive := n.conn.gmcp.isActive()
 			n.conn.gmcp.activate()
-			n.sendCommand(ctx, negDO, opt)
+			if !alreadyActive {
+				n.sendCommand(ctx, negDO, opt)
+			}
 		default:
 			n.sendCommand(ctx, negDONT, opt)
 		}

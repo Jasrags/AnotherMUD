@@ -775,3 +775,130 @@ func TestNegotiator_SendGmcpEscapesIACInPayload(t *testing.T) {
 		t.Errorf("frame = %x, want %x", frame, want)
 	}
 }
+
+func TestNegotiator_CoreSupportsSetEmptyArraySubscribesToNothing(t *testing.T) {
+	// An explicit empty Set is "subscribe to nothing" (deny
+	// everything). Distinguishable from "no Set received yet"
+	// (permissive default) — that's the supportsReceived flag.
+	server, client := pairConn(t)
+	go runReadLoop(server)
+	_ = readBytes(t, client, InitialOfferBytes)
+	_, _ = client.Write([]byte{negIAC, negDO, optGMCP})
+
+	_, _ = client.Write(buildGmcpFrame("Core.Supports.Set", []byte(`[]`)))
+	_, _ = client.Write([]byte("ping\n"))
+
+	deadline := time.Now().Add(time.Second)
+	for server.SupportsPackage("Char") && time.Now().Before(deadline) {
+		time.Sleep(5 * time.Millisecond)
+	}
+	if server.SupportsPackage("Char") {
+		t.Error("after empty Set, Char should not match (deny-everything)")
+	}
+}
+
+func TestNegotiator_MalformedCoreSupportsJSONIgnored(t *testing.T) {
+	// Malformed JSON in Core.Supports.* is logged + dropped. The
+	// session must not break — verified by sending a normal data
+	// line afterwards and reading it back.
+	server, client := pairConn(t)
+	got := make(chan string, 1)
+	go func() {
+		line, _ := server.Read(context.Background())
+		got <- line
+	}()
+	_ = readBytes(t, client, InitialOfferBytes)
+	_, _ = client.Write([]byte{negIAC, negDO, optGMCP})
+
+	// Garbage JSON.
+	_, _ = client.Write(buildGmcpFrame("Core.Supports.Set", []byte("{not-json")))
+	_, _ = client.Write([]byte("survived\n"))
+
+	if line := <-got; line != "survived" {
+		t.Errorf("post-malformed Read = %q, want %q", line, "survived")
+	}
+	// Permissive default is preserved because Set didn't apply.
+	if !server.SupportsPackage("Anything") {
+		t.Error("malformed Set should not flip the permissive default")
+	}
+}
+
+func TestNegotiator_SendGmcpSilentDropOnUnsupportedPackage(t *testing.T) {
+	// After Core.Supports.Set ["Char 1"], SendGmcp for an
+	// unrelated package returns nil silently and emits no bytes.
+	server, client := pairConn(t)
+	go runReadLoop(server)
+	_ = readBytes(t, client, InitialOfferBytes)
+	_, _ = client.Write([]byte{negIAC, negDO, optGMCP})
+	_, _ = client.Write(buildGmcpFrame("Core.Supports.Set", []byte(`["Char 1"]`)))
+	_, _ = client.Write([]byte("ping\n"))
+
+	deadline := time.Now().Add(time.Second)
+	for server.SupportsPackage("Room.Info") && time.Now().Before(deadline) {
+		time.Sleep(5 * time.Millisecond)
+	}
+
+	// SendGmcp for a non-matching package: returns nil, no I/O.
+	// Verify no I/O by reading from the client side with a tight
+	// deadline and asserting timeout.
+	if err := server.SendGmcp(context.Background(), "Room.Info", []byte(`{"x":1}`)); err != nil {
+		t.Errorf("SendGmcp(unsupported) returned err: %v", err)
+	}
+	_ = client.SetReadDeadline(time.Now().Add(100 * time.Millisecond))
+	buf := make([]byte, 16)
+	n, err := client.Read(buf)
+	if n > 0 {
+		t.Errorf("expected no bytes from filtered SendGmcp, got %d: %x", n, buf[:n])
+	}
+	if err == nil {
+		t.Errorf("expected timeout error, got nil")
+	}
+}
+
+func TestNegotiator_SendGmcpNilPayloadEmitsPackageOnly(t *testing.T) {
+	// Absent payload (nil) is the spec §5.1 "read as JSON null"
+	// case. Wire frame must omit the SPACE delimiter and the
+	// payload bytes — just IAC SB GMCP <pkg> IAC SE.
+	server, client := pairConn(t)
+	go runReadLoop(server)
+	_ = readBytes(t, client, InitialOfferBytes)
+	_, _ = client.Write([]byte{negIAC, negDO, optGMCP})
+	_, _ = client.Write([]byte("ping\n"))
+	deadline := time.Now().Add(time.Second)
+	for !server.GmcpActive() && time.Now().Before(deadline) {
+		time.Sleep(5 * time.Millisecond)
+	}
+
+	sendDone := make(chan error, 1)
+	go func() { sendDone <- server.SendGmcp(context.Background(), "Char.Ping", nil) }()
+	frame := readUntilIACSE(t, client)
+	if err := <-sendDone; err != nil {
+		t.Fatalf("SendGmcp(nil): %v", err)
+	}
+	want := []byte{negIAC, negSB, optGMCP, 'C', 'h', 'a', 'r', '.', 'P', 'i', 'n', 'g'}
+	if !bytes.Equal(frame, want) {
+		t.Errorf("nil-payload frame = %x, want %x", frame, want)
+	}
+}
+
+func TestNegotiator_CoreSupportsRemoveBeforeAnySetIsNoop(t *testing.T) {
+	// Remove against a never-Set supports map must not panic and
+	// must not flip the permissive default — the supportsReceived
+	// flag stays false because only Set/Add bring it up.
+	server, client := pairConn(t)
+	go runReadLoop(server)
+	_ = readBytes(t, client, InitialOfferBytes)
+	_, _ = client.Write([]byte{negIAC, negDO, optGMCP})
+
+	_, _ = client.Write(buildGmcpFrame("Core.Supports.Remove", []byte(`["Char"]`)))
+	_, _ = client.Write([]byte("ping\n"))
+
+	deadline := time.Now().Add(time.Second)
+	for !server.GmcpActive() && time.Now().Before(deadline) {
+		time.Sleep(5 * time.Millisecond)
+	}
+	// Permissive default still in effect.
+	if !server.SupportsPackage("Anything.At.All") {
+		t.Error("Remove-before-Set should leave the permissive default intact")
+	}
+}

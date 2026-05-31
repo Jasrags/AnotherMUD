@@ -1,6 +1,7 @@
 package telnet
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -279,7 +280,7 @@ func buildGmcpFrame(pkg string, payload []byte) []byte {
 // negotiator's subneg buffer (IAC-IAC escapes have already been
 // collapsed back to single 0xFF bytes by feed()).
 func parseGmcpFrame(raw []byte) (pkg string, payload []byte) {
-	idx := indexOfSpace(raw)
+	idx := bytes.IndexByte(raw, ' ')
 	if idx < 0 {
 		return string(raw), nil
 	}
@@ -288,16 +289,6 @@ func parseGmcpFrame(raw []byte) (pkg string, payload []byte) {
 		return pkg, nil
 	}
 	return pkg, raw[idx+1:]
-}
-
-// indexOfSpace finds the first 0x20 byte in s, or -1.
-func indexOfSpace(s []byte) int {
-	for i, b := range s {
-		if b == ' ' {
-			return i
-		}
-	}
-	return -1
 }
 
 // handleGmcpSubneg is the negotiator entrypoint for an inbound
