@@ -180,3 +180,32 @@ func TestSetRoom_NonGmcpConnIsSilent(t *testing.T) {
 	// Must not panic, must not deadlock.
 	a.SetRoom(&world.Room{ID: "B", Name: "B", Exits: map[world.Direction]world.Exit{}})
 }
+
+func TestSendGmcpRoomInfo_LandsOnSwappedConnAfterReattach(t *testing.T) {
+	// Pins the M16.4b reconnect contract: after the link-dead
+	// reattach swaps a.conn for a fresh peer, the next
+	// sendGmcpRoomInfo call lands on the NEW conn, giving the
+	// reconnected client's mapper panel its baseline frame.
+	// (The reconnect function calls sendGmcpRoomInfo directly
+	// after reattach succeeds; this test exercises the seam
+	// without dragging in the full pump/teardown harness.)
+	room := &world.Room{ID: "A", Name: "Room A", Exits: map[world.Direction]world.Exit{}}
+	a, oldFC := newRoomGmcpActor("p-1", room)
+	oldFC.setActive(true)
+
+	// Simulate the conn swap that connActor.reattach performs.
+	newFC := &gmcpFakeConn{fakeConn: fakeConn{id: "test-new"}}
+	newFC.setActive(true)
+	a.mu.Lock()
+	a.conn = newFC
+	a.mu.Unlock()
+
+	a.sendGmcpRoomInfo(context.Background(), room)
+
+	if got := len(oldFC.framesSnapshot()); got != 0 {
+		t.Errorf("old conn received %d frames after swap, want 0", got)
+	}
+	if got := len(newFC.framesSnapshot()); got != 1 {
+		t.Errorf("new conn received %d frames after swap, want 1", got)
+	}
+}
