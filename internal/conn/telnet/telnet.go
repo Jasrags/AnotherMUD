@@ -20,6 +20,7 @@ import (
 	"sync"
 
 	"github.com/Jasrags/AnotherMUD/internal/conn"
+	"github.com/Jasrags/AnotherMUD/internal/mssp"
 )
 
 // MaxLineBytes caps the number of bytes a single Read will buffer
@@ -44,11 +45,23 @@ type Conn struct {
 	// state, subnegotiation buffer, captured Capabilities. Driven
 	// from Read (single goroutine); accessors take their own lock.
 	neg *negotiator
+
+	// mssp is the M16.2 MUD-server-status-protocol config the
+	// negotiator reads to build the SB MSSP payload on DO MSSP
+	// from a crawler. nil = no MSSP support; the handler refuses
+	// with WONT MSSP. Set via WithMssp at construction; the
+	// pointer is shared across connections (the composition root
+	// builds one Config per server).
+	mssp *mssp.Config
 }
 
 // New wraps an established net.Conn. id should be a stable identifier
 // (typically a UUID or monotonic counter) assigned by the server.
-func New(id string, c net.Conn) *Conn {
+//
+// opts apply in order at construction so the negotiator and any
+// per-connection state see them before the first Read. See
+// WithMssp for the first option this surface ships.
+func New(id string, c net.Conn, opts ...Option) *Conn {
 	// bufio over LimitReader caps total bytes read across the connection
 	// lifetime, which would be wrong here — we want a per-Read cap. Track
 	// the limit in Read itself via bufio.Reader.Buffered / Peek instead.
@@ -59,6 +72,9 @@ func New(id string, c net.Conn) *Conn {
 		done: make(chan struct{}),
 	}
 	tc.neg = newNegotiator(tc)
+	for _, opt := range opts {
+		opt(tc)
+	}
 	return tc
 }
 

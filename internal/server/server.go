@@ -38,6 +38,13 @@ type Server struct {
 	// counter; tests can swap it for a deterministic source.
 	NewID func() string
 
+	// TelnetOptions are functional-option closures applied to every
+	// new telnet.Conn at accept time. The composition root uses this
+	// surface to attach an MSSP config (M16.2) and, later, GMCP /
+	// WebSocket-route options without widening the Server API.
+	// Empty slice = no options, which preserves the M0-era behavior.
+	TelnetOptions []telnet.Option
+
 	idCounter atomic.Uint64
 	wg        sync.WaitGroup
 }
@@ -87,7 +94,7 @@ func (s *Server) Serve(ctx context.Context, ln net.Listener) error {
 func (s *Server) handle(ctx context.Context, id string, nc net.Conn) {
 	defer s.wg.Done()
 
-	c := telnet.New(id, nc)
+	c := telnet.New(id, nc, s.TelnetOptions...)
 	defer c.Close()
 
 	connCtx := logging.With(ctx, slog.String("session_id", id))

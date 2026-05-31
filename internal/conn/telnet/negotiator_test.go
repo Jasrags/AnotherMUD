@@ -1,12 +1,15 @@
 package telnet
 
 import (
+	"bytes"
 	"context"
 	"io"
 	"net"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/Jasrags/AnotherMUD/internal/mssp"
 )
 
 // pairConn returns an in-memory client + server conn pair using
@@ -405,3 +408,114 @@ func TestNegotiator_DONTForUnneededOptionIsSilent(t *testing.T) {
 
 	_, _ = client.Write([]byte("\n"))
 }
+
+func TestNegotiator_DOMSSPEmitsSubnegWhenConfigured(t *testing.T) {
+	// MSSP-enabled conn: a crawler sends DO MSSP and must receive
+	// IAC SB MSSP <var-table> IAC SE in reply.
+	c1, c2 := net.Pipe()
+	cfg := &mssp.Config{
+		Name:    "TestMUD",
+		ANSI:    true,
+		Players: func() int { return 7 },
+	}
+	server := New("mssp-1", c1, WithMssp(cfg))
+	t.Cleanup(func() {
+		_ = server.Close()
+		_ = c2.Close()
+	})
+
+	go func() { _, _ = server.Read(context.Background()) }()
+	_ = readBytes(t, c2, 6) // initial offers
+
+	_, _ = c2.Write([]byte{negIAC, negDO, optMSSP})
+
+	// Read the framing bytes and verify the wrapper.
+	header := readBytes(t, c2, 3)
+	if header[0] != negIAC || header[1] != negSB || header[2] != optMSSP {
+		t.Fatalf("framing = %x, want IAC SB MSSP", header)
+	}
+	// Read until IAC SE.
+	payload := readUntilIACSE(t, c2)
+	if len(payload) == 0 {
+		t.Fatal("empty MSSP payload")
+	}
+	// Spec §8.2 standard variables must be present. Smoke check a
+	// couple of them; the full table is covered by mssp_test.go.
+	if !bytes.Contains(payload, []byte("NAME")) {
+		t.Errorf("payload missing NAME: %x", payload)
+	}
+	if !bytes.Contains(payload, []byte("PLAYERS")) {
+		t.Errorf("payload missing PLAYERS: %x", payload)
+	}
+
+	_, _ = c2.Write([]byte("\n"))
+}
+
+func TestNegotiator_DOMSSPWithoutConfigRefused(t *testing.T) {
+	// A conn without an mssp config refuses DO MSSP like any
+	// other unsupported option.
+	server, client := pairConn(t)
+
+	go func() { _, _ = server.Read(context.Background()) }()
+	_ = readBytes(t, client, 6)
+
+	_, _ = client.Write([]byte{negIAC, negDO, optMSSP})
+
+	got := readBytes(t, client, 3)
+	want := []byte{negIAC, negWONT, optMSSP}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Errorf("refusal[%d] = %#x, want %#x (full %x)", i, got[i], want[i], got)
+		}
+	}
+
+	_, _ = client.Write([]byte("\n"))
+}
+
+func TestNegotiator_InboundSBMSSPSilentlyIgnored(t *testing.T) {
+	// Spec §8.3: the server NEVER receives MSSP subneg from a
+	// well-behaved peer. A malformed crawler that sends one MUST
+	// be silently ignored — the server must not crash, hang, or
+	// reply.
+	server, client := pairConn(t)
+
+	got := make(chan string, 1)
+	go func() {
+		line, _ := server.Read(context.Background())
+		got <- line
+	}()
+
+	_ = readBytes(t, client, 6)
+
+	// Junk SB MSSP block followed by a normal line.
+	_, _ = client.Write([]byte{negIAC, negSB, optMSSP, 'g', 'a', 'r', 'b', 'a', 'g', 'e', negIAC, negSE})
+	_, _ = client.Write([]byte("ok\n"))
+
+	if line := <-got; line != "ok" {
+		t.Errorf("post-junk Read = %q, want %q", line, "ok")
+	}
+}
+
+// readUntilIACSE reads from c until it sees IAC SE, returning the
+// payload bytes (everything before the IAC SE). Bounded read so a
+// runaway server doesn't hang the test.
+func readUntilIACSE(t *testing.T, c net.Conn) []byte {
+	t.Helper()
+	_ = c.SetReadDeadline(time.Now().Add(time.Second))
+	var out []byte
+	buf := make([]byte, 1)
+	for len(out) < 4096 {
+		n, err := c.Read(buf)
+		if err != nil || n == 0 {
+			t.Fatalf("readUntilIACSE: err=%v after %d bytes: %x", err, len(out), out)
+		}
+		out = append(out, buf[0])
+		// Look for trailing IAC SE.
+		if len(out) >= 2 && out[len(out)-2] == negIAC && out[len(out)-1] == negSE {
+			return out[:len(out)-2]
+		}
+	}
+	t.Fatalf("no IAC SE within 4096 bytes: %x", out)
+	return nil
+}
+

@@ -6,6 +6,7 @@ import (
 	"sync"
 
 	"github.com/Jasrags/AnotherMUD/internal/logging"
+	"github.com/Jasrags/AnotherMUD/internal/mssp"
 )
 
 // Telnet command bytes per RFC 854 / RFC 855. Centralized here
@@ -271,9 +272,16 @@ func (n *negotiator) handleNegotiation(ctx context.Context, verb, opt byte) {
 			n.sendCommand(ctx, negDONT, opt)
 		}
 	case negDO:
-		// Peer asks us to enable an option. We don't enable any of
-		// our own options in M16.1 (no WILL ECHO offer here — login
-		// owns that), so refuse blanket.
+		// Peer asks us to enable an option. M16.2: MSSP is special
+		// — it's a one-shot crawler query (spec §8). When the conn
+		// has an mssp config, build the variable-table subneg and
+		// reply with it. Without a config we refuse like every
+		// other option (no silent failure that would leave a
+		// crawler hanging).
+		if opt == optMSSP && n.conn.mssp != nil {
+			n.sendSubneg(ctx, optMSSP, mssp.Encode(*n.conn.mssp))
+			return
+		}
 		n.sendCommand(ctx, negWONT, opt)
 	case negDONT:
 		// Peer refuses to let us do an option. We weren't doing any,
@@ -292,6 +300,9 @@ func (n *negotiator) handleSubneg(ctx context.Context, opt byte, payload []byte)
 		n.handleTTYPESubneg(ctx, payload)
 	case optNAWS:
 		n.handleNAWSSubneg(ctx, payload)
+	case optMSSP:
+		// Spec §8.3: MSSP never receives subneg payloads from the
+		// client. If one arrives (malformed crawler), ignore it.
 	default:
 		logging.From(ctx).Debug("telnet.negotiator: ignoring unknown subneg",
 			slog.String("session_id", n.conn.ID()),

@@ -1,6 +1,8 @@
 package telnet
 
-// Telnet option codes the M16.1 negotiator handles. Defined here so
+import "github.com/Jasrags/AnotherMUD/internal/mssp"
+
+// Telnet option codes the negotiator handles. Defined here so
 // the negotiator's switch table reads as names rather than literal
 // hex. Numbers match the IANA telnet-options registry / the RFCs
 // cited.
@@ -15,7 +17,31 @@ const (
 	// sends IAC DO NAWS; client responds WILL NAWS and starts
 	// sending IAC SB NAWS w1 w0 h1 h0 IAC SE on every resize.
 	optNAWS byte = 31
+
+	// optMSSP — MUD Server Status Protocol (M16.2). Server may
+	// advertise WILL MSSP at boot; crawlers send DO MSSP; server
+	// replies once with IAC SB MSSP <vars> IAC SE then has no
+	// further session-long work (spec §8.4). The conn's mssp
+	// config (set via WithMssp) provides the variable table; a
+	// conn without one refuses DO MSSP with WONT.
+	optMSSP byte = 70
 )
+
+// Option is the functional-options shape for telnet.New. Each
+// option mutates a fresh Conn at construction; safe to apply in
+// any order. Defined here at the same site as the option codes
+// so the surface stays discoverable.
+type Option func(*Conn)
+
+// WithMssp attaches an MSSP config to a new connection. The
+// negotiator's IAC DO MSSP handler reads through this pointer to
+// build the subneg payload; a nil/missing config makes the
+// handler refuse with WONT MSSP. The config is shared across
+// every connection that gets the same Option — the composition
+// root typically builds one and threads it through Server.
+func WithMssp(cfg *mssp.Config) Option {
+	return func(c *Conn) { c.mssp = cfg }
+}
 
 // TTYPE subnegotiation sub-commands (RFC 1091 §4).
 const (

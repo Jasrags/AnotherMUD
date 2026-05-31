@@ -33,6 +33,7 @@ import (
 	"github.com/Jasrags/AnotherMUD/internal/logging"
 	"github.com/Jasrags/AnotherMUD/internal/login"
 	"github.com/Jasrags/AnotherMUD/internal/mob"
+	"github.com/Jasrags/AnotherMUD/internal/mssp"
 	"github.com/Jasrags/AnotherMUD/internal/pack"
 	"github.com/Jasrags/AnotherMUD/internal/player"
 	"github.com/Jasrags/AnotherMUD/internal/progression"
@@ -45,6 +46,7 @@ import (
 	"github.com/Jasrags/AnotherMUD/internal/queststore"
 	"github.com/Jasrags/AnotherMUD/internal/questwatch"
 	"github.com/Jasrags/AnotherMUD/internal/render"
+	"github.com/Jasrags/AnotherMUD/internal/conn/telnet"
 	"github.com/Jasrags/AnotherMUD/internal/server"
 	"github.com/Jasrags/AnotherMUD/internal/session"
 	"github.com/Jasrags/AnotherMUD/internal/slot"
@@ -1313,7 +1315,34 @@ func run() error {
 			DefaultLocation: string(cfg.StartRoom),
 		},
 	})
-	srv := &server.Server{Handler: handler}
+	// M16.2: MSSP variable table for MUD-listing crawlers. Static
+	// fields describe the server identity; PLAYERS and UPTIME are
+	// resolved through closures so each crawler request sees live
+	// state. GMCP stays false until M16.3 lands the transport.
+	startTime := clk.Now()
+	hostname, port := splitHostPort(cfg.Addr)
+	msspCfg := &mssp.Config{
+		Name:     "AnotherMUD",
+		Codebase: "AnotherMUD/dev",
+		Contact:  "https://github.com/Jasrags/AnotherMUD",
+		Hostname: hostname,
+		Port:     port,
+		Language: "English",
+		Family:   "Custom",
+		Gameplay: []string{"Hack and Slash", "Roleplaying"},
+		Classes:  true,
+		Races:    true,
+		Levels:   true,
+		Equipment: true,
+		ANSI:     true,
+		UTF8:     true,
+		Players:  func() int { return mgr.Count() },
+		Uptime:   func() int64 { return int64(clk.Now().Sub(startTime).Seconds()) },
+	}
+	srv := &server.Server{
+		Handler:       handler,
+		TelnetOptions: []telnet.Option{telnet.WithMssp(msspCfg)},
+	}
 	serveErr := srv.Serve(ctx, ln)
 
 	// Final flush so anyone still in-world has their state committed
@@ -2792,4 +2821,17 @@ func registerBaselineEmotes(reg *emote.Registry) {
 			panic(fmt.Sprintf("baseline emote %q: %v", e.ID, err))
 		}
 	}
+}
+
+// splitHostPort parses an addr like ":4000" or "0.0.0.0:4000" into
+// a (host, port) pair suitable for the MSSP NAME / PORT fields.
+// Empty host (the ":4000" form) returns "" for hostname; the
+// composition root leaves that field for the operator to override
+// via a deployment-specific config layer when one lands.
+func splitHostPort(addr string) (host, port string) {
+	h, p, err := net.SplitHostPort(addr)
+	if err != nil {
+		return "", addr
+	}
+	return h, p
 }

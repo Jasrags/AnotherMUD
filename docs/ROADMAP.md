@@ -2029,8 +2029,14 @@ already well-abstracted so the blast radius is bounded.
       already seen). NAWS width/height tracked per re-emit.
       Capabilities exposed via `telnet.Conn.Capabilities()`.
       Spec §3.3-§3.4 + §4.1-§4.4.
-- [ ] **M16.2 — MSSP.** Server-discovery variables; lets
-      crawlers list us. Spec §8.
+- [x] **M16.2 — MSSP.** Server-discovery variables; crawlers
+      list us. New `internal/mssp` package (Config + Encode →
+      VAR/VAL payload); negotiator handles `IAC DO MSSP` →
+      `IAC SB MSSP ... IAC SE`; `server.Server.TelnetOptions` +
+      `telnet.WithMssp` thread the config through to every
+      accepted conn. PLAYERS / UPTIME via dynamic factories
+      against `session.Manager.Count()` and server start time.
+      Spec §8.
 - [ ] **M16.3 — GMCP option negotiation + envelope.** Wire
       format + Core.Supports state machine. Spec §5.1, §5.3,
       §5.5.
