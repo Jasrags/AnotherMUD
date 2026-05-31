@@ -20,6 +20,7 @@ import (
 	"github.com/Jasrags/AnotherMUD/internal/progression"
 	"github.com/Jasrags/AnotherMUD/internal/property"
 	"github.com/Jasrags/AnotherMUD/internal/quest"
+	"github.com/Jasrags/AnotherMUD/internal/weather"
 	"github.com/Jasrags/AnotherMUD/internal/render"
 	"github.com/Jasrags/AnotherMUD/internal/slot"
 	"github.com/Jasrags/AnotherMUD/internal/stats"
@@ -90,7 +91,7 @@ type pendingMobPlacement struct {
 // Filter, when non-empty, restricts discovery (spec §2.4). Pass nil to
 // load every active pack under root.
 func Load(ctx context.Context, root string, filter []string, dst *Registries, spawner Spawner, mobSpawner MobSpawner) error {
-	if dst == nil || dst.World == nil || dst.Items == nil || dst.Slots == nil || dst.Mobs == nil || dst.Tracks == nil || dst.Races == nil || dst.Classes == nil || dst.Abilities == nil || dst.Theme == nil || dst.Help == nil || dst.Quests == nil {
+	if dst == nil || dst.World == nil || dst.Items == nil || dst.Slots == nil || dst.Mobs == nil || dst.Tracks == nil || dst.Races == nil || dst.Classes == nil || dst.Abilities == nil || dst.Theme == nil || dst.Help == nil || dst.Quests == nil || dst.Weather == nil {
 		return errors.New("pack.Load: dst has nil registry field; use pack.NewRegistries()")
 	}
 	logger := logging.From(ctx).With(slog.String("event", "pack.load"), slog.String("root", root))
@@ -240,6 +241,25 @@ func loadPackContent(ctx context.Context, p Discovered, dst *Registries) ([]pend
 	effectPaths, err := resolveGlobs(p.Dir, p.Manifest.Content.Effects)
 	if err != nil {
 		return nil, nil, err
+	}
+	weatherZonePaths, err := resolveGlobs(p.Dir, p.Manifest.Content.WeatherZones)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	// Weather zones load BEFORE areas so an area's `weather_zone`
+	// reference resolves cleanly during area decoding. (Strictly the
+	// loader only validates the reference at composition time
+	// today, but the load-order is the more readable invariant —
+	// "things that own ids load before things that reference them".)
+	for _, wzp := range weatherZonePaths {
+		z, err := decodeWeatherZone(wzp, ns)
+		if err != nil {
+			return nil, nil, err
+		}
+		if err := dst.Weather.Add(z); err != nil {
+			return nil, nil, fmt.Errorf("%w (in %s)", err, wzp)
+		}
 	}
 
 	// Areas first — rooms reference them (spec §3.3 step 2). TryAddArea
@@ -1076,13 +1096,111 @@ func decodeArea(path, ns string) (*world.Area, error) {
 	if err != nil {
 		return nil, err
 	}
+	// M15.4b₂a: qualify the weather_zone reference at decode time so
+	// the runtime Area carries the same fully-qualified form the
+	// service will look up. Empty stays empty (no weather).
+	zoneID := ""
+	if z := strings.TrimSpace(af.WeatherZone); z != "" {
+		zoneID, err = qualifyID(z, ns)
+		if err != nil {
+			return nil, fmt.Errorf("%w: %s: weather_zone: %v", ErrInvalidContent, path, err)
+		}
+	}
 	return &world.Area{
 		ID:            world.AreaID(id),
 		Name:          af.Name,
 		Description:   af.Description,
 		ResetInterval: af.ResetInterval,
 		SpawnRules:    rules,
+		WeatherZone:   zoneID,
 	}, nil
+}
+
+// decodeWeatherZone reads a WeatherZoneFile and returns the runtime
+// *weather.Zone. Bare ids in transitions are qualified against the
+// current pack namespace; fully-qualified `pack:state` form (rare —
+// states are mostly bare strings like "rain") is preserved verbatim.
+// Terrain keys and period names are passed through as-is.
+//
+// Validation enforced at decode:
+//   - id required + qualifiable
+//   - transition weights MUST be > 0
+//   - roll_interval_hours MUST NOT be negative
+//
+// Soft validation deferred to runtime (matches the rest of the
+// loader's "load fast, validate lazily" stance):
+//   - a transition naming an unknown next-state surfaces only when
+//     the roll lands on it (the resolver hits an empty row and
+//     becomes a no-op rather than erroring).
+func decodeWeatherZone(path, ns string) (*weather.Zone, error) {
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		return nil, fmt.Errorf("reading weather zone %s: %w", path, err)
+	}
+	var wf WeatherZoneFile
+	if err := yaml.Unmarshal(raw, &wf); err != nil {
+		return nil, fmt.Errorf("%w: %s: %v", ErrInvalidContent, path, err)
+	}
+	if strings.TrimSpace(wf.ID) == "" {
+		return nil, fmt.Errorf("%w: %s: missing 'id'", ErrInvalidContent, path)
+	}
+	if wf.RollIntervalHours < 0 {
+		return nil, fmt.Errorf("%w: %s: roll_interval_hours must be >= 0 (got %d)",
+			ErrInvalidContent, path, wf.RollIntervalHours)
+	}
+	id, err := qualifyID(wf.ID, ns)
+	if err != nil {
+		return nil, fmt.Errorf("%w: %s: %v", ErrInvalidContent, path, err)
+	}
+	z := &weather.Zone{
+		ID:                id,
+		InitialState:      strings.TrimSpace(wf.InitialState),
+		RollIntervalHours: wf.RollIntervalHours,
+	}
+	if len(wf.Transitions) > 0 {
+		z.Transitions = make(map[string][]weather.TransitionWeight, len(wf.Transitions))
+		for state, row := range wf.Transitions {
+			out := make([]weather.TransitionWeight, 0, len(row))
+			for i, tw := range row {
+				next := strings.TrimSpace(tw.Next)
+				if next == "" {
+					return nil, fmt.Errorf("%w: %s: transitions[%s][%d]: missing 'next'",
+						ErrInvalidContent, path, state, i)
+				}
+				if tw.Weight <= 0 {
+					return nil, fmt.Errorf("%w: %s: transitions[%s][%d]: weight must be > 0 (got %d)",
+						ErrInvalidContent, path, state, i, tw.Weight)
+				}
+				out = append(out, weather.TransitionWeight{NextState: next, Weight: tw.Weight})
+			}
+			z.Transitions[state] = out
+		}
+	}
+	if len(wf.WeatherMessages) > 0 {
+		z.WeatherMessages = make(map[string]map[string]weather.MessageTriple, len(wf.WeatherMessages))
+		for state, terrains := range wf.WeatherMessages {
+			perTerrain := make(map[string]weather.MessageTriple, len(terrains))
+			for terrain, triple := range terrains {
+				perTerrain[terrain] = weather.MessageTriple{
+					Start:   triple.Start,
+					Ongoing: triple.Ongoing,
+					End:     triple.End,
+				}
+			}
+			z.WeatherMessages[state] = perTerrain
+		}
+	}
+	if len(wf.TimeMessages) > 0 {
+		z.TimeMessages = make(map[string]map[string]string, len(wf.TimeMessages))
+		for period, terrains := range wf.TimeMessages {
+			out := make(map[string]string, len(terrains))
+			for terrain, msg := range terrains {
+				out[terrain] = msg
+			}
+			z.TimeMessages[period] = out
+		}
+	}
+	return z, nil
 }
 
 // decodeSpawnRules normalizes a list of YAML SpawnRuleFile entries
@@ -1170,14 +1288,17 @@ func decodeRoom(path, ns string) (*world.Room, []string, []string, error) {
 	}
 
 	r := &world.Room{
-		ID:          world.RoomID(roomID),
-		AreaID:      world.AreaID(areaID),
-		Name:        rf.Name,
-		Description: rf.Description,
-		Exits:       make(map[world.Direction]world.Exit, len(rf.Exits)),
-		HealingRate: rf.HealingRate,
-		Tags:        append([]string(nil), rf.Tags...),
-		Properties:  copyProperties(rf.Properties),
+		ID:             world.RoomID(roomID),
+		AreaID:         world.AreaID(areaID),
+		Name:           rf.Name,
+		Description:    rf.Description,
+		Exits:          make(map[world.Direction]world.Exit, len(rf.Exits)),
+		HealingRate:    rf.HealingRate,
+		Tags:           append([]string(nil), rf.Tags...),
+		Properties:     copyProperties(rf.Properties),
+		Terrain:        strings.TrimSpace(rf.Terrain),
+		WeatherExposed: rf.WeatherExposed,
+		TimeExposed:    rf.TimeExposed,
 	}
 	for dirStr, target := range rf.Exits {
 		dir, ok := world.ParseDirection(dirStr)

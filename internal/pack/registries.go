@@ -10,6 +10,7 @@ import (
 	"github.com/Jasrags/AnotherMUD/internal/quest"
 	"github.com/Jasrags/AnotherMUD/internal/render"
 	"github.com/Jasrags/AnotherMUD/internal/slot"
+	"github.com/Jasrags/AnotherMUD/internal/weather"
 	"github.com/Jasrags/AnotherMUD/internal/world"
 )
 
@@ -50,6 +51,11 @@ type Registries struct {
 	// room loader validates each room's Properties bag against this
 	// registry — snake_case + known-name + type-match.
 	Properties *property.Registry
+	// Weather is the M15.4 weather-zone registry. Packs register
+	// zones from their weather_zones/*.yaml files; the weather
+	// Service resolves area weather_zone ids through this registry
+	// at HourChanged time.
+	Weather *weather.Registry
 }
 
 // NewRegistries returns a Registries with every field initialized.
@@ -72,5 +78,6 @@ func NewRegistries() *Registries {
 		Quests:     quest.NewRegistry(),
 		Effects:    effect.NewRegistry(),
 		Properties: property.NewRegistry(),
+		Weather:    weather.NewRegistry(),
 	}
 }

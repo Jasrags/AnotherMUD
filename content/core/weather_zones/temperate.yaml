@@ -1,0 +1,58 @@
+id: temperate
+# Areas declaring `weather_zone: temperate` start at the initial state
+# below before the first roll. Default if omitted is "clear".
+initial_state: clear
+# Roll every in-game hour. Default if omitted is 1.
+roll_interval_hours: 1
+# Weighted transition table: each entry under a state lists possible
+# next-states and their weights. Weights must be > 0. A row whose
+# entries all collapse to the current state acts as "stay".
+transitions:
+  clear:
+    - next: clear
+      weight: 6
+    - next: cloudy
+      weight: 4
+  cloudy:
+    - next: cloudy
+      weight: 5
+    - next: clear
+      weight: 3
+    - next: rain
+      weight: 2
+  rain:
+    - next: rain
+      weight: 4
+    - next: cloudy
+      weight: 4
+    - next: clear
+      weight: 2
+# Per-state × per-terrain message tables. Absent entries fall through
+# the cascade (room override → area override → zone[terrain] → empty).
+# `outdoors` is the catch-all fallback per the zone cascade.
+weather_messages:
+  cloudy:
+    outdoors:
+      start: "Clouds gather, dimming the light."
+      ongoing: "Grey clouds drift overhead."
+      end: "The clouds begin to thin."
+  rain:
+    outdoors:
+      start: "Rain begins to patter against the ground."
+      ongoing: "A steady rain falls around you."
+      end: "The rain tapers off and stops."
+  clear:
+    outdoors:
+      start: "The sky clears, and warmth returns to the air."
+      ongoing: "Clear skies stretch overhead."
+      end: "The horizon dulls as the air thickens."
+# Time-of-day ambience for the four standard periods.
+time_messages:
+  dawn:
+    outdoors: "The first pale light leaks across the horizon."
+  day:
+    outdoors: "Daylight settles in around you."
+  dusk:
+    outdoors: "The sky deepens toward purple as evening draws in."
+  night:
+    outdoors: "The land is wrapped in night, lit only by stars."

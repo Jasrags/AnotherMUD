@@ -1980,13 +1980,20 @@ playtesting.
           TicksPerGameHour cadence, period boundary lookup,
           `time.hour.change` + `time.period.change` events).
           Pure substrate; no tick-handler registration yet.
-    - [ ] **M15.4b₂ — Loader + subscriber + render.** Pack
-          loader extensions (zone YAML, area `weather_zone`,
-          room `terrain` / `weather_exposed` / `time_exposed`);
-          composition-root binding (`game-clock` tick handler;
-          `time.hour.change` → `Service.HourChanged`;
-          `time.period.change` → `Service.PeriodChanged`);
-          room render integration for current weather state.
+    - [ ] **M15.4b₂ — Loader + subscriber + render.** Split
+          into two sub-slices:
+      - [x] **M15.4b₂a — Loader + composition wiring.** Pack
+            loader extensions (`weather_zones/*.yaml` schema,
+            area `weather_zone`, room `terrain` /
+            `weather_exposed` / `time_exposed`); composition-
+            root binding (`game-clock` tick handler;
+            `time.hour.change` → `Service.HourChanged`;
+            `time.period.change` → `Service.PeriodChanged`);
+            starter `temperate` zone shipped in `content/core`.
+            Weather broadcasts visible on state change.
+      - [ ] **M15.4b₂b — Render integration.** Room render
+            hook so `look` shows the current weather state's
+            `ongoing` message in eligible rooms.
 
 **Touches specs:** `world-rooms-movement` §5 (doors + portals), §6
 (weather); new `recall.md` (or §7 section) for M15.3.

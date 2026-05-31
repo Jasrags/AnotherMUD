@@ -30,3 +30,5 @@ content:
     - quests/*.yaml
   effects:
     - effects/*.yaml
+  weather_zones:
+    - weather_zones/*.yaml

@@ -80,6 +80,11 @@ type ContentPaths struct {
 	Help      []string `yaml:"help,omitempty"`
 	Quests    []string `yaml:"quests,omitempty"`
 	Effects   []string `yaml:"effects,omitempty"`
+	// WeatherZones are zone-definition files for the M15.4
+	// weather substrate (spec world-rooms-movement §6).
+	// Loaded into Registries.Weather; areas reference zones
+	// by id through their `weather_zone` field.
+	WeatherZones []string `yaml:"weather_zones,omitempty"`
 }
 
 // IsActive reports whether the manifest is active (default true).

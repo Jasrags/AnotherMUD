@@ -28,6 +28,7 @@ import (
 	"github.com/Jasrags/AnotherMUD/internal/economy"
 	"github.com/Jasrags/AnotherMUD/internal/entities"
 	"github.com/Jasrags/AnotherMUD/internal/eventbus"
+	"github.com/Jasrags/AnotherMUD/internal/gameclock"
 	"github.com/Jasrags/AnotherMUD/internal/item"
 	"github.com/Jasrags/AnotherMUD/internal/logging"
 	"github.com/Jasrags/AnotherMUD/internal/login"
@@ -49,6 +50,7 @@ import (
 	"github.com/Jasrags/AnotherMUD/internal/slot"
 	"github.com/Jasrags/AnotherMUD/internal/spawn"
 	"github.com/Jasrags/AnotherMUD/internal/tick"
+	"github.com/Jasrags/AnotherMUD/internal/weather"
 	"github.com/Jasrags/AnotherMUD/internal/world"
 )
 
@@ -430,6 +432,50 @@ func run() error {
 			return fmt.Errorf("register linkdead-cleanup tick: %w", err)
 		}
 	}
+
+	// M15.4b: in-game clock + weather service. The clock ticks at
+	// cadence 1 (every simulation tick); on every TicksPerGameHour
+	// boundary it publishes time.period.change (if the period
+	// transitioned) then time.hour.change. The weather service
+	// subscribes to both, rolls per-area weather on the configured
+	// hour interval, and broadcasts start/end ambience to eligible
+	// rooms (spec world-rooms-movement §6). Spec defaults
+	// (TicksPerGameHour=600 at the 100ms default tick = 1 in-game
+	// hour per real minute) apply; both are knobs M15.4b₂c could
+	// expose via cfg if needed.
+	//
+	// Dedicated RNG so the weather goroutine (the time.hour.change
+	// subscriber path) doesn't share state with the combat RNG —
+	// math/rand/v2.Rand is not concurrent-safe.
+	weatherRNG := rand.New(rand.NewPCG(uint64(clk.Now().UnixNano()), 1))
+	weatherSvc := weather.New(weather.Config{
+		Registry:    registries.Weather,
+		World:       w,
+		Bus:         bus,
+		Broadcaster: mgr,
+		Roller:      weatherRNG,
+	})
+	bus.Subscribe(eventbus.EventTimeHourChange, func(ctx context.Context, ev eventbus.Event) {
+		hc, ok := ev.(eventbus.TimeHourChange)
+		if !ok {
+			return
+		}
+		weatherSvc.HourChanged(ctx, hc.Hour)
+	})
+	bus.Subscribe(eventbus.EventTimePeriodChange, func(ctx context.Context, ev eventbus.Event) {
+		pc, ok := ev.(eventbus.TimePeriodChange)
+		if !ok {
+			return
+		}
+		weatherSvc.PeriodChanged(ctx, pc.Period)
+	})
+	gameClock := gameclock.New(gameclock.Config{Bus: bus})
+	if err := loop.Register("game-clock", 1, func(ctx context.Context, _ uint64) {
+		gameClock.Tick(ctx)
+	}); err != nil {
+		return fmt.Errorf("register game-clock tick: %w", err)
+	}
+	_ = weatherSvc // retained for documentation; consumer is the subscribers above
 
 	// Combat manager (spec combat §2, M7.2). Locator dispatches on the
 	// CombatantID prefix: mob: → entities.Store, player: →

@@ -6,6 +6,10 @@ description: |
 # Reset cadence in ticks; ~30s at the default 100ms tick. Engine
 # default applies if omitted (spec mobs-ai-spawning §3.5).
 reset_interval: 300
+# M15.4: the village shares the temperate climate. Outdoor rooms
+# (town-square, village-gate, market) receive weather and time
+# ambience; the forge is shielded by its `terrain: indoors`.
+weather_zone: temperate
 spawn_rules:
   - room: town-square
     mob: village-guard

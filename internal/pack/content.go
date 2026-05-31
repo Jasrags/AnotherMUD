@@ -17,6 +17,13 @@ type AreaFile struct {
 	Description   string          `yaml:"description,omitempty"`
 	ResetInterval uint64          `yaml:"reset_interval,omitempty"`
 	SpawnRules    []SpawnRuleFile `yaml:"spawn_rules,omitempty"`
+	// WeatherZone is the zone id this area inherits climate from
+	// (spec world-rooms-movement §2.4 + §6.1). Bare ids resolve
+	// against the current pack namespace; fully-qualified
+	// `pack:id` form crosses packs. Empty (the default) means
+	// the area has no weather and the service skips it on
+	// HourChanged.
+	WeatherZone string `yaml:"weather_zone,omitempty"`
 }
 
 // SpawnRuleFile is the YAML shape for one entry of
@@ -200,6 +207,20 @@ type RoomFile struct {
 	// optional flags. Loaded into world.Exit.Door and synchronized
 	// with the reverse side at load when both sides declare.
 	Doors map[string]DoorFile `yaml:"doors,omitempty"`
+
+	// Terrain is the room's weather/time eligibility classifier
+	// (spec world-rooms-movement §6.4). Empty defaults to
+	// `outdoors`. `indoors` and `underground` are engine-known
+	// shielding terrains that suppress ambience unless the
+	// exposure flags below override.
+	Terrain string `yaml:"terrain,omitempty"`
+	// WeatherExposed flips a shielded room back to eligible for
+	// weather messages (e.g. a covered courtyard). Spec §6.4.
+	WeatherExposed bool `yaml:"weather_exposed,omitempty"`
+	// TimeExposed mirrors WeatherExposed for time-of-day
+	// ambience. Independent of WeatherExposed by design — a
+	// room may receive one and not the other. Spec §6.4.
+	TimeExposed bool `yaml:"time_exposed,omitempty"`
 }
 
 // DoorFile is the YAML shape for one door declaration. All fields
@@ -480,3 +501,61 @@ type RaceFile struct {
 	RacialFlags       []string       `yaml:"racial_flags,omitempty"`
 	Priority          int            `yaml:"priority,omitempty"`
 }
+
+// WeatherZoneFile is the YAML shape for one weather-zone definition
+// (spec world-rooms-movement §6; see internal/weather).
+//
+// Required: id. Optional: initial_state (defaults to "clear"),
+// roll_interval_hours (defaults to 1), transitions (a row missing
+// for a state is treated as "stay"), weather_messages, time_messages.
+//
+// Zone ids are namespaced like every other content id: bare in YAML,
+// fully-qualified at runtime after pack-namespace qualification.
+//
+// Shape of the nested maps:
+//
+//   transitions:
+//     clear:
+//       - next: cloudy
+//         weight: 3
+//       - next: clear
+//         weight: 7
+//
+//   weather_messages:
+//     rain:
+//       outdoors:
+//         start: "Rain begins to fall."
+//         ongoing: "Rain patters around you."
+//         end: "The rain tapers off."
+//       forest:
+//         start: "Drops patter against the leaves overhead."
+//
+//   time_messages:
+//     dawn:
+//       outdoors: "The first light leaks across the horizon."
+type WeatherZoneFile struct {
+	ID                string                                    `yaml:"id"`
+	InitialState      string                                    `yaml:"initial_state,omitempty"`
+	RollIntervalHours int                                       `yaml:"roll_interval_hours,omitempty"`
+	Transitions       map[string][]TransitionWeightFile         `yaml:"transitions,omitempty"`
+	WeatherMessages   map[string]map[string]WeatherTripleFile   `yaml:"weather_messages,omitempty"`
+	TimeMessages      map[string]map[string]string              `yaml:"time_messages,omitempty"`
+}
+
+// TransitionWeightFile is one outcome in a zone transition row.
+// Weight MUST be > 0; the decoder rejects non-positive weights.
+type TransitionWeightFile struct {
+	Next   string `yaml:"next"`
+	Weight int    `yaml:"weight"`
+}
+
+// WeatherTripleFile is the YAML shape for one (start, ongoing, end)
+// message set per (state, terrain). Any field may be empty; absent
+// fields decode to "" and the dispatcher skips empty messages
+// (spec §6.2 step 7).
+type WeatherTripleFile struct {
+	Start   string `yaml:"start,omitempty"`
+	Ongoing string `yaml:"ongoing,omitempty"`
+	End     string `yaml:"end,omitempty"`
+}
+

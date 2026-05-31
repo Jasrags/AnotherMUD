@@ -8,5 +8,9 @@ description: |
   pulses with each draw of the bellows.
 exits:
   south: town-square
+# M15.4: the forge is enclosed — shielded from weather and time
+# ambience by default. No exposure flags so a rainstorm doesn't
+# rain into the smithy.
+terrain: indoors
 mobs:
   - training-master

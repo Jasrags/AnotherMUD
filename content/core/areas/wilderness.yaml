@@ -3,3 +3,5 @@ name: The Outskirts
 description: |
   Open country beyond the village walls — meadow, dirt track, distant
   treeline. The world is larger out here than it looks from inside.
+# M15.4: the outskirts share the same temperate climate as the village.
+weather_zone: temperate
