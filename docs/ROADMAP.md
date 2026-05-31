@@ -2141,8 +2141,41 @@ already well-abstracted so the blast radius is bounded.
         link-dead reattach resets all three flags so the new
         peer's panels get fresh baseline identity frames.
         Closes M16.4.
-- [ ] **M16.5 — WebSocket transport.** Parallel-shippable;
-      same package payloads, JSON envelope. Spec §6.
+- [x] **M16.5 — WebSocket transport.** Parallel-shippable;
+      same package payloads, JSON envelope. Spec §6. New
+      `internal/conn/ws` package implements `conn.Connection` +
+      `gmcpSender` over a coder/websocket socket — Read pulls
+      `{type:"command", data:"…"}` envelopes (skipping text /
+      gmcp / unknown / malformed); Write emits one
+      `{type:"text"}` text frame per call; SendGmcp emits one
+      `{type:"gmcp", package, data}` envelope with the GMCP
+      encoder's pre-marshalled JSON as the `data` raw value.
+      WebSocket Conn reports `GmcpActive()=true` +
+      `SupportsPackage(_)=true` unconditionally (§5.2/§6.5 —
+      no negotiation; every package on for every session).
+      Inbound size cap = 64 KiB (§6.3) via SetReadLimit; clean
+      peer close maps to io.EOF for the session loop's existing
+      EOF handler. New `server.NewWebSocketHandler` returns an
+      `http.Handler` that upgrades each request, wraps in a
+      ws.Conn, and dispatches through the shared `Server.Handler`
+      — connection ids reuse `Server.nextID` so telnet + ws
+      sessions share one numbering space. Composition root in
+      `cmd/anothermud/main.go` starts an optional parallel
+      `http.Server` when `ANOTHERMUD_WS_ADDR` is set; new env
+      vars `ANOTHERMUD_WS_PATH` (default `/mud`),
+      `ANOTHERMUD_WS_ORIGINS` (comma-separated origin patterns),
+      `ANOTHERMUD_WS_INSECURE_SKIP_VERIFY` (dev only) tune the
+      upgrade options. Empty `ANOTHERMUD_WS_ADDR` disables the
+      listener entirely (telnet-only deployment unchanged). New
+      dep: `github.com/coder/websocket` v1.8.14 — zero non-stdlib
+      transitive deps, aligned with the repo's minimalist
+      posture. 10 ws.Conn tests (ID, Write envelope shape,
+      SendGmcp envelope shape, Read returns command data, skips
+      unknown / text / gmcp / malformed JSON, returns EOF on
+      normal close, returns error on ctx cancel,
+      SupportsPackage always true, Connection-interface compile
+      assertion) + 2 server-package integration tests (accept +
+      round-trip; no-handler 500). `go test -race ./...` clean.
 - [ ] **M16.6 — 256 / truecolor.** Per-session render tier
       selection driven by captured TTYPE.
 

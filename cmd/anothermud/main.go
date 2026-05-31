@@ -13,6 +13,7 @@ import (
 	"log/slog"
 	"math/rand/v2"
 	"net"
+	"net/http"
 	"os"
 	"os/signal"
 	"strings"
@@ -1403,6 +1404,48 @@ func run() error {
 		Handler:       handler,
 		TelnetOptions: []telnet.Option{telnet.WithMssp(msspCfg)},
 	}
+
+	// M16.5: optional parallel WebSocket listener. ANOTHERMUD_WS_ADDR
+	// empty disables the listener entirely (telnet-only deployment).
+	// The HTTP server runs in its own goroutine and shuts down via
+	// ctx cancellation; Server.wg drains both telnet and websocket
+	// handlers before Serve returns.
+	var wsHTTP *http.Server
+	if cfg.WsAddr != "" {
+		mux := http.NewServeMux()
+		mux.Handle(cfg.WsPath, server.NewWebSocketHandler(srv, server.WebSocketOptions{
+			OriginPatterns:     cfg.WsOriginPatterns,
+			InsecureSkipVerify: cfg.WsInsecureSkipVerify,
+		}))
+		// ReadHeaderTimeout bounds the upgrade-handshake header
+		// read so a Slowloris-style stall can't pin the listener.
+		// ReadTimeout / WriteTimeout are deliberately unset:
+		// coder/websocket's Accept clears the conn deadline after
+		// the upgrade, so a 30s ReadTimeout would silently kill
+		// the long-lived post-upgrade session. The websocket
+		// library handles its own ping/pong keepalive.
+		wsHTTP = &http.Server{
+			Addr:              cfg.WsAddr,
+			Handler:           mux,
+			ReadHeaderTimeout: 10 * time.Second,
+		}
+		go func() {
+			logging.From(ctx).Info("ws listener starting",
+				slog.String("addr", cfg.WsAddr),
+				slog.String("path", cfg.WsPath))
+			if err := wsHTTP.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+				logging.From(ctx).Warn("ws listener exited",
+					slog.Any("err", err))
+			}
+		}()
+		go func() {
+			<-ctx.Done()
+			shutdownCtx, cancelSD := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)
+			defer cancelSD()
+			_ = wsHTTP.Shutdown(shutdownCtx)
+		}()
+	}
+
 	serveErr := srv.Serve(ctx, ln)
 
 	// Final flush so anyone still in-world has their state committed
@@ -1446,6 +1489,10 @@ func cadenceTicks(tickInterval, cadence time.Duration) uint64 {
 // ~5 of them per the ROADMAP "not front-loaded" list.
 type config struct {
 	Addr                  string
+	WsAddr                string
+	WsPath                string
+	WsOriginPatterns      []string
+	WsInsecureSkipVerify  bool
 	LogLevel              string
 	LogFormat             string
 	TickInterval          time.Duration
@@ -1470,8 +1517,24 @@ func loadConfig() config {
 	if d := envDurationOr("ANOTHERMUD_LINKDEAD_TIMEOUT", 0); d > 0 {
 		ld.TimeoutSeconds = int(d / time.Second)
 	}
+	wsOrigins := []string{}
+	if v := envOr("ANOTHERMUD_WS_ORIGINS", ""); v != "" {
+		for _, part := range strings.Split(v, ",") {
+			if trimmed := strings.TrimSpace(part); trimmed != "" {
+				wsOrigins = append(wsOrigins, trimmed)
+			}
+		}
+	}
+	wsInsecure := false
+	if v, ok := os.LookupEnv("ANOTHERMUD_WS_INSECURE_SKIP_VERIFY"); ok && v != "" {
+		wsInsecure = !(strings.EqualFold(v, "0") || strings.EqualFold(v, "false") || strings.EqualFold(v, "off"))
+	}
 	return config{
 		Addr:                  envOr("ANOTHERMUD_ADDR", ":4000"),
+		WsAddr:                envOr("ANOTHERMUD_WS_ADDR", ""),
+		WsPath:                envOr("ANOTHERMUD_WS_PATH", "/mud"),
+		WsOriginPatterns:      wsOrigins,
+		WsInsecureSkipVerify:  wsInsecure,
 		LogLevel:              strings.ToLower(envOr("ANOTHERMUD_LOG_LEVEL", "info")),
 		LogFormat:             strings.ToLower(envOr("ANOTHERMUD_LOG_FORMAT", "text")),
 		TickInterval:          envDurationOr("ANOTHERMUD_TICK_INTERVAL", 100*time.Millisecond),
