@@ -273,6 +273,14 @@ type Env struct {
 	// handlers MUST nil-guard and fall back to a sensible default
 	// for test fixtures.
 	Clock clock.Clock
+	// Ambience is the M15.4b₂b per-room weather-ambience source.
+	// Implementations return the current state's "ongoing" message
+	// for the passed room, or "" when the room is not weather-
+	// eligible or no ongoing line is configured. RenderRoom
+	// invokes it on every look; nil leaves the room render
+	// weather-free (test paths, link-dead recovery before the
+	// service is wired). Spec world-rooms-movement §6.6.
+	Ambience func(*world.Room) string
 }
 
 // TellResolver maps a player name to a recipient route. Returns
@@ -358,7 +366,13 @@ type Context struct {
 	ChatScrollbacks ChatScrollbacks
 	// Clock is the engine time source (foundation F3). nil in
 	// tests that don't stamp timestamps.
-	Clock           clock.Clock
+	Clock clock.Clock
+	// Ambience is the M15.4b₂b per-room weather-ambience source.
+	// Mirrors Env.Ambience; copied from Env at dispatch time so
+	// handlers reach for it as `c.Ambience` instead of having to
+	// chase Env. nil-safe (RenderRoom skips when nil or when the
+	// callback returns "").
+	Ambience        func(*world.Room) string
 	Raw             string   // raw input line, trimmed
 	Verb            string   // resolved verb (lowercase)
 	Args            []string // tokens after the verb (space-split)
@@ -630,6 +644,7 @@ func (r *Registry) Dispatch(ctx context.Context, env Env, actor Actor, raw strin
 		ChatSubscribers: env.ChatSubscribers,
 		ChatScrollbacks: env.ChatScrollbacks,
 		Clock:           env.Clock,
+		Ambience:        env.Ambience,
 		Raw:             trimmed,
 		Verb:            strings.ToLower(verb),
 		Args:            args,

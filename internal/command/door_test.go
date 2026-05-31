@@ -279,7 +279,7 @@ func TestRenderExits_DecoratesDoorState(t *testing.T) {
 		},
 	})
 	r, _ := w.Room("x")
-	out := command.RenderRoom(r, nil, nil, nil)
+	out := command.RenderRoom(r, nil, nil, nil, nil)
 	if !strings.Contains(out, "north (locked)") {
 		t.Errorf("locked decorator missing: %q", out)
 	}

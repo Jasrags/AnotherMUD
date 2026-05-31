@@ -59,7 +59,7 @@ func TestRenderRoom_NilPlacementAndStoreSkipsEntityLine(t *testing.T) {
 	// Pins backward-compat: tests / call sites that don't care about
 	// placement can pass nil for both args without any "you see" line.
 	f := newRenderFixture()
-	out := command.RenderRoom(f.room, nil, nil, nil)
+	out := command.RenderRoom(f.room, nil, nil, nil, nil)
 	if strings.Contains(out, "You see here") {
 		t.Errorf("nil placement+store produced entity line:\n%s", out)
 	}
@@ -75,7 +75,7 @@ func TestRenderRoom_EmptyPlacementSkipsEntityLine(t *testing.T) {
 	// Placement + store supplied but no entities in the room — same
 	// shape as the nil case (no "You see here" line).
 	f := newRenderFixture()
-	out := command.RenderRoom(f.room, f.place, f.store, nil)
+	out := command.RenderRoom(f.room, f.place, f.store, nil, nil)
 	if strings.Contains(out, "You see here") {
 		t.Errorf("empty room produced entity line:\n%s", out)
 	}
@@ -88,7 +88,7 @@ func TestRenderRoom_ListsPlacedItem(t *testing.T) {
 		Name: "a stone well",
 		Type: "fixture",
 	})
-	out := command.RenderRoom(f.room, f.place, f.store, nil)
+	out := command.RenderRoom(f.room, f.place, f.store, nil, nil)
 	if !strings.Contains(out, "You see here: a stone well.") {
 		t.Errorf("missing item in render:\n%s", out)
 	}
@@ -102,7 +102,7 @@ func TestRenderRoom_ListsPlacedMob(t *testing.T) {
 		Type:     "npc",
 		Behavior: "idle",
 	})
-	out := command.RenderRoom(f.room, f.place, f.store, nil)
+	out := command.RenderRoom(f.room, f.place, f.store, nil, nil)
 	if !strings.Contains(out, "You see here: a village guard.") {
 		t.Errorf("missing mob in render:\n%s", out)
 	}
@@ -118,7 +118,7 @@ func TestRenderRoom_PreservesInsertionOrderAcrossMixedEntities(t *testing.T) {
 	f := newRenderFixture()
 	f.placeItem(t, &item.Template{ID: "tapestry-core:well", Name: "a stone well", Type: "fixture"})
 	f.placeMob(t, &mob.Template{ID: "tapestry-core:guard", Name: "a village guard", Type: "npc", Behavior: "idle"})
-	out := command.RenderRoom(f.room, f.place, f.store, nil)
+	out := command.RenderRoom(f.room, f.place, f.store, nil, nil)
 	idxWell := strings.Index(out, "a stone well")
 	idxGuard := strings.Index(out, "a village guard")
 	if idxWell == -1 || idxGuard == -1 {
@@ -143,7 +143,7 @@ func TestRenderRoom_EmptyNameEntitySilentlySkipped(t *testing.T) {
 	// than the whole line being absent for some other reason).
 	f.placeItem(t, &item.Template{ID: "tapestry-core:well", Name: "a stone well", Type: "fixture"})
 	f.placeItem(t, &item.Template{ID: "tapestry-core:nameless", Name: "", Type: "fixture"})
-	out := command.RenderRoom(f.room, f.place, f.store, nil)
+	out := command.RenderRoom(f.room, f.place, f.store, nil, nil)
 	if !strings.Contains(out, "You see here: a stone well.") {
 		t.Errorf("expected named entity intact, empty-name entity omitted:\n%s", out)
 	}
@@ -159,7 +159,7 @@ func TestRenderRoom_EntityLinePlacedBetweenDescriptionAndExits(t *testing.T) {
 	// the test.
 	f := newRenderFixture()
 	f.placeItem(t, &item.Template{ID: "tapestry-core:well", Name: "a stone well", Type: "fixture"})
-	out := command.RenderRoom(f.room, f.place, f.store, nil)
+	out := command.RenderRoom(f.room, f.place, f.store, nil, nil)
 	idxDesc := strings.Index(out, "cobblestone")
 	idxWell := strings.Index(out, "a stone well")
 	idxExits := strings.Index(out, "Exits:")
@@ -179,7 +179,7 @@ func TestRenderRoom_EntityLinePlacedBetweenDescriptionAndExits(t *testing.T) {
 func TestRenderRoom_UnresolvedPlacementIDSilentlySkipped(t *testing.T) {
 	f := newRenderFixture()
 	f.place.Place(entities.EntityID("ghost-id"), f.room.ID)
-	out := command.RenderRoom(f.room, f.place, f.store, nil)
+	out := command.RenderRoom(f.room, f.place, f.store, nil, nil)
 	// Ghost id resolves to nothing; line should be absent OR not
 	// mention any entity name.
 	if strings.Contains(out, "You see here") {
@@ -194,12 +194,74 @@ func TestRenderRoom_MarkerDecoratesEntity(t *testing.T) {
 
 	// marker fires only for the gem template.
 	marker := func(tid string) bool { return tid == "tapestry-core:gem" }
-	out := command.RenderRoom(f.room, f.place, f.store, marker)
+	out := command.RenderRoom(f.room, f.place, f.store, marker, nil)
 
 	if !strings.Contains(out, "(!)</good> a quest gem") {
 		t.Errorf("quest item not marked:\n%s", out)
 	}
 	if strings.Contains(out, "(!)</good> a plain rock") {
 		t.Errorf("non-quest item should not be marked:\n%s", out)
+	}
+}
+
+func TestRenderRoom_AmbienceCallbackAppendsLine(t *testing.T) {
+	// The ambience callback fires once per render. A non-empty
+	// return is appended on its own line BETWEEN the description
+	// and the entity / exits lines so the weather line reads as
+	// part of the room's atmosphere, not its inventory.
+	f := newRenderFixture()
+	called := 0
+	ambience := func(r *world.Room) string {
+		called++
+		if r != f.room {
+			t.Errorf("ambience called with %p, want %p", r, f.room)
+		}
+		return "A steady rain falls around you."
+	}
+	out := command.RenderRoom(f.room, f.place, f.store, nil, ambience)
+	if called != 1 {
+		t.Errorf("ambience called %d times, want 1", called)
+	}
+	if !strings.Contains(out, "A steady rain falls around you.") {
+		t.Errorf("ambience line missing:\n%s", out)
+	}
+	// Ordering: description then ambience then exits (no entities
+	// in this fixture's room → no entity line). The ambience line
+	// must come AFTER the description and BEFORE the exits.
+	descIdx := strings.Index(out, "cobblestone")
+	ambIdx := strings.Index(out, "A steady rain")
+	exitsIdx := strings.Index(out, "Exits:")
+	if descIdx < 0 || ambIdx < 0 || exitsIdx < 0 {
+		t.Fatalf("missing landmarks: desc=%d amb=%d exits=%d\n%s",
+			descIdx, ambIdx, exitsIdx, out)
+	}
+	if !(descIdx < ambIdx && ambIdx < exitsIdx) {
+		t.Errorf("wrong order: desc=%d < amb=%d < exits=%d\n%s",
+			descIdx, ambIdx, exitsIdx, out)
+	}
+}
+
+func TestRenderRoom_NilAmbienceSkipsLine(t *testing.T) {
+	// Backward-compat: nil ambience must produce the same output
+	// as the pre-M15.4b₂b render path.
+	f := newRenderFixture()
+	out := command.RenderRoom(f.room, f.place, f.store, nil, nil)
+	for _, marker := range []string{"weather", "rain", "wind"} {
+		if strings.Contains(out, marker) {
+			t.Errorf("nil ambience produced %q in output:\n%s", marker, out)
+		}
+	}
+}
+
+func TestRenderRoom_EmptyAmbienceReturnSkipsLine(t *testing.T) {
+	// A non-nil callback that returns "" is treated the same as nil:
+	// no extra blank line, no marker.
+	f := newRenderFixture()
+	ambience := func(*world.Room) string { return "" }
+	out := command.RenderRoom(f.room, f.place, f.store, nil, ambience)
+	// The render output joins with "\n"; an empty ambience must not
+	// inject a stray blank line between description and exits.
+	if strings.Contains(out, "\n\nExits:") {
+		t.Errorf("empty ambience produced blank line before exits:\n%q", out)
 	}
 }

@@ -268,6 +268,14 @@ type Config struct {
 	// nil-safe: the verbs report they can't be used when unwired.
 	Consumable *economy.ConsumableService
 
+	// Ambience is the M15.4b₂b per-room weather-ambience source —
+	// the closure built at composition over weather.Service.Ambience.
+	// Threaded into command.Env so handlers reach RenderRoom with it,
+	// AND consumed directly by the login/link-dead renderers that
+	// build their own room renders outside the command dispatcher.
+	// nil-safe: a nil callback leaves the room render weather-free.
+	Ambience func(*world.Room) string
+
 	// CreationFlow is the M12.3 interactive character-creation wizard
 	// (spec character-creation §2/§3). When set, a new player runs it
 	// after login to choose race/class before commit; nil takes the §2
@@ -673,7 +681,7 @@ func run(ctx context.Context, c conn.Connection, cfg Config) error {
 		cfg.Disposition.OnPlayerEnteredImmediate(ctx, a.PlayerID(), a.Name(), nil, start.ID)
 	}
 
-	if err := a.Write(ctx, command.RenderRoom(start, cfg.Placement, cfg.Items, questMarkerFor(cfg.Quests, a.PlayerID()))); err != nil {
+	if err := a.Write(ctx, command.RenderRoom(start, cfg.Placement, cfg.Items, questMarkerFor(cfg.Quests, a.PlayerID()), cfg.Ambience)); err != nil {
 		// Initial render failed: the connection is unusable. Full
 		// teardown immediately — no point parking link-dead.
 		fullTeardown(ctx, cfg, a)
@@ -789,6 +797,7 @@ func pump(ctx context.Context, c conn.Connection, cfg Config, a *connActor, clk 
 			ChatSubscribers: cfg.ChatSubscribers,
 			ChatScrollbacks: cfg.ChatScrollbacks,
 			Clock:           cfg.Clock,
+			Ambience:        cfg.Ambience,
 		}
 		if err := cfg.Commands.Dispatch(ctx, env, a, line); err != nil {
 			if errors.Is(err, command.ErrQuit) {

@@ -143,7 +143,7 @@ func LookHandler(ctx context.Context, c *Context) error {
 	if room == nil {
 		return c.Actor.Write(ctx, "You float in formless void.")
 	}
-	return c.Actor.Write(ctx, RenderRoom(room, c.Placement, c.Items, c.questMarker()))
+	return c.Actor.Write(ctx, RenderRoom(room, c.Placement, c.Items, c.questMarker(), c.Ambience))
 }
 
 // ColorHandler implements the `color` verb (spec ui-rendering-help —
@@ -249,7 +249,7 @@ func movementHandler(dir world.Direction) Handler {
 		if c.Disposition != nil && pid != "" {
 			c.Disposition.OnPlayerEnteredImmediate(ctx, pid, name, nil, dst.ID)
 		}
-		if err := c.Actor.Write(ctx, RenderRoom(dst, c.Placement, c.Items, c.questMarker())); err != nil {
+		if err := c.Actor.Write(ctx, RenderRoom(dst, c.Placement, c.Items, c.questMarker(), c.Ambience)); err != nil {
 			return err
 		}
 		// Deferred (full) hook AFTER the description so non-hostile
@@ -273,15 +273,30 @@ func movementHandler(dir world.Direction) Handler {
 // shown: those live in Contents, not Placement (the put pipeline
 // removes from Placement when nesting).
 // RenderRoom renders a room's name, description, entities, and exits.
-// marker, when non-nil, reports whether an entity's template id carries a
-// quest marker for the viewer (M10.10b); such entities get a marker glyph
-// before their name. Pass nil to skip marker decoration.
-func RenderRoom(r *world.Room, placement *entities.Placement, items *entities.Store, marker func(templateID string) bool) string {
+//
+// marker, when non-nil, reports whether an entity's template id
+// carries a quest marker for the viewer (M10.10b); such entities get
+// a marker glyph before their name. Pass nil to skip marker
+// decoration.
+//
+// ambience, when non-nil and non-empty for r, is appended after the
+// room description on its own line. The current consumer is the
+// M15.4b₂b weather hook (weather.Service.Ambience). Pass nil for
+// renderers (tests, link-dead recovery before weather is wired)
+// that don't have an ambience source; an empty return from a
+// non-nil ambience is also treated as "nothing to render".
+func RenderRoom(r *world.Room, placement *entities.Placement, items *entities.Store, marker func(templateID string) bool, ambience func(*world.Room) string) string {
 	var b strings.Builder
 	b.WriteString(r.Name)
 	b.WriteString("\n")
 	b.WriteString(r.Description)
 	b.WriteString("\n")
+	if ambience != nil {
+		if line := ambience(r); line != "" {
+			b.WriteString(line)
+			b.WriteString("\n")
+		}
+	}
 	if line := renderRoomEntities(r, placement, items, marker); line != "" {
 		b.WriteString(line)
 		b.WriteString("\n")

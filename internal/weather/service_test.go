@@ -331,3 +331,77 @@ func captureWeatherChanges(bus *eventbus.Bus) *[]eventbus.WeatherChanged {
 	})
 	return &out
 }
+
+func TestService_Ambience_ResolvesOngoingForCurrentState(t *testing.T) {
+	reg := weather.NewRegistry()
+	zone := clearToRainZone()
+	zone.WeatherMessages["clear"][weather.TerrainOutdoors] = weather.MessageTriple{
+		Ongoing: "Clear skies stretch overhead.",
+	}
+	_ = reg.Add(zone)
+	w := newTwoRoomWorld(t)
+	s := weather.New(weather.Config{Registry: reg, World: w})
+
+	r, _ := w.Room("square")
+	if got := s.Ambience(r); got != "Clear skies stretch overhead." {
+		t.Errorf("Ambience(square) = %q, want clear-ongoing", got)
+	}
+}
+
+func TestService_Ambience_ShieldedRoomReturnsEmpty(t *testing.T) {
+	reg := weather.NewRegistry()
+	zone := clearToRainZone()
+	zone.WeatherMessages["clear"][weather.TerrainOutdoors] = weather.MessageTriple{
+		Ongoing: "should not appear",
+	}
+	_ = reg.Add(zone)
+	w := newTwoRoomWorld(t)
+	s := weather.New(weather.Config{Registry: reg, World: w})
+
+	// tavern has terrain: indoors and no WeatherExposed flag.
+	tavern, _ := w.Room("tavern")
+	if got := s.Ambience(tavern); got != "" {
+		t.Errorf("shielded ambience = %q, want empty", got)
+	}
+}
+
+func TestService_Ambience_NoZoneReturnsEmpty(t *testing.T) {
+	reg := weather.NewRegistry()
+	w := world.New()
+	w.AddArea(&world.Area{ID: "void"}) // no weather_zone
+	w.AddRoom(&world.Room{ID: "void-room", AreaID: "void"})
+	s := weather.New(weather.Config{Registry: reg, World: w})
+
+	r, _ := w.Room("void-room")
+	if got := s.Ambience(r); got != "" {
+		t.Errorf("zoneless ambience = %q, want empty", got)
+	}
+}
+
+func TestService_Ambience_NoOngoingMessageReturnsEmpty(t *testing.T) {
+	// Zone defined but the current state's triple has no Ongoing
+	// (only start/end). Ambience must return "" — the renderer
+	// then skips the line.
+	reg := weather.NewRegistry()
+	zone := clearToRainZone()
+	zone.WeatherMessages["clear"][weather.TerrainOutdoors] = weather.MessageTriple{
+		Start: "clearing begins",
+		End:   "clearing ends",
+		// Ongoing intentionally empty.
+	}
+	_ = reg.Add(zone)
+	w := newTwoRoomWorld(t)
+	s := weather.New(weather.Config{Registry: reg, World: w})
+
+	r, _ := w.Room("square")
+	if got := s.Ambience(r); got != "" {
+		t.Errorf("missing-Ongoing = %q, want empty", got)
+	}
+}
+
+func TestService_Ambience_NilRoomIsSafe(t *testing.T) {
+	s, _, _, _ := newService(t)
+	if got := s.Ambience(nil); got != "" {
+		t.Errorf("Ambience(nil) = %q, want empty", got)
+	}
+}

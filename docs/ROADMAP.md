@@ -1951,10 +1951,10 @@ playtesting.
 **Live plan + current step:** `docs/themes/world-depth-plan.md`.
 
 **Sub-milestones (order: doors → portals → recall → weather):**
-- [ ] **M15.1 — Doors + locks.** Per-exit state with paired
+- [x] **M15.1 — Doors + locks.** Per-exit state with paired
       reverse-side sync; open/close/lock/unlock verbs; key items;
       area-reset restoration. Spec §5.1-§5.5 already complete.
-- [ ] **M15.2 — Portals (temporary keyword exits).** Runtime
+- [x] **M15.2 — Portals (temporary keyword exits).** Runtime
       keyword exits with TTL; cleanup tick handler; observable
       creation/expiry events. Spec §5.6 complete.
 - [x] **M15.3 — Recall / return-home.** Per-character return
@@ -1962,38 +1962,33 @@ playtesting.
       (`docs/specs/recall.md`); player-save v14 carries the
       `recall` field; cancellable `recall.before` + post-fact
       `recall.after` events let content layers gate or react.
-- [ ] **M15.4 — Weather.** Area-scoped weather zones; hour-driven
+- [x] **M15.4 — Weather.** Area-scoped weather zones; hour-driven
       rolls subscribing to the in-game clock; per-state message
       tables; weather-exposed rooms render current state. Spec §6
-      complete.
+      complete. **Theme C done.**
   - [x] **M15.4a — Substrate.** `internal/weather` package
         (Zone, Registry, Service with HourChanged / PeriodChanged
         seams, weighted-pick transition, message cascade,
         eligibility gate); `world.Room.Terrain` /
         `WeatherExposed` / `TimeExposed`; `world.Area.WeatherZone`;
-        `weather.changed` bus event. Callable-only — no YAML
-        loader, no composition-root wiring. M15.4b lands those
-        alongside the in-game clock.
-  - [ ] **M15.4b — Wiring.** Split into two sub-slices:
+        `weather.changed` bus event.
+  - [x] **M15.4b — Wiring.**
     - [x] **M15.4b₁ — In-game clock.** `internal/gameclock`
           implementing time-and-clock §3 (CurrentHour, DayCount,
           TicksPerGameHour cadence, period boundary lookup,
           `time.hour.change` + `time.period.change` events).
-          Pure substrate; no tick-handler registration yet.
-    - [ ] **M15.4b₂ — Loader + subscriber + render.** Split
-          into two sub-slices:
-      - [x] **M15.4b₂a — Loader + composition wiring.** Pack
-            loader extensions (`weather_zones/*.yaml` schema,
-            area `weather_zone`, room `terrain` /
-            `weather_exposed` / `time_exposed`); composition-
-            root binding (`game-clock` tick handler;
-            `time.hour.change` → `Service.HourChanged`;
-            `time.period.change` → `Service.PeriodChanged`);
-            starter `temperate` zone shipped in `content/core`.
-            Weather broadcasts visible on state change.
-      - [ ] **M15.4b₂b — Render integration.** Room render
-            hook so `look` shows the current weather state's
-            `ongoing` message in eligible rooms.
+    - [x] **M15.4b₂a — Loader + composition wiring.** Pack
+          loader extensions (`weather_zones/*.yaml` schema,
+          area `weather_zone`, room `terrain` /
+          `weather_exposed` / `time_exposed`); composition-
+          root binding (`game-clock` tick handler;
+          `time.hour.change` → `Service.HourChanged`;
+          `time.period.change` → `Service.PeriodChanged`);
+          starter `temperate` zone shipped in `content/core`.
+    - [x] **M15.4b₂b — Render integration.** `Service.Ambience`
+          + `RenderRoom` ambience callback. `look` and movement
+          renders show the current state's `ongoing` message
+          in eligible rooms.
 
 **Touches specs:** `world-rooms-movement` §5 (doors + portals), §6
 (weather); new `recall.md` (or §7 section) for M15.3.

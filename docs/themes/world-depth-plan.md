@@ -108,20 +108,33 @@ clock): YAML loader extensions, composition-root wiring of
 `time.hour.change` → `Service.HourChanged`, room-render
 integration with current weather state.
 
-### M15.4 — Weather
+### M15.4 — Weather  ✅ SHIPPED (closes Theme C)
 
-**Spec:** `world-rooms-movement.md` §6.
+**Spec:** `world-rooms-movement.md` §6 + `time-and-clock.md` §3.
 **Gap matrix:** §3 "Weather".
 
-Area-scoped weather zones with state machine (clear → cloudy →
-storm, etc.), hour-driven rolls (subscribes to the in-game clock),
-per-state message tables, weather-exposed rooms render the current
-state in their description. The substrate is laid out in §6;
-implementation is mostly new state + tick handler + render hook.
+Shipped across four slices (M15.4a substrate already noted above;
+M15.4b₁/b₂a/b₂b below):
 
-**Shape:** medium-large. ~1-2 weeks. Largest of the four because
-it touches the time-of-day clock, has the most state to manage,
-and crosses into the render path.
+- **M15.4b₁ — In-game clock.** `internal/gameclock` (CurrentHour,
+  DayCount, TicksPerGameHour cadence, period boundary lookup,
+  `time.hour.change` + `time.period.change` events with
+  period-fires-before-hour ordering).
+- **M15.4b₂a — Loader + composition wiring.** Pack loader
+  (`weather_zones/*.yaml` schema with terrain-keyed message
+  tables, area `weather_zone`, room `terrain` / `weather_exposed` /
+  `time_exposed`). Composition root: `game-clock` tick handler
+  + bus subscribers binding both clock events to
+  `weather.Service`. Starter `temperate` zone in `content/core`.
+- **M15.4b₂b — Render integration.** `Service.Ambience(room)`
+  cascade-resolves the current state's `ongoing` message for
+  a room. `RenderRoom` grows an ambience callback; `command.Env`
+  + `command.Context` + `session.Config` thread it; composition
+  binds `weatherSvc.Ambience`. `look` and movement renders now
+  show weather in eligible rooms.
+
+Side-benefit: `WorldRooms` interface gained `Area(id)` for O(1)
+zone lookup, closing the M15.4a-review O(n) deferral.
 
 ---
 

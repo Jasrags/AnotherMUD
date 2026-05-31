@@ -27,11 +27,13 @@ type Broadcaster interface {
 
 // WorldRooms is the subset of *world.World the service uses to
 // enumerate the rooms of an area for ambience delivery (spec §6.2
-// step 7, §6.5). Defined as an interface here so test fixtures
+// step 7, §6.5) and to resolve an area's zone in O(1) for
+// Ambience reads. Defined as an interface here so test fixtures
 // don't have to build a real *world.World.
 type WorldRooms interface {
 	RoomsInArea(id world.AreaID) []*world.Room
 	Areas() []*world.Area
+	Area(id world.AreaID) (*world.Area, error)
 }
 
 // Config wires the Service at composition time. Bus and
@@ -227,6 +229,38 @@ func (s *Service) dispatchTransition(ctx context.Context, areaID world.AreaID, p
 	}
 }
 
+// Ambience returns the resolved "ongoing" weather message for room
+// — the per-look ambience line a renderer appends to the room
+// description (spec world-rooms-movement §6.6 "ongoing" leg of the
+// message triple).
+//
+// Returns "" when:
+//   - room is nil, has no AreaID, or fails weather eligibility
+//     (shielded terrain without WeatherExposed);
+//   - the area has no weather_zone;
+//   - the zone has no entry for the area's current state under the
+//     room's terrain (and no outdoor fallback).
+//
+// Callers MUST tolerate "" and skip rendering — empty is the
+// "nothing to say right now" signal, not an error. Safe for
+// concurrent callers (the underlying state read takes s.mu only
+// briefly via CurrentWeather; the cascade resolver is pure).
+func (s *Service) Ambience(room *world.Room) string {
+	if room == nil || room.AreaID == "" || !weatherEligible(room) {
+		return ""
+	}
+	zoneID := zoneIDForArea(s.cfg.World, room.AreaID)
+	if zoneID == "" {
+		return ""
+	}
+	zone, err := s.cfg.Registry.Get(zoneID)
+	if err != nil || zone == nil {
+		return ""
+	}
+	state := s.CurrentWeather(room.AreaID)
+	return resolveWeatherMessage(room, zone, state).Ongoing
+}
+
 // PeriodChanged is the §6.5 seam future time-and-clock §3.4 will
 // call on every period advancement. Delivers the period's
 // resolved message to each eligible room in every area. Unlike
@@ -282,15 +316,15 @@ func (s *Service) initialStateForLocked(areaID world.AreaID) string {
 
 // zoneIDForArea looks up the area's WeatherZone field via the
 // WorldRooms abstraction. Returns "" when world is nil, the area
-// is unknown, or the area declares no zone.
+// is unknown, or the area declares no zone. O(1) lookup via the
+// world's area index (closes the M15.4a-review O(n) deferral).
 func zoneIDForArea(w WorldRooms, areaID world.AreaID) string {
 	if w == nil {
 		return ""
 	}
-	for _, area := range w.Areas() {
-		if area != nil && area.ID == areaID {
-			return area.WeatherZone
-		}
+	area, err := w.Area(areaID)
+	if err != nil || area == nil {
+		return ""
 	}
-	return ""
+	return area.WeatherZone
 }

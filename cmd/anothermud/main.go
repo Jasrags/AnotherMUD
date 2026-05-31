@@ -1303,6 +1303,10 @@ func run() error {
 		Clock:        clk,
 		Flood:        session.DefaultFloodConfig(),
 		LinkDead:     linkDeadCfg,
+		// M15.4b₂b: per-look weather ambience. The closure binds
+		// weather.Service.Ambience; RenderRoom appends its output
+		// after the room description in eligible rooms.
+		Ambience:     weatherSvc.Ambience,
 		Login: login.Config{
 			Accounts:        accounts,
 			Players:         players,
