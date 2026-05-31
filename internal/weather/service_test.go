@@ -248,7 +248,7 @@ func TestService_SetWeather_IdenticalIsNoOp(t *testing.T) {
 	}
 }
 
-func TestService_PeriodChanged_DeliversToEligibleRooms(t *testing.T) {
+func TestService_PeriodChanged_DeliversToEligibleRoomsAndEmitsNoEvent(t *testing.T) {
 	reg := weather.NewRegistry()
 	zone := clearToRainZone()
 	zone.TimeMessages = map[string]map[string]string{
@@ -256,11 +256,17 @@ func TestService_PeriodChanged_DeliversToEligibleRooms(t *testing.T) {
 	}
 	_ = reg.Add(zone)
 	w := newTwoRoomWorld(t)
+	bus := eventbus.New()
 	bc := &recordingBroadcaster{}
 	s := weather.New(weather.Config{
-		Registry: reg, World: w, Broadcaster: bc,
+		Registry: reg, World: w, Bus: bus, Broadcaster: bc,
 		Roller: &fixedRoller{values: []int{0}},
 	})
+	// Spec §6.5: period delivery must NOT emit a weather.changed
+	// event from this feature (the time feature already emitted
+	// time.period.change). Subscribe before dispatching to pin
+	// the contract.
+	weatherEvents := captureWeatherChanges(bus)
 
 	s.PeriodChanged(context.Background(), "dawn")
 
@@ -270,6 +276,9 @@ func TestService_PeriodChanged_DeliversToEligibleRooms(t *testing.T) {
 	}
 	if calls[0].roomID != "square" || calls[0].text != "Dawn breaks." {
 		t.Errorf("call = %+v", calls[0])
+	}
+	if len(*weatherEvents) != 0 {
+		t.Errorf("PeriodChanged emitted %d weather.changed events, want 0", len(*weatherEvents))
 	}
 }
 

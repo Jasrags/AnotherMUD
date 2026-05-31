@@ -1195,11 +1195,14 @@ func (RecallUnresolved) Name() string { return EventRecallUnresolved }
 
 // WeatherChanged is the weather.changed payload — an area's weather
 // state transitioned to a different value (spec world-rooms-movement
-// §6.2). PreviousState may be empty on the very first roll of a
-// freshly-loaded area that had no recorded state; the spec defaults
-// the absence to `clear`, but listeners should treat empty as "no
-// prior state" for first-roll asymmetry (e.g. a renderer that wants
-// to skip the "rain ends" half on cold start).
+// §6.2). PreviousState is always non-empty in the current
+// implementation: the service resolves a missing per-area state to
+// the zone's initial state (or DefaultWeatherState) before
+// publishing, so cold-start transitions appear as e.g. `clear → rain`
+// rather than ` → rain`. The empty-string slot is reserved for a
+// future first-roll mode that may want to suppress the "end of
+// previous state" broadcast half; subscribers MAY guard on
+// PreviousState == "" defensively but no path emits it today.
 type WeatherChanged struct {
 	AreaID        world.AreaID
 	PreviousState string

@@ -49,8 +49,19 @@ type Config struct {
 // Service is the runtime state holder + dispatcher (spec §6).
 //
 // Single-writer model: HourChanged + PeriodChanged + SetWeather
-// all serialize on s.mu. Concurrent callers are safe but the
-// expected topology is one driver (the future hour-tick handler).
+// all serialize on s.mu for the state mutation, then release the
+// lock before broadcasting (broadcaster I/O must not stall the
+// tick). Concurrent callers are safe but the expected topology is
+// one driver (the future hour-tick handler).
+//
+// Consistency contract: weather.changed describes the transition
+// that was canonical at the moment s.mu was released. If two
+// drivers mutate the same area concurrently (e.g. an admin
+// SetWeather races the hour-tick roll), subscribers may observe
+// events whose NewState is no longer the current state by the
+// time the handler runs. Subscribers should be transition-aware
+// (react to "what just changed") rather than absolute-state-aware
+// (read CurrentWeather inside the handler when truth matters).
 type Service struct {
 	cfg Config
 
@@ -188,7 +199,7 @@ func (s *Service) dispatchTransition(ctx context.Context, areaID world.AreaID, p
 			NewState:      next,
 		})
 	}
-	logging.From(ctx).Info("weather.changed",
+	logging.From(ctx).Debug("weather.changed",
 		slog.String("area", string(areaID)),
 		slog.String("from", prev),
 		slog.String("to", next))
@@ -196,7 +207,10 @@ func (s *Service) dispatchTransition(ctx context.Context, areaID world.AreaID, p
 	if s.cfg.World == nil || s.cfg.Broadcaster == nil {
 		return
 	}
-	// Look up the zone once for the cascade fallbacks.
+	// Look up the zone once for the cascade fallbacks. Error
+	// discarded by design: nil zone is handled downstream by
+	// resolveWeatherMessage, which returns an empty triple that
+	// the dispatcher then skips.
 	zone, _ := s.cfg.Registry.Get(zoneIDForArea(s.cfg.World, areaID))
 	for _, room := range s.cfg.World.RoomsInArea(areaID) {
 		if room == nil || !weatherEligible(room) {
@@ -233,6 +247,9 @@ func (s *Service) PeriodChanged(ctx context.Context, period string) {
 		// handles that.
 		var zone *Zone
 		if area.WeatherZone != "" {
+			// Error discarded by design: nil zone is handled
+			// downstream by resolveTimeMessage (empty result →
+			// dispatcher skips the room).
 			zone, _ = s.cfg.Registry.Get(area.WeatherZone)
 		}
 		for _, room := range s.cfg.World.RoomsInArea(area.ID) {
