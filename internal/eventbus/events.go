@@ -254,6 +254,15 @@ const (
 	// (spec recall.md §4 / §5). The operator log records the
 	// missing room id; the actor-facing line stays generic.
 	EventRecallUnresolved = "recall.unresolved"
+
+	// EventWeatherChanged fires when an area's weather state
+	// transitions to a different state (spec world-rooms-movement
+	// §6.2 step 6). Identical-state rolls are no-ops and do NOT
+	// publish. The payload carries both the previous and new
+	// state so subscribers (renderers, scripting, analytics) can
+	// react to the transition asymmetrically without keeping
+	// their own previous-state shadow.
+	EventWeatherChanged = "weather.changed"
 )
 
 // ItemPickedUp fires after GetHandler successfully moves an item
@@ -1183,3 +1192,19 @@ type RecallUnresolved struct {
 
 // Name implements Event.
 func (RecallUnresolved) Name() string { return EventRecallUnresolved }
+
+// WeatherChanged is the weather.changed payload — an area's weather
+// state transitioned to a different value (spec world-rooms-movement
+// §6.2). PreviousState may be empty on the very first roll of a
+// freshly-loaded area that had no recorded state; the spec defaults
+// the absence to `clear`, but listeners should treat empty as "no
+// prior state" for first-roll asymmetry (e.g. a renderer that wants
+// to skip the "rain ends" half on cold start).
+type WeatherChanged struct {
+	AreaID        world.AreaID
+	PreviousState string
+	NewState      string
+}
+
+// Name implements Event.
+func (WeatherChanged) Name() string { return EventWeatherChanged }

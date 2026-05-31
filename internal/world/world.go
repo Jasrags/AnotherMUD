@@ -27,6 +27,14 @@ type Area struct {
 	Description   string
 	SpawnRules    []SpawnRule
 	ResetInterval uint64 // ticks; 0 → engine default
+
+	// WeatherZone is the weather-zone id this area inherits its
+	// climate from (spec §6 + §2.4). Empty (the default) means the
+	// area has no weather: weather.Service skips it during hour
+	// rolls. Resolved against the WeatherRegistry at composition
+	// time; an unknown zone id is a content error caught at boot.
+	// Spec: world-rooms-movement §6.1.
+	WeatherZone string
 }
 
 // SpawnRule is one entry in an area's spawn config (spec
@@ -124,6 +132,25 @@ type Room struct {
 	// Mutations flow through World.AddKeywordExit /
 	// RemoveKeywordExit so the portal service can attach metadata.
 	KeywordExits map[string]Exit
+
+	// Terrain is the room's terrain classifier driving weather +
+	// time-ambience eligibility (spec §6.4). Empty (the default)
+	// is treated as `outdoors` by the eligibility check. Values
+	// matching the engine-known shielding set (`indoors`,
+	// `underground`) hide the room from ambience delivery unless
+	// the matching exposure flag below is set. Other terrain
+	// strings are always eligible.
+	Terrain string
+
+	// WeatherExposed, when true, overrides shielded-terrain
+	// gating for weather messages — a covered courtyard with
+	// `terrain: indoors` and `weather_exposed: true` still
+	// receives rain start/end lines. Spec §6.4.
+	WeatherExposed bool
+
+	// TimeExposed mirrors WeatherExposed for time-of-day
+	// ambience. Spec §6.4.
+	TimeExposed bool
 }
 
 // Property returns the raw value stored under key. Returns

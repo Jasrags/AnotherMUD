@@ -1966,6 +1966,19 @@ playtesting.
       rolls subscribing to the in-game clock; per-state message
       tables; weather-exposed rooms render current state. Spec §6
       complete.
+  - [x] **M15.4a — Substrate.** `internal/weather` package
+        (Zone, Registry, Service with HourChanged / PeriodChanged
+        seams, weighted-pick transition, message cascade,
+        eligibility gate); `world.Room.Terrain` /
+        `WeatherExposed` / `TimeExposed`; `world.Area.WeatherZone`;
+        `weather.changed` bus event. Callable-only — no YAML
+        loader, no composition-root wiring. M15.4b lands those
+        alongside the in-game clock.
+  - [ ] **M15.4b — Wiring.** Pack loader extensions
+        (terrain + exposure on Room, weather_zone on Area,
+        zone YAML schema), in-game clock implementation
+        (time-and-clock §3), composition-root subscriber
+        binding `time.hour.change` → `Service.HourChanged`.
 
 **Touches specs:** `world-rooms-movement` §5 (doors + portals), §6
 (weather); new `recall.md` (or §7 section) for M15.3.

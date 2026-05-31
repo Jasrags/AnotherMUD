@@ -88,6 +88,26 @@ point. The `recall` verb teleports to that point.
 
 **Pre-decisions in §"Open pre-decisions" below.**
 
+### M15.4a — Weather substrate  ✅ SHIPPED
+
+`internal/weather` package (Zone, Registry, Service) +
+`world.Room.Terrain` / `WeatherExposed` / `TimeExposed` +
+`world.Area.WeatherZone` + `weather.changed` bus event. The
+service exposes `HourChanged(ctx, hour)` and
+`PeriodChanged(ctx, period)` as the seams the future in-game
+clock subscriber will call. State machine, weighted-pick
+transition, message cascade (zone-by-terrain today; room +
+area overrides plug into the same resolver in M15.4b), and
+eligibility gate (indoors/underground shielded unless
+exposure flag flipped) all in place. Tests cover roll,
+identical-state no-op, off-interval skip, SetWeather force +
+no-op, period delivery, and shielding/exposure permutations.
+
+**Out of scope here** (lands in M15.4b alongside the real
+clock): YAML loader extensions, composition-root wiring of
+`time.hour.change` → `Service.HourChanged`, room-render
+integration with current weather state.
+
 ### M15.4 — Weather
 
 **Spec:** `world-rooms-movement.md` §6.
