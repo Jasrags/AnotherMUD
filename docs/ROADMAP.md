@@ -2332,6 +2332,31 @@ without rewriting scripts.
 - [ ] **M17.2 — Arg typing.** `commands-and-dispatch §5`.
       Independent of the scripting runtime; can land in
       parallel.
+  - [ ] **M17.2d — Handler migration + production adapter.**
+        Wires the §5 arg-typing pipeline into live dispatch.
+    - [x] **M17.2d₁ — Production ResolveContext adapter.**
+          New `internal/command/argcontext.go`: candidate
+          adapters bridging the M17.2b/c resolver interfaces
+          to runtime types — `itemCandidate` over
+          `*entities.ItemInstance` (also satisfies
+          `ContainerCandidate`; `IsContainer` mirrors the put
+          verb's `Type()==container` test), `mobCandidate`
+          over `*entities.MobInstance` (EntityType constant
+          `mob`), and `worldDoorScope` over `*world.World`
+          (wraps `ResolveDoorTarget`→`GetDoor`, **single-token
+          door addressing** — resolves the M17.2c door
+          deferral). `(*Context).BuildResolveContext()`
+          assembles inventory / room-item / room-mob / door
+          scopes + actor self-tag from a live Context, nil-safe
+          for partial test contexts. Killed the `player`/`mob`
+          magic strings in the resolvers with
+          `entityType{Player,Mob}` consts. 10 tests resolve
+          every scope end-to-end through the real registry;
+          coverage 83.0%. **KNOWN GAP:** room players aren't
+          enumerated (Locator is name-only) so RoomEntities
+          carries mobs only — entity/player/visible won't
+          surface other players until the Locator gains room
+          enumeration (M17.2d₂). No handler migration yet.
   - [x] **M17.2c — Ordinals, bulk, and the door resolver.**
         Closes the §5.5/§5.6 selection surface. Ordinal
         selection (`<n>.<keyword>`) already worked across all

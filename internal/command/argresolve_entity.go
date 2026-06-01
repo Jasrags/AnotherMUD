@@ -21,6 +21,16 @@ import (
 // discriminator. Pack handlers and Lua scripts (M17.2d) read
 // these directly from the resolved-args map.
 
+// Entity-type discriminators. EntityCandidate.EntityType reports one
+// of these; the player / npc resolvers filter on them and the entity
+// adapters (argcontext.go) tag candidates with them. Kept as named
+// constants so the resolver filters and the production adapters can't
+// drift on a bare string literal.
+const (
+	entityTypePlayer = "player"
+	entityTypeMob    = "mob"
+)
+
 // ItemCandidate is the per-item shape resolvers need: keyword
 // matching (via the keyword.Named methods) plus the runtime id +
 // template id for the result struct. ItemInstance from
@@ -217,7 +227,7 @@ func resolveEntity(in ResolverInput) (ResolverOutput, error) {
 // resolvePlayer filters room entities to players only, then
 // keyword-matches.
 func resolvePlayer(in ResolverInput) (ResolverOutput, error) {
-	filtered := filterEntityType(in.Context.RoomEntities, "player")
+	filtered := filterEntityType(in.Context.RoomEntities, entityTypePlayer)
 	match := keyword.Resolve(entitiesAsNamed(filtered), in.Tokens[0])
 	if match == nil {
 		return ResolverOutput{}, ErrPlayerNotInRoom
@@ -228,7 +238,7 @@ func resolvePlayer(in ResolverInput) (ResolverOutput, error) {
 
 // resolveNPC filters room entities to mobs only.
 func resolveNPC(in ResolverInput) (ResolverOutput, error) {
-	filtered := filterEntityType(in.Context.RoomEntities, "mob")
+	filtered := filterEntityType(in.Context.RoomEntities, entityTypeMob)
 	match := keyword.Resolve(entitiesAsNamed(filtered), in.Tokens[0])
 	if match == nil {
 		return ResolverOutput{}, ErrNpcNotInRoom
@@ -269,7 +279,7 @@ func resolveVisible(in ResolverInput) (ResolverOutput, error) {
 				EntityRef: EntityRef{
 					ID:   in.Context.ActorID,
 					Name: in.Context.ActorName,
-					Type: "player",
+					Type: entityTypePlayer,
 				},
 				Source: "self",
 			},
