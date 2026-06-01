@@ -52,6 +52,8 @@ go straight into a milestone.
 | Cross-pack reference validation at boot | scripting-and-packs | no boot-time cross-pack ref check |
 | Property-registry save-pipeline integration | persistence §2 / §4.4 | registry substrate exists (M14.4); not wired into the save pipeline — m14 |
 | Slow-tick observability | time-and-clock §4 | no slow-tick instrumentation |
+| **Roles & permissions** *(keystone)* | **roles-and-permissions §2–§8** (new) | no role system; help-tier is a no-op stub. Flat `HasRole` capability model (ported from Tapestry). Unblocks admin verbs, §5 idle exemption, verb gating |
+| Admin-tag idle exemption | session-lifecycle §5 | gated on Roles above — build alongside it |
 
 ---
 
@@ -61,21 +63,18 @@ No spec exists yet. The first deliverable is a new `docs/specs/` file (and the
 pre-decision it depends on). These are where genuinely-new *systems* live — the gap the
 old five-theme partition left uncovered.
 
-- **Roles & permissions** *(keystone)* — no role/permission system; the help-tier is a
-  known no-op stub. Unblocks admin verbs, session §5 idle exemption, and gating for the
-  currently-ungated `xp` / `reload` / training verbs. Highest leverage of anything here.
-  Pre-decision: tier ladder vs. capability grants.
 - **Faction / standing** — per-faction reputation distinct from alignment buckets.
-  Pre-decision: linear scale (alignment-shaped) vs. per-faction matrix. May depend on Roles.
+  ⚠️ **No Tapestry reference — needs design help before a spec.** Tapestry has no
+  faction/standing/reputation system (alignment substitutes there). This is greenfield:
+  pre-decisions (linear scale vs. per-faction matrix; relation to alignment; whether it
+  depends on Roles) need a design conversation, not a port. Park until then.
 - **Visibility / hidden / sneak** — line-of-sight, hidden mobs, sneak skill. (Today only a
   `BypassVisibility` arg flag exists — no system.)
 - **Essence** — first-class item property with glyph + color. Pre-decision: one tag
   system with Rarity or two.
 - **Rarity tiers** — common/rare/epic ladder with colorization.
-- **Admin verbs** (warp, set, reload, announce) — depends on Roles. Tapestry: `AdminModule`.
-- **Admin-tag idle exemption** (session-lifecycle §5) — *specced*, but gated on Roles:
-  needs an admin role tag before a session can be exempted from the idle sweep. Build
-  alongside Roles, not before.
+- **Admin verbs** (warp, set, reload, announce) — depends on Roles. Tapestry: `AdminModule`
+  (has a Tapestry reference — specced next, not greenfield).
 - **Cross-cutting event catalog** — per-spec event tables exist in `specs/README.md`;
   no aggregated catalog. (Docs/meta, not engine.)
 - **Reactive tag observers** — subscribers on tag mutations. Partial substrate exists

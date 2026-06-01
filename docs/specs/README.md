@@ -92,6 +92,10 @@ How a connection becomes a session becomes a character.
 - [session-lifecycle](session-lifecycle.md) — PlayerSession,
   SessionManager, flood protection, idle timeouts, link-dead,
   takeover.
+- [roles-and-permissions](roles-and-permissions.md) — per-character
+  role set, the `HasRole` authorization check, grant/revoke,
+  config seed/bootstrap. Consulted by admin verbs, the admin
+  channel, and the §5 idle-sweep exemption.
 
 ### 5. Presentation
 
