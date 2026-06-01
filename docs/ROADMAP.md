@@ -2279,9 +2279,29 @@ without rewriting scripts.
         call-stack overflow, allocation-storm bounded by
         timeout, error format / Unwrap. New dep:
         `github.com/yuin/gopher-lua` v1.1.2.
-  - [ ] **M17.1b — Pack discovery.** Loader picks up
-        `scripts/*.lua` alongside YAML; scripts get a
-        registration callback at pack-load time.
+  - [x] **M17.1b — Pack discovery.** Manifest `content.scripts:
+        ["scripts/*.lua"]` glob picks up Lua files alongside
+        existing YAML. New `internal/script` package owns the
+        boot-time `Registry` (PackID, Path, Source, LoadOrder
+        tuples; deterministic All() sort by LoadOrder then
+        Path; rejects (PackID, Path) duplicates). Pack loader
+        reads each script, calls `scriptCompiler.Compile`
+        (new method on `*scripting.Engine` — LoadString-only,
+        no execution, no Timeout) to surface syntax errors with
+        pack + path attribution at boot, then registers the
+        Entry. New `pack.ScriptCompiler` interface (defined at
+        the use site so the pack package doesn't import
+        internal/scripting directly) threaded through
+        `pack.Load`; nil-safe so tests can skip the compile
+        check. Composition root constructs a sandboxed
+        `*scripting.Engine` and passes it. 7 registry-level
+        tests (round-trip, sort stability, duplicate rejection,
+        cross-pack same-path allowed, concurrent registration,
+        snapshot semantics) + 3 Compile tests (valid,
+        attributed syntax error, no side-effects) + 4
+        integration tests (discovery, syntax-error attribution
+        through Load, empty-glob clean load, nil-compiler skips
+        check). `go test -race ./...` clean.
   - [ ] **M17.1c — Bus bridge + minimal API.** Scripts can
         `engine.subscribe("mob.killed", fn)` and call
         `engine.log(msg)`. Demo target: a Lua script in

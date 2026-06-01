@@ -21,6 +21,7 @@ import (
 	"github.com/Jasrags/AnotherMUD/internal/property"
 	"github.com/Jasrags/AnotherMUD/internal/quest"
 	"github.com/Jasrags/AnotherMUD/internal/render"
+	"github.com/Jasrags/AnotherMUD/internal/script"
 	"github.com/Jasrags/AnotherMUD/internal/slot"
 	"github.com/Jasrags/AnotherMUD/internal/stats"
 	"github.com/Jasrags/AnotherMUD/internal/weather"
@@ -62,6 +63,21 @@ type MobSpawner interface {
 	SpawnAndPlaceMob(ctx context.Context, templateID string, roomID world.RoomID) error
 }
 
+// ScriptCompiler is the M17.1b seam between the pack loader and the
+// scripting runtime. The loader calls Compile on every discovered
+// script body so syntax errors surface with pack + path attribution
+// at boot, before the engine starts ticking. Defined here at the
+// use site so the pack package doesn't import internal/scripting
+// directly; the composition root passes a real
+// *scripting.Engine.
+//
+// Nil-safe: when nil is passed to Load, scripts are still
+// registered but NOT compile-checked — useful for tests that
+// don't want to construct a scripting engine.
+type ScriptCompiler interface {
+	Compile(packID, scriptPath, script string) error
+}
+
 // pendingPlacement is one room→item entry collected during the pack
 // content pass and applied once all content has loaded. We accumulate
 // these rather than spawning inline so cross-pack template references
@@ -90,8 +106,8 @@ type pendingMobPlacement struct {
 //
 // Filter, when non-empty, restricts discovery (spec §2.4). Pass nil to
 // load every active pack under root.
-func Load(ctx context.Context, root string, filter []string, dst *Registries, spawner Spawner, mobSpawner MobSpawner) error {
-	if dst == nil || dst.World == nil || dst.Items == nil || dst.Slots == nil || dst.Mobs == nil || dst.Tracks == nil || dst.Races == nil || dst.Classes == nil || dst.Abilities == nil || dst.Theme == nil || dst.Help == nil || dst.Quests == nil || dst.Weather == nil {
+func Load(ctx context.Context, root string, filter []string, dst *Registries, spawner Spawner, mobSpawner MobSpawner, scriptCompiler ScriptCompiler) error {
+	if dst == nil || dst.World == nil || dst.Items == nil || dst.Slots == nil || dst.Mobs == nil || dst.Tracks == nil || dst.Races == nil || dst.Classes == nil || dst.Abilities == nil || dst.Theme == nil || dst.Help == nil || dst.Quests == nil || dst.Weather == nil || dst.Scripts == nil {
 		return errors.New("pack.Load: dst has nil registry field; use pack.NewRegistries()")
 	}
 	logger := logging.From(ctx).With(slog.String("event", "pack.load"), slog.String("root", root))
@@ -120,7 +136,7 @@ func Load(ctx context.Context, root string, filter []string, dst *Registries, sp
 	var placements []pendingPlacement
 	var mobPlacements []pendingMobPlacement
 	for _, p := range ordered {
-		pp, mp, err := loadPackContent(ctx, p, dst)
+		pp, mp, err := loadPackContent(ctx, p, dst, scriptCompiler)
 		if err != nil {
 			return fmt.Errorf("pack %q: %w", p.Manifest.Name, err)
 		}
@@ -186,7 +202,7 @@ func validateSpawnRules(dst *Registries) error {
 	return nil
 }
 
-func loadPackContent(ctx context.Context, p Discovered, dst *Registries) ([]pendingPlacement, []pendingMobPlacement, error) {
+func loadPackContent(ctx context.Context, p Discovered, dst *Registries, scriptCompiler ScriptCompiler) ([]pendingPlacement, []pendingMobPlacement, error) {
 	ns := p.Namespace()
 	logger := logging.From(ctx).With(slog.String("pack", p.Manifest.Name), slog.String("namespace", ns))
 
@@ -245,6 +261,25 @@ func loadPackContent(ctx context.Context, p Discovered, dst *Registries) ([]pend
 	weatherZonePaths, err := resolveGlobs(p.Dir, p.Manifest.Content.WeatherZones)
 	if err != nil {
 		return nil, nil, err
+	}
+	scriptPaths, err := resolveGlobs(p.Dir, p.Manifest.Content.Scripts)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	// M17.1b: discover, compile-check, and register pack scripts.
+	// Compile-check at boot is the cheapest place to surface a syntax
+	// error in pack-authored Lua — the alternative is to discover at
+	// load and crash at first event delivery. Done early in the
+	// content pass so a broken script aborts before anything else
+	// commits to disk.
+	if err := loadScripts(p, dst, scriptCompiler, scriptPaths); err != nil {
+		return nil, nil, err
+	}
+	if len(scriptPaths) > 0 {
+		logger.Info("pack scripts loaded",
+			slog.String("event", "pack.scripts"),
+			slog.Int("count", len(scriptPaths)))
 	}
 
 	// Weather zones load BEFORE areas so an area's `weather_zone`
@@ -1038,6 +1073,61 @@ func decodeClass(path, ns string) (*progression.Class, error) {
 // files. Sorted for deterministic load order. Missing patterns surface
 // as errors so authors notice typos.
 //
+// loadScripts reads each scriptPath, compile-checks the source via
+// scriptCompiler (when supplied), and registers a script.Entry on
+// dst.Scripts. Returns the first error encountered so a broken
+// script aborts pack load at the same point YAML errors do.
+//
+// scriptCompiler may be nil — production wires a real
+// scripting.Engine, tests typically pass nil and lean on integration
+// tests to cover the compile-check seam.
+//
+// Each script's relative path inside the pack is captured as the
+// Entry.Path; the runtime uses that for logging and error
+// attribution at execution time (M17.1c). Source is the raw text
+// read from disk — gopher-lua handles its own line-counting for
+// error messages.
+func loadScripts(p Discovered, dst *Registries, scriptCompiler ScriptCompiler, scriptPaths []string) error {
+	if len(scriptPaths) == 0 {
+		return nil
+	}
+	packAbs, err := filepath.Abs(p.Dir)
+	if err != nil {
+		return fmt.Errorf("resolving pack dir for scripts: %w", err)
+	}
+	ns := p.Namespace()
+	for _, sp := range scriptPaths {
+		source, err := os.ReadFile(sp)
+		if err != nil {
+			return fmt.Errorf("reading script %s: %w", sp, err)
+		}
+		// Path stored in the registry is relative to the pack
+		// directory so the runtime's error messages match what a
+		// pack author sees in their content tree.
+		relPath, relErr := filepath.Rel(packAbs, sp)
+		if relErr != nil {
+			relPath = filepath.Base(sp)
+		}
+		relPath = filepath.ToSlash(relPath)
+
+		if scriptCompiler != nil {
+			if err := scriptCompiler.Compile(ns, relPath, string(source)); err != nil {
+				return fmt.Errorf("compile %s: %w", sp, err)
+			}
+		}
+		entry := script.Entry{
+			PackID:    ns,
+			Path:      relPath,
+			Source:    string(source),
+			LoadOrder: p.Manifest.LoadOrder,
+		}
+		if err := dst.Scripts.Register(entry); err != nil {
+			return fmt.Errorf("registering script %s: %w", sp, err)
+		}
+	}
+	return nil
+}
+
 // Matches MUST stay within packDir. A pattern containing ".." (or
 // otherwise escaping) is rejected — packs may not read host files
 // outside their own directory.

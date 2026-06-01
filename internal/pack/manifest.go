@@ -85,6 +85,14 @@ type ContentPaths struct {
 	// Loaded into Registries.Weather; areas reference zones
 	// by id through their `weather_zone` field.
 	WeatherZones []string `yaml:"weather_zones,omitempty"`
+	// Scripts are Lua source files discovered by the M17.1b
+	// loader. Each path glob expands relative to the pack
+	// directory (e.g. `scripts/*.lua`). The loader compiles
+	// each file via scripting.Engine.Compile to surface
+	// syntax errors at boot, then stashes (PackID, Path,
+	// Source) into Registries.Scripts. Execution (M17.1c)
+	// is the runtime's concern, not the loader's.
+	Scripts []string `yaml:"scripts,omitempty"`
 }
 
 // IsActive reports whether the manifest is active (default true).

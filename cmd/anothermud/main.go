@@ -36,6 +36,7 @@ import (
 	"github.com/Jasrags/AnotherMUD/internal/mob"
 	"github.com/Jasrags/AnotherMUD/internal/mssp"
 	"github.com/Jasrags/AnotherMUD/internal/pack"
+	"github.com/Jasrags/AnotherMUD/internal/scripting"
 	"github.com/Jasrags/AnotherMUD/internal/player"
 	"github.com/Jasrags/AnotherMUD/internal/progression"
 	"github.com/Jasrags/AnotherMUD/internal/quest"
@@ -124,7 +125,12 @@ func run() error {
 		classes:      registries.Classes,
 		bus:          bus,
 	}
-	if err := pack.Load(ctx, cfg.ContentDir, nil, registries, spawner, spawner); err != nil {
+	// M17.1b: a sandboxed scripting.Engine is the ScriptCompiler the
+	// pack loader uses to syntax-check each pack-supplied Lua file
+	// at boot. M17.1c will reuse this same Engine to actually run
+	// the scripts.
+	scriptEngine := scripting.New(scripting.Options{})
+	if err := pack.Load(ctx, cfg.ContentDir, nil, registries, spawner, spawner, scriptEngine); err != nil {
 		return fmt.Errorf("loading content from %s: %w", cfg.ContentDir, err)
 	}
 	w := registries.World

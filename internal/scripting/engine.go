@@ -175,6 +175,39 @@ func (e *Engine) Run(ctx context.Context, packID, scriptPath, script string) err
 	return nil
 }
 
+// Compile parses script in a fresh sandboxed LState without
+// executing it. Used at pack-load time to surface syntax errors
+// with pack + script attribution before the engine commits to
+// running anything.
+//
+// Returned errors are either *Error (parse failure, attribution
+// attached) or nil. Compile does NOT honor Engine.Timeout — the
+// gopher-lua parser is bounded by input size, not wall-clock,
+// and a deadline applied here would surface as a confusing
+// "context canceled" on otherwise-valid scripts.
+func (e *Engine) Compile(packID, scriptPath, script string) error {
+	L := lua.NewState(lua.Options{
+		SkipOpenLibs:        true,
+		RegistrySize:        1024,
+		RegistryMaxSize:     e.opts.MaxRegistrySize,
+		RegistryGrowStep:    1024,
+		CallStackSize:       e.opts.MaxCallStackSize,
+		IncludeGoStackTrace: false,
+	})
+	defer L.Close()
+	// LoadString compiles without running. No libraries are
+	// loaded — parsing doesn't resolve identifiers, so the
+	// openSafeLibs work is reserved for the hot path in Run().
+	if _, err := L.LoadString(script); err != nil {
+		return &Error{
+			PackID:     packID,
+			ScriptPath: scriptPath,
+			Cause:      err,
+		}
+	}
+	return nil
+}
+
 // Error wraps a gopher-lua error with the pack + script
 // attribution the runtime collected at Run time. Implementations
 // of error must surface both the Lua-side message (which already

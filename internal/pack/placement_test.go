@@ -84,7 +84,7 @@ properties:
 func TestLoad_PlacesItemsFromRoomYAML(t *testing.T) {
 	root := placementPack(t, "items:\n  - well\n")
 	spawner := &recordingSpawner{}
-	if err := Load(context.Background(), root, nil, NewRegistries(), spawner, nil); err != nil {
+	if err := Load(context.Background(), root, nil, NewRegistries(), spawner, nil, nil); err != nil {
 		t.Fatalf("Load: %v", err)
 	}
 	if len(spawner.calls) != 1 {
@@ -101,7 +101,7 @@ func TestLoad_PlacesItemsFromRoomYAML(t *testing.T) {
 
 func TestLoad_PlacementUnknownTemplate(t *testing.T) {
 	root := placementPack(t, "items:\n  - ghost-item\n")
-	err := Load(context.Background(), root, nil, NewRegistries(), &recordingSpawner{}, nil)
+	err := Load(context.Background(), root, nil, NewRegistries(), &recordingSpawner{}, nil, nil)
 	if !errors.Is(err, ErrMissingItemTemplate) {
 		t.Fatalf("err = %v, want ErrMissingItemTemplate", err)
 	}
@@ -114,7 +114,7 @@ func TestLoad_PlacementUnknownTemplate(t *testing.T) {
 // as a load error even in template-only paths.
 func TestLoad_PlacementValidatesEvenWithNilSpawner(t *testing.T) {
 	root := placementPack(t, "items:\n  - ghost-item\n")
-	err := Load(context.Background(), root, nil, NewRegistries(), nil, nil)
+	err := Load(context.Background(), root, nil, NewRegistries(), nil, nil, nil)
 	if !errors.Is(err, ErrMissingItemTemplate) {
 		t.Fatalf("err = %v, want ErrMissingItemTemplate (nil spawner should still validate)", err)
 	}
@@ -125,7 +125,7 @@ func TestLoad_NilSpawnerSkipsActualSpawning(t *testing.T) {
 	// (which is the point — a recordingSpawner would have caught any
 	// stray invocation).
 	root := placementPack(t, "items:\n  - well\n")
-	if err := Load(context.Background(), root, nil, NewRegistries(), nil, nil); err != nil {
+	if err := Load(context.Background(), root, nil, NewRegistries(), nil, nil, nil); err != nil {
 		t.Fatalf("Load: %v", err)
 	}
 }
@@ -138,7 +138,7 @@ func TestLoad_NilSpawnerSkipsActualSpawning(t *testing.T) {
 func TestLoad_DuplicateTemplateIDSpawnsMultipleInstances(t *testing.T) {
 	root := placementPack(t, "items:\n  - well\n  - well\n")
 	spawner := &recordingSpawner{}
-	if err := Load(context.Background(), root, nil, NewRegistries(), spawner, nil); err != nil {
+	if err := Load(context.Background(), root, nil, NewRegistries(), spawner, nil, nil); err != nil {
 		t.Fatalf("Load: %v", err)
 	}
 	if len(spawner.calls) != 2 {
@@ -154,7 +154,7 @@ func TestLoad_DuplicateTemplateIDSpawnsMultipleInstances(t *testing.T) {
 func TestLoad_EmptyItemsList(t *testing.T) {
 	root := placementPack(t, "items: []\n")
 	spawner := &recordingSpawner{}
-	if err := Load(context.Background(), root, nil, NewRegistries(), spawner, nil); err != nil {
+	if err := Load(context.Background(), root, nil, NewRegistries(), spawner, nil, nil); err != nil {
 		t.Fatalf("Load: %v", err)
 	}
 	if len(spawner.calls) != 0 {
@@ -201,7 +201,7 @@ keywords: [lantern]
 `)
 
 	spawner := &recordingSpawner{}
-	if err := Load(context.Background(), root, nil, NewRegistries(), spawner, nil); err != nil {
+	if err := Load(context.Background(), root, nil, NewRegistries(), spawner, nil, nil); err != nil {
 		t.Fatalf("Load: %v", err)
 	}
 	if len(spawner.calls) != 1 {
@@ -218,7 +218,7 @@ keywords: [lantern]
 func TestLoad_SpawnerErrorPropagates(t *testing.T) {
 	root := placementPack(t, "items:\n  - well\n")
 	spawner := &recordingSpawner{err: errors.New("boom")}
-	err := Load(context.Background(), root, nil, NewRegistries(), spawner, nil)
+	err := Load(context.Background(), root, nil, NewRegistries(), spawner, nil, nil)
 	if err == nil || !errors.Is(err, spawner.err) {
 		t.Fatalf("err = %v, want wrapping of spawner err", err)
 	}
@@ -230,7 +230,7 @@ func TestLoad_EmptyItemsEntryRejected(t *testing.T) {
 	// ErrInvalidContent at decode time so authors get a precise
 	// error.
 	root := placementPack(t, "items:\n  - \"\"\n")
-	err := Load(context.Background(), root, nil, NewRegistries(), nil, nil)
+	err := Load(context.Background(), root, nil, NewRegistries(), nil, nil, nil)
 	if !errors.Is(err, ErrInvalidContent) {
 		t.Fatalf("err = %v, want ErrInvalidContent", err)
 	}

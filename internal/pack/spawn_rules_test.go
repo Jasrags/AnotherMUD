@@ -60,7 +60,7 @@ spawn_rules:
     tags: [persistent]
 `)
 	regs := NewRegistries()
-	if err := Load(context.Background(), root, nil, regs, nil, nil); err != nil {
+	if err := Load(context.Background(), root, nil, regs, nil, nil, nil); err != nil {
 		t.Fatalf("Load: %v", err)
 	}
 	area, err := regs.World.Area("tapestry-core:town")
@@ -98,7 +98,7 @@ spawn_rules:
     count: 1
 `)
 	regs := NewRegistries()
-	err := Load(context.Background(), root, nil, regs, nil, nil)
+	err := Load(context.Background(), root, nil, regs, nil, nil, nil)
 	if !errors.Is(err, ErrMissingSpawnRoom) {
 		t.Errorf("err = %v, want ErrMissingSpawnRoom", err)
 	}
@@ -114,7 +114,7 @@ spawn_rules:
     count: 1
 `)
 	regs := NewRegistries()
-	err := Load(context.Background(), root, nil, regs, nil, nil)
+	err := Load(context.Background(), root, nil, regs, nil, nil, nil)
 	if !errors.Is(err, ErrMissingMobTemplate) {
 		t.Errorf("err = %v, want ErrMissingMobTemplate", err)
 	}
@@ -130,7 +130,7 @@ spawn_rules:
     count: 0
 `)
 	regs := NewRegistries()
-	err := Load(context.Background(), root, nil, regs, nil, nil)
+	err := Load(context.Background(), root, nil, regs, nil, nil, nil)
 	if !errors.Is(err, ErrInvalidContent) {
 		t.Errorf("err = %v, want ErrInvalidContent", err)
 	}
@@ -147,7 +147,7 @@ spawn_rules:
     rare: captain
 `)
 	regs := NewRegistries()
-	err := Load(context.Background(), root, nil, regs, nil, nil)
+	err := Load(context.Background(), root, nil, regs, nil, nil, nil)
 	if !errors.Is(err, ErrInvalidContent) {
 		t.Errorf("err = %v, want ErrInvalidContent (rare without rare_chance)", err)
 	}

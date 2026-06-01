@@ -9,6 +9,7 @@ import (
 	"github.com/Jasrags/AnotherMUD/internal/property"
 	"github.com/Jasrags/AnotherMUD/internal/quest"
 	"github.com/Jasrags/AnotherMUD/internal/render"
+	"github.com/Jasrags/AnotherMUD/internal/script"
 	"github.com/Jasrags/AnotherMUD/internal/slot"
 	"github.com/Jasrags/AnotherMUD/internal/weather"
 	"github.com/Jasrags/AnotherMUD/internal/world"
@@ -56,6 +57,13 @@ type Registries struct {
 	// Service resolves area weather_zone ids through this registry
 	// at HourChanged time.
 	Weather *weather.Registry
+	// Scripts is the M17.1b script-source registry. Packs register
+	// Lua source bodies from their `scripts:` manifest glob; the
+	// composition root (M17.1c) reads from here to install handlers
+	// at boot. Compile-checked at load time so syntax errors
+	// surface with pack + path attribution before the engine
+	// starts ticking.
+	Scripts *script.Registry
 }
 
 // NewRegistries returns a Registries with every field initialized.
@@ -79,5 +87,6 @@ func NewRegistries() *Registries {
 		Effects:    effect.NewRegistry(),
 		Properties: property.NewRegistry(),
 		Weather:    weather.NewRegistry(),
+		Scripts:    script.New(),
 	}
 }

@@ -43,7 +43,7 @@ behavior: stationary
 func TestLoad_PlacesMobsFromRoomYAML(t *testing.T) {
 	root := mobPlacementPack(t, "mobs:\n  - guard\n")
 	spawner := &recordingSpawner{}
-	if err := Load(context.Background(), root, nil, NewRegistries(), nil, spawner); err != nil {
+	if err := Load(context.Background(), root, nil, NewRegistries(), nil, spawner, nil); err != nil {
 		t.Fatalf("Load: %v", err)
 	}
 	if len(spawner.calls) != 1 {
@@ -59,7 +59,7 @@ func TestLoad_PlacesMobsFromRoomYAML(t *testing.T) {
 
 func TestLoad_MobPlacementUnknownTemplate(t *testing.T) {
 	root := mobPlacementPack(t, "mobs:\n  - ghost-mob\n")
-	err := Load(context.Background(), root, nil, NewRegistries(), nil, &recordingSpawner{})
+	err := Load(context.Background(), root, nil, NewRegistries(), nil, &recordingSpawner{}, nil)
 	if !errors.Is(err, ErrMissingMobTemplate) {
 		t.Fatalf("err = %v, want ErrMissingMobTemplate", err)
 	}
@@ -70,7 +70,7 @@ func TestLoad_MobPlacementUnknownTemplate(t *testing.T) {
 // caller passes nil spawner (template-only loads).
 func TestLoad_MobPlacementValidatesEvenWithNilSpawner(t *testing.T) {
 	root := mobPlacementPack(t, "mobs:\n  - ghost-mob\n")
-	err := Load(context.Background(), root, nil, NewRegistries(), nil, nil)
+	err := Load(context.Background(), root, nil, NewRegistries(), nil, nil, nil)
 	if !errors.Is(err, ErrMissingMobTemplate) {
 		t.Fatalf("err = %v, want ErrMissingMobTemplate (nil mob spawner should still validate)", err)
 	}
@@ -78,7 +78,7 @@ func TestLoad_MobPlacementValidatesEvenWithNilSpawner(t *testing.T) {
 
 func TestLoad_NilMobSpawnerSkipsActualSpawning(t *testing.T) {
 	root := mobPlacementPack(t, "mobs:\n  - guard\n")
-	if err := Load(context.Background(), root, nil, NewRegistries(), nil, nil); err != nil {
+	if err := Load(context.Background(), root, nil, NewRegistries(), nil, nil, nil); err != nil {
 		t.Fatalf("Load: %v", err)
 	}
 }
@@ -86,7 +86,7 @@ func TestLoad_NilMobSpawnerSkipsActualSpawning(t *testing.T) {
 func TestLoad_EmptyMobsList(t *testing.T) {
 	root := mobPlacementPack(t, "mobs: []\n")
 	spawner := &recordingSpawner{}
-	if err := Load(context.Background(), root, nil, NewRegistries(), nil, spawner); err != nil {
+	if err := Load(context.Background(), root, nil, NewRegistries(), nil, spawner, nil); err != nil {
 		t.Fatalf("Load: %v", err)
 	}
 	if len(spawner.calls) != 0 {
@@ -101,7 +101,7 @@ func TestLoad_EmptyMobsList(t *testing.T) {
 func TestLoad_DuplicateMobIDsSpawnMultipleInstances(t *testing.T) {
 	root := mobPlacementPack(t, "mobs:\n  - guard\n  - guard\n")
 	spawner := &recordingSpawner{}
-	if err := Load(context.Background(), root, nil, NewRegistries(), nil, spawner); err != nil {
+	if err := Load(context.Background(), root, nil, NewRegistries(), nil, spawner, nil); err != nil {
 		t.Fatalf("Load: %v", err)
 	}
 	if len(spawner.calls) != 2 {
@@ -112,7 +112,7 @@ func TestLoad_DuplicateMobIDsSpawnMultipleInstances(t *testing.T) {
 func TestLoad_MobSpawnerErrorPropagates(t *testing.T) {
 	root := mobPlacementPack(t, "mobs:\n  - guard\n")
 	spawner := &recordingSpawner{err: errors.New("boom")}
-	err := Load(context.Background(), root, nil, NewRegistries(), nil, spawner)
+	err := Load(context.Background(), root, nil, NewRegistries(), nil, spawner, nil)
 	if err == nil || !errors.Is(err, spawner.err) {
 		t.Fatalf("err = %v, want wrapping of spawner err", err)
 	}
@@ -120,7 +120,7 @@ func TestLoad_MobSpawnerErrorPropagates(t *testing.T) {
 
 func TestLoad_EmptyMobsEntryRejected(t *testing.T) {
 	root := mobPlacementPack(t, "mobs:\n  - \"\"\n")
-	err := Load(context.Background(), root, nil, NewRegistries(), nil, nil)
+	err := Load(context.Background(), root, nil, NewRegistries(), nil, nil, nil)
 	if !errors.Is(err, ErrInvalidContent) {
 		t.Fatalf("err = %v, want ErrInvalidContent", err)
 	}
@@ -162,7 +162,7 @@ behavior: idle
 `)
 	items := &recordingSpawner{}
 	mobs := &recordingSpawner{}
-	if err := Load(context.Background(), root, nil, NewRegistries(), items, mobs); err != nil {
+	if err := Load(context.Background(), root, nil, NewRegistries(), items, mobs, nil); err != nil {
 		t.Fatalf("Load: %v", err)
 	}
 	if len(items.calls) != 1 || items.calls[0].TemplateID != "tapestry-core:well" {

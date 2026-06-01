@@ -243,6 +243,46 @@ func TestEngine_CallStackOverflow_IsCaught(t *testing.T) {
 
 // --- Error attribution semantics. ---
 
+// --- Compile (M17.1b pack-load syntax check). ---
+
+func TestCompile_ValidScript_NoError(t *testing.T) {
+	e := fastEngine(t)
+	err := e.Compile("test-pack", "noop.lua",
+		`local x = 1 + 2; return x`)
+	if err != nil {
+		t.Errorf("valid script Compile: %v", err)
+	}
+}
+
+func TestCompile_SyntaxError_AttributesPackAndScript(t *testing.T) {
+	e := fastEngine(t)
+	err := e.Compile("test-pack", "broken.lua",
+		`local x = 1 +`) // missing rhs
+	if err == nil {
+		t.Fatal("expected syntax error")
+	}
+	var se *scripting.Error
+	if !errors.As(err, &se) {
+		t.Fatalf("expected *scripting.Error, got %T: %v", err, err)
+	}
+	if se.PackID != "test-pack" || se.ScriptPath != "broken.lua" {
+		t.Errorf("attribution = %s/%s, want test-pack/broken.lua",
+			se.PackID, se.ScriptPath)
+	}
+}
+
+func TestCompile_DoesNotExecuteSideEffects(t *testing.T) {
+	// Compile must NOT run the script body — even a runtime
+	// `error()` at the top level should not fire because
+	// LoadString stops at parse.
+	e := fastEngine(t)
+	err := e.Compile("p", "s",
+		`error("should never fire — Compile does not run")`)
+	if err != nil {
+		t.Errorf("Compile incorrectly executed: %v", err)
+	}
+}
+
 func TestError_FormatHasAllFields(t *testing.T) {
 	se := &scripting.Error{
 		PackID:     "core",

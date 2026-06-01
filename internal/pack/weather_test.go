@@ -61,7 +61,7 @@ name: The Square
 description: stones
 `)
 	regs := NewRegistries()
-	if err := Load(context.Background(), root, nil, regs, nil, nil); err != nil {
+	if err := Load(context.Background(), root, nil, regs, nil, nil, nil); err != nil {
 		t.Fatalf("Load: %v", err)
 	}
 	z, err := regs.Weather.Get("tapestry-core:temperate")
@@ -94,7 +94,7 @@ func TestLoad_AreaQualifiesWeatherZoneReference(t *testing.T) {
 		"id: square\narea: town\nname: The Square\ndescription: x\n",
 	)
 	regs := NewRegistries()
-	if err := Load(context.Background(), root, nil, regs, nil, nil); err != nil {
+	if err := Load(context.Background(), root, nil, regs, nil, nil, nil); err != nil {
 		t.Fatalf("Load: %v", err)
 	}
 	area, err := regs.World.Area("tapestry-core:town")
@@ -114,7 +114,7 @@ func TestLoad_AreaWithoutWeatherZoneIsEmpty(t *testing.T) {
 		"id: square\narea: town\nname: The Square\ndescription: x\n",
 	)
 	regs := NewRegistries()
-	if err := Load(context.Background(), root, nil, regs, nil, nil); err != nil {
+	if err := Load(context.Background(), root, nil, regs, nil, nil, nil); err != nil {
 		t.Fatalf("Load: %v", err)
 	}
 	area, _ := regs.World.Area("tapestry-core:town")
@@ -137,7 +137,7 @@ time_exposed: false
 `,
 	)
 	regs := NewRegistries()
-	if err := Load(context.Background(), root, nil, regs, nil, nil); err != nil {
+	if err := Load(context.Background(), root, nil, regs, nil, nil, nil); err != nil {
 		t.Fatalf("Load: %v", err)
 	}
 	r, err := regs.World.Room("tapestry-core:square")
@@ -167,7 +167,7 @@ transitions:
 		"id: square\narea: town\nname: The Square\ndescription: x\n",
 	)
 	regs := NewRegistries()
-	err := Load(context.Background(), root, nil, regs, nil, nil)
+	err := Load(context.Background(), root, nil, regs, nil, nil, nil)
 	if err == nil {
 		t.Fatal("expected error on zero-weight transition")
 	}
@@ -188,7 +188,7 @@ transitions:
 		"id: square\narea: town\nname: The Square\ndescription: x\n",
 	)
 	regs := NewRegistries()
-	if err := Load(context.Background(), root, nil, regs, nil, nil); err == nil {
+	if err := Load(context.Background(), root, nil, regs, nil, nil, nil); err == nil {
 		t.Fatal("expected error on missing transition.next")
 	}
 }
@@ -202,7 +202,7 @@ roll_interval_hours: -1
 		"id: square\narea: town\nname: The Square\ndescription: x\n",
 	)
 	regs := NewRegistries()
-	if err := Load(context.Background(), root, nil, regs, nil, nil); err == nil {
+	if err := Load(context.Background(), root, nil, regs, nil, nil, nil); err == nil {
 		t.Fatal("expected error on negative roll_interval_hours")
 	}
 }
@@ -218,7 +218,7 @@ content:
 	writeFile(t, filepath.Join(pack, "weather_zones/a.yaml"), "id: temperate\n")
 	writeFile(t, filepath.Join(pack, "weather_zones/b.yaml"), "id: temperate\n")
 	regs := NewRegistries()
-	err := Load(context.Background(), root, nil, regs, nil, nil)
+	err := Load(context.Background(), root, nil, regs, nil, nil, nil)
 	if err == nil {
 		t.Fatal("expected error on duplicate zone id")
 	}
