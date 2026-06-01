@@ -311,16 +311,16 @@ will reuse for targeting. Getting the entity-instance model right
 here sets the shape M6 mob instances will follow.
 
 **Exit criteria:**
-- [ ] Item template registry loads from packs alongside rooms/areas; templates carry id, name, type, tags, keywords, property bag, modifier list per `inventory-equipment-items` §2.1–§2.2. `content/core/` ships at least one weapon, one wearable, one container, and one stackable consumable.
-- [ ] Item instantiation produces fresh entities with runtime ids distinct from template ids, transient `modifiers` rebuilt from template on load, `room_id` filtered out, modifier source keys tagged by entity id per §2.3. Two instances of the same template never collide.
-- [ ] Item instances are tracked in a global entity index per `world-rooms-movement` §4: Track/Untrack on instantiation/destruction, Get-by-id resolves tracked → room-scan fallback, Get-by-tag uses the read/write double-buffer with a swap at the tick boundary, Get-by-type filters the tracked set.
-- [ ] Slot registry accepts engine-baseline and pack-defined slots; snake_case enforced at registration; multi-cap slots use `name:index` keys packed from zero per §3.1–§3.2.
-- [ ] `equip` / `unequip` move items between holder contents and equipment, apply/reverse stat modifiers by `equipment:<entity id>` source key, auto-swap on full slot, emit `entity equipped` / `entity unequipped` with base slot name per §3.3–§3.4.
-- [ ] Inventory operations `get` / `drop` / `give` / `put` / `fill` validate atomically, emit one observable event each, return structured failure reasons per §4. Two-actor transfers (give, put) hold session locks in a consistent order — no deadlocks under race detector.
-- [ ] Stacking service groups contents read-only (no entity merging), respects extension-key registration order, preserves first-seen position per §5.1–§5.2. Look-at-inventory renders "3 healing potions" instead of three lines.
-- [ ] Keyword resolver handles `sword`, `red potion`, `2.ring`, `all`, `all.gem` with exact → prefix → substring precedence per §6; out-of-range ordinals return none; empty input never matches. Shared by every command that takes an item argument.
-- [ ] Player save shape adds `inventory` (item entity list) and `equipment` (slot key → item entity) blocks. `player.CurrentVersion` bumps 1 → 2 and the first real entry lands in the migration table; v1 saves load cleanly (empty inventory, empty equipment).
-- [ ] Race detector clean: `make test` stays green with stress tests covering concurrent get/drop/give between sessions in the same room.
+- [x] Item template registry loads from packs alongside rooms/areas; templates carry id, name, type, tags, keywords, property bag, modifier list per `inventory-equipment-items` §2.1–§2.2. `content/core/` ships at least one weapon, one wearable, one container, and one stackable consumable.
+- [x] Item instantiation produces fresh entities with runtime ids distinct from template ids, transient `modifiers` rebuilt from template on load, `room_id` filtered out, modifier source keys tagged by entity id per §2.3. Two instances of the same template never collide.
+- [x] Item instances are tracked in a global entity index per `world-rooms-movement` §4: Track/Untrack on instantiation/destruction, Get-by-id resolves tracked → room-scan fallback, Get-by-tag uses the read/write double-buffer with a swap at the tick boundary, Get-by-type filters the tracked set.
+- [x] Slot registry accepts engine-baseline and pack-defined slots; snake_case enforced at registration; multi-cap slots use `name:index` keys packed from zero per §3.1–§3.2.
+- [x] `equip` / `unequip` move items between holder contents and equipment, apply/reverse stat modifiers by `equipment:<entity id>` source key, auto-swap on full slot, emit `entity equipped` / `entity unequipped` with base slot name per §3.3–§3.4.
+- [x] Inventory operations `get` / `drop` / `give` / `put` / `fill` validate atomically, emit one observable event each, return structured failure reasons per §4. Two-actor transfers (give, put) hold session locks in a consistent order — no deadlocks under race detector.
+- [x] Stacking service groups contents read-only (no entity merging), respects extension-key registration order, preserves first-seen position per §5.1–§5.2. Look-at-inventory renders "3 healing potions" instead of three lines.
+- [x] Keyword resolver handles `sword`, `red potion`, `2.ring`, `all`, `all.gem` with exact → prefix → substring precedence per §6; out-of-range ordinals return none; empty input never matches. Shared by every command that takes an item argument.
+- [x] Player save shape adds `inventory` (item entity list) and `equipment` (slot key → item entity) blocks. `player.CurrentVersion` bumps 1 → 2 and the first real entry lands in the migration table; v1 saves load cleanly (empty inventory, empty equipment).
+- [x] Race detector clean: `make test` stays green with stress tests covering concurrent get/drop/give between sessions in the same room.
 
 **Touches specs:** `inventory-equipment-items` substantially, `commands-and-dispatch` (new builtins + keyword resolver as shared infrastructure), `persistence` (save shape v2 + migration), `world-rooms-movement` (rooms hold item ids).
 
@@ -1263,16 +1263,16 @@ is now real. Sketch of remaining vertical slices:
     `VisibleLength`). Theme entries load from pack content
     (`theme.yaml`).
 
-    - [ ] Semantic, literal, and brace forms all recognized;
+    - [x] Semantic, literal, and brace forms all recognized;
           case-insensitive tag/color names.
-    - [ ] `Compile()` idempotent; produces an open/close pair only
+    - [x] `Compile()` idempotent; produces an open/close pair only
           when fg or bg resolves; `IsKnown` true for declared-but-
           colorless; `Resolve` null for same.
-    - [ ] Unknown opening tags pass through as literals; known closing
+    - [x] Unknown opening tags pass through as literals; known closing
           tags consumed, unknown closing tags pass through.
-    - [ ] Plain and ANSI modes recognize the same constructs; cache
+    - [x] Plain and ANSI modes recognize the same constructs; cache
           never re-parses identical input.
-    - [ ] `TagStripper.VisibleLength(s) == len(StripTags(s))` for every
+    - [x] `TagStripper.VisibleLength(s) == len(StripTags(s))` for every
           input; a `<` with no `>` consumes the rest.
 
   - **M10.2 (landed) — Wire the renderer into the send seam.**
@@ -1863,14 +1863,14 @@ quests, training) gains weight once players can actually coordinate.
 - GMCP: plain telnet only (GMCP `Comm.Channel` is Theme B's job)
 
 **Sub-milestones (exit criteria filled in during spec phase):**
-- [ ] **M13.1 — Notification queue.** Per-entity priority queue substrate.
+- [x] **M13.1 — Notification queue.** Per-entity priority queue substrate.
       Spec + impl. Smallest, isolated.
-- [ ] **M13.2 — Tells.** Per-player `tells.yaml` inbox. Offline tells
+- [x] **M13.2 — Tells.** Per-player `tells.yaml` inbox. Offline tells
       deliver on next login. `tell` + `reply` verbs.
-- [ ] **M13.3 — Channels.** Hybrid ownership. Global per-channel ring
+- [x] **M13.3 — Channels.** Hybrid ownership. Global per-channel ring
       buffer in `saves/channels/<id>.yaml`. Engine baseline `ooc` +
       `admin`; pack-channel YAML schema. Verbs per channel.
-- [ ] **M13.4 — Emotes.** Registry-driven emote table with actor/target/
+- [x] **M13.4 — Emotes.** Registry-driven emote table with actor/target/
       room pronoun substitution. `smile`, `nod`, etc.
 
 **Touches specs:** new `social-and-notifications.md` spec (or extension
@@ -1900,23 +1900,23 @@ together they're the engine substrate showing through.
 **Live plan + current step:** `docs/themes/engine-debt-plan.md`.
 
 **Sub-milestones (order: independent block first, then chained):**
-- [ ] **M14.1 — Vital re-clamp on max-affecting stat recompute.**
+- [x] **M14.1 — Vital re-clamp on max-affecting stat recompute.**
       Listener seam on the stats recompute path; max changes flow
       to `combat.Vitals.SetMax` with current clamped as needed.
-- [ ] **M14.2 — Consumable EffectTemplate registry.** New
+- [x] **M14.2 — Consumable EffectTemplate registry.** New
       `internal/effect.Registry` + pack-loaded `effects/*.yaml` +
       subscriber on `item.consumed` that resolves `effect_id` and
       applies via `effectMgr.Apply`.
-- [ ] **M14.3 — Mob stat derivation from race + class.** Wire the
+- [x] **M14.3 — Mob stat derivation from race + class.** Wire the
       race / class lookups into `Store.SpawnMob`; apply modifiers
       to `MobInstance.StatBlock` under `race:<id>` and `class:<id>`
       source keys at spawn.
-- [ ] **M14.4 — Property registry on persistence.** New
+- [x] **M14.4 — Property registry on persistence.** New
       `internal/property.Registry` + tagged-value envelope codec;
       integrate with player save and entity instance properties.
-- [ ] **M14.5 — `world.Room.Property` bag.** Depends on M14.4.
+- [x] **M14.5 — `world.Room.Property` bag.** Depends on M14.4.
       Adds the property bag to `world.Room`; pack-loadable.
-- [ ] **M14.6 — `quest_grant` on room.** Depends on M14.5. Quest
+- [x] **M14.6 — `quest_grant` on room.** Depends on M14.5. Quest
       watcher extends its existing item-side grant handler to
       read room properties on room-entry.
 

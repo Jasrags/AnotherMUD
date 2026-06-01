@@ -8,6 +8,15 @@ actually built. Use this as the **starting board** for "what should we build nex
 **Snapshot:** 2026-05-29 (end-of-M11 + M12.3; cluster 1, cluster 2, ItemInstance mutex
 landed; help-discoverability refactor landed today).
 
+> **Stale — pending full re-survey.** Since this snapshot, all five themes have shipped:
+> A (Social MUD / M13), B (Modern Client / M16), C (World Depth / M15),
+> D (Content Authoring / M17), E (Engine Debt / M14). The per-item statuses below
+> (e.g. §1.1 scripting "Blocked", §1.2 GMCP "zero packages built", §1.3 telnet
+> negotiation "incomplete") are **superseded** — those systems now exist. Re-run the
+> refresh procedure below to rebuild an accurate board before using it to pick the next
+> theme. Until then, cross-check any item against `docs/ROADMAP.md` and the
+> `m13`–`m17` `*-deferred-fixes.md` memory files.
+
 **Refresh procedure:** Re-run two parallel surveys — one to inventory Tapestry's feature
 surface (Engine subdirs + Scripting modules + Server modules + Networking), one to map
 each `docs/specs/*.md` to its Go implementation status via ROADMAP checkboxes and the
