@@ -387,6 +387,115 @@ func TestRuntime_Reload_SyntaxErrorViaCompilerPreValidation(t *testing.T) {
 	}
 }
 
+// --- M17.4 schedule primitive ---
+
+func loadSource(t *testing.T, rt *scripting.Runtime, src string) {
+	t.Helper()
+	reg := script.New()
+	if err := reg.Register(script.Entry{PackID: "p", Path: "s.lua", Source: src}); err != nil {
+		t.Fatalf("Register: %v", err)
+	}
+	if err := rt.LoadRegistry(context.Background(), reg); err != nil {
+		t.Fatalf("LoadRegistry: %v", err)
+	}
+}
+
+func TestRuntime_Schedule_FiresAtDueTick(t *testing.T) {
+	logs := captureLogs(t)
+	rt, _ := newTestRuntime(t)
+	defer rt.Close()
+
+	// Scheduled at load time (lastTick == 0): due at tick 3.
+	loadSource(t, rt, `engine.schedule(3, function() engine.log("FIRED") end)`)
+
+	rt.Tick(context.Background(), 1)
+	rt.Tick(context.Background(), 2)
+	if contains(logs.snapshot(), "FIRED") {
+		t.Fatal("callback fired before its due tick")
+	}
+	rt.Tick(context.Background(), 3)
+	if !contains(logs.snapshot(), "FIRED") {
+		t.Errorf("callback did not fire at due tick; logs=%v", logs.snapshot())
+	}
+}
+
+func TestRuntime_Schedule_OneShot(t *testing.T) {
+	logs := captureLogs(t)
+	rt, _ := newTestRuntime(t)
+	defer rt.Close()
+
+	loadSource(t, rt, `engine.schedule(1, function() engine.log("ONCE") end)`)
+	rt.Tick(context.Background(), 1)
+	logs.reset()
+	// Subsequent ticks must NOT re-fire the one-shot.
+	rt.Tick(context.Background(), 2)
+	rt.Tick(context.Background(), 3)
+	if contains(logs.snapshot(), "ONCE") {
+		t.Errorf("one-shot callback fired more than once; logs=%v", logs.snapshot())
+	}
+}
+
+func TestRuntime_Schedule_RelativeToCurrentTick(t *testing.T) {
+	logs := captureLogs(t)
+	rt, bus := newTestRuntime(t)
+	defer rt.Close()
+
+	// A handler schedules a callback 2 ticks out. Advance to tick 10
+	// FIRST, then fire the event: lastTick is 10, so the callback is
+	// due at 12 — relative to "now", not to load time.
+	loadSource(t, rt, `
+		engine.subscribe("test.dummy", function()
+			engine.schedule(2, function() engine.log("DELAYED") end)
+		end)
+	`)
+	rt.Tick(context.Background(), 10)
+	bus.Publish(context.Background(), dummyEvent{MobName: "rat"})
+
+	rt.Tick(context.Background(), 11)
+	if contains(logs.snapshot(), "DELAYED") {
+		t.Fatal("callback fired at tick 11; want tick 12 (10 + 2)")
+	}
+	rt.Tick(context.Background(), 12)
+	if !contains(logs.snapshot(), "DELAYED") {
+		t.Errorf("callback did not fire at tick 12; logs=%v", logs.snapshot())
+	}
+}
+
+func TestRuntime_Schedule_RejectsNonPositiveDelay(t *testing.T) {
+	rt, _ := newTestRuntime(t)
+	defer rt.Close()
+
+	// delay < 1 raises a Lua ArgError, surfaced as a load error.
+	reg := script.New()
+	_ = reg.Register(script.Entry{PackID: "p", Path: "s.lua",
+		Source: `engine.schedule(0, function() end)`})
+	if err := rt.LoadRegistry(context.Background(), reg); err == nil {
+		t.Error("expected schedule(0) to raise")
+	}
+}
+
+func TestRuntime_Schedule_DroppedOnReload(t *testing.T) {
+	logs := captureLogs(t)
+	rt, _ := newTestRuntime(t)
+	defer rt.Close()
+
+	loadSource(t, rt, `engine.schedule(5, function() engine.log("STALE-TIMER") end)`)
+
+	// Reload with a script that schedules nothing; the pending timer
+	// belongs to the now-closed sandbox and must be dropped.
+	empty := script.New()
+	_ = empty.Register(script.Entry{PackID: "p", Path: "s.lua", Source: `-- nothing`})
+	if err := rt.Reload(context.Background(), empty); err != nil {
+		t.Fatalf("Reload: %v", err)
+	}
+
+	logs.reset()
+	rt.Tick(context.Background(), 10) // well past the original due tick
+	if contains(logs.snapshot(), "STALE-TIMER") {
+		t.Errorf("stale scheduled callback fired after reload; logs=%v", logs.snapshot())
+	}
+}
+
 // --- Marshaller surface ---
 
 func TestSnakeCase_HandlesCommonShapes(t *testing.T) {

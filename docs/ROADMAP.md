@@ -2605,8 +2605,23 @@ without rewriting scripts.
         catches syntax errors before teardown). 6 new tests.
         M17.3b wires the `reload` verb + composition-root trigger
         + the spec amendment.
-- [ ] **M17.4 — Schedule primitive.** Thin shim over
-      scripting; depends on M17.1c.
+- [x] **M17.4 — Schedule primitive.** **CLOSES M17 / Theme D.**
+      New `engine.schedule(delayTicks, fn)` Lua binding: a one-shot
+      callback fired `delayTicks` engine ticks later (tick = 100ms),
+      fire-and-forget (no cancel handle in v1; pending callbacks are
+      dropped on Reload/Close). The `Runtime` keeps a
+      `{dueTick, sandbox, fn}` queue under a dedicated `schedMu`;
+      `Runtime.Tick(ctx, tickCount)` (a `tick.Handler`) sets
+      `lastTick`, collects due entries under the lock, and fires
+      them OUTSIDE it via the same sandbox-locked path as bus
+      dispatch (a re-arming callback lands on a future tick; a
+      closed-sandbox call after a concurrent reload logs-and-
+      continues). Idle fast path when nothing is queued. Composition
+      root registers `scriptRuntime.Tick` at cadence one. Demo:
+      `track_kills.lua` schedules a follow-up log ~3s after each
+      kill. 5 tests (due-tick, one-shot, relative-to-current-tick,
+      reject delay < 1, dropped-on-reload). Full suite 45 pkgs,
+      -race clean.
 
 **Touches specs:** `scripting-and-packs` (the substrate);
 `commands-and-dispatch §5` (arg typing).

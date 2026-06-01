@@ -49,6 +49,30 @@ type Runtime struct {
 	// the original script.Registry.All() entry order — kept so
 	// Close releases them deterministically.
 	sandboxes []*Sandbox
+
+	// schedMu guards the M17.4 schedule queue + lastTick. Separate
+	// from mu so a firing callback's engine.schedule re-arm doesn't
+	// contend with concurrent bus dispatch, and so Tick can fire
+	// callbacks outside the lock (a callback may re-schedule).
+	schedMu sync.Mutex
+	// scheduled holds one-shot callbacks awaiting their due tick.
+	// Cleared on Reload/Close (the callbacks belong to sandboxes that
+	// are about to be torn down). Unordered — Tick scans the whole
+	// slice; the volume is small (per-mob timers, not a hot path).
+	scheduled []scheduledCall
+	// lastTick is the most recent tick observed via Tick. engine.
+	// schedule computes a callback's due tick as lastTick + delay.
+	// Preserved across Reload (the tick clock keeps running).
+	lastTick uint64
+}
+
+// scheduledCall is a one-shot engine.schedule callback awaiting its
+// due tick. The sandbox handle is needed because every Call must take
+// that LState's mutex (same contract as a bus subscription).
+type scheduledCall struct {
+	dueTick uint64
+	sb      *Sandbox
+	fn      *lua.LFunction
 }
 
 // subscription pairs a Lua handler function with the sandbox
@@ -154,6 +178,14 @@ func (r *Runtime) Reload(ctx context.Context, registry *script.Registry) error {
 		sb.Close()
 	}
 
+	// Drop pending scheduled callbacks — they belong to the sandboxes
+	// just closed. lastTick is preserved so the new scripts' schedules
+	// reckon from the current tick. New scripts re-arm during
+	// loadLocked below.
+	r.schedMu.Lock()
+	r.scheduled = nil
+	r.schedMu.Unlock()
+
 	return r.loadLocked(ctx, registry)
 }
 
@@ -181,6 +213,10 @@ func (r *Runtime) Close() {
 	for _, sb := range oldSandboxes {
 		sb.Close()
 	}
+
+	r.schedMu.Lock()
+	r.scheduled = nil
+	r.schedMu.Unlock()
 }
 
 // bindEngineAPI installs the `engine` global table on sb's
@@ -191,15 +227,19 @@ func (r *Runtime) Close() {
 //     bus subscription the first time a name is seen.
 //   - engine.log(msg) — write msg through the structured logger
 //     with pack + script attribution attached.
+//   - engine.schedule(delayTicks, fn) — run fn once, delayTicks
+//     engine ticks from now (M17.4). Fire-and-forget; dropped on
+//     reload.
 //
-// Both bindings take Sandbox identity by closure capture so the
-// Lua side never sees them; identity is stable for the sandbox
+// Each binding takes Sandbox identity by closure capture so the
+// Lua side never sees it; identity is stable for the sandbox
 // lifetime so a script can't impersonate a different pack.
 func (r *Runtime) bindEngineAPI(sb *Sandbox) {
 	L := sb.RawState()
 	tbl := L.NewTable()
 	L.SetField(tbl, "subscribe", L.NewFunction(r.makeSubscribeFn(sb)))
 	L.SetField(tbl, "log", L.NewFunction(r.makeLogFn(sb)))
+	L.SetField(tbl, "schedule", L.NewFunction(r.makeScheduleFn(sb)))
 	L.SetGlobal("engine", tbl)
 }
 

@@ -18,4 +18,12 @@ engine.subscribe("mob.killed", function(name, p)
              " killed " .. tostring(p.mob_name) ..
              " (" .. tostring(p.template_id) .. ")" ..
              " in " .. tostring(p.room_id))
+
+  -- M17.4 demo: schedule a one-shot follow-up ~3s after the kill
+  -- (30 ticks @ 100ms). Event-gated so it only fires after a real
+  -- kill, never continuously. Captures mob_name in the closure.
+  local who = tostring(p.mob_name)
+  engine.schedule(30, function()
+    engine.log("the corpse of " .. who .. " settles")
+  end)
 end)

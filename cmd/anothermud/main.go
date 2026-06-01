@@ -426,6 +426,13 @@ func run() error {
 		return fmt.Errorf("register ai tick: %w", err)
 	}
 
+	// M17.4: pump pack-script engine.schedule callbacks. Cadence one so
+	// a delay of N ticks fires N ticks later; the Runtime's queue is
+	// empty on most ticks (idle fast path).
+	if err := loop.Register("scripting-schedule", 1, scriptRuntime.Tick); err != nil {
+		return fmt.Errorf("register scripting schedule: %w", err)
+	}
+
 	// Area-driven respawn (spec mobs-ai-spawning §3.5–3.7). The
 	// tracker holds per-rule live-instance counts; the manager runs
 	// the §3.6 reset algorithm on each area.tick event; the
