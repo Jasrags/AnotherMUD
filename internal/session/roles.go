@@ -3,7 +3,29 @@ package session
 import (
 	"sort"
 	"strings"
+
+	"github.com/Jasrags/AnotherMUD/internal/command"
 )
+
+// RoleTargetResolver bridges the grant/revoke verbs' player-name lookup to
+// the session manager (roles-and-permissions §4). It resolves an ONLINE
+// character by name to its live connActor (which satisfies
+// command.RoleController); offline targets are not resolved in v1 (§9).
+type RoleTargetResolver struct {
+	Manager *Manager
+}
+
+// ResolveRoleTarget implements command.RoleTargetResolver.
+func (r RoleTargetResolver) ResolveRoleTarget(name string) (command.RoleController, bool) {
+	if r.Manager == nil {
+		return nil, false
+	}
+	a, ok := r.Manager.GetByName(name)
+	if !ok {
+		return nil, false
+	}
+	return a, true
+}
 
 // Roles & permissions — the per-character role set, the read-only HasRole
 // check, and the construction-time seed/restore (roles-and-permissions.md
@@ -50,6 +72,23 @@ func rolesSnapshotLocked(set map[string]struct{}) []string {
 	}
 	sort.Strings(out)
 	return out
+}
+
+// Grant adds role to the actor's set, persisting it, and reports whether
+// the set changed (false = already held / empty, an idempotent no-op).
+// The public entry the grant verb (M19.2) drives; takes a.mu.
+func (a *connActor) Grant(role string) bool {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	return a.grantRoleLocked(role)
+}
+
+// Revoke removes role from the actor's set, persisting it, and reports
+// whether the set changed (false = not held, an idempotent no-op). Takes a.mu.
+func (a *connActor) Revoke(role string) bool {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	return a.revokeRoleLocked(role)
 }
 
 // grantRoleLocked adds a normalized role to the live set and the save,

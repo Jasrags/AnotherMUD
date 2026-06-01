@@ -270,6 +270,13 @@ type Env struct {
 	// nil-safe alongside Notifications.
 	TellResolver TellResolver
 
+	// RoleTargetResolver maps a player name to a live RoleController for
+	// the grant / revoke verbs (roles-and-permissions §4). nil disables
+	// role administration. GrantingRole is the role an actor must hold to
+	// grant or revoke (config, §8; defaults to `admin` when empty).
+	RoleTargetResolver RoleTargetResolver
+	GrantingRole       string
+
 	// ChatRegistry is the M13.6 channel catalog. Read by chat list /
 	// chat history and by the dynamically-registered per-channel
 	// verbs (ooc / admin / pack channels). nil-safe.
@@ -380,6 +387,11 @@ type Context struct {
 	// "Tells are not enabled." when either this or Notifications is
 	// nil.
 	TellResolver TellResolver
+	// RoleTargetResolver + GrantingRole are the M19.2 grant/revoke seam.
+	// nil resolver disables role administration; GrantingRole defaults to
+	// `admin` when empty (roles-and-permissions §4/§8).
+	RoleTargetResolver RoleTargetResolver
+	GrantingRole       string
 	// ChatRegistry / ChatSubscribers / ChatScrollbacks are the M13.6
 	// channel seams. nil in tests that don't exercise chat verbs.
 	ChatRegistry    *chat.Registry
@@ -705,41 +717,43 @@ func (r *Registry) Dispatch(ctx context.Context, env Env, actor Actor, raw strin
 		return actor.Write(ctx, "Huh?")
 	}
 	c := &Context{
-		Actor:           actor,
-		World:           env.World,
-		Broadcaster:     env.Broadcaster,
-		Items:           env.Items,
-		Placement:       env.Placement,
-		Contents:        env.Contents,
-		Slots:           env.Slots,
-		Bus:             env.Bus,
-		Locator:         env.Locator,
-		Disposition:     env.Disposition,
-		Combat:          env.Combat,
-		Flee:            env.Flee,
-		ReloadScripts:   env.ReloadScripts,
-		Progression:     env.Progression,
-		Training:        env.Training,
-		Abilities:       env.Abilities,
-		Proficiency:     env.Proficiency,
-		ActionQueue:     env.ActionQueue,
-		Help:            env.Help,
-		Quests:          env.Quests,
-		Currency:        env.Currency,
-		Shop:            env.Shop,
-		Rest:            env.Rest,
-		Consumable:      env.Consumable,
-		Notifications:   env.Notifications,
-		TellResolver:    env.TellResolver,
-		ChatRegistry:    env.ChatRegistry,
-		ChatSubscribers: env.ChatSubscribers,
-		ChatScrollbacks: env.ChatScrollbacks,
-		Clock:           env.Clock,
-		Ambience:        env.Ambience,
-		Raw:             trimmed,
-		Verb:            strings.ToLower(verb),
-		Args:            args,
-		ArgResolver:     r.argResolvers,
+		Actor:              actor,
+		World:              env.World,
+		Broadcaster:        env.Broadcaster,
+		Items:              env.Items,
+		Placement:          env.Placement,
+		Contents:           env.Contents,
+		Slots:              env.Slots,
+		Bus:                env.Bus,
+		Locator:            env.Locator,
+		Disposition:        env.Disposition,
+		Combat:             env.Combat,
+		Flee:               env.Flee,
+		ReloadScripts:      env.ReloadScripts,
+		Progression:        env.Progression,
+		Training:           env.Training,
+		Abilities:          env.Abilities,
+		Proficiency:        env.Proficiency,
+		ActionQueue:        env.ActionQueue,
+		Help:               env.Help,
+		Quests:             env.Quests,
+		Currency:           env.Currency,
+		Shop:               env.Shop,
+		Rest:               env.Rest,
+		Consumable:         env.Consumable,
+		Notifications:      env.Notifications,
+		TellResolver:       env.TellResolver,
+		RoleTargetResolver: env.RoleTargetResolver,
+		GrantingRole:       env.GrantingRole,
+		ChatRegistry:       env.ChatRegistry,
+		ChatSubscribers:    env.ChatSubscribers,
+		ChatScrollbacks:    env.ChatScrollbacks,
+		Clock:              env.Clock,
+		Ambience:           env.Ambience,
+		Raw:                trimmed,
+		Verb:               strings.ToLower(verb),
+		Args:               args,
+		ArgResolver:        r.argResolvers,
 	}
 
 	// §5 arg-typing (Option A): when the command declares typed args,

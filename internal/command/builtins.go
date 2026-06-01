@@ -110,6 +110,14 @@ func RegisterBuiltins(r *Registry) error {
 		// status prompt template. The template uses {tokens} (§7.2)
 		// and color tags (§2).
 		{Keyword: "prompt", Handler: PromptHandler, Brief: "Show or change your status prompt.", Syntax: []string{"prompt", "prompt <template>", "prompt default"}},
+
+		// Roles (M19.2 — roles-and-permissions §4). grant/revoke a role
+		// to/from another online character; gated on the granting role
+		// (the handler refuses generically for non-granters, §3). Until
+		// the M19.3 admin gate marks these admin + hides them from help,
+		// they self-gate in the handler.
+		{Keyword: "grant", Handler: GrantHandler, Brief: "Grant a role to another player.", Syntax: []string{"grant <role> to <player>"}},
+		{Keyword: "revoke", Handler: RevokeHandler, Brief: "Revoke a role from another player.", Syntax: []string{"revoke <role> from <player>"}},
 	}
 	for _, c := range commands {
 		if err := r.RegisterCommand(c); err != nil {

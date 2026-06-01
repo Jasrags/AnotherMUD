@@ -1393,6 +1393,8 @@ func run() error {
 		QuestStore:      questStore,
 		Notifications:   notifMgr,
 		TellResolver:    session.TellResolver{Manager: mgr, Players: players},
+		RoleTargets:     session.RoleTargetResolver{Manager: mgr},
+		GrantingRole:    cfg.GrantingRole,
 		ChatRegistry:    chatRegistry,
 		ChatSubscribers: subscribers,
 		ChatScrollbacks: scrollbackLookup,
@@ -1548,6 +1550,7 @@ type config struct {
 	StartRoom             world.RoomID
 	DefaultRace           string
 	RoleSeed              map[string][]string
+	GrantingRole          string
 	ColorDefault          bool
 	LinkDead              session.LinkDeadConfig
 }
@@ -1591,6 +1594,7 @@ func loadConfig() config {
 		StartRoom:             world.RoomID(envOr("ANOTHERMUD_START_ROOM", "tapestry-core:town-square")),
 		DefaultRace:           envOr("ANOTHERMUD_DEFAULT_RACE", "human"),
 		RoleSeed:              parseRoleSeed(envOr("ANOTHERMUD_ROLE_SEED", "")),
+		GrantingRole:          strings.ToLower(strings.TrimSpace(envOr("ANOTHERMUD_GRANTING_ROLE", "admin"))),
 		ColorDefault:          colorDefault(),
 		LinkDead:              ld,
 	}

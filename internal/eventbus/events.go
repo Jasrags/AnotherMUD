@@ -226,6 +226,16 @@ const (
 	// removals emit once for the primary side only.
 	EventPortalClosed = "portal.closed"
 
+	// EventRoleGranted / EventRoleRevoked fire after an authorization
+	// role is granted to / revoked from a character
+	// (roles-and-permissions.md §7). Non-cancellable facts: a subscriber
+	// cannot veto a role change by handling the event (gating is the
+	// granting-role check on the grant verb). Emitted only on an actual
+	// set change (granting a held role / revoking an unheld one emits
+	// nothing — §2).
+	EventRoleGranted = "role.granted"
+	EventRoleRevoked = "role.revoked"
+
 	// EventRecallSet fires after `set recall` commits a new
 	// recall address on a character (spec recall.md §5).
 	EventRecallSet = "recall.set"
@@ -1145,6 +1155,30 @@ type RecallSet struct {
 
 // Name implements Event.
 func (RecallSet) Name() string { return EventRecallSet }
+
+// RoleGranted / RoleRevoked are the observable facts emitted when a role
+// is granted to / revoked from a character (roles-and-permissions.md §7).
+// Actor is the granter's player id (a sentinel for non-player sources is
+// not used in v1 — grant/revoke are always actor-driven). Target is the
+// affected character's player id. Role is the normalized role name.
+type RoleGranted struct {
+	Actor  string
+	Target string
+	Role   string
+}
+
+// Name implements Event.
+func (RoleGranted) Name() string { return EventRoleGranted }
+
+// RoleRevoked mirrors RoleGranted for a revocation.
+type RoleRevoked struct {
+	Actor  string
+	Target string
+	Role   string
+}
+
+// Name implements Event.
+func (RoleRevoked) Name() string { return EventRoleRevoked }
 
 // RecallBefore is the cancellable pre-event fired by the recall
 // verb after a destination is resolved and before the teleport

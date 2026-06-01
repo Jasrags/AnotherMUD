@@ -252,6 +252,13 @@ type Config struct {
 	// when nil the tell verbs print "Tells are not enabled."
 	TellResolver command.TellResolver
 
+	// RoleTargets resolves an online player name to a RoleController for
+	// the M19.2 grant/revoke verbs (roles-and-permissions §4). GrantingRole
+	// is the role an actor must hold to grant/revoke (§8, defaults to
+	// `admin` when empty). nil RoleTargets disables role administration.
+	RoleTargets  command.RoleTargetResolver
+	GrantingRole string
+
 	// ChatRegistry is the M13.6 channel catalog. Threaded through
 	// to command.Env for chat verbs. nil-safe.
 	ChatRegistry *chat.Registry
@@ -818,36 +825,38 @@ func pump(ctx context.Context, c conn.Connection, cfg Config, a *connActor, clk 
 		}
 
 		env := command.Env{
-			World:           cfg.World,
-			Broadcaster:     cfg.Manager,
-			Items:           cfg.Items,
-			Placement:       cfg.Placement,
-			Contents:        cfg.Contents,
-			Slots:           cfg.Slots,
-			Bus:             cfg.Bus,
-			Locator:         managerLocator{cfg.Manager},
-			Disposition:     cfg.Disposition,
-			Combat:          cfg.Combat,
-			Flee:            cfg.Flee,
-			ReloadScripts:   cfg.ReloadScripts,
-			Progression:     cfg.Progression,
-			Training:        cfg.Training,
-			Abilities:       cfg.Abilities,
-			Proficiency:     cfg.Proficiency,
-			ActionQueue:     cfg.ActionQueue,
-			Help:            cfg.Help,
-			Quests:          cfg.Quests,
-			Currency:        cfg.Currency,
-			Shop:            cfg.Shop,
-			Rest:            cfg.Rest,
-			Consumable:      cfg.Consumable,
-			Notifications:   cfg.Notifications,
-			TellResolver:    cfg.TellResolver,
-			ChatRegistry:    cfg.ChatRegistry,
-			ChatSubscribers: cfg.ChatSubscribers,
-			ChatScrollbacks: cfg.ChatScrollbacks,
-			Clock:           cfg.Clock,
-			Ambience:        cfg.Ambience,
+			World:              cfg.World,
+			Broadcaster:        cfg.Manager,
+			Items:              cfg.Items,
+			Placement:          cfg.Placement,
+			Contents:           cfg.Contents,
+			Slots:              cfg.Slots,
+			Bus:                cfg.Bus,
+			Locator:            managerLocator{cfg.Manager},
+			Disposition:        cfg.Disposition,
+			Combat:             cfg.Combat,
+			Flee:               cfg.Flee,
+			ReloadScripts:      cfg.ReloadScripts,
+			Progression:        cfg.Progression,
+			Training:           cfg.Training,
+			Abilities:          cfg.Abilities,
+			Proficiency:        cfg.Proficiency,
+			ActionQueue:        cfg.ActionQueue,
+			Help:               cfg.Help,
+			Quests:             cfg.Quests,
+			Currency:           cfg.Currency,
+			Shop:               cfg.Shop,
+			Rest:               cfg.Rest,
+			Consumable:         cfg.Consumable,
+			Notifications:      cfg.Notifications,
+			TellResolver:       cfg.TellResolver,
+			RoleTargetResolver: cfg.RoleTargets,
+			GrantingRole:       cfg.GrantingRole,
+			ChatRegistry:       cfg.ChatRegistry,
+			ChatSubscribers:    cfg.ChatSubscribers,
+			ChatScrollbacks:    cfg.ChatScrollbacks,
+			Clock:              cfg.Clock,
+			Ambience:           cfg.Ambience,
 		}
 		if err := cfg.Commands.Dispatch(ctx, env, a, line); err != nil {
 			if errors.Is(err, command.ErrQuit) {

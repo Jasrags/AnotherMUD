@@ -26,9 +26,9 @@ and `THEME-AXIS-PLAN.md` are superseded by `BACKLOG.md` and now live under
   progression, economy, quests, scripting, sessions, and modern-client
   support all work.
 - **Active:** **M19 — Roles & Administration** (the keystone). M19.1
-  (role-set substrate + `HasRole` + persistence + config seed) shipped;
-  M19.2–M19.4 (grant/revoke verbs + events, the admin gate, baseline admin
-  verbs) pending. **M18 — Command & UI polish** is paused mid-flight
+  (role-set substrate + `HasRole` + persistence + config seed) and M19.2
+  (grant/revoke verbs + events) shipped; M19.3–M19.4 (the admin gate,
+  baseline admin verbs) pending. **M18 — Command & UI polish** is paused mid-flight
   (M18.1 `prompt` verb shipped; M18.2–M18.5 pending).
 - **Specs ahead of code.** A large batch of behavior contracts landed this
   cycle *without* implementation — `roles-and-permissions`, `admin-verbs`,
@@ -2714,8 +2714,17 @@ house's admin moderation (`auction-house.md` §11).
       (`name:role,role;name:role`). 18 tests (2 player + 9 session + the
       parseRoleSeed table), full suite 46 pkgs, -race clean. roles-and-
       permissions §2/§3/§5/§6.
-- [ ] **M19.2 — `grant` / `revoke` verbs + `role.granted` / `role.revoked`
-      events.** Gated on the granting role; idempotent; auditable. §4/§7.
+- [x] **M19.2 — `grant` / `revoke` verbs + `role.granted` / `role.revoked`
+      events.** `grant <role> to <player>` / `revoke <role> from <player>`
+      (lenient on the preposition). Self-gated on the granting role
+      (`ANOTHERMUD_GRANTING_ROLE`, default `admin`) with a refusal that does
+      not disclose the gating role (§3); **self-grant blocked** (§1.1);
+      target resolved to an online player via `Manager.GetByName` (v1
+      online-only, §9). Reuses the M19.1 idempotent mutators and emits the
+      non-cancellable fact event **only on an actual change** (§2/§7). New
+      `command.RoleController` + `RoleTargetResolver` seams + a session
+      adapter. 9 command tests (refuse/grant/revoke/idempotent/self-block/
+      offline/disabled/usage). Full suite 46 pkgs, -race clean. §4/§7.
 - [ ] **M19.3 — The admin gate.** A command `Admin` flag the dispatcher
       refuses unless `HasRole`, refusal indistinguishable from an unknown
       verb; gates today's ungated `reload` / `xp`. admin-verbs §2.
