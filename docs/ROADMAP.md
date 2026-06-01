@@ -2329,11 +2329,29 @@ without rewriting scripts.
         idempotent, concurrent dispatch -race-clean, nil
         registry no-op, log binding callable, snake_case
         marshalling).
-- [ ] **M17.2 — Arg typing.** `commands-and-dispatch §5`.
-      Independent of the scripting runtime; can land in
-      parallel.
-  - [ ] **M17.2d — Handler migration + production adapter.**
-        Wires the §5 arg-typing pipeline into live dispatch.
+- [x] **M17.2 — Arg typing.** `commands-and-dispatch §5`.
+      Independent of the scripting runtime; landed in parallel.
+      Substrate (M17.2a-c) + dispatch integration and handler
+      migration (M17.2d) all shipped.
+  - [x] **M17.2d — Handler migration + production adapter.**
+        **CLOSES M17.2.** Wired the §5 arg-typing pipeline into
+        live dispatch (Option A: dispatcher pre-resolves declared
+        `Command.Args`, empty = legacy passthrough) and migrated
+        every verb that fits. **Migrated (14):** drop, get, put,
+        equip, give, consider, kill (+ cast targeting), eat,
+        drink, use, open, close, lock, unlock — exercising every
+        arg shape (inventory, room_item, container, player,
+        entity, keyword, door, bulk, ordinals). **Left
+        hand-parsed as documented non-fits:** `unequip` (no
+        `equipped` arg type in §5.2 — needs a spec decision),
+        `fill` (source-scope analysis pending), and
+        `buy`/`sell`/`value` (resolve inside `economy.ShopService`
+        against shop-stock / dual-scope, which no engine arg type
+        covers — a text-arg migration would be cargo-cult). See
+        `memory/m17-2d3-deferred-fixes.md` for the non-fit
+        rationale and the dispatch-model decision record. Standard
+        behavior changes across migrated verbs: single-token item
+        references and §5.4-standardized error copy.
     - [x] **M17.2d₆ — Door verbs (open / close / lock / unlock).**
           First production consumer of the M17.2c `door` resolver +
           M17.2d₁ `worldDoorScope` (built but previously unused).
