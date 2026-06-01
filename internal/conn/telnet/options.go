@@ -1,6 +1,9 @@
 package telnet
 
-import "github.com/Jasrags/AnotherMUD/internal/mssp"
+import (
+	"github.com/Jasrags/AnotherMUD/internal/mssp"
+	"github.com/Jasrags/AnotherMUD/internal/render"
+)
 
 // Telnet option codes the negotiator handles. Defined here so
 // the negotiator's switch table reads as names rather than literal
@@ -79,4 +82,24 @@ type Capabilities struct {
 	TerminalTypes []string
 	Width         int
 	Height        int
+
+	// ClientName is the most-specific client identifier received via
+	// TTYPE — the first entry of TerminalTypes, normalized. Empty
+	// when no TTYPE was received. Used by the IsMudClient match
+	// and by the ColorSupport tier derivation.
+	ClientName string
+
+	// IsMudClient reports whether ClientName matches the
+	// known-MUD-client allowlist (spec §7.2). Drives:
+	//   - Echo policy (§7.3): MUD clients handle their own echo,
+	//     so server-side echo defaults to off for them.
+	//   - Color tier (§7.2): a known MUD client gets Extended
+	//     color even without a TRUECOLOR/256COLOR TTYPE hint.
+	IsMudClient bool
+
+	// ColorSupport is the derived color tier (spec §7.2). The
+	// canonical type lives in internal/render so the rendering
+	// consumer (M16.6b) doesn't drag a telnet import; telnet
+	// re-derives it at snapshot time from TTYPE + IsMudClient.
+	ColorSupport render.ColorTier
 }

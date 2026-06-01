@@ -15,6 +15,7 @@ import (
 	"github.com/coder/websocket"
 
 	"github.com/Jasrags/AnotherMUD/internal/conn"
+	"github.com/Jasrags/AnotherMUD/internal/render"
 )
 
 // maxInboundBytes caps inbound message size (§6.3). A frame over
@@ -137,6 +138,13 @@ func (c *Conn) Close() error {
 // §6.5 WebSocket GMCP is always supported — no negotiation
 // handshake required.
 func (c *Conn) GmcpActive() bool { return true }
+
+// ColorTier implements the conn-agnostic color-tier accessor
+// the session layer consumes. Per spec §6.5 web clients are
+// expected to render any ANSI sequence the server sends —
+// truecolor is the safe default for browser-based UIs that
+// translate SGR to CSS.
+func (c *Conn) ColorTier() render.ColorTier { return render.ColorTierTrueColor }
 
 // SupportsPackage implements the gmcpSender interface. WebSocket
 // treats every package as supported (§5.2); the engine emits

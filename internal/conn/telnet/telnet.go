@@ -21,6 +21,7 @@ import (
 
 	"github.com/Jasrags/AnotherMUD/internal/conn"
 	"github.com/Jasrags/AnotherMUD/internal/mssp"
+	"github.com/Jasrags/AnotherMUD/internal/render"
 )
 
 // MaxLineBytes caps the number of bytes a single Read will buffer
@@ -91,6 +92,16 @@ func New(id string, c net.Conn, opts ...Option) *Conn {
 // if the client refused both TTYPE and NAWS).
 func (c *Conn) Capabilities() Capabilities {
 	return c.neg.snapshot()
+}
+
+// ColorTier implements the conn-agnostic color-tier interface
+// the session layer consumes (M16.6a). Reads through the live
+// negotiator snapshot so a TTYPE that arrives mid-session is
+// observable on the next access. Returns render.ColorTierNone
+// before negotiation completes — a pre-TTYPE render call gets
+// the safe no-color path.
+func (c *Conn) ColorTier() render.ColorTier {
+	return c.neg.snapshot().ColorSupport
 }
 
 // ID implements conn.Connection.

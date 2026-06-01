@@ -111,6 +111,14 @@ func (n *negotiator) snapshot() Capabilities {
 	if len(n.caps.TerminalTypes) > 0 {
 		out.TerminalTypes = make([]string, len(n.caps.TerminalTypes))
 		copy(out.TerminalTypes, n.caps.TerminalTypes)
+		// ClientName is the most-specific TTYPE (first response per
+		// the RFC 1091 "query twice" pattern). M16.6a derivation
+		// runs here at snapshot time rather than at each TTYPE
+		// subneg arrival so the derived fields stay consistent
+		// with whatever else the snapshot caller sees.
+		out.ClientName = out.TerminalTypes[0]
+		out.IsMudClient = isKnownMudClient(out.ClientName)
+		out.ColorSupport = deriveColorTier(out.ClientName, out.IsMudClient)
 	}
 	return out
 }

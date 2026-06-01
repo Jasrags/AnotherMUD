@@ -128,6 +128,30 @@ func TestNegotiator_TTYPENegotiationCapturesName(t *testing.T) {
 	if len(caps.TerminalTypes) != 1 || caps.TerminalTypes[0] != "Mudlet" {
 		t.Errorf("TerminalTypes = %v, want [Mudlet]", caps.TerminalTypes)
 	}
+	// M16.6a: snapshot derives ClientName + IsMudClient + ColorSupport.
+	if caps.ClientName != "Mudlet" {
+		t.Errorf("ClientName = %q, want Mudlet", caps.ClientName)
+	}
+	if !caps.IsMudClient {
+		t.Errorf("IsMudClient = false, want true (Mudlet on allowlist)")
+	}
+	if got := caps.ColorSupport.String(); got != "extended" {
+		t.Errorf("ColorSupport = %q, want extended (Mudlet → Extended per §7.2)", got)
+	}
+	// ColorTier() accessor on the Conn must match the snapshot.
+	if got := server.ColorTier().String(); got != "extended" {
+		t.Errorf("server.ColorTier() = %q, want extended", got)
+	}
+}
+
+func TestNegotiator_PreNegotiationColorTierIsNone(t *testing.T) {
+	// Before any TTYPE arrives, ColorTier reports None — the safe
+	// no-color default so a pre-TTYPE render call doesn't emit
+	// SGR to a client that may not understand it.
+	server, _ := pairConn(t)
+	if got := server.ColorTier().String(); got != "none" {
+		t.Errorf("pre-TTYPE ColorTier = %q, want none", got)
+	}
 }
 
 func TestNegotiator_TTYPERotationCapturesMultiple(t *testing.T) {

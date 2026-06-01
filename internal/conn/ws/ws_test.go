@@ -292,3 +292,17 @@ func TestConn_ImplementsConnectionInterface(t *testing.T) {
 	// conn.Connection. Catches API drift the moment it lands.
 	var _ conn.Connection = (*ws.Conn)(nil)
 }
+
+func TestConn_ColorTier_AlwaysTrueColor(t *testing.T) {
+	// Per spec §6.5, WebSocket clients are expected to render any
+	// ANSI sequence the server sends — truecolor is the safe
+	// default for browser-based UIs that translate SGR to CSS.
+	clientWS, srv := dialServer(t, func(t *testing.T, c *ws.Conn) {
+		if got := c.ColorTier().String(); got != "truecolor" {
+			t.Errorf("ws ColorTier = %q, want truecolor", got)
+		}
+		_, _ = c.Read(context.Background())
+	})
+	defer srv.Close()
+	clientWS.Close(websocket.StatusNormalClosure, "")
+}

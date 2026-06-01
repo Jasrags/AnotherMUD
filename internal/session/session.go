@@ -408,6 +408,7 @@ func run(ctx context.Context, c conn.Connection, cfg Config) error {
 		accountID:    loaded.Account.ID,
 		room:         start,
 		colorEnabled: cfg.ColorEnabled,
+		colorTier:    readColorTier(c),
 		save:         loaded.Player,
 		players:      cfg.Players,
 		prof:         cfg.Proficiency,
@@ -658,6 +659,15 @@ func run(ctx context.Context, c conn.Connection, cfg Config) error {
 	}
 
 	cfg.Manager.Add(a)
+
+	// M16.6a: log the negotiated color tier alongside the welcome
+	// line so operators can see what the renderer is about to use.
+	// Spec §7.2 — tier is derived from TTYPE + IsMudClient at
+	// telnet negotiation completion; websocket conns always
+	// report TrueColor.
+	logging.From(ctx).Debug("session color tier",
+		slog.String("event", "session.color_tier"),
+		slog.String("tier", a.colorTier.String()))
 
 	// M13.1c: bind to the notifications manager and drain any
 	// persisted backlog (offline tells / channel posts that arrived
@@ -1536,6 +1546,17 @@ type connActor struct {
 	mu           sync.Mutex
 	room         *world.Room
 	colorEnabled bool
+	// colorTier is the per-session capability ceiling captured from
+	// the conn at construction (M16.6a). Sources:
+	//   - telnet: derived from TTYPE + IsMudClient per spec §7.2.
+	//   - websocket: always TrueColor per §6.5.
+	//   - conn that doesn't implement the accessor (test fakes):
+	//     render.ColorTierBasic — preserves the M0-era ANSI-16
+	//     behavior so legacy fakes don't suddenly emit no-color.
+	// Read-only after construction; safe lock-free. M16.6b will
+	// wire tier-aware ANSI emission; M16.6a only captures and logs
+	// the tier.
+	colorTier render.ColorTier
 	// Prompt-refresh state machine (session-lifecycle §2.5, M10.3b).
 	// All three are guarded by a.mu.
 	//   promptDisplayed    — the most recent send left a prompt at the
@@ -1695,6 +1716,11 @@ func (a *connActor) SetRoom(r *world.Room) {
 	// negotiated or the conn doesn't speak it.
 	a.sendGmcpRoomInfo(context.Background(), r)
 }
+
+// ColorTier returns the actor's color-capability tier captured
+// from the conn at construction (M16.6a). Stable for the life of
+// the session; M16.6b will dispatch renderer paths off this.
+func (a *connActor) ColorTier() render.ColorTier { return a.colorTier }
 
 func (a *connActor) ColorEnabled() bool {
 	a.mu.Lock()
@@ -2992,6 +3018,28 @@ func (a *connActor) Vitals() *combat.Vitals { return a.vitals }
 type gmcpSender interface {
 	GmcpActive() bool
 	SendGmcp(ctx context.Context, pkg string, payload []byte) error
+}
+
+// colorTierSource is the conn-side accessor the session layer
+// reads to learn each conn's color-capability tier (M16.6a).
+// Defined here at the use site so the session package doesn't
+// import internal/conn/telnet directly. Non-implementing conns
+// (test fakes) default to render.ColorTierBasic — see the
+// readColorTier helper.
+type colorTierSource interface {
+	ColorTier() render.ColorTier
+}
+
+// readColorTier returns the conn's reported color tier, falling
+// back to render.ColorTierBasic for conns that don't implement
+// the accessor. The fallback preserves the M0-era ANSI-16 default
+// so test fakes don't trip onto the no-color path until they
+// explicitly opt in.
+func readColorTier(c conn.Connection) render.ColorTier {
+	if src, ok := c.(colorTierSource); ok {
+		return src.ColorTier()
+	}
+	return render.ColorTierBasic
 }
 
 // flushGmcpVitals snapshots the actor's current vitals + sustenance

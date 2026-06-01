@@ -2178,6 +2178,31 @@ already well-abstracted so the blast radius is bounded.
       round-trip; no-handler 500). `go test -race ./...` clean.
 - [ ] **M16.6 — 256 / truecolor.** Per-session render tier
       selection driven by captured TTYPE.
+  - [x] **M16.6a — Capability detection.** New
+        `render.ColorTier` enum (None / Basic / Extended /
+        TrueColor) defined in `internal/render` so the future
+        renderer dispatch consumer (M16.6b) doesn't drag a
+        telnet import. `telnet.Capabilities` extended with
+        `ClientName`, `IsMudClient`, and `ColorSupport`.
+        `internal/conn/telnet/capabilities.go` houses the
+        known-MUD-client allowlist (Mudlet, MUSHclient, TinTin++,
+        ZMud/CMud, Atlantis, Potato, BlowTorch, KildClient,
+        BeIP, GnomeMUD — case-insensitive substring match) +
+        `deriveColorTier` (TRUECOLOR > 256COLOR > known-mud-
+        client > basic > none). `telnet.Conn.ColorTier()` +
+        `ws.Conn.ColorTier()` (always TrueColor per §6.5)
+        expose the tier through the conn abstraction; session
+        captures it once at construction via a `colorTierSource`
+        interface (test-fake fallback = Basic to preserve M0-era
+        behavior). `connActor.ColorTier()` accessor +
+        Debug-level `session.color_tier` log at session-add.
+        M16.6b will wire tier-aware ANSI emission.
+  - [ ] **M16.6b — Tier-aware ANSI emission.** ThemeRegistry
+        compiles 4 per-tier AnsiPair maps; ColorRenderer
+        dispatches off `connActor.ColorTier()`. ThemeEntry's
+        HTML field becomes the truecolor/256 source with
+        ANSI-16 fallback to FG/BG. Content theme updates
+        deferred — existing themes degrade gracefully.
 
 **Touches specs:** `networking-protocols` end-to-end; eventually
 `ui-rendering-help` §3 for the color tier follow-up.
