@@ -58,6 +58,7 @@ go straight into a milestone.
 | **Rarity tiers** | **item-decorations §2,§4,§5** (new) | ordered tier ladder → themed decorated marker (inline + column-padded). Ported from Tapestry `RarityRegistry` |
 | **Essence** | **item-decorations §3,§4,§5** (new) | colored glyph item marker; participates in stack identity. Ported from Tapestry `EssenceRegistry` |
 | Reactive tag observers | **tag-observers §2–§4** (new) | `entity.tag_added/removed` bus events for non-index reactors. Substrate ahead of a consumer. Ported from Tapestry `ITagObserver` |
+| **Crafting & Cooking** | **crafting-and-cooking** (new) + plan `themes/crafting-cooking-plan.md` | recipes + crafting-skill proficiency + quality roll (output = rarity tier) + cooking→sustenance/well-fed. MVP = Tier 0 + content-placed Tier 2 + mob-loot ingredients. Defers stations(Tier 1)/gathering (greenfield, §2) |
 
 ---
 
@@ -79,18 +80,18 @@ old five-theme partition left uncovered.
   *rules* (what hides an entity, sneak mechanics, see-invisible) are greenfield. The seam
   is captured wherever it's consumed (`admin-verbs §3`, `commands-and-dispatch §5`); the
   rules need a design conversation. Park the rules; the seam is already usable.
-- **Crafting** — ingredients → output via recipes. ⚠️ **Greenfield — no Tapestry
-  reference** (Tapestry has none; "crafting" appears only as a hypothetical progression
-  side-track example in our specs). Substrate it would build on: item templates +
-  instances (`inventory-equipment-items`), proficiency/tracks (`progression`), pack
-  content loading. Pre-decisions: recipe-list vs. free-form discovery; skill-gated?;
-  station/furniture-gated? (furniture doesn't exist yet — see m11-4); where recipes live
-  (pack data). Needs a design conversation.
-- **Cooking** — food recipes producing consumables that feed the sustenance pool.
-  ⚠️ **Greenfield — no Tapestry reference.** Likely a *special case of Crafting* (recipe
-  category) whose output plugs into `economy-survival` (sustenance + the consumable
-  pipeline §6, both already built). Pre-decision: its own system vs. a crafting recipe
-  category. Spec it after (or as part of) Crafting; don't design it in isolation.
+_(Crafting & Cooking moved to §1 — now specced: `crafting-and-cooking.md` (+ plan in
+`docs/themes/crafting-cooking-plan.md`). Two greenfield **sub-dependencies** remain and
+stay below: **crafting stations / furniture** (Tier 1/2) and **gathering / resource
+nodes** — both are deferred past the crafting MVP, which leans on Tier 0 + content-placed
+Tier 2 + mob loot.)_
+- **Crafting stations / furniture** — Tier 1 improvised (campfire: build/decay temporary
+  placed entity, terrain/weather-gated) + the furniture substrate generally (none exists,
+  m11-4). The crafting MVP defers this (ships Tier 0 + a content-placed Tier 2 via room
+  tags). Greenfield; design when crafting moves past MVP.
+- **Gathering / resource nodes** — the non-vendor ingredient source crafting wants
+  (`crafting-and-cooking §8`). Overlaps **Biomes** below (forage/harvest). Greenfield;
+  until it lands, crafting sources ingredients from mob loot + authored placement.
 - **Biomes** — ecological zones layered on rooms, shaping spawns / resources / ambience.
   ⚠️ **Greenfield system — no Tapestry reference.** BUT the substrate exists: rooms already
   carry a `terrain` property (outdoors/indoors/forest/mountain) used for weather gating

@@ -73,6 +73,12 @@ The verbs players use and the systems that resolve them.
   objectives, rewards, auto-tracking watcher, markers.
 - [economy-survival](economy-survival.md) — currency, shops,
   sustenance, rest, consumables.
+- [crafting-and-cooking](crafting-and-cooking.md) — recipes,
+  crafting skills (proficiency), tiered crafting stations, the
+  quality roll (output = a rarity tier), recipe acquisition; and
+  cooking as the food specialization that feeds sustenance and
+  grants quality-scaled well-fed effects. Permissive access,
+  gated quality.
 - [chat-channels-and-tells](chat-channels-and-tells.md) —
   multi-recipient channels (engine baseline + pack-defined),
   one-to-one private tells with offline inbox, per-channel
