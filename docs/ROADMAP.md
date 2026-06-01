@@ -2634,6 +2634,42 @@ without rewriting scripts.
 
 ---
 
+### M18 — Command & UI polish
+
+**Slice:** the small, already-specced command/UI items that polish the
+play experience — set your prompt, list who's online, command chaining
+and repeat, bad-input escalation, and help-syntax auto-generation. Pulled
+from `BACKLOG.md` §1 "Command & UI polish" cluster; each item is verified
+against code and reads its cited spec section first.
+
+**Live list:** `BACKLOG.md` §1 (delete an item there as it ships here).
+
+**Sub-milestones:**
+
+- [x] **M18.1 — `prompt` verb.** Show / set / reset the player's status
+      prompt template (ui-rendering-help §7.4, written first this slice —
+      the verb behavior was unspecced; §7 only covered rendering). New
+      `command.promptController` (`PromptTemplate` / `SetPromptTemplate`)
+      satisfied by `connActor`; bare `prompt` verb stores the rest-of-line
+      verbatim (internal spacing + color tags preserved), `prompt default`
+      / `prompt reset` clears to the default, length-capped at
+      `MaxPromptTemplateLen` (240). Set/clear marks the save dirty +
+      flags a prompt refresh so the change shows next flush. 10 tests
+      (8 command + 2 session), -race clean.
+- [ ] **M18.2 — `who` verb.** Player-list verb. NOTE: the verb behavior
+      is only lightly specced (`chat-channels-and-tells` "if/when that
+      verb lands") — needs a small spec slice first, like §7.4 did.
+- [ ] **M18.3 — Bad-input tracker.** commands-and-dispatch §6 — escalation
+      on repeated unparseable input (beyond today's "Huh?" + flood gate).
+- [ ] **M18.4 — Command chaining `;` + repeat `3n`.** commands-and-dispatch §4.
+- [ ] **M18.5 — Auto-help synthesis from arg defs.** commands-and-dispatch
+      §8 — synthesize Syntax from `ArgDefinition`s (unblocked by M17.2 arg typing).
+
+**Touches specs:** `ui-rendering-help §7.4` (new), `commands-and-dispatch
+§4/§6/§8`, `chat-channels-and-tells` (who).
+
+---
+
 ## How to use this document
 
 - The **current milestone** is whichever section above has unchecked

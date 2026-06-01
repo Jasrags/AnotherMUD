@@ -36,12 +36,10 @@ go straight into a milestone.
 |---|---|---|
 | Command chaining `;` + repeat `3n` | commands-and-dispatch §4 | no chain/repeat parsing in dispatch |
 | Bad-input tracker (escalation on repeated junk) | commands-and-dispatch §6 | only "Huh?" + `floodGate` rate-limit exist; no §6 tracker |
-| Auto-help synthesis from arg defs | commands-and-dispatch §8 / ui §9.2 | Syntax is hand-authored; no synthesis from `ArgDefinition`s |
-| `prompt` verb | ui-rendering-help §7.6 | schema accepts per-player template; no verb to set it |
-| `who` verb | chat-channels-and-tells (§ "if/when that verb lands") | no player-list verb |
+| Auto-help synthesis from arg defs | commands-and-dispatch §8 / ui §9.2 | Syntax is hand-authored; no synthesis from `ArgDefinition`s. **Unblocked** — arg typing shipped M17.2 |
+| `who` verb | chat-channels-and-tells (§ "if/when that verb lands") | no player-list verb. **Needs a small spec slice first** (verb behavior unspecced) |
 | Pluggable name-gates | login §3 | only the hardcoded ASCII-letter validator |
 | Per-phase idle timeout | login §6.1 | `login.go` notes it as a known gap; no per-phase `Conn.Read` deadline set |
-| Admin-tag idle exemption | session-lifecycle §5 | **blocked on Roles** (see §2) |
 | Tag-indexed reads during movement | world-rooms-movement §3.4 | movement scans, no tag index |
 | Container weight/volume caps | inventory-equipment-items | no cap enforcement at runtime |
 | Mob equipment instantiation at spawn | mobs-ai-spawning §3.3 | `Template.Equipment` decoded but `Store.SpawnMob` never equips it |
@@ -75,6 +73,9 @@ old five-theme partition left uncovered.
   system with Rarity or two.
 - **Rarity tiers** — common/rare/epic ladder with colorization.
 - **Admin verbs** (warp, set, reload, announce) — depends on Roles. Tapestry: `AdminModule`.
+- **Admin-tag idle exemption** (session-lifecycle §5) — *specced*, but gated on Roles:
+  needs an admin role tag before a session can be exempted from the idle sweep. Build
+  alongside Roles, not before.
 - **Cross-cutting event catalog** — per-spec event tables exist in `specs/README.md`;
   no aggregated catalog. (Docs/meta, not engine.)
 - **Reactive tag observers** — subscribers on tag mutations. Partial substrate exists

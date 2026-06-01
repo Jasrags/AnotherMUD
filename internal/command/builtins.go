@@ -105,6 +105,11 @@ func RegisterBuiltins(r *Registry) error {
 		// Spec: docs/specs/recall.md.
 		{Keyword: "set", Handler: SetHandler, Brief: "Configure a personal setting.", Syntax: []string{"set recall"}},
 		{Keyword: "recall", Handler: RecallHandler, Brief: "Return to your bound recall point.", Syntax: []string{"recall"}},
+
+		// Prompt (ui-rendering-help §7.4). Show / set / reset the
+		// status prompt template. The template uses {tokens} (§7.2)
+		// and color tags (§2).
+		{Keyword: "prompt", Handler: PromptHandler, Brief: "Show or change your status prompt.", Syntax: []string{"prompt", "prompt <template>", "prompt default"}},
 	}
 	for _, c := range commands {
 		if err := r.RegisterCommand(c); err != nil {

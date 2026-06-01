@@ -3030,6 +3030,33 @@ func (a *connActor) SetRecall(roomID string) {
 	}
 }
 
+// PromptTemplate implements command.promptController: the player's
+// stored prompt template, or "" when unset (the renderer then uses the
+// default — ui-rendering-help §7.1 / §7.4).
+func (a *connActor) PromptTemplate() string {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	if a.save == nil {
+		return ""
+	}
+	return a.save.PromptTemplate
+}
+
+// SetPromptTemplate implements command.promptController: store template
+// ("" clears it → default), mark the save dirty so it persists, and flag
+// a prompt refresh so the new prompt renders on the next flush
+// (ui-rendering-help §7.3 / §7.4). A no-op when the value is unchanged.
+func (a *connActor) SetPromptTemplate(template string) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	if a.save == nil || a.save.PromptTemplate == template {
+		return
+	}
+	a.save.PromptTemplate = template
+	a.markDirtyLocked()
+	a.needsPromptRefresh = true
+}
+
 // Vitals returns the actor's mutable HP state. The pointer is set at
 // construction time in run() and is never reassigned for the life of
 // the connActor, so reading it without taking a.mu is safe (the

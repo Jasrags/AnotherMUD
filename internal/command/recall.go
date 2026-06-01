@@ -22,8 +22,9 @@ type recallController interface {
 }
 
 // SetHandler routes `set <subcommand>` verbs. For M15.3 the only
-// subcommand is `recall`; future settings (`set prompt`, `set
-// pronouns`) plug in here as additional branches.
+// subcommand is `recall`; future settings (e.g. `set pronouns`) plug in
+// here as additional branches. (The prompt is its own top-level `prompt`
+// verb — ui-rendering-help §7.4 — not a `set` subcommand.)
 //
 // Bare `set` (no subcommand) prints usage. Unknown subcommands
 // also print usage rather than silently dropping — the player
@@ -163,4 +164,3 @@ func RecallHandler(ctx context.Context, c *Context) error {
 	})
 	return nil
 }
-

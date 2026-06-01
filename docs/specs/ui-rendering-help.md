@@ -470,6 +470,47 @@ echoes immediately above their fresh prompt.
       `{x}`.
 - [ ] Tokens are matched case-insensitively.
 
+### 7.4 Setting the prompt
+
+The `prompt` verb lets a player inspect and change their own
+`prompt_template` (§7.1). It is the only writer of that property.
+
+- `prompt` (no argument) — show the player their current template so
+  they can see and edit it. When the player has no template set, show
+  the default (§7.1) and identify it as the default.
+- `prompt <template>` — set `prompt_template` to the rest of the input
+  line verbatim (internal spacing and color tags preserved). The new
+  prompt takes effect on the next prompt flush (§7.3).
+- `prompt default` (alias `prompt reset`) — clear `prompt_template`,
+  reverting to the default. `default` / `reset` are reserved words; a
+  player cannot set a literal one-word template equal to a reserved
+  word. This is an accepted limitation — multi-word templates and any
+  template containing a token or tag are unaffected.
+
+The template is stored on the player and persists across logout (the
+existing `prompt_template` property, §7.1). Setting or clearing it
+marks the save dirty and flags a prompt refresh so the change is
+visible immediately.
+
+The verb does not validate template content: the renderer is
+typo-tolerant (unknown tokens resolve to empty per §7.2; unknown tags
+pass through per §2.5). A template longer than the configured maximum
+(*Max prompt template length*) is rejected with a message and leaves
+the stored template unchanged, to bound abuse.
+
+**Acceptance criteria**
+
+- [ ] `prompt` with no template set shows the default and identifies
+      it as the default.
+- [ ] `prompt` with a template set shows that template.
+- [ ] `prompt <template>` stores the rest-of-line verbatim; the next
+      flush renders it.
+- [ ] `prompt default` and `prompt reset` clear the template; the next
+      flush renders the default.
+- [ ] A template over the configured maximum length is rejected and the
+      stored template is unchanged.
+- [ ] Setting or clearing the template persists across logout.
+
 ---
 
 ## 8. Panel rendering
@@ -782,6 +823,7 @@ this spec.
 |---|---|
 | Theme entries (tag → fg/bg/html) | §3.1 |
 | Default prompt template | §7.1 |
+| Max prompt template length | §7.4 |
 | Default panel width (today 80) | §8.1 |
 | Default help-render width (today 78) | §10.1 |
 | Role hierarchy (today player / builder / admin) | §9.5 |
