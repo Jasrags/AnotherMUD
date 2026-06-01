@@ -127,12 +127,21 @@ func run() error {
 	}
 	// M17.1b: a sandboxed scripting.Engine is the ScriptCompiler the
 	// pack loader uses to syntax-check each pack-supplied Lua file
-	// at boot. M17.1c will reuse this same Engine to actually run
-	// the scripts.
+	// at boot. M17.1c reuses the same Engine via a Runtime that
+	// installs long-lived Sandboxes + bus subscriptions.
 	scriptEngine := scripting.New(scripting.Options{})
 	if err := pack.Load(ctx, cfg.ContentDir, nil, registries, spawner, spawner, scriptEngine); err != nil {
 		return fmt.Errorf("loading content from %s: %w", cfg.ContentDir, err)
 	}
+	// M17.1c: bring scripts online. The Runtime spins up one Sandbox
+	// per discovered script, installs the engine.* API on its LState,
+	// and runs the script body to register handlers. Bus
+	// subscriptions become live at the first engine.subscribe call.
+	scriptRuntime := scripting.NewRuntime(scriptEngine, bus)
+	if err := scriptRuntime.LoadRegistry(ctx, registries.Scripts); err != nil {
+		return fmt.Errorf("loading scripts: %w", err)
+	}
+	defer scriptRuntime.Close()
 	w := registries.World
 	if _, err := w.Room(cfg.StartRoom); err != nil {
 		return fmt.Errorf("starting room %q not in loaded world: %w", cfg.StartRoom, err)

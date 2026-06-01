@@ -32,3 +32,5 @@ content:
     - effects/*.yaml
   weather_zones:
     - weather_zones/*.yaml
+  scripts:
+    - scripts/*.lua

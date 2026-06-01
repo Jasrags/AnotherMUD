@@ -2249,7 +2249,7 @@ the keystone.
 boundary so a future runtime swap (goja, Starlark) is feasible
 without rewriting scripts.
 
-- [ ] **M17.1 — Scripting runtime.** Sandbox + bus bridge +
+- [x] **M17.1 — Scripting runtime.** Sandbox + bus bridge +
       minimal engine API.
   - [x] **M17.1a — Sandbox substrate.** New
         `internal/scripting` package; `Engine.Run(ctx, packID,
@@ -2302,11 +2302,33 @@ without rewriting scripts.
         integration tests (discovery, syntax-error attribution
         through Load, empty-glob clean load, nil-compiler skips
         check). `go test -race ./...` clean.
-  - [ ] **M17.1c — Bus bridge + minimal API.** Scripts can
-        `engine.subscribe("mob.killed", fn)` and call
-        `engine.log(msg)`. Demo target: a Lua script in
-        `content/core/scripts/track_kills.lua` subscribes
-        and logs.
+  - [x] **M17.1c — Bus bridge + minimal API.** New
+        `*scripting.Sandbox` (long-lived LState with per-instance
+        mutex; `Run` for the boot registration pass, `Call` for
+        per-event handler invocation, both honor the per-call
+        timeout + `recover()` wrap so a Go-side panic from an
+        LGFunction surfaces as `*Error` rather than crashing the
+        caller — closes the M17.1a-deferred MEDIUM). New
+        `*scripting.Runtime` wires Sandboxes to the eventbus.Bus:
+        `LoadRegistry` constructs one Sandbox per `script.Entry`,
+        installs the `engine` global (`subscribe(name, fn)` +
+        `log(msg)`), runs the script body once to register
+        handlers. Lazy bus subscription per event name; one
+        Go-side handler fans out to all Lua subscribers under
+        each Sandbox's lock. New `marshal.go` reflectively walks
+        event struct fields and presents them as a snake_case
+        Lua table (`MobID` → `mob_id`, `XMLParser` → `xml_parser`).
+        Composition root wires `scripting.NewRuntime(engine, bus)`
+        + `LoadRegistry(registries.Scripts)` after pack load with
+        `defer runtime.Close()`. Demo target landed:
+        `content/core/scripts/track_kills.lua` subscribes to
+        `mob.killed` and logs every kill via `engine.log`. 9
+        runtime tests (register-dispatch, multi-pack same event,
+        argument validation rejects non-string name, handler
+        error doesn't affect siblings, Close unsubscribes +
+        idempotent, concurrent dispatch -race-clean, nil
+        registry no-op, log binding callable, snake_case
+        marshalling).
 - [ ] **M17.2 — Arg typing.** `commands-and-dispatch §5`.
       Independent of the scripting runtime; can land in
       parallel.
