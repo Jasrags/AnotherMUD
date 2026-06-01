@@ -119,6 +119,59 @@ name: Room A
 	}
 }
 
+func TestDiscoverScripts_ReturnsScriptsWithoutContentLoad(t *testing.T) {
+	// M17.3: DiscoverScripts re-reads only the scripts — it returns
+	// the same entries Load registers, with no content registries
+	// supplied (and thus no content parsing / spawning).
+	root := minimalCorePackWithScripts(t, `local x = 1`, `local y = 2`)
+	engine := scripting.New(scripting.Options{})
+	reg, err := DiscoverScripts(context.Background(), root, nil, engine)
+	if err != nil {
+		t.Fatalf("DiscoverScripts: %v", err)
+	}
+	entries := reg.All()
+	if len(entries) != 2 {
+		t.Fatalf("discovered scripts = %d, want 2", len(entries))
+	}
+	for _, e := range entries {
+		if e.PackID != "tapestry-core" {
+			t.Errorf("entry %q PackID = %q, want tapestry-core", e.Path, e.PackID)
+		}
+		if !strings.HasPrefix(e.Path, "scripts/") || !strings.HasSuffix(e.Path, ".lua") {
+			t.Errorf("entry Path = %q, want scripts/*.lua", e.Path)
+		}
+	}
+}
+
+func TestDiscoverScripts_SyntaxErrorSurfaces(t *testing.T) {
+	// A broken script must abort discovery with the attributed
+	// *scripting.Error BEFORE any reload tears down the live runtime.
+	root := minimalCorePackWithScripts(t, `local x = 1 +`, `local y = 2`)
+	engine := scripting.New(scripting.Options{})
+	_, err := DiscoverScripts(context.Background(), root, nil, engine)
+	if err == nil {
+		t.Fatal("expected DiscoverScripts to fail on broken script")
+	}
+	var se *scripting.Error
+	if !errors.As(err, &se) {
+		t.Fatalf("expected *scripting.Error in chain, got %v", err)
+	}
+	if se.ScriptPath != "scripts/first.lua" {
+		t.Errorf("ScriptPath = %q, want scripts/first.lua", se.ScriptPath)
+	}
+}
+
+func TestDiscoverScripts_NilCompilerSkipsCompile(t *testing.T) {
+	root := minimalCorePackWithScripts(t, `local x = 1 +`, `local y = 2`)
+	reg, err := DiscoverScripts(context.Background(), root, nil, nil)
+	if err != nil {
+		t.Fatalf("DiscoverScripts(nil compiler): %v", err)
+	}
+	if got := reg.Len(); got != 2 {
+		t.Errorf("discovered = %d, want 2 (compile skipped)", got)
+	}
+}
+
 func TestLoad_NilCompiler_RegistersWithoutCompileCheck(t *testing.T) {
 	// With a nil compiler, a syntax-broken script still registers
 	// (compile is skipped) — useful in tests that don't want to

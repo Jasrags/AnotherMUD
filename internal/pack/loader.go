@@ -176,6 +176,40 @@ func Load(ctx context.Context, root string, filter []string, dst *Registries, sp
 	return nil
 }
 
+// DiscoverScripts re-runs ONLY the pack-discovery + script-glob +
+// compile-check portion of Load and returns a fresh script.Registry.
+// It performs NO content parsing, entity spawning, or world mutation,
+// so unlike Load it is safe to call on a live server — the M17.3
+// script hot-reload path uses it to re-read pack Lua from disk without
+// disturbing world.World or the content registries.
+//
+// Pack discovery + dependency ordering are reused so a reloaded
+// script's LoadOrder (and thus dispatch order) matches boot. A syntax
+// error in any script surfaces here, via scriptCompiler, BEFORE the
+// caller tears the running runtime down — so a bad edit leaves the
+// live scripts untouched.
+func DiscoverScripts(ctx context.Context, root string, filter []string, scriptCompiler ScriptCompiler) (*script.Registry, error) {
+	discovered, err := Discover(root, filter)
+	if err != nil {
+		return nil, fmt.Errorf("discovery: %w", err)
+	}
+	ordered, err := Order(discovered)
+	if err != nil {
+		return nil, fmt.Errorf("ordering: %w", err)
+	}
+	reg := script.New()
+	for _, p := range ordered {
+		scriptPaths, err := resolveGlobs(p.Dir, p.Manifest.Content.Scripts)
+		if err != nil {
+			return nil, fmt.Errorf("pack %q scripts: %w", p.Manifest.Name, err)
+		}
+		if err := loadScripts(p, reg, scriptCompiler, scriptPaths); err != nil {
+			return nil, fmt.Errorf("pack %q: %w", p.Manifest.Name, err)
+		}
+	}
+	return reg, nil
+}
+
 // validateSpawnRules walks every area's SpawnRules and verifies that
 // each rule's room id resolves in the world registry and each
 // mob/rare template id resolves in the mob registry. Spec
@@ -273,7 +307,7 @@ func loadPackContent(ctx context.Context, p Discovered, dst *Registries, scriptC
 	// load and crash at first event delivery. Done early in the
 	// content pass so a broken script aborts before anything else
 	// commits to disk.
-	if err := loadScripts(p, dst, scriptCompiler, scriptPaths); err != nil {
+	if err := loadScripts(p, dst.Scripts, scriptCompiler, scriptPaths); err != nil {
 		return nil, nil, err
 	}
 	if len(scriptPaths) > 0 {
@@ -1087,7 +1121,7 @@ func decodeClass(path, ns string) (*progression.Class, error) {
 // attribution at execution time (M17.1c). Source is the raw text
 // read from disk — gopher-lua handles its own line-counting for
 // error messages.
-func loadScripts(p Discovered, dst *Registries, scriptCompiler ScriptCompiler, scriptPaths []string) error {
+func loadScripts(p Discovered, reg *script.Registry, scriptCompiler ScriptCompiler, scriptPaths []string) error {
 	if len(scriptPaths) == 0 {
 		return nil
 	}
@@ -1121,7 +1155,7 @@ func loadScripts(p Discovered, dst *Registries, scriptCompiler ScriptCompiler, s
 			Source:    string(source),
 			LoadOrder: p.Manifest.LoadOrder,
 		}
-		if err := dst.Scripts.Register(entry); err != nil {
+		if err := reg.Register(entry); err != nil {
 			return fmt.Errorf("registering script %s: %w", sp, err)
 		}
 	}

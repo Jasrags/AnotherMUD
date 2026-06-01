@@ -2566,7 +2566,31 @@ without rewriting scripts.
         surface. No handler migration yet — M17.2d wires
         existing handlers to the new path.
 - [ ] **M17.3 — Hot reload.** Requires the scripting runtime
-      to be stable (M17.1c).
+      to be stable (M17.1c). **Scope: script-only reload** —
+      rebuilds the scripting sandboxes + bus subscriptions; does
+      NOT touch `world.World` or the content registries (the M2
+      reload story flags live world mutation as unsafe). Amends
+      the `scripting-and-packs` §1 hot-reload non-goal for
+      scripts.
+  - [x] **M17.3a — Reload primitives.** `pack.DiscoverScripts`
+        (discovery + script-glob + compile-check ONLY — no
+        content parse, no spawning, so it is safe on a live
+        server; reuses pack discovery/ordering so reloaded
+        LoadOrder matches boot) and `scripting.Runtime.Reload`
+        (reloadMu-serialized: detach bus subs + Close old
+        sandboxes under the swap lock, then re-run the new
+        registry). Call-after-Close is already safe (Sandbox
+        returns a "closed" error, not a panic), so an in-flight
+        dispatch racing a reload degrades to a logged handler
+        error. `LoadRegistry` refactored to append sandboxes
+        under `mu` (lock-safe); `Close` reshaped to the same
+        detach-then-teardown lock order. `loadScripts`
+        re-pointed at a `*script.Registry`. Known edge: a script
+        that compiles but errors during its registration pass
+        yields a partial reload (DiscoverScripts' compile-check
+        catches syntax errors before teardown). 6 new tests.
+        M17.3b wires the `reload` verb + composition-root trigger
+        + the spec amendment.
 - [ ] **M17.4 — Schedule primitive.** Thin shim over
       scripting; depends on M17.1c.
 

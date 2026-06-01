@@ -3,12 +3,14 @@ package scripting_test
 import (
 	"context"
 	"errors"
+	"log/slog"
 	"strings"
 	"sync"
 	"testing"
 	"time"
 
 	"github.com/Jasrags/AnotherMUD/internal/eventbus"
+	"github.com/Jasrags/AnotherMUD/internal/logging"
 	"github.com/Jasrags/AnotherMUD/internal/script"
 	"github.com/Jasrags/AnotherMUD/internal/scripting"
 )
@@ -236,6 +238,153 @@ func TestRuntime_LogBindingIsCallable(t *testing.T) {
 		t.Fatalf("LoadRegistry: %v", err)
 	}
 	bus.Publish(context.Background(), dummyEvent{})
+}
+
+// --- M17.3 hot reload ---
+
+// logCapture is a minimal slog.Handler that records the "msg" attr of
+// every record. engine.log emits its text under that attr, so swapping
+// it in for logging.Default lets a test observe which Lua handler fired.
+type logCapture struct {
+	mu   sync.Mutex
+	msgs []string
+}
+
+func (h *logCapture) Enabled(context.Context, slog.Level) bool { return true }
+func (h *logCapture) Handle(_ context.Context, r slog.Record) error {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	r.Attrs(func(a slog.Attr) bool {
+		if a.Key == "msg" {
+			h.msgs = append(h.msgs, a.Value.String())
+			return false
+		}
+		return true
+	})
+	return nil
+}
+func (h *logCapture) WithAttrs([]slog.Attr) slog.Handler { return h }
+func (h *logCapture) WithGroup(string) slog.Handler      { return h }
+
+func (h *logCapture) snapshot() []string {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	return append([]string(nil), h.msgs...)
+}
+
+func (h *logCapture) reset() {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	h.msgs = nil
+}
+
+func captureLogs(t *testing.T) *logCapture {
+	t.Helper()
+	cap := &logCapture{}
+	prev := logging.Default
+	logging.Default = slog.New(cap)
+	t.Cleanup(func() { logging.Default = prev })
+	return cap
+}
+
+func contains(msgs []string, sub string) bool {
+	for _, m := range msgs {
+		if strings.Contains(m, sub) {
+			return true
+		}
+	}
+	return false
+}
+
+func TestRuntime_Reload_SwapsHandlers(t *testing.T) {
+	logs := captureLogs(t)
+	rt, bus := newTestRuntime(t)
+	defer rt.Close()
+
+	v1 := script.New()
+	_ = v1.Register(script.Entry{
+		PackID: "p", Path: "h.lua",
+		Source: `engine.subscribe("test.dummy", function(n, p) engine.log("HANDLER-V1:" .. p.mob_name) end)`,
+	})
+	if err := rt.LoadRegistry(context.Background(), v1); err != nil {
+		t.Fatalf("LoadRegistry: %v", err)
+	}
+	bus.Publish(context.Background(), dummyEvent{MobName: "rat"})
+	if !contains(logs.snapshot(), "HANDLER-V1:rat") {
+		t.Fatalf("v1 handler did not fire; logs=%v", logs.snapshot())
+	}
+
+	// Reload with a different script body for the same event.
+	v2 := script.New()
+	_ = v2.Register(script.Entry{
+		PackID: "p", Path: "h.lua",
+		Source: `engine.subscribe("test.dummy", function(n, p) engine.log("HANDLER-V2:" .. p.mob_name) end)`,
+	})
+	if err := rt.Reload(context.Background(), v2); err != nil {
+		t.Fatalf("Reload: %v", err)
+	}
+
+	logs.reset()
+	bus.Publish(context.Background(), dummyEvent{MobName: "kobold"})
+	got := logs.snapshot()
+	if !contains(got, "HANDLER-V2:kobold") {
+		t.Errorf("v2 handler did not fire after reload; logs=%v", got)
+	}
+	if contains(got, "HANDLER-V1") {
+		t.Errorf("v1 handler still firing after reload; logs=%v", got)
+	}
+}
+
+func TestRuntime_Reload_RemovesAStaleSubscription(t *testing.T) {
+	// A script that subscribed to an event before reload must stop
+	// receiving it when the reloaded registry no longer subscribes.
+	logs := captureLogs(t)
+	rt, bus := newTestRuntime(t)
+	defer rt.Close()
+
+	v1 := script.New()
+	_ = v1.Register(script.Entry{
+		PackID: "p", Path: "h.lua",
+		Source: `engine.subscribe("test.dummy", function(n, p) engine.log("STALE") end)`,
+	})
+	if err := rt.LoadRegistry(context.Background(), v1); err != nil {
+		t.Fatalf("LoadRegistry: %v", err)
+	}
+
+	// Reload with a registry that subscribes to nothing.
+	empty := script.New()
+	_ = empty.Register(script.Entry{PackID: "p", Path: "h.lua", Source: `-- no subscriptions`})
+	if err := rt.Reload(context.Background(), empty); err != nil {
+		t.Fatalf("Reload: %v", err)
+	}
+
+	logs.reset()
+	bus.Publish(context.Background(), dummyEvent{MobName: "rat"})
+	if contains(logs.snapshot(), "STALE") {
+		t.Errorf("stale subscription still firing after reload; logs=%v", logs.snapshot())
+	}
+}
+
+func TestRuntime_Reload_SyntaxErrorViaCompilerPreValidation(t *testing.T) {
+	// Reload itself runs the script body; a body that errors at
+	// registration returns the error. (Pre-validation against a
+	// compile-checking discovery happens at the pack layer; here we
+	// pin that Reload surfaces a registration-time failure.)
+	rt, bus := newTestRuntime(t)
+	defer rt.Close()
+	_ = bus
+
+	good := script.New()
+	_ = good.Register(script.Entry{PackID: "p", Path: "h.lua", Source: `engine.subscribe("test.dummy", function() end)`})
+	if err := rt.LoadRegistry(context.Background(), good); err != nil {
+		t.Fatalf("LoadRegistry: %v", err)
+	}
+
+	bad := script.New()
+	_ = bad.Register(script.Entry{PackID: "p", Path: "h.lua", Source: `error("boom at registration")`})
+	if err := rt.Reload(context.Background(), bad); err == nil {
+		t.Error("expected Reload to surface the registration error")
+	}
 }
 
 // --- Marshaller surface ---

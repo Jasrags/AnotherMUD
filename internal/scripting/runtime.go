@@ -30,6 +30,13 @@ type Runtime struct {
 	engine *Engine
 	bus    *eventbus.Bus
 
+	// reloadMu serializes whole LoadRegistry / Reload operations
+	// against each other so two concurrent reloads (e.g. two players
+	// firing `reload`) can't interleave sandbox construction and
+	// subscription registration. Distinct from mu, which guards the
+	// fine-grained subs/unsubs/sandboxes state read by dispatch.
+	reloadMu sync.Mutex
+
 	mu sync.Mutex
 	// subs maps an eventbus name to the (sandbox, fn) pairs that
 	// want delivery. One bus subscription per name is installed
@@ -77,37 +84,103 @@ func NewRuntime(engine *Engine, bus *eventbus.Bus) *Runtime {
 // alive until Close — so a half-loaded Runtime still cleans
 // up correctly if the caller decides to abort.
 func (r *Runtime) LoadRegistry(ctx context.Context, registry *script.Registry) error {
+	r.reloadMu.Lock()
+	defer r.reloadMu.Unlock()
+	return r.loadLocked(ctx, registry)
+}
+
+// loadLocked is the shared body of LoadRegistry / Reload. The caller
+// MUST hold reloadMu. Each sandbox is appended to r.sandboxes under mu
+// (so a concurrent dispatch's snapshot / Close stays race-free) AFTER
+// its Run completes — Run itself calls addSubscription, which takes mu
+// on its own, so we must not hold mu across Run.
+func (r *Runtime) loadLocked(ctx context.Context, registry *script.Registry) error {
 	if registry == nil {
 		return nil
 	}
-	entries := registry.All()
-	for _, e := range entries {
+	for _, e := range registry.All() {
 		sb := r.engine.NewSandbox(e.PackID, e.Path)
 		r.bindEngineAPI(sb)
-		if err := sb.Run(ctx, e.Source); err != nil {
-			r.sandboxes = append(r.sandboxes, sb)
-			return err
-		}
+		runErr := sb.Run(ctx, e.Source)
+		r.mu.Lock()
 		r.sandboxes = append(r.sandboxes, sb)
+		r.mu.Unlock()
+		if runErr != nil {
+			return runErr
+		}
 	}
 	return nil
 }
 
-// Close unsubscribes every bus subscription the Runtime
-// installed and closes every Sandbox. Safe to call more than
-// once.
-func (r *Runtime) Close() {
+// Reload swaps the running pack scripts for a freshly-discovered
+// registry without a server restart (M17.3, script-only hot reload).
+// It detaches every current bus subscription, closes the old
+// sandboxes, and re-runs the new registry's scripts — touching neither
+// world.World nor the content registries, so live sessions keep
+// playing.
+//
+// Concurrency: reloadMu serializes Reload against itself and
+// LoadRegistry. The detach + state reset happen under mu so a
+// concurrent dispatch either sees the full old set or the full new
+// set, never a torn mix. Closing an old sandbox while an in-flight
+// dispatch (which snapshotted subs before the swap) still holds a
+// handler from it is safe — Sandbox.Call returns a "closed" error
+// rather than panicking, and the dispatcher logs-and-continues.
+//
+// Atomicity caveat: teardown happens before the new scripts run, so a
+// script that COMPILES but errors during its registration pass yields
+// a partial reload. Callers should pre-validate by discovering through
+// a compile-checking ScriptCompiler (pack.DiscoverScripts does) so a
+// syntax error aborts before Reload is ever called; a registration-
+// time runtime error remains a known partial-reload edge.
+func (r *Runtime) Reload(ctx context.Context, registry *script.Registry) error {
+	r.reloadMu.Lock()
+	defer r.reloadMu.Unlock()
+
+	// Detach the live wiring under mu, then tear it down outside the
+	// lock (bus unsubscribe + sandbox Close may run handlers / block).
 	r.mu.Lock()
-	defer r.mu.Unlock()
-	for _, un := range r.unsubs {
+	oldUnsubs := r.unsubs
+	oldSandboxes := r.sandboxes
+	r.unsubs = make(map[string]func())
+	r.subs = make(map[string][]subscription)
+	r.sandboxes = nil
+	r.mu.Unlock()
+
+	for _, un := range oldUnsubs {
 		un()
 	}
-	r.unsubs = nil
-	r.subs = nil
-	for _, sb := range r.sandboxes {
+	for _, sb := range oldSandboxes {
 		sb.Close()
 	}
+
+	return r.loadLocked(ctx, registry)
+}
+
+// Close unsubscribes every bus subscription the Runtime installed and
+// closes every Sandbox. Safe to call more than once. Takes reloadMu
+// (consistent lock order reloadMu → mu, shared with Reload) so a
+// shutdown can't race an in-flight reload. Detaches under mu, then
+// unsubscribes + closes outside it — the same teardown shape as Reload
+// so dispatch never observes a torn state.
+func (r *Runtime) Close() {
+	r.reloadMu.Lock()
+	defer r.reloadMu.Unlock()
+
+	r.mu.Lock()
+	oldUnsubs := r.unsubs
+	oldSandboxes := r.sandboxes
+	r.unsubs = nil
+	r.subs = nil
 	r.sandboxes = nil
+	r.mu.Unlock()
+
+	for _, un := range oldUnsubs {
+		un()
+	}
+	for _, sb := range oldSandboxes {
+		sb.Close()
+	}
 }
 
 // bindEngineAPI installs the `engine` global table on sb's
