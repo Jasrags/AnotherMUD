@@ -1578,6 +1578,21 @@ func decodeMob(path, ns string) (*mob.Template, error) {
 		return nil, err
 	}
 
+	// Normalize passive-ability proficiency keys (lowercase + trim) so
+	// they match the registry/proficiency-manager keying. A blank key
+	// after trimming is dropped. nil stays nil (mob has no passives).
+	var profs map[string]int
+	if len(f.Proficiencies) > 0 {
+		profs = make(map[string]int, len(f.Proficiencies))
+		for k, v := range f.Proficiencies {
+			key := strings.ToLower(strings.TrimSpace(k))
+			if key == "" {
+				continue
+			}
+			profs[key] = v
+		}
+	}
+
 	return &mob.Template{
 		ID:               mob.TemplateID(id),
 		Name:             f.Name,
@@ -1591,6 +1606,7 @@ func decodeMob(path, ns string) (*mob.Template, error) {
 		Properties:       f.Properties,
 		Stats:            f.Stats,
 		Equipment:        f.Equipment,
+		Proficiencies:    profs,
 		Race:             strings.ToLower(strings.TrimSpace(f.Race)),
 		Class:            strings.ToLower(strings.TrimSpace(f.Class)),
 		Level:            f.Level,

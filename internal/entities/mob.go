@@ -1,6 +1,7 @@
 package entities
 
 import (
+	"strings"
 	"sync"
 
 	"github.com/Jasrags/AnotherMUD/internal/combat"
@@ -84,6 +85,31 @@ type MobInstance struct {
 	// package than the progression service it serves.
 	trainerTier  int
 	trainerTeach []string
+
+	// proficiencies maps ability id -> proficiency value for the mob's
+	// passive abilities (M9.5 #3 — abilities-and-effects §6). Seeded
+	// once from the template at construction and never mutated
+	// thereafter (mobs neither learn nor train), so — like keywords and
+	// race — it is read without a lock. Keys are already lowercased by
+	// the loader; Proficiency re-normalizes defensively. nil when the
+	// template declares no passive proficiencies. Read by the host's
+	// passive-proficiency resolver so a mob's extra_attack / defensive
+	// passives fire in combat the same way a player's do.
+	proficiencies map[string]int
+}
+
+// Proficiency reports the mob's proficiency for abilityID (M9.5 #3).
+// Returns (value, true) when the mob was seeded with that ability's
+// proficiency, else (0, false). Mirrors progression.ProficiencyManager's
+// Proficiency accessor so the host composite resolver can route a mob
+// id here without the passive resolver knowing players from mobs. The
+// map is immutable post-construction, so no lock is taken.
+func (m *MobInstance) Proficiency(abilityID string) (int, bool) {
+	if m.proficiencies == nil {
+		return 0, false
+	}
+	v, ok := m.proficiencies[strings.ToLower(strings.TrimSpace(abilityID))]
+	return v, ok
 }
 
 // Reserved property keys with engine-defined semantics on MobInstance.
@@ -500,6 +526,10 @@ func buildMobFromTemplate(tpl *mob.Template, id EntityID) *MobInstance {
 		race:         tpl.Race,
 		trainerTier:  tpl.TrainerTier,
 		trainerTeach: append([]string(nil), tpl.TrainerTeach...),
+		// Copy (not alias) the template's passive proficiencies so a
+		// future template mutation can't reach into a live instance.
+		// nil-in stays nil-out — Proficiency handles the nil map.
+		proficiencies: copyProficiencies(tpl.Proficiencies),
 	}
 	// M14.1: keep Vitals.Max in lockstep with StatBlock's effective
 	// hp_max so an effect that raises CON / hp_max actually changes
@@ -509,6 +539,20 @@ func buildMobFromTemplate(tpl *mob.Template, id EntityID) *MobInstance {
 		mob.vitals.SetMax(newMax)
 	})
 	return mob
+}
+
+// copyProficiencies returns a defensive copy of a template's passive
+// proficiency map (M9.5 #3). Returns nil for a nil/empty input so a
+// mob with no passives carries no map (Proficiency handles nil).
+func copyProficiencies(src map[string]int) map[string]int {
+	if len(src) == 0 {
+		return nil
+	}
+	dst := make(map[string]int, len(src))
+	for k, v := range src {
+		dst[k] = v
+	}
+	return dst
 }
 
 // mobStatBlock builds a progression.StatBlock seeded from a mob

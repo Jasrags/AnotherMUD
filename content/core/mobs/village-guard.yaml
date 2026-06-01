@@ -8,6 +8,13 @@ keywords: [guard, villager]
 stats:
   hp_max: 22
   str: 10
+# Passive abilities (M9.5 #3 — abilities-and-effects §6). A trained
+# guard occasionally lands a second swing. Unlike a player, the guard
+# does not learn or train: this proficiency is fixed content. variance
+# 80 ⇒ effective extra-swing chance is 50 × 80/100 = ~40% per round
+# when the guard actually fights (an outlaw or evil-aligned attacker).
+proficiencies:
+  second-attack: 50
 # Disposition policy (spec mobs-ai-spawning §5.1).
 # Default reaction is friendly to everyone in the village.
 # Players tagged `outlaw` (legacy explicit tag) and players whose

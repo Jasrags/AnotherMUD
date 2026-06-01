@@ -65,6 +65,17 @@ type Template struct {
 	Stats      map[string]int
 	Equipment  []string // item template ids to equip at spawn (§3.3)
 
+	// Proficiencies is the optional map of ability id -> proficiency
+	// value the mob holds for PASSIVE abilities (abilities-and-effects
+	// §6). Unlike players, mobs neither learn nor train: these are
+	// fixed content read once at spawn into the MobInstance's immutable
+	// proficiency map. They feed the same combat passive hooks
+	// (extra_attack, defensive) a player's proficiency does — e.g. a
+	// guard with `second-attack: 70` earns extra swings. Ability keys
+	// are lowercased + trimmed by the loader; values are content's
+	// responsibility (the passive resolver treats <=0 as unlearned).
+	Proficiencies map[string]int
+
 	// Race is the optional race id (progression.md §3.1). When set
 	// and the id resolves in the race registry at spawn time, the
 	// mob's RacialFlags are merged into its tag set (§3.1) and

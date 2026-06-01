@@ -1017,11 +1017,15 @@ func run() error {
 	combatRNG := rand.New(rand.NewPCG(uint64(clk.Now().UnixNano()), 0))
 	// M9.5: passive-ability evaluator for the auto-attack §4.2/§4.3
 	// hooks. Shares combatRNG (same single-goroutine tick context as
-	// the swing rolls) and the proficiency manager (read + §6.3 gain).
+	// the swing rolls). The proficiency surface is the M9.5 #3 composite
+	// so a MOB's content-defined passives (e.g. a guard's second-attack)
+	// fire alongside players' — players resolve through the persistent
+	// manager, mobs through the entity store; mob gain is a no-op.
 	// *progression.PassiveResolver satisfies combat.PassiveEvaluator
 	// structurally — no adapter needed.
+	passiveProficiency := session.NewPassiveProficiency(proficiencyMgr, entityStore)
 	passiveResolver := progression.NewPassiveResolver(
-		registries.Abilities, proficiencyMgr, proficiencyMgr, combatRNG,
+		registries.Abilities, passiveProficiency, passiveProficiency, combatRNG,
 	)
 	autoAttackPhase := combat.NewAutoAttack(combat.AutoAttackConfig{
 		Locator:     combatLocator,

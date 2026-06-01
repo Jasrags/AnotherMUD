@@ -104,6 +104,11 @@ type MobFile struct {
 	Properties  map[string]any `yaml:"properties,omitempty"`
 	Stats       map[string]int `yaml:"stats,omitempty"`
 	Equipment   []string       `yaml:"equipment,omitempty"`
+	// Proficiencies maps ability id -> proficiency value for the mob's
+	// passive abilities (M9.5 #3 — abilities-and-effects §6). Optional;
+	// keys are lowercased + trimmed at decode. Mobs do not train, so
+	// these are fixed combat content (e.g. `second-attack: 70`).
+	Proficiencies map[string]int `yaml:"proficiencies,omitempty"`
 	// Race is the optional race id (M8.3 — progression.md §3.1).
 	// Unknown ids are tolerated at load (validation runs at spawn,
 	// matching the spec's fail-silent convention).
@@ -514,32 +519,32 @@ type RaceFile struct {
 //
 // Shape of the nested maps:
 //
-//   transitions:
-//     clear:
-//       - next: cloudy
-//         weight: 3
-//       - next: clear
-//         weight: 7
+//	transitions:
+//	  clear:
+//	    - next: cloudy
+//	      weight: 3
+//	    - next: clear
+//	      weight: 7
 //
-//   weather_messages:
-//     rain:
-//       outdoors:
-//         start: "Rain begins to fall."
-//         ongoing: "Rain patters around you."
-//         end: "The rain tapers off."
-//       forest:
-//         start: "Drops patter against the leaves overhead."
+//	weather_messages:
+//	  rain:
+//	    outdoors:
+//	      start: "Rain begins to fall."
+//	      ongoing: "Rain patters around you."
+//	      end: "The rain tapers off."
+//	    forest:
+//	      start: "Drops patter against the leaves overhead."
 //
-//   time_messages:
-//     dawn:
-//       outdoors: "The first light leaks across the horizon."
+//	time_messages:
+//	  dawn:
+//	    outdoors: "The first light leaks across the horizon."
 type WeatherZoneFile struct {
-	ID                string                                    `yaml:"id"`
-	InitialState      string                                    `yaml:"initial_state,omitempty"`
-	RollIntervalHours int                                       `yaml:"roll_interval_hours,omitempty"`
-	Transitions       map[string][]TransitionWeightFile         `yaml:"transitions,omitempty"`
-	WeatherMessages   map[string]map[string]WeatherTripleFile   `yaml:"weather_messages,omitempty"`
-	TimeMessages      map[string]map[string]string              `yaml:"time_messages,omitempty"`
+	ID                string                                  `yaml:"id"`
+	InitialState      string                                  `yaml:"initial_state,omitempty"`
+	RollIntervalHours int                                     `yaml:"roll_interval_hours,omitempty"`
+	Transitions       map[string][]TransitionWeightFile       `yaml:"transitions,omitempty"`
+	WeatherMessages   map[string]map[string]WeatherTripleFile `yaml:"weather_messages,omitempty"`
+	TimeMessages      map[string]map[string]string            `yaml:"time_messages,omitempty"`
 }
 
 // TransitionWeightFile is one outcome in a zone transition row.
@@ -558,4 +563,3 @@ type WeatherTripleFile struct {
 	Ongoing string `yaml:"ongoing,omitempty"`
 	End     string `yaml:"end,omitempty"`
 }
-
