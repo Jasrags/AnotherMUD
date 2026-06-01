@@ -2334,6 +2334,29 @@ without rewriting scripts.
       parallel.
   - [ ] **M17.2d — Handler migration + production adapter.**
         Wires the §5 arg-typing pipeline into live dispatch.
+    - [x] **M17.2d₃ — Item-verb batch (get / put / equip).**
+          Migrated the three item verbs that need only the
+          existing inventory / room_item / container / keyword
+          scopes. `get` → one `room_item` arg; `put` →
+          `inventory` + `container` (preps `in`/`into`); `equip`
+          → `inventory` + `keyword` slot. New shared
+          `resolvedItemInstance(c, name)` helper re-fetches the
+          live `*ItemInstance` from a resolved `ItemRef.ID`
+          (TOCTOU guard); `drop` refactored onto it too.
+          Removed now-dead `parsePutArgs` + `accessibleContainers`
+          (+ the `public` placeholder) — the `container` resolver
+          subsumes both, and put's §4.5 step-1 type check is now a
+          resolution invariant. **Accepted behavior changes:**
+          single-token item references only (multi-word phrases
+          like `put short sword in bag` regress — use a single
+          keyword) and §5.4-standard error copy (`What item?` /
+          `What container?` / `What slot?`, container/room
+          not-found sentinels). Deferred (genuinely blocked):
+          `give` (player target — Locator can't enumerate room
+          players), `unequip` (no `equipped` arg type in §5.2),
+          `fill` (source scope analysis pending). Updated 4
+          existing tests for the new copy; added ordinal-through-
+          dispatch + drop coverage. Coverage 82.8%.
     - [x] **M17.2d₂ — Dispatch integration (Option A) + first
           handler.** `Command.Args []ArgDefinition` +
           `Context.Resolved map[string]any`; the `Registry`

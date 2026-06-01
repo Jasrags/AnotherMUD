@@ -121,7 +121,10 @@ func TestGet_NoMatchDoesNotMutate(t *testing.T) {
 	if err := r.Dispatch(context.Background(), f.env(), a, "get unicorn"); err != nil {
 		t.Fatalf("dispatch: %v", err)
 	}
-	if !strings.Contains(a.lastLine(), "nothing here to get") {
+	// M17.2d₃: the room_item resolver reports its standardized
+	// not-found copy ("You don't see that here.") instead of the
+	// old hand-rolled "There is nothing here to get."
+	if !strings.Contains(a.lastLine(), "don't see that here") {
 		t.Errorf("got %q", a.lastLine())
 	}
 }
@@ -135,8 +138,9 @@ func TestGet_ArgumentRequired(t *testing.T) {
 	if err := r.Dispatch(context.Background(), f.env(), a, "get"); err != nil {
 		t.Fatalf("dispatch: %v", err)
 	}
-	if a.lastLine() != "Get what?" {
-		t.Errorf("got %q, want 'Get what?'", a.lastLine())
+	// M17.2d₃: dispatcher emits the §5.4 missing-arg prompt.
+	if a.lastLine() != "What item?" {
+		t.Errorf("got %q, want 'What item?'", a.lastLine())
 	}
 }
 

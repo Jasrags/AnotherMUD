@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/Jasrags/AnotherMUD/internal/command"
+	"github.com/Jasrags/AnotherMUD/internal/item"
 )
 
 // These tests cover the M17.2d₂ dispatch integration (Option A): a
@@ -174,6 +175,31 @@ func TestDrop_Migrated_MissingArg_WhatItem(t *testing.T) {
 	// dispatcher now emits the §5.4-standard missing-arg prompt.
 	if !strings.Contains(a.lastLine(), "What item?") {
 		t.Errorf("got %q, want What-item prompt", a.lastLine())
+	}
+}
+
+func TestGet_Migrated_OrdinalThroughDispatch(t *testing.T) {
+	// Proves §5.5 ordinal selection works end-to-end through a
+	// migrated verb in live dispatch, not just at the resolver layer.
+	f := newInvFixture(t)
+	first := f.spawnInRoom(t, sword())
+	second := f.spawnInRoom(t, &item.Template{
+		ID: "tapestry-core:sword-2", Name: "a rusty sword", Type: "weapon",
+		Keywords: []string{"sword"},
+	})
+	a := newNamedTestActor("Alice", "p-1", f.room)
+
+	r := command.New()
+	_ = command.RegisterBuiltins(r)
+	if err := r.Dispatch(context.Background(), f.env(), a, "get 2.sword"); err != nil {
+		t.Fatalf("Dispatch: %v", err)
+	}
+	inv := a.Inventory()
+	if len(inv) != 1 || inv[0] != second.ID() {
+		t.Errorf("inventory = %v, want the 2nd sword %q", inv, second.ID())
+	}
+	if _, ok := f.place.RoomOf(first.ID()); !ok {
+		t.Error("first sword should remain in the room")
 	}
 }
 

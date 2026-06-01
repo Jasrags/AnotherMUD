@@ -36,30 +36,26 @@ func EquipHandler(ctx context.Context, c *Context) error {
 	if c.Items == nil || c.Slots == nil {
 		return c.Actor.Write(ctx, "You can't equip anything right now.")
 	}
-	if len(c.Args) < 2 {
-		return c.Actor.Write(ctx, "Equip what, where? Usage: equip <item> <slot>")
-	}
 
-	// Slot is the LAST token; everything before is the item phrase, so
-	// multi-word item names ("red potion of healing wield") still parse
-	// cleanly.
-	slotArg := c.Args[len(c.Args)-1]
-	itemPhrase := strings.Join(c.Args[:len(c.Args)-1], " ")
-
+	// M17.2d₃: `equip <item> <slot>` declares item (ArgInventory) then
+	// slot (ArgKeyword). Both are resolved by the §5 pipeline before
+	// this runs — note this flips the old precedence (the hand-parsed
+	// form validated the slot first); a not-carried item now reports
+	// "You aren't carrying that." before the slot is examined. The slot
+	// keyword arrives as a raw string and is validated against the slot
+	// registry here (the keyword resolver does not know slot names).
+	// Single-token item references only (the multi-word item phrase the
+	// old trailing-slot parse allowed is gone).
+	slotArg, _ := c.Resolved["slot"].(string)
 	def, err := c.Slots.Get(slotArg)
 	if err != nil {
 		return c.Actor.Write(ctx, fmt.Sprintf("No such slot: %q.", slotArg))
 	}
 
-	candidates := collectItems(c.Items, c.Actor.Inventory())
-	if len(candidates) == 0 {
-		return c.Actor.Write(ctx, "You aren't carrying anything to equip.")
-	}
-	match := keyword.Resolve(asNamed(candidates), itemPhrase)
-	if match == nil {
+	item, ok := resolvedItemInstance(c, "item")
+	if !ok {
 		return c.Actor.Write(ctx, "You aren't carrying that.")
 	}
-	item := match.(*entities.ItemInstance)
 
 	// Determine target sub-slot. For cap-1: the bare name. For cap-N:
 	// scan occupancy in registration order (index 0, 1, ...).

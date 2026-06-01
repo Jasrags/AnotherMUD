@@ -181,13 +181,13 @@ func TestPut_NotAContainer(t *testing.T) {
 		Keywords: []string{"sword", "another"},
 	})
 
-	// The handler's accessibleContainers() filters by type, so a
-	// plain sword is never in the container candidate set. Verify
-	// the resolver-miss path with a clear message.
+	// M17.2d₃: the `container` arg resolver only yields
+	// ContainerCandidate items, so a plain sword is never a candidate;
+	// the miss surfaces the resolver's standardized container copy.
 	dispatchPut(t, f, a, "put sword another")
 
-	if !strings.Contains(a.lastLine(), "nothing here you could put that into") {
-		t.Errorf("reply = %q, want 'nothing here you could put' message", a.lastLine())
+	if !strings.Contains(a.lastLine(), "don't see a container") {
+		t.Errorf("reply = %q, want container not-found message", a.lastLine())
 	}
 	if len(a.Inventory()) != 2 {
 		t.Errorf("inventory mutated on failure: %v", a.Inventory())
@@ -331,13 +331,22 @@ func TestPut_MissingArgs(t *testing.T) {
 	f.spawnInActorInventory(t, a, sword())
 	f.spawnInActorInventory(t, a, sackTpl())
 
-	for _, input := range []string{"put", "put sword", "put sword in"} {
-		input := input
-		t.Run(input, func(t *testing.T) {
+	// M17.2d₃: the dispatcher emits the §5.4 missing-arg prompt for
+	// whichever declared arg ran out of tokens — "What item?" when no
+	// tokens remain, "What container?" once the item is consumed (with
+	// or without the trailing "in").
+	cases := []struct{ input, want string }{
+		{"put", "What item?"},
+		{"put sword", "What container?"},
+		{"put sword in", "What container?"},
+	}
+	for _, tc := range cases {
+		tc := tc
+		t.Run(tc.input, func(t *testing.T) {
 			a.lines = nil
-			dispatchPut(t, f, a, input)
-			if !strings.Contains(a.lastLine(), "Put what") {
-				t.Errorf("%q reply = %q, want usage message", input, a.lastLine())
+			dispatchPut(t, f, a, tc.input)
+			if !strings.Contains(a.lastLine(), tc.want) {
+				t.Errorf("%q reply = %q, want %q", tc.input, a.lastLine(), tc.want)
 			}
 		})
 	}

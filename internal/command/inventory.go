@@ -34,24 +34,19 @@ func GetHandler(ctx context.Context, c *Context) error {
 		// Sub-system not wired; fail closed rather than panic.
 		return c.Actor.Write(ctx, "You can't pick anything up right now.")
 	}
-	if len(c.Args) == 0 {
-		return c.Actor.Write(ctx, "Get what?")
-	}
 	room := c.Actor.Room()
 	if room == nil {
 		return c.Actor.Write(ctx, "There is nothing here.")
 	}
 
-	candidates := collectItems(c.Items, c.Placement.InRoom(room.ID))
-	if len(candidates) == 0 {
-		return c.Actor.Write(ctx, "There is nothing here to get.")
-	}
-
-	match := keyword.Resolve(asNamed(candidates), strings.Join(c.Args, " "))
-	if match == nil {
+	// M17.2d₃: the room_item arg resolves the target against the room
+	// scope before this runs; we re-fetch the live instance by id so
+	// the tag check and the Placement.Remove atomic claim below operate
+	// on the authoritative entity.
+	item, ok := resolvedItemInstance(c, "item")
+	if !ok {
 		return c.Actor.Write(ctx, "You don't see that here.")
 	}
-	item := match.(*entities.ItemInstance)
 
 	if hasAnyTag(item, tagFixture, tagNoGet) {
 		return c.Actor.Write(ctx, fmt.Sprintf("You can't take %s.", item.Name()))
@@ -136,18 +131,10 @@ func DropHandler(ctx context.Context, c *Context) error {
 		return c.Actor.Write(ctx, "You float in formless void; there is nowhere to drop anything.")
 	}
 
-	ref, ok := c.Resolved["item"].(ItemRef)
+	item, ok := resolvedItemInstance(c, "item")
 	if !ok {
-		// Defensive: only reached if the registration's Args drifted
-		// from this handler's expectation. Mirror the resolver's copy.
-		return c.Actor.Write(ctx, "You aren't carrying that.")
-	}
-	e, ok := c.Items.GetByID(entities.EntityID(ref.ID))
-	if !ok {
-		return c.Actor.Write(ctx, "You aren't carrying that.")
-	}
-	item, ok := e.(*entities.ItemInstance)
-	if !ok {
+		// Defensive: only reached if the item left the store between
+		// resolution and now, or the registration's Args drifted.
 		return c.Actor.Write(ctx, "You aren't carrying that.")
 	}
 
@@ -170,6 +157,28 @@ func DropHandler(ctx context.Context, c *Context) error {
 		ItemID:   item.ID(),
 	})
 	return nil
+}
+
+// resolvedItemInstance re-fetches the live *ItemInstance for a §5
+// arg keyed by name in c.Resolved. The arg resolvers return an ItemRef
+// (id + display fields); handlers that mutate the entity re-fetch the
+// instance by id here. The lookup doubles as the TOCTOU guard — the
+// item may have left the store between resolution and now. Returns
+// false when the arg is absent / not an ItemRef, or its id no longer
+// resolves to a live item instance; callers map false to the
+// appropriate not-found message. Requires c.Items non-nil (every
+// caller guards it before reaching here).
+func resolvedItemInstance(c *Context, name string) (*entities.ItemInstance, bool) {
+	ref, ok := c.Resolved[name].(ItemRef)
+	if !ok {
+		return nil, false
+	}
+	e, ok := c.Items.GetByID(entities.EntityID(ref.ID))
+	if !ok {
+		return nil, false
+	}
+	it, ok := e.(*entities.ItemInstance)
+	return it, ok
 }
 
 // collectItems resolves ids through store and filters to ItemInstances,
