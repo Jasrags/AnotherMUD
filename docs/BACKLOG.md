@@ -134,6 +134,18 @@ old five-theme partition left uncovered.
   read-anywhere vs. a post-office/mailbox room; postage cost + COD (gold sinks); mailbox
   cap; unclaimed-mail expiry/return-to-sender; is mail "tells + attachments + a compose
   step" or its own surface.
+- **Banking (stored gold, maybe item vault)** — a deposit/withdraw balance separate from
+  carried gold. ⚠️ **Greenfield — no Tapestry reference.** Today gold is a single integer
+  carried **directly on the character** (`economy-survival §2.1`), persisted on the save —
+  there is no banked balance, vault, or teller. ⚠️ **Note: banking has little mechanical
+  purpose until carried gold is *at risk*.** Death currently costs no gold (combat death
+  heals to 1 HP + teleports, m7-5); with no death-penalty/theft/PvP, a bank is
+  convenience/flavor only. Spec a gold-at-risk rule alongside it, or accept it as a
+  convenience verb. Substrate: currency (M11.1), the account store (for an account-shared
+  bank across alts), the shop/NPC pattern (M11.2) for a teller, persistence (a banked
+  balance on the player or account save). Pre-decisions: gold-only vs. gold + item vault;
+  per-character vs. account-shared; teller/bank-room vs. access-anywhere; interest + fees
+  (economic levers / gold sinks); is there a gold-at-risk mechanic to justify it.
 - **Cross-cutting event catalog** — per-spec event tables exist in `specs/README.md`;
   no aggregated catalog. (Docs/meta, not engine — not a behavior spec.)
 
