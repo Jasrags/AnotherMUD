@@ -113,11 +113,27 @@ old five-theme partition left uncovered.
     to an offline party. The real "market outside merchants."
   Substrate it builds on: currency (M11.1) + shop pricing patterns (M11.2), item
   instances + entity store, the notifications queue (M13.1) for offline sale delivery
-  (offline tells already deliver on login — same pattern), atomic persistence (new
-  `saves/auctions/`-style store), tick-driven listing expiry, and the
+  (offline tells already deliver on login — same pattern; the item/gold escrow is the
+  **Mail / parcels** layer below — spec that once, both consume it), atomic persistence
+  (new `saves/auctions/`-style store), tick-driven listing expiry, and the
   `Manager.TransferItem` primitive flagged in m5-9a. Pre-decisions: global market vs.
   per-location auctioneer NPC; buyout-only vs. bidding; listing fee/cut (a gold sink for
   balance); delivery channel (mail/notifications); search/browse surface.
+- **Mail / parcels (addressed items + gold)** — send a message *with attachments*
+  (items and/or gold) to another player, claimed later. ⚠️ **Greenfield — no Tapestry
+  reference.** Today we have text-only **offline tells** (M13.2) on the notifications
+  queue; no attachments. The notifications spec **already anticipates this**
+  (`notifications.md:29` — "…mail) will reuse" the queue; "one mailbox" mental model),
+  so the *text/delivery* substrate exists. The new piece is **escrow**: attached items/
+  gold must be held out of the world in a per-player pending-parcels store until claimed
+  (a tell is just text; a parcel holds value). **Shared substrate with the auction house**
+  above — "deliver items/gold to an offline player, claimed on login" is the same
+  capability; spec the parcel/escrow layer once and both player-mail and auction delivery
+  consume it. Substrate: notifications queue (delivery + offline-on-login), item instances
+  + escrow store, atomic persistence, the m5-9a `TransferItem` primitive. Pre-decisions:
+  read-anywhere vs. a post-office/mailbox room; postage cost + COD (gold sinks); mailbox
+  cap; unclaimed-mail expiry/return-to-sender; is mail "tells + attachments + a compose
+  step" or its own surface.
 - **Cross-cutting event catalog** — per-spec event tables exist in `specs/README.md`;
   no aggregated catalog. (Docs/meta, not engine — not a behavior spec.)
 
