@@ -47,7 +47,7 @@ and in addressing (set of subscribers vs. one named recipient).
 
 - **Ignore / block.** Per-player suppression of messages from
   named senders. Deferred to a follow-up after the M13 slice
-  lands. See `docs/themes/social-mud-plan.md`.
+  lands. See `docs/archive/themes/social-mud-plan.md`.
 - **GMCP `Comm.Channel` routing.** All chat in v1 is plain MUD
   text. Mudlet and similar clients see chat the same as any
   other server output. GMCP is Theme B's work.
@@ -634,7 +634,7 @@ Remaining items, all noted for during-impl decisions:
 - `scripting-and-packs` — pack manifest format, content
   globs, dependency ordering, the `channels/*.yaml` glob
   this spec proposes.
-- `docs/themes/social-mud-plan.md` — Theme A live plan,
+- `docs/archive/themes/social-mud-plan.md` — Theme A live plan,
   pre-decisions, current step.
 - `docs/specs/README.md` — substrate-layer placement,
   indexes to update when this spec lands.

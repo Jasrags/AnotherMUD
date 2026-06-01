@@ -15,7 +15,7 @@ configuration-surface table at §8.
 
 Emotes are the third sibling in the social-MUD theme (see
 `docs/archive/THEME-AXIS-PLAN.md` Theme A and
-`docs/themes/social-mud-plan.md`). Unlike channels and tells,
+`docs/archive/themes/social-mud-plan.md`). Unlike channels and tells,
 emotes are **not** addressed messages — they are room-scoped
 output, like `say`. They do not publish through the
 [notifications](notifications.md) queue.
@@ -388,6 +388,6 @@ Remaining items, all explicitly *out of v1 scope*:
   persistence and addressing model.
 - `notifications` — explicitly *not* used by emotes
   (room-scoped, not addressed).
-- `docs/themes/social-mud-plan.md` — Theme A live plan.
+- `docs/archive/themes/social-mud-plan.md` — Theme A live plan.
 - `docs/specs/README.md` — spec layer placement and
   cross-cutting indexes.

@@ -1860,7 +1860,7 @@ rooms have no way to interact. This is the single highest-leverage
 product addition for a single-developer MUD; everything else (combat,
 quests, training) gains weight once players can actually coordinate.
 
-**Live plan + current step:** `docs/themes/social-mud-plan.md`.
+**Live plan + current step:** `docs/archive/themes/social-mud-plan.md`.
 
 **Pre-decisions locked (2026-05-30):**
 - Channels: hybrid (engine baseline + pack-defined additions)
@@ -1903,7 +1903,7 @@ event that raises max-HP doesn't bump current-HP. A mob's declared
 race+class never shapes its actual stats. Each is a small piece;
 together they're the engine substrate showing through.
 
-**Live plan + current step:** `docs/themes/engine-debt-plan.md`.
+**Live plan + current step:** `docs/archive/themes/engine-debt-plan.md`.
 
 **Sub-milestones (order: independent block first, then chained):**
 - [x] **M14.1 — Vital re-clamp on max-affecting stat recompute.**
@@ -1954,7 +1954,7 @@ feels flat without environmental state. Each item is contained
 (no cross-cutting substrate work) and ships visible texture for
 playtesting.
 
-**Live plan + current step:** `docs/themes/world-depth-plan.md`.
+**Live plan + current step:** `docs/archive/themes/world-depth-plan.md`.
 
 **Sub-milestones (order: doors → portals → recall → weather):**
 - [x] **M15.1 — Doors + locks.** Per-exit state with paired
@@ -2023,7 +2023,7 @@ ui-rendering-help 256/truecolor.
 user-visible payoff is what the *client* sees. `internal/conn` is
 already well-abstracted so the blast radius is bounded.
 
-**Live plan + current step:** `docs/themes/modern-client-plan.md`.
+**Live plan + current step:** `docs/archive/themes/modern-client-plan.md`.
 
 **Sub-milestones (order: IAC+TTYPE+NAWS → MSSP → GMCP transport
 → GMCP packages → WebSocket → 256/truecolor):**

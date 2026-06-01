@@ -1,3 +1,10 @@
+> **ARCHIVED 2026-06-01 — Theme E — Engine Debt (M14) shipped.** This per-theme execution plan is
+> historical; its "Status: spec phase" header predates the build. Superseded by
+> [`docs/BACKLOG.md`](../../BACKLOG.md) for open work and [`ROADMAP.md`](../../ROADMAP.md)
+> for what shipped. Kept for the original sequencing and design reasoning.
+
+---
+
 # Theme E — Engine Debt (plan)
 
 **Hook:** Close the deferrals that have been quietly accumulating across

@@ -37,7 +37,7 @@ type TellsBuffer interface {
 // slot. Recipient resolution uses Env.TellResolver: online first
 // (live session), then offline-known (save file exists). Case-
 // insensitive exact match per the locked decision in
-// `docs/themes/social-mud-plan.md`.
+// `docs/archive/themes/social-mud-plan.md`.
 func TellHandler(ctx context.Context, c *Context) error {
 	if len(c.Args) < 2 {
 		return c.Actor.Write(ctx, "Tell whom what?")

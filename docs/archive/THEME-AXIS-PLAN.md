@@ -309,7 +309,7 @@ addition for a single-developer MUD).
 
 When a theme starts:
 
-1. Create a `docs/themes/<theme>-plan.md` with the internal sequence, current
+1. Create a `docs/archive/themes/<theme>-plan.md` with the internal sequence, current
    step, and open pre-decisions.
 2. Add a top-line entry to `docs/ROADMAP.md` under a new milestone heading
    (e.g. `## M13 — Social MUD`).
@@ -321,7 +321,7 @@ When a theme starts:
 When a theme ends:
 
 1. Move closed items out of `docs/TAPESTRY-GAP-MATRIX.md`.
-2. Archive `docs/themes/<theme>-plan.md` (or leave for history).
+2. Archive `docs/archive/themes/<theme>-plan.md` (or leave for history).
 3. Open question: pick the next theme via the rubric above.
 
 ---

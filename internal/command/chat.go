@@ -119,7 +119,7 @@ func doChannelPublish(ctx context.Context, c *Context, ch *chat.Channel, msg str
 
 	// Build recipient set: every online subscriber except the
 	// publisher (self-echo is confirmation-only per the locked
-	// decision in docs/themes/social-mud-plan.md).
+	// decision in docs/archive/themes/social-mud-plan.md).
 	//
 	// Defensive clone: the ChatSubscribers contract requires
 	// implementations to return a fresh map per call, but the

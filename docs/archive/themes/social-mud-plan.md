@@ -1,3 +1,10 @@
+> **ARCHIVED 2026-06-01 — Theme A — Social MUD (M13) shipped.** This per-theme execution plan is
+> historical; its "Status: spec phase" header predates the build. Superseded by
+> [`docs/BACKLOG.md`](../../BACKLOG.md) for open work and [`ROADMAP.md`](../../ROADMAP.md)
+> for what shipped. Kept for the original sequencing and design reasoning.
+
+---
+
 # Theme A — Social MUD (plan)
 
 **Hook:** Players can talk to each other across the world, not just in their

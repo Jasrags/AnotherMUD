@@ -13,7 +13,7 @@ This document describes *what* the recall surface must do, not
 on edge cases live in the configuration-surface table at §7.
 
 Recall is the third item in Theme C — World Depth (see
-`docs/themes/world-depth-plan.md`). It is intentionally a thin
+`docs/archive/themes/world-depth-plan.md`). It is intentionally a thin
 substrate: the engine ships the verb surface, the persisted
 field, and the event hooks, but it ships **no built-in cost,
 cooldown, charge, or chant** (PD-3). Packs that want those
@@ -278,7 +278,7 @@ verbs emit *some* message in each of those slots.
 ## 8. Open questions
 
 The five Theme C pre-decisions (PD-1 through PD-5 in
-`docs/themes/world-depth-plan.md`) settled the recall-relevant
+`docs/archive/themes/world-depth-plan.md`) settled the recall-relevant
 ones (PD-3) before implementation, so the v1 surface is
 explicitly costless and uses both pre- and post-events.
 
@@ -325,7 +325,7 @@ Remaining items, all explicitly *out of v1 scope*:
   honors its single-publish contract.
 - `combat` — the deferred "block recall while engaged"
   open question in §8.
-- `docs/themes/world-depth-plan.md` — Theme C live plan
+- `docs/archive/themes/world-depth-plan.md` — Theme C live plan
   (PD-3 captures the v1 scope decision).
 - `docs/specs/README.md` — spec layer placement and
   cross-cutting indexes (cancellable events table:
