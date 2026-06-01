@@ -1384,6 +1384,7 @@ func run() error {
 		Classes:         registries.Classes,
 		Alignment:       alignmentMgr,
 		DefaultRace:     cfg.DefaultRace,
+		RoleSeed:        cfg.RoleSeed,
 		StartID:         cfg.StartRoom,
 		ColorEnabled:    cfg.ColorDefault,
 		Render:          colorRenderer,
@@ -1546,6 +1547,7 @@ type config struct {
 	SaveDir               string
 	StartRoom             world.RoomID
 	DefaultRace           string
+	RoleSeed              map[string][]string
 	ColorDefault          bool
 	LinkDead              session.LinkDeadConfig
 }
@@ -1588,6 +1590,7 @@ func loadConfig() config {
 		SaveDir:               envOr("ANOTHERMUD_SAVE_DIR", "./saves"),
 		StartRoom:             world.RoomID(envOr("ANOTHERMUD_START_ROOM", "tapestry-core:town-square")),
 		DefaultRace:           envOr("ANOTHERMUD_DEFAULT_RACE", "human"),
+		RoleSeed:              parseRoleSeed(envOr("ANOTHERMUD_ROLE_SEED", "")),
 		ColorDefault:          colorDefault(),
 		LinkDead:              ld,
 	}
@@ -1618,6 +1621,42 @@ func envOr(key, def string) string {
 		return v
 	}
 	return def
+}
+
+// parseRoleSeed parses the ANOTHERMUD_ROLE_SEED operator config
+// (roles-and-permissions §5) into a name→roles map. Format:
+// "name:role,role;name:role" — entries separated by ';', a name and its
+// comma-separated roles separated by ':'. Names and roles are lowercased
+// and trimmed (the session layer normalizes again, but doing it here keeps
+// the map keys canonical). Malformed entries are skipped, not fatal — a
+// typo in the bootstrap config should not crash the server. Empty input
+// yields a nil map (seeding disabled).
+func parseRoleSeed(s string) map[string][]string {
+	s = strings.TrimSpace(s)
+	if s == "" {
+		return nil
+	}
+	out := make(map[string][]string)
+	for _, entry := range strings.Split(s, ";") {
+		name, roleList, ok := strings.Cut(entry, ":")
+		name = strings.ToLower(strings.TrimSpace(name))
+		if !ok || name == "" {
+			continue
+		}
+		var roles []string
+		for _, r := range strings.Split(roleList, ",") {
+			if r = strings.ToLower(strings.TrimSpace(r)); r != "" {
+				roles = append(roles, r)
+			}
+		}
+		if len(roles) > 0 {
+			out[name] = append(out[name], roles...)
+		}
+	}
+	if len(out) == 0 {
+		return nil
+	}
+	return out
 }
 
 // bootSpawner adapts the runtime entity store + placement index to

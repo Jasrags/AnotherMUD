@@ -195,6 +195,15 @@ type Config struct {
 	// to "human" via ANOTHERMUD_DEFAULT_RACE.
 	DefaultRace string
 
+	// RoleSeed is the operator-configured role bootstrap
+	// (roles-and-permissions §5): a map from lowercased character name to
+	// the role names that character is granted at load. It is the only
+	// out-of-band privilege source — it breaks the grant chicken-and-egg
+	// so a fresh deployment has a working admin. Applied additively and
+	// idempotently by applyRoles; nil disables seeding. Not content — a
+	// pack cannot populate it.
+	RoleSeed map[string][]string
+
 	// StartID is the fallback starting room when a character's saved
 	// location is not present in the loaded world (e.g. a room was
 	// removed from content between restarts).
@@ -491,6 +500,11 @@ func run(ctx context.Context, c conn.Connection, cfg Config) error {
 		a.markDirtyLocked()
 	}
 	a.mu.Unlock()
+
+	// M19.1: restore the role set from the save, then apply the config
+	// seed (roles-and-permissions §5/§6). A seeded role marks the save
+	// dirty so the bootstrap admin persists on first login.
+	applyRoles(a, &cfg, loaded.Player.Roles)
 
 	// M8.5: restore persisted alignment + sync bucket tag.
 	// AlignmentManager.Bucket is idempotent and sets the tag
@@ -1601,6 +1615,14 @@ type connActor struct {
 	// it. Hydrated from save.Recall at construction; SetRecall
 	// updates both this field and save.Recall under the lock.
 	recall string
+	// roles is the actor's authorization role set (roles-and-permissions
+	// §2). Keys are normalized (lowercased/trimmed) role names; a present
+	// key means the role is held. Built at construction by applyRoles from
+	// the saved roles + the config seed, and mutated by grant/revoke. A
+	// SEPARATE namespace from gameplay tags (racialTags/alignmentTag) —
+	// the two never cross. Guarded by a.mu (mutated at runtime, unlike the
+	// set-once racial tags). nil/empty = unprivileged.
+	roles map[string]struct{}
 	// gmcpLastVitals is the M16.4a poll-and-diff shadow for the
 	// Char.Vitals package — the most recent snapshot the manager
 	// emitted to the peer. The gmcp-vitals-flush tick handler

@@ -118,7 +118,7 @@ import (
 // no-point message. No injected value: a legacy character loads
 // with no recall point and must bind one explicitly with
 // `set recall`.
-const CurrentVersion = 14
+const CurrentVersion = 15
 
 // Sentinel errors callers may check via errors.Is.
 var (
@@ -199,6 +199,16 @@ type Save struct {
 	// (empty maps) round-trips as no `abilities:` key via the
 	// snapshot's own omitempty tags.
 	Abilities progression.AbilitySnapshot `yaml:"abilities,omitempty"`
+
+	// Roles is the character's set of authorization role strings
+	// (roles-and-permissions.md §2, §6). Added in v15. Each entry is a
+	// normalized (lowercased, trimmed) role name; the engine treats the
+	// list as a set. Empty / absent means the character holds no roles —
+	// the default for an unprivileged player. Distinct namespace from
+	// gameplay tags: a role never participates in tag matching. omitempty
+	// so a roleless save (the common case) writes no `roles:` key and a
+	// legacy pre-v15 save round-trips as the empty set.
+	Roles []string `yaml:"roles,omitempty"`
 }
 
 // VitalsState is the persisted HP block (v5+). Pointer so an absent
@@ -370,6 +380,7 @@ var playerMigrations = map[int]func(map[string]any) (map[string]any, error){
 	11: migrateV11toV12,
 	12: migrateV12toV13,
 	13: migrateV13toV14,
+	14: migrateV14toV15,
 }
 
 // migrateV1toV2 adds the empty inventory/equipment blocks introduced
@@ -573,6 +584,16 @@ func migrateV12toV13(in map[string]any) (map[string]any, error) {
 // `set recall`, not be quietly bound to wherever they last logged
 // out.
 func migrateV13toV14(in map[string]any) (map[string]any, error) {
+	return in, nil
+}
+
+// migrateV14toV15 adds the `roles` list introduced for
+// roles-and-permissions.md §6. No-op on dict content: a legacy v14 save
+// carries no roles key, and absence decodes to a nil slice — the
+// documented "no roles / unprivileged" default. The migration injects
+// nothing: privilege enters only via the config seed (§5) or an
+// in-game grant (§4), never by quietly elevating a returning character.
+func migrateV14toV15(in map[string]any) (map[string]any, error) {
 	return in, nil
 }
 

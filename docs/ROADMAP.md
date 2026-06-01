@@ -25,8 +25,11 @@ and `THEME-AXIS-PLAN.md` are superseded by `BACKLOG.md` and now live under
   Lua scripting), E/M14 (Engine-Debt). The core loop, world, combat,
   progression, economy, quests, scripting, sessions, and modern-client
   support all work.
-- **Active:** **M18 — Command & UI polish.** M18.1 (`prompt` verb) shipped;
-  M18.2–M18.5 (who, bad-input tracker, chaining/repeat, auto-help) pending.
+- **Active:** **M19 — Roles & Administration** (the keystone). M19.1
+  (role-set substrate + `HasRole` + persistence + config seed) shipped;
+  M19.2–M19.4 (grant/revoke verbs + events, the admin gate, baseline admin
+  verbs) pending. **M18 — Command & UI polish** is paused mid-flight
+  (M18.1 `prompt` verb shipped; M18.2–M18.5 pending).
 - **Specs ahead of code.** A large batch of behavior contracts landed this
   cycle *without* implementation — `roles-and-permissions`, `admin-verbs`,
   `item-decorations`, `tag-observers`, `who`, `crafting-and-cooking`, and the
@@ -2684,6 +2687,44 @@ against code and reads its cited spec section first.
 
 **Touches specs:** `ui-rendering-help §7.4` (new), `commands-and-dispatch
 §4/§6/§8`, `chat-channels-and-tells` (who).
+
+---
+
+### M19 — Roles & Administration
+
+**Slice:** the keystone authorization system — a per-character role set with
+a flat `HasRole` check — and the admin verb surface built on it. Implements
+the two specced contracts `roles-and-permissions` + `admin-verbs`. Finally
+gates the standing ungated `reload` / `xp` verbs, and unblocks the auction
+house's admin moderation (`auction-house.md` §11).
+
+**Live list:** `BACKLOG.md` §1 (Roles & permissions, Admin verbs).
+
+**Sub-milestones:**
+
+- [x] **M19.1 — Role-set substrate + persistence + `HasRole` + config seed.**
+      `player.Save.Roles` (v14→v15 migration; legacy saves load as the empty
+      set). `connActor` carries a live, normalized role set — a **separate
+      namespace from gameplay tags** (it never crosses into `Tags()`) — with
+      `HasRole` (read-only, case-insensitive), `Roles()`, and idempotent
+      `grant`/`revoke` mutators. `applyRoles` (a construction hook beside
+      `applyRace`/`applyClass`) restores saved roles, then applies the config
+      seed additively + idempotently, persisting + dirtying so the bootstrap
+      admin survives first login. Operator config `ANOTHERMUD_ROLE_SEED`
+      (`name:role,role;name:role`). 18 tests (2 player + 9 session + the
+      parseRoleSeed table), full suite 46 pkgs, -race clean. roles-and-
+      permissions §2/§3/§5/§6.
+- [ ] **M19.2 — `grant` / `revoke` verbs + `role.granted` / `role.revoked`
+      events.** Gated on the granting role; idempotent; auditable. §4/§7.
+- [ ] **M19.3 — The admin gate.** A command `Admin` flag the dispatcher
+      refuses unless `HasRole`, refusal indistinguishable from an unknown
+      verb; gates today's ungated `reload` / `xp`. admin-verbs §2.
+- [ ] **M19.4+ — Baseline admin verbs** (inspect / set / teleport / announce
+      / restore / purge) + the `admin.action` audit + the §5 idle-sweep
+      exemption + help-visibility wiring through `HasRole`. admin-verbs §3–§6.
+
+**Touches specs:** `roles-and-permissions`, `admin-verbs`,
+`session-lifecycle §5`, `ui-rendering-help §9.5`, `commands-and-dispatch`.
 
 ---
 

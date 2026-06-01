@@ -47,6 +47,49 @@ func TestSaveLoad_RoundTrip(t *testing.T) {
 	}
 }
 
+func TestSaveLoad_RolesRoundTrip(t *testing.T) {
+	ctx := context.Background()
+	st, _ := newStore(t)
+
+	save := &player.Save{
+		Version:   player.CurrentVersion,
+		ID:        "p-1",
+		AccountID: "acct-1",
+		Name:      "Alice",
+		Roles:     []string{"admin", "builder"},
+	}
+	if err := st.Save(ctx, save); err != nil {
+		t.Fatalf("Save: %v", err)
+	}
+	got, err := st.Load(ctx, "alice")
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if len(got.Roles) != 2 || got.Roles[0] != "admin" || got.Roles[1] != "builder" {
+		t.Errorf("Roles = %v, want [admin builder]", got.Roles)
+	}
+}
+
+func TestSaveLoad_NoRolesIsEmpty(t *testing.T) {
+	ctx := context.Background()
+	st, _ := newStore(t)
+
+	// A save written with no roles (the common case) loads back with no
+	// roles — the unprivileged default — and writes no `roles:` key.
+	if err := st.Save(ctx, &player.Save{
+		Version: player.CurrentVersion, ID: "p-2", AccountID: "a", Name: "Bob",
+	}); err != nil {
+		t.Fatalf("Save: %v", err)
+	}
+	got, err := st.Load(ctx, "bob")
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if len(got.Roles) != 0 {
+		t.Errorf("Roles = %v, want empty (unprivileged default)", got.Roles)
+	}
+}
+
 func TestLoad_MissingReturnsNotFound(t *testing.T) {
 	ctx := context.Background()
 	st, _ := newStore(t)
