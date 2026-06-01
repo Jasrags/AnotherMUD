@@ -139,8 +139,17 @@ type Broadcaster interface {
 // Returns nil if no live actor matches. Name match is case-insensitive
 // on Name(). Handlers MUST tolerate a nil Locator (tests that don't
 // exercise target lookup pass a zero-value env).
+//
+// PlayersInRoom (M17.2d₄) enumerates every live player actor in roomID
+// so the §5 entity/player/visible resolvers can keyword-match players
+// the same way they match mobs. BuildResolveContext excludes the actor
+// itself from the candidates. The order is unspecified; callers that
+// need determinism rely on the resolver's match rules, not iteration
+// order. Returns nil/empty for an unknown room or a name-only Locator
+// that predates the method (the resolvers then surface mobs only).
 type Locator interface {
 	FindInRoom(roomID world.RoomID, name string) Actor
+	PlayersInRoom(roomID world.RoomID) []Actor
 }
 
 // Env bundles the per-server singletons a handler may need beyond the

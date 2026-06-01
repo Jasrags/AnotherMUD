@@ -350,6 +350,21 @@ func (m *Manager) PlayersInRoom(roomID world.RoomID) []PlayerInfo {
 	return out
 }
 
+// roomConnActors snapshots the live connActors in roomID under the
+// manager lock. Backs managerLocator.PlayersInRoom (the M17.2d₄
+// command-layer player enumeration); returns the concrete *connActor
+// so manager.go need not import internal/command.
+func (m *Manager) roomConnActors(roomID world.RoomID) []*connActor {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	occupants := m.byRoom[roomID]
+	out := make([]*connActor, 0, len(occupants))
+	for _, a := range occupants {
+		out = append(out, a)
+	}
+	return out
+}
+
 // SendToRoom delivers text to every session in roomID, excluding any
 // session whose player id appears in excludePlayerIDs. Snapshots the
 // recipient list under the read lock and then writes outside the lock

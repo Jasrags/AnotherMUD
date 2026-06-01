@@ -8,7 +8,6 @@ import (
 	"github.com/Jasrags/AnotherMUD/internal/command"
 	"github.com/Jasrags/AnotherMUD/internal/economy"
 	"github.com/Jasrags/AnotherMUD/internal/item"
-	"github.com/Jasrags/AnotherMUD/internal/world"
 )
 
 // coins is a currency-tagged template carrying a positive value.
@@ -109,7 +108,12 @@ func TestGive_CurrencyAutoConvertsToRecipient(t *testing.T) {
 	svc := economy.NewCurrencyService(nil)
 
 	env := f.currencyEnv(svc)
-	env.Locator = locatorFunc(func(world.RoomID, string) command.Actor { return recipient })
+	// M17.2d₄: the `target` player arg resolves against the Locator's
+	// room enumeration, so the fixture must surface the recipient via
+	// PlayersInRoom (not just FindInRoom) — stubLocator does both.
+	loc := &stubLocator{}
+	loc.add(recipient)
+	env.Locator = loc
 
 	dispatchBuiltin(t, env, giver, "give coins to Bob")
 

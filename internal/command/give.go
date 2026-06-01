@@ -3,11 +3,8 @@ package command
 import (
 	"context"
 	"fmt"
-	"strings"
 
-	"github.com/Jasrags/AnotherMUD/internal/entities"
 	"github.com/Jasrags/AnotherMUD/internal/eventbus"
-	"github.com/Jasrags/AnotherMUD/internal/keyword"
 )
 
 // GiveHandler implements the `give <item> [to] <player>` verb (spec
@@ -43,38 +40,33 @@ func GiveHandler(ctx context.Context, c *Context) error {
 		// rather than panicking. Production always wires a Locator.
 		return c.Actor.Write(ctx, "You can't give anything to anyone right now.")
 	}
-	itemArg, targetArg, ok := parseGiveArgs(c.Args)
-	if !ok {
-		return c.Actor.Write(ctx, "Give what to whom?")
-	}
 	room := c.Actor.Room()
 	if room == nil {
 		return c.Actor.Write(ctx, "You aren't anywhere; there is no one to give anything to.")
 	}
 
-	target := c.Locator.FindInRoom(room.ID, targetArg)
+	// M17.2d₄: item (inventory) and target (player — excludes self,
+	// preposition "to") are resolved by the §5 pipeline before this
+	// runs. The player arg yields an EntityRef; re-fetch the live
+	// recipient Actor by the resolved exact name so the two-actor
+	// transfer below has a real handle.
+	tref, _ := c.Resolved["target"].(EntityRef)
+	target := c.Locator.FindInRoom(room.ID, tref.Name)
 	if target == nil {
-		return c.Actor.Write(ctx, fmt.Sprintf("%q isn't here.", targetArg))
+		return c.Actor.Write(ctx, fmt.Sprintf("%q isn't here.", tref.Name))
 	}
-	// Self-give check: interface identity first (catches the case where
-	// PlayerID is empty — e.g. a degenerate test actor or a future
-	// mob-as-target that hasn't been wired with stable ids); PID
-	// string as a belt-and-suspenders fallback for a hypothetical
-	// reconnect path that hands out two distinct Actor handles for
-	// the same character.
+	// Self-give defense: the player arg already excludes self from the
+	// candidate set (so `give x <ownname>` fails at resolution), but
+	// keep the identity guard for the degenerate empty-PlayerID /
+	// reconnect-double-handle cases.
 	if target == c.Actor || (c.Actor.PlayerID() != "" && target.PlayerID() == c.Actor.PlayerID()) {
 		return c.Actor.Write(ctx, "You can't give things to yourself.")
 	}
 
-	candidates := collectItems(c.Items, c.Actor.Inventory())
-	if len(candidates) == 0 {
-		return c.Actor.Write(ctx, "You aren't carrying anything.")
-	}
-	match := keyword.Resolve(asNamed(candidates), itemArg)
-	if match == nil {
+	item, ok := resolvedItemInstance(c, "item")
+	if !ok {
 		return c.Actor.Write(ctx, "You aren't carrying that.")
 	}
-	item := match.(*entities.ItemInstance)
 
 	// Two-actor transfer: the giver's RemoveFromInventory and the
 	// recipient's AddToInventory each take their owning actor's mutex
@@ -137,39 +129,4 @@ func GiveHandler(ctx context.Context, c *Context) error {
 		TemplateID:  string(item.TemplateID()),
 	})
 	return nil
-}
-
-// parseGiveArgs splits the verb's arguments into (itemArg, targetArg).
-// Returns ok=false when fewer than two meaningful tokens are present.
-//
-// Forms accepted:
-//
-//	give sword bob           → item="sword",     target="bob"
-//	give red potion to alice → item="red potion", target="alice"
-//	give all to bob          → item="all",       target="bob"
-//
-// The explicit "to" form wins when present; otherwise the last token
-// is the target. "to" as the literal target (`give x to`) is treated
-// as missing — there is no recipient.
-func parseGiveArgs(args []string) (itemArg, targetArg string, ok bool) {
-	if len(args) < 2 {
-		return "", "", false
-	}
-	for i := len(args) - 1; i >= 1; i-- {
-		if strings.EqualFold(args[i], "to") {
-			if i == len(args)-1 {
-				// "give x to" — no target after the preposition.
-				return "", "", false
-			}
-			itemArg = strings.Join(args[:i], " ")
-			targetArg = strings.Join(args[i+1:], " ")
-			if itemArg == "" || targetArg == "" {
-				return "", "", false
-			}
-			return itemArg, targetArg, true
-		}
-	}
-	itemArg = strings.Join(args[:len(args)-1], " ")
-	targetArg = args[len(args)-1]
-	return itemArg, targetArg, true
 }

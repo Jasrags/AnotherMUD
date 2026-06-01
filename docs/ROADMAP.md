@@ -2334,6 +2334,23 @@ without rewriting scripts.
       parallel.
   - [ ] **M17.2d — Handler migration + production adapter.**
         Wires the §5 arg-typing pipeline into live dispatch.
+    - [x] **M17.2d₄a — Player enumeration + give.** Closes the
+          M17.2d₁ player gap. Added `Locator.PlayersInRoom(roomID)
+          []Actor` (session `managerLocator` impl over a new
+          `Manager.roomConnActors` snapshot; 3 command test fakes
+          get nil/real stubs). New `playerCandidate` adapter
+          (nil Keywords → name-substring matching) and
+          BuildResolveContext appends room players to RoomEntities
+          AFTER mobs (mobs win exact-keyword ties), excluding the
+          actor itself (§5.2 self-exclusion). Migrated `give` →
+          `inventory` + `player` (prep `to`, Option A); handler
+          re-fetches the recipient Actor by the resolved name.
+          Removed dead `parseGiveArgs` + its internal test.
+          **Behavior changes:** players are now keyword/partial-
+          matchable (`give sword al` → Alice) — the old exact-
+          name-only rule is gone; self-give and missing-target
+          now report the player not-found sentinel / §5.4 prompt.
+          Coverage 82.7%.
     - [x] **M17.2d₃ — Item-verb batch (get / put / equip).**
           Migrated the three item verbs that need only the
           existing inventory / room_item / container / keyword

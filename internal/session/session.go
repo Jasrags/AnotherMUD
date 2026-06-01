@@ -1289,6 +1289,20 @@ func (ml managerLocator) FindInRoom(roomID world.RoomID, name string) command.Ac
 	return a
 }
 
+// PlayersInRoom satisfies command.Locator (M17.2d₄): every live player
+// actor in roomID, as command.Actor, for the §5 entity/player/visible
+// resolvers. The connActor → command.Actor widening drops nothing the
+// resolvers need (Name + PlayerID). BuildResolveContext filters out the
+// requesting actor itself.
+func (ml managerLocator) PlayersInRoom(roomID world.RoomID) []command.Actor {
+	actors := ml.m.roomConnActors(roomID)
+	out := make([]command.Actor, 0, len(actors))
+	for _, a := range actors {
+		out = append(out, a)
+	}
+	return out
+}
+
 // writeLine is a tiny helper for raw-conn writes that don't need the
 // actor's color rendering (used before an actor exists, e.g. the
 // "already online" rejection).

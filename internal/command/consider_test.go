@@ -45,6 +45,8 @@ func (f locatorFunc) FindInRoom(roomID world.RoomID, name string) command.Actor 
 	return f(roomID, name)
 }
 
+func (f locatorFunc) PlayersInRoom(world.RoomID) []command.Actor { return nil }
+
 func guardTplForConsider() *mob.Template {
 	return &mob.Template{
 		ID:       "tapestry-core:village-guard",

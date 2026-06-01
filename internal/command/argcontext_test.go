@@ -121,6 +121,61 @@ func TestBuildResolveContext_RoomEntityScope_Mob(t *testing.T) {
 	}
 }
 
+func TestBuildResolveContext_RoomEntityScope_PlayersEnumerated(t *testing.T) {
+	// M17.2d₄: room players (other than self) join RoomEntities via
+	// the Locator enumeration, alongside mobs.
+	f := newInvFixture(t)
+	self := newNamedTestActor("Alice", "p-self", f.room)
+	bob := newNamedTestActor("Bob", "p-bob", f.room)
+	loc := &stubLocator{}
+	loc.add(self)
+	loc.add(bob)
+
+	rc := (&command.Context{Actor: self, World: f.world, Items: f.store, Placement: f.place, Locator: loc}).BuildResolveContext()
+
+	var names []string
+	for _, e := range rc.RoomEntities {
+		names = append(names, e.Name())
+	}
+	if len(names) != 1 || names[0] != "Bob" {
+		t.Fatalf("RoomEntities names = %v, want [Bob] (self excluded)", names)
+	}
+
+	// Bob resolves as a player by partial name (the d₄ behavior change).
+	r := command.NewArgResolverRegistry()
+	res, _, _, err := r.ResolveArgsWithContext(
+		[]command.ArgDefinition{{Name: "p", Type: command.ArgPlayer}},
+		[]string{"bo"},
+		rc,
+	)
+	if err != nil {
+		t.Fatalf("player resolve: %v", err)
+	}
+	ref := res["p"].(command.EntityRef)
+	if ref.ID != "p-bob" || ref.Type != "player" {
+		t.Errorf("ref = %+v, want p-bob / player", ref)
+	}
+}
+
+func TestGive_Migrated_PartialPlayerNameThroughDispatch(t *testing.T) {
+	// `give sword al` matches "Alice" by partial name and transfers.
+	f := newGiveFixture(t)
+	giver := newNamedTestActor("Giver", "p-giver", f.room)
+	alice := newNamedTestActor("Alice", "p-alice", f.room)
+	f.locator.add(giver)
+	f.locator.add(alice)
+	inst := f.spawnInInventory(t, giver)
+
+	dispatchGive(t, f, giver, "give sword al")
+
+	if got := alice.Inventory(); len(got) != 1 || got[0] != inst.ID() {
+		t.Errorf("alice inventory = %v, want the given sword", got)
+	}
+	if len(giver.Inventory()) != 0 {
+		t.Errorf("giver still holds the item: %v", giver.Inventory())
+	}
+}
+
 func TestBuildResolveContext_ContainerDetection(t *testing.T) {
 	f := newInvFixture(t)
 	sack, err := f.store.Spawn(containerTpl())

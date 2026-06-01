@@ -53,6 +53,8 @@ func (s emoteLocator) FindInRoom(_ world.RoomID, name string) command.Actor {
 	return a
 }
 
+func (s emoteLocator) PlayersInRoom(world.RoomID) []command.Actor { return nil }
+
 func smileEmote() *emote.Emote {
 	e := emote.Emote{
 		ID:          "x:smile",

@@ -45,6 +45,19 @@ func (a mobCandidate) Keywords() []string { return a.inst.Keywords() }
 func (a mobCandidate) EntityID() string   { return a.inst.EntityID() }
 func (a mobCandidate) EntityType() string { return entityTypeMob }
 
+// playerCandidate adapts a command.Actor (another player in the room)
+// to EntityCandidate. Players carry no authored keyword list, so
+// Keywords is nil and keyword.Resolve falls through to name-substring
+// matching — which is what makes players keyword/partial-matchable
+// ("give sword al" → Alice), the M17.2d₄ behavior change. EntityID is
+// the stable PlayerID so handlers can re-fetch the live actor.
+type playerCandidate struct{ actor Actor }
+
+func (a playerCandidate) Name() string       { return a.actor.Name() }
+func (a playerCandidate) Keywords() []string { return nil }
+func (a playerCandidate) EntityID() string   { return a.actor.PlayerID() }
+func (a playerCandidate) EntityType() string { return entityTypePlayer }
+
 // worldDoorScope adapts *world.World + the actor's room to the
 // DoorScope the door resolver consults. It mirrors the M15.1 door
 // verbs' resolution chain (world.ResolveDoorTarget → world.GetDoor)
@@ -96,13 +109,11 @@ func (s worldDoorScope) ResolveDoor(arg string) (DoorRef, bool, bool) {
 // room leaves the item/entity scopes empty; a nil World leaves the
 // DoorScope nil (the door resolver then returns ErrNoSuchDoor).
 //
-// KNOWN GAP: room PLAYERS are not enumerated. The Locator surface is
-// name-only (FindInRoom) and cannot list a room's players for keyword
-// matching, so RoomEntities carries mobs only. The entity / player /
-// visible resolvers therefore won't surface other players in
-// production until the Locator gains a room-enumeration method
-// (tracked for M17.2d₂). This matches today's mob-first / player-by-
-// exact-name asymmetry in findCombatantInRoom.
+// Room players (M17.2d₄): when the Locator supports enumeration,
+// RoomEntities also carries the OTHER players in the room (the actor
+// itself is excluded so entity/player can't target self — §5.2). Mobs
+// are appended before players so a mob with an exact keyword still
+// wins a tie over a player matched only by name-substring.
 func (c *Context) BuildResolveContext() ResolveContext {
 	if c.Actor == nil {
 		return ResolveContext{}
@@ -135,6 +146,19 @@ func (c *Context) BuildResolveContext() ResolveContext {
 			case *entities.MobInstance:
 				rc.RoomEntities = append(rc.RoomEntities, mobCandidate{inst})
 			}
+		}
+	}
+
+	// Player entities (appended after mobs so mobs win exact-keyword
+	// ties). The actor itself is excluded — entity/player must not
+	// target self (§5.2); self-reference is the handler's concern.
+	if room != nil && c.Locator != nil {
+		selfID := c.Actor.PlayerID()
+		for _, p := range c.Locator.PlayersInRoom(room.ID) {
+			if p == nil || (selfID != "" && p.PlayerID() == selfID) {
+				continue
+			}
+			rc.RoomEntities = append(rc.RoomEntities, playerCandidate{p})
 		}
 	}
 

@@ -44,6 +44,18 @@ func (s *stubLocator) FindInRoom(roomID world.RoomID, name string) command.Actor
 	return nil
 }
 
+func (s *stubLocator) PlayersInRoom(roomID world.RoomID) []command.Actor {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	var out []command.Actor
+	for _, a := range s.actors {
+		if room := a.Room(); room != nil && room.ID == roomID {
+			out = append(out, a)
+		}
+	}
+	return out
+}
+
 // giveFixture wires up the substrate needed for two-actor transfer
 // tests: world + store + placement + locator + bus.
 type giveFixture struct {
@@ -166,8 +178,10 @@ func TestGive_TargetNotInRoom(t *testing.T) {
 	if len(alice.Inventory()) != 1 || alice.Inventory()[0] != inst.ID() {
 		t.Errorf("inventory mutated on failed give: %v", alice.Inventory())
 	}
-	if !strings.Contains(alice.lastLine(), "ghost") {
-		t.Errorf("reply did not name missing target: %q", alice.lastLine())
+	// M17.2d₄: the `target` player arg reports its standardized
+	// not-found sentinel (the missing target name is no longer echoed).
+	if !strings.Contains(alice.lastLine(), "No player by that name") {
+		t.Errorf("reply = %q, want player not-found message", alice.lastLine())
 	}
 	if emitted {
 		t.Error("ItemGiven emitted on failure")
@@ -200,8 +214,11 @@ func TestGive_RejectsSelfGive(t *testing.T) {
 	if len(alice.Inventory()) != 1 || alice.Inventory()[0] != inst.ID() {
 		t.Errorf("self-give moved item: %v", alice.Inventory())
 	}
-	if !strings.Contains(alice.lastLine(), "yourself") {
-		t.Errorf("reply = %q, want 'yourself' message", alice.lastLine())
+	// M17.2d₄: the player arg excludes self from candidates, so
+	// `give sword alice` (alice == actor) misses with the player
+	// not-found sentinel rather than the old bespoke self-give copy.
+	if !strings.Contains(alice.lastLine(), "No player by that name") {
+		t.Errorf("reply = %q, want player not-found (self excluded)", alice.lastLine())
 	}
 }
 
@@ -227,15 +244,24 @@ func TestGive_MissingArgs(t *testing.T) {
 	f := newGiveFixture(t)
 	alice := newNamedTestActor("Alice", "p-alice", f.room)
 	f.locator.add(alice)
+	// Carry a sword so the item arg resolves and the target-missing
+	// path is reachable (otherwise "give sword" fails on the item).
+	f.spawnInInventory(t, alice)
 
-	for _, input := range []string{"give", "give sword", "give sword to"} {
-		input := input
-		t.Run(input, func(t *testing.T) {
+	// M17.2d₄: the dispatcher emits the §5.4 missing-arg prompt for
+	// whichever declared arg ran out of tokens.
+	cases := []struct{ input, want string }{
+		{"give", "What item?"},
+		{"give sword", "What target?"},
+		{"give sword to", "What target?"},
+	}
+	for _, tc := range cases {
+		tc := tc
+		t.Run(tc.input, func(t *testing.T) {
 			alice.lines = nil
-			dispatchGive(t, f, alice, input)
-			last := alice.lastLine()
-			if !strings.Contains(last, "Give what") {
-				t.Errorf("%q reply = %q, want usage message", input, last)
+			dispatchGive(t, f, alice, tc.input)
+			if last := alice.lastLine(); !strings.Contains(last, tc.want) {
+				t.Errorf("%q reply = %q, want %q", tc.input, last, tc.want)
 			}
 		})
 	}
