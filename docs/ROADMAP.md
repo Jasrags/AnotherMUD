@@ -2332,6 +2332,35 @@ without rewriting scripts.
 - [ ] **M17.2 — Arg typing.** `commands-and-dispatch §5`.
       Independent of the scripting runtime; can land in
       parallel.
+  - [x] **M17.2a — ArgDefinition substrate + keyword/text/
+        number.** New `command.ArgType` + 12 engine-baseline
+        constants (keyword/text/number/inventory/room_item/
+        entity/player/npc/container/visible/findable/door —
+        the latter 9 land in M17.2b+ but are reserved here so
+        a pack can't squat the names). `ArgDefinition`
+        struct (Name, Type, Optional, Bulk, Prepositions,
+        BypassVisibility) — Optional is the zero-value
+        idiomatic inverse of the spec's "required default
+        true". New `ArgResolverRegistry` seeded with the
+        keyword/text/number resolvers; pack-Register rejects
+        engine-type names via `ErrEngineTypeImmutable`
+        sentinel, pack-name re-register is last-wins (§5.3).
+        `ResolveArgs(defs, tokens) → (map, warnings, rest,
+        err)` driver implements §5.4 step-by-step: §5.4 step 1
+        preposition skip (case-insensitive, immediately-
+        before-only), step 2 text early-out (slurps remainder
+        joined by spaces), step 3 missing-required short-
+        circuit, step 4 resolver dispatch with unknown-type
+        keyword fallback + warning collection, step 5 cursor
+        advance by resolver-reported Consumed count. New
+        `ArgResolveError` carries ArgName + Cause; the spec's
+        "What &lt;name&gt;?" string is formatted when Cause is
+        `ErrMissingRequired`, otherwise Cause.Error()
+        surfaces verbatim. 22 tests cover every §5.4
+        acceptance criterion plus the engine-immutability +
+        last-wins + unknown-fallback + optional-miss-nil
+        surface. No handler migration yet — M17.2d wires
+        existing handlers to the new path.
 - [ ] **M17.3 — Hot reload.** Requires the scripting runtime
       to be stable (M17.1c).
 - [ ] **M17.4 — Schedule primitive.** Thin shim over
