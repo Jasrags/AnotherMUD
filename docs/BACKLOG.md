@@ -79,6 +79,26 @@ old five-theme partition left uncovered.
   *rules* (what hides an entity, sneak mechanics, see-invisible) are greenfield. The seam
   is captured wherever it's consumed (`admin-verbs §3`, `commands-and-dispatch §5`); the
   rules need a design conversation. Park the rules; the seam is already usable.
+- **Crafting** — ingredients → output via recipes. ⚠️ **Greenfield — no Tapestry
+  reference** (Tapestry has none; "crafting" appears only as a hypothetical progression
+  side-track example in our specs). Substrate it would build on: item templates +
+  instances (`inventory-equipment-items`), proficiency/tracks (`progression`), pack
+  content loading. Pre-decisions: recipe-list vs. free-form discovery; skill-gated?;
+  station/furniture-gated? (furniture doesn't exist yet — see m11-4); where recipes live
+  (pack data). Needs a design conversation.
+- **Cooking** — food recipes producing consumables that feed the sustenance pool.
+  ⚠️ **Greenfield — no Tapestry reference.** Likely a *special case of Crafting* (recipe
+  category) whose output plugs into `economy-survival` (sustenance + the consumable
+  pipeline §6, both already built). Pre-decision: its own system vs. a crafting recipe
+  category. Spec it after (or as part of) Crafting; don't design it in isolation.
+- **Biomes** — ecological zones layered on rooms, shaping spawns / resources / ambience.
+  ⚠️ **Greenfield system — no Tapestry reference.** BUT the substrate exists: rooms already
+  carry a `terrain` property (outdoors/indoors/forest/mountain) used for weather gating
+  (`world-rooms-movement §6.4`) and weather zones (`weather_zones/`). Pre-decision: is a
+  "biome" just a richer alias/extension of `terrain`, or a new layer adding biome-specific
+  spawn tables, foraging/harvest resource nodes, and ambience? Heavily interlocks with
+  `mobs-ai-spawning` (spawns) and a future foraging/crafting loop. Needs a design
+  conversation; decide the terrain-vs-new-layer question first.
 - **Cross-cutting event catalog** — per-spec event tables exist in `specs/README.md`;
   no aggregated catalog. (Docs/meta, not engine — not a behavior spec.)
 
