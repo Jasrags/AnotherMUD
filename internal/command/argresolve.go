@@ -83,6 +83,12 @@ type ResolverInput struct {
 	// Tokens is the remaining input after any preposition skip.
 	// Empty when the user gave fewer tokens than required.
 	Tokens []string
+
+	// Context carries the per-resolve scope (actor inventory,
+	// room items, room entities, etc.) the entity-flavored
+	// resolvers consult. Zero value works fine for the
+	// keyword/text/number resolvers, which ignore it.
+	Context ResolveContext
 }
 
 // ResolverOutput is the per-argument resolution result. Value is
@@ -135,6 +141,16 @@ func NewArgResolverRegistry() *ArgResolverRegistry {
 	r.resolvers[ArgKeyword] = resolveKeyword
 	r.resolvers[ArgText] = resolveText
 	r.resolvers[ArgNumber] = resolveNumber
+	// M17.2b entity / inventory / room family. These consult
+	// ResolverInput.Context for actor + room scope.
+	r.resolvers[ArgInventory] = resolveInventory
+	r.resolvers[ArgRoomItem] = resolveRoomItem
+	r.resolvers[ArgEntity] = resolveEntity
+	r.resolvers[ArgPlayer] = resolvePlayer
+	r.resolvers[ArgNPC] = resolveNPC
+	r.resolvers[ArgContainer] = resolveContainer
+	r.resolvers[ArgVisible] = resolveVisible
+	r.resolvers[ArgFindable] = resolveFindable
 	return r
 }
 
@@ -188,6 +204,14 @@ func (r *ArgResolverRegistry) Lookup(name ArgType) (ArgResolver, bool) {
 // §5.3 and the per-arg ResolverOutput records the fallback in the
 // returned warnings slice. Callers may log these or ignore them.
 func (r *ArgResolverRegistry) ResolveArgs(defs []ArgDefinition, tokens []string) (map[string]any, []string, []string, error) {
+	return r.ResolveArgsWithContext(defs, tokens, ResolveContext{})
+}
+
+// ResolveArgsWithContext is the M17.2b context-aware form of
+// ResolveArgs. Entity / inventory / room resolvers consult ctx
+// to scan the actor's contents and the current room. The driver
+// behavior is otherwise identical to ResolveArgs.
+func (r *ArgResolverRegistry) ResolveArgsWithContext(defs []ArgDefinition, tokens []string, ctx ResolveContext) (map[string]any, []string, []string, error) {
 	out := make(map[string]any, len(defs))
 	var warnings []string
 	cursor := 0
@@ -240,7 +264,7 @@ func (r *ArgResolverRegistry) ResolveArgs(defs []ArgDefinition, tokens []string)
 					def.Type, def.Name))
 			resolver = resolveKeyword
 		}
-		result, err := resolver(ResolverInput{Def: def, Tokens: remaining})
+		result, err := resolver(ResolverInput{Def: def, Tokens: remaining, Context: ctx})
 		if err != nil {
 			if def.Optional && errors.Is(err, ErrMissingRequired) {
 				out[def.Name] = nil

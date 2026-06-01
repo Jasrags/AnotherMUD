@@ -2332,6 +2332,28 @@ without rewriting scripts.
 - [ ] **M17.2 — Arg typing.** `commands-and-dispatch §5`.
       Independent of the scripting runtime; can land in
       parallel.
+  - [x] **M17.2b — Entity / inventory / room resolvers.** New
+        `ResolveContext{Inventory, RoomItems, RoomEntities,
+        ActorName, ActorID}` threaded through `ResolverInput`
+        via a new `ResolveArgsWithContext(defs, tokens, ctx)`
+        driver entry point (existing `ResolveArgs` keeps its
+        zero-context signature). Eight new resolvers wired
+        into the registry: `inventory`, `room_item`, `entity`,
+        `player`, `npc`, `container` (inventory-first then
+        room, filters via `ContainerCandidate.IsContainer`),
+        `visible` (scans self → inventory → room → entities,
+        returns VisibleRef carrying the §5.6 `Source`
+        discriminator), `findable` (inventory-first, no
+        container filter). New result shapes per §5.6:
+        `ItemRef{ID, Name, Keyword, TemplateID}`,
+        `EntityRef{ID, Name, Type}`, `VisibleRef` (embeds
+        EntityRef + Source). New candidate interfaces
+        (`ItemCandidate`, `EntityCandidate`,
+        `ContainerCandidate`) extend `keyword.Named` so
+        resolvers stay decoupled from concrete entity types.
+        19 tests cover every resolver path. Production wiring
+        (concrete adapter from connActor + room entities)
+        lands in M17.2d.
   - [x] **M17.2a — ArgDefinition substrate + keyword/text/
         number.** New `command.ArgType` + 12 engine-baseline
         constants (keyword/text/number/inventory/room_item/
