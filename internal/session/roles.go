@@ -109,6 +109,8 @@ func applyRoles(a *connActor, cfg *Config, saved []string) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 
+	// Restore the saved set directly — a load, not a mutation, so it must
+	// NOT mark the save dirty.
 	a.roles = make(map[string]struct{}, len(saved))
 	for _, r := range saved {
 		if n := normalizeRole(r); n != "" {
@@ -116,25 +118,17 @@ func applyRoles(a *connActor, cfg *Config, saved []string) {
 		}
 	}
 
-	// Seed is keyed by lowercased character name (what an operator
-	// configures). Additive over the restored set; a seeded role survives
-	// even on a save that predates roles.
-	if cfg == nil || len(cfg.RoleSeed) == 0 || a.save == nil {
+	// Seed (keyed by lowercased character name — what an operator
+	// configures) is applied through grantRoleLocked: the same idempotent
+	// add → sync → dirty path the grant verb (M19.2) will use. A newly
+	// seeded role persists + dirties; an already-held one is a silent
+	// no-op. The seed re-ensures on EVERY login (spec §5 "ensured
+	// present"), so a seeded role cannot be revoked in-game while the name
+	// stays in the seed — the bootstrap admin can't lock themselves out.
+	if cfg == nil || a.save == nil {
 		return
 	}
-	changed := false
 	for _, r := range cfg.RoleSeed[normalizeRole(a.save.Name)] {
-		n := normalizeRole(r)
-		if n == "" {
-			continue
-		}
-		if _, ok := a.roles[n]; !ok {
-			a.roles[n] = struct{}{}
-			changed = true
-		}
-	}
-	if changed {
-		a.syncRolesToSaveLocked()
-		a.markDirtyLocked()
+		a.grantRoleLocked(r)
 	}
 }
