@@ -22,9 +22,10 @@ This spec **leans on systems that already exist**: output quality is a
 on a progression *track* (`progression.md`); the well-fed buff is an
 *effect* (`abilities-and-effects.md` + the consumable effect pipeline in
 `economy-survival.md`); cooking feeds the *sustenance pool*
-(`economy-survival.md` §3). Two pieces are genuinely new substrate —
-**crafting stations** (§4) and **gathering/resource sources** (§8) — and
-are flagged as such.
+(`economy-survival.md` §3). Crafting **stations** (§4) reuse existing
+substrate — Tier 2 is a room tag/property (M14.5), Tier 1 a temporary
+placed entity on the M15.2 decay pattern — so the only piece that is
+genuinely new and deferred is **gathering/resource sources** (§8).
 
 ---
 
@@ -138,10 +139,11 @@ all inputs and produces the output, or fails cleanly consuming nothing
 
 ## 4. Stations and the quality ceiling
 
-**This is new substrate.** A *station* is the work surface a craft is
-performed at, and its tier sets the **hard ceiling** on output quality
-(§1.1). There is no furniture system today (noted in M11.4); stations are
-the first real one.
+A *station* is the work surface a craft is performed at, and its tier sets
+the **hard ceiling** on output quality (§1.1). There is no general
+furniture system, and this spec does **not** build one: stations reuse
+existing surfaces — a room tag/property for fixed Tier 2, a temporary
+placed entity (the M15.2 decay pattern) for improvised Tier 1.
 
 Three tiers:
 
@@ -149,22 +151,30 @@ Three tiers:
   field-dressing game, lashing a splint, basic repair. Frictionless;
   lowest quality ceiling. Always available.
 - **Tier 1 — improvised.** A player-built, **temporary placed station**
-  (campfire, lean-to, field anvil) — modeled like a temporary placed
-  entity (the M15.2 temporary-exit/portal pattern is the closest
-  precedent): it is created in the room, consumes fuel/materials and time
-  to build, may be **refused by terrain or weather** (no campfire
-  underwater or in a downpour — read the room's terrain property and the
-  weather, both already in `world-rooms-movement.md` §6), and decays.
-  Unlocks real field cooking and light repair — the "on the go" tier.
-- **Tier 2 — fixed.** A permanent station entity in a room (forge/anvil,
-  full kitchen, alchemist bench, loom), placed by content (towns now;
-  player housing later). The only path to top-quality, complex outputs.
-  Its friction — being town-bound — is intentional: it makes towns matter
-  and creates the **gather-in-wild / craft-in-town** loop.
+  (campfire, lean-to, field anvil). **Decided model:** a campfire is a
+  temporary placed entity that **reuses the M15.2 temporary-exit/portal
+  decay pattern** (TTL + a cleanup tick) — *not* a new furniture system —
+  and applies its station tag to the room while it exists. A `build`-style
+  action creates it, consuming fuel/materials and time; it may be
+  **refused by terrain or weather** (no campfire underwater or in a
+  downpour — read the room's terrain property and the weather, both
+  already in `world-rooms-movement.md` §6); it decays on its TTL. Unlocks
+  real field cooking and light repair — the "on the go" tier. Because it
+  reuses an existing substrate, **Tier 1 is in the MVP** (test content —
+  the campfire buildable + a fuel item — ships in the `core` pack).
+- **Tier 2 — fixed.** A permanent station declared by a **room tag /
+  property** (**decided model** — the lightest, reusing the M14.5 room
+  property surface), placed by content (towns now; player housing later):
+  a `forge` / `kitchen` / `alchemist-bench` room carries the station tag.
+  The only path to top-quality, complex outputs. Its friction — being
+  town-bound — is intentional: it makes towns matter and creates the
+  **gather-in-wild / craft-in-town** loop.
 
-A station exposes which **disciplines** it serves and its **tier**. A
-craft reads the station present in the room (or the actor's own portable
-tool, below) to determine the ceiling.
+A station exposes which **disciplines** it serves and its **tier** — a
+Tier 2 station through the room's tag/property, a Tier 1 station through
+the temporary entity placed in the room. A craft reads whichever station
+is present (or the actor's own portable tool, below) to determine the
+ceiling; the highest available wins.
 
 **Portable tools** (a traveling smith's kit) raise the field ceiling **one
 tier** for their discipline, at an inventory-weight and high-gold cost —
@@ -394,7 +404,7 @@ blocked; flagged for sign-off.
   profession, not a chore). Crafting gear can start semi-load-bearing
   (field repair, mid-tier gear) and grow toward the gear meta as Tier 2
   content lands. Tradeoff: fully load-bearing crafting raises the stakes of
-  the greenfield dependencies (stations, gathering) — so grow into it.
+  the remaining greenfield dependency (gathering) — so grow into it.
 - **Skill progression (recommend: hybrid — recipe-unlock breadth +
   use-based skillup depth).** Fits the existing proficiency gain (§2);
   decided as the working default.
@@ -402,11 +412,12 @@ blocked; flagged for sign-off.
   discovery).** Common recipes are reliably bought (the gold sink); only
   rare/regional recipes require guided discovery, so the wiki-spoiler
   failure mode is avoided and certainty is the norm.
-- **Greenfield dependency — stations/furniture (§4).** Tier 1/2 stations
-  are the first furniture system. MVP can ship Tier 0 + a content-placed
-  Tier 2 (room-tagged station, reusing room tags/properties) and **defer
-  Tier 1 improvised stations** (which need the temporary-placed-entity
-  build/decay machinery) to a follow-on. The plan's MVP cut reflects this.
+- **Stations (§4) — RESOLVED.** No furniture system is built. Tier 2 = a
+  **room tag/property** (M14.5); Tier 1 = a **temporary placed entity** on
+  the M15.2 decay pattern + a station tag. Both are in the MVP (Tier 1
+  reuses existing substrate, so it's no longer a deferral). Test content
+  (campfire buildable, fuel item, town station tags) ships in the `core`
+  pack; a real content pack follows once features lock down.
 - **Greenfield dependency — gathering/resource nodes (§8).** Overlaps the
   *biomes / foraging* backlog item. MVP sources ingredients from **mob
   loot + authored placement**; real gathering nodes are a follow-on (ideal

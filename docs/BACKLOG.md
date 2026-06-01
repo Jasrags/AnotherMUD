@@ -58,7 +58,7 @@ go straight into a milestone.
 | **Rarity tiers** | **item-decorations §2,§4,§5** (new) | ordered tier ladder → themed decorated marker (inline + column-padded). Ported from Tapestry `RarityRegistry` |
 | **Essence** | **item-decorations §3,§4,§5** (new) | colored glyph item marker; participates in stack identity. Ported from Tapestry `EssenceRegistry` |
 | Reactive tag observers | **tag-observers §2–§4** (new) | `entity.tag_added/removed` bus events for non-index reactors. Substrate ahead of a consumer. Ported from Tapestry `ITagObserver` |
-| **Crafting & Cooking** | **crafting-and-cooking** (new) + plan `themes/crafting-cooking-plan.md` | recipes + crafting-skill proficiency + quality roll (output = rarity tier) + cooking→sustenance/well-fed. MVP = Tier 0 + content-placed Tier 2 + mob-loot ingredients. Defers stations(Tier 1)/gathering (greenfield, §2) |
+| **Crafting & Cooking** | **crafting-and-cooking** (new) + plan `themes/crafting-cooking-plan.md` | recipes + crafting-skill proficiency + quality roll (output = rarity tier) + cooking→sustenance/well-fed. MVP = Tier 0 + Tier 1 campfire (temp entity, M15.2 reuse) + Tier 2 room-tag + mob-loot ingredients, all in `core` pack. Defers only gathering nodes (§2) |
 
 ---
 
@@ -81,14 +81,11 @@ old five-theme partition left uncovered.
   is captured wherever it's consumed (`admin-verbs §3`, `commands-and-dispatch §5`); the
   rules need a design conversation. Park the rules; the seam is already usable.
 _(Crafting & Cooking moved to §1 — now specced: `crafting-and-cooking.md` (+ plan in
-`docs/themes/crafting-cooking-plan.md`). Two greenfield **sub-dependencies** remain and
-stay below: **crafting stations / furniture** (Tier 1/2) and **gathering / resource
-nodes** — both are deferred past the crafting MVP, which leans on Tier 0 + content-placed
-Tier 2 + mob loot.)_
-- **Crafting stations / furniture** — Tier 1 improvised (campfire: build/decay temporary
-  placed entity, terrain/weather-gated) + the furniture substrate generally (none exists,
-  m11-4). The crafting MVP defers this (ships Tier 0 + a content-placed Tier 2 via room
-  tags). Greenfield; design when crafting moves past MVP.
+`docs/themes/crafting-cooking-plan.md`). Stations are **resolved** (no furniture system:
+Tier 2 = room tag/property M14.5; Tier 1 campfire = temporary placed entity reusing the
+M15.2 decay pattern — both in the crafting MVP). One greenfield **sub-dependency** stays
+below: **gathering / resource nodes**, deferred past MVP, which sources ingredients from
+mob loot + authored placement until then.)_
 - **Gathering / resource nodes** — the non-vendor ingredient source crafting wants
   (`crafting-and-cooking §8`). Overlaps **Biomes** below (forage/harvest). Greenfield;
   until it lands, crafting sources ingredients from mob loot + authored placement.

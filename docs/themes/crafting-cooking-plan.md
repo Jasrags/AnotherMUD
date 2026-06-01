@@ -29,7 +29,8 @@ sit **past the MVP cut**.
 | Rare recipes / ingredients | mob loot — `mobs-ai-spawning.md` §6.3 | built |
 | **Recipe registry + schema** | new (mirrors ability/item registries) | **build** |
 | **Crafting resolution + quality roll** | new | **build** |
-| **Stations (Tier 1 temp, Tier 2 fixed)** | new — first furniture system | **build (Tier 2 light; Tier 1 deferred)** |
+| Tier 2 station | room tag/property — M14.5 (**decided**) | **build (light wiring)** |
+| Tier 1 campfire | temporary placed entity — M15.2 decay pattern (**decided**) | **build (reuses substrate, in MVP)** |
 | **Gathering / resource nodes** | new — overlaps biomes | **deferred** |
 
 ---
@@ -82,37 +83,43 @@ sit **past the MVP cut**.
   well-fed buff that refreshes (not stacks) on re-eat.
 
 ### Phase 4 — Tier 2 fixed stations *(MVP town crafting)*
-- **Build:** a **station** concept as a content-placed room entity (or
-  room tag/property) that declares its discipline(s) + tier; the craft
-  reads the room's station to set the quality ceiling. Place Tier 2
-  stations in town content (forge, kitchen). Portable-tool item raises the
-  field ceiling one tier (a property read at craft time).
+- **Build:** **decided model — a room tag/property** marks a room as a
+  Tier 2 station for one or more disciplines (a `forge` / `kitchen` room).
+  The craft reads the room's station tag to set the quality ceiling. Place
+  Tier 2 station tags in `core`-pack town rooms. Portable-tool item raises
+  the field ceiling one tier (a property read at craft time).
 - **Leans on:** room tags/properties (M14.5), content placement, the
   ceiling clamp from Phase 2.
-- **Blockers:** the **station model** decision — room-tag vs. placed-entity
-  (recommend room-tag/property for Tier 2 MVP; it's the lightest and
-  reuses existing room surfaces). This is the one real design call in MVP.
-- **Done when:** crafting at a town forge reaches higher quality than the
-  same recipe in the field; a portable tool narrows that gap.
+- **Blockers:** none — model decided (room-tag).
+- **Done when:** crafting in a town `forge` room reaches higher quality
+  than the same recipe in the field; a portable tool narrows that gap.
+
+### Phase 5 — Tier 1 improvised stations *(MVP field crafting)*
+- **Build:** a `build`-style action creates a **campfire** as a temporary
+  placed entity, **reusing the M15.2 temporary-exit/portal decay pattern**
+  (TTL + cleanup tick) — no new furniture system — that applies a station
+  tag to the room while it lives. Consumes fuel/material + time;
+  **refused by terrain/weather** (read room terrain + weather, M15); decays
+  on TTL. Test content (campfire buildable + fuel item) in the `core` pack.
+- **Leans on:** the entity store + placement, the M15.2 decay/cleanup
+  pattern, terrain + weather (M15), the station-tag read from Phase 4.
+- **Blockers:** none — reuses existing substrate (this is why it's in MVP).
+- **Done when:** a player builds a campfire in an eligible room, cooks at
+  Tier 1 quality there, and the campfire decays; building is refused in
+  water/storm.
 
 > ### ⎯⎯ MVP CUT LINE ⎯⎯
-> Phases 0–4 deliver a **complete playable loop**: learn a discipline →
+> Phases 0–5 deliver a **complete playable loop**: learn a discipline →
 > gather ingredients (mob loot + authored placement) → craft anywhere at
-> Tier 0 → craft better at a town Tier 2 station → cook meals that buff.
-> Quality renders through rarity; skill grows through use. Everything below
-> is breadth and depth, not the core loop.
+> Tier 0 → build a campfire for Tier 1 field cooking → craft best at a town
+> Tier 2 station → cook meals that buff. Quality renders through rarity;
+> skill grows through use. All MVP test content lives in the `core` pack
+> (a real content pack follows once features lock). Everything below is
+> breadth and depth, not the core loop.
 
 ---
 
 ## Deferred (post-MVP)
-
-### Phase 5 — Tier 1 improvised stations *(first real furniture)*
-- **Build:** player-built temporary placed stations (campfire) — the
-  build/decay temporary-entity machinery (the M15.2 temporary-exit pattern
-  is the precedent), fuel/material + time cost, **terrain/weather refusal**
-  (read room terrain + weather), decay. This is the genuine furniture
-  substrate; deferred because Tier 0 + Tier 2 already give a loop.
-- **Blocker:** the furniture/temporary-station design (BACKLOG §2).
 
 ### Phase 6 — Recipe-acquisition breadth
 - **Build/content:** common recipes in **shop** stock (availability by
@@ -138,11 +145,12 @@ sit **past the MVP cut**.
 
 ## Open questions blocking phases
 
-| Question | Blocks | Default / recommendation |
+| Question | Blocks | Status / default |
 |---|---|---|
 | Quality-roll weights (numbers) | Phase 2 | First-pass in config; tune in playtest. Not a design block. |
-| Station model: room-tag vs. placed entity | Phase 4 | Room-tag/property for Tier 2 MVP (lightest). |
-| Furniture/temporary-station substrate | Phase 5 | Reuse the M15.2 temporary-entity pattern; design in BACKLOG §2. |
+| Tier 2 station model | Phase 4 | **DECIDED — room tag/property** (M14.5). |
+| Tier 1 campfire model | Phase 5 | **DECIDED — temporary placed entity on the M15.2 decay pattern; in MVP.** |
+| Test content location | all MVP phases | **DECIDED — `core` pack** (real content pack after features lock). |
 | Geography/region content | Phase 7 | Author via `mud-world-builder` skill; engine mechanism lands first. |
 | Gathering nodes vs. biomes | Phase 8 | Design jointly with Biomes (shared substrate). |
 | Load-bearing degree (spec §11) | scope-wide | Cooking semi-load-bearing now; crafting grows with Tier 2 content. |
@@ -151,9 +159,12 @@ sit **past the MVP cut**.
 
 ## What review should confirm before Phase 0
 
-1. The **MVP cut** (Tier 0 + content-placed Tier 2 + cooking + mob-loot
-   ingredients) is the right first slice — or whether Tier 1 campfires are
-   wanted in MVP (raises scope into the furniture substrate).
-2. The **station model** for Tier 2 (room-tag vs. placed entity).
-3. The **setting decision**: spec stays setting-agnostic with regions as
-   content (recommended) — confirm before authoring any regional recipes.
+The MVP shape and station models are **decided** (room-tag Tier 2,
+temporary-entity Tier 1, both in MVP; test content in `core`). Remaining
+confirmations are non-blocking and surface later:
+
+1. **Quality-roll first-pass numbers** (Phase 2) — propose-and-tune, not a
+   design gate.
+2. **Setting** — spec stays setting-agnostic with regions as content
+   (recommended); only matters at Phase 7 (regional recipes).
+3. **Gathering vs. biomes** — design jointly; only matters at Phase 8.
