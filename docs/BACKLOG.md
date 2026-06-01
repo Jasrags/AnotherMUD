@@ -99,6 +99,25 @@ old five-theme partition left uncovered.
   spawn tables, foraging/harvest resource nodes, and ambience? Heavily interlocks with
   `mobs-ai-spawning` (spawns) and a future foraging/crafting loop. Needs a design
   conversation; decide the terrain-vs-new-layer question first.
+- **Player market: direct trade + auction house** — a way for players to exchange
+  valuable items with *each other*, beyond `give` (one-way gift) and NPC shops.
+  ⚠️ **Greenfield — no Tapestry reference.** Today the only player-to-player transfer is
+  `give`; `sell` goes to a shop; there is a `trade` *chat channel* (advertising) but no
+  market mechanism. Two tiers, one design conversation:
+  - **Direct trade** (synchronous) — two players in a room each stake items/gold, both
+    confirm, atomic swap. The simpler precursor; close to a two-party `give` with
+    confirmation, reusing the M5 give/put consistent-lock-order work. Specced, this could
+    reach §1 quickly.
+  - **Auction house** (asynchronous) — list an item (buyout and/or min-bid + duration),
+    others browse/bid/buy, gold + item held in escrow, sold/expired goods delivered even
+    to an offline party. The real "market outside merchants."
+  Substrate it builds on: currency (M11.1) + shop pricing patterns (M11.2), item
+  instances + entity store, the notifications queue (M13.1) for offline sale delivery
+  (offline tells already deliver on login — same pattern), atomic persistence (new
+  `saves/auctions/`-style store), tick-driven listing expiry, and the
+  `Manager.TransferItem` primitive flagged in m5-9a. Pre-decisions: global market vs.
+  per-location auctioneer NPC; buyout-only vs. bidding; listing fee/cut (a gold sink for
+  balance); delivery channel (mail/notifications); search/browse surface.
 - **Cross-cutting event catalog** — per-spec event tables exist in `specs/README.md`;
   no aggregated catalog. (Docs/meta, not engine — not a behavior spec.)
 
