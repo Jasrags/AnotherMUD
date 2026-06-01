@@ -54,6 +54,7 @@ go straight into a milestone.
 | Slow-tick observability | time-and-clock §4 | no slow-tick instrumentation |
 | **Roles & permissions** *(keystone)* | **roles-and-permissions §2–§8** (new) | no role system; help-tier is a no-op stub. Flat `HasRole` capability model (ported from Tapestry). Unblocks admin verbs, §5 idle exemption, verb gating |
 | Admin-tag idle exemption | session-lifecycle §5 | gated on Roles above — build alongside it |
+| **Admin verbs** | **admin-verbs §2–§8** (new) | admin gate (commands marked admin, `HasRole`-gated) + baseline verbs (inspect/set/teleport/announce/restore/purge/reload). Gates today's ungated `reload`/`xp`. Ported from Tapestry `AdminModule` |
 
 ---
 
@@ -73,8 +74,6 @@ old five-theme partition left uncovered.
 - **Essence** — first-class item property with glyph + color. Pre-decision: one tag
   system with Rarity or two.
 - **Rarity tiers** — common/rare/epic ladder with colorization.
-- **Admin verbs** (warp, set, reload, announce) — depends on Roles. Tapestry: `AdminModule`
-  (has a Tapestry reference — specced next, not greenfield).
 - **Cross-cutting event catalog** — per-spec event tables exist in `specs/README.md`;
   no aggregated catalog. (Docs/meta, not engine.)
 - **Reactive tag observers** — subscribers on tag mutations. Partial substrate exists

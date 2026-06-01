@@ -80,6 +80,11 @@ The verbs players use and the systems that resolve them.
 - [recall](recall.md) — per-character recall room bookmark;
   `set recall` / `recall` verbs; cancellable pre-event for
   content-layer cost/cooldown policies.
+- [admin-verbs](admin-verbs.md) — the admin gate (commands marked
+  admin, refused unless the actor holds the admin role), admin
+  target resolution with visibility bypass, the baseline verb set
+  (inspect / set / teleport / announce / restore / purge / reload),
+  and the audit trail. Builds on roles-and-permissions.
 
 ### 4. Player lifecycle
 
