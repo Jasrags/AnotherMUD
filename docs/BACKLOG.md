@@ -13,17 +13,22 @@ the theme-axis plan (its method survives below).
   A single source for "done" is what keeps this list from rotting the way the matrix did.
 - **Specs are the source of truth for behavior; this doc never duplicates it.** A
   specced item links its `docs/specs/<file> §X` — the *what* lives there. An unspecced
-  item's first deliverable *is* a new spec slice (the spec set grows as ideas get
-  promoted: it went 17 → 21 as Themes A/C added `notifications`, `chat-channels-and-tells`,
-  `emotes`, `recall`).
+  item's first deliverable *is* a new spec slice (the spec set has grown 17 → **30** as
+  ideas get promoted; the latest batch — roles, admin-verbs, item-decorations,
+  tag-observers, who, crafting-and-cooking, and the trade trio — are contracts written
+  ahead of code, now in §1).
 - **Verified against code.** Every item below was confirmed absent in the codebase as of
   2026-06-01, not trusted from the old matrix (which misreported several shipped systems).
 
-## Status: the five original themes all shipped
+## Status: five themes shipped; a spec batch landed ahead of code
 
-Theme A (Social / M13), B (Modern Client / M16), C (World Depth / M15),
-D (Content Authoring / M17), E (Engine Debt / M14) are **done** — see `ROADMAP.md`.
-What remains is the tail those themes didn't claim, below.
+The five original themes — A (Social / M13), B (Modern Client / M16),
+C (World Depth / M15), D (Content Authoring / M17), E (Engine Debt / M14) — are
+**done** (see `ROADMAP.md`), and **M18** (Command & UI polish) is the active milestone
+(prompt verb shipped). This cycle also wrote a **batch of behavior specs ahead of code**
+— roles, admin-verbs, item-decorations, tag-observers, who, crafting-and-cooking, and the
+trade trio — so the §1 "specced, ready to build" list is now large. What remains
+unspecced (§2) is the greenfield gameplay/economy-depth tail the five themes didn't claim.
 
 ---
 
@@ -81,12 +86,6 @@ old five-theme partition left uncovered.
   *rules* (what hides an entity, sneak mechanics, see-invisible) are greenfield. The seam
   is captured wherever it's consumed (`admin-verbs §3`, `commands-and-dispatch §5`); the
   rules need a design conversation. Park the rules; the seam is already usable.
-_(Crafting & Cooking moved to §1 — now specced: `crafting-and-cooking.md` (+ plan in
-`docs/themes/crafting-cooking-plan.md`). Stations are **resolved** (no furniture system:
-Tier 2 = room tag/property M14.5; Tier 1 campfire = temporary placed entity reusing the
-M15.2 decay pattern — both in the crafting MVP). One greenfield **sub-dependency** stays
-below: **gathering / resource nodes**, deferred past MVP, which sources ingredients from
-mob loot + authored placement until then.)_
 - **Gathering / resource nodes** — the non-vendor ingredient source crafting wants
   (`crafting-and-cooking §8`). Overlaps **Biomes** below (forage/harvest). Greenfield;
   until it lands, crafting sources ingredients from mob loot + authored placement.
@@ -98,11 +97,6 @@ mob loot + authored placement until then.)_
   spawn tables, foraging/harvest resource nodes, and ambience? Heavily interlocks with
   `mobs-ai-spawning` (spawns) and a future foraging/crafting loop. Needs a design
   conversation; decide the terrain-vs-new-layer question first.
-_(Player market — direct trade + auction house — moved to §1: now specced as
-`trade-escrow.md` (the shared escrow/atomic-transaction primitive), `direct-trade.md`,
-`auction-house.md`, + plan `docs/plans/trade-plan.md`. v1 decisions made: buyout-only,
-global market, pickup delivery. The only deferred greenfield piece is **push delivery
-(mail attachments)**, shared with Mail below.)_
 - **Mail / parcels (addressed items + gold)** — send a message *with attachments*
   (items and/or gold) to another player, claimed later. ⚠️ **Greenfield — no Tapestry
   reference.** Today: text-only **offline tells** (M13.2) on the notifications queue; no
@@ -159,25 +153,42 @@ of this today (`log/slog` only). Land before real players hit the server.
 ## Candidate next themes
 
 "What could we do next" = the open items above, clustered. Pick one arc; don't
-cherry-pick across them.
+cherry-pick across them. **The picture flipped this cycle:** after the spec batch, most
+themes are now **specced and ready to build** — the constraint is no longer "write a
+spec" but "pick what to build." Only the greenfield gameplay/economy-depth systems still
+need a design pass first.
 
-| Theme | Pulls in | Spec status | Rough size |
-|---|---|---|---|
-| **Roles & Administration** | Roles (§2) → admin verbs, session §5 idle exemption, verb gating | unspecced (keystone) | M — unblocks the most |
-| **Gameplay Depth** | faction, visibility/sneak, essence, rarity (§2) | unspecced (4 spec slices) | L |
-| **Command & UI polish** | chaining/repeat §4, bad-input §6, auto-help §8, prompt verb, `who` | specced | S — good warmup cluster |
-| **Engine Debt II** | mob equipment §3.3, death-purge §3.5, passive gain/scaling, property-registry save wiring, tag-indexed reads, cross-pack validation, GMCP wizard panel | specced | S–M — clears the m9-x/m14 tail |
-| **Ops** | §4 above | n/a | background only |
+**Ready to build (specced — §1):**
+
+| Theme | Pulls in | Size |
+|---|---|---|
+| **Command & UI polish** *(ACTIVE — M18)* | `who`, bad-input §6, chaining/repeat §4, auto-help §8 (prompt verb shipped) | S |
+| **Roles & Administration** | roles-and-permissions + admin-verbs + §5 idle-exemption + gating today's ungated verbs | M — unblocks the most |
+| **Crafting & Cooking** | `crafting-and-cooking` + plan; full Tier 0/1/2 MVP in the `core` pack | M |
+| **Player trade** | trade-escrow + direct-trade + auction-house + plan; atomic escrow, sync trade, buyout auction | M |
+| **Item decorations** | rarity tiers + essence (`item-decorations`); also unblocks crafting's quality output | S |
+| **Engine Debt II** | mob equip §3.3, death-purge §3.5, passive gain/scaling, property-save wiring, tag-indexed reads, cross-pack validation, GMCP wizard panel | S–M |
+
+**Needs a design pass first (greenfield — §2):**
+
+| Theme | Pulls in | Why design-first |
+|---|---|---|
+| **Gameplay Systems** | faction, visibility/sneak, biomes, gathering | no port reference; each needs pre-decisions before a spec |
+| **Player Economy depth** | mail (push delivery / attachment escrow), banking + a gold-at-risk rule | extends the now-specced trade; banking wants gold-at-risk to matter |
+
+**Background:** **Ops** (§4) — container/metrics/traces/dashboards/repo-hygiene; never a foreground theme.
 
 ### Picking rubric (from the retired theme-axis method)
 
 | If yes → | start with |
 |---|---|
-| Verbs/features are ungated and you want admin control or to gate them | Roles & Administration |
-| The character sheet / world feels mechanically thin in playtest | Gameplay Depth |
-| You want a fast, low-stakes win to re-enter the codebase | Command & UI polish (or a single warmup item) |
-| Accreting code debt is blocking a feature you want | Engine Debt II |
-| You're about to expose the server to real players | Ops (in background) |
+| You want admin control / to gate today's ungated verbs | **Roles & Administration** *(specced — ready)* |
+| You want a real item economy — players selling loot to each other | **Player trade** *(specced — ready)*; then Economy depth (mail/banking, greenfield) |
+| You want a crafting/gathering loop | **Crafting & Cooking** *(specced — MVP ready)* |
+| The world/character sheet feels mechanically thin | **Gameplay Systems** *(greenfield — design first)* |
+| You want a fast, low-stakes win to re-enter the codebase | finish **M18 Command & UI polish** (or one §1 warmup) |
+| Accreting code debt is blocking a feature you want | **Engine Debt II** *(specced)* |
+| You're about to expose the server to real players | **Ops** (in background) |
 
 Prefer the smallest scope that lands a real win before committing further. Engine Debt
 should land at least once every two or three other themes.

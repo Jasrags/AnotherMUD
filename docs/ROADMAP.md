@@ -18,6 +18,22 @@ For **behavior contracts**, see `docs/specs/`. The old `TAPESTRY-GAP-MATRIX.md`
 and `THEME-AXIS-PLAN.md` are superseded by `BACKLOG.md` and now live under
 `docs/archive/` (the five themes they framed have all shipped — M13–M17).
 
+## Status (as of 2026-06-01)
+
+- **Done:** **M0–M17 + all five themes** — A/M13 (Social), B/M16
+  (Modern-Client + GMCP), C/M15 (World-Depth), D/M17 (Content-Authoring +
+  Lua scripting), E/M14 (Engine-Debt). The core loop, world, combat,
+  progression, economy, quests, scripting, sessions, and modern-client
+  support all work.
+- **Active:** **M18 — Command & UI polish.** M18.1 (`prompt` verb) shipped;
+  M18.2–M18.5 (who, bad-input tracker, chaining/repeat, auto-help) pending.
+- **Specs ahead of code.** A large batch of behavior contracts landed this
+  cycle *without* implementation — `roles-and-permissions`, `admin-verbs`,
+  `item-decorations`, `tag-observers`, `who`, `crafting-and-cooking`, and the
+  trade trio (`trade-escrow`/`direct-trade`/`auction-house`). They are **not**
+  ROADMAP done-items; they sit in `BACKLOG.md` §1 (specced, ready to build).
+  The next themes are now mostly "build a written spec," not "write a spec."
+
 ---
 
 ## Foundations
@@ -2656,9 +2672,10 @@ against code and reads its cited spec section first.
       `MaxPromptTemplateLen` (240). Set/clear marks the save dirty +
       flags a prompt refresh so the change shows next flush. 10 tests
       (8 command + 2 session), -race clean.
-- [ ] **M18.2 — `who` verb.** Player-list verb. NOTE: the verb behavior
-      is only lightly specced (`chat-channels-and-tells` "if/when that
-      verb lands") — needs a small spec slice first, like §7.4 did.
+- [ ] **M18.2 — `who` verb.** Player-list verb. **Now specced** —
+      `who.md` §2–§4 was written this cycle (roster line, summary count,
+      who-appears; per-viewer hiding deferred to visibility rules). Reads
+      `Manager.OnlinePlayers`. Ready to build.
 - [ ] **M18.3 — Bad-input tracker.** commands-and-dispatch §6 — escalation
       on repeated unparseable input (beyond today's "Huh?" + flood gate).
 - [ ] **M18.4 — Command chaining `;` + repeat `3n`.** commands-and-dispatch §4.
