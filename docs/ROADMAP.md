@@ -2332,6 +2332,31 @@ without rewriting scripts.
 - [ ] **M17.2 — Arg typing.** `commands-and-dispatch §5`.
       Independent of the scripting runtime; can land in
       parallel.
+  - [x] **M17.2c — Ordinals, bulk, and the door resolver.**
+        Closes the §5.5/§5.6 selection surface. Ordinal
+        selection (`<n>.<keyword>`) already worked across all
+        eight selecting types because every entity resolver
+        calls the ordinal-aware `keyword.Resolve`; M17.2c
+        pins it with boundary tests. Bulk (`all` /
+        `all.<keyword>`) added to the two bulk-capable types
+        (`inventory`, `room_item`): when `ArgDefinition.Bulk`
+        is set AND the token is a bulk token, the resolver
+        runs `keyword.ResolveAll` and returns `[]ItemRef`;
+        a bare keyword on a bulk arg still yields a single
+        `ItemRef` (the bulk variant is specifically the `all`
+        form), and ordinal vs. bulk are trivially mutually
+        exclusive per token. Zero-match bulk surfaces the
+        type's not-found sentinel so a successful bulk resolve
+        always carries ≥1 element. New `door` resolver returns
+        `DoorRef{Direction, Door DoorInfo{Name, Closed,
+        Locked, KeyID}}` (§5.6) via a new `DoorScope` lookup
+        interface on `ResolveContext` (doors resolve by
+        direction OR keyword against the room graph, so the
+        seam is an interface, not a pre-filtered slice; the
+        production adapter over `world.World` lands M17.2d).
+        Three door outcomes map to value / `ErrDoorAmbiguous`
+        / `ErrNoSuchDoor`; nil scope → `ErrNoSuchDoor`. 13
+        new tests; package coverage 82.7%.
   - [x] **M17.2b — Entity / inventory / room resolvers.** New
         `ResolveContext{Inventory, RoomItems, RoomEntities,
         ActorName, ActorID}` threaded through `ResolverInput`

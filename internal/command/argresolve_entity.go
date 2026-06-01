@@ -73,6 +73,27 @@ type ResolveContext struct {
 	// consult these).
 	ActorName string
 	ActorID   string
+
+	// Doors is the lookup seam for the `door` resolver. Unlike the
+	// item / entity scopes (pre-filtered slices), doors resolve by
+	// direction OR keyword against the room graph, so the scope is
+	// an interface the production adapter (M17.2d) implements over
+	// world.World. Nil scope means "no doors reachable" — the door
+	// resolver returns ErrNoSuchDoor.
+	Doors DoorScope
+}
+
+// DoorScope resolves a door argument — a direction short string
+// ("n", "north") or a door keyword ("gate") — to a concrete door
+// in the actor's current room. The production adapter wraps
+// world.ResolveDoorTarget + world.GetDoor; tests use a fake.
+//
+// Contract: ResolveDoor reports exactly one of three outcomes —
+//   - (ref, true, false)  unique match
+//   - (_, false, true)    keyword matched multiple doors (ambiguous)
+//   - (_, false, false)   nothing matched
+type DoorScope interface {
+	ResolveDoor(arg string) (ref DoorRef, ok bool, ambiguous bool)
 }
 
 // ItemRef is the spec §5.6 resolved shape for the item-flavored
@@ -107,6 +128,25 @@ type VisibleRef struct {
 	Source string
 }
 
+// DoorRef is the spec §5.6 resolved shape for the `door` type: the
+// direction short string the door sits on plus a nested door object
+// so handlers can act on door state (open / close / lock / unlock)
+// without re-querying the world.
+type DoorRef struct {
+	Direction string
+	Door      DoorInfo
+}
+
+// DoorInfo is the nested door object inside DoorRef (§5.6): name,
+// closed / locked flags, and the key item-template id (empty when
+// the door has no key).
+type DoorInfo struct {
+	Name   string
+	Closed bool
+	Locked bool
+	KeyID  string
+}
+
 // Standard not-found error sentinels for the M17.2b resolvers.
 // These surface as the spec's per-type "default not-found error"
 // when ResolveArgs wraps them in an ArgResolveError; tests match
@@ -120,13 +160,21 @@ var (
 	ErrContainerNotFound  = errors.New("You don't see a container by that name.")
 	ErrNotVisible         = errors.New("You don't see that.")
 	ErrNotFindable        = errors.New("You don't see that.")
+	ErrNoSuchDoor         = errors.New("You don't see a door like that here.")
+	ErrDoorAmbiguous      = errors.New("Which door do you mean?")
 )
 
 // --- Resolvers ---
 
 // resolveInventory matches input against the actor's carried
-// items. Spec §5.2 inventory row.
+// items. Spec §5.2 inventory row. Bulk-capable: when Def.Bulk is
+// set and the token is `all` / `all.<keyword>` it returns an
+// []ItemRef (§5.5 / §5.6); otherwise a single ItemRef (the single
+// path is ordinal-aware via keyword.Resolve).
 func resolveInventory(in ResolverInput) (ResolverOutput, error) {
+	if in.Def.Bulk && isBulkToken(in.Tokens[0]) {
+		return bulkItemRefs(in.Context.Inventory, in.Tokens[0], ErrItemNotInInventory)
+	}
 	cand := itemsAsNamed(in.Context.Inventory)
 	match := keyword.Resolve(cand, in.Tokens[0])
 	if match == nil {
@@ -137,8 +185,12 @@ func resolveInventory(in ResolverInput) (ResolverOutput, error) {
 }
 
 // resolveRoomItem matches input against the non-actor items in
-// the current room.
+// the current room. Bulk-capable on the same terms as
+// resolveInventory.
 func resolveRoomItem(in ResolverInput) (ResolverOutput, error) {
+	if in.Def.Bulk && isBulkToken(in.Tokens[0]) {
+		return bulkItemRefs(in.Context.RoomItems, in.Tokens[0], ErrItemNotInRoom)
+	}
 	cand := itemsAsNamed(in.Context.RoomItems)
 	match := keyword.Resolve(cand, in.Tokens[0])
 	if match == nil {
@@ -279,7 +331,56 @@ func resolveFindable(in ResolverInput) (ResolverOutput, error) {
 	return ResolverOutput{}, ErrNotFindable
 }
 
+// resolveDoor maps the token to a door in the current room via the
+// ResolveContext.Doors scope. The scope itself handles the §5.5
+// direction-or-keyword-or-ordinal resolution (mirroring
+// world.ResolveDoorTarget); this resolver only translates the
+// three scope outcomes into a value or the matching sentinel error.
+// Returns a DoorRef (§5.6). Door is neither bulk nor multi-token.
+func resolveDoor(in ResolverInput) (ResolverOutput, error) {
+	if in.Context.Doors == nil {
+		return ResolverOutput{}, ErrNoSuchDoor
+	}
+	ref, ok, ambiguous := in.Context.Doors.ResolveDoor(in.Tokens[0])
+	switch {
+	case ok:
+		return ResolverOutput{Value: ref, Consumed: 1}, nil
+	case ambiguous:
+		return ResolverOutput{}, ErrDoorAmbiguous
+	default:
+		return ResolverOutput{}, ErrNoSuchDoor
+	}
+}
+
 // --- helpers ---
+
+// isBulkToken reports whether token requests a bulk operation —
+// `all` or `all.<keyword>` (case-insensitive). Ordinal tokens
+// (`2.sword`) are NOT bulk, keeping §5.5's "mutually exclusive
+// within a single token" rule trivially satisfied: a token is
+// either a bulk token or it isn't.
+func isBulkToken(token string) bool {
+	lower := strings.ToLower(token)
+	return lower == "all" || strings.HasPrefix(lower, "all.")
+}
+
+// bulkItemRefs runs the §6.2 ResolveAll match chain over a scope and
+// returns every match as an []ItemRef value. Zero matches surface
+// the scope's not-found sentinel so the driver short-circuits with
+// a clean message (consistent with the single-resolve path); a
+// successful bulk resolve therefore always carries at least one
+// element.
+func bulkItemRefs(items []ItemCandidate, token string, notFound error) (ResolverOutput, error) {
+	matches := keyword.ResolveAll(itemsAsNamed(items), token)
+	if len(matches) == 0 {
+		return ResolverOutput{}, notFound
+	}
+	refs := make([]ItemRef, len(matches))
+	for i, m := range matches {
+		refs[i] = itemRefFrom(m.(ItemCandidate))
+	}
+	return ResolverOutput{Value: refs, Consumed: 1}, nil
+}
 
 func itemsAsNamed(items []ItemCandidate) []keyword.Named {
 	out := make([]keyword.Named, len(items))

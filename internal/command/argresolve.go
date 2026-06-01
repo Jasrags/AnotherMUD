@@ -151,6 +151,8 @@ func NewArgResolverRegistry() *ArgResolverRegistry {
 	r.resolvers[ArgContainer] = resolveContainer
 	r.resolvers[ArgVisible] = resolveVisible
 	r.resolvers[ArgFindable] = resolveFindable
+	// M17.2c door resolver. Consults ResolverInput.Context.Doors.
+	r.resolvers[ArgDoor] = resolveDoor
 	return r
 }
 
