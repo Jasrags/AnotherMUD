@@ -80,6 +80,17 @@ The verbs players use and the systems that resolve them.
   cooking as the food specialization that feeds sustenance and
   grants quality-scaled well-fed effects. Permissive access,
   gated quality.
+- [trade-escrow](trade-escrow.md) — the shared escrow / atomic-
+  transaction primitive (stage value → cancellable commit → all-or-
+  nothing or make-whole rollback → audit log). Built once, consumed
+  by the two trade systems below.
+- [direct-trade](direct-trade.md) — synchronous same-room two-party
+  swap; offers, the confirm-then-reset anti-bait-and-switch rule,
+  atomic swap via trade-escrow; transient, zero-sum.
+- [auction-house](auction-house.md) — asynchronous marketplace;
+  persisted listing store, access point, browse/search, buyout, tick
+  expiry, fees as the gold sink; consumes trade-escrow; pickup
+  delivery in v1.
 - [chat-channels-and-tells](chat-channels-and-tells.md) —
   multi-recipient channels (engine baseline + pack-defined),
   one-to-one private tells with offline inbox, per-channel
@@ -149,6 +160,7 @@ operation. The set of cancellable events across the engine:
 | `item.consuming` | [economy-survival](economy-survival.md) §6.2 |
 | `shop.buy`, `shop.sell` | [economy-survival](economy-survival.md) §3 |
 | `recall.before` | [recall](recall.md) §3.1 |
+| `trade.committing` *(spec; build pending)* | [trade-escrow](trade-escrow.md) §3 |
 
 ### Registries and content
 
@@ -207,9 +219,15 @@ Each spec calls out what it persists. The aggregate view:
   `saves/channels/`; see [chat-channels-and-tells](chat-channels-and-tells.md) §4.
 - **Connection records** — content-defined, loaded by the pack
   pipeline after content load.
+- **Auction listing store** *(spec; build pending)* — long-lived world
+  data (active listings + escrowed items), versioned/migrated and
+  atomic like player saves; see [auction-house](auction-house.md) §4.
+- **Trade audit log** *(spec; build pending)* — append-only,
+  tamper-evident record of every committed transaction; see
+  [trade-escrow](trade-escrow.md) §5.
 - **NOT persisted** — sessions, link-dead state, in-game time,
   weather, mob spawn tracking, temporary exits, active
-  effects, rest state.
+  effects, rest state, **direct-trade sessions** (transient by design).
 
 Details: [persistence](persistence.md), with feature-specific
 sections in [quests](quests.md) §6, [progression](progression.md),
@@ -302,4 +320,4 @@ highest-impact themes that recur across specs:
 
 ---
 
-<!-- Updated: 2026-06-01 · 27 specs covering the engine substrate, world, action, lifecycle, and presentation layers. Some (roles-and-permissions, admin-verbs, item-decorations, tag-observers, who, crafting-and-cooking) are behavior contracts whose Go implementation is still pending. -->
+<!-- Updated: 2026-06-01 · 30 specs covering the engine substrate, world, action, lifecycle, and presentation layers. Some (roles-and-permissions, admin-verbs, item-decorations, tag-observers, who, crafting-and-cooking) are behavior contracts whose Go implementation is still pending. -->

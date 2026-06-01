@@ -59,6 +59,7 @@ go straight into a milestone.
 | **Essence** | **item-decorations §3,§4,§5** (new) | colored glyph item marker; participates in stack identity. Ported from Tapestry `EssenceRegistry` |
 | Reactive tag observers | **tag-observers §2–§4** (new) | `entity.tag_added/removed` bus events for non-index reactors. Substrate ahead of a consumer. Ported from Tapestry `ITagObserver` |
 | **Crafting & Cooking** | **crafting-and-cooking** (new) + plan `themes/crafting-cooking-plan.md` | recipes + crafting-skill proficiency + quality roll (output = rarity tier) + cooking→sustenance/well-fed. MVP = Tier 0 + Tier 1 campfire (temp entity, M15.2 reuse) + Tier 2 room-tag + mob-loot ingredients, all in `core` pack. Defers only gathering nodes (§2) |
+| **Player trade** (escrow + direct trade + auction) | **trade-escrow / direct-trade / auction-house** (new) + plan `plans/trade-plan.md` | shared escrow/atomic-commit primitive (cancellable bus); sync zero-sum direct trade; async persisted buyout auction (global, pickup delivery, fee gold sink). Admin moderation blocked on roles/admin (spec-only). Push delivery deferred to Mail (§2) |
 
 ---
 
@@ -97,41 +98,23 @@ mob loot + authored placement until then.)_
   spawn tables, foraging/harvest resource nodes, and ambience? Heavily interlocks with
   `mobs-ai-spawning` (spawns) and a future foraging/crafting loop. Needs a design
   conversation; decide the terrain-vs-new-layer question first.
-- **Player market: direct trade + auction house** — a way for players to exchange
-  valuable items with *each other*, beyond `give` (one-way gift) and NPC shops.
-  ⚠️ **Greenfield — no Tapestry reference.** Today the only player-to-player transfer is
-  `give`; `sell` goes to a shop; there is a `trade` *chat channel* (advertising) but no
-  market mechanism. Two tiers, one design conversation:
-  - **Direct trade** (synchronous) — two players in a room each stake items/gold, both
-    confirm, atomic swap. The simpler precursor; close to a two-party `give` with
-    confirmation, reusing the M5 give/put consistent-lock-order work. Specced, this could
-    reach §1 quickly.
-  - **Auction house** (asynchronous) — list an item (buyout and/or min-bid + duration),
-    others browse/bid/buy, gold + item held in escrow, sold/expired goods delivered even
-    to an offline party. The real "market outside merchants."
-  Substrate it builds on: currency (M11.1) + shop pricing patterns (M11.2), item
-  instances + entity store, the notifications queue (M13.1) for offline sale delivery
-  (offline tells already deliver on login — same pattern; the item/gold escrow is the
-  **Mail / parcels** layer below — spec that once, both consume it), atomic persistence
-  (new `saves/auctions/`-style store), tick-driven listing expiry, and the
-  `Manager.TransferItem` primitive flagged in m5-9a. Pre-decisions: global market vs.
-  per-location auctioneer NPC; buyout-only vs. bidding; listing fee/cut (a gold sink for
-  balance); delivery channel (mail/notifications); search/browse surface.
+_(Player market — direct trade + auction house — moved to §1: now specced as
+`trade-escrow.md` (the shared escrow/atomic-transaction primitive), `direct-trade.md`,
+`auction-house.md`, + plan `docs/plans/trade-plan.md`. v1 decisions made: buyout-only,
+global market, pickup delivery. The only deferred greenfield piece is **push delivery
+(mail attachments)**, shared with Mail below.)_
 - **Mail / parcels (addressed items + gold)** — send a message *with attachments*
   (items and/or gold) to another player, claimed later. ⚠️ **Greenfield — no Tapestry
-  reference.** Today we have text-only **offline tells** (M13.2) on the notifications
-  queue; no attachments. The notifications spec **already anticipates this**
-  (`notifications.md:29` — "…mail) will reuse" the queue; "one mailbox" mental model),
-  so the *text/delivery* substrate exists. The new piece is **escrow**: attached items/
-  gold must be held out of the world in a per-player pending-parcels store until claimed
-  (a tell is just text; a parcel holds value). **Shared substrate with the auction house**
-  above — "deliver items/gold to an offline player, claimed on login" is the same
-  capability; spec the parcel/escrow layer once and both player-mail and auction delivery
-  consume it. Substrate: notifications queue (delivery + offline-on-login), item instances
-  + escrow store, atomic persistence, the m5-9a `TransferItem` primitive. Pre-decisions:
-  read-anywhere vs. a post-office/mailbox room; postage cost + COD (gold sinks); mailbox
-  cap; unclaimed-mail expiry/return-to-sender; is mail "tells + attachments + a compose
-  step" or its own surface.
+  reference.** Today: text-only **offline tells** (M13.2) on the notifications queue; no
+  attachments. The *text/delivery* substrate exists (notifications.md anticipates mail);
+  the new piece is **push-delivery escrow** — attached items/gold held out of the world
+  until claimed. **Shared substrate with the auction house** (`auction-house.md` §11.2):
+  the auction ships **pickup** in v1 to avoid this, so push-delivery is deferred and, when
+  built, is the *one* attachment-delivery layer both player-mail and auction push-delivery
+  consume. Note the atomic-transaction half is already specced (`trade-escrow.md`); mail
+  adds the addressed-push-to-an-offline-player layer on top. Pre-decisions: read-anywhere
+  vs. a post-office/mailbox room; postage + COD (gold sinks); mailbox cap; unclaimed-mail
+  expiry/return-to-sender.
 - **Banking (stored gold, maybe item vault)** — a deposit/withdraw balance separate from
   carried gold. ⚠️ **Greenfield — no Tapestry reference.** Today gold is a single integer
   carried **directly on the character** (`economy-survival §2.1`), persisted on the save —
