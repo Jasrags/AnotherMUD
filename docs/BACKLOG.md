@@ -37,7 +37,7 @@ go straight into a milestone.
 | Command chaining `;` + repeat `3n` | commands-and-dispatch §4 | no chain/repeat parsing in dispatch |
 | Bad-input tracker (escalation on repeated junk) | commands-and-dispatch §6 | only "Huh?" + `floodGate` rate-limit exist; no §6 tracker |
 | Auto-help synthesis from arg defs | commands-and-dispatch §8 / ui §9.2 | Syntax is hand-authored; no synthesis from `ArgDefinition`s. **Unblocked** — arg typing shipped M17.2 |
-| `who` verb | chat-channels-and-tells (§ "if/when that verb lands") | no player-list verb. **Needs a small spec slice first** (verb behavior unspecced) |
+| `who` verb | **who §2–§4** (new) | no player-list verb. Conventional roster (Tapestry has none); reads `Manager.OnlinePlayers`. Per-viewer hiding deferred to visibility rules |
 | Pluggable name-gates | login §3 | only the hardcoded ASCII-letter validator |
 | Per-phase idle timeout | login §6.1 | `login.go` notes it as a known gap; no per-phase `Conn.Read` deadline set |
 | Tag-indexed reads during movement | world-rooms-movement §3.4 | movement scans, no tag index |
@@ -57,6 +57,7 @@ go straight into a milestone.
 | **Admin verbs** | **admin-verbs §2–§8** (new) | admin gate (commands marked admin, `HasRole`-gated) + baseline verbs (inspect/set/teleport/announce/restore/purge/reload). Gates today's ungated `reload`/`xp`. Ported from Tapestry `AdminModule` |
 | **Rarity tiers** | **item-decorations §2,§4,§5** (new) | ordered tier ladder → themed decorated marker (inline + column-padded). Ported from Tapestry `RarityRegistry` |
 | **Essence** | **item-decorations §3,§4,§5** (new) | colored glyph item marker; participates in stack identity. Ported from Tapestry `EssenceRegistry` |
+| Reactive tag observers | **tag-observers §2–§4** (new) | `entity.tag_added/removed` bus events for non-index reactors. Substrate ahead of a consumer. Ported from Tapestry `ITagObserver` |
 
 ---
 
@@ -79,9 +80,7 @@ old five-theme partition left uncovered.
   is captured wherever it's consumed (`admin-verbs §3`, `commands-and-dispatch §5`); the
   rules need a design conversation. Park the rules; the seam is already usable.
 - **Cross-cutting event catalog** — per-spec event tables exist in `specs/README.md`;
-  no aggregated catalog. (Docs/meta, not engine.)
-- **Reactive tag observers** — subscribers on tag mutations. Partial substrate exists
-  (`Store.Retag`); no observer registration surface.
+  no aggregated catalog. (Docs/meta, not engine — not a behavior spec.)
 
 ---
 

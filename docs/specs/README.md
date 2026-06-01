@@ -44,6 +44,10 @@ The simulated environment and the things in it.
 - [world-rooms-movement](world-rooms-movement.md) — rooms,
   areas, exits, doors, temporary portals, weather, the entity
   tracking + tag-index layer.
+- [tag-observers](tag-observers.md) — reactive `entity.tag_added` /
+  `entity.tag_removed` bus events for systems other than the tag
+  index; idempotency, payload, and the timing gotcha vs the
+  double-buffered index. Substrate ahead of a consumer.
 - [progression](progression.md) — stats, races, classes,
   tracks (XP / levels), alignment, training.
 - [inventory-equipment-items](inventory-equipment-items.md) —
@@ -85,6 +89,9 @@ The verbs players use and the systems that resolve them.
   target resolution with visibility bypass, the baseline verb set
   (inspect / set / teleport / announce / restore / purge / reload),
   and the audit trail. Builds on roles-and-permissions.
+- [who](who.md) — the connected-character roster verb; per-line
+  columns, summary count, and which characters appear (all in v1;
+  per-viewer hiding once visibility lands).
 
 ### 4. Player lifecycle
 
