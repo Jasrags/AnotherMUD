@@ -102,9 +102,10 @@ refused for ordinary players.
 Admin verbs reach what ordinary verbs cannot.
 
 - An admin verb that takes an entity argument resolves it with
-  **visibility bypass**: hidden, invisible, or sneaking targets
-  (`visibility` spec) are reachable, where an ordinary verb would not see
-  them. This is the `bypass_visibility` argument property
+  **visibility bypass**: hidden, invisible, or sneaking targets (the
+  visibility rules, still greenfield — see `BACKLOG.md`) are reachable,
+  where an ordinary verb would not see them. This is the
+  `bypass_visibility` argument property
   (`commands-and-dispatch.md` §5).
 - Resolution scope is verb-dependent and wider than a normal verb's:
   - Room-scoped admin verbs (inspect, set on a present entity) resolve in
@@ -287,8 +288,9 @@ Admin verbs hold no persistent state of their own.
   role grant/revoke lives there, deliberately not in `set` (§4).
 - `commands-and-dispatch.md` §3 (dispatch / "Huh?"), §5
   (`bypass_visibility` argument property).
-- `visibility` (spec, Gameplay Depth theme) — what admin target
-  resolution bypasses.
+- visibility rules (greenfield, not yet specced — see `BACKLOG.md`) —
+  what admin target resolution bypasses; the bypass *seam* is real today
+  (`commands-and-dispatch.md` §5) even though the hide/sneak rules aren't.
 - `scripting-and-packs.md` — the `reload` verb the gate now covers.
 - `persistence.md` — the property registry and save path admin writes use.
 - `ui-rendering-help.md` §9.5 — admin verbs hidden from help for non-admins.
