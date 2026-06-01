@@ -95,10 +95,10 @@ func RegisterBuiltins(r *Registry) error {
 		// Doors (M15.1). Operate the door on an exit; target is
 		// either a direction or a door keyword (with optional
 		// ordinal for disambiguation).
-		{Keyword: "open", Handler: OpenHandler, Brief: "Open a door.", Syntax: []string{"open <direction>", "open <door>"}},
-		{Keyword: "close", Aliases: []string{"shut"}, Handler: CloseHandler, Brief: "Close a door.", Syntax: []string{"close <direction>", "close <door>"}},
-		{Keyword: "lock", Handler: LockHandler, Brief: "Lock a door (requires the key).", Syntax: []string{"lock <direction>", "lock <door>"}},
-		{Keyword: "unlock", Handler: UnlockHandler, Brief: "Unlock a door (requires the key).", Syntax: []string{"unlock <direction>", "unlock <door>"}},
+		{Keyword: "open", Handler: OpenHandler, Brief: "Open a door.", Syntax: []string{"open <direction>", "open <door>"}, Args: []ArgDefinition{{Name: "door", Type: ArgDoor}}},
+		{Keyword: "close", Aliases: []string{"shut"}, Handler: CloseHandler, Brief: "Close a door.", Syntax: []string{"close <direction>", "close <door>"}, Args: []ArgDefinition{{Name: "door", Type: ArgDoor}}},
+		{Keyword: "lock", Handler: LockHandler, Brief: "Lock a door (requires the key).", Syntax: []string{"lock <direction>", "lock <door>"}, Args: []ArgDefinition{{Name: "door", Type: ArgDoor}}},
+		{Keyword: "unlock", Handler: UnlockHandler, Brief: "Unlock a door (requires the key).", Syntax: []string{"unlock <direction>", "unlock <door>"}, Args: []ArgDefinition{{Name: "door", Type: ArgDoor}}},
 
 		// Recall (M15.3). `set recall` binds the current room as the
 		// character's return point; `recall` teleports back to it.

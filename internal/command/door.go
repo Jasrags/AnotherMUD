@@ -47,35 +47,40 @@ func doorOpHandler(ctx context.Context, c *Context, op string) error {
 	if c.World == nil {
 		return c.Actor.Write(ctx, "There is nothing here to "+op+".")
 	}
-	if len(c.Args) == 0 {
-		return c.Actor.Write(ctx, fmt.Sprintf("%s what?", capitalize(op)))
-	}
 	room := c.Actor.Room()
 	if room == nil {
 		return c.Actor.Write(ctx, "You see nothing here.")
 	}
-	arg := strings.Join(c.Args, " ")
-	res := c.World.ResolveDoorTarget(room.ID, arg)
-	if res.Ambiguous {
-		return c.Actor.Write(ctx, fmt.Sprintf("Which one do you want to %s?", op))
-	}
-	if !res.Ok {
+
+	// M17.2c/d: the `door` arg resolved the target (a direction or door
+	// keyword, with optional ordinal) before this runs — missing-arg,
+	// ambiguous, and not-found are reported by the dispatcher with the
+	// §5.4 / door sentinels. We parse the resolved short direction back
+	// to a world.Direction and re-fetch the LIVE DoorState: the snapshot
+	// the resolver took may be stale, and the per-op checks below want
+	// current state (mirrors the old GetDoor-before-switch behavior).
+	ref, ok := c.Resolved["door"].(DoorRef)
+	if !ok {
 		return c.Actor.Write(ctx, fmt.Sprintf("You don't see anything to %s there.", op))
 	}
-	door, ok := c.World.GetDoor(room.ID, res.Direction)
+	dir, ok := world.ParseDirection(ref.Direction)
+	if !ok {
+		return c.Actor.Write(ctx, fmt.Sprintf("You don't see anything to %s there.", op))
+	}
+	door, ok := c.World.GetDoor(room.ID, dir)
 	if !ok {
 		return c.Actor.Write(ctx, fmt.Sprintf("You don't see anything to %s there.", op))
 	}
 
 	switch op {
 	case "open":
-		return handleOpen(ctx, c, room.ID, res.Direction, door)
+		return handleOpen(ctx, c, room.ID, dir, door)
 	case "close":
-		return handleClose(ctx, c, room.ID, res.Direction, door)
+		return handleClose(ctx, c, room.ID, dir, door)
 	case "lock":
-		return handleLock(ctx, c, room.ID, res.Direction, door)
+		return handleLock(ctx, c, room.ID, dir, door)
 	case "unlock":
-		return handleUnlock(ctx, c, room.ID, res.Direction, door)
+		return handleUnlock(ctx, c, room.ID, dir, door)
 	default:
 		return c.Actor.Write(ctx, "Huh?")
 	}
@@ -187,4 +192,3 @@ func actorHasKey(c *Context, keyID string) bool {
 	}
 	return false
 }
-

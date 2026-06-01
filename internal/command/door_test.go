@@ -199,7 +199,9 @@ func TestDoorVerb_NoArgPrompt(t *testing.T) {
 	a := newTestActor(f.roomA(t))
 
 	dispatchDoor(t, f, a, "open")
-	if got := a.lastLine(); !strings.Contains(got, "Open what") {
+	// M17.2c/d: the dispatcher emits the §5.4 missing-arg prompt for
+	// the declared `door` arg instead of the old "Open what?".
+	if got := a.lastLine(); !strings.Contains(got, "What door?") {
 		t.Errorf("no-arg open: %q", got)
 	}
 }
@@ -231,7 +233,10 @@ func TestDoorVerb_Ambiguous(t *testing.T) {
 	a := newTestActor(f.roomA(t))
 
 	dispatchDoor(t, f, a, "open gate")
-	if got := a.lastLine(); !strings.Contains(got, "Which one") {
+	// M17.2c/d: ambiguous door resolution surfaces the door resolver's
+	// standardized ErrDoorAmbiguous copy instead of the op-specific
+	// "Which one do you want to open?".
+	if got := a.lastLine(); !strings.Contains(got, "Which door do you mean?") {
 		t.Errorf("ambiguous: %q", got)
 	}
 }

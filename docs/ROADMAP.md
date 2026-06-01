@@ -2334,6 +2334,24 @@ without rewriting scripts.
       parallel.
   - [ ] **M17.2d — Handler migration + production adapter.**
         Wires the §5 arg-typing pipeline into live dispatch.
+    - [x] **M17.2d₆ — Door verbs (open / close / lock / unlock).**
+          First production consumer of the M17.2c `door` resolver +
+          M17.2d₁ `worldDoorScope` (built but previously unused).
+          Each verb declares one `door` arg; `doorOpHandler` reads
+          the resolved `DoorRef`, parses its short direction back to
+          a `world.Direction`, and re-fetches the live `DoorState`
+          via `GetDoor` (the per-op checks want current state — same
+          as the old GetDoor-before-switch). The four
+          `handleOpen/Close/Lock/Unlock` functions are unchanged.
+          `world.ResolveDoorTarget` is still exercised — now via the
+          door scope adapter rather than the handler. **Behavior:**
+          single-token/direction/ordinal forms identical; `open iron
+          gate` now resolves via the "iron" token (the old
+          `strings.Join` produced "iron gate", which never matched a
+          single-token keyword anyway). Standardized copy: missing
+          arg → "What door?", ambiguous → "Which door do you mean?",
+          not found → "You don't see a door like that here." Updated
+          2 message tests. Coverage 81.9%.
     - [x] **M17.2d₅ — Consumable verbs (eat / drink / use).**
           All three route through `consumeVerb`, which now reads a
           single declared `inventory` arg (Option A) via
