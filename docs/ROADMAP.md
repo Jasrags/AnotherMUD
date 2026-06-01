@@ -2176,7 +2176,7 @@ already well-abstracted so the blast radius is bounded.
       SupportsPackage always true, Connection-interface compile
       assertion) + 2 server-package integration tests (accept +
       round-trip; no-handler 500). `go test -race ./...` clean.
-- [ ] **M16.6 — 256 / truecolor.** Per-session render tier
+- [x] **M16.6 — 256 / truecolor.** Per-session render tier
       selection driven by captured TTYPE.
   - [x] **M16.6a — Capability detection.** New
         `render.ColorTier` enum (None / Basic / Extended /
@@ -2197,12 +2197,26 @@ already well-abstracted so the blast radius is bounded.
         behavior). `connActor.ColorTier()` accessor +
         Debug-level `session.color_tier` log at session-add.
         M16.6b will wire tier-aware ANSI emission.
-  - [ ] **M16.6b — Tier-aware ANSI emission.** ThemeRegistry
-        compiles 4 per-tier AnsiPair maps; ColorRenderer
-        dispatches off `connActor.ColorTier()`. ThemeEntry's
-        HTML field becomes the truecolor/256 source with
-        ANSI-16 fallback to FG/BG. Content theme updates
-        deferred — existing themes degrade gracefully.
+  - [x] **M16.6b — Tier-aware ANSI emission.** `ThemeRegistry.
+        Compile()` now produces three per-tier compiled maps
+        (Basic/Extended/TrueColor) keyed by tag; the existing
+        Basic map remains as the back-compat target for
+        `Resolve(tag)`. New `ResolveForTier(tag, tier)`
+        returns the per-tier pair, returning (zero, false)
+        for ColorTierNone. Hex→SGR helpers (`hexToTrueColorSGR`,
+        `hexTo256SGR`, `nearestXterm256`) live in `render/hex.
+        go`; Extended uses the xterm-256 6×6×6 cube + grayscale
+        ramp, TrueColor emits `\x1b[38;2;R;G;Bm`. ColorRenderer
+        gains `RenderAnsiForTier(s, tier)` with a tier-aware
+        cache key `(s, tier)`; `RenderAnsi(s)` stays as an
+        alias for ColorTierBasic for back-compat. connActor's
+        `render()` dispatches off the captured `colorTier`
+        when ColorEnabled (the admin override still wins, even
+        for TrueColor-capable clients). Theme entries without
+        HTML degrade gracefully — Extended/TrueColor fall
+        through to the ANSI-16 FG/BG path. Content theme
+        updates deliberately scoped out per the M16.6 plan.
+        Closes M16.
 
 **Touches specs:** `networking-protocols` end-to-end; eventually
 `ui-rendering-help` §3 for the color tier follow-up.

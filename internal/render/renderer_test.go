@@ -89,7 +89,9 @@ func TestRenderCache(t *testing.T) {
 	if a != b {
 		t.Fatal("cached ansi differs")
 	}
-	if _, ok := r.ansiCache.Load(in); !ok {
+	// M16.6b: the ansi cache is now keyed by (string, tier).
+	// RenderAnsi defaults to ColorTierBasic.
+	if _, ok := r.ansiCache.Load(tieredCacheKey{s: in, tier: ColorTierBasic}); !ok {
 		t.Error("expected cache entry after RenderAnsi")
 	}
 }

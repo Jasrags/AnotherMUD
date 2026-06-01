@@ -19,22 +19,56 @@ import (
 // boot-time concern).
 type ColorRenderer struct {
 	theme      *ThemeRegistry
-	ansiCache  sync.Map // string → string
+	ansiCache  sync.Map // tieredCacheKey → string (M16.6b)
 	plainCache sync.Map // string → string
 }
 
-// NewColorRenderer binds a renderer to a theme registry.
+// tieredCacheKey indexes the ansi cache by both input string and
+// color tier so the same source markup can produce different
+// per-tier output without cross-tier contamination.
+type tieredCacheKey struct {
+	s    string
+	tier ColorTier
+}
+
+// NewColorRenderer binds a renderer to a theme registry. Tier is
+// supplied per-render via RenderAnsiForTier; the renderer itself
+// is tier-agnostic, so one instance serves every active session
+// regardless of capability.
 func NewColorRenderer(theme *ThemeRegistry) *ColorRenderer {
 	return &ColorRenderer{theme: theme}
 }
 
-// RenderAnsi expands markup in s into ANSI SGR sequences.
+// RenderAnsi expands markup in s into ANSI-16 SGR sequences. Kept
+// for back-compat — equivalent to RenderAnsiForTier(s,
+// ColorTierBasic). M16.6b call sites should prefer the tier-aware
+// form so per-session capability flows through.
 func (r *ColorRenderer) RenderAnsi(s string) string {
-	if v, ok := r.ansiCache.Load(s); ok {
+	return r.RenderAnsiForTier(s, ColorTierBasic)
+}
+
+// RenderAnsiForTier expands markup in s into tier-appropriate
+// SGR sequences (M16.6b). Tier dispatch:
+//
+//   - ColorTierNone     — equivalent to RenderPlain (no color).
+//   - ColorTierBasic    — ANSI-16 (the M0-era default).
+//   - ColorTierExtended — 256-color SGR for theme entries with
+//                          an HTML hex; ANSI-16 otherwise.
+//   - ColorTierTrueColor — 24-bit RGB SGR for theme entries with
+//                          an HTML hex; ANSI-16 otherwise.
+//
+// Cache key is (s, tier) so a TrueColor render of a string does
+// not poison a Basic render of the same string.
+func (r *ColorRenderer) RenderAnsiForTier(s string, tier ColorTier) string {
+	if tier == ColorTierNone {
+		return r.RenderPlain(s)
+	}
+	key := tieredCacheKey{s: s, tier: tier}
+	if v, ok := r.ansiCache.Load(key); ok {
 		return v.(string)
 	}
-	out := r.render(s, true)
-	r.ansiCache.Store(s, out)
+	out := r.renderTier(s, true, tier)
+	r.ansiCache.Store(key, out)
 	return out
 }
 
@@ -43,16 +77,21 @@ func (r *ColorRenderer) RenderPlain(s string) string {
 	if v, ok := r.plainCache.Load(s); ok {
 		return v.(string)
 	}
-	out := r.render(s, false)
+	out := r.renderTier(s, false, ColorTierBasic) // tier unused in plain mode
 	r.plainCache.Store(s, out)
 	return out
 }
 
-// render is the single-pass scanner. ansi selects whether structural
-// constructs emit SGR codes or nothing; in both modes the visible text
-// is identical. Raw 0x1B bytes are dropped in both modes (security
-// chokepoint — see package doc).
-func (r *ColorRenderer) render(s string, ansi bool) string {
+// renderTier is the single-pass scanner. ansi selects whether
+// structural constructs emit SGR codes or nothing; in both modes the
+// visible text is identical. Raw 0x1B bytes are dropped in both modes
+// (security chokepoint — see package doc).
+//
+// tier dispatches the theme lookup: ResolveForTier returns the
+// per-tier compiled AnsiPair. Brace shorthand and the literal
+// <color fg= bg=> tag stay at ANSI-16 regardless of tier — they
+// reference named ANSI-16 colors, not the theme's HTML hex.
+func (r *ColorRenderer) renderTier(s string, ansi bool, tier ColorTier) string {
 	var b strings.Builder
 	b.Grow(len(s) + 8)
 	openColor := false // an unreset color code was emitted (ansi mode)
@@ -64,7 +103,7 @@ func (r *ColorRenderer) render(s string, ansi bool) string {
 		case c == 0x1B:
 			i++ // drop smuggled ESC
 		case c == '<':
-			consumed, opened := r.scanAngle(s, i, ansi, &b)
+			consumed, opened := r.scanAngle(s, i, ansi, tier, &b)
 			if consumed == 0 {
 				b.WriteByte('<') // unmatched '<' → literal, rescan rest
 				i++
@@ -114,7 +153,7 @@ const (
 // advances one") and the open-state effect. Recognizes, in order:
 // closing tags (</name>), literal color (<color …>), and semantic tags
 // (<name>). Unknown opening tags consume 0 so they pass through (§2.5).
-func (r *ColorRenderer) scanAngle(s string, i int, ansi bool, b *strings.Builder) (int, openState) {
+func (r *ColorRenderer) scanAngle(s string, i int, ansi bool, tier ColorTier, b *strings.Builder) (int, openState) {
 	end := tagEnd(s, i)
 	if end < 0 {
 		return 0, openNone // unmatched '<'
@@ -131,7 +170,7 @@ func (r *ColorRenderer) scanAngle(s string, i int, ansi bool, b *strings.Builder
 			// tag is a pure passthrough wrapper, so its close emits
 			// nothing (no stray reset around plain content).
 			if ansi {
-				_, hasColor := r.theme.Resolve(name)
+				_, hasColor := r.theme.ResolveForTier(name, tier)
 				if name == "color" || hasColor {
 					b.WriteString(Reset)
 					return total, openClose
@@ -163,7 +202,7 @@ func (r *ColorRenderer) scanAngle(s string, i int, ansi bool, b *strings.Builder
 
 	if r.theme.IsKnown(lname) {
 		if ansi {
-			if pair, ok := r.theme.Resolve(lname); ok {
+			if pair, ok := r.theme.ResolveForTier(lname, tier); ok {
 				b.WriteString(pair.Open)
 				return total, openOpen
 			}

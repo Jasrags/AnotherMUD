@@ -24,6 +24,7 @@ func TestConnActorRenderUsesThemeWhenColorEnabled(t *testing.T) {
 		conn:         fc,
 		renderer:     buildTestRenderer(),
 		colorEnabled: true,
+		colorTier:    render.ColorTierBasic, // M16.6b: explicit ANSI-16
 	}
 	if err := a.Write(context.Background(), "<highlight>hi</highlight>"); err != nil {
 		t.Fatal(err)

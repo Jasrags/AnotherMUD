@@ -1815,12 +1815,18 @@ func (a *connActor) Write(ctx context.Context, msg string) error {
 // RenderAnsi vs RenderPlain by the session's color flag (the spec's
 // SupportsAnsi role, §5). Falls back to the minimal M2 ansi.Render
 // when no renderer is configured (tests).
+//
+// M16.6b: when color is enabled the per-tier dispatch
+// (RenderAnsiForTier) emits ANSI-16 / 256-color / truecolor SGR
+// based on the actor's captured capability. ColorEnabled is the
+// admin/preference override that still wins — even a TrueColor-
+// capable client with color disabled by the user gets plain text.
 func (a *connActor) render(msg string) string {
 	if a.renderer == nil {
 		return ansi.Render(msg, a.ColorEnabled())
 	}
 	if a.ColorEnabled() {
-		return a.renderer.RenderAnsi(msg)
+		return a.renderer.RenderAnsiForTier(msg, a.colorTier)
 	}
 	return a.renderer.RenderPlain(msg)
 }

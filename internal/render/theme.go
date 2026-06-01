@@ -39,16 +39,24 @@ type AnsiPair struct {
 // the compiled map and all post-Compile lookups are read-only and
 // safe for concurrent use across sessions.
 type ThemeRegistry struct {
-	mu       sync.RWMutex
-	entries  map[string]ThemeEntry
-	compiled map[string]AnsiPair
+	mu      sync.RWMutex
+	entries map[string]ThemeEntry
+	// compiled holds the Basic-tier (ANSI-16) AnsiPair map. Kept
+	// for back-compat with the Resolve(tag) accessor and any
+	// caller that doesn't care about tier. New M16.6b callers
+	// should use ResolveForTier; compiledByTier carries the full
+	// per-tier set including TrueColor (24-bit RGB SGR) and
+	// Extended (256-color SGR).
+	compiled        map[string]AnsiPair
+	compiledByTier  map[ColorTier]map[string]AnsiPair
 }
 
 // NewThemeRegistry returns an empty registry.
 func NewThemeRegistry() *ThemeRegistry {
 	return &ThemeRegistry{
-		entries:  make(map[string]ThemeEntry),
-		compiled: make(map[string]AnsiPair),
+		entries:        make(map[string]ThemeEntry),
+		compiled:       make(map[string]AnsiPair),
+		compiledByTier: make(map[ColorTier]map[string]AnsiPair),
 	}
 }
 
@@ -62,21 +70,71 @@ func (r *ThemeRegistry) Register(tag string, entry ThemeEntry) {
 }
 
 // Compile builds the fast open/close lookup. It is idempotent: each call
-// rebuilds the compiled map from the current entries. An entry produces
-// an AnsiPair only when its fg or bg resolves to a real SGR code;
-// html-only (or unresolved-color) entries produce no pair.
+// rebuilds the compiled map from the current entries.
+//
+// Compile now produces per-tier maps (M16.6b): Basic uses the ANSI-16
+// path via ResolveFgColor / ResolveBgColor; Extended maps the entry's
+// HTML hex (if present) to the nearest xterm-256 palette index, falling
+// back to ANSI-16 when HTML is empty or unparseable; TrueColor emits a
+// 24-bit RGB SGR sequence from the HTML hex, falling back the same way.
+// An entry produces a tier-pair only when that tier's lookup resolves
+// to a non-empty open sequence; html-only entries get tier-pairs for
+// Extended/TrueColor (the rich SGR) and skip the Basic map.
 func (r *ThemeRegistry) Compile() {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	compiled := make(map[string]AnsiPair, len(r.entries))
+
+	basic := make(map[string]AnsiPair, len(r.entries))
+	extended := make(map[string]AnsiPair, len(r.entries))
+	trueColor := make(map[string]AnsiPair, len(r.entries))
+
 	for tag, e := range r.entries {
-		open := ResolveFgColor(e.FG) + ResolveBgColor(e.BG)
-		if open == "" {
-			continue
+		if open := openForBasic(e); open != "" {
+			basic[tag] = AnsiPair{Open: open, Close: Reset}
 		}
-		compiled[tag] = AnsiPair{Open: open, Close: Reset}
+		if open := openForExtended(e); open != "" {
+			extended[tag] = AnsiPair{Open: open, Close: Reset}
+		}
+		if open := openForTrueColor(e); open != "" {
+			trueColor[tag] = AnsiPair{Open: open, Close: Reset}
+		}
 	}
-	r.compiled = compiled
+
+	r.compiled = basic
+	r.compiledByTier = map[ColorTier]map[string]AnsiPair{
+		ColorTierBasic:     basic,
+		ColorTierExtended:  extended,
+		ColorTierTrueColor: trueColor,
+	}
+}
+
+// openForBasic builds the ANSI-16 open sequence for the entry —
+// the M0-era behavior preserved unchanged.
+func openForBasic(e ThemeEntry) string {
+	return ResolveFgColor(e.FG) + ResolveBgColor(e.BG)
+}
+
+// openForExtended builds the 256-color open sequence: HTML hex
+// quantized to the xterm-256 cube (or grayscale ramp) when
+// present, with ANSI-16 fg/bg as fallback. The fg/bg names also
+// fall back to ANSI-16 — there's no "256-color" name vocabulary
+// in ThemeEntry's FG/BG strings.
+func openForExtended(e ThemeEntry) string {
+	fg := hexTo256SGR(e.HTML, false)
+	if fg == "" {
+		fg = ResolveFgColor(e.FG)
+	}
+	return fg + ResolveBgColor(e.BG)
+}
+
+// openForTrueColor builds the 24-bit RGB open sequence: HTML hex
+// as truecolor SGR, with ANSI-16 fg/bg as fallback.
+func openForTrueColor(e ThemeEntry) string {
+	fg := hexToTrueColorSGR(e.HTML, false)
+	if fg == "" {
+		fg = ResolveFgColor(e.FG)
+	}
+	return fg + ResolveBgColor(e.BG)
 }
 
 // IsKnown reports whether the tag is a declared theme entry. It returns
@@ -90,13 +148,36 @@ func (r *ThemeRegistry) IsKnown(tag string) bool {
 	return ok
 }
 
-// Resolve returns the compiled AnsiPair for a tag and whether one
-// exists. A declared-but-color-less tag returns (zero, false): the
-// renderer should emit the tag's content plain.
+// Resolve returns the Basic-tier (ANSI-16) compiled AnsiPair for
+// a tag. Kept for back-compat; new callers should use
+// ResolveForTier with the actor's tier.
 func (r *ThemeRegistry) Resolve(tag string) (AnsiPair, bool) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 	p, ok := r.compiled[strings.ToLower(tag)]
+	return p, ok
+}
+
+// ResolveForTier returns the compiled AnsiPair for a tag at the
+// requested color tier (M16.6b). ColorTierNone returns (zero,
+// false) — no color is the renderer's job to emit plain.
+// Unknown tiers fall through to (zero, false); callers should
+// upstream guarantee a valid tier from the per-session capture.
+//
+// A declared-but-color-less entry (HTML empty AND FG/BG both
+// unresolvable) returns (zero, false) at every tier — the
+// renderer emits the tag's content plain.
+func (r *ThemeRegistry) ResolveForTier(tag string, tier ColorTier) (AnsiPair, bool) {
+	if tier == ColorTierNone {
+		return AnsiPair{}, false
+	}
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	m, ok := r.compiledByTier[tier]
+	if !ok {
+		return AnsiPair{}, false
+	}
+	p, ok := m[strings.ToLower(tag)]
 	return p, ok
 }
 
