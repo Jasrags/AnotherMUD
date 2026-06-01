@@ -2236,6 +2236,70 @@ loop once clients have advertised their tier via TTYPE.
 
 ---
 
+### M17 — Content Authoring (Theme D)
+
+**Why this:** M13/M14/M15/M16 closed the engine surface. The
+remaining theme-axis lane is content authoring — give pack
+authors a scripting runtime so they don't need to recompile the
+engine to add behavior. Largest theme on the plan; scripting is
+the keystone.
+
+**Pre-decision (locked):** scripting language = **gopher-lua**
+(user choice, M17.1a). The Engine type is the abstraction
+boundary so a future runtime swap (goja, Starlark) is feasible
+without rewriting scripts.
+
+- [ ] **M17.1 — Scripting runtime.** Sandbox + bus bridge +
+      minimal engine API.
+  - [x] **M17.1a — Sandbox substrate.** New
+        `internal/scripting` package; `Engine.Run(ctx, packID,
+        scriptPath, script)` constructs a fresh sandboxed
+        `*lua.LState` per call (concurrent-safe, no internal
+        locking). Sandbox: `os`/`io`/`debug`/`package` libs NOT
+        loaded; base lib loaded but `dofile`/`loadfile`/`load`/
+        `loadstring`/`collectgarbage`/`getfenv`/`setfenv`/
+        `module`/`require`/`newproxy`/`print`/`_printregs`
+        stripped; `table`/`string`/`math` loaded as safe
+        pure-data libs. Limits: per-Run timeout (default 50ms,
+        context-cancel based — works against the parent ctx
+        too); `MaxRegistrySize` caps the VM register stack;
+        `MaxCallStackSize` caps recursion depth. Errors wrap
+        into `*scripting.Error` carrying `PackID`, `ScriptPath`,
+        and the underlying lua error; context cancellation
+        passes through verbatim so `errors.Is(err,
+        context.DeadlineExceeded)` works. Known gap: gopher-lua
+        has no clean way to cap the Go-side heap behind Lua
+        tables — RegistryMaxSize doesn't reach it and SetMx
+        calls os.Exit on overflow (unacceptable for a server).
+        Wall-clock timeout is the load-bearing memory defense
+        until a real allocation counter lands. 14 tests cover
+        the happy path, every denied global, every
+        unloaded namespace, sandbox attribution on require,
+        timeout (infinite loop), parent-ctx cancel,
+        call-stack overflow, allocation-storm bounded by
+        timeout, error format / Unwrap. New dep:
+        `github.com/yuin/gopher-lua` v1.1.2.
+  - [ ] **M17.1b — Pack discovery.** Loader picks up
+        `scripts/*.lua` alongside YAML; scripts get a
+        registration callback at pack-load time.
+  - [ ] **M17.1c — Bus bridge + minimal API.** Scripts can
+        `engine.subscribe("mob.killed", fn)` and call
+        `engine.log(msg)`. Demo target: a Lua script in
+        `content/core/scripts/track_kills.lua` subscribes
+        and logs.
+- [ ] **M17.2 — Arg typing.** `commands-and-dispatch §5`.
+      Independent of the scripting runtime; can land in
+      parallel.
+- [ ] **M17.3 — Hot reload.** Requires the scripting runtime
+      to be stable (M17.1c).
+- [ ] **M17.4 — Schedule primitive.** Thin shim over
+      scripting; depends on M17.1c.
+
+**Touches specs:** `scripting-and-packs` (the substrate);
+`commands-and-dispatch §5` (arg typing).
+
+---
+
 ## How to use this document
 
 - The **current milestone** is whichever section above has unchecked
