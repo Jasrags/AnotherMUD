@@ -1,7 +1,7 @@
 # Feature Specifications
 
 Language-agnostic specifications for every major engine subsystem in
-Tapestry. Each spec describes *what* the feature must do, not *how*
+AnotherMUD. Each spec describes *what* the feature must do, not *how*
 to implement it. Specific values (timeouts, dice expressions, cap
 tiers, color names) are policy and live outside the specs.
 
@@ -30,7 +30,8 @@ The pieces that everything else stands on.
 - [persistence](persistence.md) — the property registry, account
   and player save shapes, atomic file I/O, autosave pipeline.
 - [scripting-and-packs](scripting-and-packs.md) — pack
-  discovery, two-phase loading, JS runtime, validation.
+  discovery, two-phase loading, the sandboxed Lua runtime
+  (gopher-lua), the bus bridge + engine API, hot reload.
 - [networking-protocols](networking-protocols.md) — IConnection,
   telnet negotiation, GMCP, MSSP, WebSocket envelopes.
 - [notifications](notifications.md) — per-entity priority queue
@@ -167,12 +168,15 @@ load time:
 | Theme | [ui-rendering-help](ui-rendering-help.md) §3 |
 | Mob template, loot table, area-spawn | [mobs-ai-spawning](mobs-ai-spawning.md) §2, §3 |
 | Ability | [abilities-and-effects](abilities-and-effects.md) §2 |
+| Effect template | [abilities-and-effects](abilities-and-effects.md); applied by consumables [economy-survival](economy-survival.md) §6 |
 | Race, class | [progression](progression.md) §3, §4 |
 | Track | [progression](progression.md) §5 |
 | Command | [commands-and-dispatch](commands-and-dispatch.md) §2 |
 | Emote | [commands-and-dispatch](commands-and-dispatch.md) §7 |
 | Quest | [quests](quests.md) §2 |
 | Help topic | [ui-rendering-help](ui-rendering-help.md) §9 |
+| Rarity tier, Essence | [item-decorations](item-decorations.md) §2, §3 *(spec; build pending)* |
+| Recipe | [crafting-and-cooking](crafting-and-cooking.md) §3 *(spec; build pending)* |
 
 Engine-vs-pack scope (engine-scope registrations are visible
 to all packs without prefixing; pack-scope registrations are
@@ -187,7 +191,8 @@ Each spec calls out what it persists. The aggregate view:
   creation / verification timestamps.
 - **Player file** — entity id, account id, name, location,
   tags, roles, stats (base + modifiers + vitals), properties,
-  equipment, inventory, flat item list.
+  equipment, inventory, flat item list, **abilities +
+  proficiencies**, **recall address**, **prompt template**.
 - **Quest file** (sibling of player file) — active list,
   completed list.
 - **Notifications file** (sibling of player file) — per-entity
@@ -212,27 +217,30 @@ sections in [quests](quests.md) §6, [progression](progression.md),
 
 ### Tick handlers
 
-The canonical handler set registered at boot:
+The handler set actually registered at boot (verified against the
+composition root):
 
 | Handler | Cadence | Spec |
 |---|---:|---|
 | pre-tick: world tag-buffer swap | per tick | [world-rooms-movement](world-rooms-movement.md) §3.4 |
-| `area-tick` | 1 | [world-rooms-movement](world-rooms-movement.md) §6 |
+| `ai-tick` | 1s | [mobs-ai-spawning](mobs-ai-spawning.md) §4 |
+| `area-tick` (spawn scheduler) | 1s | [world-rooms-movement](world-rooms-movement.md) §6, [mobs-ai-spawning](mobs-ai-spawning.md) §3 |
 | `game-clock` | 1 | [time-and-clock](time-and-clock.md) §3 |
-| `tick-timer` | 1 | [time-and-clock](time-and-clock.md) §2 |
-| `mob-ai` | 10 | [mobs-ai-spawning](mobs-ai-spawning.md) §4 |
-| `mob-command-queue` | 1 | [mobs-ai-spawning](mobs-ai-spawning.md) §6.2 |
-| `heartbeat` (combat + abilities + effects) | 1 | [combat](combat.md) §3, [abilities-and-effects](abilities-and-effects.md) §4 |
-| `corpse-decay` | 30 | [world / death pipeline](world-rooms-movement.md) |
+| `combat-tick` (combat phases: ability / auto-attack / effects) | configured | [combat](combat.md) §3, [abilities-and-effects](abilities-and-effects.md) §4 |
+| `effect-tick` (effect expiry) | configured | [abilities-and-effects](abilities-and-effects.md) |
 | `sustenance-drain` | configured | [economy-survival](economy-survival.md) §4.4 |
+| `vitals-regen` | configured | [session-lifecycle](session-lifecycle.md) (via game loop) |
+| `prompt-flush` | 1 | [ui-rendering-help](ui-rendering-help.md) §7.3 |
+| `scripting-schedule` | 1 | [scripting-and-packs](scripting-and-packs.md) (the `engine.schedule` primitive) |
+| `gmcp-vitals-flush` / `-items-` / `-combat-` / `-effects-` / `-experience-` / `-charstatus-` | 1 each | [networking-protocols](networking-protocols.md) (GMCP package layer) |
 | `autosave` | configured | [persistence](persistence.md) §6.2 |
-| `regen` | 30 | [session-lifecycle](session-lifecycle.md) (via game loop) |
-| `idle-timeout` | 300 | [session-lifecycle](session-lifecycle.md) §5 |
-| `linkdead-cleanup` | 300 | [session-lifecycle](session-lifecycle.md) §7.3 |
-| `gmcp-vitals-flush` | 1 | [networking-protocols](networking-protocols.md) (GMCP layer) |
+| `idle-sweep` | configured | [session-lifecycle](session-lifecycle.md) §5 |
+| `linkdead-cleanup` | configured | [session-lifecycle](session-lifecycle.md) §7.3 |
 
-Cadence is in *ticks*. With the default 100 ms tick rate, an
-interval of 10 fires every second; 300 fires every 30 seconds.
+Cadence is in *ticks* (or "1s"/"configured" where derived from a
+duration). With the default 100 ms tick rate, an interval of 10 fires
+every second. (`mob-command-queue` and `corpse-decay` are specced but
+not yet wired as standalone handlers.)
 
 ---
 
@@ -264,8 +272,8 @@ Each spec carries its own open-questions section. The
 highest-impact themes that recur across specs:
 
 - **Hardcoded magic values.** Cap tiers (25/50/75/100), flee
-  cooldown (80 ticks), sustenance cap (100), engine namespace
-  (`tapestry-core`), JS sandbox limits (5s / 100 / 50 MB), and
+  cooldown, sustenance cap, engine namespace (`tapestry-core`),
+  Lua sandbox limits (timeout / instruction / memory), and
   several others are baked into source. Externalizing these
   is a cross-cutting cleanup.
 - **Persistence gaps.** In-game time, weather state, link-dead
@@ -280,10 +288,13 @@ highest-impact themes that recur across specs:
   "is this event stale?" guards (session takeover, combat
   death). A general staleness primitive (event versioning,
   generation counters) could replace ad-hoc guards.
-- **Role tier placeholder.** The help-service role hierarchy
-  exists but doesn't actually elevate non-admin players above
-  the player tier. Builder / admin gating works for some
-  features (commands), not others (help).
+- **Role enforcement not yet built.** The help-service role
+  "tier" is a no-op stub — it doesn't actually elevate anyone.
+  The real authorization model is now specced
+  ([roles-and-permissions](roles-and-permissions.md): a flat
+  `HasRole` capability check) and [admin-verbs](admin-verbs.md)
+  gates on it, but neither is implemented yet, so no privilege
+  gating is live today.
 - **Unbounded growth.** Render cache, bad-input tracker,
   alignment history (this one is bounded), notification
   queues, and a few others have no eviction or cap.
@@ -291,4 +302,4 @@ highest-impact themes that recur across specs:
 
 ---
 
-<!-- Generated: 2026-05-21 · 17 specs covering the engine substrate, world, action, lifecycle, and presentation layers -->
+<!-- Updated: 2026-06-01 · 27 specs covering the engine substrate, world, action, lifecycle, and presentation layers. Some (roles-and-permissions, admin-verbs, item-decorations, tag-observers, who, crafting-and-cooking) are behavior contracts whose Go implementation is still pending. -->
