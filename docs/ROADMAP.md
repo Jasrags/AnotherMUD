@@ -2334,6 +2334,29 @@ without rewriting scripts.
       parallel.
   - [ ] **M17.2d — Handler migration + production adapter.**
         Wires the §5 arg-typing pipeline into live dispatch.
+    - [x] **M17.2d₂ — Dispatch integration (Option A) + first
+          handler.** `Command.Args []ArgDefinition` +
+          `Context.Resolved map[string]any`; the `Registry`
+          owns an `*ArgResolverRegistry` (seeded in `New()`,
+          exposed via `ArgResolvers()` for pack types). New
+          `resolveRegistration` returns the matched
+          registration (handler + Args); `Resolve` now delegates
+          to it (one routing rule). `Dispatch` gained the §5
+          step: when a command declares Args, build the
+          ResolveContext, resolve against `c.Args`, log warnings
+          at Debug, write the resolver error + skip the handler
+          on failure, else store the map in `c.Resolved`. Empty
+          Args = legacy raw-`c.Args` passthrough (un-migrated
+          handlers untouched). First migrated verb: `drop`
+          (declares one `inventory` arg; re-fetches the live
+          instance by the resolved `ItemRef.ID`, which doubles
+          as the TOCTOU guard). **Behavior change:** drop's
+          missing-arg / not-carried copy is now the §5.4-
+          standard resolver text ("What item?" / "You aren't
+          carrying that.") instead of the hand-rolled "Drop
+          what?" / "You aren't carrying anything." 7 dispatch +
+          drop tests; coverage 82.7%. No composition-root change
+          (registry self-seeds via New()).
     - [x] **M17.2d₁ — Production ResolveContext adapter.**
           New `internal/command/argcontext.go`: candidate
           adapters bridging the M17.2b/c resolver interfaces

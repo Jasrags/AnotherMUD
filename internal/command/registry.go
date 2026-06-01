@@ -22,13 +22,14 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/Jasrags/AnotherMUD/internal/chat"
+	"github.com/Jasrags/AnotherMUD/internal/clock"
 	"github.com/Jasrags/AnotherMUD/internal/combat"
 	"github.com/Jasrags/AnotherMUD/internal/economy"
 	"github.com/Jasrags/AnotherMUD/internal/entities"
 	"github.com/Jasrags/AnotherMUD/internal/eventbus"
-	"github.com/Jasrags/AnotherMUD/internal/chat"
-	"github.com/Jasrags/AnotherMUD/internal/clock"
 	"github.com/Jasrags/AnotherMUD/internal/help"
+	"github.com/Jasrags/AnotherMUD/internal/logging"
 	"github.com/Jasrags/AnotherMUD/internal/notifications"
 	"github.com/Jasrags/AnotherMUD/internal/progression"
 	"github.com/Jasrags/AnotherMUD/internal/quest"
@@ -372,10 +373,20 @@ type Context struct {
 	// handlers reach for it as `c.Ambience` instead of having to
 	// chase Env. nil-safe (RenderRoom skips when nil or when the
 	// callback returns "").
-	Ambience        func(*world.Room) string
-	Raw             string   // raw input line, trimmed
-	Verb            string   // resolved verb (lowercase)
-	Args            []string // tokens after the verb (space-split)
+	Ambience func(*world.Room) string
+	Raw      string   // raw input line, trimmed
+	Verb     string   // resolved verb (lowercase)
+	Args     []string // tokens after the verb (space-split)
+
+	// Resolved holds the §5 typed-argument values, keyed by each
+	// declared ArgDefinition.Name, for commands that declared Args.
+	// Dispatch populates it after a successful resolve and before
+	// calling the handler; it is nil for handlers not yet migrated
+	// onto the arg-typing pipeline. Migrated handlers read their
+	// arguments from here (type-asserting to ItemRef / EntityRef /
+	// DoorRef / string / int / the bulk []ItemRef as declared)
+	// instead of hand-parsing Args.
+	Resolved map[string]any
 }
 
 // Publish is the nil-safe shortcut every handler should use to emit
@@ -412,6 +423,17 @@ type Command struct {
 	Syntax   []string
 	Keywords []string
 	Handler  Handler
+
+	// Args declares the command's typed arguments (commands-and-
+	// dispatch §5). When non-empty, Dispatch resolves them against the
+	// actor's scope BEFORE calling the handler (Option A): on success
+	// the resolved values land in Context.Resolved keyed by each
+	// ArgDefinition.Name; on a resolution failure the dispatcher writes
+	// the error to the actor and the handler never runs. When empty,
+	// Dispatch skips resolution entirely and the handler reads the raw
+	// Context.Args tokens as before — this is what lets handlers
+	// migrate onto the pipeline one at a time.
+	Args []ArgDefinition
 }
 
 // CommandInfo is the read-only view of a registered command's metadata,
@@ -448,6 +470,10 @@ type registration struct {
 	// meta is non-nil only on a primary registration that carried
 	// metadata. It is the source for Commands() / help generation.
 	meta *cmdMeta
+	// args is the command's declared typed-argument list (§5). Empty
+	// for handlers not yet migrated onto the arg-typing pipeline;
+	// Dispatch resolves it before the handler runs when non-empty.
+	args []ArgDefinition
 }
 
 // Registry holds the command keyword → handler bindings.
@@ -459,11 +485,27 @@ type Registry struct {
 	byKey   map[string]registration
 	order   int
 	ordered []string // keywords in registration order, for prefix scans
+
+	// argResolvers is the §5 arg-typing resolver registry the
+	// dispatcher consults for commands that declare Args. Seeded with
+	// the engine-baseline resolvers; packs extend it via ArgResolvers.
+	argResolvers *ArgResolverRegistry
 }
 
-// New returns an empty Registry.
+// New returns an empty Registry seeded with the engine-baseline arg
+// resolvers (keyword/text/number/inventory/…/door).
 func New() *Registry {
-	return &Registry{byKey: make(map[string]registration)}
+	return &Registry{
+		byKey:        make(map[string]registration),
+		argResolvers: NewArgResolverRegistry(),
+	}
+}
+
+// ArgResolvers exposes the dispatcher's arg-type resolver registry so
+// the composition root can register pack-authored arg types (§5.3)
+// before play begins. Never nil for a Registry built via New().
+func (r *Registry) ArgResolvers() *ArgResolverRegistry {
+	return r.argResolvers
 }
 
 // Register binds keyword to h with no listing metadata. Keywords are
@@ -529,7 +571,13 @@ func (r *Registry) RegisterCommand(c Command) error {
 	}
 
 	r.order++
-	r.byKey[k] = registration{keyword: k, order: r.order, handler: c.Handler, meta: meta}
+	r.byKey[k] = registration{
+		keyword: k,
+		order:   r.order,
+		handler: c.Handler,
+		meta:    meta,
+		args:    append([]ArgDefinition(nil), c.Args...),
+	}
 	r.ordered = append(r.ordered, k)
 	for _, la := range lowered {
 		r.order++
@@ -569,18 +617,31 @@ func (r *Registry) Commands() []CommandInfo {
 // Resolve returns the handler that the verb routes to, or nil if no
 // match. Exact match wins; on no exact match, the keyword with the
 // smallest registration-order index whose name has verb as a prefix
-// wins (spec §2.3).
+// wins (spec §2.3). Thin wrapper over resolveRegistration so the
+// routing rule lives in one place.
 func (r *Registry) Resolve(verb string) Handler {
+	reg, ok := r.resolveRegistration(verb)
+	if !ok {
+		return nil
+	}
+	return reg.handler
+}
+
+// resolveRegistration is the §2.3 routing used by Dispatch: it returns
+// the full matched registration (handler + declared Args), not just
+// the handler, so the dispatcher can pre-resolve typed arguments.
+// Resolution order matches Resolve exactly — exact match wins, else
+// the lowest registration-order prefix match.
+func (r *Registry) resolveRegistration(verb string) (registration, bool) {
 	v := strings.ToLower(verb)
 	if v == "" {
-		return nil
+		return registration{}, false
 	}
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 	if reg, ok := r.byKey[v]; ok {
-		return reg.handler
+		return reg, true
 	}
-	// Prefix scan: collect candidates, pick the lowest order.
 	var matches []registration
 	for _, k := range r.ordered {
 		if strings.HasPrefix(k, v) {
@@ -588,10 +649,10 @@ func (r *Registry) Resolve(verb string) Handler {
 		}
 	}
 	if len(matches) == 0 {
-		return nil
+		return registration{}, false
 	}
 	sort.Slice(matches, func(i, j int) bool { return matches[i].order < matches[j].order })
-	return matches[0].handler
+	return matches[0], true
 }
 
 // Dispatch parses a raw input line and routes it. Empty / whitespace
@@ -610,34 +671,34 @@ func (r *Registry) Dispatch(ctx context.Context, env Env, actor Actor, raw strin
 	verb := fields[0]
 	args := fields[1:]
 
-	h := r.Resolve(verb)
-	if h == nil {
+	reg, ok := r.resolveRegistration(verb)
+	if !ok {
 		return actor.Write(ctx, "Huh?")
 	}
-	return h(ctx, &Context{
-		Actor:       actor,
-		World:       env.World,
-		Broadcaster: env.Broadcaster,
-		Items:       env.Items,
-		Placement:   env.Placement,
-		Contents:    env.Contents,
-		Slots:       env.Slots,
-		Bus:         env.Bus,
-		Locator:     env.Locator,
-		Disposition: env.Disposition,
-		Combat:      env.Combat,
-		Flee:        env.Flee,
-		Progression: env.Progression,
-		Training:    env.Training,
-		Abilities:   env.Abilities,
-		Proficiency: env.Proficiency,
-		ActionQueue: env.ActionQueue,
-		Help:        env.Help,
-		Quests:      env.Quests,
-		Currency:    env.Currency,
-		Shop:        env.Shop,
-		Rest:          env.Rest,
-		Consumable:    env.Consumable,
+	c := &Context{
+		Actor:           actor,
+		World:           env.World,
+		Broadcaster:     env.Broadcaster,
+		Items:           env.Items,
+		Placement:       env.Placement,
+		Contents:        env.Contents,
+		Slots:           env.Slots,
+		Bus:             env.Bus,
+		Locator:         env.Locator,
+		Disposition:     env.Disposition,
+		Combat:          env.Combat,
+		Flee:            env.Flee,
+		Progression:     env.Progression,
+		Training:        env.Training,
+		Abilities:       env.Abilities,
+		Proficiency:     env.Proficiency,
+		ActionQueue:     env.ActionQueue,
+		Help:            env.Help,
+		Quests:          env.Quests,
+		Currency:        env.Currency,
+		Shop:            env.Shop,
+		Rest:            env.Rest,
+		Consumable:      env.Consumable,
 		Notifications:   env.Notifications,
 		TellResolver:    env.TellResolver,
 		ChatRegistry:    env.ChatRegistry,
@@ -648,5 +709,25 @@ func (r *Registry) Dispatch(ctx context.Context, env Env, actor Actor, raw strin
 		Raw:             trimmed,
 		Verb:            strings.ToLower(verb),
 		Args:            args,
-	})
+	}
+
+	// §5 arg-typing (Option A): when the command declares typed args,
+	// resolve them against the actor's scope before the handler runs.
+	// A resolution failure is terminal for this input — the dispatcher
+	// writes the player-facing error and the handler never executes.
+	// Commands with no declared Args skip this entirely and read the
+	// raw c.Args tokens themselves (the incremental-migration path).
+	if len(reg.args) > 0 {
+		resolved, warnings, _, err := r.argResolvers.ResolveArgsWithContext(
+			reg.args, args, c.BuildResolveContext())
+		for _, w := range warnings {
+			logging.From(ctx).Debug("argres warning", "verb", c.Verb, "warning", w)
+		}
+		if err != nil {
+			return actor.Write(ctx, err.Error())
+		}
+		c.Resolved = resolved
+	}
+
+	return reg.handler(ctx, c)
 }

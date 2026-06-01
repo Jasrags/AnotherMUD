@@ -117,32 +117,43 @@ func GetHandler(ctx context.Context, c *Context) error {
 // in the current room, and broadcasts. Drop is unconditional in this
 // spec (no weight gate, no no_drop tag) — gates would be policy layered
 // on top.
+// DropHandler is the first verb migrated onto the §5 arg-typing
+// pipeline (M17.2d₂). Its single `item` argument is declared as
+// ArgInventory in RegisterBuiltins, so the dispatcher resolves it
+// before this runs: a missing arg ("drop") or an unmatched keyword is
+// reported by the dispatcher with the resolver's standardized message
+// ("What item?" / "You aren't carrying that.") and this handler is
+// never reached. The handler therefore starts from a resolved ItemRef
+// and re-fetches the live instance by id — the store lookup is also
+// the TOCTOU guard the hand-parsed version had (the item may have left
+// the inventory between resolution and now).
 func DropHandler(ctx context.Context, c *Context) error {
 	if c.Items == nil || c.Placement == nil {
 		return c.Actor.Write(ctx, "You can't drop anything right now.")
-	}
-	if len(c.Args) == 0 {
-		return c.Actor.Write(ctx, "Drop what?")
 	}
 	room := c.Actor.Room()
 	if room == nil {
 		return c.Actor.Write(ctx, "You float in formless void; there is nowhere to drop anything.")
 	}
 
-	candidates := collectItems(c.Items, c.Actor.Inventory())
-	if len(candidates) == 0 {
-		return c.Actor.Write(ctx, "You aren't carrying anything.")
-	}
-
-	match := keyword.Resolve(asNamed(candidates), strings.Join(c.Args, " "))
-	if match == nil {
+	ref, ok := c.Resolved["item"].(ItemRef)
+	if !ok {
+		// Defensive: only reached if the registration's Args drifted
+		// from this handler's expectation. Mirror the resolver's copy.
 		return c.Actor.Write(ctx, "You aren't carrying that.")
 	}
-	item := match.(*entities.ItemInstance)
+	e, ok := c.Items.GetByID(entities.EntityID(ref.ID))
+	if !ok {
+		return c.Actor.Write(ctx, "You aren't carrying that.")
+	}
+	item, ok := e.(*entities.ItemInstance)
+	if !ok {
+		return c.Actor.Write(ctx, "You aren't carrying that.")
+	}
 
 	if !c.Actor.RemoveFromInventory(item.ID()) {
-		// Vanishingly rare: keyword match found it but the inventory
-		// changed between Resolve and Remove. Treat as failure.
+		// Vanishingly rare: resolution found it but the inventory
+		// changed between resolve and remove. Treat as failure.
 		return c.Actor.Write(ctx, "You aren't carrying that.")
 	}
 	c.Placement.Place(item.ID(), room.ID)
