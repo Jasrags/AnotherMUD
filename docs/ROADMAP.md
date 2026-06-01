@@ -2565,13 +2565,27 @@ without rewriting scripts.
         last-wins + unknown-fallback + optional-miss-nil
         surface. No handler migration yet — M17.2d wires
         existing handlers to the new path.
-- [ ] **M17.3 — Hot reload.** Requires the scripting runtime
-      to be stable (M17.1c). **Scope: script-only reload** —
-      rebuilds the scripting sandboxes + bus subscriptions; does
-      NOT touch `world.World` or the content registries (the M2
-      reload story flags live world mutation as unsafe). Amends
-      the `scripting-and-packs` §1 hot-reload non-goal for
-      scripts.
+- [x] **M17.3 — Hot reload.** Script-only reload, shipped across
+      M17.3a (primitives) + M17.3b (verb + wiring + spec). Rebuilds
+      the scripting sandboxes + bus subscriptions without touching
+      `world.World` or the content registries. Amended the
+      `scripting-and-packs` §1 non-goal: content hot-reload stays
+      out (live world mutation unsafe), script hot-reload is now in.
+  - [x] **M17.3b — `reload` verb + composition wiring + spec.**
+        New `command.ReloadHandler` registered bare (ungated, like
+        `xp`, until the role system can gate it — M10+/M12); it
+        calls the `Context.ReloadScripts` closure and reports the
+        loaded count, or surfaces the underlying error verbatim
+        (the `*scripting.Error` carries pack/script/Lua attribution
+        the operator needs). Threaded `ReloadScripts func(ctx)
+        (int, error)` through `session.Config` → `command.Env` →
+        `Context` (mirrors the `Flee` closure). Composition root
+        wires it to `pack.DiscoverScripts(cfg.ContentDir, …,
+        scriptEngine)` → `scriptRuntime.Reload` → `fresh.Len()`.
+        Amended `scripting-and-packs` §1: content reload remains a
+        non-goal, script reload is supported (trigger surface is a
+        host concern). 3 verb tests (disabled-when-unwired, count,
+        error-surface). Full suite 45 pkgs, -race clean.
   - [x] **M17.3a — Reload primitives.** `pack.DiscoverScripts`
         (discovery + script-glob + compile-check ONLY — no
         content parse, no spawning, so it is safe on a live

@@ -107,6 +107,11 @@ type Config struct {
 	// nil in tests that don't exercise the flee verb.
 	Flee func(ctx context.Context, c combat.CombatantID) combat.FleeOutcome
 
+	// ReloadScripts is the M17.3 script hot-reload trigger, passed
+	// through to command.Env so the `reload` verb can re-discover pack
+	// Lua and swap the scripting runtime. nil disables the verb.
+	ReloadScripts func(ctx context.Context) (int, error)
+
 	// Progression is the M8.2 XP/level service. nil in tests that
 	// don't exercise progression; in production the composition root
 	// builds it from the pack-loaded track registry and a bus-backed
@@ -401,26 +406,26 @@ func run(ctx context.Context, c conn.Connection, cfg Config) error {
 
 	floodCfg := cfg.Flood
 	a := &connActor{
-		id:           c.ID(),
-		conn:         c,
-		renderer:     cfg.Render,
-		playerID:     loaded.Player.ID,
-		accountID:    loaded.Account.ID,
-		room:         start,
-		colorEnabled: cfg.ColorEnabled,
-		colorTier:    readColorTier(c),
-		save:         loaded.Player,
-		players:      cfg.Players,
-		prof:         cfg.Proficiency,
+		id:            c.ID(),
+		conn:          c,
+		renderer:      cfg.Render,
+		playerID:      loaded.Player.ID,
+		accountID:     loaded.Account.ID,
+		room:          start,
+		colorEnabled:  cfg.ColorEnabled,
+		colorTier:     readColorTier(c),
+		save:          loaded.Player,
+		players:       cfg.Players,
+		prof:          cfg.Proficiency,
 		combat:        cfg.Combat,
 		combatLocator: cfg.CombatLocator,
 		effects:       cfg.Effects,
 		progression:   cfg.Progression,
-		items:        cfg.Items,
-		contents:     cfg.Contents,
-		equipment:    make(map[string]entities.EntityID),
-		statBlock:    progression.NewWithBase(progression.DefaultPlayerBase()),
-		progress:     progression.NewProgressionState(),
+		items:         cfg.Items,
+		contents:      cfg.Contents,
+		equipment:     make(map[string]entities.EntityID),
+		statBlock:     progression.NewWithBase(progression.DefaultPlayerBase()),
+		progress:      progression.NewProgressionState(),
 		// M7.5: vitals restore from the persisted save when present;
 		// absent block (fresh character, migrated-from-v4 save) spawns
 		// at full HP via NewVitals. The race/class/level inputs that
@@ -810,6 +815,7 @@ func pump(ctx context.Context, c conn.Connection, cfg Config, a *connActor, clk 
 			Disposition:     cfg.Disposition,
 			Combat:          cfg.Combat,
 			Flee:            cfg.Flee,
+			ReloadScripts:   cfg.ReloadScripts,
 			Progression:     cfg.Progression,
 			Training:        cfg.Training,
 			Abilities:       cfg.Abilities,
@@ -1654,11 +1660,11 @@ type connActor struct {
 	// guards all three valid flags + the last Status snapshot so
 	// the flusher can run a one-shot login/vars-emit branch in the
 	// same critical section as the diff compare.
-	gmcpCharStatusMu        sync.Mutex
-	gmcpLoginSent           bool
-	gmcpStatusVarsSent      bool
-	gmcpLastStatus          gmcp.CharStatus
-	gmcpLastStatusValid     bool
+	gmcpCharStatusMu    sync.Mutex
+	gmcpLoginSent       bool
+	gmcpStatusVarsSent  bool
+	gmcpLastStatus      gmcp.CharStatus
+	gmcpLastStatusValid bool
 	// recentTells is a session-scoped ring of recently-received tell
 	// lines for the `tells` verb (a brief review of what scrolled past).
 	// In-memory only. Capped by tellsSessionHistoryCap. Guarded by mu.

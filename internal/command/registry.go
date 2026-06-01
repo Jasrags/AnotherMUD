@@ -198,6 +198,13 @@ type Env struct {
 	// tests that don't exercise the flee verb.
 	Flee func(ctx context.Context, c combat.CombatantID) combat.FleeOutcome
 
+	// ReloadScripts is the M17.3 script hot-reload trigger. It
+	// re-discovers pack Lua from disk and swaps the scripting runtime
+	// without a restart, returning the number of scripts loaded. Wired
+	// at the composition root (pack.DiscoverScripts → Runtime.Reload);
+	// nil disables the reload verb.
+	ReloadScripts func(ctx context.Context) (int, error)
+
 	// Progression is the M8.2 XP/level service. The xp verb routes
 	// through it; future verbs (score, train, practice) will too.
 	// nil in tests that don't exercise progression verbs.
@@ -340,6 +347,10 @@ type Context struct {
 	// Flee is the M7.6 verb-driven §5.2 flee primitive closure. nil
 	// in tests that don't exercise the flee verb.
 	Flee func(ctx context.Context, c combat.CombatantID) combat.FleeOutcome
+	// ReloadScripts is the M17.3 script hot-reload trigger (re-discover
+	// pack Lua → swap the scripting runtime). nil disables the reload
+	// verb; tests that don't exercise reload leave it unset.
+	ReloadScripts func(ctx context.Context) (int, error)
 	// Progression is the M8.2 XP/level service. nil in tests.
 	Progression *progression.Manager
 	// Training is the M8.6 training service. nil in tests.
@@ -706,6 +717,7 @@ func (r *Registry) Dispatch(ctx context.Context, env Env, actor Actor, raw strin
 		Disposition:     env.Disposition,
 		Combat:          env.Combat,
 		Flee:            env.Flee,
+		ReloadScripts:   env.ReloadScripts,
 		Progression:     env.Progression,
 		Training:        env.Training,
 		Abilities:       env.Abilities,

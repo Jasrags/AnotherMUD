@@ -90,8 +90,22 @@ The feature has four responsibilities:
 
 - Pack discovery from the internet, signing, or installation.
   Packs are local directories under a configured root.
-- Hot-reloading. The engine loads packs once at startup. Content
-  changes require a restart.
+- Content hot-reloading. Rooms, areas, items, mobs, and other
+  content registries load once at startup; changing them requires a
+  restart, because the live world is not designed for concurrent
+  mutation while sessions are active.
+
+  > **Amended (M17.3):** *script* hot-reloading IS supported. An
+  > operator-triggered reload re-discovers pack Lua from disk,
+  > re-validates it (compile-check), and hot-swaps the scripting
+  > runtime — rebuilding the per-pack sandboxes and their event-bus
+  > subscriptions — without a restart and without touching the
+  > content registries or the live world. A syntax error in an
+  > edited script aborts the reload before the running scripts are
+  > torn down. The reload primitive is the engine's `Runtime.Reload`
+  > over a freshly-discovered script registry; the trigger surface
+  > (an admin verb / signal) is a host concern, not part of this
+  > spec.
 - A package manager. The `dependencies` field is consulted for
   scope-resolution purposes but is NOT used to install missing
   dependencies — pack authors are expected to ship them.

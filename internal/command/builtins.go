@@ -119,6 +119,14 @@ func RegisterBuiltins(r *Registry) error {
 		return err
 	}
 
+	// Admin script hot-reload (M17.3): re-reads pack Lua and swaps the
+	// scripting runtime. Bare + ungated for now (role-gated later, like
+	// xp) so it stays out of the player help list. No-ops with a clear
+	// message when the composition root didn't wire ReloadScripts.
+	if err := r.Register("reload", ReloadHandler); err != nil {
+		return err
+	}
+
 	// Movement: one keyword per direction (long + short). Registered bare
 	// — the authored `movement` help topic covers them, so per-direction
 	// generated topics would just be noise.

@@ -23,10 +23,13 @@ import (
 
 	"github.com/Jasrags/AnotherMUD/internal/account"
 	"github.com/Jasrags/AnotherMUD/internal/ai"
+	"github.com/Jasrags/AnotherMUD/internal/chat"
 	"github.com/Jasrags/AnotherMUD/internal/clock"
 	"github.com/Jasrags/AnotherMUD/internal/combat"
 	"github.com/Jasrags/AnotherMUD/internal/command"
+	"github.com/Jasrags/AnotherMUD/internal/conn/telnet"
 	"github.com/Jasrags/AnotherMUD/internal/economy"
+	"github.com/Jasrags/AnotherMUD/internal/emote"
 	"github.com/Jasrags/AnotherMUD/internal/entities"
 	"github.com/Jasrags/AnotherMUD/internal/eventbus"
 	"github.com/Jasrags/AnotherMUD/internal/gameclock"
@@ -35,20 +38,17 @@ import (
 	"github.com/Jasrags/AnotherMUD/internal/login"
 	"github.com/Jasrags/AnotherMUD/internal/mob"
 	"github.com/Jasrags/AnotherMUD/internal/mssp"
-	"github.com/Jasrags/AnotherMUD/internal/pack"
-	"github.com/Jasrags/AnotherMUD/internal/scripting"
-	"github.com/Jasrags/AnotherMUD/internal/player"
-	"github.com/Jasrags/AnotherMUD/internal/progression"
-	"github.com/Jasrags/AnotherMUD/internal/quest"
-	"github.com/Jasrags/AnotherMUD/internal/chat"
-	"github.com/Jasrags/AnotherMUD/internal/emote"
 	"github.com/Jasrags/AnotherMUD/internal/notifications"
+	"github.com/Jasrags/AnotherMUD/internal/pack"
+	"github.com/Jasrags/AnotherMUD/internal/player"
 	"github.com/Jasrags/AnotherMUD/internal/portal"
+	"github.com/Jasrags/AnotherMUD/internal/progression"
 	"github.com/Jasrags/AnotherMUD/internal/property"
+	"github.com/Jasrags/AnotherMUD/internal/quest"
 	"github.com/Jasrags/AnotherMUD/internal/queststore"
 	"github.com/Jasrags/AnotherMUD/internal/questwatch"
 	"github.com/Jasrags/AnotherMUD/internal/render"
-	"github.com/Jasrags/AnotherMUD/internal/conn/telnet"
+	"github.com/Jasrags/AnotherMUD/internal/scripting"
 	"github.com/Jasrags/AnotherMUD/internal/server"
 	"github.com/Jasrags/AnotherMUD/internal/session"
 	"github.com/Jasrags/AnotherMUD/internal/slot"
@@ -1326,21 +1326,36 @@ func run() error {
 	)
 
 	handler := session.Handler(session.Config{
-		World:       w,
-		Commands:    cmds,
-		Players:     players,
-		Manager:     mgr,
-		Items:       entityStore,
-		Placement:   placement,
-		Contents:    contents,
-		Templates:   registries.Items,
-		Slots:       registries.Slots,
-		Bus:         bus,
-		Disposition: dispositionHook{e: evaluator},
+		World:         w,
+		Commands:      cmds,
+		Players:       players,
+		Manager:       mgr,
+		Items:         entityStore,
+		Placement:     placement,
+		Contents:      contents,
+		Templates:     registries.Items,
+		Slots:         registries.Slots,
+		Bus:           bus,
+		Disposition:   dispositionHook{e: evaluator},
 		Combat:        combatMgr,
 		CombatLocator: combatLocator,
 		Flee: func(ctx context.Context, c combat.CombatantID) combat.FleeOutcome {
 			return combat.Flee(ctx, c, fleeCfg)
+		},
+		// M17.3: the `reload` verb re-discovers pack Lua from disk and
+		// hot-swaps the scripting runtime — script-only, so world.World
+		// and the content registries are untouched. DiscoverScripts'
+		// compile-check rejects a syntax-broken edit before Reload tears
+		// the live scripts down.
+		ReloadScripts: func(ctx context.Context) (int, error) {
+			fresh, err := pack.DiscoverScripts(ctx, cfg.ContentDir, nil, scriptEngine)
+			if err != nil {
+				return 0, err
+			}
+			if err := scriptRuntime.Reload(ctx, fresh); err != nil {
+				return 0, err
+			}
+			return fresh.Len(), nil
 		},
 		Progression: progressionMgr,
 		Training: progression.NewTrainingManager(
@@ -1349,19 +1364,19 @@ func run() error {
 			session.NewTrainerSource(mgr, placement, entityStore),
 			proficiencyMgr,
 		),
-		Proficiency:  proficiencyMgr,
-		Abilities:    registries.Abilities,
-		Effects:      effectMgr,
-		ActionQueue:  actionQueueMgr,
-		PulseDelay:   pulseDelayTracker,
-		Races:        registries.Races,
-		Classes:      registries.Classes,
-		Alignment:    alignmentMgr,
-		DefaultRace:  cfg.DefaultRace,
-		StartID:      cfg.StartRoom,
-		ColorEnabled: cfg.ColorDefault,
-		Render:       colorRenderer,
-		Help:         registries.Help,
+		Proficiency:     proficiencyMgr,
+		Abilities:       registries.Abilities,
+		Effects:         effectMgr,
+		ActionQueue:     actionQueueMgr,
+		PulseDelay:      pulseDelayTracker,
+		Races:           registries.Races,
+		Classes:         registries.Classes,
+		Alignment:       alignmentMgr,
+		DefaultRace:     cfg.DefaultRace,
+		StartID:         cfg.StartRoom,
+		ColorEnabled:    cfg.ColorDefault,
+		Render:          colorRenderer,
+		Help:            registries.Help,
 		Quests:          questSvc,
 		QuestStore:      questStore,
 		Notifications:   notifMgr,
@@ -1369,11 +1384,11 @@ func run() error {
 		ChatRegistry:    chatRegistry,
 		ChatSubscribers: subscribers,
 		ChatScrollbacks: scrollbackLookup,
-		Currency:     currencySvc,
-		Shop:         shopSvc,
-		Sustenance:   sustenanceSvc,
-		Rest:         restSvc,
-		Consumable:   consumableSvc,
+		Currency:        currencySvc,
+		Shop:            shopSvc,
+		Sustenance:      sustenanceSvc,
+		Rest:            restSvc,
+		Consumable:      consumableSvc,
 		// M12.3: interactive character-creation wizard built from the
 		// race/class registries. Nil when neither is populated → the §2
 		// "no flow → immediate commit" path.
@@ -1384,7 +1399,7 @@ func run() error {
 		// M15.4b₂b: per-look weather ambience. The closure binds
 		// weather.Service.Ambience; RenderRoom appends its output
 		// after the room description in eligible rooms.
-		Ambience:     weatherSvc.Ambience,
+		Ambience: weatherSvc.Ambience,
 		Login: login.Config{
 			Accounts:        accounts,
 			Players:         players,
@@ -1398,22 +1413,22 @@ func run() error {
 	startTime := clk.Now()
 	hostname, port := splitHostPort(cfg.Addr)
 	msspCfg := &mssp.Config{
-		Name:     "AnotherMUD",
-		Codebase: "AnotherMUD/dev",
-		Contact:  "https://github.com/Jasrags/AnotherMUD",
-		Hostname: hostname,
-		Port:     port,
-		Language: "English",
-		Family:   "Custom",
-		Gameplay: []string{"Hack and Slash", "Roleplaying"},
-		Classes:  true,
-		Races:    true,
-		Levels:   true,
+		Name:      "AnotherMUD",
+		Codebase:  "AnotherMUD/dev",
+		Contact:   "https://github.com/Jasrags/AnotherMUD",
+		Hostname:  hostname,
+		Port:      port,
+		Language:  "English",
+		Family:    "Custom",
+		Gameplay:  []string{"Hack and Slash", "Roleplaying"},
+		Classes:   true,
+		Races:     true,
+		Levels:    true,
 		Equipment: true,
-		ANSI:     true,
-		UTF8:     true,
-		Players:  func() int { return mgr.Count() },
-		Uptime:   func() int64 { return int64(clk.Now().Sub(startTime).Seconds()) },
+		ANSI:      true,
+		UTF8:      true,
+		Players:   func() int { return mgr.Count() },
+		Uptime:    func() int64 { return int64(clk.Now().Sub(startTime).Seconds()) },
 	}
 	srv := &server.Server{
 		Handler:       handler,
