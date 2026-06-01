@@ -55,6 +55,8 @@ go straight into a milestone.
 | **Roles & permissions** *(keystone)* | **roles-and-permissions §2–§8** (new) | no role system; help-tier is a no-op stub. Flat `HasRole` capability model (ported from Tapestry). Unblocks admin verbs, §5 idle exemption, verb gating |
 | Admin-tag idle exemption | session-lifecycle §5 | gated on Roles above — build alongside it |
 | **Admin verbs** | **admin-verbs §2–§8** (new) | admin gate (commands marked admin, `HasRole`-gated) + baseline verbs (inspect/set/teleport/announce/restore/purge/reload). Gates today's ungated `reload`/`xp`. Ported from Tapestry `AdminModule` |
+| **Rarity tiers** | **item-decorations §2,§4,§5** (new) | ordered tier ladder → themed decorated marker (inline + column-padded). Ported from Tapestry `RarityRegistry` |
+| **Essence** | **item-decorations §3,§4,§5** (new) | colored glyph item marker; participates in stack identity. Ported from Tapestry `EssenceRegistry` |
 
 ---
 
@@ -69,11 +71,13 @@ old five-theme partition left uncovered.
   faction/standing/reputation system (alignment substitutes there). This is greenfield:
   pre-decisions (linear scale vs. per-faction matrix; relation to alignment; whether it
   depends on Roles) need a design conversation, not a port. Park until then.
-- **Visibility / hidden / sneak** — line-of-sight, hidden mobs, sneak skill. (Today only a
-  `BypassVisibility` arg flag exists — no system.)
-- **Essence** — first-class item property with glyph + color. Pre-decision: one tag
-  system with Rarity or two.
-- **Rarity tiers** — common/rare/epic ladder with colorization.
+- **Visibility / hidden / sneak** — line-of-sight, hidden mobs, sneak skill.
+  ⚠️ **Tapestry reference is a STUB — rules need design help.** `VisibilityFilter` exists
+  but `CanSee` always returns true and `GetVisibleEntities` returns everything; the *seam*
+  (filter + `BypassVisibility` arg, already in our M17.2a resolver) is real, but the
+  *rules* (what hides an entity, sneak mechanics, see-invisible) are greenfield. The seam
+  is captured wherever it's consumed (`admin-verbs §3`, `commands-and-dispatch §5`); the
+  rules need a design conversation. Park the rules; the seam is already usable.
 - **Cross-cutting event catalog** — per-spec event tables exist in `specs/README.md`;
   no aggregated catalog. (Docs/meta, not engine.)
 - **Reactive tag observers** — subscribers on tag mutations. Partial substrate exists

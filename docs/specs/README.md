@@ -108,6 +108,10 @@ The output layer.
 
 - [ui-rendering-help](ui-rendering-help.md) — color tags, theme
   registry, prompts, panels, help topics.
+- [item-decorations](item-decorations.md) — rarity tiers (ordered,
+  decorated, color/visibility) and essence (colored glyph) item
+  markers; content registries, themed rendering (inline + padded),
+  essence as stack identity.
 
 ---
 
