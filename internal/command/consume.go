@@ -3,11 +3,8 @@ package command
 import (
 	"context"
 	"fmt"
-	"strings"
 
 	"github.com/Jasrags/AnotherMUD/internal/economy"
-	"github.com/Jasrags/AnotherMUD/internal/entities"
-	"github.com/Jasrags/AnotherMUD/internal/keyword"
 )
 
 // Consume verbs (spec economy-survival §6). `eat`, `drink`, and `use`
@@ -35,24 +32,21 @@ func consumeVerb(ctx context.Context, c *Context, method string) error {
 	if c.Consumable == nil || c.Items == nil {
 		return c.Actor.Write(ctx, "You can't do that right now.")
 	}
-	if len(c.Args) == 0 {
-		return c.Actor.Write(ctx, fmt.Sprintf("%s what?", capitalize(method)))
-	}
 
 	consumer, ok := c.Actor.(economy.Consumer)
 	if !ok {
 		return c.Actor.Write(ctx, "You can't do that right now.")
 	}
 
-	carried := collectItems(c.Items, c.Actor.Inventory())
-	if len(carried) == 0 {
-		return c.Actor.Write(ctx, "You aren't carrying anything.")
-	}
-	match := keyword.Resolve(asNamed(carried), strings.Join(c.Args, " "))
-	if match == nil {
+	// M17.2d: the `item` arg (ArgInventory) resolves against the
+	// actor's TOP-LEVEL inventory before this runs — nested-in-
+	// container items are excluded by §6.5 because BuildResolveContext
+	// builds the inventory scope from Actor.Inventory() only. Re-fetch
+	// the live instance by the resolved id.
+	item, ok := resolvedItemInstance(c, "item")
+	if !ok {
 		return c.Actor.Write(ctx, "You aren't carrying that.")
 	}
-	item := match.(*entities.ItemInstance)
 
 	actorID := holderEntityIDForPlayer(c.Actor.PlayerID())
 	res := c.Consumable.Consume(ctx, consumer, actorID, item.ID(), method)

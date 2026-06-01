@@ -71,9 +71,9 @@ func RegisterBuiltins(r *Registry) error {
 		{Keyword: "rest", Handler: RestHandler, Brief: "Rest to recover faster.", Syntax: []string{"rest"}},
 		{Keyword: "sleep", Handler: SleepHandler, Brief: "Sleep to recover fastest.", Syntax: []string{"sleep"}},
 		{Keyword: "wake", Aliases: []string{"stand"}, Handler: WakeHandler, Brief: "Stop resting or sleeping.", Syntax: []string{"wake"}},
-		{Keyword: "eat", Handler: EatHandler, Brief: "Eat food to restore sustenance.", Syntax: []string{"eat <food>"}},
-		{Keyword: "drink", Handler: DrinkHandler, Brief: "Drink to restore sustenance.", Syntax: []string{"drink <item>"}},
-		{Keyword: "use", Handler: UseHandler, Brief: "Use a consumable item.", Syntax: []string{"use <item>"}},
+		{Keyword: "eat", Handler: EatHandler, Brief: "Eat food to restore sustenance.", Syntax: []string{"eat <food>"}, Args: []ArgDefinition{{Name: "item", Type: ArgInventory}}},
+		{Keyword: "drink", Handler: DrinkHandler, Brief: "Drink to restore sustenance.", Syntax: []string{"drink <item>"}, Args: []ArgDefinition{{Name: "item", Type: ArgInventory}}},
+		{Keyword: "use", Handler: UseHandler, Brief: "Use a consumable item.", Syntax: []string{"use <item>"}, Args: []ArgDefinition{{Name: "item", Type: ArgInventory}}},
 
 		// Tells (M13.5).
 		{Keyword: "tell", Handler: TellHandler, Brief: "Send a private message to another player.", Syntax: []string{"tell <name> <message>"}},

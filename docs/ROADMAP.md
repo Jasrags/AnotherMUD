@@ -2334,6 +2334,19 @@ without rewriting scripts.
       parallel.
   - [ ] **M17.2d — Handler migration + production adapter.**
         Wires the §5 arg-typing pipeline into live dispatch.
+    - [x] **M17.2d₅ — Consumable verbs (eat / drink / use).**
+          All three route through `consumeVerb`, which now reads a
+          single declared `inventory` arg (Option A) via
+          `resolvedItemInstance` instead of hand-parsing. §6.5
+          (nested-in-container items aren't consumable) is
+          preserved automatically — the inventory scope is built
+          from `Actor.Inventory()` only. **Behavior change:** the
+          missing-arg prompt is the §5.4 `"What item?"` instead of
+          the verb-specific `"Eat what?"` / `"Drink what?"` /
+          `"Use what?"`. Rewrote the consume tests to dispatch
+          through the registry (the old direct-handler calls left
+          `c.Resolved` nil); nil-service and wrong-method guards
+          still verified. Coverage 81.9%.
     - [x] **M17.2d₄b — consider / kill via the entity resolver
           (Option B).** The self-referencing combat verbs can't
           pre-resolve under Option A (the `entity` arg excludes
