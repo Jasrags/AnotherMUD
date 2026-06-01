@@ -14,7 +14,7 @@ default emote table, and policy on edge cases live in the
 configuration-surface table at §8.
 
 Emotes are the third sibling in the social-MUD theme (see
-`docs/THEME-AXIS-PLAN.md` Theme A and
+`docs/archive/THEME-AXIS-PLAN.md` Theme A and
 `docs/themes/social-mud-plan.md`). Unlike channels and tells,
 emotes are **not** addressed messages — they are room-scoped
 output, like `say`. They do not publish through the

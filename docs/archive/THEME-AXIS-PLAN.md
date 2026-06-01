@@ -1,3 +1,11 @@
+> **ARCHIVED 2026-06-01 — superseded by [`docs/BACKLOG.md`](../BACKLOG.md).**
+> The five themes this defined (A–E) have all shipped. Its durable value — the picking
+> rubric, parallelism rules, warmup pattern, and anti-patterns — has been folded into
+> `BACKLOG.md`, where themes are now derived by clustering open items rather than frozen
+> as a fixed five. Kept for the original theme write-ups and reasoning.
+
+---
+
 # Theme-Axis Planning Method
 
 A planning method for working down `docs/TAPESTRY-GAP-MATRIX.md`. The matrix groups

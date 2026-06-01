@@ -3,7 +3,7 @@
 **Hook:** Mudlet, MUSHclient, Blightmud, and browser clients see
 real HUDs and panels instead of just scrolling text.
 
-**Source:** `docs/THEME-AXIS-PLAN.md` §"Theme B — Modern Client".
+**Source:** `docs/archive/THEME-AXIS-PLAN.md` §"Theme B — Modern Client".
 **Roadmap milestone:** M16 (to be added when first slice ships).
 **Status:** spec phase complete — `docs/specs/networking-protocols.md`
 covers everything; implementation slices to be sequenced.
@@ -36,7 +36,7 @@ relevant sections:
 
 ## The six items (with sequence rationale)
 
-Per `docs/THEME-AXIS-PLAN.md` Theme B, the suggested order is:
+Per `docs/archive/THEME-AXIS-PLAN.md` Theme B, the suggested order is:
 
 ```
 M16.1 — Telnet IAC + TTYPE + NAWS   (cheapest, immediate win)
@@ -185,7 +185,7 @@ supports truecolor) sees richer room descriptions; bare
 
 ## Open pre-decisions
 
-Lifted from `docs/THEME-AXIS-PLAN.md` Theme B. Decide ones marked
+Lifted from `docs/archive/THEME-AXIS-PLAN.md` Theme B. Decide ones marked
 **BEFORE** their slice; defer the rest.
 
 ### PD-1 — Per-client subscribe model: every package on by default vs. opt-in

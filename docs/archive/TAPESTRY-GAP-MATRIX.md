@@ -1,3 +1,11 @@
+> **ARCHIVED 2026-06-01 — superseded by [`docs/BACKLOG.md`](../BACKLOG.md).**
+> This was a one-time bootstrap audit (port-the-reference-codebase). All five themes it
+> framed have shipped, and its per-item statuses drifted (it misreported several shipped
+> systems as "blocked/unbuilt"). Kept for historical reference and the Tapestry source
+> pointers. Do **not** treat its statuses as current — `BACKLOG.md` is the live open list.
+
+---
+
 # Tapestry → AnotherMUD Gap Matrix
 
 A point-in-time audit of what Tapestry (the previous C#/.NET incarnation, symlinked at

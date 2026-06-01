@@ -12,6 +12,12 @@ Milestone exit criteria are written as boxes so they double as a "are we
 done" gate. Where a box maps to a spec's acceptance criteria, the spec
 section is cited.
 
+**Companion docs.** This ROADMAP is the **done-log + active milestone**.
+For **open work and candidate next themes**, see [`BACKLOG.md`](./BACKLOG.md).
+For **behavior contracts**, see `docs/specs/`. The old `TAPESTRY-GAP-MATRIX.md`
+and `THEME-AXIS-PLAN.md` are superseded by `BACKLOG.md` and now live under
+`docs/archive/` (the five themes they framed have all shipped — M13–M17).
+
 ---
 
 ## Foundations
@@ -1847,7 +1853,7 @@ the next milestone in flight.
 **Slice:** players can talk to each other across the world, not just in
 their current room. Notification queue substrate, then tells, then
 multi-recipient channels, then emotes. First themed milestone driven by
-`docs/THEME-AXIS-PLAN.md` (Theme A).
+`docs/archive/THEME-AXIS-PLAN.md` (Theme A).
 
 **Why this:** the world is real but socially flat — players in different
 rooms have no way to interact. This is the single highest-leverage

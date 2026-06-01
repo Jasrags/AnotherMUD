@@ -14,7 +14,7 @@ counts, priority labels, and persistence cadences are policy and
 live in the configuration-surface table at the bottom.
 
 This spec is the substrate for the social-MUD theme (see
-`docs/THEME-AXIS-PLAN.md` Theme A and `docs/themes/social-mud-plan.md`).
+`docs/archive/THEME-AXIS-PLAN.md` Theme A and `docs/themes/social-mud-plan.md`).
 Tells, channels, emotes, and any future asynchronous message all
 publish through the surface described here.
 

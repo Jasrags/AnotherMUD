@@ -3,7 +3,7 @@
 **Hook:** Players can talk to each other across the world, not just in their
 current room.
 
-**Source:** `docs/THEME-AXIS-PLAN.md` §"Theme A — Social MUD".
+**Source:** `docs/archive/THEME-AXIS-PLAN.md` §"Theme A — Social MUD".
 **Roadmap milestone:** M13 (see `docs/ROADMAP.md`).
 **Status:** spec phase — no code yet.
 
@@ -184,12 +184,12 @@ with a real subscription-set reader.
 - This file owns the live sequence + current step.
 - `docs/ROADMAP.md` M13 heading owns the standard `[ ]/[x]` exit
   criteria once spec writing produces them.
-- `docs/TAPESTRY-GAP-MATRIX.md` §1.6 (chat/tells/notifications), §1.7
+- `docs/archive/TAPESTRY-GAP-MATRIX.md` §1.6 (chat/tells/notifications), §1.7
   (emotes), and §3 (notifications queue, channels/tells/who) entries
   get struck or shrunk when M13 closes.
 
 When M13 ends:
-1. Move closed items out of `docs/TAPESTRY-GAP-MATRIX.md`.
+1. Move closed items out of `docs/archive/TAPESTRY-GAP-MATRIX.md`.
 2. Either archive this file or leave it for history.
-3. Pick the next theme via the rubric in `docs/THEME-AXIS-PLAN.md`
+3. Pick the next theme via the rubric in `docs/archive/THEME-AXIS-PLAN.md`
    §"Picking the next theme".

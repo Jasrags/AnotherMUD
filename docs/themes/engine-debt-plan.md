@@ -5,7 +5,7 @@ M8-M11. The import cycle is already gone (cluster 1, `af94b0c`). What
 remains is a small set of "spec says this should work; code path is
 half-wired" items that block real features inside future themes.
 
-**Source:** `docs/THEME-AXIS-PLAN.md` §"Theme E — Engine Debt".
+**Source:** `docs/archive/THEME-AXIS-PLAN.md` §"Theme E — Engine Debt".
 **Roadmap milestone:** M14 (see `docs/ROADMAP.md`).
 **Status:** spec phase complete — every item already has a spec home,
 this theme just wires consumers.
@@ -221,16 +221,16 @@ ship.
 - This file owns the live sequence + current step.
 - `docs/ROADMAP.md` M14 heading carries the standard `[ ]/[x]` exit
   criteria.
-- `docs/TAPESTRY-GAP-MATRIX.md` entries under §progression,
+- `docs/archive/TAPESTRY-GAP-MATRIX.md` entries under §progression,
   §mobs-ai-spawning, §economy-survival, §persistence, §quests get
   struck as each item closes.
 - Per-item commits should close their corresponding memory entry
   by adding a `[RESOLVED M14.<n>]` annotation.
 
 When M14 ends:
-1. Strike the closed items from `docs/TAPESTRY-GAP-MATRIX.md`.
+1. Strike the closed items from `docs/archive/TAPESTRY-GAP-MATRIX.md`.
 2. Archive this file or leave for history.
-3. Pick the next theme via the rubric in `docs/THEME-AXIS-PLAN.md`.
+3. Pick the next theme via the rubric in `docs/archive/THEME-AXIS-PLAN.md`.
    With Theme E closed, the rubric points hardest at Theme A
    (since Theme A is already done that means whichever has the
    strongest "yes" remains).

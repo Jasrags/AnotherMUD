@@ -4,7 +4,7 @@
 open, weather that changes, portals that expire, locations players
 can recall to.
 
-**Source:** `docs/THEME-AXIS-PLAN.md` §"Theme C — World Depth".
+**Source:** `docs/archive/THEME-AXIS-PLAN.md` §"Theme C — World Depth".
 **Roadmap milestone:** M15 (see `docs/ROADMAP.md`).
 **Status:** spec phase — most items have existing spec coverage,
 recall needs a new spec.
@@ -273,11 +273,11 @@ location.
 - This file owns the live sequence + current step.
 - `docs/ROADMAP.md` M15 heading carries the standard `[ ]/[x]` exit
   criteria.
-- `docs/TAPESTRY-GAP-MATRIX.md` §1.8 + §3 (portals/weather/recall)
+- `docs/archive/TAPESTRY-GAP-MATRIX.md` §1.8 + §3 (portals/weather/recall)
   entries get struck as each item closes.
 
 When M15 ends:
-1. Strike the closed items from `docs/TAPESTRY-GAP-MATRIX.md`.
+1. Strike the closed items from `docs/archive/TAPESTRY-GAP-MATRIX.md`.
 2. Archive this file or leave for history.
 3. Pick the next theme via the rubric. With A / C / E done, the
    remaining choices are B (Modern Client) and D (Content
