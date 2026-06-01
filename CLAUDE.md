@@ -4,17 +4,28 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Repository status
 
-The repo is at **end-of-M6 + M7.1 substrate**: content packs (rooms, areas, items, mobs, slot registries, spawn rules) populate registries at boot; the tick loop drives autosave, AI behaviors (stationary/wander), area-driven spawn resets, idle/link-dead sweeps; players authenticate through the login state machine, then carry inventory + equipment + containers + holder-side stat modifiers across restarts; mobs spawn from area rules, run AI, and surface disposition reactions on player entry. M7.1 added the combat substrate (Combatant interface, Vitals, Stats) but no engage / round loop / damage yet — that arrives across M7.2-M7.6. The 17 behavior specs (under `docs/specs/`) are language-agnostic and remain the source of truth for behavior; the Go layout is filling in milestone by milestone (see `docs/ROADMAP.md`).
+The repo is **well past prototype.** Milestones **M0–M17 are complete** — including all five cross-cutting themes (Social/M13, Engine-Debt/M14, World-Depth/M15, Modern-Client+GMCP/M16, Content-Authoring+scripting/M17) — and **M18** (small command/UI polish) is in progress. What works today: the tick loop + event bus; rooms/areas/exits with **doors, locks, temporary portals, weather, and an in-game clock**; the entity store (items + mobs, double-buffered tag index); inventory/equipment/slots/stacking/keyword resolution; progression (stats/races/classes/tracks/alignment/training/**proficiency with use-based gain**/**abilities**/**effects**); combat (engage/round/hit-miss-damage/flee/death); mobs + area spawning + AI + loot; economy (currency/shops/**sustenance**/**rest**/**consumables**); quests; the command registry with **typed arguments** (M17.2); a **sandboxed Lua scripting runtime** (gopher-lua) with hot reload; social (notifications/tells/channels/emotes); accounts + versioned player saves + an interactive **character-creation wizard** + sessions (flood/idle/link-dead/takeover); **telnet with full IAC negotiation + WebSocket + GMCP packages + tiered ANSI color**.
+
+The **30 behavior specs** under `docs/specs/` are the source of truth; the Go layout fills them in milestone by milestone. **Several recent specs are contracts written ahead of code** (roles-and-permissions, admin-verbs, item-decorations, tag-observers, who, crafting-and-cooking, and the trade trio trade-escrow/direct-trade/auction-house) — `docs/specs/README.md`'s footer + tables mark which are spec-only. Companion docs: `docs/ROADMAP.md` (done-log + active milestone), `docs/BACKLOG.md` (open work + greenfield design items), `docs/PRIMER.md` (a pasteable orientation for external design work).
 
 - **Language:** Go (module `github.com/Jasrags/AnotherMUD`, `go 1.26`)
-- **Entrypoint:** `cmd/anothermud/main.go` — opens the account + player stores under `ANOTHERMUD_SAVE_DIR` (default `./saves`), loads content via `pack.Load` against `ANOTHERMUD_CONTENT_DIR` (default `./content`), starts the tick loop with an autosave handler at `ANOTHERMUD_AUTOSAVE_INTERVAL` (default `30s`), runs `server.Serve` with `session.Handler`. Starting room for new characters is `ANOTHERMUD_START_ROOM` (default `tapestry-core:town-square`).
-- **Packages in play:** `internal/clock` (Clock interface + Real/Manual), `internal/tick` (game loop + handler registration), `internal/eventbus` (typed bus with cancellable + non-cancellable events), `internal/world` (Direction, Room, Area, World registry + move primitive), `internal/pack` (manifest, discovery, dep-ordering, two-phase content loader), `internal/item` (item templates + registry), `internal/mob` (mob templates + registry + disposition rules), `internal/slot` (equipment-slot registry + engine baseline), `internal/entities` (runtime Store, MobInstance, ItemInstance, Placement room↔entity index, Contents container↔item index), `internal/keyword` (shared keyword resolver), `internal/stats` (per-holder sourced modifier Block), `internal/ai` (Registry, Dispatcher, stationary/wander behaviors, Disposition Evaluator), `internal/spawn` (area-driven Manager/Scheduler/Tracker), `internal/combat` (M7.1: Combatant interface, Vitals, Stats — engage/round/damage land M7.2+), `internal/command` (registry + dispatcher + builtins including get/drop/give/put/fill/equip/unequip/inventory/equipment/consider), `internal/persistence` (atomic file I/O + path safety), `internal/account` (account file store + bcrypt service), `internal/player` (player save v4 + migration table v1→v4), `internal/login` (name/email/password state machine), `internal/session` (per-connection actor + Manager + read→dispatch loop, link-dead phase, takeover, flood gate), `internal/conn[/telnet]`, `internal/server`, `internal/logging`.
-- **Content packs:** `content/core/` ships the engine-namespace (`tapestry-core`) starter pack — two areas (town, wilderness) and four rooms (town-square, forge, market, village-gate). All room/area ids are namespaced (`tapestry-core:town-square`); unqualified ids in YAML resolve against the current pack's namespace, qualified ids (`other-pack:foo`) cross packs.
-- **Saves on disk:** `<save-dir>/accounts/index.yaml` (email → account id), `<save-dir>/accounts/<id>/account.yaml`, `<save-dir>/players/<lowercased-name>/player.yaml`. Writes use the tmp→bak→rename rotation in `internal/persistence`. Player saves carry a `version` field; `player.CurrentVersion` is `1` today, migration table empty but scaffolded.
+- **Entrypoint:** `cmd/anothermud/main.go` — the composition root. Opens the account + player stores under `ANOTHERMUD_SAVE_DIR` (default `./saves`), loads content (including pack Lua scripts) via `pack.Load` against `ANOTHERMUD_CONTENT_DIR` (default `./content`), wires every service (combat, progression, effects, quests, economy, scripting runtime, GMCP flushers, …), registers the tick handlers, and runs the telnet listener on `ANOTHERMUD_ADDR` plus an optional WebSocket listener on `ANOTHERMUD_WS_ADDR`. Starting room is `ANOTHERMUD_START_ROOM` (default `tapestry-core:town-square`). Many knobs are env-configurable (`ANOTHERMUD_TICK_INTERVAL`, `_AUTOSAVE_INTERVAL`, `_COMBAT_CADENCE`, `_FLEE_COOLDOWN`, `_IDLE_SWEEP_INTERVAL`, `_LINKDEAD_*`, `_LOG_FORMAT`/`_LEVEL`, `_WS_*`, …).
+- **Packages in play** (`internal/…`, grouped by layer):
+  - *Foundations:* `tick` (game loop + handler registration), `eventbus` (typed cancellable + non-cancellable bus), `clock` (wall Clock) + `gameclock` (in-game hour/day clock), `logging`, `persistence` (atomic tmp→bak→rename file I/O + path safety), `srckey` (modifier-source leaf, breaks the entities↔stats cycle).
+  - *World + things:* `world` (rooms/areas/exits/doors), `entities` (Store, MobInstance, ItemInstance, Placement, Contents, tag index), `item`/`mob`/`slot` (templates + registries), `keyword`, `spawn`, `ai`, `portal` (temporary exits), `weather`, `property` (registry + tagged-value envelope).
+  - *Character mechanics:* `stats`, `progression` (tracks/proficiency/abilities/training/alignment), `combat`, `effect`.
+  - *Action + interaction:* `command` (registry + dispatcher + typed-arg resolvers + builtins), `economy` (currency/shops/sustenance/rest/consumables), `quest`/`queststore`/`questwatch`.
+  - *Player lifecycle:* `account` (bcrypt store), `player` (versioned save), `login`, `session` (actor + Manager + flood/idle/link-dead/takeover), `wizard` (creation flow).
+  - *Social:* `chat`, `notifications`, `emote`.
+  - *Presentation:* `render`, `ansi`, `help`.
+  - *Networking:* `conn`/`conn/telnet`/`conn/ws`, `server`, `gmcp`, `mssp`.
+  - *Content + scripting:* `pack` (manifest/discovery/dep-order/two-phase loader), `script` (registry), `scripting` (sandboxed gopher-lua runtime + bus bridge).
+- **Content packs:** `content/core/` ships the engine-namespace (`tapestry-core`) starter pack. It now spans `areas` (town, wilderness), `rooms` (town-square, forge, market, village-gate), `items`, `mobs`, `abilities`, `classes`, `races`, `tracks`, `effects`, `slots`, `quests`, `weather_zones`, `theme`, `help`, and `scripts` (Lua). The setting is a **placeholder** — content names like `tapestry-core` are not a committed setting; specs stay setting-agnostic. All room/area ids are namespaced (`tapestry-core:town-square`); unqualified ids in YAML resolve against the current pack's namespace, qualified ids (`other-pack:foo`) cross packs.
+- **Saves on disk:** `<save-dir>/accounts/index.yaml` (email → account id), `<save-dir>/accounts/<id>/account.yaml`, `<save-dir>/players/<lowercased-name>/player.yaml` (+ sibling `quest.yaml`, `notifications.yaml`, chat-subscriptions file), and `<save-dir>/channels/<id>.yaml` (global channel scrollback). Writes use the tmp→bak→rename rotation in `internal/persistence`. Player saves carry a `version` field; `player.CurrentVersion` is **14** with a populated migration chain (each migration is append-only — never edit an old one). The player save now carries tags, roles, stats, properties, equipment/inventory, abilities + proficiencies, recall address, and prompt template.
 - **Login flow:** Name prompt → if character file exists → Password (returning); else Email → Password (with confirmation for net-new accounts) → handoff. New characters start at `ANOTHERMUD_START_ROOM`. Returning characters land in their persisted `location` (falling back to start if the saved room is no longer in content).
 - **Autosave:** `session.Manager` tracks logged-in actors. The autosave tick handler calls `Manager.SaveAll`, which writes any actor whose `dirty` bit is set. `SetRoom` flips the bit. Final flush on shutdown so SIGINT commits live state. Per-player errors are isolated (one bad save does not abort the batch).
-- **F3 status:** the `Clock` interface exists. `time.Now()` is only called inside `clock.RealClock`, `internal/account` (account `created_at`), and the `cmd/anothermud` binary; engine packages take a `Clock`.
-- **Scripting language:** undecided. The previous incarnation used Lua. The `scripting-and-packs` spec is written language-agnostically; M2 is intentionally data-only so the runtime choice (Lua via gopher-lua, JS via goja, Starlark, Wasm, etc.) can be made on real evidence after content authoring exposes the gaps.
+- **F3 status:** the `Clock` interface exists and is honored — engine packages read *simulation/wall* time through a `Clock`, never `time.Now()` directly (the in-game `gameclock` is tick-driven, not wall-clock). Direct `time.Now()` survives only in `clock.RealClock`, `internal/account` (`created_at`), the `cmd/anothermud` binary, and as an **accepted exception for RNG seeding** (`internal/ai`, `internal/spawn` seed a PRNG from wall-clock nanos — seeding randomness, not reading time).
+- **Scripting language: decided — Lua (gopher-lua), landed in M17.** `internal/scripting` is a sandboxed per-instance LState (base/table/string/math only; no os/io/debug/package), with a bus bridge (`engine.subscribe`/`log`/`schedule`), pack script discovery + a script registry, and hot reload. Pack Lua lives under `content/<pack>/scripts/*.lua`. The `scripting-and-packs` spec remains language-agnostic; the Go side committed to gopher-lua.
 
 ### Commands
 
@@ -28,7 +39,7 @@ When asked to implement features, **read the relevant spec first** — they are 
 
 ### Roadmap and foundations
 
-- `docs/ROADMAP.md` — the milestone plan (M0 echo telnet → M1 two rooms → M2 pack loader → M3 persistence → M4 multi-session → …). Each milestone has exit-criteria checkboxes. Treat the current milestone as the one with unchecked boxes that no later milestone has started.
+- `docs/ROADMAP.md` — the milestone **done-log** (M0 echo telnet → … → M17 + all five themes) plus the active milestone (M18). It is now mostly history; for **what to build next**, read `docs/BACKLOG.md` (open §1 specced-ready items, §2 greenfield design items, candidate themes). The old "current milestone = the section with unchecked boxes" heuristic no longer applies — the planned arc shipped, so new work is scoped from the BACKLOG.
 - `docs/ROADMAP.md#foundations` — binding conventions adopted from day one. The short version, in case ROADMAP isn't loaded:
   - **F1**: `ctx context.Context` is the first parameter on anything that does I/O, ticks, or is cancellable.
   - **F2**: structured logging is `log/slog` with the logger carried on `ctx`. Field names follow the table in the ROADMAP foundations section (`session_id`, `entity_id`, `room_id`, `tick`, `event`, `pack`, `err`, …).
@@ -37,19 +48,19 @@ When asked to implement features, **read the relevant spec first** — they are 
 
 ## Spec architecture
 
-Specs are layered bottom-up. The reading order in `docs/specs/README.md` is canonical:
+Specs are layered bottom-up. **The reading order in `docs/specs/README.md` is canonical and kept current** — consult it rather than this sketch when it matters. The layers (with the specs added since the early set in **bold**):
 
-1. **Substrate** — `time-and-clock`, `persistence`, `scripting-and-packs`, `networking-protocols`
-2. **World/entities** — `world-rooms-movement`, `progression`, `inventory-equipment-items`, `mobs-ai-spawning`
-3. **Action/interaction** — `commands-and-dispatch`, `abilities-and-effects`, `combat`, `quests`, `economy-survival`
-4. **Player lifecycle** — `login`, `character-creation`, `session-lifecycle`
-5. **Presentation** — `ui-rendering-help`
+1. **Substrate** — `time-and-clock`, `persistence`, `scripting-and-packs`, `networking-protocols`, **`notifications`**
+2. **World/entities** — `world-rooms-movement`, **`tag-observers`**, `progression`, `inventory-equipment-items`, `mobs-ai-spawning`
+3. **Action/interaction** — `commands-and-dispatch`, `abilities-and-effects`, `combat`, `quests`, `economy-survival`, **`crafting-and-cooking`**, **`trade-escrow`/`direct-trade`/`auction-house`**, **`chat-channels-and-tells`**, **`emotes`**, **`recall`**, **`admin-verbs`**, **`who`**
+4. **Player lifecycle** — `login`, `character-creation`, `session-lifecycle`, **`roles-and-permissions`**
+5. **Presentation** — `ui-rendering-help`, **`item-decorations`**
 
 `docs/specs/README.md` also holds the cross-cutting indexes that span specs:
 
 - **Cancellable events table** — which specs emit which cancellable bus events.
 - **Registry table** — pack-loaded content registries in roughly the order packs touch them at load time.
-- **Save/load surface** — what's in account vs. player vs. quest files; what is deliberately *not* persisted (sessions, in-game time, weather, link-dead state, mob spawn tracking, temporary exits, active effects, rest state).
+- **Save/load surface** — what's in account vs. player vs. sibling files (quest, notifications, chat-subscriptions) vs. global stores (channel scrollback; spec-pending: the auction listing store + the trade audit log); what is deliberately *not* persisted (sessions, in-game time, weather, link-dead state, mob spawn tracking, temporary exits, active effects, rest state, direct-trade sessions).
 - **Tick handlers table** — canonical scheduler entries with cadences (tick = 100 ms by default; cadence 10 = 1 s, 300 = 30 s).
 
 When touching any spec, check whether these tables in the README also need updating.
@@ -70,11 +81,11 @@ Specs are **behavior-only**: no specific numeric values, library names, or imple
 
 The README's open-question summary tracks issues that recur across specs — flag these when relevant:
 
-- Hardcoded magic values not yet externalized (cap tiers, flee cooldown, sustenance cap, JS sandbox limits, engine namespace)
+- Hardcoded magic values not yet externalized (cap tiers, flee cooldown, sustenance cap, Lua sandbox limits, engine namespace)
 - Persistence gaps (in-game time, weather, link-dead-across-restart, active effects, temporary exits, rest state)
 - Pack load order relies on alphabetical discovery — no topological sort over declared dependencies yet
 - Ad-hoc staleness guards (session takeover, combat death) rather than a general event-versioning primitive
-- Role tier hierarchy exists in help-service but doesn't actually elevate non-admin roles
+- **Role enforcement not yet built** — the help-service "tier" is a no-op stub; the real model is specced (`roles-and-permissions` = flat `HasRole`; `admin-verbs` gates on it) but unimplemented, so no privilege gating is live yet
 - Unbounded growth in render cache, bad-input tracker, notification queues
 
 ## Developer Learning Protocol
