@@ -56,37 +56,12 @@ func roleChange(ctx context.Context, c *Context, granting bool) error {
 		verb, prep, done = "revoke", "from", "Revoked"
 	}
 
-	grantingRole := c.GrantingRole
-	if grantingRole == "" {
-		grantingRole = defaultGrantingRole
-	}
-
-	// Gate: the actor must hold the granting role. Refuse WITHOUT
-	// disclosing the gating role's existence or name (§3) — a generic
-	// refusal, the same an unprivileged player gets for anything.
-	actor, ok := c.Actor.(RoleController)
-	if !ok || !actor.HasRole(grantingRole) {
-		return c.Actor.Write(ctx, "You can't do that.")
-	}
-
-	role, targetName, ok := parseRoleArgs(c.Args)
-	if !ok {
-		return c.Actor.Write(ctx, fmt.Sprintf("Usage: %s <role> %s <player>", verb, prep))
-	}
-	role = strings.ToLower(strings.TrimSpace(role))
-
-	if c.RoleTargetResolver == nil {
-		return c.Actor.Write(ctx, "Role administration is not enabled.")
-	}
-	target, ok := c.RoleTargetResolver.ResolveRoleTarget(targetName)
-	if !ok {
-		return c.Actor.Write(ctx, fmt.Sprintf("No one named %q is online.", targetName))
-	}
-
-	// §1.1 — not self-service: a character cannot grant or revoke their own
-	// roles, even an admin. Privilege comes from someone else (or the seed).
-	if target.PlayerID() != "" && target.PlayerID() == c.Actor.PlayerID() {
-		return c.Actor.Write(ctx, fmt.Sprintf("You can't %s roles %s yourself.", verb, prep))
+	// Gate + parse + resolve the target (refusals written inside). A nil
+	// target means a refusal already went out; return its (possible) write
+	// error.
+	target, role, refusal := resolveRoleChange(ctx, c, verb, prep)
+	if target == nil {
+		return refusal
 	}
 
 	var changed bool
@@ -117,6 +92,47 @@ func roleChange(ctx context.Context, c *Context, granting bool) error {
 		slog.String("role", role))
 
 	return c.Actor.Write(ctx, fmt.Sprintf("%s %q %s %s.", done, role, prep, target.Name()))
+}
+
+// resolveRoleChange runs the gate → parse → resolve → self-block prologue
+// shared by grant and revoke. On any refusal it writes the message and
+// returns a nil target (with the Write's error, if any); on success it
+// returns the resolved (target, normalized-role).
+func resolveRoleChange(ctx context.Context, c *Context, verb, prep string) (RoleController, string, error) {
+	grantingRole := c.GrantingRole
+	if grantingRole == "" {
+		grantingRole = defaultGrantingRole
+	}
+
+	// Gate: the actor must hold the granting role. Refuse WITHOUT
+	// disclosing the gating role's existence or name (§3) — a generic
+	// refusal, the same an unprivileged player gets for anything.
+	actor, ok := c.Actor.(RoleController)
+	if !ok || !actor.HasRole(grantingRole) {
+		return nil, "", c.Actor.Write(ctx, "You can't do that.")
+	}
+
+	role, targetName, ok := parseRoleArgs(c.Args)
+	if !ok {
+		return nil, "", c.Actor.Write(ctx, fmt.Sprintf("Usage: %s <role> %s <player>", verb, prep))
+	}
+	role = strings.ToLower(strings.TrimSpace(role))
+
+	if c.RoleTargetResolver == nil {
+		return nil, "", c.Actor.Write(ctx, "Role administration is not enabled.")
+	}
+	target, ok := c.RoleTargetResolver.ResolveRoleTarget(targetName)
+	if !ok {
+		return nil, "", c.Actor.Write(ctx, fmt.Sprintf("No one named %q is online.", targetName))
+	}
+
+	// §1.1 — not self-service: a character cannot grant or revoke their own
+	// roles, even an admin. Privilege comes from someone else (or the seed).
+	if target.PlayerID() != "" && target.PlayerID() == c.Actor.PlayerID() {
+		return nil, "", c.Actor.Write(ctx, fmt.Sprintf("You can't %s roles %s yourself.", verb, prep))
+	}
+
+	return target, role, nil
 }
 
 // parseRoleArgs extracts (role, targetName) from `<role> [to|from] <player>`.
