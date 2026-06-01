@@ -8,7 +8,6 @@ import (
 
 	"github.com/Jasrags/AnotherMUD/internal/combat"
 	"github.com/Jasrags/AnotherMUD/internal/command"
-	"github.com/Jasrags/AnotherMUD/internal/world"
 )
 
 // killFixture builds a fully-wired environment: consider's room +
@@ -148,12 +147,12 @@ func TestKill_PlayerViaLocator(t *testing.T) {
 	f.registerCombatant(bob)
 
 	env := f.env()
-	env.Locator = locatorFunc(func(_ world.RoomID, name string) command.Actor {
-		if strings.EqualFold(name, "Bob") {
-			return bob
-		}
-		return nil
-	})
+	// M17.2d₄b: combat targeting resolves through the §5 entity arg,
+	// which enumerates room players via Locator.PlayersInRoom — so the
+	// fixture surfaces Bob via the enumerating stubLocator.
+	loc := &stubLocator{}
+	loc.add(bob)
+	env.Locator = loc
 	r := newRegistry(t)
 	if err := r.Dispatch(context.Background(), env, alice, "kill Bob"); err != nil {
 		t.Fatalf("dispatch: %v", err)

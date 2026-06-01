@@ -199,15 +199,16 @@ func TestCast_ResolvesTargetViaLocator(t *testing.T) {
 	room := &world.Room{ID: "room-1", Name: "Room", Description: "x"}
 	alice := newCombatActor("Alice", "p-1", room)
 	goblin := newCombatActor("Goblin", "p-2", room)
+	// M17.2d₄b: cast targeting resolves through the §5 entity arg, so
+	// the goblin must be enumerable via Locator.PlayersInRoom. The
+	// Context is built directly (no Dispatch), so findCombatantInRoom
+	// falls back to a fresh ArgResolverRegistry.
+	loc := &stubLocator{}
+	loc.add(goblin)
 	ctx := &command.Context{
 		Actor: alice, Abilities: f.reg, ActionQueue: f.queue,
-		Locator: locatorFunc(func(_ world.RoomID, name string) command.Actor {
-			if strings.EqualFold(name, "Goblin") {
-				return goblin
-			}
-			return nil
-		}),
-		Verb: "kick", Args: []string{"Goblin"},
+		Locator: loc,
+		Verb:    "kick", Args: []string{"Goblin"},
 	}
 	if err := command.AbilityVerb("kick")(context.Background(), ctx); err != nil {
 		t.Fatalf("AbilityVerb: %v", err)

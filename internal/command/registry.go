@@ -396,6 +396,15 @@ type Context struct {
 	// DoorRef / string / int / the bulk []ItemRef as declared)
 	// instead of hand-parsing Args.
 	Resolved map[string]any
+
+	// ArgResolver is the dispatcher's §5 resolver registry, exposed
+	// to handlers that resolve arguments as a SERVICE rather than via
+	// declared Args (Option B). The self-referencing combat verbs use
+	// it: they run their own self-check first (the entity arg excludes
+	// self), then resolve through the shared findCombatantInRoom
+	// helper. Dispatch always sets it; helpers fall back to a fresh
+	// registry when a test builds a Context directly.
+	ArgResolver *ArgResolverRegistry
 }
 
 // Publish is the nil-safe shortcut every handler should use to emit
@@ -718,6 +727,7 @@ func (r *Registry) Dispatch(ctx context.Context, env Env, actor Actor, raw strin
 		Raw:             trimmed,
 		Verb:            strings.ToLower(verb),
 		Args:            args,
+		ArgResolver:     r.argResolvers,
 	}
 
 	// §5 arg-typing (Option A): when the command declares typed args,

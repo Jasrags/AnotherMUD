@@ -2334,6 +2334,26 @@ without rewriting scripts.
       parallel.
   - [ ] **M17.2d — Handler migration + production adapter.**
         Wires the §5 arg-typing pipeline into live dispatch.
+    - [x] **M17.2d₄b — consider / kill via the entity resolver
+          (Option B).** The self-referencing combat verbs can't
+          pre-resolve under Option A (the `entity` arg excludes
+          self, so `consider self` would fail before the handler
+          runs). Instead the shared `findCombatantInRoom` helper
+          was rewritten to delegate to the §5 `entity` resolver
+          (via a new `Context.ArgResolver` the dispatcher injects,
+          with a fresh-registry fallback for direct-call tests) +
+          a `resolveCombatantRef` re-fetch (mob → Store, player →
+          Locator). consider/kill keep their existing self-checks
+          before the call; `cast` (abilities) self-targets via the
+          empty-target path — all three now share uniform combat
+          targeting. **Behavior changes (consistent with d₄a):**
+          players are keyword/partial-matchable (`kill bo` → Bob)
+          and ordinals (`kill 2.rat`) work for both kinds; a named
+          self-target is now excluded (self-cast uses the no-target
+          form). `findMobByKeyword` retained (emote uses it
+          directly). Updated 3 player-via-locator fixtures to the
+          enumerating stubLocator; added a partial-name test.
+          Coverage 81.9%.
     - [x] **M17.2d₄a — Player enumeration + give.** Closes the
           M17.2d₁ player gap. Added `Locator.PlayersInRoom(roomID)
           []Actor` (session `managerLocator` impl over a new

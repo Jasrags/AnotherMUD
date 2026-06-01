@@ -43,18 +43,60 @@ func findCombatantInRoom(c *Context, roomID world.RoomID, target string) (combat
 		return nil, "", false
 	}
 
-	if mob := findMobByKeyword(c, roomID, target); mob != nil {
-		return mob, mob.Name(), true
+	// M17.2d₄b: resolve through the §5 `entity` arg (mobs + players in
+	// the room, self excluded — §5.2). This unifies combat targeting
+	// with the rest of the arg pipeline: players are now keyword/
+	// partial-matchable and ordinals (`kill 2.rat`) work for both kinds,
+	// where the old mob-keyword / player-exact-name split did not.
+	// Callers self-check before reaching here (consider/kill) or target
+	// self via the empty-target path (cast), so self-exclusion is fine.
+	reg := c.ArgResolver
+	if reg == nil {
+		// Direct-call test path: Dispatch normally injects the shared
+		// registry. A fresh one carries the same engine resolvers.
+		reg = NewArgResolverRegistry()
 	}
+	out, _, _, err := reg.ResolveArgsWithContext(
+		[]ArgDefinition{{Name: "target", Type: ArgEntity}},
+		strings.Fields(target),
+		c.BuildResolveContext(),
+	)
+	if err != nil {
+		// Resolver miss (not found / ambiguous-by-rule) — the caller
+		// owns the player-facing "you don't see them here" copy.
+		return nil, "", false
+	}
+	ref, ok := out["target"].(EntityRef)
+	if !ok {
+		return nil, "", false
+	}
+	return resolveCombatantRef(c, roomID, ref)
+}
 
-	if c.Locator != nil {
-		if other := c.Locator.FindInRoom(roomID, target); other != nil {
-			if cb, ok := other.(combat.Combatant); ok {
-				return cb, other.Name(), true
+// resolveCombatantRef re-fetches the live combat.Combatant named by a
+// resolved EntityRef. Mobs come from the entity store; players from the
+// Locator (by the resolved exact name). Returns false when the id no
+// longer resolves to a combatant — the standard resolve→re-fetch TOCTOU
+// shape used across the migrated verbs.
+func resolveCombatantRef(c *Context, roomID world.RoomID, ref EntityRef) (combat.Combatant, string, bool) {
+	switch ref.Type {
+	case entityTypeMob:
+		if c.Items != nil {
+			if e, ok := c.Items.GetByID(entities.EntityID(ref.ID)); ok {
+				if mob, ok := e.(*entities.MobInstance); ok {
+					return mob, mob.Name(), true
+				}
+			}
+		}
+	case entityTypePlayer:
+		if c.Locator != nil {
+			if other := c.Locator.FindInRoom(roomID, ref.Name); other != nil {
+				if cb, ok := other.(combat.Combatant); ok {
+					return cb, other.Name(), true
+				}
 			}
 		}
 	}
-
 	return nil, "", false
 }
 

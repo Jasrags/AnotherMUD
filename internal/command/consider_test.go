@@ -161,12 +161,13 @@ func TestConsider_PlayerViaLocator(t *testing.T) {
 	bob.vitals.ApplyDamage(combat.DefaultPlayerMaxHP / 2)
 
 	env := f.env()
-	env.Locator = locatorFunc(func(_ world.RoomID, name string) command.Actor {
-		if strings.EqualFold(name, "Bob") {
-			return bob
-		}
-		return nil
-	})
+	// M17.2d₄b: combat targeting resolves through the §5 entity arg,
+	// which enumerates room players via Locator.PlayersInRoom — so the
+	// fixture must surface Bob there (stubLocator does both that and
+	// FindInRoom), not the name-only locatorFunc.
+	loc := &stubLocator{}
+	loc.add(bob)
+	env.Locator = loc
 	r := newRegistry(t)
 	if err := r.Dispatch(context.Background(), env, alice.testActor, "consider Bob"); err != nil {
 		t.Fatalf("dispatch: %v", err)
@@ -178,6 +179,28 @@ func TestConsider_PlayerViaLocator(t *testing.T) {
 	// Default 20/2 = 10 HP remaining — descriptor band: 50% → "moderately wounded".
 	if !strings.Contains(out, "moderately wounded") {
 		t.Errorf("output missing 'moderately wounded': %q", out)
+	}
+}
+
+// TestConsider_PlayerPartialName pins the M17.2d₄b behavior change:
+// players are now keyword/partial-matchable through the §5 entity
+// resolver, so "consider bo" resolves Bob — the old name-only path
+// required the full name.
+func TestConsider_PlayerPartialName(t *testing.T) {
+	f := newConsiderFixture(t)
+	alice := newCombatActor("Alice", "p-1", f.room)
+	bob := newCombatActor("Bob", "p-2", f.room)
+
+	env := f.env()
+	loc := &stubLocator{}
+	loc.add(bob)
+	env.Locator = loc
+	r := newRegistry(t)
+	if err := r.Dispatch(context.Background(), env, alice.testActor, "consider bo"); err != nil {
+		t.Fatalf("dispatch: %v", err)
+	}
+	if got := alice.lastLine(); !strings.Contains(got, "Bob") {
+		t.Errorf("consider bo = %q, want Bob resolved by partial name", got)
 	}
 }
 
