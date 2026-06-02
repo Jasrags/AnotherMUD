@@ -70,6 +70,11 @@ The verbs players use and the systems that resolve them.
   effects.
 - [combat](combat.md) — engage / disengage, the combat round,
   hit / miss / damage, flee, death.
+- [loot-and-corpses](loot-and-corpses.md) — the death → drop path:
+  corpse creation on the mob-killed event, coin drops, the killer-
+  first looting-rights window, the loot / get-from verbs, the
+  autoloot toggle, and corpse decay. Consumes combat's mob-killed
+  signal + the spawn-time loot of mobs-ai-spawning §6.3.
 - [quests](quests.md) — definitions, prerequisites, stages,
   objectives, rewards, auto-tracking watcher, markers.
 - [economy-survival](economy-survival.md) — currency, shops,
@@ -160,6 +165,7 @@ operation. The set of cancellable events across the engine:
 | `item.consuming` | [economy-survival](economy-survival.md) §6.2 |
 | `shop.buy`, `shop.sell` | [economy-survival](economy-survival.md) §3 |
 | `recall.before` | [recall](recall.md) §3.1 |
+| `corpse.creating` *(spec; build pending)* | [loot-and-corpses](loot-and-corpses.md) §2.1 |
 | `trade.committing` *(spec; build pending)* | [trade-escrow](trade-escrow.md) §3 |
 
 ### Registries and content
@@ -204,7 +210,8 @@ Each spec calls out what it persists. The aggregate view:
 - **Player file** — entity id, account id, name, location,
   tags, roles, stats (base + modifiers + vitals), properties,
   equipment, inventory, flat item list, **abilities +
-  proficiencies**, **recall address**, **prompt template**.
+  proficiencies**, **recall address**, **prompt template**,
+  **autoloot preference** *(spec; build pending — [loot-and-corpses](loot-and-corpses.md) §6)*.
 - **Quest file** (sibling of player file) — active list,
   completed list.
 - **Notifications file** (sibling of player file) — per-entity
@@ -227,7 +234,8 @@ Each spec calls out what it persists. The aggregate view:
   [trade-escrow](trade-escrow.md) §5.
 - **NOT persisted** — sessions, link-dead state, in-game time,
   weather, mob spawn tracking, temporary exits, active
-  effects, rest state, **direct-trade sessions** (transient by design).
+  effects, rest state, **direct-trade sessions** (transient by design),
+  **corpses + their unlooted loot** *(spec; build pending — [loot-and-corpses](loot-and-corpses.md) §7)*.
 
 Details: [persistence](persistence.md), with feature-specific
 sections in [quests](quests.md) §6, [progression](progression.md),
@@ -320,4 +328,4 @@ highest-impact themes that recur across specs:
 
 ---
 
-<!-- Updated: 2026-06-01 · 30 specs covering the engine substrate, world, action, lifecycle, and presentation layers. Some (roles-and-permissions, admin-verbs, item-decorations, tag-observers, who, crafting-and-cooking) are behavior contracts whose Go implementation is still pending. -->
+<!-- Updated: 2026-06-02 · 31 specs covering the engine substrate, world, action, lifecycle, and presentation layers. Some (roles-and-permissions, admin-verbs, item-decorations, tag-observers, who, crafting-and-cooking, loot-and-corpses) are behavior contracts whose Go implementation is still pending. -->

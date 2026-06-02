@@ -302,7 +302,7 @@ during bootstrap (in the documented order):
 | `mob-ai` | 10 | mob AI manager |
 | `mob-command-queue` | 1 | mob command queue |
 | `heartbeat` | 1 | combat / ability heartbeat |
-| `corpse-decay` | 30 | world / death pipeline |
+| `corpse-decay` | 30 | loot / corpse pipeline (loot-and-corpses §7) |
 | `sustenance-drain` | configured | sustenance pipeline |
 | `autosave` | configured | player persistence |
 | `regen` | 30 | vital regen |

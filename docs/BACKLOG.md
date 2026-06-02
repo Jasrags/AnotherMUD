@@ -65,6 +65,7 @@ go straight into a milestone.
 | Reactive tag observers | **tag-observers §2–§4** (new) | `entity.tag_added/removed` bus events for non-index reactors. Substrate ahead of a consumer. Ported from Tapestry `ITagObserver` |
 | **Crafting & Cooking** | **crafting-and-cooking** (new) + plan `themes/crafting-cooking-plan.md` | recipes + crafting-skill proficiency + quality roll (output = rarity tier) + cooking→sustenance/well-fed. MVP = Tier 0 + Tier 1 campfire (temp entity, M15.2 reuse) + Tier 2 room-tag + mob-loot ingredients, all in `core` pack. Defers only gathering nodes (§2) |
 | **Player trade** (escrow + direct trade + auction) | **trade-escrow / direct-trade / auction-house** (new) + plan `plans/trade-plan.md` | shared escrow/atomic-commit primitive (cancellable bus); sync zero-sum direct trade; async persisted buyout auction (global, pickup delivery, fee gold sink). Admin moderation blocked on roles/admin (spec-only). Push delivery deferred to Mail (§2) |
+| **Loot drops + corpses + autoloot** | **loot-and-corpses** (new) + mobs-ai-spawning §6.3 | **no LootTable wiring at all** (mob templates carry no loot tables). Two specced-but-uncoded halves: (a) loot *generation* at spawn (mobs-ai-spawning §6.3 — into the mob's contents); (b) death→drop in **loot-and-corpses** — corpse-as-container on the mob-killed event, coins-in-corpse, killer-first ownership window, `loot`/`get-from` verbs, per-player autoloot toggle, corpse decay. `corpse.creating` cancellable; `corpse-decay` handler reserved (time-and-clock §3). Unblocks group loot-sharing (the §4 rights seam) |
 
 ---
 
@@ -121,21 +122,12 @@ old five-theme partition left uncovered.
   balance on the player or account save). Pre-decisions: gold-only vs. gold + item vault;
   per-character vs. account-shared; teller/bank-room vs. access-anywhere; interest + fees
   (economic levers / gold sinks); is there a gold-at-risk mechanic to justify it.
-- **Loot drops + autoloot** — items dropping when a mob dies, and a per-player
-  *autoloot* convenience that picks them up automatically when a fight is won.
-  ⚠️ **Greenfield — base loot-on-kill does not exist yet.** There is **no
-  `LootTable` wiring anywhere**, and mob templates don't carry loot tables
-  (`internal/mob/template.go` scopes them out — "the rest"). `combat.md` §line 66
-  explicitly defers loot/corpses/XP/quest-credit out of the combat spec, and
-  reserves the **`VitalDepleted` event (with attacker id + template id)** as the
-  canonical hook a loot listener keys on (`combat.md` §10, `eventbus/events.go`).
-  So this is two layers: (a) a **base loot system** — loot-table format
-  (per-mob vs. shared/weighted tables, guaranteed vs. rarity-tier rolls), and
-  where drops land (corpse-as-container vs. direct-to-room), then (b) **autoloot**
-  as a player preference on top (scope: all / coins-only / by-rarity filter;
-  combat-end trigger). Pre-decisions: corpse model; loot-table schema; autoloot
-  default + persistence. **Loot *distribution* is the join point with grouping
-  below** — decide them together.
+- **Loot drops + autoloot** — ✅ **now specced (loot-and-corpses) — moved to §1.**
+  Design decisions resolved 2026-06-02: corpse-as-container, coins-into-the-corpse,
+  killer-first ownership window, per-player autoloot toggle (off by default). Loot
+  *generation* was already specced (mobs-ai-spawning §6.3). Neither half is coded
+  yet — see the §1 row. (Kept here as a pointer so the cross-reference below
+  resolves.)
 - **Player grouping / party** — a party of players with combat assist plus
   **XP-sharing and loot-sharing options**. ⚠️ **Greenfield — no grouping exists.**
   Substrate that's already in place: combat keys kill credit off the **attacker
@@ -144,11 +136,12 @@ old five-theme partition left uncovered.
   room is the shared combat arena. The new system is the **party itself** and its
   reward rules. Pre-decisions: party model (leader + invite/accept vs. follow);
   **XP split rule** (even / level-weighted / proximity-gated); **loot rules**
-  (free-for-all / round-robin / leader-only / need-greed) — these reuse the loot
-  layer above; **assist / auto-engage** (a party member's attack pulls the rest);
-  party chat (overlaps `chat-channels-and-tells`); shared **quest credit**
-  (overlaps `quests`). Heavily interlocks with **Loot drops + autoloot** (loot
-  distribution) and combat targeting. Needs a design conversation before a spec.
+  (free-for-all / round-robin / leader-only / need-greed) — these attach to the
+  **loot-and-corpses §4 ownership-set seam** (the corpse already records an owner
+  set; grouping fills it with party members); **assist / auto-engage** (a party
+  member's attack pulls the rest); party chat (overlaps `chat-channels-and-tells`);
+  shared **quest credit** (overlaps `quests`). Needs a design conversation before
+  a spec. Loot distribution is the join point with **Loot drops + autoloot** (§1).
 - **Cross-cutting event catalog** — per-spec event tables exist in `specs/README.md`;
   no aggregated catalog. (Docs/meta, not engine — not a behavior spec.)
 
