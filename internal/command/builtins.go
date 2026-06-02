@@ -198,7 +198,17 @@ func LookHandler(ctx context.Context, c *Context) error {
 	if room == nil {
 		return c.Actor.Write(ctx, "You float in formless void.")
 	}
-	return c.Actor.Write(ctx, RenderRoom(room, c.Placement, c.Items, c.questMarker(), c.Ambience))
+	// `look` / `look in <target>` / `look at <target>`. The bare form
+	// renders the room; a target form looks at an item or into a
+	// container (loot-and-corpses §2.2 corpse look-in).
+	args := c.Args
+	if len(args) > 0 && (strings.EqualFold(args[0], "in") || strings.EqualFold(args[0], "at")) {
+		args = args[1:]
+	}
+	if len(args) == 0 {
+		return c.Actor.Write(ctx, RenderRoom(room, c.Placement, c.Items, c.questMarker(), c.Ambience))
+	}
+	return c.lookAtTarget(ctx, args)
 }
 
 // ColorHandler implements the `color` verb (spec ui-rendering-help —

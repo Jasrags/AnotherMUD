@@ -27,10 +27,12 @@ and `THEME-AXIS-PLAN.md` are superseded by `BACKLOG.md` and now live under
   support all work. Since then: **M19** (Roles & Administration),
   **M20** (Item Decorations — rarity & essence), and **M21** (Item
   Stacking) have all shipped.
-- **Active:** **M22 — Loot and Corpses**. M22.1 (spawn loot), M22.2 (corpse
-  creation + coins), M22.3a (rights + `loot`), M22.4 (autoloot), and M22.5
-  (decay) shipped; only M22.3b (`get … from corpse` + look-in) pending —
-  it needs general container verbs the engine still lacks.
+- **Done:** **M22 — Loot and Corpses** (all slices: M22.1 spawn loot,
+  M22.2 corpse creation + coins, M22.3a rights + `loot`, M22.3b
+  `get … from corpse` + look-in, M22.4 autoloot, M22.5 decay). The full
+  kill → corpse → loot/get-from/look-in/autoloot → decay loop works.
+- **Active:** none — M22 closed. Pick the next theme from `BACKLOG.md`
+  §1 (specced, ready) or §2 (greenfield, design-first).
 - **Earlier active milestone, for reference:** **M19 — Roles & Administration** (the keystone). M19.1
   (role-set substrate + `HasRole` + persistence + config seed), M19.2
   (grant/revoke verbs + events), M19.3 (the admin dispatch gate + help
@@ -3039,14 +3041,20 @@ rights seam) and the autoloot rarity-floor filter (item-decorations).
       most-recent lootable corpse. Ownership window is a config knob
       (`ANOTHERMUD_CORPSE_OWNERSHIP_WINDOW`, default 60s) measured in ticks
       against the corpse's creation tick.
-- [ ] **M22.3b — `get … from <corpse>` + look-in display.** `loot-and-corpses §5.2`
-      + §2.2. The container `get <item> from <container>` path (which the
-      engine does not yet implement at all — `GetHandler` only does
-      `get <item>` from the room) and a `look <corpse>` / look-in display
-      listing contents + coin amount, both gated by §4 rights, with a
-      reserved coin keyword (`get coins from corpse`) crediting currency.
-      Split out of M22.3 because it requires building general
-      container-access verbs that don't exist yet.
+- [x] **M22.3b — `get … from <corpse>` + look-in display.** `loot-and-corpses §5.2`
+      + §2.2. Built the general container-access verbs the engine lacked.
+      **b₁:** `GetHandler` hand-parses on `from` (the room form still
+      resolves via `resolveRoomItem` so ordinals/messages are unchanged);
+      `get <item> from <container>` resolves the container inventory-first
+      then room and keyword-matches the item within its contents; corpses
+      enforce the §4 window (refusal unnamed); `get coins from <corpse>`
+      claims the coin pile to currency; a corpse drained empty is removed +
+      emits `corpse.looted` (single-winner); plain containers get no gate
+      and aren't auto-removed. New `container.item_removing` (cancellable) +
+      `container.item_removed` events mirror put. **b₂:** `look [in|at]
+      <target>` lists a container/corpse's contents + coin amount (gated by
+      presence only, not §4 — anyone present may look), or shows a plain
+      item's name; bare `look` still renders the room.
 - [x] **M22.4 — Autoloot.** `loot-and-corpses §6`. Per-character autoloot
       preference (`player.Save.Autoloot`, off by default, no schema bump —
       omitempty bool like wimpy) + `autoloot [on|off]` verb (reports/toggles

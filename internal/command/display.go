@@ -6,7 +6,9 @@ import (
 	"strings"
 	"unicode/utf8"
 
+	"github.com/Jasrags/AnotherMUD/internal/corpse"
 	"github.com/Jasrags/AnotherMUD/internal/entities"
+	"github.com/Jasrags/AnotherMUD/internal/keyword"
 	"github.com/Jasrags/AnotherMUD/internal/slot"
 	"github.com/Jasrags/AnotherMUD/internal/stacking"
 )
@@ -218,4 +220,70 @@ func lookupItemName(store *entities.Store, id entities.EntityID) (string, bool) 
 		return "", false
 	}
 	return it.Name(), true
+}
+
+// lookAtTarget implements `look [in|at] <target>` for items and
+// containers (loot-and-corpses §2.2). The target resolves among the
+// actor's inventory and the room's items; a container (incl. a corpse)
+// lists its contents and any coin pile, a plain item shows its name.
+// Looking is gated only by presence, not by §4 looting rights — anyone
+// in the room may see what a corpse holds; only taking is restricted.
+func (c *Context) lookAtTarget(ctx context.Context, toks []string) error {
+	if c.Items == nil || len(toks) == 0 {
+		return c.Actor.Write(ctx, "You don't see that here.")
+	}
+	target := c.resolveLookTarget(toks[0])
+	if target == nil {
+		return c.Actor.Write(ctx, "You don't see that here.")
+	}
+	if target.Type() == entities.ContainerType || corpse.IsCorpse(target) {
+		return c.Actor.Write(ctx, c.renderContainerLook(target))
+	}
+	return c.Actor.Write(ctx, fmt.Sprintf("You see %s.", decoratedName(c, target)))
+}
+
+// resolveLookTarget keyword-matches an item across the actor's inventory
+// and the current room's items (mobs/players are not look-at targets
+// here — `consider` covers creatures). Returns nil on no match.
+func (c *Context) resolveLookTarget(token string) *entities.ItemInstance {
+	cands := collectItems(c.Items, c.Actor.Inventory())
+	if room := c.Actor.Room(); room != nil && c.Placement != nil {
+		cands = append(cands, collectItems(c.Items, c.Placement.InRoom(room.ID))...)
+	}
+	match := keyword.Resolve(asNamed(cands), token)
+	if match == nil {
+		return nil
+	}
+	it, _ := match.(*entities.ItemInstance)
+	return it
+}
+
+// renderContainerLook formats a container's contents for look-in: the
+// container name, then one line per contained item (decorated), then a
+// coin line for a corpse with a coin pile. An empty container reports so.
+func (c *Context) renderContainerLook(target *entities.ItemInstance) string {
+	var contents []entities.EntityID
+	if c.Contents != nil {
+		contents = c.Contents.In(target.ID())
+	}
+	coins := 0
+	if corpse.IsCorpse(target) {
+		coins = corpse.Coins(target)
+	}
+
+	var b strings.Builder
+	b.WriteString(decoratedName(c, target))
+	if len(contents) == 0 && coins == 0 {
+		b.WriteString(" is empty.")
+		return b.String()
+	}
+	b.WriteString(" contains:")
+	if c.Contents != nil {
+		renderContainerContents(&b, c, target.ID(), 0)
+	}
+	if coins > 0 {
+		b.WriteString("\n  ")
+		b.WriteString(fmt.Sprintf("%d gold", coins))
+	}
+	return b.String()
 }
