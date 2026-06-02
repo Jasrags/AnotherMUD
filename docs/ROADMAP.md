@@ -27,9 +27,11 @@ and `THEME-AXIS-PLAN.md` are superseded by `BACKLOG.md` and now live under
   support all work.
 - **Active:** **M19 — Roles & Administration** (the keystone). M19.1
   (role-set substrate + `HasRole` + persistence + config seed), M19.2
-  (grant/revoke verbs + events), and M19.3 (the admin dispatch gate + help
-  hiding) shipped; M19.4 (baseline admin verbs + `admin.action` audit +
-  idle-sweep exemption + help-visibility through `HasRole`) pending.
+  (grant/revoke verbs + events), M19.3 (the admin dispatch gate + help
+  hiding), and M19.4a (`admin.action` audit primitive + `announce`) shipped;
+  M19.4b+ (the remaining baseline verbs — inspect / set / teleport / restore
+  / purge — plus the idle-sweep exemption + help-visibility through
+  `HasRole`) pending.
   **M18 — Command & UI polish** is paused mid-flight (M18.1 `prompt` verb
   shipped; M18.2–M18.5 pending).
 - **Specs ahead of code.** A large batch of behavior contracts landed this
@@ -2736,9 +2738,21 @@ house's admin moderation (`auction-house.md` §11).
       from non-admins); `Env.AdminRole` from `ANOTHERMUD_ADMIN_ROLE`. `grant`
       / `revoke` / `xp` / `reload` admin-marked; grant/revoke keep their
       granting-role self-gate. da96420.
-- [ ] **M19.4+ — Baseline admin verbs** (inspect / set / teleport / announce
-      / restore / purge) + the `admin.action` audit + the §5 idle-sweep
-      exemption + help-visibility wiring through `HasRole`. admin-verbs §3–§6.
+- [x] **M19.4a — The `admin.action` audit primitive + `announce`.** The
+      accountability choke point every admin verb shares (admin-verbs §6):
+      a non-cancellable `admin.action` fact (`eventbus.AdminAction` =
+      actor/verb/target/args) routed to the operator log via the shared
+      `auditAdmin` helper, proven end-to-end with `announce` (§5) — the
+      simplest baseline verb (server-wide broadcast, no target resolution,
+      no mutation). New `command.Announcer` seam (all-sessions `SendToAll`,
+      satisfied by `session.Manager`); `announce` admin-marked so the M19.3
+      gate refuses non-admins with the indistinguishable "Huh?". 4 command
+      tests (broadcast+audit / usage / disabled / non-admin refusal). Full
+      suite -race clean. admin-verbs §5/§6.
+- [ ] **M19.4b+ — Remaining baseline admin verbs** (inspect / set / teleport
+      / restore / purge) + administrative target resolution (§3
+      bypass-visibility, kinds player/npc/item) + the §5 idle-sweep
+      exemption + help-visibility wiring through `HasRole`. admin-verbs §3–§5.
 
 **Touches specs:** `roles-and-permissions`, `admin-verbs`,
 `session-lifecycle §5`, `ui-rendering-help §9.5`, `commands-and-dispatch`.

@@ -856,6 +856,7 @@ func pump(ctx context.Context, c conn.Connection, cfg Config, a *connActor, clk 
 			RoleTargetResolver: cfg.RoleTargets,
 			GrantingRole:       cfg.GrantingRole,
 			AdminRole:          cfg.AdminRole,
+			Announcer:          cfg.Manager,
 			ChatRegistry:       cfg.ChatRegistry,
 			ChatSubscribers:    cfg.ChatSubscribers,
 			ChatScrollbacks:    cfg.ChatScrollbacks,

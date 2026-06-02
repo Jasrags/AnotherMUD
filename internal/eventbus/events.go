@@ -236,6 +236,15 @@ const (
 	EventRoleGranted = "role.granted"
 	EventRoleRevoked = "role.revoked"
 
+	// EventAdminAction fires after a successful admin verb runs
+	// (admin-verbs.md §6). A non-cancellable audit fact: a subscriber
+	// records it, it cannot veto the action (gating is the dispatch role
+	// check, admin-verbs §2). The payload carries the acting admin, the
+	// verb, an optional single target, and the salient args — routed to
+	// the operator/audit sink (structured log), never to a player-visible
+	// feed. Refused gate attempts are NOT this event (admin-verbs §6/§9).
+	EventAdminAction = "admin.action"
+
 	// EventRecallSet fires after `set recall` commits a new
 	// recall address on a character (spec recall.md §5).
 	EventRecallSet = "recall.set"
@@ -1179,6 +1188,23 @@ type RoleRevoked struct {
 
 // Name implements Event.
 func (RoleRevoked) Name() string { return EventRoleRevoked }
+
+// AdminAction is the audit fact emitted after a successful admin verb runs
+// (admin-verbs.md §6). Non-cancellable: it records what happened, it does
+// not gate it (gating is the dispatch role check, admin-verbs §2). Actor is
+// the acting admin's player id. Verb is the admin verb keyword. Target is
+// the affected entity (player id / npc / item id), empty for verbs with no
+// single target (e.g. announce). Args holds the salient arguments as a
+// human-readable string for the operator audit sink.
+type AdminAction struct {
+	Actor  string
+	Verb   string
+	Target string
+	Args   string
+}
+
+// Name implements Event.
+func (AdminAction) Name() string { return EventAdminAction }
 
 // RecallBefore is the cancellable pre-event fired by the recall
 // verb after a destination is resolved and before the teleport

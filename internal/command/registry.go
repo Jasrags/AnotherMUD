@@ -281,6 +281,11 @@ type Env struct {
 	// when empty.
 	AdminRole string
 
+	// Announcer is the all-sessions broadcast seam the `announce` admin
+	// verb uses (admin-verbs §5). The session Manager satisfies it. nil
+	// disables `announce` (the handler reports it's not enabled).
+	Announcer Announcer
+
 	// ChatRegistry is the M13.6 channel catalog. Read by chat list /
 	// chat history and by the dynamically-registered per-channel
 	// verbs (ooc / admin / pack channels). nil-safe.
@@ -396,6 +401,9 @@ type Context struct {
 	// `admin` when empty (roles-and-permissions §4/§8).
 	RoleTargetResolver RoleTargetResolver
 	GrantingRole       string
+	// Announcer is the all-sessions broadcast seam the `announce` admin
+	// verb uses (admin-verbs §5). nil disables `announce`.
+	Announcer Announcer
 	// ChatRegistry / ChatSubscribers / ChatScrollbacks are the M13.6
 	// channel seams. nil in tests that don't exercise chat verbs.
 	ChatRegistry    *chat.Registry
@@ -783,6 +791,7 @@ func (r *Registry) Dispatch(ctx context.Context, env Env, actor Actor, raw strin
 		TellResolver:       env.TellResolver,
 		RoleTargetResolver: env.RoleTargetResolver,
 		GrantingRole:       env.GrantingRole,
+		Announcer:          env.Announcer,
 		ChatRegistry:       env.ChatRegistry,
 		ChatSubscribers:    env.ChatSubscribers,
 		ChatScrollbacks:    env.ChatScrollbacks,

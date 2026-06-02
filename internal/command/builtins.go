@@ -126,6 +126,12 @@ func RegisterBuiltins(r *Registry) error {
 		// "ungated until roles" verbs the spec §2 calls out).
 		{Keyword: "xp", Handler: XPHandler, Admin: true, Brief: "Grant yourself XP (admin probe).", Syntax: []string{"xp", "xp <amount> [track]"}},
 		{Keyword: "reload", Handler: ReloadHandler, Admin: true, Brief: "Reload pack scripts.", Syntax: []string{"reload"}},
+
+		// announce (M19.4a — admin-verbs §5): broadcast a server-wide
+		// message to every connected session, attributed as an
+		// administrative announcement. Emits the admin.action audit fact
+		// (§6) via the shared auditAdmin choke point.
+		{Keyword: "announce", Handler: AnnounceHandler, Admin: true, Brief: "Broadcast a server-wide announcement.", Syntax: []string{"announce <message>"}},
 	}
 	for _, c := range commands {
 		if err := r.RegisterCommand(c); err != nil {
