@@ -121,9 +121,11 @@ func TestGetFrom_PlainContainerNotRemovedWhenEmptied(t *testing.T) {
 	if len(a.Inventory()) != 1 {
 		t.Fatalf("inventory = %d, want 1", len(a.Inventory()))
 	}
-	if !corpse.IsCorpse(sack) { // sanity: it is not a corpse
-		if _, ok := f.store.GetByID(sack.ID()); !ok {
-			t.Error("an emptied plain container must NOT be removed")
-		}
+	// The sack is not a corpse, so emptying it must NOT remove it.
+	if corpse.IsCorpse(sack) {
+		t.Fatal("sack should not be a corpse")
+	}
+	if _, ok := f.store.GetByID(sack.ID()); !ok {
+		t.Error("an emptied plain container must NOT be removed")
 	}
 }

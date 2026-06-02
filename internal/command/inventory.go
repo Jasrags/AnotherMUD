@@ -162,9 +162,16 @@ func (c *Context) getFromContainer(ctx context.Context, room *world.Room, itemTo
 	if coinKeywords[strings.ToLower(itemToks[0])] {
 		return c.getCoinsFrom(ctx, room, container, isCorpse)
 	}
+	return c.takeItemFromContainer(ctx, room, container, itemToks[0], isCorpse)
+}
 
+// takeItemFromContainer keyword-matches itemTok within container's
+// contents and moves the matched item into the actor's inventory,
+// firing the cancellable container.item_removing veto then the
+// container.item_removed post-event. A drained corpse is removed.
+func (c *Context) takeItemFromContainer(ctx context.Context, room *world.Room, container *entities.ItemInstance, itemTok string, isCorpse bool) error {
 	contents := collectItems(c.Items, c.Contents.In(container.ID()))
-	match := keyword.Resolve(asNamed(contents), itemToks[0])
+	match := keyword.Resolve(asNamed(contents), itemTok)
 	if match == nil {
 		return c.Actor.Write(ctx, fmt.Sprintf("You don't see that in %s.", container.Name()))
 	}

@@ -205,7 +205,10 @@ func LookHandler(ctx context.Context, c *Context) error {
 	if len(args) > 0 && (strings.EqualFold(args[0], "in") || strings.EqualFold(args[0], "at")) {
 		args = args[1:]
 	}
-	if len(args) == 0 {
+	// Bare look, or a targeted look with no item store wired (test /
+	// headless paths), renders the room — never a misleading
+	// "you don't see that" for a missing subsystem.
+	if len(args) == 0 || c.Items == nil {
 		return c.Actor.Write(ctx, RenderRoom(room, c.Placement, c.Items, c.questMarker(), c.Ambience))
 	}
 	return c.lookAtTarget(ctx, args)
