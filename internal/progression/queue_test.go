@@ -34,6 +34,29 @@ func TestActionQueueManager_PushPeekPop(t *testing.T) {
 	}
 }
 
+func TestActionQueueManager_PendingEntities(t *testing.T) {
+	m := progression.NewActionQueueManager(progression.ActionQueueConfig{})
+	if got := m.PendingEntities(); len(got) != 0 {
+		t.Fatalf("empty manager: PendingEntities = %v, want none", got)
+	}
+	m.Push("p-1", progression.QueuedAction{AbilityID: "heal"})
+	m.Push("p-2", progression.QueuedAction{AbilityID: "bless"})
+	got := m.PendingEntities()
+	set := map[string]bool{}
+	for _, id := range got {
+		set[id] = true
+	}
+	if len(got) != 2 || !set["p-1"] || !set["p-2"] {
+		t.Fatalf("PendingEntities = %v, want p-1 + p-2", got)
+	}
+	// Draining an entity drops it from the pending set.
+	m.Pop("p-1")
+	got = m.PendingEntities()
+	if len(got) != 1 || got[0] != "p-2" {
+		t.Fatalf("after draining p-1: PendingEntities = %v, want [p-2]", got)
+	}
+}
+
 func TestActionQueueManager_PushRejectsEmpty(t *testing.T) {
 	m := progression.NewActionQueueManager(progression.ActionQueueConfig{})
 	if m.Push("", progression.QueuedAction{AbilityID: "slash"}) {

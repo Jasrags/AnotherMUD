@@ -132,6 +132,22 @@ func (m *ActionQueueManager) Pop(entityID string) (QueuedAction, bool) {
 }
 
 // Len returns the current queue depth for entityID.
+// PendingEntities returns the entity ids that currently hold at least
+// one queued action, in unspecified order. The out-of-combat ability
+// drain uses it to find idle casters whose queue the combat heartbeat
+// (which only services engaged combatants) won't otherwise pump.
+func (m *ActionQueueManager) PendingEntities() []string {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	out := make([]string, 0, len(m.queues))
+	for id, q := range m.queues {
+		if len(q) > 0 {
+			out = append(out, id)
+		}
+	}
+	return out
+}
+
 func (m *ActionQueueManager) Len(entityID string) int {
 	eid := strings.ToLower(strings.TrimSpace(entityID))
 	if eid == "" {

@@ -169,14 +169,16 @@ After killing the bandit (Meadow):
 
 ## 8. Progression & abilities
 
-- [ ] `consider` (self / no target form, or `consider Jasrags`) — shows your
+- [x] `consider` (self / no target form, or `consider Jasrags`) — shows your
       stats.
-- [ ] `abilities` (`abi`) — lists learned abilities + proficiencies.
+- [x] `abilities` (`abi`) — lists learned abilities + proficiencies.
 - [ ] `train str` — spends a train credit, raises STR (Jasrags has credits).
 - [ ] At the Forge, `practice slash` (Maerys teaches slash/parry) — raises the
       ability's cap.
-- [ ] `cast bless` / `cast heal` — buff/heal abilities apply (watch for an
-      effect on `consider`/prompt).
+- [ ] `cast bless` / `cast heal` — self buff/heal; resolves on the next
+      pulse whether in combat or idle (out-of-combat drain). bless bumps
+      AC/hit (check `consider`); heal restores HP (only visible if injured —
+      take a hit first).
 - [ ] (Admin) `xp 500` — grants XP; crossing a threshold levels you up with a
       level-up message (Jasrags is level 10 / track max, so use a fresh char to
       see a level-up, or grant on a lower track).
@@ -209,8 +211,8 @@ Quest giver is **Maerys** in the Forge.
 
 ## 11. Social / multi-session (Jasrags + Bob, two windows)
 
-- [ ] Both in Town Square — each sees the other listed; movement shows
-      "Bob arrives" / "Bob leaves".
+- [ ] Both in Town Square — `look` lists the other in "You see here:";
+      movement shows "Bob arrives" / "Bob leaves".
 - [ ] `tell Bob hello` — Bob receives it; `reply hi` goes back; `tells` shows
       the history.
 - [ ] `channels` (`chanlist`) — lists channels; post on one and the other sees

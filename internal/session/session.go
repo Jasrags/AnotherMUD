@@ -761,7 +761,7 @@ func run(ctx context.Context, c conn.Connection, cfg Config) error {
 		cfg.Disposition.OnPlayerEnteredImmediate(ctx, a.PlayerID(), a.Name(), nil, start.ID)
 	}
 
-	if err := a.Write(ctx, command.RenderRoom(start, cfg.Placement, cfg.Items, questMarkerFor(cfg.Quests, a.PlayerID()), cfg.Ambience)); err != nil {
+	if err := a.Write(ctx, command.RenderRoom(start, cfg.Placement, cfg.Items, questMarkerFor(cfg.Quests, a.PlayerID()), cfg.Ambience, otherPlayerNames(cfg.Manager, start.ID, a.PlayerID())...)); err != nil {
 		// Initial render failed: the connection is unusable. Full
 		// teardown immediately — no point parking link-dead.
 		fullTeardown(ctx, cfg, a)
@@ -1367,6 +1367,25 @@ func (ml managerLocator) PlayersInRoom(roomID world.RoomID) []command.Actor {
 	out := make([]command.Actor, 0, len(actors))
 	for _, a := range actors {
 		out = append(out, a)
+	}
+	return out
+}
+
+// otherPlayerNames returns the names of players in roomID other than
+// selfID, for the room render's "You see here:" line. nil-safe on a nil
+// Manager (test/headless paths).
+func otherPlayerNames(m *Manager, roomID world.RoomID, selfID string) []string {
+	if m == nil {
+		return nil
+	}
+	var out []string
+	for _, p := range m.PlayersInRoom(roomID) {
+		if p.ID == selfID {
+			continue
+		}
+		if p.Name != "" {
+			out = append(out, p.Name)
+		}
 	}
 	return out
 }

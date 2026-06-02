@@ -209,7 +209,7 @@ func LookHandler(ctx context.Context, c *Context) error {
 	// headless paths), renders the room — never a misleading
 	// "you don't see that" for a missing subsystem.
 	if len(args) == 0 || c.Items == nil {
-		return c.Actor.Write(ctx, RenderRoom(room, c.Placement, c.Items, c.questMarker(), c.Ambience))
+		return c.Actor.Write(ctx, RenderRoom(room, c.Placement, c.Items, c.questMarker(), c.Ambience, c.otherPlayerNames(room.ID)...))
 	}
 	return c.lookAtTarget(ctx, args)
 }
@@ -317,7 +317,7 @@ func movementHandler(dir world.Direction) Handler {
 		if c.Disposition != nil && pid != "" {
 			c.Disposition.OnPlayerEnteredImmediate(ctx, pid, name, nil, dst.ID)
 		}
-		if err := c.Actor.Write(ctx, RenderRoom(dst, c.Placement, c.Items, c.questMarker(), c.Ambience)); err != nil {
+		if err := c.Actor.Write(ctx, RenderRoom(dst, c.Placement, c.Items, c.questMarker(), c.Ambience, c.otherPlayerNames(dst.ID)...)); err != nil {
 			return err
 		}
 		// Deferred (full) hook AFTER the description so non-hostile
@@ -340,6 +340,26 @@ func movementHandler(dir world.Direction) Handler {
 // in insertion order. Entities nested inside containers are not
 // shown: those live in Contents, not Placement (the put pipeline
 // removes from Placement when nesting).
+// otherPlayerNames returns the display names of players in roomID other
+// than the acting player, for the room render's "You see here:" line.
+// Empty when no Locator is wired (tests / headless paths).
+func (c *Context) otherPlayerNames(roomID world.RoomID) []string {
+	if c.Locator == nil {
+		return nil
+	}
+	self := c.Actor.PlayerID()
+	var out []string
+	for _, p := range c.Locator.PlayersInRoom(roomID) {
+		if p == nil || (self != "" && p.PlayerID() == self) {
+			continue
+		}
+		if n := p.Name(); n != "" {
+			out = append(out, n)
+		}
+	}
+	return out
+}
+
 // RenderRoom renders a room's name, description, entities, and exits.
 //
 // marker, when non-nil, reports whether an entity's template id
@@ -353,7 +373,11 @@ func movementHandler(dir world.Direction) Handler {
 // renderers (tests, link-dead recovery before weather is wired)
 // that don't have an ambience source; an empty return from a
 // non-nil ambience is also treated as "nothing to render".
-func RenderRoom(r *world.Room, placement *entities.Placement, items *entities.Store, marker func(templateID string) bool, ambience func(*world.Room) string) string {
+// players are the display names of OTHER players present (the viewer
+// excludes themselves before calling). Variadic so existing callers
+// without a player list stay source-compatible; players are listed in
+// the "You see here:" line alongside mobs and items.
+func RenderRoom(r *world.Room, placement *entities.Placement, items *entities.Store, marker func(templateID string) bool, ambience func(*world.Room) string, players ...string) string {
 	var b strings.Builder
 	b.WriteString(r.Name)
 	b.WriteString("\n")
@@ -365,7 +389,7 @@ func RenderRoom(r *world.Room, placement *entities.Placement, items *entities.St
 			b.WriteString("\n")
 		}
 	}
-	if line := renderRoomEntities(r, placement, items, marker); line != "" {
+	if line := renderRoomEntities(r, placement, items, marker, players); line != "" {
 		b.WriteString(line)
 		b.WriteString("\n")
 	}
@@ -379,15 +403,13 @@ func RenderRoom(r *world.Room, placement *entities.Placement, items *entities.St
 // fails resolution. Each branch is a silent skip rather than a panic
 // because the renderer is on the player-visible path; missing data
 // should look like nothing-here, not a runtime error.
-func renderRoomEntities(r *world.Room, placement *entities.Placement, items *entities.Store, marker func(templateID string) bool) string {
-	if placement == nil || items == nil {
-		return ""
+func renderRoomEntities(r *world.Room, placement *entities.Placement, items *entities.Store, marker func(templateID string) bool, players []string) string {
+	// Other players first, then placed mobs/items.
+	names := append([]string(nil), players...)
+	ids := []entities.EntityID(nil)
+	if placement != nil && items != nil {
+		ids = placement.InRoom(r.ID)
 	}
-	ids := placement.InRoom(r.ID)
-	if len(ids) == 0 {
-		return ""
-	}
-	names := make([]string, 0, len(ids))
 	for _, id := range ids {
 		e, ok := items.GetByID(id)
 		if !ok {

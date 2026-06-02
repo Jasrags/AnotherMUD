@@ -66,7 +66,7 @@ func TeleportHandler(ctx context.Context, c *Context) error {
 
 	auditAdmin(ctx, c, "teleport", string(dst.ID), token)
 
-	return c.Actor.Write(ctx, RenderRoom(dst, c.Placement, c.Items, c.questMarker(), c.Ambience))
+	return c.Actor.Write(ctx, RenderRoom(dst, c.Placement, c.Items, c.questMarker(), c.Ambience, c.otherPlayerNames(dst.ID)...))
 }
 
 // resolveTeleportDest maps the token to a destination room: a literal room

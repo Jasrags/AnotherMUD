@@ -108,6 +108,29 @@ func TestRenderRoom_ListsPlacedMob(t *testing.T) {
 	}
 }
 
+func TestRenderRoom_ListsOtherPlayers(t *testing.T) {
+	// Players passed via the variadic param appear in "You see here:",
+	// before placed mobs/items.
+	f := newRenderFixture()
+	f.placeMob(t, &mob.Template{
+		ID: "tapestry-core:guard", Name: "a village guard", Type: "npc", Behavior: "idle",
+	})
+	out := command.RenderRoom(f.room, f.place, f.store, nil, nil, "Bob")
+	if !strings.Contains(out, "You see here: Bob, a village guard.") {
+		t.Errorf("player not listed with mob:\n%s", out)
+	}
+}
+
+func TestRenderRoom_PlayersOnlyNoPlacement(t *testing.T) {
+	// A player present in an otherwise-empty room (no placement/store)
+	// still produces the line.
+	f := newRenderFixture()
+	out := command.RenderRoom(f.room, nil, nil, nil, nil, "Bob", "Carol")
+	if !strings.Contains(out, "You see here: Bob, Carol.") {
+		t.Errorf("players-only render wrong:\n%s", out)
+	}
+}
+
 func TestRenderRoom_PreservesInsertionOrderAcrossMixedEntities(t *testing.T) {
 	// Spec: Placement order is preservation-of-arrival. The renderer
 	// must not reorder by entity kind — items and mobs render in the
