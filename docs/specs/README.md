@@ -165,7 +165,7 @@ operation. The set of cancellable events across the engine:
 | `item.consuming` | [economy-survival](economy-survival.md) §6.2 |
 | `shop.buy`, `shop.sell` | [economy-survival](economy-survival.md) §3 |
 | `recall.before` | [recall](recall.md) §3.1 |
-| `corpse.creating` *(spec; build pending)* | [loot-and-corpses](loot-and-corpses.md) §2.1 |
+| `corpse.creating` | [loot-and-corpses](loot-and-corpses.md) §2.1 |
 | `trade.committing` *(spec; build pending)* | [trade-escrow](trade-escrow.md) §3 |
 
 ### Registries and content

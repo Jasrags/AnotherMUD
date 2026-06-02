@@ -284,6 +284,40 @@ func (s *Store) SpawnMob(tpl *mob.Template) (*MobInstance, error) {
 	return inst, nil
 }
 
+// ContainerType is the entity type for synthetic container instances
+// (corpses, and any future runtime container). It matches the
+// item-template "container" type so the existing container-access
+// machinery (look-in, get-from, capacity) applies unchanged.
+const ContainerType = "container"
+
+// SpawnContainer mints a template-less container ItemInstance with a
+// runtime display name, tags, keywords, and properties, then tracks it
+// (mirroring Spawn's atomic-id + Track-locked invariant). Used for
+// runtime-created containers — e.g. corpses (loot-and-corpses §2) —
+// that derive their identity from gameplay rather than a content
+// template. The instance carries no template id, so the stacking
+// service treats each as a unique singleton
+// (inventory-equipment-items §5.1) and persistence/loot listeners that
+// key off PropTemplateID simply see none.
+func (s *Store) SpawnContainer(name string, tags, keywords []string, props map[string]any) *ItemInstance {
+	id := s.nextID()
+	inst := &ItemInstance{
+		id:       id,
+		typ:      ContainerType,
+		name:     name,
+		tags:     append([]string(nil), tags...),
+		keywords: append([]string(nil), keywords...),
+	}
+	if len(props) > 0 {
+		inst.properties = normalizeProperties(props)
+	}
+	// Track is infallible on a freshly minted atomic id (see Spawn's
+	// doc for the invariant); a failure here would mean the id
+	// generator is broken, which Spawn already surfaces loudly.
+	_ = s.Track(inst)
+	return inst
+}
+
 func (s *Store) nextID() EntityID {
 	n := s.idGen.Add(1)
 	return EntityID("entity-" + strconv.FormatUint(n, 10))

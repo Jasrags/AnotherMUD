@@ -17,6 +17,9 @@ const (
 	propWeightLimit       = "container_weight_limit"
 	propWeight            = "weight"
 	itemTypeContainer     = "container"
+	// tagNoPut marks a container that refuses `put` — it is a loot
+	// source, not storage (loot-and-corpses §2.2; corpses carry it).
+	tagNoPut = "no_put"
 )
 
 // PutHandler implements `put <item> [in[to]] <container>` (spec
@@ -66,6 +69,12 @@ func PutHandler(ctx context.Context, c *Context) error {
 	// sack matches both the inventory item arg and the container arg.
 	if container.ID() == item.ID() {
 		return c.Actor.Write(ctx, "You can't put something inside itself.")
+	}
+
+	// A no_put container (e.g. a corpse, loot-and-corpses §2.2) is a
+	// loot source, not storage — refuse the put.
+	if hasAnyTag(container, tagNoPut) {
+		return c.Actor.Write(ctx, fmt.Sprintf("You can't put anything in %s.", container.Name()))
 	}
 
 	// §4.5 step 3 — capacity check. A non-positive declared cap

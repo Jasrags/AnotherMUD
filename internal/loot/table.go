@@ -43,10 +43,20 @@ type RareBonus struct {
 	Entries []WeightedEntry
 }
 
-// Table is a content-defined loot table (mobs-ai-spawning §6.3). The
-// coin block (loot-and-corpses §3) is not modeled here yet — it lands
-// with corpse creation (M22.2), where it is rolled on death rather than
-// at spawn.
+// CoinBlock is the optional currency drop a loot table declares
+// (loot-and-corpses §3). Unlike the item pools (rolled at spawn), the
+// coin block is rolled at corpse creation — the loot subsystem provides
+// RollCoins; the corpse feature calls it on death. Min/Max bound an
+// inclusive range in the world's base currency; Max <= Min yields a
+// fixed Min. (A dice-expression form is a future refinement — kept a
+// plain range here so the loot package stays a leaf.)
+type CoinBlock struct {
+	Min int
+	Max int
+}
+
+// Table is a content-defined loot table (mobs-ai-spawning §6.3 for the
+// item pools; loot-and-corpses §3 for the coin block).
 //
 // Table is value-typed for registry storage; the registry hands callers
 // a pointer to its own deep copy. Callers MUST NOT mutate it.
@@ -59,6 +69,29 @@ type Table struct {
 	// from Weighted (step 2). Zero means the weighted pool never rolls.
 	PoolRolls int
 	RareBonus *RareBonus
+	// Coin is the optional currency drop, rolled at corpse creation via
+	// RollCoins — not at spawn (loot-and-corpses §3, §10). Nil means no
+	// coins.
+	Coin *CoinBlock
+}
+
+// RollCoins resolves a coin block into a currency amount in [Min, Max]
+// (loot-and-corpses §3). A nil block, or one whose bounds produce
+// nothing, yields 0 without touching the roller. A negative Min is
+// clamped to 0; Max <= Min yields exactly max(0, Min).
+func RollCoins(c *CoinBlock, r Roller) int {
+	if c == nil {
+		return 0
+	}
+	lo := c.Min
+	if lo < 0 {
+		lo = 0
+	}
+	hi := c.Max
+	if hi <= lo {
+		return lo
+	}
+	return lo + r.IntN(hi-lo+1)
 }
 
 // RollItems resolves a table into the list of item-template ids to

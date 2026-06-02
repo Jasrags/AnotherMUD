@@ -17,3 +17,8 @@ rare_bonus:
   chance: 20
   entries:
     - { item: short-sword, weight: 1 }
+# Coin drop (loot-and-corpses §3) — rolled at corpse creation, not at
+# spawn. A few coins in the guard's purse.
+coin:
+  min: 2
+  max: 8

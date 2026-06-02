@@ -39,6 +39,9 @@ rare_bonus:
   chance: 20
   entries:
     - { item: short-sword, weight: 1 }
+coin:
+  min: 2
+  max: 8
 `, `
 id: village-guard
 name: a village guard
@@ -68,6 +71,9 @@ loot_table: guard-loot
 	}
 	if tbl.RareBonus == nil || tbl.RareBonus.Chance != 20 || tbl.RareBonus.Entries[0].ItemID != "tapestry-core:short-sword" {
 		t.Errorf("rare bonus = %+v", tbl.RareBonus)
+	}
+	if tbl.Coin == nil || tbl.Coin.Min != 2 || tbl.Coin.Max != 8 {
+		t.Errorf("coin = %+v", tbl.Coin)
 	}
 
 	// The mob carries the qualified loot-table reference.

@@ -473,6 +473,15 @@ type LootTableFile struct {
 	Weighted   []LootWeighted   `yaml:"weighted,omitempty"`
 	PoolRolls  int              `yaml:"pool_rolls,omitempty"`
 	RareBonus  *LootRareBonus   `yaml:"rare_bonus,omitempty"`
+	// Coin is the optional currency drop, rolled at corpse creation
+	// (loot-and-corpses §3). e.g. `coin: { min: 1, max: 10 }`.
+	Coin *LootCoin `yaml:"coin,omitempty"`
+}
+
+// LootCoin is the optional coin block: an inclusive currency range.
+type LootCoin struct {
+	Min int `yaml:"min"`
+	Max int `yaml:"max"`
 }
 
 // LootGuaranteed is one always-drops entry: an item id dropped Count times.

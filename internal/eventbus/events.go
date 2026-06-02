@@ -77,6 +77,17 @@ const (
 	// spawn manager's untrack subscriber here so area respawn fires
 	// on combat deaths.
 	EventMobKilled = "mob.killed"
+	// Cancellable pre-event fired before a corpse is created on mob
+	// death (loot-and-corpses §2.1). A listener that cancels suppresses
+	// the corpse entirely — no contents move, no coins deposit — and
+	// takes responsibility for the loot it suppressed (e.g. a scripted
+	// boss granting bespoke rewards). Mob removal remains the death-
+	// cleanup path's job.
+	EventCorpseCreating = "corpse.creating"
+	// Post-fact notification fired after a corpse was created on mob
+	// death (loot-and-corpses §2.1). Carries the corpse entity id, the
+	// source mob, the killer, and the item count + coin amount.
+	EventCorpseCreated = "corpse.created"
 	// Post-fact notification fired after the player-death subscriber
 	// has restored a dead player to a playable state (spec combat
 	// §6.4: "Player death recovery ... is owned by another feature
@@ -483,6 +494,56 @@ type MobLootGenerated struct {
 
 // Name implements Event.
 func (MobLootGenerated) Name() string { return EventMobLootGenerated }
+
+// CorpseCreating is the cancellable pre-event published before a corpse
+// is created on mob death (loot-and-corpses §2.1). Cancelling it
+// suppresses the corpse: no contents move, no coins deposit. Coins is
+// the already-rolled amount (rolled before the veto so the payload and
+// the empty-body short-circuit both have it).
+type CorpseCreating struct {
+	*CancelFlag
+	MobID      entities.EntityID
+	MobName    string
+	TemplateID string
+	KillerID   string
+	RoomID     world.RoomID
+	ItemCount  int
+	Coins      int
+}
+
+// NewCorpseCreating builds a cancellable CorpseCreating event.
+func NewCorpseCreating(mobID entities.EntityID, mobName, templateID, killerID string, roomID world.RoomID, itemCount, coins int) *CorpseCreating {
+	return &CorpseCreating{
+		CancelFlag: &CancelFlag{},
+		MobID:      mobID,
+		MobName:    mobName,
+		TemplateID: templateID,
+		KillerID:   killerID,
+		RoomID:     roomID,
+		ItemCount:  itemCount,
+		Coins:      coins,
+	}
+}
+
+// Name implements Event.
+func (*CorpseCreating) Name() string { return EventCorpseCreating }
+
+// CorpseCreated is published after a corpse has been created on mob
+// death (loot-and-corpses §2.1). CorpseID is the new container entity;
+// ItemCount + Coins describe what it holds at creation.
+type CorpseCreated struct {
+	CorpseID   entities.EntityID
+	RoomID     world.RoomID
+	MobID      entities.EntityID
+	MobName    string
+	TemplateID string
+	KillerID   string
+	ItemCount  int
+	Coins      int
+}
+
+// Name implements Event.
+func (CorpseCreated) Name() string { return EventCorpseCreated }
 
 // PlayerMoved fires after a player's room has changed (spec
 // mobs-ai-spawning §5.2). Sources today: movement command, login

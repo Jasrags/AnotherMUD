@@ -28,6 +28,7 @@ import (
 	"github.com/Jasrags/AnotherMUD/internal/combat"
 	"github.com/Jasrags/AnotherMUD/internal/command"
 	"github.com/Jasrags/AnotherMUD/internal/conn/telnet"
+	"github.com/Jasrags/AnotherMUD/internal/corpse"
 	"github.com/Jasrags/AnotherMUD/internal/economy"
 	"github.com/Jasrags/AnotherMUD/internal/emote"
 	"github.com/Jasrags/AnotherMUD/internal/entities"
@@ -925,6 +926,26 @@ func run() error {
 		target := combat.NewPlayerCombatantID(e.PlayerID)
 		combatMgr.Engage(ctx, attacker, target, e.RoomID)
 	})
+
+	// M22.2: mob.killed → corpse creation (loot-and-corpses §2). Wired
+	// BEFORE the untrack subscriber below so the corpse is minted while
+	// the mob is still tracked (spec §2.1 ordering). It reads the mob's
+	// spawn-time loot from the shared Contents index (which survives the
+	// later Untrack regardless) and the room from the event. A dedicated
+	// RNG drives the coin roll, kept separate from the spawn RNG so the
+	// two can never race even if their tick handlers run concurrently.
+	corpseRNG := rand.New(rand.NewPCG(uint64(time.Now().UnixNano()), 3))
+	corpseSvc := corpse.New(corpse.Config{
+		Store:     entityStore,
+		Contents:  contents,
+		Placement: placement,
+		Bus:       bus,
+		Mobs:      registries.Mobs,
+		Loot:      registries.Loot,
+		Roller:    corpseRNG,
+		Now:       loop.TickCount,
+	})
+	bus.Subscribe(eventbus.EventMobKilled, corpseSvc.OnMobKilled)
 
 	// M7.5: mob.killed → entity untrack closes M6.6's deferred death-
 	// driven purge. The spawn tracker's Purge predicate calls

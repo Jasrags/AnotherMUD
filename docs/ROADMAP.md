@@ -27,9 +27,9 @@ and `THEME-AXIS-PLAN.md` are superseded by `BACKLOG.md` and now live under
   support all work. Since then: **M19** (Roles & Administration),
   **M20** (Item Decorations — rarity & essence), and **M21** (Item
   Stacking) have all shipped.
-- **Active:** **M22 — Loot and Corpses**. Stage M22.1 (loot table +
-  generation at spawn) shipped; M22.2–M22.5 (corpse creation, looting
-  rights/verbs, autoloot, decay) pending.
+- **Active:** **M22 — Loot and Corpses**. M22.1 (loot table + generation
+  at spawn) and M22.2 (corpse creation on death + coins) shipped;
+  M22.3–M22.5 (looting rights/verbs, autoloot, decay) pending.
 - **Earlier active milestone, for reference:** **M19 — Roles & Administration** (the keystone). M19.1
   (role-set substrate + `HasRole` + persistence + config seed), M19.2
   (grant/revoke verbs + events), M19.3 (the admin dispatch gate + help
@@ -3019,7 +3019,7 @@ rights seam) and the autoloot rarity-floor filter (item-decorations).
       template, count). The coin block (`loot-and-corpses §3`) — both the
       `Table` field and its decode — lands with M22.2, where it is rolled at
       corpse creation (no declared-but-unused field in M22.1).
-- [ ] **M22.2 — Corpse creation on death + coins.** `loot-and-corpses §2–§3`.
+- [x] **M22.2 — Corpse creation on death + coins.** `loot-and-corpses §2–§3`.
       On `mob.killed`, publish a cancellable `corpse.creating`; unless
       cancelled, mint a corpse container entity in the room, **move** the
       mob's contents into it (instance identity preserved), roll the loot

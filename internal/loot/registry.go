@@ -103,5 +103,9 @@ func cloneTable(t *Table, id string) *Table {
 		}
 		clone.RareBonus = &rb
 	}
+	if t.Coin != nil {
+		coin := *t.Coin
+		clone.Coin = &coin
+	}
 	return &clone
 }

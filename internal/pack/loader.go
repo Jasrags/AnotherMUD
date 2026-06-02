@@ -910,6 +910,9 @@ func decodeLootTable(path, ns string) (*loot.Table, error) {
 		}
 		t.RareBonus = rb
 	}
+	if f.Coin != nil {
+		t.Coin = &loot.CoinBlock{Min: f.Coin.Min, Max: f.Coin.Max}
+	}
 	return t, nil
 }
 

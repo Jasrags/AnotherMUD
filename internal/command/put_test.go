@@ -170,6 +170,29 @@ func TestPut_RoomPlacedContainer(t *testing.T) {
 	}
 }
 
+// A no_put container (e.g. a corpse, loot-and-corpses §2.2) refuses
+// `put`: the item stays in inventory and nothing enters the container.
+func TestPut_RefusesNoPutContainer(t *testing.T) {
+	f := newPutFixture(t)
+	a := newNamedTestActor("Alice", "p-alice", f.room)
+	gem := f.spawnInActorInventory(t, a, sword())
+	corpseTpl := sackTpl()
+	corpseTpl.ID = "tapestry-core:a-corpse"
+	corpseTpl.Name = "the corpse of a goblin"
+	corpseTpl.Keywords = []string{"corpse", "goblin"}
+	corpseTpl.Tags = []string{"corpse", "no_put"}
+	corpse := f.spawnInRoom(t, corpseTpl)
+
+	dispatchPut(t, f, a, "put sword corpse")
+
+	if got := f.contents.In(corpse.ID()); len(got) != 0 {
+		t.Errorf("no_put container received items: %v", got)
+	}
+	if inv := a.Inventory(); len(inv) != 1 || inv[0] != gem.ID() {
+		t.Errorf("item should stay in inventory, got %v", inv)
+	}
+}
+
 func TestPut_NotAContainer(t *testing.T) {
 	f := newPutFixture(t)
 	a := newNamedTestActor("Alice", "p-alice", f.room)
