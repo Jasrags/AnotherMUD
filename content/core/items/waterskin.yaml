@@ -4,5 +4,21 @@ type: vessel
 tags: [container, leather]
 keywords: [waterskin, skin]
 properties:
-  max_charges: 5
   weight: 1
+  # Refillable drink vessel (inventory-equipment-items §4.6 + economy-
+  # survival §6). `fill waterskin from well` sets charges = max_charges
+  # and fill_type = water; `drink waterskin` then spends one charge per
+  # sip, restoring sustenance.
+  max_charges: 5
+  # Starts EMPTY (charges present-but-zero, not absent): the charge gate
+  # only fires when the `charges` key exists, so an unfilled skin reports
+  # "A waterskin is empty." instead of being treated as single-use and
+  # destroyed on the first drink. Fill it at the well first.
+  charges: 0
+  consume_method: drink
+  # Sustenance restored per sip (a full skin = 5 sips). Modest vs the
+  # trail ration's 40 — tune here if water should hydrate more/less.
+  sustenance_value: 10
+  # A waterskin survives reaching empty so it can be refilled; without
+  # this the consume pipeline destroys it at 0 charges (default true).
+  destroy_on_empty: false
