@@ -82,6 +82,17 @@ old five-theme partition left uncovered.
   *rules* (what hides an entity, sneak mechanics, see-invisible) are greenfield. The seam
   is captured wherever it's consumed (`admin-verbs §3`, `commands-and-dispatch §5`); the
   rules need a design conversation. Park the rules; the seam is already usable.
+- **Hidden / secret doors** — exits concealed until discovered (e.g. via a `search`
+  verb). ⚠️ **Greenfield — not covered by what exists.** Doors (`world.Exit.Door`,
+  M15.1) and temporary keyword portals (`world-rooms-movement §5.6`, M15.2) both exist,
+  but neither is hidden/discoverable — portals are *dynamic runtime exits*, not
+  *concealed permanent ones*. The relevant seam is the `visibility` filter
+  (`world-rooms-movement §visibility`), a permissive stub already designed to consult a
+  `hidden` tag — but it filters *entities*, not exits. Overlaps **Visibility / hidden /
+  sneak** above (shared discovery/reveal mechanics). Pre-decisions: hidden flag on the
+  exit/door vs. a hidden-exit tag; the `search` mechanic (auto-on-enter vs. explicit
+  verb; skill/level gate; per-character vs. per-room discovery state and whether "found"
+  persists); reveal messaging.
 - **Gathering / resource nodes** — the non-vendor ingredient source crafting wants
   (`crafting-and-cooking §8`). Overlaps **Biomes** below (forage/harvest). Greenfield;
   until it lands, crafting sources ingredients from mob loot + authored placement.
@@ -131,6 +142,18 @@ old five-theme partition left uncovered.
   party members); **assist / auto-engage** (a party member's attack pulls the
   rest); party chat (overlaps `chat-channels-and-tells`); shared **quest credit**
   (overlaps `quests`). Needs a design conversation before a spec.
+- **Hireable mobs (mercenaries, hirelings)** — NPCs a player hires to follow, fight,
+  or guide. ⚠️ **Greenfield — nothing in code or specs.** Mobs have behavior +
+  disposition + AI only; there is no owner/controller relationship and no `follow`
+  verb. Effectively a single-player analog of **Player grouping / party** above and
+  reuses its substrate: a hireling follows its owner, assists in combat, and plugs into
+  the same kill-credit + **loot-and-corpses §4 owner-set** seam; it also touches
+  `mobs-ai-spawning` (a `MobInstance` with an owner + a follow/guard behavior) and
+  `economy-survival` (hire cost + upkeep as a gold sink). Pre-decisions: ownership +
+  lifetime (permanent vs. timed contract vs. dismissable); command surface
+  (`hire`/`dismiss`/`order`/`follow`); combat assist + XP/loot split (reuse grouping's
+  rules); cap on simultaneous hirelings; persistence (does a hireling survive logout?).
+  Best decided alongside or just after grouping.
 - **Cross-cutting event catalog** — per-spec event tables exist in `specs/README.md`;
   no aggregated catalog. (Docs/meta, not engine — not a behavior spec.)
 
@@ -181,7 +204,7 @@ need a design pass first.
 
 | Theme | Pulls in | Why design-first |
 |---|---|---|
-| **Gameplay Systems** | faction, visibility/sneak, biomes, gathering | no port reference; each needs pre-decisions before a spec |
+| **Gameplay Systems** | faction, visibility/sneak, hidden doors, biomes, gathering, hireable mobs | no port reference; each needs pre-decisions before a spec |
 | **Player Economy depth** | mail (push delivery / attachment escrow), banking + a gold-at-risk rule | extends the now-specced trade; banking wants gold-at-risk to matter |
 
 **Background:** **Ops** (§4) — container/metrics/traces/dashboards/repo-hygiene; never a foreground theme.
