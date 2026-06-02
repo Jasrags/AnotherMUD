@@ -972,6 +972,16 @@ func run() error {
 	// reuses command.TransferCorpse without the §4 gate. Scoped to the
 	// killer's own kills, loots everything (items + coins) — narrower
 	// scopes are future refinements (§10).
+	//
+	// Goroutine safety: this runs on the tick goroutine (the mob.killed →
+	// corpse.created chain dispatches synchronously from the combat
+	// heartbeat). TransferCorpse mutates the killer's inventory
+	// (AddToInventory) and gold (Currency.AddGold) — both fully a.mu-
+	// guarded on connActor, the same discipline the effect-tick already
+	// uses to mutate live actors (AddModifiers/RemoveBySource). The
+	// contents/placement/coin claims are independent single-winner ops
+	// with no nested lock-order inversion, so a concurrent player
+	// loot/get/drop on the session goroutine is serialized, not raced.
 	bus.Subscribe(eventbus.EventCorpseCreated, func(ctx context.Context, ev eventbus.Event) {
 		e, ok := ev.(eventbus.CorpseCreated)
 		if !ok || e.KillerID == "" {
@@ -1006,7 +1016,8 @@ func run() error {
 		if len(taken) == 0 && coins == 0 {
 			return
 		}
-		_ = actor.Write(ctx, fmt.Sprintf("You quickly loot %s.", target.Name()))
+		_ = actor.Write(ctx, fmt.Sprintf("You quickly loot %s from %s.",
+			autolootSummary(taken, coins), target.Name()))
 		mgr.SendToRoom(ctx, e.RoomID,
 			fmt.Sprintf("%s quickly loots %s.", actor.Name(), target.Name()),
 			actor.PlayerID())
@@ -1803,6 +1814,32 @@ func parseRoleSeed(s string) map[string][]string {
 		return nil
 	}
 	return out
+}
+
+// autolootSummary describes what an autoloot transferred — item names
+// plus coins — as "a, b and 5 gold", so the killer sees their haul
+// rather than a bare "you loot the corpse" (M22.4). Item names are
+// undecorated here (autoloot is a convenience path off the tick
+// goroutine, with no per-actor render Context); the manual loot verb
+// keeps decoration.
+func autolootSummary(items []*entities.ItemInstance, coins int) string {
+	parts := make([]string, 0, len(items)+1)
+	for _, it := range items {
+		parts = append(parts, it.Name())
+	}
+	if coins > 0 {
+		parts = append(parts, fmt.Sprintf("%d gold", coins))
+	}
+	switch len(parts) {
+	case 0:
+		return "nothing"
+	case 1:
+		return parts[0]
+	case 2:
+		return parts[0] + " and " + parts[1]
+	default:
+		return strings.Join(parts[:len(parts)-1], ", ") + " and " + parts[len(parts)-1]
+	}
 }
 
 // bootSpawner adapts the runtime entity store + placement index to

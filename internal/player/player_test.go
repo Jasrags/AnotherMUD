@@ -710,6 +710,31 @@ func TestSave_RoundTripsAutoloot(t *testing.T) {
 	}
 }
 
+func TestSave_AutolootDefaultsOffWhenAbsent(t *testing.T) {
+	ctx := context.Background()
+	st, _ := newStore(t)
+
+	// A save written with autoloot off omits the field (omitempty),
+	// mirroring an older save that predates it — it must load as off.
+	want := &player.Save{
+		Version:   player.CurrentVersion,
+		ID:        "p-1",
+		AccountID: "acct-1",
+		Name:      "Plain",
+		Location:  "tapestry-core:town-square",
+	}
+	if err := st.Save(ctx, want); err != nil {
+		t.Fatalf("Save: %v", err)
+	}
+	got, err := st.Load(ctx, "Plain")
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if got.Autoloot {
+		t.Errorf("Autoloot = %v, want false when absent", got.Autoloot)
+	}
+}
+
 func TestSave_RejectsUnsafeName(t *testing.T) {
 	ctx := context.Background()
 	st, _ := newStore(t)
