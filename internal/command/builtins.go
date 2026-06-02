@@ -132,6 +132,13 @@ func RegisterBuiltins(r *Registry) error {
 		// administrative announcement. Emits the admin.action audit fact
 		// (§6) via the shared auditAdmin choke point.
 		{Keyword: "announce", Handler: AnnounceHandler, Admin: true, Brief: "Broadcast a server-wide announcement.", Syntax: []string{"announce <message>"}},
+
+		// inspect (M19.4b — admin-verbs §5): read-only diagnostic dump of a
+		// target's identity/vitals/stats (+ roles/levels/equipment/tags/
+		// properties where the kind carries them). No argument inspects
+		// self; otherwise resolves a player or mob in the room (§3). Audited
+		// via auditAdmin.
+		{Keyword: "inspect", Handler: InspectHandler, Admin: true, Brief: "Inspect a target's full diagnostic record.", Syntax: []string{"inspect [<target>]"}},
 	}
 	for _, c := range commands {
 		if err := r.RegisterCommand(c); err != nil {

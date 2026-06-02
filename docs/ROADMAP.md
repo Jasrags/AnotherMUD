@@ -28,10 +28,10 @@ and `THEME-AXIS-PLAN.md` are superseded by `BACKLOG.md` and now live under
 - **Active:** **M19 — Roles & Administration** (the keystone). M19.1
   (role-set substrate + `HasRole` + persistence + config seed), M19.2
   (grant/revoke verbs + events), M19.3 (the admin dispatch gate + help
-  hiding), and M19.4a (`admin.action` audit primitive + `announce`) shipped;
-  M19.4b+ (the remaining baseline verbs — inspect / set / teleport / restore
-  / purge — plus the idle-sweep exemption + help-visibility through
-  `HasRole`) pending.
+  hiding), M19.4a (`admin.action` audit primitive + `announce`), and M19.4b
+  (admin target resolution + `inspect`) shipped; M19.4c+ (the remaining
+  mutating verbs — set / teleport / restore / purge — plus the idle-sweep
+  exemption + help-visibility through `HasRole`) pending.
   **M18 — Command & UI polish** is paused mid-flight (M18.1 `prompt` verb
   shipped; M18.2–M18.5 pending).
 - **Specs ahead of code.** A large batch of behavior contracts landed this
@@ -2749,10 +2749,23 @@ house's admin moderation (`auction-house.md` §11).
       gate refuses non-admins with the indistinguishable "Huh?". 4 command
       tests (broadcast+audit / usage / disabled / non-admin refusal). Full
       suite -race clean. admin-verbs §5/§6.
-- [ ] **M19.4b+ — Remaining baseline admin verbs** (inspect / set / teleport
-      / restore / purge) + administrative target resolution (§3
-      bypass-visibility, kinds player/npc/item) + the §5 idle-sweep
-      exemption + help-visibility wiring through `HasRole`. admin-verbs §3–§5.
+- [x] **M19.4b — Administrative target resolution + `inspect`.** The
+      read-only diagnostic verb (admin-verbs §5) and the §3 resolution it
+      proves out. `inspect [<target>]`: no arg → self; otherwise resolves a
+      player or mob in the room via the shared §5 entity path
+      (`findCombatantInRoom`). Renders a multi-line dump via capability
+      type-asserts — identity/vitals/stats always, plus roles/levels/
+      equipment (player) and tags/properties (mob), degrading by kind. §3
+      visibility bypass is a documented no-op today (hide/sneak rules are
+      still greenfield — BACKLOG; the bypass attaches here when they land).
+      Audited via the M19.4a `auditAdmin` choke point. 4 command tests
+      (self+audit / non-admin refusal / room-mob dump+audit / not-found).
+      Full -race suite green. admin-verbs §3/§5.
+- [ ] **M19.4c+ — Remaining baseline admin verbs** (set / teleport /
+      restore / purge) — the `set` mutation surface (§4 settable-field
+      catalogue) + world-scoped resolution (§3 teleport-to-player) — plus
+      the §5 idle-sweep exemption + help-visibility wiring through
+      `HasRole`. admin-verbs §3–§5.
 
 **Touches specs:** `roles-and-permissions`, `admin-verbs`,
 `session-lifecycle §5`, `ui-rendering-help §9.5`, `commands-and-dispatch`.
