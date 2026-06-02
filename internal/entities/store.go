@@ -299,7 +299,7 @@ const ContainerType = "container"
 // service treats each as a unique singleton
 // (inventory-equipment-items §5.1) and persistence/loot listeners that
 // key off PropTemplateID simply see none.
-func (s *Store) SpawnContainer(name string, tags, keywords []string, props map[string]any) *ItemInstance {
+func (s *Store) SpawnContainer(name string, tags, keywords []string, props map[string]any) (*ItemInstance, error) {
 	id := s.nextID()
 	inst := &ItemInstance{
 		id:       id,
@@ -311,11 +311,13 @@ func (s *Store) SpawnContainer(name string, tags, keywords []string, props map[s
 	if len(props) > 0 {
 		inst.properties = normalizeProperties(props)
 	}
-	// Track is infallible on a freshly minted atomic id (see Spawn's
-	// doc for the invariant); a failure here would mean the id
-	// generator is broken, which Spawn already surfaces loudly.
-	_ = s.Track(inst)
-	return inst
+	// Track failure on a freshly minted atomic id means the id
+	// generator is broken; surface it like Spawn rather than return an
+	// untracked entity the caller would place in the world unseen.
+	if err := s.Track(inst); err != nil {
+		return nil, fmt.Errorf("spawn container: tracking new instance: %w", err)
+	}
+	return inst, nil
 }
 
 func (s *Store) nextID() EntityID {

@@ -507,8 +507,13 @@ type CorpseCreating struct {
 	TemplateID string
 	KillerID   string
 	RoomID     world.RoomID
-	ItemCount  int
-	Coins      int
+	// ItemCount is the mob's content count at event time, BEFORE the
+	// transfer runs — a listener sees what is about to move, which may
+	// differ from the corpse's final count if another holder mutates
+	// the mob's contents first. CorpseCreated.ItemCount is the
+	// authoritative post-transfer count.
+	ItemCount int
+	Coins     int
 }
 
 // NewCorpseCreating builds a cancellable CorpseCreating event.

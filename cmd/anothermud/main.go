@@ -931,9 +931,16 @@ func run() error {
 	// BEFORE the untrack subscriber below so the corpse is minted while
 	// the mob is still tracked (spec §2.1 ordering). It reads the mob's
 	// spawn-time loot from the shared Contents index (which survives the
-	// later Untrack regardless) and the room from the event. A dedicated
-	// RNG drives the coin roll, kept separate from the spawn RNG so the
-	// two can never race even if their tick handlers run concurrently.
+	// later Untrack regardless) and the room from the event.
+	//
+	// corpseRNG is its own *rand.Rand. All mob deaths flow through the
+	// combat heartbeat (auto-attack or ability phase), which is the
+	// combat-tick handler; the tick loop runs handlers sequentially on a
+	// single goroutine and the bus dispatches synchronously, so the coin
+	// roll is tick-goroutine-confined — same safety basis as combatRNG /
+	// weatherRNG. (If a death is ever signalled off a non-tick goroutine,
+	// this RNG and lootRNG would each need a lock — tracked in
+	// m22-deferred-fixes.)
 	corpseRNG := rand.New(rand.NewPCG(uint64(time.Now().UnixNano()), 3))
 	corpseSvc := corpse.New(corpse.Config{
 		Store:     entityStore,

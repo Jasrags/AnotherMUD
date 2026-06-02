@@ -168,12 +168,21 @@ func (s *Service) CreateOnDeath(ctx context.Context, e eventbus.MobKilled) {
 		PropCoins:       coins,
 		PropOwners:      owners,
 	}
-	corpseInst := s.store.SpawnContainer(
+	corpseInst, err := s.store.SpawnContainer(
 		fmt.Sprintf(s.nameTemplate, e.MobName),
 		[]string{TagCorpse, TagNoGet, TagNoPut},
 		corpseKeywords(e.MobName),
 		props,
 	)
+	if err != nil {
+		// Can't happen on a fresh atomic id; if it ever does, abort
+		// cleanly — the mob's contents stay put (the death-cleanup path
+		// removes the mob) rather than orphaning into a half-made corpse.
+		logging.From(ctx).Error("corpse creation: spawn container failed",
+			slog.String("mob_id", string(e.MobID)),
+			slog.Any("err", err))
+		return
+	}
 
 	// §2.1 step 3: move the mob's contents into the corpse — each item
 	// leaves the mob and is re-filed in the corpse, identity preserved.
@@ -212,7 +221,7 @@ func (s *Service) rollCoins(templateID string) int {
 		return 0
 	}
 	tpl, err := s.mobs.Get(mob.TemplateID(templateID))
-	if err != nil || tpl.LootTable == "" {
+	if err != nil || tpl == nil || tpl.LootTable == "" {
 		return 0
 	}
 	tbl, ok := s.loot.Get(tpl.LootTable)

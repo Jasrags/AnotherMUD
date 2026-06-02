@@ -291,3 +291,36 @@ func TestStore_RetagReturnsErrNotTracked(t *testing.T) {
 		t.Errorf("Retag on unknown id: err = %v, want ErrNotTracked", err)
 	}
 }
+
+func TestSpawnContainer_TracksWithRuntimeIdentity(t *testing.T) {
+	s := NewStore()
+	c, err := s.SpawnContainer("the corpse of a goblin",
+		[]string{"corpse", "no_get"},
+		[]string{"corpse", "goblin"},
+		map[string]any{"corpse_coins": 7})
+	if err != nil {
+		t.Fatalf("SpawnContainer: %v", err)
+	}
+	if c.Type() != ContainerType {
+		t.Errorf("type = %q, want %q", c.Type(), ContainerType)
+	}
+	if c.Name() != "the corpse of a goblin" {
+		t.Errorf("name = %q", c.Name())
+	}
+	// Tracked + resolvable by id.
+	if got, ok := s.GetByID(c.ID()); !ok || got.ID() != c.ID() {
+		t.Errorf("container not tracked under its id")
+	}
+	// No template id (singleton for stacking); property carried through.
+	if c.TemplateID() != "" {
+		t.Errorf("template id = %q, want empty", c.TemplateID())
+	}
+	if v, _ := c.Property("corpse_coins"); v != 7 {
+		t.Errorf("coins property = %v, want 7", v)
+	}
+	// Two spawns get distinct ids.
+	c2, _ := s.SpawnContainer("x", nil, nil, nil)
+	if c2.ID() == c.ID() {
+		t.Errorf("duplicate id %q", c.ID())
+	}
+}
