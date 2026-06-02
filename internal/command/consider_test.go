@@ -80,13 +80,26 @@ func newConsiderFixture(t *testing.T) *considerFixture {
 	return &considerFixture{invFixture: inv, guard: guard}
 }
 
-func TestConsider_NoArgPrompts(t *testing.T) {
+func TestConsider_NoArgConsidersSelf(t *testing.T) {
+	// Bare `consider` sizes yourself up — same render as `consider me`.
 	f := newConsiderFixture(t)
 	a := newCombatActor("Alice", "p-1", f.room)
 	r := newRegistry(t)
-	dispatch(t, r, f.env(), a.testActor, "consider")
-	if got := a.lastLine(); !strings.Contains(got, "Consider whom") {
-		t.Errorf("no-arg consider = %q, want prompt", got)
+	dispatchActor(t, r, f.env(), a, "consider")
+	if got := a.lastLine(); !strings.Contains(got, "yourself") {
+		t.Errorf("no-arg consider = %q, want self status", got)
+	}
+}
+
+func TestConsider_NoArgNonCombatant(t *testing.T) {
+	// An actor without combat state can't be sized up — clear message,
+	// not a room search for a stranger.
+	f := newConsiderFixture(t)
+	a := newNamedTestActor("Plain", "p-1", f.room)
+	r := newRegistry(t)
+	dispatchActor(t, r, f.env(), a, "consider")
+	if got := a.lastLine(); !strings.Contains(got, "can't size yourself up") {
+		t.Errorf("no-arg consider (non-combatant) = %q", got)
 	}
 }
 

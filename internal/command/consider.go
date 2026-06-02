@@ -33,12 +33,10 @@ import (
 // qualitative descriptor, and the target's AC. On a miss, a single
 // "you don't see them here" line.
 func ConsiderHandler(ctx context.Context, c *Context) error {
-	if len(c.Args) == 0 {
-		return c.Actor.Write(ctx, "Consider whom?")
-	}
+	// No target → size yourself up (a quick self status check) — the same
+	// render the `me` / `self` / own-name self-reference produces.
 	target := strings.Join(c.Args, " ")
-
-	if isSelfReference(c.Actor.Name(), target) {
+	if target == "" || isSelfReference(c.Actor.Name(), target) {
 		if cb, ok := c.Actor.(combat.Combatant); ok {
 			return c.Actor.Write(ctx, renderConsider("yourself", cb))
 		}
