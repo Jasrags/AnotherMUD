@@ -27,10 +27,10 @@ and `THEME-AXIS-PLAN.md` are superseded by `BACKLOG.md` and now live under
   support all work. Since then: **M19** (Roles & Administration),
   **M20** (Item Decorations — rarity & essence), and **M21** (Item
   Stacking) have all shipped.
-- **Active:** **M22 — Loot and Corpses**. M22.1 (loot table + generation
-  at spawn), M22.2 (corpse creation + coins), M22.3a (looting rights + the
-  `loot` verb), and M22.5 (corpse decay) shipped; M22.3b (`get … from
-  corpse` + look-in) and M22.4 (autoloot) pending.
+- **Active:** **M22 — Loot and Corpses**. M22.1 (spawn loot), M22.2 (corpse
+  creation + coins), M22.3a (rights + `loot`), M22.4 (autoloot), and M22.5
+  (decay) shipped; only M22.3b (`get … from corpse` + look-in) pending —
+  it needs general container verbs the engine still lacks.
 - **Earlier active milestone, for reference:** **M19 — Roles & Administration** (the keystone). M19.1
   (role-set substrate + `HasRole` + persistence + config seed), M19.2
   (grant/revoke verbs + events), M19.3 (the admin dispatch gate + help
@@ -3047,10 +3047,15 @@ rights seam) and the autoloot rarity-floor filter (item-decorations).
       reserved coin keyword (`get coins from corpse`) crediting currency.
       Split out of M22.3 because it requires building general
       container-access verbs that don't exist yet.
-- [ ] **M22.4 — Autoloot.** `loot-and-corpses §6`. Per-character autoloot
-      preference (off by default) on the player save + `autoloot [on|off]`
-      verb; on corpse creation for a present killer with autoloot on, run
-      `loot` on their behalf (capacity honored).
+- [x] **M22.4 — Autoloot.** `loot-and-corpses §6`. Per-character autoloot
+      preference (`player.Save.Autoloot`, off by default, no schema bump —
+      omitempty bool like wimpy) + `autoloot [on|off]` verb (reports/toggles
+      via a lock-free `connActor.autoloot` atomic). A `corpse.created`
+      subscriber auto-loots when the killer is an online player with
+      autoloot on present in the corpse's room, reusing the shared
+      `command.TransferCorpse` primitive (rights trivially satisfied — own
+      kill). Scoped to the killer's own kills, loots everything (§10 leaves
+      coins-only / rarity-floor scopes as future refinements).
 - [x] **M22.5 — Corpse decay.** `loot-and-corpses §7`. The `corpse-decay`
       tick sweep (`Service.DecaySweep`, reserved in `time-and-clock §3`):
       each corpse past its creation-tick + lifetime is removed with all

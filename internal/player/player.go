@@ -184,6 +184,13 @@ type Save struct {
 	// as disabled.
 	WimpyThreshold int `yaml:"wimpy,omitempty"`
 
+	// Autoloot is the per-character autoloot preference (loot-and-corpses
+	// §6; off by default). Added without a schema bump on the same logic
+	// as WimpyThreshold: the false zero-value is indistinguishable from
+	// "field absent" (omitempty), so older saves load with autoloot off
+	// and round-trip unchanged.
+	Autoloot bool `yaml:"autoloot,omitempty"`
+
 	// PromptTemplate is the player's custom prompt format
 	// (ui-rendering-help §7.1). Empty means "use the engine default".
 	// Added in M10.3b without a schema bump: an absent field decodes to

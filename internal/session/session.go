@@ -611,6 +611,8 @@ func run(ctx context.Context, c conn.Connection, cfg Config) error {
 	// "Store the initial value before any reader can race the
 	// goroutine that owns the actor" pattern.
 	a.wimpyThreshold.Store(int32(clampWimpy(loaded.Player.WimpyThreshold)))
+	// M22.4: seed the autoloot preference from the persisted save.
+	a.autoloot.Store(loaded.Player.Autoloot)
 
 	// M15.3: hydrate the recall room id from the persisted save.
 	// Empty = no recall point bound (the documented default for
@@ -1622,6 +1624,13 @@ type connActor struct {
 	// write path still acquires a.mu because it also mutates a.save
 	// — but the field-level read stays lock-free.
 	wimpyThreshold atomic.Int32
+
+	// autoloot is the loot-and-corpses §6 per-character preference (off
+	// by default). Read by the autoloot corpse.created subscriber on the
+	// tick goroutine; stored as atomic.Bool so that read stays lock-free
+	// (same rationale as wimpyThreshold). The write path takes a.mu to
+	// also mutate a.save. Persistence: player.Save.Autoloot.
+	autoloot atomic.Bool
 
 	mu           sync.Mutex
 	room         *world.Room
@@ -3064,6 +3073,27 @@ func (a *connActor) SetWimpyThreshold(pct int) {
 	a.wimpyThreshold.Store(int32(pct))
 	if a.save != nil {
 		a.save.WimpyThreshold = pct
+		a.markDirtyLocked()
+	}
+}
+
+// Autoloot reports the actor's autoloot preference (loot-and-corpses
+// §6). Lock-free read off the atomic; safe from the tick goroutine.
+func (a *connActor) Autoloot() bool {
+	return a.autoloot.Load()
+}
+
+// SetAutoloot updates the autoloot preference and marks the save dirty
+// so it persists on the next autosave. No-op when unchanged.
+func (a *connActor) SetAutoloot(on bool) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	if a.autoloot.Load() == on {
+		return
+	}
+	a.autoloot.Store(on)
+	if a.save != nil {
+		a.save.Autoloot = on
 		a.markDirtyLocked()
 	}
 }

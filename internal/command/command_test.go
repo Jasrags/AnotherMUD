@@ -283,6 +283,21 @@ type testActor struct {
 	restTarget     string
 	sleepStartTick uint64
 	sust           int
+	autoloot       bool
+}
+
+// Autoloot / SetAutoloot make testActor satisfy the inline preference
+// interface AutolootHandler asserts (loot-and-corpses §6).
+func (a *testActor) Autoloot() bool {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	return a.autoloot
+}
+
+func (a *testActor) SetAutoloot(on bool) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	a.autoloot = on
 }
 
 // Sustenance / SetSustenance make testActor satisfy

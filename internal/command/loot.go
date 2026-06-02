@@ -54,21 +54,9 @@ func LootHandler(ctx context.Context, c *Context) error {
 		return c.Actor.Write(ctx, fmt.Sprintf("You don't have the right to loot %s yet.", target.Name()))
 	}
 
-	// §5.1 — transfer every fitting item (all of them today). Take is
-	// the atomic ownership claim, mirroring GetHandler.
-	var takenIDs []entities.EntityID
-	for _, id := range c.Contents.In(target.ID()) {
-		if c.Contents.Take(id) {
-			c.Actor.AddToInventory(id)
-			takenIDs = append(takenIDs, id)
-		}
-	}
-	taken := collectItems(c.Items, takenIDs)
-
-	// §5.1 / §3 — coins always transfer (currency has no carry weight),
-	// crediting the looter's balance, not their inventory.
-	credited := lootCoins(ctx, c, target)
-
+	// §5.1 / §3 — transfer items + coins (no rights gate here; checked
+	// above). Shared with the autoloot path via TransferCorpse.
+	taken, credited := TransferCorpse(ctx, c.lootGrant(), c.Actor, target, room.ID, actorID)
 	if len(taken) == 0 && credited == 0 {
 		return c.Actor.Write(ctx, fmt.Sprintf("There is nothing you can take from %s.", target.Name()))
 	}
@@ -79,54 +67,105 @@ func LootHandler(ctx context.Context, c *Context) error {
 			fmt.Sprintf("%s loots %s.", c.Actor.Name(), target.Name()),
 			c.Actor.PlayerID())
 	}
-
-	c.removeIfEmptied(ctx, target, room.ID, actorID, len(taken), credited)
 	return nil
 }
 
-// lootCoins atomically claims the corpse's coin pile and credits the
-// actor's currency balance, returning the amount credited. The claim is
-// single-winner (corpse.ClaimCoins), so two players looting the same
-// open corpse at once cannot both credit the pile. Coins are left in
-// place (not claimed) when there is no currency service or the actor is
-// not a currency holder.
-func lootCoins(ctx context.Context, c *Context, target *entities.ItemInstance) int {
-	if c.Currency == nil {
-		return 0
-	}
-	holder, ok := c.Actor.(economy.Entity)
-	if !ok {
-		return 0
-	}
-	coins := corpse.ClaimCoins(target)
-	if coins <= 0 {
-		return 0
-	}
-	c.Currency.AddGold(ctx, holder, coins, "loot:"+string(target.ID()))
-	return coins
+// LootGrant bundles the world singletons TransferCorpse needs — a subset
+// of the dispatch Env, so the loot verb (from a Context) and the
+// autoloot path (from the composition root, reacting to corpse.created)
+// share one transfer implementation.
+type LootGrant struct {
+	Items     *entities.Store
+	Contents  *entities.Contents
+	Placement *entities.Placement
+	Currency  *economy.CurrencyService
+	Bus       *eventbus.Bus
 }
 
-// removeIfEmptied removes a fully-looted corpse and emits corpse.looted.
-// Placement.Remove is the single-winner gate: when two looters drain the
-// corpse concurrently, only the goroutine whose Remove returns true
-// untracks the entity and publishes the event, so removal is idempotent
-// and the event fires once (§5.1). A corpse still holding items (no
-// carry cap today, so never) or uncredited coins stays.
-func (c *Context) removeIfEmptied(ctx context.Context, target *entities.ItemInstance, roomID world.RoomID, looterID string, itemCount, coins int) {
-	if len(c.Contents.In(target.ID())) != 0 || corpse.Coins(target) != 0 {
-		return
+func (c *Context) lootGrant() LootGrant {
+	return LootGrant{Items: c.Items, Contents: c.Contents, Placement: c.Placement, Currency: c.Currency, Bus: c.Bus}
+}
+
+// TransferCorpse moves every fitting item plus all coins from target to
+// actor (loot-and-corpses §5.1), WITHOUT a rights check — the caller
+// asserts the actor may loot (the loot verb checks §4; autoloot acts on
+// the killer's own kill). Returns the items taken and coins credited.
+//
+// Concurrency mirrors the loot verb's guarantees: Contents.Take is the
+// single-winner item claim and corpse.ClaimCoins the single-winner coin
+// claim, so two looters (or a looter racing the decay sweep) never
+// duplicate. The corpse is removed + corpse.looted emitted exactly once,
+// gated on Placement.Remove's bool.
+func TransferCorpse(ctx context.Context, g LootGrant, actor Actor, target *entities.ItemInstance, roomID world.RoomID, looterID string) ([]*entities.ItemInstance, int) {
+	if g.Contents == nil || g.Items == nil || g.Placement == nil {
+		return nil, 0
 	}
-	if !c.Placement.Remove(target.ID()) {
-		return
+
+	var takenIDs []entities.EntityID
+	for _, id := range g.Contents.In(target.ID()) {
+		if g.Contents.Take(id) {
+			actor.AddToInventory(id)
+			takenIDs = append(takenIDs, id)
+		}
 	}
-	_ = c.Items.Untrack(target.ID())
-	c.Publish(ctx, eventbus.CorpseLooted{
-		CorpseID:  target.ID(),
-		RoomID:    roomID,
-		LooterID:  looterID,
-		ItemCount: itemCount,
-		Coins:     coins,
+	taken := collectItems(g.Items, takenIDs)
+
+	credited := 0
+	if g.Currency != nil {
+		if holder, ok := actor.(economy.Entity); ok {
+			if coins := corpse.ClaimCoins(target); coins > 0 {
+				g.Currency.AddGold(ctx, holder, coins, "loot:"+string(target.ID()))
+				credited = coins
+			}
+		}
+	}
+
+	if len(g.Contents.In(target.ID())) == 0 && corpse.Coins(target) == 0 {
+		if g.Placement.Remove(target.ID()) {
+			_ = g.Items.Untrack(target.ID())
+			if g.Bus != nil {
+				g.Bus.Publish(ctx, eventbus.CorpseLooted{
+					CorpseID:  target.ID(),
+					RoomID:    roomID,
+					LooterID:  looterID,
+					ItemCount: len(taken),
+					Coins:     credited,
+				})
+			}
+		}
+	}
+	return taken, credited
+}
+
+// AutolootHandler implements `autoloot [on|off]` (loot-and-corpses §6):
+// reports or toggles the actor's persisted autoloot preference. The
+// auto-loot-on-kill behavior is driven separately by a corpse.created
+// subscriber at the composition root.
+func AutolootHandler(ctx context.Context, c *Context) error {
+	pref, ok := c.Actor.(interface {
+		Autoloot() bool
+		SetAutoloot(bool)
 	})
+	if !ok {
+		return c.Actor.Write(ctx, "You can't change that right now.")
+	}
+	if len(c.Args) == 0 {
+		state := "off"
+		if pref.Autoloot() {
+			state = "on"
+		}
+		return c.Actor.Write(ctx, fmt.Sprintf("Autoloot is currently %s. Use 'autoloot on' or 'autoloot off'.", state))
+	}
+	switch strings.ToLower(c.Args[0]) {
+	case "on":
+		pref.SetAutoloot(true)
+		return c.Actor.Write(ctx, "Autoloot enabled — you will loot your own kills automatically.")
+	case "off":
+		pref.SetAutoloot(false)
+		return c.Actor.Write(ctx, "Autoloot disabled.")
+	default:
+		return c.Actor.Write(ctx, "Usage: autoloot [on|off]")
+	}
 }
 
 // resolveCorpse picks the corpse the loot verb acts on. With no

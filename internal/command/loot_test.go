@@ -2,6 +2,7 @@ package command_test
 
 import (
 	"context"
+	"strings"
 	"sync"
 	"testing"
 
@@ -185,6 +186,54 @@ func TestLoot_NothingHere(t *testing.T) {
 		t.Errorf("inventory = %d, want 0", got)
 	}
 }
+
+func TestAutoloot_ReportsAndToggles(t *testing.T) {
+	f := newLootFixture(t)
+	a := newNamedTestActor("Alice", "p-alice", f.room)
+
+	dispatchLoot(t, f, a, "autoloot")
+	if got := a.lastLine(); got == "" || !contains(got, "off") {
+		t.Errorf("default report = %q, want it to say off", got)
+	}
+	dispatchLoot(t, f, a, "autoloot on")
+	if !a.Autoloot() {
+		t.Error("autoloot on did not enable")
+	}
+	dispatchLoot(t, f, a, "autoloot")
+	if got := a.lastLine(); !contains(got, "on") {
+		t.Errorf("report after enable = %q, want on", got)
+	}
+	dispatchLoot(t, f, a, "autoloot off")
+	if a.Autoloot() {
+		t.Error("autoloot off did not disable")
+	}
+}
+
+// TransferCorpse is the shared primitive both the loot verb and the
+// autoloot path use; this exercises it directly with no rights gate.
+func TestTransferCorpse_MovesItemsAndCoins(t *testing.T) {
+	f := newLootFixture(t)
+	a := newNamedTestActor("Alice", "p-alice", f.room)
+	cor := f.placeCorpse(t, []string{"player:p-alice"}, 100, 8, ration(), sword())
+
+	grant := command.LootGrant{Items: f.store, Contents: f.contents, Placement: f.place, Currency: f.currency, Bus: f.bus}
+	taken, coins := command.TransferCorpse(context.Background(), grant, a, cor, f.room.ID, "player:p-alice")
+
+	if len(taken) != 2 || coins != 8 {
+		t.Fatalf("transfer = %d items, %d coins; want 2, 8", len(taken), coins)
+	}
+	if len(a.Inventory()) != 2 {
+		t.Errorf("inventory = %d, want 2", len(a.Inventory()))
+	}
+	if a.Gold() != 8 {
+		t.Errorf("gold = %d, want 8", a.Gold())
+	}
+	if _, ok := f.store.GetByID(cor.ID()); ok {
+		t.Error("emptied corpse should be removed by TransferCorpse")
+	}
+}
+
+func contains(s, sub string) bool { return strings.Contains(s, sub) }
 
 func TestLoot_NoArgSkipsCorpseNotYetLootable(t *testing.T) {
 	f := newLootFixture(t)

@@ -686,6 +686,30 @@ func TestSave_RoundTripsRace(t *testing.T) {
 	}
 }
 
+func TestSave_RoundTripsAutoloot(t *testing.T) {
+	ctx := context.Background()
+	st, _ := newStore(t)
+
+	want := &player.Save{
+		Version:   player.CurrentVersion,
+		ID:        "p-1",
+		AccountID: "acct-1",
+		Name:      "Looter",
+		Location:  "tapestry-core:town-square",
+		Autoloot:  true,
+	}
+	if err := st.Save(ctx, want); err != nil {
+		t.Fatalf("Save: %v", err)
+	}
+	got, err := st.Load(ctx, "Looter")
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if !got.Autoloot {
+		t.Errorf("Autoloot = %v, want true (persists across logout/login)", got.Autoloot)
+	}
+}
+
 func TestSave_RejectsUnsafeName(t *testing.T) {
 	ctx := context.Background()
 	st, _ := newStore(t)

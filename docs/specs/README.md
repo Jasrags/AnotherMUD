@@ -211,7 +211,7 @@ Each spec calls out what it persists. The aggregate view:
   tags, roles, stats (base + modifiers + vitals), properties,
   equipment, inventory, flat item list, **abilities +
   proficiencies**, **recall address**, **prompt template**,
-  **autoloot preference** *(spec; build pending — [loot-and-corpses](loot-and-corpses.md) §6)*.
+  **autoloot preference** ([loot-and-corpses](loot-and-corpses.md) §6).
 - **Quest file** (sibling of player file) — active list,
   completed list.
 - **Notifications file** (sibling of player file) — per-entity

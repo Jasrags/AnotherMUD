@@ -965,6 +965,53 @@ func run() error {
 		return fmt.Errorf("register corpse decay: %w", err)
 	}
 
+	// M22.4: autoloot (loot-and-corpses §6). On corpse.created, if the
+	// killer is an online player with autoloot ON who is present in the
+	// corpse's room, loot it on their behalf immediately. Rights are
+	// trivially satisfied (the killer owns their own fresh kill), so this
+	// reuses command.TransferCorpse without the §4 gate. Scoped to the
+	// killer's own kills, loots everything (items + coins) — narrower
+	// scopes are future refinements (§10).
+	bus.Subscribe(eventbus.EventCorpseCreated, func(ctx context.Context, ev eventbus.Event) {
+		e, ok := ev.(eventbus.CorpseCreated)
+		if !ok || e.KillerID == "" {
+			return
+		}
+		pid, ok := strings.CutPrefix(e.KillerID, combat.PlayerPrefix)
+		if !ok {
+			return // killer is not a player (mob/scripted) — no autoloot
+		}
+		actor, ok := mgr.GetByPlayerID(pid)
+		if !ok || !actor.Autoloot() {
+			return
+		}
+		if room := actor.Room(); room == nil || room.ID != e.RoomID {
+			return // killer not present in the corpse's room
+		}
+		ent, ok := entityStore.GetByID(e.CorpseID)
+		if !ok {
+			return
+		}
+		target, ok := ent.(*entities.ItemInstance)
+		if !ok {
+			return
+		}
+		taken, coins := command.TransferCorpse(ctx, command.LootGrant{
+			Items:     entityStore,
+			Contents:  contents,
+			Placement: placement,
+			Currency:  currencySvc,
+			Bus:       bus,
+		}, actor, target, e.RoomID, e.KillerID)
+		if len(taken) == 0 && coins == 0 {
+			return
+		}
+		_ = actor.Write(ctx, fmt.Sprintf("You quickly loot %s.", target.Name()))
+		mgr.SendToRoom(ctx, e.RoomID,
+			fmt.Sprintf("%s quickly loots %s.", actor.Name(), target.Name()),
+			actor.PlayerID())
+	})
+
 	// M7.5: mob.killed → entity untrack closes M6.6's deferred death-
 	// driven purge. The spawn tracker's Purge predicate calls
 	// entities.Store.GetByID; an untracked mob fails that check on the
