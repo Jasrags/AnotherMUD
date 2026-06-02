@@ -1485,6 +1485,11 @@ func run() error {
 		// weather.Service.Ambience; RenderRoom appends its output
 		// after the room description in eligible rooms.
 		Ambience: weatherSvc.Ambience,
+		// M22.3: loot ownership-window seam. NowTick reads the live tick
+		// for the §4 window comparison against a corpse's creation tick;
+		// the window itself is a wall-clock knob converted to ticks.
+		NowTick:               loop.TickCount,
+		CorpseOwnershipWindow: cadenceTicks(cfg.TickInterval, cfg.CorpseOwnershipWindow),
 		Login: login.Config{
 			Accounts:        accounts,
 			Players:         players,
@@ -1613,6 +1618,7 @@ type config struct {
 	TickInterval          time.Duration
 	CombatCadence         time.Duration
 	FleeCooldown          time.Duration
+	CorpseOwnershipWindow time.Duration
 	AutosaveInterval      time.Duration
 	IdleSweepInterval     time.Duration
 	LinkDeadSweepInterval time.Duration
@@ -1658,6 +1664,7 @@ func loadConfig() config {
 		TickInterval:          envDurationOr("ANOTHERMUD_TICK_INTERVAL", 100*time.Millisecond),
 		CombatCadence:         envDurationOr("ANOTHERMUD_COMBAT_CADENCE", 3*time.Second),
 		FleeCooldown:          envDurationOr("ANOTHERMUD_FLEE_COOLDOWN", 15*time.Second),
+		CorpseOwnershipWindow: envDurationOr("ANOTHERMUD_CORPSE_OWNERSHIP_WINDOW", 60*time.Second),
 		AutosaveInterval:      envDurationOr("ANOTHERMUD_AUTOSAVE_INTERVAL", 30*time.Second),
 		IdleSweepInterval:     envDurationOr("ANOTHERMUD_IDLE_SWEEP_INTERVAL", 30*time.Second),
 		LinkDeadSweepInterval: envDurationOr("ANOTHERMUD_LINKDEAD_SWEEP_INTERVAL", 30*time.Second),

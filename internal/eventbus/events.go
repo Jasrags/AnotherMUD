@@ -88,6 +88,10 @@ const (
 	// death (loot-and-corpses §2.1). Carries the corpse entity id, the
 	// source mob, the killer, and the item count + coin amount.
 	EventCorpseCreated = "corpse.created"
+	// Post-fact notification fired after a corpse was emptied by looting
+	// and removed (loot-and-corpses §5.1). Carries the corpse entity id,
+	// room, looter, and what was taken in the emptying loot.
+	EventCorpseLooted = "corpse.looted"
 	// Post-fact notification fired after the player-death subscriber
 	// has restored a dead player to a playable state (spec combat
 	// §6.4: "Player death recovery ... is owned by another feature
@@ -549,6 +553,20 @@ type CorpseCreated struct {
 
 // Name implements Event.
 func (CorpseCreated) Name() string { return EventCorpseCreated }
+
+// CorpseLooted is published after a corpse is emptied by looting and
+// removed (loot-and-corpses §5.1). ItemCount + Coins describe what the
+// final, emptying loot transferred.
+type CorpseLooted struct {
+	CorpseID  entities.EntityID
+	RoomID    world.RoomID
+	LooterID  string
+	ItemCount int
+	Coins     int
+}
+
+// Name implements Event.
+func (CorpseLooted) Name() string { return EventCorpseLooted }
 
 // PlayerMoved fires after a player's room has changed (spec
 // mobs-ai-spawning §5.2). Sources today: movement command, login

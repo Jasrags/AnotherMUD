@@ -343,6 +343,16 @@ type Config struct {
 	// clock.RealClock when nil so existing tests don't have to wire it.
 	Clock clock.Clock
 
+	// NowTick returns the current game tick; threaded into command.Env
+	// so the loot verb can evaluate a corpse's ownership window
+	// (loot-and-corpses §4). Wired to tick.Loop.TickCount at the
+	// composition root; nil degrades the window check to "open".
+	NowTick func() uint64
+	// CorpseOwnershipWindow is how many ticks a corpse stays reserved
+	// for its killer after creation (loot-and-corpses §4/§9). Zero =
+	// no reservation.
+	CorpseOwnershipWindow uint64
+
 	// Flood is the per-session rate-limit policy. Zero value disables
 	// flood protection (the test default). Production wires
 	// DefaultFloodConfig.
@@ -843,45 +853,47 @@ func pump(ctx context.Context, c conn.Connection, cfg Config, a *connActor, clk 
 		}
 
 		env := command.Env{
-			World:              cfg.World,
-			Broadcaster:        cfg.Manager,
-			Items:              cfg.Items,
-			Placement:          cfg.Placement,
-			Contents:           cfg.Contents,
-			Slots:              cfg.Slots,
-			Bus:                cfg.Bus,
-			Properties:         cfg.Properties,
-			Rarity:             cfg.Rarity,
-			Essence:            cfg.Essence,
-			Stacking:           cfg.Stacking,
-			Locator:            managerLocator{cfg.Manager},
-			Disposition:        cfg.Disposition,
-			Combat:             cfg.Combat,
-			Flee:               cfg.Flee,
-			ReloadScripts:      cfg.ReloadScripts,
-			Progression:        cfg.Progression,
-			Training:           cfg.Training,
-			Abilities:          cfg.Abilities,
-			Proficiency:        cfg.Proficiency,
-			ActionQueue:        cfg.ActionQueue,
-			Help:               cfg.Help,
-			Quests:             cfg.Quests,
-			Currency:           cfg.Currency,
-			Shop:               cfg.Shop,
-			Rest:               cfg.Rest,
-			Consumable:         cfg.Consumable,
-			Notifications:      cfg.Notifications,
-			TellResolver:       cfg.TellResolver,
-			RoleTargetResolver: cfg.RoleTargets,
-			GrantingRole:       cfg.GrantingRole,
-			AdminRole:          cfg.AdminRole,
-			Announcer:          cfg.Manager,
-			PlayerRoom:         PlayerRoomResolver{cfg.Manager},
-			ChatRegistry:       cfg.ChatRegistry,
-			ChatSubscribers:    cfg.ChatSubscribers,
-			ChatScrollbacks:    cfg.ChatScrollbacks,
-			Clock:              cfg.Clock,
-			Ambience:           cfg.Ambience,
+			World:                 cfg.World,
+			Broadcaster:           cfg.Manager,
+			Items:                 cfg.Items,
+			Placement:             cfg.Placement,
+			Contents:              cfg.Contents,
+			Slots:                 cfg.Slots,
+			Bus:                   cfg.Bus,
+			Properties:            cfg.Properties,
+			Rarity:                cfg.Rarity,
+			Essence:               cfg.Essence,
+			Stacking:              cfg.Stacking,
+			Locator:               managerLocator{cfg.Manager},
+			Disposition:           cfg.Disposition,
+			Combat:                cfg.Combat,
+			Flee:                  cfg.Flee,
+			ReloadScripts:         cfg.ReloadScripts,
+			Progression:           cfg.Progression,
+			Training:              cfg.Training,
+			Abilities:             cfg.Abilities,
+			Proficiency:           cfg.Proficiency,
+			ActionQueue:           cfg.ActionQueue,
+			Help:                  cfg.Help,
+			Quests:                cfg.Quests,
+			Currency:              cfg.Currency,
+			Shop:                  cfg.Shop,
+			Rest:                  cfg.Rest,
+			Consumable:            cfg.Consumable,
+			Notifications:         cfg.Notifications,
+			TellResolver:          cfg.TellResolver,
+			RoleTargetResolver:    cfg.RoleTargets,
+			GrantingRole:          cfg.GrantingRole,
+			AdminRole:             cfg.AdminRole,
+			Announcer:             cfg.Manager,
+			PlayerRoom:            PlayerRoomResolver{cfg.Manager},
+			ChatRegistry:          cfg.ChatRegistry,
+			ChatSubscribers:       cfg.ChatSubscribers,
+			ChatScrollbacks:       cfg.ChatScrollbacks,
+			Clock:                 cfg.Clock,
+			Ambience:              cfg.Ambience,
+			NowTick:               cfg.NowTick,
+			CorpseOwnershipWindow: cfg.CorpseOwnershipWindow,
 		}
 		if err := cfg.Commands.Dispatch(ctx, env, a, line); err != nil {
 			if errors.Is(err, command.ErrQuit) {

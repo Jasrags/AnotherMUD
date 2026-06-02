@@ -1,0 +1,186 @@
+package command_test
+
+import (
+	"context"
+	"testing"
+
+	"github.com/Jasrags/AnotherMUD/internal/command"
+	"github.com/Jasrags/AnotherMUD/internal/corpse"
+	"github.com/Jasrags/AnotherMUD/internal/economy"
+	"github.com/Jasrags/AnotherMUD/internal/entities"
+	"github.com/Jasrags/AnotherMUD/internal/eventbus"
+	"github.com/Jasrags/AnotherMUD/internal/item"
+)
+
+type lootFixture struct {
+	*invFixture
+	contents *entities.Contents
+	bus      *eventbus.Bus
+	currency *economy.CurrencyService
+	now      uint64
+	window   uint64
+}
+
+func newLootFixture(t *testing.T) *lootFixture {
+	t.Helper()
+	return &lootFixture{
+		invFixture: newInvFixture(t),
+		contents:   entities.NewContents(),
+		bus:        eventbus.New(),
+		currency:   economy.NewCurrencyService(nil),
+		now:        110,
+		window:     100,
+	}
+}
+
+func (f *lootFixture) env() command.Env {
+	e := f.invFixture.env()
+	e.Contents = f.contents
+	e.Bus = f.bus
+	e.Currency = f.currency
+	e.NowTick = func() uint64 { return f.now }
+	e.CorpseOwnershipWindow = f.window
+	return e
+}
+
+// placeCorpse mints a corpse in the room with the given owner set,
+// creation tick, coins, and item contents.
+func (f *lootFixture) placeCorpse(t *testing.T, owners []string, createdTick uint64, coins int, items ...*item.Template) *entities.ItemInstance {
+	t.Helper()
+	cor, err := f.store.SpawnContainer("the corpse of a goblin",
+		[]string{corpse.TagCorpse, corpse.TagNoGet, corpse.TagNoPut},
+		[]string{"corpse", "goblin"},
+		map[string]any{
+			corpse.PropOwners:      owners,
+			corpse.PropCreatedTick: createdTick,
+			corpse.PropCoins:       coins,
+		})
+	if err != nil {
+		t.Fatalf("SpawnContainer: %v", err)
+	}
+	f.place.Place(cor.ID(), f.room.ID)
+	for _, tpl := range items {
+		it, err := f.store.Spawn(tpl)
+		if err != nil {
+			t.Fatalf("Spawn: %v", err)
+		}
+		f.contents.Put(cor.ID(), it.ID())
+	}
+	return cor
+}
+
+func ration() *item.Template {
+	return &item.Template{ID: "tapestry-core:trail-ration", Name: "a trail ration", Type: "food", Keywords: []string{"ration"}}
+}
+
+func dispatchLoot(t *testing.T, f *lootFixture, a command.Actor, line string) {
+	t.Helper()
+	r := command.New()
+	if err := command.RegisterBuiltins(r); err != nil {
+		t.Fatalf("RegisterBuiltins: %v", err)
+	}
+	if err := r.Dispatch(context.Background(), f.env(), a, line); err != nil {
+		t.Fatalf("dispatch %q: %v", line, err)
+	}
+}
+
+func TestLoot_OwnerTakesItemsAndCoins(t *testing.T) {
+	f := newLootFixture(t)
+	a := newNamedTestActor("Alice", "p-alice", f.room)
+	cor := f.placeCorpse(t, []string{"player:p-alice"}, 100, 5, ration(), sword())
+
+	var looted *eventbus.CorpseLooted
+	f.bus.Subscribe(eventbus.EventCorpseLooted, func(_ context.Context, ev eventbus.Event) {
+		e := ev.(eventbus.CorpseLooted)
+		looted = &e
+	})
+
+	dispatchLoot(t, f, a, "loot corpse")
+
+	if got := len(a.Inventory()); got != 2 {
+		t.Fatalf("inventory = %d items, want 2", got)
+	}
+	if got := a.Gold(); got != 5 {
+		t.Errorf("gold = %d, want 5", got)
+	}
+	// Corpse emptied → removed from world + placement.
+	if _, ok := f.store.GetByID(cor.ID()); ok {
+		t.Error("emptied corpse should be untracked")
+	}
+	if got, ok := f.place.RoomOf(cor.ID()); ok {
+		t.Errorf("emptied corpse still placed in %q", got)
+	}
+	if looted == nil || looted.ItemCount != 2 || looted.Coins != 5 {
+		t.Errorf("corpse.looted = %+v", looted)
+	}
+}
+
+func TestLoot_NonOwnerRefusedDuringWindow(t *testing.T) {
+	f := newLootFixture(t)
+	owner := newNamedTestActor("Alice", "p-alice", f.room)
+	_ = owner
+	eve := newNamedTestActor("Eve", "p-eve", f.room)
+	cor := f.placeCorpse(t, []string{"player:p-alice"}, 100, 5, ration())
+
+	dispatchLoot(t, f, eve, "loot corpse")
+
+	if got := len(eve.Inventory()); got != 0 {
+		t.Errorf("non-owner inventory = %d, want 0 (refused)", got)
+	}
+	if got := eve.Gold(); got != 0 {
+		t.Errorf("non-owner gold = %d, want 0", got)
+	}
+	if _, ok := f.store.GetByID(cor.ID()); !ok {
+		t.Error("refused corpse should remain")
+	}
+}
+
+func TestLoot_OpenAfterWindow(t *testing.T) {
+	f := newLootFixture(t)
+	f.now = 250 // created 100 + window 100 = 150 < 250 → open
+	eve := newNamedTestActor("Eve", "p-eve", f.room)
+	f.placeCorpse(t, []string{"player:p-alice"}, 100, 0, ration())
+
+	dispatchLoot(t, f, eve, "loot corpse")
+
+	if got := len(eve.Inventory()); got != 1 {
+		t.Errorf("after window, anyone loots: inventory = %d, want 1", got)
+	}
+}
+
+func TestLoot_NoArgPicksCorpse(t *testing.T) {
+	f := newLootFixture(t)
+	a := newNamedTestActor("Alice", "p-alice", f.room)
+	f.placeCorpse(t, []string{}, 100, 0, ration()) // empty owner → open
+
+	dispatchLoot(t, f, a, "loot")
+
+	if got := len(a.Inventory()); got != 1 {
+		t.Errorf("no-arg loot: inventory = %d, want 1", got)
+	}
+}
+
+func TestLoot_CoinsOnlyCorpseRemovedAfterCredit(t *testing.T) {
+	f := newLootFixture(t)
+	a := newNamedTestActor("Alice", "p-alice", f.room)
+	cor := f.placeCorpse(t, []string{"player:p-alice"}, 100, 9) // no items
+
+	dispatchLoot(t, f, a, "loot corpse")
+
+	if got := a.Gold(); got != 9 {
+		t.Errorf("gold = %d, want 9", got)
+	}
+	if _, ok := f.store.GetByID(cor.ID()); ok {
+		t.Error("coins-only corpse should be removed after looting")
+	}
+}
+
+func TestLoot_NothingHere(t *testing.T) {
+	f := newLootFixture(t)
+	a := newNamedTestActor("Alice", "p-alice", f.room)
+	// No corpse placed.
+	dispatchLoot(t, f, a, "loot")
+	if got := len(a.Inventory()); got != 0 {
+		t.Errorf("inventory = %d, want 0", got)
+	}
+}

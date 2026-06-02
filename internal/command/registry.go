@@ -338,6 +338,16 @@ type Env struct {
 	// weather-free (test paths, link-dead recovery before the
 	// service is wired). Spec world-rooms-movement §6.6.
 	Ambience func(*world.Room) string
+
+	// NowTick returns the current game tick, used by the loot verb to
+	// evaluate a corpse's ownership window against its creation tick
+	// (loot-and-corpses §4). nil degrades the window check to "open"
+	// (tests + headless paths). Wired to tick.Loop.TickCount.
+	NowTick func() uint64
+	// CorpseOwnershipWindow is how many ticks a corpse stays reserved
+	// for its owner set after creation (loot-and-corpses §4/§9). Zero
+	// means no reservation (open immediately).
+	CorpseOwnershipWindow uint64
 }
 
 // TellResolver maps a player name to a recipient route. Returns
@@ -450,9 +460,14 @@ type Context struct {
 	// chase Env. nil-safe (RenderRoom skips when nil or when the
 	// callback returns "").
 	Ambience func(*world.Room) string
-	Raw      string   // raw input line, trimmed
-	Verb     string   // resolved verb (lowercase)
-	Args     []string // tokens after the verb (space-split)
+	// NowTick / CorpseOwnershipWindow are the M22.3 loot-window seam
+	// (loot-and-corpses §4). Copied from Env at dispatch. NowTick nil →
+	// the loot verb treats every corpse as open.
+	NowTick               func() uint64
+	CorpseOwnershipWindow uint64
+	Raw                   string   // raw input line, trimmed
+	Verb                  string   // resolved verb (lowercase)
+	Args                  []string // tokens after the verb (space-split)
 
 	// Resolved holds the §5 typed-argument values, keyed by each
 	// declared ArgDefinition.Name, for commands that declared Args.
@@ -795,49 +810,51 @@ func (r *Registry) Dispatch(ctx context.Context, env Env, actor Actor, raw strin
 	}
 
 	c := &Context{
-		Actor:              actor,
-		World:              env.World,
-		Broadcaster:        env.Broadcaster,
-		Items:              env.Items,
-		Placement:          env.Placement,
-		Contents:           env.Contents,
-		Slots:              env.Slots,
-		Bus:                env.Bus,
-		Properties:         env.Properties,
-		Rarity:             env.Rarity,
-		Essence:            env.Essence,
-		Stacking:           env.Stacking,
-		Locator:            env.Locator,
-		Disposition:        env.Disposition,
-		Combat:             env.Combat,
-		Flee:               env.Flee,
-		ReloadScripts:      env.ReloadScripts,
-		Progression:        env.Progression,
-		Training:           env.Training,
-		Abilities:          env.Abilities,
-		Proficiency:        env.Proficiency,
-		ActionQueue:        env.ActionQueue,
-		Help:               env.Help,
-		Quests:             env.Quests,
-		Currency:           env.Currency,
-		Shop:               env.Shop,
-		Rest:               env.Rest,
-		Consumable:         env.Consumable,
-		Notifications:      env.Notifications,
-		TellResolver:       env.TellResolver,
-		RoleTargetResolver: env.RoleTargetResolver,
-		GrantingRole:       env.GrantingRole,
-		Announcer:          env.Announcer,
-		PlayerRoom:         env.PlayerRoom,
-		ChatRegistry:       env.ChatRegistry,
-		ChatSubscribers:    env.ChatSubscribers,
-		ChatScrollbacks:    env.ChatScrollbacks,
-		Clock:              env.Clock,
-		Ambience:           env.Ambience,
-		Raw:                trimmed,
-		Verb:               strings.ToLower(verb),
-		Args:               args,
-		ArgResolver:        r.argResolvers,
+		Actor:                 actor,
+		World:                 env.World,
+		Broadcaster:           env.Broadcaster,
+		Items:                 env.Items,
+		Placement:             env.Placement,
+		Contents:              env.Contents,
+		Slots:                 env.Slots,
+		Bus:                   env.Bus,
+		Properties:            env.Properties,
+		Rarity:                env.Rarity,
+		Essence:               env.Essence,
+		Stacking:              env.Stacking,
+		Locator:               env.Locator,
+		Disposition:           env.Disposition,
+		Combat:                env.Combat,
+		Flee:                  env.Flee,
+		ReloadScripts:         env.ReloadScripts,
+		Progression:           env.Progression,
+		Training:              env.Training,
+		Abilities:             env.Abilities,
+		Proficiency:           env.Proficiency,
+		ActionQueue:           env.ActionQueue,
+		Help:                  env.Help,
+		Quests:                env.Quests,
+		Currency:              env.Currency,
+		Shop:                  env.Shop,
+		Rest:                  env.Rest,
+		Consumable:            env.Consumable,
+		Notifications:         env.Notifications,
+		TellResolver:          env.TellResolver,
+		RoleTargetResolver:    env.RoleTargetResolver,
+		GrantingRole:          env.GrantingRole,
+		Announcer:             env.Announcer,
+		PlayerRoom:            env.PlayerRoom,
+		ChatRegistry:          env.ChatRegistry,
+		ChatSubscribers:       env.ChatSubscribers,
+		ChatScrollbacks:       env.ChatScrollbacks,
+		Clock:                 env.Clock,
+		Ambience:              env.Ambience,
+		NowTick:               env.NowTick,
+		CorpseOwnershipWindow: env.CorpseOwnershipWindow,
+		Raw:                   trimmed,
+		Verb:                  strings.ToLower(verb),
+		Args:                  args,
+		ArgResolver:           r.argResolvers,
 	}
 
 	// §5 arg-typing (Option A): when the command declares typed args,

@@ -35,6 +35,7 @@ func RegisterBuiltins(r *Registry) error {
 		{Keyword: "give", Handler: GiveHandler, Brief: "Give an item to another character.", Syntax: []string{"give <item> to <target>"}, Args: []ArgDefinition{{Name: "item", Type: ArgInventory}, {Name: "target", Type: ArgPlayer, Prepositions: []string{"to"}}}},
 		{Keyword: "put", Handler: PutHandler, Brief: "Put an item into a container.", Syntax: []string{"put <item> in <container>"}, Args: []ArgDefinition{{Name: "item", Type: ArgInventory}, {Name: "container", Type: ArgContainer, Prepositions: []string{"in", "into"}}}},
 		{Keyword: "fill", Handler: FillHandler, Brief: "Fill a container from a source.", Syntax: []string{"fill <container>"}},
+		{Keyword: "loot", Handler: LootHandler, Brief: "Take everything from a corpse.", Syntax: []string{"loot", "loot <corpse>"}},
 		{Keyword: "equip", Handler: EquipHandler, Brief: "Wear or wield an item from your inventory.", Syntax: []string{"equip <item> <slot>"}, Args: []ArgDefinition{{Name: "item", Type: ArgInventory}, {Name: "slot", Type: ArgKeyword}}},
 		{Keyword: "unequip", Handler: UnequipHandler, Brief: "Remove an equipped item.", Syntax: []string{"unequip <item>"}},
 		{Keyword: "inventory", Aliases: []string{"i"}, Handler: InventoryHandler, Brief: "List the items you are carrying.", Syntax: []string{"inventory"}},

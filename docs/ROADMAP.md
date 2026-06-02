@@ -28,8 +28,9 @@ and `THEME-AXIS-PLAN.md` are superseded by `BACKLOG.md` and now live under
   **M20** (Item Decorations — rarity & essence), and **M21** (Item
   Stacking) have all shipped.
 - **Active:** **M22 — Loot and Corpses**. M22.1 (loot table + generation
-  at spawn) and M22.2 (corpse creation on death + coins) shipped;
-  M22.3–M22.5 (looting rights/verbs, autoloot, decay) pending.
+  at spawn), M22.2 (corpse creation on death + coins), and M22.3a (looting
+  rights + the `loot` verb) shipped; M22.3b (`get … from corpse` + look-in),
+  M22.4 (autoloot), M22.5 (decay) pending.
 - **Earlier active milestone, for reference:** **M19 — Roles & Administration** (the keystone). M19.1
   (role-set substrate + `HasRole` + persistence + config seed), M19.2
   (grant/revoke verbs + events), M19.3 (the admin dispatch gate + help
@@ -3028,13 +3029,24 @@ rights seam) and the autoloot rarity-floor filter (item-decorations).
       No corpse when the mob carried nothing and rolled no coins. Corpse is
       read-only via the existing look-in/container path; refuses `put`; the
       corpse item itself is no-get.
-- [ ] **M22.3 — Looting rights + verbs.** `loot-and-corpses §4–§5`. The
-      ownership-window rights check (owner-set member during the window;
-      open after; empty killer ⇒ open immediately; non-owner refusal does
-      not name the owner), the `loot <corpse>` verb (all fitting items +
-      all coins, partial on capacity, removes + emits `corpse.looted` when
-      emptied), and `get … from <corpse>` gated by the same rights, with a
-      reserved coin keyword crediting the currency balance.
+- [x] **M22.3a — Looting rights + the `loot` verb.** `loot-and-corpses §4`
+      + §5.1. The ownership-window rights check (`corpse.MayLoot`: owner-set
+      member during the window; open after; empty killer / zero window ⇒
+      open immediately; non-owner refusal does not name the owner) and the
+      `loot [<corpse>]` verb — takes every fitting item (no carry cap yet,
+      so all) plus all coins (credited to currency, not inventory), removes
+      the corpse + emits `corpse.looted` when emptied, no-arg picks the
+      most-recent lootable corpse. Ownership window is a config knob
+      (`ANOTHERMUD_CORPSE_OWNERSHIP_WINDOW`, default 60s) measured in ticks
+      against the corpse's creation tick.
+- [ ] **M22.3b — `get … from <corpse>` + look-in display.** `loot-and-corpses §5.2`
+      + §2.2. The container `get <item> from <container>` path (which the
+      engine does not yet implement at all — `GetHandler` only does
+      `get <item>` from the room) and a `look <corpse>` / look-in display
+      listing contents + coin amount, both gated by §4 rights, with a
+      reserved coin keyword (`get coins from corpse`) crediting currency.
+      Split out of M22.3 because it requires building general
+      container-access verbs that don't exist yet.
 - [ ] **M22.4 — Autoloot.** `loot-and-corpses §6`. Per-character autoloot
       preference (off by default) on the player save + `autoloot [on|off]`
       verb; on corpse creation for a present killer with autoloot on, run
