@@ -117,9 +117,15 @@ func NewConsumableService(store *entities.Store, sustenance *SustenanceService, 
 
 // Consume runs the spec §6.2 pipeline. actorEntityID is the consumer's
 // PLAYER entity id (used in the events); consumer is the live holder.
-// viaMethod is the verb's method ("eat"/"drink"/"use"); an empty string
-// skips the method gate. itemID must be a top-level item in the
-// consumer's inventory.
+// viaMethod is the gate the calling verb imposes:
+//   - a specific method ("eat"/"drink") consumes ONLY items whose
+//     consume_method matches;
+//   - an empty string is the generic fallback (the `use` verb): it
+//     consumes any item that IS a consumable — i.e. declares a
+//     non-empty consume_method — but still rejects non-consumables so
+//     `use <sword>` can't destroy gear.
+//
+// itemID must be a top-level item in the consumer's inventory.
 func (s *ConsumableService) Consume(ctx context.Context, consumer Consumer, actorEntityID, itemID entities.EntityID, viaMethod string) ConsumeResult {
 	if consumer == nil || s.store == nil {
 		return ConsumeResult{Outcome: ConsumeItemNotFound}
@@ -140,8 +146,15 @@ func (s *ConsumableService) Consume(ctx context.Context, consumer Consumer, acto
 	}
 
 	method := stringProp(it, PropConsumeMethod)
-	// Method gate (§6.1): the verb decides which items it can consume.
-	if viaMethod != "" && method != viaMethod {
+	// Method gate (§6.1). A specific verb consumes only its own method;
+	// the generic `use` fallback (empty viaMethod) consumes any item
+	// that declares a consume_method but rejects items with none, so it
+	// never destroys a non-consumable (e.g. `use sword`).
+	if viaMethod == "" {
+		if method == "" {
+			return ConsumeResult{Outcome: ConsumeWrongMethod, ItemID: itemID, ItemName: it.Name(), Method: method}
+		}
+	} else if method != viaMethod {
 		return ConsumeResult{Outcome: ConsumeWrongMethod, ItemID: itemID, ItemName: it.Name(), Method: method}
 	}
 

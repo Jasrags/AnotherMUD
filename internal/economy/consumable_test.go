@@ -136,6 +136,45 @@ func TestConsume_NoChargesFailsBeforePreEvent(t *testing.T) {
 	}
 }
 
+func TestConsume_GenericUseConsumesAnyConsumable(t *testing.T) {
+	// Empty viaMethod is the `use` fallback: it consumes an item whose
+	// declared method is something else entirely (here "drink").
+	sink := &recordingConsumableSink{}
+	svc, consumer, id := newConsumeService(t, map[string]any{
+		"consume_method":   "drink",
+		"sustenance_value": 20,
+	}, sink)
+	res := svc.Consume(context.Background(), consumer, "p1", id, "")
+	if res.Outcome != ConsumeOK {
+		t.Fatalf("outcome = %v, want OK (use is a generic fallback)", res.Outcome)
+	}
+	if res.Method != "drink" {
+		t.Errorf("event method = %q, want the item's own %q", res.Method, "drink")
+	}
+	if len(consumer.inv) != 0 {
+		t.Error("single-use consumable should be destroyed")
+	}
+}
+
+func TestConsume_GenericUseRejectsNonConsumable(t *testing.T) {
+	// `use <sword>`: an item with no consume_method is NOT a consumable;
+	// the generic fallback must reject it, not destroy it.
+	sink := &recordingConsumableSink{}
+	svc, consumer, id := newConsumeService(t, map[string]any{
+		"weight": 5, // no consume_method
+	}, sink)
+	res := svc.Consume(context.Background(), consumer, "p1", id, "")
+	if res.Outcome != ConsumeWrongMethod {
+		t.Fatalf("outcome = %v, want WrongMethod (non-consumable)", res.Outcome)
+	}
+	if len(consumer.inv) != 1 {
+		t.Error("a non-consumable must survive a `use` attempt")
+	}
+	if sink.consuming != 0 {
+		t.Error("rejected non-consumable must not fire the consuming pre-event")
+	}
+}
+
 func TestConsume_CancelledKeepsItemAndCharge(t *testing.T) {
 	sink := &recordingConsumableSink{veto: true}
 	svc, consumer, id := newConsumeService(t, map[string]any{

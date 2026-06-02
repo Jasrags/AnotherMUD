@@ -69,6 +69,31 @@ func TestDrinkVerb_WrongMethodRejected(t *testing.T) {
 	}
 }
 
+func TestUseVerb_ConsumesDrinkMethodItem(t *testing.T) {
+	// `use` is a generic fallback: it consumes a drink-method item and
+	// reports the verb the player typed ("use").
+	env, a, _ := consumeRig(t, map[string]any{"consume_method": "drink", "sustenance_value": 20})
+	dispatchConsume(t, env, a, "use ration")
+	if len(a.inventory) != 0 {
+		t.Errorf("inventory = %v, want empty (use consumed it)", a.inventory)
+	}
+	if a.lastLine() != "You use a trail ration." {
+		t.Errorf("output = %q, want use message", a.lastLine())
+	}
+}
+
+func TestUseVerb_RejectsNonConsumable(t *testing.T) {
+	// `use` on an item with no consume_method must not destroy it.
+	env, a, _ := consumeRig(t, map[string]any{"weight": 3})
+	dispatchConsume(t, env, a, "use ration")
+	if len(a.inventory) != 1 {
+		t.Error("use must not consume a non-consumable")
+	}
+	if a.lastLine() != "You can't use a trail ration." {
+		t.Errorf("output = %q, want can't-use message", a.lastLine())
+	}
+}
+
 func TestEatVerb_NoArgsPrompts(t *testing.T) {
 	env, a, _ := consumeRig(t, map[string]any{"consume_method": "eat"})
 	// M17.2d: missing required arg now yields the §5.4 dispatcher

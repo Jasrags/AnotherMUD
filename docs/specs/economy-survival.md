@@ -475,9 +475,14 @@ room. Inns, infirmaries, and shrines use this.
 
 A consumable item declares:
 
-- **`consume_method`** (string) — `eat`, `drink`, `use`, or
-  similar. Drives which command can consume it; carried in
-  events for observers.
+- **`consume_method`** (string) — `eat`, `drink`, or similar.
+  Drives which dedicated command can consume it; carried in
+  events for observers. The `eat` and `drink` verbs are strict
+  (they consume only their own method); the `use` verb is a
+  **generic fallback** that consumes any item declaring a
+  consume_method, whatever its value (see §6.2). An item with
+  no consume_method is not a consumable and no verb — not even
+  `use` — will consume it.
 - **`sustenance_value`** (int) — amount added to the
   consumer's sustenance on consume (clamped at 100, §4.5).
 - **`effect_id`** (string) — name of an effect to apply (e.g.
@@ -509,7 +514,13 @@ treats them all as content-driven knobs.
 3. **Charge gate.** If the item declares `charges`:
    - Read the current charge value. If at or below zero,
      return `NoCharges`.
-4. Read the `consume_method` for inclusion in the event.
+4. **Method gate.** Read the item's `consume_method`. A
+   strict verb (`eat`/`drink`) consumes only items whose
+   method matches; mismatch returns `WrongMethod`. The generic
+   `use` verb consumes any item with a non-empty consume_method
+   but returns `WrongMethod` for an item that declares none (so
+   `use <sword>` never destroys gear). The method is also
+   carried in the event.
 5. Publish a **cancellable** `item.consuming` event carrying
    actor, item, consume method. If cancelled, return
    `Cancelled` (no charge spent, no destruction).

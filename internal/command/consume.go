@@ -48,8 +48,17 @@ func consumeVerb(ctx context.Context, c *Context, method string) error {
 		return c.Actor.Write(ctx, "You aren't carrying that.")
 	}
 
+	// `use` is the generic fallback verb: it consumes any consumable
+	// regardless of its declared consume_method, so it passes an empty
+	// gate (the service still rejects non-consumables). `eat` / `drink`
+	// stay strict to their own method. (economy-survival §6.1)
+	gate := method
+	if method == "use" {
+		gate = ""
+	}
+
 	actorID := holderEntityIDForPlayer(c.Actor.PlayerID())
-	res := c.Consumable.Consume(ctx, consumer, actorID, item.ID(), method)
+	res := c.Consumable.Consume(ctx, consumer, actorID, item.ID(), gate)
 	switch res.Outcome {
 	case economy.ConsumeOK:
 		return c.Actor.Write(ctx, fmt.Sprintf("You %s %s.", method, res.ItemName))
