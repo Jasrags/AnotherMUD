@@ -7,3 +7,4 @@ description: |
   a rutted track winds south into {g}long grass and distant trees{x}.
 exits:
   north: town-square
+  south: meadow

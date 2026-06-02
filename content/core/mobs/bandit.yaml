@@ -1,0 +1,18 @@
+id: bandit
+name: a road bandit
+type: npc
+behavior: stationary
+tags: [humanoid]
+keywords: [bandit, troublemaker, rogue]
+# The playtest combat target. Hostile to everyone, so walking into the
+# meadow triggers mob.aggro → combat.Engage (the meadow is not a
+# safe-room). Beatable with the starter short-sword + leather-cap.
+disposition_rules:
+  default: hostile
+stats:
+  hp_max: 24
+  str: 11
+# Drops loot + coins on death (M22) — reuses the guard loot table:
+# a guaranteed ration, a weighted draught/cap, a rare short-sword, and
+# a 2–8 coin purse. Exercises corpse / loot / autoloot / decay.
+loot_table: guard-loot

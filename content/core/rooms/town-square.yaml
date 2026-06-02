@@ -23,6 +23,11 @@ items:
   # M11.5: a trail ration to exercise the consume pipeline — `get
   # ration` then `eat ration` restores sustenance.
   - trail-ration
+  # Playtest fixtures: a sack for container verbs (`get sack`, `put
+  # sword in sack`, `look in sack`, `get sword from sack`) and a
+  # waterskin to fill from the well (`get waterskin`, `fill waterskin`).
+  - canvas-sack
+  - waterskin
 # M11.5 (economy-survival §5.7): the square is a gentle rest spot — a
 # small additive regen bonus the vitals-regen heartbeat applies to
 # anyone recovering here.

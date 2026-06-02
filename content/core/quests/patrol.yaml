@@ -16,12 +16,18 @@ stages:
         target: village-gate
         description: Visit the village gate.
   - id: clear
-    description: Drive off the troublemaker lurking at the gate.
+    description: Drive off the troublemaker lurking past the gate.
+    hint: A road bandit waits in the meadow south of the gate.
     objectives:
+      # Was `village-guard`, but the guard spawns in the safe-room
+      # town-square where combat is blocked — making the kill stage
+      # uncompletable. Repointed to the bandit in the (non-safe) meadow
+      # just south of the gate, which fits "troublemaker lurking past
+      # the gate" and is actually fightable.
       - type: kill
-        target: village-guard
+        target: bandit
         count: 1
-        description: Defeat the rogue guard.
+        description: Defeat the road bandit in the meadow.
 reward:
   xp: 100
   gold: 25

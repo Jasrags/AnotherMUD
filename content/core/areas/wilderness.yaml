@@ -5,3 +5,13 @@ description: |
   treeline. The world is larger out here than it looks from inside.
 # M15.4: the outskirts share the same temperate climate as the village.
 weather_zone: temperate
+reset_interval: 300
+# Playtest combat arena: a road bandit lurks in the meadow (the one
+# non-safe room a player can actually fight in). Persistent so it's
+# always there to test combat / loot / corpse / autoloot / decay and
+# the gate-patrol quest kill stage.
+spawn_rules:
+  - room: meadow
+    mob: bandit
+    count: 1
+    tags: [persistent]
