@@ -2883,7 +2883,7 @@ deferred rarity-filter autoloot key on the rarity ladder this builds.
       tier that is invisible, or lacks display text or decorators, is a
       "renders-as-nothing" baseline (e.g. `common` carries order+color for
       logic without cluttering display).
-- [ ] **M20.2 — Essence registry.** item-decorations §3. A flat set: each
+- [x] **M20.2 — Essence registry.** item-decorations §3. A flat set: each
       essence carries key / glyph / color. Case-insensitive unique keys;
       idempotent later-wins. No order, no decorators; at most one essence
       per item (multi-essence deferred, §8).
