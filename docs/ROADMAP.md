@@ -2855,6 +2855,64 @@ house's admin moderation (`auction-house.md` §11).
 **Touches specs:** `roles-and-permissions`, `admin-verbs`,
 `session-lifecycle §5`, `ui-rendering-help §9.5`, `commands-and-dispatch`.
 
+(M19.4i+ — `set property` on players + the `set tag` kind — is left as an
+open, substrate-blocked tail; see `m19-4h-deferred-fixes`.)
+
+---
+
+### M20 — Item Decorations (Rarity & Essence)
+
+**Slice:** the warmup theme before Loot. Implements the specced contract
+`item-decorations` — two parallel item-marker systems: an **ordered rarity
+tier ladder** (decorated, colored, padded for column alignment) and a flat
+**essence** glyph that participates in stack identity. Both are
+content-registered, theme-colored presentation markers attached to items
+via reserved properties. Render-and-attach only — no rarity *generation*
+(that's a Loot concern, item-decorations §8). Chosen as a warmup because
+it's Small, and it feeds the next theme: Loot's rare-bonus pools and the
+deferred rarity-filter autoloot key on the rarity ladder this builds.
+
+**Live list:** `BACKLOG.md` §1 (Rarity tiers, Essence).
+
+**Sub-milestones:**
+
+- [x] **M20.1 — Rarity registry.** item-decorations §2. An ordered tier
+      registry: each tier carries key / order / display text / left+right
+      decorators / color / visible flag. Sort by order; case-insensitive
+      unique keys; idempotent registration (later-wins, pack convention). A
+      tier that is invisible, or lacks display text or decorators, is a
+      "renders-as-nothing" baseline (e.g. `common` carries order+color for
+      logic without cluttering display).
+- [ ] **M20.2 — Essence registry.** item-decorations §3. A flat set: each
+      essence carries key / glyph / color. Case-insensitive unique keys;
+      idempotent later-wins. No order, no decorators; at most one essence
+      per item (multi-essence deferred, §8).
+- [ ] **M20.3 — Themed rendering.** item-decorations §4. Rarity inline
+      (decorator-wrapped display text in the tier's themed color) and padded
+      (centered to the registry's max visible tag width so list columns
+      align; unset → blank padding of that width); essence as a themed
+      glyph-in-parens. Colors resolve through the theme registry via
+      semantic tags (`item.<key>` / `essence.<key>`); registering a visible
+      marker registers its theme entry. Plain mode strips to visible
+      text/glyph (ui-rendering-help §2/§3).
+- [ ] **M20.4 — Pack content loading.** item-decorations §2/§3 (content). A
+      rarity-tier vocabulary + essence vocabulary load from pack YAML into
+      the registries, wired into `pack.Load` + the registries struct + the
+      manifest content globs, mirroring the theme-load path. `core` pack
+      ships a starter tier ladder + a couple of essences.
+- [ ] **M20.5 — Attachment + stacking + persistence.** item-decorations
+      §5/§6. Reserved item properties hold the rarity/essence key, settable
+      on a template (all instances) or an instance (one drop). **Essence is
+      part of stack identity** — two same-template items with different
+      essence keys do not stack; same/both-unset stack (inventory §5).
+      Rarity does not split stacks (the conservative §5/§9 default). An
+      instance value round-trips across logout; an unknown key renders unset
+      (empty), never an error.
+
+**Touches specs:** `item-decorations` §2–§6, `ui-rendering-help §2/§3`
+(theme + plain-strip), `inventory-equipment-items §2/§5` (item properties +
+stacking), `persistence` (instance-property round-trip).
+
 ---
 
 ## How to use this document
