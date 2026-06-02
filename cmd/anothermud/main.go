@@ -1361,6 +1361,7 @@ func run() error {
 		Templates:     registries.Items,
 		Slots:         registries.Slots,
 		Bus:           bus,
+		Properties:    registries.Properties,
 		Disposition:   dispositionHook{e: evaluator},
 		Combat:        combatMgr,
 		CombatLocator: combatLocator,
@@ -2930,16 +2931,18 @@ func registerEngineBaselineProperties(reg *property.Registry) error {
 	}
 	baseline := []property.Entry{
 		{
-			Name:        "quest_grant",
-			Type:        property.TypeString,
-			Description: "Quest id auto-accepted on item pickup or room entry (spec quests §7.2).",
-			AppliesTo:   []string{"item", "room"},
+			Name:          "quest_grant",
+			Type:          property.TypeString,
+			Description:   "Quest id auto-accepted on item pickup or room entry (spec quests §7.2).",
+			AppliesTo:     []string{"item", "room"},
+			AdminSettable: true, // M19.4h: admins can retarget on a live item for testing
 		},
 		{
-			Name:        "key_for",
-			Type:        property.TypeString,
-			Description: "Door id this item unlocks (spec world-rooms-movement §5.3 + PD-4).",
-			AppliesTo:   []string{"item"},
+			Name:          "key_for",
+			Type:          property.TypeString,
+			Description:   "Door id this item unlocks (spec world-rooms-movement §5.3 + PD-4).",
+			AppliesTo:     []string{"item"},
+			AdminSettable: true, // M19.4h: admins can retarget which door an item unlocks
 		},
 	}
 	for _, e := range baseline {

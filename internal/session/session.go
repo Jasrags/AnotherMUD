@@ -39,6 +39,7 @@ import (
 	"github.com/Jasrags/AnotherMUD/internal/notifications"
 	"github.com/Jasrags/AnotherMUD/internal/player"
 	"github.com/Jasrags/AnotherMUD/internal/progression"
+	"github.com/Jasrags/AnotherMUD/internal/property"
 	"github.com/Jasrags/AnotherMUD/internal/quest"
 	"github.com/Jasrags/AnotherMUD/internal/queststore"
 	"github.com/Jasrags/AnotherMUD/internal/render"
@@ -79,6 +80,10 @@ type Config struct {
 	// inventory/equipment handlers so they can publish observable
 	// events after successful mutations. May be nil in tests.
 	Bus *eventbus.Bus
+	// Properties is the engine property registry (M14), passed through
+	// command.Env so the admin `set property` handler (M19.4h) can
+	// validate + type-coerce a write. May be nil in tests.
+	Properties *property.Registry
 
 	// Disposition is the room-entry hook surface (spec
 	// mobs-ai-spawning §4). Passed through command.Env and called
@@ -835,6 +840,7 @@ func pump(ctx context.Context, c conn.Connection, cfg Config, a *connActor, clk 
 			Contents:           cfg.Contents,
 			Slots:              cfg.Slots,
 			Bus:                cfg.Bus,
+			Properties:         cfg.Properties,
 			Locator:            managerLocator{cfg.Manager},
 			Disposition:        cfg.Disposition,
 			Combat:             cfg.Combat,

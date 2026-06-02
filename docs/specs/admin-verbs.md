@@ -161,13 +161,16 @@ general-purpose admin write.
 
 **Acceptance — set**
 
-- [ ] Setting an admin-settable property on a target persists it.
+- [x] Setting an admin-settable property on a target persists it.
+      *(M19.4h: room mobs/items — live write. Persistence applies once
+      player property bags land; mobs/items are transient.)*
 - [ ] Setting a tag adds/removes it and updates the tag index.
-- [ ] Setting a vital clamps to its maximum and takes effect immediately.
-- [ ] A non-admin-settable or unknown field is refused; a type-mismatched
+      *(deferred — M19.4i+, no runtime tag mutator yet.)*
+- [x] Setting a vital clamps to its maximum and takes effect immediately.
+- [x] A non-admin-settable or unknown field is refused; a type-mismatched
       value is refused with a usage error, writing nothing.
-- [ ] An incomplete `set` renders the kinds/types usage panel.
-- [ ] Roles cannot be changed via `set`.
+- [x] An incomplete `set` renders the kinds/types usage panel.
+- [x] Roles cannot be changed via `set`.
 
 ---
 

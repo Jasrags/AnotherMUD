@@ -91,6 +91,12 @@ type Entry struct {
 	// for runtime-only state (e.g. mid-combat flags) that lives on
 	// the same property bag but should never persist.
 	Transient bool
+	// AdminSettable opts the property into the admin `set` surface
+	// (admin-verbs §4). Defaults false: a property is NOT settable via
+	// `set` unless its registration explicitly flags it, so the generic
+	// admin write can't poke arbitrary engine state. The `set property`
+	// handler validates the typed value against Type before writing.
+	AdminSettable bool
 }
 
 // Key returns the canonical lookup key for the entry. Engine
@@ -278,4 +284,3 @@ func (r *Registry) Len() int {
 	defer r.mu.RUnlock()
 	return len(r.entries)
 }
-

@@ -2824,12 +2824,33 @@ house's admin moderation (`auction-house.md` §11).
       Empty `AdminRole` disables the exemption (defensive). 4 tests
       (admin-exempt-warn+timeout / non-admin-still-times-out /
       case-insensitive / empty-role-disables). Full -race suite green.
-- [ ] **M19.4h+ — the `set` property/tag kinds.** The `set` `property` +
-      `tag` kinds remain **substrate-blocked**: property needs the `Registry`
-      wired into the command layer + an admin-settable flag +
-      `connActor.Properties()`/`SetProperty` + save-integration (M14 + M19.4b
-      gaps); tag needs a runtime player-tag mutator (player tags are
-      PARTIAL). admin-verbs §3–§5.
+- [x] **M19.4h — `set property` (room mobs/items).** admin-verbs §4. The
+      property half of the `set` surface, scoped to targets that already
+      carry a property bag: a room **mob** or **item** (both have
+      `SetProperty`). `property.Entry` gains an **`AdminSettable`** flag
+      (default false — a property can't be `set` unless its registration
+      opts in), and the engine `property.Registry` is threaded root →
+      `session.Config` → `command.Env` → `command.Context` (mirrors how
+      `Items` flows). `set property <name> <target> <value>` validates the
+      name against the registry (exists → admin-settable → value coerces to
+      the declared `ValueType`, else nothing is written), refuses the
+      reserved keys (`template_id`/`room_id`) and collection types, and
+      writes the live bag via the existing `SetProperty`. Target resolution
+      gains a room-item fall-through (`findRoomItem`, reusing the
+      `roomItems`+`keyword.Resolve` chain) after the player/mob lookup. The
+      two engine baseline string properties (`quest_grant`, `key_for`) are
+      flagged `AdminSettable` so it's live-exercisable. Audited via
+      `auditAdmin`. **Live-only write** — room mobs/items are transient, so
+      no save-integration (clean for this slice). 9 tests (item write+audit /
+      int coercion / type-mismatch refused / not-admin-settable / unknown /
+      reserved-key / player-target refused / usage-panel lists property /
+      reuse of vital cases). Full -race suite green.
+- [ ] **M19.4i+ — `set property` on players + the `tag` kind.** Still
+      **substrate-blocked**: player property needs `connActor.Properties()`/
+      `SetProperty` + a property bag on the save + save-integration; the
+      `tag` kind needs a runtime tag mutator (mobs have only
+      `SetAlignmentTag`; players have no mutable gameplay-tag set, and player
+      tags are PARTIAL). admin-verbs §4.
 
 **Touches specs:** `roles-and-permissions`, `admin-verbs`,
 `session-lifecycle §5`, `ui-rendering-help §9.5`, `commands-and-dispatch`.

@@ -32,6 +32,7 @@ import (
 	"github.com/Jasrags/AnotherMUD/internal/logging"
 	"github.com/Jasrags/AnotherMUD/internal/notifications"
 	"github.com/Jasrags/AnotherMUD/internal/progression"
+	"github.com/Jasrags/AnotherMUD/internal/property"
 	"github.com/Jasrags/AnotherMUD/internal/quest"
 	"github.com/Jasrags/AnotherMUD/internal/slot"
 	"github.com/Jasrags/AnotherMUD/internal/stats"
@@ -178,6 +179,11 @@ type Env struct {
 	// events after successful mutations. May be nil in tests that
 	// don't subscribe to anything — handlers MUST nil-guard.
 	Bus *eventbus.Bus
+	// Properties is the engine-wide property registry (M14). The admin
+	// `set property` handler (M19.4h) reads it to validate a property
+	// exists, is admin-settable, and to coerce the value to its declared
+	// type. May be nil in tests that don't exercise property writes.
+	Properties *property.Registry
 	// Locator resolves another actor by name + room. Consumed by the
 	// give command handler (and future targeted verbs). May be nil
 	// in tests; handlers MUST nil-guard.
@@ -363,6 +369,7 @@ type Context struct {
 	Contents    *entities.Contents  // may be nil in tests
 	Slots       *slot.Registry      // may be nil in tests
 	Bus         *eventbus.Bus       // may be nil in tests
+	Properties  *property.Registry  // may be nil in tests (M19.4h set property)
 	Locator     Locator             // may be nil in tests
 	Disposition DispositionHook     // may be nil in tests
 	Combat      *combat.Manager     // may be nil in tests
@@ -781,6 +788,7 @@ func (r *Registry) Dispatch(ctx context.Context, env Env, actor Actor, raw strin
 		Contents:           env.Contents,
 		Slots:              env.Slots,
 		Bus:                env.Bus,
+		Properties:         env.Properties,
 		Locator:            env.Locator,
 		Disposition:        env.Disposition,
 		Combat:             env.Combat,
