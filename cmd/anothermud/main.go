@@ -287,6 +287,7 @@ func run() error {
 	}
 
 	idleCfg := session.DefaultIdleConfig()
+	idleCfg.AdminRole = cfg.AdminRole // admins are exempt from idle (session-lifecycle §5.2)
 	idleSweepCadence := cadenceTicks(cfg.TickInterval, cfg.IdleSweepInterval)
 	if err := loop.Register("idle-sweep", idleSweepCadence, func(ctx context.Context, n uint64) {
 		mgr.IdleSweep(ctx, idleCfg, clk)

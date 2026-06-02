@@ -532,7 +532,7 @@ expiration on a separate cadence.
 
 - [ ] The idle handler runs at a fixed cadence and iterates
       only active (connection-mapped) sessions.
-- [ ] Admin role exempts a session from both warn and
+- [x] Admin role exempts a session from both warn and
       timeout.
 - [ ] Dead-connection detection enqueues a disconnect with
       the canonical `dead connection` reason.

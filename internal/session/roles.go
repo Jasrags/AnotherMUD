@@ -64,12 +64,19 @@ func normalizeRole(s string) string {
 // (roles-and-permissions §3 — the one authorization question). Read-only:
 // it never mutates the role set.
 func (a *connActor) HasRole(role string) bool {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	return a.hasRoleLocked(role)
+}
+
+// hasRoleLocked is the lock-free core of HasRole, for callers that already
+// hold a.mu (e.g. the idle decision, which evaluates the admin exemption
+// while holding the actor lock — calling HasRole there would self-deadlock).
+func (a *connActor) hasRoleLocked(role string) bool {
 	r := normalizeRole(role)
 	if r == "" {
 		return false
 	}
-	a.mu.Lock()
-	defer a.mu.Unlock()
 	_, ok := a.roles[r]
 	return ok
 }

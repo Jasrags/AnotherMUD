@@ -20,6 +20,11 @@ type IdleConfig struct {
 	TimeoutAfter   time.Duration
 	WarnMessage    string
 	TimeoutMessage string
+	// AdminRole is the role that exempts its holders from idle handling
+	// (session-lifecycle §5.1/§5.2 step 2). Empty disables the exemption
+	// (every session is subject to warn + timeout). Set at the composition
+	// root from the same ANOTHERMUD_ADMIN_ROLE the dispatch gate uses.
+	AdminRole string
 }
 
 // DefaultIdleConfig returns the production policy: warn at 5 minutes,
@@ -59,8 +64,9 @@ func (c IdleConfig) disabled() bool {
 // first). The first sweep that observes this logs a warning so an
 // operator notices instead of silently losing the two-step sequence.
 //
-// Admin-tag exemption (spec §5.2 step 2) is deferred — the engine
-// has no role system yet.
+// Admin exemption (spec §5.2 step 2): a session whose actor holds
+// cfg.AdminRole is skipped before any idle computation, so it is never
+// warned or timed out.
 func (m *Manager) IdleSweep(ctx context.Context, cfg IdleConfig, clk clock.Clock) {
 	if cfg.disabled() {
 		return
@@ -127,6 +133,12 @@ func (a *connActor) idleDecision(now time.Time, cfg IdleConfig) idleAction {
 	if a.disconnecting {
 		// Already on the way out; the read loop just hasn't unwound
 		// yet. Stay silent.
+		return idleQuiet
+	}
+	// Admin exemption (spec §5.2 step 2): holders of the admin role are
+	// never warned or disconnected for inactivity. Checked under the lock
+	// we already hold via hasRoleLocked (HasRole would re-lock a.mu).
+	if a.hasRoleLocked(cfg.AdminRole) {
 		return idleQuiet
 	}
 	if a.lastInputAt.IsZero() {

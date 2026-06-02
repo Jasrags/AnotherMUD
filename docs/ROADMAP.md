@@ -2813,13 +2813,23 @@ house's admin moderation (`auction-house.md` §11).
       short-circuits to `RoleNone` before the resolver. Default (no resolver)
       is unchanged → no caller/test churn. 3 help tests (admin-sees /
       category+list / pre-login-stays-none). Full -race suite green.
-- [ ] **M19.4g+ — idle-sweep exemption + the `set` property/tag kinds.** The
-      §5 idle-sweep exemption (admins exempt from the idle timeout) is the
-      next clean finisher. The `set` `property` + `tag` kinds remain
-      **substrate-blocked**: property needs the `Registry` wired into the
-      command layer + an admin-settable flag + `connActor.Properties()`/
-      `SetProperty` + save-integration (M14 + M19.4b gaps); tag needs a
-      runtime player-tag mutator (player tags are PARTIAL). admin-verbs §3–§5.
+- [x] **M19.4g — idle-sweep admin exemption.** session-lifecycle §5.1/§5.2
+      step 2: `IdleConfig` gains an `AdminRole` field, wired at the
+      composition root from `cfg.AdminRole` (the same `ANOTHERMUD_ADMIN_ROLE`
+      the dispatch gate + help visibility use). In `idleDecision` — already
+      holding `a.mu` — an actor holding the admin role short-circuits to
+      `idleQuiet` before any idle computation, so admins are never warned or
+      timed out. The check reuses `HasRole`'s core via a new `hasRoleLocked`
+      (the public `HasRole` re-locks `a.mu` and would self-deadlock there).
+      Empty `AdminRole` disables the exemption (defensive). 4 tests
+      (admin-exempt-warn+timeout / non-admin-still-times-out /
+      case-insensitive / empty-role-disables). Full -race suite green.
+- [ ] **M19.4h+ — the `set` property/tag kinds.** The `set` `property` +
+      `tag` kinds remain **substrate-blocked**: property needs the `Registry`
+      wired into the command layer + an admin-settable flag +
+      `connActor.Properties()`/`SetProperty` + save-integration (M14 + M19.4b
+      gaps); tag needs a runtime player-tag mutator (player tags are
+      PARTIAL). admin-verbs §3–§5.
 
 **Touches specs:** `roles-and-permissions`, `admin-verbs`,
 `session-lifecycle §5`, `ui-rendering-help §9.5`, `commands-and-dispatch`.

@@ -198,3 +198,87 @@ func TestIdleSweep_ZeroLastInputIsImmune(t *testing.T) {
 			fc.writes(), fc.closed())
 	}
 }
+
+// An actor holding the configured admin role is exempt from both the
+// warn and the timeout, no matter how long it has been idle
+// (session-lifecycle §5.2 step 2).
+func TestIdleSweep_AdminExemptFromWarnAndTimeout(t *testing.T) {
+	mgr, mc, a, fc := newIdleRig(t)
+	a.Grant("admin")
+	cfg := IdleConfig{
+		WarnAfter:      5 * time.Second,
+		TimeoutAfter:   10 * time.Second,
+		WarnMessage:    "WARN",
+		TimeoutMessage: "BYE",
+		AdminRole:      "admin",
+	}
+	mc.Advance(1 * time.Hour) // well past both thresholds
+	mgr.IdleSweep(context.Background(), cfg, mc)
+	mgr.IdleSweep(context.Background(), cfg, mc)
+
+	if got := fc.writes(); len(got) != 0 {
+		t.Errorf("admin was warned/timed out: %v", got)
+	}
+	if fc.closed() {
+		t.Error("admin connection was closed by idle sweep")
+	}
+}
+
+// The exemption is role-specific: a non-admin session is still subject
+// to the timeout even when an AdminRole is configured.
+func TestIdleSweep_NonAdminStillTimesOut(t *testing.T) {
+	mgr, mc, a, fc := newIdleRig(t)
+	a.Grant("builder") // some other role, not the admin role
+	cfg := IdleConfig{
+		WarnAfter:      5 * time.Second,
+		TimeoutAfter:   10 * time.Second,
+		WarnMessage:    "WARN",
+		TimeoutMessage: "BYE",
+		AdminRole:      "admin",
+	}
+	mc.Advance(11 * time.Second)
+	mgr.IdleSweep(context.Background(), cfg, mc)
+
+	if !fc.closed() {
+		t.Error("non-admin idle session was not disconnected")
+	}
+}
+
+// Case-insensitive match: the admin exemption honors normalizeRole, so a
+// role granted in any case still matches an AdminRole in any case.
+func TestIdleSweep_AdminExemptionCaseInsensitive(t *testing.T) {
+	mgr, mc, a, fc := newIdleRig(t)
+	a.Grant("Admin")
+	cfg := IdleConfig{
+		WarnAfter:      5 * time.Second,
+		TimeoutAfter:   10 * time.Second,
+		WarnMessage:    "WARN",
+		TimeoutMessage: "BYE",
+		AdminRole:      "ADMIN",
+	}
+	mc.Advance(1 * time.Hour)
+	mgr.IdleSweep(context.Background(), cfg, mc)
+
+	if got := fc.writes(); len(got) != 0 || fc.closed() {
+		t.Errorf("case-insensitive admin not exempt: writes=%v closed=%v", got, fc.closed())
+	}
+}
+
+// An empty AdminRole disables the exemption: even an admin-tagged session
+// is subject to idle timeout (defensive — production always sets it).
+func TestIdleSweep_EmptyAdminRoleDisablesExemption(t *testing.T) {
+	mgr, mc, a, fc := newIdleRig(t)
+	a.Grant("admin")
+	cfg := IdleConfig{
+		WarnAfter:      5 * time.Second,
+		TimeoutAfter:   10 * time.Second,
+		TimeoutMessage: "BYE",
+		AdminRole:      "", // exemption off
+	}
+	mc.Advance(11 * time.Second)
+	mgr.IdleSweep(context.Background(), cfg, mc)
+
+	if !fc.closed() {
+		t.Error("empty AdminRole should not exempt; session should time out")
+	}
+}
