@@ -21,6 +21,12 @@ const (
 	// Post-fact notification fired after a successful put commits.
 	// Spec §4.5 step 7. Payload mirrors the pre-event.
 	EventContainerItemAdded = "container.item_added"
+	// Cancellable pre-event fired before a get-from-container commits
+	// (the mirror of container.item_adding). Listeners can veto the
+	// take (locks, quest gates, looting rights).
+	EventContainerItemRemoving = "container.item_removing"
+	// Post-fact notification fired after a successful get-from-container.
+	EventContainerItemRemoved = "container.item_removed"
 	// Post-fact notification fired after a successful fill commits
 	// (spec inventory-equipment-items §4.6 step 7). Fill has no
 	// cancellable pre-event: the spec lists no veto hook and the
@@ -454,6 +460,47 @@ type ContainerItemAdded struct {
 
 // Name implements Event.
 func (ContainerItemAdded) Name() string { return EventContainerItemAdded }
+
+// ContainerItemRemoving is the cancellable pre-event before an item is
+// taken out of a container via `get … from <container>`
+// (inventory-equipment-items §4; the mirror of ContainerItemAdding). A
+// listener that cancels (locked container, quest gate, looting rights)
+// vetoes the take.
+type ContainerItemRemoving struct {
+	*CancelFlag
+	ActorID     entities.EntityID
+	ContainerID entities.EntityID
+	ItemID      entities.EntityID
+	RoomID      world.RoomID
+}
+
+// NewContainerItemRemoving wires up the cancel flag. Mirrors
+// NewContainerItemAdding.
+func NewContainerItemRemoving(actor, container, item entities.EntityID, room world.RoomID) *ContainerItemRemoving {
+	return &ContainerItemRemoving{
+		CancelFlag:  &CancelFlag{},
+		ActorID:     actor,
+		ContainerID: container,
+		ItemID:      item,
+		RoomID:      room,
+	}
+}
+
+// Name implements Event.
+func (*ContainerItemRemoving) Name() string { return EventContainerItemRemoving }
+
+// ContainerItemRemoved fires after a successful get-from-container
+// commits. Post-state: ItemID is in ActorID's inventory, no longer in
+// ContainerID's contents.
+type ContainerItemRemoved struct {
+	ActorID     entities.EntityID
+	ContainerID entities.EntityID
+	ItemID      entities.EntityID
+	RoomID      world.RoomID
+}
+
+// Name implements Event.
+func (ContainerItemRemoved) Name() string { return EventContainerItemRemoved }
 
 // ItemFilled fires after a successful fill commits (spec
 // inventory-equipment-items §4.6 step 7). Post-state: TargetID's

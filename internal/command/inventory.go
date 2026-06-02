@@ -5,10 +5,19 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/Jasrags/AnotherMUD/internal/combat"
+	"github.com/Jasrags/AnotherMUD/internal/corpse"
+	"github.com/Jasrags/AnotherMUD/internal/economy"
 	"github.com/Jasrags/AnotherMUD/internal/entities"
 	"github.com/Jasrags/AnotherMUD/internal/eventbus"
 	"github.com/Jasrags/AnotherMUD/internal/keyword"
+	"github.com/Jasrags/AnotherMUD/internal/world"
 )
+
+// coinKeywords are the reserved tokens that, as the item argument of
+// `get … from <corpse>`, take the corpse's coin pile rather than an
+// item (loot-and-corpses §5.2).
+var coinKeywords = map[string]bool{"coins": true, "coin": true, "gold": true, "money": true}
 
 // Reserved tags that gate `get` (spec inventory-equipment-items §4.2
 // step 1). Items carrying either tag never leave a room via pick-up;
@@ -20,15 +29,15 @@ const (
 	tagNoGet   = "no_get"
 )
 
-// GetHandler implements the `get <item>` verb (spec §4.2).
+// GetHandler implements `get <item>` (room pickup, spec §4.2) and
+// `get <item|coins> from <container>` (container extraction, §5.2).
 //
-// Resolves the argument against items currently in the actor's room via
-// the shared keyword resolver, validates the tag gate, moves the item
-// from room → inventory, and broadcasts a single observable event.
-//
-// Failure messages are deliberately phrased so observers don't learn
-// which fixture refused them (avoid information leak about world
-// metadata that the player can't see).
+// Hand-parsed rather than declarative: the item's scope is conditional
+// on the `from` preposition — room items for the bare form, the named
+// container's contents for the `from` form — which the single-scope arg
+// pipeline can't express (the M17.2d "non-fit" precedent). The room form
+// still resolves through resolveRoomItem so its messages and ordinal
+// handling (`get 2.sword`) are unchanged.
 func GetHandler(ctx context.Context, c *Context) error {
 	if c.Items == nil || c.Placement == nil {
 		// Sub-system not wired; fail closed rather than panic.
@@ -39,11 +48,25 @@ func GetHandler(ctx context.Context, c *Context) error {
 		return c.Actor.Write(ctx, "There is nothing here.")
 	}
 
-	// M17.2d₃: the room_item arg resolves the target against the room
-	// scope before this runs; we re-fetch the live instance by id so
-	// the tag check and the Placement.Remove atomic claim below operate
-	// on the authoritative entity.
-	item, ok := resolvedItemInstance(c, "item")
+	if itemToks, contToks, fromContainer := splitOnPreposition(c.Args, "from"); fromContainer {
+		return c.getFromContainer(ctx, room, itemToks, contToks)
+	}
+	return c.getFromRoom(ctx, room, c.Args)
+}
+
+// getFromRoom is the §4.2 room pickup. Resolves the item via the shared
+// resolveRoomItem (so ordinals + messages match the declarative path),
+// validates the tag gate, and moves it room → inventory.
+func (c *Context) getFromRoom(ctx context.Context, room *world.Room, toks []string) error {
+	if len(toks) == 0 {
+		return c.Actor.Write(ctx, "What item?")
+	}
+	out, err := resolveRoomItem(ResolverInput{Tokens: toks, Context: c.BuildResolveContext()})
+	if err != nil {
+		return c.Actor.Write(ctx, "You don't see that here.")
+	}
+	ref := out.Value.(ItemRef)
+	item, ok := c.liveItem(ref.ID)
 	if !ok {
 		return c.Actor.Write(ctx, "You don't see that here.")
 	}
@@ -104,6 +127,161 @@ func GetHandler(ctx context.Context, c *Context) error {
 		ItemID:   item.ID(),
 	})
 	return nil
+}
+
+// getFromContainer implements `get <item|coins> from <container>`
+// (spec §5.2). The container resolves inventory-first then room (shared
+// resolveContainer); a corpse additionally enforces the §4 ownership
+// window. The item is keyword-matched within the container's contents.
+func (c *Context) getFromContainer(ctx context.Context, room *world.Room, itemToks, contToks []string) error {
+	if len(itemToks) == 0 {
+		return c.Actor.Write(ctx, "What item?")
+	}
+	if len(contToks) == 0 {
+		return c.Actor.Write(ctx, "Get it from what?")
+	}
+	if c.Contents == nil {
+		return c.Actor.Write(ctx, "You can't take anything from there right now.")
+	}
+
+	cout, err := resolveContainer(ResolverInput{Tokens: contToks, Context: c.BuildResolveContext()})
+	if err != nil {
+		return c.Actor.Write(ctx, "You don't see that container here.")
+	}
+	container, ok := c.liveItem(cout.Value.(ItemRef).ID)
+	if !ok {
+		return c.Actor.Write(ctx, "You don't see that container here.")
+	}
+
+	isCorpse := corpse.IsCorpse(container)
+	if isCorpse && !c.mayLootCorpse(container) {
+		// §4 — refuse without naming the owner.
+		return c.Actor.Write(ctx, fmt.Sprintf("You don't have the right to loot %s yet.", container.Name()))
+	}
+
+	if coinKeywords[strings.ToLower(itemToks[0])] {
+		return c.getCoinsFrom(ctx, room, container, isCorpse)
+	}
+
+	contents := collectItems(c.Items, c.Contents.In(container.ID()))
+	match := keyword.Resolve(asNamed(contents), itemToks[0])
+	if match == nil {
+		return c.Actor.Write(ctx, fmt.Sprintf("You don't see that in %s.", container.Name()))
+	}
+	item := match.(*entities.ItemInstance)
+
+	actorEID := holderEntityIDForPlayer(c.Actor.PlayerID())
+	if c.Bus != nil {
+		pre := eventbus.NewContainerItemRemoving(actorEID, container.ID(), item.ID(), room.ID)
+		if c.Bus.PublishCancellable(ctx, pre) {
+			return c.Actor.Write(ctx, fmt.Sprintf("You can't take %s from %s right now.", item.Name(), container.Name()))
+		}
+	}
+
+	// Contents.Take is the atomic single-winner claim (mirrors the loot
+	// verb / GetHandler room pickup).
+	if !c.Contents.Take(item.ID()) {
+		return c.Actor.Write(ctx, fmt.Sprintf("You don't see that in %s.", container.Name()))
+	}
+	c.Actor.AddToInventory(item.ID())
+
+	_ = c.Actor.Write(ctx, fmt.Sprintf("You take %s from %s.", decoratedName(c, item), container.Name()))
+	if c.Broadcaster != nil && c.Actor.Name() != "" {
+		c.Broadcaster.SendToRoom(ctx, room.ID,
+			fmt.Sprintf("%s takes %s from %s.", c.Actor.Name(), item.Name(), container.Name()),
+			c.Actor.PlayerID())
+	}
+	if c.Bus != nil {
+		c.Publish(ctx, eventbus.ContainerItemRemoved{
+			ActorID: actorEID, ContainerID: container.ID(), ItemID: item.ID(), RoomID: room.ID,
+		})
+	}
+
+	if isCorpse {
+		c.removeCorpseIfEmpty(ctx, container, room.ID, 1, 0)
+	}
+	return nil
+}
+
+// getCoinsFrom handles the reserved coin keyword of `get coins from
+// <corpse>` (spec §5.2): claims the corpse's coin pile and credits the
+// actor's currency balance. Only corpses carry coins.
+func (c *Context) getCoinsFrom(ctx context.Context, room *world.Room, container *entities.ItemInstance, isCorpse bool) error {
+	if !isCorpse {
+		return c.Actor.Write(ctx, fmt.Sprintf("There are no coins in %s.", container.Name()))
+	}
+	holder, ok := c.Actor.(economy.Entity)
+	if c.Currency == nil || !ok {
+		return c.Actor.Write(ctx, "You can't carry coins right now.")
+	}
+	coins := corpse.ClaimCoins(container)
+	if coins <= 0 {
+		return c.Actor.Write(ctx, fmt.Sprintf("There are no coins in %s.", container.Name()))
+	}
+	c.Currency.AddGold(ctx, holder, coins, "loot:"+string(container.ID()))
+	_ = c.Actor.Write(ctx, fmt.Sprintf("You take %d gold from %s.", coins, container.Name()))
+	if c.Broadcaster != nil && c.Actor.Name() != "" {
+		c.Broadcaster.SendToRoom(ctx, room.ID,
+			fmt.Sprintf("%s takes some coins from %s.", c.Actor.Name(), container.Name()),
+			c.Actor.PlayerID())
+	}
+	c.removeCorpseIfEmpty(ctx, container, room.ID, 0, coins)
+	return nil
+}
+
+// mayLootCorpse evaluates the §4 ownership window for the acting player
+// against a corpse, using the live tick.
+func (c *Context) mayLootCorpse(target *entities.ItemInstance) bool {
+	actorID := string(combat.NewPlayerCombatantID(c.Actor.PlayerID()))
+	now := uint64(0)
+	if c.NowTick != nil {
+		now = c.NowTick()
+	}
+	return corpse.MayLoot(target, actorID, now, c.CorpseOwnershipWindow)
+}
+
+// removeCorpseIfEmpty removes a corpse drained to nothing (items + coins)
+// and emits corpse.looted, single-winner via Placement.Remove so a
+// piecemeal get-from, a `loot`, and the decay sweep can't double-fire.
+// itemCount/coins describe the action that emptied it.
+func (c *Context) removeCorpseIfEmpty(ctx context.Context, target *entities.ItemInstance, roomID world.RoomID, itemCount, coins int) {
+	if len(c.Contents.In(target.ID())) != 0 || corpse.Coins(target) != 0 {
+		return
+	}
+	if !c.Placement.Remove(target.ID()) {
+		return
+	}
+	_ = c.Items.Untrack(target.ID())
+	c.Publish(ctx, eventbus.CorpseLooted{
+		CorpseID:  target.ID(),
+		RoomID:    roomID,
+		LooterID:  string(combat.NewPlayerCombatantID(c.Actor.PlayerID())),
+		ItemCount: itemCount,
+		Coins:     coins,
+	})
+}
+
+// liveItem re-fetches a live *ItemInstance by id (TOCTOU guard between
+// resolution and mutation).
+func (c *Context) liveItem(id string) (*entities.ItemInstance, bool) {
+	e, ok := c.Items.GetByID(entities.EntityID(id))
+	if !ok {
+		return nil, false
+	}
+	it, ok := e.(*entities.ItemInstance)
+	return it, ok
+}
+
+// splitOnPreposition splits tokens around the first case-insensitive
+// occurrence of prep: (before, after, found). When prep is absent it
+// returns (toks, nil, false).
+func splitOnPreposition(toks []string, prep string) (before, after []string, found bool) {
+	for i, t := range toks {
+		if strings.EqualFold(t, prep) {
+			return toks[:i], toks[i+1:], true
+		}
+	}
+	return toks, nil, false
 }
 
 // DropHandler implements the `drop <item>` verb (spec §4.3).
