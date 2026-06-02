@@ -2887,7 +2887,7 @@ deferred rarity-filter autoloot key on the rarity ladder this builds.
       essence carries key / glyph / color. Case-insensitive unique keys;
       idempotent later-wins. No order, no decorators; at most one essence
       per item (multi-essence deferred, §8).
-- [ ] **M20.3 — Themed rendering.** item-decorations §4. Rarity inline
+- [x] **M20.3 — Themed rendering.** item-decorations §4. Rarity inline
       (decorator-wrapped display text in the tier's themed color) and padded
       (centered to the registry's max visible tag width so list columns
       align; unset → blank padding of that width); essence as a themed
@@ -2899,7 +2899,11 @@ deferred rarity-filter autoloot key on the rarity ladder this builds.
       rarity-tier vocabulary + essence vocabulary load from pack YAML into
       the registries, wired into `pack.Load` + the registries struct + the
       manifest content globs, mirroring the theme-load path. `core` pack
-      ships a starter tier ladder + a couple of essences.
+      ships a starter tier ladder + a couple of essences. **Validate marker
+      keys at load** (reject `<`/`>`/whitespace, like `property.Registry`'s
+      snake_case check) — keys are interpolated into render markup, so a
+      malformed key would produce broken tags (M20.3 review LOW; the load
+      boundary is the right place to enforce it).
 - [ ] **M20.5 — Attachment + stacking + persistence.** item-decorations
       §5/§6. Reserved item properties hold the rarity/essence key, settable
       on a template (all instances) or an instance (one drop). **Essence is
