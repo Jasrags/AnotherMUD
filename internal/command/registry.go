@@ -286,6 +286,12 @@ type Env struct {
 	// disables `announce` (the handler reports it's not enabled).
 	Announcer Announcer
 
+	// PlayerRoom resolves an online player's current room by name,
+	// world-wide (admin-verbs §3 world-scoped resolution). The `teleport`
+	// verb uses it for the teleport-to-player form. nil disables that form
+	// (teleport-to-room still works).
+	PlayerRoom PlayerRoomResolver
+
 	// ChatRegistry is the M13.6 channel catalog. Read by chat list /
 	// chat history and by the dynamically-registered per-channel
 	// verbs (ooc / admin / pack channels). nil-safe.
@@ -404,6 +410,10 @@ type Context struct {
 	// Announcer is the all-sessions broadcast seam the `announce` admin
 	// verb uses (admin-verbs §5). nil disables `announce`.
 	Announcer Announcer
+	// PlayerRoom resolves an online player's room by name world-wide for
+	// the `teleport` verb's teleport-to-player form (admin-verbs §3). nil
+	// disables that form.
+	PlayerRoom PlayerRoomResolver
 	// ChatRegistry / ChatSubscribers / ChatScrollbacks are the M13.6
 	// channel seams. nil in tests that don't exercise chat verbs.
 	ChatRegistry    *chat.Registry
@@ -792,6 +802,7 @@ func (r *Registry) Dispatch(ctx context.Context, env Env, actor Actor, raw strin
 		RoleTargetResolver: env.RoleTargetResolver,
 		GrantingRole:       env.GrantingRole,
 		Announcer:          env.Announcer,
+		PlayerRoom:         env.PlayerRoom,
 		ChatRegistry:       env.ChatRegistry,
 		ChatSubscribers:    env.ChatSubscribers,
 		ChatScrollbacks:    env.ChatScrollbacks,

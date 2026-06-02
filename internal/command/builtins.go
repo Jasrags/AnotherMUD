@@ -148,6 +148,15 @@ func RegisterBuiltins(r *Registry) error {
 		// reclaims the top-level `set` keyword cleanly (the former player
 		// `set recall` moved to `recall set`). Audited via auditAdmin.
 		{Keyword: "set", Handler: SetHandler, Admin: true, Brief: "Set a field on a target (admin).", Syntax: []string{"set <kind> <type> <target> <value>"}},
+
+		// restore (M19.4d — admin-verbs §5): the mercy verb. Set a target's
+		// vitals to full (Vitals.SetCurrent(max)). No arg restores self.
+		{Keyword: "restore", Handler: RestoreHandler, Admin: true, Brief: "Restore a target's vitals to full.", Syntax: []string{"restore [<target>]"}},
+
+		// teleport (M19.4d — admin-verbs §5, alias `goto`): move the actor to
+		// a room by id or to the room of an online player (§3 world-scoped
+		// resolution). Reuses SetRoom's room-change events.
+		{Keyword: "teleport", Aliases: []string{"goto"}, Handler: TeleportHandler, Admin: true, Brief: "Teleport to a room or player.", Syntax: []string{"teleport <room-id>", "teleport <player>"}},
 	}
 	for _, c := range commands {
 		if err := r.RegisterCommand(c); err != nil {

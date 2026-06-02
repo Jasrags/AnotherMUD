@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/Jasrags/AnotherMUD/internal/command"
+	"github.com/Jasrags/AnotherMUD/internal/world"
 )
 
 // RoleTargetResolver bridges the grant/revoke verbs' player-name lookup to
@@ -25,6 +26,26 @@ func (r RoleTargetResolver) ResolveRoleTarget(name string) (command.RoleControll
 		return nil, false
 	}
 	return a, true
+}
+
+// PlayerRoomResolver bridges the `teleport` verb's teleport-to-player form
+// to the session manager (admin-verbs §3 world-scoped resolution): it maps
+// an ONLINE player name to their current room id, world-wide. Offline
+// players are not resolved.
+type PlayerRoomResolver struct {
+	Manager *Manager
+}
+
+// ResolvePlayerRoom implements command.PlayerRoomResolver.
+func (r PlayerRoomResolver) ResolvePlayerRoom(name string) (world.RoomID, bool) {
+	if r.Manager == nil {
+		return "", false
+	}
+	a, ok := r.Manager.GetByName(name)
+	if !ok {
+		return "", false
+	}
+	return r.Manager.RoomOfPlayer(a.playerID)
 }
 
 // Roles & permissions — the per-character role set, the read-only HasRole

@@ -29,10 +29,11 @@ and `THEME-AXIS-PLAN.md` are superseded by `BACKLOG.md` and now live under
   (role-set substrate + `HasRole` + persistence + config seed), M19.2
   (grant/revoke verbs + events), M19.3 (the admin dispatch gate + help
   hiding), M19.4a (`admin.action` audit primitive + `announce`), M19.4b
-  (admin target resolution + `inspect`), and M19.4c (the `set` field-write
-  framework + `vital` kind; `set recall` relocated to `recall set`) shipped;
-  M19.4d+ (the `set` property/tag kinds + teleport / restore / purge + the
-  idle-sweep exemption + help-visibility through `HasRole`) pending.
+  (admin target resolution + `inspect`), M19.4c (the `set` field-write
+  framework + `vital` kind; `set recall` relocated to `recall set`), and
+  M19.4d (`restore` + `teleport`/`goto` with §3 world-scoped resolution)
+  shipped; M19.4e+ (`purge` + the `set` property/tag kinds + the idle-sweep
+  exemption + help-visibility through `HasRole`) pending.
   **M18 — Command & UI polish** is paused mid-flight (M18.1 `prompt` verb
   shipped; M18.2–M18.5 pending).
 - **Specs ahead of code.** A large batch of behavior contracts landed this
@@ -2776,11 +2777,24 @@ house's admin moderation (`auction-house.md` §11).
       9 tests (vital live+audit / clamp / non-numeric / unknown-vital /
       unknown-kind / bare-usage / non-admin refusal + SetCurrent unit +
       recall-set migration). Full -race suite green. admin-verbs §4.
-- [ ] **M19.4d+ — Remaining baseline verbs + kinds** — the `set` `property`
-      + `tag` kinds (§4; property clears the M19.4b player-Properties gap) +
-      `teleport` / `restore` / `purge` with world-scoped resolution (§3
-      teleport-to-player) — plus the §5 idle-sweep exemption + help-
-      visibility wiring through `HasRole`. admin-verbs §3–§5.
+- [x] **M19.4d — `restore` + `teleport`.** Two baseline mutating verbs
+      (admin-verbs §5). `restore [<target>]`: the mercy verb — set a
+      target's vitals to full via `Vitals.SetCurrent(max)`; no arg restores
+      self; room target otherwise (reuses M19.4c `resolveSetTarget`).
+      `teleport <room-id|player>` (alias `goto`): move the actor to a room
+      by id or to the room of a named online player — the §3 **world-scoped
+      resolution** via the new `command.PlayerRoomResolver` seam
+      (`session.PlayerRoomResolver` over `Manager.GetByName`+`RoomOfPlayer`).
+      Reuses `SetRoom`'s room-change events + the recall vanish/appear
+      broadcast pattern; same-room is a no-op. Both audited via auditAdmin.
+      12 tests (restore: full/not-found/non-admin; teleport: room/goto-alias/
+      to-player/unknown/same-room/non-admin). Full -race suite green.
+      admin-verbs §3/§5.
+- [ ] **M19.4e+ — `purge` + the `set` property/tag kinds** — `purge`
+      (remove a non-player entity from the store, untracking it; never a
+      player) + the `set` `property` kind (clears the M19.4b player-
+      `Properties()` gap) and `tag` kind — plus the §5 idle-sweep exemption
+      + help-visibility wiring through `HasRole`. admin-verbs §3–§5.
 
 **Touches specs:** `roles-and-permissions`, `admin-verbs`,
 `session-lifecycle §5`, `ui-rendering-help §9.5`, `commands-and-dispatch`.
