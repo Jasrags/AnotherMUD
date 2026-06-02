@@ -28,6 +28,8 @@ content:
     - rarity/*.yaml
   essence:
     - essence/*.yaml
+  loot_tables:
+    - loot_tables/*.yaml
   help:
     - help/*.yaml
   quests:

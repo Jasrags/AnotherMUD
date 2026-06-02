@@ -31,6 +31,10 @@ const (
 	// No cancellable pre-event: spawn-time policy decisions belong
 	// in the spawn config layer, not in subscriber veto.
 	EventMobSpawned = "mob.spawned"
+	// Post-fact notification fired after a mob's loot table has been
+	// rolled into its contents at spawn (mobs-ai-spawning §6.3). Lets
+	// observers inspect what a mob is about to drop before any kill.
+	EventMobLootGenerated = "mob.loot.generated"
 	// Post-fact notification fired after a player has entered a new
 	// room (spec mobs-ai-spawning §5.2 — used to clear per-room
 	// reaction state). Publishes on movement, login spawn, and
@@ -466,6 +470,19 @@ type MobSpawned struct {
 
 // Name implements Event.
 func (MobSpawned) Name() string { return EventMobSpawned }
+
+// MobLootGenerated is published after a mob's loot table has been
+// rolled into its contents at spawn (mobs-ai-spawning §6.3). Count is
+// the number of item instances filed into the mob's contents.
+type MobLootGenerated struct {
+	EntityID   entities.EntityID
+	RoomID     world.RoomID
+	TemplateID string
+	Count      int
+}
+
+// Name implements Event.
+func (MobLootGenerated) Name() string { return EventMobLootGenerated }
 
 // PlayerMoved fires after a player's room has changed (spec
 // mobs-ai-spawning §5.2). Sources today: movement command, login

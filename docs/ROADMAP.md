@@ -18,14 +18,19 @@ For **behavior contracts**, see `docs/specs/`. The old `TAPESTRY-GAP-MATRIX.md`
 and `THEME-AXIS-PLAN.md` are superseded by `BACKLOG.md` and now live under
 `docs/archive/` (the five themes they framed have all shipped — M13–M17).
 
-## Status (as of 2026-06-01)
+## Status (as of 2026-06-02)
 
 - **Done:** **M0–M17 + all five themes** — A/M13 (Social), B/M16
   (Modern-Client + GMCP), C/M15 (World-Depth), D/M17 (Content-Authoring +
   Lua scripting), E/M14 (Engine-Debt). The core loop, world, combat,
   progression, economy, quests, scripting, sessions, and modern-client
-  support all work.
-- **Active:** **M19 — Roles & Administration** (the keystone). M19.1
+  support all work. Since then: **M19** (Roles & Administration),
+  **M20** (Item Decorations — rarity & essence), and **M21** (Item
+  Stacking) have all shipped.
+- **Active:** **M22 — Loot and Corpses**. Stage M22.1 (loot table +
+  generation at spawn) shipped; M22.2–M22.5 (corpse creation, looting
+  rights/verbs, autoloot, decay) pending.
+- **Earlier active milestone, for reference:** **M19 — Roles & Administration** (the keystone). M19.1
   (role-set substrate + `HasRole` + persistence + config seed), M19.2
   (grant/revoke verbs + events), M19.3 (the admin dispatch gate + help
   hiding), M19.4a (`admin.action` audit primitive + `announce`), M19.4b
@@ -2979,6 +2984,71 @@ count field, no merge/split, no persistence change.
 
 **Touches specs:** `inventory-equipment-items §5` (stacking),
 `item-decorations §5` (closes the M20.6 stack-identity tail).
+
+---
+
+### M22 — Loot and Corpses
+
+**Slice:** turn a mob death into lootable drops. Two specced-but-uncoded
+halves join here: (a) loot **generation** at spawn (`mobs-ai-spawning §6.3`)
+— a loot table rolled into the mob's contents the moment it appears; and
+(b) **death → drop** (`loot-and-corpses`) — a corpse-as-container created on
+the `mob.killed` event, coins rolled into it, a killer-first ownership
+window, the `loot` / `get … from <corpse>` verbs, a per-player autoloot
+toggle, and a corpse-decay sweep. Unblocks group loot-sharing (the §4
+rights seam) and the autoloot rarity-floor filter (item-decorations).
+
+**Specs:** `loot-and-corpses` (corpse half) + `mobs-ai-spawning §6.3`
+(generation half). **Live list:** `BACKLOG.md` §1 "Loot drops + corpses
++ autoloot".
+
+**Sub-milestones:**
+
+- [x] **M22.1 — Loot table + generation at spawn.** `mobs-ai-spawning §6.3`.
+      New `internal/loot` leaf package: `Table` (guaranteed pool, weighted
+      pool with `PoolRolls`, optional `RareBonus`), a `Roller` interface
+      (mirrors combat/progression), `RollItems(table, roller) []string`
+      (guaranteed first → N weighted rolls → one rare-bonus roll, each
+      independent), and an id-keyed `Registry` with priority override.
+      `mob.Template` gains a `loot_table` id; `internal/pack` decodes
+      `loot_tables/*.yaml` into the registry and validates the mob's
+      reference. `bootSpawner.spawnMob` (the single boot+respawn chokepoint)
+      rolls the table after class growth and before placement, instantiates
+      each item via `Store.Spawn`, files it under the mob's id in
+      `entities.Contents`, and publishes `mob.loot.generated` (mob id, room,
+      template, count). The coin block (`loot-and-corpses §3`) — both the
+      `Table` field and its decode — lands with M22.2, where it is rolled at
+      corpse creation (no declared-but-unused field in M22.1).
+- [ ] **M22.2 — Corpse creation on death + coins.** `loot-and-corpses §2–§3`.
+      On `mob.killed`, publish a cancellable `corpse.creating`; unless
+      cancelled, mint a corpse container entity in the room, **move** the
+      mob's contents into it (instance identity preserved), roll the loot
+      table's coin block into it as a coin pile, record killer id + creation
+      tick + owner set (today just the killer), and emit `corpse.created`.
+      No corpse when the mob carried nothing and rolled no coins. Corpse is
+      read-only via the existing look-in/container path; refuses `put`; the
+      corpse item itself is no-get.
+- [ ] **M22.3 — Looting rights + verbs.** `loot-and-corpses §4–§5`. The
+      ownership-window rights check (owner-set member during the window;
+      open after; empty killer ⇒ open immediately; non-owner refusal does
+      not name the owner), the `loot <corpse>` verb (all fitting items +
+      all coins, partial on capacity, removes + emits `corpse.looted` when
+      emptied), and `get … from <corpse>` gated by the same rights, with a
+      reserved coin keyword crediting the currency balance.
+- [ ] **M22.4 — Autoloot.** `loot-and-corpses §6`. Per-character autoloot
+      preference (off by default) on the player save + `autoloot [on|off]`
+      verb; on corpse creation for a present killer with autoloot on, run
+      `loot` on their behalf (capacity honored).
+- [ ] **M22.5 — Corpse decay.** `loot-and-corpses §7`. The `corpse-decay`
+      tick sweep (reserved in `time-and-clock §3`): each corpse past its
+      creation-tick + lifetime is removed with all remaining contents
+      (destroyed, not spilled), emitting `corpse.decayed`. Corpses are not
+      persisted.
+
+**Touches specs:** `loot-and-corpses` (substantially),
+`mobs-ai-spawning §6.3` (loot generation), `combat §6.3` (the `mob.killed`
+event consumed), `inventory-equipment-items §2.5/§4` (corpse-as-container),
+`economy-survival §2.1` (coin credit), `time-and-clock §3` (decay handler).
 
 ---
 

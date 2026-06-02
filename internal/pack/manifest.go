@@ -85,6 +85,10 @@ type ContentPaths struct {
 	// rarity/essence property references a key these define.
 	Rarity  []string `yaml:"rarity,omitempty"`
 	Essence []string `yaml:"essence,omitempty"`
+	// LootTables are loot-table definition files (M22.1 —
+	// mobs-ai-spawning §6.3). Loaded into Registries.Loot; a mob
+	// template's `loot_table` field references a table by id.
+	LootTables []string `yaml:"loot_tables,omitempty"`
 	// WeatherZones are zone-definition files for the M15.4
 	// weather substrate (spec world-rooms-movement §6).
 	// Loaded into Registries.Weather; areas reference zones

@@ -5,6 +5,9 @@ behavior: stationary
 disposition: 0
 tags: [humanoid, guard]
 keywords: [guard, villager]
+# Loot table rolled into the guard's contents at spawn (M22.1 —
+# mobs-ai-spawning §6.3). Unqualified id resolves against this pack.
+loot_table: guard-loot
 stats:
   hp_max: 22
   str: 10

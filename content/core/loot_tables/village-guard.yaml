@@ -1,0 +1,19 @@
+# Loot table for the village guard (M22.1 — mobs-ai-spawning §6.3).
+# Rolled into the mob's contents at spawn; the mob carries these from
+# the moment it appears. Item ids are unqualified — they resolve against
+# this pack's namespace at lookup. The coin block (loot-and-corpses §3)
+# is not part of this schema yet; coins land with corpse creation (M22.2).
+id: guard-loot
+# Always drops a ration — guards carry trail food.
+guaranteed:
+  - { item: trail-ration, count: 1 }
+# One weighted pick: usually a healing draught, occasionally a cap.
+weighted:
+  - { item: healing-draught, weight: 3 }
+  - { item: leather-cap, weight: 1 }
+pool_rolls: 1
+# A small chance to also drop the guard's short sword.
+rare_bonus:
+  chance: 20
+  entries:
+    - { item: short-sword, weight: 1 }

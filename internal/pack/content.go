@@ -104,6 +104,10 @@ type MobFile struct {
 	Properties  map[string]any `yaml:"properties,omitempty"`
 	Stats       map[string]int `yaml:"stats,omitempty"`
 	Equipment   []string       `yaml:"equipment,omitempty"`
+	// LootTable is the optional loot-table id (mobs-ai-spawning §6.3).
+	// Unknown ids are tolerated at load (resolution runs at spawn,
+	// matching the fail-silent convention used for race/class).
+	LootTable string `yaml:"loot_table,omitempty"`
 	// Proficiencies maps ability id -> proficiency value for the mob's
 	// passive abilities (M9.5 #3 — abilities-and-effects §6). Optional;
 	// keys are lowercased + trimmed at decode. Mobs do not train, so
@@ -445,6 +449,48 @@ type EssenceEntry struct {
 	FG    string `yaml:"fg,omitempty"`
 	BG    string `yaml:"bg,omitempty"`
 	HTML  string `yaml:"html,omitempty"`
+}
+
+// LootTableFile is the YAML shape for a pack's loot table (M22.1 —
+// mobs-ai-spawning §6.3). A mob template's `loot_table` field references
+// a table by id; the spawn pipeline rolls it into the mob's contents.
+//
+//	id: goblin-loot
+//	guaranteed:
+//	  - { item: copper-coin, count: 3 }
+//	weighted:
+//	  - { item: rusty-dagger, weight: 3 }
+//	  - { item: health-potion, weight: 1 }
+//	pool_rolls: 1
+//	rare_bonus:
+//	  chance: 5            # percent (0-100)
+//	  entries:
+//	    - { item: signet-of-the-king, weight: 1 }
+type LootTableFile struct {
+	ID         string           `yaml:"id"`
+	Priority   int              `yaml:"priority,omitempty"`
+	Guaranteed []LootGuaranteed `yaml:"guaranteed,omitempty"`
+	Weighted   []LootWeighted   `yaml:"weighted,omitempty"`
+	PoolRolls  int              `yaml:"pool_rolls,omitempty"`
+	RareBonus  *LootRareBonus   `yaml:"rare_bonus,omitempty"`
+}
+
+// LootGuaranteed is one always-drops entry: an item id dropped Count times.
+type LootGuaranteed struct {
+	Item  string `yaml:"item"`
+	Count int    `yaml:"count"`
+}
+
+// LootWeighted is one weighted-pool candidate.
+type LootWeighted struct {
+	Item   string `yaml:"item"`
+	Weight int    `yaml:"weight"`
+}
+
+// LootRareBonus is the optional one-roll bonus pool. Chance is a percent.
+type LootRareBonus struct {
+	Chance  int            `yaml:"chance"`
+	Entries []LootWeighted `yaml:"entries,omitempty"`
 }
 
 // HelpFile is the YAML shape for a pack help file (spec

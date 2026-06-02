@@ -37,6 +37,7 @@ import (
 	"github.com/Jasrags/AnotherMUD/internal/item"
 	"github.com/Jasrags/AnotherMUD/internal/logging"
 	"github.com/Jasrags/AnotherMUD/internal/login"
+	"github.com/Jasrags/AnotherMUD/internal/loot"
 	"github.com/Jasrags/AnotherMUD/internal/mob"
 	"github.com/Jasrags/AnotherMUD/internal/mssp"
 	"github.com/Jasrags/AnotherMUD/internal/notifications"
@@ -118,13 +119,24 @@ func run() error {
 	contents := entities.NewContents()
 	bus := eventbus.New()
 
+	// M22.1: a dedicated RNG drives loot-table rolls. Spawning runs on
+	// the area-tick (single tick goroutine) and at boot — never
+	// concurrently — so a non-shared *rand.Rand needs no extra locking,
+	// mirroring the combat/weather RNG pattern. Seeded from wall-clock
+	// nanos — an F3-accepted exception for RNG seeding (clk is not yet
+	// constructed at this point in boot).
+	lootRNG := rand.New(rand.NewPCG(uint64(time.Now().UnixNano()), 2))
+
 	spawner := &bootSpawner{
 		store:        entityStore,
 		placement:    placement,
+		contents:     contents,
 		templates:    registries.Items,
 		mobTemplates: registries.Mobs,
 		races:        registries.Races,
 		classes:      registries.Classes,
+		lootTables:   registries.Loot,
+		lootRoller:   lootRNG,
 		bus:          bus,
 	}
 	// M17.1b: a sandboxed scripting.Engine is the ScriptCompiler the
@@ -1709,10 +1721,13 @@ func parseRoleSeed(s string) map[string][]string {
 type bootSpawner struct {
 	store        *entities.Store
 	placement    *entities.Placement
+	contents     *entities.Contents
 	templates    *item.Templates
 	mobTemplates *mob.Templates
 	races        *progression.RaceRegistry
 	classes      *progression.ClassRegistry
+	lootTables   *loot.Registry
+	lootRoller   loot.Roller
 	bus          *eventbus.Bus
 }
 
@@ -1821,6 +1836,53 @@ func (b *bootSpawner) spawnMob(ctx context.Context, templateID string, roomID wo
 				slog.String("template", templateID),
 				slog.String("class", tpl.Class),
 				slog.Int("level", tpl.Level))
+		}
+	}
+
+	// M22.1: loot generation at spawn (mobs-ai-spawning §6.3 / §3.1
+	// step 8). Roll the mob's loot table (if any) and file each rolled
+	// item instance under the mob's id in the shared Contents index, so
+	// the mob carries its loot from the moment it appears and any
+	// observer can inspect a kill's drops beforehand. Unknown table or
+	// item ids fail silently — consistent with the race/class spawn
+	// convention.
+	if tblID := tpl.LootTable; tblID != "" && b.lootTables != nil && b.contents != nil {
+		if tbl, ok := b.lootTables.Get(tblID); ok {
+			ids := loot.RollItems(tbl, b.lootRoller)
+			generated := 0
+			for _, itemID := range ids {
+				itpl, terr := b.templates.Get(item.TemplateID(itemID))
+				if terr != nil {
+					logging.From(ctx).Debug("mob loot: unknown item template; skipped",
+						slog.String("mob", string(inst.ID())),
+						slog.String("loot_table", tblID),
+						slog.String("item", itemID))
+					continue
+				}
+				it, serr := b.store.Spawn(itpl)
+				if serr != nil {
+					logging.From(ctx).Warn("mob loot: item spawn failed",
+						slog.String("mob", string(inst.ID())),
+						slog.String("item", itemID),
+						slog.Any("err", serr))
+					continue
+				}
+				b.contents.Put(inst.ID(), it.ID())
+				generated++
+			}
+			if b.bus != nil {
+				b.bus.Publish(ctx, eventbus.MobLootGenerated{
+					EntityID:   inst.ID(),
+					RoomID:     roomID,
+					TemplateID: templateID,
+					Count:      generated,
+				})
+			}
+		} else {
+			logging.From(ctx).Warn("mob spawn: unknown loot table id; mob spawned without loot",
+				slog.String("mob", string(inst.ID())),
+				slog.String("template", templateID),
+				slog.String("loot_table", tblID))
 		}
 	}
 

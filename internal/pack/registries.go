@@ -5,6 +5,7 @@ import (
 	"github.com/Jasrags/AnotherMUD/internal/effect"
 	"github.com/Jasrags/AnotherMUD/internal/help"
 	"github.com/Jasrags/AnotherMUD/internal/item"
+	"github.com/Jasrags/AnotherMUD/internal/loot"
 	"github.com/Jasrags/AnotherMUD/internal/mob"
 	"github.com/Jasrags/AnotherMUD/internal/progression"
 	"github.com/Jasrags/AnotherMUD/internal/property"
@@ -72,6 +73,11 @@ type Registries struct {
 	// (M20.5) resolves an item's rarity/essence key through these.
 	Rarity  *decoration.RarityRegistry
 	Essence *decoration.EssenceRegistry
+	// Loot is the M22.1 loot-table registry. Packs register tables from
+	// their `loot_tables:` manifest glob; the spawn pipeline rolls a
+	// mob's referenced table into its contents at spawn time
+	// (mobs-ai-spawning §6.3).
+	Loot *loot.Registry
 }
 
 // NewRegistries returns a Registries with every field initialized.
@@ -98,5 +104,6 @@ func NewRegistries() *Registries {
 		Scripts:    script.New(),
 		Rarity:     decoration.NewRarityRegistry(),
 		Essence:    decoration.NewEssenceRegistry(),
+		Loot:       loot.NewRegistry(),
 	}
 }

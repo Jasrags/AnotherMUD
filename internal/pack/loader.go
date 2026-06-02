@@ -17,6 +17,7 @@ import (
 	"github.com/Jasrags/AnotherMUD/internal/help"
 	"github.com/Jasrags/AnotherMUD/internal/item"
 	"github.com/Jasrags/AnotherMUD/internal/logging"
+	"github.com/Jasrags/AnotherMUD/internal/loot"
 	"github.com/Jasrags/AnotherMUD/internal/mob"
 	"github.com/Jasrags/AnotherMUD/internal/progression"
 	"github.com/Jasrags/AnotherMUD/internal/property"
@@ -108,7 +109,7 @@ type pendingMobPlacement struct {
 // Filter, when non-empty, restricts discovery (spec §2.4). Pass nil to
 // load every active pack under root.
 func Load(ctx context.Context, root string, filter []string, dst *Registries, spawner Spawner, mobSpawner MobSpawner, scriptCompiler ScriptCompiler) error {
-	if dst == nil || dst.World == nil || dst.Items == nil || dst.Slots == nil || dst.Mobs == nil || dst.Tracks == nil || dst.Races == nil || dst.Classes == nil || dst.Abilities == nil || dst.Theme == nil || dst.Help == nil || dst.Quests == nil || dst.Weather == nil || dst.Scripts == nil || dst.Rarity == nil || dst.Essence == nil {
+	if dst == nil || dst.World == nil || dst.Items == nil || dst.Slots == nil || dst.Mobs == nil || dst.Tracks == nil || dst.Races == nil || dst.Classes == nil || dst.Abilities == nil || dst.Theme == nil || dst.Help == nil || dst.Quests == nil || dst.Weather == nil || dst.Scripts == nil || dst.Rarity == nil || dst.Essence == nil || dst.Loot == nil {
 		return errors.New("pack.Load: dst has nil registry field; use pack.NewRegistries()")
 	}
 	logger := logging.From(ctx).With(slog.String("event", "pack.load"), slog.String("root", root))
@@ -306,6 +307,10 @@ func loadPackContent(ctx context.Context, p Discovered, dst *Registries, scriptC
 		return nil, nil, err
 	}
 	essencePaths, err := resolveGlobs(p.Dir, p.Manifest.Content.Essence)
+	if err != nil {
+		return nil, nil, err
+	}
+	lootPaths, err := resolveGlobs(p.Dir, p.Manifest.Content.LootTables)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -519,6 +524,23 @@ func loadPackContent(ctx context.Context, p Discovered, dst *Registries, scriptC
 		}
 	}
 
+	// Loot tables: id-keyed registry with priority-based override
+	// (M22.1 — mobs-ai-spawning §6.3). A mob template's loot_table
+	// references a table by id; the spawn pipeline rolls it into the
+	// mob's contents. Item ids inside the table are NOT validated here
+	// — resolution is fail-silent at spawn (consistent with mob race/
+	// class), so a typo'd item id simply produces no drop rather than
+	// aborting the boot.
+	for _, lp := range lootPaths {
+		tbl, err := decodeLootTable(lp, ns)
+		if err != nil {
+			return nil, nil, err
+		}
+		if err := dst.Loot.Register(tbl); err != nil {
+			return nil, nil, fmt.Errorf("%w (in %s)", err, lp)
+		}
+	}
+
 	// Help: per-pack topics (spec ui-rendering-help §9.2). Topics are
 	// registered with the pack's load order so a higher-order pack can
 	// override an upstream topic. PackName is the pack namespace so the
@@ -598,6 +620,7 @@ func loadPackContent(ctx context.Context, p Discovered, dst *Registries, scriptC
 		slog.Int("effects", len(effectPaths)),
 		slog.Int("rarity", len(rarityPaths)),
 		slog.Int("essence", len(essencePaths)),
+		slog.Int("loot_tables", len(lootPaths)),
 		slog.Int("placements", len(placements)),
 		slog.Int("mob_placements", len(mobPlacements)),
 	)
@@ -834,6 +857,60 @@ func decodeEssence(path string) ([]decoration.Essence, error) {
 		})
 	}
 	return out, nil
+}
+
+// decodeLootTable reads a LootTableFile and builds a *loot.Table
+// (M22.1 — mobs-ai-spawning §6.3). The table's own id and every item id
+// it references are namespace-qualified against ns (unqualified names
+// resolve to this pack; qualified `pack:name` forms pass through), so
+// they match the namespaced keys the item registry stores and the
+// runtime resolves. Item *existence* is NOT checked here — resolution is
+// fail-silent at spawn — but a missing/malformed id IS rejected so a
+// blank entry can't silently become a no-drop.
+func decodeLootTable(path, ns string) (*loot.Table, error) {
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		return nil, fmt.Errorf("reading loot table %s: %w", path, err)
+	}
+	var f LootTableFile
+	if err := yaml.Unmarshal(raw, &f); err != nil {
+		return nil, fmt.Errorf("%w: %s: %v", ErrInvalidContent, path, err)
+	}
+	id, err := qualifyID(f.ID, ns)
+	if err != nil {
+		return nil, fmt.Errorf("%w: %s: id: %v", ErrInvalidContent, path, err)
+	}
+	t := &loot.Table{
+		ID:        id,
+		Priority:  f.Priority,
+		PoolRolls: f.PoolRolls,
+	}
+	for i, g := range f.Guaranteed {
+		qid, err := qualifyID(g.Item, ns)
+		if err != nil {
+			return nil, fmt.Errorf("%w: %s: guaranteed[%d].item: %v", ErrInvalidContent, path, i, err)
+		}
+		t.Guaranteed = append(t.Guaranteed, loot.GuaranteedEntry{ItemID: qid, Count: g.Count})
+	}
+	for i, w := range f.Weighted {
+		qid, err := qualifyID(w.Item, ns)
+		if err != nil {
+			return nil, fmt.Errorf("%w: %s: weighted[%d].item: %v", ErrInvalidContent, path, i, err)
+		}
+		t.Weighted = append(t.Weighted, loot.WeightedEntry{ItemID: qid, Weight: w.Weight})
+	}
+	if f.RareBonus != nil {
+		rb := &loot.RareBonus{Chance: f.RareBonus.Chance}
+		for i, e := range f.RareBonus.Entries {
+			qid, err := qualifyID(e.Item, ns)
+			if err != nil {
+				return nil, fmt.Errorf("%w: %s: rare_bonus.entries[%d].item: %v", ErrInvalidContent, path, i, err)
+			}
+			rb.Entries = append(rb.Entries, loot.WeightedEntry{ItemID: qid, Weight: e.Weight})
+		}
+		t.RareBonus = rb
+	}
+	return t, nil
 }
 
 // decodeHelp reads a HelpFile and builds help.Topic values (spec
@@ -1671,6 +1748,13 @@ func decodeMob(path, ns string) (*mob.Template, error) {
 		return nil, err
 	}
 
+	// loot_table is namespace-qualified so it matches the (qualified)
+	// id the loot registry stores; empty stays empty (no loot).
+	lootTable, err := qualifyOptional(f.LootTable, ns, path, "loot_table")
+	if err != nil {
+		return nil, err
+	}
+
 	// Normalize passive-ability proficiency keys (lowercase + trim) so
 	// they match the registry/proficiency-manager keying. A blank key
 	// after trimming is dropped. nil stays nil (mob has no passives).
@@ -1699,6 +1783,7 @@ func decodeMob(path, ns string) (*mob.Template, error) {
 		Properties:       f.Properties,
 		Stats:            f.Stats,
 		Equipment:        f.Equipment,
+		LootTable:        lootTable,
 		Proficiencies:    profs,
 		Race:             strings.ToLower(strings.TrimSpace(f.Race)),
 		Class:            strings.ToLower(strings.TrimSpace(f.Class)),

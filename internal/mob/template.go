@@ -65,6 +65,16 @@ type Template struct {
 	Stats      map[string]int
 	Equipment  []string // item template ids to equip at spawn (§3.3)
 
+	// LootTable is the optional loot-table id (mobs-ai-spawning §6.3).
+	// When set and the id resolves in the loot registry, the spawn
+	// pipeline rolls the table once and files the resulting item
+	// instances into the mob's contents at spawn (§3.1 step 8) — the
+	// mob carries its loot from the moment it appears. An unknown id
+	// fails silently at spawn (consistent with race/class). Carried as
+	// a plain id string so mob/entities stay independent of the loot
+	// package.
+	LootTable string
+
 	// Proficiencies is the optional map of ability id -> proficiency
 	// value the mob holds for PASSIVE abilities (abilities-and-effects
 	// §6). Unlike players, mobs neither learn nor train: these are
