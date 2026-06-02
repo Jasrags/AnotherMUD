@@ -121,6 +121,34 @@ old five-theme partition left uncovered.
   balance on the player or account save). Pre-decisions: gold-only vs. gold + item vault;
   per-character vs. account-shared; teller/bank-room vs. access-anywhere; interest + fees
   (economic levers / gold sinks); is there a gold-at-risk mechanic to justify it.
+- **Loot drops + autoloot** — items dropping when a mob dies, and a per-player
+  *autoloot* convenience that picks them up automatically when a fight is won.
+  ⚠️ **Greenfield — base loot-on-kill does not exist yet.** There is **no
+  `LootTable` wiring anywhere**, and mob templates don't carry loot tables
+  (`internal/mob/template.go` scopes them out — "the rest"). `combat.md` §line 66
+  explicitly defers loot/corpses/XP/quest-credit out of the combat spec, and
+  reserves the **`VitalDepleted` event (with attacker id + template id)** as the
+  canonical hook a loot listener keys on (`combat.md` §10, `eventbus/events.go`).
+  So this is two layers: (a) a **base loot system** — loot-table format
+  (per-mob vs. shared/weighted tables, guaranteed vs. rarity-tier rolls), and
+  where drops land (corpse-as-container vs. direct-to-room), then (b) **autoloot**
+  as a player preference on top (scope: all / coins-only / by-rarity filter;
+  combat-end trigger). Pre-decisions: corpse model; loot-table schema; autoloot
+  default + persistence. **Loot *distribution* is the join point with grouping
+  below** — decide them together.
+- **Player grouping / party** — a party of players with combat assist plus
+  **XP-sharing and loot-sharing options**. ⚠️ **Greenfield — no grouping exists.**
+  Substrate that's already in place: combat keys kill credit off the **attacker
+  id on `VitalDepleted`** (`combat.md` §10), XP is granted per-entity via
+  `progression.Manager.GrantExperience(entityID, track, amount, source)`, and the
+  room is the shared combat arena. The new system is the **party itself** and its
+  reward rules. Pre-decisions: party model (leader + invite/accept vs. follow);
+  **XP split rule** (even / level-weighted / proximity-gated); **loot rules**
+  (free-for-all / round-robin / leader-only / need-greed) — these reuse the loot
+  layer above; **assist / auto-engage** (a party member's attack pulls the rest);
+  party chat (overlaps `chat-channels-and-tells`); shared **quest credit**
+  (overlaps `quests`). Heavily interlocks with **Loot drops + autoloot** (loot
+  distribution) and combat targeting. Needs a design conversation before a spec.
 - **Cross-cutting event catalog** — per-spec event tables exist in `specs/README.md`;
   no aggregated catalog. (Docs/meta, not engine — not a behavior spec.)
 
