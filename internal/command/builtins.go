@@ -112,12 +112,20 @@ func RegisterBuiltins(r *Registry) error {
 		{Keyword: "prompt", Handler: PromptHandler, Brief: "Show or change your status prompt.", Syntax: []string{"prompt", "prompt <template>", "prompt default"}},
 
 		// Roles (M19.2 — roles-and-permissions §4). grant/revoke a role
-		// to/from another online character; gated on the granting role
-		// (the handler refuses generically for non-granters, §3). Until
-		// the M19.3 admin gate marks these admin + hides them from help,
-		// they self-gate in the handler.
-		{Keyword: "grant", Handler: GrantHandler, Brief: "Grant a role to another player.", Syntax: []string{"grant <role> to <player>"}},
-		{Keyword: "revoke", Handler: RevokeHandler, Brief: "Revoke a role from another player.", Syntax: []string{"revoke <role> from <player>"}},
+		// to/from another online character. Admin-marked (M19.3): the
+		// dispatcher gates them on the admin role and hides them from
+		// non-admins in help. The handler ALSO self-gates on the granting
+		// role (§4) — the granting role may differ from the admin role.
+		{Keyword: "grant", Handler: GrantHandler, Admin: true, Brief: "Grant a role to another player.", Syntax: []string{"grant <role> to <player>"}},
+		{Keyword: "revoke", Handler: RevokeHandler, Admin: true, Brief: "Revoke a role from another player.", Syntax: []string{"revoke <role> from <player>"}},
+
+		// Admin verbs (M19.3 — admin-verbs §2). Admin-marked → dispatcher
+		// gates them on the admin role, hidden from non-admins in help.
+		// xp self-grants XP (a probe); reload hot-swaps pack Lua. These
+		// were ungated/bare until the role system landed (the standing
+		// "ungated until roles" verbs the spec §2 calls out).
+		{Keyword: "xp", Handler: XPHandler, Admin: true, Brief: "Grant yourself XP (admin probe).", Syntax: []string{"xp", "xp <amount> [track]"}},
+		{Keyword: "reload", Handler: ReloadHandler, Admin: true, Brief: "Reload pack scripts.", Syntax: []string{"reload"}},
 	}
 	for _, c := range commands {
 		if err := r.RegisterCommand(c); err != nil {
@@ -125,20 +133,8 @@ func RegisterBuiltins(r *Registry) error {
 		}
 	}
 
-	// Admin XP probe (M8.2): self-grants XP, role-gated form lands with
-	// the role system (M10+). Bare registration keeps it routable but out
-	// of the player-facing command list.
-	if err := r.Register("xp", XPHandler); err != nil {
-		return err
-	}
-
-	// Admin script hot-reload (M17.3): re-reads pack Lua and swaps the
-	// scripting runtime. Bare + ungated for now (role-gated later, like
-	// xp) so it stays out of the player help list. No-ops with a clear
-	// message when the composition root didn't wire ReloadScripts.
-	if err := r.Register("reload", ReloadHandler); err != nil {
-		return err
-	}
+	// xp and reload are now admin-marked commands in the slice above
+	// (M19.3 — admin-verbs §2), gated on the admin role at dispatch.
 
 	// Movement: one keyword per direction (long + short). Registered bare
 	// — the authored `movement` help topic covers them, so per-direction

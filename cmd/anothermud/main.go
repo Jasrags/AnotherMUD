@@ -1395,6 +1395,7 @@ func run() error {
 		TellResolver:    session.TellResolver{Manager: mgr, Players: players},
 		RoleTargets:     session.RoleTargetResolver{Manager: mgr},
 		GrantingRole:    cfg.GrantingRole,
+		AdminRole:       cfg.AdminRole,
 		ChatRegistry:    chatRegistry,
 		ChatSubscribers: subscribers,
 		ChatScrollbacks: scrollbackLookup,
@@ -1551,6 +1552,7 @@ type config struct {
 	DefaultRace           string
 	RoleSeed              map[string][]string
 	GrantingRole          string
+	AdminRole             string
 	ColorDefault          bool
 	LinkDead              session.LinkDeadConfig
 }
@@ -1595,6 +1597,7 @@ func loadConfig() config {
 		DefaultRace:           envOr("ANOTHERMUD_DEFAULT_RACE", "human"),
 		RoleSeed:              parseRoleSeed(envOr("ANOTHERMUD_ROLE_SEED", "")),
 		GrantingRole:          strings.ToLower(strings.TrimSpace(envOr("ANOTHERMUD_GRANTING_ROLE", "admin"))),
+		AdminRole:             strings.ToLower(strings.TrimSpace(envOr("ANOTHERMUD_ADMIN_ROLE", "admin"))),
 		ColorDefault:          colorDefault(),
 		LinkDead:              ld,
 	}

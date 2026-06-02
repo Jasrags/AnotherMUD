@@ -174,12 +174,14 @@ func TestGenerateHelpTopics_SkipsAuthored(t *testing.T) {
 	if look.Topic == nil || look.Topic.Brief != "Authored." {
 		t.Errorf("authored look was overwritten: %+v", look.Topic)
 	}
-	// Movement directions and the admin xp probe are not generated.
+	// Movement directions are not generated (registered bare).
 	if svc.HasTopic("north") {
 		t.Error("direction verb should not be generated")
 	}
-	if svc.HasTopic("xp") {
-		t.Error("bare xp verb should not be generated")
+	// The admin xp probe (M19.3) now generates an admin-tier topic, hidden
+	// from a non-admin (player-tier) viewer — not absent, but invisible.
+	if res := svc.Query("p1", "xp"); res.Topic != nil {
+		t.Error("admin xp verb should be hidden from a non-admin in help")
 	}
 }
 

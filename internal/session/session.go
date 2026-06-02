@@ -258,6 +258,9 @@ type Config struct {
 	// `admin` when empty). nil RoleTargets disables role administration.
 	RoleTargets  command.RoleTargetResolver
 	GrantingRole string
+	// AdminRole is the role an admin-marked command requires at dispatch
+	// (M19.3 — admin-verbs §2/§8). Defaults to `admin` when empty.
+	AdminRole string
 
 	// ChatRegistry is the M13.6 channel catalog. Threaded through
 	// to command.Env for chat verbs. nil-safe.
@@ -852,6 +855,7 @@ func pump(ctx context.Context, c conn.Connection, cfg Config, a *connActor, clk 
 			TellResolver:       cfg.TellResolver,
 			RoleTargetResolver: cfg.RoleTargets,
 			GrantingRole:       cfg.GrantingRole,
+			AdminRole:          cfg.AdminRole,
 			ChatRegistry:       cfg.ChatRegistry,
 			ChatSubscribers:    cfg.ChatSubscribers,
 			ChatScrollbacks:    cfg.ChatScrollbacks,

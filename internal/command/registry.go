@@ -276,6 +276,10 @@ type Env struct {
 	// grant or revoke (config, §8; defaults to `admin` when empty).
 	RoleTargetResolver RoleTargetResolver
 	GrantingRole       string
+	// AdminRole is the role an admin-marked command requires at dispatch
+	// (admin-verbs §2/§8). The Dispatch gate reads it; defaults to `admin`
+	// when empty.
+	AdminRole string
 
 	// ChatRegistry is the M13.6 channel catalog. Read by chat list /
 	// chat history and by the dynamically-registered per-channel
@@ -465,6 +469,13 @@ type Command struct {
 	Keywords []string
 	Handler  Handler
 
+	// Admin marks the command as administrative (admin-verbs §2): the
+	// dispatcher refuses it — with the SAME "Huh?" an unknown verb produces,
+	// so the verb is not enumerable — unless the actor holds the configured
+	// admin role (Env.AdminRole). Admin commands are also hidden from help
+	// for non-admins. The check runs once, at dispatch, before the handler.
+	Admin bool
+
 	// Args declares the command's typed arguments (commands-and-
 	// dispatch §5). When non-empty, Dispatch resolves them against the
 	// actor's scope BEFORE calling the handler (Option A): on success
@@ -487,6 +498,9 @@ type CommandInfo struct {
 	Brief    string
 	Syntax   []string
 	Keywords []string
+	// Admin is true for an administrative command (admin-verbs §2). Help
+	// listings hide these from actors who don't hold the admin role.
+	Admin bool
 }
 
 // cmdMeta is the stored metadata for a primary command registration. It is
@@ -499,6 +513,7 @@ type cmdMeta struct {
 	syntax   []string
 	keywords []string
 	aliases  []string
+	admin    bool
 }
 
 type registration struct {
@@ -515,6 +530,10 @@ type registration struct {
 	// for handlers not yet migrated onto the arg-typing pipeline;
 	// Dispatch resolves it before the handler runs when non-empty.
 	args []ArgDefinition
+	// admin gates the command on the admin role at dispatch (admin-verbs
+	// §2). Carried on every registration (primary AND alias) so an alias
+	// of an admin command is gated too.
+	admin bool
 }
 
 // Registry holds the command keyword → handler bindings.
@@ -584,6 +603,7 @@ func (r *Registry) RegisterCommand(c Command) error {
 			syntax:   append([]string(nil), c.Syntax...),
 			keywords: append([]string(nil), c.Keywords...),
 			aliases:  append([]string(nil), c.Aliases...),
+			admin:    c.Admin,
 		}
 	}
 
@@ -618,11 +638,12 @@ func (r *Registry) RegisterCommand(c Command) error {
 		handler: c.Handler,
 		meta:    meta,
 		args:    append([]ArgDefinition(nil), c.Args...),
+		admin:   c.Admin,
 	}
 	r.ordered = append(r.ordered, k)
 	for _, la := range lowered {
 		r.order++
-		r.byKey[la] = registration{keyword: la, order: r.order, handler: c.Handler, alias: true}
+		r.byKey[la] = registration{keyword: la, order: r.order, handler: c.Handler, alias: true, admin: c.Admin}
 		r.ordered = append(r.ordered, la)
 	}
 	return nil
@@ -649,6 +670,7 @@ func (r *Registry) Commands() []CommandInfo {
 			Brief:    reg.meta.brief,
 			Syntax:   append([]string(nil), reg.meta.syntax...),
 			Keywords: append([]string(nil), reg.meta.keywords...),
+			Admin:    reg.meta.admin,
 		})
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i].Keyword < out[j].Keyword })
@@ -716,6 +738,22 @@ func (r *Registry) Dispatch(ctx context.Context, env Env, actor Actor, raw strin
 	if !ok {
 		return actor.Write(ctx, "Huh?")
 	}
+
+	// Admin gate (admin-verbs §2): an admin-marked command is refused —
+	// with the IDENTICAL "Huh?" an unknown verb produces, so a non-admin
+	// cannot tell the verb exists — unless the actor holds the admin role.
+	// Checked once here, before the Context is built and the handler runs.
+	if reg.admin {
+		adminRole := env.AdminRole
+		if adminRole == "" {
+			adminRole = defaultAdminRole
+		}
+		holder, ok := actor.(RoleHolder)
+		if !ok || !holder.HasRole(adminRole) {
+			return actor.Write(ctx, "Huh?")
+		}
+	}
+
 	c := &Context{
 		Actor:              actor,
 		World:              env.World,

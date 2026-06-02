@@ -22,6 +22,18 @@ type RoleController interface {
 	PlayerID() string
 }
 
+// RoleHolder is the minimal read surface the dispatcher's admin gate needs
+// from an actor — just the authorization check (admin-verbs §2). connActor
+// satisfies it (and the richer RoleController). An actor that does not
+// implement it is treated as holding no roles.
+type RoleHolder interface {
+	HasRole(role string) bool
+}
+
+// defaultAdminRole is the role an admin-marked command requires when
+// Env.AdminRole is unset (admin-verbs §8 — conventionally `admin`).
+const defaultAdminRole = "admin"
+
 // RoleTargetResolver maps a player name to the live RoleController of an
 // ONLINE character (roles-and-permissions §4 — v1 grants/revokes target
 // online players; offline targets are deferred per §9). Returns

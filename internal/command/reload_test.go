@@ -6,10 +6,11 @@ import (
 	"testing"
 
 	"github.com/Jasrags/AnotherMUD/internal/command"
-	"github.com/Jasrags/AnotherMUD/internal/world"
 )
 
-func dispatchReload(t *testing.T, env command.Env, a *testActor, line string) {
+// reload is admin-gated (M19.3), so these dispatch as an admin actor to
+// exercise the handler past the gate.
+func dispatchReload(t *testing.T, env command.Env, a *roleActor, line string) {
 	t.Helper()
 	r := command.New()
 	if err := command.RegisterBuiltins(r); err != nil {
@@ -20,8 +21,10 @@ func dispatchReload(t *testing.T, env command.Env, a *testActor, line string) {
 	}
 }
 
+func newReloadAdmin() *roleActor { return newRoleActor("Admin", "p-1", "admin") }
+
 func TestReload_DisabledWhenUnwired(t *testing.T) {
-	a := newTestActor(&world.Room{ID: "x:1"})
+	a := newReloadAdmin()
 	dispatchReload(t, command.Env{}, a, "reload") // no ReloadScripts
 	if got := a.lastLine(); got != "Reloading is not enabled." {
 		t.Errorf("got %q, want disabled message", got)
@@ -29,7 +32,7 @@ func TestReload_DisabledWhenUnwired(t *testing.T) {
 }
 
 func TestReload_ReportsCount(t *testing.T) {
-	a := newTestActor(&world.Room{ID: "x:1"})
+	a := newReloadAdmin()
 	called := false
 	env := command.Env{ReloadScripts: func(context.Context) (int, error) {
 		called = true
@@ -45,7 +48,7 @@ func TestReload_ReportsCount(t *testing.T) {
 }
 
 func TestReload_SurfacesError(t *testing.T) {
-	a := newTestActor(&world.Room{ID: "x:1"})
+	a := newReloadAdmin()
 	env := command.Env{ReloadScripts: func(context.Context) (int, error) {
 		return 0, errors.New("compile scripts/bad.lua: syntax error near 'end'")
 	}}

@@ -87,6 +87,15 @@ func GenerateHelpTopics(r *Registry, svc *help.Service) {
 		if len(cmd.Aliases) > 0 {
 			body = "Aliases: " + strings.Join(cmd.Aliases, ", ")
 		}
+		// Admin commands (admin-verbs §2) take the admin help tier so the
+		// help service hides them from non-admins, closing the enumeration
+		// vector the dispatch gate leaves open in help. Today requesterTier
+		// caps at player, so they're hidden from everyone; once tier
+		// resolution consults HasRole (ui §9.5), they surface for admins.
+		role := help.RoleNone
+		if cmd.Admin {
+			role = help.RoleAdmin
+		}
 		svc.AddTopic(&help.Topic{
 			ID:       cmd.Keyword,
 			Title:    help.Capitalize(cmd.Keyword),
@@ -95,8 +104,7 @@ func GenerateHelpTopics(r *Registry, svc *help.Service) {
 			Body:     body,
 			Syntax:   cmd.Syntax,
 			Keywords: keywords,
-			Role:     help.RoleNone,
+			Role:     role,
 		}, 0)
 	}
 }
-
