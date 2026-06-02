@@ -20,38 +20,26 @@ and `THEME-AXIS-PLAN.md` are superseded by `BACKLOG.md` and now live under
 
 ## Status (as of 2026-06-02)
 
-- **Done:** **M0–M17 + all five themes** — A/M13 (Social), B/M16
+- **Done:** **M0–M22.** The five original themes — A/M13 (Social), B/M16
   (Modern-Client + GMCP), C/M15 (World-Depth), D/M17 (Content-Authoring +
-  Lua scripting), E/M14 (Engine-Debt). The core loop, world, combat,
-  progression, economy, quests, scripting, sessions, and modern-client
-  support all work. Since then: **M19** (Roles & Administration),
-  **M20** (Item Decorations — rarity & essence), and **M21** (Item
-  Stacking) have all shipped.
-- **Done:** **M22 — Loot and Corpses** (all slices: M22.1 spawn loot,
-  M22.2 corpse creation + coins, M22.3a rights + `loot`, M22.3b
-  `get … from corpse` + look-in, M22.4 autoloot, M22.5 decay). The full
-  kill → corpse → loot/get-from/look-in/autoloot → decay loop works.
+  Lua scripting), E/M14 (Engine-Debt) — plus **M18.1** (`prompt` verb),
+  **M19** (Roles & Administration), **M20** (Item Decorations — rarity &
+  essence), **M21** (Item Stacking), and **M22** (Loot and Corpses —
+  spawn loot → corpse → loot / get-from / look-in / autoloot → decay).
+  The core loop, world, combat, progression, economy, quests, scripting,
+  sessions, modern-client, roles/admin, decorations, stacking, and loot
+  all work.
 - **Active:** none — M22 closed. Pick the next theme from `BACKLOG.md`
   §1 (specced, ready) or §2 (greenfield, design-first).
-- **Earlier active milestone, for reference:** **M19 — Roles & Administration** (the keystone). M19.1
-  (role-set substrate + `HasRole` + persistence + config seed), M19.2
-  (grant/revoke verbs + events), M19.3 (the admin dispatch gate + help
-  hiding), M19.4a (`admin.action` audit primitive + `announce`), M19.4b
-  (admin target resolution + `inspect`), M19.4c (the `set` field-write
-  framework + `vital` kind; `set recall` relocated to `recall set`), and
-  M19.4d (`restore` + `teleport`/`goto` with §3 world-scoped resolution),
-  M19.4e (`purge` — the §5 baseline verb set is complete), and M19.4f
-  (help-visibility through `HasRole`) shipped; M19.4g+ (the idle-sweep
-  exemption + the `set` property/tag kinds — the latter blocked on
-  property-registry integration) pending.
-  **M18 — Command & UI polish** is paused mid-flight (M18.1 `prompt` verb
-  shipped; M18.2–M18.5 pending).
-- **Specs ahead of code.** A large batch of behavior contracts landed this
-  cycle *without* implementation — `roles-and-permissions`, `admin-verbs`,
-  `item-decorations`, `tag-observers`, `who`, `crafting-and-cooking`, and the
-  trade trio (`trade-escrow`/`direct-trade`/`auction-house`). They are **not**
-  ROADMAP done-items; they sit in `BACKLOG.md` §1 (specced, ready to build).
-  The next themes are now mostly "build a written spec," not "write a spec."
+- **Paused:** **M18 — Command & UI polish** (M18.1 `prompt` shipped;
+  M18.2–M18.5 — `who`, bad-input §6, chaining/repeat §4, auto-help §8 —
+  pending; tracked in `BACKLOG.md` §1).
+- **Specs ahead of code.** Behavior contracts written without
+  implementation, still awaiting a milestone: `tag-observers`, `who`,
+  `crafting-and-cooking`, and the trade trio
+  (`trade-escrow` / `direct-trade` / `auction-house`). They sit in
+  `BACKLOG.md` §1. The earlier `roles-and-permissions` / `admin-verbs` /
+  `item-decorations` contracts have since shipped (M19 / M20).
 
 ---
 

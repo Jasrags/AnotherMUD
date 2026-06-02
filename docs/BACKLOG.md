@@ -14,21 +14,22 @@ the theme-axis plan (its method survives below).
 - **Specs are the source of truth for behavior; this doc never duplicates it.** A
   specced item links its `docs/specs/<file> §X` — the *what* lives there. An unspecced
   item's first deliverable *is* a new spec slice (the spec set has grown 17 → **30** as
-  ideas get promoted; the latest batch — roles, admin-verbs, item-decorations,
-  tag-observers, who, crafting-and-cooking, and the trade trio — are contracts written
-  ahead of code, now in §1).
+  ideas get promoted; of the write-ahead batch, roles, admin-verbs, and item-decorations
+  have since shipped (M19/M20), leaving `tag-observers`, `who`, `crafting-and-cooking`,
+  and the trade trio as contracts still ahead of code in §1).
 - **Verified against code.** Every item below was confirmed absent in the codebase as of
-  2026-06-01, not trusted from the old matrix (which misreported several shipped systems).
+  2026-06-02, not trusted from the old matrix (which misreported several shipped systems).
 
-## Status: five themes shipped; a spec batch landed ahead of code
+## Status: M0–M22 shipped; specced + greenfield work remains
 
 The five original themes — A (Social / M13), B (Modern Client / M16),
 C (World Depth / M15), D (Content Authoring / M17), E (Engine Debt / M14) — are
-**done** (see `ROADMAP.md`), and **M18** (Command & UI polish) is the active milestone
-(prompt verb shipped). This cycle also wrote a **batch of behavior specs ahead of code**
-— roles, admin-verbs, item-decorations, tag-observers, who, crafting-and-cooking, and the
-trade trio — so the §1 "specced, ready to build" list is now large. What remains
-unspecced (§2) is the greenfield gameplay/economy-depth tail the five themes didn't claim.
+**done**, and since then **M19** (Roles & Administration), **M20** (Item Decorations),
+**M21** (Item Stacking), and **M22** (Loot & Corpses) have shipped (see `ROADMAP.md`).
+**M18** (Command & UI polish) is **paused** mid-flight (only M18.1 `prompt` shipped; the
+rest sit in §1). Behavior contracts still written-ahead-of-code: `tag-observers`, `who`,
+`crafting-and-cooking`, and the trade trio (§1). What remains unspecced (§2) is the
+greenfield gameplay/economy-depth tail the themes didn't claim.
 
 ---
 
@@ -57,11 +58,6 @@ go straight into a milestone.
 | Cross-pack reference validation at boot | scripting-and-packs | no boot-time cross-pack ref check |
 | Property-registry save-pipeline integration | persistence §2 / §4.4 | registry substrate exists (M14.4); not wired into the save pipeline — m14 |
 | Slow-tick observability | time-and-clock §4 | no slow-tick instrumentation |
-| **Roles & permissions** *(keystone)* | **roles-and-permissions §2–§8** (new) | no role system; help-tier is a no-op stub. Flat `HasRole` capability model (ported from Tapestry). Unblocks admin verbs, §5 idle exemption, verb gating |
-| Admin-tag idle exemption | session-lifecycle §5 | gated on Roles above — build alongside it |
-| **Admin verbs** | **admin-verbs §2–§8** (new) | admin gate (commands marked admin, `HasRole`-gated) + baseline verbs (inspect/set/teleport/announce/restore/purge/reload). Gates today's ungated `reload`/`xp`. Ported from Tapestry `AdminModule` |
-| **Rarity tiers** | **item-decorations §2,§4,§5** (new) | ordered tier ladder → themed decorated marker (inline + column-padded). Ported from Tapestry `RarityRegistry` |
-| **Essence** | **item-decorations §3,§4,§5** (new) | colored glyph item marker; participates in stack identity. Ported from Tapestry `EssenceRegistry` |
 | Reactive tag observers | **tag-observers §2–§4** (new) | `entity.tag_added/removed` bus events for non-index reactors. Substrate ahead of a consumer. Ported from Tapestry `ITagObserver` |
 | **Crafting & Cooking** | **crafting-and-cooking** (new) + plan `themes/crafting-cooking-plan.md` | recipes + crafting-skill proficiency + quality roll (output = rarity tier) + cooking→sustenance/well-fed. MVP = Tier 0 + Tier 1 campfire (temp entity, M15.2 reuse) + Tier 2 room-tag + mob-loot ingredients, all in `core` pack. Defers only gathering nodes (§2) |
 | **Player trade** (escrow + direct trade + auction) | **trade-escrow / direct-trade / auction-house** (new) + plan `plans/trade-plan.md` | shared escrow/atomic-commit primitive (cancellable bus); sync zero-sum direct trade; async persisted buyout auction (global, pickup delivery, fee gold sink). Admin moderation blocked on roles/admin (spec-only). Push delivery deferred to Mail (§2) |
@@ -176,11 +172,9 @@ need a design pass first.
 
 | Theme | Pulls in | Size |
 |---|---|---|
-| **Command & UI polish** *(ACTIVE — M18)* | `who`, bad-input §6, chaining/repeat §4, auto-help §8 (prompt verb shipped) | S |
-| **Roles & Administration** | roles-and-permissions + admin-verbs + §5 idle-exemption + gating today's ungated verbs | M — unblocks the most |
+| **Command & UI polish** *(PAUSED — M18, resume)* | `who`, bad-input §6, chaining/repeat §4, auto-help §8 (prompt verb shipped) | S |
 | **Crafting & Cooking** | `crafting-and-cooking` + plan; full Tier 0/1/2 MVP in the `core` pack | M |
 | **Player trade** | trade-escrow + direct-trade + auction-house + plan; atomic escrow, sync trade, buyout auction | M |
-| **Item decorations** | rarity tiers + essence (`item-decorations`); also unblocks crafting's quality output | S |
 | **Engine Debt II** | mob equip §3.3, death-purge §3.5, passive gain/scaling, property-save wiring, tag-indexed reads, cross-pack validation, GMCP wizard panel | S–M |
 
 **Needs a design pass first (greenfield — §2):**
@@ -196,7 +190,6 @@ need a design pass first.
 
 | If yes → | start with |
 |---|---|
-| You want admin control / to gate today's ungated verbs | **Roles & Administration** *(specced — ready)* |
 | You want a real item economy — players selling loot to each other | **Player trade** *(specced — ready)*; then Economy depth (mail/banking, greenfield) |
 | You want a crafting/gathering loop | **Crafting & Cooking** *(specced — MVP ready)* |
 | The world/character sheet feels mechanically thin | **Gameplay Systems** *(greenfield — design first)* |

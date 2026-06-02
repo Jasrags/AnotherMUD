@@ -1,16 +1,18 @@
 # Deferred-Items Backlog
 
 A consolidated, point-in-time snapshot of the **open** deferred items across
-all milestones (M0→M12), distilled from the per-milestone
+all milestones (M0→M22), distilled from the per-milestone
 `m<N>-deferred-fixes.md` memory files. The memory files remain the source of
 truth (full context, file:line, fix-when triggers); this is the scannable
 index.
 
-**Generated:** 2026-05-28 (after cluster 1 + cluster 2 + the ItemInstance
-mutex landed). Regenerate by re-scanning the memory deferral files.
+**Generated:** 2026-05-28 (M0→M12 body); **post-M12 section added 2026-06-02**
+(M13→M22, from the memory index). Regenerate by re-scanning the memory
+deferral files.
 
-Excludes everything marked RESOLVED/FIXED/CLOSED (~25 items, including the
-recent cluster 1, cluster 2, and ItemInstance resolutions).
+Excludes everything marked RESOLVED/FIXED/CLOSED. Note: several M0→M12 items
+below were later resolved by M14 (Engine-Debt) and the M9.x mob-effect sweep —
+see the per-item RESOLVED tags and the caveats at the bottom.
 
 ---
 
@@ -48,12 +50,12 @@ TOCTOU) were fixed pre-commit earlier.
 - `m7-followup #2` — `EventKill` has no authorship sentinel
 
 ### Effects / abilities / mobs
-- `m8-1 #2` — vital re-clamp under a max-affecting recompute (no consumer yet)
+- ~~`m8-1 #2` — vital re-clamp under a max-affecting recompute~~ **RESOLVED (M14.1 OnMaxChange)**
 - `m9-3 #1` — `queue.Pop` allocates a fresh slice on every shrink
-- `m9-4 #1` / `m9-5 #1` — integer hit-chance math diverges from spec's float model; passive gain omits the §3.5 stat factor
+- `m9-4 #1` / `m9-5 #1` — integer hit-chance math diverges from spec's float model; passive gain omits the §3.5 stat factor (mob effect-stat half **RESOLVED 2026-06-01**)
 - `m9-4 #2b` — `connActor.Alignment()/EquippedTags` hold `a.mu`, called every pulse from the tick goroutine
 - `m9-6 #1` — damage/heal handler + death bridge are integration-only (no unit coverage)
-- `m11-5` — consumable `effect_id` application unwired (no effect-template registry)
+- ~~`m11-5` — consumable `effect_id` application unwired~~ **RESOLVED (M14 effect-template registry)**
 
 ### Alignment / progression
 - `m8-2 #2` — `DeductExperience` can't de-level (spec open question)
@@ -66,7 +68,7 @@ TOCTOU) were fixed pre-commit earlier.
 - `m6-6 #2` — scheduler `deltaTicks` coupled to handler cadence
 - `m6-6 #5` — `SpawnRule.ResetInterval` decoded but unused
 - `m10-1` — `IsKnown/Resolve` render-cache TOCTOU (boot-only today)
-- `m10-9` — `quest_grant` on a room (needs a room *property* bag — cluster 2 added room *tags*, not properties)
+- ~~`m10-9` — `quest_grant` on a room~~ **RESOLVED (M14)**; `quest_advance` pickup payload still needs scripting (LOW)
 - `m12-2` — MOTD enqueue not implemented; trigger-keyed flow registry (single nil-able flow); any-room spawn-room last-resort
 - `m12-3` — §5 structured flow-step events / GMCP wizard panel
 
@@ -102,6 +104,59 @@ TOCTOU) were fixed pre-commit earlier.
 
 ---
 
+## Post-M12 (M13→M22) — open items
+
+Indexed 2026-06-02 from the memory files (high-confidence; these are recent).
+Most post-M12 deferrals are LOW polish; the MEDIUMs worth tracking:
+
+### Open MEDIUM
+- `m14` — property-registry has no save-pipeline integration (substrate-only;
+  also tracked in `BACKLOG.md` §1).
+- `m16-5` — WebSocket `insecure_skip_verify` footgun; production-readiness
+  (TLS termination, rate-limit, per-IP connection cap) deferred.
+- `m17-2c` — door arg resolves single-token, not slurp (M17.2d adapter path).
+- `m19-4h` — admin `set` **player** property (needs `connActor.Properties/
+  SetProperty` + a save bag) and the `set tag` kind (no runtime tag mutator) —
+  both substrate-blocked.
+- `m22 #2` — atomic `Contents.MoveAll(from,to)` for the mob→corpse bulk move
+  (the get-from/loot/decay paths are already single-winner-safe; this is tidy-up).
+
+### Open LOW (compressed)
+- `m13` — accepted: actorSink kind-switch (extract on 3rd kind), `Store.Load`
+  names-cache lock (sync.Map if profiling).
+- `m14` — `MaxChangeListener` 2-arg signature; Race `BaseStatMods` (feature, not debt).
+- `m15` — 7 LOW accepted; future World-Depth slices in `docs/themes/world-depth-plan.md`.
+- `m15-4b₂b` — 3 LOW room-render ambience (order-test gap, Ambience lock cost,
+  RenderRoom 5-arg signature).
+- `m16-4e/f/g/h` — GMCP package polish: slices.Equal reinvent, redundant Flags
+  copy, Permanent+Remaining quirk, JSON-marshal silent return, actorSink kind
+  switch; note `session.go` is ~3100 lines (pre-existing, split candidate).
+- `m16-6a/b` — capability/ANSI-tier polish: cache 4×, HTML fg-only, plain
+  ignores tier (4 + 3 LOW).
+- `m17-1a/b/c` — scripting sandbox polish: symlink follow, no size cap,
+  per-Compile LState, re-entrancy-if-publish-lands, edge coverage (13 LOW).
+- `m17-2a/c` — arg-typing polish: 7 LOW + bulk return shape, door msgs unsmoked.
+- `m19-4a` — announce attribution config (§8), audit refused gate attempts, announce
+  text through ANSI markup (3 LOW).
+- `m19-4b` — inspect: player properties not rendered, ambiguous target not listed
+  as candidates (2 LOW).
+- `m19-4d` — `recall` doesn't emit `player.moved` (questwatch/AI-reset skip recall
+  arrivals); fix next `recall.go` touch.
+- `m19-4e` — `purge` has no recursive container/carried-contents cleanup (orphan
+  risk, matches death-path).
+- `m19-4h` — pack-scoped props need a qualified `pack:name`.
+- `m22` — loot/corpse RNG would need a lock if a death/spawn is ever signalled off
+  the tick goroutine; `getFromRoom` is 70 lines (mostly comments); zero-weight loot
+  entries pass decode silently.
+
+### Accepted (not debt), post-M12
+- `m17-2d3` — §5 verb NON-FITS kept hand-parsed by design: `unequip` (no `equipped`
+  arg type), `fill` (source scope), `buy`/`sell`/`value` (resolve in ShopService),
+  and now `get`/`look` (container scope conditional on a sibling arg, M22.3b).
+- `m16` (closed), `m17.1` (closed), `m13`/`m14`/`m15` themes LANDED.
+
+---
+
 ## Accepted design / open questions (not really debt)
 
 Cap-tier ladder hardcoded; class-swap path absent; alignment history
@@ -113,13 +168,21 @@ prefix resolution; `safe` vs `safe-room` tag-string divergence (combat checks
 
 ## Caveats / verify-before-acting
 
-1. **Likely stale-open M8 items.** Several were written as "X is a nop *until*
+1. **M14 (Engine-Debt) + the M9.x mob-effect sweep resolved several M0→M12
+   items.** Confirmed closed (struck through above): `m8-1 #2` vital re-clamp
+   (M14.1), `m11-5` consumable effect-id (M14), `m10-9` quest_grant-on-room
+   (M14), `m9-4`/`m9-5` mob effect-stat (2026-06-01). Re-verify any remaining
+   M8/M9 item against current code before treating it as real work.
+2. **Likely stale-open M8 items.** Several were written as "X is a nop *until*
    M8.4/M8.6/M9," and those milestones have since landed (e.g. `m8-2 #1` class
    LevelUp subscriber, `m8-3` StatCaps / CastCostModifier consumers, `m6-4`
    MobInstance race). The memory files weren't always updated to mark them
-   resolved — re-verify against current code before treating as real work.
-2. **`m7-1 #2`** (MobInstance.stats mutex) is effectively mooted by cluster 1 —
+   resolved — re-verify before treating as real work.
+3. **`m7-1 #2`** (MobInstance.stats mutex) is effectively mooted by cluster 1 —
    mobs now use a `*progression.StatBlock` with its own lock.
-3. For M1–M8 entries this index reads from file headers + cross-references; a
-   few may have been quietly resolved in a later sweep. Post-M9 entries are
-   high-confidence.
+4. **Role system now exists (M19).** M0→M12 notes that say "no role system"
+   (e.g. `m8-2` xp self-grant, `m8-5` admin-bypass role tag) are now buildable
+   — the `HasRole` gate landed with M19.
+5. The M0→M12 body reads from file headers + cross-references; a few may have
+   been quietly resolved in a later sweep. The Post-M12 section (M13→M22) and
+   post-M9 entries are high-confidence.
