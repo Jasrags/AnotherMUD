@@ -157,6 +157,11 @@ func RegisterBuiltins(r *Registry) error {
 		// a room by id or to the room of an online player (§3 world-scoped
 		// resolution). Reuses SetRoom's room-change events.
 		{Keyword: "teleport", Aliases: []string{"goto"}, Handler: TeleportHandler, Admin: true, Brief: "Teleport to a room or player.", Syntax: []string{"teleport <room-id>", "teleport <player>"}},
+
+		// purge (M19.4e — admin-verbs §5): remove a non-player entity (mob
+		// or room item) from the world, untracking it. Never targets a
+		// player. Removal mirrors the death-cleanup path; audited.
+		{Keyword: "purge", Handler: PurgeHandler, Admin: true, Brief: "Remove a mob or item from the world.", Syntax: []string{"purge <target>"}},
 	}
 	for _, c := range commands {
 		if err := r.RegisterCommand(c); err != nil {

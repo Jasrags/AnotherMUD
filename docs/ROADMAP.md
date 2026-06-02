@@ -31,9 +31,11 @@ and `THEME-AXIS-PLAN.md` are superseded by `BACKLOG.md` and now live under
   hiding), M19.4a (`admin.action` audit primitive + `announce`), M19.4b
   (admin target resolution + `inspect`), M19.4c (the `set` field-write
   framework + `vital` kind; `set recall` relocated to `recall set`), and
-  M19.4d (`restore` + `teleport`/`goto` with §3 world-scoped resolution)
-  shipped; M19.4e+ (`purge` + the `set` property/tag kinds + the idle-sweep
-  exemption + help-visibility through `HasRole`) pending.
+  M19.4d (`restore` + `teleport`/`goto` with §3 world-scoped resolution),
+  and M19.4e (`purge` — the §5 baseline verb set is now complete) shipped;
+  M19.4f+ (the `set` property/tag kinds — blocked on property-registry
+  integration — + the idle-sweep exemption + help-visibility through
+  `HasRole`) pending.
   **M18 — Command & UI polish** is paused mid-flight (M18.1 `prompt` verb
   shipped; M18.2–M18.5 pending).
 - **Specs ahead of code.** A large batch of behavior contracts landed this
@@ -2790,11 +2792,26 @@ house's admin moderation (`auction-house.md` §11).
       12 tests (restore: full/not-found/non-admin; teleport: room/goto-alias/
       to-player/unknown/same-room/non-admin). Full -race suite green.
       admin-verbs §3/§5.
-- [ ] **M19.4e+ — `purge` + the `set` property/tag kinds** — `purge`
-      (remove a non-player entity from the store, untracking it; never a
-      player) + the `set` `property` kind (clears the M19.4b player-
-      `Properties()` gap) and `tag` kind — plus the §5 idle-sweep exemption
-      + help-visibility wiring through `HasRole`. admin-verbs §3–§5.
+- [x] **M19.4e — `purge`.** Completes the §5 baseline verb set. `purge
+      <target>` removes a non-player entity — a mob or a room item — from
+      the world: `Placement.Remove` + `Store.Untrack`, mirroring the
+      canonical death-cleanup path (so a purged mob's spawn slot respawns on
+      the next sweep). Resolves players+mobs first (a player match is
+      refused — §5/§9 never targets a player), else a room item via the §5
+      `room_item` arg path. Audited via auditAdmin. Container/mob-carried
+      contents are not recursively cleaned (the death path doesn't either —
+      accepted v1 limitation, recorded). 5 tests (mob / room-item / player-
+      refusal / not-found / non-admin gate). Full -race suite green.
+      admin-verbs §5.
+- [ ] **M19.4f+ — `set` property/tag kinds + cross-cutting finishers.** The
+      `set` `property` kind is **blocked on substrate**: the property
+      `Registry` has no admin-settable flag, isn't wired into the command
+      layer, and `connActor` has no `Properties()`/`SetProperty` (the M14
+      "registry no save-integration" + M19.4b gaps) — landing it means
+      building that integration first. The `tag` kind needs a runtime
+      player-tag mutator (player tags are PARTIAL). Plus the §5 idle-sweep
+      exemption + help-visibility wiring through `HasRole` (M19.3 left admin
+      verbs hidden-from-ALL; admins should SEE them). admin-verbs §3–§5.
 
 **Touches specs:** `roles-and-permissions`, `admin-verbs`,
 `session-lifecycle §5`, `ui-rendering-help §9.5`, `commands-and-dispatch`.
