@@ -7,6 +7,7 @@ import (
 
 	"github.com/Jasrags/AnotherMUD/internal/command"
 	"github.com/Jasrags/AnotherMUD/internal/item"
+	"github.com/Jasrags/AnotherMUD/internal/stacking"
 )
 
 // capTpl is a head-slot item used by the registration-ordering test.
@@ -116,6 +117,46 @@ func leadSpaces(s string) int {
 		n++
 	}
 	return n
+}
+
+// With a stacking service wired, identical items collapse to one line
+// with a trailing "(xN)" count (M21.2).
+func TestInventory_StacksIdenticalItems(t *testing.T) {
+	f := newEqFixture(t)
+	a := newTestActor(f.room)
+	for i := 0; i < 3; i++ {
+		f.spawnInInventory(t, swordWithMods(), a)
+	}
+	env := f.env()
+	env.Stacking = stacking.NewService()
+	r := newRegistry(t)
+	if err := r.Dispatch(context.Background(), env, a, "inventory"); err != nil {
+		t.Fatalf("dispatch: %v", err)
+	}
+	out := a.lastLine()
+	if !strings.Contains(out, "a short sword (x3)") {
+		t.Errorf("want one stacked 'a short sword (x3)' line; got %q", out)
+	}
+	if n := strings.Count(out, "a short sword"); n != 1 {
+		t.Errorf("a short sword appears %d times, want 1 stacked line: %q", n, out)
+	}
+}
+
+// A singleton stack carries no count suffix.
+func TestInventory_SingletonNoCount(t *testing.T) {
+	f := newEqFixture(t)
+	a := newTestActor(f.room)
+	f.spawnInInventory(t, swordWithMods(), a)
+	env := f.env()
+	env.Stacking = stacking.NewService()
+	r := newRegistry(t)
+	if err := r.Dispatch(context.Background(), env, a, "inventory"); err != nil {
+		t.Fatalf("dispatch: %v", err)
+	}
+	out := a.lastLine()
+	if !strings.Contains(out, "a short sword") || strings.Contains(out, "(x") {
+		t.Errorf("singleton should show no count: %q", out)
+	}
 }
 
 func TestInventory_AliasI(t *testing.T) {

@@ -36,6 +36,7 @@ import (
 	"github.com/Jasrags/AnotherMUD/internal/property"
 	"github.com/Jasrags/AnotherMUD/internal/quest"
 	"github.com/Jasrags/AnotherMUD/internal/slot"
+	"github.com/Jasrags/AnotherMUD/internal/stacking"
 	"github.com/Jasrags/AnotherMUD/internal/stats"
 	"github.com/Jasrags/AnotherMUD/internal/world"
 )
@@ -191,6 +192,10 @@ type Env struct {
 	// decoration rendering (items show their bare names).
 	Rarity  *decoration.RarityRegistry
 	Essence *decoration.EssenceRegistry
+	// Stacking is the M21 inventory stack-grouping service. Item listings
+	// group identical items into "name (xN)" stacks through it. nil
+	// degrades to one line per item.
+	Stacking *stacking.Service
 	// Locator resolves another actor by name + room. Consumed by the
 	// give command handler (and future targeted verbs). May be nil
 	// in tests; handlers MUST nil-guard.
@@ -379,6 +384,7 @@ type Context struct {
 	Properties  *property.Registry          // may be nil in tests (M19.4h set property)
 	Rarity      *decoration.RarityRegistry  // may be nil in tests (M20 decorations)
 	Essence     *decoration.EssenceRegistry // may be nil in tests (M20 decorations)
+	Stacking    *stacking.Service           // may be nil in tests (M21 stacking)
 	Locator     Locator                     // may be nil in tests
 	Disposition DispositionHook             // may be nil in tests
 	Combat      *combat.Manager             // may be nil in tests
@@ -800,6 +806,7 @@ func (r *Registry) Dispatch(ctx context.Context, env Env, actor Actor, raw strin
 		Properties:         env.Properties,
 		Rarity:             env.Rarity,
 		Essence:            env.Essence,
+		Stacking:           env.Stacking,
 		Locator:            env.Locator,
 		Disposition:        env.Disposition,
 		Combat:             env.Combat,

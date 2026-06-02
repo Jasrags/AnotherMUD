@@ -54,6 +54,7 @@ import (
 	"github.com/Jasrags/AnotherMUD/internal/session"
 	"github.com/Jasrags/AnotherMUD/internal/slot"
 	"github.com/Jasrags/AnotherMUD/internal/spawn"
+	"github.com/Jasrags/AnotherMUD/internal/stacking"
 	"github.com/Jasrags/AnotherMUD/internal/tick"
 	"github.com/Jasrags/AnotherMUD/internal/weather"
 	"github.com/Jasrags/AnotherMUD/internal/world"
@@ -161,6 +162,11 @@ func run() error {
 	registries.Essence.RegisterTheme(registries.Theme)
 	registries.Theme.Compile()
 	colorRenderer := render.NewColorRenderer(registries.Theme)
+
+	// M21: the inventory stack-grouping service. Engine default (template +
+	// essence keys); pack-registered extra keys (AddKey) would wire here
+	// once a manifest surface for them exists.
+	stackingSvc := stacking.NewService()
 
 	// M10.8: quest persistence store (writes players/<name>/quests.yaml,
 	// loads on login). The quest service itself is constructed later
@@ -1370,6 +1376,7 @@ func run() error {
 		Properties:    registries.Properties,
 		Rarity:        registries.Rarity,
 		Essence:       registries.Essence,
+		Stacking:      stackingSvc,
 		Disposition:   dispositionHook{e: evaluator},
 		Combat:        combatMgr,
 		CombatLocator: combatLocator,

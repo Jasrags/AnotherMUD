@@ -45,6 +45,7 @@ import (
 	"github.com/Jasrags/AnotherMUD/internal/queststore"
 	"github.com/Jasrags/AnotherMUD/internal/render"
 	"github.com/Jasrags/AnotherMUD/internal/slot"
+	"github.com/Jasrags/AnotherMUD/internal/stacking"
 	"github.com/Jasrags/AnotherMUD/internal/stats"
 	"github.com/Jasrags/AnotherMUD/internal/wizard"
 	"github.com/Jasrags/AnotherMUD/internal/world"
@@ -90,6 +91,9 @@ type Config struct {
 	// rarity/essence key to its decoration markup. May be nil in tests.
 	Rarity  *decoration.RarityRegistry
 	Essence *decoration.EssenceRegistry
+	// Stacking is the M21 inventory stack-grouping service, passed through
+	// command.Env so item listings group identical items. May be nil.
+	Stacking *stacking.Service
 
 	// Disposition is the room-entry hook surface (spec
 	// mobs-ai-spawning §4). Passed through command.Env and called
@@ -849,6 +853,7 @@ func pump(ctx context.Context, c conn.Connection, cfg Config, a *connActor, clk 
 			Properties:         cfg.Properties,
 			Rarity:             cfg.Rarity,
 			Essence:            cfg.Essence,
+			Stacking:           cfg.Stacking,
 			Locator:            managerLocator{cfg.Manager},
 			Disposition:        cfg.Disposition,
 			Combat:             cfg.Combat,

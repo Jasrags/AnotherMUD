@@ -2965,11 +2965,17 @@ count field, no merge/split, no persistence change.
       same-template items with different essence keys land in separate
       stacks. Leaf package: `StackEntry` carries key strings; the display
       layer formats them via the M20.3 decoration registries.
-- [ ] **M21.2 — Inventory display uses stacks.** Render one line per stack
-      with a quantity prefix (format TBD at build), reusing `decoratedName`
-      for per-stack rarity/essence; singletons render as today. (Room/
-      container listings + quantity-aware `get`/`drop N` — keyword §6 — are
-      later follow-ons, not this milestone.)
+- [x] **M21.2 — Inventory display uses stacks.** `InventoryHandler` groups
+      the actor's items through the threaded `stacking.Service` and renders
+      one line per stack as `decoratedName(first) (xN)` (trailing `(xN)`
+      suffix, chosen 2026-06-02), reusing the M20.5 decoration rendering
+      unchanged. Singletons carry no count and still expand container
+      contents; a qty>1 stack shows only the count (instances differ). A nil
+      service degrades to one line per item (tests unchanged). Service built
+      at the composition root + threaded root → `session.Config` →
+      `command.Env` → `command.Context`. 2 display tests (stacks-to-(x3),
+      singleton-no-count); full -race suite green. (Room/container listings +
+      quantity-aware `get`/`drop N` — keyword §6 — remain follow-ons.)
 
 **Touches specs:** `inventory-equipment-items §5` (stacking),
 `item-decorations §5` (closes the M20.6 stack-identity tail).

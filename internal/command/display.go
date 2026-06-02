@@ -2,11 +2,13 @@ package command
 
 import (
 	"context"
+	"fmt"
 	"strings"
 	"unicode/utf8"
 
 	"github.com/Jasrags/AnotherMUD/internal/entities"
 	"github.com/Jasrags/AnotherMUD/internal/slot"
+	"github.com/Jasrags/AnotherMUD/internal/stacking"
 )
 
 // InventoryHandler implements `inventory` (alias `i`) — renders the
@@ -24,44 +26,67 @@ import (
 // the terminal. Deepening this is a UI policy choice; the
 // underlying Contents substrate supports arbitrary nesting.
 //
-// Stacking ("3 healing potions") lands when the stacking service
-// arrives — until then this is one line per instance.
+// Stacking (M21.2): identical items group into one line per stack with a
+// trailing "(xN)" count. Singletons carry no count and, if they are
+// containers, still expand their contents; a qty>1 stack shows only the
+// count (the instances differ, so expanding one would mislead). A nil
+// stacking service degrades to one line per item.
 //
-// Item decorations (M20.5): each line shows the item's name with its
-// rarity tag and essence glyph trailing inline (decoratedName,
-// item-decorations §4). An undecorated item renders exactly its bare name,
-// so the listing is byte-for-byte what it was before decorations (§1.1).
+// Item decorations (M20.5): each line shows the (first item's) name with
+// its rarity tag and essence glyph trailing inline (decoratedName,
+// item-decorations §4). An undecorated, unstacked item renders exactly its
+// bare name, so the listing is byte-for-byte what it was before (§1.1).
 func InventoryHandler(ctx context.Context, c *Context) error {
 	if c.Items == nil {
 		return c.Actor.Write(ctx, "You are carrying nothing.")
 	}
-	ids := c.Actor.Inventory()
-	if len(ids) == 0 {
+	items := collectItems(c.Items, c.Actor.Inventory())
+	if len(items) == 0 {
 		return c.Actor.Write(ctx, "You are carrying nothing.")
 	}
+	byID := make(map[entities.EntityID]*entities.ItemInstance, len(items))
+	for _, it := range items {
+		byID[it.ID()] = it
+	}
+
 	var b strings.Builder
 	b.WriteString("You are carrying:")
-	any := false
-	for _, id := range ids {
-		e, ok := c.Items.GetByID(id)
-		if !ok {
+	for _, st := range stackItems(c, items) {
+		if len(st.ItemIDs) == 0 {
 			continue
 		}
-		it, ok := e.(*entities.ItemInstance)
-		if !ok {
+		first := byID[st.ItemIDs[0]]
+		if first == nil {
+			// Defensive: every stack id comes from `items`, which built
+			// byID, so this can't happen today. Guards against a future
+			// service returning an id outside the input set — skip rather
+			// than panic in decoratedName(nil).
 			continue
 		}
-		any = true
 		b.WriteString("\n  ")
-		b.WriteString(decoratedName(c, it))
-		if c.Contents != nil && it.Type() == itemTypeContainer {
-			renderContainerContents(&b, c, it.ID(), 1)
+		b.WriteString(decoratedName(c, first))
+		if st.Quantity > 1 {
+			fmt.Fprintf(&b, " (x%d)", st.Quantity)
+		} else if c.Contents != nil && first.Type() == itemTypeContainer {
+			renderContainerContents(&b, c, first.ID(), 1)
 		}
-	}
-	if !any {
-		return c.Actor.Write(ctx, "You are carrying nothing.")
 	}
 	return c.Actor.Write(ctx, b.String())
+}
+
+// stackItems groups items through the stacking service (M21.1). When no
+// service is wired (tests / headless paths), it falls back to one singleton
+// stack per item, so the listing degrades to one line per item rather than
+// failing.
+func stackItems(c *Context, items []*entities.ItemInstance) []stacking.StackEntry {
+	if c.Stacking != nil {
+		return c.Stacking.Stack(items)
+	}
+	out := make([]stacking.StackEntry, 0, len(items))
+	for _, it := range items {
+		out = append(out, stacking.StackEntry{Quantity: 1, ItemIDs: []entities.EntityID{it.ID()}})
+	}
+	return out
 }
 
 // renderContainerContents appends the children of containerID to b
