@@ -2908,14 +2908,29 @@ deferred rarity-filter autoloot key on the rarity ladder this builds.
       (common/uncommon/rare/legendary, colors via the existing theme
       `item.*` entries) + fire/frost essences. Boots clean. 3 pack tests +
       4 decoration tests; full -race suite green.
-- [ ] **M20.5 — Attachment + stacking + persistence.** item-decorations
-      §5/§6. Reserved item properties hold the rarity/essence key, settable
-      on a template (all instances) or an instance (one drop). **Essence is
-      part of stack identity** — two same-template items with different
-      essence keys do not stack; same/both-unset stack (inventory §5).
-      Rarity does not split stacks (the conservative §5/§9 default). An
-      instance value round-trips across logout; an unknown key renders unset
-      (empty), never an error.
+- [x] **M20.5 — Attachment + rendering + persistence.** item-decorations
+      §5/§6 (the buildable half; stacking split to M20.6). Reserved item
+      properties (`rarity`/`essence`) hold the marker key, settable on a
+      template (copied to the instance bag at spawn → all instances) or an
+      instance (one drop, via M19.4h `set property`). The registries thread
+      into the command `Context`; item display reads an item's key and
+      resolves it through them, splicing the M20.3 markup into the line —
+      the **inventory** list renders rarity + essence **trailing inline**
+      after the name ("a short sword [RARE] (✦)"; chosen 2026-06-02 over the
+      padded-column form, which stays available via `PaddedMarkup`/
+      `MaxVisibleWidth` for a future column surface like shop lists).
+      An instance value round-trips
+      across logout (existing instance-property persistence); an unknown or
+      unset key renders nothing, never an error (§6). An item with neither
+      renders exactly as today (§1.1).
+- [ ] **M20.6 — Essence as stack identity** *(blocked — needs a stacking
+      service)*. item-decorations §5: two same-template items with different
+      essence keys must not stack; same/both-unset stack; rarity does not
+      split stacks (§5/§9 default). **No stacking service exists yet**
+      (`display.go`: "stacking lands when the stacking service arrives"), so
+      there is no consumer to hook essence into. Opens when inventory
+      stacking is built; essence then contributes its key to the stack
+      identity. Split out of M20.5 (decision 2026-06-02).
 
 **Touches specs:** `item-decorations` §2–§6, `ui-rendering-help §2/§3`
 (theme + plain-strip), `inventory-equipment-items §2/§5` (item properties +

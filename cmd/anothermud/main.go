@@ -1368,6 +1368,8 @@ func run() error {
 		Slots:         registries.Slots,
 		Bus:           bus,
 		Properties:    registries.Properties,
+		Rarity:        registries.Rarity,
+		Essence:       registries.Essence,
 		Disposition:   dispositionHook{e: evaluator},
 		Combat:        combatMgr,
 		CombatLocator: combatLocator,
@@ -2949,6 +2951,20 @@ func registerEngineBaselineProperties(reg *property.Registry) error {
 			Description:   "Door id this item unlocks (spec world-rooms-movement §5.3 + PD-4).",
 			AppliesTo:     []string{"item"},
 			AdminSettable: true, // M19.4h: admins can retarget which door an item unlocks
+		},
+		{
+			Name:          "rarity",
+			Type:          property.TypeString,
+			Description:   "Rarity-tier key decorating the item's display (spec item-decorations §5).",
+			AppliesTo:     []string{"item"},
+			AdminSettable: true, // M20.5: admins can set an item's rarity via `set property`
+		},
+		{
+			Name:          "essence",
+			Type:          property.TypeString,
+			Description:   "Essence key decorating the item's display (spec item-decorations §5).",
+			AppliesTo:     []string{"item"},
+			AdminSettable: true, // M20.5: admins can set an item's essence via `set property`
 		},
 	}
 	for _, e := range baseline {

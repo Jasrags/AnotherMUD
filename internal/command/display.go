@@ -26,6 +26,11 @@ import (
 //
 // Stacking ("3 healing potions") lands when the stacking service
 // arrives — until then this is one line per instance.
+//
+// Item decorations (M20.5): each line shows the item's name with its
+// rarity tag and essence glyph trailing inline (decoratedName,
+// item-decorations §4). An undecorated item renders exactly its bare name,
+// so the listing is byte-for-byte what it was before decorations (§1.1).
 func InventoryHandler(ctx context.Context, c *Context) error {
 	if c.Items == nil {
 		return c.Actor.Write(ctx, "You are carrying nothing.")
@@ -48,7 +53,7 @@ func InventoryHandler(ctx context.Context, c *Context) error {
 		}
 		any = true
 		b.WriteString("\n  ")
-		b.WriteString(it.Name())
+		b.WriteString(decoratedName(c, it))
 		if c.Contents != nil && it.Type() == itemTypeContainer {
 			renderContainerContents(&b, c, it.ID(), 1)
 		}
@@ -81,7 +86,8 @@ func renderContainerContents(b *strings.Builder, c *Context, containerID entitie
 		}
 		b.WriteString("\n")
 		b.WriteString(indent)
-		b.WriteString(child.Name())
+		// Same trailing-inline decoration as the top-level lines.
+		b.WriteString(decoratedName(c, child))
 		if child.Type() == itemTypeContainer && len(c.Contents.In(child.ID())) > 0 {
 			b.WriteString(" (contents not shown)")
 		}

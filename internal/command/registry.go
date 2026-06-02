@@ -25,6 +25,7 @@ import (
 	"github.com/Jasrags/AnotherMUD/internal/chat"
 	"github.com/Jasrags/AnotherMUD/internal/clock"
 	"github.com/Jasrags/AnotherMUD/internal/combat"
+	"github.com/Jasrags/AnotherMUD/internal/decoration"
 	"github.com/Jasrags/AnotherMUD/internal/economy"
 	"github.com/Jasrags/AnotherMUD/internal/entities"
 	"github.com/Jasrags/AnotherMUD/internal/eventbus"
@@ -184,6 +185,12 @@ type Env struct {
 	// exists, is admin-settable, and to coerce the value to its declared
 	// type. May be nil in tests that don't exercise property writes.
 	Properties *property.Registry
+	// Rarity / Essence are the M20 item-decoration registries. Item
+	// display resolves an item's reserved rarity/essence property key
+	// through them to render the decoration markup. nil disables
+	// decoration rendering (items show their bare names).
+	Rarity  *decoration.RarityRegistry
+	Essence *decoration.EssenceRegistry
 	// Locator resolves another actor by name + room. Consumed by the
 	// give command handler (and future targeted verbs). May be nil
 	// in tests; handlers MUST nil-guard.
@@ -363,16 +370,18 @@ type DispositionHook interface {
 type Context struct {
 	Actor       Actor
 	World       *world.World
-	Broadcaster Broadcaster         // may be nil in tests
-	Items       *entities.Store     // may be nil in tests
-	Placement   *entities.Placement // may be nil in tests
-	Contents    *entities.Contents  // may be nil in tests
-	Slots       *slot.Registry      // may be nil in tests
-	Bus         *eventbus.Bus       // may be nil in tests
-	Properties  *property.Registry  // may be nil in tests (M19.4h set property)
-	Locator     Locator             // may be nil in tests
-	Disposition DispositionHook     // may be nil in tests
-	Combat      *combat.Manager     // may be nil in tests
+	Broadcaster Broadcaster                 // may be nil in tests
+	Items       *entities.Store             // may be nil in tests
+	Placement   *entities.Placement         // may be nil in tests
+	Contents    *entities.Contents          // may be nil in tests
+	Slots       *slot.Registry              // may be nil in tests
+	Bus         *eventbus.Bus               // may be nil in tests
+	Properties  *property.Registry          // may be nil in tests (M19.4h set property)
+	Rarity      *decoration.RarityRegistry  // may be nil in tests (M20 decorations)
+	Essence     *decoration.EssenceRegistry // may be nil in tests (M20 decorations)
+	Locator     Locator                     // may be nil in tests
+	Disposition DispositionHook             // may be nil in tests
+	Combat      *combat.Manager             // may be nil in tests
 	// Flee is the M7.6 verb-driven §5.2 flee primitive closure. nil
 	// in tests that don't exercise the flee verb.
 	Flee func(ctx context.Context, c combat.CombatantID) combat.FleeOutcome
@@ -789,6 +798,8 @@ func (r *Registry) Dispatch(ctx context.Context, env Env, actor Actor, raw strin
 		Slots:              env.Slots,
 		Bus:                env.Bus,
 		Properties:         env.Properties,
+		Rarity:             env.Rarity,
+		Essence:            env.Essence,
 		Locator:            env.Locator,
 		Disposition:        env.Disposition,
 		Combat:             env.Combat,

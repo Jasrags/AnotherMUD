@@ -28,6 +28,7 @@ import (
 	"github.com/Jasrags/AnotherMUD/internal/combat"
 	"github.com/Jasrags/AnotherMUD/internal/command"
 	"github.com/Jasrags/AnotherMUD/internal/conn"
+	"github.com/Jasrags/AnotherMUD/internal/decoration"
 	"github.com/Jasrags/AnotherMUD/internal/economy"
 	"github.com/Jasrags/AnotherMUD/internal/entities"
 	"github.com/Jasrags/AnotherMUD/internal/eventbus"
@@ -84,6 +85,11 @@ type Config struct {
 	// command.Env so the admin `set property` handler (M19.4h) can
 	// validate + type-coerce a write. May be nil in tests.
 	Properties *property.Registry
+	// Rarity / Essence are the M20 item-decoration registries, passed
+	// through command.Env so item display can resolve an item's
+	// rarity/essence key to its decoration markup. May be nil in tests.
+	Rarity  *decoration.RarityRegistry
+	Essence *decoration.EssenceRegistry
 
 	// Disposition is the room-entry hook surface (spec
 	// mobs-ai-spawning §4). Passed through command.Env and called
@@ -841,6 +847,8 @@ func pump(ctx context.Context, c conn.Connection, cfg Config, a *connActor, clk 
 			Slots:              cfg.Slots,
 			Bus:                cfg.Bus,
 			Properties:         cfg.Properties,
+			Rarity:             cfg.Rarity,
+			Essence:            cfg.Essence,
 			Locator:            managerLocator{cfg.Manager},
 			Disposition:        cfg.Disposition,
 			Combat:             cfg.Combat,
