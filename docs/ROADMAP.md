@@ -26,10 +26,12 @@ and `THEME-AXIS-PLAN.md` are superseded by `BACKLOG.md` and now live under
   progression, economy, quests, scripting, sessions, and modern-client
   support all work.
 - **Active:** **M19 — Roles & Administration** (the keystone). M19.1
-  (role-set substrate + `HasRole` + persistence + config seed) and M19.2
-  (grant/revoke verbs + events) shipped; M19.3–M19.4 (the admin gate,
-  baseline admin verbs) pending. **M18 — Command & UI polish** is paused mid-flight
-  (M18.1 `prompt` verb shipped; M18.2–M18.5 pending).
+  (role-set substrate + `HasRole` + persistence + config seed), M19.2
+  (grant/revoke verbs + events), and M19.3 (the admin dispatch gate + help
+  hiding) shipped; M19.4 (baseline admin verbs + `admin.action` audit +
+  idle-sweep exemption + help-visibility through `HasRole`) pending.
+  **M18 — Command & UI polish** is paused mid-flight (M18.1 `prompt` verb
+  shipped; M18.2–M18.5 pending).
 - **Specs ahead of code.** A large batch of behavior contracts landed this
   cycle *without* implementation — `roles-and-permissions`, `admin-verbs`,
   `item-decorations`, `tag-observers`, `who`, `crafting-and-cooking`, and the
@@ -2725,9 +2727,15 @@ house's admin moderation (`auction-house.md` §11).
       `command.RoleController` + `RoleTargetResolver` seams + a session
       adapter. 9 command tests (refuse/grant/revoke/idempotent/self-block/
       offline/disabled/usage). Full suite 46 pkgs, -race clean. §4/§7.
-- [ ] **M19.3 — The admin gate.** A command `Admin` flag the dispatcher
+- [x] **M19.3 — The admin gate.** A command `Admin` flag the dispatcher
       refuses unless `HasRole`, refusal indistinguishable from an unknown
       verb; gates today's ungated `reload` / `xp`. admin-verbs §2.
+      Flag flows through cmdMeta + every registration (primary + alias) into
+      CommandInfo; minimal `RoleHolder` (HasRole) check at dispatch before
+      the Context is built; admin verbs take the admin help tier (hidden
+      from non-admins); `Env.AdminRole` from `ANOTHERMUD_ADMIN_ROLE`. `grant`
+      / `revoke` / `xp` / `reload` admin-marked; grant/revoke keep their
+      granting-role self-gate. da96420.
 - [ ] **M19.4+ — Baseline admin verbs** (inspect / set / teleport / announce
       / restore / purge) + the `admin.action` audit + the §5 idle-sweep
       exemption + help-visibility wiring through `HasRole`. admin-verbs §3–§6.
