@@ -1,0 +1,39 @@
+# air live-reload config for AnotherMUD (https://github.com/air-verse/air).
+#
+# `make watch` runs this: on any .go/.yaml/.lua change it rebuilds and
+# restarts the server in ~1s. Go is compiled, so this is rebuild+restart,
+# not in-process hot-swap — connections drop, but player saves persist
+# (the server flushes on the graceful SIGINT air sends), so just
+# reconnect. Pack Lua can also be hot-reloaded in-session via `reload`
+# without a restart.
+#
+# Server env knobs (ANOTHERMUD_ADDR, ANOTHERMUD_CORPSE_LIFETIME, …) are
+# inherited from your shell — export them before `make watch`.
+
+root = "."
+tmp_dir = "tmp"
+
+[build]
+  cmd = "go build -o ./tmp/anothermud ./cmd/anothermud"
+  bin = "./tmp/anothermud"
+  # Debounce rapid saves so one save = one restart.
+  delay = 600
+  # Restart on engine code, content packs (YAML), and Lua scripts.
+  include_ext = ["go", "yaml", "yml", "lua"]
+  include_dir = ["cmd", "internal", "content"]
+  # Never watch save writes (autosave would loop), build output, or the
+  # vendored reference repo / docs.
+  exclude_dir = ["bin", "tmp", "dist", "saves", "tapestry", "docs", ".git", ".claude"]
+  # Editing tests shouldn't bounce the running server.
+  exclude_regex = ["_test\\.go"]
+  # Keep the last good build running on a compile error; fix + save to recover.
+  stop_on_error = true
+  # Graceful stop: SIGINT lets the server flush saves before exit.
+  send_interrupt = true
+  kill_delay = "2s"
+
+[misc]
+  clean_on_exit = true
+
+[screen]
+  clear_on_rebuild = true

@@ -41,6 +41,19 @@ build:
 run:
 	$(GO) run $(CMD_PKG)
 
+## watch: live-reload — rebuild + restart on any .go/.yaml/.lua change (needs air)
+.PHONY: watch
+watch:
+	@air="$$(command -v air 2>/dev/null || true)"; \
+	[ -n "$$air" ] || air="$$($(GO) env GOPATH)/bin/air"; \
+	if [ ! -x "$$air" ]; then \
+		echo "air not installed. Install it with:"; \
+		echo "  go install github.com/air-verse/air@latest"; \
+		exit 1; \
+	fi; \
+	echo "live reload: edit + save -> rebuild + restart (~1s). Reconnect; saves persist."; \
+	"$$air"
+
 ## test: run all tests
 .PHONY: test
 test:

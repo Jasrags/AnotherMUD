@@ -2,6 +2,8 @@
 /anothermud
 /bin/
 /dist/
+# air live-reload build dir (make watch)
+/tmp/
 
 # Go build/test artifacts
 *.exe

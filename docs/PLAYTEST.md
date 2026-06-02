@@ -19,6 +19,16 @@ make run          # or: go run ./cmd/anothermud   (telnet on :4000)
 telnet localhost 4000
 ```
 
+### Live reload while bug-hunting (recommended)
+
+`make watch` rebuilds + restarts the server automatically on any
+`.go`/`.yaml`/`.lua` save (~1s), so you don't manually stop/start as you fix
+bugs. Connections drop on restart but **player saves persist** — just
+reconnect and resume. (Pack Lua can also be hot-reloaded in-session via the
+admin `reload` verb, no restart.) One-time install:
+`go install github.com/air-verse/air@latest`. Exported env (below) is inherited,
+so e.g.: `ANOTHERMUD_CORPSE_LIFETIME=30s make watch`.
+
 ### Fast-testing env (optional but recommended)
 
 Some features are time-driven. Launch with shorter timers so you don't wait:
@@ -151,10 +161,10 @@ After killing the bandit (Meadow):
       is removed once empty.
 - [x] `autoloot on`, kill the bandit again — its loot is taken automatically at
       death ("You quickly loot…"); `autoloot off` restores manual looting.
-- [ ] Ownership window: with Bob also present, Bob looting *your* fresh kill is
+- [x] Ownership window: with Bob also present, Bob looting *your* fresh kill is
       refused during the window, then allowed after it elapses
       (`CORPSE_OWNERSHIP_WINDOW`).
-- [ ] Decay: kill the bandit, leave the corpse; after `CORPSE_LIFETIME` it
+- [x] Decay: kill the bandit, leave the corpse; after `CORPSE_LIFETIME` it
       vanishes (its unlooted contents destroyed).
 
 ## 8. Progression & abilities

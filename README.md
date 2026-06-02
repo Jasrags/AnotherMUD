@@ -156,11 +156,21 @@ scripts also support hot reload via the admin `reload` verb).
 ```sh
 make build      # compile into ./bin/anothermud
 make run        # build + run
+make watch      # live-reload: rebuild + restart on save (needs air)
 make test       # go test -race -count=1 ./...   (race detector is mandatory)
 make cover      # coverage profile + summary
 make check      # fmt + vet + test — the gate to run before committing
 make help       # list all targets
 ```
+
+**Live reload (`make watch`).** Watches `.go` / `.yaml` / `.lua` and rebuilds +
+restarts the server on save (~1s) so you don't manually stop/start during
+playtesting. Go is compiled, so this is rebuild+restart, not in-process
+hot-swap — connections drop, but player saves persist (the server flushes on
+the graceful SIGINT), so just reconnect. Pack Lua can also be hot-reloaded
+in-session via the admin `reload` verb (no restart). Requires
+[air](https://github.com/air-verse/air): `go install github.com/air-verse/air@latest`.
+Server env vars are inherited from your shell — export them before `make watch`.
 
 Conventions the codebase follows (see [`docs/ROADMAP.md`](docs/ROADMAP.md)
 "Foundations"):
