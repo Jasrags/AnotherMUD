@@ -20,7 +20,11 @@ import (
 //
 // On success: the §5.2 bus event fires (which the broadcaster will
 // later turn into "X flees!" room broadcasts via the production
-// Mover); we tell the fleer "You flee in panic!".
+// Mover); we tell the fleer "You flee in panic!" and then render the
+// destination room. The flee Mover has already SetRoom'd the actor by
+// the time c.Flee returns, so c.Actor.Room() is the new room — without
+// this render the player lands in an unseen room; this mirrors a normal
+// movement (builtins.go movementHandler).
 func FleeHandler(ctx context.Context, c *Context) error {
 	cb, ok := c.Actor.(combat.Combatant)
 	if !ok {
@@ -35,7 +39,11 @@ func FleeHandler(ctx context.Context, c *Context) error {
 
 	switch c.Flee(ctx, cb.CombatantID()) {
 	case combat.FleeOutcomeSuccess:
-		return c.Actor.Write(ctx, "You flee in panic!")
+		_ = c.Actor.Write(ctx, "You flee in panic!")
+		if room := c.Actor.Room(); room != nil {
+			return c.Actor.Write(ctx, RenderRoom(room, c.Placement, c.Items, c.questMarker(), c.Ambience))
+		}
+		return nil
 	case combat.FleeOutcomePrevented:
 		return c.Actor.Write(ctx, "Something stops you from fleeing.")
 	case combat.FleeOutcomeFailedNoExits:

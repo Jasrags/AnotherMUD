@@ -170,13 +170,26 @@ func TestInventory_AliasI(t *testing.T) {
 	}
 }
 
-func TestEquipment_EmptyMessage(t *testing.T) {
+func TestEquipment_ShowsAllSlotsEmpty(t *testing.T) {
+	// With nothing equipped, every slot is still listed as (empty) so
+	// the player learns the slot names without guessing.
 	f := newEqFixture(t)
 	a := newTestActor(f.room)
 	r := newRegistry(t)
 	dispatch(t, r, f.env(), a, "equipment")
-	if got := a.lastLine(); !strings.Contains(got, "wearing nothing") {
-		t.Errorf("equipment empty = %q, want wearing-nothing message", got)
+	out := a.lastLine()
+	if !strings.Contains(out, "(empty)") {
+		t.Errorf("empty equipment should list slots as (empty): %q", out)
+	}
+	// Baseline slots are all present and empty.
+	for _, label := range []string{"wielded", "worn on head", "worn on finger"} {
+		if !strings.Contains(out, label) {
+			t.Errorf("slot %q missing from empty equipment listing: %q", label, out)
+		}
+	}
+	// Two ring fingers (multi-cap) → two empty finger lines.
+	if got := strings.Count(out, "worn on finger"); got != 2 {
+		t.Errorf("worn-on-finger count = %d, want 2 (both empty sub-slots): %q", got, out)
 	}
 }
 
@@ -231,7 +244,9 @@ func TestEquipment_MultiCapEmitsLinePerFilledSubSlot(t *testing.T) {
 	}
 }
 
-func TestEquipment_OnlyOccupiedSubSlotShown(t *testing.T) {
+func TestEquipment_MultiCapShowsFilledAndEmptySubSlots(t *testing.T) {
+	// One ring of two finger slots: both sub-slots are listed — one with
+	// the ring, the other as (empty).
 	f := newEqFixture(t)
 	a := newTestActor(f.room)
 	f.spawnInInventory(t, ringTpl("tapestry-core:ring-a"), a)
@@ -241,8 +256,11 @@ func TestEquipment_OnlyOccupiedSubSlotShown(t *testing.T) {
 	dispatch(t, r, f.env(), a, "equipment")
 
 	out := a.lastLine()
-	if got := strings.Count(out, "worn on finger"); got != 1 {
-		t.Errorf("worn-on-finger count = %d, want 1; %q", got, out)
+	if got := strings.Count(out, "worn on finger"); got != 2 {
+		t.Errorf("worn-on-finger count = %d, want 2 (one filled, one empty); %q", got, out)
+	}
+	if !strings.Contains(out, "(empty)") {
+		t.Errorf("the unused finger slot should show (empty): %q", out)
 	}
 }
 
@@ -271,7 +289,10 @@ func TestEquipment_AliasEqDoesNotShadowEquip(t *testing.T) {
 	a := newTestActor(f.room)
 	r := newRegistry(t)
 	dispatch(t, r, f.env(), a, "eq")
-	if got := a.lastLine(); !strings.Contains(got, "wearing nothing") {
+	// EquipmentHandler's empty-state lists slots as (empty); EquipHandler
+	// would emit a usage banner instead. Asserting the slot listing pins
+	// that `eq` routed to the equipment handler.
+	if got := a.lastLine(); !strings.Contains(got, "(empty)") {
 		t.Errorf("eq did not route to equipment handler: %q", got)
 	}
 }

@@ -121,31 +121,20 @@ func renderContainerContents(b *strings.Builder, c *Context, containerID entitie
 	}
 }
 
-// EquipmentHandler implements `equipment` (alias `eq`) — renders
-// equipped items grouped by slot in slot-registration order. Empty
-// slots are omitted (occupied-only listing); the help system, when
-// it lands, is the right surface for "here are the slots you have."
-//
-// Multi-cap slots emit one line per occupied sub-slot, each with the
-// base slot label — players don't see the `:index` suffix. Labels
-// are padded to align item names, padding driven by the longest
-// label across occupied slots in this render (not across the
-// registry, so a rarely-used pack slot can't permanently widen the
-// column).
+// EquipmentHandler implements `equipment` (alias `eq`) — renders EVERY
+// equip slot in slot-registration order, so the player can see what
+// slots exist (and their names) without guessing. An empty slot renders
+// as `(empty)`; an occupied one shows the item. A multi-cap slot (e.g.
+// two ring fingers) emits one line per sub-slot, each with the base slot
+// label — players never see the `:index` suffix. Labels are padded so
+// item names align, driven by the longest label in this render.
 func EquipmentHandler(ctx context.Context, c *Context) error {
 	if c.Items == nil || c.Slots == nil {
-		return c.Actor.Write(ctx, "You are wearing nothing.")
+		return c.Actor.Write(ctx, "You have no equipment slots right now.")
 	}
 	equipped := c.Actor.Equipment()
-	if len(equipped) == 0 {
-		return c.Actor.Write(ctx, "You are wearing nothing.")
-	}
 
-	type row struct {
-		label string
-		name  string
-	}
-	rows := make([]row, 0, len(equipped))
+	var rows []slotRow
 	// Iterate slot defs in registration order so the listing is stable
 	// and matches the registration ordering documented in §3.1.
 	for _, def := range c.Slots.All() {
@@ -154,27 +143,34 @@ func EquipmentHandler(ctx context.Context, c *Context) error {
 			if err != nil {
 				continue
 			}
-			id, ok := equipped[key]
-			if !ok {
-				continue
+			name := "(empty)"
+			if id, ok := equipped[key]; ok {
+				if n, ok := lookupItemName(c.Items, id); ok {
+					name = n
+				}
 			}
-			name, ok := lookupItemName(c.Items, id)
-			if !ok {
-				// Entity gone from store; skip silently to match the
-				// inventory render's tolerance for store divergence.
-				continue
-			}
-			rows = append(rows, row{label: def.Label, name: name})
+			rows = append(rows, slotRow{label: def.Label, name: name})
 		}
 	}
 	if len(rows) == 0 {
-		return c.Actor.Write(ctx, "You are wearing nothing.")
+		// No slots registered at all — nothing to show.
+		return c.Actor.Write(ctx, "You have no equipment slots.")
 	}
+	return c.Actor.Write(ctx, renderSlotRows("You are wearing:", rows))
+}
 
-	// Width measured in runes, not bytes, so multi-byte UTF-8 labels
-	// (pack-authored slots may use accented characters) still line up
-	// visually. Engine baseline labels are ASCII so today the two are
-	// equivalent.
+// slotRow is one slot line in the equipment listing.
+type slotRow struct {
+	label string
+	name  string
+}
+
+// renderSlotRows formats slot rows as a padded "<label>  name" block
+// under header. Width is measured in runes, not bytes, so multi-byte
+// UTF-8 labels (pack-authored slots may use accented characters) still
+// line up visually; engine-baseline labels are ASCII so today the two
+// are equivalent.
+func renderSlotRows(header string, rows []slotRow) string {
 	width := 0
 	for _, r := range rows {
 		if n := utf8.RuneCountInString(r.label); n > width {
@@ -182,7 +178,7 @@ func EquipmentHandler(ctx context.Context, c *Context) error {
 		}
 	}
 	var b strings.Builder
-	b.WriteString("You are wearing:")
+	b.WriteString(header)
 	for _, r := range rows {
 		b.WriteString("\n  <")
 		b.WriteString(r.label)
@@ -193,7 +189,7 @@ func EquipmentHandler(ctx context.Context, c *Context) error {
 		b.WriteString("  ")
 		b.WriteString(r.name)
 	}
-	return c.Actor.Write(ctx, b.String())
+	return b.String()
 }
 
 // resolveItemNames returns the display names of ids in input order,

@@ -67,86 +67,89 @@ once (two telnet windows).
 
 ## 1. Connection & login
 
-- [ ] `telnet localhost 4000` — you get a name prompt.
-- [ ] Enter `Jasrags`, then the password — you land in Town Square with its
+- [x] `telnet localhost 4000` — you get a name prompt.
+- [x] Enter `Jasrags`, then the password — you land in Town Square with its
       room description, exits, and a "You see here:" line.
-- [ ] Enter a wrong password — rejected, re-prompted (not crashed).
-- [ ] Type a brand-new name (e.g. `Tester1`) — it asks for email, then a new
-      password with confirmation (new-account flow).
-- [ ] `quit` — "Goodbye." and the connection closes; reconnecting and logging
+- [x] Enter a wrong password — rejected, re-prompted (not crashed).
+- [x] Type a name with a digit/symbol (e.g. `Tester1`) — rejected with "Names
+      must use ASCII letters only." (names are letters-only, 2–16 chars).
+- [x] Type a brand-new letters-only name (e.g. `Tester`) — it asks for email,
+      then a new password with confirmation (new-account flow).
+- [x] `quit` — "Goodbye." and the connection closes; reconnecting and logging
       back in puts you in the room you left.
 
 ## 2. Character creation (new character)
 
-- [ ] With a new name, walk the wizard — you're prompted to choose a **race**
+- [x] With a new name, walk the wizard — you're prompted to choose a **race**
       (human/dwarf) and **class** (fighter), with descriptions.
-- [ ] Complete it — character commits, spawns at Town Square, and survives a
+- [x] Complete it — character commits, spawns at Town Square, and survives a
       `quit` + relog (it's persisted).
 
 ## 3. Movement & rooms
 
-- [ ] `look` — renders room name, description, exits, and entities present.
-- [ ] `north` / `n` — move to the Forge; `look` shows Maerys the Training
+- [x] `look` — renders room name, description, exits, and entities present.
+- [x] `north` / `n` — move to the Forge; `look` shows Maerys the Training
       Master.
-- [ ] `south`, `east`, `west` — move between Forge/Square/Market/Gate.
-- [ ] `s` from the Gate — you reach the Meadow (the bandit is here).
-- [ ] Try a direction with no exit (e.g. `up`) — "You cannot go that way."
-- [ ] When another player is present, you see "X arrives" / "X leaves" as they
+- [x] `south`, `east`, `west` — move between Forge/Square/Market/Gate.
+- [x] `s` from the Gate — you reach the Meadow (the bandit is here).
+- [x] Try a direction with no exit (e.g. `up`) — "You cannot go that way."
+- [x] When another player is present, you see "X arrives" / "X leaves" as they
       move (covered in §11).
 
 ## 4. Items & inventory
 
 In Town Square:
 
-- [ ] `get sword` — picks up the short sword; `inventory` (`i`) lists it.
-- [ ] `get cap`, `get ration`, `get sack`, `get waterskin` — all enter inventory.
-- [ ] `get coins` — credits **gold** (currency auto-convert), does *not* add an
+- [x] `get sword` — picks up the short sword; `inventory` (`i`) lists it.
+- [x] `get cap`, `get ration`, `get sack`, `get waterskin` — all enter inventory.
+- [x] `get coins` — credits **gold** (currency auto-convert), does *not* add an
       item; `gold` shows the new balance.
-- [ ] `drop ration` then `get ration` — drops to the room and picks back up.
-- [ ] `equip sword`, `equip cap` — `equipment` (`eq`) shows them worn; `consider`
+- [x] `drop ration` then `get ration` — drops to the room and picks back up.
+- [x] `equip sword`, `equip cap` — `equipment` (`eq`) shows them worn; `consider`
       reflects the stat/AC change.
-- [ ] `unequip sword` — returns to inventory.
-- [ ] Duplicate items show stacked: pick up two rations → `i` shows
+- [x] `unequip sword` — returns to inventory.
+- [x] Duplicate items show stacked: pick up two rations → `i` shows
       `a trail ration (x2)`.
-- [ ] `get 2.ration` style ordinals resolve the Nth match (try with two of a
+- [x] `get 2.ration` style ordinals resolve the Nth match (try with two of a
       kind on the ground).
 
 ## 5. Containers
 
-- [ ] `fill waterskin` (in Town Square, by the well) — fills it from the well.
-- [ ] `put sword in sack` — sword moves into the sack.
-- [ ] `look in sack` — lists the sack's contents.
-- [ ] `get sword from sack` — takes it back out.
+- [x] `fill waterskin` (in Town Square, by the well) — fills it from the well.
+- [x] `put sword in sack` — sword moves into the sack.
+- [x] `look in sack` — lists the sack's contents.
+- [x] `get sword from sack` — takes it back out.
 - [ ] (Corpse-as-container is covered in §7.)
 
 ## 6. Combat
 
 Go to the **Meadow** (`s` from the Gate). The bandit is hostile.
 
-- [ ] `consider bandit` (`con bandit`) — shows its HP/condition and AC.
-- [ ] Entering the Meadow, the bandit aggros (attacks you) — combat rounds tick;
+- [x] `consider bandit` (`con bandit`) — shows its HP/condition and AC.
+- [x] Entering the Meadow, the bandit aggros (attacks you) — combat rounds tick;
       you see hit/miss/damage lines for both sides.
-- [ ] `kill bandit` also initiates combat if not already engaged.
-- [ ] In **Town Square**, `kill <anyone>` is refused — "safe room"
+- [x] `kill bandit` also initiates combat if not already engaged.
+- [x] In **Town Square**, `kill <anyone>` is refused — "safe room"
       (combat blocked in the hub).
-- [ ] `flee` — escapes combat to an adjacent room (when there's an exit).
-- [ ] `wimpy 30` then fight — at ≤30% HP you auto-flee.
+- [x] `flee` — escapes combat to an adjacent room (when there's an exit); you
+      see the new room rendered, and others see "X flees to the <dir>!".
+- [x] `wimpy 30` then fight — at ≤30% HP you auto-flee.
 - [ ] Let the bandit kill a low-HP character (use Bob unarmed) — on death you
       respawn (healed) at the recall/start room, not disconnected.
-- [ ] `cast slash` / `cast kick` in combat — the ability fires (Jasrags has them).
+- [x] `cast slash` / `cast kick` in combat — the ability fires (Jasrags has them).
 
 ## 7. Loot & corpses
 
 After killing the bandit (Meadow):
 
-- [ ] A **corpse** appears in the room ("the corpse of a road bandit").
-- [ ] `look corpse` — lists its contents + a coin amount.
-- [ ] `get ration from corpse` — takes one item out.
-- [ ] `get coins from corpse` — credits gold (not inventory).
-- [ ] `put sword in corpse` — refused (a corpse is a loot source, not storage).
-- [ ] `loot corpse` (or just `loot`) — takes everything remaining; the corpse
+- [x] A **corpse** appears in the room ("the corpse of a road bandit").
+- [x] `look corpse` — lists its contents + a coin amount.
+- [x] `get ration from corpse` — takes one item out.
+- [x] `get coins from corpse` — credits gold (not inventory).
+- [x] `put sword in corpse` — refused (a corpse is a loot source, not storage).
+- [x] `loot corpse` (or just `loot`) — takes everything remaining; the corpse
       is removed once empty.
-- [ ] `autoloot on`, kill the bandit again — its loot is taken automatically at
+- [x] `autoloot on`, kill the bandit again — its loot is taken automatically at
       death ("You quickly loot…"); `autoloot off` restores manual looting.
 - [ ] Ownership window: with Bob also present, Bob looting *your* fresh kill is
       refused during the window, then allowed after it elapses

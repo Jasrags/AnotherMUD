@@ -20,6 +20,8 @@ import (
 	"sync"
 	"syscall"
 	"time"
+	"unicode"
+	"unicode/utf8"
 
 	"github.com/Jasrags/AnotherMUD/internal/account"
 	"github.com/Jasrags/AnotherMUD/internal/ai"
@@ -912,6 +914,30 @@ func run() error {
 	// disengages on different-room — see ai/dispatcher.go gate.
 	aiDispatcher.AttachCombat(combatMgr)
 
+	// combat.flee → room announcements (with direction). The Mover does
+	// the move but not the messaging; this subscriber owns the
+	// presentation because the Flee event carries the fled direction
+	// ("X flees to the north!"), mirroring normal-move phrasing. Handles
+	// both players (excluded from their own departure line — they get
+	// "You flee in panic!" from the verb) and mobs.
+	bus.Subscribe(eventbus.EventFlee, func(ctx context.Context, ev eventbus.Event) {
+		e, ok := ev.(eventbus.Flee)
+		if !ok {
+			return
+		}
+		exclude := ""
+		if pid, isPlayer := strings.CutPrefix(e.EntityID, combat.PlayerPrefix); isPlayer {
+			exclude = pid
+		}
+		name := upperFirst(e.EntityName)
+		departure := name + " flees!"
+		if e.Direction != "" {
+			departure = fmt.Sprintf("%s flees to the %s!", name, e.Direction)
+		}
+		mgr.SendToRoom(ctx, e.From, departure, exclude)
+		mgr.SendToRoom(ctx, e.To, name+" arrives, panting.", exclude)
+	})
+
 	// M7.5: mob.aggro → combat.Engage closes the M6.5 deferred. The
 	// disposition evaluator emits MobAggro for every fresh hostile
 	// reaction; combat.Manager.Engage is idempotent on duplicates
@@ -1173,7 +1199,7 @@ func run() error {
 	// drops to or below its WimpyThreshold property. Shares the same
 	// FleeConfig the M7.6d `flee` verb uses; the verb path constructs
 	// its own config from the same dependencies.
-	fleeMover := combatMover{sessions: mgr, placement: placement, world: w, broadcaster: mgr, bus: bus}
+	fleeMover := combatMover{sessions: mgr, placement: placement, bus: bus}
 	fleeBusAdapter := combatFleeBus{bus: bus}
 	fleeCfg := combat.FleeConfig{
 		Mgr:           combatMgr,
@@ -1842,6 +1868,22 @@ func autolootSummary(items []*entities.ItemInstance, coins int) string {
 	}
 }
 
+// upperFirst capitalizes the first rune of s so a flee announcement
+// starting with a lowercased mob name ("a road bandit") reads as a
+// sentence ("A road bandit flees…"). Rune-aware so a pack-authored
+// UTF-8 name isn't corrupted; idempotent for already-capitalized names
+// (players).
+func upperFirst(s string) string {
+	if s == "" {
+		return s
+	}
+	r, size := utf8.DecodeRuneInString(s)
+	if r == utf8.RuneError {
+		return s
+	}
+	return string(unicode.ToUpper(r)) + s[size:]
+}
+
 // bootSpawner adapts the runtime entity store + placement index to
 // the pack.Spawner / pack.MobSpawner interfaces, letting room YAMLs
 // declare items AND mobs that should exist at boot. Implemented here
@@ -2490,11 +2532,9 @@ func hasTag(tags []string, want string) bool {
 // arrival/departure in the rooms so other occupants see "X flees!"
 // rather than "X disappears."
 type combatMover struct {
-	sessions    *session.Manager
-	placement   *entities.Placement
-	world       *world.World
-	broadcaster *session.Manager // session.Manager implements SendToRoom
-	bus         *eventbus.Bus
+	sessions  *session.Manager
+	placement *entities.Placement
+	bus       *eventbus.Bus
 }
 
 func (m combatMover) Move(ctx context.Context, id combat.CombatantID, dst *world.Room) bool {
@@ -2505,16 +2545,13 @@ func (m combatMover) Move(ctx context.Context, id combat.CombatantID, dst *world
 	switch {
 	case strings.HasPrefix(s, combat.MobPrefix):
 		entityID := entities.EntityID(s[len(combat.MobPrefix):])
-		from, ok := m.placement.RoomOf(entityID)
-		if !ok {
+		if _, ok := m.placement.RoomOf(entityID); !ok {
 			return false
 		}
 		m.placement.Place(entityID, dst.ID)
-		// Announce the flee to both rooms so witnesses see it.
-		if m.broadcaster != nil {
-			m.broadcaster.SendToRoom(ctx, from, "Something bolts away!", "")
-			m.broadcaster.SendToRoom(ctx, dst.ID, "Something bolts in, panting.", "")
-		}
+		// The flee announcement (with direction) is broadcast by the
+		// combat.flee event subscriber, which carries the fled direction
+		// the Mover doesn't receive.
 		return true
 	case strings.HasPrefix(s, combat.PlayerPrefix):
 		playerID := s[len(combat.PlayerPrefix):]
@@ -2523,17 +2560,11 @@ func (m combatMover) Move(ctx context.Context, id combat.CombatantID, dst *world
 			return false
 		}
 		from, _ := m.sessions.RoomOfPlayer(playerID)
-		if m.broadcaster != nil && actor.PlayerName() != "" {
-			m.broadcaster.SendToRoom(ctx, from,
-				actor.PlayerName()+" flees!", playerID)
-		}
 		actor.SetRoom(dst)
-		if m.broadcaster != nil && actor.PlayerName() != "" {
-			m.broadcaster.SendToRoom(ctx, dst.ID,
-				actor.PlayerName()+" arrives, panting.", playerID)
-		}
-		// Publish player.moved so disposition + future hooks fire on
-		// flee-driven moves the same way they do on verb-driven ones.
+		// Departure/arrival announcements are handled by the combat.flee
+		// subscriber (it has the direction). Publish player.moved so
+		// disposition + future hooks fire on flee-driven moves the same
+		// way they do on verb-driven ones.
 		if m.bus != nil {
 			m.bus.Publish(ctx, eventbus.PlayerMoved{
 				PlayerID: playerID,

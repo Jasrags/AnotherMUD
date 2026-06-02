@@ -32,8 +32,14 @@ func TestFlee_SuccessMessage(t *testing.T) {
 	if !called {
 		t.Error("Flee closure not invoked")
 	}
-	if got := a.lastLine(); !strings.Contains(got, "panic") {
-		t.Errorf("flee success message = %q", got)
+	// Success writes the panic line AND renders the destination room
+	// (the actor is already in the new room by the time Flee returns).
+	out := allLines(a.testActor)
+	if !strings.Contains(out, "panic") {
+		t.Errorf("flee success should announce panic: %q", out)
+	}
+	if !strings.Contains(out, "Square") {
+		t.Errorf("flee should render the destination room: %q", out)
 	}
 }
 
