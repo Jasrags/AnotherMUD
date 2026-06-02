@@ -130,3 +130,38 @@ func TestRarity_GetUnknown(t *testing.T) {
 		t.Error("Get(\"\") hit; want miss")
 	}
 }
+
+// ValidateKey accepts clean keys and rejects empty, markup-bearing, and
+// whitespace keys (the load-boundary guard).
+func TestValidateKey(t *testing.T) {
+	good := []string{"rare", "Rare", " rare ", "epic-plus", "tier2"}
+	for _, k := range good {
+		if err := ValidateKey(k); err != nil {
+			t.Errorf("ValidateKey(%q) = %v, want nil", k, err)
+		}
+	}
+	bad := []string{"", "   ", "ra>re", "ra<re", "a{b}", "ice cold", "tab\tkey"}
+	for _, k := range bad {
+		if err := ValidateKey(k); err == nil {
+			t.Errorf("ValidateKey(%q) = nil, want error", k)
+		}
+	}
+}
+
+// Register rejects an invalid key (markup char) on both registries.
+func TestRegister_RejectsInvalidKey(t *testing.T) {
+	r := NewRarityRegistry()
+	if r.Register(Tier{Key: "ra>re", Display: "X", Left: "[", Right: "]", Visible: true}) {
+		t.Error("rarity Register accepted a markup-bearing key")
+	}
+	if r.Len() != 0 {
+		t.Errorf("rarity Len = %d, want 0", r.Len())
+	}
+	e := NewEssenceRegistry()
+	if e.Register(Essence{Key: "ice cold", Glyph: "❄"}) {
+		t.Error("essence Register accepted a whitespace key")
+	}
+	if e.Len() != 0 {
+		t.Errorf("essence Len = %d, want 0", e.Len())
+	}
+}

@@ -401,6 +401,52 @@ type ThemeTagEntry struct {
 	HTML string `yaml:"html,omitempty"`
 }
 
+// RarityFile is the YAML shape for a pack's rarity-tier vocabulary (spec
+// item-decorations §2). Each tier carries a key, an order (low → high),
+// optional display text + a decorator pair, a color (fg/bg/html, seeded as
+// the theme tag `item.<key>`), and a visible flag. A tier that is invisible
+// or lacks display/decorators renders as nothing — the baseline pattern
+// (e.g. `common`).
+//
+//	tiers:
+//	  - { key: common, order: 10 }
+//	  - { key: rare, order: 30, display: RARE, left: "[", right: "]", fg: cyan, visible: true }
+type RarityFile struct {
+	Tiers []RarityTierEntry `yaml:"tiers"`
+}
+
+// RarityTierEntry is one tier in a RarityFile.
+type RarityTierEntry struct {
+	Key     string `yaml:"key"`
+	Order   int    `yaml:"order"`
+	Display string `yaml:"display,omitempty"`
+	Left    string `yaml:"left,omitempty"`
+	Right   string `yaml:"right,omitempty"`
+	FG      string `yaml:"fg,omitempty"`
+	BG      string `yaml:"bg,omitempty"`
+	HTML    string `yaml:"html,omitempty"`
+	Visible bool   `yaml:"visible,omitempty"`
+}
+
+// EssenceFile is the YAML shape for a pack's essence vocabulary (spec
+// item-decorations §3). Each essence carries a key, a glyph, and a color
+// (seeded as the theme tag `essence.<key>`).
+//
+//	essences:
+//	  - { key: fire, glyph: "✦", fg: red }
+type EssenceFile struct {
+	Essences []EssenceEntry `yaml:"essences"`
+}
+
+// EssenceEntry is one essence in an EssenceFile.
+type EssenceEntry struct {
+	Key   string `yaml:"key"`
+	Glyph string `yaml:"glyph"`
+	FG    string `yaml:"fg,omitempty"`
+	BG    string `yaml:"bg,omitempty"`
+	HTML  string `yaml:"html,omitempty"`
+}
+
 // HelpFile is the YAML shape for a pack help file (spec
 // ui-rendering-help §9.1). A file carries one or more topics under
 // `topics`. Each topic's `role` is optional (player/builder/admin;

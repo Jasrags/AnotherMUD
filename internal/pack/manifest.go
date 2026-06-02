@@ -80,6 +80,11 @@ type ContentPaths struct {
 	Help      []string `yaml:"help,omitempty"`
 	Quests    []string `yaml:"quests,omitempty"`
 	Effects   []string `yaml:"effects,omitempty"`
+	// Rarity / Essence are the M20 item-decoration vocabularies.
+	// Loaded into Registries.Rarity / .Essence; an item's reserved
+	// rarity/essence property references a key these define.
+	Rarity  []string `yaml:"rarity,omitempty"`
+	Essence []string `yaml:"essence,omitempty"`
 	// WeatherZones are zone-definition files for the M15.4
 	// weather substrate (spec world-rooms-movement §6).
 	// Loaded into Registries.Weather; areas reference zones

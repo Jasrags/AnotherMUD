@@ -1,0 +1,16 @@
+# tapestry-core rarity-tier ladder (item-decorations §2).
+#
+# Each tier: key, order (low → high), optional display + decorator pair,
+# optional fg/bg/html color, and a visible flag. A tier that is invisible
+# or lacks display/decorators renders as nothing (the baseline pattern,
+# e.g. `common` below).
+#
+# Colors are intentionally OMITTED here: theme/theme.yaml already declares
+# `item.common`/`item.uncommon`/`item.rare`/`item.legendary`, and the
+# engine seeds decoration colors into the theme register-if-absent — so the
+# theme file's colors win (item-decorations §4, "the theme owns the color").
+tiers:
+  - { key: common,    order: 10 }                                          # baseline — renders nothing
+  - { key: uncommon,  order: 20, display: UNCOMMON,  left: "[", right: "]", visible: true }
+  - { key: rare,      order: 30, display: RARE,      left: "[", right: "]", visible: true }
+  - { key: legendary, order: 50, display: LEGENDARY, left: "[", right: "]", visible: true }

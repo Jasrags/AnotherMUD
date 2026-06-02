@@ -2895,15 +2895,19 @@ deferred rarity-filter autoloot key on the rarity ladder this builds.
       semantic tags (`item.<key>` / `essence.<key>`); registering a visible
       marker registers its theme entry. Plain mode strips to visible
       text/glyph (ui-rendering-help §2/§3).
-- [ ] **M20.4 — Pack content loading.** item-decorations §2/§3 (content). A
-      rarity-tier vocabulary + essence vocabulary load from pack YAML into
-      the registries, wired into `pack.Load` + the registries struct + the
-      manifest content globs, mirroring the theme-load path. `core` pack
-      ships a starter tier ladder + a couple of essences. **Validate marker
-      keys at load** (reject `<`/`>`/whitespace, like `property.Registry`'s
-      snake_case check) — keys are interpolated into render markup, so a
-      malformed key would produce broken tags (M20.3 review LOW; the load
-      boundary is the right place to enforce it).
+- [x] **M20.4 — Pack content loading.** item-decorations §2/§3 (content).
+      `RarityFile`/`EssenceFile` YAML shapes + `rarity:`/`essence:` manifest
+      globs + `Registries.Rarity`/`.Essence` (in `NewRegistries`), loaded via
+      `pack.Load` (`decodeRarity`/`decodeEssence`) mirroring the theme path.
+      Marker **keys are validated at the load boundary** (new
+      `decoration.ValidateKey` + `ErrInvalidKey`: rejects empty, `<`/`>`/`{`/`}`,
+      and whitespace — closes the M20.3 review LOW; `Register` also self-rejects).
+      `RegisterTheme` is **register-if-absent**, so a theme file's explicit
+      `item.<key>`/`essence.<key>` wins (item-decorations §4); the composition
+      root seeds + Compiles after Load. `core` ships a tier ladder
+      (common/uncommon/rare/legendary, colors via the existing theme
+      `item.*` entries) + fire/frost essences. Boots clean. 3 pack tests +
+      4 decoration tests; full -race suite green.
 - [ ] **M20.5 — Attachment + stacking + persistence.** item-decorations
       §5/§6. Reserved item properties hold the rarity/essence key, settable
       on a template (all instances) or an instance (one drop). **Essence is

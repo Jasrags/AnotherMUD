@@ -1,0 +1,8 @@
+# tapestry-core essence vocabulary (item-decorations §3).
+#
+# Each essence: key, glyph (a short symbol, ~one display column), and a
+# color. Unlike rarity there is no theme entry authored ahead of these, so
+# the engine seeds `essence.<key>` into the theme from the colors below.
+essences:
+  - { key: fire,  glyph: "✦", fg: bright-red,  html: "#FF5533" }
+  - { key: frost, glyph: "❄", fg: bright-cyan, html: "#66DDFF" }

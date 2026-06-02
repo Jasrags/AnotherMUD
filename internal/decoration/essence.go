@@ -60,14 +60,13 @@ func NewEssenceRegistry() *EssenceRegistry {
 // registration returns true. The stored Essence carries the normalized key
 // so lookups and the registered value agree.
 func (r *EssenceRegistry) Register(e Essence) bool {
-	k := normalizeKey(e.Key)
-	if k == "" {
+	if ValidateKey(e.Key) != nil {
 		return false
 	}
-	e.Key = k
+	e.Key = normalizeKey(e.Key)
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	r.essences[k] = e
+	r.essences[e.Key] = e
 	return true
 }
 

@@ -153,6 +153,12 @@ func run() error {
 	// line through it (RenderAnsi/RenderPlain by the session color
 	// flag). Compiling after Load means the renderer sees every pack's
 	// theme overrides; no recompile happens at runtime.
+	// M20.4: seed item.<key> / essence.<key> theme entries from the
+	// loaded decoration vocabularies before Compile. Register-if-absent, so
+	// a pack theme file's explicit decoration color overrides the tier's
+	// built-in default (item-decorations §4 — the theme owns the color).
+	registries.Rarity.RegisterTheme(registries.Theme)
+	registries.Essence.RegisterTheme(registries.Theme)
 	registries.Theme.Compile()
 	colorRenderer := render.NewColorRenderer(registries.Theme)
 

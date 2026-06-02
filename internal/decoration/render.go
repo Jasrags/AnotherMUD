@@ -91,25 +91,40 @@ func (e Essence) Markup() string {
 // EVERY tier is registered, not only visible/colored ones: an unregistered
 // tag is "unknown" to the renderer and its raw markup would leak to the
 // client, whereas a registered color-less entry resolves to no color and
-// the renderer emits the visible text plain. nil theme is a no-op.
+// the renderer emits the visible text plain.
+//
+// Registration is **if-absent**: a tag the theme already declares (e.g. a
+// pack theme file's explicit `item.rare`) is left untouched, so the
+// theme — which §4 says owns the color — wins over the tier's built-in
+// default. The tier color is the seed; a theme entry is the override.
+// nil theme is a no-op.
 func (r *RarityRegistry) RegisterTheme(theme *render.ThemeRegistry) {
 	if theme == nil {
 		return
 	}
 	for _, t := range r.All() {
-		theme.Register(rarityTag(t.Key), t.Color)
+		tag := rarityTag(t.Key)
+		if theme.IsKnown(tag) {
+			continue
+		}
+		theme.Register(tag, t.Color)
 	}
 }
 
 // RegisterTheme registers each essence's color under the semantic tag
 // `essence.<key>` (item-decorations §3/§4). Same rationale as
 // RarityRegistry.RegisterTheme — every key becomes a known tag so its
-// markup never leaks. nil theme is a no-op.
+// markup never leaks, and registration is if-absent so a pack theme file's
+// `essence.<key>` override wins. nil theme is a no-op.
 func (r *EssenceRegistry) RegisterTheme(theme *render.ThemeRegistry) {
 	if theme == nil {
 		return
 	}
 	for _, e := range r.All() {
-		theme.Register(essenceTag(e.Key), e.Color)
+		tag := essenceTag(e.Key)
+		if theme.IsKnown(tag) {
+			continue
+		}
+		theme.Register(tag, e.Color)
 	}
 }

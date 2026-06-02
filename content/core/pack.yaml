@@ -24,6 +24,10 @@ content:
     - abilities/*.yaml
   theme:
     - theme/*.yaml
+  rarity:
+    - rarity/*.yaml
+  essence:
+    - essence/*.yaml
   help:
     - help/*.yaml
   quests:

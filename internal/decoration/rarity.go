@@ -12,12 +12,43 @@
 package decoration
 
 import (
+	"errors"
+	"fmt"
 	"sort"
 	"strings"
 	"sync"
+	"unicode"
 
 	"github.com/Jasrags/AnotherMUD/internal/render"
 )
+
+// ErrInvalidKey is the sentinel wrapped by ValidateKey for an unusable
+// marker key. The pack loader surfaces it with pack + path attribution so
+// a malformed key fails the boot loudly instead of producing broken tags.
+var ErrInvalidKey = errors.New("decoration: invalid marker key")
+
+// ValidateKey reports why a marker key (rarity tier or essence) is unusable,
+// or nil if valid. A key is interpolated into render markup as `item.<key>`
+// / `essence.<key>` (render.go), so it must be non-empty after trimming and
+// free of the markup-significant characters `< > { }` and of internal
+// whitespace — any of which would produce a broken tag the color renderer
+// mis-parses (or leaks raw). This is the load-boundary validation the
+// rendering slice deferred here.
+func ValidateKey(raw string) error {
+	k := strings.TrimSpace(raw)
+	if k == "" {
+		return fmt.Errorf("%w: empty", ErrInvalidKey)
+	}
+	if strings.ContainsAny(k, "<>{}") {
+		return fmt.Errorf("%w: %q contains markup characters (< > { })", ErrInvalidKey, raw)
+	}
+	for _, r := range k {
+		if unicode.IsSpace(r) {
+			return fmt.Errorf("%w: %q contains whitespace", ErrInvalidKey, raw)
+		}
+	}
+	return nil
+}
 
 // Tier is one rarity-tier definition (item-decorations §2). Tiers form an
 // ordered ladder via Order (low → high); a tier renders as a decorated,
@@ -95,14 +126,13 @@ func normalizeKey(s string) string {
 // returns true. The stored Tier carries the normalized key so lookups and
 // the registered value agree.
 func (r *RarityRegistry) Register(t Tier) bool {
-	k := normalizeKey(t.Key)
-	if k == "" {
+	if ValidateKey(t.Key) != nil {
 		return false
 	}
-	t.Key = k
+	t.Key = normalizeKey(t.Key)
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	r.tiers[k] = t
+	r.tiers[t.Key] = t
 	return true
 }
 

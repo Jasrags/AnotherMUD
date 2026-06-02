@@ -1,6 +1,7 @@
 package pack
 
 import (
+	"github.com/Jasrags/AnotherMUD/internal/decoration"
 	"github.com/Jasrags/AnotherMUD/internal/effect"
 	"github.com/Jasrags/AnotherMUD/internal/help"
 	"github.com/Jasrags/AnotherMUD/internal/item"
@@ -64,6 +65,13 @@ type Registries struct {
 	// surface with pack + path attribution before the engine
 	// starts ticking.
 	Scripts *script.Registry
+	// Rarity / Essence are the M20 item-decoration registries. Packs
+	// register tier ladders + essence glyphs from their `rarity:` /
+	// `essence:` manifest globs; the composition root seeds their colors
+	// into Theme (RegisterTheme, if-absent) before Compile. Item display
+	// (M20.5) resolves an item's rarity/essence key through these.
+	Rarity  *decoration.RarityRegistry
+	Essence *decoration.EssenceRegistry
 }
 
 // NewRegistries returns a Registries with every field initialized.
@@ -73,20 +81,22 @@ type Registries struct {
 // try to redefine baseline slots).
 func NewRegistries() *Registries {
 	return &Registries{
-		World:     world.New(),
-		Items:     item.NewTemplates(),
-		Slots:     slot.NewRegistry(),
-		Mobs:      mob.NewTemplates(),
-		Tracks:    progression.NewTrackRegistry(),
-		Races:     progression.NewRaceRegistry(),
-		Classes:   progression.NewClassRegistry(),
-		Abilities: progression.NewAbilityRegistry(),
-		Theme:     render.NewThemeRegistry(),
-		Help:      help.NewService(),
+		World:      world.New(),
+		Items:      item.NewTemplates(),
+		Slots:      slot.NewRegistry(),
+		Mobs:       mob.NewTemplates(),
+		Tracks:     progression.NewTrackRegistry(),
+		Races:      progression.NewRaceRegistry(),
+		Classes:    progression.NewClassRegistry(),
+		Abilities:  progression.NewAbilityRegistry(),
+		Theme:      render.NewThemeRegistry(),
+		Help:       help.NewService(),
 		Quests:     quest.NewRegistry(),
 		Effects:    effect.NewRegistry(),
 		Properties: property.NewRegistry(),
 		Weather:    weather.NewRegistry(),
 		Scripts:    script.New(),
+		Rarity:     decoration.NewRarityRegistry(),
+		Essence:    decoration.NewEssenceRegistry(),
 	}
 }

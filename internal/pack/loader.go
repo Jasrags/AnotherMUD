@@ -12,6 +12,7 @@ import (
 	"strings"
 
 	"github.com/Jasrags/AnotherMUD/internal/combat"
+	"github.com/Jasrags/AnotherMUD/internal/decoration"
 	"github.com/Jasrags/AnotherMUD/internal/effect"
 	"github.com/Jasrags/AnotherMUD/internal/help"
 	"github.com/Jasrags/AnotherMUD/internal/item"
@@ -107,7 +108,7 @@ type pendingMobPlacement struct {
 // Filter, when non-empty, restricts discovery (spec §2.4). Pass nil to
 // load every active pack under root.
 func Load(ctx context.Context, root string, filter []string, dst *Registries, spawner Spawner, mobSpawner MobSpawner, scriptCompiler ScriptCompiler) error {
-	if dst == nil || dst.World == nil || dst.Items == nil || dst.Slots == nil || dst.Mobs == nil || dst.Tracks == nil || dst.Races == nil || dst.Classes == nil || dst.Abilities == nil || dst.Theme == nil || dst.Help == nil || dst.Quests == nil || dst.Weather == nil || dst.Scripts == nil {
+	if dst == nil || dst.World == nil || dst.Items == nil || dst.Slots == nil || dst.Mobs == nil || dst.Tracks == nil || dst.Races == nil || dst.Classes == nil || dst.Abilities == nil || dst.Theme == nil || dst.Help == nil || dst.Quests == nil || dst.Weather == nil || dst.Scripts == nil || dst.Rarity == nil || dst.Essence == nil {
 		return errors.New("pack.Load: dst has nil registry field; use pack.NewRegistries()")
 	}
 	logger := logging.From(ctx).With(slog.String("event", "pack.load"), slog.String("root", root))
@@ -300,6 +301,14 @@ func loadPackContent(ctx context.Context, p Discovered, dst *Registries, scriptC
 	if err != nil {
 		return nil, nil, err
 	}
+	rarityPaths, err := resolveGlobs(p.Dir, p.Manifest.Content.Rarity)
+	if err != nil {
+		return nil, nil, err
+	}
+	essencePaths, err := resolveGlobs(p.Dir, p.Manifest.Content.Essence)
+	if err != nil {
+		return nil, nil, err
+	}
 
 	// M17.1b: discover, compile-check, and register pack scripts.
 	// Compile-check at boot is the cheapest place to surface a syntax
@@ -480,6 +489,36 @@ func loadPackContent(ctx context.Context, p Discovered, dst *Registries, scriptC
 		}
 	}
 
+	// Rarity tiers + essences: global (not namespaced) decoration
+	// vocabularies, later-wins like the theme. Keys are validated at this
+	// boundary (decoration.ValidateKey) — a key with markup-significant
+	// characters would produce broken render tags, so a bad key fails the
+	// boot loudly with pack + path attribution rather than rendering wrong.
+	for _, rp := range rarityPaths {
+		tiers, err := decodeRarity(rp)
+		if err != nil {
+			return nil, nil, err
+		}
+		for _, t := range tiers {
+			if err := decoration.ValidateKey(t.Key); err != nil {
+				return nil, nil, fmt.Errorf("%w (in %s)", err, rp)
+			}
+			dst.Rarity.Register(t)
+		}
+	}
+	for _, ep := range essencePaths {
+		essences, err := decodeEssence(ep)
+		if err != nil {
+			return nil, nil, err
+		}
+		for _, e := range essences {
+			if err := decoration.ValidateKey(e.Key); err != nil {
+				return nil, nil, fmt.Errorf("%w (in %s)", err, ep)
+			}
+			dst.Essence.Register(e)
+		}
+	}
+
 	// Help: per-pack topics (spec ui-rendering-help §9.2). Topics are
 	// registered with the pack's load order so a higher-order pack can
 	// override an upstream topic. PackName is the pack namespace so the
@@ -557,6 +596,8 @@ func loadPackContent(ctx context.Context, p Discovered, dst *Registries, scriptC
 		slog.Int("help", helpTopics),
 		slog.Int("quests", len(questPaths)),
 		slog.Int("effects", len(effectPaths)),
+		slog.Int("rarity", len(rarityPaths)),
+		slog.Int("essence", len(essencePaths)),
 		slog.Int("placements", len(placements)),
 		slog.Int("mob_placements", len(mobPlacements)),
 	)
@@ -739,6 +780,58 @@ func decodeTheme(path string) (map[string]render.ThemeEntry, error) {
 			continue
 		}
 		out[tag] = render.ThemeEntry{FG: e.FG, BG: e.BG, HTML: e.HTML}
+	}
+	return out, nil
+}
+
+// decodeRarity reads a RarityFile and returns its tiers as
+// decoration.Tier values (spec item-decorations §2). Color name validity
+// is not checked here — like the theme, an unrecognized fg/bg degrades to
+// no color at Compile rather than failing the boot. Key validity IS the
+// caller's concern (decoration.ValidateKey at the load boundary).
+func decodeRarity(path string) ([]decoration.Tier, error) {
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		return nil, fmt.Errorf("reading rarity %s: %w", path, err)
+	}
+	var f RarityFile
+	if err := yaml.Unmarshal(raw, &f); err != nil {
+		return nil, fmt.Errorf("%w: %s: %v", ErrInvalidContent, path, err)
+	}
+	out := make([]decoration.Tier, 0, len(f.Tiers))
+	for _, t := range f.Tiers {
+		out = append(out, decoration.Tier{
+			Key:     t.Key,
+			Order:   t.Order,
+			Display: t.Display,
+			Left:    t.Left,
+			Right:   t.Right,
+			Color:   render.ThemeEntry{FG: t.FG, BG: t.BG, HTML: t.HTML},
+			Visible: t.Visible,
+		})
+	}
+	return out, nil
+}
+
+// decodeEssence reads an EssenceFile and returns its essences as
+// decoration.Essence values (spec item-decorations §3). Same color/key
+// handling as decodeRarity.
+func decodeEssence(path string) ([]decoration.Essence, error) {
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		return nil, fmt.Errorf("reading essence %s: %w", path, err)
+	}
+	var f EssenceFile
+	if err := yaml.Unmarshal(raw, &f); err != nil {
+		return nil, fmt.Errorf("%w: %s: %v", ErrInvalidContent, path, err)
+	}
+	out := make([]decoration.Essence, 0, len(f.Essences))
+	for _, e := range f.Essences {
+		out = append(out, decoration.Essence{
+			Key:   e.Key,
+			Glyph: e.Glyph,
+			Color: render.ThemeEntry{FG: e.FG, BG: e.BG, HTML: e.HTML},
+		})
 	}
 	return out, nil
 }

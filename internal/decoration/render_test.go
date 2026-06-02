@@ -156,3 +156,47 @@ func TestRegisterTheme_NilThemeNoOp(t *testing.T) {
 	e.Register(Essence{Key: "fire", Glyph: "✦"})
 	e.RegisterTheme(nil) // must not panic
 }
+
+// RegisterTheme is if-absent: a tag the theme already declares (a theme
+// file's explicit override) is left untouched, so the theme owns the color.
+func TestRegisterTheme_IfAbsentThemeWins(t *testing.T) {
+	theme := render.NewThemeRegistry()
+	// Simulate a pack theme file having already declared item.rare as red.
+	theme.Register("item.rare", render.ThemeEntry{FG: "red"})
+
+	rarity := NewRarityRegistry()
+	rarity.Register(rareTier()) // tier's built-in Color is FG=blue
+	rarity.RegisterTheme(theme)
+	theme.Compile()
+
+	// Reference open sequences for red (the file) vs blue (the tier).
+	ref := render.NewThemeRegistry()
+	ref.Register("red", render.ThemeEntry{FG: "red"})
+	ref.Register("blue", render.ThemeEntry{FG: "blue"})
+	ref.Compile()
+	redPair, _ := ref.Resolve("red")
+	bluePair, _ := ref.Resolve("blue")
+
+	pair, ok := theme.Resolve("item.rare")
+	if !ok {
+		t.Fatal("item.rare not resolvable after RegisterTheme")
+	}
+	if pair.Open != redPair.Open {
+		t.Errorf("item.rare open = %q, want the file's red %q (if-absent must not overwrite)", pair.Open, redPair.Open)
+	}
+	if pair.Open == bluePair.Open {
+		t.Error("item.rare was overwritten with the tier's blue; if-absent failed")
+	}
+}
+
+// RegisterTheme still seeds a tag the theme does NOT already declare.
+func TestRegisterTheme_SeedsAbsentTag(t *testing.T) {
+	theme := render.NewThemeRegistry()
+	rarity := NewRarityRegistry()
+	rarity.Register(rareTier()) // FG=blue
+	rarity.RegisterTheme(theme)
+	theme.Compile()
+	if _, ok := theme.Resolve("item.rare"); !ok {
+		t.Error("item.rare not seeded for an absent tag")
+	}
+}
