@@ -954,6 +954,17 @@ func run() error {
 	})
 	bus.Subscribe(eventbus.EventMobKilled, corpseSvc.OnMobKilled)
 
+	// M22.5: corpse-decay sweep (loot-and-corpses §7; time-and-clock §3
+	// reserved handler). Removes corpses past their lifetime, destroying
+	// any unlooted contents — this is what bounds corpse growth on a
+	// live server. Lifetime + sweep cadence are wall-clock knobs → ticks.
+	corpseLifetimeTicks := cadenceTicks(cfg.TickInterval, cfg.CorpseLifetime)
+	if err := loop.Register("corpse-decay", cadenceTicks(cfg.TickInterval, cfg.CorpseDecayInterval), func(ctx context.Context, n uint64) {
+		corpseSvc.DecaySweep(ctx, n, corpseLifetimeTicks)
+	}); err != nil {
+		return fmt.Errorf("register corpse decay: %w", err)
+	}
+
 	// M7.5: mob.killed → entity untrack closes M6.6's deferred death-
 	// driven purge. The spawn tracker's Purge predicate calls
 	// entities.Store.GetByID; an untracked mob fails that check on the
@@ -1619,6 +1630,8 @@ type config struct {
 	CombatCadence         time.Duration
 	FleeCooldown          time.Duration
 	CorpseOwnershipWindow time.Duration
+	CorpseLifetime        time.Duration
+	CorpseDecayInterval   time.Duration
 	AutosaveInterval      time.Duration
 	IdleSweepInterval     time.Duration
 	LinkDeadSweepInterval time.Duration
@@ -1665,6 +1678,8 @@ func loadConfig() config {
 		CombatCadence:         envDurationOr("ANOTHERMUD_COMBAT_CADENCE", 3*time.Second),
 		FleeCooldown:          envDurationOr("ANOTHERMUD_FLEE_COOLDOWN", 15*time.Second),
 		CorpseOwnershipWindow: envDurationOr("ANOTHERMUD_CORPSE_OWNERSHIP_WINDOW", 60*time.Second),
+		CorpseLifetime:        envDurationOr("ANOTHERMUD_CORPSE_LIFETIME", 5*time.Minute),
+		CorpseDecayInterval:   envDurationOr("ANOTHERMUD_CORPSE_DECAY_INTERVAL", 3*time.Second),
 		AutosaveInterval:      envDurationOr("ANOTHERMUD_AUTOSAVE_INTERVAL", 30*time.Second),
 		IdleSweepInterval:     envDurationOr("ANOTHERMUD_IDLE_SWEEP_INTERVAL", 30*time.Second),
 		LinkDeadSweepInterval: envDurationOr("ANOTHERMUD_LINKDEAD_SWEEP_INTERVAL", 30*time.Second),

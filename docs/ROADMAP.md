@@ -28,9 +28,9 @@ and `THEME-AXIS-PLAN.md` are superseded by `BACKLOG.md` and now live under
   **M20** (Item Decorations — rarity & essence), and **M21** (Item
   Stacking) have all shipped.
 - **Active:** **M22 — Loot and Corpses**. M22.1 (loot table + generation
-  at spawn), M22.2 (corpse creation on death + coins), and M22.3a (looting
-  rights + the `loot` verb) shipped; M22.3b (`get … from corpse` + look-in),
-  M22.4 (autoloot), M22.5 (decay) pending.
+  at spawn), M22.2 (corpse creation + coins), M22.3a (looting rights + the
+  `loot` verb), and M22.5 (corpse decay) shipped; M22.3b (`get … from
+  corpse` + look-in) and M22.4 (autoloot) pending.
 - **Earlier active milestone, for reference:** **M19 — Roles & Administration** (the keystone). M19.1
   (role-set substrate + `HasRole` + persistence + config seed), M19.2
   (grant/revoke verbs + events), M19.3 (the admin dispatch gate + help
@@ -3051,11 +3051,16 @@ rights seam) and the autoloot rarity-floor filter (item-decorations).
       preference (off by default) on the player save + `autoloot [on|off]`
       verb; on corpse creation for a present killer with autoloot on, run
       `loot` on their behalf (capacity honored).
-- [ ] **M22.5 — Corpse decay.** `loot-and-corpses §7`. The `corpse-decay`
-      tick sweep (reserved in `time-and-clock §3`): each corpse past its
-      creation-tick + lifetime is removed with all remaining contents
-      (destroyed, not spilled), emitting `corpse.decayed`. Corpses are not
-      persisted.
+- [x] **M22.5 — Corpse decay.** `loot-and-corpses §7`. The `corpse-decay`
+      tick sweep (`Service.DecaySweep`, reserved in `time-and-clock §3`):
+      each corpse past its creation-tick + lifetime is removed with all
+      remaining contents (destroyed, not spilled), emitting `corpse.decayed`.
+      `Placement.Remove` single-winner guard makes it race-safe against a
+      concurrent `loot`; `Contents.Take` leaves a just-looted item in the
+      looter's hands. Lifetime (`ANOTHERMUD_CORPSE_LIFETIME`, default 5m) +
+      sweep cadence (`ANOTHERMUD_CORPSE_DECAY_INTERVAL`, default 3s) are
+      config knobs → ticks. Closes the unbounded-corpse-growth debt;
+      corpses are not persisted (a restart removes them too).
 
 **Touches specs:** `loot-and-corpses` (substantially),
 `mobs-ai-spawning §6.3` (loot generation), `combat §6.3` (the `mob.killed`

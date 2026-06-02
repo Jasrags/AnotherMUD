@@ -235,7 +235,7 @@ Each spec calls out what it persists. The aggregate view:
 - **NOT persisted** — sessions, link-dead state, in-game time,
   weather, mob spawn tracking, temporary exits, active
   effects, rest state, **direct-trade sessions** (transient by design),
-  **corpses + their unlooted loot** *(spec; build pending — [loot-and-corpses](loot-and-corpses.md) §7)*.
+  **corpses + their unlooted loot** (transient; removed by the decay sweep or a restart — [loot-and-corpses](loot-and-corpses.md) §7).
 
 Details: [persistence](persistence.md), with feature-specific
 sections in [quests](quests.md) §6, [progression](progression.md),

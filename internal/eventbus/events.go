@@ -92,6 +92,10 @@ const (
 	// and removed (loot-and-corpses §5.1). Carries the corpse entity id,
 	// room, looter, and what was taken in the emptying loot.
 	EventCorpseLooted = "corpse.looted"
+	// Post-fact notification fired after a corpse was removed by the
+	// decay sweep (loot-and-corpses §7). Carries the corpse entity id,
+	// room, and the unlooted item count + coins destroyed with it.
+	EventCorpseDecayed = "corpse.decayed"
 	// Post-fact notification fired after the player-death subscriber
 	// has restored a dead player to a playable state (spec combat
 	// §6.4: "Player death recovery ... is owned by another feature
@@ -567,6 +571,19 @@ type CorpseLooted struct {
 
 // Name implements Event.
 func (CorpseLooted) Name() string { return EventCorpseLooted }
+
+// CorpseDecayed is published after the decay sweep removes a corpse
+// (loot-and-corpses §7). ItemCount + Coins are the unlooted contents
+// destroyed with it.
+type CorpseDecayed struct {
+	CorpseID  entities.EntityID
+	RoomID    world.RoomID
+	ItemCount int
+	Coins     int
+}
+
+// Name implements Event.
+func (CorpseDecayed) Name() string { return EventCorpseDecayed }
 
 // PlayerMoved fires after a player's room has changed (spec
 // mobs-ai-spawning §5.2). Sources today: movement command, login
