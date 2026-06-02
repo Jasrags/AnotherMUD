@@ -67,14 +67,7 @@ func LootHandler(ctx context.Context, c *Context) error {
 
 	// §5.1 / §3 — coins always transfer (currency has no carry weight),
 	// crediting the looter's balance, not their inventory.
-	credited := 0
-	if coins := corpse.Coins(target); coins > 0 && c.Currency != nil {
-		if holder, ok := c.Actor.(economy.Entity); ok {
-			c.Currency.AddGold(ctx, holder, coins, "loot:"+string(target.ID()))
-			corpse.SetCoins(target, 0)
-			credited = coins
-		}
-	}
+	credited := lootCoins(ctx, c, target)
 
 	if len(taken) == 0 && credited == 0 {
 		return c.Actor.Write(ctx, fmt.Sprintf("There is nothing you can take from %s.", target.Name()))
@@ -87,21 +80,53 @@ func LootHandler(ctx context.Context, c *Context) error {
 			c.Actor.PlayerID())
 	}
 
-	// §5.1 — a corpse emptied of both items and coins is removed and
-	// emits corpse.looted. One still holding unfittable items (not
-	// possible today, no cap) or uncredited coins stays.
-	if len(c.Contents.In(target.ID())) == 0 && corpse.Coins(target) == 0 {
-		c.Placement.Remove(target.ID())
-		_ = c.Items.Untrack(target.ID())
-		c.Publish(ctx, eventbus.CorpseLooted{
-			CorpseID:  target.ID(),
-			RoomID:    room.ID,
-			LooterID:  actorID,
-			ItemCount: len(taken),
-			Coins:     credited,
-		})
-	}
+	c.removeIfEmptied(ctx, target, room.ID, actorID, len(taken), credited)
 	return nil
+}
+
+// lootCoins atomically claims the corpse's coin pile and credits the
+// actor's currency balance, returning the amount credited. The claim is
+// single-winner (corpse.ClaimCoins), so two players looting the same
+// open corpse at once cannot both credit the pile. Coins are left in
+// place (not claimed) when there is no currency service or the actor is
+// not a currency holder.
+func lootCoins(ctx context.Context, c *Context, target *entities.ItemInstance) int {
+	if c.Currency == nil {
+		return 0
+	}
+	holder, ok := c.Actor.(economy.Entity)
+	if !ok {
+		return 0
+	}
+	coins := corpse.ClaimCoins(target)
+	if coins <= 0 {
+		return 0
+	}
+	c.Currency.AddGold(ctx, holder, coins, "loot:"+string(target.ID()))
+	return coins
+}
+
+// removeIfEmptied removes a fully-looted corpse and emits corpse.looted.
+// Placement.Remove is the single-winner gate: when two looters drain the
+// corpse concurrently, only the goroutine whose Remove returns true
+// untracks the entity and publishes the event, so removal is idempotent
+// and the event fires once (§5.1). A corpse still holding items (no
+// carry cap today, so never) or uncredited coins stays.
+func (c *Context) removeIfEmptied(ctx context.Context, target *entities.ItemInstance, roomID world.RoomID, looterID string, itemCount, coins int) {
+	if len(c.Contents.In(target.ID())) != 0 || corpse.Coins(target) != 0 {
+		return
+	}
+	if !c.Placement.Remove(target.ID()) {
+		return
+	}
+	_ = c.Items.Untrack(target.ID())
+	c.Publish(ctx, eventbus.CorpseLooted{
+		CorpseID:  target.ID(),
+		RoomID:    roomID,
+		LooterID:  looterID,
+		ItemCount: itemCount,
+		Coins:     coins,
+	})
 }
 
 // resolveCorpse picks the corpse the loot verb acts on. With no

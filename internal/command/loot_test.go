@@ -2,6 +2,7 @@ package command_test
 
 import (
 	"context"
+	"sync"
 	"testing"
 
 	"github.com/Jasrags/AnotherMUD/internal/command"
@@ -182,5 +183,68 @@ func TestLoot_NothingHere(t *testing.T) {
 	dispatchLoot(t, f, a, "loot")
 	if got := len(a.Inventory()); got != 0 {
 		t.Errorf("inventory = %d, want 0", got)
+	}
+}
+
+func TestLoot_NoArgSkipsCorpseNotYetLootable(t *testing.T) {
+	f := newLootFixture(t)
+	// A corpse owned by someone else, still inside its window — the
+	// no-arg picker must not select it for a non-owner.
+	cor := f.placeCorpse(t, []string{"player:p-alice"}, 100, 0, ration())
+	eve := newNamedTestActor("Eve", "p-eve", f.room)
+
+	dispatchLoot(t, f, eve, "loot")
+
+	if got := len(eve.Inventory()); got != 0 {
+		t.Errorf("no-arg loot picked someone else's corpse: inventory = %d", got)
+	}
+	if _, ok := f.store.GetByID(cor.ID()); !ok {
+		t.Error("corpse should remain")
+	}
+}
+
+// Regression for the M22.3a coin double-credit + double-event races:
+// two players looting the same open corpse concurrently must split the
+// items without duplication and credit the coin pile exactly once.
+func TestLoot_ConcurrentLootNoDuplication(t *testing.T) {
+	f := newLootFixture(t)
+	f.window = 0 // open to everyone
+	a := newNamedTestActor("Alice", "p-alice", f.room)
+	b := newNamedTestActor("Bob", "p-bob", f.room)
+	f.placeCorpse(t, []string{}, 100, 10, ration(), sword())
+
+	var looted int
+	var lm sync.Mutex
+	f.bus.Subscribe(eventbus.EventCorpseLooted, func(_ context.Context, _ eventbus.Event) {
+		lm.Lock()
+		looted++
+		lm.Unlock()
+	})
+
+	env := f.env()
+	r := command.New()
+	if err := command.RegisterBuiltins(r); err != nil {
+		t.Fatalf("RegisterBuiltins: %v", err)
+	}
+
+	var wg sync.WaitGroup
+	for _, actor := range []command.Actor{a, b} {
+		actor := actor
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			_ = r.Dispatch(context.Background(), env, actor, "loot corpse")
+		}()
+	}
+	wg.Wait()
+
+	if total := a.Gold() + b.Gold(); total != 10 {
+		t.Errorf("total gold = %d, want 10 (coin pile credited once)", total)
+	}
+	if total := len(a.Inventory()) + len(b.Inventory()); total != 2 {
+		t.Errorf("total items = %d, want 2 (no duplication)", total)
+	}
+	if looted != 1 {
+		t.Errorf("corpse.looted fired %d times, want 1", looted)
 	}
 }

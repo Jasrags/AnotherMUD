@@ -40,6 +40,18 @@ func SetCoins(e *entities.ItemInstance, n int) {
 	}
 }
 
+// ClaimCoins atomically takes the corpse's coin pile, returning the
+// amount and leaving the corpse with zero. The single-winner primitive
+// for concurrent looters (loot-and-corpses §5.1): when two players loot
+// the same open corpse at once, exactly one observes a non-zero amount,
+// so coins are credited once — not duplicated.
+func ClaimCoins(e *entities.ItemInstance) int {
+	if e == nil {
+		return 0
+	}
+	return e.ClaimIntProperty(PropCoins)
+}
+
 // Owners returns the looting-rights owner set (nil if absent).
 func Owners(e *entities.ItemInstance) []string {
 	if e == nil {
@@ -86,7 +98,10 @@ func MayLoot(e *entities.ItemInstance, actorID string, nowTick, window uint64) b
 		return true
 	}
 	created := CreatedTick(e)
-	if nowTick >= created+window {
+	// Subtract-first (never created+window) so the elapsed check can't
+	// overflow uint64; nowTick < created (clock skew / hand-crafted
+	// corpse) means "not elapsed", falling through to the owner check.
+	if nowTick >= created && nowTick-created >= window {
 		return true
 	}
 	for _, o := range owners {

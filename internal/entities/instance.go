@@ -153,6 +153,25 @@ func (it *ItemInstance) SetProperty(key string, value any) {
 	it.properties[key] = value
 }
 
+// ClaimIntProperty atomically reads an int property and resets it to
+// zero under the property write lock, returning the prior value (0 when
+// absent or not an int). It is the single-winner primitive for a
+// resource two goroutines may try to claim at once — e.g. a corpse's
+// coin pile looted concurrently after its ownership window opens: only
+// one caller can observe a non-zero amount.
+func (it *ItemInstance) ClaimIntProperty(key string) int {
+	it.propsMu.Lock()
+	defer it.propsMu.Unlock()
+	if it.properties == nil {
+		return 0
+	}
+	v, _ := it.properties[key].(int)
+	if v != 0 {
+		it.properties[key] = 0
+	}
+	return v
+}
+
 // Modifiers returns the transient per-instance stat modifiers (§2.3
 // step 6). Equip-time application reads this list; nothing else writes
 // to it post-Spawn.
