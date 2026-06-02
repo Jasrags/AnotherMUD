@@ -32,10 +32,10 @@ and `THEME-AXIS-PLAN.md` are superseded by `BACKLOG.md` and now live under
   (admin target resolution + `inspect`), M19.4c (the `set` field-write
   framework + `vital` kind; `set recall` relocated to `recall set`), and
   M19.4d (`restore` + `teleport`/`goto` with §3 world-scoped resolution),
-  and M19.4e (`purge` — the §5 baseline verb set is now complete) shipped;
-  M19.4f+ (the `set` property/tag kinds — blocked on property-registry
-  integration — + the idle-sweep exemption + help-visibility through
-  `HasRole`) pending.
+  M19.4e (`purge` — the §5 baseline verb set is complete), and M19.4f
+  (help-visibility through `HasRole`) shipped; M19.4g+ (the idle-sweep
+  exemption + the `set` property/tag kinds — the latter blocked on
+  property-registry integration) pending.
   **M18 — Command & UI polish** is paused mid-flight (M18.1 `prompt` verb
   shipped; M18.2–M18.5 pending).
 - **Specs ahead of code.** A large batch of behavior contracts landed this
@@ -2803,15 +2803,23 @@ house's admin moderation (`auction-house.md` §11).
       accepted v1 limitation, recorded). 5 tests (mob / room-item / player-
       refusal / not-found / non-admin gate). Full -race suite green.
       admin-verbs §5.
-- [ ] **M19.4f+ — `set` property/tag kinds + cross-cutting finishers.** The
-      `set` `property` kind is **blocked on substrate**: the property
-      `Registry` has no admin-settable flag, isn't wired into the command
-      layer, and `connActor` has no `Properties()`/`SetProperty` (the M14
-      "registry no save-integration" + M19.4b gaps) — landing it means
-      building that integration first. The `tag` kind needs a runtime
-      player-tag mutator (player tags are PARTIAL). Plus the §5 idle-sweep
-      exemption + help-visibility wiring through `HasRole` (M19.3 left admin
-      verbs hidden-from-ALL; admins should SEE them). admin-verbs §3–§5.
+- [x] **M19.4f — Help-visibility through `HasRole`.** Closes the M19.3
+      "hidden-from-ALL" cap (ui-rendering-help §9.5): the help `Service`
+      gains an injected `RoleResolver` (entityID → tier), wired at the
+      composition root to the session `Manager` + `cfg.AdminRole`, so an
+      admin sees the admin-tier topics `GenerateHelpTopics` marks `RoleAdmin`
+      and a player does not. The help package stays role-agnostic (the
+      resolver is the only seam); `entityID==""` (pre-login) still
+      short-circuits to `RoleNone` before the resolver. Default (no resolver)
+      is unchanged → no caller/test churn. 3 help tests (admin-sees /
+      category+list / pre-login-stays-none). Full -race suite green.
+- [ ] **M19.4g+ — idle-sweep exemption + the `set` property/tag kinds.** The
+      §5 idle-sweep exemption (admins exempt from the idle timeout) is the
+      next clean finisher. The `set` `property` + `tag` kinds remain
+      **substrate-blocked**: property needs the `Registry` wired into the
+      command layer + an admin-settable flag + `connActor.Properties()`/
+      `SetProperty` + save-integration (M14 + M19.4b gaps); tag needs a
+      runtime player-tag mutator (player tags are PARTIAL). admin-verbs §3–§5.
 
 **Touches specs:** `roles-and-permissions`, `admin-verbs`,
 `session-lifecycle §5`, `ui-rendering-help §9.5`, `commands-and-dispatch`.

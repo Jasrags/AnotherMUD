@@ -11,8 +11,8 @@ type Status int
 
 const (
 	StatusOK       Status = iota // exactly one topic resolved (Topic set)
-	StatusMultiple              // several fuzzy matches (Matches set)
-	StatusNoMatch              // nothing matched (Term echoed)
+	StatusMultiple               // several fuzzy matches (Matches set)
+	StatusNoMatch                // nothing matched (Term echoed)
 )
 
 // Result is the structured outcome of Query. Exactly one of Topic /
@@ -42,7 +42,20 @@ type Service struct {
 	// lower-cased; category groups namespaced ids.
 	byID    map[string]entry
 	byTitle map[string]entry
+
+	// roleResolver maps a requester's entity id to their visibility tier
+	// (§9.5). Injected at composition time (SetRoleResolver) so the help
+	// package stays free of any session / role dependency. nil ⇒ the flat
+	// default (any logged-in id is a player). Set once at boot, before
+	// queries are served.
+	roleResolver RoleResolver
 }
+
+// RoleResolver maps a requester's entity id to their help visibility tier
+// (ui-rendering-help §9.5). The composition root supplies one backed by the
+// session manager + the configured admin role, so an admin sees admin-tier
+// topics and a player does not.
+type RoleResolver func(entityID string) Role
 
 // NewService returns an empty help service.
 func NewService() *Service {
@@ -52,6 +65,10 @@ func NewService() *Service {
 		byTitle: make(map[string]entry),
 	}
 }
+
+// SetRoleResolver installs the requester-tier resolver (§9.5). Called once
+// at boot; not safe to call concurrently with queries.
+func (s *Service) SetRoleResolver(fn RoleResolver) { s.roleResolver = fn }
 
 // AddTopic registers t at the given load order. A later registration of
 // the same id/title wins when its order is >= the incumbent's (higher
@@ -96,11 +113,15 @@ func putIfHigher(m map[string]entry, key string, e entry) {
 }
 
 // requesterTier resolves the visibility tier for an entity id. Empty id
-// (pre-login) sees only role-less topics; any id is a player. Builder /
-// admin elevation is not implemented (§9.5 placeholder).
-func requesterTier(entityID string) Role {
+// (pre-login) sees only role-less topics. Otherwise the injected
+// roleResolver (§9.5) decides — an admin sees admin-tier topics; without a
+// resolver, every logged-in id is a player (the flat default).
+func (s *Service) requesterTier(entityID string) Role {
 	if entityID == "" {
 		return RoleNone
+	}
+	if s.roleResolver != nil {
+		return s.roleResolver(entityID)
 	}
 	return RolePlayer
 }
@@ -113,7 +134,7 @@ func visible(t *Topic, tier Role) bool {
 // fuzzy keyword/title. Fuzzy with one match returns OK; several returns
 // Multiple; none returns NoMatch. All paths apply the role gate.
 func (s *Service) Query(entityID, term string) Result {
-	tier := requesterTier(entityID)
+	tier := s.requesterTier(entityID)
 	key := strings.ToLower(strings.TrimSpace(term))
 
 	s.mu.RLock()
@@ -183,7 +204,7 @@ func (s *Service) HasTopic(id string) bool {
 
 // List returns visible topic summaries in a category (§9.7).
 func (s *Service) List(entityID, category string) []Summary {
-	tier := requesterTier(entityID)
+	tier := s.requesterTier(entityID)
 	cat := strings.ToLower(strings.TrimSpace(category))
 
 	s.mu.RLock()
@@ -205,7 +226,7 @@ func (s *Service) List(entityID, category string) []Summary {
 // Categories returns every category name with at least one visible
 // topic, sorted alphabetically (§9.7).
 func (s *Service) Categories(entityID string) []string {
-	tier := requesterTier(entityID)
+	tier := s.requesterTier(entityID)
 
 	s.mu.RLock()
 	defer s.mu.RUnlock()

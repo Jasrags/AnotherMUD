@@ -33,6 +33,7 @@ import (
 	"github.com/Jasrags/AnotherMUD/internal/entities"
 	"github.com/Jasrags/AnotherMUD/internal/eventbus"
 	"github.com/Jasrags/AnotherMUD/internal/gameclock"
+	"github.com/Jasrags/AnotherMUD/internal/help"
 	"github.com/Jasrags/AnotherMUD/internal/item"
 	"github.com/Jasrags/AnotherMUD/internal/logging"
 	"github.com/Jasrags/AnotherMUD/internal/login"
@@ -198,6 +199,18 @@ func run() error {
 	command.GenerateHelpTopics(cmds, registries.Help)
 
 	mgr := session.NewManager()
+
+	// Help visibility through HasRole (M19.4f — ui-rendering-help §9.5):
+	// resolve a requester's help tier from their live role set so admins see
+	// admin-tier topics (the admin verbs GenerateHelpTopics marks RoleAdmin)
+	// and players don't. Closes the M19.3 "hidden-from-all" cap. Set once
+	// here at boot, before the listeners start serving help queries.
+	registries.Help.SetRoleResolver(func(entityID string) help.Role {
+		if a, ok := mgr.GetByPlayerID(entityID); ok && a.HasRole(cfg.AdminRole) {
+			return help.RoleAdmin
+		}
+		return help.RolePlayer
+	})
 
 	// Store.SetRoomScan is intentionally NOT wired today: every spawned
 	// item goes through Store.Spawn which auto-tracks, so the by-id

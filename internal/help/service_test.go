@@ -128,3 +128,71 @@ func TestListAndCategories(t *testing.T) {
 		t.Errorf("categories = %v, want [commands] (admin role-gated out)", cats)
 	}
 }
+
+// adminResolver maps a single id to admin tier, everyone else to player —
+// standing in for the composition root's manager-backed resolver.
+func adminResolver(adminID string) RoleResolver {
+	return func(entityID string) Role {
+		if entityID == adminID {
+			return RoleAdmin
+		}
+		return RolePlayer
+	}
+}
+
+// With a resolver elevating "admin1", the admin-tier topic resolves for the
+// admin but stays hidden from an ordinary player (§9.5).
+func TestRoleResolver_AdminSeesAdminTopic(t *testing.T) {
+	s := newSvc(t)
+	s.SetRoleResolver(adminResolver("admin1"))
+
+	if r := s.Query("admin1", "wizinfo"); r.Status != StatusOK || r.Topic.ID != "wizinfo" {
+		t.Errorf("admin Query(wizinfo) = %+v, want OK", r)
+	}
+	if r := s.Query("player1", "wizinfo"); r.Status != StatusNoMatch {
+		t.Errorf("player Query(wizinfo) = %+v, want NoMatch (still gated)", r)
+	}
+}
+
+// The admin category + its topics list for an admin and not for a player.
+func TestRoleResolver_AdminCategoryAndList(t *testing.T) {
+	s := newSvc(t)
+	s.SetRoleResolver(adminResolver("admin1"))
+
+	if got := s.List("admin1", "admin"); len(got) != 1 || got[0].ID != "wizinfo" {
+		t.Errorf("admin List(admin) = %+v, want [wizinfo]", got)
+	}
+	if got := s.List("player1", "admin"); len(got) != 0 {
+		t.Errorf("player List(admin) = %+v, want empty", got)
+	}
+
+	if !containsStr(s.Categories("admin1"), "admin") {
+		t.Errorf("admin Categories missing 'admin': %v", s.Categories("admin1"))
+	}
+	if containsStr(s.Categories("player1"), "admin") {
+		t.Errorf("player Categories should not include 'admin': %v", s.Categories("player1"))
+	}
+}
+
+// A resolver never elevates the pre-login (empty) id — it short-circuits to
+// RoleNone before the resolver runs.
+func TestRoleResolver_EmptyEntityStaysNone(t *testing.T) {
+	s := newSvc(t)
+	s.SetRoleResolver(adminResolver("")) // would elevate "" if consulted
+
+	if r := s.Query("", "wizinfo"); r.Status != StatusNoMatch {
+		t.Errorf("pre-login Query(wizinfo) = %+v, want NoMatch", r)
+	}
+	if r := s.Query("", "score"); r.Status != StatusNoMatch {
+		t.Errorf("pre-login Query(score) = %+v, want NoMatch (player-tier gated)", r)
+	}
+}
+
+func containsStr(xs []string, want string) bool {
+	for _, x := range xs {
+		if x == want {
+			return true
+		}
+	}
+	return false
+}
