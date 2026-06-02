@@ -245,7 +245,7 @@ const (
 	// feed. Refused gate attempts are NOT this event (admin-verbs §6/§9).
 	EventAdminAction = "admin.action"
 
-	// EventRecallSet fires after `set recall` commits a new
+	// EventRecallSet fires after `recall set` commits a new
 	// recall address on a character (spec recall.md §5).
 	EventRecallSet = "recall.set"
 	// EventRecallBefore is the cancellable pre-event fired when
@@ -266,7 +266,7 @@ const (
 	// EventRecallNoPoint fires when `recall` is invoked with no
 	// saved recall point (spec recall.md §5). Observability-only
 	// — useful for content packs that want to nudge new players
-	// toward `set recall`.
+	// toward `recall set`.
 	EventRecallNoPoint = "recall.no_point"
 	// EventRecallUnresolved fires when the saved recall room no
 	// longer resolves in the world registry — content drift
@@ -1155,7 +1155,7 @@ type PortalClosed struct{ PortalEvent }
 // Name implements Event.
 func (PortalClosed) Name() string { return EventPortalClosed }
 
-// RecallSet is the recall.set payload — `set recall` committed a
+// RecallSet is the recall.set payload — `recall set` committed a
 // new bind point on the character. Spec recall.md §5.
 type RecallSet struct {
 	PlayerID string

@@ -1,6 +1,6 @@
 # Recall — Feature Specification
 
-**Status:** Draft · **Scope:** The `set recall` / `recall` verb
+**Status:** Draft · **Scope:** The `recall set` / `recall` verb
 pair that lets a character mark a room as their personal return
 point and teleport back to it on demand; the per-character save
 field that persists the address across logout; the cancellable
@@ -27,7 +27,7 @@ policy.
 Recall is a per-character bookmark of a single room. Two verbs
 operate on it:
 
-- `set recall` — saves the actor's current room as their recall
+- `recall set` — saves the actor's current room as their recall
   point. Persists on the player save.
 - `recall` — teleports the actor from their current room to the
   saved point. Publishes a cancellable pre-event; if no
@@ -55,7 +55,7 @@ operate on it:
 
 ## 2. Setting the recall point
 
-`set recall` (canonical verb in §7) captures the actor's
+`recall set` (canonical verb in §7) captures the actor's
 current room id and stores it on the live actor + save.
 
 ### 2.1 Resolution
@@ -76,13 +76,13 @@ current room id and stores it on the live actor + save.
 - No room-broadcast: setting a recall is a personal action and
   not observable to other occupants.
 
-### 2.3 Acceptance — set recall
+### 2.3 Acceptance — recall set
 
-- [ ] `set recall` from a room stores that room's id on the
+- [ ] `recall set` from a room stores that room's id on the
       live actor.
 - [ ] The same id appears on the player save's `recall` field
       after the next autosave (or final flush on shutdown).
-- [ ] Calling `set recall` a second time from a different room
+- [ ] Calling `recall set` a second time from a different room
       overwrites the prior address; only one recall point per
       character is retained.
 - [ ] Idempotent re-set in the same room writes the same value
@@ -174,7 +174,7 @@ A recall point is a *string room id* on disk. The world
 registry it resolves against is rebuilt from content on every
 boot. Three failure modes are possible:
 
-1. **Content drift** — the room id existed when `set recall`
+1. **Content drift** — the room id existed when `recall set`
    was last invoked but the content pack has since removed
    the room. Detected at recall time (§3.1 step 3). The save
    field is left alone — overwriting it to empty on a failed
@@ -203,7 +203,7 @@ boot. Three failure modes are possible:
 
 | Event | Fields | When |
 |---|---|---|
-| `recall.set` | actor, room | `set recall` commits |
+| `recall.set` | actor, room | `recall set` commits |
 | `recall.before` | actor, from, to, **CancelFlag** | `recall` resolves a destination, before teleport |
 | `recall.after` | actor, from, to | `recall` teleport committed |
 | `recall.no_point` | actor | `recall` with empty save field |
@@ -242,7 +242,7 @@ recall point". The address is single-slot.
 
 - [ ] Fresh character: recall field absent (`omitempty`) or
       empty string.
-- [ ] After `set recall`, the field is non-empty and matches
+- [ ] After `recall set`, the field is non-empty and matches
       the room id captured.
 - [ ] After a successful `recall`, the field is unchanged
       (the teleport does not consume or rebind it).
@@ -256,14 +256,14 @@ recall point". The address is single-slot.
 
 | Setting | Default | Meaning |
 |---|---|---|
-| `set recall` verb name | `set recall` | Canonical two-word form. Aliased forms (`setrecall`, `bind`) are policy decisions. |
+| `recall set` verb name | `recall set` | Binding sub-form of the `recall` verb. **Relocated in M19.4c** from the former top-level `set recall` when the admin field-write verb (`admin-verbs.md` §4) reclaimed the `set` keyword; behavior is unchanged. Aliased forms (`setrecall`, `bind`) are policy decisions. |
 | `recall` verb name | `recall` | Canonical one-word form. |
-| Confirmation on set | "You bind your recall to this place." | Actor message after `set recall`. |
+| Confirmation on set | "You bind your recall to this place." | Actor message after `recall set`. |
 | Confirmation on idempotent set | "Your recall is already bound here." | Optional — same wording as the first set is also acceptable. |
 | Departure broadcast | "$N vanishes." | Visible to other source-room occupants. |
 | Arrival broadcast | "$N appears in a swirl of light." | Visible to other destination-room occupants. |
 | Same-point no-op message | "You are already at your recall point." | Actor-only; no broadcast. |
-| No-point message | "You have no recall point set. Use `set recall` somewhere first." | Actor-only. |
+| No-point message | "You have no recall point set. Use `recall set` somewhere first." | Actor-only. |
 | Unresolved-target message | "Your recall point is no longer there." | Actor-only; the operator log line carries the room id. |
 | Cancelled message | "You can't recall right now." | Generic so subscribers can write their own follow-up. |
 | `RecallSamePointFires` | `false` | Whether the §3.1 step 4 no-op fires `recall.before` and `recall.after` for content layers that want to charge even no-op recalls. |
@@ -286,7 +286,7 @@ Remaining items, all explicitly *out of v1 scope*:
 
 - **Multi-slot recall.** Characters get exactly one recall
   point in v1. A future enhancement might add named slots
-  (`set recall home`, `recall home`). Pin in whichever
+  (`recall set home`, `recall home`). Pin in whichever
   milestone picks it up.
 - **Cross-character recall.** Group-leader recall that drags
   followers is out of scope; the verb is per-character. Pin
@@ -320,7 +320,7 @@ Remaining items, all explicitly *out of v1 scope*:
   added by §6 here) and §7 versioning + migration
   conventions.
 - `commands-and-dispatch` — verb registration and dispatch
-  pipeline both `set recall` and `recall` plug into.
+  pipeline both `recall set` and `recall` plug into.
 - `mobs-ai-spawning` — `player.moved` consumer; recall
   honors its single-publish contract.
 - `combat` — the deferred "block recall while engaged"

@@ -105,6 +105,25 @@ func TestSetMaxAboveCurrentPreservesCurrent(t *testing.T) {
 	}
 }
 
+func TestSetCurrentClampsToRange(t *testing.T) {
+	v := NewVitalsAt(50, 100)
+
+	if got := v.SetCurrent(30); got != 30 {
+		t.Errorf("SetCurrent(30) = %d, want 30", got)
+	}
+	if cur, _ := v.Snapshot(); cur != 30 {
+		t.Errorf("current after SetCurrent(30) = %d, want 30", cur)
+	}
+	// Above max clamps to max.
+	if got := v.SetCurrent(999); got != 100 {
+		t.Errorf("SetCurrent(999) = %d, want 100 (clamped to max)", got)
+	}
+	// Negative clamps to zero.
+	if got := v.SetCurrent(-5); got != 0 {
+		t.Errorf("SetCurrent(-5) = %d, want 0 (clamped to floor)", got)
+	}
+}
+
 func TestApplyDamageIfAliveOnLiving(t *testing.T) {
 	v := NewVitalsAt(10, 10)
 	remaining, wasAlive := v.ApplyDamageIfAlive(3)

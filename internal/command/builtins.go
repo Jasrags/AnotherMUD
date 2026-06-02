@@ -100,11 +100,12 @@ func RegisterBuiltins(r *Registry) error {
 		{Keyword: "lock", Handler: LockHandler, Brief: "Lock a door (requires the key).", Syntax: []string{"lock <direction>", "lock <door>"}, Args: []ArgDefinition{{Name: "door", Type: ArgDoor}}},
 		{Keyword: "unlock", Handler: UnlockHandler, Brief: "Unlock a door (requires the key).", Syntax: []string{"unlock <direction>", "unlock <door>"}, Args: []ArgDefinition{{Name: "door", Type: ArgDoor}}},
 
-		// Recall (M15.3). `set recall` binds the current room as the
-		// character's return point; `recall` teleports back to it.
+		// Recall (M15.3). `recall set` binds the current room as the
+		// character's return point; `recall` teleports back to it. (The
+		// binding verb moved from the former `set recall` to `recall set` in
+		// M19.4c when admin `set` reclaimed the top-level `set` keyword.)
 		// Spec: docs/specs/recall.md.
-		{Keyword: "set", Handler: SetHandler, Brief: "Configure a personal setting.", Syntax: []string{"set recall"}},
-		{Keyword: "recall", Handler: RecallHandler, Brief: "Return to your bound recall point.", Syntax: []string{"recall"}},
+		{Keyword: "recall", Handler: RecallHandler, Brief: "Return to your bound recall point.", Syntax: []string{"recall", "recall set"}},
 
 		// Prompt (ui-rendering-help §7.4). Show / set / reset the
 		// status prompt template. The template uses {tokens} (§7.2)
@@ -139,6 +140,14 @@ func RegisterBuiltins(r *Registry) error {
 		// self; otherwise resolves a player or mob in the room (§3). Audited
 		// via auditAdmin.
 		{Keyword: "inspect", Handler: InspectHandler, Admin: true, Brief: "Inspect a target's full diagnostic record.", Syntax: []string{"inspect [<target>]"}},
+
+		// set (M19.4c — admin-verbs §4): the general-purpose admin field
+		// write. `set <kind> <type> <target> <value>` mutates one field on a
+		// resolved target; a bare/incomplete set renders the catalogue.
+		// Admin-marked → dispatch-gated + hidden from non-admins, so it
+		// reclaims the top-level `set` keyword cleanly (the former player
+		// `set recall` moved to `recall set`). Audited via auditAdmin.
+		{Keyword: "set", Handler: SetHandler, Admin: true, Brief: "Set a field on a target (admin).", Syntax: []string{"set <kind> <type> <target> <value>"}},
 	}
 	for _, c := range commands {
 		if err := r.RegisterCommand(c); err != nil {

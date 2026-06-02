@@ -179,6 +179,25 @@ func (v *Vitals) Heal(amount int) int {
 	return v.hp
 }
 
+// SetCurrent sets current HP to an explicit value, clamped to [0, max],
+// and returns the new current. The admin `set vital hp` write
+// (admin-verbs §4 — "writes the live value, clamped to its maximum") and
+// the `restore` mercy verb (set to full) use this. One lock acquisition,
+// so the clamp reads max and writes hp atomically — no TOCTOU window a
+// Snapshot+Heal/ApplyDamage pair would open.
+func (v *Vitals) SetCurrent(hp int) int {
+	v.mu.Lock()
+	defer v.mu.Unlock()
+	if hp < 0 {
+		hp = 0
+	}
+	if hp > v.max {
+		hp = v.max
+	}
+	v.hp = hp
+	return v.hp
+}
+
 // SetMax adjusts the maximum HP. If the new max is below current HP,
 // current is also clamped down. If the new max is above current HP,
 // current is left alone — leveling up does not auto-heal; the

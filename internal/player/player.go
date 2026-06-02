@@ -117,7 +117,7 @@ import (
 // default; the `recall` verb short-circuits on empty with the
 // no-point message. No injected value: a legacy character loads
 // with no recall point and must bind one explicitly with
-// `set recall`.
+// `recall set`.
 const CurrentVersion = 15
 
 // Sentinel errors callers may check via errors.Is.
@@ -581,7 +581,7 @@ func migrateV12toV13(in map[string]any) (map[string]any, error) {
 // documented "no recall point set" default. Unlike sustenance, this
 // migration does NOT inject a value: a returning character should
 // log in with no recall point and bind one explicitly with
-// `set recall`, not be quietly bound to wherever they last logged
+// `recall set`, not be quietly bound to wherever they last logged
 // out.
 func migrateV13toV14(in map[string]any) (map[string]any, error) {
 	return in, nil

@@ -12,7 +12,7 @@ import (
 )
 
 // recallController is the tiny mutation surface a connActor exposes
-// for the `set recall` / `recall` verb pair. Defined here so the
+// for the `recall set` / `recall` verb pair. Defined here so the
 // command package doesn't import session just for two methods. The
 // production actor (session.connActor) satisfies it; test fakes that
 // don't care about recall don't.
@@ -21,28 +21,13 @@ type recallController interface {
 	SetRecall(roomID string)
 }
 
-// SetHandler routes `set <subcommand>` verbs. For M15.3 the only
-// subcommand is `recall`; future settings (e.g. `set pronouns`) plug in
-// here as additional branches. (The prompt is its own top-level `prompt`
-// verb — ui-rendering-help §7.4 — not a `set` subcommand.)
-//
-// Bare `set` (no subcommand) prints usage. Unknown subcommands
-// also print usage rather than silently dropping — the player
-// should see what verbs they tried to use are unknown.
-func SetHandler(ctx context.Context, c *Context) error {
-	if len(c.Args) == 0 {
-		return c.Actor.Write(ctx, "Usage: set recall")
-	}
-	switch strings.ToLower(c.Args[0]) {
-	case "recall":
-		return setRecall(ctx, c)
-	default:
-		return c.Actor.Write(ctx, fmt.Sprintf("You can't set %q.", c.Args[0]))
-	}
-}
-
-// setRecall implements `set recall` (spec recall.md §2). Binds the
+// setRecall implements `recall set` (spec recall.md §2). Binds the
 // actor's recall point to their current room.
+//
+// (M19.4c: the binding verb moved from the former `set recall` to
+// `recall set` when the admin field-write verb reclaimed the top-level
+// `set` keyword — admin-verbs §4. The behavior is unchanged; only the verb
+// surface moved into the `recall` family.)
 func setRecall(ctx context.Context, c *Context) error {
 	ctrl, ok := c.Actor.(recallController)
 	if !ok {
@@ -69,10 +54,17 @@ func setRecall(ctx context.Context, c *Context) error {
 	return c.Actor.Write(ctx, "You bind your recall to this place.")
 }
 
-// RecallHandler implements `recall` (spec recall.md §3). Teleports
-// the actor to the bound recall room if one is set, resolvable, and
-// the pre-event is not cancelled.
+// RecallHandler implements `recall` (spec recall.md §3) and routes the
+// `recall set` binding sub-form (§2). Bare `recall` teleports the actor to
+// the bound recall room if one is set, resolvable, and the pre-event is not
+// cancelled; `recall set` binds the current room as the recall point.
 func RecallHandler(ctx context.Context, c *Context) error {
+	// `recall set` — bind the current room (spec recall.md §2). Any other
+	// trailing token is ignored and treated as a bare recall.
+	if len(c.Args) > 0 && strings.EqualFold(c.Args[0], "set") {
+		return setRecall(ctx, c)
+	}
+
 	ctrl, ok := c.Actor.(recallController)
 	if !ok {
 		return c.Actor.Write(ctx, "You don't know how to recall.")
@@ -85,7 +77,7 @@ func RecallHandler(ctx context.Context, c *Context) error {
 	if saved == "" {
 		c.Publish(ctx, eventbus.RecallNoPoint{PlayerID: c.Actor.PlayerID()})
 		return c.Actor.Write(ctx,
-			"You have no recall point set. Use `set recall` somewhere first.")
+			"You have no recall point set. Use `recall set` somewhere first.")
 	}
 
 	// §3.1 step 3 — saved id must still resolve in the world.

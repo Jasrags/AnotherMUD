@@ -28,10 +28,11 @@ and `THEME-AXIS-PLAN.md` are superseded by `BACKLOG.md` and now live under
 - **Active:** **M19 — Roles & Administration** (the keystone). M19.1
   (role-set substrate + `HasRole` + persistence + config seed), M19.2
   (grant/revoke verbs + events), M19.3 (the admin dispatch gate + help
-  hiding), M19.4a (`admin.action` audit primitive + `announce`), and M19.4b
-  (admin target resolution + `inspect`) shipped; M19.4c+ (the remaining
-  mutating verbs — set / teleport / restore / purge — plus the idle-sweep
-  exemption + help-visibility through `HasRole`) pending.
+  hiding), M19.4a (`admin.action` audit primitive + `announce`), M19.4b
+  (admin target resolution + `inspect`), and M19.4c (the `set` field-write
+  framework + `vital` kind; `set recall` relocated to `recall set`) shipped;
+  M19.4d+ (the `set` property/tag kinds + teleport / restore / purge + the
+  idle-sweep exemption + help-visibility through `HasRole`) pending.
   **M18 — Command & UI polish** is paused mid-flight (M18.1 `prompt` verb
   shipped; M18.2–M18.5 pending).
 - **Specs ahead of code.** A large batch of behavior contracts landed this
@@ -2761,11 +2762,25 @@ house's admin moderation (`auction-house.md` §11).
       Audited via the M19.4a `auditAdmin` choke point. 4 command tests
       (self+audit / non-admin refusal / room-mob dump+audit / not-found).
       Full -race suite green. admin-verbs §3/§5.
-- [ ] **M19.4c+ — Remaining baseline admin verbs** (set / teleport /
-      restore / purge) — the `set` mutation surface (§4 settable-field
-      catalogue) + world-scoped resolution (§3 teleport-to-player) — plus
-      the §5 idle-sweep exemption + help-visibility wiring through
-      `HasRole`. admin-verbs §3–§5.
+- [x] **M19.4c — The `set` field-write framework + the `vital` kind.** The
+      general-purpose admin write (admin-verbs §4): `set <kind> <type>
+      <target> <value>` with an extensible field catalogue, parse/validate/
+      usage-panel, room/self target resolution (reused from inspect), and
+      audit. Ships the `vital` kind (`set vital hp <target> N`, clamped to
+      max via the new `Vitals.SetCurrent`); `property` + `tag` kinds land as
+      incremental catalogue entries next. Roles are deliberately absent from
+      the catalogue (privilege goes through grant/revoke, §4). **`set`
+      reclaimed for admin** — the former player `set recall` relocated to
+      `recall set` (sub-form of `recall`); admin `set` is admin-marked so
+      the M19.3 gate hides it + refuses non-admins. recall.md §7 updated.
+      9 tests (vital live+audit / clamp / non-numeric / unknown-vital /
+      unknown-kind / bare-usage / non-admin refusal + SetCurrent unit +
+      recall-set migration). Full -race suite green. admin-verbs §4.
+- [ ] **M19.4d+ — Remaining baseline verbs + kinds** — the `set` `property`
+      + `tag` kinds (§4; property clears the M19.4b player-Properties gap) +
+      `teleport` / `restore` / `purge` with world-scoped resolution (§3
+      teleport-to-player) — plus the §5 idle-sweep exemption + help-
+      visibility wiring through `HasRole`. admin-verbs §3–§5.
 
 **Touches specs:** `roles-and-permissions`, `admin-verbs`,
 `session-lifecycle §5`, `ui-rendering-help §9.5`, `commands-and-dispatch`.

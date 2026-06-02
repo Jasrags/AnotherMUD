@@ -28,7 +28,7 @@ func newRecallActor(name, playerID string, room *world.Room) *recallActor {
 	}
 }
 
-func (r *recallActor) Recall() string         { return r.recall }
+func (r *recallActor) Recall() string          { return r.recall }
 func (r *recallActor) SetRecall(roomID string) { r.recall = roomID }
 
 // twoRoomWorld returns a tiny world with rooms "home" and "field"
@@ -53,7 +53,7 @@ func TestSetRecall_BindsCurrentRoomAndPublishes(t *testing.T) {
 	r := newRegistry(t)
 	env := command.Env{World: w, Bus: bus}
 
-	if err := r.Dispatch(context.Background(), env, a, "set recall"); err != nil {
+	if err := r.Dispatch(context.Background(), env, a, "recall set"); err != nil {
 		t.Fatalf("dispatch: %v", err)
 	}
 	if a.recall != "home" {
@@ -80,7 +80,7 @@ func TestSetRecall_Idempotent(t *testing.T) {
 	r := newRegistry(t)
 	env := command.Env{World: w, Bus: bus}
 
-	if err := r.Dispatch(context.Background(), env, a, "set recall"); err != nil {
+	if err := r.Dispatch(context.Background(), env, a, "recall set"); err != nil {
 		t.Fatalf("dispatch: %v", err)
 	}
 	if got := a.lastLine(); !strings.Contains(got, "already bound") {
@@ -229,30 +229,22 @@ func TestRecall_Cancelled_StaysPutAndNoAfter(t *testing.T) {
 	}
 }
 
-func TestSet_UnknownSubcommandReportsUsage(t *testing.T) {
+// `recall foo` (a non-`set` trailing token) is treated as a bare recall,
+// not a binding — here with no recall point set, so it reports the
+// no-point path rather than binding anything.
+func TestRecall_NonSetTokenIsBareRecall(t *testing.T) {
 	w, home, _ := twoRoomWorld(t)
 	a := newRecallActor("Alice", "p-1", home)
 	r := newRegistry(t)
 	env := command.Env{World: w}
 
-	if err := r.Dispatch(context.Background(), env, a, "set wibble"); err != nil {
+	if err := r.Dispatch(context.Background(), env, a, "recall wibble"); err != nil {
 		t.Fatalf("dispatch: %v", err)
 	}
-	if got := a.lastLine(); !strings.Contains(got, "wibble") {
-		t.Errorf("unknown-subcommand message = %q", got)
+	if a.recall != "" {
+		t.Errorf("`recall wibble` should not bind, recall = %q", a.recall)
 	}
-}
-
-func TestSet_NoArgReportsUsage(t *testing.T) {
-	w, home, _ := twoRoomWorld(t)
-	a := newRecallActor("Alice", "p-1", home)
-	r := newRegistry(t)
-	env := command.Env{World: w}
-
-	if err := r.Dispatch(context.Background(), env, a, "set"); err != nil {
-		t.Fatalf("dispatch: %v", err)
-	}
-	if got := a.lastLine(); !strings.Contains(got, "Usage") {
-		t.Errorf("usage message = %q", got)
+	if got := a.lastLine(); !strings.Contains(got, "no recall point") {
+		t.Errorf("message = %q, want the no-point path", got)
 	}
 }
