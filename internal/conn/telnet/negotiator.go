@@ -34,12 +34,12 @@ const ttypeMaxRotations = 3
 type parserState int
 
 const (
-	stateNormal  parserState = iota // accumulating data bytes
-	stateIAC                        // saw IAC; next byte is a command
-	stateOption                     // saw IAC <WILL|WONT|DO|DONT>; next byte is option code
-	stateSB                         // saw IAC SB; next byte is option code
-	stateSBData                     // collecting subneg payload until IAC SE
-	stateSBIAC                      // saw IAC inside SB; next byte is SE or escaped IAC
+	stateNormal parserState = iota // accumulating data bytes
+	stateIAC                       // saw IAC; next byte is a command
+	stateOption                    // saw IAC <WILL|WONT|DO|DONT>; next byte is option code
+	stateSB                        // saw IAC SB; next byte is option code
+	stateSBData                    // collecting subneg payload until IAC SE
+	stateSBIAC                     // saw IAC inside SB; next byte is SE or escaped IAC
 )
 
 // optionPolicy is the "Q method" state for one (us, him) side of an
@@ -327,6 +327,15 @@ func (n *negotiator) handleNegotiation(ctx context.Context, verb, opt byte) {
 		// handler.
 		if opt == optGMCP {
 			n.conn.gmcp.activate()
+			return
+		}
+		// ECHO is owned out of band by the login flow (options.go
+		// optEcho / internal/login password masking). The client's
+		// DO ECHO is the expected reply to the login flow's WILL ECHO;
+		// acknowledge it silently. Replying WONT ECHO here (the default
+		// refusal) would tell the client to resume local echo and leak
+		// the password in cleartext — the masking regression this guards.
+		if opt == optEcho {
 			return
 		}
 		n.sendCommand(ctx, negWONT, opt)

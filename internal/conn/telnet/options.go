@@ -10,6 +10,16 @@ import (
 // hex. Numbers match the IANA telnet-options registry / the RFCs
 // cited.
 const (
+	// optEcho — RFC 857. Server-side echo control. The login flow
+	// (internal/login) drives this option OUT OF BAND via
+	// Conn.WriteCommand to mask the password prompt: IAC WILL ECHO
+	// suppresses the client's local echo, IAC WONT ECHO restores it.
+	// The negotiator does not initiate ECHO; it only needs to NOT
+	// contradict the login flow — so a client's IAC DO ECHO reply is
+	// acknowledged silently rather than refused with WONT (which would
+	// re-enable local echo and leak the password in cleartext).
+	optEcho byte = 1
+
 	// optTTYPE — RFC 1091. Terminal-type negotiation. Server sends
 	// IAC DO TTYPE; client responds WILL TTYPE; server then sends
 	// the subneg IAC SB TTYPE SEND IAC SE; client replies
