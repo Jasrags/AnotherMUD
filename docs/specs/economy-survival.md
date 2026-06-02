@@ -227,15 +227,16 @@ shop-list rendering.
 
 ### 3.7 Stock resolution
 
-The query string is normalized (article stripped, lowercased,
-hyphens-to-spaces) and matched against:
+Stock queries resolve through the **shared keyword rules**
+(`inventory-equipment-items` §6.1 — exact keyword, then
+keyword prefix, then name substring), so a sells-list item
+answers to the same words it does for look / get / wear. Each
+entry's short id (the segment after the last `:`) participates
+as a synthetic keyword, in both its hyphenated and spaced
+forms, so a bare template id still resolves even when it
+differs from the display name.
 
-- The template's name (article stripped, lowercased),
-  prefix match.
-- The template's short id (after the last `:`, hyphens-to-
-  spaces, lowercased), prefix match.
-
-The first match wins UNLESS the query matches more than one
+The result wins UNLESS the query matches more than one
 sells-list entry — then the result is **ambiguous** and the
 resolver returns "none". Callers report ambiguity as "the
 shop doesn't carry that exactly" via the same `ItemNotForSale`
@@ -243,10 +244,10 @@ reason today.
 
 ### 3.8 Inventory resolution
 
-Inventory queries strip articles and lowercase, then
-prefix-match against each item's stripped lowercased name.
-First match wins. Ambiguity is NOT detected on the inventory
-side — the first matching item is sold.
+Inventory queries resolve through the same shared keyword
+rules (§6.1) against each held item, carried items before
+equipped. The first match wins. Ambiguity is NOT detected on
+the inventory side — the first matching item is sold.
 
 ### 3.9 Value query
 
@@ -280,8 +281,8 @@ either.
 - [ ] Shop config multipliers override global defaults only
       when positive.
 - [ ] Prices are floored at 1.
-- [ ] Buy resolves stock by partial name; ambiguity prevents
-      the sale.
+- [ ] Buy resolves stock by keyword, partial name, or id;
+      ambiguity prevents the sale.
 - [ ] Buy fires the cancellable pre-event before charging.
 - [ ] Sell auto-unequips silently before transferring.
 - [ ] `no_sell` items reject sale.
@@ -634,8 +635,8 @@ this spec.
   and "event cancelled" return `ItemNotForSale` to the
   caller. A distinct `Cancelled` reason would let scripts
   emit more informative messages.
-- **Ambiguous shop sells silently miss.** When a player types
-  a prefix matching two stock items, the resolver returns no
+- **Ambiguous shop sells silently miss.** When a player's
+  query matches two stock items, the resolver returns no
   match (same outcome as "doesn't carry that"). A distinct
   `Ambiguous` outcome surfacing in the result would help
   hint the player.

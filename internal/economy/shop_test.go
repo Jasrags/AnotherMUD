@@ -161,6 +161,72 @@ func TestResolveStock(t *testing.T) {
 	}
 }
 
+// kwTpl is valTpl plus a keyword list, for keyword-resolution tests.
+func kwTpl(id, name string, value int, keywords ...string) *item.Template {
+	t := valTpl(id, name, value)
+	t.Keywords = keywords
+	return t
+}
+
+func TestResolveStock_ByKeyword(t *testing.T) {
+	tpls := item.NewTemplates()
+	// "cap" is an interior word of the name but a defined keyword — it
+	// must resolve the way look/get/wear do, not just by name prefix.
+	tpls.Add(kwTpl("core:leather-cap", "a leather cap", 12, "cap", "leather"))
+	tpls.Add(kwTpl("core:healing-draught", "a healing draught", 20, "draught"))
+	cfg := ShopConfig{Sells: []string{"core:leather-cap", "core:healing-draught"}}
+
+	tests := []struct {
+		name, query, want string
+	}{
+		{"exact keyword (interior word)", "cap", "core:leather-cap"},
+		{"keyword over name", "draught", "core:healing-draught"},
+		{"name substring still works", "leather cap", "core:leather-cap"},
+		{"short id still works", "leather-cap", "core:leather-cap"},
+		{"short id spaced still works", "healing draught", "core:healing-draught"},
+		{"no match", "wand", ""},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := resolveStock(tpls, cfg, tt.query)
+			if tt.want == "" {
+				if got != nil {
+					t.Errorf("resolveStock(%q) = %q, want nil", tt.query, got.ID)
+				}
+				return
+			}
+			if got == nil || string(got.ID) != tt.want {
+				t.Errorf("resolveStock(%q) = %v, want %q", tt.query, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestValue_StockByKeyword(t *testing.T) {
+	f := newShopFixture(t, DefaultEconomyConfig())
+	f.tpls.Add(kwTpl("core:leather-cap", "a leather cap", 12, "cap", "leather"))
+	sh := newShopper("p1", 0) // holds nothing
+	cfg := ShopConfig{Sells: []string{"core:leather-cap"}}
+
+	res := f.svc.Value(context.Background(), sh, cfg, "cap")
+	if res.Outcome != ShopOK || res.Scope != ScopeStock {
+		t.Fatalf("value cap = %v/%v, want OK/stock", res.Outcome, res.Scope)
+	}
+}
+
+func TestValue_InventoryByKeyword(t *testing.T) {
+	f := newShopFixture(t, DefaultEconomyConfig())
+	inst, _ := f.store.Spawn(kwTpl("core:leather-cap", "a leather cap", 12, "cap", "leather"))
+	sh := newShopper("p1", 0)
+	sh.AddToInventory(inst.ID())
+
+	// Held item answers to its keyword; inventory (sell) price wins.
+	res := f.svc.Value(context.Background(), sh, ShopConfig{}, "cap")
+	if res.Outcome != ShopOK || res.Scope != ScopeInventory {
+		t.Fatalf("value cap (held) = %v/%v, want OK/inventory", res.Outcome, res.Scope)
+	}
+}
+
 // --- listings --------------------------------------------------------
 
 func TestListings(t *testing.T) {

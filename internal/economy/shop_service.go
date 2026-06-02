@@ -6,6 +6,7 @@ import (
 
 	"github.com/Jasrags/AnotherMUD/internal/entities"
 	"github.com/Jasrags/AnotherMUD/internal/item"
+	"github.com/Jasrags/AnotherMUD/internal/keyword"
 )
 
 // Shopper is the player-side surface the shop service buys for and
@@ -203,45 +204,62 @@ func (s *ShopService) Value(_ context.Context, sh Shopper, shop ShopConfig, quer
 	return ValueResult{Outcome: ShopItemNotForSale}
 }
 
-// resolveInventory prefix-matches query against the player's carried
-// and equipped items by normalized name, first match wins (spec
-// §3.8). Carried items are scanned before equipped. Returns the
-// matched instance and, when the match is an equipped item, the slot
-// key it occupies (empty for a carried match) so Sell can unequip it.
-// No ambiguity detection on this side (§3.8).
+// resolveInventory resolves query against the player's carried and
+// equipped items using the shared keyword rules (exact keyword → prefix
+// keyword → name substring, inventory-equipment-items §6.1), so a held
+// "a leather cap" answers to `cap` the same way it does to look/get/wear.
+// Carried items are scanned before equipped; the first pool with a match
+// wins (spec §3.8 — no ambiguity detection on the inventory side).
+// Returns the matched instance and, when the match is an equipped item,
+// the slot key it occupies (empty for a carried match) so Sell can
+// unequip it.
 func (s *ShopService) resolveInventory(sh Shopper, query string) (*entities.ItemInstance, string) {
-	q := normalizeQuery(query)
-	if q == "" || s.store == nil {
+	if s.store == nil || strings.TrimSpace(query) == "" {
 		return nil, ""
 	}
-	for _, id := range sh.Inventory() {
-		if inst := s.matchItem(id, q); inst != nil {
-			return inst, ""
-		}
+	// Carried first (§3.8).
+	if inst := s.resolvePool(sh.Inventory(), query); inst != nil {
+		return inst, ""
 	}
-	for slotKey, id := range sh.Equipment() {
-		if inst := s.matchItem(id, q); inst != nil {
-			return inst, slotKey
-		}
+	// Then equipped, tracking each item's slot for auto-unequip on sell.
+	eq := sh.Equipment()
+	ids := make([]entities.EntityID, 0, len(eq))
+	slotOf := make(map[entities.EntityID]string, len(eq))
+	for slotKey, id := range eq {
+		ids = append(ids, id)
+		slotOf[id] = slotKey
+	}
+	if inst := s.resolvePool(ids, query); inst != nil {
+		return inst, slotOf[inst.ID()]
 	}
 	return nil, ""
 }
 
-// matchItem resolves id through the store and returns the instance
-// when its normalized name has q as a prefix; nil otherwise.
-func (s *ShopService) matchItem(id entities.EntityID, q string) *entities.ItemInstance {
+// resolvePool resolves query against the item instances behind ids via
+// keyword.Resolve (first tiered match wins). ItemInstance satisfies
+// keyword.Named, so its content keywords and name both participate.
+func (s *ShopService) resolvePool(ids []entities.EntityID, query string) *entities.ItemInstance {
+	cands := make([]keyword.Named, 0, len(ids))
+	for _, id := range ids {
+		if inst := s.itemInstance(id); inst != nil {
+			cands = append(cands, inst)
+		}
+	}
+	if m := keyword.Resolve(cands, query); m != nil {
+		return m.(*entities.ItemInstance)
+	}
+	return nil
+}
+
+// itemInstance resolves id through the store to a *ItemInstance, or nil
+// when absent or not an item.
+func (s *ShopService) itemInstance(id entities.EntityID) *entities.ItemInstance {
 	e, ok := s.store.GetByID(id)
 	if !ok {
 		return nil
 	}
-	inst, ok := e.(*entities.ItemInstance)
-	if !ok {
-		return nil
-	}
-	if strings.HasPrefix(normalizeQuery(inst.Name()), q) {
-		return inst
-	}
-	return nil
+	inst, _ := e.(*entities.ItemInstance)
+	return inst
 }
 
 // instanceValue reads the integer `value` property off an item

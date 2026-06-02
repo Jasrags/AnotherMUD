@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/Jasrags/AnotherMUD/internal/item"
+	"github.com/Jasrags/AnotherMUD/internal/keyword"
 )
 
 // Tag / property names the shop feature recognizes (spec
@@ -135,39 +136,55 @@ func listings(tpls *item.Templates, cfg ShopConfig, global EconomyConfig) []List
 }
 
 // resolveStock matches query against the shop's sells list (spec
-// §3.7). The query is normalized (article stripped, lowercased,
-// hyphens→spaces) and matched as a prefix against each resolvable
-// entry's normalized name AND its short id (the segment after the
-// last ':'). Returns the single matching template, or nil when the
-// query matches zero or more than one entry — ambiguity is treated as
-// no match (the caller reports ItemNotForSale either way, §3.7).
+// §3.7) using the shared keyword rules (exact keyword → prefix keyword
+// → name substring, inventory-equipment-items §6.1), so stock answers
+// to its content keywords the same way look/get/wear do — `cap` finds
+// "a leather cap". Each entry's short id (the segment after the last
+// ':'), in both hyphenated and spaced form, is offered as a synthetic
+// keyword so `<template-id>` lookups keep working. Returns the single
+// matching template, or nil when the query matches zero or more than
+// one entry — ambiguity is treated as no match (the caller reports
+// ItemNotForSale either way, §3.7).
 func resolveStock(tpls *item.Templates, cfg ShopConfig, query string) *item.Template {
-	if tpls == nil {
+	if tpls == nil || strings.TrimSpace(query) == "" {
 		return nil
 	}
-	q := normalizeQuery(query)
-	if q == "" {
-		return nil
-	}
-	var match *item.Template
-	count := 0
+	cands := make([]keyword.Named, 0, len(cfg.Sells))
 	for _, id := range cfg.Sells {
 		tpl, err := tpls.Get(item.TemplateID(id))
 		if err != nil {
 			continue
 		}
-		nameKey := normalizeQuery(tpl.Name)
-		idKey := normalizeQuery(shortID(string(tpl.ID)))
-		if strings.HasPrefix(nameKey, q) || strings.HasPrefix(idKey, q) {
-			match = tpl
-			count++
-		}
+		cands = append(cands, namedTemplate{tpl})
 	}
-	if count != 1 {
-		// 0 → no match; >1 → ambiguous (§3.7).
+	// ResolveAll returns every match by the §6.1 exact/prefix/substring
+	// rules; §3.7 wants the unambiguous single match, so len != 1 → nil
+	// (0 = no match, >1 = ambiguous).
+	matches := keyword.ResolveAll(cands, query)
+	if len(matches) != 1 {
 		return nil
 	}
-	return match
+	return matches[0].(namedTemplate).tpl
+}
+
+// namedTemplate adapts an item.Template to keyword.Named so shop stock
+// resolves by the same rules as live item instances. The template's
+// short id is appended (hyphenated and spaced) as a synthetic keyword
+// so `<template-id>` queries keep resolving even when the id differs
+// from the display name (§3.7 short-id match).
+type namedTemplate struct{ tpl *item.Template }
+
+func (n namedTemplate) Name() string { return n.tpl.Name }
+
+func (n namedTemplate) Keywords() []string {
+	sid := shortID(string(n.tpl.ID))
+	out := make([]string, 0, len(n.tpl.Keywords)+2)
+	out = append(out, n.tpl.Keywords...)
+	out = append(out, sid)
+	if spaced := strings.ReplaceAll(sid, "-", " "); spaced != sid {
+		out = append(out, spaced)
+	}
+	return out
 }
 
 // templateValue reads the integer `value` property off a template,
@@ -196,25 +213,4 @@ func shortID(id string) string {
 		return id[i+1:]
 	}
 	return id
-}
-
-// normalizeQuery strips a leading article, lowercases, and converts
-// hyphens to spaces, then collapses surrounding whitespace (spec
-// §3.7 / §3.8 normalization).
-func normalizeQuery(s string) string {
-	s = strings.ToLower(strings.TrimSpace(s))
-	s = stripArticle(s)
-	s = strings.ReplaceAll(s, "-", " ")
-	return strings.TrimSpace(s)
-}
-
-// stripArticle removes a leading "a ", "an ", or "the " (input already
-// lowercased + trimmed by the caller).
-func stripArticle(s string) string {
-	for _, art := range []string{"a ", "an ", "the "} {
-		if strings.HasPrefix(s, art) {
-			return strings.TrimSpace(s[len(art):])
-		}
-	}
-	return s
 }
