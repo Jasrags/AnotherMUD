@@ -2923,18 +2923,56 @@ deferred rarity-filter autoloot key on the rarity ladder this builds.
       across logout (existing instance-property persistence); an unknown or
       unset key renders nothing, never an error (§6). An item with neither
       renders exactly as today (§1.1).
-- [ ] **M20.6 — Essence as stack identity** *(blocked — needs a stacking
-      service)*. item-decorations §5: two same-template items with different
-      essence keys must not stack; same/both-unset stack; rarity does not
-      split stacks (§5/§9 default). **No stacking service exists yet**
-      (`display.go`: "stacking lands when the stacking service arrives"), so
-      there is no consumer to hook essence into. Opens when inventory
-      stacking is built; essence then contributes its key to the stack
-      identity. Split out of M20.5 (decision 2026-06-02).
+- [x] **M20.6 — Essence as stack identity** *(closed by M21.1)*.
+      item-decorations §5: two same-template items with different essence
+      keys must not stack; same/both-unset stack; rarity does not split
+      stacks (§5/§9 default). Delivered by the M21.1 stacking service, whose
+      stack key is `<templateId>|<essence>|<extra…>` — essence is part of
+      the key, so different-essence items land in separate stacks
+      (`TestStack_DifferentEssenceSplits`) and rarity is carried but does not
+      split (`TestStack_RarityDoesNotSplit`).
 
 **Touches specs:** `item-decorations` §2–§6, `ui-rendering-help §2/§3`
 (theme + plain-strip), `inventory-equipment-items §2/§5` (item properties +
 stacking), `persistence` (instance-property round-trip).
+
+---
+
+### M21 — Item Stacking
+
+**Slice:** the read-only contents-grouping the inventory listing wants
+("3 healing potions" instead of three lines) — and the thing that unblocks
+**M20.6** (essence as stack identity). Implements `inventory-equipment-items
+§5`. Stacking is **presentation-only**: items are never merged — each keeps
+its id, contents position, and per-instance state; the service just groups
+them into stack entries for a UI to render. No inventory-model change, no
+count field, no merge/split, no persistence change.
+
+**Live list:** `BACKLOG.md` — folds in the M20.6 stack-identity tail.
+
+**Sub-milestones:**
+
+- [x] **M21.1 — The stacking service.** inventory-equipment-items §5.1/§5.2.
+      A new `internal/stacking` package: `StackEntry` (template id, display
+      name, quantity, rarity key, essence key, contained ids in stack order)
+      + a `Service` with `AddKey(propertyName)` (the §5.1 extensibility hook)
+      and `Stack(items) []StackEntry`. Stack key: template-less items are
+      singletons keyed `notemplate:<id>`; templated items key on
+      `<templateId>|<essence>|<extra…>` (empty string for an absent
+      property), extras in registration order. First-seen position fixes a
+      stack's place. Read-only — iterating stacks mutates nothing.
+      **Closes M20.6** — essence is part of the stack key, so two
+      same-template items with different essence keys land in separate
+      stacks. Leaf package: `StackEntry` carries key strings; the display
+      layer formats them via the M20.3 decoration registries.
+- [ ] **M21.2 — Inventory display uses stacks.** Render one line per stack
+      with a quantity prefix (format TBD at build), reusing `decoratedName`
+      for per-stack rarity/essence; singletons render as today. (Room/
+      container listings + quantity-aware `get`/`drop N` — keyword §6 — are
+      later follow-ons, not this milestone.)
+
+**Touches specs:** `inventory-equipment-items §5` (stacking),
+`item-decorations §5` (closes the M20.6 stack-identity tail).
 
 ---
 
