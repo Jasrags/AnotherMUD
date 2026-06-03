@@ -30,7 +30,17 @@ func RegisterBuiltins(r *Registry) error {
 		{Keyword: "color", Handler: ColorHandler, Brief: "Toggle ANSI color, or show the current setting.", Syntax: []string{"color", "color on", "color off"}},
 
 		// Items (M5.5-M5.9).
-		{Keyword: "get", Handler: GetHandler, Brief: "Pick up an item from the room or a container.", Syntax: []string{"get <item>", "get <item> from <container>", "get coins from <corpse>"}},
+		// get/take is hand-parsed (the item scope flips on the `from`
+		// preposition — room items for the bare form, container contents
+		// for the `from` form — which the single-scope auto-resolver can't
+		// express). It declares Args + HandParsed so completion can still
+		// enumerate the bare-form room item and the `from` container,
+		// while GetHandler keeps reading raw Args. `take` is an alias.
+		{Keyword: "get", Aliases: []string{"take"}, Handler: GetHandler, Brief: "Pick up an item from the room or a container.", Syntax: []string{"get <item>", "get <item> from <container>", "get coins from <corpse>"},
+			HandParsed: true, Args: []ArgDefinition{
+				{Name: "item", Type: ArgRoomItem},
+				{Name: "container", Type: ArgContainer, Prepositions: []string{"from"}},
+			}},
 		{Keyword: "drop", Handler: DropHandler, Brief: "Drop an item from your inventory.", Syntax: []string{"drop <item>"}, Args: []ArgDefinition{{Name: "item", Type: ArgInventory}}},
 		{Keyword: "give", Handler: GiveHandler, Brief: "Give an item to another character.", Syntax: []string{"give <item> to <target>"}, Args: []ArgDefinition{{Name: "item", Type: ArgInventory}, {Name: "target", Type: ArgPlayer, Prepositions: []string{"to"}}}},
 		{Keyword: "put", Handler: PutHandler, Brief: "Put an item into a container.", Syntax: []string{"put <item> in <container>"}, Args: []ArgDefinition{{Name: "item", Type: ArgInventory}, {Name: "container", Type: ArgContainer, Prepositions: []string{"in", "into"}}}},
@@ -44,7 +54,13 @@ func RegisterBuiltins(r *Registry) error {
 
 		// Combat (M7).
 		{Keyword: "consider", Aliases: []string{"con"}, Handler: ConsiderHandler, Brief: "Size up a target before fighting.", Syntax: []string{"consider <target>"}},
-		{Keyword: "kill", Handler: KillHandler, Brief: "Attack a target.", Syntax: []string{"kill <target>"}},
+		// kill is hand-parsed (the self-check must run BEFORE resolving,
+		// and the entity arg excludes self). It declares its entity target
+		// + HandParsed so completion enumerates room mobs/players, while
+		// KillHandler keeps its self-check-first resolution via
+		// findCombatantInRoom (which resolves the same `entity` arg).
+		{Keyword: "kill", Handler: KillHandler, Brief: "Attack a target.", Syntax: []string{"kill <target>"},
+			HandParsed: true, Args: []ArgDefinition{{Name: "target", Type: ArgEntity}}},
 		{Keyword: "flee", Handler: FleeHandler, Brief: "Try to escape from combat.", Syntax: []string{"flee"}},
 		{Keyword: "wimpy", Handler: WimpyHandler, Brief: "Auto-flee when your health drops below a percent.", Syntax: []string{"wimpy <percent>"}},
 

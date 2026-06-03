@@ -346,6 +346,13 @@ Every path below yields a defined empty-or-partial result:
   types, so argument completion returns no candidates for them. Verb completion
   is unaffected. (This is the bulk of the value gap that closes naturally as
   verbs migrate onto the `§5` pipeline; completion improves for free as they do.)
+  A hand-parsed verb whose operand scope the auto-resolver can't express (e.g.
+  `get`, whose item scope flips on a `from` preposition, or `kill`, whose
+  self-check must precede resolution) MAY still opt into argument completion by
+  **declaring its arg shape for completion while keeping the handler in charge of
+  parsing** — the declaration drives completion (and help synthesis) but does not
+  trigger auto-resolution at dispatch. This keeps such verbs completable without
+  forcing them onto a resolution path that would change their behavior.
 - **Slot past the declared arguments.** Covered in `§5`: no slot, no candidates.
 - **Absent services / nil scopes.** A resolve context with an empty or absent
   scope (no room, no inventory, no door lookup) yields no candidates for the
