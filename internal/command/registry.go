@@ -487,6 +487,13 @@ type Context struct {
 	// helper. Dispatch always sets it; helpers fall back to a fresh
 	// registry when a test builds a Context directly.
 	ArgResolver *ArgResolverRegistry
+
+	// registry back-references the dispatching command Registry so the
+	// `complete` debug verb (tab-completion §9) can run the completion
+	// query, which needs the verb set. Set by Dispatch; nil for Contexts
+	// built directly in tests (the query is then unavailable — tests
+	// exercise it via (*Registry).Complete directly).
+	registry *Registry
 }
 
 // Publish is the nil-safe shortcut every handler should use to emit
@@ -541,6 +548,18 @@ type Command struct {
 	// Context.Args tokens as before — this is what lets handlers
 	// migrate onto the pipeline one at a time.
 	Args []ArgDefinition
+
+	// HandParsed marks a command that declares Args for completion and
+	// help synthesis (commands-and-dispatch §5/§8, tab-completion §4) but
+	// parses them ITSELF in the handler — the dispatcher must NOT
+	// auto-resolve them. Used by verbs whose argument scope can't be
+	// expressed by the single-scope auto-resolve pipeline: `get` (item
+	// scope flips on the `from` preposition) and `kill` (self-check must
+	// run before resolving, and the entity arg excludes self). The
+	// handler keeps reading raw Args; completion gets the type info for
+	// free. When false (the default), declared Args are auto-resolved as
+	// before.
+	HandParsed bool
 }
 
 // CommandInfo is the read-only view of a registered command's metadata,
@@ -583,8 +602,14 @@ type registration struct {
 	meta *cmdMeta
 	// args is the command's declared typed-argument list (§5). Empty
 	// for handlers not yet migrated onto the arg-typing pipeline;
-	// Dispatch resolves it before the handler runs when non-empty.
+	// Dispatch resolves it before the handler runs when non-empty (and
+	// handParsed is false). Carried on aliases too so an alias resolves
+	// (and completes) identically to its primary.
 	args []ArgDefinition
+	// handParsed suppresses auto-resolution of args at dispatch — the
+	// handler parses them itself (see Command.HandParsed). Completion
+	// still reads args. Carried on aliases alongside args.
+	handParsed bool
 	// admin gates the command on the admin role at dispatch (admin-verbs
 	// §2). Carried on every registration (primary AND alias) so an alias
 	// of an admin command is gated too.
@@ -688,17 +713,31 @@ func (r *Registry) RegisterCommand(c Command) error {
 
 	r.order++
 	r.byKey[k] = registration{
-		keyword: k,
-		order:   r.order,
-		handler: c.Handler,
-		meta:    meta,
-		args:    append([]ArgDefinition(nil), c.Args...),
-		admin:   c.Admin,
+		keyword:    k,
+		order:      r.order,
+		handler:    c.Handler,
+		meta:       meta,
+		args:       append([]ArgDefinition(nil), c.Args...),
+		handParsed: c.HandParsed,
+		admin:      c.Admin,
 	}
 	r.ordered = append(r.ordered, k)
 	for _, la := range lowered {
 		r.order++
-		r.byKey[la] = registration{keyword: la, order: r.order, handler: c.Handler, alias: true, admin: c.Admin}
+		// Aliases carry the primary's args + handParsed so dispatch
+		// resolution and completion behave identically whether the player
+		// typed the primary keyword or an alias (e.g. `shut` == `close`,
+		// `take` == `get`). Meta stays nil so aliases remain out of help
+		// listings.
+		r.byKey[la] = registration{
+			keyword:    la,
+			order:      r.order,
+			handler:    c.Handler,
+			alias:      true,
+			args:       append([]ArgDefinition(nil), c.Args...),
+			handParsed: c.HandParsed,
+			admin:      c.Admin,
+		}
 		r.ordered = append(r.ordered, la)
 	}
 	return nil
@@ -855,15 +894,17 @@ func (r *Registry) Dispatch(ctx context.Context, env Env, actor Actor, raw strin
 		Verb:                  strings.ToLower(verb),
 		Args:                  args,
 		ArgResolver:           r.argResolvers,
+		registry:              r,
 	}
 
 	// §5 arg-typing (Option A): when the command declares typed args,
 	// resolve them against the actor's scope before the handler runs.
 	// A resolution failure is terminal for this input — the dispatcher
 	// writes the player-facing error and the handler never executes.
-	// Commands with no declared Args skip this entirely and read the
-	// raw c.Args tokens themselves (the incremental-migration path).
-	if len(reg.args) > 0 {
+	// Commands with no declared Args — or HandParsed commands that
+	// declare Args only for completion/help — skip this entirely and read
+	// the raw c.Args tokens themselves (the incremental-migration path).
+	if len(reg.args) > 0 && !reg.handParsed {
 		resolved, warnings, _, err := r.argResolvers.ResolveArgsWithContext(
 			reg.args, args, c.BuildResolveContext())
 		for _, w := range warnings {

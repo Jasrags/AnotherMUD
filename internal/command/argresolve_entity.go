@@ -106,6 +106,17 @@ type DoorScope interface {
 	ResolveDoor(arg string) (ref DoorRef, ok bool, ambiguous bool)
 }
 
+// doorEnumerator is the OPTIONAL capability a DoorScope may implement to
+// list a room's doors for completion (tab-completion §4). The production
+// worldDoorScope implements it over the room graph; a DoorScope that
+// only resolves (and cannot enumerate) simply omits it, and door
+// completion degrades to no candidates. Kept separate from DoorScope so
+// the resolve path — which never enumerates — is not forced to grow the
+// method.
+type doorEnumerator interface {
+	EnumerateDoors() []DoorRef
+}
+
 // ItemRef is the spec §5.6 resolved shape for the item-flavored
 // types (inventory / room_item / container / findable). All
 // fields are populated from the matched candidate; Keyword is
@@ -155,6 +166,13 @@ type DoorInfo struct {
 	Closed bool
 	Locked bool
 	KeyID  string
+
+	// Keywords carries the door's matchable tokens (DoorState.Keywords)
+	// for completion (tab-completion §4). Populated by EnumerateDoors so
+	// door completion filters on the SAME tokens the resolver matches —
+	// not the name words, which content may diverge from. The resolve
+	// path leaves it nil (it doesn't need it).
+	Keywords []string
 }
 
 // Standard not-found error sentinels for the M17.2b resolvers.

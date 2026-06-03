@@ -1,6 +1,8 @@
 package command
 
 import (
+	"sort"
+
 	"github.com/Jasrags/AnotherMUD/internal/entities"
 	"github.com/Jasrags/AnotherMUD/internal/world"
 )
@@ -97,6 +99,40 @@ func (s worldDoorScope) ResolveDoor(arg string) (DoorRef, bool, bool) {
 			KeyID:  door.KeyID,
 		},
 	}, true, false
+}
+
+// EnumerateDoors lists every door reachable from the actor's room for
+// completion (tab-completion §4), satisfying the optional doorEnumerator
+// capability. One DoorRef per exit that carries a door, ordered by the
+// direction short string so the result is deterministic (§7) despite the
+// map iteration underneath. Mirrors ResolveDoor's DoorRef shape so a
+// completed direction round-trips through the resolver unchanged.
+func (s worldDoorScope) EnumerateDoors() []DoorRef {
+	if s.world == nil {
+		return nil
+	}
+	room, err := s.world.Room(s.roomID)
+	if err != nil || room == nil {
+		return nil
+	}
+	var out []DoorRef
+	for dir, ex := range room.Exits {
+		if ex.Door == nil {
+			continue
+		}
+		out = append(out, DoorRef{
+			Direction: dir.Short(),
+			Door: DoorInfo{
+				Name:     ex.Door.Name,
+				Closed:   ex.Door.Closed,
+				Locked:   ex.Door.Locked,
+				KeyID:    ex.Door.KeyID,
+				Keywords: append([]string(nil), ex.Door.Keywords...),
+			},
+		})
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].Direction < out[j].Direction })
+	return out
 }
 
 // BuildResolveContext assembles the M17.2b/c ResolveContext from the

@@ -129,6 +129,24 @@ func ResolveAll(candidates []Named, input string) []Named {
 	return out
 }
 
+// Matches reports whether c matches input under the same single-entity
+// selection rules Resolve applies — exact keyword, strict-prefix
+// keyword, or name substring — WITHOUT the ordinal selector. Empty or
+// whitespace input returns false (§6.3).
+//
+// Exposed for completion (tab-completion §4/§6): the completion query
+// enumerates every candidate a partial token could resolve to and MUST
+// use the identical predicate the resolver uses, so a suggested token
+// is never one resolution would then reject. It shares matchesAny with
+// Resolve / ResolveAll so the three can never drift.
+func Matches(c Named, input string) bool {
+	input = strings.TrimSpace(strings.ToLower(input))
+	if input == "" {
+		return false
+	}
+	return matchesAny(c, input)
+}
+
 // splitOrdinal parses "N.keyword" into (keyword, N, true) when N is a
 // positive integer. Inputs without a dot, with a non-positive N, or
 // with a malformed prefix return false so the caller falls through to

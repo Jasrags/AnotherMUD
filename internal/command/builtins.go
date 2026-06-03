@@ -165,6 +165,13 @@ func RegisterBuiltins(r *Registry) error {
 		// or room item) from the world, untracking it. Never targets a
 		// player. Removal mirrors the death-cleanup path; audited.
 		{Keyword: "purge", Handler: PurgeHandler, Admin: true, Brief: "Remove a mob or item from the world.", Syntax: []string{"purge <target>"}},
+
+		// complete (tab-completion §9 — Phase 0 exercise surface): run the
+		// completion query on a partial line and print the candidate set.
+		// Admin-gated + read-only — an introspection tool that smokes the
+		// enumeration substrate live, NOT the player completion surface
+		// (GMCP/char-mode are Phase 1/2).
+		{Keyword: "complete", Handler: CompleteHandler, Admin: true, Brief: "Show completion candidates for a partial line (debug).", Syntax: []string{"complete <partial line>"}},
 	}
 	for _, c := range commands {
 		if err := r.RegisterCommand(c); err != nil {

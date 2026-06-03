@@ -124,6 +124,21 @@ func TestCloseVerb_RoundTrip(t *testing.T) {
 	}
 }
 
+// shut is close's alias. Before aliases inherited their primary's
+// declared args, `shut` carried none — so the door arg never resolved
+// and it silently failed. It now resolves identically to `close`.
+func TestShutVerb_AliasResolvesDoor(t *testing.T) {
+	d := ironGate("")
+	d.Closed = false
+	f := newDoorFixture(t, d, nil)
+	a := newTestActor(f.roomA(t))
+
+	dispatchDoor(t, f, a, "shut gate")
+	if got := a.lastLine(); !strings.Contains(got, "You close iron gate") {
+		t.Errorf("shut (close alias) should resolve the door like close: %q", got)
+	}
+}
+
 func TestUnlockVerb_RequiresKey(t *testing.T) {
 	f := newDoorFixture(t, ironGate("village-key"), nil)
 	a := newTestActor(f.roomA(t))
