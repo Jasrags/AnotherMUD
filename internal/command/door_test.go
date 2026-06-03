@@ -198,7 +198,7 @@ func TestUnlockVerb_WithKeyByProperty(t *testing.T) {
 }
 
 func TestLockVerb_RequiresClosed(t *testing.T) {
-	d := ironGate("")
+	d := ironGate("village-key") // keyed so it's lockable; the close check precedes the key check
 	d.Closed = false
 	f := newDoorFixture(t, d, nil)
 	a := newTestActor(f.roomA(t))
@@ -206,6 +206,28 @@ func TestLockVerb_RequiresClosed(t *testing.T) {
 	dispatchDoor(t, f, a, "lock gate")
 	if got := a.lastLine(); !strings.Contains(got, "close") {
 		t.Errorf("lock-open: %q", got)
+	}
+}
+
+// A keyless door has no lock: lock and unlock both refuse it (policy —
+// world-rooms-movement §5.3). A plain door is close-only, not a latch.
+func TestLockVerb_KeylessDoorHasNoLock(t *testing.T) {
+	d := ironGate("") // keyless, closed
+	f := newDoorFixture(t, d, nil)
+	a := newTestActor(f.roomA(t))
+
+	dispatchDoor(t, f, a, "lock gate")
+	if got := a.lastLine(); !strings.Contains(got, "no lock") {
+		t.Errorf("lock keyless: want 'no lock', got %q", got)
+	}
+	dispatchDoor(t, f, a, "unlock gate")
+	if got := a.lastLine(); !strings.Contains(got, "no lock") {
+		t.Errorf("unlock keyless: want 'no lock', got %q", got)
+	}
+	// The door is unchanged — still closed, still unlocked.
+	d2, _ := f.world.GetDoor("a", world.DirNorth)
+	if d2.Locked {
+		t.Error("keyless door should not have become locked")
 	}
 }
 

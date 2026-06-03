@@ -273,25 +273,29 @@ while closed, and the two sides stay in sync.
 
 ### Plain door — open / close (in the Forge)
 
-- [ ] `look` — the `down` exit shows the oak door as closed (e.g.
+- [x] `look` — the `down` exit shows the oak door as closed (e.g.
       `down (closed)`).
-- [ ] `down` while closed — blocked: "A sturdy oak door is closed."
-- [ ] `open down` (or `open oak`) — "You open a sturdy oak door."; `down`
+- [x] `down` while closed — blocked: "A sturdy oak door is closed."
+- [x] `open down` (or `open oak`) — "You open a sturdy oak door."; `down`
       now moves you into the **Forge Cellar**.
-- [ ] Back in the Forge, `close down` — re-closes it; `down` is blocked again.
+- [x] Back in the Forge, `close down` — re-closes it; `down` is blocked again.
+- [ ] `lock down` (or `lock oak`) on the plain door — "There's no lock on a
+      sturdy oak door." A keyless door is close-only, not lockable; same for
+      `unlock`. (In the Cellar, address a specific door with `up`/`oak` or
+      `down`/`iron` — `door` alone is ambiguous when two doors are present.)
 
 ### Locked door + key (in the Forge Cellar)
 
-- [ ] `get key` — picks up the iron key.
-- [ ] `down` — blocked (the iron door is closed/locked).
-- [ ] `unlock down` (or `unlock iron`) **before** holding the key (drop it
+- [x] `get key` — picks up the iron key.
+- [x] `down` — blocked (the iron door is closed/locked).
+- [x] `unlock down` (or `unlock iron`) **before** holding the key (drop it
       first to test) — "You don't have a key for an iron door."
-- [ ] With the key, `unlock down` — "You unlock an iron door."; then
+- [x] With the key, `unlock down` — "You unlock an iron door."; then
       `open down`, `down` → the **Forge Vault**. `get coins` is the payoff
       (credits gold).
-- [ ] `lock down` requires the door closed first and the key in hand;
+- [x] `lock down` requires the door closed first and the key in hand;
       `unlock down` reverses it.
-- [ ] From the vault, `up` works — unlocking/opening one side syncs the
+- [x] From the vault, `up` works — unlocking/opening one side syncs the
       reverse, so you're never sealed in.
 
 ## 13. Recall

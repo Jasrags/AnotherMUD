@@ -420,6 +420,13 @@ the key. Key-holder check is a query exposed to the command
 layer (§5.3); whether a command requires a key for a given
 operation is policy.
 
+The engine's command-layer policy: **a door is lockable only if it
+declares a key** (`key id` set). The `lock`/`unlock` verbs refuse a
+keyless door ("There's no lock on …") — a plain door is close-only,
+not a free latch. Keyed doors require the actor to hold the key for
+both `lock` and `unlock`. (The world Lock/Unlock ops above stay
+key-agnostic; this gate lives entirely in the verb policy.)
+
 ### 5.3 Queries
 
 - **Can pass.** True iff the exit exists AND (it has no door OR

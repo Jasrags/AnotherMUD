@@ -112,13 +112,19 @@ func handleClose(ctx context.Context, c *Context, src world.RoomID, dir world.Di
 }
 
 func handleLock(ctx context.Context, c *Context, src world.RoomID, dir world.Direction, door world.DoorState) error {
+	// Policy (world-rooms-movement §5.3): a door is lockable only if it
+	// has a lock — i.e. it declares a key. A keyless door is a plain door,
+	// not a free latch, so refuse before the close/lock-state checks.
+	if door.KeyID == "" {
+		return c.Actor.Write(ctx, fmt.Sprintf("There's no lock on %s.", door.Name))
+	}
 	if !door.Closed {
 		return c.Actor.Write(ctx, fmt.Sprintf("You'll need to close %s first.", door.Name))
 	}
 	if door.Locked {
 		return c.Actor.Write(ctx, fmt.Sprintf("%s is already locked.", capitalize(door.Name)))
 	}
-	if door.KeyID != "" && !actorHasKey(c, door.KeyID) {
+	if !actorHasKey(c, door.KeyID) {
 		return c.Actor.Write(ctx, fmt.Sprintf("You don't have a key for %s.", door.Name))
 	}
 	if !c.World.LockDoor(src, dir) {
@@ -129,10 +135,14 @@ func handleLock(ctx context.Context, c *Context, src world.RoomID, dir world.Dir
 }
 
 func handleUnlock(ctx context.Context, c *Context, src world.RoomID, dir world.Direction, door world.DoorState) error {
+	// A keyless door has no lock to work (mirror of handleLock policy).
+	if door.KeyID == "" {
+		return c.Actor.Write(ctx, fmt.Sprintf("There's no lock on %s.", door.Name))
+	}
 	if !door.Locked {
 		return c.Actor.Write(ctx, fmt.Sprintf("%s isn't locked.", capitalize(door.Name)))
 	}
-	if door.KeyID != "" && !actorHasKey(c, door.KeyID) {
+	if !actorHasKey(c, door.KeyID) {
 		return c.Actor.Write(ctx, fmt.Sprintf("You don't have a key for %s.", door.Name))
 	}
 	if !c.World.UnlockDoor(src, dir) {
