@@ -69,6 +69,12 @@ func RegisterBuiltins(r *Registry) error {
 		// vitals, attributes, alignment, gold, sustenance. Self-only;
 		// consider sizes up others. Reads through the actor's interfaces.
 		{Keyword: "score", Aliases: []string{"sc"}, Handler: ScoreHandler, Brief: "Show your character sheet.", Syntax: []string{"score"}},
+
+		// suggest: the line-mode completion stopgap (tab-completion §7/§13).
+		// Lists completion candidates for a partial command — real
+		// completion without a TAB key, usable on raw telnet. Same query as
+		// the admin `complete` debug verb, rendered for players.
+		{Keyword: "suggest", Handler: SuggestHandler, Brief: "List completions for a partial command.", Syntax: []string{"suggest <partial command>"}},
 		// kill is hand-parsed (the self-check must run BEFORE resolving,
 		// and the entity arg excludes self). It declares its entity target
 		// + HandParsed so completion enumerates room mobs/players, while

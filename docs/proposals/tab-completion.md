@@ -88,9 +88,9 @@ Pure client-side completion (no server involvement) was rejected: the client has
 - **Activation: DECIDED → automatic when the client advertises the completion capability.** No per-player/account setting.
 - **Compute model: DECIDED → request/response (compute only on Tab).** No channel spam, far simpler. Push (proactive streaming for live ghost-text) is the *future* — it's additive over the same Phase 0 query and can layer on later without changing the request/response path. v1 explicitly does **not** build push.
 
-Still open:
+Shipped:
 
-- **Raw-telnet stopgap:** is an explicit line-mode `complete <partial>` verb (lists candidates, no TAB) worth shipping for raw `telnet`/`nc` users *before* Phase 2 (Option A), or do raw users simply wait for char-mode? *Recommendation:* skip the stopgap unless raw-telnet demand is loud — it's a different UX that could entrench and confuse.
+- **Raw-telnet stopgap: BUILT 2026-06-03 → the `suggest <partial>` player verb.** Lists completion candidates in line mode (no TAB key) for raw `telnet`/`nc` users — the same Phase 0 query the admin `complete` verb runs, rendered for players (single match → completed line, multiple → list + LCP hint). Ships now rather than waiting for Phase 2 char-mode; demand was real (the project's own testing is on raw telnet).
 
 ## 8. Rough sizing
 

@@ -459,5 +459,9 @@ char-mode). **Signed off 2026-06-03** (`proposal §7`):
   client-side integration that consumes it. See `docs/proposals/tab-completion.md §4`.
 - **Phase 2 — server-side character-mode line editing** for raw `telnet`/`nc`
   parity (the only way a line-mode client gets real TAB). Its own proposal.
-- **Raw-telnet line-mode stopgap** — a possible player-facing `complete`/`suggest`
-  verb that *lists* candidates without a TAB key (still open; `proposal §7`).
+
+**Shipped (not deferred):** the **raw-telnet line-mode stopgap** — the player-facing
+`suggest <partial>` verb that *lists* completion candidates (no TAB key), rendering
+the same query for players that the admin `complete` debug verb renders for
+debugging. Single match → the completed line; multiple → the list with a
+longest-common-prefix hint (§12); unknown → "no suggestions".
