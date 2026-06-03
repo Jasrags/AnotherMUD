@@ -6,7 +6,7 @@ The "backend" of a MUD = the tick loop, the event bus, and command dispatch into
 services. No HTTP routes — the route analog is `verb → handler → service → store`.
 
 ## Command dispatch (the "route table")
-`internal/command` (8.9k LOC, largest pkg). Player line → `Registry.Dispatch`:
+`internal/command` (9.0k LOC, largest pkg). Player line → `Registry.Dispatch`:
 ```
 raw line ─▶ Fields() ─▶ resolveRegistration(verb)   (exact match, else
                          lowest-registration-order prefix; admin gate)
@@ -21,7 +21,8 @@ raw line ─▶ Fields() ─▶ resolveRegistration(verb)   (exact match, else
 - **HandParsed** verbs declare Args for completion/help but parse raw Args
   themselves (get/take, kill, look, consider). Aliases inherit primary's args.
 - **Tab-completion** (`complete.go`): read-only query over the registry + §5
-  scopes; admin `complete` debug verb. Spec `docs/specs/tab-completion.md`.
+  scopes. Surfaced by the player `suggest <partial>` verb (line-mode, no TAB)
+  and the admin `complete` debug verb. Spec `docs/specs/tab-completion.md`.
 - Builtins registered in `builtins.go`; per-channel/emote/movement verbs wired in
   `main.go`.
 

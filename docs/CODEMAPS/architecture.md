@@ -1,4 +1,4 @@
-<!-- Generated: 2026-06-03 | Go files scanned: 240 (+219 tests) | ~54.1k LOC | 49 internal pkgs | Token estimate: ~700 -->
+<!-- Generated: 2026-06-03 | Go files scanned: 241 (+221 tests) | ~54.2k LOC | 49 internal pkgs | Token estimate: ~700 -->
 
 # Architecture
 
