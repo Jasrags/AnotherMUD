@@ -30,6 +30,7 @@ type recSink struct {
 	started   []StartedEvent
 	advanced  []ObjectiveAdvancedEvent
 	staged    []StageAdvancedEvent
+	ready     []ReadyToTurnInEvent
 	completed []CompletedEvent
 	abandoned []AbandonedEvent
 }
@@ -37,6 +38,7 @@ type recSink struct {
 func (s *recSink) Started(e StartedEvent)                     { s.started = append(s.started, e) }
 func (s *recSink) ObjectiveAdvanced(e ObjectiveAdvancedEvent) { s.advanced = append(s.advanced, e) }
 func (s *recSink) StageAdvanced(e StageAdvancedEvent)         { s.staged = append(s.staged, e) }
+func (s *recSink) ReadyToTurnIn(e ReadyToTurnInEvent)         { s.ready = append(s.ready, e) }
 func (s *recSink) Completed(e CompletedEvent)                 { s.completed = append(s.completed, e) }
 func (s *recSink) Abandoned(e AbandonedEvent)                 { s.abandoned = append(s.abandoned, e) }
 
@@ -515,5 +517,107 @@ func TestAdvanceMatchingPersistsOnce(t *testing.T) {
 	svc.AdvanceMatching("p1", "kill", func(o Objective) bool { return o.Target == "core:rat" })
 	if got := len(cp.snaps) - before; got != 1 {
 		t.Errorf("AdvanceMatching persisted %d times, want 1", got)
+	}
+}
+
+// --- turn-in (hybrid completion) ---
+
+// turnInDef is a single-stage collect quest that requires turn-in at the
+// giver (TurnIn: true) and carries an offer pitch.
+func turnInDef(id, giver string) *Definition {
+	return &Definition{
+		ID: id, Name: "Fetch Quest", Giver: giver, TurnIn: true, Abandonable: true,
+		Offer: "Bring me a thing.",
+		Stages: []Stage{
+			{ID: "s0", Objectives: []Objective{
+				{ID: "s0-collect-0", Type: "collect", Target: "core:thing", Count: 1},
+			}},
+		},
+		Reward: Reward{XP: 50, Gold: 10},
+	}
+}
+
+func TestTurnInParksThenClaims(t *testing.T) {
+	reg := NewRegistry()
+	_ = reg.Register(turnInDef("q", "core:giver"))
+	rew := &recRewards{}
+	sink := &recSink{}
+	svc := NewService(Config{Registry: reg, Events: sink, Rewards: NewDispatcher(WithExperience(rew), WithGold(rew))})
+	p := &fakePlayer{id: "p1"}
+	svc.Accept(p, "q", false)
+	svc.AdvanceObjective("p1", "q", "s0-collect-0", 1)
+
+	// Final objective done, but a turn-in quest parks — no completion, no
+	// reward yet, ReadyToTurnIn fired, quest stays active + flagged.
+	if len(sink.ready) != 1 || sink.ready[0].Giver != "core:giver" {
+		t.Fatalf("ready events = %+v, want one for core:giver", sink.ready)
+	}
+	if len(sink.completed) != 0 {
+		t.Fatalf("completed events = %d, want 0 (reward withheld until turn-in)", len(sink.completed))
+	}
+	if len(rew.xp) != 0 {
+		t.Errorf("reward dispatched before turn-in: %v", rew.xp)
+	}
+	snap := svc.Snapshot("p1")
+	if len(snap.Active) != 1 || !snap.Active[0].AwaitingTurnIn {
+		t.Fatalf("quest should be active + AwaitingTurnIn: %+v", snap.Active)
+	}
+
+	// Claim at the giver.
+	if r := svc.TurnIn(p, "q"); r.Status != TurnedIn {
+		t.Fatalf("TurnIn status = %v, want TurnedIn", r.Status)
+	}
+	if len(sink.completed) != 1 {
+		t.Errorf("completed events = %d, want 1 after turn-in", len(sink.completed))
+	}
+	if len(rew.xp) != 1 || len(rew.gold) != 1 {
+		t.Errorf("rewards not dispatched on turn-in: xp=%v gold=%v", rew.xp, rew.gold)
+	}
+	snap = svc.Snapshot("p1")
+	if len(snap.Active) != 0 || !snap.hasCompleted("q") {
+		t.Errorf("post-turn-in state wrong: %+v", snap)
+	}
+}
+
+func TestTurnInStatuses(t *testing.T) {
+	reg := NewRegistry()
+	_ = reg.Register(turnInDef("q", "core:giver"))
+	svc := NewService(Config{Registry: reg})
+	p := &fakePlayer{id: "p1"}
+
+	if r := svc.TurnIn(p, "missing"); r.Status != TurnInNotFound {
+		t.Errorf("unknown quest: %v, want TurnInNotFound", r.Status)
+	}
+	if r := svc.TurnIn(p, "q"); r.Status != TurnInNotActive {
+		t.Errorf("not-accepted quest: %v, want TurnInNotActive", r.Status)
+	}
+	svc.Accept(p, "q", false)
+	if r := svc.TurnIn(p, "q"); r.Status != TurnInNotReady {
+		t.Errorf("accepted-but-incomplete: %v, want TurnInNotReady", r.Status)
+	}
+}
+
+func TestOffersFrom(t *testing.T) {
+	reg := NewRegistry()
+	_ = reg.Register(turnInDef("q", "core:giver"))
+	sec := turnInDef("sec", "core:giver")
+	sec.Secret = true
+	_ = reg.Register(sec)
+	_ = reg.Register(turnInDef("other", "core:elsewhere"))
+	svc := NewService(Config{Registry: reg})
+	p := &fakePlayer{id: "p1"}
+
+	offers := svc.OffersFrom(p, "core:giver")
+	if len(offers) != 1 || offers[0].QuestID != "q" {
+		t.Fatalf("offers = %+v, want just q (secret + wrong-giver excluded)", offers)
+	}
+	if offers[0].Pitch != "Bring me a thing." {
+		t.Errorf("pitch = %q, want offer text", offers[0].Pitch)
+	}
+
+	// Once accepted, the quest is no longer on offer.
+	svc.Accept(p, "q", false)
+	if got := svc.OffersFrom(p, "core:giver"); len(got) != 0 {
+		t.Errorf("offers after accept = %+v, want none", got)
 	}
 }

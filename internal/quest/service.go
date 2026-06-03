@@ -319,6 +319,16 @@ func (s *Service) advanceObjectiveLocked(playerID, questID, objectiveID string, 
 		s.advanceStageLocked(playerID, active, def)
 		return true
 	}
+	// Final stage done. A turn-in quest parks in AwaitingTurnIn until the
+	// player returns to the giver (the TurnIn path dispatches its reward);
+	// an auto-grant quest completes immediately. A quest with no resolved
+	// definition can't declare turn_in, so it auto-completes (matches the
+	// pre-turn-in behavior for orphaned-but-active quests).
+	if ok && def.TurnIn {
+		active.AwaitingTurnIn = true
+		s.events.ReadyToTurnIn(ReadyToTurnInEvent{PlayerID: playerID, QuestID: questID, Giver: def.Giver})
+		return true
+	}
 	s.completeLocked(playerID, st, questID)
 	return true
 }
@@ -440,6 +450,134 @@ func (s *Service) Abandon(playerID, questID string) {
 	}
 	s.events.Abandoned(AbandonedEvent{PlayerID: playerID, QuestID: questID})
 	snap = st.clone()
+}
+
+// TurnInStatus enumerates the outcomes of a TurnIn attempt (§4.3).
+type TurnInStatus int
+
+const (
+	// TurnedIn — rewards dispatched, quest moved to completed.
+	TurnedIn TurnInStatus = iota
+	// TurnInNotActive — the player is not on that quest.
+	TurnInNotActive
+	// TurnInNotReady — active but not awaiting turn-in (objectives
+	// outstanding, or it is an auto-grant quest that never parks here).
+	TurnInNotReady
+	// TurnInNotFound — no such quest definition.
+	TurnInNotFound
+)
+
+// TurnInResult is the structured outcome of TurnIn.
+type TurnInResult struct {
+	Status TurnInStatus
+}
+
+// TurnIn claims an awaiting-turn-in quest's reward and completes it
+// (§4.3). The CALLER (command layer) is responsible for verifying the
+// player is co-located with the quest's giver before calling — the
+// service is room-agnostic. Reward dispatch + the Completed event happen
+// here via completeLocked, so the player-visible completion banner flows
+// through the event sink exactly as it does for auto-grant quests (no
+// double messaging).
+func (s *Service) TurnIn(player Player, questID string) TurnInResult {
+	var pid string
+	var snap *State
+	defer func() {
+		if snap != nil {
+			s.persist.Save(pid, snap)
+		}
+	}()
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if _, ok := s.registry.Lookup(questID); !ok {
+		return TurnInResult{Status: TurnInNotFound}
+	}
+	pid = player.EntityID()
+	st, ok := s.states[pid]
+	if !ok {
+		return TurnInResult{Status: TurnInNotActive}
+	}
+	active := st.findActive(questID)
+	if active == nil {
+		return TurnInResult{Status: TurnInNotActive}
+	}
+	if !active.AwaitingTurnIn {
+		return TurnInResult{Status: TurnInNotReady}
+	}
+	// Refresh the reward-dispatch cache: a turn-in after a relog runs on
+	// state loaded from disk, with no Accept this session to populate it.
+	s.players[pid] = player
+	s.completeLocked(pid, st, questID)
+	snap = st.clone()
+	return TurnInResult{Status: TurnedIn}
+}
+
+// Offer is a quest a giver can offer a specific player right now —
+// eligible to accept (§3). Pitch is the giver's spoken line.
+type Offer struct {
+	QuestID string
+	Name    string
+	Pitch   string
+}
+
+// OffersFrom returns the non-secret quests the giver template can offer
+// the player: those the player could accept (not active, not already
+// completed unless repeatable, prerequisites met). The active-quest cap
+// is NOT applied — an over-cap player still sees the offer; Accept
+// enforces the cap when they take it.
+func (s *Service) OffersFrom(player Player, giverTemplateID string) []Offer {
+	if giverTemplateID == "" {
+		return nil
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	pid := player.EntityID()
+	st := s.stateLocked(pid)
+	var out []Offer
+	for _, def := range s.registry.All() {
+		if def.Giver != giverTemplateID || def.Secret {
+			continue
+		}
+		if !s.eligibleLocked(player, st, def) {
+			continue
+		}
+		out = append(out, Offer{QuestID: def.ID, Name: offerName(def), Pitch: offerPitch(def)})
+	}
+	return out
+}
+
+// eligibleLocked reports whether the player could accept def right now,
+// ignoring the active-quest cap (§3.2). It mirrors the gates Accept
+// applies, minus the per-reason distinctions Accept needs for messaging.
+// Caller holds s.mu.
+func (s *Service) eligibleLocked(player Player, st *State, def *Definition) bool {
+	if st.findActive(def.ID) != nil {
+		return false
+	}
+	if !def.Repeatable && st.hasCompleted(def.ID) {
+		return false
+	}
+	return s.prereqMet(player, st, def.Prereq)
+}
+
+// offerName / offerPitch resolve the giver-facing display strings for an
+// offer, with sensible fallbacks.
+func offerName(def *Definition) string {
+	if def.Name != "" {
+		return def.Name
+	}
+	return def.ID
+}
+
+func offerPitch(def *Definition) string {
+	if def.Offer != "" {
+		return def.Offer
+	}
+	if len(def.Stages) > 0 {
+		return def.Stages[0].Description
+	}
+	return ""
 }
 
 // buildBanner renders the player-visible acceptance banner (§3.4). It

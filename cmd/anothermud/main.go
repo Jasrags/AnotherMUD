@@ -2746,6 +2746,11 @@ func (s questLogSink) StageAdvanced(e quest.StageAdvancedEvent) {
 		slog.String("entity_id", e.PlayerID), slog.String("quest", e.QuestID), slog.Int("stage", e.StageIndex))
 }
 
+func (s questLogSink) ReadyToTurnIn(e quest.ReadyToTurnInEvent) {
+	s.logger.Info("quest ready to turn in", slog.String("event", "quest.ready_to_turn_in"),
+		slog.String("entity_id", e.PlayerID), slog.String("quest", e.QuestID), slog.String("giver", e.Giver))
+}
+
 func (s questLogSink) Completed(e quest.CompletedEvent) {
 	s.logger.Info("quest completed", slog.String("event", "quest.completed"),
 		slog.String("entity_id", e.PlayerID), slog.String("quest", e.QuestID),

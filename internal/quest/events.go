@@ -42,6 +42,15 @@ type CompletedEvent struct {
 	RaceUnlock  string
 }
 
+// ReadyToTurnInEvent fires when a turn-in quest's final-stage objectives
+// all complete but rewards are withheld pending return to the giver
+// (§4.3). Giver is the giver template id the player must return to.
+type ReadyToTurnInEvent struct {
+	PlayerID string
+	QuestID  string
+	Giver    string
+}
+
 // AbandonedEvent fires when a player abandons a quest (§4.5).
 type AbandonedEvent struct {
 	PlayerID string
@@ -55,6 +64,7 @@ type EventSink interface {
 	Started(StartedEvent)
 	ObjectiveAdvanced(ObjectiveAdvancedEvent)
 	StageAdvanced(StageAdvancedEvent)
+	ReadyToTurnIn(ReadyToTurnInEvent)
 	Completed(CompletedEvent)
 	Abandoned(AbandonedEvent)
 }
@@ -65,5 +75,6 @@ type NopEventSink struct{}
 func (NopEventSink) Started(StartedEvent)                     {}
 func (NopEventSink) ObjectiveAdvanced(ObjectiveAdvancedEvent) {}
 func (NopEventSink) StageAdvanced(StageAdvancedEvent)         {}
+func (NopEventSink) ReadyToTurnIn(ReadyToTurnInEvent)         {}
 func (NopEventSink) Completed(CompletedEvent)                 {}
 func (NopEventSink) Abandoned(AbandonedEvent)                 {}
