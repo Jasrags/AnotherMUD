@@ -1,0 +1,28 @@
+id: forge-cellar
+area: town
+name: Forge Cellar
+description: |
+  A cramped stone cellar beneath the smithy, the air cool and still after
+  the heat above. Crates of charcoal line one wall. A sturdy oak door
+  leads up to the forge; an iron door, set low in the far wall, leads
+  further down.
+terrain: underground
+exits:
+  up: forge
+  down: forge-vault
+# M15.1 doors. `up` is the reverse of the forge's plain oak door (open/
+# close test). `down` is a LOCKED iron door to the vault — it needs the
+# iron key, which is found here in the cellar. Both sides of each door
+# are declared so movement blocks both ways and runtime open/lock state
+# stays in sync.
+doors:
+  up:
+    name: a sturdy oak door
+    keywords: [oak, door]
+  down:
+    name: an iron door
+    keywords: [iron, door]
+    locked: true
+    key: forge-vault-key
+items:
+  - forge-vault-key

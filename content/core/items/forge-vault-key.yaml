@@ -1,0 +1,12 @@
+id: forge-vault-key
+name: an iron key
+type: item
+tags: [key]
+keywords: [key]
+properties:
+  weight: 1
+  # Base value so the shop can price it if sold (economy-survival §3.3).
+  value: 2
+# Unlocks the forge vault's iron door (inventory-equipment-items §5.3):
+# the door's `key: forge-vault-key` matches this template id, so holding
+# this lets `unlock`/`lock` the iron door in the cellar/vault.

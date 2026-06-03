@@ -8,6 +8,14 @@ description: |
   pulses with each draw of the bellows.
 exits:
   south: town-square
+  down: forge-cellar
+# M15.1 doors: a plain (unlocked) oak door down to the cellar — the
+# open/close test. Starts closed (door default), so `down` is blocked
+# until you `open down`. Its reverse is declared on forge-cellar `up`.
+doors:
+  down:
+    name: a sturdy oak door
+    keywords: [oak, door]
 # M15.4: the forge is enclosed — shielded from weather and time
 # ambience by default. No exposure flags so a rainstorm doesn't
 # rain into the smithy.

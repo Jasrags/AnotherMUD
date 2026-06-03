@@ -1,0 +1,22 @@
+id: forge-vault
+area: town
+name: Forge Vault
+description: |
+  A tiny vault hacked out of the bedrock. Whatever the smith wanted kept
+  safe waits here in the dark. The iron door is the only way out, back up
+  to the cellar.
+terrain: underground
+exits:
+  up: forge-cellar
+# Reverse of the cellar's locked iron door — same name/key so the two
+# sides stay in sync at runtime.
+doors:
+  up:
+    name: an iron door
+    keywords: [iron, door]
+    locked: true
+    key: forge-vault-key
+# Payoff for getting through the locked door: a small pile of coins
+# (currency auto-convert credits gold on pickup).
+items:
+  - gold-coins
