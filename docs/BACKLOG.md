@@ -166,6 +166,24 @@ old five-theme partition left uncovered.
   *requires* char-mode — the server sees nothing until Enter); its own larger proposal.
   Also unsettled: presentation policy (cycle vs. longest-common-prefix + list) and opt-in
   vs. automatic (`proposal §7`). Pre-decisions belong with each surface, not Phase 0.
+- **Mana / Movement current pools + regen** — the prompt's `MA`/`MV` columns
+  (`render.DefaultPromptTemplate`, ui-rendering-help §7.1) render **stat-derived
+  MAX only**: `session/prompt.go` builds `PromptVitals` with `Mana == MaxMana` and
+  `MV == MaxMV` because **there is no current-pool tracking** (the code's own
+  "Thin pools (M9.4b)" note). So MA/MV always show `current == max` (e.g. `0/0`
+  for a fighter whose `resource_max`/`movement_max` stats are 0), and nothing
+  drains or refills them. ⚠️ **Greenfield — only the *max* side exists.** What's
+  present: `resource_max`/`movement_max` stats, plus `ResourceMana` cost handling
+  in ability validation/resolution (`progression/validation.go`, `resolution.go`)
+  — abilities can *declare* a mana cost, but there's no live pool to spend from.
+  What's missing: a **current pool** for mana and movement analogous to
+  `combat.Vitals` (HP-only today) — spend-on-cast, drain-on-move, a regen tick,
+  and `restore`/effects integration (admin `restore` is HP-only by design; see
+  `restore.go`), plus persistence. Pre-decisions: a per-resource pool type (like
+  `Vitals`) vs. a generic resource-pool model; whether this rides with a future
+  economy/survival slice (the prompt comment anticipated M11, which shipped
+  sustenance/rest but not these). Until then MA/MV are display-only and `restore`
+  correctly touches HP only.
 - **Completion args for the remaining hand-parsed verbs (M17.2d non-fits)** —
   a handful of verbs still hand-parse and declare no arg types, so tab-completion
   (`tab-completion §8`) returns nothing for their arguments. The easy ones —
