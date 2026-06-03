@@ -356,6 +356,11 @@ Needs a GMCP-capable client (e.g. Mudlet) and `ANOTHERMUD_WS_ADDR=:4001`.
       same as telnet.
 - [ ] GMCP: the client receives `Char.Vitals`, `Char.Status`, `Room.Info`,
       `Comm.Channel`, etc. as you play (inspect the client's GMCP debug view).
+- [ ] GMCP tab-completion (`Input.Complete`): send
+      `Input.Complete {"line":"get s"}` (client→server) — you get an
+      `Input.Complete.List` reply with candidates + `common` prefix. See
+      `docs/clients/tab-completion-gmcp.md`; bind it to Tab in the client. Works
+      over telnet GMCP and WebSocket.
 - [ ] Color: a truecolor/256-capable client shows richer color tiers than a
       plain telnet client.
 - [ ] MSSP: a MUD listing tool / Mudlet shows server status variables on connect.

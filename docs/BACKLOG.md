@@ -155,17 +155,17 @@ old five-theme partition left uncovered.
   (`hire`/`dismiss`/`order`/`follow`); combat assist + XP/loot split (reuse grouping's
   rules); cap on simultaneous hirelings; persistence (does a hireling survive logout?).
   Best decided alongside or just after grouping.
-- **Input tab-completion — TAB surfaces (Phase 1/2)** — the *real-TAB* client-facing
-  half. **Phase 0 (enumeration substrate) is LANDED**, the **presentation policy is
-  decided** (`tab-completion §12`: LCP+list, auto-when-advertised, request/response),
-  and the **line-mode `suggest` stopgap shipped** (real completion on raw telnet, no
-  TAB). What remains is a real TAB key: 📄 architecture in `proposals/tab-completion.md §4`.
-  **Phase 1 = Option B GMCP request/response** for Mudlet-class clients: net-new *inbound*
-  GMCP dispatch (telnet hook never wired; WS drops inbound frames) + a client-side
-  integration, or it ships with no consumer (no browser client exists, only the WS
-  transport). **Phase 2 = Option A server char-mode** for raw-`telnet`/`nc` parity (real
-  TAB on a line-mode client *requires* char-mode — the server sees nothing until Enter);
-  its own larger proposal. The door-race pre-req is fixed; both phases are unblocked.
+- **Input tab-completion — TAB surfaces** — the *real-TAB* client-facing half.
+  **LANDED:** Phase 0 substrate; presentation policy decided (`tab-completion §12`);
+  the line-mode `suggest` stopgap; and **Phase 1 server side** — inbound GMCP
+  dispatch on *both* transports (`conn.GmcpConn`) + the `Input.Complete` /
+  `Input.Complete.List` request/response package (`tab-completion §13`,
+  live-verified over WebSocket). **Remaining:** (a) the **client integration** —
+  bind Tab → send `Input.Complete`, render the reply (Mudlet etc.; guide in
+  `docs/clients/tab-completion-gmcp.md` — client-owned, not server work). (b)
+  **Phase 2 = server char-mode** for raw-`telnet`/`nc` parity (real TAB on a
+  line-mode client *requires* char-mode — the server sees nothing until Enter);
+  its own larger proposal, still unbuilt.
 - **Survival depth — split sustenance into hunger + thirst** — today sustenance
   is a **single pool** `[0,100]` (`economy-survival §4.2`, "a hunger-like pool");
   both `eat` (food) and `drink` refill the *same* value, and `consume_method`

@@ -1,7 +1,7 @@
 # Proposal: Input Tab-Completion
 
-**Status:** Draft / for discussion · **Type:** Feature proposal (pre-spec) · **Audience:** engine
-**Feeds into:** a future `tab-completion.md` spec + plan once the surface decision is settled
+**Status:** Largely implemented — see `docs/specs/tab-completion.md` (authoritative). · **Type:** Feature proposal · **Audience:** engine
+**Shipped:** Phase 0 substrate; the line-mode `suggest` stopgap; and Phase 1 *server side* (inbound GMCP dispatch + `Input.Complete` request/response, §13). **Remaining:** the client integration (`docs/clients/tab-completion-gmcp.md`) and Phase 2 char-mode for raw-telnet TAB.
 
 ## Decisions taken so far (steering this draft)
 

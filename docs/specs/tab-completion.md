@@ -452,11 +452,57 @@ char-mode). **Signed off 2026-06-03** (`proposal §7`):
   scope**; it is additive over this same query and may layer on later without
   changing the request/response path.
 
-## 13. Deferred to later phases (not specced here)
+## 13. GMCP surface — `Input.Complete` (Phase 1, shipped)
 
-- **Phase 1 — GMCP request/response surface** for scriptable clients (Mudlet-class),
-  including the inbound-GMCP plumbing both transports currently lack and the
-  client-side integration that consumes it. See `docs/proposals/tab-completion.md §4`.
+The request/response surface for GMCP-capable clients (Mudlet-class). Unlike the
+`Char.*`/`Room.*` packages (server→client state pushes), this is a client→server
+**request** with a server→client **reply**, so it lives in its own `Input.*`
+namespace. The server side is shipped; the client (Tab key → request → render
+reply) is the integration each client owns — see `docs/clients/tab-completion-gmcp.md`.
+
+### Inbound dispatch (foundation)
+
+The server accepts client→server GMCP on both transports through `conn.GmcpConn`
+(`SetGmcpHandler`/`SendGmcp`/`SupportsPackage`). Telnet routes non-`Core.Supports`
+subnegotiations to the handler; WebSocket dispatches inbound `gmcp` envelopes
+(both skip `Core.Supports.*`). The session installs one handler per connection
+that runs **synchronously on the read goroutine** — the same consistency a
+command handler has. This inbound path is reusable for any future client→server
+package.
+
+### Packages
+
+- **`Input.Complete`** (client→server) — `{"line": "<partial up to cursor>"}`.
+- **`Input.Complete.List`** (server→client) — the reply:
+  - `line` — the request line, echoed (so the client matches reply to request).
+  - `target` — `"verb"` | `"argument"` | `"none"`.
+  - `verb` — the resolved verb when `target == "argument"` (omitted otherwise).
+  - `common` — the longest common prefix of candidate `value`s; the client
+    completes the token to this before listing (the §12 LCP rule, server-computed).
+  - `truncated` — true when the set was capped.
+  - `candidates` — ordered `[{value, display, kind}]` (`value` round-trips through
+    resolution; `kind` ∈ verb/item/entity/door/bulk).
+
+### Behavior
+
+On `Input.Complete`, the server runs the same query (`§2`) for the requesting
+actor (admin-verb visibility follows the actor's own role) and replies with
+`Input.Complete.List`. Request/response, automatic for any client that sends the
+request (`§12`). No state change; safe to spam as the player types.
+
+### Acceptance criteria
+
+- [ ] An inbound `Input.Complete {line}` on telnet OR WebSocket produces one
+      `Input.Complete.List` reply on the same connection.
+- [ ] The reply's `candidates` match what `complete`/`suggest` would list for the
+      same line + actor; `common` is the LCP of the candidate values.
+- [ ] `target`/`verb` reflect the slot (verb vs argument); `none` for an
+      uncompletable slot, with empty `candidates`.
+- [ ] Admin verbs appear in the reply only for an actor holding the admin role.
+- [ ] A malformed payload is ignored (no reply, no error to the player).
+
+## 14. Deferred to later phases (not specced here)
+
 - **Phase 2 — server-side character-mode line editing** for raw `telnet`/`nc`
   parity (the only way a line-mode client gets real TAB). Its own proposal.
 
