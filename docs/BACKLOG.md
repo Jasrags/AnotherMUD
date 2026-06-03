@@ -61,6 +61,7 @@ go straight into a milestone.
 | Reactive tag observers | **tag-observers §2–§4** (new) | `entity.tag_added/removed` bus events for non-index reactors. Substrate ahead of a consumer. Ported from Tapestry `ITagObserver` |
 | **Crafting & Cooking** | **crafting-and-cooking** (new) + plan `themes/crafting-cooking-plan.md` | recipes + crafting-skill proficiency + quality roll (output = rarity tier) + cooking→sustenance/well-fed. MVP = Tier 0 + Tier 1 campfire (temp entity, M15.2 reuse) + Tier 2 room-tag + mob-loot ingredients, all in `core` pack. Defers only gathering nodes (§2) |
 | **Player trade** (escrow + direct trade + auction) | **trade-escrow / direct-trade / auction-house** (new) + plan `plans/trade-plan.md` | shared escrow/atomic-commit primitive (cancellable bus); sync zero-sum direct trade; async persisted buyout auction (global, pickup delivery, fee gold sink). Admin moderation blocked on roles/admin (spec-only). Push delivery deferred to Mail (§2) |
+| **Tab-completion — Phase 0** (enumeration substrate) | **tab-completion §2–§9** (new) + proposal `proposals/tab-completion.md` | transport-agnostic completion query (verb scan + §5 typed-arg scope enumeration), distinct-name/ordinal disambiguation, the visibility leak-guard, and a role-gated `complete` debug verb. No enumeration op exists today (resolvers are resolve-one-token). Surfaces (GMCP/char-mode) are Phase 1/2 → §2 below |
 
 ---
 
@@ -154,24 +155,17 @@ old five-theme partition left uncovered.
   (`hire`/`dismiss`/`order`/`follow`); combat assist + XP/loot split (reuse grouping's
   rules); cap on simultaneous hirelings; persistence (does a hireling survive logout?).
   Best decided alongside or just after grouping.
-- **Input tab-completion** — TAB-expand command verbs and contextual arguments
-  (`get longsword from che` → `…chest`, `kill ban` → `…bandit`). 📄 **Proposal written:
-  `docs/proposals/tab-completion.md`** — read it before scoping. Status: phased, awaiting
-  Phase 0 greenlight + §7 sign-off. Substrate that exists: the command registry (verb
-  prefix resolution for *submitted* lines), `keyword.Resolve`/`ResolveAll`/`splitOrdinal`
-  (`internal/keyword`) for operand + ordinal/`all.` matching, and the GMCP *send* path.
-  The net-new work: **candidate *enumeration*** is not built — resolvers are
-  resolve-one-token (`ArgResolver = func(ResolverInput)(ResolverOutput,error)`), with no
-  "list all candidates for this slot/prefix" operation. **Phase 0** (build that enumeration
-  layer, transport-agnostic, behind a test/debug verb) is the unconditional first slice and
-  owns the hard design (ordinal interaction, caps). **Phase 1** = Option B GMCP surface for
-  Mudlet-class clients (requires net-new *inbound* GMCP dispatch — the telnet hook is never
-  wired, WS drops inbound frames — plus a Mudlet integration, or it ships with no consumer;
-  the browser "web client" does **not** exist, only the WS transport). **Phase 2** = Option
-  A server char-mode for raw-`telnet`/`nc` parity (real TAB on a line-mode client *requires*
-  char-mode), its own larger proposal. ⚠️ **Visibility-leak vector** — candidates must
-  respect `CanSee` once visibility rules land (always-true today, so no leak yet). Overlaps
-  **Visibility / hidden / sneak** above.
+- **Input tab-completion — surfaces (Phase 1/2)** — the client-facing half of
+  tab-completion. **Phase 0 (the enumeration substrate) is now specced** — see
+  `tab-completion §2–§9` and §1 above; these surfaces sit on top of it. 📄 Architecture in
+  `docs/proposals/tab-completion.md §4`. **Phase 1 = Option B GMCP request/response** for
+  Mudlet-class clients: requires net-new *inbound* GMCP dispatch (the telnet hook is never
+  wired; WS drops inbound frames) plus a client-side integration, or it ships with no
+  consumer — the browser "web client" does **not** exist, only the WS transport. **Phase 2 =
+  Option A server char-mode** for raw-`telnet`/`nc` parity (real TAB on a line-mode client
+  *requires* char-mode — the server sees nothing until Enter); its own larger proposal.
+  Also unsettled: presentation policy (cycle vs. longest-common-prefix + list) and opt-in
+  vs. automatic (`proposal §7`). Pre-decisions belong with each surface, not Phase 0.
 - **Cross-cutting event catalog** — per-spec event tables exist in `specs/README.md`;
   no aggregated catalog. (Docs/meta, not engine — not a behavior spec.)
 

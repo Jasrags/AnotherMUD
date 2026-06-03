@@ -117,8 +117,11 @@ The verbs players use and the systems that resolve them.
 - [who](who.md) — the connected-character roster verb; per-line
   columns, summary count, and which characters appear (all in v1;
   per-viewer hiding once visibility lands).
-
-### 4. Player lifecycle
+- [tab-completion](tab-completion.md) — **Phase 0 only** (enumeration
+  substrate + `complete` debug verb): the transport-agnostic completion
+  query over the command registry and the §5 typed-arg scopes, candidate
+  disambiguation, and the information-leak visibility rule. Surfaces
+  (GMCP / char-mode) are deferred — see `docs/proposals/tab-completion.md`.
 
 How a connection becomes a session becomes a character.
 
@@ -330,4 +333,4 @@ highest-impact themes that recur across specs:
 
 ---
 
-<!-- Updated: 2026-06-02 · 31 specs covering the engine substrate, world, action, lifecycle, and presentation layers. Some (roles-and-permissions, admin-verbs, item-decorations, tag-observers, who, crafting-and-cooking, loot-and-corpses) are behavior contracts whose Go implementation is still pending. -->
+<!-- Updated: 2026-06-03 · 32 specs covering the engine substrate, world, action, lifecycle, and presentation layers. Some (roles-and-permissions, admin-verbs, item-decorations, tag-observers, who, crafting-and-cooking, loot-and-corpses, tab-completion) are behavior contracts whose Go implementation is still pending. -->
