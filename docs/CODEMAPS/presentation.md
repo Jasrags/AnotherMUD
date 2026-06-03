@@ -12,17 +12,21 @@ WS  :4001  ─▶ internal/conn/ws      ─┘   (one-text-frame JSON envelopes)
              internal/server (listeners, WS HTTP upgrade)
 ```
 - **telnet** (`conn/telnet`): full IAC negotiation, GMCP subneg, TTYPE-derived
-  client identity, capability/color-tier detection. Inbound non-Core.Supports
-  GMCP handler exists but is unwired (client→server GMCP is server-receive-only
-  for Core.Supports today).
+  client identity, capability/color-tier detection.
 - **ws** (`conn/ws`): `coder/websocket`; always GMCP + ANSI, no per-client
-  negotiation. Inbound GMCP frames currently dropped.
+  negotiation. JSON envelopes (`{type,package,data}`).
+- Both implement `conn.GmcpConn` (SetGmcpHandler/SendGmcp/SupportsPackage) — the
+  seam the session installs an inbound handler through.
 
-## GMCP (server→client only today)
-`internal/gmcp` — packages: Char.Vitals/Status/StatusVars/Login/Combat/Effects/
-Experience/Items.List, Room.Info, Comm.Channel.Text. Flushed on cadence-1 tick
-handlers (poll-and-diff) wired in `main.go`. `internal/mssp` = MUD server status
-vars on connect.
+## GMCP (bidirectional)
+`internal/gmcp` — wire shapes + package-name constants. **Server→client** (push):
+Char.Vitals/Status/StatusVars/Login/Combat/Effects/Experience/Items.List,
+Room.Info, Comm.Channel.Text — flushed on cadence-1 tick handlers (poll-and-diff)
+in `main.go`. **Client→server** (request/response): `Input.Complete` /
+`Input.Complete.List` (tab-completion §13) — inbound frames dispatched on both
+transports to a session handler (`session/gmcp_complete.go`), per-connection
+rate-limited (token bucket, never disconnects). `internal/mssp` = MUD server
+status vars on connect.
 
 ## Rendering
 - `internal/render` (1.4k LOC) — room/look output, exits, item listings,

@@ -21,8 +21,10 @@ raw line ─▶ Fields() ─▶ resolveRegistration(verb)   (exact match, else
 - **HandParsed** verbs declare Args for completion/help but parse raw Args
   themselves (get/take, kill, look, consider). Aliases inherit primary's args.
 - **Tab-completion** (`complete.go`): read-only query over the registry + §5
-  scopes. Surfaced by the player `suggest <partial>` verb (line-mode, no TAB)
-  and the admin `complete` debug verb. Spec `docs/specs/tab-completion.md`.
+  scopes. Surfaces: player `suggest <partial>` verb (line-mode), admin `complete`
+  debug verb, and the **`Input.Complete` GMCP request/response** (client→server,
+  via `Registry.CompleteLine` + `session/gmcp_complete.go`, rate-limited). Spec
+  `docs/specs/tab-completion.md`.
 - Builtins registered in `builtins.go`; per-channel/emote/movement verbs wired in
   `main.go`.
 
