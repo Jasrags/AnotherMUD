@@ -20,6 +20,13 @@ const (
 	// re-enable local echo and leak the password in cleartext).
 	optEcho byte = 1
 
+	// optSGA — RFC 858, Suppress Go Ahead. Sent together with WILL ECHO to
+	// put the client in character-at-a-time mode for Phase 2 char-mode
+	// completion (tab-completion §14). Driven out of band by
+	// Conn.SetCharMode, like ECHO; the negotiator only needs to not
+	// contradict it — a client's DO SGA reply is acknowledged silently.
+	optSGA byte = 3
+
 	// optTTYPE — RFC 1091. Terminal-type negotiation. Server sends
 	// IAC DO TTYPE; client responds WILL TTYPE; server then sends
 	// the subneg IAC SB TTYPE SEND IAC SE; client replies

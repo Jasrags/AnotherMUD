@@ -338,6 +338,12 @@ func (n *negotiator) handleNegotiation(ctx context.Context, verb, opt byte) {
 		if opt == optEcho {
 			return
 		}
+		// SGA is driven out of band by Conn.SetCharMode (char-mode
+		// completion); the client's DO SGA is the expected reply to our
+		// WILL SGA — acknowledge silently rather than contradict it.
+		if opt == optSGA {
+			return
+		}
 		n.sendCommand(ctx, negWONT, opt)
 	case negDONT:
 		// Peer refuses to let us do an option. We weren't doing any,

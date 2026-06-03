@@ -268,12 +268,13 @@ func TestNegotiator_UnknownDOOptionRefused(t *testing.T) {
 	go func() { _, _ = server.Read(context.Background()) }()
 	_ = readBytes(t, client, InitialOfferBytes)
 
-	// Client asks us to DO an option we don't offer (e.g. SUPPRESS-GO-AHEAD = 3).
-	_, _ = client.Write([]byte{negIAC, negDO, 3})
+	// Client asks us to DO an option we don't offer. Option 99 is arbitrary
+	// and unsupported (SGA=3 is now silently accepted, backing char-mode).
+	_, _ = client.Write([]byte{negIAC, negDO, 99})
 
-	// Server should respond IAC WONT 3.
+	// Server should respond IAC WONT 99.
 	got := readBytes(t, client, 3)
-	want := []byte{negIAC, negWONT, 3}
+	want := []byte{negIAC, negWONT, 99}
 	for i := range want {
 		if got[i] != want[i] {
 			t.Errorf("refusal[%d] = %#x, want %#x (full %x)", i, got[i], want[i], got)
@@ -286,21 +287,25 @@ func TestNegotiator_UnknownDOOptionRefused(t *testing.T) {
 // Regression: the login flow drives ECHO out of band (WILL ECHO to mask
 // the password). The negotiator MUST NOT refuse the client's DO ECHO reply
 // with WONT ECHO — that re-enables local echo and leaks the password in
-// cleartext. Here the client sends DO ECHO then DO SGA(3); the server must
-// emit ONLY the WONT 3 refusal, proving DO ECHO produced no contradicting
-// WONT 1 ahead of it.
+// cleartext. Here the client sends DO ECHO then DO <unsupported>; the server
+// must emit ONLY the WONT for the unsupported option, proving DO ECHO
+// produced no contradicting WONT ECHO ahead of it. (Option 99 is an
+// arbitrary unsupported option — ECHO and SGA are both silently accepted now
+// that SGA backs char-mode, so they can't serve as the refused sentinel.)
 func TestNegotiator_DOEchoNotRefused(t *testing.T) {
 	server, client := pairConn(t)
+
+	const unsupportedOpt byte = 99
 
 	go func() { _, _ = server.Read(context.Background()) }()
 	_ = readBytes(t, client, InitialOfferBytes)
 
-	// DO ECHO (silently accepted) immediately followed by DO SGA (refused).
+	// DO ECHO (silently accepted) immediately followed by DO 99 (refused).
 	_, _ = client.Write([]byte{negIAC, negDO, optEcho})
-	_, _ = client.Write([]byte{negIAC, negDO, 3})
+	_, _ = client.Write([]byte{negIAC, negDO, unsupportedOpt})
 
 	got := readBytes(t, client, 3)
-	want := []byte{negIAC, negWONT, 3}
+	want := []byte{negIAC, negWONT, unsupportedOpt}
 	for i := range want {
 		if got[i] != want[i] {
 			t.Errorf("reply[%d] = %#x, want %#x (full %x); DO ECHO must not emit WONT", i, got[i], want[i], got)

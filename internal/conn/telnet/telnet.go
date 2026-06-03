@@ -60,6 +60,16 @@ type Conn struct {
 	// Always non-nil so SendGmcp / SupportsPackage / handleSubneg
 	// can read fields without nil-checking.
 	gmcp *gmcpState
+
+	// Char-at-a-time line editing (tab-completion Phase 2). When charMode
+	// is on, Read echoes keystrokes and runs the editor (backspace, Tab
+	// completion) instead of buffering a raw line. completionProvider is
+	// the Tab callback the session installs. Both are touched only by the
+	// read/dispatch goroutine in practice; cmu guards them for the race
+	// detector and any future caller.
+	cmu                sync.Mutex
+	charMode           bool
+	completionProvider conn.CompletionProvider
 }
 
 // New wraps an established net.Conn. id should be a stable identifier
@@ -106,6 +116,43 @@ func (c *Conn) ColorTier() render.ColorTier {
 
 // ID implements conn.Connection.
 func (c *Conn) ID() string { return c.id }
+
+// SetCompletionProvider installs the Tab-completion callback used in
+// char-mode (conn.CharModeConn). nil clears it.
+func (c *Conn) SetCompletionProvider(p conn.CompletionProvider) {
+	c.cmu.Lock()
+	c.completionProvider = p
+	c.cmu.Unlock()
+}
+
+// SetCharMode turns server-side character-at-a-time editing on or off
+// (conn.CharModeConn). Enabling negotiates WILL SGA + WILL ECHO so the
+// client streams keystrokes and stops local echo; disabling reverses it.
+// Idempotent.
+func (c *Conn) SetCharMode(ctx context.Context, on bool) {
+	c.cmu.Lock()
+	if c.charMode == on {
+		c.cmu.Unlock()
+		return
+	}
+	c.charMode = on
+	c.cmu.Unlock()
+
+	if on {
+		_, _ = c.WriteCommand(ctx, []byte{negIAC, negWILL, optSGA, negIAC, negWILL, optEcho})
+	} else {
+		_, _ = c.WriteCommand(ctx, []byte{negIAC, negWONT, optEcho, negIAC, negWONT, optSGA})
+	}
+}
+
+// CharModeActive reports whether char-mode editing is on (conn.CharModeConn).
+func (c *Conn) CharModeActive() bool { return c.charModeActive() }
+
+func (c *Conn) charModeActive() bool {
+	c.cmu.Lock()
+	defer c.cmu.Unlock()
+	return c.charMode
+}
 
 // Read implements conn.Connection. It returns one line at a time with
 // the trailing CR/LF stripped.
@@ -155,6 +202,15 @@ func (c *Conn) Read(ctx context.Context) (string, error) {
 
 		data, isData := c.neg.feed(ctx, b)
 		if !isData {
+			continue
+		}
+		// Char-at-a-time mode (post-login, raw clients): the editor owns
+		// echo + line editing and returns a line on Enter. Read's full-
+		// line contract is unchanged.
+		if c.charModeActive() {
+			if line, done := c.charModeByte(ctx, &buf, data); done {
+				return line, nil
+			}
 			continue
 		}
 		if data == '\n' {
