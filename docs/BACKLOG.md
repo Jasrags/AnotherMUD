@@ -154,6 +154,24 @@ old five-theme partition left uncovered.
   (`hire`/`dismiss`/`order`/`follow`); combat assist + XP/loot split (reuse grouping's
   rules); cap on simultaneous hirelings; persistence (does a hireling survive logout?).
   Best decided alongside or just after grouping.
+- **Input tab-completion** — TAB-expand command verbs and contextual arguments
+  (`get longsword from che` → `…chest`, `kill ban` → `…bandit`). 📄 **Proposal written:
+  `docs/proposals/tab-completion.md`** — read it before scoping. Status: phased, awaiting
+  Phase 0 greenlight + §7 sign-off. Substrate that exists: the command registry (verb
+  prefix resolution for *submitted* lines), `keyword.Resolve`/`ResolveAll`/`splitOrdinal`
+  (`internal/keyword`) for operand + ordinal/`all.` matching, and the GMCP *send* path.
+  The net-new work: **candidate *enumeration*** is not built — resolvers are
+  resolve-one-token (`ArgResolver = func(ResolverInput)(ResolverOutput,error)`), with no
+  "list all candidates for this slot/prefix" operation. **Phase 0** (build that enumeration
+  layer, transport-agnostic, behind a test/debug verb) is the unconditional first slice and
+  owns the hard design (ordinal interaction, caps). **Phase 1** = Option B GMCP surface for
+  Mudlet-class clients (requires net-new *inbound* GMCP dispatch — the telnet hook is never
+  wired, WS drops inbound frames — plus a Mudlet integration, or it ships with no consumer;
+  the browser "web client" does **not** exist, only the WS transport). **Phase 2** = Option
+  A server char-mode for raw-`telnet`/`nc` parity (real TAB on a line-mode client *requires*
+  char-mode), its own larger proposal. ⚠️ **Visibility-leak vector** — candidates must
+  respect `CanSee` once visibility rules land (always-true today, so no leak yet). Overlaps
+  **Visibility / hidden / sneak** above.
 - **Cross-cutting event catalog** — per-spec event tables exist in `specs/README.md`;
   no aggregated catalog. (Docs/meta, not engine — not a behavior spec.)
 
