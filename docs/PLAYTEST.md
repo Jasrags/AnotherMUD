@@ -63,6 +63,12 @@ once (two telnet windows).
 
 ```
         Hearthwick Forge (Maerys, trainer)        [indoors]
+              |  down: oak door (plain)
+        Forge Cellar (iron key)                   [underground]
+              |  down: iron door (locked)
+        Forge Vault (coins)                       [underground]
+
+        Hearthwick Forge
               |
    Market Row — Town Square — Village Gate — Long-Grass Meadow
    (merchant)   (safe hub,        (wilderness)   (bandit — combat arena)
@@ -72,6 +78,9 @@ once (two telnet windows).
 - **Town Square** is a `safe-room` — combat is blocked here. The **Meadow**
   (south through the Gate) is the one place you can fight: a hostile **road
   bandit** spawns there with loot + coins.
+- Below the Forge is a **door test branch** (§12): `down` through a plain
+  oak door to the **Forge Cellar**, then `down` through a *locked* iron
+  door (key in the cellar) to the **Forge Vault**.
 
 ---
 
@@ -187,40 +196,68 @@ After killing the bandit (Meadow):
 
 In **Market Row** (merchant):
 
-- [ ] `list` — shows the merchant's wares (healing draught, leather cap).
-- [ ] `buy healing draught` — gold decreases, item enters inventory.
-- [ ] `value cap` — shows what the shop would pay.
-- [ ] `sell cap` — gold increases, item leaves inventory.
-- [ ] `gold` — balance reflects the trades.
-- [ ] `eat ration` / `drink waterskin` — sustenance restores (watch over time;
+- [x] `list` — shows the merchant's wares (healing draught, leather cap).
+- [x] `buy healing draught` — gold decreases, item enters inventory.
+- [x] `value cap` — shows what the shop would pay.
+- [x] `sell cap` — gold increases, item leaves inventory.
+- [x] `gold` — balance reflects the trades.
+- [x] `eat ration` / `drink waterskin` — sustenance restores (watch over time;
       sustenance slowly drains).
-- [ ] `use healing draught` (or `drink`) — consumable applies its effect.
-- [ ] `rest` then `sleep` then `wake` (`stand`) — rest states change; HP/vitals
+- [x] `use healing draught` (or `drink`) — consumable applies its effect.
+- [x] `rest` then `sleep` then `wake` (`stand`) — rest states change; HP/vitals
       regen faster while resting (Town Square has a small regen bonus).
 
 ## 10. Quests
 
-Quest giver is **Maerys** in the Forge.
+Quest giver is **Maerys** (the training master) in the Forge. She offers
+two quests — **Forge Errand** (auto-grant) and **Gate Patrol** (turn-in)
+— so you can exercise both reward styles plus the new progress messaging.
 
-- [ ] At the Forge, `quests` (`journal`) — the **Gate Patrol** quest is offered.
-- [ ] `accept gate-patrol` — it appears in your journal as active.
-- [ ] Go `s` to the **Village Gate** — the *visit* objective completes.
-- [ ] Go `s` to the **Meadow** and `kill bandit` — the *kill* objective
-      completes; the quest finishes and pays out XP + gold + a healing draught.
-- [ ] Accept again, then `abandon gate-patrol` — it drops from the journal.
+### Discover & accept (the `talk` verb)
+
+- [ ] At the Forge, `talk master` (`ask master`) — Maerys lists her offers
+      (**Forge Errand**, **Gate Patrol**), each with its pitch and an
+      `accept <name>` line. This is how you discover a quest without already
+      knowing its name.
+- [ ] `quests` (`journal`) before accepting — "no active quests."
+
+### Auto-grant quest — Forge Errand (reward on the spot)
+
+- [ ] `accept Forge Errand` — acceptance banner; `quests` lists it active.
+- [ ] (If you already hold a trail ration, `drop ration` first.) `get ration`
+      in Town Square — you see a progress line, then the quest **completes
+      immediately**: a "Quest complete: Forge Errand" banner listing 25
+      experience + 5 gold. No return trip. `gold` reflects the payout.
+- [ ] Repeatable: `accept Forge Errand` again works.
+
+### Turn-in quest — Gate Patrol (claim at the giver)
+
+- [ ] `accept Gate Patrol` (or `accept gate-patrol`).
+- [ ] `s` to the **Village Gate** — a progress line for the *visit*
+      objective, then a stage-advance line announcing the next stage.
+- [ ] `s` to the **Meadow**, `kill bandit` — a kill progress line, then
+      "**Gate Patrol complete!** Return to a training master to claim your
+      reward." — note the reward is **withheld** (check `gold`: unchanged).
+- [ ] Return to the Forge (`n`, `n`, `n`) and `talk master` — *now* the
+      reward is handed over: completion banner with 100 experience + 25 gold
+      + a healing draught. `quests` no longer lists it.
+
+### Abandon
+
+- [ ] Accept either quest, then `abandon <name>` — it drops from the journal.
 
 ## 11. Social / multi-session (Jasrags + Bob, two windows)
 
-- [ ] Both in Town Square — `look` lists the other in "You see here:";
+- [x] Both in Town Square — `look` lists the other in "You see here:";
       movement shows "Bob arrives" / "Bob leaves".
-- [ ] `tell Bob hello` — Bob receives it; `reply hi` goes back; `tells` shows
+- [x] `tell Bob hello` — Bob receives it; `reply hi` goes back; `tells` shows
       the history.
-- [ ] `channels` (`chanlist`) — lists channels; post on one and the other sees
+- [x] `channels` (`chanlist`) — lists channels; post on one and the other sees
       it; `chathistory` (`chhist`) shows scrollback.
-- [ ] `emote waves` (`pose`) — the room sees "Jasrags waves".
-- [ ] Log in as Jasrags from a 3rd connection — you're prompted to **take over**
+- [x] `emote waves` (`pose`) — the room sees "Jasrags waves".
+- [x] Log in as Jasrags from a 3rd connection — you're prompted to **take over**
       the existing session; confirming moves you to the new connection.
-- [ ] Drop a connection abruptly (close the terminal) — the character goes
+- [x] Drop a connection abruptly (close the terminal) — the character goes
       **link-dead**, then reconnecting resumes the session; left long enough
       (`LINKDEAD_TIMEOUT`) it's swept.
 - [ ] Sit idle past `IDLE_SWEEP_INTERVAL`/idle timeout — you get an idle warning
@@ -228,13 +265,34 @@ Quest giver is **Maerys** in the Forge.
 
 ## 12. Doors & locks
 
-> The core pack ships no locked door by default, so this is a light check unless
-> you add one. If you add a `door:` to an exit in a room YAML and restart:
+The core pack ships a door test branch below the Forge: a **plain oak
+door** (`down` from the Forge to the **Forge Cellar**) and a **locked iron
+door** (`down` from the cellar to the **Forge Vault**). The **iron key** is
+in the cellar. Doors render their state on the exit line, block movement
+while closed, and the two sides stay in sync.
 
-- [ ] `open <dir>` / `close <dir>` — toggles the door; movement is blocked while
-      closed.
-- [ ] `lock <dir>` / `unlock <dir>` with the key item — toggles the lock; locked
-      blocks open.
+### Plain door — open / close (in the Forge)
+
+- [ ] `look` — the `down` exit shows the oak door as closed (e.g.
+      `down (closed)`).
+- [ ] `down` while closed — blocked: "A sturdy oak door is closed."
+- [ ] `open down` (or `open oak`) — "You open a sturdy oak door."; `down`
+      now moves you into the **Forge Cellar**.
+- [ ] Back in the Forge, `close down` — re-closes it; `down` is blocked again.
+
+### Locked door + key (in the Forge Cellar)
+
+- [ ] `get key` — picks up the iron key.
+- [ ] `down` — blocked (the iron door is closed/locked).
+- [ ] `unlock down` (or `unlock iron`) **before** holding the key (drop it
+      first to test) — "You don't have a key for an iron door."
+- [ ] With the key, `unlock down` — "You unlock an iron door."; then
+      `open down`, `down` → the **Forge Vault**. `get coins` is the payoff
+      (credits gold).
+- [ ] `lock down` requires the door closed first and the key in hand;
+      `unlock down` reverses it.
+- [ ] From the vault, `up` works — unlocking/opening one side syncs the
+      reverse, so you're never sealed in.
 
 ## 13. Recall
 
