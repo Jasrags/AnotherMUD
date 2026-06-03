@@ -78,8 +78,8 @@ func TestLongestCommonPrefix(t *testing.T) {
 		{nil, ""},
 	}
 	for _, c := range cases {
-		if got := longestCommonPrefix(c.in); got != c.want {
-			t.Errorf("longestCommonPrefix(%v) = %q, want %q", c.in, got, c.want)
+		if got := LongestCommonPrefix(c.in); got != c.want {
+			t.Errorf("LongestCommonPrefix(%v) = %q, want %q", c.in, got, c.want)
 		}
 	}
 }

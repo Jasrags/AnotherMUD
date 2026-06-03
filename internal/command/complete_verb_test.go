@@ -59,6 +59,29 @@ func TestDispatch_HandParsedSkipsAutoResolve(t *testing.T) {
 	}
 }
 
+// CompleteLine builds the actor's resolve context from env (the entry
+// point GMCP/char-mode surfaces use) and runs the query — room entities
+// reach the candidate set.
+func TestCompleteLine_BuildsContextAndQueries(t *testing.T) {
+	f := newConsiderFixture(t) // a village guard mob is in the room
+	a := newCombatActor("Alice", "p-1", f.room)
+	r := newRegistry(t)
+
+	res := r.CompleteLine(f.env(), a, "kill gu")
+	if res.Target != command.CompleteArgument || res.Verb != "kill" {
+		t.Fatalf("target=%v verb=%q", res.Target, res.Verb)
+	}
+	found := false
+	for _, c := range res.Candidates {
+		if c.Completion == "guard" {
+			found = true
+		}
+	}
+	if !found {
+		t.Errorf("CompleteLine didn't surface the guard: %+v", res.Candidates)
+	}
+}
+
 // §9: a non-admin's `complete` is refused IDENTICALLY to an unknown verb
 // — the debug tool's existence is not disclosed.
 func TestCompleteVerb_NonAdminRefusedLikeUnknown(t *testing.T) {

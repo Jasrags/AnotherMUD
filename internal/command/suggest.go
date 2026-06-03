@@ -71,7 +71,7 @@ func renderSuggest(partial string, res CompletionResult) string {
 	var b strings.Builder
 	fmt.Fprintf(&b, "%s — %d matches", res.Verb, len(res.Candidates))
 	last := lastToken(partial)
-	if lcp := longestCommonPrefix(tokens); len(lcp) > len(last) {
+	if lcp := LongestCommonPrefix(tokens); len(lcp) > len(last) {
 		fmt.Fprintf(&b, " (try %s %s…)", res.Verb, lcp)
 	}
 	b.WriteByte(':')
@@ -97,9 +97,9 @@ func lastToken(partial string) string {
 	return strings.ToLower(f[len(f)-1])
 }
 
-// longestCommonPrefix returns the longest prefix shared by all tokens
+// LongestCommonPrefix returns the longest prefix shared by all tokens
 // (case-insensitive), or "" when they diverge immediately.
-func longestCommonPrefix(tokens []string) string {
+func LongestCommonPrefix(tokens []string) string {
 	if len(tokens) == 0 {
 		return ""
 	}

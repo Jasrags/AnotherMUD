@@ -808,6 +808,11 @@ const (
 // so the reconnect path can re-enter it against the new connection.
 // Returns the reason for exit; teardown is dispatched by the caller.
 func pump(ctx context.Context, c conn.Connection, cfg Config, a *connActor, clk clock.Clock) pumpExit {
+	// Install the inbound (client→server) GMCP handler before the read
+	// loop — GMCP frames are processed inside c.Read, so the handler must
+	// be set first. No-op for a transport without GMCP. Covers both pump
+	// call sites (initial play + link-dead reattach).
+	installGmcpInbound(c, a, cfg)
 	for {
 		line, err := c.Read(ctx)
 		if err != nil {
@@ -854,49 +859,7 @@ func pump(ctx context.Context, c conn.Connection, cfg Config, a *connActor, clk 
 			return exitForced
 		}
 
-		env := command.Env{
-			World:                 cfg.World,
-			Broadcaster:           cfg.Manager,
-			Items:                 cfg.Items,
-			Placement:             cfg.Placement,
-			Contents:              cfg.Contents,
-			Slots:                 cfg.Slots,
-			Bus:                   cfg.Bus,
-			Properties:            cfg.Properties,
-			Rarity:                cfg.Rarity,
-			Essence:               cfg.Essence,
-			Stacking:              cfg.Stacking,
-			Locator:               managerLocator{cfg.Manager},
-			Disposition:           cfg.Disposition,
-			Combat:                cfg.Combat,
-			Flee:                  cfg.Flee,
-			ReloadScripts:         cfg.ReloadScripts,
-			Progression:           cfg.Progression,
-			Training:              cfg.Training,
-			Abilities:             cfg.Abilities,
-			Proficiency:           cfg.Proficiency,
-			ActionQueue:           cfg.ActionQueue,
-			Help:                  cfg.Help,
-			Quests:                cfg.Quests,
-			Currency:              cfg.Currency,
-			Shop:                  cfg.Shop,
-			Rest:                  cfg.Rest,
-			Consumable:            cfg.Consumable,
-			Notifications:         cfg.Notifications,
-			TellResolver:          cfg.TellResolver,
-			RoleTargetResolver:    cfg.RoleTargets,
-			GrantingRole:          cfg.GrantingRole,
-			AdminRole:             cfg.AdminRole,
-			Announcer:             cfg.Manager,
-			PlayerRoom:            PlayerRoomResolver{cfg.Manager},
-			ChatRegistry:          cfg.ChatRegistry,
-			ChatSubscribers:       cfg.ChatSubscribers,
-			ChatScrollbacks:       cfg.ChatScrollbacks,
-			Clock:                 cfg.Clock,
-			Ambience:              cfg.Ambience,
-			NowTick:               cfg.NowTick,
-			CorpseOwnershipWindow: cfg.CorpseOwnershipWindow,
-		}
+		env := commandEnv(cfg)
 		if err := cfg.Commands.Dispatch(ctx, env, a, line); err != nil {
 			if errors.Is(err, command.ErrQuit) {
 				return exitClientQuit

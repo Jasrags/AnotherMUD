@@ -149,6 +149,33 @@ func (r *Registry) Complete(partial string, rc ResolveContext, opts CompletionOp
 	}
 }
 
+// CompleteLine runs the completion query for actor on a partial input
+// line, building the actor's resolve context from env the way Dispatch
+// does. It is the entry point for surfaces that don't already hold a
+// Context — the GMCP completion handler (and char-mode later). The
+// dispatcher and the `complete`/`suggest` verbs call Complete directly.
+// isAdmin (admin-verb visibility in the actor's own completion) is derived
+// from the actor's role against env.AdminRole.
+func (r *Registry) CompleteLine(env Env, actor Actor, partial string) CompletionResult {
+	c := &Context{
+		Actor:     actor,
+		World:     env.World,
+		Items:     env.Items,
+		Placement: env.Placement,
+		Locator:   env.Locator,
+		registry:  r,
+	}
+	isAdmin := false
+	if h, ok := actor.(RoleHolder); ok {
+		role := env.AdminRole
+		if role == "" {
+			role = defaultAdminRole
+		}
+		isAdmin = h.HasRole(role)
+	}
+	return r.Complete(partial, c.BuildResolveContext(), CompletionOptions{IsAdmin: isAdmin})
+}
+
 // completeVerb returns matching verb candidates in the SAME priority
 // dispatch routes with (spec §3): exact match first, then ascending
 // registration order. Admin verbs appear only for admins. Both primary
