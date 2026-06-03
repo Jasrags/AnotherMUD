@@ -18,6 +18,28 @@ func TestSuggest_ListsArgCandidates(t *testing.T) {
 	}
 }
 
+// look (visible scope) and consider (entity scope) carry completion args
+// from the HandParsed sweep, so suggest lists their candidates too — no
+// per-verb wiring; suggest is generic over the completion query.
+func TestSuggest_LookAndConsider(t *testing.T) {
+	f := newConsiderFixture(t) // a village guard is in the room
+	a := newCombatActor("Alice", "p-1", f.room)
+	r := newRegistry(t)
+
+	dispatchActor(t, r, f.env(), a, "suggest look gu")
+	if got := a.lastLine(); !strings.Contains(got, "look guard") {
+		t.Errorf("suggest look gu = %q, want 'look guard'", got)
+	}
+	dispatchActor(t, r, f.env(), a, "suggest consider gu")
+	if got := a.lastLine(); !strings.Contains(got, "consider guard") {
+		t.Errorf("suggest consider gu = %q, want 'consider guard'", got)
+	}
+	dispatchActor(t, r, f.env(), a, "suggest con gu") // con = consider alias
+	if got := a.lastLine(); !strings.Contains(got, "guard") {
+		t.Errorf("suggest con gu (alias) = %q, want a guard suggestion", got)
+	}
+}
+
 func TestSuggest_NoArgGuidance(t *testing.T) {
 	f := newConsiderFixture(t)
 	a := newCombatActor("Alice", "p-1", f.room)
