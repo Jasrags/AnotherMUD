@@ -26,3 +26,6 @@ coverage.*
 
 # Generated analysis reports (codemap diffs, etc.)
 /.reports/
+
+# Nested unrelated project (separate embedded repo, not part of this module)
+/tapestry
