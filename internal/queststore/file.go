@@ -11,9 +11,10 @@ type questFile struct {
 }
 
 type activeQuestFile struct {
-	QuestID    string                  `yaml:"quest"`
-	Stage      int                     `yaml:"stage"`
-	Objectives []objectiveProgressFile `yaml:"objectives,omitempty"`
+	QuestID        string                  `yaml:"quest"`
+	Stage          int                     `yaml:"stage"`
+	Objectives     []objectiveProgressFile `yaml:"objectives,omitempty"`
+	AwaitingTurnIn bool                    `yaml:"awaiting_turn_in,omitempty"`
 }
 
 type objectiveProgressFile struct {
@@ -30,7 +31,7 @@ func toFile(s *quest.State) questFile {
 	}
 	out := questFile{Completed: append([]string(nil), s.Completed...)}
 	for _, a := range s.Active {
-		af := activeQuestFile{QuestID: a.QuestID, Stage: a.StageIndex}
+		af := activeQuestFile{QuestID: a.QuestID, Stage: a.StageIndex, AwaitingTurnIn: a.AwaitingTurnIn}
 		for _, o := range a.Objectives {
 			af.Objectives = append(af.Objectives, objectiveProgressFile{
 				ID: o.ObjectiveID, Current: o.Current, Required: o.Required,
@@ -45,7 +46,7 @@ func toFile(s *quest.State) questFile {
 func (f questFile) toState() *quest.State {
 	st := &quest.State{Completed: append([]string(nil), f.Completed...)}
 	for _, af := range f.Active {
-		aq := quest.ActiveQuest{QuestID: af.QuestID, StageIndex: af.Stage}
+		aq := quest.ActiveQuest{QuestID: af.QuestID, StageIndex: af.Stage, AwaitingTurnIn: af.AwaitingTurnIn}
 		for _, of := range af.Objectives {
 			aq.Objectives = append(aq.Objectives, quest.ObjectiveProgress{
 				ObjectiveID: of.ID, Current: of.Current, Required: of.Required,

@@ -1027,6 +1027,8 @@ func decodeQuest(path, ns, packDir string) (*quest.Definition, error) {
 		Name:           f.Name,
 		Classification: f.Classification,
 		Giver:          giver,
+		Offer:          f.Offer,
+		TurnIn:         f.TurnIn,
 		Repeatable:     f.Repeatable,
 		Abandonable:    abandonable,
 		Secret:         f.Secret,

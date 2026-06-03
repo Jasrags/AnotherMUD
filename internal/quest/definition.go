@@ -57,6 +57,8 @@ type Definition struct {
 	Name           string
 	Classification string // main / side / daily
 	Giver          string // giver template id (namespaced)
+	Offer          string // giver's pitch shown by `talk`; falls back to stage-0 description
+	TurnIn         bool   // completion requires returning to the giver (§4.3); false = auto-grant
 	Repeatable     bool
 	Abandonable    bool
 	Secret         bool

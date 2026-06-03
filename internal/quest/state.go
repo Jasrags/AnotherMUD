@@ -15,10 +15,18 @@ func (o ObjectiveProgress) Complete() bool { return o.Current >= o.Required }
 // ActiveQuest is a runtime record of a quest a player is working on
 // (§1): the quest id, the current stage index, and per-objective
 // progress for that stage.
+//
+// AwaitingTurnIn marks a turn-in quest (§4.3, def.TurnIn) whose final
+// stage's objectives are all done but whose rewards have not yet been
+// claimed: the quest stays Active in this state until the player returns
+// to the giver (the `talk` / TurnIn path), which dispatches the rewards
+// and moves it to completed. Auto-grant quests never enter this state —
+// they complete the instant the last objective lands.
 type ActiveQuest struct {
-	QuestID    string
-	StageIndex int
-	Objectives []ObjectiveProgress
+	QuestID        string
+	StageIndex     int
+	Objectives     []ObjectiveProgress
+	AwaitingTurnIn bool
 }
 
 // stageComplete reports whether every objective in the active stage is
@@ -97,9 +105,10 @@ func (s *State) clone() *State {
 	}
 	for i, a := range s.Active {
 		out.Active[i] = ActiveQuest{
-			QuestID:    a.QuestID,
-			StageIndex: a.StageIndex,
-			Objectives: append([]ObjectiveProgress(nil), a.Objectives...),
+			QuestID:        a.QuestID,
+			StageIndex:     a.StageIndex,
+			Objectives:     append([]ObjectiveProgress(nil), a.Objectives...),
+			AwaitingTurnIn: a.AwaitingTurnIn,
 		}
 	}
 	return out

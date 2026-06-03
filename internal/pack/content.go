@@ -544,6 +544,8 @@ type QuestFile struct {
 	Name           string           `yaml:"name,omitempty"`
 	Classification string           `yaml:"classification,omitempty"`
 	Giver          string           `yaml:"giver,omitempty"`
+	Offer          string           `yaml:"offer,omitempty"`
+	TurnIn         bool             `yaml:"turn_in,omitempty"`
 	Repeatable     bool             `yaml:"repeatable,omitempty"`
 	Abandonable    *bool            `yaml:"abandonable,omitempty"`
 	Secret         bool             `yaml:"secret,omitempty"`
