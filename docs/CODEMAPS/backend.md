@@ -6,7 +6,7 @@ The "backend" of a MUD = the tick loop, the event bus, and command dispatch into
 services. No HTTP routes — the route analog is `verb → handler → service → store`.
 
 ## Command dispatch (the "route table")
-`internal/command` (8.7k LOC, largest pkg). Player line → `Registry.Dispatch`:
+`internal/command` (8.9k LOC, largest pkg). Player line → `Registry.Dispatch`:
 ```
 raw line ─▶ Fields() ─▶ resolveRegistration(verb)   (exact match, else
                          lowest-registration-order prefix; admin gate)

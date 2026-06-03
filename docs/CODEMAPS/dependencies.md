@@ -35,7 +35,8 @@ in-process tick loop / event bus.
 ## Config (env, all `ANOTHERMUD_*`)
 `SAVE_DIR`, `CONTENT_DIR`, `ADDR`, `WS_ADDR`, `START_ROOM`, `TICK_INTERVAL`,
 `AUTOSAVE_INTERVAL`, `COMBAT_CADENCE`, `FLEE_COOLDOWN`, `IDLE_SWEEP_INTERVAL`,
-`LINKDEAD_*`, `CORPSE_LIFETIME`/`_OWNERSHIP_WINDOW`, `LOG_FORMAT`/`_LEVEL`, `WS_*`.
+`SUSTENANCE_DRAIN_INTERVAL`/`_AMOUNT`, `LINKDEAD_*`,
+`CORPSE_LIFETIME`/`_OWNERSHIP_WINDOW`, `LOG_FORMAT`/`_LEVEL`, `WS_*`.
 
 ## Build / test
 `go build ./...` · `go run ./cmd/anothermud` (telnet :4000) ·
