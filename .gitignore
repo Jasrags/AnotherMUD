@@ -23,3 +23,6 @@ coverage.*
 
 # Persistence root (default ANOTHERMUD_SAVE_DIR)
 /saves/
+
+# Generated analysis reports (codemap diffs, etc.)
+/.reports/
