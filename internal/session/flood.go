@@ -32,6 +32,21 @@ func DefaultFloodConfig() FloodConfig {
 	}
 }
 
+// gmcpFloodConfig derives the inbound-GMCP rate limit from the command
+// flood policy. Inbound GMCP (e.g. tab-completion firing per keystroke) is
+// lighter and more frequent than commands, so it gets a higher rate. Abuse
+// is only ever DROPPED, never disconnected (StrikeThreshold 0) — a client
+// hammering Tab keeps its command channel; only its excess GMCP is shed. A
+// zero command config (the test default) yields a disabled gate, so tests
+// see no throttling.
+func gmcpFloodConfig(cmd FloodConfig) FloodConfig {
+	return FloodConfig{
+		CommandsPerSecond: cmd.CommandsPerSecond * 2,
+		BurstSize:         cmd.BurstSize * 2,
+		StrikeThreshold:   0,
+	}
+}
+
 // floodDecision is the result of evaluating one input against the gate.
 type floodDecision int
 

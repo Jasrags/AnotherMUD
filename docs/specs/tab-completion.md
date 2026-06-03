@@ -490,6 +490,13 @@ actor (admin-verb visibility follows the actor's own role) and replies with
 `Input.Complete.List`. Request/response, automatic for any client that sends the
 request (`§12`). No state change; safe to spam as the player types.
 
+**Rate limit.** Inbound GMCP is throttled per connection by a token bucket
+separate from the command flood gate (derived at 2× the command rate, since
+completion can fire per keystroke). Over-rate frames are **dropped silently** —
+GMCP abuse never disconnects a client (its command channel keeps its own gate);
+it only sheds excess GMCP. The limit covers every inbound package, not just
+completion. Pre-login frames are dropped (the handler is installed after login).
+
 ### Acceptance criteria
 
 - [ ] An inbound `Input.Complete {line}` on telnet OR WebSocket produces one

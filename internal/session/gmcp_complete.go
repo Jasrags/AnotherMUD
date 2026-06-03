@@ -72,6 +72,16 @@ func installGmcpInbound(c conn.Connection, a *connActor, cfg Config) {
 		return
 	}
 	gc.SetGmcpHandler(func(ctx context.Context, pkg string, payload []byte) {
+		// Per-connection inbound-GMCP rate limit (separate budget from the
+		// command flood gate). Over-rate frames are dropped silently — the
+		// completion assist is best-effort, and abuse only sheds GMCP, never
+		// disconnects (the command channel keeps its own gate). Applies to
+		// every inbound package, so the whole foundation is throttled.
+		if a.gmcpFlood != nil {
+			if dec, _ := a.gmcpFlood.Check(); dec != floodAllow {
+				return
+			}
+		}
 		switch pkg {
 		case gmcp.PackageCompleteRequest:
 			handleCompleteRequest(ctx, gc, cfg, a, payload)

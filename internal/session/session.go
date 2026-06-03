@@ -476,6 +476,7 @@ func run(ctx context.Context, c conn.Connection, cfg Config) error {
 		// would derive real numbers for max HP here are M8.3/M8.4.
 		vitals:      restorePlayerVitals(loaded.Player.Vitals),
 		flood:       newFloodGate(floodCfg, clk),
+		gmcpFlood:   newFloodGate(gmcpFloodConfig(floodCfg), clk),
 		floodCfg:    &floodCfg,
 		clk:         clk,
 		lastInputAt: clk.Now(),
@@ -1738,6 +1739,7 @@ type connActor struct {
 	saveGen       uint64
 	manager       *Manager
 	flood         *floodGate
+	gmcpFlood     *floodGate    // inbound-GMCP rate limit, separate from the command gate
 	floodCfg      *FloodConfig // retained so reattach() can rebuild a fresh bucket
 	clk           clock.Clock  // retained for the same reason
 	lastInputAt   time.Time

@@ -18,6 +18,40 @@ func newTestGate() (*floodGate, *clock.ManualClock) {
 	return newFloodGate(cfg, mc), mc
 }
 
+// The inbound-GMCP gate allows a burst, then DROPS over-rate frames, and
+// NEVER disconnects (StrikeThreshold 0) — a Tab-spamming client keeps its
+// command channel; only its excess GMCP is shed.
+func TestGmcpFloodGate_BurstThenDropNeverDisconnects(t *testing.T) {
+	mc := clock.NewManual(time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC))
+	g := newFloodGate(gmcpFloodConfig(DefaultFloodConfig()), mc)
+	burst := int(DefaultFloodConfig().BurstSize * 2) // gmcp burst = 2× command
+
+	for i := 0; i < burst; i++ {
+		if d, _ := g.Check(); d != floodAllow {
+			t.Fatalf("frame %d/%d dropped within burst", i, burst)
+		}
+	}
+	// Past the burst with no time advance: dropped, not disconnected.
+	if d, _ := g.Check(); d != floodDrop {
+		t.Errorf("over-burst decision = %v, want floodDrop", d)
+	}
+	// Keep spamming: never escalates to disconnect.
+	for i := 0; i < 100; i++ {
+		if d, _ := g.Check(); d == floodDisconnect {
+			t.Fatalf("GMCP gate disconnected at spam %d (StrikeThreshold must be 0)", i)
+		}
+	}
+}
+
+// A zero command flood config (the test default) yields a disabled GMCP
+// gate, so tests aren't throttled.
+func TestGmcpFloodConfig_DisabledWhenCommandFloodZero(t *testing.T) {
+	g := newFloodGate(gmcpFloodConfig(FloodConfig{}), clock.NewManual(time.Unix(0, 0)))
+	if d, _ := g.Check(); d != floodAllow {
+		t.Errorf("zero command config should disable the GMCP gate, got %v", d)
+	}
+}
+
 func TestFloodGate_DisabledAlwaysAllows(t *testing.T) {
 	g := newFloodGate(FloodConfig{}, clock.NewManual(time.Unix(0, 0)))
 	for i := 0; i < 50; i++ {
