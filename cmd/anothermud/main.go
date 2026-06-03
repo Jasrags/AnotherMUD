@@ -16,6 +16,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strconv"
 	"strings"
 	"sync"
 	"syscall"
@@ -398,7 +399,16 @@ func run() error {
 	// handler and the session.Config seed path (below) share one
 	// instance. Sustenance emits no bus events (§7), so unlike currency
 	// it needs no sink bridge.
-	sustenanceSvc := economy.NewSustenanceService(economy.DefaultSustenanceConfig())
+	// Override the §4.4 drain knobs from env (testing/tuning) while
+	// keeping the tier thresholds + regen multipliers at their defaults.
+	// The tick handler below reads Config().DrainCadence, so the override
+	// flows through to the registration cadence automatically.
+	susCfg := economy.DefaultSustenanceConfig()
+	susCfg.DrainCadence = cadenceTicks(cfg.TickInterval, cfg.SustenanceDrainInterval)
+	if cfg.SustenanceDrainAmount > 0 {
+		susCfg.DrainAmount = cfg.SustenanceDrainAmount
+	}
+	sustenanceSvc := economy.NewSustenanceService(susCfg)
 	if err := loop.Register("sustenance-drain", sustenanceSvc.Config().DrainCadence, func(ctx context.Context, n uint64) {
 		mgr.DrainSustenance(ctx, sustenanceSvc, n)
 	}); err != nil {
@@ -1757,6 +1767,12 @@ type config struct {
 	AutosaveInterval      time.Duration
 	IdleSweepInterval     time.Duration
 	LinkDeadSweepInterval time.Duration
+	// SustenanceDrainInterval / SustenanceDrainAmount tune the §4.4
+	// hunger drain (economy-survival). Interval is how often the pool
+	// drops; Amount is how much it drops each time. Defaults reproduce
+	// DefaultSustenanceConfig (−1 every 30s at a 100ms tick = cadence 300).
+	SustenanceDrainInterval time.Duration
+	SustenanceDrainAmount   int
 	ContentDir            string
 	SaveDir               string
 	StartRoom             world.RoomID
@@ -1802,9 +1818,11 @@ func loadConfig() config {
 		CorpseOwnershipWindow: envDurationOr("ANOTHERMUD_CORPSE_OWNERSHIP_WINDOW", 60*time.Second),
 		CorpseLifetime:        envDurationOr("ANOTHERMUD_CORPSE_LIFETIME", 5*time.Minute),
 		CorpseDecayInterval:   envDurationOr("ANOTHERMUD_CORPSE_DECAY_INTERVAL", 3*time.Second),
-		AutosaveInterval:      envDurationOr("ANOTHERMUD_AUTOSAVE_INTERVAL", 30*time.Second),
-		IdleSweepInterval:     envDurationOr("ANOTHERMUD_IDLE_SWEEP_INTERVAL", 30*time.Second),
-		LinkDeadSweepInterval: envDurationOr("ANOTHERMUD_LINKDEAD_SWEEP_INTERVAL", 30*time.Second),
+		AutosaveInterval:        envDurationOr("ANOTHERMUD_AUTOSAVE_INTERVAL", 30*time.Second),
+		IdleSweepInterval:       envDurationOr("ANOTHERMUD_IDLE_SWEEP_INTERVAL", 30*time.Second),
+		LinkDeadSweepInterval:   envDurationOr("ANOTHERMUD_LINKDEAD_SWEEP_INTERVAL", 30*time.Second),
+		SustenanceDrainInterval: envDurationOr("ANOTHERMUD_SUSTENANCE_DRAIN_INTERVAL", 30*time.Second),
+		SustenanceDrainAmount:   envIntOr("ANOTHERMUD_SUSTENANCE_DRAIN_AMOUNT", 1),
 		ContentDir:            envOr("ANOTHERMUD_CONTENT_DIR", "./content"),
 		SaveDir:               envOr("ANOTHERMUD_SAVE_DIR", "./saves"),
 		StartRoom:             world.RoomID(envOr("ANOTHERMUD_START_ROOM", "tapestry-core:town-square")),
@@ -1840,6 +1858,17 @@ func envDurationOr(key string, def time.Duration) time.Duration {
 func envOr(key, def string) string {
 	if v, ok := os.LookupEnv(key); ok && v != "" {
 		return v
+	}
+	return def
+}
+
+// envIntOr returns the integer value of key, or def when unset or
+// unparseable.
+func envIntOr(key string, def int) int {
+	if v, ok := os.LookupEnv(key); ok && v != "" {
+		if n, err := strconv.Atoi(strings.TrimSpace(v)); err == nil {
+			return n
+		}
 	}
 	return def
 }

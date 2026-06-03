@@ -202,7 +202,10 @@ In **Market Row** (merchant):
 - [x] `sell cap` — gold increases, item leaves inventory.
 - [x] `gold` — balance reflects the trades.
 - [x] `eat ration` / `drink waterskin` — sustenance restores (watch over time;
-      sustenance slowly drains).
+      sustenance slowly drains). Food and drink fill **one shared sustenance
+      pool** (0–100; hunger/thirst aren't separate yet — see BACKLOG §2). Drain
+      defaults to −1 every 30s; to slow it for testing launch with
+      `ANOTHERMUD_SUSTENANCE_DRAIN_INTERVAL=5m` (or bump `_DRAIN_AMOUNT`).
 - [x] `use healing draught` (or `drink`) — consumable applies its effect.
 - [x] `rest` then `sleep` then `wake` (`stand`) — rest states change; HP/vitals
       regen faster while resting (Town Square has a small regen bonus).
