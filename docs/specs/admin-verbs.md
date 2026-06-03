@@ -186,7 +186,7 @@ below are the conventional baseline.
 | `set` | Mutate one field on a target (§4). |
 | `teleport` (`goto`) | Move the actor to a target room or to a player; or, with a target, move that player. Publishes the normal room-change events for each moved entity. |
 | `announce` | Broadcast a message to every connected session, attributed as an administrative announcement, distinct from any channel. |
-| `restore` | Set a target's vitals to full. The mercy verb. |
+| `restore` | Set a target's vitals to full and top off its sustenance (hunger/thirst) when it carries one. The mercy verb. |
 | `purge` | Remove a non-player entity (item or npc) from the world, untracking it. Never targets a player. |
 | `reload` | Re-discover and hot-swap pack scripts (`scripting-and-packs` hot-reload). Now admin-gated (§2). |
 
@@ -201,8 +201,8 @@ observers, GMCP, and the prompt all update as usual.
 - [ ] `teleport` moves the actor (or a named player) and fires the normal
       room-change events exactly once per moved entity.
 - [ ] `announce` reaches every connected session and is attributable.
-- [ ] `restore` fills vitals; `purge` removes a non-player and refuses a
-      player target.
+- [ ] `restore` fills vitals and (for a target with a sustenance pool) tops
+      off hunger/thirst; `purge` removes a non-player and refuses a player target.
 - [ ] Each baseline verb is refused for a non-admin per §2.
 
 ---

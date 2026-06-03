@@ -279,7 +279,7 @@ while closed, and the two sides stay in sync.
 - [x] `open down` (or `open oak`) — "You open a sturdy oak door."; `down`
       now moves you into the **Forge Cellar**.
 - [x] Back in the Forge, `close down` — re-closes it; `down` is blocked again.
-- [ ] `lock down` (or `lock oak`) on the plain door — "There's no lock on a
+- [x] `lock down` (or `lock oak`) on the plain door — "There's no lock on a
       sturdy oak door." A keyless door is close-only, not lockable; same for
       `unlock`. (In the Cellar, address a specific door with `up`/`oak` or
       `down`/`iron` — `door` alone is ambiguous when two doors are present.)
@@ -300,23 +300,23 @@ while closed, and the two sides stay in sync.
 
 ## 13. Recall
 
-- [ ] `recall set` (in Town Square) — binds your recall point.
-- [ ] Move away (e.g. to the Meadow), then `recall` — returns you to the bound
+- [x] `recall set` (in Town Square) — binds your recall point.
+- [x] Move away (e.g. to the Meadow), then `recall` — returns you to the bound
       room.
 
 ## 14. Weather & time
 
-- [ ] Stay in an outdoor room (Square/Gate/Meadow) and `look` over time — a
+- [x] Stay in an outdoor room (Square/Gate/Meadow) and `look` over time — a
       weather/time ambience line appears and changes (temperate zone).
-- [ ] In the **Forge** (indoors), no weather ambience appears.
+- [x] In the **Forge** (indoors), no weather ambience appears.
 
 ## 15. Help & UI
 
-- [ ] `help` — lists command categories/topics.
-- [ ] `help get` — shows the `get` topic with syntax.
-- [ ] `prompt` — shows your status prompt; `prompt <template>` changes it;
+- [x] `help` — lists command categories/topics.
+- [x] `help get` — shows the `get` topic with syntax.
+- [x] `prompt` — shows your status prompt; `prompt <template>` changes it;
       `prompt default` restores it.
-- [ ] `color off` / `color on` — toggles ANSI color in output.
+- [x] `color off` / `color on` — toggles ANSI color in output.
 
 ## 16. Persistence
 
@@ -328,7 +328,8 @@ while closed, and the two sides stay in sync.
 ## 17. Admin verbs (Jasrags — already admin)
 
 - [ ] `inspect bandit` (in the Meadow) — full diagnostic record of the target.
-- [ ] `restore` / `restore Bob` — refills vitals to full.
+- [ ] `restore` / `restore Bob` — refills vitals to full **and** tops off
+      sustenance (hunger/thirst); the reply notes "fully fed" for a player target.
 - [ ] `set vital hp <target> 1` — sets a field on a target (then `restore`).
 - [ ] `teleport meadow` (`goto meadow`) — jump to a room by id; `goto Bob`
       jumps to a player.

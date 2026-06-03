@@ -166,6 +166,21 @@ old five-theme partition left uncovered.
   *requires* char-mode — the server sees nothing until Enter); its own larger proposal.
   Also unsettled: presentation policy (cycle vs. longest-common-prefix + list) and opt-in
   vs. automatic (`proposal §7`). Pre-decisions belong with each surface, not Phase 0.
+- **Survival depth — split sustenance into hunger + thirst** — today sustenance
+  is a **single pool** `[0,100]` (`economy-survival §4.2`, "a hunger-like pool");
+  both `eat` (food) and `drink` refill the *same* value, and `consume_method`
+  (`eat`/`drink`/`use`) is only verb-routing/flavor, not a second resource. ⚠️
+  **Greenfield — deliberate single-pool design today; no thirst meter exists.**
+  The desire: make **thirst a distinct survival pressure** — two pools (hunger fed
+  by food, thirst fed by drink), each with its own drain rate, tiers, and
+  regen/penalty hooks, surfaced in the prompt, persisted (player save version
+  bump), and reflected by `restore`. Pre-decisions: do both gate regen or does
+  thirst carry a different penalty (e.g. movement vs. HP regen); do drink items
+  stop feeding hunger entirely or partially; new tier vocabulary
+  (parched/dehydrated); whether this rides a broader survival slice (temperature,
+  fatigue) — best decided as one "survival v2" design pass. Reshapes the single
+  `sustenance` pool that `restore` and the drain knob currently operate on. Needs
+  a spec slice on `economy-survival §4` before building.
 - **Mana / Movement current pools + regen** — the prompt's `MA`/`MV` columns
   (`render.DefaultPromptTemplate`, ui-rendering-help §7.1) render **stat-derived
   MAX only**: `session/prompt.go` builds `PromptVitals` with `Mana == MaxMana` and

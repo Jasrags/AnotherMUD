@@ -4,8 +4,39 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/Jasrags/AnotherMUD/internal/economy"
 	"github.com/Jasrags/AnotherMUD/internal/eventbus"
 )
+
+// adminCombatActor is a combatActor (Combatant + the embedded testActor's
+// economy.SustenanceEntity) that also holds the admin role, so the
+// self-restore path can exercise both the HP and sustenance refill.
+type adminCombatActor struct {
+	*combatActor
+}
+
+func (a *adminCombatActor) HasRole(role string) bool { return strings.EqualFold(role, "admin") }
+
+// restore tops off the sustenance pool (hunger/thirst), not just HP, for
+// a target that carries one (a player). Mob restores stay HP-only.
+func TestRestore_AlsoRefillsSustenance(t *testing.T) {
+	f := newConsiderFixture(t)
+	actor := &adminCombatActor{combatActor: newCombatActor("Maerys", "p-admin", nil)}
+	actor.Vitals().ApplyDamage(20) // wound below max
+	actor.SetSustenance(15)        // hungry
+
+	dispatchRole(t, f.env(), actor, "restore") // no arg → self
+
+	if cur, max := actor.Vitals().Snapshot(); cur != max {
+		t.Errorf("HP = %d/%d, want restored to full", cur, max)
+	}
+	if got := actor.Sustenance(); got != economy.MaxSustenance {
+		t.Errorf("sustenance = %d, want %d (fully fed)", got, economy.MaxSustenance)
+	}
+	if !strings.Contains(actor.lastLine(), "fully fed") {
+		t.Errorf("confirmation = %q, want it to mention 'fully fed'", actor.lastLine())
+	}
+}
 
 // An admin restores a wounded mob: vitals return to full and one
 // admin.action fires with the mob as target.
