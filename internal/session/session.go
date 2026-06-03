@@ -814,6 +814,7 @@ func pump(ctx context.Context, c conn.Connection, cfg Config, a *connActor, clk 
 	// be set first. No-op for a transport without GMCP. Covers both pump
 	// call sites (initial play + link-dead reattach).
 	installGmcpInbound(c, a, cfg)
+	installCharMode(ctx, c, a, cfg)
 	for {
 		line, err := c.Read(ctx)
 		if err != nil {

@@ -75,6 +75,11 @@ func RegisterBuiltins(r *Registry) error {
 		// completion without a TAB key, usable on raw telnet. Same query as
 		// the admin `complete` debug verb, rendered for players.
 		{Keyword: "suggest", Handler: SuggestHandler, Brief: "List completions for a partial command.", Syntax: []string{"suggest <partial command>"}},
+
+		// tabcomplete (tab-completion Phase 2): toggle server-side TAB
+		// completion (char-mode line editing). Default-on for raw telnet;
+		// unavailable on GMCP/WebSocket clients (they complete client-side).
+		{Keyword: "tabcomplete", Handler: TabCompleteHandler, Brief: "Toggle server-side TAB completion (raw telnet).", Syntax: []string{"tabcomplete [on|off]"}},
 		// kill is hand-parsed (the self-check must run BEFORE resolving,
 		// and the entity arg excludes self). It declares its entity target
 		// + HandParsed so completion enumerates room mobs/players, while

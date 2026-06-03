@@ -106,6 +106,7 @@ func (a *connActor) reattach(newConn conn.Connection, now time.Time) bool {
 	// player either.
 	if a.floodCfg != nil {
 		a.flood = newFloodGate(*a.floodCfg, a.clk)
+		a.gmcpFlood = newFloodGate(gmcpFloodConfig(*a.floodCfg), a.clk)
 	}
 	// M16.4a follow-up: clear the GMCP Char.Vitals shadow so the
 	// next gmcp-vitals-flush tick emits a baseline frame to the
