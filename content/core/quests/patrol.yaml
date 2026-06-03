@@ -4,6 +4,16 @@ id: gate-patrol
 name: Gate Patrol
 classification: side
 giver: training-master
+# The giver's pitch, shown when a player `talk`s to the training master
+# (quests.md §3 discovery).
+offer: >-
+  "We've had trouble out past the gate. Walk the village gate, then deal
+  with whatever's lurking in the meadow — come back and I'll see you
+  rewarded."
+# Turn-in quest (quests.md §4.3): the objectives complete in the world,
+# but the reward is claimed by returning to the training master and
+# `talk`ing to them — not auto-granted on the killing blow.
+turn_in: true
 abandonable: true
 prerequisite:
   min_level: 1

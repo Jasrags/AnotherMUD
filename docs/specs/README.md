@@ -76,7 +76,9 @@ The verbs players use and the systems that resolve them.
   autoloot toggle, and corpse decay. Consumes combat's mob-killed
   signal + the spawn-time loot of mobs-ai-spawning §6.3.
 - [quests](quests.md) — definitions, prerequisites, stages,
-  objectives, rewards, auto-tracking watcher, markers.
+  objectives, rewards (auto-grant or turn-in at the giver),
+  giver interaction for discovery/turn-in, auto-tracking watcher,
+  markers.
 - [economy-survival](economy-survival.md) — currency, shops,
   sustenance, rest, consumables.
 - [crafting-and-cooking](crafting-and-cooking.md) — recipes,

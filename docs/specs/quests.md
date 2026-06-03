@@ -130,8 +130,15 @@ A definition MAY carry:
 
 - A display name and a classification keyword (e.g. main / side /
   daily).
-- A giver template id (used by markers and by certain content
-  flows).
+- A giver template id (used by markers, by the giver-interaction
+  surface — see §3.5 — and by certain content flows).
+- An offer string: the giver's pitch, surfaced when a player
+  interacts with the giver to discover the quest (§3.5). Optional;
+  a renderer may fall back to the first stage's description.
+- A turn-in flag. When set, completing the final objective does
+  NOT grant the reward; instead the quest parks awaiting turn-in
+  and the reward is claimed by returning to the giver (§4.3).
+  Default: not set (rewards auto-grant on completion).
 - Repeatable, abandonable, and secret flags. Defaults: not
   repeatable, abandonable, not secret.
 - A prerequisite block (§3.2). Defaults: no prerequisites.
@@ -257,6 +264,31 @@ only that:
       acceptance.
 - [ ] State is persisted after acceptance.
 
+### 3.5 Giver interaction (discovery and turn-in)
+
+Markers (§8) hint that a giver is relevant, but a player also needs
+a way to *learn what a giver offers* without already knowing the
+quest's name, and to *claim* a turn-in quest's reward. A single
+giver-interaction operation serves both, keyed on a giver the
+player is co-located with:
+
+- **Offers.** Query the non-secret quests the giver can offer this
+  player right now — those the player is eligible to accept (not
+  already active, not completed unless repeatable, prerequisites
+  met). The active-quest cap is NOT applied to the offer list; an
+  over-cap player still sees the offer and the cap is enforced when
+  they accept. Each offer carries the quest's display name and its
+  offer pitch (§2.3), so the surface can present it and tell the
+  player how to accept.
+- **Turn-in.** For each of the player's awaiting-turn-in quests
+  whose giver is this NPC, run turn-in (§4.3a) — the completion
+  banner and reward dispatch follow the normal completion path.
+
+How this is surfaced to the player (a `talk`/`ask` verb, dialogue,
+etc.) is presentation policy and outside this spec; the required
+behavior is that interacting with a giver both reveals its eligible
+offers and claims any of the player's turn-ins due at that giver.
+
 ---
 
 ## 4. Progression
@@ -300,7 +332,21 @@ initial state).
 
 ### 4.3 Complete a quest
 
-On completion:
+When the final stage's objectives all complete, the definition's
+**turn-in flag** decides what happens:
+
+- **Auto-grant (default, flag unset):** the quest completes
+  immediately — proceed with the completion steps below.
+- **Turn-in (flag set):** the quest does NOT complete yet. Instead
+  it stays on the active list, marked **awaiting turn-in**, with no
+  reward dispatched. The system emits `quest ready to turn in`
+  (carrying the quest id and the giver template id) and persists.
+  The reward is granted later by the **turn-in operation** (§4.3a),
+  triggered when the player returns to the giver. A quest whose
+  definition can't be resolved cannot declare turn-in, so it
+  auto-grants.
+
+On completion (auto-grant, or turn-in once claimed):
 
 1. Remove the active record from the player's active list.
 2. Append the quest id to the player's completed set. Completion
@@ -323,6 +369,25 @@ play). If the cache miss happens at completion time (e.g. quest
 completed by a service event before the player ever accepted
 anything from this process), reward dispatch is silently skipped
 but the event is still emitted.
+
+### 4.3a Turn-in
+
+`Turn in(player, questId)` claims an awaiting-turn-in quest's
+reward and completes it. It MUST:
+
+1. Fail (not found) if the quest definition is unknown.
+2. Fail (not active) if the player has no active record for it.
+3. Fail (not ready) if the record is not marked awaiting turn-in
+   (objectives still outstanding, or it is an auto-grant quest that
+   never parks here).
+4. Otherwise run the completion steps of §4.3 (dispatch reward,
+   record completed, emit `quest completed`, persist).
+
+The operation is **room-agnostic**: it does NOT itself verify the
+player is standing with the giver. The interaction surface (§3.5)
+performs that check — it only calls turn-in for a quest whose giver
+the player is currently talking to. This keeps the quest service
+free of world/room knowledge.
 
 ### 4.4 Advance by predicate
 
@@ -628,7 +693,8 @@ The feature publishes at least these events.
 | quest started | a quest was accepted (§3.1) |
 | quest objective advanced | an objective's progress changed (§4.1) |
 | quest stage advanced | the active stage moved forward (§4.2) |
-| quest completed | the final stage's objectives completed (§4.3) |
+| quest ready to turn in | a turn-in quest's final objectives completed; reward pending return to the giver (§4.3) |
+| quest completed | the quest completed and its reward dispatched — immediately for auto-grant quests, on turn-in for turn-in quests (§4.3 / §4.3a) |
 | quest abandoned | a player abandoned a quest (§4.5) |
 
 The quest watcher consumes external events (see §7.1) but does
