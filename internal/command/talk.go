@@ -48,40 +48,53 @@ func TalkHandler(ctx context.Context, c *Context) error {
 	}
 	giverID := string(npc.TemplateID())
 
-	// 1) Claim ready turn-ins at this giver. The notifier writes the
-	//    completion banner during TurnIn, so we only count here.
-	turnedIn := 0
-	if snap := c.Quests.Snapshot(c.Actor.PlayerID()); snap != nil {
-		for i := range snap.Active {
-			aq := snap.Active[i]
-			if !aq.AwaitingTurnIn {
-				continue
-			}
-			def, ok := c.Quests.Definition(aq.QuestID)
-			if !ok || def.Giver != giverID {
-				continue
-			}
-			if r := c.Quests.TurnIn(player, aq.QuestID); r.Status == quest.TurnedIn {
-				turnedIn++
-			}
-		}
-	}
-
-	// 2) Offers this giver can make the player right now.
+	turnedIn := claimTurnInsAt(c, player, giverID)
 	offers := c.Quests.OffersFrom(player, giverID)
 
-	if turnedIn == 0 && len(offers) == 0 {
+	switch {
+	case turnedIn == 0 && len(offers) == 0:
 		return c.Actor.Write(ctx, fmt.Sprintf("%s has nothing for you right now.", capitalize(npc.Name())))
-	}
-	if len(offers) == 0 {
-		// Only turn-ins happened; the notifier already messaged. Add a
-		// gentle close so the player isn't left without a reply on the
-		// `talk` they typed.
+	case len(offers) == 0:
+		// Only turn-ins happened; the notifier already wrote the completion
+		// banner. Add a gentle close so the `talk` isn't left unanswered.
 		return c.Actor.Write(ctx, fmt.Sprintf("%s thanks you.", capitalize(npc.Name())))
+	default:
+		return c.Actor.Write(ctx, renderOffers(npc.Name(), offers))
 	}
+}
 
+// claimTurnInsAt turns in every quest of the player's that is ready to
+// claim at the giver (template id giverID), returning how many were
+// claimed. The quest notifier writes each completion banner during
+// TurnIn, so callers only need the count. Iterates a state snapshot
+// (a detached clone) so mutating the live state via TurnIn is safe.
+func claimTurnInsAt(c *Context, player quest.Player, giverID string) int {
+	snap := c.Quests.Snapshot(c.Actor.PlayerID())
+	if snap == nil {
+		return 0
+	}
+	claimed := 0
+	for i := range snap.Active {
+		aq := snap.Active[i]
+		if !aq.AwaitingTurnIn {
+			continue
+		}
+		def, ok := c.Quests.Definition(aq.QuestID)
+		if !ok || def.Giver != giverID {
+			continue
+		}
+		if r := c.Quests.TurnIn(player, aq.QuestID); r.Status == quest.TurnedIn {
+			claimed++
+		}
+	}
+	return claimed
+}
+
+// renderOffers builds the "<npc> offers:" block — one entry per offer
+// with its pitch and the `accept <name>` line to take it.
+func renderOffers(npcName string, offers []quest.Offer) string {
 	var b strings.Builder
-	fmt.Fprintf(&b, "<subtle>%s offers:</subtle>", npc.Name())
+	fmt.Fprintf(&b, "<subtle>%s offers:</subtle>", npcName)
 	for _, o := range offers {
 		fmt.Fprintf(&b, "\r\n  <title>%s</title>", o.Name)
 		if o.Pitch != "" {
@@ -89,5 +102,5 @@ func TalkHandler(ctx context.Context, c *Context) error {
 		}
 		fmt.Fprintf(&b, "\r\n    <good>accept %s</good>", o.Name)
 	}
-	return c.Actor.Write(ctx, b.String())
+	return b.String()
 }
