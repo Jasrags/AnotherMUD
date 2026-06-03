@@ -11,6 +11,8 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"strings"
+	"sync"
 
 	"github.com/coder/websocket"
 
@@ -44,6 +46,12 @@ type envelope struct {
 type Conn struct {
 	id string
 	ws *websocket.Conn
+
+	// gmcpHandler dispatches inbound (client→server) GMCP frames. Set via
+	// SetGmcpHandler before the read loop starts; read under hmu since the
+	// GmcpConn contract doesn't pin when it's installed.
+	hmu         sync.Mutex
+	gmcpHandler conn.GmcpHandler
 }
 
 // New wraps a freshly-accepted websocket.Conn. The caller (the
@@ -91,12 +99,15 @@ func (c *Conn) Read(ctx context.Context) (string, error) {
 				continue
 			}
 			return s, nil
-		case "text", "gmcp":
-			// `text` is server→client only; client `text` is
-			// silently ignored. Inbound `gmcp` handling (Core.
-			// Supports etc.) is out of M16.5 scope; WebSocket GMCP
-			// is always supported per §5.2 so no subscription
-			// tracking is needed.
+		case "gmcp":
+			// Inbound GMCP: dispatch non-Core.Supports packages to the
+			// installed handler (mirrors telnet's handleSubneg). WS GMCP
+			// is always active (§5.2), so there's no subscription set to
+			// track — Core.Supports.* frames are simply ignored.
+			c.dispatchInboundGmcp(ctx, env.Package, env.Data)
+			continue
+		case "text":
+			// `text` is server→client only; client `text` is ignored.
 			continue
 		default:
 			// Unknown type — silent drop per §6.1.
@@ -150,6 +161,30 @@ func (c *Conn) ColorTier() render.ColorTier { return render.ColorTierTrueColor }
 // treats every package as supported (§5.2); the engine emits
 // every package and the client filters client-side.
 func (c *Conn) SupportsPackage(_ string) bool { return true }
+
+// SetGmcpHandler installs the inbound GMCP callback (conn.GmcpConn). Set
+// before the read loop starts; nil clears it.
+func (c *Conn) SetGmcpHandler(h conn.GmcpHandler) {
+	c.hmu.Lock()
+	c.gmcpHandler = h
+	c.hmu.Unlock()
+}
+
+// dispatchInboundGmcp routes one inbound GMCP frame to the handler,
+// skipping Core.Supports.* (WS GMCP is always active, so there's no
+// subscription set to maintain). Runs on the read goroutine.
+func (c *Conn) dispatchInboundGmcp(ctx context.Context, pkg string, data []byte) {
+	if pkg == "" || strings.HasPrefix(pkg, "Core.Supports") {
+		return
+	}
+	c.hmu.Lock()
+	h := c.gmcpHandler
+	c.hmu.Unlock()
+	if h == nil {
+		return
+	}
+	h(ctx, pkg, data)
+}
 
 // SendGmcp implements the gmcpSender interface. Ships one
 // `{type:"gmcp"}` text frame carrying the package name + the

@@ -10,6 +10,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/Jasrags/AnotherMUD/internal/conn"
 	"github.com/Jasrags/AnotherMUD/internal/logging"
 )
 
@@ -32,7 +33,10 @@ const maxSupportsEntries = 256
 // the raw UTF-8 JSON bytes that followed the first space in the
 // frame; absent payload arrives as nil. Handlers MUST NOT mutate
 // payload (the negotiator reuses its subneg buffer).
-type GmcpHandler func(ctx context.Context, pkg string, payload []byte)
+//
+// Aliased to conn.GmcpHandler so *Conn satisfies conn.GmcpConn (the
+// session layer installs the handler through that interface).
+type GmcpHandler = conn.GmcpHandler
 
 // gmcpState is the per-connection GMCP machinery. Mutated by the
 // negotiator (single-goroutine read loop) and by SetGmcpHandler /

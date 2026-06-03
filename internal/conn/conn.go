@@ -44,3 +44,27 @@ type Connection interface {
 	// Close releases transport resources. Safe to call more than once.
 	Close() error
 }
+
+// GmcpHandler receives an inbound (client→server) GMCP package other than
+// Core.Supports.* (which transports handle internally). pkg is the dotted
+// package name; payload is the raw JSON body (may be empty). The handler
+// runs synchronously on the connection's read goroutine, so it may touch
+// per-connection/session state the same way a command handler does.
+type GmcpHandler func(ctx context.Context, pkg string, payload []byte)
+
+// GmcpConn is the optional GMCP capability a Connection may implement
+// (telnet and WebSocket do). The session layer type-asserts a Connection
+// to this to install an inbound handler, send server→client packages, and
+// check what the client advertised. A transport without GMCP simply does
+// not implement it.
+type GmcpConn interface {
+	// SetGmcpHandler installs the callback for inbound non-Core.Supports
+	// GMCP packages. nil clears it.
+	SetGmcpHandler(h GmcpHandler)
+	// SendGmcp sends a server→client package. No-op (nil error) when the
+	// client hasn't negotiated GMCP or doesn't advertise the package.
+	SendGmcp(ctx context.Context, pkg string, payload []byte) error
+	// SupportsPackage reports whether the client advertised support for
+	// pkg (permissive default before the client declares anything).
+	SupportsPackage(name string) bool
+}
