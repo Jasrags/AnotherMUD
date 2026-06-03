@@ -1,0 +1,24 @@
+# tapestry-core starter quest (quests.md §2). An AUTO-GRANT quest, to
+# contrast with the turn-in gate-patrol: the reward lands the instant the
+# objective completes (no return trip), with a completion banner.
+# Repeatable so playtesters can re-run it.
+id: forge-errand
+name: Forge Errand
+classification: side
+giver: training-master
+offer: >-
+  "Quick favour before you head out — fetch me a trail ration from the
+  square. Small reward, but it's yours on the spot."
+repeatable: true
+abandonable: true
+stages:
+  - id: fetch
+    description: Maerys wants a trail ration.
+    hint: Pick up a trail ration in Town Square.
+    objectives:
+      - type: collect
+        target: trail-ration
+        description: Fetch a trail ration.
+reward:
+  xp: 25
+  gold: 5
