@@ -107,6 +107,36 @@ func (w *World) GetDoor(srcID RoomID, dir Direction) (DoorState, bool) {
 	return *exit.Door, true
 }
 
+// RoomDoor pairs a door's direction with a snapshot of its state. Used
+// by completion's door enumeration (tab-completion §4).
+type RoomDoor struct {
+	Direction Direction
+	Door      DoorState
+}
+
+// RoomDoors snapshots every door reachable from srcID — one entry per
+// exit that carries a door — taking a value copy of each DoorState under
+// the read lock so the result never races a concurrent door mutation
+// (mutateDoorLocked writes Closed/Locked under the write lock). Mirrors
+// GetDoor's by-value-under-lock discipline, but for the whole room. Order
+// is unspecified (map iteration); callers sort if they need determinism.
+func (w *World) RoomDoors(srcID RoomID) []RoomDoor {
+	w.mu.RLock()
+	defer w.mu.RUnlock()
+	src, ok := w.rooms[srcID]
+	if !ok {
+		return nil
+	}
+	var out []RoomDoor
+	for dir, exit := range src.Exits {
+		if exit.Door == nil {
+			continue
+		}
+		out = append(out, RoomDoor{Direction: dir, Door: *exit.Door})
+	}
+	return out
+}
+
 // OpenDoor opens the door on the exit in dir from srcID. Per spec
 // §5.2:
 //

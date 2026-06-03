@@ -111,23 +111,20 @@ func (s worldDoorScope) EnumerateDoors() []DoorRef {
 	if s.world == nil {
 		return nil
 	}
-	room, err := s.world.Room(s.roomID)
-	if err != nil || room == nil {
-		return nil
-	}
-	var out []DoorRef
-	for dir, ex := range room.Exits {
-		if ex.Door == nil {
-			continue
-		}
+	// RoomDoors snapshots each DoorState by value under the world's read
+	// lock, so reading Closed/Locked here can't race a concurrent door
+	// mutation (the bug a direct room.Exits read would have).
+	doors := s.world.RoomDoors(s.roomID)
+	out := make([]DoorRef, 0, len(doors))
+	for _, d := range doors {
 		out = append(out, DoorRef{
-			Direction: dir.Short(),
+			Direction: d.Direction.Short(),
 			Door: DoorInfo{
-				Name:     ex.Door.Name,
-				Closed:   ex.Door.Closed,
-				Locked:   ex.Door.Locked,
-				KeyID:    ex.Door.KeyID,
-				Keywords: append([]string(nil), ex.Door.Keywords...),
+				Name:     d.Door.Name,
+				Closed:   d.Door.Closed,
+				Locked:   d.Door.Locked,
+				KeyID:    d.Door.KeyID,
+				Keywords: append([]string(nil), d.Door.Keywords...),
 			},
 		})
 	}

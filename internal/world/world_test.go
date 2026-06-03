@@ -341,6 +341,28 @@ func TestOneWayDoorReverseAbsentIsOK(t *testing.T) {
 	}
 }
 
+// RoomDoors snapshots each door's state by value under the read lock, so
+// enumerating a room's doors (tab-completion runs this off the live
+// world) never races a concurrent open/close/lock/unlock. Run under
+// -race: a direct room.Exits read would flag here.
+func TestRoomDoors_RaceWithMutation(t *testing.T) {
+	w := twoRoomWorld(t, newDoor(), newDoor())
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		for i := 0; i < 2000; i++ {
+			w.OpenDoor("a", world.DirNorth)
+			w.CloseDoor("a", world.DirNorth)
+		}
+	}()
+	for i := 0; i < 2000; i++ {
+		for _, d := range w.RoomDoors("a") {
+			_ = d.Door.Closed // read a field the mutators write
+		}
+	}
+	<-done
+}
+
 func TestDoorOpsOnUnknownRoomNoop(t *testing.T) {
 	w := twoRoomWorld(t, newDoor(), newDoor())
 	if w.OpenDoor("nowhere", world.DirNorth) {
