@@ -178,15 +178,17 @@ After killing the bandit (Meadow):
 
 ## 8. Progression & abilities
 
-- [x] `consider` (self / no target form, or `consider Jasrags`) — shows your
-      stats.
+- [ ] `score` (`sc`) — your character sheet: race/class/level, HP/MA/MV, the six
+      attributes, AC/hit, alignment, gold, sustenance tier, and XP-to-next.
+- [ ] `consider` with no target (or `consider me`) — points you to `score` now
+      (self stats moved there); `consider <target>` still sizes up that target.
 - [x] `abilities` (`abi`) — lists learned abilities + proficiencies.
 - [ ] `train str` — spends a train credit, raises STR (Jasrags has credits).
 - [ ] At the Forge, `practice slash` (Maerys teaches slash/parry) — raises the
       ability's cap.
 - [ ] `cast bless` / `cast heal` — self buff/heal; resolves on the next
       pulse whether in combat or idle (out-of-combat drain). bless bumps
-      AC/hit (check `consider`); heal restores HP (only visible if injured —
+      AC/hit (check `score`); heal restores HP (only visible if injured —
       take a hit first).
 - [ ] (Admin) `xp 500` — grants XP; crossing a threshold levels you up with a
       level-up message (Jasrags is level 10 / track max, so use a fresh char to

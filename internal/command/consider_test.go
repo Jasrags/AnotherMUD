@@ -80,26 +80,27 @@ func newConsiderFixture(t *testing.T) *considerFixture {
 	return &considerFixture{invFixture: inv, guard: guard}
 }
 
-func TestConsider_NoArgConsidersSelf(t *testing.T) {
-	// Bare `consider` sizes yourself up — same render as `consider me`.
+func TestConsider_NoArgPointsToScore(t *testing.T) {
+	// Bare `consider` no longer sizes yourself up — self stats moved to
+	// `score`, so it points there.
 	f := newConsiderFixture(t)
 	a := newCombatActor("Alice", "p-1", f.room)
 	r := newRegistry(t)
 	dispatchActor(t, r, f.env(), a, "consider")
-	if got := a.lastLine(); !strings.Contains(got, "yourself") {
-		t.Errorf("no-arg consider = %q, want self status", got)
+	if got := a.lastLine(); !strings.Contains(got, "score") {
+		t.Errorf("no-arg consider = %q, want a pointer to `score`", got)
 	}
 }
 
 func TestConsider_NoArgNonCombatant(t *testing.T) {
-	// An actor without combat state can't be sized up — clear message,
-	// not a room search for a stranger.
+	// A bare consider points to score regardless of the actor's combat
+	// state — no self render, no room search for a stranger.
 	f := newConsiderFixture(t)
 	a := newNamedTestActor("Plain", "p-1", f.room)
 	r := newRegistry(t)
 	dispatchActor(t, r, f.env(), a, "consider")
-	if got := a.lastLine(); !strings.Contains(got, "can't size yourself up") {
-		t.Errorf("no-arg consider (non-combatant) = %q", got)
+	if got := a.lastLine(); !strings.Contains(got, "score") {
+		t.Errorf("no-arg consider (non-combatant) = %q, want a pointer to `score`", got)
 	}
 }
 
@@ -154,14 +155,16 @@ func TestConsider_MobAtZeroIsDead(t *testing.T) {
 	}
 }
 
-func TestConsider_SelfAlias(t *testing.T) {
+func TestConsider_SelfReferencePointsToScore(t *testing.T) {
+	// self / me / own-name all point to `score` rather than rendering a
+	// self status line.
 	f := newConsiderFixture(t)
 	a := newCombatActor("Alice", "p-1", f.room)
 	r := newRegistry(t)
 	for _, syn := range []string{"self", "me", "Alice", "ALICE"} {
 		dispatch(t, r, f.env(), a.testActor, "consider "+syn)
-		if got := a.lastLine(); !strings.Contains(got, "yourself") {
-			t.Errorf("consider %q = %q, want 'yourself' in output", syn, got)
+		if got := a.lastLine(); !strings.Contains(got, "score") {
+			t.Errorf("consider %q = %q, want a pointer to `score`", syn, got)
 		}
 	}
 }

@@ -33,17 +33,12 @@ import (
 // qualitative descriptor, and the target's AC. On a miss, a single
 // "you don't see them here" line.
 func ConsiderHandler(ctx context.Context, c *Context) error {
-	// No target → size yourself up (a quick self status check) — the same
-	// render the `me` / `self` / own-name self-reference produces.
+	// Target-only: consider sizes up someone ELSE. Self stats moved to the
+	// dedicated `score` sheet, so a bare `consider` (or a self-reference)
+	// points there rather than echoing a thin self line.
 	target := strings.Join(c.Args, " ")
 	if target == "" || isSelfReference(c.Actor.Name(), target) {
-		if cb, ok := c.Actor.(combat.Combatant); ok {
-			return c.Actor.Write(ctx, renderConsider("yourself", cb))
-		}
-		// Actor doesn't carry combat state — surface a clear message
-		// rather than fall through to room search (which would treat
-		// the self-reference as a stranger name and miss).
-		return c.Actor.Write(ctx, "You can't size yourself up.")
+		return c.Actor.Write(ctx, "Consider whom? (Use `score` for your own stats.)")
 	}
 
 	room := c.Actor.Room()

@@ -59,11 +59,16 @@ func RegisterBuiltins(r *Registry) error {
 		{Keyword: "equipment", Aliases: []string{"eq"}, Handler: EquipmentHandler, Brief: "Show your equipment slots (empty ones included).", Syntax: []string{"equipment"}},
 
 		// Combat (M7).
-		// consider is hand-parsed like kill (self-check first, then resolve
-		// via findCombatantInRoom). It declares its entity target +
-		// HandParsed so completion enumerates room mobs/players.
+		// consider is hand-parsed like kill (resolves via findCombatantInRoom).
+		// It declares its entity target + HandParsed so completion enumerates
+		// room mobs/players. Target-only now — self stats live in `score`.
 		{Keyword: "consider", Aliases: []string{"con"}, Handler: ConsiderHandler, Brief: "Size up a target before fighting.", Syntax: []string{"consider <target>"},
 			HandParsed: true, Args: []ArgDefinition{{Name: "target", Type: ArgEntity}}},
+
+		// score (`sc`): the player character sheet — identity, level,
+		// vitals, attributes, alignment, gold, sustenance. Self-only;
+		// consider sizes up others. Reads through the actor's interfaces.
+		{Keyword: "score", Aliases: []string{"sc"}, Handler: ScoreHandler, Brief: "Show your character sheet.", Syntax: []string{"score"}},
 		// kill is hand-parsed (the self-check must run BEFORE resolving,
 		// and the entity arg excludes self). It declares its entity target
 		// + HandParsed so completion enumerates room mobs/players, while
