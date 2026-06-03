@@ -37,3 +37,32 @@ func TestComplete_HandParsedVerbs(t *testing.T) {
 		t.Errorf("get sword from cr: want crate (container slot), got %v", got)
 	}
 }
+
+// look and consider are hand-parsed but declare their target scope for
+// completion: look → visible (incl. at/in prepositions), consider → entity.
+func TestComplete_LookAndConsider(t *testing.T) {
+	r := New()
+	if err := RegisterBuiltins(r); err != nil {
+		t.Fatal(err)
+	}
+	rc := ResolveContext{
+		Inventory:    []ItemCandidate{&fakeItem{id: "i1", name: "a short sword", keywords: []string{"sword"}}},
+		RoomEntities: []EntityCandidate{&fakeEntity{id: "m1", name: "a road bandit", keywords: []string{"bandit"}, kind: "mob"}},
+	}
+	// look → visible scope (carried sword + room bandit).
+	if got := tokensOf(r.Complete("look sw", rc, CompletionOptions{}).Candidates); !has(got, "sword") {
+		t.Errorf("look sw: want sword (visible), got %v", got)
+	}
+	// look at <target>: the `at` preposition maps to the visible slot.
+	if got := tokensOf(r.Complete("look at ban", rc, CompletionOptions{}).Candidates); !has(got, "bandit") {
+		t.Errorf("look at ban: want bandit (visible via `at`), got %v", got)
+	}
+	// consider → entity scope (room mobs/players).
+	if got := tokensOf(r.Complete("consider ban", rc, CompletionOptions{}).Candidates); !has(got, "bandit") {
+		t.Errorf("consider ban: want bandit (entity), got %v", got)
+	}
+	// con is consider's alias and inherits its args.
+	if got := tokensOf(r.Complete("con ban", rc, CompletionOptions{}).Candidates); !has(got, "bandit") {
+		t.Errorf("con ban (consider alias): want bandit, got %v", got)
+	}
+}

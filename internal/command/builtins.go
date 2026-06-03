@@ -25,7 +25,13 @@ import (
 // short-circuits the prefix scan.
 func RegisterBuiltins(r *Registry) error {
 	commands := []Command{
-		{Keyword: "look", Handler: LookHandler, Brief: "Examine your surroundings or a target.", Syntax: []string{"look", "look <target>"}},
+		// look is hand-parsed (bare look / look <target> / look in|at
+		// <target>, branching on the preposition in LookHandler). It
+		// declares a `visible` target + HandParsed so completion enumerates
+		// look-at-able things (self/inventory/room items/entities); the
+		// at/in prepositions let `look at X` and `look in X` complete too.
+		{Keyword: "look", Handler: LookHandler, Brief: "Examine your surroundings or a target.", Syntax: []string{"look", "look <target>"},
+			HandParsed: true, Args: []ArgDefinition{{Name: "target", Type: ArgVisible, Prepositions: []string{"at", "in"}}}},
 		{Keyword: "quit", Handler: QuitHandler, Brief: "Leave the game; your progress is saved.", Syntax: []string{"quit"}},
 		{Keyword: "color", Handler: ColorHandler, Brief: "Toggle ANSI color, or show the current setting.", Syntax: []string{"color", "color on", "color off"}},
 
@@ -53,7 +59,11 @@ func RegisterBuiltins(r *Registry) error {
 		{Keyword: "equipment", Aliases: []string{"eq"}, Handler: EquipmentHandler, Brief: "Show your equipment slots (empty ones included).", Syntax: []string{"equipment"}},
 
 		// Combat (M7).
-		{Keyword: "consider", Aliases: []string{"con"}, Handler: ConsiderHandler, Brief: "Size up a target before fighting.", Syntax: []string{"consider <target>"}},
+		// consider is hand-parsed like kill (self-check first, then resolve
+		// via findCombatantInRoom). It declares its entity target +
+		// HandParsed so completion enumerates room mobs/players.
+		{Keyword: "consider", Aliases: []string{"con"}, Handler: ConsiderHandler, Brief: "Size up a target before fighting.", Syntax: []string{"consider <target>"},
+			HandParsed: true, Args: []ArgDefinition{{Name: "target", Type: ArgEntity}}},
 		// kill is hand-parsed (the self-check must run BEFORE resolving,
 		// and the entity arg excludes self). It declares its entity target
 		// + HandParsed so completion enumerates room mobs/players, while
