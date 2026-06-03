@@ -685,15 +685,31 @@ func run() error {
 	// M10.7-M10.10: quest service, now that the reward dependencies
 	// (manager, progression, proficiency, item templates, entity store,
 	// currency) all exist. Rewards grant XP / abilities / items / gold on
-	// completion; the event sink logs the lifecycle (a typed event-bus
-	// bridge can land when a consumer needs it). The watcher routes
-	// mob-killed / item-picked-up / item-given / player-moved into
-	// objective progress.
+	// completion; the watcher routes mob-killed / item-picked-up /
+	// item-given / player-moved into objective progress.
+	//
+	// The event sink is the session questNotifier: it both logs the
+	// lifecycle and writes progress / stage / ready-to-turn-in / completion
+	// messages to the acting player (the old log-only sink left the player
+	// blind). The giver/item name resolvers turn template ids into display
+	// names for the turn-in prompt and the reward banner.
+	questGiverName := func(tid string) string {
+		if t, err := registries.Mobs.Get(mob.TemplateID(tid)); err == nil {
+			return t.Name
+		}
+		return ""
+	}
+	questItemNameFn := func(tid string) string {
+		if t, err := registries.Items.Get(item.TemplateID(tid)); err == nil {
+			return t.Name
+		}
+		return ""
+	}
 	questSvc := quest.NewService(quest.Config{
 		Registry: registries.Quests,
 		Persist:  questStore,
 		Rewards:  session.NewQuestRewards(mgr, progressionMgr, proficiencyMgr, registries.Items, entityStore, currencySvc),
-		Events:   questLogSink{logger: logging.From(ctx)},
+		Events:   session.NewQuestNotifier(mgr, registries.Quests, questGiverName, questItemNameFn, logging.From(ctx)),
 	})
 	questWatcher := questwatch.New(questSvc, entityStore)
 	// §7.2 quest_grant item side channel: resolve a picker's id to a
@@ -2722,46 +2738,6 @@ func (s *alignmentSink) OnAlignmentShifted(ctx context.Context, entityID, reason
 // to an eventbus payload; nil bus is a silent no-op so tests that
 // wire the manager without a bus still exercise the rest of the
 // pipeline.
-// questLogSink is the M10.10b quest.EventSink: it logs the quest
-// lifecycle so completions/abandons are observable. A typed event-bus
-// bridge (quests.md §9) can replace this when a consumer (achievement /
-// GMCP) needs the events; for now there is none.
-type questLogSink struct {
-	logger *slog.Logger
-}
-
-func (s questLogSink) Started(e quest.StartedEvent) {
-	s.logger.Info("quest started", slog.String("event", "quest.started"),
-		slog.String("entity_id", e.PlayerID), slog.String("quest", e.QuestID))
-}
-
-func (s questLogSink) ObjectiveAdvanced(e quest.ObjectiveAdvancedEvent) {
-	s.logger.Debug("quest objective advanced", slog.String("event", "quest.objective_advanced"),
-		slog.String("entity_id", e.PlayerID), slog.String("quest", e.QuestID),
-		slog.String("objective", e.ObjectiveID), slog.Int("current", e.Current), slog.Int("required", e.Required))
-}
-
-func (s questLogSink) StageAdvanced(e quest.StageAdvancedEvent) {
-	s.logger.Debug("quest stage advanced", slog.String("event", "quest.stage_advanced"),
-		slog.String("entity_id", e.PlayerID), slog.String("quest", e.QuestID), slog.Int("stage", e.StageIndex))
-}
-
-func (s questLogSink) ReadyToTurnIn(e quest.ReadyToTurnInEvent) {
-	s.logger.Info("quest ready to turn in", slog.String("event", "quest.ready_to_turn_in"),
-		slog.String("entity_id", e.PlayerID), slog.String("quest", e.QuestID), slog.String("giver", e.Giver))
-}
-
-func (s questLogSink) Completed(e quest.CompletedEvent) {
-	s.logger.Info("quest completed", slog.String("event", "quest.completed"),
-		slog.String("entity_id", e.PlayerID), slog.String("quest", e.QuestID),
-		slog.Int64("xp", e.XP), slog.Int("gold", e.Gold))
-}
-
-func (s questLogSink) Abandoned(e quest.AbandonedEvent) {
-	s.logger.Info("quest abandoned", slog.String("event", "quest.abandoned"),
-		slog.String("entity_id", e.PlayerID), slog.String("quest", e.QuestID))
-}
-
 type effectSink struct {
 	bus *eventbus.Bus
 }
