@@ -1491,14 +1491,16 @@ func run() error {
 		return fmt.Errorf("register combat tick: %w", err)
 	}
 	// Out-of-combat ability drain: the combat heartbeat's ability phase
-	// only services engaged combatants, so a self-buff/heal cast while
-	// idle (the common case for `cast bless` / `cast heal` between
-	// fights) would otherwise queue forever. This runs the same ability
-	// phase driver, at the same cadence, for casters that are NOT in
-	// combat — engaged ones stay the heartbeat's job, so no double-drain.
-	// Registered after effect-tick so an effect applied here isn't
-	// decremented in the same pulse. Only players queue abilities (M9.4),
-	// so the bare queue key maps back to a player combatant id.
+	// only services engaged combatants, so ANY ability queued while idle
+	// would otherwise queue forever — most commonly a self-buff/heal
+	// between fights (`cast bless` / `cast heal`), but also an offensive
+	// cast at a target that isn't yet an active combatant. This runs the
+	// same ability phase driver, at the same cadence, for casters that
+	// are NOT in combat — engaged ones stay the heartbeat's job, so no
+	// double-drain. Registered after effect-tick so an effect applied
+	// here isn't decremented in the same pulse. Only players queue
+	// abilities (M9.4), so the bare queue key maps back to a player
+	// combatant id.
 	if err := loop.Register("ability-idle-tick", combatCadence, func(ctx context.Context, n uint64) {
 		for _, id := range actionQueueMgr.PendingEntities() {
 			cid := combat.NewPlayerCombatantID(id)

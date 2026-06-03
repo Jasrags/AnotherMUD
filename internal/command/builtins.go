@@ -398,12 +398,14 @@ func RenderRoom(r *world.Room, placement *entities.Placement, items *entities.St
 	return b.String()
 }
 
-// renderRoomEntities builds the "You see here: …" line. Returns the
-// empty string when there's nothing to show — Placement is nil, the
-// Store is nil, the room has no placed entities, or every placed id
-// fails resolution. Each branch is a silent skip rather than a panic
-// because the renderer is on the player-visible path; missing data
-// should look like nothing-here, not a runtime error.
+// renderRoomEntities builds the "You see here: …" line. Other players
+// (passed in, viewer already excluded) list first, then placed
+// mobs/items. Returns the empty string when there's nothing to show —
+// no other players AND no resolvable placed entities (Placement/Store
+// nil, no placed ids, or every placed id fails resolution). Each
+// entity branch is a silent skip rather than a panic because the
+// renderer is on the player-visible path; missing data should look
+// like nothing-here, not a runtime error.
 func renderRoomEntities(r *world.Room, placement *entities.Placement, items *entities.Store, marker func(templateID string) bool, players []string) string {
 	// Other players first, then placed mobs/items.
 	names := append([]string(nil), players...)
