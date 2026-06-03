@@ -436,13 +436,28 @@ other command-layer limits.)
   the later ones. Acceptable for a capped assist; noted so it isn't mistaken for a
   bug.
 
-## 12. Deferred to later phases (not specced here)
+## 12. Presentation policy (decided — Phase 1+ surfaces inherit)
+
+These govern any surface that renders/applies completion (Phase 1 GMCP, Phase 2
+char-mode). **Signed off 2026-06-03** (`proposal §7`):
+
+- **Multiple matches → longest-common-prefix + list.** A surface completes the
+  token to the shared prefix of the candidate set, then presents the list
+  (classic shell behavior). Not cycle-on-Tab.
+- **Activation is automatic** for any client that advertises the completion
+  capability — no per-player/account opt-in setting.
+- **Compute model is request/response** — the query runs only when the client
+  asks (on Tab) and the server replies once with the candidate set. Proactive
+  **push** (streaming candidates for live ghost-text) is explicitly **out of
+  scope**; it is additive over this same query and may layer on later without
+  changing the request/response path.
+
+## 13. Deferred to later phases (not specced here)
 
 - **Phase 1 — GMCP request/response surface** for scriptable clients (Mudlet-class),
   including the inbound-GMCP plumbing both transports currently lack and the
   client-side integration that consumes it. See `docs/proposals/tab-completion.md §4`.
 - **Phase 2 — server-side character-mode line editing** for raw `telnet`/`nc`
   parity (the only way a line-mode client gets real TAB). Its own proposal.
-- **Presentation policy** (cycle vs. longest-common-prefix + list), opt-in vs.
-  automatic, and a possible line-mode `complete`-as-player-stopgap — all
-  `proposal §7`.
+- **Raw-telnet line-mode stopgap** — a possible player-facing `complete`/`suggest`
+  verb that *lists* candidates without a TAB key (still open; `proposal §7`).

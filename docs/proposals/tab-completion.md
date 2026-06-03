@@ -80,11 +80,16 @@ Pure client-side completion (no server involvement) was rejected: the client has
 - **Enumeration cost.** Naive generation could enumerate every item in a crowded room or every online player on each Tab; Phase 0 must prefix-filter and cap. Implementation concern, not a blocker.
 - **Ordinal/keyword interaction.** Completing `ring` with three rings present must mesh with `2.ring`/`all.ring` rather than fight it — a real design question, owned by Phase 0.
 
-## 7. Open questions (for sign-off before the spec)
+## 7. Presentation decisions
 
-- **Multiple-match presentation:** cycle on repeated Tab, or list candidates + complete to the longest common prefix (classic shell)? *Recommendation:* LCP + list — scales to many matches, matches muscle memory. (Under Option B this is a client-render concern; under A it's server-rendered.)
-- **Opt-in vs automatic:** *Recommendation:* automatic when the client advertises the completion package; no setting.
-- **B sub-decision — request/response vs push:** *Recommendation:* request/response for v1 (compute only on Tab; no channel spam; simpler). Push is the ghost-text future and can layer on later. Flagged for explicit sign-off since it shapes the package design.
+**Signed off 2026-06-03** (the surface decisions Phase 1+ inherits; mirrored in the spec):
+
+- **Multiple-match presentation: DECIDED → longest-common-prefix + list.** Complete to the shared prefix, then show the candidate list (classic shell). Scales to many matches; matches muscle memory. (Under Option B a client-render concern; under A server-rendered.)
+- **Activation: DECIDED → automatic when the client advertises the completion capability.** No per-player/account setting.
+- **Compute model: DECIDED → request/response (compute only on Tab).** No channel spam, far simpler. Push (proactive streaming for live ghost-text) is the *future* — it's additive over the same Phase 0 query and can layer on later without changing the request/response path. v1 explicitly does **not** build push.
+
+Still open:
+
 - **Raw-telnet stopgap:** is an explicit line-mode `complete <partial>` verb (lists candidates, no TAB) worth shipping for raw `telnet`/`nc` users *before* Phase 2 (Option A), or do raw users simply wait for char-mode? *Recommendation:* skip the stopgap unless raw-telnet demand is loud — it's a different UX that could entrench and confuse.
 
 ## 8. Rough sizing
