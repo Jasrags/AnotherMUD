@@ -366,13 +366,30 @@ Needs a GMCP-capable client (e.g. Mudlet) and `ANOTHERMUD_WS_ADDR=:4001`.
       `kill: …` line (and a scheduled follow-up ~3s later).
 - [ ] As admin, `reload` — the log shows scripts re-discovered/reloaded.
 
-## 20. Tab-completion (admin `complete` verb)
+## 20. Tab-completion
 
 Tab-completion **Phase 0** is the server-side enumeration substrate: given a
 partial line, it returns the candidates for the token you're typing. There's no
-live TAB key yet (that's a future client surface) — you exercise it through the
-admin-gated **`complete`** debug verb, which prints what completion *would*
-offer. Run these as **Jasrags** (admin).
+live TAB key yet (raw telnet can't do TAB without a future char-mode surface) —
+so it's exposed two ways: the player **`suggest`** verb (line-mode, anyone) and
+the admin **`complete`** debug verb (raw candidate dump).
+
+### `suggest` — player line-mode completion (anyone)
+
+No TAB needed — type `suggest` + a partial command and it lists what you could
+type. (Trailing space is trimmed, so type a partial letter: `suggest get s`.)
+
+- [x] In Town Square, `suggest get s` — lists the matching room items
+      (`sword   a short sword`, …); `suggest get sw` narrows to the sword.
+- [x] `suggest dr` — verb completion: `Commands: drop, drink`.
+- [x] At the Forge, `suggest kill ma` — single match → `→ kill maerys
+      (Maerys the Training Master)`.
+- [x] `suggest get sw` somewhere with no items — `No suggestions for "get sw".`
+- [x] `suggest` with no args — guidance ("Suggest what? …").
+
+### `complete` — admin debug dump
+
+Run as **Jasrags** (admin); prints the raw candidate set (kind/token/display).
 
 > Note: the verb can't express a *trailing space* (the input is trimmed), so to
 > see a fresh argument slot type a partial letter (`complete get s`, not
@@ -380,39 +397,39 @@ offer. Run these as **Jasrags** (admin).
 
 ### Verb completion (anywhere)
 
-- [ ] `complete loo` — verb slot; lists `look`.
-- [ ] `complete n` — `n` is listed **first** (exact match wins), then `north`.
-- [ ] `complete` (no args) — lists many verbs, ending with `… (truncated)`.
+- [x] `complete loo` — verb slot; lists `look`.
+- [x] `complete n` — `n` is listed **first** (exact match wins), then `north`.
+- [x] `complete` (no args) — lists many verbs, ending with `… (truncated)`.
 
 ### get / take / kill (the migrated targeting verbs)
 
 In **Town Square** (the short sword is on the ground here):
 
-- [ ] `complete get sw` — argument slot of `get`; lists the short sword
+- [x] `complete get sw` — argument slot of `get`; lists the short sword
       (token `sword`).
-- [ ] `complete take sw` — same result via the `take` alias.
+- [x] `complete take sw` — same result via the `take` alias.
 
 In the **Meadow** (`s` from the Gate — the road bandit is here):
 
-- [ ] `complete kill ban` — lists the bandit (token `bandit`).
-- [ ] `complete kill rog` — also lists the bandit, matched on its **keyword**
+- [x] `complete kill ban` — lists the bandit (token `bandit`).
+- [x] `complete kill rog` — also lists the bandit, matched on its **keyword**
       `rogue` (not in its display name) — the completion token round-trips.
-- [ ] `complete consider ban` (`complete con ban`) — same bandit (entity scope).
-- [ ] `complete look ban` / `complete look at ban` — lists the bandit
+- [x] `complete consider ban` (`complete con ban`) — same bandit (entity scope).
+- [x] `complete look ban` / `complete look at ban` — lists the bandit
       (`visible` scope; the `at`/`in` prepositions are handled).
 
 ### Containers & doors
 
-- [ ] After `put sword in sack`: `complete get sword from sa` — the `from`
+- [x] After `put sword in sack`: `complete get sword from sa` — the `from`
       preposition maps the cursor to the container slot; lists the sack.
-- [ ] In the **Forge**: `complete open oa` — lists the oak door (token `d`, the
+- [x] In the **Forge**: `complete open oa` — lists the oak door (token `d`, the
       `down` direction); `complete open d` matches the direction itself.
 
 ### Degradation & gating
 
-- [ ] `complete say hel` — argument slot, but **no candidates** (`say`'s body is
+- [x] `complete say hel` — argument slot, but **no candidates** (`say`'s body is
       free text — nothing to enumerate).
-- [ ] `complete frobnicate x` — "no completable slot" (unknown verb).
+- [x] `complete frobnicate x` — "no completable slot" (unknown verb).
 - [ ] As **Bob** (non-admin), `complete loo` — refused with `Huh?`, identical to
       an unknown verb (the debug verb's existence is not disclosed).
 
