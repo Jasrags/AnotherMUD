@@ -166,6 +166,19 @@ old five-theme partition left uncovered.
   *requires* char-mode — the server sees nothing until Enter); its own larger proposal.
   Also unsettled: presentation policy (cycle vs. longest-common-prefix + list) and opt-in
   vs. automatic (`proposal §7`). Pre-decisions belong with each surface, not Phase 0.
+- **Completion args for the remaining hand-parsed verbs (M17.2d non-fits)** —
+  a handful of verbs still hand-parse and declare no arg types, so tab-completion
+  (`tab-completion §8`) returns nothing for their arguments. The easy ones —
+  `get`/`take`/`kill` (typed-arg migration commit) and `look`/`consider` — now
+  declare a completion arg via `Command.HandParsed`. The rest are the **documented
+  M17.2d non-fits** (`m17-2d3-deferred-fixes`), each blocked on a **new engine arg
+  type** that doesn't exist in `commands-and-dispatch §5.2`: `unequip` needs an
+  `equipped` arg type (match against worn slots); `fill` needs a source-scope arg
+  (the fill source isn't inventory/room/container as-is); `buy`/`sell`/`value`
+  resolve against **shop stock**, which no arg type covers (the resolution lives in
+  `ShopService`). Each is a small design decision (define the arg type) + a
+  `HandParsed` declaration — not a scheduled phase; pick up opportunistically or
+  when an arg-type sweep is worth it. Not blocking the tab-completion surfaces above.
 - **Cross-cutting event catalog** — per-spec event tables exist in `specs/README.md`;
   no aggregated catalog. (Docs/meta, not engine — not a behavior spec.)
 

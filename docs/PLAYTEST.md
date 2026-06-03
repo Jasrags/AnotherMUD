@@ -356,6 +356,56 @@ Needs a GMCP-capable client (e.g. Mudlet) and `ANOTHERMUD_WS_ADDR=:4001`.
       `kill: …` line (and a scheduled follow-up ~3s later).
 - [ ] As admin, `reload` — the log shows scripts re-discovered/reloaded.
 
+## 20. Tab-completion (admin `complete` verb)
+
+Tab-completion **Phase 0** is the server-side enumeration substrate: given a
+partial line, it returns the candidates for the token you're typing. There's no
+live TAB key yet (that's a future client surface) — you exercise it through the
+admin-gated **`complete`** debug verb, which prints what completion *would*
+offer. Run these as **Jasrags** (admin).
+
+> Note: the verb can't express a *trailing space* (the input is trimmed), so to
+> see a fresh argument slot type a partial letter (`complete get s`, not
+> `complete get `).
+
+### Verb completion (anywhere)
+
+- [ ] `complete loo` — verb slot; lists `look`.
+- [ ] `complete n` — `n` is listed **first** (exact match wins), then `north`.
+- [ ] `complete` (no args) — lists many verbs, ending with `… (truncated)`.
+
+### get / take / kill (the migrated targeting verbs)
+
+In **Town Square** (the short sword is on the ground here):
+
+- [ ] `complete get sw` — argument slot of `get`; lists the short sword
+      (token `sword`).
+- [ ] `complete take sw` — same result via the `take` alias.
+
+In the **Meadow** (`s` from the Gate — the road bandit is here):
+
+- [ ] `complete kill ban` — lists the bandit (token `bandit`).
+- [ ] `complete kill rog` — also lists the bandit, matched on its **keyword**
+      `rogue` (not in its display name) — the completion token round-trips.
+- [ ] `complete consider ban` (`complete con ban`) — same bandit (entity scope).
+- [ ] `complete look ban` / `complete look at ban` — lists the bandit
+      (`visible` scope; the `at`/`in` prepositions are handled).
+
+### Containers & doors
+
+- [ ] After `put sword in sack`: `complete get sword from sa` — the `from`
+      preposition maps the cursor to the container slot; lists the sack.
+- [ ] In the **Forge**: `complete open oa` — lists the oak door (token `d`, the
+      `down` direction); `complete open d` matches the direction itself.
+
+### Degradation & gating
+
+- [ ] `complete say hel` — argument slot, but **no candidates** (`say`'s body is
+      free text — nothing to enumerate).
+- [ ] `complete frobnicate x` — "no completable slot" (unknown verb).
+- [ ] As **Bob** (non-admin), `complete loo` — refused with `Huh?`, identical to
+      an unknown verb (the debug verb's existence is not disclosed).
+
 ---
 
 ## Notes / known gaps (already understood)
@@ -367,5 +417,11 @@ Needs a GMCP-capable client (e.g. Mudlet) and `ANOTHERMUD_WS_ADDR=:4001`.
   and re-create, or just make a fresh character.
 - Time/weather, corpse decay, idle, and link-dead are **timer-driven** — use the
   fast-testing env above to see them quickly.
+- **Tab-completion (§20) is server-side substrate only** — there is no live TAB
+  key yet (that's a future client surface). The admin `complete` verb is how you
+  inspect it. Argument completion only lights up for verbs that declare their arg
+  types; most do, and `get`/`take`/`kill`/`look`/`consider` now do too. A few
+  still don't (e.g. `unequip`, `fill`, `buy`/`sell`/`value`) — tracked in
+  `docs/BACKLOG.md` §2.
 - Record any mismatch as a `BUG:` note next to the step; file the real ones into
   `docs/BACKLOG.md` or a `m<N>-deferred-fixes` memory afterward.
