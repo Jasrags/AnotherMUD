@@ -373,11 +373,26 @@ Needs a GMCP-capable client (e.g. Mudlet) and `ANOTHERMUD_WS_ADDR=:4001`.
 
 ## 20. Tab-completion
 
-Tab-completion **Phase 0** is the server-side enumeration substrate: given a
-partial line, it returns the candidates for the token you're typing. There's no
-live TAB key yet (raw telnet can't do TAB without a future char-mode surface) —
-so it's exposed two ways: the player **`suggest`** verb (line-mode, anyone) and
-the admin **`complete`** debug verb (raw candidate dump).
+Tab-completion exposes the same query four ways: a **real TAB key** in raw telnet
+(char-mode, §20.0 below), the GMCP `Input.Complete` package (modern clients, §18),
+the player **`suggest`** verb (line-mode, anyone), and the admin **`complete`**
+debug verb (raw candidate dump).
+
+### Real TAB on raw telnet (char-mode) — default-on for raw clients
+
+On a **raw telnet client** (not Mudlet/GMCP), char-mode turns on automatically
+after you log in, so the TAB key completes.
+
+- [ ] In Town Square, type `get sw` and press **TAB** — completes inline to
+      `get sword` (single match). Backspace works; Enter submits.
+- [ ] Type `get s` + **TAB** — several matches: it lists the room items and you
+      can keep typing.
+- [ ] `tabcomplete off` — disables it (back to plain line input); `tabcomplete on`
+      re-enables; `tabcomplete` shows status.
+- [ ] On a **GMCP client (Mudlet)**, TAB is *not* server-driven (it stays
+      line-mode and uses the §18 GMCP path); `tabcomplete on` can force char-mode.
+- [ ] Login + password are line-mode (char-mode only engages after login —
+      password input is never echoed).
 
 ### `suggest` — player line-mode completion (anyone)
 

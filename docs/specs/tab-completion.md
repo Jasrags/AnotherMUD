@@ -508,13 +508,50 @@ completion. Pre-login frames are dropped (the handler is installed after login).
 - [ ] Admin verbs appear in the reply only for an actor holding the admin role.
 - [ ] A malformed payload is ignored (no reply, no error to the player).
 
-## 14. Deferred to later phases (not specced here)
+## 14. Char-mode surface — raw-telnet TAB (Phase 2, shipped)
 
-- **Phase 2 — server-side character-mode line editing** for raw `telnet`/`nc`
-  parity (the only way a line-mode client gets real TAB). Its own proposal.
+Real TAB for raw `telnet`/`nc` clients, which can't do client-side completion.
+The server takes over the input line in **character-at-a-time mode** (it echoes
+keystrokes and owns editing) so a TAB key triggers completion. Telnet-only;
+WebSocket has no char-mode.
 
-**Shipped (not deferred):** the **raw-telnet line-mode stopgap** — the player-facing
-`suggest <partial>` verb that *lists* completion candidates (no TAB key), rendering
-the same query for players that the admin `complete` debug verb renders for
-debugging. Single match → the completed line; multiple → the list with a
-longest-common-prefix hint (§12); unknown → "no suggestions".
+### Activation
+
+- **Line-mode by default during login/wizard/password** — char-mode is enabled
+  only at session start (post-login), so the password-masking echo path is
+  untouched.
+- **Default-on for raw clients, off for GMCP clients.** A client that negotiated
+  GMCP keeps line-mode (it has the better `Input.Complete` path, §13); a raw
+  client (no GMCP) gets char-mode by default. WebSocket never enters char-mode.
+- **`tabcomplete [on|off]`** overrides per session (force it on a GMCP client, or
+  off if the keystroke echo latency annoys). Reports "not available" on
+  transports without char-mode.
+
+Enabling negotiates `WILL SGA` + `WILL ECHO` (client streams keystrokes, stops
+local echo); disabling reverses it.
+
+### Editing (MVP)
+
+The server-side editor handles: printable input (echoed), backspace, Enter
+(returns the line — `Read`'s full-line contract is unchanged), and **Tab**. On
+Tab it runs the same query (§2) for the actor and applies the §12 rule: one match
+completes the token inline; several complete to the common prefix (when it
+extends what's typed) and list the candidates, then redraw the line. No cursor
+movement, history, or kill-line yet (a single forward-typed buffer).
+
+### Acceptance criteria
+
+- [ ] Login/password run in line-mode; char-mode engages only after login (raw
+      client) — password input is never echoed.
+- [ ] In char-mode, printable keys echo, backspace erases, Enter returns the line.
+- [ ] Tab with one match completes the token inline; with several, completes to
+      the common prefix and lists the candidates.
+- [ ] A GMCP-capable client stays line-mode by default; `tabcomplete on` forces
+      char-mode; `tabcomplete off` reverts.
+- [ ] WebSocket and other non-char-mode transports report it's unavailable.
+
+**Also shipped:** the **raw-telnet line-mode stopgap** — the player `suggest
+<partial>` verb that *lists* candidates without a TAB key (rendering the same
+query the admin `complete` debug verb does): single match → the completed line;
+multiple → the list with a longest-common-prefix hint (§12); unknown → "no
+suggestions". Useful where char-mode is off.

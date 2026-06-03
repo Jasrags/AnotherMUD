@@ -1,7 +1,7 @@
 # Proposal: Input Tab-Completion
 
-**Status:** Largely implemented — see `docs/specs/tab-completion.md` (authoritative). · **Type:** Feature proposal · **Audience:** engine
-**Shipped:** Phase 0 substrate; the line-mode `suggest` stopgap; and Phase 1 *server side* (inbound GMCP dispatch + `Input.Complete` request/response, §13). **Remaining:** the client integration (`docs/clients/tab-completion-gmcp.md`) and Phase 2 char-mode for raw-telnet TAB.
+**Status:** Implemented — see `docs/specs/tab-completion.md` (authoritative). · **Type:** Feature proposal · **Audience:** engine
+**Shipped:** Phase 0 substrate; the line-mode `suggest` stopgap; Phase 1 *server side* (inbound GMCP + `Input.Complete`, §13); and Phase 2 char-mode (real TAB on raw telnet, §14). **Remaining:** the GMCP *client* integration (`docs/clients/tab-completion-gmcp.md` — client-owned) and char-mode polish (cursor movement, history, prompt redraw).
 
 ## Decisions taken so far (steering this draft)
 

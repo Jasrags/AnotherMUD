@@ -155,17 +155,16 @@ old five-theme partition left uncovered.
   (`hire`/`dismiss`/`order`/`follow`); combat assist + XP/loot split (reuse grouping's
   rules); cap on simultaneous hirelings; persistence (does a hireling survive logout?).
   Best decided alongside or just after grouping.
-- **Input tab-completion — TAB surfaces** — the *real-TAB* client-facing half.
-  **LANDED:** Phase 0 substrate; presentation policy decided (`tab-completion §12`);
-  the line-mode `suggest` stopgap; and **Phase 1 server side** — inbound GMCP
-  dispatch on *both* transports (`conn.GmcpConn`) + the `Input.Complete` /
-  `Input.Complete.List` request/response package (`tab-completion §13`,
-  live-verified over WebSocket). **Remaining:** (a) the **client integration** —
-  bind Tab → send `Input.Complete`, render the reply (Mudlet etc.; guide in
-  `docs/clients/tab-completion-gmcp.md` — client-owned, not server work). (b)
-  **Phase 2 = server char-mode** for raw-`telnet`/`nc` parity (real TAB on a
-  line-mode client *requires* char-mode — the server sees nothing until Enter);
-  its own larger proposal, still unbuilt.
+- **Input tab-completion — polish only (feature complete)** — all surfaces are
+  **LANDED**: Phase 0 substrate; presentation policy (`tab-completion §12`); the
+  line-mode `suggest` stopgap; **Phase 1** GMCP `Input.Complete` request/response
+  (`§13`, live-verified over WS); and **Phase 2** char-mode real TAB on raw telnet
+  (`§14`, live-verified — `get sw`+TAB → `get sword`). **Remaining is polish, not
+  surfaces:** (a) the GMCP *client* integration (bind Tab → `Input.Complete`,
+  render reply — Mudlet/client-owned, guide in `docs/clients/tab-completion-gmcp.md`).
+  (b) char-mode editor polish: cursor movement (arrows/Home/End), input history,
+  and prompt redraw after the Tab candidate list (MVP is a single forward-typed
+  buffer). (c) minor Phase 0 deferrals in `m-…`/`phase0-tabcomplete-deferred-fixes`.
 - **Survival depth — split sustenance into hunger + thirst** — today sustenance
   is a **single pool** `[0,100]` (`economy-survival §4.2`, "a hunger-like pool");
   both `eat` (food) and `drink` refill the *same* value, and `consume_method`
