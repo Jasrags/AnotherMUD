@@ -109,6 +109,24 @@ func TestCharModeByte_TypeBackspaceEnter(t *testing.T) {
 	}
 }
 
+func TestCharModeByte_PrintableCapsAtMaxLineBytes(t *testing.T) {
+	// A peer that streams printable bytes in char-mode without ever sending
+	// Enter must not grow buf without bound — the char-mode Read branch skips
+	// the line-mode MaxLineBytes guard, so charModeByte enforces the cap.
+	server, client := pairConn(t)
+	_ = drain(client)
+	server.charMode = true
+	var buf []byte
+	for i := 0; i < MaxLineBytes*2; i++ {
+		if line, done := server.charModeByte(context.Background(), &buf, 'a'); done {
+			t.Fatalf("unexpected line completion at byte %d: %q", i, line)
+		}
+	}
+	if len(buf) > MaxLineBytes {
+		t.Fatalf("buffer grew past cap: len=%d, want <= %d", len(buf), MaxLineBytes)
+	}
+}
+
 func TestCharModeByte_TabSingleCompletes(t *testing.T) {
 	server, client := pairConn(t)
 	_ = drain(client)

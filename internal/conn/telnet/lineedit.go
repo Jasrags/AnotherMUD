@@ -36,6 +36,15 @@ func (c *Conn) charModeByte(ctx context.Context, buf *[]byte, b byte) (string, b
 	case b == '\t':
 		c.charModeComplete(ctx, buf)
 	case b >= 0x20 && b < 0x7f:
+		// Cap the buffer at the same bound line-mode enforces (telnet.go
+		// MaxLineBytes guard). The char-mode branch in Read returns/continues
+		// before that guard, so without this a peer streaming printable bytes
+		// with no Enter would grow buf without bound (memory DoS). Drop the
+		// overflow byte silently and skip the echo so the visible line stays
+		// consistent with the buffer.
+		if len(*buf) >= MaxLineBytes {
+			return "", false
+		}
 		*buf = append(*buf, b)
 		c.echo(ctx, []byte{b})
 	default:
