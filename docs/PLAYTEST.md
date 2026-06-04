@@ -1,6 +1,7 @@
 # AnotherMUD Playtest Guide
 
-A manual QA checklist for verifying implemented features (M0–M22). Work
+A manual QA checklist for verifying implemented features (M0–M22 + recent
+polish: the look/consider appearance lens, tab-completion surfaces). Work
 top-to-bottom or jump to a section. Each step gives a **command** and the
 **expected behavior**; tick the box when it matches, and note anything that
 doesn't.
@@ -109,6 +110,9 @@ once (two telnet windows).
 - [x] `look` — renders room name, description, exits, and entities present.
 - [x] `north` / `n` — move to the Forge; `look` shows Maerys the Training
       Master.
+- [ ] `look maerys` (`look master`) at the Forge — her **description** prints
+      (the appearance lens: broad-shouldered woman, scarred forearms…).
+      Looking *at a creature* works now — it used to say "you don't see that."
 - [x] `south`, `east`, `west` — move between Forge/Square/Market/Gate.
 - [x] `s` from the Gate — you reach the Meadow (the bandit is here).
 - [x] Try a direction with no exit (e.g. `up`) — "You cannot go that way."
@@ -124,8 +128,12 @@ In Town Square:
 - [x] `get coins` — credits **gold** (currency auto-convert), does *not* add an
       item; `gold` shows the new balance.
 - [x] `drop ration` then `get ration` — drops to the room and picks back up.
-- [x] `equip sword`, `equip cap` — `equipment` (`eq`) shows them worn; `consider`
-      reflects the stat/AC change.
+- [x] `equip sword`, `equip cap` — `equipment` (`eq`) shows them worn; `score`
+      reflects the stat/AC change (`consider` no longer reports your *own* stats —
+      it points you to `score`; see §6/§8).
+- [ ] `look sword` — the sword's **description** prints (the appearance lens),
+      not just its name. An item with no authored description reads
+      "You see nothing special about …".
 - [x] `unequip sword` — returns to inventory.
 - [x] Duplicate items show stacked: pick up two rations → `i` shows
       `a trail ration (x2)`.
@@ -144,7 +152,11 @@ In Town Square:
 
 Go to the **Meadow** (`s` from the Gate). The bandit is hostile.
 
-- [x] `consider bandit` (`con bandit`) — shows its HP/condition and AC.
+- [ ] `consider bandit` (`con bandit`) — a **qualitative** size-up: a condition
+      word (uninjured → dead) plus a relative-threat read ("an even fight",
+      "you wouldn't stand a chance"). **No raw HP/AC numbers** — those moved to
+      `score`. (`look bandit` is the separate appearance lens — its description,
+      no mechanics.)
 - [x] Entering the Meadow, the bandit aggros (attacks you) — combat rounds tick;
       you see hit/miss/damage lines for both sides.
 - [x] `kill bandit` also initiates combat if not already engaged.
@@ -255,6 +267,9 @@ two quests — **Forge Errand** (auto-grant) and **Gate Patrol** (turn-in)
 
 - [x] Both in Town Square — `look` lists the other in "You see here:";
       movement shows "Bob arrives" / "Bob leaves".
+- [ ] `look Bob` — Bob's **generated description** prints (the appearance lens):
+      "You see Bob, a &lt;Race&gt; &lt;Class&gt;." composed from his race/class
+      (no authored prose — players are described from their character).
 - [x] `tell Bob hello` — Bob receives it; `reply hi` goes back; `tells` shows
       the history.
 - [x] `channels` (`chanlist`) — lists channels; post on one and the other sees
@@ -464,11 +479,12 @@ In the **Meadow** (`s` from the Gate — the road bandit is here):
   and re-create, or just make a fresh character.
 - Time/weather, corpse decay, idle, and link-dead are **timer-driven** — use the
   fast-testing env above to see them quickly.
-- **Tab-completion (§20) is server-side substrate only** — there is no live TAB
-  key yet (that's a future client surface). The admin `complete` verb is how you
-  inspect it. Argument completion only lights up for verbs that declare their arg
-  types; most do, and `get`/`take`/`kill`/`look`/`consider` now do too. A few
-  still don't (e.g. `unequip`, `fill`, `buy`/`sell`/`value`) — tracked in
+- **Tab-completion (§20) is feature-complete.** A real **TAB key** works on raw
+  telnet (char-mode, §20.0) and via GMCP `Input.Complete` on modern clients
+  (§18); `suggest` is the line-mode path and the admin `complete` verb is the
+  debug inspector. Argument completion only lights up for verbs that declare
+  their arg types; most do, and `get`/`take`/`kill`/`look`/`consider` now do too.
+  A few still don't (e.g. `unequip`, `fill`, `buy`/`sell`/`value`) — tracked in
   `docs/BACKLOG.md` §2.
 - Record any mismatch as a `BUG:` note next to the step; file the real ones into
   `docs/BACKLOG.md` or a `m<N>-deferred-fixes` memory afterward.
