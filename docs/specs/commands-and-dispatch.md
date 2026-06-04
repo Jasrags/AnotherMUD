@@ -546,11 +546,21 @@ Mob unknown verbs are NOT recorded by the tracker.
 
 **Acceptance criteria**
 
-- [ ] Every unknown player verb increments the tracker by
+- [x] Every unknown player verb increments the tracker by
       exactly one.
-- [ ] Concurrent unknown verbs do not lose count.
-- [ ] Snapshot returns entries sorted by descending count.
-- [ ] Mob unknown verbs do not appear in the tracker.
+- [x] Concurrent unknown verbs do not lose count. *(single mutex over
+      increment+insert; race-tested.)*
+- [x] Snapshot returns entries sorted by descending count.
+- [x] Mob unknown verbs do not appear in the tracker. *(by construction —
+      only the player `Dispatch` records; mobs route through `internal/ai`.)*
+
+> **Implementation (`internal/command/badinput.go` `BadInputTracker`).**
+> The dispatcher records + logs (`event=command.unknown`) at the unknown-
+> verb miss, NOT at the admin-gate "Huh?" (that verb is known, just refused).
+> The `badinput` admin verb renders the snapshot; `badinput clear` resets it.
+> The **OTel counter** ("when configured") is deferred — the project ships
+> no metrics infra yet (a nil-able hook lands with the Ops track); all four
+> acceptance criteria above hold without it.
 
 ---
 

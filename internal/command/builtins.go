@@ -208,6 +208,7 @@ func RegisterBuiltins(r *Registry) error {
 		// or room item) from the world, untracking it. Never targets a
 		// player. Removal mirrors the death-cleanup path; audited.
 		{Keyword: "purge", Handler: PurgeHandler, Admin: true, Brief: "Remove a mob or item from the world.", Syntax: []string{"purge <target>"}},
+		{Keyword: "badinput", Handler: BadInputHandler, Admin: true, Brief: "Show the unknown-verb tracker (admin).", Syntax: []string{"badinput", "badinput clear"}},
 
 		// complete (tab-completion §9 — Phase 0 exercise surface): run the
 		// completion query on a partial line and print the candidate set.

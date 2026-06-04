@@ -373,6 +373,10 @@ while closed, and the two sides stay in sync.
       client**: "Reloaded N script(s)." (core ships one — `track_kills.lua`).
       The **server log** also prints a confirmation (`event=scripting.reload
       count=N`).
+- [ ] Type a few junk verbs (`xyzzy`, `frobnicate`, `xyzzy`) — each replies
+      "Huh?". Then `badinput` lists them ranked by count (`xyzzy` ×2 on top);
+      `badinput clear` resets the tracker. (Unknown verbs also log
+      `event=command.unknown` on the server.)
 - [ ] As **Bob** (non-admin), any admin verb (`inspect`, `goto`, …) — refused /
       hidden in `help`.
 

@@ -18,6 +18,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"sort"
 	"strings"
 	"sync"
@@ -45,6 +46,15 @@ import (
 // The session loop unwinds cleanly on this — it is a signal, not a
 // failure.
 var ErrQuit = errors.New("command: quit")
+
+// actorRoomID returns the actor's current room id, or "" when roomless
+// (mid-transition / test actors). Used by the §6 unknown-verb log.
+func actorRoomID(a Actor) world.RoomID {
+	if r := a.Room(); r != nil {
+		return r.ID
+	}
+	return ""
+}
 
 // Actor is the per-session view a command handler needs. The session
 // layer implements this; command does not own player state.
@@ -203,6 +213,10 @@ type Env struct {
 	// Roster is the world-wide online-player snapshot the `who` verb reads
 	// (who §2–§4). The session Manager satisfies it. nil disables `who`.
 	Roster Roster
+	// BadInput records unknown player verbs (commands-and-dispatch §6). The
+	// dispatcher writes to it on every unknown verb; the `badinput` admin
+	// verb reads its snapshot. nil disables tracking (Record is a no-op).
+	BadInput *BadInputTracker
 	// Disposition is the room-entry hook the disposition evaluator
 	// exposes (spec mobs-ai-spawning §4). May be nil in tests and
 	// in headless boot paths. Handlers MUST nil-guard.
@@ -400,6 +414,7 @@ type Context struct {
 	Stacking    *stacking.Service           // may be nil in tests (M21 stacking)
 	Locator     Locator                     // may be nil in tests
 	Roster      Roster                      // may be nil in tests (who verb)
+	BadInput    *BadInputTracker            // may be nil in tests (§6 tracker)
 	Disposition DispositionHook             // may be nil in tests
 	Combat      *combat.Manager             // may be nil in tests
 	// Flee is the M7.6 verb-driven §5.2 flee primitive closure. nil
@@ -844,6 +859,17 @@ func (r *Registry) Dispatch(ctx context.Context, env Env, actor Actor, raw strin
 
 	reg, ok := r.resolveRegistration(verb)
 	if !ok {
+		// Bad-input tracking (§6): record + log the unknown verb. This is the
+		// player route only (mobs dispatch elsewhere), so the tracker never
+		// sees a mob verb. The admin-gate "Huh?" below is a KNOWN verb being
+		// refused and is deliberately not recorded here.
+		env.BadInput.Record(verb)
+		logging.From(ctx).Debug("unknown verb",
+			slog.String("event", "command.unknown"),
+			slog.String("verb", strings.ToLower(verb)),
+			slog.String("raw", raw),
+			slog.String("player", actor.Name()),
+			slog.String("room_id", string(actorRoomID(actor))))
 		return actor.Write(ctx, "Huh?")
 	}
 
@@ -877,6 +903,7 @@ func (r *Registry) Dispatch(ctx context.Context, env Env, actor Actor, raw strin
 		Stacking:              env.Stacking,
 		Locator:               env.Locator,
 		Roster:                env.Roster,
+		BadInput:              env.BadInput,
 		Disposition:           env.Disposition,
 		Combat:                env.Combat,
 		Flee:                  env.Flee,

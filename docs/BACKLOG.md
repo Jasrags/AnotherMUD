@@ -26,8 +26,9 @@ The five original themes — A (Social / M13), B (Modern Client / M16),
 C (World Depth / M15), D (Content Authoring / M17), E (Engine Debt / M14) — are
 **done**, and since then **M19** (Roles & Administration), **M20** (Item Decorations),
 **M21** (Item Stacking), and **M22** (Loot & Corpses) have shipped (see `ROADMAP.md`).
-**M18** (Command & UI polish) is **paused** mid-flight (only M18.1 `prompt` shipped; the
-rest sit in §1). Behavior contracts still written-ahead-of-code: `tag-observers`,
+**M18** (Command & UI polish) is now **complete** — `prompt`, `who`, auto-help
+synthesis, command chaining/repeat, and the bad-input tracker all shipped.
+Behavior contracts still written-ahead-of-code: `tag-observers`,
 `crafting-and-cooking`, and the trade trio (§1). What remains unspecced (§2) is the
 greenfield gameplay/economy-depth tail the themes didn't claim.
 
@@ -40,7 +41,6 @@ go straight into a milestone.
 
 | Item | Spec § | Gap (verified absent) |
 |---|---|---|
-| Bad-input tracker (escalation on repeated junk) | commands-and-dispatch §6 | only "Huh?" + `floodGate` rate-limit exist; no §6 tracker |
 | Pluggable name-gates | login §3 | only the hardcoded ASCII-letter validator |
 | Per-phase idle timeout | login §6.1 | `login.go` notes it as a known gap; no per-phase `Conn.Read` deadline set |
 | Tag-indexed reads during movement | world-rooms-movement §3.4 | movement scans, no tag index |
@@ -276,7 +276,6 @@ need a design pass first.
 
 | Theme | Pulls in | Size |
 |---|---|---|
-| **Command & UI polish** *(M18 — nearly done)* | bad-input §6 (prompt + who + auto-help + chaining/repeat shipped) | S |
 | **Crafting & Cooking** | `crafting-and-cooking` + plan; full Tier 0/1/2 MVP in the `core` pack | M |
 | **Player trade** | trade-escrow + direct-trade + auction-house + plan; atomic escrow, sync trade, buyout auction | M |
 | **Engine Debt II** | mob equip §3.3, death-purge §3.5, passive gain/scaling, property-save wiring, tag-indexed reads, cross-pack validation, GMCP wizard panel | S–M |
@@ -298,7 +297,7 @@ need a design pass first.
 | You want a real item economy — players selling loot to each other | **Player trade** *(specced — ready)*; then Economy depth (mail/banking, greenfield) |
 | You want a crafting/gathering loop | **Crafting & Cooking** *(specced — MVP ready)* |
 | The world/character sheet feels mechanically thin | **Gameplay Systems** *(greenfield — design first)* |
-| You want a fast, low-stakes win to re-enter the codebase | finish **M18 Command & UI polish** (or one §1 warmup) |
+| You want a fast, low-stakes win to re-enter the codebase | take one **§1 warmup** (mob equip §3.3, tag-indexed reads, …) |
 | Accreting code debt is blocking a feature you want | **Engine Debt II** *(specced)* |
 | You're about to expose the server to real players | **Ops** (in background) |
 

@@ -22,20 +22,18 @@ and `THEME-AXIS-PLAN.md` are superseded by `BACKLOG.md` and now live under
 
 - **Done:** **M0–M22.** The five original themes — A/M13 (Social), B/M16
   (Modern-Client + GMCP), C/M15 (World-Depth), D/M17 (Content-Authoring +
-  Lua scripting), E/M14 (Engine-Debt) — plus **M18.1** (`prompt` verb),
+  Lua scripting), E/M14 (Engine-Debt) — plus **M18** (Command & UI polish —
+  prompt, who, bad-input tracker, chaining/repeat, auto-help),
   **M19** (Roles & Administration), **M20** (Item Decorations — rarity &
   essence), **M21** (Item Stacking), and **M22** (Loot and Corpses —
   spawn loot → corpse → loot / get-from / look-in / autoloot → decay).
   The core loop, world, combat, progression, economy, quests, scripting,
   sessions, modern-client, roles/admin, decorations, stacking, and loot
   all work.
-- **Active:** none — M22 closed. Pick the next theme from `BACKLOG.md`
+- **Active:** none — M18 + M22 closed. Pick the next theme from `BACKLOG.md`
   §1 (specced, ready) or §2 (greenfield, design-first).
-- **Paused:** **M18 — Command & UI polish** (M18.1 `prompt` shipped;
-  M18.2–M18.5 — `who`, bad-input §6, chaining/repeat §4, auto-help §8 —
-  pending; tracked in `BACKLOG.md` §1).
 - **Specs ahead of code.** Behavior contracts written without
-  implementation, still awaiting a milestone: `tag-observers`, `who`,
+  implementation, still awaiting a milestone: `tag-observers`,
   `crafting-and-cooking`, and the trade trio
   (`trade-escrow` / `direct-trade` / `auction-house`). They sit in
   `BACKLOG.md` §1. The earlier `roles-and-permissions` / `admin-verbs` /
@@ -2679,18 +2677,35 @@ against code and reads its cited spec section first.
       `MaxPromptTemplateLen` (240). Set/clear marks the save dirty +
       flags a prompt refresh so the change shows next flush. 10 tests
       (8 command + 2 session), -race clean.
-- [ ] **M18.2 — `who` verb.** Player-list verb. **Now specced** —
-      `who.md` §2–§4 was written this cycle (roster line, summary count,
-      who-appears; per-viewer hiding deferred to visibility rules). Reads
-      `Manager.OnlinePlayers`. Ready to build.
-- [ ] **M18.3 — Bad-input tracker.** commands-and-dispatch §6 — escalation
-      on repeated unparseable input (beyond today's "Huh?" + flood gate).
-- [ ] **M18.4 — Command chaining `;` + repeat `3n`.** commands-and-dispatch §4.
-- [ ] **M18.5 — Auto-help synthesis from arg defs.** commands-and-dispatch
-      §8 — synthesize Syntax from `ArgDefinition`s (unblocked by M17.2 arg typing).
+- [x] **M18.2 — `who` verb.** World-wide online roster (who §2–§4): one
+      alphabetical line each + summary count, `[Admin]` role marker, `(idle)`
+      marker (reuses the idle-sweep `lastInputAt`). New `command.Roster` seam +
+      value `WhoEntry` snapshots; session `managerRoster` adapter with the
+      `PlayersInRoom` lock discipline. v1 shows everyone; per-viewer hiding
+      attaches at the adapter when visibility lands. `-race` clean.
+- [x] **M18.3 — Bad-input tracker.** commands-and-dispatch §6 — informational,
+      NOT escalation (the router never changes routing). `command.BadInput
+      Tracker` (count/first/last per verb, atomic Record, count-desc Snapshot,
+      Clear); dispatcher records + logs `event=command.unknown` at the unknown-
+      verb miss (not the admin-gate "Huh?"); `badinput` admin verb renders the
+      ranked snapshot. Mob verbs excluded by construction. OTel counter
+      deferred to Ops. `-race` clean.
+- [x] **M18.4 — Command chaining `;` + repeat `3n`.** commands-and-dispatch §4.
+      `command.ParseInput` splits/expands (cap-bounded, repeat `3n`/`12east`/
+      `2pick item`, pure-digit passthrough, overflow-clamped); pump dispatches
+      each segment in order. Synchronous v1 (per-tick pacing out of scope per
+      §4.4). `ANOTHERMUD_CHAIN_CAP` (default 10).
+- [x] **M18.5 — Auto-help synthesis from arg defs.** commands-and-dispatch §8.
+      `GenerateHelpTopics` now synthesizes the syntax line from a command's
+      `ArgDefinition`s (`[req]`, `([opt])`, `[x | all | all.x]`, prepositions
+      in position) via `synthesizeSyntax`; untyped commands keep hand-authored
+      Syntax; pack help still overrides. Deliberate superset (a topic per every
+      command).
+
+**M18 complete** — all five sub-milestones shipped.
 
 **Touches specs:** `ui-rendering-help §7.4` (new), `commands-and-dispatch
-§4/§6/§8`, `chat-channels-and-tells` (who).
+§4/§6/§8`, `who §2–§4` (new).
 
 ---
 

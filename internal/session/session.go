@@ -348,6 +348,11 @@ type Config struct {
 	// command.DefaultChainCap inside ParseInput.
 	ChainCap int
 
+	// BadInput is the unknown-verb tracker (commands-and-dispatch §6).
+	// Threaded into command.Env so the dispatcher records misfires and the
+	// `badinput` admin verb can read them. nil disables tracking.
+	BadInput *command.BadInputTracker
+
 	// NowTick returns the current game tick; threaded into command.Env
 	// so the loot verb can evaluate a corpse's ownership window
 	// (loot-and-corpses §4). Wired to tick.Loop.TickCount at the

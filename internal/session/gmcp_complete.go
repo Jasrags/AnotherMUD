@@ -29,6 +29,7 @@ func commandEnv(cfg Config) command.Env {
 		Stacking:              cfg.Stacking,
 		Locator:               managerLocator{cfg.Manager},
 		Roster:                NewWhoRoster(cfg.Manager, cfg.Clock, DefaultWhoConfig()),
+		BadInput:              cfg.BadInput,
 		Disposition:           cfg.Disposition,
 		Combat:                cfg.Combat,
 		Flee:                  cfg.Flee,

@@ -249,6 +249,11 @@ func run() error {
 
 	clk := clock.RealClock{}
 
+	// Bad-input tracker (commands-and-dispatch §6): records unknown player
+	// verbs for operator triage. Shared by the dispatcher (records) and the
+	// `badinput` admin verb (reads); threaded through session.Config.
+	badInput := command.NewBadInputTracker(clk)
+
 	// M13.1c: notification queue substrate. Per spec §10 the
 	// per-entity cap is 50 (matches tells inbox). The Manager and
 	// Store mirror the queststore convention so future notifications
@@ -1635,6 +1640,7 @@ func run() error {
 		// the flood gate counts one token per submitted LINE, and each line can
 		// expand to ChainCap commands. Bump with that coupling in mind.
 		ChainCap: envIntOr("ANOTHERMUD_CHAIN_CAP", command.DefaultChainCap),
+		BadInput: badInput,
 		LinkDead: linkDeadCfg,
 		// M15.4b₂b: per-look weather ambience. The closure binds
 		// weather.Service.Ambience; RenderRoom appends its output
