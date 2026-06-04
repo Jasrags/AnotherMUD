@@ -340,26 +340,29 @@ while closed, and the two sides stay in sync.
 
 ## 16. Persistence
 
-- [ ] Change state (move, pick up items, spend gold, take damage), `quit`,
+- [x] Change state (move, pick up items, spend gold, take damage), `quit`,
       reconnect — everything is as you left it.
-- [ ] Restart the **server** (Ctrl-C, `make run` again), log back in — character
+- [x] Restart the **server** (Ctrl-C, `make run` again), log back in — character
       state survived (corpses/weather/mobs reset by design; player save does not).
 
 ## 17. Admin verbs (Jasrags — already admin)
 
-- [ ] `inspect bandit` (in the Meadow) — full diagnostic record of the target.
-- [ ] `restore` / `restore Bob` — refills vitals to full **and** tops off
+- [x] `inspect bandit` (in the Meadow) — full diagnostic record of the target.
+- [x] `restore` / `restore Bob` — refills vitals to full **and** tops off
       sustenance (hunger/thirst); the reply notes "fully fed" for a player target.
-- [ ] `set vital hp <target> 1` — sets a field on a target (then `restore`).
-- [ ] `teleport meadow` (`goto meadow`) — jump to a room by id; `goto Bob`
+- [x] `set vital hp <target> 1` — sets a field on a target (then `restore`).
+- [x] `teleport meadow` (`goto meadow`) — jump to a room by id; `goto Bob`
       jumps to a player.
-- [ ] `purge bandit` — removes the mob from the world.
-- [ ] `announce Server test in progress` — all connected players see the
+- [x] `purge bandit` — removes the mob from the world.
+- [x] `announce Server test in progress` — all connected players see the
       broadcast.
-- [ ] `grant builder to Bob` then `revoke builder from Bob` — role changes (Bob
+- [x] `grant builder to Bob` then `revoke builder from Bob` — role changes (Bob
       sees nothing player-facing; verify via `inspect Bob`).
-- [ ] `xp 1000` — grants XP to yourself (admin probe).
-- [ ] `reload` — reloads pack Lua scripts (watch the log for the reload count).
+- [x] `xp 1000` — grants XP to yourself (admin probe).
+- [x] `reload` — reloads pack Lua scripts. The **count comes back to your
+      client**: "Reloaded N script(s)." (core ships one — `track_kills.lua`).
+      The **server log** also prints a confirmation (`event=scripting.reload
+      count=N`).
 - [ ] As **Bob** (non-admin), any admin verb (`inspect`, `goto`, …) — refused /
       hidden in `help`.
 
@@ -382,9 +385,14 @@ Needs a GMCP-capable client (e.g. Mudlet) and `ANOTHERMUD_WS_ADDR=:4001`.
 
 ## 19. Scripting (pack Lua)
 
-- [ ] Kill the bandit and watch the server log — `track_kills.lua` logs a
-      `kill: …` line (and a scheduled follow-up ~3s later).
-- [ ] As admin, `reload` — the log shows scripts re-discovered/reloaded.
+- [x] Kill the bandit and watch the **server's** log (its stderr — the
+      `make run`/`make watch` terminal, *not* your game client) — at INFO level
+      `track_kills.lua` logs an `event=scripting.log msg="kill: …"` line, then a
+      scheduled follow-up ~3s later. (Suppressed if `ANOTHERMUD_LOG_LEVEL` is
+      above `info`.)
+- [x] As admin, `reload` — the server log prints `event=scripting.reload
+      count=N`; scripts only emit their *own* log lines when they next fire
+      (kill the bandit again to see `track_kills.lua` after a reload).
 
 ## 20. Tab-completion
 

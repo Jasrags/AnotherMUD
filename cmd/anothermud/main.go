@@ -1579,7 +1579,15 @@ func run() error {
 			if err := scriptRuntime.Reload(ctx, fresh); err != nil {
 				return 0, err
 			}
-			return fresh.Len(), nil
+			// Server-side confirmation so an operator watching the log sees
+			// the reload land (the count itself also returns to the admin's
+			// client via the reload verb). DiscoverScripts/Reload are
+			// otherwise silent.
+			n := fresh.Len()
+			logging.From(ctx).Info("scripts reloaded",
+				slog.String("event", "scripting.reload"),
+				slog.Int("count", n))
+			return n, nil
 		},
 		Progression: progressionMgr,
 		Training: progression.NewTrainingManager(
