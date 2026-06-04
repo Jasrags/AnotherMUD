@@ -124,3 +124,71 @@ func TestWriteStillEscapesIAC(t *testing.T) {
 		t.Errorf("wire = % x, want escaped % x", got, want)
 	}
 }
+
+func TestWriteExpandsBareLFToCRLF(t *testing.T) {
+	srv, cli := net.Pipe()
+	defer srv.Close()
+	defer cli.Close()
+	c := New("crlf", srv)
+
+	// Multi-line render: interior bare '\n' must reach the wire as "\r\n"
+	// so a raw/char-mode client doesn't staircase.
+	in := []byte("line1\nline2\n")
+	want := []byte("line1\r\nline2\r\n")
+	got := make([]byte, len(want))
+	readErr := make(chan error, 1)
+	go func() {
+		_, err := io.ReadFull(cli, got)
+		readErr <- err
+	}()
+	if _, err := c.Write(context.Background(), in); err != nil {
+		t.Fatalf("Write: %v", err)
+	}
+	if err := <-readErr; err != nil {
+		t.Fatalf("read: %v", err)
+	}
+	if !bytes.Equal(got, want) {
+		t.Errorf("wire = %q, want %q", got, want)
+	}
+}
+
+func TestWriteLeavesExistingCRLFIntact(t *testing.T) {
+	srv, cli := net.Pipe()
+	defer srv.Close()
+	defer cli.Close()
+	c := New("crlf2", srv)
+
+	// Already-CRLF input is idempotent — no doubled CR.
+	in := []byte("a\r\nb")
+	got := make([]byte, len(in))
+	readErr := make(chan error, 1)
+	go func() {
+		_, err := io.ReadFull(cli, got)
+		readErr <- err
+	}()
+	if _, err := c.Write(context.Background(), in); err != nil {
+		t.Fatalf("Write: %v", err)
+	}
+	if err := <-readErr; err != nil {
+		t.Fatalf("read: %v", err)
+	}
+	if !bytes.Equal(got, in) {
+		t.Errorf("wire = %q, want unchanged %q", got, in)
+	}
+}
+
+func TestCRLFNormalize(t *testing.T) {
+	cases := map[string]string{
+		"a\nb":       "a\r\nb",   // bare LF expands
+		"a\r\nb":     "a\r\nb",   // existing CRLF intact
+		"\n":         "\r\n",     // leading bare LF
+		"a\n\nb":     "a\r\n\r\nb", // consecutive bare LFs
+		"plain text": "plain text", // no newline, zero-copy
+		"a\rb":       "a\rb",     // bare CR (no LF) left alone
+	}
+	for in, want := range cases {
+		if got := string(crlfNormalize([]byte(in))); got != want {
+			t.Errorf("crlfNormalize(%q) = %q, want %q", in, got, want)
+		}
+	}
+}

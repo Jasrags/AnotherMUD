@@ -323,9 +323,12 @@ func (c *Conn) Write(ctx context.Context, p []byte) (int, error) {
 	if err := ctx.Err(); err != nil {
 		return 0, err
 	}
-	out := p
-	if idx := bytesIndexByte(p, tnIAC); idx >= 0 {
-		out = escapeIAC(p, idx)
+	// Proper NVT line endings first (RFC 854): expand bare '\n' to "\r\n"
+	// so multi-line output renders correctly on a raw / character-at-a-time
+	// client (char-mode), which does no ONLCR translation. Then escape IAC.
+	out := crlfNormalize(p)
+	if idx := bytesIndexByte(out, tnIAC); idx >= 0 {
+		out = escapeIAC(out, idx)
 	}
 	c.wmu.Lock()
 	defer c.wmu.Unlock()
@@ -393,6 +396,38 @@ func bytesIndexByte(s []byte, b byte) int {
 		}
 	}
 	return -1
+}
+
+// crlfNormalize expands every bare '\n' (one not already preceded by '\r')
+// into "\r\n" so telnet output uses proper NVT line endings (RFC 854)
+// regardless of the client's terminal mode. Without it, a multi-line render
+// (room descriptions join their lines with '\n') "staircases" on a raw /
+// character-at-a-time client: the line feed drops a row but the cursor never
+// returns to column 0, because a raw client does no ONLCR translation. A
+// cooked/line-mode client that DOES translate just sees a harmless extra CR.
+// Idempotent on existing "\r\n". Allocates only when a bare '\n' is present,
+// so the already-CRLF and no-newline paths stay zero-copy. The "preceded by
+// '\r'" test reads the INPUT byte, so a source "\r\n" is left intact.
+func crlfNormalize(p []byte) []byte {
+	bare := false
+	for i := 0; i < len(p); i++ {
+		if p[i] == '\n' && (i == 0 || p[i-1] != '\r') {
+			bare = true
+			break
+		}
+	}
+	if !bare {
+		return p
+	}
+	out := make([]byte, 0, len(p)+8)
+	for i := 0; i < len(p); i++ {
+		if p[i] == '\n' && (i == 0 || p[i-1] != '\r') {
+			out = append(out, '\r', '\n')
+		} else {
+			out = append(out, p[i])
+		}
+	}
+	return out
 }
 
 // escapeIAC returns a fresh slice where every 0xFF byte from p has
