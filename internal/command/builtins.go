@@ -69,6 +69,7 @@ func RegisterBuiltins(r *Registry) error {
 		// vitals, attributes, alignment, gold, sustenance. Self-only;
 		// consider sizes up others. Reads through the actor's interfaces.
 		{Keyword: "score", Aliases: []string{"sc"}, Handler: ScoreHandler, Brief: "Show your character sheet.", Syntax: []string{"score"}},
+		{Keyword: "who", Handler: WhoHandler, Brief: "List the characters currently online.", Syntax: []string{"who"}},
 
 		// suggest: the line-mode completion stopgap (tab-completion §7/§13).
 		// Lists completion candidates for a partial command — real

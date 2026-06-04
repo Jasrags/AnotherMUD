@@ -200,6 +200,9 @@ type Env struct {
 	// give command handler (and future targeted verbs). May be nil
 	// in tests; handlers MUST nil-guard.
 	Locator Locator
+	// Roster is the world-wide online-player snapshot the `who` verb reads
+	// (who §2–§4). The session Manager satisfies it. nil disables `who`.
+	Roster Roster
 	// Disposition is the room-entry hook the disposition evaluator
 	// exposes (spec mobs-ai-spawning §4). May be nil in tests and
 	// in headless boot paths. Handlers MUST nil-guard.
@@ -396,6 +399,7 @@ type Context struct {
 	Essence     *decoration.EssenceRegistry // may be nil in tests (M20 decorations)
 	Stacking    *stacking.Service           // may be nil in tests (M21 stacking)
 	Locator     Locator                     // may be nil in tests
+	Roster      Roster                      // may be nil in tests (who verb)
 	Disposition DispositionHook             // may be nil in tests
 	Combat      *combat.Manager             // may be nil in tests
 	// Flee is the M7.6 verb-driven §5.2 flee primitive closure. nil
@@ -862,6 +866,7 @@ func (r *Registry) Dispatch(ctx context.Context, env Env, actor Actor, raw strin
 		Essence:               env.Essence,
 		Stacking:              env.Stacking,
 		Locator:               env.Locator,
+		Roster:                env.Roster,
 		Disposition:           env.Disposition,
 		Combat:                env.Combat,
 		Flee:                  env.Flee,

@@ -275,6 +275,10 @@ two quests — **Forge Errand** (auto-grant) and **Gate Patrol** (turn-in)
 - [x] `channels` (`chanlist`) — lists channels; post on one and the other sees
       it; `chathistory` (`chhist`) shows scrollback.
 - [x] `emote waves` (`pose`) — the room sees "Jasrags waves".
+- [ ] `who` — lists every online character (world-wide, not just this room),
+      one per line, alphabetical, then "N players online." Jasrags shows an
+      `[Admin]` tag; a character idle >60s shows `(idle)`. You always see
+      yourself.
 - [x] Log in as Jasrags from a 3rd connection — you're prompted to **take over**
       the existing session; confirming moves you to the new connection.
 - [x] Drop a connection abruptly (close the terminal) — the character goes

@@ -1,6 +1,6 @@
 # Who — Feature Specification
 
-**Status:** Draft · **Scope:** The `who` verb that lists the characters
+**Status:** Implemented (v1 — `internal/command/who.go`, `internal/session/roster.go`) · **Scope:** The `who` verb that lists the characters
 currently connected to the server, the per-character roster line, the
 summary count, and which characters appear · **Audience:** Anyone
 reimplementing or porting this feature in any language.
@@ -63,13 +63,15 @@ SessionManager) and renders one line per character plus a summary count.
 
 **Acceptance — the roster**
 
-- [ ] Each appearing character produces exactly one line showing at least
+- [x] Each appearing character produces exactly one line showing at least
       the name.
-- [ ] The actor always sees their own line.
-- [ ] Configured optional columns (title / level / idle) render when
-      enabled and are absent when not.
-- [ ] Ordering is stable across repeated invocations with the same
-      population.
+- [x] The actor always sees their own line.
+- [x] Configured optional columns (title / level / idle) render when
+      enabled and are absent when not. *(v1: idle marker + `[Admin]` role tag
+      ship; the title/level columns are deferred — columns are optional per §5,
+      and a "level" column needs a primary-track decision.)*
+- [x] Ordering is stable across repeated invocations with the same
+      population. *(case-insensitive alphabetical, `sort.SliceStable`.)*
 
 ---
 
@@ -83,8 +85,9 @@ SessionManager) and renders one line per character plus a summary count.
 
 **Acceptance — the summary**
 
-- [ ] The reported count equals the number of roster lines rendered.
+- [x] The reported count equals the number of roster lines rendered.
 - [ ] A hidden character (§4) is excluded from both the lines and the count.
+      *(forward — no visibility/hiding exists yet; v1 hides no one.)*
 
 ---
 
@@ -108,11 +111,14 @@ that does not exist yet.
 
 **Acceptance — who appears**
 
-- [ ] Every playing session (including link-dead-within-window) appears in
-      v1; sessions still logging in or creating do not.
-- [ ] The actor always appears in their own `who`.
+- [x] Every playing session (including link-dead-within-window) appears in
+      v1; sessions still logging in or creating do not. *(the SessionManager
+      only holds post-login actors — `Add` runs after phase=Playing — so this
+      holds by construction; the roster snapshots `byPlayerID`.)*
+- [x] The actor always appears in their own `who`.
 - [ ] (Forward) once visibility exists, a character hidden from the viewer
-      is excluded from that viewer's lines and count.
+      is excluded from that viewer's lines and count. *(seam ready: filtering
+      attaches at `managerRoster.OnlineRoster`.)*
 
 ---
 

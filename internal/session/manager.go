@@ -188,6 +188,23 @@ func (m *Manager) Count() int {
 	return len(m.byConn)
 }
 
+// playingActors snapshots every registered actor (playing + link-dead-
+// within-window) as pointers under the manager read lock. The Manager only
+// holds post-login actors — Add runs after phase=Playing — so login and
+// character-creation sessions are excluded by construction (who §4 v1).
+// Keyed by player id, so a single character is returned once even across a
+// reconnect. Per-actor fields are read by the caller under each actor's own
+// lock, never while holding m.mu (mirrors PlayersInRoom's discipline).
+func (m *Manager) playingActors() []*connActor {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	out := make([]*connActor, 0, len(m.byPlayerID))
+	for _, a := range m.byPlayerID {
+		out = append(out, a)
+	}
+	return out
+}
+
 // GetByName returns the session for the named player (case-insensitive)
 // and whether one is online.
 func (m *Manager) GetByName(name string) (*connActor, bool) {

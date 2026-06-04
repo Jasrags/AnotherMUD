@@ -15,8 +15,8 @@ the theme-axis plan (its method survives below).
   specced item links its `docs/specs/<file> §X` — the *what* lives there. An unspecced
   item's first deliverable *is* a new spec slice (the spec set has grown 17 → **32** as
   ideas get promoted; of the write-ahead batch, roles, admin-verbs, and item-decorations
-  have since shipped (M19/M20), leaving `tag-observers`, `who`, `crafting-and-cooking`,
-  and the trade trio as contracts still ahead of code in §1).
+  have since shipped (M19/M20; `who` shipped too), leaving `tag-observers`,
+  `crafting-and-cooking`, and the trade trio as contracts still ahead of code in §1).
 - **Verified against code.** Every item below was confirmed absent in the codebase as of
   2026-06-02, not trusted from the old matrix (which misreported several shipped systems).
 
@@ -27,7 +27,7 @@ C (World Depth / M15), D (Content Authoring / M17), E (Engine Debt / M14) — ar
 **done**, and since then **M19** (Roles & Administration), **M20** (Item Decorations),
 **M21** (Item Stacking), and **M22** (Loot & Corpses) have shipped (see `ROADMAP.md`).
 **M18** (Command & UI polish) is **paused** mid-flight (only M18.1 `prompt` shipped; the
-rest sit in §1). Behavior contracts still written-ahead-of-code: `tag-observers`, `who`,
+rest sit in §1). Behavior contracts still written-ahead-of-code: `tag-observers`,
 `crafting-and-cooking`, and the trade trio (§1). What remains unspecced (§2) is the
 greenfield gameplay/economy-depth tail the themes didn't claim.
 
@@ -43,7 +43,6 @@ go straight into a milestone.
 | Command chaining `;` + repeat `3n` | commands-and-dispatch §4 | no chain/repeat parsing in dispatch |
 | Bad-input tracker (escalation on repeated junk) | commands-and-dispatch §6 | only "Huh?" + `floodGate` rate-limit exist; no §6 tracker |
 | Auto-help synthesis from arg defs | commands-and-dispatch §8 / ui §9.2 | Syntax is hand-authored; no synthesis from `ArgDefinition`s. **Unblocked** — arg typing shipped M17.2 |
-| `who` verb | **who §2–§4** (new) | no player-list verb. Conventional roster (Tapestry has none); reads `Manager.OnlinePlayers`. Per-viewer hiding deferred to visibility rules |
 | Pluggable name-gates | login §3 | only the hardcoded ASCII-letter validator |
 | Per-phase idle timeout | login §6.1 | `login.go` notes it as a known gap; no per-phase `Conn.Read` deadline set |
 | Tag-indexed reads during movement | world-rooms-movement §3.4 | movement scans, no tag index |
@@ -280,7 +279,7 @@ need a design pass first.
 
 | Theme | Pulls in | Size |
 |---|---|---|
-| **Command & UI polish** *(PAUSED — M18, resume)* | `who`, bad-input §6, chaining/repeat §4, auto-help §8 (prompt verb shipped) | S |
+| **Command & UI polish** *(PAUSED — M18, resume)* | bad-input §6, chaining/repeat §4, auto-help §8 (prompt + who verbs shipped) | S |
 | **Crafting & Cooking** | `crafting-and-cooking` + plan; full Tier 0/1/2 MVP in the `core` pack | M |
 | **Player trade** | trade-escrow + direct-trade + auction-house + plan; atomic escrow, sync trade, buyout auction | M |
 | **Engine Debt II** | mob equip §3.3, death-purge §3.5, passive gain/scaling, property-save wiring, tag-indexed reads, cross-pack validation, GMCP wizard panel | S–M |
