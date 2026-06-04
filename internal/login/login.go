@@ -9,11 +9,14 @@
 //   - Per-phase failed-attempt cap
 //   - Hands off a Loaded record to the session layer on success
 //
-// Deferred to M4:
+// Idle timeout (spec §6.1): every interactive read is bounded by a
+// Clock-driven idle timeout (Config.IdleTimeout). v1 applies a single
+// global timeout to all phases (the spec's global fallback); per-phase
+// override values are a future extension on the same read primitive.
 //
-//   - Session takeover, link-dead reconnect, per-account concurrency cap
+// Deferred:
+//
 //   - Name-gates (pluggable allow/reject policy)
-//   - Per-phase idle timeouts (needs a Clock-aware Conn.Read deadline)
 //   - Structured GMCP phase events
 package login
 
@@ -26,8 +29,10 @@ import (
 	"io"
 	"log/slog"
 	"strings"
+	"time"
 
 	"github.com/Jasrags/AnotherMUD/internal/account"
+	"github.com/Jasrags/AnotherMUD/internal/clock"
 	"github.com/Jasrags/AnotherMUD/internal/conn"
 	"github.com/Jasrags/AnotherMUD/internal/logging"
 	"github.com/Jasrags/AnotherMUD/internal/player"
@@ -57,6 +62,7 @@ const (
 // Sentinel errors returned from Run.
 var (
 	ErrAborted      = errors.New("login: connection closed before login")
+	ErrIdleTimeout  = errors.New("login: idle timeout")
 	ErrPasswordCap  = errors.New("login: too many password attempts")
 	ErrEmailCap     = errors.New("login: too many email attempts")
 	ErrNameRejected = errors.New("login: name policy rejected")
@@ -86,6 +92,25 @@ type Config struct {
 	MinPasswordLength   int
 	MinNameLength       int
 	MaxNameLength       int
+
+	// Clock drives the per-phase idle timeout (login spec §6.1). nil
+	// falls back to the real clock; tests inject a ManualClock to fire
+	// the timeout deterministically. Foundation F3: no direct time.Now().
+	Clock clock.Clock
+
+	// IdleTimeout bounds every interactive read. Zero (or negative)
+	// disables the timeout entirely — the historical behavior — so
+	// callers that don't set it read with no deadline. This is the
+	// global fallback of spec §6.1; per-phase overrides are a future
+	// extension layered on the same read primitive.
+	IdleTimeout time.Duration
+}
+
+func (c Config) idleClock() clock.Clock {
+	if c.Clock != nil {
+		return c.Clock
+	}
+	return clock.RealClock{}
 }
 
 func (c Config) maxPwAttempts() int {
@@ -123,7 +148,17 @@ func (c Config) maxNameLen() int {
 // record is produced or the connection is closed / the context is
 // cancelled.
 func Run(ctx context.Context, c conn.Connection, cfg Config) (*Loaded, error) {
-	lio := &lineIO{c: c}
+	lio := &lineIO{c: c, clock: cfg.idleClock(), idle: cfg.IdleTimeout}
+	loaded, err := runLoop(ctx, lio, cfg)
+	if errors.Is(err, ErrIdleTimeout) {
+		// Spec §6.1: close with a timeout reason. Send a final line so
+		// the peer learns why before the transport drops.
+		_ = lio.writeln(ctx, "You took too long to respond. Goodbye.")
+	}
+	return loaded, err
+}
+
+func runLoop(ctx context.Context, lio *lineIO, cfg Config) (*Loaded, error) {
 	if err := lio.writeln(ctx, "Welcome to AnotherMUD."); err != nil {
 		return nil, err
 	}
@@ -391,13 +426,20 @@ func promptPassword(ctx context.Context, lio *lineIO, prompt string) (string, er
 // lineIO bundles ctx-aware line read + write helpers around conn.Connection.
 // Centralized so the EOF/closed translation lives in one place.
 type lineIO struct {
-	c conn.Connection
+	c     conn.Connection
+	clock clock.Clock
+	idle  time.Duration
 }
 
 func (l *lineIO) readln(ctx context.Context) (string, error) {
-	line, err := l.c.Read(ctx)
+	line, err := l.readBounded(ctx)
 	if err == nil {
 		return line, nil
+	}
+	// An idle timeout is its own terminal reason (spec §6.4) — keep it
+	// distinct from a clean peer close so the caller can report it.
+	if errors.Is(err, ErrIdleTimeout) {
+		return "", ErrIdleTimeout
 	}
 	if errors.Is(err, io.EOF) || errors.Is(err, conn.ErrClosed) {
 		return "", ErrAborted
@@ -406,6 +448,50 @@ func (l *lineIO) readln(ctx context.Context) (string, error) {
 		return "", ErrAborted
 	}
 	return "", err
+}
+
+// readBounded reads one line, bounded by the per-phase idle timeout
+// (spec §6.1) when one is configured. With no timeout it is a plain
+// blocking read — the historical behavior. The timeout is driven off
+// the injected Clock so it is testable without real waits; on expiry it
+// cancels the in-flight read (unblocking the transport) and returns
+// ErrIdleTimeout. A fresh timer is created per read, so a late timer
+// from a prior phase can never affect the current one (spec §6.1).
+func (l *lineIO) readBounded(ctx context.Context) (string, error) {
+	if l.idle <= 0 {
+		return l.c.Read(ctx)
+	}
+
+	clk := l.clock
+	if clk == nil {
+		clk = clock.RealClock{}
+	}
+	// Register the timer before spawning the reader so the reader being
+	// observed as "running" implies the timer exists (deterministic for
+	// a ManualClock-driven test).
+	tick, stop := clk.Ticker(l.idle)
+	defer stop()
+
+	rctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
+	type result struct {
+		line string
+		err  error
+	}
+	ch := make(chan result, 1)
+	go func() { line, err := l.c.Read(rctx); ch <- result{line, err} }()
+
+	select {
+	case r := <-ch:
+		return r.line, r.err
+	case <-tick:
+		// cancel() (deferred) unblocks the read goroutine, which then
+		// drains into the buffered channel — no leak.
+		return "", ErrIdleTimeout
+	case <-ctx.Done():
+		return "", ctx.Err()
+	}
 }
 
 func (l *lineIO) writeln(ctx context.Context, s string) error {

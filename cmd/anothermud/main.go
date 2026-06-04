@@ -1656,6 +1656,11 @@ func run() error {
 			Accounts:        accounts,
 			Players:         players,
 			DefaultLocation: string(cfg.StartRoom),
+			// Per-phase idle timeout (login §6.1): bound interactive
+			// reads so a connection that never responds is reaped. Driven
+			// off the engine Clock (F3) so it's testable.
+			Clock:       clk,
+			IdleTimeout: cfg.LoginIdleTimeout,
 		},
 	})
 	// M16.2: MSSP variable table for MUD-listing crawlers. Static
@@ -1787,6 +1792,10 @@ type config struct {
 	AutosaveInterval      time.Duration
 	IdleSweepInterval     time.Duration
 	LinkDeadSweepInterval time.Duration
+	// LoginIdleTimeout bounds every interactive login/creation read
+	// (login spec §6.1). Zero disables it; the default closes a peer
+	// that opens a connection but never responds.
+	LoginIdleTimeout time.Duration
 	// SustenanceDrainInterval / SustenanceDrainAmount tune the §4.4
 	// hunger drain (economy-survival). Interval is how often the pool
 	// drops; Amount is how much it drops each time. Defaults reproduce
@@ -1842,6 +1851,7 @@ func loadConfig() config {
 		AutosaveInterval:        envDurationOr("ANOTHERMUD_AUTOSAVE_INTERVAL", 30*time.Second),
 		IdleSweepInterval:       envDurationOr("ANOTHERMUD_IDLE_SWEEP_INTERVAL", 30*time.Second),
 		LinkDeadSweepInterval:   envDurationOr("ANOTHERMUD_LINKDEAD_SWEEP_INTERVAL", 30*time.Second),
+		LoginIdleTimeout:        envDurationOr("ANOTHERMUD_LOGIN_IDLE_TIMEOUT", 60*time.Second),
 		SustenanceDrainInterval: envDurationOr("ANOTHERMUD_SUSTENANCE_DRAIN_INTERVAL", 30*time.Second),
 		SustenanceDrainAmount:   envIntOr("ANOTHERMUD_SUSTENANCE_DRAIN_AMOUNT", 1),
 		ContentDir:              envOr("ANOTHERMUD_CONTENT_DIR", "./content"),
