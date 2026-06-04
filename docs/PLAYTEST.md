@@ -260,7 +260,7 @@ two quests — **Forge Errand** (auto-grant) and **Gate Patrol** (turn-in)
       (**Forge Errand**, **Gate Patrol**), each with its pitch and an
       `accept <name>` line. This is how you discover a quest without already
       knowing its name.
-- [ ] **`accept` completes the offers:** at the Forge, `accept ` + **TAB** (raw
+- [x] **`accept` completes the offers:** at the Forge, `accept ` + **TAB** (raw
       telnet) — or `suggest accept ` — lists Maerys's quests by their bare id
       (`forge-errand`, `gate-patrol`); `accept ga` + TAB → `accept gate-patrol`.
       No more typing the full multi-word name. Completion only lists quests
@@ -291,7 +291,7 @@ two quests — **Forge Errand** (auto-grant) and **Gate Patrol** (turn-in)
 ### Abandon
 
 - [x] Accept either quest, then `abandon <name>` — it drops from the journal.
-- [ ] **`abandon` completes your active quests:** with a quest active, `abandon `
+- [x] **`abandon` completes your active quests:** with a quest active, `abandon `
       + **TAB** (or `suggest abandon `) lists it by bare id (`gate-patrol`); works
       anywhere (not giver-bound, unlike `accept`). Only *abandonable* active
       quests are offered.
