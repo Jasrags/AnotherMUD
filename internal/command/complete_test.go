@@ -59,6 +59,12 @@ func completionRegistry(t *testing.T) *Registry {
 			HandParsed: true, Args: []ArgDefinition{{Name: "quest", Type: ArgQuest}}},
 		{Keyword: "abandon", Brief: "abandon quest", Handler: noopHandler,
 			HandParsed: true, Args: []ArgDefinition{{Name: "quest", Type: ArgActiveQuest}}},
+		{Keyword: "unequip", Brief: "unequip", Handler: noopHandler,
+			HandParsed: true, Args: []ArgDefinition{{Name: "item", Type: ArgEquipped}}},
+		{Keyword: "talk", Brief: "talk", Handler: noopHandler,
+			HandParsed: true, Args: []ArgDefinition{{Name: "npc", Type: ArgNPC}}},
+		{Keyword: "sell", Brief: "sell", Handler: noopHandler,
+			HandParsed: true, Args: []ArgDefinition{{Name: "item", Type: ArgInventory}}},
 		{Keyword: "secret", Brief: "secret", Admin: true, Handler: noopHandler},
 	}
 	for _, c := range cmds {
@@ -350,6 +356,34 @@ func TestComplete_Arg_Quest_NilScope(t *testing.T) {
 	}
 	if len(res.Candidates) != 0 {
 		t.Errorf("nil quest scope: want no candidates, got %v", tokensOf(res.Candidates))
+	}
+}
+
+// unequip completes the actor's EQUIPPED items (rc.Equipped), distinct
+// from inventory; the token round-trips through the equipped scope.
+func TestComplete_Arg_Equipped(t *testing.T) {
+	r := completionRegistry(t)
+	rc := ResolveContext{
+		Inventory: []ItemCandidate{&fakeItem{id: "i1", name: "a torch", keywords: []string{"torch"}}},
+		Equipped:  []ItemCandidate{&fakeItem{id: "e1", name: "a short sword", keywords: []string{"sword"}}},
+	}
+	// unequip enumerates the equipped set...
+	if got := tokensOf(r.Complete("unequip sw", rc, CompletionOptions{}).Candidates); !has(got, "sword") {
+		t.Errorf("unequip sw: want sword (equipped), got %v", got)
+	}
+	// ...and NOT inventory items.
+	if got := tokensOf(r.Complete("unequip to", rc, CompletionOptions{}).Candidates); has(got, "torch") {
+		t.Errorf("unequip must not complete inventory items, got %v", got)
+	}
+}
+
+// talk completes room NPCs (ArgNPC) — mobs, not players or items.
+func TestComplete_Arg_TalkNPC(t *testing.T) {
+	r := completionRegistry(t)
+	mob := &fakeEntity{id: "m1", name: "Maerys the Training Master", keywords: []string{"maerys", "master"}, kind: "mob"}
+	rc := ResolveContext{RoomEntities: []EntityCandidate{mob}}
+	if got := tokensOf(r.Complete("talk ma", rc, CompletionOptions{}).Candidates); !has(got, "maerys") && !has(got, "master") {
+		t.Errorf("talk ma: want the Maerys NPC, got %v", got)
 	}
 }
 

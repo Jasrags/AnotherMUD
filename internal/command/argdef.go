@@ -41,6 +41,12 @@ const (
 	// Same HandParsed + bare-id round-trip contract; the distinct type
 	// just selects the other enumerator.
 	ArgActiveQuest ArgType = "active_quest"
+	// ArgEquipped enumerates the actor's currently-equipped (worn/wielded)
+	// items for completion — the scope `unequip` resolves against. Item-
+	// flavored (reuses the keyword disambiguation the inventory/room types
+	// use); the completion token is a distinguishing keyword that
+	// round-trips through unequip's keyword resolver.
+	ArgEquipped ArgType = "equipped"
 )
 
 // engineArgTypes is the immutable set of engine-baseline type
@@ -63,6 +69,7 @@ var engineArgTypes = map[ArgType]struct{}{
 	ArgDoor:        {},
 	ArgQuest:       {},
 	ArgActiveQuest: {},
+	ArgEquipped:    {},
 }
 
 // IsEngineArgType reports whether name is one of the engine-

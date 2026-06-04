@@ -164,6 +164,26 @@ func (c *Context) BuildResolveContext() ResolveContext {
 		for _, inst := range collectItems(c.Items, c.Actor.Inventory()) {
 			rc.Inventory = append(rc.Inventory, itemCandidate{inst})
 		}
+		// Equipped scope (ArgEquipped completion for `unequip`): the worn
+		// items, resolved from the slot-key → entity-id equipment map.
+		// Walked in sorted slot-key order so the candidate list (and any
+		// ordinal token for duplicate-keyword worn items) is stable across
+		// calls — mirrors unequip's own deterministic slot-key sort.
+		eq := c.Actor.Equipment()
+		if len(eq) > 0 {
+			slotKeys := make([]string, 0, len(eq))
+			for k := range eq {
+				slotKeys = append(slotKeys, k)
+			}
+			sort.Strings(slotKeys)
+			ids := make([]entities.EntityID, 0, len(eq))
+			for _, k := range slotKeys {
+				ids = append(ids, eq[k])
+			}
+			for _, inst := range collectItems(c.Items, ids) {
+				rc.Equipped = append(rc.Equipped, itemCandidate{inst})
+			}
+		}
 	}
 
 	// Room scopes: items and mobs placed in the current room. A single

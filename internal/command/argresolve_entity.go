@@ -76,6 +76,10 @@ type ResolveContext struct {
 	Inventory    []ItemCandidate
 	RoomItems    []ItemCandidate
 	RoomEntities []EntityCandidate
+	// Equipped is the actor's currently worn/wielded items — the scope
+	// for ArgEquipped completion (`unequip`). Item-flavored like
+	// Inventory; populated by BuildResolveContext from Actor.Equipment().
+	Equipped []ItemCandidate
 
 	// ActorName + ActorID feed the visible resolver's "self"
 	// source tag. Empty disables self-matching at the visible

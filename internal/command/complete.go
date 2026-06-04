@@ -303,6 +303,8 @@ func scopeFor(t ArgType, rc ResolveContext) []keyword.Named {
 	switch t {
 	case ArgInventory:
 		return itemsAsNamed(rc.Inventory)
+	case ArgEquipped:
+		return itemsAsNamed(rc.Equipped)
 	case ArgRoomItem:
 		return itemsAsNamed(rc.RoomItems)
 	case ArgContainer:

@@ -54,7 +54,11 @@ func RegisterBuiltins(r *Registry) error {
 		{Keyword: "loot", Handler: LootHandler, Brief: "Take everything from a corpse.", Syntax: []string{"loot", "loot <corpse>"}},
 		{Keyword: "autoloot", Handler: AutolootHandler, Brief: "Toggle auto-looting your own kills.", Syntax: []string{"autoloot", "autoloot on|off"}},
 		{Keyword: "equip", Handler: EquipHandler, Brief: "Wear or wield an item from your inventory.", Syntax: []string{"equip <item> <slot>"}, Args: []ArgDefinition{{Name: "item", Type: ArgInventory}, {Name: "slot", Type: ArgKeyword}}},
-		{Keyword: "unequip", Handler: UnequipHandler, Brief: "Remove an equipped item.", Syntax: []string{"unequip <item>"}},
+		// unequip declares its equipped-item arg + HandParsed so completion
+		// enumerates the worn items while the handler keyword-resolves the
+		// raw term itself.
+		{Keyword: "unequip", Handler: UnequipHandler, Brief: "Remove an equipped item.", Syntax: []string{"unequip <item>"},
+			HandParsed: true, Args: []ArgDefinition{{Name: "item", Type: ArgEquipped}}},
 		{Keyword: "inventory", Aliases: []string{"i"}, Handler: InventoryHandler, Brief: "List the items you are carrying.", Syntax: []string{"inventory"}},
 		{Keyword: "equipment", Aliases: []string{"eq"}, Handler: EquipmentHandler, Brief: "Show your equipment slots (empty ones included).", Syntax: []string{"equipment"}},
 
@@ -103,7 +107,10 @@ func RegisterBuiltins(r *Registry) error {
 		{Keyword: "help", Handler: HelpHandler, Brief: "Find help on commands and topics.", Syntax: []string{"help", "help <topic>"}, Category: "general"},
 
 		// Quests (M10.10).
-		{Keyword: "talk", Aliases: []string{"ask"}, Handler: TalkHandler, Brief: "Talk to a quest giver to hear offers or turn in a quest.", Syntax: []string{"talk <npc>"}},
+		// talk declares an npc arg + HandParsed so completion enumerates
+		// room NPCs (quest givers); the handler resolves the raw term.
+		{Keyword: "talk", Aliases: []string{"ask"}, Handler: TalkHandler, Brief: "Talk to a quest giver to hear offers or turn in a quest.", Syntax: []string{"talk <npc>"},
+			HandParsed: true, Args: []ArgDefinition{{Name: "npc", Type: ArgNPC}}},
 		// accept declares a `quest` arg + HandParsed so completion
 		// enumerates the room givers' offers (the bare quest id round-trips
 		// through ResolveID), while the handler keeps resolving the raw
@@ -120,8 +127,13 @@ func RegisterBuiltins(r *Registry) error {
 		// Economy (M11).
 		{Keyword: "gold", Handler: GoldHandler, Brief: "Show how much gold you carry.", Syntax: []string{"gold"}},
 		{Keyword: "buy", Handler: BuyHandler, Brief: "Buy an item from a shop.", Syntax: []string{"buy <item>"}},
-		{Keyword: "sell", Handler: SellHandler, Brief: "Sell an item to a shop.", Syntax: []string{"sell <item>"}},
-		{Keyword: "value", Handler: ValueHandler, Brief: "Ask a shop what it pays for an item.", Syntax: []string{"value <item>"}},
+		// sell/value resolve a held item against the shop; declare the
+		// inventory arg + HandParsed so completion enumerates what you
+		// carry (the handler resolves it through ShopService).
+		{Keyword: "sell", Handler: SellHandler, Brief: "Sell an item to a shop.", Syntax: []string{"sell <item>"},
+			HandParsed: true, Args: []ArgDefinition{{Name: "item", Type: ArgInventory}}},
+		{Keyword: "value", Handler: ValueHandler, Brief: "Ask a shop what it pays for an item.", Syntax: []string{"value <item>"},
+			HandParsed: true, Args: []ArgDefinition{{Name: "item", Type: ArgInventory}}},
 		{Keyword: "list", Handler: ListHandler, Brief: "List a shop's wares.", Syntax: []string{"list"}},
 		{Keyword: "rest", Handler: RestHandler, Brief: "Rest to recover faster.", Syntax: []string{"rest"}},
 		{Keyword: "sleep", Handler: SleepHandler, Brief: "Sleep to recover fastest.", Syntax: []string{"sleep"}},
