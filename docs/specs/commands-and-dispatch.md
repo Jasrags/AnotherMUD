@@ -605,11 +605,18 @@ free-form help for them or none at all.
 
 **Acceptance criteria**
 
-- [ ] Topics generated for every registration with arg
-      definitions, none for those without.
-- [ ] Generated syntax uses `[ ]` for required and `( [ ] )` for
-      optional and `[ | all | all.X ]` for bulk.
-- [ ] Pack help overrides generated topics at higher load order.
+- [x] Topics generated for every registration with arg
+      definitions, none for those without. *(impl is a deliberate
+      **superset**: a topic is generated for every command — an untyped one
+      gets its hand-authored Syntax + Brief, a typed one gets a **synthesized**
+      syntax line. This gives every verb baseline help without a pack file;
+      `internal/command/help.go` `GenerateHelpTopics` / `synthesizeSyntax`.)*
+- [x] Generated syntax uses `[ ]` for required and `( [ ] )` for
+      optional and `[ | all | all.X ]` for bulk. *(prepositions render in
+      position: `put [gem] in [chest]`.)*
+- [x] Pack help overrides generated topics at higher load order.
+      *(generated topics load at order 0; the generator also skips a keyword
+      a pack already covered — `HasTopic`.)*
 
 ---
 

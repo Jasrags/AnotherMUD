@@ -42,7 +42,6 @@ go straight into a milestone.
 |---|---|---|
 | Command chaining `;` + repeat `3n` | commands-and-dispatch §4 | no chain/repeat parsing in dispatch |
 | Bad-input tracker (escalation on repeated junk) | commands-and-dispatch §6 | only "Huh?" + `floodGate` rate-limit exist; no §6 tracker |
-| Auto-help synthesis from arg defs | commands-and-dispatch §8 / ui §9.2 | Syntax is hand-authored; no synthesis from `ArgDefinition`s. **Unblocked** — arg typing shipped M17.2 |
 | Pluggable name-gates | login §3 | only the hardcoded ASCII-letter validator |
 | Per-phase idle timeout | login §6.1 | `login.go` notes it as a known gap; no per-phase `Conn.Read` deadline set |
 | Tag-indexed reads during movement | world-rooms-movement §3.4 | movement scans, no tag index |
@@ -278,7 +277,7 @@ need a design pass first.
 
 | Theme | Pulls in | Size |
 |---|---|---|
-| **Command & UI polish** *(PAUSED — M18, resume)* | bad-input §6, chaining/repeat §4, auto-help §8 (prompt + who verbs shipped) | S |
+| **Command & UI polish** *(PAUSED — M18, resume)* | bad-input §6, chaining/repeat §4 (prompt + who + auto-help shipped) | S |
 | **Crafting & Cooking** | `crafting-and-cooking` + plan; full Tier 0/1/2 MVP in the `core` pack | M |
 | **Player trade** | trade-escrow + direct-trade + auction-house + plan; atomic escrow, sync trade, buyout auction | M |
 | **Engine Debt II** | mob equip §3.3, death-purge §3.5, passive gain/scaling, property-save wiring, tag-indexed reads, cross-pack validation, GMCP wizard panel | S–M |

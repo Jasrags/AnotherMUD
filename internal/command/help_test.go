@@ -88,3 +88,33 @@ func TestHelpHandlerNilService(t *testing.T) {
 		t.Errorf("nil-service help = %q", a.lastLine())
 	}
 }
+
+// TestGenerateHelpTopics_SynthesizesSyntax confirms §8: a typed command's
+// help syntax is synthesized from its arg defs, while an untyped command
+// keeps its hand-authored Syntax.
+func TestGenerateHelpTopics_SynthesizesSyntax(t *testing.T) {
+	r := command.New()
+	noop := func(ctx context.Context, c *command.Context) error { return nil }
+
+	if err := r.RegisterCommand(command.Command{
+		Keyword: "zap", Brief: "Zap a target.", Handler: noop,
+		Args: []command.ArgDefinition{{Name: "target", Type: command.ArgEntity}},
+	}); err != nil {
+		t.Fatalf("register zap: %v", err)
+	}
+	if err := r.RegisterCommand(command.Command{
+		Keyword: "wiggle", Brief: "Wiggle.", Syntax: []string{"wiggle around"}, Handler: noop,
+	}); err != nil {
+		t.Fatalf("register wiggle: %v", err)
+	}
+
+	svc := help.NewService()
+	command.GenerateHelpTopics(r, svc)
+
+	if got := dispatchHelp(t, svc, "zap").lastLine(); !strings.Contains(got, "zap [target]") {
+		t.Errorf("typed command help = %q, want synthesized 'zap [target]'", got)
+	}
+	if got := dispatchHelp(t, svc, "wiggle").lastLine(); !strings.Contains(got, "wiggle around") {
+		t.Errorf("untyped command help = %q, want hand-authored syntax", got)
+	}
+}

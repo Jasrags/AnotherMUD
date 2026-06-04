@@ -87,6 +87,14 @@ func GenerateHelpTopics(r *Registry, svc *help.Service) {
 		if len(cmd.Aliases) > 0 {
 			body = "Aliases: " + strings.Join(cmd.Aliases, ", ")
 		}
+		// Synthesize the syntax line from the typed-arg declaration when the
+		// command has one (§8); otherwise fall back to the hand-authored
+		// Syntax. A typed command therefore never has to hand-write its
+		// syntax, and the two can't drift.
+		syntax := cmd.Syntax
+		if len(cmd.Args) > 0 {
+			syntax = []string{synthesizeSyntax(cmd.Keyword, cmd.Args)}
+		}
 		// Admin commands (admin-verbs §2) take the admin help tier so the
 		// help service hides them from non-admins, closing the enumeration
 		// vector the dispatch gate leaves open in help. Today requesterTier
@@ -102,9 +110,42 @@ func GenerateHelpTopics(r *Registry, svc *help.Service) {
 			Category: cmd.Category,
 			Brief:    cmd.Brief,
 			Body:     body,
-			Syntax:   cmd.Syntax,
+			Syntax:   syntax,
 			Keywords: keywords,
 			Role:     role,
 		}, 0)
 	}
+}
+
+// synthesizeSyntax builds a command's syntax line from its typed-argument
+// declaration (commands-and-dispatch §8): the keyword followed by each
+// argument rendered as `[name]` (required) or `([name])` (optional), with a
+// bulk-capable argument rendered as `[name | all | all.name]`. An argument's
+// first declared preposition precedes its token in position
+// (`put [gem] in [chest]`).
+func synthesizeSyntax(keyword string, args []ArgDefinition) string {
+	parts := make([]string, 0, len(args)*2+1)
+	parts = append(parts, keyword)
+	for _, a := range args {
+		if len(a.Prepositions) > 0 {
+			parts = append(parts, a.Prepositions[0])
+		}
+		parts = append(parts, renderArgToken(a))
+	}
+	return strings.Join(parts, " ")
+}
+
+// renderArgToken renders one argument's bracket form for the synthesized
+// syntax line. Bulk widens the inner text; Optional wraps the whole bracket
+// in parentheses (so an optional bulk arg is `([name | all | all.name])`).
+func renderArgToken(a ArgDefinition) string {
+	inner := a.Name
+	if a.Bulk {
+		inner = a.Name + " | all | all." + a.Name
+	}
+	token := "[" + inner + "]"
+	if a.Optional {
+		token = "(" + token + ")"
+	}
+	return token
 }

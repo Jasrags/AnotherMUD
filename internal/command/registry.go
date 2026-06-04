@@ -579,6 +579,10 @@ type CommandInfo struct {
 	// Admin is true for an administrative command (admin-verbs §2). Help
 	// listings hide these from actors who don't hold the admin role.
 	Admin bool
+	// Args is the command's typed-argument declaration (§5), surfaced so
+	// the help generator can synthesize a syntax line from it (§8). Empty
+	// for untyped commands.
+	Args []ArgDefinition
 }
 
 // cmdMeta is the stored metadata for a primary command registration. It is
@@ -592,6 +596,10 @@ type cmdMeta struct {
 	keywords []string
 	aliases  []string
 	admin    bool
+	// args is the command's typed-argument declaration, retained so the
+	// help generator can synthesize a syntax line from it (§8). Stored on
+	// the primary registration only; aliases inherit via the primary.
+	args []ArgDefinition
 }
 
 type registration struct {
@@ -688,6 +696,7 @@ func (r *Registry) RegisterCommand(c Command) error {
 			keywords: append([]string(nil), c.Keywords...),
 			aliases:  append([]string(nil), c.Aliases...),
 			admin:    c.Admin,
+			args:     append([]ArgDefinition(nil), c.Args...),
 		}
 	}
 
@@ -769,6 +778,7 @@ func (r *Registry) Commands() []CommandInfo {
 			Syntax:   append([]string(nil), reg.meta.syntax...),
 			Keywords: append([]string(nil), reg.meta.keywords...),
 			Admin:    reg.meta.admin,
+			Args:     append([]ArgDefinition(nil), reg.meta.args...),
 		})
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i].Keyword < out[j].Keyword })
