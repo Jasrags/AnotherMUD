@@ -4,6 +4,7 @@ import (
 	"context"
 	"testing"
 
+	"github.com/Jasrags/AnotherMUD/internal/combat"
 	"github.com/Jasrags/AnotherMUD/internal/entities"
 	"github.com/Jasrags/AnotherMUD/internal/item"
 	"github.com/Jasrags/AnotherMUD/internal/player"
@@ -231,6 +232,73 @@ func TestEquipModifiers_FlowIntoCombatStats(t *testing.T) {
 	got = a.Stats()
 	if got.STR != 10 || got.HitMod != 0 || got.AC != 10 {
 		t.Errorf("post-unequip Stats = %+v, want baseline restored", got)
+	}
+}
+
+// swordTplWithDice is a weapon template carrying both modifiers and a
+// damage-dice expression — the full weapon shape combat §4.5 expects.
+func swordTplWithDice() *item.Template {
+	return &item.Template{
+		ID:           "tapestry-core:short-sword",
+		Name:         "a short sword",
+		Type:         "weapon",
+		Keywords:     []string{"sword"},
+		Modifiers:    []item.Modifier{{Stat: "str", Value: 1}},
+		WeaponDamage: "1d6",
+	}
+}
+
+func TestEquipWeapon_FlowsDamageDiceIntoCombatStats(t *testing.T) {
+	store := entities.NewStore()
+	a := newEqActor(t, store)
+
+	// Unarmed: no weapon snapshot → Stats.Damage is zero (combat falls
+	// back to the unarmed default via EffectiveDamage).
+	if d := a.Stats().Damage; !d.IsZero() {
+		t.Fatalf("pre-equip Damage = %+v, want zero", d)
+	}
+
+	inst, _ := store.Spawn(swordTplWithDice())
+	a.AddToInventory(inst.ID())
+	if !a.Equip("wield", inst.ID(), []stats.Modifier{{Stat: "str", Value: 1}}) {
+		t.Fatal("Equip returned false")
+	}
+
+	got := a.Stats()
+	want, _ := combat.ParseDice("1d6")
+	if got.Damage != want {
+		t.Errorf("post-equip Damage = %+v, want %+v", got.Damage, want)
+	}
+	if got.WeaponName != "a short sword" {
+		t.Errorf("post-equip WeaponName = %q, want %q", got.WeaponName, "a short sword")
+	}
+
+	// Disarming reverts to the unarmed default.
+	if _, ok := a.Unequip("wield"); !ok {
+		t.Fatal("Unequip returned false")
+	}
+	if d := a.Stats().Damage; !d.IsZero() {
+		t.Errorf("post-unequip Damage = %+v, want zero", d)
+	}
+	if n := a.Stats().WeaponName; n != "" {
+		t.Errorf("post-unequip WeaponName = %q, want empty", n)
+	}
+}
+
+func TestEquipNonWeapon_LeavesUnarmed(t *testing.T) {
+	store := entities.NewStore()
+	a := newEqActor(t, store)
+	// A cloak: modifiers but no weapon dice.
+	inst, _ := store.Spawn(&item.Template{
+		ID:        "tapestry-core:cloak",
+		Name:      "a cloak",
+		Type:      "armor",
+		Modifiers: []item.Modifier{{Stat: "ac", Value: 1}},
+	})
+	a.AddToInventory(inst.ID())
+	a.Equip("cloak", inst.ID(), []stats.Modifier{{Stat: "ac", Value: 1}})
+	if d := a.Stats().Damage; !d.IsZero() {
+		t.Errorf("Damage = %+v, want zero (cloak is not a weapon)", d)
 	}
 }
 

@@ -3,6 +3,7 @@ package entities
 import (
 	"sync"
 
+	"github.com/Jasrags/AnotherMUD/internal/combat"
 	"github.com/Jasrags/AnotherMUD/internal/item"
 	"github.com/Jasrags/AnotherMUD/internal/srckey"
 )
@@ -78,6 +79,11 @@ type ItemInstance struct {
 	properties map[string]any
 	modifiers  []InstanceModifier
 	templateID item.TemplateID
+	// weaponDamage is the parsed wielded-weapon dice (combat §4.5),
+	// derived once from the template's WeaponDamage string at build.
+	// The zero value (IsZero) means the item is not a weapon. Write-once
+	// at construction like tags/keywords — no mutex needed.
+	weaponDamage combat.DiceExpr
 }
 
 // ID implements Entity.
@@ -186,6 +192,14 @@ func (it *ItemInstance) Modifiers() []InstanceModifier { return it.modifiers }
 // TemplateID returns the source template id (§2.3 step 5).
 func (it *ItemInstance) TemplateID() item.TemplateID { return it.templateID }
 
+// WeaponDamage returns the item's wielded-weapon damage dice (combat
+// §4.5) and whether the item is a weapon at all. A zero DiceExpr (ok
+// false) means the wielder rolls the engine's unarmed default. Read by
+// the equip paths that populate combat.Stats.Damage.
+func (it *ItemInstance) WeaponDamage() (combat.DiceExpr, bool) {
+	return it.weaponDamage, !it.weaponDamage.IsZero()
+}
+
 // normalizeProperties recursively coerces any nested map[any]any (the
 // yaml.v3 default for inner maps) to map[string]any so downstream code
 // only ever sees typed dictionaries. Spec §2.3 step 4.
@@ -255,15 +269,27 @@ func buildInstanceFromTemplate(tpl *item.Template, id EntityID) *ItemInstance {
 		mods = append(mods, InstanceModifier{Stat: m.Stat, Value: m.Value, Source: src})
 	}
 
+	// Parse the weapon-damage dice once (combat §4.5). The string was
+	// validated at pack load, so a parse error here can only come from a
+	// hand-built template (tests) — treat it as "not a weapon" (zero
+	// DiceExpr → unarmed fallback) rather than panicking at spawn.
+	var weaponDamage combat.DiceExpr
+	if tpl.WeaponDamage != "" {
+		if d, err := combat.ParseDice(tpl.WeaponDamage); err == nil {
+			weaponDamage = d
+		}
+	}
+
 	return &ItemInstance{
-		id:         id,
-		typ:        tpl.Type,
-		name:       tpl.Name,
-		desc:       tpl.Description, // §2.3: snapshot prose alongside name.
-		tags:       tags,
-		keywords:   keywords,
-		properties: props,
-		modifiers:  mods,
-		templateID: tpl.ID,
+		id:           id,
+		typ:          tpl.Type,
+		name:         tpl.Name,
+		desc:         tpl.Description, // §2.3: snapshot prose alongside name.
+		tags:         tags,
+		keywords:     keywords,
+		properties:   props,
+		modifiers:    mods,
+		templateID:   tpl.ID,
+		weaponDamage: weaponDamage,
 	}
 }

@@ -97,6 +97,17 @@ type MobInstance struct {
 	// passive-proficiency resolver so a mob's extra_attack / defensive
 	// passives fire in combat the same way a player's do.
 	proficiencies map[string]int
+
+	// weapon / weaponName are the mob's attack dice + display name fed
+	// into combat.Stats (combat §4.5). Set at construction from the
+	// template's natural weapon (a beast's "fangs"/"1d6"), then
+	// optionally overridden at spawn by EquipMobAtSpawn when the mob
+	// equips a weapon item (equipped beats innate). A zero DiceExpr
+	// means the mob rolls the engine's unarmed default. Mutated only
+	// during the spawn pipeline (before the mob is placed/targetable),
+	// then read by combat — no lock, like proficiencies/race.
+	weapon     combat.DiceExpr
+	weaponName string
 }
 
 // Proficiency reports the mob's proficiency for abilityID (M9.5 #3).
@@ -237,11 +248,29 @@ func (m *MobInstance) Vitals() *combat.Vitals { return m.vitals }
 // hit/damage rolls read a consistent snapshot per swing. Mirrors
 // connActor.Stats() on the player side.
 func (m *MobInstance) Stats() combat.Stats {
-	return combat.Stats{
+	s := combat.Stats{
 		HitMod: m.statBlock.Effective(progression.StatHitMod),
 		AC:     m.statBlock.Effective(progression.StatAC),
 		STR:    m.statBlock.Effective(progression.StatSTR),
 	}
+	// Weapon dice (combat §4.5): the equipped or natural weapon set at
+	// spawn. Zero falls through to the unarmed default via
+	// Stats.EffectiveDamage; WeaponName likewise falls back when empty.
+	if !m.weapon.IsZero() {
+		s.Damage = m.weapon
+		s.WeaponName = m.weaponName
+	}
+	return s
+}
+
+// SetWeapon installs the mob's attack dice + display name (combat §4.5).
+// Called during the spawn pipeline only: buildMobFromTemplate seeds the
+// natural weapon, then EquipMobAtSpawn overrides it with an equipped
+// weapon. Not safe to call after the mob is targetable in combat (the
+// field is read lock-free by Stats on the tick goroutine).
+func (m *MobInstance) SetWeapon(dice combat.DiceExpr, name string) {
+	m.weapon = dice
+	m.weaponName = name
 }
 
 // EntityID implements progression.EffectTarget: the bare id the effect
@@ -546,6 +575,17 @@ func buildMobFromTemplate(tpl *mob.Template, id EntityID) *MobInstance {
 	mob.statBlock.OnMaxChange(progression.StatHPMax, func(_, newMax int) {
 		mob.vitals.SetMax(newMax)
 	})
+
+	// Natural weapon (combat §4.5): a beast with no item still attacks.
+	// The damage string was validated at pack load; a parse error on a
+	// hand-built template (tests) leaves the mob unarmed rather than
+	// panicking. An equipped weapon overrides this at EquipMobAtSpawn.
+	if tpl.NaturalWeaponDamage != "" {
+		if d, err := combat.ParseDice(tpl.NaturalWeaponDamage); err == nil {
+			mob.weapon = d
+			mob.weaponName = tpl.NaturalWeaponName
+		}
+	}
 	return mob
 }
 

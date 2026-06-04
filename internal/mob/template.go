@@ -71,6 +71,16 @@ type Template struct {
 	Stats      map[string]int
 	Equipment  []string // item template ids to equip at spawn (§3.3)
 
+	// NaturalWeaponName / NaturalWeaponDamage describe an innate attack
+	// (combat §4.5) for a mob that fights with no item — a wolf's
+	// "fangs" rolling "1d6". The damage is a raw NdM±K string validated
+	// at pack load and parsed to a dice expression at spawn; both empty
+	// means the mob uses the engine's unarmed default. An equipped weapon
+	// (§3.3) overrides the natural weapon. Carried as plain strings so
+	// the mob package stays independent of the combat package.
+	NaturalWeaponName   string
+	NaturalWeaponDamage string
+
 	// LootTable is the optional loot-table id (mobs-ai-spawning §6.3).
 	// When set and the id resolves in the loot registry, the spawn
 	// pipeline rolls the table once and files the resulting item

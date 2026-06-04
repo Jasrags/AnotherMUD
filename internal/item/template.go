@@ -43,6 +43,15 @@ type Template struct {
 	Keywords    []string
 	Properties  map[string]any
 	Modifiers   []Modifier
+	// WeaponDamage is the wielded-weapon damage dice (combat §4.5) as a
+	// raw NdM±K string, e.g. "1d6+1". Empty means the item is not a
+	// weapon — a holder wielding only non-weapon items rolls the engine's
+	// unarmed default. The string is validated at pack load (a malformed
+	// expression fails the load, naming the file) and parsed to a typed
+	// dice expression when the instance is built; the template stays
+	// combat-package-free by holding the canonical string. See
+	// entities.ItemInstance.WeaponDamage.
+	WeaponDamage string
 }
 
 // Errors callers may distinguish at the boundary.

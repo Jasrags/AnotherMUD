@@ -62,6 +62,10 @@ type ItemFile struct {
 	Keywords    []string       `yaml:"keywords,omitempty"`
 	Properties  map[string]any `yaml:"properties,omitempty"`
 	Modifiers   []ModifierFile `yaml:"modifiers,omitempty"`
+	// WeaponDamage is the wielded-weapon damage dice (combat §4.5) as an
+	// NdM±K string ("1d6+1"). Validated via combat.ParseDice at load —
+	// a malformed expression fails the pack. Empty means non-weapon.
+	WeaponDamage string `yaml:"weapon_damage,omitempty"`
 }
 
 // ModifierFile is one entry of an ItemFile.Modifiers list.
@@ -106,6 +110,10 @@ type MobFile struct {
 	Properties  map[string]any `yaml:"properties,omitempty"`
 	Stats       map[string]int `yaml:"stats,omitempty"`
 	Equipment   []string       `yaml:"equipment,omitempty"`
+	// NaturalWeapon is the mob's innate attack (combat §4.5) — a beast
+	// with no item still bites/claws. Optional; an equipped weapon
+	// overrides it. The damage string is validated at load.
+	NaturalWeapon *NaturalWeaponFile `yaml:"natural_weapon,omitempty"`
 	// LootTable is the optional loot-table id (mobs-ai-spawning §6.3).
 	// Unknown ids are tolerated at load (resolution runs at spawn,
 	// matching the fail-silent convention used for race/class).
@@ -144,6 +152,14 @@ type MobFile struct {
 	// `skill_trainer` tag; the pack loader rejects the pair when
 	// only one side is set.
 	Trainer *TrainerFile `yaml:"trainer,omitempty"`
+}
+
+// NaturalWeaponFile is the YAML shape for a mob's innate weapon
+// (combat §4.5). Name is the display label shown on hit/miss events
+// ("fangs"); Damage is an NdM±K dice string validated at load.
+type NaturalWeaponFile struct {
+	Name   string `yaml:"name"`
+	Damage string `yaml:"damage"`
 }
 
 // TrainerFile is the YAML shape for a mob's TrainerConfig (spec

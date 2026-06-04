@@ -1700,15 +1700,28 @@ func decodeItem(path, ns string) (*item.Template, error) {
 		mods = append(mods, item.Modifier{Stat: m.Stat, Value: m.Value})
 	}
 
+	// Validate the weapon-damage dice at load so a malformed expression
+	// fails the pack by file name (combat §4.5) rather than silently
+	// falling back to unarmed at the first swing. The trimmed string is
+	// stored on the template; the dice are parsed into a typed expression
+	// when the instance is built (entities.ItemInstance).
+	weaponDamage := strings.TrimSpace(f.WeaponDamage)
+	if weaponDamage != "" {
+		if _, derr := combat.ParseDice(weaponDamage); derr != nil {
+			return nil, fmt.Errorf("%w: %s: weapon_damage %q: %v", ErrInvalidContent, path, weaponDamage, derr)
+		}
+	}
+
 	return &item.Template{
-		ID:          item.TemplateID(id),
-		Name:        f.Name,
-		Type:        f.Type,
-		Description: strings.TrimSpace(f.Description),
-		Tags:        f.Tags,
-		Keywords:    f.Keywords,
-		Properties:  f.Properties,
-		Modifiers:   mods,
+		ID:           item.TemplateID(id),
+		Name:         f.Name,
+		Type:         f.Type,
+		Description:  strings.TrimSpace(f.Description),
+		Tags:         f.Tags,
+		Keywords:     f.Keywords,
+		Properties:   f.Properties,
+		Modifiers:    mods,
+		WeaponDamage: weaponDamage,
 	}, nil
 }
 
@@ -1772,6 +1785,19 @@ func decodeMob(path, ns string) (*mob.Template, error) {
 		return nil, err
 	}
 
+	// Natural-weapon dice are validated at load like item weapon dice
+	// (combat §4.5) so a typo fails the pack rather than the first swing.
+	var natWeaponName, natWeaponDamage string
+	if f.NaturalWeapon != nil {
+		natWeaponName = strings.TrimSpace(f.NaturalWeapon.Name)
+		natWeaponDamage = strings.TrimSpace(f.NaturalWeapon.Damage)
+		if natWeaponDamage != "" {
+			if _, derr := combat.ParseDice(natWeaponDamage); derr != nil {
+				return nil, fmt.Errorf("%w: %s: natural_weapon damage %q: %v", ErrInvalidContent, path, natWeaponDamage, derr)
+			}
+		}
+	}
+
 	// Normalize passive-ability proficiency keys (lowercase + trim) so
 	// they match the registry/proficiency-manager keying. A blank key
 	// after trimming is dropped. nil stays nil (mob has no passives).
@@ -1788,26 +1814,28 @@ func decodeMob(path, ns string) (*mob.Template, error) {
 	}
 
 	return &mob.Template{
-		ID:               mob.TemplateID(id),
-		Name:             f.Name,
-		Type:             typ,
-		Description:      strings.TrimSpace(f.Description),
-		Disposition:      f.Disposition,
-		BaseDisposition:  mob.Reaction(strings.TrimSpace(f.BaseDisposition)),
-		DispositionRules: def,
-		Behavior:         f.Behavior,
-		Tags:             f.Tags,
-		Keywords:         f.Keywords,
-		Properties:       f.Properties,
-		Stats:            f.Stats,
-		Equipment:        equipment,
-		LootTable:        lootTable,
-		Proficiencies:    profs,
-		Race:             strings.ToLower(strings.TrimSpace(f.Race)),
-		Class:            strings.ToLower(strings.TrimSpace(f.Class)),
-		Level:            f.Level,
-		TrainerTier:      tier,
-		TrainerTeach:     teach,
+		ID:                  mob.TemplateID(id),
+		Name:                f.Name,
+		Type:                typ,
+		Description:         strings.TrimSpace(f.Description),
+		Disposition:         f.Disposition,
+		BaseDisposition:     mob.Reaction(strings.TrimSpace(f.BaseDisposition)),
+		DispositionRules:    def,
+		Behavior:            f.Behavior,
+		Tags:                f.Tags,
+		Keywords:            f.Keywords,
+		Properties:          f.Properties,
+		Stats:               f.Stats,
+		Equipment:           equipment,
+		NaturalWeaponName:   natWeaponName,
+		NaturalWeaponDamage: natWeaponDamage,
+		LootTable:           lootTable,
+		Proficiencies:       profs,
+		Race:                strings.ToLower(strings.TrimSpace(f.Race)),
+		Class:               strings.ToLower(strings.TrimSpace(f.Class)),
+		Level:               f.Level,
+		TrainerTier:         tier,
+		TrainerTeach:        teach,
 	}, nil
 }
 

@@ -1175,6 +1175,9 @@ func respawnEquipment(ctx context.Context, a *connActor, store *entities.Store, 
 	for _, r := range survivors {
 		a.equipment[r.slot] = r.newID
 	}
+	// §4.5: derive the wielded-weapon snapshot from the restored set so a
+	// returning player who logged out wielding a sword swings it again.
+	a.recomputeWeaponLocked()
 	if len(dropped) > 0 {
 		// On-disk Equipment is now ahead of runtime; flip dirty so the
 		// next persist trims dead slot entries (and any orphaned stat
@@ -1508,6 +1511,13 @@ type connActor struct {
 	// strings produced by slot.BuildKey: bare name for cap-1 slots,
 	// "name:index" for multi-cap.
 	equipment map[string]entities.EntityID
+	// weapon is the cached wielded-weapon snapshot fed into
+	// combat.Stats (combat §4.5). Recomputed under a.mu whenever
+	// equipment changes (equip / unequip / login respawn) and read
+	// lock-free by Stats() on the combat tick goroutine — an
+	// atomic.Pointer keeps that read off a.mu so combat never blocks on
+	// a session-side equip. nil means "no weapon → unarmed default".
+	weapon atomic.Pointer[weaponInfo]
 	// statBlock is the actor's progression-layer stat block (M8.1 —
 	// docs/specs/progression.md §2). Holds base attributes (the six
 	// classics + vital maxima + the combat-derived hit_mod / ac slots
@@ -2154,6 +2164,50 @@ func (a *connActor) Equipment() map[string]entities.EntityID {
 	return out
 }
 
+// weaponInfo is the immutable wielded-weapon snapshot stored in
+// connActor.weapon and copied into combat.Stats each round. Held behind
+// an atomic.Pointer so the tick-goroutine read in Stats() never touches
+// a.mu.
+type weaponInfo struct {
+	dice combat.DiceExpr
+	name string
+}
+
+// recomputeWeaponLocked refreshes the cached wielded-weapon snapshot
+// from the current equipment set (combat §4.5). The caller MUST hold
+// a.mu. It scans equipped slots in deterministic (sorted) key order and
+// picks the first item that declares weapon damage dice — so with the
+// single cap-1 `wield` slot there is exactly one candidate, and a future
+// multi-weapon layout resolves stably to the lowest slot key. Stores nil
+// when nothing wielded is a weapon, so Stats() falls back to the unarmed
+// default. A nil item store (tests) yields nil.
+func (a *connActor) recomputeWeaponLocked() {
+	if a.items == nil || len(a.equipment) == 0 {
+		a.weapon.Store(nil)
+		return
+	}
+	keys := make([]string, 0, len(a.equipment))
+	for k := range a.equipment {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	for _, k := range keys {
+		e, ok := a.items.GetByID(a.equipment[k])
+		if !ok {
+			continue
+		}
+		it, ok := e.(*entities.ItemInstance)
+		if !ok {
+			continue
+		}
+		if dice, ok := it.WeaponDamage(); ok {
+			a.weapon.Store(&weaponInfo{dice: dice, name: it.Name()})
+			return
+		}
+	}
+	a.weapon.Store(nil)
+}
+
 // Equip is the atomic equip-side mutation invoked by the equip
 // command handler: removes id from inventory, installs it at slotKey,
 // applies its modifiers to the holder's stat block under
@@ -2175,6 +2229,7 @@ func (a *connActor) Equip(slotKey string, id entities.EntityID, mods []stats.Mod
 			a.inventory = append(a.inventory[:i], a.inventory[i+1:]...)
 			a.equipment[slotKey] = id
 			a.statBlock.AddModifiers(entities.EquipmentSourceKey(id), mods)
+			a.recomputeWeaponLocked() // §4.5: equipping a weapon arms the actor
 			a.syncInventoryToSaveLocked()
 			a.syncEquipmentToSaveLocked()
 			a.syncStatsToSaveLocked()
@@ -2199,6 +2254,7 @@ func (a *connActor) Unequip(slotKey string) (entities.EntityID, bool) {
 	delete(a.equipment, slotKey)
 	a.inventory = append(a.inventory, id)
 	a.statBlock.RemoveBySource(entities.EquipmentSourceKey(id))
+	a.recomputeWeaponLocked() // §4.5: re-derive the weapon after disarming
 	a.syncInventoryToSaveLocked()
 	a.syncEquipmentToSaveLocked()
 	a.syncStatsToSaveLocked()
@@ -3282,20 +3338,26 @@ func (a *connActor) resetGmcpVitalsShadow() {
 // sum-of-modifiers — so equipment-driven modifiers now flow into
 // auto-attack and consider without a separate sync step.
 //
-// Damage and WeaponName remain unset here at M8.1; combat falls
-// through to the engine's unarmed defaults via EffectiveDamage /
-// EffectiveWeaponName. Real weapon-equipment plumbing arrives with
-// the post-M8 equipment-stat work.
+// Damage and WeaponName are filled from the wielded-weapon snapshot
+// (combat §4.5): the actor.weapon atomic pointer, refreshed on
+// equip/unequip/login. Unset (no weapon) falls through to the engine's
+// unarmed defaults via EffectiveDamage / EffectiveWeaponName.
 //
-// LOCK NOTE: StatBlock carries its own RWMutex, so this method does
-// not take a.mu — Effective reads are safe to call concurrently with
-// session-side equip / unequip mutations.
+// LOCK NOTE: StatBlock carries its own RWMutex and a.weapon is an
+// atomic.Pointer, so this method does not take a.mu — both reads are
+// safe to call concurrently with session-side equip / unequip
+// mutations on the combat tick goroutine.
 func (a *connActor) Stats() combat.Stats {
-	return combat.Stats{
+	s := combat.Stats{
 		HitMod: a.statBlock.Effective(progression.StatHitMod),
 		AC:     a.statBlock.Effective(progression.StatAC),
 		STR:    a.statBlock.Effective(progression.StatSTR),
 	}
+	if w := a.weapon.Load(); w != nil {
+		s.Damage = w.dice
+		s.WeaponName = w.name
+	}
+	return s
 }
 
 // PlayerName returns the loaded character's name, used by the autosave

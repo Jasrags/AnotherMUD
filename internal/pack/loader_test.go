@@ -241,6 +241,75 @@ content:
 	}
 }
 
+func TestLoadBadWeaponDamageDice(t *testing.T) {
+	root := t.TempDir()
+	pack := filepath.Join(root, "core")
+	writeFile(t, filepath.Join(pack, "pack.yaml"), `
+name: tapestry-core
+content:
+  items: [items/*.yaml]
+`)
+	writeFile(t, filepath.Join(pack, "items/sword.yaml"), `
+id: sword
+name: a sword
+type: item
+weapon_damage: "not-dice"
+`)
+	err := Load(context.Background(), root, nil, NewRegistries(), nil, nil, nil)
+	if !errors.Is(err, ErrInvalidContent) {
+		t.Fatalf("err = %v, want ErrInvalidContent for malformed weapon_damage", err)
+	}
+}
+
+func TestLoadBadNaturalWeaponDice(t *testing.T) {
+	root := t.TempDir()
+	pack := filepath.Join(root, "core")
+	writeFile(t, filepath.Join(pack, "pack.yaml"), `
+name: tapestry-core
+content:
+  mobs: [mobs/*.yaml]
+`)
+	writeFile(t, filepath.Join(pack, "mobs/wolf.yaml"), `
+id: wolf
+name: a wolf
+behavior: stationary
+natural_weapon:
+  name: fangs
+  damage: "1dX"
+`)
+	err := Load(context.Background(), root, nil, NewRegistries(), nil, nil, nil)
+	if !errors.Is(err, ErrInvalidContent) {
+		t.Fatalf("err = %v, want ErrInvalidContent for malformed natural_weapon damage", err)
+	}
+}
+
+func TestLoadValidWeaponDamageParses(t *testing.T) {
+	root := t.TempDir()
+	pack := filepath.Join(root, "core")
+	writeFile(t, filepath.Join(pack, "pack.yaml"), `
+name: tapestry-core
+content:
+  items: [items/*.yaml]
+`)
+	writeFile(t, filepath.Join(pack, "items/sword.yaml"), `
+id: sword
+name: a sword
+type: item
+weapon_damage: "1d8+2"
+`)
+	regs := NewRegistries()
+	if err := Load(context.Background(), root, nil, regs, nil, nil, nil); err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	tpl, err := regs.Items.Get("tapestry-core:sword")
+	if err != nil {
+		t.Fatalf("Get sword: %v", err)
+	}
+	if tpl.WeaponDamage != "1d8+2" {
+		t.Errorf("WeaponDamage = %q, want %q", tpl.WeaponDamage, "1d8+2")
+	}
+}
+
 func TestLoadBadDirection(t *testing.T) {
 	root := t.TempDir()
 	pack := filepath.Join(root, "core")

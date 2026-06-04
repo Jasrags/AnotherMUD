@@ -49,6 +49,7 @@ func (s *Store) EquipMobAtSpawn(m *MobInstance, ids []string, items *item.Templa
 	if m == nil || items == nil || len(ids) == 0 {
 		return res, nil
 	}
+	weaponSet := false // first equipped weapon wins; it overrides the natural weapon
 	for _, id := range ids {
 		tpl, err := items.Get(item.TemplateID(id))
 		if err != nil {
@@ -67,6 +68,16 @@ func (s *Store) EquipMobAtSpawn(m *MobInstance, ids []string, items *item.Templa
 				translated = append(translated, stats.Modifier{Stat: mod.Stat, Value: mod.Value})
 			}
 			m.AddModifiers(EquipmentSourceKey(it.ID()), translated)
+		}
+		// §4.5: the first equipped weapon becomes the mob's attack dice,
+		// overriding any natural weapon seeded at construction. Subsequent
+		// weapons are carried but don't change what the mob swings (mobs
+		// have no dual-wield model).
+		if !weaponSet {
+			if dice, ok := it.WeaponDamage(); ok {
+				m.SetWeapon(dice, it.Name())
+				weaponSet = true
+			}
 		}
 		if contents != nil {
 			contents.Put(m.ID(), it.ID())

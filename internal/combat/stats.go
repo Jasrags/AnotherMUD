@@ -28,8 +28,9 @@ type Stats struct {
 
 	// Damage is the wielded-weapon damage expression (combat §4.5). A
 	// zero DiceExpr means "use the engine's unarmed default" — see
-	// EffectiveDamage. Real weapon-equipment plumbing arrives with M8+
-	// progression; for M7.4 every default combatant is unarmed.
+	// EffectiveDamage. Populated by the holder's Stats(): players from
+	// the wielded-slot item's dice, mobs from an equipped or natural
+	// weapon set at spawn. A holder with no weapon leaves this zero.
 	Damage DiceExpr
 
 	// WeaponName is the display name carried on hit / miss events
