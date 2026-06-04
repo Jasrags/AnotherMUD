@@ -91,6 +91,32 @@ type ResolveContext struct {
 	// world.World. Nil scope means "no doors reachable" — the door
 	// resolver returns ErrNoSuchDoor.
 	Doors DoorScope
+
+	// Quests is the completion-only seam for ArgQuest (`accept`). Like
+	// Doors it is an interface so ResolveContext stays decoupled from the
+	// quest package; the production adapter wraps quest.Service over the
+	// room's giver offers. Nil means "no quests to complete". There is no
+	// resolve path — `accept` is HandParsed and resolves via ResolveID —
+	// so this is consulted only by completeQuest.
+	Quests QuestScope
+}
+
+// QuestScope enumerates the quests the actor could accept right now —
+// the offers from NPC quest-givers in the actor's room (the same set the
+// `talk` verb shows). Used only for ArgQuest completion (tab-completion
+// §4). Kept an interface (no quest import here) so ResolveContext stays a
+// leaf type; the production adapter lives in argcontext.go.
+type QuestScope interface {
+	EnumerateAcceptable() []QuestRef
+}
+
+// QuestRef is one acceptable quest for completion. BareID is the quest
+// id minus its pack namespace (the token that round-trips through
+// quest.Service.ResolveID — the §1 completion invariant); Name is the
+// human label shown as the candidate's Display.
+type QuestRef struct {
+	BareID string
+	Name   string
 }
 
 // DoorScope resolves a door argument — a direction short string

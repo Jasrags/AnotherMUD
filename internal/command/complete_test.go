@@ -55,6 +55,8 @@ func completionRegistry(t *testing.T) *Registry {
 			Args: []ArgDefinition{{Name: "t", Type: ArgVisible}}},
 		{Keyword: "find", Brief: "find", Handler: noopHandler,
 			Args: []ArgDefinition{{Name: "t", Type: ArgFindable}}},
+		{Keyword: "accept", Brief: "accept quest", Handler: noopHandler,
+			HandParsed: true, Args: []ArgDefinition{{Name: "quest", Type: ArgQuest}}},
 		{Keyword: "secret", Brief: "secret", Admin: true, Handler: noopHandler},
 	}
 	for _, c := range cmds {
@@ -266,6 +268,53 @@ func TestComplete_Arg_Door_KeywordsNotNameWords(t *testing.T) {
 	}
 }
 
+// fakeQuestScope is a deterministic QuestScope for ArgQuest completion.
+type fakeQuestScope struct{ refs []QuestRef }
+
+func (f fakeQuestScope) EnumerateAcceptable() []QuestRef { return f.refs }
+
+func TestComplete_Arg_Quest(t *testing.T) {
+	r := completionRegistry(t)
+	rc := ResolveContext{Quests: fakeQuestScope{refs: []QuestRef{
+		{BareID: "gate-patrol", Name: "Gate Patrol"},
+		{BareID: "forge-errand", Name: "Forge Errand"},
+	}}}
+
+	// Empty slot lists every offer; the completion token is the bare id
+	// (round-trips through ResolveID), Display is the friendly name.
+	all := r.Complete("accept ", rc, CompletionOptions{}).Candidates
+	if got := tokensOf(all); !has(got, "gate-patrol") || !has(got, "forge-errand") {
+		t.Fatalf("accept (empty): want both bare ids, got %v", got)
+	}
+	for _, c := range all {
+		if c.Kind != CandQuest {
+			t.Errorf("candidate %q kind = %q, want %q", c.Completion, c.Kind, CandQuest)
+		}
+	}
+
+	// Prefix on the bare id.
+	if got := tokensOf(r.Complete("accept ga", rc, CompletionOptions{}).Candidates); !has(got, "gate-patrol") || has(got, "forge-errand") {
+		t.Errorf("accept ga: want only gate-patrol, got %v", got)
+	}
+	// Prefix on the display NAME also matches ("forge" → Forge Errand).
+	if got := tokensOf(r.Complete("accept forge", rc, CompletionOptions{}).Candidates); !has(got, "forge-errand") {
+		t.Errorf("accept forge: name prefix should match, got %v", got)
+	}
+}
+
+// A nil quest scope (quests unwired / no givers in the room) yields no
+// candidates rather than crashing.
+func TestComplete_Arg_Quest_NilScope(t *testing.T) {
+	r := completionRegistry(t)
+	res := r.Complete("accept ga", ResolveContext{}, CompletionOptions{})
+	if res.Target != CompleteArgument || res.Verb != "accept" {
+		t.Fatalf("want argument target for accept, got %+v", res)
+	}
+	if len(res.Candidates) != 0 {
+		t.Errorf("nil quest scope: want no candidates, got %v", tokensOf(res.Candidates))
+	}
+}
+
 func TestComplete_Arg_FreeTypesNoCandidates(t *testing.T) {
 	r := completionRegistry(t)
 	res := r.Complete("say hel", ResolveContext{}, CompletionOptions{})
@@ -319,7 +368,7 @@ func TestComplete_Prepositions(t *testing.T) {
 		partial string
 		want    string // expected completion token present
 	}{
-		{"put ", "gem"},          // first slot = inventory
+		{"put ", "gem"},            // first slot = inventory
 		{"put gem in ch", "chest"}, // preposition consumed → container slot
 		{"put gem ch", "chest"},    // preposition omitted → still container slot
 		{"put gem in ", "chest"},   // trailing space after prep → container slot, unfiltered

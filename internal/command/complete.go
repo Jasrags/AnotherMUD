@@ -51,6 +51,7 @@ const (
 	CandEntity CandidateKind = "entity"
 	CandDoor   CandidateKind = "door"
 	CandBulk   CandidateKind = "bulk"
+	CandQuest  CandidateKind = "quest"
 )
 
 // Candidate is one completion option. Completion is the token to
@@ -163,6 +164,7 @@ func (r *Registry) CompleteLine(env Env, actor Actor, partial string) Completion
 		Items:     env.Items,
 		Placement: env.Placement,
 		Locator:   env.Locator,
+		Quests:    env.Quests, // ArgQuest completion needs the offer set
 		registry:  r,
 	}
 	isAdmin := false
@@ -264,6 +266,8 @@ func completeArgument(def ArgDefinition, partial string, rc ResolveContext, limi
 		return nil, false
 	case ArgDoor:
 		return completeDoor(partial, rc, limit)
+	case ArgQuest:
+		return completeQuest(partial, rc, limit)
 	default:
 		named := scopeFor(def.Type, rc)
 		cands := disambiguate(named, partial)
@@ -491,6 +495,33 @@ func completeDoor(partial string, rc ResolveContext, limit int) ([]Candidate, bo
 			}
 			cands = append(cands, Candidate{Completion: d.Direction, Display: display, Kind: CandDoor})
 		}
+	}
+	return capCandidates(cands, limit)
+}
+
+// completeQuest enumerates the quests offered to the actor in the current
+// room (spec tab-completion §4) — the same OffersFrom set `talk` shows.
+// The completion token is the bare quest id, which round-trips through
+// quest.Service.ResolveID (the §1 invariant); the partial matches against
+// the bare id OR the display name, so "ga" finds both "gate-patrol" and
+// "Gate Patrol". A nil scope (quests unwired, or no givers present) yields
+// no candidates.
+func completeQuest(partial string, rc ResolveContext, limit int) ([]Candidate, bool) {
+	if rc.Quests == nil {
+		return nil, false
+	}
+	lower := strings.ToLower(partial)
+	var cands []Candidate
+	seen := map[string]bool{}
+	for _, q := range rc.Quests.EnumerateAcceptable() {
+		if q.BareID == "" || seen[q.BareID] {
+			continue
+		}
+		if partial != "" && !strings.HasPrefix(q.BareID, lower) && !hasFoldPrefix(q.Name, partial) {
+			continue
+		}
+		seen[q.BareID] = true
+		cands = append(cands, Candidate{Completion: q.BareID, Display: q.Name, Kind: CandQuest})
 	}
 	return capCandidates(cands, limit)
 }

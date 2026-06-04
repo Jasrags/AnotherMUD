@@ -175,7 +175,7 @@ Go to the **Meadow** (`s` from the Gate). The bandit is hostile.
       "**A critical hit!**" and lands for noticeably more, because a natural 20
       multiplies the rolled dice (default ×2; tune with
       `ANOTHERMUD_CRIT_MULTIPLIER`, where `1` disables the bonus).
-- [ ] **Mob weapon (§3.3 / §4.5):** the bandit spawns wielding a **rusty dagger**
+- [x] **Mob weapon (§3.3 / §4.5):** the bandit spawns wielding a **rusty dagger**
       — it rolls 1d4 (not unarmed 1d3) and the dagger's modifiers buff it, so its
       hits land a touch harder than a bare-fisted mob. (Verified on its corpse in
       §7.)
@@ -194,7 +194,7 @@ Go to the **Meadow** (`s` from the Gate). The bandit is hostile.
 After killing the bandit (Meadow):
 
 - [x] A **corpse** appears in the room ("the corpse of a road bandit").
-- [ ] **Equipped gear drops (§3.3):** `look corpse` shows a **rusty dagger** among
+- [x] **Equipped gear drops (§3.3):** `look corpse` shows a **rusty dagger** among
       the contents — the weapon the bandit was wielding (equipped at spawn) is
       carried with it and drops on death alongside the rolled loot. `get dagger
       from corpse` takes it; `equip dagger` then works (it's a real `wield` item).
@@ -214,9 +214,9 @@ After killing the bandit (Meadow):
 
 ## 8. Progression & abilities
 
-- [ ] `score` (`sc`) — your character sheet: race/class/level, HP/MA/MV, the six
+- [x] `score` (`sc`) — your character sheet: race/class/level, HP/MA/MV, the six
       attributes, AC/hit, alignment, gold, sustenance tier, and XP-to-next.
-- [ ] `consider` with no target (or `consider me`) — points you to `score` now
+- [x] `consider` with no target (or `consider me`) — points you to `score` now
       (self stats moved there); `consider <target>` still sizes up that target.
 - [x] `abilities` (`abi`) — lists learned abilities + proficiencies.
 - [ ] `train str` — spends a train credit, raises STR (Jasrags has credits).
@@ -226,7 +226,7 @@ After killing the bandit (Meadow):
       pulse whether in combat or idle (out-of-combat drain). bless bumps
       AC/hit (check `score`); heal restores HP (only visible if injured —
       take a hit first).
-- [ ] (Admin) `xp 500` — grants XP; crossing a threshold levels you up with a
+- [x] (Admin) `xp 500` — grants XP; crossing a threshold levels you up with a
       level-up message (Jasrags is level 10 / track max, so use a fresh char to
       see a level-up, or grant on a lower track).
 
@@ -256,20 +256,25 @@ two quests — **Forge Errand** (auto-grant) and **Gate Patrol** (turn-in)
 
 ### Discover & accept (the `talk` verb)
 
-- [ ] At the Forge, `talk master` (`ask master`) — Maerys lists her offers
+- [x] At the Forge, `talk master` (`ask master`) — Maerys lists her offers
       (**Forge Errand**, **Gate Patrol**), each with its pitch and an
       `accept <name>` line. This is how you discover a quest without already
       knowing its name.
-- [ ] `quests` (`journal`) before accepting — "no active quests."
+- [ ] **`accept` completes the offers:** at the Forge, `accept ` + **TAB** (raw
+      telnet) — or `suggest accept ` — lists Maerys's quests by their bare id
+      (`forge-errand`, `gate-patrol`); `accept ga` + TAB → `accept gate-patrol`.
+      No more typing the full multi-word name. Completion only lists quests
+      offered by a giver *in the room*, so it's empty away from Maerys.
+- [x] `quests` (`journal`) before accepting — "no active quests."
 
 ### Auto-grant quest — Forge Errand (reward on the spot)
 
-- [ ] `accept Forge Errand` — acceptance banner; `quests` lists it active.
-- [ ] (If you already hold a trail ration, `drop ration` first.) `get ration`
+- [x] `accept Forge Errand` — acceptance banner; `quests` lists it active.
+- [x] (If you already hold a trail ration, `drop ration` first.) `get ration`
       in Town Square — you see a progress line, then the quest **completes
       immediately**: a "Quest complete: Forge Errand" banner listing 25
       experience + 5 gold. No return trip. `gold` reflects the payout.
-- [ ] Repeatable: `accept Forge Errand` again works.
+- [x] Repeatable: `accept Forge Errand` again works.
 
 ### Turn-in quest — Gate Patrol (claim at the giver)
 
@@ -285,7 +290,7 @@ two quests — **Forge Errand** (auto-grant) and **Gate Patrol** (turn-in)
 
 ### Abandon
 
-- [ ] Accept either quest, then `abandon <name>` — it drops from the journal.
+- [x] Accept either quest, then `abandon <name>` — it drops from the journal.
 
 ## 11. Social / multi-session (Jasrags + Bob, two windows)
 
@@ -523,8 +528,10 @@ In the **Meadow** (`s` from the Gate — the road bandit is here):
   telnet (char-mode, §20.0) and via GMCP `Input.Complete` on modern clients
   (§18); `suggest` is the line-mode path and the admin `complete` verb is the
   debug inspector. Argument completion only lights up for verbs that declare
-  their arg types; most do, and `get`/`take`/`kill`/`look`/`consider` now do too.
-  A few still don't (e.g. `unequip`, `fill`, `buy`/`sell`/`value`) — tracked in
+  their arg types; most do, and `get`/`take`/`kill`/`look`/`consider`/`accept`
+  now do too (`accept` completes the quest offers from givers in the room).
+  A few still don't (e.g. `unequip`, `fill`, `buy`/`sell`/`value`, `abandon` —
+  which would complete *active* quests, a different scope) — tracked in
   `docs/BACKLOG.md` §2.
 - Record any mismatch as a `BUG:` note next to the step; file the real ones into
   `docs/BACKLOG.md` or a `m<N>-deferred-fixes` memory afterward.

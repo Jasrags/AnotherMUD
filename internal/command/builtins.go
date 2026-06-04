@@ -104,7 +104,12 @@ func RegisterBuiltins(r *Registry) error {
 
 		// Quests (M10.10).
 		{Keyword: "talk", Aliases: []string{"ask"}, Handler: TalkHandler, Brief: "Talk to a quest giver to hear offers or turn in a quest.", Syntax: []string{"talk <npc>"}},
-		{Keyword: "accept", Handler: AcceptHandler, Brief: "Accept an offered quest.", Syntax: []string{"accept <quest>"}},
+		// accept declares a `quest` arg + HandParsed so completion
+		// enumerates the room givers' offers (the bare quest id round-trips
+		// through ResolveID), while the handler keeps resolving the raw
+		// term itself.
+		{Keyword: "accept", Handler: AcceptHandler, Brief: "Accept an offered quest.", Syntax: []string{"accept <quest>"},
+			HandParsed: true, Args: []ArgDefinition{{Name: "quest", Type: ArgQuest}}},
 		{Keyword: "abandon", Handler: AbandonHandler, Brief: "Abandon an active quest.", Syntax: []string{"abandon <quest>"}},
 		{Keyword: "quests", Aliases: []string{"journal"}, Handler: QuestsHandler, Brief: "Show your active quests.", Syntax: []string{"quests"}},
 

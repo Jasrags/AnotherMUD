@@ -2,8 +2,10 @@ package command
 
 import (
 	"sort"
+	"strings"
 
 	"github.com/Jasrags/AnotherMUD/internal/entities"
+	"github.com/Jasrags/AnotherMUD/internal/quest"
 	"github.com/Jasrags/AnotherMUD/internal/world"
 )
 
@@ -167,6 +169,10 @@ func (c *Context) BuildResolveContext() ResolveContext {
 	// Room scopes: items and mobs placed in the current room. A single
 	// Placement pass splits the two by concrete type.
 	room := c.Actor.Room()
+	// giverTemplateIDs accumulates the template ids of room mobs so the
+	// quest scope below can ask each for its offers (ArgQuest completion).
+	// Collected in the same pass that builds RoomEntities — free.
+	var giverTemplateIDs []string
 	if room != nil && c.Items != nil && c.Placement != nil {
 		for _, id := range c.Placement.InRoom(room.ID) {
 			e, ok := c.Items.GetByID(id)
@@ -178,6 +184,7 @@ func (c *Context) BuildResolveContext() ResolveContext {
 				rc.RoomItems = append(rc.RoomItems, itemCandidate{inst})
 			case *entities.MobInstance:
 				rc.RoomEntities = append(rc.RoomEntities, mobCandidate{inst})
+				giverTemplateIDs = append(giverTemplateIDs, string(inst.TemplateID()))
 			}
 		}
 	}
@@ -200,5 +207,54 @@ func (c *Context) BuildResolveContext() ResolveContext {
 		rc.Doors = worldDoorScope{world: c.World, roomID: room.ID}
 	}
 
+	// Quest scope: offers from the room's NPC givers (ArgQuest
+	// completion). Lazy like Doors — OffersFrom runs only when
+	// completeQuest enumerates, so non-`accept` dispatches pay nothing
+	// beyond capturing the giver-id slice already built above.
+	if c.Quests != nil && len(giverTemplateIDs) > 0 {
+		if player, ok := c.Actor.(quest.Player); ok {
+			rc.Quests = questOfferScope{svc: c.Quests, player: player, givers: giverTemplateIDs}
+		}
+	}
+
 	return rc
+}
+
+// questOfferScope is the production QuestScope adapter: it asks the quest
+// service for each room giver's offers to the actor. Lives here (not in
+// argresolve_entity.go) so ResolveContext stays free of the quest import,
+// mirroring how worldDoorScope keeps the world dependency out of the
+// resolver types.
+type questOfferScope struct {
+	svc    *quest.Service
+	player quest.Player
+	givers []string // room mob template ids
+}
+
+func (s questOfferScope) EnumerateAcceptable() []QuestRef {
+	if s.svc == nil || s.player == nil {
+		return nil
+	}
+	seen := map[string]bool{}
+	var out []QuestRef
+	for _, g := range s.givers {
+		for _, o := range s.svc.OffersFrom(s.player, g) {
+			if seen[o.QuestID] {
+				continue
+			}
+			seen[o.QuestID] = true
+			out = append(out, QuestRef{BareID: bareQuestID(o.QuestID), Name: o.Name})
+		}
+	}
+	return out
+}
+
+// bareQuestID strips the pack namespace from a quest id ("pack:gate-patrol"
+// → "gate-patrol"). The bare id is the completion token because
+// quest.Service.ResolveID matches it exactly (registry.go ResolveID).
+func bareQuestID(id string) string {
+	if i := strings.LastIndex(id, ":"); i >= 0 {
+		return id[i+1:]
+	}
+	return id
 }

@@ -28,6 +28,13 @@ const (
 	ArgVisible   ArgType = "visible"
 	ArgFindable  ArgType = "findable"
 	ArgDoor      ArgType = "door"
+	// ArgQuest enumerates the quests offered to the actor by NPCs in the
+	// current room (the OffersFrom set `talk` shows) for completion. Used
+	// by `accept`, which stays HandParsed — the type exists for the
+	// completion enumerator, not a §5 resolver; the handler resolves the
+	// term via quest.Service.ResolveID. The completion token is the bare
+	// quest id, which round-trips through ResolveID.
+	ArgQuest ArgType = "quest"
 )
 
 // engineArgTypes is the immutable set of engine-baseline type
@@ -48,6 +55,7 @@ var engineArgTypes = map[ArgType]struct{}{
 	ArgVisible:   {},
 	ArgFindable:  {},
 	ArgDoor:      {},
+	ArgQuest:     {},
 }
 
 // IsEngineArgType reports whether name is one of the engine-
