@@ -562,8 +562,9 @@ is now real. Sketch of remaining vertical slices:
     now sorts players-first via `SortPlayersFirst` for §4.1's
     tie-break preference. Default unarmed damage `1d3` / weapon
     name `"fists"` ship in `combat.Stats.EffectiveDamage` and
-    `EffectiveWeaponName`; real weapon plumbing arrives with
-    equipment-stat work post-M8.
+    `EffectiveWeaponName`; real weapon plumbing (wielded/equipped/
+    natural-weapon damage dice feeding `Stats.Damage`) landed later as
+    a post-roadmap warmup — see combat §4.5.
   - **M7.5 (landed):** Death flow + downstream wiring. New
     `combat.Vitals.ApplyDamageIfAlive` atomic primitive (closes
     M7.4 review obligation: single-lock liveness+damage so a

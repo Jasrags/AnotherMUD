@@ -277,7 +277,7 @@ need a design pass first.
 |---|---|---|
 | **Crafting & Cooking** | `crafting-and-cooking` + plan; full Tier 0/1/2 MVP in the `core` pack | M |
 | **Player trade** | trade-escrow + direct-trade + auction-house + plan; atomic escrow, sync trade, buyout auction | M |
-| **Engine Debt II** | mob equip §3.3, death-purge §3.5, passive gain/scaling, property-save wiring, tag-indexed reads, cross-pack validation, GMCP wizard panel | S–M |
+| **Engine Debt II** | death-purge §3.5, passive gain/scaling, property-save wiring, tag-indexed reads, cross-pack validation, GMCP wizard panel | S–M |
 
 **Needs a design pass first (greenfield — §2):**
 
@@ -296,7 +296,7 @@ need a design pass first.
 | You want a real item economy — players selling loot to each other | **Player trade** *(specced — ready)*; then Economy depth (mail/banking, greenfield) |
 | You want a crafting/gathering loop | **Crafting & Cooking** *(specced — MVP ready)* |
 | The world/character sheet feels mechanically thin | **Gameplay Systems** *(greenfield — design first)* |
-| You want a fast, low-stakes win to re-enter the codebase | take one **§1 warmup** (mob equip §3.3, tag-indexed reads, …) |
+| You want a fast, low-stakes win to re-enter the codebase | take one **§1 warmup** (tag-indexed reads, container caps, …) |
 | Accreting code debt is blocking a feature you want | **Engine Debt II** *(specced)* |
 | You're about to expose the server to real players | **Ops** (in background) |
 
