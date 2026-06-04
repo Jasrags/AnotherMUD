@@ -767,6 +767,7 @@ spec.
 | Engine arg type set | §5.2 (extensible, not overridable) |
 | Pack arg type registrations | §5.3 |
 | OpenTelemetry counter wiring for bad input | §6 |
+| Bad-input tracker caps (max distinct verbs, max verb key length) | §6 |
 | Emote catalog (engine + pack) | §7 |
 | Help loading order for generated vs file-based topics | §8 |
 | Ability-bridge behavior toggles (e.g. skip-bridge tag) | §9 |
@@ -799,10 +800,12 @@ spec.
   but makes legitimate typos by admins indistinguishable from
   unknown verbs. An admin-aware response that distinguishes
   would be friendlier.
-- **Bad-input tracker grows unbounded.** Entries are keyed by
-  verb and accumulate for the life of the process. A creative
-  attacker can fill the tracker with arbitrary keys. A per-
-  process cap or LRU eviction would bound memory.
+- ~~**Bad-input tracker grows unbounded.**~~ **Resolved.** The map is
+  capped at a maximum number of distinct verbs (existing entries keep
+  counting; new keys past the cap are dropped until `badinput clear`), and
+  each verb key is truncated to a maximum rune length so a single key can't
+  bloat. A creative attacker can no longer fill memory with arbitrary keys.
+  LRU eviction (vs. drop-on-full) remains a possible refinement.
 - **No mob bad-input record.** Silent mob failures make
   misbehaving mob behaviors hard to spot. A separate "mob
   unknown verb" log path would help operators without polluting

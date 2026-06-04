@@ -20,7 +20,6 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
-	"unicode"
 
 	"github.com/Jasrags/AnotherMUD/internal/ansi"
 	"github.com/Jasrags/AnotherMUD/internal/chat"
@@ -3311,15 +3310,8 @@ func (a *connActor) PlayerName() string {
 	return a.save.Name
 }
 
+// sanitizeForLog delegates to logging.Sanitize (kept as a local alias so the
+// many call sites and the existing test read unchanged).
 func sanitizeForLog(s string) string {
-	s = strings.ToValidUTF8(s, string(unicode.ReplacementChar))
-	return strings.Map(func(r rune) rune {
-		if r == '\t' {
-			return r
-		}
-		if unicode.IsControl(r) {
-			return unicode.ReplacementChar
-		}
-		return r
-	}, s)
+	return logging.Sanitize(s)
 }

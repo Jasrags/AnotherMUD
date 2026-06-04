@@ -1,6 +1,8 @@
 package command
 
 import (
+	"strconv"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -72,5 +74,42 @@ func TestBadInputTracker_ConcurrentNoLostCounts(t *testing.T) {
 	snap := tr.Snapshot()
 	if len(snap) != 1 || snap[0].Count != goroutines*each {
 		t.Errorf("snapshot = %+v, want spam×%d", snap, goroutines*each)
+	}
+}
+
+// The distinct-verb cap bounds map growth; existing verbs keep counting even
+// after the cap, only new keys are dropped (§6 open-question close-out).
+func TestBadInputTracker_DistinctVerbCap(t *testing.T) {
+	tr := NewBadInputTracker(clock.NewManual(time.Unix(0, 0)))
+	tr.Record("known") // recorded before the cap fills
+	for i := 0; i < maxTrackedVerbs+500; i++ {
+		tr.Record("junk" + strconv.Itoa(i))
+	}
+	if got := len(tr.Snapshot()); got != maxTrackedVerbs {
+		t.Errorf("entries = %d, want capped at %d", got, maxTrackedVerbs)
+	}
+	// An already-tracked verb still increments past the cap.
+	tr.Record("known")
+	for _, e := range tr.Snapshot() {
+		if e.Verb == "known" {
+			if e.Count != 2 {
+				t.Errorf("known count = %d, want 2 (still increments past cap)", e.Count)
+			}
+			return
+		}
+	}
+	t.Error("known verb dropped from snapshot")
+}
+
+func TestBadInputTracker_LongVerbTruncated(t *testing.T) {
+	tr := NewBadInputTracker(clock.NewManual(time.Unix(0, 0)))
+	long := strings.Repeat("a", maxVerbKeyRunes+50)
+	tr.Record(long)
+	snap := tr.Snapshot()
+	if len(snap) != 1 {
+		t.Fatalf("entries = %d, want 1", len(snap))
+	}
+	if got := len([]rune(snap[0].Verb)); got != maxVerbKeyRunes {
+		t.Errorf("key length = %d runes, want capped at %d", got, maxVerbKeyRunes)
 	}
 }

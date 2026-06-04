@@ -11,9 +11,28 @@ package logging
 import (
 	"context"
 	"log/slog"
+	"strings"
+	"unicode"
 )
 
 type ctxKey struct{}
+
+// Sanitize returns s with invalid UTF-8 replaced and every control rune
+// (except tab) swapped for the Unicode replacement character. Use it on any
+// untrusted text logged inline — a newline or terminal escape in raw player
+// input could otherwise forge or split a line under the text handler.
+func Sanitize(s string) string {
+	s = strings.ToValidUTF8(s, string(unicode.ReplacementChar))
+	return strings.Map(func(r rune) rune {
+		if r == '\t' {
+			return r
+		}
+		if unicode.IsControl(r) {
+			return unicode.ReplacementChar
+		}
+		return r
+	}, s)
+}
 
 // Default is the logger returned by From when no logger has been
 // attached to ctx. Replace at process start if a non-default handler

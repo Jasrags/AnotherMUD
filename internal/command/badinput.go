@@ -9,6 +9,15 @@ import (
 	"github.com/Jasrags/AnotherMUD/internal/clock"
 )
 
+// Bounds on the tracker so a client typing endless DISTINCT junk verbs can't
+// grow the map without limit (the flood gate caps rate, not distinct keys).
+// Existing verbs always keep counting; only NEW distinct verbs past the cap
+// are dropped. Long verbs are truncated so a single key can't be huge.
+const (
+	maxTrackedVerbs = 2048
+	maxVerbKeyRunes = 64
+)
+
 // BadInputEntry is one verb's record in the bad-input tracker (§6): how many
 // times an unknown verb was seen and the first/last time it was.
 type BadInputEntry struct {
@@ -50,6 +59,9 @@ func (t *BadInputTracker) Record(verb string) {
 	if v == "" {
 		return
 	}
+	if r := []rune(v); len(r) > maxVerbKeyRunes {
+		v = string(r[:maxVerbKeyRunes]) // bound the key size (rune-aware).
+	}
 	now := t.clk.Now()
 	t.mu.Lock()
 	defer t.mu.Unlock()
@@ -57,6 +69,9 @@ func (t *BadInputTracker) Record(verb string) {
 		e.Count++
 		e.LastSeen = now
 		return
+	}
+	if len(t.entries) >= maxTrackedVerbs {
+		return // distinct-verb cap reached — drop new keys (clear to reset).
 	}
 	t.entries[v] = &BadInputEntry{Verb: v, Count: 1, FirstSeen: now, LastSeen: now}
 }

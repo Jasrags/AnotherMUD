@@ -56,6 +56,17 @@ func actorRoomID(a Actor) world.RoomID {
 	return ""
 }
 
+// truncateForLog caps s at maxRunes runes (appending an ellipsis when cut) so
+// an oversized line can't bloat a log entry. Rune-aware so it never splits a
+// multibyte rune.
+func truncateForLog(s string, maxRunes int) string {
+	r := []rune(s)
+	if len(r) <= maxRunes {
+		return s
+	}
+	return string(r[:maxRunes]) + "…"
+}
+
 // Actor is the per-session view a command handler needs. The session
 // layer implements this; command does not own player state.
 type Actor interface {
@@ -864,10 +875,14 @@ func (r *Registry) Dispatch(ctx context.Context, env Env, actor Actor, raw strin
 		// sees a mob verb. The admin-gate "Huh?" below is a KNOWN verb being
 		// refused and is deliberately not recorded here.
 		env.BadInput.Record(verb)
+		// Sanitize the untrusted verb + raw input before logging: a control
+		// char or newline could otherwise forge a log line under the text
+		// handler. raw is also length-capped so a 64KB WS line can't bloat
+		// the log.
 		logging.From(ctx).Debug("unknown verb",
 			slog.String("event", "command.unknown"),
-			slog.String("verb", strings.ToLower(verb)),
-			slog.String("raw", raw),
+			slog.String("verb", logging.Sanitize(strings.ToLower(verb))),
+			slog.String("raw", logging.Sanitize(truncateForLog(raw, 256))),
 			slog.String("player", actor.Name()),
 			slog.String("room_id", string(actorRoomID(actor))))
 		return actor.Write(ctx, "Huh?")
