@@ -67,6 +67,10 @@ func completionRegistry(t *testing.T) *Registry {
 			HandParsed: true, Args: []ArgDefinition{{Name: "item", Type: ArgInventory}}},
 		{Keyword: "buy", Brief: "buy", Handler: noopHandler,
 			HandParsed: true, Args: []ArgDefinition{{Name: "item", Type: ArgShopItem}}},
+		{Keyword: "fill", Brief: "fill", Handler: noopHandler, HandParsed: true, Args: []ArgDefinition{
+			{Name: "target", Type: ArgInventory},
+			{Name: "source", Type: ArgRoomItem, Prepositions: []string{"from"}},
+		}},
 		{Keyword: "secret", Brief: "secret", Admin: true, Handler: noopHandler},
 	}
 	for _, c := range cmds {
@@ -410,6 +414,28 @@ func TestComplete_Arg_ShopItem(t *testing.T) {
 	// No shop in the room → no candidates (nil scope), not a crash.
 	if got := r.Complete("buy dra", ResolveContext{}, CompletionOptions{}); len(got.Candidates) != 0 {
 		t.Errorf("no shop: want no candidates, got %v", tokensOf(got.Candidates))
+	}
+}
+
+// fill has two slots: the target (carried vessel) completes inventory,
+// and the source — after the `from` preposition — completes room items.
+func TestComplete_Arg_Fill(t *testing.T) {
+	r := completionRegistry(t)
+	rc := ResolveContext{
+		Inventory: []ItemCandidate{&fakeItem{id: "i1", name: "a waterskin", keywords: []string{"waterskin", "skin"}}},
+		RoomItems: []ItemCandidate{&fakeItem{id: "r1", name: "a stone well", keywords: []string{"well"}}},
+	}
+	// target slot → inventory
+	if got := tokensOf(r.Complete("fill sk", rc, CompletionOptions{}).Candidates); !has(got, "skin") {
+		t.Errorf("fill sk: want the carried skin, got %v", got)
+	}
+	// source slot after `from` → room items (the well), not inventory
+	res := r.Complete("fill skin from we", rc, CompletionOptions{})
+	if res.ArgIndex != 1 {
+		t.Errorf("fill skin from we: want source arg index 1, got %d", res.ArgIndex)
+	}
+	if got := tokensOf(res.Candidates); !has(got, "well") {
+		t.Errorf("fill skin from we: want the well (room source), got %v", got)
 	}
 }
 

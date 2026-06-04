@@ -149,7 +149,9 @@ In Town Square:
 
 ## 5. Containers
 
-- [x] `fill waterskin` (in Town Square, by the well) — fills it from the well.
+- [x] `fill waterskin from well` (in Town Square) — fills it from the well. The
+      source is required (`fill <target> from <source>`); both args tab-complete
+      (inventory for the vessel, room items for the source).
 - [x] `put sword in sack` — sword moves into the sack.
 - [x] `look in sack` — lists the sack's contents.
 - [x] `get sword from sack` — takes it back out.
@@ -532,11 +534,12 @@ In the **Meadow** (`s` from the Gate — the road bandit is here):
   telnet (char-mode, §20.0) and via GMCP `Input.Complete` on modern clients
   (§18); `suggest` is the line-mode path and the admin `complete` verb is the
   debug inspector. Argument completion only lights up for verbs that declare
-  their arg types; the targeting verbs now do — `get`/`take`/`kill`/`look`/
-  `consider`/`accept`/`abandon`/`talk`/`unequip`/`sell`/`value`/`buy`
-  (`accept` = a room giver's offers, `abandon` = your active quests,
-  `unequip` = your worn items, `buy` = the room shop's stock, `sell`/`value`
-  = your inventory, `talk` = room NPCs). `fill` (source-scope) is the last
-  one that doesn't — tracked in `docs/BACKLOG.md` §2.
+  their arg types — and **every targeting verb now does**:
+  `get`/`take`/`kill`/`look`/`consider`/`accept`/`abandon`/`talk`/`unequip`/
+  `sell`/`value`/`buy`/`fill`. Each draws on the right scope: `accept` = a
+  room giver's offers, `abandon` = your active quests, `unequip` = your worn
+  items, `buy` = the room shop's stock, `sell`/`value` = your inventory,
+  `talk` = room NPCs, `fill` = inventory (target) then room items (source,
+  after `from`).
 - Record any mismatch as a `BUG:` note next to the step; file the real ones into
   `docs/BACKLOG.md` or a `m<N>-deferred-fixes` memory afterward.

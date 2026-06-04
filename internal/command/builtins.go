@@ -50,7 +50,16 @@ func RegisterBuiltins(r *Registry) error {
 		{Keyword: "drop", Handler: DropHandler, Brief: "Drop an item from your inventory.", Syntax: []string{"drop <item>"}, Args: []ArgDefinition{{Name: "item", Type: ArgInventory}}},
 		{Keyword: "give", Handler: GiveHandler, Brief: "Give an item to another character.", Syntax: []string{"give <item> to <target>"}, Args: []ArgDefinition{{Name: "item", Type: ArgInventory}, {Name: "target", Type: ArgPlayer, Prepositions: []string{"to"}}}},
 		{Keyword: "put", Handler: PutHandler, Brief: "Put an item into a container.", Syntax: []string{"put <item> in <container>"}, Args: []ArgDefinition{{Name: "item", Type: ArgInventory}, {Name: "container", Type: ArgContainer, Prepositions: []string{"in", "into"}}}},
-		{Keyword: "fill", Handler: FillHandler, Brief: "Fill a container from a source.", Syntax: []string{"fill <container>"}},
+		// fill <target> [from] <source>: a carried vessel filled from a
+		// room source (the well). HandParsed (the handler runs
+		// parseFillArgs); the two args let completion enumerate the
+		// inventory (target) and room items (source) — `from` is the
+		// optional preposition, mirroring `put <item> in <container>`.
+		{Keyword: "fill", Handler: FillHandler, Brief: "Fill a container from a source.", Syntax: []string{"fill <target> from <source>"},
+			HandParsed: true, Args: []ArgDefinition{
+				{Name: "target", Type: ArgInventory},
+				{Name: "source", Type: ArgRoomItem, Prepositions: []string{"from"}},
+			}},
 		{Keyword: "loot", Handler: LootHandler, Brief: "Take everything from a corpse.", Syntax: []string{"loot", "loot <corpse>"}},
 		{Keyword: "autoloot", Handler: AutolootHandler, Brief: "Toggle auto-looting your own kills.", Syntax: []string{"autoloot", "autoloot on|off"}},
 		{Keyword: "equip", Handler: EquipHandler, Brief: "Wear or wield an item from your inventory.", Syntax: []string{"equip <item> <slot>"}, Args: []ArgDefinition{{Name: "item", Type: ArgInventory}, {Name: "slot", Type: ArgKeyword}}},
