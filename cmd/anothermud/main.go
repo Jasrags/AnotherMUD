@@ -2024,9 +2024,9 @@ func (b *bootSpawner) SpawnAndPlace(_ context.Context, templateID string, roomID
 //   - §3.1 step 6 (track in entity store) → already done by SpawnMob
 //   - §3.1 step 10 (emit mob.spawned event)
 //
-// Deferred (no consumer yet): step 4 stat derivation, step 7 equipment
-// instantiation/equip, step 8 loot generation, step 9 ability
-// proficiencies — all tracked under M6 follow-on slices.
+// Steps 4 (stat derivation, M14.3 class growth), 7 (equipment
+// instantiation/equip, §3.3), 8 (loot generation, M22.1), and 9 (ability
+// proficiencies, copied at instantiation) are all wired in spawnMob.
 func (b *bootSpawner) SpawnAndPlaceMob(ctx context.Context, templateID string, roomID world.RoomID) error {
 	_, err := b.spawnMob(ctx, templateID, roomID)
 	return err
@@ -2144,6 +2144,36 @@ func (b *bootSpawner) spawnMob(ctx context.Context, templateID string, roomID wo
 				slog.String("mob", string(inst.ID())),
 				slog.String("template", templateID),
 				slog.String("loot_table", tblID))
+		}
+	}
+
+	// §3.3 / §3.1 step 7: equipment instantiation. Spawn each item on
+	// the template's equipment list, apply its modifiers to the mob's
+	// stat block under a per-item source key, and file it in the mob's
+	// Contents so it drops into the corpse on death like loot. Missing
+	// item templates are skipped silently (§3.3 step 1) — logged at Debug
+	// for the content author, consistent with the loot convention above.
+	if len(tpl.Equipment) > 0 && b.templates != nil {
+		res, eerr := b.store.EquipMobAtSpawn(inst, tpl.Equipment, b.templates, b.contents)
+		if eerr != nil {
+			// Spawn failure means a broken id generator — fail the spawn
+			// rather than place a half-equipped mob.
+			return "", fmt.Errorf("equip mob: %w", eerr)
+		}
+		for _, missing := range res.Missing {
+			logging.From(ctx).Debug("mob equip: unknown item template; skipped",
+				slog.String("mob", string(inst.ID())),
+				slog.String("template", templateID),
+				slog.String("item", missing))
+		}
+		// §2.3 vitals-at-full: equipment may raise hp_max (the M14.1
+		// OnMaxChange listener bumps Vitals.Max but never raises current),
+		// so top the mob up once after equipping. A no-op for the common
+		// case where gear only touches non-vital stats (str, hit_mod).
+		if res.Equipped > 0 {
+			if v := inst.Vitals(); v != nil {
+				_ = v.Heal(v.Max())
+			}
 		}
 	}
 

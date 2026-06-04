@@ -1761,6 +1761,17 @@ func decodeMob(path, ns string) (*mob.Template, error) {
 		return nil, err
 	}
 
+	// Equipment ids are namespace-qualified here (bare ids resolve
+	// against the current pack) so the §3.3 spawn lookup can match the
+	// item registry, whose template ids are stored qualified. This is a
+	// pure string operation — existence is still checked fail-silent at
+	// spawn (§3.1), so an id pointing at a later-loaded pack's item
+	// stays valid without forcing a post-pass.
+	equipment, err := qualifyIDList(f.Equipment, ns, path, "equipment")
+	if err != nil {
+		return nil, err
+	}
+
 	// Normalize passive-ability proficiency keys (lowercase + trim) so
 	// they match the registry/proficiency-manager keying. A blank key
 	// after trimming is dropped. nil stays nil (mob has no passives).
@@ -1789,7 +1800,7 @@ func decodeMob(path, ns string) (*mob.Template, error) {
 		Keywords:         f.Keywords,
 		Properties:       f.Properties,
 		Stats:            f.Stats,
-		Equipment:        f.Equipment,
+		Equipment:        equipment,
 		LootTable:        lootTable,
 		Proficiencies:    profs,
 		Race:             strings.ToLower(strings.TrimSpace(f.Race)),

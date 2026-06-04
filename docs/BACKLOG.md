@@ -45,7 +45,6 @@ go straight into a milestone.
 | Per-phase idle timeout | login §6.1 | `login.go` notes it as a known gap; no per-phase `Conn.Read` deadline set |
 | Tag-indexed reads during movement | world-rooms-movement §3.4 | movement scans, no tag index |
 | Container weight/volume caps | inventory-equipment-items | no cap enforcement at runtime |
-| Mob equipment instantiation at spawn | mobs-ai-spawning §3.3 | `Template.Equipment` decoded but `Store.SpawnMob` never equips it |
 | Death-driven purge from a generic alive predicate | mobs-ai-spawning §3.5 | only explicit `Untrack` triggers respawn |
 | Passive gain stat-factor | abilities-and-effects §3.5 | passive gain omits the §3.5 stat factor (no entity-stat-by-id seam) — m9-5 #1 |
 | Passive scaling-bonus consumer | abilities-and-effects §6.2 | `PassiveScalingBonus` built, no wired hook consumes it — m9-5 #2 |

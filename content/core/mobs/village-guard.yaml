@@ -8,6 +8,12 @@ keywords: [guard, villager]
 # Loot table rolled into the guard's contents at spawn (M22.1 —
 # mobs-ai-spawning §6.3). Unqualified id resolves against this pack.
 loot_table: guard-loot
+# Equipment instantiated and "equipped" at spawn (mobs-ai-spawning §3.3).
+# The sword's modifiers (str +4, hit_mod +3) are applied to the guard's
+# stat block under a per-item source key, and the instance is carried in
+# the guard's contents so it drops into the corpse on death like loot.
+# Unqualified id resolves against this pack.
+equipment: [short-sword]
 stats:
   hp_max: 22
   str: 10

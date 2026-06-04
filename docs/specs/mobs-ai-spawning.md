@@ -282,9 +282,9 @@ and treats the area id as the cue to call §3.6.
 - [ ] The template id is set on the entity after spawn.
 - [ ] Stat derivation grows stats by `average(dice) × level` using
       integer dice averaging.
-- [ ] Equipment instantiation is skipped silently when an item
+- [x] Equipment instantiation is skipped silently when an item
       template is missing.
-- [ ] Stat modifiers from equipment are tagged with a source key so
+- [x] Stat modifiers from equipment are tagged with a source key so
       they can be reversed.
 - [ ] Ability proficiencies are taught using the configured
       precedence (entry → template default → engine default).

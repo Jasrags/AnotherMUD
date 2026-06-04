@@ -11,7 +11,8 @@ import (
 
 // guardTpl returns a mob template carrying a representative spread of
 // fields: tags (one redundant with type), keywords, properties, stats,
-// equipment (unused at spawn for now). Tests slice off whichever
+// equipment (SpawnMob copies the list; EquipMobAtSpawn instantiates it —
+// see mob_equip_test.go). Tests slice off whichever
 // fields matter to a given case.
 func guardTpl() *mob.Template {
 	return &mob.Template{
