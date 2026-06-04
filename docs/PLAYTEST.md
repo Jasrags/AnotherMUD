@@ -532,9 +532,11 @@ In the **Meadow** (`s` from the Gate — the road bandit is here):
   telnet (char-mode, §20.0) and via GMCP `Input.Complete` on modern clients
   (§18); `suggest` is the line-mode path and the admin `complete` verb is the
   debug inspector. Argument completion only lights up for verbs that declare
-  their arg types; most do, and `get`/`take`/`kill`/`look`/`consider`/`accept`/
-  `abandon` now do too (`accept` completes a room giver's quest offers;
-  `abandon` completes your active quests). A few still don't (e.g. `unequip`,
-  `fill`, `buy`/`sell`/`value`) — tracked in `docs/BACKLOG.md` §2.
+  their arg types; the targeting verbs now do — `get`/`take`/`kill`/`look`/
+  `consider`/`accept`/`abandon`/`talk`/`unequip`/`sell`/`value`/`buy`
+  (`accept` = a room giver's offers, `abandon` = your active quests,
+  `unequip` = your worn items, `buy` = the room shop's stock, `sell`/`value`
+  = your inventory, `talk` = room NPCs). `fill` (source-scope) is the last
+  one that doesn't — tracked in `docs/BACKLOG.md` §2.
 - Record any mismatch as a `BUG:` note next to the step; file the real ones into
   `docs/BACKLOG.md` or a `m<N>-deferred-fixes` memory afterward.

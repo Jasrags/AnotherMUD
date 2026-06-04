@@ -4,7 +4,9 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/Jasrags/AnotherMUD/internal/economy"
 	"github.com/Jasrags/AnotherMUD/internal/entities"
+	"github.com/Jasrags/AnotherMUD/internal/keyword"
 	"github.com/Jasrags/AnotherMUD/internal/quest"
 	"github.com/Jasrags/AnotherMUD/internal/world"
 )
@@ -240,7 +242,31 @@ func (c *Context) BuildResolveContext() ResolveContext {
 		}
 	}
 
+	// Shop scope (ArgShopItem completion for `buy`): the sellable stock
+	// of a shop-tagged NPC in the room. Find the shop NPC here (cheap room
+	// scan) and capture its config; StockNamed runs lazily on enumerate.
+	if c.Shop != nil && room != nil {
+		if npc := findShopInRoom(c, room.ID); npc != nil {
+			rc.Shop = shopStockScope{svc: c.Shop, cfg: shopConfigFromMob(npc)}
+		}
+	}
+
 	return rc
+}
+
+// shopStockScope is the production ShopScope adapter: it exposes a room
+// shop's sellable stock as keyword.Named via ShopService.StockNamed.
+// Lives here so ResolveContext stays free of the economy import.
+type shopStockScope struct {
+	svc *economy.ShopService
+	cfg economy.ShopConfig
+}
+
+func (s shopStockScope) EnumerateStock() []keyword.Named {
+	if s.svc == nil {
+		return nil
+	}
+	return s.svc.StockNamed(s.cfg)
 }
 
 // questScope is the production QuestScope adapter. It asks the quest

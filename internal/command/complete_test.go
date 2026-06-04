@@ -65,6 +65,8 @@ func completionRegistry(t *testing.T) *Registry {
 			HandParsed: true, Args: []ArgDefinition{{Name: "npc", Type: ArgNPC}}},
 		{Keyword: "sell", Brief: "sell", Handler: noopHandler,
 			HandParsed: true, Args: []ArgDefinition{{Name: "item", Type: ArgInventory}}},
+		{Keyword: "buy", Brief: "buy", Handler: noopHandler,
+			HandParsed: true, Args: []ArgDefinition{{Name: "item", Type: ArgShopItem}}},
 		{Keyword: "secret", Brief: "secret", Admin: true, Handler: noopHandler},
 	}
 	for _, c := range cmds {
@@ -384,6 +386,30 @@ func TestComplete_Arg_TalkNPC(t *testing.T) {
 	rc := ResolveContext{RoomEntities: []EntityCandidate{mob}}
 	if got := tokensOf(r.Complete("talk ma", rc, CompletionOptions{}).Candidates); !has(got, "maerys") && !has(got, "master") {
 		t.Errorf("talk ma: want the Maerys NPC, got %v", got)
+	}
+}
+
+// fakeShopScope implements ShopScope for ArgShopItem completion.
+type fakeShopScope struct{ stock []keyword.Named }
+
+func (f fakeShopScope) EnumerateStock() []keyword.Named { return f.stock }
+
+// buy completes a room shop's stock (ArgShopItem); empty when no shop.
+func TestComplete_Arg_ShopItem(t *testing.T) {
+	r := completionRegistry(t)
+	rc := ResolveContext{Shop: fakeShopScope{stock: []keyword.Named{
+		&fakeItem{id: "t1", name: "a healing draught", keywords: []string{"draught", "potion"}},
+		&fakeItem{id: "t2", name: "a leather cap", keywords: []string{"cap"}},
+	}}}
+	if got := tokensOf(r.Complete("buy dra", rc, CompletionOptions{}).Candidates); !has(got, "draught") {
+		t.Errorf("buy dra: want draught, got %v", got)
+	}
+	if got := tokensOf(r.Complete("buy ", rc, CompletionOptions{}).Candidates); !has(got, "draught") || !has(got, "cap") {
+		t.Errorf("buy (empty): want full stock, got %v", got)
+	}
+	// No shop in the room → no candidates (nil scope), not a crash.
+	if got := r.Complete("buy dra", ResolveContext{}, CompletionOptions{}); len(got.Candidates) != 0 {
+		t.Errorf("no shop: want no candidates, got %v", tokensOf(got.Candidates))
 	}
 }
 

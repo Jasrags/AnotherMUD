@@ -305,6 +305,11 @@ func scopeFor(t ArgType, rc ResolveContext) []keyword.Named {
 		return itemsAsNamed(rc.Inventory)
 	case ArgEquipped:
 		return itemsAsNamed(rc.Equipped)
+	case ArgShopItem:
+		if rc.Shop != nil {
+			return rc.Shop.EnumerateStock()
+		}
+		return nil
 	case ArgRoomItem:
 		return itemsAsNamed(rc.RoomItems)
 	case ArgContainer:

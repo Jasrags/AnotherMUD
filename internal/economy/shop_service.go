@@ -74,6 +74,25 @@ func (s *ShopService) Listings(shop ShopConfig) []Listing {
 	return listings(s.tpls, shop, s.cfg)
 }
 
+// StockNamed returns the shop's sellable stock as keyword.Named — the
+// SAME scope resolveStock matches a buy query against (spec §3.7). The
+// completion layer disambiguates over it, so a suggested token is
+// guaranteed to round-trip through Buy. Order follows shop.Sells.
+func (s *ShopService) StockNamed(shop ShopConfig) []keyword.Named {
+	if s.tpls == nil {
+		return nil
+	}
+	out := make([]keyword.Named, 0, len(shop.Sells))
+	for _, id := range shop.Sells {
+		tpl, err := s.tpls.Get(item.TemplateID(id))
+		if err != nil {
+			continue
+		}
+		out = append(out, namedTemplate{tpl})
+	}
+	return out
+}
+
 // BuyResult is the structured outcome of Buy (spec §3.5).
 type BuyResult struct {
 	Outcome  ShopOutcome

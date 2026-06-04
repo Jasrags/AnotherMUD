@@ -126,7 +126,11 @@ func RegisterBuiltins(r *Registry) error {
 
 		// Economy (M11).
 		{Keyword: "gold", Handler: GoldHandler, Brief: "Show how much gold you carry.", Syntax: []string{"gold"}},
-		{Keyword: "buy", Handler: BuyHandler, Brief: "Buy an item from a shop.", Syntax: []string{"buy <item>"}},
+		// buy declares a shop-item arg + HandParsed so completion
+		// enumerates the room shop's stock; the handler resolves the raw
+		// term through ShopService.
+		{Keyword: "buy", Handler: BuyHandler, Brief: "Buy an item from a shop.", Syntax: []string{"buy <item>"},
+			HandParsed: true, Args: []ArgDefinition{{Name: "item", Type: ArgShopItem}}},
 		// sell/value resolve a held item against the shop; declare the
 		// inventory arg + HandParsed so completion enumerates what you
 		// carry (the handler resolves it through ShopService).

@@ -103,6 +103,23 @@ type ResolveContext struct {
 	// resolve path — `accept` is HandParsed and resolves via ResolveID —
 	// so this is consulted only by completeQuest.
 	Quests QuestScope
+
+	// Shop is the completion-only seam for ArgShopItem (`buy`): the
+	// sellable stock of a shop-tagged NPC in the actor's room. Like Doors
+	// and Quests it is an interface so ResolveContext stays decoupled from
+	// the economy package; nil means "no shop here". EnumerateStock
+	// returns the stock as keyword.Named so the default disambiguation
+	// path produces tokens that round-trip through the buy resolver.
+	Shop ShopScope
+}
+
+// ShopScope enumerates a room shop's sellable stock for ArgShopItem
+// completion (`buy`). Returns keyword.Named over the SAME scope the buy
+// resolver matches, so completion reuses the item disambiguation and a
+// suggested token round-trips. Kept an interface (no economy import
+// here); the production adapter lives in argcontext.go.
+type ShopScope interface {
+	EnumerateStock() []keyword.Named
 }
 
 // QuestScope enumerates quests for completion (tab-completion §4). Two

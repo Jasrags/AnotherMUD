@@ -47,6 +47,12 @@ const (
 	// use); the completion token is a distinguishing keyword that
 	// round-trips through unequip's keyword resolver.
 	ArgEquipped ArgType = "equipped"
+	// ArgShopItem enumerates a room shop's sellable stock for completion
+	// (the scope `buy` resolves against). Backed by the ShopService over
+	// the room's shop-tagged NPC; item-flavored, so it reuses keyword
+	// disambiguation and the token round-trips through the shop's stock
+	// resolver. Empty when there's no shop NPC in the room.
+	ArgShopItem ArgType = "shop_item"
 )
 
 // engineArgTypes is the immutable set of engine-baseline type
@@ -70,6 +76,7 @@ var engineArgTypes = map[ArgType]struct{}{
 	ArgQuest:       {},
 	ArgActiveQuest: {},
 	ArgEquipped:    {},
+	ArgShopItem:    {},
 }
 
 // IsEngineArgType reports whether name is one of the engine-
