@@ -101,13 +101,16 @@ type ResolveContext struct {
 	Quests QuestScope
 }
 
-// QuestScope enumerates the quests the actor could accept right now —
-// the offers from NPC quest-givers in the actor's room (the same set the
-// `talk` verb shows). Used only for ArgQuest completion (tab-completion
-// §4). Kept an interface (no quest import here) so ResolveContext stays a
-// leaf type; the production adapter lives in argcontext.go.
+// QuestScope enumerates quests for completion (tab-completion §4). Two
+// disjoint sets back the two quest verbs: EnumerateAcceptable feeds
+// `accept` (offers from NPC givers in the room — the `talk` set), and
+// EnumerateActive feeds `abandon` (the actor's active, abandonable
+// quests, not giver-bound). Kept an interface (no quest import here) so
+// ResolveContext stays a leaf type; the production adapter lives in
+// argcontext.go.
 type QuestScope interface {
 	EnumerateAcceptable() []QuestRef
+	EnumerateActive() []QuestRef
 }
 
 // QuestRef is one acceptable quest for completion. BareID is the quest

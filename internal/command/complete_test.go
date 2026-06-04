@@ -57,6 +57,8 @@ func completionRegistry(t *testing.T) *Registry {
 			Args: []ArgDefinition{{Name: "t", Type: ArgFindable}}},
 		{Keyword: "accept", Brief: "accept quest", Handler: noopHandler,
 			HandParsed: true, Args: []ArgDefinition{{Name: "quest", Type: ArgQuest}}},
+		{Keyword: "abandon", Brief: "abandon quest", Handler: noopHandler,
+			HandParsed: true, Args: []ArgDefinition{{Name: "quest", Type: ArgActiveQuest}}},
 		{Keyword: "secret", Brief: "secret", Admin: true, Handler: noopHandler},
 	}
 	for _, c := range cmds {
@@ -268,10 +270,15 @@ func TestComplete_Arg_Door_KeywordsNotNameWords(t *testing.T) {
 	}
 }
 
-// fakeQuestScope is a deterministic QuestScope for ArgQuest completion.
-type fakeQuestScope struct{ refs []QuestRef }
+// fakeQuestScope is a deterministic QuestScope: refs feed ArgQuest
+// (accept offers); active feeds ArgActiveQuest (abandon).
+type fakeQuestScope struct {
+	refs   []QuestRef
+	active []QuestRef
+}
 
 func (f fakeQuestScope) EnumerateAcceptable() []QuestRef { return f.refs }
+func (f fakeQuestScope) EnumerateActive() []QuestRef     { return f.active }
 
 func TestComplete_Arg_Quest(t *testing.T) {
 	r := completionRegistry(t)
@@ -299,6 +306,37 @@ func TestComplete_Arg_Quest(t *testing.T) {
 	// Prefix on the display NAME also matches ("forge" → Forge Errand).
 	if got := tokensOf(r.Complete("accept forge", rc, CompletionOptions{}).Candidates); !has(got, "forge-errand") {
 		t.Errorf("accept forge: name prefix should match, got %v", got)
+	}
+}
+
+// abandon completes the actor's ACTIVE quests (EnumerateActive), a
+// distinct set from accept's room offers (EnumerateAcceptable).
+func TestComplete_Arg_ActiveQuest(t *testing.T) {
+	r := completionRegistry(t)
+	rc := ResolveContext{Quests: fakeQuestScope{
+		refs:   []QuestRef{{BareID: "forge-errand", Name: "Forge Errand"}}, // offered (accept)
+		active: []QuestRef{{BareID: "gate-patrol", Name: "Gate Patrol"}},   // active (abandon)
+	}}
+
+	// abandon enumerates the ACTIVE set, not the offers.
+	aband := tokensOf(r.Complete("abandon ", rc, CompletionOptions{}).Candidates)
+	if !has(aband, "gate-patrol") || has(aband, "forge-errand") {
+		t.Errorf("abandon: want only the active quest gate-patrol, got %v", aband)
+	}
+	// accept still enumerates the OFFER set — the two scopes are disjoint.
+	acc := tokensOf(r.Complete("accept ", rc, CompletionOptions{}).Candidates)
+	if !has(acc, "forge-errand") || has(acc, "gate-patrol") {
+		t.Errorf("accept: want only the offered quest forge-errand, got %v", acc)
+	}
+	// Prefix + CandQuest kind on abandon.
+	res := r.Complete("abandon ga", rc, CompletionOptions{})
+	if got := tokensOf(res.Candidates); !has(got, "gate-patrol") {
+		t.Errorf("abandon ga: want gate-patrol, got %v", got)
+	}
+	for _, c := range res.Candidates {
+		if c.Kind != CandQuest {
+			t.Errorf("abandon candidate %q kind = %q, want %q", c.Completion, c.Kind, CandQuest)
+		}
 	}
 }
 

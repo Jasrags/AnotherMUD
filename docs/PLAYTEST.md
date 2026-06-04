@@ -291,6 +291,10 @@ two quests — **Forge Errand** (auto-grant) and **Gate Patrol** (turn-in)
 ### Abandon
 
 - [x] Accept either quest, then `abandon <name>` — it drops from the journal.
+- [ ] **`abandon` completes your active quests:** with a quest active, `abandon `
+      + **TAB** (or `suggest abandon `) lists it by bare id (`gate-patrol`); works
+      anywhere (not giver-bound, unlike `accept`). Only *abandonable* active
+      quests are offered.
 
 ## 11. Social / multi-session (Jasrags + Bob, two windows)
 
@@ -528,10 +532,9 @@ In the **Meadow** (`s` from the Gate — the road bandit is here):
   telnet (char-mode, §20.0) and via GMCP `Input.Complete` on modern clients
   (§18); `suggest` is the line-mode path and the admin `complete` verb is the
   debug inspector. Argument completion only lights up for verbs that declare
-  their arg types; most do, and `get`/`take`/`kill`/`look`/`consider`/`accept`
-  now do too (`accept` completes the quest offers from givers in the room).
-  A few still don't (e.g. `unequip`, `fill`, `buy`/`sell`/`value`, `abandon` —
-  which would complete *active* quests, a different scope) — tracked in
-  `docs/BACKLOG.md` §2.
+  their arg types; most do, and `get`/`take`/`kill`/`look`/`consider`/`accept`/
+  `abandon` now do too (`accept` completes a room giver's quest offers;
+  `abandon` completes your active quests). A few still don't (e.g. `unequip`,
+  `fill`, `buy`/`sell`/`value`) — tracked in `docs/BACKLOG.md` §2.
 - Record any mismatch as a `BUG:` note next to the step; file the real ones into
   `docs/BACKLOG.md` or a `m<N>-deferred-fixes` memory afterward.

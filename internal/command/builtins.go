@@ -110,7 +110,11 @@ func RegisterBuiltins(r *Registry) error {
 		// term itself.
 		{Keyword: "accept", Handler: AcceptHandler, Brief: "Accept an offered quest.", Syntax: []string{"accept <quest>"},
 			HandParsed: true, Args: []ArgDefinition{{Name: "quest", Type: ArgQuest}}},
-		{Keyword: "abandon", Handler: AbandonHandler, Brief: "Abandon an active quest.", Syntax: []string{"abandon <quest>"}},
+		// abandon mirrors accept: a `quest` arg (active variant) +
+		// HandParsed so completion enumerates the actor's active quests
+		// while the handler resolves the raw term itself.
+		{Keyword: "abandon", Handler: AbandonHandler, Brief: "Abandon an active quest.", Syntax: []string{"abandon <quest>"},
+			HandParsed: true, Args: []ArgDefinition{{Name: "quest", Type: ArgActiveQuest}}},
 		{Keyword: "quests", Aliases: []string{"journal"}, Handler: QuestsHandler, Brief: "Show your active quests.", Syntax: []string{"quests"}},
 
 		// Economy (M11).

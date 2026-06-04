@@ -35,6 +35,12 @@ const (
 	// term via quest.Service.ResolveID. The completion token is the bare
 	// quest id, which round-trips through ResolveID.
 	ArgQuest ArgType = "quest"
+	// ArgActiveQuest is the abandon-side counterpart to ArgQuest: it
+	// enumerates the actor's ACTIVE, abandonable quests (what `abandon`
+	// will accept) rather than the room's offers, and isn't giver-bound.
+	// Same HandParsed + bare-id round-trip contract; the distinct type
+	// just selects the other enumerator.
+	ArgActiveQuest ArgType = "active_quest"
 )
 
 // engineArgTypes is the immutable set of engine-baseline type
@@ -43,19 +49,20 @@ const (
 // supplies. Spec §5.3 makes engine types immutable to prevent a
 // pack from silently changing built-in command behavior.
 var engineArgTypes = map[ArgType]struct{}{
-	ArgKeyword:   {},
-	ArgText:      {},
-	ArgNumber:    {},
-	ArgInventory: {},
-	ArgRoomItem:  {},
-	ArgEntity:    {},
-	ArgPlayer:    {},
-	ArgNPC:       {},
-	ArgContainer: {},
-	ArgVisible:   {},
-	ArgFindable:  {},
-	ArgDoor:      {},
-	ArgQuest:     {},
+	ArgKeyword:     {},
+	ArgText:        {},
+	ArgNumber:      {},
+	ArgInventory:   {},
+	ArgRoomItem:    {},
+	ArgEntity:      {},
+	ArgPlayer:      {},
+	ArgNPC:         {},
+	ArgContainer:   {},
+	ArgVisible:     {},
+	ArgFindable:    {},
+	ArgDoor:        {},
+	ArgQuest:       {},
+	ArgActiveQuest: {},
 }
 
 // IsEngineArgType reports whether name is one of the engine-

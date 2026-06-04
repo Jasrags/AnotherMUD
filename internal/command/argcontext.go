@@ -207,31 +207,37 @@ func (c *Context) BuildResolveContext() ResolveContext {
 		rc.Doors = worldDoorScope{world: c.World, roomID: room.ID}
 	}
 
-	// Quest scope: offers from the room's NPC givers (ArgQuest
-	// completion). Lazy like Doors — OffersFrom runs only when
-	// completeQuest enumerates, so non-`accept` dispatches pay nothing
-	// beyond capturing the giver-id slice already built above.
-	if c.Quests != nil && len(giverTemplateIDs) > 0 {
+	// Quest scope (ArgQuest / ArgActiveQuest completion). Lazy like
+	// Doors — the service calls run only when completeQuest enumerates,
+	// so non-quest dispatches pay nothing beyond capturing the giver-id
+	// slice already built above. Populated whenever quests are wired and
+	// the actor is a quest.Player: the offers set (accept) needs room
+	// givers, but the active set (abandon) does not, so this is NOT gated
+	// on givers being present.
+	if c.Quests != nil {
 		if player, ok := c.Actor.(quest.Player); ok {
-			rc.Quests = questOfferScope{svc: c.Quests, player: player, givers: giverTemplateIDs}
+			rc.Quests = questScope{svc: c.Quests, player: player, givers: giverTemplateIDs}
 		}
 	}
 
 	return rc
 }
 
-// questOfferScope is the production QuestScope adapter: it asks the quest
-// service for each room giver's offers to the actor. Lives here (not in
+// questScope is the production QuestScope adapter. It asks the quest
+// service for the room givers' offers (EnumerateAcceptable) and the
+// actor's active quests (EnumerateActive). Lives here (not in
 // argresolve_entity.go) so ResolveContext stays free of the quest import,
 // mirroring how worldDoorScope keeps the world dependency out of the
 // resolver types.
-type questOfferScope struct {
+type questScope struct {
 	svc    *quest.Service
 	player quest.Player
-	givers []string // room mob template ids
+	givers []string // room mob template ids (offers only)
 }
 
-func (s questOfferScope) EnumerateAcceptable() []QuestRef {
+// EnumerateAcceptable returns the offers the room's givers extend to the
+// actor (accept). OffersFrom already filters to acceptable+eligible.
+func (s questScope) EnumerateAcceptable() []QuestRef {
 	if s.svc == nil || s.player == nil {
 		return nil
 	}
@@ -245,6 +251,35 @@ func (s questOfferScope) EnumerateAcceptable() []QuestRef {
 			seen[o.QuestID] = true
 			out = append(out, QuestRef{BareID: bareQuestID(o.QuestID), Name: o.Name})
 		}
+	}
+	return out
+}
+
+// EnumerateActive returns the actor's active, abandonable quests
+// (abandon). Non-abandonable quests are omitted because `abandon` refuses
+// them — suggesting them would be a dead end. A nil Definition (orphaned
+// active quest after a content edit) is treated as abandonable, matching
+// AbandonHandler.
+func (s questScope) EnumerateActive() []QuestRef {
+	if s.svc == nil || s.player == nil {
+		return nil
+	}
+	st := s.svc.Snapshot(s.player.EntityID())
+	if st == nil {
+		return nil
+	}
+	var out []QuestRef
+	for i := range st.Active {
+		qid := st.Active[i].QuestID
+		def, _ := s.svc.Definition(qid)
+		if def != nil && !def.Abandonable {
+			continue
+		}
+		name := qid
+		if def != nil && def.Name != "" {
+			name = def.Name
+		}
+		out = append(out, QuestRef{BareID: bareQuestID(qid), Name: name})
 	}
 	return out
 }
