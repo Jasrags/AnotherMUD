@@ -116,6 +116,12 @@ once (two telnet windows).
 - [x] `south`, `east`, `west` — move between Forge/Square/Market/Gate.
 - [x] `s` from the Gate — you reach the Meadow (the bandit is here).
 - [x] Try a direction with no exit (e.g. `up`) — "You cannot go that way."
+- [ ] **Chaining:** `n;s` runs both in order (you go north then back south).
+      A long chain past the cap (default 10, `ANOTHERMUD_CHAIN_CAP`) silently
+      drops the trailing commands.
+- [ ] **Repeat:** `2n` then `2s` walks two rooms each way (`<count><verb>`);
+      `3` alone is just an unknown verb (pure digits don't expand). Commands
+      run immediately, not paced across ticks.
 - [x] When another player is present, you see "X arrives" / "X leaves" as they
       move (covered in §11).
 

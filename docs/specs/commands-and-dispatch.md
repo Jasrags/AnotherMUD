@@ -349,14 +349,28 @@ that live outside this feature.
 
 **Acceptance criteria**
 
-- [ ] Chain separator splits independently per segment.
-- [ ] Chain length cap drops trailing segments silently.
-- [ ] Repeat expansion handles `3n`, `12east`, `2pick item`.
-- [ ] Pure-digit tokens (`3`) are not expanded.
-- [ ] Repeat count is bounded by the remaining chain cap so a
+- [x] Chain separator splits independently per segment.
+- [x] Chain length cap drops trailing segments silently.
+- [x] Repeat expansion handles `3n`, `12east`, `2pick item`.
+- [x] Pure-digit tokens (`3`) are not expanded.
+- [x] Repeat count is bounded by the remaining chain cap so a
       `999n` cannot blow past the cap.
-- [ ] No quoting/escaping is interpreted; everything is space-
+- [x] No quoting/escaping is interpreted; everything is space-
       split.
+
+> **Implementation (`internal/command/parse.go` `ParseInput`).** The parser
+> returns the ordered, expanded command segments as ready-to-dispatch
+> strings (a (verb, args) pair is lossless as a string under the
+> no-quoting rule), so the session pump feeds each straight to `Dispatch`.
+> The cap is `Config.ChainCap` (env `ANOTHERMUD_CHAIN_CAP`, default 10).
+>
+> **v1 dispatches the expanded commands synchronously, in order, within
+> the one input read** — it does NOT enqueue them across ticks (the §4.4
+> "subsequent ticks" model). Per-tick pacing is explicitly out of scope
+> here (§4.4: "subject to per-tick rate caps that live outside this
+> feature"); movement and most verbs already dispatch synchronously, the
+> chain cap bounds expansion, and the per-line flood gate counts the whole
+> submission once. A paced input queue would be a separate, larger build.
 
 ---
 

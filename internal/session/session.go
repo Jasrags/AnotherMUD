@@ -343,6 +343,11 @@ type Config struct {
 	// clock.RealClock when nil so existing tests don't have to wire it.
 	Clock clock.Clock
 
+	// ChainCap bounds how many commands one input line may expand to via
+	// chaining/repeat (commands-and-dispatch §4.1). Zero falls back to
+	// command.DefaultChainCap inside ParseInput.
+	ChainCap int
+
 	// NowTick returns the current game tick; threaded into command.Env
 	// so the loot verb can evaluate a corpse's ownership window
 	// (loot-and-corpses §4). Wired to tick.Loop.TickCount at the
@@ -861,12 +866,19 @@ func pump(ctx context.Context, c conn.Connection, cfg Config, a *connActor, clk 
 			return exitForced
 		}
 
+		// Parse the line into one or more commands (chaining `;` + repeat
+		// `3n`, commands-and-dispatch §4) and dispatch each in order. The
+		// chain cap bounds expansion; the flood gate above already counted
+		// this submission once. Per-tick pacing of the expanded commands is
+		// out of scope (§4.4) — they run synchronously, like any line.
 		env := commandEnv(cfg)
-		if err := cfg.Commands.Dispatch(ctx, env, a, line); err != nil {
-			if errors.Is(err, command.ErrQuit) {
-				return exitClientQuit
+		for _, segment := range command.ParseInput(line, cfg.ChainCap) {
+			if err := cfg.Commands.Dispatch(ctx, env, a, segment); err != nil {
+				if errors.Is(err, command.ErrQuit) {
+					return exitClientQuit
+				}
+				logging.From(ctx).Warn("command handler error", slog.Any("err", err))
 			}
-			logging.From(ctx).Warn("command handler error", slog.Any("err", err))
 		}
 	}
 }

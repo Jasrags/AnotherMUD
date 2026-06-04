@@ -1631,6 +1631,7 @@ func run() error {
 		CreationFlow: session.NewCreationFlow(registries.Races, registries.Classes),
 		Clock:        clk,
 		Flood:        session.DefaultFloodConfig(),
+		ChainCap:     envIntOr("ANOTHERMUD_CHAIN_CAP", command.DefaultChainCap),
 		LinkDead:     linkDeadCfg,
 		// M15.4b₂b: per-look weather ambience. The closure binds
 		// weather.Service.Ambience; RenderRoom appends its output
@@ -1781,15 +1782,15 @@ type config struct {
 	// DefaultSustenanceConfig (−1 every 30s at a 100ms tick = cadence 300).
 	SustenanceDrainInterval time.Duration
 	SustenanceDrainAmount   int
-	ContentDir            string
-	SaveDir               string
-	StartRoom             world.RoomID
-	DefaultRace           string
-	RoleSeed              map[string][]string
-	GrantingRole          string
-	AdminRole             string
-	ColorDefault          bool
-	LinkDead              session.LinkDeadConfig
+	ContentDir              string
+	SaveDir                 string
+	StartRoom               world.RoomID
+	DefaultRace             string
+	RoleSeed                map[string][]string
+	GrantingRole            string
+	AdminRole               string
+	ColorDefault            bool
+	LinkDead                session.LinkDeadConfig
 }
 
 func loadConfig() config {
@@ -1813,33 +1814,33 @@ func loadConfig() config {
 		wsInsecure = !(strings.EqualFold(v, "0") || strings.EqualFold(v, "false") || strings.EqualFold(v, "off"))
 	}
 	return config{
-		Addr:                  envOr("ANOTHERMUD_ADDR", ":4000"),
-		WsAddr:                envOr("ANOTHERMUD_WS_ADDR", ""),
-		WsPath:                envOr("ANOTHERMUD_WS_PATH", "/mud"),
-		WsOriginPatterns:      wsOrigins,
-		WsInsecureSkipVerify:  wsInsecure,
-		LogLevel:              strings.ToLower(envOr("ANOTHERMUD_LOG_LEVEL", "info")),
-		LogFormat:             strings.ToLower(envOr("ANOTHERMUD_LOG_FORMAT", "text")),
-		TickInterval:          envDurationOr("ANOTHERMUD_TICK_INTERVAL", 100*time.Millisecond),
-		CombatCadence:         envDurationOr("ANOTHERMUD_COMBAT_CADENCE", 3*time.Second),
-		FleeCooldown:          envDurationOr("ANOTHERMUD_FLEE_COOLDOWN", 15*time.Second),
-		CorpseOwnershipWindow: envDurationOr("ANOTHERMUD_CORPSE_OWNERSHIP_WINDOW", 60*time.Second),
-		CorpseLifetime:        envDurationOr("ANOTHERMUD_CORPSE_LIFETIME", 5*time.Minute),
-		CorpseDecayInterval:   envDurationOr("ANOTHERMUD_CORPSE_DECAY_INTERVAL", 3*time.Second),
+		Addr:                    envOr("ANOTHERMUD_ADDR", ":4000"),
+		WsAddr:                  envOr("ANOTHERMUD_WS_ADDR", ""),
+		WsPath:                  envOr("ANOTHERMUD_WS_PATH", "/mud"),
+		WsOriginPatterns:        wsOrigins,
+		WsInsecureSkipVerify:    wsInsecure,
+		LogLevel:                strings.ToLower(envOr("ANOTHERMUD_LOG_LEVEL", "info")),
+		LogFormat:               strings.ToLower(envOr("ANOTHERMUD_LOG_FORMAT", "text")),
+		TickInterval:            envDurationOr("ANOTHERMUD_TICK_INTERVAL", 100*time.Millisecond),
+		CombatCadence:           envDurationOr("ANOTHERMUD_COMBAT_CADENCE", 3*time.Second),
+		FleeCooldown:            envDurationOr("ANOTHERMUD_FLEE_COOLDOWN", 15*time.Second),
+		CorpseOwnershipWindow:   envDurationOr("ANOTHERMUD_CORPSE_OWNERSHIP_WINDOW", 60*time.Second),
+		CorpseLifetime:          envDurationOr("ANOTHERMUD_CORPSE_LIFETIME", 5*time.Minute),
+		CorpseDecayInterval:     envDurationOr("ANOTHERMUD_CORPSE_DECAY_INTERVAL", 3*time.Second),
 		AutosaveInterval:        envDurationOr("ANOTHERMUD_AUTOSAVE_INTERVAL", 30*time.Second),
 		IdleSweepInterval:       envDurationOr("ANOTHERMUD_IDLE_SWEEP_INTERVAL", 30*time.Second),
 		LinkDeadSweepInterval:   envDurationOr("ANOTHERMUD_LINKDEAD_SWEEP_INTERVAL", 30*time.Second),
 		SustenanceDrainInterval: envDurationOr("ANOTHERMUD_SUSTENANCE_DRAIN_INTERVAL", 30*time.Second),
 		SustenanceDrainAmount:   envIntOr("ANOTHERMUD_SUSTENANCE_DRAIN_AMOUNT", 1),
-		ContentDir:            envOr("ANOTHERMUD_CONTENT_DIR", "./content"),
-		SaveDir:               envOr("ANOTHERMUD_SAVE_DIR", "./saves"),
-		StartRoom:             world.RoomID(envOr("ANOTHERMUD_START_ROOM", "tapestry-core:town-square")),
-		DefaultRace:           envOr("ANOTHERMUD_DEFAULT_RACE", "human"),
-		RoleSeed:              parseRoleSeed(envOr("ANOTHERMUD_ROLE_SEED", "")),
-		GrantingRole:          strings.ToLower(strings.TrimSpace(envOr("ANOTHERMUD_GRANTING_ROLE", "admin"))),
-		AdminRole:             strings.ToLower(strings.TrimSpace(envOr("ANOTHERMUD_ADMIN_ROLE", "admin"))),
-		ColorDefault:          colorDefault(),
-		LinkDead:              ld,
+		ContentDir:              envOr("ANOTHERMUD_CONTENT_DIR", "./content"),
+		SaveDir:                 envOr("ANOTHERMUD_SAVE_DIR", "./saves"),
+		StartRoom:               world.RoomID(envOr("ANOTHERMUD_START_ROOM", "tapestry-core:town-square")),
+		DefaultRace:             envOr("ANOTHERMUD_DEFAULT_RACE", "human"),
+		RoleSeed:                parseRoleSeed(envOr("ANOTHERMUD_ROLE_SEED", "")),
+		GrantingRole:            strings.ToLower(strings.TrimSpace(envOr("ANOTHERMUD_GRANTING_ROLE", "admin"))),
+		AdminRole:               strings.ToLower(strings.TrimSpace(envOr("ANOTHERMUD_ADMIN_ROLE", "admin"))),
+		ColorDefault:            colorDefault(),
+		LinkDead:                ld,
 	}
 }
 
