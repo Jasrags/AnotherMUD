@@ -31,8 +31,11 @@ func TeleportHandler(ctx context.Context, c *Context) error {
 	}
 	token := c.Args[0]
 
-	dst, ok := resolveTeleportDest(c, token)
+	dst, ambiguous, ok := resolveTeleportDest(c, token)
 	if !ok {
+		if len(ambiguous) > 0 {
+			return c.Actor.Write(ctx, fmt.Sprintf("%q is ambiguous — matches %s. Use the full id.", token, joinRoomIDs(ambiguous)))
+		}
 		return c.Actor.Write(ctx, fmt.Sprintf("There is no room or online player named %q.", token))
 	}
 
@@ -69,21 +72,69 @@ func TeleportHandler(ctx context.Context, c *Context) error {
 	return c.Actor.Write(ctx, RenderRoom(dst, c.Placement, c.Items, c.questMarker(), c.Ambience, c.otherPlayerNames(dst.ID)...))
 }
 
-// resolveTeleportDest maps the token to a destination room: a literal room
-// id first, then — failing that — the room of an online player by name
-// (§3). Returns (nil, false) when neither resolves.
-func resolveTeleportDest(c *Context, token string) (*world.Room, bool) {
+// resolveTeleportDest maps the token to a destination room, in order:
+//
+//  1. An exact (already-qualified) room id — `tapestry-core:meadow`.
+//  2. A bare leaf name — `meadow` — matched against the namespaced ids by
+//     suffix (`:meadow`). Room ids are namespaced at load, so admins would
+//     otherwise have to type the full `pack:id`; a unique leaf match spares
+//     them that. When the same leaf exists in two packs the match is
+//     ambiguous: the second return carries the candidates so the handler can
+//     list them and ask for the full id.
+//  3. The room of an online player by name (§3 world-scoped resolution).
+//
+// Returns (room, nil, true) on a hit, (nil, candidates, false) on an
+// ambiguous leaf, or (nil, nil, false) when nothing resolves.
+func resolveTeleportDest(c *Context, token string) (*world.Room, []world.RoomID, bool) {
 	if c.World != nil {
 		if dst, err := c.World.Room(world.RoomID(token)); err == nil {
-			return dst, true
+			return dst, nil, true
+		}
+		// Bare leaf (no namespace separator) → unique-suffix match.
+		if !strings.Contains(token, ":") {
+			matches := roomsBySuffix(c.World, ":"+token)
+			switch len(matches) {
+			case 1:
+				return matches[0], nil, true
+			case 0:
+				// fall through to the player lookup
+			default:
+				ids := make([]world.RoomID, len(matches))
+				for i, r := range matches {
+					ids[i] = r.ID
+				}
+				return nil, ids, false
+			}
 		}
 	}
 	if c.PlayerRoom != nil {
 		if rid, ok := c.PlayerRoom.ResolvePlayerRoom(strings.TrimSpace(token)); ok && c.World != nil {
 			if dst, err := c.World.Room(rid); err == nil {
-				return dst, true
+				return dst, nil, true
 			}
 		}
 	}
-	return nil, false
+	return nil, nil, false
+}
+
+// roomsBySuffix returns every room whose namespaced id ends with suffix
+// (e.g. ":meadow"). Used to resolve a bare leaf name to its qualified room.
+func roomsBySuffix(w *world.World, suffix string) []*world.Room {
+	var out []*world.Room
+	for _, r := range w.Rooms() {
+		if strings.HasSuffix(string(r.ID), suffix) {
+			out = append(out, r)
+		}
+	}
+	return out
+}
+
+// joinRoomIDs renders room ids as a comma-separated list for the ambiguous-
+// leaf message.
+func joinRoomIDs(ids []world.RoomID) string {
+	parts := make([]string, len(ids))
+	for i, id := range ids {
+		parts[i] = string(id)
+	}
+	return strings.Join(parts, ", ")
 }

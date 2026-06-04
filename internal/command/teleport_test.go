@@ -160,3 +160,45 @@ func TestTeleport_RefusedForNonAdmin(t *testing.T) {
 		t.Errorf("a refused teleport must not audit, got %d", len(*got))
 	}
 }
+
+// A bare leaf name resolves against the namespaced room id by suffix, so an
+// admin can `teleport meadow` without typing `tapestry-core:meadow`.
+func TestTeleport_BareLeafNameResolves(t *testing.T) {
+	w := world.New()
+	field := &world.Room{ID: "tapestry-core:field", Name: "Field"}
+	meadow := &world.Room{ID: "tapestry-core:meadow", Name: "Meadow"}
+	w.AddRoom(field)
+	w.AddRoom(meadow)
+	admin := adminAt("Maerys", "p-admin", field)
+	env := command.Env{World: w}
+
+	dispatchRole(t, env, admin, "teleport meadow")
+
+	if admin.Room().ID != meadow.ID {
+		t.Errorf("bare-leaf teleport room = %q, want %q", admin.Room().ID, meadow.ID)
+	}
+}
+
+// A leaf that exists in two packs is ambiguous: the actor does not move and
+// the reply lists the candidate ids.
+func TestTeleport_AmbiguousLeafReportsCandidates(t *testing.T) {
+	w := world.New()
+	field := &world.Room{ID: "core:field", Name: "Field"}
+	m1 := &world.Room{ID: "core:meadow", Name: "Core Meadow"}
+	m2 := &world.Room{ID: "expansion:meadow", Name: "Expansion Meadow"}
+	w.AddRoom(field)
+	w.AddRoom(m1)
+	w.AddRoom(m2)
+	admin := adminAt("Maerys", "p-admin", field)
+	env := command.Env{World: w}
+
+	dispatchRole(t, env, admin, "teleport meadow")
+
+	if admin.Room().ID != field.ID {
+		t.Errorf("ambiguous teleport moved the actor to %q, want no move", admin.Room().ID)
+	}
+	out := admin.lastLine()
+	if !strings.Contains(out, "ambiguous") || !strings.Contains(out, "core:meadow") || !strings.Contains(out, "expansion:meadow") {
+		t.Errorf("ambiguous reply = %q, want it to list both candidate ids", out)
+	}
+}
