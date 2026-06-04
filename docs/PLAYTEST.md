@@ -1,7 +1,8 @@
 # AnotherMUD Playtest Guide
 
 A manual QA checklist for verifying implemented features (M0–M22 + recent
-polish: the look/consider appearance lens, tab-completion surfaces). Work
+polish: the look/consider appearance lens, tab-completion surfaces, weapon
+damage dice + critical hits). Work
 top-to-bottom or jump to a section. Each step gives a **command** and the
 **expected behavior**; tick the box when it matches, and note anything that
 doesn't.
@@ -165,6 +166,19 @@ Go to the **Meadow** (`s` from the Gate). The bandit is hostile.
       no mechanics.)
 - [x] Entering the Meadow, the bandit aggros (attacks you) — combat rounds tick;
       you see hit/miss/damage lines for both sides.
+- [ ] **Weapon dice (§4.5):** wielding the short sword (vs. unarmed) raises your
+      hit damage — the sword rolls **1d6** instead of the unarmed **1d3**, and
+      its `str`/`hit_mod` modifiers further lift damage and accuracy. Compare a
+      few swings with the sword equipped vs. `unequip sword`. (The hit line shows
+      the damage *number*, not the weapon name.)
+- [ ] **Critical hits (§4.5):** fight several rounds — an occasional swing prints
+      "**A critical hit!**" and lands for noticeably more, because a natural 20
+      multiplies the rolled dice (default ×2; tune with
+      `ANOTHERMUD_CRIT_MULTIPLIER`, where `1` disables the bonus).
+- [ ] **Mob weapon (§3.3 / §4.5):** the bandit spawns wielding a **rusty dagger**
+      — it rolls 1d4 (not unarmed 1d3) and the dagger's modifiers buff it, so its
+      hits land a touch harder than a bare-fisted mob. (Verified on its corpse in
+      §7.)
 - [x] `kill bandit` also initiates combat if not already engaged.
 - [x] In **Town Square**, `kill <anyone>` is refused — "safe room"
       (combat blocked in the hub).
@@ -180,6 +194,10 @@ Go to the **Meadow** (`s` from the Gate). The bandit is hostile.
 After killing the bandit (Meadow):
 
 - [x] A **corpse** appears in the room ("the corpse of a road bandit").
+- [ ] **Equipped gear drops (§3.3):** `look corpse` shows a **rusty dagger** among
+      the contents — the weapon the bandit was wielding (equipped at spawn) is
+      carried with it and drops on death alongside the rolled loot. `get dagger
+      from corpse` takes it; `equip dagger` then works (it's a real `wield` item).
 - [x] `look corpse` — lists its contents + a coin amount.
 - [x] `get ration from corpse` — takes one item out.
 - [x] `get coins from corpse` — credits gold (not inventory).

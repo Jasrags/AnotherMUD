@@ -1,0 +1,22 @@
+id: rusty-dagger
+name: a rusty dagger
+type: item
+description: |
+  A short, pitted blade gone orange with neglect. The edge is more
+  notch than line, but it still parts cloth and skin well enough — the
+  kind of thing a road bandit keeps tucked in a boot.
+tags: [weapon, metal, bladed]
+keywords: [dagger, knife, rusty]
+properties:
+  slot: wield
+  weight: 1
+# Weapon damage dice (combat §4.5) — the bandit rolls this instead of the
+# unarmed default when it equips the dagger at spawn (mobs-ai-spawning
+# §3.3). Weaker than the player's short sword (1d6); the small modifiers
+# nudge the bandit's accuracy/damage without making the Meadow brutal.
+weapon_damage: "1d4"
+modifiers:
+  - stat: str
+    value: 1
+  - stat: hit_mod
+    value: 1

@@ -12,6 +12,11 @@ disposition_rules:
 stats:
   hp_max: 24
   str: 11
+# Equipment instantiated + equipped at spawn (mobs-ai-spawning §3.3): the
+# dagger's modifiers buff the bandit, it rolls the dagger's 1d4 in combat
+# (§4.5), and the instance is carried in the bandit's contents so it
+# drops into the corpse on death like loot. Unqualified id → this pack.
+equipment: [rusty-dagger]
 # Drops loot + coins on death (M22) — reuses the guard loot table:
 # a guaranteed ration, a weighted draught/cap, a rare short-sword, and
 # a 2–8 coin purse. Exercises corpse / loot / autoloot / decay.
