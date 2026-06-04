@@ -211,6 +211,34 @@ old five-theme partition left uncovered.
   `ShopService`). Each is a small design decision (define the arg type) + a
   `HandParsed` declaration — not a scheduled phase; pick up opportunistically or
   when an arg-type sweep is worth it. Not blocking the tab-completion surfaces above.
+- **OLC — online creation (in-game world building)** — let a **builder** create
+  and edit world content live from inside the game (rooms, exits, mobs, items,
+  areas, resets/spawns; later shops/quests/scripts), the classic Diku/ROM
+  `redit`/`medit`/`oedit`/`aedit` surface. ⚠️ **Greenfield — needs a real design
+  pass before a spec; it collides head-on with the current content model.** Today
+  content is **file-authored, git-versioned, spec-driven, loaded once at boot**;
+  `world.World` and the per-system registries are documented as **boot-immutable**
+  (mutations MUST happen before serving). OLC inverts that — runtime mutation of
+  the live world that persists somewhere. Substrate that already leans this way:
+  the **`builder`/`admin` role gate** (M19 roles-and-permissions), the **admin-verb
+  framework** (M19.4) and especially **`set property`** on live room mobs/items
+  (M19.4h) — a tiny precursor that already mutates a running entity; the **pack
+  loader's decode + validation** logic (reusable to validate OLC edits); and the
+  **atomic tmp→bak→rename persistence** (M-substrate) for writing changes back.
+  Pre-decisions, in rough priority: **(1) source-of-truth model** — does OLC write
+  back into the pack YAML files (world-is-source, but fights git/spec authoring and
+  hand-edits) or into a separate runtime/world-overlay save layered over the
+  loaded packs (packs stay pristine, but the world now has two sources)? **(2)
+  runtime-mutable registries** — making `world.World` + registries safe to mutate
+  while serving (they're RWMutex-guarded but write-at-boot by contract); what
+  invariants break (the double-buffered tag index, namespaced-id resolution, live
+  entity references into edited rooms). **(3) command surface** — a sub-mode editor
+  (`redit` → `name`/`desc`/`exit north <room>`/`done`) vs. flat verbs; **(4)
+  validation parity** with the loader (exit targets resolve, ids unique/namespaced);
+  **(5) area ownership + concurrency** — which builder may edit which area, and two
+  builders on the same room; **(6) scope/order** — almost certainly rooms+exits
+  first, then mobs/items, then resets, then the rest. Big system; gate it behind a
+  design conversation and a dedicated spec slice.
 - **Cross-cutting event catalog** — per-spec event tables exist in `specs/README.md`;
   no aggregated catalog. (Docs/meta, not engine — not a behavior spec.)
 
@@ -263,6 +291,7 @@ need a design pass first.
 |---|---|---|
 | **Gameplay Systems** | faction, visibility/sneak, hidden doors, biomes, gathering, hireable mobs | no port reference; each needs pre-decisions before a spec |
 | **Player Economy depth** | mail (push delivery / attachment escrow), banking + a gold-at-risk rule | extends the now-specced trade; banking wants gold-at-risk to matter |
+| **OLC (online creation)** | in-game world building — `redit`/`medit`/`oedit`/`aedit` for builders | collides with the boot-immutable, file-authored content model; needs the source-of-truth + runtime-mutable-registry pre-decisions first |
 
 **Background:** **Ops** (§4) — container/metrics/traces/dashboards/repo-hygiene; never a foreground theme.
 
