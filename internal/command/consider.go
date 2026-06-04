@@ -47,7 +47,10 @@ func ConsiderHandler(ctx context.Context, c *Context) error {
 	}
 
 	if cb, name, ok := findCombatantInRoom(c, room.ID, target); ok {
-		return c.Actor.Write(ctx, renderConsider(name, cb))
+		// The viewer is a combatant in production (connActor); test stubs
+		// may not be. nil viewer → condition-only render (no threat read).
+		viewer, _ := c.Actor.(combat.Combatant)
+		return c.Actor.Write(ctx, renderConsider(viewer, name, cb))
 	}
 
 	return c.Actor.Write(ctx, "You don't see them here.")
@@ -69,17 +72,56 @@ func isSelfReference(actorName, target string) bool {
 	return strings.EqualFold(actorName, t)
 }
 
-// renderConsider formats the two-line HP/AC report for displayName.
-// Pulls a Snapshot from Vitals so current and max are read under a
-// single lock rather than two; the qualitative descriptor is derived
-// from the same pair to avoid a render where current%max looks
-// inconsistent with the descriptor word.
-func renderConsider(displayName string, cb combat.Combatant) string {
+// renderConsider formats the qualitative size-up of a target: how hurt
+// they look (the condition descriptor, observable by looking) plus —
+// when the viewer is itself a combatant — a relative-threat read that
+// answers "can I take them?" WITHOUT leaking raw HP/AC numbers. The
+// tactical lens is deliberately impressionistic; `score` is where a
+// player reads their own exact stats. Condition is read from a single
+// Vitals Snapshot so current/max stay consistent with the word.
+func renderConsider(viewer combat.Combatant, displayName string, cb combat.Combatant) string {
 	cur, max := cb.Vitals().Snapshot()
-	descriptor := vitalsDescriptor(cur, max)
-	stats := cb.Stats()
-	return fmt.Sprintf("%s: %d/%d HP (%s). AC %d.",
-		displayName, cur, max, descriptor, stats.AC)
+	condition := vitalsDescriptor(cur, max)
+	line := fmt.Sprintf("%s appears %s.", displayName, condition)
+	if viewer != nil {
+		line += " " + threatPhrase(viewer, cb)
+	}
+	return line
+}
+
+// threatPhrase buckets the target's combat power relative to the
+// viewer's into a coarse "can I win?" read. Power is a max-HP-dominant
+// proxy plus the core combat stats (STR/AC/hit) — enough to rank a
+// fight without promising the precise math. Uses MAX hp (full
+// potential); the condition descriptor already signals if the target is
+// currently wounded, so threat reflects the fight at full strength.
+func threatPhrase(viewer, target combat.Combatant) string {
+	vp := combatPower(viewer)
+	tp := combatPower(target)
+	if vp <= 0 {
+		return "You cannot gauge your chances."
+	}
+	switch r := float64(tp) / float64(vp); {
+	case r < 0.5:
+		return "You could crush them without effort."
+	case r < 0.85:
+		return "You have the upper hand."
+	case r <= 1.2:
+		return "It would be an even fight."
+	case r <= 2.0:
+		return "They have the advantage — be careful."
+	default:
+		return "You wouldn't stand a chance."
+	}
+}
+
+// combatPower is the relative-strength proxy: max HP (durability, the
+// dominant term) plus the core offensive/defensive stats. Deliberately
+// simple — consider only needs to rank, not simulate.
+func combatPower(cb combat.Combatant) int {
+	_, max := cb.Vitals().Snapshot()
+	s := cb.Stats()
+	return max + s.STR + s.AC + s.HitMod
 }
 
 // vitalsDescriptor maps an HP fraction to a human-readable word. The

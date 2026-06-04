@@ -62,6 +62,7 @@ type ItemInstance struct {
 	id       EntityID
 	typ      string
 	name     string
+	desc     string
 	tags     []string
 	keywords []string
 	// propsMu guards properties against concurrent access. Like
@@ -95,6 +96,11 @@ func (it *ItemInstance) Tags() []string {
 // Name returns the display name. Per §2.3, instantiated entities take
 // their name from the template at construction time.
 func (it *ItemInstance) Name() string { return it.name }
+
+// Description returns the flavor prose snapshotted from the template at
+// construction (alongside Name). Empty when the template authored none;
+// the `look` handler renders a generic fallback in that case.
+func (it *ItemInstance) Description() string { return it.desc }
 
 // Keywords returns the per-instance keyword list (used by the keyword
 // resolver, §6). Returns a fresh slice so callers cannot alias the
@@ -253,6 +259,7 @@ func buildInstanceFromTemplate(tpl *item.Template, id EntityID) *ItemInstance {
 		id:         id,
 		typ:        tpl.Type,
 		name:       tpl.Name,
+		desc:       tpl.Description, // §2.3: snapshot prose alongside name.
 		tags:       tags,
 		keywords:   keywords,
 		properties: props,

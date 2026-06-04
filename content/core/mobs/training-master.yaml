@@ -2,6 +2,11 @@ id: training-master
 name: Maerys the Training Master
 type: npc
 behavior: stationary
+description: |
+  Maerys is a broad-shouldered woman with the scarred forearms of someone
+  who has spent decades at the practice ring. Her grey eyes miss nothing,
+  and a well-worn training blade hangs easily at her hip. She watches you
+  with the patient appraisal of a teacher sizing up a new student.
 tags: [humanoid, skill_trainer]
 keywords: [maerys, master, trainer]
 stats:

@@ -1701,13 +1701,14 @@ func decodeItem(path, ns string) (*item.Template, error) {
 	}
 
 	return &item.Template{
-		ID:         item.TemplateID(id),
-		Name:       f.Name,
-		Type:       f.Type,
-		Tags:       f.Tags,
-		Keywords:   f.Keywords,
-		Properties: f.Properties,
-		Modifiers:  mods,
+		ID:          item.TemplateID(id),
+		Name:        f.Name,
+		Type:        f.Type,
+		Description: strings.TrimSpace(f.Description),
+		Tags:        f.Tags,
+		Keywords:    f.Keywords,
+		Properties:  f.Properties,
+		Modifiers:   mods,
 	}, nil
 }
 
@@ -1779,6 +1780,7 @@ func decodeMob(path, ns string) (*mob.Template, error) {
 		ID:               mob.TemplateID(id),
 		Name:             f.Name,
 		Type:             typ,
+		Description:      strings.TrimSpace(f.Description),
 		Disposition:      f.Disposition,
 		BaseDisposition:  mob.Reaction(strings.TrimSpace(f.BaseDisposition)),
 		DispositionRules: def,

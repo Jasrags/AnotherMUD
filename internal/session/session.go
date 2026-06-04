@@ -1453,6 +1453,14 @@ type connActor struct {
 	// acquire. Same publish discipline as raceID / racialTags.
 	race *progression.Race
 
+	// class is the resolved *progression.Class, captured at applyClass
+	// alongside classID. Read lock-free for the generated player
+	// description (look appearance lens) under the same write-before-
+	// publish discipline as race: set during construction before
+	// cfg.Manager.Add makes the actor reachable, never reassigned. Nil
+	// when the actor is classless or the class isn't registered.
+	class *progression.Class
+
 	// lastAbility is the spec §4.5 step 2 "last ability used"
 	// property, recorded by the resolver on every resolution.
 	// In-memory only today (not persisted) — it's a transient
@@ -1740,7 +1748,7 @@ type connActor struct {
 	saveGen       uint64
 	manager       *Manager
 	flood         *floodGate
-	gmcpFlood     *floodGate    // inbound-GMCP rate limit, separate from the command gate
+	gmcpFlood     *floodGate   // inbound-GMCP rate limit, separate from the command gate
 	floodCfg      *FloodConfig // retained so reattach() can rebuild a fresh bucket
 	clk           clock.Clock  // retained for the same reason
 	lastInputAt   time.Time
@@ -2775,6 +2783,7 @@ func applyClass(a *connActor, cfg *Config, saved string) {
 		return
 	}
 	a.classID = cls.ID
+	a.class = cls // capture for the generated player description (look).
 }
 
 // MarkContentsDirty re-runs syncInventoryToSaveLocked so the save

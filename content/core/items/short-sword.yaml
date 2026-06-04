@@ -1,6 +1,10 @@
 id: short-sword
 name: a short sword
 type: item
+description: |
+  A plain soldier's short sword, its blade nicked from use but honed to a
+  keen edge. The leather-wrapped grip is darkened with old sweat, and a
+  simple crossguard shows the faint scoring of blows turned aside.
 tags: [weapon, metal, bladed]
 keywords: [sword, short]
 properties:

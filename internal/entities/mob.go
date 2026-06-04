@@ -29,6 +29,7 @@ type MobInstance struct {
 	id         EntityID
 	typ        string
 	name       string
+	desc       string
 	tags       []string
 	keywords   []string
 	templateID mob.TemplateID
@@ -149,6 +150,12 @@ func (m *MobInstance) Tags() []string {
 // Name returns the display name copied from the template at
 // construction time (spec §2.3 step 1).
 func (m *MobInstance) Name() string { return m.name }
+
+// Description returns the flavor prose snapshotted from the template at
+// spawn (alongside name). Empty when the template authored none; the
+// `look` handler renders a generic fallback. `consider` ignores this —
+// it owns the tactical lens.
+func (m *MobInstance) Description() string { return m.desc }
 
 // Keywords returns the per-instance keyword list (used by the keyword
 // resolver). Returns a fresh slice so callers cannot alias the backing
@@ -517,6 +524,7 @@ func buildMobFromTemplate(tpl *mob.Template, id EntityID) *MobInstance {
 		id:           id,
 		typ:          tpl.Type,
 		name:         tpl.Name,
+		desc:         tpl.Description, // snapshot prose alongside name (§2.3).
 		tags:         tags,
 		keywords:     keywords,
 		properties:   props,

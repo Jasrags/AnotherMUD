@@ -104,25 +104,64 @@ func TestConsider_NoArgNonCombatant(t *testing.T) {
 	}
 }
 
-func TestConsider_MobByKeywordShowsHPAndAC(t *testing.T) {
+func TestConsider_MobShowsConditionAndThreatNoNumbers(t *testing.T) {
+	// The tactical lens is qualitative: a condition word + a relative-
+	// threat read, and NO raw HP/AC numbers leak (those live on `score`).
+	// Viewer is the combatActor so the threat branch runs. Guard power
+	// (40 + STR 12 + AC 14 = 66) vs default player (20 + 10 + 10 = 40) →
+	// ratio 1.65 → "advantage" band.
 	f := newConsiderFixture(t)
 	a := newCombatActor("Alice", "p-1", f.room)
 	r := newRegistry(t)
-	dispatch(t, r, f.env(), a.testActor, "consider guard")
+	dispatchActor(t, r, f.env(), a, "consider guard")
 
 	out := a.lastLine()
-	// Expect HP fraction, descriptor, and AC line content.
 	if !strings.Contains(out, "a village guard") {
 		t.Errorf("output missing target name: %q", out)
 	}
-	if !strings.Contains(out, "40/40 HP") {
-		t.Errorf("output missing 40/40 HP: %q", out)
-	}
 	if !strings.Contains(out, "uninjured") {
-		t.Errorf("output missing 'uninjured' descriptor (full HP): %q", out)
+		t.Errorf("output missing 'uninjured' condition (full HP): %q", out)
 	}
-	if !strings.Contains(out, "AC 14") {
-		t.Errorf("output missing 'AC 14': %q", out)
+	if !strings.Contains(out, "advantage") {
+		t.Errorf("output missing threat read (tougher target): %q", out)
+	}
+	// No raw stat numbers may leak.
+	for _, leak := range []string{"40/40", "HP", "AC "} {
+		if strings.Contains(out, leak) {
+			t.Errorf("qualitative consider leaked %q: %q", leak, out)
+		}
+	}
+}
+
+func TestConsider_ThreatReadScalesWithViewerStrength(t *testing.T) {
+	// A weak target relative to the viewer reads as a clear advantage.
+	f := newConsiderFixture(t)
+	a := newCombatActor("Alice", "p-1", f.room)
+	// Beef the viewer well past the guard (66 power) so the ratio drops
+	// below 0.5 → "crush" band.
+	a.vitals = combat.NewVitals(500)
+	r := newRegistry(t)
+	dispatchActor(t, r, f.env(), a, "consider guard")
+	if got := a.lastLine(); !strings.Contains(got, "crush") {
+		t.Errorf("strong viewer vs weak guard = %q, want a 'crush' threat read", got)
+	}
+}
+
+func TestConsider_NonCombatantViewerOmitsThreat(t *testing.T) {
+	// A viewer that isn't a combatant (test stub) gets the condition line
+	// only — the threat read degrades out rather than panicking.
+	f := newConsiderFixture(t)
+	a := newNamedTestActor("Plain", "p-1", f.room)
+	r := newRegistry(t)
+	dispatchActor(t, r, f.env(), a, "consider guard")
+	out := a.lastLine()
+	if !strings.Contains(out, "uninjured") {
+		t.Errorf("non-combatant viewer missing condition: %q", out)
+	}
+	for _, threat := range []string{"crush", "upper hand", "even fight", "advantage", "stand a chance"} {
+		if strings.Contains(out, threat) {
+			t.Errorf("non-combatant viewer leaked a threat read %q: %q", threat, out)
+		}
 	}
 }
 
@@ -133,14 +172,14 @@ func TestConsider_MobDescriptorTracksHPDamage(t *testing.T) {
 
 	// Knock the guard down to ~25% — should land in "badly wounded".
 	f.guard.Vitals().ApplyDamage(30)
-	dispatch(t, r, f.env(), a.testActor, "consider guard")
+	dispatchActor(t, r, f.env(), a, "consider guard")
 
 	out := a.lastLine()
-	if !strings.Contains(out, "10/40 HP") {
-		t.Errorf("output missing 10/40 HP: %q", out)
-	}
 	if !strings.Contains(out, "badly wounded") {
 		t.Errorf("output missing 'badly wounded': %q", out)
+	}
+	if strings.Contains(out, "10/40") || strings.Contains(out, "HP") {
+		t.Errorf("qualitative consider leaked HP numbers: %q", out)
 	}
 }
 

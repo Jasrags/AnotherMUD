@@ -54,13 +54,14 @@ type SpawnRuleFile struct {
 // Required: id, name, type. Optional: tags, keywords, properties,
 // modifiers. Bare ids resolve against the current pack namespace.
 type ItemFile struct {
-	ID         string         `yaml:"id"`
-	Name       string         `yaml:"name"`
-	Type       string         `yaml:"type"`
-	Tags       []string       `yaml:"tags,omitempty"`
-	Keywords   []string       `yaml:"keywords,omitempty"`
-	Properties map[string]any `yaml:"properties,omitempty"`
-	Modifiers  []ModifierFile `yaml:"modifiers,omitempty"`
+	ID          string         `yaml:"id"`
+	Name        string         `yaml:"name"`
+	Type        string         `yaml:"type"`
+	Description string         `yaml:"description,omitempty"`
+	Tags        []string       `yaml:"tags,omitempty"`
+	Keywords    []string       `yaml:"keywords,omitempty"`
+	Properties  map[string]any `yaml:"properties,omitempty"`
+	Modifiers   []ModifierFile `yaml:"modifiers,omitempty"`
 }
 
 // ModifierFile is one entry of an ItemFile.Modifiers list.
@@ -97,6 +98,7 @@ type MobFile struct {
 	ID          string         `yaml:"id"`
 	Name        string         `yaml:"name"`
 	Type        string         `yaml:"type,omitempty"`
+	Description string         `yaml:"description,omitempty"`
 	Disposition int            `yaml:"disposition,omitempty"`
 	Behavior    string         `yaml:"behavior"`
 	Tags        []string       `yaml:"tags,omitempty"`

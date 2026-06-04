@@ -31,13 +31,18 @@ type Modifier struct {
 // nested untyped maps; templates themselves store whatever the decoder
 // produced.
 type Template struct {
-	ID         TemplateID
-	Name       string
-	Type       string
-	Tags       []string
-	Keywords   []string
-	Properties map[string]any
-	Modifiers  []Modifier
+	ID   TemplateID
+	Name string
+	Type string
+	// Description is the optional flavor prose shown by `look <item>`
+	// (ui-rendering-help — the appearance lens). Empty means the look
+	// handler falls back to a generic "nothing special" line; authoring
+	// it is never required.
+	Description string
+	Tags        []string
+	Keywords    []string
+	Properties  map[string]any
+	Modifiers   []Modifier
 }
 
 // Errors callers may distinguish at the boundary.

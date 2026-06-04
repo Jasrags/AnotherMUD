@@ -58,6 +58,12 @@ type Template struct {
 	// empty BaseDisposition the mob never dispatches a reaction.
 	DispositionRules *Definition
 
+	// Description is the optional flavor prose shown by `look <mob>`
+	// (the appearance lens — ui-rendering-help). Empty falls back to a
+	// generic line in the look handler; never required. `consider` reads
+	// none of this — it owns the tactical lens (HP/threat).
+	Description string
+
 	Behavior   string
 	Tags       []string
 	Keywords   []string

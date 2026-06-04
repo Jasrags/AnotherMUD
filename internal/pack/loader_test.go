@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/Jasrags/AnotherMUD/internal/item"
+	"github.com/Jasrags/AnotherMUD/internal/mob"
 	"github.com/Jasrags/AnotherMUD/internal/property"
 	"github.com/Jasrags/AnotherMUD/internal/slot"
 	"github.com/Jasrags/AnotherMUD/internal/world"
@@ -1861,5 +1862,55 @@ name: Gate
 `)
 	if err := Load(context.Background(), root, nil, NewRegistries(), nil, nil, nil); err == nil {
 		t.Fatal("door without matching exit: want error")
+	}
+}
+
+// TestLoadDescriptionField round-trips the optional `description:` field
+// (the look appearance lens) through YAML → DTO → template for both a mob
+// and an item, including a block scalar whose trailing newline must be
+// trimmed at decode.
+func TestLoadDescriptionField(t *testing.T) {
+	root := t.TempDir()
+	pack := filepath.Join(root, "core")
+	writeFile(t, filepath.Join(pack, "pack.yaml"), `
+name: tapestry-core
+content:
+  items: [items/*.yaml]
+  mobs: [mobs/*.yaml]
+`)
+	writeFile(t, filepath.Join(pack, "items/sword.yaml"), `
+id: sword
+name: a short sword
+type: weapon
+description: |
+  A plain soldier's blade, nicked from use.
+keywords: [sword]
+`)
+	writeFile(t, filepath.Join(pack, "mobs/trainer.yaml"), `
+id: trainer
+name: Maerys
+behavior: stationary
+description: A broad-shouldered woman with scarred forearms.
+keywords: [maerys]
+`)
+	regs := NewRegistries()
+	if err := Load(context.Background(), root, nil, regs, nil, nil, nil); err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+
+	it, err := regs.Items.Get(item.TemplateID("tapestry-core:sword"))
+	if err != nil {
+		t.Fatalf("item missing: %v", err)
+	}
+	if it.Description != "A plain soldier's blade, nicked from use." {
+		t.Errorf("item Description = %q, want trimmed block scalar", it.Description)
+	}
+
+	mb, err := regs.Mobs.Get(mob.TemplateID("tapestry-core:trainer"))
+	if err != nil {
+		t.Fatalf("mob missing: %v", err)
+	}
+	if mb.Description != "A broad-shouldered woman with scarred forearms." {
+		t.Errorf("mob Description = %q, want the authored prose", mb.Description)
 	}
 }

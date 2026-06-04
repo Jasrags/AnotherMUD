@@ -800,7 +800,143 @@ based on the query's status field.
 
 ---
 
-## 11. Observable events
+## 11. Look and the appearance lens
+
+Examining the world splits into **two lenses** that answer different
+questions about the same target:
+
+- **`look <target>` — the appearance lens.** "What does this look
+  like?" Works on anything visible: an item, a creature (mob), or
+  another player. It renders *flavor*, never mechanics.
+- **`consider <creature>` — the tactical lens.** "Can I take them
+  on?" Creatures only. It renders a *qualitative impression* of the
+  target's condition and relative strength, never raw mechanics.
+
+The two never overlap in output: `look` shows no vitals or combat
+numbers, and `consider` shows no prose. A player's own exact stats live
+on the self sheet (`score`), not on either lens.
+
+Verb dispatch and argument resolution (mob-by-keyword, player-by-name,
+self-references) are owned by `commands-and-dispatch`; this section
+specifies only what the two verbs *render*.
+
+### 11.1 Description as content
+
+Items and mobs carry an **optional authored description** — flavor prose
+supplied by content alongside the name. It is snapshotted onto the live
+instance at creation, the same way the display name is, so it is read
+without consulting the originating template.
+
+Authoring a description is never required. When a target has none, the
+appearance lens renders a **generic fallback** that still names the
+target (a "nothing special about &lt;name&gt;" line). The fallback
+wording is policy (§13).
+
+Players carry **no authored description**. Their appearance is
+**generated** at render time (§11.3).
+
+**Acceptance criteria**
+
+- [ ] An item or mob with an authored description renders that prose
+      under `look`.
+- [ ] A target with no description renders the generic fallback, naming
+      the target.
+- [ ] The description is read from the instance, not re-resolved from
+      the template at look time.
+- [ ] An authored description is optional; content with none still
+      loads and looks correctly.
+
+### 11.2 `look <target>` resolution
+
+`look <target>` resolves in a fixed order and renders the first match:
+
+1. **Items** — the actor's inventory and the items in the current room,
+   by keyword. A container or corpse is *looked into* (its contents are
+   listed — see `inventory-equipment-items` and loot handling), not
+   described. Any other item renders its description (or fallback).
+2. **Creatures** — mobs in the room by keyword, then players in the
+   room by name (the same mobs-first / players-by-name asymmetry the
+   targeted verbs use). The matched creature renders its description
+   (authored for mobs, generated for players) or the fallback.
+3. **No match** — a single "you don't see that here" line.
+
+The item display name passed to the fallback carries any decoration
+markup the item-decorations spec defines (rarity/essence); the lens
+does not strip it.
+
+**Acceptance criteria**
+
+- [ ] `look <mob-keyword>` renders the mob's appearance — a creature in
+      the room is a valid look target, not a "don't see that" miss.
+- [ ] `look <player-name>` renders the player's generated appearance.
+- [ ] Items win ties against creatures sharing a keyword (consistent
+      with other room-scan verbs).
+- [ ] A container/corpse target is looked into rather than described.
+- [ ] An unmatched target terminates with the not-found line.
+- [ ] The actor never resolves itself through the creature path.
+
+### 11.3 Generated player appearance
+
+A player's appearance is **composed at render time** rather than stored,
+so it stays current as the character changes. It is assembled from an
+**ordered set of fragments**; today the committed fragments are the
+character's **race** and **class** (their display labels), optionally
+followed by the race's flavor tagline. Future descriptors (visible
+equipment, title/honorific, posture, visible condition) are intended to
+slot in as additional fragments without reshaping the line.
+
+A character with neither race nor class yields **no generated prose**;
+the look handler then renders the generic fallback rather than an empty
+or malformed line.
+
+The composition (fragment order, article handling, which fragments are
+included) is policy (§13).
+
+**Acceptance criteria**
+
+- [ ] A player with race and class renders a noun phrase combining both
+      display labels.
+- [ ] The race tagline, when present, follows the noun phrase.
+- [ ] A character missing both race and class falls back to the generic
+      line — never an empty or half-formed sentence.
+- [ ] The appearance reflects the character's *current* race/class, not
+      a value frozen at an earlier point.
+
+### 11.4 `consider <creature>` — the tactical lens
+
+`consider <creature>` renders a **qualitative** size-up with **no raw
+numbers** (no hit points, no armor value):
+
+- A **condition descriptor** — a word for how hurt the target looks,
+  derived from its health fraction (e.g. uninjured through dead). This
+  is the same observable a player could infer by looking.
+- A **relative-threat read** — a phrase answering "can I win?", derived
+  from a **power comparison** of the viewer against the target. The
+  comparison is a proxy weighted toward durability plus core combat
+  attributes; it uses the target's *full* potential (not its current,
+  possibly-wounded state — the condition descriptor already signals
+  wounding). The viewer must itself be a combatant for this read; when
+  it is not, the threat phrase is omitted and only the condition shows.
+
+The descriptor bands and the threat-read bands are both policy (§13).
+`consider` resolves creatures only; an item is not a `consider` target.
+Self-references point the player at the self sheet instead of rendering.
+
+**Acceptance criteria**
+
+- [ ] `consider <creature>` emits a condition descriptor and (when the
+      viewer is a combatant) a relative-threat phrase.
+- [ ] No raw hit-point or armor numbers appear in the output.
+- [ ] The threat phrase scales with the viewer's strength relative to
+      the target's.
+- [ ] A non-combatant viewer gets the condition descriptor only — the
+      threat read degrades out rather than erroring.
+- [ ] A self-reference points to the self sheet rather than considering
+      oneself.
+
+---
+
+## 12. Observable events
 
 The UI / rendering / help feature emits no engine events.
 Help loading is observed via the pack-loading log path
@@ -814,7 +950,7 @@ networking spec's GMCP section.
 
 ---
 
-## 12. Configuration surface
+## 13. Configuration surface
 
 The following are externally configurable and not fixed by
 this spec.
@@ -829,10 +965,15 @@ this spec.
 | Role hierarchy (today player / builder / admin) | §9.5 |
 | Brace-color synonym aliases | §2.3 |
 | The set of recognized prompt tokens | §7.2 |
+| Generic "nothing special" fallback wording | §11.1 |
+| Player-appearance composition (fragment set + order, article rules) | §11.3 |
+| Condition descriptor bands (health fraction → word) | §11.4 |
+| Threat-read bands (power ratio → phrase) | §11.4 |
+| Power-comparison proxy (which attributes, their weights) | §11.4 |
 
 ---
 
-## 13. Open questions / future work
+## 14. Open questions / future work
 
 - **Hyphen vs underscore color names.** Literal color tags
   use `bright-red`; brace shorthand uses `bright_red`. The
@@ -878,6 +1019,23 @@ this spec.
 - **Unknown brace tokens render as literal.** `{frobnitz}`
   emits the literal text. Whether this is the right default
   (vs warn or empty) is debatable.
+- **Player appearance is race + class only.** The generated
+  description (§11.3) composes just the race/class labels and
+  the race tagline today. The reserved fragments — visible
+  equipment, title/honorific, posture, visible condition —
+  are unimplemented; each is additive but none is wired yet.
+- **Threat read uses a stat proxy, not a level.** The
+  `consider` relative-threat band (§11.4) compares a
+  durability-weighted attribute proxy because there is no
+  single character level to key off (progression is
+  per-track). A level- or rating-based ladder could replace
+  the proxy if a canonical "power level" is ever defined,
+  and would let mobs be ranked without summing attributes.
+- **Descriptions are single, static, whole-target.** A look
+  target renders one description string; there is no
+  keyword-addressable sub-description (look at the scar, the
+  blade) and no look-through to a mob's visibly-equipped
+  gear. Both are common MUD affordances left for later.
 
 ---
 
