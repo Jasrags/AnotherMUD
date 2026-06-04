@@ -406,15 +406,15 @@ debug verb (raw candidate dump).
 On a **raw telnet client** (not Mudlet/GMCP), char-mode turns on automatically
 after you log in, so the TAB key completes.
 
-- [ ] In Town Square, type `get sw` and press **TAB** — completes inline to
+- [x] In Town Square, type `get sw` and press **TAB** — completes inline to
       `get sword` (single match). Backspace works; Enter submits.
-- [ ] Type `get s` + **TAB** — several matches: it lists the room items and you
+- [x] Type `get s` + **TAB** — several matches: it lists the room items and you
       can keep typing.
-- [ ] `tabcomplete off` — disables it (back to plain line input); `tabcomplete on`
+- [x] `tabcomplete off` — disables it (back to plain line input); `tabcomplete on`
       re-enables; `tabcomplete` shows status.
-- [ ] On a **GMCP client (Mudlet)**, TAB is *not* server-driven (it stays
+- [x] On a **GMCP client (Mudlet)**, TAB is *not* server-driven (it stays
       line-mode and uses the §18 GMCP path); `tabcomplete on` can force char-mode.
-- [ ] Login + password are line-mode (char-mode only engages after login —
+- [x] Login + password are line-mode (char-mode only engages after login —
       password input is never echoed).
 
 ### `suggest` — player line-mode completion (anyone)
