@@ -305,6 +305,23 @@ func run() error {
 	}
 
 	loop := tick.New(clk, cfg.TickInterval)
+	// Slow-tick observability (time-and-clock §5): warn when a tick
+	// overruns its budget. Default threshold is the tick interval itself
+	// — a tick that takes longer than its own period means the loop is
+	// falling behind. Operators tune via ANOTHERMUD_SLOW_TICK_THRESHOLD
+	// (set very high to effectively silence it).
+	slowThreshold := cfg.SlowTickThreshold
+	if slowThreshold <= 0 {
+		slowThreshold = cfg.TickInterval
+	}
+	loop.SetSlowTickObserver(slowThreshold, func(n uint64, total, handlers time.Duration) {
+		slog.Warn("slow tick",
+			slog.Uint64("tick", n),
+			slog.Duration("total", total),
+			slog.Duration("handlers", handlers),
+			slog.Duration("threshold", slowThreshold),
+		)
+	})
 	if err := entities.RegisterTagSwap(loop, entityStore); err != nil {
 		return fmt.Errorf("register entities tag-swap: %w", err)
 	}
@@ -1796,6 +1813,9 @@ type config struct {
 	// (login spec §6.1). Zero disables it; the default closes a peer
 	// that opens a connection but never responds.
 	LoginIdleTimeout time.Duration
+	// SlowTickThreshold warns when a tick's duration exceeds it
+	// (time-and-clock §5). Zero falls back to the tick interval.
+	SlowTickThreshold time.Duration
 	// SustenanceDrainInterval / SustenanceDrainAmount tune the §4.4
 	// hunger drain (economy-survival). Interval is how often the pool
 	// drops; Amount is how much it drops each time. Defaults reproduce
@@ -1852,6 +1872,7 @@ func loadConfig() config {
 		IdleSweepInterval:       envDurationOr("ANOTHERMUD_IDLE_SWEEP_INTERVAL", 30*time.Second),
 		LinkDeadSweepInterval:   envDurationOr("ANOTHERMUD_LINKDEAD_SWEEP_INTERVAL", 30*time.Second),
 		LoginIdleTimeout:        envDurationOr("ANOTHERMUD_LOGIN_IDLE_TIMEOUT", 60*time.Second),
+		SlowTickThreshold:       envDurationOr("ANOTHERMUD_SLOW_TICK_THRESHOLD", 0),
 		SustenanceDrainInterval: envDurationOr("ANOTHERMUD_SUSTENANCE_DRAIN_INTERVAL", 30*time.Second),
 		SustenanceDrainAmount:   envIntOr("ANOTHERMUD_SUSTENANCE_DRAIN_AMOUNT", 1),
 		ContentDir:              envOr("ANOTHERMUD_CONTENT_DIR", "./content"),

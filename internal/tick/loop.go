@@ -7,8 +7,10 @@
 // misbehaving handler cannot stop the simulation (§4.3).
 //
 // M1 scope: registration + cadence + panic isolation + ctx cancellation.
-// Slow-tick observability (§5) and the in-game game-clock handler (§3)
-// are deferred — they land when the first consumer needs them.
+// Slow-tick observability (§5) is wired via SetSlowTickObserver: a tick
+// whose duration exceeds a threshold invokes an observer (total +
+// handlers breakdown; see SlowTickFunc for the §5 component divergence).
+// The in-game game-clock handler (§3) remains a separate consumer.
 package tick
 
 import (
@@ -29,6 +31,20 @@ type Handler func(ctx context.Context, tickCount uint64)
 // PreTick runs once per tick before any Handler.
 type PreTick func(ctx context.Context, tickCount uint64)
 
+// SlowTickFunc is invoked when a tick's wall-clock duration exceeds the
+// configured threshold (time-and-clock §5). total covers the whole tick
+// (pre-tick + every handler); handlers is the handler-loop portion. It
+// runs synchronously on the loop goroutine, so it MUST be cheap (a log
+// line or a metric increment) — a slow observer makes every slow tick
+// slower.
+//
+// Spec divergence (intentional): §5 also lists an event-queue and a
+// command-routing component. This engine has no such phases *inside* the
+// tick — player commands run on their own session goroutines and the
+// event bus publishes synchronously from whoever emits — so only the two
+// components that exist here are reported.
+type SlowTickFunc func(tickCount uint64, total, handlers time.Duration)
+
 type registration struct {
 	name     string
 	interval uint64
@@ -43,11 +59,13 @@ type Loop struct {
 	clock    clock.Clock
 	interval time.Duration
 
-	mu       sync.Mutex
-	handlers []registration
-	preTick  PreTick
-	count    uint64
-	started  bool
+	mu            sync.Mutex
+	handlers      []registration
+	preTick       PreTick
+	count         uint64
+	started       bool
+	slowThreshold time.Duration
+	onSlowTick    SlowTickFunc
 
 	ready chan struct{} // closed once the ticker is live; tests sync on it
 }
@@ -100,6 +118,18 @@ func (l *Loop) SetPreTick(p PreTick) {
 	l.preTick = p
 }
 
+// SetSlowTickObserver enables slow-tick reporting (time-and-clock §5): a
+// tick whose total duration exceeds threshold invokes fn. Reporting is
+// disabled — and the per-tick timing is skipped entirely — when
+// threshold <= 0 or fn is nil (the default), so there is zero added cost
+// unless an operator opts in. Must be called before Run.
+func (l *Loop) SetSlowTickObserver(threshold time.Duration, fn SlowTickFunc) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	l.slowThreshold = threshold
+	l.onSlowTick = fn
+}
+
 // TickCount returns the monotonic tick count. Safe for concurrent
 // reads while Run is executing.
 func (l *Loop) TickCount() uint64 {
@@ -117,8 +147,13 @@ func (l *Loop) Run(ctx context.Context) error {
 		return errors.New("tick.Run: already started")
 	}
 	l.started = true
-	handlers := append([]registration(nil), l.handlers...)
-	preTick := l.preTick
+	rs := runState{
+		handlers:      append([]registration(nil), l.handlers...),
+		preTick:       l.preTick,
+		slowThreshold: l.slowThreshold,
+		onSlowTick:    l.onSlowTick,
+	}
+	rs.monitorSlow = rs.slowThreshold > 0 && rs.onSlowTick != nil
 	l.mu.Unlock()
 
 	ch, stop := l.clock.Ticker(l.interval)
@@ -128,7 +163,7 @@ func (l *Loop) Run(ctx context.Context) error {
 	log := logging.From(ctx)
 	log.Info("tick loop started",
 		slog.Duration("interval", l.interval),
-		slog.Int("handlers", len(handlers)),
+		slog.Int("handlers", len(rs.handlers)),
 	)
 	defer log.Info("tick loop stopped")
 
@@ -141,17 +176,67 @@ func (l *Loop) Run(ctx context.Context) error {
 			l.count++
 			n := l.count
 			l.mu.Unlock()
-
-			if preTick != nil {
-				l.safeCallPre(ctx, preTick, n)
-			}
-			for _, r := range handlers {
-				if n%r.interval == 0 {
-					l.safeCall(ctx, r, n)
-				}
-			}
+			l.runTick(ctx, n, rs)
 		}
 	}
+}
+
+// runState is the immutable snapshot Run takes at startup so the hot loop
+// reads no shared fields (the same reason handlers/preTick were already
+// snapshotted). Registration is boot-only (§4.4), so the snapshot stays
+// valid for the loop's life.
+type runState struct {
+	handlers      []registration
+	preTick       PreTick
+	monitorSlow   bool
+	slowThreshold time.Duration
+	onSlowTick    SlowTickFunc
+}
+
+// runTick executes one tick: optional pre-tick, the due handlers, and —
+// when enabled — the slow-tick timing around them (§5). Timing reads the
+// Clock (F3) so a ManualClock can simulate a slow tick deterministically:
+// tickStart spans pre-tick + handlers, handlersStart isolates the handler
+// portion.
+func (l *Loop) runTick(ctx context.Context, n uint64, rs runState) {
+	var tickStart, handlersStart time.Time
+	if rs.monitorSlow {
+		tickStart = l.clock.Now()
+	}
+
+	if rs.preTick != nil {
+		l.safeCallPre(ctx, rs.preTick, n)
+	}
+	if rs.monitorSlow {
+		handlersStart = l.clock.Now()
+	}
+	for _, r := range rs.handlers {
+		if n%r.interval == 0 {
+			l.safeCall(ctx, r, n)
+		}
+	}
+
+	if !rs.monitorSlow {
+		return
+	}
+	end := l.clock.Now()
+	if total := end.Sub(tickStart); total > rs.slowThreshold {
+		l.reportSlowTick(ctx, rs.onSlowTick, n, total, end.Sub(handlersStart))
+	}
+}
+
+// reportSlowTick invokes the observer with panic isolation, so a buggy
+// observer cannot stop the loop (the same guarantee handlers get, §4.3).
+func (l *Loop) reportSlowTick(ctx context.Context, fn SlowTickFunc, n uint64, total, handlers time.Duration) {
+	defer func() {
+		if rec := recover(); rec != nil {
+			logging.From(ctx).Error("slow-tick observer panicked",
+				slog.Uint64("tick", n),
+				slog.Any("panic", rec),
+			)
+		}
+	}()
+	fn(n, total, handlers)
 }
 
 func (l *Loop) safeCall(ctx context.Context, r registration, n uint64) {
