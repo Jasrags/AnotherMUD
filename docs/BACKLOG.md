@@ -13,7 +13,7 @@ the theme-axis plan (its method survives below).
   A single source for "done" is what keeps this list from rotting the way the matrix did.
 - **Specs are the source of truth for behavior; this doc never duplicates it.** A
   specced item links its `docs/specs/<file> §X` — the *what* lives there. An unspecced
-  item's first deliverable *is* a new spec slice (the spec set has grown 17 → **30** as
+  item's first deliverable *is* a new spec slice (the spec set has grown 17 → **32** as
   ideas get promoted; of the write-ahead batch, roles, admin-verbs, and item-decorations
   have since shipped (M19/M20), leaving `tag-observers`, `who`, `crafting-and-cooking`,
   and the trade trio as contracts still ahead of code in §1).

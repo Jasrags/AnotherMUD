@@ -117,11 +117,13 @@ The verbs players use and the systems that resolve them.
 - [who](who.md) — the connected-character roster verb; per-line
   columns, summary count, and which characters appear (all in v1;
   per-viewer hiding once visibility lands).
-- [tab-completion](tab-completion.md) — **Phase 0 only** (enumeration
-  substrate + `complete` debug verb): the transport-agnostic completion
+- [tab-completion](tab-completion.md) — the transport-agnostic completion
   query over the command registry and the §5 typed-arg scopes, candidate
-  disambiguation, and the information-leak visibility rule. Surfaces
-  (GMCP / char-mode) are deferred — see `docs/proposals/tab-completion.md`.
+  disambiguation, and the information-leak visibility rule (Phase 0); the
+  line-mode `suggest` stopgap; and both shipped surfaces — GMCP
+  `Input.Complete` request/response (§13, Phase 1) and char-mode real TAB
+  on raw telnet (§14, Phase 2). Remaining is client integration + char-mode
+  editor polish — see `docs/proposals/tab-completion.md`.
 
 How a connection becomes a session becomes a character.
 
@@ -199,7 +201,7 @@ load time:
 | Emote | [commands-and-dispatch](commands-and-dispatch.md) §7 |
 | Quest | [quests](quests.md) §2 |
 | Help topic | [ui-rendering-help](ui-rendering-help.md) §9 |
-| Rarity tier, Essence | [item-decorations](item-decorations.md) §2, §3 *(spec; build pending)* |
+| Rarity tier, Essence | [item-decorations](item-decorations.md) §2, §3 |
 | Recipe | [crafting-and-cooking](crafting-and-cooking.md) §3 *(spec; build pending)* |
 
 Engine-vs-pack scope (engine-scope registrations are visible
@@ -334,4 +336,4 @@ highest-impact themes that recur across specs:
 
 ---
 
-<!-- Updated: 2026-06-03 · 32 specs covering the engine substrate, world, action, lifecycle, and presentation layers. Some (roles-and-permissions, admin-verbs, item-decorations, tag-observers, who, crafting-and-cooking, loot-and-corpses, tab-completion) are behavior contracts whose Go implementation is still pending. -->
+<!-- Updated: 2026-06-03 · 32 specs covering the engine substrate, world, action, lifecycle, and presentation layers. Behavior contracts still ahead of code: tag-observers, who, crafting-and-cooking, and the trade trio (trade-escrow, direct-trade, auction-house). Since-shipped: roles-and-permissions, admin-verbs, item-decorations (M19/M20), loot-and-corpses (M22), tab-completion Phase 0–2. -->

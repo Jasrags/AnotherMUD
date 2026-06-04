@@ -7,8 +7,8 @@ truth (full context, file:line, fix-when triggers); this is the scannable
 index.
 
 **Generated:** 2026-05-28 (M0→M12 body); **post-M12 section added 2026-06-02**
-(M13→M22, from the memory index). Regenerate by re-scanning the memory
-deferral files.
+(M13→M22, from the memory index); **tab-completion deferrals added 2026-06-03**.
+Regenerate by re-scanning the memory deferral files.
 
 Excludes everything marked RESOLVED/FIXED/CLOSED. Note: several M0→M12 items
 below were later resolved by M14 (Engine-Debt) and the M9.x mob-effect sweep —
@@ -120,6 +120,13 @@ Most post-M12 deferrals are LOW polish; the MEDIUMs worth tracking:
   both substrate-blocked.
 - `m22 #2` — atomic `Contents.MoveAll(from,to)` for the mob→corpse bulk move
   (the get-from/loot/decay paths are already single-winner-safe; this is tidy-up).
+- `tabcomplete-p2` (tab-completion Phase 1/2, post-M22) — WS GMCP `Input.Complete`
+  `req.Line` uncapped (~64KB ceiling vs telnet's 1KB) before `strings.Fields`/
+  `CompleteLine` (`session/gmcp_complete.go` — truncate to ~512B); link-dead
+  reattach doesn't nil the old conn's GMCP/completion handlers before the swap
+  (`session/linkdead.go`, latent); swallowed `SendGmcp` error (`gmcp_complete.go`);
+  `tabcomplete off` ignores `SetCharMode`'s return (`command/tabcomplete.go`). HIGH
+  char-mode buffer-DoS was **RESOLVED in-review 2026-06-03** (cap at MaxLineBytes).
 
 ### Open LOW (compressed)
 - `m13` — accepted: actorSink kind-switch (extract on 3rd kind), `Store.Load`
@@ -148,6 +155,12 @@ Most post-M12 deferrals are LOW polish; the MEDIUMs worth tracking:
 - `m22` — loot/corpse RNG would need a lock if a death/spawn is ever signalled off
   the tick goroutine; `getFromRoom` is 70 lines (mostly comments); zero-weight loot
   entries pass decode silently.
+- `phase0-tabcomplete` — bulk `all.<kw>` prefix-vs-`Matches` mismatch; preposition-as-
+  partial yields spurious completions; `completeVerb` hand-rolls its RLock.
+- `tabcomplete-p2` — `applyCompletion` slice invariant unguarded; lineedit echo tests
+  use `time.Sleep`; tests poke `server.charMode` past the mutex; anonymous
+  `GmcpActive()` interface; redundant `CharModeActive()` wrapper; `candidateLine`
+  string-concat per item.
 
 ### Accepted (not debt), post-M12
 - `m17-2d3` — §5 verb NON-FITS kept hand-parsed by design: `unequip` (no `equipped`
