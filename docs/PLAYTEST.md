@@ -166,12 +166,12 @@ Go to the **Meadow** (`s` from the Gate). The bandit is hostile.
       no mechanics.)
 - [x] Entering the Meadow, the bandit aggros (attacks you) — combat rounds tick;
       you see hit/miss/damage lines for both sides.
-- [ ] **Weapon dice (§4.5):** wielding the short sword (vs. unarmed) raises your
+- [x] **Weapon dice (§4.5):** wielding the short sword (vs. unarmed) raises your
       hit damage — the sword rolls **1d6** instead of the unarmed **1d3**, and
       its `str`/`hit_mod` modifiers further lift damage and accuracy. Compare a
       few swings with the sword equipped vs. `unequip sword`. (The hit line shows
       the damage *number*, not the weapon name.)
-- [ ] **Critical hits (§4.5):** fight several rounds — an occasional swing prints
+- [x] **Critical hits (§4.5):** fight several rounds — an occasional swing prints
       "**A critical hit!**" and lands for noticeably more, because a natural 20
       multiplies the rolled dice (default ×2; tune with
       `ANOTHERMUD_CRIT_MULTIPLIER`, where `1` disables the bonus).
@@ -185,7 +185,7 @@ Go to the **Meadow** (`s` from the Gate). The bandit is hostile.
 - [x] `flee` — escapes combat to an adjacent room (when there's an exit); you
       see the new room rendered, and others see "X flees to the <dir>!".
 - [x] `wimpy 30` then fight — at ≤30% HP you auto-flee.
-- [ ] Let the bandit kill a low-HP character (use Bob unarmed) — on death you
+- [x] Let the bandit kill a low-HP character (use Bob unarmed) — on death you
       respawn (healed) at the recall/start room, not disconnected.
 - [x] `cast slash` / `cast kick` in combat — the ability fires (Jasrags has them).
 
