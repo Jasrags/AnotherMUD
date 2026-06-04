@@ -1678,6 +1678,10 @@ func run() error {
 			// off the engine Clock (F3) so it's testable.
 			Clock:       clk,
 			IdleTimeout: cfg.LoginIdleTimeout,
+			// Name-gates (login §3): refuse reserved/system names at
+			// character creation. nil NameGates → the default
+			// reserved-names gate over this list.
+			ReservedNames: cfg.ReservedNames,
 		},
 	})
 	// M16.2: MSSP variable table for MUD-listing crawlers. Static
@@ -1816,6 +1820,9 @@ type config struct {
 	// SlowTickThreshold warns when a tick's duration exceeds it
 	// (time-and-clock §5). Zero falls back to the tick interval.
 	SlowTickThreshold time.Duration
+	// ReservedNames is the case-insensitive blocklist the default
+	// name-gate refuses at character creation (login §3).
+	ReservedNames []string
 	// SustenanceDrainInterval / SustenanceDrainAmount tune the §4.4
 	// hunger drain (economy-survival). Interval is how often the pool
 	// drops; Amount is how much it drops each time. Defaults reproduce
@@ -1873,6 +1880,7 @@ func loadConfig() config {
 		LinkDeadSweepInterval:   envDurationOr("ANOTHERMUD_LINKDEAD_SWEEP_INTERVAL", 30*time.Second),
 		LoginIdleTimeout:        envDurationOr("ANOTHERMUD_LOGIN_IDLE_TIMEOUT", 60*time.Second),
 		SlowTickThreshold:       envDurationOr("ANOTHERMUD_SLOW_TICK_THRESHOLD", 0),
+		ReservedNames:           envCSVOr("ANOTHERMUD_RESERVED_NAMES", defaultReservedNames),
 		SustenanceDrainInterval: envDurationOr("ANOTHERMUD_SUSTENANCE_DRAIN_INTERVAL", 30*time.Second),
 		SustenanceDrainAmount:   envIntOr("ANOTHERMUD_SUSTENANCE_DRAIN_AMOUNT", 1),
 		ContentDir:              envOr("ANOTHERMUD_CONTENT_DIR", "./content"),
@@ -1912,6 +1920,34 @@ func envOr(key, def string) string {
 		return v
 	}
 	return def
+}
+
+// defaultReservedNames seeds the login name-gate (login §3): privileged
+// and system identities a new character must not impersonate. Matching is
+// case-insensitive. Override the whole set via ANOTHERMUD_RESERVED_NAMES.
+var defaultReservedNames = []string{
+	"admin", "administrator", "root", "system", "console", "server",
+	"god", "immortal", "staff", "gm", "dm", "guard", "guardian",
+	"anothermud", "newbie",
+}
+
+// envCSVOr returns the comma-separated values of key (trimmed, empties
+// dropped), or def when unset/blank.
+func envCSVOr(key string, def []string) []string {
+	v, ok := os.LookupEnv(key)
+	if !ok || strings.TrimSpace(v) == "" {
+		return def
+	}
+	var out []string
+	for _, part := range strings.Split(v, ",") {
+		if t := strings.TrimSpace(part); t != "" {
+			out = append(out, t)
+		}
+	}
+	if len(out) == 0 {
+		return def
+	}
+	return out
 }
 
 // envIntOr returns the integer value of key, or def when unset or

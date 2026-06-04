@@ -41,7 +41,6 @@ go straight into a milestone.
 
 | Item | Spec § | Gap (verified absent) |
 |---|---|---|
-| Pluggable name-gates | login §3 | only the hardcoded ASCII-letter validator |
 | Per-phase idle-timeout *overrides* | login §6.1 | global idle timeout **shipped** (Clock-driven, `Config.IdleTimeout`, `ANOTHERMUD_LOGIN_IDLE_TIMEOUT`, default 60s); only *per-phase override values* remain (a thin add on the same read primitive) |
 | Tag-indexed reads during movement | world-rooms-movement §3.4 | movement scans, no tag index |
 | Container weight/volume caps | inventory-equipment-items | no cap enforcement at runtime |

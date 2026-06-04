@@ -104,6 +104,24 @@ type Config struct {
 	// global fallback of spec §6.1; per-phase overrides are a future
 	// extension layered on the same read primitive.
 	IdleTimeout time.Duration
+
+	// NameGates is the ordered list of new-player name policies (spec
+	// §3). The first non-allow decision wins. Empty falls back to a
+	// reserved-names gate built from ReservedNames (nameGates).
+	NameGates []NameGate
+
+	// ReservedNames seeds the default name-gate's case-insensitive
+	// blocklist (admin, guard, …) when NameGates is not set explicitly.
+	ReservedNames []string
+}
+
+// nameGates returns the configured gates, or the built-in default (a
+// reserved-names gate over ReservedNames) when none are set.
+func (c Config) nameGates() []NameGate {
+	if len(c.NameGates) > 0 {
+		return c.NameGates
+	}
+	return []NameGate{ReservedNameGate(c.ReservedNames)}
 }
 
 func (c Config) idleClock() clock.Clock {
@@ -178,6 +196,24 @@ func runLoop(ctx context.Context, lio *lineIO, cfg Config) (*Loaded, error) {
 				return nil, err
 			}
 			return res, nil
+		}
+
+		// Name-gates (spec §3) run only on the new-player path — they
+		// guard entry into character creation. A reject reprompts; a
+		// disconnect closes the connection.
+		switch decision, reason := runNameGates(name, cfg.nameGates()); decision {
+		case NameReject:
+			if reason != "" {
+				if err := lio.writeln(ctx, reason); err != nil {
+					return nil, err
+				}
+			}
+			continue
+		case NameDisconnect:
+			if reason != "" {
+				_ = lio.writeln(ctx, reason)
+			}
+			return nil, ErrNameRejected
 		}
 
 		res, err := newPlayer(ctx, lio, cfg, name)
