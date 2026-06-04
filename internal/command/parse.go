@@ -85,11 +85,14 @@ func splitRepeat(token string) (count int, verb string, isRepeat bool) {
 	}
 	n := 0
 	for _, d := range token[:i] {
-		n = n*10 + int(d-'0')
-		if n >= maxRepeatCount {
+		// Clamp BEFORE the multiply so the accumulator can never overflow
+		// int (even on a 32-bit target) — the parsed value only needs to
+		// exceed any sane chain cap, which maxRepeatCount does by far.
+		if n >= maxRepeatCount/10 {
 			n = maxRepeatCount
 			break
 		}
+		n = n*10 + int(d-'0')
 	}
 	return n, token[i:], true
 }

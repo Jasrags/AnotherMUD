@@ -1631,8 +1631,11 @@ func run() error {
 		CreationFlow: session.NewCreationFlow(registries.Races, registries.Classes),
 		Clock:        clk,
 		Flood:        session.DefaultFloodConfig(),
-		ChainCap:     envIntOr("ANOTHERMUD_CHAIN_CAP", command.DefaultChainCap),
-		LinkDead:     linkDeadCfg,
+		// Raising ChainCap multiplies a client's effective command throughput:
+		// the flood gate counts one token per submitted LINE, and each line can
+		// expand to ChainCap commands. Bump with that coupling in mind.
+		ChainCap: envIntOr("ANOTHERMUD_CHAIN_CAP", command.DefaultChainCap),
+		LinkDead: linkDeadCfg,
 		// M15.4b₂b: per-look weather ambience. The closure binds
 		// weather.Service.Ambience; RenderRoom appends its output
 		// after the room description in eligible rooms.
