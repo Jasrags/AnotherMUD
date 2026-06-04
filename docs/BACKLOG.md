@@ -60,7 +60,6 @@ go straight into a milestone.
 | Reactive tag observers | **tag-observers §2–§4** (new) | `entity.tag_added/removed` bus events for non-index reactors. Substrate ahead of a consumer. Ported from Tapestry `ITagObserver` |
 | **Crafting & Cooking** | **crafting-and-cooking** (new) + plan `themes/crafting-cooking-plan.md` | recipes + crafting-skill proficiency + quality roll (output = rarity tier) + cooking→sustenance/well-fed. MVP = Tier 0 + Tier 1 campfire (temp entity, M15.2 reuse) + Tier 2 room-tag + mob-loot ingredients, all in `core` pack. Defers only gathering nodes (§2) |
 | **Player trade** (escrow + direct trade + auction) | **trade-escrow / direct-trade / auction-house** (new) + plan `plans/trade-plan.md` | shared escrow/atomic-commit primitive (cancellable bus); sync zero-sum direct trade; async persisted buyout auction (global, pickup delivery, fee gold sink). Admin moderation blocked on roles/admin (spec-only). Push delivery deferred to Mail (§2) |
-| **Tab-completion — Phase 0** (enumeration substrate) | **tab-completion §2–§9** (new) + proposal `proposals/tab-completion.md` | transport-agnostic completion query (verb scan + §5 typed-arg scope enumeration), distinct-name/ordinal disambiguation, the visibility leak-guard, and a role-gated `complete` debug verb. No enumeration op exists today (resolvers are resolve-one-token). Surfaces (GMCP/char-mode) are Phase 1/2 → §2 below |
 
 ---
 
