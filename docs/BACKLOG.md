@@ -42,7 +42,7 @@ go straight into a milestone.
 | Item | Spec § | Gap (verified absent) |
 |---|---|---|
 | Pluggable name-gates | login §3 | only the hardcoded ASCII-letter validator |
-| Per-phase idle timeout | login §6.1 | `login.go` notes it as a known gap; no per-phase `Conn.Read` deadline set |
+| Per-phase idle-timeout *overrides* | login §6.1 | global idle timeout **shipped** (Clock-driven, `Config.IdleTimeout`, `ANOTHERMUD_LOGIN_IDLE_TIMEOUT`, default 60s); only *per-phase override values* remain (a thin add on the same read primitive) |
 | Tag-indexed reads during movement | world-rooms-movement §3.4 | movement scans, no tag index |
 | Container weight/volume caps | inventory-equipment-items | no cap enforcement at runtime |
 | Death-driven purge from a generic alive predicate | mobs-ai-spawning §3.5 | only explicit `Untrack` triggers respawn |
@@ -55,8 +55,13 @@ go straight into a milestone.
 | Property-registry save-pipeline integration | persistence §2 / §4.4 | registry substrate exists (M14.4); not wired into the save pipeline — m14 |
 | Slow-tick observability | time-and-clock §4 | no slow-tick instrumentation |
 | Reactive tag observers | **tag-observers §2–§4** (new) | `entity.tag_added/removed` bus events for non-index reactors. Substrate ahead of a consumer. Ported from Tapestry `ITagObserver` |
-| **Crafting & Cooking** | **crafting-and-cooking** (new) + plan `themes/crafting-cooking-plan.md` | recipes + crafting-skill proficiency + quality roll (output = rarity tier) + cooking→sustenance/well-fed. MVP = Tier 0 + Tier 1 campfire (temp entity, M15.2 reuse) + Tier 2 room-tag + mob-loot ingredients, all in `core` pack. Defers only gathering nodes (§2) |
+| **Crafting & Cooking** | **crafting-and-cooking** (new) + plan `themes/crafting-cooking-plan.md` | recipes + crafting-skill proficiency + quality roll (output = rarity tier) + cooking→sustenance/well-fed. MVP = Tier 0 + Tier 1 campfire (temp entity, M15.2 reuse) + Tier 2 room-tag + mob-loot ingredients, all in `core` pack. Its ideal ingredient source — **gathering** — is now specced (§1, this table) and can ship alongside or after |
 | **Player trade** (escrow + direct trade + auction) | **trade-escrow / direct-trade / auction-house** (new) + plan `plans/trade-plan.md` | shared escrow/atomic-commit primitive (cancellable bus); sync zero-sum direct trade; async persisted buyout auction (global, pickup delivery, fee gold sink). Admin moderation blocked on roles/admin (spec-only). Push delivery deferred to Mail (§2) |
+| **Visibility** (hide / sneak / darkness / invisibility) | **visibility §2–§7** (new) | the keystone of the Gameplay Systems cluster. Hybrid model: flag-gated darkness + magical/admin invis, opposed-contest hide/sneak. Four detection paths (passive sticky auto-detect, see-invisible/see-in-dark/detect traits, `search` verb, reveal-on-action). Fills the `world-rooms-movement §7` filter seam + `commands-and-dispatch §5.4` `BypassVisibility`; unblocks `who §4` per-viewer hiding, `admin-verbs §3` wizinvis, and hidden exits. All ephemeral (no save). v1 light model is minimal (static `dark` room prop + `light` item + `see_in_dark` trait) |
+| **Hidden exits** (secret doors / passages) | **hidden-exits §2–§7** (new) | `hidden` + `search_difficulty` flag on the Exit (works with or without a door, mirrors door `pick-difficulty`). Discovery reuses visibility's `search` + sticky memory; search-only (passive off by default). **Knowledge-gated**: an undiscovered hidden exit is unwalkable + door un-operable, not just unlisted — gate lives in the player movement command + `flee`, NOT the unconditional move primitive (mob/scripted/admin moves ungated). Per-character ephemeral; no save change. Emits `exit.discovered` (quest hook). Depends on visibility |
+| **Faction / standing** | **faction §2–§8** (new) | per-character signed standing per content-defined faction; generalizes alignment's architecture (`progression §6`) to N axes as a **parallel sibling** — alignment untouched, no v1 interaction. Linear per-player (no opposition ripple in v1). Named ranks → rank tags, bounded combined history, cancellable `faction.shift.check`→`shifted`→`rank.changed`, admin-immune shift, `ResolveRanks` gating helper. Earn via quest rewards + faction-mob kills. New Faction registry + player-save `faction_standing` bag (version bump). Consumers (disposition/abilities/rooms/shops/quests) adopt the helper as they're wired |
+| **Biomes** | **biomes §2–§6** (new) + designed with gathering | **richer terrain, one axis**: promote the existing room `terrain` property into a registered Biome definition (backward-compatible — unregistered terrain = today's behavior). Generalizes `world-rooms-movement §6.4` hardcoded shielding into biome metadata; adds idle biome ambience (new tick), an optional mob spawn table (additive to area spawns), and the forage/node resource tables gathering consumes. New Biome registry; nothing persists |
+| **Gathering** (forage + nodes) | **gathering §2–§8** (new) + designed with biomes | the non-vendor ingredient source `crafting §8` wants. Ships **both** models: ambient `forage` (rolls room biome's resource table) + discrete respawning `harvest` nodes (reuse spawn scheduler). Single gathering proficiency (use-based gain), rarity-tier quality roll (mirrors `crafting §5`). **Permissive** (friction lowers quality, only tool-gated nodes refuse) + **scarce** (forage cooldown, node charges+respawn) per `crafting §8`. Cancellable `resource.gathering`; `resource.gathered` quest hook. Node/forage state transient (no save); proficiency rides existing surface |
 
 ---
 
@@ -66,40 +71,6 @@ No spec exists yet. The first deliverable is a new `docs/specs/` file (and the
 pre-decision it depends on). These are where genuinely-new *systems* live — the gap the
 old five-theme partition left uncovered.
 
-- **Faction / standing** — per-faction reputation distinct from alignment buckets.
-  ⚠️ **No Tapestry reference — needs design help before a spec.** Tapestry has no
-  faction/standing/reputation system (alignment substitutes there). This is greenfield:
-  pre-decisions (linear scale vs. per-faction matrix; relation to alignment; whether it
-  depends on Roles) need a design conversation, not a port. Park until then.
-- **Visibility / hidden / sneak** — line-of-sight, hidden mobs, sneak skill.
-  ⚠️ **Tapestry reference is a STUB — rules need design help.** `VisibilityFilter` exists
-  but `CanSee` always returns true and `GetVisibleEntities` returns everything; the *seam*
-  (filter + `BypassVisibility` arg, already in our M17.2a resolver) is real, but the
-  *rules* (what hides an entity, sneak mechanics, see-invisible) are greenfield. The seam
-  is captured wherever it's consumed (`admin-verbs §3`, `commands-and-dispatch §5`); the
-  rules need a design conversation. Park the rules; the seam is already usable.
-- **Hidden / secret doors** — exits concealed until discovered (e.g. via a `search`
-  verb). ⚠️ **Greenfield — not covered by what exists.** Doors (`world.Exit.Door`,
-  M15.1) and temporary keyword portals (`world-rooms-movement §5.6`, M15.2) both exist,
-  but neither is hidden/discoverable — portals are *dynamic runtime exits*, not
-  *concealed permanent ones*. The relevant seam is the `visibility` filter
-  (`world-rooms-movement §visibility`), a permissive stub already designed to consult a
-  `hidden` tag — but it filters *entities*, not exits. Overlaps **Visibility / hidden /
-  sneak** above (shared discovery/reveal mechanics). Pre-decisions: hidden flag on the
-  exit/door vs. a hidden-exit tag; the `search` mechanic (auto-on-enter vs. explicit
-  verb; skill/level gate; per-character vs. per-room discovery state and whether "found"
-  persists); reveal messaging.
-- **Gathering / resource nodes** — the non-vendor ingredient source crafting wants
-  (`crafting-and-cooking §8`). Overlaps **Biomes** below (forage/harvest). Greenfield;
-  until it lands, crafting sources ingredients from mob loot + authored placement.
-- **Biomes** — ecological zones layered on rooms, shaping spawns / resources / ambience.
-  ⚠️ **Greenfield system — no Tapestry reference.** BUT the substrate exists: rooms already
-  carry a `terrain` property (outdoors/indoors/forest/mountain) used for weather gating
-  (`world-rooms-movement §6.4`) and weather zones (`weather_zones/`). Pre-decision: is a
-  "biome" just a richer alias/extension of `terrain`, or a new layer adding biome-specific
-  spawn tables, foraging/harvest resource nodes, and ambience? Heavily interlocks with
-  `mobs-ai-spawning` (spawns) and a future foraging/crafting loop. Needs a design
-  conversation; decide the terrain-vs-new-layer question first.
 - **Mail / parcels (addressed items + gold)** — send a message *with attachments*
   (items and/or gold) to another player, claimed later. ⚠️ **Greenfield — no Tapestry
   reference.** Today: text-only **offline tells** (M13.2) on the notifications queue; no
@@ -283,7 +254,7 @@ need a design pass first.
 
 | Theme | Pulls in | Why design-first |
 |---|---|---|
-| **Gameplay Systems** | faction, visibility/sneak, hidden doors, biomes, gathering, hireable mobs | no port reference; each needs pre-decisions before a spec |
+| **Gameplay Systems** | hireable mobs | no port reference; needs pre-decisions before a spec. (Visibility, hidden exits, faction, biomes, and gathering are now **specced** and moved to §1; hireable mobs is best designed alongside/after grouping.) |
 | **Player Economy depth** | mail (push delivery / attachment escrow), banking + a gold-at-risk rule | extends the now-specced trade; banking wants gold-at-risk to matter |
 | **OLC (online creation)** | in-game world building — `redit`/`medit`/`oedit`/`aedit` for builders | collides with the boot-immutable, file-authored content model; needs the source-of-truth + runtime-mutable-registry pre-decisions first |
 
@@ -294,7 +265,7 @@ need a design pass first.
 | If yes → | start with |
 |---|---|
 | You want a real item economy — players selling loot to each other | **Player trade** *(specced — ready)*; then Economy depth (mail/banking, greenfield) |
-| You want a crafting/gathering loop | **Crafting & Cooking** *(specced — MVP ready)* |
+| You want a crafting/gathering loop | **Crafting & Cooking** + **Gathering** + **Biomes** *(all specced — ready)* |
 | The world/character sheet feels mechanically thin | **Gameplay Systems** *(greenfield — design first)* |
 | You want a fast, low-stakes win to re-enter the codebase | take one **§1 warmup** (tag-indexed reads, container caps, …) |
 | Accreting code debt is blocking a feature you want | **Engine Debt II** *(specced)* |

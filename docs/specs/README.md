@@ -51,12 +51,38 @@ The simulated environment and the things in it.
   double-buffered index. Substrate ahead of a consumer.
 - [progression](progression.md) — stats, races, classes,
   tracks (XP / levels), alignment, training.
+- [faction](faction.md) — per-character **standing** with
+  content-defined factions: a signed standing int per
+  (character, faction), named ranks mirrored as tags, bounded
+  history, the cancellable shift pipeline, and the `ResolveRanks`
+  gating helper. A parallel sibling that generalizes alignment's
+  architecture (`progression` §6) to N axes without touching it.
 - [inventory-equipment-items](inventory-equipment-items.md) —
   item templates, slots, equip / unequip, container ops,
   stacking, keyword resolution.
 - [mobs-ai-spawning](mobs-ai-spawning.md) — mob templates,
   area-driven spawning, AI behavior tick, disposition,
   mob-command queue, loot.
+- [visibility](visibility.md) — the per-observer "can X see Y?"
+  rules behind the permissive `world-rooms-movement` §7 filter:
+  hide / sneak / darkness / magical+admin invisibility, the four
+  detection paths (passive, see-invisible/detect traits,
+  `search`, reveal-on-action), the hybrid flag+contest model.
+  Keystone of the Gameplay Systems cluster; substrate ahead of
+  its consumers (`who`, admin verbs, hidden doors).
+- [hidden-exits](hidden-exits.md) — secret doors and secret
+  passages: a `hidden` + `search_difficulty` flag on the Exit,
+  discovery via visibility's `search` mechanic, knowledge-gated
+  traversal (an undiscovered hidden exit is unwalkable, not just
+  unlisted), per-character ephemeral discovery. Built on
+  visibility; extends `world-rooms-movement`'s exit model.
+- [biomes](biomes.md) — the ecological classification behind the
+  existing room `terrain` property: a registered Biome definition
+  carrying weather shielding (generalizing `world-rooms-movement`
+  §6.4), idle ambience, an optional mob spawn table, and the
+  forage / node resource tables gathering consumes. Richer
+  terrain, one axis, fully backward-compatible. Designed with
+  gathering.
 
 ### 3. Action and interaction
 
@@ -87,6 +113,13 @@ The verbs players use and the systems that resolve them.
   cooking as the food specialization that feeds sustenance and
   grants quality-scaled well-fed effects. Permissive access,
   gated quality.
+- [gathering](gathering.md) — the non-vendor ingredient source
+  crafting §8 wants: ambient `forage` (rolls the room biome's
+  resource table) and discrete respawning `harvest` nodes, a
+  gathering proficiency + rarity-tier quality roll, and the
+  scarcity controls (cooldown, node charges/respawn) that keep
+  crafting a gold sink. Designed with biomes; consumes its
+  resource tables.
 - [trade-escrow](trade-escrow.md) — the shared escrow / atomic-
   transaction primitive (stage value → cancellable commit → all-or-
   nothing or make-whole rollback → audit log). Built once, consumed
@@ -174,6 +207,9 @@ operation. The set of cancellable events across the engine:
 | `shop.buy`, `shop.sell` | [economy-survival](economy-survival.md) §3 |
 | `recall.before` | [recall](recall.md) §3.1 |
 | `corpse.creating` | [loot-and-corpses](loot-and-corpses.md) §2.1 |
+| `concealment.before` *(spec; build pending)* | [visibility](visibility.md) §3.1 |
+| `faction.shift.check` *(spec; build pending)* | [faction](faction.md) §4 |
+| `resource.gathering` *(spec; build pending)* | [gathering](gathering.md) §6 |
 | `trade.committing` *(spec; build pending)* | [trade-escrow](trade-escrow.md) §3 |
 
 ### Registries and content
@@ -197,6 +233,9 @@ load time:
 | Effect template | [abilities-and-effects](abilities-and-effects.md); applied by consumables [economy-survival](economy-survival.md) §6 |
 | Race, class | [progression](progression.md) §3, §4 |
 | Track | [progression](progression.md) §5 |
+| Faction | [faction](faction.md) §2 *(spec; build pending)* |
+| Biome | [biomes](biomes.md) §2 *(spec; build pending)* |
+| Resource node template | [gathering](gathering.md) §3 *(spec; build pending)* |
 | Command | [commands-and-dispatch](commands-and-dispatch.md) §2 |
 | Emote | [commands-and-dispatch](commands-and-dispatch.md) §7 |
 | Quest | [quests](quests.md) §2 |
@@ -219,7 +258,8 @@ Each spec calls out what it persists. The aggregate view:
   tags, roles, stats (base + modifiers + vitals), properties,
   equipment, inventory, flat item list, **abilities +
   proficiencies**, **recall address**, **prompt template**,
-  **autoloot preference** ([loot-and-corpses](loot-and-corpses.md) §6).
+  **autoloot preference** ([loot-and-corpses](loot-and-corpses.md) §6),
+  **faction standing bag + history** ([faction](faction.md) §8 *(spec; build pending)*).
 - **Quest file** (sibling of player file) — active list,
   completed list.
 - **Notifications file** (sibling of player file) — per-entity
@@ -243,7 +283,15 @@ Each spec calls out what it persists. The aggregate view:
 - **NOT persisted** — sessions, link-dead state, in-game time,
   weather, mob spawn tracking, temporary exits, active
   effects, rest state, **direct-trade sessions** (transient by design),
-  **corpses + their unlooted loot** (transient; removed by the decay sweep or a restart — [loot-and-corpses](loot-and-corpses.md) §7).
+  **corpses + their unlooted loot** (transient; removed by the decay sweep or a restart — [loot-and-corpses](loot-and-corpses.md) §7),
+  **concealment + detection state** (the `hidden` / `sneaking` /
+  `invisible` tags, snapshot concealment scores, admin invisibility,
+  and per-observer detection memory — all ephemeral, dropped on
+  logout/restart — [visibility](visibility.md) §7),
+  **biome ambience state** ([biomes](biomes.md) §6) and
+  **gathering node/forage state** (node charges + respawn timing,
+  per-room forage depletion — transient, respawn fresh on restart —
+  [gathering](gathering.md) §7).
 
 Details: [persistence](persistence.md), with feature-specific
 sections in [quests](quests.md) §6, [progression](progression.md),
@@ -267,6 +315,8 @@ composition root):
 | `prompt-flush` | 1 | [ui-rendering-help](ui-rendering-help.md) §7.3 |
 | `scripting-schedule` | 1 | [scripting-and-packs](scripting-and-packs.md) (the `engine.schedule` primitive) |
 | `gmcp-vitals-flush` / `-items-` / `-combat-` / `-effects-` / `-experience-` / `-charstatus-` | 1 each | [networking-protocols](networking-protocols.md) (GMCP package layer) |
+| `biome-ambience` *(spec; build pending)* | configured | [biomes](biomes.md) §4 |
+| `node-respawn` / `forage-regen` *(spec; build pending)* | configured | [gathering](gathering.md) §3, §5 |
 | `autosave` | configured | [persistence](persistence.md) §6.2 |
 | `idle-sweep` | configured | [session-lifecycle](session-lifecycle.md) §5 |
 | `linkdead-cleanup` | configured | [session-lifecycle](session-lifecycle.md) §7.3 |
@@ -336,4 +386,4 @@ highest-impact themes that recur across specs:
 
 ---
 
-<!-- Updated: 2026-06-03 · 32 specs covering the engine substrate, world, action, lifecycle, and presentation layers. Behavior contracts still ahead of code: tag-observers, crafting-and-cooking, and the trade trio (trade-escrow, direct-trade, auction-house). Since-shipped: roles-and-permissions, admin-verbs, item-decorations (M19/M20), loot-and-corpses (M22), tab-completion Phase 0–2, who. -->
+<!-- Updated: 2026-06-04 · 37 specs covering the engine substrate, world, action, lifecycle, and presentation layers. Behavior contracts still ahead of code: tag-observers, visibility, hidden-exits, faction, biomes, gathering, crafting-and-cooking, and the trade trio (trade-escrow, direct-trade, auction-house). Since-shipped: roles-and-permissions, admin-verbs, item-decorations (M19/M20), loot-and-corpses (M22), tab-completion Phase 0–2, who. -->
