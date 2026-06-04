@@ -146,6 +146,14 @@ var defaultUnarmedDamage = DiceExpr{Count: 1, Sides: 3}
 // state cannot be mutated through the return.
 func DefaultUnarmedDamage() DiceExpr { return defaultUnarmedDamage }
 
+// DefaultCritMultiplier is the §4.5 "doubled dice" crit policy default:
+// on a critical hit the rolled weapon/natural dice are multiplied by
+// this factor (the STR bonus is not). A multiplier of 1 disables the
+// bonus (crit = normal damage, the original M7.4 policy); the flag still
+// flows on the hit event for renderers. Overridable via
+// AutoAttackConfig.CritMultiplier (env ANOTHERMUD_CRIT_MULTIPLIER).
+const DefaultCritMultiplier = 2
+
 // STRBonus maps a STR score to a damage modifier. Spec §4.5 leaves the
 // scaling formula explicitly as policy ("scaled by an attacker stat
 // (strength) modifier"); the M7.4 default is (STR-10)/2 with Go's

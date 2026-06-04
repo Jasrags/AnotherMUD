@@ -22,6 +22,12 @@ type AutoAttackConfig struct {
 	// structurally). nil-safe: a config without it falls back to the
 	// pre-M9.5 behavior (one swing, no evades).
 	Passives PassiveEvaluator
+	// CritMultiplier scales the DICE portion of damage on a critical hit
+	// (§4.5 "doubled dice" policy); the STR bonus is not multiplied. A
+	// value <= 0 is defaulted to DefaultCritMultiplier at NewAutoAttack;
+	// 1 disables the bonus (crit = normal damage). IsCritical still flows
+	// on the hit event regardless.
+	CritMultiplier int
 }
 
 // PassiveEvaluator is the combat-side seam to the passive-abilities
@@ -64,6 +70,9 @@ func NewAutoAttack(cfg AutoAttackConfig) PhaseFunc {
 	}
 	if cfg.Roller == nil {
 		panic("combat.NewAutoAttack: nil Roller")
+	}
+	if cfg.CritMultiplier <= 0 {
+		cfg.CritMultiplier = DefaultCritMultiplier
 	}
 
 	return func(ctx context.Context, attackerID CombatantID, mgr *Manager, _ uint64) {
@@ -170,13 +179,17 @@ func runAutoAttack(ctx context.Context, attackerID CombatantID, mgr *Manager, cf
 
 		// §4.5 damage roll: dice + STR bonus, clamped to >= 1 on hit.
 		//
-		// M7.4 POLICY: critical hits deal the same dice roll as
-		// normal hits (no doubled dice, no flat bonus). IsCritical
-		// on the Hit event is the hook M8+ uses when crit-damage
-		// policies enter the picture; today subscribers may render
-		// crits more dramatically but the numbers match a normal
-		// hit. Spec §4.5 explicitly leaves this as policy.
-		raw := damageExpr.Roll(cfg.Roller) + STRBonus(atkStats.STR)
+		// CRIT POLICY: on a critical hit the rolled DICE are multiplied
+		// by cfg.CritMultiplier (default 2 — the §4.5 "doubled dice"
+		// option); the STR bonus is added afterward and is NOT
+		// multiplied. A multiplier of 1 restores the original "crit =
+		// normal damage" policy. IsCritical still flows on the event so
+		// renderers can dramatize either way.
+		dmg := damageExpr.Roll(cfg.Roller)
+		if outcome.critical && cfg.CritMultiplier > 1 {
+			dmg *= cfg.CritMultiplier
+		}
+		raw := dmg + STRBonus(atkStats.STR)
 		if raw < 1 {
 			raw = 1
 		}

@@ -1220,11 +1220,12 @@ func run() error {
 		registries.Abilities, passiveProficiency, passiveProficiency, combatRNG,
 	)
 	autoAttackPhase := combat.NewAutoAttack(combat.AutoAttackConfig{
-		Locator:     combatLocator,
-		RoomLocator: combatLocator,
-		Sink:        combatSink,
-		Roller:      combatRNG,
-		Passives:    passiveResolver,
+		Locator:        combatLocator,
+		RoomLocator:    combatLocator,
+		Sink:           combatSink,
+		Roller:         combatRNG,
+		Passives:       passiveResolver,
+		CritMultiplier: cfg.CritMultiplier,
 	})
 	// M7.6 wimpy phase — fires §5.2 flee when a combatant's HP%
 	// drops to or below its WimpyThreshold property. Shares the same
@@ -1779,6 +1780,7 @@ type config struct {
 	TickInterval          time.Duration
 	CombatCadence         time.Duration
 	FleeCooldown          time.Duration
+	CritMultiplier        int
 	CorpseOwnershipWindow time.Duration
 	CorpseLifetime        time.Duration
 	CorpseDecayInterval   time.Duration
@@ -1833,6 +1835,7 @@ func loadConfig() config {
 		TickInterval:            envDurationOr("ANOTHERMUD_TICK_INTERVAL", 100*time.Millisecond),
 		CombatCadence:           envDurationOr("ANOTHERMUD_COMBAT_CADENCE", 3*time.Second),
 		FleeCooldown:            envDurationOr("ANOTHERMUD_FLEE_COOLDOWN", 15*time.Second),
+		CritMultiplier:          envIntOr("ANOTHERMUD_CRIT_MULTIPLIER", combat.DefaultCritMultiplier),
 		CorpseOwnershipWindow:   envDurationOr("ANOTHERMUD_CORPSE_OWNERSHIP_WINDOW", 60*time.Second),
 		CorpseLifetime:          envDurationOr("ANOTHERMUD_CORPSE_LIFETIME", 5*time.Minute),
 		CorpseDecayInterval:     envDurationOr("ANOTHERMUD_CORPSE_DECAY_INTERVAL", 3*time.Second),

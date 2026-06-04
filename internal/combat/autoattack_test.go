@@ -61,6 +61,7 @@ type autoAttackRig struct {
 	rooms    MapRoomLocator
 	roller   *scriptedRoller
 	passives PassiveEvaluator // nil ⇒ pre-M9.5 behavior
+	critMult int              // 0 ⇒ NewAutoAttack default (DefaultCritMultiplier)
 }
 
 // fakePassives is a deterministic PassiveEvaluator for the §4.2/§4.3
@@ -97,11 +98,12 @@ func newAutoAttackRig(t *testing.T, atkStats, defStats Stats, atkHP, defHP int, 
 
 func (r *autoAttackRig) phase() PhaseFunc {
 	return NewAutoAttack(AutoAttackConfig{
-		Locator:     r.locator,
-		RoomLocator: r.rooms,
-		Sink:        r.sink,
-		Roller:      r.roller,
-		Passives:    r.passives,
+		Locator:        r.locator,
+		RoomLocator:    r.rooms,
+		Sink:           r.sink,
+		Roller:         r.roller,
+		Passives:       r.passives,
+		CritMultiplier: r.critMult,
 	})
 }
 
@@ -125,6 +127,90 @@ func TestAutoAttackNaturalTwentyAlwaysHits(t *testing.T) {
 	}
 	if hits[0].Damage < 1 {
 		t.Errorf("damage must be >= 1, got %d", hits[0].Damage)
+	}
+}
+
+// TestAutoAttackCritDoublesDice — a crit multiplies the rolled dice by
+// the default (2). STR 10 → 0 bonus isolates the dice doubling.
+func TestAutoAttackCritDoublesDice(t *testing.T) {
+	atkStats := Stats{HitMod: 0, STR: 10} // STRBonus(10) = 0
+	defStats := Stats{AC: 100}            // unreachable but nat-20 crits anyway
+	rig := newAutoAttackRig(t, atkStats, defStats, 10, 50, []int{
+		19, // d20: 20 → crit
+		2,  // 1d3: 3
+	})
+	// critMult left 0 ⇒ NewAutoAttack defaults to DefaultCritMultiplier (2).
+	rig.phase()(context.Background(), rig.attacker.id, rig.mgr, 0)
+
+	hits := rig.sink.snapshotHits()
+	if len(hits) != 1 {
+		t.Fatalf("want 1 hit, got %d", len(hits))
+	}
+	if !hits[0].IsCritical {
+		t.Fatal("expected a critical hit")
+	}
+	if hits[0].Damage != 6 { // 3 dice × 2 crit + 0 STR
+		t.Errorf("crit damage = %d, want 6 (3×2)", hits[0].Damage)
+	}
+}
+
+// TestAutoAttackCritMultiplierConfigurable — a non-default multiplier
+// (3×) scales the dice accordingly.
+func TestAutoAttackCritMultiplierConfigurable(t *testing.T) {
+	rig := newAutoAttackRig(t, Stats{HitMod: 0, STR: 10}, Stats{AC: 100}, 10, 50, []int{
+		19, // crit
+		2,  // 1d3: 3
+	})
+	rig.critMult = 3
+	rig.phase()(context.Background(), rig.attacker.id, rig.mgr, 0)
+
+	hits := rig.sink.snapshotHits()
+	if len(hits) != 1 || hits[0].Damage != 9 { // 3 × 3
+		t.Fatalf("crit damage = %v, want one hit of 9 (3×3)", hits)
+	}
+}
+
+// TestAutoAttackCritMultiplierOneDisablesBonus — multiplier 1 restores
+// the original "crit = normal damage" policy; the flag still flows.
+func TestAutoAttackCritMultiplierOneDisablesBonus(t *testing.T) {
+	rig := newAutoAttackRig(t, Stats{HitMod: 0, STR: 10}, Stats{AC: 100}, 10, 50, []int{
+		19, // crit
+		2,  // 1d3: 3
+	})
+	rig.critMult = 1
+	rig.phase()(context.Background(), rig.attacker.id, rig.mgr, 0)
+
+	hits := rig.sink.snapshotHits()
+	if len(hits) != 1 {
+		t.Fatalf("want 1 hit, got %d", len(hits))
+	}
+	if !hits[0].IsCritical {
+		t.Error("crit flag must still be set with multiplier 1")
+	}
+	if hits[0].Damage != 3 { // no doubling
+		t.Errorf("damage = %d, want 3 (multiplier 1 = no bonus)", hits[0].Damage)
+	}
+}
+
+// TestAutoAttackNonCritUnaffectedByMultiplier — an ordinary hit (not a
+// nat-20) is never scaled, even with a crit multiplier configured.
+func TestAutoAttackNonCritUnaffectedByMultiplier(t *testing.T) {
+	rig := newAutoAttackRig(t, Stats{HitMod: 10, STR: 10}, Stats{AC: 10}, 10, 50, []int{
+		9, // d20: 10 → hits (10+10 ≥ 10), not a crit
+		2, // 1d3: 3
+	})
+	rig.critMult = 5
+	rig.phase()(context.Background(), rig.attacker.id, rig.mgr, 0)
+
+	hits := rig.sink.snapshotHits()
+	if len(hits) != 1 {
+		t.Fatalf("want 1 hit, got %d", len(hits))
+	}
+	if hits[0].IsCritical {
+		t.Fatal("d20=10 is not a crit")
+	}
+	if hits[0].Damage != 3 { // unscaled
+		t.Errorf("non-crit damage = %d, want 3 (multiplier must not apply)", hits[0].Damage)
 	}
 }
 
