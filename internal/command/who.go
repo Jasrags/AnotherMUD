@@ -22,6 +22,10 @@ type WhoEntry struct {
 // disables `who` (tests / headless). v1 returns every playing session
 // (the actor included); per-viewer visibility filtering attaches here when
 // visibility rules land.
+//
+// OnlineRoster MUST return a freshly-allocated slice each call — the
+// handler sorts it in place. Implementations must not hand back a slice
+// they retain a reference to.
 type Roster interface {
 	OnlineRoster() []WhoEntry
 }

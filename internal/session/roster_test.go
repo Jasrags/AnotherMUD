@@ -1,6 +1,7 @@
 package session
 
 import (
+	"runtime"
 	"sync"
 	"testing"
 	"time"
@@ -73,6 +74,7 @@ func TestManagerRoster_ConcurrentSnapshot(t *testing.T) {
 				a.mu.Lock()
 				a.lastInputAt = a.lastInputAt.Add(time.Second)
 				a.mu.Unlock()
+				runtime.Gosched() // yield so readers aren't starved on GOMAXPROCS=1
 			}
 		}
 	}()
