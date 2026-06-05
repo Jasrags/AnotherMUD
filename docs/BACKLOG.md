@@ -205,17 +205,24 @@ old five-theme partition left uncovered.
   builders on the same room; **(6) scope/order** — almost certainly rooms+exits
   first, then mobs/items, then resets, then the rest. Big system; gate it behind a
   design conversation and a dedicated spec slice.
-- **Telnet `map` verb (ASCII area minimap)** — render an in-game ASCII map of the
-  current area from room coordinates. **Unblocked by `room-coordinates` (§1)**, which
-  deliberately stops at the coordinate substrate + GMCP exposure and leaves rendering
-  to a separate slice. Today there is **no `map`/automap verb at all** and the room
-  render is line-oriented (`ui-rendering-help` non-goal: real-time UI). The new piece
-  is the presentation layer: project the area's placed rooms onto a 2-D character grid
-  (z handled as layers or a `<` / `>` glyph), mark the player, draw exit connectors,
-  omit unplaced rooms. Pre-decisions: per-area vs. radius-around-player view; z-layer
-  handling (separate layer vs. stacked glyph); legend/colour via the theme registry;
-  whether overlapping cells (coordinate collisions, `room-coordinates §4.1`) get a
-  visible marker. Pure presentation — reads coordinates, changes no world state.
+- **Player maps (ASCII `map` verb + Mudlet/GMCP)** — the full mapping feature on top
+  of the coordinate substrate; proposal at `docs/proposals/player-maps.md`. **Unblocked
+  by `room-coordinates` (§1)**, which stops at the coordinate substrate + GMCP exposure
+  and leaves rendering to this slice. Today there is **no `map`/automap verb at all** and
+  the room render is line-oriented (`ui-rendering-help` non-goal: real-time UI). Shape:
+  one shared **local-window query** (radius-N BFS over placed rooms) feeding **two
+  renderers** — a server-rendered ASCII minimap (recenters the stable coordinates at draw
+  time; works on raw telnet) and a `Room.Info`-extending GMCP feed for Mudlet's native
+  mapper. **Decided:** geometry is settled in `room-coordinates` (derive-with-override,
+  stable/viewer-independent); **fog of war is IN v1 and persisted** — a per-character
+  visited-room set (player-save version bump + append-only migration), an exploration
+  hook on the `player.moved`/`SetRoom` entry seam, and a render-time filter so the map
+  shows only explored rooms. **So this is NOT pure presentation** — it adds the one new
+  save-state field the maps feature needs. Open sub-decisions (proposal §7): exit-stubs
+  to unvisited neighbors vs. fully hidden; teleport-counts-as-visited; visited-set
+  pruning; the secret-exit-in-a-visited-room leak (coordinate with visibility/hidden-exits);
+  the Mudlet GMCP wire shape (pin against a live client). Suggested phasing:
+  `room-coordinates` → fog-of-war visited-set + hook → ASCII renderer → Mudlet GMCP.
 - **Cross-cutting event catalog** — per-spec event tables exist in `specs/README.md`;
   no aggregated catalog. (Docs/meta, not engine — not a behavior spec.)
 
