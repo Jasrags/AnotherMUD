@@ -61,6 +61,7 @@ go straight into a milestone.
 | **Faction / standing** | **faction §2–§8** (new) | per-character signed standing per content-defined faction; generalizes alignment's architecture (`progression §6`) to N axes as a **parallel sibling** — alignment untouched, no v1 interaction. Linear per-player (no opposition ripple in v1). Named ranks → rank tags, bounded combined history, cancellable `faction.shift.check`→`shifted`→`rank.changed`, admin-immune shift, `ResolveRanks` gating helper. Earn via quest rewards + faction-mob kills. New Faction registry + player-save `faction_standing` bag (version bump). Consumers (disposition/abilities/rooms/shops/quests) adopt the helper as they're wired |
 | **Biomes** | **biomes §2–§6** (new) + designed with gathering | **richer terrain, one axis**: promote the existing room `terrain` property into a registered Biome definition (backward-compatible — unregistered terrain = today's behavior). Generalizes `world-rooms-movement §6.4` hardcoded shielding into biome metadata; adds idle biome ambience (new tick), an optional mob spawn table (additive to area spawns), and the forage/node resource tables gathering consumes. New Biome registry; nothing persists |
 | **Gathering** (forage + nodes) | **gathering §2–§8** (new) + designed with biomes | the non-vendor ingredient source `crafting §8` wants. Ships **both** models: ambient `forage` (rolls room biome's resource table) + discrete respawning `harvest` nodes (reuse spawn scheduler). Single gathering proficiency (use-based gain), rarity-tier quality roll (mirrors `crafting §5`). **Permissive** (friction lowers quality, only tool-gated nodes refuse) + **scarce** (forage cooldown, node charges+respawn) per `crafting §8`. Cancellable `resource.gathering`; `resource.gathered` quest hook. Node/forage state transient (no save); proficiency rides existing surface |
+| **Room coordinates** | **room-coordinates §2–§10** (new) | area-local integer `(x,y,z)` **derived from the exit graph** at load, **derive-by-default with a per-room `coord:` override/pin** for non-Euclidean spaces (PD-1, hybrid). Per-area grid seeded from pins (or a default anchor); BFS over intra-area cardinal/vertical exits applies fixed deltas; pins are ground truth the walk derives around. Coordinates are **stable** (viewer-independent, PD-7) so Mudlet's persistent mapper sees one fixed cell per room; the ASCII map recenters at render time. Collisions / non-square loops / unreachable rooms are **non-fatal load warnings** (PD-4). Adds the coordinate to `Room.Info` (omitted when unplaced) — exact wire shape pinned against a live Mudlet client. No movement change (PD-3); pin is content, no save change. Substrate ahead of its consumers (Mudlet mapper, telnet `map` verb — see §2) |
 
 ---
 
@@ -204,6 +205,17 @@ old five-theme partition left uncovered.
   builders on the same room; **(6) scope/order** — almost certainly rooms+exits
   first, then mobs/items, then resets, then the rest. Big system; gate it behind a
   design conversation and a dedicated spec slice.
+- **Telnet `map` verb (ASCII area minimap)** — render an in-game ASCII map of the
+  current area from room coordinates. **Unblocked by `room-coordinates` (§1)**, which
+  deliberately stops at the coordinate substrate + GMCP exposure and leaves rendering
+  to a separate slice. Today there is **no `map`/automap verb at all** and the room
+  render is line-oriented (`ui-rendering-help` non-goal: real-time UI). The new piece
+  is the presentation layer: project the area's placed rooms onto a 2-D character grid
+  (z handled as layers or a `<` / `>` glyph), mark the player, draw exit connectors,
+  omit unplaced rooms. Pre-decisions: per-area vs. radius-around-player view; z-layer
+  handling (separate layer vs. stacked glyph); legend/colour via the theme registry;
+  whether overlapping cells (coordinate collisions, `room-coordinates §4.1`) get a
+  visible marker. Pure presentation — reads coordinates, changes no world state.
 - **Cross-cutting event catalog** — per-spec event tables exist in `specs/README.md`;
   no aggregated catalog. (Docs/meta, not engine — not a behavior spec.)
 

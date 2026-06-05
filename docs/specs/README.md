@@ -83,6 +83,14 @@ The simulated environment and the things in it.
   forage / node resource tables gathering consumes. Richer
   terrain, one axis, fully backward-compatible. Designed with
   gathering.
+- [room-coordinates](room-coordinates.md) — area-local integer
+  `(x, y, z)` **derived from the exit graph** at load: the
+  derivation walk, the collision / non-square-loop / unplaced-room
+  conflict policy (all non-fatal warnings), and the optional
+  `Room.Info` x/y/z exposure a client mapper or a future telnet
+  `map` verb consumes. No authored data, no movement change, no
+  save change; a pure projection of `world-rooms-movement`'s
+  exits. Substrate ahead of its consumers.
 
 ### 3. Action and interaction
 
@@ -386,4 +394,4 @@ highest-impact themes that recur across specs:
 
 ---
 
-<!-- Updated: 2026-06-04 · 37 specs covering the engine substrate, world, action, lifecycle, and presentation layers. Behavior contracts still ahead of code: tag-observers, visibility, hidden-exits, faction, biomes, gathering, crafting-and-cooking, and the trade trio (trade-escrow, direct-trade, auction-house). Since-shipped: roles-and-permissions, admin-verbs, item-decorations (M19/M20), loot-and-corpses (M22), tab-completion Phase 0–2, who. -->
+<!-- Updated: 2026-06-04 · 38 specs covering the engine substrate, world, action, lifecycle, and presentation layers. Behavior contracts still ahead of code: tag-observers, visibility, hidden-exits, faction, biomes, gathering, room-coordinates, crafting-and-cooking, and the trade trio (trade-escrow, direct-trade, auction-house). Since-shipped: roles-and-permissions, admin-verbs, item-decorations (M19/M20), loot-and-corpses (M22), tab-completion Phase 0–2, who. -->
