@@ -2354,6 +2354,15 @@ func (d dispositionHook) OnPlayerEnteredDeferred(ctx context.Context, playerID, 
 	d.e.OnPlayerEnteredDeferred(ctx, ai.PlayerView{ID: playerID, Name: playerName, Tags: tags}, room)
 }
 
+// Hostile is the read-only disposition query RenderRoom uses to redden
+// hostile mobs. It dispatches nothing and writes no cache — just runs
+// the §5.3 reaction algorithm against the (immutable) template and the
+// supplied view.
+func (d dispositionHook) Hostile(m *entities.MobInstance, playerID, playerName string, tags []string) bool {
+	r, ok := d.e.ReactionFor(m, ai.PlayerView{ID: playerID, Name: playerName, Tags: tags})
+	return ok && r == mob.ReactionHostile
+}
+
 // combatLocator implements combat.Locator. Dispatches on the prefix
 // embedded in every CombatantID: "mob:" → entities.Store, "player:"
 // → session.Manager. A CombatantID with neither prefix (or an

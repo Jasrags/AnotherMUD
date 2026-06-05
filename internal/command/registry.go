@@ -415,6 +415,11 @@ type TellResolver interface {
 type DispositionHook interface {
 	OnPlayerEnteredImmediate(ctx context.Context, playerID, playerName string, tags []string, room world.RoomID)
 	OnPlayerEnteredDeferred(ctx context.Context, playerID, playerName string, tags []string, room world.RoomID)
+	// Hostile is a read-only query (no event, no cache write) reporting
+	// whether mob m would react hostilely toward the given player — used
+	// to redden hostile mobs in the room render. The production adapter
+	// constructs an ai.PlayerView and calls Evaluator.ReactionFor.
+	Hostile(m *entities.MobInstance, playerID, playerName string, tags []string) bool
 }
 
 // Context carries the per-invocation arguments passed to a Handler.

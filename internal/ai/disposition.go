@@ -286,6 +286,24 @@ func (e *Evaluator) Evaluate(ctx context.Context, m *entities.MobInstance, playe
 	e.dispatch(ctx, reaction, m, player, room)
 }
 
+// ReactionFor resolves the reaction mob m would have toward player
+// WITHOUT dispatching any event or touching the dedup / per-room
+// suppression caches — a read-only query for presentation (e.g.
+// reddening hostile mobs in the room render). Returns ("", false)
+// when m is nil, its template doesn't resolve, or §5.3 yields no
+// reaction at all. Unlike Evaluate it takes no lock: it only reads the
+// (immutable) template and the supplied view.
+func (e *Evaluator) ReactionFor(m *entities.MobInstance, player PlayerView) (mob.Reaction, bool) {
+	if m == nil {
+		return "", false
+	}
+	tpl, ok := e.template(m)
+	if !ok {
+		return "", false
+	}
+	return decideReaction(tpl, player)
+}
+
 // decideReaction implements the §5.3 algorithm against a single
 // template + player. ok=false means "no reaction at all" (no rules,
 // no base disposition) — the caller should not dispatch anything.
@@ -435,4 +453,3 @@ func (e *Evaluator) dispatch(ctx context.Context, reaction mob.Reaction, m *enti
 		// nothing (§5.5).
 	}
 }
-

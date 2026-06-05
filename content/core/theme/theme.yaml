@@ -39,5 +39,6 @@ tags:
 
   # Room rendering — "You see here:" entities. Other players and
   # neutral mobs; placed items reuse the item.* rarity tags above.
-  present.player: { fg: bright-white, html: "#FFFFFF" }
-  present.mob:    { fg: yellow,       html: "#CCCC33" }
+  present.player:  { fg: bright-white, html: "#FFFFFF" }
+  present.mob:     { fg: yellow,       html: "#CCCC33" }
+  present.hostile: { fg: bright-red,   html: "#FF3333" }

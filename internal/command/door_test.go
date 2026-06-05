@@ -321,7 +321,7 @@ func TestRenderExits_DecoratesDoorState(t *testing.T) {
 		},
 	})
 	r, _ := w.Room("x")
-	out := command.RenderRoom(r, nil, nil, nil, nil)
+	out := command.RenderRoom(r, nil, nil, nil, nil, nil)
 	// RenderRoom returns raw markup: the direction word is wrapped in
 	// <exit> and the door-state suffix in <warning>/<danger>, so the
 	// decorator is no longer a contiguous "north (locked)" substring.

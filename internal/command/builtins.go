@@ -295,7 +295,7 @@ func LookHandler(ctx context.Context, c *Context) error {
 	// headless paths), renders the room — never a misleading
 	// "you don't see that" for a missing subsystem.
 	if len(args) == 0 || c.Items == nil {
-		return c.Actor.Write(ctx, RenderRoom(room, c.Placement, c.Items, c.questMarker(), c.Ambience, c.otherPlayerNames(room.ID)...))
+		return c.Actor.Write(ctx, RenderRoom(room, c.Placement, c.Items, c.questMarker(), c.Ambience, c.hostileMarker(), c.otherPlayerNames(room.ID)...))
 	}
 	return c.lookAtTarget(ctx, args)
 }
@@ -403,7 +403,7 @@ func movementHandler(dir world.Direction) Handler {
 		if c.Disposition != nil && pid != "" {
 			c.Disposition.OnPlayerEnteredImmediate(ctx, pid, name, nil, dst.ID)
 		}
-		if err := c.Actor.Write(ctx, RenderRoom(dst, c.Placement, c.Items, c.questMarker(), c.Ambience, c.otherPlayerNames(dst.ID)...)); err != nil {
+		if err := c.Actor.Write(ctx, RenderRoom(dst, c.Placement, c.Items, c.questMarker(), c.Ambience, c.hostileMarker(), c.otherPlayerNames(dst.ID)...)); err != nil {
 			return err
 		}
 		// Deferred (full) hook AFTER the description so non-hostile
@@ -446,6 +446,27 @@ func (c *Context) otherPlayerNames(roomID world.RoomID) []string {
 	return out
 }
 
+// hostileMarker returns a predicate reporting whether a placed mob is
+// hostile to the viewing actor, for RenderRoom's red coloring. Returns
+// nil when disposition is unwired or the actor has no player id (tests,
+// pre-login) so the renderer falls back to the neutral <present.mob>
+// color. Players carry no tags here — the same nil-tags simplification
+// the room-entry hook already uses (move handler above) — so the v1
+// reddens statically-hostile mobs and tag-free hostile rules.
+func (c *Context) hostileMarker() func(*entities.MobInstance) bool {
+	if c.Disposition == nil || c.Actor == nil {
+		return nil
+	}
+	pid := c.Actor.PlayerID()
+	if pid == "" {
+		return nil
+	}
+	name := c.Actor.Name()
+	return func(m *entities.MobInstance) bool {
+		return c.Disposition.Hostile(m, pid, name, nil)
+	}
+}
+
 // RenderRoom renders a room's name, description, entities, and exits.
 //
 // marker, when non-nil, reports whether an entity's template id
@@ -463,7 +484,11 @@ func (c *Context) otherPlayerNames(roomID world.RoomID) []string {
 // excludes themselves before calling). Variadic so existing callers
 // without a player list stay source-compatible; players are listed in
 // the "You see here:" line alongside mobs and items.
-func RenderRoom(r *world.Room, placement *entities.Placement, items *entities.Store, marker func(templateID string) bool, ambience func(*world.Room) string, players ...string) string {
+// hostile, when non-nil, reports whether a placed mob is hostile to the
+// viewer; such mobs render in <present.hostile> (red) instead of the
+// neutral <present.mob>. Pass nil (tests, renderers without a
+// disposition source) to color every mob neutrally.
+func RenderRoom(r *world.Room, placement *entities.Placement, items *entities.Store, marker func(templateID string) bool, ambience func(*world.Room) string, hostile func(*entities.MobInstance) bool, players ...string) string {
 	var b strings.Builder
 	// Room name renders as a <title> (bright-cyan) so it anchors the
 	// scan; the description stays plain prose (coloring paragraphs reads
@@ -480,7 +505,7 @@ func RenderRoom(r *world.Room, placement *entities.Placement, items *entities.St
 			b.WriteString("\n")
 		}
 	}
-	if line := renderRoomEntities(r, placement, items, marker, players); line != "" {
+	if line := renderRoomEntities(r, placement, items, marker, hostile, players); line != "" {
 		b.WriteString(line)
 		b.WriteString("\n")
 	}
@@ -496,7 +521,7 @@ func RenderRoom(r *world.Room, placement *entities.Placement, items *entities.St
 // entity branch is a silent skip rather than a panic because the
 // renderer is on the player-visible path; missing data should look
 // like nothing-here, not a runtime error.
-func renderRoomEntities(r *world.Room, placement *entities.Placement, items *entities.Store, marker func(templateID string) bool, players []string) string {
+func renderRoomEntities(r *world.Room, placement *entities.Placement, items *entities.Store, marker func(templateID string) bool, hostile func(*entities.MobInstance) bool, players []string) string {
 	// Other players first (highlighted), then placed mobs/items colored
 	// by kind. The "You see here:" label dims to <subtle> so the names
 	// it introduces carry the visual weight.
@@ -524,7 +549,7 @@ func renderRoomEntities(r *world.Room, placement *entities.Placement, items *ent
 		// Color the bare name by entity kind first, then prepend the
 		// quest marker OUTSIDE the color tag so the two never nest
 		// (spec §2.4: a nested tag's close resets the outer color).
-		name = colorizeEntityName(e, name)
+		name = colorizeEntityName(e, name, hostile)
 		if marker != nil {
 			if tid := templateIDOf(e); tid != "" && marker(tid) {
 				name = "<good>(!)</good> " + name
@@ -544,13 +569,17 @@ func renderRoomEntities(r *world.Room, placement *entities.Placement, items *ent
 // item-decorations system reads, decorate.go) and mobs take
 // <present.mob>. Other players are tagged at the call site (they arrive
 // as bare names, not entities). An unrecognized entity kind renders
-// plain.
-func colorizeEntityName(e entities.Entity, name string) string {
+// plain. hostile, when non-nil, reddens a mob the viewer is hostile
+// toward (<present.hostile>) instead of the neutral mob color.
+func colorizeEntityName(e entities.Entity, name string, hostile func(*entities.MobInstance) bool) string {
 	switch inst := e.(type) {
 	case *entities.ItemInstance:
 		tag := itemRarityTag(inst)
 		return "<" + tag + ">" + name + "</" + tag + ">"
 	case *entities.MobInstance:
+		if hostile != nil && hostile(inst) {
+			return "<present.hostile>" + name + "</present.hostile>"
+		}
 		return "<present.mob>" + name + "</present.mob>"
 	default:
 		return name
