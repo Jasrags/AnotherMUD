@@ -66,7 +66,7 @@ func TestRenderRoom_NilPlacementAndStoreSkipsEntityLine(t *testing.T) {
 	if !strings.Contains(out, "Town Square") {
 		t.Errorf("missing room name:\n%s", out)
 	}
-	if !strings.Contains(out, "Exits: north") {
+	if !strings.Contains(out, "Exits: <exit>north</exit>") {
 		t.Errorf("missing exits:\n%s", out)
 	}
 }

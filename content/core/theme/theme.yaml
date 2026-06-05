@@ -32,3 +32,7 @@ tags:
   item.uncommon:  { fg: green,        html: "#33CC33" }
   item.rare:      { fg: bright-blue,  html: "#3399FF" }
   item.legendary: { fg: bright-magenta, html: "#FF66FF" }
+
+  # Room rendering — exits (RenderRoom). The room name reuses <title>;
+  # closed doors reuse <warning>, locked doors <danger>.
+  exit: { fg: cyan, html: "#33CCCC" }

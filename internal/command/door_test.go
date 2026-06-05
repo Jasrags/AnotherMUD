@@ -322,16 +322,24 @@ func TestRenderExits_DecoratesDoorState(t *testing.T) {
 	})
 	r, _ := w.Room("x")
 	out := command.RenderRoom(r, nil, nil, nil, nil)
-	if !strings.Contains(out, "north (locked)") {
+	// RenderRoom returns raw markup: the direction word is wrapped in
+	// <exit> and the door-state suffix in <warning>/<danger>, so the
+	// decorator is no longer a contiguous "north (locked)" substring.
+	if !strings.Contains(out, "<danger>(locked)</danger>") {
 		t.Errorf("locked decorator missing: %q", out)
 	}
-	if !strings.Contains(out, "east (closed)") {
+	if !strings.Contains(out, "<warning>(closed)</warning>") {
 		t.Errorf("closed decorator missing: %q", out)
 	}
-	if !strings.Contains(out, "south,") && !strings.HasSuffix(out, "south") {
-		t.Errorf("open door should render plain: %q", out)
+	// The open-door south exit and the doorless west exit carry no
+	// state suffix — just the <exit>-wrapped direction.
+	if !strings.Contains(out, "<exit>south</exit>") {
+		t.Errorf("open door should render plain (no state suffix): %q", out)
 	}
-	if !strings.Contains(out, "west") {
+	if strings.Contains(out, "<exit>south</exit> <") {
+		t.Errorf("open door should not carry a state suffix: %q", out)
+	}
+	if !strings.Contains(out, "<exit>west</exit>") {
 		t.Errorf("doorless exit missing: %q", out)
 	}
 }

@@ -465,7 +465,12 @@ func (c *Context) otherPlayerNames(roomID world.RoomID) []string {
 // the "You see here:" line alongside mobs and items.
 func RenderRoom(r *world.Room, placement *entities.Placement, items *entities.Store, marker func(templateID string) bool, ambience func(*world.Room) string, players ...string) string {
 	var b strings.Builder
+	// Room name renders as a <title> (bright-cyan) so it anchors the
+	// scan; the description stays plain prose (coloring paragraphs reads
+	// as noise). Both degrade to clean text on no-color clients.
+	b.WriteString("<title>")
 	b.WriteString(r.Name)
+	b.WriteString("</title>")
 	b.WriteString("\n")
 	b.WriteString(r.Description)
 	b.WriteString("\n")
@@ -562,16 +567,22 @@ func renderExits(r *world.Room) string {
 // "north (locked)", "north (open)". An unlocked open door renders
 // as a plain direction since "open" is the implicit default; an
 // open BUT locked door cannot exist (locked implies closed).
+//
+// The direction word renders as an <exit> (cyan) so exits read as
+// actionable; a closed door's "(closed)" suffix reuses <warning>
+// (yellow) and a locked door's "(locked)" reuses <danger> (red), so
+// the obstacle stands out without a legend. The severity tag sits
+// OUTSIDE the <exit> tag (sequential, not nested) per spec §2.4.
 func decorateExit(d world.Direction, e world.Exit) string {
-	long := d.Long()
+	long := "<exit>" + d.Long() + "</exit>"
 	if e.Door == nil {
 		return long
 	}
 	switch {
 	case e.Door.Locked:
-		return long + " (locked)"
+		return long + " <danger>(locked)</danger>"
 	case e.Door.Closed:
-		return long + " (closed)"
+		return long + " <warning>(closed)</warning>"
 	default:
 		return long
 	}
