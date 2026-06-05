@@ -20,6 +20,15 @@ import (
 // session manager and is a silent no-op when the player is offline or
 // the template is missing (§5.2). currency may be nil (tests / headless
 // boots that don't wire economy), in which case gold stays a no-op.
+//
+// defaultTrack binds the engine's primary XP track at the composition
+// root (mirroring StartRoom / DefaultRace). The spec's quest.DefaultTrack
+// is "main" (setting-agnostic), but content registers its own track name
+// (e.g. "adventurer") — and progression.GrantExperience silently drops a
+// grant on an unregistered track, so a mismatch means quest XP is lost
+// with no error. Passing the real track here keeps the spec default
+// untouched while making quest XP actually land. Empty string keeps the
+// dispatcher's spec default (used by tests that don't grant XP).
 func NewQuestRewards(
 	mgr *Manager,
 	prog *progression.Manager,
@@ -27,11 +36,15 @@ func NewQuestRewards(
 	tpls *item.Templates,
 	store *entities.Store,
 	currency *economy.CurrencyService,
+	defaultTrack string,
 ) *quest.Dispatcher {
 	opts := []quest.DispatcherOption{
 		quest.WithExperience(questXP{mgr: mgr, prog: prog}),
 		quest.WithAbilities(prof),
 		quest.WithItems(questItems{mgr: mgr, tpls: tpls, store: store}),
+	}
+	if defaultTrack != "" {
+		opts = append(opts, quest.WithTrack(defaultTrack))
 	}
 	if currency != nil {
 		opts = append(opts, quest.WithGold(questGold{mgr: mgr, currency: currency}))

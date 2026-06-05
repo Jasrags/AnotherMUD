@@ -327,6 +327,14 @@ type Env struct {
 	// when empty.
 	AdminRole string
 
+	// DefaultXPTrack is the engine's primary progression track — the
+	// content-specific track name (e.g. "adventurer") bound at the
+	// composition root. The admin `xp` verb grants on it when no track is
+	// given, and it is the single source quest rewards also bind to (so
+	// the two paths can't drift). Empty falls back to "adventurer" in the
+	// handler for test Contexts built directly.
+	DefaultXPTrack string
+
 	// Announcer is the all-sessions broadcast seam the `announce` admin
 	// verb uses (admin-verbs §5). The session Manager satisfies it. nil
 	// disables `announce` (the handler reports it's not enabled).
@@ -469,6 +477,10 @@ type Context struct {
 	// `admin` when empty (roles-and-permissions §4/§8).
 	RoleTargetResolver RoleTargetResolver
 	GrantingRole       string
+	// DefaultXPTrack is the engine's primary XP track (copied from Env).
+	// The `xp` verb grants on it when no track argument is given; empty
+	// falls back to "adventurer" in the handler.
+	DefaultXPTrack string
 	// Announcer is the all-sessions broadcast seam the `announce` admin
 	// verb uses (admin-verbs §5). nil disables `announce`.
 	Announcer Announcer
@@ -938,6 +950,7 @@ func (r *Registry) Dispatch(ctx context.Context, env Env, actor Actor, raw strin
 		TellResolver:          env.TellResolver,
 		RoleTargetResolver:    env.RoleTargetResolver,
 		GrantingRole:          env.GrantingRole,
+		DefaultXPTrack:        env.DefaultXPTrack,
 		Announcer:             env.Announcer,
 		PlayerRoom:            env.PlayerRoom,
 		ChatRegistry:          env.ChatRegistry,

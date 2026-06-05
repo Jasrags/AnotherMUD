@@ -6,11 +6,18 @@ import (
 	"strconv"
 )
 
+// DefaultXPTrack is the engine's fallback primary progression track. The
+// composition root binds the real track via Env.DefaultXPTrack (env knob
+// ANOTHERMUD_DEFAULT_XP_TRACK), and quest rewards bind the same value, so
+// the two XP paths share one source. This constant is only the last-resort
+// default when neither is set (e.g. a Context built directly in a test).
+const DefaultXPTrack = "adventurer"
+
 // XPHandler implements the M8.2 admin xp command:
 //
 //	xp                  → show every track's TrackInfo for the actor
 //	xp <amount> [track] → grant amount XP to the actor on track
-//	                      (default track: "adventurer")
+//	                      (default: c.DefaultXPTrack, else DefaultXPTrack)
 //
 // The verb is intentionally simple and self-grants only. A
 // full admin role gate + target-by-name form lands when the role
@@ -21,7 +28,8 @@ import (
 //
 // Args:
 //   - 0 args: print TrackInfo for every track the registry knows.
-//   - 1 arg: amount only. Track defaults to "adventurer".
+//   - 1 arg: amount only. Track defaults to the engine's primary
+//     track (c.DefaultXPTrack, falling back to DefaultXPTrack).
 //   - 2 args: amount + track name. Unknown tracks render a precise
 //     diagnostic.
 //   - 3+ args: usage line.
@@ -45,7 +53,10 @@ func XPHandler(ctx context.Context, c *Context) error {
 	if err != nil || amount <= 0 {
 		return c.Actor.Write(ctx, "Amount must be a positive integer.")
 	}
-	track := "adventurer"
+	track := c.DefaultXPTrack
+	if track == "" {
+		track = DefaultXPTrack
+	}
 	if len(c.Args) == 2 {
 		track = c.Args[1]
 	}

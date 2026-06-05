@@ -740,7 +740,7 @@ func run() error {
 	questSvc := quest.NewService(quest.Config{
 		Registry: registries.Quests,
 		Persist:  questStore,
-		Rewards:  session.NewQuestRewards(mgr, progressionMgr, proficiencyMgr, registries.Items, entityStore, currencySvc),
+		Rewards:  session.NewQuestRewards(mgr, progressionMgr, proficiencyMgr, registries.Items, entityStore, currencySvc, cfg.DefaultXPTrack),
 		Events:   session.NewQuestNotifier(mgr, registries.Quests, questGiverName, questItemNameFn, logging.From(ctx)),
 	})
 	questWatcher := questwatch.New(questSvc, entityStore)
@@ -1640,6 +1640,7 @@ func run() error {
 		RoleTargets:     session.RoleTargetResolver{Manager: mgr},
 		GrantingRole:    cfg.GrantingRole,
 		AdminRole:       cfg.AdminRole,
+		DefaultXPTrack:  cfg.DefaultXPTrack,
 		ChatRegistry:    chatRegistry,
 		ChatSubscribers: subscribers,
 		ChatScrollbacks: scrollbackLookup,
@@ -1833,6 +1834,7 @@ type config struct {
 	SaveDir                 string
 	StartRoom               world.RoomID
 	DefaultRace             string
+	DefaultXPTrack          string
 	RoleSeed                map[string][]string
 	GrantingRole            string
 	AdminRole               string
@@ -1887,6 +1889,7 @@ func loadConfig() config {
 		SaveDir:                 envOr("ANOTHERMUD_SAVE_DIR", "./saves"),
 		StartRoom:               world.RoomID(envOr("ANOTHERMUD_START_ROOM", "tapestry-core:town-square")),
 		DefaultRace:             envOr("ANOTHERMUD_DEFAULT_RACE", "human"),
+		DefaultXPTrack:          envOr("ANOTHERMUD_DEFAULT_XP_TRACK", command.DefaultXPTrack),
 		RoleSeed:                parseRoleSeed(envOr("ANOTHERMUD_ROLE_SEED", "")),
 		GrantingRole:            strings.ToLower(strings.TrimSpace(envOr("ANOTHERMUD_GRANTING_ROLE", "admin"))),
 		AdminRole:               strings.ToLower(strings.TrimSpace(envOr("ANOTHERMUD_ADMIN_ROLE", "admin"))),

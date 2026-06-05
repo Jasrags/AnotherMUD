@@ -275,6 +275,11 @@ type Config struct {
 	// AdminRole is the role an admin-marked command requires at dispatch
 	// (M19.3 — admin-verbs §2/§8). Defaults to `admin` when empty.
 	AdminRole string
+	// DefaultXPTrack is the engine's primary progression track, threaded
+	// to command.Env so the `xp` verb and quest rewards share one source
+	// (the content track, e.g. "adventurer"). Empty falls back to
+	// command.DefaultXPTrack in the handler.
+	DefaultXPTrack string
 
 	// ChatRegistry is the M13.6 channel catalog. Threaded through
 	// to command.Env for chat verbs. nil-safe.

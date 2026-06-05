@@ -50,6 +50,7 @@ func commandEnv(cfg Config) command.Env {
 		RoleTargetResolver:    cfg.RoleTargets,
 		GrantingRole:          cfg.GrantingRole,
 		AdminRole:             cfg.AdminRole,
+		DefaultXPTrack:        cfg.DefaultXPTrack,
 		Announcer:             cfg.Manager,
 		PlayerRoom:            PlayerRoomResolver{cfg.Manager},
 		ChatRegistry:          cfg.ChatRegistry,
