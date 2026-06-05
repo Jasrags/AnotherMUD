@@ -223,6 +223,29 @@ old five-theme partition left uncovered.
   pruning; the secret-exit-in-a-visited-room leak (coordinate with visibility/hidden-exits);
   the Mudlet GMCP wire shape (pin against a live client). Suggested phasing:
   `room-coordinates` → fog-of-war visited-set + hook → ASCII renderer → Mudlet GMCP.
+- **Light & darkness (graded light level + real friction)** — make the existing
+  day/night cycle *matter*; proposal at `docs/proposals/light-and-darkness.md`. Today
+  the `gameclock` periods (`time-and-clock` §3, shipped M15.4b) drive **only** the
+  colored weather/time ambience lines — nothing else reacts to time, and a sealed crypt
+  is as visible as a sunlit square. Shape: a per-viewer **light resolver**
+  `effectiveLight(room, viewer) → {0 black,1 gloom,2 dim,3 lit}` that `max`-combines
+  time-of-day ambient (night≠black), the terrain sky-gate (`Room.Terrain` + `isShielded`
+  — `underground`=black), a per-room `light` override property, carried/equipped lit
+  **source items** (torch/lantern, fuel-burn reusing the `sustenance-drain` tick model +
+  a held slot), and a per-viewer darkvision floor (race/effect). Gates at the per-viewer
+  `RenderRoom` chokepoint (already extended for `hostile`) plus combat/look/move reactors.
+  **Decided (proposal PD-1…7):** graded scale not a flag; **real friction, not atmosphere**
+  (withheld room info, blocked `look`, combat to-hit penalty, configurable move-risk —
+  proposal §5); per-viewer; sources are item properties; **the restart-darkness problem is
+  in scope** (gameclock resets to hour-0 night and isn't persisted — forces a
+  `time-and-clock` §3.6 persistence decision). Risks: content-migration (every `underground`
+  room goes black unless audited; fail *safe*=lit), the trap-potential escape-invariant
+  (exits survive gloom; movement defaults to stumble), and visibility-spec precedence
+  (darkness vs. concealment compose). Open sub-decisions (proposal §11): restart fix
+  (persist game-time vs. boot-at-midday), move stumble-vs-block, combat penalty shape,
+  occupant-hiding granularity, light-slot contention, darkvision floor-vs-cap. Suggested
+  phasing: model+render gate (Phase 0, pure presentation over existing data) → sources+fuel
+  → combat/look/darkvision teeth → nocturnal-mob reactivity. Needs a spec slice.
 - **Cross-cutting event catalog** — per-spec event tables exist in `specs/README.md`;
   no aggregated catalog. (Docs/meta, not engine — not a behavior spec.)
 
