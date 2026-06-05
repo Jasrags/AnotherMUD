@@ -30,29 +30,32 @@ transitions:
 # Per-state × per-terrain message tables. Absent entries fall through
 # the cascade (room override → area override → zone[terrain] → empty).
 # `outdoors` is the catch-all fallback per the zone cascade.
+# Each line is wrapped in its state's theme tag (theme/theme.yaml:
+# weather.* / time.*) so the ambience reads with a mood tint; the
+# renderer strips the tags to plain text for no-color clients.
 weather_messages:
   cloudy:
     outdoors:
-      start: "Clouds gather, dimming the light."
-      ongoing: "Grey clouds drift overhead."
-      end: "The clouds begin to thin."
+      start: "<weather.cloudy>Clouds gather, dimming the light.</weather.cloudy>"
+      ongoing: "<weather.cloudy>Grey clouds drift overhead.</weather.cloudy>"
+      end: "<weather.cloudy>The clouds begin to thin.</weather.cloudy>"
   rain:
     outdoors:
-      start: "Rain begins to patter against the ground."
-      ongoing: "A steady rain falls around you."
-      end: "The rain tapers off and stops."
+      start: "<weather.rain>Rain begins to patter against the ground.</weather.rain>"
+      ongoing: "<weather.rain>A steady rain falls around you.</weather.rain>"
+      end: "<weather.rain>The rain tapers off and stops.</weather.rain>"
   clear:
     outdoors:
-      start: "The sky clears, and warmth returns to the air."
-      ongoing: "Clear skies stretch overhead."
-      end: "The horizon dulls as the air thickens."
+      start: "<weather.clear>The sky clears, and warmth returns to the air.</weather.clear>"
+      ongoing: "<weather.clear>Clear skies stretch overhead.</weather.clear>"
+      end: "<weather.clear>The horizon dulls as the air thickens.</weather.clear>"
 # Time-of-day ambience for the four standard periods.
 time_messages:
   dawn:
-    outdoors: "The first pale light leaks across the horizon."
+    outdoors: "<time.dawn>The first pale light leaks across the horizon.</time.dawn>"
   day:
-    outdoors: "Daylight settles in around you."
+    outdoors: "<time.day>Daylight settles in around you.</time.day>"
   dusk:
-    outdoors: "The sky deepens toward purple as evening draws in."
+    outdoors: "<time.dusk>The sky deepens toward purple as evening draws in.</time.dusk>"
   night:
-    outdoors: "The land is wrapped in night, lit only by stars."
+    outdoors: "<time.night>The land is wrapped in night, lit only by stars.</time.night>"

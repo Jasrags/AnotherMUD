@@ -42,3 +42,16 @@ tags:
   present.player:  { fg: bright-white, html: "#FFFFFF" }
   present.mob:     { fg: yellow,       html: "#CCCC33" }
   present.hostile: { fg: bright-red,   html: "#FF3333" }
+
+  # Weather ambience — one tint per weather state, applied to the whole
+  # start/ongoing/end line so it reads as mood (content/weather_zones).
+  # Muted on purpose: a full-line tint should set atmosphere, not shout.
+  weather.clear:   { fg: yellow,    html: "#E0C56A" }
+  weather.cloudy:  { fg: dark-gray, html: "#9AA0A6" }
+  weather.rain:    { fg: blue,      html: "#7FA8C9" }
+
+  # Time-of-day ambience — one tint per period (content/weather_zones).
+  time.dawn:  { fg: yellow,         html: "#E8B98A" }
+  time.day:   { fg: bright-yellow,  html: "#F2E39A" }
+  time.dusk:  { fg: magenta,        html: "#B98AD9" }
+  time.night: { fg: blue,           html: "#6A78C9" }
