@@ -94,6 +94,42 @@ func TestRenderRoom_ListsPlacedItem(t *testing.T) {
 	}
 }
 
+func TestRenderRoom_ColorsItemByRarity(t *testing.T) {
+	// A rare item takes the item.rare tag; an unset rarity falls back
+	// to item.common (covered by TestRenderRoom_ListsPlacedItem).
+	// Rarity is the reserved "rarity" instance property (the same
+	// source item-decorations reads), copied from the template's
+	// property bag at spawn.
+	f := newRenderFixture()
+	f.placeItem(t, &item.Template{
+		ID:         "tapestry-core:blade",
+		Name:       "a glowing blade",
+		Type:       "weapon",
+		Properties: map[string]any{"rarity": "rare"},
+	})
+	out := command.RenderRoom(f.room, f.place, f.store, nil, nil)
+	if !strings.Contains(out, "<item.rare>a glowing blade</item.rare>") {
+		t.Errorf("rare item not colored by rarity:\n%s", out)
+	}
+}
+
+func TestRenderRoom_UnknownRarityFallsBackToCommon(t *testing.T) {
+	// A mis-authored / custom-tier rarity must not emit an unregistered
+	// tag — it falls back to item.common so the renderer's unknown-tag
+	// passthrough never fires on item names.
+	f := newRenderFixture()
+	f.placeItem(t, &item.Template{
+		ID:         "tapestry-core:odd",
+		Name:       "an odd trinket",
+		Type:       "trinket",
+		Properties: map[string]any{"rarity": "mythic"}, // not a theme-colored tier
+	})
+	out := command.RenderRoom(f.room, f.place, f.store, nil, nil)
+	if !strings.Contains(out, "<item.common>an odd trinket</item.common>") {
+		t.Errorf("unknown rarity did not fall back to common:\n%s", out)
+	}
+}
+
 func TestRenderRoom_ListsPlacedMob(t *testing.T) {
 	f := newRenderFixture()
 	f.placeMob(t, &mob.Template{

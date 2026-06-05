@@ -539,18 +539,43 @@ func renderRoomEntities(r *world.Room, placement *entities.Placement, items *ent
 }
 
 // colorizeEntityName wraps a placed entity's display name in the
-// semantic tag for its kind: items take <item.common> and mobs take
+// semantic tag for its kind: items take an item.* rarity tag (from the
+// reserved "rarity" instance property — the same source the
+// item-decorations system reads, decorate.go) and mobs take
 // <present.mob>. Other players are tagged at the call site (they arrive
 // as bare names, not entities). An unrecognized entity kind renders
 // plain.
 func colorizeEntityName(e entities.Entity, name string) string {
-	switch e.(type) {
+	switch inst := e.(type) {
 	case *entities.ItemInstance:
-		return "<item.common>" + name + "</item.common>"
+		tag := itemRarityTag(inst)
+		return "<" + tag + ">" + name + "</" + tag + ">"
 	case *entities.MobInstance:
 		return "<present.mob>" + name + "</present.mob>"
 	default:
 		return name
+	}
+}
+
+// itemRarityTag returns the item.<key> theme tag for an item's rarity,
+// read from the canonical "rarity" instance property (propRarity in
+// decorate.go). Only the tiers the default theme ships colors for are
+// honored; an absent, empty, or unrecognized key falls back to
+// item.common so the room line never emits an unregistered tag (which
+// the renderer would pass through as literal "<item.foo>" text). A pack
+// that adds a custom tier registers its color via decoration but won't
+// be name-colored in the room line until this whitelist or a registry
+// hand-off grows — a deliberate safe default, not a silent drop.
+func itemRarityTag(it *entities.ItemInstance) string {
+	key, ok := stringProp(it, propRarity)
+	if !ok {
+		return "item.common"
+	}
+	switch key {
+	case "uncommon", "rare", "legendary":
+		return "item." + key
+	default:
+		return "item.common"
 	}
 }
 
