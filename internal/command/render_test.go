@@ -66,7 +66,7 @@ func TestRenderRoom_NilPlacementAndStoreSkipsEntityLine(t *testing.T) {
 	if !strings.Contains(out, "Town Square") {
 		t.Errorf("missing room name:\n%s", out)
 	}
-	if !strings.Contains(out, "Exits: <exit>north</exit>") {
+	if !strings.Contains(out, "<subtle>Exits:</subtle> <exit>north</exit>") {
 		t.Errorf("missing exits:\n%s", out)
 	}
 }
@@ -89,7 +89,7 @@ func TestRenderRoom_ListsPlacedItem(t *testing.T) {
 		Type: "fixture",
 	})
 	out := command.RenderRoom(f.room, f.place, f.store, nil, nil)
-	if !strings.Contains(out, "You see here: a stone well.") {
+	if !strings.Contains(out, "<subtle>You see here:</subtle> <item.common>a stone well</item.common>.") {
 		t.Errorf("missing item in render:\n%s", out)
 	}
 }
@@ -103,7 +103,7 @@ func TestRenderRoom_ListsPlacedMob(t *testing.T) {
 		Behavior: "idle",
 	})
 	out := command.RenderRoom(f.room, f.place, f.store, nil, nil)
-	if !strings.Contains(out, "You see here: a village guard.") {
+	if !strings.Contains(out, "<subtle>You see here:</subtle> <present.mob>a village guard</present.mob>.") {
 		t.Errorf("missing mob in render:\n%s", out)
 	}
 }
@@ -116,7 +116,7 @@ func TestRenderRoom_ListsOtherPlayers(t *testing.T) {
 		ID: "tapestry-core:guard", Name: "a village guard", Type: "npc", Behavior: "idle",
 	})
 	out := command.RenderRoom(f.room, f.place, f.store, nil, nil, "Bob")
-	if !strings.Contains(out, "You see here: Bob, a village guard.") {
+	if !strings.Contains(out, "<subtle>You see here:</subtle> <present.player>Bob</present.player>, <present.mob>a village guard</present.mob>.") {
 		t.Errorf("player not listed with mob:\n%s", out)
 	}
 }
@@ -126,7 +126,7 @@ func TestRenderRoom_PlayersOnlyNoPlacement(t *testing.T) {
 	// still produces the line.
 	f := newRenderFixture()
 	out := command.RenderRoom(f.room, nil, nil, nil, nil, "Bob", "Carol")
-	if !strings.Contains(out, "You see here: Bob, Carol.") {
+	if !strings.Contains(out, "<subtle>You see here:</subtle> <present.player>Bob</present.player>, <present.player>Carol</present.player>.") {
 		t.Errorf("players-only render wrong:\n%s", out)
 	}
 }
@@ -167,7 +167,7 @@ func TestRenderRoom_EmptyNameEntitySilentlySkipped(t *testing.T) {
 	f.placeItem(t, &item.Template{ID: "tapestry-core:well", Name: "a stone well", Type: "fixture"})
 	f.placeItem(t, &item.Template{ID: "tapestry-core:nameless", Name: "", Type: "fixture"})
 	out := command.RenderRoom(f.room, f.place, f.store, nil, nil)
-	if !strings.Contains(out, "You see here: a stone well.") {
+	if !strings.Contains(out, "<subtle>You see here:</subtle> <item.common>a stone well</item.common>.") {
 		t.Errorf("expected named entity intact, empty-name entity omitted:\n%s", out)
 	}
 	// Belt-and-braces: no stray comma from a blank-name list entry.
@@ -219,10 +219,12 @@ func TestRenderRoom_MarkerDecoratesEntity(t *testing.T) {
 	marker := func(tid string) bool { return tid == "tapestry-core:gem" }
 	out := command.RenderRoom(f.room, f.place, f.store, marker, nil)
 
-	if !strings.Contains(out, "(!)</good> a quest gem") {
+	// The marker prepends OUTSIDE the rarity tag (sequential, not
+	// nested): "<good>(!)</good> <item.common>a quest gem</item.common>".
+	if !strings.Contains(out, "(!)</good> <item.common>a quest gem</item.common>") {
 		t.Errorf("quest item not marked:\n%s", out)
 	}
-	if strings.Contains(out, "(!)</good> a plain rock") {
+	if strings.Contains(out, "(!)</good> <item.common>a plain rock") {
 		t.Errorf("non-quest item should not be marked:\n%s", out)
 	}
 }
@@ -283,8 +285,9 @@ func TestRenderRoom_EmptyAmbienceReturnSkipsLine(t *testing.T) {
 	ambience := func(*world.Room) string { return "" }
 	out := command.RenderRoom(f.room, f.place, f.store, nil, ambience)
 	// The render output joins with "\n"; an empty ambience must not
-	// inject a stray blank line between description and exits.
-	if strings.Contains(out, "\n\nExits:") {
+	// inject a stray blank line between description and exits. The
+	// "Exits:" label now renders dimmed (<subtle>).
+	if strings.Contains(out, "\n\n<subtle>Exits:") {
 		t.Errorf("empty ambience produced blank line before exits:\n%q", out)
 	}
 }

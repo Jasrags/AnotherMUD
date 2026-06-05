@@ -36,3 +36,8 @@ tags:
   # Room rendering — exits (RenderRoom). The room name reuses <title>;
   # closed doors reuse <warning>, locked doors <danger>.
   exit: { fg: cyan, html: "#33CCCC" }
+
+  # Room rendering — "You see here:" entities. Other players and
+  # neutral mobs; placed items reuse the item.* rarity tags above.
+  present.player: { fg: bright-white, html: "#FFFFFF" }
+  present.mob:    { fg: yellow,       html: "#CCCC33" }

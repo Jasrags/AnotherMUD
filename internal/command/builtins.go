@@ -497,8 +497,13 @@ func RenderRoom(r *world.Room, placement *entities.Placement, items *entities.St
 // renderer is on the player-visible path; missing data should look
 // like nothing-here, not a runtime error.
 func renderRoomEntities(r *world.Room, placement *entities.Placement, items *entities.Store, marker func(templateID string) bool, players []string) string {
-	// Other players first, then placed mobs/items.
-	names := append([]string(nil), players...)
+	// Other players first (highlighted), then placed mobs/items colored
+	// by kind. The "You see here:" label dims to <subtle> so the names
+	// it introduces carry the visual weight.
+	names := make([]string, 0, len(players))
+	for _, p := range players {
+		names = append(names, "<present.player>"+p+"</present.player>")
+	}
 	ids := []entities.EntityID(nil)
 	if placement != nil && items != nil {
 		ids = placement.InRoom(r.ID)
@@ -516,6 +521,10 @@ func renderRoomEntities(r *world.Room, placement *entities.Placement, items *ent
 		if name == "" {
 			continue
 		}
+		// Color the bare name by entity kind first, then prepend the
+		// quest marker OUTSIDE the color tag so the two never nest
+		// (spec §2.4: a nested tag's close resets the outer color).
+		name = colorizeEntityName(e, name)
 		if marker != nil {
 			if tid := templateIDOf(e); tid != "" && marker(tid) {
 				name = "<good>(!)</good> " + name
@@ -526,7 +535,23 @@ func renderRoomEntities(r *world.Room, placement *entities.Placement, items *ent
 	if len(names) == 0 {
 		return ""
 	}
-	return "You see here: " + strings.Join(names, ", ") + "."
+	return "<subtle>You see here:</subtle> " + strings.Join(names, ", ") + "."
+}
+
+// colorizeEntityName wraps a placed entity's display name in the
+// semantic tag for its kind: items take <item.common> and mobs take
+// <present.mob>. Other players are tagged at the call site (they arrive
+// as bare names, not entities). An unrecognized entity kind renders
+// plain.
+func colorizeEntityName(e entities.Entity, name string) string {
+	switch e.(type) {
+	case *entities.ItemInstance:
+		return "<item.common>" + name + "</item.common>"
+	case *entities.MobInstance:
+		return "<present.mob>" + name + "</present.mob>"
+	default:
+		return name
+	}
 }
 
 // templateIDOf returns the content template id of an entity (item or
@@ -544,7 +569,7 @@ func templateIDOf(e entities.Entity) string {
 
 func renderExits(r *world.Room) string {
 	if len(r.Exits) == 0 {
-		return "Exits: none"
+		return "<subtle>Exits:</subtle> none"
 	}
 	// Build a slice of (long-name, decorated-name) pairs so we can
 	// sort by long-name (stable, alphabetical) while emitting the
@@ -559,7 +584,7 @@ func renderExits(r *world.Room) string {
 	for i, lb := range out {
 		labels[i] = lb.label
 	}
-	return fmt.Sprintf("Exits: %s", strings.Join(labels, ", "))
+	return fmt.Sprintf("<subtle>Exits:</subtle> %s", strings.Join(labels, ", "))
 }
 
 // decorateExit returns the exit's long-name with door state appended
