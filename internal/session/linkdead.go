@@ -239,5 +239,6 @@ func renderRoomForReconnect(a *connActor, cfg Config) string {
 	if r == nil {
 		return ""
 	}
-	return command.RenderRoom(r, cfg.Placement, cfg.Items, questMarkerFor(cfg.Quests, a.PlayerID()), cfg.Ambience, nil, otherPlayerNames(cfg.Manager, r.ID, a.PlayerID())...)
+	lvl := command.EffectiveLight(cfg.Light, r, a, cfg.Items, cfg.Placement)
+	return command.RenderRoom(r, cfg.Placement, cfg.Items, questMarkerFor(cfg.Quests, a.PlayerID()), cfg.Ambience, nil, lvl, otherPlayerNames(cfg.Manager, r.ID, a.PlayerID())...)
 }

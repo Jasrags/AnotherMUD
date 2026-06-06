@@ -41,7 +41,7 @@ func FleeHandler(ctx context.Context, c *Context) error {
 	case combat.FleeOutcomeSuccess:
 		_ = c.Actor.Write(ctx, "You flee in panic!")
 		if room := c.Actor.Room(); room != nil {
-			return c.Actor.Write(ctx, RenderRoom(room, c.Placement, c.Items, c.questMarker(), c.Ambience, c.hostileMarker(), c.otherPlayerNames(room.ID)...))
+			return c.Actor.Write(ctx, RenderRoom(room, c.Placement, c.Items, c.questMarker(), c.Ambience, c.hostileMarker(), c.effectiveLight(room), c.otherPlayerNames(room.ID)...))
 		}
 		return nil
 	case combat.FleeOutcomePrevented:

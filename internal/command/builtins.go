@@ -9,6 +9,7 @@ import (
 
 	"github.com/Jasrags/AnotherMUD/internal/entities"
 	"github.com/Jasrags/AnotherMUD/internal/eventbus"
+	"github.com/Jasrags/AnotherMUD/internal/light"
 	"github.com/Jasrags/AnotherMUD/internal/world"
 )
 
@@ -300,7 +301,7 @@ func LookHandler(ctx context.Context, c *Context) error {
 	// headless paths), renders the room — never a misleading
 	// "you don't see that" for a missing subsystem.
 	if len(args) == 0 || c.Items == nil {
-		return c.Actor.Write(ctx, RenderRoom(room, c.Placement, c.Items, c.questMarker(), c.Ambience, c.hostileMarker(), c.otherPlayerNames(room.ID)...))
+		return c.Actor.Write(ctx, RenderRoom(room, c.Placement, c.Items, c.questMarker(), c.Ambience, c.hostileMarker(), c.effectiveLight(room), c.otherPlayerNames(room.ID)...))
 	}
 	return c.lookAtTarget(ctx, args)
 }
@@ -408,7 +409,7 @@ func movementHandler(dir world.Direction) Handler {
 		if c.Disposition != nil && pid != "" {
 			c.Disposition.OnPlayerEnteredImmediate(ctx, pid, name, nil, dst.ID)
 		}
-		if err := c.Actor.Write(ctx, RenderRoom(dst, c.Placement, c.Items, c.questMarker(), c.Ambience, c.hostileMarker(), c.otherPlayerNames(dst.ID)...)); err != nil {
+		if err := c.Actor.Write(ctx, RenderRoom(dst, c.Placement, c.Items, c.questMarker(), c.Ambience, c.hostileMarker(), c.effectiveLight(dst), c.otherPlayerNames(dst.ID)...)); err != nil {
 			return err
 		}
 		// Deferred (full) hook AFTER the description so non-hostile
@@ -493,16 +494,53 @@ func (c *Context) hostileMarker() func(*entities.MobInstance) bool {
 // viewer; such mobs render in <present.hostile> (red) instead of the
 // neutral <present.mob>. Pass nil (tests, renderers without a
 // disposition source) to color every mob neutrally.
-func RenderRoom(r *world.Room, placement *entities.Placement, items *entities.Store, marker func(templateID string) bool, ambience func(*world.Room) string, hostile func(*entities.MobInstance) bool, players ...string) string {
+//
+// lvl is the viewer's effective light level (light-and-darkness §5.1).
+// It branches the render: `lit` is the full render; `dim` is the full
+// render with the description muted; `gloom` obscures (terse prose,
+// coarse occupant presence with identities hidden, bare-direction
+// exits); `black` suppresses everything to a single dark line. Callers
+// that do not gate on light (tests, unwired paths) pass light.Lit for
+// the unchanged full render.
+func RenderRoom(r *world.Room, placement *entities.Placement, items *entities.Store, marker func(templateID string) bool, ambience func(*world.Room) string, hostile func(*entities.MobInstance) bool, lvl light.Level, players ...string) string {
+	switch {
+	case lvl <= light.Black:
+		// Suppressed: name, description, occupants all withheld (§5.1).
+		return "<subtle>" + blackRoomText + "</subtle>"
+	case lvl == light.Gloom:
+		return renderGloomRoom(r, placement, items, players)
+	default:
+		// Lit or Dim: full render; dim mutes the description prose.
+		return renderFullRoom(r, placement, items, marker, ambience, hostile, lvl == light.Dim, players)
+	}
+}
+
+// Reduced-light render strings (§5.1). Hardcoded for v1; externalizing
+// them to the configuration surface (§11) is deferred.
+const (
+	blackRoomText = "It is pitch black. You can see nothing."
+	gloomRoomText = "It is too dark to make out any detail; you can sense only shapes and directions."
+)
+
+// renderFullRoom is the lit/dim render: the room name, description,
+// ambience, occupants, and exits. When dim is true the description is
+// wrapped in the {dim} attribute so the prose reads muted while the
+// rest of the body keeps its semantic colors (a single SGR attribute
+// over plain prose, so no nested-tag reset problem). Both forms degrade
+// to clean text on no-color clients.
+func renderFullRoom(r *world.Room, placement *entities.Placement, items *entities.Store, marker func(templateID string) bool, ambience func(*world.Room) string, hostile func(*entities.MobInstance) bool, dim bool, players []string) string {
 	var b strings.Builder
-	// Room name renders as a <title> (bright-cyan) so it anchors the
-	// scan; the description stays plain prose (coloring paragraphs reads
-	// as noise). Both degrade to clean text on no-color clients.
 	b.WriteString("<title>")
 	b.WriteString(r.Name)
 	b.WriteString("</title>")
 	b.WriteString("\n")
-	b.WriteString(r.Description)
+	if dim && r.Description != "" {
+		b.WriteString("{dim}")
+		b.WriteString(r.Description)
+		b.WriteString("{/}")
+	} else {
+		b.WriteString(r.Description)
+	}
 	b.WriteString("\n")
 	if ambience != nil {
 		if line := ambience(r); line != "" {
@@ -516,6 +554,73 @@ func RenderRoom(r *world.Room, placement *entities.Placement, items *entities.St
 	}
 	b.WriteString(renderExits(r))
 	return b.String()
+}
+
+// renderGloomRoom is the obscured render (§5.1 gloom): the room name
+// still anchors (you know where you stand), but the prose is replaced
+// by a terse dark line, occupants are coarsened to presence-without-
+// identity (names hidden), and exits render as bare directions with no
+// door/weather detail.
+func renderGloomRoom(r *world.Room, placement *entities.Placement, items *entities.Store, players []string) string {
+	var b strings.Builder
+	b.WriteString("<title>")
+	b.WriteString(r.Name)
+	b.WriteString("</title>")
+	b.WriteString("\n")
+	b.WriteString("{dim}")
+	b.WriteString(gloomRoomText)
+	b.WriteString("{/}")
+	b.WriteString("\n")
+	if line := renderCoarseOccupants(r, placement, items, players); line != "" {
+		b.WriteString(line)
+		b.WriteString("\n")
+	}
+	b.WriteString(renderBareExits(r))
+	return b.String()
+}
+
+// renderCoarseOccupants lists occupant PRESENCE at gloom without
+// identity: each other player and each placed mob becomes an
+// anonymous shape; items are not made out at all (objects need detail).
+// Names are hidden — the §5.1 occupant-coarsening rule. The
+// granularity here (one anonymous token per occupant) is the v1
+// default; configurable presence/count/kind granularity (§11) is
+// deferred.
+func renderCoarseOccupants(r *world.Room, placement *entities.Placement, items *entities.Store, players []string) string {
+	shapes := make([]string, 0, len(players))
+	for range players {
+		shapes = append(shapes, "someone")
+	}
+	if placement != nil && items != nil {
+		for _, id := range placement.InRoom(r.ID) {
+			e, ok := items.GetByID(id)
+			if !ok {
+				continue
+			}
+			if _, ok := e.(*entities.MobInstance); ok {
+				shapes = append(shapes, "a shape")
+			}
+		}
+	}
+	if len(shapes) == 0 {
+		return ""
+	}
+	return "<subtle>You can make out:</subtle> " + strings.Join(shapes, ", ") + "."
+}
+
+// renderBareExits lists exit directions only — no door state, no
+// decoration — for the gloom render (§5.1: "exits shown as bare
+// directions").
+func renderBareExits(r *world.Room) string {
+	if len(r.Exits) == 0 {
+		return "<subtle>Exits:</subtle> none"
+	}
+	longs := make([]string, 0, len(r.Exits))
+	for d := range r.Exits {
+		longs = append(longs, "<exit>"+d.Long()+"</exit>")
+	}
+	sort.Strings(longs)
+	return "<subtle>Exits:</subtle> " + strings.Join(longs, ", ")
 }
 
 // renderRoomEntities builds the "You see here: …" line. Other players

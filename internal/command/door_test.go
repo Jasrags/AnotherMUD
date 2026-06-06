@@ -8,6 +8,7 @@ import (
 	"github.com/Jasrags/AnotherMUD/internal/command"
 	"github.com/Jasrags/AnotherMUD/internal/entities"
 	"github.com/Jasrags/AnotherMUD/internal/item"
+	"github.com/Jasrags/AnotherMUD/internal/light"
 	"github.com/Jasrags/AnotherMUD/internal/world"
 )
 
@@ -321,7 +322,7 @@ func TestRenderExits_DecoratesDoorState(t *testing.T) {
 		},
 	})
 	r, _ := w.Room("x")
-	out := command.RenderRoom(r, nil, nil, nil, nil, nil)
+	out := command.RenderRoom(r, nil, nil, nil, nil, nil, light.Lit)
 	// RenderRoom returns raw markup: the direction word is wrapped in
 	// <exit> and the door-state suffix in <warning>/<danger>, so the
 	// decorator is no longer a contiguous "north (locked)" substring.
