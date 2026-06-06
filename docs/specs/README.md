@@ -165,6 +165,16 @@ The verbs players use and the systems that resolve them.
   `Input.Complete` request/response (§13, Phase 1) and char-mode real TAB
   on raw telnet (§14, Phase 2). Remaining is client integration + char-mode
   editor polish — see `docs/proposals/tab-completion.md`.
+- [light-and-darkness](light-and-darkness.md) — a per-viewer effective
+  light level (`black`/`gloom`/`dim`/`lit`) from time-of-day, the
+  `world-rooms-movement` §6.4 terrain sky-gate, a per-room `light`
+  override, lit source items (held slot + fuel burn), and a darkvision
+  floor; the real-friction consequences (obscured/suppressed room view,
+  blocked examination, combat to-hit penalty, movement risk + the escape
+  invariant); and **persisted in-game time** so a restart doesn't black
+  out the world (resolves [time-and-clock](time-and-clock.md) §3.6).
+  Behavior contract ahead of code; design at
+  `docs/proposals/light-and-darkness.md`.
 
 How a connection becomes a session becomes a character.
 
@@ -280,6 +290,11 @@ Each spec calls out what it persists. The aggregate view:
 - **Channel files** — global per-channel ring buffer of recent
   messages, shared scrollback across all players; lives under
   `saves/channels/`; see [chat-channels-and-tells](chat-channels-and-tells.md) §4.
+- **Game-time** *(spec; build pending)* — global in-game clock
+  (`CurrentHour`, `DayCount`), one per world, restored at boot so a
+  restart resumes the time-of-day instead of resetting to night; see
+  [light-and-darkness](light-and-darkness.md) §7 (resolving
+  [time-and-clock](time-and-clock.md) §3.6).
 - **Connection records** — content-defined, loaded by the pack
   pipeline after content load.
 - **Auction listing store** *(spec; build pending)* — long-lived world
@@ -288,7 +303,7 @@ Each spec calls out what it persists. The aggregate view:
 - **Trade audit log** *(spec; build pending)* — append-only,
   tamper-evident record of every committed transaction; see
   [trade-escrow](trade-escrow.md) §5.
-- **NOT persisted** — sessions, link-dead state, in-game time,
+- **NOT persisted** — sessions, link-dead state,
   weather, mob spawn tracking, temporary exits, active
   effects, rest state, **direct-trade sessions** (transient by design),
   **corpses + their unlooted loot** (transient; removed by the decay sweep or a restart — [loot-and-corpses](loot-and-corpses.md) §7),
@@ -394,4 +409,4 @@ highest-impact themes that recur across specs:
 
 ---
 
-<!-- Updated: 2026-06-04 · 38 specs covering the engine substrate, world, action, lifecycle, and presentation layers. Behavior contracts still ahead of code: tag-observers, visibility, hidden-exits, faction, biomes, gathering, room-coordinates, crafting-and-cooking, and the trade trio (trade-escrow, direct-trade, auction-house). Since-shipped: roles-and-permissions, admin-verbs, item-decorations (M19/M20), loot-and-corpses (M22), tab-completion Phase 0–2, who. -->
+<!-- Updated: 2026-06-06 · 39 specs covering the engine substrate, world, action, lifecycle, and presentation layers. Behavior contracts still ahead of code: tag-observers, visibility, hidden-exits, faction, biomes, gathering, room-coordinates, light-and-darkness, crafting-and-cooking, and the trade trio (trade-escrow, direct-trade, auction-house). Since-shipped: roles-and-permissions, admin-verbs, item-decorations (M19/M20), loot-and-corpses (M22), tab-completion Phase 0–2, who. -->

@@ -250,9 +250,17 @@ wrap.
 
 ### 3.6 Persistence
 
-In-game time is NOT persisted across server restarts. Every
-restart begins at hour 0, day 0. This is a deliberate
-simplification — flagged as an open question.
+In-game time was originally NOT persisted: every restart began
+at hour 0, day 0. That is **superseded** —
+[light-and-darkness](light-and-darkness.md) §7 makes in-game
+time (`CurrentHour`, `DayCount`) a **persisted global artifact**,
+because once darkness gates gameplay a restart to hour-0 night
+would black out the world. At boot the clock seeds its state
+from the saved value when present, and falls back to the §3.5
+initial state (hour 0, day 0) when absent or unreadable — so a
+fresh world still cold-starts deterministically. Sub-hour
+position need not be preserved. See `light-and-darkness.md` §7
+for the persistence contract and acceptance criteria.
 
 **Acceptance criteria**
 
@@ -440,12 +448,14 @@ this spec.
 
 ## 8. Open questions / future work
 
-- **In-game time is not persisted.** Every restart begins at
-  hour 0, day 0. Players who depend on time-of-day mechanics
-  (nocturnal mob spawns, shop opening hours) effectively
-  reset their world's clock on every restart. Persistence of
-  `CurrentHour` and `DayCount` alongside player saves would
-  be straightforward.
+- **In-game time persistence — RESOLVED.** Originally every
+  restart began at hour 0, day 0. Resolved by
+  [light-and-darkness](light-and-darkness.md) §7: `CurrentHour`
+  and `DayCount` are persisted as a global artifact and restored
+  at boot (cold-starting at the §3.5 initial state only when no
+  saved time exists). This stops a restart from resetting
+  time-of-day mechanics (and, once darkness gates gameplay,
+  from blacking out the world).
 - **`TickTimer` lag relative to `GameLoop.TickCount`.** When
   the tick-timer handler hasn't run yet on the current tick,
   `TickTimer.CurrentTick` reads as `GameLoop.TickCount - 1`.

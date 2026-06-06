@@ -61,6 +61,7 @@ go straight into a milestone.
 | **Faction / standing** | **faction §2–§8** (new) | per-character signed standing per content-defined faction; generalizes alignment's architecture (`progression §6`) to N axes as a **parallel sibling** — alignment untouched, no v1 interaction. Linear per-player (no opposition ripple in v1). Named ranks → rank tags, bounded combined history, cancellable `faction.shift.check`→`shifted`→`rank.changed`, admin-immune shift, `ResolveRanks` gating helper. Earn via quest rewards + faction-mob kills. New Faction registry + player-save `faction_standing` bag (version bump). Consumers (disposition/abilities/rooms/shops/quests) adopt the helper as they're wired |
 | **Biomes** | **biomes §2–§6** (new) + designed with gathering | **richer terrain, one axis**: promote the existing room `terrain` property into a registered Biome definition (backward-compatible — unregistered terrain = today's behavior). Generalizes `world-rooms-movement §6.4` hardcoded shielding into biome metadata; adds idle biome ambience (new tick), an optional mob spawn table (additive to area spawns), and the forage/node resource tables gathering consumes. New Biome registry; nothing persists |
 | **Gathering** (forage + nodes) | **gathering §2–§8** (new) + designed with biomes | the non-vendor ingredient source `crafting §8` wants. Ships **both** models: ambient `forage` (rolls room biome's resource table) + discrete respawning `harvest` nodes (reuse spawn scheduler). Single gathering proficiency (use-based gain), rarity-tier quality roll (mirrors `crafting §5`). **Permissive** (friction lowers quality, only tool-gated nodes refuse) + **scarce** (forage cooldown, node charges+respawn) per `crafting §8`. Cancellable `resource.gathering`; `resource.gathered` quest hook. Node/forage state transient (no save); proficiency rides existing surface |
+| **Light & darkness** | **light-and-darkness §2–§9** (new) + design `proposals/light-and-darkness.md` | per-viewer effective light `{black,gloom,dim,lit}` = `max(time-of-day ambient · terrain sky-gate, room `light` override, lit source items, darkvision floor)`; night≠black, `underground`=black (PD-1/2/6). **Real friction** (PD-3): obscured/suppressed room render, blocked `look`/read, combat to-hit penalty, movement risk + an **escape invariant**. Source items = `light` property + lit/extinguish verbs + a held slot + fuel burn (reuses the `economy-survival §4.4` drain shape). Period-change **transitions** felt by occupants. **Persists in-game time** (global artifact, PD-7) — resolves `time-and-clock §3.6`. Almost all substrate shipped (gameclock, `Room.Terrain`/`isShielded`, property bag, slots, drain template, per-viewer `RenderRoom`). **Supersedes the minimal light model the Visibility row sketches** (`visibility §7`); coordinate the darkness-vs-concealment precedence (light-and-darkness §12). Phase 0 = resolver + render gate |
 | **Room coordinates** | **room-coordinates §2–§10** (new) | area-local integer `(x,y,z)` **derived from the exit graph** at load, **derive-by-default with a per-room `coord:` override/pin** for non-Euclidean spaces (PD-1, hybrid). Per-area grid seeded from pins (or a default anchor); BFS over intra-area cardinal/vertical exits applies fixed deltas; pins are ground truth the walk derives around. Coordinates are **stable** (viewer-independent, PD-7) so Mudlet's persistent mapper sees one fixed cell per room; the ASCII map recenters at render time. Collisions / non-square loops / unreachable rooms are **non-fatal load warnings** (PD-4). Adds the coordinate to `Room.Info` (omitted when unplaced) — exact wire shape pinned against a live Mudlet client. No movement change (PD-3); pin is content, no save change. Substrate ahead of its consumers (Mudlet mapper, telnet `map` verb — see §2) |
 
 ---
@@ -223,29 +224,6 @@ old five-theme partition left uncovered.
   pruning; the secret-exit-in-a-visited-room leak (coordinate with visibility/hidden-exits);
   the Mudlet GMCP wire shape (pin against a live client). Suggested phasing:
   `room-coordinates` → fog-of-war visited-set + hook → ASCII renderer → Mudlet GMCP.
-- **Light & darkness (graded light level + real friction)** — make the existing
-  day/night cycle *matter*; proposal at `docs/proposals/light-and-darkness.md`. Today
-  the `gameclock` periods (`time-and-clock` §3, shipped M15.4b) drive **only** the
-  colored weather/time ambience lines — nothing else reacts to time, and a sealed crypt
-  is as visible as a sunlit square. Shape: a per-viewer **light resolver**
-  `effectiveLight(room, viewer) → {0 black,1 gloom,2 dim,3 lit}` that `max`-combines
-  time-of-day ambient (night≠black), the terrain sky-gate (`Room.Terrain` + `isShielded`
-  — `underground`=black), a per-room `light` override property, carried/equipped lit
-  **source items** (torch/lantern, fuel-burn reusing the `sustenance-drain` tick model +
-  a held slot), and a per-viewer darkvision floor (race/effect). Gates at the per-viewer
-  `RenderRoom` chokepoint (already extended for `hostile`) plus combat/look/move reactors.
-  **Decided (proposal PD-1…7):** graded scale not a flag; **real friction, not atmosphere**
-  (withheld room info, blocked `look`, combat to-hit penalty, configurable move-risk —
-  proposal §5); per-viewer; sources are item properties; **the restart-darkness problem is
-  in scope** (gameclock resets to hour-0 night and isn't persisted — forces a
-  `time-and-clock` §3.6 persistence decision). Risks: content-migration (every `underground`
-  room goes black unless audited; fail *safe*=lit), the trap-potential escape-invariant
-  (exits survive gloom; movement defaults to stumble), and visibility-spec precedence
-  (darkness vs. concealment compose). Open sub-decisions (proposal §11): restart fix
-  (persist game-time vs. boot-at-midday), move stumble-vs-block, combat penalty shape,
-  occupant-hiding granularity, light-slot contention, darkvision floor-vs-cap. Suggested
-  phasing: model+render gate (Phase 0, pure presentation over existing data) → sources+fuel
-  → combat/look/darkvision teeth → nocturnal-mob reactivity. Needs a spec slice.
 - **Cross-cutting event catalog** — per-spec event tables exist in `specs/README.md`;
   no aggregated catalog. (Docs/meta, not engine — not a behavior spec.)
 
