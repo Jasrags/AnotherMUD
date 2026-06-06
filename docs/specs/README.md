@@ -290,9 +290,12 @@ Each spec calls out what it persists. The aggregate view:
 - **Channel files** — global per-channel ring buffer of recent
   messages, shared scrollback across all players; lives under
   `saves/channels/`; see [chat-channels-and-tells](chat-channels-and-tells.md) §4.
-- **Game-time** *(spec; build pending)* — global in-game clock
-  (`CurrentHour`, `DayCount`), one per world, restored at boot so a
-  restart resumes the time-of-day instead of resetting to night; see
+- **Game-time** — global in-game clock (`CurrentHour`, `DayCount`),
+  one per world, written to `saves/clock.yaml` (atomic, flushed on
+  every in-game hour advance and at clean shutdown) and restored at
+  boot so a restart resumes the time-of-day instead of resetting to
+  night. Sub-hour position is not preserved; missing/corrupt time
+  cold-starts at hour 0, day 0. Not part of any player save. See
   [light-and-darkness](light-and-darkness.md) §7 (resolving
   [time-and-clock](time-and-clock.md) §3.6).
 - **Connection records** — content-defined, loaded by the pack

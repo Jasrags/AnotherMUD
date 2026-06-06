@@ -60,7 +60,7 @@ Specs are layered bottom-up. **The reading order in `docs/specs/README.md` is ca
 
 - **Cancellable events table** — which specs emit which cancellable bus events.
 - **Registry table** — pack-loaded content registries in roughly the order packs touch them at load time.
-- **Save/load surface** — what's in account vs. player vs. sibling files (quest, notifications, chat-subscriptions) vs. global stores (channel scrollback; spec-pending: the auction listing store + the trade audit log); what is deliberately *not* persisted (sessions, in-game time, weather, link-dead state, mob spawn tracking, temporary exits, active effects, rest state, direct-trade sessions).
+- **Save/load surface** — what's in account vs. player vs. sibling files (quest, notifications, chat-subscriptions) vs. global stores (channel scrollback, **in-game time** at `saves/clock.yaml`; spec-pending: the auction listing store + the trade audit log); what is deliberately *not* persisted (sessions, weather, link-dead state, mob spawn tracking, temporary exits, active effects, rest state, direct-trade sessions).
 - **Tick handlers table** — canonical scheduler entries with cadences (tick = 100 ms by default; cadence 10 = 1 s, 300 = 30 s).
 
 When touching any spec, check whether these tables in the README also need updating.
@@ -82,7 +82,7 @@ Specs are **behavior-only**: no specific numeric values, library names, or imple
 The README's open-question summary tracks issues that recur across specs — flag these when relevant:
 
 - Hardcoded magic values not yet externalized (cap tiers, flee cooldown, sustenance cap, Lua sandbox limits, engine namespace)
-- Persistence gaps — still unbuilt in code: weather, link-dead-across-restart, active effects, temporary exits, rest state. (In-game time is now **specced to persist** — light-and-darkness §7, resolving time-and-clock §3.6 — but the build is still pending.)
+- Persistence gaps — still unbuilt in code: weather, link-dead-across-restart, active effects, temporary exits, rest state. (In-game time **now persists** — `internal/gameclock/store.go` → `saves/clock.yaml`, seeded at boot, flushed on hour advance + clean shutdown; light-and-darkness §7, resolving time-and-clock §3.6.)
 - Pack load order relies on alphabetical discovery — no topological sort over declared dependencies yet
 - Ad-hoc staleness guards (session takeover, combat death) rather than a general event-versioning primitive
 - **Role enforcement — LANDED.** `roles-and-permissions` (flat `HasRole`) + `admin-verbs` are implemented and enforcing: admin commands gate on `HasRole(adminRole)` in the command registry, with live `grant`/`revoke` verbs and role-change events. No longer a gap — downstream gates (e.g. auction moderation) can rely on it.

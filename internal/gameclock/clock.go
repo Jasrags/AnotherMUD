@@ -13,8 +13,11 @@
 // "game-clock" tick handler per spec §4.2) lands in M15.4b₂
 // alongside the weather subscriber binding.
 //
-// Persistence: deliberately none (spec §3.6). Every restart begins
-// at hour 0, day 0. Listed as an open question in the spec.
+// Persistence: the state machine is seedable (Config.InitialHour /
+// InitialDay) and exposes Snapshot for a caller to persist; the
+// global on-disk store lives in store.go (light-and-darkness §7,
+// resolving time-and-clock §3.6). Sub-hour position is not
+// preserved — a restart resumes at the start of the saved hour.
 package gameclock
 
 import (
@@ -68,10 +71,19 @@ const DefaultTicksPerGameHour = 600
 //
 // Bus is optional (nil-safe) so tests that only exercise the
 // state machine can omit it.
+//
+// InitialHour / InitialDay seed the clock at boot from persisted
+// time (light-and-darkness §7). Both default to zero (the spec
+// §3.5 cold-start state). InitialHour outside [0,23] is clamped to
+// 0 — New does not panic on it, because a corrupt saved value
+// should degrade to a deterministic cold start, not crash the
+// server. The period is computed from the seeded hour.
 type Config struct {
 	TicksPerGameHour int
 	PeriodBoundaries [4]int
 	Bus              *eventbus.Bus
+	InitialHour      int
+	InitialDay       uint64
 }
 
 // Clock is the in-game hour/day state machine (spec §3).
@@ -108,12 +120,18 @@ func New(cfg Config) *Clock {
 	if bounds == ([4]int{}) {
 		bounds = DefaultPeriodBoundaries
 	}
+	hour := cfg.InitialHour
+	if hour < 0 || hour > 23 {
+		hour = 0
+	}
 	c := &Clock{
+		currentHour:      hour,
+		dayCount:         cfg.InitialDay,
 		ticksPerGameHour: tpg,
 		boundaries:       bounds,
 		bus:              cfg.Bus,
 	}
-	c.currentPeriod = periodFor(0, bounds)
+	c.currentPeriod = periodFor(hour, bounds)
 	return c
 }
 
@@ -196,6 +214,16 @@ func (c *Clock) DayCount() uint64 {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	return c.dayCount
+}
+
+// Snapshot returns the persistable time state (hour + day) under a
+// single lock, so a caller writing it to disk gets a consistent
+// pair rather than racing two accessors. Sub-hour position is
+// deliberately not included (light-and-darkness §7).
+func (c *Clock) Snapshot() SavedTime {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return SavedTime{CurrentHour: c.currentHour, DayCount: c.dayCount}
 }
 
 // CurrentPeriod returns the lowercased period name covering the

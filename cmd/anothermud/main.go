@@ -626,12 +626,36 @@ func run() error {
 		}
 		weatherSvc.PeriodChanged(ctx, pc.Period)
 	})
-	gameClock := gameclock.New(gameclock.Config{Bus: bus})
+	// In-game time persistence (light-and-darkness §7, resolving
+	// time-and-clock §3.6): seed the clock from the global saved time
+	// when present, else cold-start at the documented initial state.
+	// Because darkness now gates gameplay, a restart must not reset the
+	// world to night.
+	clockStore := gameclock.NewStore(cfg.SaveDir)
+	clockCfg := gameclock.Config{Bus: bus}
+	if saved, ok := clockStore.Load(ctx); ok {
+		clockCfg.InitialHour = saved.CurrentHour
+		clockCfg.InitialDay = saved.DayCount
+	}
+	gameClock := gameclock.New(clockCfg)
 	if err := loop.Register("game-clock", 1, func(ctx context.Context, _ uint64) {
 		gameClock.Tick(ctx)
 	}); err != nil {
 		return fmt.Errorf("register game-clock tick: %w", err)
 	}
+	// Flush the clock on every hour advance — the saved-time write
+	// cadence (§7). This bounds loss on an unclean shutdown to at most
+	// one in-game hour; a clean shutdown flushes the current time
+	// below. Sub-hour position is intentionally not persisted.
+	bus.Subscribe(eventbus.EventTimeHourChange, func(ctx context.Context, ev eventbus.Event) {
+		if _, ok := ev.(eventbus.TimeHourChange); !ok {
+			return
+		}
+		if err := clockStore.Save(gameClock.Snapshot()); err != nil {
+			logging.From(ctx).Warn("gameclock.save: hour-advance flush failed",
+				slog.String("err", err.Error()))
+		}
+	})
 
 	// Combat manager (spec combat §2, M7.2). Locator dispatches on the
 	// CombatantID prefix: mob: → entities.Store, player: →
@@ -1763,6 +1787,12 @@ func run() error {
 	flushCtx, cancelFlush := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)
 	mgr.SaveAll(flushCtx)
 	notifMgr.SaveAll(flushCtx)
+	// Commit the current in-game time so a clean shutdown loses no
+	// sub-hour remainder beyond the start of the current hour (§7).
+	if err := clockStore.Save(gameClock.Snapshot()); err != nil {
+		logging.From(flushCtx).Warn("gameclock.save: shutdown flush failed",
+			slog.String("err", err.Error()))
+	}
 	cancelFlush()
 
 	wg.Wait()
