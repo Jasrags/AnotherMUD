@@ -225,6 +225,88 @@ old five-theme partition left uncovered.
   pruning; the secret-exit-in-a-visited-room leak (coordinate with visibility/hidden-exits);
   the Mudlet GMCP wire shape (pin against a live client). Suggested phasing:
   `room-coordinates` → fog-of-war visited-set + hook → ASCII renderer → Mudlet GMCP.
+- **Feature-module system (code-level feature packaging)** — a registration seam that
+  lets a *gameplay feature's code* (its commands + event listeners + scripting functions
+  + data + lifecycle hooks) live in one self-contained directory and wire itself in,
+  instead of being woven through `internal/`. ⚠️ **Greenfield — architectural; needs a
+  design pass before a spec.** **Design draft:** [`docs/proposals/feature-module-system.md`](proposals/feature-module-system.md)
+  (recommends compiled-in + manifest-gated modules — config-toggle, one static binary —
+  over GoMud's recompile-to-enable; central open fork is the enable/disable model).
+  Reference: **GoMud's plugin system** (`internal/plugins`),
+  which bundles each feature (auction, mail, fishing, …) as a Go package whose `init()`
+  calls `plugins.New(name, ver)` then `AddUserCommand`/`RegisterListener`/
+  `AddScriptingFunction`/`AttachFileSystem`/`Requires` — one seam, every extension point.
+  Today AnotherMUD has the *data* half of this (content packs: `content/<pack>/`, data +
+  Lua, hot-reloadable, dependency-aware-ish) but **no code half** — every Go feature is
+  compiled into `internal/…` and wired by hand at the composition root (`cmd/anothermud/
+  main.go` registers each command, tick handler, and service inline; ~470 lines of
+  wiring). The substrate a module seam would compose is **all already present and clean**:
+  `command.Registry.RegisterCommand` (typed-arg commands, M17.2), the cancellable
+  `eventbus`, the sandboxed `scripting` runtime + registry, the `pack` loader (data +
+  dependency order), and `srckey`/registries. The new piece is the **`Module` contract**
+  itself — a thing with a name/version, declared dependencies, and a single `Register(deps)`
+  method that owns its commands/listeners/script-fns/data — plus a registry that orders and
+  wires modules at boot. **Do NOT copy GoMud's enable-by-recompile model** (`go generate`
+  blank imports + rebuild is not runtime modularity; our packs already beat it for the data
+  half) **nor its `init()`-with-package-globals style** (fights our ctx-first + immutability
+  conventions and the event-versioning discipline). The interesting design question is
+  whether modules are **compiled-in but config/manifest-gated** (one binary, a manifest
+  enables/disables features at boot — realistic for Go) vs. a fuller plugin story.
+  Pre-decisions: the `Module` interface shape (constructor-injected deps vs. a context
+  object); enable/disable model (manifest-gated boot vs. always-on); does a module own a
+  content sub-pack or stay code-only; inter-module dependency declaration + load order
+  (we'd want the topological sort the pack loader still lacks — shared fix); how a module
+  contributes to persistence (save-surface ownership) and to GMCP. Big seam; gate behind a
+  design conversation. **If pursued, it reshapes how every §2 gameplay system below is
+  delivered** — each becomes a module rather than another graft into `internal/`.
+- **Web admin console + per-feature REST API** — a browser-facing admin/ops surface
+  (config viewer/editor, live-state inspection, per-feature management pages) plus a small
+  REST API, with role/permission gating. ⚠️ **Greenfield — no web admin layer exists.**
+  Today the only HTTP in the tree is the **WebSocket game transport** (`internal/server/
+  wshandler.go`, `internal/conn/ws`) — there is no admin web server, no HTML, no REST.
+  Admin happens entirely **in-game** via the admin-verb framework (M19.4: `inspect`,
+  `set property`, `restore`, `teleport`, `purge`, `announce`, `grant`/`revoke`) gated on
+  `HasRole(adminRole)` (roles-and-permissions, landed + enforcing). Reference: every GoMud
+  module ships its own admin page + `AdminAPIEndpoint(method, slug, handler, permKey)` with
+  per-endpoint permission keys — a clean pattern, but it presumes their plugin seam. For us
+  this is most coherent **after (or alongside) the feature-module system** above: an admin
+  surface that auto-discovers per-module pages is the natural payoff of that seam, and the
+  existing role gate is the authorization model to reuse. Pre-decisions: is this an
+  operator tool (config/metrics/inspection — overlaps **Ops §4**) or a player-facing web
+  surface (leaderboards, help — overlaps GoMud's `webhelp`/`leaderboards`); embed in the
+  game binary vs. a sidecar; session/auth model for the web (reuse account bcrypt store?);
+  and the CSP/headers/CSRF posture from the web security rules. Could start tiny —
+  read-only config + live `who`/room inspection over the WS port's HTTP mux — and grow.
+- **Gameplay modules ported from GoMud (greenfield feature cluster)** — GoMud's module
+  catalog surfaces several **genuinely-new** gameplay systems we have no spec or code for
+  (the overlapping ones — auction, mail, storage/banking, party/follow, fast-travel,
+  in-game time — are already tracked above or shipped). ⚠️ **Each is greenfield and needs
+  its own spec slice; listed here as a clustered candidate pool, not a committed slice.**
+  Best delivered *as modules* if the feature-module seam above lands first.
+    - **Minigames / gambling** (GoMud `gambling`) — room-tag-activated games (slots, claw)
+      with persistent jackpots; a gold sink. Touches economy (currency, M11.1), room tags,
+      and item scripting (Lua). Pre-decision: pure-chance vs. skill; jackpot funding source.
+    - **Fishing / activity minigames** (GoMud `fishing`) — turn-based catch loop with catch
+      tables + a skill modifier. **Strong overlap with the specced Gathering loop (§1)** —
+      likely a *flavor variant of `harvest`* (water node + catch table + tool) rather than a
+      separate system. Fold into the gathering design rather than spec'ing standalone.
+    - **Leaderboards** (GoMud `leaderboards`) — server-wide rankings across categories
+      (level, kills, gold, …), fed by existing events (`LevelUp`, `MobDeath`, `GainExperience`
+      analogues all exist on our bus). In-game `leaderboard` verb is straightforward;
+      a public web page wants the web-admin layer above. Pre-decision: which categories;
+      persistence (a global store like channel scrollback) + reset/season semantics.
+    - **AFK automation** (GoMud `zombiemode`) — player-configured auto-combat/loot/roam for
+      idle characters. ⚠️ Design-sensitive: interacts with idle/link-dead handling
+      (session-lifecycle), combat fairness, and the economy (unattended farming). Likely
+      *not* desirable without a deliberate decision; recorded for completeness.
+    - **Multiple characters per account** (GoMud `alt-characters`) — N characters under one
+      account with a swap verb + slot cap. We have the account↔player split already
+      (`account` store → `player` saves), so the substrate is close; the new pieces are an
+      account→characters index, a slot cap, and a `CharacterChanged`-style event. Pairs
+      naturally with **Banking (§2, account-shared vault)** and **party/grouping (§2)**.
+    - **Player governance / elections** (GoMud `elections`) — zone-level campaigns, voting,
+      elected roles with gated access + a zone treasury. Large, setting-heavy; wants
+      **faction (§1)** and roles as substrate. Long-tail candidate.
 - **Cross-cutting event catalog** — per-spec event tables exist in `specs/README.md`;
   no aggregated catalog. (Docs/meta, not engine — not a behavior spec.)
 
@@ -277,6 +359,7 @@ need a design pass first.
 | **Gameplay Systems** | hireable mobs | no port reference; needs pre-decisions before a spec. (Visibility, hidden exits, faction, biomes, and gathering are now **specced** and moved to §1; hireable mobs is best designed alongside/after grouping.) |
 | **Player Economy depth** | mail (push delivery / attachment escrow), banking + a gold-at-risk rule | extends the now-specced trade; banking wants gold-at-risk to matter |
 | **OLC (online creation)** | in-game world building — `redit`/`medit`/`oedit`/`aedit` for builders | collides with the boot-immutable, file-authored content model; needs the source-of-truth + runtime-mutable-registry pre-decisions first |
+| **Feature-module system** | code-level feature packaging + web admin console; reshapes how the gameplay-module cluster (gambling, leaderboards, alt-characters, …) ships | architectural — `Module` contract + enable/disable model are pre-decisions; the runtime substrate (commands/events/scripting/packs) already exists. GoMud's plugin system is the reference |
 
 **Background:** **Ops** (§4) — container/metrics/traces/dashboards/repo-hygiene; never a foreground theme.
 

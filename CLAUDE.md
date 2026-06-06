@@ -83,7 +83,7 @@ The README's open-question summary tracks issues that recur across specs — fla
 
 - Hardcoded magic values not yet externalized (cap tiers, flee cooldown, sustenance cap, Lua sandbox limits, engine namespace)
 - Persistence gaps — still unbuilt in code: weather, link-dead-across-restart, active effects, temporary exits, rest state. (In-game time **now persists** — `internal/gameclock/store.go` → `saves/clock.yaml`, seeded at boot, flushed on hour advance + clean shutdown; light-and-darkness §7, resolving time-and-clock §3.6.)
-- Pack load order relies on alphabetical discovery — no topological sort over declared dependencies yet
+- Pack load order is dependency-ordered: `internal/pack/order.go` runs Kahn's-algorithm topological sort (alphabetical tie-breaks, `ErrCycle`/`ErrUnknownDep`), wired into `pack.Load` (loader.go). (Was an open gap; resolved — verified 2026-06-06.)
 - Ad-hoc staleness guards (session takeover, combat death) rather than a general event-versioning primitive
 - **Role enforcement — LANDED.** `roles-and-permissions` (flat `HasRole`) + `admin-verbs` are implemented and enforcing: admin commands gate on `HasRole(adminRole)` in the command registry, with live `grant`/`revoke` verbs and role-change events. No longer a gap — downstream gates (e.g. auction moderation) can rely on it.
 - Unbounded growth in render cache, bad-input tracker, notification queues
