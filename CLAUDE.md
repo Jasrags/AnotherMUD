@@ -82,7 +82,7 @@ Specs are **behavior-only**: no specific numeric values, library names, or imple
 The README's open-question summary tracks issues that recur across specs — flag these when relevant:
 
 - Hardcoded magic values not yet externalized (cap tiers, flee cooldown, sustenance cap, Lua sandbox limits, engine namespace)
-- Persistence gaps (in-game time, weather, link-dead-across-restart, active effects, temporary exits, rest state)
+- Persistence gaps — still unbuilt in code: weather, link-dead-across-restart, active effects, temporary exits, rest state. (In-game time is now **specced to persist** — light-and-darkness §7, resolving time-and-clock §3.6 — but the build is still pending.)
 - Pack load order relies on alphabetical discovery — no topological sort over declared dependencies yet
 - Ad-hoc staleness guards (session takeover, combat death) rather than a general event-versioning primitive
 - **Role enforcement — LANDED.** `roles-and-permissions` (flat `HasRole`) + `admin-verbs` are implemented and enforcing: admin commands gate on `HasRole(adminRole)` in the command registry, with live `grant`/`revoke` verbs and role-change events. No longer a gap — downstream gates (e.g. auction moderation) can rely on it.
