@@ -4,38 +4,24 @@ import (
 	"github.com/Jasrags/AnotherMUD/internal/world"
 )
 
-// Terrain classifiers the engine knows about. Empty terrain on a
-// room is treated as `outdoors` (spec §6.4 "The default terrain
-// (when no property is set) is `outdoors`"). Two specific values
-// SHIELD the room from ambience delivery unless the matching
-// exposure flag is flipped.
+// Terrain classifiers the engine knows about. The canonical
+// definitions live in package world (world.TerrainOf / IsShielded)
+// now that light-and-darkness also keys off terrain; these aliases
+// preserve weather's existing public surface (and its content tests)
+// while pointing at the one shared source of truth. Spec §6.4 default:
+// empty terrain → outdoors; `indoors`/`underground` shield from
+// sky-driven ambience unless the matching exposure flag is set.
 const (
-	TerrainOutdoors    = "outdoors"
-	TerrainIndoors     = "indoors"
-	TerrainUnderground = "underground"
+	TerrainOutdoors    = world.TerrainOutdoors
+	TerrainIndoors     = world.TerrainIndoors
+	TerrainUnderground = world.TerrainUnderground
 )
 
-// terrainOf returns the effective terrain string for r, applying
-// the empty → outdoors default. Centralised so the cascade
-// resolver and the eligibility gate agree on the fallback.
-func terrainOf(r *world.Room) string {
-	if r == nil || r.Terrain == "" {
-		return TerrainOutdoors
-	}
-	return r.Terrain
-}
+// terrainOf / isShielded delegate to the world classifier so the
+// weather cascade and the light sky-gate cannot drift apart.
+func terrainOf(r *world.Room) string { return world.TerrainOf(r) }
 
-// isShielded reports whether r's terrain is one of the engine's
-// two shielding classifiers. Per spec §6.4, shielded rooms only
-// receive ambience messages when their exposure flag is set.
-func isShielded(r *world.Room) bool {
-	switch terrainOf(r) {
-	case TerrainIndoors, TerrainUnderground:
-		return true
-	default:
-		return false
-	}
-}
+func isShielded(r *world.Room) bool { return world.IsShielded(r) }
 
 // weatherEligible implements §6.4 for the weather path. An
 // unshielded room is always eligible; a shielded room needs

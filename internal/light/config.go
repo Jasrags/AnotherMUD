@@ -1,0 +1,70 @@
+package light
+
+import "github.com/Jasrags/AnotherMUD/internal/gameclock"
+
+// Config holds the externally-tunable light policy (spec §11). None of
+// these magnitudes are fixed by the spec; DefaultConfig supplies the
+// documented starting point and the composition root may override.
+type Config struct {
+	// AmbientByPeriod maps a time-of-day period (gameclock period
+	// names) to the sky's ambient level. Per §2.2 ambient is NEVER
+	// black — AmbientFor floors any entry (and any unknown period) at
+	// Gloom, the darkest natural sky.
+	AmbientByPeriod map[string]Level
+	// IndoorCap is the ceiling on ambient reaching an `indoors` room
+	// (windows let some sky through, §2.3).
+	IndoorCap Level
+	// DarkvisionFloor is the per-viewer minimum a darkvision race
+	// sees in any room; DarkvisionCap bounds how bright darkvision
+	// alone can make a room (monochrome/shape-only, never daylight —
+	// §4). Floor ≤ Cap.
+	DarkvisionFloor Level
+	DarkvisionCap   Level
+}
+
+// DefaultConfig is the spec's documented starting point: full daylight,
+// twilight one rung down, night at the gloom floor; an indoor cap of
+// dim; darkvision floored and capped at gloom.
+func DefaultConfig() Config {
+	return Config{
+		AmbientByPeriod: map[string]Level{
+			gameclock.PeriodDay:   Lit,
+			gameclock.PeriodDawn:  Dim,
+			gameclock.PeriodDusk:  Dim,
+			gameclock.PeriodNight: Gloom,
+		},
+		IndoorCap:       Dim,
+		DarkvisionFloor: Gloom,
+		DarkvisionCap:   Gloom,
+	}
+}
+
+// AmbientFor returns the sky's ambient level for the given period,
+// enforcing the §2.2 invariant that ambient is never black: a
+// configured-below-gloom entry, or an unknown period, both floor at
+// Gloom. An unknown period failing safe to Gloom (not Black) keeps the
+// "night ≠ black" guarantee even if the clock emits a period the
+// config forgot.
+func (c Config) AmbientFor(period string) Level {
+	lvl, ok := c.AmbientByPeriod[period]
+	if !ok || lvl < Gloom {
+		return Gloom
+	}
+	return clamp(lvl)
+}
+
+// DarkvisionViewerFloor returns the per-viewer floor a darkvision
+// viewer gets (DarkvisionFloor clamped down to DarkvisionCap), or
+// Black when the viewer has no darkvision. Kept on Config so the
+// floor/cap policy lives in one place; the viewer's darkvision flag is
+// read by the caller (§4).
+func (c Config) DarkvisionViewerFloor(hasDarkvision bool) Level {
+	if !hasDarkvision {
+		return Black
+	}
+	floor := c.DarkvisionFloor
+	if floor > c.DarkvisionCap {
+		floor = c.DarkvisionCap
+	}
+	return clamp(floor)
+}

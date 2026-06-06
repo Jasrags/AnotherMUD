@@ -3392,6 +3392,13 @@ func registerEngineBaselineProperties(reg *property.Registry) error {
 			AppliesTo:     []string{"item"},
 			AdminSettable: true, // M20.5: admins can set an item's essence via `set property`
 		},
+		{
+			Name:          "light",
+			Type:          property.TypeString,
+			Description:   "Room light override level (black/gloom/dim/lit); floors+ceilings ambient (spec light-and-darkness §2.4/§9).",
+			AppliesTo:     []string{"room"},
+			AdminSettable: true, // admins can repin a room's light at runtime for testing
+		},
 	}
 	for _, e := range baseline {
 		if err := reg.RegisterEngine(e); err != nil {
