@@ -50,6 +50,16 @@ func (r *Resolver) Effective(room *world.Room, sources, viewerFloor Level) Level
 	if r.clock != nil {
 		period = r.clock.CurrentPeriod()
 	}
+	return r.EffectiveForPeriod(room, sources, viewerFloor, period)
+}
+
+// EffectiveForPeriod is Effective with an explicit time-of-day period
+// instead of the clock's current one. The §6 transition driver uses it
+// to compute a viewer's level under the previous period vs. the new one
+// and message only when the level crosses. All non-ambient terms
+// (sources, override, terrain, viewer floor) are period-independent, so
+// the period is the only thing that differs between the two calls.
+func (r *Resolver) EffectiveForPeriod(room *world.Room, sources, viewerFloor Level, period string) Level {
 	var override *Level
 	if lvl, ok := OverrideFor(room); ok {
 		override = &lvl

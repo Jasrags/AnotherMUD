@@ -9,6 +9,7 @@ import (
 	"sync"
 
 	"github.com/Jasrags/AnotherMUD/internal/combat"
+	"github.com/Jasrags/AnotherMUD/internal/command"
 	"github.com/Jasrags/AnotherMUD/internal/economy"
 	"github.com/Jasrags/AnotherMUD/internal/entities"
 	"github.com/Jasrags/AnotherMUD/internal/eventbus"
@@ -745,6 +746,68 @@ func (m *Manager) BurnFuel(ctx context.Context, cfg light.FuelConfig, store *ent
 					HolderID: entities.EntityID(a.PlayerID()),
 					RoomID:   roomID,
 				})
+			}
+		}
+	}
+}
+
+// RoomSource is the minimal world lookup the light-transition driver
+// needs: resolve a room id to its *world.Room. *world.World satisfies it.
+type RoomSource interface {
+	Room(id world.RoomID) (*world.Room, error)
+}
+
+// Light-transition messages (light-and-darkness §6). Hardcoded for v1;
+// per-direction / per-crossing configurability (§6/§11) is deferred.
+const (
+	lightDarkenText   = "<subtle>The light fades and shadows close in around you.</subtle>"
+	lightBrightenText = "<subtle>The light grows; the world brightens around you.</subtle>"
+)
+
+// LightTransitions notifies players whose effective light level crosses
+// when the day/night period changes (light-and-darkness §6). For each
+// occupied room it recomputes each player's level under the previous
+// and new period (per-viewer: a darkvision viewer or torch-bearer may
+// feel no transition a bare human does) and sends a darkening or
+// brightening line only when the level actually crosses. A period change
+// that does not move a viewer's level is silent for them; an empty room
+// notifies no one. No-op when resolver or rooms is nil, or the periods
+// match.
+func (m *Manager) LightTransitions(ctx context.Context, resolver *light.Resolver, rooms RoomSource, items *entities.Store, placement *entities.Placement, prevPeriod, newPeriod string) {
+	if resolver == nil || rooms == nil || prevPeriod == newPeriod {
+		return
+	}
+	// Snapshot the occupied-room → actors map under the lock; the
+	// per-viewer resolves + Writes happen outside it.
+	m.mu.RLock()
+	byRoom := make(map[world.RoomID][]*connActor, len(m.byRoom))
+	for roomID, actors := range m.byRoom {
+		if len(actors) == 0 {
+			continue
+		}
+		list := make([]*connActor, 0, len(actors))
+		for _, a := range actors {
+			list = append(list, a)
+		}
+		byRoom[roomID] = list
+	}
+	m.mu.RUnlock()
+
+	for roomID, actors := range byRoom {
+		room, err := rooms.Room(roomID)
+		if err != nil || room == nil {
+			continue
+		}
+		for _, a := range actors {
+			before := command.EffectiveLightForPeriod(resolver, room, a, items, placement, prevPeriod)
+			after := command.EffectiveLightForPeriod(resolver, room, a, items, placement, newPeriod)
+			if before == after {
+				continue
+			}
+			if after < before {
+				_ = a.Write(ctx, lightDarkenText)
+			} else {
+				_ = a.Write(ctx, lightBrightenText)
 			}
 		}
 	}

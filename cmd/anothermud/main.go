@@ -672,6 +672,17 @@ func run() error {
 	// the in-game clock as its period source. Threaded into the session
 	// config so command.Env carries it.
 	lightResolver := light.NewResolver(light.DefaultConfig(), gameClock)
+	// Light transitions (§6): on a period boundary, notify players whose
+	// effective light level crosses (per-viewer, so torch-bearers and
+	// darkvision viewers feel only their own change). Shares the
+	// time.period.change seam with the weather time-ambience above.
+	bus.Subscribe(eventbus.EventTimePeriodChange, func(ctx context.Context, ev eventbus.Event) {
+		pc, ok := ev.(eventbus.TimePeriodChange)
+		if !ok {
+			return
+		}
+		mgr.LightTransitions(ctx, lightResolver, w, entityStore, placement, pc.PreviousPeriod, pc.Period)
+	})
 
 	// Combat manager (spec combat §2, M7.2). Locator dispatches on the
 	// CombatantID prefix: mob: → entities.Store, player: →

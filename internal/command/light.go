@@ -122,13 +122,33 @@ func EffectiveLight(resolver *light.Resolver, room *world.Room, viewer LightView
 	if resolver == nil || room == nil {
 		return light.Lit
 	}
-	sources := gatherRoomSources(viewer, room, items, placement)
+	sources, floor := viewerLightTerms(resolver, viewer, room, items, placement)
+	return resolver.Effective(room, sources, floor)
+}
+
+// EffectiveLightForPeriod is EffectiveLight resolved against an explicit
+// time-of-day period rather than the clock's current one — the §6
+// transition driver computes a viewer's level under the previous and
+// new periods with it. Returns light.Lit when the resolver is nil.
+func EffectiveLightForPeriod(resolver *light.Resolver, room *world.Room, viewer LightViewer, items *entities.Store, placement *entities.Placement, period string) light.Level {
+	if resolver == nil || room == nil {
+		return light.Lit
+	}
+	sources, floor := viewerLightTerms(resolver, viewer, room, items, placement)
+	return resolver.EffectiveForPeriod(room, sources, floor, period)
+}
+
+// viewerLightTerms gathers the per-viewer Sources and ViewerFloor terms
+// (held light + room luminous items; darkvision floor) shared by the
+// clock and period-explicit resolutions.
+func viewerLightTerms(resolver *light.Resolver, viewer LightViewer, room *world.Room, items *entities.Store, placement *entities.Placement) (sources, floor light.Level) {
+	sources = gatherRoomSources(viewer, room, items, placement)
 	hasDarkvision := false
 	if t, ok := viewer.(taggable); ok {
 		hasDarkvision = t.HasTag(light.DarkvisionFlag)
 	}
-	floor := resolver.Config().ViewerFloor(hasDarkvision, nil)
-	return resolver.Effective(room, sources, floor)
+	floor = resolver.Config().ViewerFloor(hasDarkvision, nil)
+	return sources, floor
 }
 
 // gatherRoomSources returns the brightest lit-source contribution for a
