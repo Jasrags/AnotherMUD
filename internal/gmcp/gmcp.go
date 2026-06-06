@@ -170,6 +170,12 @@ type CharVitals struct {
 //   - `details` is the room description text. Some clients render
 //     it in a side panel; others ignore it. Always emitted so
 //     Mudlet's room-tooltip layer has it.
+//   - `light` is the viewer's effective light level name (one of
+//     black / gloom / dim / lit, light-and-darkness §8). Per-viewer:
+//     two characters in the same room can receive different values
+//     (one holds a torch). Capable clients theme the viewport or swap
+//     a day/night map from it. Omitted when light is not wired (the
+//     room renders as fully lit).
 type RoomInfo struct {
 	Num      string            `json:"num"`
 	Name     string            `json:"name"`
@@ -178,6 +184,7 @@ type RoomInfo struct {
 	Keywords map[string]string `json:"keywords,omitempty"`
 	Terrain  string            `json:"terrain,omitempty"`
 	Details  string            `json:"details,omitempty"`
+	Light    string            `json:"light,omitempty"`
 }
 
 // CharItem is one entry in a Char.Items.List payload.

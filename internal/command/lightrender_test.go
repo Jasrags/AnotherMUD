@@ -209,3 +209,30 @@ func TestEffectiveLight_DarkvisionFloor(t *testing.T) {
 		t.Fatalf("underground + darkvision = %v, want Gloom", got)
 	}
 }
+
+func TestDaylight_ReportsPeriodAndLight(t *testing.T) {
+	store := entities.NewStore()
+	place := entities.NewPlacement()
+	cave := &world.Room{ID: "x:cave", Name: "Cave", Terrain: world.TerrainUnderground}
+	a := newTestActor(cave)
+	env := command.Env{Items: store, Placement: place, Light: newLightResolver(gameclock.PeriodNight)}
+
+	r := newRegistry(t)
+	dispatch(t, r, env, a, "daylight")
+	got := a.lastLine()
+	if !strings.Contains(got, "night") {
+		t.Fatalf("daylight should report the period, got %q", got)
+	}
+	if !strings.Contains(got, "pitch black") {
+		t.Fatalf("daylight in an unlit cave should report blackness, got %q", got)
+	}
+}
+
+func TestDaylight_NilResolverSteady(t *testing.T) {
+	a := newTestActor(&world.Room{ID: "x:road", Name: "Road"})
+	r := newRegistry(t)
+	dispatch(t, r, command.Env{}, a, "daylight")
+	if got := a.lastLine(); !strings.Contains(got, "steady") {
+		t.Fatalf("daylight with no resolver = %q, want the steady fallback", got)
+	}
+}

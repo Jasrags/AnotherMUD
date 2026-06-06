@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"log/slog"
 
+	"github.com/Jasrags/AnotherMUD/internal/command"
 	"github.com/Jasrags/AnotherMUD/internal/gmcp"
 	"github.com/Jasrags/AnotherMUD/internal/logging"
 	"github.com/Jasrags/AnotherMUD/internal/world"
@@ -39,6 +40,13 @@ func (a *connActor) sendGmcpRoomInfo(ctx context.Context, room *world.Room) {
 		return
 	}
 	payload := buildRoomInfoPayload(room)
+	// light-and-darkness §8: surface this viewer's effective light so a
+	// capable client can theme the viewport / swap a day-night map.
+	// Per-viewer (held light + darkvision), computed here where the
+	// actor is in hand. Omitted when the resolver is unwired.
+	if a.light != nil {
+		payload.Light = command.EffectiveLight(a.light, room, a, a.items, a.placement).String()
+	}
 	data, err := json.Marshal(payload)
 	if err != nil {
 		return

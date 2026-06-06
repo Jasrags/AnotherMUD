@@ -6,7 +6,10 @@ import (
 	"testing"
 
 	"github.com/Jasrags/AnotherMUD/internal/combat"
+	"github.com/Jasrags/AnotherMUD/internal/entities"
+	"github.com/Jasrags/AnotherMUD/internal/gameclock"
 	"github.com/Jasrags/AnotherMUD/internal/gmcp"
+	"github.com/Jasrags/AnotherMUD/internal/light"
 	"github.com/Jasrags/AnotherMUD/internal/player"
 	"github.com/Jasrags/AnotherMUD/internal/world"
 )
@@ -209,3 +212,54 @@ func TestSendGmcpRoomInfo_LandsOnSwappedConnAfterReattach(t *testing.T) {
 		t.Errorf("new conn received %d frames after swap, want 1", got)
 	}
 }
+
+func TestSendGmcpRoomInfo_CarriesEffectiveLight(t *testing.T) {
+	// Underground room with no light → the per-viewer level is black,
+	// and the Room.Info frame carries it (light-and-darkness §8).
+	room := &world.Room{ID: "x:cave", AreaID: "x", Name: "Cave", Terrain: world.TerrainUnderground}
+	a, fc := newRoomGmcpActor("p-1", room)
+	fc.setActive(true)
+	a.items = entities.NewStore()
+	a.placement = entities.NewPlacement()
+	a.light = light.NewResolver(light.DefaultConfig(), fixedClockPeriod(gameclock.PeriodDay))
+
+	a.sendGmcpRoomInfo(context.Background(), room)
+
+	frames := fc.framesSnapshot()
+	if len(frames) != 1 {
+		t.Fatalf("emitted %d frames, want 1", len(frames))
+	}
+	var got gmcp.RoomInfo
+	if err := json.Unmarshal(frames[0].payload, &got); err != nil {
+		t.Fatalf("payload unmarshal: %v", err)
+	}
+	if got.Light != "black" {
+		t.Fatalf("Room.Info light = %q, want black", got.Light)
+	}
+}
+
+func TestSendGmcpRoomInfo_OmitsLightWhenUnwired(t *testing.T) {
+	room := &world.Room{ID: "x:road", AreaID: "x", Name: "Road"}
+	a, fc := newRoomGmcpActor("p-1", room)
+	fc.setActive(true)
+	// a.light left nil → field omitted.
+	a.sendGmcpRoomInfo(context.Background(), room)
+	frames := fc.framesSnapshot()
+	if len(frames) != 1 {
+		t.Fatalf("emitted %d frames, want 1", len(frames))
+	}
+	if string(frames[0].payload) == "" {
+		t.Fatal("empty payload")
+	}
+	var got gmcp.RoomInfo
+	if err := json.Unmarshal(frames[0].payload, &got); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	if got.Light != "" {
+		t.Fatalf("light should be omitted when unwired, got %q", got.Light)
+	}
+}
+
+type fixedClockPeriod string
+
+func (f fixedClockPeriod) CurrentPeriod() string { return string(f) }

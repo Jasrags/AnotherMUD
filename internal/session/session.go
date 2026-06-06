@@ -487,6 +487,8 @@ func run(ctx context.Context, c conn.Connection, cfg Config) error {
 		progression:   cfg.Progression,
 		items:         cfg.Items,
 		contents:      cfg.Contents,
+		placement:     cfg.Placement,
+		light:         cfg.Light,
 		equipment:     make(map[string]entities.EntityID),
 		statBlock:     progression.NewWithBase(progression.DefaultPlayerBase()),
 		progress:      progression.NewProgressionState(),
@@ -1508,6 +1510,14 @@ type connActor struct {
 	// container trees and untrackInventory can sweep child entries.
 	// Nil only in tests that don't exercise containers.
 	contents *entities.Contents
+
+	// placement + light are captured at construction so sendGmcpRoomInfo
+	// can compute this viewer's effective light level for the Room.Info
+	// `light` field (light-and-darkness §8) without threading cfg
+	// through the SetRoom seam. Both nil-safe: a nil light resolver
+	// omits the field (the room reads as fully lit).
+	placement *entities.Placement
+	light     *light.Resolver
 
 	// inventory holds the runtime entity ids the actor is carrying.
 	// Mutations go through AddToInventory / RemoveFromInventory and

@@ -76,6 +76,7 @@ func RegisterBuiltins(r *Registry) error {
 		// resolves over carried + equipped, a wider scope than ArgInventory.
 		{Keyword: "light", Handler: LightHandler, Brief: "Light a torch, lantern, or other source.", Syntax: []string{"light <item>"}, HandParsed: true},
 		{Keyword: "extinguish", Aliases: []string{"douse"}, Handler: ExtinguishHandler, Brief: "Put out a lit light source.", Syntax: []string{"extinguish <item>"}, HandParsed: true},
+		{Keyword: "daylight", Aliases: []string{"time"}, Handler: DaylightHandler, Brief: "Report the time of day and how well you can see.", Syntax: []string{"daylight"}},
 
 		// Combat (M7).
 		// consider is hand-parsed like kill (resolves via findCombatantInRoom).

@@ -34,6 +34,15 @@ func NewResolver(cfg Config, clock PeriodSource) *Resolver {
 // second copy.
 func (r *Resolver) Config() Config { return r.cfg }
 
+// Period returns the clock's current time-of-day period name (the
+// `daylight` probe reports it), or "" when no clock is wired.
+func (r *Resolver) Period() string {
+	if r.clock == nil {
+		return ""
+	}
+	return r.clock.CurrentPeriod()
+}
+
 // Effective computes the effective light level for viewing room.
 //
 //   - sources is the best level contributed by lit sources for this
