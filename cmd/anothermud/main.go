@@ -39,6 +39,7 @@ import (
 	"github.com/Jasrags/AnotherMUD/internal/gameclock"
 	"github.com/Jasrags/AnotherMUD/internal/help"
 	"github.com/Jasrags/AnotherMUD/internal/item"
+	"github.com/Jasrags/AnotherMUD/internal/light"
 	"github.com/Jasrags/AnotherMUD/internal/logging"
 	"github.com/Jasrags/AnotherMUD/internal/login"
 	"github.com/Jasrags/AnotherMUD/internal/loot"
@@ -437,6 +438,16 @@ func run() error {
 		return fmt.Errorf("register sustenance-drain tick: %w", err)
 	}
 
+	// Light-source fuel burn (light-and-darkness §3.2). Same drain shape
+	// as sustenance: a lit fuel-burning source held by a logged-in actor
+	// loses fuel on this cadence and gutters out at zero.
+	fuelCfg := light.DefaultFuelConfig()
+	if err := loop.Register("fuel-burn", fuelCfg.BurnCadence, func(ctx context.Context, _ uint64) {
+		mgr.BurnFuel(ctx, fuelCfg, entityStore, bus)
+	}); err != nil {
+		return fmt.Errorf("register fuel-burn tick: %w", err)
+	}
+
 	// M11.4: rest service (spec economy-survival §5). The cancellable
 	// change event bridges to the bus; loop.TickCount stamps sleep-start
 	// for well-rested credit (consumed by the M11.5 regen heartbeat).
@@ -656,6 +667,11 @@ func run() error {
 				slog.String("err", err.Error()))
 		}
 	})
+
+	// Light-and-darkness resolver (light §2): default policy paired with
+	// the in-game clock as its period source. Threaded into the session
+	// config so command.Env carries it.
+	lightResolver := light.NewResolver(light.DefaultConfig(), gameClock)
 
 	// Combat manager (spec combat §2, M7.2). Locator dispatches on the
 	// CombatantID prefix: mob: → entities.Store, player: →
@@ -1689,6 +1705,11 @@ func run() error {
 		// weather.Service.Ambience; RenderRoom appends its output
 		// after the room description in eligible rooms.
 		Ambience: weatherSvc.Ambience,
+		// Light-and-darkness resolver (light §2): pairs the default
+		// light policy with the in-game clock so render/combat/movement
+		// can gate on effective light. Friction wiring lands in Phase 5;
+		// the verbs read its auto-light policy now.
+		Light: lightResolver,
 		// M22.3: loot ownership-window seam. NowTick reads the live tick
 		// for the §4 window comparison against a corpse's creation tick;
 		// the window itself is a wall-clock knob converted to ticks.
@@ -3395,9 +3416,23 @@ func registerEngineBaselineProperties(reg *property.Registry) error {
 		{
 			Name:          "light",
 			Type:          property.TypeString,
-			Description:   "Room light override level (black/gloom/dim/lit); floors+ceilings ambient (spec light-and-darkness §2.4/§9).",
-			AppliesTo:     []string{"room"},
-			AdminSettable: true, // admins can repin a room's light at runtime for testing
+			Description:   "Light level (black/gloom/dim/lit): on a room it overrides ambient; on an item it is the level the source contributes when lit (spec light-and-darkness §2.4/§3.1/§9).",
+			AppliesTo:     []string{"room", "item"},
+			AdminSettable: true, // admins can repin a room's light or an item's source level at runtime
+		},
+		{
+			Name:          "lit",
+			Type:          property.TypeBool,
+			Description:   "Light source lit state; lives on the item instance so it survives pickup/drop/give/store (spec light-and-darkness §3.1).",
+			AppliesTo:     []string{"item"},
+			AdminSettable: true, // admins can light/extinguish a source for testing
+		},
+		{
+			Name:          "fuel",
+			Type:          property.TypeInt,
+			Description:   "Remaining fuel for a fuel-burning source; absent = permanent, zero = spent (spec light-and-darkness §3.2).",
+			AppliesTo:     []string{"item"},
+			AdminSettable: true, // admins can refuel/drain a source for testing
 		},
 	}
 	for _, e := range baseline {

@@ -31,6 +31,7 @@ import (
 	"github.com/Jasrags/AnotherMUD/internal/entities"
 	"github.com/Jasrags/AnotherMUD/internal/eventbus"
 	"github.com/Jasrags/AnotherMUD/internal/help"
+	"github.com/Jasrags/AnotherMUD/internal/light"
 	"github.com/Jasrags/AnotherMUD/internal/logging"
 	"github.com/Jasrags/AnotherMUD/internal/notifications"
 	"github.com/Jasrags/AnotherMUD/internal/progression"
@@ -375,6 +376,10 @@ type Env struct {
 	// service is wired). Spec world-rooms-movement §6.6.
 	Ambience func(*world.Room) string
 
+	// Light is the light-and-darkness resolver (light §2), copied to
+	// each Context at dispatch. nil disables light gating.
+	Light *light.Resolver
+
 	// NowTick returns the current game tick, used by the loot verb to
 	// evaluate a corpse's ownership window against its creation tick
 	// (loot-and-corpses §4). nil degrades the window check to "open"
@@ -507,6 +512,12 @@ type Context struct {
 	// chase Env. nil-safe (RenderRoom skips when nil or when the
 	// callback returns "").
 	Ambience func(*world.Room) string
+	// Light is the light-and-darkness resolver (light §2). The
+	// light/extinguish verbs read its config (auto-light policy); the
+	// render/combat/movement paths use it to gate on effective light.
+	// nil disables light gating (tests, and any path that has not
+	// wired it).
+	Light *light.Resolver
 	// NowTick / CorpseOwnershipWindow are the M22.3 loot-window seam
 	// (loot-and-corpses §4). Copied from Env at dispatch. NowTick nil →
 	// the loot verb treats every corpse as open.
@@ -963,6 +974,7 @@ func (r *Registry) Dispatch(ctx context.Context, env Env, actor Actor, raw strin
 		ChatScrollbacks:       env.ChatScrollbacks,
 		Clock:                 env.Clock,
 		Ambience:              env.Ambience,
+		Light:                 env.Light,
 		NowTick:               env.NowTick,
 		CorpseOwnershipWindow: env.CorpseOwnershipWindow,
 		Raw:                   trimmed,

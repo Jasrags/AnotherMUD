@@ -9,6 +9,7 @@ import (
 	"github.com/Jasrags/AnotherMUD/internal/entities"
 	"github.com/Jasrags/AnotherMUD/internal/eventbus"
 	"github.com/Jasrags/AnotherMUD/internal/keyword"
+	"github.com/Jasrags/AnotherMUD/internal/light"
 	"github.com/Jasrags/AnotherMUD/internal/slot"
 	"github.com/Jasrags/AnotherMUD/internal/stats"
 	"github.com/Jasrags/AnotherMUD/internal/world"
@@ -107,12 +108,36 @@ func EquipHandler(ctx context.Context, c *Context) error {
 		return c.Actor.Write(ctx, "You aren't carrying that.")
 	}
 
+	// Auto-light on equip (light-and-darkness §3.1): when a source is
+	// equipped into the light slot and the policy is on, ignite it so a
+	// player who slots a torch sees by it without a second command.
+	// Off by default; extinguishing stays explicit to conserve fuel. A
+	// spent fuel source (fuel present and zero) is not auto-lit.
+	autoLit := false
+	if c.Light != nil && c.Light.Config().AutoLightOnEquip && def.Name == "light" &&
+		light.IsSource(item) && !light.IsLit(item) {
+		spent := false
+		if fuel, ok := item.Property(light.PropItemFuel); ok {
+			if n, _ := fuel.(int); n <= 0 {
+				spent = true
+			}
+		}
+		if !spent {
+			item.SetProperty(light.PropItemLit, true)
+			autoLit = true
+		}
+	}
+
 	// User-facing messages. Auto-swap reports the displacement before
 	// the equip confirmation so the order matches the mental model.
 	if displacedItem != nil {
 		_ = c.Actor.Write(ctx, fmt.Sprintf("You stop using %s.", displacedItem.Name()))
 	}
-	_ = c.Actor.Write(ctx, fmt.Sprintf("You equip %s.", item.Name()))
+	if autoLit {
+		_ = c.Actor.Write(ctx, fmt.Sprintf("You equip %s, and it flares to life.", item.Name()))
+	} else {
+		_ = c.Actor.Write(ctx, fmt.Sprintf("You equip %s.", item.Name()))
+	}
 
 	// Broadcast uses the base slot name (no :index) per §3.3 step 7.
 	room := c.Actor.Room()

@@ -337,6 +337,7 @@ composition root):
 | `combat-tick` (combat phases: ability / auto-attack / effects) | configured | [combat](combat.md) §3, [abilities-and-effects](abilities-and-effects.md) §4 |
 | `effect-tick` (effect expiry) | configured | [abilities-and-effects](abilities-and-effects.md) |
 | `sustenance-drain` | configured | [economy-survival](economy-survival.md) §4.4 |
+| `fuel-burn` (lit light-source fuel) | configured | [light-and-darkness](light-and-darkness.md) §3.2 |
 | `vitals-regen` | configured | [session-lifecycle](session-lifecycle.md) (via game loop) |
 | `prompt-flush` | 1 | [ui-rendering-help](ui-rendering-help.md) §7.3 |
 | `scripting-schedule` | 1 | [scripting-and-packs](scripting-and-packs.md) (the `engine.schedule` primitive) |

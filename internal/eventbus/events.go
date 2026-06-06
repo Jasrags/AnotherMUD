@@ -14,6 +14,9 @@ const (
 	EventEntityEquipped   = "entity.equipped"
 	EventEntityUnequipped = "entity.unequipped"
 	EventItemGiven        = "entity.item_given"
+	// EventLightSourceExtinguished fires when a lit fuel source gutters
+	// out (fuel reached zero). Spec light-and-darkness §3.2 / §10.
+	EventLightSourceExtinguished = "light.source.extinguished"
 	// Cancellable pre-event fired before a put-in-container commits.
 	// Spec inventory-equipment-items §4.5 step 5 — listeners can flip
 	// the cancel flag to veto (locks, quest gates, etc.).
@@ -387,6 +390,21 @@ type EntityUnequipped struct {
 
 // Name implements Event.
 func (EntityUnequipped) Name() string { return EventEntityUnequipped }
+
+// LightSourceExtinguished fires when a lit fuel-burning source gutters
+// out because its fuel reached zero (spec light-and-darkness §3.2 /
+// §10). HolderID is the carrier (empty for a source not held by an
+// actor); RoomID is the room the source is in, when known. Carries the
+// source item id so subscribers (and Phase 6's room-light transition)
+// can react.
+type LightSourceExtinguished struct {
+	SourceID entities.EntityID
+	HolderID entities.EntityID
+	RoomID   world.RoomID
+}
+
+// Name implements Event.
+func (LightSourceExtinguished) Name() string { return EventLightSourceExtinguished }
 
 // ItemGiven fires after GiveHandler successfully moves an item from
 // one holder's contents into another's (spec inventory-equipment-

@@ -71,6 +71,11 @@ func RegisterBuiltins(r *Registry) error {
 		{Keyword: "inventory", Aliases: []string{"i"}, Handler: InventoryHandler, Brief: "List the items you are carrying.", Syntax: []string{"inventory"}},
 		{Keyword: "equipment", Aliases: []string{"eq"}, Handler: EquipmentHandler, Brief: "Show your equipment slots (empty ones included).", Syntax: []string{"equipment"}},
 
+		// Light sources (light-and-darkness §3.1). Hand-parsed: the item
+		// resolves over carried + equipped, a wider scope than ArgInventory.
+		{Keyword: "light", Handler: LightHandler, Brief: "Light a torch, lantern, or other source.", Syntax: []string{"light <item>"}, HandParsed: true},
+		{Keyword: "extinguish", Aliases: []string{"douse"}, Handler: ExtinguishHandler, Brief: "Put out a lit light source.", Syntax: []string{"extinguish <item>"}, HandParsed: true},
+
 		// Combat (M7).
 		// consider is hand-parsed like kill (resolves via findCombatantInRoom).
 		// It declares its entity target + HandParsed so completion enumerates

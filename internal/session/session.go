@@ -34,6 +34,7 @@ import (
 	"github.com/Jasrags/AnotherMUD/internal/gmcp"
 	"github.com/Jasrags/AnotherMUD/internal/help"
 	"github.com/Jasrags/AnotherMUD/internal/item"
+	"github.com/Jasrags/AnotherMUD/internal/light"
 	"github.com/Jasrags/AnotherMUD/internal/logging"
 	"github.com/Jasrags/AnotherMUD/internal/login"
 	"github.com/Jasrags/AnotherMUD/internal/notifications"
@@ -329,6 +330,11 @@ type Config struct {
 	// build their own room renders outside the command dispatcher.
 	// nil-safe: a nil callback leaves the room render weather-free.
 	Ambience func(*world.Room) string
+
+	// Light is the light-and-darkness resolver (light §2), threaded
+	// into command.Env (and, in Phase 5, the login/link-dead renderers).
+	// nil disables light gating — the world renders as if always lit.
+	Light *light.Resolver
 
 	// CreationFlow is the M12.3 interactive character-creation wizard
 	// (spec character-creation §2/§3). When set, a new player runs it

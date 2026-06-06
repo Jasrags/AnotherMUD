@@ -13,6 +13,12 @@ func RegisterEngineBaseline(r *Registry) error {
 		{Name: "wield", Label: "wielded", Max: 1, Scope: EngineScope},
 		{Name: "head", Label: "worn on head", Max: 1, Scope: EngineScope},
 		{Name: "finger", Label: "worn on finger", Max: 2, Scope: EngineScope},
+		// The held-light slot (light-and-darkness §3.3): the one active
+		// source the viewer provides. Cap 1, so the slot key is the bare
+		// "light". Whether it contends with hands (two-handed weapons /
+		// shields) is left to the equipment model (§12) — today it is a
+		// free slot.
+		{Name: "light", Label: "carried as a light source", Max: 1, Scope: EngineScope},
 	}
 	for _, d := range baseline {
 		if err := r.Register(d); err != nil {

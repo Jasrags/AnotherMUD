@@ -136,7 +136,7 @@ func TestRegisterEngineBaseline(t *testing.T) {
 	if err := RegisterEngineBaseline(r); err != nil {
 		t.Fatalf("RegisterEngineBaseline: %v", err)
 	}
-	for _, name := range []string{"wield", "head", "finger"} {
+	for _, name := range []string{"wield", "head", "finger", "light"} {
 		if !r.Has(name) {
 			t.Errorf("baseline missing %q", name)
 		}
@@ -144,6 +144,10 @@ func TestRegisterEngineBaseline(t *testing.T) {
 	finger, _ := r.Get("finger")
 	if finger.Max != 2 {
 		t.Errorf("finger.Max = %d, want 2", finger.Max)
+	}
+	light, _ := r.Get("light")
+	if light.Max != 1 {
+		t.Errorf("light.Max = %d, want 1", light.Max)
 	}
 }
 

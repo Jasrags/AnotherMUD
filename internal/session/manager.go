@@ -3,12 +3,16 @@ package session
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log/slog"
 	"strings"
 	"sync"
 
 	"github.com/Jasrags/AnotherMUD/internal/combat"
 	"github.com/Jasrags/AnotherMUD/internal/economy"
+	"github.com/Jasrags/AnotherMUD/internal/entities"
+	"github.com/Jasrags/AnotherMUD/internal/eventbus"
+	"github.com/Jasrags/AnotherMUD/internal/light"
 	"github.com/Jasrags/AnotherMUD/internal/logging"
 	"github.com/Jasrags/AnotherMUD/internal/progression"
 	"github.com/Jasrags/AnotherMUD/internal/world"
@@ -681,6 +685,82 @@ func (m *Manager) DrainSustenance(ctx context.Context, svc *economy.SustenanceSe
 			_ = a.Write(ctx, msg)
 		}
 	}
+}
+
+// BurnFuel applies one fuel-burn step to every lit fuel-burning light
+// source carried or equipped by a logged-in actor (light-and-darkness
+// §3.2). A source that gutters out (fuel reached zero) is made unlit by
+// light.Burn; this sweep then notifies the holder and publishes
+// light.source.extinguished. The room-light transition a gutter may
+// cause is driven by the §6 transition subscriber off that event.
+//
+// v1 scope: only sources held by a logged-in actor (inventory ∪
+// equipment) burn — the same actor-snapshot DrainSustenance uses. A lit
+// source dropped on the ground keeps its lit state but does not burn
+// down until carried again; burning room-loose sources would need a
+// full entity-store scan every tick. No-op when store is nil.
+func (m *Manager) BurnFuel(ctx context.Context, cfg light.FuelConfig, store *entities.Store, bus *eventbus.Bus) {
+	if store == nil {
+		return
+	}
+	m.mu.RLock()
+	seen := make(map[*connActor]struct{}, len(m.byConn)+len(m.byPlayerID))
+	for _, a := range m.byConn {
+		seen[a] = struct{}{}
+	}
+	for _, a := range m.byPlayerID {
+		seen[a] = struct{}{}
+	}
+	snapshot := make([]*connActor, 0, len(seen))
+	for a := range seen {
+		snapshot = append(snapshot, a)
+	}
+	m.mu.RUnlock()
+
+	for _, a := range snapshot {
+		ids := a.Inventory()
+		for _, id := range a.Equipment() {
+			ids = append(ids, id)
+		}
+		var roomID world.RoomID
+		if r := a.Room(); r != nil {
+			roomID = r.ID
+		}
+		for _, id := range ids {
+			e, ok := store.GetByID(id)
+			if !ok {
+				continue
+			}
+			it, ok := e.(*entities.ItemInstance)
+			if !ok {
+				continue
+			}
+			if _, guttered, _ := light.Burn(it, cfg.BurnAmount); !guttered {
+				continue
+			}
+			_ = a.Write(ctx, fmt.Sprintf("%s gutters out and goes dark.", capitalizeFirst(it.Name())))
+			if bus != nil {
+				bus.Publish(ctx, eventbus.LightSourceExtinguished{
+					SourceID: it.ID(),
+					HolderID: entities.EntityID(a.PlayerID()),
+					RoomID:   roomID,
+				})
+			}
+		}
+	}
+}
+
+// capitalizeFirst upper-cases the first byte of a short ASCII string so
+// an item name ("a torch") reads cleanly at the start of a sentence.
+func capitalizeFirst(s string) string {
+	if s == "" {
+		return s
+	}
+	b := []byte(s)
+	if b[0] >= 'a' && b[0] <= 'z' {
+		b[0] -= 'a' - 'A'
+	}
+	return string(b)
 }
 
 // RegenTick heals every logged-in player by the composed regen amount

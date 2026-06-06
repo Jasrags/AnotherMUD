@@ -20,6 +20,11 @@ type Config struct {
 	// §4). Floor ≤ Cap.
 	DarkvisionFloor Level
 	DarkvisionCap   Level
+	// AutoLightOnEquip, when true, lights a fuel-bearing source as it
+	// is equipped into the light slot (§3.1). Extinguishing is always
+	// explicit regardless, to conserve fuel. Off by default — a player
+	// chooses when to spend fuel.
+	AutoLightOnEquip bool
 }
 
 // DefaultConfig is the spec's documented starting point: full daylight,

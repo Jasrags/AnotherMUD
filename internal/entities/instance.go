@@ -184,6 +184,31 @@ func (it *ItemInstance) ClaimIntProperty(key string) int {
 	return v
 }
 
+// DecrementInt atomically subtracts amount from the int property at key
+// under the property write lock, flooring at zero, and reports whether
+// the value reached zero on this call. A missing or non-int value is
+// treated as zero (so the result is (0, true) and the key is written as
+// 0). It is the burn-down primitive for a fuel-carrying light source
+// (light-and-darkness §3.2): the read-modify-write is a single critical
+// section, so a tick-goroutine burn cannot lose against a concurrent
+// property write. Callers that must not create the key (e.g. to leave a
+// permanent, fuel-less source untouched) check Property(key) first.
+func (it *ItemInstance) DecrementInt(key string, amount int) (remaining int, hitZero bool) {
+	it.propsMu.Lock()
+	defer it.propsMu.Unlock()
+	if it.properties == nil {
+		it.properties = make(map[string]any)
+	}
+	v, _ := it.properties[key].(int)
+	v -= amount
+	if v <= 0 {
+		v = 0
+		hitZero = true
+	}
+	it.properties[key] = v
+	return v, hitZero
+}
+
 // Modifiers returns the transient per-instance stat modifiers (§2.3
 // step 6). Equip-time application reads this list; nothing else writes
 // to it post-Spawn.

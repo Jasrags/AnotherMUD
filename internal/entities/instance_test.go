@@ -39,6 +39,58 @@ func TestItemInstancePropertiesConcurrentAccess(t *testing.T) {
 	wg.Wait()
 }
 
+func TestDecrementInt(t *testing.T) {
+	s := NewStore()
+	it, err := s.Spawn(&item.Template{
+		ID: "core:torch", Name: "a torch", Type: "light",
+		Properties: map[string]any{"fuel": 3},
+	})
+	if err != nil {
+		t.Fatalf("Spawn: %v", err)
+	}
+
+	if rem, zero := it.DecrementInt("fuel", 1); rem != 2 || zero {
+		t.Fatalf("DecrementInt 3-1 = (%d,%v), want (2,false)", rem, zero)
+	}
+	if rem, zero := it.DecrementInt("fuel", 5); rem != 0 || !zero {
+		t.Fatalf("DecrementInt 2-5 = (%d,%v), want (0,true) (floored)", rem, zero)
+	}
+	// Absent key is treated as zero and written as zero.
+	if rem, zero := it.DecrementInt("missing", 1); rem != 0 || !zero {
+		t.Fatalf("DecrementInt on absent = (%d,%v), want (0,true)", rem, zero)
+	}
+	if v, ok := it.Property("missing"); !ok || v.(int) != 0 {
+		t.Fatalf("absent key after DecrementInt = (%v,%v), want (0,true)", v, ok)
+	}
+}
+
+func TestDecrementIntConcurrent(t *testing.T) {
+	// Two goroutines decrementing concurrently must not corrupt the map
+	// or lose the floor invariant (race detector + final value check).
+	s := NewStore()
+	it, err := s.Spawn(&item.Template{
+		ID: "core:torch", Name: "a torch", Type: "light",
+		Properties: map[string]any{"fuel": 1000},
+	})
+	if err != nil {
+		t.Fatalf("Spawn: %v", err)
+	}
+	var wg sync.WaitGroup
+	for i := 0; i < 4; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for j := 0; j < 250; j++ {
+				it.DecrementInt("fuel", 1)
+			}
+		}()
+	}
+	wg.Wait()
+	if v, _ := it.Property("fuel"); v.(int) != 0 {
+		t.Fatalf("fuel after 1000 concurrent decrements = %v, want 0", v)
+	}
+}
+
 func TestSpawnAssignsFreshIDAndCopiesFields(t *testing.T) {
 	s := NewStore()
 	tpl := &item.Template{
