@@ -32,6 +32,12 @@ type Config struct {
 	// light effect and the operator lists its flag here so the floor
 	// it grants is configurable, not hardcoded (§11).
 	EffectFloors map[string]Level
+	// CombatHitPenalty maps an attacker's effective light level to the
+	// to-hit penalty (a non-negative magnitude) they suffer in combat
+	// (§5.3): brighter is better, `lit` is zero, and the penalty only
+	// degrades accuracy — it never blocks a swing. Applied as a
+	// negative delta to the attacker's hit roll.
+	CombatHitPenalty map[Level]int
 }
 
 // DefaultConfig is the spec's documented starting point: full daylight,
@@ -48,7 +54,25 @@ func DefaultConfig() Config {
 		IndoorCap:       Dim,
 		DarkvisionFloor: Gloom,
 		DarkvisionCap:   Gloom,
+		CombatHitPenalty: map[Level]int{
+			Lit:   0,
+			Dim:   1,
+			Gloom: 2,
+			Black: 4,
+		},
 	}
+}
+
+// HitPenalty returns the to-hit penalty (a non-negative magnitude) an
+// attacker at the given effective light suffers (§5.3). Absent entries
+// and a nil table return 0 (no penalty), so combat is never harder than
+// configured and an unconfigured resolver leaves accuracy untouched.
+func (c Config) HitPenalty(lvl Level) int {
+	p := c.CombatHitPenalty[lvl]
+	if p < 0 {
+		return 0
+	}
+	return p
 }
 
 // AmbientFor returns the sky's ambient level for the given period,

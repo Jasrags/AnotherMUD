@@ -42,6 +42,27 @@ func TestAmbientFor_EmptyPeriodFloors(t *testing.T) {
 	}
 }
 
+func TestHitPenalty(t *testing.T) {
+	c := DefaultConfig()
+	cases := map[Level]int{Lit: 0, Dim: 1, Gloom: 2, Black: 4}
+	for lvl, want := range cases {
+		if got := c.HitPenalty(lvl); got != want {
+			t.Fatalf("HitPenalty(%v) = %d, want %d", lvl, got, want)
+		}
+	}
+	// Nil table → no penalty.
+	empty := Config{}
+	if got := empty.HitPenalty(Black); got != 0 {
+		t.Fatalf("HitPenalty with nil table = %d, want 0", got)
+	}
+	// A negative configured value is clamped to 0 (never a to-hit bonus
+	// from darkness).
+	c.CombatHitPenalty[Lit] = -5
+	if got := c.HitPenalty(Lit); got != 0 {
+		t.Fatalf("HitPenalty with negative entry = %d, want 0", got)
+	}
+}
+
 func TestDarkvisionViewerFloor(t *testing.T) {
 	c := DefaultConfig()
 	if got := c.DarkvisionViewerFloor(false); got != Black {

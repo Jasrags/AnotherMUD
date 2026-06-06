@@ -497,3 +497,9 @@ func (a *testActor) lastLine() string {
 	}
 	return a.lines[len(a.lines)-1]
 }
+
+func (a *testActor) allLines() []string {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	return append([]string(nil), a.lines...)
+}

@@ -1276,6 +1276,27 @@ func run() error {
 	passiveResolver := progression.NewPassiveResolver(
 		registries.Abilities, passiveProficiency, passiveProficiency, combatRNG,
 	)
+	// §5.3 darkness to-hit penalty: resolve the attacker to its room +
+	// per-viewer light (held source, room luminous items, darkvision)
+	// and turn the effective level into a negative hit-mod delta. Players
+	// and mobs both flow through the shared EffectiveLight gather; a mob
+	// has no light slot, so it darkens by room light alone. Lit ⇒ 0.
+	attackerDarknessPenalty := func(id combat.CombatantID) int {
+		roomID, ok := combatLocator.RoomOf(id)
+		if !ok {
+			return 0
+		}
+		room, err := w.Room(roomID)
+		if err != nil {
+			return 0
+		}
+		viewer, ok := combatLocator.LookupCombatant(id)
+		if !ok {
+			return 0
+		}
+		lvl := command.EffectiveLight(lightResolver, room, viewer, entityStore, placement)
+		return -lightResolver.Config().HitPenalty(lvl)
+	}
 	autoAttackPhase := combat.NewAutoAttack(combat.AutoAttackConfig{
 		Locator:        combatLocator,
 		RoomLocator:    combatLocator,
@@ -1283,6 +1304,7 @@ func run() error {
 		Roller:         combatRNG,
 		Passives:       passiveResolver,
 		CritMultiplier: cfg.CritMultiplier,
+		HitModAdjust:   attackerDarknessPenalty,
 	})
 	// M7.6 wimpy phase — fires §5.2 flee when a combatant's HP%
 	// drops to or below its WimpyThreshold property. Shares the same
@@ -3426,6 +3448,13 @@ func registerEngineBaselineProperties(reg *property.Registry) error {
 			Description:   "Light source lit state; lives on the item instance so it survives pickup/drop/give/store (spec light-and-darkness §3.1).",
 			AppliesTo:     []string{"item"},
 			AdminSettable: true, // admins can light/extinguish a source for testing
+		},
+		{
+			Name:          "dark_blocked",
+			Type:          property.TypeBool,
+			Description:   "Room opts into the darkness-movement hazard: a mover who cannot see it at all (effective black) is refused entry (spec light-and-darkness §5.4).",
+			AppliesTo:     []string{"room"},
+			AdminSettable: true,
 		},
 		{
 			Name:          "fuel",

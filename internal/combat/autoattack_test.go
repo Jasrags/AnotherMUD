@@ -450,3 +450,54 @@ func TestAutoAttackDefensiveEvadeSkipsSwing(t *testing.T) {
 		t.Errorf("evaded swing must produce no hit/miss, got %d", n)
 	}
 }
+
+// TestAutoAttack_DarknessPenaltyCausesMiss — a swing that would land at
+// full accuracy misses once the §5.3 darkness HitModAdjust lowers the
+// attacker's hit roll below the target's AC. Same roll, opposite outcome.
+func TestAutoAttack_DarknessPenaltyCausesMiss(t *testing.T) {
+	// d20 roll 14 → raw 15; AC 15 → 15+0 >= 15 hits at full accuracy.
+	rig := newAutoAttackRig(t, Stats{HitMod: 0, STR: 10}, Stats{AC: 15}, 10, 50, []int{14})
+	phase := NewAutoAttack(AutoAttackConfig{
+		Locator:      rig.locator,
+		RoomLocator:  rig.rooms,
+		Sink:         rig.sink,
+		Roller:       rig.roller,
+		HitModAdjust: func(CombatantID) int { return -4 },
+	})
+	phase(context.Background(), rig.attacker.id, rig.mgr, 0)
+
+	if got := len(rig.sink.snapshotHits()); got != 0 {
+		t.Fatalf("darkness penalty should have caused a miss, got %d hits", got)
+	}
+	if got := len(rig.sink.snapshotMisses()); got != 1 {
+		t.Fatalf("want 1 miss under darkness penalty, got %d", got)
+	}
+}
+
+// TestAutoAttack_NoPenaltyHitsControl — the same roll hits with no
+// HitModAdjust, proving the miss above is the penalty's doing.
+func TestAutoAttack_NoPenaltyHitsControl(t *testing.T) {
+	rig := newAutoAttackRig(t, Stats{HitMod: 0, STR: 10}, Stats{AC: 15}, 10, 50, []int{14, 0})
+	rig.phase()(context.Background(), rig.attacker.id, rig.mgr, 0)
+	if got := len(rig.sink.snapshotHits()); got != 1 {
+		t.Fatalf("control swing should hit, got %d hits", got)
+	}
+}
+
+// TestAutoAttack_PenaltyNeverBlocks — a nat-20 still lands even with a
+// crushing darkness penalty (§5.3: accuracy degrades, combat is never
+// blocked).
+func TestAutoAttack_PenaltyNeverBlocks(t *testing.T) {
+	rig := newAutoAttackRig(t, Stats{HitMod: 0, STR: 10}, Stats{AC: 50}, 10, 50, []int{19, 0})
+	phase := NewAutoAttack(AutoAttackConfig{
+		Locator:      rig.locator,
+		RoomLocator:  rig.rooms,
+		Sink:         rig.sink,
+		Roller:       rig.roller,
+		HitModAdjust: func(CombatantID) int { return -100 },
+	})
+	phase(context.Background(), rig.attacker.id, rig.mgr, 0)
+	if got := len(rig.sink.snapshotHits()); got != 1 {
+		t.Fatalf("nat-20 must land despite the penalty, got %d hits", got)
+	}
+}

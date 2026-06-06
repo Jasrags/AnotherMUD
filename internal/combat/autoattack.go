@@ -28,6 +28,14 @@ type AutoAttackConfig struct {
 	// 1 disables the bonus (crit = normal damage). IsCritical still flows
 	// on the hit event regardless.
 	CritMultiplier int
+	// HitModAdjust returns a to-hit modifier DELTA for the attacker this
+	// swing, keyed on the full attacker CombatantID. The host uses it to
+	// apply the light-and-darkness §5.3 darkness penalty (a negative
+	// delta when the attacker is in low light); combat itself stays
+	// decoupled from the light surface. nil-safe: no adjustment (the
+	// pre-light behavior, and tests/headless). The adjustment degrades
+	// accuracy only — combat is never blocked.
+	HitModAdjust func(attackerID CombatantID) int
 }
 
 // PassiveEvaluator is the combat-side seam to the passive-abilities
@@ -130,6 +138,13 @@ func runAutoAttack(ctx context.Context, attackerID CombatantID, mgr *Manager, cf
 
 	atkStats := attacker.Stats()
 	defStats := target.Stats()
+	// §5.3 darkness penalty: the host adjusts the attacker's to-hit by
+	// their effective light once per round (the light doesn't shift
+	// mid-round under normal play). nil hook ⇒ no adjustment.
+	hitMod := atkStats.HitMod
+	if cfg.HitModAdjust != nil {
+		hitMod += cfg.HitModAdjust(attackerID)
+	}
 	damageExpr := atkStats.EffectiveDamage()
 	weaponName := atkStats.EffectiveWeaponName()
 	atkName := attacker.Name()
@@ -162,8 +177,8 @@ func runAutoAttack(ctx context.Context, attackerID CombatantID, mgr *Manager, cf
 			continue
 		}
 
-		// §4.4 hit roll.
-		outcome := rollHit(cfg.Roller, atkStats.HitMod, defStats.AC)
+		// §4.4 hit roll (attacker hit-mod already adjusted for darkness).
+		outcome := rollHit(cfg.Roller, hitMod, defStats.AC)
 		if !outcome.hit {
 			cfg.Sink.OnMiss(ctx, Miss{
 				AttackerID:   attackerID,

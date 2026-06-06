@@ -94,13 +94,21 @@ func broadcastLight(ctx context.Context, c *Context, msg string) {
 // light source (the cap-1 "light" slot, slot baseline).
 const lightSlotKey = "light"
 
-// LightViewer is the per-viewer surface EffectiveLight reads: the
-// equipped items (to find the held light). Darkvision is read via an
-// optional HasTag assertion, so a viewer that lacks it simply has no
-// darkvision floor. The command Actor and the session connActor both
-// satisfy this.
-type LightViewer interface {
+// LightViewer is the per-viewer surface EffectiveLight reads. Both
+// capabilities are optional, read via assertion: Equipment() supplies
+// the held light (a player has a light slot; a mob does not) and
+// HasTag() supplies darkvision. A viewer lacking one simply contributes
+// nothing from it, so the same gather serves players and mobs. Modelled
+// as an empty interface because the two capabilities are independent.
+type LightViewer interface{}
+
+// equipmentHolder / taggable are the optional capability views
+// EffectiveLight asserts a viewer against.
+type equipmentHolder interface {
 	Equipment() map[string]entities.EntityID
+}
+type taggable interface {
+	HasTag(string) bool
 }
 
 // EffectiveLight computes a viewer's effective light level for room
@@ -108,15 +116,15 @@ type LightViewer interface {
 // (the viewer's held light + luminous items lying in the room) and the
 // viewer's darkvision floor, then resolving. Returns light.Lit when the
 // resolver is nil (light gating unwired) so tests and pre-light paths
-// render exactly as before. Shared by the command handlers and the
-// session login/link-dead renderers.
+// render exactly as before. Shared by the command handlers, the session
+// login/link-dead renderers, and the combat darkness-penalty hook.
 func EffectiveLight(resolver *light.Resolver, room *world.Room, viewer LightViewer, items *entities.Store, placement *entities.Placement) light.Level {
 	if resolver == nil || room == nil {
 		return light.Lit
 	}
 	sources := gatherRoomSources(viewer, room, items, placement)
 	hasDarkvision := false
-	if t, ok := viewer.(interface{ HasTag(string) bool }); ok {
+	if t, ok := viewer.(taggable); ok {
 		hasDarkvision = t.HasTag(light.DarkvisionFlag)
 	}
 	floor := resolver.Config().ViewerFloor(hasDarkvision, nil)
@@ -126,11 +134,12 @@ func EffectiveLight(resolver *light.Resolver, room *world.Room, viewer LightView
 // gatherRoomSources returns the brightest lit-source contribution for a
 // viewer in room: the source in their light slot (only the slotted
 // source lights its bearer, §3.3) plus any luminous items lying in the
-// room. Mobs as luminous sources are a future addition.
+// room. A viewer with no equipment (a mob) contributes only via room
+// items; mobs as luminous sources are a future addition.
 func gatherRoomSources(viewer LightViewer, room *world.Room, items *entities.Store, placement *entities.Placement) light.Level {
 	best := light.Black
-	if viewer != nil && items != nil {
-		if id, ok := viewer.Equipment()[lightSlotKey]; ok {
+	if eq, ok := viewer.(equipmentHolder); ok && items != nil {
+		if id, ok := eq.Equipment()[lightSlotKey]; ok {
 			if it, ok := itemInstanceByID(items, id); ok {
 				if c := light.Contribution(it); c > best {
 					best = c

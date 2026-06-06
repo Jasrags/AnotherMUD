@@ -9,6 +9,7 @@ import (
 	"github.com/Jasrags/AnotherMUD/internal/corpse"
 	"github.com/Jasrags/AnotherMUD/internal/entities"
 	"github.com/Jasrags/AnotherMUD/internal/keyword"
+	"github.com/Jasrags/AnotherMUD/internal/light"
 	"github.com/Jasrags/AnotherMUD/internal/slot"
 	"github.com/Jasrags/AnotherMUD/internal/stacking"
 )
@@ -230,6 +231,25 @@ func (c *Context) lookAtTarget(ctx context.Context, toks []string) error {
 	}
 	token := toks[0]
 
+	// Light gate (light-and-darkness §5.2): examining (and reading, which
+	// is `look` at a sign/label) anything in the room requires at least
+	// `dim`. Below that, only items the viewer is carrying can be made out
+	// (you can feel what you hold); room items, containers, and creatures
+	// return a too-dark response. Held-item inspection is never gated.
+	tooDark := c.Light != nil && c.Actor.Room() != nil &&
+		c.effectiveLight(c.Actor.Room()) < light.Dim
+	if tooDark {
+		if c.Items != nil {
+			if target := c.resolveHeldItem(token); target != nil {
+				if target.Type() == entities.ContainerType || corpse.IsCorpse(target) {
+					return c.Actor.Write(ctx, c.renderContainerLook(target))
+				}
+				return c.Actor.Write(ctx, describeThing(decoratedName(c, target), target.Description()))
+			}
+		}
+		return c.Actor.Write(ctx, tooDarkToSeeText)
+	}
+
 	// 1. Items (inventory + floor). Containers/corpses are looked INTO;
 	//    a plain item renders its appearance prose (or a fallback).
 	if c.Items != nil {
@@ -249,6 +269,23 @@ func (c *Context) lookAtTarget(ctx context.Context, toks []string) error {
 	}
 
 	return c.Actor.Write(ctx, "You don't see that here.")
+}
+
+// tooDarkToSeeText is the response when a viewer tries to examine or
+// read something in the room below `dim` light (§5.2). Hardcoded for
+// v1; externalizing it (§11 examination/reading) is deferred.
+const tooDarkToSeeText = "It is too dark to make it out."
+
+// resolveHeldItem keyword-matches an item across the actor's inventory
+// ONLY (not the room). Used by the dark-look path: you can examine what
+// you carry by feel even when the room is too dark to see.
+func (c *Context) resolveHeldItem(token string) *entities.ItemInstance {
+	match := keyword.Resolve(asNamed(collectItems(c.Items, c.Actor.Inventory())), token)
+	if match == nil {
+		return nil
+	}
+	it, _ := match.(*entities.ItemInstance)
+	return it
 }
 
 // describeThing renders the appearance line for a look target: the

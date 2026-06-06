@@ -373,6 +373,18 @@ func movementHandler(dir world.Direction) Handler {
 			}
 			return c.Actor.Write(ctx, "Something blocks your way.")
 		}
+		// §5.4 darkness-hazard gate: a destination room may opt into
+		// being impassable when the mover cannot see it at all. Light (a
+		// carried torch) lets you brave it; total darkness (effective
+		// black) refuses the step. Off by default — only rooms that set
+		// dark_blocked are gated, and only at black, so the escape
+		// invariant holds (outdoors is never black, and a retrace leads
+		// to the navigable room you came from). Computed before the move
+		// commits.
+		dstLvl := c.effectiveLight(dst)
+		if blocked, _ := dst.PropertyBool(PropRoomDarkBlocked); c.Light != nil && dstLvl <= light.Black && blocked {
+			return c.Actor.Write(ctx, darkBlockedText)
+		}
 		srcID := room.ID
 		name := c.Actor.Name()
 		pid := c.Actor.PlayerID()
@@ -409,8 +421,20 @@ func movementHandler(dir world.Direction) Handler {
 		if c.Disposition != nil && pid != "" {
 			c.Disposition.OnPlayerEnteredImmediate(ctx, pid, name, nil, dst.ID)
 		}
-		if err := c.Actor.Write(ctx, RenderRoom(dst, c.Placement, c.Items, c.questMarker(), c.Ambience, c.hostileMarker(), c.effectiveLight(dst), c.otherPlayerNames(dst.ID)...)); err != nil {
+		if err := c.Actor.Write(ctx, RenderRoom(dst, c.Placement, c.Items, c.questMarker(), c.Ambience, c.hostileMarker(), dstLvl, c.otherPlayerNames(dst.ID)...)); err != nil {
 			return err
+		}
+		// Escape-invariant affordance (§5.4): when the mover arrives
+		// somewhere they cannot fully see, name the way back so the entry
+		// direction is always known — they can retrace even when the
+		// obscured/suppressed render hides the exits. Only emitted when
+		// the destination has a real exit back the way they came.
+		if dstLvl <= light.Gloom {
+			if back := dir.Opposite(); back != world.DirInvalid {
+				if _, ok := dst.Exits[back]; ok {
+					_ = c.Actor.Write(ctx, fmt.Sprintf("<subtle>(You can feel your way back %s.)</subtle>", back.Long()))
+				}
+			}
 		}
 		// Deferred (full) hook AFTER the description so non-hostile
 		// reactions arrive below the room text.
@@ -420,6 +444,14 @@ func movementHandler(dir world.Direction) Handler {
 		return nil
 	}
 }
+
+// PropRoomDarkBlocked is the room property opting a room into the §5.4
+// darkness-movement hazard: a mover who cannot see it at all (effective
+// black) is refused entry. darkBlockedText is the refusal.
+const (
+	PropRoomDarkBlocked = "dark_blocked"
+	darkBlockedText     = "It is too dark to risk going that way."
+)
 
 // RenderRoom is the M1 room renderer, extended in M6.3 to include
 // Placement-tracked entities (items + mobs). Replaced by the
