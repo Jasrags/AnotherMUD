@@ -29,3 +29,6 @@ coverage.*
 
 # Nested unrelated project (separate embedded repo, not part of this module)
 /tapestry
+
+# Local symlink to a sibling engine repo (developer convenience, not part of this module)
+/GoMudEngine
