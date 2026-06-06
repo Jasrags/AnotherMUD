@@ -25,6 +25,13 @@ type Config struct {
 	// explicit regardless, to conserve fuel. Off by default — a player
 	// chooses when to spend fuel.
 	AutoLightOnEquip bool
+	// EffectFloors maps an active-effect flag to the per-viewer light
+	// floor it grants while present (§4 light/sight effects). A
+	// cast-light or infravision effect carries one of these flags;
+	// EffectFloorFor reads them. Empty by default — content adds a
+	// light effect and the operator lists its flag here so the floor
+	// it grants is configurable, not hardcoded (§11).
+	EffectFloors map[string]Level
 }
 
 // DefaultConfig is the spec's documented starting point: full daylight,
