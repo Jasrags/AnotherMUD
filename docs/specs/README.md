@@ -173,7 +173,8 @@ The verbs players use and the systems that resolve them.
   blocked examination, combat to-hit penalty, movement risk + the escape
   invariant); and **persisted in-game time** so a restart doesn't black
   out the world (resolves [time-and-clock](time-and-clock.md) §3.6).
-  Behavior contract ahead of code; design at
+  Shipped (`internal/light` resolver + sources/fuel + render/combat/
+  movement gating + period transitions + GMCP/probe); design at
   `docs/proposals/light-and-darkness.md`.
 
 How a connection becomes a session becomes a character.
@@ -413,4 +414,4 @@ highest-impact themes that recur across specs:
 
 ---
 
-<!-- Updated: 2026-06-06 · 39 specs covering the engine substrate, world, action, lifecycle, and presentation layers. Behavior contracts still ahead of code: tag-observers, visibility, hidden-exits, faction, biomes, gathering, room-coordinates, light-and-darkness, crafting-and-cooking, and the trade trio (trade-escrow, direct-trade, auction-house). Since-shipped: roles-and-permissions, admin-verbs, item-decorations (M19/M20), loot-and-corpses (M22), tab-completion Phase 0–2, who. -->
+<!-- Updated: 2026-06-06 · 39 specs covering the engine substrate, world, action, lifecycle, and presentation layers. Behavior contracts still ahead of code: tag-observers, visibility, hidden-exits, faction, biomes, gathering, room-coordinates, crafting-and-cooking, and the trade trio (trade-escrow, direct-trade, auction-house). Since-shipped: roles-and-permissions, admin-verbs, item-decorations (M19/M20), loot-and-corpses (M22), tab-completion Phase 0–2, who, light-and-darkness. -->

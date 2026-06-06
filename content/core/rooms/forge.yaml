@@ -20,5 +20,10 @@ doors:
 # ambience by default. No exposure flags so a rainstorm doesn't
 # rain into the smithy.
 terrain: indoors
+# Light & darkness (§9): the forge fire keeps the smithy bright at all
+# hours — an authored `lit` override pins it past the indoors ambient
+# cap and the day/night cycle.
+properties:
+  light: lit
 mobs:
   - training-master

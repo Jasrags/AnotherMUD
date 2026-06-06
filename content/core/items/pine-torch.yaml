@@ -1,0 +1,17 @@
+id: pine-torch
+name: a pine torch
+type: light
+tags: [light, wooden]
+keywords: [torch, pine]
+# Light & darkness (§3): a fuel-burning light source. `light` is the
+# level it contributes when lit; `fuel` burns down on the fuel-burn tick
+# (default cadence 300 ticks × 1/tick) and the torch gutters out at
+# zero. It occupies the dedicated `light` equipment slot — `equip torch
+# light`, then `light torch` to ignite it (or extinguish to conserve
+# fuel). Starts unlit.
+properties:
+  slot: light
+  light: gloom
+  fuel: 120
+  weight: 1
+  value: 2

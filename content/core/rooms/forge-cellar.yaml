@@ -7,6 +7,13 @@ description: |
   leads up to the forge; an iron door, set low in the far wall, leads
   further down.
 terrain: underground
+# Light & darkness (§9): underground gets no sky, so without an override
+# this working cellar would be pitch black. An authored `dim` (a wall
+# lamp) keeps the transit room + its key navigable, while the vault
+# below stays deliberately dark — bring a torch (one rests here) or be a
+# dwarf to see in it.
+properties:
+  light: dim
 exits:
   up: forge
   down: forge-vault
@@ -26,3 +33,4 @@ doors:
     key: forge-vault-key
 items:
   - forge-vault-key
+  - pine-torch

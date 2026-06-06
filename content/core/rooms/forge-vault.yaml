@@ -6,6 +6,11 @@ description: |
   safe waits here in the dark. The iron door is the only way out, back up
   to the cellar.
 terrain: underground
+# Light & darkness (§9): deliberately left with NO light override — an
+# underground room with no override resolves to black, so the vault is
+# pitch dark as its prose promises. A non-darkvision visitor must bring
+# a lit source to make out the coins; the escape invariant still lets
+# them feel their way back up the way they came.
 exits:
   up: forge-cellar
 # Reverse of the cellar's locked iron door — same name/key so the two

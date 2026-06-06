@@ -50,7 +50,6 @@ import (
 	"github.com/Jasrags/AnotherMUD/internal/player"
 	"github.com/Jasrags/AnotherMUD/internal/portal"
 	"github.com/Jasrags/AnotherMUD/internal/progression"
-	"github.com/Jasrags/AnotherMUD/internal/property"
 	"github.com/Jasrags/AnotherMUD/internal/quest"
 	"github.com/Jasrags/AnotherMUD/internal/queststore"
 	"github.com/Jasrags/AnotherMUD/internal/questwatch"
@@ -108,7 +107,7 @@ func run() error {
 	// registry. Pack-scoped property registrations belong in their
 	// owning feature's init code; the engine declares only what every
 	// pack can rely on existing.
-	if err := registerEngineBaselineProperties(registries.Properties); err != nil {
+	if err := pack.RegisterEngineBaselineProperties(registries.Properties); err != nil {
 		return fmt.Errorf("register engine baseline properties: %w", err)
 	}
 
@@ -3405,82 +3404,6 @@ func portalEventOf(p portal.Portal) eventbus.PortalEvent {
 		ExpiryTick:  p.ExpiryTick,
 		PairedID:    p.PairedID,
 	}
-}
-
-// registerEngineBaselineProperties seeds the engine-known property
-// keys. Today's set is small — quest_grant on rooms is the only new
-// consumer in M14.5; the registration shape is the seam that future
-// engine-side properties (door state, weather override, etc.) will
-// extend. Pack-scoped properties belong in their owning feature's
-// boot code via Registry.RegisterPack.
-func registerEngineBaselineProperties(reg *property.Registry) error {
-	if reg == nil {
-		return nil
-	}
-	baseline := []property.Entry{
-		{
-			Name:          "quest_grant",
-			Type:          property.TypeString,
-			Description:   "Quest id auto-accepted on item pickup or room entry (spec quests §7.2).",
-			AppliesTo:     []string{"item", "room"},
-			AdminSettable: true, // M19.4h: admins can retarget on a live item for testing
-		},
-		{
-			Name:          "key_for",
-			Type:          property.TypeString,
-			Description:   "Door id this item unlocks (spec world-rooms-movement §5.3 + PD-4).",
-			AppliesTo:     []string{"item"},
-			AdminSettable: true, // M19.4h: admins can retarget which door an item unlocks
-		},
-		{
-			Name:          "rarity",
-			Type:          property.TypeString,
-			Description:   "Rarity-tier key decorating the item's display (spec item-decorations §5).",
-			AppliesTo:     []string{"item"},
-			AdminSettable: true, // M20.5: admins can set an item's rarity via `set property`
-		},
-		{
-			Name:          "essence",
-			Type:          property.TypeString,
-			Description:   "Essence key decorating the item's display (spec item-decorations §5).",
-			AppliesTo:     []string{"item"},
-			AdminSettable: true, // M20.5: admins can set an item's essence via `set property`
-		},
-		{
-			Name:          "light",
-			Type:          property.TypeString,
-			Description:   "Light level (black/gloom/dim/lit): on a room it overrides ambient; on an item it is the level the source contributes when lit (spec light-and-darkness §2.4/§3.1/§9).",
-			AppliesTo:     []string{"room", "item"},
-			AdminSettable: true, // admins can repin a room's light or an item's source level at runtime
-		},
-		{
-			Name:          "lit",
-			Type:          property.TypeBool,
-			Description:   "Light source lit state; lives on the item instance so it survives pickup/drop/give/store (spec light-and-darkness §3.1).",
-			AppliesTo:     []string{"item"},
-			AdminSettable: true, // admins can light/extinguish a source for testing
-		},
-		{
-			Name:          "dark_blocked",
-			Type:          property.TypeBool,
-			Description:   "Room opts into the darkness-movement hazard: a mover who cannot see it at all (effective black) is refused entry (spec light-and-darkness §5.4).",
-			AppliesTo:     []string{"room"},
-			AdminSettable: true,
-		},
-		{
-			Name:          "fuel",
-			Type:          property.TypeInt,
-			Description:   "Remaining fuel for a fuel-burning source; absent = permanent, zero = spent (spec light-and-darkness §3.2).",
-			AppliesTo:     []string{"item"},
-			AdminSettable: true, // admins can refuel/drain a source for testing
-		},
-	}
-	for _, e := range baseline {
-		if err := reg.RegisterEngine(e); err != nil {
-			return fmt.Errorf("baseline property %q: %w", e.Name, err)
-		}
-	}
-	return nil
 }
 
 // registerBaselineEmotes seeds the engine emote set. Per spec §8 the

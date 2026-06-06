@@ -114,6 +114,9 @@ func TestLoad_CoreGuardLoot(t *testing.T) {
 		t.Fatalf("abs: %v", err)
 	}
 	regs := NewRegistries()
+	if err := RegisterEngineBaselineProperties(regs.Properties); err != nil {
+		t.Fatalf("register engine baseline properties: %v", err)
+	}
 	if err := Load(context.Background(), root, nil, regs, nil, nil, nil); err != nil {
 		t.Fatalf("Load core: %v", err)
 	}
