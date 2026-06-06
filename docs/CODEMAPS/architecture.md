@@ -1,4 +1,4 @@
-<!-- Generated: 2026-06-04 | Go files scanned: 254 (+237 tests) | ~56k LOC | 51 internal pkgs | Token estimate: ~700 -->
+<!-- Generated: 2026-06-06 | Go files scanned: 268 (+256 tests) | ~58.5k LOC | 53 internal pkgs | Token estimate: ~700 -->
 
 # Architecture
 
@@ -19,7 +19,9 @@ wires every service, registers tick handlers, runs the telnet listener
 Foundations   tick, eventbus, clock+gameclock, logging, persistence, srckey
 World/things  world, entities, item/mob/slot, keyword, spawn, ai, portal,
               weather, property, corpse
-Mechanics     stats, progression, combat, effect
+Mechanics     stats, progression, combat, effect, light (per-viewer
+              effective-light resolver: terrain sky-gate · room override ·
+              lit sources · darkvision floor)
 Action        command (registry+dispatch+§5 typed args), economy, quest*,
               loot, decoration, stacking
 Lifecycle     account, player, login, session, wizard
@@ -42,7 +44,9 @@ telnet/ws conn ─▶ session.Actor ─▶ command.Registry.Dispatch
                                                        (questwatch, ai,
                                                         gmcp flushers, scripting)
 tick.Loop (100ms) ─▶ registered handlers: combat round, autosave, idle-sweep,
-                     effect ticks, gmcp flush, regen, prompt render
+                     effect ticks, gmcp flush, regen, fuel-burn, prompt render
+gameclock (tick-driven) ─▶ time.period.change ─▶ weather ambience +
+                     light transitions (per-viewer darken/brighten)
 ```
 
 ## Companion docs

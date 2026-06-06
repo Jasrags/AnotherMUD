@@ -1,4 +1,4 @@
-<!-- Generated: 2026-06-03 | External deps + conventions | Token estimate: ~550 -->
+<!-- Generated: 2026-06-06 | External deps + conventions | Token estimate: ~550 -->
 
 # Dependencies & Conventions
 
@@ -20,9 +20,15 @@ in-process tick loop / event bus.
 - `internal/persistence` — atomic tmp→bak→rename file I/O + path safety.
 - `internal/keyword` — shared item/entity match rules (resolver + completion).
 - `internal/eventbus` — typed cancellable/non-cancellable bus.
-- `internal/clock` (wall) + `internal/gameclock` (tick-driven in-game time).
+- `internal/clock` (wall) + `internal/gameclock` (tick-driven in-game time +
+  global `clock.yaml` persistence).
 - `internal/srckey` — modifier-source leaf, breaks the entities↔stats cycle.
 - `internal/property` — registry + tagged-value envelope.
+- `internal/light` — pure per-viewer effective-light resolver (level/config/
+  resolve/source/fuel/viewer); imports only `world` (terrain) + `gameclock`
+  (period names), so call sites gather inputs and it stays a leaf.
+- `internal/world` (terrain) — `TerrainOf`/`IsShielded` + terrain vocabulary,
+  the shared sky-gate classifier both `weather` and `light` key off.
 
 ## Foundations (binding conventions, ROADMAP §foundations)
 - **F1** `ctx context.Context` first param on anything doing I/O / ticks / cancellable.

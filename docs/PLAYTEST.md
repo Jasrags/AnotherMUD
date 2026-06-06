@@ -2,7 +2,7 @@
 
 A manual QA checklist for verifying implemented features (M0–M22 + recent
 polish: the look/consider appearance lens, tab-completion surfaces, weapon
-damage dice + critical hits). Work
+damage dice + critical hits, and **light & darkness** — §21). Work
 top-to-bottom or jump to a section. Each step gives a **command** and the
 **expected behavior**; tick the box when it matches, and note anything that
 doesn't.
@@ -83,6 +83,12 @@ once (two telnet windows).
 - Below the Forge is a **door test branch** (§12): `down` through a plain
   oak door to the **Forge Cellar**, then `down` through a *locked* iron
   door (key in the cellar) to the **Forge Vault**.
+- **Light (§21):** the Forge is pinned **lit** (forge fire); the Cellar is
+  pinned **dim** (a wall lamp) and holds a **pine torch**; the Vault has **no
+  light override**, so it is **pitch black** — bring the torch (or play a
+  dwarf, who has darkvision). Outdoor rooms cycle **lit → dim → gloom** with
+  the day/night clock (one in-game hour per real minute by default; night is
+  20:00–04:59); indoor rooms cap at dim.
 
 ---
 
@@ -519,6 +525,92 @@ In the **Meadow** (`s` from the Gate — the road bandit is here):
 - [ ] As **Bob** (non-admin), `complete loo` — refused with `Huh?`, identical to
       an unknown verb (the debug verb's existence is not disclosed).
 
+## 21. Light & darkness
+
+Effective light is **per-viewer** and computed live from time-of-day, terrain,
+a room `light` override, lit sources you carry, and darkvision. It gates what
+you can see, examine, fight, and walk into. The door branch below the Forge is
+the showcase: **Forge** (lit) → **Cellar** (dim, has a torch) → **Vault**
+(black). Get to the Vault via §12 (get the iron key in the cellar, `unlock
+down`, `open down`, `down`).
+
+### Room render by light level
+
+- [ ] In the **Forge Cellar**, `look` — full render, but the description reads
+      **muted** (dim: a wall lamp, not full daylight). Name, exits, items all
+      present.
+- [ ] In the **Forge** (`up`), `look` — full **lit** render (the forge fire
+      pins it bright despite being indoors).
+- [ ] In the **Forge Vault** (black), `look` — **suppressed**: a single "It is
+      pitch black. You can see nothing." line. No room name, description,
+      exits, or occupants.
+- [ ] An outdoor room at night (Square/Gate/Meadow after dark) `look` —
+      **gloom**: a terse "too dark to make out any detail" line, exits as
+      **bare directions** (no door/weather detail), occupants shown as
+      anonymous shapes (no names). By day the same room is full **lit**.
+
+### A carried light source (the pine torch)
+
+- [ ] In the Cellar, `get torch`, `equip torch light`, then `light torch` — "You
+      light a torch." (`equipment` shows it in the **light** slot).
+- [ ] Carry the lit torch into the **black Vault** and `look` — it lifts to
+      **gloom**: the room name returns with the terse dark form + bare exits.
+      (A basic torch is gloom-level — enough to navigate, not to read detail.)
+- [ ] `extinguish torch` (`douse`) in the Vault — back to the black "you can see
+      nothing" render. `light torch` again restores gloom.
+- [ ] **Fuel:** a lit torch burns down on the fuel tick and eventually **gutters
+      out** ("A torch gutters out and goes dark.") — it becomes unlit on its
+      own. (Default ~one fuel/30s; `fuel: 120` ≈ an hour. To see it fast, drain
+      the torch's fuel via admin `set property fuel <torch> 1`, or just trust
+      the unit tests.)
+- [ ] Auto-light is **off** by default (you `light` it explicitly). With
+      `ANOTHERMUD`-side auto-light enabled, equipping into the light slot would
+      ignite it.
+
+### Examination & reading gate
+
+- [ ] In the black Vault (no torch), `look coins` — "It is too dark to make it
+      out." (examining a room thing needs at least **dim**).
+- [ ] `get coins` in the dark — still **works** (taking isn't gated; credits
+      gold). You can grab by feel even if you can't read detail.
+- [ ] `look <a held item>` in the dark — its description still prints (you feel
+      what you carry; held items are never gated).
+- [ ] With the gloom torch lit, `look coins` is **still** too dark (gloom shows
+      shapes, not detail — you'd need a brighter, dim-level source).
+
+### Combat in the dark
+
+- [ ] Fight the bandit in the **Meadow at night** (outdoors → gloom) vs **by
+      day** (lit) — your hit rate is **lower in the dark**; the penalty scales
+      with how dark it is for *you* (the attacker). Daylight or a bright enough
+      source removes it. Combat is never *blocked* by darkness — a natural 20
+      still lands.
+
+### Movement & the escape invariant
+
+- [ ] In the black Vault, even though `look` hides the exits, on arrival you
+      were told the way back ("You can feel your way back up.") and `up` **still
+      works** — darkness never traps you. Outdoor rooms are never fully black.
+- [ ] (Content opt-in) a room flagged `dark_blocked` refuses entry to a mover
+      who can't see it at all (effective black) — a lit torch lets you brave it.
+      No core room ships this by default.
+
+### Transitions, darkvision, probe, persistence
+
+- [ ] Stand in an outdoor room across a dawn or dusk boundary — you get a
+      **transition** line ("…shadows close in…" / "…the world brightens…") when
+      your effective level actually crosses. A pinned-lit room (the Forge) and
+      the always-black Vault emit nothing.
+- [ ] As a **dwarf** (darkvision), enter the black Vault with no light — you see
+      it at **gloom** (shapes + directions), where a human sees nothing.
+- [ ] `daylight` (`time`) anywhere — reports the time of day and how well you can
+      see ("It is night. It is pitch black here; you can see nothing.").
+- [ ] **Persistence:** note the in-game time, restart the server, log back in —
+      time-of-day **resumes** where it stopped (the world isn't reset to night;
+      saved in `saves/clock.yaml`).
+- [ ] (GMCP, §18) `Room.Info` carries a per-viewer `light` field
+      (black/gloom/dim/lit) — a capable client can theme the viewport from it.
+
 ---
 
 ## Notes / known gaps (already understood)
@@ -530,6 +622,12 @@ In the **Meadow** (`s` from the Gate — the road bandit is here):
   and re-create, or just make a fresh character.
 - Time/weather, corpse decay, idle, and link-dead are **timer-driven** — use the
   fast-testing env above to see them quickly.
+- **Light & darkness (§21):** the Forge Vault is deliberately black and the
+  Cellar dim — the quickest darkness demo without waiting for nightfall. The
+  day/night cycle runs ~24 real minutes/day (one in-game hour per minute), so
+  outdoor gloom takes a little waiting; the underground branch is instant.
+  Effect-driven sight buffs and room-loose source burn-down are not wired yet
+  (see the light deferred-fixes memory).
 - **Tab-completion (§20) is feature-complete.** A real **TAB key** works on raw
   telnet (char-mode, §20.0) and via GMCP `Input.Complete` on modern clients
   (§18); `suggest` is the line-mode path and the admin `complete` verb is the

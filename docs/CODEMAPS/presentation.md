@@ -1,4 +1,4 @@
-<!-- Generated: 2026-06-03 | Client-facing layer (no web frontend) | Token estimate: ~600 -->
+<!-- Generated: 2026-06-06 | Client-facing layer (no web frontend) | Token estimate: ~600 -->
 
 # Presentation & Networking
 
@@ -21,7 +21,8 @@ WS  :4001  ─▶ internal/conn/ws      ─┘   (one-text-frame JSON envelopes)
 ## GMCP (bidirectional)
 `internal/gmcp` — wire shapes + package-name constants. **Server→client** (push):
 Char.Vitals/Status/StatusVars/Login/Combat/Effects/Experience/Items.List,
-Room.Info, Comm.Channel.Text — flushed on cadence-1 tick handlers (poll-and-diff)
+Room.Info (carries a per-viewer `light` level field), Comm.Channel.Text —
+flushed on cadence-1 tick handlers (poll-and-diff)
 in `main.go`. **Client→server** (request/response): `Input.Complete` /
 `Input.Complete.List` (tab-completion §13) — inbound frames dispatched on both
 transports to a session handler (`session/gmcp_complete.go`), per-connection
@@ -31,6 +32,12 @@ status vars on connect.
 ## Rendering
 - `internal/render` (1.4k LOC) — room/look output, exits, item listings,
   decoration + stacking integration, weather ambience line.
+- **Light-and-darkness render states** (`command.RenderRoom` branches on the
+  per-viewer effective light): `lit` = full render; `dim` = full body, prose
+  muted (`{dim}`); `gloom` = obscured (terse dark line, anonymous occupants,
+  bare-direction exits); `black` = single "you can see nothing" line. All
+  degrade to clean text (markup the renderer strips). `daylight` verb probes
+  time + light.
 - `internal/ansi` — tiered ANSI emission (plain / 16 / 256 / truecolor) keyed off
   the connection's detected ColorTier; `{X}`-style pack color markup expansion.
 - `internal/help` — help topics + categories (auto-synthesis from arg defs is

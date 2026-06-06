@@ -1,4 +1,4 @@
-<!-- Generated: 2026-06-03 | Persistence (YAML files) + content packs — no database | Token estimate: ~750 -->
+<!-- Generated: 2026-06-06 | Persistence (YAML files) + content packs — no database | Token estimate: ~750 -->
 
 # Data: Saves & Content
 
@@ -14,15 +14,19 @@ players/<lname>/player.yaml      versioned char save (tags, roles, stats,
    ├ notifications.yaml          recall, prompt)
    └ chat-subscriptions          per-player
 channels/<id>.yaml               global channel scrollback
+clock.yaml                       global in-game time (CurrentHour, DayCount)
 ```
 - Writes via `internal/persistence`: tmp → bak → rename rotation, path-safety.
 - `internal/player` — `player.yaml` carries `version`; `CurrentVersion = 14`
   with an **append-only migration chain** (never edit an old migration).
 - **Autosave**: `session.Manager.SaveAll` writes actors with the `dirty` bit set
   (`SetRoom` flips it); final flush on SIGINT. Per-player errors isolated.
-- **Not persisted** (by design): sessions, in-game time, weather, link-dead
-  state, mob spawn tracking, temporary exits, active effects, rest state,
-  direct-trade sessions.
+- **In-game time persists**: `gameclock.Store` writes `clock.yaml` (atomic),
+  flushed on each in-game hour advance + clean shutdown, seeded at boot;
+  missing/corrupt cold-starts at hour 0/day 0. Global, not per-player.
+- **Not persisted** (by design): sessions, weather, link-dead state, mob spawn
+  tracking, temporary exits, active effects (incl. light source lit/fuel across
+  restart), rest state, direct-trade sessions.
 
 ## Content packs (`<ANOTHERMUD_CONTENT_DIR>`, default ./content)
 `internal/pack` (3.4k LOC) — manifest/discovery/dep-order/two-phase loader.
