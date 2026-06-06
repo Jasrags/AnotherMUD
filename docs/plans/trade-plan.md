@@ -27,7 +27,7 @@ verbs), but they all commit through the same escrow guarantee.
 | Listing item render | rarity/essence (`item-decorations`) | **spec-only** |
 | Auction access point | temporary-entity + room-tag (no furniture system) | built (reused) |
 | Atomic file writes | `persistence` (tmp→bak→rename) | built |
-| Admin moderation gate | roles + admin-verbs | **spec-only (build dep)** |
+| Admin moderation gate | roles + admin-verbs | **built** (shipped + enforcing) |
 | **Escrow / atomic-transaction primitive** | `trade-escrow` | **build (Phase 0)** |
 | **Persisted listing store** | new, versioned, atomic | **build** |
 | **Goods push-delivery (mail attachments)** | greenfield, shared w/ mail | **deferred** |
@@ -152,11 +152,12 @@ Per-location auction pools with arbitrage between them (trader gameplay +
 travel reward). Deferred until the population supports fragmenting liquidity;
 v1 is global.
 
-### Admin moderation *(blocked on a build dependency)*
-Cancel/remove a listing + refund a sale, **role-gated**. Blocked on
-`roles-and-permissions` + `admin-verbs`, which are **spec-only** today. Build
-behind that dependency, or ship the moderation verbs disabled until roles
-land. Not on the MVP critical path.
+### Admin moderation *(dependency now built)*
+Cancel/remove a listing + refund a sale, **role-gated**. The gate is no
+longer blocked: `roles-and-permissions` + `admin-verbs` are shipped and
+enforcing (admin commands gate on `HasRole`, with live `grant`/`revoke`
+verbs), so moderation can gate directly when built. Not on the MVP
+critical path.
 
 ---
 
@@ -172,7 +173,7 @@ land. Not on the MVP critical path.
 | Global vs location market | Phase 11 | **DECIDED — global v1; location-scoped deferred.** |
 | Bidding anti-sniping policy | Phase 9 (deferred) | open — decide when bidding is scheduled. |
 | Attachment-delivery substrate | Phase 10 (deferred) | greenfield; design jointly with mail. |
-| Roles/admin built | Admin moderation | blocked — roles + admin-verbs are spec-only. |
+| Roles/admin built | Admin moderation | **RESOLVED — roles + admin-verbs shipped + enforcing.** |
 
 ---
 

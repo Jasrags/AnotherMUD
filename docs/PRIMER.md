@@ -200,8 +200,9 @@ and have *no* implementation there either — i.e. genuine greenfield, not a por
 - **No banking, no mail-with-attachments, no auction house, no direct
   player-to-player trade.** Player exchange today is one-way `give` + NPC shops;
   there is no gold-at-risk mechanic (death costs no gold).
-- **No role/permission enforcement yet** (the help "tier" is a no-op stub until
-  roles-and-permissions is built).
+- **Role/permission enforcement is live** — `roles-and-permissions` +
+  `admin-verbs` are built: admin commands gate on `HasRole`, with `grant`/
+  `revoke` verbs and role-change events.
 
 ---
 

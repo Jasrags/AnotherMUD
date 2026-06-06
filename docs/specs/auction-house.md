@@ -312,11 +312,11 @@ An operator can intervene — **cancel or remove** a listing and **refund** a
 sale — gated by role.
 
 - Moderation verbs require an administrative role
-  (`roles-and-permissions.md` / `admin-verbs.md`). **Build dependency:** both
-  are currently **spec-only** (no implementation yet); auction moderation
-  cannot enforce its gate until roles ship, so v1 moderation is built behind
-  that dependency (or ships ungated-but-disabled until roles land — a plan
-  decision, see `docs/plans/trade-plan.md`).
+  (`roles-and-permissions.md` / `admin-verbs.md`). **No longer blocked:**
+  both are now implemented and enforcing — admin commands gate on `HasRole`
+  (the command registry's admin check) with live `grant`/`revoke` verbs — so
+  auction moderation can enforce its gate directly when built; it is no
+  longer a build dependency. (See `docs/plans/trade-plan.md`.)
 - A removed listing returns the item to the seller (pickup, §7) and is
   audit-logged with the acting admin; a refunded sale reverses the coin/item
   through the escrow primitive and is audit-logged.
