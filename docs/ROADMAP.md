@@ -32,9 +32,9 @@ and `THEME-AXIS-PLAN.md` are superseded by `BACKLOG.md` and now live under
   The core loop, world, combat, progression, economy, quests, scripting,
   sessions, modern-client, roles/admin, decorations, stacking, loot, and
   room coordinates all work.
-- **Active:** **M24 — Player Maps.** Phase **M24.1** (persisted
-  fog-of-war visited-set + the `SetRoom` exploration hook) is **done**;
-  remaining: M24.2 the shared local-window query, M24.3 the ASCII
+- **Active:** **M24 — Player Maps.** **M24.1** (persisted fog-of-war
+  visited-set + `SetRoom` hook) and **M24.2** (the shared
+  `world.LocalWindow` query) are **done**; remaining: M24.3 the ASCII
   minimap toggle + `map` verb, M24.4 the Mudlet GMCP surface. Spec:
   `docs/specs/player-maps.md`.
 - **Specs ahead of code.** Behavior contracts written without
@@ -3179,12 +3179,20 @@ local-window query feeds every surface. Implements the new
       renderers read. Hooked at `SetRoom` rather than the `player.moved`
       event because that event isn't emitted uniformly (recall skips it),
       so the chokepoint is what makes "entering is entering" hold.
-- [ ] **M24.2 — The shared local-window query.** `player-maps §2`. A
-      bounded BFS from the player's room over intra-area directional
-      exits, intersected with *placed* rooms, returning nearby rooms +
-      their stable coordinates + the exits among them. Net-new (the
-      coords walk in `world` is boot-only); the seam both ASCII renderers
-      and the area query share. Applies no fog — callers filter.
+- [x] **M24.2 — The shared local-window query.** `player-maps §2`.
+      `internal/world/window.go`: `(*World).LocalWindow(origin, radius)`
+      → `Window{Origin, Area, Rooms []WindowRoom}` (+ `Contains` and
+      `OriginCoord` helpers). A bounded BFS from the origin over
+      **intra-area directional** exits, collecting **placed** rooms with
+      their stable coordinates (copied, never aliasing `Room.Coord`).
+      `radius` is a STEP bound (depth); a negative radius is unbounded =
+      the whole area (the `map` form). Crosses doored exits normally,
+      stops at the area boundary, never traverses keyword/portal exits,
+      and surfaces a placed neighbour even from an unplaced origin (which
+      `OriginCoord` then reports as un-centerable). Applies **no** fog —
+      callers (the renderers, the GMCP path) filter against the M24.1
+      visited set. Net-new (the coords walk in `world` is boot-only); the
+      seam both ASCII renderers and the area query share. ~97% cov.
 - [ ] **M24.3 — ASCII renderers: minimap toggle + `map` verb.**
       `player-maps §4–§6`. A net-new grid renderer (render-time recenter,
       terrain glyphs via the theme, stub-edges for unvisited neighbors,
