@@ -191,12 +191,25 @@ old five-theme partition left uncovered.
   `world.World` and the per-system registries are documented as **boot-immutable**
   (mutations MUST happen before serving). OLC inverts that — runtime mutation of
   the live world that persists somewhere. Substrate that already leans this way:
-  the **`builder`/`admin` role gate** (M19 roles-and-permissions), the **admin-verb
+  the **role gate** (M19 roles-and-permissions) — though note **only the single
+  configured `admin` role is enforced anywhere today**; roles are free-form strings
+  but a distinct **`builder`** role does not yet gate anything (the `look` room-data
+  block and every admin verb gate on `admin`). The **admin-verb
   framework** (M19.4) and especially **`set property`** on live room mobs/items
   (M19.4h) — a tiny precursor that already mutates a running entity; the **pack
   loader's decode + validation** logic (reusable to validate OLC edits); and the
   **atomic tmp→bak→rename persistence** (M-substrate) for writing changes back.
-  Pre-decisions, in rough priority: **(1) source-of-truth model** — does OLC write
+  Pre-decisions, in rough priority: **(0) builder role** — wire a distinct
+  **`builder`** role (separate from `admin`) and gate the OLC verbs on it, so
+  world-editing privileges can be granted without handing out full admin. This is
+  the first thing OLC needs (a gate before any edit verb exists) and is deferred
+  to here deliberately — a separate builder role has no consumer until OLC, so the
+  role substrate stays single-`admin` until then. Touch points when it lands: a
+  `BuilderRole` in the dispatcher `Env`/`Config` (mirroring `AdminRole`), a
+  `Command.Builder` flag (or a required-role field) in the registry gate, and an
+  `IsBuilder()` Context helper alongside `IsAdmin()`; the existing `look` room-data
+  block (admin-gated today) is a natural thing to also unlock for builders.
+  **(1) source-of-truth model** — does OLC write
   back into the pack YAML files (world-is-source, but fights git/spec authoring and
   hand-edits) or into a separate runtime/world-overlay save layered over the
   loaded packs (packs stay pristine, but the world now has two sources)? **(2)

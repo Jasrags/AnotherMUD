@@ -785,7 +785,9 @@ func run(ctx context.Context, c conn.Connection, cfg Config) error {
 	}
 
 	startLvl := command.EffectiveLight(cfg.Light, start, a, cfg.Items, cfg.Placement)
-	if err := a.Write(ctx, command.RenderRoom(start, cfg.Placement, cfg.Items, questMarkerFor(cfg.Quests, a.PlayerID()), cfg.Ambience, nil, startLvl, otherPlayerNames(cfg.Manager, start.ID, a.PlayerID())...)); err != nil {
+	spawnView := command.RenderRoom(start, cfg.Placement, cfg.Items, questMarkerFor(cfg.Quests, a.PlayerID()), cfg.Ambience, nil, startLvl, otherPlayerNames(cfg.Manager, start.ID, a.PlayerID())...)
+	spawnView = command.AppendRoomData(spawnView, start, a, cfg.AdminRole)
+	if err := a.Write(ctx, spawnView); err != nil {
 		// Initial render failed: the connection is unusable. Full
 		// teardown immediately — no point parking link-dead.
 		fullTeardown(ctx, cfg, a)
@@ -3241,6 +3243,32 @@ func (a *connActor) SetPromptTemplate(template string) {
 	a.save.PromptTemplate = template
 	a.markDirtyLocked()
 	a.needsPromptRefresh = true
+}
+
+// ShowRoomData reports the admin/builder room-metadata `look` preference
+// (persisted). Satisfies command.RoomDataViewer. False when the save is
+// absent (test actors) — the look block also gates on the admin role, so
+// this is purely the user's display toggle.
+func (a *connActor) ShowRoomData() bool {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	if a.save == nil {
+		return false
+	}
+	return a.save.ShowRoomData
+}
+
+// SetShowRoomData stores the room-metadata toggle and marks the save
+// dirty so it persists across logins. A no-op when unchanged or when the
+// save is absent.
+func (a *connActor) SetShowRoomData(v bool) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	if a.save == nil || a.save.ShowRoomData == v {
+		return
+	}
+	a.save.ShowRoomData = v
+	a.markDirtyLocked()
 }
 
 // Vitals returns the actor's mutable HP state. The pointer is set at

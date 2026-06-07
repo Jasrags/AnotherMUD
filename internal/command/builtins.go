@@ -227,6 +227,7 @@ func RegisterBuiltins(r *Registry) error {
 		// self; otherwise resolves a player or mob in the room (§3). Audited
 		// via auditAdmin.
 		{Keyword: "inspect", Handler: InspectHandler, Admin: true, Brief: "Inspect a target's full diagnostic record.", Syntax: []string{"inspect [<target>]"}},
+		{Keyword: "roomdata", Handler: RoomDataHandler, Admin: true, Brief: "Toggle the room metadata block on look (admin/builder).", Syntax: []string{"roomdata", "roomdata on", "roomdata off"}},
 
 		// set (M19.4c — admin-verbs §4): the general-purpose admin field
 		// write. `set <kind> <type> <target> <value>` mutates one field on a
@@ -302,7 +303,7 @@ func LookHandler(ctx context.Context, c *Context) error {
 	// headless paths), renders the room — never a misleading
 	// "you don't see that" for a missing subsystem.
 	if len(args) == 0 || c.Items == nil {
-		return c.Actor.Write(ctx, RenderRoom(room, c.Placement, c.Items, c.questMarker(), c.Ambience, c.hostileMarker(), c.effectiveLight(room), c.otherPlayerNames(room.ID)...))
+		return c.Actor.Write(ctx, c.renderRoomWithData(room, c.effectiveLight(room)))
 	}
 	return c.lookAtTarget(ctx, args)
 }
@@ -422,7 +423,7 @@ func movementHandler(dir world.Direction) Handler {
 		if c.Disposition != nil && pid != "" {
 			c.Disposition.OnPlayerEnteredImmediate(ctx, pid, name, nil, dst.ID)
 		}
-		if err := c.Actor.Write(ctx, RenderRoom(dst, c.Placement, c.Items, c.questMarker(), c.Ambience, c.hostileMarker(), dstLvl, c.otherPlayerNames(dst.ID)...)); err != nil {
+		if err := c.Actor.Write(ctx, c.renderRoomWithData(dst, dstLvl)); err != nil {
 			return err
 		}
 		// Escape-invariant affordance (§5.4): when the mover arrives

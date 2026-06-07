@@ -216,6 +216,17 @@ type Save struct {
 	// so a roleless save (the common case) writes no `roles:` key and a
 	// legacy pre-v15 save round-trips as the empty set.
 	Roles []string `yaml:"roles,omitempty"`
+
+	// ShowRoomData is the admin/builder preference to append a room
+	// metadata block (ids, coordinates, terrain, tags, properties, exit
+	// targets) to `look` output. Off by default; the `roomdata` admin
+	// verb toggles it and it persists across logins. Added without a
+	// schema bump on the same logic as Autoloot/PromptTemplate: the
+	// false zero-value is indistinguishable from "field absent"
+	// (omitempty), so legacy saves load with it off and round-trip
+	// unchanged. The display still gates on the admin role at render
+	// time, so a saved-true flag does nothing for a non-admin.
+	ShowRoomData bool `yaml:"show_room_data,omitempty"`
 }
 
 // VitalsState is the persisted HP block (v5+). Pointer so an absent

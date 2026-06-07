@@ -487,6 +487,14 @@ type Context struct {
 	// `admin` when empty (roles-and-permissions §4/§8).
 	RoleTargetResolver RoleTargetResolver
 	GrantingRole       string
+	// AdminRole is the role an admin-marked command requires (copied from
+	// Env.AdminRole, defaulted to `admin`). The dispatcher gates admin
+	// verbs before the handler runs; this field lets a non-admin handler
+	// (e.g. `look`) make a defensive in-handler admin check for an
+	// admin-only display block — see AppendRoomData, which falls back to
+	// the default when this is empty so a direct-constructed test Context
+	// behaves like dispatch.
+	AdminRole string
 	// DefaultXPTrack is the engine's primary XP track (copied from Env).
 	// The `xp` verb grants on it when no track argument is given; empty
 	// falls back to "adventurer" in the handler.
@@ -966,6 +974,7 @@ func (r *Registry) Dispatch(ctx context.Context, env Env, actor Actor, raw strin
 		TellResolver:          env.TellResolver,
 		RoleTargetResolver:    env.RoleTargetResolver,
 		GrantingRole:          env.GrantingRole,
+		AdminRole:             env.AdminRole,
 		DefaultXPTrack:        env.DefaultXPTrack,
 		Announcer:             env.Announcer,
 		PlayerRoom:            env.PlayerRoom,
