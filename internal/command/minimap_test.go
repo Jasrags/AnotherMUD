@@ -146,9 +146,36 @@ func TestSideBySideVisual(t *testing.T) {
 	w.AddRoom(mapRoom("ar:n", "forest", 0, 1, 0, map[world.Direction]world.RoomID{world.DirSouth: "ar:o"}))
 	w.AddRoom(mapRoom("ar:e", "water", 1, 0, 0, map[world.Direction]world.RoomID{world.DirWest: "ar:o"}))
 	w.AddRoom(mapRoom("ar:w", "road", -1, 0, 0, map[world.Direction]world.RoomID{world.DirEast: "ar:o"}))
-	win, _ := w.LocalWindow("ar:o", 3)
-	grid, _ := renderLocalMap(win, "ar:o", visitedFunc("ar:o", "ar:n", "ar:e", "ar:w"))
+	win, _ := w.LocalWindow("ar:o", defaultMinimapRadius)
+	grid, _ := renderFramedMinimap(win, "ar:o", visitedFunc("ar:o", "ar:n", "ar:e", "ar:w"))
 	t.Logf("\n%s", joinBeside(roomBody, grid, defaultRoomColumnWidth, minimapGap))
+}
+
+// The active minimap is enclosed in a border bounding the fog-of-war
+// window (player-maps §4).
+func TestRenderFramedMinimap_HasBorder(t *testing.T) {
+	w := world.New()
+	w.AddRoom(mapRoom("ar:o", "outdoors", 0, 0, 0, map[world.Direction]world.RoomID{world.DirEast: "ar:e"}))
+	w.AddRoom(mapRoom("ar:e", "water", 1, 0, 0, map[world.Direction]world.RoomID{world.DirWest: "ar:o"}))
+
+	out, ok := renderFramedMinimap(must(w.LocalWindow("ar:o", defaultMinimapRadius)), "ar:o", visitedFunc("ar:o", "ar:e"))
+	if !ok {
+		t.Fatal("expected centerable")
+	}
+	t.Logf("\n%s", out)
+	lines := strings.Split(out, "\n")
+	if !strings.Contains(lines[0], "+") || !strings.Contains(lines[0], "-") {
+		t.Errorf("first line should be a top border, got %q", lines[0])
+	}
+	var bordered bool
+	for _, ln := range lines {
+		if strings.Contains(ln, "|") && strings.Contains(ln, "@") {
+			bordered = true // the @ row is enclosed by vertical borders
+		}
+	}
+	if !bordered {
+		t.Errorf("minimap content should be enclosed by side borders:\n%s", out)
+	}
 }
 
 func TestMapLegend(t *testing.T) {

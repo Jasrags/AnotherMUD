@@ -3204,7 +3204,8 @@ local-window query feeds every surface. Implements the new
       active **minimap** renders **beside** the room view (to its right,
       not below — `internal/command/sidebyside.go`: markup-aware wrap +
       column join with a `{x}` boundary reset so room color can't bleed
-      into the map) via the shared `AppendMinimap` seam — wired into
+      into the map) and is **enclosed in a `<frame>` border** bounding the
+      fog-of-war window, via the shared `AppendMinimap` seam — wired into
       `renderRoomWithData` (look, movement, recall, teleport, flee) and
       the session spawn + reattach renders — behind a persisted,
       non-admin `minimap [on|off]` toggle (`player.Save.MinimapEnabled`,

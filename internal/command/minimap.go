@@ -21,9 +21,10 @@ type MapViewer interface {
 }
 
 // defaultMinimapRadius is the step radius of the active minimap window
-// (player-maps §4, §10 policy) — small so the grid always fits a
-// terminal. The `map` verb uses an unbounded radius instead.
-const defaultMinimapRadius = 3
+// (player-maps §4, §10 policy) — small so the bordered widget stays
+// terminal-sized; the border then bounds the fog-of-war window the player
+// can currently see. The `map` verb uses an unbounded radius instead.
+const defaultMinimapRadius = 2
 
 // terrainGlyph maps a room's terrain to a single map glyph (player-maps
 // §6.2, §10 policy). Unknown/empty terrain falls back to the default.
@@ -68,11 +69,43 @@ var cardinalConns = []cardinalConn{
 // origin are annotated below the grid (§6.5). Returns ("", false) when
 // the origin is unplaced and the map cannot be centred (§4/§5).
 func renderLocalMap(win world.Window, originID world.RoomID, isVisited func(string) bool) (string, bool) {
-	origin, ok := win.OriginCoord()
+	canvas, origin, ok := buildMapCanvas(win, originID, isVisited)
 	if !ok {
 		return "", false
 	}
+	out := canvas.render()
+	if notes := originNotes(origin); notes != "" {
+		out += "\n" + notes
+	}
+	return out, true
+}
 
+// renderFramedMinimap is the active-minimap form: the same grid enclosed
+// in a border that bounds the fog-of-war window the player can currently
+// see (player-maps §4) — so the boxed extent reads at a glance. The
+// vertical/keyword-exit notes sit below the box.
+func renderFramedMinimap(win world.Window, originID world.RoomID, isVisited func(string) bool) (string, bool) {
+	canvas, origin, ok := buildMapCanvas(win, originID, isVisited)
+	if !ok {
+		return "", false
+	}
+	out := frameBox(canvas.render())
+	if notes := originNotes(origin); notes != "" {
+		out += "\n" + notes
+	}
+	return out, true
+}
+
+// buildMapCanvas places the fog-filtered, z-plane-filtered window rooms
+// onto a recentred canvas (viewer at the origin cell): the origin marker,
+// terrain glyphs, and a connector per cardinal exit (a link between two
+// rendered rooms, or a stub into blank toward a non-rendered room, §6.4).
+// Returns ok=false when the origin is unplaced and cannot be centred.
+func buildMapCanvas(win world.Window, originID world.RoomID, isVisited func(string) bool) (*mapCanvas, *world.Room, bool) {
+	origin, ok := win.OriginCoord()
+	if !ok {
+		return nil, nil, false
+	}
 	rendered := renderableRooms(win, originID, origin.Z, isVisited)
 	canvas := newMapCanvas()
 	for id, wr := range rendered {
@@ -82,20 +115,36 @@ func renderLocalMap(win world.Window, originID world.RoomID, isVisited func(stri
 		} else {
 			canvas.set(col, row, glyphFor(wr.Room.Terrain))
 		}
-		// A connector is drawn for every cardinal exit: it lands between
-		// two rendered rooms (a link) or terminates in blank (a stub).
 		for _, c := range cardinalConns {
 			if _, has := wr.Room.Exits[c.dir]; has {
 				canvas.set(col+c.dcol, row+c.drow, c.glyph)
 			}
 		}
 	}
+	return canvas, rendered[originID].Room, true
+}
 
-	out := canvas.render()
-	if notes := originNotes(rendered[originID].Room); notes != "" {
-		out += "\n" + notes
+// frameBox encloses a multi-line map in an ASCII border (player-maps §4):
+// the box bounds the mapped fog-of-war window so its extent is legible.
+// Border glyphs use <frame> so they theme like the panel renderer and
+// degrade to plain ASCII; rows are padded to a common width so the right
+// edge stays straight.
+func frameBox(content string) string {
+	lines := strings.Split(content, "\n")
+	width := 0
+	for _, ln := range lines {
+		if w := markupWidth(ln); w > width {
+			width = w
+		}
 	}
-	return out, true
+	bar := "<frame>+" + strings.Repeat("-", width+2) + "+</frame>"
+	var b strings.Builder
+	b.WriteString(bar + "\n")
+	for _, ln := range lines {
+		b.WriteString("<frame>|</frame> " + padRight(ln, width) + " <frame>|</frame>\n")
+	}
+	b.WriteString(bar)
+	return b.String()
 }
 
 // renderableRooms selects the window rooms to draw: the visited rooms on
@@ -161,12 +210,12 @@ func AppendMinimap(base string, r *world.Room, viewer Actor, w *world.World) str
 	if err != nil {
 		return base
 	}
-	grid, ok := renderLocalMap(win, r.ID, mv.HasVisited)
+	grid, ok := renderFramedMinimap(win, r.ID, mv.HasVisited)
 	if !ok || grid == "" {
 		return base
 	}
 	// Beside the room view, not below it (player-maps §4): the room body
-	// wraps into a left column and the minimap rides at the top-right.
+	// wraps into a left column and the bordered minimap rides top-right.
 	return joinBeside(base, grid, defaultRoomColumnWidth, minimapGap)
 }
 

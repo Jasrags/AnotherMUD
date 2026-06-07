@@ -211,6 +211,10 @@ A small local map that travels with the player.
   the player's current room, **fog-filtered** (§3) and
   **player-centered** by render-time translation (the viewer's room at
   grid center).
+- It is enclosed in a **border** that bounds the fog-of-war window the
+  player can currently see, so the mapped extent reads at a glance and
+  the widget is visually distinct from the room text beside it. Border
+  glyphs theme like the panel renderer and degrade to plain ASCII.
 - It is appended **outside** any light gate that suppresses the room
   body — but a renderer MAY choose to omit or blank the minimap when
   the viewer cannot see at all (a §10 policy aligned with
@@ -229,6 +233,8 @@ A small local map that travels with the player.
       radius, centered on the player.
 - [ ] The minimap redraws to follow the player on each room change.
 - [ ] An unplaced current room degrades to a placeholder, not an error.
+- [ ] The minimap is enclosed in a border bounding the fog-of-war
+      window.
 
 ---
 
@@ -426,6 +432,7 @@ visited set.
 |---|---|---|
 | Minimap radius | small (terminal-sized) | The step/cell radius of the active minimap window around the player (§4). |
 | Minimap placement | beside (right of) the room view | The active minimap renders to the right of the room body, top-aligned (§4). |
+| Minimap border | on (bounds the fog window) | The active minimap is enclosed in a border indicating the fog-of-war window extent (§4). |
 | Room column width | terminal-fitting | The left-column width the room body wraps to when the minimap is beside it, so room + gap + map fit a standard terminal (§4). |
 | Room↔map gap | small | Blank columns between the room column and the minimap (§4). |
 | Minimap toggle default | off | Whether a fresh character starts with the minimap on (§4). |

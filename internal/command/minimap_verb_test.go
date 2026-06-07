@@ -129,12 +129,16 @@ func TestAppendMinimap_GatedOnToggle(t *testing.T) {
 
 	on := &mapActor{testActor: newTestActor(o), visited: visited, minimap: true}
 	got := command.AppendMinimap("ROOM", o, on, w)
-	// Beside, not below: the room text and the minimap share the first row.
+	// Beside, not below: the room text leads the first row and the
+	// bordered minimap's top edge sits to its right.
 	firstLine := strings.SplitN(got, "\n", 2)[0]
 	if !strings.HasPrefix(firstLine, "ROOM") {
 		t.Errorf("room text should lead the row, got first line:\n%s", firstLine)
 	}
-	if !strings.Contains(firstLine, "@") {
-		t.Errorf("minimap should sit to the RIGHT on the same row, got:\n%s", got)
+	if !strings.Contains(firstLine, "+") {
+		t.Errorf("the bordered minimap's top edge should sit to the right on the first row, got:\n%s", got)
+	}
+	if !strings.Contains(got, "@") {
+		t.Errorf("minimap should contain the viewer marker, got:\n%s", got)
 	}
 }
