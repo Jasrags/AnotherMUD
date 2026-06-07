@@ -47,3 +47,42 @@ func VisibleLength(s string) int {
 	}
 	return len(StripTags(s))
 }
+
+// StripBraces drops {token} color shorthand that resolves to a real code
+// (resolveBrace — single-letter ROM codes, reset/"/", bold/dim, and full
+// color names), returning the visible text. It mirrors the renderer
+// exactly: `{{` is a literal brace, and an unknown or malformed token
+// passes through verbatim (§13) so width math counts what the player
+// actually sees. Combine with StripTags to strip both markup systems.
+func StripBraces(s string) string {
+	if !strings.ContainsRune(s, '{') {
+		return s
+	}
+	var b strings.Builder
+	b.Grow(len(s))
+	for i := 0; i < len(s); {
+		if s[i] != '{' {
+			b.WriteByte(s[i])
+			i++
+			continue
+		}
+		if i+1 < len(s) && s[i+1] == '{' { // {{ → literal {
+			b.WriteByte('{')
+			i += 2
+			continue
+		}
+		end := strings.IndexByte(s[i+1:], '}')
+		if end < 0 {
+			b.WriteByte('{') // no close: literal
+			i++
+			continue
+		}
+		if _, _, ok := resolveBrace(s[i+1 : i+1+end]); ok {
+			i += end + 2 // skip {token}
+			continue
+		}
+		b.WriteByte('{') // unknown token: literal, matching the renderer
+		i++
+	}
+	return b.String()
+}

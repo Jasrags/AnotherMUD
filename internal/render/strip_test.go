@@ -38,3 +38,20 @@ func TestVisibleLength(t *testing.T) {
 		}
 	}
 }
+
+func TestStripBraces(t *testing.T) {
+	cases := []struct{ in, want string }{
+		{"plain", "plain"},
+		{"{G}green{x}", "green"},          // single-letter ROM code
+		{"{dim}d{/}", "d"},                // attribute + reset tokens
+		{"{yellow}y{/}", "y"},             // full color name
+		{"a{{b", "a{b"},                   // escaped literal brace
+		{"the {key} fits", "the {key} fits"}, // unknown token passes through
+		{"no close {here", "no close {here"},
+	}
+	for _, c := range cases {
+		if got := StripBraces(c.in); got != c.want {
+			t.Errorf("StripBraces(%q) = %q, want %q", c.in, got, c.want)
+		}
+	}
+}

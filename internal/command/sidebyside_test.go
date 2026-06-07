@@ -5,28 +5,22 @@ import (
 	"testing"
 )
 
-func TestStripBraces(t *testing.T) {
-	cases := []struct{ in, want string }{
-		{"plain", "plain"},
-		{"{G}green{x}", "green"},
-		{"{dim}d{/}", "d"},
-		{"a{{b", "a{b"}, // escaped literal brace
-		{"no close {here", "no close {here"},
+func TestMarkupWidth(t *testing.T) {
+	cases := []struct {
+		in   string
+		want int
+	}{
+		{"<title>The Square</title>", 10},   // angle tags zero-width
+		{"{G}Gate{x}", 4},                    // single-letter ROM codes
+		{"{dim}muted{/}", 5},                 // attribute tokens
+		{"{yellow}Gate{/}", 4},               // full color name (regression)
+		{"a{{b", 3},                          // escaped literal brace stays visible
+		{"the {key} fits", 14},               // unknown token passes through literally
 	}
 	for _, c := range cases {
-		if got := stripBraces(c.in); got != c.want {
-			t.Errorf("stripBraces(%q) = %q, want %q", c.in, got, c.want)
+		if got := markupWidth(c.in); got != c.want {
+			t.Errorf("markupWidth(%q) = %d, want %d", c.in, got, c.want)
 		}
-	}
-}
-
-func TestMarkupWidth(t *testing.T) {
-	// Both <angle> tags and {brace} codes are zero-width.
-	if w := markupWidth("<title>The Square</title>"); w != 10 {
-		t.Errorf("markupWidth(<title>The Square</title>) = %d, want 10", w)
-	}
-	if w := markupWidth("{G}Gate{x}"); w != 4 {
-		t.Errorf("markupWidth({G}Gate{x}) = %d, want 4", w)
 	}
 }
 

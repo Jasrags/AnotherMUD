@@ -17,42 +17,13 @@ const defaultRoomColumnWidth = 50
 const minimapGap = 3
 
 // markupWidth returns the rendered column width of a markup line,
-// discounting both <angle> semantic tags (via render.StripTags) and
-// {brace} color shorthand — each renders to zero visible width, so both
-// must be removed for the side-by-side columns to align.
+// discounting both <angle> semantic tags and {brace} color shorthand —
+// each renders to zero visible width, so both must be removed for the
+// side-by-side columns to align. Delegates to the render package, which
+// owns the authoritative markup grammar (so a full color name like
+// {yellow} is measured the same way the renderer collapses it).
 func markupWidth(s string) int {
-	return len(stripBraces(render.StripTags(s)))
-}
-
-// stripBraces removes {…} color shorthand from s, mirroring how the ansi
-// renderer collapses it to zero width. `{{` is an escaped literal brace
-// (one visible char); a `{` with no close within a short span is treated
-// as literal text rather than swallowing the rest of the line.
-func stripBraces(s string) string {
-	if !strings.ContainsRune(s, '{') {
-		return s
-	}
-	var b strings.Builder
-	b.Grow(len(s))
-	for i := 0; i < len(s); {
-		if s[i] != '{' {
-			b.WriteByte(s[i])
-			i++
-			continue
-		}
-		if i+1 < len(s) && s[i+1] == '{' { // {{ → literal {
-			b.WriteByte('{')
-			i += 2
-			continue
-		}
-		if end := strings.IndexByte(s[i:], '}'); end > 0 && end <= 5 {
-			i += end + 1 // {G} / {x} / {dim} / {/} → drop
-			continue
-		}
-		b.WriteByte('{')
-		i++
-	}
-	return b.String()
+	return len(render.StripBraces(render.StripTags(s)))
 }
 
 // wrapMarkupLine word-wraps one line to width visible columns, keeping

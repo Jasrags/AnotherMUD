@@ -121,7 +121,15 @@ func buildMapCanvas(win world.Window, originID world.RoomID, isVisited func(stri
 			}
 		}
 	}
-	return canvas, rendered[originID].Room, true
+	// The origin is always rendered (renderableRooms includes it
+	// unconditionally), so this is present whenever OriginCoord succeeded
+	// — but guard explicitly rather than rely on that invariant for the
+	// *world.Room deref.
+	originWR, ok := rendered[originID]
+	if !ok {
+		return nil, nil, false
+	}
+	return canvas, originWR.Room, true
 }
 
 // frameBox encloses a multi-line map in an ASCII border (player-maps §4):

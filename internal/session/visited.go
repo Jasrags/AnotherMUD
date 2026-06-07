@@ -47,6 +47,9 @@ func (a *connActor) markVisitedLocked(roomID string) {
 func (a *connActor) HasVisited(roomID string) bool {
 	a.mu.Lock()
 	defer a.mu.Unlock()
+	if a.save == nil {
+		return false // no save → no map; avoid allocating an index we never fill
+	}
 	a.ensureVisitedLocked()
 	_, ok := a.visited[roomID]
 	return ok
