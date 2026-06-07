@@ -1,4 +1,4 @@
-<!-- Generated: 2026-06-06 | Client-facing layer (no web frontend) | Token estimate: ~600 -->
+<!-- Generated: 2026-06-06 | Client-facing layer (no web frontend) | Token estimate: ~640 -->
 
 # Presentation & Networking
 
@@ -32,6 +32,16 @@ status vars on connect.
 ## Rendering
 - `internal/render` (1.4k LOC) — room/look output, exits, item listings,
   decoration + stacking integration, weather ambience line.
+- **Panel renderer** (`render/panel.go`, ui-rendering-help §8) — framed,
+  width-aware, tag-aware ASCII boxes (`| = -` wrapped in `<frame>`, so no
+  glyph-fallback debt). Powers the `score`/`sc` character sheet: a bento layout
+  (Character|Combat and Attributes|Purse&Training two-column sections, full-width
+  Equipment, XP footer). `equipment`/`eq` shares the sheet's equipment gatherer
+  (`command.gatherScoreEquip`); both color item names by `item.*` rarity.
+- **Semantic color tags** (`<title>/<subtle>/<highlight>/hp/mana/mv/good/warning/
+  danger/gold/frame/item.*/exit/present.*/weather.*/time.*>`) are emitted by the
+  renderers and defined in `content/core/theme/theme.yaml` (pack-overridable;
+  unknown tags pass through as literal text).
 - **Light-and-darkness render states** (`command.RenderRoom` branches on the
   per-viewer effective light): `lit` = full render; `dim` = full body, prose
   muted (`{dim}`); `gloom` = obscured (terse dark line, anonymous occupants,
