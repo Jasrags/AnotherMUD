@@ -1,4 +1,4 @@
-<!-- Generated: 2026-06-06 | Go files scanned: 268 (+256 tests) | ~58.5k LOC | 53 internal pkgs | Token estimate: ~700 -->
+<!-- Generated: 2026-06-07 | Go files scanned: 270 (+259 tests) | ~59k LOC | 53 internal pkgs | Token estimate: ~700 -->
 
 # Architecture
 
@@ -17,8 +17,9 @@ wires every service, registers tick handlers, runs the telnet listener
 ## Layer stack (bottom-up; deps point down)
 ```
 Foundations   tick, eventbus, clock+gameclock, logging, persistence, srckey
-World/things  world, entities, item/mob/slot, keyword, spawn, ai, portal,
-              weather, property, corpse
+World/things  world (rooms/exits/doors + load-time area-local room
+              coordinate derivation), entities, item/mob/slot, keyword,
+              spawn, ai, portal, weather, property, corpse
 Mechanics     stats, progression, combat, effect, light (per-viewer
               effective-light resolver: terrain sky-gate · room override ·
               lit sources · darkvision floor)
@@ -55,4 +56,4 @@ gameclock (tick-driven) ─▶ time.period.change ─▶ weather ambience +
 - `data.md` — save surface + content packs (registries, load order).
 - `dependencies.md` — external libs + foundations conventions.
 - Specs are the behavior source of truth: `docs/specs/README.md` (canonical order).
-  Roadmap/backlog: `docs/ROADMAP.md` (done-log, M0–M22), `docs/BACKLOG.md`.
+  Roadmap/backlog: `docs/ROADMAP.md` (done-log, M0–M23), `docs/BACKLOG.md`.

@@ -1,4 +1,4 @@
-<!-- Generated: 2026-06-06 | Persistence (YAML files) + content packs — no database | Token estimate: ~750 -->
+<!-- Generated: 2026-06-07 | Persistence (YAML files) + content packs — no database | Token estimate: ~770 -->
 
 # Data: Saves & Content
 
@@ -11,14 +11,16 @@ accounts/index.yaml              email → account id
 accounts/<id>/account.yaml       bcrypt creds, created_at
 players/<lname>/player.yaml      versioned char save (tags, roles, stats,
    ├ quest.yaml                  properties, equip/inventory, abilities+profs,
-   ├ notifications.yaml          recall, prompt)
+   ├ notifications.yaml          recall, prompt, roomdata toggle)
    └ chat-subscriptions          per-player
 channels/<id>.yaml               global channel scrollback
 clock.yaml                       global in-game time (CurrentHour, DayCount)
 ```
 - Writes via `internal/persistence`: tmp → bak → rename rotation, path-safety.
-- `internal/player` — `player.yaml` carries `version`; `CurrentVersion = 14`
+- `internal/player` — `player.yaml` carries `version`; `CurrentVersion = 15`
   with an **append-only migration chain** (never edit an old migration).
+  Boolean/string prefs with a safe zero-value (autoloot, wimpy, prompt,
+  `show_room_data`) are added `omitempty` **without** a version bump.
 - **Autosave**: `session.Manager.SaveAll` writes actors with the `dirty` bit set
   (`SetRoom` flips it); final flush on SIGINT. Per-player errors isolated.
 - **In-game time persists**: `gameclock.Store` writes `clock.yaml` (atomic),
@@ -41,6 +43,11 @@ quests · help · scripts(*.lua)
   against the current pack, `other-pack:foo` crosses packs.
 - Load order relies on **alphabetical discovery** — no topological sort over
   declared deps yet (open item).
+- **Room coordinates are derived, not authored**: after the exit graph is
+  assembled, `world.DeriveCoordinates` (room-coordinates spec) walks each
+  area's directional exits to assign area-local `(x,y,z)`, honoring an
+  optional per-room `coord:` pin. Recomputed every boot, **never persisted**;
+  conflicts emit load-time warnings, never abort. Exposed over GMCP Room.Info.
 
 ## Scripting data
 `content/<pack>/scripts/*.lua` → `internal/scripting` (sandboxed gopher-lua

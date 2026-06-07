@@ -18,20 +18,23 @@ For **behavior contracts**, see `docs/specs/`. The old `TAPESTRY-GAP-MATRIX.md`
 and `THEME-AXIS-PLAN.md` are superseded by `BACKLOG.md` and now live under
 `docs/archive/` (the five themes they framed have all shipped — M13–M17).
 
-## Status (as of 2026-06-02)
+## Status (as of 2026-06-07)
 
-- **Done:** **M0–M22.** The five original themes — A/M13 (Social), B/M16
+- **Done:** **M0–M23.** The five original themes — A/M13 (Social), B/M16
   (Modern-Client + GMCP), C/M15 (World-Depth), D/M17 (Content-Authoring +
   Lua scripting), E/M14 (Engine-Debt) — plus **M18** (Command & UI polish —
   prompt, who, bad-input tracker, chaining/repeat, auto-help),
   **M19** (Roles & Administration), **M20** (Item Decorations — rarity &
-  essence), **M21** (Item Stacking), and **M22** (Loot and Corpses —
-  spawn loot → corpse → loot / get-from / look-in / autoloot → decay).
+  essence), **M21** (Item Stacking), **M22** (Loot and Corpses —
+  spawn loot → corpse → loot / get-from / look-in / autoloot → decay), and
+  **M23** (Room Coordinates — derive-by-default area-local (x,y,z) from the
+  exit graph + pins, GMCP exposure, and a builder `roomdata` look view).
   The core loop, world, combat, progression, economy, quests, scripting,
-  sessions, modern-client, roles/admin, decorations, stacking, and loot
-  all work.
-- **Active:** none — M18 + M22 closed. Pick the next theme from `BACKLOG.md`
-  §1 (specced, ready) or §2 (greenfield, design-first).
+  sessions, modern-client, roles/admin, decorations, stacking, loot, and
+  room coordinates all work.
+- **Active:** none — M23 closed. Pick the next theme from `BACKLOG.md`
+  §1 (specced, ready) or §2 (greenfield, design-first) — **player-maps is
+  now unblocked** by M23's coordinate substrate.
 - **Specs ahead of code.** Behavior contracts written without
   implementation, still awaiting a milestone: `tag-observers`,
   `crafting-and-cooking`, and the trade trio
@@ -3083,6 +3086,63 @@ rights seam) and the autoloot rarity-floor filter (item-decorations).
 `mobs-ai-spawning §6.3` (loot generation), `combat §6.3` (the `mob.killed`
 event consumed), `inventory-equipment-items §2.5/§4` (corpse-as-container),
 `economy-survival §2.1` (coin credit), `time-and-clock §3` (decay handler).
+
+---
+
+### M23 — Room Coordinates (+ builder room-data view)
+
+**Slice:** the area-local coordinate substrate a client mapper and a future
+telnet `map` verb need — **derived from the exit graph at load, not
+authored** — plus a small builder-visibility QoL: an admin overlay on `look`
+that exposes the room's metadata (now including those coordinates). Implements
+`room-coordinates` (the whole substrate) and extends the look render with an
+admin-only block. **Unblocks player-maps** (`BACKLOG.md` §2): this stops at
+the coordinate substrate + GMCP exposure and leaves rendering to that slice.
+
+**Specs:** `room-coordinates` (substrate). **Live list:** `BACKLOG.md` §1
+"Room coordinates" → shipped; player-maps remains open on top of it.
+
+**Sub-milestones:**
+
+- [x] **M23.1 — Coordinate derivation substrate.** `room-coordinates §2–§5,§8`.
+      New `internal/world/coords.go`: `Coord{x,y,z}`, the §2.3 direction-delta
+      table, and `(*World).DeriveCoordinates` — a deterministic per-area BFS
+      (seeds-first / ascending-id / canonical-direction order, PD-6) walking
+      intra-area directional exits from a seed, with an authored per-room
+      `coord:` **pin** (§3.5) that seeds the walk and is never overwritten.
+      Conflicts (collision, non-square re-reach, unplaced room,
+      two-pins-one-cell, malformed pin) emit typed load-time warnings and
+      never abort (PD-4). `Room.Pin` (authored) + `Room.Coord` (derived;
+      **nil = unplaced**, never (0,0,0) — the origin is a valid placed value).
+      Pin decode + warn-and-fallback in `internal/pack` (`decodeRoom`);
+      derivation runs after `validateExits` in `Load` and logs via slog. GMCP
+      `Room.Info` gains optional `x`/`y`/`z` (`*int`, omitted when unplaced) —
+      a flat **placeholder** pending validation against a live Mudlet mapper
+      (§5 wire-shape caveat). No persistence, no migration (§8). The walk is
+      factored into an `areaDeriver` (seed → walk → unplaced). All
+      §2.4/§3.4/§3.6/§4.5/§7.1 acceptance checklists covered; 100% coverage on
+      `coords.go`. The derived `Coord` lives on `world.Room` (not a separate
+      package) to avoid an import cycle with the field.
+- [x] **M23.2 — Admin/builder `roomdata` look view.** Extends the room render
+      (`ui-rendering-help`). A `roomdata` admin verb toggles a **persisted**
+      per-character preference (`player.Save.ShowRoomData`, no schema bump —
+      omitempty bool like Autoloot) to append a builder metadata block to the
+      room view: room/area ids, the area-local coordinate + source, terrain +
+      exposure flags, tags, properties, healing rate, and per-exit targets with
+      door state. **Double-gated** — renders only when the viewer holds the
+      admin role **and** has the toggle on (role is the gate, toggle is the
+      preference). The shared `command.AppendRoomData` is the single seam every
+      "you see the room" render routes through — `look`, movement, recall,
+      teleport, flee, the login spawn, and link-dead reattach — so the block
+      shows on **room entry**, not only an explicit `look`. A distinct
+      **builder** role (separate from `admin`) is deferred to OLC, where it is
+      first needed (`BACKLOG.md` OLC pre-decision 0).
+
+**Touches specs:** `room-coordinates` (substantially),
+`networking-protocols §7` (the Room.Info coordinate fields),
+`world-rooms-movement §3.2` (the exit graph the walk projects),
+`ui-rendering-help` (the `roomdata` look overlay),
+`roles-and-permissions` (the admin gate the view reuses).
 
 ---
 
