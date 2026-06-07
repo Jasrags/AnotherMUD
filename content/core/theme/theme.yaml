@@ -11,6 +11,9 @@ tags:
   mana:  { fg: blue,   html: "#3366FF" }
   mv:    { fg: yellow, html: "#CCCC33" }
 
+  # Coin / currency amounts — the score sheet's purse, shop prices.
+  gold:  { fg: yellow, html: "#E0C56A" }
+
   # General emphasis.
   highlight: { fg: bright-white,  html: "#FFFFFF" }
   subtle:    { fg: dark-gray,     html: "#888888" }

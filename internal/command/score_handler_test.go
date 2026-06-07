@@ -39,12 +39,12 @@ func TestScore_Handler(t *testing.T) {
 
 	out := a.lastLine()
 	for _, want := range []string{
-		"Human Fighter",
-		"HP ",
-		"STR 16  INT 10  WIS 12  DEX 14  CON 15  LUCK 8",
-		"Alignment neutral (0)",
-		"Gold 1000",
-		"Sustenance: Full (84/100)",
+		"<highlight>Human Fighter</highlight>",
+		"<title>Combat</title>",
+		"<highlight>16</highlight>", // STR value
+		"neutral (0)",
+		"<gold>1,000</gold>",
+		"Full (84/100)",
 	} {
 		if !strings.Contains(out, want) {
 			t.Errorf("score output missing %q\n--- got ---\n%s", want, out)

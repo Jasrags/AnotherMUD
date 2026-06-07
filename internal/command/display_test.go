@@ -278,6 +278,29 @@ func TestEquipment_AliasEq(t *testing.T) {
 	}
 }
 
+// `eq` shares the score sheet's coloring: a <title> header, <subtle> slot
+// labels + empties, and item names wrapped in their rarity markup.
+func TestEquipment_Colorized(t *testing.T) {
+	f := newEqFixture(t)
+	a := newTestActor(f.room)
+	f.spawnInInventory(t, swordWithMods(), a)
+	r := newRegistry(t)
+
+	dispatch(t, r, f.env(), a, "equip sword wield")
+	dispatch(t, r, f.env(), a, "eq")
+
+	got := a.lastLine()
+	for _, want := range []string{
+		"<title>You are wearing:</title>",
+		"<subtle>(empty)</subtle>", // an unused slot
+		"<item.",                   // the equipped sword, rarity-tagged
+	} {
+		if !strings.Contains(got, want) {
+			t.Errorf("eq output not colorized, missing %q\n--- got ---\n%s", want, got)
+		}
+	}
+}
+
 func TestEquipment_AliasEqDoesNotShadowEquip(t *testing.T) {
 	// Regression: prefix-match would have resolved `eq` to `equip`
 	// (registered earlier in builtins). Explicit alias registration

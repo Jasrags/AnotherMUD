@@ -10,7 +10,6 @@ import (
 	"github.com/Jasrags/AnotherMUD/internal/entities"
 	"github.com/Jasrags/AnotherMUD/internal/keyword"
 	"github.com/Jasrags/AnotherMUD/internal/light"
-	"github.com/Jasrags/AnotherMUD/internal/slot"
 	"github.com/Jasrags/AnotherMUD/internal/stacking"
 )
 
@@ -125,70 +124,49 @@ func renderContainerContents(b *strings.Builder, c *Context, containerID entitie
 // EquipmentHandler implements `equipment` (alias `eq`) — renders EVERY
 // equip slot in slot-registration order, so the player can see what
 // slots exist (and their names) without guessing. An empty slot renders
-// as `(empty)`; an occupied one shows the item. A multi-cap slot (e.g.
-// two ring fingers) emits one line per sub-slot, each with the base slot
-// label — players never see the `:index` suffix. Labels are padded so
-// item names align, driven by the longest label in this render.
+// as `(empty)`; an occupied one shows the item colored by rarity. A
+// multi-cap slot (e.g. two ring fingers) emits one line per sub-slot,
+// each with the base slot label — players never see the `:index` suffix.
+// Shares the score sheet's gatherer (gatherScoreEquip) so the focused
+// `eq` view and the score sheet's Equipment section list the same slots
+// with the same coloring.
 func EquipmentHandler(ctx context.Context, c *Context) error {
 	if c.Items == nil || c.Slots == nil {
 		return c.Actor.Write(ctx, "You have no equipment slots right now.")
 	}
-	equipped := c.Actor.Equipment()
-
-	var rows []slotRow
-	// Iterate slot defs in registration order so the listing is stable
-	// and matches the registration ordering documented in §3.1.
-	for _, def := range c.Slots.All() {
-		for i := 0; i < def.Max; i++ {
-			key, err := slot.BuildKey(def.Name, i, def.Max)
-			if err != nil {
-				continue
-			}
-			name := "(empty)"
-			if id, ok := equipped[key]; ok {
-				if n, ok := lookupItemName(c.Items, id); ok {
-					name = n
-				}
-			}
-			rows = append(rows, slotRow{label: def.Label, name: name})
-		}
-	}
+	rows := gatherScoreEquip(c)
 	if len(rows) == 0 {
 		// No slots registered at all — nothing to show.
 		return c.Actor.Write(ctx, "You have no equipment slots.")
 	}
-	return c.Actor.Write(ctx, renderSlotRows("You are wearing:", rows))
+	return c.Actor.Write(ctx, renderEquipRows("You are wearing:", rows))
 }
 
-// slotRow is one slot line in the equipment listing.
-type slotRow struct {
-	label string
-	name  string
-}
-
-// renderSlotRows formats slot rows as a padded "<label>  name" block
-// under header. Width is measured in runes, not bytes, so multi-byte
-// UTF-8 labels (pack-authored slots may use accented characters) still
-// line up visually; engine-baseline labels are ASCII so today the two
-// are equivalent.
-func renderSlotRows(header string, rows []slotRow) string {
+// renderEquipRows formats equipment rows as a "label  name" block under a
+// <title> header: labels are <subtle>, item names arrive already wrapped
+// in their rarity markup. Label width is measured in runes (not bytes) so
+// multi-byte pack-authored slot labels still line up; engine-baseline
+// labels are ASCII so today the two are equivalent.
+func renderEquipRows(header string, rows []equipRow) string {
 	width := 0
 	for _, r := range rows {
-		if n := utf8.RuneCountInString(r.label); n > width {
+		if n := utf8.RuneCountInString(r.Label); n > width {
 			width = n
 		}
 	}
 	var b strings.Builder
+	b.WriteString("<title>")
 	b.WriteString(header)
+	b.WriteString("</title>")
 	for _, r := range rows {
-		b.WriteString("\n  <")
-		b.WriteString(r.label)
-		b.WriteString(">")
-		for k := utf8.RuneCountInString(r.label); k < width; k++ {
+		b.WriteString("\n  <subtle>")
+		b.WriteString(r.Label)
+		b.WriteString("</subtle>")
+		for k := utf8.RuneCountInString(r.Label); k < width; k++ {
 			b.WriteString(" ")
 		}
 		b.WriteString("  ")
-		b.WriteString(r.name)
+		b.WriteString(r.Name)
 	}
 	return b.String()
 }
