@@ -28,14 +28,16 @@ and `THEME-AXIS-PLAN.md` are superseded by `BACKLOG.md` and now live under
   essence), **M21** (Item Stacking), **M22** (Loot and Corpses —
   spawn loot → corpse → loot / get-from / look-in / autoloot → decay), and
   **M23** (Room Coordinates — derive-by-default area-local (x,y,z) from the
-  exit graph + pins, GMCP exposure, and a builder `roomdata` look view).
-  The core loop, world, combat, progression, economy, quests, scripting,
-  sessions, modern-client, roles/admin, decorations, stacking, loot, and
-  room coordinates all work.
-- **Active:** **M24 — Player Maps.** **M24.1** (fog-of-war visited-set +
-  `SetRoom` hook), **M24.2** (`world.LocalWindow` query), and **M24.3**
-  (ASCII minimap toggle + `map` verb) are **done**; remaining: M24.4 the
-  Mudlet GMCP surface. Spec: `docs/specs/player-maps.md`.
+  exit graph + pins, GMCP exposure, and a builder `roomdata` look view), and
+  **M24** (Player Maps — persisted fog-of-war visited set, the shared
+  `world.LocalWindow` query, the active `minimap` toggle + the `map` verb,
+  and the Mudlet GMCP surface). The core loop, world, combat, progression,
+  economy, quests, scripting, sessions, modern-client, roles/admin,
+  decorations, stacking, loot, room coordinates, and player maps all work.
+- **Active:** none — M24 closed (its one remaining item, validating the
+  GMCP coordinate wire shape against a live Mudlet client, is a
+  human-in-the-loop follow-up tracked in memory, not blocking). Pick the
+  next theme from `BACKLOG.md` §1 (specced, ready) or §2 (greenfield).
 - **Specs ahead of code.** Behavior contracts written without
   implementation, still awaiting a milestone: `tag-observers`,
   `crafting-and-cooking`, and the trade trio
@@ -3209,11 +3211,21 @@ local-window query feeds every surface. Implements the new
       fog-filtered against the M24.1 visited set (`MapViewer.HasVisited`).
       Renderer/canvas/verbs covered (renderLocalMap + glyph + canvas 100%
       / ~92%); 51 pkgs green -race.
-- [ ] **M24.4 — Mudlet GMCP surface.** `player-maps §7`. The
-      `Room.Info` coordinate fields already ship (M23.1); this confirms
-      the **current-room-only** emission keeps fog of war honest (no bulk
-      reveal) and validates the flat `x/y/z` wire shape against a **live
-      Mudlet mapper** (the carried-over §5 caveat, PD-9).
+- [x] **M24.4 — Mudlet GMCP surface (verify + lock).** `player-maps §7`.
+      Mostly confirmation: the `Room.Info` coordinate fields already ship
+      (M23.1), and emission is **current-room-only** — the three
+      `sendGmcpRoomInfo` senders (SetRoom, login spawn, reattach) each
+      send a single room; no bulk/multi-room sender exists, so the server
+      never bulk-reveals an unexplored area and Mudlet fills in as the
+      player walks (fog of war stays honest with no second persistence
+      layer). Added tests locking the placeholder wire shape:
+      `TestBuildRoomInfoPayload_CarriesCoordinatesWhenPlaced` (fresh ints,
+      no aliasing) and `_OmitsCoordinatesWhenUnplaced` (no `x/y/z` keys at
+      all, not `x:0`). **Deferred (human-in-the-loop):** validating the
+      flat `x/y/z` layout against a **live Mudlet mapper** before shipping
+      graphical-mapper support (PD-9) — recorded in the
+      `room-coordinates-gmcp-wireshape` memory; the shape may need
+      reshaping to Mudlet's `coords`/area convention.
 
 **Touches specs:** `player-maps` (substantially),
 `room-coordinates` (the coordinate source it reads),

@@ -3,6 +3,7 @@ package session
 import (
 	"context"
 	"encoding/json"
+	"strings"
 	"testing"
 
 	"github.com/Jasrags/AnotherMUD/internal/combat"
@@ -80,6 +81,49 @@ func TestBuildRoomInfoPayload_FlattensKeywordExits(t *testing.T) {
 	got := buildRoomInfoPayload(room)
 	if got.Keywords["portal"] != "tower:top" {
 		t.Errorf("Keywords[portal] = %q, want tower:top", got.Keywords["portal"])
+	}
+}
+
+// A placed room carries its area-local coordinate on Room.Info, copied
+// into fresh ints (player-maps §7 / room-coordinates §5). NOTE: the flat
+// x/y/z layout is a PLACEHOLDER pending validation against a live Mudlet
+// mapper (PD-9) — see the room-coordinates-gmcp-wireshape memory.
+func TestBuildRoomInfoPayload_CarriesCoordinatesWhenPlaced(t *testing.T) {
+	room := &world.Room{
+		ID: "town:square", AreaID: "town", Name: "Town Square",
+		Exits: map[world.Direction]world.Exit{},
+		Coord: &world.Coord{X: 3, Y: -2, Z: 1},
+	}
+	got := buildRoomInfoPayload(room)
+	if got.X == nil || got.Y == nil || got.Z == nil {
+		t.Fatalf("coordinate fields nil for a placed room: %+v", got)
+	}
+	if *got.X != 3 || *got.Y != -2 || *got.Z != 1 {
+		t.Errorf("coord = (%d,%d,%d), want (3,-2,1)", *got.X, *got.Y, *got.Z)
+	}
+	// Payload ints are fresh, not aliasing the shared Room.Coord.
+	room.Coord.X = 99
+	if *got.X != 3 {
+		t.Error("payload coordinate aliases the shared Room.Coord")
+	}
+}
+
+// An unplaced room omits the coordinate ENTIRELY (not x:0) so a mapper
+// falls back to its own relative placement (room-coordinates §5.1).
+func TestBuildRoomInfoPayload_OmitsCoordinatesWhenUnplaced(t *testing.T) {
+	room := &world.Room{ID: "town:void", AreaID: "town", Name: "Void", Exits: map[world.Direction]world.Exit{}}
+	got := buildRoomInfoPayload(room)
+	if got.X != nil || got.Y != nil || got.Z != nil {
+		t.Errorf("unplaced room should leave coordinate fields nil, got %+v", got)
+	}
+	data, err := json.Marshal(got)
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+	for _, key := range []string{`"x"`, `"y"`, `"z"`} {
+		if strings.Contains(string(data), key) {
+			t.Errorf("unplaced payload must omit %s, got: %s", key, data)
+		}
 	}
 }
 
