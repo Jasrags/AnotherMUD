@@ -96,7 +96,10 @@ old five-theme partition left uncovered.
   bank across alts), the shop/NPC pattern (M11.2) for a teller, persistence (a banked
   balance on the player or account save). Pre-decisions: gold-only vs. gold + item vault;
   per-character vs. account-shared; teller/bank-room vs. access-anywhere; interest + fees
-  (economic levers / gold sinks); is there a gold-at-risk mechanic to justify it.
+  (economic levers / gold sinks); is there a gold-at-risk mechanic to justify it. The
+  **item-vault half** is exactly GoMud's `storage` module — a per-player item stash at
+  rooms tagged `storage` (`storage add/remove [all|<n>]`, by-number item reference); spec
+  the gold-bank and item-vault together or as two slices.
 - **Player grouping / party** — a party of players with combat assist plus
   **XP-sharing and loot-sharing options**. ⚠️ **Greenfield — no grouping exists.**
   Substrate that's already in place: combat keys kill credit off the **attacker
@@ -278,35 +281,99 @@ old five-theme partition left uncovered.
   and the CSP/headers/CSRF posture from the web security rules. Could start tiny —
   read-only config + live `who`/room inspection over the WS port's HTTP mux — and grow.
 - **Gameplay modules ported from GoMud (greenfield feature cluster)** — GoMud's module
-  catalog surfaces several **genuinely-new** gameplay systems we have no spec or code for
-  (the overlapping ones — auction, mail, storage/banking, party/follow, fast-travel,
-  in-game time — are already tracked above or shipped). ⚠️ **Each is greenfield and needs
-  its own spec slice; listed here as a clustered candidate pool, not a committed slice.**
-  Best delivered *as modules* if the feature-module seam above lands first.
-    - **Minigames / gambling** (GoMud `gambling`) — room-tag-activated games (slots, claw)
-      with persistent jackpots; a gold sink. Touches economy (currency, M11.1), room tags,
-      and item scripting (Lua). Pre-decision: pure-chance vs. skill; jackpot funding source.
-    - **Fishing / activity minigames** (GoMud `fishing`) — turn-based catch loop with catch
-      tables + a skill modifier. **Strong overlap with the specced Gathering loop (§1)** —
-      likely a *flavor variant of `harvest`* (water node + catch table + tool) rather than a
-      separate system. Fold into the gathering design rather than spec'ing standalone.
-    - **Leaderboards** (GoMud `leaderboards`) — server-wide rankings across categories
-      (level, kills, gold, …), fed by existing events (`LevelUp`, `MobDeath`, `GainExperience`
-      analogues all exist on our bus). In-game `leaderboard` verb is straightforward;
-      a public web page wants the web-admin layer above. Pre-decision: which categories;
-      persistence (a global store like channel scrollback) + reset/season semantics.
-    - **AFK automation** (GoMud `zombiemode`) — player-configured auto-combat/loot/roam for
-      idle characters. ⚠️ Design-sensitive: interacts with idle/link-dead handling
-      (session-lifecycle), combat fairness, and the economy (unattended farming). Likely
-      *not* desirable without a deliberate decision; recorded for completeness.
+  catalog surfaces several **genuinely-new** gameplay systems we have no spec or code for.
+  (Overlap already tracked/shipped: auction → `auction-house` spec §1; mail → Mail §2;
+  in-game time → `gameclock` shipped. **Storage/banking, fast travel, missions, world
+  cleanup, follow, and onboarding now have their own §2 entries** — below or above.) ⚠️
+  **Each is greenfield and needs its own spec slice; listed here as a clustered candidate
+  pool, not a committed slice.** Best delivered *as modules* if the feature-module seam
+  above lands first.
+    - **Minigames / gambling** (GoMud `gambling`) — room-tag-activated games
+      (`slots`/`slot machine`/`claw machine` tags), each with a **per-play cost**, a
+      **win chance**, and **weighted prize tables**, plus a **persistent jackpot** pool.
+      A gold sink. Touches economy (currency, M11.1), room tags, and item scripting (Lua).
+      Pre-decision: pure-chance vs. skill-influenced; jackpot funding (rake % of plays) +
+      payout cap.
+    - **Fishing / activity minigames** (GoMud `fishing`) — turn-based catch loop with
+      **rod-item gating**, **catch tables**, and a fishing-skill modifier. **Strong
+      overlap with the specced Gathering loop (§1)** — likely a *flavor variant of
+      `harvest`* (water node + catch table + required tool) rather than a separate system.
+      Fold into the gathering design rather than spec'ing standalone.
+    - **Leaderboards** (GoMud `leaderboards`) — server-wide rankings across configurable
+      categories (level, kills, gold, …), fed by existing bus events (`LevelUp`,
+      `MobDeath`, XP-grant analogues all exist). In-game `leaderboard` verb (aliases
+      `highscore`/`topscore`); a public web page wants the web-admin layer above.
+      Pre-decision: which categories; persistence (a global store like channel scrollback);
+      **reset/season semantics** (all-time vs. periodic).
+    - **AFK automation** (GoMud `zombiemode`) — player-configured auto-play for idle
+      characters: a **combat target list** (`*`/all), a **roam radius**, a **rest HP-floor
+      threshold** (stop or flee below it), **loot rules**, **waypoints**, session stats, and
+      **wake-on-any-input**. ⚠️ Design-sensitive: interacts with idle/link-dead handling
+      (session-lifecycle), combat fairness, and the economy (unattended farming / gold
+      inflation). Likely *not* desirable without a deliberate decision; recorded for
+      completeness.
     - **Multiple characters per account** (GoMud `alt-characters`) — N characters under one
-      account with a swap verb + slot cap. We have the account↔player split already
-      (`account` store → `player` saves), so the substrate is close; the new pieces are an
-      account→characters index, a slot cap, and a `CharacterChanged`-style event. Pairs
-      naturally with **Banking (§2, account-shared vault)** and **party/grouping (§2)**.
-    - **Player governance / elections** (GoMud `elections`) — zone-level campaigns, voting,
-      elected roles with gated access + a zone treasury. Large, setting-heavy; wants
-      **faction (§1)** and roles as substrate. Long-tail candidate.
+      account with a **slot cap**, a **switch/swap** flow, and **recreate-character**, gated
+      to rooms tagged `character`. We have the account↔player split already (`account` store
+      → `player` saves), so the substrate is close; the new pieces are an account→characters
+      index, the slot cap, a room-gated switch flow, and a `CharacterChanged`-style event.
+      Pairs naturally with **Banking (§2, account-shared vault)** and **party/grouping (§2)**.
+    - **Player governance / elections** (GoMud `elections`) — zone-level campaigns + voting
+      at **polling rooms** (room tag); the winner's **title is appended to their name**
+      ("Sammy, Mayor of Frostfang"); a **zone coffer** fed by a **configurable % tax on
+      every shop purchase in the zone** (a player-controlled gold sink + economic lever —
+      *novel; we have nothing like it*); **elected-officials-only restricted areas** (the
+      official + their party may enter). Large, setting-heavy; wants **faction (§1)** + roles
+      (shipped) + the zone-tax economy hook as substrate. Long-tail candidate — but the
+      **zone-tax→coffer gold-sink is worth extracting on its own**, even without the full
+      elections system (pairs with Banking's gold-at-risk discussion).
+- **Procedural missions / mission boards** (GoMud `automission`) — auto-generated,
+  repeatable objectives drawn from **mission boards** (room-tagged) — distinct from the
+  authored `quests` system (shipped), which is hand-written and narrative. ⚠️ **Greenfield
+  extension to quests.** Mission types **kill / find / explore / escort**, in **easy/hard
+  difficulty tiers** with scaled rewards. Mechanics with no current analog: **escort**
+  (spawns an NPC on accept + a **time limit** + guide-it-to-a-destination-zone), a
+  **restock period** per board, a **max-concurrent-missions** cap, and **turn-in must
+  happen at the same board** that issued it. Substrate: quests (reward grant + objective
+  tracking), room tags (boards), mob/item spawn (targets + escort NPC), the kill-credit
+  seam (`combat §10`). Pre-decisions: generator inputs (board-local mob/item/room pools vs.
+  global); reuse the quest store or a separate transient store; escort-NPC AI (follow +
+  guard — overlaps **follow** / **hireable mobs**).
+- **Fast travel — waypoint network** (GoMud `fasttravel`) — a network of
+  **visit-to-unlock** waypoints (rooms tagged `fast travel`): visiting one permanently
+  unlocks it for that character, and from any waypoint you may jump to any
+  previously-visited one (`fasttravel`/`ft`). ⚠️ **Greenfield — distinct from `recall`
+  (shipped, single fixed point) and temporary portals (M15.2, ephemeral admin/scripted
+  exits).** Adds a per-character persisted **visited-waypoint set** (save version bump).
+  Friction knobs from the module: **per-use gold cost**, a **required item**, and
+  **disallowed-item-types** (can't fast-travel carrying contraband — a reusable
+  transport-friction idea). Pre-decisions: unlock-on-visit vs. purchase; instant vs.
+  travel-time; interaction with locked/hidden rooms; whether the visited-set can share the
+  player-maps fog-of-war set (§2).
+- **World cleanup — corpse & item decay** (GoMud `cleanup`) — scheduled removal of stale
+  **corpses**, **dropped items**, and temporary objects, plus `trash`/`bury` verbs. ⚠️
+  **Partial — corpse *creation* shipped (M22.2) but decay is the deferred M22.5 slice
+  ([[m22-deferred-fixes]]); dropped-item decay is unbuilt.** Today nothing prunes corpses
+  or ground items → unbounded growth (a known open edge). Substrate: the tick scheduler (a
+  decay-sweep handler), the entity store + placement, corpse ownership / `MayLoot`.
+  Pre-decisions: decay timers (per-corpse vs. global sweep, rarity-weighted?); does
+  `bury`/`trash` accelerate it; do owned / quest items resist decay; a `*.decayed` event
+  (quest / observer hook).
+- **Player/NPC follow** (GoMud `follow`) — a `follow <name>` primitive: when the target
+  leaves a room, the follower moves with them (`follow stop`/`unfollow`; `follow lose` to
+  shake pursuers). ⚠️ **Greenfield — no follow verb exists.** It is the **shared movement
+  primitive under three other §2 items**: party (auto-move together), hireable mobs (a
+  hireling trails its owner), and the newbie-guide NPC. Substrate: the player-move seam
+  (`player.moved` / `SetRoom`), the room graph. Pre-decisions: consent (auto vs.
+  accept-invite), chains / loops (A→B→A), cross-area + locked/hidden-exit handling,
+  mob-following-player. Best designed alongside **grouping** so they share the
+  move-with-leader mechanic.
+- **Onboarding guide NPC** (GoMud `newbieguide`) — a guide NPC that **follows a new player
+  and walks them through first steps until a configurable level cap**, then departs. ⚠️
+  **Greenfield — we have the creation wizard (M12) + MOTD but no in-world onboarding NPC.**
+  Depends on **follow** (the NPC trails the newbie) and mob spawn/AI; cheap once those
+  exist. Pre-decisions: dialogue source (pack Lua vs. config), trigger (spawn on first
+  login under level N), one guide per newbie vs. shared, dismissal.
 - **Cross-cutting event catalog** — per-spec event tables exist in `specs/README.md`;
   no aggregated catalog. (Docs/meta, not engine — not a behavior spec.)
 
@@ -356,8 +423,9 @@ need a design pass first.
 
 | Theme | Pulls in | Why design-first |
 |---|---|---|
-| **Gameplay Systems** | hireable mobs | no port reference; needs pre-decisions before a spec. (Visibility, hidden exits, faction, biomes, and gathering are now **specced** and moved to §1; hireable mobs is best designed alongside/after grouping.) |
-| **Player Economy depth** | mail (push delivery / attachment escrow), banking + a gold-at-risk rule | extends the now-specced trade; banking wants gold-at-risk to matter |
+| **Gameplay Systems** | hireable mobs, follow, party/grouping | no port reference; needs pre-decisions before a spec. (Visibility, hidden exits, faction, biomes, and gathering are now **specced** and moved to §1; hireable mobs is best designed alongside/after grouping, and **follow** is the shared movement primitive under grouping + hirelings + onboarding.) |
+| **Gameplay content / activities** | procedural missions (escort), fast-travel waypoints, gambling, fishing→gathering, leaderboards, onboarding-guide NPC, world cleanup/decay | the GoMud-module cluster — repeatable "things to do." Each is a small standalone spec; best delivered as **feature-modules** if that seam lands first. Cleanup/decay is also overdue debt (M22.5). |
+| **Player Economy depth** | mail (push delivery / attachment escrow), banking (gold-bank **+ item vault = GoMud `storage`**) + a gold-at-risk rule, zone-tax→coffer gold-sink (from elections) | extends the now-specced trade; banking wants gold-at-risk to matter; zone-tax is a reusable sink worth extracting from elections |
 | **OLC (online creation)** | in-game world building — `redit`/`medit`/`oedit`/`aedit` for builders | collides with the boot-immutable, file-authored content model; needs the source-of-truth + runtime-mutable-registry pre-decisions first |
 | **Feature-module system** | code-level feature packaging + web admin console; reshapes how the gameplay-module cluster (gambling, leaderboards, alt-characters, …) ships | architectural — `Module` contract + enable/disable model are pre-decisions; the runtime substrate (commands/events/scripting/packs) already exists. GoMud's plugin system is the reference |
 
@@ -370,6 +438,7 @@ need a design pass first.
 | You want a real item economy — players selling loot to each other | **Player trade** *(specced — ready)*; then Economy depth (mail/banking, greenfield) |
 | You want a crafting/gathering loop | **Crafting & Cooking** + **Gathering** + **Biomes** *(all specced — ready)* |
 | The world/character sheet feels mechanically thin | **Gameplay Systems** *(greenfield — design first)* |
+| You want more "things to do" — repeatable activities, destinations, prestige | **Gameplay content / activities** *(greenfield — small standalone specs)* |
 | You want a fast, low-stakes win to re-enter the codebase | take one **§1 warmup** (tag-indexed reads, container caps, …) |
 | Accreting code debt is blocking a feature you want | **Engine Debt II** *(specced)* |
 | You're about to expose the server to real players | **Ops** (in background) |
