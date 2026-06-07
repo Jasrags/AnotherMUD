@@ -118,7 +118,7 @@ import (
 // no-point message. No injected value: a legacy character loads
 // with no recall point and must bind one explicitly with
 // `recall set`.
-const CurrentVersion = 15
+const CurrentVersion = 16
 
 // Sentinel errors callers may check via errors.Is.
 var (
@@ -227,6 +227,17 @@ type Save struct {
 	// unchanged. The display still gates on the admin role at render
 	// time, so a saved-true flag does nothing for a non-admin.
 	ShowRoomData bool `yaml:"show_room_data,omitempty"`
+
+	// VisitedRooms is the persisted fog-of-war set (player-maps §3,§8):
+	// the namespaced ids of rooms this character has entered at least
+	// once. The map surfaces draw only visited rooms. Stored as a slice
+	// (set semantics — uniqueness — are enforced at the room-entry hook,
+	// not in the file); first-seen order is preserved but not relied on.
+	// Added in v16. Empty / absent means "explored nothing" — the
+	// default for a fresh character and the v15→v16 migration result:
+	// a returning character re-explores to rebuild their map, which is
+	// the intended fog-of-war behavior, so the migration injects nothing.
+	VisitedRooms []string `yaml:"visited_rooms,omitempty"`
 }
 
 // VitalsState is the persisted HP block (v5+). Pointer so an absent
@@ -399,6 +410,7 @@ var playerMigrations = map[int]func(map[string]any) (map[string]any, error){
 	12: migrateV12toV13,
 	13: migrateV13toV14,
 	14: migrateV14toV15,
+	15: migrateV15toV16,
 }
 
 // migrateV1toV2 adds the empty inventory/equipment blocks introduced
@@ -612,6 +624,17 @@ func migrateV13toV14(in map[string]any) (map[string]any, error) {
 // nothing: privilege enters only via the config seed (§5) or an
 // in-game grant (§4), never by quietly elevating a returning character.
 func migrateV14toV15(in map[string]any) (map[string]any, error) {
+	return in, nil
+}
+
+// migrateV15toV16 adds the `visited_rooms` fog-of-war set introduced
+// for player-maps.md §8. No-op on dict content: a legacy v15 save
+// carries no visited_rooms key, and absence decodes to a nil slice —
+// the documented "explored nothing" default. The migration injects
+// nothing: a returning character starts with a blank map and re-explores
+// to rebuild it, which is the intended fog-of-war behavior, not a set to
+// back-fill.
+func migrateV15toV16(in map[string]any) (map[string]any, error) {
 	return in, nil
 }
 

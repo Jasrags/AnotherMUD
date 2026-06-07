@@ -32,9 +32,11 @@ and `THEME-AXIS-PLAN.md` are superseded by `BACKLOG.md` and now live under
   The core loop, world, combat, progression, economy, quests, scripting,
   sessions, modern-client, roles/admin, decorations, stacking, loot, and
   room coordinates all work.
-- **Active:** none — M23 closed. Pick the next theme from `BACKLOG.md`
-  §1 (specced, ready) or §2 (greenfield, design-first) — **player-maps is
-  now unblocked** by M23's coordinate substrate.
+- **Active:** **M24 — Player Maps.** Phase **M24.1** (persisted
+  fog-of-war visited-set + the `SetRoom` exploration hook) is **done**;
+  remaining: M24.2 the shared local-window query, M24.3 the ASCII
+  minimap toggle + `map` verb, M24.4 the Mudlet GMCP surface. Spec:
+  `docs/specs/player-maps.md`.
 - **Specs ahead of code.** Behavior contracts written without
   implementation, still awaiting a milestone: `tag-observers`,
   `crafting-and-cooking`, and the trade trio
@@ -3143,6 +3145,67 @@ the coordinate substrate + GMCP exposure and leaves rendering to that slice.
 `world-rooms-movement §3.2` (the exit graph the walk projects),
 `ui-rendering-help` (the `roomdata` look overlay),
 `roles-and-permissions` (the admin gate the view reuses).
+
+---
+
+### M24 — Player Maps (active)
+
+**Slice:** turn the M23 coordinate substrate into something players see —
+an **active, toggleable minimap** (a small local window auto-appended to
+the room view) and a **`map` verb** (the full discovered map of the current
+area), both behind a **persisted fog of war** (only rooms the character has
+entered are drawn), plus the **Mudlet GMCP** map surface. One shared
+local-window query feeds every surface. Implements the new
+`player-maps` spec (born from `docs/proposals/player-maps.md`).
+
+**Spec:** `player-maps` (whole feature). **Live list:** `BACKLOG.md` §2
+"Player maps" — unblocked by M23.
+
+**Sub-milestones:**
+
+- [x] **M24.1 — Fog-of-war visited-set substrate.** `player-maps §3,§8`.
+      The persistence + exploration tracking, the proposal's recommended
+      first slice (the only piece that touches the save). `player.Save`
+      gains `VisitedRooms []string`; `CurrentVersion` 15→16 with an
+      append-only no-op `migrateV15toV16` (a legacy save migrates to an
+      empty set — a returning character re-explores; fog of war is not
+      back-filled). `connActor` carries an O(1) in-memory visited index
+      (`internal/session/visited.go`) lazily seeded from the save; the
+      exploration hook rides **`SetRoom`** — the single room-change
+      chokepoint — so **every** arrival (move, recall, teleport, login
+      spawn, link-dead reattach) marks the destination visited (PD-5),
+      deduped, dirtying the save for the normal autosave path.
+      `HasVisited` / `VisitedRooms` accessors are the fog gate the later
+      renderers read. Hooked at `SetRoom` rather than the `player.moved`
+      event because that event isn't emitted uniformly (recall skips it),
+      so the chokepoint is what makes "entering is entering" hold.
+- [ ] **M24.2 — The shared local-window query.** `player-maps §2`. A
+      bounded BFS from the player's room over intra-area directional
+      exits, intersected with *placed* rooms, returning nearby rooms +
+      their stable coordinates + the exits among them. Net-new (the
+      coords walk in `world` is boot-only); the seam both ASCII renderers
+      and the area query share. Applies no fog — callers filter.
+- [ ] **M24.3 — ASCII renderers: minimap toggle + `map` verb.**
+      `player-maps §4–§6`. A net-new grid renderer (render-time recenter,
+      terrain glyphs via the theme, stub-edges for unvisited neighbors,
+      up/down indicators, keyword-exit annotations). The active
+      **minimap** appends to the room view via the shared "you see the
+      room" seam (like the M23.2 `roomdata` block) behind a persisted,
+      non-admin `minimap [on|off]` toggle; the **`map`** verb renders the
+      full discovered current area on demand. Both fog-filtered against
+      M24.1.
+- [ ] **M24.4 — Mudlet GMCP surface.** `player-maps §7`. The
+      `Room.Info` coordinate fields already ship (M23.1); this confirms
+      the **current-room-only** emission keeps fog of war honest (no bulk
+      reveal) and validates the flat `x/y/z` wire shape against a **live
+      Mudlet mapper** (the carried-over §5 caveat, PD-9).
+
+**Touches specs:** `player-maps` (substantially),
+`room-coordinates` (the coordinate source it reads),
+`persistence §3` (the v16 visited-set save field + migration),
+`world-rooms-movement §3` (the exit graph the window walks),
+`ui-rendering-help` (the minimap/`map` rendering + the toggle),
+`networking-protocols §7` (the Mudlet GMCP surface).
 
 ---
 

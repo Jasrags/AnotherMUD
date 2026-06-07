@@ -1720,6 +1720,12 @@ type connActor struct {
 	// the two never cross. Guarded by a.mu (mutated at runtime, unlike the
 	// set-once racial tags). nil/empty = unprivileged.
 	roles map[string]struct{}
+	// visited is the in-memory fog-of-war set (player-maps §3): the room
+	// ids this character has entered, lazily built from save.VisitedRooms
+	// on first use and kept in sync by markVisitedLocked. The persisted
+	// authority is save.VisitedRooms; this is the O(1) membership index
+	// over it. Guarded by a.mu; nil until first seeded.
+	visited map[string]struct{}
 	// gmcpLastVitals is the M16.4a poll-and-diff shadow for the
 	// Char.Vitals package — the most recent snapshot the manager
 	// emitted to the peer. The gmcp-vitals-flush tick handler
@@ -1842,6 +1848,11 @@ func (a *connActor) SetRoom(r *world.Room) {
 		a.save.Location = string(r.ID)
 		a.markDirtyLocked()
 	}
+	// Fog-of-war exploration hook (player-maps §3): mark the destination
+	// visited. SetRoom is the single room-change chokepoint, so this
+	// covers every arrival — movement, recall, teleport, login spawn,
+	// link-dead reattach — without each call site opting in (PD-5).
+	a.markVisitedLocked(string(r.ID))
 	mgr := a.manager
 	a.mu.Unlock()
 

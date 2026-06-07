@@ -202,6 +202,10 @@ The output layer.
   decorated, color/visibility) and essence (colored glyph) item
   markers; content registries, themed rendering (inline + padded),
   essence as stack identity.
+- [player-maps](player-maps.md) — the active toggleable minimap + the
+  `map` verb (full current-area map), persisted fog of war (visited
+  set), the shared local-window query, and the Mudlet GMCP surface, all
+  over the [room-coordinates](room-coordinates.md) substrate.
 
 ---
 
@@ -414,4 +418,4 @@ highest-impact themes that recur across specs:
 
 ---
 
-<!-- Updated: 2026-06-06 · 39 specs covering the engine substrate, world, action, lifecycle, and presentation layers. Behavior contracts still ahead of code: tag-observers, visibility, hidden-exits, faction, biomes, gathering, room-coordinates, crafting-and-cooking, and the trade trio (trade-escrow, direct-trade, auction-house). Since-shipped: roles-and-permissions, admin-verbs, item-decorations (M19/M20), loot-and-corpses (M22), tab-completion Phase 0–2, who, light-and-darkness. -->
+<!-- Updated: 2026-06-07 · 40 specs covering the engine substrate, world, action, lifecycle, and presentation layers. Behavior contracts still ahead of code: tag-observers, visibility, hidden-exits, faction, biomes, gathering, crafting-and-cooking, and the trade trio (trade-escrow, direct-trade, auction-house); player-maps is a fresh draft now in build (M24, fog/visited substrate first). Since-shipped: roles-and-permissions, admin-verbs, item-decorations (M19/M20), loot-and-corpses (M22), tab-completion Phase 0–2, who, light-and-darkness, room-coordinates (M23). -->
