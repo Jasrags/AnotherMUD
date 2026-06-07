@@ -241,5 +241,6 @@ func renderRoomForReconnect(a *connActor, cfg Config) string {
 	}
 	lvl := command.EffectiveLight(cfg.Light, r, a, cfg.Items, cfg.Placement)
 	view := command.RenderRoom(r, cfg.Placement, cfg.Items, questMarkerFor(cfg.Quests, a.PlayerID()), cfg.Ambience, nil, lvl, otherPlayerNames(cfg.Manager, r.ID, a.PlayerID())...)
+	view = command.AppendMinimap(view, r, a, cfg.World)
 	return command.AppendRoomData(view, r, a, cfg.AdminRole)
 }

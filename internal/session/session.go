@@ -786,6 +786,7 @@ func run(ctx context.Context, c conn.Connection, cfg Config) error {
 
 	startLvl := command.EffectiveLight(cfg.Light, start, a, cfg.Items, cfg.Placement)
 	spawnView := command.RenderRoom(start, cfg.Placement, cfg.Items, questMarkerFor(cfg.Quests, a.PlayerID()), cfg.Ambience, nil, startLvl, otherPlayerNames(cfg.Manager, start.ID, a.PlayerID())...)
+	spawnView = command.AppendMinimap(spawnView, start, a, cfg.World)
 	spawnView = command.AppendRoomData(spawnView, start, a, cfg.AdminRole)
 	if err := a.Write(ctx, spawnView); err != nil {
 		// Initial render failed: the connection is unusable. Full

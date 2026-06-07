@@ -81,6 +81,7 @@ func AppendRoomData(base string, r *world.Room, viewer Actor, adminRole string) 
 func (c *Context) renderRoomWithData(r *world.Room, lvl light.Level) string {
 	out := RenderRoom(r, c.Placement, c.Items, c.questMarker(), c.Ambience,
 		c.hostileMarker(), lvl, c.otherPlayerNames(r.ID)...)
+	out = AppendMinimap(out, r, c.Actor, c.World)
 	return AppendRoomData(out, r, c.Actor, c.AdminRole)
 }
 

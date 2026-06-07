@@ -238,6 +238,14 @@ type Save struct {
 	// a returning character re-explores to rebuild their map, which is
 	// the intended fog-of-war behavior, so the migration injects nothing.
 	VisitedRooms []string `yaml:"visited_rooms,omitempty"`
+
+	// MinimapEnabled is the per-character preference for the active
+	// minimap appended to the room view (player-maps §4). Off by
+	// default; the `minimap` verb toggles it. Added without a schema
+	// bump on the Autoloot precedent — the false zero-value is
+	// indistinguishable from absent (omitempty), so legacy saves load
+	// with it off and round-trip unchanged.
+	MinimapEnabled bool `yaml:"minimap,omitempty"`
 }
 
 // VitalsState is the persisted HP block (v5+). Pointer so an absent

@@ -62,3 +62,26 @@ func (a *connActor) VisitedRooms() []string {
 	}
 	return append([]string(nil), a.save.VisitedRooms...)
 }
+
+// MinimapEnabled reports the persisted active-minimap preference
+// (player-maps §4). False for an actor with no save.
+func (a *connActor) MinimapEnabled() bool {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	if a.save == nil {
+		return false
+	}
+	return a.save.MinimapEnabled
+}
+
+// SetMinimapEnabled stores the minimap preference and marks the save
+// dirty so it persists. A no-op when unchanged or when there is no save.
+func (a *connActor) SetMinimapEnabled(v bool) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	if a.save == nil || a.save.MinimapEnabled == v {
+		return
+	}
+	a.save.MinimapEnabled = v
+	a.markDirtyLocked()
+}

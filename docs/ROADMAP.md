@@ -32,11 +32,10 @@ and `THEME-AXIS-PLAN.md` are superseded by `BACKLOG.md` and now live under
   The core loop, world, combat, progression, economy, quests, scripting,
   sessions, modern-client, roles/admin, decorations, stacking, loot, and
   room coordinates all work.
-- **Active:** **M24 — Player Maps.** **M24.1** (persisted fog-of-war
-  visited-set + `SetRoom` hook) and **M24.2** (the shared
-  `world.LocalWindow` query) are **done**; remaining: M24.3 the ASCII
-  minimap toggle + `map` verb, M24.4 the Mudlet GMCP surface. Spec:
-  `docs/specs/player-maps.md`.
+- **Active:** **M24 — Player Maps.** **M24.1** (fog-of-war visited-set +
+  `SetRoom` hook), **M24.2** (`world.LocalWindow` query), and **M24.3**
+  (ASCII minimap toggle + `map` verb) are **done**; remaining: M24.4 the
+  Mudlet GMCP surface. Spec: `docs/specs/player-maps.md`.
 - **Specs ahead of code.** Behavior contracts written without
   implementation, still awaiting a milestone: `tag-observers`,
   `crafting-and-cooking`, and the trade trio
@@ -3193,15 +3192,23 @@ local-window query feeds every surface. Implements the new
       callers (the renderers, the GMCP path) filter against the M24.1
       visited set. Net-new (the coords walk in `world` is boot-only); the
       seam both ASCII renderers and the area query share. ~97% cov.
-- [ ] **M24.3 — ASCII renderers: minimap toggle + `map` verb.**
-      `player-maps §4–§6`. A net-new grid renderer (render-time recenter,
-      terrain glyphs via the theme, stub-edges for unvisited neighbors,
-      up/down indicators, keyword-exit annotations). The active
-      **minimap** appends to the room view via the shared "you see the
-      room" seam (like the M23.2 `roomdata` block) behind a persisted,
-      non-admin `minimap [on|off]` toggle; the **`map`** verb renders the
-      full discovered current area on demand. Both fog-filtered against
-      M24.1.
+- [x] **M24.3 — ASCII renderers: minimap toggle + `map` verb.**
+      `player-maps §4–§6`. Net-new grid renderer (`internal/command/
+      minimap.go` + `mapcanvas.go`): a sparse char canvas, render-time
+      recenter (viewer at `@`), terrain→glyph mapping, connectors between
+      drawn rooms, **stub connectors** for cardinal exits to non-rendered
+      (unvisited / off-window / cross-area) rooms (§6.4), single z-plane
+      with up/down + keyword-exit annotations (§6.5, PD-7/PD-8). The
+      active **minimap** appends to the room view via the shared
+      `AppendMinimap` seam — wired into `renderRoomWithData` (look,
+      movement, recall, teleport, flee) and the session spawn + reattach
+      renders — behind a persisted, non-admin `minimap [on|off]` toggle
+      (`player.Save.MinimapEnabled`, omitempty, no bump). The **`map`**
+      verb renders the full discovered current area on demand (unbounded
+      `LocalWindow`), reporting cleanly from an unplaced room. Both
+      fog-filtered against the M24.1 visited set (`MapViewer.HasVisited`).
+      Renderer/canvas/verbs covered (renderLocalMap + glyph + canvas 100%
+      / ~92%); 51 pkgs green -race.
 - [ ] **M24.4 — Mudlet GMCP surface.** `player-maps §7`. The
       `Room.Info` coordinate fields already ship (M23.1); this confirms
       the **current-room-only** emission keeps fog of war honest (no bulk

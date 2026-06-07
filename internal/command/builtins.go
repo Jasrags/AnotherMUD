@@ -33,6 +33,8 @@ func RegisterBuiltins(r *Registry) error {
 		// at/in prepositions let `look at X` and `look in X` complete too.
 		{Keyword: "look", Handler: LookHandler, Brief: "Examine your surroundings or a target.", Syntax: []string{"look", "look <target>"},
 			HandParsed: true, Args: []ArgDefinition{{Name: "target", Type: ArgVisible, Prepositions: []string{"at", "in"}}}},
+		{Keyword: "map", Handler: MapHandler, Brief: "Show the map of rooms you've explored in this area.", Syntax: []string{"map"}},
+		{Keyword: "minimap", Handler: MinimapHandler, Brief: "Toggle the active minimap on the room view.", Syntax: []string{"minimap", "minimap on", "minimap off"}},
 		{Keyword: "quit", Handler: QuitHandler, Brief: "Leave the game; your progress is saved.", Syntax: []string{"quit"}},
 		{Keyword: "color", Handler: ColorHandler, Brief: "Toggle ANSI color, or show the current setting.", Syntax: []string{"color", "color on", "color off"}},
 
