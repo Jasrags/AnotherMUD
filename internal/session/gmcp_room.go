@@ -80,7 +80,7 @@ func buildRoomInfoPayload(room *world.Room) gmcp.RoomInfo {
 			keywords[kw] = string(exit.Target)
 		}
 	}
-	return gmcp.RoomInfo{
+	info := gmcp.RoomInfo{
 		Num:      string(room.ID),
 		Name:     room.Name,
 		Area:     string(room.AreaID),
@@ -89,4 +89,14 @@ func buildRoomInfoPayload(room *world.Room) gmcp.RoomInfo {
 		Terrain:  room.Terrain,
 		Details:  room.Description,
 	}
+	// Area-local coordinate (room-coordinates §5), emitted only for a
+	// placed room. An unplaced room (§4.3) leaves Coord nil and the
+	// fields stay omitted — the mapper falls back to its own relative
+	// placement (§5.1). Copy into fresh ints so the payload never
+	// aliases the shared world.Room.
+	if room.Coord != nil {
+		x, y, z := room.Coord.X, room.Coord.Y, room.Coord.Z
+		info.X, info.Y, info.Z = &x, &y, &z
+	}
+	return info
 }

@@ -157,6 +157,15 @@ func Load(ctx context.Context, root string, filter []string, dst *Registries, sp
 		return err
 	}
 
+	// Room-coordinate derivation (room-coordinates §3) runs once the
+	// graph is fully assembled and before the world serves connections.
+	// Non-fatal by design (PD-4): collisions, non-square loops, and
+	// unplaced rooms degrade the local map and surface as warnings —
+	// they never abort the load.
+	for _, cw := range dst.World.DeriveCoordinates() {
+		logCoordWarning(logger, cw)
+	}
+
 	// Placement post-pass. Runs after all packs have loaded so cross-pack
 	// item-template references resolve. Spawner=nil means callers don't
 	// want runtime instances created (tests that only need template
@@ -360,7 +369,7 @@ func loadPackContent(ctx context.Context, p Discovered, dst *Registries, scriptC
 	var placements []pendingPlacement
 	var mobPlacements []pendingMobPlacement
 	for _, rp := range roomPaths {
-		r, items, mobs, err := decodeRoom(rp, ns)
+		r, items, mobs, err := decodeRoom(ctx, rp, ns)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -1558,7 +1567,50 @@ func decodeSpawnRules(in []SpawnRuleFile, ns, path string) ([]world.SpawnRule, e
 	return out, nil
 }
 
-func decodeRoom(path, ns string) (*world.Room, []string, []string, error) {
+// logCoordWarning emits one non-fatal coordinate-derivation finding
+// (room-coordinates §4) as a structured warning. The event name encodes
+// the kind (pack.coord.<kind>) so operators can filter; fields follow
+// the F2 logging convention.
+func logCoordWarning(logger *slog.Logger, w world.CoordWarning) {
+	attrs := []any{
+		slog.String("event", "pack.coord."+string(w.Kind)),
+		slog.String("area", string(w.Area)),
+		slog.String("room", string(w.Room)),
+	}
+	if w.Other != "" {
+		attrs = append(attrs, slog.String("other_room", string(w.Other)))
+	}
+	switch w.Kind {
+	case world.CoordWarnInconsistent:
+		attrs = append(attrs,
+			slog.String("direction", w.Dir.String()),
+			slog.String("existing", coordString(w.At)),
+			slog.String("expected", coordString(w.Expect)))
+	case world.CoordWarnUnplaced:
+		// No coordinate — the room was never placed.
+	default:
+		attrs = append(attrs, slog.String("coord", coordString(w.At)))
+	}
+	logger.Warn("room coordinate derivation conflict", attrs...)
+}
+
+// coordString renders a coordinate for log output.
+func coordString(c world.Coord) string {
+	return fmt.Sprintf("(%d,%d,%d)", c.X, c.Y, c.Z)
+}
+
+// pinFromFile converts an authored CoordFile to a world.Coord. It
+// reports ok=false when any axis is absent (a malformed pin per
+// room-coordinates §3.5); the caller warns and falls back to derived
+// placement.
+func pinFromFile(cf *CoordFile) (world.Coord, bool) {
+	if cf == nil || cf.X == nil || cf.Y == nil || cf.Z == nil {
+		return world.Coord{}, false
+	}
+	return world.Coord{X: *cf.X, Y: *cf.Y, Z: *cf.Z}, true
+}
+
+func decodeRoom(ctx context.Context, path, ns string) (*world.Room, []string, []string, error) {
 	raw, err := os.ReadFile(path)
 	if err != nil {
 		return nil, nil, nil, fmt.Errorf("reading room %s: %w", path, err)
@@ -1598,6 +1650,20 @@ func decodeRoom(path, ns string) (*world.Room, []string, []string, error) {
 		Terrain:        strings.TrimSpace(rf.Terrain),
 		WeatherExposed: rf.WeatherExposed,
 		TimeExposed:    rf.TimeExposed,
+	}
+	// Coordinate pin (room-coordinates §3.5). A well-formed pin becomes
+	// ground truth for derivation; a malformed one (any missing axis)
+	// warns and falls back to derived placement — it never aborts the
+	// load (§3.5 acceptance).
+	if rf.Coord != nil {
+		if c, ok := pinFromFile(rf.Coord); ok {
+			r.Pin = &c
+		} else {
+			logging.From(ctx).Warn("malformed room coordinate pin; falling back to derived placement",
+				slog.String("event", "pack.coord.malformed_pin"),
+				slog.String("room", roomID),
+				slog.String("file", path))
+		}
 	}
 	for dirStr, target := range rf.Exits {
 		dir, ok := world.ParseDirection(dirStr)

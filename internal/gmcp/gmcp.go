@@ -176,6 +176,16 @@ type CharVitals struct {
 //     (one holds a torch). Capable clients theme the viewport or swap
 //     a day/night map from it. Omitted when light is not wired (the
 //     room renders as fully lit).
+//   - `x`/`y`/`z` are the room's area-local integer coordinate
+//     (room-coordinates §5), present only for a placed room. They are
+//     pointers so an unplaced room (room-coordinates §4.3) omits them
+//     entirely rather than reporting (0,0,0) — the origin is a valid
+//     placed value (§5.1). WIRE-SHAPE CAVEAT (room-coordinates §5):
+//     this flat x/y/z layout is a placeholder. Mudlet's bundled mapper
+//     has its own coords convention; the exact JSON shape MUST be
+//     validated against a live Mudlet client before the GMCP slice is
+//     called done, and may change. The substrate (a stable area-local
+//     integer triple) is fixed; this serialization is not.
 type RoomInfo struct {
 	Num      string            `json:"num"`
 	Name     string            `json:"name"`
@@ -185,6 +195,9 @@ type RoomInfo struct {
 	Terrain  string            `json:"terrain,omitempty"`
 	Details  string            `json:"details,omitempty"`
 	Light    string            `json:"light,omitempty"`
+	X        *int              `json:"x,omitempty"`
+	Y        *int              `json:"y,omitempty"`
+	Z        *int              `json:"z,omitempty"`
 }
 
 // CharItem is one entry in a Char.Items.List payload.

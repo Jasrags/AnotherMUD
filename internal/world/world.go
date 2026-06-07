@@ -151,6 +151,22 @@ type Room struct {
 	// TimeExposed mirrors WeatherExposed for time-of-day
 	// ambience. Spec §6.4.
 	TimeExposed bool
+
+	// Pin is the authored area-local coordinate override
+	// (room-coordinates §3.5). When set, DeriveCoordinates places this
+	// room at exactly Pin and treats it as ground truth: the room seeds
+	// its area's walk and is never overwritten. nil (the default) means
+	// "derive my position from the exit graph." Loaded from the room
+	// YAML `coord:` key; it is content, not a save field (§8).
+	Pin *Coord
+
+	// Coord is the derived area-local (x, y, z) assigned by
+	// DeriveCoordinates at load (room-coordinates §3). nil means the
+	// room is unplaced (§4.3) — not pinned and unreachable from any seed
+	// via intra-area directional exits; consumers omit the coordinate
+	// entirely rather than reporting (0,0,0) (§5.1). Recomputed every
+	// load; never persisted (§8).
+	Coord *Coord
 }
 
 // Property returns the raw value stored under key. Returns

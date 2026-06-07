@@ -248,6 +248,25 @@ type RoomFile struct {
 	// ambience. Independent of WeatherExposed by design — a
 	// room may receive one and not the other. Spec §6.4.
 	TimeExposed bool `yaml:"time_exposed,omitempty"`
+
+	// Coord is the optional authored coordinate pin
+	// (room-coordinates §3.5): an area-local {x, y, z} placing this
+	// room at a fixed point the derivation walk treats as ground truth
+	// and never overwrites. Absent (the default) → the room's position
+	// is derived from the exit graph. A malformed pin (missing axis)
+	// warns at load and falls back to derived placement, never aborting
+	// the load (§3.5).
+	Coord *CoordFile `yaml:"coord,omitempty"`
+}
+
+// CoordFile is the YAML shape for a room coordinate pin
+// (room-coordinates §3.5). All three axes are required; a pointer per
+// axis lets the decoder distinguish an explicit 0 from a missing axis,
+// which is the malformed-pin case (warn + fall back to derived).
+type CoordFile struct {
+	X *int `yaml:"x"`
+	Y *int `yaml:"y"`
+	Z *int `yaml:"z"`
 }
 
 // DoorFile is the YAML shape for one door declaration. All fields
