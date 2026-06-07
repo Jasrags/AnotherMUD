@@ -1,0 +1,137 @@
+package command
+
+import (
+	"strings"
+
+	"github.com/Jasrags/AnotherMUD/internal/render"
+)
+
+// defaultRoomColumnWidth is the left-column width the room view is
+// wrapped to when the active minimap renders beside it (player-maps §4,
+// §10 policy) — kept narrow so the room column + a gap + the minimap fit
+// a standard terminal.
+const defaultRoomColumnWidth = 50
+
+// minimapGap is the blank columns between the room column and the
+// minimap (player-maps §10 policy).
+const minimapGap = 3
+
+// markupWidth returns the rendered column width of a markup line,
+// discounting both <angle> semantic tags (via render.StripTags) and
+// {brace} color shorthand — each renders to zero visible width, so both
+// must be removed for the side-by-side columns to align.
+func markupWidth(s string) int {
+	return len(stripBraces(render.StripTags(s)))
+}
+
+// stripBraces removes {…} color shorthand from s, mirroring how the ansi
+// renderer collapses it to zero width. `{{` is an escaped literal brace
+// (one visible char); a `{` with no close within a short span is treated
+// as literal text rather than swallowing the rest of the line.
+func stripBraces(s string) string {
+	if !strings.ContainsRune(s, '{') {
+		return s
+	}
+	var b strings.Builder
+	b.Grow(len(s))
+	for i := 0; i < len(s); {
+		if s[i] != '{' {
+			b.WriteByte(s[i])
+			i++
+			continue
+		}
+		if i+1 < len(s) && s[i+1] == '{' { // {{ → literal {
+			b.WriteByte('{')
+			i += 2
+			continue
+		}
+		if end := strings.IndexByte(s[i:], '}'); end > 0 && end <= 5 {
+			i += end + 1 // {G} / {x} / {dim} / {/} → drop
+			continue
+		}
+		b.WriteByte('{')
+		i++
+	}
+	return b.String()
+}
+
+// wrapMarkupLine word-wraps one line to width visible columns, keeping
+// each word's markup attached. Width math discounts markup. A single
+// word wider than width is left whole (no mid-word break).
+func wrapMarkupLine(line string, width int) []string {
+	if markupWidth(line) <= width {
+		return []string{line}
+	}
+	words := strings.Fields(line)
+	if len(words) == 0 {
+		return []string{""}
+	}
+	var lines []string
+	cur, curW := "", 0
+	for _, w := range words {
+		ww := markupWidth(w)
+		switch {
+		case cur == "":
+			cur, curW = w, ww
+		case curW+1+ww > width:
+			lines = append(lines, cur)
+			cur, curW = w, ww
+		default:
+			cur += " " + w
+			curW += 1 + ww
+		}
+	}
+	if cur != "" {
+		lines = append(lines, cur)
+	}
+	return lines
+}
+
+// padRight pads s with spaces to width visible columns (no truncation;
+// callers wrap first).
+func padRight(s string, width int) string {
+	if pad := width - markupWidth(s); pad > 0 {
+		return s + strings.Repeat(" ", pad)
+	}
+	return s
+}
+
+// joinBeside renders right to the right of left, top-aligned: left is
+// wrapped to leftWidth and padded so right starts at a fixed column, with
+// a `{x}` reset at the boundary so any open color from the left text
+// can't bleed into the right block. A room-only row (no right content)
+// is emitted left-trimmed; a map-only row keeps the left column blank so
+// the map stays in its column.
+func joinBeside(left, right string, leftWidth, gap int) string {
+	var leftLines []string
+	for _, ln := range strings.Split(left, "\n") {
+		leftLines = append(leftLines, wrapMarkupLine(ln, leftWidth)...)
+	}
+	rightLines := strings.Split(right, "\n")
+
+	rows := len(leftLines)
+	if len(rightLines) > rows {
+		rows = len(rightLines)
+	}
+	gapStr := strings.Repeat(" ", gap)
+	var b strings.Builder
+	for i := 0; i < rows; i++ {
+		l, r := "", ""
+		if i < len(leftLines) {
+			l = leftLines[i]
+		}
+		if i < len(rightLines) {
+			r = rightLines[i]
+		}
+		if r == "" {
+			b.WriteString(strings.TrimRight(l, " "))
+		} else {
+			b.WriteString(padRight(l, leftWidth))
+			b.WriteString("{x}") // reset so left color can't bleed into the map
+			b.WriteString(gapStr)
+			b.WriteString(r)
+		}
+		b.WriteByte('\n')
+	}
+	return strings.TrimRight(b.String(), "\n")
+}

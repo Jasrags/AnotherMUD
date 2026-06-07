@@ -165,7 +165,9 @@ func AppendMinimap(base string, r *world.Room, viewer Actor, w *world.World) str
 	if !ok || grid == "" {
 		return base
 	}
-	return base + "\n" + grid
+	// Beside the room view, not below it (player-maps §4): the room body
+	// wraps into a left column and the minimap rides at the top-right.
+	return joinBeside(base, grid, defaultRoomColumnWidth, minimapGap)
 }
 
 // MinimapHandler toggles the calling player's active-minimap preference
@@ -218,5 +220,25 @@ func MapHandler(ctx context.Context, c *Context) error {
 	if a, err := c.World.Area(room.AreaID); err == nil && a.Name != "" {
 		name = a.Name
 	}
-	return c.Actor.Write(ctx, fmt.Sprintf("<title>Map of %s</title>\n%s", name, grid))
+	return c.Actor.Write(ctx, fmt.Sprintf("<title>Map of %s</title>\n%s\n\n%s", name, grid, mapLegend()))
+}
+
+// mapLegend explains the map glyphs (player-maps §6.2): the viewer
+// marker, the connectors, the terrain glyphs (listed from terrainGlyph
+// so the legend can't drift from the renderer), and the stub convention.
+func mapLegend() string {
+	terrains := make([]string, 0, len(terrainGlyph))
+	for t := range terrainGlyph {
+		terrains = append(terrains, t)
+	}
+	sort.Strings(terrains)
+	parts := make([]string, 0, len(terrains))
+	for _, t := range terrains {
+		parts = append(parts, string(terrainGlyph[t])+" "+t)
+	}
+	var b strings.Builder
+	b.WriteString("<subtle>Legend:</subtle>  <highlight>@</highlight> you   <subtle>-</subtle> <subtle>|</subtle> passages\n")
+	b.WriteString("<subtle>Terrain:</subtle>  " + strings.Join(parts, "   ") + "\n")
+	b.WriteString("<subtle>A passage that leads nowhere on the map is an exit you haven't explored yet.</subtle>")
+	return b.String()
 }

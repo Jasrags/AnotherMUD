@@ -134,3 +134,28 @@ func TestMapCanvas_Alignment(t *testing.T) {
 		t.Errorf("render = %q, want %q", got, "@-x")
 	}
 }
+
+func TestSideBySideVisual(t *testing.T) {
+	roomBody := "<title>The Town Square</title>\n" +
+		"A wide cobbled plaza ringed by shuttered stalls and a dry fountain whose basin is choked with autumn leaves.\n" +
+		"<subtle>Exits:</subtle> north, east, west"
+	w := world.New()
+	w.AddRoom(mapRoom("ar:o", "outdoors", 0, 0, 0, map[world.Direction]world.RoomID{
+		world.DirNorth: "ar:n", world.DirEast: "ar:e", world.DirWest: "ar:w",
+	}))
+	w.AddRoom(mapRoom("ar:n", "forest", 0, 1, 0, map[world.Direction]world.RoomID{world.DirSouth: "ar:o"}))
+	w.AddRoom(mapRoom("ar:e", "water", 1, 0, 0, map[world.Direction]world.RoomID{world.DirWest: "ar:o"}))
+	w.AddRoom(mapRoom("ar:w", "road", -1, 0, 0, map[world.Direction]world.RoomID{world.DirEast: "ar:o"}))
+	win, _ := w.LocalWindow("ar:o", 3)
+	grid, _ := renderLocalMap(win, "ar:o", visitedFunc("ar:o", "ar:n", "ar:e", "ar:w"))
+	t.Logf("\n%s", joinBeside(roomBody, grid, defaultRoomColumnWidth, minimapGap))
+}
+
+func TestMapLegend(t *testing.T) {
+	leg := mapLegend()
+	for _, want := range []string{"@", "you", "passages", "Terrain", "forest", "explored"} {
+		if !strings.Contains(leg, want) {
+			t.Errorf("legend missing %q:\n%s", want, leg)
+		}
+	}
+}

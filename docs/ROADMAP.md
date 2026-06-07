@@ -3201,16 +3201,19 @@ local-window query feeds every surface. Implements the new
       drawn rooms, **stub connectors** for cardinal exits to non-rendered
       (unvisited / off-window / cross-area) rooms (§6.4), single z-plane
       with up/down + keyword-exit annotations (§6.5, PD-7/PD-8). The
-      active **minimap** appends to the room view via the shared
-      `AppendMinimap` seam — wired into `renderRoomWithData` (look,
-      movement, recall, teleport, flee) and the session spawn + reattach
-      renders — behind a persisted, non-admin `minimap [on|off]` toggle
-      (`player.Save.MinimapEnabled`, omitempty, no bump). The **`map`**
-      verb renders the full discovered current area on demand (unbounded
-      `LocalWindow`), reporting cleanly from an unplaced room. Both
-      fog-filtered against the M24.1 visited set (`MapViewer.HasVisited`).
-      Renderer/canvas/verbs covered (renderLocalMap + glyph + canvas 100%
-      / ~92%); 51 pkgs green -race.
+      active **minimap** renders **beside** the room view (to its right,
+      not below — `internal/command/sidebyside.go`: markup-aware wrap +
+      column join with a `{x}` boundary reset so room color can't bleed
+      into the map) via the shared `AppendMinimap` seam — wired into
+      `renderRoomWithData` (look, movement, recall, teleport, flee) and
+      the session spawn + reattach renders — behind a persisted,
+      non-admin `minimap [on|off]` toggle (`player.Save.MinimapEnabled`,
+      omitempty, no bump). The **`map`** verb renders the full discovered
+      current area on demand (unbounded `LocalWindow`) with a **legend**
+      (viewer marker / connectors / terrain glyphs / stub convention),
+      reporting cleanly from an unplaced room. Both fog-filtered against
+      the M24.1 visited set (`MapViewer.HasVisited`). Renderer/canvas/
+      sidebyside/verbs covered; 51 pkgs green -race.
 - [x] **M24.4 — Mudlet GMCP surface (verify + lock).** `player-maps §7`.
       Mostly confirmation: the `Room.Info` coordinate fields already ship
       (M23.1), and emission is **current-room-only** — the three

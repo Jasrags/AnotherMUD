@@ -62,9 +62,10 @@ Three things sit on top of the coordinate substrate:
   the exit toward it is drawn as a **stub** (a connector into the dark)
   so the player sees that an exit exists without seeing what is beyond
   it (PD-3).
-- **Active minimap** — a small local map appended to the room view on
-  every room render (look + each arrival) when the per-character
-  `minimap` toggle is on. "Active" = it redraws as the player moves.
+- **Active minimap** — a small local map rendered beside the room view
+  (to its right) on every room render (look + each arrival) when the
+  per-character `minimap` toggle is on. "Active" = it redraws as the
+  player moves.
 - **`map` verb** — an explicit command rendering the full discovered
   map of the current area.
 - **Player-centering** — the minimap places the viewer's room at grid
@@ -195,10 +196,13 @@ The maps draw only what the character has explored.
 
 A small local map that travels with the player.
 
-- The minimap is **appended to the room view** — the same render the
-  player sees from `look` and on every arrival — when the character's
-  **`minimap` preference** is on. Because it redraws on each room
-  change, it tracks the player as they move ("active").
+- The minimap renders **beside the room view, to its right** — not
+  below it — on the same render the player sees from `look` and on every
+  arrival, when the character's **`minimap` preference** is on. The room
+  body wraps into a left column and the minimap rides at the top-right;
+  any open color from the room text is reset at the column boundary so it
+  cannot bleed into the map. Because it redraws on each room change, it
+  tracks the player as they move ("active").
 - It is a **per-character preference**, toggled by a `minimap` command
   (`minimap on` / `minimap off`, bare `minimap` reports or flips —
   policy, §10) and **persisted** with the save so it survives logout.
@@ -243,6 +247,11 @@ The full discovered map, on demand.
 - When the player's current room is unplaced, `map` reports that the
   area cannot be mapped from here rather than drawing an un-centered
   grid.
+- `map` includes a **legend** explaining the symbols — the viewer
+  marker, the passage connectors, the terrain glyphs (kept in sync with
+  the renderer's terrain→glyph table), and the unexplored-exit stub
+  convention — so the map is self-describing. The compact active minimap
+  carries no legend (the `map` verb is where the key lives).
 
 ### 5.1 Acceptance — `map` verb
 
@@ -252,6 +261,8 @@ The full discovered map, on demand.
       minimap.
 - [ ] `map` from an unplaced room reports it cannot map, not a broken
       grid.
+- [ ] `map` prints a legend covering the viewer marker, connectors,
+      terrain glyphs, and the unexplored-exit stub.
 
 ---
 
@@ -414,7 +425,9 @@ visited set.
 | Setting | Default | Meaning |
 |---|---|---|
 | Minimap radius | small (terminal-sized) | The step/cell radius of the active minimap window around the player (§4). |
-| Minimap placement | appended below the room view | Where the active minimap renders relative to the room body (§4). |
+| Minimap placement | beside (right of) the room view | The active minimap renders to the right of the room body, top-aligned (§4). |
+| Room column width | terminal-fitting | The left-column width the room body wraps to when the minimap is beside it, so room + gap + map fit a standard terminal (§4). |
+| Room↔map gap | small | Blank columns between the room column and the minimap (§4). |
 | Minimap toggle default | off | Whether a fresh character starts with the minimap on (§4). |
 | `minimap` verb form | `minimap [on\|off]` | The toggle command surface (§4). |
 | `map` extent | whole current area | What the `map` verb draws (§5); a bounded `map <radius>` form is a §11 follow-on. |
