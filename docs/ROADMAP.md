@@ -3413,10 +3413,36 @@ stopgap; gathering replaces it later) → craft Tier 0 anywhere → build a
 campfire for Tier-1 field cooking → use the forge/kitchen for Tier 2 →
 meals grant well-fed, quality renders via rarity, skill grows through use.
 
+**Post-MVP follow-ups (shipped after the Phase 0–5 MVP):**
+
+- [x] **Cleanup pass (C/B1/B2).** `learn` now requires a registered
+      discipline ability — refuses instead of seeding a default-cap-100
+      proficiency that would inflate the §5 ceiling (`d626bef`). **B1 — tool
+      quality (§5):** the best inventory tool matching a recipe's `tool` tag
+      now weights the roll by its rarity, separate from skill; tools read,
+      never consumed (`de57e5f`; iron-hammer content). **B2 — gain-stat on
+      craft skill-up (§3.5):** the crafting service shares the M26
+      `StatReader` so dex/wis scale craft proficiency gain (`6ab13b1`).
+- [x] **Multi-trainer resolution fix (`715eee6`).** Surfaced by in-game
+      verification: with two trainers in one room (the forge holds both
+      Maerys the combat master and Brandr the blacksmith), `learn`/`practice`
+      consulted only the first trainer found, so `learn smithing` failed
+      with "no one here can teach you." `TrainerSource.TrainerInRoom` now
+      takes the target ability and **prefers the trainer who can teach it**
+      (pure `selectTrainer` + regression test); threaded through
+      `TryPractice` + the learn verb. A pre-existing first-match limitation
+      the M27 two-trainer forge exposed; also fixes `practice` in any
+      multi-trainer room.
+- **In-game verified** via a live telnet playthrough: creation → learn at
+      trainer → buy → station-gated craft (quality roll + atomic
+      consume/produce, no dup/loss) → cook → eat; tool quality lifted a
+      crafted sword to `[UNCOMMON]` live.
+
 **Open / deferred (post-MVP, plan Phases 6–8):** recipe-acquisition breadth
 (common/uncommon/rare/regional via shops/quests/loot), regional sets +
 guided discovery, and **gathering** (the real ingredient source replacing
-vendor stock). LOW review items + the unregistered-discipline-cap edge in
+vendor stock). **B3 — craft time** (`time_pulses` declared but unused; needs
+a tick-based delay slice) deferred. Remaining LOW review items in
 `[[crafting-deferred-fixes]]`.
 
 **Touches code:** `internal/recipe` + `internal/crafting` + `internal/campfire`
