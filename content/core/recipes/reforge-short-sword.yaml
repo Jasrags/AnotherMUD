@@ -17,6 +17,10 @@ skill_floor: 1
 # craftable in a room with a Tier-2 smithing station (the Hearthwick Forge).
 # At the forge its quality also reaches higher than any field attempt could.
 station_tier: 2
+# Tool (§5): a smithing-tool (e.g. the iron hammer) weights quality by its
+# rarity. Optional — reforging without one still works at the baseline tool
+# weight; a finer hammer makes a finer sword.
+tool: smithing-tool
 time_pulses: 30
 # Baseline: granted free when you `learn smithing` (§7). Demonstrates the
 # Phase 1 acquire-event end to end; richer common/uncommon recipes (the

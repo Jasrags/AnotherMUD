@@ -33,3 +33,4 @@ properties:
   shop:
     sells:
       - tapestry-core:rusty-dagger
+      - tapestry-core:iron-hammer

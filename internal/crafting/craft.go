@@ -150,9 +150,11 @@ func (s *Service) Craft(ctx context.Context, c Crafter, query string, stationTie
 	}
 
 	// Roll quality BEFORE any mutation (so a panic-free roll happens with
-	// inputs intact). The present station tier sets the hard ceiling (§4).
+	// inputs intact). The present station tier sets the hard ceiling (§4);
+	// the crafter's tool quality weights the roll separately from skill (§5).
 	qualityKey := s.rollQuality(QualityInputs{
 		Skill:              prof,
+		ToolTierKey:        s.toolTierKey(c, rec.Tool),
 		IngredientTierKeys: ingKeys,
 		StationTier:        present,
 	})
@@ -352,6 +354,40 @@ func stringMap(raw any) map[string]string {
 	default:
 		return nil
 	}
+}
+
+// toolTierKey returns the rarity key of the best tool the crafter carries
+// matching the recipe's tool kind (a tag on the tool item), or "" when the
+// recipe needs no tool or the crafter has none (§5: tool quality is a
+// separate weight from skill; a missing tool is the baseline, never a
+// refusal — §1.1). The highest-rarity matching tool wins.
+func (s *Service) toolTierKey(c Crafter, toolKind string) string {
+	toolKind = strings.ToLower(strings.TrimSpace(toolKind))
+	if toolKind == "" {
+		return ""
+	}
+	best, bestPos := "", -1
+	for _, id := range c.Inventory() {
+		inst := s.itemInstance(id)
+		if inst == nil || !hasTagFold(inst.Tags(), toolKind) {
+			continue
+		}
+		key := s.rarityKeyOf(inst)
+		if pos := ladderPosition(s.rarity, key); pos > bestPos {
+			bestPos, best = pos, key
+		}
+	}
+	return best
+}
+
+// hasTagFold reports whether tag is in tags (case-insensitive).
+func hasTagFold(tags []string, tag string) bool {
+	for _, t := range tags {
+		if strings.EqualFold(t, tag) {
+			return true
+		}
+	}
+	return false
 }
 
 func (s *Service) rarityKeyOf(inst *entities.ItemInstance) string {

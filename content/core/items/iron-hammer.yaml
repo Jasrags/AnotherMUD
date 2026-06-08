@@ -1,0 +1,14 @@
+id: iron-hammer
+name: a fine iron hammer
+type: item
+# A smithing tool (crafting-and-cooking §5). A recipe's `tool:` names a tag;
+# carrying a matching tool weights the quality roll by the tool's own rarity
+# — separate from skill (a master with a poor hammer is not a journeyman
+# with a fine one). Optional: smithing without it just rolls at the baseline
+# tool weight (§1.1 — never a refusal). This one is fine (uncommon) quality.
+tags: [tool, smithing-tool]
+keywords: [hammer, iron]
+properties:
+  weight: 4
+  value: 40
+  rarity: uncommon
