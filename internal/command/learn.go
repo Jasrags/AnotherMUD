@@ -35,15 +35,19 @@ func LearnHandler(ctx context.Context, c *Context) error {
 		return c.Actor.Write(ctx, "There is no such craft to learn.")
 	}
 
-	// Display name from the ability registry when available; the raw id
-	// otherwise (a recipe may reference a discipline whose ability a pack
-	// forgot to register — degrade gracefully rather than refuse).
-	name := discipline
-	if c.Abilities != nil {
-		if ab, ok := c.Abilities.Get(discipline); ok {
-			name = ab.DisplayName
-		}
+	// A discipline MUST be a registered ability: its DefaultCap + gain
+	// params drive the proficiency cap and the §5 quality roll. A recipe
+	// that references a discipline with no registered ability is a content
+	// bug — refuse rather than seed a default-cap (100) proficiency that
+	// would silently grant a too-high quality ceiling.
+	if c.Abilities == nil {
+		return c.Actor.Write(ctx, "Learning is not enabled in this build.")
 	}
+	ab, ok := c.Abilities.Get(discipline)
+	if !ok {
+		return c.Actor.Write(ctx, "There is no such craft to learn.")
+	}
+	name := ab.DisplayName
 
 	entityID := c.Actor.PlayerID()
 	if entityID == "" {

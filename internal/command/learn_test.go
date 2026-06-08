@@ -123,6 +123,27 @@ func TestLearn_UnknownCraft(t *testing.T) {
 	}
 }
 
+func TestLearn_UnregisteredDisciplineAbilityRefused(t *testing.T) {
+	// A recipe references a discipline with no registered ability (content
+	// bug). learn must refuse, NOT seed a default-cap proficiency.
+	a, c := learnFixture(t, true)
+	// Add a recipe whose discipline ("alchemy") has no registered ability.
+	_ = c.Recipes.TryAdd(&recipe.Recipe{
+		ID: "core:brew", DisplayName: "brew", Discipline: "alchemy",
+		Acquisition: recipe.AcqBaseline,
+		Inputs:      []recipe.Ingredient{{Template: "core:herb", Quantity: 1}},
+		Output:      recipe.Output{Template: "core:potion", Quantity: 1},
+	})
+	c.Args = []string{"alchemy"}
+	_ = command.LearnHandler(context.Background(), c)
+	if !strings.Contains(strings.ToLower(a.lastLine()), "no such craft") {
+		t.Errorf("output = %q, want 'no such craft'", a.lastLine())
+	}
+	if c.Proficiency.Has(c.Actor.ID(), "alchemy") {
+		t.Error("alchemy proficiency was seeded despite no registered ability")
+	}
+}
+
 func TestLearn_NoArgs(t *testing.T) {
 	a, c := learnFixture(t, true)
 	_ = command.LearnHandler(context.Background(), c)
