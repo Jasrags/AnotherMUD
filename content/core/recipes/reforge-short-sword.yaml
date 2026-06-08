@@ -17,7 +17,10 @@ skill_floor: 1
 # a lower one (none/campfire) will once stations are enforced (Phase 4/5).
 station_tier: 2
 time_pulses: 30
-acquisition: common
+# Baseline: granted free when you `learn smithing` (§7). Demonstrates the
+# Phase 1 acquire-event end to end; richer common/uncommon recipes (the
+# gold-sink tiers) are content for later phases.
+acquisition: baseline
 inputs:
   - { template: rusty-dagger, quantity: 1 }
 output:

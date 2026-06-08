@@ -1,0 +1,35 @@
+id: blacksmith
+name: Brandr the blacksmith
+type: npc
+behavior: stationary
+description: |
+  Soot streaks Brandr's heavy apron, and his forearms are corded from a
+  lifetime at the anvil. He sizes up your hands with a craftsman's eye,
+  then nods at the rack of worn blades beside him — raw stock, his to sell
+  and yours to reforge once he's shown you how.
+# A single mob carrying BOTH roles (crafting-and-cooking §4): the
+# `skill_trainer` tag + `trainer:` block teach the smithing discipline,
+# and the `shop` tag + `shop:` property sell basic stock. The two roles
+# are orthogonal — `learn`/`practice` route through the trainer, `buy`/
+# `list` through the shop.
+tags: [humanoid, skill_trainer, shop]
+keywords: [brandr, blacksmith, smith]
+stats:
+  hp_max: 40
+  str: 15
+disposition_rules:
+  default: friendly
+# Trainer payload: teaches the smithing discipline (the `learn` verb
+# acquires it; `practice` raises its cap toward this tier).
+trainer:
+  tier: apprentice
+  teach:
+    - smithing
+# Shop: sells the rusty dagger the reforge recipe consumes. Vendor-sold
+# ingredients are a deliberate temporary compromise per §8 — gathering is
+# the real source once it lands. Shop-block ids are NOT namespace-rewritten
+# by the loader, so they are written fully qualified.
+properties:
+  shop:
+    sells:
+      - tapestry-core:rusty-dagger

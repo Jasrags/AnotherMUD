@@ -1,0 +1,26 @@
+# The smithing crafting discipline (crafting-and-cooking §2). A discipline
+# is a proficiency reused from the existing ability/proficiency machinery —
+# NOT a combat skill. It is modeled as a `passive` `skill` with no combat
+# hook, so it never fires in combat; it exists purely to carry a per-
+# character proficiency value, its cap, and use-based-gain parameters.
+#
+# Acquired with `learn smithing` at a craft-trainer (Brandr in the forge),
+# which seeds proficiency 1 and grants the discipline's baseline recipes.
+# `practice smithing` then raises its cap toward the trainer's tier, and
+# skill rises through use when crafting (Phase 2 wires the craft-time gain).
+id: smithing
+name: Smithing
+type: passive
+category: skill
+
+# Novice starting cap; an apprentice trainer (Brandr) raises it to 50 via
+# `practice`. Higher-tier trainers are content for later.
+default_cap: 25
+
+# Use-based gain parameters (§3.5) consumed by the Phase 2 craft path:
+# a successful (or failed) craft rolls a gain that tapers toward the cap.
+gain_base_chance: 30
+gain_failure_multiplier: 0.5
+# Smithing improves with a steady hand; DEX nudges the gain roll.
+gain_stat: dex
+gain_stat_scale: 0.1

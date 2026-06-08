@@ -443,6 +443,8 @@ func (r *Registry) Dispatch(ctx context.Context, env Env, actor Actor, raw strin
 		Abilities:             env.Abilities,
 		Proficiency:           env.Proficiency,
 		ActionQueue:           env.ActionQueue,
+		Recipes:               env.Recipes,
+		Known:                 env.Known,
 		Help:                  env.Help,
 		Quests:                env.Quests,
 		Currency:              env.Currency,

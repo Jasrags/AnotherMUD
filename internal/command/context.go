@@ -16,6 +16,7 @@ import (
 	"github.com/Jasrags/AnotherMUD/internal/progression"
 	"github.com/Jasrags/AnotherMUD/internal/property"
 	"github.com/Jasrags/AnotherMUD/internal/quest"
+	"github.com/Jasrags/AnotherMUD/internal/recipe"
 	"github.com/Jasrags/AnotherMUD/internal/slot"
 	"github.com/Jasrags/AnotherMUD/internal/stacking"
 	"github.com/Jasrags/AnotherMUD/internal/world"
@@ -56,6 +57,12 @@ type Context struct {
 	Abilities   *progression.AbilityRegistry
 	Proficiency *progression.ProficiencyManager
 	ActionQueue *progression.ActionQueueManager
+	// Recipes / Known are the crafting seam (crafting-and-cooking §3,
+	// §7). Recipes is the recipe registry; Known is the per-character
+	// known-recipe manager. The `learn` verb reads both. nil in tests
+	// that don't exercise crafting.
+	Recipes *recipe.Registry
+	Known   *recipe.KnownManager
 	// Help is the M10.5 help-topic service. nil in tests.
 	Help *help.Service
 	// Quests is the M10.7 quest service. nil in tests.

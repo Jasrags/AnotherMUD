@@ -27,3 +27,4 @@ properties:
   light: lit
 mobs:
   - training-master
+  - blacksmith

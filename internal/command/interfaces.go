@@ -16,6 +16,7 @@ import (
 	"github.com/Jasrags/AnotherMUD/internal/progression"
 	"github.com/Jasrags/AnotherMUD/internal/property"
 	"github.com/Jasrags/AnotherMUD/internal/quest"
+	"github.com/Jasrags/AnotherMUD/internal/recipe"
 	"github.com/Jasrags/AnotherMUD/internal/slot"
 	"github.com/Jasrags/AnotherMUD/internal/stacking"
 	"github.com/Jasrags/AnotherMUD/internal/stats"
@@ -234,6 +235,13 @@ type Env struct {
 	// The enqueue verbs Push onto it; the combat ability phase
 	// drains it. nil in tests.
 	ActionQueue *progression.ActionQueueManager
+
+	// Recipes / Known are the crafting seam (crafting-and-cooking §3,
+	// §7). The `learn` verb reads the recipe registry + the
+	// per-character known-recipe manager. nil in tests that don't
+	// exercise crafting.
+	Recipes *recipe.Registry
+	Known   *recipe.KnownManager
 
 	// Help is the M10.5 help-topic service. The help verb queries it.
 	// nil in tests that don't exercise help.
