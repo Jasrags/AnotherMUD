@@ -46,7 +46,7 @@ func cookFixture(t *testing.T, cookSkill int) (*Service, *fakeCrafter, *entities
 	prof := progression.NewProficiencyManager(abilities, progression.DefaultProficiencyConfig())
 	prof.Learn("p1", "cooking", cookSkill)
 
-	s := NewService(tpls, store, recipes, known, prof, coreLadder(), fixedRoller{}, noBand())
+	s := NewService(tpls, store, recipes, known, prof, coreLadder(), fixedRoller{}, noBand(), nil)
 
 	crafter := &fakeCrafter{id: "p1", failRemoveAt: -1}
 	inst, err := store.Spawn(&item.Template{ID: "core:raw-meat", Name: "raw meat", Type: "item"})

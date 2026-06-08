@@ -38,7 +38,7 @@ func stationFixture(t *testing.T, recipeStationTier, skill int) (*Service, *fake
 	prof := progression.NewProficiencyManager(abilities, progression.DefaultProficiencyConfig())
 	prof.Learn("p1", "smithing", skill)
 
-	s := NewService(tpls, store, recipes, known, prof, coreLadder(), fixedRoller{}, noBand())
+	s := NewService(tpls, store, recipes, known, prof, coreLadder(), fixedRoller{}, noBand(), nil)
 
 	crafter := &fakeCrafter{id: "p1", failRemoveAt: -1}
 	inst, _ := store.Spawn(in)

@@ -29,7 +29,7 @@ func coreLadder() *decoration.RarityRegistry {
 
 // svc builds a Service with only the quality-roll deps wired.
 func svc(rarity *decoration.RarityRegistry, roller Roller, cfg Config) *Service {
-	return NewService(nil, nil, nil, nil, nil, rarity, roller, cfg)
+	return NewService(nil, nil, nil, nil, nil, rarity, roller, cfg, nil)
 }
 
 func noBand() Config {

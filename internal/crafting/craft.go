@@ -218,7 +218,7 @@ func (s *Service) Craft(ctx context.Context, c Crafter, query string, stationTie
 	// (the crafter's stat reader isn't threaded to this layer in the MVP).
 	gained := false
 	if s.prof != nil {
-		gained = s.prof.RollUseGain(eid, rec.Discipline, true, lockedRoller{mu: &s.rollMu, r: s.roller}, nil)
+		gained = s.prof.RollUseGain(eid, rec.Discipline, true, lockedRoller{mu: &s.rollMu, r: s.roller}, s.stats)
 	}
 
 	out := produced[0].Name()

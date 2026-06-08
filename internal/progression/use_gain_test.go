@@ -53,6 +53,38 @@ func TestRollUseGain_NilRoller(t *testing.T) {
 	}
 }
 
+// fakeStats returns a fixed value for every stat query.
+type fakeStats struct{ v int }
+
+func (f fakeStats) StatValue(string, StatType) int { return f.v }
+
+func TestRollUseGain_GainStatRaisesChance(t *testing.T) {
+	// Ability with a low base chance but a gain_stat: a high stat value
+	// should lift the threshold enough that a roll which misses without the
+	// stat factor now hits.
+	reg := NewAbilityRegistry()
+	if err := reg.Register(&Ability{
+		ID: "smithing", DisplayName: "Smithing",
+		Type: AbilityPassive, Category: AbilitySkill,
+		DefaultCap: 100, GainBaseChance: 10,
+		GainStat: StatDEX, GainStatScale: 0.1,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	m := NewProficiencyManager(reg, DefaultProficiencyConfig())
+	m.Learn("e1", "smithing", 1)
+
+	// roller returns 49 → 49+1 = 50. Base threshold ~10 (miss); with a DEX
+	// of 50 the factor is 1+50*0.1 = 6, lifting the threshold well above 50.
+	if m.RollUseGain("e1", "smithing", true, fixedRoller{v: 49}, nil) {
+		t.Fatal("without a stat reader, a roll of 50 vs base chance 10 should miss")
+	}
+	// Re-learn to reset proficiency (the miss didn't change it; still 1).
+	if !m.RollUseGain("e1", "smithing", true, fixedRoller{v: 49}, fakeStats{v: 50}) {
+		t.Error("with DEX 50 the gain-stat factor should lift the threshold past 50")
+	}
+}
+
 func TestRollUseGain_HighRollMisses(t *testing.T) {
 	m := newGainMgr(t, 30) // modest base chance
 	m.Learn("e1", "smithing", 1)

@@ -78,7 +78,7 @@ func craftFixture(t *testing.T, inputQty int, failRemoveAt int) (*Service, *fake
 	prof := progression.NewProficiencyManager(abilities, progression.DefaultProficiencyConfig())
 	prof.Learn("p1", "smithing", 50)
 
-	s := NewService(tpls, store, recipes, known, prof, coreLadder(), fixedRoller{}, DefaultConfig())
+	s := NewService(tpls, store, recipes, known, prof, coreLadder(), fixedRoller{}, DefaultConfig(), nil)
 
 	// Spawn the inputs into the store and the crafter's bag.
 	crafter := &fakeCrafter{id: "p1", failRemoveAt: failRemoveAt}

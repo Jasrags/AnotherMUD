@@ -763,15 +763,6 @@ func run() error {
 	// recipes on learn (§2).
 	knownRecipesMgr := recipe.NewKnownManager(registries.Recipes)
 
-	// Crafting Phase 2: the craft service (quality roll + atomic
-	// consume/produce, §3/§5). Uses stdRoller{} (math/rand/v2 package
-	// source, concurrent-safe) because crafts arrive on per-session
-	// goroutines — distinct from combat's tick-goroutine roller.
-	craftSvc := crafting.NewService(
-		registries.Items, entityStore, registries.Recipes, knownRecipesMgr,
-		proficiencyMgr, registries.Rarity, stdRoller{}, crafting.DefaultConfig(),
-	)
-
 	// M11.1: currency service (spec economy-survival §2). Bus-bridging
 	// sink mirrors alignmentSink so economy stays free of an eventbus
 	// import. Constructed before the quest service so the gold reward
@@ -1320,6 +1311,17 @@ func run() error {
 	// resolves player-or-mob to an effective stat value; mob gain is a
 	// no-op regardless, so this only speeds player passive training.
 	passiveStatReader := session.NewPassiveStatReader(mgr, entityStore)
+
+	// Crafting Phase 2 service (quality roll + atomic consume/produce,
+	// §3/§5). Built here so it can share passiveStatReader for the §3.5
+	// craft skill-up gain-stat scaling. stdRoller{} (math/rand/v2 package
+	// source, concurrent-safe) since crafts arrive on per-session goroutines.
+	craftSvc := crafting.NewService(
+		registries.Items, entityStore, registries.Recipes, knownRecipesMgr,
+		proficiencyMgr, registries.Rarity, stdRoller{}, crafting.DefaultConfig(),
+		passiveStatReader,
+	)
+
 	passiveResolver := progression.NewPassiveResolver(
 		registries.Abilities, passiveProficiency, passiveProficiency, passiveStatReader, combatRNG,
 	)

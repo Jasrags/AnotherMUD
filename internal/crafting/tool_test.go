@@ -39,7 +39,7 @@ func toolFixture(t *testing.T, withHammer bool) (*Service, *fakeCrafter, entitie
 	prof := progression.NewProficiencyManager(abilities, progression.DefaultProficiencyConfig())
 	prof.Learn("p1", "smithing", 40)
 
-	s := NewService(tpls, store, recipes, known, prof, coreLadder(), fixedRoller{}, noBand())
+	s := NewService(tpls, store, recipes, known, prof, coreLadder(), fixedRoller{}, noBand(), nil)
 
 	crafter := &fakeCrafter{id: "p1", failRemoveAt: -1}
 	ironInst, _ := store.Spawn(in)

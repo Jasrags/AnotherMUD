@@ -23,6 +23,10 @@ type Service struct {
 	rarity  *decoration.RarityRegistry
 	roller  Roller
 	cfg     Config
+	// stats scales the §3.5 craft skill-up by the discipline's gain_stat
+	// (e.g. dex for smithing). nil = no stat scaling (the gain rolls at the
+	// un-scaled rate). Mirrors the passive-resolver stat seam (M26).
+	stats progression.StatReader
 
 	// rollMu guards roller use. Crafts arrive on per-session goroutines,
 	// so the (not necessarily concurrent-safe) roller needs serializing —
@@ -42,6 +46,7 @@ func NewService(
 	rarity *decoration.RarityRegistry,
 	roller Roller,
 	cfg Config,
+	stats progression.StatReader,
 ) *Service {
 	return &Service{
 		tpls:    tpls,
@@ -52,5 +57,6 @@ func NewService(
 		rarity:  rarity,
 		roller:  roller,
 		cfg:     cfg,
+		stats:   stats,
 	}
 }
