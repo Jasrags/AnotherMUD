@@ -50,7 +50,7 @@ func DefaultConfig() Config {
 		IngredientWeight:     0.25,
 		RollBand:             15,
 		StationCeilings:      map[int]int{0: 1, 1: 2, 2: 99},
-		IngredientSoftMargin: 1,
+		IngredientSoftMargin: 2,
 	}
 }
 
@@ -76,6 +76,9 @@ type QualityInputs struct {
 // rather than named tiers, so it is content-agnostic: a pack with a
 // different rarity vocabulary gets the same behavior.
 func (s *Service) rollQuality(in QualityInputs) string {
+	if s.rarity == nil {
+		return ""
+	}
 	ladder := s.rarity.All() // sorted by Order ascending
 	k := len(ladder)
 	if k == 0 {
@@ -149,6 +152,9 @@ func (s *Service) rollQuality(in QualityInputs) string {
 // -1 if the key is not registered. Exposed for callers/tests that need to
 // reason about tier ordering.
 func ladderPosition(reg *decoration.RarityRegistry, key string) int {
+	if reg == nil {
+		return -1
+	}
 	key = strings.ToLower(strings.TrimSpace(key))
 	for i, t := range reg.All() {
 		if t.Key == key {

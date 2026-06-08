@@ -76,14 +76,15 @@ func TestRollQuality_StationCeilingClamps(t *testing.T) {
 }
 
 func TestRollQuality_IngredientSoftCeilingClamps(t *testing.T) {
-	// High skill at a Tier 2 station, but common ingredients cap output
-	// at ingPos(0)+margin(1) = uncommon.
+	// High skill at a Tier 2 station (ceiling = legendary), but common
+	// ingredients cap output at ingPos(0)+margin(2) = rare — below the
+	// station ceiling, proving the soft ceiling binds.
 	s := svc(coreLadder(), fixedRoller{}, noBand())
 	got := s.rollQuality(QualityInputs{
 		Skill: 100, StationTier: 2, IngredientTierKeys: []string{"common"},
 	})
-	if got != "uncommon" {
-		t.Errorf("soft ceiling: common ingredients → %q, want uncommon", got)
+	if got != "rare" {
+		t.Errorf("soft ceiling: common ingredients at Tier 2 → %q, want rare", got)
 	}
 }
 

@@ -1,0 +1,15 @@
+id: cooks-kit
+name: a traveling cook's kit
+type: item
+# A portable tool (crafting-and-cooking §4): carried, it grants Tier-1
+# cooking in the field — enough to cook a meal away from a kitchen (and at
+# better quality than nothing), but not the Tier-2 quality of Marta's
+# market braziers. The controlled exception that keeps fixed stations
+# meaningful: it raises the field tier by one, no more.
+tags: [tool, crafting]
+keywords: [kit, cook, cooking, stove]
+properties:
+  weight: 3
+  value: 60
+  craft_tool: cooking
+  craft_tool_tier: 1

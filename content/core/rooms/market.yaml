@@ -8,5 +8,12 @@ description: |
   quite stops.
 exits:
   west: town-square
+# Crafting station (crafting-and-cooking §4): Marta's braziers make the
+# market a Tier-2 cooking station, so meals can be cooked here (and at
+# higher quality than a field campfire). Cooking elsewhere needs a fire —
+# a portable cook's kit or a built campfire (Phase 5).
+properties:
+  craft_stations:
+    cooking: 2
 mobs:
   - cook

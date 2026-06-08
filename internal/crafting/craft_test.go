@@ -97,7 +97,7 @@ func craftFixture(t *testing.T, inputQty int, failRemoveAt int) (*Service, *fake
 func TestCraft_SuccessConsumesInputsProducesStampedOutput(t *testing.T) {
 	s, crafter, store, inputIDs := craftFixture(t, 1, -1)
 
-	res := s.Craft(context.Background(), crafter, "forge a sword")
+	res := s.Craft(context.Background(), crafter, "forge a sword", nil)
 	if res.Outcome != CraftOK {
 		t.Fatalf("Craft outcome = %v (%q), want CraftOK", res.Outcome, res.Message)
 	}
@@ -138,7 +138,7 @@ func TestCraft_RollbackOnPartialRemoveLosesNothing(t *testing.T) {
 	// Recipe needs 2 inputs; the 2nd remove fails (failRemoveAt=1).
 	s, crafter, store, inputIDs := craftFixture(t, 2, 1)
 
-	res := s.Craft(context.Background(), crafter, "forge a sword")
+	res := s.Craft(context.Background(), crafter, "forge a sword", nil)
 	if res.Outcome != CraftInterrupted {
 		t.Fatalf("outcome = %v (%q), want CraftInterrupted", res.Outcome, res.Message)
 	}
@@ -167,7 +167,7 @@ func TestCraft_MissingIngredients(t *testing.T) {
 	s, crafter, _, _ := craftFixture(t, 1, -1)
 	// Drain the bag so the input is absent.
 	crafter.inv = nil
-	res := s.Craft(context.Background(), crafter, "forge a sword")
+	res := s.Craft(context.Background(), crafter, "forge a sword", nil)
 	if res.Outcome != CraftMissingIngredients {
 		t.Errorf("outcome = %v (%q), want CraftMissingIngredients", res.Outcome, res.Message)
 	}
@@ -175,7 +175,7 @@ func TestCraft_MissingIngredients(t *testing.T) {
 
 func TestCraft_UnknownRecipe(t *testing.T) {
 	s, crafter, _, _ := craftFixture(t, 1, -1)
-	res := s.Craft(context.Background(), crafter, "summon dragon")
+	res := s.Craft(context.Background(), crafter, "summon dragon", nil)
 	if res.Outcome != CraftUnknownRecipe {
 		t.Errorf("outcome = %v, want CraftUnknownRecipe", res.Outcome)
 	}
@@ -187,7 +187,7 @@ func TestCraft_NotSkilledBelowFloor(t *testing.T) {
 	// floor is 1 and Learn seeds at 1, so instead make a recipe-floor case
 	// by clearing the proficiency entirely (prof 0 < floor 1).
 	s.prof.Forget("p1", "smithing")
-	res := s.Craft(context.Background(), crafter, "forge a sword")
+	res := s.Craft(context.Background(), crafter, "forge a sword", nil)
 	if res.Outcome != CraftNotSkilled {
 		t.Errorf("outcome = %v (%q), want CraftNotSkilled", res.Outcome, res.Message)
 	}

@@ -73,7 +73,7 @@ func TestCraft_CookingStampsWellFedAtQuality(t *testing.T) {
 	// High cooking skill at Tier 0 → output caps at uncommon → the
 	// uncommon well-fed effect is stamped as the instance's effect_id.
 	s, crafter, store := cookFixture(t, 100)
-	res := s.Craft(context.Background(), crafter, "cook a meal")
+	res := s.Craft(context.Background(), crafter, "cook a meal", nil)
 	if res.Outcome != CraftOK {
 		t.Fatalf("outcome = %v (%q)", res.Outcome, res.Message)
 	}
@@ -90,7 +90,7 @@ func TestCraft_CookingColdRationNoEffect(t *testing.T) {
 	// Low skill + common ingredient → common quality, below the lowest
 	// declared tier (uncommon) → no effect stamped (cold ration).
 	s, crafter, store := cookFixture(t, 1)
-	res := s.Craft(context.Background(), crafter, "cook a meal")
+	res := s.Craft(context.Background(), crafter, "cook a meal", nil)
 	if res.Outcome != CraftOK {
 		t.Fatalf("outcome = %v (%q)", res.Outcome, res.Message)
 	}

@@ -13,8 +13,9 @@ discipline: smithing
 # Low floor — the ceiling (station/skill/ingredients), not the floor, is
 # the lever (§1.1).
 skill_floor: 1
-# Needs a forge: Tier 2 fixed station (§4). A higher station never refuses;
-# a lower one (none/campfire) will once stations are enforced (Phase 4/5).
+# Needs a forge: Tier 2 fixed station (§4), now enforced — this is only
+# craftable in a room with a Tier-2 smithing station (the Hearthwick Forge).
+# At the forge its quality also reaches higher than any field attempt could.
 station_tier: 2
 time_pulses: 30
 # Baseline: granted free when you `learn smithing` (§7). Demonstrates the

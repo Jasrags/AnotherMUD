@@ -51,7 +51,16 @@ const (
 	CraftInterrupted // a race removed an input mid-craft (rolled back)
 	CraftFailed      // output spawn failed (rolled back)
 	CraftNotEnabled
+	CraftNoStation // the present station tier is below the recipe's minimum
 )
+
+// StationTierFunc reports the present crafting station tier for a discipline
+// at the crafter's location — the max of the room's station and any portable
+// tool the crafter carries (crafting-and-cooking §4). 0 means no station. It
+// is supplied by the caller (which owns room/inventory context) so the
+// crafting package stays free of the world layer. A nil func is treated as
+// "no station anywhere" (tier 0).
+type StationTierFunc func(discipline string) int
 
 // CraftResult is the structured outcome of Craft.
 type CraftResult struct {
@@ -77,10 +86,10 @@ func entityID(c Crafter) string {
 // (crafting-and-cooking §3, §5). Inventory is mutated all-or-nothing: no
 // input is destroyed until the output exists and is in the crafter's bag.
 //
-// Station tier is fixed at 0 in this MVP (stations land in Phases 4–5), so
-// output is clamped to the Tier-0 ceiling and the recipe's station_tier
-// attempt-gate is not yet enforced.
-func (s *Service) Craft(ctx context.Context, c Crafter, query string) CraftResult {
+// stationTier reports the present station tier for the recipe's discipline
+// (room station ∪ portable tools, §4); it gates the attempt and sets the
+// quality ceiling. A nil func means no station (tier 0).
+func (s *Service) Craft(ctx context.Context, c Crafter, query string, stationTier StationTierFunc) CraftResult {
 	if s == nil || s.recipes == nil || s.known == nil || s.store == nil || s.tpls == nil {
 		return CraftResult{Outcome: CraftNotEnabled, Message: "Crafting is not enabled in this build."}
 	}
@@ -101,6 +110,20 @@ func (s *Service) Craft(ctx context.Context, c Crafter, query string) CraftResul
 		return CraftResult{
 			Outcome: CraftNotSkilled, RecipeID: rec.ID,
 			Message: "You aren't skilled enough to attempt that yet.",
+		}
+	}
+
+	// Station gate (§4): the present station tier must meet the recipe's
+	// minimum — the one place crafting refuses rather than caps (§1.1
+	// "can't smelt without fire"). present also sets the quality ceiling.
+	present := 0
+	if stationTier != nil {
+		present = stationTier(rec.Discipline)
+	}
+	if present < rec.StationTier {
+		return CraftResult{
+			Outcome: CraftNoStation, RecipeID: rec.ID,
+			Message: stationRequirementMessage(rec.StationTier),
 		}
 	}
 
@@ -127,11 +150,11 @@ func (s *Service) Craft(ctx context.Context, c Crafter, query string) CraftResul
 	}
 
 	// Roll quality BEFORE any mutation (so a panic-free roll happens with
-	// inputs intact). Station tier 0 in the pre-stations MVP.
+	// inputs intact). The present station tier sets the hard ceiling (§4).
 	qualityKey := s.rollQuality(QualityInputs{
 		Skill:              prof,
 		IngredientTierKeys: ingKeys,
-		StationTier:        0,
+		StationTier:        present,
 	})
 
 	// CONSUME — remove all inputs; roll back (re-add) on a partial failure
@@ -411,6 +434,20 @@ func localPart(id string) string {
 
 func ingredientLabel(ing recipe.Ingredient) string {
 	return localPart(ing.Template)
+}
+
+// stationRequirementMessage describes the station a refused craft needs
+// (§4). Tier 1 is an improvised fire/bench (a campfire or kit); Tier 2+ is
+// a fixed station (a forge, a kitchen).
+func stationRequirementMessage(tier int) string {
+	switch {
+	case tier >= 2:
+		return "You need a proper crafting station for that — a forge, a kitchen, or the like."
+	case tier == 1:
+		return "You need at least a fire or workbench for that — build a campfire or find a station."
+	default:
+		return "You can't make that here."
+	}
 }
 
 // lockedRoller serializes roller use for the gain roll (Craft runs on

@@ -2395,8 +2395,23 @@ func valueMatchesType(v interface{}, t property.ValueType) bool {
 		_, ok := v.(bool)
 		return ok
 	case property.TypeMapInt:
-		_, ok := v.(map[string]int)
-		return ok
+		switch m := v.(type) {
+		case map[string]int:
+			return true
+		case map[string]any:
+			// go-yaml decodes a YAML mapping as map[string]any; accept it
+			// when every value is integer-shaped (the decoder may pick int,
+			// int64, or float64), mirroring the TypeInt64 int-widening above.
+			for _, vv := range m {
+				switch vv.(type) {
+				case int, int64, float64:
+				default:
+					return false
+				}
+			}
+			return true
+		}
+		return false
 	case property.TypeMapString:
 		_, ok := v.(map[string]string)
 		return ok

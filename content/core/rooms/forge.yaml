@@ -25,6 +25,12 @@ terrain: indoors
 # cap and the day/night cycle.
 properties:
   light: lit
+  # Crafting station (crafting-and-cooking §4): the forge is a Tier-2
+  # smithing station. A craft reads this for the recipe's discipline to
+  # gate the attempt + set the quality ceiling. reforge (station_tier 2)
+  # can only be done here; quality reaches higher than any field attempt.
+  craft_stations:
+    smithing: 2
 mobs:
   - training-master
   - blacksmith

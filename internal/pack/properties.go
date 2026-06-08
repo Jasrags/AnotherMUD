@@ -77,6 +77,12 @@ func RegisterEngineBaselineProperties(reg *property.Registry) error {
 			AppliesTo:     []string{"room"},
 			AdminSettable: true,
 		},
+		{
+			Name:        "craft_stations",
+			Type:        property.TypeMapInt,
+			Description: "Per-discipline crafting station tier this room provides (discipline → tier); gates craft attempts + sets the quality ceiling (spec crafting-and-cooking §4).",
+			AppliesTo:   []string{"room"},
+		},
 	}
 	for _, e := range baseline {
 		if err := reg.RegisterEngine(e); err != nil {
