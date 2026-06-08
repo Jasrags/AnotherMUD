@@ -118,7 +118,15 @@ import (
 // no-point message. No injected value: a legacy character loads
 // with no recall point and must bind one explicitly with
 // `recall set`.
-const CurrentVersion = 16
+//
+// v17 (Crafting & Cooking Phase 0): `known_recipes` list — the
+// namespace-qualified ids of crafting recipes this character knows
+// (crafting-and-cooking §7, §9). Persisted like proficiencies/abilities.
+// Empty / absent (legacy v16 saves migrated forward, fresh characters)
+// means "knows no recipes beyond what a discipline grants at runtime";
+// the migration injects nothing. A known id whose recipe was removed from
+// content loads cleanly and is ignored at restore (§9), never an error.
+const CurrentVersion = 17
 
 // Sentinel errors callers may check via errors.Is.
 var (
@@ -246,6 +254,17 @@ type Save struct {
 	// indistinguishable from absent (omitempty), so legacy saves load
 	// with it off and round-trip unchanged.
 	MinimapEnabled bool `yaml:"minimap,omitempty"`
+
+	// KnownRecipes is the per-character set of crafting recipes this
+	// character knows (crafting-and-cooking §7, §9), stored as a slice of
+	// namespace-qualified recipe ids. Added in v17. Set semantics
+	// (uniqueness) are enforced at the learn site, not in the file.
+	// Empty / absent means "no recipes learned"; a discipline grants its
+	// baseline recipes into this set at runtime (Phase 1). A known id
+	// whose recipe is no longer in content is ignored at restore (§9),
+	// never an error. omitempty so a recipeless save (the common case)
+	// writes no key and a legacy pre-v17 save round-trips as the empty set.
+	KnownRecipes []string `yaml:"known_recipes,omitempty"`
 }
 
 // VitalsState is the persisted HP block (v5+). Pointer so an absent
@@ -419,6 +438,7 @@ var playerMigrations = map[int]func(map[string]any) (map[string]any, error){
 	13: migrateV13toV14,
 	14: migrateV14toV15,
 	15: migrateV15toV16,
+	16: migrateV16toV17,
 }
 
 // migrateV1toV2 adds the empty inventory/equipment blocks introduced
@@ -643,6 +663,16 @@ func migrateV14toV15(in map[string]any) (map[string]any, error) {
 // to rebuild it, which is the intended fog-of-war behavior, not a set to
 // back-fill.
 func migrateV15toV16(in map[string]any) (map[string]any, error) {
+	return in, nil
+}
+
+// migrateV16toV17 adds the `known_recipes` list introduced for
+// crafting-and-cooking.md §7. No-op on dict content: a legacy v16 save
+// carries no known_recipes key, and absence decodes to a nil slice — the
+// documented "no recipes learned" default. The migration injects nothing:
+// a returning character learns recipes at runtime (a discipline grants its
+// baseline set, §2), it is not a set to back-fill.
+func migrateV16toV17(in map[string]any) (map[string]any, error) {
 	return in, nil
 }
 

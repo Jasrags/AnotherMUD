@@ -710,3 +710,37 @@ type WeatherTripleFile struct {
 	Ongoing string `yaml:"ongoing,omitempty"`
 	End     string `yaml:"end,omitempty"`
 }
+
+// RecipeFile is the YAML shape for a crafting-recipe definition
+// (crafting-and-cooking §3). Inputs/output reference item template ids;
+// discipline references a crafting proficiency (ability id). Numeric
+// levers (skill floor, station tier, craft time) come from content per
+// the §10 configuration surface. Decoded by decodeRecipe.
+type RecipeFile struct {
+	ID          string           `yaml:"id"`
+	Name        string           `yaml:"name"`
+	Discipline  string           `yaml:"discipline"`
+	SkillFloor  int              `yaml:"skill_floor,omitempty"`
+	StationTier int              `yaml:"station_tier,omitempty"`
+	Tool        string           `yaml:"tool,omitempty"`
+	TimePulses  int              `yaml:"time_pulses,omitempty"`
+	Acquisition string           `yaml:"acquisition,omitempty"`
+	Inputs      []IngredientFile `yaml:"inputs"`
+	Output      OutputFile       `yaml:"output"`
+}
+
+// IngredientFile is one input in a RecipeFile (§3). Template is the item
+// template id consumed; Quantity defaults to 1 when omitted. MinQuality is
+// an optional rarity-tier key floor (§5).
+type IngredientFile struct {
+	Template   string `yaml:"template"`
+	Quantity   int    `yaml:"quantity,omitempty"`
+	MinQuality string `yaml:"min_quality,omitempty"`
+}
+
+// OutputFile is the produced item in a RecipeFile (§3). Quantity defaults
+// to 1 when omitted.
+type OutputFile struct {
+	Template string `yaml:"template"`
+	Quantity int    `yaml:"quantity,omitempty"`
+}

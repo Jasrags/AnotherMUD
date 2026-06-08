@@ -10,6 +10,7 @@ import (
 	"github.com/Jasrags/AnotherMUD/internal/progression"
 	"github.com/Jasrags/AnotherMUD/internal/property"
 	"github.com/Jasrags/AnotherMUD/internal/quest"
+	"github.com/Jasrags/AnotherMUD/internal/recipe"
 	"github.com/Jasrags/AnotherMUD/internal/render"
 	"github.com/Jasrags/AnotherMUD/internal/script"
 	"github.com/Jasrags/AnotherMUD/internal/slot"
@@ -78,6 +79,11 @@ type Registries struct {
 	// mob's referenced table into its contents at spawn time
 	// (mobs-ai-spawning §6.3).
 	Loot *loot.Registry
+	// Recipes is the crafting-recipe registry (crafting-and-cooking §3).
+	// Packs register recipes from their `recipes:` manifest glob; the
+	// crafting resolution path (Phase 2) reads it, and the per-character
+	// known-recipe set keys on recipe ids.
+	Recipes *recipe.Registry
 }
 
 // NewRegistries returns a Registries with every field initialized.
@@ -105,5 +111,6 @@ func NewRegistries() *Registries {
 		Rarity:     decoration.NewRarityRegistry(),
 		Essence:    decoration.NewEssenceRegistry(),
 		Loot:       loot.NewRegistry(),
+		Recipes:    recipe.NewRegistry(),
 	}
 }

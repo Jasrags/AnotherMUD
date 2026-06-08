@@ -36,6 +36,8 @@ content:
     - quests/*.yaml
   effects:
     - effects/*.yaml
+  recipes:
+    - recipes/*.yaml
   weather_zones:
     - weather_zones/*.yaml
   scripts:

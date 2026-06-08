@@ -94,6 +94,11 @@ type ContentPaths struct {
 	// Loaded into Registries.Weather; areas reference zones
 	// by id through their `weather_zone` field.
 	WeatherZones []string `yaml:"weather_zones,omitempty"`
+	// Recipes are crafting-recipe definition files
+	// (crafting-and-cooking §3). Loaded into Registries.Recipes; a
+	// recipe's inputs/output reference item template ids and its
+	// discipline references a crafting proficiency (ability id).
+	Recipes []string `yaml:"recipes,omitempty"`
 	// Scripts are Lua source files discovered by the M17.1b
 	// loader. Each path glob expands relative to the pack
 	// directory (e.g. `scripts/*.lua`). The loader compiles

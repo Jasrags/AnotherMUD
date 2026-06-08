@@ -1,0 +1,25 @@
+# Starter smithing recipe (crafting-and-cooking §3) — the first recipe in
+# the core pack, shipped with the Phase 0 substrate. It reforges a worn
+# rusty dagger into a short sword at a forge.
+#
+# It references item templates that already exist in the pack so the recipe
+# is coherent today; it is inert until the `craft` verb lands (Phase 2).
+# `discipline: smithing` references the crafting proficiency Phase 1 grants;
+# the loader does not validate the discipline or item ids (fail-soft), so
+# this loads cleanly ahead of those consumers.
+id: reforge-short-sword
+name: reforge a short sword
+discipline: smithing
+# Low floor — the ceiling (station/skill/ingredients), not the floor, is
+# the lever (§1.1).
+skill_floor: 1
+# Needs a forge: Tier 2 fixed station (§4). A higher station never refuses;
+# a lower one (none/campfire) will once stations are enforced (Phase 4/5).
+station_tier: 2
+time_pulses: 30
+acquisition: common
+inputs:
+  - { template: rusty-dagger, quantity: 1 }
+output:
+  template: short-sword
+  quantity: 1

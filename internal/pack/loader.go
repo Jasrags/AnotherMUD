@@ -22,6 +22,7 @@ import (
 	"github.com/Jasrags/AnotherMUD/internal/progression"
 	"github.com/Jasrags/AnotherMUD/internal/property"
 	"github.com/Jasrags/AnotherMUD/internal/quest"
+	"github.com/Jasrags/AnotherMUD/internal/recipe"
 	"github.com/Jasrags/AnotherMUD/internal/render"
 	"github.com/Jasrags/AnotherMUD/internal/script"
 	"github.com/Jasrags/AnotherMUD/internal/slot"
@@ -390,6 +391,10 @@ func loadPackContent(ctx context.Context, p Discovered, dst *Registries, scriptC
 	if err != nil {
 		return nil, nil, err
 	}
+	recipePaths, err := resolveGlobs(p.Dir, p.Manifest.Content.Recipes)
+	if err != nil {
+		return nil, nil, err
+	}
 
 	// M17.1b: discover, compile-check, and register pack scripts.
 	// Compile-check at boot is the cheapest place to surface a syntax
@@ -614,6 +619,22 @@ func loadPackContent(ctx context.Context, p Discovered, dst *Registries, scriptC
 		}
 		if err := dst.Loot.Register(tbl); err != nil {
 			return nil, nil, fmt.Errorf("%w (in %s)", err, lp)
+		}
+	}
+
+	// Recipes: namespace-scoped crafting recipes (crafting-and-cooking
+	// §3). TryAdd guards cross-pack id collisions like items/mobs. Input/
+	// output item ids and the discipline id are NOT validated here —
+	// resolution is fail-soft (consistent with loot tables and mob
+	// race/class), so a typo'd reference simply makes the recipe
+	// uncraftable rather than aborting the boot.
+	for _, rp := range recipePaths {
+		r, err := decodeRecipe(rp, ns)
+		if err != nil {
+			return nil, nil, err
+		}
+		if err := dst.Recipes.TryAdd(r); err != nil {
+			return nil, nil, fmt.Errorf("%w (in %s)", err, rp)
 		}
 	}
 
@@ -2136,6 +2157,99 @@ func qualifyID(id, ns string) (string, error) {
 		return lhs + ":" + rhs, nil
 	}
 	return ns + ":" + id, nil
+}
+
+// decodeRecipe reads a RecipeFile and builds a recipe.Recipe
+// (crafting-and-cooking §3). Required: id, name, discipline, at least one
+// input, and an output template. The recipe id and the input/output item
+// template ids are namespace-qualified (bare ids resolve against the
+// current pack; qualified ids cross packs). The discipline is a bare
+// ability id (abilities are not namespaced). Item-id and discipline-id
+// validity is checked at craft time, not here — the loader stays fail-soft
+// so a recipe referencing not-yet-authored content still loads.
+func decodeRecipe(path, ns string) (*recipe.Recipe, error) {
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		return nil, fmt.Errorf("reading recipe %s: %w", path, err)
+	}
+	var f RecipeFile
+	if err := yaml.Unmarshal(raw, &f); err != nil {
+		return nil, fmt.Errorf("%w: %s: %v", ErrInvalidContent, path, err)
+	}
+	if strings.TrimSpace(f.ID) == "" {
+		return nil, fmt.Errorf("%w: %s: missing 'id'", ErrInvalidContent, path)
+	}
+	if strings.TrimSpace(f.Name) == "" {
+		return nil, fmt.Errorf("%w: %s: missing 'name'", ErrInvalidContent, path)
+	}
+	if strings.TrimSpace(f.Discipline) == "" {
+		return nil, fmt.Errorf("%w: %s: missing 'discipline'", ErrInvalidContent, path)
+	}
+	if len(f.Inputs) == 0 {
+		return nil, fmt.Errorf("%w: %s: recipe needs at least one input", ErrInvalidContent, path)
+	}
+	if strings.TrimSpace(f.Output.Template) == "" {
+		return nil, fmt.Errorf("%w: %s: missing 'output.template'", ErrInvalidContent, path)
+	}
+	if f.StationTier < 0 {
+		return nil, fmt.Errorf("%w: %s: station_tier must be >= 0", ErrInvalidContent, path)
+	}
+	if f.SkillFloor < 0 {
+		return nil, fmt.Errorf("%w: %s: skill_floor must be >= 0", ErrInvalidContent, path)
+	}
+
+	acq, ok := recipe.ParseAcquisitionTier(f.Acquisition)
+	if !ok {
+		return nil, fmt.Errorf("%w: %s: unknown acquisition %q (want baseline/common/uncommon/rare/regional)",
+			ErrInvalidContent, path, f.Acquisition)
+	}
+
+	id, err := qualifyID(f.ID, ns)
+	if err != nil {
+		return nil, fmt.Errorf("%w: %s: %v", ErrInvalidContent, path, err)
+	}
+	outID, err := qualifyID(f.Output.Template, ns)
+	if err != nil {
+		return nil, fmt.Errorf("%w: %s: output.template: %v", ErrInvalidContent, path, err)
+	}
+	outQty := f.Output.Quantity
+	if outQty <= 0 {
+		outQty = 1
+	}
+
+	inputs := make([]recipe.Ingredient, 0, len(f.Inputs))
+	for i, in := range f.Inputs {
+		if strings.TrimSpace(in.Template) == "" {
+			return nil, fmt.Errorf("%w: %s: inputs[%d] missing 'template'", ErrInvalidContent, path, i)
+		}
+		tid, err := qualifyID(in.Template, ns)
+		if err != nil {
+			return nil, fmt.Errorf("%w: %s: inputs[%d]: %v", ErrInvalidContent, path, i, err)
+		}
+		qty := in.Quantity
+		if qty <= 0 {
+			qty = 1
+		}
+		inputs = append(inputs, recipe.Ingredient{
+			Template:   tid,
+			Quantity:   qty,
+			MinQuality: strings.TrimSpace(in.MinQuality),
+		})
+	}
+
+	return &recipe.Recipe{
+		ID:          recipe.RecipeID(id),
+		DisplayName: f.Name,
+		Discipline:  strings.ToLower(strings.TrimSpace(f.Discipline)),
+		SkillFloor:  f.SkillFloor,
+		StationTier: f.StationTier,
+		Tool:        strings.TrimSpace(f.Tool),
+		TimePulses:  f.TimePulses,
+		Acquisition: acq,
+		Inputs:      inputs,
+		Output:      recipe.Output{Template: outID, Quantity: outQty},
+		Pack:        ns,
+	}, nil
 }
 
 // validateAreas walks every room in dst and ensures its area is known.
