@@ -1284,8 +1284,13 @@ func run() error {
 	// *progression.PassiveResolver satisfies combat.PassiveEvaluator
 	// structurally — no adapter needed.
 	passiveProficiency := session.NewPassiveProficiency(proficiencyMgr, entityStore)
+	// §3.5 step-3 gain stat factor: a passive's training rate scales with
+	// its declared gain stat (parry/second-attack scale on dex). The reader
+	// resolves player-or-mob to an effective stat value; mob gain is a
+	// no-op regardless, so this only speeds player passive training.
+	passiveStatReader := session.NewPassiveStatReader(mgr, entityStore)
 	passiveResolver := progression.NewPassiveResolver(
-		registries.Abilities, passiveProficiency, passiveProficiency, combatRNG,
+		registries.Abilities, passiveProficiency, passiveProficiency, passiveStatReader, combatRNG,
 	)
 	// §5.3 darkness to-hit penalty: resolve the attacker to its room +
 	// per-viewer light (held source, room luminous items, darkvision)

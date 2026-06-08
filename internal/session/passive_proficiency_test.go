@@ -97,6 +97,36 @@ func TestPassiveProficiency_Cap(t *testing.T) {
 	}
 }
 
+// TestPassiveStatReader_ResolvesMobStat proves the §3.5 gain-stat seam
+// reads a mob's effective stat by id (the mob fallback), returns 0 for
+// an unresolvable id, and is nil-safe. The player path needs a live
+// connActor and is exercised end to end by the combat integration; here
+// the mob fallback alone pins the resolver contract. Compares against
+// the live StatBlock so the test doesn't hardcode stat semantics.
+func TestPassiveStatReader_ResolvesMobStat(t *testing.T) {
+	store, mobID := spawnGuardWithSecondAttack(t, 50)
+	e, ok := store.GetByID(entities.EntityID(mobID))
+	if !ok {
+		t.Fatalf("mob %q not in store", mobID)
+	}
+	want := e.(*entities.MobInstance).StatBlock().Effective("str")
+
+	r := NewPassiveStatReader(nil, store) // nil mgr → mob-only path
+	if got := r.StatValue(mobID, "str"); got != want {
+		t.Errorf("StatValue(mob, str) = %d, want %d", got, want)
+	}
+	if got := r.StatValue("not-in-store", "str"); got != 0 {
+		t.Errorf("StatValue(unknown) = %d, want 0", got)
+	}
+	if got := r.StatValue("", "str"); got != 0 {
+		t.Errorf("StatValue(empty id) = %d, want 0", got)
+	}
+	var nilR *PassiveStatReader
+	if got := nilR.StatValue(mobID, "str"); got != 0 {
+		t.Errorf("nil reader StatValue = %d, want 0", got)
+	}
+}
+
 // CRITICAL: AddProficiency on a mob id must be a no-op — routing it to
 // the player manager would seed (and leak) a per-mob entry there.
 func TestPassiveProficiency_MobGainIsNoLeak(t *testing.T) {
@@ -127,7 +157,7 @@ func TestPassiveProficiency_MobEarnsExtraAttack(t *testing.T) {
 
 	pp := NewPassiveProficiency(mgr, store)
 	// constRoller(0) → IntN+1 == 1 ≤ 50 (chance) → the passive fires.
-	resolver := progression.NewPassiveResolver(reg, pp, pp, constRoller(0))
+	resolver := progression.NewPassiveResolver(reg, pp, pp, nil, constRoller(0))
 
 	if got := resolver.ExtraAttacks(mobID); got != 1 {
 		t.Errorf("ExtraAttacks(mob) = %d, want 1 (second-attack fired)", got)

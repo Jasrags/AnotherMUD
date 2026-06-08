@@ -77,15 +77,29 @@ type PassiveResolver struct {
 	registry   *AbilityRegistry
 	proficient ProficiencyReader
 	gainer     ProficiencyMutator
+	stats      StatReader
 	roller     Roller
+}
+
+// StatReader reads an entity's current effective stat value by id. It
+// is the host seam the §3.5 step-3 gain stat factor needs on the
+// passive path: the active resolver reads the gain-stat straight off
+// its ResolutionSource, but a passive fires off a bare entity id, so
+// the host resolves player-or-mob and returns the effective value.
+// Unknown stat or entity ⇒ 0 (the resolver then applies no stat
+// factor — the same conservative default the active path uses).
+type StatReader interface {
+	StatValue(entityID string, stat StatType) int
 }
 
 // NewPassiveResolver builds a resolver. registry, proficient, and
 // roller are required (a passive evaluation is meaningless without
 // them) and panic at construction if nil, mirroring NewAutoAttack's
 // fail-fast. gainer is nil-safe: a resolver without one evaluates
-// passives but rolls no §6.3 proficiency gain.
-func NewPassiveResolver(registry *AbilityRegistry, proficient ProficiencyReader, gainer ProficiencyMutator, roller Roller) *PassiveResolver {
+// passives but rolls no §6.3 proficiency gain. stats is nil-safe too:
+// without it the §3.5 gain stat factor is omitted (statFactor 1.0),
+// preserving the pre-seam behavior.
+func NewPassiveResolver(registry *AbilityRegistry, proficient ProficiencyReader, gainer ProficiencyMutator, stats StatReader, roller Roller) *PassiveResolver {
 	if registry == nil {
 		panic("progression.NewPassiveResolver: nil registry")
 	}
@@ -99,6 +113,7 @@ func NewPassiveResolver(registry *AbilityRegistry, proficient ProficiencyReader,
 		registry:   registry,
 		proficient: proficient,
 		gainer:     gainer,
+		stats:      stats,
 		roller:     roller,
 	}
 }
@@ -145,18 +160,23 @@ func (p *PassiveResolver) fires(entityID string, ab *Ability) bool {
 
 // rollGain rolls a §6.3 proficiency gain for a passive that just
 // fired (the entity didn't choose to use it, but using-it-in-context
-// still trains them). Uses the shared §3.5 gainThreshold with the
-// stat factor omitted (statFactor 1.0) — reading an arbitrary
-// entity's gain-stat by id needs a host seam that doesn't exist yet
-// (M9.5 deferral). hit is always true: a passive that fired succeeded.
+// still trains them). Applies the §3.5 step-3 stat factor when the
+// ability declares a gain stat and a StatReader is wired — reading the
+// entity's effective gain-stat by id through the host seam, mirroring
+// the active resolver's rollGain. Without a StatReader the factor is
+// omitted (1.0). hit is always true: a passive that fired succeeded.
 func (p *PassiveResolver) rollGain(entityID string, ab *Ability) {
 	if p.gainer == nil {
 		return
 	}
 	prof := proficiencyValueOf(p.proficient, entityID, ab.ID)
+	statFactor := 1.0
+	if p.stats != nil && ab.GainStat != "" && ab.GainStatScale != 0 {
+		statFactor = 1 + float64(p.stats.StatValue(entityID, ab.GainStat))*ab.GainStatScale
+	}
 	threshold := gainThreshold(
 		ab.GainBaseChance, prof, effectiveCapValueOf(p.proficient, entityID, ab.ID),
-		1.0, ab.GainFailureMultiplier, true,
+		statFactor, ab.GainFailureMultiplier, true,
 	)
 	if threshold == 0 {
 		return

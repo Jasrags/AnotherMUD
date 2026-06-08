@@ -118,7 +118,7 @@ func TestPassiveResolver_ExtraAttacks(t *testing.T) {
 	//   a-strike binary roll 1 (≤50) → fire; gain roll 1 (≤50) → gain.
 	//   b-strike binary roll 100 (>50) → miss; no gain roll.
 	roller := &seqRoller{t: t, seq: []int{0, 0, 99}}
-	pr := NewPassiveResolver(reg, prof, prof, roller)
+	pr := NewPassiveResolver(reg, prof, prof, nil, roller)
 
 	if got := pr.ExtraAttacks("p1"); got != 1 {
 		t.Fatalf("ExtraAttacks = %d, want 1", got)
@@ -143,11 +143,70 @@ func TestPassiveResolver_UnlearnedNeverFiresOrRolls(t *testing.T) {
 	// Empty seq: seqRoller fatals if any roll is attempted. The prof-0
 	// short-circuit in PassiveBinaryCheck must avoid rolling at all.
 	roller := &seqRoller{t: t, seq: nil}
-	pr := NewPassiveResolver(reg, prof, prof, roller)
+	pr := NewPassiveResolver(reg, prof, prof, nil, roller)
 
 	if got := pr.ExtraAttacks("p1"); got != 0 {
 		t.Fatalf("ExtraAttacks for unlearned = %d, want 0", got)
 	}
+}
+
+// fakeStatReader returns a fixed effective value per stat, ignoring the
+// entity id — enough to drive the §3.5 step-3 gain stat factor.
+type fakeStatReader map[StatType]int
+
+func (f fakeStatReader) StatValue(_ string, stat StatType) int { return f[stat] }
+
+// TestPassiveResolver_GainStatFactor proves the §3.5 step-3 stat factor
+// is applied on the passive gain path when a StatReader is wired: an
+// ability with gain_stat dex / scale 0.1 trains faster for a high-dex
+// entity. With prof 10 and base 20 the taper is 18; a dex of 20 scales
+// it ×3.0 → 54. A gain roll of 41 lands a gain at the scaled threshold
+// but not at the un-scaled one. The binary fire is forced first (one
+// roll), then the gain roll, sharing the same fired-passive sequencing
+// the other resolver tests use.
+func TestPassiveResolver_GainStatFactor(t *testing.T) {
+	newReg := func(t *testing.T) *AbilityRegistry {
+		reg := NewAbilityRegistry()
+		if err := reg.Register(&Ability{
+			ID: "second-attack", Type: AbilityPassive, Category: AbilitySkill,
+			Hook: HookExtraAttack, Variance: 100, MaxHitChance: 100,
+			GainBaseChance: 20, GainStat: "dex", GainStatScale: 0.1,
+		}); err != nil {
+			t.Fatal(err)
+		}
+		return reg
+	}
+	newProf := func() *profStub {
+		p := newProfStub()
+		p.vals["second-attack"] = 10 // binary chance 10; gain taper 18
+		return p
+	}
+	// seq[0]=0 → binary IntN+1=1 ≤10 → fires. seq[1]=40 → gain IntN+1=41.
+	const fireRoll, gainRoll = 0, 40
+
+	t.Run("dex scales the gain threshold over the roll", func(t *testing.T) {
+		prof := newProf()
+		roller := &seqRoller{t: t, seq: []int{fireRoll, gainRoll}}
+		pr := NewPassiveResolver(newReg(t), prof, prof, fakeStatReader{"dex": 20}, roller)
+		if got := pr.ExtraAttacks("hero"); got != 1 {
+			t.Fatalf("ExtraAttacks = %d, want 1", got)
+		}
+		if prof.gains["second-attack"] != 1 {
+			t.Errorf("gain = %d, want 1 (dex ×3.0 → threshold 54 ≥ roll 41)", prof.gains["second-attack"])
+		}
+	})
+
+	t.Run("no stat reader omits the factor and the gain misses", func(t *testing.T) {
+		prof := newProf()
+		roller := &seqRoller{t: t, seq: []int{fireRoll, gainRoll}}
+		pr := NewPassiveResolver(newReg(t), prof, prof, nil, roller)
+		if got := pr.ExtraAttacks("hero"); got != 1 {
+			t.Fatalf("ExtraAttacks = %d, want 1", got)
+		}
+		if prof.gains["second-attack"] != 0 {
+			t.Errorf("gain = %d, want 0 (no factor → threshold 18 < roll 41)", prof.gains["second-attack"])
+		}
+	})
 }
 
 func TestPassiveResolver_DefensiveEvade(t *testing.T) {
@@ -168,7 +227,7 @@ func TestPassiveResolver_DefensiveEvade(t *testing.T) {
 	// Only one binary roll consumed; parry is never tried.
 	t.Run("first firing passive evades", func(t *testing.T) {
 		roller := &seqRoller{t: t, seq: []int{0}} // dodge binary fires; no gain (GainBaseChance 0)
-		pr := NewPassiveResolver(reg, prof, prof, roller)
+		pr := NewPassiveResolver(reg, prof, prof, nil, roller)
 		name, evaded := pr.DefensiveEvade("p1")
 		if !evaded || name != "dodge" {
 			t.Fatalf("DefensiveEvade = (%q, %v), want (dodge, true)", name, evaded)
@@ -178,7 +237,7 @@ func TestPassiveResolver_DefensiveEvade(t *testing.T) {
 	// Both miss → no evade. Two binary rolls (dodge, parry), both >50.
 	t.Run("none fire", func(t *testing.T) {
 		roller := &seqRoller{t: t, seq: []int{99, 99}}
-		pr := NewPassiveResolver(reg, prof, prof, roller)
+		pr := NewPassiveResolver(reg, prof, prof, nil, roller)
 		if name, evaded := pr.DefensiveEvade("p1"); evaded {
 			t.Errorf("DefensiveEvade = (%q, true), want no evade", name)
 		}
