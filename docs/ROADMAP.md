@@ -31,12 +31,15 @@ and `THEME-AXIS-PLAN.md` are superseded by `BACKLOG.md` and now live under
   exit graph + pins, GMCP exposure, and a builder `roomdata` look view), and
   **M24** (Player Maps — persisted fog-of-war visited set, the shared
   `world.LocalWindow` query, the active `minimap` toggle + the `map` verb,
-  and the Mudlet GMCP surface). The core loop, world, combat, progression,
-  economy, quests, scripting, sessions, modern-client, roles/admin,
-  decorations, stacking, loot, room coordinates, and player maps all work.
-- **Active:** none — M24 closed (its one remaining item, validating the
-  GMCP coordinate wire shape against a live Mudlet client, is a
-  human-in-the-loop follow-up tracked in memory, not blocking). Pick the
+  and the Mudlet GMCP surface), **M25** (Equipment slots — eligibility,
+  footprint, contention, mob capacity), and **M26** (Engine Debt II —
+  door-key boot validation, passive gain stat factor, GMCP wizard panel).
+  The core loop, world, combat, progression, economy, quests, scripting,
+  sessions, modern-client, roles/admin, decorations, stacking, loot, room
+  coordinates, player maps, and equipment slots all work.
+- **Active:** none — M26 closed (Engine Debt II shipped its three real
+  wins; the substrate-without-consumer items stay deferred until their
+  triggers fire — see `BACKLOG.md` §1 + `[[m26-deferred-fixes]]`). Pick the
   next theme from `BACKLOG.md` §1 (specced, ready) or §2 (greenfield).
 - **Specs ahead of code.** Behavior contracts written without
   implementation, still awaiting a milestone: `tag-observers`,
@@ -3310,6 +3313,54 @@ rewritten), plus the README cancellable-events table (`entity.equipping`).
 validate), `internal/entities` (instance lift + mob equip), `internal/command`
 (equip/unequip handlers + Actor interface), `internal/session` (footprint
 representation + persistence), `internal/eventbus` (the cancellable event).
+
+---
+
+### M26 — Engine Debt II
+
+**Slice:** a tight debt-paydown pass closing three genuine specced gaps
+that accreted across earlier milestones. Scoped to *real wins* — the
+substrate-without-consumer items (§6.2 scaling-bonus consumer,
+property-registry save-pipeline, §3.4 tag-indexed movement reads) were
+deliberately left deferred because their triggers haven't fired (YAGNI).
+The fourth candidate, death-driven purge (`mobs-ai-spawning §3.5`), was
+found **already done** (M7.5 wired `mob.killed → Untrack`); its stale
+BACKLOG line was deleted as drift.
+
+**Exit criteria:**
+
+- [x] **M26.1 — Cross-pack door-key boot validation.** `world-rooms-movement
+      §5.3`. A keyed door's `KeyID` is an item template id, qualified at
+      decode but never checked — a typo'd key produced a permanently-
+      unlockable door, fail-silent until unlock. `validateDoorKeys` (loader
+      post-pass, `ErrMissingDoorKey`) now fails the load, mirroring
+      `validateItemSlots`/`validateSpawnRules`. Runs after all packs load so
+      cross-pack keys resolve.
+- [x] **M26.2 — Passive gain stat factor.** `abilities-and-effects §3.5`
+      step 3 (closes m9-5 #1). Passive proficiency gain hardcoded
+      `statFactor=1.0` because a passive fires off a bare entity id with no
+      stat-by-id seam. New `progression.StatReader` (nil-safe) threads into
+      `PassiveResolver.rollGain`; `session.PassiveStatReader` implements it
+      with the player-then-mob fallback shared with `EffectTargetResolver`.
+      Effect: `parry`/`second-attack` (`gain_stat: dex`) train faster for
+      high-dex characters. Mob gain stays a no-op.
+- [x] **M26.3 — GMCP wizard panel.** `character-creation §5` (closes m12-3).
+      `runCreation` discarded the wizard's structured `StepEvent` (nil sink)
+      because M12.3 predated a structured-data channel; GMCP landed in M16.
+      New `Char.Wizard` package + `CharWizardStep` payload + `wizardGmcpSink`
+      bridge each rendered step to a GMCP frame for a rich client's in-place
+      creation panel. Plain/not-yet-negotiated clients get a nil sink and the
+      unchanged text path, so creation works on every client.
+
+**Open / deferred (triggers unfired):** §6.2 scaling-bonus consumer (needs a
+scaling passive in content), property-registry save-pipeline (no save grows a
+content property yet), §3.4 tag-indexed movement reads (marginal at current
+world scale). Recorded in `[[m26-deferred-fixes]]`.
+
+**Touches code:** `internal/pack` (door-key validator), `internal/progression`
+(StatReader + passive rollGain), `internal/session` (PassiveStatReader,
+wizardGmcpSink, runCreation), `internal/gmcp` (Char.Wizard payload),
+`cmd/anothermud` (passiveStatReader wiring). 53 pkgs green -race.
 
 ---
 

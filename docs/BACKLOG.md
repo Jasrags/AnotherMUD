@@ -20,12 +20,15 @@ the theme-axis plan (its method survives below).
 - **Verified against code.** Every item below was confirmed absent in the codebase as of
   2026-06-02, not trusted from the old matrix (which misreported several shipped systems).
 
-## Status: M0–M22 shipped; specced + greenfield work remains
+## Status: M0–M26 shipped; specced + greenfield work remains
 
 The five original themes — A (Social / M13), B (Modern Client / M16),
 C (World Depth / M15), D (Content Authoring / M17), E (Engine Debt / M14) — are
 **done**, and since then **M19** (Roles & Administration), **M20** (Item Decorations),
-**M21** (Item Stacking), and **M22** (Loot & Corpses) have shipped (see `ROADMAP.md`).
+**M21** (Item Stacking), **M22** (Loot & Corpses), **M23** (Room Coordinates),
+**M24** (Player Maps), **M25** (Equipment slots), and **M26** (Engine Debt II —
+door-key boot validation, passive gain stat factor, GMCP wizard panel) have
+shipped (see `ROADMAP.md`).
 **Light & darkness** has also shipped (per-viewer effective light + sources/fuel +
 render/combat/movement friction + period transitions + persisted in-game time).
 **M18** (Command & UI polish) is now **complete** — `prompt`, `who`, auto-help
@@ -46,13 +49,9 @@ go straight into a milestone.
 | Per-phase idle-timeout *overrides* | login §6.1 | global idle timeout **shipped** (Clock-driven, `Config.IdleTimeout`, `ANOTHERMUD_LOGIN_IDLE_TIMEOUT`, default 60s); only *per-phase override values* remain (a thin add on the same read primitive) |
 | Tag-indexed reads during movement | world-rooms-movement §3.4 | movement scans, no tag index |
 | Container weight/volume caps | inventory-equipment-items | no cap enforcement at runtime |
-| Death-driven purge from a generic alive predicate | mobs-ai-spawning §3.5 | only explicit `Untrack` triggers respawn |
-| Passive gain stat-factor | abilities-and-effects §3.5 | passive gain omits the §3.5 stat factor (no entity-stat-by-id seam) — m9-5 #1 |
 | Passive scaling-bonus consumer | abilities-and-effects §6.2 | `PassiveScalingBonus` built, no wired hook consumes it — m9-5 #2 |
 | Effect/item-triggered quest advance | quests | no event field carries the pickup payload (scripting now exists to carry it) |
-| GMCP wizard-panel renderer | character-creation §5 | creation flow emits plain text only (nil GMCP sink) — m12-3 |
 | Generalized content-authored creation flows | character-creation | only the fixed new-player wizard exists |
-| Cross-pack reference validation at boot | scripting-and-packs | no boot-time cross-pack ref check |
 | Property-registry save-pipeline integration | persistence §2 / §4.4 | registry substrate exists (M14.4); not wired into the save pipeline — m14 |
 | Slow-tick observability — full breakdown / routing | time-and-clock §5 | core **shipped**: `Loop.SetSlowTickObserver` times each tick, warns (`slog`) when it exceeds a threshold (`ANOTHERMUD_SLOW_TICK_THRESHOLD`, default = tick interval); reports total + handlers. Remaining: the §5 event-queue/command components (no such tick phases in this engine) + admin-channel / OTel routing (a consumer on the callback seam) |
 | Reactive tag observers | **tag-observers §2–§4** (new) | `entity.tag_added/removed` bus events for non-index reactors. Substrate ahead of a consumer. Ported from Tapestry `ITagObserver` |
@@ -430,7 +429,7 @@ need a design pass first.
 |---|---|---|
 | **Crafting & Cooking** | `crafting-and-cooking` + plan; full Tier 0/1/2 MVP in the `core` pack | M |
 | **Player trade** | trade-escrow + direct-trade + auction-house + plan; atomic escrow, sync trade, buyout auction | M |
-| **Engine Debt II** | death-purge §3.5, passive gain/scaling, property-save wiring, tag-indexed reads, cross-pack validation, GMCP wizard panel | S–M |
+| **Engine Debt III** | §6.2 scaling-bonus consumer, property-save wiring, tag-indexed reads (§3.4) | S |
 
 **Needs a design pass first (greenfield — §2):**
 
@@ -453,7 +452,7 @@ need a design pass first.
 | The world/character sheet feels mechanically thin | **Gameplay Systems** *(greenfield — design first)* |
 | You want more "things to do" — repeatable activities, destinations, prestige | **Gameplay content / activities** *(greenfield — small standalone specs)* |
 | You want a fast, low-stakes win to re-enter the codebase | take one **§1 warmup** (tag-indexed reads, container caps, …) |
-| Accreting code debt is blocking a feature you want | **Engine Debt II** *(specced)* |
+| Accreting code debt is blocking a feature you want | **Engine Debt III** *(specced)* |
 | You're about to expose the server to real players | **Ops** (in background) |
 
 Prefer the smallest scope that lands a real win before committing further. Engine Debt
