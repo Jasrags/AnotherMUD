@@ -9,6 +9,7 @@ import (
 	"github.com/Jasrags/AnotherMUD/internal/item"
 	"github.com/Jasrags/AnotherMUD/internal/player"
 	"github.com/Jasrags/AnotherMUD/internal/progression"
+	"github.com/Jasrags/AnotherMUD/internal/slot"
 	"github.com/Jasrags/AnotherMUD/internal/stats"
 )
 
@@ -23,7 +24,8 @@ func newEqActor(t *testing.T, store *entities.Store) *connActor {
 	return &connActor{
 		save:      &player.Save{Version: player.CurrentVersion, Name: "Tester"},
 		items:     store,
-		equipment: make(map[string]entities.EntityID),
+		equipment:  make(map[string]entities.EntityID),
+		footprints: make(map[entities.EntityID][]string),
 		statBlock: progression.New(),
 	}
 }
@@ -50,7 +52,7 @@ func TestEquip_SyncsEverythingToSave(t *testing.T) {
 	a.dirty = false
 
 	mods := []stats.Modifier{{Stat: "str", Value: 1}}
-	if !a.Equip("wield", inst.ID(), mods) {
+	if !a.Equip([]string{"wield"}, inst.ID(), mods) {
 		t.Fatal("Equip returned false")
 	}
 	if !a.dirty {
@@ -73,7 +75,7 @@ func TestUnequip_ReversesSyncs(t *testing.T) {
 	a := newEqActor(t, store)
 	inst, _ := store.Spawn(swordTplWithMods())
 	a.AddToInventory(inst.ID())
-	a.Equip("wield", inst.ID(), []stats.Modifier{{Stat: "str", Value: 1}})
+	a.Equip([]string{"wield"}, inst.ID(), []stats.Modifier{{Stat: "str", Value: 1}})
 
 	id, ok := a.Unequip("wield")
 	if !ok || id != inst.ID() {
@@ -101,7 +103,7 @@ func TestRoundTrip_UnequipAfterRestartReversesMods(t *testing.T) {
 	tpl := swordTplWithMods()
 	inst1, _ := store1.Spawn(tpl)
 	a1.AddToInventory(inst1.ID())
-	a1.Equip("wield", inst1.ID(), []stats.Modifier{{Stat: "str", Value: 1}})
+	a1.Equip([]string{"wield"}, inst1.ID(), []stats.Modifier{{Stat: "str", Value: 1}})
 
 	saved := *a1.save // shallow copy is fine; Stats is rebuilt from a fresh Snapshot per mutation
 	id1 := inst1.ID()
@@ -114,14 +116,19 @@ func TestRoundTrip_UnequipAfterRestartReversesMods(t *testing.T) {
 	a2 := &connActor{
 		save:      &saved,
 		items:     store2,
-		equipment: make(map[string]entities.EntityID),
+		equipment:  make(map[string]entities.EntityID),
+		footprints: make(map[entities.EntityID][]string),
 		statBlock: progression.New(),
 	}
 	a2.statBlock.RestoreModifiers(saved.Stats)
 
 	// Build a minimal templates registry holding the sword.
 	tpls := newTestTemplates(t, tpl)
-	respawnEquipment(ctx, a2, store2, tpls, saved.Equipment)
+	slots := slot.NewRegistry()
+	if err := slot.RegisterEngineBaseline(slots); err != nil {
+		t.Fatalf("RegisterEngineBaseline: %v", err)
+	}
+	respawnEquipment(ctx, a2, store2, tpls, slots, saved.Equipment)
 
 	// The new instance has a different id from the saved one.
 	id2 := a2.Equipment()["wield"]
@@ -172,7 +179,7 @@ func TestDirtyBit_SurvivesMutationDuringInFlightPersist(t *testing.T) {
 	a.mu.Unlock()
 
 	// Simulate a concurrent equip while the save is in flight.
-	a.Equip("wield", inst.ID(), []stats.Modifier{{Stat: "str", Value: 1}})
+	a.Equip([]string{"wield"}, inst.ID(), []stats.Modifier{{Stat: "str", Value: 1}})
 
 	// Persist completion path: clear dirty only if no later mutation.
 	a.mu.Lock()
@@ -210,7 +217,7 @@ func TestEquipModifiers_FlowIntoCombatStats(t *testing.T) {
 
 	inst, _ := store.Spawn(swordTplWithMods())
 	a.AddToInventory(inst.ID())
-	a.Equip("wield", inst.ID(), []stats.Modifier{
+	a.Equip([]string{"wield"}, inst.ID(), []stats.Modifier{
 		{Stat: "str", Value: 2},
 		{Stat: "hit_mod", Value: 1},
 	})
@@ -260,7 +267,7 @@ func TestEquipWeapon_FlowsDamageDiceIntoCombatStats(t *testing.T) {
 
 	inst, _ := store.Spawn(swordTplWithDice())
 	a.AddToInventory(inst.ID())
-	if !a.Equip("wield", inst.ID(), []stats.Modifier{{Stat: "str", Value: 1}}) {
+	if !a.Equip([]string{"wield"}, inst.ID(), []stats.Modifier{{Stat: "str", Value: 1}}) {
 		t.Fatal("Equip returned false")
 	}
 
@@ -296,7 +303,7 @@ func TestEquipNonWeapon_LeavesUnarmed(t *testing.T) {
 		Modifiers: []item.Modifier{{Stat: "ac", Value: 1}},
 	})
 	a.AddToInventory(inst.ID())
-	a.Equip("cloak", inst.ID(), []stats.Modifier{{Stat: "ac", Value: 1}})
+	a.Equip([]string{"cloak"}, inst.ID(), []stats.Modifier{{Stat: "ac", Value: 1}})
 	if d := a.Stats().Damage; !d.IsZero() {
 		t.Errorf("Damage = %+v, want zero (cloak is not a weapon)", d)
 	}
@@ -309,6 +316,111 @@ func TestEquipNonWeapon_LeavesUnarmed(t *testing.T) {
 func toBaseSnapshot(base map[progression.StatType]int) progression.BaseSnapshot {
 	b := progression.NewWithBase(base)
 	return b.BaseSnapshot()
+}
+
+// TestEquipSpanning_SaveOneEntryAndRespawnReexpands verifies the §3.8
+// persistence rule for a two-handed weapon: the save records exactly one
+// entry keyed by the target slot (not one per footprint key), and on
+// reload respawnEquipment re-derives the companion slots from the template
+// so the full footprint is restored.
+func TestEquipSpanning_SaveOneEntryAndRespawnReexpands(t *testing.T) {
+	ctx := context.Background()
+	store := entities.NewStore()
+	tpl := &item.Template{
+		ID:             "tapestry-core:greatsword",
+		Name:           "a greatsword",
+		Type:           "weapon",
+		EligibleSlots:  []string{"wield"},
+		CompanionSlots: []string{"offhand"},
+		Modifiers:      []item.Modifier{{Stat: "str", Value: 2}},
+	}
+	inst, err := store.Spawn(tpl)
+	if err != nil {
+		t.Fatalf("Spawn: %v", err)
+	}
+
+	var saved player.Save
+	a := &connActor{
+		save:       &saved,
+		items:      store,
+		equipment:  make(map[string]entities.EntityID),
+		footprints: make(map[entities.EntityID][]string),
+		statBlock:  progression.New(),
+	}
+	a.AddToInventory(inst.ID())
+	if !a.Equip([]string{"wield", "offhand"}, inst.ID(), []stats.Modifier{{Stat: "str", Value: 2}}) {
+		t.Fatal("Equip(spanning) failed")
+	}
+
+	// §3.8: one save entry, keyed by the target slot only.
+	if len(saved.Equipment) != 1 {
+		t.Fatalf("save.Equipment = %v, want exactly 1 entry (target only)", saved.Equipment)
+	}
+	if _, ok := saved.Equipment["wield"]; !ok {
+		t.Errorf("save.Equipment not keyed by target 'wield': %v", saved.Equipment)
+	}
+
+	// "Restart": fresh store; respawn re-expands the footprint from the
+	// template's companion slots.
+	store2 := entities.NewStore()
+	a2 := &connActor{
+		save:       &saved,
+		items:      store2,
+		equipment:  make(map[string]entities.EntityID),
+		footprints: make(map[entities.EntityID][]string),
+		statBlock:  progression.New(),
+	}
+	a2.statBlock.RestoreModifiers(saved.Stats)
+	tpls := newTestTemplates(t, tpl)
+	slots := slot.NewRegistry()
+	if err := slot.RegisterEngineBaseline(slots); err != nil {
+		t.Fatalf("RegisterEngineBaseline: %v", err)
+	}
+	respawnEquipment(ctx, a2, store2, tpls, slots, saved.Equipment)
+
+	eq := a2.Equipment()
+	id2 := eq["wield"]
+	if id2 == "" || eq["offhand"] != id2 {
+		t.Errorf("respawn did not re-expand spanning footprint: %v", eq)
+	}
+}
+
+// TestEquip_RejectsOccupiedFootprintKey locks the vacancy guard: Equip
+// returns false (no mutation) when a footprint key is already occupied,
+// so a caller that skipped the displacement step can't silently overwrite
+// an occupant and orphan its footprint.
+func TestEquip_RejectsOccupiedFootprintKey(t *testing.T) {
+	store := entities.NewStore()
+	tpl := &item.Template{
+		ID: "tapestry-core:sword", Name: "a sword", Type: "weapon",
+		EligibleSlots: []string{"wield"},
+	}
+	first, err := store.Spawn(tpl)
+	if err != nil {
+		t.Fatalf("Spawn: %v", err)
+	}
+	second, err := store.Spawn(tpl)
+	if err != nil {
+		t.Fatalf("Spawn: %v", err)
+	}
+	a := &connActor{
+		items:      store,
+		equipment:  make(map[string]entities.EntityID),
+		footprints: make(map[entities.EntityID][]string),
+		statBlock:  progression.New(),
+	}
+	a.inventory = append(a.inventory, first.ID(), second.ID())
+
+	if !a.Equip([]string{"wield"}, first.ID(), nil) {
+		t.Fatal("first Equip failed")
+	}
+	// wield is now occupied; equipping the second without displacing must fail.
+	if a.Equip([]string{"wield"}, second.ID(), nil) {
+		t.Error("Equip succeeded on an occupied footprint key")
+	}
+	if a.Equipment()["wield"] != first.ID() {
+		t.Error("occupant was overwritten")
+	}
 }
 
 // newTestTemplates returns a templates registry holding one entry.

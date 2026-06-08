@@ -134,6 +134,75 @@ func TestSpawnAssignsFreshIDAndCopiesFields(t *testing.T) {
 	}
 }
 
+// TestSpawnLiftsEligibleAndCompanionSlots verifies R5: the template's
+// equipment slot eligibility + footprint (§3.3) are copied onto the
+// instance at spawn, and the accessors return fresh (non-aliasing)
+// slices so callers cannot mutate instance state.
+func TestSpawnLiftsEligibleAndCompanionSlots(t *testing.T) {
+	s := NewStore()
+	tpl := &item.Template{
+		ID:             "tapestry-core:greatsword",
+		Name:           "a greatsword",
+		Type:           "item",
+		EligibleSlots:  []string{"wield"},
+		CompanionSlots: []string{"offhand"},
+	}
+	it, err := s.Spawn(tpl)
+	if err != nil {
+		t.Fatalf("Spawn: %v", err)
+	}
+	if got := it.EligibleSlots(); len(got) != 1 || got[0] != "wield" {
+		t.Errorf("EligibleSlots = %v, want [wield]", got)
+	}
+	if got := it.CompanionSlots(); len(got) != 1 || got[0] != "offhand" {
+		t.Errorf("CompanionSlots = %v, want [offhand]", got)
+	}
+	// Mutating the returned slice must not corrupt instance state.
+	got := it.EligibleSlots()
+	got[0] = "tampered"
+	if again := it.EligibleSlots(); again[0] != "wield" {
+		t.Errorf("EligibleSlots aliased backing array: %v", again)
+	}
+}
+
+// TestSpawnLiftsLegacySlotProperty: a template carrying only the legacy
+// `properties.slot` string (no EligibleSlots) is still eligible for that
+// one slot — the §3.2 bridge applied at instance build.
+func TestSpawnLiftsLegacySlotProperty(t *testing.T) {
+	s := NewStore()
+	tpl := &item.Template{
+		ID:         "tapestry-core:leather-cap",
+		Name:       "a leather cap",
+		Type:       "item",
+		Properties: map[string]any{"slot": "head"},
+	}
+	it, err := s.Spawn(tpl)
+	if err != nil {
+		t.Fatalf("Spawn: %v", err)
+	}
+	if got := it.EligibleSlots(); len(got) != 1 || got[0] != "head" {
+		t.Errorf("EligibleSlots = %v, want [head] from legacy slot property", got)
+	}
+}
+
+// TestSpawnNonEquippableHasNoSlots: a template with neither EligibleSlots
+// nor a legacy slot property yields an empty eligible set — the item is
+// not equippable (§3.4 step 3).
+func TestSpawnNonEquippableHasNoSlots(t *testing.T) {
+	s := NewStore()
+	it, err := s.Spawn(&item.Template{
+		ID:   "tapestry-core:quest-token",
+		Name: "a wax seal",
+		Type: "item",
+	})
+	if err != nil {
+		t.Fatalf("Spawn: %v", err)
+	}
+	if got := it.EligibleSlots(); len(got) != 0 {
+		t.Errorf("EligibleSlots = %v, want empty", got)
+	}
+}
+
 func TestSpawnFiltersRoomIDFromProperties(t *testing.T) {
 	s := NewStore()
 	tpl := &item.Template{

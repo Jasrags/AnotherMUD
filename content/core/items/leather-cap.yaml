@@ -3,8 +3,8 @@ name: a leather cap
 type: item
 tags: [armor, leather, wearable]
 keywords: [cap, leather]
+eligible_slots: [head]
 properties:
-  slot: head
   weight: 1
   # Base value the shop prices buy/sell against (economy-survival §3.3).
   value: 12

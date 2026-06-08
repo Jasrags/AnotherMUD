@@ -7,8 +7,10 @@ description: |
   simple crossguard shows the faint scoring of blows turned aside.
 tags: [weapon, metal, bladed]
 keywords: [sword, short]
+# Equipment slot eligibility (inventory-equipment-items §3.3). A one-hand
+# weapon: eligible for the wield slot, no companion (footprint = wield).
+eligible_slots: [wield]
 properties:
-  slot: wield
   weight: 3
 # Weapon damage dice (combat §4.5). The wielder rolls this instead of the
 # unarmed default; the rolled value is then scaled by STR. Validated at

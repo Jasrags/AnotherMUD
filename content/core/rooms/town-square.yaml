@@ -17,6 +17,12 @@ items:
   # guard. Geared wins, ungeared loses.
   - short-sword
   - leather-cap
+  # Equipment-footprint playtest (inventory-equipment-items §3.3/§3.6):
+  # `equip greatsword` fills BOTH hands (wield + offhand); then `equip
+  # shield` displaces the two-hander, and `equip greatsword` again
+  # displaces the shield — a live demo of spanning + slot contention.
+  - iron-greatsword
+  - wooden-shield
   # M11.1: a pile of coins to exercise currency auto-convert — `get
   # coins` credits gold instead of adding an item to inventory.
   - gold-coins

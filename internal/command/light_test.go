@@ -16,7 +16,7 @@ func torchTpl() *item.Template {
 		Name:       "a torch",
 		Type:       "light",
 		Keywords:   []string{"torch"},
-		Properties: map[string]any{"light": "gloom", "fuel": 100},
+		Properties: map[string]any{"slot": "light", "light": "gloom", "fuel": 100},
 	}
 }
 

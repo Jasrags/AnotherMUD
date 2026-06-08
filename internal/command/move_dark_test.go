@@ -92,7 +92,7 @@ func TestMove_DarkBlockedAllowedWithLight(t *testing.T) {
 	}
 	torch.SetProperty("lit", true)
 	actor.AddToInventory(torch.ID())
-	if !actor.Equip("light", torch.ID(), nil) {
+	if !actor.Equip([]string{"light"}, torch.ID(), nil) {
 		t.Fatal("equip torch into light slot failed")
 	}
 

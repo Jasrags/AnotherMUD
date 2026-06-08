@@ -120,8 +120,15 @@ func (a *connActor) snapshotItemsForInventory() []gmcp.CharItem {
 // applied in different orders produce the same shadow.
 func (a *connActor) snapshotItemsForEquipment() []gmcp.CharItem {
 	eq := a.Equipment()
+	// Dedupe by id: a spanning item (two-handed weapon) appears under
+	// several equipment keys but must list once in the equipment shadow.
+	seen := make(map[entities.EntityID]bool, len(eq))
 	ids := make([]entities.EntityID, 0, len(eq))
 	for _, id := range eq {
+		if seen[id] {
+			continue
+		}
+		seen[id] = true
 		ids = append(ids, id)
 	}
 	return a.entityIDsToCharItems(ids)

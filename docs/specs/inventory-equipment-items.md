@@ -128,6 +128,14 @@ A template MAY carry:
 - A keyword list (used by §6 keyword resolution).
 - A free-form property bag merged onto the entity.
 - A modifier list mapping stat names to integer values.
+- A set of **eligible slots** the item may be equipped into
+  (§3.3). One slot is the common case; several express
+  interchangeable positions (e.g. main or off hand). Absent means
+  the item is not equippable.
+- A set of **companion slots** the item additionally occupies
+  while equipped (§3.3) — its footprint beyond the target slot
+  (e.g. a two-handed weapon that also ties up the off hand).
+  Absent means the footprint is just the target slot.
 
 ### 2.3 Instantiation
 
@@ -163,7 +171,7 @@ produces structurally identical entities differing only in id.
 - The template id property persists with the entity.
 - The `modifiers` property is **transient** — it is rebuilt from
   the template on reload, not stored. Applied stat-block changes
-  on the *holder* still need to survive save/load; see §3.4.
+  on the *holder* still need to survive save/load; see §3.8.
 - Tags, keywords, and the property bag persist with the entity per
   the persistence feature's rules.
 
@@ -220,80 +228,215 @@ suffix: `name:0`, `name:1`, ..., `name:(max-1)`. The lowest free
 index MUST be chosen at equip time so equipped items pack from
 the start of the indexed range.
 
-### 3.3 Equip
+### 3.3 Item slot eligibility and footprint
 
-To equip an item into a named slot on a holder:
+Two item-level declarations (§2.2) govern how an item interacts
+with slots. Both are item content; the engine ships no fixed
+two-handed or interchangeable-slot list.
 
-1. **Resolve the slot.** If the named slot is not registered, fail.
-2. **Verify the item is in the holder's contents.** Equip only
-   moves items from inventory to equipment, not from anywhere
-   else. Fail if the item is not in contents.
-3. **Auto-swap when full.** If the slot is at capacity, unequip
-   the item currently occupying the first occupied slot key
-   (slot name for cap-1 slots, `name:0` for multi-cap slots).
-   The unequipped item becomes the operation's *displaced* result
-   and is returned to the caller alongside success. If unequip
-   fails (because no item is actually there despite the count),
-   the equip operation fails as a whole.
-4. **Select the slot key.** For cap-1 slots, the slot name. For
-   multi-cap slots, the lowest unoccupied index.
-5. **Move the item.** Add an entry from slot key to item in the
-   holder's equipment; remove the item from the holder's contents.
-6. **Apply stat modifiers.** Read the item's transient `modifiers`
-   list (§2.3 step 6). For each modifier, add a stat modifier on
-   the holder's stat block sourced by `equipment:<item entity id>`
-   so the set can be reversed unambiguously later.
-7. **Emit `entity equipped`** with the holder id, location room
-   id, item id, and base slot name (no index suffix).
+**Eligible slots.** An equippable item declares the set of slots
+it MAY be equipped into. Most items declare exactly one (a helmet
+→ `head`); some declare several interchangeable alternatives (a
+dagger → `wield` or `offhand`). An item that declares none is not
+equippable and every attempt to equip it MUST fail. A single
+declared slot is simply the one-element form of this set and MUST
+remain valid (backward compatibility with the historical
+single-slot declaration).
 
-The operation returns `(success, displaced item or none)`.
+The equip operation (§3.4) chooses exactly one eligible slot as
+the item's **target slot**: the slot the actor named, or — when
+the actor names none and the item declares exactly one eligible
+slot — that sole slot. Naming a slot the item is not eligible for
+MUST fail with a reason distinct from "no such slot".
 
-### 3.4 Unequip
+**Footprint.** Once equipped, an item occupies a set of slots
+called its footprint. By default the footprint is just the target
+slot. An item MAY declare additional **companion slots** it also
+occupies while equipped: a two-handed weapon targeted into `wield`
+also occupies `offhand`; a robe targeted into `body` also occupies
+`legs`. The footprint is the target slot together with all
+companion slots, expanded to concrete slot keys (§3.2) at equip
+time (lowest free index per multi-cap slot).
 
-To unequip a slot key from a holder:
+Companion slots belong to the item, not to the target choice: an
+item declares the same companions regardless of which eligible
+slot it is targeted into. An item that is both multi-eligible and
+spanning is permitted but unusual.
 
-1. **Resolve the equipped item.** If no item is at the slot key,
-   fail.
-2. **Move the item.** Remove the equipment entry; add the item to
-   the holder's contents.
-3. **Remove stat modifiers** by source `equipment:<item entity
-   id>`. This is a single source-keyed removal, not a per-modifier
-   match, so the operation is symmetric with §3.3 step 6.
-4. **Emit `entity unequipped`** with the holder id, item id, and
-   *base* slot name (strip any `:index` suffix). The base name is
-   what listeners (UI, persistence) care about; the index is an
-   internal disambiguator.
+### 3.4 Equip
+
+To equip an item onto a holder:
+
+1. **Resolve the target slot.** The slot the actor named, or — if
+   none is named and the item declares exactly one eligible slot
+   (§3.3) — that slot. If none is named and the item is eligible
+   for several slots, fail asking which slot.
+2. **Check registration.** If the target slot is not a registered
+   slot, fail (`no such slot`).
+3. **Check eligibility.** If the item's eligible-slot set does not
+   include the target slot, fail (`does not fit there`). An item
+   with no eligible slots is never equippable.
+4. **Verify the item is in the holder's contents.** Equip only
+   moves items from inventory to equipment. Fail if absent.
+5. **Compute the footprint.** Expand the target slot plus the
+   item's companion slots into concrete slot keys (§3.2), choosing
+   the lowest free index for each multi-cap slot.
+6. **Resolve contention by auto-swap.** Every slot key in the
+   footprint must end up free (§3.6). For each occupied footprint
+   slot key, unequip its occupant; because the occupant may itself
+   be a spanning item, unequipping it frees that item's *entire*
+   footprint, not just the overlapping key. Each item removed this
+   way is a *displaced* result, returned to the caller and to the
+   holder's contents. A single equip may therefore displace more
+   than one item. If any required unequip cannot complete, the
+   whole equip fails with no partial mutation.
+7. **Pre-equip veto (cancellable).** Emit a cancellable
+   `entity equipping` event carrying holder id, item id, and
+   target base slot name. If any listener cancels, abort with a
+   "you can't equip that" reason and no mutation (any auto-swap
+   from step 6 is rolled back / not yet committed). This is the
+   seam for policy rules layered outside the core operation —
+   class/level/alignment requirements, cursed or no-equip tags,
+   peace-room weapon bans, and richer contention than slot
+   geometry — typically owned by a feature module rather than the
+   engine.
+8. **Move the item.** The item now occupies every slot key in its
+   footprint (a spanning item is one equipped item referenced by
+   several footprint keys). Remove it from the holder's contents.
+9. **Apply stat modifiers.** Read the item's transient `modifiers`
+   list (§2.3 step 6) and add them to the holder's stat block
+   sourced by `equipment:<item entity id>` — once per item, never
+   once per footprint key — so the set reverses unambiguously.
+10. **Emit `entity equipped`** with the holder id, location room
+    id, item id, and target base slot name (no index suffix).
+
+The operation returns `(success, displaced items)` where the
+displaced list may hold zero, one, or several items.
+
+### 3.5 Unequip
+
+To unequip an item from a holder (named by item, or by any slot
+key in its footprint):
+
+1. **Resolve the equipped item.** From a slot key: the item
+   occupying it. From an item reference: the matching item in the
+   equipped set. If none, fail.
+2. **Free the whole footprint.** Remove the item from *every* slot
+   key in its footprint, not only the named one. A spanning item
+   leaves all of its slots at once.
+3. **Move the item** back to the holder's contents.
+4. **Remove stat modifiers** by source `equipment:<item entity
+   id>`. A single source-keyed removal, symmetric with §3.4
+   step 9.
+5. **Emit `entity unequipped`** with the holder id, item id, and
+   the target *base* slot name (strip any `:index` suffix). The
+   base name is what listeners (UI, persistence) care about; the
+   index is an internal disambiguator.
 
 The operation supports a `silent` mode that suppresses the event;
-used during cleanup paths (e.g. dying entity drops everything)
-where the caller will emit a more meaningful event of its own.
+used during cleanup paths (e.g. a dying entity dropping
+everything) where the caller emits a more meaningful event itself.
 
-### 3.5 Persistence of equipment
+### 3.6 Slot contention
+
+The invariant: at any moment, the footprints of a holder's
+equipped items are pairwise disjoint — no slot key is claimed by
+two items. Equip (§3.4) preserves it by auto-swapping every
+conflicting occupant before committing; unequip (§3.5) frees an
+item's whole footprint at once.
+
+Consequences:
+
+- A spanning item blocks its companion slots: while a two-handed
+  weapon occupies `wield`+`offhand`, neither slot accepts another
+  item, and equipping into either one displaces the two-hander.
+- Equipping a companion-bearing item into a slot whose companion
+  is occupied displaces the companion's occupant too — so one
+  equip may displace several items (§3.4 step 6).
+- Capacity (§3.1) and footprint compose: a multi-cap slot is full
+  only when every one of its indices is claimed by some footprint.
+
+**Structural** contention — footprint disjointness — is always
+enforced by the core operation and cannot be turned off. **Policy**
+contention beyond geometry (e.g. "no shield together with a
+two-handed weapon even though they share no slot", or class/level
+gates) is *not* built in; it is expressed by listeners on the
+§3.4 cancellable pre-equip event. This is the deliberate seam
+between the engine's equipment substrate and an optional rules
+layer (the feature-module boundary).
+
+### 3.7 Equipment on non-player holders
+
+Equipment is holder-agnostic: mobs equip through the same rules as
+players. Whenever a mob is equipped — at spawn from its template's
+equipment list, or at runtime — the operation MUST honor slot
+eligibility (§3.3), capacity (§3.1), and footprint contention
+(§3.6) exactly as for a player. An item that is not eligible for
+any free slot, or whose footprint cannot be satisfied, is
+**skipped** (and SHOULD be logged), not force-stacked into the
+holder's stat block. Stat modifiers from mob equipment apply under
+the same `equipment:<item entity id>` source key, so reversal on
+death or unequip is identical to the player path.
+
+Honoring slots for mobs makes a mob's worn gear answer the same
+questions a player's does — which slot a mob's weapon occupies,
+what sits on its head — so future operations (disarm, targeted
+looting, rendering worn gear) read consistent slot state for any
+holder. It also bounds mob stat budgets: a template can no longer
+double-stack two items that compete for the same slot.
+
+### 3.8 Persistence of equipment
 
 Equipment is stored on the entity (slot key → item entity).
 Applied stat modifiers on the holder's stat block persist with the
 holder. On reload, the holder's modifiers are present from save;
 the item's transient `modifiers` property is rebuilt from the
-template; nothing further is applied. This is the symmetric
-counterpart to §2.4 and is the reason source keys (§3.3 step 6,
-§3.4 step 3) must be stable across save/load — they MUST be
-derived from the item entity id, not from a transient runtime
-handle.
+template; nothing further is applied. A spanning item's footprint
+is likewise re-derived from its template companions on reload, so
+only the equipped item ids and their target slot need persist, not
+the expanded footprint keys. This is the symmetric counterpart to
+§2.4 and the reason source keys (§3.4 step 9, §3.5 step 4) must be
+stable across save/load — they MUST derive from the item entity
+id, not from a transient runtime handle.
 
 **Acceptance criteria**
 
 - [ ] Slot names must be snake_case; non-conforming names are
       rejected at registration.
 - [ ] Equipping an item not in the holder's contents fails.
+- [ ] Equip fails when the target slot is not in the item's
+      eligible-slot set, with a reason distinct from "no such
+      slot". An item with no eligible slots is never equippable.
+- [ ] An item declaring several eligible slots can be equipped
+      into any one of them; with no slot named it equips when the
+      eligible set is a singleton and fails asking which when not.
+- [ ] A single declared slot still works (one-element eligible
+      set) — backward compatible.
+- [ ] A spanning item occupies its target slot plus all companion
+      slots; every footprint slot reads as full while it is worn.
+- [ ] Equipping into any slot of a worn spanning item's footprint
+      displaces that spanning item in full.
+- [ ] A single equip may return more than one displaced item when
+      companion slots were occupied.
+- [ ] The cancellable `entity equipping` pre-event can veto an
+      equip with no resulting mutation.
 - [ ] A full slot triggers auto-swap, displacing the first
       occupied sub-slot and returning the displaced item.
 - [ ] Multi-cap slot keys use `name:index` with indices packed
       from zero.
-- [ ] Stat modifiers are sourced by item entity id so reversal is
-      unambiguous.
+- [ ] Stat modifiers are sourced by item entity id (once per item)
+      so reversal is unambiguous.
+- [ ] Unequipping a spanning item frees its entire footprint at
+      once.
 - [ ] The `entity equipped` / `entity unequipped` events carry the
       base slot name without index suffix.
 - [ ] Silent unequip suppresses the event.
+- [ ] Mob/non-player equipping honors eligibility, capacity, and
+      footprint; items that do not fit are skipped, not
+      force-stacked.
+- [ ] Footprint and modifiers are both re-derived from the
+      template on reload; only equipped item ids and target slot
+      persist.
 
 ---
 
@@ -594,8 +737,9 @@ state in the common case.
 
 | Event | When |
 |---|---|
-| entity equipped | an item was placed in a slot (§3.3) |
-| entity unequipped | an item was removed from a slot (§3.4) |
+| entity equipping | cancellable pre-event before an item is placed in a slot (§3.4) |
+| entity equipped | an item was placed in a slot (§3.4) |
+| entity unequipped | an item was removed from a slot (§3.5) |
 | entity item picked up | an item moved from room into a holder (§4.2) |
 | entity item dropped | an item moved from a holder to a room (§4.3) |
 | entity item given | an item moved between holders (§4.4) |
@@ -603,9 +747,12 @@ state in the common case.
 | container item added | an item was placed into a container (§4.5) |
 | item filled | a fillable item was topped up from a source (§4.6) |
 
-The `container item adding` event is the only cancellable one;
-listeners that set the cancel flag prevent the put operation from
-proceeding.
+Two events are cancellable: `entity equipping` (§3.4) and
+`container item adding` (§4.5). A listener that sets the cancel
+flag prevents the equip / put operation from proceeding, with no
+mutation. Both are veto-only and SHOULD NOT be treated as state
+changes — the canonical "it happened" signals are `entity
+equipped` and `container item added`.
 
 The currency feature consumes pick-up and give operations via the
 auto-convert hook and emits its own events; those are out of
@@ -621,6 +768,8 @@ spec.
 | Policy | Where it applies |
 |---|---|
 | Slot list and per-slot capacity | §3.1 |
+| Per-item eligible slots and companion (footprint) slots | §3.3 |
+| Equip policy rules (class/level/alignment/curse gates) via the `entity equipping` veto | §3.4, §3.6 |
 | Default max carry weight (or none) | §4.2 |
 | Container capacity / weight limit defaults | §4.5 |
 | Rarity tiers (key, order, display text, decorators, color, visibility) | §5.3 |
@@ -637,11 +786,49 @@ spec.
   there is no `no_drop` tag analogue to `no_get`. Quest items
   that should not be droppable would need either a tag check
   layered in here or in the drop command handler.
-- **Equip restrictions.** Equip rejects items not in contents
-  and full slots (with auto-swap), but does not enforce class
-  restrictions, alignment restrictions, level requirements, or
-  cursed/equipped-by-restricted-tag rules. Currently those are
-  expected to be enforced in the command layer or via tags.
+- **Equip restrictions (policy contention).** The core equip
+  operation enforces eligibility (§3.3), capacity (§3.1), and
+  structural footprint contention (§3.6), but does NOT enforce
+  class/alignment/level requirements, cursed or no-equip tags, or
+  non-geometric bans (e.g. "no shield with a two-hander"). Those
+  are now expressed through the `entity equipping` cancellable
+  pre-event (§3.4 step 7) — the deliberate seam for a rules
+  feature-module. Open: should a small set of the most common
+  gates (level requirement, a `no_equip`/cursed tag) ship as
+  engine-baseline veto listeners, or stay entirely content/module
+  territory? Leaning: keep the engine geometry-only; ship gates as
+  the first equipment rules module.
+- **Ambiguous eligible-slot default. — DECIDED: ask-which.** When
+  an item is eligible for several slots and the actor names none,
+  §3.4 step 1 fails asking which slot. (A declared priority order —
+  try `wield`, then `offhand`, so a bare `equip dagger` just works
+  — was considered and deferred: it adds ordered-list semantics to
+  the eligible-slot *set* and can be layered later without breaking
+  saves or content. Ask-which is the safe default and never
+  silently mis-targets.) Single-eligible items still auto-target,
+  so bare `equip <item>` keeps working for all current content.
+- **Auto-swap vs. no-remove items. — DECIDED: respect no-remove,
+  fail the equip.** Structural auto-swap (§3.4 step 6) must consult
+  the same no-remove policy the `entity equipping` veto enforces;
+  if a required eviction would target a no-remove / cursed item,
+  the whole equip fails atomically rather than force-removing it
+  (silently popping a cursed item defeats the curse). No
+  no-remove/cursed tag exists in content today, so this is a
+  forward-looking seam: the eviction path is built to fail on a
+  per-item predicate wired to a config-named tag (§8); with no
+  content using it, default behavior is unchanged.
+- **Auto-swap cascade messaging.** A single equip can now displace
+  several items (a companion-bearing item evicting both a worn
+  spanning item and a companion occupant). The command layer needs
+  a clear multi-item "you stop using X and Y" message; the
+  operation returns the full displaced list (§3.4) but the phrasing
+  is a presentation concern.
+- **Spanning items and multi-cap companions.** Footprint expansion
+  (§3.3) picks the lowest free index per multi-cap companion slot.
+  An item that spans *into* a multi-cap slot (e.g. a gauntlet pair
+  consuming both `finger` indices) is expressible but untested by
+  current content; the index-selection interaction with auto-swap
+  deserves explicit cases when such content appears.
 - **Auto-swap semantics on multi-cap slots.** Auto-swap always
   displaces sub-slot `:0`. A "least-recently-equipped" or
   "lowest-modifier" policy might serve players better but

@@ -1,0 +1,25 @@
+id: iron-greatsword
+name: an iron greatsword
+type: item
+description: |
+  A heavy two-handed blade as long as a man is tall, its iron edge dull
+  but its weight murderous. Swinging it leaves no hand free for a shield.
+tags: [weapon, metal, bladed, two-handed]
+keywords: [greatsword, sword, iron, great]
+# A two-handed weapon (inventory-equipment-items §3.3). It targets the
+# wield slot but its FOOTPRINT also occupies the off hand, so wearing it
+# blocks a shield (and equipping it auto-removes one). Equipping anything
+# into either hand displaces the greatsword in full.
+eligible_slots: [wield]
+companion_slots: [offhand]
+properties:
+  weight: 8
+  value: 30
+# Hits harder than the one-handed short sword (1d6) — the payoff for
+# giving up the off hand.
+weapon_damage: "2d6"
+modifiers:
+  - stat: str
+    value: 6
+  - stat: hit_mod
+    value: 2

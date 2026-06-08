@@ -11,6 +11,7 @@ import (
 const (
 	EventItemPickedUp     = "entity.item_picked_up"
 	EventItemDropped      = "entity.item_dropped"
+	EventEntityEquipping  = "entity.equipping"
 	EventEntityEquipped   = "entity.equipped"
 	EventEntityUnequipped = "entity.unequipped"
 	EventItemGiven        = "entity.item_given"
@@ -358,9 +359,45 @@ type ItemDropped struct {
 // Name implements Event.
 func (ItemDropped) Name() string { return EventItemDropped }
 
+// EntityEquipping is the cancellable pre-event fired by EquipHandler
+// before an item is placed in a slot (spec inventory-equipment-items
+// §3.4 step 7). Listeners that flip the embedded CancelFlag veto the
+// equip; the handler then aborts with no mutation and emits no
+// EntityEquipped. It is the seam for policy rules layered outside the
+// core slot geometry — class/level/alignment requirements, cursed or
+// no-equip tags, and non-geometric contention — typically owned by a
+// feature module rather than the engine. SlotName is the BASE target
+// slot name (no `:index` suffix), matching EntityEquipped.
+//
+// The CancelFlag is a pointer so siblings later in the dispatch loop
+// observe a prior cancel; NewEntityEquipping wires it up (a zero-value
+// struct would carry a nil flag and panic on Cancel).
+type EntityEquipping struct {
+	*CancelFlag
+	HolderID entities.EntityID
+	RoomID   world.RoomID
+	ItemID   entities.EntityID
+	SlotName string
+}
+
+// Name implements Event.
+func (EntityEquipping) Name() string { return EventEntityEquipping }
+
+// NewEntityEquipping wires the cancel flag so the publisher gets a
+// usable veto (mirrors NewContainerItemAdding).
+func NewEntityEquipping(holder, item entities.EntityID, room world.RoomID, slotName string) *EntityEquipping {
+	return &EntityEquipping{
+		CancelFlag: &CancelFlag{},
+		HolderID:   holder,
+		RoomID:     room,
+		ItemID:     item,
+		SlotName:   slotName,
+	}
+}
+
 // EntityEquipped fires after EquipHandler successfully places an
-// item in a slot (spec §3.3 step 7 → "entity equipped"). SlotName
-// is the BASE slot name (no `:index` suffix) per §3.3 — the index
+// item in a slot (spec §3.4 step 10 → "entity equipped"). SlotName
+// is the BASE slot name (no `:index` suffix) per §3.4 — the index
 // is an internal disambiguator, not user-facing.
 type EntityEquipped struct {
 	HolderID entities.EntityID

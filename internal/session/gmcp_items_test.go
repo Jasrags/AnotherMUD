@@ -29,7 +29,8 @@ func newItemsGmcpActor(t *testing.T, playerID string) (*connActor, *gmcpFakeConn
 		playerID:  playerID,
 		room:      room,
 		items:     store,
-		equipment: make(map[string]entities.EntityID),
+		equipment:  make(map[string]entities.EntityID),
+		footprints: make(map[entities.EntityID][]string),
 		vitals:    combat.NewVitalsAt(50, 100),
 		save:      &player.Save{ID: playerID, Name: playerID, Sustenance: 100},
 	}
@@ -204,7 +205,8 @@ func TestFlushGmcpItems_NonGmcpConnIsSilent(t *testing.T) {
 		playerID:  "p-x",
 		room:      room,
 		items:     store,
-		equipment: make(map[string]entities.EntityID),
+		equipment:  make(map[string]entities.EntityID),
+		footprints: make(map[entities.EntityID][]string),
 		vitals:    combat.NewVitalsAt(50, 100),
 		save:      &player.Save{ID: "p-x", Sustenance: 100},
 	}

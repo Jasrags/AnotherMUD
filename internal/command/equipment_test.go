@@ -7,10 +7,57 @@ import (
 
 	"github.com/Jasrags/AnotherMUD/internal/command"
 	"github.com/Jasrags/AnotherMUD/internal/entities"
+	"github.com/Jasrags/AnotherMUD/internal/eventbus"
 	"github.com/Jasrags/AnotherMUD/internal/item"
 	"github.com/Jasrags/AnotherMUD/internal/slot"
 	"github.com/Jasrags/AnotherMUD/internal/world"
 )
+
+// --- P3 fixtures: spanning + multi-eligible items ---
+
+// greatswordTpl is a two-handed weapon: eligible for wield, but its
+// footprint also occupies the off hand (companion slot).
+func greatswordTpl() *item.Template {
+	return &item.Template{
+		ID:             "tapestry-core:greatsword",
+		Name:           "a greatsword",
+		Type:           "weapon",
+		Keywords:       []string{"greatsword", "great"},
+		Modifiers:      []item.Modifier{{Stat: "str", Value: 2}},
+		EligibleSlots:  []string{"wield"},
+		CompanionSlots: []string{"offhand"},
+	}
+}
+
+func shieldTpl() *item.Template {
+	return &item.Template{
+		ID:            "tapestry-core:shield",
+		Name:          "a wooden shield",
+		Type:          "armor",
+		Keywords:      []string{"shield"},
+		EligibleSlots: []string{"offhand"},
+	}
+}
+
+// daggerTpl is multi-eligible: it fits wield OR offhand.
+func daggerTpl() *item.Template {
+	return &item.Template{
+		ID:            "tapestry-core:dagger",
+		Name:          "a dagger",
+		Type:          "weapon",
+		Keywords:      []string{"dagger"},
+		EligibleSlots: []string{"wield", "offhand"},
+	}
+}
+
+func containsID(ids []entities.EntityID, want entities.EntityID) bool {
+	for _, id := range ids {
+		if id == want {
+			return true
+		}
+	}
+	return false
+}
 
 // eqFixture extends invFixture with a slot registry holding the M5.3
 // engine baseline (wield cap 1, head cap 1, finger cap 2).
@@ -49,20 +96,22 @@ func (f *eqFixture) spawnInInventory(t *testing.T, tpl *item.Template, a *testAc
 
 func swordWithMods() *item.Template {
 	return &item.Template{
-		ID:        "tapestry-core:short-sword",
-		Name:      "a short sword",
-		Type:      "weapon",
-		Keywords:  []string{"sword", "short"},
-		Modifiers: []item.Modifier{{Stat: "str", Value: 1}},
+		ID:            "tapestry-core:short-sword",
+		Name:          "a short sword",
+		Type:          "weapon",
+		Keywords:      []string{"sword", "short"},
+		Modifiers:     []item.Modifier{{Stat: "str", Value: 1}},
+		EligibleSlots: []string{"wield"},
 	}
 }
 
 func ringTpl(id string) *item.Template {
 	return &item.Template{
-		ID:       item.TemplateID(id),
-		Name:     "a plain ring",
-		Type:     "ring",
-		Keywords: []string{"ring"},
+		ID:            item.TemplateID(id),
+		Name:          "a plain ring",
+		Type:          "ring",
+		Keywords:      []string{"ring"},
+		EligibleSlots: []string{"finger"},
 	}
 }
 
@@ -171,6 +220,287 @@ func TestEquip_UnknownSlotFails(t *testing.T) {
 	// Item stayed in inventory.
 	if len(a.Inventory()) != 1 {
 		t.Errorf("inventory disturbed by failed equip: %v", a.Inventory())
+	}
+}
+
+// TestEquip_WrongSlotRejected covers Gap 1 (§3.4 step 3): an item is
+// eligible only for the slots it declares. Equipping a wield-only sword
+// into the head slot fails with a message distinct from "No such slot",
+// and the item stays in inventory (no mutation, no mods applied).
+func TestEquip_WrongSlotRejected(t *testing.T) {
+	f := newEqFixture(t)
+	a := newTestActor(f.room)
+	inst := f.spawnInInventory(t, swordWithMods(), a)
+	r := newRegistry(t)
+
+	dispatch(t, r, f.env(), a, "equip sword head")
+
+	last := a.lastLine()
+	if strings.Contains(last, "No such slot") {
+		t.Errorf("wrong-slot error must differ from unknown-slot error, got %q", last)
+	}
+	if !strings.Contains(last, "can't equip") {
+		t.Errorf("expected eligibility error, got %q", last)
+	}
+	if len(a.Inventory()) != 1 {
+		t.Errorf("inventory disturbed by rejected equip: %v", a.Inventory())
+	}
+	if _, ok := a.Equipment()["head"]; ok {
+		t.Error("head slot occupied after rejected equip")
+	}
+	if _, ok := a.mods[entities.EquipmentSourceKey(inst.ID())]; ok {
+		t.Error("modifiers applied despite rejected equip")
+	}
+}
+
+// TestEquip_NotEquippableRejected: an item declaring no eligible slots
+// (a quest token) can never be equipped, with a distinct reason.
+func TestEquip_NotEquippableRejected(t *testing.T) {
+	f := newEqFixture(t)
+	a := newTestActor(f.room)
+	token := &item.Template{
+		ID:       "tapestry-core:quest-token",
+		Name:     "a wax seal",
+		Type:     "item",
+		Keywords: []string{"seal", "token"},
+	}
+	f.spawnInInventory(t, token, a)
+	r := newRegistry(t)
+
+	dispatch(t, r, f.env(), a, "equip seal wield")
+
+	last := a.lastLine()
+	if !strings.Contains(last, "can't equip") {
+		t.Errorf("expected not-equippable error, got %q", last)
+	}
+	if len(a.Inventory()) != 1 {
+		t.Errorf("inventory disturbed: %v", a.Inventory())
+	}
+}
+
+// TestEquip_LegacySlotPropertyStillWorks: a hand-built template carrying
+// only the legacy `properties.slot` string (no EligibleSlots) remains
+// equippable via the §3.2 bridge applied at instance build.
+func TestEquip_LegacySlotPropertyStillWorks(t *testing.T) {
+	f := newEqFixture(t)
+	a := newTestActor(f.room)
+	legacy := &item.Template{
+		ID:         "tapestry-core:legacy-cap",
+		Name:       "a worn cap",
+		Type:       "item",
+		Keywords:   []string{"cap"},
+		Properties: map[string]any{"slot": "head"},
+	}
+	inst := f.spawnInInventory(t, legacy, a)
+	r := newRegistry(t)
+
+	dispatch(t, r, f.env(), a, "equip cap head")
+
+	if got := a.Equipment()["head"]; got != inst.ID() {
+		t.Errorf("equipment[head] = %q, want %q (legacy slot bridge)", got, inst.ID())
+	}
+}
+
+// --- P3: footprint / contention (gaps 2 & 3) ---
+
+// TestEquip_SpanningOccupiesWholeFootprint: a two-handed weapon occupies
+// both wield and offhand, and applies its modifiers exactly once (§3.4
+// steps 5/8/9).
+func TestEquip_SpanningOccupiesWholeFootprint(t *testing.T) {
+	f := newEqFixture(t)
+	a := newTestActor(f.room)
+	gs := f.spawnInInventory(t, greatswordTpl(), a)
+	r := newRegistry(t)
+
+	dispatch(t, r, f.env(), a, "equip greatsword wield")
+
+	eq := a.Equipment()
+	if eq["wield"] != gs.ID() || eq["offhand"] != gs.ID() {
+		t.Errorf("greatsword footprint = %v, want wield+offhand → %s", eq, gs.ID())
+	}
+	if mods := a.mods[entities.EquipmentSourceKey(gs.ID())]; len(mods) != 1 {
+		t.Errorf("spanning item mods applied %d times, want exactly 1", len(mods))
+	}
+}
+
+// TestEquip_SoleEligibleAutoTargets: with no slot named, a sole-eligible
+// item equips into its only slot (Decision A).
+func TestEquip_SoleEligibleAutoTargets(t *testing.T) {
+	f := newEqFixture(t)
+	a := newTestActor(f.room)
+	inst := f.spawnInInventory(t, swordWithMods(), a)
+	r := newRegistry(t)
+
+	dispatch(t, r, f.env(), a, "equip sword")
+
+	if a.Equipment()["wield"] != inst.ID() {
+		t.Errorf("sole-eligible auto-target failed; eq = %v", a.Equipment())
+	}
+}
+
+// TestEquip_AmbiguousSlotAsksWhich: a multi-eligible item with no slot
+// named is asked which, with no mutation (Decision A).
+func TestEquip_AmbiguousSlotAsksWhich(t *testing.T) {
+	f := newEqFixture(t)
+	a := newTestActor(f.room)
+	f.spawnInInventory(t, daggerTpl(), a)
+	r := newRegistry(t)
+
+	dispatch(t, r, f.env(), a, "equip dagger")
+
+	if last := a.lastLine(); !strings.Contains(last, "Which slot") {
+		t.Errorf("expected ask-which, got %q", last)
+	}
+	if len(a.Inventory()) != 1 {
+		t.Errorf("inventory disturbed by ambiguous equip: %v", a.Inventory())
+	}
+}
+
+// TestEquip_SpanningDisplacesOccupant: equipping a two-hander into wield
+// while a shield holds the offhand displaces the shield (§3.6).
+func TestEquip_SpanningDisplacesOccupant(t *testing.T) {
+	f := newEqFixture(t)
+	a := newTestActor(f.room)
+	shield := f.spawnInInventory(t, shieldTpl(), a)
+	gs := f.spawnInInventory(t, greatswordTpl(), a)
+	r := newRegistry(t)
+
+	dispatch(t, r, f.env(), a, "equip shield offhand")
+	dispatch(t, r, f.env(), a, "equip greatsword wield")
+
+	eq := a.Equipment()
+	if eq["wield"] != gs.ID() || eq["offhand"] != gs.ID() {
+		t.Errorf("greatsword not spanning after displace: %v", eq)
+	}
+	if !containsID(a.Inventory(), shield.ID()) {
+		t.Errorf("displaced shield not returned to inventory; inv = %v", a.Inventory())
+	}
+}
+
+// TestEquip_OneHandDisplacesSpanningInFull: equipping into any slot of a
+// worn spanning item's footprint displaces that item in FULL (§3.6).
+func TestEquip_OneHandDisplacesSpanningInFull(t *testing.T) {
+	f := newEqFixture(t)
+	a := newTestActor(f.room)
+	gs := f.spawnInInventory(t, greatswordTpl(), a)
+	sword := f.spawnInInventory(t, swordWithMods(), a)
+	r := newRegistry(t)
+
+	dispatch(t, r, f.env(), a, "equip greatsword wield")
+	dispatch(t, r, f.env(), a, "equip sword wield")
+
+	eq := a.Equipment()
+	if eq["wield"] != sword.ID() {
+		t.Errorf("wield = %v, want sword", eq["wield"])
+	}
+	if _, ok := eq["offhand"]; ok {
+		t.Errorf("offhand still occupied after displacing spanning item: %v", eq)
+	}
+	if !containsID(a.Inventory(), gs.ID()) {
+		t.Errorf("displaced greatsword not returned; inv = %v", a.Inventory())
+	}
+	if _, ok := a.mods[entities.EquipmentSourceKey(gs.ID())]; ok {
+		t.Error("greatsword mods still applied after full displacement")
+	}
+}
+
+// TestEquip_DisplacesMultipleOccupants: a companion-bearing item can evict
+// more than one item in a single equip (§3.4 step 6).
+func TestEquip_DisplacesMultipleOccupants(t *testing.T) {
+	f := newEqFixture(t)
+	a := newTestActor(f.room)
+	sword := f.spawnInInventory(t, swordWithMods(), a)
+	shield := f.spawnInInventory(t, shieldTpl(), a)
+	gs := f.spawnInInventory(t, greatswordTpl(), a)
+	r := newRegistry(t)
+
+	dispatch(t, r, f.env(), a, "equip sword wield")
+	dispatch(t, r, f.env(), a, "equip shield offhand")
+	dispatch(t, r, f.env(), a, "equip greatsword wield")
+
+	eq := a.Equipment()
+	if eq["wield"] != gs.ID() || eq["offhand"] != gs.ID() {
+		t.Errorf("greatsword not spanning after multi-displace: %v", eq)
+	}
+	if !containsID(a.Inventory(), sword.ID()) || !containsID(a.Inventory(), shield.ID()) {
+		t.Errorf("both displaced items should be back in inventory; inv = %v", a.Inventory())
+	}
+}
+
+// TestUnequip_SpanningFreesWholeFootprint: unequipping a two-hander frees
+// every slot it held (§3.5 step 2).
+func TestUnequip_SpanningFreesWholeFootprint(t *testing.T) {
+	f := newEqFixture(t)
+	a := newTestActor(f.room)
+	f.spawnInInventory(t, greatswordTpl(), a)
+	r := newRegistry(t)
+
+	dispatch(t, r, f.env(), a, "equip greatsword wield")
+	dispatch(t, r, f.env(), a, "unequip greatsword")
+
+	if eq := a.Equipment(); len(eq) != 0 {
+		t.Errorf("equipment not empty after unequipping spanning item: %v", eq)
+	}
+}
+
+// TestEquip_CancellableVetoBlocks: a listener flipping the cancel flag on
+// entity.equipping aborts the equip with no mutation (§3.4 step 7).
+func TestEquip_CancellableVetoBlocks(t *testing.T) {
+	f := newEqFixture(t)
+	a := newTestActor(f.room)
+	inst := f.spawnInInventory(t, swordWithMods(), a)
+
+	bus := eventbus.New()
+	bus.Subscribe(eventbus.EventEntityEquipping, func(ctx context.Context, e eventbus.Event) {
+		if ev, ok := e.(*eventbus.EntityEquipping); ok {
+			ev.Cancel()
+		}
+	})
+	env := f.env()
+	env.Bus = bus
+	r := newRegistry(t)
+
+	dispatch(t, r, env, a, "equip sword wield")
+
+	if _, ok := a.Equipment()["wield"]; ok {
+		t.Error("veto did not prevent the equip")
+	}
+	if !containsID(a.Inventory(), inst.ID()) {
+		t.Error("item left inventory despite veto")
+	}
+	if _, ok := a.mods[entities.EquipmentSourceKey(inst.ID())]; ok {
+		t.Error("modifiers applied despite veto")
+	}
+}
+
+// TestEquip_NoRemoveBlocksAutoSwap: Decision B — auto-swap must not force
+// a no-remove item off; the equip fails with no mutation.
+func TestEquip_NoRemoveBlocksAutoSwap(t *testing.T) {
+	f := newEqFixture(t)
+	a := newTestActor(f.room)
+	cursed := &item.Template{
+		ID:            "tapestry-core:cursed-blade",
+		Name:          "a cursed blade",
+		Type:          "weapon",
+		Keywords:      []string{"cursed", "blade"},
+		Tags:          []string{"no_remove"},
+		EligibleSlots: []string{"wield"},
+	}
+	cursedInst := f.spawnInInventory(t, cursed, a)
+	sword := f.spawnInInventory(t, swordWithMods(), a)
+	r := newRegistry(t)
+
+	dispatch(t, r, f.env(), a, "equip blade wield")
+	dispatch(t, r, f.env(), a, "equip sword wield") // would displace the cursed blade
+
+	if last := a.lastLine(); !strings.Contains(last, "can't remove") {
+		t.Errorf("expected no-remove block, got %q", last)
+	}
+	if a.Equipment()["wield"] != cursedInst.ID() {
+		t.Error("no-remove item was force-displaced")
+	}
+	if !containsID(a.Inventory(), sword.ID()) {
+		t.Error("blocked sword should remain in inventory")
 	}
 }
 

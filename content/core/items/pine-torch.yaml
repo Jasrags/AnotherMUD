@@ -9,8 +9,8 @@ keywords: [torch, pine]
 # zero. It occupies the dedicated `light` equipment slot — `equip torch
 # light`, then `light torch` to ignite it (or extinguish to conserve
 # fuel). Starts unlit.
+eligible_slots: [light]
 properties:
-  slot: light
   light: gloom
   fuel: 120
   weight: 1

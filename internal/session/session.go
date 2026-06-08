@@ -490,6 +490,7 @@ func run(ctx context.Context, c conn.Connection, cfg Config) error {
 		placement:     cfg.Placement,
 		light:         cfg.Light,
 		equipment:     make(map[string]entities.EntityID),
+		footprints:    make(map[entities.EntityID][]string),
 		statBlock:     progression.NewWithBase(progression.DefaultPlayerBase()),
 		progress:      progression.NewProgressionState(),
 		// M7.5: vitals restore from the persisted save when present;
@@ -679,7 +680,7 @@ func run(ctx context.Context, c conn.Connection, cfg Config) error {
 	// or autosave can't observe a partial inventory.
 	if cfg.Items != nil && cfg.Templates != nil {
 		respawnInventory(ctx, a, cfg.Items, cfg.Contents, cfg.Templates, loaded.Player.Inventory)
-		respawnEquipment(ctx, a, cfg.Items, cfg.Templates, loaded.Player.Equipment)
+		respawnEquipment(ctx, a, cfg.Items, cfg.Templates, cfg.Slots, loaded.Player.Equipment)
 	}
 
 	// Keep the save's location in sync with the room we actually placed
@@ -1126,7 +1127,7 @@ func spawnEntries(ctx context.Context, a *connActor, store *entities.Store, cont
 // open question) install the item but skip the rebind — no source
 // key exists to migrate, so the modifier set is effectively absent
 // for that slot until the player re-equips.
-func respawnEquipment(ctx context.Context, a *connActor, store *entities.Store, tpls *item.Templates, saved map[string]player.EquippedItem) {
+func respawnEquipment(ctx context.Context, a *connActor, store *entities.Store, tpls *item.Templates, slots *slot.Registry, saved map[string]player.EquippedItem) {
 	if len(saved) == 0 {
 		return
 	}
@@ -1139,8 +1140,9 @@ func respawnEquipment(ctx context.Context, a *connActor, store *entities.Store, 
 	sort.Strings(keys)
 
 	type respawned struct {
-		slot  string
-		newID entities.EntityID
+		slot       string // the persisted target/canonical slot key
+		newID      entities.EntityID
+		companions []string // re-derived footprint beyond the target (§3.8)
 	}
 	survivors := make([]respawned, 0, len(keys))
 	dropped := make([]string, 0)
@@ -1166,7 +1168,10 @@ func respawnEquipment(ctx context.Context, a *connActor, store *entities.Store, 
 			dropped = append(dropped, slotKey)
 			continue
 		}
-		survivors = append(survivors, respawned{slot: slotKey, newID: inst.ID()})
+		// Companion slots are re-derived from the (re-spawned) template, not
+		// persisted (§3.8) — so a spanning item's full footprint is rebuilt
+		// on reload from the saved target key alone.
+		survivors = append(survivors, respawned{slot: slotKey, newID: inst.ID(), companions: inst.CompanionSlots()})
 
 		if entry.Entity == "" {
 			// Migrated-from-v2 entry: no old source key to rebind. The
@@ -1189,8 +1194,31 @@ func respawnEquipment(ctx context.Context, a *connActor, store *entities.Store, 
 	}
 
 	a.mu.Lock()
+	// Re-expand each survivor's footprint: the persisted target key plus
+	// companion-slot keys re-derived from the template (§3.8). Occupancy
+	// accumulates across survivors (processed in sorted target-key order)
+	// so companions pack into free indices deterministically.
+	occ := make(map[string]bool, len(survivors))
 	for _, r := range survivors {
-		a.equipment[r.slot] = r.newID
+		fp := []string{r.slot}
+		occ[r.slot] = true
+		if slots != nil {
+			for _, comp := range r.companions {
+				k, err := slots.FreeKey(comp, occ)
+				if err != nil {
+					// Companion names are validated at content load
+					// (validateItemSlots), so this is unreachable for loaded
+					// content; skip defensively rather than panic.
+					continue
+				}
+				fp = append(fp, k)
+				occ[k] = true
+			}
+		}
+		for _, k := range fp {
+			a.equipment[k] = r.newID
+		}
+		a.footprints[r.newID] = fp
 	}
 	// §4.5: derive the wielded-weapon snapshot from the restored set so a
 	// returning player who logged out wielding a sword swings it again.
@@ -1223,7 +1251,14 @@ func untrackInventory(ctx context.Context, store *entities.Store, contents *enti
 	if store == nil {
 		return
 	}
+	// Dedupe by id: a spanning item appears under several equipment keys
+	// but is one entity, so untrack it once.
+	seen := make(map[entities.EntityID]bool)
 	for _, id := range a.Equipment() {
+		if seen[id] {
+			continue
+		}
+		seen[id] = true
 		untrackTree(ctx, store, contents, id)
 	}
 	for _, id := range a.Inventory() {
@@ -1534,8 +1569,17 @@ type connActor struct {
 	inventory []entities.EntityID
 	// equipment maps slot key → equipped entity id. Slot keys are the
 	// strings produced by slot.BuildKey: bare name for cap-1 slots,
-	// "name:index" for multi-cap.
+	// "name:index" for multi-cap. A spanning item (two-handed weapon)
+	// appears under several keys, all mapping to the same id.
 	equipment map[string]entities.EntityID
+	// footprints maps an equipped item id to all slot keys it occupies,
+	// the target (canonical/save) key first (inventory-equipment-items
+	// §3.3). A non-spanning item has a single-key footprint; a spanning
+	// item appears under several equipment keys but exactly one footprints
+	// entry — so modifiers apply once, the save writes one entry (the
+	// target key, §3.8), and unequip frees every key at once (§3.5 step 2).
+	// Maintained in lockstep with equipment under a.mu.
+	footprints map[entities.EntityID][]string
 	// weapon is the cached wielded-weapon snapshot fed into
 	// combat.Stats (combat §4.5). Recomputed under a.mu whenever
 	// equipment changes (equip / unequip / login respawn) and read
@@ -2212,11 +2256,12 @@ type weaponInfo struct {
 // recomputeWeaponLocked refreshes the cached wielded-weapon snapshot
 // from the current equipment set (combat §4.5). The caller MUST hold
 // a.mu. It scans equipped slots in deterministic (sorted) key order and
-// picks the first item that declares weapon damage dice — so with the
-// single cap-1 `wield` slot there is exactly one candidate, and a future
-// multi-weapon layout resolves stably to the lowest slot key. Stores nil
-// when nothing wielded is a weapon, so Stats() falls back to the unarmed
-// default. A nil item store (tests) yields nil.
+// picks the first item that declares weapon damage dice. A spanning
+// weapon (two-hander) appears under several equipment keys all mapping to
+// the same id, so it is picked once regardless of which of its keys sorts
+// first; a multi-weapon layout resolves stably to the lowest slot key.
+// Stores nil when nothing wielded is a weapon, so Stats() falls back to
+// the unarmed default. A nil item store (tests) yields nil.
 func (a *connActor) recomputeWeaponLocked() {
 	if a.items == nil || len(a.equipment) == 0 {
 		a.weapon.Store(nil)
@@ -2244,26 +2289,47 @@ func (a *connActor) recomputeWeaponLocked() {
 	a.weapon.Store(nil)
 }
 
-// Equip is the atomic equip-side mutation invoked by the equip
-// command handler: removes id from inventory, installs it at slotKey,
-// applies its modifiers to the holder's stat block under
-// EquipmentSourceKey(id), and marks the save dirty. Returns false if
-// id is not in inventory (the handler treats this as a TOCTOU loss to
-// a concurrent drop and surfaces the same "you aren't carrying that"
-// message).
+// Equip is the atomic equip-side mutation invoked by the equip command
+// handler: removes id from inventory, installs it under every key in
+// footprint (footprint[0] is the target/canonical key; the rest are
+// companion-slot keys for a spanning item — §3.4 step 8), applies its
+// modifiers ONCE to the holder's stat block under EquipmentSourceKey(id),
+// and marks the save dirty. Returns false if id is not in inventory (the
+// handler treats this as a TOCTOU loss to a concurrent drop).
 //
-// Auto-swap (§3.3 step 3) is NOT done here — the handler resolves the
-// displaced slot key BEFORE calling Equip so the unequip side of the
-// swap can be reported to the player. Equip is the leaf mutation.
-func (a *connActor) Equip(slotKey string, id entities.EntityID, mods []stats.Modifier) bool {
+// Auto-swap (§3.4 step 6) and the cancellable veto (step 7) are the
+// handler's responsibility — it resolves the footprint and displaces any
+// occupants BEFORE calling Equip, so Equip assumes the footprint keys are
+// free. Equip is the leaf mutation.
+func (a *connActor) Equip(footprint []string, id entities.EntityID, mods []stats.Modifier) bool {
+	if len(footprint) == 0 {
+		return false
+	}
 	a.mu.Lock()
 	defer a.mu.Unlock()
+	// Re-verify every footprint key is free under the lock. The handler
+	// resolved the footprint against an unlocked Equipment() snapshot and
+	// displaced any occupants before calling Equip; this guard makes the
+	// mutation self-consistent so an occupied key is never silently
+	// overwritten (which would orphan its occupant's footprint). Command
+	// dispatch is serialized per session today, so this cannot currently
+	// race — it is defensive against a future parallel dispatch and a
+	// caller that skipped the displacement step.
+	for _, k := range footprint {
+		if _, taken := a.equipment[k]; taken {
+			return false
+		}
+	}
 	// Verify id is in inventory and remove it atomically with the
 	// equipment insertion.
 	for i, e := range a.inventory {
 		if e == id {
 			a.inventory = append(a.inventory[:i], a.inventory[i+1:]...)
-			a.equipment[slotKey] = id
+			keys := append([]string(nil), footprint...)
+			for _, k := range keys {
+				a.equipment[k] = id
+			}
+			a.footprints[id] = keys
 			a.statBlock.AddModifiers(entities.EquipmentSourceKey(id), mods)
 			a.recomputeWeaponLocked() // §4.5: equipping a weapon arms the actor
 			a.syncInventoryToSaveLocked()
@@ -2276,10 +2342,11 @@ func (a *connActor) Equip(slotKey string, id entities.EntityID, mods []stats.Mod
 	return false
 }
 
-// Unequip is the atomic unequip-side mutation: removes the item at
-// slotKey, returns it to inventory, reverses its stat modifiers by
-// source key, marks dirty. Returns the entity id and true on success;
-// (empty, false) if the slot is unoccupied.
+// Unequip is the atomic unequip-side mutation: removes the item occupying
+// slotKey — freeing its ENTIRE footprint (every key a spanning item holds,
+// §3.5 step 2), not just slotKey — returns it to inventory, reverses its
+// stat modifiers by source key, and marks dirty. Returns the entity id and
+// true on success; (empty, false) if the slot is unoccupied.
 func (a *connActor) Unequip(slotKey string) (entities.EntityID, bool) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
@@ -2287,7 +2354,16 @@ func (a *connActor) Unequip(slotKey string) (entities.EntityID, bool) {
 	if !ok {
 		return "", false
 	}
-	delete(a.equipment, slotKey)
+	keys := a.footprints[id]
+	if len(keys) == 0 {
+		// Defensive: an item should always have a footprint entry, but if
+		// the index is somehow missing fall back to the single key.
+		keys = []string{slotKey}
+	}
+	for _, k := range keys {
+		delete(a.equipment, k)
+	}
+	delete(a.footprints, id)
 	a.inventory = append(a.inventory, id)
 	a.statBlock.RemoveBySource(entities.EquipmentSourceKey(id))
 	a.recomputeWeaponLocked() // §4.5: re-derive the weapon after disarming
@@ -2920,19 +2996,26 @@ func (a *connActor) syncEquipmentToSaveLocked() {
 	if a.save == nil {
 		return
 	}
-	if len(a.equipment) == 0 {
+	if len(a.footprints) == 0 {
 		a.save.Equipment = nil
 		return
 	}
-	out := make(map[string]player.EquippedItem, len(a.equipment))
-	for slotKey, id := range a.equipment {
+	// One entry per equipped item, keyed by its TARGET slot key (§3.8).
+	// A spanning item's companion keys are NOT persisted — respawn
+	// re-derives them from the template's companion slots on reload, so
+	// the save never duplicates a spanning item across its footprint.
+	out := make(map[string]player.EquippedItem, len(a.footprints))
+	for id, keys := range a.footprints {
+		if len(keys) == 0 {
+			continue
+		}
 		tpl, ok := a.lookupTemplateID(id)
 		if !ok {
 			// Untracked entity — drop from save. Matches the silent
 			// drop policy in syncInventoryToSaveLocked.
 			continue
 		}
-		out[slotKey] = player.EquippedItem{Template: tpl, Entity: string(id)}
+		out[keys[0]] = player.EquippedItem{Template: tpl, Entity: string(id)}
 	}
 	a.save.Equipment = out
 }

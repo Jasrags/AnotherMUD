@@ -8,6 +8,7 @@ package item
 import (
 	"errors"
 	"fmt"
+	"strings"
 	"sync"
 )
 
@@ -52,6 +53,20 @@ type Template struct {
 	// combat-package-free by holding the canonical string. See
 	// entities.ItemInstance.WeaponDamage.
 	WeaponDamage string
+	// EligibleSlots is the set of equipment slots this item MAY be
+	// equipped into (inventory-equipment-items §2.2, §3.3). One slot is
+	// the common case; several express interchangeable positions (main
+	// or off hand). A nil/empty set means the item is not equippable.
+	// Names are lowercased snake_case base slot names (no `:index`); a
+	// single legacy `properties.slot` string is decoded into the
+	// one-element form so existing content keeps working (§3.2 bridge).
+	// Validated against the slot registry in a boot post-pass (§3.3).
+	EligibleSlots []string
+	// CompanionSlots are the additional slots this item occupies while
+	// equipped — its footprint beyond the target slot (§2.2, §3.3), e.g.
+	// a two-handed weapon that also ties up the off hand. nil means the
+	// footprint is just the target slot. Same name rules as EligibleSlots.
+	CompanionSlots []string
 }
 
 // Errors callers may distinguish at the boundary.
@@ -59,6 +74,32 @@ var (
 	ErrTemplateNotFound = errors.New("item template not found")
 	ErrDuplicateID      = errors.New("duplicate item template id")
 )
+
+// LegacySlotName extracts the historical single `slot` string from an
+// item property bag — the §3.2 backward-compat bridge used when a
+// template declares no explicit EligibleSlots. Returns the
+// lowercased/trimmed name and true when present and non-empty. The
+// property is left in the bag; it is merely also surfaced as eligibility.
+// Shared by the pack loader (template decode) and the instance builder so
+// the bridge has a single definition.
+func LegacySlotName(props map[string]any) (string, bool) {
+	if props == nil {
+		return "", false
+	}
+	raw, ok := props["slot"]
+	if !ok {
+		return "", false
+	}
+	s, ok := raw.(string)
+	if !ok {
+		return "", false
+	}
+	s = strings.ToLower(strings.TrimSpace(s))
+	if s == "" {
+		return "", false
+	}
+	return s, true
+}
 
 // Templates is the boot-time registry of item templates. Safe for
 // concurrent reads; mutations (Add, TryAdd) MUST happen at boot before

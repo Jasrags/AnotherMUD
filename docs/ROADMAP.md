@@ -3240,6 +3240,79 @@ local-window query feeds every surface. Implements the new
 
 ---
 
+### M25 — Equipment slots: eligibility, footprint, contention, mob capacity
+
+**Slice:** close the four `inventory-equipment-items §3` slot gaps the spec
+left open. Items now declare which slots they are eligible for and which
+extra slots they span; equip enforces eligibility, computes a footprint,
+auto-swaps every conflicting occupant, and exposes a cancellable veto seam;
+mobs equip through the same rules so their stat budgets stay bounded.
+Driven by the spec gap analysis (not the BACKLOG arc); the spec's §3 was
+rewritten first, then implemented phase by phase.
+
+**Spec:** `inventory-equipment-items §2.2, §3.3–§3.8, §7, §8, §9`
+(rewritten ahead of code). **Decisions (spec §9):** ambiguous-slot →
+**ask-which**; structural auto-swap → **respect no-remove, fail the equip**.
+
+**Sub-milestones:**
+
+- [x] **M25.1 — Data model + slot substrate.** `§2.2, §3.3`. `item.Template`
+      + `ItemFile` gain `EligibleSlots` / `CompanionSlots`; `decodeItem`
+      decodes them with a legacy `properties.slot` → one-element bridge
+      (`item.LegacySlotName`, shared with the instance builder) so existing
+      content needs no edits. Boot post-pass `validateItemSlots`
+      (`ErrItemUnknownSlot`) rejects unknown slot names with file
+      attribution, mirroring `validateSpawnRules`. `offhand` added to the
+      engine slot baseline (the second hand a two-hander spans).
+- [x] **M25.2 — Item↔slot eligibility (gap 1).** `§3.4 step 3`. `EquipHandler`
+      rejects an item whose eligible set excludes the target slot, with a
+      reason distinct from "no such slot" — closing the equip-anything-
+      anywhere exploit. Eligible/companion slots are lifted onto
+      `entities.ItemInstance` at spawn (R5 — like `WeaponDamage`), so the
+      handler and mob path read them with no template-registry wiring.
+      `slot.IsEligible` is the shared membership helper.
+- [x] **M25.3 — Footprint, contention, cancellable veto (gaps 2 & 3).**
+      `§3.4–§3.6`. `connActor` gains a `footprints` index (a spanning item
+      appears under several equipment keys but one footprints entry — one
+      modifier set, one save entry, whole-footprint unequip). `Actor.Equip`
+      takes a footprint slice; `Unequip` frees the whole footprint.
+      `slot.FreeKey`/`slot.Footprint` are the shared expansion helpers.
+      Equip computes the footprint, displaces **all** conflicting occupants
+      (a single equip may evict several), guards no-remove items, then
+      publishes the cancellable `eventbus.EntityEquipping` (the policy/
+      feature-module seam) before any mutation. Decision A makes the slot
+      arg optional (sole-eligible auto-targets, multi-eligible asks which).
+      **No save-version bump** — only the target key persists (§3.8);
+      respawn re-derives companions from the template.
+- [x] **M25.4 — Mob slot capacity (gap 4).** `§3.7`. `EquipMobAtSpawn`
+      routes each item through the shared `slot.Footprint`/eligibility
+      helpers (no auto-swap — a conflict skips the later item), so a
+      template that lists two head items no longer double-stacks their
+      modifiers. Non-fitting items are still **carried as loot** but not
+      slot-equipped (modifiers skipped), recorded in `EquipResult.Skipped`
+      and logged. `nil` registry falls back to legacy apply-all.
+- [x] **M25.5 — Content migration + demo.** Starter equippable items
+      migrated to explicit `eligible_slots`; a two-handed `iron-greatsword`
+      (`companion_slots: [offhand]`) and a `wooden-shield` (`offhand`)
+      added to the town square so spanning + contention are demonstrable
+      live (`equip greatsword` fills both hands; `equip shield` displaces
+      it; `equip greatsword` displaces the shield). 51 pkgs green -race.
+
+**Open / deferred:** the `no_remove` auto-swap guard is built and tested but
+the tag name is hardcoded pending externalization to the §8 config surface
+(no content uses it yet). Multi-cap companion slots and a spanning robe
+(`body`/`legs`) are expressible but unshipped (spec §9 edges).
+
+**Touches specs:** `inventory-equipment-items` (substantially — §3
+rewritten), plus the README cancellable-events table (`entity.equipping`).
+**Touches code:** `internal/slot` (FreeKey/Footprint/IsEligible),
+`internal/item` (template fields + legacy bridge), `internal/pack` (decode +
+validate), `internal/entities` (instance lift + mob equip), `internal/command`
+(equip/unequip handlers + Actor interface), `internal/session` (footprint
+representation + persistence), `internal/eventbus` (the cancellable event).
+
+---
+
 ## How to use this document
 
 - The **current milestone** is whichever section above has unchecked

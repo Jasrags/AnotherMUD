@@ -274,10 +274,11 @@ type testActor struct {
 	room      *world.Room
 	lines     []string
 	color     bool
-	inventory []entities.EntityID
-	equipment map[string]entities.EntityID
-	mods      map[entities.SourceKey][]stats.Modifier
-	gold      int
+	inventory  []entities.EntityID
+	equipment  map[string]entities.EntityID
+	footprints map[entities.EntityID][]string
+	mods       map[entities.SourceKey][]stats.Modifier
+	gold       int
 
 	restState      string
 	restTarget     string
@@ -448,16 +449,32 @@ func (a *testActor) Equipment() map[string]entities.EntityID {
 	return out
 }
 
-func (a *testActor) Equip(slotKey string, id entities.EntityID, mods []stats.Modifier) bool {
+func (a *testActor) Equip(footprint []string, id entities.EntityID, mods []stats.Modifier) bool {
+	if len(footprint) == 0 {
+		return false
+	}
 	a.mu.Lock()
 	defer a.mu.Unlock()
+	// Mirror connActor.Equip: reject if any footprint key is already taken.
+	for _, k := range footprint {
+		if _, taken := a.equipment[k]; taken {
+			return false
+		}
+	}
 	for i, e := range a.inventory {
 		if e == id {
 			a.inventory = append(a.inventory[:i], a.inventory[i+1:]...)
 			if a.equipment == nil {
 				a.equipment = make(map[string]entities.EntityID)
 			}
-			a.equipment[slotKey] = id
+			if a.footprints == nil {
+				a.footprints = make(map[entities.EntityID][]string)
+			}
+			keys := append([]string(nil), footprint...)
+			for _, k := range keys {
+				a.equipment[k] = id
+			}
+			a.footprints[id] = keys
 			if a.mods == nil {
 				a.mods = make(map[entities.SourceKey][]stats.Modifier)
 			}
@@ -483,7 +500,14 @@ func (a *testActor) Unequip(slotKey string) (entities.EntityID, bool) {
 	if !ok {
 		return "", false
 	}
-	delete(a.equipment, slotKey)
+	keys := a.footprints[id]
+	if len(keys) == 0 {
+		keys = []string{slotKey}
+	}
+	for _, k := range keys {
+		delete(a.equipment, k)
+	}
+	delete(a.footprints, id)
 	a.inventory = append(a.inventory, id)
 	delete(a.mods, entities.EquipmentSourceKey(id))
 	return id, true

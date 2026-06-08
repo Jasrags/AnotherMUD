@@ -66,6 +66,13 @@ type ItemFile struct {
 	// NdM±K string ("1d6+1"). Validated via combat.ParseDice at load —
 	// a malformed expression fails the pack. Empty means non-weapon.
 	WeaponDamage string `yaml:"weapon_damage,omitempty"`
+	// EligibleSlots / CompanionSlots declare equipment-slot eligibility
+	// and footprint (spec §2.2, §3.3). When eligible_slots is omitted the
+	// loader falls back to the legacy single `properties.slot` string
+	// (§3.2 bridge), so pre-existing content needs no edits. Slot names
+	// are validated against the registry in a boot post-pass.
+	EligibleSlots  []string `yaml:"eligible_slots,omitempty"`
+	CompanionSlots []string `yaml:"companion_slots,omitempty"`
 }
 
 // ModifierFile is one entry of an ItemFile.Modifiers list.

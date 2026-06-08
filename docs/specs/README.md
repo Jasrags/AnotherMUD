@@ -225,6 +225,7 @@ operation. The set of cancellable events across the engine:
 | `alignment.shift.check` | [progression](progression.md) §6.4 |
 | `entity.death.check` | [combat](combat.md) §6.1 |
 | `entity.rest_state.changed` | [economy-survival](economy-survival.md) §5.3 |
+| `entity.equipping` *(spec; build pending)* | [inventory-equipment-items](inventory-equipment-items.md) §3.4 |
 | `container.item_adding` | [inventory-equipment-items](inventory-equipment-items.md) §4.5 |
 | `item.consuming` | [economy-survival](economy-survival.md) §6.2 |
 | `shop.buy`, `shop.sell` | [economy-survival](economy-survival.md) §3 |

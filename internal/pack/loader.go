@@ -39,6 +39,7 @@ var (
 	ErrMissingMobTemplate  = errors.New("room mob references unknown template")
 	ErrMissingSpawnRoom    = errors.New("spawn rule references unknown room")
 	ErrInvalidContent      = errors.New("invalid content file")
+	ErrItemUnknownSlot     = errors.New("item references unknown slot")
 )
 
 // Spawner spawns an item template and places the resulting instance
@@ -184,6 +185,13 @@ func Load(ctx context.Context, root string, filter []string, dst *Registries, sp
 		return err
 	}
 
+	// Item slot references (eligible + companion) must resolve against the
+	// fully-populated slot registry. Runs after every pack has loaded so a
+	// slot defined by a later pack is visible (mirrors validateSpawnRules).
+	if err := validateItemSlots(dst); err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -241,6 +249,28 @@ func validateSpawnRules(dst *Registries) error {
 				if !dst.Mobs.Has(mob.TemplateID(rule.Rare)) {
 					return fmt.Errorf("%w: area %q spawn_rules[%d].rare %q", ErrMissingMobTemplate, area.ID, i, rule.Rare)
 				}
+			}
+		}
+	}
+	return nil
+}
+
+// validateItemSlots verifies that every item template's eligible and
+// companion slot names resolve in the slot registry. Runs after all packs
+// load so a slot defined by a later pack is visible. Boot-time validation
+// (inventory-equipment-items §3.3) turns a slot-name typo into a precise
+// load failure instead of a silently never-equippable item; the sentinel
+// ErrItemUnknownSlot mirrors the spawn-rule validators.
+func validateItemSlots(dst *Registries) error {
+	for _, t := range dst.Items.All() {
+		for _, name := range t.EligibleSlots {
+			if !dst.Slots.Has(name) {
+				return fmt.Errorf("%w: item %q eligible slot %q", ErrItemUnknownSlot, t.ID, name)
+			}
+		}
+		for _, name := range t.CompanionSlots {
+			if !dst.Slots.Has(name) {
+				return fmt.Errorf("%w: item %q companion slot %q", ErrItemUnknownSlot, t.ID, name)
 			}
 		}
 	}
@@ -636,11 +666,11 @@ func loadPackContent(ctx context.Context, p Discovered, dst *Registries, scriptC
 	return placements, mobPlacements, nil
 }
 
-// normalizeTargetTypes lowercases + trims + dedups a YAML
-// target_types list. Symmetric with EquipmentSlot/Tag normalization
-// at decode time so the resulting Ability is inspectable without
-// relying on AbilityRegistry.Register to re-normalize.
-func normalizeTargetTypes(in []string) []string {
+// normalizeLowerDedup lowercases + trims + dedups a YAML string list,
+// returning nil when nothing survives. Shared by ability target_types
+// and item eligible/companion slot decoding so each value is inspectable
+// at decode time without relying on a registry to re-normalize.
+func normalizeLowerDedup(in []string) []string {
 	if len(in) == 0 {
 		return nil
 	}
@@ -768,7 +798,7 @@ func decodeAbility(path, ns string) (*progression.Ability, error) {
 		Cost:                  f.Cost,
 		PulseDelay:            f.PulseDelay,
 		InitiateOnly:          f.InitiateOnly,
-		TargetTypes:           normalizeTargetTypes(f.TargetTypes),
+		TargetTypes:           normalizeLowerDedup(f.TargetTypes),
 		EquipmentSlot:         strings.ToLower(strings.TrimSpace(f.EquipmentSlot)),
 		EquipmentTag:          strings.ToLower(strings.TrimSpace(f.EquipmentTag)),
 		Variance:              f.Variance,
@@ -1778,16 +1808,32 @@ func decodeItem(path, ns string) (*item.Template, error) {
 		}
 	}
 
+	// Equipment slot declarations (§3.3). Explicit eligible_slots wins;
+	// otherwise the legacy single `properties.slot` string is lifted to a
+	// one-element set so existing content keeps working untouched (§3.2:
+	// "a single declared slot is the one-element form of this set").
+	// Names are validated against the slot registry in a boot post-pass
+	// (validateItemSlots) once every pack's slots are registered.
+	eligible := normalizeLowerDedup(f.EligibleSlots)
+	if len(eligible) == 0 {
+		if legacy, ok := item.LegacySlotName(f.Properties); ok {
+			eligible = []string{legacy}
+		}
+	}
+	companion := normalizeLowerDedup(f.CompanionSlots)
+
 	return &item.Template{
-		ID:           item.TemplateID(id),
-		Name:         f.Name,
-		Type:         f.Type,
-		Description:  strings.TrimSpace(f.Description),
-		Tags:         f.Tags,
-		Keywords:     f.Keywords,
-		Properties:   f.Properties,
-		Modifiers:    mods,
-		WeaponDamage: weaponDamage,
+		ID:             item.TemplateID(id),
+		Name:           f.Name,
+		Type:           f.Type,
+		Description:    strings.TrimSpace(f.Description),
+		Tags:           f.Tags,
+		Keywords:       f.Keywords,
+		Properties:     f.Properties,
+		Modifiers:      mods,
+		WeaponDamage:   weaponDamage,
+		EligibleSlots:  eligible,
+		CompanionSlots: companion,
 	}, nil
 }
 

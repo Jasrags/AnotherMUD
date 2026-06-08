@@ -106,16 +106,21 @@ type Actor interface {
 	// Equipment returns slot key → entity id for currently-equipped
 	// items. Fresh map — safe to mutate.
 	Equipment() map[string]entities.EntityID
-	// Equip atomically moves id from inventory to equipment at
-	// slotKey and applies mods to the holder's stat block under
-	// EquipmentSourceKey(id). Returns false if id was not in
-	// inventory (TOCTOU loss to a concurrent drop). Auto-swap is the
-	// handler's responsibility — perform the unequip side first, then
-	// call Equip on the now-empty slot.
-	Equip(slotKey string, id entities.EntityID, mods []stats.Modifier) bool
-	// Unequip atomically removes the item at slotKey, returns it to
-	// inventory, and reverses its stat modifiers. Returns the removed
-	// entity id and true on success.
+	// Equip atomically moves id from inventory to equipment, installing
+	// it under every key in footprint (footprint[0] is the target /
+	// canonical slot key; the rest are companion-slot keys for a spanning
+	// item — inventory-equipment-items §3.4 step 8). Applies mods ONCE to
+	// the holder's stat block under EquipmentSourceKey(id). Returns false
+	// if id was not in inventory (TOCTOU loss to a concurrent drop) OR if
+	// any footprint key is already occupied (the handler must displace
+	// occupants first). Auto-swap and the cancellable veto are the
+	// handler's responsibility: it resolves the footprint and displaces
+	// occupants before calling Equip.
+	Equip(footprint []string, id entities.EntityID, mods []stats.Modifier) bool
+	// Unequip atomically removes the item occupying slotKey — freeing its
+	// ENTIRE footprint (every key a spanning item holds), not just slotKey
+	// — returns it to inventory, and reverses its stat modifiers. Returns
+	// the removed entity id and true on success.
 	Unequip(slotKey string) (entities.EntityID, bool)
 
 	// MarkContentsDirty re-syncs the actor's persisted inventory tree
@@ -571,6 +576,17 @@ func (c *Context) Publish(ctx context.Context, e eventbus.Event) {
 		return
 	}
 	c.Bus.Publish(ctx, e)
+}
+
+// PublishCancellable is the nil-safe shortcut for emitting a cancellable
+// pre-event and learning whether a listener vetoed. With no bus wired (a
+// test fixture's zero-value Env) nothing can veto, so it returns false —
+// the operation proceeds, matching Publish's nil-safe no-op.
+func (c *Context) PublishCancellable(ctx context.Context, e eventbus.CancellableEvent) bool {
+	if c.Bus == nil {
+		return false
+	}
+	return c.Bus.PublishCancellable(ctx, e)
 }
 
 // Handler is the function invoked for a matched command.

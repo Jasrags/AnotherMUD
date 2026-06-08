@@ -434,6 +434,9 @@ func TestLoadRealCorePack(t *testing.T) {
 	if err := RegisterEngineBaselineProperties(regs.Properties); err != nil {
 		t.Fatalf("register engine baseline properties: %v", err)
 	}
+	if err := slot.RegisterEngineBaseline(regs.Slots); err != nil {
+		t.Fatalf("register engine baseline slots: %v", err)
+	}
 	w := regs.World
 	if err := Load(context.Background(), contentRoot, nil, regs, nil, nil, nil); err != nil {
 		t.Fatalf("Load(real core pack): %v", err)

@@ -6,8 +6,20 @@ import (
 	"github.com/Jasrags/AnotherMUD/internal/combat"
 	"github.com/Jasrags/AnotherMUD/internal/item"
 	"github.com/Jasrags/AnotherMUD/internal/progression"
+	"github.com/Jasrags/AnotherMUD/internal/slot"
 	"github.com/Jasrags/AnotherMUD/internal/srckey"
 )
+
+// mobEqSlots returns a slot registry holding the engine baseline so mob
+// equip tests exercise the §3.7 slot-enforcement path. Panics on the
+// (impossible) baseline registration error — test-only.
+func mobEqSlots() *slot.Registry {
+	r := slot.NewRegistry()
+	if err := slot.RegisterEngineBaseline(r); err != nil {
+		panic(err)
+	}
+	return r
+}
 
 // equipTemplates builds an item registry with a modifier-bearing sword
 // and a plain (no-modifier) torch, so tests can exercise both the
@@ -50,7 +62,7 @@ func TestEquipMobAtSpawnAppliesModifiersUnderSourceKey(t *testing.T) {
 	}
 	baseStr := inst.StatBlock().Effective(progression.StatType("str"))
 
-	res, err := s.EquipMobAtSpawn(inst, []string{"core:short-sword"}, equipTemplates(), contents)
+	res, err := s.EquipMobAtSpawn(inst, []string{"core:short-sword"}, equipTemplates(), contents, mobEqSlots())
 	if err != nil {
 		t.Fatalf("EquipMobAtSpawn: %v", err)
 	}
@@ -97,7 +109,7 @@ func TestEquipMobAtSpawnSkipsMissingTemplate(t *testing.T) {
 
 	res, err := s.EquipMobAtSpawn(inst,
 		[]string{"core:short-sword", "core:does-not-exist", "core:torch"},
-		equipTemplates(), contents)
+		equipTemplates(), contents, mobEqSlots())
 	if err != nil {
 		t.Fatalf("EquipMobAtSpawn: %v", err)
 	}
@@ -122,7 +134,7 @@ func TestEquipMobAtSpawnCarriesModifierlessItem(t *testing.T) {
 	}
 	snap := inst.StatBlock().ModifiersSnapshot()
 
-	res, err := s.EquipMobAtSpawn(inst, []string{"core:torch"}, equipTemplates(), contents)
+	res, err := s.EquipMobAtSpawn(inst, []string{"core:torch"}, equipTemplates(), contents, mobEqSlots())
 	if err != nil {
 		t.Fatalf("EquipMobAtSpawn: %v", err)
 	}
@@ -149,7 +161,7 @@ func TestEquipMobAtSpawnSetsWeaponDice(t *testing.T) {
 		t.Fatalf("pre-equip Damage = %+v, want zero", d)
 	}
 
-	if _, err := s.EquipMobAtSpawn(inst, []string{"core:short-sword"}, equipTemplates(), NewContents()); err != nil {
+	if _, err := s.EquipMobAtSpawn(inst, []string{"core:short-sword"}, equipTemplates(), NewContents(), mobEqSlots()); err != nil {
 		t.Fatalf("EquipMobAtSpawn: %v", err)
 	}
 	st := inst.Stats()
@@ -171,7 +183,7 @@ func TestEquipMobAtSpawnFirstWeaponWins(t *testing.T) {
 	// short-sword (1d6) is listed before war-axe (2d6+1): first wins.
 	contents := NewContents()
 	if _, err := s.EquipMobAtSpawn(inst,
-		[]string{"core:short-sword", "core:war-axe"}, equipTemplates(), contents); err != nil {
+		[]string{"core:short-sword", "core:war-axe"}, equipTemplates(), contents, mobEqSlots()); err != nil {
 		t.Fatalf("EquipMobAtSpawn: %v", err)
 	}
 	want, _ := combat.ParseDice("1d6")
@@ -200,7 +212,7 @@ func TestEquippedWeaponOverridesNaturalWeapon(t *testing.T) {
 		t.Fatalf("natural weapon not seeded: %+v / %q", st.Damage, st.WeaponName)
 	}
 	// Equipping a sword overrides the innate attack.
-	if _, err := s.EquipMobAtSpawn(inst, []string{"core:short-sword"}, equipTemplates(), NewContents()); err != nil {
+	if _, err := s.EquipMobAtSpawn(inst, []string{"core:short-sword"}, equipTemplates(), NewContents(), mobEqSlots()); err != nil {
 		t.Fatalf("EquipMobAtSpawn: %v", err)
 	}
 	sword, _ := combat.ParseDice("1d6")
@@ -215,7 +227,7 @@ func TestEquipMobAtSpawnModifierlessKeepsUnarmed(t *testing.T) {
 	if err != nil {
 		t.Fatalf("SpawnMob: %v", err)
 	}
-	if _, err := s.EquipMobAtSpawn(inst, []string{"core:torch"}, equipTemplates(), NewContents()); err != nil {
+	if _, err := s.EquipMobAtSpawn(inst, []string{"core:torch"}, equipTemplates(), NewContents(), mobEqSlots()); err != nil {
 		t.Fatalf("EquipMobAtSpawn: %v", err)
 	}
 	// A torch is not a weapon → mob stays unarmed.
@@ -233,18 +245,141 @@ func TestEquipMobAtSpawnNoopGuards(t *testing.T) {
 	tpls := equipTemplates()
 
 	// nil mob, empty list, and nil registry are all no-ops with no error.
-	if res, err := s.EquipMobAtSpawn(nil, []string{"core:torch"}, tpls, nil); err != nil || res.Equipped != 0 {
+	if res, err := s.EquipMobAtSpawn(nil, []string{"core:torch"}, tpls, nil, mobEqSlots()); err != nil || res.Equipped != 0 {
 		t.Errorf("nil mob: res=%+v err=%v", res, err)
 	}
-	if res, err := s.EquipMobAtSpawn(inst, nil, tpls, nil); err != nil || res.Equipped != 0 {
+	if res, err := s.EquipMobAtSpawn(inst, nil, tpls, nil, mobEqSlots()); err != nil || res.Equipped != 0 {
 		t.Errorf("empty ids: res=%+v err=%v", res, err)
 	}
-	if res, err := s.EquipMobAtSpawn(inst, []string{"core:torch"}, nil, nil); err != nil || res.Equipped != 0 {
+	if res, err := s.EquipMobAtSpawn(inst, []string{"core:torch"}, nil, nil, mobEqSlots()); err != nil || res.Equipped != 0 {
 		t.Errorf("nil registry: res=%+v err=%v", res, err)
 	}
 
 	// nil contents: modifiers still apply (step 3), step 4 is skipped.
-	if res, err := s.EquipMobAtSpawn(inst, []string{"core:short-sword"}, tpls, nil); err != nil || res.Equipped != 1 {
+	if res, err := s.EquipMobAtSpawn(inst, []string{"core:short-sword"}, tpls, nil, mobEqSlots()); err != nil || res.Equipped != 1 {
 		t.Errorf("nil contents: res=%+v err=%v", res, err)
+	}
+}
+
+// --- P4: slot enforcement for mobs (gap 4, §3.7) ---
+
+func helmetTpl(id string) *item.Template {
+	return &item.Template{
+		ID:            item.TemplateID(id),
+		Name:          "a helm",
+		Type:          "item",
+		EligibleSlots: []string{"head"},
+		Modifiers:     []item.Modifier{{Stat: "str", Value: 2}},
+	}
+}
+
+// TestEquipMobAtSpawn_FullSlotSkipsSecondModifiers: two head items can't
+// both occupy the cap-1 head slot, so only the first applies its
+// modifiers — the second is carried (loot) but recorded in Skipped, its
+// stat bonus not stacked onto the mob (the gap-4 bug).
+func TestEquipMobAtSpawn_FullSlotSkipsSecondModifiers(t *testing.T) {
+	s := NewStore()
+	contents := NewContents()
+	inst, err := s.SpawnMob(guardTpl())
+	if err != nil {
+		t.Fatalf("SpawnMob: %v", err)
+	}
+	base := inst.StatBlock().Effective(progression.StatType("str"))
+
+	tpls := item.NewTemplates()
+	tpls.Add(helmetTpl("core:helm-a"))
+	tpls.Add(helmetTpl("core:helm-b"))
+
+	res, err := s.EquipMobAtSpawn(inst, []string{"core:helm-a", "core:helm-b"}, tpls, contents, mobEqSlots())
+	if err != nil {
+		t.Fatalf("EquipMobAtSpawn: %v", err)
+	}
+	if got := inst.StatBlock().Effective(progression.StatType("str")); got != base+2 {
+		t.Errorf("effective str = %d, want %d (one helm only, no double-stack)", got, base+2)
+	}
+	if len(res.Skipped) != 1 || res.Skipped[0] != "core:helm-b" {
+		t.Errorf("Skipped = %v, want [core:helm-b]", res.Skipped)
+	}
+	if got := len(contents.In(inst.ID())); got != 2 {
+		t.Errorf("contents.In = %d, want 2 (both carried as loot)", got)
+	}
+}
+
+// TestEquipMobAtSpawn_NonEligibleItemSkipped: an item declaring no slot
+// is carried as loot but never applies its modifiers to the mob.
+func TestEquipMobAtSpawn_NonEligibleItemSkipped(t *testing.T) {
+	s := NewStore()
+	contents := NewContents()
+	inst, err := s.SpawnMob(guardTpl())
+	if err != nil {
+		t.Fatalf("SpawnMob: %v", err)
+	}
+	base := inst.StatBlock().Effective(progression.StatType("str"))
+
+	tpls := item.NewTemplates()
+	tpls.Add(&item.Template{
+		ID:        "core:gem",
+		Name:      "a glittering gem",
+		Type:      "item",
+		Modifiers: []item.Modifier{{Stat: "str", Value: 5}}, // would-be buff, but not equippable
+	})
+
+	res, err := s.EquipMobAtSpawn(inst, []string{"core:gem"}, tpls, contents, mobEqSlots())
+	if err != nil {
+		t.Fatalf("EquipMobAtSpawn: %v", err)
+	}
+	if got := inst.StatBlock().Effective(progression.StatType("str")); got != base {
+		t.Errorf("non-equippable item applied modifiers: str = %d, want %d", got, base)
+	}
+	if len(res.Skipped) != 1 {
+		t.Errorf("Skipped = %v, want 1 entry", res.Skipped)
+	}
+	if got := len(contents.In(inst.ID())); got != 1 {
+		t.Errorf("contents.In = %d, want 1 (carried as loot)", got)
+	}
+}
+
+// TestEquipMobAtSpawn_SpanningBlocksOffhand: a two-handed weapon's
+// footprint claims both wield and offhand, so an off-hand shield listed
+// after it cannot be equipped — its AC bonus must not apply.
+func TestEquipMobAtSpawn_SpanningBlocksOffhand(t *testing.T) {
+	s := NewStore()
+	contents := NewContents()
+	inst, err := s.SpawnMob(guardTpl())
+	if err != nil {
+		t.Fatalf("SpawnMob: %v", err)
+	}
+	base := inst.StatBlock().Effective(progression.StatType("ac"))
+
+	tpls := item.NewTemplates()
+	tpls.Add(&item.Template{
+		ID:             "core:greatsword",
+		Name:           "a greatsword",
+		Type:           "item",
+		EligibleSlots:  []string{"wield"},
+		CompanionSlots: []string{"offhand"},
+		WeaponDamage:   "2d6",
+	})
+	tpls.Add(&item.Template{
+		ID:            "core:shield",
+		Name:          "a shield",
+		Type:          "item",
+		EligibleSlots: []string{"offhand"},
+		Modifiers:     []item.Modifier{{Stat: "ac", Value: 3}},
+	})
+
+	res, err := s.EquipMobAtSpawn(inst, []string{"core:greatsword", "core:shield"}, tpls, contents, mobEqSlots())
+	if err != nil {
+		t.Fatalf("EquipMobAtSpawn: %v", err)
+	}
+	if got := inst.StatBlock().Effective(progression.StatType("ac")); got != base {
+		t.Errorf("shield AC applied despite offhand blocked by two-hander: ac = %d, want %d", got, base)
+	}
+	if len(res.Skipped) != 1 || res.Skipped[0] != "core:shield" {
+		t.Errorf("Skipped = %v, want [core:shield]", res.Skipped)
+	}
+	want, _ := combat.ParseDice("2d6")
+	if got := inst.Stats().Damage; got != want {
+		t.Errorf("Damage = %+v, want %+v (greatsword armed the mob)", got, want)
 	}
 }

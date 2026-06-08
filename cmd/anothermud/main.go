@@ -136,6 +136,7 @@ func run() error {
 		placement:    placement,
 		contents:     contents,
 		templates:    registries.Items,
+		slots:        registries.Slots,
 		mobTemplates: registries.Mobs,
 		races:        registries.Races,
 		classes:      registries.Classes,
@@ -2140,6 +2141,7 @@ type bootSpawner struct {
 	placement    *entities.Placement
 	contents     *entities.Contents
 	templates    *item.Templates
+	slots        *slot.Registry
 	mobTemplates *mob.Templates
 	races        *progression.RaceRegistry
 	classes      *progression.ClassRegistry
@@ -2310,7 +2312,7 @@ func (b *bootSpawner) spawnMob(ctx context.Context, templateID string, roomID wo
 	// item templates are skipped silently (§3.3 step 1) — logged at Debug
 	// for the content author, consistent with the loot convention above.
 	if len(tpl.Equipment) > 0 && b.templates != nil {
-		res, eerr := b.store.EquipMobAtSpawn(inst, tpl.Equipment, b.templates, b.contents)
+		res, eerr := b.store.EquipMobAtSpawn(inst, tpl.Equipment, b.templates, b.contents, b.slots)
 		if eerr != nil {
 			// Spawn failure means a broken id generator — fail the spawn
 			// rather than place a half-equipped mob.
@@ -2321,6 +2323,15 @@ func (b *bootSpawner) spawnMob(ctx context.Context, templateID string, roomID wo
 				slog.String("mob", string(inst.ID())),
 				slog.String("template", templateID),
 				slog.String("item", missing))
+		}
+		// §3.7: items carried but not slot-equipped (no eligible free slot)
+		// — their modifiers were not applied. Logged so a content author
+		// notices a too-crowded equipment list.
+		for _, skipped := range res.Skipped {
+			logging.From(ctx).Debug("mob equip: no free slot; carried but not equipped",
+				slog.String("mob", string(inst.ID())),
+				slog.String("template", templateID),
+				slog.String("item", skipped))
 		}
 		// §2.3 vitals-at-full: equipment may raise hp_max (the M14.1
 		// OnMaxChange listener bumps Vitals.Max but never raises current),

@@ -84,6 +84,13 @@ type ItemInstance struct {
 	// The zero value (IsZero) means the item is not a weapon. Write-once
 	// at construction like tags/keywords — no mutex needed.
 	weaponDamage combat.DiceExpr
+	// eligibleSlots / companionSlots are the equipment-slot eligibility
+	// and footprint (inventory-equipment-items §3.3), lifted onto the
+	// instance at build so the equip path reads them without a template
+	// registry (R5). Empty eligibleSlots means the item is not
+	// equippable. Write-once at construction — no mutex needed.
+	eligibleSlots  []string
+	companionSlots []string
 }
 
 // ID implements Entity.
@@ -225,6 +232,22 @@ func (it *ItemInstance) WeaponDamage() (combat.DiceExpr, bool) {
 	return it.weaponDamage, !it.weaponDamage.IsZero()
 }
 
+// EligibleSlots returns the slots this item may be equipped into
+// (inventory-equipment-items §3.3) as a fresh slice so callers cannot
+// alias instance state. Empty means the item is not equippable. Lifted
+// from the template at construction: explicit EligibleSlots, else the
+// legacy `properties.slot` one-element bridge (§3.2).
+func (it *ItemInstance) EligibleSlots() []string {
+	return append([]string(nil), it.eligibleSlots...)
+}
+
+// CompanionSlots returns the additional slots this item occupies while
+// equipped — its footprint beyond the target slot (§3.3) — as a fresh
+// slice. nil when the footprint is just the target slot.
+func (it *ItemInstance) CompanionSlots() []string {
+	return append([]string(nil), it.companionSlots...)
+}
+
 // normalizeProperties recursively coerces any nested map[any]any (the
 // yaml.v3 default for inner maps) to map[string]any so downstream code
 // only ever sees typed dictionaries. Spec §2.3 step 4.
@@ -305,16 +328,33 @@ func buildInstanceFromTemplate(tpl *item.Template, id EntityID) *ItemInstance {
 		}
 	}
 
+	// Equipment slot eligibility + footprint (§3.3), lifted onto the
+	// instance (R5). Explicit template fields win; an item declaring only
+	// the legacy `properties.slot` string still becomes eligible for that
+	// one slot (§3.2 bridge). For loader-built templates decodeItem
+	// already lifted the legacy slot into EligibleSlots, so the fallback
+	// here is a no-op; it covers hand-built templates (tests) that set
+	// only properties.slot.
+	eligible := append([]string(nil), tpl.EligibleSlots...)
+	if len(eligible) == 0 {
+		if s, ok := item.LegacySlotName(props); ok {
+			eligible = []string{s}
+		}
+	}
+	companion := append([]string(nil), tpl.CompanionSlots...)
+
 	return &ItemInstance{
-		id:           id,
-		typ:          tpl.Type,
-		name:         tpl.Name,
-		desc:         tpl.Description, // §2.3: snapshot prose alongside name.
-		tags:         tags,
-		keywords:     keywords,
-		properties:   props,
-		modifiers:    mods,
-		templateID:   tpl.ID,
-		weaponDamage: weaponDamage,
+		id:             id,
+		typ:            tpl.Type,
+		name:           tpl.Name,
+		desc:           tpl.Description, // §2.3: snapshot prose alongside name.
+		tags:           tags,
+		keywords:       keywords,
+		properties:     props,
+		modifiers:      mods,
+		templateID:     tpl.ID,
+		weaponDamage:   weaponDamage,
+		eligibleSlots:  eligible,
+		companionSlots: companion,
 	}
 }

@@ -5,6 +5,8 @@ import (
 	"errors"
 	"path/filepath"
 	"testing"
+
+	"github.com/Jasrags/AnotherMUD/internal/slot"
 )
 
 // lootPack writes a minimal pack carrying a loot table file plus a mob
@@ -116,6 +118,9 @@ func TestLoad_CoreGuardLoot(t *testing.T) {
 	regs := NewRegistries()
 	if err := RegisterEngineBaselineProperties(regs.Properties); err != nil {
 		t.Fatalf("register engine baseline properties: %v", err)
+	}
+	if err := slot.RegisterEngineBaseline(regs.Slots); err != nil {
+		t.Fatalf("register engine baseline slots: %v", err)
 	}
 	if err := Load(context.Background(), root, nil, regs, nil, nil, nil); err != nil {
 		t.Fatalf("Load core: %v", err)

@@ -7,8 +7,8 @@ description: |
   kind of thing a road bandit keeps tucked in a boot.
 tags: [weapon, metal, bladed]
 keywords: [dagger, knife, rusty]
+eligible_slots: [wield]
 properties:
-  slot: wield
   weight: 1
 # Weapon damage dice (combat §4.5) — the bandit rolls this instead of the
 # unarmed default when it equips the dagger at spawn (mobs-ai-spawning

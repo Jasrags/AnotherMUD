@@ -38,72 +38,152 @@ func EquipHandler(ctx context.Context, c *Context) error {
 		return c.Actor.Write(ctx, "You can't equip anything right now.")
 	}
 
-	// M17.2d₃: `equip <item> <slot>` declares item (ArgInventory) then
-	// slot (ArgKeyword). Both are resolved by the §5 pipeline before
-	// this runs — note this flips the old precedence (the hand-parsed
-	// form validated the slot first); a not-carried item now reports
-	// "You aren't carrying that." before the slot is examined. The slot
-	// keyword arrives as a raw string and is validated against the slot
-	// registry here (the keyword resolver does not know slot names).
-	// Single-token item references only (the multi-word item phrase the
-	// old trailing-slot parse allowed is gone).
-	slotArg, _ := c.Resolved["slot"].(string)
-	def, err := c.Slots.Get(slotArg)
-	if err != nil {
-		return c.Actor.Write(ctx, fmt.Sprintf("No such slot: %q.", slotArg))
-	}
-
+	// `equip <item> [slot]` declares item (ArgInventory) then an OPTIONAL
+	// slot (ArgKeyword). The item is resolved first so an omitted slot can
+	// be resolved against the item's eligible set (Decision A, §3.4 step 1).
+	// Single-token item references only.
 	item, ok := resolvedItemInstance(c, "item")
 	if !ok {
 		return c.Actor.Write(ctx, "You aren't carrying that.")
 	}
 
-	// Determine target sub-slot. For cap-1: the bare name. For cap-N:
-	// scan occupancy in registration order (index 0, 1, ...).
+	// §3.4 step 3 (part 1): an item with no eligible slots is never
+	// equippable. Eligible slots are lifted onto the instance at spawn (a
+	// single legacy `properties.slot` became the one-element form).
+	eligible := item.EligibleSlots()
+	if len(eligible) == 0 {
+		return c.Actor.Write(ctx, fmt.Sprintf("You can't equip %s.", item.Name()))
+	}
+
+	// §3.4 step 1 / Decision A: resolve the target slot. Named slot wins;
+	// with none named, a sole-eligible item auto-targets, a multi-eligible
+	// item asks which (rather than silently mis-targeting).
+	slotArg, _ := c.Resolved["slot"].(string)
+	slotArg = strings.TrimSpace(slotArg)
+	// Bound the player-supplied slot token before the registry lookup so a
+	// pathologically long argument can't force a large ToLower allocation
+	// on the command path. Real slot names are a handful of characters.
+	if len(slotArg) > maxSlotNameLen {
+		return c.Actor.Write(ctx, "No such slot.")
+	}
+	if slotArg == "" {
+		if len(eligible) == 1 {
+			slotArg = eligible[0]
+		} else {
+			return c.Actor.Write(ctx, fmt.Sprintf(
+				"Which slot? %s can be equipped to: %s.",
+				item.Name(), strings.Join(eligible, ", ")))
+		}
+	}
+
+	def, err := c.Slots.Get(slotArg)
+	if err != nil {
+		return c.Actor.Write(ctx, fmt.Sprintf("No such slot: %q.", slotArg))
+	}
+
+	// §3.4 step 3 (part 2): the item must be eligible for the named slot.
+	// Distinct reason from "No such slot" so the player can tell a typo'd
+	// slot from a mismatched item.
+	if !slot.IsEligible(eligible, def.Name) {
+		return c.Actor.Write(ctx, fmt.Sprintf("You can't equip %s in the %s slot.", item.Name(), def.Name))
+	}
+
+	// §3.4 step 5: compute the footprint — the target slot plus the item's
+	// companion slots — as concrete keys, lowest free index per slot.
 	equipped := c.Actor.Equipment()
-	targetKey, displacedKey, swap, err := pickSlotKey(def, equipped)
+	occupied := make(map[string]bool, len(equipped))
+	for k := range equipped {
+		occupied[k] = true
+	}
+	footprint, err := c.Slots.Footprint(def.Name, item.CompanionSlots(), occupied)
 	if err != nil {
 		return c.Actor.Write(ctx, fmt.Sprintf("Can't equip to %s right now.", def.Name))
 	}
 
-	// Auto-swap: unequip the displaced item first so the slot is empty
-	// when Equip runs. Failure here aborts before any state change.
-	var displacedItem *entities.ItemInstance
-	if swap {
-		displacedID, ok := c.Actor.Unequip(displacedKey)
+	// §3.4 step 6: determine the items to displace — the DISTINCT items
+	// occupying any footprint key (a spanning occupant counts once). A
+	// representative key per item lets the commit unequip its whole
+	// footprint. Computed WITHOUT mutating so the no-remove guard and the
+	// veto can still abort with no state change.
+	type displacedEntry struct {
+		it       *entities.ItemInstance
+		key      string // a footprint key currently mapping to it
+		baseName string // its base slot, for the unequip event
+	}
+	var toDisplace []displacedEntry
+	seenDisp := make(map[entities.EntityID]bool)
+	for _, k := range footprint {
+		id, occ := equipped[k]
+		if !occ || seenDisp[id] {
+			continue
+		}
+		seenDisp[id] = true
+		e, ok := c.Items.GetByID(id)
 		if !ok {
-			// Slot was reported occupied by Equipment() but unequip
-			// found nothing — concurrent unequip raced us. Re-resolve
-			// the slot key as if it were empty and proceed.
-			if newKey, err := slot.BuildKey(def.Name, 0, def.Max); err == nil {
-				targetKey = newKey
-			}
-		} else if e, ok := c.Items.GetByID(displacedID); ok {
-			if it, ok := e.(*entities.ItemInstance); ok {
-				displacedItem = it
-			}
+			continue
+		}
+		it, ok := e.(*entities.ItemInstance)
+		if !ok {
+			continue
+		}
+		base, _, perr := slot.ParseKey(k)
+		if perr != nil {
+			base = k
+		}
+		toDisplace = append(toDisplace, displacedEntry{it: it, key: k, baseName: base})
+	}
+
+	// Decision B (§3.4 step 6, §9): structural auto-swap must not force a
+	// no-remove item off. If any required eviction targets one, fail the
+	// whole equip with no mutation.
+	for _, d := range toDisplace {
+		if isNoRemove(d.it) {
+			return c.Actor.Write(ctx, fmt.Sprintf("You can't remove %s to make room.", d.it.Name()))
 		}
 	}
 
-	// Translate the item's transient modifier list into the
-	// holder-side Modifier form. The InstanceModifier.Source field
-	// (set at Spawn to "entity:<id>") is dropped here — equip groups
-	// the whole set under one EquipmentSourceKey(item.ID()) for
-	// reversible removal at unequip time (§3.3 step 6).
+	// §3.4 step 7: cancellable pre-equip veto. Published BEFORE any
+	// mutation; a veto aborts with the slot, inventory, and displaced
+	// items all untouched. This is the seam for policy rules (class/level/
+	// curse gates, non-geometric contention) layered outside the engine.
+	room := c.Actor.Room()
+	var roomID world.RoomID
+	if room != nil {
+		roomID = room.ID
+	}
+	holder := holderEntityIDForPlayer(c.Actor.PlayerID())
+	if c.PublishCancellable(ctx, eventbus.NewEntityEquipping(holder, item.ID(), roomID, def.Name)) {
+		return c.Actor.Write(ctx, fmt.Sprintf("You can't equip %s.", item.Name()))
+	}
+
+	// Commit. Displace each occupant first (Unequip frees the occupant's
+	// WHOLE footprint, §3.5 step 2), then equip the new item across its
+	// footprint. After displacement every footprint key is free.
+	for _, d := range toDisplace {
+		c.Actor.Unequip(d.key)
+	}
+
+	// Translate the item's transient modifier list into the holder-side
+	// Modifier form; equip groups them under one EquipmentSourceKey(item)
+	// for reversible removal (§3.4 step 9 — applied once per item, not per
+	// footprint key).
 	mods := make([]stats.Modifier, 0, len(item.Modifiers()))
 	for _, m := range item.Modifiers() {
 		mods = append(mods, stats.Modifier{Stat: m.Stat, Value: m.Value})
 	}
 
-	if !c.Actor.Equip(targetKey, item.ID(), mods) {
-		// Inventory lost the item between resolve and equip — likely a
-		// concurrent drop. If we did an auto-swap unequip, the
-		// displaced item is now sitting in inventory; tell the player
-		// what happened.
-		if displacedItem != nil {
-			return c.Actor.Write(ctx,
-				fmt.Sprintf("You aren't carrying that anymore. (Returned %s to your inventory.)",
-					displacedItem.Name()))
+	if !c.Actor.Equip(footprint, item.ID(), mods) {
+		// TOCTOU: inventory lost the item between resolve and equip (a
+		// concurrent drop). Any displaced items are already back in
+		// inventory; tell the player what happened.
+		if len(toDisplace) > 0 {
+			names := make([]string, 0, len(toDisplace))
+			for _, d := range toDisplace {
+				names = append(names, d.it.Name())
+			}
+			return c.Actor.Write(ctx, fmt.Sprintf(
+				"You aren't carrying that anymore. (Returned %s to your inventory.)",
+				strings.Join(names, ", ")))
 		}
 		return c.Actor.Write(ctx, "You aren't carrying that.")
 	}
@@ -128,10 +208,12 @@ func EquipHandler(ctx context.Context, c *Context) error {
 		}
 	}
 
-	// User-facing messages. Auto-swap reports the displacement before
-	// the equip confirmation so the order matches the mental model.
-	if displacedItem != nil {
-		_ = c.Actor.Write(ctx, fmt.Sprintf("You stop using %s.", displacedItem.Name()))
+	// User-facing messages. Report each displacement before the equip
+	// confirmation so the order matches the mental model; a single equip
+	// can now displace more than one item (a companion-bearing item
+	// evicting both a worn spanning item and a companion occupant).
+	for _, d := range toDisplace {
+		_ = c.Actor.Write(ctx, fmt.Sprintf("You stop using %s.", d.it.Name()))
 	}
 	if autoLit {
 		_ = c.Actor.Write(ctx, fmt.Sprintf("You equip %s, and it flares to life.", item.Name()))
@@ -139,26 +221,20 @@ func EquipHandler(ctx context.Context, c *Context) error {
 		_ = c.Actor.Write(ctx, fmt.Sprintf("You equip %s.", item.Name()))
 	}
 
-	// Broadcast uses the base slot name (no :index) per §3.3 step 7.
-	room := c.Actor.Room()
+	// Broadcast uses the base slot name (no :index) per §3.4 step 10.
 	if c.Broadcaster != nil && room != nil && c.Actor.Name() != "" {
 		c.Broadcaster.SendToRoom(ctx, room.ID,
 			fmt.Sprintf("%s equips %s.", c.Actor.Name(), item.Name()),
 			c.Actor.PlayerID())
 	}
-	var roomID world.RoomID
-	if room != nil {
-		roomID = room.ID
-	}
-	holder := holderEntityIDForPlayer(c.Actor.PlayerID())
-	// Auto-swap (§3.3 step 3) emits its unequip event first so
-	// observers see the displaced removal before the new placement.
-	if displacedItem != nil {
+	// Auto-swap (§3.4 step 6) emits each displaced item's unequip event
+	// before the new placement so observers see removals first.
+	for _, d := range toDisplace {
 		c.Publish(ctx, eventbus.EntityUnequipped{
 			HolderID: holder,
 			RoomID:   roomID,
-			ItemID:   displacedItem.ID(),
-			SlotName: def.Name,
+			ItemID:   d.it.ID(),
+			SlotName: d.baseName,
 		})
 	}
 	c.Publish(ctx, eventbus.EntityEquipped{
@@ -170,12 +246,40 @@ func EquipHandler(ctx context.Context, c *Context) error {
 	return nil
 }
 
+// maxSlotNameLen caps the player-supplied slot token EquipHandler will
+// look up — a defensive bound on the command path (the longest real slot
+// name is well under this).
+const maxSlotNameLen = 64
+
+// noRemoveTag marks an equipped item that structural auto-swap must not
+// forcibly remove (Decision B / spec §3.4 step 6, §9). Hardcoded for now;
+// the §8 configuration surface lists it as externalizable once a curse /
+// soulbound mechanic ships. No content carries this tag today, so the
+// guard is inert in practice — the seam exists for the rules layer.
+const noRemoveTag = "no_remove"
+
+// isNoRemove reports whether it carries the no-remove tag.
+func isNoRemove(it *entities.ItemInstance) bool {
+	for _, t := range it.Tags() {
+		if t == noRemoveTag {
+			return true
+		}
+	}
+	return false
+}
+
 // UnequipHandler implements `unequip <item>` per spec §3.4.
 //
 // The argument names an equipped item, NOT a slot key — players
 // don't think about slot keys. The handler resolves the item via the
 // keyword resolver over the equipped set, locates its slot key, and
 // calls Actor.Unequip.
+//
+// Voluntary unequip is intentionally NOT gated by the no_remove tag: that
+// guard (§3.4 step 6 / Decision B) only blocks STRUCTURAL auto-swap from
+// forcing a cursed item off to make room. A future curse/soulbound
+// mechanic that must also block deliberate removal would add its own
+// check here.
 func UnequipHandler(ctx context.Context, c *Context) error {
 	if c.Items == nil {
 		return c.Actor.Write(ctx, "You can't unequip anything right now.")
@@ -190,8 +294,11 @@ func UnequipHandler(ctx context.Context, c *Context) error {
 	}
 
 	// Build (slot key, ItemInstance) pairs in deterministic order so
-	// keyword resolution against duplicate items (two rings) is
-	// stable across calls.
+	// keyword resolution against duplicate items (two rings) is stable
+	// across calls. Dedupe by id: a spanning item appears under several
+	// keys but must be a single resolution candidate (so `2.sword` can't
+	// count one two-hander twice). The first (lexically lowest) key wins
+	// as the unequip handle; Unequip frees the whole footprint anyway.
 	type pair struct {
 		key string
 		it  *entities.ItemInstance
@@ -199,8 +306,13 @@ func UnequipHandler(ctx context.Context, c *Context) error {
 	keys := sortedSlotKeys(equipped)
 	pairs := make([]pair, 0, len(keys))
 	items := make([]*entities.ItemInstance, 0, len(keys))
+	seen := make(map[entities.EntityID]bool, len(keys))
 	for _, k := range keys {
-		e, ok := c.Items.GetByID(equipped[k])
+		id := equipped[k]
+		if seen[id] {
+			continue
+		}
+		e, ok := c.Items.GetByID(id)
 		if !ok {
 			continue
 		}
@@ -208,6 +320,7 @@ func UnequipHandler(ctx context.Context, c *Context) error {
 		if !ok {
 			continue
 		}
+		seen[id] = true
 		pairs = append(pairs, pair{key: k, it: it})
 		items = append(items, it)
 	}
@@ -263,43 +376,6 @@ func UnequipHandler(ctx context.Context, c *Context) error {
 		SlotName: base,
 	})
 	return nil
-}
-
-// pickSlotKey returns the target key for equip and, if the slot is
-// full, the key of the displaced occupant. swap is true when an
-// auto-swap is needed (§3.3 step 3). For cap-1 slots: target is the
-// bare name; if occupied, the same name is also the displaced key.
-// For cap-N slots: prefer the lowest unoccupied index; if all
-// indices are occupied, displace index 0 and target index 0.
-func pickSlotKey(def slot.Def, equipped map[string]entities.EntityID) (target, displaced string, swap bool, err error) {
-	if def.Max <= 0 {
-		return "", "", false, slot.ErrInvalidMax
-	}
-	if def.Max == 1 {
-		key, kerr := slot.BuildKey(def.Name, 0, def.Max)
-		if kerr != nil {
-			return "", "", false, kerr
-		}
-		if _, occupied := equipped[key]; occupied {
-			return key, key, true, nil
-		}
-		return key, "", false, nil
-	}
-	for i := 0; i < def.Max; i++ {
-		key, kerr := slot.BuildKey(def.Name, i, def.Max)
-		if kerr != nil {
-			return "", "", false, kerr
-		}
-		if _, occupied := equipped[key]; !occupied {
-			return key, "", false, nil
-		}
-	}
-	// All indices full: displace index 0.
-	key, kerr := slot.BuildKey(def.Name, 0, def.Max)
-	if kerr != nil {
-		return "", "", false, kerr
-	}
-	return key, key, true, nil
 }
 
 // sortedSlotKeys returns the keys of m in lexical order. Used to give

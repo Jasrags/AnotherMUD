@@ -136,7 +136,7 @@ func TestRegisterEngineBaseline(t *testing.T) {
 	if err := RegisterEngineBaseline(r); err != nil {
 		t.Fatalf("RegisterEngineBaseline: %v", err)
 	}
-	for _, name := range []string{"wield", "head", "finger", "light"} {
+	for _, name := range []string{"wield", "offhand", "head", "finger", "light"} {
 		if !r.Has(name) {
 			t.Errorf("baseline missing %q", name)
 		}
@@ -148,6 +148,12 @@ func TestRegisterEngineBaseline(t *testing.T) {
 	light, _ := r.Get("light")
 	if light.Max != 1 {
 		t.Errorf("light.Max = %d, want 1", light.Max)
+	}
+	// offhand is the second hand the two-handed-weapon footprint
+	// (inventory-equipment-items §3.3) consumes; cap 1, bare key.
+	offhand, _ := r.Get("offhand")
+	if offhand.Max != 1 {
+		t.Errorf("offhand.Max = %d, want 1", offhand.Max)
 	}
 }
 

@@ -1,0 +1,18 @@
+id: wooden-shield
+name: a wooden shield
+type: item
+description: |
+  A round shield of banded oak, scarred from use. Strapped to the off
+  arm, it turns aside blows a free hand never could.
+tags: [armor, wooden, wearable]
+keywords: [shield, wooden, oak]
+# Worn in the off hand (inventory-equipment-items §3.3). It cannot share
+# the hand with a two-handed weapon: equipping the shield over a worn
+# greatsword displaces the greatsword, and vice versa (§3.6 contention).
+eligible_slots: [offhand]
+properties:
+  weight: 5
+  value: 18
+modifiers:
+  - stat: ac
+    value: 4
