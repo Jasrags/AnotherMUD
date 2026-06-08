@@ -32,6 +32,7 @@ import (
 	"github.com/Jasrags/AnotherMUD/internal/command"
 	"github.com/Jasrags/AnotherMUD/internal/conn/telnet"
 	"github.com/Jasrags/AnotherMUD/internal/corpse"
+	"github.com/Jasrags/AnotherMUD/internal/crafting"
 	"github.com/Jasrags/AnotherMUD/internal/economy"
 	"github.com/Jasrags/AnotherMUD/internal/emote"
 	"github.com/Jasrags/AnotherMUD/internal/entities"
@@ -760,6 +761,15 @@ func run() error {
 	// (crafting-and-cooking §9) and resolve a discipline's baseline
 	// recipes on learn (§2).
 	knownRecipesMgr := recipe.NewKnownManager(registries.Recipes)
+
+	// Crafting Phase 2: the craft service (quality roll + atomic
+	// consume/produce, §3/§5). Uses stdRoller{} (math/rand/v2 package
+	// source, concurrent-safe) because crafts arrive on per-session
+	// goroutines — distinct from combat's tick-goroutine roller.
+	craftSvc := crafting.NewService(
+		registries.Items, entityStore, registries.Recipes, knownRecipesMgr,
+		proficiencyMgr, registries.Rarity, stdRoller{}, crafting.DefaultConfig(),
+	)
 
 	// M11.1: currency service (spec economy-survival §2). Bus-bridging
 	// sink mirrors alignmentSink so economy stays free of an eventbus
@@ -1708,6 +1718,7 @@ func run() error {
 		Abilities:       registries.Abilities,
 		Recipes:         registries.Recipes,
 		Known:           knownRecipesMgr,
+		Craft:           craftSvc,
 		Effects:         effectMgr,
 		ActionQueue:     actionQueueMgr,
 		PulseDelay:      pulseDelayTracker,

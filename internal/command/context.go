@@ -6,6 +6,7 @@ import (
 	"github.com/Jasrags/AnotherMUD/internal/chat"
 	"github.com/Jasrags/AnotherMUD/internal/clock"
 	"github.com/Jasrags/AnotherMUD/internal/combat"
+	"github.com/Jasrags/AnotherMUD/internal/crafting"
 	"github.com/Jasrags/AnotherMUD/internal/decoration"
 	"github.com/Jasrags/AnotherMUD/internal/economy"
 	"github.com/Jasrags/AnotherMUD/internal/entities"
@@ -63,6 +64,10 @@ type Context struct {
 	// that don't exercise crafting.
 	Recipes *recipe.Registry
 	Known   *recipe.KnownManager
+	// Craft is the crafting service (quality roll + atomic consume/produce,
+	// crafting-and-cooking §3, §5). The `craft` verb routes through it.
+	// nil in tests that don't exercise crafting.
+	Craft *crafting.Service
 	// Help is the M10.5 help-topic service. nil in tests.
 	Help *help.Service
 	// Quests is the M10.7 quest service. nil in tests.

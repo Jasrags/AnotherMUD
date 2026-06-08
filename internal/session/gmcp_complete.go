@@ -41,6 +41,7 @@ func commandEnv(cfg Config) command.Env {
 		ActionQueue:           cfg.ActionQueue,
 		Recipes:               cfg.Recipes,
 		Known:                 cfg.Known,
+		Craft:                 cfg.Craft,
 		Help:                  cfg.Help,
 		Quests:                cfg.Quests,
 		Currency:              cfg.Currency,

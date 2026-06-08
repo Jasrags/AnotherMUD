@@ -27,6 +27,7 @@ import (
 	"github.com/Jasrags/AnotherMUD/internal/combat"
 	"github.com/Jasrags/AnotherMUD/internal/command"
 	"github.com/Jasrags/AnotherMUD/internal/conn"
+	"github.com/Jasrags/AnotherMUD/internal/crafting"
 	"github.com/Jasrags/AnotherMUD/internal/decoration"
 	"github.com/Jasrags/AnotherMUD/internal/economy"
 	"github.com/Jasrags/AnotherMUD/internal/entities"
@@ -191,6 +192,11 @@ type Config struct {
 	// in-memory state; Persist snapshots it back. nil-safe: when nil,
 	// recipes are neither restored nor persisted (mirrors Proficiency).
 	Known *recipe.KnownManager
+
+	// Craft is the crafting service (quality roll + atomic consume/produce,
+	// crafting-and-cooking §3, §5). The `craft` verb routes through it via
+	// commandEnv. nil-safe.
+	Craft *crafting.Service
 
 	// Effects is the M9.2 active-effect manager (spec
 	// abilities-and-effects §5). Resolves targets via a closure
