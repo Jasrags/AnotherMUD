@@ -40,6 +40,12 @@ func (r *PassiveStatReader) StatValue(entityID string, stat progression.StatType
 	}
 	if r.mgr != nil {
 		if a, ok := r.mgr.GetByPlayerID(entityID); ok {
+			// GetByPlayerID releases the manager lock before returning the
+			// actor; StatValue then reads the StatBlock, which carries its
+			// own RWMutex (no a.mu needed). Safe to read lock-free after the
+			// manager lock drops — the same invariant CombatantByPlayerID and
+			// the active resolver's source.StatValue reads rely on, both also
+			// called on the tick goroutine.
 			return a.StatValue(stat)
 		}
 	}

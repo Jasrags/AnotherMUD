@@ -5,7 +5,9 @@ import (
 
 	"github.com/Jasrags/AnotherMUD/internal/entities"
 	"github.com/Jasrags/AnotherMUD/internal/mob"
+	"github.com/Jasrags/AnotherMUD/internal/player"
 	"github.com/Jasrags/AnotherMUD/internal/progression"
+	"github.com/Jasrags/AnotherMUD/internal/world"
 )
 
 // constRoller returns roll value v+1 (IntN+1) every call — enough for
@@ -124,6 +126,31 @@ func TestPassiveStatReader_ResolvesMobStat(t *testing.T) {
 	var nilR *PassiveStatReader
 	if got := nilR.StatValue(mobID, "str"); got != 0 {
 		t.Errorf("nil reader StatValue = %d, want 0", got)
+	}
+}
+
+// TestPassiveStatReader_ResolvesPlayerStat pins the player branch: a
+// connActor registered in the manager resolves to its live stat block
+// (the path that actually speeds a player's passive training). Compares
+// against the block so it doesn't hardcode the engine default.
+func TestPassiveStatReader_ResolvesPlayerStat(t *testing.T) {
+	mgr := NewManager()
+	a := &connActor{
+		id:        "c-hero",
+		playerID:  "player-hero",
+		room:      &world.Room{ID: "r"},
+		statBlock: progression.NewWithBase(progression.DefaultPlayerBase()),
+		save:      &player.Save{ID: "player-hero", Name: "Hero"},
+	}
+	mgr.Add(a)
+	want := a.statBlock.Effective(progression.StatDEX)
+
+	r := NewPassiveStatReader(mgr, nil) // nil store → player-only path
+	if got := r.StatValue("player-hero", progression.StatDEX); got != want {
+		t.Errorf("StatValue(player, dex) = %d, want %d", got, want)
+	}
+	if got := r.StatValue("nobody", progression.StatDEX); got != 0 {
+		t.Errorf("StatValue(unknown player) = %d, want 0", got)
 	}
 }
 

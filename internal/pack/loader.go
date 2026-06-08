@@ -296,6 +296,10 @@ func validateItemSlots(dst *Registries) error {
 // with validateItemSlots / validateSpawnRules. KeyID is already
 // namespace-qualified at decode (buildDoorState), so cross-pack keys
 // resolve here regardless of load order.
+//
+// Only r.Exits is walked: the loader attaches doors solely to
+// direction-keyed exits (decodeRoom), never to KeywordExits, so there is
+// no keyed door to miss on the keyword side.
 func validateDoorKeys(dst *Registries) error {
 	for _, r := range dst.World.Rooms() {
 		for dir, e := range r.Exits {
