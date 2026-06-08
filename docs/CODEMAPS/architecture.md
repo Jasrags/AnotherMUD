@@ -1,4 +1,4 @@
-<!-- Generated: 2026-06-07 | Go files scanned: 270 (+259 tests) | ~59k LOC | 53 internal pkgs | Token estimate: ~700 -->
+<!-- Generated: 2026-06-07 | Go files scanned: 277 (+268 tests) | ~61k LOC | 53 internal pkgs | Token estimate: ~700 -->
 
 # Architecture
 
@@ -56,4 +56,4 @@ gameclock (tick-driven) ─▶ time.period.change ─▶ weather ambience +
 - `data.md` — save surface + content packs (registries, load order).
 - `dependencies.md` — external libs + foundations conventions.
 - Specs are the behavior source of truth: `docs/specs/README.md` (canonical order).
-  Roadmap/backlog: `docs/ROADMAP.md` (done-log, M0–M23), `docs/BACKLOG.md`.
+  Roadmap/backlog: `docs/ROADMAP.md` (done-log, M0–M25), `docs/BACKLOG.md`.

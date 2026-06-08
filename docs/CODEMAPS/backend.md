@@ -1,4 +1,4 @@
-<!-- Generated: 2026-06-06 | Engine core: tick, eventbus, command, services | Token estimate: ~900 -->
+<!-- Generated: 2026-06-07 | Engine core: tick, eventbus, command, services | Token estimate: ~950 -->
 
 # Engine & Command Flow
 
@@ -27,6 +27,15 @@ raw line ─▶ Fields() ─▶ resolveRegistration(verb)   (exact match, else
   `docs/specs/tab-completion.md`.
 - Builtins registered in `builtins.go`; per-channel/emote/movement verbs wired in
   `main.go`.
+- **Equip footprint/contention** (`equipment.go`, inventory-equipment-items §3):
+  items declare `eligible_slots` + `companion_slots`; `EquipHandler` checks
+  eligibility, computes a footprint via `slot.{IsEligible,FreeKey,Footprint}`,
+  displaces every conflicting occupant, then publishes the cancellable
+  `entity.equipping` veto (the policy/feature-module seam) before mutating. A
+  spanning item (two-hander) lives under several `connActor.equipment` keys but
+  one `footprints[id]` entry → modifiers once, one save entry, whole-footprint
+  unequip. Mobs reuse the same helpers in `entities.EquipMobAtSpawn` (no
+  auto-swap; non-fitting gear carried-as-loot, not equipped).
 
 ## Tick loop
 `internal/tick` — `Loop.Register(name, cadence, fn)`, default 100ms tick.

@@ -1,4 +1,4 @@
-<!-- Generated: 2026-06-07 | Persistence (YAML files) + content packs — no database | Token estimate: ~770 -->
+<!-- Generated: 2026-06-07 | Persistence (YAML files) + content packs — no database | Token estimate: ~800 -->
 
 # Data: Saves & Content
 
@@ -17,10 +17,15 @@ channels/<id>.yaml               global channel scrollback
 clock.yaml                       global in-game time (CurrentHour, DayCount)
 ```
 - Writes via `internal/persistence`: tmp → bak → rename rotation, path-safety.
-- `internal/player` — `player.yaml` carries `version`; `CurrentVersion = 15`
+- `internal/player` — `player.yaml` carries `version`; `CurrentVersion = 16`
   with an **append-only migration chain** (never edit an old migration).
   Boolean/string prefs with a safe zero-value (autoloot, wimpy, prompt,
   `show_room_data`) are added `omitempty` **without** a version bump.
+- **Equipment save shape**: one entry per equipped item, keyed by its TARGET
+  slot key (`{Template, Entity}`). A spanning item (two-hander) is NOT
+  duplicated across its footprint — companion keys are re-derived from the
+  template on reload (`respawnEquipment`). No version bump (legacy saves are
+  structurally identical — one entry per item).
 - **Autosave**: `session.Manager.SaveAll` writes actors with the `dirty` bit set
   (`SetRoom` flips it); final flush on SIGINT. Per-player errors isolated.
 - **In-game time persists**: `gameclock.Store` writes `clock.yaml` (atomic),
@@ -41,8 +46,15 @@ quests · help · scripts(*.lua)
 ```
 - Ids are namespaced (`tapestry-core:town-square`); unqualified ids resolve
   against the current pack, `other-pack:foo` crosses packs.
-- Load order relies on **alphabetical discovery** — no topological sort over
-  declared deps yet (open item).
+- **Equippable items** declare `eligible_slots` (which slots they fit) and
+  optional `companion_slots` (footprint spanned when worn, e.g. a two-hander's
+  `offhand`); a legacy single `properties.slot` is bridged to a one-element
+  eligible set. Slot names are validated against the registry in a boot
+  post-pass (`validateItemSlots`). Engine baseline slots: `wield`, `offhand`,
+  `head`, `finger`(×2), `light`; packs add more (e.g. `cloak`).
+- Pack load order is **dependency-ordered**: `internal/pack/order.go` runs a
+  Kahn's-algorithm topological sort over declared deps (alphabetical
+  tie-breaks; `ErrCycle`/`ErrUnknownDep`), wired into `pack.Load`.
 - **Room coordinates are derived, not authored**: after the exit graph is
   assembled, `world.DeriveCoordinates` (room-coordinates spec) walks each
   area's directional exits to assign area-local `(x,y,z)`, honoring an
