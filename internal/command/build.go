@@ -55,7 +55,10 @@ func BuildHandler(ctx context.Context, c *Context) error {
 		return c.Actor.Write(ctx, "There is already a fire burning here.")
 	}
 
-	// Fuel gate (§4): consume one unit of fuel from the pack.
+	// Fuel gate (§4): take one unit of fuel from the pack, but DON'T
+	// destroy it until the fire is actually placed — same loss-free
+	// ordering as the craft path. On a placement failure the fuel is
+	// re-added (it was only removed from the bag, never untracked).
 	fuelID, ok := findFuel(c)
 	if !ok {
 		return c.Actor.Write(ctx, "You need some firewood to build a fire.")
@@ -63,16 +66,16 @@ func BuildHandler(ctx context.Context, c *Context) error {
 	if !c.Actor.RemoveFromInventory(fuelID) {
 		return c.Actor.Write(ctx, "You fumble your firewood.")
 	}
-	_ = c.Items.Untrack(fuelID)
 
 	now := uint64(0)
 	if c.NowTick != nil {
 		now = c.NowTick()
 	}
 	if _, err := campfire.Place(c.Items, c.Placement, room.ID, now); err != nil {
-		// The fuel is already consumed; report failure honestly.
+		c.Actor.AddToInventory(fuelID) // rollback: fuel still live, just back in the bag
 		return c.Actor.Write(ctx, "The fire won't catch.")
 	}
+	_ = c.Items.Untrack(fuelID) // destroy the fuel only now that the fire exists
 
 	if c.Broadcaster != nil {
 		c.Broadcaster.SendToRoom(ctx, room.ID,
