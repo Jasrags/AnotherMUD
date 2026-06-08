@@ -1,8 +1,9 @@
 # Crafting & Cooking — Implementation Plan
 
 **Source:** `docs/specs/crafting-and-cooking.md` (the spec) + the original
-design brief. **Status:** Planning — no code yet. **Audience:** the build
-sequence to review before implementation begins.
+design brief. **Status:** MVP SHIPPED (M27, Phases 0–5; see `ROADMAP.md` +
+`[[crafting-deferred-fixes]]`). Phases 6–8 (acquisition breadth, regional
+sets, gathering) remain. **Audience:** the build sequence + what's left.
 
 This is a phased, dependency-ordered build plan shaped for AnotherMUD.
 Unlike a from-scratch system, most of crafting is **wiring to systems that

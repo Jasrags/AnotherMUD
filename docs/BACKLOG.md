@@ -15,27 +15,29 @@ the theme-axis plan (its method survives below).
   specced item links its `docs/specs/<file> §X` — the *what* lives there. An unspecced
   item's first deliverable *is* a new spec slice (the spec set has grown 17 → **32** as
   ideas get promoted; of the write-ahead batch, roles, admin-verbs, and item-decorations
-  have since shipped (M19/M20; `who` shipped too), leaving `tag-observers`,
-  `crafting-and-cooking`, and the trade trio as contracts still ahead of code in §1).
+  have since shipped (M19/M20; `who` shipped too, and `crafting-and-cooking` at M27),
+  leaving `tag-observers` and the trade trio as contracts still ahead of code in §1).
 - **Verified against code.** Every item below was confirmed absent in the codebase as of
   2026-06-02, not trusted from the old matrix (which misreported several shipped systems).
 
-## Status: M0–M26 shipped; specced + greenfield work remains
+## Status: M0–M27 shipped; specced + greenfield work remains
 
 The five original themes — A (Social / M13), B (Modern Client / M16),
 C (World Depth / M15), D (Content Authoring / M17), E (Engine Debt / M14) — are
 **done**, and since then **M19** (Roles & Administration), **M20** (Item Decorations),
 **M21** (Item Stacking), **M22** (Loot & Corpses), **M23** (Room Coordinates),
-**M24** (Player Maps), **M25** (Equipment slots), and **M26** (Engine Debt II —
-door-key boot validation, passive gain stat factor, GMCP wizard panel) have
-shipped (see `ROADMAP.md`).
+**M24** (Player Maps), **M25** (Equipment slots), **M26** (Engine Debt II —
+door-key boot validation, passive gain stat factor, GMCP wizard panel), and
+**M27** (Crafting & Cooking MVP — recipes, crafting proficiency, the quality
+roll, cooking→well-fed, fixed/portable/campfire stations) have shipped (see
+`ROADMAP.md`).
 **Light & darkness** has also shipped (per-viewer effective light + sources/fuel +
 render/combat/movement friction + period transitions + persisted in-game time).
 **M18** (Command & UI polish) is now **complete** — `prompt`, `who`, auto-help
 synthesis, command chaining/repeat, and the bad-input tracker all shipped.
-Behavior contracts still written-ahead-of-code: `tag-observers`,
-`crafting-and-cooking`, and the trade trio (§1). What remains unspecced (§2) is the
-greenfield gameplay/economy-depth tail the themes didn't claim.
+Behavior contracts still written-ahead-of-code: `tag-observers` and the trade
+trio (§1). What remains unspecced (§2) is the greenfield gameplay/economy-depth
+tail the themes didn't claim.
 
 ---
 
@@ -55,7 +57,6 @@ go straight into a milestone.
 | Property-registry save-pipeline integration | persistence §2 / §4.4 | registry substrate exists (M14.4); not wired into the save pipeline — m14 |
 | Slow-tick observability — full breakdown / routing | time-and-clock §5 | core **shipped**: `Loop.SetSlowTickObserver` times each tick, warns (`slog`) when it exceeds a threshold (`ANOTHERMUD_SLOW_TICK_THRESHOLD`, default = tick interval); reports total + handlers. Remaining: the §5 event-queue/command components (no such tick phases in this engine) + admin-channel / OTel routing (a consumer on the callback seam) |
 | Reactive tag observers | **tag-observers §2–§4** (new) | `entity.tag_added/removed` bus events for non-index reactors. Substrate ahead of a consumer. Ported from Tapestry `ITagObserver` |
-| **Crafting & Cooking** | **crafting-and-cooking** (new) + plan `themes/crafting-cooking-plan.md` | recipes + crafting-skill proficiency + quality roll (output = rarity tier) + cooking→sustenance/well-fed. MVP = Tier 0 + Tier 1 campfire (temp entity, M15.2 reuse) + Tier 2 room-tag + mob-loot ingredients, all in `core` pack. Its ideal ingredient source — **gathering** — is now specced (§1, this table) and can ship alongside or after |
 | **Player trade** (escrow + direct trade + auction) | **trade-escrow / direct-trade / auction-house** (new) + plan `plans/trade-plan.md` | shared escrow/atomic-commit primitive (cancellable bus); sync zero-sum direct trade; async persisted buyout auction (global, pickup delivery, fee gold sink). Admin moderation gates on roles/admin (now shipped + enforcing). Push delivery deferred to Mail (§2) |
 | **Visibility** (hide / sneak / darkness / invisibility) | **visibility §2–§7** (new) | the keystone of the Gameplay Systems cluster. Hybrid model: flag-gated darkness + magical/admin invis, opposed-contest hide/sneak. Four detection paths (passive sticky auto-detect, see-invisible/see-in-dark/detect traits, `search` verb, reveal-on-action). Fills the `world-rooms-movement §7` filter seam + `commands-and-dispatch §5.4` `BypassVisibility`; unblocks `who §4` per-viewer hiding, `admin-verbs §3` wizinvis, and hidden exits. All ephemeral (no save). The minimal light model this row once sketched is **superseded** — light-and-darkness shipped (per-viewer effective light, sources, darkvision); visibility must compose darkness (this) with concealment, pinning the precedence per `light-and-darkness §12` |
 | **Hidden exits** (secret doors / passages) | **hidden-exits §2–§7** (new) | `hidden` + `search_difficulty` flag on the Exit (works with or without a door, mirrors door `pick-difficulty`). Discovery reuses visibility's `search` + sticky memory; search-only (passive off by default). **Knowledge-gated**: an undiscovered hidden exit is unwalkable + door un-operable, not just unlisted — gate lives in the player movement command + `flee`, NOT the unconditional move primitive (mob/scripted/admin moves ungated). Per-character ephemeral; no save change. Emits `exit.discovered` (quest hook). Depends on visibility |
@@ -427,7 +428,6 @@ need a design pass first.
 
 | Theme | Pulls in | Size |
 |---|---|---|
-| **Crafting & Cooking** | `crafting-and-cooking` + plan; full Tier 0/1/2 MVP in the `core` pack | M |
 | **Player trade** | trade-escrow + direct-trade + auction-house + plan; atomic escrow, sync trade, buyout auction | M |
 | **Engine Debt III** | §6.2 scaling-bonus consumer, property-save wiring, tag-indexed reads (§3.4) | S |
 
@@ -448,7 +448,7 @@ need a design pass first.
 | If yes → | start with |
 |---|---|
 | You want a real item economy — players selling loot to each other | **Player trade** *(specced — ready)*; then Economy depth (mail/banking, greenfield) |
-| You want a crafting/gathering loop | **Crafting & Cooking** + **Gathering** + **Biomes** *(all specced — ready)* |
+| You want to deepen the crafting loop | **Crafting & Cooking** shipped (M27); add **Gathering** + **Biomes** *(specced — the real ingredient source)* |
 | The world/character sheet feels mechanically thin | **Gameplay Systems** *(greenfield — design first)* |
 | You want more "things to do" — repeatable activities, destinations, prestige | **Gameplay content / activities** *(greenfield — small standalone specs)* |
 | You want a fast, low-stakes win to re-enter the codebase | take one **§1 warmup** (tag-indexed reads, container caps, …) |

@@ -32,15 +32,17 @@ and `THEME-AXIS-PLAN.md` are superseded by `BACKLOG.md` and now live under
   **M24** (Player Maps — persisted fog-of-war visited set, the shared
   `world.LocalWindow` query, the active `minimap` toggle + the `map` verb,
   and the Mudlet GMCP surface), **M25** (Equipment slots — eligibility,
-  footprint, contention, mob capacity), and **M26** (Engine Debt II —
-  door-key boot validation, passive gain stat factor, GMCP wizard panel).
+  footprint, contention, mob capacity), **M26** (Engine Debt II —
+  door-key boot validation, passive gain stat factor, GMCP wizard panel),
+  and **M27** (Crafting & Cooking MVP — recipes, crafting-skill proficiency,
+  the quality roll, cooking→well-fed, fixed/portable/campfire stations).
   The core loop, world, combat, progression, economy, quests, scripting,
   sessions, modern-client, roles/admin, decorations, stacking, loot, room
-  coordinates, player maps, and equipment slots all work.
-- **Active:** none — M26 closed (Engine Debt II shipped its three real
-  wins; the substrate-without-consumer items stay deferred until their
-  triggers fire — see `BACKLOG.md` §1 + `[[m26-deferred-fixes]]`). Pick the
-  next theme from `BACKLOG.md` §1 (specced, ready) or §2 (greenfield).
+  coordinates, player maps, equipment slots, and crafting all work.
+- **Active:** none — M27 closed (Crafting & Cooking MVP, Phases 0–5,
+  reviewed twice). Post-MVP crafting breadth + gathering stay deferred (see
+  `BACKLOG.md` §1 + `[[crafting-deferred-fixes]]`). Pick the next theme from
+  `BACKLOG.md` §1 (specced, ready) or §2 (greenfield).
 - **Specs ahead of code.** Behavior contracts written without
   implementation, still awaiting a milestone: `tag-observers`,
   `crafting-and-cooking`, and the trade trio
@@ -3361,6 +3363,69 @@ world scale). Recorded in `[[m26-deferred-fixes]]`.
 (StatReader + passive rollGain), `internal/session` (PassiveStatReader,
 wizardGmcpSink, runCreation), `internal/gmcp` (Char.Wizard payload),
 `cmd/anothermud` (passiveStatReader wiring). 53 pkgs green -race.
+
+---
+
+### M27 — Crafting & Cooking (MVP)
+
+**Theme:** the full `crafting-and-cooking.md` MVP (plan
+`themes/crafting-cooking-plan.md` Phases 0–5), built per-slice. Almost all
+of it is wiring to existing systems — rarity tiers ARE the quality tiers,
+crafting skill IS a proficiency, the well-fed buff IS an EffectTemplate via
+the consumable pipeline, cooking feeds the existing sustenance pool. Two
+new pieces: the recipe registry and the campfire temp-entity (reusing the
+M15.2 decay shape). Reviewed twice (foundation + final); the atomic
+consume/produce was independently verified free of item dup/loss.
+
+**Exit criteria:**
+
+- [x] **Phase 0 — Recipe substrate.** `internal/recipe` (Recipe +
+      namespaced Registry); pack `RecipeFile`/`decodeRecipe` + `recipes:`
+      glob; player save **v17** `known_recipes` + migrateV16toV17.
+- [x] **Phase 1 — Crafting skills.** `recipe.KnownManager` (per-character
+      known set, session-persisted, §9 drop-unknown-on-restore); `learn
+      <discipline>` verb (trainer-gated acquire → seed proficiency + grant
+      baseline recipes). A discipline = any ability a recipe references.
+      Decision: acquisition = learn-at-trainer; one mob can be trainer +
+      shopkeeper (Brandr the blacksmith).
+- [x] **Phase 2 — Tier-0 craft + quality roll.** `internal/crafting`
+      Service: `craft <recipe>` verb; the §5 weighted roll (skill + tool +
+      ingredient → RNG band → station hard ceiling + ingredient soft
+      ceiling → rarity-tier instance property); atomic input
+      consume/produce with rollback (no item loss).
+      `ProficiencyManager.RollUseGain` shares the §3.5 gain path.
+- [x] **Phase 3 — Cooking + well-fed.** Craft stamps a quality-scaled
+      `effect_id` on output (`quality_effects` map); the existing eat
+      pipeline applies it (no-stack by id). Marta the cook; cooked-meal;
+      well-fed-minor/well-fed effects. Common = cold ration (no buff).
+- [x] **Phase 4 — Stations + gate + portable tools.** Present station tier
+      (room `craft_stations` ∪ carried tool) gates the attempt + sets the
+      ceiling. Forge = Tier-2 smithing, market = Tier-2 cooking; cook's kit
+      = Tier-1 field tool. Registered `craft_stations` room property
+      (TypeMapInt; fixed the validator to accept the YAML map shape).
+- [x] **Phase 5 — Buildable campfire.** `internal/campfire` temp Tier-1
+      cooking station (M15.2 decay reuse): `build campfire` (terrain +
+      weather + fuel gates), decay tick, room-placed station read by the
+      craft path. Firewood fuel.
+
+**The MVP loop:** learn a discipline at a trainer → buy ingredients (vendor
+stopgap; gathering replaces it later) → craft Tier 0 anywhere → build a
+campfire for Tier-1 field cooking → use the forge/kitchen for Tier 2 →
+meals grant well-fed, quality renders via rarity, skill grows through use.
+
+**Open / deferred (post-MVP, plan Phases 6–8):** recipe-acquisition breadth
+(common/uncommon/rare/regional via shops/quests/loot), regional sets +
+guided discovery, and **gathering** (the real ingredient source replacing
+vendor stock). LOW review items + the unregistered-discipline-cap edge in
+`[[crafting-deferred-fixes]]`.
+
+**Touches code:** `internal/recipe` + `internal/crafting` + `internal/campfire`
+(new), `internal/command` (learn/craft/build verbs + station tier),
+`internal/progression` (RollUseGain), `internal/pack` (recipe loader +
+craft_stations property + TypeMapInt fix), `internal/player` (save v17),
+`internal/session` + `cmd/anothermud` (wiring), `content/core` (cooking +
+smithing disciplines, trainers, recipes, food, effects, tools, stations).
+54 pkgs green -race.
 
 ---
 
