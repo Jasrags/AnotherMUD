@@ -1,0 +1,10 @@
+# Well-fed — the buff a rare-quality cooked meal grants
+# (crafting-and-cooking §6). Reachable once cooking is done at a real
+# station (Tier 1+ ceilings, Phases 4-5); at Tier-0 cooking the ceiling
+# caps output at uncommon, so this tier waits on stations. Standard
+# EffectTemplate, no-stack by id. 900 ticks = 90s.
+id: well-fed
+duration: 900
+modifiers:
+  - stat: str
+    value: 2

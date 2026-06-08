@@ -14,6 +14,20 @@ import (
 // output is stamped with its rolled tier under this key.
 const propRarity = "rarity"
 
+// propEffectID is the consumable effect_id the eat/drink pipeline reads
+// (economy.PropEffectID) and applies on consume. Cooking stamps it from the
+// output template's quality_effects map so a meal's well-fed buff scales
+// with its crafted quality (crafting-and-cooking §6).
+const propEffectID = "effect_id"
+
+// propQualityEffects is the output-template property declaring a
+// rarity-tier → effect_id map. The craft resolves the effect for the
+// highest tier not exceeding the rolled quality and stamps it as the
+// instance's effect_id. Generic: any quality-scaled consumable (cooking is
+// the first) uses it; common-quality output that matches no tier gets no
+// effect (the §6 cold-ration baseline).
+const propQualityEffects = "quality_effects"
+
 // Crafter is the inventory-bearing actor a craft operates on — the player.
 // The command layer's Actor interface satisfies this structurally, so no
 // adapter is needed. All inventory mutation flows through these methods.
@@ -157,6 +171,12 @@ func (s *Service) Craft(ctx context.Context, c Crafter, query string) CraftResul
 		if qualityKey != "" {
 			inst.SetProperty(propRarity, qualityKey)
 		}
+		// Cooking (§6): stamp a quality-scaled well-fed effect_id when the
+		// output template declares quality_effects. The existing eat
+		// pipeline applies it on consume.
+		if effID := s.qualityEffectFor(tpl, qualityKey); effID != "" {
+			inst.SetProperty(propEffectID, effID)
+		}
 		produced = append(produced, inst)
 	}
 
@@ -245,6 +265,70 @@ func (s *Service) meetsMinQuality(inst *entities.ItemInstance, minKey string) bo
 		have = 0
 	}
 	return have >= minPos
+}
+
+// qualityEffectFor resolves the well-fed (or any quality-scaled) effect id
+// for a craft of tier qualityKey from tpl's quality_effects map (§6). It
+// returns the effect of the HIGHEST declared tier whose ladder position
+// does not exceed the rolled tier — so a rare meal with only {uncommon,
+// legendary} defined gets the uncommon effect, and a common meal below the
+// lowest declared tier gets none (the cold-ration baseline). Returns "" if
+// the template declares no map, the key is unknown, or nothing qualifies.
+func (s *Service) qualityEffectFor(tpl *item.Template, qualityKey string) string {
+	if tpl == nil || qualityKey == "" || tpl.Properties == nil {
+		return ""
+	}
+	m := stringMap(tpl.Properties[propQualityEffects])
+	if len(m) == 0 {
+		return ""
+	}
+	rolledPos := ladderPosition(s.rarity, qualityKey)
+	if rolledPos < 0 {
+		return ""
+	}
+	best, bestPos := "", -1
+	for tierKey, effID := range m {
+		pos := ladderPosition(s.rarity, tierKey)
+		if pos < 0 || pos > rolledPos {
+			continue
+		}
+		if pos > bestPos {
+			bestPos, best = pos, strings.TrimSpace(effID)
+		}
+	}
+	return best
+}
+
+// stringMap coerces a content property (yaml.v3 decodes maps as
+// map[string]any or map[any]any) into map[string]string, keeping only
+// string values. Returns nil on a non-map or empty input.
+func stringMap(raw any) map[string]string {
+	switch m := raw.(type) {
+	case map[string]string:
+		return m
+	case map[string]any:
+		out := make(map[string]string, len(m))
+		for k, v := range m {
+			if s, ok := v.(string); ok {
+				out[k] = s
+			}
+		}
+		return out
+	case map[any]any:
+		out := make(map[string]string, len(m))
+		for k, v := range m {
+			ks, ok := k.(string)
+			if !ok {
+				continue
+			}
+			if s, ok := v.(string); ok {
+				out[ks] = s
+			}
+		}
+		return out
+	default:
+		return nil
+	}
 }
 
 func (s *Service) rarityKeyOf(inst *entities.ItemInstance) string {

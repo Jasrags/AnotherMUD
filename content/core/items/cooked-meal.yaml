@@ -1,0 +1,23 @@
+id: cooked-meal
+name: a cooked meal
+type: item
+# The output of the cooking recipe (crafting-and-cooking §6). A consumable:
+# `eat meal` clears sustenance like any food. When crafted at quality, the
+# craft stamps a quality-scaled well-fed effect_id (via quality_effects
+# below) that the eat pipeline applies — a common-quality meal is a cold
+# ration (food, no buff); uncommon+ grants a well-fed effect.
+tags: [food, consumable]
+keywords: [meal, food, dinner]
+properties:
+  weight: 1
+  value: 8
+  # Eating clears hunger (economy-survival §6).
+  consume_method: eat
+  sustenance_value: 40
+  # Quality → well-fed effect (crafting §6). The craft picks the highest
+  # tier <= the rolled quality and stamps it as effect_id; common (below
+  # uncommon) gets none — the cold-ration baseline. NOTE: no base effect_id
+  # here, so an un-crafted meal is a plain (no-buff) food.
+  quality_effects:
+    uncommon: well-fed-minor
+    rare: well-fed

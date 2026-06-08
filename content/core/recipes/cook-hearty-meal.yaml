@@ -1,0 +1,17 @@
+# Baseline cooking recipe (crafting-and-cooking §6) — granted free when you
+# `learn cooking`. Turns raw meat into a cooked meal. Declares station_tier 1
+# (a fire — a campfire or kitchen), but the station gate is not enforced
+# until Phase 4/5, so for now it crafts anywhere at Tier-0 quality (output
+# caps at uncommon → a meal that is a cold ration or a minor well-fed buff).
+id: cook-hearty-meal
+name: cook a hearty meal
+discipline: cooking
+skill_floor: 1
+station_tier: 1
+time_pulses: 15
+acquisition: baseline
+inputs:
+  - { template: raw-meat, quantity: 1 }
+output:
+  template: cooked-meal
+  quantity: 1

@@ -1,0 +1,27 @@
+id: cook
+name: Marta the cook
+type: npc
+behavior: stationary
+description: |
+  Marta works a portable brazier at the end of the stalls, sleeves shoved
+  up and a tasting spoon tucked behind one ear. Pots of something fragrant
+  bubble at her elbow. She'll sell you a cut of meat and, if you ask, show
+  you how to turn it into a proper meal.
+# Trainer + shop on one mob (crafting-and-cooking §4), mirroring the
+# blacksmith: `learn cooking`/`practice cooking` route through the trainer;
+# `buy`/`list` through the shop.
+tags: [humanoid, skill_trainer, shop]
+keywords: [marta, cook, chef]
+stats:
+  hp_max: 30
+  str: 10
+disposition_rules:
+  default: friendly
+trainer:
+  tier: apprentice
+  teach:
+    - cooking
+properties:
+  shop:
+    sells:
+      - tapestry-core:raw-meat

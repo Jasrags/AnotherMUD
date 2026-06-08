@@ -1,0 +1,12 @@
+id: raw-meat
+name: a cut of raw meat
+type: item
+# A cooking ingredient (crafting-and-cooking §6). Sold by the market cook
+# as a stand-in source until gathering/hunting lands (§8 vendor-ingredient
+# compromise). Not a consumable on its own — cook it into a meal.
+tags: [food, ingredient, stackable]
+keywords: [meat, cut, raw]
+properties:
+  stackable: true
+  weight: 1
+  value: 4

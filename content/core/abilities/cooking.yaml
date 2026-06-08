@@ -1,0 +1,20 @@
+# The cooking crafting discipline (crafting-and-cooking §2, §6). Like
+# smithing, a discipline is a proficiency reused from the ability machinery
+# — a passive skill with no combat hook, carrying a cap + use-gain params.
+#
+# Acquired with `learn cooking` at a cook trainer (Marta in the market),
+# which seeds proficiency 1 and grants the discipline's baseline recipes.
+# Cooking turns ingredients into food that clears hunger and, at quality,
+# grants a well-fed buff (§6).
+id: cooking
+name: Cooking
+type: passive
+category: skill
+
+default_cap: 25
+
+gain_base_chance: 30
+gain_failure_multiplier: 0.5
+# A cook's instinct — WIS nudges the gain roll.
+gain_stat: wis
+gain_stat_scale: 0.1

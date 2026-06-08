@@ -1,0 +1,10 @@
+# Well-fed (minor) — the buff an uncommon-quality cooked meal grants
+# (crafting-and-cooking §6). A standard EffectTemplate applied through the
+# consumable effect pipeline (M14.2), not a bespoke buff. Re-eating while
+# active is a no-op (the effect manager ignores a duplicate id), so meals
+# do not stack into a permanent bonus. 600 ticks = 60s at the default rate.
+id: well-fed-minor
+duration: 600
+modifiers:
+  - stat: str
+    value: 1

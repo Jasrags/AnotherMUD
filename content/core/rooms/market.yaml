@@ -8,3 +8,5 @@ description: |
   quite stops.
 exits:
   west: town-square
+mobs:
+  - cook
