@@ -181,15 +181,15 @@ func TestEquipment_ShowsAllSlotsEmpty(t *testing.T) {
 	if !strings.Contains(out, "(empty)") {
 		t.Errorf("empty equipment should list slots as (empty): %q", out)
 	}
-	// Baseline slots are all present and empty.
-	for _, label := range []string{"wielded", "worn on head", "worn on finger"} {
+	// Baseline slots are all present and empty (compact slot names).
+	for _, label := range []string{"wield", "head", "finger"} {
 		if !strings.Contains(out, label) {
 			t.Errorf("slot %q missing from empty equipment listing: %q", label, out)
 		}
 	}
 	// Two ring fingers (multi-cap) → two empty finger lines.
-	if got := strings.Count(out, "worn on finger"); got != 2 {
-		t.Errorf("worn-on-finger count = %d, want 2 (both empty sub-slots): %q", got, out)
+	if got := strings.Count(out, "finger"); got != 2 {
+		t.Errorf("finger count = %d, want 2 (both empty sub-slots): %q", got, out)
 	}
 }
 
@@ -211,10 +211,10 @@ func TestEquipment_ListsInSlotRegistrationOrder(t *testing.T) {
 	dispatch(t, r, f.env(), a, "equipment")
 	out := a.lastLine()
 
-	wield := strings.Index(out, "wielded")
-	head := strings.Index(out, "worn on head")
+	wield := strings.Index(out, "wield")
+	head := strings.Index(out, "head")
 	if wield < 0 || head < 0 {
-		t.Fatalf("labels missing from output: %q", out)
+		t.Fatalf("slot names missing from output: %q", out)
 	}
 	if wield > head {
 		t.Errorf("registration order not preserved: wield at %d, head at %d", wield, head)
@@ -234,8 +234,8 @@ func TestEquipment_MultiCapEmitsLinePerFilledSubSlot(t *testing.T) {
 	dispatch(t, r, f.env(), a, "equipment")
 
 	out := a.lastLine()
-	// Two rings → two "worn on finger" lines.
-	if got := strings.Count(out, "worn on finger"); got != 2 {
+	// Two rings → two "finger" lines.
+	if got := strings.Count(out, "finger"); got != 2 {
 		t.Errorf("worn-on-finger count = %d, want 2; full output: %q", got, out)
 	}
 	// And no slot-key colons leaked into the user-facing render.
@@ -256,8 +256,8 @@ func TestEquipment_MultiCapShowsFilledAndEmptySubSlots(t *testing.T) {
 	dispatch(t, r, f.env(), a, "equipment")
 
 	out := a.lastLine()
-	if got := strings.Count(out, "worn on finger"); got != 2 {
-		t.Errorf("worn-on-finger count = %d, want 2 (one filled, one empty); %q", got, out)
+	if got := strings.Count(out, "finger"); got != 2 {
+		t.Errorf("finger count = %d, want 2 (one filled, one empty); %q", got, out)
 	}
 	if !strings.Contains(out, "(empty)") {
 		t.Errorf("the unused finger slot should show (empty): %q", out)

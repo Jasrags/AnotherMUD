@@ -126,10 +126,10 @@ func renderContainerContents(b *strings.Builder, c *Context, containerID entitie
 // slots exist (and their names) without guessing. An empty slot renders
 // as `(empty)`; an occupied one shows the item colored by rarity. A
 // multi-cap slot (e.g. two ring fingers) emits one line per sub-slot,
-// each with the base slot label — players never see the `:index` suffix.
+// each with the compact slot name — players never see the `:index` suffix.
 // Shares the score sheet's gatherer (gatherScoreEquip) so the focused
 // `eq` view and the score sheet's Equipment section list the same slots
-// with the same coloring.
+// with the same names and coloring.
 func EquipmentHandler(ctx context.Context, c *Context) error {
 	if c.Items == nil || c.Slots == nil {
 		return c.Actor.Write(ctx, "You have no equipment slots right now.")
@@ -142,15 +142,15 @@ func EquipmentHandler(ctx context.Context, c *Context) error {
 	return c.Actor.Write(ctx, renderEquipRows("You are wearing:", rows))
 }
 
-// renderEquipRows formats equipment rows as a "label  name" block under a
-// <title> header: labels are <subtle>, item names arrive already wrapped
-// in their rarity markup. Label width is measured in runes (not bytes) so
-// multi-byte pack-authored slot labels still line up; engine-baseline
-// labels are ASCII so today the two are equivalent.
+// renderEquipRows formats equipment rows as a "slot  name" block under a
+// <title> header: slot names are <subtle>, item names arrive already
+// wrapped in their rarity markup. Slot width is measured in runes (not
+// bytes) so multi-byte pack-authored slot names still line up; engine
+// baseline names are ASCII so today the two are equivalent.
 func renderEquipRows(header string, rows []equipRow) string {
 	width := 0
 	for _, r := range rows {
-		if n := utf8.RuneCountInString(r.Label); n > width {
+		if n := utf8.RuneCountInString(r.Slot); n > width {
 			width = n
 		}
 	}
@@ -160,9 +160,9 @@ func renderEquipRows(header string, rows []equipRow) string {
 	b.WriteString("</title>")
 	for _, r := range rows {
 		b.WriteString("\n  <subtle>")
-		b.WriteString(r.Label)
+		b.WriteString(r.Slot)
 		b.WriteString("</subtle>")
-		for k := utf8.RuneCountInString(r.Label); k < width; k++ {
+		for k := utf8.RuneCountInString(r.Slot); k < width; k++ {
 			b.WriteString(" ")
 		}
 		b.WriteString("  ")

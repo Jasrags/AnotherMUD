@@ -112,9 +112,11 @@ func ScoreHandler(ctx context.Context, c *Context) error {
 }
 
 // gatherScoreEquip walks the slot registry in order and returns one row
-// per sub-slot, the item name wrapped in its rarity tag (or a subtle
-// "(empty)"). Mirrors EquipmentHandler's iteration so the score sheet and
-// `eq` show the same slots; returns nil when slots/items are unavailable.
+// per sub-slot: the compact slot name ("wield", "light") and the item name
+// wrapped in its rarity tag (or a subtle "(empty)"). Both the score sheet
+// and `eq` render these rows, so the two views list the same slots in the
+// same order with the same labels. Returns nil when slots/items are
+// unavailable.
 func gatherScoreEquip(c *Context) []equipRow {
 	if c.Items == nil || c.Slots == nil {
 		return nil
@@ -127,7 +129,7 @@ func gatherScoreEquip(c *Context) []equipRow {
 			if err != nil {
 				continue
 			}
-			row := equipRow{Label: def.Label, Name: "<subtle>(empty)</subtle>"}
+			row := equipRow{Slot: def.Name, Name: "<subtle>(empty)</subtle>"}
 			if id, ok := equipped[key]; ok {
 				if e, ok := c.Items.GetByID(id); ok {
 					if inst, ok := e.(*entities.ItemInstance); ok {
@@ -142,11 +144,12 @@ func gatherScoreEquip(c *Context) []equipRow {
 	return rows
 }
 
-// equipRow is one worn-equipment line: a slot label and the item's
-// display name, already wrapped in its color markup by the gatherer.
+// equipRow is one worn-equipment line: the compact slot name ("wield") and
+// the item's display name, already wrapped in its rarity markup by the
+// gatherer. Shared by the score sheet's Equipment column and `eq`.
 type equipRow struct {
-	Label string
-	Name  string
+	Slot string
+	Name string
 }
 
 // scoreData is the rendered character sheet's data, gathered from the
@@ -211,7 +214,10 @@ func renderScore(d scoreData) string {
 		charCol = append(charCol, scHi(identity))
 	}
 	if d.HasLevel {
-		charCol = append(charCol, scHi(fmt.Sprintf("Level %d", d.Level))+" "+scSub("· "+d.Track))
+		// ASCII separator (not "·") — panel width math is byte-based, so a
+		// multi-byte glyph would over-count this row and drift the border.
+		charCol = append(charCol, scHi(fmt.Sprintf("Level %d", d.Level))+" "+scSub("- "+d.Track))
+		charCol = append(charCol, scXPLine(d))
 	}
 	if d.HasAlign {
 		charCol = append(charCol, scKV("Alignment", scHi(fmt.Sprintf("%s (%d)", d.AlignTag, d.Align)), 11))
@@ -230,20 +236,23 @@ func renderScore(d scoreData) string {
 			"</mana>    "+scSub("MV")+" <mv>"+fmt.Sprintf("%d/%d", d.MV, d.MV)+"</mv>")
 	}
 
-	// Mid-left: attributes (two per row). Mid-right: purse + training.
-	var attrCol, purseCol []string
+	// Lower row: three columns — Attributes, Purse & Training, and the worn
+	// Equipment (compact slot names). Attributes is fixed-narrow; the other
+	// two fill the remainder so neither the sustenance line nor item names
+	// truncate (a third equal column would clip both).
+	var attrLines, purseLines, equipLines []string
 	if d.HasStats {
-		attrCol = append(attrCol,
+		attrLines = append(attrLines,
 			scAttr("STR", d.STR, "DEX", d.DEX),
 			scAttr("INT", d.INT, "CON", d.CON),
 			scAttr("WIS", d.WIS, "LUCK", d.LUCK),
 		)
 	}
 	if d.HasGold {
-		purseCol = append(purseCol, scKV("Gold", "<gold>"+commafy(int64(d.Gold))+"</gold>", 12))
+		purseLines = append(purseLines, scKV("Gold", "<gold>"+commafy(int64(d.Gold))+"</gold>", 12))
 	}
 	if d.HasSust {
-		purseCol = append(purseCol, scKV("Sustenance",
+		purseLines = append(purseLines, scKV("Sustenance",
 			scTier(d.Sust, economy.MaxSustenance, "good", fmt.Sprintf("%s (%d/%d)", d.SustTier, d.Sust, economy.MaxSustenance)), 12))
 	}
 	if d.HasTrains {
@@ -251,37 +260,32 @@ func renderScore(d scoreData) string {
 		if d.Trains > 0 {
 			tag = "good"
 		}
-		purseCol = append(purseCol, scKV("Trains", "<"+tag+">"+fmt.Sprintf("%d unspent", d.Trains)+"</"+tag+">", 12))
+		purseLines = append(purseLines, scKV("Trains", "<"+tag+">"+fmt.Sprintf("%d unspent", d.Trains)+"</"+tag+">", 12))
+	}
+	if d.HasEquip {
+		for _, r := range d.Equip {
+			equipLines = append(equipLines, scEquipCell(r))
+		}
 	}
 
 	sections := []render.Section{
-		{Rows: append([]render.Row{scTitlePair("Character", "Combat")}, scColRows(charCol, combatCol)...)},
+		{Rows: scColumns([]scCol{
+			{title: "Character", lines: charCol},
+			{title: "Combat", lines: combatCol},
+		})},
 	}
-	if len(attrCol) > 0 || len(purseCol) > 0 {
-		rows := append([]render.Row{scTitlePair("Attributes", "Purse & Training")}, scColRows(attrCol, purseCol)...)
-		sections = append(sections, render.Section{SeparatorAbove: render.RuleMinor, Rows: rows})
+	var lower []scCol
+	if len(attrLines) > 0 {
+		lower = append(lower, scCol{title: "Attributes", width: scAttrColWidth, lines: attrLines})
 	}
-	if d.HasEquip {
-		rows := []render.Row{render.TitleRow("Equipment", "")}
-		for i := 0; i < len(d.Equip); i += 2 {
-			left := scEquipCell(d.Equip[i])
-			right := ""
-			if i+1 < len(d.Equip) {
-				right = scEquipCell(d.Equip[i+1])
-			}
-			rows = append(rows, render.CellRow([]render.Cell{{Content: left, Fill: true}, {Content: right, Fill: true}}, false))
-		}
-		sections = append(sections, render.Section{SeparatorAbove: render.RuleMajor, Rows: rows})
+	if len(purseLines) > 0 {
+		lower = append(lower, scCol{title: "Purse & Training", lines: purseLines})
 	}
-	if d.HasLevel {
-		var xp string
-		if d.AtMax {
-			xp = fmt.Sprintf("XP %s  (max level)", commafy(d.XP))
-		} else {
-			xp = fmt.Sprintf("XP %s  (%s to next level)", commafy(d.XP), commafy(d.XpToNext))
-		}
-		last := &sections[len(sections)-1]
-		last.Rows = append(last.Rows, render.FooterRow(xp))
+	if len(equipLines) > 0 {
+		lower = append(lower, scCol{title: "Equipment", lines: equipLines})
+	}
+	if len(lower) > 0 {
+		sections = append(sections, render.Section{SeparatorAbove: render.RuleMinor, Rows: scColumns(lower)})
 	}
 
 	out, err := render.Panel{Width: scorePanelWidth, Sections: sections}.Render()
@@ -294,35 +298,71 @@ func renderScore(d scoreData) string {
 	return out
 }
 
-// scColRows zips two columns of pre-formatted cell content into two-cell
-// rows (divider drawn between them), padding the shorter column with
-// blank cells so the frame stays rectangular.
-func scColRows(left, right []string) []render.Row {
-	n := len(left)
-	if len(right) > n {
-		n = len(right)
+// scAttrColWidth is the fixed visible width of the Attributes column in
+// the lower section. "WIS 10   LUCK 12" (the widest attribute line) is 16
+// columns; the Purse and Equipment columns fill the rest of the panel.
+const scAttrColWidth = 16
+
+// scCol is one column of a score section: a <title> header, the
+// pre-formatted content lines, and a fixed visible width (0 = fill an
+// equal share of the row's leftover width).
+type scCol struct {
+	title string
+	width int
+	lines []string
+}
+
+// scColumns builds a section's rows from N columns: a title row over the
+// columns, then one cell-row per content line (shorter columns padded with
+// blanks so the frame stays rectangular). The last column always fills so
+// the row spans the full panel width regardless of fixed widths before it.
+func scColumns(cols []scCol) []render.Row {
+	if len(cols) == 0 {
+		return nil
 	}
-	rows := make([]render.Row, 0, n)
+	last := len(cols) - 1
+	cell := func(j int, content string) render.Cell {
+		fill := cols[j].width == 0 || j == last
+		w := cols[j].width
+		if fill {
+			w = 0
+		}
+		return render.Cell{Content: content, Width: w, Fill: fill}
+	}
+	n := 0
+	for _, c := range cols {
+		if len(c.lines) > n {
+			n = len(c.lines)
+		}
+	}
+	titleCells := make([]render.Cell, len(cols))
+	for j, c := range cols {
+		titleCells[j] = cell(j, "<title>"+c.title+"</title>")
+	}
+	rows := []render.Row{render.CellRow(titleCells, true)}
 	for i := 0; i < n; i++ {
-		l, r := "", ""
-		if i < len(left) {
-			l = left[i]
+		cells := make([]render.Cell, len(cols))
+		for j, c := range cols {
+			content := ""
+			if i < len(c.lines) {
+				content = c.lines[i]
+			}
+			cells[j] = cell(j, content)
 		}
-		if i < len(right) {
-			r = right[i]
-		}
-		rows = append(rows, render.CellRow([]render.Cell{{Content: l, Fill: true}, {Content: r, Fill: true}}, true))
+		rows = append(rows, render.CellRow(cells, true))
 	}
 	return rows
 }
 
-// scTitlePair builds a two-cell row of column headers, each <title>-tagged,
-// with a divider between them so the header aligns over the columns below.
-func scTitlePair(left, right string) render.Row {
-	return render.CellRow([]render.Cell{
-		{Content: "<title>" + left + "</title>", Fill: true},
-		{Content: "<title>" + right + "</title>", Fill: true},
-	}, true)
+// scXPLine formats the experience line shown in the Character column:
+// current XP plus either the remaining XP to the next level or a max-level
+// marker. Plain text reads "XP 12,500  (2,500 to next level)".
+func scXPLine(d scoreData) string {
+	tail := "(" + commafy(d.XpToNext) + " to next level)"
+	if d.AtMax {
+		tail = "(max level)"
+	}
+	return scSub("XP") + " " + scHi(commafy(d.XP)) + "  " + scSub(tail)
 }
 
 // scKV formats "label<pad>value" with the label subtle and the value
@@ -348,17 +388,18 @@ func scAttr(s1 string, v1 int, s2 string, v2 int) string {
 	return left + strings.Repeat(" ", pad) + scSub(s2) + " " + scHi(strconv.Itoa(v2))
 }
 
-// scEquipCell formats one worn-equipment cell: subtle slot label padded
-// to a fixed column, then the (already color-wrapped) item name.
+// scEquipCell formats one worn-equipment cell for the score sheet: the
+// subtle short slot name padded to a fixed column, then the (already
+// color-wrapped) item name.
 func scEquipCell(r equipRow) string {
-	if r.Label == "" && r.Name == "" {
+	if r.Slot == "" && r.Name == "" {
 		return ""
 	}
-	pad := 9 - len(r.Label)
+	pad := 9 - len(r.Slot)
 	if pad < 1 {
 		pad = 1
 	}
-	return scSub(r.Label) + strings.Repeat(" ", pad) + r.Name
+	return scSub(r.Slot) + strings.Repeat(" ", pad) + r.Name
 }
 
 // scTier wraps text in a good/warning/danger tag chosen by value/max

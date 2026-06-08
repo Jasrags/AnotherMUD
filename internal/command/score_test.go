@@ -33,7 +33,8 @@ func TestRenderScore_FullSheet(t *testing.T) {
 		"neutral (0)",               // alignment text
 		"<gold>1,000</gold>",        // purse, thousands-separated
 		"Full (84/100)",             // sustenance text
-		"XP 12,500  (2,500 to next level)",
+		"<highlight>12,500</highlight>", // XP value, in the Character column
+		"to next level)",                // XP remaining tail
 	} {
 		if !strings.Contains(out, want) {
 			t.Errorf("score sheet missing %q\n--- got ---\n%s", want, out)
@@ -62,8 +63,8 @@ func TestRenderScore_Equipment(t *testing.T) {
 		Name: "Geared", HasStats: true,
 		HasEquip: true,
 		Equip: []equipRow{
-			{Label: "wielded", Name: "<item.uncommon>a longsword</item.uncommon>"},
-			{Label: "head", Name: "<subtle>(empty)</subtle>"},
+			{Slot: "wield", Name: "<item.uncommon>a longsword</item.uncommon>"},
+			{Slot: "head", Name: "<subtle>(empty)</subtle>"},
 		},
 	}
 	out := renderScore(d)
