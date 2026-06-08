@@ -1752,8 +1752,11 @@ name: tapestry-core
 content:
   areas: [areas/*.yaml]
   rooms: [rooms/*.yaml]
+  items: [items/*.yaml]
 `)
 	writeFile(t, filepath.Join(pack, "areas/town.yaml"), "id: town\nname: Town\n")
+	writeFile(t, filepath.Join(pack, "items/gate-key.yaml"),
+		"id: gate-key\nname: an iron gate key\ntype: item\n")
 	writeFile(t, filepath.Join(pack, "rooms/square.yaml"), `
 id: square
 area: town

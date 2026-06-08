@@ -40,6 +40,7 @@ var (
 	ErrMissingSpawnRoom    = errors.New("spawn rule references unknown room")
 	ErrInvalidContent      = errors.New("invalid content file")
 	ErrItemUnknownSlot     = errors.New("item references unknown slot")
+	ErrMissingDoorKey      = errors.New("door references unknown key template")
 )
 
 // Spawner spawns an item template and places the resulting instance
@@ -192,6 +193,14 @@ func Load(ctx context.Context, root string, filter []string, dst *Registries, sp
 		return err
 	}
 
+	// Door key references (the item template id a keyed door requires)
+	// must resolve in the item registry. Runs after every pack has loaded
+	// so a cross-pack key (`other-pack:foo-key`) is visible regardless of
+	// load order (mirrors validateItemSlots).
+	if err := validateDoorKeys(dst); err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -271,6 +280,30 @@ func validateItemSlots(dst *Registries) error {
 		for _, name := range t.CompanionSlots {
 			if !dst.Slots.Has(name) {
 				return fmt.Errorf("%w: item %q companion slot %q", ErrItemUnknownSlot, t.ID, name)
+			}
+		}
+	}
+	return nil
+}
+
+// validateDoorKeys walks every exit's door and verifies that a keyed
+// door's KeyID resolves to a known item template. A door's key is the
+// item template id the has-key check matches against (world-rooms-
+// movement §5.3); an unknown key id produces a door that can never be
+// unlocked — fail-silent at the unlock attempt today. Boot-time
+// validation turns that into a precise load failure, consistent with
+// the spec making an unknown room-item template id fatal (§2.2) and
+// with validateItemSlots / validateSpawnRules. KeyID is already
+// namespace-qualified at decode (buildDoorState), so cross-pack keys
+// resolve here regardless of load order.
+func validateDoorKeys(dst *Registries) error {
+	for _, r := range dst.World.Rooms() {
+		for dir, e := range r.Exits {
+			if e.Door == nil || e.Door.KeyID == "" {
+				continue
+			}
+			if !dst.Items.Has(item.TemplateID(e.Door.KeyID)) {
+				return fmt.Errorf("%w: room %q door %s key %q", ErrMissingDoorKey, r.ID, dir, e.Door.KeyID)
 			}
 		}
 	}
