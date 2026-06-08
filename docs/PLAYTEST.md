@@ -1,11 +1,11 @@
 # AnotherMUD Playtest Guide
 
-A manual QA checklist for verifying implemented features (M0–M22 + recent
+A manual QA checklist for verifying implemented features (M0–M27 + recent
 polish: the look/consider appearance lens, tab-completion surfaces, weapon
-damage dice + critical hits, and **light & darkness** — §21). Work
-top-to-bottom or jump to a section. Each step gives a **command** and the
-**expected behavior**; tick the box when it matches, and note anything that
-doesn't.
+damage dice + critical hits, **light & darkness** — §21, **crafting &
+cooking** — §22, and **player maps** — §23). Work top-to-bottom or jump to a
+section. Each step gives a **command** and the **expected behavior**; tick the
+box when it matches, and note anything that doesn't.
 
 > Format: `- [ ] command` — what should happen. Mark `[x]` on pass; add a
 > `BUG:` note inline on fail.
@@ -64,8 +64,9 @@ once (two telnet windows).
 ### The world (core pack)
 
 ```
-        Hearthwick Forge (Maerys, trainer)        [indoors]
-              |  down: oak door (plain)
+        Hearthwick Forge (Maerys trainer; Brandr      [indoors]
+              |  blacksmith — smithing trainer+shop,    Tier-2 smithing
+              |  down: oak door (plain)                  station
         Forge Cellar (iron key)                   [underground]
               |  down: iron door (locked)
         Forge Vault (coins)                       [underground]
@@ -73,8 +74,10 @@ once (two telnet windows).
         Hearthwick Forge
               |
    Market Row — Town Square — Village Gate — Long-Grass Meadow
-   (merchant)   (safe hub,        (wilderness)   (bandit — combat arena)
-                 well, gear)
+   (Marta cook —  (safe hub,        (wilderness)   (bandit — combat arena)
+    cooking         well, gear)
+    trainer+shop,
+    Tier-2 kitchen)
 ```
 
 - **Town Square** is a `safe-room` — combat is blocked here. The **Meadow**
@@ -152,6 +155,18 @@ In Town Square:
       `a trail ration (x2)`.
 - [x] `get 2.ration` style ordinals resolve the Nth match (try with two of a
       kind on the ground).
+
+**Equipment slots (M25 — footprint & contention).** Town Square holds an
+**iron greatsword** (two-handed) and a **wooden shield** for this demo:
+
+- [ ] `get greatsword`, `equip greatsword` — `equipment` / `score` shows it in
+      **both** `wield` and `offhand` (a two-hander's footprint spans both hands).
+- [ ] `get shield`, `equip shield` — it needs the off hand, so it **displaces**
+      the greatsword (auto-swap back to inventory); `equipment` now shows the
+      shield in `offhand` and an empty `wield`.
+- [ ] `equip greatsword` again — it displaces the shield (reclaims both hands).
+- [ ] `equip greatsword head` (an ineligible slot) — refused (eligibility: a
+      greatsword only fits `wield`).
 
 ## 5. Containers
 
@@ -316,6 +331,9 @@ two quests — **Forge Errand** (auto-grant) and **Gate Patrol** (turn-in)
 - [x] `channels` (`chanlist`) — lists channels; post on one and the other sees
       it; `chathistory` (`chhist`) shows scrollback.
 - [x] `emote waves` (`pose`) — the room sees "Jasrags waves".
+- [ ] `give ration to Bob` — the ration leaves your inventory and enters Bob's
+      (`i` on each to confirm); both args tab-complete (item from your pack,
+      target a player). Bob must be in the room.
 - [ ] `who` — lists every online character (world-wide, not just this room),
       one per line, alphabetical, then "N players online." Jasrags shows an
       `[Admin]` tag; a character idle >60s shows `(idle)`. You always see
@@ -393,6 +411,10 @@ while closed, and the two sides stay in sync.
 ## 17. Admin verbs (Jasrags — already admin)
 
 - [x] `inspect bandit` (in the Meadow) — full diagnostic record of the target.
+- [ ] `roomdata on` (admin/builder) — `look` now appends a room metadata block
+      (room id, coordinates, terrain, tags, properties incl. `craft_stations`,
+      exit targets); `roomdata off` removes it. Persists across logout; gated
+      to admins/builders at render time.
 - [x] `restore` / `restore Bob` — refills vitals to full **and** tops off
       sustenance (hunger/thirst); the reply notes "fully fed" for a player target.
 - [x] `set vital hp <target> 1` — sets a field on a target (then `restore`).
@@ -610,6 +632,96 @@ down`, `open down`, `down`).
       saved in `saves/clock.yaml`).
 - [ ] (GMCP, §18) `Room.Info` carries a per-viewer `light` field
       (black/gloom/dim/lit) — a capable client can theme the viewport from it.
+
+## 22. Crafting & cooking
+
+Crafting turns inputs into an output via a **recipe**, gated by a **discipline**
+(a proficiency you learn at a trainer), the **station** you work at, your
+**tool**, and **ingredient** quality. Output quality renders as a rarity tier.
+Cooking is crafting whose output is food (clears sustenance; at quality, grants
+a **well-fed** buff). Use **Jasrags** (has 1000g for ingredients).
+
+The craft NPCs/stations in the core pack:
+
+- **Brandr the blacksmith** — Hearthwick Forge (`n` from Square). Teaches
+  **smithing** + sells a rusty dagger and a fine iron hammer (a tool). The
+  Forge is a **Tier-2 smithing station**.
+- **Marta the cook** — Market Row (`e` from Square). Teaches **cooking** +
+  sells raw meat, firewood, and a traveling cook's kit. The Market is a
+  **Tier-2 cooking station**.
+
+### Learn a discipline (the trainer-shops)
+
+- [ ] At the Forge, `learn smithing` — "Brandr the blacksmith teaches you the
+      basics of Smithing. You learn 1 starting recipe." (Works even though
+      **Maerys** is also a trainer in the room — the trainer resolver picks the
+      one who can teach the skill.)
+- [ ] `craft` (no argument) — lists your known recipes (`reforge a short sword`).
+- [ ] At Market Row, `learn cooking` — Marta teaches it; you learn `cook a
+      hearty meal`. `learn cooking` somewhere with no trainer — "There is no
+      one here who can teach you that." `learn dancing` — "There is no such
+      craft to learn."
+
+### Smithing at the forge (Tier-2 station)
+
+- [ ] At Market Row, `craft reforge` — **refused**: "You need a proper crafting
+      station for that — a forge, a kitchen, or the like." (The market is a
+      *cooking* station; reforge needs a smithing station — the station gate.)
+- [ ] At the Forge, `buy dagger`, then `craft reforge` — "You craft a short
+      sword." `inventory`: the **rusty dagger is consumed** and a **short sword**
+      produced (atomic — nothing lost on a failed craft).
+- [ ] `buy hammer` (the fine iron hammer, `[UNCOMMON]`), then `craft reforge`
+      again — the tool weights quality up: a sword crafted **with** the hammer
+      carried tends to a higher rarity tier than **without** it (the hammer is a
+      tool — it is **not** consumed). Tool quality is a separate lever from skill.
+
+### Cooking at the market (Tier-2 station) → well-fed
+
+- [ ] At Market Row, `buy meat`, then `craft hearty` — "You craft a cooked meal."
+      (raw meat consumed). `eat meal` — clears sustenance (`score` shows it).
+- [ ] A freshly-learned (skill-1) cook makes **common** meals = cold rations
+      (no buff). Raise cooking: `practice cooking` at Marta + craft repeatedly,
+      and a higher-quality meal applies a **well-fed** stat buff on `eat`.
+
+### Field crafting: build a campfire (Tier-1)
+
+- [ ] At Market Row, `buy firewood`. Go to an outdoor room (Meadow: `s`, `s`
+      from Square) and `craft hearty` — **refused**: "You need at least a fire
+      or workbench for that — build a campfire or find a station."
+- [ ] `build campfire` — "You build a campfire; it crackles to life." (consumes
+      one firewood). Now `craft hearty` **works** there (the campfire is a
+      Tier-1 cooking station).
+- [ ] `build campfire` again in the same room — "There is already a fire burning
+      here." `build campfire` indoors (the Forge) — "There's no safe place for a
+      fire here." In the rain — "The weather won't let a fire catch."
+- [ ] Leave the campfire; after `ANOTHERMUD_CAMPFIRE_LIFETIME` (default 10m) it
+      decays — "The campfire burns down to cold ashes." (lower it for testing).
+- [ ] **Portable tool:** `buy kit` (the cook's kit) at Marta, carry it into a
+      field room, and `craft hearty` works **without** a campfire (the kit grants
+      Tier-1 cooking in the field).
+
+### Skill & persistence
+
+- [ ] `abilities` — smithing/cooking appear with a proficiency that **climbs as
+      you craft** (use-based gain). `quit` + relog — your learned disciplines and
+      known recipes persist (player save v17). A crafted item keeps its rolled
+      quality across logout.
+
+> Acquisition today is **baseline only** (learning a discipline grants its
+> starter recipes); common/uncommon/rare/regional recipes via shops/quests/loot,
+> and **gathering** as the real ingredient source (vs. the current vendor
+> stopgap), are post-MVP — see `docs/BACKLOG.md`.
+
+## 23. Player maps
+
+- [ ] `map` — renders an ASCII map of the rooms you've **explored** in the
+      current area (fog-of-war). Walk to a new room, `map` again — the newly
+      visited room appears. Rooms you haven't entered stay hidden.
+- [ ] `minimap on` — a small map appears alongside the room view on every
+      `look`/move; `minimap off` removes it; `minimap` shows the current state.
+      The toggle persists across logout.
+- [ ] (GMCP, §18) `Room.Info` carries coordinates; a Mudlet-style client can
+      drive its native mapper from them.
 
 ---
 
