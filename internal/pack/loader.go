@@ -2197,6 +2197,9 @@ func decodeRecipe(path, ns string) (*recipe.Recipe, error) {
 	if f.SkillFloor < 0 {
 		return nil, fmt.Errorf("%w: %s: skill_floor must be >= 0", ErrInvalidContent, path)
 	}
+	if f.TimePulses < 0 {
+		return nil, fmt.Errorf("%w: %s: time_pulses must be >= 0", ErrInvalidContent, path)
+	}
 
 	acq, ok := recipe.ParseAcquisitionTier(f.Acquisition)
 	if !ok {

@@ -3123,22 +3123,22 @@ func (a *connActor) syncRecipesToSaveLocked() bool {
 	return true
 }
 
-// stringSetEqual reports whether two string slices contain the same set of
-// values (order-insensitive). nil and empty compare equal so a fresh load
-// matches an unmodified-since-load snapshot without re-marking dirty.
+// stringSetEqual reports whether two known-recipe slices are equal.
+//
+// Precondition: both inputs come from KnownManager.Snapshot, which always
+// returns a sorted, deduplicated slice (and a.save.KnownRecipes is only
+// ever assigned from a prior Snapshot). Under that invariant a plain
+// element-wise compare is exact set equality — and unlike a set-membership
+// check it cannot give a false "equal" when an input carries a duplicate
+// (which would silently skip a needed write). A hand-edited unsorted save
+// would at worst trigger one harmless normalizing rewrite. nil and empty
+// compare equal so a fresh load matches an unmodified snapshot.
 func stringSetEqual(a, b []string) bool {
 	if len(a) != len(b) {
 		return false
 	}
-	if len(a) == 0 {
-		return true
-	}
-	seen := make(map[string]struct{}, len(a))
-	for _, s := range a {
-		seen[s] = struct{}{}
-	}
-	for _, s := range b {
-		if _, ok := seen[s]; !ok {
+	for i := range a {
+		if a[i] != b[i] {
 			return false
 		}
 	}

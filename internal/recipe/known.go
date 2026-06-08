@@ -19,6 +19,12 @@ import (
 // so Restore can drop ids whose recipe is no longer in content (§9: "a
 // known-but-now-unknown recipe id is ignored, never an error") and so
 // GrantBaseline can resolve a discipline's baseline recipes.
+//
+// Lock-order invariant: KnownManager.mu is never held while the Registry's
+// lock is held, and vice versa. GrantBaseline relies on this — it calls
+// reg.ByDiscipline (which acquires and fully releases the registry lock)
+// before taking m.mu, so the two locks are never held simultaneously. Any
+// future method that touches both MUST preserve this ordering.
 type KnownManager struct {
 	reg *Registry
 	mu  sync.RWMutex
@@ -65,12 +71,14 @@ func (m *KnownManager) Knows(entityID string, id RecipeID) bool {
 // Recipes returns entityID's known recipe ids, sorted for determinism.
 func (m *KnownManager) Recipes(entityID string) []RecipeID {
 	m.mu.RLock()
+	defer m.mu.RUnlock()
 	set := m.known[entityID]
 	out := make([]RecipeID, 0, len(set))
 	for id := range set {
 		out = append(out, id)
 	}
-	m.mu.RUnlock()
+	// Sorting a local copy under the read lock is harmless and keeps the
+	// unlock on a single defer (no early-return lock-leak hazard).
 	sort.Slice(out, func(i, j int) bool { return out[i] < out[j] })
 	return out
 }
@@ -132,19 +140,36 @@ func (m *KnownManager) Drop(entityID string) {
 // into entityID's set. Returns the ids newly learned (already-known ones
 // are skipped) so callers can report them. A nil registry or unknown
 // discipline grants nothing.
+//
+// The grant is atomic: ByDiscipline resolves the candidate list (releasing
+// the registry lock), then a single m.mu acquisition applies every insert.
+// A concurrent Drop/Restore therefore cannot interleave between inserts and
+// leave a half-granted set.
 func (m *KnownManager) GrantBaseline(entityID, discipline string) []RecipeID {
 	if m.reg == nil {
 		return nil
 	}
+	candidates := m.reg.ByDiscipline(discipline) // registry lock released here
+
 	var learned []RecipeID
-	for _, r := range m.reg.ByDiscipline(discipline) {
+	m.mu.Lock()
+	set := m.known[entityID]
+	if set == nil {
+		set = make(map[RecipeID]struct{})
+		m.known[entityID] = set
+	}
+	for _, r := range candidates {
 		if r.Acquisition != AcqBaseline {
 			continue
 		}
-		if m.Learn(entityID, r.ID) {
-			learned = append(learned, r.ID)
+		if _, ok := set[r.ID]; ok {
+			continue
 		}
+		set[r.ID] = struct{}{}
+		learned = append(learned, r.ID)
 	}
+	m.mu.Unlock()
+
 	sort.Slice(learned, func(i, j int) bool { return learned[i] < learned[j] })
 	return learned
 }

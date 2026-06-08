@@ -64,7 +64,11 @@ func LearnHandler(ctx context.Context, c *Context) error {
 	}
 
 	// Acquire: seed the proficiency at 1 (cap from the ability's
-	// DefaultCap) and grant the discipline's baseline recipes.
+	// DefaultCap) and grant the discipline's baseline recipes. The two
+	// writes are logically one acquire but not transactional; neither call
+	// is fallible, and both are captured by the next Persist (which syncs
+	// abilities and recipes unconditionally), so a dropped connection
+	// mid-acquire still persists a consistent result.
 	c.Proficiency.Learn(entityID, discipline, 1)
 	granted := c.Known.GrantBaseline(entityID, discipline)
 
