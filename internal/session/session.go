@@ -43,6 +43,7 @@ import (
 	"github.com/Jasrags/AnotherMUD/internal/property"
 	"github.com/Jasrags/AnotherMUD/internal/quest"
 	"github.com/Jasrags/AnotherMUD/internal/queststore"
+	"github.com/Jasrags/AnotherMUD/internal/recipe"
 	"github.com/Jasrags/AnotherMUD/internal/render"
 	"github.com/Jasrags/AnotherMUD/internal/slot"
 	"github.com/Jasrags/AnotherMUD/internal/stacking"
@@ -178,6 +179,18 @@ type Config struct {
 	// (M9.3+ abilities verb, M9.6 learn/forget admin) can read it
 	// without re-plumbing. nil-safe.
 	Abilities *progression.AbilityRegistry
+
+	// Recipes is the crafting-recipe registry (crafting-and-cooking
+	// §3). Consulted by the crafting/learn paths; passed through so
+	// command handlers can read it without re-plumbing. nil-safe.
+	Recipes *recipe.Registry
+
+	// Known is the per-character known-recipe manager
+	// (crafting-and-cooking §7, §9). The session-load path restores the
+	// actor's persisted KnownRecipes list into it; logout drops the
+	// in-memory state; Persist snapshots it back. nil-safe: when nil,
+	// recipes are neither restored nor persisted (mirrors Proficiency).
+	Known *recipe.KnownManager
 
 	// Effects is the M9.2 active-effect manager (spec
 	// abilities-and-effects §5). Resolves targets via a closure
@@ -481,6 +494,7 @@ func run(ctx context.Context, c conn.Connection, cfg Config) error {
 		save:          loaded.Player,
 		players:       cfg.Players,
 		prof:          cfg.Proficiency,
+		known:         cfg.Known,
 		combat:        cfg.Combat,
 		combatLocator: cfg.CombatLocator,
 		effects:       cfg.Effects,
@@ -673,6 +687,14 @@ func run(ctx context.Context, c conn.Connection, cfg Config) error {
 	// nil-safe to keep test wiring minimal.
 	if cfg.Proficiency != nil {
 		cfg.Proficiency.Restore(loaded.Player.ID, loaded.Player.Abilities)
+	}
+
+	// Crafting Phase 0/1: install persisted known recipes
+	// (crafting-and-cooking §9). Restore drops any id whose recipe is no
+	// longer in content — a removed recipe loads cleanly, never an error.
+	// nil-safe.
+	if cfg.Known != nil {
+		cfg.Known.Restore(loaded.Player.ID, loaded.Player.KnownRecipes)
 	}
 
 	// Respawn persisted inventory into live ItemInstances. Done before
@@ -969,6 +991,13 @@ func fullTeardown(ctx context.Context, cfg Config, a *connActor) {
 	// memory release.
 	if cfg.Proficiency != nil {
 		cfg.Proficiency.Drop(a.PlayerID())
+	}
+
+	// Crafting: drop in-memory known-recipe state on logout. Persist has
+	// already flushed the snapshot; this is a memory release (mirrors the
+	// proficiency drop above).
+	if cfg.Known != nil {
+		cfg.Known.Drop(a.PlayerID())
 	}
 
 	// M9.2: drop any active effects on logout. Spec §5.5 marks
@@ -1480,6 +1509,13 @@ type connActor struct {
 	// state. Nil-safe (mirrors the cfg.Proficiency nil-safety):
 	// when nil, abilities neither persist nor flush.
 	prof *progression.ProficiencyManager
+
+	// known is the per-character known-recipe manager reference
+	// (crafting-and-cooking §7, §9), captured at construction. Persist
+	// snapshots the actor's known recipes into save before write; logout
+	// drops in-memory state. Nil-safe (mirrors prof): when nil, recipes
+	// neither persist nor flush.
+	known *recipe.KnownManager
 
 	// combat is the engage/disengage manager reference (M9.4b),
 	// captured so the ResolutionSource seam can answer InCombat /
@@ -2049,6 +2085,9 @@ func (a *connActor) Persist(ctx context.Context) error {
 		a.markDirtyLocked()
 	}
 	if a.syncAbilitiesToSaveLocked() {
+		a.markDirtyLocked()
+	}
+	if a.syncRecipesToSaveLocked() {
 		a.markDirtyLocked()
 	}
 	if !a.dirty || a.save == nil || a.players == nil {
@@ -3055,6 +3094,55 @@ func (a *connActor) syncProgressionToSaveLocked() {
 		return
 	}
 	a.save.Progression = a.progress.Snapshot()
+}
+
+// syncRecipesToSaveLocked rewrites a.save.KnownRecipes from the live
+// KnownManager snapshot and returns true when it differs from the
+// previously-persisted set. Mirrors syncAbilitiesToSaveLocked: the
+// learn/craft paths mutate the manager directly (not through the actor),
+// so this runs unconditionally at Persist before the dirty check and
+// returns a delta signal. Caller MUST hold a.mu.
+//
+// Same Drop/autosave race guard as abilities: an autosave firing after
+// logout's Drop would see an empty snapshot; with no forget-recipe verb a
+// populated→empty transition cannot legitimately happen, so the
+// empty-over-populated case is treated as a race and skipped to avoid
+// clobbering the persisted set with nothing.
+func (a *connActor) syncRecipesToSaveLocked() bool {
+	if a.save == nil || a.known == nil {
+		return false
+	}
+	snap := a.known.Snapshot(a.playerID)
+	if len(snap) == 0 && len(a.save.KnownRecipes) > 0 {
+		return false
+	}
+	if stringSetEqual(a.save.KnownRecipes, snap) {
+		return false
+	}
+	a.save.KnownRecipes = snap
+	return true
+}
+
+// stringSetEqual reports whether two string slices contain the same set of
+// values (order-insensitive). nil and empty compare equal so a fresh load
+// matches an unmodified-since-load snapshot without re-marking dirty.
+func stringSetEqual(a, b []string) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	if len(a) == 0 {
+		return true
+	}
+	seen := make(map[string]struct{}, len(a))
+	for _, s := range a {
+		seen[s] = struct{}{}
+	}
+	for _, s := range b {
+		if _, ok := seen[s]; !ok {
+			return false
+		}
+	}
+	return true
 }
 
 // syncAbilitiesToSaveLocked rewrites a.save.Abilities from the

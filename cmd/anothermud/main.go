@@ -53,6 +53,7 @@ import (
 	"github.com/Jasrags/AnotherMUD/internal/quest"
 	"github.com/Jasrags/AnotherMUD/internal/queststore"
 	"github.com/Jasrags/AnotherMUD/internal/questwatch"
+	"github.com/Jasrags/AnotherMUD/internal/recipe"
 	"github.com/Jasrags/AnotherMUD/internal/render"
 	"github.com/Jasrags/AnotherMUD/internal/scripting"
 	"github.com/Jasrags/AnotherMUD/internal/server"
@@ -753,6 +754,12 @@ func run() error {
 		registries.Abilities,
 		progression.DefaultProficiencyConfig(),
 	)
+
+	// Crafting Phase 1: per-character known-recipe manager. Holds the
+	// recipe registry so it can drop ids removed from content on restore
+	// (crafting-and-cooking §9) and resolve a discipline's baseline
+	// recipes on learn (§2).
+	knownRecipesMgr := recipe.NewKnownManager(registries.Recipes)
 
 	// M11.1: currency service (spec economy-survival §2). Bus-bridging
 	// sink mirrors alignmentSink so economy stays free of an eventbus
@@ -1699,6 +1706,8 @@ func run() error {
 		),
 		Proficiency:     proficiencyMgr,
 		Abilities:       registries.Abilities,
+		Recipes:         registries.Recipes,
+		Known:           knownRecipesMgr,
 		Effects:         effectMgr,
 		ActionQueue:     actionQueueMgr,
 		PulseDelay:      pulseDelayTracker,
