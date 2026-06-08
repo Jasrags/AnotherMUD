@@ -316,6 +316,46 @@ func (m *ProficiencyManager) GetCap(entityID, abilityID string) (int, int, bool)
 	return capValue, prof, learned
 }
 
+// RollUseGain rolls a single §3.5 use-based proficiency gain for abilityID
+// on one use. hit reports whether the use succeeded (a miss gains at the
+// ability's failure-multiplier rate). Returns true when proficiency
+// increased. This is the shared use-driven gain path the passive resolver
+// also implements (passive.go rollGain) — crafting and any future
+// use-driven skill route through it rather than re-deriving the formula.
+//
+// roller must be non-nil. stats may be nil, in which case the optional
+// gain-stat factor is skipped (gain rolls at the un-scaled rate). An
+// unknown or unlearned ability never gains.
+func (m *ProficiencyManager) RollUseGain(entityID, abilityID string, hit bool, roller Roller, stats StatReader) bool {
+	if roller == nil || m.registry == nil {
+		return false
+	}
+	ab, ok := m.registry.Get(abilityID)
+	if !ok || ab == nil {
+		return false
+	}
+	capValue, prof, learned := m.GetCap(entityID, abilityID)
+	if !learned {
+		return false
+	}
+	statFactor := 1.0
+	if stats != nil && ab.GainStat != "" && ab.GainStatScale != 0 {
+		statFactor = 1 + float64(stats.StatValue(entityID, ab.GainStat))*ab.GainStatScale
+	}
+	threshold := gainThreshold(
+		ab.GainBaseChance, prof, effectiveCap(capValue),
+		statFactor, ab.GainFailureMultiplier, hit,
+	)
+	if threshold <= 0 {
+		return false
+	}
+	if roller.IntN(100)+1 <= threshold {
+		m.AddProficiency(entityID, abilityID, 1)
+		return true
+	}
+	return false
+}
+
 // AbilityName implements the AbilityProficiency seam: returns the
 // registered DisplayName for abilityID, or ("", false) when the
 // ability is unknown. Pass-through to the registry; the seam
