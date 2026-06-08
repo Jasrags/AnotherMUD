@@ -1,0 +1,12 @@
+id: firewood
+name: a bundle of firewood
+type: item
+# Fuel for `build campfire` (crafting-and-cooking §4). The `fuel` tag is
+# what the build verb consumes — one bundle per fire. Sold by the market
+# cook as a field-cooking convenience.
+tags: [fuel, stackable]
+keywords: [firewood, wood, bundle, fuel]
+properties:
+  stackable: true
+  weight: 2
+  value: 5

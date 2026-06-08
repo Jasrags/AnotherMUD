@@ -61,6 +61,7 @@ func commandEnv(cfg Config) command.Env {
 		ChatScrollbacks:       cfg.ChatScrollbacks,
 		Clock:                 cfg.Clock,
 		Ambience:              cfg.Ambience,
+		WeatherState:          cfg.WeatherState,
 		Light:                 cfg.Light,
 		NowTick:               cfg.NowTick,
 		CorpseOwnershipWindow: cfg.CorpseOwnershipWindow,

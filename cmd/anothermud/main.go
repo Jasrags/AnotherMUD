@@ -26,6 +26,7 @@ import (
 
 	"github.com/Jasrags/AnotherMUD/internal/account"
 	"github.com/Jasrags/AnotherMUD/internal/ai"
+	"github.com/Jasrags/AnotherMUD/internal/campfire"
 	"github.com/Jasrags/AnotherMUD/internal/chat"
 	"github.com/Jasrags/AnotherMUD/internal/clock"
 	"github.com/Jasrags/AnotherMUD/internal/combat"
@@ -1107,6 +1108,19 @@ func run() error {
 		return fmt.Errorf("register corpse decay: %w", err)
 	}
 
+	// Crafting Phase 5: campfire-decay sweep (crafting-and-cooking §4). A
+	// built campfire is a temporary Tier-1 cooking station; this removes
+	// fires past their lifetime and announces the burn-out to the room.
+	campfireSvc := campfire.NewService(entityStore, placement)
+	campfireLifetimeTicks := cadenceTicks(cfg.TickInterval, cfg.CampfireLifetime)
+	if err := loop.Register("campfire-decay", cadenceTicks(cfg.TickInterval, cfg.CampfireDecayInterval), func(ctx context.Context, n uint64) {
+		for _, roomID := range campfireSvc.DecaySweep(ctx, n, campfireLifetimeTicks) {
+			mgr.SendToRoom(ctx, roomID, "The campfire burns down to cold ashes.")
+		}
+	}); err != nil {
+		return fmt.Errorf("register campfire decay: %w", err)
+	}
+
 	// M22.4: autoloot (loot-and-corpses §6). On corpse.created, if the
 	// killer is an online player with autoloot ON who is present in the
 	// corpse's room, loot it on their behalf immediately. Rights are
@@ -1763,6 +1777,9 @@ func run() error {
 		// weather.Service.Ambience; RenderRoom appends its output
 		// after the room description in eligible rooms.
 		Ambience: weatherSvc.Ambience,
+		// Crafting Phase 5: weather-state query for the build verb's
+		// wet-weather gate (crafting-and-cooking §4).
+		WeatherState: weatherSvc.CurrentWeather,
 		// Light-and-darkness resolver (light §2): pairs the default
 		// light policy with the in-game clock so render/combat/movement
 		// can gate on effective light. Friction wiring lands in Phase 5;
@@ -1920,6 +1937,8 @@ type config struct {
 	CorpseOwnershipWindow time.Duration
 	CorpseLifetime        time.Duration
 	CorpseDecayInterval   time.Duration
+	CampfireLifetime      time.Duration
+	CampfireDecayInterval time.Duration
 	AutosaveInterval      time.Duration
 	IdleSweepInterval     time.Duration
 	LinkDeadSweepInterval time.Duration
@@ -1986,6 +2005,8 @@ func loadConfig() config {
 		CorpseOwnershipWindow:   envDurationOr("ANOTHERMUD_CORPSE_OWNERSHIP_WINDOW", 60*time.Second),
 		CorpseLifetime:          envDurationOr("ANOTHERMUD_CORPSE_LIFETIME", 5*time.Minute),
 		CorpseDecayInterval:     envDurationOr("ANOTHERMUD_CORPSE_DECAY_INTERVAL", 3*time.Second),
+		CampfireLifetime:        envDurationOr("ANOTHERMUD_CAMPFIRE_LIFETIME", 10*time.Minute),
+		CampfireDecayInterval:   envDurationOr("ANOTHERMUD_CAMPFIRE_DECAY_INTERVAL", 5*time.Second),
 		AutosaveInterval:        envDurationOr("ANOTHERMUD_AUTOSAVE_INTERVAL", 30*time.Second),
 		IdleSweepInterval:       envDurationOr("ANOTHERMUD_IDLE_SWEEP_INTERVAL", 30*time.Second),
 		LinkDeadSweepInterval:   envDurationOr("ANOTHERMUD_LINKDEAD_SWEEP_INTERVAL", 30*time.Second),

@@ -126,6 +126,11 @@ type Context struct {
 	// chase Env. nil-safe (RenderRoom skips when nil or when the
 	// callback returns "").
 	Ambience func(*world.Room) string
+	// WeatherState returns the current weather state for an area (e.g.
+	// "clear"/"rain"), copied from Env. The build verb reads it to refuse
+	// lighting a campfire in wet weather (crafting-and-cooking §4). nil →
+	// no weather gate (tests/headless).
+	WeatherState func(world.AreaID) string
 	// Light is the light-and-darkness resolver (light §2). The
 	// light/extinguish verbs read its config (auto-light policy); the
 	// render/combat/movement paths use it to gate on effective light.

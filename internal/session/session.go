@@ -350,6 +350,11 @@ type Config struct {
 	// nil-safe: a nil callback leaves the room render weather-free.
 	Ambience func(*world.Room) string
 
+	// WeatherState returns an area's current weather state — the build
+	// verb's wet-weather gate (crafting-and-cooking §4). Threaded into
+	// command.Env. nil-safe (no weather gate).
+	WeatherState func(world.AreaID) string
+
 	// Light is the light-and-darkness resolver (light §2), threaded
 	// into command.Env (and, in Phase 5, the login/link-dead renderers).
 	// nil disables light gating — the world renders as if always lit.

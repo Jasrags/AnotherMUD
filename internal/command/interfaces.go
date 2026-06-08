@@ -347,6 +347,12 @@ type Env struct {
 	// service is wired). Spec world-rooms-movement §6.6.
 	Ambience func(*world.Room) string
 
+	// WeatherState returns the current weather state for an area (e.g.
+	// "clear"/"rain"). The build verb reads it to refuse a campfire in wet
+	// weather (crafting-and-cooking §4). Wired to weather.Service.
+	// CurrentWeather; nil → no weather gate.
+	WeatherState func(world.AreaID) string
+
 	// Light is the light-and-darkness resolver (light §2), copied to
 	// each Context at dispatch. nil disables light gating.
 	Light *light.Resolver

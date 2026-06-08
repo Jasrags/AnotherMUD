@@ -56,10 +56,32 @@ func craftStationTier(c *Context, discipline string) int {
 	discipline = strings.ToLower(strings.TrimSpace(discipline))
 	tier := 0
 
-	if room := c.Actor.Room(); room != nil {
+	room := c.Actor.Room()
+	if room != nil {
 		if raw, ok := room.Property(propCraftStations); ok {
 			if t := disciplineTier(raw, discipline); t > tier {
 				tier = t
+			}
+		}
+	}
+
+	// Ground-placed station entities (a built campfire, §4): an item in the
+	// room carrying craft_stations contributes its tier, symmetric with a
+	// fixed room station.
+	if room != nil && c.Items != nil && c.Placement != nil {
+		for _, id := range c.Placement.InRoom(room.ID) {
+			e, ok := c.Items.GetByID(id)
+			if !ok {
+				continue
+			}
+			it, ok := e.(*entities.ItemInstance)
+			if !ok {
+				continue
+			}
+			if raw, ok := it.Property(propCraftStations); ok {
+				if t := disciplineTier(raw, discipline); t > tier {
+					tier = t
+				}
 			}
 		}
 	}

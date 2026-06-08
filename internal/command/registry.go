@@ -446,6 +446,7 @@ func (r *Registry) Dispatch(ctx context.Context, env Env, actor Actor, raw strin
 		Recipes:               env.Recipes,
 		Known:                 env.Known,
 		Craft:                 env.Craft,
+		WeatherState:          env.WeatherState,
 		Help:                  env.Help,
 		Quests:                env.Quests,
 		Currency:              env.Currency,

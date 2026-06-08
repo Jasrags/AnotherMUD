@@ -26,3 +26,4 @@ properties:
     sells:
       - tapestry-core:raw-meat
       - tapestry-core:cooks-kit
+      - tapestry-core:firewood
