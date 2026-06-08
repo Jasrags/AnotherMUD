@@ -271,16 +271,20 @@ type TrainingEntity interface {
 	HasRoomTag(tag string) bool
 }
 
-// TrainerSource resolves an in-room trainer for an entity. The
-// session-side adapter walks Placement.InRoom + Store.GetByID and
-// returns the first MobInstance carrying TagSkillTrainer and a
-// non-nil TrainerConfig (spec §7.3 "find trainer in room").
+// TrainerSource resolves an in-room trainer for an entity and a target
+// ability. The session-side adapter walks Placement.InRoom + Store.GetByID
+// over the MobInstances carrying TagSkillTrainer (spec §7.3 "find trainer
+// in room"). When a room holds MORE THAN ONE trainer, it PREFERS the one
+// whose teach list includes abilityID — otherwise a second trainer that
+// can't teach the requested skill would shadow the one that can.
 //
-// Returns (cfg, name, true) when a trainer is found; the name is
-// rendered into user-facing failure messages ("Maerys cannot teach
-// you that"). Returns (nil, "", false) when no trainer is present.
+// Returns (cfg, name, true) when any trainer is present — the cfg of the
+// one that can teach abilityID if such a trainer exists, else the first
+// trainer found (so the caller's CanTeach check still renders "X cannot
+// teach you that"). Returns (nil, "", false) only when no trainer at all
+// is present.
 type TrainerSource interface {
-	TrainerInRoom(entityID string) (*TrainerConfig, string, bool)
+	TrainerInRoom(entityID, abilityID string) (*TrainerConfig, string, bool)
 }
 
 // AbilityProficiency is the seam to the M9 proficiency feature
@@ -370,7 +374,7 @@ func (m *TrainingManager) TryPractice(ctx context.Context, entity TrainingEntity
 			Message:     "There is no one here who can teach you.",
 		}
 	}
-	tc, trainerName, ok := m.Trainers.TrainerInRoom(entityID)
+	tc, trainerName, ok := m.Trainers.TrainerInRoom(entityID, abilityID)
 	if !ok || tc == nil {
 		return PracticeResult{
 			Outcome:     PracticeNoTrainer,

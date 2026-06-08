@@ -32,7 +32,7 @@ type fakeTrainerSource struct {
 	ok   bool
 }
 
-func (f fakeTrainerSource) TrainerInRoom(string) (*TrainerConfig, string, bool) {
+func (f fakeTrainerSource) TrainerInRoom(string, string) (*TrainerConfig, string, bool) {
 	return f.cfg, f.name, f.ok
 }
 

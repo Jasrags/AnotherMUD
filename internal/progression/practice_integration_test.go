@@ -13,7 +13,7 @@ type staticTrainerSource struct {
 	name string
 }
 
-func (s *staticTrainerSource) TrainerInRoom(_ string) (*TrainerConfig, string, bool) {
+func (s *staticTrainerSource) TrainerInRoom(_, _ string) (*TrainerConfig, string, bool) {
 	if s.cfg == nil {
 		return nil, "", false
 	}

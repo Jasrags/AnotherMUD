@@ -73,7 +73,7 @@ type fixedTrainerSource struct {
 	ok   bool
 }
 
-func (f fixedTrainerSource) TrainerInRoom(string) (*progression.TrainerConfig, string, bool) {
+func (f fixedTrainerSource) TrainerInRoom(string, string) (*progression.TrainerConfig, string, bool) {
 	return f.cfg, f.name, f.ok
 }
 

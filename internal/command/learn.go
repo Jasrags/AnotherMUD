@@ -62,7 +62,7 @@ func LearnHandler(ctx context.Context, c *Context) error {
 	if c.Training.Trainers == nil {
 		return c.Actor.Write(ctx, "There is no one here who can teach you that.")
 	}
-	tc, trainerName, ok := c.Training.Trainers.TrainerInRoom(entityID)
+	tc, trainerName, ok := c.Training.Trainers.TrainerInRoom(entityID, discipline)
 	if !ok || tc == nil || !tc.CanTeach(discipline) {
 		return c.Actor.Write(ctx, "There is no one here who can teach you that.")
 	}

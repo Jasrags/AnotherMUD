@@ -32,10 +32,14 @@ func NewTrainerSource(mgr *Manager, placement *entities.Placement, items *entiti
 	return &TrainerSource{Mgr: mgr, Placement: placement, Items: items}
 }
 
-// TrainerInRoom implements progression.TrainerSource. Returns
-// (cfg, name, true) for the first eligible mob in the player's
-// room; (nil, "", false) otherwise.
-func (ts *TrainerSource) TrainerInRoom(playerID string) (*progression.TrainerConfig, string, bool) {
+// TrainerInRoom implements progression.TrainerSource. It PREFERS a trainer
+// whose teach list includes abilityID; if none in the room teaches it, it
+// falls back to the first trainer present (so the caller's CanTeach check
+// renders "X cannot teach you that"). Returns (nil, "", false) only when no
+// trainer at all is present. This lets two trainers share a room — e.g. a
+// combat master and a craft trainer in the same forge — without the first
+// one shadowing the other.
+func (ts *TrainerSource) TrainerInRoom(playerID, abilityID string) (*progression.TrainerConfig, string, bool) {
 	if ts == nil || ts.Mgr == nil || ts.Placement == nil || ts.Items == nil {
 		return nil, "", false
 	}
@@ -43,6 +47,7 @@ func (ts *TrainerSource) TrainerInRoom(playerID string) (*progression.TrainerCon
 	if !ok || roomID == world.RoomID("") {
 		return nil, "", false
 	}
+	var cands []trainerCandidate
 	for _, id := range ts.Placement.InRoom(roomID) {
 		ent, ok := ts.Items.GetByID(id)
 		if !ok {
@@ -59,10 +64,32 @@ func (ts *TrainerSource) TrainerInRoom(playerID string) (*progression.TrainerCon
 		if tier == 0 {
 			continue
 		}
-		return &progression.TrainerConfig{
-			Tier:  progression.CapTier(tier),
-			Teach: mob.TrainerTeach(),
-		}, mob.Name(), true
+		cands = append(cands, trainerCandidate{
+			cfg:  &progression.TrainerConfig{Tier: progression.CapTier(tier), Teach: mob.TrainerTeach()},
+			name: mob.Name(),
+		})
+	}
+	return selectTrainer(cands, abilityID)
+}
+
+// trainerCandidate is one eligible in-room trainer.
+type trainerCandidate struct {
+	cfg  *progression.TrainerConfig
+	name string
+}
+
+// selectTrainer picks the trainer to consult for abilityID: the first whose
+// teach list includes it, else the first present (so the caller's CanTeach
+// check renders "X cannot teach you that"), else not-found. Pure so it can
+// be tested without a Manager/Placement/Store.
+func selectTrainer(cands []trainerCandidate, abilityID string) (*progression.TrainerConfig, string, bool) {
+	for i := range cands {
+		if cands[i].cfg.CanTeach(abilityID) {
+			return cands[i].cfg, cands[i].name, true
+		}
+	}
+	if len(cands) > 0 {
+		return cands[0].cfg, cands[0].name, true
 	}
 	return nil, "", false
 }
