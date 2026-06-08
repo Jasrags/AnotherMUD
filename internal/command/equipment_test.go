@@ -152,6 +152,25 @@ func TestEquip_MovesFromInventoryToSlotAndAppliesMods(t *testing.T) {
 	}
 }
 
+func TestEquip_WearWieldHoldAliases(t *testing.T) {
+	// wear/wield/hold all alias `equip`; a sole-eligible item equips
+	// without naming the slot.
+	for _, verb := range []string{"wear", "wield", "hold"} {
+		t.Run(verb, func(t *testing.T) {
+			f := newEqFixture(t)
+			a := newTestActor(f.room)
+			inst := f.spawnInInventory(t, swordWithMods(), a)
+			r := newRegistry(t)
+
+			dispatch(t, r, f.env(), a, verb+" sword")
+
+			if got := a.Equipment()["wield"]; got != inst.ID() {
+				t.Errorf("%q sword: equipment[wield] = %q, want %q", verb, got, inst.ID())
+			}
+		})
+	}
+}
+
 func TestEquip_AutoSwapDisplacesOccupant(t *testing.T) {
 	f := newEqFixture(t)
 	a := newTestActor(f.room)
