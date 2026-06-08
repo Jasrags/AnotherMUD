@@ -105,6 +105,16 @@ const (
 	// the Mudlet character-info panel without redundant scrapes
 	// of `score` output.
 	PackageCharStatus = "Char.Status"
+
+	// PackageCharWizard — one rendered character-creation step
+	// (spec character-creation §5). Event-driven (NOT poll-driven):
+	// emitted once per rendered step alongside the plain-text path,
+	// so a rich client can draw an in-place creation panel without
+	// parsing prompts. Carries the step type, prompt, and — for
+	// choice steps — the option list. The creation wizard runs
+	// pre-actor, so these frames go straight on the connection
+	// rather than through the per-actor flusher.
+	PackageCharWizard = "Char.Wizard"
 )
 
 // Char.Items "location" string constants per spec §7. Tapestry-
@@ -291,6 +301,29 @@ type CharCombat struct {
 //   - `source` is the SourceAbilityID — the ability that produced
 //     the effect. Empty for admin-applied or world-hook effects;
 //     omitted in that case so the panel can hide the source label.
+// CharWizardStep is the Char.Wizard payload: one rendered
+// character-creation step (spec character-creation §5). Type is one
+// of "info" | "choice" | "text" | "confirm". Options carries the
+// choices for a "choice" step (omitted otherwise); Secret marks a
+// text step whose input is hidden (a password-like field). Short
+// lowercase keys follow the PD-2 convention so client packs bind
+// without remapping.
+type CharWizardStep struct {
+	Flow    string         `json:"flow"`
+	Step    string         `json:"step"`
+	Type    string         `json:"type"`
+	Prompt  string         `json:"prompt"`
+	Options []WizardOption `json:"options,omitempty"`
+	Secret  bool           `json:"secret,omitempty"`
+}
+
+// WizardOption is one selectable choice in a CharWizardStep: a display
+// label plus an optional tag line for richer rendering (§3.2).
+type WizardOption struct {
+	Label string `json:"label"`
+	Tag   string `json:"tag,omitempty"`
+}
+
 type CharEffect struct {
 	ID        string   `json:"id"`
 	Remaining int      `json:"remaining,omitempty"`

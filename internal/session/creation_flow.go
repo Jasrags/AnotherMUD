@@ -220,9 +220,12 @@ func runCreation(ctx context.Context, c conn.Connection, cfg Config, loaded *log
 			return ErrCreationAbandoned
 		}
 		pending := &creationEntity{}
-		// nil sink: the §5 structured flow-step event has no negotiated
-		// client consumer yet (GMCP deferred), so only the text path runs.
-		inst := wizard.NewInstance(cfg.CreationFlow, pending, io, nil)
+		// §5 structured flow-step events: a GMCP-active client gets a
+		// Char.Wizard frame per rendered step for an in-place creation
+		// panel; the sink is nil for plain clients, so the text path
+		// (already written by each step's Render) is the universal path.
+		sink := newWizardGmcpSink(c)
+		inst := wizard.NewInstance(cfg.CreationFlow, pending, io, sink)
 		st, err := inst.Start(ctx)
 		if err != nil {
 			return err

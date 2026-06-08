@@ -412,3 +412,54 @@ func TestCharLoginStatus_PackageConstants(t *testing.T) {
 		}
 	}
 }
+
+func TestCharWizardStep_ChoiceCarriesOptions(t *testing.T) {
+	out, err := json.Marshal(gmcp.CharWizardStep{
+		Flow:   "creation",
+		Step:   "race",
+		Type:   "choice",
+		Prompt: "Choose a race:",
+		Options: []gmcp.WizardOption{
+			{Label: "Human", Tag: "versatile"},
+			{Label: "Dwarf"},
+		},
+	})
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+	got := string(out)
+	for _, want := range []string{
+		`"flow":"creation"`, `"step":"race"`, `"type":"choice"`,
+		`"prompt":"Choose a race:"`, `"label":"Human"`, `"tag":"versatile"`, `"label":"Dwarf"`,
+	} {
+		if !strings.Contains(got, want) {
+			t.Errorf("payload missing %s, got %q", want, got)
+		}
+	}
+	// A label-only option omits its tag.
+	if strings.Contains(got, `"tag":""`) {
+		t.Errorf("empty tag should be omitted, got %q", got)
+	}
+}
+
+func TestCharWizardStep_NonChoiceOmitsOptionsAndSecret(t *testing.T) {
+	// An info/text step with no options and no secret emits the four
+	// required keys only — a panel that keys off "type" needs them
+	// always, but options/secret stay absent.
+	out, _ := json.Marshal(gmcp.CharWizardStep{
+		Flow: "creation", Step: "intro", Type: "info", Prompt: "Welcome.",
+	})
+	got := string(out)
+	if got != `{"flow":"creation","step":"intro","type":"info","prompt":"Welcome."}` {
+		t.Errorf("minimal payload = %q", got)
+	}
+}
+
+func TestCharWizardStep_SecretEmitsWhenSet(t *testing.T) {
+	out, _ := json.Marshal(gmcp.CharWizardStep{
+		Flow: "creation", Step: "password", Type: "text", Prompt: "Password:", Secret: true,
+	})
+	if got := string(out); !strings.Contains(got, `"secret":true`) {
+		t.Errorf("secret text step must carry secret:true, got %q", got)
+	}
+}
