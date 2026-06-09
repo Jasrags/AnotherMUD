@@ -80,7 +80,14 @@ the Biome struct (inert until Milestone B). Next: Milestone B.
   data Milestone B consumes; A only needs to load + expose them by id.
 - Persistence: none (biome defs are content; ambience state ephemeral).
 
-### Milestone B — Gathering (forage + nodes)
+### Milestone B — Gathering (forage + nodes) — ✅ SHIPPED (e348237 … b038457)
+
+B1 proficiency+roll (e348237); B2a forage-table infra (e9958c0); B2b forage
+verb+events+cooldown (8d85d2a); B3a node infra (e0e4531); B3b node spawn
+integration — extends the area scheduler, no mob regression (7ca1e0f); B3c+d
+harvest verb + atomic TakeCharge + content (b038457). Both models live-verified.
+Next: Milestone C (real biome content breadth + §8 recipe migration to
+gathered/refined inputs).
 
 Consumes Milestone A's biome tables. Both models ship together (`gathering.md`
 PD-1).
