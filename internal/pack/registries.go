@@ -98,6 +98,11 @@ type Registries struct {
 	// glob; a biome's ForageTable id references one, and the `forage` verb
 	// rolls it. Ids + item refs are namespace-qualified at load.
 	ForageTables *gathering.ForageRegistry
+	// Nodes is the resource-node registry (gathering.md §3): node templates
+	// + per-biome node spawn tables. The boot pipeline turns a biome's node
+	// spawn table into area spawn rules; the `harvest` verb reads node
+	// templates. Ids + refs are namespace-qualified at load.
+	Nodes *gathering.NodeRegistry
 }
 
 // NewRegistries returns a Registries with every field initialized.
@@ -128,5 +133,6 @@ func NewRegistries() *Registries {
 		Recipes:      recipe.NewRegistry(),
 		Biomes:       biome.NewRegistry(),
 		ForageTables: gathering.NewForageRegistry(),
+		Nodes:        gathering.NewNodeRegistry(),
 	}
 }

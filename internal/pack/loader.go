@@ -405,6 +405,14 @@ func loadPackContent(ctx context.Context, p Discovered, dst *Registries, scriptC
 	if err != nil {
 		return nil, nil, err
 	}
+	nodePaths, err := resolveGlobs(p.Dir, p.Manifest.Content.NodeTemplates)
+	if err != nil {
+		return nil, nil, err
+	}
+	nodeSpawnPaths, err := resolveGlobs(p.Dir, p.Manifest.Content.NodeSpawnTables)
+	if err != nil {
+		return nil, nil, err
+	}
 
 	// M17.1b: discover, compile-check, and register pack scripts.
 	// Compile-check at boot is the cheapest place to surface a syntax
@@ -674,6 +682,13 @@ func loadPackContent(ctx context.Context, p Discovered, dst *Registries, scriptC
 			}
 			b.ForageTable = qid
 		}
+		if b.NodeSpawnTable != "" {
+			qid, err := qualifyID(b.NodeSpawnTable, ns)
+			if err != nil {
+				return nil, nil, fmt.Errorf("%w: %s: node_spawn_table: %v", ErrInvalidContent, bp, err)
+			}
+			b.NodeSpawnTable = qid
+		}
 		if dst.Biomes != nil {
 			if err := dst.Biomes.RegisterPack(ns, b); err != nil {
 				return nil, nil, fmt.Errorf("%w (in %s)", err, bp)
@@ -711,6 +726,65 @@ func loadPackContent(ctx context.Context, p Discovered, dst *Registries, scriptC
 		if dst.ForageTables != nil {
 			if err := dst.ForageTables.Register(t); err != nil {
 				return nil, nil, fmt.Errorf("%w (in %s)", err, fp)
+			}
+		}
+	}
+
+	// Node templates (gathering.md §3.1): the gathering package parses +
+	// validates; the loader qualifies the node id + its yield-table ref
+	// (a forage table). RequiredTool is a tag (global), left bare.
+	for _, np := range nodePaths {
+		data, err := os.ReadFile(np)
+		if err != nil {
+			return nil, nil, fmt.Errorf("read node template %s: %w", np, err)
+		}
+		n, err := gathering.DecodeNodeTemplate(data)
+		if err != nil {
+			return nil, nil, fmt.Errorf("%w (in %s)", err, np)
+		}
+		qid, err := qualifyID(n.ID, ns)
+		if err != nil {
+			return nil, nil, fmt.Errorf("%w: %s: id: %v", ErrInvalidContent, np, err)
+		}
+		n.ID = qid
+		qyield, err := qualifyID(n.YieldTable, ns)
+		if err != nil {
+			return nil, nil, fmt.Errorf("%w: %s: yield_table: %v", ErrInvalidContent, np, err)
+		}
+		n.YieldTable = qyield
+		if dst.Nodes != nil {
+			if err := dst.Nodes.RegisterNode(n); err != nil {
+				return nil, nil, fmt.Errorf("%w (in %s)", err, np)
+			}
+		}
+	}
+
+	// Node spawn tables (gathering.md §3.1): qualify the table id + each
+	// entry's node-template ref against this pack's namespace.
+	for _, np := range nodeSpawnPaths {
+		data, err := os.ReadFile(np)
+		if err != nil {
+			return nil, nil, fmt.Errorf("read node spawn table %s: %w", np, err)
+		}
+		st, err := gathering.DecodeNodeSpawnTable(data)
+		if err != nil {
+			return nil, nil, fmt.Errorf("%w (in %s)", err, np)
+		}
+		qid, err := qualifyID(st.ID, ns)
+		if err != nil {
+			return nil, nil, fmt.Errorf("%w: %s: id: %v", ErrInvalidContent, np, err)
+		}
+		st.ID = qid
+		for i := range st.Entries {
+			qnode, err := qualifyID(st.Entries[i].Node, ns)
+			if err != nil {
+				return nil, nil, fmt.Errorf("%w: %s: entries[%d].node: %v", ErrInvalidContent, np, i, err)
+			}
+			st.Entries[i].Node = qnode
+		}
+		if dst.Nodes != nil {
+			if err := dst.Nodes.RegisterSpawnTable(st); err != nil {
+				return nil, nil, fmt.Errorf("%w (in %s)", err, np)
 			}
 		}
 	}
@@ -797,6 +871,8 @@ func loadPackContent(ctx context.Context, p Discovered, dst *Registries, scriptC
 		slog.Int("loot_tables", len(lootPaths)),
 		slog.Int("biomes", len(biomePaths)),
 		slog.Int("forage_tables", len(foragePaths)),
+		slog.Int("node_templates", len(nodePaths)),
+		slog.Int("node_spawn_tables", len(nodeSpawnPaths)),
 		slog.Int("placements", len(placements)),
 		slog.Int("mob_placements", len(mobPlacements)),
 	)

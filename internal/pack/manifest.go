@@ -110,6 +110,13 @@ type ContentPaths struct {
 	// references one. Item ids + the table id are namespace-qualified at
 	// load (like loot tables).
 	ForageTables []string `yaml:"forage_tables,omitempty"`
+	// NodeTemplates / NodeSpawnTables are resource-node definitions +
+	// per-biome node spawn tables (gathering.md §3). Loaded into
+	// Registries.Nodes; a node references a forage table as its yield, and
+	// a biome's `node_spawn_table` id references a spawn table. Ids + refs
+	// are namespace-qualified at load.
+	NodeTemplates   []string `yaml:"node_templates,omitempty"`
+	NodeSpawnTables []string `yaml:"node_spawn_tables,omitempty"`
 	// Scripts are Lua source files discovered by the M17.1b
 	// loader. Each path glob expands relative to the pack
 	// directory (e.g. `scripts/*.lua`). The loader compiles

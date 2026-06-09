@@ -101,6 +101,60 @@ entries:
 	}
 }
 
+func TestLoad_RegistersNodesNamespaced(t *testing.T) {
+	root := t.TempDir()
+	pack := filepath.Join(root, "core")
+	writeFile(t, filepath.Join(pack, "pack.yaml"), `
+name: tapestry-core
+content:
+  biomes: [biomes/*.yaml]
+  node_templates: [node_templates/*.yaml]
+  node_spawn_tables: [node_spawn_tables/*.yaml]
+`)
+	writeFile(t, filepath.Join(pack, "biomes", "cave.yaml"), `
+id: cavern
+node_spawn_table: cave-nodes
+`)
+	writeFile(t, filepath.Join(pack, "node_templates", "iron-vein.yaml"), `
+id: iron-vein
+name: an iron ore vein
+yield_table: iron-yield
+charges: 3
+required_tool: pick
+`)
+	writeFile(t, filepath.Join(pack, "node_spawn_tables", "cave-nodes.yaml"), `
+id: cave-nodes
+entries:
+  - {node: iron-vein, count: 2}
+`)
+	regs := NewRegistries()
+	if err := biome.RegisterEngineBaseline(regs.Biomes); err != nil {
+		t.Fatalf("baseline: %v", err)
+	}
+	if err := Load(context.Background(), root, nil, regs, nil, nil, nil); err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	// Node template registered under the namespaced id; yield-table ref qualified.
+	n, ok := regs.Nodes.Node("tapestry-core:iron-vein")
+	if !ok {
+		t.Fatal("node template not registered under namespaced id")
+	}
+	if n.YieldTable != "tapestry-core:iron-yield" || n.RequiredTool != "pick" || n.Charges != 3 {
+		t.Errorf("node = %+v (want qualified yield, pick, 3 charges)", n)
+	}
+	// Spawn table registered + its entry node ref qualified; biome reference qualified.
+	st, ok := regs.Nodes.SpawnTable("tapestry-core:cave-nodes")
+	if !ok {
+		t.Fatal("node spawn table not registered")
+	}
+	if len(st.Entries) != 1 || st.Entries[0].Node != "tapestry-core:iron-vein" {
+		t.Errorf("spawn table entries = %+v, want qualified node ref", st.Entries)
+	}
+	if b, _ := regs.Biomes.Get("cavern"); b.NodeSpawnTable != "tapestry-core:cave-nodes" {
+		t.Errorf("biome node_spawn_table = %q, want qualified id", b.NodeSpawnTable)
+	}
+}
+
 func TestLoad_PackBiomeShadowingEngineFails(t *testing.T) {
 	root := biomePack(t, "outdoors.yaml", `
 id: outdoors
