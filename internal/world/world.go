@@ -54,13 +54,22 @@ type Area struct {
 // only flag the engine inspects is `persistent` (§3.6: when at or
 // above target, skip — i.e. the count is a ceiling).
 type SpawnRule struct {
-	RoomID        RoomID
+	RoomID RoomID
+	// MobTemplateID is the mob this rule populates. Exactly one of
+	// MobTemplateID / NodeTemplateID is set per rule.
 	MobTemplateID string
-	Count         int
-	Rare          string
-	RareChance    float64
-	ResetInterval uint64 // ticks; 0 → use area's
-	Tags          []string
+	// NodeTemplateID, when set, makes this a resource-NODE rule
+	// (gathering.md §3.1): the spawner mints a harvestable node entity
+	// instead of a mob, and the §3.6 reset algorithm respawns a depleted
+	// node exactly as it respawns a killed mob. Node rules are generated at
+	// boot from a biome's node spawn table (they don't appear in area
+	// content directly). No rare-swap for nodes in v1.
+	NodeTemplateID string
+	Count          int
+	Rare           string
+	RareChance     float64
+	ResetInterval  uint64 // ticks; 0 → use area's
+	Tags           []string
 }
 
 // HasTag reports whether r carries the named tag. O(n) scan; rules

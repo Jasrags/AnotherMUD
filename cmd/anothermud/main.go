@@ -155,6 +155,7 @@ func run() error {
 		lootTables:   registries.Loot,
 		lootRoller:   lootRNG,
 		bus:          bus,
+		nodes:        registries.Nodes,
 	}
 	// M17.1b: a sandboxed scripting.Engine is the ScriptCompiler the
 	// pack loader uses to syntax-check each pack-supplied Lua file
@@ -176,6 +177,14 @@ func run() error {
 	w := registries.World
 	if _, err := w.Room(cfg.StartRoom); err != nil {
 		return fmt.Errorf("starting room %q not in loaded world: %w", cfg.StartRoom, err)
+	}
+	// Gathering (gathering.md §3.1): generate per-room resource-node spawn
+	// rules from each node-bearing biome's spawn table, appended to the
+	// room's area BEFORE the spawn scheduler starts. The shared §3.6 reset
+	// algorithm then spawns + respawns nodes exactly like mobs.
+	if n := wireBiomeNodeSpawnRules(w, registries.Biomes, registries.Nodes); n > 0 {
+		logging.From(ctx).Info("biome node spawn rules wired",
+			slog.String("event", "gathering.node_rules"), slog.Int("rules", n))
 	}
 
 	// M10.2: compile the pack-loaded theme once and bind a shared,
@@ -2270,6 +2279,7 @@ type bootSpawner struct {
 	lootTables   *loot.Registry
 	lootRoller   loot.Roller
 	bus          *eventbus.Bus
+	nodes        *gathering.NodeRegistry
 }
 
 // SpawnAndPlace looks up the item template, mints an instance via the
@@ -2486,7 +2496,84 @@ func (b *bootSpawner) spawnMob(ctx context.Context, templateID string, roomID wo
 type bootSpawnerAdapter struct{ inner *bootSpawner }
 
 func (a *bootSpawnerAdapter) Spawn(ctx context.Context, templateID string, roomID world.RoomID) (entities.EntityID, error) {
+	// Resource-node rules (gathering.md §3.1) carry a node template id;
+	// disambiguate node vs mob by registry lookup so the existing mob path
+	// is untouched. A node spawns as a tagged placed entity, not a mob.
+	if a.inner.nodes != nil {
+		if _, ok := a.inner.nodes.Node(templateID); ok {
+			return a.inner.spawnNode(ctx, templateID, roomID)
+		}
+	}
 	return a.inner.spawnMob(ctx, templateID, roomID)
+}
+
+// wireBiomeNodeSpawnRules generates per-room resource-node spawn rules from
+// each node-bearing biome's spawn table (gathering.md §3.1, biomes.md §2):
+// for every room whose biome declares a node_spawn_table, it appends a
+// world.SpawnRule (room, node template, count, reset interval) to that
+// room's area. Runs once at boot before the scheduler starts, so the
+// slice append needs no synchronization. Returns the rule count (logging).
+func wireBiomeNodeSpawnRules(w *world.World, biomes *biome.Registry, nodes *gathering.NodeRegistry) int {
+	if w == nil || biomes == nil || nodes == nil {
+		return 0
+	}
+	count := 0
+	for _, room := range w.Rooms() {
+		if room == nil {
+			continue
+		}
+		b, ok := biomes.Resolve(room.Terrain)
+		if !ok || b.NodeSpawnTable == "" {
+			continue
+		}
+		tbl, ok := nodes.SpawnTable(b.NodeSpawnTable)
+		if !ok {
+			continue
+		}
+		area, err := w.Area(room.AreaID)
+		if err != nil {
+			continue
+		}
+		for _, e := range tbl.Entries {
+			area.SpawnRules = append(area.SpawnRules, world.SpawnRule{
+				RoomID:         room.ID,
+				NodeTemplateID: e.Node,
+				Count:          e.Count,
+				ResetInterval:  e.ResetInterval,
+			})
+		}
+		count += len(tbl.Entries)
+	}
+	return count
+}
+
+// spawnNode mints a harvestable resource node (gathering.md §3.1) as a
+// tagged placed ItemInstance carrying its harvest state (charges, yield
+// table, required tool) as properties — the same placed-entity shape the
+// campfire station uses. The §3.6 reset algorithm respawns a depleted node
+// (removed from the store on its last harvest) exactly as it respawns a
+// killed mob.
+func (b *bootSpawner) spawnNode(_ context.Context, templateID string, roomID world.RoomID) (entities.EntityID, error) {
+	n, ok := b.nodes.Node(templateID)
+	if !ok {
+		return "", fmt.Errorf("node template lookup: %q", templateID)
+	}
+	inst, err := b.store.SpawnContainer(
+		n.Name,
+		[]string{gathering.NodeTag, gathering.NoGetTag},
+		n.Keywords,
+		map[string]any{
+			gathering.PropNodeTemplate:     n.ID,
+			gathering.PropNodeCharges:      n.Charges,
+			gathering.PropNodeYieldTable:   n.YieldTable,
+			gathering.PropNodeRequiredTool: n.RequiredTool,
+		},
+	)
+	if err != nil {
+		return "", fmt.Errorf("spawn node: %w", err)
+	}
+	b.placement.Place(inst.ID(), roomID)
+	return inst.ID(), nil
 }
 
 // presenceSource adapts *session.Manager + *world.World to

@@ -124,7 +124,10 @@ func (m *Manager) applyRule(ctx context.Context, logger *slog.Logger, areaID wor
 	ruleLog := logger.With(
 		slog.Int("rule_idx", ruleIdx),
 		slog.String("room_id", string(rule.RoomID)),
+		// One of mob/node is set per rule; log both so node rules are
+		// identifiable (mob="" alone would be ambiguous).
 		slog.String("mob", rule.MobTemplateID),
+		slog.String("node", rule.NodeTemplateID),
 	)
 
 	// §3.6 step "Resolve the room; skip the rule if the room does
@@ -171,6 +174,12 @@ func (m *Manager) applyRule(ctx context.Context, logger *slog.Logger, areaID wor
 // use the rare template instead"). Rolls are independent per
 // missing slot.
 func (m *Manager) chooseTemplate(rule world.SpawnRule) string {
+	// Resource-node rules carry a node template id and never rare-swap
+	// (gathering.md §3.1). The spawner disambiguates node vs mob by
+	// registry lookup, so returning the node id here is sufficient.
+	if rule.NodeTemplateID != "" {
+		return rule.NodeTemplateID
+	}
 	if rule.Rare == "" || rule.RareChance <= 0 {
 		return rule.MobTemplateID
 	}

@@ -8,6 +8,20 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+// Node entity tags + property keys (gathering.md §3). A spawned node is a
+// tagged placed entity (an ItemInstance, like the campfire station) carrying
+// its harvest state as properties so the `harvest` verb reads them off the
+// instance without a registry round-trip. NodeTag marks it; NoGetTag keeps
+// it from being scooped into a pack.
+const (
+	NodeTag              = "resource_node"
+	NoGetTag             = "no_get"
+	PropNodeTemplate     = "node_template"      // the node template id (provenance)
+	PropNodeCharges      = "node_charges"       // mutable harvests remaining
+	PropNodeYieldTable   = "node_yield_table"   // a ForageTable id (the yield pool)
+	PropNodeRequiredTool = "node_required_tool" // tool tag, "" = none (§3.3)
+)
+
 // NodeTemplate is a harvestable resource node definition (gathering.md §3):
 // an ore vein, a herb patch, a tree. It declares the YieldTable it rolls
 // (a ForageTable — node yields reuse the same weighted-pool + richness +

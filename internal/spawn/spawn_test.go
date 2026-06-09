@@ -154,6 +154,35 @@ func TestManager_FirstResetBringsUpFromZero(t *testing.T) {
 	}
 }
 
+// A node spawn rule (NodeTemplateID set) spawns the node template via the
+// same reset pipeline as a mob rule — the spawner disambiguates node vs mob
+// by registry lookup, so the scheduler just hands it the chosen template id
+// (gathering.md §3.1). chooseTemplate returns the node id and never
+// rare-swaps.
+func TestManager_ResetSpawnsNodeRule(t *testing.T) {
+	w := worldWith(t, "town", "core:r1")
+	area, _ := w.Area("town")
+	area.SpawnRules = []world.SpawnRule{
+		// A node rule: no MobTemplateID, a Rare set (which must be ignored
+		// for nodes) to prove chooseTemplate returns the node id regardless.
+		{RoomID: "core:r1", NodeTemplateID: "core:iron-vein", Count: 2, Rare: "core:gold-vein", RareChance: 1.0},
+	}
+	sp := &stubSpawner{}
+	mgr := NewManager(Config{World: w, Tracker: NewTracker(), Spawner: sp, Bus: eventbus.New()})
+
+	mgr.Reset(context.Background(), "town")
+
+	calls := sp.callsCopy()
+	if len(calls) != 2 {
+		t.Fatalf("spawn calls = %d, want 2", len(calls))
+	}
+	for _, c := range calls {
+		if c.template != "core:iron-vein" {
+			t.Errorf("node rule spawned %q, want core:iron-vein (no rare-swap for nodes)", c.template)
+		}
+	}
+}
+
 func TestManager_ResetIsTopUpOnly(t *testing.T) {
 	w := worldWith(t, "town", "core:r1")
 	area, _ := w.Area("town")
