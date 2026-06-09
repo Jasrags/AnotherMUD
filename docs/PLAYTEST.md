@@ -126,10 +126,10 @@ once (two telnet windows).
 - [x] `south`, `east`, `west` — move between Forge/Square/Market/Gate.
 - [x] `s` from the Gate — you reach the Meadow (the bandit is here).
 - [x] Try a direction with no exit (e.g. `up`) — "You cannot go that way."
-- [ ] **Chaining:** `n;s` runs both in order (you go north then back south).
+- [x] **Chaining:** `n;s` runs both in order (you go north then back south).
       A long chain past the cap (default 10, `ANOTHERMUD_CHAIN_CAP`) silently
       drops the trailing commands.
-- [ ] **Repeat:** `2n` then `2s` walks two rooms each way (`<count><verb>`);
+- [x] **Repeat:** `2n` then `2s` walks two rooms each way (`<count><verb>`);
       `3` alone is just an unknown verb (pure digits don't expand). Commands
       run immediately, not paced across ticks.
 - [x] When another player is present, you see "X arrives" / "X leaves" as they
@@ -147,7 +147,7 @@ In Town Square:
 - [x] `equip sword`, `equip cap` — `equipment` (`eq`) shows them worn; `score`
       reflects the stat/AC change (`consider` no longer reports your *own* stats —
       it points you to `score`; see §6/§8).
-- [ ] `look sword` — the sword's **description** prints (the appearance lens),
+- [x] `look sword` — the sword's **description** prints (the appearance lens),
       not just its name. An item with no authored description reads
       "You see nothing special about …".
 - [x] `unequip sword` — returns to inventory.
@@ -159,13 +159,13 @@ In Town Square:
 **Equipment slots (M25 — footprint & contention).** Town Square holds an
 **iron greatsword** (two-handed) and a **wooden shield** for this demo:
 
-- [ ] `get greatsword`, `equip greatsword` — `equipment` / `score` shows it in
+- [x] `get greatsword`, `equip greatsword` — `equipment` / `score` shows it in
       **both** `wield` and `offhand` (a two-hander's footprint spans both hands).
-- [ ] `get shield`, `equip shield` — it needs the off hand, so it **displaces**
+- [x] `get shield`, `equip shield` — it needs the off hand, so it **displaces**
       the greatsword (auto-swap back to inventory); `equipment` now shows the
       shield in `offhand` and an empty `wield`.
-- [ ] `equip greatsword` again — it displaces the shield (reclaims both hands).
-- [ ] `equip greatsword head` (an ineligible slot) — refused (eligibility: a
+- [x] `equip greatsword` again — it displaces the shield (reclaims both hands).
+- [x] `equip greatsword head` (an ineligible slot) — refused (eligibility: a
       greatsword only fits `wield`).
 
 ## 5. Containers
@@ -334,7 +334,7 @@ two quests — **Forge Errand** (auto-grant) and **Gate Patrol** (turn-in)
 - [ ] `give ration to Bob` — the ration leaves your inventory and enters Bob's
       (`i` on each to confirm); both args tab-complete (item from your pack,
       target a player). Bob must be in the room.
-- [ ] `who` — lists every online character (world-wide, not just this room),
+- [x] `who` — lists every online character (world-wide, not just this room),
       one per line, alphabetical, then "N players online." Jasrags shows an
       `[Admin]` tag; a character idle >60s shows `(idle)`. You always see
       yourself.
@@ -430,7 +430,7 @@ while closed, and the two sides stay in sync.
       client**: "Reloaded N script(s)." (core ships one — `track_kills.lua`).
       The **server log** also prints a confirmation (`event=scripting.reload
       count=N`).
-- [ ] Type a few junk verbs (`xyzzy`, `frobnicate`, `xyzzy`) — each replies
+- [x] Type a few junk verbs (`xyzzy`, `frobnicate`, `xyzzy`) — each replies
       "Huh?". Then `badinput` lists them ranked by count (`xyzzy` ×2 on top);
       `badinput clear` resets the tracker. (Unknown verbs also log
       `event=command.unknown` on the server.)
@@ -652,32 +652,32 @@ The craft NPCs/stations in the core pack:
 
 ### Learn a discipline (the trainer-shops)
 
-- [ ] At the Forge, `learn smithing` — "Brandr the blacksmith teaches you the
+- [x] At the Forge, `learn smithing` — "Brandr the blacksmith teaches you the
       basics of Smithing. You learn 1 starting recipe." (Works even though
       **Maerys** is also a trainer in the room — the trainer resolver picks the
       one who can teach the skill.)
-- [ ] `craft` (no argument) — lists your known recipes (`reforge a short sword`).
-- [ ] At Market Row, `learn cooking` — Marta teaches it; you learn `cook a
+- [x] `craft` (no argument) — lists your known recipes (`reforge a short sword`).
+- [x] At Market Row, `learn cooking` — Marta teaches it; you learn `cook a
       hearty meal`. `learn cooking` somewhere with no trainer — "There is no
       one here who can teach you that." `learn dancing` — "There is no such
       craft to learn."
 
 ### Smithing at the forge (Tier-2 station)
 
-- [ ] At Market Row, `craft reforge` — **refused**: "You need a proper crafting
+- [x] At Market Row, `craft reforge` — **refused**: "You need a proper crafting
       station for that — a forge, a kitchen, or the like." (The market is a
       *cooking* station; reforge needs a smithing station — the station gate.)
-- [ ] At the Forge, `buy dagger`, then `craft reforge` — "You craft a short
+- [x] At the Forge, `buy dagger`, then `craft reforge` — "You craft a short
       sword." `inventory`: the **rusty dagger is consumed** and a **short sword**
       produced (atomic — nothing lost on a failed craft).
-- [ ] `buy hammer` (the fine iron hammer, `[UNCOMMON]`), then `craft reforge`
+- [x] `buy hammer` (the fine iron hammer, `[UNCOMMON]`), then `craft reforge`
       again — the tool weights quality up: a sword crafted **with** the hammer
       carried tends to a higher rarity tier than **without** it (the hammer is a
       tool — it is **not** consumed). Tool quality is a separate lever from skill.
 
 ### Cooking at the market (Tier-2 station) → well-fed
 
-- [ ] At Market Row, `buy meat`, then `craft hearty` — "You craft a cooked meal."
+- [x] At Market Row, `buy meat`, then `craft hearty` — "You craft a cooked meal."
       (raw meat consumed). `eat meal` — clears sustenance (`score` shows it).
 - [ ] A freshly-learned (skill-1) cook makes **common** meals = cold rations
       (no buff). Raise cooking: `practice cooking` at Marta + craft repeatedly,
