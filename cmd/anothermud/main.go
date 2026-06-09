@@ -40,6 +40,7 @@ import (
 	"github.com/Jasrags/AnotherMUD/internal/entities"
 	"github.com/Jasrags/AnotherMUD/internal/eventbus"
 	"github.com/Jasrags/AnotherMUD/internal/gameclock"
+	"github.com/Jasrags/AnotherMUD/internal/gathering"
 	"github.com/Jasrags/AnotherMUD/internal/help"
 	"github.com/Jasrags/AnotherMUD/internal/item"
 	"github.com/Jasrags/AnotherMUD/internal/light"
@@ -1364,6 +1365,17 @@ func run() error {
 		passiveStatReader,
 	)
 
+	// Gathering (gathering.md §2): the `forage` verb rolls the room biome's
+	// forage table. The Service owns the quality roll + item spawn + the
+	// gathering-proficiency use-gain; the per-character forage cooldown is
+	// config-driven (§5).
+	gatheringCfg := gathering.DefaultConfig()
+	gatheringCfg.ForageCooldownTicks = cadenceTicks(cfg.TickInterval, cfg.ForageCooldown)
+	gatheringSvc := gathering.NewService(
+		registries.Rarity, proficiencyMgr, stdRoller{}, gatheringCfg,
+		passiveStatReader, entityStore, registries.Items,
+	)
+
 	// B3 timed crafting (crafting-and-cooking §3): a recipe's time_pulses
 	// occupies the player. The `craft` verb arms a per-actor timer; this
 	// tick finishes any craft that has come due. Cadence 1 (every tick) so
@@ -1790,6 +1802,9 @@ func run() error {
 		Recipes:         registries.Recipes,
 		Known:           knownRecipesMgr,
 		Craft:           craftSvc,
+		Gathering:       gatheringSvc,
+		Biomes:          registries.Biomes,
+		ForageTables:    registries.ForageTables,
 		Effects:         effectMgr,
 		ActionQueue:     actionQueueMgr,
 		PulseDelay:      pulseDelayTracker,
@@ -1997,6 +2012,7 @@ type config struct {
 	CampfireLifetime      time.Duration
 	CampfireDecayInterval time.Duration
 	BiomeAmbienceInterval time.Duration
+	ForageCooldown        time.Duration
 	AutosaveInterval      time.Duration
 	IdleSweepInterval     time.Duration
 	LinkDeadSweepInterval time.Duration
@@ -2066,6 +2082,7 @@ func loadConfig() config {
 		CampfireLifetime:        envDurationOr("ANOTHERMUD_CAMPFIRE_LIFETIME", 10*time.Minute),
 		CampfireDecayInterval:   envDurationOr("ANOTHERMUD_CAMPFIRE_DECAY_INTERVAL", 5*time.Second),
 		BiomeAmbienceInterval:   envDurationOr("ANOTHERMUD_BIOME_AMBIENCE_INTERVAL", 90*time.Second),
+		ForageCooldown:          envDurationOr("ANOTHERMUD_FORAGE_COOLDOWN", 30*time.Second),
 		AutosaveInterval:        envDurationOr("ANOTHERMUD_AUTOSAVE_INTERVAL", 30*time.Second),
 		IdleSweepInterval:       envDurationOr("ANOTHERMUD_IDLE_SWEEP_INTERVAL", 30*time.Second),
 		LinkDeadSweepInterval:   envDurationOr("ANOTHERMUD_LINKDEAD_SWEEP_INTERVAL", 30*time.Second),

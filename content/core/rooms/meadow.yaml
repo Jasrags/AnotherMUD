@@ -12,7 +12,7 @@ exits:
 # one place a player can actually engage a mob (town-square is tagged
 # safe-room, which blocks combat). The bandit spawns here via
 # areas/wilderness.yaml spawn_rules.
-terrain: outdoors
+terrain: grassland
 # A loose item on the ground for get/drop/look testing.
 items:
   - bless-potion

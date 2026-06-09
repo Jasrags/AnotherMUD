@@ -1,0 +1,11 @@
+id: wildflower
+name: a sprig of wildflowers
+type: item
+description: |
+  A small bunch of meadow wildflowers — pale petals on slender stems, still
+  beaded with dew. Pretty, and useful to those who know their uses.
+tags: [ingredient, herb, foraged]
+keywords: [wildflower, wildflowers, flower, flowers]
+properties:
+  weight: 1
+  value: 3

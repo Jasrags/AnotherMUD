@@ -7,7 +7,7 @@ import (
 )
 
 func TestGainFromUse_NilProfIsNoop(t *testing.T) {
-	s := NewService(coreLadder(), nil, fixedRoller{v: 0}, DefaultConfig(), nil)
+	s := NewService(coreLadder(), nil, fixedRoller{v: 0}, DefaultConfig(), nil, nil, nil)
 	if s.GainFromUse("p1") {
 		t.Error("GainFromUse with no proficiency manager should be a no-op (false)")
 	}
@@ -26,7 +26,7 @@ func TestGainFromUse_IncrementsLearnedProficiency(t *testing.T) {
 	prof.Learn("p1", GatheringAbility, 5)
 
 	// fixedRoller{v:0} → IntN(100)=0 → roll 1 ≤ threshold → a gain.
-	s := NewService(coreLadder(), prof, fixedRoller{v: 0}, DefaultConfig(), nil)
+	s := NewService(coreLadder(), prof, fixedRoller{v: 0}, DefaultConfig(), nil, nil, nil)
 	if !s.GainFromUse("p1") {
 		t.Fatal("GainFromUse should report a gain with a min roll + positive base chance")
 	}

@@ -4,6 +4,8 @@ import (
 	"sync"
 
 	"github.com/Jasrags/AnotherMUD/internal/decoration"
+	"github.com/Jasrags/AnotherMUD/internal/entities"
+	"github.com/Jasrags/AnotherMUD/internal/item"
 	"github.com/Jasrags/AnotherMUD/internal/progression"
 )
 
@@ -27,6 +29,12 @@ type Service struct {
 	// stats scales the §4 use-gain by the gathering ability's gain_stat
 	// (shared with the M26 passive-gain seam); nil = un-scaled gain.
 	stats progression.StatReader
+	// store + tpls spawn the yielded item (the §2 forage create step). Like
+	// crafting.Service, the gathering service owns item creation; the
+	// command layer supplies only the Gatherer adapter to file it into. Nil
+	// in roll/gain-only tests.
+	store *entities.Store
+	tpls  *item.Templates
 
 	// rollMu serializes roller use (the roller need not be concurrent-safe
 	// and gathers arrive on per-session goroutines), mirroring crafting.
@@ -35,9 +43,10 @@ type Service struct {
 
 // NewService wires the gathering service. rarity + roller are required for
 // the quality roll (a nil rarity registry yields no rarity stamp); prof +
-// stats may be nil in tests that don't exercise skill gain.
-func NewService(rarity *decoration.RarityRegistry, prof *progression.ProficiencyManager, roller Roller, cfg Config, stats progression.StatReader) *Service {
-	return &Service{rarity: rarity, prof: prof, roller: roller, cfg: cfg, stats: stats}
+// stats may be nil in tests that don't exercise skill gain; store + tpls
+// are required for the forage create step (nil in roll/gain-only tests).
+func NewService(rarity *decoration.RarityRegistry, prof *progression.ProficiencyManager, roller Roller, cfg Config, stats progression.StatReader, store *entities.Store, tpls *item.Templates) *Service {
+	return &Service{rarity: rarity, prof: prof, roller: roller, cfg: cfg, stats: stats, store: store, tpls: tpls}
 }
 
 // RollQuality computes the rarity-tier key for one gather from its §4
@@ -65,8 +74,11 @@ func (s *Service) GainFromUse(entityID string) bool {
 // per-session goroutines). Mirrors the inline guard in rollQuality and the
 // crafting package's identically-named helper.
 type lockedRoller struct {
-	mu interface{ Lock(); Unlock() }
-	r  Roller
+	mu interface {
+		Lock()
+		Unlock()
+	}
+	r Roller
 }
 
 func (l lockedRoller) IntN(n int) int {

@@ -3,6 +3,7 @@ package command
 import (
 	"context"
 
+	"github.com/Jasrags/AnotherMUD/internal/biome"
 	"github.com/Jasrags/AnotherMUD/internal/chat"
 	"github.com/Jasrags/AnotherMUD/internal/clock"
 	"github.com/Jasrags/AnotherMUD/internal/combat"
@@ -11,6 +12,7 @@ import (
 	"github.com/Jasrags/AnotherMUD/internal/economy"
 	"github.com/Jasrags/AnotherMUD/internal/entities"
 	"github.com/Jasrags/AnotherMUD/internal/eventbus"
+	"github.com/Jasrags/AnotherMUD/internal/gathering"
 	"github.com/Jasrags/AnotherMUD/internal/help"
 	"github.com/Jasrags/AnotherMUD/internal/light"
 	"github.com/Jasrags/AnotherMUD/internal/notifications"
@@ -246,6 +248,12 @@ type Env struct {
 	// Craft is the crafting service (quality roll + atomic consume/produce).
 	// The `craft` verb routes through it. nil in tests.
 	Craft *crafting.Service
+	// Gathering / Biomes / ForageTables are the gathering seam (gathering.md
+	// §2): the `forage` verb resolves the room's biome → forage table and
+	// rolls it. nil in tests that don't exercise gathering.
+	Gathering    *gathering.Service
+	Biomes       *biome.Registry
+	ForageTables *gathering.ForageRegistry
 
 	// Help is the M10.5 help-topic service. The help verb queries it.
 	// nil in tests that don't exercise help.

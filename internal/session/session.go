@@ -22,6 +22,7 @@ import (
 	"time"
 
 	"github.com/Jasrags/AnotherMUD/internal/ansi"
+	"github.com/Jasrags/AnotherMUD/internal/biome"
 	"github.com/Jasrags/AnotherMUD/internal/chat"
 	"github.com/Jasrags/AnotherMUD/internal/clock"
 	"github.com/Jasrags/AnotherMUD/internal/combat"
@@ -32,6 +33,7 @@ import (
 	"github.com/Jasrags/AnotherMUD/internal/economy"
 	"github.com/Jasrags/AnotherMUD/internal/entities"
 	"github.com/Jasrags/AnotherMUD/internal/eventbus"
+	"github.com/Jasrags/AnotherMUD/internal/gathering"
 	"github.com/Jasrags/AnotherMUD/internal/gmcp"
 	"github.com/Jasrags/AnotherMUD/internal/help"
 	"github.com/Jasrags/AnotherMUD/internal/item"
@@ -197,6 +199,14 @@ type Config struct {
 	// crafting-and-cooking §3, §5). The `craft` verb routes through it via
 	// commandEnv. nil-safe.
 	Craft *crafting.Service
+
+	// Gathering / Biomes / ForageTables are the gathering seam
+	// (gathering.md §2): the `forage` verb resolves the room's biome →
+	// forage table and rolls it. Threaded into command.Env via commandEnv.
+	// nil-safe.
+	Gathering    *gathering.Service
+	Biomes       *biome.Registry
+	ForageTables *gathering.ForageRegistry
 
 	// Effects is the M9.2 active-effect manager (spec
 	// abilities-and-effects §5). Resolves targets via a closure
@@ -1749,6 +1759,12 @@ type connActor struct {
 	craftPending crafting.PendingCraft
 	hasCraft     bool
 
+	// forageReadyAt is the engine tick the per-character forage cooldown
+	// elapses (gathering.md §5). TRANSIENT like craftPending/rest — never
+	// synced to the save, so a relog clears the cooldown (acceptable; it's
+	// anti-spam, not durable state). Guarded by a.mu.
+	forageReadyAt uint64
+
 	// progress is the actor's progression-track state (M8.2 —
 	// docs/specs/progression.md §5.2). Holds per-track (level, xp)
 	// maps; mutated through progression.Manager operations and
@@ -2855,6 +2871,21 @@ func (a *connActor) ClearPendingCraft() (crafting.PendingCraft, bool) {
 	a.craftPending = crafting.PendingCraft{}
 	a.hasCraft = false
 	return p, had
+}
+
+// ForageReadyAt / SetForageReadyAt hold the transient per-character forage
+// cooldown (gathering.md §5). Guarded by a.mu; never persisted. Satisfies
+// gathering.Gatherer.
+func (a *connActor) ForageReadyAt() uint64 {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	return a.forageReadyAt
+}
+
+func (a *connActor) SetForageReadyAt(tick uint64) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	a.forageReadyAt = tick
 }
 
 // CancelCraft drops any in-flight craft and, if there was one, writes an

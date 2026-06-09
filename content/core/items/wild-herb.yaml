@@ -1,0 +1,11 @@
+id: wild-herb
+name: a sprig of wild herb
+type: item
+description: |
+  A fragrant sprig of wild herb, leaves still cool and faintly bitter — the
+  kind a cook or an apothecary prizes. Foraged from open grassland.
+tags: [ingredient, herb, foraged]
+keywords: [herb, sprig, wild]
+properties:
+  weight: 1
+  value: 2

@@ -32,7 +32,7 @@ func midRoller(cfg Config) fixedRoller { return fixedRoller{v: cfg.RollBand} }
 
 func TestRollQuality_SkillAndRichnessRaiseTier(t *testing.T) {
 	cfg := DefaultConfig()
-	s := NewService(coreLadder(), nil, midRoller(cfg), cfg, nil)
+	s := NewService(coreLadder(), nil, midRoller(cfg), cfg, nil, nil, nil)
 
 	// Low skill + low richness + no tool → bottom of the ladder.
 	low := s.RollQuality(QualityInputs{Skill: 0, Richness: 0, SourceCeiling: -1})
@@ -48,7 +48,7 @@ func TestRollQuality_SkillAndRichnessRaiseTier(t *testing.T) {
 
 func TestRollQuality_SourceCeilingCaps(t *testing.T) {
 	cfg := DefaultConfig()
-	s := NewService(coreLadder(), nil, midRoller(cfg), cfg, nil)
+	s := NewService(coreLadder(), nil, midRoller(cfg), cfg, nil, nil, nil)
 
 	// Max everything, but the source ceiling caps at uncommon (position 1).
 	got := s.RollQuality(QualityInputs{Skill: 100, Richness: 100, ToolTierKey: "legendary", SourceCeiling: 1})
@@ -59,7 +59,7 @@ func TestRollQuality_SourceCeilingCaps(t *testing.T) {
 
 func TestRollQuality_NoLadderYieldsNoTier(t *testing.T) {
 	cfg := DefaultConfig()
-	s := NewService(decoration.NewRarityRegistry(), nil, midRoller(cfg), cfg, nil)
+	s := NewService(decoration.NewRarityRegistry(), nil, midRoller(cfg), cfg, nil, nil, nil)
 	if got := s.RollQuality(QualityInputs{Skill: 50, SourceCeiling: -1}); got != "" {
 		t.Errorf("empty ladder roll = %q, want \"\"", got)
 	}
@@ -67,7 +67,7 @@ func TestRollQuality_NoLadderYieldsNoTier(t *testing.T) {
 
 func TestRollQuality_NegativeCeilingMeansLadderTop(t *testing.T) {
 	cfg := DefaultConfig()
-	s := NewService(coreLadder(), nil, midRoller(cfg), cfg, nil)
+	s := NewService(coreLadder(), nil, midRoller(cfg), cfg, nil, nil, nil)
 	// SourceCeiling -1 = no cap; max inputs reach the ladder top.
 	if got := s.RollQuality(QualityInputs{Skill: 100, Richness: 100, ToolTierKey: "legendary", SourceCeiling: -1}); got != "legendary" {
 		t.Errorf("uncapped roll = %q, want legendary", got)

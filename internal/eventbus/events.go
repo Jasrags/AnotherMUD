@@ -289,6 +289,14 @@ const (
 	// intentionally generic so subscribers can write their own
 	// specific reason.
 	EventRecallBefore = "recall.before"
+	// EventResourceGathering is the cancellable pre-event fired before a
+	// forage/harvest resolves (gathering.md §6). Content forbids gathering
+	// in protected/quest-gated spots by subscribing and cancelling; the
+	// verb emits a generic refusal on veto.
+	EventResourceGathering = "resource.gathering"
+	// EventResourceGathered fires after a forage/harvest yields items
+	// (gathering.md §6) — the quest advance-on-event hook ("gather N of X").
+	EventResourceGathered = "resource.gathered"
 	// EventRecallAfter fires once after an uncancelled recall
 	// teleport commits (spec recall.md §5). The room change
 	// itself still publishes player.moved through the SetRoom
@@ -1466,6 +1474,52 @@ type RecallAfter struct {
 
 // Name implements Event.
 func (RecallAfter) Name() string { return EventRecallAfter }
+
+// ResourceGathering is the cancellable pre-event fired before a forage or
+// harvest resolves (gathering.md §6). Source is "forage" or "node"; Biome
+// is the room's resolved biome id; Node is the node entity id ("" for
+// forage). Listeners flip the embedded CancelFlag to veto (a protected
+// grove, a quest gate); the verb emits a generic refusal on cancel.
+type ResourceGathering struct {
+	*CancelFlag
+	ActorID string
+	RoomID  world.RoomID
+	Source  string
+	Biome   string
+	Node    string
+}
+
+// Name implements Event.
+func (ResourceGathering) Name() string { return EventResourceGathering }
+
+// NewResourceGathering constructs a cancellable resource.gathering with the
+// flag pre-wired (mirrors NewRecallBefore).
+func NewResourceGathering(actorID string, roomID world.RoomID, source, biome, node string) *ResourceGathering {
+	return &ResourceGathering{
+		CancelFlag: &CancelFlag{},
+		ActorID:    actorID,
+		RoomID:     roomID,
+		Source:     source,
+		Biome:      biome,
+		Node:       node,
+	}
+}
+
+// ResourceGathered is the post-fact event fired after a forage/harvest
+// yields items (gathering.md §6) — the quest advance-on-event hook. Items
+// are the yielded item template ids; Tiers are their rolled rarity keys
+// (parallel to Items, "" = none).
+type ResourceGathered struct {
+	ActorID string
+	RoomID  world.RoomID
+	Source  string
+	Biome   string
+	Items   []string
+	Tiers   []string
+}
+
+// Name implements Event.
+func (ResourceGathered) Name() string { return EventResourceGathered }
 
 // RecallNoPoint fires when `recall` runs against an empty save
 // field (spec recall.md §5).

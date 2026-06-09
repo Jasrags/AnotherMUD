@@ -1,0 +1,12 @@
+# Grassland biome (biomes.md §2) — the open meadow south of the village
+# gate. Not shielded (it sees sky/weather like any outdoors room), carries
+# idle ambience, and offers a forage table the `forage` verb rolls
+# (gathering.md §2). The `terrain: grassland` on the meadow keys into this.
+id: grassland
+name: open grassland
+description: Wind-combed grass and wildflowers stretch toward the treeline.
+ambience:
+  - A meadowlark trills somewhere in the tall grass.
+  - Wind ripples across the grass in long silver waves.
+  - The drone of insects rises and falls in the warm air.
+forage_table: meadow-forage

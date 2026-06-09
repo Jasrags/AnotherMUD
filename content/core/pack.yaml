@@ -38,6 +38,10 @@ content:
     - effects/*.yaml
   recipes:
     - recipes/*.yaml
+  biomes:
+    - biomes/*.yaml
+  forage_tables:
+    - forage_tables/*.yaml
   weather_zones:
     - weather_zones/*.yaml
   scripts:

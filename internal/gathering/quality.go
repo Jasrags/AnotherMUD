@@ -15,6 +15,8 @@ package gathering
 import (
 	"math"
 	"strings"
+
+	"github.com/Jasrags/AnotherMUD/internal/decoration"
 )
 
 // Roller is the RNG seam (math/rand/v2.Rand-style IntN), identical in shape
@@ -34,6 +36,11 @@ type Config struct {
 	ToolWeight     float64
 	RichnessWeight float64
 	RollBand       int
+	// ForageCooldownTicks is the per-character cooldown after a successful
+	// forage (gathering.md §5 — the primary forage limiter). 0 = no
+	// cooldown (tests / a build that doesn't rate-limit). The composition
+	// root sets it from the configured duration.
+	ForageCooldownTicks uint64
 }
 
 // DefaultConfig returns first-pass tunable values (§8). Mirrors crafting's
@@ -126,6 +133,25 @@ func (s *Service) rollQuality(in QualityInputs) string {
 	pos = clampInt(pos, 0, k-1)
 
 	return ladder[pos].Key
+}
+
+// ladderPosition returns the index of key in the Order-sorted rarity
+// ladder, or -1 if the key is empty/unregistered. Used to resolve a forage
+// table's content-declared Ceiling key into the SourceCeiling position.
+func ladderPosition(reg *decoration.RarityRegistry, key string) int {
+	if reg == nil {
+		return -1
+	}
+	key = strings.ToLower(strings.TrimSpace(key))
+	if key == "" {
+		return -1
+	}
+	for i, t := range reg.All() {
+		if t.Key == key {
+			return i
+		}
+	}
+	return -1
 }
 
 func clampInt(v, lo, hi int) int {

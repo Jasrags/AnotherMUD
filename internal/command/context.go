@@ -3,6 +3,7 @@ package command
 import (
 	"context"
 
+	"github.com/Jasrags/AnotherMUD/internal/biome"
 	"github.com/Jasrags/AnotherMUD/internal/chat"
 	"github.com/Jasrags/AnotherMUD/internal/clock"
 	"github.com/Jasrags/AnotherMUD/internal/combat"
@@ -11,6 +12,7 @@ import (
 	"github.com/Jasrags/AnotherMUD/internal/economy"
 	"github.com/Jasrags/AnotherMUD/internal/entities"
 	"github.com/Jasrags/AnotherMUD/internal/eventbus"
+	"github.com/Jasrags/AnotherMUD/internal/gathering"
 	"github.com/Jasrags/AnotherMUD/internal/help"
 	"github.com/Jasrags/AnotherMUD/internal/light"
 	"github.com/Jasrags/AnotherMUD/internal/notifications"
@@ -68,6 +70,13 @@ type Context struct {
 	// crafting-and-cooking §3, §5). The `craft` verb routes through it.
 	// nil in tests that don't exercise crafting.
 	Craft *crafting.Service
+	// Gathering / Biomes / ForageTables are the gathering seam (gathering.md
+	// §2). The `forage` verb resolves the room's biome (Biomes) → its forage
+	// table id (ForageTables) and rolls it through Gathering. All nil in
+	// tests that don't exercise gathering.
+	Gathering    *gathering.Service
+	Biomes       *biome.Registry
+	ForageTables *gathering.ForageRegistry
 	// Help is the M10.5 help-topic service. nil in tests.
 	Help *help.Service
 	// Quests is the M10.7 quest service. nil in tests.

@@ -1,0 +1,11 @@
+# Ambient-forage pool for the grassland biome (gathering.md §2). `forage`
+# in the meadow rolls this: usually a common wild herb, sometimes a sprig of
+# wildflowers. Low richness + an uncommon ceiling — open grassland yields
+# plentiful low-tier flora, not rare reagents (§2 "plentiful low-tier flora").
+# Item ids are bare; the loader qualifies them against this pack's namespace.
+id: meadow-forage
+richness: 40
+ceiling: uncommon
+entries:
+  - { item: wild-herb, weight: 4 }
+  - { item: wildflower, weight: 1 }
