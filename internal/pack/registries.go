@@ -4,6 +4,7 @@ import (
 	"github.com/Jasrags/AnotherMUD/internal/biome"
 	"github.com/Jasrags/AnotherMUD/internal/decoration"
 	"github.com/Jasrags/AnotherMUD/internal/effect"
+	"github.com/Jasrags/AnotherMUD/internal/gathering"
 	"github.com/Jasrags/AnotherMUD/internal/help"
 	"github.com/Jasrags/AnotherMUD/internal/item"
 	"github.com/Jasrags/AnotherMUD/internal/loot"
@@ -92,6 +93,11 @@ type Registries struct {
 	// (§4), and the gathering resource tables (§2, §5). Unregistered
 	// terrain keeps today's bare-string behavior (§2.3).
 	Biomes *biome.Registry
+	// ForageTables is the ambient-forage resource-pool registry
+	// (gathering.md §2). Packs register tables from their `forage_tables:`
+	// glob; a biome's ForageTable id references one, and the `forage` verb
+	// rolls it. Ids + item refs are namespace-qualified at load.
+	ForageTables *gathering.ForageRegistry
 }
 
 // NewRegistries returns a Registries with every field initialized.
@@ -101,25 +107,26 @@ type Registries struct {
 // try to redefine baseline slots).
 func NewRegistries() *Registries {
 	return &Registries{
-		World:      world.New(),
-		Items:      item.NewTemplates(),
-		Slots:      slot.NewRegistry(),
-		Mobs:       mob.NewTemplates(),
-		Tracks:     progression.NewTrackRegistry(),
-		Races:      progression.NewRaceRegistry(),
-		Classes:    progression.NewClassRegistry(),
-		Abilities:  progression.NewAbilityRegistry(),
-		Theme:      render.NewThemeRegistry(),
-		Help:       help.NewService(),
-		Quests:     quest.NewRegistry(),
-		Effects:    effect.NewRegistry(),
-		Properties: property.NewRegistry(),
-		Weather:    weather.NewRegistry(),
-		Scripts:    script.New(),
-		Rarity:     decoration.NewRarityRegistry(),
-		Essence:    decoration.NewEssenceRegistry(),
-		Loot:       loot.NewRegistry(),
-		Recipes:    recipe.NewRegistry(),
-		Biomes:     biome.NewRegistry(),
+		World:        world.New(),
+		Items:        item.NewTemplates(),
+		Slots:        slot.NewRegistry(),
+		Mobs:         mob.NewTemplates(),
+		Tracks:       progression.NewTrackRegistry(),
+		Races:        progression.NewRaceRegistry(),
+		Classes:      progression.NewClassRegistry(),
+		Abilities:    progression.NewAbilityRegistry(),
+		Theme:        render.NewThemeRegistry(),
+		Help:         help.NewService(),
+		Quests:       quest.NewRegistry(),
+		Effects:      effect.NewRegistry(),
+		Properties:   property.NewRegistry(),
+		Weather:      weather.NewRegistry(),
+		Scripts:      script.New(),
+		Rarity:       decoration.NewRarityRegistry(),
+		Essence:      decoration.NewEssenceRegistry(),
+		Loot:         loot.NewRegistry(),
+		Recipes:      recipe.NewRegistry(),
+		Biomes:       biome.NewRegistry(),
+		ForageTables: gathering.NewForageRegistry(),
 	}
 }

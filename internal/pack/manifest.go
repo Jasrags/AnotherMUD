@@ -105,6 +105,11 @@ type ContentPaths struct {
 	// tables. Unregistered terrain values keep today's bare-string
 	// behavior (§2.3).
 	Biomes []string `yaml:"biomes,omitempty"`
+	// ForageTables are ambient-forage resource pools (gathering.md §2).
+	// Loaded into Registries.ForageTables; a biome's `forage_table` id
+	// references one. Item ids + the table id are namespace-qualified at
+	// load (like loot tables).
+	ForageTables []string `yaml:"forage_tables,omitempty"`
 	// Scripts are Lua source files discovered by the M17.1b
 	// loader. Each path glob expands relative to the pack
 	// directory (e.g. `scripts/*.lua`). The loader compiles

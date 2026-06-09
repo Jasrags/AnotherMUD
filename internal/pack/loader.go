@@ -15,6 +15,7 @@ import (
 	"github.com/Jasrags/AnotherMUD/internal/combat"
 	"github.com/Jasrags/AnotherMUD/internal/decoration"
 	"github.com/Jasrags/AnotherMUD/internal/effect"
+	"github.com/Jasrags/AnotherMUD/internal/gathering"
 	"github.com/Jasrags/AnotherMUD/internal/help"
 	"github.com/Jasrags/AnotherMUD/internal/item"
 	"github.com/Jasrags/AnotherMUD/internal/logging"
@@ -400,6 +401,10 @@ func loadPackContent(ctx context.Context, p Discovered, dst *Registries, scriptC
 	if err != nil {
 		return nil, nil, err
 	}
+	foragePaths, err := resolveGlobs(p.Dir, p.Manifest.Content.ForageTables)
+	if err != nil {
+		return nil, nil, err
+	}
 
 	// M17.1b: discover, compile-check, and register pack scripts.
 	// Compile-check at boot is the cheapest place to surface a syntax
@@ -658,9 +663,54 @@ func loadPackContent(ctx context.Context, p Discovered, dst *Registries, scriptC
 		if err != nil {
 			return nil, nil, fmt.Errorf("%w (in %s)", err, bp)
 		}
+		// Qualify the biome's forage-table reference against this pack's
+		// namespace so a bare `forage_table: forest-forage` resolves to the
+		// namespaced key the ForageTables registry stores (gathering.md §2).
+		// Empty = the biome offers no forage.
+		if b.ForageTable != "" {
+			qid, err := qualifyID(b.ForageTable, ns)
+			if err != nil {
+				return nil, nil, fmt.Errorf("%w: %s: forage_table: %v", ErrInvalidContent, bp, err)
+			}
+			b.ForageTable = qid
+		}
 		if dst.Biomes != nil {
 			if err := dst.Biomes.RegisterPack(ns, b); err != nil {
 				return nil, nil, fmt.Errorf("%w (in %s)", err, bp)
+			}
+		}
+	}
+
+	// Forage tables (gathering.md §2): the ambient-forage pools a biome's
+	// forage_table id references. The gathering package owns the parse +
+	// validation; the loader qualifies the table id + each entry's item id
+	// against this pack's namespace (like loot tables), so bare ids resolve
+	// to this pack and `pack:name` forms cross packs. The Ceiling is a
+	// rarity key (global vocabulary), left unqualified.
+	for _, fp := range foragePaths {
+		data, err := os.ReadFile(fp)
+		if err != nil {
+			return nil, nil, fmt.Errorf("read forage table %s: %w", fp, err)
+		}
+		t, err := gathering.DecodeForageTable(data)
+		if err != nil {
+			return nil, nil, fmt.Errorf("%w (in %s)", err, fp)
+		}
+		qid, err := qualifyID(t.ID, ns)
+		if err != nil {
+			return nil, nil, fmt.Errorf("%w: %s: id: %v", ErrInvalidContent, fp, err)
+		}
+		t.ID = qid
+		for i := range t.Entries {
+			qitem, err := qualifyID(t.Entries[i].Item, ns)
+			if err != nil {
+				return nil, nil, fmt.Errorf("%w: %s: entries[%d].item: %v", ErrInvalidContent, fp, i, err)
+			}
+			t.Entries[i].Item = qitem
+		}
+		if dst.ForageTables != nil {
+			if err := dst.ForageTables.Register(t); err != nil {
+				return nil, nil, fmt.Errorf("%w (in %s)", err, fp)
 			}
 		}
 	}
@@ -746,6 +796,7 @@ func loadPackContent(ctx context.Context, p Discovered, dst *Registries, scriptC
 		slog.Int("essence", len(essencePaths)),
 		slog.Int("loot_tables", len(lootPaths)),
 		slog.Int("biomes", len(biomePaths)),
+		slog.Int("forage_tables", len(foragePaths)),
 		slog.Int("placements", len(placements)),
 		slog.Int("mob_placements", len(mobPlacements)),
 	)
