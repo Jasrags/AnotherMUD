@@ -52,10 +52,13 @@ Each milestone is independently committable, keeps `go test -race ./...`
 green, and gets a code review before being called complete (project gate).
 Commits land on `main` (no branches).
 
-### Milestone A — Biomes (full spec)
+### Milestone A — Biomes (full spec) — ✅ SHIPPED (8deefa5, 7464225, a69ab5d)
 
 The prerequisite. Backward-compatible: an unregistered `terrain` value
-behaves exactly as today (`biomes.md` §2.3).
+behaves exactly as today (`biomes.md` §2.3). A1 registry + resolution
+(8deefa5); A2 shielding generalization, no-op for existing content
+(7464225); A3 ambience tick (a69ab5d). Resource-table fields are carried on
+the Biome struct (inert until Milestone B). Next: Milestone B.
 
 - **A1 — Biome registry + terrain resolution.** New pack content registry
   (`biomes.md` §2), engine-scope ids unprefixed / pack-scope namespaced
