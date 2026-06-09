@@ -660,6 +660,23 @@ func run() error {
 		}
 		weatherSvc.PeriodChanged(ctx, pc.Period)
 	})
+
+	// Biome ambience (biomes.md §4): idle ecological flavor delivered to
+	// occupied rooms of a biome on its own cadence. Runs on the (single)
+	// tick goroutine, so its RNG needs no extra synchronization. Unlike
+	// weather/time ambience it is NOT shielding-gated and emits no event.
+	biomeRNG := rand.New(rand.NewPCG(uint64(clk.Now().UnixNano()), 4))
+	biomeAmbience := biome.NewAmbienceService(
+		registries.Biomes, w,
+		func(roomID world.RoomID) bool { return len(mgr.PlayersInRoom(roomID)) > 0 },
+		mgr, biomeRNG,
+	)
+	if err := loop.Register("biome-ambience", cadenceTicks(cfg.TickInterval, cfg.BiomeAmbienceInterval), func(ctx context.Context, _ uint64) {
+		biomeAmbience.Tick(ctx)
+	}); err != nil {
+		return fmt.Errorf("register biome-ambience tick: %w", err)
+	}
+
 	// In-game time persistence (light-and-darkness §7, resolving
 	// time-and-clock §3.6): seed the clock from the global saved time
 	// when present, else cold-start at the documented initial state.
@@ -1974,6 +1991,7 @@ type config struct {
 	CorpseDecayInterval   time.Duration
 	CampfireLifetime      time.Duration
 	CampfireDecayInterval time.Duration
+	BiomeAmbienceInterval time.Duration
 	AutosaveInterval      time.Duration
 	IdleSweepInterval     time.Duration
 	LinkDeadSweepInterval time.Duration
@@ -2042,6 +2060,7 @@ func loadConfig() config {
 		CorpseDecayInterval:     envDurationOr("ANOTHERMUD_CORPSE_DECAY_INTERVAL", 3*time.Second),
 		CampfireLifetime:        envDurationOr("ANOTHERMUD_CAMPFIRE_LIFETIME", 10*time.Minute),
 		CampfireDecayInterval:   envDurationOr("ANOTHERMUD_CAMPFIRE_DECAY_INTERVAL", 5*time.Second),
+		BiomeAmbienceInterval:   envDurationOr("ANOTHERMUD_BIOME_AMBIENCE_INTERVAL", 90*time.Second),
 		AutosaveInterval:        envDurationOr("ANOTHERMUD_AUTOSAVE_INTERVAL", 30*time.Second),
 		IdleSweepInterval:       envDurationOr("ANOTHERMUD_IDLE_SWEEP_INTERVAL", 30*time.Second),
 		LinkDeadSweepInterval:   envDurationOr("ANOTHERMUD_LINKDEAD_SWEEP_INTERVAL", 30*time.Second),
