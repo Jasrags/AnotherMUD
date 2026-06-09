@@ -29,8 +29,16 @@ func TerrainOf(r *Room) string {
 }
 
 // IsShielded reports whether r's terrain is one of the engine's two
-// shielding classifiers. Shielded rooms only receive sky-driven
-// effects when their matching exposure flag is set.
+// structurally-enclosed classifiers (indoors / underground).
+//
+// NOTE (biomes.md §3): weather/time *ambience* shielding is no longer
+// decided here — it moved to the biome registry's per-axis flags, consulted
+// in the weather package's eligibility check (weather.ShieldingFunc), so a
+// content biome can declare its own shielding. This hardcoded check remains
+// the "is this room enclosed" predicate for callers that mean structural
+// enclosure rather than sky-ambience eligibility — today the campfire build
+// gate (no fire indoors/underground), which should NOT treat a merely
+// weather-shielded canopy as unbuildable.
 func IsShielded(r *Room) bool {
 	switch TerrainOf(r) {
 	case TerrainIndoors, TerrainUnderground:

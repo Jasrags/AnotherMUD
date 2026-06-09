@@ -46,6 +46,12 @@ type Config struct {
 	Bus         *eventbus.Bus
 	Broadcaster Broadcaster
 	Roller      Roller
+	// Shielding resolves a room's weather/time shielding from the biome
+	// registry (biomes.md §3), generalizing the hardcoded §6.4
+	// indoors/underground set. nil-tolerant: when nil (tests, or a build
+	// without biomes), the eligibility check falls back to the hardcoded
+	// shielding terrains, preserving pre-biomes behavior exactly.
+	Shielding ShieldingFunc
 }
 
 // Service is the runtime state holder + dispatcher (spec §6).
@@ -215,7 +221,7 @@ func (s *Service) dispatchTransition(ctx context.Context, areaID world.AreaID, p
 	// the dispatcher then skips.
 	zone, _ := s.cfg.Registry.Get(zoneIDForArea(s.cfg.World, areaID))
 	for _, room := range s.cfg.World.RoomsInArea(areaID) {
-		if room == nil || !weatherEligible(room) {
+		if room == nil || !weatherEligible(room, s.cfg.Shielding) {
 			continue
 		}
 		end := resolveWeatherMessage(room, zone, prev).End
@@ -246,7 +252,7 @@ func (s *Service) dispatchTransition(ctx context.Context, areaID world.AreaID, p
 // concurrent callers (the underlying state read takes s.mu only
 // briefly via CurrentWeather; the cascade resolver is pure).
 func (s *Service) Ambience(room *world.Room) string {
-	if room == nil || room.AreaID == "" || !weatherEligible(room) {
+	if room == nil || room.AreaID == "" || !weatherEligible(room, s.cfg.Shielding) {
 		return ""
 	}
 	zoneID := zoneIDForArea(s.cfg.World, room.AreaID)
@@ -287,7 +293,7 @@ func (s *Service) PeriodChanged(ctx context.Context, period string) {
 			zone, _ = s.cfg.Registry.Get(area.WeatherZone)
 		}
 		for _, room := range s.cfg.World.RoomsInArea(area.ID) {
-			if room == nil || !timeEligible(room) {
+			if room == nil || !timeEligible(room, s.cfg.Shielding) {
 				continue
 			}
 			msg := resolveTimeMessage(room, zone, period)

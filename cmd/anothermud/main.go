@@ -633,6 +633,18 @@ func run() error {
 		Bus:         bus,
 		Broadcaster: mgr,
 		Roller:      weatherRNG,
+		// Biome-driven weather/time shielding (biomes.md §3): the §6.4
+		// eligibility check reads the room biome's flags. Unregistered
+		// terrain → ok=false → weather falls back to the hardcoded
+		// indoors/underground set, so existing content is unchanged (the
+		// baseline indoors/underground biomes carry identical flags).
+		Shielding: func(terrain string) (weatherShielded, timeShielded bool, ok bool) {
+			b, found := registries.Biomes.Get(terrain)
+			if !found {
+				return false, false, false
+			}
+			return b.WeatherShielded, b.TimeShielded, true
+		},
 	})
 	bus.Subscribe(eventbus.EventTimeHourChange, func(ctx context.Context, ev eventbus.Event) {
 		hc, ok := ev.(eventbus.TimeHourChange)

@@ -17,31 +17,63 @@ const (
 	TerrainUnderground = world.TerrainUnderground
 )
 
-// terrainOf / isShielded delegate to the world classifier so the
-// weather cascade and the light sky-gate cannot drift apart.
+// terrainOf delegates to the world classifier so the weather cascade and
+// the light sky-gate agree on the empty → outdoors default.
 func terrainOf(r *world.Room) string { return world.TerrainOf(r) }
 
-func isShielded(r *world.Room) bool { return world.IsShielded(r) }
+// ShieldingFunc reports a terrain's weather/time shielding from the biome
+// registry (biomes.md §3). ok=false means the terrain has no registered
+// biome — the caller falls back to the engine's hardcoded shielding set
+// (indoors/underground), so unregistered terrain and a nil resolver
+// (tests / no-biomes build) behave exactly as before this feature.
+type ShieldingFunc func(terrain string) (weatherShielded, timeShielded bool, ok bool)
+
+// weatherShieldedRoom / timeShieldedRoom resolve a room's per-axis
+// shielding (biomes.md §3). A registered biome's flag wins; otherwise the
+// hardcoded indoors/underground set applies (the §6.4 pre-biomes default).
+// The two engine-baseline shielding biomes carry both flags, so wiring the
+// resolver changes nothing for existing terrain — it only lets a content
+// biome (a canopy, a sealed vault) declare its own shielding.
+func weatherShieldedRoom(r *world.Room, fn ShieldingFunc) bool {
+	t := world.TerrainOf(r)
+	if fn != nil {
+		if ws, _, ok := fn(t); ok {
+			return ws
+		}
+	}
+	return t == TerrainIndoors || t == TerrainUnderground
+}
+
+func timeShieldedRoom(r *world.Room, fn ShieldingFunc) bool {
+	t := world.TerrainOf(r)
+	if fn != nil {
+		if _, ts, ok := fn(t); ok {
+			return ts
+		}
+	}
+	return t == TerrainIndoors || t == TerrainUnderground
+}
 
 // weatherEligible implements §6.4 for the weather path. An
 // unshielded room is always eligible; a shielded room needs
-// WeatherExposed=true.
-func weatherEligible(r *world.Room) bool {
+// WeatherExposed=true. fn resolves biome shielding (§3); nil = hardcoded.
+func weatherEligible(r *world.Room, fn ShieldingFunc) bool {
 	if r == nil {
 		return false
 	}
-	if !isShielded(r) {
+	if !weatherShieldedRoom(r, fn) {
 		return true
 	}
 	return r.WeatherExposed
 }
 
-// timeEligible mirrors weatherEligible for the time-period path.
-func timeEligible(r *world.Room) bool {
+// timeEligible mirrors weatherEligible for the time-period path, keyed on
+// the biome's time-shielded flag.
+func timeEligible(r *world.Room, fn ShieldingFunc) bool {
 	if r == nil {
 		return false
 	}
-	if !isShielded(r) {
+	if !timeShieldedRoom(r, fn) {
 		return true
 	}
 	return r.TimeExposed

@@ -22,7 +22,9 @@ func TestWeatherEligible(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			if got := weatherEligible(tc.room); got != tc.want {
+			// nil resolver → hardcoded indoors/underground fallback (the
+			// pre-biomes §6.4 behavior these cases assert).
+			if got := weatherEligible(tc.room, nil); got != tc.want {
 				t.Errorf("weatherEligible = %v, want %v", got, tc.want)
 			}
 		})
@@ -34,11 +36,42 @@ func TestTimeEligible_HonorsItsOwnExposureFlag(t *testing.T) {
 	// covered porch that gets rained on but never sees sky). Spec
 	// §6.4 — the two flags are independent.
 	r := &world.Room{Terrain: TerrainIndoors, WeatherExposed: true, TimeExposed: false}
-	if !weatherEligible(r) {
+	if !weatherEligible(r, nil) {
 		t.Error("weather eligible should be true")
 	}
-	if timeEligible(r) {
+	if timeEligible(r, nil) {
 		t.Error("time eligible should be false")
+	}
+}
+
+// TestEligible_BiomeShieldingResolver covers the biomes.md §3 generalization:
+// a resolver can declare per-axis shielding for an otherwise-unshielded
+// terrain, and the two flags are independent.
+func TestEligible_BiomeShieldingResolver(t *testing.T) {
+	// A "canopy" biome: weather-shielded (rain doesn't reach) but NOT
+	// time-shielded (you still see the sky brighten/darken).
+	resolver := func(terrain string) (bool, bool, bool) {
+		if terrain == "canopy" {
+			return true, false, true // weatherShielded, timeShielded, ok
+		}
+		return false, false, false // unregistered → hardcoded fallback
+	}
+	canopy := &world.Room{Terrain: "canopy"}
+	if weatherEligible(canopy, resolver) {
+		t.Error("canopy is weather-shielded → weather ineligible without exposure")
+	}
+	if !timeEligible(canopy, resolver) {
+		t.Error("canopy is NOT time-shielded → time eligible")
+	}
+	// A weather-exposed canopy room becomes weather-eligible again.
+	exposed := &world.Room{Terrain: "canopy", WeatherExposed: true}
+	if !weatherEligible(exposed, resolver) {
+		t.Error("canopy + WeatherExposed → weather eligible")
+	}
+	// Unregistered terrain falls back to the hardcoded set even with a
+	// resolver present: indoors stays shielded.
+	if weatherEligible(&world.Room{Terrain: TerrainIndoors}, resolver) {
+		t.Error("indoors (unregistered by this resolver) → hardcoded shielded")
 	}
 }
 
