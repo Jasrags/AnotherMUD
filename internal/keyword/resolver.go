@@ -86,6 +86,44 @@ func Resolve(candidates []Named, input string) Named {
 	return nil
 }
 
+// ResolveUnique returns the single candidate matching input at the
+// HIGHEST non-empty match tier (exact keyword → prefix → name substring,
+// §6.1), with ok=true. It returns ok=false when nothing matches at any
+// tier, or when more than one candidate matches at that highest non-empty
+// tier (a genuine same-tier ambiguity).
+//
+// Unlike ResolveAll (which flattens every tier into one set), a lower-tier
+// match never makes a unique higher-tier match ambiguous: `dagger`
+// resolves to the item whose KEYWORD is "dagger" even when another item
+// merely contains "dagger" in its name. This is the same tier priority
+// Resolve uses, plus same-tier ambiguity detection — the right primitive
+// for "resolve one thing, but refuse on a real tie" callers like shop
+// stock (economy-survival §3.7). Empty/whitespace input returns ok=false.
+func ResolveUnique(candidates []Named, input string) (Named, bool) {
+	input = strings.TrimSpace(input)
+	if input == "" {
+		return nil, false
+	}
+	lower := strings.ToLower(input)
+	for _, match := range []func(Named, string) bool{hasExactKeyword, hasPrefixKeyword, matchesName} {
+		var found Named
+		count := 0
+		for _, c := range candidates {
+			if match(c, lower) {
+				found = c
+				count++
+			}
+		}
+		if count == 1 {
+			return found, true
+		}
+		if count > 1 {
+			return nil, false // ambiguous at this tier — refuse (§3.7)
+		}
+	}
+	return nil, false
+}
+
 // ResolveAll returns every candidate matching input per §6.2.
 //
 //   - "all" (case-insensitive) returns every candidate.

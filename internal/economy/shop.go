@@ -226,14 +226,17 @@ func resolveStock(tpls *item.Templates, cfg ShopConfig, query string) *item.Temp
 		}
 		cands = append(cands, namedTemplate{tpl})
 	}
-	// ResolveAll returns every match by the §6.1 exact/prefix/substring
-	// rules; §3.7 wants the unambiguous single match, so len != 1 → nil
-	// (0 = no match, >1 = ambiguous).
-	matches := keyword.ResolveAll(cands, query)
-	if len(matches) != 1 {
+	// §3.7 wants the unambiguous single match. ResolveUnique applies the
+	// §6.1 tier priority (exact keyword → prefix → name substring) and only
+	// reports ambiguity WITHIN the highest matching tier — so `dagger`
+	// resolves to the item keyed "dagger" even when a scroll merely has
+	// "dagger" in its name, while two same-tier matches still refuse.
+	// (This makes buy/value resolve stock the same way look/get/wear do.)
+	m, ok := keyword.ResolveUnique(cands, query)
+	if !ok {
 		return nil
 	}
-	return matches[0].(namedTemplate).tpl
+	return m.(namedTemplate).tpl
 }
 
 // namedTemplate adapts an item.Template to keyword.Named so shop stock

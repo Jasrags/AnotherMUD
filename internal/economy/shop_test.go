@@ -464,3 +464,24 @@ func TestValue_Miss(t *testing.T) {
 		t.Errorf("outcome = %v, want ShopItemNotForSale", res.Outcome)
 	}
 }
+
+// TestBuy_ExactKeywordBeatsScrollNameSubstring locks the §3.7 tier-aware
+// resolution fix: a rusty dagger (exact keyword "dagger") and a recipe
+// scroll whose NAME contains "dagger" coexist in stock, and `buy dagger`
+// resolves to the dagger rather than refusing as a false ambiguity.
+func TestBuy_ExactKeywordBeatsScrollNameSubstring(t *testing.T) {
+	f := newShopFixture(t, DefaultEconomyConfig())
+	f.tpls.Add(kwTpl("core:rusty-dagger", "a rusty dagger", 1, "dagger", "rusty"))
+	f.tpls.Add(kwTpl("core:scroll", "a recipe scroll - forging an iron dagger", 100, "scroll", "recipe"))
+	cfg := ShopConfig{Sells: []string{"core:rusty-dagger", "core:scroll"}}
+	sh := newShopper("p1", 1000)
+
+	res := f.svc.Buy(context.Background(), sh, "npc1", cfg, "dagger", nil)
+	if res.Outcome != ShopOK || res.ItemName != "a rusty dagger" {
+		t.Fatalf("buy dagger = %v/%q, want OK/rusty dagger (exact keyword wins)", res.Outcome, res.ItemName)
+	}
+	// The scroll still resolves uniquely by its own keyword.
+	if res := f.svc.Buy(context.Background(), sh, "npc1", cfg, "scroll", nil); res.Outcome != ShopOK || res.ItemName != "a recipe scroll - forging an iron dagger" {
+		t.Errorf("buy scroll = %v/%q, want OK/the scroll", res.Outcome, res.ItemName)
+	}
+}

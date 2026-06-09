@@ -256,3 +256,42 @@ func TestResolveOrdinalWithMixedCaseInput(t *testing.T) {
 		t.Errorf("Resolve(2.RING) = %v, want b", got)
 	}
 }
+
+func TestResolveUnique_ExactKeywordBeatsNameSubstring(t *testing.T) {
+	// The collision that motivated this: a "rusty dagger" with the exact
+	// keyword "dagger" vs a scroll that only has "dagger" in its NAME.
+	dagger := named("a rusty dagger", "dagger", "rusty")
+	scroll := named("a recipe scroll - forging an iron dagger", "scroll", "recipe")
+
+	got, ok := ResolveUnique([]Named{dagger, scroll}, "dagger")
+	if !ok || got != dagger {
+		t.Errorf("ResolveUnique(dagger) = (%v, %v), want the rusty dagger (exact keyword wins over name substring)", got, ok)
+	}
+	// The scroll still answers uniquely to its own keyword.
+	if got, ok := ResolveUnique([]Named{dagger, scroll}, "scroll"); !ok || got != scroll {
+		t.Errorf("ResolveUnique(scroll) = (%v, %v), want the scroll", got, ok)
+	}
+}
+
+func TestResolveUnique_SameTierAmbiguityRefuses(t *testing.T) {
+	// Two items keyed "potion" — a genuine same-tier tie must refuse.
+	a := named("a red potion", "potion", "red")
+	b := named("a blue potion", "potion", "blue")
+	if got, ok := ResolveUnique([]Named{a, b}, "potion"); ok {
+		t.Errorf("ResolveUnique(potion) = (%v, %v), want refusal on same-tier ambiguity", got, ok)
+	}
+	// But the unique colour keyword still resolves.
+	if got, ok := ResolveUnique([]Named{a, b}, "red"); !ok || got != a {
+		t.Errorf("ResolveUnique(red) = (%v, %v), want the red potion", got, ok)
+	}
+}
+
+func TestResolveUnique_NoMatchAndEmpty(t *testing.T) {
+	a := named("a potion", "potion")
+	if _, ok := ResolveUnique([]Named{a}, "sword"); ok {
+		t.Error("ResolveUnique(sword) should not match a potion")
+	}
+	if _, ok := ResolveUnique([]Named{a}, "   "); ok {
+		t.Error("ResolveUnique(blank) should be ok=false")
+	}
+}
