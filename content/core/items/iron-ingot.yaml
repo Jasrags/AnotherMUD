@@ -1,0 +1,19 @@
+id: iron-ingot
+name: an iron ingot
+type: item
+description: |
+  A clean bar of smelted iron, grey and cool with the faint sheen of the
+  mould still on it. The smith's staple — stock for daggers, swords, and
+  anything else that wants honest metal.
+# Refined intermediate (crafting-and-cooking §8, plan D2): smelted from raw
+# iron ore (2 ore → 1 ingot). Its value exceeds the summed value of its raw
+# inputs (the value smelting adds), so crafting up the chain is always
+# cheaper than buying the finished blade (D2.1). Brandr sells ingots at the
+# usual buy markup as a convenience — but the ore-gather → smelt path is the
+# rational, cheaper one, and the raw ore itself is gather-only (D2.2).
+tags: [ingredient, metal, refined, stackable]
+keywords: [ingot, iron, bar]
+properties:
+  stackable: true
+  weight: 2
+  value: 8

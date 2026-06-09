@@ -1,0 +1,17 @@
+id: iron-ore
+name: a lump of iron ore
+type: item
+description: |
+  A heavy, rust-red lump of raw iron ore, still gritty with the rock it was
+  prised from. Worthless as it is — but smelt it down at a forge and it
+  becomes good iron stock.
+# Raw gathered material (crafting-and-cooking §8): the bottom of the smithing
+# chain. Mined from an iron vein (a mining-tool node) in the foothill caves;
+# never sold by a vendor, so every blade's chain bottoms out in a gather-only
+# input (the §8 / D2.2 invariant). Smelted 2:1 into an iron ingot.
+tags: [ingredient, ore, gathered, stackable]
+keywords: [ore, iron, lump]
+properties:
+  stackable: true
+  weight: 3
+  value: 3

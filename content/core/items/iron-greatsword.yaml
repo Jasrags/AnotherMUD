@@ -14,7 +14,9 @@ eligible_slots: [wield]
 companion_slots: [offhand]
 properties:
   weight: 8
-  value: 30
+  # Worth more than the short sword it is reforged from (crafting §8 / plan
+  # D2.1) — the rare-recipe payoff at the top of the smithing chain.
+  value: 60
 # Hits harder than the one-handed short sword (1d6) — the payoff for
 # giving up the off hand.
 weapon_damage: "2d6"

@@ -1,0 +1,15 @@
+id: forest-mushroom
+name: a cluster of forest mushrooms
+type: item
+description: |
+  A handful of fat brown mushrooms pulled from the leaf-litter, caps still
+  cool and earthy-smelling. A cook's prize — they give a stew real depth.
+# Foraged cooking ingredient (crafting-and-cooking §8). Gathered from the
+# forest biome's forage table; never vendor-sold, so the trail-stew recipe
+# that uses it bottoms out in a gather-only input (D2.2).
+tags: [food, ingredient, foraged, stackable]
+keywords: [mushroom, mushrooms, fungus, cluster]
+properties:
+  stackable: true
+  weight: 1
+  value: 2

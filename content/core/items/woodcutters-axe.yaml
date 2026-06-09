@@ -1,0 +1,15 @@
+id: woodcutters-axe
+name: a woodcutter's axe
+type: item
+description: |
+  A single-bit felling axe with a worn hickory haft and a head kept bright
+  by use. The tool a gatherer needs to work a timber stand.
+# `woodcutting-tool` is the tag a timber-stand node's required_tool matches
+# (gathering.md §3.3 — the one allowed harvest refusal). Carrying this
+# satisfies the gate, the same way the iron pickaxe satisfies a mining node.
+# Sold by the blacksmith and left on the ground at the forest edge.
+tags: [tool, woodcutting-tool]
+keywords: [axe, hatchet]
+properties:
+  weight: 4
+  value: 25

@@ -12,6 +12,10 @@ keywords: [sword, short]
 eligible_slots: [wield]
 properties:
   weight: 3
+  # Sale/craft value (economy §3, crafting §8). Worth more than the iron
+  # ingot it is reforged from, so smithing it adds value (plan D2.1); the
+  # greatsword reforged from it is worth more still.
+  value: 18
 # Weapon damage dice (combat §4.5). The wielder rolls this instead of the
 # unarmed default; the rolled value is then scaled by STR. Validated at
 # pack load and parsed to a dice expression on the instance.
