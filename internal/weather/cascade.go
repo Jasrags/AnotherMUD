@@ -22,10 +22,13 @@ const (
 func terrainOf(r *world.Room) string { return world.TerrainOf(r) }
 
 // ShieldingFunc reports a terrain's weather/time shielding from the biome
-// registry (biomes.md §3). ok=false means the terrain has no registered
-// biome — the caller falls back to the engine's hardcoded shielding set
-// (indoors/underground), so unregistered terrain and a nil resolver
-// (tests / no-biomes build) behave exactly as before this feature.
+// registry (biomes.md §3). The terrain argument is a room terrain string;
+// the production resolver self-normalizes (empty → outdoors), so callers
+// may pass either a TerrainOf-normalized value or a raw room.Terrain.
+// ok=false means the terrain has no registered biome — the caller falls
+// back to the engine's hardcoded shielding set (indoors/underground), so
+// unregistered terrain and a nil resolver (tests / no-biomes build) behave
+// exactly as before this feature.
 type ShieldingFunc func(terrain string) (weatherShielded, timeShielded bool, ok bool)
 
 // weatherShieldedRoom / timeShieldedRoom resolve a room's per-axis
@@ -35,7 +38,7 @@ type ShieldingFunc func(terrain string) (weatherShielded, timeShielded bool, ok 
 // resolver changes nothing for existing terrain — it only lets a content
 // biome (a canopy, a sealed vault) declare its own shielding.
 func weatherShieldedRoom(r *world.Room, fn ShieldingFunc) bool {
-	t := world.TerrainOf(r)
+	t := terrainOf(r) // shared normalizer — same source the message cascade uses
 	if fn != nil {
 		if ws, _, ok := fn(t); ok {
 			return ws
@@ -45,7 +48,7 @@ func weatherShieldedRoom(r *world.Room, fn ShieldingFunc) bool {
 }
 
 func timeShieldedRoom(r *world.Room, fn ShieldingFunc) bool {
-	t := world.TerrainOf(r)
+	t := terrainOf(r)
 	if fn != nil {
 		if _, ts, ok := fn(t); ok {
 			return ts

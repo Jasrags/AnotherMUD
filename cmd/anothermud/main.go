@@ -639,7 +639,11 @@ func run() error {
 		// indoors/underground set, so existing content is unchanged (the
 		// baseline indoors/underground biomes carry identical flags).
 		Shielding: func(terrain string) (weatherShielded, timeShielded bool, ok bool) {
-			b, found := registries.Biomes.Get(terrain)
+			// Resolve (not Get) so the closure self-normalizes empty →
+			// outdoors, staying robust if a future caller passes a raw
+			// room.Terrain and symmetric with the ambience path (also
+			// Resolve). Unregistered terrain → ok=false → hardcoded fallback.
+			b, found := registries.Biomes.Resolve(terrain)
 			if !found {
 				return false, false, false
 			}
@@ -665,6 +669,7 @@ func run() error {
 	// occupied rooms of a biome on its own cadence. Runs on the (single)
 	// tick goroutine, so its RNG needs no extra synchronization. Unlike
 	// weather/time ambience it is NOT shielding-gated and emits no event.
+	// PCG stream 4 (distinct from combat=0, weather=1, loot=2, corpse=3).
 	biomeRNG := rand.New(rand.NewPCG(uint64(clk.Now().UnixNano()), 4))
 	biomeAmbience := biome.NewAmbienceService(
 		registries.Biomes, w,
