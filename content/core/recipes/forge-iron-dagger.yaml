@@ -1,0 +1,18 @@
+# COMMON-tier smithing recipe (crafting-and-cooking §7). Not baseline — it
+# is learned by reading a recipe scroll bought from the blacksmith, whose
+# availability is gated by smithing skill (§7 "availability by skill level").
+# Reforges a rusty dagger into a clean iron dagger at a forge.
+id: forge-iron-dagger
+name: forge an iron dagger
+discipline: smithing
+skill_floor: 1
+# Forge work: Tier-2 fixed station (the Hearthwick Forge).
+station_tier: 2
+tool: smithing-tool
+time_pulses: 25
+acquisition: common
+inputs:
+  - { template: rusty-dagger, quantity: 1 }
+output:
+  template: iron-dagger
+  quantity: 1

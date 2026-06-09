@@ -12,11 +12,15 @@ weighted:
   - { item: healing-draught, weight: 3 }
   - { item: leather-cap, weight: 1 }
 pool_rolls: 1
-# A small chance to also drop the guard's short sword.
+# A small chance to also drop the guard's short sword or — rarer still —
+# a weathered recipe scroll (crafting-and-cooking §7 rare acquisition tier:
+# recipes from drops/ruins). The scroll is heavily out-weighted by the
+# sword so it stays a genuine find; `read` it to learn the greatsword recipe.
 rare_bonus:
   chance: 20
   entries:
-    - { item: short-sword, weight: 1 }
+    - { item: short-sword, weight: 4 }
+    - { item: scroll-reforge-greatsword, weight: 1 }
 # Coin drop (loot-and-corpses §3) — rolled at corpse creation, not at
 # spawn. A few coins in the guard's purse.
 coin:

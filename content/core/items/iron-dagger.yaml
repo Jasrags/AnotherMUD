@@ -1,0 +1,22 @@
+id: iron-dagger
+name: an iron dagger
+type: item
+description: |
+  A cleanly forged iron dagger — straight, balanced, and free of the rust
+  that pits cheaper blades. The edge has been drawn fine on a whetstone and
+  the tang runs full through a turned-oak grip.
+tags: [weapon, metal, bladed]
+keywords: [dagger, iron]
+# One-hand weapon: eligible for the wield slot (inventory-equipment-items §3.3).
+eligible_slots: [wield]
+properties:
+  weight: 2
+  value: 30
+# A touch better than the short sword's edge-of-survival kit — this is the
+# payoff for learning the common smithing recipe that produces it.
+weapon_damage: "1d4"
+modifiers:
+  - stat: str
+    value: 3
+  - stat: hit_mod
+    value: 4

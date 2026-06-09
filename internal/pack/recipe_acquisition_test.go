@@ -1,0 +1,144 @@
+package pack
+
+import (
+	"context"
+	"path/filepath"
+	"testing"
+
+	"github.com/Jasrags/AnotherMUD/internal/loot"
+	"github.com/Jasrags/AnotherMUD/internal/recipe"
+	"github.com/Jasrags/AnotherMUD/internal/slot"
+)
+
+// TestLoad_CoreRecipeAcquisitionTiers loads the real core pack and asserts
+// the Phase 6.3 content wires all three recipe-acquisition tiers
+// (crafting-and-cooking §7): a common scroll in a shop, an uncommon quest
+// reward, and a rare loot drop. It guards against content drift in the
+// scroll→recipe links and the placements.
+func TestLoad_CoreRecipeAcquisitionTiers(t *testing.T) {
+	root, err := filepath.Abs("../../content")
+	if err != nil {
+		t.Fatalf("abs: %v", err)
+	}
+	regs := NewRegistries()
+	if err := RegisterEngineBaselineProperties(regs.Properties); err != nil {
+		t.Fatalf("register engine baseline properties: %v", err)
+	}
+	if err := slot.RegisterEngineBaseline(regs.Slots); err != nil {
+		t.Fatalf("register engine baseline slots: %v", err)
+	}
+	if err := Load(context.Background(), root, nil, regs, nil, nil, nil); err != nil {
+		t.Fatalf("Load core: %v", err)
+	}
+
+	// The three non-baseline recipes are registered under namespaced ids.
+	for _, id := range []string{
+		"tapestry-core:forge-iron-dagger",
+		"tapestry-core:cook-trail-stew",
+		"tapestry-core:reforge-greatsword",
+	} {
+		if _, err := regs.Recipes.Get(recipe.RecipeID(id)); err != nil {
+			t.Errorf("recipe %s not registered: %v", id, err)
+		}
+	}
+
+	// Common tier: the dagger scroll carries the qualified recipe id + a
+	// smithing purchase gate, and the blacksmith sells it.
+	scroll, err := regs.Items.Get("tapestry-core:scroll-forge-iron-dagger")
+	if err != nil {
+		t.Fatalf("dagger scroll not registered: %v", err)
+	}
+	if got := scroll.Properties["recipe"]; got != "tapestry-core:forge-iron-dagger" {
+		t.Errorf("dagger scroll recipe = %v, want tapestry-core:forge-iron-dagger", got)
+	}
+	if got := scroll.Properties["requires_skill"]; got != "smithing" {
+		t.Errorf("dagger scroll requires_skill = %v, want smithing", got)
+	}
+	smith, err := regs.Mobs.Get("tapestry-core:blacksmith")
+	if err != nil {
+		t.Fatalf("blacksmith not registered: %v", err)
+	}
+	if !shopSells(smith.Properties, "tapestry-core:scroll-forge-iron-dagger") {
+		t.Error("blacksmith does not sell the common recipe scroll")
+	}
+
+	// Uncommon tier: the Gate Patrol quest rewards the trail-stew recipe
+	// (qualified by the loader).
+	q, ok := regs.Quests.Lookup("tapestry-core:gate-patrol")
+	if !ok {
+		t.Fatal("gate-patrol quest not registered")
+	}
+	if !contains(q.Reward.Recipes, "tapestry-core:cook-trail-stew") {
+		t.Errorf("gate-patrol recipe reward = %v, want tapestry-core:cook-trail-stew", q.Reward.Recipes)
+	}
+
+	// Rare tier: the weathered scroll teaches the greatsword recipe and is
+	// in the guard loot table's rare bonus.
+	rare, err := regs.Items.Get("tapestry-core:scroll-reforge-greatsword")
+	if err != nil {
+		t.Fatalf("greatsword scroll not registered: %v", err)
+	}
+	if got := rare.Properties["recipe"]; got != "tapestry-core:reforge-greatsword" {
+		t.Errorf("greatsword scroll recipe = %v, want tapestry-core:reforge-greatsword", got)
+	}
+	tbl, ok := regs.Loot.Get("tapestry-core:guard-loot")
+	if !ok {
+		t.Fatal("guard-loot table missing")
+	}
+	if !rareBonusContains(tbl, "tapestry-core:scroll-reforge-greatsword") {
+		t.Error("guard-loot rare_bonus does not drop the rare recipe scroll")
+	}
+}
+
+// rareBonusContains reports whether the loot table's rare-bonus pool can
+// drop itemID — the actual link that makes the rare tier reachable.
+func rareBonusContains(tbl *loot.Table, itemID string) bool {
+	if tbl == nil || tbl.RareBonus == nil {
+		return false
+	}
+	for _, e := range tbl.RareBonus.Entries {
+		if e.ItemID == itemID {
+			return true
+		}
+	}
+	return false
+}
+
+func shopSells(props map[string]any, id string) bool {
+	shop, ok := props["shop"].(map[string]any)
+	if !ok {
+		return false
+	}
+	for _, s := range stringList(shop["sells"]) {
+		if s == id {
+			return true
+		}
+	}
+	return false
+}
+
+func stringList(v any) []string {
+	switch t := v.(type) {
+	case []string:
+		return t
+	case []any:
+		out := make([]string, 0, len(t))
+		for _, e := range t {
+			if s, ok := e.(string); ok {
+				out = append(out, s)
+			}
+		}
+		return out
+	default:
+		return nil
+	}
+}
+
+func contains(xs []string, want string) bool {
+	for _, x := range xs {
+		if x == want {
+			return true
+		}
+	}
+	return false
+}

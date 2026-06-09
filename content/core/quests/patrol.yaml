@@ -43,3 +43,9 @@ reward:
   gold: 25
   items:
     - healing-draught
+  # Uncommon-tier recipe reward (crafting-and-cooking §7): the training
+  # master slips you a favourite trail recipe for your trouble. Reward
+  # recipe ids ARE namespace-qualified by the loader, so this is the bare
+  # local id.
+  recipes:
+    - cook-trail-stew

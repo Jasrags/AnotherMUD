@@ -1,0 +1,17 @@
+# RARE-tier smithing recipe (crafting-and-cooking §7). Not baseline — the
+# recipe scroll drops from mob loot (the §7 rare acquisition hook: drops /
+# ruins / discovery). Melts a short sword down and reforges the steel into
+# a two-handed iron greatsword at a forge.
+id: reforge-greatsword
+name: reforge an iron greatsword
+discipline: smithing
+skill_floor: 1
+station_tier: 2
+tool: smithing-tool
+time_pulses: 40
+acquisition: rare
+inputs:
+  - { template: short-sword, quantity: 1 }
+output:
+  template: iron-greatsword
+  quantity: 1

@@ -1,0 +1,17 @@
+id: scroll-reforge-greatsword
+name: a weathered recipe scroll - reforging a greatsword
+type: item
+description: |
+  A battered roll of parchment, water-stained and singed at one corner,
+  carried off some long-dead armourer. The diagrams for reforging a
+  greatsword from a lesser blade are still legible — barely.
+tags: [scroll, recipe]
+keywords: [scroll, recipe, greatsword, weathered]
+properties:
+  weight: 1
+  value: 200
+  # RARE-tier acquisition (crafting-and-cooking §7): drops from mob loot,
+  # not sold. No purchase skill gate (it isn't shop stock) — the rarity is
+  # in finding it. The `read` verb teaches the recipe (fully-qualified id;
+  # item properties are not namespace-rewritten).
+  recipe: tapestry-core:reforge-greatsword

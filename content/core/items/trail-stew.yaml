@@ -1,0 +1,20 @@
+id: trail-stew
+name: a bowl of trail stew
+type: item
+description: |
+  A thick stew of meat and root vegetables, the kind that sticks to your
+  ribs through a cold night on the road. Steam curls off the surface and
+  the smell alone is half a meal.
+tags: [food, consumable]
+keywords: [stew, bowl, food]
+properties:
+  weight: 1
+  value: 12
+  # Eating clears hunger (economy-survival §6) — heartier than a cooked meal.
+  consume_method: eat
+  sustenance_value: 60
+  # Quality → well-fed effect (crafting §6), same scaling as the cooked
+  # meal: a common-quality stew is plain food; uncommon+ grants well-fed.
+  quality_effects:
+    uncommon: well-fed-minor
+    rare: well-fed

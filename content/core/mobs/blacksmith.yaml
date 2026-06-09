@@ -34,3 +34,8 @@ properties:
     sells:
       - tapestry-core:rusty-dagger
       - tapestry-core:iron-hammer
+      # Common-tier recipe scroll (crafting-and-cooking §7): teaches the
+      # forge-iron-dagger recipe. Its requires_skill property gates
+      # availability — hidden from `list` and refused on `buy` until the
+      # buyer's smithing skill is high enough (§7 availability by skill).
+      - tapestry-core:scroll-forge-iron-dagger

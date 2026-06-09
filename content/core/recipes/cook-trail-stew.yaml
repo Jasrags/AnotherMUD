@@ -1,0 +1,16 @@
+# UNCOMMON-tier cooking recipe (crafting-and-cooking §7). Not baseline — it
+# is granted as a quest reward (Gate Patrol), the §7 uncommon acquisition
+# hook. A heartier meal than the baseline cooked meal.
+id: cook-trail-stew
+name: cook trail stew
+discipline: cooking
+skill_floor: 1
+# Needs a fire (Tier 1): a campfire, a cook's kit, or the market kitchen.
+station_tier: 1
+time_pulses: 20
+acquisition: uncommon
+inputs:
+  - { template: raw-meat, quantity: 1 }
+output:
+  template: trail-stew
+  quantity: 1
