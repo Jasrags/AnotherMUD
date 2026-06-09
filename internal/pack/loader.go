@@ -11,6 +11,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/Jasrags/AnotherMUD/internal/biome"
 	"github.com/Jasrags/AnotherMUD/internal/combat"
 	"github.com/Jasrags/AnotherMUD/internal/decoration"
 	"github.com/Jasrags/AnotherMUD/internal/effect"
@@ -395,6 +396,10 @@ func loadPackContent(ctx context.Context, p Discovered, dst *Registries, scriptC
 	if err != nil {
 		return nil, nil, err
 	}
+	biomePaths, err := resolveGlobs(p.Dir, p.Manifest.Content.Biomes)
+	if err != nil {
+		return nil, nil, err
+	}
 
 	// M17.1b: discover, compile-check, and register pack scripts.
 	// Compile-check at boot is the cheapest place to surface a syntax
@@ -638,6 +643,28 @@ func loadPackContent(ctx context.Context, p Discovered, dst *Registries, scriptC
 		}
 	}
 
+	// Biomes: a room's `terrain` value keys into this registry
+	// (biomes.md §2). Pack biomes register under their BARE id (terrain
+	// strings are bare, PD-3) via RegisterPack, which rejects shadowing an
+	// engine-baseline biome. A `terrain` value with no registered biome
+	// keeps today's bare-string behavior (§2.3), so no room reference is
+	// validated against this registry.
+	for _, bp := range biomePaths {
+		data, err := os.ReadFile(bp)
+		if err != nil {
+			return nil, nil, fmt.Errorf("read biome %s: %w", bp, err)
+		}
+		b, err := biome.Decode(data)
+		if err != nil {
+			return nil, nil, fmt.Errorf("%w (in %s)", err, bp)
+		}
+		if dst.Biomes != nil {
+			if err := dst.Biomes.RegisterPack(ns, b); err != nil {
+				return nil, nil, fmt.Errorf("%w (in %s)", err, bp)
+			}
+		}
+	}
+
 	// Help: per-pack topics (spec ui-rendering-help §9.2). Topics are
 	// registered with the pack's load order so a higher-order pack can
 	// override an upstream topic. PackName is the pack namespace so the
@@ -718,6 +745,7 @@ func loadPackContent(ctx context.Context, p Discovered, dst *Registries, scriptC
 		slog.Int("rarity", len(rarityPaths)),
 		slog.Int("essence", len(essencePaths)),
 		slog.Int("loot_tables", len(lootPaths)),
+		slog.Int("biomes", len(biomePaths)),
 		slog.Int("placements", len(placements)),
 		slog.Int("mob_placements", len(mobPlacements)),
 	)

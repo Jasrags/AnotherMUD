@@ -1,6 +1,7 @@
 package pack
 
 import (
+	"github.com/Jasrags/AnotherMUD/internal/biome"
 	"github.com/Jasrags/AnotherMUD/internal/decoration"
 	"github.com/Jasrags/AnotherMUD/internal/effect"
 	"github.com/Jasrags/AnotherMUD/internal/help"
@@ -84,6 +85,13 @@ type Registries struct {
 	// crafting resolution path (Phase 2) reads it, and the per-character
 	// known-recipe set keys on recipe ids.
 	Recipes *recipe.Registry
+	// Biomes is the biome-definition registry (biomes.md §2). The engine
+	// baseline (outdoors/indoors/underground) is registered before Load
+	// (like Slots); packs add biomes from their `biomes:` glob. A room's
+	// `terrain` value resolves through it for shielding (§3), ambience
+	// (§4), and the gathering resource tables (§2, §5). Unregistered
+	// terrain keeps today's bare-string behavior (§2.3).
+	Biomes *biome.Registry
 }
 
 // NewRegistries returns a Registries with every field initialized.
@@ -112,5 +120,6 @@ func NewRegistries() *Registries {
 		Essence:    decoration.NewEssenceRegistry(),
 		Loot:       loot.NewRegistry(),
 		Recipes:    recipe.NewRegistry(),
+		Biomes:     biome.NewRegistry(),
 	}
 }

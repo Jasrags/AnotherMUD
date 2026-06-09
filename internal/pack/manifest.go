@@ -99,6 +99,12 @@ type ContentPaths struct {
 	// recipe's inputs/output reference item template ids and its
 	// discipline references a crafting proficiency (ability id).
 	Recipes []string `yaml:"recipes,omitempty"`
+	// Biomes are biome-definition files (biomes.md §2). Loaded into
+	// Registries.Biomes; a room's `terrain` value keys into this
+	// registry for shielding, ambience, and the gathering resource
+	// tables. Unregistered terrain values keep today's bare-string
+	// behavior (§2.3).
+	Biomes []string `yaml:"biomes,omitempty"`
 	// Scripts are Lua source files discovered by the M17.1b
 	// loader. Each path glob expands relative to the pack
 	// directory (e.g. `scripts/*.lua`). The loader compiles

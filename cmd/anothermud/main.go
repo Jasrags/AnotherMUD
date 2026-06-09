@@ -26,6 +26,7 @@ import (
 
 	"github.com/Jasrags/AnotherMUD/internal/account"
 	"github.com/Jasrags/AnotherMUD/internal/ai"
+	"github.com/Jasrags/AnotherMUD/internal/biome"
 	"github.com/Jasrags/AnotherMUD/internal/campfire"
 	"github.com/Jasrags/AnotherMUD/internal/chat"
 	"github.com/Jasrags/AnotherMUD/internal/clock"
@@ -112,6 +113,13 @@ func run() error {
 	// pack can rely on existing.
 	if err := pack.RegisterEngineBaselineProperties(registries.Properties); err != nil {
 		return fmt.Errorf("register engine baseline properties: %w", err)
+	}
+	// Engine baseline biomes (outdoors/indoors/underground) register before
+	// pack loading so packs can't shadow them and existing bare `terrain`
+	// strings resolve (biomes.md §3 / PD-2). indoors/underground carry the
+	// shielding flags that A2 will read in place of the hardcoded list.
+	if err := biome.RegisterEngineBaseline(registries.Biomes); err != nil {
+		return fmt.Errorf("register engine baseline biomes: %w", err)
 	}
 
 	// entityStore + placement are constructed at boot so the tag-swap
