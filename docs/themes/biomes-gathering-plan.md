@@ -118,9 +118,31 @@ PD-1).
   forage richness are transient (PD-4, respawn fresh on restart, like
   Tier-1 craft stations / temporary exits).
 
-### Milestone C — Content + crafting §8 closure
+### Milestone C — Content + crafting §8 closure — ✅ SHIPPED (fbd77a0 … 641bf89)
 
-Where the economy actually changes. Mostly content + recipe rework.
+Where the economy actually changes. Mostly content + recipe rework. C1 raw +
+refined items (fbd77a0); C2 wilderness biome loop + huntable boar (f9a0514);
+C3 recipe re-point + ingot shop (2bfe634); C4 economy guardrail boot check
+(05ee8dd) + test gap fix (641bf89). Live-verified end-to-end (see below).
+
+**Decisions taken during build:** meat = hunt-primary + vendor backup (a
+neutral huntable `wild-boar` drops raw meat via `boar-loot`; Marta still
+sells meat at markup); geography = a 5-room wilderness loop (forest-edge →
+deep-forest → foothills → cave-mouth → old-mine) off the meadow. The plan's
+`wood-plank`/woodworking tier was **deferred** (it would need a 3rd
+discipline + trainer); instead `timber-log` is `fuel`-tagged so it feeds
+`build campfire` — a gathered alternative to bought firewood, no new
+discipline. `rough-stone` (grassland/foothill outcrops) remains a flavor
+gather with no recipe consumer yet (future alchemy/masonry); not a §8 blocker.
+
+**Live-verified loop (clean telnet playthroughs):** learn smithing → 2
+baseline recipes incl. smelt → harvest iron vein (pickaxe-gated, depletes at
+3 charges) → `craft smelt-iron-ingot` (ore→ingot) → `craft reforge-short-sword`
+(ingot→sword), all from gathered material at zero gold; forage forest →
+wild herb + forest mushroom (quality-stamped); `kill boar` → corpse holds 2
+cuts of raw meat. Forage cooldown + node depletion + biome ambience all fire.
+The C4 guardrail's regression test confirms the shipped pack has no
+money-losing recipe.
 
 - **C1 — Raw + intermediate items.** Author raw gathered materials (ore,
   logs, herbs, hide) and refined intermediates (iron ingot, wood plank),
