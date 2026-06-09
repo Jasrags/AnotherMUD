@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/Jasrags/AnotherMUD/internal/command"
+	"github.com/Jasrags/AnotherMUD/internal/crafting"
 	"github.com/Jasrags/AnotherMUD/internal/entities"
 	"github.com/Jasrags/AnotherMUD/internal/help"
 	"github.com/Jasrags/AnotherMUD/internal/stats"
@@ -285,6 +286,35 @@ type testActor struct {
 	sleepStartTick uint64
 	sust           int
 	autoloot       bool
+
+	craftPending crafting.PendingCraft
+	hasCraft     bool
+}
+
+// PendingCraft / SetPendingCraft / ClearPendingCraft make testActor satisfy
+// crafting.CraftBusy so the timed-craft path (B3) can be exercised.
+func (a *testActor) PendingCraft() (crafting.PendingCraft, bool) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	return a.craftPending, a.hasCraft
+}
+
+func (a *testActor) SetPendingCraft(p crafting.PendingCraft) bool {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	if a.hasCraft {
+		return false
+	}
+	a.craftPending, a.hasCraft = p, true
+	return true
+}
+
+func (a *testActor) ClearPendingCraft() (crafting.PendingCraft, bool) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	p, had := a.craftPending, a.hasCraft
+	a.craftPending, a.hasCraft = crafting.PendingCraft{}, false
+	return p, had
 }
 
 // Autoloot / SetAutoloot make testActor satisfy the inline preference

@@ -1322,6 +1322,19 @@ func run() error {
 		passiveStatReader,
 	)
 
+	// B3 timed crafting (crafting-and-cooking §3): a recipe's time_pulses
+	// occupies the player. The `craft` verb arms a per-actor timer; this
+	// tick finishes any craft that has come due. Cadence 1 (every tick) so
+	// a craft completes on exactly its ReadyAt tick — the sweep is cheap (a
+	// per-player int compare). Movement and combat cancel an in-flight
+	// craft (SetRoom + the engagement sink); nothing here reserves inputs,
+	// so a logout/crash mid-craft loses only the work, never the materials.
+	if err := loop.Register("craft-complete", 1, func(ctx context.Context, n uint64) {
+		mgr.CompleteReadyCrafts(ctx, n, craftSvc)
+	}); err != nil {
+		return fmt.Errorf("register craft-complete tick: %w", err)
+	}
+
 	passiveResolver := progression.NewPassiveResolver(
 		registries.Abilities, passiveProficiency, passiveProficiency, passiveStatReader, combatRNG,
 	)
@@ -2631,6 +2644,20 @@ func (s *productionCombatSink) OnEngagement(ctx context.Context, e combat.Engage
 		if a, ok := s.sessions.GetByPlayerID(combat.EntityIDOf(e.TargetID)); ok {
 			if s.rest.ForceAwake(ctx, a, "combat") {
 				_ = a.Write(ctx, "You are jolted awake as combat begins!")
+			}
+		}
+	}
+
+	// Crafting interrupt (crafting-and-cooking §3): being drawn into a fight
+	// breaks an in-flight timed craft for either participant. A mob id
+	// resolves to no session and is skipped.
+	if s.sessions != nil {
+		for _, id := range []combat.CombatantID{e.AttackerID, e.TargetID} {
+			if !strings.HasPrefix(string(id), combat.PlayerPrefix) {
+				continue
+			}
+			if a, ok := s.sessions.GetByPlayerID(combat.EntityIDOf(id)); ok {
+				a.CancelCraft(ctx)
 			}
 		}
 	}

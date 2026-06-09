@@ -5,6 +5,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/Jasrags/AnotherMUD/internal/crafting"
 	"github.com/Jasrags/AnotherMUD/internal/entities"
 )
 
@@ -43,10 +44,50 @@ func CraftHandler(ctx context.Context, c *Context) error {
 	}
 
 	query := strings.Join(c.Args, " ")
-	res := c.Craft.Craft(ctx, c.Actor, query, func(discipline string) int {
-		return craftStationTier(c, discipline)
-	})
+	stationFn := func(discipline string) int { return craftStationTier(c, discipline) }
+
+	// Timed crafts (recipe time_pulses > 0) occupy the player: BeginCraft
+	// runs the read-only gates, and a successful start arms the
+	// craft-complete tick to finish it later. Instant crafts (time_pulses
+	// <= 0, or an actor that doesn't model occupation) fall through to the
+	// synchronous Craft path unchanged (crafting-and-cooking §3).
+	busy, canOccupy := c.Actor.(crafting.CraftBusy)
+	if canOccupy && c.NowTick != nil {
+		if pending, inFlight := busy.PendingCraft(); inFlight {
+			return c.Actor.Write(ctx, "You're still busy trying to "+pending.DisplayName+".")
+		}
+		begin := c.Craft.BeginCraft(ctx, c.Actor, query, stationFn)
+		if begin.Outcome != crafting.CraftOK {
+			return c.Actor.Write(ctx, begin.Message)
+		}
+		if begin.TimePulses > 0 {
+			return c.beginTimedCraft(ctx, busy, begin)
+		}
+	}
+
+	res := c.Craft.Craft(ctx, c.Actor, query, stationFn)
 	return c.Actor.Write(ctx, res.Message)
+}
+
+// beginTimedCraft arms the occupation timer for a craft that passed
+// BeginCraft's gates and announces the start. The craft-complete tick
+// finishes it when the engine tick reaches ReadyAt.
+func (c *Context) beginTimedCraft(ctx context.Context, busy crafting.CraftBusy, begin crafting.BeginCraftResult) error {
+	readyAt := c.NowTick() + uint64(begin.TimePulses)
+	if !busy.SetPendingCraft(crafting.PendingCraft{
+		RecipeID:    begin.RecipeID,
+		ReadyAt:     readyAt,
+		StationTier: begin.PresentTier,
+		DisplayName: begin.DisplayName,
+	}) {
+		// Lost a race to another craft start — treat as already busy.
+		return c.Actor.Write(ctx, "You're already hard at work on something.")
+	}
+	if room := c.Actor.Room(); room != nil && c.Broadcaster != nil && c.Actor.Name() != "" {
+		c.Broadcaster.SendToRoom(ctx, room.ID,
+			c.Actor.Name()+" sets to work.", c.Actor.PlayerID())
+	}
+	return c.Actor.Write(ctx, "You begin to "+begin.DisplayName+".")
 }
 
 // craftStationTier reports the present station tier for discipline at the

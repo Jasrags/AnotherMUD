@@ -1736,6 +1736,19 @@ type connActor struct {
 	restTargetID   string
 	sleepStartTick uint64
 
+	// craftPending / hasCraft are the B3 timed-craft occupation state
+	// (crafting-and-cooking §3, "time — how long the craft occupies the
+	// player"). hasCraft true means a craft is in flight; the craft-complete
+	// tick finishes it when the engine tick reaches craftPending.ReadyAt.
+	// TRANSIENT like the rest fields — never synced to the save, so a craft
+	// in flight at logout/crash is simply lost (the lazy-completion model
+	// reserves no inputs, so nothing is lost with it). Movement (SetRoom)
+	// and combat (the engagement sink) cancel an in-flight craft; the
+	// crafting service drives these via the crafting.CraftBusy adapter
+	// below. Guarded by a.mu.
+	craftPending crafting.PendingCraft
+	hasCraft     bool
+
 	// progress is the actor's progression-track state (M8.2 —
 	// docs/specs/progression.md §5.2). Holds per-track (level, xp)
 	// maps; mutated through progression.Manager operations and
@@ -1945,8 +1958,24 @@ func (a *connActor) SetRoom(r *world.Room) {
 	// covers every arrival — movement, recall, teleport, login spawn,
 	// link-dead reattach — without each call site opting in (PD-5).
 	a.markVisitedLocked(string(r.ID))
+	// Movement breaks an in-flight timed craft (crafting-and-cooking §3):
+	// you can't carry a half-forged blade between rooms. SetRoom is the
+	// single room-change chokepoint, so this covers move/recall/teleport/
+	// flee without each site opting in. Only on an actual change — a
+	// same-room SetRoom (link-dead reattach, re-render) leaves the craft
+	// running. Captured under the lock; the notice writes after release.
+	craftBroke := false
+	if oldID != r.ID && a.hasCraft {
+		a.craftPending = crafting.PendingCraft{}
+		a.hasCraft = false
+		craftBroke = true
+	}
 	mgr := a.manager
 	a.mu.Unlock()
+
+	if craftBroke {
+		_ = a.Write(context.Background(), "You set your work aside and move on.")
+	}
 
 	if mgr != nil && oldID != r.ID {
 		mgr.moveRoom(a, a.playerID, oldID, r.ID)
@@ -2793,6 +2822,51 @@ func (a *connActor) SetSleepStart(tick uint64) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	a.sleepStartTick = tick
+}
+
+// PendingCraft returns the actor's in-flight timed craft and whether one is
+// active. Reads under a.mu. Satisfies crafting.CraftBusy.
+func (a *connActor) PendingCraft() (crafting.PendingCraft, bool) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	return a.craftPending, a.hasCraft
+}
+
+// SetPendingCraft records a started timed craft. Returns false (refusing
+// the new craft) when one is already in flight. Transient; no save
+// write-through — a craft never persists. Satisfies crafting.CraftBusy.
+func (a *connActor) SetPendingCraft(p crafting.PendingCraft) bool {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	if a.hasCraft {
+		return false
+	}
+	a.craftPending = p
+	a.hasCraft = true
+	return true
+}
+
+// ClearPendingCraft drops any in-flight craft, returning what was cleared
+// and whether one was active. Satisfies crafting.CraftBusy.
+func (a *connActor) ClearPendingCraft() (crafting.PendingCraft, bool) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	p, had := a.craftPending, a.hasCraft
+	a.craftPending = crafting.PendingCraft{}
+	a.hasCraft = false
+	return p, had
+}
+
+// CancelCraft drops any in-flight craft and, if there was one, writes an
+// interrupt notice to the actor. Returns whether a craft was cancelled. The
+// combat-engagement sink calls this so being drawn into a fight breaks a
+// craft (crafting-and-cooking §3, mirroring the rest combat-wake).
+func (a *connActor) CancelCraft(ctx context.Context) bool {
+	if _, had := a.ClearPendingCraft(); !had {
+		return false
+	}
+	_ = a.Write(ctx, "Your concentration breaks and you abandon your work.")
+	return true
 }
 
 // shouldRemindHunger reports whether a hunger reminder may be sent to

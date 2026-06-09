@@ -40,9 +40,13 @@ and `THEME-AXIS-PLAN.md` are superseded by `BACKLOG.md` and now live under
   sessions, modern-client, roles/admin, decorations, stacking, loot, room
   coordinates, player maps, equipment slots, and crafting all work.
 - **Active:** none — M27 closed (Crafting & Cooking MVP, Phases 0–5,
-  reviewed twice). Post-MVP crafting breadth + gathering stay deferred (see
-  `BACKLOG.md` §1 + `[[crafting-deferred-fixes]]`). Pick the next theme from
-  `BACKLOG.md` §1 (specced, ready) or §2 (greenfield).
+  reviewed twice) plus the deferred-cleanup follow-ups (B1 tool-quality, B2
+  gain-stat, and **B3 timed crafting** — recipe `time_pulses` now occupies
+  the player: `craft` arms a per-actor timer, a cadence-1 `craft-complete`
+  tick finishes it, movement/combat interrupt with no material loss). Only
+  Post-MVP crafting breadth + gathering stay deferred (a separate milestone;
+  see `BACKLOG.md` §1 + `[[crafting-deferred-fixes]]`). Pick the next theme
+  from `BACKLOG.md` §1 (specced, ready) or §2 (greenfield).
 - **Specs ahead of code.** Behavior contracts written without
   implementation, still awaiting a milestone: `tag-observers`,
   `crafting-and-cooking`, and the trade trio

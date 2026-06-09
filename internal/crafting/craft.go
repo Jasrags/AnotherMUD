@@ -89,6 +89,11 @@ func entityID(c Crafter) string {
 // stationTier reports the present station tier for the recipe's discipline
 // (room station ∪ portable tools, §4); it gates the attempt and sets the
 // quality ceiling. A nil func means no station (tier 0).
+//
+// Craft is the instant path: it both gates and mutates in one call. The
+// timed path (recipe time_pulses > 0) splits these — BeginCraft runs the
+// read-only gates to start a delay, and CompleteReady runs the mutation
+// when the delay elapses — but both funnel through the same craftResolved.
 func (s *Service) Craft(ctx context.Context, c Crafter, query string, stationTier StationTierFunc) CraftResult {
 	if s == nil || s.recipes == nil || s.known == nil || s.store == nil || s.tpls == nil {
 		return CraftResult{Outcome: CraftNotEnabled, Message: "Crafting is not enabled in this build."}
@@ -99,54 +104,21 @@ func (s *Service) Craft(ctx context.Context, c Crafter, query string, stationTie
 	if !ok {
 		return CraftResult{Outcome: CraftUnknownRecipe, Message: "You don't know how to craft that."}
 	}
+	return s.craftResolved(ctx, c, rec, evalStationTier(stationTier, rec.Discipline))
+}
 
-	// Skill floor (§3): the discipline proficiency must meet the recipe's
-	// minimum. Kept low by design — the ceiling is the real lever.
-	prof := 0
-	if s.prof != nil {
-		prof, _ = s.prof.Proficiency(eid, rec.Discipline)
-	}
-	if prof < rec.SkillFloor {
-		return CraftResult{
-			Outcome: CraftNotSkilled, RecipeID: rec.ID,
-			Message: "You aren't skilled enough to attempt that yet.",
-		}
-	}
+// craftResolved runs the gate-then-mutate body shared by the instant Craft
+// path and the timed CompleteReady path. rec is an already-resolved recipe
+// and present is the already-computed station tier at the crafter's
+// location. It gates (skill floor, station, ingredients, output template),
+// rolls quality, then atomically consumes inputs and produces the output.
+func (s *Service) craftResolved(_ context.Context, c Crafter, rec *recipe.Recipe, present int) CraftResult {
+	eid := entityID(c)
 
-	// Station gate (§4): the present station tier must meet the recipe's
-	// minimum — the one place crafting refuses rather than caps (§1.1
-	// "can't smelt without fire"). present also sets the quality ceiling.
-	present := 0
-	if stationTier != nil {
-		present = stationTier(rec.Discipline)
-	}
-	if present < rec.StationTier {
-		return CraftResult{
-			Outcome: CraftNoStation, RecipeID: rec.ID,
-			Message: stationRequirementMessage(rec.StationTier),
-		}
-	}
-
-	// Gate: gather the exact input instances (no mutation yet).
-	consume, ingKeys, missing := s.gatherInputs(c, rec)
-	if missing != "" {
-		return CraftResult{
-			Outcome: CraftMissingIngredients, RecipeID: rec.ID,
-			Message: "You don't have the ingredients for that (need " + missing + ").",
-		}
-	}
-
-	// Gate: the output template must resolve.
-	tpl, err := s.tpls.Get(item.TemplateID(rec.Output.Template))
-	if err != nil || tpl == nil {
-		return CraftResult{
-			Outcome: CraftOutputUndefined, RecipeID: rec.ID,
-			Message: "That recipe's output is missing from the world; tell an admin.",
-		}
-	}
-	qty := rec.Output.Quantity
-	if qty < 1 {
-		qty = 1
+	consume, ingKeys, tpl, qty, prof, fail, ok := s.gate(c, rec, present)
+	if !ok {
+		fail.RecipeID = rec.ID
+		return fail
 	}
 
 	// Roll quality BEFORE any mutation (so a panic-free roll happens with
@@ -232,6 +204,73 @@ func (s *Service) Craft(ctx context.Context, c Crafter, query string, stationTie
 		Outcome: CraftOK, RecipeID: rec.ID, OutputName: out,
 		QualityKey: qualityKey, Gained: gained, Message: msg,
 	}
+}
+
+// gate runs the read-only craft gates (skill floor §3, station §4,
+// ingredient presence §5, output template) for an already-resolved recipe
+// at station tier present. It mutates nothing — both the timer-start
+// (BeginCraft) and the mutation (craftResolved) call it so their refusals
+// are byte-identical. On success ok is true and it returns the gathered
+// inputs, their rarity keys, the resolved output template, the clamped
+// output quantity, and the crafter's proficiency (for the quality roll).
+// On failure ok is false and fail carries the outcome + message (RecipeID
+// left for the caller to stamp).
+func (s *Service) gate(c Crafter, rec *recipe.Recipe, present int) (consume []entities.EntityID, ingKeys []string, tpl *item.Template, qty, prof int, fail CraftResult, ok bool) {
+	eid := entityID(c)
+
+	// Skill floor (§3): the discipline proficiency must meet the recipe's
+	// minimum. Kept low by design — the ceiling is the real lever.
+	if s.prof != nil {
+		prof, _ = s.prof.Proficiency(eid, rec.Discipline)
+	}
+	if prof < rec.SkillFloor {
+		return nil, nil, nil, 0, prof, CraftResult{
+			Outcome: CraftNotSkilled,
+			Message: "You aren't skilled enough to attempt that yet.",
+		}, false
+	}
+
+	// Station gate (§4): the present station tier must meet the recipe's
+	// minimum — the one place crafting refuses rather than caps (§1.1
+	// "can't smelt without fire").
+	if present < rec.StationTier {
+		return nil, nil, nil, 0, prof, CraftResult{
+			Outcome: CraftNoStation,
+			Message: stationRequirementMessage(rec.StationTier),
+		}, false
+	}
+
+	// Ingredients (§5): gather the exact input instances (no mutation).
+	consume, ingKeys, missing := s.gatherInputs(c, rec)
+	if missing != "" {
+		return nil, nil, nil, 0, prof, CraftResult{
+			Outcome: CraftMissingIngredients,
+			Message: "You don't have the ingredients for that (need " + missing + ").",
+		}, false
+	}
+
+	// Output template must resolve.
+	tpl, err := s.tpls.Get(item.TemplateID(rec.Output.Template))
+	if err != nil || tpl == nil {
+		return nil, nil, nil, 0, prof, CraftResult{
+			Outcome: CraftOutputUndefined,
+			Message: "That recipe's output is missing from the world; tell an admin.",
+		}, false
+	}
+	qty = rec.Output.Quantity
+	if qty < 1 {
+		qty = 1
+	}
+	return consume, ingKeys, tpl, qty, prof, CraftResult{}, true
+}
+
+// evalStationTier resolves the present station tier for a discipline,
+// treating a nil func as "no station anywhere" (tier 0).
+func evalStationTier(fn StationTierFunc, discipline string) int {
+	if fn == nil {
+		return 0
+	}
+	return fn(discipline)
 }
 
 // gatherInputs finds the exact item instances to consume for rec, honoring
