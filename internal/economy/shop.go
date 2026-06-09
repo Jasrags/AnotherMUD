@@ -17,7 +17,22 @@ const (
 	// PropValue is the item value the buy/sell prices are computed
 	// from (§3.3). Shared with the currency auto-convert path.
 	PropValue = "value"
+	// PropRequiresSkill / PropRequiresSkillLevel are the §7
+	// "availability by skill level" purchase gate (crafting-and-cooking):
+	// a stock item (e.g. a recipe scroll) declares the crafting discipline
+	// and minimum proficiency a buyer needs before the shop will list or
+	// sell it. Absent PropRequiresSkill = no gate. Level defaults to 1.
+	PropRequiresSkill      = "requires_skill"
+	PropRequiresSkillLevel = "requires_skill_level"
 )
+
+// SkillChecker reports whether a buyer meets a stock item's purchase skill
+// gate (discipline at >= level). The command layer builds it from the
+// proficiency manager + the buyer's id, keeping the economy package free of
+// the progression import (mirrors the crafting StationTierFunc seam). A nil
+// checker means "no gating" — every gated item is treated as available
+// (ungated shops / tests / a build without progression wired).
+type SkillChecker func(discipline string, level int) bool
 
 // EconomyConfig holds the global shop defaults a per-shop ShopConfig
 // falls back to (spec §3.1). The documented defaults are a 1.2 buy
@@ -100,6 +115,10 @@ const (
 	// ShopItemValueZero — the item's value is zero / missing (§3.6
 	// step 3).
 	ShopItemValueZero
+	// ShopSkillTooLow — the buyer's crafting proficiency is below the
+	// stock item's purchase gate (§7 availability by skill level). The
+	// required discipline + level ride along so the caller can report them.
+	ShopSkillTooLow
 )
 
 // Listing is one row of a shop's offered stock (spec §3.4).
@@ -110,9 +129,10 @@ type Listing struct {
 }
 
 // listings resolves the shop's sells list into displayable rows,
-// dropping entries whose template id is unknown or whose value is not
-// positive (spec §3.4). Order follows the sells list.
-func listings(tpls *item.Templates, cfg ShopConfig, global EconomyConfig) []Listing {
+// dropping entries whose template id is unknown, whose value is not
+// positive, or whose §7 skill gate the buyer fails (check). Order follows
+// the sells list. A nil check leaves every gated item listed (ungated).
+func listings(tpls *item.Templates, cfg ShopConfig, global EconomyConfig, check SkillChecker) []Listing {
 	if tpls == nil {
 		return nil
 	}
@@ -126,6 +146,9 @@ func listings(tpls *item.Templates, cfg ShopConfig, global EconomyConfig) []List
 		if value <= 0 {
 			continue
 		}
+		if !meetsSkill(tpl, check) {
+			continue
+		}
 		out = append(out, Listing{
 			TemplateID: string(tpl.ID),
 			Name:       tpl.Name,
@@ -133,6 +156,52 @@ func listings(tpls *item.Templates, cfg ShopConfig, global EconomyConfig) []List
 		})
 	}
 	return out
+}
+
+// skillRequirement reads a template's §7 purchase skill gate: the crafting
+// discipline + minimum level a buyer needs. ok=false when the template
+// declares no gate (PropRequiresSkill absent/blank). A present requirement
+// with a missing/zero level defaults to level 1.
+func skillRequirement(tpl *item.Template) (discipline string, level int, ok bool) {
+	if tpl == nil || tpl.Properties == nil {
+		return "", 0, false
+	}
+	d, _ := tpl.Properties[PropRequiresSkill].(string)
+	d = strings.TrimSpace(d)
+	if d == "" {
+		return "", 0, false
+	}
+	level = propInt(tpl.Properties[PropRequiresSkillLevel])
+	if level < 1 {
+		level = 1
+	}
+	return d, level, true
+}
+
+// meetsSkill reports whether a buyer may purchase tpl: true when the
+// template declares no skill gate, or when check (the buyer's proficiency
+// predicate) passes it. A nil check never gates (ungated shops / tests).
+func meetsSkill(tpl *item.Template, check SkillChecker) bool {
+	disc, level, ok := skillRequirement(tpl)
+	if !ok || check == nil {
+		return true
+	}
+	return check(disc, level)
+}
+
+// propInt coerces a numeric YAML scalar to int (int / int64 / float64),
+// zero when absent or non-numeric.
+func propInt(v any) int {
+	switch n := v.(type) {
+	case int:
+		return n
+	case int64:
+		return int(n)
+	case float64:
+		return int(n)
+	default:
+		return 0
+	}
 }
 
 // resolveStock matches query against the shop's sells list (spec

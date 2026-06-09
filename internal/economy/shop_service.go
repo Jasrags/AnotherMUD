@@ -69,16 +69,20 @@ func NewShopService(tpls *item.Templates, store *entities.Store, currency *Curre
 	return &ShopService{tpls: tpls, store: store, currency: currency, cfg: cfg, sink: sink}
 }
 
-// Listings returns the shop's offered stock (spec §3.4).
-func (s *ShopService) Listings(shop ShopConfig) []Listing {
-	return listings(s.tpls, shop, s.cfg)
+// Listings returns the shop's offered stock (spec §3.4). check is the
+// buyer's §7 skill predicate; items the buyer can't yet buy are omitted
+// (nil check lists everything).
+func (s *ShopService) Listings(shop ShopConfig, check SkillChecker) []Listing {
+	return listings(s.tpls, shop, s.cfg, check)
 }
 
 // StockNamed returns the shop's sellable stock as keyword.Named — the
 // SAME scope resolveStock matches a buy query against (spec §3.7). The
 // completion layer disambiguates over it, so a suggested token is
-// guaranteed to round-trip through Buy. Order follows shop.Sells.
-func (s *ShopService) StockNamed(shop ShopConfig) []keyword.Named {
+// guaranteed to round-trip through Buy. Items the buyer fails the §7 skill
+// gate for are omitted so completion never suggests an unbuyable item (nil
+// check includes everything). Order follows shop.Sells.
+func (s *ShopService) StockNamed(shop ShopConfig, check SkillChecker) []keyword.Named {
 	if s.tpls == nil {
 		return nil
 	}
@@ -86,6 +90,9 @@ func (s *ShopService) StockNamed(shop ShopConfig) []keyword.Named {
 	for _, id := range shop.Sells {
 		tpl, err := s.tpls.Get(item.TemplateID(id))
 		if err != nil {
+			continue
+		}
+		if !meetsSkill(tpl, check) {
 			continue
 		}
 		out = append(out, namedTemplate{tpl})
@@ -100,16 +107,28 @@ type BuyResult struct {
 	ItemName string
 	Price    int64
 	Gold     int
+	// RequiredSkill / RequiredLevel carry the §7 purchase gate on a
+	// ShopSkillTooLow outcome so the caller can name what the buyer lacks.
+	RequiredSkill string
+	RequiredLevel int
 }
 
 // Buy purchases an item from the shop's stock (spec §3.5). The player
 // is charged BEFORE the item is created and is NOT refunded if
-// creation fails (spec §9 open question, kept as-is).
-func (s *ShopService) Buy(ctx context.Context, sh Shopper, npcID string, shop ShopConfig, query string) BuyResult {
+// creation fails (spec §9 open question, kept as-is). check is the buyer's
+// §7 skill predicate: a gated item below the buyer's proficiency is refused
+// (ShopSkillTooLow) before any charge. A nil check never gates.
+func (s *ShopService) Buy(ctx context.Context, sh Shopper, npcID string, shop ShopConfig, query string, check SkillChecker) BuyResult {
 	gold := s.currency.Read(sh)
 	tpl := resolveStock(s.tpls, shop, query)
 	if tpl == nil {
 		return BuyResult{Outcome: ShopItemNotForSale}
+	}
+	// §7 availability by skill level: refuse a gated item the buyer's
+	// proficiency can't meet, before pricing/charging.
+	if !meetsSkill(tpl, check) {
+		disc, level, _ := skillRequirement(tpl)
+		return BuyResult{Outcome: ShopSkillTooLow, ItemName: tpl.Name, RequiredSkill: disc, RequiredLevel: level}
 	}
 	price := buyPrice(templateValue(tpl), shop, s.cfg)
 

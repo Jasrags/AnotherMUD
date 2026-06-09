@@ -247,7 +247,7 @@ func (c *Context) BuildResolveContext() ResolveContext {
 	// scan) and capture its config; StockNamed runs lazily on enumerate.
 	if c.Shop != nil && room != nil {
 		if npc := findShopInRoom(c, room.ID); npc != nil {
-			rc.Shop = shopStockScope{svc: c.Shop, cfg: shopConfigFromMob(npc)}
+			rc.Shop = shopStockScope{svc: c.Shop, cfg: shopConfigFromMob(npc), check: shopSkillChecker(c)}
 		}
 	}
 
@@ -258,15 +258,16 @@ func (c *Context) BuildResolveContext() ResolveContext {
 // shop's sellable stock as keyword.Named via ShopService.StockNamed.
 // Lives here so ResolveContext stays free of the economy import.
 type shopStockScope struct {
-	svc *economy.ShopService
-	cfg economy.ShopConfig
+	svc   *economy.ShopService
+	cfg   economy.ShopConfig
+	check economy.SkillChecker
 }
 
 func (s shopStockScope) EnumerateStock() []keyword.Named {
 	if s.svc == nil {
 		return nil
 	}
-	return s.svc.StockNamed(s.cfg)
+	return s.svc.StockNamed(s.cfg, s.check)
 }
 
 // questScope is the production QuestScope adapter. It asks the quest

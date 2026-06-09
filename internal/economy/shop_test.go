@@ -235,7 +235,7 @@ func TestListings(t *testing.T) {
 	f.tpls.Add(valTpl("core:freebie", "a freebie", 0)) // zero value dropped
 	cfg := ShopConfig{Sells: []string{"core:potion", "core:freebie", "core:missing"}}
 
-	got := f.svc.Listings(cfg)
+	got := f.svc.Listings(cfg, nil)
 	if len(got) != 1 {
 		t.Fatalf("listings = %d rows, want 1 (zero-value + missing dropped): %+v", len(got), got)
 	}
@@ -252,7 +252,7 @@ func TestBuy_Success(t *testing.T) {
 	cfg := ShopConfig{Sells: []string{"core:potion"}}
 	sh := newShopper("p1", 100)
 
-	res := f.svc.Buy(context.Background(), sh, "npc1", cfg, "potion")
+	res := f.svc.Buy(context.Background(), sh, "npc1", cfg, "potion", nil)
 	if res.Outcome != ShopOK {
 		t.Fatalf("outcome = %v, want ShopOK", res.Outcome)
 	}
@@ -279,7 +279,7 @@ func TestBuy_InsufficientGold(t *testing.T) {
 	cfg := ShopConfig{Sells: []string{"core:potion"}}
 	sh := newShopper("p1", 10) // needs 24
 
-	res := f.svc.Buy(context.Background(), sh, "npc1", cfg, "potion")
+	res := f.svc.Buy(context.Background(), sh, "npc1", cfg, "potion", nil)
 	if res.Outcome != ShopInsufficientGold {
 		t.Fatalf("outcome = %v, want ShopInsufficientGold", res.Outcome)
 	}
@@ -301,7 +301,7 @@ func TestBuy_CancelledEvent(t *testing.T) {
 	cfg := ShopConfig{Sells: []string{"core:potion"}}
 	sh := newShopper("p1", 100)
 
-	res := f.svc.Buy(context.Background(), sh, "npc1", cfg, "potion")
+	res := f.svc.Buy(context.Background(), sh, "npc1", cfg, "potion", nil)
 	if res.Outcome != ShopItemNotForSale {
 		t.Fatalf("outcome = %v, want ShopItemNotForSale", res.Outcome)
 	}
@@ -317,7 +317,7 @@ func TestBuy_StockMiss(t *testing.T) {
 	f := newShopFixture(t, DefaultEconomyConfig())
 	cfg := ShopConfig{Sells: []string{}}
 	sh := newShopper("p1", 100)
-	res := f.svc.Buy(context.Background(), sh, "npc1", cfg, "potion")
+	res := f.svc.Buy(context.Background(), sh, "npc1", cfg, "potion", nil)
 	if res.Outcome != ShopItemNotForSale {
 		t.Errorf("outcome = %v, want ShopItemNotForSale", res.Outcome)
 	}

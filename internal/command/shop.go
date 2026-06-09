@@ -25,14 +25,34 @@ func BuyHandler(ctx context.Context, c *Context) error {
 	if len(c.Args) == 0 {
 		return c.Actor.Write(ctx, "Buy what?")
 	}
-	res := c.Shop.Buy(ctx, shopper, string(npc.ID()), cfg, strings.Join(c.Args, " "))
+	res := c.Shop.Buy(ctx, shopper, string(npc.ID()), cfg, strings.Join(c.Args, " "), shopSkillChecker(c))
 	switch res.Outcome {
 	case economy.ShopOK:
 		return c.Actor.Write(ctx, fmt.Sprintf("You buy %s for %d gold. You have %d gold left.", res.ItemName, res.Price, res.Gold))
 	case economy.ShopInsufficientGold:
 		return c.Actor.Write(ctx, fmt.Sprintf("%s costs %d gold; you only have %d.", res.ItemName, res.Price, res.Gold))
+	case economy.ShopSkillTooLow:
+		return c.Actor.Write(ctx, fmt.Sprintf("%s requires %s skill %d before you can buy it.", capitalize(res.ItemName), res.RequiredSkill, res.RequiredLevel))
 	default:
 		return c.Actor.Write(ctx, "The shop doesn't sell that.")
+	}
+}
+
+// shopSkillChecker builds the §7 purchase-skill predicate for the buyer
+// from the proficiency manager, or nil when proficiency isn't wired (no
+// gating). The economy package stays free of the progression import — the
+// command layer owns the proficiency lookup (mirrors craftStationTier).
+func shopSkillChecker(c *Context) economy.SkillChecker {
+	if c.Proficiency == nil {
+		return nil
+	}
+	eid := c.Actor.PlayerID()
+	if eid == "" {
+		eid = c.Actor.ID()
+	}
+	return func(discipline string, level int) bool {
+		have, _ := c.Proficiency.Proficiency(eid, discipline)
+		return have >= level
 	}
 }
 
@@ -88,7 +108,7 @@ func ListHandler(ctx context.Context, c *Context) error {
 	if !ok {
 		return nil
 	}
-	rows := c.Shop.Listings(cfg)
+	rows := c.Shop.Listings(cfg, shopSkillChecker(c))
 	if len(rows) == 0 {
 		return c.Actor.Write(ctx, "The shop has nothing for sale.")
 	}
