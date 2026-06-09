@@ -422,10 +422,11 @@ type AbilityFile struct {
 // abilities-and-effects §5.1). Duration is in pulses; negative =
 // permanent. Modifiers and Flags are optional.
 type EffectFile struct {
-	ID        string         `yaml:"id"`
-	Duration  int            `yaml:"duration,omitempty"`
-	Modifiers []ModifierFile `yaml:"modifiers,omitempty"`
-	Flags     []string       `yaml:"flags,omitempty"`
+	ID          string         `yaml:"id"`
+	Duration    int            `yaml:"duration,omitempty"`
+	Modifiers   []ModifierFile `yaml:"modifiers,omitempty"`
+	Flags       []string       `yaml:"flags,omitempty"`
+	Refreshable bool           `yaml:"refreshable,omitempty"`
 }
 
 // ThemeFile is the YAML shape for a pack theme (spec

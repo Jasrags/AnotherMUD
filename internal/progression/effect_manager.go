@@ -163,8 +163,17 @@ func (m *EffectManager) Apply(ctx context.Context, entityID string, tpl EffectTe
 
 	m.mu.Lock()
 	if m.hasLocked(eid, id) {
+		// Already active (§5.2 no-stack). A refreshable template resets the
+		// live effect's remaining duration instead of being dropped
+		// (crafting-and-cooking §6 — re-eating a well-fed meal extends it);
+		// the modifiers are already applied under the same source key, so
+		// only Remaining changes. A non-refreshable re-apply is ignored.
+		refreshed := false
+		if tpl.Refreshable {
+			refreshed = m.refreshLocked(eid, id, tpl.Duration)
+		}
 		m.mu.Unlock()
-		return false
+		return refreshed
 	}
 	eff := newEffectFromTemplate(tpl, eid, sourceEntityID, sourceAbilityID)
 	m.effects[eid] = append(m.effects[eid], eff)
@@ -207,6 +216,21 @@ func (m *EffectManager) Has(entityID, effectID string) bool {
 func (m *EffectManager) hasLocked(entityID, effectID string) bool {
 	for _, e := range m.effects[entityID] {
 		if e.ID == effectID {
+			return true
+		}
+	}
+	return false
+}
+
+// refreshLocked resets the remaining duration of the active effect id on
+// entityID to duration (the re-applied template's Duration), for a
+// refreshable re-apply (§6). The stored effects are pointers, so this
+// mutates the live instance in place. Returns whether a match was found.
+// Caller holds m.mu.
+func (m *EffectManager) refreshLocked(entityID, effectID string, duration int) bool {
+	for _, e := range m.effects[entityID] {
+		if e.ID == effectID {
+			e.Remaining = duration
 			return true
 		}
 	}

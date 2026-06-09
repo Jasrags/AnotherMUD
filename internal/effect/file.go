@@ -23,10 +23,11 @@ import (
 //	flags:                   # optional
 //	  - blessed
 type File struct {
-	ID        string             `yaml:"id"`
-	Duration  int                `yaml:"duration,omitempty"`
-	Modifiers []ModifierFile     `yaml:"modifiers,omitempty"`
-	Flags     []string           `yaml:"flags,omitempty"`
+	ID          string         `yaml:"id"`
+	Duration    int            `yaml:"duration,omitempty"`
+	Modifiers   []ModifierFile `yaml:"modifiers,omitempty"`
+	Flags       []string       `yaml:"flags,omitempty"`
+	Refreshable bool           `yaml:"refreshable,omitempty"`
 }
 
 // ModifierFile mirrors stats.Modifier with explicit YAML tags so
@@ -50,9 +51,10 @@ func Decode(data []byte) (progression.EffectTemplate, error) {
 		return progression.EffectTemplate{}, fmt.Errorf("effect decode: empty id")
 	}
 	tpl := progression.EffectTemplate{
-		ID:       f.ID,
-		Duration: f.Duration,
-		Flags:    append([]string(nil), f.Flags...),
+		ID:          f.ID,
+		Duration:    f.Duration,
+		Flags:       append([]string(nil), f.Flags...),
+		Refreshable: f.Refreshable,
 	}
 	if len(f.Modifiers) > 0 {
 		tpl.Modifiers = make([]stats.Modifier, 0, len(f.Modifiers))

@@ -158,6 +158,57 @@ func TestEffectManager_SingleInstanceRefusesReapply(t *testing.T) {
 	}
 }
 
+func TestEffectManager_RefreshableReapplyResetsDuration(t *testing.T) {
+	tgt := newRecTarget("p-1")
+	m := newManagerForTarget(tgt, nil)
+
+	tpl := progression.EffectTemplate{
+		ID: "well-fed", Duration: 600, Refreshable: true,
+		Modifiers: []stats.Modifier{{Stat: "str", Value: 2}},
+	}
+	if !m.Apply(context.Background(), "p-1", tpl, "", "") {
+		t.Fatal("first Apply returned false")
+	}
+	// Burn the duration down so a refresh is observable.
+	for i := 0; i < 100; i++ {
+		m.Tick(context.Background())
+	}
+	if got := m.Effects("p-1")[0].Remaining; got != 500 {
+		t.Fatalf("remaining after 100 ticks = %d, want 500", got)
+	}
+
+	// Re-apply a refreshable effect: returns true and resets the timer.
+	if !m.Apply(context.Background(), "p-1", tpl, "", "") {
+		t.Error("refreshable re-apply returned false; want true (refreshed)")
+	}
+	if got := m.Effects("p-1")[0].Remaining; got != 600 {
+		t.Errorf("remaining after refresh = %d, want 600 (reset to Duration)", got)
+	}
+	// Still a single instance — refresh must not stack.
+	if n := len(m.Effects("p-1")); n != 1 {
+		t.Errorf("effect count after refresh = %d, want 1 (no stacking)", n)
+	}
+	// The str modifier is unchanged (one source key, never doubled).
+	if got := tgt.mods[progression.EffectSourceKey("well-fed")]; len(got) != 1 || got[0].Value != 2 {
+		t.Errorf("modifiers after refresh = %+v, want a single {str 2}", got)
+	}
+}
+
+func TestEffectManager_NonRefreshableReapplyStillIgnored(t *testing.T) {
+	tgt := newRecTarget("p-1")
+	m := newManagerForTarget(tgt, nil)
+
+	tpl := progression.EffectTemplate{ID: "bless", Duration: 10} // Refreshable defaults false
+	m.Apply(context.Background(), "p-1", tpl, "", "")
+	m.Tick(context.Background()) // remaining 9
+	if m.Apply(context.Background(), "p-1", tpl, "", "") {
+		t.Error("non-refreshable re-apply returned true; want false (ignored)")
+	}
+	if got := m.Effects("p-1")[0].Remaining; got != 9 {
+		t.Errorf("remaining = %d, want 9 (ignored re-apply must not reset)", got)
+	}
+}
+
 func TestEffectManager_RemoveByIDReversesAndEmits(t *testing.T) {
 	tgt := newRecTarget("p-1")
 	sink := &recSink{}

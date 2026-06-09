@@ -39,6 +39,14 @@ type EffectTemplate struct {
 	// owned by the manager rather than mutating an entity-side
 	// Tags surface — see m9-2 design note in ROADMAP).
 	Flags []string
+
+	// Refreshable opts this effect into duration-refresh on re-apply
+	// (crafting-and-cooking §6 well-fed). When false (the default), a
+	// re-apply while the effect is already active is ignored (§5.2
+	// no-stack). When true, a re-apply resets the live effect's remaining
+	// duration to Duration instead of being dropped — so re-eating a
+	// well-fed meal extends the buff rather than wasting the food.
+	Refreshable bool
 }
 
 // EffectSourceKey returns the srckey.SourceKey used when an

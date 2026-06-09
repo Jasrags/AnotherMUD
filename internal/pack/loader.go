@@ -836,10 +836,11 @@ func decodeAbility(path, ns string) (*progression.Ability, error) {
 			}
 		}
 		effect = &progression.EffectTemplate{
-			ID:        f.Effect.ID,
-			Duration:  f.Effect.Duration,
-			Modifiers: mods,
-			Flags:     flags,
+			ID:          f.Effect.ID,
+			Duration:    f.Effect.Duration,
+			Modifiers:   mods,
+			Flags:       flags,
+			Refreshable: f.Effect.Refreshable,
 		}
 	}
 
