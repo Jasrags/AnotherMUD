@@ -10,3 +10,4 @@ ambience:
   - Wind ripples across the grass in long silver waves.
   - The drone of insects rises and falls in the warm air.
 forage_table: meadow-forage
+node_spawn_table: meadow-nodes

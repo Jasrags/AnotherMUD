@@ -297,6 +297,9 @@ const (
 	// EventResourceGathered fires after a forage/harvest yields items
 	// (gathering.md §6) — the quest advance-on-event hook ("gather N of X").
 	EventResourceGathered = "resource.gathered"
+	// EventNodeDepleted fires when a resource node's last charge is consumed
+	// (gathering.md §6); the node is removed and respawns after its interval.
+	EventNodeDepleted = "node.depleted"
 	// EventRecallAfter fires once after an uncancelled recall
 	// teleport commits (spec recall.md §5). The room change
 	// itself still publishes player.moved through the SetRoom
@@ -1520,6 +1523,18 @@ type ResourceGathered struct {
 
 // Name implements Event.
 func (ResourceGathered) Name() string { return EventResourceGathered }
+
+// NodeDepleted fires when a resource node's last charge is consumed and the
+// node is removed (gathering.md §6). The §3.6 reset algorithm respawns it
+// after its interval. Observability-only (no cancel).
+type NodeDepleted struct {
+	RoomID world.RoomID
+	Node   string // the depleted node entity id
+	Biome  string
+}
+
+// Name implements Event.
+func (NodeDepleted) Name() string { return EventNodeDepleted }
 
 // RecallNoPoint fires when `recall` runs against an empty save
 // field (spec recall.md §5).

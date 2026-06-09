@@ -167,6 +167,7 @@ func RegisterBuiltins(r *Registry) error {
 		{Keyword: "use", Handler: UseHandler, Brief: "Use a consumable item.", Syntax: []string{"use <item>"}, Args: []ArgDefinition{{Name: "item", Type: ArgInventory}}},
 		{Keyword: "read", Handler: ReadHandler, Brief: "Read a recipe scroll to learn it.", Syntax: []string{"read <item>"}, Args: []ArgDefinition{{Name: "item", Type: ArgInventory}}},
 		{Keyword: "forage", Aliases: []string{"gather"}, Handler: ForageHandler, Brief: "Forage the area for ingredients.", Syntax: []string{"forage"}},
+		{Keyword: "harvest", Handler: HarvestHandler, Brief: "Harvest a resource node.", Syntax: []string{"harvest <node>"}},
 
 		// Tells (M13.5).
 		{Keyword: "tell", Handler: TellHandler, Brief: "Send a private message to another player.", Syntax: []string{"tell <name> <message>"}},

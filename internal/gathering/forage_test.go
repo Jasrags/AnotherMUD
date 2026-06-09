@@ -17,6 +17,7 @@ type fakeGatherer struct {
 
 func (g *fakeGatherer) PlayerID() string                    { return g.id }
 func (g *fakeGatherer) ID() string                          { return g.id }
+func (g *fakeGatherer) Inventory() []entities.EntityID      { return g.inv }
 func (g *fakeGatherer) AddToInventory(id entities.EntityID) { g.inv = append(g.inv, id) }
 func (g *fakeGatherer) ForageReadyAt() uint64               { return g.readyAt }
 func (g *fakeGatherer) SetForageReadyAt(t uint64)           { g.readyAt = t }

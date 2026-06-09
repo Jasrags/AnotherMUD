@@ -15,6 +15,9 @@ import (
 type Gatherer interface {
 	PlayerID() string
 	ID() string
+	// Inventory returns the carried item ids — scanned by harvest for the
+	// node's required tool (§3.3).
+	Inventory() []entities.EntityID
 	AddToInventory(entities.EntityID)
 	// ForageReadyAt / SetForageReadyAt hold the per-character forage
 	// cooldown as an engine tick (§5). Transient (never persisted), like

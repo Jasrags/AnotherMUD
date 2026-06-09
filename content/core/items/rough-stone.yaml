@@ -1,0 +1,11 @@
+id: rough-stone
+name: a chunk of rough stone
+type: item
+description: |
+  A fist-sized chunk of grey stone, freshly broken from an outcrop — rough
+  to the touch and flecked with mica. Raw material for the patient mason.
+tags: [ingredient, stone, gathered]
+keywords: [stone, rock, chunk]
+properties:
+  weight: 3
+  value: 2

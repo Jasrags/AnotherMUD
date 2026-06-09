@@ -1,0 +1,9 @@
+# Yield pool for the stone-outcrop node (gathering.md §3.1). A node yield
+# reuses the forage-table shape (weighted items + richness + ceiling). The
+# outcrop gives rough stone; richer/higher-skill harvests roll toward the
+# uncommon ceiling.
+id: outcrop-yield
+richness: 50
+ceiling: uncommon
+entries:
+  - { item: rough-stone, weight: 1 }

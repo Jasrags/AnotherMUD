@@ -308,3 +308,21 @@ func TestSpawnNilTemplateReturnsError(t *testing.T) {
 		t.Errorf("err = %v, want ErrUnknownTemplate", err)
 	}
 }
+
+func TestTakeCharge(t *testing.T) {
+	it := &ItemInstance{properties: map[string]any{"charges": 2}}
+	if r, ok := it.TakeCharge("charges"); !ok || r != 1 {
+		t.Fatalf("first take = (%d, %v), want (1, true)", r, ok)
+	}
+	if r, ok := it.TakeCharge("charges"); !ok || r != 0 {
+		t.Fatalf("second take = (%d, %v), want (0, true)", r, ok)
+	}
+	// Empty now: further takes refuse and never go negative.
+	if r, ok := it.TakeCharge("charges"); ok || r != 0 {
+		t.Errorf("take on empty = (%d, %v), want (0, false)", r, ok)
+	}
+	// Absent key → no charge to take.
+	if _, ok := it.TakeCharge("missing"); ok {
+		t.Error("take on absent key should be false")
+	}
+}

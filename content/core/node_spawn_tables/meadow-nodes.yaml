@@ -1,0 +1,6 @@
+# Node spawn table for the grassland biome (gathering.md §3.1). One rock
+# outcrop spawns per grassland room; a depleted one respawns on the area
+# cadence (reset_interval 0 = the area default).
+id: meadow-nodes
+entries:
+  - { node: stone-outcrop, count: 1 }

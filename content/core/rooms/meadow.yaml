@@ -13,6 +13,8 @@ exits:
 # safe-room, which blocks combat). The bandit spawns here via
 # areas/wilderness.yaml spawn_rules.
 terrain: grassland
-# A loose item on the ground for get/drop/look testing.
+# Loose items on the ground: a bless potion (get/drop/look testing) and an
+# iron pickaxe (the mining-tool the rock outcrop here requires — gathering §3.3).
 items:
   - bless-potion
+  - iron-pickaxe

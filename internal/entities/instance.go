@@ -216,6 +216,29 @@ func (it *ItemInstance) DecrementInt(key string, amount int) (remaining int, hit
 	return v, hitZero
 }
 
+// TakeCharge atomically claims one unit from the integer property key,
+// decrementing it by 1 ONLY if it is currently positive. It returns the
+// remaining count and whether a charge was actually taken — so two
+// concurrent callers racing for the last charge of a 1-charge resource node
+// (gathering.md §3) cannot both succeed: exactly one sees taken=true, the
+// other sees (0, false). taken=false also means "already empty". Mirrors
+// DecrementInt's locking; the conditional decrement is what makes it a
+// single-winner claim rather than a flooring subtract.
+func (it *ItemInstance) TakeCharge(key string) (remaining int, taken bool) {
+	it.propsMu.Lock()
+	defer it.propsMu.Unlock()
+	if it.properties == nil {
+		return 0, false
+	}
+	v, _ := it.properties[key].(int)
+	if v <= 0 {
+		return 0, false
+	}
+	v--
+	it.properties[key] = v
+	return v, true
+}
+
 // Modifiers returns the transient per-instance stat modifiers (§2.3
 // step 6). Equip-time application reads this list; nothing else writes
 // to it post-Spawn.

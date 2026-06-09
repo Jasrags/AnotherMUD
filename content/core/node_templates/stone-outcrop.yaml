@@ -1,0 +1,12 @@
+# A harvestable rock outcrop in the grassland (gathering.md §3). Requires a
+# mining-tool (a pickaxe) to work — the one allowed harvest refusal (§3.3).
+# Two charges before it is exhausted, then it respawns on the area cadence.
+id: stone-outcrop
+name: a weathered rock outcrop
+description: |
+  A shoulder of weathered grey rock breaks the grass here, seamed with
+  stone loose enough to work free with the right tool.
+keywords: [outcrop, rock, stone]
+yield_table: outcrop-yield
+charges: 2
+required_tool: mining-tool

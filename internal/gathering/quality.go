@@ -154,6 +154,22 @@ func ladderPosition(reg *decoration.RarityRegistry, key string) int {
 	return -1
 }
 
+// propInt coerces a property value (any) to int, tolerating the
+// int / int64 / float64 shapes yaml decode + the property bag produce.
+// Zero when absent/non-numeric.
+func propInt(v any) int {
+	switch n := v.(type) {
+	case int:
+		return n
+	case int64:
+		return int(n)
+	case float64:
+		return int(n)
+	default:
+		return 0
+	}
+}
+
 func clampInt(v, lo, hi int) int {
 	if v < lo {
 		return lo
