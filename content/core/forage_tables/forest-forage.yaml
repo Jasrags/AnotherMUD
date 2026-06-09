@@ -1,0 +1,10 @@
+# Ambient-forage pool for the forest biome (gathering.md §2). `forage` in the
+# trees rolls this: usually a sprig of wild herb, often a cluster of forest
+# mushrooms — both cooking ingredients. Item ids are bare; the loader
+# qualifies them against this pack's namespace.
+id: forest-forage
+richness: 45
+ceiling: uncommon
+entries:
+  - { item: wild-herb, weight: 3 }
+  - { item: forest-mushroom, weight: 2 }

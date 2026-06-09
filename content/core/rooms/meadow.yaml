@@ -5,9 +5,11 @@ description: |
   The track loses itself in waist-high grass that hisses in the wind.
   A little way off the path, the embers of an abandoned campfire and a
   scatter of trampled ground mark where someone has been waiting for
-  travellers. The village gate lies back to the north.
+  travellers. The village gate lies back to the north, and a faint track
+  wears east toward a distant treeline.
 exits:
   north: village-gate
+  east: forest-edge
 # Deliberately NOT a safe-room: this is the playtest combat arena, the
 # one place a player can actually engage a mob (town-square is tagged
 # safe-room, which blocks combat). The bandit spawns here via

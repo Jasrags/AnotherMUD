@@ -1,0 +1,16 @@
+id: cave-mouth
+area: wilderness
+name: "Cave Mouth"
+description: |
+  A low cave mouth bites into the hillside, the stone around it scarred by
+  old pick-work. Cool, mineral-damp air breathes out of the dark. A rust-red
+  seam of iron threads the rock here; the diggings drop away into deeper dark
+  below. The foothills lie back east, and a deer-path climbs north toward
+  the trees.
+exits:
+  east: foothills
+  north: forest-edge
+  down: old-mine
+terrain: cave
+# Iron veins here and below (cave biome) yield ore to a pickaxe — the bottom
+# of the smithing chain (crafting §8).

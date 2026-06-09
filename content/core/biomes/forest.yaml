@@ -1,0 +1,14 @@
+# Forest biome (biomes.md §2) — the treeline east of the meadow. Outdoors
+# (sees weather/sky like the grassland), carries its own ambience, offers a
+# forage table (herbs + mushrooms) and a node spawn table (timber stands a
+# woodcutting-tool works). Rooms key in via `terrain: forest`.
+id: forest
+name: deep forest
+description: Old trees crowd close, and the light falls green and broken through the leaves.
+ambience:
+  - A branch creaks somewhere overhead in the still air.
+  - Leaf-litter rustles as something small bolts for cover.
+  - A wood pigeon calls, low and repeated, deeper in the trees.
+  - The resin smell of pine sap hangs heavy between the trunks.
+forage_table: forest-forage
+node_spawn_table: forest-nodes

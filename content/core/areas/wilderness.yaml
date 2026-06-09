@@ -15,3 +15,9 @@ spawn_rules:
     mob: bandit
     count: 1
     tags: [persistent]
+  # A wild boar in the deep forest — the huntable meat source (crafting §8).
+  # Not persistent: once hunted it respawns on the area cadence, so meat is a
+  # renewable gather rather than a one-shot kill.
+  - room: deep-forest
+    mob: wild-boar
+    count: 1

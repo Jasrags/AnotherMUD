@@ -1,0 +1,17 @@
+id: forest-edge
+area: wilderness
+name: "{g}The Forest's Edge{x}"
+description: |
+  The meadow grass gives way to the first trees here, saplings thickening
+  into a proper wood to the east. A worn deer-path drops away south toward
+  broken, rising ground. Back west, the long grass runs to the village.
+exits:
+  west: meadow
+  east: deep-forest
+  south: cave-mouth
+terrain: forest
+# A woodcutter's axe left leaning against a stump — the woodcutting-tool the
+# timber stands here and deeper in require (gathering §3.3). Also sold by the
+# blacksmith; left here so a new gatherer can start without a trip back.
+items:
+  - woodcutters-axe

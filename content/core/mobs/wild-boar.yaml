@@ -1,0 +1,24 @@
+id: wild-boar
+name: a wild boar
+type: npc
+behavior: stationary
+description: |
+  A heavy-shouldered boar roots through the leaf-litter, tusks yellowed and
+  small eyes wary. It minds its own business — until something gives it a
+  reason not to.
+tags: [animal, beast]
+keywords: [boar, pig, hog]
+# Neutral, not hostile: the boar does not aggro, so the forest stays safe to
+# gather in. A player who wants meat hunts it deliberately (`kill boar`) —
+# the loot-side source of raw meat (crafting §8: meat from the hunt, not only
+# the vendor). It fights back once engaged.
+disposition_rules:
+  default: neutral
+stats:
+  hp_max: 18
+  str: 12
+# Unarmed (tusks) — no equipment block, so it rolls the unarmed default in
+# combat (combat §4.5). Tougher than it looks but beatable with a starter
+# blade; a fair hunt.
+# Drops meat on death (M22). No coin block — a wild animal carries no purse.
+loot_table: boar-loot

@@ -1,0 +1,9 @@
+# Yield pool for the timber-stand node (gathering.md §3.1). A node yield
+# reuses the forage-table shape (weighted items + richness + ceiling). The
+# stand gives lengths of timber; higher-skill harvests roll toward the
+# uncommon ceiling (cleaner, heavier logs).
+id: timber-yield
+richness: 50
+ceiling: uncommon
+entries:
+  - { item: timber-log, weight: 1 }

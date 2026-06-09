@@ -1,0 +1,6 @@
+# Node spawn table for the forest biome (gathering.md §3.1). One timber stand
+# spawns per forest room; a worked-out one respawns on the area cadence
+# (reset_interval 0 = the area default).
+id: forest-nodes
+entries:
+  - { node: timber-stand, count: 1 }

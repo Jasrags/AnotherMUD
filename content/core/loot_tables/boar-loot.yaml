@@ -1,0 +1,8 @@
+# Loot table for the wild boar (mobs-ai-spawning §6.3, crafting §8). The
+# hunt's payoff: a couple of cuts of raw meat for the cook's pot. No coin
+# block — a wild animal carries no purse; meat is the whole point. Item ids
+# are unqualified — they resolve against this pack's namespace at lookup.
+id: boar-loot
+# Always drops meat — the reason to hunt it.
+guaranteed:
+  - { item: raw-meat, count: 2 }

@@ -1,0 +1,12 @@
+id: old-mine
+area: wilderness
+name: "The Old Diggings"
+description: |
+  The shaft opens into a worked-out chamber, props black with age and the
+  walls scored by generations of picks. Whoever dug here left in a hurry, or
+  never left at all — but the iron is not spent: a fresh seam glints in the
+  rock where the old work stopped. The only way out is back up.
+exits:
+  up: cave-mouth
+terrain: cave
+# A second iron vein (cave biome) — the deep-ore payoff for the climb down.

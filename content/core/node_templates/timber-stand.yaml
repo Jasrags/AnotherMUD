@@ -1,0 +1,13 @@
+# A harvestable stand of timber in the forest (gathering.md §3). Requires a
+# woodcutting-tool (an axe) to work — the one allowed harvest refusal (§3.3).
+# Three lengths of timber before it is worked out, then it respawns on the
+# area cadence.
+id: timber-stand
+name: a stand of straight timber
+description: |
+  A cluster of straight young trees grows close here, trunks the right
+  thickness for felling — easy work for anyone carrying an axe.
+keywords: [timber, stand, trees, tree]
+yield_table: timber-yield
+charges: 3
+required_tool: woodcutting-tool

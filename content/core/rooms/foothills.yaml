@@ -1,0 +1,13 @@
+id: foothills
+area: wilderness
+name: "{y}Rocky Foothills{x}"
+description: |
+  The trees thin and surrender to bare, rising rock. Grey stone breaks
+  through the thin soil in shelves and shoulders, and a colder wind comes
+  off the heights. The forest falls away north; a dark cleft in the
+  hillside opens west, where the rock has been worked.
+exits:
+  north: deep-forest
+  west: cave-mouth
+terrain: mountain
+# Stone outcrops here (mountain biome) yield rough stone to a pickaxe.

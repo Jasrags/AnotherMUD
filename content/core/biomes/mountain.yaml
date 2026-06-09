@@ -1,0 +1,13 @@
+# Mountain biome (biomes.md §2) — the rocky foothills where the forest gives
+# out. Outdoors and exposed; little grows here to forage, but the broken
+# ground exposes stone outcrops (a mining-tool node yielding rough stone).
+# Rooms key in via `terrain: mountain`. No forage table — `forage` here
+# reports "nothing to forage" (absence, not refusal — gathering.md §2).
+id: mountain
+name: rocky foothills
+description: Bare grey rock breaks through thin soil, and the wind has a colder edge.
+ambience:
+  - Wind moans thin and constant across the bare rock.
+  - Scree shifts and clatters somewhere down the slope.
+  - A hawk wheels high overhead, riding the updraft.
+node_spawn_table: mountain-nodes

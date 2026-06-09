@@ -1,0 +1,15 @@
+id: deep-forest
+area: wilderness
+name: "{g}Deep Forest{x}"
+description: |
+  The wood closes in, trunks crowding the failing light and the ground soft
+  with years of leaf-fall. Mushrooms cluster at the roots, and the air is
+  thick with the smell of damp earth. The forest's edge lies back to the
+  west; the ground breaks and rises away to the south.
+exits:
+  west: forest-edge
+  south: foothills
+terrain: forest
+# A wild boar roots here (areas/wilderness.yaml spawn_rules) — neutral, but
+# huntable for meat. Timber stands + forage (herbs, mushrooms) come from the
+# forest biome.

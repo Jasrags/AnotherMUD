@@ -1,0 +1,8 @@
+# Yield pool for the iron-vein node (gathering.md §3.1). The vein gives raw
+# iron ore — the bottom of the smithing chain (crafting §8). Higher-skill
+# harvests roll toward the uncommon ceiling (richer ore).
+id: iron-vein-yield
+richness: 50
+ceiling: uncommon
+entries:
+  - { item: iron-ore, weight: 1 }
