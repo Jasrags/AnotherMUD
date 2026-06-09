@@ -85,6 +85,36 @@ func TestValidateRecipeEconomy_SkipsUnknownOutput(t *testing.T) {
 	}
 }
 
+// TestValidateRecipeEconomy_UnknownInputContributesZero confirms a recipe is
+// still assessed when one input template is unknown — the unknown input
+// counts as 0 (lenient), so it never inflates the input sum into a false
+// positive, and a genuine money-loser among the KNOWN inputs is still caught.
+func TestValidateRecipeEconomy_UnknownInputContributesZero(t *testing.T) {
+	regs := NewRegistries()
+	addValuedItem(regs, "p:ore", 3)
+	addValuedItem(regs, "p:cheap", 1) // output worth less than the known input
+
+	// One known input (value 3) + one unknown input (counts 0) → sumIn = 3.
+	// Output value 1 ≤ 3, so the recipe is still flagged: the unknown input
+	// neither skipped the assessment nor masked the real shortfall.
+	regs.Recipes.Add(&recipe.Recipe{
+		ID:     "p:mixed",
+		Output: recipe.Output{Template: "p:cheap", Quantity: 1},
+		Inputs: []recipe.Ingredient{
+			{Template: "p:ore", Quantity: 1},
+			{Template: "p:missing", Quantity: 5},
+		},
+	})
+
+	warns := validateRecipeEconomy(regs)
+	if len(warns) != 1 {
+		t.Fatalf("got %d warnings, want 1: %+v", len(warns), warns)
+	}
+	if warns[0].Recipe != "p:mixed" || warns[0].InputValue != 3 {
+		t.Errorf("warning = %+v, want recipe p:mixed with InputValue 3 (unknown input = 0)", warns[0])
+	}
+}
+
 // TestValidateRecipeEconomy_CorePackClean is the regression guard: every
 // recipe in the shipped core pack must add value (the D2.1 content discipline
 // Milestone C established). If a future content edit breaks it, this fails.
