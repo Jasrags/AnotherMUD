@@ -800,7 +800,7 @@ func run() error {
 	questSvc := quest.NewService(quest.Config{
 		Registry: registries.Quests,
 		Persist:  questStore,
-		Rewards:  session.NewQuestRewards(mgr, progressionMgr, proficiencyMgr, registries.Items, entityStore, currencySvc, cfg.DefaultXPTrack),
+		Rewards:  session.NewQuestRewards(mgr, progressionMgr, proficiencyMgr, registries.Items, entityStore, currencySvc, knownRecipesMgr, cfg.DefaultXPTrack),
 		Events:   session.NewQuestNotifier(mgr, registries.Quests, questGiverName, questItemNameFn, logging.From(ctx)),
 	})
 	questWatcher := questwatch.New(questSvc, entityStore)

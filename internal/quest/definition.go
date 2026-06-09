@@ -44,6 +44,7 @@ type Reward struct {
 	Gold        int
 	Items       []string // item template ids
 	Abilities   []string // ability ids to teach
+	Recipes     []string // recipe ids to teach (crafting-and-cooking §7 uncommon tier)
 	ClassUnlock string
 	RaceUnlock  string
 }

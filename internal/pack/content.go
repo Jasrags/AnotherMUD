@@ -631,6 +631,7 @@ type RewardFile struct {
 	Gold        int      `yaml:"gold,omitempty"`
 	Items       []string `yaml:"items,omitempty"`
 	Abilities   []string `yaml:"abilities,omitempty"`
+	Recipes     []string `yaml:"recipes,omitempty"`
 	ClassUnlock string   `yaml:"class_unlock,omitempty"`
 	RaceUnlock  string   `yaml:"race_unlock,omitempty"`
 }

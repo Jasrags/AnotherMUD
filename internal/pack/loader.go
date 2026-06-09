@@ -1116,6 +1116,13 @@ func decodeQuest(path, ns, packDir string) (*quest.Definition, error) {
 	if err != nil {
 		return nil, err
 	}
+	// Recipe ids are namespaced concrete content (like items, unlike the
+	// global bare-id abilities), so reward recipes qualify against the pack
+	// namespace too (crafting-and-cooking §7).
+	rewardRecipes, err := qualifyIDList(f.Reward.Recipes, ns, path, "reward.recipes")
+	if err != nil {
+		return nil, err
+	}
 
 	abandonable := f.Abandonable == nil || *f.Abandonable
 
@@ -1141,6 +1148,7 @@ func decodeQuest(path, ns, packDir string) (*quest.Definition, error) {
 			Gold:        f.Reward.Gold,
 			Items:       rewardItems,
 			Abilities:   f.Reward.Abilities,
+			Recipes:     rewardRecipes,
 			ClassUnlock: f.Reward.ClassUnlock,
 			RaceUnlock:  f.Reward.RaceUnlock,
 		},

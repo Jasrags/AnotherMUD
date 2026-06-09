@@ -8,6 +8,7 @@ import (
 	"github.com/Jasrags/AnotherMUD/internal/item"
 	"github.com/Jasrags/AnotherMUD/internal/progression"
 	"github.com/Jasrags/AnotherMUD/internal/quest"
+	"github.com/Jasrags/AnotherMUD/internal/recipe"
 )
 
 // NewQuestRewards builds the quest reward dispatcher wired to the live
@@ -29,6 +30,8 @@ import (
 // with no error. Passing the real track here keeps the spec default
 // untouched while making quest XP actually land. Empty string keeps the
 // dispatcher's spec default (used by tests that don't grant XP).
+// known may be nil (tests / headless boots that don't wire crafting), in
+// which case recipe rewards stay a no-op.
 func NewQuestRewards(
 	mgr *Manager,
 	prog *progression.Manager,
@@ -36,6 +39,7 @@ func NewQuestRewards(
 	tpls *item.Templates,
 	store *entities.Store,
 	currency *economy.CurrencyService,
+	known *recipe.KnownManager,
 	defaultTrack string,
 ) *quest.Dispatcher {
 	opts := []quest.DispatcherOption{
@@ -49,7 +53,28 @@ func NewQuestRewards(
 	if currency != nil {
 		opts = append(opts, quest.WithGold(questGold{mgr: mgr, currency: currency}))
 	}
+	if known != nil {
+		opts = append(opts, quest.WithRecipes(questRecipes{mgr: mgr, known: known}))
+	}
 	return quest.NewDispatcher(opts...)
+}
+
+// questRecipes bridges the quest RecipeTeacher to the per-character
+// KnownManager. The recipient is resolved through the session manager so an
+// offline grant is skipped silently (§5.2, mirroring questGold) — quest
+// turn-in always happens while the player is online, and the learned recipe
+// then persists automatically (Persist syncs known recipes unconditionally).
+// An already-known recipe is a no-op inside KnownManager.Learn.
+type questRecipes struct {
+	mgr   *Manager
+	known *recipe.KnownManager
+}
+
+func (q questRecipes) GrantRecipe(entityID, recipeID string) {
+	if _, ok := q.mgr.GetByPlayerID(entityID); !ok {
+		return
+	}
+	q.known.Learn(entityID, recipe.RecipeID(recipeID))
 }
 
 // questGold bridges the quest GoldGranter (entityId-addressed) to the

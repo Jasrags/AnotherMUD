@@ -1511,6 +1511,7 @@ stages:
         target: other-pack:boss
 reward:
   items: [reward-item]
+  recipes: [reward-recipe, other-pack:shared-recipe]
 `)
 	regs := NewRegistries()
 	if err := Load(context.Background(), root, nil, regs, nil, nil, nil); err != nil {
@@ -1532,6 +1533,10 @@ reward:
 	}
 	if d.Reward.Items[0] != "tapestry-core:reward-item" {
 		t.Errorf("reward item = %q", d.Reward.Items[0])
+	}
+	// recipe rewards qualify against the pack namespace; qualified ids cross packs verbatim
+	if len(d.Reward.Recipes) != 2 || d.Reward.Recipes[0] != "tapestry-core:reward-recipe" || d.Reward.Recipes[1] != "other-pack:shared-recipe" {
+		t.Errorf("reward recipes = %v, want [tapestry-core:reward-recipe other-pack:shared-recipe]", d.Reward.Recipes)
 	}
 	// abandonable absent -> defaults true; objective ids normalized
 	if !d.Abandonable {

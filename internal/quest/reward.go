@@ -24,6 +24,13 @@ type AbilityTeacher interface {
 	Learn(entityID, abilityID string, initialProficiency int)
 }
 
+// RecipeTeacher teaches a crafting recipe (crafting-and-cooking §7,
+// uncommon tier). An already-known recipe is a no-op on the implementer's
+// side (KnownManager.Learn).
+type RecipeTeacher interface {
+	GrantRecipe(entityID, recipeID string)
+}
+
 // ItemGranter creates an item from a template and gives it to the
 // player; missing templates are skipped silently (§5.2 step 6 / §5.3).
 type ItemGranter interface {
@@ -42,6 +49,10 @@ type nopAbility struct{}
 
 func (nopAbility) Learn(string, string, int) {}
 
+type nopRecipe struct{}
+
+func (nopRecipe) GrantRecipe(string, string) {}
+
 type nopItem struct{}
 
 func (nopItem) GrantItem(string, string, bool) {}
@@ -54,6 +65,7 @@ type Dispatcher struct {
 	xp      ExperienceGranter
 	gold    GoldGranter
 	ability AbilityTeacher
+	recipe  RecipeTeacher
 	item    ItemGranter
 	track   string
 }
@@ -88,6 +100,15 @@ func WithAbilities(a AbilityTeacher) DispatcherOption {
 	}
 }
 
+// WithRecipes sets the recipe teacher.
+func WithRecipes(r RecipeTeacher) DispatcherOption {
+	return func(d *Dispatcher) {
+		if r != nil {
+			d.recipe = r
+		}
+	}
+}
+
 // WithItems sets the item granter.
 func WithItems(i ItemGranter) DispatcherOption {
 	return func(d *Dispatcher) {
@@ -112,6 +133,7 @@ func NewDispatcher(opts ...DispatcherOption) *Dispatcher {
 		xp:      nopExperience{},
 		gold:    nopGold{},
 		ability: nopAbility{},
+		recipe:  nopRecipe{},
 		item:    nopItem{},
 		track:   DefaultTrack,
 	}
@@ -122,7 +144,7 @@ func NewDispatcher(opts ...DispatcherOption) *Dispatcher {
 }
 
 // Dispatch applies r to player in the §5.2 order: XP, gold, abilities,
-// class unlock, race unlock, items. Each step is independent and a
+// recipes, class unlock, race unlock, items. Each step is independent and a
 // no-op when its field is zero/empty.
 func (d *Dispatcher) Dispatch(player Player, r Reward) {
 	id := player.EntityID()
@@ -134,6 +156,9 @@ func (d *Dispatcher) Dispatch(player Player, r Reward) {
 	}
 	for _, abilityID := range r.Abilities {
 		d.ability.Learn(id, abilityID, 1)
+	}
+	for _, recipeID := range r.Recipes {
+		d.recipe.GrantRecipe(id, recipeID)
 	}
 	if r.ClassUnlock != "" {
 		player.SetClass(r.ClassUnlock)
