@@ -1,7 +1,12 @@
 # COMMON-tier smithing recipe (crafting-and-cooking §7). Not baseline — it
 # is learned by reading a recipe scroll bought from the blacksmith, whose
 # availability is gated by smithing skill (§7 "availability by skill level").
-# Reforges a rusty dagger into a clean iron dagger at a forge.
+# Forges a clean iron dagger from an iron ingot at a forge.
+#
+# Milestone C re-pointed this off the old vendor rusty dagger and onto a
+# smelted ingot (gather ore -> smelt -> forge). The ore is gather-only so the
+# dagger bottoms out in a gather input (§8 / D2.2); the dagger is worth far
+# more than the ingot it consumes (D2.1).
 id: forge-iron-dagger
 name: forge an iron dagger
 discipline: smithing
@@ -12,7 +17,7 @@ tool: smithing-tool
 time_pulses: 25
 acquisition: common
 inputs:
-  - { template: rusty-dagger, quantity: 1 }
+  - { template: iron-ingot, quantity: 1 }
 output:
   template: iron-dagger
   quantity: 1

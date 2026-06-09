@@ -5,8 +5,8 @@ behavior: stationary
 description: |
   Soot streaks Brandr's heavy apron, and his forearms are corded from a
   lifetime at the anvil. He sizes up your hands with a craftsman's eye,
-  then nods at the rack of worn blades beside him — raw stock, his to sell
-  and yours to reforge once he's shown you how.
+  then nods at the bin of grey iron ingots and the rack of tools beside him
+  — honest stock, his to sell and yours to work once he's shown you how.
 # A single mob carrying BOTH roles (crafting-and-cooking §4): the
 # `skill_trainer` tag + `trainer:` block teach the smithing discipline,
 # and the `shop` tag + `shop:` property sell basic stock. The two roles
@@ -25,15 +25,20 @@ trainer:
   tier: apprentice
   teach:
     - smithing
-# Shop: sells the rusty dagger the reforge recipe consumes. Vendor-sold
-# ingredients are a deliberate temporary compromise per §8 — gathering is
-# the real source once it lands. Shop-block ids are NOT namespace-rewritten
-# by the loader, so they are written fully qualified.
+# Shop (crafting §8 / plan D2): sells the iron INGOT — the refined
+# intermediate — as a priced convenience, plus the gathering tools (pickaxe,
+# axe) and the smithing hammer. He no longer sells a finished/raw weapon: the
+# ingot is gather→smelt cheaper than buying it (D2.1), and no blade's full
+# chain is vendor-satisfiable because the ore it ultimately needs is
+# gather-only (D2.2). Shop-block ids are NOT namespace-rewritten by the
+# loader, so they are written fully qualified.
 properties:
   shop:
     sells:
-      - tapestry-core:rusty-dagger
+      - tapestry-core:iron-ingot
       - tapestry-core:iron-hammer
+      - tapestry-core:iron-pickaxe
+      - tapestry-core:woodcutters-axe
       # Common-tier recipe scroll (crafting-and-cooking §7): teaches the
       # forge-iron-dagger recipe. Its requires_skill property gates
       # availability — hidden from `list` and refused on `buy` until the

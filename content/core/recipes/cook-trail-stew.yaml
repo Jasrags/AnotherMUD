@@ -1,6 +1,11 @@
 # UNCOMMON-tier cooking recipe (crafting-and-cooking §7). Not baseline — it
 # is granted as a quest reward (Gate Patrol), the §7 uncommon acquisition
 # hook. A heartier meal than the baseline cooked meal.
+#
+# Milestone C re-pointed this onto two gathered inputs: a foraged herb (open
+# grassland) and forest mushrooms (the trees). Meat is the vendor/hunt input;
+# the herb and mushroom are gather-only, so the stew bottoms out in gather
+# inputs (§8 / D2.2) and is worth more than its inputs combined (D2.1).
 id: cook-trail-stew
 name: cook trail stew
 discipline: cooking
@@ -11,6 +16,8 @@ time_pulses: 20
 acquisition: uncommon
 inputs:
   - { template: raw-meat, quantity: 1 }
+  - { template: wild-herb, quantity: 1 }
+  - { template: forest-mushroom, quantity: 1 }
 output:
   template: trail-stew
   quantity: 1

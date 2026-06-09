@@ -1,8 +1,13 @@
 # Baseline cooking recipe (crafting-and-cooking §6) — granted free when you
-# `learn cooking`. Turns raw meat into a cooked meal. station_tier 1 (a fire)
-# is now enforced: cook at the market kitchen (Tier 2), with a carried cook's
-# kit (Tier 1, field), or at a built campfire (Phase 5). The market kitchen
-# gives the best quality; a field kit is enough for a cold ration / minor buff.
+# `learn cooking`. Turns raw meat and a foraged herb into a cooked meal.
+# station_tier 1 (a fire) is enforced: cook at the market kitchen (Tier 2),
+# with a carried cook's kit (Tier 1, field), or at a built campfire. The
+# market kitchen gives the best quality; a field kit is a cold ration.
+#
+# Milestone C added the foraged wild herb: meat can come from the vendor
+# (convenience) or the hunt, but the herb is gather-only, so the meal bottoms
+# out in a gather input (§8 / D2.2). The meal is worth more than its inputs
+# combined (D2.1).
 id: cook-hearty-meal
 name: cook a hearty meal
 discipline: cooking
@@ -12,6 +17,7 @@ time_pulses: 15
 acquisition: baseline
 inputs:
   - { template: raw-meat, quantity: 1 }
+  - { template: wild-herb, quantity: 1 }
 output:
   template: cooked-meal
   quantity: 1

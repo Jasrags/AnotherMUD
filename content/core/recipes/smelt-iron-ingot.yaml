@@ -1,0 +1,21 @@
+# Refining recipe (crafting-and-cooking §8, plan D2) — the smithing chain's
+# middle tier: raw iron ore -> a clean iron ingot. Granted free when you
+# `learn smithing` (baseline), so the whole gather -> refine -> forge path is
+# reachable the moment you take up the craft. Two ore to an ingot; the ingot
+# is worth more than the ore it consumes (the value smelting adds, D2.1), and
+# the ore is gather-only (mined from a cave vein), so the finished blades it
+# feeds bottom out in a gather input (D2.2).
+id: smelt-iron-ingot
+name: smelt an iron ingot
+discipline: smithing
+skill_floor: 1
+# Smelting needs the forge furnace (Tier-2 fixed station).
+station_tier: 2
+tool: smithing-tool
+time_pulses: 20
+acquisition: baseline
+inputs:
+  - { template: iron-ore, quantity: 2 }
+output:
+  template: iron-ingot
+  quantity: 1

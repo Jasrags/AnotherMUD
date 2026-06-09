@@ -1,12 +1,11 @@
 # Starter smithing recipe (crafting-and-cooking §3) — the first recipe in
-# the core pack, shipped with the Phase 0 substrate. It reforges a worn
-# rusty dagger into a short sword at a forge.
+# the core pack. It hammers an iron ingot into a short sword at a forge.
 #
-# It references item templates that already exist in the pack so the recipe
-# is coherent today; it is inert until the `craft` verb lands (Phase 2).
-# `discipline: smithing` references the crafting proficiency Phase 1 grants;
-# the loader does not validate the discipline or item ids (fail-soft), so
-# this loads cleanly ahead of those consumers.
+# Milestone C re-pointed this off the old vendor-bought rusty dagger and onto
+# a smelted iron ingot, so the chain is now gather -> smelt -> forge: mine
+# ore from a cave vein, smelt it (smelt-iron-ingot, also baseline), then beat
+# the ingot into a blade. The ore is gather-only, so the sword bottoms out in
+# a gather input (§8 / D2.2); the sword is worth more than the ingot (D2.1).
 id: reforge-short-sword
 name: reforge a short sword
 discipline: smithing
@@ -27,7 +26,7 @@ time_pulses: 30
 # gold-sink tiers) are content for later phases.
 acquisition: baseline
 inputs:
-  - { template: rusty-dagger, quantity: 1 }
+  - { template: iron-ingot, quantity: 1 }
 output:
   template: short-sword
   quantity: 1
