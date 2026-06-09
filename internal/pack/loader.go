@@ -204,6 +204,18 @@ func Load(ctx context.Context, root string, filter []string, dst *Registries, sp
 		return err
 	}
 
+	// Economy guardrail (crafting-and-cooking §8 / plan D3): flag any recipe
+	// that loses money (output value ≤ Σ input value). Advisory only — the
+	// D2.1 invariant is a content-pricing discipline, not a load gate — so
+	// these surface as warnings, like the coordinate-derivation warnings.
+	for _, w := range validateRecipeEconomy(dst) {
+		logger.Warn("recipe economy: output value does not exceed inputs (crafting adds no value — §8/D2.1)",
+			slog.String("recipe", string(w.Recipe)),
+			slog.Int("output_value", w.OutputValue),
+			slog.Int("input_value", w.InputValue),
+		)
+	}
+
 	return nil
 }
 
@@ -315,6 +327,92 @@ func validateDoorKeys(dst *Registries) error {
 		}
 	}
 	return nil
+}
+
+// recipeValueProp is the item property the economy guardrail reads. It is the
+// same key the shop prices off (economy.PropValue = "value"); referenced by
+// literal here to keep the pack loader free of an economy import.
+const recipeValueProp = "value"
+
+// recipeEconomyWarning flags a recipe whose output is worth no more than the
+// items it consumes — a "crafting loses money" smell (crafting-and-cooking §8,
+// biomes/gathering plan D2.1/D3). It is advisory: Load logs it but never
+// fails on it, mirroring the non-fatal coordinate-derivation warnings. A
+// third-party pack with deliberately valueless craft outputs is a content
+// choice, not a load error.
+type recipeEconomyWarning struct {
+	Recipe      recipe.RecipeID
+	OutputValue int
+	InputValue  int
+}
+
+// validateRecipeEconomy walks every registered recipe and flags those where
+// output value ≤ Σ(input value × quantity) — the D3 guardrail that keeps the
+// D2.1 "crafting always adds value" invariant from silently rotting as
+// content evolves. Recipes whose output template is unknown are skipped (the
+// value can't be assessed; the loader is fail-soft on recipe item ids
+// elsewhere). Missing input templates contribute 0, which only makes the
+// check more lenient — never a false positive. Returns the warnings sorted by
+// recipe id for deterministic logging; Load emits them via slog.Warn.
+func validateRecipeEconomy(dst *Registries) []recipeEconomyWarning {
+	if dst == nil || dst.Recipes == nil || dst.Items == nil {
+		return nil
+	}
+	var warns []recipeEconomyWarning
+	for _, r := range dst.Recipes.All() {
+		outTpl, err := dst.Items.Get(item.TemplateID(r.Output.Template))
+		if err != nil {
+			continue // unknown output — can't assess; fail-soft like the rest.
+		}
+		outValue := itemValueProp(outTpl) * maxInt(1, r.Output.Quantity)
+
+		sumIn := 0
+		for _, in := range r.Inputs {
+			tpl, err := dst.Items.Get(item.TemplateID(in.Template))
+			if err != nil {
+				continue // unknown input contributes 0 (lenient).
+			}
+			sumIn += itemValueProp(tpl) * maxInt(1, in.Quantity)
+		}
+
+		if outValue <= sumIn {
+			warns = append(warns, recipeEconomyWarning{
+				Recipe:      r.ID,
+				OutputValue: outValue,
+				InputValue:  sumIn,
+			})
+		}
+	}
+	sort.Slice(warns, func(i, j int) bool { return warns[i].Recipe < warns[j].Recipe })
+	return warns
+}
+
+// itemValueProp reads the integer `value` property off a template, tolerating
+// the int / int64 / float64 shapes yaml.v3 produces. Zero when absent or
+// non-numeric (mirrors economy.templateValue).
+func itemValueProp(tpl *item.Template) int {
+	if tpl == nil || tpl.Properties == nil {
+		return 0
+	}
+	switch n := tpl.Properties[recipeValueProp].(type) {
+	case int:
+		return n
+	case int64:
+		return int(n)
+	case float64:
+		return int(n)
+	default:
+		return 0
+	}
+}
+
+// maxInt is a tiny local helper (Go 1.21 builtin max is available, but the
+// explicit name keeps the value-clamp intent obvious at the call sites).
+func maxInt(a, b int) int {
+	if a > b {
+		return a
+	}
+	return b
 }
 
 func loadPackContent(ctx context.Context, p Discovered, dst *Registries, scriptCompiler ScriptCompiler) ([]pendingPlacement, []pendingMobPlacement, error) {
