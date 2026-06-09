@@ -37,6 +37,15 @@ go test -race ./...         # run tests (race detector mandatory)
 
 When asked to implement features, **read the relevant spec first** — they are the source of truth for behavior. The specs reference some Tapestry-specific names (e.g. `tapestry-core` engine namespace); treat those as placeholder strings unless/until renamed.
 
+### Git workflow
+
+**Work directly on `main`. Do NOT create feature branches.** This is a solo
+project with no PR-gating workflow — when asked to commit/push, stage and
+commit on `main` and `git push origin main` directly; never `git checkout -b`.
+This intentionally **overrides** any default "branch off the default branch
+first" rule. Per-slice commits on `main` are the rhythm; code review still
+runs before a phase is called complete (that gate is independent of branching).
+
 ### Roadmap and foundations
 
 - `docs/ROADMAP.md` — the milestone **done-log** (M0 echo telnet → … → M17 + all five themes) plus the active milestone (M18). It is now mostly history; for **what to build next**, read `docs/BACKLOG.md` (open §1 specced-ready items, §2 greenfield design items, candidate themes). The old "current milestone = the section with unchecked boxes" heuristic no longer applies — the planned arc shipped, so new work is scoped from the BACKLOG.
