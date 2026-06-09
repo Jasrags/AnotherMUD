@@ -25,6 +25,13 @@ import (
 // across packs (not a global override-able definition like an ability).
 type RecipeID string
 
+// PropRecipeID is the item-instance property a recipe scroll/page carries
+// (crafting-and-cooking §7): a recipe id the `read` verb teaches and then
+// consumes the scroll for. A recipe-bearing item is otherwise ordinary, so
+// the common (shop) and rare (loot) tiers are pure content placement of the
+// same item kind. The value is a (namespaced) recipe id string.
+const PropRecipeID = "recipe"
+
 // AcquisitionTier is the §7 metadata describing how a recipe is obtained
 // (baseline with the skill, bought, quest reward, dropped, or
 // region-locked). It is metadata for content/economy review — NEVER a
