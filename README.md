@@ -205,7 +205,7 @@ Conventions the codebase follows (see [`docs/ROADMAP.md`](docs/ROADMAP.md)
 
 | Doc | What it is |
 |---|---|
-| [`docs/specs/`](docs/specs/) | **Behavior specifications — the source of truth** (40 specs; read `docs/specs/README.md` first) |
+| [`docs/specs/`](docs/specs/) | **Behavior specifications — the source of truth** (41 specs; read `docs/specs/README.md` first) |
 | [`docs/ROADMAP.md`](docs/ROADMAP.md) | Milestone done-log + foundations/conventions |
 | [`docs/BACKLOG.md`](docs/BACKLOG.md) | Open work + candidate next themes |
 | [`docs/DEFERRED-BACKLOG.md`](docs/DEFERRED-BACKLOG.md) | Index of deferred fixes across milestones |

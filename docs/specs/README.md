@@ -104,6 +104,11 @@ The verbs players use and the systems that resolve them.
   effects.
 - [combat](combat.md) — engage / disengage, the combat round,
   hit / miss / damage, flee, death.
+- [weapon-identity](weapon-identity.md) — weapon categories /
+  proficiency tiers / damage types, class-granted proficiency + the
+  non-proficient to-hit penalty, and per-weapon critical threat range +
+  multiplier. Layers on `combat` §4.4–§4.5; EPIC sub-epic S1 *(spec;
+  build pending)*.
 - [loot-and-corpses](loot-and-corpses.md) — the death → drop path:
   corpse creation on the mob-killed event, coin drops, the killer-
   first looting-rights window, the loot / get-from verbs, the
@@ -419,4 +424,4 @@ highest-impact themes that recur across specs:
 
 ---
 
-<!-- Updated: 2026-06-07 · 40 specs covering the engine substrate, world, action, lifecycle, and presentation layers. Behavior contracts still ahead of code: tag-observers, visibility, hidden-exits, faction, biomes, gathering, crafting-and-cooking, and the trade trio (trade-escrow, direct-trade, auction-house). Since-shipped: roles-and-permissions, admin-verbs, item-decorations (M19/M20), loot-and-corpses (M22), tab-completion Phase 0–2, who, light-and-darkness, room-coordinates (M23), player-maps (M24 — Mudlet GMCP wire-shape pending live-client validation). -->
+<!-- Updated: 2026-06-10 · 41 specs covering the engine substrate, world, action, lifecycle, and presentation layers. Behavior contracts still ahead of code: tag-observers, visibility, hidden-exits, faction, weapon-identity (WoT EPIC S1), and the trade trio (trade-escrow, direct-trade, auction-house). Since-shipped: roles-and-permissions, admin-verbs, item-decorations (M19/M20), loot-and-corpses (M22), tab-completion Phase 0–2, who, light-and-darkness, room-coordinates (M23), player-maps (M24 — Mudlet GMCP wire-shape pending live-client validation), biomes, gathering, crafting-and-cooking (M27). -->
