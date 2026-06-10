@@ -197,16 +197,25 @@ sub-slices shipped (453af1a split → 3c09172 wot boot), each code-reviewed:
 - Acceptance: ✅ new character spawns on the Green, learns smithing + cooking,
   runs forage→cook→eat and learn→forge end to end. Live-verified.
 
-### M2 — The Two Rivers wilds + roads
+### M2 — The Two Rivers wilds + roads — ✅ SHIPPED (M2a cc8af7a, M2b 270bea7)
 
-- The Westwood (forest), Sand Hills (mountain), Mountains-of-Mist diggings
-  (cave), the pastures (grassland), and the **Waterwood** (new swamp biome).
-- The three roads as transitional-room sequences, wiring Emond's Field to the
-  wild zones and to the outlying-village stubs.
-- Gathering nodes + forage tables per biome (reuse Milestone-C infra); brigand
-  + boar + wolf spawns.
-- Acceptance: the full Two Rivers gather economy works; coordinates derive
-  clean; no hanging exits.
+- **M2a** the west chain off the forge: the Westwood (forest), the Sand Hills
+  (mountain), and the Mountains-of-Mist diggings (cave) — 5 rooms, 2 areas, 3
+  wot biomes with Westwood forage. Surfaced + resolved the **one-world-per-boot**
+  model (two world packs share bare-global biome ids → can't co-load; the boot
+  defaults to the demo, `ANOTHERMUD_PACKS=wot` selects WoT; `make run-wot`).
+- **M2b** gathering + the §8 closure: an iron vein (mining) in the diggings and
+  a timber stand (woodcutting) in the Westwood ride the spawn scheduler; tools
+  in the wilds + Haral's shop; a neutral huntable wild-boar drops raw meat.
+  `smelt-iron-ingot` (ore→ingot) makes smithing bottom out in **gathered ore**,
+  and the **M1 forge practice ingots are removed**; `cook-hearty-meal` uses the
+  boar meat + foraged herb. Both recipes pass the §8 economy guardrail.
+- **Deferred from this plan's M2:** the North/Old road stubs stay stubs (Watch
+  Hill/Deven Ride are M3); the pastures (grassland) and the Waterwood (swamp)
+  weren't needed for the gather economy — fold into M3 or a later pass.
+- Acceptance: ✅ full gather→refine→craft economy works in-region (mine→smelt→
+  forge; hunt→meat; forage→cook); coords derive clean; no hanging exits.
+  Live-verified end to end.
 
 ### M3 — The outlying villages
 
