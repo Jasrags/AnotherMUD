@@ -2318,18 +2318,41 @@ func decodeItem(path, ns string) (*item.Template, error) {
 	}
 	companion := normalizeLowerDedup(f.CompanionSlots)
 
+	// Weapon identity (weapon-identity §2). Category is an opaque label;
+	// the tier and damage types validate against the engine vocabularies
+	// so an authoring typo fails the pack by file name (like weapon_damage
+	// above) rather than silently producing an unrecognized tier. All
+	// three are optional — an absent tier is "untiered" (treated as the
+	// lowest tier at proficiency-check time, §3); absent types are untyped.
+	weaponCategory := strings.ToLower(strings.TrimSpace(f.WeaponCategory))
+	weaponTier := strings.ToLower(strings.TrimSpace(f.ProficiencyTier))
+	if weaponTier != "" && !item.ValidTier(weaponTier) {
+		return nil, fmt.Errorf("%w: %s: proficiency_tier %q is not a known weapon tier %v",
+			ErrInvalidContent, path, weaponTier, item.WeaponTierNames())
+	}
+	damageTypes := normalizeLowerDedup(f.DamageTypes)
+	for _, dt := range damageTypes {
+		if !item.ValidDamageType(dt) {
+			return nil, fmt.Errorf("%w: %s: damage_types entry %q is not a valid damage type %v",
+				ErrInvalidContent, path, dt, item.DamageTypeNames())
+		}
+	}
+
 	return &item.Template{
-		ID:             item.TemplateID(id),
-		Name:           f.Name,
-		Type:           f.Type,
-		Description:    strings.TrimSpace(f.Description),
-		Tags:           f.Tags,
-		Keywords:       f.Keywords,
-		Properties:     f.Properties,
-		Modifiers:      mods,
-		WeaponDamage:   weaponDamage,
-		EligibleSlots:  eligible,
-		CompanionSlots: companion,
+		ID:              item.TemplateID(id),
+		Name:            f.Name,
+		Type:            f.Type,
+		Description:     strings.TrimSpace(f.Description),
+		Tags:            f.Tags,
+		Keywords:        f.Keywords,
+		Properties:      f.Properties,
+		Modifiers:       mods,
+		WeaponDamage:    weaponDamage,
+		EligibleSlots:   eligible,
+		CompanionSlots:  companion,
+		WeaponCategory:  weaponCategory,
+		ProficiencyTier: weaponTier,
+		DamageTypes:     damageTypes,
 	}, nil
 }
 

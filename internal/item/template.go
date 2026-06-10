@@ -67,6 +67,20 @@ type Template struct {
 	// a two-handed weapon that also ties up the off hand. nil means the
 	// footprint is just the target slot. Same name rules as EligibleSlots.
 	CompanionSlots []string
+	// WeaponCategory is the weapon's kind (weapon-identity §2 — an opaque
+	// label the engine matches for proficiency, e.g. a longsword kind).
+	// Empty means the weapon is gated by tier alone. Normalized lowercase.
+	WeaponCategory string
+	// ProficiencyTier is the weapon's proficiency tier (weapon-identity §2)
+	// from the engine tier vocabulary (simple/martial/exotic). Empty means
+	// "untiered" — treated as the lowest tier (universally proficient, §3).
+	// Validated at pack load; normalized lowercase.
+	ProficiencyTier string
+	// DamageTypes are the weapon's damage type(s) (weapon-identity §2) from
+	// the fixed bludgeoning/piercing/slashing set. nil means untyped.
+	// Recorded only — inert until armor depth. Validated at pack load;
+	// normalized lowercase.
+	DamageTypes []string
 }
 
 // Errors callers may distinguish at the boundary.

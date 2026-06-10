@@ -79,6 +79,15 @@ type ItemFile struct {
 	// are validated against the registry in a boot post-pass.
 	EligibleSlots  []string `yaml:"eligible_slots,omitempty"`
 	CompanionSlots []string `yaml:"companion_slots,omitempty"`
+	// Weapon identity (weapon-identity §2). All optional. weapon_category
+	// is an opaque kind; proficiency_tier validates against the engine
+	// tier vocabulary (simple/martial/exotic); damage_types validate
+	// against the fixed bludgeoning/piercing/slashing set. An absent tier
+	// is "untiered" (treated as the lowest tier, §3); absent types are
+	// untyped.
+	WeaponCategory  string   `yaml:"weapon_category,omitempty"`
+	ProficiencyTier string   `yaml:"proficiency_tier,omitempty"`
+	DamageTypes     []string `yaml:"damage_types,omitempty"`
 }
 
 // ModifierFile is one entry of an ItemFile.Modifiers list.
