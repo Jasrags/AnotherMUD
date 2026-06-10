@@ -1,0 +1,22 @@
+name: wot
+version: "0.1.0"
+description: |
+  The Wheel of Time world pack — the Two Rivers and outward
+  (docs/themes/wot-world-plan.md). Original room/NPC prose set in the licensed
+  WoT world (a non-commercial fan project); it uses factual geography and place
+  names, never reproduced book text.
+
+  Depends on the tapestry-core engine baseline (races, classes, slots, effects,
+  abilities, channels, emotes). Boot it in place of the demo world with:
+    ANOTHERMUD_PACKS=wot ANOTHERMUD_START_ROOM=wot:emonds-field-green
+
+  M0.5 stub: a single placeholder room (the Emond's Field green) that proves
+  the {tapestry-core, wot} boot-swap end to end. The real village, the Two
+  Rivers wilds, and the wider Westlands land in M1+.
+dependencies:
+  tapestry-core: "*"
+content:
+  areas:
+    - areas/*.yaml
+  rooms:
+    - rooms/*.yaml
