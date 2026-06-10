@@ -158,8 +158,11 @@ The [[wot-setting-plan]] prerequisite. Make settings boot-selectable:
 - **M0.3** Move baseline **channels + emotes** from `main.go` into `core` pack
   YAML (already flagged M13.6b/M13.7b). Keep slots/biomes baselines **locked**
   for v1 (WoT lives with them).
-- **M0.4** Centralize the engine tag/reserved-property **vocabulary** into one
-  documented reference so `wot` authors know the contract.
+- **M0.4** ✅ Centralize the engine tag/reserved-property **vocabulary** into one
+  documented reference (`docs/ENGINE-VOCABULARY.md`) so `wot` authors know the
+  contract — reserved room/item properties (room props are registry-validated,
+  item props free-form), engine tags, and the namespaced-vs-bare-global id
+  collision rules. Linked from the PRIMER.
 - **M0.5** Stand up an empty `content/wot` (manifest, `dependencies:{core}`) +
   prove `{core, wot}` boots into a single placeholder WoT room.
 - Acceptance: `{core, starter-world}` boots the demo unchanged; `{core, wot}`

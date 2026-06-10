@@ -43,6 +43,10 @@ It has a (now-stale-named) heritage: an earlier C#/.NET incarnation called
 from. The engine namespace in content is `tapestry-core` — treat that string as
 a placeholder, not a setting.
 
+When **authoring content**, the engine↔content contract — the reserved tags,
+property keys, and id-namespacing rules a pack writes against — is catalogued in
+`docs/ENGINE-VOCABULARY.md`.
+
 **Maturity:** the engine is well past prototype. Milestones M0–M17 are complete,
 including five cross-cutting "themes" (social, modern-client/GMCP, world-depth,
 content-authoring/scripting, engine-debt). M18 (small command/UI polish) is in
