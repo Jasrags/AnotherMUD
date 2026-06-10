@@ -427,6 +427,28 @@ func (a *testActor) SetRoom(r *world.Room) {
 	a.room = r
 }
 
+// AreaTransition makes testActor satisfy command.AreaTracker (the single
+// atomic method the banner now calls), mirroring connActor's semantics
+// over the fake's own fields. The concrete LastAreaSeen/SetLastAreaSeen/
+// HasSeenArea/MarkAreaSeen below remain as test setup/assertion helpers.
+func (a *testActor) AreaTransition(newArea world.AreaID) (prev world.AreaID, changed, firstEntry bool) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	prev = a.lastArea
+	if prev == newArea {
+		return prev, false, false
+	}
+	a.lastArea = newArea
+	if a.seenAreas == nil {
+		a.seenAreas = make(map[world.AreaID]struct{})
+	}
+	if _, seen := a.seenAreas[newArea]; seen {
+		return prev, true, false
+	}
+	a.seenAreas[newArea] = struct{}{}
+	return prev, true, true
+}
+
 // LastAreaSeen / SetLastAreaSeen make testActor satisfy
 // command.AreaTracker so the area-transition zone-line (player-maps §4)
 // can be exercised through the movement handlers.

@@ -2,6 +2,7 @@ package session
 
 import (
 	"reflect"
+	"sync"
 	"testing"
 
 	"github.com/Jasrags/AnotherMUD/internal/player"
@@ -83,6 +84,103 @@ func TestSeenAreas_MarkAndQuery(t *testing.T) {
 	}
 	if len(a.save.SeenAreas) != 1 {
 		t.Errorf("save.SeenAreas grew on repeat: %v", a.save.SeenAreas)
+	}
+}
+
+// AreaTransition folds the LastAreaSeen/SetLastAreaSeen/HasSeenArea/
+// MarkAreaSeen check-then-act into one critical section. It must report
+// the same crossing/first-entry decisions the four separate accessors
+// did, and mutate atomically.
+func TestAreaTransition_Decisions(t *testing.T) {
+	a := &connActor{save: &player.Save{ID: "p-t", Name: "Crosser"}}
+
+	// First render: no prior area, entering "village" for the first time.
+	prev, changed, first := a.AreaTransition("village")
+	if prev != "" || !changed || !first {
+		t.Errorf("first render = (%q, %v, %v), want (\"\", true, true)", prev, changed, first)
+	}
+	if !a.dirty || !reflect.DeepEqual(a.save.SeenAreas, []string{"village"}) {
+		t.Errorf("first entry should persist+dirty; SeenAreas=%v dirty=%v", a.save.SeenAreas, a.dirty)
+	}
+
+	// Intra-area render (same area): no change, no mutation.
+	a.dirty = false
+	prev, changed, first = a.AreaTransition("village")
+	if prev != "village" || changed || first {
+		t.Errorf("same-area = (%q, %v, %v), want (\"village\", false, false)", prev, changed, first)
+	}
+	if a.dirty {
+		t.Error("an intra-area render must not dirty the save")
+	}
+
+	// Cross to a new area: changed, first-entry, from = village.
+	prev, changed, first = a.AreaTransition("wild")
+	if prev != "village" || !changed || !first {
+		t.Errorf("cross to new area = (%q, %v, %v), want (\"village\", true, true)", prev, changed, first)
+	}
+
+	// Cross back to an already-seen area: changed but NOT first-entry, and
+	// no duplicate append.
+	a.dirty = false
+	prev, changed, first = a.AreaTransition("village")
+	if prev != "wild" || !changed || first {
+		t.Errorf("cross to seen area = (%q, %v, %v), want (\"wild\", true, false)", prev, changed, first)
+	}
+	if a.dirty {
+		t.Error("re-entering a seen area must not dirty the save")
+	}
+	if want := []string{"village", "wild"}; !reflect.DeepEqual(a.save.SeenAreas, want) {
+		t.Errorf("SeenAreas = %v, want %v (no duplicate)", a.save.SeenAreas, want)
+	}
+}
+
+// An ephemeral actor (no save) still reports crossings and first-entry
+// (nothing persists), matching the old HasSeenArea==false path, and never
+// panics.
+func TestAreaTransition_NilSave(t *testing.T) {
+	a := &connActor{}
+	prev, changed, first := a.AreaTransition("wild")
+	if prev != "" || !changed || !first {
+		t.Errorf("nil-save cross = (%q, %v, %v), want (\"\", true, true)", prev, changed, first)
+	}
+}
+
+// AreaTransition is the atomic replacement for the four-accessor
+// check-then-act: concurrent crossings into the same new area must yield
+// exactly one first-entry and append the area exactly once (no
+// double-fire). Run under -race.
+func TestAreaTransition_ConcurrentFirstEntryIsOnce(t *testing.T) {
+	a := &connActor{save: &player.Save{ID: "p-c", Name: "Racer"}}
+
+	const n = 16
+	var wg sync.WaitGroup
+	var mu sync.Mutex
+	changedCount, firstCount := 0, 0
+	wg.Add(n)
+	for i := 0; i < n; i++ {
+		go func() {
+			defer wg.Done()
+			_, changed, first := a.AreaTransition("wild")
+			mu.Lock()
+			if changed {
+				changedCount++
+			}
+			if first {
+				firstCount++
+			}
+			mu.Unlock()
+		}()
+	}
+	wg.Wait()
+
+	if changedCount != 1 {
+		t.Errorf("changed fired %d times, want exactly 1 (the winning crossing)", changedCount)
+	}
+	if firstCount != 1 {
+		t.Errorf("first-entry fired %d times, want exactly 1", firstCount)
+	}
+	if want := []string{"wild"}; !reflect.DeepEqual(a.save.SeenAreas, want) {
+		t.Errorf("SeenAreas = %v, want %v (no double append)", a.save.SeenAreas, want)
 	}
 }
 

@@ -158,6 +158,55 @@ func (a *connActor) SetLastAreaSeen(id world.AreaID) {
 	a.lastAreaSeen = id
 }
 
+// AreaTransition atomically records newArea as the actor's last-seen area
+// and reports the area-transition decision the command layer needs to
+// render a crossing (player-maps §4). It folds what were four separate,
+// individually-locked accessor calls (LastAreaSeen → SetLastAreaSeen →
+// HasSeenArea → MarkAreaSeen) into one a.mu critical section so the
+// check-then-act cannot interleave with a concurrent render of the same
+// actor — closing the window in which two goroutines could both observe
+// "not yet seen" and double-fire the first-entry banner / double-append
+// SeenAreas. Returns:
+//   - prev: the area the actor was last shown (empty before the first
+//     render — there is no "from" to narrate);
+//   - changed: false for an intra-area render (a look or an intra-area
+//     step), in which case nothing is mutated;
+//   - firstEntry: true the first time the character ever enters newArea,
+//     which (for a saved actor with a non-empty id) persists newArea in
+//     the seen-area set and dirties the save as a side effect.
+//
+// Behavior matches the old four-call sequence exactly, including the
+// no-save case (every crossing reads as a first entry because nothing
+// persists) and the empty-id case (reported as a first entry but never
+// persisted), so it is a faithful, lock-correct drop-in.
+func (a *connActor) AreaTransition(newArea world.AreaID) (prev world.AreaID, changed, firstEntry bool) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+
+	prev = a.lastAreaSeen
+	if prev == newArea {
+		return prev, false, false // same area: a look, or an intra-area step
+	}
+	a.lastAreaSeen = newArea
+
+	// firstEntry mirrors !HasSeenArea (a save-less actor never persists, so
+	// every crossing reads as not-yet-seen); persistence mirrors
+	// MarkAreaSeen (guarded by save != nil and a non-empty id).
+	if a.save == nil {
+		return prev, true, true
+	}
+	a.ensureSeenAreasLocked()
+	if _, seen := a.seenAreas[newArea]; seen {
+		return prev, true, false
+	}
+	if newArea != "" {
+		a.seenAreas[newArea] = struct{}{}
+		a.save.SeenAreas = append(a.save.SeenAreas, string(newArea))
+		a.markDirtyLocked()
+	}
+	return prev, true, true
+}
+
 // MinimapSize reports the persisted active-minimap size preset
 // (player-maps §4): "auto"/"small"/"medium"/"large". Returns "auto"
 // for an actor with no save or an unset preference, so the resolver

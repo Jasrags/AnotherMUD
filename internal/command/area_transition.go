@@ -10,19 +10,18 @@ import (
 )
 
 // AreaTracker is the optional actor capability that drives area-
-// transition messaging (player-maps §4):
-//   - LastAreaSeen/SetLastAreaSeen — the session-scoped area the actor
-//     was last shown, the "from" of the leave/enter zone-line (A2).
-//   - HasSeenArea/MarkAreaSeen — the persisted set of areas ever
-//     entered, gating the once-ever first-entry banner (B1).
-//
-// An actor that does not implement it (test fakes) gets no transition
-// lines.
+// transition messaging (player-maps §4). The single AreaTransition call
+// atomically records the new area as last-seen and reports the crossing
+// decision: prev (the "from" of the leave/enter zone-line, A2; empty
+// before the first render), changed (false for an intra-area render —
+// nothing mutated), and firstEntry (true the once-ever first time the
+// character enters newArea, gating the first-entry banner B1). Folding the
+// read-modify-write into one call keeps the "detect once per crossing"
+// decision atomic in the actor, where its lock lives — the command layer
+// only builds strings from the result. An actor that does not implement
+// it (test fakes without the capability) gets no transition lines.
 type AreaTracker interface {
-	LastAreaSeen() world.AreaID
-	SetLastAreaSeen(world.AreaID)
-	HasSeenArea(world.AreaID) bool
-	MarkAreaSeen(world.AreaID)
+	AreaTransition(newArea world.AreaID) (prev world.AreaID, changed, firstEntry bool)
 }
 
 // FirstEntryBanner is the once-ever "new territory" line shown the first
@@ -65,11 +64,12 @@ func (c *Context) areaTransitionBanner(r *world.Room) string {
 		return ""
 	}
 	newArea := r.AreaID
-	prev := at.LastAreaSeen()
-	if prev == newArea {
+	// One atomic call does the whole detect-once-per-crossing decision; the
+	// command layer only renders the result.
+	prev, changed, firstEntry := at.AreaTransition(newArea)
+	if !changed {
 		return "" // same area: a look, or an intra-area step
 	}
-	at.SetLastAreaSeen(newArea)
 
 	var lines []string
 	// A2: leave/enter zone-line — only when there is a "from" (not the
@@ -78,10 +78,9 @@ func (c *Context) areaTransitionBanner(r *world.Room) string {
 		lines = append(lines, fmt.Sprintf("<subtle>You leave</subtle> %s <subtle>and enter</subtle> %s<subtle>.</subtle>",
 			c.areaName(prev), c.areaName(newArea)))
 	}
-	// B1: once-ever first-entry banner, below the zone-line. Marking the
-	// area seen persists, so it fires exactly once per area ever.
-	if !at.HasSeenArea(newArea) {
-		at.MarkAreaSeen(newArea)
+	// B1: once-ever first-entry banner, below the zone-line. AreaTransition
+	// already persisted the seen-area set, so this fires exactly once ever.
+	if firstEntry {
 		lines = append(lines, FirstEntryBanner(c.areaName(newArea)))
 	}
 	return strings.Join(lines, "\n")
