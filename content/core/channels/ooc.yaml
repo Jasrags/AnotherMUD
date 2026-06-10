@@ -1,0 +1,11 @@
+# The out-of-character chat channel (chat-channels-and-tells §3) — the engine
+# baseline public channel every character is tuned to. Lives in the core
+# baseline pack so any world (the demo, wot, …) inherits a working global
+# channel. A world pack may add its own channels from its `channels:` glob;
+# ids + display-names must not collide with this one.
+id: ooc
+display_name: ooc
+kind: public
+default_on: true
+persisted: true
+buffer_cap: 100

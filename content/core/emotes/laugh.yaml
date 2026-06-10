@@ -1,0 +1,10 @@
+# Engine baseline emote (emotes.md §2). $n = actor, $N = target.
+id: laugh
+display_name: laugh
+no_target:
+  actor: You laugh.
+  room: $n laughs.
+targeted:
+  actor: You laugh at $N.
+  target: $n laughs at you.
+  room: $n laughs at $N.

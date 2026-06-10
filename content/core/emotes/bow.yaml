@@ -1,0 +1,10 @@
+# Engine baseline emote (emotes.md §2). $n = actor, $N = target.
+id: bow
+display_name: bow
+no_target:
+  actor: You bow deeply.
+  room: $n bows deeply.
+targeted:
+  actor: You bow to $N.
+  target: $n bows to you.
+  room: $n bows to $N.

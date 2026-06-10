@@ -30,3 +30,7 @@ content:
     - theme/*.yaml
   help:
     - help/*.yaml
+  channels:
+    - channels/*.yaml
+  emotes:
+    - emotes/*.yaml

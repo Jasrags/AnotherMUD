@@ -746,3 +746,40 @@ type OutputFile struct {
 	Template string `yaml:"template"`
 	Quantity int    `yaml:"quantity,omitempty"`
 }
+
+// ChannelFile is the YAML shape of a chat-channel definition
+// (chat-channels-and-tells §3). ID is namespace-qualified at load;
+// DisplayName is the player-typed verb. Kind defaults to "public" when
+// omitted; BufferCap 0 means the registry default. SpeakGate/ListenGate
+// are role-tag sets for gated channels (read but not enforced in v1).
+type ChannelFile struct {
+	ID          string   `yaml:"id"`
+	DisplayName string   `yaml:"display_name"`
+	Kind        string   `yaml:"kind,omitempty"`
+	DefaultOn   bool     `yaml:"default_on,omitempty"`
+	Persisted   bool     `yaml:"persisted,omitempty"`
+	BufferCap   int      `yaml:"buffer_cap,omitempty"`
+	SpeakGate   []string `yaml:"speak_gate,omitempty"`
+	ListenGate  []string `yaml:"listen_gate,omitempty"`
+}
+
+// EmoteFile is the YAML shape of a social-emote definition (emotes.md §2).
+// ID is namespace-qualified at load; DisplayName is the verb. NoTarget is
+// required unless RequiresTarget is set; Targeted is always required. Each
+// view block carries actor/target/room templates ($n = actor, $N = target).
+type EmoteFile struct {
+	ID             string        `yaml:"id"`
+	DisplayName    string        `yaml:"display_name"`
+	Aliases        []string      `yaml:"aliases,omitempty"`
+	RequiresTarget bool          `yaml:"requires_target,omitempty"`
+	NoTarget       EmoteViewFile `yaml:"no_target,omitempty"`
+	Targeted       EmoteViewFile `yaml:"targeted"`
+}
+
+// EmoteViewFile is one view block in an EmoteFile: the actor's line, the
+// target's line (targeted forms only), and the third-person room line.
+type EmoteViewFile struct {
+	Actor  string `yaml:"actor,omitempty"`
+	Target string `yaml:"target,omitempty"`
+	Room   string `yaml:"room,omitempty"`
+}

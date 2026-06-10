@@ -1,0 +1,12 @@
+# Engine baseline emote (emotes.md §2). Lives in the core baseline pack so
+# every world inherits the standard social verbs. $n = the actor, $N = the
+# target. A world pack may add its own emotes; ids + verbs must not collide.
+id: smile
+display_name: smile
+no_target:
+  actor: You smile.
+  room: $n smiles.
+targeted:
+  actor: You smile at $N.
+  target: $n smiles at you.
+  room: $n smiles at $N.

@@ -117,6 +117,14 @@ type ContentPaths struct {
 	// are namespace-qualified at load.
 	NodeTemplates   []string `yaml:"node_templates,omitempty"`
 	NodeSpawnTables []string `yaml:"node_spawn_tables,omitempty"`
+	// Channels are chat-channel definitions (chat-channels-and-tells
+	// §3). Loaded into Registries.Channels; the engine baseline (ooc)
+	// ships in the core pack. Ids are namespace-qualified at load.
+	Channels []string `yaml:"channels,omitempty"`
+	// Emotes are social-emote definitions (emotes.md §2). Loaded into
+	// Registries.Emotes; the engine baseline (smile/nod/…) ships in the
+	// core pack. Ids are namespace-qualified at load.
+	Emotes []string `yaml:"emotes,omitempty"`
 	// Scripts are Lua source files discovered by the M17.1b
 	// loader. Each path glob expands relative to the pack
 	// directory (e.g. `scripts/*.lua`). The loader compiles

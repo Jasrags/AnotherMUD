@@ -1,0 +1,10 @@
+# Engine baseline emote (emotes.md §2). $n = actor, $N = target.
+id: nod
+display_name: nod
+no_target:
+  actor: You nod.
+  room: $n nods.
+targeted:
+  actor: You nod to $N.
+  target: $n nods to you.
+  room: $n nods to $N.

@@ -12,9 +12,11 @@ import (
 	"strings"
 
 	"github.com/Jasrags/AnotherMUD/internal/biome"
+	"github.com/Jasrags/AnotherMUD/internal/chat"
 	"github.com/Jasrags/AnotherMUD/internal/combat"
 	"github.com/Jasrags/AnotherMUD/internal/decoration"
 	"github.com/Jasrags/AnotherMUD/internal/effect"
+	"github.com/Jasrags/AnotherMUD/internal/emote"
 	"github.com/Jasrags/AnotherMUD/internal/gathering"
 	"github.com/Jasrags/AnotherMUD/internal/help"
 	"github.com/Jasrags/AnotherMUD/internal/item"
@@ -521,6 +523,14 @@ func loadPackContent(ctx context.Context, p Discovered, dst *Registries, scriptC
 	if err != nil {
 		return nil, nil, err
 	}
+	channelPaths, err := resolveGlobs(p.Dir, p.Manifest.Content.Channels)
+	if err != nil {
+		return nil, nil, err
+	}
+	emotePaths, err := resolveGlobs(p.Dir, p.Manifest.Content.Emotes)
+	if err != nil {
+		return nil, nil, err
+	}
 
 	// M17.1b: discover, compile-check, and register pack scripts.
 	// Compile-check at boot is the cheapest place to surface a syntax
@@ -897,6 +907,35 @@ func loadPackContent(ctx context.Context, p Discovered, dst *Registries, scriptC
 		}
 	}
 
+	// Channels (chat-channels-and-tells §3): namespace-qualify the id, then
+	// register. A duplicate id or display-name collision across packs is a
+	// loud error (the registry rejects it), same as item/recipe id clashes.
+	for _, cp := range channelPaths {
+		ch, err := decodeChannel(cp, ns)
+		if err != nil {
+			return nil, nil, err
+		}
+		if dst.Channels != nil {
+			if err := dst.Channels.Register(ch); err != nil {
+				return nil, nil, fmt.Errorf("%w (in %s)", err, cp)
+			}
+		}
+	}
+
+	// Emotes (emotes.md §2): namespace-qualify the id, then register. A
+	// duplicate id or verb/alias collision across packs is a loud error.
+	for _, ep := range emotePaths {
+		em, err := decodeEmote(ep, ns)
+		if err != nil {
+			return nil, nil, err
+		}
+		if dst.Emotes != nil {
+			if err := dst.Emotes.Register(em); err != nil {
+				return nil, nil, fmt.Errorf("%w (in %s)", err, ep)
+			}
+		}
+	}
+
 	// Help: per-pack topics (spec ui-rendering-help §9.2). Topics are
 	// registered with the pack's load order so a higher-order pack can
 	// override an upstream topic. PackName is the pack namespace so the
@@ -981,6 +1020,8 @@ func loadPackContent(ctx context.Context, p Discovered, dst *Registries, scriptC
 		slog.Int("forage_tables", len(foragePaths)),
 		slog.Int("node_templates", len(nodePaths)),
 		slog.Int("node_spawn_tables", len(nodeSpawnPaths)),
+		slog.Int("channels", len(channelPaths)),
+		slog.Int("emotes", len(emotePaths)),
 		slog.Int("placements", len(placements)),
 		slog.Int("mob_placements", len(mobPlacements)),
 	)
@@ -2429,6 +2470,94 @@ func qualifyID(id, ns string) (string, error) {
 		return lhs + ":" + rhs, nil
 	}
 	return ns + ":" + id, nil
+}
+
+// decodeChannel reads a ChannelFile and builds a chat.Channel
+// (chat-channels-and-tells §3). Required: id, display_name. The id is
+// namespace-qualified; kind defaults to public and must be public or gated.
+func decodeChannel(path, ns string) (chat.Channel, error) {
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		return chat.Channel{}, fmt.Errorf("reading channel %s: %w", path, err)
+	}
+	var f ChannelFile
+	if err := yaml.Unmarshal(raw, &f); err != nil {
+		return chat.Channel{}, fmt.Errorf("%w: %s: %v", ErrInvalidContent, path, err)
+	}
+	if strings.TrimSpace(f.ID) == "" {
+		return chat.Channel{}, fmt.Errorf("%w: %s: missing 'id'", ErrInvalidContent, path)
+	}
+	if strings.TrimSpace(f.DisplayName) == "" {
+		return chat.Channel{}, fmt.Errorf("%w: %s: missing 'display_name'", ErrInvalidContent, path)
+	}
+	if f.BufferCap < 0 {
+		return chat.Channel{}, fmt.Errorf("%w: %s: buffer_cap must be >= 0", ErrInvalidContent, path)
+	}
+	kind := chat.KindPublic
+	if k := strings.ToLower(strings.TrimSpace(f.Kind)); k != "" {
+		switch chat.Kind(k) {
+		case chat.KindPublic, chat.KindGated:
+			kind = chat.Kind(k)
+		default:
+			return chat.Channel{}, fmt.Errorf("%w: %s: unknown kind %q (want public or gated)",
+				ErrInvalidContent, path, f.Kind)
+		}
+	}
+	id, err := qualifyID(f.ID, ns)
+	if err != nil {
+		return chat.Channel{}, fmt.Errorf("%w: %s: %v", ErrInvalidContent, path, err)
+	}
+	return chat.Channel{
+		ID:          id,
+		DisplayName: strings.TrimSpace(f.DisplayName),
+		Kind:        kind,
+		DefaultOn:   f.DefaultOn,
+		Persisted:   f.Persisted,
+		BufferCap:   f.BufferCap,
+		SpeakGate:   f.SpeakGate,
+		ListenGate:  f.ListenGate,
+	}, nil
+}
+
+// decodeEmote reads an EmoteFile and builds an emote.Emote (emotes.md §2).
+// Required: id, display_name. The id is namespace-qualified. View-shape
+// validity (NoTarget required unless RequiresTarget; Targeted required) is
+// enforced by emote.Registry.Register via Emote.Validate at registration.
+func decodeEmote(path, ns string) (emote.Emote, error) {
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		return emote.Emote{}, fmt.Errorf("reading emote %s: %w", path, err)
+	}
+	var f EmoteFile
+	if err := yaml.Unmarshal(raw, &f); err != nil {
+		return emote.Emote{}, fmt.Errorf("%w: %s: %v", ErrInvalidContent, path, err)
+	}
+	if strings.TrimSpace(f.ID) == "" {
+		return emote.Emote{}, fmt.Errorf("%w: %s: missing 'id'", ErrInvalidContent, path)
+	}
+	if strings.TrimSpace(f.DisplayName) == "" {
+		return emote.Emote{}, fmt.Errorf("%w: %s: missing 'display_name'", ErrInvalidContent, path)
+	}
+	id, err := qualifyID(f.ID, ns)
+	if err != nil {
+		return emote.Emote{}, fmt.Errorf("%w: %s: %v", ErrInvalidContent, path, err)
+	}
+	return emote.Emote{
+		ID:             id,
+		DisplayName:    strings.TrimSpace(f.DisplayName),
+		Aliases:        f.Aliases,
+		RequiresTarget: f.RequiresTarget,
+		NoTarget: emote.View{
+			ActorView:  f.NoTarget.Actor,
+			TargetView: f.NoTarget.Target,
+			RoomView:   f.NoTarget.Room,
+		},
+		Targeted: emote.View{
+			ActorView:  f.Targeted.Actor,
+			TargetView: f.Targeted.Target,
+			RoomView:   f.Targeted.Room,
+		},
+	}, nil
 }
 
 // decodeRecipe reads a RecipeFile and builds a recipe.Recipe

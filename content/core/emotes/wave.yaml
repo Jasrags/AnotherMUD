@@ -1,0 +1,10 @@
+# Engine baseline emote (emotes.md §2). $n = actor, $N = target.
+id: wave
+display_name: wave
+no_target:
+  actor: You wave.
+  room: $n waves.
+targeted:
+  actor: You wave to $N.
+  target: $n waves to you.
+  room: $n waves to $N.

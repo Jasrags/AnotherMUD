@@ -2,8 +2,10 @@ package pack
 
 import (
 	"github.com/Jasrags/AnotherMUD/internal/biome"
+	"github.com/Jasrags/AnotherMUD/internal/chat"
 	"github.com/Jasrags/AnotherMUD/internal/decoration"
 	"github.com/Jasrags/AnotherMUD/internal/effect"
+	"github.com/Jasrags/AnotherMUD/internal/emote"
 	"github.com/Jasrags/AnotherMUD/internal/gathering"
 	"github.com/Jasrags/AnotherMUD/internal/help"
 	"github.com/Jasrags/AnotherMUD/internal/item"
@@ -103,6 +105,16 @@ type Registries struct {
 	// spawn table into area spawn rules; the `harvest` verb reads node
 	// templates. Ids + refs are namespace-qualified at load.
 	Nodes *gathering.NodeRegistry
+	// Channels is the chat-channel registry (chat-channels-and-tells §3).
+	// Packs register channels from their `channels:` glob; the engine
+	// baseline (ooc) ships in the core pack. main derives per-channel verbs
+	// + scrollbacks from it. Ids are namespace-qualified at load.
+	Channels *chat.Registry
+	// Emotes is the social-emote registry (emotes.md §2). Packs register
+	// emotes from their `emotes:` glob; the engine baseline (smile/nod/…)
+	// ships in the core pack. main derives per-emote verbs (+ aliases) from
+	// it. Ids are namespace-qualified at load.
+	Emotes *emote.Registry
 }
 
 // NewRegistries returns a Registries with every field initialized.
@@ -134,5 +146,7 @@ func NewRegistries() *Registries {
 		Biomes:       biome.NewRegistry(),
 		ForageTables: gathering.NewForageRegistry(),
 		Nodes:        gathering.NewNodeRegistry(),
+		Channels:     chat.NewRegistry(),
+		Emotes:       emote.NewRegistry(),
 	}
 }

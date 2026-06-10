@@ -1,0 +1,10 @@
+# Engine baseline emote (emotes.md §2). $n = actor, $N = target.
+id: shrug
+display_name: shrug
+no_target:
+  actor: You shrug.
+  room: $n shrugs.
+targeted:
+  actor: You shrug at $N.
+  target: $n shrugs at you.
+  room: $n shrugs at $N.

@@ -36,7 +36,6 @@ import (
 	"github.com/Jasrags/AnotherMUD/internal/corpse"
 	"github.com/Jasrags/AnotherMUD/internal/crafting"
 	"github.com/Jasrags/AnotherMUD/internal/economy"
-	"github.com/Jasrags/AnotherMUD/internal/emote"
 	"github.com/Jasrags/AnotherMUD/internal/entities"
 	"github.com/Jasrags/AnotherMUD/internal/eventbus"
 	"github.com/Jasrags/AnotherMUD/internal/gameclock"
@@ -295,15 +294,23 @@ func run() error {
 	// are registered programmatically in v1; the pack-loaded
 	// content path (content/core/channels/*.yaml) lands in M13.6b.
 	// Per-channel scrollback is in-memory only for now.
-	chatRegistry := chat.NewRegistry()
+	// Channels are pack content (loaded by pack.Load above into
+	// registries.Channels; the engine baseline `ooc` ships in the core
+	// pack). Per-channel scrollbacks are derived here from the registry;
+	// scrollback persistence is in-memory only for now.
+	chatRegistry := registries.Channels
 	chatScrollbacks := make(map[string]*chat.Scrollback)
-	registerBaselineChannels(chatRegistry, chatScrollbacks)
 	subscribers := chatSubscribers{mgr: mgr}
 	scrollbackLookup := chatScrollbackLookup{m: chatScrollbacks}
-	// Per-channel verbs are registered now so chat.Registry.All()
-	// drives the command surface; missing here would mean a
-	// configured channel has no verb.
+	// Per-channel verbs + scrollbacks are registered now so chat.Registry.All()
+	// drives the command surface; missing here would mean a configured channel
+	// has no verb.
 	for _, ch := range chatRegistry.All() {
+		cap := ch.BufferCap
+		if cap <= 0 {
+			cap = chat.DefaultBufferCap
+		}
+		chatScrollbacks[ch.ID] = chat.NewScrollback(cap)
 		if err := cmds.Register(ch.DisplayName, command.MakeChannelHandler(ch)); err != nil {
 			return fmt.Errorf("register channel verb %q: %w", ch.DisplayName, err)
 		}
@@ -312,8 +319,10 @@ func run() error {
 	// M13.7: emote registry + engine baseline. Like channels, the
 	// pack-loaded YAML path is M13.7b. Per-emote verbs (and any
 	// declared aliases) register into the command registry now.
-	emoteRegistry := emote.NewRegistry()
-	registerBaselineEmotes(emoteRegistry)
+	// Emotes are pack content too (registries.Emotes; the smile/nod/…
+	// baseline ships in the core pack). Per-emote verbs (+ aliases) register
+	// into the command registry now.
+	emoteRegistry := registries.Emotes
 	for _, e := range emoteRegistry.All() {
 		handler := command.MakeEmoteHandler(e)
 		if err := cmds.Register(e.DisplayName, handler); err != nil {
@@ -2106,16 +2115,16 @@ func loadConfig() config {
 		// world pack(s); the loader auto-includes their dependency closure, so
 		// `ANOTHERMUD_PACKS=wot` pulls in tapestry-core too. Use this to boot
 		// one setting in place of another (e.g. starter-world vs wot).
-		Packs:    envCSVOr("ANOTHERMUD_PACKS", nil),
-		SaveDir:  envOr("ANOTHERMUD_SAVE_DIR", "./saves"),
-		StartRoom:               world.RoomID(envOr("ANOTHERMUD_START_ROOM", "starter-world:town-square")),
-		DefaultRace:             envOr("ANOTHERMUD_DEFAULT_RACE", "human"),
-		DefaultXPTrack:          envOr("ANOTHERMUD_DEFAULT_XP_TRACK", command.DefaultXPTrack),
-		RoleSeed:                parseRoleSeed(envOr("ANOTHERMUD_ROLE_SEED", "")),
-		GrantingRole:            strings.ToLower(strings.TrimSpace(envOr("ANOTHERMUD_GRANTING_ROLE", "admin"))),
-		AdminRole:               strings.ToLower(strings.TrimSpace(envOr("ANOTHERMUD_ADMIN_ROLE", "admin"))),
-		ColorDefault:            colorDefault(),
-		LinkDead:                ld,
+		Packs:          envCSVOr("ANOTHERMUD_PACKS", nil),
+		SaveDir:        envOr("ANOTHERMUD_SAVE_DIR", "./saves"),
+		StartRoom:      world.RoomID(envOr("ANOTHERMUD_START_ROOM", "starter-world:town-square")),
+		DefaultRace:    envOr("ANOTHERMUD_DEFAULT_RACE", "human"),
+		DefaultXPTrack: envOr("ANOTHERMUD_DEFAULT_XP_TRACK", command.DefaultXPTrack),
+		RoleSeed:       parseRoleSeed(envOr("ANOTHERMUD_ROLE_SEED", "")),
+		GrantingRole:   strings.ToLower(strings.TrimSpace(envOr("ANOTHERMUD_GRANTING_ROLE", "admin"))),
+		AdminRole:      strings.ToLower(strings.TrimSpace(envOr("ANOTHERMUD_ADMIN_ROLE", "admin"))),
+		ColorDefault:   colorDefault(),
+		LinkDead:       ld,
 	}
 }
 
@@ -3555,37 +3564,6 @@ func newLogger(cfg config) *slog.Logger {
 	return slog.New(h)
 }
 
-// registerBaselineChannels populates the engine baseline channel
-// set. v1 ships ooc only; admin lands when the role-tag system
-// is fully real (M10+). Per spec §3.1 (resolved 2026-05-30) the
-// channels live under the engine namespace; the YAML loader that
-// would also place admin/etc. lands in M13.6b.
-func registerBaselineChannels(reg *chat.Registry, scrollbacks map[string]*chat.Scrollback) {
-	baseline := []chat.Channel{
-		{
-			ID:          "tapestry-core:ooc",
-			DisplayName: "ooc",
-			Kind:        chat.KindPublic,
-			DefaultOn:   true,
-			Persisted:   true,
-			BufferCap:   100,
-		},
-	}
-	for _, ch := range baseline {
-		if err := reg.Register(ch); err != nil {
-			// Baseline collisions would be a coding bug, not a
-			// runtime condition. Panic at boot makes the failure
-			// loud rather than silently dropping a channel.
-			panic(fmt.Sprintf("baseline channel %q: %v", ch.ID, err))
-		}
-		cap := ch.BufferCap
-		if cap <= 0 {
-			cap = chat.DefaultBufferCap
-		}
-		scrollbacks[ch.ID] = chat.NewScrollback(cap)
-	}
-}
-
 // chatSubscribers adapts session.Manager to command.ChatSubscribers.
 // v1: every online player is subscribed to every channel — the
 // channelID argument is intentionally ignored. M13.6b will read
@@ -3643,103 +3621,6 @@ func portalEventOf(p portal.Portal) eventbus.PortalEvent {
 		DisplayName: p.DisplayName,
 		ExpiryTick:  p.ExpiryTick,
 		PairedID:    p.PairedID,
-	}
-}
-
-// registerBaselineEmotes seeds the engine emote set. Per spec §8 the
-// minimum baseline is smile/nod/wave/bow/grin/shrug/laugh; v1 ships
-// the full set here. M13.7b moves these into pack content YAML.
-func registerBaselineEmotes(reg *emote.Registry) {
-	baseline := []emote.Emote{
-		{
-			ID: "tapestry-core:smile", DisplayName: "smile",
-			NoTarget: emote.View{
-				ActorView: "You smile.",
-				RoomView:  "$n smiles.",
-			},
-			Targeted: emote.View{
-				ActorView:  "You smile at $N.",
-				TargetView: "$n smiles at you.",
-				RoomView:   "$n smiles at $N.",
-			},
-		},
-		{
-			ID: "tapestry-core:nod", DisplayName: "nod",
-			NoTarget: emote.View{
-				ActorView: "You nod.",
-				RoomView:  "$n nods.",
-			},
-			Targeted: emote.View{
-				ActorView:  "You nod to $N.",
-				TargetView: "$n nods to you.",
-				RoomView:   "$n nods to $N.",
-			},
-		},
-		{
-			ID: "tapestry-core:wave", DisplayName: "wave",
-			NoTarget: emote.View{
-				ActorView: "You wave.",
-				RoomView:  "$n waves.",
-			},
-			Targeted: emote.View{
-				ActorView:  "You wave to $N.",
-				TargetView: "$n waves to you.",
-				RoomView:   "$n waves to $N.",
-			},
-		},
-		{
-			ID: "tapestry-core:bow", DisplayName: "bow",
-			NoTarget: emote.View{
-				ActorView: "You bow deeply.",
-				RoomView:  "$n bows deeply.",
-			},
-			Targeted: emote.View{
-				ActorView:  "You bow to $N.",
-				TargetView: "$n bows to you.",
-				RoomView:   "$n bows to $N.",
-			},
-		},
-		{
-			ID: "tapestry-core:grin", DisplayName: "grin",
-			NoTarget: emote.View{
-				ActorView: "You grin.",
-				RoomView:  "$n grins.",
-			},
-			Targeted: emote.View{
-				ActorView:  "You grin at $N.",
-				TargetView: "$n grins at you.",
-				RoomView:   "$n grins at $N.",
-			},
-		},
-		{
-			ID: "tapestry-core:shrug", DisplayName: "shrug",
-			NoTarget: emote.View{
-				ActorView: "You shrug.",
-				RoomView:  "$n shrugs.",
-			},
-			Targeted: emote.View{
-				ActorView:  "You shrug at $N.",
-				TargetView: "$n shrugs at you.",
-				RoomView:   "$n shrugs at $N.",
-			},
-		},
-		{
-			ID: "tapestry-core:laugh", DisplayName: "laugh",
-			NoTarget: emote.View{
-				ActorView: "You laugh.",
-				RoomView:  "$n laughs.",
-			},
-			Targeted: emote.View{
-				ActorView:  "You laugh at $N.",
-				TargetView: "$n laughs at you.",
-				RoomView:   "$n laughs at $N.",
-			},
-		},
-	}
-	for _, e := range baseline {
-		if err := reg.Register(e); err != nil {
-			panic(fmt.Sprintf("baseline emote %q: %v", e.ID, err))
-		}
 	}
 }
 
