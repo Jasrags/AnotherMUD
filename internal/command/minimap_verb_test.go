@@ -13,8 +13,9 @@ import (
 // a fog-of-war visited set + the persisted minimap toggle.
 type mapActor struct {
 	*testActor
-	visited map[string]bool
-	minimap bool
+	visited     map[string]bool
+	minimap     bool
+	minimapSize string
 }
 
 func (a *mapActor) HasVisited(id string) bool { return a.visited[id] }
@@ -27,6 +28,13 @@ func (a *mapActor) VisitedRooms() []string {
 }
 func (a *mapActor) MinimapEnabled() bool     { return a.minimap }
 func (a *mapActor) SetMinimapEnabled(v bool) { a.minimap = v }
+func (a *mapActor) MinimapSize() string {
+	if a.minimapSize == "" {
+		return "auto"
+	}
+	return a.minimapSize
+}
+func (a *mapActor) SetMinimapSize(v string) { a.minimapSize = v }
 
 func mapWorld(t *testing.T) (*world.World, *world.Room) {
 	t.Helper()
@@ -55,6 +63,52 @@ func TestMinimapHandler_Toggles(t *testing.T) {
 	}
 	if a.MinimapEnabled() {
 		t.Error("`minimap off` should disable")
+	}
+}
+
+func TestMinimapHandler_SetsSize(t *testing.T) {
+	a := &mapActor{testActor: newTestActor(nil), minimap: true}
+	for _, size := range []string{"auto", "small", "medium", "large"} {
+		if err := command.MinimapHandler(context.Background(), &command.Context{Actor: a, Args: []string{size}}); err != nil {
+			t.Fatalf("minimap %s: %v", size, err)
+		}
+		if a.MinimapSize() != size {
+			t.Errorf("after `minimap %s`, size = %q, want %q", size, a.MinimapSize(), size)
+		}
+		if !strings.Contains(a.lastLine(), size) {
+			t.Errorf("`minimap %s` should confirm the size; got %q", size, a.lastLine())
+		}
+	}
+	// Setting size must not flip visibility.
+	if !a.MinimapEnabled() {
+		t.Error("setting size disabled the minimap; it should leave visibility untouched")
+	}
+}
+
+func TestMinimapHandler_SizeWhileOffHints(t *testing.T) {
+	a := &mapActor{testActor: newTestActor(nil), minimap: false}
+	if err := command.MinimapHandler(context.Background(), &command.Context{Actor: a, Args: []string{"large"}}); err != nil {
+		t.Fatalf("minimap large: %v", err)
+	}
+	if a.MinimapSize() != "large" {
+		t.Errorf("size = %q, want large", a.MinimapSize())
+	}
+	if !strings.Contains(a.lastLine(), "OFF") {
+		t.Errorf("setting size while off should hint the minimap is OFF; got %q", a.lastLine())
+	}
+}
+
+func TestMinimapHandler_BadArg(t *testing.T) {
+	a := &mapActor{testActor: newTestActor(nil)}
+	if err := command.MinimapHandler(context.Background(), &command.Context{Actor: a, Args: []string{"huge"}}); err != nil {
+		t.Fatalf("minimap huge: %v", err)
+	}
+	if !strings.Contains(a.lastLine(), "Usage") {
+		t.Errorf("unknown arg should print usage; got %q", a.lastLine())
+	}
+	// A bad arg must not change either preference.
+	if a.MinimapEnabled() || a.minimapSize != "" {
+		t.Errorf("bad arg mutated state: enabled=%v size=%q", a.MinimapEnabled(), a.minimapSize)
 	}
 }
 
@@ -130,13 +184,17 @@ func TestAppendMinimap_GatedOnToggle(t *testing.T) {
 	on := &mapActor{testActor: newTestActor(o), visited: visited, minimap: true}
 	got := command.AppendMinimap("ROOM", o, on, w)
 	// Beside, not below: the room text leads the first row and the
-	// bordered minimap's top edge sits to its right.
+	// minimap block sits to its right — led by the A1 area label
+	// ("The Hollow"), with the bordered box following below it.
 	firstLine := strings.SplitN(got, "\n", 2)[0]
 	if !strings.HasPrefix(firstLine, "ROOM") {
 		t.Errorf("room text should lead the row, got first line:\n%s", firstLine)
 	}
-	if !strings.Contains(firstLine, "+") {
-		t.Errorf("the bordered minimap's top edge should sit to the right on the first row, got:\n%s", got)
+	if !strings.Contains(firstLine, "The Hollow") {
+		t.Errorf("the area label should ride top-right on the first row, got:\n%s", got)
+	}
+	if !strings.Contains(got, "+") {
+		t.Errorf("the bordered minimap box should still be present, got:\n%s", got)
 	}
 	if !strings.Contains(got, "@") {
 		t.Errorf("minimap should contain the viewer marker, got:\n%s", got)

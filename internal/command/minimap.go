@@ -18,6 +18,11 @@ type MapViewer interface {
 	VisitedRooms() []string
 	MinimapEnabled() bool
 	SetMinimapEnabled(bool)
+	// MinimapSize is the persisted size preset (player-maps §4):
+	// "auto"/"small"/"medium"/"large". "auto" (the default) scales the
+	// radius to the client's terminal width.
+	MinimapSize() string
+	SetMinimapSize(string)
 }
 
 // widthViewer is the optional capability a MapViewer may also satisfy to
@@ -38,11 +43,52 @@ func viewerTerminalWidth(v Actor) int {
 	return 0
 }
 
-// defaultMinimapRadius is the step radius of the active minimap window
-// (player-maps §4, §10 policy) — small so the bordered widget stays
-// terminal-sized; the border then bounds the fog-of-war window the player
-// can currently see. The `map` verb uses an unbounded radius instead.
-const defaultMinimapRadius = 2
+// Active-minimap window radii (player-maps §4, §10 policy): the step
+// radius bounds the fog-of-war window the bordered widget shows. The
+// `map` verb uses an unbounded radius instead. The three manual presets
+// ladder small→large; `auto` (the default) picks among them by terminal
+// width. defaultMinimapRadius is the fallback when the terminal width is
+// unknown (no NAWS) — it matches the historical fixed radius so a client
+// that reports no size sees exactly the old behavior.
+const (
+	minimapRadiusSmall   = 2
+	minimapRadiusMedium  = 3
+	minimapRadiusLarge   = 4
+	defaultMinimapRadius = minimapRadiusSmall
+)
+
+// Auto-mode terminal-width breakpoints (columns): below autoWidthMedium
+// the map is small, below autoWidthLarge it is medium, at or above it is
+// large. An unknown width (0) falls below both → small, preserving the
+// historical default for clients that don't report a size.
+const (
+	autoWidthMedium = 100
+	autoWidthLarge  = 140
+)
+
+// minimapRadiusFor resolves a size preset + terminal width to a window
+// radius. Manual presets ignore the width; "auto" (and any unrecognized
+// value, including the empty default) scales among the three preset
+// radii by the breakpoints above.
+func minimapRadiusFor(size string, termWidth int) int {
+	switch strings.ToLower(size) {
+	case "small":
+		return minimapRadiusSmall
+	case "medium":
+		return minimapRadiusMedium
+	case "large":
+		return minimapRadiusLarge
+	default: // "auto", "", or anything stale
+		switch {
+		case termWidth >= autoWidthLarge:
+			return minimapRadiusLarge
+		case termWidth >= autoWidthMedium:
+			return minimapRadiusMedium
+		default:
+			return minimapRadiusSmall
+		}
+	}
+}
 
 // terrainGlyph maps a room's terrain to a single map glyph (player-maps
 // §6.2, §10 policy). Unknown/empty terrain falls back to the default.
@@ -102,12 +148,18 @@ func renderLocalMap(win world.Window, originID world.RoomID, isVisited func(stri
 // in a border that bounds the fog-of-war window the player can currently
 // see (player-maps §4) — so the boxed extent reads at a glance. The
 // vertical/keyword-exit notes sit below the box.
-func renderFramedMinimap(win world.Window, originID world.RoomID, isVisited func(string) bool) (string, bool) {
+func renderFramedMinimap(win world.Window, originID world.RoomID, isVisited func(string) bool, areaName string) (string, bool) {
 	canvas, origin, ok := buildMapCanvas(win, originID, isVisited)
 	if !ok {
 		return "", false
 	}
 	out := frameBox(canvas.render())
+	// A1: label the box with the current area name so a "fresh" map after
+	// an area crossing reads as "you're somewhere new", not a glitch
+	// (player-maps §4). Sits above the box as unobtrusive chrome.
+	if areaName != "" {
+		out = "<subtle>" + areaName + "</subtle>\n" + out
+	}
 	if notes := originNotes(origin); notes != "" {
 		out += "\n" + notes
 	}
@@ -232,11 +284,12 @@ func AppendMinimap(base string, r *world.Room, viewer Actor, w *world.World) str
 	if !ok || !mv.MinimapEnabled() {
 		return base
 	}
-	win, err := w.LocalWindow(r.ID, defaultMinimapRadius)
+	radius := minimapRadiusFor(mv.MinimapSize(), viewerTerminalWidth(viewer))
+	win, err := w.LocalWindow(r.ID, radius)
 	if err != nil {
 		return base
 	}
-	grid, ok := renderFramedMinimap(win, r.ID, mv.HasVisited)
+	grid, ok := renderFramedMinimap(win, r.ID, mv.HasVisited, mapAreaName(w, r.AreaID))
 	if !ok || grid == "" {
 		return base
 	}
@@ -248,25 +301,38 @@ func AppendMinimap(base string, r *world.Room, viewer Actor, w *world.World) str
 	return joinBeside(base, grid, leftWidth, minimapGap)
 }
 
-// MinimapHandler toggles the calling player's active-minimap preference
-// (player-maps §4). `minimap` flips it; `minimap on|off` sets it. A
-// normal player preference — not role-gated.
+// MinimapHandler manages the calling player's active-minimap preference
+// (player-maps §4). `minimap` flips visibility; `minimap on|off` sets
+// it; `minimap auto|small|medium|large` sets the window size (auto
+// scales the radius to the terminal width). A normal player preference
+// — not role-gated.
 func MinimapHandler(ctx context.Context, c *Context) error {
 	mv, ok := c.Actor.(MapViewer)
 	if !ok {
 		return c.Actor.Write(ctx, "Maps are not available.")
 	}
-	want := !mv.MinimapEnabled()
 	if len(c.Args) > 0 {
-		switch strings.ToLower(c.Args[0]) {
+		arg := strings.ToLower(c.Args[0])
+		switch arg {
 		case "on":
-			want = true
+			mv.SetMinimapEnabled(true)
+			return c.Actor.Write(ctx, "Minimap ON.")
 		case "off":
-			want = false
+			mv.SetMinimapEnabled(false)
+			return c.Actor.Write(ctx, "Minimap OFF.")
+		case "auto", "small", "medium", "large":
+			mv.SetMinimapSize(arg)
+			msg := fmt.Sprintf("Minimap size set to %s.", arg)
+			if !mv.MinimapEnabled() {
+				msg += " (Minimap is OFF — type 'minimap on' to show it.)"
+			}
+			return c.Actor.Write(ctx, msg)
 		default:
-			return c.Actor.Write(ctx, "Usage: minimap [on|off]")
+			return c.Actor.Write(ctx, "Usage: minimap [on|off|auto|small|medium|large]")
 		}
 	}
+	// No argument: flip visibility.
+	want := !mv.MinimapEnabled()
 	mv.SetMinimapEnabled(want)
 	if want {
 		return c.Actor.Write(ctx, "Minimap ON.")

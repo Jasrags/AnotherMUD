@@ -123,6 +123,38 @@ func TestGlyphFor(t *testing.T) {
 	}
 }
 
+func TestMinimapRadiusFor(t *testing.T) {
+	cases := []struct {
+		name      string
+		size      string
+		termWidth int
+		want      int
+	}{
+		// Manual presets ignore the terminal width.
+		{"small preset", "small", 0, minimapRadiusSmall},
+		{"medium preset", "medium", 0, minimapRadiusMedium},
+		{"large preset", "large", 222, minimapRadiusLarge},
+		{"case-insensitive", "LARGE", 0, minimapRadiusLarge},
+		// Auto scales by width breakpoints.
+		{"auto unknown width -> small", "auto", 0, minimapRadiusSmall},
+		{"auto 80 cols -> small", "auto", 80, minimapRadiusSmall},
+		{"auto at medium breakpoint", "auto", autoWidthMedium, minimapRadiusMedium},
+		{"auto just below large breakpoint", "auto", autoWidthLarge - 1, minimapRadiusMedium},
+		{"auto at large breakpoint", "auto", autoWidthLarge, minimapRadiusLarge},
+		{"auto very wide -> large", "auto", 222, minimapRadiusLarge},
+		// Empty / stale values fall through to the auto path.
+		{"empty falls through to auto", "", 120, minimapRadiusMedium},
+		{"stale value falls through to auto", "jumbo", 222, minimapRadiusLarge},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			if got := minimapRadiusFor(c.size, c.termWidth); got != c.want {
+				t.Errorf("minimapRadiusFor(%q, %d) = %d, want %d", c.size, c.termWidth, got, c.want)
+			}
+		})
+	}
+}
+
 func must(win world.Window, _ error) world.Window { return win }
 
 func TestMapCanvas_Alignment(t *testing.T) {
@@ -147,7 +179,7 @@ func TestSideBySideVisual(t *testing.T) {
 	w.AddRoom(mapRoom("ar:e", "water", 1, 0, 0, map[world.Direction]world.RoomID{world.DirWest: "ar:o"}))
 	w.AddRoom(mapRoom("ar:w", "road", -1, 0, 0, map[world.Direction]world.RoomID{world.DirEast: "ar:o"}))
 	win, _ := w.LocalWindow("ar:o", defaultMinimapRadius)
-	grid, _ := renderFramedMinimap(win, "ar:o", visitedFunc("ar:o", "ar:n", "ar:e", "ar:w"))
+	grid, _ := renderFramedMinimap(win, "ar:o", visitedFunc("ar:o", "ar:n", "ar:e", "ar:w"), "")
 	t.Logf("\n%s", joinBeside(roomBody, grid, defaultRoomColumnWidth, minimapGap))
 }
 
@@ -158,7 +190,7 @@ func TestRenderFramedMinimap_HasBorder(t *testing.T) {
 	w.AddRoom(mapRoom("ar:o", "outdoors", 0, 0, 0, map[world.Direction]world.RoomID{world.DirEast: "ar:e"}))
 	w.AddRoom(mapRoom("ar:e", "water", 1, 0, 0, map[world.Direction]world.RoomID{world.DirWest: "ar:o"}))
 
-	out, ok := renderFramedMinimap(must(w.LocalWindow("ar:o", defaultMinimapRadius)), "ar:o", visitedFunc("ar:o", "ar:e"))
+	out, ok := renderFramedMinimap(must(w.LocalWindow("ar:o", defaultMinimapRadius)), "ar:o", visitedFunc("ar:o", "ar:e"), "")
 	if !ok {
 		t.Fatal("expected centerable")
 	}
@@ -175,6 +207,26 @@ func TestRenderFramedMinimap_HasBorder(t *testing.T) {
 	}
 	if !bordered {
 		t.Errorf("minimap content should be enclosed by side borders:\n%s", out)
+	}
+}
+
+// A1: when an area name is supplied, it labels the box on the line above
+// the top border so the map says where it is.
+func TestRenderFramedMinimap_AreaLabel(t *testing.T) {
+	w := world.New()
+	w.AddRoom(mapRoom("ar:o", "outdoors", 0, 0, 0, map[world.Direction]world.RoomID{world.DirEast: "ar:e"}))
+	w.AddRoom(mapRoom("ar:e", "water", 1, 0, 0, map[world.Direction]world.RoomID{world.DirWest: "ar:o"}))
+
+	out, ok := renderFramedMinimap(must(w.LocalWindow("ar:o", defaultMinimapRadius)), "ar:o", visitedFunc("ar:o", "ar:e"), "The Westwood")
+	if !ok {
+		t.Fatal("expected centerable")
+	}
+	lines := strings.Split(out, "\n")
+	if !strings.Contains(lines[0], "The Westwood") {
+		t.Errorf("first line should carry the area label, got %q", lines[0])
+	}
+	if !strings.Contains(lines[1], "+") {
+		t.Errorf("the border should follow the label, got %q", lines[1])
 	}
 }
 

@@ -87,13 +87,21 @@ func (c *Context) areaTransitionBanner(r *world.Room) string {
 	return strings.Join(lines, "\n")
 }
 
-// areaName resolves an area id to its display name, falling back to the
-// raw id when the area is unknown or unnamed.
+// areaName resolves an area id to its display name via the Context's
+// world, falling back to the raw id when the area is unknown or unnamed.
 func (c *Context) areaName(id world.AreaID) string {
-	if c.World == nil || id == "" {
+	return mapAreaName(c.World, id)
+}
+
+// mapAreaName resolves an area id to its display name against w,
+// falling back to the raw id when w is nil or the area is unknown or
+// unnamed. The free-function form the minimap label (A1) uses where
+// only the world is in hand, not a Context.
+func mapAreaName(w *world.World, id world.AreaID) string {
+	if w == nil || id == "" {
 		return string(id)
 	}
-	if a, err := c.World.Area(id); err == nil && a.Name != "" {
+	if a, err := w.Area(id); err == nil && a.Name != "" {
 		return a.Name
 	}
 	return string(id)
