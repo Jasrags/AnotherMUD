@@ -132,13 +132,13 @@ var cardinalConns = []cardinalConn{
 // stub connector into blank (§6.4); vertical and keyword exits from the
 // origin are annotated below the grid (§6.5). Returns ("", false) when
 // the origin is unplaced and the map cannot be centred (§4/§5).
-func renderLocalMap(win world.Window, originID world.RoomID, isVisited func(string) bool) (string, bool) {
+func renderLocalMap(win world.Window, originID world.RoomID, isVisited func(string) bool, w *world.World) (string, bool) {
 	canvas, origin, ok := buildMapCanvas(win, originID, isVisited)
 	if !ok {
 		return "", false
 	}
 	out := canvas.render()
-	if notes := originNotes(origin); notes != "" {
+	if notes := originNotes(origin, w); notes != "" {
 		out += "\n" + notes
 	}
 	return out, true
@@ -148,7 +148,7 @@ func renderLocalMap(win world.Window, originID world.RoomID, isVisited func(stri
 // in a border that bounds the fog-of-war window the player can currently
 // see (player-maps §4) — so the boxed extent reads at a glance. The
 // vertical/keyword-exit notes sit below the box.
-func renderFramedMinimap(win world.Window, originID world.RoomID, isVisited func(string) bool, areaName string) (string, bool) {
+func renderFramedMinimap(win world.Window, originID world.RoomID, isVisited func(string) bool, w *world.World) (string, bool) {
 	canvas, origin, ok := buildMapCanvas(win, originID, isVisited)
 	if !ok {
 		return "", false
@@ -156,11 +156,15 @@ func renderFramedMinimap(win world.Window, originID world.RoomID, isVisited func
 	out := frameBox(canvas.render())
 	// A1: label the box with the current area name so a "fresh" map after
 	// an area crossing reads as "you're somewhere new", not a glitch
-	// (player-maps §4). Sits above the box as unobtrusive chrome.
-	if areaName != "" {
-		out = "<subtle>" + areaName + "</subtle>\n" + out
+	// (player-maps §4). Sits above the box as unobtrusive chrome. Shown
+	// only when the area resolves to a real name — a nil world or an
+	// unnamed area leaves the box unlabelled (the pre-A1 form).
+	if w != nil {
+		if a, err := w.Area(origin.AreaID); err == nil && a.Name != "" {
+			out = "<subtle>" + a.Name + "</subtle>\n" + out
+		}
 	}
-	if notes := originNotes(origin); notes != "" {
+	if notes := originNotes(origin, w); notes != "" {
 		out += "\n" + notes
 	}
 	return out, true
@@ -241,9 +245,20 @@ func renderableRooms(win world.Window, originID world.RoomID, originZ int, isVis
 	return out
 }
 
+// crossAreaNoteDirs is the cardinal scan order for the C1 way-back
+// annotation — deterministic so the notes read the same every render.
+// Vertical exits keep their plain up/down note (the boundary case for
+// them is rare and the note already flags "there's a way the flat map
+// can't draw"); only cardinal boundary exits get named.
+var crossAreaNoteDirs = []world.Direction{world.DirNorth, world.DirEast, world.DirSouth, world.DirWest}
+
 // originNotes annotates the origin's non-grid exits (player-maps §6.5):
-// vertical exits as up/down, keyword exits as portals. Empty when none.
-func originNotes(origin *world.Room) string {
+// vertical exits as up/down, cardinal exits that LEAVE the area as
+// "<dir> → <neighbour area>" (C1 — the way back/onward the single-area
+// map can't draw across a boundary), and keyword exits as portals.
+// Empty when none. w may be nil (tests / unwired paths): the cross-area
+// clause is then skipped, leaving the pre-C1 behaviour.
+func originNotes(origin *world.Room, w *world.World) string {
 	if origin == nil {
 		return ""
 	}
@@ -253,6 +268,22 @@ func originNotes(origin *world.Room) string {
 	}
 	if _, ok := origin.Exits[world.DirDown]; ok {
 		notes = append(notes, "down")
+	}
+	// C1: cardinal exits whose target sits in a different area — name the
+	// neighbour so the player can orient across the boundary the map stops
+	// at.
+	if w != nil {
+		for _, dir := range crossAreaNoteDirs {
+			exit, ok := origin.Exits[dir]
+			if !ok {
+				continue
+			}
+			target, err := w.Room(exit.Target)
+			if err != nil || target.AreaID == origin.AreaID {
+				continue
+			}
+			notes = append(notes, dir.Long()+" → "+mapAreaName(w, target.AreaID))
+		}
 	}
 	if len(origin.KeywordExits) > 0 {
 		kws := make([]string, 0, len(origin.KeywordExits))
@@ -289,7 +320,7 @@ func AppendMinimap(base string, r *world.Room, viewer Actor, w *world.World) str
 	if err != nil {
 		return base
 	}
-	grid, ok := renderFramedMinimap(win, r.ID, mv.HasVisited, mapAreaName(w, r.AreaID))
+	grid, ok := renderFramedMinimap(win, r.ID, mv.HasVisited, w)
 	if !ok || grid == "" {
 		return base
 	}
@@ -356,7 +387,7 @@ func MapHandler(ctx context.Context, c *Context) error {
 	if err != nil {
 		return c.Actor.Write(ctx, "You cannot map here.")
 	}
-	grid, ok := renderLocalMap(win, room.ID, mv.HasVisited)
+	grid, ok := renderLocalMap(win, room.ID, mv.HasVisited, c.World)
 	if !ok {
 		return c.Actor.Write(ctx, "You cannot map this area from here.")
 	}

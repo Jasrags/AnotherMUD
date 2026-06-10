@@ -36,7 +36,7 @@ func TestRenderLocalMap_CrossWithFogStub(t *testing.T) {
 	w.AddRoom(mapRoom("ar:w", "mountain", -1, 0, 0, map[world.Direction]world.RoomID{world.DirEast: "ar:o"}))
 
 	win, _ := w.LocalWindow("ar:o", 3)
-	out, ok := renderLocalMap(win, "ar:o", visitedFunc("ar:o", "ar:n", "ar:e")) // ar:w NOT visited
+	out, ok := renderLocalMap(win, "ar:o", visitedFunc("ar:o", "ar:n", "ar:e"), nil) // ar:w NOT visited
 	if !ok {
 		t.Fatal("expected a centerable map")
 	}
@@ -67,7 +67,7 @@ func TestRenderLocalMap_VerticalExitAnnotated(t *testing.T) {
 	w.AddRoom(mapRoom("ar:up", "indoors", 0, 0, 1, map[world.Direction]world.RoomID{world.DirDown: "ar:o"}))
 
 	win, _ := w.LocalWindow("ar:o", 3)
-	out, ok := renderLocalMap(win, "ar:o", visitedFunc("ar:o", "ar:up"))
+	out, ok := renderLocalMap(win, "ar:o", visitedFunc("ar:o", "ar:up"), nil)
 	if !ok {
 		t.Fatal("expected a centerable map")
 	}
@@ -89,7 +89,7 @@ func TestRenderLocalMap_UnplacedOrigin(t *testing.T) {
 	w.AddRoom(mapRoom("ar:e", "outdoors", 0, 0, 0, nil))
 
 	win, _ := w.LocalWindow("ar:o", 3)
-	if out, ok := renderLocalMap(win, "ar:o", visitedFunc("ar:o", "ar:e")); ok {
+	if out, ok := renderLocalMap(win, "ar:o", visitedFunc("ar:o", "ar:e"), nil); ok {
 		t.Errorf("unplaced origin should not be centerable, got ok=true:\n%s", out)
 	}
 }
@@ -102,7 +102,7 @@ func TestRenderLocalMap_DownAndPortalAnnotated(t *testing.T) {
 	w.AddRoom(o)
 	w.AddRoom(mapRoom("ar:dn", "underground", 0, 0, -1, nil))
 
-	out, ok := renderLocalMap(must(w.LocalWindow("ar:o", 2)), "ar:o", visitedFunc("ar:o"))
+	out, ok := renderLocalMap(must(w.LocalWindow("ar:o", 2)), "ar:o", visitedFunc("ar:o"), nil)
 	if !ok {
 		t.Fatal("expected centerable")
 	}
@@ -179,7 +179,7 @@ func TestSideBySideVisual(t *testing.T) {
 	w.AddRoom(mapRoom("ar:e", "water", 1, 0, 0, map[world.Direction]world.RoomID{world.DirWest: "ar:o"}))
 	w.AddRoom(mapRoom("ar:w", "road", -1, 0, 0, map[world.Direction]world.RoomID{world.DirEast: "ar:o"}))
 	win, _ := w.LocalWindow("ar:o", defaultMinimapRadius)
-	grid, _ := renderFramedMinimap(win, "ar:o", visitedFunc("ar:o", "ar:n", "ar:e", "ar:w"), "")
+	grid, _ := renderFramedMinimap(win, "ar:o", visitedFunc("ar:o", "ar:n", "ar:e", "ar:w"), nil)
 	t.Logf("\n%s", joinBeside(roomBody, grid, defaultRoomColumnWidth, minimapGap))
 }
 
@@ -190,7 +190,7 @@ func TestRenderFramedMinimap_HasBorder(t *testing.T) {
 	w.AddRoom(mapRoom("ar:o", "outdoors", 0, 0, 0, map[world.Direction]world.RoomID{world.DirEast: "ar:e"}))
 	w.AddRoom(mapRoom("ar:e", "water", 1, 0, 0, map[world.Direction]world.RoomID{world.DirWest: "ar:o"}))
 
-	out, ok := renderFramedMinimap(must(w.LocalWindow("ar:o", defaultMinimapRadius)), "ar:o", visitedFunc("ar:o", "ar:e"), "")
+	out, ok := renderFramedMinimap(must(w.LocalWindow("ar:o", defaultMinimapRadius)), "ar:o", visitedFunc("ar:o", "ar:e"), nil)
 	if !ok {
 		t.Fatal("expected centerable")
 	}
@@ -210,14 +210,46 @@ func TestRenderFramedMinimap_HasBorder(t *testing.T) {
 	}
 }
 
+// C1: a cardinal exit that leaves the area is annotated below the map
+// with the neighbour's name, so the player can orient across the
+// boundary the single-area map stops at. A same-area exit is not.
+func TestOriginNotes_CrossAreaWayBack(t *testing.T) {
+	w := world.New()
+	w.AddArea(&world.Area{ID: "village", Name: "Emond's Field"})
+	w.AddArea(&world.Area{ID: "wild", Name: "the Westwood"})
+	// origin sits in wild with a north exit deeper into wild (same area)
+	// and a south exit back into the village (cross-area).
+	origin := &world.Room{ID: "wild:edge", AreaID: "wild",
+		Exits: map[world.Direction]world.Exit{
+			world.DirNorth: {Target: "wild:deep"},
+			world.DirSouth: {Target: "village:square"},
+		}}
+	w.AddRoom(origin)
+	w.AddRoom(&world.Room{ID: "wild:deep", AreaID: "wild"})
+	w.AddRoom(&world.Room{ID: "village:square", AreaID: "village"})
+
+	notes := originNotes(origin, w)
+	if !strings.Contains(notes, "south → Emond's Field") {
+		t.Errorf("cross-area exit should name the neighbour, got %q", notes)
+	}
+	if strings.Contains(notes, "north") {
+		t.Errorf("same-area exit should not be annotated as a boundary, got %q", notes)
+	}
+	// With a nil world the cross-area clause is skipped (pre-C1 form).
+	if got := originNotes(origin, nil); got != "" {
+		t.Errorf("nil world should suppress cross-area notes, got %q", got)
+	}
+}
+
 // A1: when an area name is supplied, it labels the box on the line above
 // the top border so the map says where it is.
 func TestRenderFramedMinimap_AreaLabel(t *testing.T) {
 	w := world.New()
+	w.AddArea(&world.Area{ID: "ar", Name: "The Westwood"})
 	w.AddRoom(mapRoom("ar:o", "outdoors", 0, 0, 0, map[world.Direction]world.RoomID{world.DirEast: "ar:e"}))
 	w.AddRoom(mapRoom("ar:e", "water", 1, 0, 0, map[world.Direction]world.RoomID{world.DirWest: "ar:o"}))
 
-	out, ok := renderFramedMinimap(must(w.LocalWindow("ar:o", defaultMinimapRadius)), "ar:o", visitedFunc("ar:o", "ar:e"), "The Westwood")
+	out, ok := renderFramedMinimap(must(w.LocalWindow("ar:o", defaultMinimapRadius)), "ar:o", visitedFunc("ar:o", "ar:e"), w)
 	if !ok {
 		t.Fatal("expected centerable")
 	}
