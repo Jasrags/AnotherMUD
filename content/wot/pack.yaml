@@ -30,3 +30,9 @@ content:
     - biomes/*.yaml
   forage_tables:
     - forage_tables/*.yaml
+  node_templates:
+    - node_templates/*.yaml
+  node_spawn_tables:
+    - node_spawn_tables/*.yaml
+  loot_tables:
+    - loot_tables/*.yaml

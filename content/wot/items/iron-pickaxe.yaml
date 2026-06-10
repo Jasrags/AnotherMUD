@@ -1,0 +1,14 @@
+id: iron-pickaxe
+name: an iron pickaxe
+type: item
+description: |
+  A sturdy iron pickaxe, its head pitted from breaking stone and its haft worn
+  pale where a miner's grip has rubbed it. The tool a body needs to work an iron
+  seam or break loose a stone outcrop.
+# `mining-tool` is the tag a node's required_tool matches (gathering §3.3 — the
+# one allowed harvest refusal). Carrying this satisfies the gate.
+tags: [tool, mining-tool]
+keywords: [pickaxe, pick]
+properties:
+  weight: 5
+  value: 25

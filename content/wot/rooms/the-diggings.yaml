@@ -12,3 +12,7 @@ exits:
   east: sand-hills-foot
   down: deep-diggings
 terrain: cave
+# A pickaxe left at the digging face — the mining-tool the iron veins require
+# (gathering §3.3). Also sold by Haral; left here so a new miner can start.
+items:
+  - iron-pickaxe

@@ -6,3 +6,11 @@ description: |
   it goes; folk gather wood and herbs at its edges and tell their children not
   to wander too deep.
 region: two-rivers
+reset_interval: 300
+# A wild boar roots in the deep wood — the huntable meat source (crafting §8).
+# Not persistent: once hunted it respawns on the area cadence, so meat is a
+# renewable gather rather than a one-shot kill.
+spawn_rules:
+  - room: deep-westwood
+    mob: wild-boar
+    count: 1

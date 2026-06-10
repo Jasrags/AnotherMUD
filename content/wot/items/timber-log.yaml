@@ -1,0 +1,15 @@
+id: timber-log
+name: a length of timber
+type: item
+description: |
+  A rough-cut length of green Westwood timber, bark still on and the ends raw
+  from the axe. Heavy and damp, but it splits clean and burns well enough once a
+  fire is going.
+# The `fuel` tag lets `build campfire` consume it, so a gatherer can raise a
+# field fire to cook at without buying firewood (gathering replaces the vendor).
+tags: [ingredient, wood, gathered, fuel, stackable]
+keywords: [timber, log, wood, length]
+properties:
+  stackable: true
+  weight: 4
+  value: 2

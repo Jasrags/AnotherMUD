@@ -1,0 +1,13 @@
+# A harvestable iron vein in the diggings (gathering.md §3). Requires a
+# mining-tool (a pickaxe) to work — the one allowed harvest refusal (§3.3).
+# Three charges of ore before it is worked out, then it respawns on the area
+# cadence.
+id: iron-vein
+name: a seam of iron ore
+description: |
+  A rust-red seam of iron threads through the grey stone here, close enough to
+  the surface to break loose with a pick.
+keywords: [vein, seam, ore, iron]
+yield_table: iron-vein-yield
+charges: 3
+required_tool: mining-tool

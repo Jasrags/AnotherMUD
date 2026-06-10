@@ -1,0 +1,5 @@
+# Node spawn table for the forest biome (gathering.md §3.1). One timber stand
+# spawns per Westwood room; a worked-out one respawns on the area cadence.
+id: westwood-nodes
+entries:
+  - { node: timber-stand, count: 1 }

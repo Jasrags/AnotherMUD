@@ -1,0 +1,19 @@
+id: cooked-meal
+name: a hot meal
+type: item
+description: |
+  A proper hot meal of roast mutton and herbs, the kind that sticks to your ribs
+  through a cold night on the road. Steam curls off it and the smell alone is
+  half a supper.
+tags: [food, consumable]
+keywords: [meal, supper, food, mutton]
+properties:
+  weight: 1
+  value: 8
+  consume_method: eat
+  sustenance_value: 50
+  # Quality -> well-fed effect (crafting §6): a common meal is plain food;
+  # uncommon+ grants a well-fed buff (the core effects, via the dependency).
+  quality_effects:
+    uncommon: well-fed-minor
+    rare: well-fed

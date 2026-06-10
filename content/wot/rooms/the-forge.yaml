@@ -10,8 +10,7 @@ description: |
   to be claimed. Heat rolls off the coals in a wave. The smithy stands at the
   western edge of the village where the Quarry Road begins; the road runs back
   east toward the Green, and west it runs on out of the village into the
-  Westwood. A few bars of iron stock lie out on the bench, left for anyone Haral
-  has shown the trick of the anvil.
+  Westwood.
 exits:
   east: quarry-road
   west: westwood-edge
@@ -20,11 +19,8 @@ terrain: indoors
 properties:
   craft_stations:
     smithing: 2
-# Practice stock (M1 teaching aid): a couple of iron ingots a new smith can
-# take to forge their first dagger gold-free. Removed in M2, when the ingot is
-# smelted from ore mined in the Mountains-of-Mist diggings (§8 closure).
-items:
-  - iron-ingot
-  - iron-ingot
+# §8 closure (M2): the M1 practice ingots are gone — a smith now mines iron ore
+# from the diggings and smelts it (smelt-iron-ingot) into the ingot the dagger
+# wants. The chain bottoms out in gathered ore.
 mobs:
   - haral-luhhan

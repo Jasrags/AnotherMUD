@@ -1,0 +1,13 @@
+id: iron-ore
+name: a lump of iron ore
+type: item
+description: |
+  A heavy, rust-red lump of raw iron ore, gritty with the rock it was prised
+  from. Worthless as it is — but smelted down at a forge it becomes good iron
+  stock for a smith.
+tags: [ingredient, ore, gathered, stackable]
+keywords: [ore, iron, lump]
+properties:
+  stackable: true
+  weight: 3
+  value: 3

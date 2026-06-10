@@ -1,0 +1,13 @@
+id: woodcutters-axe
+name: a woodcutter's axe
+type: item
+description: |
+  A single-bit felling axe with a worn hickory haft and a head kept bright by
+  use. The tool a body needs to fell a stand of timber in the Westwood.
+# `woodcutting-tool` is the tag a timber-stand node's required_tool matches
+# (gathering §3.3). Carrying this satisfies the gate, as the pickaxe does for ore.
+tags: [tool, woodcutting-tool]
+keywords: [axe, hatchet]
+properties:
+  weight: 4
+  value: 25

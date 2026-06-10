@@ -1,0 +1,18 @@
+# Baseline cooking recipe — granted free with `learn cooking`, alongside the
+# pottage. A heartier, meat-based meal: a cut of boar (hunted in the Westwood) or
+# mutton (bought from Marin) cooked with a foraged herb. The herb is gather-only,
+# so the meal bottoms out in a gather input (§8 / D2.2), and the meal is worth
+# more than its inputs combined (D2.1). Needs a fire (Tier 1).
+id: cook-hearty-meal
+name: cook a hot meal
+discipline: cooking
+skill_floor: 1
+station_tier: 1
+time_pulses: 18
+acquisition: baseline
+inputs:
+  - { template: raw-meat, quantity: 1 }
+  - { template: wild-herb, quantity: 1 }
+output:
+  template: cooked-meal
+  quantity: 1

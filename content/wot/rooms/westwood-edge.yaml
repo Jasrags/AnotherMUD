@@ -12,3 +12,8 @@ exits:
   east: the-forge
   west: deep-westwood
 terrain: forest
+# An axe left leaning against a stump — the woodcutting-tool the timber stands
+# require (gathering §3.3). Also sold by Haral; left here so a new woodcutter
+# can start.
+items:
+  - woodcutters-axe
