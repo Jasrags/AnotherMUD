@@ -37,6 +37,18 @@ type Stats struct {
 	// alongside Damage. Empty falls back to the unarmed name when the
 	// auto-attack phase composes its event payload.
 	WeaponName string
+
+	// CritThreatLow is the lowest d20 face that threatens a critical for
+	// the wielded weapon (weapon-identity §4). Zero means "unset" — the
+	// auto-attack phase defaults it to the natural maximum (20), the
+	// pre-weapon-identity behavior. Populated from the wielded weapon.
+	CritThreatLow int
+
+	// CritMultiplier is the wielded weapon's critical damage-dice
+	// multiplier (weapon-identity §4). Zero means "unset" — the
+	// auto-attack phase falls back to the configured global default
+	// (AutoAttackConfig.CritMultiplier). Populated from the wielded weapon.
+	CritMultiplier int
 }
 
 // EffectiveDamage returns the dice expression the auto-attack phase

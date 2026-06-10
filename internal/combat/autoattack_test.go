@@ -132,6 +132,90 @@ func TestAutoAttackNaturalTwentyAlwaysHits(t *testing.T) {
 
 // TestAutoAttackCritDoublesDice — a crit multiplies the rolled dice by
 // the default (2). STR 10 → 0 bonus isolates the dice doubling.
+// TestRollHit_ThreatRange — a weapon's threat-low widens which rolls crit.
+// rollHit computes raw = IntN(20)+1, so program IntN = raw-1. AC is set
+// unreachable so only an auto-hit crit lands, isolating the threat test.
+func TestRollHit_ThreatRange(t *testing.T) {
+	roll := func(raw int) *fixedRoller { return &fixedRoller{t: t, values: []int{raw - 1}} }
+	const unreachableAC = 100
+
+	cases := []struct {
+		raw, threatLow int
+		wantCrit       bool
+	}{
+		{20, 20, true},  // natural max always crits at the default threat
+		{19, 20, false}, // 19 does not crit when only 20 threatens
+		{19, 19, true},  // widened threat range: 19 now crits
+		{18, 19, false}, // 18 is below a 19 threat
+		{18, 18, true},  // wider still
+	}
+	for _, c := range cases {
+		out := rollHit(roll(c.raw), 0, unreachableAC, c.threatLow)
+		if out.critical != c.wantCrit {
+			t.Errorf("raw=%d threatLow=%d: critical=%v, want %v", c.raw, c.threatLow, out.critical, c.wantCrit)
+		}
+	}
+
+	// A natural 1 is a fumble, never a threat, even with a widened range.
+	if out := rollHit(roll(1), 0, unreachableAC, 18); !out.fumble || out.hit {
+		t.Errorf("natural 1 should be a fumble miss, got %+v", out)
+	}
+}
+
+// TestAutoAttack_WeaponThreatRangeCrits — a weapon whose Stats widen the
+// threat range crits on a sub-maximum roll (19) it otherwise would not.
+func TestAutoAttack_WeaponThreatRangeCrits(t *testing.T) {
+	atk := Stats{HitMod: 0, STR: 10, CritThreatLow: 19} // threatens on 19-20
+	rig := newAutoAttackRig(t, atk, Stats{AC: 100}, 10, 50, []int{
+		18, // d20: 19 → crit only because the weapon threatens at 19
+		2,  // 1d3: 3
+	})
+	rig.phase()(context.Background(), rig.attacker.id, rig.mgr, 0)
+
+	hits := rig.sink.snapshotHits()
+	if len(hits) != 1 || !hits[0].IsCritical {
+		t.Fatalf("want one critical hit from the widened threat range, got %v", hits)
+	}
+}
+
+// TestAutoAttack_WeaponCritMultiplierOverridesConfig — the wielded
+// weapon's multiplier (3×) wins over the configured global default (2×).
+func TestAutoAttack_WeaponCritMultiplierOverridesConfig(t *testing.T) {
+	atk := Stats{HitMod: 0, STR: 10, CritMultiplier: 3} // weapon triples
+	rig := newAutoAttackRig(t, atk, Stats{AC: 100}, 10, 50, []int{
+		19, // d20: 20 → crit
+		2,  // 1d3: 3
+	})
+	// rig.critMult left 0 ⇒ cfg defaults to 2; the weapon's 3 must win.
+	rig.phase()(context.Background(), rig.attacker.id, rig.mgr, 0)
+
+	hits := rig.sink.snapshotHits()
+	if len(hits) != 1 || hits[0].Damage != 9 { // 3 dice × 3 weapon mult
+		t.Fatalf("crit damage = %v, want one hit of 9 (3×3 from the weapon)", hits)
+	}
+}
+
+// TestAutoAttack_UnsetCritDefaultsToNatTwenty — the existing-content path:
+// with no weapon crit fields, a 19 is an ordinary hit (only the natural
+// maximum crits) and no multiplier is applied. Locks behavior preservation
+// from the weaponInfo zero-value through Stats() and the default resolution.
+func TestAutoAttack_UnsetCritDefaultsToNatTwenty(t *testing.T) {
+	atk := Stats{HitMod: 10, STR: 10} // CritThreatLow/CritMultiplier unset (0)
+	rig := newAutoAttackRig(t, atk, Stats{AC: 10}, 10, 50, []int{
+		18, // d20: 19 → hits (19+10 ≥ 10) but must NOT crit at the default threat
+		2,  // 1d3: 3
+	})
+	rig.phase()(context.Background(), rig.attacker.id, rig.mgr, 0)
+
+	hits := rig.sink.snapshotHits()
+	if len(hits) != 1 || hits[0].IsCritical {
+		t.Fatalf("a 19 must be an ordinary hit when the threat range is unset, got %v", hits)
+	}
+	if hits[0].Damage != 3 { // no crit multiplier applied
+		t.Errorf("damage = %d, want 3 (no crit)", hits[0].Damage)
+	}
+}
+
 func TestAutoAttackCritDoublesDice(t *testing.T) {
 	atkStats := Stats{HitMod: 0, STR: 10} // STRBonus(10) = 0
 	defStats := Stats{AC: 100}            // unreachable but nat-20 crits anyway

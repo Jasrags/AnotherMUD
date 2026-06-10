@@ -81,6 +81,15 @@ type Template struct {
 	// Recorded only — inert until armor depth. Validated at pack load;
 	// normalized lowercase.
 	DamageTypes []string
+	// CritThreatLow is the lowest d20 face that threatens a critical
+	// (weapon-identity §4). Zero means unset — the engine defaults to the
+	// natural maximum (only a 20 crits). Validated at load to be 0 or in
+	// [2,20] (a 1 is always a fumble).
+	CritThreatLow int
+	// CritMultiplier is the weapon's critical damage-dice multiplier
+	// (weapon-identity §4). Zero means unset — the engine uses the
+	// configured global default. Validated at load to be non-negative.
+	CritMultiplier int
 }
 
 // Errors callers may distinguish at the boundary.

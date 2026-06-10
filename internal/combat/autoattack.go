@@ -147,6 +147,18 @@ func runAutoAttack(ctx context.Context, attackerID CombatantID, mgr *Manager, cf
 	}
 	damageExpr := atkStats.EffectiveDamage()
 	weaponName := atkStats.EffectiveWeaponName()
+	// §4 weapon critical: the wielded weapon's threat range + multiplier
+	// override the engine defaults. An unset threat-low (0) means "only
+	// the natural maximum threatens" (20); an unset multiplier (0) falls
+	// back to the configured global default. Stable for the round.
+	critThreatLow := atkStats.CritThreatLow
+	if critThreatLow <= 0 {
+		critThreatLow = 20
+	}
+	critMultiplier := atkStats.CritMultiplier
+	if critMultiplier <= 0 {
+		critMultiplier = cfg.CritMultiplier
+	}
 	atkName := attacker.Name()
 	tgtName := target.Name()
 
@@ -177,8 +189,9 @@ func runAutoAttack(ctx context.Context, attackerID CombatantID, mgr *Manager, cf
 			continue
 		}
 
-		// §4.4 hit roll (attacker hit-mod already adjusted for darkness).
-		outcome := rollHit(cfg.Roller, hitMod, defStats.AC)
+		// §4.4 hit roll (attacker hit-mod already adjusted for darkness;
+		// threat range from the wielded weapon, weapon-identity §4).
+		outcome := rollHit(cfg.Roller, hitMod, defStats.AC, critThreatLow)
 		if !outcome.hit {
 			cfg.Sink.OnMiss(ctx, Miss{
 				AttackerID:   attackerID,
@@ -201,8 +214,8 @@ func runAutoAttack(ctx context.Context, attackerID CombatantID, mgr *Manager, cf
 		// normal damage" policy. IsCritical still flows on the event so
 		// renderers can dramatize either way.
 		dmg := damageExpr.Roll(cfg.Roller)
-		if outcome.critical && cfg.CritMultiplier > 1 {
-			dmg *= cfg.CritMultiplier
+		if outcome.critical && critMultiplier > 1 {
+			dmg *= critMultiplier
 		}
 		raw := dmg + STRBonus(atkStats.STR)
 		if raw < 1 {
@@ -255,15 +268,17 @@ type hitOutcome struct {
 	fumble   bool
 }
 
-// rollHit performs the §4.4 d20 with nat-1/nat-20 overrides. The d20
-// is sampled as IntN(20)+1 so the range is [1,20] inclusive (matches
-// the spec's "natural 1" / "natural 20" language).
-func rollHit(r Roller, hitMod, ac int) hitOutcome {
+// rollHit resolves one §4.4 attack roll. threatLow is the lowest d20 face
+// that threatens a critical (weapon-identity §4): a roll at or above it is
+// an automatic critical hit, generalizing the natural-maximum rule (a
+// threatLow of 20 reproduces the old "only a natural 20 crits" behavior).
+// A natural 1 is always a fumble and is never a threat.
+func rollHit(r Roller, hitMod, ac, threatLow int) hitOutcome {
 	raw := r.IntN(20) + 1
-	switch raw {
-	case 1:
+	if raw == 1 {
 		return hitOutcome{hit: false, fumble: true}
-	case 20:
+	}
+	if raw >= threatLow {
 		return hitOutcome{hit: true, critical: true}
 	}
 	return hitOutcome{hit: raw+hitMod >= ac}

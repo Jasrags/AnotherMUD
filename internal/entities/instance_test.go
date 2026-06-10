@@ -47,6 +47,7 @@ func TestItemInstance_WeaponIdentityFields(t *testing.T) {
 	it, err := s.Spawn(&item.Template{
 		ID: "wot:longsword", Name: "a longsword", Type: "weapon",
 		WeaponCategory: "longsword", ProficiencyTier: "martial",
+		CritThreatLow: 19, CritMultiplier: 2,
 	})
 	if err != nil {
 		t.Fatalf("Spawn: %v", err)
@@ -56,6 +57,9 @@ func TestItemInstance_WeaponIdentityFields(t *testing.T) {
 	}
 	if it.ProficiencyTier() != "martial" {
 		t.Errorf("ProficiencyTier() = %q, want martial", it.ProficiencyTier())
+	}
+	if it.CritThreatLow() != 19 || it.CritMultiplier() != 2 {
+		t.Errorf("crit params = (%d,%d), want (19,2)", it.CritThreatLow(), it.CritMultiplier())
 	}
 
 	rock, err := s.Spawn(&item.Template{ID: "wot:rock", Name: "a rock", Type: "item"})

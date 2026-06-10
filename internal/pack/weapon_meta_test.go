@@ -85,3 +85,42 @@ func TestDecodeItem_RejectsUnknownDamageType(t *testing.T) {
 		t.Fatalf("err = %v, want ErrInvalidContent for unknown damage type", err)
 	}
 }
+
+// weapon-identity §4: crit threat range + multiplier decode; both optional
+// (0 = unset = engine default).
+func TestDecodeItem_CritParams(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "item.yaml")
+	writeFile(t, path, `
+id: rapier
+name: a rapier
+type: weapon
+weapon_damage: "1d6"
+crit_threat_low: 18
+crit_multiplier: 2
+`)
+	tpl, err := decodeItem(path, "wot")
+	if err != nil {
+		t.Fatalf("decodeItem: %v", err)
+	}
+	if tpl.CritThreatLow != 18 || tpl.CritMultiplier != 2 {
+		t.Errorf("crit params = (%d,%d), want (18,2)", tpl.CritThreatLow, tpl.CritMultiplier)
+	}
+}
+
+func TestDecodeItem_RejectsBadCritThreatLow(t *testing.T) {
+	for _, bad := range []string{"1", "21"} {
+		path := filepath.Join(t.TempDir(), "item.yaml")
+		writeFile(t, path, "id: x\nname: a thing\ntype: weapon\ncrit_threat_low: "+bad+"\n")
+		if _, err := decodeItem(path, "wot"); !errors.Is(err, ErrInvalidContent) {
+			t.Fatalf("crit_threat_low %s: err = %v, want ErrInvalidContent", bad, err)
+		}
+	}
+}
+
+func TestDecodeItem_RejectsNegativeCritMultiplier(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "item.yaml")
+	writeFile(t, path, "id: x\nname: a thing\ntype: weapon\ncrit_multiplier: -1\n")
+	if _, err := decodeItem(path, "wot"); !errors.Is(err, ErrInvalidContent) {
+		t.Fatalf("negative crit_multiplier: err = %v, want ErrInvalidContent", err)
+	}
+}

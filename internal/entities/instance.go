@@ -98,6 +98,11 @@ type ItemInstance struct {
 	// Write-once at construction — no mutex needed.
 	weaponCategory  string
 	proficiencyTier string
+	// critThreatLow / critMultiplier are the weapon-identity §4 critical
+	// parameters lifted onto the instance at build (mirrors weaponDamage).
+	// Zero means unset — the combat resolver applies the engine defaults.
+	critThreatLow  int
+	critMultiplier int
 }
 
 // ID implements Entity.
@@ -272,6 +277,14 @@ func (it *ItemInstance) WeaponCategory() string { return it.weaponCategory }
 // the equip path that computes proficiency.
 func (it *ItemInstance) ProficiencyTier() string { return it.proficiencyTier }
 
+// CritThreatLow returns the weapon's critical threat-low (weapon-identity
+// §4), zero when unset (the combat resolver then uses the natural max).
+func (it *ItemInstance) CritThreatLow() int { return it.critThreatLow }
+
+// CritMultiplier returns the weapon's critical damage multiplier
+// (weapon-identity §4), zero when unset (the resolver uses the default).
+func (it *ItemInstance) CritMultiplier() int { return it.critMultiplier }
+
 // EligibleSlots returns the slots this item may be equipped into
 // (inventory-equipment-items §3.3) as a fresh slice so callers cannot
 // alias instance state. Empty means the item is not equippable. Lifted
@@ -398,5 +411,7 @@ func buildInstanceFromTemplate(tpl *item.Template, id EntityID) *ItemInstance {
 		companionSlots:  companion,
 		weaponCategory:  tpl.WeaponCategory,
 		proficiencyTier: tpl.ProficiencyTier,
+		critThreatLow:   tpl.CritThreatLow,
+		critMultiplier:  tpl.CritMultiplier,
 	}
 }

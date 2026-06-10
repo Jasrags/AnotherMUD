@@ -66,8 +66,10 @@ A weapon's existing damage expression and stat modifiers
       lowest tier; no category ⇒ tier-only gating; no type ⇒ untyped).
 - [ ] Existing weapons with none of the three load and behave exactly as before
       (lowest tier ⇒ universally proficient ⇒ no penalty; §3).
-- [ ] The damage type(s) are carried on the hit event but do not alter damage,
-      AC, or to-hit this slice.
+- [ ] The damage type(s) are recorded on the weapon (template + instance) and do
+      not alter damage, AC, or to-hit this slice. *Threading them onto the hit
+      event is deferred to the armor-depth slice (E) that consumes them — an inert
+      wire has no consumer until then (decided 2026-06-10).*
 - [ ] Content with an unknown tier name fails validation at load (the tier
       vocabulary is pack-declared; an unlisted tier is an authoring error).
 
@@ -139,6 +141,11 @@ This slice makes both **weapon-specific**:
 A **threatened roll is a critical** — there is **no separate confirmation roll**
 (that tabletop step is dropped per Decision 0). The `isCritical` flag continues
 to flow on the hit event so renderers can dramatize it (`combat §4.5`).
+
+To make a critical deal *normal* damage, a weapon declares a multiplier of **one**
+— an *undeclared* (zero/absent) multiplier means "use the configured default",
+not "no bonus". The same holds for the threat range: undeclared means "natural
+maximum only", so a weapon cannot widen its threat by declaring zero.
 
 A threat range only matters on a roll that would otherwise hit or auto-hit: a
 threat-range roll auto-hits and crits regardless of AC (as the maximum roll does

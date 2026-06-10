@@ -2398,6 +2398,10 @@ type weaponInfo struct {
 	// tier means "untiered" (treated as the lowest tier, §3).
 	category string
 	tier     string
+	// critThreatLow / critMultiplier are the weapon's §4 critical params
+	// carried into combat.Stats. Zero ⇒ the resolver applies its defaults.
+	critThreatLow  int
+	critMultiplier int
 }
 
 // recomputeWeaponLocked refreshes the cached wielded-weapon snapshot
@@ -2430,10 +2434,12 @@ func (a *connActor) recomputeWeaponLocked() {
 		}
 		if dice, ok := it.WeaponDamage(); ok {
 			a.weapon.Store(&weaponInfo{
-				dice:     dice,
-				name:     it.Name(),
-				category: it.WeaponCategory(),
-				tier:     it.ProficiencyTier(),
+				dice:           dice,
+				name:           it.Name(),
+				category:       it.WeaponCategory(),
+				tier:           it.ProficiencyTier(),
+				critThreatLow:  it.CritThreatLow(),
+				critMultiplier: it.CritMultiplier(),
 			})
 			return
 		}
@@ -3799,6 +3805,8 @@ func (a *connActor) Stats() combat.Stats {
 	if w := a.weapon.Load(); w != nil {
 		s.Damage = w.dice
 		s.WeaponName = w.name
+		s.CritThreatLow = w.critThreatLow
+		s.CritMultiplier = w.critMultiplier
 	}
 	return s
 }

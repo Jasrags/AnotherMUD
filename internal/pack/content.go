@@ -88,6 +88,12 @@ type ItemFile struct {
 	WeaponCategory  string   `yaml:"weapon_category,omitempty"`
 	ProficiencyTier string   `yaml:"proficiency_tier,omitempty"`
 	DamageTypes     []string `yaml:"damage_types,omitempty"`
+	// Critical threat range + multiplier (weapon-identity §4). crit_threat_low
+	// is the lowest d20 face that crits (0 = unset = natural max only;
+	// validated to 0 or [2,20]). crit_multiplier scales the dice on a crit
+	// (0 = unset = configured default; validated non-negative).
+	CritThreatLow  int `yaml:"crit_threat_low,omitempty"`
+	CritMultiplier int `yaml:"crit_multiplier,omitempty"`
 }
 
 // ModifierFile is one entry of an ItemFile.Modifiers list.

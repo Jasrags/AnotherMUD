@@ -2340,6 +2340,19 @@ func decodeItem(path, ns string) (*item.Template, error) {
 		}
 	}
 
+	// §4 critical threat range + multiplier. Unset (0) is valid — the
+	// engine defaults at attack time. A declared threat-low must be in
+	// [2,20] (a natural 1 is always a fumble, a face above 20 cannot
+	// roll); a declared multiplier must be non-negative.
+	if f.CritThreatLow != 0 && (f.CritThreatLow < 2 || f.CritThreatLow > 20) {
+		return nil, fmt.Errorf("%w: %s: crit_threat_low %d out of range (expected 0 or 2..20)",
+			ErrInvalidContent, path, f.CritThreatLow)
+	}
+	if f.CritMultiplier < 0 {
+		return nil, fmt.Errorf("%w: %s: crit_multiplier %d must be non-negative",
+			ErrInvalidContent, path, f.CritMultiplier)
+	}
+
 	return &item.Template{
 		ID:              item.TemplateID(id),
 		Name:            f.Name,
@@ -2355,6 +2368,8 @@ func decodeItem(path, ns string) (*item.Template, error) {
 		WeaponCategory:  weaponCategory,
 		ProficiencyTier: weaponTier,
 		DamageTypes:     damageTypes,
+		CritThreatLow:   f.CritThreatLow,
+		CritMultiplier:  f.CritMultiplier,
 	}, nil
 }
 
