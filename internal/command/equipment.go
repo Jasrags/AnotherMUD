@@ -33,6 +33,15 @@ import (
 // No cross-actor lock is taken. Auto-swap is the unequip + equip
 // composition on the same actor, so the actor mutex protects both
 // halves end to end.
+// weaponProficiencyChecker is the optional actor capability that reports
+// whether the actor's currently-wielded weapon is one their class is
+// proficient with (weapon-identity §3). connActor implements it; actors
+// that don't model proficiency simply don't, and the equip path skips the
+// non-proficient warning for them.
+type weaponProficiencyChecker interface {
+	IsWeaponProficient() bool
+}
+
 func EquipHandler(ctx context.Context, c *Context) error {
 	if c.Items == nil || c.Slots == nil {
 		return c.Actor.Write(ctx, "You can't equip anything right now.")
@@ -219,6 +228,18 @@ func EquipHandler(ctx context.Context, c *Context) error {
 		_ = c.Actor.Write(ctx, fmt.Sprintf("You equip %s, and it flares to life.", item.Name()))
 	} else {
 		_ = c.Actor.Write(ctx, fmt.Sprintf("You equip %s.", item.Name()))
+	}
+
+	// weapon-identity §3: the non-proficient to-hit penalty is otherwise
+	// silent, so warn when wielding a weapon the actor's class is not
+	// proficient with. Checked after Equip so the wielded-weapon snapshot
+	// (which IsWeaponProficient reads) reflects the item just equipped; a
+	// non-weapon (no damage dice) never triggers it.
+	if _, isWeapon := item.WeaponDamage(); isWeapon {
+		if wpc, ok := c.Actor.(weaponProficiencyChecker); ok && !wpc.IsWeaponProficient() {
+			_ = c.Actor.Write(ctx, fmt.Sprintf(
+				"You handle %s clumsily — it is not a weapon you were trained to wield.", item.Name()))
+		}
 	}
 
 	// Broadcast uses the base slot name (no :index) per §3.4 step 10.

@@ -95,6 +95,11 @@ duration of that wielding. Proficient use applies no modifier. The penalty is a
 **to-hit modifier only** — it does not change damage, speed, or the ability to
 equip; an out-of-tier weapon may still be wielded, just clumsily.
 
+Because the penalty is otherwise invisible (a hit-modifier delta, no per-swing
+message), **equipping a non-proficient weapon emits a one-time cue** to the
+wielder so the disadvantage reads in-game. This is feedback only — it changes no
+mechanic and fires only for the player who equips.
+
 This composes with the existing per-attacker to-hit adjustment seam (the same
 seam the darkness penalty uses, `combat §5.3`): the non-proficient penalty is
 one more contributor to the attacker's effective hit modifier, summed before the
@@ -119,6 +124,8 @@ roll. Mob attackers, who have no class, are proficient with whatever they wield
       states otherwise.
 - [ ] The penalty changes only the to-hit roll — damage, equip eligibility, and
       attack cadence are unaffected.
+- [ ] Equipping a non-proficient weapon writes a one-time cue to the wielder; a
+      proficient weapon (or a non-weapon) writes none.
 
 ## 4. Critical threat range and multiplier (C)
 

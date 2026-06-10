@@ -294,7 +294,18 @@ type testActor struct {
 	lastArea  world.AreaID
 	seenAreas map[world.AreaID]struct{}
 
-	carryMax int // StatValue(StatCarryMax); 0 ⇒ no carry-weight limit
+	carryMax      int  // StatValue(StatCarryMax); 0 ⇒ no carry-weight limit
+	nonProficient bool // IsWeaponProficient() returns !nonProficient
+}
+
+// IsWeaponProficient makes testActor satisfy the equip handler's
+// weapon-proficiency capability (weapon-identity §3). Defaults to
+// proficient (nonProficient zero-value false) so existing equip tests
+// see no warning.
+func (a *testActor) IsWeaponProficient() bool {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	return !a.nonProficient
 }
 
 // StatValue exposes the actor's stat ceilings to handlers that read them
