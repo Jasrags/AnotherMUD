@@ -177,3 +177,78 @@ func (f filterSet) permits(d Discovered, folder string) bool {
 	}
 	return false
 }
+
+// filterClosure reduces an already-discovered pack set to the `requested`
+// packs PLUS their transitive dependency closure (over manifest
+// Dependencies). This is the boot-time pack-selection allowlist: naming a
+// setting's world pack (e.g. "wot") automatically keeps the baseline it
+// depends on ("tapestry-core"), so the operator need not enumerate deps.
+//
+// A requested token matches a pack by manifest name, derived namespace, or
+// directory base name (mirroring filterSet.permits, minus scoped-folder
+// paths). An empty `requested` returns `all` unchanged (load everything).
+// Tokens matching no pack are ignored (lenient, like the literal Discover
+// filter). A dependency absent from `all` (e.g. a deactivated pack) is not
+// added here — Order surfaces it as ErrUnknownDep with a clear message.
+// Order within `all` is preserved.
+func filterClosure(all []Discovered, requested []string) []Discovered {
+	want := make(map[string]struct{}, len(requested))
+	for _, r := range requested {
+		if r = strings.TrimSpace(r); r != "" {
+			want[r] = struct{}{}
+		}
+	}
+	if len(want) == 0 {
+		return all
+	}
+
+	byNS := make(map[string]Discovered, len(all))
+	for _, d := range all {
+		byNS[d.Namespace()] = d
+	}
+
+	matches := func(d Discovered) bool {
+		for _, key := range []string{d.Manifest.Name, d.Namespace(), filepath.Base(d.Dir)} {
+			if _, ok := want[key]; ok {
+				return true
+			}
+		}
+		return false
+	}
+
+	keep := make(map[string]struct{})
+	var queue []string
+	enqueue := func(ns string) {
+		if _, done := keep[ns]; !done {
+			keep[ns] = struct{}{}
+			queue = append(queue, ns)
+		}
+	}
+	for _, d := range all {
+		if matches(d) {
+			enqueue(d.Namespace())
+		}
+	}
+	for len(queue) > 0 {
+		ns := queue[0]
+		queue = queue[1:]
+		d, ok := byNS[ns]
+		if !ok {
+			continue
+		}
+		for depName := range d.Manifest.Dependencies {
+			depNS := DeriveNamespace(depName)
+			if _, present := byNS[depNS]; present {
+				enqueue(depNS)
+			}
+		}
+	}
+
+	out := make([]Discovered, 0, len(keep))
+	for _, d := range all {
+		if _, ok := keep[d.Namespace()]; ok {
+			out = append(out, d)
+		}
+	}
+	return out
+}

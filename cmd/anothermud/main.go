@@ -162,7 +162,7 @@ func run() error {
 	// at boot. M17.1c reuses the same Engine via a Runtime that
 	// installs long-lived Sandboxes + bus subscriptions.
 	scriptEngine := scripting.New(scripting.Options{})
-	if err := pack.Load(ctx, cfg.ContentDir, nil, registries, spawner, spawner, scriptEngine); err != nil {
+	if err := pack.Load(ctx, cfg.ContentDir, cfg.Packs, registries, spawner, spawner, scriptEngine); err != nil {
 		return fmt.Errorf("loading content from %s: %w", cfg.ContentDir, err)
 	}
 	// M17.1c: bring scripts online. The Runtime spins up one Sandbox
@@ -1782,7 +1782,7 @@ func run() error {
 		// compile-check rejects a syntax-broken edit before Reload tears
 		// the live scripts down.
 		ReloadScripts: func(ctx context.Context) (int, error) {
-			fresh, err := pack.DiscoverScripts(ctx, cfg.ContentDir, nil, scriptEngine)
+			fresh, err := pack.DiscoverScripts(ctx, cfg.ContentDir, cfg.Packs, scriptEngine)
 			if err != nil {
 				return 0, err
 			}
@@ -2042,6 +2042,7 @@ type config struct {
 	SustenanceDrainInterval time.Duration
 	SustenanceDrainAmount   int
 	ContentDir              string
+	Packs                   []string
 	SaveDir                 string
 	StartRoom               world.RoomID
 	DefaultRace             string
@@ -2101,7 +2102,12 @@ func loadConfig() config {
 		SustenanceDrainInterval: envDurationOr("ANOTHERMUD_SUSTENANCE_DRAIN_INTERVAL", 30*time.Second),
 		SustenanceDrainAmount:   envIntOr("ANOTHERMUD_SUSTENANCE_DRAIN_AMOUNT", 1),
 		ContentDir:              envOr("ANOTHERMUD_CONTENT_DIR", "./content"),
-		SaveDir:                 envOr("ANOTHERMUD_SAVE_DIR", "./saves"),
+		// Pack allowlist (empty = load every active pack). Names a setting's
+		// world pack(s); the loader auto-includes their dependency closure, so
+		// `ANOTHERMUD_PACKS=wot` pulls in tapestry-core too. Use this to boot
+		// one setting in place of another (e.g. starter-world vs wot).
+		Packs:    envCSVOr("ANOTHERMUD_PACKS", nil),
+		SaveDir:  envOr("ANOTHERMUD_SAVE_DIR", "./saves"),
 		StartRoom:               world.RoomID(envOr("ANOTHERMUD_START_ROOM", "starter-world:town-square")),
 		DefaultRace:             envOr("ANOTHERMUD_DEFAULT_RACE", "human"),
 		DefaultXPTrack:          envOr("ANOTHERMUD_DEFAULT_XP_TRACK", command.DefaultXPTrack),

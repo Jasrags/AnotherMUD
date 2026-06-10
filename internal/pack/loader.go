@@ -119,9 +119,16 @@ func Load(ctx context.Context, root string, filter []string, dst *Registries, sp
 	}
 	logger := logging.From(ctx).With(slog.String("event", "pack.load"), slog.String("root", root))
 
-	discovered, err := Discover(root, filter)
+	discovered, err := Discover(root, nil)
 	if err != nil {
 		return fmt.Errorf("discovery: %w", err)
+	}
+	// Boot-time pack selection (allowlist + dependency closure). Empty filter
+	// = every active pack. Naming a world pack auto-keeps its baseline deps.
+	discovered = filterClosure(discovered, filter)
+	if len(filter) > 0 && len(discovered) == 0 {
+		logger.Warn("pack allowlist matched no packs; world will be empty",
+			slog.Any("packs", filter))
 	}
 	ordered, err := Order(discovered)
 	if err != nil {
@@ -232,10 +239,13 @@ func Load(ctx context.Context, root string, filter []string, dst *Registries, sp
 // caller tears the running runtime down — so a bad edit leaves the
 // live scripts untouched.
 func DiscoverScripts(ctx context.Context, root string, filter []string, scriptCompiler ScriptCompiler) (*script.Registry, error) {
-	discovered, err := Discover(root, filter)
+	discovered, err := Discover(root, nil)
 	if err != nil {
 		return nil, fmt.Errorf("discovery: %w", err)
 	}
+	// Honor the same boot-time pack selection so a script hot-reload sees the
+	// same packs (and dependency closure) the server booted with.
+	discovered = filterClosure(discovered, filter)
 	ordered, err := Order(discovered)
 	if err != nil {
 		return nil, fmt.Errorf("ordering: %w", err)
