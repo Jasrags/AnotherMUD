@@ -77,6 +77,18 @@ type Class struct {
 	// gender (§4.1). Empty = unrestricted.
 	AllowedGenders []string
 
+	// ProficiencyTiers is the set of weapon proficiency tiers this class
+	// grants (weapon-identity §3, e.g. "simple", "martial"). A character
+	// is proficient with any weapon whose tier is in this set. Composed
+	// across a multiclass character's classes. Lowercased at Register.
+	ProficiencyTiers []string
+
+	// ProficiencyCategories is the set of specific weapon categories this
+	// class grants proficiency with beyond any tier grant (weapon-identity
+	// §3, e.g. simple weapons plus a few named martial kinds). Lowercased
+	// at Register.
+	ProficiencyCategories []string
+
 	// StartingAlignment seeds new characters' alignment (§4.1
 	// "presentation fields"). Read only by M12 character creation;
 	// unused at runtime today.
@@ -163,6 +175,20 @@ func (cr *ClassRegistry) Register(c *Class) error {
 			gens[i] = strings.ToLower(strings.TrimSpace(v))
 		}
 		clone.AllowedGenders = gens
+	}
+	if len(c.ProficiencyTiers) > 0 {
+		ts := make([]string, len(c.ProficiencyTiers))
+		for i, v := range c.ProficiencyTiers {
+			ts[i] = strings.ToLower(strings.TrimSpace(v))
+		}
+		clone.ProficiencyTiers = ts
+	}
+	if len(c.ProficiencyCategories) > 0 {
+		cs := make([]string, len(c.ProficiencyCategories))
+		for i, v := range c.ProficiencyCategories {
+			cs[i] = strings.ToLower(strings.TrimSpace(v))
+		}
+		clone.ProficiencyCategories = cs
 	}
 	cr.classes[id] = &clone
 	return nil

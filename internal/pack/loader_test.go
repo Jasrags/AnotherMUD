@@ -5,6 +5,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"slices"
 	"testing"
 
 	"github.com/Jasrags/AnotherMUD/internal/item"
@@ -1213,6 +1214,39 @@ allowed_categories:
 	}
 	if c.Pack != "tapestry-core" {
 		t.Errorf("Pack = %q", c.Pack)
+	}
+}
+
+// Weapon-identity §3: a class declares the weapon proficiency tiers and
+// categories it grants; both are lowercased at registration.
+func TestLoadClasses_ProficiencyGrants(t *testing.T) {
+	root := t.TempDir()
+	pack := filepath.Join(root, "core")
+	writeFile(t, filepath.Join(pack, "pack.yaml"), `
+name: tapestry-core
+content:
+  classes: [classes/*.yaml]
+`)
+	writeFile(t, filepath.Join(pack, "classes/armsman.yaml"), `
+id: armsman
+name: Armsman
+bound_track: adventurer
+proficiency_tiers: [Simple, Martial]
+proficiency_categories: [Two-Rivers-Longbow]
+`)
+	regs := NewRegistries()
+	if err := Load(context.Background(), root, nil, regs, nil, nil, nil); err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	c, ok := regs.Classes.Get("armsman")
+	if !ok {
+		t.Fatal("class armsman not registered")
+	}
+	if want := []string{"simple", "martial"}; !slices.Equal(c.ProficiencyTiers, want) {
+		t.Errorf("ProficiencyTiers = %v, want %v (lowercased)", c.ProficiencyTiers, want)
+	}
+	if want := []string{"two-rivers-longbow"}; !slices.Equal(c.ProficiencyCategories, want) {
+		t.Errorf("ProficiencyCategories = %v, want %v (lowercased)", c.ProficiencyCategories, want)
 	}
 }
 

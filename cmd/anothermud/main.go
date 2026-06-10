@@ -1431,6 +1431,25 @@ func run() error {
 		lvl := command.EffectiveLight(lightResolver, room, viewer, entityStore, placement)
 		return -lightResolver.Config().HitPenalty(lvl)
 	}
+	// weapon-identity §3: a player wielding a weapon outside their class
+	// proficiency set takes a flat to-hit penalty. Mobs have no class and
+	// are always proficient (short-circuit on the non-player prefix). The
+	// proficiency result is computed on the connActor (resolving its class
+	// live by id). Composes additively with the darkness penalty through
+	// the same HitModAdjust seam.
+	attackerProficiencyPenalty := func(id combat.CombatantID) int {
+		if !strings.HasPrefix(string(id), combat.PlayerPrefix) {
+			return 0
+		}
+		a, ok := mgr.GetByPlayerID(string(id)[len(combat.PlayerPrefix):])
+		if !ok || a.IsWeaponProficient() {
+			return 0
+		}
+		return -cfg.NonProficientPenalty
+	}
+	hitModAdjust := func(id combat.CombatantID) int {
+		return attackerDarknessPenalty(id) + attackerProficiencyPenalty(id)
+	}
 	autoAttackPhase := combat.NewAutoAttack(combat.AutoAttackConfig{
 		Locator:        combatLocator,
 		RoomLocator:    combatLocator,
@@ -1438,7 +1457,7 @@ func run() error {
 		Roller:         combatRNG,
 		Passives:       passiveResolver,
 		CritMultiplier: cfg.CritMultiplier,
-		HitModAdjust:   attackerDarknessPenalty,
+		HitModAdjust:   hitModAdjust,
 	})
 	// M7.6 wimpy phase — fires §5.2 flee when a combatant's HP%
 	// drops to or below its WimpyThreshold property. Shares the same
@@ -2024,6 +2043,7 @@ type config struct {
 	CombatCadence         time.Duration
 	FleeCooldown          time.Duration
 	CritMultiplier        int
+	NonProficientPenalty  int
 	CorpseOwnershipWindow time.Duration
 	CorpseLifetime        time.Duration
 	CorpseDecayInterval   time.Duration
@@ -2095,6 +2115,7 @@ func loadConfig() config {
 		CombatCadence:           envDurationOr("ANOTHERMUD_COMBAT_CADENCE", 3*time.Second),
 		FleeCooldown:            envDurationOr("ANOTHERMUD_FLEE_COOLDOWN", 15*time.Second),
 		CritMultiplier:          envIntOr("ANOTHERMUD_CRIT_MULTIPLIER", combat.DefaultCritMultiplier),
+		NonProficientPenalty:    envIntOr("ANOTHERMUD_NONPROFICIENT_PENALTY", combat.DefaultNonProficientPenalty),
 		CorpseOwnershipWindow:   envDurationOr("ANOTHERMUD_CORPSE_OWNERSHIP_WINDOW", 60*time.Second),
 		CorpseLifetime:          envDurationOr("ANOTHERMUD_CORPSE_LIFETIME", 5*time.Minute),
 		CorpseDecayInterval:     envDurationOr("ANOTHERMUD_CORPSE_DECAY_INTERVAL", 3*time.Second),

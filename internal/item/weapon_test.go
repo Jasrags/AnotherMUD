@@ -28,6 +28,36 @@ func TestWeaponTierVocabulary(t *testing.T) {
 	}
 }
 
+func TestProficient(t *testing.T) {
+	tiers := []string{"martial"}    // class grants all martial
+	cats := []string{"two-rivers-longbow"} // ...plus this one exotic kind
+
+	cases := []struct {
+		name       string
+		wTier, wCat string
+		want       bool
+	}{
+		{"untiered weapon is always proficient", "", "anything", true},
+		{"lowest tier is always proficient", "simple", "club", true},
+		{"granted tier is proficient", "martial", "battleaxe", true},
+		{"granted category is proficient even out of tier", "exotic", "two-rivers-longbow", true},
+		{"ungranted tier and category is not proficient", "exotic", "ashandarei", false},
+	}
+	for _, c := range cases {
+		if got := Proficient(tiers, cats, c.wTier, c.wCat); got != c.want {
+			t.Errorf("%s: Proficient(%q,%q) = %v, want %v", c.name, c.wTier, c.wCat, got, c.want)
+		}
+	}
+
+	// No class grants: only the lowest tier / untiered is usable.
+	if Proficient(nil, nil, "martial", "sword") {
+		t.Error("no grants ⇒ martial weapon should NOT be proficient")
+	}
+	if !Proficient(nil, nil, "simple", "dagger") {
+		t.Error("no grants ⇒ a simple (lowest-tier) weapon is still proficient (everyone has the lowest tier)")
+	}
+}
+
 func TestDamageTypeVocabulary(t *testing.T) {
 	for _, dt := range []string{"bludgeoning", "piercing", "slashing"} {
 		if !ValidDamageType(dt) {

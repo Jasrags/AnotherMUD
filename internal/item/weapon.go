@@ -54,3 +54,31 @@ func ValidDamageType(name string) bool {
 	}
 	return false
 }
+
+// Proficient reports whether a wielder whose class grants the given weapon
+// tiers and categories may use a weapon of weaponTier / weaponCategory
+// without the non-proficient penalty (weapon-identity §3). Every wielder is
+// proficient with the lowest tier — and with an untiered weapon, which is
+// treated as the lowest tier — so an empty or lowest-tier weapon is always
+// proficient regardless of grants. Otherwise the weapon is proficient when
+// its tier is in the granted tier set OR its category is in the granted
+// category set. All inputs are assumed already normalized (lowercased) by
+// the pack loader.
+func Proficient(grantedTiers, grantedCategories []string, weaponTier, weaponCategory string) bool {
+	if weaponTier == "" || weaponTier == LowestTier() {
+		return true
+	}
+	for _, t := range grantedTiers {
+		if t == weaponTier {
+			return true
+		}
+	}
+	if weaponCategory != "" {
+		for _, c := range grantedCategories {
+			if c == weaponCategory {
+				return true
+			}
+		}
+	}
+	return false
+}

@@ -1603,6 +1603,14 @@ type connActor struct {
 	// when the actor is classless or the class isn't registered.
 	class *progression.Class
 
+	// classes is the class registry, captured at applyClass so weapon
+	// proficiency (weapon-identity §3) can resolve the actor's CURRENT
+	// class by classID at check time — this sidesteps the SetClass
+	// staleness of the lock-free a.class pointer (SetClass updates
+	// classID but never reassigns a.class). Set-once at construction;
+	// read under a.mu. Nil for test/headless actors that skip applyClass.
+	classes *progression.ClassRegistry
+
 	// lastAbility is the spec §4.5 step 2 "last ability used"
 	// property, recorded by the resolver on every resolution.
 	// In-memory only today (not persisted) — it's a transient
@@ -2384,6 +2392,12 @@ func (a *connActor) Equipment() map[string]entities.EntityID {
 type weaponInfo struct {
 	dice combat.DiceExpr
 	name string
+	// category / tier are the wielded weapon's identity labels
+	// (weapon-identity §2), captured alongside the dice so the to-hit
+	// hook can decide proficiency without re-fetching the item. Empty
+	// tier means "untiered" (treated as the lowest tier, §3).
+	category string
+	tier     string
 }
 
 // recomputeWeaponLocked refreshes the cached wielded-weapon snapshot
@@ -2415,11 +2429,41 @@ func (a *connActor) recomputeWeaponLocked() {
 			continue
 		}
 		if dice, ok := it.WeaponDamage(); ok {
-			a.weapon.Store(&weaponInfo{dice: dice, name: it.Name()})
+			a.weapon.Store(&weaponInfo{
+				dice:     dice,
+				name:     it.Name(),
+				category: it.WeaponCategory(),
+				tier:     it.ProficiencyTier(),
+			})
 			return
 		}
 	}
 	a.weapon.Store(nil)
+}
+
+// IsWeaponProficient reports whether the actor may wield their current
+// weapon without the non-proficient to-hit penalty (weapon-identity §3).
+// The class is resolved LIVE by classID (not via the lock-free a.class
+// pointer), so a SetClass change is honored without a relogin. An unarmed
+// actor, an untiered weapon, and a lowest-tier weapon are always
+// proficient. Read on the combat tick goroutine; combat cadence makes the
+// per-swing class lookup (a registry RLock + a tiny tier/category scan)
+// negligible, so no cached result is kept.
+func (a *connActor) IsWeaponProficient() bool {
+	w := a.weapon.Load()
+	if w == nil {
+		return true // unarmed → lowest tier → always proficient
+	}
+	a.mu.Lock()
+	var tiers, cats []string
+	if a.classes != nil {
+		if cls, ok := a.classes.Get(a.classID); ok {
+			tiers = cls.ProficiencyTiers
+			cats = cls.ProficiencyCategories
+		}
+	}
+	a.mu.Unlock()
+	return item.Proficient(tiers, cats, w.tier, w.category)
 }
 
 // Equip is the atomic equip-side mutation invoked by the equip command
@@ -3151,6 +3195,10 @@ func (a *connActor) StatValue(stat progression.StatType) int {
 // classless with classID="" so no path/growth fires. Mirrors
 // applyRace's fail-soft policy.
 func applyClass(a *connActor, cfg *Config, saved string) {
+	// Capture the registry unconditionally so SetClass-driven class
+	// changes (and classless characters who gain a class later) can still
+	// resolve weapon proficiency by id (weapon-identity §3).
+	a.classes = cfg.Classes
 	candidate := strings.ToLower(strings.TrimSpace(saved))
 	if candidate == "" || cfg.Classes == nil {
 		return

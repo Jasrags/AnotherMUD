@@ -91,6 +91,13 @@ type ItemInstance struct {
 	// equippable. Write-once at construction — no mutex needed.
 	eligibleSlots  []string
 	companionSlots []string
+	// weaponCategory / proficiencyTier are the weapon-identity §2 labels
+	// lifted onto the instance at build so the equip path can decide
+	// proficiency without a template registry (mirrors weaponDamage).
+	// Empty proficiencyTier means "untiered" (treated as the lowest tier).
+	// Write-once at construction — no mutex needed.
+	weaponCategory  string
+	proficiencyTier string
 }
 
 // ID implements Entity.
@@ -255,6 +262,16 @@ func (it *ItemInstance) WeaponDamage() (combat.DiceExpr, bool) {
 	return it.weaponDamage, !it.weaponDamage.IsZero()
 }
 
+// WeaponCategory returns the weapon's kind label (weapon-identity §2),
+// empty when the weapon declares none. Read by the equip path that
+// computes proficiency.
+func (it *ItemInstance) WeaponCategory() string { return it.weaponCategory }
+
+// ProficiencyTier returns the weapon's proficiency tier (weapon-identity
+// §2), empty for an untiered weapon (treated as the lowest tier). Read by
+// the equip path that computes proficiency.
+func (it *ItemInstance) ProficiencyTier() string { return it.proficiencyTier }
+
 // EligibleSlots returns the slots this item may be equipped into
 // (inventory-equipment-items §3.3) as a fresh slice so callers cannot
 // alias instance state. Empty means the item is not equippable. Lifted
@@ -376,8 +393,10 @@ func buildInstanceFromTemplate(tpl *item.Template, id EntityID) *ItemInstance {
 		properties:     props,
 		modifiers:      mods,
 		templateID:     tpl.ID,
-		weaponDamage:   weaponDamage,
-		eligibleSlots:  eligible,
-		companionSlots: companion,
+		weaponDamage:    weaponDamage,
+		eligibleSlots:   eligible,
+		companionSlots:  companion,
+		weaponCategory:  tpl.WeaponCategory,
+		proficiencyTier: tpl.ProficiencyTier,
 	}
 }

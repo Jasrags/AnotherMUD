@@ -154,6 +154,14 @@ func DefaultUnarmedDamage() DiceExpr { return defaultUnarmedDamage }
 // AutoAttackConfig.CritMultiplier (env ANOTHERMUD_CRIT_MULTIPLIER).
 const DefaultCritMultiplier = 2
 
+// DefaultNonProficientPenalty is the to-hit penalty applied when a
+// character wields a weapon outside their class proficiency set
+// (weapon-identity §3 — the WoT "−4 to attack" rule). Applied as a
+// negative delta through the AutoAttackConfig.HitModAdjust seam (the same
+// seam the darkness penalty uses). Overridable via env
+// ANOTHERMUD_NONPROFICIENT_PENALTY.
+const DefaultNonProficientPenalty = 4
+
 // STRBonus maps a STR score to a damage modifier. Spec §4.5 leaves the
 // scaling formula explicitly as policy ("scaled by an attacker stat
 // (strength) modifier"); the M7.4 default is (STR-10)/2 with Go's

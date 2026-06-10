@@ -368,9 +368,11 @@ type ClassFile struct {
 	GrowthBonuses     map[string]string    `yaml:"growth_bonuses,omitempty"`
 	Path              []ClassPathEntryFile `yaml:"path,omitempty"`
 	TrainsPerLevel    int                  `yaml:"trains_per_level,omitempty"`
-	AllowedCategories []string             `yaml:"allowed_categories,omitempty"`
-	AllowedGenders    []string             `yaml:"allowed_genders,omitempty"`
-	StartingAlignment int                  `yaml:"starting_alignment,omitempty"`
+	AllowedCategories     []string         `yaml:"allowed_categories,omitempty"`
+	AllowedGenders        []string         `yaml:"allowed_genders,omitempty"`
+	ProficiencyTiers      []string         `yaml:"proficiency_tiers,omitempty"`
+	ProficiencyCategories []string         `yaml:"proficiency_categories,omitempty"`
+	StartingAlignment     int              `yaml:"starting_alignment,omitempty"`
 	Priority          int                  `yaml:"priority,omitempty"`
 }
 

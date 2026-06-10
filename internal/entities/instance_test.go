@@ -39,6 +39,35 @@ func TestItemInstancePropertiesConcurrentAccess(t *testing.T) {
 	wg.Wait()
 }
 
+// Weapon-identity §2: the category + proficiency tier are lifted onto the
+// instance at build so the equip path reads them without the template
+// registry (mirrors weaponDamage). Untyped weapons expose empty strings.
+func TestItemInstance_WeaponIdentityFields(t *testing.T) {
+	s := NewStore()
+	it, err := s.Spawn(&item.Template{
+		ID: "wot:longsword", Name: "a longsword", Type: "weapon",
+		WeaponCategory: "longsword", ProficiencyTier: "martial",
+	})
+	if err != nil {
+		t.Fatalf("Spawn: %v", err)
+	}
+	if it.WeaponCategory() != "longsword" {
+		t.Errorf("WeaponCategory() = %q, want longsword", it.WeaponCategory())
+	}
+	if it.ProficiencyTier() != "martial" {
+		t.Errorf("ProficiencyTier() = %q, want martial", it.ProficiencyTier())
+	}
+
+	rock, err := s.Spawn(&item.Template{ID: "wot:rock", Name: "a rock", Type: "item"})
+	if err != nil {
+		t.Fatalf("Spawn: %v", err)
+	}
+	if rock.WeaponCategory() != "" || rock.ProficiencyTier() != "" {
+		t.Errorf("non-weapon should expose empty identity, got cat=%q tier=%q",
+			rock.WeaponCategory(), rock.ProficiencyTier())
+	}
+}
+
 func TestDecrementInt(t *testing.T) {
 	s := NewStore()
 	it, err := s.Spawn(&item.Template{
