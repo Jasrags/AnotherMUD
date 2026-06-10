@@ -179,7 +179,7 @@ func TestSideBySideVisual(t *testing.T) {
 	w.AddRoom(mapRoom("ar:e", "water", 1, 0, 0, map[world.Direction]world.RoomID{world.DirWest: "ar:o"}))
 	w.AddRoom(mapRoom("ar:w", "road", -1, 0, 0, map[world.Direction]world.RoomID{world.DirEast: "ar:o"}))
 	win, _ := w.LocalWindow("ar:o", defaultMinimapRadius)
-	grid, _ := renderFramedMinimap(win, "ar:o", visitedFunc("ar:o", "ar:n", "ar:e", "ar:w"), nil)
+	grid, _ := renderFramedMinimap(win, "ar:o", visitedFunc("ar:o", "ar:n", "ar:e", "ar:w"), nil, defaultMinimapRadius)
 	t.Logf("\n%s", joinBeside(roomBody, grid, defaultRoomColumnWidth, minimapGap))
 }
 
@@ -190,7 +190,7 @@ func TestRenderFramedMinimap_HasBorder(t *testing.T) {
 	w.AddRoom(mapRoom("ar:o", "outdoors", 0, 0, 0, map[world.Direction]world.RoomID{world.DirEast: "ar:e"}))
 	w.AddRoom(mapRoom("ar:e", "water", 1, 0, 0, map[world.Direction]world.RoomID{world.DirWest: "ar:o"}))
 
-	out, ok := renderFramedMinimap(must(w.LocalWindow("ar:o", defaultMinimapRadius)), "ar:o", visitedFunc("ar:o", "ar:e"), nil)
+	out, ok := renderFramedMinimap(must(w.LocalWindow("ar:o", defaultMinimapRadius)), "ar:o", visitedFunc("ar:o", "ar:e"), nil, defaultMinimapRadius)
 	if !ok {
 		t.Fatal("expected centerable")
 	}
@@ -207,6 +207,35 @@ func TestRenderFramedMinimap_HasBorder(t *testing.T) {
 	}
 	if !bordered {
 		t.Errorf("minimap content should be enclosed by side borders:\n%s", out)
+	}
+}
+
+// The minimap is a fixed viewport: the box is always (2*radius+1) rooms
+// square — (4*radius+3) framed rows — even when only the origin is
+// visited, with the viewer dead centre. This is what makes the size
+// preset visibly matter regardless of how much is explored.
+func TestRenderFramedMinimap_FixedViewportSize(t *testing.T) {
+	w := world.New()
+	w.AddRoom(mapRoom("ar:o", "outdoors", 0, 0, 0, nil)) // a lone room, nothing else
+	for _, tc := range []struct{ radius, wantRows int }{
+		{2, 11}, // small: 9x9 content + 2 borders
+		{3, 15}, // medium: 13x13
+		{4, 19}, // large: 17x17
+	} {
+		win := must(w.LocalWindow("ar:o", tc.radius))
+		out, ok := renderFramedMinimap(win, "ar:o", visitedFunc("ar:o"), nil, tc.radius)
+		if !ok {
+			t.Fatalf("radius %d: not centerable", tc.radius)
+		}
+		lines := strings.Split(out, "\n")
+		if len(lines) != tc.wantRows {
+			t.Errorf("radius %d: %d rows, want %d (fixed viewport ignores sparse content)", tc.radius, len(lines), tc.wantRows)
+		}
+		// The viewer marker sits on the centre content row.
+		mid := lines[len(lines)/2]
+		if !strings.Contains(mid, "@") {
+			t.Errorf("radius %d: viewer should be on the centre row, got %q", tc.radius, mid)
+		}
 	}
 }
 
@@ -249,7 +278,7 @@ func TestRenderFramedMinimap_AreaLabel(t *testing.T) {
 	w.AddRoom(mapRoom("ar:o", "outdoors", 0, 0, 0, map[world.Direction]world.RoomID{world.DirEast: "ar:e"}))
 	w.AddRoom(mapRoom("ar:e", "water", 1, 0, 0, map[world.Direction]world.RoomID{world.DirWest: "ar:o"}))
 
-	out, ok := renderFramedMinimap(must(w.LocalWindow("ar:o", defaultMinimapRadius)), "ar:o", visitedFunc("ar:o", "ar:e"), w)
+	out, ok := renderFramedMinimap(must(w.LocalWindow("ar:o", defaultMinimapRadius)), "ar:o", visitedFunc("ar:o", "ar:e"), w, defaultMinimapRadius)
 	if !ok {
 		t.Fatal("expected centerable")
 	}

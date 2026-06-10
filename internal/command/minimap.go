@@ -148,12 +148,17 @@ func renderLocalMap(win world.Window, originID world.RoomID, isVisited func(stri
 // in a border that bounds the fog-of-war window the player can currently
 // see (player-maps §4) — so the boxed extent reads at a glance. The
 // vertical/keyword-exit notes sit below the box.
-func renderFramedMinimap(win world.Window, originID world.RoomID, isVisited func(string) bool, w *world.World) (string, bool) {
+func renderFramedMinimap(win world.Window, originID world.RoomID, isVisited func(string) bool, w *world.World, radius int) (string, bool) {
 	canvas, origin, ok := buildMapCanvas(win, originID, isVisited)
 	if !ok {
 		return "", false
 	}
-	out := frameBox(canvas.render())
+	// Fixed viewport: the box is always (2*radius+1) rooms square,
+	// padding unexplored space as blank so the chosen size is honoured
+	// and the box stays a steady footprint as the player moves (the @
+	// stays dead centre). Rooms sit on even coords, so the canvas
+	// half-span is twice the step radius.
+	out := frameBox(canvas.renderFixed(2 * radius))
 	// A1: label the box with the current area name so a "fresh" map after
 	// an area crossing reads as "you're somewhere new", not a glitch
 	// (player-maps §4). Sits above the box as unobtrusive chrome. Shown
@@ -320,7 +325,7 @@ func AppendMinimap(base string, r *world.Room, viewer Actor, w *world.World) str
 	if err != nil {
 		return base
 	}
-	grid, ok := renderFramedMinimap(win, r.ID, mv.HasVisited, w)
+	grid, ok := renderFramedMinimap(win, r.ID, mv.HasVisited, w, radius)
 	if !ok || grid == "" {
 		return base
 	}
