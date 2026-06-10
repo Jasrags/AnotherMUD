@@ -1,0 +1,16 @@
+id: deven-ride-shepherd
+name: a Deven Ride shepherd
+type: npc
+behavior: stationary
+description: |
+  A weather-browned man in a oiled-wool coat, the shepherd moves among his flock
+  with a crook in one hand and a patient, far-off look in his eye. He knows every
+  ewe by sight and most by name, can tell tomorrow's weather from the set of the
+  clouds, and reckons a quiet life among sheep the best a man can hope for.
+tags: [humanoid]
+keywords: [shepherd, herder, man]
+stats:
+  hp_max: 26
+  str: 12
+disposition_rules:
+  default: friendly

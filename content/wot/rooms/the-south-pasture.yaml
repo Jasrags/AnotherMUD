@@ -1,0 +1,13 @@
+id: the-south-pasture
+area: deven-ride
+name: "{g}The South Pasture{x}"
+description: |
+  The Old Road runs on south through good grazing land, the hedges higher here
+  and heavy with blackberry, the grass close-cropped and dotted with grazing
+  sheep. Somewhere off among the folds a dog barks and is answered. The
+  Winespring and Emond's Field lie back to the north; the rooftops of Deven Ride
+  show low against the hedges to the south.
+exits:
+  north: old-road
+  south: deven-ride-green
+terrain: grassland

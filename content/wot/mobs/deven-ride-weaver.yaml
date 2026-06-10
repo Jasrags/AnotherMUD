@@ -1,0 +1,17 @@
+id: deven-ride-weaver
+name: a Deven Ride weaver
+type: npc
+behavior: stationary
+description: |
+  An old woman sits at her cottage door with a drop-spindle turning ceaselessly
+  in her fingers, drawing thread from a cloud of carded fleece without ever
+  seeming to look at it. Deven Ride wool is good wool, she will tell you, and
+  Deven Ride spinning better, and she has the warm, well-made shawl about her
+  shoulders to prove it.
+tags: [humanoid]
+keywords: [weaver, spinner, old woman]
+stats:
+  hp_max: 22
+  str: 9
+disposition_rules:
+  default: friendly
