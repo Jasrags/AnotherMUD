@@ -80,6 +80,12 @@ func TestLoad_WotPackSelectionBootSwap(t *testing.T) {
 	if green.POI != "" {
 		t.Errorf("the-green POI = %q, want empty (no fixture)", green.POI)
 	}
+	// The Winespring Inn rest rooms (healing_rate, no vendor) read as inns.
+	for _, id := range []world.RoomID{"wot:inn-common-room", "wot:inn-guestroom"} {
+		if r, err := regs.World.Room(id); err == nil && r.POI != "inn" {
+			t.Errorf("%s POI = %q, want inn (healing_rate set, no shop)", id, r.POI)
+		}
+	}
 	if wild, err := regs.World.Room("wot:deep-westwood"); err == nil {
 		if got := res.Effective(wild, light.Black, light.Black); got != light.Gloom {
 			t.Errorf("deep-westwood at night = %v, want Gloom (wilds stay dark)", got)

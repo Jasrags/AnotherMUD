@@ -14,5 +14,9 @@ exits:
   north: inn-kitchen
   up: inn-guestroom
 terrain: indoors
+# Rest by the hearth: a room-level regen bonus (economy-survival §5.7).
+# Also lights the inn marker on the map (player-maps §6) — Bran is a plain
+# innkeeper, not a shop, so the rest bonus is what the room reads as.
+healing_rate: 2
 mobs:
   - bran-alvere

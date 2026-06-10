@@ -10,3 +10,6 @@ description: |
 exits:
   down: inn-common-room
 terrain: indoors
+# A real bed — the best rest in the village (economy-survival §5.7), and
+# an inn marker on the map (player-maps §6).
+healing_rate: 3
