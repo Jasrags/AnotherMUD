@@ -3,8 +3,10 @@ package pack
 import (
 	"context"
 	"path/filepath"
+	"slices"
 	"testing"
 
+	"github.com/Jasrags/AnotherMUD/internal/item"
 	"github.com/Jasrags/AnotherMUD/internal/light"
 	"github.com/Jasrags/AnotherMUD/internal/slot"
 	"github.com/Jasrags/AnotherMUD/internal/world"
@@ -97,3 +99,71 @@ func TestLoad_WotPackSelectionBootSwap(t *testing.T) {
 type fixedNight struct{}
 
 func (fixedNight) CurrentPeriod() string { return "night" }
+
+// TestLoad_WotWeaponIdentityChain verifies the weapon-identity feature
+// (EPIC S1) end-to-end on real content: the demo weapons decode with their
+// tier / crit / damage-type fields, the fighter class grants simple+martial,
+// and the proficiency rule resolves correctly — a fighter is proficient
+// with the martial longsword (no penalty) but NOT the exotic ashandarei
+// (which takes the non-proficient to-hit penalty).
+func TestLoad_WotWeaponIdentityChain(t *testing.T) {
+	root, err := filepath.Abs("../../content")
+	if err != nil {
+		t.Fatalf("abs: %v", err)
+	}
+	regs := NewRegistries()
+	if err := RegisterEngineBaselineProperties(regs.Properties); err != nil {
+		t.Fatalf("baseline properties: %v", err)
+	}
+	if err := slot.RegisterEngineBaseline(regs.Slots); err != nil {
+		t.Fatalf("baseline slots: %v", err)
+	}
+	if err := Load(context.Background(), root, []string{"wot"}, regs, nil, nil, nil); err != nil {
+		t.Fatalf("Load wot: %v", err)
+	}
+
+	// The martial longsword decoded with its full identity (§2, §4).
+	longsword, err := regs.Items.Get("wot:two-rivers-longsword")
+	if err != nil {
+		t.Fatalf("longsword: %v", err)
+	}
+	if longsword.ProficiencyTier != "martial" || longsword.WeaponCategory != "longsword" {
+		t.Errorf("longsword identity = (%q,%q), want (martial, longsword)",
+			longsword.ProficiencyTier, longsword.WeaponCategory)
+	}
+	if longsword.CritThreatLow != 19 || longsword.CritMultiplier != 2 {
+		t.Errorf("longsword crit = (%d,%d), want (19,2)", longsword.CritThreatLow, longsword.CritMultiplier)
+	}
+	if !slices.Equal(longsword.DamageTypes, []string{"slashing"}) {
+		t.Errorf("longsword damage types = %v, want [slashing]", longsword.DamageTypes)
+	}
+
+	// The exotic ashandarei decoded at the exotic tier.
+	ashandarei, err := regs.Items.Get("wot:ashandarei")
+	if err != nil {
+		t.Fatalf("ashandarei: %v", err)
+	}
+	if ashandarei.ProficiencyTier != "exotic" {
+		t.Errorf("ashandarei tier = %q, want exotic", ashandarei.ProficiencyTier)
+	}
+
+	// The fighter class grants simple + martial proficiency.
+	fighter, ok := regs.Classes.Get("fighter")
+	if !ok {
+		t.Fatal("fighter class not loaded")
+	}
+	if !slices.Equal(fighter.ProficiencyTiers, []string{"simple", "martial"}) {
+		t.Errorf("fighter ProficiencyTiers = %v, want [simple martial]", fighter.ProficiencyTiers)
+	}
+
+	// End-to-end proficiency rule (weapon-identity §3): proficient with the
+	// martial longsword, NOT with the exotic ashandarei.
+	if !item.Proficient(fighter.ProficiencyTiers, fighter.ProficiencyCategories,
+		longsword.ProficiencyTier, longsword.WeaponCategory) {
+		t.Error("a fighter should be proficient with the martial longsword")
+	}
+	if item.Proficient(fighter.ProficiencyTiers, fighter.ProficiencyCategories,
+		ashandarei.ProficiencyTier, ashandarei.WeaponCategory) {
+		t.Error("a fighter should NOT be proficient with the exotic ashandarei")
+	}
+}

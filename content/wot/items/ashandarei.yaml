@@ -1,0 +1,27 @@
+id: ashandarei
+name: an ashandarei
+type: weapon
+description: |
+  A black-hafted polearm taller than a tall man, a slightly curved single-edged
+  blade as long as a forearm set at its head and a steel butt-cap at its foot.
+  The old symbols worked into the haft mean nothing to a Two Rivers eye, and the
+  balance of the thing fights an untrained hand at every guard — a weapon made
+  for a fighting form no armsman of the Westlands was ever taught.
+tags: [weapon, metal, polearm]
+keywords: [ashandarei, polearm, glaive, spear]
+eligible_slots: [wield]
+companion_slots: [offhand]
+properties:
+  weight: 12
+  value: 600
+weapon_damage: "1d8"
+weapon_category: ashandarei
+proficiency_tier: exotic
+damage_types: [slashing, bludgeoning]
+crit_threat_low: 19
+crit_multiplier: 2
+modifiers:
+  - stat: str
+    value: 6
+  - stat: hit_mod
+    value: 2

@@ -67,6 +67,14 @@ path:
     ability: oath-of-the-tower
     unlocked_via: quest:tower-vigil
 
+# Weapon proficiency (weapon-identity §3). Fighters are the martial
+# backbone: proficient with all simple and martial weapons, so they
+# wield those without the non-proficient to-hit penalty. Exotic weapons
+# (e.g. an ashandarei) still penalize them until a feat grants the kind.
+proficiency_tiers:
+  - simple
+  - martial
+
 # Eligibility — open to humanoid races, both genders. Empty list
 # on either axis means no restriction; the explicit list here
 # documents intent and exercises GetEligible in tests.
