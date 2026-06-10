@@ -202,7 +202,10 @@ old five-theme partition left uncovered.
 - **Survival depth — split sustenance into hunger + thirst** — today sustenance
   is a **single pool** `[0,100]` (`economy-survival §4.2`, "a hunger-like pool");
   both `eat` (food) and `drink` refill the *same* value, and `consume_method`
-  (`eat`/`drink`/`use`) is only verb-routing/flavor, not a second resource. ⚠️
+  (`eat`/`drink`/`use`) is only verb-routing/flavor, not a second resource.
+  (Admins are exempt from the drain entirely — `Manager.DrainSustenance` skips
+  `AdminRole` holders, so a staff character never goes hungry; an empty
+  `AdminRole` disables the exemption.) ⚠️
   **Greenfield — deliberate single-pool design today; no thirst meter exists.**
   The desire: make **thirst a distinct survival pressure** — two pools (hunger fed
   by food, thirst fed by drink), each with its own drain rate, tiers, and
@@ -257,7 +260,11 @@ old five-theme partition left uncovered.
   the **role gate** (M19 roles-and-permissions) — though note **only the single
   configured `admin` role is enforced anywhere today**; roles are free-form strings
   but a distinct **`builder`** role does not yet gate anything (the `look` room-data
-  block and every admin verb gate on `admin`). The **admin-verb
+  block and every admin verb gate on `admin`). (A fresh deployment's **first
+  character is auto-granted `admin` on creation** — gated on an empty player store,
+  fires once, persists, stays revocable — so a new world has a working admin without
+  the `ANOTHERMUD_ROLE_SEED` path; a `builder` role would want an analogous
+  bootstrap or grant path.) The **admin-verb
   framework** (M19.4) and especially **`set property`** on live room mobs/items
   (M19.4h) — a tiny precursor that already mutates a running entity; the **pack
   loader's decode + validation** logic (reusable to validate OLC edits); and the
