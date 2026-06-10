@@ -1,0 +1,13 @@
+id: sand-hills-foot
+area: mountains-of-mist
+name: "{y}The Sand Hills{x}"
+description: |
+  The trees fall away and the ground breaks up into the Sand Hills, low stony
+  rises of grey rock and thin soil where the Westwood surrenders to the
+  mountains. A cold wind comes down off the heights, and the going grows hard
+  underfoot, all loose scree and shouldered stone. The wood lies back east; west,
+  a dark cleft in the hillside marks where the old diggings cut into the rock.
+exits:
+  east: deep-westwood
+  west: the-diggings
+terrain: mountain

@@ -9,10 +9,12 @@ description: |
   work — hinges, harrow-teeth, a scythe blade — is stacked to one side waiting
   to be claimed. Heat rolls off the coals in a wave. The smithy stands at the
   western edge of the village where the Quarry Road begins; the road runs back
-  east toward the Green. A few bars of iron stock lie out on the bench, left
-  for anyone Haral has shown the trick of the anvil.
+  east toward the Green, and west it runs on out of the village into the
+  Westwood. A few bars of iron stock lie out on the bench, left for anyone Haral
+  has shown the trick of the anvil.
 exits:
   east: quarry-road
+  west: westwood-edge
 terrain: indoors
 # Tier-2 smithing station (crafting-and-cooking §4): the forge.
 properties:

@@ -27,7 +27,9 @@ func TestLoad_CoreRecipeAcquisitionTiers(t *testing.T) {
 	if err := slot.RegisterEngineBaseline(regs.Slots); err != nil {
 		t.Fatalf("register engine baseline slots: %v", err)
 	}
-	if err := Load(context.Background(), root, nil, regs, nil, nil, nil); err != nil {
+	// Select the demo world explicitly (a boot loads ONE world; the content
+	// dir holds starter-world + wot with colliding bare biome ids).
+	if err := Load(context.Background(), root, []string{"starter-world"}, regs, nil, nil, nil); err != nil {
 		t.Fatalf("Load core: %v", err)
 	}
 

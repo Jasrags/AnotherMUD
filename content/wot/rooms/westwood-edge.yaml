@@ -1,0 +1,14 @@
+id: westwood-edge
+area: westwood
+name: "{g}The Edge of the Westwood{x}"
+description: |
+  The Quarry Road dwindles to a footpath here as the village fields give out
+  and the first trees of the Westwood close in — oak and leatherleaf, the
+  ground soft underfoot with old leaves and dappled where the light comes
+  through. It is a friendly enough stretch of wood, picked over by villagers
+  for kindling and herbs. The smithy and the village lie back east; the trees
+  thicken away to the west.
+exits:
+  east: the-forge
+  west: deep-westwood
+terrain: forest

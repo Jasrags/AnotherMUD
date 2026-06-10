@@ -116,27 +116,30 @@ func TestValidateRecipeEconomy_UnknownInputContributesZero(t *testing.T) {
 }
 
 // TestValidateRecipeEconomy_CorePackClean is the regression guard: every
-// recipe in the shipped core pack must add value (the D2.1 content discipline
+// recipe in each shipped world must add value (the D2.1 content discipline
 // Milestone C established). If a future content edit breaks it, this fails.
+// Each world is loaded on its own — a boot selects one world, and the two
+// world packs share bare-global biome ids that would collide if co-loaded.
 func TestValidateRecipeEconomy_CorePackClean(t *testing.T) {
 	root, err := filepath.Abs("../../content")
 	if err != nil {
 		t.Fatalf("abs: %v", err)
 	}
-	regs := NewRegistries()
-	if err := RegisterEngineBaselineProperties(regs.Properties); err != nil {
-		t.Fatalf("register engine baseline properties: %v", err)
-	}
-	if err := slot.RegisterEngineBaseline(regs.Slots); err != nil {
-		t.Fatalf("register engine baseline slots: %v", err)
-	}
-	if err := Load(context.Background(), root, nil, regs, nil, nil, nil); err != nil {
-		t.Fatalf("Load core: %v", err)
-	}
-
-	if warns := validateRecipeEconomy(regs); len(warns) != 0 {
-		for _, w := range warns {
-			t.Errorf("core recipe %s loses money: output %d <= inputs %d", w.Recipe, w.OutputValue, w.InputValue)
-		}
+	for _, world := range []string{"starter-world", "wot"} {
+		t.Run(world, func(t *testing.T) {
+			regs := NewRegistries()
+			if err := RegisterEngineBaselineProperties(regs.Properties); err != nil {
+				t.Fatalf("register engine baseline properties: %v", err)
+			}
+			if err := slot.RegisterEngineBaseline(regs.Slots); err != nil {
+				t.Fatalf("register engine baseline slots: %v", err)
+			}
+			if err := Load(context.Background(), root, []string{world}, regs, nil, nil, nil); err != nil {
+				t.Fatalf("Load %s: %v", world, err)
+			}
+			for _, w := range validateRecipeEconomy(regs) {
+				t.Errorf("%s recipe %s loses money: output %d <= inputs %d", world, w.Recipe, w.OutputValue, w.InputValue)
+			}
+		})
 	}
 }

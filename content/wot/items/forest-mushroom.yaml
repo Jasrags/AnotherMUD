@@ -1,0 +1,13 @@
+id: forest-mushroom
+name: a cluster of forest mushrooms
+type: item
+description: |
+  A handful of fat brown mushrooms pulled from the leaf-litter of the Westwood,
+  caps still cool and earthy-smelling. A cook's prize — they give a pottage or a
+  stew real depth, for those who know the safe ones from the rest.
+tags: [food, ingredient, foraged, stackable]
+keywords: [mushroom, mushrooms, fungus, cluster]
+properties:
+  stackable: true
+  weight: 1
+  value: 2

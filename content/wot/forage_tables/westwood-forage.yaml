@@ -1,0 +1,10 @@
+# Ambient-forage pool for the forest biome (gathering.md §2). `forage` in the
+# Westwood yields cooking ingredients: usually a sprig of herb, often a cluster
+# of forest mushrooms — a second gather source for the cook, out in the wilds
+# rather than the Wisdom's garden.
+id: westwood-forage
+richness: 45
+ceiling: uncommon
+entries:
+  - { item: wild-herb, weight: 3 }
+  - { item: forest-mushroom, weight: 2 }

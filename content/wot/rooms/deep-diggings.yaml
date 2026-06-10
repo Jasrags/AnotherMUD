@@ -1,0 +1,12 @@
+id: deep-diggings
+area: mountains-of-mist
+name: "The Deep Diggings"
+description: |
+  The shaft opens into a worked-out chamber deep in the mountain's flank, the
+  props black with age and the walls scored by long-dead picks. Whoever cut this
+  place left in a hurry, or never left at all — but the iron is not spent: a
+  fresh seam glitters in the rock where the old work stopped. The only way out is
+  back up the shaft.
+exits:
+  up: the-diggings
+terrain: cave

@@ -23,7 +23,10 @@ func loadRealCore(t *testing.T) *Registries {
 	if err := slot.RegisterEngineBaseline(regs.Slots); err != nil {
 		t.Fatalf("register engine baseline slots: %v", err)
 	}
-	if err := Load(context.Background(), root, nil, regs, nil, nil, nil); err != nil {
+	// Select the demo world explicitly: a boot loads ONE world, and the real
+	// content dir holds more than one (starter-world + wot) whose bare-global
+	// biome ids would collide if loaded together.
+	if err := Load(context.Background(), root, []string{"starter-world"}, regs, nil, nil, nil); err != nil {
 		t.Fatalf("Load core: %v", err)
 	}
 	return regs

@@ -1,0 +1,13 @@
+# Cave biome (biomes.md §2, §3) — the old iron diggings in the Mountains of
+# Mist. Weather- AND time-shielded (underground: no sky, no day/night cycle —
+# the §3 shielding flags). Nothing grows to forage, but iron veins run through
+# the rock (a node wired in M2b). Rooms key in via `terrain: cave`.
+id: cave
+name: dim cave
+description: Cold worked stone closes overhead, and the air is still and mineral-damp.
+weather_shielded: true
+time_shielded: true
+ambience:
+  - Water drips, slow and echoing, somewhere back in the dark.
+  - The air sits cold and dead, untouched by any wind.
+  - Loose grit trickles from the old props and goes still.

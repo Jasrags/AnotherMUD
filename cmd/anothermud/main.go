@@ -2111,11 +2111,13 @@ func loadConfig() config {
 		SustenanceDrainInterval: envDurationOr("ANOTHERMUD_SUSTENANCE_DRAIN_INTERVAL", 30*time.Second),
 		SustenanceDrainAmount:   envIntOr("ANOTHERMUD_SUSTENANCE_DRAIN_AMOUNT", 1),
 		ContentDir:              envOr("ANOTHERMUD_CONTENT_DIR", "./content"),
-		// Pack allowlist (empty = load every active pack). Names a setting's
-		// world pack(s); the loader auto-includes their dependency closure, so
-		// `ANOTHERMUD_PACKS=wot` pulls in tapestry-core too. Use this to boot
-		// one setting in place of another (e.g. starter-world vs wot).
-		Packs:          envCSVOr("ANOTHERMUD_PACKS", nil),
+		// Pack allowlist. Names the world pack(s) to boot; the loader pulls in
+		// their dependency closure, so `ANOTHERMUD_PACKS=wot` also loads
+		// tapestry-core. Defaults to the demo world (matching the default start
+		// room). A boot selects ONE world: two world packs share bare-global
+		// terrain/biome ids, so loading all at once collides — pick one
+		// (e.g. `ANOTHERMUD_PACKS=wot ANOTHERMUD_START_ROOM=wot:the-green`).
+		Packs:          envCSVOr("ANOTHERMUD_PACKS", []string{"starter-world"}),
 		SaveDir:        envOr("ANOTHERMUD_SAVE_DIR", "./saves"),
 		StartRoom:      world.RoomID(envOr("ANOTHERMUD_START_ROOM", "starter-world:town-square")),
 		DefaultRace:    envOr("ANOTHERMUD_DEFAULT_RACE", "human"),

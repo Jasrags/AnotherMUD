@@ -438,7 +438,9 @@ func TestLoadRealCorePack(t *testing.T) {
 		t.Fatalf("register engine baseline slots: %v", err)
 	}
 	w := regs.World
-	if err := Load(context.Background(), contentRoot, nil, regs, nil, nil, nil); err != nil {
+	// Select the demo world explicitly (a boot loads ONE world; the content
+	// dir holds starter-world + wot with colliding bare biome ids).
+	if err := Load(context.Background(), contentRoot, []string{"starter-world"}, regs, nil, nil, nil); err != nil {
 		t.Fatalf("Load(real core pack): %v", err)
 	}
 
