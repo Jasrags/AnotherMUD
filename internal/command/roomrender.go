@@ -153,7 +153,9 @@ func renderFullRoom(r *world.Room, placement *entities.Placement, items *entitie
 // lines (a double newline) are kept as hard paragraph breaks. Without
 // this, the authored ~76-column breaks fight the side-by-side minimap's
 // narrower column and orphan the trailing word of every authored line.
-// Whitespace within a paragraph is collapsed to single spaces.
+// Whitespace within a paragraph is collapsed to single spaces. Empty
+// paragraphs — leading/trailing blank lines, or runs of 3+ newlines —
+// are dropped, so a description cannot lead with a deliberate blank line.
 func reflowDescription(s string) string {
 	paras := strings.Split(s, "\n\n")
 	out := make([]string, 0, len(paras))
