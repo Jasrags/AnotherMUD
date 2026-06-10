@@ -1,5 +1,7 @@
 package session
 
+import "github.com/Jasrags/AnotherMUD/internal/world"
+
 // Fog-of-war exploration tracking (player-maps §3). The persisted
 // authority is player.Save.VisitedRooms; connActor.visited is the O(1)
 // in-memory membership index over it, lazily seeded from the save on
@@ -86,5 +88,60 @@ func (a *connActor) SetMinimapEnabled(v bool) {
 		return
 	}
 	a.save.MinimapEnabled = v
+	a.markDirtyLocked()
+}
+
+// LastAreaSeen reports the area id of the room this actor was most
+// recently shown (command.AreaTracker) — the "from" of the
+// area-transition zone-line. Empty before the first render.
+func (a *connActor) LastAreaSeen() world.AreaID {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	return a.lastAreaSeen
+}
+
+// SetLastAreaSeen records the area the actor was just shown. In-memory
+// session state — not persisted (unlike the minimap prefs), so it never
+// marks the save dirty.
+func (a *connActor) SetLastAreaSeen(id world.AreaID) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	a.lastAreaSeen = id
+}
+
+// MinimapSize reports the persisted active-minimap size preset
+// (player-maps §4): "auto"/"small"/"medium"/"large". Returns "auto"
+// for an actor with no save or an unset preference, so the resolver
+// scales the radius to the terminal by default.
+func (a *connActor) MinimapSize() string {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	if a.save == nil || a.save.MinimapSize == "" {
+		return "auto"
+	}
+	return a.save.MinimapSize
+}
+
+// SetMinimapSize stores the minimap size preset and marks the save
+// dirty so it persists. A no-op when there is no save or the effective
+// value is unchanged. The empty stored value and "auto" are equivalent
+// (both mean "scale to terminal"), so setting "auto" on a character
+// that never set a size does not dirty the save — unlike the bool
+// MinimapEnabled, the zero value ("") differs from the canonical
+// default string ("auto"), so the comparison must normalize first.
+func (a *connActor) SetMinimapSize(v string) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	if a.save == nil {
+		return
+	}
+	stored := a.save.MinimapSize
+	if stored == "" {
+		stored = "auto"
+	}
+	if stored == v {
+		return
+	}
+	a.save.MinimapSize = v
 	a.markDirtyLocked()
 }

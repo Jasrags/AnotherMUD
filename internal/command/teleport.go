@@ -69,7 +69,7 @@ func TeleportHandler(ctx context.Context, c *Context) error {
 
 	auditAdmin(ctx, c, "teleport", string(dst.ID), token)
 
-	return c.Actor.Write(ctx, c.renderRoomWithData(dst, c.effectiveLight(dst)))
+	return c.writeRoomView(ctx, dst, c.effectiveLight(dst))
 }
 
 // resolveTeleportDest maps the token to a destination room, in order:

@@ -268,13 +268,13 @@ func TestBuiltins_Quit(t *testing.T) {
 // testActor is a command.Actor used by these tests; it captures every
 // Write so assertions can inspect output.
 type testActor struct {
-	mu        sync.Mutex
-	id        string
-	name      string
-	playerID  string
-	room      *world.Room
-	lines     []string
-	color     bool
+	mu         sync.Mutex
+	id         string
+	name       string
+	playerID   string
+	room       *world.Room
+	lines      []string
+	color      bool
 	inventory  []entities.EntityID
 	equipment  map[string]entities.EntityID
 	footprints map[entities.EntityID][]string
@@ -289,6 +289,8 @@ type testActor struct {
 
 	craftPending crafting.PendingCraft
 	hasCraft     bool
+
+	lastArea world.AreaID
 }
 
 // PendingCraft / SetPendingCraft / ClearPendingCraft make testActor satisfy
@@ -422,6 +424,21 @@ func (a *testActor) SetRoom(r *world.Room) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	a.room = r
+}
+
+// LastAreaSeen / SetLastAreaSeen make testActor satisfy
+// command.AreaTracker so the area-transition zone-line (player-maps §4)
+// can be exercised through the movement handlers.
+func (a *testActor) LastAreaSeen() world.AreaID {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	return a.lastArea
+}
+
+func (a *testActor) SetLastAreaSeen(id world.AreaID) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	a.lastArea = id
 }
 
 func (a *testActor) Write(ctx context.Context, msg string) error {

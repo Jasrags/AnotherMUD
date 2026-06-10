@@ -141,7 +141,7 @@ func RecallHandler(ctx context.Context, c *Context) error {
 
 	// Render the destination to the actor. RenderRoom is the same
 	// renderer movement uses so the post-recall view is consistent.
-	if err := c.Actor.Write(ctx, c.renderRoomWithData(dst, c.effectiveLight(dst))); err != nil {
+	if err := c.writeRoomView(ctx, dst, c.effectiveLight(dst)); err != nil {
 		// Surface the write error so the dispatcher can decide
 		// (e.g., a closed connection bubbles up the same way
 		// movement handlers surface it).

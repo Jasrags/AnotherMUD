@@ -828,6 +828,10 @@ func run(ctx context.Context, c conn.Connection, cfg Config) error {
 		cfg.Disposition.OnPlayerEnteredImmediate(ctx, a.PlayerID(), a.Name(), nil, start.ID)
 	}
 
+	// Seed the area-transition tracker with the spawn area so the first
+	// crossing narrates a real "from" and the spawn render itself shows
+	// no zone-line (player-maps §4, spawn-suppression rule).
+	a.SetLastAreaSeen(start.AreaID)
 	startLvl := command.EffectiveLight(cfg.Light, start, a, cfg.Items, cfg.Placement)
 	spawnView := command.RenderRoom(start, cfg.Placement, cfg.Items, questMarkerFor(cfg.Quests, a.PlayerID()), cfg.Ambience, nil, startLvl, otherPlayerNames(cfg.Manager, start.ID, a.PlayerID())...)
 	spawnView = command.AppendMinimap(spawnView, start, a, cfg.World)
@@ -1821,6 +1825,13 @@ type connActor struct {
 	needsPromptRefresh bool
 	save               *player.Save
 	dirty              bool
+	// lastAreaSeen is the area id of the room this actor was most
+	// recently shown — the "from" of the area-transition zone-line
+	// (player-maps §4, command.AreaTracker). Session-scoped and in
+	// memory only: a restart re-narrates the first crossing, which is
+	// harmless. Seeded at login spawn so the first move narrates a
+	// real "from". Guarded by mu.
+	lastAreaSeen world.AreaID
 	// lastTellPartner is the display name of the most recent
 	// counterparty in a tell conversation (set on both publish and
 	// receive). The `reply` verb reads it. v1 in-memory only: a
