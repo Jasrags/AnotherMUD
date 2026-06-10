@@ -145,9 +145,10 @@ recipes and goods a real second pole. v1 builds **only the seam** (Taren Ferry
 Each milestone is independently committable, keeps `go test -race ./...`
 green, gets a code review before "done", and commits on `main` (no branches).
 
-### M0 — Enabling refactor (engine, before any room authoring)
+### M0 — Enabling refactor (engine, before any room authoring) — ✅ SHIPPED
 
-The [[wot-setting-plan]] prerequisite. Make settings boot-selectable:
+The [[wot-setting-plan]] prerequisite. Make settings boot-selectable. All five
+sub-slices shipped (453af1a split → 3c09172 wot boot), each code-reviewed:
 
 - **M0.1** Split `content/core` → `core` (baseline: races/classes/tracks/slots/
   effects/abilities/rarity/essence/theme/biomes/weather/help) + `starter-world`
@@ -163,10 +164,14 @@ The [[wot-setting-plan]] prerequisite. Make settings boot-selectable:
   contract — reserved room/item properties (room props are registry-validated,
   item props free-form), engine tags, and the namespaced-vs-bare-global id
   collision rules. Linked from the PRIMER.
-- **M0.5** Stand up an empty `content/wot` (manifest, `dependencies:{core}`) +
-  prove `{core, wot}` boots into a single placeholder WoT room.
-- Acceptance: `{core, starter-world}` boots the demo unchanged; `{core, wot}`
-  boots into the WoT room; the boundary audit items above are addressed.
+- **M0.5** ✅ `content/wot` (manifest, `dependencies:{tapestry-core}`) + the
+  Emond's Field area + a placeholder Green room. `ANOTHERMUD_PACKS=wot
+  ANOTHERMUD_START_ROOM=wot:emonds-field-green` boots `{tapestry-core, wot}`
+  (closure pulls the baseline; starter-world excluded) and spawns a character
+  on the Green. Test + live-verified.
+- Acceptance: ✅ default boot = demo unchanged; `ANOTHERMUD_PACKS=wot` boots the
+  WoT room with the baseline via closure; channels/emotes load from YAML; the
+  vocabulary contract is documented. **M0 complete — M1 (Emond's Field) next.**
 
 ### M1 — Emond's Field (the starter village)
 
