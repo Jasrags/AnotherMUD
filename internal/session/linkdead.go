@@ -239,6 +239,11 @@ func renderRoomForReconnect(a *connActor, cfg Config) string {
 	if r == nil {
 		return ""
 	}
+	// Seed the area-transition tracker with the current area (mirrors the
+	// login-spawn seed) so a reconnect never narrates a spurious crossing,
+	// and so the next real move computes the right "from" even if the
+	// actor's last-seen area was reset (player-maps §4).
+	a.SetLastAreaSeen(r.AreaID)
 	lvl := command.EffectiveLight(cfg.Light, r, a, cfg.Items, cfg.Placement)
 	view := command.RenderRoom(r, cfg.Placement, cfg.Items, questMarkerFor(cfg.Quests, a.PlayerID()), cfg.Ambience, nil, lvl, otherPlayerNames(cfg.Manager, r.ID, a.PlayerID())...)
 	view = command.AppendMinimap(view, r, a, cfg.World)

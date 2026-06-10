@@ -184,11 +184,13 @@ func (a *connActor) SetMinimapSize(v string) {
 	if a.save == nil {
 		return
 	}
-	stored := a.save.MinimapSize
-	if stored == "" {
-		stored = "auto"
+	// "" is the canonical on-disk form of "auto" (omitempty elides it),
+	// so normalize the incoming value before storing: setting "auto"
+	// always clears the field rather than writing the literal "auto".
+	if v == "auto" {
+		v = ""
 	}
-	if stored == v {
+	if a.save.MinimapSize == v {
 		return
 	}
 	a.save.MinimapSize = v

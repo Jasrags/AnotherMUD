@@ -34,7 +34,12 @@ func (a *mapActor) MinimapSize() string {
 	}
 	return a.minimapSize
 }
-func (a *mapActor) SetMinimapSize(v string) { a.minimapSize = v }
+func (a *mapActor) SetMinimapSize(v string) {
+	if v == "auto" {
+		v = "" // mirror connActor: "" is the canonical on-disk form of auto
+	}
+	a.minimapSize = v
+}
 
 func mapWorld(t *testing.T) (*world.World, *world.Room) {
 	t.Helper()

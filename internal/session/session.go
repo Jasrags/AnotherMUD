@@ -837,7 +837,7 @@ func run(ctx context.Context, c conn.Connection, cfg Config) error {
 	var firstEntry string
 	if !a.HasSeenArea(start.AreaID) {
 		a.MarkAreaSeen(start.AreaID)
-		firstEntry = command.FirstEntryBanner(areaDisplayName(cfg.World, start.AreaID))
+		firstEntry = command.FirstEntryBanner(command.MapAreaName(cfg.World, start.AreaID))
 	}
 	startLvl := command.EffectiveLight(cfg.Light, start, a, cfg.Items, cfg.Placement)
 	spawnView := command.RenderRoom(start, cfg.Placement, cfg.Items, questMarkerFor(cfg.Quests, a.PlayerID()), cfg.Ambience, nil, startLvl, otherPlayerNames(cfg.Manager, start.ID, a.PlayerID())...)
@@ -866,20 +866,6 @@ func run(ctx context.Context, c conn.Connection, cfg Config) error {
 	exit := pump(ctx, c, cfg, a, clk)
 	dispatchTeardown(ctx, cfg, a, exit, clk)
 	return nil
-}
-
-// areaDisplayName resolves an area id to its display name for the
-// first-entry banner, falling back to the raw id when the area is
-// unknown or unnamed (mirrors command.Context.areaName for the session
-// spawn path, which renders outside a command Context).
-func areaDisplayName(w *world.World, id world.AreaID) string {
-	if w == nil || id == "" {
-		return string(id)
-	}
-	if a, err := w.Area(id); err == nil && a.Name != "" {
-		return a.Name
-	}
-	return string(id)
 }
 
 // pumpExit is the reason the read loop unwound, used by the teardown

@@ -282,7 +282,7 @@ func originNotes(origin *world.Room, w *world.World) string {
 			if err != nil || target.AreaID == origin.AreaID {
 				continue
 			}
-			notes = append(notes, dir.Long()+" → "+mapAreaName(w, target.AreaID))
+			notes = append(notes, dir.Long()+" → "+MapAreaName(w, target.AreaID))
 		}
 	}
 	if len(origin.KeywordExits) > 0 {

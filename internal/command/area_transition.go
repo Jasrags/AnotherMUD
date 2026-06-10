@@ -90,14 +90,15 @@ func (c *Context) areaTransitionBanner(r *world.Room) string {
 // areaName resolves an area id to its display name via the Context's
 // world, falling back to the raw id when the area is unknown or unnamed.
 func (c *Context) areaName(id world.AreaID) string {
-	return mapAreaName(c.World, id)
+	return MapAreaName(c.World, id)
 }
 
-// mapAreaName resolves an area id to its display name against w,
+// MapAreaName resolves an area id to its display name against w,
 // falling back to the raw id when w is nil or the area is unknown or
-// unnamed. The free-function form the minimap label (A1) uses where
-// only the world is in hand, not a Context.
-func mapAreaName(w *world.World, id world.AreaID) string {
+// unnamed. Exported so the session-package room renders (login spawn,
+// first-entry banner) share one area-name resolver instead of
+// re-deriving it; the minimap label (A1) and zone-line (A2) use it too.
+func MapAreaName(w *world.World, id world.AreaID) string {
 	if w == nil || id == "" {
 		return string(id)
 	}
