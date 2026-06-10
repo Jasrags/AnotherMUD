@@ -116,7 +116,7 @@ type pendingMobPlacement struct {
 // Filter, when non-empty, restricts discovery (spec §2.4). Pass nil to
 // load every active pack under root.
 func Load(ctx context.Context, root string, filter []string, dst *Registries, spawner Spawner, mobSpawner MobSpawner, scriptCompiler ScriptCompiler) error {
-	if dst == nil || dst.World == nil || dst.Items == nil || dst.Slots == nil || dst.Mobs == nil || dst.Tracks == nil || dst.Races == nil || dst.Classes == nil || dst.Abilities == nil || dst.Theme == nil || dst.Help == nil || dst.Quests == nil || dst.Weather == nil || dst.Scripts == nil || dst.Rarity == nil || dst.Essence == nil || dst.Loot == nil {
+	if dst == nil || dst.World == nil || dst.Items == nil || dst.Slots == nil || dst.Mobs == nil || dst.Tracks == nil || dst.Races == nil || dst.Classes == nil || dst.Abilities == nil || dst.Theme == nil || dst.Help == nil || dst.Quests == nil || dst.Weather == nil || dst.Scripts == nil || dst.Rarity == nil || dst.Essence == nil || dst.Loot == nil || dst.Channels == nil || dst.Emotes == nil {
 		return errors.New("pack.Load: dst has nil registry field; use pack.NewRegistries()")
 	}
 	logger := logging.From(ctx).With(slog.String("event", "pack.load"), slog.String("root", root))
@@ -915,10 +915,11 @@ func loadPackContent(ctx context.Context, p Discovered, dst *Registries, scriptC
 		if err != nil {
 			return nil, nil, err
 		}
-		if dst.Channels != nil {
-			if err := dst.Channels.Register(ch); err != nil {
-				return nil, nil, fmt.Errorf("%w (in %s)", err, cp)
-			}
+		// dst.Channels is guaranteed non-nil by Load's required-registry
+		// check — channels are engine-baseline content, not optional like
+		// Biomes/Nodes.
+		if err := dst.Channels.Register(ch); err != nil {
+			return nil, nil, fmt.Errorf("%w (in %s)", err, cp)
 		}
 	}
 
@@ -929,10 +930,9 @@ func loadPackContent(ctx context.Context, p Discovered, dst *Registries, scriptC
 		if err != nil {
 			return nil, nil, err
 		}
-		if dst.Emotes != nil {
-			if err := dst.Emotes.Register(em); err != nil {
-				return nil, nil, fmt.Errorf("%w (in %s)", err, ep)
-			}
+		// dst.Emotes is guaranteed non-nil by Load's required-registry check.
+		if err := dst.Emotes.Register(em); err != nil {
+			return nil, nil, fmt.Errorf("%w (in %s)", err, ep)
 		}
 	}
 
