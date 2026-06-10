@@ -11,6 +11,7 @@ import (
 	"github.com/Jasrags/AnotherMUD/internal/crafting"
 	"github.com/Jasrags/AnotherMUD/internal/entities"
 	"github.com/Jasrags/AnotherMUD/internal/help"
+	"github.com/Jasrags/AnotherMUD/internal/progression"
 	"github.com/Jasrags/AnotherMUD/internal/stats"
 	"github.com/Jasrags/AnotherMUD/internal/world"
 )
@@ -292,6 +293,20 @@ type testActor struct {
 
 	lastArea  world.AreaID
 	seenAreas map[world.AreaID]struct{}
+
+	carryMax int // StatValue(StatCarryMax); 0 ⇒ no carry-weight limit
+}
+
+// StatValue exposes the actor's stat ceilings to handlers that read them
+// (carry weight §4.2.2; the score sheet's StatValue surface). Only
+// carry_max is modeled by the fake; everything else reads 0.
+func (a *testActor) StatValue(s progression.StatType) int {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	if s == progression.StatCarryMax {
+		return a.carryMax
+	}
+	return 0
 }
 
 // PendingCraft / SetPendingCraft / ClearPendingCraft make testActor satisfy

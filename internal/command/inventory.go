@@ -75,6 +75,12 @@ func (c *Context) getFromRoom(ctx context.Context, room *world.Room, toks []stri
 		return c.Actor.Write(ctx, fmt.Sprintf("You can't take %s.", item.Name()))
 	}
 
+	// §4.2 step 2 — carry-weight ceiling. Checked before the placement
+	// claim so a refusal leaves the item on the floor untouched.
+	if c.carryWeightExceeded(item) {
+		return c.Actor.Write(ctx, fmt.Sprintf("%s is too heavy for you to carry.", item.Name()))
+	}
+
 	// Placement.Remove is the atomic ownership claim. Two concurrent
 	// gets against the same placement entry both pass keyword.Resolve
 	// and hasAnyTag (which run outside any lock) — only the goroutine
@@ -176,6 +182,14 @@ func (c *Context) takeItemFromContainer(ctx context.Context, room *world.Room, c
 		return c.Actor.Write(ctx, fmt.Sprintf("You don't see that in %s.", container.Name()))
 	}
 	item := match.(*entities.ItemInstance)
+
+	// Carry-weight ceiling (§4.2 step 2) applies to taking from a
+	// container too — otherwise stashing loot in a pouch would bypass the
+	// limit. Checked before the claim so a refusal leaves the container
+	// untouched.
+	if c.carryWeightExceeded(item) {
+		return c.Actor.Write(ctx, fmt.Sprintf("%s is too heavy for you to carry.", item.Name()))
+	}
 
 	actorEID := holderEntityIDForPlayer(c.Actor.PlayerID())
 	if c.Bus != nil {

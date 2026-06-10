@@ -57,6 +57,12 @@ const (
 	StatHPMax       StatType = "hp_max"
 	StatResourceMax StatType = "resource_max"
 	StatMovementMax StatType = "movement_max"
+	// StatCarryMax is the personal carry-weight ceiling: the summed
+	// weight of carried items may not exceed it on pickup
+	// (inventory-equipment-items §4.2 step 2). A non-positive value means
+	// "no limit", so content opts in by declaring it (the Strength-derived
+	// capacity WoT encumbrance will set).
+	StatCarryMax StatType = "carry_max"
 )
 
 // Combat-derived stat names. The progression spec §2.1 keeps the
