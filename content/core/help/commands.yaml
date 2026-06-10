@@ -65,8 +65,10 @@ topics:
       with the name of the area it leads to.
 
       The map's legend explains the glyphs: @ is you, - and | are
-      passages, and each terrain has its own mark. A passage that leads
-      nowhere on the map is simply an exit you have not explored yet.
+      passages, and each terrain has its own coloured mark. Notable rooms
+      show a marker instead of their terrain - $ a shop, T a trainer,
+      + an inn or resting place. A passage that leads nowhere on the map
+      is simply an exit you have not explored yet.
     syntax:
       - "map"
     keywords: [map, maps, area, fog, explore, legend, region, where]

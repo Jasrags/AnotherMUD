@@ -361,7 +361,7 @@ func TestRenderFramedMinimap_AreaLabel(t *testing.T) {
 
 func TestMapLegend(t *testing.T) {
 	leg := mapLegend()
-	for _, want := range []string{"@", "you", "passages", "Terrain", "forest", "explored"} {
+	for _, want := range []string{"@", "you", "passages", "Places", "shop", "trainer", "Terrain", "forest", "explored"} {
 		if !strings.Contains(leg, want) {
 			t.Errorf("legend missing %q:\n%s", want, leg)
 		}

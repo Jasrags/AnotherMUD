@@ -525,7 +525,8 @@ func mapLegend() string {
 		terr = append(terr, terrainCell(t.terrain)+" "+t.label)
 	}
 	var b strings.Builder
-	b.WriteString("<subtle>Legend:</subtle>  <highlight>@</highlight> you   <subtle>-</subtle> <subtle>|</subtle> passages\n")
+	b.WriteString("<subtle>Legend:</subtle>   <highlight>@</highlight> you   <subtle>-</subtle> <subtle>|</subtle> passages\n")
+	b.WriteString("<subtle>Places:</subtle>   " + poiCell("shop") + " shop   " + poiCell("trainer") + " trainer   " + poiCell("inn") + " inn / rest\n")
 	b.WriteString("<subtle>Terrain:</subtle>  " + strings.Join(terr, "   ") + "\n")
 	b.WriteString("<subtle>A passage that leads nowhere on the map is an exit you haven't explored yet.</subtle>")
 	return b.String()
