@@ -15,6 +15,15 @@ GOFLAGS     ?=
 LDFLAGS     ?= -s -w
 VERSION     ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo dev)
 
+# World selection for `run` / `watch`. A boot loads ONE world pack (plus its
+# dependency closure); empty = the binary's own defaults (the starter-world
+# demo). Override directly (`make run WORLD_PACKS=wot WORLD_START_ROOM=wot:the-green`)
+# or use the `*-wot` convenience targets below.
+WORLD_PACKS      ?=
+WORLD_START_ROOM ?=
+# Recursive (=) so target-specific overrides (e.g. run-wot) resolve at recipe time.
+RUN_ENV           = ANOTHERMUD_PACKS=$(WORLD_PACKS) ANOTHERMUD_START_ROOM=$(WORLD_START_ROOM)
+
 # Cross-compile matrix for `make release`.
 RELEASE_TARGETS := \
 	darwin/amd64 \
@@ -36,10 +45,16 @@ build:
 	@mkdir -p $(BIN_DIR)
 	$(GO) build $(GOFLAGS) -ldflags "$(LDFLAGS) -X main.version=$(VERSION)" -o $(BIN_DIR)/$(BINARY) $(CMD_PKG)
 
-## run: build then run the main binary
+## run: run the main binary (the starter-world demo by default)
 .PHONY: run
 run:
-	$(GO) run $(CMD_PKG)
+	$(RUN_ENV) $(GO) run $(CMD_PKG)
+
+## run-wot: run the Wheel of Time world (content/wot)
+.PHONY: run-wot
+run-wot: WORLD_PACKS := wot
+run-wot: WORLD_START_ROOM := wot:the-green
+run-wot: run
 
 ## watch: live-reload — rebuild + restart on any .go/.yaml/.lua change (needs air)
 .PHONY: watch
@@ -52,7 +67,13 @@ watch:
 		exit 1; \
 	fi; \
 	echo "live reload: edit + save -> rebuild + restart (~1s). Reconnect; saves persist."; \
-	"$$air"
+	$(RUN_ENV) "$$air"
+
+## watch-wot: live-reload the Wheel of Time world (content/wot)
+.PHONY: watch-wot
+watch-wot: WORLD_PACKS := wot
+watch-wot: WORLD_START_ROOM := wot:the-green
+watch-wot: watch
 
 ## test: run all tests
 .PHONY: test
