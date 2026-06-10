@@ -370,6 +370,11 @@ func poiFromMobTags(tags []string) string {
 // vendor/trainer but a positive HealingRate (inn / infirmary / shrine)
 // is marked an inn. Content-derived, recomputed every load; never
 // persisted.
+//
+// Mutates *world.Room fields directly through the bare pointer Room()
+// returns. Safe because Load runs single-threaded and completes before
+// any tick/session goroutine starts — the same load-phase mutation
+// pattern as bakeAreaLightFloors and DeriveCoordinates.
 func deriveRoomPOIs(w *world.World, placements []pendingMobPlacement, mobs *mob.Templates) {
 	if w == nil || mobs == nil {
 		return

@@ -239,14 +239,14 @@ func buildMapCanvas(win world.Window, originID world.RoomID, isVisited func(stri
 	canvas := newMapCanvas()
 	for id, wr := range rendered {
 		col, row := (wr.Coord.X-origin.X)*2, -(wr.Coord.Y-origin.Y)*2
-		switch {
-		case id == originID:
+		// Cell precedence: the viewer wins, then a point of interest
+		// (shop/trainer/inn) takes the cell over the terrain glyph so it
+		// reads at a glance (player-maps §6), then plain terrain.
+		if id == originID {
 			canvas.set(col, row, "<highlight>@</highlight>")
-		case poiCell(wr.Room.POI) != "":
-			// A point of interest (shop/trainer/inn) takes the cell over
-			// the terrain glyph so it reads at a glance (player-maps §6).
-			canvas.set(col, row, poiCell(wr.Room.POI))
-		default:
+		} else if cell := poiCell(wr.Room.POI); cell != "" {
+			canvas.set(col, row, cell)
+		} else {
 			canvas.set(col, row, terrainCell(wr.Room.Terrain))
 		}
 		for _, c := range cardinalConns {
