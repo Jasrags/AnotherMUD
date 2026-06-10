@@ -217,13 +217,24 @@ sub-slices shipped (453af1a split → 3c09172 wot boot), each code-reviewed:
   forge; hunt→meat; forage→cook); coords derive clean; no hanging exits.
   Live-verified end to end.
 
-### M3 — The outlying villages
+### M3 — The outlying villages — ✅ SHIPPED (M3a 946c238, M3b 16b8e36, M3c f8e0286)
 
-- Watch Hill, Deven Ride, Taren Ferry — each a small settlement off its road,
-  with a trainer/shop or two and local flavor (Deven Ride wool, Watch Hill
-  hub, Taren Ferry the ferry seam).
-- Acceptance: the Two Rivers is a connected, explorable region (loop + spurs);
-  `who`/maps/quests behave across areas.
+- **M3a Watch Hill** (North Road): the road climbs through a sheep pasture (new
+  wot `grassland` biome + pasture-forage) to Watch Hill's green, the Goose and
+  Crown inn, and the beacon lookout. NPCs: innkeeper, old watchman.
+- **M3b Deven Ride** (Old Road): south through pasture to the hedge-bound green
+  and the sheepfold. NPCs: a shepherd, an old weaver (wool flavor — no new
+  craft profession this milestone).
+- **M3c Taren Ferry** (North Road on): the pile-built village on the Taren's
+  south bank + the rope-and-barge ferry landing. The crossing north is the seam
+  onto Andor proper (Baerlon/Region 2) — stubbed for M5. NPCs: the ferryman, a
+  light-fingered villager (neutral, per the village's shady reputation).
+- **Decisions:** generic-role NPCs for the outlying villages (canon names stay
+  in Emond's Field); no new craft profession (cooking/smithing stay central);
+  the grassland pastures landed here, the Waterwood/swamp stays deferred.
+- Acceptance: ✅ the Two Rivers is one connected, explorable district (Emond's
+  Field + the western wilds + Watch Hill/Taren Ferry north + Deven Ride south);
+  6 areas, 25 rooms, coords derive clean, no hanging exits; walked end to end.
 
 ### M4 — The Two Rivers longbow + region metadata (Phase 7 lands here)
 
