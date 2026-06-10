@@ -1,0 +1,19 @@
+id: iron-dagger
+name: an iron dagger
+type: item
+description: |
+  A cleanly forged iron dagger, straight and balanced, the edge drawn fine on a
+  whetstone and the full tang running through a turned-oak grip. Plain work, but
+  honest — the kind of blade a Two Rivers farmer keeps for skinning and worse.
+tags: [weapon, metal, bladed]
+keywords: [dagger, iron, knife]
+eligible_slots: [wield]
+properties:
+  weight: 2
+  value: 30
+weapon_damage: "1d4"
+modifiers:
+  - stat: str
+    value: 3
+  - stat: hit_mod
+    value: 4

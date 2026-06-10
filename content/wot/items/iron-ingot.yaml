@@ -1,0 +1,13 @@
+id: iron-ingot
+name: an iron ingot
+type: item
+description: |
+  A clean bar of smelted iron, grey and cool with the faint sheen of the mould
+  still on it. Honest Two Rivers metal, stock for whatever a smith cares to
+  beat out of it on the anvil.
+tags: [ingredient, metal, refined, stackable]
+keywords: [ingot, iron, bar]
+properties:
+  stackable: true
+  weight: 2
+  value: 8

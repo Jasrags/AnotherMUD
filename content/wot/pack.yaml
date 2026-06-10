@@ -22,3 +22,11 @@ content:
     - rooms/*.yaml
   mobs:
     - mobs/*.yaml
+  items:
+    - items/*.yaml
+  recipes:
+    - recipes/*.yaml
+  biomes:
+    - biomes/*.yaml
+  forage_tables:
+    - forage_tables/*.yaml

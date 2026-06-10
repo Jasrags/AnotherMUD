@@ -1,0 +1,13 @@
+id: raw-meat
+name: a cut of raw meat
+type: item
+description: |
+  A good cut of raw mutton from one of the Two Rivers flocks, cool and red and
+  marbled with fat. Not much on its own — but cooked over a fire with a few
+  herbs it becomes a meal worth sitting down to.
+tags: [food, ingredient, stackable]
+keywords: [meat, mutton, cut, raw]
+properties:
+  stackable: true
+  weight: 1
+  value: 4

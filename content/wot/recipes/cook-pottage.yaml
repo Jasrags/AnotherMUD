@@ -1,0 +1,18 @@
+# Baseline cooking recipe — granted free when you `learn cooking` from Marin.
+# A fully gather-sourced meal: both inputs are foraged from the Wisdom's herb
+# garden, so a new cook can run the whole loop (forage -> cook) without a coin
+# (the meat-and-coin economy lands with the M2 wilds). Needs a fire (Tier 1):
+# the inn kitchen (Tier 2) or a carried cook's kit.
+id: cook-pottage
+name: cook a vegetable pottage
+discipline: cooking
+skill_floor: 1
+station_tier: 1
+time_pulses: 15
+acquisition: baseline
+inputs:
+  - { template: wild-herb, quantity: 1 }
+  - { template: garden-greens, quantity: 1 }
+output:
+  template: vegetable-pottage
+  quantity: 1

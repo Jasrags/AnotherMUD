@@ -8,10 +8,23 @@ description: |
   the heat of the range. Nothing leaves her kitchen that is not done properly,
   and she has fed half the village at one time or another. She'll happily show
   an eager pair of hands how a meal is really made.
-tags: [humanoid]
+# Trainer + shop on one mob (crafting-and-cooking §4): `learn cooking` /
+# `practice cooking` route through the trainer; `buy`/`list` through the shop.
+# She sells meat + a travelling kit; the M1 pottage loop is gather-sourced
+# (foraged from the Wisdom's garden), so her stock is for richer meals (M2).
+tags: [humanoid, skill_trainer, shop]
 keywords: [marin, alvere, cook, goodwife]
 stats:
   hp_max: 26
   str: 10
 disposition_rules:
   default: friendly
+trainer:
+  tier: apprentice
+  teach:
+    - cooking
+properties:
+  shop:
+    sells:
+      - wot:raw-meat
+      - wot:cooks-kit

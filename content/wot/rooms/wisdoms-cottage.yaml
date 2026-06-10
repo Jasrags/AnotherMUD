@@ -12,6 +12,8 @@ description: |
   Road lies back to the south.
 exits:
   south: quarry-road
-terrain: outdoors
+# herb-garden biome: `forage` here gathers cooking herbs + garden greens (the
+# M1 gather source for the pottage recipe).
+terrain: herb-garden
 mobs:
   - nynaeve

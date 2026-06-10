@@ -1,0 +1,14 @@
+id: wild-herb
+name: a sprig of garden herb
+type: item
+description: |
+  A fragrant sprig pulled from the Wisdom's herb beds — marjoram, maybe, or
+  something close kin to it, the leaves cool and faintly bitter between the
+  fingers. The kind of thing that turns a plain pot of greens into a proper
+  supper.
+tags: [ingredient, herb, foraged, stackable]
+keywords: [herb, sprig, marjoram]
+properties:
+  stackable: true
+  weight: 1
+  value: 2

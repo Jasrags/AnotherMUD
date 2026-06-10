@@ -1,0 +1,20 @@
+id: vegetable-pottage
+name: a bowl of vegetable pottage
+type: item
+description: |
+  A thick, steaming pottage of garden greens and roots cooked down soft and
+  seasoned with a sprig of herb — plain Two Rivers cooking, hot and filling and
+  exactly what a body wants at the end of a long day.
+tags: [food, consumable]
+keywords: [pottage, bowl, stew, food]
+properties:
+  weight: 1
+  value: 6
+  consume_method: eat
+  sustenance_value: 40
+  # Quality -> well-fed effect (crafting §6). A common bowl is plain food;
+  # uncommon+ grants a well-fed buff (the core effects, reached via the
+  # tapestry-core dependency).
+  quality_effects:
+    uncommon: well-fed-minor
+    rare: well-fed

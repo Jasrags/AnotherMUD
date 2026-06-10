@@ -1,0 +1,11 @@
+# The Wisdom's herb garden (biomes.md §2) — a tended plot rather than wild
+# country, but `forage` works it all the same: a character can gather cooking
+# herbs and garden greens from the beds. Outdoors; its forage table is the M1
+# cooking gather source (the wilds proper land in M2).
+id: herb-garden
+name: a tended herb garden
+description: Neat beds of herbs and vegetables, sharp with the green smell of growing things.
+ambience:
+  - Bees work the rows of flowering herbs with a drowsy hum.
+  - A breath of wind carries the sharp green smell of crushed marjoram.
+forage_table: garden-herbs

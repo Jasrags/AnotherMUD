@@ -1,0 +1,13 @@
+id: garden-greens
+name: a bunch of garden greens
+type: item
+description: |
+  A handful of leafy greens and a fat pale root or two, gathered from the edges
+  of the Wisdom's beds where the kitchen herbs give way to vegetables. Earthy
+  and crisp, the makings of a good thick pottage.
+tags: [food, ingredient, foraged, stackable]
+keywords: [greens, vegetables, root]
+properties:
+  stackable: true
+  weight: 1
+  value: 2

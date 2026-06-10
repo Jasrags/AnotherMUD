@@ -11,5 +11,9 @@ description: |
 exits:
   south: inn-common-room
 terrain: indoors
+# Tier-2 cooking station (crafting-and-cooking §4): Marin's range.
+properties:
+  craft_stations:
+    cooking: 2
 mobs:
   - marin-alvere

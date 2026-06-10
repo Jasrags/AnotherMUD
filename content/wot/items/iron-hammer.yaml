@@ -1,0 +1,13 @@
+id: iron-hammer
+name: a smith's hammer
+type: item
+description: |
+  A well-balanced cross-pein hammer, its iron head polished bright on the faces
+  by long use and its hickory haft worn smooth to the grain. A smithing-tool: a
+  recipe's quality rolls higher for the smith who works with a good hammer.
+tags: [tool, smithing-tool]
+keywords: [hammer, smith]
+properties:
+  weight: 4
+  value: 40
+  rarity: uncommon

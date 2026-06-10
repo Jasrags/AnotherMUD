@@ -1,0 +1,15 @@
+id: cooks-kit
+name: a cook's travelling kit
+type: item
+description: |
+  A small bundle of road-cooking gear — a blackened pan, a folding trivet, a
+  knife and a twist of salt — rolled tight in oilcloth. A craft_tool that gives
+  a traveller a Tier-1 cooking fire anywhere there is fuel to light, when no
+  proper hearth is at hand.
+tags: [tool, crafting]
+keywords: [kit, cooks, pan]
+properties:
+  weight: 3
+  value: 20
+  craft_tool: cooking
+  craft_tool_tier: 1

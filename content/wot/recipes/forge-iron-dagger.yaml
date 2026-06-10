@@ -1,0 +1,18 @@
+# Baseline smithing recipe — granted free when you `learn smithing` from Haral.
+# Beats an iron ingot out into a clean dagger at the forge (Tier-2 station). In
+# M1 the ingot comes from Haral's practice stock left out on the forge floor,
+# so a new smith can run learn -> forge gold-free; in M2 the ingot is smelted
+# from ore mined in the Mountains-of-Mist diggings (the §8 economy closure).
+id: forge-iron-dagger
+name: forge an iron dagger
+discipline: smithing
+skill_floor: 1
+station_tier: 2
+tool: smithing-tool
+time_pulses: 25
+acquisition: baseline
+inputs:
+  - { template: iron-ingot, quantity: 1 }
+output:
+  template: iron-dagger
+  quantity: 1

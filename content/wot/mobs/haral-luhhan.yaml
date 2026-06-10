@@ -8,10 +8,21 @@ description: |
   marked with a hundred small white burn-scars. For all his size he handles
   iron with a careful, unhurried patience, and he has a smith's blunt honesty.
   He sizes up your hands as though wondering whether there is any use in them.
-tags: [humanoid]
+# Trainer + shop on one mob (crafting-and-cooking §4): `learn smithing` /
+# `practice smithing` route through the trainer; `buy`/`list` through the shop.
+tags: [humanoid, skill_trainer, shop]
 keywords: [haral, luhhan, blacksmith, smith]
 stats:
   hp_max: 42
   str: 16
 disposition_rules:
   default: friendly
+trainer:
+  tier: apprentice
+  teach:
+    - smithing
+properties:
+  shop:
+    sells:
+      - wot:iron-ingot
+      - wot:iron-hammer
