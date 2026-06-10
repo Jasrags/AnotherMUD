@@ -10,9 +10,12 @@ built bottom-up in thin vertical slices against a set of behavior
 specifications (`docs/specs/`), which are the source of truth for what each
 system does.
 
-> **Status:** well past prototype. Milestones **M0–M22** are complete. The
-> setting shipped in `content/core/` (names like `tapestry-core`) is a
-> **placeholder** — the engine and specs are setting-agnostic.
+> **Status:** well past prototype. Milestones **M0–M27** are complete (plus
+> light & darkness, crafting & cooking, biomes/gathering, player maps). Content
+> now ships as three packs — `core` (engine-baseline `tapestry-core`),
+> `starter-world` (the demo village, the default boot), and `wot` (a
+> Wheel-of-Time content pack in progress). The engine and specs stay
+> **setting-agnostic**; settings live entirely in packs.
 
 ---
 
@@ -29,6 +32,13 @@ system does.
   **corpses + looting + autoloot + decay** (M22).
 - **Progression** — stats, races, classes, tracks, alignment, training,
   use-based **proficiency**, **abilities**, and **effects**.
+- **Crafting** — recipes, crafting proficiency, a quality roll, cooking →
+  well-fed, and **gathering** (`forage` + respawning `harvest` nodes) feeding
+  **biome**-driven resource tables.
+- **Light & darkness** — per-viewer effective light, light sources + fuel,
+  render/combat/movement friction, and a persisted in-game clock.
+- **Maps** — an ASCII `map`/minimap verb with persisted fog-of-war, terrain
+  coloring, and points-of-interest.
 - **Economy** — currency, shops, sustenance, rest, and consumables.
 - **Quests**, **social** (tells, channels, emotes, notifications), and a
   **roles & permissions** model with **admin verbs**.
@@ -61,7 +71,9 @@ telnet localhost 4000
 
 At the prompt, enter a character name. A new name walks you through
 email → password → the character-creation wizard; a returning name asks for
-your password. New characters spawn at `tapestry-core:town-square`.
+your password. New characters spawn at `starter-world:town-square` (the demo
+pack). To boot the Wheel-of-Time pack instead: `make run-wot` (or
+`ANOTHERMUD_PACKS=wot ANOTHERMUD_START_ROOM=wot:the-green`).
 
 Try: `look`, `n`/`s`/`e`/`w`, `inventory`, `get <item>`, `consider <mob>`,
 `kill <mob>`, `loot`, `help`.
@@ -93,8 +105,9 @@ The most common knobs:
 | `ANOTHERMUD_WS_ADDR` | _(empty)_ | WebSocket listen address (empty = off) |
 | `ANOTHERMUD_WS_PATH` | `/mud` | WebSocket route |
 | `ANOTHERMUD_CONTENT_DIR` | `./content` | content-pack root |
+| `ANOTHERMUD_PACKS` | `starter-world` | active packs (+ their dep closure; e.g. `wot`) |
 | `ANOTHERMUD_SAVE_DIR` | `./saves` | account/player save root |
-| `ANOTHERMUD_START_ROOM` | `tapestry-core:town-square` | new-character spawn room |
+| `ANOTHERMUD_START_ROOM` | `starter-world:town-square` | new-character spawn room |
 | `ANOTHERMUD_TICK_INTERVAL` | `100ms` | game tick cadence |
 | `ANOTHERMUD_AUTOSAVE_INTERVAL` | `30s` | autosave sweep cadence |
 | `ANOTHERMUD_COMBAT_CADENCE` | `3s` | combat round interval |
@@ -112,8 +125,8 @@ flee cooldown, role seed, default race, …) lives in `loadConfig` in
 
 ```
 cmd/anothermud/      # composition root: wires every service + starts listeners
-internal/            # the engine, ~49 focused packages (see below)
-content/core/        # the starter content pack (data + Lua)
+internal/            # the engine, ~55 focused packages (see below)
+content/             # core (engine baseline) + starter-world (demo) + wot packs
 docs/                # specs (source of truth), roadmap, backlog, primer
 saves/               # runtime account + player saves (git-ignored in practice)
 Makefile             # dev tasks
@@ -124,10 +137,10 @@ Makefile             # dev tasks
 - **Foundations** — `tick`, `eventbus`, `clock`/`gameclock`, `logging`,
   `persistence`, `srckey`
 - **World & things** — `world`, `entities`, `item`/`mob`/`slot`, `keyword`,
-  `spawn`, `ai`, `portal`, `weather`, `property`
+  `spawn`, `ai`, `portal`, `weather`, `property`, `biome`, `light`
 - **Character mechanics** — `stats`, `progression`, `combat`, `effect`
 - **Action & interaction** — `command`, `economy`, `quest`/`queststore`/
-  `questwatch`, `loot`, `corpse`
+  `questwatch`, `loot`, `corpse`, `crafting`/`recipe`, `gathering`, `campfire`
 - **Player lifecycle** — `account`, `player`, `login`, `session`, `wizard`
 - **Social** — `chat`, `notifications`, `emote`
 - **Presentation** — `render`, `ansi`, `help`, `decoration`, `stacking`
@@ -144,10 +157,14 @@ items, mobs, classes, races, abilities, loot tables, quests, help topics,
 themes, weather zones, and Lua `scripts/`. The loader discovers packs,
 resolves dependencies, validates references, and registers everything at boot.
 
-`content/core/` is the engine-namespace starter pack (`tapestry-core`). Ids are
-namespaced (`tapestry-core:town-square`); unqualified ids in YAML resolve
-against the current pack. Edit pack files and restart to see changes (Lua
-scripts also support hot reload via the admin `reload` verb).
+Three packs ship today: `core` (the engine-baseline `tapestry-core` namespace —
+slots, races, classes, abilities, effects, theme, help), `starter-world` (the
+demo village, the default boot), and `wot` (a Wheel-of-Time content pack in
+progress, depends on `core`). A boot selects active packs via `ANOTHERMUD_PACKS`
+(their dependency closure is pulled in automatically). Ids are namespaced
+(`starter-world:town-square`); unqualified ids in YAML resolve against the
+current pack. Edit pack files and restart to see changes (Lua scripts also
+support hot reload via the admin `reload` verb).
 
 ---
 
@@ -188,7 +205,7 @@ Conventions the codebase follows (see [`docs/ROADMAP.md`](docs/ROADMAP.md)
 
 | Doc | What it is |
 |---|---|
-| [`docs/specs/`](docs/specs/) | **Behavior specifications — the source of truth** (32 specs; read `docs/specs/README.md` first) |
+| [`docs/specs/`](docs/specs/) | **Behavior specifications — the source of truth** (40 specs; read `docs/specs/README.md` first) |
 | [`docs/ROADMAP.md`](docs/ROADMAP.md) | Milestone done-log + foundations/conventions |
 | [`docs/BACKLOG.md`](docs/BACKLOG.md) | Open work + candidate next themes |
 | [`docs/DEFERRED-BACKLOG.md`](docs/DEFERRED-BACKLOG.md) | Index of deferred fixes across milestones |

@@ -1,14 +1,15 @@
 # Deferred-Items Backlog
 
 A consolidated, point-in-time snapshot of the **open** deferred items across
-all milestones (M0→M22), distilled from the per-milestone
+all milestones (M0→M27 + light/dark), distilled from the per-milestone
 `m<N>-deferred-fixes.md` memory files. The memory files remain the source of
 truth (full context, file:line, fix-when triggers); this is the scannable
 index.
 
 **Generated:** 2026-05-28 (M0→M12 body); **post-M12 section added 2026-06-02**
-(M13→M22, from the memory index); **tab-completion deferrals added 2026-06-03**.
-Regenerate by re-scanning the memory deferral files.
+(M13→M22, from the memory index); **tab-completion deferrals added 2026-06-03**;
+**M23→M27 + light/dark section added 2026-06-10**. Regenerate by re-scanning the
+memory deferral files.
 
 Excludes everything marked RESOLVED/FIXED/CLOSED. Note: several M0→M12 items
 below were later resolved by M14 (Engine-Debt) and the M9.x mob-effect sweep —
@@ -18,7 +19,18 @@ see the per-item RESOLVED tags and the caveats at the bottom.
 
 ## Open HIGH / CRITICAL
 
-**None.** The last HIGH (`ItemInstance.Properties()` unguarded map, `m11-5`)
+**No active bugs.** One HIGH item is open but **latent / gated**; the other was just resolved:
+
+- ~~`area-legibility` — check-then-act race in `areaTransitionBanner` across 4 separate
+  `connActor.mu` acquisitions~~ **RESOLVED 2026-06-10** — collapsed into one atomic
+  `(*connActor).AreaTransition()` under a single lock; interface shrank to one method;
+  `-race` concurrency test added; go-reviewer APPROVE. (`area-legibility-deferred-fixes`.)
+- `room-coordinates-gmcp-wireshape` — GMCP `Room.Info` flat `x/y/z` is a **deliberate
+  placeholder**, not validated against a live Mudlet mapper (`internal/gmcp/gmcp.go`,
+  `session/gmcp_room.go`). **Fix-by:** before announcing Mudlet graphical-mapper support
+  — pin the exact schema against a real client (human-in-the-loop). Not a code bug.
+
+The last *active* HIGH (`ItemInstance.Properties()` unguarded map, `m11-5`)
 was closed; `m9-1` CRITICAL (Drop/autosave race) and `m5 H1` (GetHandler
 TOCTOU) were fixed pre-commit earlier.
 
@@ -167,6 +179,48 @@ Most post-M12 deferrals are LOW polish; the MEDIUMs worth tracking:
   arg type), `fill` (source scope), `buy`/`sell`/`value` (resolve in ShopService),
   and now `get`/`look` (container scope conditional on a sibling arg, M22.3b).
 - `m16` (closed), `m17.1` (closed), `m13`/`m14`/`m15` themes LANDED.
+
+---
+
+## M23→M27 + light/dark — open items
+
+Indexed 2026-06-10 from the post-M22 deferral memories. **No active bugs;** the
+two latent HIGHs are in the "Open HIGH" section above. **Note `m22 #3` (unbounded
+corpse growth) is now RESOLVED** — M22.5 shipped `corpse.Service.DecaySweep`.
+
+### Open MEDIUM
+- `m24 #1` — `Save.VisitedRooms` grows unbounded; PD-10 prune-on-load unbuilt
+  (`internal/session/visited.go`). Correctness-harmless (renderers intersect with
+  live rooms); pure save/IO growth. **Fix-by:** world past ~500 rooms — filter
+  `VisitedRooms` against the live world at login.
+- `room-color #1` — room-line hostility coloring uses **nil viewer tags**
+  (`builtins.go hostileMarker`), so only *statically* hostile mobs redden;
+  rule/alignment-gated hostility won't color until player tags thread into
+  `DispositionHook`. **Fix-by:** when player tags get threaded (same change
+  unblocks the hook's own §5.3 tag-rule matching).
+- `m26` deferred (Engine Debt III feeders, triggers unfired): §6.2 passive
+  **scaling-bonus consumer** (no content sets `max_bonus` yet); **property-registry
+  save-pipeline** (`property.Wrap/Unwrap` have no production caller — same item as
+  `m14` MEDIUM; fix when a save first needs a content-declared property); **§3.4
+  tag-indexed movement reads** (`ai/disposition.go sweepRoom` O(occupants), marginal).
+
+### Open LOW (compressed)
+- `m25` — equipment-slots: `no_remove` tag hardcoded (→ §8 config); multi-cap
+  companions + `body`/`legs` robe footprint unshipped (§9 edges); score sheet shows
+  a 2h spanner in both slots (intentional).
+- `area-legibility` — the C1 way-back note uses a `→` glyph through byte-based
+  width math (cosmetic; see `render-panel-width-multibyte`).
+- `render-panel-width-multibyte` — `render.VisibleLength` is byte-based, so
+  multi-byte glyphs drift `render.Panel` borders. Worked around in `score`; real
+  fix = rune-aware `VisibleLength`/`truncateVisible` when a panel needs non-ASCII.
+- `light-and-darkness` — area/zone override tiers unwired (pending biomes hook);
+  room-loose light sources don't burn fuel; light-effect floor unwired (no content
+  effect yet); reduced-light prose strings hardcoded (§11).
+- `crafting` — well-fed re-eat refresh; recipe-scroll name keyword collision
+  (`buy dagger` ambiguous → use `buy scroll`/`buy rusty`); Phase 7 regional recipes
+  remain geography-gated.
+- `m24` — `world.LocalWindow` vertical-expand-then-filter + `queue[1:]` backing-array
+  + `Window.Contains` O(n); `wrapMarkupLine`/`mapLegend` micro-allocs.
 
 ---
 

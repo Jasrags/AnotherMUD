@@ -19,6 +19,8 @@ the theme-axis plan (its method survives below).
   leaving `tag-observers` and the trade trio as contracts still ahead of code in §1).
 - **Verified against code.** Every item below was confirmed absent in the codebase as of
   2026-06-02, not trusted from the old matrix (which misreported several shipped systems).
+  **Re-verified 2026-06-10:** Biomes, Gathering, and Room coordinates were found *shipped*
+  and removed from §1; Player maps + corpse decay trimmed in §2 to their open remainders.
 
 ## Status: M0–M27 shipped; specced + greenfield work remains
 
@@ -35,9 +37,11 @@ roll, cooking→well-fed, fixed/portable/campfire stations) have shipped (see
 render/combat/movement friction + period transitions + persisted in-game time).
 **M18** (Command & UI polish) is now **complete** — `prompt`, `who`, auto-help
 synthesis, command chaining/repeat, and the bad-input tracker all shipped.
-Behavior contracts still written-ahead-of-code: `tag-observers` and the trade
-trio (§1). What remains unspecced (§2) is the greenfield gameplay/economy-depth
-tail the themes didn't claim.
+**Biomes, Gathering, and Room coordinates have since shipped too** (removed from §1
+on 2026-06-10). Behavior contracts still written-ahead-of-code: `tag-observers`,
+`visibility`, `hidden-exits`, `faction`, and the trade trio (§1). What remains
+unspecced (§2) is the greenfield gameplay/economy-depth tail the themes didn't claim,
+plus the **WoT Mechanics EPIC** (`docs/themes/wot-mechanics-epic.md`).
 
 ---
 
@@ -61,9 +65,12 @@ go straight into a milestone.
 | **Visibility** (hide / sneak / darkness / invisibility) | **visibility §2–§7** (new) | the keystone of the Gameplay Systems cluster. Hybrid model: flag-gated darkness + magical/admin invis, opposed-contest hide/sneak. Four detection paths (passive sticky auto-detect, see-invisible/see-in-dark/detect traits, `search` verb, reveal-on-action). Fills the `world-rooms-movement §7` filter seam + `commands-and-dispatch §5.4` `BypassVisibility`; unblocks `who §4` per-viewer hiding, `admin-verbs §3` wizinvis, and hidden exits. All ephemeral (no save). The minimal light model this row once sketched is **superseded** — light-and-darkness shipped (per-viewer effective light, sources, darkvision); visibility must compose darkness (this) with concealment, pinning the precedence per `light-and-darkness §12` |
 | **Hidden exits** (secret doors / passages) | **hidden-exits §2–§7** (new) | `hidden` + `search_difficulty` flag on the Exit (works with or without a door, mirrors door `pick-difficulty`). Discovery reuses visibility's `search` + sticky memory; search-only (passive off by default). **Knowledge-gated**: an undiscovered hidden exit is unwalkable + door un-operable, not just unlisted — gate lives in the player movement command + `flee`, NOT the unconditional move primitive (mob/scripted/admin moves ungated). Per-character ephemeral; no save change. Emits `exit.discovered` (quest hook). Depends on visibility |
 | **Faction / standing** | **faction §2–§8** (new) | per-character signed standing per content-defined faction; generalizes alignment's architecture (`progression §6`) to N axes as a **parallel sibling** — alignment untouched, no v1 interaction. Linear per-player (no opposition ripple in v1). Named ranks → rank tags, bounded combined history, cancellable `faction.shift.check`→`shifted`→`rank.changed`, admin-immune shift, `ResolveRanks` gating helper. Earn via quest rewards + faction-mob kills. New Faction registry + player-save `faction_standing` bag (version bump). Consumers (disposition/abilities/rooms/shops/quests) adopt the helper as they're wired |
-| **Biomes** | **biomes §2–§6** (new) + designed with gathering + **plan `docs/themes/biomes-gathering-plan.md`** | **richer terrain, one axis**: promote the existing room `terrain` property into a registered Biome definition (backward-compatible — unregistered terrain = today's behavior). Generalizes `world-rooms-movement §6.4` hardcoded shielding into biome metadata; adds idle biome ambience (new tick), an optional mob spawn table (additive to area spawns), and the forage/node resource tables gathering consumes. New Biome registry; nothing persists. **Plan-sequenced as Milestone A** (registry → §3 shielding generalization → ambience → resource-table fields); decision **D1 = full biomes first** (the §3 shielding refactor is the risk slice, splittable into its own reviewed commit) |
-| **Gathering** (forage + nodes) | **gathering §2–§8** (new) + designed with biomes + **plan `docs/themes/biomes-gathering-plan.md`** | the non-vendor ingredient source `crafting §8` wants. Ships **both** models: ambient `forage` (rolls room biome's resource table) + discrete respawning `harvest` nodes (reuse spawn scheduler). Single gathering proficiency (use-based gain), rarity-tier quality roll (mirrors `crafting §5`). **Permissive** (friction lowers quality, only tool-gated nodes refuse) + **scarce** (forage cooldown, node charges+respawn) per `crafting §8`. Cancellable `resource.gathering`; `resource.gathered` quest hook. Node/forage state transient (no save); proficiency rides existing surface. **Plan: Milestone B** (after biomes), then **Milestone C** migrates recipes + closes §8. **Vendor/§8 policy locked (D2):** gather-primary; vendors may sell basic intermediates at a premium but crafting is always cheaper (content pricing discipline `output.value > Σ input.value`) and every finished recipe chain has ≥1 gather/loot-only input; introduces a **refining tier** (gather ore → refine ingot → craft dagger). Not geography-blocked (only regional recipes are) |
-| **Room coordinates** | **room-coordinates §2–§10** (new) | area-local integer `(x,y,z)` **derived from the exit graph** at load, **derive-by-default with a per-room `coord:` override/pin** for non-Euclidean spaces (PD-1, hybrid). Per-area grid seeded from pins (or a default anchor); BFS over intra-area cardinal/vertical exits applies fixed deltas; pins are ground truth the walk derives around. Coordinates are **stable** (viewer-independent, PD-7) so Mudlet's persistent mapper sees one fixed cell per room; the ASCII map recenters at render time. Collisions / non-square loops / unreachable rooms are **non-fatal load warnings** (PD-4). Adds the coordinate to `Room.Info` (omitted when unplaced) — exact wire shape pinned against a live Mudlet client. No movement change (PD-3); pin is content, no save change. Substrate ahead of its consumers (Mudlet mapper, telnet `map` verb — see §2) |
+
+> **Shipped since this table was written (deleted per the delete-on-ship rule):**
+> **Biomes** + **Gathering** (the `biomes-gathering-plan.md` arc — `internal/biome`,
+> `internal/gathering`, `forage`/`harvest` verbs, recipe re-point) and **Room
+> coordinates** (M23 — `internal/world/coords.go`). The remaining slivers from those
+> arcs live in their deferred-fix memories, not here. Verified against code 2026-06-10.
 
 ---
 
@@ -100,6 +107,58 @@ old five-theme partition left uncovered.
   **item-vault half** is exactly GoMud's `storage` module — a per-player item stash at
   rooms tagged `storage` (`storage add/remove [all|<n>]`, by-number item reference); spec
   the gold-bank and item-vault together or as two slices.
+- **WoT Mechanics (EPIC / program)** — the full mechanical-fidelity program for the
+  Wheel of Time setting, decomposed in
+  [`docs/themes/wot-mechanics-epic.md`](themes/wot-mechanics-epic.md). ⚠️ **This is a
+  multi-milestone *program*, not one item — and most of the WoT RPG is d20/D&D 3e
+  tabletop scaffolding a real-time tick MUD should deliberately NOT port.** The EPIC
+  clusters the source-doc mechanic surface (`docs/wot/`) into ~12 candidate sub-epics
+  (S1 weapon/equipment depth, S2 The One Power, S3 skills, S4 feats/traits, S5
+  conditions, S6 saves, S7 survival v2, S8 reputation, S9 class/background/multiclass,
+  S10 travel/planes, S11 Shadowspawn mob mechanics, S12 the optional d20 combat-model
+  rewrite), maps each onto an existing engine seam, and recommends a sequence. **Decision
+  0 governs everything:** translate WoT flavor + meaningful choices onto the engine's
+  tick/chance model (recommended), or rewrite the combat substrate to d20 (not
+  recommended). Several sub-epics fold in existing backlog items — S1 is the
+  combat-equipment-depth entry below, S2 consumes the Mana-pool §2 substrate, S7 subsumes
+  the hunger/thirst split + container caps, S8 is a faction sibling, S10 consumes
+  fast-travel. Content (`wot-world-plan.md`) proceeds in parallel at today's fidelity and
+  upgrades as each sub-epic lands. **Decision 0 RESOLVED (2026-06-10): posture A** —
+  translate WoT onto the tick/chance model, no d20 rewrite (S12 shelved). **Start point:
+  S1 (`M-Weapon-Identity`).**
+- **Combat & Equipment Depth (WoT weapon/armor system)** — *(EPIC sub-epic S1 — see WoT
+  Mechanics above and [`docs/themes/wot-mechanics-epic.md`](themes/wot-mechanics-epic.md))*
+  make weapons and armor
+  mechanically distinct the way `docs/wot/equipment.md` (the WoT d20 tables) describes:
+  proficiency tiers (Simple/Martial/Exotic + the −4 non-proficient rule), crit threat
+  range/multiplier, damage types (B/P/S), ranged combat (bows/thrown + ammo + range
+  increments), size-relative wielding (light/1h/2h, 1.5× Str two-handed), armor depth
+  (armor bonus / max-Dex / check penalty / per-type AC), masterwork grades, encumbrance,
+  and the long tail of special-weapon handlers. ⚠️ **Greenfield — design-first; the
+  engine is far thinner than the content ambition.** Today a weapon is one
+  `weapon_damage` dice string + stat `modifiers` (`internal/item/template.go`); damage =
+  `dice + STR bonus`, unarmed `1d3` (`internal/combat/damage.go`); **combat is melee-only,
+  same-room** (`combat.md §4.3`); **no weapon-proficiency gating** (proficiency is
+  ability-keyed, not weapon-category-keyed — anyone wields anything penalty-free); **no
+  damage types** (single AC, per-type deferred to "M8+"); **no crit/threat** (combat.md's
+  unimplemented "policy decision"). What works: the 2h footprint (`wield`+`offhand`
+  companion) and the smithing→weapon content loop. **Full decomposition + dependency
+  order + the WoT-equipment-to-engine mapping live in
+  [`docs/proposals/combat-equipment-depth.md`](proposals/combat-equipment-depth.md)**
+  (increments A–J). **Recommended first slice: `M-Weapon-Identity` = A (weapon category +
+  proficiency tier metadata) + B (proficiency gating) + C (crit threat/multiplier)** — one
+  coherent S–M theme, no ranged, no armor overhaul, gives the *existing* classes weapon
+  identity immediately; first deliverable is a `weapon-identity.md` spec slice. **Ranged
+  combat (G) is a separate `ranged-combat.md` milestone** — it is a combat-*model* change,
+  the only thing that makes the longbow real, and must NOT be pulled forward as a hack to
+  satisfy M4's one longbow. **Armor depth (E) is a third `armor-depth.md` theme.** Damage
+  types (D) are inert until armor differentiates them — record the metadata in A, build the
+  feature with E. Intersects the **WoT pack track** (`wot-setting-plan` memory, M4 longbow
+  forces the fidelity decision): author M4 weapons at Tier 0 (flavor) to keep geography
+  moving, or land M-Weapon-Identity first. Carriers already present: item rarity
+  (masterwork/power-wrought grades, H), container caps (encumbrance, I, specced §1).
+  Pre-decisions in the proposal §7 (proficiency representation, the to-hit-roll model crit
+  implies, the AC model, the ranged model, the fidelity ceiling).
 - **Player grouping / party** — a party of players with combat assist plus
   **XP-sharing and loot-sharing options**. ⚠️ **Greenfield — no grouping exists.**
   Substrate that's already in place: combat keys kill credit off the **attacker
@@ -223,24 +282,15 @@ old five-theme partition left uncovered.
   builders on the same room; **(6) scope/order** — almost certainly rooms+exits
   first, then mobs/items, then resets, then the rest. Big system; gate it behind a
   design conversation and a dedicated spec slice.
-- **Player maps (ASCII `map` verb + Mudlet/GMCP)** — the full mapping feature on top
-  of the coordinate substrate; proposal at `docs/proposals/player-maps.md`. **Unblocked
-  by `room-coordinates` (§1)**, which stops at the coordinate substrate + GMCP exposure
-  and leaves rendering to this slice. Today there is **no `map`/automap verb at all** and
-  the room render is line-oriented (`ui-rendering-help` non-goal: real-time UI). Shape:
-  one shared **local-window query** (radius-N BFS over placed rooms) feeding **two
-  renderers** — a server-rendered ASCII minimap (recenters the stable coordinates at draw
-  time; works on raw telnet) and a `Room.Info`-extending GMCP feed for Mudlet's native
-  mapper. **Decided:** geometry is settled in `room-coordinates` (derive-with-override,
-  stable/viewer-independent); **fog of war is IN v1 and persisted** — a per-character
-  visited-room set (player-save version bump + append-only migration), an exploration
-  hook on the `player.moved`/`SetRoom` entry seam, and a render-time filter so the map
-  shows only explored rooms. **So this is NOT pure presentation** — it adds the one new
-  save-state field the maps feature needs. Open sub-decisions (proposal §7): exit-stubs
-  to unvisited neighbors vs. fully hidden; teleport-counts-as-visited; visited-set
-  pruning; the secret-exit-in-a-visited-room leak (coordinate with visibility/hidden-exits);
-  the Mudlet GMCP wire shape (pin against a live client). Suggested phasing:
-  `room-coordinates` → fog-of-war visited-set + hook → ASCII renderer → Mudlet GMCP.
+- **Player maps — Mudlet/GMCP graphical-mapper remainder only** — the ASCII `map`/minimap
+  verb, persisted fog-of-war visited-set, terrain coloring, and POI markers **all shipped
+  (M24)**. What remains is the **Mudlet native graphical-mapper integration**: the
+  `Room.Info` GMCP feed already carries a flat `x/y/z` coordinate, but that wire shape is a
+  **deliberate placeholder** — it must be pinned against a **live Mudlet client** before
+  Mudlet mapper support is announced (`room-coordinates-gmcp-wireshape` memory; HIGH,
+  human-in-the-loop). Two LOW follow-ups: `Save.VisitedRooms` prune-on-load (PD-10 —
+  fix when the world passes ~500 rooms; `m24-deferred-fixes`), and `world.LocalWindow`
+  micro-perf. Proposal: `docs/proposals/player-maps.md`.
 - **Feature-module system (code-level feature packaging)** — a registration seam that
   lets a *gameplay feature's code* (its commands + event listeners + scripting functions
   + data + lifecycle hooks) live in one self-contained directory and wire itself in,
@@ -363,15 +413,13 @@ old five-theme partition left uncovered.
   transport-friction idea). Pre-decisions: unlock-on-visit vs. purchase; instant vs.
   travel-time; interaction with locked/hidden rooms; whether the visited-set can share the
   player-maps fog-of-war set (§2).
-- **World cleanup — corpse & item decay** (GoMud `cleanup`) — scheduled removal of stale
-  **corpses**, **dropped items**, and temporary objects, plus `trash`/`bury` verbs. ⚠️
-  **Partial — corpse *creation* shipped (M22.2) but decay is the deferred M22.5 slice
-  ([[m22-deferred-fixes]]); dropped-item decay is unbuilt.** Today nothing prunes corpses
-  or ground items → unbounded growth (a known open edge). Substrate: the tick scheduler (a
-  decay-sweep handler), the entity store + placement, corpse ownership / `MayLoot`.
-  Pre-decisions: decay timers (per-corpse vs. global sweep, rarity-weighted?); does
-  `bury`/`trash` accelerate it; do owned / quest items resist decay; a `*.decayed` event
-  (quest / observer hook).
+- **World cleanup — dropped-item decay + `trash`/`bury` verbs** — ⚠️ **Partial — corpse
+  decay SHIPPED (M22.5: `corpse.Service.DecaySweep`, `ANOTHERMUD_CORPSE_LIFETIME` default
+  5m, destroys unlooted contents).** What remains: **dropped-item decay** (ground items
+  outside a corpse still grow unbounded) and the `trash`/`bury` player verbs. Substrate is
+  proven by the corpse sweep — reuse the tick decay-sweep pattern + entity store/placement.
+  Pre-decisions: per-item vs. global sweep, rarity-weighted timers; does `bury`/`trash`
+  accelerate it; do owned/quest items resist decay; a `*.decayed` event (quest/observer hook).
 - **Player/NPC follow** (GoMud `follow`) — a `follow <name>` primitive: when the target
   leaves a room, the follower moves with them (`follow stop`/`unfollow`; `follow lose` to
   shake pursuers). ⚠️ **Greenfield — no follow verb exists.** It is the **shared movement
@@ -460,7 +508,8 @@ need a design pass first.
 | Theme | Pulls in | Why design-first |
 |---|---|---|
 | **Gameplay Systems** | hireable mobs, follow, party/grouping | no port reference; needs pre-decisions before a spec. (Visibility, hidden exits, faction, biomes, and gathering are now **specced** and moved to §1; hireable mobs is best designed alongside/after grouping, and **follow** is the shared movement primitive under grouping + hirelings + onboarding.) |
-| **Gameplay content / activities** | procedural missions (escort), fast-travel waypoints, gambling, fishing→gathering, leaderboards, onboarding-guide NPC, world cleanup/decay | the GoMud-module cluster — repeatable "things to do." Each is a small standalone spec; best delivered as **feature-modules** if that seam lands first. Cleanup/decay is also overdue debt (M22.5). |
+| **WoT Mechanics (EPIC)** | a 12-sub-epic program: weapon/equipment depth, The One Power, skills, feats, conditions, saves, survival, reputation, classes, travel, Shadowspawn; see `themes/wot-mechanics-epic.md` | the WoT RPG is d20; the engine is real-time tick/chance. **Decision 0 RESOLVED — posture A** (translate onto tick/chance; no d20 rewrite, S12 shelved). **Start with S1 `M-Weapon-Identity`** (small); The One Power (S2) is the marquee arc. The d20 tabletop scaffolding is deliberately *not* ported. |
+| **Gameplay content / activities** | procedural missions (escort), fast-travel waypoints, gambling, fishing→gathering, leaderboards, onboarding-guide NPC, dropped-item decay | the GoMud-module cluster — repeatable "things to do." Each is a small standalone spec; best delivered as **feature-modules** if that seam lands first. (Corpse decay already shipped M22.5; only dropped-item decay remains.) |
 | **Player Economy depth** | mail (push delivery / attachment escrow), banking (gold-bank **+ item vault = GoMud `storage`**) + a gold-at-risk rule, zone-tax→coffer gold-sink (from elections) | extends the now-specced trade; banking wants gold-at-risk to matter; zone-tax is a reusable sink worth extracting from elections |
 | **OLC (online creation)** | in-game world building — `redit`/`medit`/`oedit`/`aedit` for builders | collides with the boot-immutable, file-authored content model; needs the source-of-truth + runtime-mutable-registry pre-decisions first |
 | **Feature-module system** | code-level feature packaging + web admin console; reshapes how the gameplay-module cluster (gambling, leaderboards, alt-characters, …) ships | architectural — `Module` contract + enable/disable model are pre-decisions; the runtime substrate (commands/events/scripting/packs) already exists. GoMud's plugin system is the reference |
@@ -472,8 +521,9 @@ need a design pass first.
 | If yes → | start with |
 |---|---|
 | You want a real item economy — players selling loot to each other | **Player trade** *(specced — ready)*; then Economy depth (mail/banking, greenfield) |
-| You want to deepen the crafting loop | **Crafting & Cooking** shipped (M27); add **Gathering** + **Biomes** *(specced — the real ingredient source)* |
+| You want to deepen the crafting loop | **Crafting & Cooking** (M27), **Gathering** + **Biomes** all shipped; next depth = regional recipes (geography-gated) or the WoT-flavored craft chains |
 | The world/character sheet feels mechanically thin | **Gameplay Systems** *(greenfield — design first)* |
+| You want WoT weapons to feel distinct / matter mechanically | **Combat & Equipment Depth** — start with `M-Weapon-Identity` (A+B+C); ranged + armor are later themes *(greenfield — design first)* |
 | You want more "things to do" — repeatable activities, destinations, prestige | **Gameplay content / activities** *(greenfield — small standalone specs)* |
 | You want a fast, low-stakes win to re-enter the codebase | take one **§1 warmup** (tag-indexed reads, container caps, …) |
 | Accreting code debt is blocking a feature you want | **Engine Debt III** *(specced)* |
