@@ -1,0 +1,18 @@
+id: nynaeve
+name: Nynaeve al'Meara
+type: npc
+behavior: stationary
+description: |
+  Young to be the village Wisdom, Nynaeve al'Meara makes up for her years with
+  a sharp tongue and a sharper will, her dark hair worn in a single thick braid
+  that she has a habit of tugging when she is vexed — which is often. She knows
+  every herb that grows in the Two Rivers and what it is good for, sets bones
+  and breaks fevers, and is not above telling the Village Council exactly where
+  it has gone wrong.
+tags: [humanoid]
+keywords: [nynaeve, almeara, wisdom]
+stats:
+  hp_max: 24
+  str: 9
+disposition_rules:
+  default: friendly

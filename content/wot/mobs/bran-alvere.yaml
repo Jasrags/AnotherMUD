@@ -1,0 +1,17 @@
+id: bran-alvere
+name: Bran al'Vere
+type: npc
+behavior: stationary
+description: |
+  A stout, balding man with a fringe of grey hair and an apron stretched over
+  a comfortable stomach, Bran al'Vere keeps the Winespring Inn and, as it
+  happens, serves as Mayor of Emond's Field. He has the easy, watchful manner
+  of a man used to settling arguments before they start, and a good word for
+  everyone who comes through his door.
+tags: [humanoid]
+keywords: [bran, alvere, innkeeper, mayor]
+stats:
+  hp_max: 30
+  str: 11
+disposition_rules:
+  default: friendly

@@ -1,0 +1,12 @@
+id: inn-guestroom
+area: emonds-field
+name: "{y}The Winespring Inn — Guest Room{x}"
+description: |
+  A small, clean room under the eaves, given over to the rare traveller the
+  Winespring Inn sees — a peddler in season, a merchant's man come for wool or
+  tabac. A narrow bed stands made up beneath a window that looks out over the
+  Green, there is a washstand with a chipped basin, and a rag rug warms the
+  plank floor. The stair leads back down to the common room.
+exits:
+  down: inn-common-room
+terrain: indoors

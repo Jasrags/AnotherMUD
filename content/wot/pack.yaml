@@ -8,11 +8,11 @@ description: |
 
   Depends on the tapestry-core engine baseline (races, classes, slots, effects,
   abilities, channels, emotes). Boot it in place of the demo world with:
-    ANOTHERMUD_PACKS=wot ANOTHERMUD_START_ROOM=wot:emonds-field-green
+    ANOTHERMUD_PACKS=wot ANOTHERMUD_START_ROOM=wot:the-green
 
-  M0.5 stub: a single placeholder room (the Emond's Field green) that proves
-  the {tapestry-core, wot} boot-swap end to end. The real village, the Two
-  Rivers wilds, and the wider Westlands land in M1+.
+  M1: the village of Emond's Field (the Green, the Winespring Inn, the smithy,
+  the Wisdom's cottage, the Winespring, and the road stubs out). The Two Rivers
+  wilds and the wider Westlands land in M2+.
 dependencies:
   tapestry-core: "*"
 content:
@@ -20,3 +20,5 @@ content:
     - areas/*.yaml
   rooms:
     - rooms/*.yaml
+  mobs:
+    - mobs/*.yaml

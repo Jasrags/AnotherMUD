@@ -1,0 +1,13 @@
+id: old-road
+area: emonds-field
+name: "The Old Road"
+description: |
+  The Old Road runs south from the Winespring out between drystone walls and
+  blackberry hedges, the way to Deven Ride and the southern farms. It is the
+  quietest of the village roads, sunk a little below the fields, dappled where
+  old oaks lean across it. The Winespring and the Green lie back to the north;
+  the road south wanders off among the hedges for now.
+exits:
+  north: the-winespring
+terrain: outdoors
+# M1 stub: the Old Road on to Deven Ride lands in M3 (outlying villages).

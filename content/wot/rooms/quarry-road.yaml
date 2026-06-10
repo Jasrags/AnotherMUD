@@ -1,0 +1,17 @@
+id: quarry-road
+area: emonds-field
+name: "The Quarry Road"
+description: |
+  Here the Quarry Road leaves the western edge of Emond's Field, running off as
+  a rutted cart track toward the dark line of the Westwood and, beyond it, the
+  grey shoulders of the Mountains of Mist. The village smithy stands close on
+  the west side, smoke rising from its roof; a lane turns off north to the
+  Wisdom's cottage on the village edge. The Green lies back east; the road west
+  peters out at the field's edge for now.
+exits:
+  east: the-green
+  west: the-forge
+  north: wisdoms-cottage
+terrain: outdoors
+# M1 stub: the road west into the Westwood and up the Quarry Road to the Sand
+# Hills + Mountains-of-Mist diggings lands in M2 (the wilds).

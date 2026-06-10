@@ -1,0 +1,15 @@
+id: north-road
+area: emonds-field
+name: "The North Road"
+description: |
+  North of the Green the road firms up underfoot and climbs a long low rise out
+  of the village, bound for Watch Hill and, beyond it, the ferry over the Taren.
+  Hedgerows give way to open sheep pasture, and from the top of the rise a
+  walker can see the smoke of Emond's Field behind and a great deal of empty
+  green country ahead. The village lies back to the south; the road north runs
+  on out of sight for now.
+exits:
+  south: the-green
+terrain: outdoors
+# M1 stub: the North Road on to Watch Hill + Taren Ferry lands in M3 (outlying
+# villages).

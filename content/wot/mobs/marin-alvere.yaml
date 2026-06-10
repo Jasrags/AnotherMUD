@@ -1,0 +1,17 @@
+id: marin-alvere
+name: Marin al'Vere
+type: npc
+behavior: stationary
+description: |
+  Bran's wife rules the inn's kitchen with a wooden spoon and a clear eye,
+  sleeves shoved up and grey-streaked hair pinned back from a face flushed with
+  the heat of the range. Nothing leaves her kitchen that is not done properly,
+  and she has fed half the village at one time or another. She'll happily show
+  an eager pair of hands how a meal is really made.
+tags: [humanoid]
+keywords: [marin, alvere, cook, goodwife]
+stats:
+  hp_max: 26
+  str: 10
+disposition_rules:
+  default: friendly

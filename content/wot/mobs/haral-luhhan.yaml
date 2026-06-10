@@ -1,0 +1,17 @@
+id: haral-luhhan
+name: Haral Luhhan
+type: npc
+behavior: stationary
+description: |
+  The village blacksmith is a great slab of a man, shoulders and arms corded
+  from a life at the anvil, his beard and brows singed short and his hands
+  marked with a hundred small white burn-scars. For all his size he handles
+  iron with a careful, unhurried patience, and he has a smith's blunt honesty.
+  He sizes up your hands as though wondering whether there is any use in them.
+tags: [humanoid]
+keywords: [haral, luhhan, blacksmith, smith]
+stats:
+  hp_max: 42
+  str: 16
+disposition_rules:
+  default: friendly

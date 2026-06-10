@@ -32,7 +32,7 @@ func TestLoad_WotPackSelectionBootSwap(t *testing.T) {
 	}
 
 	// The WoT starter room loaded and is the kind of room a character spawns in.
-	if _, err := regs.World.Room("wot:emonds-field-green"); err != nil {
+	if _, err := regs.World.Room("wot:the-green"); err != nil {
 		t.Errorf("wot starter room not loaded: %v", err)
 	}
 	if _, err := regs.World.Area("wot:emonds-field"); err != nil {

@@ -1,0 +1,17 @@
+id: cenn-buie
+name: Cenn Buie
+type: npc
+behavior: stationary
+description: |
+  A weathered, gnarled old man with a face like a cracked boot and a temper to
+  match, Cenn Buie thatches the village roofs and sits — to the regular regret
+  of everyone else — on the Village Council. He leans on the rail of the Green
+  with the air of a man who has an opinion about everything and intends to
+  share it whether asked or not.
+tags: [humanoid]
+keywords: [cenn, buie, thatcher, old man]
+stats:
+  hp_max: 20
+  str: 9
+disposition_rules:
+  default: friendly

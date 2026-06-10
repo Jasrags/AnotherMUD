@@ -1,0 +1,21 @@
+id: the-green
+area: emonds-field
+name: "{g}The Green{x}"
+description: |
+  The Green is the heart of Emond's Field, a broad common of trampled grass
+  where the village lanes all run together. The Winespring Inn stands close on
+  the east side, whitewashed and red-roofed on its low stone foundation, and to
+  the south the ground dips to where the Winespring rises. West, the Quarry Road
+  runs out past the smithy toward the distant trees and the grey shoulders of
+  the Mountains of Mist; north, the road climbs away toward Watch Hill. It is a
+  settled, unhurried place, a long way from anywhere a map would trouble to name.
+exits:
+  east: inn-common-room
+  south: the-winespring
+  west: quarry-road
+  north: north-road
+terrain: outdoors
+# Spawn room (ANOTHERMUD_START_ROOM=wot:the-green). Cenn Buie the thatcher
+# loiters here — Village Council flavor.
+mobs:
+  - cenn-buie
