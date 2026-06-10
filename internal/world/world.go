@@ -171,6 +171,13 @@ type Room struct {
 	// ambience. Spec §6.4.
 	TimeExposed bool
 
+	// POI is the room's point-of-interest class for the map ("shop",
+	// "trainer", "inn", or empty), derived at load from the room's
+	// pinned NPCs and rest bonus (player-maps §6). When set, the map
+	// draws the POI marker in place of the terrain glyph. Content-
+	// derived and recomputed every load; never persisted.
+	POI string
+
 	// Pin is the authored area-local coordinate override
 	// (room-coordinates §3.5). When set, DeriveCoordinates places this
 	// room at exactly Pin and treats it as ground truth: the room seeds

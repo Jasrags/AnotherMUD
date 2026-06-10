@@ -176,6 +176,34 @@ func TestTerrainCell_ColorsAndGapFill(t *testing.T) {
 	}
 }
 
+// poiCell returns a colored marker for each known POI class, and a room
+// with a POI draws that marker on the map instead of its terrain glyph.
+func TestPoiCell_AndCanvasPrecedence(t *testing.T) {
+	for poi, wantGlyph := range map[string]string{"shop": "$", "trainer": "T", "inn": "+"} {
+		if cell := poiCell(poi); !strings.Contains(cell, wantGlyph) {
+			t.Errorf("poiCell(%q) = %q, want a %q marker", poi, cell, wantGlyph)
+		}
+	}
+	if poiCell("") != "" || poiCell("nonsense") != "" {
+		t.Error("empty/unknown POI should yield no marker")
+	}
+
+	// A forest room flagged as a shop renders the shop marker, not the
+	// forest glyph.
+	w := world.New()
+	w.AddRoom(mapRoom("ar:o", "outdoors", 0, 0, 0, map[world.Direction]world.RoomID{world.DirEast: "ar:e"}))
+	shop := mapRoom("ar:e", "forest", 1, 0, 0, map[world.Direction]world.RoomID{world.DirWest: "ar:o"})
+	shop.POI = "shop"
+	w.AddRoom(shop)
+	out, _ := renderLocalMap(must(w.LocalWindow("ar:o", 2)), "ar:o", visitedFunc("ar:o", "ar:e"), nil)
+	if !strings.Contains(out, "$") {
+		t.Errorf("a shop room should draw $, got:\n%s", out)
+	}
+	if strings.Contains(out, "*") {
+		t.Errorf("the shop marker should replace the forest glyph, got:\n%s", out)
+	}
+}
+
 func must(win world.Window, _ error) world.Window { return win }
 
 func TestMapCanvas_Alignment(t *testing.T) {

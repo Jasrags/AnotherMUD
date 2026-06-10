@@ -121,6 +121,24 @@ var terrainStyles = map[string]terrainStyle{
 // defaultTerrainStyle is used for unknown/empty terrain — open ground.
 var defaultTerrainStyle = terrainStyle{".", "map.grass"}
 
+// poiMarkers maps a room's derived point-of-interest class (world.Room
+// .POI, set at load) to its colored map marker. The marker takes the
+// room's cell over the terrain glyph (player-maps §6).
+var poiMarkers = map[string]terrainStyle{
+	"shop":    {"$", "map.shop"},
+	"trainer": {"T", "map.trainer"},
+	"inn":     {"+", "map.inn"},
+}
+
+// poiCell returns the colored marker for a POI class, or "" when the
+// class is empty/unknown (so the caller falls back to terrain).
+func poiCell(poi string) string {
+	if m, ok := poiMarkers[poi]; ok {
+		return "<" + m.tag + ">" + m.glyph + "</" + m.tag + ">"
+	}
+	return ""
+}
+
 func terrainStyleFor(terrain string) terrainStyle {
 	if s, ok := terrainStyles[strings.ToLower(strings.TrimSpace(terrain))]; ok {
 		return s
@@ -221,9 +239,14 @@ func buildMapCanvas(win world.Window, originID world.RoomID, isVisited func(stri
 	canvas := newMapCanvas()
 	for id, wr := range rendered {
 		col, row := (wr.Coord.X-origin.X)*2, -(wr.Coord.Y-origin.Y)*2
-		if id == originID {
+		switch {
+		case id == originID:
 			canvas.set(col, row, "<highlight>@</highlight>")
-		} else {
+		case poiCell(wr.Room.POI) != "":
+			// A point of interest (shop/trainer/inn) takes the cell over
+			// the terrain glyph so it reads at a glance (player-maps §6).
+			canvas.set(col, row, poiCell(wr.Room.POI))
+		default:
 			canvas.set(col, row, terrainCell(wr.Room.Terrain))
 		}
 		for _, c := range cardinalConns {

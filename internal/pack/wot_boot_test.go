@@ -69,6 +69,17 @@ func TestLoad_WotPackSelectionBootSwap(t *testing.T) {
 	if got := res.Effective(green, light.Black, light.Black); got != light.Dim {
 		t.Errorf("the-green at night = %v, want Dim (village lamps lift gloom)", got)
 	}
+
+	// Map POI derivation: the forge holds Haral the smith (shop + trainer)
+	// so it resolves to a shop marker; the open Green has no fixture.
+	if forge, err := regs.World.Room("wot:the-forge"); err == nil {
+		if forge.POI != "shop" {
+			t.Errorf("the-forge POI = %q, want shop (Haral is a shop+trainer NPC)", forge.POI)
+		}
+	}
+	if green.POI != "" {
+		t.Errorf("the-green POI = %q, want empty (no fixture)", green.POI)
+	}
 	if wild, err := regs.World.Room("wot:deep-westwood"); err == nil {
 		if got := res.Effective(wild, light.Black, light.Black); got != light.Gloom {
 			t.Errorf("deep-westwood at night = %v, want Gloom (wilds stay dark)", got)

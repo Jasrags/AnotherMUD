@@ -201,6 +201,12 @@ func Load(ctx context.Context, root string, filter []string, dst *Registries, sp
 		return err
 	}
 
+	// Derive each room's map point-of-interest class from its pinned
+	// NPCs (shop / skill_trainer tags) and rest bonus (player-maps §6).
+	// Runs after mob placements are known so a room's fixtures are
+	// visible. Content-derived, recomputed every load.
+	deriveRoomPOIs(dst.World, mobPlacements, dst.Mobs)
+
 	// Area spawn-rule references (rooms + mob templates) must resolve
 	// in the final world. Runs after every pack has loaded so
 	// cross-pack references (`other-pack:foo`) are valid.
@@ -321,6 +327,77 @@ func validateItemSlots(dst *Registries) error {
 		}
 	}
 	return nil
+}
+
+// poiRank orders the map point-of-interest classes by precedence so a
+// room that is several things at once shows the most useful marker:
+// shop > trainer > inn (player-maps §6). Empty ranks lowest.
+func poiRank(poi string) int {
+	switch poi {
+	case "shop":
+		return 3
+	case "trainer":
+		return 2
+	case "inn":
+		return 1
+	default:
+		return 0
+	}
+}
+
+// poiFromMobTags maps an NPC's tags to a point-of-interest class: a
+// `shop` tag wins over `skill_trainer` (a vendor who also trains shows
+// as a shop). Empty when the NPC is neither.
+func poiFromMobTags(tags []string) string {
+	var trainer bool
+	for _, t := range tags {
+		switch t {
+		case "shop":
+			return "shop"
+		case "skill_trainer":
+			trainer = true
+		}
+	}
+	if trainer {
+		return "trainer"
+	}
+	return ""
+}
+
+// deriveRoomPOIs sets each room's POI marker class from its pinned NPCs
+// and rest bonus (player-maps §6). Shop/trainer come from the fixtures
+// placed in the room (the strongest such marker wins); a room with no
+// vendor/trainer but a positive HealingRate (inn / infirmary / shrine)
+// is marked an inn. Content-derived, recomputed every load; never
+// persisted.
+func deriveRoomPOIs(w *world.World, placements []pendingMobPlacement, mobs *mob.Templates) {
+	if w == nil || mobs == nil {
+		return
+	}
+	for _, p := range placements {
+		tpl, err := mobs.Get(mob.TemplateID(p.TemplateID))
+		if err != nil {
+			continue
+		}
+		poi := poiFromMobTags(tpl.Tags)
+		if poi == "" {
+			continue
+		}
+		room, err := w.Room(p.RoomID)
+		if err != nil {
+			continue
+		}
+		if poiRank(poi) > poiRank(room.POI) {
+			room.POI = poi
+		}
+	}
+	// Inn/rest is the weakest marker — only when no vendor/trainer claimed
+	// the room. A positive HealingRate is the rest-room signal.
+	for _, r := range w.Rooms() {
+		if r.POI == "" && r.HealingRate > 0 {
+			r.POI = "inn"
+		}
+	}
 }
 
 // bakeAreaLightFloors resolves the room→area tier of the

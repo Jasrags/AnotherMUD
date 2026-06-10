@@ -217,6 +217,32 @@ func TestLoadInvalidAreaLightFloorErrors(t *testing.T) {
 	}
 }
 
+func TestPoiFromMobTags(t *testing.T) {
+	cases := []struct {
+		name string
+		tags []string
+		want string
+	}{
+		{"shop wins over trainer", []string{"humanoid", "skill_trainer", "shop"}, "shop"},
+		{"trainer only", []string{"humanoid", "skill_trainer"}, "trainer"},
+		{"plain npc", []string{"humanoid"}, ""},
+		{"shop only", []string{"shop"}, "shop"},
+		{"empty", nil, ""},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			if got := poiFromMobTags(c.tags); got != c.want {
+				t.Errorf("poiFromMobTags(%v) = %q, want %q", c.tags, got, c.want)
+			}
+		})
+	}
+	// Precedence ladder.
+	if !(poiRank("shop") > poiRank("trainer") && poiRank("trainer") > poiRank("inn") && poiRank("inn") > poiRank("")) {
+		t.Errorf("poiRank ladder broken: shop=%d trainer=%d inn=%d none=%d",
+			poiRank("shop"), poiRank("trainer"), poiRank("inn"), poiRank(""))
+	}
+}
+
 func TestLoadDuplicateRoomID(t *testing.T) {
 	root := t.TempDir()
 	pack := filepath.Join(root, "core")
