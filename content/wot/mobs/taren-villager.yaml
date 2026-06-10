@@ -1,0 +1,17 @@
+id: taren-villager
+name: a sharp-faced villager
+type: npc
+behavior: stationary
+description: |
+  A wiry, quick-eyed townsman lounges in a doorway with the air of someone who
+  has never done an honest day's labour and is proud of it. He watches the
+  street and the strangers on it the way a heron watches a pond, and you get the
+  distinct feeling that anything not nailed down — and a few things that are —
+  would be safer somewhere he could not reach it.
+tags: [humanoid]
+keywords: [villager, townsman, man]
+stats:
+  hp_max: 22
+  str: 10
+disposition_rules:
+  default: neutral

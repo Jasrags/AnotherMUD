@@ -1,0 +1,17 @@
+id: the-ferry-landing
+area: taren-ferry
+name: "{c}The Ferry Landing{x}"
+description: |
+  The street ends at a stone slipway running down into the brown, swift water of
+  the Taren, broad and cold and serious here where it gathers itself for the long
+  run to the sea. A heavy rope-and-barge ferry is drawn up at the bank, its
+  hawsers stretched groaning across the river to the dim far shore — the edge of
+  the Two Rivers, and the wide world beyond. The village climbs back south; the
+  ferry waits to take you north across the water.
+exits:
+  south: taren-ferry
+terrain: outdoors
+# M3c stub: the crossing north over the Taren opens onto Andor proper (the road
+# to Baerlon, Region 2) — the seam wired in M5. For now the ferry waits.
+mobs:
+  - taren-ferryman

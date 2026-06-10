@@ -10,7 +10,7 @@ description: |
   Road runs on toward the river and the ferry away to the north.
 exits:
   south: watch-hill-green
+  north: taren-road
 terrain: outdoors
-# M3a stub: the North Road on to Taren Ferry + the crossing lands in M3c.
 mobs:
   - watch-hill-watcher

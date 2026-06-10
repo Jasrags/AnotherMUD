@@ -1,0 +1,17 @@
+id: taren-ferryman
+name: the Taren ferryman
+type: npc
+behavior: stationary
+description: |
+  A long, lean, hard-handed man with a coil of rope over one shoulder and a
+  weather eye on the river, the ferryman works the only crossing for many
+  leagues and knows exactly what that is worth. He will take you over the Taren
+  readily enough — for a price, and the price is never quite what you expected
+  when you stepped onto his barge.
+tags: [humanoid]
+keywords: [ferryman, ferry, boatman]
+stats:
+  hp_max: 28
+  str: 13
+disposition_rules:
+  default: neutral
