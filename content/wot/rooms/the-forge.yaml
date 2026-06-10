@@ -22,5 +22,12 @@ properties:
 # §8 closure (M2): the M1 practice ingots are gone — a smith now mines iron ore
 # from the diggings and smelts it (smelt-iron-ingot) into the ingot the dagger
 # wants. The chain bottoms out in gathered ore.
+# Finished work "stacked to one side waiting to be claimed" (see the
+# description) — the S1 weapon-identity demo: a martial longsword a fighter
+# wields cleanly, and an exotic ashandarei that fights an untrained hand
+# (the non-proficient to-hit penalty).
+items:
+  - two-rivers-longsword
+  - ashandarei
 mobs:
   - haral-luhhan
