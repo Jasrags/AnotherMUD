@@ -1,0 +1,16 @@
+id: watch-hill-innkeeper
+name: the Goose and Crown's innkeeper
+type: npc
+behavior: stationary
+description: |
+  A broad, ruddy woman with flour on her apron and a ladle never far from her
+  hand, the keeper of the Goose and Crown runs her inn and half the village
+  besides. She has a sharp eye for a stranger and a soft spot for anyone with an
+  appetite, and she will talk the ear off a fencepost if you let her.
+tags: [humanoid]
+keywords: [innkeeper, keeper, woman, goodwife]
+stats:
+  hp_max: 26
+  str: 10
+disposition_rules:
+  default: friendly

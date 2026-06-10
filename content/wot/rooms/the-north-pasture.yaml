@@ -1,0 +1,13 @@
+id: the-north-pasture
+area: watch-hill
+name: "{g}The North Pasture{x}"
+description: |
+  The North Road runs on through open sheep-country here, hedgerows on either
+  hand and the grass cropped close by the flocks. A few woolly shapes lift their
+  heads to watch you pass and go back to grazing. Emond's Field lies back to the
+  south; ahead, the road climbs a long green rise toward the rooftops of Watch
+  Hill.
+exits:
+  south: north-road
+  north: watch-hill-green
+terrain: grassland

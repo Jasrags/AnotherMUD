@@ -1,0 +1,16 @@
+id: watch-hill-lookout
+area: watch-hill
+name: "{y}Watch Hill — the Lookout{x}"
+description: |
+  The crown of the hill is bare but for a weathered post and a heap of stones —
+  the makings of a beacon fire, kept ready out of old habit and old fear. From
+  here the whole northern Two Rivers opens out below: pasture and hedge running
+  away to the line of the Taren, and the dark smudge of the Mountains of Mist off
+  to the west. The village green lies back down the slope to the south; the North
+  Road runs on toward the river and the ferry away to the north.
+exits:
+  south: watch-hill-green
+terrain: outdoors
+# M3a stub: the North Road on to Taren Ferry + the crossing lands in M3c.
+mobs:
+  - watch-hill-watcher

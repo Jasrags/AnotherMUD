@@ -1,0 +1,16 @@
+id: watch-hill-watcher
+name: an old watchman
+type: npc
+behavior: stationary
+description: |
+  A lean old man stands at the beacon post with a quarterstaff and a far-seeing
+  squint, keeping the watch that gives the hill its name. There has been no real
+  trouble out of the north in his lifetime, but his father kept this watch, and
+  his father's father, and he is not about to be the one who lets it lapse.
+tags: [humanoid]
+keywords: [watchman, watcher, old man]
+stats:
+  hp_max: 24
+  str: 11
+disposition_rules:
+  default: friendly

@@ -1,0 +1,9 @@
+# Ambient-forage pool for the grassland biome (gathering.md §2). `forage` in the
+# pastures turns up cooking herbs from the hedgerows and verges — another herb
+# source on the roads between the villages. Low richness, common-to-uncommon.
+id: pasture-forage
+richness: 35
+ceiling: uncommon
+entries:
+  - { item: wild-herb, weight: 3 }
+  - { item: garden-greens, weight: 1 }

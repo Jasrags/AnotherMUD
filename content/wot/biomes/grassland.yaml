@@ -1,0 +1,13 @@
+# Grassland biome (biomes.md §2) — the open sheep pastures and field-country
+# between the Two Rivers villages. Outdoors; carries idle ambience and a light
+# forage table (the hedgerows and verges yield cooking herbs). Rooms key in via
+# `terrain: grassland`.
+id: grassland
+name: open pasture
+description: Wind-combed grass and hedgerow run away on every side toward a low green horizon.
+ambience:
+  - A meadowlark trills somewhere in the tall grass.
+  - Wind ripples across the pasture in long silver waves.
+  - Sheep bleat, thin and distant, from a fold beyond the hedge.
+  - The drone of insects rises and falls in the warm air.
+forage_table: pasture-forage
