@@ -16,7 +16,12 @@ type mapActor struct {
 	visited     map[string]bool
 	minimap     bool
 	minimapSize string
+	termWidth   int
 }
+
+// TerminalWidth makes mapActor satisfy the width-aware viewer capability
+// so AppendMinimap's column sizing can be exercised; 0 means "unknown".
+func (a *mapActor) TerminalWidth() int { return a.termWidth }
 
 func (a *mapActor) HasVisited(id string) bool { return a.visited[id] }
 func (a *mapActor) VisitedRooms() []string {
@@ -203,5 +208,31 @@ func TestAppendMinimap_GatedOnToggle(t *testing.T) {
 	}
 	if !strings.Contains(got, "@") {
 		t.Errorf("minimap should contain the viewer marker, got:\n%s", got)
+	}
+}
+
+// The minimap's left column must NOT move when only the way-back note
+// length changes — the box sits in a stable place regardless of the
+// neighbour area's name (the bug where a longer note shifted the map).
+func TestAppendMinimap_StableColumnAcrossNoteLength(t *testing.T) {
+	build := func(neighbourName string) string {
+		w := world.New()
+		w.AddArea(&world.Area{ID: "wild", Name: "the Wild"})
+		w.AddArea(&world.Area{ID: "nb", Name: neighbourName})
+		o := &world.Room{ID: "wild:o", AreaID: "wild", Terrain: "forest",
+			Exits: map[world.Direction]world.Exit{world.DirWest: {Target: "nb:x"}}}
+		w.AddRoom(o)
+		w.AddRoom(&world.Room{ID: "nb:x", AreaID: "nb"})
+		a := &mapActor{testActor: newTestActor(o), visited: map[string]bool{"wild:o": true}, minimap: true, minimapSize: "large", termWidth: 120}
+		return command.AppendMinimap("ROOM BODY", o, a, w)
+	}
+	// The first '+' on row 0 marks the box's left edge.
+	colOf := func(out string) int {
+		return strings.Index(strings.SplitN(out, "\n", 2)[0], "+")
+	}
+	short := colOf(build("Foo"))                             // note "(west → Foo)"
+	long := colOf(build("The Mountains of Mist and Beyond")) // a much longer note
+	if short != long {
+		t.Errorf("map column moved with note length: short col=%d long col=%d", short, long)
 	}
 }

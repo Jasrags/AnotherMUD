@@ -239,6 +239,25 @@ func TestRenderFramedMinimap_FixedViewportSize(t *testing.T) {
 	}
 }
 
+// minimapBoxWidth must match the actual rendered framed-box width for
+// every size, so the room column it reserves lines up with the box.
+func TestMinimapBoxWidth_MatchesRender(t *testing.T) {
+	w := world.New()
+	w.AddRoom(mapRoom("ar:o", "outdoors", 0, 0, 0, nil))
+	for _, radius := range []int{minimapRadiusSmall, minimapRadiusMedium, minimapRadiusLarge} {
+		win := must(w.LocalWindow("ar:o", radius))
+		out, ok := renderFramedMinimap(win, "ar:o", visitedFunc("ar:o"), nil, radius)
+		if !ok {
+			t.Fatalf("radius %d: not centerable", radius)
+		}
+		// First line is the top border; its visible width is the box width.
+		top := strings.SplitN(out, "\n", 2)[0]
+		if got, want := markupWidth(top), minimapBoxWidth(radius); got != want {
+			t.Errorf("radius %d: rendered box width %d, minimapBoxWidth says %d", radius, got, want)
+		}
+	}
+}
+
 // C1: a cardinal exit that leaves the area is annotated below the map
 // with the neighbour's name, so the player can orient across the
 // boundary the single-area map stops at. A same-area exit is not.

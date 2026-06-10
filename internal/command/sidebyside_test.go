@@ -29,26 +29,6 @@ func TestRoomColumnWidth(t *testing.T) {
 	}
 }
 
-func TestBlockWidth(t *testing.T) {
-	cases := []struct {
-		name string
-		in   string
-		want int
-	}{
-		{"empty", "", 0},
-		{"single line", "abc", 3},
-		{"widest line wins", "a\nabcde\nab", 5},
-		{"markup discounted", "<frame>+---+</frame>", 5},
-	}
-	for _, c := range cases {
-		t.Run(c.name, func(t *testing.T) {
-			if got := blockWidth(c.in); got != c.want {
-				t.Errorf("blockWidth(%q) = %d, want %d", c.in, got, c.want)
-			}
-		})
-	}
-}
-
 func TestMarkupWidth(t *testing.T) {
 	cases := []struct {
 		in   string

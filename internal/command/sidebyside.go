@@ -43,19 +43,6 @@ func roomColumnWidth(termWidth, mapWidth int) int {
 	}
 }
 
-// blockWidth returns the widest visible column count across a multi-line
-// markup block — used to measure the rendered minimap so the room column
-// can claim the rest of the terminal.
-func blockWidth(s string) int {
-	max := 0
-	for _, ln := range strings.Split(s, "\n") {
-		if w := markupWidth(ln); w > max {
-			max = w
-		}
-	}
-	return max
-}
-
 // markupWidth returns the rendered column width of a markup line,
 // discounting both <angle> semantic tags and {brace} color shorthand —
 // each renders to zero visible width, so both must be removed for the

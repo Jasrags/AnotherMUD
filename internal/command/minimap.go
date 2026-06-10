@@ -331,10 +331,23 @@ func AppendMinimap(base string, r *world.Room, viewer Actor, w *world.World) str
 	}
 	// Beside the room view, not below it (player-maps §4): the room body
 	// wraps into a left column and the bordered minimap rides top-right.
-	// The column widens to fill the client's terminal (NAWS), clamped so
-	// prose stays readable; an unknown width keeps the narrow default.
-	leftWidth := roomColumnWidth(viewerTerminalWidth(viewer), blockWidth(grid))
+	// The column is sized off the minimap's STABLE box width (a function
+	// of the size preset alone), NOT the rendered block — the area label
+	// and the variable-length way-back note ("(west → The Mountains of
+	// Mist)") must not jiggle the column from room to room. The box then
+	// sits in a fixed place; a label/note wider than the box overflows
+	// to its right under the box, which is fine on a real terminal.
+	leftWidth := roomColumnWidth(viewerTerminalWidth(viewer), minimapBoxWidth(radius))
 	return joinBeside(base, grid, leftWidth, minimapGap)
+}
+
+// minimapBoxWidth is the visible width of the framed minimap for a given
+// step radius: the fixed viewport renders (4*radius+1) content columns,
+// and frameBox adds a one-column border plus a space of padding on each
+// side. Deterministic from the radius, so the room column it sizes is
+// stable across rooms and notes (player-maps §4).
+func minimapBoxWidth(radius int) int {
+	return 4*radius + 5
 }
 
 // MinimapHandler manages the calling player's active-minimap preference
