@@ -60,6 +60,8 @@ func TestMarkupWidth(t *testing.T) {
 		{"{yellow}Gate{/}", 4},            // full color name (regression)
 		{"a{{b", 3},                       // escaped literal brace stays visible
 		{"the {key} fits", 14},            // unknown token passes through literally
+		{"a — b", 5},                      // em-dash is one visible column, not 3 bytes
+		{"west → there", 12},              // the way-back arrow counts as one column
 	}
 	for _, c := range cases {
 		if got := markupWidth(c.in); got != c.want {
@@ -104,6 +106,25 @@ func TestJoinBeside_AlignsAndResets(t *testing.T) {
 		leftPart := rows[i][:strings.Index(rows[i], "{x}")]
 		if markupWidth(leftPart) != 6 {
 			t.Errorf("row %d left column width = %d, want 6 (%q)", i, markupWidth(leftPart), leftPart)
+		}
+	}
+}
+
+// A left line carrying a multi-byte glyph (em-dash) must still pad to the
+// correct VISIBLE width, so the right block (minimap border) stays in its
+// column — the bug where one prose row shifted the map sideways.
+func TestJoinBeside_MultibyteLeftStaysAligned(t *testing.T) {
+	left := "plain line here\nwork — hinges — done" // second line has two em-dashes
+	right := "| map |\n| row |"
+	out := joinBeside(left, right, 24, 2)
+	rows := strings.Split(out, "\n")
+	if len(rows) != 2 {
+		t.Fatalf("rows = %d, want 2", len(rows))
+	}
+	for i := range rows {
+		leftPart := rows[i][:strings.Index(rows[i], "{x}")]
+		if w := markupWidth(leftPart); w != 24 {
+			t.Errorf("row %d left visible width = %d, want 24 — multibyte broke the pad (%q)", i, w, leftPart)
 		}
 	}
 }

@@ -2,6 +2,7 @@ package command
 
 import (
 	"strings"
+	"unicode/utf8"
 
 	"github.com/Jasrags/AnotherMUD/internal/render"
 )
@@ -61,8 +62,15 @@ func blockWidth(s string) int {
 // side-by-side columns to align. Delegates to the render package, which
 // owns the authoritative markup grammar (so a full color name like
 // {yellow} is measured the same way the renderer collapses it).
+//
+// Counts RUNES, not bytes: room prose carries multi-byte glyphs (the
+// em-dash `—`, the `→` in the way-back note), and a byte count would
+// over-measure them — under-padding the left column and shifting the
+// minimap border for that one row. Rune count equals visible columns for
+// the Latin + punctuation content here (it does not handle double-width
+// CJK, which the content does not use).
 func markupWidth(s string) int {
-	return len(render.StripBraces(render.StripTags(s)))
+	return utf8.RuneCountInString(render.StripBraces(render.StripTags(s)))
 }
 
 // wrapMarkupLine word-wraps one line to width visible columns, keeping
