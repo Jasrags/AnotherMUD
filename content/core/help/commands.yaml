@@ -42,6 +42,62 @@ topics:
     keywords: [move, movement, walk, go, north, south, east, west, directions]
     see_also: [look]
 
+  - id: map
+    title: Maps
+    category: commands
+    brief: Read the area map and find your way around.
+    body: |
+      The world is drawn one area at a time. Two views share the same
+      picture at different zoom:
+
+        minimap  - a small window of the rooms right around you, drawn
+                   beside the room description for quick navigation.
+        map      - the whole of the current area that you have explored
+                   so far, fog-of-war: rooms appear only once you have
+                   visited them.
+
+      Both are local to the area you are standing in. When you cross
+      into a new area the map starts fresh - that is expected, not a
+      glitch. The crossing is announced ("You leave ... and enter ..."),
+      the very first time you reach a place is celebrated, and the
+      minimap is labelled with the area name so you always know where
+      you are. A passage that leaves the area is noted under the map
+      with the name of the area it leads to.
+
+      The map's legend explains the glyphs: @ is you, - and | are
+      passages, and each terrain has its own mark. A passage that leads
+      nowhere on the map is simply an exit you have not explored yet.
+    syntax:
+      - "map"
+    keywords: [map, maps, area, fog, explore, legend, region, where]
+    see_also: [minimap, movement, look]
+
+  - id: minimap
+    title: Minimap
+    category: commands
+    brief: Toggle the active minimap or set its size.
+    body: |
+      The minimap is the small framed map drawn beside the room
+      description, showing the rooms right around you for quick
+      navigation. Type 'minimap' to turn it on or off.
+
+      Set how much it shows with a size:
+
+        auto    - scales to your terminal width (the default; bigger
+                  window, bigger map).
+        small   - a tight 5x5 window.
+        medium  - a 7x7 window.
+        large   - a 9x9 window.
+
+      The size is remembered between sessions. For the full explored
+      area instead of the local window, use 'map'.
+    syntax:
+      - "minimap"
+      - "minimap on|off"
+      - "minimap auto|small|medium|large"
+    keywords: [minimap, mini-map, map, navigation, size]
+    see_also: [map, movement, look]
+
   - id: combat
     title: Combat
     category: commands
