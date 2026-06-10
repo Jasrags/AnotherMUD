@@ -174,16 +174,28 @@ sub-slices shipped (453af1a split → 3c09172 wot boot), each code-reviewed:
   WoT room with the baseline via closure; channels/emotes load from YAML; the
   vocabulary contract is documented. **M0 complete — M1 (Emond's Field) next.**
 
-### M1 — Emond's Field (the starter village)
+### M1 — Emond's Field (the starter village) — ✅ SHIPPED (M1a 93b140a, M1b 86ba722)
 
-- Author the village: the Green (spawn), Winespring Inn (+ interior sub-area if
-  3+ rooms), the smithy, the Wisdom's house, the Winespring, a handful of
-  houses/lanes. Exits radiate from the Green; road stubs out (Quarry/North/Old)
-  wired to M2.
-- Port the Milestone-C smithing + cooking content into `wot` namespace (smith,
-  Wisdom-as-cook, recipes, stations). Andoran coin reskin.
-- Acceptance: a new character spawns on the Green, can learn smithing/cooking,
-  and run the gather→craft loop in-region. Live-verified.
+- **M1a** the walkable village: 10 rooms in the `emonds-field` area (the Green
+  spawn, the Winespring Inn common-room/kitchen/guest-room, the smithy, the
+  Wisdom's cottage, the Winespring, the Quarry/North/Old road stubs out).
+  Cardinal-only layout (engine has no diagonals). Five named villagers — Bran
+  al'Vere (innkeeper+Mayor), Marin al'Vere (cook), Haral Luhhan (smith),
+  Nynaeve al'Meara (the Wisdom), Cenn Buie (thatcher). Real character names,
+  original prose.
+- **M1b** both crafts playable gold-free: cooking is a complete forage→cook
+  loop (the Wisdom's herb garden = a `herb-garden` forage biome → wild-herb +
+  garden-greens; Marin teaches cooking; inn kitchen = Tier-2 station;
+  `cook-pottage` baseline). Smithing = learn at Haral + forge Tier-2 station +
+  `forge-iron-dagger` baseline, fed by two **practice ingots** on the forge
+  floor (a teaching aid removed in M2). Both NPCs are trainer+shop. Abilities/
+  effects reused from `tapestry-core`.
+- **Decision (gold/economy):** practice-stock so both crafts complete in M1
+  without coin; the ore-gather + smelt + §8 closure (and the practice-stock
+  removal) land in M2. Andoran-coin reskin deferred — no gold source in the
+  village yet (M2 hunting/loot).
+- Acceptance: ✅ new character spawns on the Green, learns smithing + cooking,
+  runs forage→cook→eat and learn→forge end to end. Live-verified.
 
 ### M2 — The Two Rivers wilds + roads
 
