@@ -88,6 +88,7 @@ The WoT *content* track does **not** block on this program. Author weapons, armo
 
 - **Decision 0 (governs everything):** ✅ **RESOLVED — posture A** (translate onto tick/chance; no d20 rewrite). S12 is therefore shelved unless explicitly reopened.
 - **S2 resource model:** a single "Power" pool (mana-like) vs the d20 daily-slot budget; cooldowns vs slots; how overchannel risk surfaces (a real Fort-save consequence via S6, or a flat % mishap).
+- **Character model (S3/S4/S9 + S2 eligibility) — drafted:** [`docs/proposals/wot-character-model.md`](../proposals/wot-character-model.md) resolves the keystone pre-decisions (multi-track-as-multiclass; class features as `Path` grants; feat-selection deferred; skills = proficiencies; creation-time race/gender gating). Key code finding: the engine is **already multi-track**, so multiclass is ~80% content + one small `classID string → []string` + save-v18 change. **D1 (multi-track-as-multiclass) + D2 (feat-selection deferred; class features as `Path` grants) CONFIRMED 2026-06-10.**
 - **S3 skills:** use-based gain (engine-idiomatic, like proficiency) vs d20 point-buy ranks; which subset of the ~40 skills the MUD actually resolves vs drops as flavor.
 - **S6 saves:** real resolved checks (some d20 texture) vs folded into existing chance math.
 - **S9:** adopt d20 multiclass/BAB/HD, or keep the existing track/level model and map classes onto it. (Tied to Decision 0.)
