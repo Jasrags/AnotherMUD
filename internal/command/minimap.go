@@ -90,23 +90,55 @@ func minimapRadiusFor(size string, termWidth int) int {
 	}
 }
 
-// terrainGlyph maps a room's terrain to a single map glyph (player-maps
-// §6.2, §10 policy). Unknown/empty terrain falls back to the default.
-var terrainGlyph = map[string]rune{
-	"outdoors":    '.',
-	"indoors":     'o',
-	"underground": '%',
-	"water":       '~',
-	"road":        '=',
-	"forest":      '*',
-	"mountain":    '^',
+// terrainStyle is a terrain's map presentation: a single visible glyph
+// plus the theme color tag that tints it (player-maps §6.2, §10 policy).
+// Color is a second channel — the glyph alone distinguishes the terrain
+// on a no-color client. Glyphs may repeat across terrains that share a
+// color family (grass/forest both green, cave/underground both grey);
+// the glyph then carries the distinction.
+type terrainStyle struct {
+	glyph string
+	tag   string
 }
 
-func glyphFor(terrain string) string {
-	if g, ok := terrainGlyph[strings.ToLower(strings.TrimSpace(terrain))]; ok {
-		return string(g)
+// terrainStyles maps a room's terrain to its map glyph + color. Covers
+// the engine baseline terrains and the content terrains in play
+// (grassland, cave, herb-garden) that previously had no glyph and fell
+// back to a bare dot.
+var terrainStyles = map[string]terrainStyle{
+	"outdoors":    {".", "map.grass"},
+	"grassland":   {",", "map.grass"},
+	"indoors":     {"o", "map.indoor"},
+	"underground": {"%", "map.cave"},
+	"cave":        {"%", "map.cave"},
+	"water":       {"~", "map.water"},
+	"road":        {"=", "map.road"},
+	"forest":      {"*", "map.forest"},
+	"mountain":    {"^", "map.mountain"},
+	"herb-garden": {";", "map.grass"},
+}
+
+// defaultTerrainStyle is used for unknown/empty terrain — open ground.
+var defaultTerrainStyle = terrainStyle{".", "map.grass"}
+
+func terrainStyleFor(terrain string) terrainStyle {
+	if s, ok := terrainStyles[strings.ToLower(strings.TrimSpace(terrain))]; ok {
+		return s
 	}
-	return "."
+	return defaultTerrainStyle
+}
+
+// terrainCell is the colored, tagged glyph placed on the map canvas for
+// a room's terrain.
+func terrainCell(terrain string) string {
+	s := terrainStyleFor(terrain)
+	return "<" + s.tag + ">" + s.glyph + "</" + s.tag + ">"
+}
+
+// glyphFor returns the bare (uncolored) terrain glyph — used by the
+// legend, which applies its own color around it.
+func glyphFor(terrain string) string {
+	return terrainStyleFor(terrain).glyph
 }
 
 // cardinalConn pairs a cardinal direction with its grid connector glyph
@@ -192,7 +224,7 @@ func buildMapCanvas(win world.Window, originID world.RoomID, isVisited func(stri
 		if id == originID {
 			canvas.set(col, row, "<highlight>@</highlight>")
 		} else {
-			canvas.set(col, row, glyphFor(wr.Room.Terrain))
+			canvas.set(col, row, terrainCell(wr.Room.Terrain))
 		}
 		for _, c := range cardinalConns {
 			if _, has := wr.Room.Exits[c.dir]; has {
@@ -450,19 +482,28 @@ func MapHandler(ctx context.Context, c *Context) error {
 // mapLegend explains the map glyphs (player-maps §6.2): the viewer
 // marker, the connectors, the terrain glyphs (listed from terrainGlyph
 // so the legend can't drift from the renderer), and the stub convention.
+// legendTerrains is the curated terrain key for the map legend — one
+// entry per distinct glyph/meaning, ordered for reading (so the legend
+// doesn't list near-duplicates like outdoors+grassland or cave+
+// underground).
+var legendTerrains = []struct{ terrain, label string }{
+	{"grassland", "grass"},
+	{"forest", "forest"},
+	{"mountain", "mtn"},
+	{"water", "water"},
+	{"road", "road"},
+	{"indoors", "indoor"},
+	{"cave", "cave"},
+}
+
 func mapLegend() string {
-	terrains := make([]string, 0, len(terrainGlyph))
-	for t := range terrainGlyph {
-		terrains = append(terrains, t)
-	}
-	sort.Strings(terrains)
-	parts := make([]string, 0, len(terrains))
-	for _, t := range terrains {
-		parts = append(parts, string(terrainGlyph[t])+" "+t)
+	terr := make([]string, 0, len(legendTerrains))
+	for _, t := range legendTerrains {
+		terr = append(terr, terrainCell(t.terrain)+" "+t.label)
 	}
 	var b strings.Builder
 	b.WriteString("<subtle>Legend:</subtle>  <highlight>@</highlight> you   <subtle>-</subtle> <subtle>|</subtle> passages\n")
-	b.WriteString("<subtle>Terrain:</subtle>  " + strings.Join(parts, "   ") + "\n")
+	b.WriteString("<subtle>Terrain:</subtle>  " + strings.Join(terr, "   ") + "\n")
 	b.WriteString("<subtle>A passage that leads nowhere on the map is an exit you haven't explored yet.</subtle>")
 	return b.String()
 }

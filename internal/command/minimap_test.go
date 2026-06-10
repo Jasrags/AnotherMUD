@@ -155,6 +155,27 @@ func TestMinimapRadiusFor(t *testing.T) {
 	}
 }
 
+// terrainCell colors each terrain with its theme tag and fills the
+// glyphs that previously fell back to a bare dot (cave/grassland/
+// herb-garden).
+func TestTerrainCell_ColorsAndGapFill(t *testing.T) {
+	cases := map[string]struct{ glyph, tag string }{
+		"forest":      {"*", "map.forest"},
+		"water":       {"~", "map.water"},
+		"mountain":    {"^", "map.mountain"},
+		"cave":        {"%", "map.cave"},  // gap-fill (was ".")
+		"grassland":   {",", "map.grass"}, // gap-fill
+		"herb-garden": {";", "map.grass"}, // gap-fill
+		"nonsense":    {".", "map.grass"}, // unknown → open ground default
+	}
+	for terrain, w := range cases {
+		want := "<" + w.tag + ">" + w.glyph + "</" + w.tag + ">"
+		if got := terrainCell(terrain); got != want {
+			t.Errorf("terrainCell(%q) = %q, want %q", terrain, got, want)
+		}
+	}
+}
+
 func must(win world.Window, _ error) world.Window { return win }
 
 func TestMapCanvas_Alignment(t *testing.T) {

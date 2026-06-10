@@ -58,3 +58,21 @@ tags:
   time.day:   { fg: bright-yellow,  html: "#F2E39A" }
   time.dusk:  { fg: magenta,        html: "#B98AD9" }
   time.night: { fg: blue,           html: "#6A78C9" }
+
+  # Map terrain glyphs (the minimap + `map` verb). Color is a second
+  # channel: each terrain also has a distinct glyph, so the map stays
+  # legible on a no-color client. Grass/forest share fg green but differ
+  # by glyph; mountain/cave share dark-gray likewise.
+  map.grass:    { fg: green,       html: "#7FAE57" }
+  map.forest:   { fg: green,       html: "#4E9A51" }
+  map.water:    { fg: cyan,        html: "#4AA8C0" }
+  map.mountain: { fg: dark-gray,   html: "#9AA0A6" }
+  map.road:     { fg: yellow,      html: "#B5894F" }
+  map.indoor:   { fg: white,       html: "#CAA86B" }
+  map.cave:     { fg: dark-gray,   html: "#737373" }
+
+  # Map point-of-interest markers (derived from each room's pinned NPCs).
+  # Bright so they stand out from terrain; the marker glyph takes the cell.
+  map.shop:    { fg: bright-yellow, html: "#F2C94C" }
+  map.trainer: { fg: bright-cyan,   html: "#56CCF2" }
+  map.inn:     { fg: bright-green,  html: "#6FCF6F" }
