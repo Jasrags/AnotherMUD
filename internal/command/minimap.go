@@ -313,21 +313,24 @@ func originNotes(origin *world.Room, w *world.World) string {
 // off; an unplaced current room is silently skipped here (the `map` verb
 // reports it explicitly instead).
 func AppendMinimap(base string, r *world.Room, viewer Actor, w *world.World) string {
-	if w == nil || r == nil {
-		return base
+	termWidth := viewerTerminalWidth(viewer)
+	mv, isMap := viewer.(MapViewer)
+	// No minimap to draw (no world/room, no map capability, or toggled
+	// off): still wrap the prose to a readable column so a reflowed
+	// description fills a stable width instead of sprawling to the
+	// terminal edge. An unknown terminal width (headless/tests) is a
+	// no-op, preserving the raw body.
+	if w == nil || r == nil || !isMap || !mv.MinimapEnabled() {
+		return wrapRoomBody(base, offBodyWidth(termWidth))
 	}
-	mv, ok := viewer.(MapViewer)
-	if !ok || !mv.MinimapEnabled() {
-		return base
-	}
-	radius := minimapRadiusFor(mv.MinimapSize(), viewerTerminalWidth(viewer))
+	radius := minimapRadiusFor(mv.MinimapSize(), termWidth)
 	win, err := w.LocalWindow(r.ID, radius)
 	if err != nil {
-		return base
+		return wrapRoomBody(base, offBodyWidth(termWidth))
 	}
 	grid, ok := renderFramedMinimap(win, r.ID, mv.HasVisited, w, radius)
 	if !ok || grid == "" {
-		return base
+		return wrapRoomBody(base, offBodyWidth(termWidth))
 	}
 	// Beside the room view, not below it (player-maps §4): the room body
 	// wraps into a left column and the bordered minimap rides top-right.
@@ -337,8 +340,36 @@ func AppendMinimap(base string, r *world.Room, viewer Actor, w *world.World) str
 	// Mist)") must not jiggle the column from room to room. The box then
 	// sits in a fixed place; a label/note wider than the box overflows
 	// to its right under the box, which is fine on a real terminal.
-	leftWidth := roomColumnWidth(viewerTerminalWidth(viewer), minimapBoxWidth(radius))
+	leftWidth := roomColumnWidth(termWidth, minimapBoxWidth(radius))
 	return joinBeside(base, grid, leftWidth, minimapGap)
+}
+
+// offBodyWidth is the column the room prose wraps to when no minimap is
+// drawn: the terminal width, capped at maxRoomColumnWidth so prose stays
+// readable, or 0 (no wrap) when the width is unknown.
+func offBodyWidth(termWidth int) int {
+	if termWidth <= 0 {
+		return 0
+	}
+	if termWidth > maxRoomColumnWidth {
+		return maxRoomColumnWidth
+	}
+	return termWidth
+}
+
+// wrapRoomBody word-wraps each line of a room view to width, re-flowing a
+// reflowed (single-line) description into clean column-width lines while
+// leaving the short structural lines (name, items, exits) untouched.
+// width <= 0 returns the body unchanged.
+func wrapRoomBody(s string, width int) string {
+	if width <= 0 {
+		return s
+	}
+	var lines []string
+	for _, ln := range strings.Split(s, "\n") {
+		lines = append(lines, wrapMarkupLine(ln, width)...)
+	}
+	return strings.Join(lines, "\n")
 }
 
 // minimapBoxWidth is the visible width of the framed minimap for a given

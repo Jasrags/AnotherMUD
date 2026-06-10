@@ -123,12 +123,13 @@ func renderFullRoom(r *world.Room, placement *entities.Placement, items *entitie
 	b.WriteString(r.Name)
 	b.WriteString("</title>")
 	b.WriteString("\n")
-	if dim && r.Description != "" {
+	desc := reflowDescription(r.Description)
+	if dim && desc != "" {
 		b.WriteString("{dim}")
-		b.WriteString(r.Description)
+		b.WriteString(desc)
 		b.WriteString("{/}")
 	} else {
-		b.WriteString(r.Description)
+		b.WriteString(desc)
 	}
 	b.WriteString("\n")
 	if ambience != nil {
@@ -143,6 +144,25 @@ func renderFullRoom(r *world.Room, placement *entities.Placement, items *entitie
 	}
 	b.WriteString(renderExits(r))
 	return b.String()
+}
+
+// reflowDescription treats a room description's single newlines as SOFT
+// wraps — authored line breaks added for source readability, not real
+// breaks — joining each paragraph's lines into one flowing line so the
+// prose re-wraps cleanly to whatever width the room column is. Blank
+// lines (a double newline) are kept as hard paragraph breaks. Without
+// this, the authored ~76-column breaks fight the side-by-side minimap's
+// narrower column and orphan the trailing word of every authored line.
+// Whitespace within a paragraph is collapsed to single spaces.
+func reflowDescription(s string) string {
+	paras := strings.Split(s, "\n\n")
+	out := make([]string, 0, len(paras))
+	for _, p := range paras {
+		if joined := strings.Join(strings.Fields(p), " "); joined != "" {
+			out = append(out, joined)
+		}
+	}
+	return strings.Join(out, "\n\n")
 }
 
 // renderGloomRoom is the obscured render (§5.1 gloom): the room name

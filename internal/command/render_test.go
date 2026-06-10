@@ -55,6 +55,56 @@ func (f *renderFixture) placeMob(t *testing.T, tpl *mob.Template) *entities.MobI
 	return inst
 }
 
+// A description's single (soft) newlines are re-flowed to spaces so the
+// prose wraps to the column instead of inheriting authored line breaks;
+// a blank line is kept as a real paragraph break.
+func TestRenderRoom_ReflowsSoftNewlinesKeepsParagraphs(t *testing.T) {
+	r := &world.Room{ID: "ar:o", Name: "Glade",
+		Description: "alpha beta\ngamma delta\n\nsecond paragraph here."}
+	out := command.RenderRoom(r, nil, nil, nil, nil, nil, light.Lit)
+	if !strings.Contains(out, "alpha beta gamma delta") {
+		t.Errorf("soft newlines should join into a flowing line:\n%s", out)
+	}
+	if !strings.Contains(out, "\n\nsecond paragraph here.") {
+		t.Errorf("a blank line should survive as a paragraph break:\n%s", out)
+	}
+}
+
+// With a long authored multi-line description beside a large minimap, no
+// left-column line is a lone orphan word — the reflow lets it wrap full.
+func TestAppendMinimap_ReflowAvoidsOrphanWords(t *testing.T) {
+	w := world.New()
+	w.AddArea(&world.Area{ID: "wild", Name: "The Westwood"})
+	w.AddArea(&world.Area{ID: "nb", Name: "X"})
+	r := &world.Room{ID: "wild:o", AreaID: "wild", Name: "Deep Wood",
+		// Authored ~76-column hard newlines, the shape that orphaned words.
+		Description: "Here the wood closes in for true, the oaks giving way to\n" +
+			"dark stands of pine and the light failing to a green dimness. Mushrooms cluster\n" +
+			"in the leaf-mould, deadfall lies thick enough to cut, and the only sounds are\n" +
+			"the wind in the high branches and something moving off through the undergrowth.",
+		Terrain: "forest",
+		Exits:   map[world.Direction]world.Exit{world.DirWest: {Target: "nb:x"}}}
+	w.AddRoom(r)
+	w.AddRoom(&world.Room{ID: "nb:x", AreaID: "nb"})
+
+	a := &mapActor{testActor: newTestActor(r), visited: map[string]bool{"wild:o": true}, minimap: true, minimapSize: "large", termWidth: 100}
+	base := command.RenderRoom(r, nil, nil, nil, nil, nil, light.Lit)
+	out := command.AppendMinimap(base, r, a, w)
+
+	// None of the words that previously orphaned should appear alone on a
+	// left-column line (the column is everything left of the {x} reset, or
+	// the whole line on a room-only row).
+	for _, line := range strings.Split(out, "\n") {
+		left := line
+		if i := strings.Index(line, "{x}"); i >= 0 {
+			left = line[:i]
+		}
+		if w := strings.TrimSpace(left); w == "cluster" || w == "are" {
+			t.Errorf("orphan word on its own line (%q):\n%s", w, out)
+		}
+	}
+}
+
 func TestRenderRoom_NilPlacementAndStoreSkipsEntityLine(t *testing.T) {
 	// Old contract: RenderRoom(r, nil, nil) renders geography only.
 	// Pins backward-compat: tests / call sites that don't care about
