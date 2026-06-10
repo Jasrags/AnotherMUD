@@ -53,9 +53,8 @@ go straight into a milestone.
 | Item | Spec § | Gap (verified absent) |
 |---|---|---|
 | Per-phase idle-timeout *overrides* | login §6.1 | global idle timeout **shipped** (Clock-driven, `Config.IdleTimeout`, `ANOTHERMUD_LOGIN_IDLE_TIMEOUT`, default 60s); only *per-phase override values* remain (a thin add on the same read primitive) |
-| Tag-indexed reads during movement | world-rooms-movement §3.4 | movement scans, no tag index |
-| Container weight/volume caps | inventory-equipment-items | no cap enforcement at runtime |
-| Passive scaling-bonus consumer | abilities-and-effects §6.2 | `PassiveScalingBonus` built, no wired hook consumes it — m9-5 #2 |
+| Tag-indexed reads during movement | world-rooms-movement §3.4 | **deferred — no proportionate win at current scale (verified 2026-06-10).** The `mob` baseline tag already exists (`entities.TagMob`, `GetByTag("mob")`); `ai/disposition.go sweepRoom` iterates `Placement.InRoom` then type-asserts (it must `GetByID` each occupant anyway to call `Evaluate`, so the filter is unavoidable). A true O(mobs-in-room) read needs a **per-room tag index** — `Placement.byRoomTag` synced on Place/Remove **and** cross-synced with the Store tag index on `Retag` — new always-maintained, cross-object state, disproportionate for ~4 rooms / a few mobs. **Fix when** room occupancy grows enough that the per-entry scan shows up in a profile. |
+| Passive scaling-bonus consumer | abilities-and-effects §6.2 | `PassiveScalingBonus` built, no wired hook consumes it — m9-5 #2. **YAGNI: no content sets `max_bonus`.** Wire it at the hook site (e.g. auto-attack §4.5 damage step) when the first scaling passive lands — likely a WoT S1 crit / S2 weave |
 | Effect/item-triggered quest advance | quests | no event field carries the pickup payload (scripting now exists to carry it) |
 | Generalized content-authored creation flows | character-creation | only the fixed new-player wizard exists |
 | Property-registry save-pipeline integration | persistence §2 / §4.4 | registry substrate exists (M14.4); not wired into the save pipeline — m14 |
@@ -501,7 +500,7 @@ need a design pass first.
 | Theme | Pulls in | Size |
 |---|---|---|
 | **Player trade** | trade-escrow + direct-trade + auction-house + plan; atomic escrow, sync trade, buyout auction | M |
-| **Engine Debt III** | §6.2 scaling-bonus consumer, property-save wiring, tag-indexed reads (§3.4) | S |
+| **Engine Debt III** | **nearly closed (2026-06-10):** area-transition lock fix, container caps, and carry-weight-on-pickup all shipped; tag-indexed reads deferred (no proportionate win at scale); only the property-save pipeline + §6.2 scaling-bonus consumer remain — both trigger-gated YAGNI (pull when a consumer needs them) | XS |
 
 **Needs a design pass first (greenfield — §2):**
 
@@ -525,7 +524,7 @@ need a design pass first.
 | The world/character sheet feels mechanically thin | **Gameplay Systems** *(greenfield — design first)* |
 | You want WoT weapons to feel distinct / matter mechanically | **Combat & Equipment Depth** — start with `M-Weapon-Identity` (A+B+C); ranged + armor are later themes *(greenfield — design first)* |
 | You want more "things to do" — repeatable activities, destinations, prestige | **Gameplay content / activities** *(greenfield — small standalone specs)* |
-| You want a fast, low-stakes win to re-enter the codebase | take one **§1 warmup** (tag-indexed reads, container caps, …) |
+| You want a fast, low-stakes win to re-enter the codebase | take one **§1 warmup** (per-phase idle overrides, effect/item-triggered quest advance, …) |
 | Accreting code debt is blocking a feature you want | **Engine Debt III** *(specced)* |
 | You're about to expose the server to real players | **Ops** (in background) |
 

@@ -201,8 +201,15 @@ corpse growth) is now RESOLVED** — M22.5 shipped `corpse.Service.DecaySweep`.
 - `m26` deferred (Engine Debt III feeders, triggers unfired): §6.2 passive
   **scaling-bonus consumer** (no content sets `max_bonus` yet); **property-registry
   save-pipeline** (`property.Wrap/Unwrap` have no production caller — same item as
-  `m14` MEDIUM; fix when a save first needs a content-declared property); **§3.4
-  tag-indexed movement reads** (`ai/disposition.go sweepRoom` O(occupants), marginal).
+  `m14` MEDIUM; fix when a save first needs a content-declared property).
+- **§3.4 tag-indexed movement reads — deferred 2026-06-10 with a sharpened trigger.**
+  Investigated: the `mob` baseline tag already exists (`entities.TagMob`), but a clean
+  O(mobs-in-room) read has no proportionate implementation — `Store` holds the tag index,
+  `Placement` holds room membership, and they only meet in the `Evaluator`. A true win
+  needs a **per-room tag index** (`Placement.byRoomTag` synced on Place/Remove +
+  cross-synced with the Store tag index on `Retag`) — new always-maintained cross-object
+  state, overkill for ~4 rooms / a few mobs. `sweepRoom` stays as-is (correct + idiomatic).
+  **Fix when** room occupancy grows enough that the per-entry scan shows up in a profile.
 
 ### Open LOW (compressed)
 - `m25` — equipment-slots: `no_remove` tag hardcoded (→ §8 config); multi-cap
