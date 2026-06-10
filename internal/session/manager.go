@@ -658,7 +658,12 @@ func (m *Manager) SaveAll(ctx context.Context) {
 // uses, so link-dead actors are drained too — their sustenance persists
 // like everything else, and a reminder Write to a dead connection is a
 // harmless no-op.
-func (m *Manager) DrainSustenance(ctx context.Context, svc *economy.SustenanceService, now uint64) {
+//
+// Actors holding adminRole are skipped entirely: an admin never drains,
+// so they stay Full and never have to deal with hunger or famine while
+// administering. An empty adminRole disables the exemption (every actor
+// drains), matching how the idle-sweep admin exemption is configured.
+func (m *Manager) DrainSustenance(ctx context.Context, svc *economy.SustenanceService, adminRole string, now uint64) {
 	if svc == nil {
 		return
 	}
@@ -678,6 +683,9 @@ func (m *Manager) DrainSustenance(ctx context.Context, svc *economy.SustenanceSe
 
 	interval := svc.Config().ReminderIntervalTicks
 	for _, a := range snapshot {
+		if adminRole != "" && a.HasRole(adminRole) {
+			continue
+		}
 		_, tier := svc.Drain(a)
 		if tier == economy.TierFull {
 			continue

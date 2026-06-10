@@ -23,6 +23,33 @@ func newStore(t *testing.T) (*player.Store, string) {
 	return st, dir
 }
 
+func TestIsEmpty(t *testing.T) {
+	ctx := context.Background()
+	st, dir := newStore(t)
+
+	if !st.IsEmpty() {
+		t.Fatal("a fresh store should be empty")
+	}
+
+	// A stray non-directory file (e.g. a macOS .DS_Store) must not count
+	// as a character — emptiness keys on character subdirectories only.
+	stray := filepath.Join(dir, "players", ".DS_Store")
+	if err := os.WriteFile(stray, []byte("junk"), 0o644); err != nil {
+		t.Fatalf("write stray file: %v", err)
+	}
+	if !st.IsEmpty() {
+		t.Fatal("a stray file should not make the store look non-empty")
+	}
+
+	save := &player.Save{Version: player.CurrentVersion, ID: "p-1", Name: "Alice"}
+	if err := st.Save(ctx, save); err != nil {
+		t.Fatalf("Save: %v", err)
+	}
+	if st.IsEmpty() {
+		t.Fatal("store with one character should not be empty")
+	}
+}
+
 func TestSaveLoad_RoundTrip(t *testing.T) {
 	ctx := context.Background()
 	st, _ := newStore(t)

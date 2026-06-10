@@ -785,3 +785,42 @@ func TestSessionPersistsLocationAcrossRestart(t *testing.T) {
 		}
 	}
 }
+
+// TestBootstrapAdmin_FirstCharacterOnly proves the very first character
+// created in a fresh deployment is auto-granted the admin role, while the
+// next character is not — the gate is the empty player store, so it fires
+// exactly once ever. The rig leaves Config.AdminRole empty, so the
+// bootstrap falls back to the "admin" dispatch default.
+func TestBootstrapAdmin_FirstCharacterOnly(t *testing.T) {
+	w := world.New()
+	room := &world.Room{ID: "a", Name: "Square"}
+	w.AddRoom(room)
+
+	rig := startRig(t, w, room.ID, false)
+	defer rig.stop(t)
+
+	// First character: store is empty at construction, so it's admin.
+	d1 := dial(t, rig.ln.Addr().String())
+	defer d1.close()
+	d1.loginNew("Alice", "alice@example.com", "hunter22")
+	a, ok := rig.mgr.GetByName("Alice")
+	if !ok {
+		t.Fatal("first character not registered with manager")
+	}
+	if !a.HasRole("admin") {
+		t.Errorf("first character should be bootstrapped as admin, roles=%v", a.Roles())
+	}
+
+	// Second character: Alice is now on disk, so the store is no longer
+	// empty and the bootstrap does not fire.
+	d2 := dial(t, rig.ln.Addr().String())
+	defer d2.close()
+	d2.loginNew("Bob", "bob@example.com", "hunter22")
+	b, ok := rig.mgr.GetByName("Bob")
+	if !ok {
+		t.Fatal("second character not registered with manager")
+	}
+	if b.HasRole("admin") {
+		t.Errorf("second character should NOT be admin, roles=%v", b.Roles())
+	}
+}

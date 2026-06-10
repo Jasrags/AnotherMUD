@@ -368,6 +368,28 @@ func (s *Store) playerFile(name string) (string, error) {
 	return filepath.Join(dir, "player.yaml"), nil
 }
 
+// IsEmpty reports whether the store holds no character records yet. Used
+// by the session layer to detect the very first character in a fresh
+// deployment so it can be bootstrapped as admin. Each character is a
+// subdirectory (players/<name>/), so emptiness is "no directory entries"
+// — stray files such as a macOS .DS_Store are ignored so they can't
+// silently disable the bootstrap. A read error is treated as non-empty —
+// fail safe: an unreadable store should not hand out admin.
+func (s *Store) IsEmpty() bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	entries, err := os.ReadDir(s.root)
+	if err != nil {
+		return false
+	}
+	for _, e := range entries {
+		if e.IsDir() {
+			return false
+		}
+	}
+	return true
+}
+
 // Exists is a cheap stat used by the login flow.
 func (s *Store) Exists(name string) bool {
 	path, err := s.playerFile(name)

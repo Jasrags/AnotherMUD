@@ -463,7 +463,7 @@ func run() error {
 	}
 	sustenanceSvc := economy.NewSustenanceService(susCfg)
 	if err := loop.Register("sustenance-drain", sustenanceSvc.Config().DrainCadence, func(ctx context.Context, n uint64) {
-		mgr.DrainSustenance(ctx, sustenanceSvc, n)
+		mgr.DrainSustenance(ctx, sustenanceSvc, cfg.AdminRole, n)
 	}); err != nil {
 		return fmt.Errorf("register sustenance-drain tick: %w", err)
 	}

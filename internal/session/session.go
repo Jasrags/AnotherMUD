@@ -241,11 +241,14 @@ type Config struct {
 
 	// RoleSeed is the operator-configured role bootstrap
 	// (roles-and-permissions §5): a map from lowercased character name to
-	// the role names that character is granted at load. It is the only
-	// out-of-band privilege source — it breaks the grant chicken-and-egg
-	// so a fresh deployment has a working admin. Applied additively and
-	// idempotently by applyRoles; nil disables seeding. Not content — a
-	// pack cannot populate it.
+	// the role names that character is granted at load. An out-of-band
+	// privilege source that breaks the grant chicken-and-egg so an
+	// operator can name a known character as admin. Applied additively and
+	// idempotently by applyRoles (re-ensured every login); nil disables
+	// seeding. Not content — a pack cannot populate it. (The session also
+	// auto-grants admin to the first account's first character — see the
+	// bootstrap block by applyRoles — so a fresh deployment has a working
+	// admin even without RoleSeed configured.)
 	RoleSeed map[string][]string
 
 	// StartID is the fallback starting room when a character's saved
@@ -599,6 +602,26 @@ func run(ctx context.Context, c conn.Connection, cfg Config) error {
 	// seed (roles-and-permissions §5/§6). A seeded role marks the save
 	// dirty so the bootstrap admin persists on first login.
 	applyRoles(a, &cfg, loaded.Player.Roles)
+
+	// Bootstrap admin: the very first character created in a fresh
+	// deployment is granted the admin role automatically, so the operator
+	// who stands up the game has a working administrator without
+	// configuring ANOTHERMUD_ROLE_SEED out of band. The signal is "no
+	// character exists yet" (the player store is empty) on a fresh
+	// character (loaded.New) — the to-be-created character is not written
+	// until commitCreation, so an empty store means this is genuinely the
+	// first character. It fires exactly once ever: the second character
+	// sees the first already on disk. Unlike RoleSeed this is a one-time
+	// grant — it persists in the save via Grant and is never re-ensured,
+	// so it stays revocable in-game later. cfg.AdminRole defaults to
+	// "admin" (the dispatch default) when unset.
+	if loaded.New && cfg.Players != nil && cfg.Players.IsEmpty() {
+		bootstrapRole := cfg.AdminRole
+		if bootstrapRole == "" {
+			bootstrapRole = "admin"
+		}
+		a.Grant(bootstrapRole)
+	}
 
 	// M8.5: restore persisted alignment + sync bucket tag.
 	// AlignmentManager.Bucket is idempotent and sets the tag
