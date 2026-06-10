@@ -1,19 +1,17 @@
 name: tapestry-core
 version: "0.1.0"
 description: |
-  Engine-scope starter pack — a small village and the wilderness path
-  that leads to it. M2 content (data-only).
+  Engine-scope baseline pack — the mechanical content every world depends on:
+  races, classes, tracks, equipment slots, effects, abilities, the item
+  decoration vocabularies (rarity/essence), the color theme, and command help.
+
+  It carries NO world geography (no areas/rooms/mobs/quests). A world pack
+  (the demo `starter-world`, or a setting like `wot`) depends on this baseline
+  and supplies its own places, people, and things. `tapestry-core` is the
+  engine namespace (a placeholder string, not a setting) — see docs/PRIMER.md.
 content:
-  areas:
-    - areas/*.yaml
-  rooms:
-    - rooms/*.yaml
-  items:
-    - items/*.yaml
   slots:
     - slots/*.yaml
-  mobs:
-    - mobs/*.yaml
   tracks:
     - tracks/*.yaml
   races:
@@ -22,31 +20,13 @@ content:
     - classes/*.yaml
   abilities:
     - abilities/*.yaml
-  theme:
-    - theme/*.yaml
+  effects:
+    - effects/*.yaml
   rarity:
     - rarity/*.yaml
   essence:
     - essence/*.yaml
-  loot_tables:
-    - loot_tables/*.yaml
+  theme:
+    - theme/*.yaml
   help:
     - help/*.yaml
-  quests:
-    - quests/*.yaml
-  effects:
-    - effects/*.yaml
-  recipes:
-    - recipes/*.yaml
-  biomes:
-    - biomes/*.yaml
-  forage_tables:
-    - forage_tables/*.yaml
-  node_templates:
-    - node_templates/*.yaml
-  node_spawn_tables:
-    - node_spawn_tables/*.yaml
-  weather_zones:
-    - weather_zones/*.yaml
-  scripts:
-    - scripts/*.lua

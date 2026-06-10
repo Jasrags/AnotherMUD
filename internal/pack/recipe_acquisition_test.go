@@ -33,9 +33,9 @@ func TestLoad_CoreRecipeAcquisitionTiers(t *testing.T) {
 
 	// The three non-baseline recipes are registered under namespaced ids.
 	for _, id := range []string{
-		"tapestry-core:forge-iron-dagger",
-		"tapestry-core:cook-trail-stew",
-		"tapestry-core:reforge-greatsword",
+		"starter-world:forge-iron-dagger",
+		"starter-world:cook-trail-stew",
+		"starter-world:reforge-greatsword",
 	} {
 		if _, err := regs.Recipes.Get(recipe.RecipeID(id)); err != nil {
 			t.Errorf("recipe %s not registered: %v", id, err)
@@ -44,48 +44,48 @@ func TestLoad_CoreRecipeAcquisitionTiers(t *testing.T) {
 
 	// Common tier: the dagger scroll carries the qualified recipe id + a
 	// smithing purchase gate, and the blacksmith sells it.
-	scroll, err := regs.Items.Get("tapestry-core:scroll-forge-iron-dagger")
+	scroll, err := regs.Items.Get("starter-world:scroll-forge-iron-dagger")
 	if err != nil {
 		t.Fatalf("dagger scroll not registered: %v", err)
 	}
-	if got := scroll.Properties["recipe"]; got != "tapestry-core:forge-iron-dagger" {
-		t.Errorf("dagger scroll recipe = %v, want tapestry-core:forge-iron-dagger", got)
+	if got := scroll.Properties["recipe"]; got != "starter-world:forge-iron-dagger" {
+		t.Errorf("dagger scroll recipe = %v, want starter-world:forge-iron-dagger", got)
 	}
 	if got := scroll.Properties["requires_skill"]; got != "smithing" {
 		t.Errorf("dagger scroll requires_skill = %v, want smithing", got)
 	}
-	smith, err := regs.Mobs.Get("tapestry-core:blacksmith")
+	smith, err := regs.Mobs.Get("starter-world:blacksmith")
 	if err != nil {
 		t.Fatalf("blacksmith not registered: %v", err)
 	}
-	if !shopSells(smith.Properties, "tapestry-core:scroll-forge-iron-dagger") {
+	if !shopSells(smith.Properties, "starter-world:scroll-forge-iron-dagger") {
 		t.Error("blacksmith does not sell the common recipe scroll")
 	}
 
 	// Uncommon tier: the Gate Patrol quest rewards the trail-stew recipe
 	// (qualified by the loader).
-	q, ok := regs.Quests.Lookup("tapestry-core:gate-patrol")
+	q, ok := regs.Quests.Lookup("starter-world:gate-patrol")
 	if !ok {
 		t.Fatal("gate-patrol quest not registered")
 	}
-	if !contains(q.Reward.Recipes, "tapestry-core:cook-trail-stew") {
-		t.Errorf("gate-patrol recipe reward = %v, want tapestry-core:cook-trail-stew", q.Reward.Recipes)
+	if !contains(q.Reward.Recipes, "starter-world:cook-trail-stew") {
+		t.Errorf("gate-patrol recipe reward = %v, want starter-world:cook-trail-stew", q.Reward.Recipes)
 	}
 
 	// Rare tier: the weathered scroll teaches the greatsword recipe and is
 	// in the guard loot table's rare bonus.
-	rare, err := regs.Items.Get("tapestry-core:scroll-reforge-greatsword")
+	rare, err := regs.Items.Get("starter-world:scroll-reforge-greatsword")
 	if err != nil {
 		t.Fatalf("greatsword scroll not registered: %v", err)
 	}
-	if got := rare.Properties["recipe"]; got != "tapestry-core:reforge-greatsword" {
-		t.Errorf("greatsword scroll recipe = %v, want tapestry-core:reforge-greatsword", got)
+	if got := rare.Properties["recipe"]; got != "starter-world:reforge-greatsword" {
+		t.Errorf("greatsword scroll recipe = %v, want starter-world:reforge-greatsword", got)
 	}
-	tbl, ok := regs.Loot.Get("tapestry-core:guard-loot")
+	tbl, ok := regs.Loot.Get("starter-world:guard-loot")
 	if !ok {
 		t.Fatal("guard-loot table missing")
 	}
-	if !rareBonusContains(tbl, "tapestry-core:scroll-reforge-greatsword") {
+	if !rareBonusContains(tbl, "starter-world:scroll-reforge-greatsword") {
 		t.Error("guard-loot rare_bonus does not drop the rare recipe scroll")
 	}
 }

@@ -125,14 +125,14 @@ func TestLoad_CoreGuardLoot(t *testing.T) {
 	if err := Load(context.Background(), root, nil, regs, nil, nil, nil); err != nil {
 		t.Fatalf("Load core: %v", err)
 	}
-	if !regs.Loot.Has("tapestry-core:guard-loot") {
-		t.Fatal("core guard-loot table not registered")
+	if !regs.Loot.Has("starter-world:guard-loot") {
+		t.Fatal("starter-world guard-loot table not registered")
 	}
-	m, err := regs.Mobs.Get("tapestry-core:village-guard")
+	m, err := regs.Mobs.Get("starter-world:village-guard")
 	if err != nil {
 		t.Fatalf("Mobs.Get village-guard: %v", err)
 	}
-	if m.LootTable != "tapestry-core:guard-loot" {
-		t.Errorf("village-guard LootTable = %q, want tapestry-core:guard-loot", m.LootTable)
+	if m.LootTable != "starter-world:guard-loot" {
+		t.Errorf("village-guard LootTable = %q, want starter-world:guard-loot", m.LootTable)
 	}
 }

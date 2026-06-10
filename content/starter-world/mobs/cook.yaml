@@ -24,6 +24,6 @@ trainer:
 properties:
   shop:
     sells:
-      - tapestry-core:raw-meat
-      - tapestry-core:cooks-kit
-      - tapestry-core:firewood
+      - starter-world:raw-meat
+      - starter-world:cooks-kit
+      - starter-world:firewood

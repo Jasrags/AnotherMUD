@@ -442,28 +442,30 @@ func TestLoadRealCorePack(t *testing.T) {
 		t.Fatalf("Load(real core pack): %v", err)
 	}
 
+	// World content (rooms/areas/items) lives in the starter-world pack
+	// since the M0.1 split; the tapestry-core pack is the engine baseline.
 	wantRooms := []world.RoomID{
-		"tapestry-core:town-square",
-		"tapestry-core:forge",
-		"tapestry-core:market",
-		"tapestry-core:village-gate",
+		"starter-world:town-square",
+		"starter-world:forge",
+		"starter-world:market",
+		"starter-world:village-gate",
 	}
 	for _, id := range wantRooms {
 		if _, err := w.Room(id); err != nil {
 			t.Errorf("missing room %q: %v", id, err)
 		}
 	}
-	wantAreas := []world.AreaID{"tapestry-core:town", "tapestry-core:wilderness"}
+	wantAreas := []world.AreaID{"starter-world:town", "starter-world:wilderness"}
 	for _, id := range wantAreas {
 		if _, err := w.Area(id); err != nil {
 			t.Errorf("missing area %q: %v", id, err)
 		}
 	}
 	wantItems := []item.TemplateID{
-		"tapestry-core:short-sword",
-		"tapestry-core:leather-cap",
-		"tapestry-core:canvas-sack",
-		"tapestry-core:healing-draught",
+		"starter-world:short-sword",
+		"starter-world:leather-cap",
+		"starter-world:canvas-sack",
+		"starter-world:healing-draught",
 	}
 	for _, id := range wantItems {
 		if !regs.Items.Has(id) {

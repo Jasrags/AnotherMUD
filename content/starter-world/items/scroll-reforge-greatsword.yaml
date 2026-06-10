@@ -14,4 +14,4 @@ properties:
   # not sold. No purchase skill gate (it isn't shop stock) — the rarity is
   # in finding it. The `read` verb teaches the recipe (fully-qualified id;
   # item properties are not namespace-rewritten).
-  recipe: tapestry-core:reforge-greatsword
+  recipe: starter-world:reforge-greatsword

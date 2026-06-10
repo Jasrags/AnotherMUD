@@ -1,0 +1,41 @@
+name: starter-world
+version: "0.1.0"
+description: |
+  The Hearthwick demo world — a small village (Hearthwick) and the wilderness
+  path + outskirts around it. This is the engine's reference/demo content: the
+  rooms, mobs, items, quests, recipes, biomes, and gathering tables that
+  exercise the systems end to end.
+
+  It is its OWN pack, separate from the tapestry-core engine baseline it
+  depends on, so a different setting (e.g. a `wot` pack) can be booted in its
+  place — deactivate this pack (`active: false`) or deselect it via the pack
+  allowlist to boot a different world without losing the engine baseline.
+dependencies:
+  tapestry-core: "*"
+content:
+  areas:
+    - areas/*.yaml
+  rooms:
+    - rooms/*.yaml
+  items:
+    - items/*.yaml
+  mobs:
+    - mobs/*.yaml
+  quests:
+    - quests/*.yaml
+  recipes:
+    - recipes/*.yaml
+  loot_tables:
+    - loot_tables/*.yaml
+  biomes:
+    - biomes/*.yaml
+  forage_tables:
+    - forage_tables/*.yaml
+  node_templates:
+    - node_templates/*.yaml
+  node_spawn_tables:
+    - node_spawn_tables/*.yaml
+  weather_zones:
+    - weather_zones/*.yaml
+  scripts:
+    - scripts/*.lua

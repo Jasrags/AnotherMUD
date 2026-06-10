@@ -35,12 +35,12 @@ trainer:
 properties:
   shop:
     sells:
-      - tapestry-core:iron-ingot
-      - tapestry-core:iron-hammer
-      - tapestry-core:iron-pickaxe
-      - tapestry-core:woodcutters-axe
+      - starter-world:iron-ingot
+      - starter-world:iron-hammer
+      - starter-world:iron-pickaxe
+      - starter-world:woodcutters-axe
       # Common-tier recipe scroll (crafting-and-cooking §7): teaches the
       # forge-iron-dagger recipe. Its requires_skill property gates
       # availability — hidden from `list` and refused on `buy` until the
       # buyer's smithing skill is high enough (§7 availability by skill).
-      - tapestry-core:scroll-forge-iron-dagger
+      - starter-world:scroll-forge-iron-dagger

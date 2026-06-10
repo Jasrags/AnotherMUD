@@ -21,4 +21,4 @@ properties:
   requires_skill_level: 5
   # The recipe the `read` verb teaches. Item property values are NOT
   # namespace-rewritten by the loader, so this is the fully-qualified id.
-  recipe: tapestry-core:forge-iron-dagger
+  recipe: starter-world:forge-iron-dagger

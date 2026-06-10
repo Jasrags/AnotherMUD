@@ -2102,7 +2102,7 @@ func loadConfig() config {
 		SustenanceDrainAmount:   envIntOr("ANOTHERMUD_SUSTENANCE_DRAIN_AMOUNT", 1),
 		ContentDir:              envOr("ANOTHERMUD_CONTENT_DIR", "./content"),
 		SaveDir:                 envOr("ANOTHERMUD_SAVE_DIR", "./saves"),
-		StartRoom:               world.RoomID(envOr("ANOTHERMUD_START_ROOM", "tapestry-core:town-square")),
+		StartRoom:               world.RoomID(envOr("ANOTHERMUD_START_ROOM", "starter-world:town-square")),
 		DefaultRace:             envOr("ANOTHERMUD_DEFAULT_RACE", "human"),
 		DefaultXPTrack:          envOr("ANOTHERMUD_DEFAULT_XP_TRACK", command.DefaultXPTrack),
 		RoleSeed:                parseRoleSeed(envOr("ANOTHERMUD_ROLE_SEED", "")),
