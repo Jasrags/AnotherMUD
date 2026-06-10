@@ -27,7 +27,7 @@ Each row is a sub-epic — itself theme-sized or bigger. "Engine home" names the
 
 | # | Sub-epic | What it is (WoT) | Engine home / state | Fidelity rec | Size | On backlog? |
 |---|---|---|---|---|---|---|
-| **S1** | **Weapon & Equipment Depth** | proficiency tiers, crit, damage types, ranged, armor, size-wield | `item`/`combat`/`slot`; weapons are dice+mods only, melee-only | A+B+C identity slice first; ranged & armor separate | M (then L) | yes — `proposals/combat-equipment-depth.md` |
+| **S1** | **Weapon & Equipment Depth** | proficiency tiers, crit, damage types, ranged, armor, size-wield | `item`/`combat`/`slot` | **A+B+C (`M-Weapon-Identity`) SHIPPED 2026-06-10** (category/tier/damage-type metadata, class-granted proficiency + non-proficient penalty, per-weapon crit threat/multiplier, + a demo). Remaining: ranged (G), armor (E), size-wield (F), damage-type-on-event (with E) | M done; L remains | spec `weapon-identity.md` |
 | **S2** | **The One Power (channeling)** | saidin/saidar, weaves, daily slots, affinities, talents, overchannel, linking, madness | `progression` abilities + `effect`; **mana/resource pool unbuilt** | MUD-idiomatic: weaves = abilities w/ a Power-pool resource + cooldowns; keep slot-budget & overchannel-risk *choices*, drop d20 cast rolls | **XL** | partial — "Mana pool" §2 is the substrate |
 | **S3** | **Skills system** | ~40 d20 skills (Hide, Heal, Diplomacy, Craft, …), ranks, synergy, trained-only | `progression` **proficiency** (use-based gain) is the analog; no skill list | Translate to proficiency-style skills (use-based, not point-buy); pick the subset a MUD actually resolves | L | no |
 | **S4** | **Feats / traits (passive perk engine)** | binary feats w/ prereqs, multi-take, stackable; class bonus feats | `abilities-and-effects` has passives; no perk-selection engine | A passive-trait selection engine layered on the abilities/effects substrate | L | no |
@@ -65,7 +65,7 @@ A few primitives unlock many sub-epics; do them early:
 
 **Recommended ordering (posture A):**
 
-1. **S1 weapon-identity (A+B+C)** — small, self-contained, makes existing classes/weapons matter today. Already proposed. *Warm-up + immediate WoT texture.*
+1. **S1 weapon-identity (A+B+C)** — ✅ **SHIPPED 2026-06-10** (spec `weapon-identity.md` + the demo). The next S1 work is the separate ranged (G) and armor (E) themes.
 2. **S6 saves** — tiny cross-cutting primitive everything else reuses.
 3. **S5 conditions** — extend the effects system; unlocks combat/weave/mob depth.
 4. **S3 skills** *or* **S4 feats** — pick the one that the content track needs first (backgrounds want both; skills are the broader base).

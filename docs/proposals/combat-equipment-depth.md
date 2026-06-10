@@ -46,6 +46,17 @@ Each row is independently shippable except where a dependency is noted. Sizes ar
 - **E (armor) is the other large block** and pairs with D, F, and I — Max-Dex / check-penalty / encumbrance are one interacting system in the sourcebook. Per-damage-type AC was always the deferred "M8+" work.
 - **J is bottomless.** Special weapons are content-driven tags the combat pipeline switches on, added one at a time, never finished.
 
+> **✅ SHIPPED 2026-06-10 — M-Weapon-Identity (A + B + C).** The spec
+> (`docs/specs/weapon-identity.md`) and all three increments landed: A (weapon
+> category / proficiency tier / damage-type metadata + validation), B
+> (class-granted proficiency + the non-proficient to-hit penalty composing into
+> the existing `HitModAdjust` seam, + a non-proficient-on-equip cue), C
+> (per-weapon crit threat range + multiplier), plus demo content (a martial Two
+> Rivers longsword + an exotic ashandarei in Haral's forge) and an end-to-end
+> chain test. **Remaining in this proposal:** D (damage-type effect, with E),
+> E (armor depth), F (size-wield), G (ranged), H (masterwork), I (encumbrance —
+> carry-weight shipped separately), J (special weapons).
+
 ## 5. Recommended first slice: M-Weapon-Identity (A + B + C)
 
 If the goal is "WoT weapons that feel distinct and matter," the **A + B + C** bundle is the sweet spot — one coherent S–M theme, **no ranged, no armor overhaul**:

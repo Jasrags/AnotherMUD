@@ -123,11 +123,16 @@ old five-theme partition left uncovered.
   the hunger/thirst split + container caps, S8 is a faction sibling, S10 consumes
   fast-travel. Content (`wot-world-plan.md`) proceeds in parallel at today's fidelity and
   upgrades as each sub-epic lands. **Decision 0 RESOLVED (2026-06-10): posture A** —
-  translate WoT onto the tick/chance model, no d20 rewrite (S12 shelved). **Start point:
-  S1 (`M-Weapon-Identity`).**
+  translate WoT onto the tick/chance model, no d20 rewrite (S12 shelved). **S1
+  (`M-Weapon-Identity` = A+B+C) SHIPPED 2026-06-10** (`weapon-identity.md` + demo);
+  next candidates: S6 saves (small primitive), S2 The One Power (marquee), or the
+  separate ranged (G) / armor (E) S1 follow-ons.**
 - **Combat & Equipment Depth (WoT weapon/armor system)** — *(EPIC sub-epic S1 — see WoT
   Mechanics above and [`docs/themes/wot-mechanics-epic.md`](themes/wot-mechanics-epic.md))*
-  make weapons and armor
+  **✅ A+B+C (`M-Weapon-Identity`) SHIPPED 2026-06-10** (`weapon-identity.md`); what
+  remains is the later increments — ranged (G), armor (E), size-wield (F), masterwork
+  (H), special weapons (J), damage-type effect (D, with E).
+  Originally: make weapons and armor
   mechanically distinct the way `docs/wot/equipment.md` (the WoT d20 tables) describes:
   proficiency tiers (Simple/Martial/Exotic + the −4 non-proficient rule), crit threat
   range/multiplier, damage types (B/P/S), ranged combat (bows/thrown + ammo + range
