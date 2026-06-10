@@ -1,8 +1,9 @@
 # Wheel of Time world — implementation plan
 
-**Status:** Design pass (no implementation yet). **Setting source:**
-`wot-reference/` (symlink → the user's WheelMUD RPG-sourcebook extracts;
-`the-westlands.md` is the geography/kingdom reference). **Engine specs (source
+**Status:** M0 shipped; M1 (Emond's Field) next. **Setting source:**
+`docs/wot/wot_geography_mud.md` (the in-repo Westlands gazetteer the `wot` pack
+is authored from) + `wot-reference/` (symlink → WheelMUD RPG-sourcebook extracts;
+`the-westlands.md` for kingdom/culture detail). **Engine specs (source
 of truth, unchanged):** the specs stay setting-agnostic per `docs/PRIMER.md` —
 this plan adds *content packs*, not spec changes.
 
