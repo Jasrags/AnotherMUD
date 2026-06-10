@@ -5,17 +5,61 @@ import (
 	"testing"
 )
 
+func TestRoomColumnWidth(t *testing.T) {
+	const mapW = 9 // a typical bordered minimap width
+	cases := []struct {
+		name      string
+		termWidth int
+		mapWidth  int
+		want      int
+	}{
+		{"unknown width keeps default", 0, mapW, defaultRoomColumnWidth},
+		{"negative width keeps default", -5, mapW, defaultRoomColumnWidth},
+		{"narrow terminal clamps up to default", 60, mapW, defaultRoomColumnWidth},
+		{"wide terminal fills available", 80, mapW, 80 - mapW - minimapGap},
+		{"very wide terminal clamps to max", 222, mapW, maxRoomColumnWidth},
+		{"exact-fit boundary", defaultRoomColumnWidth + mapW + minimapGap, mapW, defaultRoomColumnWidth},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			if got := roomColumnWidth(c.termWidth, c.mapWidth); got != c.want {
+				t.Errorf("roomColumnWidth(%d, %d) = %d, want %d", c.termWidth, c.mapWidth, got, c.want)
+			}
+		})
+	}
+}
+
+func TestBlockWidth(t *testing.T) {
+	cases := []struct {
+		name string
+		in   string
+		want int
+	}{
+		{"empty", "", 0},
+		{"single line", "abc", 3},
+		{"widest line wins", "a\nabcde\nab", 5},
+		{"markup discounted", "<frame>+---+</frame>", 5},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			if got := blockWidth(c.in); got != c.want {
+				t.Errorf("blockWidth(%q) = %d, want %d", c.in, got, c.want)
+			}
+		})
+	}
+}
+
 func TestMarkupWidth(t *testing.T) {
 	cases := []struct {
 		in   string
 		want int
 	}{
-		{"<title>The Square</title>", 10},   // angle tags zero-width
-		{"{G}Gate{x}", 4},                    // single-letter ROM codes
-		{"{dim}muted{/}", 5},                 // attribute tokens
-		{"{yellow}Gate{/}", 4},               // full color name (regression)
-		{"a{{b", 3},                          // escaped literal brace stays visible
-		{"the {key} fits", 14},               // unknown token passes through literally
+		{"<title>The Square</title>", 10}, // angle tags zero-width
+		{"{G}Gate{x}", 4},                 // single-letter ROM codes
+		{"{dim}muted{/}", 5},              // attribute tokens
+		{"{yellow}Gate{/}", 4},            // full color name (regression)
+		{"a{{b", 3},                       // escaped literal brace stays visible
+		{"the {key} fits", 14},            // unknown token passes through literally
 	}
 	for _, c := range cases {
 		if got := markupWidth(c.in); got != c.want {

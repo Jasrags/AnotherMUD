@@ -114,6 +114,15 @@ func (c *Conn) ColorTier() render.ColorTier {
 	return c.neg.snapshot().ColorSupport
 }
 
+// TerminalWidth reports the client's last-reported window width in
+// columns (RFC 1073 NAWS). Reads through the live negotiator snapshot
+// so a resize that arrives mid-session is observable on the next
+// access. Returns 0 before NAWS completes (or if the client refused
+// the option) — renderers fall back to a configured default width.
+func (c *Conn) TerminalWidth() int {
+	return c.neg.snapshot().Width
+}
+
 // ID implements conn.Connection.
 func (c *Conn) ID() string { return c.id }
 

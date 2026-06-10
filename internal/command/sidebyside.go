@@ -6,15 +6,54 @@ import (
 	"github.com/Jasrags/AnotherMUD/internal/render"
 )
 
-// defaultRoomColumnWidth is the left-column width the room view is
-// wrapped to when the active minimap renders beside it (player-maps §4,
-// §10 policy) — kept narrow so the room column + a gap + the minimap fit
-// a standard terminal.
+// defaultRoomColumnWidth is the fallback left-column width the room view
+// wraps to when the active minimap renders beside it (player-maps §4,
+// §10 policy) and the client's terminal width is unknown (no NAWS) —
+// kept narrow so the room column + a gap + the minimap still fit a
+// standard 80-column terminal.
 const defaultRoomColumnWidth = 50
+
+// maxRoomColumnWidth caps the room column on wide terminals: prose stays
+// readable at roughly this many columns, so a 200-column window widens
+// the description toward this ceiling instead of sprawling edge to edge.
+const maxRoomColumnWidth = 80
 
 // minimapGap is the blank columns between the room column and the
 // minimap (player-maps §10 policy).
 const minimapGap = 3
+
+// roomColumnWidth picks the left-column width for the side-by-side room
+// view. With an unknown terminal width (termWidth <= 0) it keeps the
+// narrow default. Otherwise it gives the room body all the space the
+// minimap and gap leave, clamped into [defaultRoomColumnWidth,
+// maxRoomColumnWidth] so it neither crowds nor sprawls.
+func roomColumnWidth(termWidth, mapWidth int) int {
+	if termWidth <= 0 {
+		return defaultRoomColumnWidth
+	}
+	avail := termWidth - mapWidth - minimapGap
+	switch {
+	case avail < defaultRoomColumnWidth:
+		return defaultRoomColumnWidth
+	case avail > maxRoomColumnWidth:
+		return maxRoomColumnWidth
+	default:
+		return avail
+	}
+}
+
+// blockWidth returns the widest visible column count across a multi-line
+// markup block — used to measure the rendered minimap so the room column
+// can claim the rest of the terminal.
+func blockWidth(s string) int {
+	max := 0
+	for _, ln := range strings.Split(s, "\n") {
+		if w := markupWidth(ln); w > max {
+			max = w
+		}
+	}
+	return max
+}
 
 // markupWidth returns the rendered column width of a markup line,
 // discounting both <angle> semantic tags and {brace} color shorthand —

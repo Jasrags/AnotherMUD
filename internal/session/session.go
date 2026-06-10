@@ -2010,6 +2010,18 @@ func (a *connActor) SetRoom(r *world.Room) {
 // the session; M16.6b will dispatch renderer paths off this.
 func (a *connActor) ColorTier() render.ColorTier { return a.colorTier }
 
+// TerminalWidth reports the conn's current window width in columns (RFC
+// 1073 NAWS), read live so a mid-session resize is honored on the next
+// render. Returns 0 when the conn doesn't report a width (websocket,
+// test fakes, or a client that refused NAWS); side-by-side renderers
+// treat 0 as "unknown" and fall back to a fixed column width.
+func (a *connActor) TerminalWidth() int {
+	if src, ok := a.conn.(terminalWidthSource); ok {
+		return src.TerminalWidth()
+	}
+	return 0
+}
+
 func (a *connActor) ColorEnabled() bool {
 	a.mu.Lock()
 	defer a.mu.Unlock()
@@ -3606,6 +3618,14 @@ func readColorTier(c conn.Connection) render.ColorTier {
 		return src.ColorTier()
 	}
 	return render.ColorTierBasic
+}
+
+// terminalWidthSource is the conn-side accessor the session layer reads
+// to learn each conn's reported window width in columns (RFC 1073
+// NAWS). telnet.Conn satisfies it; conns that don't (websocket, test
+// fakes) report 0, and the renderer falls back to its default width.
+type terminalWidthSource interface {
+	TerminalWidth() int
 }
 
 // flushGmcpVitals snapshots the actor's current vitals + sustenance

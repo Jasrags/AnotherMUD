@@ -20,6 +20,24 @@ type MapViewer interface {
 	SetMinimapEnabled(bool)
 }
 
+// widthViewer is the optional capability a MapViewer may also satisfy to
+// report its client's terminal width (RFC 1073 NAWS), letting the room
+// body widen to fill a large window instead of wrapping to the fixed
+// fallback column. A viewer that doesn't implement it (or reports 0) is
+// treated as unknown-width and keeps the narrow default.
+type widthViewer interface {
+	TerminalWidth() int
+}
+
+// viewerTerminalWidth reports v's terminal width, or 0 when the viewer
+// doesn't expose one.
+func viewerTerminalWidth(v Actor) int {
+	if wv, ok := v.(widthViewer); ok {
+		return wv.TerminalWidth()
+	}
+	return 0
+}
+
 // defaultMinimapRadius is the step radius of the active minimap window
 // (player-maps §4, §10 policy) — small so the bordered widget stays
 // terminal-sized; the border then bounds the fog-of-war window the player
@@ -224,7 +242,10 @@ func AppendMinimap(base string, r *world.Room, viewer Actor, w *world.World) str
 	}
 	// Beside the room view, not below it (player-maps §4): the room body
 	// wraps into a left column and the bordered minimap rides top-right.
-	return joinBeside(base, grid, defaultRoomColumnWidth, minimapGap)
+	// The column widens to fill the client's terminal (NAWS), clamped so
+	// prose stays readable; an unknown width keeps the narrow default.
+	leftWidth := roomColumnWidth(viewerTerminalWidth(viewer), blockWidth(grid))
+	return joinBeside(base, grid, leftWidth, minimapGap)
 }
 
 // MinimapHandler toggles the calling player's active-minimap preference
