@@ -134,6 +134,89 @@ name: Orphan
 	}
 }
 
+// lightFloorPack writes a one-area, two-room pack where the area
+// declares the given light_floor and room "b" optionally declares its
+// own. Returns root.
+func lightFloorPack(t *testing.T, areaFloor, roomBFloor string) string {
+	t.Helper()
+	root := t.TempDir()
+	pack := filepath.Join(root, "core")
+	writeFile(t, filepath.Join(pack, "pack.yaml"), `
+name: tapestry-core
+content:
+  areas: [areas/*.yaml]
+  rooms: [rooms/*.yaml]
+`)
+	area := "id: town\nname: Town\n"
+	if areaFloor != "" {
+		area += "light_floor: " + areaFloor + "\n"
+	}
+	writeFile(t, filepath.Join(pack, "areas/town.yaml"), area)
+	writeFile(t, filepath.Join(pack, "rooms/a.yaml"), "id: a\narea: town\nname: Room A\nexits:\n  north: b\n")
+	roomB := "id: b\narea: town\nname: Room B\nexits:\n  south: a\n"
+	if roomBFloor != "" {
+		roomB += "properties:\n  light_floor: " + roomBFloor + "\n"
+	}
+	writeFile(t, filepath.Join(pack, "rooms/b.yaml"), roomB)
+	return root
+}
+
+func TestLoadBakesAreaLightFloorOntoRooms(t *testing.T) {
+	root := lightFloorPack(t, "dim", "")
+	regs := NewRegistries()
+	if err := RegisterEngineBaselineProperties(regs.Properties); err != nil {
+		t.Fatal(err)
+	}
+	if err := Load(context.Background(), root, nil, regs, nil, nil, nil); err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	for _, id := range []world.RoomID{"tapestry-core:a", "tapestry-core:b"} {
+		r, err := regs.World.Room(id)
+		if err != nil {
+			t.Fatalf("room %s missing: %v", id, err)
+		}
+		if got, ok := r.PropertyString("light_floor"); !ok || got != "dim" {
+			t.Errorf("room %s light_floor = (%q,%v), want (dim,true) baked from area", id, got, ok)
+		}
+	}
+}
+
+func TestLoadRoomLightFloorWinsOverArea(t *testing.T) {
+	root := lightFloorPack(t, "dim", "gloom")
+	regs := NewRegistries()
+	if err := RegisterEngineBaselineProperties(regs.Properties); err != nil {
+		t.Fatal(err)
+	}
+	if err := Load(context.Background(), root, nil, regs, nil, nil, nil); err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	// Room b declared its own gloom floor; the area's dim must not clobber it.
+	b, err := regs.World.Room("tapestry-core:b")
+	if err != nil {
+		t.Fatalf("room b missing: %v", err)
+	}
+	if got, _ := b.PropertyString("light_floor"); got != "gloom" {
+		t.Errorf("room b light_floor = %q, want gloom (room wins over area)", got)
+	}
+	// Room a had none, so it inherits the area default.
+	a, _ := regs.World.Room("tapestry-core:a")
+	if got, _ := a.PropertyString("light_floor"); got != "dim" {
+		t.Errorf("room a light_floor = %q, want dim (inherited)", got)
+	}
+}
+
+func TestLoadInvalidAreaLightFloorErrors(t *testing.T) {
+	root := lightFloorPack(t, "nonsense", "")
+	regs := NewRegistries()
+	if err := RegisterEngineBaselineProperties(regs.Properties); err != nil {
+		t.Fatal(err)
+	}
+	err := Load(context.Background(), root, nil, regs, nil, nil, nil)
+	if !errors.Is(err, ErrInvalidContent) {
+		t.Fatalf("err = %v, want ErrInvalidContent for bad area light_floor", err)
+	}
+}
+
 func TestLoadDuplicateRoomID(t *testing.T) {
 	root := t.TempDir()
 	pack := filepath.Join(root, "core")

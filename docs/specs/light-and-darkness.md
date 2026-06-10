@@ -167,20 +167,35 @@ Consequences that must hold:
   sources are not gated by terrain (a torch works underground; a
   `light` override pins a value the sky can't reach).
 
-### 2.4 The room light override (cascade)
+### 2.4 The room light overrides (cascade)
 
-A room may author a `light` property naming an explicit level. It acts
-as a **floor** the room guarantees regardless of sky (the lamp-lit
-street pinned `dim` at midnight; the glowing hall pinned `lit`). A room
-may also pin `black` to force darkness even where ambient would reach
-(a sealed vault with a sky the design ignores) — the override, when
-present, both floors and ceilings ambient for that room.
+A room's authored light comes in **two distinct directives**, because
+"force this exact level" and "keep this room at least this bright" are
+genuinely different needs:
 
-Resolution of the override follows the same **room → area → zone**
+- **Pin (`light`)** — names an exact level that **replaces** ambient
+  entirely: it both floors *and* ceilings the room. A sealed vault pins
+  `light: black` and stays black at noon; a windowless glowing hall pins
+  `light: lit` and stays lit at midnight. The pin is time-independent —
+  the sky no longer reaches the room at all.
+- **Floor (`light_floor`)** — names a minimum level that **max-combines**
+  with the terrain-gated ambient: it lifts a dark sky without capping a
+  bright one. A lamp-lit village street sets `light_floor: dim` and is
+  `lit` at noon (daylight beats the floor) but `dim` — never `gloom` — at
+  midnight (the lamps lift the dark). This is the "settlement after dark
+  is navigable, the open wilds are not" knob.
+
+A pin outranks a floor when a room resolves to both (a sealed cellar
+inside a lamp-lit village pins `light: black` and stays dark despite the
+village floor). Neither directive is gated by terrain (§2.3) — a floor's
+lamps reach an `indoors` room, a pin's value holds `underground`.
+
+Resolution of each directive follows the same **room → area → zone**
 cascade the weather messages use (`world-rooms-movement.md` §6):
 
-- A room-level `light` wins.
-- Else an area-level default applies.
+- A room-level directive wins.
+- Else an area-level default applies (an area's `light_floor` is the
+  lamp-lit-village tier — it bakes onto member rooms at load).
 - Else a zone/biome default applies (leaving a tier for a future
   `biomes.md` contribution — e.g. a "cavern" biome defaulting `black`).
 - Else there is no override and ambient (through the terrain gate)
@@ -197,11 +212,16 @@ cascade the weather messages use (`world-rooms-movement.md` §6):
       override, at any hour.
 - [ ] An `indoors` room never exceeds the configured indoor ambient cap
       from ambient alone.
-- [ ] A room `light` override floors (and, when set, ceilings) the
-      room's light regardless of terrain or period.
+- [ ] A room `light` PIN both floors and ceilings the room's light
+      (replaces ambient) regardless of terrain or period.
+- [ ] A room `light_floor` FLOOR lifts a dark ambient (gloom → its
+      level) but never caps a bright one (noon stays `lit`), regardless
+      of terrain.
+- [ ] A pin outranks a floor when a room resolves to both.
 - [ ] A lit source carried by the viewer raises effective light even in
       an `underground`/`black` room.
-- [ ] The override resolves room → area → zone, first match wins.
+- [ ] Each directive resolves room → area → zone, first match wins; an
+      area `light_floor` applies to member rooms lacking their own.
 
 ---
 
@@ -553,7 +573,8 @@ The following are externally configurable and not fixed by this spec.
 | Movement-blocked-in-dark (per room/zone) | §5.4 |
 | Transition messages (darkening / brightening, per crossing) | §6 |
 | Saved-time write cadence | §7 |
-| Room `light` override (per room/area/zone, content) | §2.4 / §9 |
+| Room `light` PIN (per room/area/zone, content) | §2.4 / §9 |
+| Room/area `light_floor` (lamp-lit settlement floor, content) | §2.4 / §9 |
 
 ---
 
@@ -583,9 +604,29 @@ The following are externally configurable and not fixed by this spec.
   (two-handed weapons / shields) — a richer tradeoff — or is a free
   non-contending slot, depends on the equipment model and is deferred to
   it.
+- **Moonlight and weather-driven ambient.** Night ambient is a flat
+  `gloom` today, independent of moon phase or sky cover — yet a full
+  moon on a clear night is navigable without a torch, and a new moon or
+  heavy overcast is not. The refinement makes night ambient a function
+  of period **and** moon phase **and** cloud cover: `ambientFor(period,
+  moonPhase, cloudCover)`, where the moon lifts the night floor (gloom →
+  dim on a bright clear night) and clouds gate it (and gate daylight
+  down — the "Weather dimming" item below is the same machinery, the
+  opposite direction). Phase is a pure function of the in-game day
+  (`gameclock.DayCount`), so no new persisted state — like the period is
+  a pure function of the hour. It touches three specs (`time-and-clock`
+  for the lunar calendar + phase vocabulary, this spec for the
+  `ambientFor` signature, `weather`/`world-rooms-movement §6` for cloud
+  cover as the gate). It composes cleanly with §2.4's `light_floor`: a
+  lamp-lit village keeps its floor regardless of moon, while hamlets and
+  wilds (no floor) gain moonlit navigability for free. Tracked as a
+  greenfield slice in `docs/BACKLOG.md §2`; **subsumes** the
+  "Weather dimming" item below.
 - **Weather dimming.** Heavy overcast/storm could knock daylight down a
   level (the weather state is already on the area). Atmospheric and
   cheap, but a second-order input; deferred so the core ships first.
+  *(Folded into "Moonlight and weather-driven ambient" above — same
+  `ambientFor(period, moon, clouds)` machinery.)*
 - **Biome light defaults.** A `biomes.md` tier could default a region's
   light (a cavern biome → `black`, a glowing forest → `dim`). §2.4
   leaves a cascade tier for it.

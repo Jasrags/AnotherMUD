@@ -57,6 +57,13 @@ func RegisterEngineBaselineProperties(reg *property.Registry) error {
 			AdminSettable: true,
 		},
 		{
+			Name:          "light_floor",
+			Type:          property.TypeString,
+			Description:   "Light floor (black/gloom/dim/lit) that lifts a room's dark ambient without capping daylight — the lamp-lit settlement knob; an area-level light_floor bakes onto member rooms at load (spec light-and-darkness §2.4/§9).",
+			AppliesTo:     []string{"room"},
+			AdminSettable: true,
+		},
+		{
 			Name:          "lit",
 			Type:          property.TypeBool,
 			Description:   "Light source lit state; lives on the item instance so it survives pickup/drop/give/store (spec light-and-darkness §3.1).",

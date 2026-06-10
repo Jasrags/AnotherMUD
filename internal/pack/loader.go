@@ -20,6 +20,7 @@ import (
 	"github.com/Jasrags/AnotherMUD/internal/gathering"
 	"github.com/Jasrags/AnotherMUD/internal/help"
 	"github.com/Jasrags/AnotherMUD/internal/item"
+	"github.com/Jasrags/AnotherMUD/internal/light"
 	"github.com/Jasrags/AnotherMUD/internal/logging"
 	"github.com/Jasrags/AnotherMUD/internal/loot"
 	"github.com/Jasrags/AnotherMUD/internal/mob"
@@ -180,6 +181,15 @@ func Load(ctx context.Context, root string, filter []string, dst *Registries, sp
 		logCoordWarning(logger, cw)
 	}
 
+	// Light-floor inheritance (light-and-darkness §2.4 room→area tier):
+	// an area's `light_floor` default bakes onto each member room that
+	// does not declare its own, collapsing the floor cascade at load so
+	// the per-viewer resolver stays a pure room read. An invalid area
+	// level is a boot error (mirrors the weather-zone id check).
+	if err := bakeAreaLightFloors(dst.World); err != nil {
+		return err
+	}
+
 	// Placement post-pass. Runs after all packs have loaded so cross-pack
 	// item-template references resolve. Spawner=nil means callers don't
 	// want runtime instances created (tests that only need template
@@ -308,6 +318,38 @@ func validateItemSlots(dst *Registries) error {
 			if !dst.Slots.Has(name) {
 				return fmt.Errorf("%w: item %q companion slot %q", ErrItemUnknownSlot, t.ID, name)
 			}
+		}
+	}
+	return nil
+}
+
+// bakeAreaLightFloors resolves the room→area tier of the
+// light-and-darkness §2.4 floor cascade at load: each area that
+// declares a `light_floor` copies it onto every member room that does
+// not already carry its own `light_floor`, so the room-level light
+// resolver (light.FloorFor) stays a pure room read with no World
+// threading into the render/combat/movement hot paths. A room's own
+// `light_floor` wins (the bake skips it), preserving room-over-area
+// precedence. An area `light_floor` outside the four-level vocabulary
+// is a boot error, mirroring the weather-zone id check — a typo must
+// not silently vanish into "no floor".
+func bakeAreaLightFloors(w *world.World) error {
+	for _, a := range w.Areas() {
+		if a.LightFloor == "" {
+			continue
+		}
+		if _, ok := light.ParseLevel(a.LightFloor); !ok {
+			return fmt.Errorf("%w: area %q: light_floor %q is not one of black/gloom/dim/lit",
+				ErrInvalidContent, a.ID, a.LightFloor)
+		}
+		for _, r := range w.RoomsInArea(a.ID) {
+			if _, has := r.PropertyString(light.PropRoomLightFloor); has {
+				continue // room-level floor wins over the area default
+			}
+			if r.Properties == nil {
+				r.Properties = map[string]any{}
+			}
+			r.Properties[light.PropRoomLightFloor] = a.LightFloor
 		}
 	}
 	return nil
@@ -1822,6 +1864,7 @@ func decodeArea(path, ns string) (*world.Area, error) {
 		ResetInterval: af.ResetInterval,
 		SpawnRules:    rules,
 		WeatherZone:   zoneID,
+		LightFloor:    af.LightFloor,
 	}, nil
 }
 

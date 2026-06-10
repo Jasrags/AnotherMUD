@@ -24,6 +24,12 @@ type AreaFile struct {
 	// the area has no weather and the service skips it on
 	// HourChanged.
 	WeatherZone string `yaml:"weather_zone,omitempty"`
+	// LightFloor is the area-level light floor (black/gloom/dim/lit):
+	// it bakes onto every member room lacking its own `light_floor`,
+	// lifting dark nights without capping daylight — the lamp-lit
+	// settlement knob (spec light-and-darkness §2.4). Empty (the
+	// default) means the area imposes no floor and rooms ride the sky.
+	LightFloor string `yaml:"light_floor,omitempty"`
 }
 
 // SpawnRuleFile is the YAML shape for one entry of

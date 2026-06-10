@@ -387,6 +387,30 @@ old five-theme partition left uncovered.
   Depends on **follow** (the NPC trails the newbie) and mob spawn/AI; cheap once those
   exist. Pre-decisions: dialogue source (pack Lua vs. config), trigger (spawn on first
   login under level N), one guide per newbie vs. shared, dismissal.
+- **Moon cycles + weather-driven ambient light** — make night brightness depend on
+  **moon phase** and **cloud cover**, not a flat `gloom`. ⚠️ **Greenfield — anticipated and
+  deferred by `light-and-darkness §12` ("Moonlight and weather-driven ambient") + the
+  non-goal at §1.** Today `ambientFor(period)` maps night → a flat `gloom` regardless of
+  sky; yet a full moon on a clear night is navigable without a torch and a new-moon/overcast
+  night is not. The slice makes night ambient `ambientFor(period, moonPhase, cloudCover)`:
+  the moon lifts the night floor (gloom → dim on a bright clear night), clouds gate it (and
+  also knock daylight down a level — **this subsumes the standalone "Weather dimming" §12
+  item**, same machinery, opposite direction). **Composes with `light-and-darkness §2.4`
+  `light_floor`**: a lamp-lit village keeps its floor regardless of moon, while hamlets and
+  open wilds (no floor) gain moonlit navigability for free — which is exactly the
+  village/hamlet split the WoT content wants. Moon phase is a **pure function of the in-game
+  day** (`gameclock.DayCount`), so **no new persisted state** — like the period is a pure
+  function of the hour. Touches three specs: **`time-and-clock`** (a lunar calendar +
+  phase vocabulary — new/waxing/full/waning or a 0–1 illumination fraction — derived from
+  the day counter), **`light-and-darkness`** (the `ambientFor` signature change + the night-
+  floor lift), and **`weather`/`world-rooms-movement §6`** (cloud cover as the gate; the
+  weather state already rides the area). Substrate present: `gameclock` (day counter +
+  `time.period.change`), the light resolver (`internal/light`, already pure over gathered
+  Inputs), the weather service (per-area zone state). Pre-decisions: phase representation
+  (named phases vs. illumination fraction); cycle length (in-game days per lunation);
+  one moon vs. WoT-flavored detail (the source has no special lunar lore — a standard cycle
+  is fine); how much a full moon lifts (gloom → dim only, or → lit on the clearest nights);
+  whether forest/canopy biomes shield moonlight the way they'd shield rain.
 - **Cross-cutting event catalog** — per-spec event tables exist in `specs/README.md`;
   no aggregated catalog. (Docs/meta, not engine — not a behavior spec.)
 

@@ -73,12 +73,17 @@ func (r *Resolver) EffectiveForPeriod(room *world.Room, sources, viewerFloor Lev
 	if lvl, ok := OverrideFor(room); ok {
 		override = &lvl
 	}
+	var ambientFloor *Level
+	if lvl, ok := FloorFor(room); ok {
+		ambientFloor = &lvl
+	}
 	return Resolve(Inputs{
-		Ambient:     r.cfg.AmbientFor(period),
-		Terrain:     world.TerrainOf(room),
-		IndoorCap:   r.cfg.IndoorCap,
-		Override:    override,
-		Sources:     sources,
-		ViewerFloor: viewerFloor,
+		Ambient:      r.cfg.AmbientFor(period),
+		Terrain:      world.TerrainOf(room),
+		IndoorCap:    r.cfg.IndoorCap,
+		Override:     override,
+		AmbientFloor: ambientFloor,
+		Sources:      sources,
+		ViewerFloor:  viewerFloor,
 	})
 }

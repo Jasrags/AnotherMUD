@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/Jasrags/AnotherMUD/internal/light"
 	"github.com/Jasrags/AnotherMUD/internal/slot"
 	"github.com/Jasrags/AnotherMUD/internal/world"
 )
@@ -51,4 +52,31 @@ func TestLoad_WotPackSelectionBootSwap(t *testing.T) {
 	if _, err := regs.World.Room(world.RoomID("starter-world:town-square")); err == nil {
 		t.Error("starter-world:town-square loaded, but only wot+baseline were selected")
 	}
+
+	// Lamp-lit village: emonds-field's area `light_floor: dim` baked onto
+	// the Green, so it resolves Dim (navigable, full render) at night —
+	// while a westwood wilds room stays Gloom (description withheld, bring
+	// a torch). This is the village/hamlet light split (light-and-darkness
+	// §2.4 floor cascade).
+	green, err := regs.World.Room("wot:the-green")
+	if err != nil {
+		t.Fatalf("the-green missing: %v", err)
+	}
+	if got, ok := green.PropertyString("light_floor"); !ok || got != "dim" {
+		t.Errorf("the-green light_floor = (%q,%v), want (dim,true) baked from emonds-field", got, ok)
+	}
+	res := light.NewResolver(light.DefaultConfig(), fixedNight{})
+	if got := res.Effective(green, light.Black, light.Black); got != light.Dim {
+		t.Errorf("the-green at night = %v, want Dim (village lamps lift gloom)", got)
+	}
+	if wild, err := regs.World.Room("wot:deep-westwood"); err == nil {
+		if got := res.Effective(wild, light.Black, light.Black); got != light.Gloom {
+			t.Errorf("deep-westwood at night = %v, want Gloom (wilds stay dark)", got)
+		}
+	}
 }
+
+// fixedNight is a light.PeriodSource pinned to night for the boot test.
+type fixedNight struct{}
+
+func (fixedNight) CurrentPeriod() string { return "night" }

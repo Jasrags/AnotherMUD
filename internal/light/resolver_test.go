@@ -74,6 +74,41 @@ func TestResolver_Effective_RoomOverrideWins(t *testing.T) {
 	}
 }
 
+func TestFloorFor(t *testing.T) {
+	if _, ok := FloorFor(nil); ok {
+		t.Fatal("FloorFor(nil) ok=true, want false")
+	}
+	bare := &world.Room{ID: "r", Properties: map[string]any{}}
+	if _, ok := FloorFor(bare); ok {
+		t.Fatal("FloorFor(no property) ok=true, want false")
+	}
+	lit := &world.Room{ID: "r", Properties: map[string]any{PropRoomLightFloor: "dim"}}
+	if lvl, ok := FloorFor(lit); !ok || lvl != Dim {
+		t.Fatalf("FloorFor(dim) = (%v,%v), want (Dim,true)", lvl, ok)
+	}
+	// Garbage value → no floor (fail safe, like the pin path).
+	junk := &world.Room{ID: "r", Properties: map[string]any{PropRoomLightFloor: "nonsense"}}
+	if _, ok := FloorFor(junk); ok {
+		t.Fatal("FloorFor(garbage) ok=true, want false")
+	}
+}
+
+func TestResolver_Effective_FloorLiftsNightNotDay(t *testing.T) {
+	cfg := DefaultConfig()
+	// A lamp-lit village street: light_floor dim, outdoors.
+	room := &world.Room{ID: "green", Terrain: world.TerrainOutdoors,
+		Properties: map[string]any{PropRoomLightFloor: "dim"}}
+
+	night := NewResolver(cfg, fixedPeriod(gameclock.PeriodNight))
+	if got := night.Effective(room, Black, Black); got != Dim {
+		t.Fatalf("floor-lit street at night = %v, want Dim (lifted from gloom)", got)
+	}
+	day := NewResolver(cfg, fixedPeriod(gameclock.PeriodDay))
+	if got := day.Effective(room, Black, Black); got != Lit {
+		t.Fatalf("floor-lit street at noon = %v, want Lit (floor must not cap daylight)", got)
+	}
+}
+
 func TestResolver_Effective_TwoViewersDiffer(t *testing.T) {
 	// Same room, same instant: a darkvision viewer and a human get
 	// different effective light (§4 / §2 per-viewer).

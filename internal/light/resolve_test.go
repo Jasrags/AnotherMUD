@@ -96,6 +96,32 @@ func TestResolve(t *testing.T) {
 			in:   Inputs{Ambient: Gloom, Terrain: world.TerrainOutdoors, IndoorCap: cap, Sources: Dim, ViewerFloor: Gloom},
 			want: Dim,
 		},
+		// Ambient floor (lamp-lit settlement): lifts dark, never caps bright.
+		{
+			name: "floor lifts a dark night (gloom -> dim lamp-lit street)",
+			in:   Inputs{Ambient: Gloom, Terrain: world.TerrainOutdoors, IndoorCap: cap, AmbientFloor: ptr(Dim)},
+			want: Dim,
+		},
+		{
+			name: "floor does not cap a bright day (noon stays lit)",
+			in:   Inputs{Ambient: Lit, Terrain: world.TerrainOutdoors, IndoorCap: cap, AmbientFloor: ptr(Dim)},
+			want: Lit,
+		},
+		{
+			name: "floor is ungated by terrain (lamp reaches an underground room)",
+			in:   Inputs{Ambient: Lit, Terrain: world.TerrainUnderground, IndoorCap: cap, AmbientFloor: ptr(Dim)},
+			want: Dim,
+		},
+		{
+			name: "pin outranks floor (sealed cellar in a lit village stays black)",
+			in:   Inputs{Ambient: Lit, Terrain: world.TerrainOutdoors, IndoorCap: cap, Override: ptr(Black), AmbientFloor: ptr(Dim)},
+			want: Black,
+		},
+		{
+			name: "source still beats a floor-lit room (torch over lamps)",
+			in:   Inputs{Ambient: Gloom, Terrain: world.TerrainOutdoors, IndoorCap: cap, AmbientFloor: ptr(Dim), Sources: Lit},
+			want: Lit,
+		},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

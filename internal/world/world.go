@@ -35,6 +35,16 @@ type Area struct {
 	// time; an unknown zone id is a content error caught at boot.
 	// Spec: world-rooms-movement §6.1.
 	WeatherZone string
+
+	// LightFloor is the area-level authored light floor (one of the
+	// four level names, or empty for none). It bakes onto every member
+	// room that does not declare its own `light_floor` at load — the
+	// room→area tier of the light-and-darkness §2.4 floor cascade. A
+	// floor lifts a dark night without capping daylight (the lamp-lit
+	// village), distinct from a per-room `light` PIN that replaces
+	// ambient entirely. Validated against the level vocabulary at load;
+	// an unknown value is a boot error.
+	LightFloor string
 }
 
 // SpawnRule is one entry in an area's spawn config (spec

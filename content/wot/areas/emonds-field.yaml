@@ -5,6 +5,13 @@ description: |
   far from any throne that the folk here govern themselves, keep their own
   Mayor and Village Council, and barely think of themselves as Andoran at all.
 region: two-rivers
+# Lamp-lit village: a light floor keeps Emond's Field navigable after dark —
+# full daylight by day, dim (not gloom) at night — without a torch. The bigger
+# settlement has the lit windows, the inn, and the forge glow the outlying
+# hamlets lack; those ride the natural sky and stay darker at night until the
+# moon-cycle feature lands (docs/BACKLOG.md §2). A sealed room can still pin
+# `light: black` per-room to opt out — the pin outranks the floor.
+light_floor: dim
 # Temperate climate; the Two Rivers weather zone lands with the wilds (M2).
 # Persistent villagers are pinned to their rooms via each room's `mobs:` list,
 # not spawn_rules — they are fixtures, not respawning encounters.
