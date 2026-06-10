@@ -830,12 +830,22 @@ func run(ctx context.Context, c conn.Connection, cfg Config) error {
 
 	// Seed the area-transition tracker with the spawn area so the first
 	// crossing narrates a real "from" and the spawn render itself shows
-	// no zone-line (player-maps §4, spawn-suppression rule).
+	// no zone-line (player-maps §4, spawn-suppression rule). A brand-new
+	// character entering a never-seen home area still earns the once-ever
+	// first-entry banner (B1), prepended to the spawn view.
 	a.SetLastAreaSeen(start.AreaID)
+	var firstEntry string
+	if !a.HasSeenArea(start.AreaID) {
+		a.MarkAreaSeen(start.AreaID)
+		firstEntry = command.FirstEntryBanner(areaDisplayName(cfg.World, start.AreaID))
+	}
 	startLvl := command.EffectiveLight(cfg.Light, start, a, cfg.Items, cfg.Placement)
 	spawnView := command.RenderRoom(start, cfg.Placement, cfg.Items, questMarkerFor(cfg.Quests, a.PlayerID()), cfg.Ambience, nil, startLvl, otherPlayerNames(cfg.Manager, start.ID, a.PlayerID())...)
 	spawnView = command.AppendMinimap(spawnView, start, a, cfg.World)
 	spawnView = command.AppendRoomData(spawnView, start, a, cfg.AdminRole)
+	if firstEntry != "" {
+		spawnView = firstEntry + "\n" + spawnView
+	}
 	if err := a.Write(ctx, spawnView); err != nil {
 		// Initial render failed: the connection is unusable. Full
 		// teardown immediately — no point parking link-dead.
@@ -856,6 +866,20 @@ func run(ctx context.Context, c conn.Connection, cfg Config) error {
 	exit := pump(ctx, c, cfg, a, clk)
 	dispatchTeardown(ctx, cfg, a, exit, clk)
 	return nil
+}
+
+// areaDisplayName resolves an area id to its display name for the
+// first-entry banner, falling back to the raw id when the area is
+// unknown or unnamed (mirrors command.Context.areaName for the session
+// spawn path, which renders outside a command Context).
+func areaDisplayName(w *world.World, id world.AreaID) string {
+	if w == nil || id == "" {
+		return string(id)
+	}
+	if a, err := w.Area(id); err == nil && a.Name != "" {
+		return a.Name
+	}
+	return string(id)
 }
 
 // pumpExit is the reason the read loop unwound, used by the teardown
@@ -1858,6 +1882,11 @@ type connActor struct {
 	// authority is save.VisitedRooms; this is the O(1) membership index
 	// over it. Guarded by a.mu; nil until first seeded.
 	visited map[string]struct{}
+	// seenAreas is the in-memory index over save.SeenAreas (player-maps
+	// §4): the area ids this character has ever entered, gating the
+	// once-ever first-entry banner. Lazily built on first use and kept
+	// in sync by MarkAreaSeen. Guarded by a.mu; nil until first seeded.
+	seenAreas map[world.AreaID]struct{}
 	// gmcpLastVitals is the M16.4a poll-and-diff shadow for the
 	// Char.Vitals package — the most recent snapshot the manager
 	// emitted to the peer. The gmcp-vitals-flush tick handler

@@ -3,21 +3,34 @@ package command
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/Jasrags/AnotherMUD/internal/light"
 	"github.com/Jasrags/AnotherMUD/internal/world"
 )
 
 // AreaTracker is the optional actor capability that drives area-
-// transition messaging (player-maps §4). LastAreaSeen is the
-// session-scoped area the actor was last shown — the "from" of the
-// leave/enter zone-line; SetLastAreaSeen records the area as each room
-// view is written. An actor that does not implement it (test fakes)
-// gets no transition lines. The persisted first-entry half
-// (HasSeenArea/MarkAreaSeen) lands with B1.
+// transition messaging (player-maps §4):
+//   - LastAreaSeen/SetLastAreaSeen — the session-scoped area the actor
+//     was last shown, the "from" of the leave/enter zone-line (A2).
+//   - HasSeenArea/MarkAreaSeen — the persisted set of areas ever
+//     entered, gating the once-ever first-entry banner (B1).
+//
+// An actor that does not implement it (test fakes) gets no transition
+// lines.
 type AreaTracker interface {
 	LastAreaSeen() world.AreaID
 	SetLastAreaSeen(world.AreaID)
+	HasSeenArea(world.AreaID) bool
+	MarkAreaSeen(world.AreaID)
+}
+
+// FirstEntryBanner is the once-ever "new territory" line shown the first
+// time a character enters an area (player-maps §4, B1). Exported so the
+// session-package login-spawn render can show it for a brand-new
+// character's home area without re-deriving the styling.
+func FirstEntryBanner(areaName string) string {
+	return fmt.Sprintf("<highlight>*** You have entered %s for the first time! ***</highlight>", areaName)
 }
 
 // writeRoomView writes the room view for r to the actor, prefixed with
@@ -57,11 +70,21 @@ func (c *Context) areaTransitionBanner(r *world.Room) string {
 		return "" // same area: a look, or an intra-area step
 	}
 	at.SetLastAreaSeen(newArea)
-	if prev == "" {
-		return "" // first render after login — nothing to leave
+
+	var lines []string
+	// A2: leave/enter zone-line — only when there is a "from" (not the
+	// first render after login, which the spawn render seeds silently).
+	if prev != "" {
+		lines = append(lines, fmt.Sprintf("<subtle>You leave</subtle> %s <subtle>and enter</subtle> %s<subtle>.</subtle>",
+			c.areaName(prev), c.areaName(newArea)))
 	}
-	return fmt.Sprintf("<subtle>You leave</subtle> %s <subtle>and enter</subtle> %s<subtle>.</subtle>",
-		c.areaName(prev), c.areaName(newArea))
+	// B1: once-ever first-entry banner, below the zone-line. Marking the
+	// area seen persists, so it fires exactly once per area ever.
+	if !at.HasSeenArea(newArea) {
+		at.MarkAreaSeen(newArea)
+		lines = append(lines, FirstEntryBanner(c.areaName(newArea)))
+	}
+	return strings.Join(lines, "\n")
 }
 
 // areaName resolves an area id to its display name, falling back to the

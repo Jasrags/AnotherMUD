@@ -91,6 +91,55 @@ func (a *connActor) SetMinimapEnabled(v bool) {
 	a.markDirtyLocked()
 }
 
+// ensureSeenAreasLocked lazily builds the in-memory seen-areas set from
+// the persisted save the first time it is needed. Caller holds a.mu.
+func (a *connActor) ensureSeenAreasLocked() {
+	if a.seenAreas != nil {
+		return
+	}
+	if a.save == nil {
+		a.seenAreas = make(map[world.AreaID]struct{})
+		return
+	}
+	a.seenAreas = make(map[world.AreaID]struct{}, len(a.save.SeenAreas))
+	for _, id := range a.save.SeenAreas {
+		a.seenAreas[world.AreaID(id)] = struct{}{}
+	}
+}
+
+// HasSeenArea reports whether the character has ever entered the area
+// (player-maps §4) — the gate for the once-ever first-entry banner.
+// False for ephemeral actors with no save.
+func (a *connActor) HasSeenArea(id world.AreaID) bool {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	if a.save == nil {
+		return false
+	}
+	a.ensureSeenAreasLocked()
+	_, ok := a.seenAreas[id]
+	return ok
+}
+
+// MarkAreaSeen records id in the character's seen-areas set: a new id is
+// appended to the persisted save slice and the save marked dirty so
+// autosave commits it; a repeat is a no-op. No-op when there is no save
+// or the id is empty.
+func (a *connActor) MarkAreaSeen(id world.AreaID) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	if a.save == nil || id == "" {
+		return
+	}
+	a.ensureSeenAreasLocked()
+	if _, seen := a.seenAreas[id]; seen {
+		return
+	}
+	a.seenAreas[id] = struct{}{}
+	a.save.SeenAreas = append(a.save.SeenAreas, string(id))
+	a.markDirtyLocked()
+}
+
 // LastAreaSeen reports the area id of the room this actor was most
 // recently shown (command.AreaTracker) — the "from" of the
 // area-transition zone-line. Empty before the first render.

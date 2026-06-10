@@ -247,6 +247,16 @@ type Save struct {
 	// the intended fog-of-war behavior, so the migration injects nothing.
 	VisitedRooms []string `yaml:"visited_rooms,omitempty"`
 
+	// SeenAreas is the persisted set of area ids this character has ever
+	// entered (player-maps §4): it gates the once-ever "first time!"
+	// banner so it fires exactly once per area, across sessions. Slice
+	// with set semantics enforced at the entry hook, like VisitedRooms.
+	// Added without a schema bump (the empty/absent default means "no
+	// areas entered yet", so legacy saves load with every area
+	// un-greeted and round-trip unchanged); a returning character simply
+	// re-greets each area once, which is acceptable for a cosmetic line.
+	SeenAreas []string `yaml:"seen_areas,omitempty"`
+
 	// MinimapEnabled is the per-character preference for the active
 	// minimap appended to the room view (player-maps §4). Off by
 	// default; the `minimap` verb toggles it. Added without a schema
@@ -254,6 +264,15 @@ type Save struct {
 	// indistinguishable from absent (omitempty), so legacy saves load
 	// with it off and round-trip unchanged.
 	MinimapEnabled bool `yaml:"minimap,omitempty"`
+
+	// MinimapSize is the per-character active-minimap size preset
+	// (player-maps §4): "auto" (default), "small", "medium", or
+	// "large". The `minimap` verb sets it. Empty is treated as "auto"
+	// — the radius scales to the client's terminal width. Added without
+	// a schema bump on the MinimapEnabled precedent: the "" zero-value
+	// is indistinguishable from absent (omitempty), so legacy saves
+	// load as auto and round-trip unchanged.
+	MinimapSize string `yaml:"minimap_size,omitempty"`
 
 	// KnownRecipes is the per-character set of crafting recipes this
 	// character knows (crafting-and-cooking §7, §9), stored as a slice of

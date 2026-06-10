@@ -290,7 +290,8 @@ type testActor struct {
 	craftPending crafting.PendingCraft
 	hasCraft     bool
 
-	lastArea world.AreaID
+	lastArea  world.AreaID
+	seenAreas map[world.AreaID]struct{}
 }
 
 // PendingCraft / SetPendingCraft / ClearPendingCraft make testActor satisfy
@@ -441,6 +442,22 @@ func (a *testActor) SetLastAreaSeen(id world.AreaID) {
 	a.lastArea = id
 }
 
+func (a *testActor) HasSeenArea(id world.AreaID) bool {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	_, ok := a.seenAreas[id]
+	return ok
+}
+
+func (a *testActor) MarkAreaSeen(id world.AreaID) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	if a.seenAreas == nil {
+		a.seenAreas = make(map[world.AreaID]struct{})
+	}
+	a.seenAreas[id] = struct{}{}
+}
+
 func (a *testActor) Write(ctx context.Context, msg string) error {
 	a.mu.Lock()
 	defer a.mu.Unlock()
@@ -573,4 +590,10 @@ func (a *testActor) allLines() []string {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	return append([]string(nil), a.lines...)
+}
+
+func (a *testActor) clearLines() {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	a.lines = nil
 }

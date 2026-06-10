@@ -83,6 +83,41 @@ func TestMove_IntraAreaNoZoneLine(t *testing.T) {
 	}
 }
 
+func TestMove_FirstEntryBannerFiresOnceThenPairsWithZoneLine(t *testing.T) {
+	w, start := twoAreaWorld()
+	actor := newTestActor(start)
+	actor.SetLastAreaSeen("village")
+	actor.MarkAreaSeen("village") // already home; only wild is new
+
+	// First crossing into wild: zone-line AND the once-ever banner.
+	if err := twoAreaDispatch(w, actor, "n"); err != nil {
+		t.Fatalf("move north: %v", err)
+	}
+	joined := strings.Join(actorLines(actor), "\n")
+	if !strings.Contains(joined, "You leave") {
+		t.Errorf("first crossing should still narrate the zone-line:\n%s", joined)
+	}
+	if !strings.Contains(joined, "for the first time") || !strings.Contains(joined, "the Westwood") {
+		t.Errorf("first crossing should show the first-entry banner:\n%s", joined)
+	}
+
+	// Go back, then cross into wild AGAIN: zone-line only, no banner.
+	if err := twoAreaDispatch(w, actor, "s"); err != nil {
+		t.Fatalf("move south: %v", err)
+	}
+	actor.clearLines()
+	if err := twoAreaDispatch(w, actor, "n"); err != nil {
+		t.Fatalf("re-enter wild: %v", err)
+	}
+	re := strings.Join(actorLines(actor), "\n")
+	if !strings.Contains(re, "You leave") {
+		t.Errorf("re-entry should narrate the zone-line:\n%s", re)
+	}
+	if strings.Contains(re, "for the first time") {
+		t.Errorf("re-entry must NOT repeat the first-entry banner:\n%s", re)
+	}
+}
+
 func TestMove_FirstCrossingFromSpawnHasNoLeaveLine(t *testing.T) {
 	// With no seeded last-seen area (lastArea == ""), the first crossing
 	// has no "from" and must suppress the leave/enter line — but it still
