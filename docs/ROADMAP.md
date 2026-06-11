@@ -51,11 +51,12 @@ and `THEME-AXIS-PLAN.md` are superseded by `BACKLOG.md` and now live under
   = posture A, translate onto tick/chance). Shipped so far: **S1 weapon-identity**,
   **S3 skills** (use-based proficiency + skill-check primitive + lockpicking),
   **S5 conditions** (Core 5), **S6 saves** (Fort/Reflex/Will), the **multiclass
-  seam** (class widened to a list, save v18), and **S9 backgrounds** (the
-  creation-origin starting package — skills/items/gold, save v19). The
-  per-sub-epic done-log + remaining S2/S4/S7/S8/S10/S11 candidates live in the
-  EPIC tracker `docs/themes/wot-mechanics-epic.md`; the arc is summarized below
-  after M27.
+  seam** (class widened to a list, save v18), **S9 backgrounds** (the
+  creation-origin starting package — skills/items/gold, save v19), and **S4 feats**
+  (the player-choice feat selection engine — slots, the `feat`/`feats` verbs, all
+  six grant kinds, authored background feats, save v20). The per-sub-epic done-log
+  + remaining S2/S7/S8/S10/S11 candidates live in the EPIC tracker
+  `docs/themes/wot-mechanics-epic.md`; the arc is summarized below after M27.
 - **Specs ahead of code.** Behavior contracts written without
   implementation, still awaiting a milestone: `tag-observers`,
   `crafting-and-cooking`, and the trade trio
@@ -3514,12 +3515,29 @@ holds the detail and the open candidates.
       intact. Spec `backgrounds.md`. go-reviewer APPROVE; M1/M3/M4/L4 fixed
       in-pass, one MEDIUM deferred (`[[backgrounds-deferred-fixes]]` — wizard
       doesn't yet call `GetEligible`, the same accepted gap as `classOptions`).
+- [x] **S4 — Feats (the player-choice perk engine).** The full feat selection
+      engine over 8 per-slice commits, each go-reviewed: `internal/feat` (registry
+      + prereq evaluator + grant/bonus aggregator), banked feat-credit slots
+      (1 at creation + 1 per 3 character levels, reusing the trains-crediter
+      pattern), the `feat <name> [target]` / `feats` verbs, all **six grant kinds**
+      — save_bonus (derived saves), max_hp (via `srckey.Feat` → the hp_max →
+      vitals pipeline, no compounding), hit_bonus + crit_threat (per weapon
+      category, folded into `connActor.Stats()` lock-free), skill_bonus (at the
+      check site), and ability (teaches an ability, idempotently) — plus authored
+      background/class feat grants (closing S9's deferred item). **Player save
+      v20** (append-only; `feat_credits` + `known_feats`). Content: the v1
+      static-bonus family (Great Fortitude / Iron Will / Lightning Reflexes /
+      Toughness / Weapon Focus / Improved Critical / Skill Emphasis / Power
+      Attack) in `tapestry-core`. Spec/scope `proposals/wot-feats.md`. Every
+      phase live-verified; the action-economy/ranged/armor/channeling/reputation/
+      lost-ability feats are deferred to their owning sub-epics. Open polish:
+      creation-wizard feat-pick step, the Power Attack ability's combat effect,
+      choose-a-feat-from-a-pool for backgrounds.
 
 **Open / next candidates:** S2 The One Power (the marquee arc; consumes the
-Mana-pool substrate), S4 feats/traits (the substrate S9 background-feats hang
-off), S7 survival v2, S8 reputation, S10 travel/planes, S11 Shadowspawn, plus
-the separate ranged (G) / armor (E) S1 follow-ons. See `BACKLOG.md` §2 + the
-EPIC doc for sequencing.
+Mana-pool substrate), S7 survival v2, S8 reputation, S10 travel/planes,
+S11 Shadowspawn, plus the separate ranged (G) / armor (E) S1 follow-ons, and the
+S4 polish items above. See `BACKLOG.md` §2 + the EPIC doc for sequencing.
 
 ---
 

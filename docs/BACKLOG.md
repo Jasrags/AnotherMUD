@@ -127,14 +127,16 @@ old five-theme partition left uncovered.
   **SHIPPED 2026-06-10 → 06-11:** S1 weapon-identity (A+B+C, `weapon-identity.md`),
   S3 skills (`skills.md` — use-based proficiency + skill-check primitive + lockpicking),
   S5 conditions (`conditions.md` — Core 5), S6 saves (`saves.md` — Fort/Reflex/Will),
-  the **multiclass seam** (class `string → []string`, save v18), and **S9 backgrounds**
+  the **multiclass seam** (class `string → []string`, save v18), **S9 backgrounds**
   (the creation-origin starting package — skills/items/gold, save v19, `backgrounds.md`;
-  a core `Commoner` + 4 starter-world demo backgrounds). See ROADMAP "WoT Mechanics
-  EPIC" + the EPIC doc's status table. **Next candidates:** S2 The One Power (marquee);
-  **S4 feats/traits — SCOPED 2026-06-11, ready to build** (`proposals/wot-feats.md`: full
-  selection engine + static-bonus feat family only; closes S9's deferred background-feat,
-  hosts S2 channeling feats later); S7 survival v2, S8 reputation, or the separate ranged
-  (G) / armor (E) S1 follow-ons.
+  a core `Commoner` + 4 starter-world demo backgrounds), and **S4 feats** (the
+  player-choice feat selection engine — slots + `feat`/`feats` verbs + all six grant
+  kinds + authored background feats, save v20, `proposals/wot-feats.md`; v1 static-bonus
+  feat family). See ROADMAP "WoT Mechanics EPIC" + the EPIC doc's status table.
+  **Next candidates:** S2 The One Power (the marquee arc; consumes the Mana-pool §2
+  substrate + the S4 slot engine for channeling feats); S7 survival v2; S8 reputation;
+  the separate ranged (G) / armor (E) S1 follow-ons; and S4 polish (creation-wizard
+  feat-pick step, Power Attack's combat effect, choose-a-feat-from-a-pool).
 - **Combat & Equipment Depth (WoT weapon/armor system)** — *(EPIC sub-epic S1 — see WoT
   Mechanics above and [`docs/themes/wot-mechanics-epic.md`](themes/wot-mechanics-epic.md))*
   **✅ A+B+C (`M-Weapon-Identity`) SHIPPED 2026-06-10** (`weapon-identity.md`); what
