@@ -67,19 +67,20 @@ type Manifest struct {
 // ContentPaths enumerates per-category file globs (spec §2.2 "content"
 // block). Paths are relative to the pack directory.
 type ContentPaths struct {
-	Areas     []string `yaml:"areas,omitempty"`
-	Rooms     []string `yaml:"rooms,omitempty"`
-	Items     []string `yaml:"items,omitempty"`
-	Slots     []string `yaml:"slots,omitempty"`
-	Mobs      []string `yaml:"mobs,omitempty"`
-	Tracks    []string `yaml:"tracks,omitempty"`
-	Races     []string `yaml:"races,omitempty"`
-	Classes   []string `yaml:"classes,omitempty"`
-	Abilities []string `yaml:"abilities,omitempty"`
-	Theme     []string `yaml:"theme,omitempty"`
-	Help      []string `yaml:"help,omitempty"`
-	Quests    []string `yaml:"quests,omitempty"`
-	Effects   []string `yaml:"effects,omitempty"`
+	Areas       []string `yaml:"areas,omitempty"`
+	Rooms       []string `yaml:"rooms,omitempty"`
+	Items       []string `yaml:"items,omitempty"`
+	Slots       []string `yaml:"slots,omitempty"`
+	Mobs        []string `yaml:"mobs,omitempty"`
+	Tracks      []string `yaml:"tracks,omitempty"`
+	Races       []string `yaml:"races,omitempty"`
+	Classes     []string `yaml:"classes,omitempty"`
+	Backgrounds []string `yaml:"backgrounds,omitempty"`
+	Abilities   []string `yaml:"abilities,omitempty"`
+	Theme       []string `yaml:"theme,omitempty"`
+	Help        []string `yaml:"help,omitempty"`
+	Quests      []string `yaml:"quests,omitempty"`
+	Effects     []string `yaml:"effects,omitempty"`
 	// Rarity / Essence are the M20 item-decoration vocabularies.
 	// Loaded into Registries.Rarity / .Essence; an item's reserved
 	// rarity/essence property references a key these define.

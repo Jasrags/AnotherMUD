@@ -279,6 +279,7 @@ load time:
 | Ability | [abilities-and-effects](abilities-and-effects.md) §2 |
 | Effect template | [abilities-and-effects](abilities-and-effects.md); applied by consumables [economy-survival](economy-survival.md) §6 |
 | Race, class | [progression](progression.md) §3, §4 |
+| Background | [backgrounds](backgrounds.md) §2 |
 | Track | [progression](progression.md) §5 |
 | Faction | [faction](faction.md) §2 *(spec; build pending)* |
 | Biome | [biomes](biomes.md) §2 *(spec; build pending)* |

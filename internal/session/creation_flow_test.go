@@ -40,7 +40,7 @@ func (f *wizFakeIO) SetEcho(context.Context, bool) {}
 
 func TestNewCreationFlow_AssemblesRaceAndClass(t *testing.T) {
 	rr, cr := twoRaceOneClass(t)
-	flow := NewCreationFlow(rr, cr)
+	flow := NewCreationFlow(rr, cr, nil)
 	if flow == nil {
 		t.Fatal("flow should not be nil with races+classes")
 	}
@@ -66,7 +66,7 @@ func TestNewCreationFlow_AssemblesRaceAndClass(t *testing.T) {
 
 func TestNewCreationFlow_ConfirmNoFailsValidation(t *testing.T) {
 	rr, cr := twoRaceOneClass(t)
-	flow := NewCreationFlow(rr, cr)
+	flow := NewCreationFlow(rr, cr, nil)
 	e := &creationEntity{}
 	in := wizard.NewInstance(flow, e, &wizFakeIO{}, nil)
 	in.Start(context.Background())
@@ -83,10 +83,10 @@ func TestNewCreationFlow_ConfirmNoFailsValidation(t *testing.T) {
 }
 
 func TestNewCreationFlow_NilWhenNoContent(t *testing.T) {
-	if NewCreationFlow(progression.NewRaceRegistry(), progression.NewClassRegistry()) != nil {
+	if NewCreationFlow(progression.NewRaceRegistry(), progression.NewClassRegistry(), progression.NewBackgroundRegistry()) != nil {
 		t.Error("empty registries should yield a nil flow (no choices)")
 	}
-	if NewCreationFlow(nil, nil) != nil {
+	if NewCreationFlow(nil, nil, nil) != nil {
 		t.Error("nil registries should yield a nil flow")
 	}
 }
@@ -124,7 +124,7 @@ func newPlayerLoaded(name string) *login.Loaded {
 
 func TestRunCreation_PopulatesRaceClassOnSave(t *testing.T) {
 	rr, cr := twoRaceOneClass(t)
-	cfg := Config{CreationFlow: NewCreationFlow(rr, cr)}
+	cfg := Config{CreationFlow: NewCreationFlow(rr, cr, nil)}
 	loaded := newPlayerLoaded("Bob")
 	conn := &scriptedConn{inputs: []string{"elf", "fighter", "yes"}}
 
@@ -149,7 +149,7 @@ func TestRunCreation_NilFlowIsNoop(t *testing.T) {
 
 func TestRunCreation_DisconnectReturnsError(t *testing.T) {
 	rr, cr := twoRaceOneClass(t)
-	cfg := Config{CreationFlow: NewCreationFlow(rr, cr)}
+	cfg := Config{CreationFlow: NewCreationFlow(rr, cr, nil)}
 	loaded := newPlayerLoaded("Bob")
 	// Disconnect after the race choice (script exhausts → io.EOF).
 	conn := &scriptedConn{inputs: []string{"elf"}}
@@ -166,7 +166,7 @@ func TestRunCreation_DisconnectReturnsError(t *testing.T) {
 // (yes) commits.
 func TestRunCreation_DeclineRestarts(t *testing.T) {
 	rr, cr := twoRaceOneClass(t)
-	cfg := Config{CreationFlow: NewCreationFlow(rr, cr)}
+	cfg := Config{CreationFlow: NewCreationFlow(rr, cr, nil)}
 	loaded := newPlayerLoaded("Bob")
 	conn := &scriptedConn{inputs: []string{
 		"human", "fighter", "no", // decline → restart
@@ -190,7 +190,7 @@ func TestRunCreation_DeclineRestarts(t *testing.T) {
 // hits the restart cap and aborts rather than looping forever.
 func TestRunCreation_RestartCapAbandons(t *testing.T) {
 	rr, cr := twoRaceOneClass(t)
-	cfg := Config{CreationFlow: NewCreationFlow(rr, cr)}
+	cfg := Config{CreationFlow: NewCreationFlow(rr, cr, nil)}
 	loaded := newPlayerLoaded("Bob")
 	// Decline forever: each pass is race, class, "no" → restart.
 	var script []string
@@ -209,7 +209,7 @@ func TestRunCreation_RestartCapAbandons(t *testing.T) {
 
 func TestRunCreation_HelpPassthroughDoesNotAdvance(t *testing.T) {
 	rr, cr := twoRaceOneClass(t)
-	cfg := Config{CreationFlow: NewCreationFlow(rr, cr)} // Help nil → "not available"
+	cfg := Config{CreationFlow: NewCreationFlow(rr, cr, nil)} // Help nil → "not available"
 	loaded := newPlayerLoaded("Bob")
 	// A help line at the race step must NOT consume the step: the
 	// following real "elf" selection still lands.

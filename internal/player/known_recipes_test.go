@@ -183,3 +183,48 @@ func TestSaveLoad_V18ClassListRoundTrips(t *testing.T) {
 		t.Errorf("Class round-trip = %v, want [fighter]", got.Class)
 	}
 }
+
+// --- backgrounds §5: v18 → v19 (background field) -------------------------
+
+func TestLoad_V18NoBackgroundMigratesToEmpty(t *testing.T) {
+	ctx := context.Background()
+	st, dir := newStore(t)
+	// A v18 save with a class list but no background field.
+	writePlayerYAML(t, dir, "noback",
+		"version: 18\nid: p-1\naccount_id: acct-1\nname: Noback\nlocation: tapestry-core:town-square\nclass:\n  - fighter\n")
+
+	got, err := st.Load(ctx, "noback")
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if got.Version != player.CurrentVersion {
+		t.Errorf("Version = %d, want %d", got.Version, player.CurrentVersion)
+	}
+	if got.Background != "" {
+		t.Errorf("Background = %q, want empty (v18 had no background)", got.Background)
+	}
+	// Class still migrates/round-trips alongside.
+	if len(got.Class) != 1 || got.Class[0] != "fighter" {
+		t.Errorf("Class = %v, want [fighter]", got.Class)
+	}
+}
+
+func TestSaveLoad_V19BackgroundRoundTrips(t *testing.T) {
+	ctx := context.Background()
+	st, _ := newStore(t)
+	in := &player.Save{
+		Version: player.CurrentVersion, ID: "p-2", AccountID: "acct-1",
+		Name: "Originful", Location: "tapestry-core:town-square",
+		Class: []string{"fighter"}, Background: "soldier",
+	}
+	if err := st.Save(ctx, in); err != nil {
+		t.Fatalf("Save: %v", err)
+	}
+	got, err := st.Load(ctx, "originful")
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if got.Background != "soldier" {
+		t.Errorf("Background round-trip = %q, want soldier", got.Background)
+	}
+}

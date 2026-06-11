@@ -29,14 +29,16 @@ import (
 // All fields MUST be non-nil. NewRegistries is the supported way to
 // construct one.
 type Registries struct {
-	World     *world.World
-	Items     *item.Templates
-	Slots     *slot.Registry
-	Mobs      *mob.Templates
-	Tracks    *progression.TrackRegistry
-	Races     *progression.RaceRegistry
-	Classes   *progression.ClassRegistry
-	Abilities *progression.AbilityRegistry
+	World   *world.World
+	Items   *item.Templates
+	Slots   *slot.Registry
+	Mobs    *mob.Templates
+	Tracks  *progression.TrackRegistry
+	Races   *progression.RaceRegistry
+	Classes *progression.ClassRegistry
+	// Backgrounds is the character-creation origin registry (backgrounds §2).
+	Backgrounds *progression.BackgroundRegistry
+	Abilities   *progression.AbilityRegistry
 	// Theme is the M10 UI theme registry. Packs register semantic
 	// tag → {fg,bg,html} entries; the composition root compiles it
 	// once after Load and binds a render.ColorRenderer to it.
@@ -131,6 +133,7 @@ func NewRegistries() *Registries {
 		Tracks:       progression.NewTrackRegistry(),
 		Races:        progression.NewRaceRegistry(),
 		Classes:      progression.NewClassRegistry(),
+		Backgrounds:  progression.NewBackgroundRegistry(),
 		Abilities:    progression.NewAbilityRegistry(),
 		Theme:        render.NewThemeRegistry(),
 		Help:         help.NewService(),

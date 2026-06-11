@@ -117,7 +117,7 @@ type pendingMobPlacement struct {
 // Filter, when non-empty, restricts discovery (spec §2.4). Pass nil to
 // load every active pack under root.
 func Load(ctx context.Context, root string, filter []string, dst *Registries, spawner Spawner, mobSpawner MobSpawner, scriptCompiler ScriptCompiler) error {
-	if dst == nil || dst.World == nil || dst.Items == nil || dst.Slots == nil || dst.Mobs == nil || dst.Tracks == nil || dst.Races == nil || dst.Classes == nil || dst.Abilities == nil || dst.Theme == nil || dst.Help == nil || dst.Quests == nil || dst.Weather == nil || dst.Scripts == nil || dst.Rarity == nil || dst.Essence == nil || dst.Loot == nil || dst.Channels == nil || dst.Emotes == nil {
+	if dst == nil || dst.World == nil || dst.Items == nil || dst.Slots == nil || dst.Mobs == nil || dst.Tracks == nil || dst.Races == nil || dst.Classes == nil || dst.Backgrounds == nil || dst.Abilities == nil || dst.Theme == nil || dst.Help == nil || dst.Quests == nil || dst.Weather == nil || dst.Scripts == nil || dst.Rarity == nil || dst.Essence == nil || dst.Loot == nil || dst.Channels == nil || dst.Emotes == nil {
 		return errors.New("pack.Load: dst has nil registry field; use pack.NewRegistries()")
 	}
 	logger := logging.From(ctx).With(slog.String("event", "pack.load"), slog.String("root", root))
@@ -587,6 +587,10 @@ func loadPackContent(ctx context.Context, p Discovered, dst *Registries, scriptC
 	if err != nil {
 		return nil, nil, err
 	}
+	backgroundPaths, err := resolveGlobs(p.Dir, p.Manifest.Content.Backgrounds)
+	if err != nil {
+		return nil, nil, err
+	}
 	abilityPaths, err := resolveGlobs(p.Dir, p.Manifest.Content.Abilities)
 	if err != nil {
 		return nil, nil, err
@@ -804,6 +808,19 @@ func loadPackContent(ctx context.Context, p Discovered, dst *Registries, scriptC
 		}
 		if err := dst.Classes.Register(c); err != nil {
 			return nil, nil, fmt.Errorf("%w (in %s)", err, cp)
+		}
+	}
+
+	// Backgrounds: id-keyed registry mirroring races/classes (backgrounds
+	// §2). Skill/item grants are content references resolved at creation
+	// (fail-soft), so the loader validates only id presence.
+	for _, bp := range backgroundPaths {
+		b, err := decodeBackground(bp, ns)
+		if err != nil {
+			return nil, nil, err
+		}
+		if err := dst.Backgrounds.Register(b); err != nil {
+			return nil, nil, fmt.Errorf("%w (in %s)", err, bp)
 		}
 	}
 
@@ -1132,6 +1149,7 @@ func loadPackContent(ctx context.Context, p Discovered, dst *Registries, scriptC
 		slog.Int("tracks", len(trackPaths)),
 		slog.Int("races", len(racePaths)),
 		slog.Int("classes", len(classPaths)),
+		slog.Int("backgrounds", len(backgroundPaths)),
 		slog.Int("abilities", len(abilityPaths)),
 		slog.Int("theme", len(themePaths)),
 		slog.Int("help", helpTopics),
@@ -1747,6 +1765,60 @@ func decodeRace(path, ns string) (*progression.Race, error) {
 		StatCaps:          caps,
 		CastCostModifier:  f.CastCostModifier,
 		RacialFlags:       flags,
+		Pack:              ns,
+		Priority:          f.Priority,
+	}, nil
+}
+
+// decodeBackground reads a BackgroundFile and builds a progression.Background
+// (backgrounds §2). Mirrors decodeRace: validates the id, normalizes the skill
+// grants (an empty ability id is a load error; a non-positive proficiency is
+// left as-is and defaulted to the baseline at grant time). Skill/item id
+// existence is NOT checked here — those are resolved fail-soft at creation.
+func decodeBackground(path, ns string) (*progression.Background, error) {
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		return nil, fmt.Errorf("reading background %s: %w", path, err)
+	}
+	var f BackgroundFile
+	if err := yaml.Unmarshal(raw, &f); err != nil {
+		return nil, fmt.Errorf("%w: %s: %v", ErrInvalidContent, path, err)
+	}
+	if strings.TrimSpace(f.ID) == "" {
+		return nil, fmt.Errorf("%w: %s: missing 'id'", ErrInvalidContent, path)
+	}
+	var skills []progression.BackgroundSkill
+	if len(f.Skills) > 0 {
+		skills = make([]progression.BackgroundSkill, 0, len(f.Skills))
+		for i, s := range f.Skills {
+			if strings.TrimSpace(s.Ability) == "" {
+				return nil, fmt.Errorf("%w: %s: skills[%d] missing 'ability'", ErrInvalidContent, path, i)
+			}
+			skills = append(skills, progression.BackgroundSkill{
+				AbilityID:   strings.TrimSpace(s.Ability),
+				Proficiency: s.Proficiency,
+			})
+		}
+	}
+	// Item grants are namespace-qualified at decode (matching recipes/loot,
+	// loader.go decodeRecipe): a bare id resolves against this pack's ns, a
+	// qualified id crosses packs. The granter looks templates up by their
+	// qualified key, so storing bare ids here would never resolve at grant
+	// time (backgrounds §4). An empty entry is a load error.
+	items, err := qualifyIDList(f.Items, ns, path, "items")
+	if err != nil {
+		return nil, err
+	}
+	return &progression.Background{
+		ID:                f.ID,
+		DisplayName:       strings.TrimSpace(f.Name),
+		Tagline:           f.Tagline,
+		Description:       f.Description,
+		Skills:            skills,
+		Items:             items,
+		Gold:              f.Gold,
+		AllowedCategories: append([]string(nil), f.AllowedCategories...),
+		AllowedGenders:    append([]string(nil), f.AllowedGenders...),
 		Pack:              ns,
 		Priority:          f.Priority,
 	}, nil

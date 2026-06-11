@@ -699,6 +699,31 @@ type RaceFile struct {
 	Priority          int            `yaml:"priority,omitempty"`
 }
 
+// BackgroundFile is the YAML shape for a character-creation background
+// (backgrounds §2). A background grants a starting package — skills, items,
+// gold — applied once at creation. Item ids + skill ability ids are content
+// references resolved (fail-soft) at grant time, not at load.
+type BackgroundFile struct {
+	ID          string `yaml:"id"`
+	Name        string `yaml:"name,omitempty"`
+	Tagline     string `yaml:"tagline,omitempty"`
+	Description string `yaml:"description,omitempty"`
+	// Skills: ability id → starting proficiency (default the baseline trained
+	// value when omitted/<=0).
+	Skills            []BackgroundSkillFile `yaml:"skills,omitempty"`
+	Items             []string              `yaml:"items,omitempty"`
+	Gold              int                   `yaml:"gold,omitempty"`
+	AllowedCategories []string              `yaml:"allowed_categories,omitempty"`
+	AllowedGenders    []string              `yaml:"allowed_genders,omitempty"`
+	Priority          int                   `yaml:"priority,omitempty"`
+}
+
+// BackgroundSkillFile is one skill grant in a BackgroundFile (backgrounds §2).
+type BackgroundSkillFile struct {
+	Ability     string `yaml:"ability"`
+	Proficiency int    `yaml:"proficiency,omitempty"`
+}
+
 // WeatherZoneFile is the YAML shape for one weather-zone definition
 // (spec world-rooms-movement §6; see internal/weather).
 //

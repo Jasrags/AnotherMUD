@@ -1,0 +1,16 @@
+# See soldier.yaml for the background contract (docs/specs/backgrounds.md §2).
+id: wanderer
+name: Wanderer
+tagline: The road taught you to feed yourself.
+description: |
+  Home was wherever night found you. Years on the road made you a passable
+  cook over a poor fire — you set out with a ration, a full skin, and a
+  torch against the dark.
+skills:
+  - ability: cooking
+    proficiency: 10
+items:
+  - trail-ration
+  - waterskin
+  - pine-torch
+gold: 10

@@ -2220,3 +2220,76 @@ keywords: [maerys]
 		t.Errorf("mob Description = %q, want the authored prose", mb.Description)
 	}
 }
+
+func TestLoadBackgrounds_HappyPath(t *testing.T) {
+	root := t.TempDir()
+	pack := filepath.Join(root, "core")
+	writeFile(t, filepath.Join(pack, "pack.yaml"), `
+name: tapestry-core
+content:
+  backgrounds: [backgrounds/*.yaml]
+`)
+	writeFile(t, filepath.Join(pack, "backgrounds/soldier.yaml"), `
+id: soldier
+name: Soldier
+tagline: Steel and discipline.
+skills:
+  - ability: Open-Lock
+    proficiency: 10
+items: [Short-Sword]
+gold: 25
+allowed_categories: [Humanoid]
+`)
+	regs := NewRegistries()
+	if err := Load(context.Background(), root, nil, regs, nil, nil, nil); err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	b, ok := regs.Backgrounds.Get("soldier")
+	if !ok {
+		t.Fatal("background soldier not registered")
+	}
+	if b.DisplayName != "Soldier" || b.Gold != 25 {
+		t.Errorf("decoded %+v", b)
+	}
+	if len(b.Skills) != 1 || b.Skills[0].AbilityID != "open-lock" || b.Skills[0].Proficiency != 10 {
+		t.Errorf("Skills = %+v, want [{open-lock 10}] (lowercased)", b.Skills)
+	}
+	if len(b.Items) != 1 || b.Items[0] != "tapestry-core:short-sword" {
+		t.Errorf("Items = %v, want [tapestry-core:short-sword] (qualified + lowercased)", b.Items)
+	}
+	if len(b.AllowedCategories) != 1 || b.AllowedCategories[0] != "humanoid" {
+		t.Errorf("AllowedCategories = %v, want [humanoid]", b.AllowedCategories)
+	}
+}
+
+func TestLoadBackgrounds_RejectsMissingID(t *testing.T) {
+	root := t.TempDir()
+	pack := filepath.Join(root, "core")
+	writeFile(t, filepath.Join(pack, "pack.yaml"), `
+name: tapestry-core
+content:
+  backgrounds: [backgrounds/*.yaml]
+`)
+	writeFile(t, filepath.Join(pack, "backgrounds/bad.yaml"), "name: No ID\n")
+	if err := Load(context.Background(), root, nil, NewRegistries(), nil, nil, nil); !errors.Is(err, ErrInvalidContent) {
+		t.Errorf("want ErrInvalidContent for missing id, got %v", err)
+	}
+}
+
+func TestLoadBackgrounds_RejectsSkillWithoutAbility(t *testing.T) {
+	root := t.TempDir()
+	pack := filepath.Join(root, "core")
+	writeFile(t, filepath.Join(pack, "pack.yaml"), `
+name: tapestry-core
+content:
+  backgrounds: [backgrounds/*.yaml]
+`)
+	writeFile(t, filepath.Join(pack, "backgrounds/bad.yaml"), `
+id: bad
+skills:
+  - proficiency: 5
+`)
+	if err := Load(context.Background(), root, nil, NewRegistries(), nil, nil, nil); !errors.Is(err, ErrInvalidContent) {
+		t.Errorf("want ErrInvalidContent for skill missing ability, got %v", err)
+	}
+}

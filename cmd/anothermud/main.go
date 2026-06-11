@@ -1050,6 +1050,10 @@ func run() error {
 		}
 	})
 
+	// backgrounds §4: the one-time starting-package granter (skills/items/gold).
+	// Fired only on character.created, so it never re-applies on login.
+	backgroundGranter := session.NewBackgroundGranter(mgr, proficiencyMgr, registries.Items, entityStore, currencySvc)
+
 	bus.Subscribe(eventbus.EventCharacterCreated, func(ctx context.Context, ev eventbus.Event) {
 		e, ok := ev.(eventbus.CharacterCreated)
 		if !ok {
@@ -1068,6 +1072,12 @@ func run() error {
 			// with no track gate. Pass empty trackName so Apply
 			// short-circuits the gate check.
 			classPath.Apply(ctx, e.EntityID, classID, "", 1)
+		}
+		// backgrounds §4: grant the chosen background's starting package once.
+		if bgID := actor.BackgroundID(); bgID != "" {
+			if bg, ok := registries.Backgrounds.Get(bgID); ok {
+				backgroundGranter.Grant(ctx, e.EntityID, bg)
+			}
 		}
 	})
 
@@ -2062,7 +2072,7 @@ func run() error {
 		// M12.3: interactive character-creation wizard built from the
 		// race/class registries. Nil when neither is populated → the §2
 		// "no flow → immediate commit" path.
-		CreationFlow: session.NewCreationFlow(registries.Races, registries.Classes),
+		CreationFlow: session.NewCreationFlow(registries.Races, registries.Classes, registries.Backgrounds),
 		Clock:        clk,
 		Flood:        session.DefaultFloodConfig(),
 		// Raising ChainCap multiplies a client's effective command throughput:

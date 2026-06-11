@@ -1,0 +1,24 @@
+# A character-creation background (docs/specs/backgrounds.md §2): the third
+# creation axis after race + class, granting a one-time starting package of
+# skill proficiencies, items, and gold. These demo backgrounds live in the
+# world pack because their item grants are world content (the skills are
+# tapestry-core abilities, the items are starter-world templates) — keeping
+# the core→world dependency direction intact.
+id: soldier
+name: Soldier
+tagline: Steel, drill, and a soldier's pay.
+description: |
+  You served in a lord's levy or a city watch — long marches, longer
+  watches, and enough sparring to keep your guard up. You leave with a
+  blade, a cap, and the discipline to use them.
+# Skills are tapestry-core ability ids (bare, global) taught at the given
+# proficiency via the same Teach seam class features use (backgrounds §4).
+skills:
+  - ability: parry
+    proficiency: 10
+# Items are starter-world template ids — bare ids qualify to this pack's
+# namespace at load (backgrounds §4), one instance per entry.
+items:
+  - short-sword
+  - leather-cap
+gold: 25

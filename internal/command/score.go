@@ -22,6 +22,7 @@ import (
 type scoreSubject interface {
 	RaceID() string
 	ClassID() string
+	BackgroundID() string
 	Alignment() int
 	AlignmentTag() string
 	Gold() int
@@ -44,6 +45,7 @@ func ScoreHandler(ctx context.Context, c *Context) error {
 	if ss, ok := c.Actor.(scoreSubject); ok {
 		d.Race = titleCase(ss.RaceID())
 		d.Class = titleCase(ss.ClassID())
+		d.Background = titleCase(ss.BackgroundID())
 		d.HasResources = true
 		d.Mana, d.MV = ss.Mana(), ss.Movement()
 		d.HasStats = true
@@ -164,6 +166,7 @@ type equipRow struct {
 type scoreData struct {
 	Name        string
 	Race, Class string
+	Background  string
 
 	HasVitals    bool
 	HP, MaxHP    int
@@ -220,6 +223,9 @@ func renderScore(d scoreData) string {
 	charCol = append(charCol, scHi(d.Name))
 	if identity := strings.TrimSpace(d.Race + " " + d.Class); identity != "" {
 		charCol = append(charCol, scHi(identity))
+	}
+	if d.Background != "" {
+		charCol = append(charCol, scKV("Background", scHi(d.Background), 11))
 	}
 	if d.HasLevel {
 		// ASCII separator (not "·") — panel width math is byte-based, so a

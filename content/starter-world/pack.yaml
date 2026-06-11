@@ -13,6 +13,8 @@ description: |
 dependencies:
   tapestry-core: "*"
 content:
+  backgrounds:
+    - backgrounds/*.yaml
   areas:
     - areas/*.yaml
   rooms:

@@ -50,9 +50,10 @@ var ErrCreationAbandoned = errors.New("session: character creation abandoned aft
 // chosen ids onto the baseline save after validation. rejected is set by
 // a confirm "no" so OnComplete can trigger a restart (§7).
 type creationEntity struct {
-	raceID   string
-	classID  string
-	rejected bool
+	raceID       string
+	classID      string
+	backgroundID string
+	rejected     bool
 }
 
 // NewCreationFlow builds the engine-default creation flow from the race
@@ -64,11 +65,12 @@ type creationEntity struct {
 // fall back to the configured defaults. Returns nil when there is
 // nothing to choose (no races AND no classes) so the caller takes the
 // §2 "no flow → immediate commit" path.
-func NewCreationFlow(races *progression.RaceRegistry, classes *progression.ClassRegistry) *wizard.Flow {
+func NewCreationFlow(races *progression.RaceRegistry, classes *progression.ClassRegistry, backgrounds *progression.BackgroundRegistry) *wizard.Flow {
 	var steps []wizard.Step
 	raceOpts := raceOptions(races)
 	classOpts := classOptions(classes)
-	if len(raceOpts) == 0 && len(classOpts) == 0 {
+	bgOpts := backgroundOptions(backgrounds)
+	if len(raceOpts) == 0 && len(classOpts) == 0 && len(bgOpts) == 0 {
 		return nil
 	}
 
@@ -90,6 +92,14 @@ func NewCreationFlow(races *progression.RaceRegistry, classes *progression.Class
 			Prompt:   "Choose your class:",
 			Options:  classOpts,
 			OnSelect: func(e wizard.Entity, v any) { e.(*creationEntity).classID = v.(string) },
+		})
+	}
+	if len(bgOpts) > 0 {
+		steps = append(steps, &wizard.ChoiceStep{
+			ID:       "background",
+			Prompt:   "Choose your background:",
+			Options:  bgOpts,
+			OnSelect: func(e wizard.Entity, v any) { e.(*creationEntity).backgroundID = v.(string) },
 		})
 	}
 	steps = append(steps, &wizard.ConfirmStep{
@@ -146,6 +156,28 @@ func classOptions(classes *progression.ClassRegistry) []wizard.Option {
 			Tag:         c.Tagline,
 			Description: c.Description,
 			Value:       c.ID,
+		})
+	}
+	return opts
+}
+
+// backgroundOptions builds choice options from the background registry,
+// sorted by id (backgrounds §3). Eligibility (AllowedCategories/Genders) is
+// not enforced in the static wizard — like class options, every background is
+// offered; the gates exist for a future dynamic flow.
+func backgroundOptions(backgrounds *progression.BackgroundRegistry) []wizard.Option {
+	if backgrounds == nil {
+		return nil
+	}
+	all := backgrounds.All()
+	sort.Slice(all, func(i, j int) bool { return all[i].ID < all[j].ID })
+	opts := make([]wizard.Option, 0, len(all))
+	for _, b := range all {
+		opts = append(opts, wizard.Option{
+			Label:       displayOr(b.DisplayName, b.ID),
+			Tag:         b.Tagline,
+			Description: b.Description,
+			Value:       b.ID,
 		})
 	}
 	return opts
@@ -270,6 +302,11 @@ func runCreation(ctx context.Context, c conn.Connection, cfg Config, loaded *log
 			// (the save's class field is a list since v18 — wot-character-model
 			// D1). A second class-track later is additive content.
 			loaded.Player.Class = []string{pending.classID}
+		}
+		if pending.backgroundID != "" {
+			// The background label (backgrounds §5). Its starting package is
+			// granted at character.created (skills/items/gold), not here.
+			loaded.Player.Background = pending.backgroundID
 		}
 		return nil
 	}

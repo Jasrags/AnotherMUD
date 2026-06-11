@@ -17,6 +17,7 @@ type sheetActor struct {
 
 func (a *sheetActor) RaceID() string       { return "human" }
 func (a *sheetActor) ClassID() string      { return "fighter" }
+func (a *sheetActor) BackgroundID() string { return "soldier" }
 func (a *sheetActor) Alignment() int       { return 0 }
 func (a *sheetActor) AlignmentTag() string { return "alignment_neutral" } // raw tag id; sheet strips the prefix
 func (a *sheetActor) Gold() int            { return 1000 }
@@ -49,6 +50,7 @@ func TestScore_Handler(t *testing.T) {
 		"<gold>1,000</gold>",
 		"Full (84/100)",
 		"Fort +4  Ref +1  Will +1", // saving throws row
+		"Soldier",                  // background row
 	} {
 		if !strings.Contains(out, want) {
 			t.Errorf("score output missing %q\n--- got ---\n%s", want, out)

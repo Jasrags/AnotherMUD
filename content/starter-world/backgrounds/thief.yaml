@@ -1,0 +1,14 @@
+# See soldier.yaml for the background contract (docs/specs/backgrounds.md §2).
+id: thief
+name: Thief
+tagline: Light fingers and a lighter conscience.
+description: |
+  Locks were never an obstacle, just a delay. You come to the trade with a
+  worn dagger, the knack for a tumbler, and a purse fatter than you'd admit
+  to a magistrate.
+skills:
+  - ability: open-lock
+    proficiency: 15
+items:
+  - rusty-dagger
+gold: 40

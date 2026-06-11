@@ -126,7 +126,7 @@ import (
 // means "knows no recipes beyond what a discipline grants at runtime";
 // the migration injects nothing. A known id whose recipe was removed from
 // content loads cleanly and is ignored at restore (§9), never an error.
-const CurrentVersion = 18
+const CurrentVersion = 19
 
 // Sentinel errors callers may check via errors.Is.
 var (
@@ -172,6 +172,12 @@ type Save struct {
 	// migrateV17toV18; the primary class (first element) is what single-value
 	// readers (quest gate, score, GMCP) surface.
 	Class           []string                        `yaml:"class,omitempty"`
+	// Background is the character-creation origin id (v19+ — backgrounds §5).
+	// One per character (a scalar, unlike the class list). Empty/absent =
+	// background-less. The granted starting package (skills, items, gold)
+	// persists through the proficiency/inventory/gold surfaces; this field is
+	// the label for display + future reference.
+	Background      string                          `yaml:"background,omitempty"`
 	TrainsAvailable int                             `yaml:"trains_available,omitempty"`
 	Alignment       int                             `yaml:"alignment,omitempty"`
 	// Gold is the §2.1 integer currency balance (v12+). Zero serializes
@@ -488,6 +494,7 @@ var playerMigrations = map[int]func(map[string]any) (map[string]any, error){
 	15: migrateV15toV16,
 	16: migrateV16toV17,
 	17: migrateV17toV18,
+	18: migrateV18toV19,
 }
 
 // migrateV1toV2 adds the empty inventory/equipment blocks introduced
@@ -753,6 +760,15 @@ func migrateV17toV18(in map[string]any) (map[string]any, error) {
 		// malformed class field).
 		delete(in, "class")
 	}
+	return in, nil
+}
+
+// migrateV18toV19 introduces the `background` field (backgrounds §5). A v18
+// save has no background key; its absence decodes to "" — a background-less
+// character — which is the correct default, so the migration is a no-op (the
+// granted package, if any, already lives in the proficiency/inventory/gold
+// surfaces). Pre-existing characters simply have no recorded origin label.
+func migrateV18toV19(in map[string]any) (map[string]any, error) {
 	return in, nil
 }
 

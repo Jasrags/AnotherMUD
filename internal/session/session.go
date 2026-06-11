@@ -600,6 +600,7 @@ func run(ctx context.Context, c conn.Connection, cfg Config) error {
 	// id (a.classID="") leaves the save's class field untouched so
 	// re-adding the class later reattaches the character.
 	applyClass(a, &cfg, loaded.Player.Class)
+	applyBackground(a, loaded.Player.Background)
 	a.mu.Lock()
 	a.trainsAvailable = loaded.Player.TrainsAvailable
 	// Re-sync the save's class list if applyClass dropped a removed-content
@@ -1751,6 +1752,12 @@ type connActor struct {
 	// class is what single-value readers (ClassID/Class, score, GMCP, quest
 	// gate) surface; composing readers (Saves, IsWeaponProficient) walk all.
 	classIDs []string
+
+	// backgroundID is the actor's creation origin id (backgrounds §5). Set at
+	// login from the save; empty = background-less. The starting package the
+	// background granted (skills/items/gold) lives in the proficiency/
+	// inventory/gold state, not here — this is the label for display.
+	backgroundID string
 
 	// trainsAvailable is the actor's training pool (spec §4.6
 	// step 4 + §7.1). M8.4 credits via StatGrowthSubscriber on
@@ -3333,6 +3340,22 @@ func applyClass(a *connActor, cfg *Config, saved []string) {
 			a.class = cls // primary class — generated player description (look).
 		}
 	}
+}
+
+// applyBackground records the actor's background id from save (backgrounds
+// §5). Display-only — the granted package already persists in the proficiency/
+// inventory/gold state. Lowercased for case-insensitive registry lookups; an
+// empty id leaves the actor background-less.
+func applyBackground(a *connActor, saved string) {
+	a.backgroundID = strings.ToLower(strings.TrimSpace(saved))
+}
+
+// BackgroundID returns the actor's creation origin id, or "" when
+// background-less (backgrounds §5). Set once at construction.
+func (a *connActor) BackgroundID() string {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	return a.backgroundID
 }
 
 // MarkContentsDirty re-runs syncInventoryToSaveLocked so the save

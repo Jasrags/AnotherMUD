@@ -1,0 +1,16 @@
+# See soldier.yaml for the background contract (docs/specs/backgrounds.md §2).
+id: smith
+name: Smith
+tagline: Hammer, ore, and a trade in your hands.
+description: |
+  You learned the forge before you learned to read — the heft of a hammer,
+  the colour of hot iron, the patience of the quench. You bring your tools
+  and a little raw stock to start the fire.
+skills:
+  - ability: smithing
+    proficiency: 10
+items:
+  - iron-hammer
+  - iron-ore
+  - rough-stone
+gold: 15
