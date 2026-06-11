@@ -218,6 +218,11 @@ type Config struct {
 	// is never reached.
 	Effects *progression.EffectManager
 
+	// EffectTemplates resolves an effect template by id for the afflict
+	// condition verb (conditions §5). *effect.Registry satisfies the
+	// command.EffectTemplateSource interface. nil disables afflict.
+	EffectTemplates command.EffectTemplateSource
+
 	// ActionQueue is the M9.3 per-entity action queue (spec
 	// abilities-and-effects §4.1). The M9.4 ability phase pops from
 	// it each pulse; logout calls Drop to release queued entries.

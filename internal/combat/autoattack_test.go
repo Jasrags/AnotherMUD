@@ -60,9 +60,11 @@ type autoAttackRig struct {
 	locator  MapLocator
 	rooms    MapRoomLocator
 	roller   *scriptedRoller
-	passives PassiveEvaluator     // nil ⇒ pre-M9.5 behavior
-	critMult int                  // 0 ⇒ NewAutoAttack default (DefaultCritMultiplier)
-	massive  *MassiveDamageConfig // nil ⇒ saves §4 rule disabled
+	passives PassiveEvaluator       // nil ⇒ pre-M9.5 behavior
+	critMult int                    // 0 ⇒ NewAutoAttack default (DefaultCritMultiplier)
+	massive  *MassiveDamageConfig   // nil ⇒ saves §4 rule disabled
+	incap    func(CombatantID) bool // nil ⇒ never incapacitated (conditions §3)
+	defAdj   func(CombatantID) int  // nil ⇒ no defender vulnerability (conditions §3)
 }
 
 // fakePassives is a deterministic PassiveEvaluator for the §4.2/§4.3
@@ -99,13 +101,15 @@ func newAutoAttackRig(t *testing.T, atkStats, defStats Stats, atkHP, defHP int, 
 
 func (r *autoAttackRig) phase() PhaseFunc {
 	return NewAutoAttack(AutoAttackConfig{
-		Locator:        r.locator,
-		RoomLocator:    r.rooms,
-		Sink:           r.sink,
-		Roller:         r.roller,
-		Passives:       r.passives,
-		CritMultiplier: r.critMult,
-		MassiveDamage:  r.massive,
+		Locator:           r.locator,
+		RoomLocator:       r.rooms,
+		Sink:              r.sink,
+		Roller:            r.roller,
+		Passives:          r.passives,
+		CritMultiplier:    r.critMult,
+		MassiveDamage:     r.massive,
+		Incapacitated:     r.incap,
+		DefenderHitAdjust: r.defAdj,
 	})
 }
 
@@ -733,4 +737,74 @@ func TestNewAutoAttack_PanicsOnMassiveWithoutFortBonus(t *testing.T) {
 		Roller:        &scriptedRoller{t: t},
 		MassiveDamage: &MassiveDamageConfig{Threshold: 50, DC: 15}, // FortBonus nil
 	})
+}
+
+// --- conditions §3: combat hooks (incapacitation + defender vulnerability) ---
+
+func TestConditions_IncapacitatedAttackerTakesNoSwingsButStaysEngaged(t *testing.T) {
+	// A roll that would clearly hit (face 20) is programmed, but the attacker
+	// is incapacitated — so it must never reach the roller. No hit, no miss.
+	rig := newAutoAttackRig(t, Stats{HitMod: 0, STR: 10}, Stats{AC: 10}, 20, 20, nil)
+	rig.incap = func(id CombatantID) bool { return id == rig.attacker.id }
+	rig.phase()(context.Background(), rig.attacker.id, rig.mgr, 0)
+
+	if h, m := len(rig.sink.snapshotHits()), len(rig.sink.snapshotMisses()); h != 0 || m != 0 {
+		t.Fatalf("incapacitated attacker swung: hits=%d misses=%d", h, m)
+	}
+	// Still engaged — incapacitation skips the swing, it does not disengage.
+	if _, ok := rig.mgr.PrimaryTargetOf(rig.attacker.id); !ok {
+		t.Error("incapacitated attacker was disengaged; should stay in combat")
+	}
+	if len(rig.sink.snapshotDeaths()) != 0 {
+		t.Errorf("unexpected death events: %d", len(rig.sink.snapshotDeaths()))
+	}
+}
+
+func TestConditions_DefenderVulnerabilityTurnsAMissIntoAHit(t *testing.T) {
+	// AC 15, attacker hitMod 0, raw roll 14 → 14 < 15 would MISS. A +4
+	// defender-vulnerability delta (prone) lifts it to 18 ≥ 15 → HIT. Proves
+	// the delta is keyed on the TARGET and summed into the roll.
+	atk := Stats{HitMod: 0, STR: 10}
+	def := Stats{AC: 15}
+
+	// Control: without the delta, the same roll misses.
+	ctrl := newAutoAttackRig(t, atk, def, 20, 20, []int{13}) // face 14, no damage roll consumed on a miss
+	ctrl.phase()(context.Background(), ctrl.attacker.id, ctrl.mgr, 0)
+	if got := len(ctrl.sink.snapshotHits()); got != 0 {
+		t.Fatalf("control: expected a miss without vulnerability, got %d hits", got)
+	}
+	if got := len(ctrl.sink.snapshotMisses()); got != 1 {
+		t.Fatalf("control: expected 1 miss, got %d", got)
+	}
+
+	// With the +4 vulnerability delta keyed on the target, the same roll hits.
+	rig := newAutoAttackRig(t, atk, def, 20, 20, []int{13, 0}) // face 14, then 1d3 damage
+	rig.defAdj = func(id CombatantID) int {
+		if id != rig.target.id {
+			t.Errorf("DefenderHitAdjust keyed on %s, want target %s", id, rig.target.id)
+		}
+		return 4
+	}
+	rig.phase()(context.Background(), rig.attacker.id, rig.mgr, 0)
+	if got := len(rig.sink.snapshotHits()); got != 1 {
+		t.Fatalf("expected the vulnerability delta to land the hit, got %d hits", got)
+	}
+}
+
+func TestConditions_DefenderVulnerabilityComposesWithAttackerHitMod(t *testing.T) {
+	// Attacker HitModAdjust −2 (e.g. blinded) and defender vulnerability +3
+	// sum with the base roll: face 14, 14 + (−2) + 3 = 15 ≥ AC 15 → hit.
+	atk := Stats{HitMod: 0, STR: 10}
+	def := Stats{AC: 15}
+	rig := newAutoAttackRig(t, atk, def, 20, 20, []int{13, 0})
+	p := NewAutoAttack(AutoAttackConfig{
+		Locator: rig.locator, RoomLocator: rig.rooms, Sink: rig.sink, Roller: rig.roller,
+		HitModAdjust:      func(CombatantID) int { return -2 },
+		DefenderHitAdjust: func(CombatantID) int { return 3 },
+	})
+	p(context.Background(), rig.attacker.id, rig.mgr, 0)
+	if got := len(rig.sink.snapshotHits()); got != 1 {
+		t.Fatalf("expected the summed adjustments to land the hit, got %d hits (misses=%d)",
+			got, len(rig.sink.snapshotMisses()))
+	}
 }

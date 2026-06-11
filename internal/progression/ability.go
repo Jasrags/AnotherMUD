@@ -162,6 +162,12 @@ type Ability struct {
 	// check.
 	Effect *EffectTemplate
 
+	// ApplySave is the optional entry save the target rolls to RESIST the
+	// ability's effect (conditions §4 — a save-gated condition like trip or
+	// bash). A made save means the effect is not applied. nil ⇒ the effect
+	// always lands on hit. Only meaningful with a non-self Effect.
+	ApplySave *ConditionSave
+
 	// Variance is the hit-chance variance band in percentage
 	// points (spec §4.5 step 4). Zero means the invocation always
 	// hits (no roll). Otherwise the engine computes

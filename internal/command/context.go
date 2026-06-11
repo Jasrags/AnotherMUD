@@ -53,6 +53,13 @@ type Context struct {
 	ReloadScripts func(ctx context.Context) (int, error)
 	// Progression is the M8.2 XP/level service. nil in tests.
 	Progression *progression.Manager
+	// Effects is the effect manager (conditions §5): the afflict/cure/stand
+	// verbs apply + remove condition effects through it. nil disables them.
+	Effects *progression.EffectManager
+	// EffectTemplates resolves an effect template by id — the afflict verb
+	// maps a condition name to its effect (conditions §5). nil disables
+	// afflict. effect.Registry satisfies it.
+	EffectTemplates EffectTemplateSource
 	// Training is the M8.6 training service. nil in tests.
 	Training *progression.TrainingManager
 	// Abilities / Proficiency / ActionQueue are the M9.6 ability-verb

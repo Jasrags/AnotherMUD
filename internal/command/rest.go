@@ -29,6 +29,21 @@ func SleepHandler(ctx context.Context, c *Context) error {
 
 // WakeHandler implements `wake` (and `stand`) → awake (spec §5.3).
 func WakeHandler(ctx context.Context, c *Context) error {
+	// conditions §5: `stand` (a wake alias) also gets you up from prone.
+	// Prone takes priority — a prone combatant is not resting, so clearing
+	// it is what "stand" means in that moment; otherwise fall through to the
+	// ordinary wake-from-rest behavior.
+	if c.Effects != nil && c.Effects.RemoveByID(ctx, c.Actor.PlayerID(), conditionProneEffectID) {
+		// Narrate to the actor and the room (the notifier deliberately skips
+		// prone-clear to avoid double-messaging, so the room line lives here).
+		if err := c.Actor.Write(ctx, "You climb back to your feet."); err != nil {
+			return err
+		}
+		if room := c.Actor.Room(); c.Broadcaster != nil && room != nil && c.Actor.Name() != "" {
+			c.Broadcaster.SendToRoom(ctx, room.ID, c.Actor.Name()+" climbs back to their feet.", c.Actor.PlayerID())
+		}
+		return nil
+	}
 	return changeRestState(ctx, c, economy.StateAwake,
 		"You wake up and stand.",
 		"wakes up and stands.",

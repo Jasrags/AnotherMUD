@@ -40,6 +40,22 @@ type AutoAttackConfig struct {
 	// pre-light behavior, and tests/headless). The adjustment degrades
 	// accuracy only — combat is never blocked.
 	HitModAdjust func(attackerID CombatantID) int
+	// Incapacitated reports whether the attacker is too disabled to land
+	// any combat swings this round (conditions §3 — a stunned attacker).
+	// When it returns true the attacker takes no swings but stays engaged
+	// (it is NOT disengaged — combat resumes when the condition lifts).
+	// Keyed on the full attacker CombatantID; the host resolves it from the
+	// attacker's active condition flags. nil-safe: never incapacitated (the
+	// pre-conditions behavior, tests/headless).
+	Incapacitated func(attackerID CombatantID) bool
+	// DefenderHitAdjust returns a to-hit DELTA applied to every swing aimed
+	// at this target (conditions §3 — a prone/stunned/blinded victim is
+	// easier to hit). It is the mirror of HitModAdjust: HitModAdjust is
+	// keyed on the ATTACKER (darkness, proficiency), this on the DEFENDER
+	// (vulnerability). The host resolves it from the target's condition
+	// flags. nil-safe: no adjustment. Summed into the effective hit modifier
+	// alongside the attacker adjustments before the roll (§4.4).
+	DefenderHitAdjust func(targetID CombatantID) int
 	// MassiveDamage configures the saves §4 massive-damage Fortitude save:
 	// a single swing whose applied damage is at or above the threshold and
 	// did NOT already kill forces the victim to save or suffer the lethal
@@ -162,6 +178,15 @@ func runAutoAttack(ctx context.Context, attackerID CombatantID, mgr *Manager, cf
 		return
 	}
 
+	// conditions §3 — incapacitation. A stunned (or otherwise incapacitated)
+	// attacker lands no swings this round but stays engaged: combat is not
+	// disengaged, so it resumes swinging the moment the condition lifts.
+	// Checked after the target/room validation above so a despawned target
+	// is still cleaned up first.
+	if cfg.Incapacitated != nil && cfg.Incapacitated(attackerID) {
+		return
+	}
+
 	// §4.2 swing count = 1 + extra-attack. Extra-attack is a passive-
 	// abilities concern: the evaluator binary-checks the attacker's
 	// extra_attack passives once per round (spec abilities §6). nil
@@ -176,6 +201,13 @@ func runAutoAttack(ctx context.Context, attackerID CombatantID, mgr *Manager, cf
 	hitMod := atkStats.HitMod
 	if cfg.HitModAdjust != nil {
 		hitMod += cfg.HitModAdjust(attackerID)
+	}
+	// conditions §3 — vulnerability. A prone/stunned/blinded defender is
+	// easier to hit: the host returns a positive delta keyed on the target,
+	// summed into the attacker's effective hit modifier (mirror of the
+	// attacker-keyed HitModAdjust above). Stable for the round.
+	if cfg.DefenderHitAdjust != nil {
+		hitMod += cfg.DefenderHitAdjust(targetID)
 	}
 	damageExpr := atkStats.EffectiveDamage()
 	weaponName := atkStats.EffectiveWeaponName()

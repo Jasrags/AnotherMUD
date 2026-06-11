@@ -96,10 +96,42 @@ type EffectExpiredEvent struct {
 type EffectManager struct {
 	resolver TargetResolver
 	sink     EffectSink
+	saves    SaveResolver // optional; conditions §4 per-tick shake-off save
 
 	mu      sync.RWMutex
 	effects map[string][]*Effect // entityID -> active effects (insertion order)
 }
+
+// SaveResolver rolls a saving throw for an entity and reports whether it
+// succeeded (conditions §4). The implementation owns rolling (the target's
+// effective save bonus, including any condition penalties) and emitting any
+// player-facing save event; the EffectManager only asks "did the target
+// save?". Defined in progression so the manager does not import the combat
+// event plumbing or the session layer — the host injects a bridge that calls
+// combat.ResolveSave and emits the SaveResolved event. nil-safe: a manager
+// with no resolver never rolls, so an effect with a RecurringSave simply
+// runs its full duration.
+type SaveResolver interface {
+	// ResolveSave rolls entityID's save on axis against dc and reports
+	// success. cause labels what forced the save (an effect id) for the
+	// event/log.
+	ResolveSave(ctx context.Context, entityID string, axis SaveType, dc int, cause string) bool
+}
+
+// SaveResolverFunc lets callers pass a closure where a SaveResolver is
+// expected (mirrors TargetResolverFunc / http.HandlerFunc shape).
+type SaveResolverFunc func(ctx context.Context, entityID string, axis SaveType, dc int, cause string) bool
+
+// ResolveSave implements SaveResolver.
+func (f SaveResolverFunc) ResolveSave(ctx context.Context, entityID string, axis SaveType, dc int, cause string) bool {
+	return f(ctx, entityID, axis, dc, cause)
+}
+
+// SetSaveResolver wires the per-tick shake-off save resolver (conditions §4).
+// Called once at composition time before the tick loop runs; the back-pointer
+// shape (rather than a constructor arg) avoids churning every NewEffectManager
+// call site and mirrors how combatMgr is back-pointed into its sink.
+func (m *EffectManager) SetSaveResolver(r SaveResolver) { m.saves = r }
 
 // TargetResolver maps an entity id to its live EffectTarget. The
 // resolver is the seam between the manager (which keys on stable
@@ -438,34 +470,57 @@ func (m *EffectManager) reverseAndEmit(ctx context.Context, entityID string, rem
 // released so the active list is never mutated mid-iteration
 // (spec §5.4 last paragraph).
 //
-// Permanent effects (Remaining < 0) are skipped entirely.
+// Permanent effects (Remaining < 0) are not decremented but are still
+// eligible for a per-tick shake-off save (conditions §4) — a permanent
+// fear you can still try to save against each round.
+//
+// Recurring shake-off saves (conditions §4) are collected under the lock
+// and resolved AFTER it is released: the SaveResolver may read back into
+// the manager (e.g. to fold in a condition save-penalty), so rolling under
+// the lock would risk re-entrant deadlock. A made save removes the effect
+// early via RemoveByID (which re-takes the lock and reverses modifiers).
 func (m *EffectManager) Tick(ctx context.Context) {
 	type pending struct {
 		entityID string
 		removed  []*Effect
 	}
+	// recurring is a survived effect carrying a shake-off save to roll
+	// after the lock is released.
+	type recurring struct {
+		entityID string
+		effectID string
+		save     ConditionSave
+	}
 	var batch []pending
+	var shakeoffs []recurring
 
 	m.mu.Lock()
+	saves := m.saves // snapshot under the lock; set once before serving
 	for eid, list := range m.effects {
 		var expired []*Effect
 		kept := list[:0]
 		for _, e := range list {
-			if e.IsPermanent() {
-				kept = append(kept, e)
-				continue
+			survived := true
+			if !e.IsPermanent() {
+				e.Remaining--
+				if e.Remaining <= 0 {
+					expired = append(expired, e)
+					survived = false
+				}
 			}
-			e.Remaining--
-			if e.Remaining <= 0 {
-				expired = append(expired, e)
+			if !survived {
 				continue
 			}
 			kept = append(kept, e)
+			// A survivor with a shake-off save is a candidate; only roll
+			// when a resolver is wired (else the effect runs full duration).
+			if saves != nil && e.RecurringSave != nil {
+				shakeoffs = append(shakeoffs, recurring{entityID: eid, effectID: e.ID, save: *e.RecurringSave})
+			}
 		}
 		if len(expired) == 0 {
-			// Mutated slice in place; either keep as-is or
-			// re-assign for clarity. The decrement above
-			// already mutated *Effect entries in `kept`.
+			// Slice mutated in place (decrements landed on *Effect entries
+			// in `kept`); nothing to re-slice or remove for this entity.
 			continue
 		}
 		if len(kept) == 0 {
@@ -479,6 +534,14 @@ func (m *EffectManager) Tick(ctx context.Context) {
 
 	for _, p := range batch {
 		m.reverseAndEmit(ctx, p.entityID, p.removed, true)
+	}
+	// Shake-off saves: a made save ends the condition early. RemoveByID is
+	// a no-op if the effect already expired this tick, so an effect can't be
+	// both expired and shaken off.
+	for _, s := range shakeoffs {
+		if saves.ResolveSave(ctx, s.entityID, s.save.Axis, s.save.DC, s.effectID) {
+			m.RemoveByID(ctx, s.entityID, s.effectID)
+		}
 	}
 }
 

@@ -159,6 +159,7 @@ func RegisterBuiltins(r *Registry) error {
 		{Keyword: "value", Handler: ValueHandler, Brief: "Ask a shop what it pays for an item.", Syntax: []string{"value <item>"},
 			HandParsed: true, Args: []ArgDefinition{{Name: "item", Type: ArgInventory}}},
 		{Keyword: "list", Handler: ListHandler, Brief: "List a shop's wares.", Syntax: []string{"list"}},
+		{Keyword: "affects", Aliases: []string{"effects"}, Handler: AffectsHandler, Brief: "List your active effects and conditions.", Syntax: []string{"affects"}},
 		{Keyword: "rest", Handler: RestHandler, Brief: "Rest to recover faster.", Syntax: []string{"rest"}},
 		{Keyword: "sleep", Handler: SleepHandler, Brief: "Sleep to recover fastest.", Syntax: []string{"sleep"}},
 		{Keyword: "wake", Aliases: []string{"stand"}, Handler: WakeHandler, Brief: "Stop resting or sleeping.", Syntax: []string{"wake"}},
@@ -247,6 +248,12 @@ func RegisterBuiltins(r *Registry) error {
 		// restore (M19.4d — admin-verbs §5): the mercy verb. Set a target's
 		// vitals to full (Vitals.SetCurrent(max)). No arg restores self.
 		{Keyword: "restore", Handler: RestoreHandler, Admin: true, Brief: "Restore a target's vitals to full.", Syntax: []string{"restore [<target>]"}},
+
+		// afflict / cure (conditions §5 — EPIC S5): the admin inflict path for
+		// status conditions. afflict applies a condition effect by force (no
+		// entry save); cure clears one or all conditions.
+		{Keyword: "afflict", Handler: AfflictHandler, Admin: true, Brief: "Inflict a status condition on a target.", Syntax: []string{"afflict <target> <condition> [duration]"}},
+		{Keyword: "cure", Handler: CureHandler, Admin: true, Brief: "Clear a status condition from a target.", Syntax: []string{"cure <target> [condition]"}},
 
 		// teleport (M19.4d — admin-verbs §5, alias `goto`): move the actor to
 		// a room by id or to the room of an online player (§3 world-scoped

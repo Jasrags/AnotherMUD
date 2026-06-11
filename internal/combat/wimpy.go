@@ -57,6 +57,13 @@ func NewWimpy(cfg FleeConfig) PhaseFunc {
 		if v == nil || v.IsDead() {
 			return
 		}
+		// conditions §5 — a frightened combatant flees regardless of HP,
+		// before the HP-threshold wimpy check. Shares the flee cooldown so a
+		// fleer is not looped straight back in.
+		if cfg.ForceFlee != nil && cfg.ForceFlee(c) {
+			Flee(ctx, c, cfg)
+			return
+		}
 		holder, ok := cb.(WimpyHolder)
 		if !ok {
 			return

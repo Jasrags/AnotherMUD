@@ -3,8 +3,8 @@
 A manual QA checklist for verifying implemented features (M0–M27 + recent
 polish: the look/consider appearance lens, tab-completion surfaces, weapon
 damage dice + critical hits, **light & darkness** — §21, **crafting &
-cooking** — §22, **player maps** — §23, and **saving throws** — §24). Work
-top-to-bottom or jump to a section. Each step gives a **command** and the
+cooking** — §22, **player maps** — §23, **saving throws** — §24, and **conditions** — §25).
+Work top-to-bottom or jump to a section. Each step gives a **command** and the
 **expected behavior**; tick the box when it matches, and note anything that
 doesn't.
 
@@ -771,6 +771,57 @@ ANOTHERMUD_MASSIVE_DAMAGE_THRESHOLD=1 ANOTHERMUD_MASSIVE_DAMAGE_DC=50 make run
 > Reflex and Will are derived and shown but have **no triggering system yet** —
 > they wait on conditions (S5) and poison/fear (S7) in the WoT mechanics EPIC.
 > The massive-damage save is the one shipped consumer.
+
+## 25. Conditions (status effects)
+
+Status conditions are flagged effects that change combat. The **Core 5**:
+**stunned** (no swings + easier to hit), **prone** (−melee + easier to hit),
+**blinded** (heavy −to-hit + easier to hit), **frightened** (−attack/−saves +
+flees each round), **fatigued** (−Str/−Dex). They're inflicted by the admin
+`afflict` verb or the fighter's save-gated **trip**/**bash** abilities, and
+appear in `affects`. Use **Jasrags** (admin).
+
+### Admin inflict + the listing
+
+- [ ] `afflict Jasrags stunned` (on yourself) — "You are stunned!"; `affects`
+      (alias `effects`) lists `Stunned — N round(s) [condition]`.
+- [ ] `afflict Jasrags fatigued` — `score` shows STR/DEX dropped (−2 each);
+      `cure Jasrags fatigued` restores them. `cure Jasrags` clears all
+      conditions at once (leaving non-condition buffs like bless).
+- [ ] `afflict ghost stunned` — "You don't see them here." (bad target);
+      `afflict Jasrags bless` — "no such condition" (`bless` isn't a condition).
+- [ ] As **Bob** (non-admin), `afflict Jasrags stunned` — "Huh?" (admin-gated).
+
+### Conditions in combat (the Meadow)
+
+Go to the Meadow (`s`, `s`) and engage the bandit.
+
+- [ ] `afflict bandit stunned 5` — "a road bandit is stunned." For the next
+      rounds the bandit **lands no hits** (you still hit it) — stunned skips its
+      swings. After a bit: "a road bandit shakes off the stun." (its Fortitude
+      shake-off save lands) and it resumes attacking.
+- [ ] `afflict bandit prone 5` — the bandit is easier to hit (your hit rate
+      climbs while it's prone).
+- [ ] `afflict bandit frightened 5` — the bandit **flees** the room each round
+      (frightened forces flight), with a −2 to its attacks and saves while it
+      lasts.
+
+### Save-gated abilities (trip / bash)
+
+The fighter learns **trip** (→ prone, Reflex save) and **bash** (→ stunned,
+Fortitude save) at level 1.
+
+- [ ] In combat, `cast trip bandit` — on a failed Reflex save the bandit is
+      knocked prone; on a made save you see "a road bandit resists!" (the entry
+      save). `cast bash bandit` is the same with a Fortitude save → stunned.
+- [ ] After a `trip` lands, `stand` gets **you** up if *you're* prone (it also
+      doubles as the wake-from-rest verb); a prone mob gets up on its own when
+      the condition's duration runs out.
+
+> Default condition magnitudes/durations are engine defaults
+> (`internal/condition`); HP-state conditions (dying/disabled), damage-over-time
+> (bleeding/poison — deferred to S7), and the grapple family are **not** in this
+> slice. Reflex/Will saves now have their first condition consumers.
 
 ---
 

@@ -1,0 +1,7 @@
+# Conditions §2 — blinded (EPIC S5). A heavy to-hit penalty for the bearer
+# plus a vulnerability bonus for its foes (magnitudes in the `condition`
+# package). Duration-based; no shake-off save.
+id: blinded
+duration: 5
+flags:
+  - condition:blinded

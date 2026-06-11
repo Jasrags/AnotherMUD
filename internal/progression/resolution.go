@@ -144,7 +144,16 @@ type AbilityResolver struct {
 	targetHP   TargetHPLookup
 	sink       AbilitySink
 	roller     Roller
+	saves      SaveResolver // optional; conditions §4 entry save (resist-on-apply)
 }
+
+// SetSaveResolver wires the entry-save resolver an ability with an ApplySave
+// rolls before installing its effect (conditions §4). The host's emitting
+// implementation rolls combat.ResolveSave over the target's effective save
+// bonus AND emits the SaveResolved event so the resist reads in-game.
+// nil-safe: with no resolver an ApplySave ability always lands its effect
+// (the pre-conditions behavior).
+func (r *AbilityResolver) SetSaveResolver(s SaveResolver) { r.saves = s }
 
 // NewAbilityResolver builds a resolver. proficient + roller are
 // required for hit/miss + gain rolls; the others are nil-safe:
@@ -196,10 +205,14 @@ func NewAbilityResolver(
 // future tests can assert resolution behavior without re-deriving it
 // from sink emissions.
 type ResolveOutcome struct {
-	AbilityID      string
-	Hit            bool
-	ResourceSpent  int
-	EffectApplied  bool
+	AbilityID     string
+	Hit           bool
+	ResourceSpent int
+	EffectApplied bool
+	// EffectResisted is true when the ability hit but the target made the
+	// ability's entry save (conditions §4), so the effect was NOT applied.
+	// EffectApplied is false in that case.
+	EffectResisted bool
 	TargetDepleted bool
 	ResolvedTarget string
 }
@@ -278,13 +291,28 @@ func (r *AbilityResolver) Resolve(ctx context.Context, source ResolutionSource, 
 		r.pulseDelay.Record(entityID, abilityID, currentPulse+int64(ability.PulseDelay)+1)
 	}
 
-	// 7. On hit, with effect: build + apply to the target.
+	// 7. On hit, with effect: roll the entry save (conditions §4) then build
+	// + apply to the target. An ability with an ApplySave (a save-gated
+	// condition like trip/bash) lets the target resist on a made save — the
+	// effect is then NOT applied. The resolver emits SaveResolved (the
+	// emitting host bridge) so the resist reads in-game. No ApplySave, or no
+	// save resolver, ⇒ the effect always lands (the pre-conditions path).
 	if ability.Effect != nil && r.effects != nil {
 		target := resolvedTarget
 		if target == "" {
 			target = entityID // self-targeted buff
 		}
-		out.EffectApplied = r.effects.Apply(ctx, target, *ability.Effect, entityID, abilityID)
+		resisted := false
+		if ability.ApplySave != nil && r.saves != nil && target != entityID {
+			// Only a hostile (non-self) effect is save-gated; a self-buff
+			// with an ApplySave would otherwise let you resist your own buff.
+			resisted = r.saves.ResolveSave(ctx, target, ability.ApplySave.Axis, ability.ApplySave.DC, abilityID)
+		}
+		if resisted {
+			out.EffectResisted = true
+		} else {
+			out.EffectApplied = r.effects.Apply(ctx, target, *ability.Effect, entityID, abilityID)
+		}
 	}
 
 	// 8. On hit, always: emit ability-used, roll gain (success).

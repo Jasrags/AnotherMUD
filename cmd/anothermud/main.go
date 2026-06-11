@@ -32,6 +32,7 @@ import (
 	"github.com/Jasrags/AnotherMUD/internal/clock"
 	"github.com/Jasrags/AnotherMUD/internal/combat"
 	"github.com/Jasrags/AnotherMUD/internal/command"
+	"github.com/Jasrags/AnotherMUD/internal/condition"
 	"github.com/Jasrags/AnotherMUD/internal/conn/telnet"
 	"github.com/Jasrags/AnotherMUD/internal/corpse"
 	"github.com/Jasrags/AnotherMUD/internal/crafting"
@@ -928,6 +929,64 @@ func run() error {
 		effectMgr.Apply(ctx, string(e.ActorID), tpl, string(e.ActorID), "")
 	})
 
+	// conditions §6: condition apply/clear messaging. Active effects only
+	// feed GMCP today; this renders a player-facing line for the Core 5 so
+	// "You are stunned!" (to the target) and "The bandit is knocked prone."
+	// (to the room) read in-game. Resisting is narrated by the SaveResolved
+	// event; prone's clear is owned by the `stand` verb (omitted here to
+	// avoid a double message). Second-person + third-person-suffix per id.
+	conditionApplyMsg := map[string][2]string{
+		"stunned":    {"You are stunned!", "is stunned"},
+		"prone":      {"You are knocked prone!", "is knocked prone"},
+		"blinded":    {"You are blinded!", "is blinded"},
+		"frightened": {"You are gripped by fear!", "is gripped by fear"},
+		"fatigued":   {"You feel fatigued.", "looks fatigued"},
+	}
+	conditionClearMsg := map[string][2]string{
+		"stunned":    {"You shake off the stun.", "shakes off the stun"},
+		"blinded":    {"Your sight returns.", "can see again"},
+		"frightened": {"You master your fear.", "masters their fear"},
+		"fatigued":   {"Your fatigue passes.", "looks rested"},
+	}
+	notifyCondition := func(ctx context.Context, entityID, effectID string, msgs map[string][2]string) {
+		m, ok := msgs[effectID]
+		if !ok {
+			return
+		}
+		// Tell the target if it is an online player (second person).
+		if a, ok := mgr.GetByPlayerID(entityID); ok {
+			_ = a.Write(ctx, "<warning>"+m[0]+"</warning>")
+		}
+		// Announce to the room in third person (the attacker/admin sees this
+		// even when the target is a mob). Resolve the room from the player
+		// table first, then the entity placement. The exclude arg is the
+		// effect's entityID, which for a player IS its PlayerID (the key
+		// SendToRoom excludes on) so the target doesn't get the room copy on
+		// top of the direct tell above; for a mob it matches no session.
+		roomID, found := mgr.RoomOfPlayer(entityID)
+		if !found {
+			roomID, found = placement.RoomOf(entities.EntityID(entityID))
+		}
+		if found {
+			mgr.SendToRoom(ctx, roomID, combatantName(entityID)+" "+m[1]+".", entityID)
+		}
+	}
+	bus.Subscribe(eventbus.EventEffectApplied, func(ctx context.Context, ev eventbus.Event) {
+		if e, ok := ev.(eventbus.EffectApplied); ok {
+			notifyCondition(ctx, e.EntityID, e.EffectID, conditionApplyMsg)
+		}
+	})
+	bus.Subscribe(eventbus.EventEffectRemoved, func(ctx context.Context, ev eventbus.Event) {
+		if e, ok := ev.(eventbus.EffectRemoved); ok {
+			notifyCondition(ctx, e.EntityID, e.EffectID, conditionClearMsg)
+		}
+	})
+	bus.Subscribe(eventbus.EventEffectExpired, func(ctx context.Context, ev eventbus.Event) {
+		if e, ok := ev.(eventbus.EffectExpired); ok {
+			notifyCondition(ctx, e.EntityID, e.EffectID, conditionClearMsg)
+		}
+	})
+
 	// M9.3/M9.4: per-entity action queue + pulse-delay cooldown
 	// tracker. The M9.4 ability phase pops from the queue each pulse
 	// and records cooldowns into the tracker; the validation pipeline
@@ -1447,30 +1506,93 @@ func run() error {
 		}
 		return -cfg.NonProficientPenalty
 	}
-	hitModAdjust := func(id combat.CombatantID) int {
-		return attackerDarknessPenalty(id) + attackerProficiencyPenalty(id)
+	// conditions §3/§5: a bare entity id → the aggregate combat/save impact
+	// of its active condition flags (prone/stunned/blinded/frightened/…).
+	// Reads the live effect-flag set; the leaf `condition` package does the
+	// pure fold under the engine-default magnitudes.
+	condCfg := condition.DefaultConfig()
+	conditionImpact := func(bareID string) condition.Impact {
+		return condition.Resolve(effectMgr.Flags(bareID), condCfg)
 	}
-	// saves §4: resolve a victim's Fortitude save bonus for the massive-
-	// damage save. Players compose class base saves + the live CON modifier
-	// (connActor.Saves); mobs are classless, so they save on the CON
-	// modifier alone off their stat block (base zero). An unresolvable id
-	// contributes 0 — the save still rolls, it just gets no bonus.
-	victimFortBonus := func(id combat.CombatantID) int {
-		bare := combat.EntityIDOf(id)
-		if strings.HasPrefix(string(id), combat.PlayerPrefix) {
-			if a, ok := mgr.GetByPlayerID(bare); ok {
-				return a.Saves().Get(progression.SaveFortitude)
-			}
-			return 0
+	hitModAdjust := func(id combat.CombatantID) int {
+		// conditions §3 — the attacker-penalty half (prone/blinded/fear)
+		// composes additively here alongside darkness + proficiency.
+		condPenalty := -conditionImpact(combat.EntityIDOf(id)).AttackerHitPenalty
+		return attackerDarknessPenalty(id) + attackerProficiencyPenalty(id) + condPenalty
+	}
+
+	// baseSaveBonus resolves a bare entity's class+ability save on an axis,
+	// player or mob, BEFORE condition penalties. Players compose class base
+	// saves + the live ability modifier (connActor.Saves); classless mobs
+	// save on the ability modifier alone (base zero). Tries the player table
+	// first, then the entity store. 0 when unresolvable (the save still
+	// rolls, just with no bonus).
+	baseSaveBonus := func(bareID string, axis progression.SaveType) int {
+		if a, ok := mgr.GetByPlayerID(bareID); ok {
+			return a.Saves().Get(axis)
 		}
-		if ent, ok := entityStore.GetByID(entities.EntityID(bare)); ok {
+		if ent, ok := entityStore.GetByID(entities.EntityID(bareID)); ok {
 			if m, ok := ent.(*entities.MobInstance); ok {
-				saves := progression.DeriveSaves(progression.Saves{}, m.StatBlock().Effective)
-				return saves.Get(progression.SaveFortitude)
+				return progression.DeriveSaves(progression.Saves{}, m.StatBlock().Effective).Get(axis)
 			}
 		}
 		return 0
 	}
+	// effectiveSaveBonus is the single save-bonus surface every save consumer
+	// reads (saves §4, conditions §4): the base save minus any morale
+	// penalty from an active fear condition. Used by both the massive-damage
+	// Fortitude save and the condition shake-off saves so fear consistently
+	// makes a target worse at every save.
+	effectiveSaveBonus := func(bareID string, axis progression.SaveType) int {
+		return baseSaveBonus(bareID, axis) - conditionImpact(bareID).SavePenalty
+	}
+	// conditions §4: the effect manager rolls per-tick shake-off saves
+	// through this bridge — combat.ResolveSave over the effective save bonus.
+	// Recurring saves do not emit a SaveResolved event per tick (that would
+	// spam a failed shake-off every round); the shake-off is narrated by the
+	// effect-removed message when a save finally lands.
+	effectMgr.SetSaveResolver(progression.SaveResolverFunc(
+		func(_ context.Context, entityID string, axis progression.SaveType, dc int, _ string) bool {
+			return combat.ResolveSave(combatRNG, effectiveSaveBonus(entityID, axis), dc).Success
+		}))
+	victimFortBonus := func(id combat.CombatantID) int {
+		return effectiveSaveBonus(combat.EntityIDOf(id), progression.SaveFortitude)
+	}
+	// conditions §4: the EMITTING entry-save resolver the ability resolver
+	// uses (trip/bash). Unlike the silent shake-off resolver above, this
+	// emits a SaveResolved event so a resisted condition reads in-game
+	// ("X resists!"). Resolves the bare entity id to a combatant + room for
+	// the event payload (player first, then mob).
+	combatantIDOf := func(bareID string) (combat.CombatantID, bool) {
+		if _, ok := mgr.GetByPlayerID(bareID); ok {
+			return combat.NewPlayerCombatantID(bareID), true
+		}
+		if _, ok := entityStore.GetByID(entities.EntityID(bareID)); ok {
+			return combat.NewMobCombatantID(bareID), true
+		}
+		return "", false
+	}
+	entrySaveResolver := progression.SaveResolverFunc(
+		func(ctx context.Context, entityID string, axis progression.SaveType, dc int, cause string) bool {
+			outcome := combat.ResolveSave(combatRNG, effectiveSaveBonus(entityID, axis), dc)
+			// Emit SaveResolved only on a MADE save (the resist) — that is the
+			// line worth showing ("X resists!"). A failed entry save is
+			// narrated by the condition apply-message instead ("X is stunned!"),
+			// so emitting here too would double-narrate the failure.
+			if outcome.Success {
+				if cid, ok := combatantIDOf(entityID); ok {
+					room, _ := combatLocator.RoomOf(cid)
+					combatSink.OnSaveResolved(ctx, combat.SaveResolved{
+						CreatureID: cid,
+						SaveType:   string(axis),
+						Cause:      cause,
+						Outcome:    outcome,
+						RoomID:     room,
+					})
+				}
+			}
+			return outcome.Success
+		})
 	// A non-positive threshold means "every hit" at the combat layer (a
 	// test-only option); in production that is never intended and almost
 	// always a misconfigured env, so coerce it back to the engine default
@@ -1490,6 +1612,15 @@ func run() error {
 		Passives:       passiveResolver,
 		CritMultiplier: cfg.CritMultiplier,
 		HitModAdjust:   hitModAdjust,
+		// conditions §3: a stunned attacker skips its swings; a prone/
+		// stunned/blinded defender is easier to hit. Both read the target's
+		// live condition flags through the shared conditionImpact fold.
+		Incapacitated: func(id combat.CombatantID) bool {
+			return conditionImpact(combat.EntityIDOf(id)).Incapacitated
+		},
+		DefenderHitAdjust: func(id combat.CombatantID) int {
+			return conditionImpact(combat.EntityIDOf(id)).DefenderVulnerability
+		},
 		MassiveDamage: &combat.MassiveDamageConfig{
 			Threshold: massiveThreshold,
 			DC:        cfg.MassiveDamageDC,
@@ -1514,6 +1645,11 @@ func run() error {
 		Tags:          combatTags,
 		Rand:          combatRNG,
 		CooldownTicks: cadenceTicks(cfg.TickInterval, cfg.FleeCooldown),
+		// conditions §5: a frightened combatant flees each round regardless
+		// of HP. The wimpy phase honors this before its HP-threshold check.
+		ForceFlee: func(id combat.CombatantID) bool {
+			return conditionImpact(combat.EntityIDOf(id)).ForcesFlee
+		},
 	}
 	wimpyPhase := combat.NewWimpy(fleeCfg)
 
@@ -1746,6 +1882,9 @@ func run() error {
 		abilitySink,
 		combatRNG, // shared single-goroutine RNG (see CONCURRENCY note above)
 	)
+	// conditions §4: save-gated ability effects (trip/bash) roll their entry
+	// save through the emitting resolver so a resisted condition reads in-game.
+	abilityResolver.SetSaveResolver(entrySaveResolver)
 	abilityPhase := progression.NewAbilityPhaseDriver(
 		actionQueueMgr, abilityPipeline, abilityResolver, abilitySources, abilitySink,
 	)
@@ -1880,6 +2019,7 @@ func run() error {
 		Biomes:          registries.Biomes,
 		ForageTables:    registries.ForageTables,
 		Effects:         effectMgr,
+		EffectTemplates: registries.Effects,
 		ActionQueue:     actionQueueMgr,
 		PulseDelay:      pulseDelayTracker,
 		Races:           registries.Races,

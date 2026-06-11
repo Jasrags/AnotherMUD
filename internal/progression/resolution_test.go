@@ -466,3 +466,93 @@ func TestResolve_HitChanceClampedByMaxHitChance(t *testing.T) {
 		t.Fatalf("roll 80 vs cap 80 should hit")
 	}
 }
+
+// --- conditions §4: ability entry save (resist-on-apply) ------------------
+
+type fakeSaveResolver struct {
+	made bool
+	axes []SaveType
+}
+
+func (f *fakeSaveResolver) ResolveSave(_ context.Context, _ string, axis SaveType, _ int, _ string) bool {
+	f.axes = append(f.axes, axis)
+	return f.made
+}
+
+func tripAbility() *Ability {
+	return &Ability{
+		ID: "trip", Category: AbilitySkill, Variance: 0,
+		Effect:    &EffectTemplate{ID: "prone", Duration: 5, Flags: []string{"condition:prone"}},
+		ApplySave: &ConditionSave{Axis: SaveReflex, DC: 13},
+	}
+}
+
+func TestResolve_EntrySaveMade_EffectResistedNotApplied(t *testing.T) {
+	eff := &effectSpy{result: true}
+	sv := &fakeSaveResolver{made: true} // target makes the save
+	r := NewAbilityResolver(DefaultResolutionConfig(), newProfStub(), nil, nil, eff, nil, &recordingSink{}, nil)
+	r.SetSaveResolver(sv)
+	src := &fakeSource{id: "p1", movement: 100}
+
+	out := r.Resolve(context.Background(), src, tripAbility(), "mob1", 0) // hostile target
+
+	if !out.Hit {
+		t.Fatal("ability should still hit; the save gates the EFFECT, not the hit")
+	}
+	if !out.EffectResisted || out.EffectApplied {
+		t.Errorf("made save → resisted+not-applied, got resisted=%v applied=%v", out.EffectResisted, out.EffectApplied)
+	}
+	if len(eff.calls) != 0 {
+		t.Errorf("effect applied despite a made save: %+v", eff.calls)
+	}
+	if len(sv.axes) != 1 || sv.axes[0] != SaveReflex {
+		t.Errorf("entry save axes = %v, want [reflex]", sv.axes)
+	}
+}
+
+func TestResolve_EntrySaveFailed_EffectApplies(t *testing.T) {
+	eff := &effectSpy{result: true}
+	sv := &fakeSaveResolver{made: false} // target fails the save
+	r := NewAbilityResolver(DefaultResolutionConfig(), newProfStub(), nil, nil, eff, nil, &recordingSink{}, nil)
+	r.SetSaveResolver(sv)
+	src := &fakeSource{id: "p1", movement: 100}
+
+	out := r.Resolve(context.Background(), src, tripAbility(), "mob1", 0)
+
+	if out.EffectResisted || !out.EffectApplied {
+		t.Errorf("failed save → applied, got resisted=%v applied=%v", out.EffectResisted, out.EffectApplied)
+	}
+	if len(eff.calls) != 1 || eff.calls[0].ID != "prone" {
+		t.Errorf("expected one Apply of prone, got %+v", eff.calls)
+	}
+}
+
+func TestResolve_EntrySaveNoResolverAlwaysApplies(t *testing.T) {
+	eff := &effectSpy{result: true}
+	// No SetSaveResolver → ApplySave can't roll; effect lands (pre-conditions).
+	r := NewAbilityResolver(DefaultResolutionConfig(), newProfStub(), nil, nil, eff, nil, &recordingSink{}, nil)
+	src := &fakeSource{id: "p1", movement: 100}
+
+	out := r.Resolve(context.Background(), src, tripAbility(), "mob1", 0)
+	if !out.EffectApplied || out.EffectResisted {
+		t.Errorf("no resolver → effect applies, got applied=%v resisted=%v", out.EffectApplied, out.EffectResisted)
+	}
+}
+
+func TestResolve_EntrySaveSelfCastNotGated(t *testing.T) {
+	eff := &effectSpy{result: true}
+	sv := &fakeSaveResolver{made: true} // would resist if consulted
+	r := NewAbilityResolver(DefaultResolutionConfig(), newProfStub(), nil, nil, eff, nil, &recordingSink{}, nil)
+	r.SetSaveResolver(sv)
+	src := &fakeSource{id: "p1", movement: 100}
+
+	// Self-cast (empty target) with an ApplySave must NOT roll a save —
+	// you can't resist your own effect.
+	out := r.Resolve(context.Background(), src, tripAbility(), "", 0)
+	if !out.EffectApplied {
+		t.Error("self-cast effect should apply without an entry-save roll")
+	}
+	if len(sv.axes) != 0 {
+		t.Errorf("self-cast must not consult the save resolver, got %v", sv.axes)
+	}
+}

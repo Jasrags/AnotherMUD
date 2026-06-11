@@ -139,3 +139,43 @@ func TestWimpyIgnoresNonHolder(t *testing.T) {
 		t.Error("wimpy fired for non-WimpyHolder combatant")
 	}
 }
+
+// conditions §5: ForceFlee makes a full-HP combatant flee regardless of the
+// wimpy threshold (a frightened victim flees each round).
+func TestWimpyForceFleeOverridesHealthyHP(t *testing.T) {
+	cfg, bus, mover, roomLoc := buildFleeRig(t)
+	id := NewMobCombatantID("rat")
+	wc := &wimpyCombatant{
+		id: id, name: "a rat",
+		vitals:    NewVitalsAt(100, 100), // full HP — wimpy alone would NOT flee
+		threshold: 0,                     // wimpy disabled
+	}
+	cfg.Locator.(MapLocator)[id] = wc
+	roomLoc[id] = fromRoom
+	cfg.ForceFlee = func(c CombatantID) bool { return c == id }
+
+	phase := NewWimpy(cfg)
+	phase(context.Background(), id, cfg.Mgr, 0)
+
+	if len(bus.flees) != 1 {
+		t.Fatalf("force-flee events = %d, want 1 (frightened flees at full HP)", len(bus.flees))
+	}
+	if len(mover.moves) != 1 {
+		t.Errorf("Move calls = %d, want 1", len(mover.moves))
+	}
+}
+
+func TestWimpyForceFleeNilLeavesWimpyUnchanged(t *testing.T) {
+	cfg, bus, _, roomLoc := buildFleeRig(t)
+	id := NewMobCombatantID("rat")
+	wc := &wimpyCombatant{id: id, name: "rat", vitals: NewVitalsAt(80, 100), threshold: 30}
+	cfg.Locator.(MapLocator)[id] = wc
+	roomLoc[id] = fromRoom
+	cfg.ForceFlee = nil // unset — only the HP rule applies
+
+	phase := NewWimpy(cfg)
+	phase(context.Background(), id, cfg.Mgr, 0)
+	if len(bus.flees) != 0 {
+		t.Errorf("flee events = %d, want 0 (healthy, no force-flee)", len(bus.flees))
+	}
+}

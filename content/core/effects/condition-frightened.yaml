@@ -1,0 +1,10 @@
+# Conditions §2 — frightened (EPIC S5). A morale penalty to the bearer's
+# attacks AND saves, and it is compelled to flee combat each round
+# (conditions §3/§5). A Will save each round shakes the fear off early.
+id: frightened
+duration: 5
+flags:
+  - condition:frightened
+recurring_save:
+  axis: will
+  dc: 13

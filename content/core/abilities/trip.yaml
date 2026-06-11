@@ -1,0 +1,26 @@
+# Conditions §5 (EPIC S5) — a save-gated condition ability. Trip knocks a
+# foe prone unless they make a Reflex save (apply_save). On a failed save
+# the inline `prone` condition effect is applied; on a made save the target
+# resists (no effect). Dex-keyed skill, drawn from movement.
+id: trip
+name: Trip
+type: active
+category: skill
+default_cap: 25
+gain_base_chance: 25
+gain_failure_multiplier: 0.5
+gain_stat: dex
+gain_stat_scale: 0.1
+cost: 5
+pulse_delay: 2
+variance: 0
+target_types:
+  - enemy
+effect:
+  id: prone
+  duration: 5
+  flags:
+    - condition:prone
+apply_save:
+  axis: reflex
+  dc: 13

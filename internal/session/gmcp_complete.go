@@ -35,6 +35,8 @@ func commandEnv(cfg Config) command.Env {
 		Flee:                  cfg.Flee,
 		ReloadScripts:         cfg.ReloadScripts,
 		Progression:           cfg.Progression,
+		Effects:               cfg.Effects,
+		EffectTemplates:       cfg.EffectTemplates,
 		Training:              cfg.Training,
 		Abilities:             cfg.Abilities,
 		Proficiency:           cfg.Proficiency,

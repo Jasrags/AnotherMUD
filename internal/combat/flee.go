@@ -70,6 +70,12 @@ type FleeConfig struct {
 	Tags          TagSource
 	Rand          Roller
 	CooldownTicks uint64
+	// ForceFlee, when set, makes the wimpy phase trigger an involuntary
+	// flee for a combatant regardless of HP — the conditions §5 "frightened
+	// victim attempts to flee each round" rule. Keyed on the full
+	// CombatantID; the host resolves it from the combatant's condition
+	// flags. nil-safe: only the HP-threshold wimpy rule applies.
+	ForceFlee func(CombatantID) bool
 }
 
 // FleeBus is the narrow surface flee uses for the three §5.2 bus

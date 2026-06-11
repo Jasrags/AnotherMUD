@@ -47,6 +47,25 @@ type EffectTemplate struct {
 	// duration to Duration instead of being dropped — so re-eating a
 	// well-fed meal extends the buff rather than wasting the food.
 	Refreshable bool
+
+	// RecurringSave, when non-nil, gives the target a saving throw on every
+	// effect tick to shake the condition off early (conditions §4): a made
+	// save removes the effect before its duration would expire. nil ⇒ the
+	// effect runs its full duration. The save is rolled through the
+	// EffectManager's injected SaveResolver; with no resolver wired the
+	// effect always runs its full duration (the safe default). The
+	// *entry* save (resist-on-apply, conditions §4) is the applier's job —
+	// the ability rolls it before calling Apply — not a template field.
+	RecurringSave *ConditionSave
+}
+
+// ConditionSave declares a saving throw a condition is checked against
+// (conditions §4): a save axis (Fortitude / Reflex / Will) and a difficulty
+// class. Used for the per-tick shake-off save carried on an EffectTemplate;
+// the entry save is supplied by the applier, not stored here.
+type ConditionSave struct {
+	Axis SaveType
+	DC   int
 }
 
 // EffectSourceKey returns the srckey.SourceKey used when an
@@ -102,6 +121,11 @@ type Effect struct {
 	Remaining       int
 	Modifiers       []stats.Modifier
 	Flags           []string
+	// RecurringSave carries the template's per-tick shake-off save onto the
+	// runtime instance so Tick can roll it (conditions §4). nil ⇒ no
+	// shake-off; the effect runs its full duration. Immutable content — the
+	// pointer is shared with the template, never mutated.
+	RecurringSave *ConditionSave
 }
 
 // IsPermanent reports whether the effect's remaining counter
@@ -141,6 +165,7 @@ func newEffectFromTemplate(tpl EffectTemplate, entityID, sourceEntityID, sourceA
 		SourceEntityID:  strings.ToLower(strings.TrimSpace(sourceEntityID)),
 		SourceAbilityID: strings.ToLower(strings.TrimSpace(sourceAbilityID)),
 		Remaining:       tpl.Duration,
+		RecurringSave:   tpl.RecurringSave,
 	}
 	if len(tpl.Modifiers) > 0 {
 		out.Modifiers = make([]stats.Modifier, len(tpl.Modifiers))

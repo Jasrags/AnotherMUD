@@ -1263,13 +1263,23 @@ func decodeAbility(path, ns string) (*progression.Ability, error) {
 				}
 			}
 		}
-		effect = &progression.EffectTemplate{
-			ID:          f.Effect.ID,
-			Duration:    f.Effect.Duration,
-			Modifiers:   mods,
-			Flags:       flags,
-			Refreshable: f.Effect.Refreshable,
+		recurring, err := decodeConditionSave(f.Effect.RecurringSave, path, "effect.recurring_save")
+		if err != nil {
+			return nil, err
 		}
+		effect = &progression.EffectTemplate{
+			ID:            f.Effect.ID,
+			Duration:      f.Effect.Duration,
+			Modifiers:     mods,
+			Flags:         flags,
+			Refreshable:   f.Effect.Refreshable,
+			RecurringSave: recurring,
+		}
+	}
+
+	applySave, err := decodeConditionSave(f.ApplySave, path, "apply_save")
+	if err != nil {
+		return nil, err
 	}
 
 	return &progression.Ability{
@@ -1299,9 +1309,27 @@ func decodeAbility(path, ns string) (*progression.Ability, error) {
 		AlignmentMin:          alignMin,
 		AlignmentMax:          alignMax,
 		Effect:                effect,
+		ApplySave:             applySave,
 		Pack:                  ns,
 		Priority:              f.Priority,
 	}, nil
+}
+
+// decodeConditionSave validates + converts a content SaveFile (axis + DC)
+// into a progression.ConditionSave (conditions §4). nil in ⇒ nil out (no
+// save). An unknown axis is an authoring error at load. field names the
+// surface (apply_save / effect.recurring_save) for the error.
+func decodeConditionSave(in *SaveFile, path, field string) (*progression.ConditionSave, error) {
+	if in == nil {
+		return nil, nil
+	}
+	axis := progression.SaveType(strings.ToLower(strings.TrimSpace(in.Axis)))
+	switch axis {
+	case progression.SaveFortitude, progression.SaveReflex, progression.SaveWill:
+	default:
+		return nil, fmt.Errorf("%w: %s: %s axis %q must be fortitude/reflex/will", ErrInvalidContent, path, field, in.Axis)
+	}
+	return &progression.ConditionSave{Axis: axis, DC: in.DC}, nil
 }
 
 // decodeTheme reads a ThemeFile and returns its tag → render.ThemeEntry

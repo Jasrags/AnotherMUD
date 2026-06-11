@@ -1,0 +1,13 @@
+# Conditions §2 — stunned (EPIC S5). An incapacitating condition: the
+# bearer lands no combat swings and is easier to hit (the magnitudes live
+# in the engine `condition` package, not here — this effect only carries
+# the recognized flag + a short duration + a Fortitude shake-off save).
+# Duration is in effect-ticks (≈ combat rounds). A Fortitude save each
+# round ends it early (conditions §4).
+id: stunned
+duration: 3
+flags:
+  - condition:stunned
+recurring_save:
+  axis: fortitude
+  dc: 13

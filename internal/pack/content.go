@@ -429,6 +429,9 @@ type AbilityFile struct {
 	AlignmentMax *int `yaml:"alignment_max,omitempty"`
 	// Effect is the optional template applied on hit (spec §5.1).
 	Effect *EffectFile `yaml:"effect,omitempty"`
+	// ApplySave is the optional entry save the target rolls to resist the
+	// effect (conditions §4 — a save-gated trip/bash). Validated at load.
+	ApplySave *SaveFile `yaml:"apply_save,omitempty"`
 	// M9.6b resolution side-effect surface (spec §4.5 step 8, §4.6).
 	// Handler is the dispatch token the "ability used" subscriber
 	// switches on ("damage" / "heal" / empty). Damage / Heal are
@@ -455,6 +458,18 @@ type EffectFile struct {
 	Modifiers   []ModifierFile `yaml:"modifiers,omitempty"`
 	Flags       []string       `yaml:"flags,omitempty"`
 	Refreshable bool           `yaml:"refreshable,omitempty"`
+	// RecurringSave gives the effect a per-tick shake-off save (conditions
+	// §4) — an inline-ability effect (trip/bash) can declare it just like a
+	// standalone effect file. Validated at load.
+	RecurringSave *SaveFile `yaml:"recurring_save,omitempty"`
+}
+
+// SaveFile is the YAML shape for a condition save (conditions §4): an axis
+// (fortitude/reflex/will) and a difficulty class. Shared by an ability's
+// entry save (apply_save) and an effect's shake-off save (recurring_save).
+type SaveFile struct {
+	Axis string `yaml:"axis"`
+	DC   int    `yaml:"dc"`
 }
 
 // ThemeFile is the YAML shape for a pack theme (spec

@@ -61,6 +61,13 @@ path:
     ability: second-attack
   - level: 1
     ability: parry
+  # Conditions (EPIC S5): save-gated condition abilities — trip (→ prone,
+  # Reflex save) and bash (→ stunned, Fortitude save). Granted at level 1 so
+  # a fresh fighter exercises the entry-save inflict path.
+  - level: 1
+    ability: trip
+  - level: 1
+    ability: bash
   - level: 2
     ability: power-attack
   - level: 5

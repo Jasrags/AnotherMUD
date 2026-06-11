@@ -1,0 +1,29 @@
+# Conditions §5 (EPIC S5) — a save-gated condition ability. Bash stuns a
+# foe unless they make a Fortitude save (apply_save). A stunned target lands
+# no swings and is easier to hit; a Fortitude save each round shakes it off
+# (the effect's recurring_save). Str-keyed skill, drawn from movement.
+id: bash
+name: Bash
+type: active
+category: skill
+default_cap: 25
+gain_base_chance: 25
+gain_failure_multiplier: 0.5
+gain_stat: str
+gain_stat_scale: 0.1
+cost: 8
+pulse_delay: 3
+variance: 0
+target_types:
+  - enemy
+effect:
+  id: stunned
+  duration: 3
+  flags:
+    - condition:stunned
+  recurring_save:
+    axis: fortitude
+    dc: 13
+apply_save:
+  axis: fortitude
+  dc: 13

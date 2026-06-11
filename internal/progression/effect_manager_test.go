@@ -57,10 +57,10 @@ func (t *recTarget) hasSource(src entities.SourceKey) bool {
 // can assert payloads + emission discipline (single-instance
 // refusals MUST NOT emit applied, etc.).
 type recSink struct {
-	mu       sync.Mutex
-	applied  []progression.EffectAppliedEvent
-	removed  []progression.EffectRemovedEvent
-	expired  []progression.EffectExpiredEvent
+	mu      sync.Mutex
+	applied []progression.EffectAppliedEvent
+	removed []progression.EffectRemovedEvent
+	expired []progression.EffectExpiredEvent
 }
 
 func (s *recSink) EffectApplied(_ context.Context, ev progression.EffectAppliedEvent) {
@@ -455,4 +455,150 @@ func idStr(i int) string {
 		return string(digits[i])
 	}
 	return string(digits[i/10]) + string(digits[i%10])
+}
+
+// --- conditions §4: per-tick shake-off (recurring) save -------------------
+
+// scriptedSaveResolver returns a programmed pass/fail per call and records the
+// (entityID, axis, dc, cause) it was asked to resolve.
+type scriptedSaveResolver struct {
+	mu      sync.Mutex
+	results []bool // consumed in order; exhausted ⇒ false (never saves)
+	idx     int
+	calls   []saveCall
+}
+
+type saveCall struct {
+	entityID string
+	axis     progression.SaveType
+	dc       int
+	cause    string
+}
+
+func (r *scriptedSaveResolver) ResolveSave(_ context.Context, entityID string, axis progression.SaveType, dc int, cause string) bool {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.calls = append(r.calls, saveCall{entityID, axis, dc, cause})
+	made := false
+	if r.idx < len(r.results) {
+		made = r.results[r.idx]
+		r.idx++
+	}
+	return made
+}
+
+func (r *scriptedSaveResolver) callCount() int {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return len(r.calls)
+}
+
+func stunTemplate(dur int) progression.EffectTemplate {
+	return progression.EffectTemplate{
+		ID:            "stunned",
+		Duration:      dur,
+		Flags:         []string{"condition:stunned"},
+		Modifiers:     []stats.Modifier{{Stat: "dex", Value: -2}},
+		RecurringSave: &progression.ConditionSave{Axis: progression.SaveFortitude, DC: 15},
+	}
+}
+
+func TestEffectManager_RecurringSaveRemovesOnMadeSave(t *testing.T) {
+	tgt := newRecTarget("p-1")
+	sink := &recSink{}
+	m := newManagerForTarget(tgt, sink)
+	// First tick: save fails (effect persists). Second tick: save succeeds.
+	res := &scriptedSaveResolver{results: []bool{false, true}}
+	m.SetSaveResolver(res)
+
+	ctx := context.Background()
+	if !m.Apply(ctx, "p-1", stunTemplate(10), "mob:ogre", "") {
+		t.Fatal("apply failed")
+	}
+	if !tgt.hasSource(progression.EffectSourceKey("stunned")) {
+		t.Fatal("stun modifiers not installed")
+	}
+
+	m.Tick(ctx) // fails the save → still stunned
+	if !m.Has("p-1", "stunned") {
+		t.Fatal("stun removed on a FAILED shake-off save")
+	}
+
+	m.Tick(ctx) // makes the save → shaken off early
+	if m.Has("p-1", "stunned") {
+		t.Error("stun survived a MADE shake-off save")
+	}
+	if tgt.hasSource(progression.EffectSourceKey("stunned")) {
+		t.Error("stun modifiers not reversed after shake-off")
+	}
+	// Removed via RemoveByID (not expiry) → an EffectRemoved, no EffectExpired.
+	if len(sink.removed) != 1 || sink.removed[0].EffectID != "stunned" {
+		t.Errorf("removed events = %+v, want one 'stunned'", sink.removed)
+	}
+	if len(sink.expired) != 0 {
+		t.Errorf("expired events = %d, want 0 (shaken off, not expired)", len(sink.expired))
+	}
+	// The resolver saw exactly the two ticks' worth of saves, keyed right.
+	if res.callCount() != 2 {
+		t.Fatalf("resolver calls = %d, want 2", res.callCount())
+	}
+	c := res.calls[0]
+	if c.entityID != "p-1" || c.axis != progression.SaveFortitude || c.dc != 15 || c.cause != "stunned" {
+		t.Errorf("save call = %+v, want {p-1 fortitude 15 stunned}", c)
+	}
+}
+
+func TestEffectManager_RecurringSaveNoResolverRunsFullDuration(t *testing.T) {
+	tgt := newRecTarget("p-1")
+	m := newManagerForTarget(tgt, nil)
+	// No SetSaveResolver → the shake-off save can't roll; effect runs out.
+	ctx := context.Background()
+	m.Apply(ctx, "p-1", stunTemplate(3), "", "")
+	for i := 0; i < 2; i++ {
+		m.Tick(ctx)
+		if !m.Has("p-1", "stunned") {
+			t.Fatalf("stun gone after %d ticks with no resolver (should run full duration)", i+1)
+		}
+	}
+	m.Tick(ctx) // duration hits 0 → expires normally
+	if m.Has("p-1", "stunned") {
+		t.Error("stun should have expired at duration end")
+	}
+}
+
+func TestEffectManager_RecurringSaveOnPermanentEffect(t *testing.T) {
+	tgt := newRecTarget("p-1")
+	m := newManagerForTarget(tgt, nil)
+	res := &scriptedSaveResolver{results: []bool{false, false, true}} // make it on the 3rd tick
+	m.SetSaveResolver(res)
+	ctx := context.Background()
+	m.Apply(ctx, "p-1", stunTemplate(-1), "", "") // permanent
+
+	m.Tick(ctx)
+	m.Tick(ctx)
+	if !m.Has("p-1", "stunned") {
+		t.Fatal("permanent stun removed before a made save")
+	}
+	m.Tick(ctx) // 3rd save succeeds
+	if m.Has("p-1", "stunned") {
+		t.Error("permanent stun survived a made shake-off save (recurring save must apply to permanents)")
+	}
+}
+
+func TestEffectManager_NoRecurringSaveNeverRolls(t *testing.T) {
+	tgt := newRecTarget("p-1")
+	m := newManagerForTarget(tgt, nil)
+	res := &scriptedSaveResolver{results: []bool{true, true}}
+	m.SetSaveResolver(res)
+	ctx := context.Background()
+	// Plain effect, no RecurringSave → resolver must never be consulted.
+	m.Apply(ctx, "p-1", progression.EffectTemplate{ID: "bless", Duration: 5}, "", "")
+	m.Tick(ctx)
+	m.Tick(ctx)
+	if res.callCount() != 0 {
+		t.Errorf("resolver called %d times for an effect with no recurring save, want 0", res.callCount())
+	}
+	if !m.Has("p-1", "bless") {
+		t.Error("bless wrongly removed")
+	}
 }

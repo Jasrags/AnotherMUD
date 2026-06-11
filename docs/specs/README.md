@@ -115,6 +115,13 @@ The verbs players use and the systems that resolve them.
   `SaveResolved` event, and the first consumer (the massive-damage
   Fortitude save). Layers on `combat` §4.4 + `progression`; EPIC sub-epic
   S6 *(shipped 2026-06-10)*.
+- [conditions](conditions.md) — status conditions (the Core 5:
+  stunned / prone / blinded / frightened / fatigued) as flagged effects, the
+  combat hooks (incapacitation skip-swing, defender vulnerability, attacker +
+  save penalties, frightened forced-flee), entry + per-tick shake-off saves
+  (consumes `saves`), and the inflict path (`afflict`/`cure` admin verbs +
+  save-gated `trip`/`bash` abilities). Layers on `abilities-and-effects` +
+  `combat` §4–§5; EPIC sub-epic S5 *(shipped 2026-06-10)*.
 - [loot-and-corpses](loot-and-corpses.md) — the death → drop path:
   corpse creation on the mob-killed event, coin drops, the killer-
   first looting-rights window, the loot / get-from verbs, the
@@ -430,4 +437,4 @@ highest-impact themes that recur across specs:
 
 ---
 
-<!-- Updated: 2026-06-10 · 42 specs covering the engine substrate, world, action, lifecycle, and presentation layers. Behavior contracts still ahead of code: tag-observers, visibility, hidden-exits, faction, and the trade trio (trade-escrow, direct-trade, auction-house). Since-shipped: roles-and-permissions, admin-verbs, item-decorations (M19/M20), loot-and-corpses (M22), tab-completion Phase 0–2, who, light-and-darkness, room-coordinates (M23), player-maps (M24 — Mudlet GMCP wire-shape pending live-client validation), biomes, gathering, crafting-and-cooking (M27), weapon-identity (WoT EPIC S1), saves (WoT EPIC S6). -->
+<!-- Updated: 2026-06-10 · 43 specs covering the engine substrate, world, action, lifecycle, and presentation layers. Behavior contracts still ahead of code: tag-observers, visibility, hidden-exits, faction, and the trade trio (trade-escrow, direct-trade, auction-house). Since-shipped: roles-and-permissions, admin-verbs, item-decorations (M19/M20), loot-and-corpses (M22), tab-completion Phase 0–2, who, light-and-darkness, room-coordinates (M23), player-maps (M24 — Mudlet GMCP wire-shape pending live-client validation), biomes, gathering, crafting-and-cooking (M27), weapon-identity (WoT EPIC S1), saves (WoT EPIC S6), conditions (WoT EPIC S5). -->

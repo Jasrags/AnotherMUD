@@ -1,0 +1,8 @@
+# Conditions §2 — prone (EPIC S5). The bearer's melee is penalized and it
+# is easier to hit (magnitudes in the `condition` package). Cleared by the
+# `stand` verb or when the duration runs out; no shake-off save (you get up
+# by acting, not by saving).
+id: prone
+duration: 5
+flags:
+  - condition:prone

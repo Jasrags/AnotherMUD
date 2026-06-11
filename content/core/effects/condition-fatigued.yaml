@@ -1,0 +1,12 @@
+# Conditions §2 — fatigued (EPIC S5). The "free" condition: pure stat
+# modifiers (−Str/−Dex), no combat-hook behavior beyond what the stat block
+# already applies. A long, mild debuff. No shake-off save.
+id: fatigued
+duration: 50
+flags:
+  - condition:fatigued
+modifiers:
+  - stat: str
+    value: -2
+  - stat: dex
+    value: -2

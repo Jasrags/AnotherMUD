@@ -219,6 +219,13 @@ type Env struct {
 	// through it; future verbs (score, train, practice) will too.
 	// nil in tests that don't exercise progression verbs.
 	Progression *progression.Manager
+	// Effects is the effect manager (conditions §5): the afflict/cure
+	// verbs and the `stand` (wake) prone-clear route through it. nil
+	// disables them.
+	Effects *progression.EffectManager
+	// EffectTemplates resolves an effect template by id for the afflict
+	// verb (conditions §5). nil disables afflict.
+	EffectTemplates EffectTemplateSource
 	// Training is the M8.6 training service. The train + practice
 	// verbs route through it. nil in tests that don't exercise
 	// training.
