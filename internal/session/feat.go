@@ -65,7 +65,9 @@ func (a *connActor) buildFeatCharView() featCharView {
 	prof := a.prof
 	if a.save != nil {
 		for _, kf := range a.save.KnownFeats {
-			known[kf.FeatID] = true
+			// Normalize at insertion so HasFeat (which lowercases its arg)
+			// matches even a hand-edited save with a mixed-case feat id.
+			known[strings.ToLower(strings.TrimSpace(kf.FeatID))] = true
 		}
 	}
 	a.mu.Unlock()
@@ -126,7 +128,9 @@ func (a *connActor) TakeFeat(featID, param string) (bool, string) {
 	}
 	param = strings.ToLower(strings.TrimSpace(param))
 
-	// Rule check: already-taken / missing param, by multi-take rule.
+	// Rule check: already-taken / missing param, by multi-take rule. The
+	// `already` flag is consulted only for single + per-param feats; a
+	// stackable feat is always allowed (recordFeatLocked increments its count).
 	a.mu.Lock()
 	already := a.featTakenLocked(f, param)
 	a.mu.Unlock()
@@ -151,13 +155,18 @@ func (a *connActor) TakeFeat(featID, param string) (bool, string) {
 		return false, featIneligibleMsg(f, el)
 	}
 
-	// Spend + record atomically. Re-check the credit under the lock (a
-	// concurrent grant/spend is impossible under serial dispatch, but the
-	// guard keeps the invariant honest).
+	// Spend + record atomically. Re-check the credit AND the already-taken
+	// guard under the lock: a concurrent grant/spend is impossible under serial
+	// dispatch today, but this keeps the invariants honest if a future bus event
+	// (e.g. a quest feat reward) ever records a feat off the dispatch path.
 	a.mu.Lock()
 	if a.featCredits <= 0 {
 		a.mu.Unlock()
 		return false, "You have no feat slots to spend. (You earn one at creation and one every 3 levels.)"
+	}
+	if f.MultiTake != feat.MultiTakeStackable && a.featTakenLocked(f, param) {
+		a.mu.Unlock()
+		return false, fmt.Sprintf("You already have %s.", f.DisplayName)
 	}
 	a.featCredits--
 	a.recordFeatLocked(f, param)
