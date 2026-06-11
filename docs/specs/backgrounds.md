@@ -200,9 +200,12 @@ not values.
 - **Class starting gear** — the starting-item mechanism this introduces could
   give classes a starting-loadout too (today neither race nor class grants
   items). Generalize when a class wants it.
-- **Background feats** — when S4 (feat selection) lands, a background grants a
-  choice from a background-specific feat list (the WoT model); authored as a
-  fixed grant until then.
+- **Background feats** — ✅ **authored fixed grant SHIPPED** (EPIC S4 Phase 5,
+  2026-06-11): a background's `feats:` list grants those feat ids free at
+  creation (no slot, no prereq), recorded + applied like a taken feat (the
+  soldier grants Great Fortitude). The remaining refinement is the WoT
+  *choose-from-a-background-feat-list* model — a player pick from a
+  background-specific pool, deferred until that breadth is wanted.
 - **Class-skill-cap nuance** — a background's skills capping higher than
   cross-class (the d20 "they become class skills") waits on cross-class caps.
 - **WoT homelands** — the setting-specific backgrounds (with their feat/language
