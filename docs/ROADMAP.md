@@ -18,7 +18,7 @@ For **behavior contracts**, see `docs/specs/`. The old `TAPESTRY-GAP-MATRIX.md`
 and `THEME-AXIS-PLAN.md` are superseded by `BACKLOG.md` and now live under
 `docs/archive/` (the five themes they framed have all shipped — M13–M17).
 
-## Status (as of 2026-06-07)
+## Status (as of 2026-06-11)
 
 - **Done:** **M0–M23.** The five original themes — A/M13 (Social), B/M16
   (Modern-Client + GMCP), C/M15 (World-Depth), D/M17 (Content-Authoring +
@@ -47,6 +47,15 @@ and `THEME-AXIS-PLAN.md` are superseded by `BACKLOG.md` and now live under
   Post-MVP crafting breadth + gathering stay deferred (a separate milestone;
   see `BACKLOG.md` §1 + `[[crafting-deferred-fixes]]`). Pick the next theme
   from `BACKLOG.md` §1 (specced, ready) or §2 (greenfield).
+- **Active arc — WoT Mechanics EPIC** (post-M27, additive sub-epics; Decision 0
+  = posture A, translate onto tick/chance). Shipped so far: **S1 weapon-identity**,
+  **S3 skills** (use-based proficiency + skill-check primitive + lockpicking),
+  **S5 conditions** (Core 5), **S6 saves** (Fort/Reflex/Will), the **multiclass
+  seam** (class widened to a list, save v18), and **S9 backgrounds** (the
+  creation-origin starting package — skills/items/gold, save v19). The
+  per-sub-epic done-log + remaining S2/S4/S7/S8/S10/S11 candidates live in the
+  EPIC tracker `docs/themes/wot-mechanics-epic.md`; the arc is summarized below
+  after M27.
 - **Specs ahead of code.** Behavior contracts written without
   implementation, still awaiting a milestone: `tag-observers`,
   `crafting-and-cooking`, and the trade trio
@@ -3456,6 +3465,61 @@ craft_stations property + TypeMapInt fix), `internal/player` (save v17),
 `internal/session` + `cmd/anothermud` (wiring), `content/core` (cooking +
 smithing disciplines, trainers, recipes, food, effects, tools, stations).
 54 pkgs green -race.
+
+---
+
+### WoT Mechanics EPIC (post-M27, additive sub-epics)
+
+**Theme:** the mechanical-fidelity program for the Wheel-of-Time setting,
+decomposed in [`themes/wot-mechanics-epic.md`](themes/wot-mechanics-epic.md)
+(the canonical per-sub-epic tracker). **Decision 0 = posture A** (2026-06-10):
+translate WoT's flavor + meaningful choices onto the engine's tick/chance
+model; **no d20 substrate rewrite** (S12 shelved). Every sub-epic is therefore
+an *additive* feature on the working engine, shipped as its own spec slice +
+content. Unlike M0–M27, these are tracked as EPIC sub-epics rather than
+numbered milestones — this section is the ROADMAP-side index; the EPIC doc
+holds the detail and the open candidates.
+
+**Shipped slices (all 2026-06-10 → 2026-06-11, each reviewed):**
+
+- [x] **S1 — Weapon identity (A+B+C).** Category + proficiency-tier + damage-type
+      metadata, class-granted weapon proficiency + non-proficient penalty,
+      per-weapon crit threat/multiplier. Spec `weapon-identity.md`. (Remaining
+      S1: ranged (G), armor (E), size-wield (F) — separate themes.)
+- [x] **S6 — Saves (Fort/Reflex/Will).** Three derived saves (class strong/weak
+      base + ability mod), the `combat.ResolveSave` d20 primitive + `SaveResolved`
+      event, massive-damage Fortitude consumer, score row. Spec `saves.md`.
+- [x] **S5 — Conditions (Core 5).** Stunned/prone/blinded/frightened/fatigued as
+      flagged effects + combat hooks, entry + per-tick shake-off saves (consumes
+      S6), `afflict`/`cure` + save-gated `trip`/`bash`, `affects` listing. Spec
+      `conditions.md`.
+- [x] **S3 — Skills (substrate).** Skill = use-based proficiency (the convention
+      crafting proved) + the `ResolveSkillCheck` primitive (`d20 + bonus vs DC`)
+      + lockpicking (`pick`) as the first consumer + a `skills` listing. Spec
+      `skills.md`. The primitive is the seam backgrounds (S9) and visibility call.
+- [x] **Multiclass seam (S9 prep).** Player class widened `string → []string`;
+      **player save v18** (append-only migration). The engine was already
+      multi-track, so multiclass became ~80% content + this one scalar→list change.
+- [x] **S9 — Backgrounds (creation-origin half).** The third creation axis after
+      race + class: a content-defined background grants a one-time starting
+      package — skill proficiencies + items + gold — applied once at creation,
+      never re-applied. `progression.BackgroundRegistry` (mirrors race/class),
+      `session.BackgroundGranter` (fired from `character.created`), pack
+      `BackgroundFile`/`decodeBackground` + `backgrounds:` glob (item ids
+      namespace-qualified at decode), a creation-wizard background step, the
+      `score` row, and **player save v19** (append-only; pre-migration saves load
+      background-less). Content: a core `Commoner` (skill+gold-only, engine
+      baseline) + four starter-world demo backgrounds (soldier/thief/smith/
+      wanderer) whose item grants keep the core→world dependency direction
+      intact. Spec `backgrounds.md`. go-reviewer APPROVE; M1/M3/M4/L4 fixed
+      in-pass, one MEDIUM deferred (`[[backgrounds-deferred-fixes]]` — wizard
+      doesn't yet call `GetEligible`, the same accepted gap as `classOptions`).
+
+**Open / next candidates:** S2 The One Power (the marquee arc; consumes the
+Mana-pool substrate), S4 feats/traits (the substrate S9 background-feats hang
+off), S7 survival v2, S8 reputation, S10 travel/planes, S11 Shadowspawn, plus
+the separate ranged (G) / armor (E) S1 follow-ons. See `BACKLOG.md` §2 + the
+EPIC doc for sequencing.
 
 ---
 

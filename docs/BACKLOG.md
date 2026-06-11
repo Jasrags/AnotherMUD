@@ -123,10 +123,16 @@ old five-theme partition left uncovered.
   the hunger/thirst split + container caps, S8 is a faction sibling, S10 consumes
   fast-travel. Content (`wot-world-plan.md`) proceeds in parallel at today's fidelity and
   upgrades as each sub-epic lands. **Decision 0 RESOLVED (2026-06-10): posture A** —
-  translate WoT onto the tick/chance model, no d20 rewrite (S12 shelved). **S1
-  (`M-Weapon-Identity` = A+B+C) SHIPPED 2026-06-10** (`weapon-identity.md` + demo);
-  next candidates: S6 saves (small primitive), S2 The One Power (marquee), or the
-  separate ranged (G) / armor (E) S1 follow-ons.**
+  translate WoT onto the tick/chance model, no d20 rewrite (S12 shelved).
+  **SHIPPED 2026-06-10 → 06-11:** S1 weapon-identity (A+B+C, `weapon-identity.md`),
+  S3 skills (`skills.md` — use-based proficiency + skill-check primitive + lockpicking),
+  S5 conditions (`conditions.md` — Core 5), S6 saves (`saves.md` — Fort/Reflex/Will),
+  the **multiclass seam** (class `string → []string`, save v18), and **S9 backgrounds**
+  (the creation-origin starting package — skills/items/gold, save v19, `backgrounds.md`;
+  a core `Commoner` + 4 starter-world demo backgrounds). See ROADMAP "WoT Mechanics
+  EPIC" + the EPIC doc's status table. **Next candidates:** S2 The One Power (marquee),
+  S4 feats/traits (the substrate S9 background-feats + many S1 weapon perks need),
+  S7 survival v2, S8 reputation, or the separate ranged (G) / armor (E) S1 follow-ons.
 - **Combat & Equipment Depth (WoT weapon/armor system)** — *(EPIC sub-epic S1 — see WoT
   Mechanics above and [`docs/themes/wot-mechanics-epic.md`](themes/wot-mechanics-epic.md))*
   **✅ A+B+C (`M-Weapon-Identity`) SHIPPED 2026-06-10** (`weapon-identity.md`); what
