@@ -52,6 +52,10 @@ func TestRegister_RejectsNilAndEmptyID(t *testing.T) {
 	if err := r.Register(&Feat{ID: "   "}); err == nil {
 		t.Error("Register with blank id should error")
 	}
+	// Has on a missing / blank key reports false (no panic).
+	if r.Has("nonexistent") || r.Has("") {
+		t.Error("Has should be false for missing/blank keys")
+	}
 }
 
 func TestRegister_PriorityOverride(t *testing.T) {
