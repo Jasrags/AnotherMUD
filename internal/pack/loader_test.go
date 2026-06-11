@@ -2399,6 +2399,10 @@ func TestLoadFeats_RejectsBadGrants(t *testing.T) {
 		// negative magnitude (beneficial-only in v1)
 		"id: bad\ngrants:\n  - { kind: save_bonus, target: will, magnitude: -2 }\n",
 		"id: bad\ngrants:\n  - { kind: max_hp, magnitude: -3 }\n",
+		// per-weapon/skill kind on a non-per_param feat
+		"id: bad\ngrants:\n  - { kind: hit_bonus, magnitude: 1 }\n",
+		// ability grant with no target
+		"id: bad\ngrants:\n  - { kind: ability }\n",
 	}
 	for i, body := range bad {
 		root := t.TempDir()

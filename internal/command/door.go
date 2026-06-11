@@ -154,6 +154,10 @@ func handlePick(ctx context.Context, c *Context, src world.RoomID, dir world.Dir
 		statScore = sv.StatValue(gov)
 	}
 	bonus := progression.SkillBonus(prof, statScore, progression.DefaultSkillConfig())
+	// EPIC S4 Phase 3c: a Skill Emphasis feat on this skill adds a flat bonus.
+	if fb, ok := c.Actor.(featSkillBonuser); ok {
+		bonus += fb.FeatSkillBonus(skillOpenLock)
+	}
 	outcome := progression.ResolveSkillCheck(c.SkillRoller, bonus, door.PickDifficulty)
 
 	// The skill improves on every attempt (the existing use-gain loop, halved

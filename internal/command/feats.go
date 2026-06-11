@@ -16,6 +16,13 @@ type FeatActor interface {
 	FeatListing() string
 }
 
+// featSkillBonuser is the capability a skill-check site asserts to fold in a
+// Skill Emphasis feat bonus (EPIC S4 Phase 3c). Kept tiny + separate from
+// FeatActor so non-feat actors and the pick handler stay decoupled.
+type featSkillBonuser interface {
+	FeatSkillBonus(skillID string) int
+}
+
 // FeatsHandler implements `feats` — list held feats, banked slots, and the
 // feats currently eligible to take.
 func FeatsHandler(ctx context.Context, c *Context) error {

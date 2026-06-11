@@ -749,7 +749,7 @@ func run(ctx context.Context, c conn.Connection, cfg Config) error {
 	// so the feat modifier sits on top of the fully-restored block (and replaces
 	// any stale feat: entry a legacy save round-tripped). The OnMaxChange→vitals
 	// binding (wired far above) then moves the ceiling. No-op without such feats.
-	a.applyFeatStatModifiers()
+	a.applyFeatGrants()
 
 	// M8.2: install persisted progression state. Empty snapshot is
 	// a no-op (uninitialized tracks lazy-init on first interaction
@@ -1729,6 +1729,11 @@ type connActor struct {
 	// atomic.Pointer keeps that read off a.mu so combat never blocks on
 	// a session-side equip. nil means "no weapon → unarmed default".
 	weapon atomic.Pointer[weaponInfo]
+	// featWeaponBonus caches the per-weapon-category feat hit/crit bonuses
+	// (EPIC S4 Phase 3c), recomputed on feat change (applyFeatGrants) and read
+	// LOCK-FREE in Stats() — same atomic.Pointer discipline as `weapon`, so the
+	// combat hot path never blocks on a.mu. nil = no such feats.
+	featWeaponBonus atomic.Pointer[featWeaponBonuses]
 	// statBlock is the actor's progression-layer stat block (M8.1 —
 	// docs/specs/progression.md §2). Holds base attributes (the six
 	// classics + vital maxima + the combat-derived hit_mod / ac slots
@@ -4034,6 +4039,24 @@ func (a *connActor) Stats() combat.Stats {
 		s.WeaponName = w.name
 		s.CritThreatLow = w.critThreatLow
 		s.CritMultiplier = w.critMultiplier
+		// EPIC S4 Phase 3c: per-weapon-category feat bonuses (Weapon Focus
+		// to-hit, Improved Critical threat widen), read lock-free from the
+		// cache. Category match is case-insensitive (feat params are lowercased).
+		if fb := a.featWeaponBonus.Load(); fb != nil && w.category != "" {
+			cat := strings.ToLower(w.category)
+			s.HitMod += fb.hit[cat]
+			if widen := fb.crit[cat]; widen > 0 {
+				low := s.CritThreatLow
+				if low <= 0 {
+					low = 20 // an unthreatening weapon threatens only on a natural 20
+				}
+				low -= widen
+				if low < 2 {
+					low = 2
+				}
+				s.CritThreatLow = low
+			}
+		}
 	}
 	return s
 }

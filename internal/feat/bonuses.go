@@ -22,6 +22,17 @@ type Bonuses struct {
 	// MaxHP is the additive maximum-HP bonus (Toughness and friends). Zero =
 	// no bonus.
 	MaxHP int
+	// HitByCategory is the per-weapon-category to-hit bonus (Weapon Focus),
+	// keyed by the lowercased weapon category. Nil = none.
+	HitByCategory map[string]int
+	// CritByCategory is the per-weapon-category critical threat-range WIDEN
+	// (Improved Critical) — faces to lower the weapon's threat-low by. Nil = none.
+	CritByCategory map[string]int
+	// SkillByID is the per-skill check bonus (Skill Emphasis), keyed by the
+	// skill ability id. Nil = none.
+	SkillByID map[string]int
+	// Abilities are the ability ids a feat teaches (Power Attack). Nil = none.
+	Abilities []string
 }
 
 // ComputeBonuses aggregates the bonuses conferred by the held feats, resolving
@@ -54,6 +65,32 @@ func ComputeBonuses(held []Taken, reg *Registry) Bonuses {
 				b.Saves[g.Target] += g.Magnitude * mult
 			case GrantMaxHP:
 				b.MaxHP += g.Magnitude * mult
+			case GrantHitBonus:
+				// per-weapon-category: the take's Param names the category.
+				if t.Param != "" {
+					if b.HitByCategory == nil {
+						b.HitByCategory = make(map[string]int)
+					}
+					b.HitByCategory[t.Param] += g.Magnitude * mult
+				}
+			case GrantCritThreat:
+				if t.Param != "" {
+					if b.CritByCategory == nil {
+						b.CritByCategory = make(map[string]int)
+					}
+					b.CritByCategory[t.Param] += g.Magnitude * mult
+				}
+			case GrantSkillBonus:
+				if t.Param != "" {
+					if b.SkillByID == nil {
+						b.SkillByID = make(map[string]int)
+					}
+					b.SkillByID[t.Param] += g.Magnitude * mult
+				}
+			case GrantAbility:
+				if g.Target != "" {
+					b.Abilities = append(b.Abilities, g.Target)
+				}
 			}
 		}
 	}

@@ -1,0 +1,11 @@
+# The Power Attack ability (EPIC S4): granted by the Power Attack feat. A
+# passive marker for now — it exists so the feat's ability-grant resolves and
+# the ability shows in the character's known set. Its combat effect (trade
+# to-hit for damage) is future combat work; with no hook it is inert today.
+id: power-attack
+name: Power Attack
+type: passive
+category: skill
+default_cap: 100
+gain_base_chance: 0
+gain_stat: str

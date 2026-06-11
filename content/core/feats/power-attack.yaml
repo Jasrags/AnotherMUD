@@ -1,0 +1,9 @@
+# Power Attack (EPIC S4): teaches the power-attack ability — the "ability"
+# grant kind (a feat unlocks an ability). Single take. (Canonical d20 prereq
+# STR 13; omitted for the v1 demo since a fresh character is STR 10 and the
+# ability's combat effect is itself future work.)
+id: power-attack
+name: Power Attack
+description: You can trade attack accuracy for raw power — you learn the Power Attack ability.
+grants:
+  - { kind: ability, target: power-attack }

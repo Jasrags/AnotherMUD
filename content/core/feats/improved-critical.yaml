@@ -1,0 +1,10 @@
+# Improved Critical (EPIC S4): widen the critical threat range by 2 with a
+# chosen weapon CATEGORY (per-parameter). Lowers the wielded weapon's
+# threat-low in connActor.Stats(). (Canonical d20 prereq Proficient + BAB+8;
+# omitted for the v1 demo.)
+id: improved-critical
+name: Improved Critical
+description: Your critical reach with one weapon category widens — you threaten a critical on a lower roll.
+multi_take: per_param
+grants:
+  - { kind: crit_threat, magnitude: 2 }

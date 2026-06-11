@@ -1918,6 +1918,24 @@ func decodeFeat(path, ns string) (*feat.Feat, error) {
 					return nil, fmt.Errorf("%w: %s: grants[%d] max_hp needs a positive magnitude",
 						ErrInvalidContent, path, i)
 				}
+			case feat.GrantAbility:
+				if strings.TrimSpace(g.Target) == "" {
+					return nil, fmt.Errorf("%w: %s: grants[%d] ability needs a target (ability id)",
+						ErrInvalidContent, path, i)
+				}
+			}
+			// Per-weapon/skill kinds (hit_bonus/crit_threat/skill_bonus) take
+			// their target from the take's PARAM, so the feat must be
+			// per_param + carry a positive magnitude.
+			if feat.IsPerWeaponOrSkill(kind) {
+				if g.Magnitude <= 0 {
+					return nil, fmt.Errorf("%w: %s: grants[%d] %s needs a positive magnitude",
+						ErrInvalidContent, path, i, kind)
+				}
+				if mt != feat.MultiTakeParam {
+					return nil, fmt.Errorf("%w: %s: grants[%d] %s requires multi_take: per_param (the param names the weapon/skill)",
+						ErrInvalidContent, path, i, kind)
+				}
 			}
 			grants = append(grants, feat.Grant{Kind: kind, Target: strings.TrimSpace(g.Target), Magnitude: g.Magnitude})
 		}

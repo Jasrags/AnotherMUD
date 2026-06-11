@@ -17,12 +17,37 @@ const (
 	// Target is unused. Consumer: an hp_max stat modifier under srckey.Feat,
 	// which the existing OnMaxChange→vitals binding turns into a real ceiling.
 	GrantMaxHP GrantKind = "max_hp"
+	// GrantHitBonus adds Magnitude to-hit with a weapon CATEGORY (Weapon
+	// Focus). The category is the take's Param (a per-parameter feat), not the
+	// grant Target. Consumer: connActor.Stats() HitMod for the wielded weapon.
+	GrantHitBonus GrantKind = "hit_bonus"
+	// GrantCritThreat widens the critical threat range by Magnitude faces with
+	// a weapon CATEGORY (Improved Critical) — the take's Param. Consumer:
+	// connActor.Stats() lowers CritThreatLow for the wielded weapon.
+	GrantCritThreat GrantKind = "crit_threat"
+	// GrantSkillBonus adds Magnitude to a SKILL's check (Skill Emphasis). The
+	// skill ability id is the take's Param. Consumer: the skill-check sites.
+	GrantSkillBonus GrantKind = "skill_bonus"
+	// GrantAbility teaches an ability (Power Attack). Target is the ability id;
+	// Magnitude unused. Consumer: prof.Learn at grant time (applyFeatGrants).
+	GrantAbility GrantKind = "ability"
 )
 
 // ValidGrantKind reports whether k is a known grant kind.
 func ValidGrantKind(k GrantKind) bool {
 	switch k {
-	case GrantSaveBonus, GrantMaxHP:
+	case GrantSaveBonus, GrantMaxHP, GrantHitBonus, GrantCritThreat, GrantSkillBonus, GrantAbility:
+		return true
+	}
+	return false
+}
+
+// IsPerWeaponOrSkill reports whether a grant kind's target is supplied by the
+// take's Param (a per-parameter feat) rather than the grant Target. The decode
+// requires such a feat to be multi_take: per_param.
+func IsPerWeaponOrSkill(k GrantKind) bool {
+	switch k {
+	case GrantHitBonus, GrantCritThreat, GrantSkillBonus:
 		return true
 	}
 	return false

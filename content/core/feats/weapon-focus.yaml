@@ -1,0 +1,11 @@
+# Weapon Focus (EPIC S4 — wot-feats.md): +1 to-hit with a chosen weapon
+# CATEGORY. Per-parameter — the take's target names the category (e.g.
+# `feat weapon-focus sword`), and a second take binds another category. The
+# bonus applies in connActor.Stats() when wielding a weapon of that category.
+# (Canonical d20 prereq is Proficient + BAB+1; omitted for the v1 demo.)
+id: weapon-focus
+name: Weapon Focus
+description: You are especially good with one category of weapon — +1 to attack rolls with it.
+multi_take: per_param
+grants:
+  - { kind: hit_bonus, magnitude: 1 }

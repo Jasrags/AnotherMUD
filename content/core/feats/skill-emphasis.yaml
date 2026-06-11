@@ -1,0 +1,9 @@
+# Skill Emphasis (EPIC S4): +3 to a chosen SKILL's checks (per-parameter —
+# the target is the skill ability id, e.g. `feat skill-emphasis open-lock`).
+# Folded into the skill-check bonus at each check site.
+id: skill-emphasis
+name: Skill Emphasis
+description: You have a knack for one skill — +3 on its checks.
+multi_take: per_param
+grants:
+  - { kind: skill_bonus, magnitude: 3 }

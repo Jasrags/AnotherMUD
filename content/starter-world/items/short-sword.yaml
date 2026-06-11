@@ -20,6 +20,10 @@ properties:
 # unarmed default; the rolled value is then scaled by STR. Validated at
 # pack load and parsed to a dice expression on the instance.
 weapon_damage: "1d6"
+# Weapon category (weapon-identity §2): the opaque kind label per-weapon feats
+# (Weapon Focus / Improved Critical, EPIC S4) match against — `feat weapon-focus
+# sword` lifts to-hit while wielding this.
+weapon_category: sword
 # Starter weapon stats. On top of the damage die, combat reads STR
 # (damage via the §4.5 STR bonus) and hit_mod (accuracy) from the
 # wielder's stat block, so these modifiers make the sword meaningfully

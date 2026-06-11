@@ -55,6 +55,40 @@ func TestComputeBonuses_MaxHP(t *testing.T) {
 	}
 }
 
+// The per-weapon/skill kinds key by the take's Param; the ability kind by the
+// grant Target (EPIC S4 Phase 3c).
+func TestComputeBonuses_PerParamAndAbility(t *testing.T) {
+	r := NewRegistry()
+	_ = r.Register(&Feat{ID: "weapon-focus", MultiTake: MultiTakeParam, Grants: []Grant{{Kind: GrantHitBonus, Magnitude: 1}}})
+	_ = r.Register(&Feat{ID: "improved-critical", MultiTake: MultiTakeParam, Grants: []Grant{{Kind: GrantCritThreat, Magnitude: 2}}})
+	_ = r.Register(&Feat{ID: "skill-emphasis", MultiTake: MultiTakeParam, Grants: []Grant{{Kind: GrantSkillBonus, Magnitude: 3}}})
+	_ = r.Register(&Feat{ID: "power-attack", Grants: []Grant{{Kind: GrantAbility, Target: "power-attack"}}})
+
+	b := ComputeBonuses([]Taken{
+		{FeatID: "weapon-focus", Param: "sword"},
+		{FeatID: "improved-critical", Param: "sword"},
+		{FeatID: "skill-emphasis", Param: "open-lock"},
+		{FeatID: "power-attack"},
+	}, r)
+
+	if b.HitByCategory["sword"] != 1 {
+		t.Errorf("HitByCategory[sword] = %d, want 1", b.HitByCategory["sword"])
+	}
+	if b.CritByCategory["sword"] != 2 {
+		t.Errorf("CritByCategory[sword] = %d, want 2", b.CritByCategory["sword"])
+	}
+	if b.SkillByID["open-lock"] != 3 {
+		t.Errorf("SkillByID[open-lock] = %d, want 3", b.SkillByID["open-lock"])
+	}
+	if len(b.Abilities) != 1 || b.Abilities[0] != "power-attack" {
+		t.Errorf("Abilities = %v, want [power-attack]", b.Abilities)
+	}
+	// A per-param grant with no param contributes nothing (guarded).
+	if got := ComputeBonuses([]Taken{{FeatID: "weapon-focus"}}, r); got.HitByCategory != nil {
+		t.Errorf("paramless per-param feat should contribute nothing, got %v", got.HitByCategory)
+	}
+}
+
 // A stackable feat with Count 0 (the contract: "non-positive counts as one")
 // applies its grant exactly once.
 func TestComputeBonuses_StackableZeroCountAppliesOnce(t *testing.T) {

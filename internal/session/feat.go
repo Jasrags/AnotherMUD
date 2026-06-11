@@ -179,7 +179,7 @@ func (a *connActor) TakeFeat(featID, param string) (bool, string) {
 
 	// Re-install the stat-shaped feat bonuses (e.g. a freshly-taken Toughness
 	// raising max HP) now that known_feats changed (Phase 3b).
-	a.applyFeatStatModifiers()
+	a.applyFeatGrants()
 
 	if f.MultiTake == feat.MultiTakeParam {
 		return true, fmt.Sprintf("You gain the %s feat (%s).", f.DisplayName, param)
@@ -217,19 +217,33 @@ func (a *connActor) GrantFeat(featID, param string) {
 	a.recordFeatLocked(f, param)
 	a.markDirtyLocked()
 	a.mu.Unlock()
-	a.applyFeatStatModifiers()
+	a.applyFeatGrants()
 }
 
-// applyFeatStatModifiers recomputes the stat-shaped feat bonuses from the
-// actor's known_feats and installs them on the stat block under srckey.Feat
-// keys (EPIC S4 Phase 3b). Today that is the hp_max bonus (Toughness): writing
-// it fires the OnMaxChange→vitals binding, so the max-HP ceiling moves.
-// AddModifiers replaces the prior entry, so this is idempotent — safe to call
-// at load and after every take; a zero bonus removes the modifier.
-func (a *connActor) applyFeatStatModifiers() {
+// featWeaponBonuses is the per-weapon-category feat bonus cache (EPIC S4
+// Phase 3c), recomputed on every feat change and read LOCK-FREE in
+// connActor.Stats() (the combat hot path, which deliberately avoids a.mu).
+// Mirrors the a.weapon atomic-pointer pattern. Nil maps read as zero.
+type featWeaponBonuses struct {
+	hit  map[string]int // weapon category → to-hit bonus (Weapon Focus)
+	crit map[string]int // weapon category → threat-low widen (Improved Critical)
+}
+
+// applyFeatGrants recomputes ALL feat grants from the actor's known_feats and
+// installs them (EPIC S4 Phase 3b/3c). Idempotent — safe to call at load and
+// after every take/grant:
+//   - hp_max stat modifier under srckey.Feat (AddModifiers replaces per source;
+//     the OnMaxChange→vitals binding then moves the ceiling). 3b.
+//   - the per-weapon-category hit/crit cache, stored in an atomic pointer Stats
+//     reads lock-free. 3c.
+//   - ability grants (Power Attack) taught via prof.Learn (idempotent; the
+//     single-grant guard never resets a practiced ability). 3c.
+func (a *connActor) applyFeatGrants() {
 	a.mu.Lock()
 	reg := a.feats
 	sb := a.statBlock
+	prof := a.prof
+	entityID := a.playerID
 	var held []feat.Taken
 	if a.save != nil {
 		for _, kf := range a.save.KnownFeats {
@@ -237,16 +251,48 @@ func (a *connActor) applyFeatStatModifiers() {
 		}
 	}
 	a.mu.Unlock()
-	if sb == nil {
-		return
-	}
+
 	b := feat.ComputeBonuses(held, reg) // reg nil → zero bonuses
-	if b.MaxHP != 0 {
-		sb.AddModifier(srckey.Feat("hp_max"), progression.StatHPMax, b.MaxHP)
-	} else {
-		// Remove any stale feat hp_max modifier (empty list removes the entry).
-		sb.AddModifiers(srckey.Feat("hp_max"), nil)
+
+	// 3b: hp_max stat modifier.
+	if sb != nil {
+		if b.MaxHP != 0 {
+			sb.AddModifier(srckey.Feat("hp_max"), progression.StatHPMax, b.MaxHP)
+		} else {
+			// Remove any stale feat hp_max modifier (empty list removes it).
+			sb.AddModifiers(srckey.Feat("hp_max"), nil)
+		}
 	}
+
+	// 3c: per-weapon-category hit/crit cache (read lock-free in Stats).
+	a.featWeaponBonus.Store(&featWeaponBonuses{hit: b.HitByCategory, crit: b.CritByCategory})
+
+	// 3c: ability grants (Power Attack). Teach at baseline; Learn's single-grant
+	// guard keeps an already-known/practiced ability untouched on re-grant.
+	if prof != nil && entityID != "" {
+		for _, abID := range b.Abilities {
+			prof.Learn(entityID, abID, 1)
+		}
+	}
+}
+
+// FeatSkillBonus returns the additive feat check bonus for skill ability
+// skillID (Skill Emphasis — EPIC S4 Phase 3c). Recomputed on demand (skill
+// checks are cold). 0 when no feat emphasizes that skill.
+func (a *connActor) FeatSkillBonus(skillID string) int {
+	a.mu.Lock()
+	reg := a.feats
+	var held []feat.Taken
+	if a.save != nil {
+		for _, kf := range a.save.KnownFeats {
+			held = append(held, feat.Taken{FeatID: kf.FeatID, Param: kf.Param, Count: kf.Count})
+		}
+	}
+	a.mu.Unlock()
+	if reg == nil {
+		return 0
+	}
+	return feat.ComputeBonuses(held, reg).SkillByID[strings.ToLower(strings.TrimSpace(skillID))]
 }
 
 // featTakenLocked reports whether the actor already holds f (caller holds

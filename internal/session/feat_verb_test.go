@@ -13,7 +13,14 @@ func featTestRegistry() *feat.Registry {
 	r := feat.NewRegistry()
 	_ = r.Register(&feat.Feat{ID: "iron-will", DisplayName: "Iron Will",
 		Grants: []feat.Grant{{Kind: feat.GrantSaveBonus, Target: "will", Magnitude: 2}}})
-	_ = r.Register(&feat.Feat{ID: "weapon-focus", DisplayName: "Weapon Focus", MultiTake: feat.MultiTakeParam})
+	_ = r.Register(&feat.Feat{ID: "weapon-focus", DisplayName: "Weapon Focus", MultiTake: feat.MultiTakeParam,
+		Grants: []feat.Grant{{Kind: feat.GrantHitBonus, Magnitude: 1}}})
+	_ = r.Register(&feat.Feat{ID: "improved-critical", DisplayName: "Improved Critical", MultiTake: feat.MultiTakeParam,
+		Grants: []feat.Grant{{Kind: feat.GrantCritThreat, Magnitude: 2}}})
+	_ = r.Register(&feat.Feat{ID: "skill-emphasis", DisplayName: "Skill Emphasis", MultiTake: feat.MultiTakeParam,
+		Grants: []feat.Grant{{Kind: feat.GrantSkillBonus, Magnitude: 3}}})
+	_ = r.Register(&feat.Feat{ID: "power-attack", DisplayName: "Power Attack",
+		Grants: []feat.Grant{{Kind: feat.GrantAbility, Target: "power-attack"}}})
 	_ = r.Register(&feat.Feat{ID: "toughness", DisplayName: "Toughness", MultiTake: feat.MultiTakeStackable,
 		Grants: []feat.Grant{{Kind: feat.GrantMaxHP, Magnitude: 3}}})
 	_ = r.Register(&feat.Feat{ID: "born-strong", DisplayName: "Born Strong",
@@ -123,6 +130,55 @@ func TestTakeFeat_ToughnessRaisesHPMaxStat(t *testing.T) {
 	a.TakeFeat("toughness", "")
 	if got := a.statBlock.Effective(progression.StatHPMax); got != base+6 {
 		t.Errorf("hp_max = %d, want %d (base %d + 3×2)", got, base+6, base)
+	}
+}
+
+// EPIC S4 Phase 3c: Weapon Focus lifts to-hit and Improved Critical widens the
+// threat range in Stats() — but only for the wielded weapon's category.
+func TestStats_WeaponFeats(t *testing.T) {
+	a := newFeatActor(t, 4)
+	a.weapon.Store(&weaponInfo{category: "sword"}) // critThreatLow 0 → treated as 20
+	a.GrantFeat("weapon-focus", "sword")
+	a.GrantFeat("improved-critical", "sword")
+
+	s := a.Stats()
+	if s.HitMod != 1 {
+		t.Errorf("HitMod = %d, want 1 (Weapon Focus sword)", s.HitMod)
+	}
+	if s.CritThreatLow != 18 {
+		t.Errorf("CritThreatLow = %d, want 18 (20 widened by 2)", s.CritThreatLow)
+	}
+	// A different weapon category gets neither bonus: HitMod stays 0, and the
+	// threat-low passes through as the weapon's raw value (0 here — the 0→20
+	// normalization is the auto-attack's job, not Stats').
+	a.weapon.Store(&weaponInfo{category: "axe"})
+	if got := a.Stats(); got.HitMod != 0 || got.CritThreatLow != 0 {
+		t.Errorf("axe Stats = {Hit %d, Crit %d}, want {0, 0} (focus is on sword)", got.HitMod, got.CritThreatLow)
+	}
+}
+
+// Skill Emphasis adds a flat per-skill bonus (read at the skill-check site).
+func TestFeatSkillBonus(t *testing.T) {
+	a := newFeatActor(t, 1)
+	a.GrantFeat("skill-emphasis", "open-lock")
+	if got := a.FeatSkillBonus("Open-Lock"); got != 3 { // case-insensitive
+		t.Errorf("FeatSkillBonus(open-lock) = %d, want 3", got)
+	}
+	if got := a.FeatSkillBonus("hide"); got != 0 {
+		t.Errorf("unemphasized skill = %d, want 0", got)
+	}
+}
+
+// Power Attack (the ability grant kind) teaches the named ability.
+func TestGrantFeat_TeachesAbility(t *testing.T) {
+	a := newFeatActor(t, 0)
+	abilities := progression.NewAbilityRegistry()
+	_ = abilities.Register(&progression.Ability{ID: "power-attack", Type: progression.AbilityPassive, Category: progression.AbilitySkill, DefaultCap: 100})
+	a.prof = progression.NewProficiencyManager(abilities, progression.DefaultProficiencyConfig())
+
+	a.GrantFeat("power-attack", "")
+	if _, ok := a.prof.Proficiency(a.PlayerID(), "power-attack"); !ok {
+		t.Error("Power Attack feat did not teach the power-attack ability")
 	}
 }
 
