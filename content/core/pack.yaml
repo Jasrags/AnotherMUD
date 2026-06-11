@@ -18,6 +18,8 @@ content:
     - races/*.yaml
   classes:
     - classes/*.yaml
+  backgrounds:
+    - backgrounds/*.yaml
   abilities:
     - abilities/*.yaml
   effects:

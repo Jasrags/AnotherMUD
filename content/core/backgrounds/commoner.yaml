@@ -1,0 +1,23 @@
+# The engine-baseline background (docs/specs/backgrounds.md §8): a generic,
+# class-agnostic origin shipped in tapestry-core so EVERY world — even a
+# core-only or `wot` boot with no world-pack backgrounds of its own — offers
+# at least one creation origin.
+#
+# Core carries no item templates (items are world content), so a core
+# background grants only skills + gold — keeping the core→world dependency
+# direction intact. World packs (e.g. starter-world) add item-granting
+# backgrounds of their own; the registry merges them all in the wizard.
+id: commoner
+name: Commoner
+tagline: Born to no trade in particular.
+description: |
+  You grew up in a settled hearth — a village, a back lane, a farmstead —
+  with no guild behind you and no banner above you. What you learned, you
+  learned at the cookfire, and you leave home with a handful of coin and
+  the sense to feed yourself on the road.
+# A core ability id (bare, global), taught at a modest proficiency via the
+# same Teach seam class features use (backgrounds §4).
+skills:
+  - ability: cooking
+    proficiency: 5
+gold: 15
