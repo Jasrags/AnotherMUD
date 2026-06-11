@@ -15,6 +15,7 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"slices"
 	"sort"
 	"strings"
 	"sync"
@@ -597,8 +598,11 @@ func run(ctx context.Context, c conn.Connection, cfg Config) error {
 	applyClass(a, &cfg, loaded.Player.Class)
 	a.mu.Lock()
 	a.trainsAvailable = loaded.Player.TrainsAvailable
-	if a.classID != "" && loaded.Player.Class != a.classID {
-		a.save.Class = a.classID
+	// Re-sync the save's class list if applyClass dropped a removed-content
+	// id (the resolved list differs from what was loaded). Re-adding the
+	// class later reattaches the character.
+	if len(a.classIDs) > 0 && !slices.Equal(a.classIDs, loaded.Player.Class) {
+		a.save.Class = append([]string(nil), a.classIDs...)
 		a.markDirtyLocked()
 	}
 	a.mu.Unlock()
@@ -657,8 +661,11 @@ func run(ctx context.Context, c conn.Connection, cfg Config) error {
 				}
 			}
 			if cfg.Classes != nil {
-				if c, ok := cfg.Classes.Get(a.classID); ok {
-					seed += c.StartingAlignment
+				// Sum every class's starting alignment (one class today).
+				for _, cid := range a.ClassIDs() {
+					if c, ok := cfg.Classes.Get(cid); ok {
+						seed += c.StartingAlignment
+					}
 				}
 			}
 			if seed != 0 {
@@ -833,7 +840,7 @@ func run(ctx context.Context, c conn.Connection, cfg Config) error {
 	if loaded.New && cfg.Bus != nil {
 		cfg.Bus.Publish(ctx, eventbus.CharacterCreated{
 			EntityID: loaded.Player.ID,
-			ClassID:  a.classID,
+			ClassID:  a.ClassID(), // primary; the subscriber walks ClassIDs() live
 		})
 	}
 
@@ -1623,12 +1630,13 @@ type connActor struct {
 	// acquire. Same publish discipline as raceID / racialTags.
 	race *progression.Race
 
-	// class is the resolved *progression.Class, captured at applyClass
-	// alongside classID. Read lock-free for the generated player
-	// description (look appearance lens) under the same write-before-
-	// publish discipline as race: set during construction before
-	// cfg.Manager.Add makes the actor reachable, never reassigned. Nil
-	// when the actor is classless or the class isn't registered.
+	// class is the resolved PRIMARY *progression.Class (the first class id),
+	// captured at applyClass for the generated player description (look
+	// appearance lens). Read lock-free under the write-before-publish
+	// discipline as race: set during construction before cfg.Manager.Add
+	// makes the actor reachable. SetClass re-resolves it under a.mu on a
+	// quest class-swap (the one reassignment path). Nil when classless or
+	// the class isn't registered.
 	class *progression.Class
 
 	// classes is the class registry, captured at applyClass so weapon
@@ -1730,13 +1738,15 @@ type connActor struct {
 	// registry on every read. Set once at construction.
 	racialTags []string
 
-	// classID is the actor's resolved class id (M8.4). Established
-	// at login from save; empty means no class (the path processor
-	// and stat-growth subscriber short-circuit). Lowercased on
-	// assignment for case-insensitive registry lookups. Never
-	// reassigned for the life of the actor — class swaps land with
-	// the M10+ admin verb / quest reward path.
-	classID string
+	// classIDs is the actor's resolved class id list (wot-character-model
+	// D1 — multi-track-as-multiclass). One class today (single element); the
+	// list lets a future second class-track be additive without another save
+	// migration. Established at login from save; empty means classless (the
+	// path processor and stat-growth subscriber short-circuit). Lowercased on
+	// assignment for case-insensitive registry lookups. The primary (first)
+	// class is what single-value readers (ClassID/Class, score, GMCP, quest
+	// gate) surface; composing readers (Saves, IsWeaponProficient) walk all.
+	classIDs []string
 
 	// trainsAvailable is the actor's training pool (spec §4.6
 	// step 4 + §7.1). M8.4 credits via StatGrowthSubscriber on
@@ -2489,11 +2499,16 @@ func (a *connActor) IsWeaponProficient() bool {
 		return true // unarmed → lowest tier → always proficient
 	}
 	a.mu.Lock()
+	// Union the proficiency grants across every class — proficient if ANY
+	// class grants the weapon's tier or category (weapon-identity §3,
+	// multiclass). One class today, so this is a single class's grants.
 	var tiers, cats []string
 	if a.classes != nil {
-		if cls, ok := a.classes.Get(a.classID); ok {
-			tiers = cls.ProficiencyTiers
-			cats = cls.ProficiencyCategories
+		for _, cid := range a.classIDs {
+			if cls, ok := a.classes.Get(cid); ok {
+				tiers = append(tiers, cls.ProficiencyTiers...)
+				cats = append(cats, cls.ProficiencyCategories...)
+			}
 		}
 	}
 	a.mu.Unlock()
@@ -2511,17 +2526,22 @@ func (a *connActor) IsWeaponProficient() bool {
 // Fortitude consumer (saves §4).
 func (a *connActor) Saves() progression.Saves {
 	a.mu.Lock()
-	var cls *progression.Class
+	var classes []*progression.Class
 	if a.classes != nil {
-		cls, _ = a.classes.Get(a.classID)
+		for _, cid := range a.classIDs {
+			if cls, ok := a.classes.Get(cid); ok {
+				classes = append(classes, cls)
+			}
+		}
 	}
 	a.mu.Unlock()
 
+	// One ClassSaveInput per class; ClassBaseSaves takes the best base bonus
+	// per axis across them (saves §2 best-per-axis multiclass). a.Level
+	// handles its own locking; resolve it outside a.mu to keep ordering flat.
 	var inputs []progression.ClassSaveInput
-	if cls != nil {
-		// a.Level handles its own locking; resolve it outside a.mu to keep
-		// the lock ordering flat.
-		inputs = []progression.ClassSaveInput{{Class: cls, Level: a.Level(cls.BoundTrack)}}
+	for _, cls := range classes {
+		inputs = append(inputs, progression.ClassSaveInput{Class: cls, Level: a.Level(cls.BoundTrack)})
 	}
 	base := progression.ClassBaseSaves(inputs, progression.DefaultSaveConfig())
 	return progression.DeriveSaves(base, a.statBlock.Effective)
@@ -2746,7 +2766,20 @@ func applyRace(a *connActor, cfg *Config, saved string) {
 func (a *connActor) ClassID() string {
 	a.mu.Lock()
 	defer a.mu.Unlock()
-	return a.classID
+	if len(a.classIDs) == 0 {
+		return ""
+	}
+	return a.classIDs[0] // primary class
+}
+
+// ClassIDs returns a copy of the actor's full class id list (wot-character-
+// model D1). One element today; composing readers (the level-up subscriber,
+// alignment seed) walk it so a future second class-track works without code
+// changes at the call sites.
+func (a *connActor) ClassIDs() []string {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	return append([]string(nil), a.classIDs...)
 }
 
 // --- quest.Player (M10.10) ---
@@ -2773,11 +2806,24 @@ func (a *connActor) Level(track string) int {
 // the construction-time classID (normally immutable), a quest reward may
 // rewrite it; the new id is mirrored into the save and the dirty bit is
 // flipped so it persists.
+// SetClass REPLACES the actor's class with a single class id (the quest
+// class-swap; v1 single-class — wot-character-model D1). A future true
+// multiclass grant (add a second class-track) gets its own AddClass method;
+// the seam — the classIDs list — already supports it.
 func (a *connActor) SetClass(classID string) {
 	a.mu.Lock()
-	a.classID = classID
+	a.classIDs = []string{classID}
+	// Re-resolve the primary class pointer so the generated look description
+	// reflects the swap without a relogin (it would otherwise show the old
+	// class). nil when the id no longer resolves (removed content).
+	a.class = nil
+	if a.classes != nil {
+		if cls, ok := a.classes.Get(classID); ok {
+			a.class = cls
+		}
+	}
 	if a.save != nil {
-		a.save.Class = classID
+		a.save.Class = []string{classID}
 	}
 	a.markDirtyLocked()
 	a.mu.Unlock()
@@ -3249,27 +3295,40 @@ func (a *connActor) StatValue(stat progression.StatType) int {
 	return a.statBlock.Effective(stat)
 }
 
-// applyClass resolves the actor's class id from save. Empty saves
-// stay empty (no default class today; M12 character-creation owns
-// initial selection). A non-empty id that doesn't resolve in the
-// registry is treated as removed-content: the actor stays
-// classless with classID="" so no path/growth fires. Mirrors
+// applyClass resolves the actor's class id list from save (wot-character-
+// model D1). An empty save stays classless (no default class; character-
+// creation owns initial selection). Each id that doesn't resolve in the
+// registry is dropped (removed-content), so the surviving classIDs may be
+// shorter than the saved list. Replaces (never accumulates) — mirrors
 // applyRace's fail-soft policy.
-func applyClass(a *connActor, cfg *Config, saved string) {
+func applyClass(a *connActor, cfg *Config, saved []string) {
 	// Capture the registry unconditionally so SetClass-driven class
 	// changes (and classless characters who gain a class later) can still
 	// resolve weapon proficiency by id (weapon-identity §3).
 	a.classes = cfg.Classes
-	candidate := strings.ToLower(strings.TrimSpace(saved))
-	if candidate == "" || cfg.Classes == nil {
+	a.classIDs = a.classIDs[:0] // replace, never accumulate (mirrors applyRace)
+	a.class = nil
+	if cfg.Classes == nil {
 		return
 	}
-	cls, ok := cfg.Classes.Get(candidate)
-	if !ok {
-		return
+	// Validate each saved id against the registry; an unresolved id
+	// (removed content) is dropped — same fail-soft policy as applyRace. The
+	// surviving list (lowercased, registry-canonical) becomes classIDs; the
+	// first resolved class is captured on a.class for the look description.
+	for _, raw := range saved {
+		candidate := strings.ToLower(strings.TrimSpace(raw))
+		if candidate == "" {
+			continue
+		}
+		cls, ok := cfg.Classes.Get(candidate)
+		if !ok {
+			continue
+		}
+		a.classIDs = append(a.classIDs, cls.ID)
+		if a.class == nil {
+			a.class = cls // primary class — generated player description (look).
+		}
 	}
-	a.classID = cls.ID
-	a.class = cls // capture for the generated player description (look).
 }
 
 // MarkContentsDirty re-runs syncInventoryToSaveLocked so the save

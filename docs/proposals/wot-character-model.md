@@ -74,3 +74,5 @@ Still open (do not block the character-model build):
 ---
 
 *This is a design note, not a spec. With D1/D2 confirmed, the first build deliverable is the `classID → []string` + save-v18 slice (small), after which WoT classes are content authoring. The detailed behavior of skills (S3) and feats (S4) get their own spec slices when built. The One Power resource model is a separate pre-decision note (parked until S2).*
+
+**Build status:** the **`classID → []string` + save-v18 seam SHIPPED 2026-06-10** — `player.Save.Class []string` + `migrateV17toV18` (wraps the scalar), `connActor.classIDs []string` (primary-class for single-value readers; `Saves`/`IsWeaponProficient` compose over the list; `SetClass` replaces; new `ClassIDs()`), and the level-up + character-created subscribers walk the list. Behavior stays single-class; a second class-track is now additive content, not another migration. Live-verified (a v17 scalar save migrates and behaves identically, persists as a v18 list). The remaining character-half work (WoT class content, S3 skills, true multiclass content, S4 feats) is unchanged by this and still sequenced per §4.

@@ -266,7 +266,10 @@ func runCreation(ctx context.Context, c conn.Connection, cfg Config, loaded *log
 			loaded.Player.Race = pending.raceID
 		}
 		if pending.classID != "" {
-			loaded.Player.Class = pending.classID
+			// v1 single-class: commit the one chosen class as a 1-element list
+			// (the save's class field is a list since v18 — wot-character-model
+			// D1). A second class-track later is additive content.
+			loaded.Player.Class = []string{pending.classID}
 		}
 		return nil
 	}

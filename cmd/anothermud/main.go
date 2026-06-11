@@ -1035,16 +1035,18 @@ func run() error {
 		if !ok {
 			return // player logged out between cascade emit and dispatch
 		}
-		classID := actor.ClassID()
-		if classID == "" {
-			return
-		}
-		classPath.Apply(ctx, e.EntityID, classID, e.Track, e.NewLevel)
-		if cls, ok := registries.Classes.Get(classID); ok {
-			// Spec §4.6 step 2: no track gate — stat growth runs on
-			// every level-up regardless of track. (M8.4 ROADMAP
-			// acceptance criterion: documented decision.)
-			progression.ApplyStatGrowth(ctx, cls, actor.StatBlock(), growthRoller, trainsCrediter, e.EntityID)
+		// Walk every class (one today; wot-character-model D1 multiclass
+		// seam). ClassPathProcessor.Apply gates on the class's BoundTrack, so
+		// only the class bound to this level-up's track grants its Path.
+		for _, classID := range actor.ClassIDs() {
+			classPath.Apply(ctx, e.EntityID, classID, e.Track, e.NewLevel)
+			if cls, ok := registries.Classes.Get(classID); ok {
+				// Spec §4.6 step 2: no track gate — stat growth runs on
+				// every level-up regardless of track. (M8.4 ROADMAP
+				// acceptance criterion: documented decision.) Per-track
+				// stat-growth gating is a future multiclass-tuning concern.
+				progression.ApplyStatGrowth(ctx, cls, actor.StatBlock(), growthRoller, trainsCrediter, e.EntityID)
+			}
 		}
 	})
 
@@ -1053,13 +1055,20 @@ func run() error {
 		if !ok {
 			return
 		}
-		if e.ClassID == "" {
+		// Resolve the actor and grant every class's level-1 Path (one class
+		// today; wot-character-model D1 seam). The event payload carries the
+		// primary class, but we walk the live list so a multiclass character
+		// gets all its starting features.
+		actor, ok := mgr.GetByPlayerID(e.EntityID)
+		if !ok {
 			return
 		}
-		// Spec §4.5 step 3: character-created is treated as level 1
-		// with no track gate. Pass empty trackName so Apply
-		// short-circuits the gate check.
-		classPath.Apply(ctx, e.EntityID, e.ClassID, "", 1)
+		for _, classID := range actor.ClassIDs() {
+			// Spec §4.5 step 3: character-created is treated as level 1
+			// with no track gate. Pass empty trackName so Apply
+			// short-circuits the gate check.
+			classPath.Apply(ctx, e.EntityID, classID, "", 1)
+		}
 	})
 
 	// M9.6: render ability resolution outcomes to players. The

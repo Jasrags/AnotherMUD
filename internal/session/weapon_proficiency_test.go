@@ -34,7 +34,11 @@ func TestIsWeaponProficient(t *testing.T) {
 		{"no class: simple weapon still proficient", "", &weaponInfo{tier: "simple", category: "x"}, true},
 	}
 	for _, tt := range tests {
-		a := &connActor{classes: reg, classID: tt.classID}
+		var classIDs []string
+		if tt.classID != "" {
+			classIDs = []string{tt.classID}
+		}
+		a := &connActor{classes: reg, classIDs: classIDs}
 		if tt.weapon != nil {
 			a.weapon.Store(tt.weapon)
 		}

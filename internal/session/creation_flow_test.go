@@ -131,8 +131,8 @@ func TestRunCreation_PopulatesRaceClassOnSave(t *testing.T) {
 	if err := runCreation(context.Background(), conn, cfg, loaded); err != nil {
 		t.Fatalf("runCreation: %v", err)
 	}
-	if loaded.Player.Race != "elf" || loaded.Player.Class != "fighter" {
-		t.Errorf("save race/class = %q/%q, want elf/fighter", loaded.Player.Race, loaded.Player.Class)
+	if loaded.Player.Race != "elf" || len(loaded.Player.Class) != 1 || loaded.Player.Class[0] != "fighter" {
+		t.Errorf("save race/class = %q/%v, want elf/[fighter]", loaded.Player.Race, loaded.Player.Class)
 	}
 }
 
@@ -157,7 +157,7 @@ func TestRunCreation_DisconnectReturnsError(t *testing.T) {
 	if err := runCreation(context.Background(), conn, cfg, loaded); err == nil {
 		t.Fatal("expected an error on mid-creation disconnect")
 	}
-	if loaded.Player.Class != "" {
+	if len(loaded.Player.Class) != 0 {
 		t.Error("disconnect must not have assembled a class")
 	}
 }

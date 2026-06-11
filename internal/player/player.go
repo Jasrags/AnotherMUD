@@ -126,7 +126,7 @@ import (
 // means "knows no recipes beyond what a discipline grants at runtime";
 // the migration injects nothing. A known id whose recipe was removed from
 // content loads cleanly and is ignored at restore (§9), never an error.
-const CurrentVersion = 17
+const CurrentVersion = 18
 
 // Sentinel errors callers may check via errors.Is.
 var (
@@ -164,7 +164,14 @@ type Save struct {
 	StatsBase       progression.BaseSnapshot        `yaml:"stats_base,omitempty"`
 	Progression     progression.ProgressionSnapshot `yaml:"progression,omitempty"`
 	Race            string                          `yaml:"race,omitempty"`
-	Class           string                          `yaml:"class,omitempty"`
+	// Class is the character's class id list (v18+). A character holds one
+	// class today (single-element list), but the field is a list so a future
+	// second class-track (multiclass — wot-character-model D1) is additive
+	// content, not another save migration. Empty/absent = classless. The v17
+	// scalar `class: fighter` is wrapped to `class: [fighter]` by
+	// migrateV17toV18; the primary class (first element) is what single-value
+	// readers (quest gate, score, GMCP) surface.
+	Class           []string                        `yaml:"class,omitempty"`
 	TrainsAvailable int                             `yaml:"trains_available,omitempty"`
 	Alignment       int                             `yaml:"alignment,omitempty"`
 	// Gold is the §2.1 integer currency balance (v12+). Zero serializes
@@ -480,6 +487,7 @@ var playerMigrations = map[int]func(map[string]any) (map[string]any, error){
 	14: migrateV14toV15,
 	15: migrateV15toV16,
 	16: migrateV16toV17,
+	17: migrateV17toV18,
 }
 
 // migrateV1toV2 adds the empty inventory/equipment blocks introduced
@@ -714,6 +722,37 @@ func migrateV15toV16(in map[string]any) (map[string]any, error) {
 // a returning character learns recipes at runtime (a discipline grants its
 // baseline set, §2), it is not a set to back-fill.
 func migrateV16toV17(in map[string]any) (map[string]any, error) {
+	return in, nil
+}
+
+// migrateV17toV18 widens the `class` value from a scalar id to a list of ids
+// (wot-character-model D1 — multi-track-as-multiclass enablement). A v17 save
+// carries `class: fighter`; v18 carries `class: [fighter]`, so a future second
+// class-track is additive content rather than another migration.
+//
+// Cases: absent/nil → left absent (classless, decodes to a nil slice); a
+// non-empty string → wrapped in a 1-element list; an empty string → dropped
+// (classless). An already-list value (idempotent re-run) is left untouched.
+func migrateV17toV18(in map[string]any) (map[string]any, error) {
+	raw, ok := in["class"]
+	if !ok || raw == nil {
+		return in, nil
+	}
+	switch v := raw.(type) {
+	case string:
+		if strings.TrimSpace(v) == "" {
+			delete(in, "class")
+			return in, nil
+		}
+		in["class"] = []any{v}
+	case []any:
+		// Already a list (idempotent) — leave it.
+	default:
+		// Unknown shape — drop it, same fail-soft reasoning as the other
+		// shape-widening migrations (refusing to load is worse than losing a
+		// malformed class field).
+		delete(in, "class")
+	}
 	return in, nil
 }
 

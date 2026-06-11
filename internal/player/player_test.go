@@ -592,8 +592,8 @@ func TestLoad_V8MigratesToV9WithEmptyClassAndZeroTrains(t *testing.T) {
 	if got.Version != player.CurrentVersion {
 		t.Errorf("Version = %d, want %d", got.Version, player.CurrentVersion)
 	}
-	if got.Class != "" {
-		t.Errorf("Class = %q, want empty after v8 migration", got.Class)
+	if len(got.Class) != 0 {
+		t.Errorf("Class = %v, want empty after v8 migration", got.Class)
 	}
 	if got.TrainsAvailable != 0 {
 		t.Errorf("TrainsAvailable = %d, want 0 after v8 migration", got.TrainsAvailable)
@@ -614,7 +614,7 @@ func TestSave_RoundTripsClassAndTrains(t *testing.T) {
 		Name:            "Brawler",
 		Location:        "tapestry-core:town-square",
 		Race:            "human",
-		Class:           "fighter",
+		Class:           []string{"fighter"},
 		TrainsAvailable: 15,
 	}
 	if err := st.Save(ctx, want); err != nil {
@@ -624,8 +624,8 @@ func TestSave_RoundTripsClassAndTrains(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Load: %v", err)
 	}
-	if got.Class != "fighter" {
-		t.Errorf("Class = %q, want fighter", got.Class)
+	if len(got.Class) != 1 || got.Class[0] != "fighter" {
+		t.Errorf("Class = %v, want [fighter]", got.Class)
 	}
 	if got.TrainsAvailable != 15 {
 		t.Errorf("TrainsAvailable = %d, want 15", got.TrainsAvailable)
@@ -660,8 +660,8 @@ func TestLoad_V9MigratesToV10WithZeroAlignment(t *testing.T) {
 	if got.Alignment != 0 {
 		t.Errorf("Alignment = %d, want 0 after v9 migration", got.Alignment)
 	}
-	if got.Class != "fighter" || got.Race != "human" {
-		t.Errorf("v9 fields not preserved: class=%q race=%q", got.Class, got.Race)
+	if len(got.Class) != 1 || got.Class[0] != "fighter" || got.Race != "human" {
+		t.Errorf("v9 fields not preserved: class=%v race=%q", got.Class, got.Race)
 	}
 }
 
