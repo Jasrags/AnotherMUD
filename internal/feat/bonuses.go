@@ -1,7 +1,5 @@
 package feat
 
-import "strings"
-
 // Taken is one feat a character holds (EPIC S4 Phase 3). It mirrors
 // player.KnownFeat without importing player — keeping feat a leaf package; the
 // session converts between the two. FeatID resolves in the Registry; Param
@@ -48,7 +46,9 @@ func ComputeBonuses(held []Taken, reg *Registry) Bonuses {
 				if b.Saves == nil {
 					b.Saves = make(map[string]int)
 				}
-				b.Saves[strings.ToLower(strings.TrimSpace(g.Target))] += g.Magnitude * mult
+				// g.Target is already lowercased+trimmed by Register, and
+				// ComputeBonuses only ever reads registry-owned feats.
+				b.Saves[g.Target] += g.Magnitude * mult
 			}
 		}
 	}

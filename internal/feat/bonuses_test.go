@@ -42,6 +42,16 @@ func TestComputeBonuses_Empties(t *testing.T) {
 	}
 }
 
+// A stackable feat with Count 0 (the contract: "non-positive counts as one")
+// applies its grant exactly once.
+func TestComputeBonuses_StackableZeroCountAppliesOnce(t *testing.T) {
+	r := NewRegistry()
+	_ = r.Register(&Feat{ID: "warding", MultiTake: MultiTakeStackable, Grants: []Grant{{Kind: GrantSaveBonus, Target: "will", Magnitude: 1}}})
+	if b := ComputeBonuses([]Taken{{FeatID: "warding", Count: 0}}, r); b.Saves["will"] != 1 {
+		t.Errorf("Count 0 stackable = %d, want 1 (applies once)", b.Saves["will"])
+	}
+}
+
 func TestRegister_NormalizesGrants(t *testing.T) {
 	r := NewRegistry()
 	_ = r.Register(&Feat{
