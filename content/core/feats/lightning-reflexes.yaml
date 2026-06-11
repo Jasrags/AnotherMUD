@@ -1,0 +1,6 @@
+# See iron-will.yaml for the feat contract (EPIC S4 — wot-feats.md).
+id: lightning-reflexes
+name: Lightning Reflexes
+description: You have faster reflexes than normal. You gain a +2 bonus on Reflex saving throws.
+grants:
+  - { kind: save_bonus, target: reflex, magnitude: 2 }

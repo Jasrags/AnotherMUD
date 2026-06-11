@@ -115,6 +115,8 @@ func RegisterBuiltins(r *Registry) error {
 		// Progression (M8.6).
 		{Keyword: "train", Handler: TrainHandler, Brief: "Spend a train credit to raise a stat.", Syntax: []string{"train <stat>"}},
 		{Keyword: "practice", Handler: PracticeHandler, Brief: "Raise an ability's cap at a trainer.", Syntax: []string{"practice <ability>"}},
+		{Keyword: "feats", Handler: FeatsHandler, Brief: "List your feats and available feat slots.", Syntax: []string{"feats"}},
+		{Keyword: "feat", Handler: FeatHandler, Brief: "Spend a feat slot to take a feat.", Syntax: []string{"feat <name> [target]"}},
 		{Keyword: "learn", Handler: LearnHandler, Brief: "Learn a crafting discipline from a trainer.", Syntax: []string{"learn <discipline>"}},
 		{Keyword: "craft", Handler: CraftHandler, Brief: "Craft an item from a known recipe.", Syntax: []string{"craft", "craft <recipe>"}},
 		{Keyword: "build", Handler: BuildHandler, Brief: "Build an improvised crafting station (e.g. a campfire).", Syntax: []string{"build <thing>"}},

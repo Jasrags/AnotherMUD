@@ -1,0 +1,6 @@
+# See iron-will.yaml for the feat contract (EPIC S4 — wot-feats.md).
+id: great-fortitude
+name: Great Fortitude
+description: You are tougher than normal. You gain a +2 bonus on Fortitude saving throws.
+grants:
+  - { kind: save_bonus, target: fortitude, magnitude: 2 }

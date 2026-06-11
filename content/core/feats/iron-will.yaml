@@ -1,0 +1,10 @@
+# A player-chosen feat (EPIC S4 — docs/proposals/wot-feats.md). The saves trio
+# (Great Fortitude / Iron Will / Lightning Reflexes) are the v1 feats whose
+# grant kind (save_bonus) is wired (Phase 3a); they have no prerequisites, so a
+# fresh character can spend its creation feat slot on one. Feats live in
+# tapestry-core (the engine baseline) like abilities — every world gets them.
+id: iron-will
+name: Iron Will
+description: Your will is iron. You gain a +2 bonus on Will saving throws.
+grants:
+  - { kind: save_bonus, target: will, magnitude: 2 }

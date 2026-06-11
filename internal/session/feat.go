@@ -1,0 +1,309 @@
+package session
+
+import (
+	"fmt"
+	"sort"
+	"strings"
+
+	"github.com/Jasrags/AnotherMUD/internal/feat"
+	"github.com/Jasrags/AnotherMUD/internal/player"
+	"github.com/Jasrags/AnotherMUD/internal/progression"
+)
+
+// featStats is the ability set a feat prerequisite can gate on (EPIC S4
+// Phase 4). Captured into the CharacterView snapshot so feat.Eligible reads a
+// consistent picture without holding a.mu.
+var featStats = []progression.StatType{
+	progression.StatSTR, progression.StatINT, progression.StatWIS,
+	progression.StatDEX, progression.StatCON, progression.StatLUCK,
+}
+
+// featCharView is a captured feat.CharacterView snapshot (EPIC S4 Phase 4). It
+// is built from the actor's public accessors (each self-locked) so the prereq
+// evaluator never re-enters a.mu. Command dispatch is serial per session, so
+// the multi-step gather sees a consistent character.
+type featCharView struct {
+	scores   map[string]int
+	known    map[string]bool
+	level    int
+	classes  []string
+	prof     *progression.ProficiencyManager
+	entityID string
+}
+
+func (v featCharView) AbilityScore(stat string) int {
+	return v.scores[strings.ToLower(strings.TrimSpace(stat))]
+}
+
+func (v featCharView) SkillProficiency(abilityID string) int {
+	if v.prof == nil {
+		return 0
+	}
+	p, _ := v.prof.Proficiency(v.entityID, abilityID)
+	return p
+}
+
+func (v featCharView) HasFeat(featID string) bool {
+	return v.known[strings.ToLower(strings.TrimSpace(featID))]
+}
+
+func (v featCharView) CharacterLevel() int { return v.level }
+func (v featCharView) ClassIDs() []string  { return v.classes }
+
+// featCharView builds the eligibility snapshot. Called outside a.mu.
+func (a *connActor) buildFeatCharView() featCharView {
+	entityID := a.PlayerID()
+	if entityID == "" {
+		entityID = a.ID()
+	}
+	scores := make(map[string]int, len(featStats))
+	for _, s := range featStats {
+		scores[string(s)] = a.StatValue(s)
+	}
+	known := make(map[string]bool)
+	a.mu.Lock()
+	prof := a.prof
+	if a.save != nil {
+		for _, kf := range a.save.KnownFeats {
+			known[kf.FeatID] = true
+		}
+	}
+	a.mu.Unlock()
+	return featCharView{
+		scores:   scores,
+		known:    known,
+		level:    a.characterLevel(),
+		classes:  a.ClassIDs(),
+		prof:     prof,
+		entityID: entityID,
+	}
+}
+
+// characterLevel sums the actor's bound-track levels (one class today; the
+// multiclass total is the sum). A classless / level-1 character is level 1.
+func (a *connActor) characterLevel() int {
+	total := 0
+	for _, cid := range a.ClassIDs() {
+		a.mu.Lock()
+		bound := ""
+		if a.classes != nil {
+			if cls, ok := a.classes.Get(cid); ok {
+				bound = cls.BoundTrack
+			}
+		}
+		a.mu.Unlock()
+		if bound != "" {
+			total += a.Level(bound)
+		}
+	}
+	if total < 1 {
+		total = 1
+	}
+	return total
+}
+
+// FeatCredits is declared on connActor in session.go (Phase 2). KnownFeats and
+// the take/list verbs below complete the EPIC S4 Phase 4 feat-actor surface.
+
+// TakeFeat spends one banked feat slot to take feat featID (EPIC S4 Phase 4 —
+// docs/proposals/wot-feats.md §2.3). param binds a per-parameter feat (a
+// weapon/skill); it is ignored for single/stackable feats. Returns (true,
+// confirmation) on success, or (false, reason) when the feat is unknown, the
+// rule forbids it (already taken / missing param), prerequisites or the class
+// gate fail, or no slot is banked. The credit decrement + known-feats record
+// happen together under a.mu (the spend side SpendTrain-style, not a negative
+// CreditFeats).
+func (a *connActor) TakeFeat(featID, param string) (bool, string) {
+	a.mu.Lock()
+	reg := a.feats
+	a.mu.Unlock()
+	if reg == nil {
+		return false, "Feats are not available in this world."
+	}
+	f, ok := reg.Get(featID)
+	if !ok {
+		return false, fmt.Sprintf("There is no feat called %q.", strings.TrimSpace(featID))
+	}
+	param = strings.ToLower(strings.TrimSpace(param))
+
+	// Rule check: already-taken / missing param, by multi-take rule.
+	a.mu.Lock()
+	already := a.featTakenLocked(f, param)
+	a.mu.Unlock()
+	switch f.MultiTake {
+	case feat.MultiTakeParam:
+		if param == "" {
+			return false, fmt.Sprintf("%s must be taken for a specific target, e.g. `feat %s <target>`.", f.DisplayName, f.ID)
+		}
+		if already {
+			return false, fmt.Sprintf("You already have %s (%s).", f.DisplayName, param)
+		}
+	case feat.MultiTakeStackable:
+		// Always allowed; recordFeatLocked increments the count.
+	default: // single
+		if already {
+			return false, fmt.Sprintf("You already have %s.", f.DisplayName)
+		}
+	}
+
+	// Prerequisites + class gate.
+	if el := feat.Eligible(f, a.buildFeatCharView()); !el.OK {
+		return false, featIneligibleMsg(f, el)
+	}
+
+	// Spend + record atomically. Re-check the credit under the lock (a
+	// concurrent grant/spend is impossible under serial dispatch, but the
+	// guard keeps the invariant honest).
+	a.mu.Lock()
+	if a.featCredits <= 0 {
+		a.mu.Unlock()
+		return false, "You have no feat slots to spend. (You earn one at creation and one every 3 levels.)"
+	}
+	a.featCredits--
+	a.recordFeatLocked(f, param)
+	if a.save != nil {
+		a.save.FeatCredits = a.featCredits
+	}
+	a.markDirtyLocked()
+	a.mu.Unlock()
+
+	if f.MultiTake == feat.MultiTakeParam {
+		return true, fmt.Sprintf("You gain the %s feat (%s).", f.DisplayName, param)
+	}
+	return true, fmt.Sprintf("You gain the %s feat.", f.DisplayName)
+}
+
+// featTakenLocked reports whether the actor already holds f (caller holds
+// a.mu). For a per-parameter feat, "taken" means the same param; for a single
+// or stackable feat, any instance counts.
+func (a *connActor) featTakenLocked(f *feat.Feat, param string) bool {
+	if a.save == nil {
+		return false
+	}
+	for _, kf := range a.save.KnownFeats {
+		if kf.FeatID != f.ID {
+			continue
+		}
+		if f.MultiTake == feat.MultiTakeParam {
+			if kf.Param == param {
+				return true
+			}
+			continue
+		}
+		return true
+	}
+	return false
+}
+
+// recordFeatLocked writes the taken feat into known_feats (caller holds a.mu).
+// A stackable feat increments an existing entry's count (or seeds it at 1); a
+// single/per-parameter feat appends a new entry.
+func (a *connActor) recordFeatLocked(f *feat.Feat, param string) {
+	if a.save == nil {
+		return
+	}
+	if f.MultiTake == feat.MultiTakeStackable {
+		for i := range a.save.KnownFeats {
+			if a.save.KnownFeats[i].FeatID == f.ID {
+				c := a.save.KnownFeats[i].Count
+				if c < 1 {
+					c = 1
+				}
+				a.save.KnownFeats[i].Count = c + 1
+				return
+			}
+		}
+		a.save.KnownFeats = append(a.save.KnownFeats, player.KnownFeat{FeatID: f.ID, Count: 1})
+		return
+	}
+	a.save.KnownFeats = append(a.save.KnownFeats, player.KnownFeat{FeatID: f.ID, Param: param})
+}
+
+// FeatListing renders the `feats` verb output (EPIC S4 Phase 4): the feats the
+// character holds, the banked slot count, and (when slots remain) the feats
+// they are currently eligible to take.
+func (a *connActor) FeatListing() string {
+	a.mu.Lock()
+	reg := a.feats
+	credits := a.featCredits
+	var known []player.KnownFeat
+	if a.save != nil {
+		known = append(known, a.save.KnownFeats...)
+	}
+	a.mu.Unlock()
+
+	var b strings.Builder
+	b.WriteString("<title>Feats</title>\n")
+	if len(known) == 0 {
+		b.WriteString("  <subtle>(none taken)</subtle>\n")
+	} else {
+		sort.Slice(known, func(i, j int) bool { return known[i].FeatID < known[j].FeatID })
+		for _, kf := range known {
+			name := kf.FeatID
+			if reg != nil {
+				if f, ok := reg.Get(kf.FeatID); ok {
+					name = f.DisplayName
+				}
+			}
+			line := "  " + name
+			if kf.Param != "" {
+				line += " (" + kf.Param + ")"
+			}
+			if kf.Count > 1 {
+				line += fmt.Sprintf(" x%d", kf.Count)
+			}
+			b.WriteString(line + "\n")
+		}
+	}
+	b.WriteString(fmt.Sprintf("Feat slots available: <stat>%d</stat>\n", credits))
+	if reg != nil && credits > 0 {
+		view := a.buildFeatCharView()
+		var avail []string
+		for _, f := range reg.All() {
+			// Single feats already held drop off; per-param/stackable can repeat.
+			if f.MultiTake == feat.MultiTakeSingle && view.HasFeat(f.ID) {
+				continue
+			}
+			if feat.Eligible(f, view).OK {
+				avail = append(avail, f.DisplayName)
+			}
+		}
+		if len(avail) > 0 {
+			b.WriteString("Available: " + strings.Join(avail, ", "))
+		} else {
+			b.WriteString("<subtle>No feats are available to take right now.</subtle>")
+		}
+	}
+	return strings.TrimRight(b.String(), "\n")
+}
+
+// featIneligibleMsg turns a failed Eligibility into a player-facing reason.
+func featIneligibleMsg(f *feat.Feat, el feat.Eligibility) string {
+	var parts []string
+	if el.ClassExcluded {
+		parts = append(parts, "your class cannot take it")
+	}
+	for _, p := range el.UnmetPrereqs {
+		parts = append(parts, prereqPhrase(p))
+	}
+	if len(parts) == 0 {
+		return fmt.Sprintf("You cannot take %s yet.", f.DisplayName)
+	}
+	return fmt.Sprintf("You cannot take %s: %s.", f.DisplayName, strings.Join(parts, "; "))
+}
+
+// prereqPhrase renders one unmet prerequisite.
+func prereqPhrase(p feat.Prerequisite) string {
+	switch p.Kind {
+	case feat.PrereqAbilityScore:
+		return fmt.Sprintf("requires %s %d+", strings.ToUpper(p.Target), p.Min)
+	case feat.PrereqSkill:
+		return fmt.Sprintf("requires %s proficiency %d+", p.Target, p.Min)
+	case feat.PrereqFeat:
+		return fmt.Sprintf("requires the %s feat", p.Target)
+	case feat.PrereqLevel:
+		return fmt.Sprintf("requires level %d", p.Min)
+	default:
+		return "has an unmet requirement"
+	}
+}
