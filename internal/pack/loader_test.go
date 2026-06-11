@@ -2392,6 +2392,9 @@ func TestLoadFeats_RejectsBadGrants(t *testing.T) {
 		"id: bad\ngrants:\n  - { kind: save_bonus, target: will }\n",
 		// max_hp with zero magnitude
 		"id: bad\ngrants:\n  - { kind: max_hp }\n",
+		// negative magnitude (beneficial-only in v1)
+		"id: bad\ngrants:\n  - { kind: save_bonus, target: will, magnitude: -2 }\n",
+		"id: bad\ngrants:\n  - { kind: max_hp, magnitude: -3 }\n",
 	}
 	for i, body := range bad {
 		root := t.TempDir()

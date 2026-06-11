@@ -51,6 +51,7 @@ import (
 	"github.com/Jasrags/AnotherMUD/internal/recipe"
 	"github.com/Jasrags/AnotherMUD/internal/render"
 	"github.com/Jasrags/AnotherMUD/internal/slot"
+	"github.com/Jasrags/AnotherMUD/internal/srckey"
 	"github.com/Jasrags/AnotherMUD/internal/stacking"
 	"github.com/Jasrags/AnotherMUD/internal/stats"
 	"github.com/Jasrags/AnotherMUD/internal/wizard"
@@ -621,12 +622,6 @@ func run(ctx context.Context, c conn.Connection, cfg Config) error {
 	}
 	a.mu.Unlock()
 
-	// EPIC S4 Phase 3b: install the stat-shaped feat bonuses (today the
-	// Toughness hp_max bonus) from the loaded known_feats. Runs after the
-	// OnMaxChange→vitals binding above is wired, so a feat-boosted ceiling is
-	// reflected on login. No-op when the character holds no such feats.
-	a.applyFeatStatModifiers()
-
 	// M19.1: restore the role set from the save, then apply the config
 	// seed (roles-and-permissions §5/§6). A seeded role marks the save
 	// dirty so the bootstrap admin persists on first login.
@@ -748,6 +743,13 @@ func run(ctx context.Context, c conn.Connection, cfg Config) error {
 	// keys at the moment respawn runs so RebindSource has something
 	// to find.
 	a.statBlock.RestoreModifiers(loaded.Player.Stats)
+
+	// EPIC S4 Phase 3b: install the stat-shaped feat bonuses (today the
+	// Toughness hp_max bonus) from the loaded known_feats — AFTER RestoreModifiers
+	// so the feat modifier sits on top of the fully-restored block (and replaces
+	// any stale feat: entry a legacy save round-tripped). The OnMaxChange→vitals
+	// binding (wired far above) then moves the ceiling. No-op without such feats.
+	a.applyFeatStatModifiers()
 
 	// M8.2: install persisted progression state. Empty snapshot is
 	// a no-op (uninitialized tracks lazy-init on first interaction
@@ -3506,7 +3508,10 @@ func (a *connActor) syncStatsToSaveLocked() {
 	snap := a.statBlock.ModifiersSnapshot()
 	persisted := make(stats.Snapshot, 0, len(snap))
 	for _, e := range snap {
-		if progression.IsEffectSource(e.Source) {
+		// Effect AND feat modifiers are derived (effects from active effects,
+		// feats from known_feats) and reinstalled at load, so neither is
+		// persisted — round-tripping a derived value risks baking it in.
+		if progression.IsEffectSource(e.Source) || srckey.IsFeat(e.Source) {
 			continue
 		}
 		persisted = append(persisted, e)

@@ -1898,18 +1898,21 @@ func decodeFeat(path, ns string) (*feat.Feat, error) {
 			}
 			// Per-kind validation.
 			switch kind {
+			// v1 grants are beneficial-only: a non-positive magnitude is a
+			// content typo, not a drawback feat (a future flaw/drawback system
+			// would relax this to allow negatives).
 			case feat.GrantSaveBonus:
 				if !feat.ValidSaveAxis(g.Target) {
 					return nil, fmt.Errorf("%w: %s: grants[%d] save_bonus target %q is not a save axis (fortitude/reflex/will)",
 						ErrInvalidContent, path, i, g.Target)
 				}
-				if g.Magnitude == 0 {
-					return nil, fmt.Errorf("%w: %s: grants[%d] save_bonus needs a non-zero magnitude",
+				if g.Magnitude <= 0 {
+					return nil, fmt.Errorf("%w: %s: grants[%d] save_bonus needs a positive magnitude",
 						ErrInvalidContent, path, i)
 				}
 			case feat.GrantMaxHP:
-				if g.Magnitude == 0 {
-					return nil, fmt.Errorf("%w: %s: grants[%d] max_hp needs a non-zero magnitude",
+				if g.Magnitude <= 0 {
+					return nil, fmt.Errorf("%w: %s: grants[%d] max_hp needs a positive magnitude",
 						ErrInvalidContent, path, i)
 				}
 			}

@@ -14,6 +14,8 @@
 // m8-1-deferred-fixes.
 package srckey
 
+import "strings"
+
 // SourceKey is the modifier-source convention (inventory-equipment-items
 // §2.3 step 6 / §3.3 step 6): every modifier a subsystem applies carries
 // a source that uniquely identifies its origin, so removal reverses
@@ -42,5 +44,15 @@ func ClassGrowth(id string) SourceKey {
 // affected stat (e.g. "hp_max"), so the aggregate feat bonus for that stat is
 // one replaceable modifier — recomputing from known_feats just re-Adds it.
 func Feat(key string) SourceKey {
-	return SourceKey("feat:" + key)
+	return SourceKey(featPrefix + key)
+}
+
+const featPrefix = "feat:"
+
+// IsFeat reports whether k is a feat-sourced modifier (EPIC S4). Feat modifiers
+// are DERIVED from known_feats and reinstalled at load, so — like effect
+// modifiers — they are filtered out of the persisted stat snapshot rather than
+// round-tripped (persisting a derived value is redundant + confusing).
+func IsFeat(k SourceKey) bool {
+	return strings.HasPrefix(string(k), featPrefix)
 }
