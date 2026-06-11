@@ -1793,24 +1793,47 @@ func decodeClass(path, ns string) (*progression.Class, error) {
 	if trains == 0 {
 		trains = 5
 	}
+	// save_progressions (saves §2): validate axis + progression names at
+	// load so a typo is an authoring error, not a silent weak-default. The
+	// axis values match progression.SaveType; the curve values strong/weak.
+	var saveProg map[progression.SaveType]progression.SaveProgression
+	if len(f.SaveProgressions) > 0 {
+		saveProg = make(map[progression.SaveType]progression.SaveProgression, len(f.SaveProgressions))
+		for axis, prog := range f.SaveProgressions {
+			a := progression.SaveType(strings.ToLower(strings.TrimSpace(axis)))
+			switch a {
+			case progression.SaveFortitude, progression.SaveReflex, progression.SaveWill:
+			default:
+				return nil, fmt.Errorf("%w: %s: save_progressions: unknown save axis %q (want fortitude/reflex/will)", ErrInvalidContent, path, axis)
+			}
+			p := progression.SaveProgression(strings.ToLower(strings.TrimSpace(prog)))
+			switch p {
+			case progression.SaveStrong, progression.SaveWeak:
+			default:
+				return nil, fmt.Errorf("%w: %s: save_progressions[%s]: unknown progression %q (want strong/weak)", ErrInvalidContent, path, axis, prog)
+			}
+			saveProg[a] = p
+		}
+	}
 	return &progression.Class{
-		ID:                f.ID,
-		DisplayName:       strings.TrimSpace(f.Name),
-		Tagline:           f.Tagline,
-		Description:       f.Description,
-		LevelUpFlavor:     f.LevelUpFlavor,
-		BoundTrack:        strings.TrimSpace(f.BoundTrack),
-		StatGrowth:        growth,
-		GrowthBonuses:     bonuses,
-		Path:              path2,
-		TrainsPerLevel:    trains,
+		ID:                    f.ID,
+		DisplayName:           strings.TrimSpace(f.Name),
+		Tagline:               f.Tagline,
+		Description:           f.Description,
+		LevelUpFlavor:         f.LevelUpFlavor,
+		BoundTrack:            strings.TrimSpace(f.BoundTrack),
+		StatGrowth:            growth,
+		GrowthBonuses:         bonuses,
+		Path:                  path2,
+		TrainsPerLevel:        trains,
 		AllowedCategories:     append([]string(nil), f.AllowedCategories...),
 		AllowedGenders:        append([]string(nil), f.AllowedGenders...),
 		ProficiencyTiers:      append([]string(nil), f.ProficiencyTiers...),
 		ProficiencyCategories: append([]string(nil), f.ProficiencyCategories...),
+		SaveProgressions:      saveProg,
 		StartingAlignment:     f.StartingAlignment,
-		Pack:              ns,
-		Priority:          f.Priority,
+		Pack:                  ns,
+		Priority:              f.Priority,
 	}, nil
 }
 

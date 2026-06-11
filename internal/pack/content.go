@@ -364,22 +364,27 @@ type ClassPathEntryFile struct {
 // on every level-up roll. Bound track is case-insensitive at runtime
 // but stored verbatim for diagnostics.
 type ClassFile struct {
-	ID                string               `yaml:"id"`
-	Name              string               `yaml:"name,omitempty"`
-	Tagline           string               `yaml:"tagline,omitempty"`
-	Description       string               `yaml:"description,omitempty"`
-	LevelUpFlavor     string               `yaml:"level_up_flavor,omitempty"`
-	BoundTrack        string               `yaml:"bound_track,omitempty"`
-	StatGrowth        map[string]string    `yaml:"stat_growth,omitempty"`
-	GrowthBonuses     map[string]string    `yaml:"growth_bonuses,omitempty"`
-	Path              []ClassPathEntryFile `yaml:"path,omitempty"`
-	TrainsPerLevel    int                  `yaml:"trains_per_level,omitempty"`
-	AllowedCategories     []string         `yaml:"allowed_categories,omitempty"`
-	AllowedGenders        []string         `yaml:"allowed_genders,omitempty"`
-	ProficiencyTiers      []string         `yaml:"proficiency_tiers,omitempty"`
-	ProficiencyCategories []string         `yaml:"proficiency_categories,omitempty"`
-	StartingAlignment     int              `yaml:"starting_alignment,omitempty"`
-	Priority          int                  `yaml:"priority,omitempty"`
+	ID                    string               `yaml:"id"`
+	Name                  string               `yaml:"name,omitempty"`
+	Tagline               string               `yaml:"tagline,omitempty"`
+	Description           string               `yaml:"description,omitempty"`
+	LevelUpFlavor         string               `yaml:"level_up_flavor,omitempty"`
+	BoundTrack            string               `yaml:"bound_track,omitempty"`
+	StatGrowth            map[string]string    `yaml:"stat_growth,omitempty"`
+	GrowthBonuses         map[string]string    `yaml:"growth_bonuses,omitempty"`
+	Path                  []ClassPathEntryFile `yaml:"path,omitempty"`
+	TrainsPerLevel        int                  `yaml:"trains_per_level,omitempty"`
+	AllowedCategories     []string             `yaml:"allowed_categories,omitempty"`
+	AllowedGenders        []string             `yaml:"allowed_genders,omitempty"`
+	ProficiencyTiers      []string             `yaml:"proficiency_tiers,omitempty"`
+	ProficiencyCategories []string             `yaml:"proficiency_categories,omitempty"`
+	// SaveProgressions maps a save axis (fortitude/reflex/will) to a
+	// strong or weak base-save curve (saves §2). An omitted axis defaults
+	// to weak. Validated at load: unknown axis or progression names are an
+	// authoring error.
+	SaveProgressions  map[string]string `yaml:"save_progressions,omitempty"`
+	StartingAlignment int               `yaml:"starting_alignment,omitempty"`
+	Priority          int               `yaml:"priority,omitempty"`
 }
 
 // AbilityFile is the YAML shape for an ability definition (spec

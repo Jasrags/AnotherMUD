@@ -1,6 +1,10 @@
 package combat
 
-import "context"
+import (
+	"context"
+
+	"github.com/Jasrags/AnotherMUD/internal/world"
+)
 
 // AutoAttackConfig bundles the dependencies the auto-attack phase
 // needs beyond the Manager (which the Heartbeat already gives it):
@@ -36,6 +40,31 @@ type AutoAttackConfig struct {
 	// pre-light behavior, and tests/headless). The adjustment degrades
 	// accuracy only — combat is never blocked.
 	HitModAdjust func(attackerID CombatantID) int
+	// MassiveDamage configures the saves §4 massive-damage Fortitude save:
+	// a single swing whose applied damage is at or above the threshold and
+	// did NOT already kill forces the victim to save or suffer the lethal
+	// consequence. nil disables the rule entirely (tests/headless and any
+	// boot that does not wire it) — combat then behaves exactly as before
+	// this slice. When non-nil, FortBonus MUST be set.
+	MassiveDamage *MassiveDamageConfig
+}
+
+// MassiveDamageConfig parameterizes the saves §4 massive-damage save. All
+// magnitudes are host-supplied config (saves §6); combat owns only the
+// pipeline placement.
+type MassiveDamageConfig struct {
+	// Threshold is the single-hit applied damage at or above which the
+	// Fortitude save is forced. A non-positive threshold is treated as
+	// "every hit" — callers wanting the rule inert at low levels set it
+	// high (the engine default keeps it above ordinary swing damage).
+	Threshold int
+	// DC is the Fortitude difficulty class for the save.
+	DC int
+	// FortBonus returns the victim's Fortitude save bonus, keyed on the
+	// full victim CombatantID. The host resolves it from progression
+	// (class base saves + CON modifier). Required when MassiveDamage is
+	// set; a nil func panics at NewAutoAttack rather than per-swing.
+	FortBonus func(victimID CombatantID) int
 }
 
 // PassiveEvaluator is the combat-side seam to the passive-abilities
@@ -81,6 +110,9 @@ func NewAutoAttack(cfg AutoAttackConfig) PhaseFunc {
 	}
 	if cfg.CritMultiplier <= 0 {
 		cfg.CritMultiplier = DefaultCritMultiplier
+	}
+	if cfg.MassiveDamage != nil && cfg.MassiveDamage.FortBonus == nil {
+		panic("combat.NewAutoAttack: MassiveDamage set without FortBonus")
 	}
 
 	return func(ctx context.Context, attackerID CombatantID, mgr *Manager, _ uint64) {
@@ -255,7 +287,57 @@ func runAutoAttack(ctx context.Context, attackerID CombatantID, mgr *Manager, cf
 			// §4.3 "If HP reached zero ... stop further swings."
 			return
 		}
+
+		// saves §4 — massive-damage Fortitude save. A single swing whose
+		// applied damage meets the threshold and did NOT already kill (the
+		// branch above handled that) forces the victim to save; a failure
+		// drives the lethal consequence through the same VitalDepleted
+		// death path. A success leaves the already-applied normal damage
+		// untouched. nil MassiveDamage ⇒ rule disabled (pre-slice behavior).
+		if cfg.MassiveDamage != nil && raw >= cfg.MassiveDamage.Threshold {
+			if massiveDamageKill(ctx, cfg, attackerID, targetID, tgtName, attackerRoom) {
+				// §4.3 stop swinging on a corpse.
+				return
+			}
+		}
 	}
+}
+
+// massiveDamageKill resolves the saves §4 Fortitude save for a victim who
+// just took a threshold-meeting hit and survived it, emits the SaveResolved
+// event either way, and on failure depletes the victim and emits exactly one
+// VitalDepleted (guarded by Deplete's wasAlive, so a concurrent killer cannot
+// double-emit). Returns true when the victim died (caller stops swinging).
+func massiveDamageKill(ctx context.Context, cfg AutoAttackConfig, attackerID, targetID CombatantID, tgtName string, room world.RoomID) bool {
+	bonus := cfg.MassiveDamage.FortBonus(targetID)
+	outcome := ResolveSave(cfg.Roller, bonus, cfg.MassiveDamage.DC)
+	cfg.Sink.OnSaveResolved(ctx, SaveResolved{
+		CreatureID:   targetID,
+		CreatureName: tgtName,
+		SaveType:     SaveAxisFortitude,
+		Cause:        SaveCauseMassiveDamage,
+		Outcome:      outcome,
+		RoomID:       room,
+	})
+	if outcome.Success {
+		return false
+	}
+	target, ok := cfg.Locator.LookupCombatant(targetID)
+	if !ok {
+		// Victim vanished between the swing and the save resolution; treat
+		// as already gone — no death event to emit here.
+		return true
+	}
+	if wasAlive := target.Vitals().Deplete(); wasAlive {
+		cfg.Sink.OnVitalDepleted(ctx, VitalDepleted{
+			VictimID:   targetID,
+			VictimName: tgtName,
+			AttackerID: attackerID,
+			Vital:      VitalHP,
+			RoomID:     room,
+		})
+	}
+	return true
 }
 
 // hitOutcome is the local result of one §4.4 roll. fumble and

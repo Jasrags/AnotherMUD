@@ -50,6 +50,25 @@ func TestApplyDamageClampsAtZero(t *testing.T) {
 	}
 }
 
+func TestDepleteKillsOnceThenReportsAlreadyDead(t *testing.T) {
+	v := NewVitals(10)
+	// First call drains a living combatant and reports it was alive.
+	if wasAlive := v.Deplete(); !wasAlive {
+		t.Error("first Deplete() = false, want true (was alive)")
+	}
+	if got := v.Current(); got != 0 {
+		t.Errorf("HP after Deplete = %d, want 0", got)
+	}
+	if !v.IsDead() {
+		t.Error("IsDead() = false after Deplete, want true")
+	}
+	// Second call (the concurrent-killer / double-emit guard) reports it
+	// was already dead so the caller does NOT emit a second VitalDepleted.
+	if wasAlive := v.Deplete(); wasAlive {
+		t.Error("second Deplete() = true, want false (already dead — guards double-emit)")
+	}
+}
+
 func TestApplyDamageNegativeIsZero(t *testing.T) {
 	v := NewVitals(10)
 	if got := v.ApplyDamage(-5); got != 10 {

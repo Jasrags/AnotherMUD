@@ -60,8 +60,9 @@ type autoAttackRig struct {
 	locator  MapLocator
 	rooms    MapRoomLocator
 	roller   *scriptedRoller
-	passives PassiveEvaluator // nil ⇒ pre-M9.5 behavior
-	critMult int              // 0 ⇒ NewAutoAttack default (DefaultCritMultiplier)
+	passives PassiveEvaluator     // nil ⇒ pre-M9.5 behavior
+	critMult int                  // 0 ⇒ NewAutoAttack default (DefaultCritMultiplier)
+	massive  *MassiveDamageConfig // nil ⇒ saves §4 rule disabled
 }
 
 // fakePassives is a deterministic PassiveEvaluator for the §4.2/§4.3
@@ -104,6 +105,7 @@ func (r *autoAttackRig) phase() PhaseFunc {
 		Roller:         r.roller,
 		Passives:       r.passives,
 		CritMultiplier: r.critMult,
+		MassiveDamage:  r.massive,
 	})
 }
 
@@ -584,4 +586,151 @@ func TestAutoAttack_PenaltyNeverBlocks(t *testing.T) {
 	if got := len(rig.sink.snapshotHits()); got != 1 {
 		t.Fatalf("nat-20 must land despite the penalty, got %d hits", got)
 	}
+}
+
+// --- saves §4 massive-damage Fortitude consumer ---------------------------
+
+// massiveRig builds an attacker that deals a known, large per-hit amount via
+// a high STR bonus (STRBonus(100) = 45) plus a deterministic 1d1 weapon
+// (always 1), so raw damage = 46. The roller sequence per swing is:
+//
+//	[hitFace-1, 0 (the 1d1 die), saveFace-1 (only if the save fires)].
+func massiveRig(t *testing.T, defHP int, mc *MassiveDamageConfig, rollSeq []int) *autoAttackRig {
+	t.Helper()
+	atk := Stats{HitMod: 0, STR: 100, Damage: DiceExpr{1, 1, 0}}
+	def := Stats{AC: 10}
+	rig := newAutoAttackRig(t, atk, def, 20, defHP, rollSeq)
+	rig.massive = mc
+	return rig
+}
+
+func runMassive(t *testing.T, rig *autoAttackRig) {
+	t.Helper()
+	rig.phase()(context.Background(), rig.attacker.id, rig.mgr, 0)
+}
+
+func TestMassiveDamage_FailedSaveKills(t *testing.T) {
+	mc := &MassiveDamageConfig{Threshold: 40, DC: 15, FortBonus: func(CombatantID) int { return 0 }}
+	// hit face 10 (normal hit vs AC 10); 1d1 die = 0; save face 3 → 3 < 15 fail.
+	rig := massiveRig(t, 100, mc, []int{9, 0, 2})
+	runMassive(t, rig)
+
+	if got := len(rig.sink.snapshotHits()); got != 1 {
+		t.Fatalf("want 1 hit, got %d", got)
+	}
+	saves := rig.sink.snapshotSaves()
+	if len(saves) != 1 {
+		t.Fatalf("want 1 save event, got %d", len(saves))
+	}
+	s := saves[0]
+	if s.Outcome.Success {
+		t.Error("save should have failed")
+	}
+	if s.SaveType != SaveAxisFortitude || s.Cause != SaveCauseMassiveDamage {
+		t.Errorf("save axis/cause wrong: %q / %q", s.SaveType, s.Cause)
+	}
+	if s.CreatureID != rig.target.id || s.RoomID != roomA {
+		t.Errorf("save target/room wrong: %s / %s", s.CreatureID, s.RoomID)
+	}
+	if got := len(rig.sink.snapshotDeaths()); got != 1 {
+		t.Errorf("want 1 death, got %d", got)
+	}
+	if hp := rig.target.vitals.Current(); hp != 0 {
+		t.Errorf("victim HP should be depleted, got %d", hp)
+	}
+}
+
+func TestMassiveDamage_SuccessfulSaveSurvives(t *testing.T) {
+	mc := &MassiveDamageConfig{Threshold: 40, DC: 15, FortBonus: func(CombatantID) int { return 0 }}
+	// save face 18 → 18 >= 15 success. Victim keeps the post-damage HP.
+	rig := massiveRig(t, 100, mc, []int{9, 0, 17})
+	runMassive(t, rig)
+
+	saves := rig.sink.snapshotSaves()
+	if len(saves) != 1 || !saves[0].Outcome.Success {
+		t.Fatalf("want 1 successful save, got %+v", saves)
+	}
+	if got := len(rig.sink.snapshotDeaths()); got != 0 {
+		t.Errorf("want 0 deaths on a made save, got %d", got)
+	}
+	if hp := rig.target.vitals.Current(); hp != 54 { // 100 - 46
+		t.Errorf("victim HP = %d, want 54 (normal damage still applied)", hp)
+	}
+}
+
+func TestMassiveDamage_FortBonusRescues(t *testing.T) {
+	// Same roll that failed at bonus 0 now passes — proves FortBonus is
+	// consumed and added before the DC compare. save face 3 + bonus 20 = 23.
+	mc := &MassiveDamageConfig{Threshold: 40, DC: 15, FortBonus: func(id CombatantID) int {
+		if id != NewMobCombatantID("tgt") {
+			t.Errorf("FortBonus keyed on wrong id: %s", id)
+		}
+		return 20
+	}}
+	rig := massiveRig(t, 100, mc, []int{9, 0, 2})
+	runMassive(t, rig)
+
+	saves := rig.sink.snapshotSaves()
+	if len(saves) != 1 || !saves[0].Outcome.Success {
+		t.Fatalf("want a rescued (successful) save, got %+v", saves)
+	}
+	if got := len(rig.sink.snapshotDeaths()); got != 0 {
+		t.Errorf("want 0 deaths after the bonus rescued the save, got %d", got)
+	}
+}
+
+func TestMassiveDamage_BelowThresholdNoSave(t *testing.T) {
+	// Threshold above the 46 raw damage → no save is rolled at all.
+	mc := &MassiveDamageConfig{Threshold: 100, DC: 15, FortBonus: func(CombatantID) int { return 0 }}
+	rig := massiveRig(t, 100, mc, []int{9, 0}) // no save face programmed
+	runMassive(t, rig)
+
+	if got := len(rig.sink.snapshotSaves()); got != 0 {
+		t.Errorf("want 0 saves below threshold, got %d", got)
+	}
+	if got := len(rig.sink.snapshotDeaths()); got != 0 {
+		t.Errorf("want 0 deaths, got %d", got)
+	}
+	if hp := rig.target.vitals.Current(); hp != 54 {
+		t.Errorf("victim HP = %d, want 54", hp)
+	}
+}
+
+func TestMassiveDamage_AlreadyKilledNoSave(t *testing.T) {
+	// The swing itself drops the victim to 0 → the kill branch returns
+	// before the massive-damage save; no save is forced on a corpse.
+	mc := &MassiveDamageConfig{Threshold: 40, DC: 15, FortBonus: func(CombatantID) int { return 0 }}
+	rig := massiveRig(t, 10, mc, []int{9, 0}) // 46 dmg vs 10 HP → dead on the hit
+	runMassive(t, rig)
+
+	if got := len(rig.sink.snapshotSaves()); got != 0 {
+		t.Errorf("want 0 saves when the hit already killed, got %d", got)
+	}
+	if got := len(rig.sink.snapshotDeaths()); got != 1 {
+		t.Errorf("want exactly 1 death (from the killing hit), got %d", got)
+	}
+}
+
+func TestMassiveDamage_DisabledWhenNil(t *testing.T) {
+	// nil MassiveDamage ⇒ the rule is off; a huge hit forces no save.
+	rig := massiveRig(t, 100, nil, []int{9, 0})
+	runMassive(t, rig)
+	if got := len(rig.sink.snapshotSaves()); got != 0 {
+		t.Errorf("want 0 saves with the rule disabled, got %d", got)
+	}
+}
+
+func TestNewAutoAttack_PanicsOnMassiveWithoutFortBonus(t *testing.T) {
+	defer func() {
+		if recover() == nil {
+			t.Error("expected panic when MassiveDamage is set without FortBonus")
+		}
+	}()
+	NewAutoAttack(AutoAttackConfig{
+		Locator:       MapLocator{},
+		RoomLocator:   MapRoomLocator{},
+		Sink:          &recordingSink{},
+		Roller:        &scriptedRoller{t: t},
+		MassiveDamage: &MassiveDamageConfig{Threshold: 50, DC: 15}, // FortBonus nil
+	})
 }

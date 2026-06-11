@@ -32,7 +32,7 @@ Each row is a sub-epic — itself theme-sized or bigger. "Engine home" names the
 | **S3** | **Skills system** | ~40 d20 skills (Hide, Heal, Diplomacy, Craft, …), ranks, synergy, trained-only | `progression` **proficiency** (use-based gain) is the analog; no skill list | Translate to proficiency-style skills (use-based, not point-buy); pick the subset a MUD actually resolves | L | no |
 | **S4** | **Feats / traits (passive perk engine)** | binary feats w/ prereqs, multi-take, stackable; class bonus feats | `abilities-and-effects` has passives; no perk-selection engine | A passive-trait selection engine layered on the abilities/effects substrate | L | no |
 | **S5** | **Conditions & status effects** | prone, stunned, dazed, bleeding, frightened, fatigued, blinded, entangled, helpless, … | `effect` system exists & is the natural home | Extend effects with a WoT condition vocabulary + their combat hooks | M | no |
-| **S6** | **Saves (Fort / Reflex / Will)** | three save axes vs poison/fear/area/mind | `stats` + `combat`; no save axis today | Add three derived save values + a resolve-check primitive (poison/fear/weaves consume it) | S–M | no |
+| **S6** | **Saves (Fort / Reflex / Will)** | three save axes vs poison/fear/area/mind | `stats` + `combat`; no save axis today | **SHIPPED 2026-06-10** (`saves.md`): three derived saves (class strong/weak base + ability mod), `ResolveSave` d20 primitive + `SaveResolved` event, first consumer = massive-damage Fortitude save, score-sheet row. Reflex/Will derived+shown, await S5/S7 consumers | S–M done | spec `saves.md` |
 | **S7** | **Survival & environment v2** | encumbrance, thirst, fatigue/subdual, temperature, poison, disease, falling, suffocation | `economy` sustenance/rest (single pool); container caps specced | Extend sustenance → multi-pressure survival; encumbrance rides container caps | M (per pressure) | partial — "thirst split" + "container caps" on backlog |
 | **S8** | **Reputation & social standing** | reputation score, fame/infamy, NPC attitude shift, followers | none; `faction` (specced §1) is the sibling architecture | Reputation as a parallel signed axis like faction; NPC attitude as a disposition hook | M | adjacent — `faction` specced |
 | **S9** | **Class / background / progression rebuild** | 7 classes, 12 backgrounds, multiclass, BAB, per-class HD, ability-ups, languages | `progression` tracks/classes/races exist; no multiclass/BAB/background | Map classes→existing class content; backgrounds→starting-loadout + trait grants (S4); **skip literal d20 leveling** unless Decision 0 = B | L | no |
@@ -58,7 +58,7 @@ Recording these so they don't sneak back in as "missing features":
 
 A few primitives unlock many sub-epics; do them early:
 
-- **S6 (saves)** is a small cross-cutting primitive that **S2 (weaves), S5 (conditions), S7 (poison/disease/fear)** all want. Cheap and foundational — a good early slice.
+- **S6 (saves)** is a small cross-cutting primitive that **S2 (weaves), S5 (conditions), S7 (poison/disease/fear)** all want. **SHIPPED 2026-06-10** — `combat.ResolveSave(roller, bonus, dc)` + the `SaveResolved` event are the seam those sub-epics call; `progression` derives the three saves per creature.
 - **S5 (conditions)** feeds **S1 (combat depth), S2 (weaves apply conditions), S11 (mob fear/gaze)**. Mid-foundational.
 - **S4 (feats/traits)** is the substrate **S9 (backgrounds/classes grant feats)** hangs off, and many **S1** weapon perks are feats.
 - **S2 (The One Power)** depends on a **resource-pool substrate** (the backlog's unbuilt "Mana pool") and benefits from **S6 + S5**. It is the single most WoT-defining system and the largest — treat it as its own multi-slice arc.
@@ -66,7 +66,7 @@ A few primitives unlock many sub-epics; do them early:
 **Recommended ordering (posture A):**
 
 1. **S1 weapon-identity (A+B+C)** — ✅ **SHIPPED 2026-06-10** (spec `weapon-identity.md` + the demo). The next S1 work is the separate ranged (G) and armor (E) themes.
-2. **S6 saves** — tiny cross-cutting primitive everything else reuses.
+2. **S6 saves** — ✅ **SHIPPED 2026-06-10** (spec `saves.md`): the cross-cutting d20 save primitive (`ResolveSave`, `SaveResolved`) + three derived saves + the massive-damage Fortitude consumer. S5/S7 now have the save check to call.
 3. **S5 conditions** — extend the effects system; unlocks combat/weave/mob depth.
 4. **S3 skills** *or* **S4 feats** — pick the one that the content track needs first (backgrounds want both; skills are the broader base).
 5. **S2 The One Power** — the marquee system; its own arc once the resource pool + S5/S6 exist. This is arguably *the reason to do WoT at all* — sequence it deliberately, not last by accident.

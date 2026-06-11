@@ -160,6 +160,22 @@ func (v *Vitals) ApplyDamageIfAlive(amount int) (remaining int, wasAlive bool) {
 	return v.hp, true
 }
 
+// Deplete drives current HP to zero outright and reports whether the
+// combatant was alive when the call entered the lock. It is the primitive
+// for save-gated instant-death (saves §4 massive damage) and a future
+// coup-de-grace. Like ApplyDamageIfAlive, only the caller that observes
+// wasAlive=true should emit VitalDepleted, so a concurrent killer (racing
+// swing, DoT effect) cannot double-emit the death.
+func (v *Vitals) Deplete() (wasAlive bool) {
+	v.mu.Lock()
+	defer v.mu.Unlock()
+	if v.hp <= 0 {
+		return false
+	}
+	v.hp = 0
+	return true
+}
+
 // Heal adds amount to current HP, capped at max. Returns the new
 // current HP. Negative amounts are clamped to zero (callers that want
 // to deal damage call ApplyDamage). Healing past zero from a dead

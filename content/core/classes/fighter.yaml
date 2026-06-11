@@ -75,6 +75,15 @@ proficiency_tiers:
   - simple
   - martial
 
+# Saving throws (saves §2). The fighter is the martial archetype: a
+# strong Fortitude save (toughness vs poison/trauma), weak Reflex and
+# Will. An omitted axis defaults to weak; they're spelled out here for
+# intent. Composed best-per-axis on a multiclass character.
+save_progressions:
+  fortitude: strong
+  reflex: weak
+  will: weak
+
 # Eligibility — open to humanoid races, both genders. Empty list
 # on either axis means no restriction; the explicit list here
 # documents intent and exercises GetEligible in tests.

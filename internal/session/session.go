@@ -2495,6 +2495,33 @@ func (a *connActor) IsWeaponProficient() bool {
 	return item.Proficient(tiers, cats, w.tier, w.category)
 }
 
+// Saves derives the actor's three saving throws (saves §2): the class-
+// granted base bonus (strong/weak progression read at the class's bound-
+// track level) plus the d20 modifier of each governing ability read off the
+// live stat block. The class is resolved live by id (like IsWeaponProficient)
+// so a SetClass change is honored without a relogin; a classless actor gets
+// modifier-only saves. Uses the engine-default save curves
+// (progression.DefaultSaveConfig) — magnitudes become env-tunable when a
+// consumer needs them. Read by the score sheet and the massive-damage
+// Fortitude consumer (saves §4).
+func (a *connActor) Saves() progression.Saves {
+	a.mu.Lock()
+	var cls *progression.Class
+	if a.classes != nil {
+		cls, _ = a.classes.Get(a.classID)
+	}
+	a.mu.Unlock()
+
+	var inputs []progression.ClassSaveInput
+	if cls != nil {
+		// a.Level handles its own locking; resolve it outside a.mu to keep
+		// the lock ordering flat.
+		inputs = []progression.ClassSaveInput{{Class: cls, Level: a.Level(cls.BoundTrack)}}
+	}
+	base := progression.ClassBaseSaves(inputs, progression.DefaultSaveConfig())
+	return progression.DeriveSaves(base, a.statBlock.Effective)
+}
+
 // Equip is the atomic equip-side mutation invoked by the equip command
 // handler: removes id from inventory, installs it under every key in
 // footprint (footprint[0] is the target/canonical key; the rest are

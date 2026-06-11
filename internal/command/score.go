@@ -29,6 +29,7 @@ type scoreSubject interface {
 	Mana() int
 	Movement() int
 	StatValue(progression.StatType) int
+	Saves() progression.Saves
 }
 
 // ScoreHandler implements `score` (aliased `sc`) — the player's character
@@ -52,6 +53,10 @@ func ScoreHandler(ctx context.Context, c *Context) error {
 		d.DEX = ss.StatValue(progression.StatDEX)
 		d.CON = ss.StatValue(progression.StatCON)
 		d.LUCK = ss.StatValue(progression.StatLUCK)
+		// Saving throws (saves §2/§4): derived from class + ability mods.
+		d.HasSaves = true
+		sv := ss.Saves()
+		d.Fort, d.Reflex, d.Will = sv.Fortitude, sv.Reflex, sv.Will
 		d.HasAlign = true
 		// AlignmentTag returns the raw tag id ("alignment_neutral"); show
 		// the bare word ("neutral") on the sheet.
@@ -169,6 +174,9 @@ type scoreData struct {
 	STR, INT, WIS, DEX, CON, LUCK int
 	AC, Hit                       int
 
+	HasSaves           bool
+	Fort, Reflex, Will int
+
 	HasAlign bool
 	AlignTag string
 	Align    int
@@ -234,6 +242,13 @@ func renderScore(d scoreData) string {
 		// current/max with no bar until live pools land (BACKLOG §2).
 		combatCol = append(combatCol, scSub("MA")+" <mana>"+fmt.Sprintf("%d/%d", d.Mana, d.Mana)+
 			"</mana>    "+scSub("MV")+" <mv>"+fmt.Sprintf("%d/%d", d.MV, d.MV)+"</mv>")
+	}
+	if d.HasSaves {
+		// Fortitude / Reflex / Will (saves §2). Compact so the row fits the
+		// Combat column width; values are signed (a negative ability mod can
+		// push a weak save below zero).
+		combatCol = append(combatCol, scKV("Saves",
+			scHi(fmt.Sprintf("Fort %+d  Ref %+d  Will %+d", d.Fort, d.Reflex, d.Will)), 12))
 	}
 
 	// Lower row: three columns — Attributes, Purse & Training, and the worn

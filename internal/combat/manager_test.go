@@ -19,6 +19,7 @@ type recordingSink struct {
 	misses  []Miss
 	evades  []Evade
 	deaths  []VitalDepleted
+	saves   []SaveResolved
 }
 
 func (r *recordingSink) OnEngagement(_ context.Context, e Engagement) {
@@ -57,6 +58,12 @@ func (r *recordingSink) OnVitalDepleted(_ context.Context, e VitalDepleted) {
 	r.deaths = append(r.deaths, e)
 }
 
+func (r *recordingSink) OnSaveResolved(_ context.Context, e SaveResolved) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.saves = append(r.saves, e)
+}
+
 func (r *recordingSink) snapshotHits() []Hit {
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -86,6 +93,14 @@ func (r *recordingSink) snapshotDeaths() []VitalDepleted {
 	defer r.mu.Unlock()
 	out := make([]VitalDepleted, len(r.deaths))
 	copy(out, r.deaths)
+	return out
+}
+
+func (r *recordingSink) snapshotSaves() []SaveResolved {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	out := make([]SaveResolved, len(r.saves))
+	copy(out, r.saves)
 	return out
 }
 

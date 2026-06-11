@@ -89,6 +89,13 @@ type Class struct {
 	// at Register.
 	ProficiencyCategories []string
 
+	// SaveProgressions declares this class's base-save curve per axis
+	// (saves §2): a SaveType mapped to strong or weak. An axis the class
+	// does not list defaults to weak. Composed across a multiclass
+	// character by taking the strongest contributing class per axis
+	// (saves §2 best-per-axis). Deep-copied at Register.
+	SaveProgressions map[SaveType]SaveProgression
+
 	// StartingAlignment seeds new characters' alignment (§4.1
 	// "presentation fields"). Read only by M12 character creation;
 	// unused at runtime today.
@@ -189,6 +196,13 @@ func (cr *ClassRegistry) Register(c *Class) error {
 			cs[i] = strings.ToLower(strings.TrimSpace(v))
 		}
 		clone.ProficiencyCategories = cs
+	}
+	if len(c.SaveProgressions) > 0 {
+		sp := make(map[SaveType]SaveProgression, len(c.SaveProgressions))
+		for k, v := range c.SaveProgressions {
+			sp[SaveType(strings.ToLower(string(k)))] = SaveProgression(strings.ToLower(string(v)))
+		}
+		clone.SaveProgressions = sp
 	}
 	cr.classes[id] = &clone
 	return nil

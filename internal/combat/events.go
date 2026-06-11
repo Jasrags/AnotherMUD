@@ -36,6 +36,11 @@ type EventSink interface {
 	OnMiss(ctx context.Context, e Miss)
 	OnEvade(ctx context.Context, e Evade)
 	OnVitalDepleted(ctx context.Context, e VitalDepleted)
+	// OnSaveResolved reports a resolved saving throw (saves §3). Like
+	// Evade, this is reserved ahead of broad use: the massive-damage
+	// consumer (saves §4) emits it today; S2/S5 weaves and conditions
+	// will emit it as they land. Sinks that don't care embed nopSink.
+	OnSaveResolved(ctx context.Context, e SaveResolved)
 }
 
 // Engagement is dispatched after both sides of an Engage have been
@@ -150,3 +155,4 @@ func (nopSink) OnHit(context.Context, Hit)                     {}
 func (nopSink) OnMiss(context.Context, Miss)                   {}
 func (nopSink) OnEvade(context.Context, Evade)                 {}
 func (nopSink) OnVitalDepleted(context.Context, VitalDepleted) {}
+func (nopSink) OnSaveResolved(context.Context, SaveResolved)   {}

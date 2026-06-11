@@ -10,6 +10,7 @@ import (
 
 	"github.com/Jasrags/AnotherMUD/internal/item"
 	"github.com/Jasrags/AnotherMUD/internal/mob"
+	"github.com/Jasrags/AnotherMUD/internal/progression"
 	"github.com/Jasrags/AnotherMUD/internal/property"
 	"github.com/Jasrags/AnotherMUD/internal/slot"
 	"github.com/Jasrags/AnotherMUD/internal/world"
@@ -1247,6 +1248,81 @@ proficiency_categories: [Two-Rivers-Longbow]
 	}
 	if want := []string{"two-rivers-longbow"}; !slices.Equal(c.ProficiencyCategories, want) {
 		t.Errorf("ProficiencyCategories = %v, want %v (lowercased)", c.ProficiencyCategories, want)
+	}
+}
+
+func TestLoadClasses_SaveProgressions(t *testing.T) {
+	root := t.TempDir()
+	pack := filepath.Join(root, "core")
+	writeFile(t, filepath.Join(pack, "pack.yaml"), `
+name: tapestry-core
+content:
+  classes: [classes/*.yaml]
+`)
+	// Mixed-case axis + progression names must lowercase; an omitted axis
+	// (will) stays absent (defaults to weak at composition time).
+	writeFile(t, filepath.Join(pack, "classes/warder.yaml"), `
+id: warder
+name: Warder
+bound_track: adventurer
+save_progressions:
+  Fortitude: Strong
+  reflex: WEAK
+`)
+	regs := NewRegistries()
+	if err := Load(context.Background(), root, nil, regs, nil, nil, nil); err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	c, ok := regs.Classes.Get("warder")
+	if !ok {
+		t.Fatal("class warder not registered")
+	}
+	if got := c.SaveProgressions[progression.SaveFortitude]; got != progression.SaveStrong {
+		t.Errorf("Fortitude = %q, want strong (lowercased)", got)
+	}
+	if got := c.SaveProgressions[progression.SaveReflex]; got != progression.SaveWeak {
+		t.Errorf("Reflex = %q, want weak", got)
+	}
+	if _, present := c.SaveProgressions[progression.SaveWill]; present {
+		t.Error("Will should be absent (defaults to weak at composition)")
+	}
+}
+
+func TestLoadClassesRejectsBadSaveAxis(t *testing.T) {
+	root := t.TempDir()
+	pack := filepath.Join(root, "core")
+	writeFile(t, filepath.Join(pack, "pack.yaml"), `
+name: tapestry-core
+content:
+  classes: [classes/*.yaml]
+`)
+	writeFile(t, filepath.Join(pack, "classes/bad.yaml"), `
+id: bad
+bound_track: adventurer
+save_progressions:
+  toughness: strong
+`)
+	if err := Load(context.Background(), root, nil, NewRegistries(), nil, nil, nil); !errors.Is(err, ErrInvalidContent) {
+		t.Errorf("want ErrInvalidContent for unknown save axis, got %v", err)
+	}
+}
+
+func TestLoadClassesRejectsBadSaveProgression(t *testing.T) {
+	root := t.TempDir()
+	pack := filepath.Join(root, "core")
+	writeFile(t, filepath.Join(pack, "pack.yaml"), `
+name: tapestry-core
+content:
+  classes: [classes/*.yaml]
+`)
+	writeFile(t, filepath.Join(pack, "classes/bad.yaml"), `
+id: bad
+bound_track: adventurer
+save_progressions:
+  fortitude: heroic
+`)
+	if err := Load(context.Background(), root, nil, NewRegistries(), nil, nil, nil); !errors.Is(err, ErrInvalidContent) {
+		t.Errorf("want ErrInvalidContent for unknown progression, got %v", err)
 	}
 }
 

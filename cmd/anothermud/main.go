@@ -1450,6 +1450,38 @@ func run() error {
 	hitModAdjust := func(id combat.CombatantID) int {
 		return attackerDarknessPenalty(id) + attackerProficiencyPenalty(id)
 	}
+	// saves §4: resolve a victim's Fortitude save bonus for the massive-
+	// damage save. Players compose class base saves + the live CON modifier
+	// (connActor.Saves); mobs are classless, so they save on the CON
+	// modifier alone off their stat block (base zero). An unresolvable id
+	// contributes 0 — the save still rolls, it just gets no bonus.
+	victimFortBonus := func(id combat.CombatantID) int {
+		bare := combat.EntityIDOf(id)
+		if strings.HasPrefix(string(id), combat.PlayerPrefix) {
+			if a, ok := mgr.GetByPlayerID(bare); ok {
+				return a.Saves().Get(progression.SaveFortitude)
+			}
+			return 0
+		}
+		if ent, ok := entityStore.GetByID(entities.EntityID(bare)); ok {
+			if m, ok := ent.(*entities.MobInstance); ok {
+				saves := progression.DeriveSaves(progression.Saves{}, m.StatBlock().Effective)
+				return saves.Get(progression.SaveFortitude)
+			}
+		}
+		return 0
+	}
+	// A non-positive threshold means "every hit" at the combat layer (a
+	// test-only option); in production that is never intended and almost
+	// always a misconfigured env, so coerce it back to the engine default
+	// with a warning rather than silently forcing a save on every swing.
+	massiveThreshold := cfg.MassiveDamageThreshold
+	if massiveThreshold <= 0 {
+		logging.From(ctx).Warn("massive-damage threshold non-positive; using engine default",
+			slog.Int("configured", cfg.MassiveDamageThreshold),
+			slog.Int("default", combat.DefaultMassiveDamageThreshold))
+		massiveThreshold = combat.DefaultMassiveDamageThreshold
+	}
 	autoAttackPhase := combat.NewAutoAttack(combat.AutoAttackConfig{
 		Locator:        combatLocator,
 		RoomLocator:    combatLocator,
@@ -1458,6 +1490,11 @@ func run() error {
 		Passives:       passiveResolver,
 		CritMultiplier: cfg.CritMultiplier,
 		HitModAdjust:   hitModAdjust,
+		MassiveDamage: &combat.MassiveDamageConfig{
+			Threshold: massiveThreshold,
+			DC:        cfg.MassiveDamageDC,
+			FortBonus: victimFortBonus,
+		},
 	})
 	// M7.6 wimpy phase — fires §5.2 flee when a combatant's HP%
 	// drops to or below its WimpyThreshold property. Shares the same
@@ -2032,28 +2069,30 @@ func cadenceTicks(tickInterval, cadence time.Duration) uint64 {
 // config is the M3 config knobs — env-only until we have more than
 // ~5 of them per the ROADMAP "not front-loaded" list.
 type config struct {
-	Addr                  string
-	WsAddr                string
-	WsPath                string
-	WsOriginPatterns      []string
-	WsInsecureSkipVerify  bool
-	LogLevel              string
-	LogFormat             string
-	TickInterval          time.Duration
-	CombatCadence         time.Duration
-	FleeCooldown          time.Duration
-	CritMultiplier        int
-	NonProficientPenalty  int
-	CorpseOwnershipWindow time.Duration
-	CorpseLifetime        time.Duration
-	CorpseDecayInterval   time.Duration
-	CampfireLifetime      time.Duration
-	CampfireDecayInterval time.Duration
-	BiomeAmbienceInterval time.Duration
-	ForageCooldown        time.Duration
-	AutosaveInterval      time.Duration
-	IdleSweepInterval     time.Duration
-	LinkDeadSweepInterval time.Duration
+	Addr                   string
+	WsAddr                 string
+	WsPath                 string
+	WsOriginPatterns       []string
+	WsInsecureSkipVerify   bool
+	LogLevel               string
+	LogFormat              string
+	TickInterval           time.Duration
+	CombatCadence          time.Duration
+	FleeCooldown           time.Duration
+	CritMultiplier         int
+	NonProficientPenalty   int
+	MassiveDamageThreshold int
+	MassiveDamageDC        int
+	CorpseOwnershipWindow  time.Duration
+	CorpseLifetime         time.Duration
+	CorpseDecayInterval    time.Duration
+	CampfireLifetime       time.Duration
+	CampfireDecayInterval  time.Duration
+	BiomeAmbienceInterval  time.Duration
+	ForageCooldown         time.Duration
+	AutosaveInterval       time.Duration
+	IdleSweepInterval      time.Duration
+	LinkDeadSweepInterval  time.Duration
 	// LoginIdleTimeout bounds every interactive login/creation read
 	// (login spec §6.1). Zero disables it; the default closes a peer
 	// that opens a connection but never responds.
@@ -2116,6 +2155,8 @@ func loadConfig() config {
 		FleeCooldown:            envDurationOr("ANOTHERMUD_FLEE_COOLDOWN", 15*time.Second),
 		CritMultiplier:          envIntOr("ANOTHERMUD_CRIT_MULTIPLIER", combat.DefaultCritMultiplier),
 		NonProficientPenalty:    envIntOr("ANOTHERMUD_NONPROFICIENT_PENALTY", combat.DefaultNonProficientPenalty),
+		MassiveDamageThreshold:  envIntOr("ANOTHERMUD_MASSIVE_DAMAGE_THRESHOLD", combat.DefaultMassiveDamageThreshold),
+		MassiveDamageDC:         envIntOr("ANOTHERMUD_MASSIVE_DAMAGE_DC", combat.DefaultMassiveDamageDC),
 		CorpseOwnershipWindow:   envDurationOr("ANOTHERMUD_CORPSE_OWNERSHIP_WINDOW", 60*time.Second),
 		CorpseLifetime:          envDurationOr("ANOTHERMUD_CORPSE_LIFETIME", 5*time.Minute),
 		CorpseDecayInterval:     envDurationOr("ANOTHERMUD_CORPSE_DECAY_INTERVAL", 3*time.Second),
@@ -2903,6 +2944,36 @@ func (s *productionCombatSink) OnEvade(_ context.Context, e combat.Evade) {
 		slog.String("target", string(e.TargetID)),
 		slog.String("ability", e.AbilityName),
 		slog.String("room", string(e.RoomID)))
+}
+
+// OnSaveResolved renders a saving-throw resolution to the creature
+// (second person) and the room (third person), per saves §3/§4. The event
+// is informational — the consumer that forced the save owns whatever
+// consequence a failure brings; this method only narrates the roll.
+func (s *productionCombatSink) OnSaveResolved(ctx context.Context, e combat.SaveResolved) {
+	s.logger.Info("combat.save_resolved",
+		slog.String("creature", string(e.CreatureID)),
+		slog.String("save", e.SaveType),
+		slog.String("cause", e.Cause),
+		slog.Int("roll", e.Outcome.Roll),
+		slog.Int("total", e.Outcome.Total),
+		slog.Int("dc", e.Outcome.DC),
+		slog.Bool("success", e.Outcome.Success),
+		slog.String("room", string(e.RoomID)))
+
+	cn := s.nameOf(string(e.CreatureID))
+	save := upperFirst(e.SaveType)
+	// Only the saving creature is excluded from the room announce — the
+	// attacker who forced the save is a deliberate observer of the result
+	// ("X resists."). The massive-damage consumer (saves §4) emits no
+	// separate attacker line for the save, so there is no double-narration.
+	if e.Outcome.Success {
+		s.tell(ctx, e.CreatureID, fmt.Sprintf("<good>You resist! (%s save)</good>", save))
+		s.announce(ctx, e.RoomID, fmt.Sprintf("%s resists.", cn), e.CreatureID)
+		return
+	}
+	s.tell(ctx, e.CreatureID, fmt.Sprintf("<danger>You fail to resist! (%s save)</danger>", save))
+	s.announce(ctx, e.RoomID, fmt.Sprintf("%s fails to resist.", cn), e.CreatureID)
 }
 
 func (s *productionCombatSink) OnVitalDepleted(ctx context.Context, e combat.VitalDepleted) {

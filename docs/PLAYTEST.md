@@ -3,9 +3,10 @@
 A manual QA checklist for verifying implemented features (M0–M27 + recent
 polish: the look/consider appearance lens, tab-completion surfaces, weapon
 damage dice + critical hits, **light & darkness** — §21, **crafting &
-cooking** — §22, and **player maps** — §23). Work top-to-bottom or jump to a
-section. Each step gives a **command** and the **expected behavior**; tick the
-box when it matches, and note anything that doesn't.
+cooking** — §22, **player maps** — §23, and **saving throws** — §24). Work
+top-to-bottom or jump to a section. Each step gives a **command** and the
+**expected behavior**; tick the box when it matches, and note anything that
+doesn't.
 
 > Format: `- [ ] command` — what should happen. Mark `[x]` on pass; add a
 > `BUG:` note inline on fail.
@@ -238,7 +239,8 @@ After killing the bandit (Meadow):
 ## 8. Progression & abilities
 
 - [x] `score` (`sc`) — your character sheet: race/class/level, HP/MA/MV, the six
-      attributes, AC/hit, alignment, gold, sustenance tier, and XP-to-next.
+      attributes, AC/hit, **saving throws** (Fort/Reflex/Will — §24), alignment,
+      gold, sustenance tier, and XP-to-next.
 - [x] `consider` with no target (or `consider me`) — points you to `score` now
       (self stats moved there); `consider <target>` still sizes up that target.
 - [x] `abilities` (`abi`) — lists learned abilities + proficiencies.
@@ -722,6 +724,53 @@ The craft NPCs/stations in the core pack:
       The toggle persists across logout.
 - [ ] (GMCP, §18) `Room.Info` carries coordinates; a Mudlet-style client can
       drive its native mapper from them.
+
+## 24. Saving throws (Fortitude / Reflex / Will)
+
+Every character has three saves — **Fortitude** (Constitution), **Reflex**
+(Dexterity), **Will** (Wisdom) — each a class-granted base bonus (a *strong*
+or *weak* level progression) plus the governing ability's modifier. They're
+shown on `score` and resolved as a `d20 + bonus vs DC` check. The first
+consumer is the **massive-damage Fortitude save** (a single hit at/above a
+threshold forces a Fort save or you suffer the lethal consequence).
+
+### Saves on the score sheet
+
+- [ ] `score` (`sc`) — the **Combat** column shows a `Saves  Fort +X  Ref +Y
+      Will +Z` row. A fresh **level-1 fighter with all stats 10** reads
+      `Fort +2  Ref +0  Will +0` — the fighter's **strong** Fortitude
+      (base 2) vs **weak** Reflex/Will (base 0).
+- [ ] Raise the governing ability and re-check: `train con` (or admin
+      `set stat con <target> 16`), then `score` — **Fortitude rises** with the
+      CON modifier (no separate save plumbing; saves are derived live).
+- [ ] (Admin) on a higher-level character, saves scale with level — the strong
+      curve climbs faster (2,3,3,4,…) than the weak curve (0,0,1,1,…).
+
+### The massive-damage Fortitude save (combat)
+
+The default threshold is **50** (above ordinary low-level swing damage), so it
+**won't fire in normal demo combat** — the bandit hits for ~4. To observe it,
+**lower the threshold** so any hit qualifies:
+
+```sh
+ANOTHERMUD_MASSIVE_DAMAGE_THRESHOLD=1 ANOTHERMUD_MASSIVE_DAMAGE_DC=50 make run
+```
+
+- [ ] With the threshold lowered, fight the bandit in the **Meadow**. On a hit
+      that doesn't already kill, you (or the bandit) roll a Fortitude save:
+      a pass prints `You resist! (Fortitude save)` (room: "X resists."); a
+      fail prints `You fail to resist! (Fortitude save)` and applies the
+      lethal consequence — for a player that's the normal death recovery
+      (`Everything goes black… wake, dazed, in another place`, HP 1, recall
+      room), exactly like any other death.
+- [ ] A hit that **already** drops the victim to 0 forces **no** save (the
+      kill path runs first) — you just see the normal death, no save line.
+- [ ] Restore the default (drop the env vars) — combat no longer triggers
+      saves; the rule is inert until something hits for 50+ in one blow.
+
+> Reflex and Will are derived and shown but have **no triggering system yet** —
+> they wait on conditions (S5) and poison/fear (S7) in the WoT mechanics EPIC.
+> The massive-damage save is the one shipped consumer.
 
 ---
 

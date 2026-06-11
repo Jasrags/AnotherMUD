@@ -28,6 +28,9 @@ func (a *sheetActor) StatValue(s progression.StatType) int {
 		progression.StatDEX: 14, progression.StatCON: 15, progression.StatLUCK: 8,
 	}[s]
 }
+func (a *sheetActor) Saves() progression.Saves {
+	return progression.Saves{Fortitude: 4, Reflex: 1, Will: 1}
+}
 
 func TestScore_Handler(t *testing.T) {
 	f := newConsiderFixture(t)
@@ -45,6 +48,7 @@ func TestScore_Handler(t *testing.T) {
 		"neutral (0)",
 		"<gold>1,000</gold>",
 		"Full (84/100)",
+		"Fort +4  Ref +1  Will +1", // saving throws row
 	} {
 		if !strings.Contains(out, want) {
 			t.Errorf("score output missing %q\n--- got ---\n%s", want, out)
