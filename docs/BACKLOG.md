@@ -130,9 +130,11 @@ old five-theme partition left uncovered.
   the **multiclass seam** (class `string → []string`, save v18), and **S9 backgrounds**
   (the creation-origin starting package — skills/items/gold, save v19, `backgrounds.md`;
   a core `Commoner` + 4 starter-world demo backgrounds). See ROADMAP "WoT Mechanics
-  EPIC" + the EPIC doc's status table. **Next candidates:** S2 The One Power (marquee),
-  S4 feats/traits (the substrate S9 background-feats + many S1 weapon perks need),
-  S7 survival v2, S8 reputation, or the separate ranged (G) / armor (E) S1 follow-ons.
+  EPIC" + the EPIC doc's status table. **Next candidates:** S2 The One Power (marquee);
+  **S4 feats/traits — SCOPED 2026-06-11, ready to build** (`proposals/wot-feats.md`: full
+  selection engine + static-bonus feat family only; closes S9's deferred background-feat,
+  hosts S2 channeling feats later); S7 survival v2, S8 reputation, or the separate ranged
+  (G) / armor (E) S1 follow-ons.
 - **Combat & Equipment Depth (WoT weapon/armor system)** — *(EPIC sub-epic S1 — see WoT
   Mechanics above and [`docs/themes/wot-mechanics-epic.md`](themes/wot-mechanics-epic.md))*
   **✅ A+B+C (`M-Weapon-Identity`) SHIPPED 2026-06-10** (`weapon-identity.md`); what
