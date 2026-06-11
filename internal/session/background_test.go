@@ -100,6 +100,30 @@ func TestRunCreation_CommitsBackground(t *testing.T) {
 	}
 }
 
+// feats §2.2 (EPIC S4 Phase 2): CreditFeats banks slots, syncs the save, and
+// ignores non-positive credits.
+func TestCreditFeats_BanksAndSyncsSave(t *testing.T) {
+	a, _ := newFakeActor("c1", "p1", "acc1", "Hero", &world.Room{ID: "r"})
+
+	if a.FeatCredits() != 0 {
+		t.Fatalf("initial FeatCredits = %d, want 0", a.FeatCredits())
+	}
+	a.CreditFeats(1) // creation slot
+	a.CreditFeats(2) // a 6th-level jump, say
+	if got := a.FeatCredits(); got != 3 {
+		t.Errorf("FeatCredits = %d, want 3", got)
+	}
+	if a.save.FeatCredits != 3 {
+		t.Errorf("save.FeatCredits = %d, want 3 (synced)", a.save.FeatCredits)
+	}
+	// Non-positive credits are no-ops (the spend side lives in the feat verb).
+	a.CreditFeats(0)
+	a.CreditFeats(-5)
+	if got := a.FeatCredits(); got != 3 {
+		t.Errorf("FeatCredits after no-op credits = %d, want 3", got)
+	}
+}
+
 // With no backgrounds loaded, creation skips the background step entirely and
 // the character is background-less (backgrounds §3, last acceptance criterion).
 func TestRunCreation_NoBackgroundsSkipsStep(t *testing.T) {

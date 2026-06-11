@@ -603,6 +603,7 @@ func run(ctx context.Context, c conn.Connection, cfg Config) error {
 	applyBackground(a, loaded.Player.Background)
 	a.mu.Lock()
 	a.trainsAvailable = loaded.Player.TrainsAvailable
+	a.featCredits = loaded.Player.FeatCredits
 	// Re-sync the save's class list if applyClass dropped a removed-content
 	// id (the resolved list differs from what was loaded). Re-adding the
 	// class later reattaches the character.
@@ -1766,6 +1767,13 @@ type connActor struct {
 	// dispatch and Persist also reads it.
 	trainsAvailable int
 
+	// featCredits is the actor's banked-but-unspent feat slots (EPIC S4
+	// Phase 2 — docs/proposals/wot-feats.md §2.2). Credited 1 at character
+	// creation + 1 per 3 character levels (off the bus dispatch, same as
+	// trainsAvailable); the feat verb (Phase 4) is the only consumer.
+	// Guarded by a.mu since CreditFeats and Persist both touch it.
+	featCredits int
+
 	// alignment is the actor's integer alignment property
 	// (M8.5 — spec progression.md §6.1). Written through
 	// AlignmentManager.Set / Shift; read by AI disposition
@@ -2909,6 +2917,33 @@ func (a *connActor) CreditTrains(_ context.Context, _ string, n int) {
 	}
 	if a.save != nil {
 		a.save.TrainsAvailable = a.trainsAvailable
+	}
+	a.markDirtyLocked()
+}
+
+// FeatCredits returns the actor's banked-but-unspent feat slots (EPIC S4
+// Phase 2 — docs/proposals/wot-feats.md §2.2). Read by the feat verb (Phase 4)
+// and surfaced on score later.
+func (a *connActor) FeatCredits() int {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	return a.featCredits
+}
+
+// CreditFeats adds n feat slots to the actor's banked pool and marks the save
+// dirty (EPIC S4 Phase 2). Mirrors CreditTrains: called off the bus dispatch
+// from the character-created + level-up subscribers (1 at creation, 1 per 3
+// character levels). n<=0 is a no-op; the feat verb (Phase 4) owns the
+// spend-side decrement + underflow.
+func (a *connActor) CreditFeats(n int) {
+	if n <= 0 {
+		return
+	}
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	a.featCredits += n
+	if a.save != nil {
+		a.save.FeatCredits = a.featCredits
 	}
 	a.markDirtyLocked()
 }

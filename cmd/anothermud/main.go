@@ -39,6 +39,7 @@ import (
 	"github.com/Jasrags/AnotherMUD/internal/economy"
 	"github.com/Jasrags/AnotherMUD/internal/entities"
 	"github.com/Jasrags/AnotherMUD/internal/eventbus"
+	"github.com/Jasrags/AnotherMUD/internal/feat"
 	"github.com/Jasrags/AnotherMUD/internal/gameclock"
 	"github.com/Jasrags/AnotherMUD/internal/gathering"
 	"github.com/Jasrags/AnotherMUD/internal/help"
@@ -1048,6 +1049,14 @@ func run() error {
 				progression.ApplyStatGrowth(ctx, cls, actor.StatBlock(), growthRoller, trainsCrediter, e.EntityID)
 			}
 		}
+		// feats §2.2 (EPIC S4 Phase 2): bank a feat slot for every 3rd
+		// character level crossed (3/6/9/…). Each level-up step is +1, so for a
+		// single-class character the track level == character level; when
+		// multiclass content lands this should read the actor's TOTAL character
+		// level (the seam is CreditsForLevelChange's inputs, nothing else).
+		if n := feat.CreditsForLevelChange(e.OldLevel, e.NewLevel); n > 0 {
+			actor.CreditFeats(n)
+		}
 	})
 
 	// backgrounds §4: the one-time starting-package granter (skills/items/gold).
@@ -1079,6 +1088,10 @@ func run() error {
 				backgroundGranter.Grant(ctx, e.EntityID, bg)
 			}
 		}
+		// feats §2.2 (EPIC S4 Phase 2): the base feat slot granted at creation
+		// (1 feat at character creation). Per-3-levels slots accrue from the
+		// level-up subscriber; background/class feat grants are Phase 5.
+		actor.CreditFeats(1)
 	})
 
 	// M9.6: render ability resolution outcomes to players. The

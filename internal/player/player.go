@@ -126,7 +126,7 @@ import (
 // means "knows no recipes beyond what a discipline grants at runtime";
 // the migration injects nothing. A known id whose recipe was removed from
 // content loads cleanly and is ignored at restore (§9), never an error.
-const CurrentVersion = 19
+const CurrentVersion = 20
 
 // Sentinel errors callers may check via errors.Is.
 var (
@@ -297,6 +297,30 @@ type Save struct {
 	// never an error. omitempty so a recipeless save (the common case)
 	// writes no key and a legacy pre-v17 save round-trips as the empty set.
 	KnownRecipes []string `yaml:"known_recipes,omitempty"`
+
+	// FeatCredits is the count of banked-but-unspent feat slots (EPIC S4
+	// Phase 2 — docs/proposals/wot-feats.md §2.2). Earned 1 at character
+	// creation + 1 per 3 character levels; spent by the feat verb (Phase 4).
+	// Added in v20; absent/zero = no banked credits, the correct default for a
+	// pre-v20 save.
+	FeatCredits int `yaml:"feat_credits,omitempty"`
+	// KnownFeats is the per-character set of taken feats (EPIC S4 Phase 2).
+	// Added in v20; empty/absent = no feats. A known feat whose definition is
+	// no longer in content is ignored when its bonus is recomputed, never an
+	// error (fail-soft, like KnownRecipes).
+	KnownFeats []KnownFeat `yaml:"known_feats,omitempty"`
+}
+
+// KnownFeat is one taken feat on a player save (EPIC S4 Phase 2 —
+// docs/proposals/wot-feats.md §2.5). FeatID is the global feat id; Param binds
+// the instance for a per-parameter feat (a weapon/skill id; empty otherwise);
+// Count is the number of takes for a stackable feat (0/1 for a non-stackable
+// feat). The conferred bonuses are recomputed from this set, not separately
+// persisted — KnownFeats is the source of truth.
+type KnownFeat struct {
+	FeatID string `yaml:"feat"`
+	Param  string `yaml:"param,omitempty"`
+	Count  int    `yaml:"count,omitempty"`
 }
 
 // VitalsState is the persisted HP block (v5+). Pointer so an absent
@@ -495,6 +519,7 @@ var playerMigrations = map[int]func(map[string]any) (map[string]any, error){
 	16: migrateV16toV17,
 	17: migrateV17toV18,
 	18: migrateV18toV19,
+	19: migrateV19toV20,
 }
 
 // migrateV1toV2 adds the empty inventory/equipment blocks introduced
@@ -769,6 +794,15 @@ func migrateV17toV18(in map[string]any) (map[string]any, error) {
 // granted package, if any, already lives in the proficiency/inventory/gold
 // surfaces). Pre-existing characters simply have no recorded origin label.
 func migrateV18toV19(in map[string]any) (map[string]any, error) {
+	return in, nil
+}
+
+// migrateV19toV20 introduces the feat-system save fields — `feat_credits` and
+// `known_feats` (EPIC S4 Phase 2 — docs/proposals/wot-feats.md §2.5). A v19
+// save has neither key; their absence decodes to 0 credits + no feats, the
+// correct default (a pre-feats character has earned nothing yet), so the
+// migration is a no-op. Banked credits begin accruing on the next level-up.
+func migrateV19toV20(in map[string]any) (map[string]any, error) {
 	return in, nil
 }
 

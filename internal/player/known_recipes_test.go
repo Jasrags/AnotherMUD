@@ -228,3 +228,60 @@ func TestSaveLoad_V19BackgroundRoundTrips(t *testing.T) {
 		t.Errorf("Background round-trip = %q, want soldier", got.Background)
 	}
 }
+
+// --- feats §2.5: v19 → v20 (feat_credits + known_feats) ------------------
+func TestLoad_V19NoFeatsMigratesToZero(t *testing.T) {
+	ctx := context.Background()
+	st, dir := newStore(t)
+	// A v19 save with a background but no feat fields.
+	writePlayerYAML(t, dir, "preFeats",
+		"version: 19\nid: p-1\naccount_id: acct-1\nname: PreFeats\nlocation: tapestry-core:town-square\nbackground: soldier\n")
+
+	got, err := st.Load(ctx, "preFeats")
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if got.Version != player.CurrentVersion {
+		t.Errorf("Version = %d, want %d", got.Version, player.CurrentVersion)
+	}
+	if got.FeatCredits != 0 {
+		t.Errorf("FeatCredits = %d, want 0 (v19 had no feats)", got.FeatCredits)
+	}
+	if len(got.KnownFeats) != 0 {
+		t.Errorf("KnownFeats = %v, want empty", got.KnownFeats)
+	}
+}
+
+func TestSaveLoad_V20FeatsRoundTrip(t *testing.T) {
+	ctx := context.Background()
+	st, _ := newStore(t)
+	in := &player.Save{
+		Version: player.CurrentVersion, ID: "p-3", AccountID: "acct-1",
+		Name: "Feated", Location: "tapestry-core:town-square",
+		FeatCredits: 2,
+		KnownFeats: []player.KnownFeat{
+			{FeatID: "toughness", Count: 3},                // stackable
+			{FeatID: "weapon-focus", Param: "short-sword"}, // per-parameter
+			{FeatID: "iron-will"},                          // plain
+		},
+	}
+	if err := st.Save(ctx, in); err != nil {
+		t.Fatalf("Save: %v", err)
+	}
+	got, err := st.Load(ctx, "feated")
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if got.FeatCredits != 2 {
+		t.Errorf("FeatCredits round-trip = %d, want 2", got.FeatCredits)
+	}
+	if len(got.KnownFeats) != 3 {
+		t.Fatalf("KnownFeats = %d entries, want 3", len(got.KnownFeats))
+	}
+	if got.KnownFeats[0] != (player.KnownFeat{FeatID: "toughness", Count: 3}) {
+		t.Errorf("KnownFeats[0] = %+v", got.KnownFeats[0])
+	}
+	if got.KnownFeats[1] != (player.KnownFeat{FeatID: "weapon-focus", Param: "short-sword"}) {
+		t.Errorf("KnownFeats[1] = %+v", got.KnownFeats[1])
+	}
+}
