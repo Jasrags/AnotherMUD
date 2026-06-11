@@ -190,9 +190,13 @@ func (a *connActor) TakeFeat(featID, param string) (bool, string) {
 // GrantFeat records featID as a held feat WITHOUT spending a slot or checking
 // prerequisites (EPIC S4 Phase 5): an authored grant from a background/class
 // (backgrounds §2). param binds a per-parameter feat. A feat absent from the
-// registry is skipped fail-soft; a single/per-param feat already held is a
-// no-op (so a re-grant on relog never duplicates), while a stackable feat
-// stacks. The conferred stat bonuses are reinstalled after recording.
+// registry is skipped fail-soft. The grant is GRANT-ONCE — idempotent for ALL
+// multi-take modes (including stackable): if the feat is already held it is a
+// no-op. So the character.created subscriber re-firing, or a relog re-grant,
+// never duplicates or inflates a stack. (A deliberate "add another stack"
+// would be a separate, explicit API — an authored background grant means "you
+// have this feat", granted once.) The conferred stat bonuses are reinstalled
+// after recording.
 func (a *connActor) GrantFeat(featID, param string) {
 	a.mu.Lock()
 	reg := a.feats
@@ -206,7 +210,7 @@ func (a *connActor) GrantFeat(featID, param string) {
 	}
 	param = strings.ToLower(strings.TrimSpace(param))
 	a.mu.Lock()
-	if f.MultiTake != feat.MultiTakeStackable && a.featTakenLocked(f, param) {
+	if a.featTakenLocked(f, param) {
 		a.mu.Unlock()
 		return
 	}

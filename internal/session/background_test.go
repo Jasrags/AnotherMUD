@@ -134,6 +134,26 @@ func TestBackgroundGranter_GrantsFeats(t *testing.T) {
 	}
 }
 
+// An authored grant is GRANT-ONCE even for a stackable feat: re-firing must not
+// inflate the stack (a background grants "you have this feat", not "+1 stack").
+func TestGrantFeat_StackableIsGrantOnce(t *testing.T) {
+	a, _ := newFakeActor("c1", "p1", "acc1", "Hero", &world.Room{ID: "r"})
+	reg := feat.NewRegistry()
+	_ = reg.Register(&feat.Feat{ID: "toughness", MultiTake: feat.MultiTakeStackable,
+		Grants: []feat.Grant{{Kind: feat.GrantMaxHP, Magnitude: 3}}})
+	a.feats = reg
+
+	base := a.statBlock.Effective(progression.StatHPMax)
+	a.GrantFeat("toughness", "")
+	a.GrantFeat("toughness", "") // re-fire — must be a no-op, not a second stack
+	if len(a.save.KnownFeats) != 1 || a.save.KnownFeats[0].Count != 1 {
+		t.Errorf("stackable authored grant stacked on re-fire: %+v", a.save.KnownFeats)
+	}
+	if got := a.statBlock.Effective(progression.StatHPMax); got != base+3 {
+		t.Errorf("hp_max = %d, want %d (granted once, +3 only)", got, base+3)
+	}
+}
+
 // feats §2.2 (EPIC S4 Phase 2): CreditFeats banks slots, syncs the save, and
 // ignores non-positive credits.
 func TestCreditFeats_BanksAndSyncsSave(t *testing.T) {
