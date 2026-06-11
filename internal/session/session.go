@@ -2379,6 +2379,14 @@ func snapshotSave(save *player.Save) player.Save {
 		v := *save.Vitals
 		out.Vitals = &v
 	}
+	if save.KnownFeats != nil {
+		// KnownFeat is a flat value struct, so a shallow element copy is a full
+		// deep copy. Snapshotted here (EPIC S4 Phase 2) so the Phase-4 spend
+		// path can append to a.save.KnownFeats without racing the YAML encoder.
+		dup := make([]player.KnownFeat, len(save.KnownFeats))
+		copy(dup, save.KnownFeats)
+		out.KnownFeats = dup
+	}
 	return out
 }
 

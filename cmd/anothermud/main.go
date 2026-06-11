@@ -1051,9 +1051,13 @@ func run() error {
 		}
 		// feats §2.2 (EPIC S4 Phase 2): bank a feat slot for every 3rd
 		// character level crossed (3/6/9/…). Each level-up step is +1, so for a
-		// single-class character the track level == character level; when
-		// multiclass content lands this should read the actor's TOTAL character
-		// level (the seam is CreditsForLevelChange's inputs, nothing else).
+		// single-class character the track level == character level and this is
+		// correct. MULTICLASS FIX-BY: with two bound tracks this over-credits —
+		// each track independently crossing its own 3rd level grants a slot, so
+		// the error scales with the number of tracks. When multiclass content
+		// can advance a second track, feed CreditsForLevelChange the actor's
+		// TOTAL character level transition instead of this track's e.Old/NewLevel
+		// (that is the only change — the helper stays the same).
 		if n := feat.CreditsForLevelChange(e.OldLevel, e.NewLevel); n > 0 {
 			actor.CreditFeats(n)
 		}

@@ -284,4 +284,8 @@ func TestSaveLoad_V20FeatsRoundTrip(t *testing.T) {
 	if got.KnownFeats[1] != (player.KnownFeat{FeatID: "weapon-focus", Param: "short-sword"}) {
 		t.Errorf("KnownFeats[1] = %+v", got.KnownFeats[1])
 	}
+	// The plain entry exercises the double-zero (omitempty Param+Count) path.
+	if got.KnownFeats[2] != (player.KnownFeat{FeatID: "iron-will"}) {
+		t.Errorf("KnownFeats[2] = %+v, want {iron-will}", got.KnownFeats[2])
+	}
 }
