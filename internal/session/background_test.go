@@ -99,3 +99,21 @@ func TestRunCreation_CommitsBackground(t *testing.T) {
 		t.Errorf("save background = %q, want soldier", loaded.Player.Background)
 	}
 }
+
+// With no backgrounds loaded, creation skips the background step entirely and
+// the character is background-less (backgrounds §3, last acceptance criterion).
+func TestRunCreation_NoBackgroundsSkipsStep(t *testing.T) {
+	rr, cr := twoRaceOneClass(t)
+	br := progression.NewBackgroundRegistry() // empty → no background step
+	cfg := Config{CreationFlow: NewCreationFlow(rr, cr, br)}
+	loaded := newPlayerLoaded("Bob")
+	// Only race + class + confirm are prompted — no background input.
+	conn := &scriptedConn{inputs: []string{"elf", "fighter", "yes"}}
+
+	if err := runCreation(context.Background(), conn, cfg, loaded); err != nil {
+		t.Fatalf("runCreation: %v", err)
+	}
+	if loaded.Player.Background != "" {
+		t.Errorf("save background = %q, want empty (no backgrounds loaded)", loaded.Player.Background)
+	}
+}

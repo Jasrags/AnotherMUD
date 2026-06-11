@@ -3351,12 +3351,10 @@ func applyBackground(a *connActor, saved string) {
 }
 
 // BackgroundID returns the actor's creation origin id, or "" when
-// background-less (backgrounds §5). Set once at construction.
-func (a *connActor) BackgroundID() string {
-	a.mu.Lock()
-	defer a.mu.Unlock()
-	return a.backgroundID
-}
+// background-less (backgrounds §5). Set once at construction (applyBackground,
+// before the actor is published) and never mutates — read lock-free, like
+// RaceID.
+func (a *connActor) BackgroundID() string { return a.backgroundID }
 
 // MarkContentsDirty re-runs syncInventoryToSaveLocked so the save
 // tree picks up Contents mutations the actor itself didn't perform

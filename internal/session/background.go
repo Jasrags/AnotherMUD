@@ -62,9 +62,10 @@ func (g *BackgroundGranter) Grant(ctx context.Context, playerID string, bg *prog
 			if err != nil {
 				continue
 			}
+			// AddToInventory syncs the save tree + marks the actor dirty per
+			// item, so no trailing MarkContentsDirty is needed here.
 			a.AddToInventory(inst.ID())
 		}
-		a.MarkContentsDirty()
 	}
 	if bg.Gold > 0 && g.currency != nil {
 		g.currency.AddGold(ctx, a, bg.Gold, "background:"+bg.ID)
