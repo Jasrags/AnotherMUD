@@ -2359,6 +2359,49 @@ func TestLoadFeats_RejectsUnknownMultiTake(t *testing.T) {
 	}
 }
 
+func TestLoadFeats_DecodesGrants(t *testing.T) {
+	root := t.TempDir()
+	pack := filepath.Join(root, "core")
+	writeFile(t, filepath.Join(pack, "pack.yaml"), "name: tapestry-core\ncontent:\n  feats: [feats/*.yaml]\n")
+	writeFile(t, filepath.Join(pack, "feats/iron-will.yaml"), `
+id: iron-will
+name: Iron Will
+grants:
+  - { kind: save_bonus, target: Will, magnitude: 2 }
+`)
+	regs := NewRegistries()
+	if err := Load(context.Background(), root, nil, regs, nil, nil, nil); err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	f, ok := regs.Feats.Get("iron-will")
+	if !ok || len(f.Grants) != 1 {
+		t.Fatalf("iron-will grants = %+v", f)
+	}
+	if g := f.Grants[0]; g.Kind != feat.GrantSaveBonus || g.Target != "will" || g.Magnitude != 2 {
+		t.Errorf("grant = %+v, want {save_bonus will 2}", g)
+	}
+}
+
+func TestLoadFeats_RejectsBadGrants(t *testing.T) {
+	bad := []string{
+		// unknown kind
+		"id: bad\ngrants:\n  - { kind: teleport, target: will, magnitude: 1 }\n",
+		// save_bonus with a non-axis target
+		"id: bad\ngrants:\n  - { kind: save_bonus, target: dodge, magnitude: 1 }\n",
+		// save_bonus with zero magnitude
+		"id: bad\ngrants:\n  - { kind: save_bonus, target: will }\n",
+	}
+	for i, body := range bad {
+		root := t.TempDir()
+		pack := filepath.Join(root, "core")
+		writeFile(t, filepath.Join(pack, "pack.yaml"), "name: tapestry-core\ncontent:\n  feats: [feats/*.yaml]\n")
+		writeFile(t, filepath.Join(pack, "feats/bad.yaml"), body)
+		if err := Load(context.Background(), root, nil, NewRegistries(), nil, nil, nil); !errors.Is(err, ErrInvalidContent) {
+			t.Errorf("case %d: want ErrInvalidContent, got %v", i, err)
+		}
+	}
+}
+
 func TestLoadFeats_RejectsBadPrereq(t *testing.T) {
 	root := t.TempDir()
 	pack := filepath.Join(root, "core")

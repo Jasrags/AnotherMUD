@@ -93,6 +93,11 @@ type Feat struct {
 	// (feats §2.1). Empty = no prerequisite. Evaluated in Phase 1.
 	Prerequisites []Prerequisite
 
+	// Grants are the bonuses this feat confers (EPIC S4 Phase 3 — §2.4). Empty
+	// is valid (a prereq-only "doorway" feat, like Latent Dreamer). Applied via
+	// ComputeBonuses; the kinds a slice consumes grow per phase.
+	Grants []Grant
+
 	// MultiTake is the repeat rule (defaults to MultiTakeSingle on Register).
 	MultiTake MultiTake
 
@@ -158,6 +163,17 @@ func (r *Registry) Register(f *Feat) error {
 			}
 		}
 		clone.Prerequisites = ps
+	}
+	if len(f.Grants) > 0 {
+		gs := make([]Grant, len(f.Grants))
+		for i, g := range f.Grants {
+			gs[i] = Grant{
+				Kind:      GrantKind(strings.ToLower(strings.TrimSpace(string(g.Kind)))),
+				Target:    strings.ToLower(strings.TrimSpace(g.Target)),
+				Magnitude: g.Magnitude,
+			}
+		}
+		clone.Grants = gs
 	}
 	if len(f.AllowedClasses) > 0 {
 		cs := make([]string, len(f.AllowedClasses))

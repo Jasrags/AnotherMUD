@@ -1887,11 +1887,35 @@ func decodeFeat(path, ns string) (*feat.Feat, error) {
 			prereqs = append(prereqs, feat.Prerequisite{Kind: kind, Target: target, Min: p.Min})
 		}
 	}
+	var grants []feat.Grant
+	if len(f.Grants) > 0 {
+		grants = make([]feat.Grant, 0, len(f.Grants))
+		for i, g := range f.Grants {
+			kind := feat.GrantKind(strings.ToLower(strings.TrimSpace(g.Kind)))
+			if !feat.ValidGrantKind(kind) {
+				return nil, fmt.Errorf("%w: %s: grants[%d] unknown kind %q (want save_bonus)",
+					ErrInvalidContent, path, i, g.Kind)
+			}
+			// Per-kind validation. save_bonus: a real axis + a non-zero bonus.
+			if kind == feat.GrantSaveBonus {
+				if !feat.ValidSaveAxis(g.Target) {
+					return nil, fmt.Errorf("%w: %s: grants[%d] save_bonus target %q is not a save axis (fortitude/reflex/will)",
+						ErrInvalidContent, path, i, g.Target)
+				}
+				if g.Magnitude == 0 {
+					return nil, fmt.Errorf("%w: %s: grants[%d] save_bonus needs a non-zero magnitude",
+						ErrInvalidContent, path, i)
+				}
+			}
+			grants = append(grants, feat.Grant{Kind: kind, Target: strings.TrimSpace(g.Target), Magnitude: g.Magnitude})
+		}
+	}
 	return &feat.Feat{
 		ID:             f.ID,
 		DisplayName:    strings.TrimSpace(f.Name),
 		Description:    f.Description,
 		Prerequisites:  prereqs,
+		Grants:         grants,
 		MultiTake:      mt,
 		AllowedClasses: append([]string(nil), f.AllowedClasses...),
 		Pack:           ns,

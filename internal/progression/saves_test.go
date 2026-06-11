@@ -2,6 +2,25 @@ package progression
 
 import "testing"
 
+func TestSavesPlus(t *testing.T) {
+	base := Saves{Fortitude: 1, Reflex: 2, Will: 3}
+	got := base.Plus(map[SaveType]int{SaveWill: 2, SaveFortitude: 1})
+	if got.Will != 5 || got.Fortitude != 2 || got.Reflex != 2 {
+		t.Errorf("Plus = %+v, want {Fort 2, Reflex 2, Will 5}", got)
+	}
+	// Value semantics: the receiver is untouched.
+	if base.Will != 3 {
+		t.Errorf("receiver mutated: base.Will = %d, want 3", base.Will)
+	}
+	// An unknown axis key is ignored; nil map is a no-op.
+	if got := base.Plus(map[SaveType]int{"dodge": 9}); got != base {
+		t.Errorf("unknown axis should be ignored, got %+v", got)
+	}
+	if got := base.Plus(nil); got != base {
+		t.Errorf("nil bonuses should be a no-op, got %+v", got)
+	}
+}
+
 func TestSaveTypeGoverningStat(t *testing.T) {
 	cases := map[SaveType]StatType{
 		SaveFortitude: StatCON,
@@ -71,8 +90,8 @@ func TestClassBaseSaves_StrongWeakDefault(t *testing.T) {
 	got := ClassBaseSaves([]ClassSaveInput{{Class: c, Level: 4}}, cfg)
 	want := Saves{
 		Fortitude: cfg.Strong.BonusAt(4), // 4
-		Reflex:    cfg.Weak.BonusAt(4),    // 1
-		Will:      cfg.Weak.BonusAt(4),    // 1 — undeclared → weak
+		Reflex:    cfg.Weak.BonusAt(4),   // 1
+		Will:      cfg.Weak.BonusAt(4),   // 1 — undeclared → weak
 	}
 	if got != want {
 		t.Errorf("ClassBaseSaves = %+v, want %+v", got, want)

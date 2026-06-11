@@ -734,9 +734,20 @@ type FeatFile struct {
 	Name           string           `yaml:"name,omitempty"`
 	Description    string           `yaml:"description,omitempty"`
 	Prerequisites  []FeatPrereqFile `yaml:"prerequisites,omitempty"`
+	Grants         []FeatGrantFile  `yaml:"grants,omitempty"`
 	MultiTake      string           `yaml:"multi_take,omitempty"`
 	AllowedClasses []string         `yaml:"allowed_classes,omitempty"`
 	Priority       int              `yaml:"priority,omitempty"`
+}
+
+// FeatGrantFile is one bonus a feat confers (EPIC S4 Phase 3 — §2.4). Kind
+// selects the bonus shape (Phase 3a: save_bonus); target + magnitude are
+// interpreted per kind (save_bonus: target = fortitude/reflex/will, magnitude
+// = the bonus).
+type FeatGrantFile struct {
+	Kind      string `yaml:"kind"`
+	Target    string `yaml:"target,omitempty"`
+	Magnitude int    `yaml:"magnitude,omitempty"`
 }
 
 // FeatPrereqFile is one prerequisite gate in a FeatFile (feats §2.1). Kind is

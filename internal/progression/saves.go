@@ -139,6 +139,17 @@ func (s *Saves) set(t SaveType, v int) {
 	}
 }
 
+// Plus returns a copy of s with each axis bonus added on top (saves: a feat
+// (S4) or future effect contributes a flat per-axis bonus beyond the class-base
+// + ability-mod derivation). Zero/absent axes are unchanged; an unknown
+// SaveType key is ignored. Value-typed, so the receiver is untouched.
+func (s Saves) Plus(bonuses map[SaveType]int) Saves {
+	for t, n := range bonuses {
+		s.set(t, s.Get(t)+n)
+	}
+	return s
+}
+
 // ClassSaveInput pairs a class with the character's level in that class (its
 // bound-track level) for base-save composition (saves §2). A multiclass
 // character supplies one input per class; a single-class character one.

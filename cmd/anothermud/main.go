@@ -2063,6 +2063,7 @@ func run() error {
 		PulseDelay:      pulseDelayTracker,
 		Races:           registries.Races,
 		Classes:         registries.Classes,
+		Feats:           registries.Feats,
 		Alignment:       alignmentMgr,
 		DefaultRace:     cfg.DefaultRace,
 		RoleSeed:        cfg.RoleSeed,

@@ -34,6 +34,7 @@ import (
 	"github.com/Jasrags/AnotherMUD/internal/economy"
 	"github.com/Jasrags/AnotherMUD/internal/entities"
 	"github.com/Jasrags/AnotherMUD/internal/eventbus"
+	"github.com/Jasrags/AnotherMUD/internal/feat"
 	"github.com/Jasrags/AnotherMUD/internal/gathering"
 	"github.com/Jasrags/AnotherMUD/internal/gmcp"
 	"github.com/Jasrags/AnotherMUD/internal/help"
@@ -168,6 +169,12 @@ type Config struct {
 	// level-up subscriptions wired in cmd/anothermud. nil-safe:
 	// missing registry means class-side effects never fire.
 	Classes *progression.ClassRegistry
+
+	// Feats is the EPIC S4 feat registry. Held so the actor can resolve its
+	// known_feats into conferred bonuses (Phase 3 — the saves consumer reads
+	// it in connActor.Saves). nil-safe: a missing registry means feats confer
+	// nothing.
+	Feats *feat.Registry
 
 	// Proficiency is the M9.1 per-entity ability proficiency
 	// manager (spec abilities-and-effects §3). The session-load
@@ -602,6 +609,7 @@ func run(ctx context.Context, c conn.Connection, cfg Config) error {
 	applyClass(a, &cfg, loaded.Player.Class)
 	applyBackground(a, loaded.Player.Background)
 	a.mu.Lock()
+	a.feats = cfg.Feats // EPIC S4: feat registry for known_feats → bonuses
 	a.trainsAvailable = loaded.Player.TrainsAvailable
 	a.featCredits = loaded.Player.FeatCredits
 	// Re-sync the save's class list if applyClass dropped a removed-content
@@ -1653,6 +1661,11 @@ type connActor struct {
 	// read under a.mu. Nil for test/headless actors that skip applyClass.
 	classes *progression.ClassRegistry
 
+	// feats is the EPIC S4 feat registry (Config.Feats), used to resolve the
+	// actor's known_feats into conferred bonuses. Set-once at construction;
+	// read under a.mu. Nil for test/headless actors.
+	feats *feat.Registry
+
 	// lastAbility is the spec §4.5 step 2 "last ability used"
 	// property, recorded by the resolver on every resolution.
 	// In-memory only today (not persisted) — it's a transient
@@ -2561,6 +2574,17 @@ func (a *connActor) Saves() progression.Saves {
 			}
 		}
 	}
+	// EPIC S4 §3: snapshot the feat registry + held feats under the same lock,
+	// so the conferred per-axis save bonuses (feat.GrantSaveBonus) add on top of
+	// the class-base + ability-mod derivation below.
+	featReg := a.feats
+	var held []feat.Taken
+	if a.save != nil && len(a.save.KnownFeats) > 0 {
+		held = make([]feat.Taken, 0, len(a.save.KnownFeats))
+		for _, kf := range a.save.KnownFeats {
+			held = append(held, feat.Taken{FeatID: kf.FeatID, Param: kf.Param, Count: kf.Count})
+		}
+	}
 	a.mu.Unlock()
 
 	// One ClassSaveInput per class; ClassBaseSaves takes the best base bonus
@@ -2571,7 +2595,17 @@ func (a *connActor) Saves() progression.Saves {
 		inputs = append(inputs, progression.ClassSaveInput{Class: cls, Level: a.Level(cls.BoundTrack)})
 	}
 	base := progression.ClassBaseSaves(inputs, progression.DefaultSaveConfig())
-	return progression.DeriveSaves(base, a.statBlock.Effective)
+	derived := progression.DeriveSaves(base, a.statBlock.Effective)
+	if featReg != nil && len(held) > 0 {
+		if b := feat.ComputeBonuses(held, featReg); len(b.Saves) > 0 {
+			axes := make(map[progression.SaveType]int, len(b.Saves))
+			for axis, n := range b.Saves {
+				axes[progression.SaveType(axis)] = n
+			}
+			derived = derived.Plus(axes)
+		}
+	}
+	return derived
 }
 
 // Equip is the atomic equip-side mutation invoked by the equip command
