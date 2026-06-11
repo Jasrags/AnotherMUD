@@ -1,0 +1,9 @@
+# See iron-will.yaml for the feat contract (EPIC S4 — wot-feats.md). Toughness
+# is the canonical STACKABLE feat: each take adds another +3 max HP, so the
+# grant rides the stackable Count multiplier (Phase 3b). No prerequisites.
+id: toughness
+name: Toughness
+description: You are tougher than normal. You gain +3 maximum hit points each time you take this feat.
+multi_take: stackable
+grants:
+  - { kind: max_hp, magnitude: 3 }

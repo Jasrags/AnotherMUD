@@ -19,6 +19,9 @@ type Bonuses struct {
 	// Saves is the additive per-axis saving-throw bonus, keyed by the lowercased
 	// axis name ("fortitude"/"reflex"/"will"). Nil/absent = no bonus.
 	Saves map[string]int
+	// MaxHP is the additive maximum-HP bonus (Toughness and friends). Zero =
+	// no bonus.
+	MaxHP int
 }
 
 // ComputeBonuses aggregates the bonuses conferred by the held feats, resolving
@@ -49,6 +52,8 @@ func ComputeBonuses(held []Taken, reg *Registry) Bonuses {
 				// g.Target is already lowercased+trimmed by Register, and
 				// ComputeBonuses only ever reads registry-owned feats.
 				b.Saves[g.Target] += g.Magnitude * mult
+			case GrantMaxHP:
+				b.MaxHP += g.Magnitude * mult
 			}
 		}
 	}

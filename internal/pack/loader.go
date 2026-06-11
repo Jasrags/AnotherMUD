@@ -1893,17 +1893,23 @@ func decodeFeat(path, ns string) (*feat.Feat, error) {
 		for i, g := range f.Grants {
 			kind := feat.GrantKind(strings.ToLower(strings.TrimSpace(g.Kind)))
 			if !feat.ValidGrantKind(kind) {
-				return nil, fmt.Errorf("%w: %s: grants[%d] unknown kind %q (want save_bonus)",
+				return nil, fmt.Errorf("%w: %s: grants[%d] unknown kind %q (want save_bonus/max_hp)",
 					ErrInvalidContent, path, i, g.Kind)
 			}
-			// Per-kind validation. save_bonus: a real axis + a non-zero bonus.
-			if kind == feat.GrantSaveBonus {
+			// Per-kind validation.
+			switch kind {
+			case feat.GrantSaveBonus:
 				if !feat.ValidSaveAxis(g.Target) {
 					return nil, fmt.Errorf("%w: %s: grants[%d] save_bonus target %q is not a save axis (fortitude/reflex/will)",
 						ErrInvalidContent, path, i, g.Target)
 				}
 				if g.Magnitude == 0 {
 					return nil, fmt.Errorf("%w: %s: grants[%d] save_bonus needs a non-zero magnitude",
+						ErrInvalidContent, path, i)
+				}
+			case feat.GrantMaxHP:
+				if g.Magnitude == 0 {
+					return nil, fmt.Errorf("%w: %s: grants[%d] max_hp needs a non-zero magnitude",
 						ErrInvalidContent, path, i)
 				}
 			}

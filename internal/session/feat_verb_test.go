@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/Jasrags/AnotherMUD/internal/feat"
+	"github.com/Jasrags/AnotherMUD/internal/progression"
 	"github.com/Jasrags/AnotherMUD/internal/world"
 )
 
@@ -13,7 +14,8 @@ func featTestRegistry() *feat.Registry {
 	_ = r.Register(&feat.Feat{ID: "iron-will", DisplayName: "Iron Will",
 		Grants: []feat.Grant{{Kind: feat.GrantSaveBonus, Target: "will", Magnitude: 2}}})
 	_ = r.Register(&feat.Feat{ID: "weapon-focus", DisplayName: "Weapon Focus", MultiTake: feat.MultiTakeParam})
-	_ = r.Register(&feat.Feat{ID: "toughness", DisplayName: "Toughness", MultiTake: feat.MultiTakeStackable})
+	_ = r.Register(&feat.Feat{ID: "toughness", DisplayName: "Toughness", MultiTake: feat.MultiTakeStackable,
+		Grants: []feat.Grant{{Kind: feat.GrantMaxHP, Magnitude: 3}}})
 	_ = r.Register(&feat.Feat{ID: "born-strong", DisplayName: "Born Strong",
 		Prerequisites: []feat.Prerequisite{{Kind: feat.PrereqAbilityScore, Target: "str", Min: 99}}})
 	return r
@@ -107,6 +109,20 @@ func TestTakeFeat_StackableIncrementsCount(t *testing.T) {
 	a.TakeFeat("toughness", "")
 	if len(a.save.KnownFeats) != 1 || a.save.KnownFeats[0].Count != 2 {
 		t.Errorf("stackable take twice = %+v, want one entry count 2", a.save.KnownFeats)
+	}
+}
+
+// Taking a max_hp feat installs the stat modifier (Phase 3b): the stat block's
+// effective hp_max rises by Magnitude × Count. (The vitals ceiling follows via
+// the OnMaxChange binding wired in the live login path, exercised end to end by
+// the live verify, not the fake actor.)
+func TestTakeFeat_ToughnessRaisesHPMaxStat(t *testing.T) {
+	a := newFeatActor(t, 2)
+	base := a.statBlock.Effective(progression.StatHPMax)
+	a.TakeFeat("toughness", "")
+	a.TakeFeat("toughness", "")
+	if got := a.statBlock.Effective(progression.StatHPMax); got != base+6 {
+		t.Errorf("hp_max = %d, want %d (base %d + 3×2)", got, base+6, base)
 	}
 }
 

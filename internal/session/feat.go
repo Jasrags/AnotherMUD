@@ -8,6 +8,7 @@ import (
 	"github.com/Jasrags/AnotherMUD/internal/feat"
 	"github.com/Jasrags/AnotherMUD/internal/player"
 	"github.com/Jasrags/AnotherMUD/internal/progression"
+	"github.com/Jasrags/AnotherMUD/internal/srckey"
 )
 
 // featStats is the ability set a feat prerequisite can gate on (EPIC S4
@@ -176,10 +177,43 @@ func (a *connActor) TakeFeat(featID, param string) (bool, string) {
 	a.markDirtyLocked()
 	a.mu.Unlock()
 
+	// Re-install the stat-shaped feat bonuses (e.g. a freshly-taken Toughness
+	// raising max HP) now that known_feats changed (Phase 3b).
+	a.applyFeatStatModifiers()
+
 	if f.MultiTake == feat.MultiTakeParam {
 		return true, fmt.Sprintf("You gain the %s feat (%s).", f.DisplayName, param)
 	}
 	return true, fmt.Sprintf("You gain the %s feat.", f.DisplayName)
+}
+
+// applyFeatStatModifiers recomputes the stat-shaped feat bonuses from the
+// actor's known_feats and installs them on the stat block under srckey.Feat
+// keys (EPIC S4 Phase 3b). Today that is the hp_max bonus (Toughness): writing
+// it fires the OnMaxChange→vitals binding, so the max-HP ceiling moves.
+// AddModifiers replaces the prior entry, so this is idempotent — safe to call
+// at load and after every take; a zero bonus removes the modifier.
+func (a *connActor) applyFeatStatModifiers() {
+	a.mu.Lock()
+	reg := a.feats
+	sb := a.statBlock
+	var held []feat.Taken
+	if a.save != nil {
+		for _, kf := range a.save.KnownFeats {
+			held = append(held, feat.Taken{FeatID: kf.FeatID, Param: kf.Param, Count: kf.Count})
+		}
+	}
+	a.mu.Unlock()
+	if sb == nil {
+		return
+	}
+	b := feat.ComputeBonuses(held, reg) // reg nil → zero bonuses
+	if b.MaxHP != 0 {
+		sb.AddModifier(srckey.Feat("hp_max"), progression.StatHPMax, b.MaxHP)
+	} else {
+		// Remove any stale feat hp_max modifier (empty list removes the entry).
+		sb.AddModifiers(srckey.Feat("hp_max"), nil)
+	}
 }
 
 // featTakenLocked reports whether the actor already holds f (caller holds

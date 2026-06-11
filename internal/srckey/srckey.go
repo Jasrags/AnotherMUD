@@ -36,3 +36,11 @@ func Equipment(id string) SourceKey {
 func ClassGrowth(id string) SourceKey {
 	return SourceKey("class-growth:" + id)
 }
+
+// Feat returns the source key a stat-shaped feat grant (EPIC S4 — e.g.
+// Toughness's hp_max bonus) applies its modifier under. key identifies the
+// affected stat (e.g. "hp_max"), so the aggregate feat bonus for that stat is
+// one replaceable modifier — recomputing from known_feats just re-Adds it.
+func Feat(key string) SourceKey {
+	return SourceKey("feat:" + key)
+}

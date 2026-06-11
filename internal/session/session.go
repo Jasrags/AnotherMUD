@@ -621,6 +621,12 @@ func run(ctx context.Context, c conn.Connection, cfg Config) error {
 	}
 	a.mu.Unlock()
 
+	// EPIC S4 Phase 3b: install the stat-shaped feat bonuses (today the
+	// Toughness hp_max bonus) from the loaded known_feats. Runs after the
+	// OnMaxChange→vitals binding above is wired, so a feat-boosted ceiling is
+	// reflected on login. No-op when the character holds no such feats.
+	a.applyFeatStatModifiers()
+
 	// M19.1: restore the role set from the save, then apply the config
 	// seed (roles-and-permissions §5/§6). A seeded role marks the save
 	// dirty so the bootstrap admin persists on first login.

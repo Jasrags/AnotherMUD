@@ -42,6 +42,19 @@ func TestComputeBonuses_Empties(t *testing.T) {
 	}
 }
 
+// Toughness (a stackable max_hp feat) sums Magnitude × Count.
+func TestComputeBonuses_MaxHP(t *testing.T) {
+	r := NewRegistry()
+	_ = r.Register(&Feat{ID: "toughness", MultiTake: MultiTakeStackable, Grants: []Grant{{Kind: GrantMaxHP, Magnitude: 3}}})
+	if b := ComputeBonuses([]Taken{{FeatID: "toughness", Count: 3}}, r); b.MaxHP != 9 {
+		t.Errorf("MaxHP = %d, want 9 (3 × 3)", b.MaxHP)
+	}
+	// A single take (count 0/1) applies once.
+	if b := ComputeBonuses([]Taken{{FeatID: "toughness"}}, r); b.MaxHP != 3 {
+		t.Errorf("MaxHP = %d, want 3", b.MaxHP)
+	}
+}
+
 // A stackable feat with Count 0 (the contract: "non-positive counts as one")
 // applies its grant exactly once.
 func TestComputeBonuses_StackableZeroCountAppliesOnce(t *testing.T) {

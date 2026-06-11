@@ -13,12 +13,16 @@ const (
 	// GrantSaveBonus adds Magnitude to a saving-throw axis (Target is the axis
 	// "fortitude" / "reflex" / "will"). Consumer: the derived-saves path.
 	GrantSaveBonus GrantKind = "save_bonus"
+	// GrantMaxHP adds Magnitude to the character's maximum HP (Toughness).
+	// Target is unused. Consumer: an hp_max stat modifier under srckey.Feat,
+	// which the existing OnMaxChange→vitals binding turns into a real ceiling.
+	GrantMaxHP GrantKind = "max_hp"
 )
 
 // ValidGrantKind reports whether k is a known grant kind.
 func ValidGrantKind(k GrantKind) bool {
 	switch k {
-	case GrantSaveBonus:
+	case GrantSaveBonus, GrantMaxHP:
 		return true
 	}
 	return false
