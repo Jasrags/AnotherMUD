@@ -8,6 +8,7 @@ import (
 	"slices"
 	"testing"
 
+	"github.com/Jasrags/AnotherMUD/internal/feat"
 	"github.com/Jasrags/AnotherMUD/internal/item"
 	"github.com/Jasrags/AnotherMUD/internal/mob"
 	"github.com/Jasrags/AnotherMUD/internal/progression"
@@ -2291,5 +2292,88 @@ skills:
 `)
 	if err := Load(context.Background(), root, nil, NewRegistries(), nil, nil, nil); !errors.Is(err, ErrInvalidContent) {
 		t.Errorf("want ErrInvalidContent for skill missing ability, got %v", err)
+	}
+}
+
+func TestLoadFeats_HappyPath(t *testing.T) {
+	root := t.TempDir()
+	pack := filepath.Join(root, "core")
+	writeFile(t, filepath.Join(pack, "pack.yaml"), `
+name: tapestry-core
+content:
+  feats: [feats/*.yaml]
+`)
+	writeFile(t, filepath.Join(pack, "feats/weapon-focus.yaml"), `
+id: Weapon-Focus
+name: Weapon Focus
+description: +1 to attack rolls with a chosen weapon.
+multi_take: per_param
+prerequisites:
+  - { kind: Ability_Score, target: STR, min: 13 }
+  - { kind: feat, target: Power-Attack }
+  - { kind: level }
+allowed_classes: [Fighter]
+`)
+	regs := NewRegistries()
+	if err := Load(context.Background(), root, nil, regs, nil, nil, nil); err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	f, ok := regs.Feats.Get("weapon-focus") // global id, not namespaced
+	if !ok {
+		t.Fatal("feat weapon-focus not registered")
+	}
+	if f.DisplayName != "Weapon Focus" || f.MultiTake != feat.MultiTakeParam {
+		t.Errorf("decoded %+v", f)
+	}
+	if len(f.Prerequisites) != 3 {
+		t.Fatalf("Prerequisites = %d, want 3", len(f.Prerequisites))
+	}
+	if p := f.Prerequisites[0]; p.Kind != feat.PrereqAbilityScore || p.Target != "str" || p.Min != 13 {
+		t.Errorf("prereq[0] = %+v, want {ability_score str 13}", p)
+	}
+	if p := f.Prerequisites[2]; p.Kind != feat.PrereqLevel || p.Target != "" {
+		t.Errorf("prereq[2] = %+v, want {level } (no target)", p)
+	}
+	if len(f.AllowedClasses) != 1 || f.AllowedClasses[0] != "fighter" {
+		t.Errorf("AllowedClasses = %v, want [fighter]", f.AllowedClasses)
+	}
+}
+
+func TestLoadFeats_RejectsMissingID(t *testing.T) {
+	root := t.TempDir()
+	pack := filepath.Join(root, "core")
+	writeFile(t, filepath.Join(pack, "pack.yaml"), "name: tapestry-core\ncontent:\n  feats: [feats/*.yaml]\n")
+	writeFile(t, filepath.Join(pack, "feats/bad.yaml"), "name: No ID\n")
+	if err := Load(context.Background(), root, nil, NewRegistries(), nil, nil, nil); !errors.Is(err, ErrInvalidContent) {
+		t.Errorf("want ErrInvalidContent for missing id, got %v", err)
+	}
+}
+
+func TestLoadFeats_RejectsUnknownMultiTake(t *testing.T) {
+	root := t.TempDir()
+	pack := filepath.Join(root, "core")
+	writeFile(t, filepath.Join(pack, "pack.yaml"), "name: tapestry-core\ncontent:\n  feats: [feats/*.yaml]\n")
+	writeFile(t, filepath.Join(pack, "feats/bad.yaml"), "id: bad\nmulti_take: triple\n")
+	if err := Load(context.Background(), root, nil, NewRegistries(), nil, nil, nil); !errors.Is(err, ErrInvalidContent) {
+		t.Errorf("want ErrInvalidContent for unknown multi_take, got %v", err)
+	}
+}
+
+func TestLoadFeats_RejectsBadPrereq(t *testing.T) {
+	root := t.TempDir()
+	pack := filepath.Join(root, "core")
+	writeFile(t, filepath.Join(pack, "pack.yaml"), "name: tapestry-core\ncontent:\n  feats: [feats/*.yaml]\n")
+	// Unknown prereq kind.
+	writeFile(t, filepath.Join(pack, "feats/bad.yaml"), "id: bad\nprerequisites:\n  - { kind: vibes, target: x }\n")
+	if err := Load(context.Background(), root, nil, NewRegistries(), nil, nil, nil); !errors.Is(err, ErrInvalidContent) {
+		t.Errorf("want ErrInvalidContent for unknown prereq kind, got %v", err)
+	}
+	// Non-level prereq missing its target.
+	root2 := t.TempDir()
+	pack2 := filepath.Join(root2, "core")
+	writeFile(t, filepath.Join(pack2, "pack.yaml"), "name: tapestry-core\ncontent:\n  feats: [feats/*.yaml]\n")
+	writeFile(t, filepath.Join(pack2, "feats/bad.yaml"), "id: bad\nprerequisites:\n  - { kind: feat, min: 1 }\n")
+	if err := Load(context.Background(), root2, nil, NewRegistries(), nil, nil, nil); !errors.Is(err, ErrInvalidContent) {
+		t.Errorf("want ErrInvalidContent for prereq missing target, got %v", err)
 	}
 }

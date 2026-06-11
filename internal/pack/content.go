@@ -724,6 +724,30 @@ type BackgroundSkillFile struct {
 	Proficiency int    `yaml:"proficiency,omitempty"`
 }
 
+// FeatFile is the YAML shape for a player-chosen feat (EPIC S4 Phase 0 —
+// docs/proposals/wot-feats.md §2.1). Phase 0 carries identity + prerequisites
+// + multi-take rule + class gate; the grant payload (what the feat confers) is
+// Phase 3. Prereq targets (feat ids, skill ability ids) are content references
+// resolved fail-soft when the feat is taken, not at load.
+type FeatFile struct {
+	ID             string           `yaml:"id"`
+	Name           string           `yaml:"name,omitempty"`
+	Description    string           `yaml:"description,omitempty"`
+	Prerequisites  []FeatPrereqFile `yaml:"prerequisites,omitempty"`
+	MultiTake      string           `yaml:"multi_take,omitempty"`
+	AllowedClasses []string         `yaml:"allowed_classes,omitempty"`
+	Priority       int              `yaml:"priority,omitempty"`
+}
+
+// FeatPrereqFile is one prerequisite gate in a FeatFile (feats §2.1). Kind is
+// one of ability_score / feat / skill / level; target names the stat / feat id
+// / skill ability id (omitted for level); min is the threshold.
+type FeatPrereqFile struct {
+	Kind   string `yaml:"kind"`
+	Target string `yaml:"target,omitempty"`
+	Min    int    `yaml:"min,omitempty"`
+}
+
 // WeatherZoneFile is the YAML shape for one weather-zone definition
 // (spec world-rooms-movement §6; see internal/weather).
 //

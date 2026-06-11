@@ -6,6 +6,7 @@ import (
 	"github.com/Jasrags/AnotherMUD/internal/decoration"
 	"github.com/Jasrags/AnotherMUD/internal/effect"
 	"github.com/Jasrags/AnotherMUD/internal/emote"
+	"github.com/Jasrags/AnotherMUD/internal/feat"
 	"github.com/Jasrags/AnotherMUD/internal/gathering"
 	"github.com/Jasrags/AnotherMUD/internal/help"
 	"github.com/Jasrags/AnotherMUD/internal/item"
@@ -38,7 +39,10 @@ type Registries struct {
 	Classes *progression.ClassRegistry
 	// Backgrounds is the character-creation origin registry (backgrounds §2).
 	Backgrounds *progression.BackgroundRegistry
-	Abilities   *progression.AbilityRegistry
+	// Feats is the player-chosen feat registry (EPIC S4 Phase 0 —
+	// docs/proposals/wot-feats.md §2.1).
+	Feats     *feat.Registry
+	Abilities *progression.AbilityRegistry
 	// Theme is the M10 UI theme registry. Packs register semantic
 	// tag → {fg,bg,html} entries; the composition root compiles it
 	// once after Load and binds a render.ColorRenderer to it.
@@ -134,6 +138,7 @@ func NewRegistries() *Registries {
 		Races:        progression.NewRaceRegistry(),
 		Classes:      progression.NewClassRegistry(),
 		Backgrounds:  progression.NewBackgroundRegistry(),
+		Feats:        feat.NewRegistry(),
 		Abilities:    progression.NewAbilityRegistry(),
 		Theme:        render.NewThemeRegistry(),
 		Help:         help.NewService(),

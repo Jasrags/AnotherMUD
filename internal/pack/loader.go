@@ -17,6 +17,7 @@ import (
 	"github.com/Jasrags/AnotherMUD/internal/decoration"
 	"github.com/Jasrags/AnotherMUD/internal/effect"
 	"github.com/Jasrags/AnotherMUD/internal/emote"
+	"github.com/Jasrags/AnotherMUD/internal/feat"
 	"github.com/Jasrags/AnotherMUD/internal/gathering"
 	"github.com/Jasrags/AnotherMUD/internal/help"
 	"github.com/Jasrags/AnotherMUD/internal/item"
@@ -117,7 +118,7 @@ type pendingMobPlacement struct {
 // Filter, when non-empty, restricts discovery (spec §2.4). Pass nil to
 // load every active pack under root.
 func Load(ctx context.Context, root string, filter []string, dst *Registries, spawner Spawner, mobSpawner MobSpawner, scriptCompiler ScriptCompiler) error {
-	if dst == nil || dst.World == nil || dst.Items == nil || dst.Slots == nil || dst.Mobs == nil || dst.Tracks == nil || dst.Races == nil || dst.Classes == nil || dst.Backgrounds == nil || dst.Abilities == nil || dst.Theme == nil || dst.Help == nil || dst.Quests == nil || dst.Weather == nil || dst.Scripts == nil || dst.Rarity == nil || dst.Essence == nil || dst.Loot == nil || dst.Channels == nil || dst.Emotes == nil {
+	if dst == nil || dst.World == nil || dst.Items == nil || dst.Slots == nil || dst.Mobs == nil || dst.Tracks == nil || dst.Races == nil || dst.Classes == nil || dst.Backgrounds == nil || dst.Feats == nil || dst.Abilities == nil || dst.Theme == nil || dst.Help == nil || dst.Quests == nil || dst.Weather == nil || dst.Scripts == nil || dst.Rarity == nil || dst.Essence == nil || dst.Loot == nil || dst.Channels == nil || dst.Emotes == nil {
 		return errors.New("pack.Load: dst has nil registry field; use pack.NewRegistries()")
 	}
 	logger := logging.From(ctx).With(slog.String("event", "pack.load"), slog.String("root", root))
@@ -591,6 +592,10 @@ func loadPackContent(ctx context.Context, p Discovered, dst *Registries, scriptC
 	if err != nil {
 		return nil, nil, err
 	}
+	featPaths, err := resolveGlobs(p.Dir, p.Manifest.Content.Feats)
+	if err != nil {
+		return nil, nil, err
+	}
 	abilityPaths, err := resolveGlobs(p.Dir, p.Manifest.Content.Abilities)
 	if err != nil {
 		return nil, nil, err
@@ -821,6 +826,20 @@ func loadPackContent(ctx context.Context, p Discovered, dst *Registries, scriptC
 		}
 		if err := dst.Backgrounds.Register(b); err != nil {
 			return nil, nil, fmt.Errorf("%w (in %s)", err, bp)
+		}
+	}
+
+	// Feats: id-keyed global registry (EPIC S4 Phase 0 — docs/proposals/
+	// wot-feats.md §2.1). Prereq feat/skill ids are content references
+	// resolved fail-soft when a feat is taken, so the loader validates only
+	// id presence + the prereq-kind / multi-take vocabulary.
+	for _, fp := range featPaths {
+		ft, err := decodeFeat(fp, ns)
+		if err != nil {
+			return nil, nil, err
+		}
+		if err := dst.Feats.Register(ft); err != nil {
+			return nil, nil, fmt.Errorf("%w (in %s)", err, fp)
 		}
 	}
 
@@ -1150,6 +1169,7 @@ func loadPackContent(ctx context.Context, p Discovered, dst *Registries, scriptC
 		slog.Int("races", len(racePaths)),
 		slog.Int("classes", len(classPaths)),
 		slog.Int("backgrounds", len(backgroundPaths)),
+		slog.Int("feats", len(featPaths)),
 		slog.Int("abilities", len(abilityPaths)),
 		slog.Int("theme", len(themePaths)),
 		slog.Int("help", helpTopics),
@@ -1821,6 +1841,61 @@ func decodeBackground(path, ns string) (*progression.Background, error) {
 		AllowedGenders:    append([]string(nil), f.AllowedGenders...),
 		Pack:              ns,
 		Priority:          f.Priority,
+	}, nil
+}
+
+// decodeFeat reads a FeatFile and builds a feat.Feat (EPIC S4 Phase 0 —
+// docs/proposals/wot-feats.md §2.1). Validates the id, the multi-take rule,
+// and each prerequisite's kind (+ that a non-level prereq names a target).
+// Feat ids are GLOBAL (not namespace-qualified) like abilities; prereq feat /
+// skill ids are content references resolved fail-soft when a feat is taken,
+// not checked here.
+func decodeFeat(path, ns string) (*feat.Feat, error) {
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		return nil, fmt.Errorf("reading feat %s: %w", path, err)
+	}
+	var f FeatFile
+	if err := yaml.Unmarshal(raw, &f); err != nil {
+		return nil, fmt.Errorf("%w: %s: %v", ErrInvalidContent, path, err)
+	}
+	if strings.TrimSpace(f.ID) == "" {
+		return nil, fmt.Errorf("%w: %s: missing 'id'", ErrInvalidContent, path)
+	}
+	mt := feat.MultiTake(strings.ToLower(strings.TrimSpace(f.MultiTake)))
+	if mt == "" {
+		mt = feat.MultiTakeSingle
+	}
+	if !feat.ValidMultiTake(mt) {
+		return nil, fmt.Errorf("%w: %s: unknown multi_take %q (want single/per_param/stackable)",
+			ErrInvalidContent, path, f.MultiTake)
+	}
+	var prereqs []feat.Prerequisite
+	if len(f.Prerequisites) > 0 {
+		prereqs = make([]feat.Prerequisite, 0, len(f.Prerequisites))
+		for i, p := range f.Prerequisites {
+			kind := feat.PrereqKind(strings.ToLower(strings.TrimSpace(p.Kind)))
+			if !feat.ValidPrereqKind(kind) {
+				return nil, fmt.Errorf("%w: %s: prerequisites[%d] unknown kind %q (want ability_score/feat/skill/level)",
+					ErrInvalidContent, path, i, p.Kind)
+			}
+			target := strings.TrimSpace(p.Target)
+			if kind != feat.PrereqLevel && target == "" {
+				return nil, fmt.Errorf("%w: %s: prerequisites[%d] (%s) missing 'target'",
+					ErrInvalidContent, path, i, kind)
+			}
+			prereqs = append(prereqs, feat.Prerequisite{Kind: kind, Target: target, Min: p.Min})
+		}
+	}
+	return &feat.Feat{
+		ID:             f.ID,
+		DisplayName:    strings.TrimSpace(f.Name),
+		Description:    f.Description,
+		Prerequisites:  prereqs,
+		MultiTake:      mt,
+		AllowedClasses: append([]string(nil), f.AllowedClasses...),
+		Pack:           ns,
+		Priority:       f.Priority,
 	}, nil
 }
 
