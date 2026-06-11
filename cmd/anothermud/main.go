@@ -2029,6 +2029,9 @@ func run() error {
 		ForageTables:    registries.ForageTables,
 		Effects:         effectMgr,
 		EffectTemplates: registries.Effects,
+		// skills §3: the pick verb runs on the command goroutine, so use the
+		// concurrency-safe package-level roller (combat keeps its own).
+		SkillRoller:     stdRoller{},
 		ActionQueue:     actionQueueMgr,
 		PulseDelay:      pulseDelayTracker,
 		Races:           registries.Races,

@@ -60,6 +60,10 @@ type Context struct {
 	// maps a condition name to its effect (conditions §5). nil disables
 	// afflict. effect.Registry satisfies it.
 	EffectTemplates EffectTemplateSource
+	// SkillRoller is the d20 source for skill checks (skills §3 — the `pick`
+	// verb). Must be safe to call from the command goroutine (the production
+	// wiring uses a concurrency-safe source). nil disables skill-check verbs.
+	SkillRoller progression.Roller
 	// Training is the M8.6 training service. nil in tests.
 	Training *progression.TrainingManager
 	// Abilities / Proficiency / ActionQueue are the M9.6 ability-verb

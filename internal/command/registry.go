@@ -441,6 +441,7 @@ func (r *Registry) Dispatch(ctx context.Context, env Env, actor Actor, raw strin
 		Progression:           env.Progression,
 		Effects:               env.Effects,
 		EffectTemplates:       env.EffectTemplates,
+		SkillRoller:           env.SkillRoller,
 		Training:              env.Training,
 		Abilities:             env.Abilities,
 		Proficiency:           env.Proficiency,

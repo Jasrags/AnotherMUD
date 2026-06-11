@@ -226,6 +226,10 @@ type Env struct {
 	// EffectTemplates resolves an effect template by id for the afflict
 	// verb (conditions §5). nil disables afflict.
 	EffectTemplates EffectTemplateSource
+	// SkillRoller is the d20 source for skill checks (skills §3 — the `pick`
+	// verb). Must be concurrency-safe (called off the command goroutine).
+	// nil disables skill-check verbs.
+	SkillRoller progression.Roller
 	// Training is the M8.6 training service. The train + practice
 	// verbs route through it. nil in tests that don't exercise
 	// training.

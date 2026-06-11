@@ -1,0 +1,25 @@
+# The Open Lock skill (skills §2 — EPIC S3). A skill is a use-based
+# proficiency reused from the existing ability/proficiency machinery — NOT a
+# combat ability. Modeled as a `passive` `skill` with no combat hook (like
+# the crafting disciplines): it carries a per-character proficiency value, its
+# cap, and use-based-gain parameters, and it is consumed by the `pick` verb's
+# skill check (skills §3/§4), never cast in combat.
+#
+# Granted by class (the fighter's Path for the demo); `practice open-lock`
+# raises its cap, and it improves through use every time you pick a lock.
+id: open-lock
+name: Open Lock
+type: passive
+category: skill
+
+# Novice starting cap; a trainer raises it via `practice`.
+default_cap: 30
+
+# Use-based gain (§3.5): every pick attempt rolls a gain that tapers toward
+# the cap; a failed pick still gains at half rate.
+gain_base_chance: 30
+gain_failure_multiplier: 0.5
+# Open Lock keys off Dexterity — it is the skill check's governing stat AND
+# nudges the gain roll (skills §2/§3).
+gain_stat: dex
+gain_stat_scale: 0.1

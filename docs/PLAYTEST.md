@@ -3,8 +3,8 @@
 A manual QA checklist for verifying implemented features (M0–M27 + recent
 polish: the look/consider appearance lens, tab-completion surfaces, weapon
 damage dice + critical hits, **light & darkness** — §21, **crafting &
-cooking** — §22, **player maps** — §23, **saving throws** — §24, and **conditions** — §25).
-Work top-to-bottom or jump to a section. Each step gives a **command** and the
+cooking** — §22, **player maps** — §23, **saving throws** — §24, **conditions** — §25, and
+**skills / lockpicking** — §26). Work top-to-bottom or jump to a section. Each step gives a **command** and the
 **expected behavior**; tick the box when it matches, and note anything that
 doesn't.
 
@@ -822,6 +822,48 @@ Fortitude save) at level 1.
 > (`internal/condition`); HP-state conditions (dying/disabled), damage-over-time
 > (bleeding/poison — deferred to S7), and the grapple family are **not** in this
 > slice. Reflex/Will saves now have their first condition consumers.
+
+## 26. Skills & lockpicking
+
+A skill is a use-based proficiency resolved by a `d20 + skill bonus vs DC`
+check (the same idiom as saves). The first consumer is **lockpicking**: the
+**Open Lock** skill vs a door's pick difficulty — a keyless alternative to
+`unlock`. The fighter learns Open Lock at creation. Use **Jasrags** or a fresh
+fighter.
+
+### The skills listing
+
+- [ ] `skills` — lists your skill-category proficiencies with `prof/cap`, e.g.
+      `Open Lock  1/30`. (Combat abilities like Basic Strike / Kick also appear
+      — they carry the `skill` category too; that's the engine taxonomy, not a
+      bug.) A character who knows no skills sees "no skills yet."
+
+### Lockpicking the forge vault (the demo)
+
+The forge cellar's **iron door** (`down`, to the vault) is **pickable**
+(difficulty 15) as well as key-openable. Get to the cellar: at the Forge,
+`open down` (the oak door), then `down`.
+
+- [ ] In the cellar, `pick iron` **without** the iron key in hand — on a
+      success: "You deftly pick an iron door's lock." (the lock opens, the same
+      as a keyed unlock); the room sees "X picks the lock." A novice fighter
+      (Open Lock ~1, no Dex bonus) needs a high roll, so it may take a few tries.
+- [ ] On a failure: "You fail to pick an iron door's lock." and the room hears
+      "X fumbles at the lock." (the noise friction) — the door stays locked.
+- [ ] `pick iron` again after it's open — "An iron door isn't locked."
+- [ ] After picking, `open down`, `down` reaches the **vault** (the coins are
+      the payoff — bring the **pine torch** from the cellar to see in the dark,
+      §21). The iron key is never needed.
+- [ ] `skills` after a few picks — Open Lock's proficiency has **climbed** (it
+      gains with use, even on a failed attempt at a reduced rate).
+- [ ] `pick oak` (the plain oak door, no lock) — "There's no lock on a sturdy
+      oak door to pick." A non-pickable locked door (none in core) would say
+      "can't be picked."
+
+> Pick difficulty is per-door content; the proficiency→bonus scale is an
+> engine default (`internal/progression` skill config). Other skills
+> (hide/search/spot) are owned by the **visibility** spec and call the same
+> `ResolveSkillCheck` primitive; crafting disciplines are skills too (§22).
 
 ---
 

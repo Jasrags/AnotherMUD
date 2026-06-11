@@ -79,6 +79,50 @@ func AbilitiesHandler(ctx context.Context, c *Context) error {
 	return c.Actor.Write(ctx, strings.TrimRight(b.String(), "\n"))
 }
 
+// SkillsHandler implements the `skills` verb (skills §5) — the `abilities`
+// view filtered to the `skill` category, so a player can see their skills
+// (lockpicking, crafting disciplines, …) with proficiency / cap without the
+// spells and combat abilities. Self-only.
+func SkillsHandler(ctx context.Context, c *Context) error {
+	if c.Proficiency == nil || c.Abilities == nil {
+		return c.Actor.Write(ctx, "Skills are not enabled in this build.")
+	}
+	entityID := abilityEntityID(c.Actor)
+	type row struct {
+		name      string
+		prof, cap int
+	}
+	var rows []row
+	widest := 0
+	for _, e := range c.Proficiency.LearnedAbilities(entityID) {
+		ab, ok := c.Abilities.Get(e.ID)
+		if !ok || ab.Category != progression.AbilitySkill {
+			continue // skills only
+		}
+		name := ab.DisplayName
+		if name == "" {
+			name = e.ID
+		}
+		capValue, _, _ := c.Proficiency.GetCap(entityID, e.ID)
+		rows = append(rows, row{name: name, prof: e.Value, cap: capValue})
+		if len(name) > widest {
+			widest = len(name)
+		}
+	}
+	if len(rows) == 0 {
+		return c.Actor.Write(ctx, "You haven't learned any skills yet.")
+	}
+	sort.SliceStable(rows, func(i, j int) bool {
+		return strings.ToLower(rows[i].name) < strings.ToLower(rows[j].name)
+	})
+	var b strings.Builder
+	b.WriteString("Your skills:\n")
+	for _, r := range rows {
+		b.WriteString(fmt.Sprintf("  %-*s  %d/%d\n", widest, r.name, r.prof, r.cap))
+	}
+	return c.Actor.Write(ctx, strings.TrimRight(b.String(), "\n"))
+}
+
 // CastHandler implements the generic `cast <ability> [target]` verb.
 // It resolves the named ability against the registry, optionally
 // resolves an explicit target in the actor's room, and pushes a

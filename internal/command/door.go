@@ -8,6 +8,7 @@ import (
 	"github.com/Jasrags/AnotherMUD/internal/entities"
 	"github.com/Jasrags/AnotherMUD/internal/eventbus"
 	"github.com/Jasrags/AnotherMUD/internal/item"
+	"github.com/Jasrags/AnotherMUD/internal/progression"
 	"github.com/Jasrags/AnotherMUD/internal/world"
 )
 
@@ -38,6 +39,13 @@ func LockHandler(ctx context.Context, c *Context) error {
 // Lock.
 func UnlockHandler(ctx context.Context, c *Context) error {
 	return doorOpHandler(ctx, c, "unlock")
+}
+
+// PickHandler implements `pick <target>` (alias `picklock`) — the lockpicking
+// skill verb (skills §4), a keyless alternative to unlock gated on the Open
+// Lock skill vs the door's pick difficulty.
+func PickHandler(ctx context.Context, c *Context) error {
+	return doorOpHandler(ctx, c, "pick")
 }
 
 // doorOpHandler is the shared verb implementation. The op string
@@ -81,9 +89,101 @@ func doorOpHandler(ctx context.Context, c *Context, op string) error {
 		return handleLock(ctx, c, room.ID, dir, door)
 	case "unlock":
 		return handleUnlock(ctx, c, room.ID, dir, door)
+	case "pick":
+		return handlePick(ctx, c, room.ID, dir, door)
 	default:
 		return c.Actor.Write(ctx, "Huh?")
 	}
+}
+
+// skillOpenLock is the ability id of the lockpicking skill (skills §4 — a
+// `skill`-category, trained-only ability). The `pick` verb checks/gains it.
+const skillOpenLock = "open-lock"
+
+// statValuer is the actor surface the skill check reads a governing ability
+// score from (connActor satisfies it; tests supply a fake).
+type statValuer interface {
+	StatValue(progression.StatType) int
+}
+
+// actorStatReader adapts a statValuer to progression.StatReader (the
+// RollUseGain stat-factor seam); the actor IS the entity, so entityID is
+// ignored.
+type actorStatReader struct{ sv statValuer }
+
+func (r actorStatReader) StatValue(_ string, s progression.StatType) int { return r.sv.StatValue(s) }
+
+// handlePick implements `pick <door>` (skills §4): an Open-Lock skill check
+// (skills §3) against the door's pick difficulty — a keyless alternative to
+// `unlock`. Success drives the same unlock transition + side-sync; failure
+// leaves the door locked and is noisy (the room hears the fumble). The skill
+// gains with use either way (reduced on a miss). The key path is untouched.
+func handlePick(ctx context.Context, c *Context, src world.RoomID, dir world.Direction, door world.DoorState) error {
+	if c.Proficiency == nil || c.SkillRoller == nil {
+		return c.Actor.Write(ctx, "You can't do that right now.")
+	}
+	if door.KeyID == "" {
+		return c.Actor.Write(ctx, fmt.Sprintf("There's no lock on %s to pick.", door.Name))
+	}
+	// A non-pickable door, or a pickable one with no positive difficulty
+	// (a content slip — pick_difficulty 0 would auto-succeed), can't be
+	// picked. Guarding here keeps a mis-authored door from being a free lock.
+	if !door.Pickable || door.PickDifficulty <= 0 {
+		return c.Actor.Write(ctx, fmt.Sprintf("%s's lock can't be picked.", capitalize(door.Name)))
+	}
+	if !door.Locked {
+		return c.Actor.Write(ctx, fmt.Sprintf("%s isn't locked.", capitalize(door.Name)))
+	}
+	// Trained-only (skills §2): no proficiency ⇒ you don't know how.
+	prof, trained := c.Proficiency.Proficiency(c.Actor.PlayerID(), skillOpenLock)
+	if !trained {
+		return c.Actor.Write(ctx, "You don't know how to pick locks.")
+	}
+
+	// Governing stat = the skill ability's gain stat (Open Lock keys off
+	// Dexterity); default Dex when the ability isn't loaded.
+	gov := progression.StatDEX
+	if c.Abilities != nil {
+		if ab, ok := c.Abilities.Get(skillOpenLock); ok && ab.GainStat != "" {
+			gov = ab.GainStat
+		}
+	}
+	sv, _ := c.Actor.(statValuer)
+	statScore := 10
+	if sv != nil {
+		statScore = sv.StatValue(gov)
+	}
+	bonus := progression.SkillBonus(prof, statScore, progression.DefaultSkillConfig())
+	outcome := progression.ResolveSkillCheck(c.SkillRoller, bonus, door.PickDifficulty)
+
+	// The skill improves on every attempt (the existing use-gain loop, halved
+	// on a miss by the ability's gain-failure multiplier).
+	var stats progression.StatReader
+	if sv != nil {
+		stats = actorStatReader{sv}
+	}
+	c.Proficiency.RollUseGain(c.Actor.PlayerID(), skillOpenLock, outcome.Success, c.SkillRoller, stats)
+
+	if !outcome.Success {
+		// Friction (skills §4): a failed pick is noisy — the room hears it,
+		// so picking in company has a cost even if you can free-retry.
+		if c.Broadcaster != nil {
+			c.Broadcaster.SendToRoom(ctx, src,
+				fmt.Sprintf("%s fumbles at %s's lock.", c.Actor.Name(), door.Name), c.Actor.PlayerID())
+		}
+		return c.Actor.Write(ctx, fmt.Sprintf("You fail to pick %s's lock.", door.Name))
+	}
+	if !c.World.UnlockDoor(src, dir) {
+		return c.Actor.Write(ctx, fmt.Sprintf("%s won't unlock.", capitalize(door.Name)))
+	}
+	// Empty KeyID: a pick uses no key, so a subscriber can't mistake it for a
+	// keyed unlock (mirrors how open/close pass "").
+	c.Publish(ctx, eventbus.DoorUnlocked{DoorEvent: doorEvent(c, src, dir, door, "")})
+	if c.Broadcaster != nil {
+		c.Broadcaster.SendToRoom(ctx, src,
+			fmt.Sprintf("%s picks %s's lock.", c.Actor.Name(), door.Name), c.Actor.PlayerID())
+	}
+	return c.Actor.Write(ctx, fmt.Sprintf("You deftly pick %s's lock.", door.Name))
 }
 
 func handleOpen(ctx context.Context, c *Context, src world.RoomID, dir world.Direction, door world.DoorState) error {

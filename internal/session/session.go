@@ -224,6 +224,10 @@ type Config struct {
 	// command.EffectTemplateSource interface. nil disables afflict.
 	EffectTemplates command.EffectTemplateSource
 
+	// SkillRoller is the d20 source for skill checks (skills §3 — the `pick`
+	// verb). Must be concurrency-safe (used off the command goroutine).
+	SkillRoller progression.Roller
+
 	// ActionQueue is the M9.3 per-entity action queue (spec
 	// abilities-and-effects §4.1). The M9.4 ability phase pops from
 	// it each pulse; logout calls Drop to release queued entries.

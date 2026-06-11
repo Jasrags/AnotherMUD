@@ -21,6 +21,10 @@ doors:
     keywords: [iron, door]
     locked: true
     key: forge-vault-key
+    # Skills (EPIC S3): the reverse side is pickable too, so the door's
+    # pick state is symmetric (skills §4).
+    pickable: true
+    pick_difficulty: 15
 # Payoff for getting through the locked door: a small pile of coins
 # (currency auto-convert credits gold on pickup).
 items:

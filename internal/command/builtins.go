@@ -121,6 +121,7 @@ func RegisterBuiltins(r *Registry) error {
 
 		// Abilities (M9.6).
 		{Keyword: "abilities", Aliases: []string{"abi"}, Handler: AbilitiesHandler, Brief: "List the abilities you have learned.", Syntax: []string{"abilities"}},
+		{Keyword: "skills", Handler: SkillsHandler, Brief: "List your skills and their proficiency.", Syntax: []string{"skills"}},
 		{Keyword: "cast", Handler: CastHandler, Brief: "Use an ability by name.", Syntax: []string{"cast <ability>", "cast <ability> <target>"}},
 
 		// Help (M10.5).
@@ -194,6 +195,7 @@ func RegisterBuiltins(r *Registry) error {
 		{Keyword: "close", Aliases: []string{"shut"}, Handler: CloseHandler, Brief: "Close a door.", Syntax: []string{"close <direction>", "close <door>"}, Args: []ArgDefinition{{Name: "door", Type: ArgDoor}}},
 		{Keyword: "lock", Handler: LockHandler, Brief: "Lock a door (requires the key).", Syntax: []string{"lock <direction>", "lock <door>"}, Args: []ArgDefinition{{Name: "door", Type: ArgDoor}}},
 		{Keyword: "unlock", Handler: UnlockHandler, Brief: "Unlock a door (requires the key).", Syntax: []string{"unlock <direction>", "unlock <door>"}, Args: []ArgDefinition{{Name: "door", Type: ArgDoor}}},
+		{Keyword: "pick", Aliases: []string{"picklock"}, Handler: PickHandler, Brief: "Pick a lock with the Open Lock skill (no key needed).", Syntax: []string{"pick <direction>", "pick <door>"}, Args: []ArgDefinition{{Name: "door", Type: ArgDoor}}},
 
 		// Recall (M15.3). `recall set` binds the current room as the
 		// character's return point; `recall` teleports back to it. (The

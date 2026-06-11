@@ -68,6 +68,11 @@ path:
     ability: trip
   - level: 1
     ability: bash
+  # Skills (EPIC S3): the Open Lock skill, granted so a fresh fighter can
+  # exercise the `pick` lockpicking verb (skills §4). A class skill capped
+  # higher than cross-class would be; raised further with `practice`.
+  - level: 1
+    ability: open-lock
   - level: 2
     ability: power-attack
   - level: 5

@@ -31,6 +31,10 @@ doors:
     keywords: [iron, door]
     locked: true
     key: forge-vault-key
+    # Skills (EPIC S3): the iron lock can be picked with the Open Lock skill
+    # (`pick iron`) as a keyless alternative to the vault key (skills §4).
+    pickable: true
+    pick_difficulty: 15
 items:
   - forge-vault-key
   - pine-torch
