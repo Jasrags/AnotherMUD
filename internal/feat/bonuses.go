@@ -1,5 +1,7 @@
 package feat
 
+import "strings"
+
 // Taken is one feat a character holds (EPIC S4 Phase 3). It mirrors
 // player.KnownFeat without importing player — keeping feat a leaf package; the
 // session converts between the two. FeatID resolves in the Registry; Param
@@ -89,7 +91,9 @@ func ComputeBonuses(held []Taken, reg *Registry) Bonuses {
 				}
 			case GrantAbility:
 				if g.Target != "" {
-					b.Abilities = append(b.Abilities, g.Target)
+					// Normalize for uniformity with the other keyed kinds
+					// (prof.Learn also normalizes, so this is belt-and-braces).
+					b.Abilities = append(b.Abilities, strings.ToLower(strings.TrimSpace(g.Target)))
 				}
 			}
 		}

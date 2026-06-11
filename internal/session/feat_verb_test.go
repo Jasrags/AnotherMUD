@@ -180,6 +180,15 @@ func TestGrantFeat_TeachesAbility(t *testing.T) {
 	if _, ok := a.prof.Proficiency(a.PlayerID(), "power-attack"); !ok {
 		t.Error("Power Attack feat did not teach the power-attack ability")
 	}
+
+	// Idempotency: practice the granted ability, then re-run applyFeatGrants
+	// (as a login / another feat change would) — the practiced value must
+	// survive, not reset to the baseline 1.
+	a.prof.Learn(a.PlayerID(), "power-attack", 50)
+	a.applyFeatGrants()
+	if v, _ := a.prof.Proficiency(a.PlayerID(), "power-attack"); v != 50 {
+		t.Errorf("granted ability proficiency = %d, want 50 (re-grant must not reset)", v)
+	}
 }
 
 func TestTakeFeat_Ineligible(t *testing.T) {

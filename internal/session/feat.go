@@ -267,10 +267,15 @@ func (a *connActor) applyFeatGrants() {
 	// 3c: per-weapon-category hit/crit cache (read lock-free in Stats).
 	a.featWeaponBonus.Store(&featWeaponBonuses{hit: b.HitByCategory, crit: b.CritByCategory})
 
-	// 3c: ability grants (Power Attack). Teach at baseline; Learn's single-grant
-	// guard keeps an already-known/practiced ability untouched on re-grant.
+	// 3c: ability grants (Power Attack). Teach at baseline ONLY if not already
+	// known — prof.Learn overwrites the proficiency value, so re-Learning on
+	// every applyFeatGrants (login + each feat change) would reset a practiced
+	// granted ability back to 1. The existence check makes the grant idempotent.
 	if prof != nil && entityID != "" {
 		for _, abID := range b.Abilities {
+			if _, known := prof.Proficiency(entityID, abID); known {
+				continue
+			}
 			prof.Learn(entityID, abID, 1)
 		}
 	}
