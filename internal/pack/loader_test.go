@@ -2238,6 +2238,7 @@ skills:
   - ability: Open-Lock
     proficiency: 10
 items: [Short-Sword]
+feats: [Great-Fortitude]
 gold: 25
 allowed_categories: [Humanoid]
 `)
@@ -2257,6 +2258,9 @@ allowed_categories: [Humanoid]
 	}
 	if len(b.Items) != 1 || b.Items[0] != "tapestry-core:short-sword" {
 		t.Errorf("Items = %v, want [tapestry-core:short-sword] (qualified + lowercased)", b.Items)
+	}
+	if len(b.Feats) != 1 || b.Feats[0] != "great-fortitude" {
+		t.Errorf("Feats = %v, want [great-fortitude] (global id, lowercased)", b.Feats)
 	}
 	if len(b.AllowedCategories) != 1 || b.AllowedCategories[0] != "humanoid" {
 		t.Errorf("AllowedCategories = %v, want [humanoid]", b.AllowedCategories)

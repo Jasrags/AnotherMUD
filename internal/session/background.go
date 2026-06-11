@@ -67,6 +67,12 @@ func (g *BackgroundGranter) Grant(ctx context.Context, playerID string, bg *prog
 			a.AddToInventory(inst.ID())
 		}
 	}
+	// EPIC S4 Phase 5: authored background feats — granted free (no slot, no
+	// prereq check), recorded + applied via the actor's GrantFeat. Unknown ids
+	// skip fail-soft. Closes the S9 deferred background-feat item.
+	for _, featID := range bg.Feats {
+		a.GrantFeat(featID, "")
+	}
 	if bg.Gold > 0 && g.currency != nil {
 		g.currency.AddGold(ctx, a, bg.Gold, "background:"+bg.ID)
 	}

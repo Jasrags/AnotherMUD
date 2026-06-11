@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/Jasrags/AnotherMUD/internal/entities"
+	"github.com/Jasrags/AnotherMUD/internal/feat"
 	"github.com/Jasrags/AnotherMUD/internal/item"
 	"github.com/Jasrags/AnotherMUD/internal/progression"
 	"github.com/Jasrags/AnotherMUD/internal/world"
@@ -97,6 +98,39 @@ func TestRunCreation_CommitsBackground(t *testing.T) {
 	}
 	if loaded.Player.Background != "soldier" {
 		t.Errorf("save background = %q, want soldier", loaded.Player.Background)
+	}
+}
+
+// feats §2 (EPIC S4 Phase 5): a background grants authored feats free at
+// creation — recorded + applied, no slot spent, no prereq checked.
+func TestBackgroundGranter_GrantsFeats(t *testing.T) {
+	mgr := NewManager()
+	a, _ := newFakeActor("c1", "p1", "acc1", "Hero", &world.Room{ID: "r"})
+	a.featCredits = 1 // the creation slot — must NOT be consumed by the grant
+	reg := feat.NewRegistry()
+	_ = reg.Register(&feat.Feat{ID: "great-fortitude",
+		Grants: []feat.Grant{{Kind: feat.GrantSaveBonus, Target: "fortitude", Magnitude: 2}}})
+	a.feats = reg
+	mgr.Add(a)
+
+	g := NewBackgroundGranter(mgr, nil, item.NewTemplates(), entities.NewStore(), nil)
+	g.Grant(context.Background(), "p1", &progression.Background{
+		ID: "soldier", Feats: []string{"great-fortitude", "ghost-feat"}, // ghost skipped fail-soft
+	})
+
+	if len(a.save.KnownFeats) != 1 || a.save.KnownFeats[0].FeatID != "great-fortitude" {
+		t.Fatalf("KnownFeats = %+v, want [great-fortitude]", a.save.KnownFeats)
+	}
+	if a.FeatCredits() != 1 {
+		t.Errorf("FeatCredits = %d, want 1 (an authored grant must not spend a slot)", a.FeatCredits())
+	}
+	if a.Saves().Fortitude < 2 {
+		t.Errorf("Fortitude = %d, want >= 2 from the granted feat", a.Saves().Fortitude)
+	}
+	// Re-granting (e.g. a relog re-fire) is idempotent for a single feat.
+	a.GrantFeat("great-fortitude", "")
+	if len(a.save.KnownFeats) != 1 {
+		t.Errorf("re-grant duplicated a single feat: %+v", a.save.KnownFeats)
 	}
 }
 

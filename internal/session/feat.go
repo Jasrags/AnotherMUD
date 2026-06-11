@@ -187,6 +187,35 @@ func (a *connActor) TakeFeat(featID, param string) (bool, string) {
 	return true, fmt.Sprintf("You gain the %s feat.", f.DisplayName)
 }
 
+// GrantFeat records featID as a held feat WITHOUT spending a slot or checking
+// prerequisites (EPIC S4 Phase 5): an authored grant from a background/class
+// (backgrounds §2). param binds a per-parameter feat. A feat absent from the
+// registry is skipped fail-soft; a single/per-param feat already held is a
+// no-op (so a re-grant on relog never duplicates), while a stackable feat
+// stacks. The conferred stat bonuses are reinstalled after recording.
+func (a *connActor) GrantFeat(featID, param string) {
+	a.mu.Lock()
+	reg := a.feats
+	a.mu.Unlock()
+	if reg == nil {
+		return
+	}
+	f, ok := reg.Get(featID)
+	if !ok {
+		return
+	}
+	param = strings.ToLower(strings.TrimSpace(param))
+	a.mu.Lock()
+	if f.MultiTake != feat.MultiTakeStackable && a.featTakenLocked(f, param) {
+		a.mu.Unlock()
+		return
+	}
+	a.recordFeatLocked(f, param)
+	a.markDirtyLocked()
+	a.mu.Unlock()
+	a.applyFeatStatModifiers()
+}
+
 // applyFeatStatModifiers recomputes the stat-shaped feat bonuses from the
 // actor's known_feats and installs them on the stat block under srckey.Feat
 // keys (EPIC S4 Phase 3b). Today that is the hp_max bonus (Toughness): writing

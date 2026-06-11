@@ -16,6 +16,10 @@ description: |
 skills:
   - ability: parry
     proficiency: 10
+# Feats are global feat ids granted free at creation (no slot, no prereq —
+# EPIC S4 Phase 5). A drilled veteran is hardy: Great Fortitude (+2 Fort).
+feats:
+  - great-fortitude
 # Items are starter-world template ids — bare ids qualify to this pack's
 # namespace at load (backgrounds §4), one instance per entry.
 items:

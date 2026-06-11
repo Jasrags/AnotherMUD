@@ -1836,6 +1836,9 @@ func decodeBackground(path, ns string) (*progression.Background, error) {
 		Description:       f.Description,
 		Skills:            skills,
 		Items:             items,
+		// Feat ids are global (not namespace-qualified, like abilities); the
+		// granter resolves them fail-soft. Register lowercases them.
+		Feats:             append([]string(nil), f.Feats...),
 		Gold:              f.Gold,
 		AllowedCategories: append([]string(nil), f.AllowedCategories...),
 		AllowedGenders:    append([]string(nil), f.AllowedGenders...),

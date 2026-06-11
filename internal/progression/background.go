@@ -35,6 +35,14 @@ type Background struct {
 	// ids are skipped at grant time.
 	Items []string
 
+	// Feats are feat ids granted (authored, free) at creation — the WoT
+	// background-feat (backgrounds §2, EPIC S4 Phase 5). Global feat ids (not
+	// namespaced, like abilities). Granted bypassing the slot cost + prereqs;
+	// an unknown id is skipped at grant time (fail-soft). v1 background feats
+	// are non-parameterized; a per-parameter background feat would need a
+	// richer shape.
+	Feats []string
+
 	// Gold is added to the new character's starting balance (backgrounds §4).
 	Gold int
 
@@ -108,6 +116,13 @@ func (br *BackgroundRegistry) Register(b *Background) error {
 			items[i] = strings.ToLower(strings.TrimSpace(it))
 		}
 		clone.Items = items
+	}
+	if len(b.Feats) > 0 {
+		feats := make([]string, len(b.Feats))
+		for i, ft := range b.Feats {
+			feats[i] = strings.ToLower(strings.TrimSpace(ft))
+		}
+		clone.Feats = feats
 	}
 	if len(b.AllowedCategories) > 0 {
 		cats := make([]string, len(b.AllowedCategories))

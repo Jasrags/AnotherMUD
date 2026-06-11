@@ -712,6 +712,7 @@ type BackgroundFile struct {
 	// value when omitted/<=0).
 	Skills            []BackgroundSkillFile `yaml:"skills,omitempty"`
 	Items             []string              `yaml:"items,omitempty"`
+	Feats             []string              `yaml:"feats,omitempty"`
 	Gold              int                   `yaml:"gold,omitempty"`
 	AllowedCategories []string              `yaml:"allowed_categories,omitempty"`
 	AllowedGenders    []string              `yaml:"allowed_genders,omitempty"`
