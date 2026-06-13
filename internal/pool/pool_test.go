@@ -65,6 +65,7 @@ func TestApplyDamage(t *testing.T) {
 		wantCrossed  bool
 	}{
 		{"partial", 20, 20, Rules{Floor: 0}, 5, 15, 0, false},
+		{"zero damage on living does not cross", 20, 20, Rules{Floor: 0}, 0, 20, 0, false},
 		{"exact to floor crosses", 20, 20, Rules{Floor: 0}, 20, 0, 0, true},
 		{"over floor produces overflow + crosses", 10, 20, Rules{Floor: 0}, 13, 0, 3, true},
 		{"hit on already-floored does not re-cross", 0, 20, Rules{Floor: 0}, 5, 0, 5, false},
