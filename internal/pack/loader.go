@@ -12,6 +12,7 @@ import (
 	"strings"
 
 	"github.com/Jasrags/AnotherMUD/internal/biome"
+	"github.com/Jasrags/AnotherMUD/internal/channel"
 	"github.com/Jasrags/AnotherMUD/internal/chat"
 	"github.com/Jasrags/AnotherMUD/internal/combat"
 	"github.com/Jasrags/AnotherMUD/internal/decoration"
@@ -118,7 +119,7 @@ type pendingMobPlacement struct {
 // Filter, when non-empty, restricts discovery (spec §2.4). Pass nil to
 // load every active pack under root.
 func Load(ctx context.Context, root string, filter []string, dst *Registries, spawner Spawner, mobSpawner MobSpawner, scriptCompiler ScriptCompiler) error {
-	if dst == nil || dst.World == nil || dst.Items == nil || dst.Slots == nil || dst.Mobs == nil || dst.Tracks == nil || dst.Races == nil || dst.Classes == nil || dst.Backgrounds == nil || dst.Feats == nil || dst.Abilities == nil || dst.Theme == nil || dst.Help == nil || dst.Quests == nil || dst.Weather == nil || dst.Scripts == nil || dst.Rarity == nil || dst.Essence == nil || dst.Loot == nil || dst.Channels == nil || dst.Emotes == nil {
+	if dst == nil || dst.World == nil || dst.Items == nil || dst.Slots == nil || dst.Mobs == nil || dst.Tracks == nil || dst.Races == nil || dst.Classes == nil || dst.Backgrounds == nil || dst.Feats == nil || dst.Abilities == nil || dst.Theme == nil || dst.Help == nil || dst.Quests == nil || dst.Weather == nil || dst.Scripts == nil || dst.Rarity == nil || dst.Essence == nil || dst.Loot == nil || dst.Channels == nil || dst.Emotes == nil || dst.ChannelMap == nil {
 		return errors.New("pack.Load: dst has nil registry field; use pack.NewRegistries()")
 	}
 	logger := logging.From(ctx).With(slog.String("event", "pack.load"), slog.String("root", root))
@@ -604,6 +605,10 @@ func loadPackContent(ctx context.Context, p Discovered, dst *Registries, scriptC
 	if err != nil {
 		return nil, nil, err
 	}
+	channelMapPaths, err := resolveGlobs(p.Dir, p.Manifest.Content.ChannelMap)
+	if err != nil {
+		return nil, nil, err
+	}
 	helpPaths, err := resolveGlobs(p.Dir, p.Manifest.Content.Help)
 	if err != nil {
 		return nil, nil, err
@@ -868,6 +873,20 @@ func loadPackContent(ctx context.Context, p Discovered, dst *Registries, scriptC
 		}
 		for tag, e := range entries {
 			dst.Theme.Register(tag, e)
+		}
+	}
+
+	// Channel map: global stat→combat-channel derivation (the channel
+	// layer), later-wins per channel like the theme. Channel names +
+	// formulas are validated at decode for pack + path attribution, so a
+	// typo fails the boot rather than silently reading a default.
+	for _, cp := range channelMapPaths {
+		entries, err := decodeChannelMap(cp)
+		if err != nil {
+			return nil, nil, err
+		}
+		for ch, src := range entries {
+			dst.ChannelMap.Register(ch, src)
 		}
 	}
 
@@ -1172,6 +1191,7 @@ func loadPackContent(ctx context.Context, p Discovered, dst *Registries, scriptC
 		slog.Int("feats", len(featPaths)),
 		slog.Int("abilities", len(abilityPaths)),
 		slog.Int("theme", len(themePaths)),
+		slog.Int("channel_map", len(channelMapPaths)),
 		slog.Int("help", helpTopics),
 		slog.Int("quests", len(questPaths)),
 		slog.Int("effects", len(effectPaths)),
@@ -1395,6 +1415,44 @@ func decodeTheme(path string) (map[string]render.ThemeEntry, error) {
 			continue
 		}
 		out[tag] = render.ThemeEntry{FG: e.FG, BG: e.BG, HTML: e.HTML}
+	}
+	return out, nil
+}
+
+// decodeChannelMap reads a ChannelMapFile and returns its channel →
+// formula-source map (the channel layer — docs/themes/channel-vocabulary.md
+// §7). Each channel name is validated against the curated vocabulary
+// (channel.IsKnown) and each formula is parsed here, so an unknown channel
+// or a malformed formula fails the boot with pack + path attribution rather
+// than silently reading a default at runtime. Blank channel names are
+// skipped.
+func decodeChannelMap(path string) (map[channel.Channel]string, error) {
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		return nil, fmt.Errorf("reading channel map %s: %w", path, err)
+	}
+	var f ChannelMapFile
+	if err := yaml.Unmarshal(raw, &f); err != nil {
+		return nil, fmt.Errorf("%w: %s: %v", ErrInvalidContent, path, err)
+	}
+	out := make(map[channel.Channel]string, len(f.Channels))
+	for name, src := range f.Channels {
+		name = strings.TrimSpace(name)
+		if name == "" {
+			continue
+		}
+		ch := channel.Channel(name)
+		if !channel.IsKnown(ch) {
+			return nil, fmt.Errorf("%w: %s: unknown combat channel %q (not in the engine vocabulary)", ErrInvalidContent, path, name)
+		}
+		// Parse here purely to validate WITH pack+path attribution (the
+		// later Registry.Build re-parses the same source — Build's error
+		// carries only the channel, not the file). The tiny double-parse at
+		// boot buys a precise load-time diagnostic.
+		if _, err := channel.Parse(src); err != nil {
+			return nil, fmt.Errorf("%w: %s: channel %q formula %q: %v", ErrInvalidContent, path, name, src, err)
+		}
+		out[ch] = src
 	}
 	return out, nil
 }
@@ -1830,12 +1888,12 @@ func decodeBackground(path, ns string) (*progression.Background, error) {
 		return nil, err
 	}
 	return &progression.Background{
-		ID:                f.ID,
-		DisplayName:       strings.TrimSpace(f.Name),
-		Tagline:           f.Tagline,
-		Description:       f.Description,
-		Skills:            skills,
-		Items:             items,
+		ID:          f.ID,
+		DisplayName: strings.TrimSpace(f.Name),
+		Tagline:     f.Tagline,
+		Description: f.Description,
+		Skills:      skills,
+		Items:       items,
 		// Feat ids are global (not namespace-qualified, like abilities); the
 		// granter resolves them fail-soft. Register lowercases them.
 		Feats:             append([]string(nil), f.Feats...),

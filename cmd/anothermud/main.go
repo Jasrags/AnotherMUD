@@ -28,6 +28,7 @@ import (
 	"github.com/Jasrags/AnotherMUD/internal/ai"
 	"github.com/Jasrags/AnotherMUD/internal/biome"
 	"github.com/Jasrags/AnotherMUD/internal/campfire"
+	"github.com/Jasrags/AnotherMUD/internal/channel"
 	"github.com/Jasrags/AnotherMUD/internal/chat"
 	"github.com/Jasrags/AnotherMUD/internal/clock"
 	"github.com/Jasrags/AnotherMUD/internal/combat"
@@ -166,6 +167,22 @@ func run() error {
 	if err := pack.Load(ctx, cfg.ContentDir, cfg.Packs, registries, spawner, spawner, scriptEngine); err != nil {
 		return fmt.Errorf("loading content from %s: %w", cfg.ContentDir, err)
 	}
+	// Channel layer (docs/themes/channel-vocabulary.md): build the active
+	// ruleset's stat→combat-channel derivation from the loaded packs
+	// (later-wins per channel). Built AFTER Load because the mapping is
+	// pack content; an empty registry (content-less boot) falls back to the
+	// Go baseline so derivation still works. SetChannelMap stamps the store
+	// AND retro-stamps any mob spawned during Load; the same mapping feeds
+	// session.Config for players.
+	channelMap := channel.BaselineMapping()
+	if registries.ChannelMap.Len() > 0 {
+		built, err := registries.ChannelMap.Build()
+		if err != nil {
+			return fmt.Errorf("building combat-channel map: %w", err)
+		}
+		channelMap = built
+	}
+	entityStore.SetChannelMap(channelMap)
 	// M17.1c: bring scripts online. The Runtime spins up one Sandbox
 	// per discovered script, installs the engine.* API on its LState,
 	// and runs the script body to register handlers. Bus
@@ -1997,6 +2014,7 @@ func run() error {
 
 	handler := session.Handler(session.Config{
 		World:         w,
+		ChannelMap:    channelMap,
 		Commands:      cmds,
 		Players:       players,
 		Manager:       mgr,

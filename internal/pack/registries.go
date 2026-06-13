@@ -2,6 +2,7 @@ package pack
 
 import (
 	"github.com/Jasrags/AnotherMUD/internal/biome"
+	"github.com/Jasrags/AnotherMUD/internal/channel"
 	"github.com/Jasrags/AnotherMUD/internal/chat"
 	"github.com/Jasrags/AnotherMUD/internal/decoration"
 	"github.com/Jasrags/AnotherMUD/internal/effect"
@@ -121,6 +122,12 @@ type Registries struct {
 	// ships in the core pack. main derives per-emote verbs (+ aliases) from
 	// it. Ids are namespace-qualified at load.
 	Emotes *emote.Registry
+	// ChannelMap is the combat-channel derivation registry (the channel
+	// layer — docs/themes/channel-vocabulary.md §7). Packs register
+	// channel→formula entries from their `channel_map:` glob, later-wins;
+	// the composition root Build()s it into a channel.Mapping that
+	// combat.Stats derives HitMod/AC through. Distinct from Channels (chat).
+	ChannelMap *channel.Registry
 }
 
 // NewRegistries returns a Registries with every field initialized.
@@ -156,5 +163,6 @@ func NewRegistries() *Registries {
 		Nodes:        gathering.NewNodeRegistry(),
 		Channels:     chat.NewRegistry(),
 		Emotes:       emote.NewRegistry(),
+		ChannelMap:   channel.NewRegistry(),
 	}
 }

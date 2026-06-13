@@ -4,6 +4,7 @@ import (
 	"context"
 	"testing"
 
+	"github.com/Jasrags/AnotherMUD/internal/channel"
 	"github.com/Jasrags/AnotherMUD/internal/entities"
 	"github.com/Jasrags/AnotherMUD/internal/mob"
 	"github.com/Jasrags/AnotherMUD/internal/player"
@@ -11,6 +12,35 @@ import (
 	"github.com/Jasrags/AnotherMUD/internal/progression"
 	"github.com/Jasrags/AnotherMUD/internal/stats"
 )
+
+// TestConnActor_Stats_ChannelMapRouting proves the channel mapping is LIVE
+// in player combat-stat derivation: a non-baseline mapping changes the
+// derived AC; a nil mapping preserves the direct stat read.
+func TestConnActor_Stats_ChannelMapRouting(t *testing.T) {
+	cm, err := channel.NewMapping(map[channel.Channel]string{
+		channel.Attack:  "hit_mod",
+		channel.Defense: "ac + 5",
+	})
+	if err != nil {
+		t.Fatalf("NewMapping: %v", err)
+	}
+	a := &connActor{
+		playerID:   "p-1",
+		save:       &player.Save{Version: player.CurrentVersion, Name: "Tester"},
+		statBlock:  progression.NewWithBase(progression.DefaultPlayerBase()), // ac=10, hit_mod=0
+		equipment:  map[string]entities.EntityID{},
+		channelMap: cm,
+	}
+	if s := a.Stats(); s.AC != 15 || s.HitMod != 0 {
+		t.Fatalf("mapped player Stats = AC %d, HitMod %d; want 15, 0 (defense=ac+5)", s.AC, s.HitMod)
+	}
+
+	// nil mapping: direct read of the ac stat (10 from DefaultPlayerBase).
+	a.channelMap = nil
+	if s := a.Stats(); s.AC != 10 {
+		t.Fatalf("nil-mapping player AC = %d; want 10", s.AC)
+	}
+}
 
 // TestConnActor_ResourcePoolDeduction exercises the alongside-route pool
 // wiring: when an actor carries a seeded pool.Set, Mana/Movement read the

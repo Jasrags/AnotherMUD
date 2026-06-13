@@ -493,6 +493,21 @@ type ThemeTagEntry struct {
 	HTML string `yaml:"html,omitempty"`
 }
 
+// ChannelMapFile is the YAML shape for a pack's combat-channel derivation
+// (the channel layer — docs/themes/channel-vocabulary.md §7). Each entry
+// under `channels` maps a curated channel name (attack/defense/…) to an
+// arithmetic formula over the entity's attributes. Channel names are
+// global (not namespaced); later packs override earlier entries per
+// channel. (The `channels` key here names combat channels, NOT the chat
+// channels loaded from a pack's separate `channels:` glob.)
+//
+//	channels:
+//	  attack:  hit_mod
+//	  defense: 10 + mod(dex) + armor
+type ChannelMapFile struct {
+	Channels map[string]string `yaml:"channels"`
+}
+
 // RarityFile is the YAML shape for a pack's rarity-tier vocabulary (spec
 // item-decorations §2). Each tier carries a key, an order (low → high),
 // optional display text + a decorator pair, a color (fg/bg/html, seeded as

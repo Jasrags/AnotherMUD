@@ -4,6 +4,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/Jasrags/AnotherMUD/internal/channel"
 	"github.com/Jasrags/AnotherMUD/internal/combat"
 	"github.com/Jasrags/AnotherMUD/internal/mob"
 	"github.com/Jasrags/AnotherMUD/internal/progression"
@@ -69,6 +70,16 @@ type MobInstance struct {
 	// safe across the combat / effect tick goroutines without
 	// MobInstance-level locking. Mirrors the player's connActor.statBlock.
 	statBlock *progression.StatBlock
+
+	// channelMap is the active ruleset's stat→combat-channel derivation,
+	// stamped by the Store at spawn (and retro-stamped by SetChannelMap
+	// for mobs spawned during pack Load). Nil in bare test-built mobs.
+	// When set, Stats() derives HitMod/AC through it; when nil it reads the
+	// stat keys directly — and since the baseline mapping reproduces those
+	// exact reads, both paths yield identical numbers. Written only at
+	// spawn / composition (before the tick loop), then read lock-free by
+	// Stats() on the tick goroutine.
+	channelMap *channel.Mapping
 
 	// race is the optional race id copied from the template at
 	// construction (M8.3). The spawn pipeline reads this via
@@ -248,10 +259,26 @@ func (m *MobInstance) Vitals() *combat.Vitals { return m.vitals }
 // hit/damage rolls read a consistent snapshot per swing. Mirrors
 // connActor.Stats() on the player side.
 func (m *MobInstance) Stats() combat.Stats {
+	str := m.statBlock.Effective(progression.StatSTR)
+	hitMod := m.statBlock.Effective(progression.StatHitMod)
+	ac := m.statBlock.Effective(progression.StatAC)
+	// Same fallback as connActor.Stats: STRBonus when unmapped (bare test
+	// mobs), the mapping's damage_bonus/mitigation when present.
+	damageBonus := combat.STRBonus(str)
+	mitigation := 0
+	if m.channelMap != nil {
+		lookup := func(name string) int { return m.statBlock.Effective(progression.StatType(name)) }
+		hitMod = m.channelMap.Value(channel.Attack, lookup)
+		ac = m.channelMap.Value(channel.Defense, lookup)
+		damageBonus = m.channelMap.Value(channel.DamageBonus, lookup)
+		mitigation = m.channelMap.Value(channel.Mitigation, lookup)
+	}
 	s := combat.Stats{
-		HitMod: m.statBlock.Effective(progression.StatHitMod),
-		AC:     m.statBlock.Effective(progression.StatAC),
-		STR:    m.statBlock.Effective(progression.StatSTR),
+		HitMod:      hitMod,
+		AC:          ac,
+		STR:         str,
+		DamageBonus: damageBonus,
+		Mitigation:  mitigation,
 	}
 	// Weapon dice (combat §4.5): the equipped or natural weapon set at
 	// spawn. Zero falls through to the unarmed default via

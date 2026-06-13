@@ -281,7 +281,13 @@ func runAutoAttack(ctx context.Context, attackerID CombatantID, mgr *Manager, cf
 		if outcome.critical && critMultiplier > 1 {
 			dmg *= critMultiplier
 		}
-		raw := dmg + STRBonus(atkStats.STR)
+		// §4.5 damage: rolled (crit-multiplied) dice + the attacker's flat
+		// DamageBonus, minus the defender's Mitigation (the channel layer's
+		// damage_bonus/mitigation channels — design §6). DamageBonus is added
+		// after the crit multiply (the bonus is not multiplied); Mitigation
+		// is 0 for fantasy (armor folds into AC). The per-swing minimum of 1
+		// still holds, so a landed hit always lands ≥1 even under full soak.
+		raw := dmg + atkStats.DamageBonus - defStats.Mitigation
 		if raw < 1 {
 			raw = 1
 		}

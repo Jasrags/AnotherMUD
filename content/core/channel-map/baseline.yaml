@@ -1,0 +1,16 @@
+# Engine-baseline combat-channel derivation (the channel layer —
+# docs/themes/channel-vocabulary.md §7). Reproduces the pre-channel reads
+# exactly: attack = the hit_mod stat, defense = the ac stat. A setting pack
+# overrides per channel (later-wins), e.g. a d20 mapping might use
+# `defense: 10 + mod(dex) + armor`. NOTE: these are COMBAT channels, not
+# the chat channels in the sibling channels/ dir.
+channels:
+  attack: hit_mod
+  defense: ac
+  # trunc (toward zero), not mod (floor), to match the engine's
+  # (str-10)/2 integer-division damage scaling exactly. A non-d20 setting
+  # might scale damage off a different attribute entirely.
+  damage_bonus: trunc((str - 10) / 2)
+  # mitigation is intentionally absent → defaults to 0 (fantasy folds armor
+  # into defense/AC). A setting with soak (e.g. Shadowrun) maps it, e.g.
+  # `mitigation: body + armor`.
