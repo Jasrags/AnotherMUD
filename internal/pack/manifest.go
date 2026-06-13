@@ -79,9 +79,14 @@ type ContentPaths struct {
 	Feats       []string `yaml:"feats,omitempty"`
 	Abilities   []string `yaml:"abilities,omitempty"`
 	Theme       []string `yaml:"theme,omitempty"`
-	Help        []string `yaml:"help,omitempty"`
-	Quests      []string `yaml:"quests,omitempty"`
-	Effects     []string `yaml:"effects,omitempty"`
+	// ChannelMap declares combat-channel derivation files (the channel
+	// layer — docs/themes/channel-vocabulary.md §7). Loaded into
+	// Registries.ChannelMap; later packs override earlier per-channel.
+	// Distinct from Channels (chat) further down.
+	ChannelMap []string `yaml:"channel_map,omitempty"`
+	Help       []string `yaml:"help,omitempty"`
+	Quests     []string `yaml:"quests,omitempty"`
+	Effects    []string `yaml:"effects,omitempty"`
 	// Rarity / Essence are the M20 item-decoration vocabularies.
 	// Loaded into Registries.Rarity / .Essence; an item's reserved
 	// rarity/essence property references a key these define.

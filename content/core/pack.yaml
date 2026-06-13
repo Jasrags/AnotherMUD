@@ -38,3 +38,5 @@ content:
     - channels/*.yaml
   emotes:
     - emotes/*.yaml
+  channel_map:
+    - channel-map/*.yaml

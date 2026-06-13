@@ -61,9 +61,20 @@ type Store struct {
 }
 
 // SetChannelMap installs the ruleset's combat-channel derivation, applied
-// to every subsequently spawned mob. Called once at composition root
-// before the world spawns; not safe to change concurrently with spawning.
-func (s *Store) SetChannelMap(m *channel.Mapping) { s.channelMap = m }
+// to every subsequently spawned mob AND retro-stamped onto mobs already
+// tracked (those spawned during pack Load, before the mapping was built
+// from content). Called once at composition root after Load and before the
+// tick loop starts, so the field writes on tracked mobs race nothing.
+func (s *Store) SetChannelMap(m *channel.Mapping) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.channelMap = m
+	for _, e := range s.byID {
+		if mob, ok := e.(*MobInstance); ok {
+			mob.channelMap = m
+		}
+	}
+}
 
 // NewStore returns an empty Store with no room-scan fallback.
 func NewStore() *Store {

@@ -72,11 +72,13 @@ type MobInstance struct {
 	statBlock *progression.StatBlock
 
 	// channelMap is the active ruleset's stat→combat-channel derivation,
-	// injected at spawn by the Store (nil in bare test-built mobs). When
-	// set, Stats() derives HitMod/AC through it; when nil it reads the
+	// stamped by the Store at spawn (and retro-stamped by SetChannelMap
+	// for mobs spawned during pack Load). Nil in bare test-built mobs.
+	// When set, Stats() derives HitMod/AC through it; when nil it reads the
 	// stat keys directly — and since the baseline mapping reproduces those
-	// exact reads, both paths yield identical numbers. Immutable after
-	// spawn; safe for the lock-free Stats() read on the tick goroutine.
+	// exact reads, both paths yield identical numbers. Written only at
+	// spawn / composition (before the tick loop), then read lock-free by
+	// Stats() on the tick goroutine.
 	channelMap *channel.Mapping
 
 	// race is the optional race id copied from the template at
