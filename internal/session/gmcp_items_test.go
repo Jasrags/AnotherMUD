@@ -24,15 +24,15 @@ func newItemsGmcpActor(t *testing.T, playerID string) (*connActor, *gmcpFakeConn
 	store := entities.NewStore()
 	room := &world.Room{ID: "test-room", Name: "Test"}
 	a := &connActor{
-		id:        fc.id,
-		conn:      fc,
-		playerID:  playerID,
-		room:      room,
-		items:     store,
+		id:         fc.id,
+		conn:       fc,
+		playerID:   playerID,
+		room:       room,
+		items:      store,
 		equipment:  make(map[string]entities.EntityID),
 		footprints: make(map[entities.EntityID][]string),
-		vitals:    combat.NewVitalsAt(50, 100),
-		save:      &player.Save{ID: playerID, Name: playerID, Sustenance: 100},
+		vitals:     combat.NewVitalsAt(50, 100),
+		save:       &player.Save{ID: playerID, Name: playerID, Sustenance: 100},
 	}
 	a.sustenance = 100
 	return a, fc, store
@@ -200,15 +200,15 @@ func TestFlushGmcpItems_NonGmcpConnIsSilent(t *testing.T) {
 	store := entities.NewStore()
 	room := &world.Room{ID: "r", Name: "R"}
 	a := &connActor{
-		id:        "x",
-		conn:      &fakeConn{id: "x"},
-		playerID:  "p-x",
-		room:      room,
-		items:     store,
+		id:         "x",
+		conn:       &fakeConn{id: "x"},
+		playerID:   "p-x",
+		room:       room,
+		items:      store,
 		equipment:  make(map[string]entities.EntityID),
 		footprints: make(map[entities.EntityID][]string),
-		vitals:    combat.NewVitalsAt(50, 100),
-		save:      &player.Save{ID: "p-x", Sustenance: 100},
+		vitals:     combat.NewVitalsAt(50, 100),
+		save:       &player.Save{ID: "p-x", Sustenance: 100},
 	}
 	a.sustenance = 100
 	// No panic, no writes.

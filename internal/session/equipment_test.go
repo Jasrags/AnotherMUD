@@ -22,11 +22,11 @@ import (
 func newEqActor(t *testing.T, store *entities.Store) *connActor {
 	t.Helper()
 	return &connActor{
-		save:      &player.Save{Version: player.CurrentVersion, Name: "Tester"},
-		items:     store,
+		save:       &player.Save{Version: player.CurrentVersion, Name: "Tester"},
+		items:      store,
 		equipment:  make(map[string]entities.EntityID),
 		footprints: make(map[entities.EntityID][]string),
-		statBlock: progression.New(),
+		statBlock:  progression.New(),
 	}
 }
 
@@ -114,11 +114,11 @@ func TestRoundTrip_UnequipAfterRestartReversesMods(t *testing.T) {
 	// stat-block source key from old to new.
 	store2 := entities.NewStore()
 	a2 := &connActor{
-		save:      &saved,
-		items:     store2,
+		save:       &saved,
+		items:      store2,
 		equipment:  make(map[string]entities.EntityID),
 		footprints: make(map[entities.EntityID][]string),
-		statBlock: progression.New(),
+		statBlock:  progression.New(),
 	}
 	a2.statBlock.RestoreModifiers(saved.Stats)
 

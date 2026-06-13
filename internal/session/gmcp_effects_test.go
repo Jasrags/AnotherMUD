@@ -249,4 +249,3 @@ func TestFlushGmcpEffects_ShadowResetForcesResend(t *testing.T) {
 		t.Errorf("after reset frames = %d, want 2", got)
 	}
 }
-
