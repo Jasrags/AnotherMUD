@@ -7,9 +7,44 @@ import (
 	"github.com/Jasrags/AnotherMUD/internal/entities"
 	"github.com/Jasrags/AnotherMUD/internal/mob"
 	"github.com/Jasrags/AnotherMUD/internal/player"
+	"github.com/Jasrags/AnotherMUD/internal/pool"
 	"github.com/Jasrags/AnotherMUD/internal/progression"
 	"github.com/Jasrags/AnotherMUD/internal/stats"
 )
+
+// TestConnActor_ResourcePoolDeduction exercises the alongside-route pool
+// wiring: when an actor carries a seeded pool.Set, Mana/Movement read the
+// live pool current and DeductMana/DeductMovement actually subtract
+// (flooring at zero). This is the substrate the One Power channeling pool
+// will reuse.
+func TestConnActor_ResourcePoolDeduction(t *testing.T) {
+	a := &connActor{
+		playerID:  "p-1",
+		save:      &player.Save{Version: player.CurrentVersion, Name: "Tester"},
+		statBlock: progression.NewWithBase(progression.DefaultPlayerBase()),
+		equipment: map[string]entities.EntityID{},
+		pools:     pool.NewSet(),
+	}
+	a.pools.Add(pool.New(poolKindMovement, 20, pool.Rules{Floor: 0}))
+	a.pools.Add(pool.New(poolKindMana, 15, pool.Rules{Floor: 0}))
+
+	if mv := a.Movement(); mv != 20 {
+		t.Fatalf("Movement = %d; want 20 (full)", mv)
+	}
+	a.DeductMovement(5)
+	if mv := a.Movement(); mv != 15 {
+		t.Fatalf("after DeductMovement(5) = %d; want 15", mv)
+	}
+	a.DeductMana(10)
+	if mn := a.Mana(); mn != 5 {
+		t.Fatalf("after DeductMana(10) = %d; want 5", mn)
+	}
+	// Over-spend floors at zero, never negative.
+	a.DeductMovement(1000)
+	if mv := a.Movement(); mv != 0 {
+		t.Fatalf("over-spend Movement = %d; want 0 (floored)", mv)
+	}
+}
 
 // The resolver now resolves a live mob id to the MobInstance, so an
 // effect cast on a mob installs its modifiers (cluster 1 payoff).
@@ -61,11 +96,15 @@ func TestConnActor_SatisfiesResolutionSource(t *testing.T) {
 	if _, ok := src.CurrentTarget(); ok {
 		t.Error("actor with nil combat manager must report no target")
 	}
-	// Thin pools read max stats; deduction is a documented no-op.
-	mv := src.Movement()
+	// A bare actor seeds no pool.Set, so the resource accessors are
+	// nil-safe and read 0; deduction is a safe no-op. Real pool deduction
+	// is exercised in TestConnActor_ResourcePoolDeduction.
+	if mv := src.Movement(); mv != 0 {
+		t.Errorf("pool-less actor Movement = %d; want 0", mv)
+	}
 	src.DeductMovement(5)
-	if src.Movement() != mv {
-		t.Error("DeductMovement is dormant; pool must not change")
+	if src.Movement() != 0 {
+		t.Error("DeductMovement on a pool-less actor must stay 0")
 	}
 	src.SetLastAbility("slash")
 	if a.LastAbility() != "slash" {

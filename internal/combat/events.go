@@ -3,6 +3,7 @@ package combat
 import (
 	"context"
 
+	"github.com/Jasrags/AnotherMUD/internal/pool"
 	"github.com/Jasrags/AnotherMUD/internal/world"
 )
 
@@ -122,9 +123,15 @@ type Evade struct {
 // VitalDepleted is dispatched when a damage application drops a
 // combatant's named vital to zero (combat §4.3 step 4 "vital-
 // depleted", §6 "When an entity's HP reaches zero"). Today only
-// Vital="hp" is emitted; future vitals (stamina, mana) will reuse
-// the type. AttackerID is the attribution surface M7.5 will consume
+// Vital="hp" is emitted; future pools (Shadowrun's Stun/Physical
+// monitors, an overflow death track) reuse the type by passing their
+// own pool.Kind. AttackerID is the attribution surface M7.5 consumes
 // to credit a kill.
+//
+// Vital carries a pool.Kind's string value (see VitalHP). It is a plain
+// string, not a pool.Kind, deliberately — the same cross-package
+// decoupling that keeps the save axis a string (combat must not force a
+// shared typed vocabulary on every event consumer).
 type VitalDepleted struct {
 	VictimID   CombatantID
 	VictimName string
@@ -138,10 +145,11 @@ type VitalDepleted struct {
 // elemental, etc.) when AC tables exist to discriminate them.
 const DamageTypePhysical = "physical"
 
-// VitalHP is the canonical name of the hit-point vital in
-// VitalDepleted events. Lives next to the type so subscribers do not
-// re-spell the string literal at every comparison.
-const VitalHP = "hp"
+// VitalHP is the hit-point vital name in VitalDepleted events. Derived
+// from pool.KindHP so the event string and the pool kind are provably the
+// same value; subscribers compare against this rather than re-spelling
+// the literal.
+const VitalHP = string(pool.KindHP)
 
 // nopSink is the EventSink used when Manager is constructed with a
 // nil sink. Centralized so the mutation path always has a non-nil

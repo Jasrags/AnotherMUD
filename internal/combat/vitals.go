@@ -1,232 +1,124 @@
 package combat
 
-import "sync"
+import "github.com/Jasrags/AnotherMUD/internal/pool"
 
-// Vitals holds a combatant's hit-point state. The combat round (which
-// runs on the heartbeat-bucket tick) applies damage from a tick
-// goroutine; a status command or autosave may read concurrently from a
-// session goroutine; an AI heal-over-time effect may add hit points
-// from yet another. The internal mutex serializes all of that without
-// callers having to thread their own lock through.
+// Vitals holds a combatant's hit-point state. As of the generalized-pool
+// migration it is a thin facade over a pool.Pool of kind "hp": the dumb,
+// goroutine-safe counter now lives in internal/pool (shared with mana,
+// the One Power, Essence, …) and Vitals preserves the HP-specific API and
+// policy on top of it.
 //
-// Vitals is constructed via NewVitals / NewVitalsAt; the zero value is
-// not meaningful (Max=0 would force every combatant into dead-on-spawn).
-// All public methods are safe to call from any goroutine.
+// The concurrency contract is unchanged — the combat round applies damage
+// from a tick goroutine while a status command reads and an effect heals
+// from others; pool.Pool carries its own mutex so callers never thread a
+// lock. Vitals keeps two HP-specific rules that are NOT general pool
+// behavior: a combatant must have at least 1 max HP (you can have 0 mana,
+// but 0 max HP means dead-on-spawn), enforced in NewVitals/NewVitalsAt/
+// SetMax; and the "hp" pool flags DepletionEvent so the combat death flow
+// emits VitalDepleted once per death.
+//
+// Vitals is constructed via NewVitals / NewVitalsAt; the zero value is not
+// meaningful.
 type Vitals struct {
-	mu  sync.Mutex
-	hp  int
-	max int
+	p *pool.Pool
 }
 
-// NewVitals returns a fresh Vitals at full HP. Used for mob spawns and
-// for player login when no persisted HP exists yet. A non-positive
-// maxHP is clamped to 1 — a combatant must have at least one hit point
-// to be a meaningful combat participant.
+// hpKind / hpRules name the backing pool. Floor 0 (HP bottoms out at zero)
+// and DepletionEvent so a crossing is reportable death. Uses the canonical
+// pool.KindHP so Vitals, the VitalDepleted event vocabulary, and the pool
+// kind are all the one string.
+const hpKind = pool.KindHP
+
+func hpRules() pool.Rules { return pool.Rules{Floor: 0, DepletionEvent: true} }
+
+// NewVitals returns a fresh Vitals at full HP. A non-positive maxHP is
+// clamped to 1 — a combatant must have at least one hit point to be a
+// meaningful participant (HP-specific policy, not a pool rule).
 func NewVitals(maxHP int) *Vitals {
 	if maxHP < 1 {
 		maxHP = 1
 	}
-	return &Vitals{hp: maxHP, max: maxHP}
+	return &Vitals{p: pool.New(hpKind, maxHP, hpRules())}
 }
 
-// NewVitalsAt returns Vitals with current HP set explicitly. Used by
-// the player respawn / load path once vitals persistence lands (M7.5+).
-// hp is clamped to [0, maxHP]; maxHP is clamped to >= 1 the same way
-// NewVitals does.
+// NewVitalsAt returns Vitals with current HP set explicitly (the load
+// path). maxHP is clamped to >= 1 as in NewVitals; hp is clamped to
+// [0, maxHP] by pool.NewAt (floor 0).
 func NewVitalsAt(hp, maxHP int) *Vitals {
 	if maxHP < 1 {
 		maxHP = 1
 	}
-	if hp < 0 {
-		hp = 0
-	}
-	if hp > maxHP {
-		hp = maxHP
-	}
-	return &Vitals{hp: hp, max: maxHP}
+	return &Vitals{p: pool.NewAt(hpKind, hp, maxHP, hpRules())}
 }
 
-// Current returns the current HP under the internal lock. Callers that
-// also need Max in the same expression MUST use Snapshot instead — two
-// separate Current/Max calls open a TOCTOU window in which a combat-
-// tick damage application or a SetMax can interleave between them,
-// producing an internally inconsistent (current, max) pair.
-func (v *Vitals) Current() int {
-	v.mu.Lock()
-	defer v.mu.Unlock()
-	return v.hp
-}
+// Current returns the current HP. Callers needing both current and max in
+// one expression MUST use Snapshot (TOCTOU — see pool.Pool.Current).
+func (v *Vitals) Current() int { return v.p.Current() }
 
-// Max returns the current maximum HP. See Current for the TOCTOU
-// warning: a caller that wants both current and max should reach for
-// Snapshot, not Current+Max.
-func (v *Vitals) Max() int {
-	v.mu.Lock()
-	defer v.mu.Unlock()
-	return v.max
-}
+// Max returns the current maximum HP. See Current for the TOCTOU note.
+func (v *Vitals) Max() int { return v.p.Max() }
 
-// Snapshot returns (current, max) atomically — cheaper and race-free
-// versus two separate Current/Max calls when both are needed (status
-// rendering, percent-of-max checks under one lock).
-func (v *Vitals) Snapshot() (current, max int) {
-	v.mu.Lock()
-	defer v.mu.Unlock()
-	return v.hp, v.max
-}
+// Snapshot returns (current, max) atomically.
+func (v *Vitals) Snapshot() (current, max int) { return v.p.Snapshot() }
 
-// IsDead reports whether current HP is at or below zero. Combat-side
-// code uses this as the canonical liveness check.
-func (v *Vitals) IsDead() bool {
-	v.mu.Lock()
-	defer v.mu.Unlock()
-	return v.hp <= 0
-}
+// IsDead reports whether current HP is at or below zero — the canonical
+// liveness check (pool floor is 0).
+func (v *Vitals) IsDead() bool { return v.p.IsEmpty() }
 
-// Percent returns current HP as a fraction of max in [0, 1]. Returns 0
-// when max is zero (defensive — NewVitals prevents this, but a future
-// SetMax that drives max to 0 should not produce a divide-by-zero
-// panic in the wimpy check).
-func (v *Vitals) Percent() float64 {
-	v.mu.Lock()
-	defer v.mu.Unlock()
-	if v.max <= 0 {
-		return 0
-	}
-	if v.hp <= 0 {
-		return 0
-	}
-	return float64(v.hp) / float64(v.max)
-}
+// Percent returns current HP as a fraction of max in [0, 1], 0 when max is
+// non-positive or HP is depleted.
+func (v *Vitals) Percent() float64 { return v.p.Percent() }
 
-// ApplyDamage subtracts amount from current HP and returns the new
-// current HP. amount is clamped to >= 0 (a negative damage roll is a
-// caller bug, not a heal — callers that want a heal should call Heal
-// explicitly). Current HP is clamped to >= 0; ApplyDamage(big) on a
-// living combatant returns 0, never a negative number, so downstream
-// "is dead" checks have only one comparison to make.
-//
-// Combat §4.5 requires that a successful swing land at least 1 point
-// of damage; that minimum is the caller's responsibility (the damage
-// roll). Vitals is the dumb counter — it does not invent damage from
-// a zero amount.
+// ApplyDamage subtracts amount (clamped >= 0) from current HP and returns
+// the new current HP, clamped at 0. Combat's per-swing minimum-1 rule is
+// the caller's responsibility (the damage roll); Vitals is the dumb
+// counter.
 func (v *Vitals) ApplyDamage(amount int) int {
-	if amount < 0 {
-		amount = 0
-	}
-	v.mu.Lock()
-	defer v.mu.Unlock()
-	v.hp -= amount
-	if v.hp < 0 {
-		v.hp = 0
-	}
-	return v.hp
+	cur, _, _ := v.p.ApplyDamage(amount)
+	return cur
 }
 
-// ApplyDamageIfAlive is the atomic alternative to the IsDead+ApplyDamage
-// pair. It takes the lock once, checks liveness, and applies damage in
-// the same critical section.
+// ApplyDamageIfAlive is the atomic IsDead+ApplyDamage pair. It returns
+// (remaining, wasAlive):
+//   - wasAlive=false means the combatant was already at 0 HP on entry; no
+//     observable damage is applied (the pool floors at 0 either way) and
+//     the caller treats the swing as landing on a corpse.
+//   - wasAlive=true means it was living; remaining is the new current.
+//     remaining==0 here is the killing-blow signal, and pool.ApplyDamage's
+//     `crossed` guarantees exactly one racing caller observes it — so
+//     VitalDepleted is emitted once.
 //
-// Returns (remaining, wasAlive):
-//   - wasAlive=false means the combatant was already at 0 HP when the
-//     call entered the lock. No damage is applied; remaining is the
-//     untouched current HP (always 0 in practice, since IsDead is hp <= 0
-//     and ApplyDamage clamps at 0).
-//   - wasAlive=true means the combatant was living. amount was subtracted
-//     (clamped to >= 0 like ApplyDamage); remaining is the new current.
-//     remaining == 0 here is the "killing blow" signal callers use to
-//     emit VitalDepleted exactly once per death.
-//
-// Spec combat §4.3 step 1 + step 4 says the per-swing live-check and
-// damage application are conceptually one step; this method makes that
-// literal. If two attackers (or a swing + a DoT effect) race for the
-// killing blow, only the goroutine whose call enters the lock with hp>0
-// observes wasAlive=true and the matching remaining=0 — preventing the
-// double VitalDepleted emission the M7.4 review surfaced as a latent
-// M9/M7.5-effects hazard.
+// wasAlive is reconstructed from the pool return: the combatant was living
+// iff this call drove it to the floor (crossed) OR it still has HP left
+// (current > 0). An already-dead pool reports neither, yielding false.
 func (v *Vitals) ApplyDamageIfAlive(amount int) (remaining int, wasAlive bool) {
-	if amount < 0 {
-		amount = 0
-	}
-	v.mu.Lock()
-	defer v.mu.Unlock()
-	if v.hp <= 0 {
-		return v.hp, false
-	}
-	v.hp -= amount
-	if v.hp < 0 {
-		v.hp = 0
-	}
-	return v.hp, true
+	cur, _, crossed := v.p.ApplyDamage(amount)
+	return cur, crossed || cur > 0
 }
 
-// Deplete drives current HP to zero outright and reports whether the
-// combatant was alive when the call entered the lock. It is the primitive
-// for save-gated instant-death (saves §4 massive damage) and a future
-// coup-de-grace. Like ApplyDamageIfAlive, only the caller that observes
-// wasAlive=true should emit VitalDepleted, so a concurrent killer (racing
-// swing, DoT effect) cannot double-emit the death.
-func (v *Vitals) Deplete() (wasAlive bool) {
-	v.mu.Lock()
-	defer v.mu.Unlock()
-	if v.hp <= 0 {
-		return false
-	}
-	v.hp = 0
-	return true
-}
+// Deplete drives current HP to zero and reports whether the combatant was
+// alive on entry — the primitive for save-gated instant death (saves §4
+// massive damage) and a future coup-de-grace. Only the caller observing
+// wasAlive=true should emit VitalDepleted (pool.Pool.Deplete's once-only
+// guarantee).
+func (v *Vitals) Deplete() (wasAlive bool) { return v.p.Deplete() }
 
-// Heal adds amount to current HP, capped at max. Returns the new
-// current HP. Negative amounts are clamped to zero (callers that want
-// to deal damage call ApplyDamage). Healing past zero from a dead
-// combatant works — Vitals does not enforce "no resurrection from
-// healing"; the combat-side death flow owns whether a corpse is still
-// addressable as a heal target.
-func (v *Vitals) Heal(amount int) int {
-	if amount < 0 {
-		amount = 0
-	}
-	v.mu.Lock()
-	defer v.mu.Unlock()
-	v.hp += amount
-	if v.hp > v.max {
-		v.hp = v.max
-	}
-	return v.hp
-}
+// Heal adds amount to current HP, capped at max, returning the new
+// current. Negative amounts clamp to zero. Healing a dead combatant works
+// — the combat death flow owns whether a corpse is still a heal target.
+func (v *Vitals) Heal(amount int) int { return v.p.Restore(amount) }
 
 // SetCurrent sets current HP to an explicit value, clamped to [0, max],
-// and returns the new current. The admin `set vital hp` write
-// (admin-verbs §4 — "writes the live value, clamped to its maximum") and
-// the `restore` mercy verb (set to full) use this. One lock acquisition,
-// so the clamp reads max and writes hp atomically — no TOCTOU window a
-// Snapshot+Heal/ApplyDamage pair would open.
-func (v *Vitals) SetCurrent(hp int) int {
-	v.mu.Lock()
-	defer v.mu.Unlock()
-	if hp < 0 {
-		hp = 0
-	}
-	if hp > v.max {
-		hp = v.max
-	}
-	v.hp = hp
-	return v.hp
-}
+// returning the new current (admin `set vital hp` / the `restore` verb).
+func (v *Vitals) SetCurrent(hp int) int { return v.p.SetCurrent(hp) }
 
-// SetMax adjusts the maximum HP. If the new max is below current HP,
-// current is also clamped down. If the new max is above current HP,
-// current is left alone — leveling up does not auto-heal; the
-// progression layer (M8) decides whether to follow a SetMax with a
-// Heal-to-full. newMax is clamped to >= 1 like the constructors.
+// SetMax adjusts max HP, clamping current down if it now exceeds the new
+// max; a raise leaves current alone (leveling up does not auto-heal). The
+// progression layer (StatBlock.OnMaxChange → here) decides whether to
+// follow a SetMax with a Heal. newMax is clamped to >= 1.
 func (v *Vitals) SetMax(newMax int) {
 	if newMax < 1 {
 		newMax = 1
 	}
-	v.mu.Lock()
-	defer v.mu.Unlock()
-	v.max = newMax
-	if v.hp > v.max {
-		v.hp = v.max
-	}
+	v.p.SetMax(newMax)
 }

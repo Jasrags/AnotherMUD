@@ -2,8 +2,38 @@ package combat
 
 import (
 	"sync"
+	"sync/atomic"
 	"testing"
 )
+
+// TestApplyDamageIfAlive_KillingBlowExactlyOnce locks the once-only death
+// guarantee at the Vitals facade (not just the pool layer): when N
+// goroutines each apply lethal damage, exactly one observes the combat
+// emit condition (wasAlive && remaining <= 0) that drives a single
+// VitalDepleted. Regression guard for the crossed||cur>0 reconstruction.
+func TestApplyDamageIfAlive_KillingBlowExactlyOnce(t *testing.T) {
+	const goroutines = 64
+	v := NewVitals(100)
+	var killingBlows int64
+	var wg sync.WaitGroup
+	wg.Add(goroutines)
+	for i := 0; i < goroutines; i++ {
+		go func() {
+			defer wg.Done()
+			remaining, wasAlive := v.ApplyDamageIfAlive(100)
+			if wasAlive && remaining <= 0 { // exact autoattack.go emit gate
+				atomic.AddInt64(&killingBlows, 1)
+			}
+		}()
+	}
+	wg.Wait()
+	if killingBlows != 1 {
+		t.Fatalf("killing blow observed %d times; want exactly 1", killingBlows)
+	}
+	if !v.IsDead() {
+		t.Fatal("vitals should be dead after lethal hits")
+	}
+}
 
 func TestNewVitalsClampsNonPositiveMax(t *testing.T) {
 	v := NewVitals(0)
