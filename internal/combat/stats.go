@@ -20,11 +20,27 @@ type Stats struct {
 	// hit. A default of 10 is "no armor, no defensive stats".
 	AC int
 
-	// STR is the attacker's strength score, consumed by the damage-
-	// scaling formula (combat §4.5). The formula itself is policy and
-	// lives with the damage roll in M7.4; Stats only carries the raw
-	// number.
+	// STR is the attacker's strength score. Retained as the raw attribute
+	// (read by FromTemplateStats / score). Damage scaling no longer reads
+	// it directly — that moved to DamageBonus (the channel layer), so a
+	// non-d20 ruleset can scale damage off a different stat.
 	STR int
+
+	// DamageBonus is the flat amount added to rolled weapon damage before
+	// mitigation (the channel layer's `damage_bonus` channel). Populated by
+	// the holder's Stats() builder: from the channel mapping when present
+	// (the baseline maps it to trunc((str-10)/2) = the old STRBonus), or
+	// from STRBonus(STR) directly when no mapping is wired (bare test
+	// actors). A zero value adds nothing — so a direct Stats{} literal that
+	// omits it (most combat tests, STR 10) is unchanged.
+	DamageBonus int
+
+	// Mitigation is the defender's flat damage soak, subtracted from a
+	// hit's raw damage (the channel layer's `mitigation` channel, design
+	// §6). Zero for fantasy (armor folds into AC); a soak-based ruleset
+	// (Shadowrun) maps it. The per-swing minimum-1 rule still applies after
+	// subtraction, so mitigation never zeroes a landed hit.
+	Mitigation int
 
 	// Damage is the wielded-weapon damage expression (combat §4.5). A
 	// zero DiceExpr means "use the engine's unarmed default" — see

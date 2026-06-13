@@ -150,6 +150,8 @@ func (n callNode) eval(lookup func(string) int) float64 {
 		return math.Floor(n.args[0].eval(lookup))
 	case "ceil":
 		return math.Ceil(n.args[0].eval(lookup))
+	case "trunc": // round toward zero — matches Go integer division
+		return math.Trunc(n.args[0].eval(lookup))
 	case "abs":
 		return math.Abs(n.args[0].eval(lookup))
 	case "min":
@@ -172,7 +174,7 @@ func (n callNode) eval(lookup func(string) int) float64 {
 // required argument counts (-1 = variadic, min 1). A name absent here is
 // a parse error — there is no way for content to reach an arbitrary call.
 var funcArity = map[string]int{
-	"mod": 1, "floor": 1, "ceil": 1, "abs": 1,
+	"mod": 1, "floor": 1, "ceil": 1, "trunc": 1, "abs": 1,
 	"min": -1, "max": -1,
 }
 

@@ -79,6 +79,27 @@ func TestNewMapping_BadFormulaErrors(t *testing.T) {
 	}
 }
 
+// TestBaselineMapping_DamageBonusMatchesIntDivision pins that the baseline
+// damage_bonus formula reproduces combat.STRBonus = (str-10)/2 under Go
+// integer division (truncation toward zero) for all str — including the odd
+// str<10 cases where floor(mod) would diverge. (Asserts the int-division
+// value directly rather than importing combat, keeping the channel package
+// a leaf in its tests too.)
+func TestBaselineMapping_DamageBonusMatchesIntDivision(t *testing.T) {
+	m := BaselineMapping()
+	for _, str := range []int{7, 8, 9, 10, 11, 14, 15, 100} {
+		lookup := statLookup(map[string]int{"str": str})
+		want := (str - 10) / 2 // Go int division == combat.STRBonus
+		if got := m.Value(DamageBonus, lookup); got != want {
+			t.Errorf("baseline damage_bonus(str=%d) = %d; want %d", str, got, want)
+		}
+	}
+	// Mitigation is intentionally unmapped in the baseline → 0.
+	if got := m.Value(Mitigation, statLookup(nil)); got != 0 {
+		t.Errorf("baseline mitigation = %d; want 0 (unmapped)", got)
+	}
+}
+
 func TestNewMapping_EmptyIsValid(t *testing.T) {
 	m, err := NewMapping(nil)
 	if err != nil {

@@ -4116,17 +4116,27 @@ func (a *connActor) resetGmcpVitalsShadow() {
 // safe to call concurrently with session-side equip / unequip
 // mutations on the combat tick goroutine.
 func (a *connActor) Stats() combat.Stats {
+	str := a.statBlock.Effective(progression.StatSTR)
 	hitMod := a.statBlock.Effective(progression.StatHitMod)
 	ac := a.statBlock.Effective(progression.StatAC)
+	// Damage scaling falls back to STRBonus when no mapping is wired (bare
+	// test actors); production always has the baseline mapping, which maps
+	// damage_bonus to the same trunc((str-10)/2). Mitigation is 0 unmapped.
+	damageBonus := combat.STRBonus(str)
+	mitigation := 0
 	if a.channelMap != nil {
 		lookup := func(name string) int { return a.statBlock.Effective(progression.StatType(name)) }
 		hitMod = a.channelMap.Value(channel.Attack, lookup)
 		ac = a.channelMap.Value(channel.Defense, lookup)
+		damageBonus = a.channelMap.Value(channel.DamageBonus, lookup)
+		mitigation = a.channelMap.Value(channel.Mitigation, lookup)
 	}
 	s := combat.Stats{
-		HitMod: hitMod,
-		AC:     ac,
-		STR:    a.statBlock.Effective(progression.StatSTR),
+		HitMod:      hitMod,
+		AC:          ac,
+		STR:         str,
+		DamageBonus: damageBonus,
+		Mitigation:  mitigation,
 	}
 	if w := a.weapon.Load(); w != nil {
 		s.Damage = w.dice

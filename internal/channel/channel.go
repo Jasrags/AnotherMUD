@@ -116,6 +116,12 @@ func BaselineMapping() *Mapping {
 	m, err := NewMapping(map[Channel]string{
 		Attack:  "hit_mod",
 		Defense: "ac",
+		// trunc (round toward zero), NOT mod (floor), to match combat.STRBonus
+		// = (str-10)/2 under Go integer division — exact for all int str.
+		DamageBonus: "trunc((str - 10) / 2)",
+		// Mitigation is intentionally unmapped → defaults to 0: fantasy folds
+		// armor into Defense (AC), so the §6 soak step is inert until a
+		// setting (e.g. Shadowrun) maps it.
 	})
 	if err != nil {
 		panic("channel.BaselineMapping: " + err.Error())

@@ -599,9 +599,43 @@ func TestAutoAttack_PenaltyNeverBlocks(t *testing.T) {
 // (always 1), so raw damage = 46. The roller sequence per swing is:
 //
 //	[hitFace-1, 0 (the 1d1 die), saveFace-1 (only if the save fires)].
+//
+// TestAutoAttack_MitigationReducesDamage exercises the §6 channel-layer
+// damage step: raw = dice + attacker DamageBonus − defender Mitigation.
+func TestAutoAttack_MitigationReducesDamage(t *testing.T) {
+	atk := Stats{HitMod: 100, DamageBonus: 5, Damage: DiceExpr{1, 1, 0}} // always hit; 1d1=1; +5
+	def := Stats{AC: 10, Mitigation: 3}
+	rig := newAutoAttackRig(t, atk, def, 10, 50, []int{9, 0}) // hit face 10; 1d1 die → 1
+	rig.phase()(context.Background(), rig.attacker.id, rig.mgr, 0)
+
+	hits := rig.sink.snapshotHits()
+	if len(hits) != 1 {
+		t.Fatalf("want 1 hit, got %d", len(hits))
+	}
+	if hits[0].Damage != 3 { // 1 + 5 − 3
+		t.Errorf("damage = %d, want 3 (1 die + 5 bonus − 3 mitigation)", hits[0].Damage)
+	}
+}
+
+// TestAutoAttack_MitigationFlooredAtOne confirms a landed hit still does the
+// per-swing minimum of 1 even when mitigation would drive it negative.
+func TestAutoAttack_MitigationFlooredAtOne(t *testing.T) {
+	atk := Stats{HitMod: 100, DamageBonus: 0, Damage: DiceExpr{1, 1, 0}}
+	def := Stats{AC: 10, Mitigation: 50} // dwarfs the 1 damage
+	rig := newAutoAttackRig(t, atk, def, 10, 50, []int{9, 0})
+	rig.phase()(context.Background(), rig.attacker.id, rig.mgr, 0)
+
+	hits := rig.sink.snapshotHits()
+	if len(hits) != 1 || hits[0].Damage != 1 {
+		t.Fatalf("want 1 hit of 1 damage (floored), got %+v", hits)
+	}
+}
+
 func massiveRig(t *testing.T, defHP int, mc *MassiveDamageConfig, rollSeq []int) *autoAttackRig {
 	t.Helper()
-	atk := Stats{HitMod: 0, STR: 100, Damage: DiceExpr{1, 1, 0}}
+	// DamageBonus is now the flat damage add (was inline STRBonus(STR) before
+	// the channel layer); STRBonus(100)=45 keeps raw damage at 46 (45 + 1d1).
+	atk := Stats{HitMod: 0, STR: 100, DamageBonus: STRBonus(100), Damage: DiceExpr{1, 1, 0}}
 	def := Stats{AC: 10}
 	rig := newAutoAttackRig(t, atk, def, 20, defHP, rollSeq)
 	rig.massive = mc

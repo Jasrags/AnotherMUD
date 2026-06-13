@@ -40,6 +40,10 @@ func TestExpr_Eval(t *testing.T) {
 		{"floor", "floor(3.9)", nil, 3},
 		{"ceil", "ceil(3.1)", nil, 4},
 		{"abs", "abs(0 - 7)", nil, 7},
+		{"trunc positive toward zero", "trunc(2.9)", nil, 2},      // 2.9 → 2 (toward zero)
+		{"trunc negative toward zero", "trunc(0 - 1.5)", nil, -1}, // -1.5 → -1 (toward zero), not -2
+		{"trunc matches int-div neg odd", "trunc((str - 10) / 2)", map[string]int{"str": 7}, -1},
+		{"trunc matches int-div high", "trunc((str - 10) / 2)", map[string]int{"str": 100}, 45},
 		{"min variadic", "min(5, 2, 9)", nil, 2},
 		{"max variadic", "max(5, 2, 9)", nil, 9},
 
