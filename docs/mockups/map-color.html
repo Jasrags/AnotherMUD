@@ -1,0 +1,196 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AnotherMUD — map color &amp; identifiers mockup</title>
+<style>
+  :root{
+    --bg:#07090d; --panel:#0c0f15; --ink:#c2c7cf; --muted:#6b7280; --line:#1c2230;
+    /* terrain */
+    --t-grass:#7fae57; --t-forest:#4e9a51; --t-water:#4aa8c0; --t-mountain:#9aa0a6;
+    --t-road:#b5894f; --t-indoor:#caa86b; --t-cave:#737373;
+    /* identifiers */
+    --you:#ffd23f; --shop:#f2c94c; --trainer:#56ccf2; --inn:#6fcf6f; --quest:#e07b53;
+    --frame:#3a4252; --pass:#4a5160; --label:#8b93a1; --title:#6ab04c; --hostile:#d9534f;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:
+    radial-gradient(1200px 600px at 80% -10%, #11161f 0%, transparent 60%),
+    var(--bg);
+    color:var(--ink);font:15px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;}
+  .wrap{max-width:1180px;margin:0 auto;padding:48px 28px 80px}
+  header h1{font-size:clamp(1.6rem,1rem+2vw,2.4rem);margin:0 0 6px;letter-spacing:-.02em;font-weight:680}
+  header p{margin:0;color:var(--muted);max-width:62ch}
+  .accent{color:var(--you)}
+  h2{margin:54px 0 6px;font-size:1.18rem;letter-spacing:-.01em}
+  h2 .tag{font:600 .62rem/1 ui-monospace,monospace;letter-spacing:.12em;text-transform:uppercase;
+    color:var(--bg);background:var(--you);padding:4px 7px;border-radius:5px;vertical-align:middle;margin-left:10px}
+  .sub{color:var(--muted);margin:0 0 18px;max-width:74ch}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:22px}
+  @media (max-width:880px){.grid2{grid-template-columns:1fr}}
+  /* terminal panel */
+  .term{background:var(--panel);border:1px solid var(--line);border-radius:12px;overflow:hidden;
+    box-shadow:0 24px 60px -30px #000, inset 0 1px 0 #ffffff08}
+  .term .bar{display:flex;align-items:center;gap:7px;padding:9px 13px;background:#0a0d12;border-bottom:1px solid var(--line)}
+  .dot{width:11px;height:11px;border-radius:50%}
+  .dot.r{background:#ff5f57}.dot.y{background:#febc2e}.dot.g{background:#28c840}
+  .bar .t{margin-left:8px;color:var(--muted);font:12px ui-monospace,monospace}
+  .bar .t.now{color:var(--you)}
+  pre{margin:0;padding:18px 20px;font:14px/1.45 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+    white-space:pre;overflow-x:auto;tab-size:1}
+  .cap{color:var(--muted);font-size:.82rem;margin:9px 2px 0}
+  /* ink roles */
+  .mut{color:var(--muted)} .ttl{color:var(--title);font-weight:600} .lbl{color:var(--label)}
+  .fr{color:var(--frame)} .ps{color:var(--pass)} .ex{color:#56b6c2}
+  .you{color:var(--you);font-weight:700} .shop{color:var(--shop);font-weight:700}
+  .trn{color:var(--trainer);font-weight:700} .inn{color:var(--inn);font-weight:700}
+  .qst{color:var(--quest);font-weight:700} .host{color:var(--hostile);font-weight:700}
+  .grass{color:var(--t-grass)} .forest{color:var(--t-forest)} .water{color:var(--t-water)}
+  .mtn{color:var(--t-mountain)} .road{color:var(--t-road)} .indoor{color:var(--t-indoor)} .cave{color:var(--t-cave)}
+  /* key chips */
+  .keys{display:flex;flex-wrap:wrap;gap:10px 22px;margin:14px 2px 0;font:13px ui-monospace,monospace}
+  .keys b{font-size:15px;margin-right:7px}
+  .legendnote{color:var(--muted);font-size:.84rem;margin-top:10px}
+  .foot{margin-top:46px;color:var(--muted);font-size:.84rem;border-top:1px solid var(--line);padding-top:16px}
+  code{background:#11151d;border:1px solid var(--line);padding:1px 6px;border-radius:5px;font-size:.86em}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <h1>Map color &amp; identifiers <span class="accent">— design mockup</span></h1>
+  <p>Two changes to the minimap and the <code>map</code> verb: <strong>color the terrain</strong> (and fill the
+  missing cave / grassland / herb-garden glyphs), and <strong>overlay point-of-interest identifiers</strong> —
+  shops, trainers, inns — derived from each room's pinned NPCs. Glyphs stay distinct so the map still reads on a
+  no-color client; color is additive.</p>
+</header>
+
+<!-- ============ MINIMAP: TODAY vs PROPOSED ============ -->
+<h2>Minimap beside the room view<span class="tag">today → proposed</span></h2>
+<p class="sub">Standing on the Green in Emond's Field, minimap size <code>large</code>. Same fixed viewport,
+same fog-of-war — the only change is color and the POI markers replacing the terrain glyph on notable rooms.</p>
+
+<div class="grid2">
+  <div>
+    <div class="term">
+      <div class="bar"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span><span class="t">today — monochrome</span></div>
+<pre><span class="mut">The Green is the heart of Emond's</span>     <span class="lbl">Emond's Field</span>
+<span class="mut">Field, a broad common of trampled</span>     <span class="fr">+-----------------+</span>
+<span class="mut">grass where the village lanes all</span>     <span class="fr">|</span>        <span class="ps">|</span>        <span class="fr">|</span>
+<span class="mut">run together. The Winespring Inn</span>      <span class="fr">|</span>      <span class="ps">+ = T</span>      <span class="fr">|</span>
+<span class="mut">stands close on the east side...</span>      <span class="fr">|</span>      <span class="ps">| | |</span>      <span class="fr">|</span>
+                                       <span class="fr">|</span>  <span class="ps">o-=-</span>@<span class="ps">-o-o</span>  <span class="fr">|</span>
+<span class="mut">You see here: Cenn Buie.</span>               <span class="fr">|</span>        <span class="ps">|</span>        <span class="fr">|</span>
+<span class="ex">Exits: east, north, south, west</span>        <span class="fr">|</span>        <span class="ps">~</span>        <span class="fr">|</span>
+                                       <span class="fr">|</span>                 <span class="fr">|</span>
+                                       <span class="fr">+-----------------+</span>
+                                       <span class="mut">(north → Watch Hill)</span></pre>
+    </div>
+    <p class="cap">Today: every room is one grey glyph. Cave/grassland/herb-garden have no glyph at all and
+    fall back to <code>.</code> — a meadow, a road, and a cave look identical.</p>
+  </div>
+
+  <div>
+    <div class="term">
+      <div class="bar"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span><span class="t now">proposed — color + identifiers</span></div>
+<pre><span class="mut">The Green is the heart of Emond's</span>     <span class="lbl">Emond's Field</span>
+<span class="mut">Field, a broad common of trampled</span>     <span class="fr">+-----------------+</span>
+<span class="mut">grass where the village lanes all</span>     <span class="fr">|</span>        <span class="ps">|</span>        <span class="fr">|</span>
+<span class="mut">run together. The Winespring Inn</span>      <span class="fr">|</span>      <span class="inn">+</span> <span class="road">=</span> <span class="trn">T</span>      <span class="fr">|</span>
+<span class="mut">stands close on the east side...</span>      <span class="fr">|</span>      <span class="ps">| | |</span>      <span class="fr">|</span>
+                                       <span class="fr">|</span>  <span class="shop">$</span><span class="ps">-</span><span class="road">=</span><span class="ps">-</span><span class="you">@</span><span class="ps">-</span><span class="inn">+</span><span class="ps">-</span><span class="shop">$</span>  <span class="fr">|</span>
+<span class="mut">You see here: Cenn Buie.</span>               <span class="fr">|</span>        <span class="ps">|</span>        <span class="fr">|</span>
+<span class="ex">Exits: east, north, south, west</span>        <span class="fr">|</span>        <span class="water">~</span>        <span class="fr">|</span>
+                                       <span class="fr">|</span>                 <span class="fr">|</span>
+                                       <span class="fr">+-----------------+</span>
+                                       <span class="mut">(north → Watch Hill)</span></pre>
+    </div>
+    <p class="cap">Proposed: <span class="you">@</span> you · <span class="shop">$</span> Haral's smithy &amp; the
+    market (shops) · <span class="trn">T</span> a trainer · <span class="inn">+</span> the Winespring Inn ·
+    <span class="road">=</span> roads · <span class="water">~</span> the Winespring.</p>
+  </div>
+</div>
+
+<!-- ============ FULL MAP ============ -->
+<h2>The <code>map</code> verb — whole explored area<span class="tag">proposed</span></h2>
+<p class="sub">The full-area map gains the same vocabulary plus a colored legend. Here: Emond's Field fully
+explored, then a glance at the wilds where terrain color does the heavy lifting.</p>
+
+<div class="grid2">
+  <div>
+    <div class="term">
+      <div class="bar"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span><span class="t">&gt; map</span></div>
+<pre><span class="ttl">Map of Emond's Field</span>
+
+        <span class="trn">T</span>
+        <span class="ps">|</span>
+  <span class="inn">+</span> <span class="road">=</span> <span class="indoor">o</span>
+  <span class="ps">|</span> <span class="ps">|</span> <span class="ps">|</span>
+  <span class="shop">$</span><span class="ps">-</span><span class="road">=</span><span class="ps">-</span><span class="you">@</span><span class="ps">-</span><span class="inn">+</span><span class="ps">-</span><span class="shop">$</span>
+        <span class="ps">|</span>
+        <span class="water">~</span>
+        <span class="ps">|</span>
+        <span class="grass">,</span>
+
+<span class="lbl">Legend:</span>  <span class="you">@</span> you   <span class="shop">$</span> shop   <span class="trn">T</span> trainer   <span class="inn">+</span> inn / rest
+<span class="lbl">Terrain:</span> <span class="grass">,</span> grass  <span class="forest">*</span> forest  <span class="mtn">^</span> mtn  <span class="water">~</span> water  <span class="road">=</span> road  <span class="indoor">o</span> indoor  <span class="cave">%</span> cave
+<span class="mut">A passage that leads nowhere on the map is an exit you haven't explored yet.</span></pre>
+    </div>
+    <p class="cap">POIs take precedence over terrain at a cell; the legend keys both. Shops that also train
+    show <span class="shop">$</span> (the <code>list</code>/<code>learn</code> verbs still work).</p>
+  </div>
+
+  <div>
+    <div class="term">
+      <div class="bar"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span><span class="t">&gt; map  <span class="mut">(in the wilds)</span></span></div>
+<pre><span class="ttl">Map of The Westwood</span>
+
+  <span class="forest">*</span> <span class="forest">*</span> <span class="forest">*</span> <span class="mtn">^</span>
+  <span class="ps">|</span> <span class="ps">|</span> <span class="ps">|</span> <span class="ps">|</span>
+  <span class="forest">*</span><span class="ps">-</span><span class="forest">*</span><span class="ps">-</span><span class="you">@</span><span class="ps">-</span><span class="forest">*</span><span class="ps">-</span><span class="mtn">^</span>
+  <span class="ps">|</span>   <span class="ps">|</span>   <span class="ps">|</span>
+  <span class="grass">,</span>   <span class="host">!</span>   <span class="cave">%</span>
+              <span class="ps">|</span>
+              <span class="cave">%</span>
+
+<span class="lbl">Legend:</span>  <span class="you">@</span> you   <span class="host">!</span> danger   <span class="cave">%</span> cave / mine
+<span class="mut">(west → The Mountains of Mist)   (east → Emond's Field)</span></pre>
+    </div>
+    <p class="cap">Out here terrain color carries it: a green forest thinning to grey
+    <span class="mtn">^</span> mountains, a <span class="cave">%</span> mine cutting underground, and an optional
+    <span class="host">!</span> marker for a known hazard (the boar).</p>
+  </div>
+</div>
+
+<!-- ============ VOCABULARY ============ -->
+<h2>The full vocabulary it would add</h2>
+<div class="keys">
+  <span><b class="you">@</b> you</span>
+  <span><b class="shop">$</b> shop / vendor</span>
+  <span><b class="trn">T</b> trainer</span>
+  <span><b class="inn">+</b> inn / rest</span>
+  <span><b class="qst">!</b> quest / hazard</span>
+  <span><b class="grass">,</b> grassland</span>
+  <span><b class="forest">*</b> forest</span>
+  <span><b class="mtn">^</b> mountain</span>
+  <span><b class="water">~</b> water</span>
+  <span><b class="road">=</b> road</span>
+  <span><b class="indoor">o</b> indoors</span>
+  <span><b class="cave">%</b> cave / underground</span>
+</div>
+<p class="legendnote">Identifiers are distinct <em>glyphs</em>, not color alone — so the map stays legible on
+mono / no-color clients and for color-blind players (the engine already degrades color to plain). Color is the
+second channel. New terrain glyphs fill today's gaps: <code>,</code> grassland, a cave glyph, and a herb-garden
+mark. POI source (recommended): <strong>derive at load</strong> from each room's pinned <code>shop</code> /
+<code>skill_trainer</code> NPCs — automatic, no authoring, no per-render cost.</p>
+
+<div class="foot">
+  Mockup only — colors are indicative (final values come from the theme registry, which degrades per client
+  color tier). Layout uses the real Emond's Field / Westwood room graph.
+</div>
+
+</div>
+</body>
+</html>
