@@ -44,6 +44,7 @@ import (
 	"github.com/Jasrags/AnotherMUD/internal/login"
 	"github.com/Jasrags/AnotherMUD/internal/notifications"
 	"github.com/Jasrags/AnotherMUD/internal/player"
+	"github.com/Jasrags/AnotherMUD/internal/pool"
 	"github.com/Jasrags/AnotherMUD/internal/progression"
 	"github.com/Jasrags/AnotherMUD/internal/property"
 	"github.com/Jasrags/AnotherMUD/internal/quest"
@@ -554,6 +555,7 @@ func run(ctx context.Context, c conn.Connection, cfg Config) error {
 		// at full HP via NewVitals. The race/class/level inputs that
 		// would derive real numbers for max HP here are M8.3/M8.4.
 		vitals:      restorePlayerVitals(loaded.Player.Vitals),
+		pools:       pool.NewSet(),
 		flood:       newFloodGate(floodCfg, clk),
 		gmcpFlood:   newFloodGate(gmcpFloodConfig(floodCfg), clk),
 		floodCfg:    &floodCfg,
@@ -750,6 +752,11 @@ func run(ctx context.Context, c conn.Connection, cfg Config) error {
 	// any stale feat: entry a legacy save round-tripped). The OnMaxChange→vitals
 	// binding (wired far above) then moves the ceiling. No-op without such feats.
 	a.applyFeatGrants()
+
+	// Seed the generalized resource pools (mana, movement) full from the
+	// now-finalized stat maxes and bind each ceiling to its max stat. Done
+	// after the stat block is fully restored so the maxes are final.
+	a.seedResourcePools()
 
 	// M8.2: install persisted progression state. Empty snapshot is
 	// a no-op (uninitialized tracks lazy-init on first interaction
@@ -1756,6 +1763,14 @@ type connActor struct {
 	// and heals through the pointer under its own lock. Persistence
 	// landed with M7.5 (player.Save.Vitals).
 	vitals *combat.Vitals
+
+	// pools holds the actor's generalized resource pools (mana, movement)
+	// alongside HP. HP stays in vitals (the alongside route); these route
+	// through pool.Set so DeductMana/DeductMovement are real and a future
+	// channeling pool (the One Power) is just another entry. Seeded full
+	// from the stat maxes in the constructor; nil in bare test-built
+	// actors (the accessors are nil-safe).
+	pools *pool.Set
 
 	// raceID is the canonical race id the actor was constructed
 	// with (M8.3). Established at login from save (or the
@@ -3340,37 +3355,92 @@ func (a *connActor) CurrentTarget() (string, bool) {
 	return combat.EntityIDOf(t), true
 }
 
-// Movement returns the actor's current movement pool for the §4.7
-// skill resource check. No current-pool tracking exists yet — the
-// actor reports its movement_max stat as the available pool. Real
-// current-pool + regen lands with economy-survival (M11); until
-// then DeductMovement is a documented no-op, so the pool always
-// reads full.
-func (a *connActor) Movement() int {
-	return a.statBlock.Effective(progression.StatMovementMax)
+// poolKindMana / poolKindMovement name the actor's resource pools. The
+// string values match progression.ResourceMana / ResourceMovement so the
+// resolver's ResourceFor → pool routing stays consistent.
+const (
+	poolKindMana     = pool.Kind("mana")
+	poolKindMovement = pool.Kind("movement")
+)
+
+// resourcePool returns the actor's pool of the given kind. Nil-safe for
+// bare test-built actors that never seeded a pool.Set.
+func (a *connActor) resourcePool(kind pool.Kind) (*pool.Pool, bool) {
+	if a.pools == nil {
+		return nil, false
+	}
+	return a.pools.Get(kind)
 }
 
-// Mana returns the actor's current mana pool for the §4.7 spell
-// resource check. Same thin-pool treatment as Movement: reports
-// resource_max until current-pool tracking lands.
+// seedResourcePools creates the mana + movement pools full from the
+// finalized stat maxes and binds each ceiling to its max stat via
+// OnMaxChange — the same pattern that ties Vitals to hp_max. Called once
+// from the constructor AFTER the stat block is restored. Today both maxes
+// default to 0, so the pools spawn empty and cost-bearing abilities still
+// fizzle until content grants a max (or a channeling pool is added): this
+// makes the substrate real, it does not change live numbers.
+//
+// NOTE: mana/movement are NOT yet persisted and NOT yet regenerated —
+// they reseed full each login. Wiring them into RegenTick + the player
+// save is the trigger for when content first grants a non-zero max (see
+// the alongside-pools deferred note); until something can drain them, a
+// reseed-on-login pool is behavior-equivalent to the old "always full".
+func (a *connActor) seedResourcePools() {
+	if a.pools == nil {
+		a.pools = pool.NewSet()
+	}
+	binds := []struct {
+		kind pool.Kind
+		stat progression.StatType
+	}{
+		{poolKindMana, progression.StatResourceMax},
+		{poolKindMovement, progression.StatMovementMax},
+	}
+	for _, b := range binds {
+		p := pool.New(b.kind, a.statBlock.Effective(b.stat), pool.Rules{Floor: 0})
+		a.pools.Add(p)
+		a.statBlock.OnMaxChange(b.stat, func(_, newMax int) { p.SetMax(newMax) })
+	}
+}
+
+// Movement returns the actor's current movement pool for the §4.7 skill
+// resource check — the live pool current (0 when no pool is seeded).
+func (a *connActor) Movement() int {
+	if p, ok := a.resourcePool(poolKindMovement); ok {
+		return p.Current()
+	}
+	return 0
+}
+
+// Mana returns the actor's current mana pool for the §4.7 spell resource
+// check — the live pool current (0 when no pool is seeded).
 func (a *connActor) Mana() int {
-	return a.statBlock.Effective(progression.StatResourceMax)
+	if p, ok := a.resourcePool(poolKindMana); ok {
+		return p.Current()
+	}
+	return 0
 }
 
 // Race returns the actor's resolved race for §4.7 cost adjustment.
 // nil when raceless; AdjustCost handles the nil case.
 func (a *connActor) Race() *progression.Race { return a.race }
 
-// DeductMovement is the §4.5 step-1 movement spend. DORMANT: no
-// current movement pool exists yet (see Movement). The method is
-// part of the ResolutionSource contract so the resolver compiles and
-// the resource path is exercised end-to-end; the actual subtraction
-// wires in when economy-survival adds current pools + regen.
-func (a *connActor) DeductMovement(amount int) { _ = amount }
+// DeductMovement is the §4.5 step-1 movement spend: subtract from the
+// movement pool, flooring at zero (validation already proved sufficiency).
+// No-op when no movement pool is seeded.
+func (a *connActor) DeductMovement(amount int) {
+	if p, ok := a.resourcePool(poolKindMovement); ok {
+		p.Deduct(amount)
+	}
+}
 
-// DeductMana is the §4.5 step-1 mana spend. DORMANT for the same
-// reason as DeductMovement.
-func (a *connActor) DeductMana(amount int) { _ = amount }
+// DeductMana is the §4.5 step-1 mana spend: subtract from the mana pool,
+// flooring at zero. No-op when no mana pool is seeded.
+func (a *connActor) DeductMana(amount int) {
+	if p, ok := a.resourcePool(poolKindMana); ok {
+		p.Deduct(amount)
+	}
+}
 
 // SetLastAbility records the §4.5 step-2 "last ability used"
 // property. In-memory only (transient combat feedback, not durable
