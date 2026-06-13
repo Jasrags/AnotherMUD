@@ -190,6 +190,22 @@ func (p *Pool) ApplyDamage(amount int) (current, overflow int, crossed bool) {
 	return p.current, overflow, crossed
 }
 
+// Deplete drives Current to Floor outright and reports whether the pool
+// was above Floor when the call entered the lock. The primitive for
+// save-gated instant death (massive damage) and a future coup-de-grace.
+// Like ApplyDamage's `crossed`, only the caller that observes
+// wasAbove=true should emit a depletion event, so a concurrent killer
+// (a racing swing, a DoT effect) cannot double-emit the death.
+func (p *Pool) Deplete() (wasAbove bool) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	if p.current <= p.rules.Floor {
+		return false
+	}
+	p.current = p.rules.Floor
+	return true
+}
+
 // TrySpend deducts amount only if it leaves Current >= Floor, atomically.
 // Returns false WITHOUT mutating when insufficient — for costs that must
 // not partially drain (a spell that needs its full mana, an Edge point).

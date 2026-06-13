@@ -138,6 +138,39 @@ func TestSetMaxClampsCurrentDown(t *testing.T) {
 	}
 }
 
+func TestDeplete(t *testing.T) {
+	p := New("hp", 20, Rules{Floor: 0})
+	if !p.Deplete() {
+		t.Fatal("Deplete on a living pool should report wasAbove=true")
+	}
+	if !p.IsEmpty() {
+		t.Fatal("pool should be empty after Deplete")
+	}
+	if p.Deplete() {
+		t.Fatal("Deplete on an already-floored pool should report wasAbove=false")
+	}
+}
+
+func TestDeplete_DepletesExactlyOnceUnderRace(t *testing.T) {
+	const goroutines = 64
+	p := New("hp", 100, Rules{Floor: 0})
+	var aboveCount int64
+	var wg sync.WaitGroup
+	wg.Add(goroutines)
+	for i := 0; i < goroutines; i++ {
+		go func() {
+			defer wg.Done()
+			if p.Deplete() {
+				atomic.AddInt64(&aboveCount, 1)
+			}
+		}()
+	}
+	wg.Wait()
+	if aboveCount != 1 {
+		t.Fatalf("Deplete reported wasAbove=true %d times; want exactly 1", aboveCount)
+	}
+}
+
 func TestPercent(t *testing.T) {
 	tests := []struct {
 		name    string
