@@ -24,9 +24,10 @@ type Vitals struct {
 }
 
 // hpKind / hpRules name the backing pool. Floor 0 (HP bottoms out at zero)
-// and DepletionEvent so a crossing is reportable death. Centralized so the
-// future Set-on-actor migration reuses the same identity.
-const hpKind = pool.Kind("hp")
+// and DepletionEvent so a crossing is reportable death. Uses the canonical
+// pool.KindHP so Vitals, the VitalDepleted event vocabulary, and the pool
+// kind are all the one string.
+const hpKind = pool.KindHP
 
 func hpRules() pool.Rules { return pool.Rules{Floor: 0, DepletionEvent: true} }
 

@@ -1,6 +1,10 @@
 package progression
 
-import "context"
+import (
+	"context"
+
+	"github.com/Jasrags/AnotherMUD/internal/pool"
+)
 
 // EventSink is the seam between Manager and the host's event bus.
 // Mirrors combat.EventSink: the progression package does not import
@@ -130,11 +134,11 @@ type VitalDepletedEvent struct {
 	Vital    string
 }
 
-// VitalHP is the canonical vital identifier emitted in
-// VitalDepletedEvent.Vital today. Mirrors combat.VitalHP so
-// subscribers comparing across the two event families don't need
-// to re-spell the literal.
-const VitalHP = "hp"
+// VitalHP is the vital identifier emitted in VitalDepletedEvent.Vital.
+// Derived from pool.KindHP (the same source combat.VitalHP uses) so the
+// two event families carry an identical string without progression
+// importing combat — both lean on the leaf pool package.
+const VitalHP = string(pool.KindHP)
 
 func (nopSink) OnAbilityUsed(context.Context, AbilityUsedEvent)       {}
 func (nopSink) OnAbilityMissed(context.Context, AbilityMissedEvent)   {}

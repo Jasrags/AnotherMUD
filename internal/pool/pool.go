@@ -32,6 +32,16 @@ import "sync"
 // the same convention progression.StatType uses.
 type Kind string
 
+// KindHP is the canonical hit-point pool identity. It is the single
+// source of truth for the "hp" string across the engine: combat.Vitals
+// is a pool of this kind, and combat.VitalHP / progression.VitalHP (the
+// VitalDepleted event's Vital field) derive from it via string(KindHP),
+// so the event vocabulary and the pool vocabulary cannot drift. Living in
+// the leaf package lets both combat and progression reference one
+// definition without importing each other (the same decoupling reason
+// those event identifiers are plain strings, not a shared Kind type).
+const KindHP = Kind("hp")
+
 // Rules is the content-declared, mostly-static behavior of a pool. The
 // zero value is an inert pool: floors at 0, never overflows, caps no
 // channel, signals no depletion. A setting sets only the fields it needs.
