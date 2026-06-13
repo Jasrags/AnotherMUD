@@ -323,8 +323,9 @@ func TestAutoAttackNaturalOneAlwaysMisses(t *testing.T) {
 
 func TestAutoAttackHitAppliesDamageClampedToOne(t *testing.T) {
 	// Roll a mid d20 that auto-hits (10+10 vs AC 10), damage 1d3 with
-	// min roll (1) and a -10 STR penalty → raw = 1 + -10 = -9 → clamp 1.
-	atkStats := Stats{HitMod: 10, STR: 0}
+	// min roll (1) and a -10 DamageBonus → raw = 1 + (-10) = -9 → clamp 1.
+	// Exercises the negative-bonus path of the min-1 floor.
+	atkStats := Stats{HitMod: 10, DamageBonus: -10}
 	defStats := Stats{AC: 10}
 	rig := newAutoAttackRig(t, atkStats, defStats, 10, 5, []int{
 		9, // d20: 10
@@ -347,13 +348,13 @@ func TestAutoAttackHitAppliesDamageClampedToOne(t *testing.T) {
 func TestAutoAttackDepletesVitalAndStops(t *testing.T) {
 	// Multi-swing scenario: 1 extra attack would be needed for two
 	// swings, but M7.4 stubs extra-attack to 0, so we only get one
-	// swing. Use STR to push damage past the target's HP and
-	// observe the vital-depleted event.
-	atkStats := Stats{HitMod: 10, STR: 20} // STR 20 → +5 damage
+	// swing. Use a flat DamageBonus to push damage past the target's HP
+	// and observe the vital-depleted event.
+	atkStats := Stats{HitMod: 10, DamageBonus: 5} // flat +5 damage
 	defStats := Stats{AC: 5}
 	rig := newAutoAttackRig(t, atkStats, defStats, 10, 3, []int{
 		9, // d20: 10, auto-hit vs AC 5
-		2, // damage 1d3: 3 → +5 STR = 8 damage on 3HP target
+		2, // damage 1d3: 3 → +5 bonus = 8 damage on 3HP target
 	})
 	rig.phase()(context.Background(), rig.attacker.id, rig.mgr, 0)
 
