@@ -1445,6 +1445,10 @@ func decodeChannelMap(path string) (map[channel.Channel]string, error) {
 		if !channel.IsKnown(ch) {
 			return nil, fmt.Errorf("%w: %s: unknown combat channel %q (not in the engine vocabulary)", ErrInvalidContent, path, name)
 		}
+		// Parse here purely to validate WITH pack+path attribution (the
+		// later Registry.Build re-parses the same source — Build's error
+		// carries only the channel, not the file). The tiny double-parse at
+		// boot buys a precise load-time diagnostic.
 		if _, err := channel.Parse(src); err != nil {
 			return nil, fmt.Errorf("%w: %s: channel %q formula %q: %v", ErrInvalidContent, path, name, src, err)
 		}

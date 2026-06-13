@@ -303,7 +303,13 @@ func (s *Store) SpawnMob(tpl *mob.Template) (*MobInstance, error) {
 	}
 	id := s.nextID()
 	inst := buildMobFromTemplate(tpl, id)
-	inst.channelMap = s.channelMap // ruleset combat-channel derivation (nil ⇒ direct stat reads)
+	// Stamp the ruleset combat-channel derivation (nil ⇒ direct stat
+	// reads). Read under RLock so a concurrent SetChannelMap (today only
+	// at composition, but a future hot-reload must not data-race here)
+	// publishes a consistent pointer.
+	s.mu.RLock()
+	inst.channelMap = s.channelMap
+	s.mu.RUnlock()
 	if err := s.Track(inst); err != nil {
 		return nil, fmt.Errorf("spawn mob: tracking new instance: %w", err)
 	}

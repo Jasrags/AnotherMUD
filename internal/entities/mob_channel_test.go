@@ -45,3 +45,33 @@ func TestMobInstance_Stats_ChannelMapRouting(t *testing.T) {
 		t.Fatalf("mapped Stats = AC %d, HitMod %d; want 13, 1 (defense=ac+5)", s.AC, s.HitMod)
 	}
 }
+
+// TestStore_SetChannelMap_RetroStampsSpawnedMob covers the production
+// ordering: a mob spawned during pack Load (before the mapping is built
+// from content) must pick up the mapping when SetChannelMap is called
+// afterward. Without retro-stamping, this mob would keep reading stat keys
+// directly while runtime-spawned mobs used the override.
+func TestStore_SetChannelMap_RetroStampsSpawnedMob(t *testing.T) {
+	tpl := &mob.Template{
+		ID: "core:goblin", Name: "a goblin", Type: "npc",
+		Stats: map[string]int{"hp_max": 12, "ac": 8, "hit_mod": 1},
+	}
+	store := NewStore() // no mapping yet — mirrors a load-time spawn
+	m, err := store.SpawnMob(tpl)
+	if err != nil {
+		t.Fatalf("SpawnMob: %v", err)
+	}
+	if s := m.Stats(); s.AC != 8 {
+		t.Fatalf("pre-stamp AC = %d; want 8 (direct read)", s.AC)
+	}
+
+	cm, err := channel.NewMapping(map[channel.Channel]string{channel.Defense: "ac + 5"})
+	if err != nil {
+		t.Fatalf("NewMapping: %v", err)
+	}
+	store.SetChannelMap(cm) // retro-stamps the already-spawned mob
+
+	if s := m.Stats(); s.AC != 13 {
+		t.Fatalf("post-stamp AC = %d; want 13 (defense=ac+5 applied retroactively)", s.AC)
+	}
+}
