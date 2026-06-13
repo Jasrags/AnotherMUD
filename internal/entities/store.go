@@ -8,15 +8,16 @@ import (
 	"sync"
 	"sync/atomic"
 
+	"github.com/Jasrags/AnotherMUD/internal/channel"
 	"github.com/Jasrags/AnotherMUD/internal/item"
 	"github.com/Jasrags/AnotherMUD/internal/mob"
 )
 
 // Errors callers may distinguish at the boundary.
 var (
-	ErrNotFound        = errors.New("entity not found")
-	ErrAlreadyTracked  = errors.New("entity already tracked")
-	ErrNotTracked      = errors.New("entity is not tracked")
+	ErrNotFound           = errors.New("entity not found")
+	ErrAlreadyTracked     = errors.New("entity already tracked")
+	ErrNotTracked         = errors.New("entity is not tracked")
 	ErrUnknownTemplate    = errors.New("item template unknown")
 	ErrUnknownMobTemplate = errors.New("mob template unknown")
 )
@@ -34,7 +35,7 @@ var (
 type Store struct {
 	mu sync.RWMutex
 
-	byID  map[EntityID]Entity
+	byID map[EntityID]Entity
 	// Two tag indices: queries read tagsRead; mutations write tagsWrite.
 	// SwapTagIndex copies tagsWrite into tagsRead at the tick boundary
 	// (spec §3.7).
@@ -49,7 +50,20 @@ type Store struct {
 	// misses (spec §4.2 step 2). Nil by default in M5.2 because rooms
 	// don't carry entity lists yet — wires in with M5.4 get/drop.
 	roomScan func(EntityID) (Entity, bool)
+
+	// channelMap is the active ruleset's stat→combat-channel derivation,
+	// stamped onto every spawned MobInstance so its Stats() derives
+	// HitMod/AC through the mapping. Nil by default (tests) → mobs read
+	// the stat keys directly, which the baseline mapping reproduces, so
+	// behavior is identical either way. Set once at composition via
+	// SetChannelMap before any spawn.
+	channelMap *channel.Mapping
 }
+
+// SetChannelMap installs the ruleset's combat-channel derivation, applied
+// to every subsequently spawned mob. Called once at composition root
+// before the world spawns; not safe to change concurrently with spawning.
+func (s *Store) SetChannelMap(m *channel.Mapping) { s.channelMap = m }
 
 // NewStore returns an empty Store with no room-scan fallback.
 func NewStore() *Store {
@@ -278,6 +292,7 @@ func (s *Store) SpawnMob(tpl *mob.Template) (*MobInstance, error) {
 	}
 	id := s.nextID()
 	inst := buildMobFromTemplate(tpl, id)
+	inst.channelMap = s.channelMap // ruleset combat-channel derivation (nil ⇒ direct stat reads)
 	if err := s.Track(inst); err != nil {
 		return nil, fmt.Errorf("spawn mob: tracking new instance: %w", err)
 	}

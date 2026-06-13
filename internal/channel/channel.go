@@ -102,6 +102,27 @@ func (m *Mapping) Has(ch Channel) bool {
 	return ok
 }
 
+// BaselineMapping returns the engine's behavior-preserving default
+// mapping: the channels that have live consumers today, defined to
+// reproduce the pre-channel-layer derivation exactly — attack reads the
+// `hit_mod` stat, defense reads the `ac` stat. A boot using this mapping
+// behaves identically to before the channel layer existed; content packs
+// override per ruleset. It grows as more channels gain kernel consumers
+// (damage_bonus once the §6 damage struct lands, etc.).
+//
+// Engine-defined, so a malformed formula here is a programmer bug — panics
+// rather than returning an error.
+func BaselineMapping() *Mapping {
+	m, err := NewMapping(map[Channel]string{
+		Attack:  "hit_mod",
+		Defense: "ac",
+	})
+	if err != nil {
+		panic("channel.BaselineMapping: " + err.Error())
+	}
+	return m
+}
+
 // Value computes the channel's value for an entity. lookup resolves an
 // attribute name to its effective value (typically StatBlock.Effective,
 // 0 for unknown). A channel with no declared formula — or a nil Mapping —

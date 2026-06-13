@@ -24,6 +24,7 @@ import (
 
 	"github.com/Jasrags/AnotherMUD/internal/ansi"
 	"github.com/Jasrags/AnotherMUD/internal/biome"
+	"github.com/Jasrags/AnotherMUD/internal/channel"
 	"github.com/Jasrags/AnotherMUD/internal/chat"
 	"github.com/Jasrags/AnotherMUD/internal/clock"
 	"github.com/Jasrags/AnotherMUD/internal/combat"
@@ -333,6 +334,13 @@ type Config struct {
 	// command.DefaultXPTrack in the handler.
 	DefaultXPTrack string
 
+	// ChannelMap is the active ruleset's stat→combat-channel derivation
+	// (the channel layer). Threaded to connActor.Stats() so HitMod/AC
+	// derive through it. nil ⇒ direct stat reads (the baseline behavior).
+	// NOTE: unrelated to ChatRegistry below — "channel" here is a derived
+	// combat input, not a chat channel.
+	ChannelMap *channel.Mapping
+
 	// ChatRegistry is the M13.6 channel catalog. Threaded through
 	// to command.Env for chat verbs. nil-safe.
 	ChatRegistry *chat.Registry
@@ -556,6 +564,7 @@ func run(ctx context.Context, c conn.Connection, cfg Config) error {
 		// would derive real numbers for max HP here are M8.3/M8.4.
 		vitals:      restorePlayerVitals(loaded.Player.Vitals),
 		pools:       pool.NewSet(),
+		channelMap:  cfg.ChannelMap,
 		flood:       newFloodGate(floodCfg, clk),
 		gmcpFlood:   newFloodGate(gmcpFloodConfig(floodCfg), clk),
 		floodCfg:    &floodCfg,
@@ -1771,6 +1780,14 @@ type connActor struct {
 	// from the stat maxes in the constructor; nil in bare test-built
 	// actors (the accessors are nil-safe).
 	pools *pool.Set
+
+	// channelMap is the active ruleset's stat→combat-channel derivation,
+	// set from Config.ChannelMap at construction (nil in bare test-built
+	// actors). When set, Stats() derives HitMod/AC through it; nil reads
+	// the stat keys directly. The baseline mapping reproduces those reads,
+	// so both paths yield identical numbers. Read lock-free by Stats() on
+	// the tick goroutine (immutable after construction).
+	channelMap *channel.Mapping
 
 	// raceID is the canonical race id the actor was constructed
 	// with (M8.3). Established at login from save (or the
@@ -4099,9 +4116,16 @@ func (a *connActor) resetGmcpVitalsShadow() {
 // safe to call concurrently with session-side equip / unequip
 // mutations on the combat tick goroutine.
 func (a *connActor) Stats() combat.Stats {
+	hitMod := a.statBlock.Effective(progression.StatHitMod)
+	ac := a.statBlock.Effective(progression.StatAC)
+	if a.channelMap != nil {
+		lookup := func(name string) int { return a.statBlock.Effective(progression.StatType(name)) }
+		hitMod = a.channelMap.Value(channel.Attack, lookup)
+		ac = a.channelMap.Value(channel.Defense, lookup)
+	}
 	s := combat.Stats{
-		HitMod: a.statBlock.Effective(progression.StatHitMod),
-		AC:     a.statBlock.Effective(progression.StatAC),
+		HitMod: hitMod,
+		AC:     ac,
 		STR:    a.statBlock.Effective(progression.StatSTR),
 	}
 	if w := a.weapon.Load(); w != nil {

@@ -28,6 +28,7 @@ import (
 	"github.com/Jasrags/AnotherMUD/internal/ai"
 	"github.com/Jasrags/AnotherMUD/internal/biome"
 	"github.com/Jasrags/AnotherMUD/internal/campfire"
+	"github.com/Jasrags/AnotherMUD/internal/channel"
 	"github.com/Jasrags/AnotherMUD/internal/chat"
 	"github.com/Jasrags/AnotherMUD/internal/clock"
 	"github.com/Jasrags/AnotherMUD/internal/combat"
@@ -132,6 +133,14 @@ func run() error {
 	// room YAML `items:` lists spawn-and-place at load time (spec
 	// world-rooms-movement §2.2).
 	entityStore := entities.NewStore()
+	// Channel layer (docs/themes/channel-vocabulary.md): the active
+	// ruleset's stat→combat-channel derivation. v1 uses the engine
+	// baseline (reproduces the pre-channel hit_mod/ac reads); a
+	// pack-authored mapping replaces this in a later slice. Stamped on the
+	// store so spawned mobs derive through it; threaded to session.Config
+	// for players.
+	channelMap := channel.BaselineMapping()
+	entityStore.SetChannelMap(channelMap)
 	placement := entities.NewPlacement()
 	contents := entities.NewContents()
 	bus := eventbus.New()
@@ -1997,6 +2006,7 @@ func run() error {
 
 	handler := session.Handler(session.Config{
 		World:         w,
+		ChannelMap:    channelMap,
 		Commands:      cmds,
 		Players:       players,
 		Manager:       mgr,
