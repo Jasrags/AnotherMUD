@@ -93,6 +93,57 @@ func TestConnActor_ResourcePoolDeduction(t *testing.T) {
 	}
 }
 
+// seedResourcePools seeds each pool full from the stat max, then applies any
+// persisted current from the save — so a channeler logged out mid-drain
+// returns drained while an unseeded pool defaults full. syncPoolsToSaveLocked
+// then writes back only the non-full pool, keeping a full save clean.
+func TestConnActor_SeedAndSyncResourcePools(t *testing.T) {
+	a := &connActor{
+		playerID:  "p-1",
+		statBlock: progression.NewWithBase(map[progression.StatType]int{progression.StatResourceMax: 20}),
+		equipment: map[string]entities.EntityID{},
+		save: &player.Save{
+			Version: player.CurrentVersion, Name: "Drained",
+			Pools: pool.Snapshot{{Kind: poolKindMana, Current: 7, Max: 20}},
+		},
+	}
+
+	a.seedResourcePools()
+
+	// Mana restored to the persisted current (7), capped at the stat max (20).
+	if mn, mx := a.Mana(), a.ManaMax(); mn != 7 || mx != 20 {
+		t.Fatalf("seeded mana = %d/%d; want 7/20 (persisted current, stat max)", mn, mx)
+	}
+	// Movement had no stat max and no persisted entry → full at 0 (unseeded).
+	if mx := a.MovementMax(); mx != 0 {
+		t.Fatalf("MovementMax = %d; want 0 (no movement_max stat)", mx)
+	}
+
+	// Live state (mana 7/20) already matches the save, so sync is a no-op.
+	if a.syncPoolsToSaveLocked() {
+		t.Fatalf("syncPoolsToSaveLocked: want no change when live == save")
+	}
+
+	// Spend more → the non-full pool is rewritten into the save.
+	a.DeductMana(2) // 7 → 5
+	if !a.syncPoolsToSaveLocked() {
+		t.Fatalf("syncPoolsToSaveLocked: want change after draining to 5")
+	}
+	if len(a.save.Pools) != 1 || a.save.Pools[0].Current != 5 {
+		t.Fatalf("save.Pools = %+v; want [{mana 5 20}]", a.save.Pools)
+	}
+
+	// Refill to full → the pool is OMITTED (current == max), keeping the save clean.
+	p, _ := a.pools.Get(poolKindMana)
+	p.SetCurrent(20)
+	if !a.syncPoolsToSaveLocked() {
+		t.Fatalf("syncPoolsToSaveLocked: want change when refilling to full")
+	}
+	if len(a.save.Pools) != 0 {
+		t.Fatalf("save.Pools = %+v; want empty (full pool omitted)", a.save.Pools)
+	}
+}
+
 // The resolver now resolves a live mob id to the MobInstance, so an
 // effect cast on a mob installs its modifiers (cluster 1 payoff).
 func TestEffectTargetResolver_ResolvesMob(t *testing.T) {

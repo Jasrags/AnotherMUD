@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/Jasrags/AnotherMUD/internal/player"
+	"github.com/Jasrags/AnotherMUD/internal/pool"
 )
 
 // The v17 known-recipes set round-trips through a save/load.
@@ -287,5 +288,53 @@ func TestSaveLoad_V20FeatsRoundTrip(t *testing.T) {
 	// The plain entry exercises the double-zero (omitempty Param+Count) path.
 	if got.KnownFeats[2] != (player.KnownFeat{FeatID: "iron-will"}) {
 		t.Errorf("KnownFeats[2] = %+v, want {iron-will}", got.KnownFeats[2])
+	}
+}
+
+// A v20 save (no `pools` key) migrates forward with an empty pool snapshot —
+// the login path then reseeds every pool full from its stat-derived max, the
+// correct default for a pre-pools character.
+func TestLoad_V20NoPoolsMigratesToEmpty(t *testing.T) {
+	ctx := context.Background()
+	st, dir := newStore(t)
+	writePlayerYAML(t, dir, "prePools",
+		"version: 20\nid: p-1\naccount_id: acct-1\nname: PrePools\nlocation: tapestry-core:town-square\n")
+
+	got, err := st.Load(ctx, "prePools")
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if got.Version != player.CurrentVersion {
+		t.Errorf("Version = %d, want %d", got.Version, player.CurrentVersion)
+	}
+	if len(got.Pools) != 0 {
+		t.Errorf("Pools = %v, want empty (v20 had no pools)", got.Pools)
+	}
+}
+
+// A non-full pool snapshot (a channeler logged out mid-drain) round-trips
+// through a save/load: only the spent pool is persisted, its current intact.
+func TestSaveLoad_V21PoolsRoundTrip(t *testing.T) {
+	ctx := context.Background()
+	st, _ := newStore(t)
+	in := &player.Save{
+		Version: player.CurrentVersion, ID: "p-4", AccountID: "acct-1",
+		Name: "Drained", Location: "tapestry-core:town-square",
+		Pools: pool.Snapshot{
+			{Kind: pool.Kind("mana"), Current: 7, Max: 20},
+		},
+	}
+	if err := st.Save(ctx, in); err != nil {
+		t.Fatalf("Save: %v", err)
+	}
+	got, err := st.Load(ctx, "drained")
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if len(got.Pools) != 1 {
+		t.Fatalf("Pools = %d entries, want 1", len(got.Pools))
+	}
+	if got.Pools[0] != (pool.Entry{Kind: pool.Kind("mana"), Current: 7, Max: 20}) {
+		t.Errorf("Pools[0] = %+v, want {mana 7 20}", got.Pools[0])
 	}
 }

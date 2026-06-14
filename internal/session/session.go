@@ -2301,6 +2301,12 @@ func (a *connActor) Persist(ctx context.Context) error {
 	if a.syncVitalsToSaveLocked() {
 		a.markDirtyLocked()
 	}
+	// Sync pools (mana/movement) before the dirty check like vitals: a
+	// channeling/movement spend on the combat tick never goes through
+	// markDirtyLocked, so it must be pulled in here to participate in autosave.
+	if a.syncPoolsToSaveLocked() {
+		a.markDirtyLocked()
+	}
 	if a.syncAbilitiesToSaveLocked() {
 		a.markDirtyLocked()
 	}
@@ -2405,6 +2411,46 @@ func (a *connActor) syncVitalsToSaveLocked() bool {
 	return true
 }
 
+// syncPoolsToSaveLocked rewrites a.save.Pools from the live pool.Set if a
+// pool's persisted current would change. Only NON-FULL pools (current <
+// max) are written — a full or zero-max pool is omitted so the login path
+// reseeds it full, keeping non-channeler saves clean (no `pools:` key).
+// Returns true if the save record actually changed. Caller MUST hold a.mu;
+// lives beside syncVitalsToSaveLocked (HP is in Vitals, the other pools
+// here) so the persist path has one read-pool → write-save touchpoint.
+func (a *connActor) syncPoolsToSaveLocked() bool {
+	if a.save == nil || a.pools == nil {
+		return false
+	}
+	var desired pool.Snapshot
+	for _, e := range a.pools.Snapshot() {
+		if e.Current < e.Max {
+			desired = append(desired, e)
+		}
+	}
+	if poolSnapshotsEqual(a.save.Pools, desired) {
+		return false
+	}
+	a.save.Pools = desired
+	return true
+}
+
+// poolSnapshotsEqual reports whether two pool snapshots carry the same
+// entries in the same order. Both come from pool.Set.Snapshot (sorted by
+// kind) or the filtered copy above (which preserves that order), so a
+// positional compare is sufficient — no need to sort or build a map.
+func poolSnapshotsEqual(a, b pool.Snapshot) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if a[i] != b[i] {
+			return false
+		}
+	}
+	return true
+}
+
 // snapshotSave produces an isolated copy of save suitable for a YAML
 // encode that may run after the actor lock is released. Strings/ints
 // copy by value; slices and maps need explicit duplication.
@@ -2436,6 +2482,14 @@ func snapshotSave(save *player.Save) player.Save {
 	if save.Vitals != nil {
 		v := *save.Vitals
 		out.Vitals = &v
+	}
+	if save.Pools != nil {
+		// pool.Entry is a flat value struct, so a shallow element copy is a
+		// full deep copy — duplicated so the persist path can rewrite
+		// a.save.Pools without racing the YAML encoder on this snapshot.
+		dup := make(pool.Snapshot, len(save.Pools))
+		copy(dup, save.Pools)
+		out.Pools = dup
 	}
 	if save.KnownFeats != nil {
 		// KnownFeat is a flat value struct, so a shallow element copy is a full
@@ -3397,11 +3451,12 @@ func (a *connActor) resourcePool(kind pool.Kind) (*pool.Pool, bool) {
 // fizzle until content grants a max (or a channeling pool is added): this
 // makes the substrate real, it does not change live numbers.
 //
-// NOTE: mana/movement are NOT yet persisted and NOT yet regenerated —
-// they reseed full each login. Wiring them into RegenTick + the player
-// save is the trigger for when content first grants a non-zero max (see
-// the alongside-pools deferred note); until something can drain them, a
-// reseed-on-login pool is behavior-equivalent to the old "always full".
+// Each pool is seeded FULL from its stat-derived max (binding OnMaxChange
+// so the ceiling tracks the stat), then any persisted current from the
+// save is applied on top via SetCurrent — so a character who logged out
+// mid-drain returns drained, while a full or unseeded pool defaults full.
+// The save persists only `current` (the max is re-derived here), so a
+// rebalanced max stat never needs a migration (player save §Pools, v21).
 func (a *connActor) seedResourcePools() {
 	if a.pools == nil {
 		a.pools = pool.NewSet()
@@ -3417,6 +3472,16 @@ func (a *connActor) seedResourcePools() {
 		p := pool.New(b.kind, a.statBlock.Effective(b.stat), pool.Rules{Floor: 0})
 		a.pools.Add(p)
 		a.statBlock.OnMaxChange(b.stat, func(_, newMax int) { p.SetMax(newMax) })
+	}
+	// Apply persisted currents AFTER seeding full + binding maxes. SetCurrent
+	// clamps to [floor, live max], so a stale persisted value (max shrank
+	// between sessions) is pulled into range rather than trusted blindly.
+	if a.save != nil {
+		for _, e := range a.save.Pools {
+			if p, ok := a.pools.Get(e.Kind); ok {
+				p.SetCurrent(e.Current)
+			}
+		}
 	}
 }
 

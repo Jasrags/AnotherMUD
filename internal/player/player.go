@@ -25,6 +25,7 @@ import (
 
 	"github.com/Jasrags/AnotherMUD/internal/logging"
 	"github.com/Jasrags/AnotherMUD/internal/persistence"
+	"github.com/Jasrags/AnotherMUD/internal/pool"
 	"github.com/Jasrags/AnotherMUD/internal/progression"
 	"github.com/Jasrags/AnotherMUD/internal/stats"
 )
@@ -126,7 +127,7 @@ import (
 // means "knows no recipes beyond what a discipline grants at runtime";
 // the migration injects nothing. A known id whose recipe was removed from
 // content loads cleanly and is ignored at restore (§9), never an error.
-const CurrentVersion = 20
+const CurrentVersion = 21
 
 // Sentinel errors callers may check via errors.Is.
 var (
@@ -309,6 +310,18 @@ type Save struct {
 	// no longer in content is ignored when its bonus is recomputed, never an
 	// error (fail-soft, like KnownRecipes).
 	KnownFeats []KnownFeat `yaml:"known_feats,omitempty"`
+
+	// Pools is the persisted current value of the actor's generalized
+	// resource pools — mana / movement today, the One Power tomorrow (WoT
+	// S2 Phase 0). Added in v21. Only pools that are NOT full at save time
+	// are written (current < max); a full or unseeded pool is omitted, so
+	// the login path reseeds it full from the stat-derived max. The
+	// persisted `max` is informational — restore re-derives the ceiling
+	// from stats and applies only `current`, so a rebalanced max stat never
+	// needs a migration. Empty/absent (the common case: HP is in Vitals,
+	// mana/movement default full) writes no `pools:` key and a pre-v21 save
+	// round-trips as "all pools full on login".
+	Pools pool.Snapshot `yaml:"pools,omitempty"`
 }
 
 // KnownFeat is one taken feat on a player save (EPIC S4 Phase 2 —
@@ -520,6 +533,7 @@ var playerMigrations = map[int]func(map[string]any) (map[string]any, error){
 	17: migrateV17toV18,
 	18: migrateV18toV19,
 	19: migrateV19toV20,
+	20: migrateV20toV21,
 }
 
 // migrateV1toV2 adds the empty inventory/equipment blocks introduced
@@ -803,6 +817,16 @@ func migrateV18toV19(in map[string]any) (map[string]any, error) {
 // correct default (a pre-feats character has earned nothing yet), so the
 // migration is a no-op. Banked credits begin accruing on the next level-up.
 func migrateV19toV20(in map[string]any) (map[string]any, error) {
+	return in, nil
+}
+
+// migrateV20toV21 introduces the `pools` block — the persisted current value
+// of the generalized resource pools (mana / movement; the One Power later, WoT
+// S2 Phase 0). A v20 save has no `pools` key; its absence decodes to an empty
+// snapshot, which the login path treats as "reseed every pool full from its
+// stat-derived max" — the correct default (a pre-pools character was always
+// reseeded full anyway), so the migration is a no-op.
+func migrateV20toV21(in map[string]any) (map[string]any, error) {
 	return in, nil
 }
 
