@@ -28,7 +28,9 @@ type scoreSubject interface {
 	Gold() int
 	Sustenance() int
 	Mana() int
+	ManaMax() int
 	Movement() int
+	MovementMax() int
 	StatValue(progression.StatType) int
 	Saves() progression.Saves
 }
@@ -47,7 +49,8 @@ func ScoreHandler(ctx context.Context, c *Context) error {
 		d.Class = titleCase(ss.ClassID())
 		d.Background = titleCase(ss.BackgroundID())
 		d.HasResources = true
-		d.Mana, d.MV = ss.Mana(), ss.Movement()
+		d.Mana, d.MaxMana = ss.Mana(), ss.ManaMax()
+		d.MV, d.MaxMV = ss.Movement(), ss.MovementMax()
 		d.HasStats = true
 		d.STR = ss.StatValue(progression.StatSTR)
 		d.INT = ss.StatValue(progression.StatINT)
@@ -168,10 +171,11 @@ type scoreData struct {
 	Race, Class string
 	Background  string
 
-	HasVitals    bool
-	HP, MaxHP    int
-	HasResources bool
-	Mana, MV     int
+	HasVitals     bool
+	HP, MaxHP     int
+	HasResources  bool
+	Mana, MaxMana int
+	MV, MaxMV     int
 
 	HasStats                      bool
 	STR, INT, WIS, DEX, CON, LUCK int
@@ -244,10 +248,10 @@ func renderScore(d scoreData) string {
 		)
 	}
 	if d.HasResources {
-		// MA/MV are thin pools today (current == max); shown as plain
-		// current/max with no bar until live pools land (BACKLOG §2).
-		combatCol = append(combatCol, scSub("MA")+" <mana>"+fmt.Sprintf("%d/%d", d.Mana, d.Mana)+
-			"</mana>    "+scSub("MV")+" <mv>"+fmt.Sprintf("%d/%d", d.MV, d.MV)+"</mv>")
+		// MA/MV are real pools (WoT S2): current/max like HP. Non-channelers
+		// show 0/0 (no resource_max), which is the honest reading.
+		combatCol = append(combatCol, scSub("MA")+" <mana>"+fmt.Sprintf("%d/%d", d.Mana, d.MaxMana)+
+			"</mana>    "+scSub("MV")+" <mv>"+fmt.Sprintf("%d/%d", d.MV, d.MaxMV)+"</mv>")
 	}
 	if d.HasSaves {
 		// Fortitude / Reflex / Will (saves §2). Compact so the row fits the

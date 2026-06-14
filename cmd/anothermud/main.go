@@ -1110,9 +1110,7 @@ func run() error {
 			// bump straight to the live mana pool. Fires once — this event
 			// never re-fires on relogin, where RestoreBase carries the value.
 			if cls, ok := registries.Classes.Get(classID); ok {
-				for stat, amount := range cls.StartingStats {
-					actor.StatBlock().AdjustBase(stat, amount)
-				}
+				actor.ApplyStartingStats(cls.StartingStats)
 			}
 		}
 		// A freshly created character starts with full resource pools: the

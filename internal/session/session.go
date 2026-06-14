@@ -3559,6 +3559,31 @@ func (a *connActor) DeductMana(amount int) {
 	}
 }
 
+// ApplyStartingStats adds each entry in m to the actor's base stats
+// (AdjustBase) and persists the change — the level-1 endowment a class
+// grants at creation (a channeler's resource_max One Power pool). It MUST
+// sync the base into the save itself: it runs from the character.created
+// subscriber, AFTER commitCreation already wrote the character and cleared
+// the dirty bit, and the general Persist path does NOT re-sync base stats
+// (only the equip/train/level-up mutators do, e.g. Equip). Without this the
+// endowment would live only in memory and vanish on relogin (the pool would
+// reseed to 0). Mirrors the Equip pattern: mutate, syncStats, markDirty.
+func (a *connActor) ApplyStartingStats(m map[progression.StatType]int) {
+	if len(m) == 0 {
+		return
+	}
+	// AdjustBase takes the stat block's own lock (not a.mu); the OnMaxChange
+	// listener wired in seedResourcePools fires here, moving a resource_max
+	// bump straight onto the live pool ceiling.
+	for stat, amount := range m {
+		a.statBlock.AdjustBase(stat, amount)
+	}
+	a.mu.Lock()
+	a.syncStatsToSaveLocked()
+	a.markDirtyLocked()
+	a.mu.Unlock()
+}
+
 // FillResourcePools sets every resource pool's current to its max. Called
 // once at character creation, after a class's StartingStats endows the pool
 // maxes (the channeler's One Power): SetMax raised the ceiling via

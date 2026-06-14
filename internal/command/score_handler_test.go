@@ -22,7 +22,9 @@ func (a *sheetActor) Alignment() int       { return 0 }
 func (a *sheetActor) AlignmentTag() string { return "alignment_neutral" } // raw tag id; sheet strips the prefix
 func (a *sheetActor) Gold() int            { return 1000 }
 func (a *sheetActor) Mana() int            { return 0 }
+func (a *sheetActor) ManaMax() int         { return 0 }
 func (a *sheetActor) Movement() int        { return 0 }
+func (a *sheetActor) MovementMax() int     { return 0 }
 func (a *sheetActor) StatValue(s progression.StatType) int {
 	return map[progression.StatType]int{
 		progression.StatSTR: 16, progression.StatINT: 10, progression.StatWIS: 12,
