@@ -865,22 +865,32 @@ func (m *Manager) RegenTick(ctx context.Context, sustSvc *economy.SustenanceServ
 	m.mu.RUnlock()
 
 	for _, a := range snapshot {
-		if a.vitals == nil || a.InCombat() {
-			continue
-		}
-		cur, max := a.vitals.Snapshot()
-		if cur <= 0 || cur >= max {
+		if a.InCombat() {
 			continue
 		}
 		sustMult := sustSvc.GetRegenMultiplier(a.Sustenance())
 		restMult := restSvc.GetRestMultiplier(economy.RestState(a.RestState()))
-		healingRate := 0
-		if room := a.Room(); room != nil {
-			healingRate = room.HealingRate
+
+		// HP — skipped when dead (revival is the death system's job) or
+		// already full; the room healing_rate adds only to HP (§5.7).
+		if a.vitals != nil {
+			if cur, max := a.vitals.Snapshot(); cur > 0 && cur < max {
+				healingRate := 0
+				if room := a.Room(); room != nil {
+					healingRate = room.HealingRate
+				}
+				if amount := economy.RegenAmount(cfg.BaseHP, sustMult, restMult, healingRate); amount > 0 {
+					a.vitals.Heal(amount)
+				}
+			}
 		}
-		if amount := economy.RegenAmount(cfg.BaseHP, sustMult, restMult, healingRate); amount > 0 {
-			a.vitals.Heal(amount)
-		}
+
+		// Resource pools regen independently of HP fullness — a full-HP
+		// channeler with drained Power must still refill. pool.Restore caps
+		// at max, so a full or zero-max pool (every non-channeler today)
+		// no-ops. The restored value rides to disk via Persist's pool sync.
+		a.regenPool(poolKindMana, economy.RegenAmount(cfg.BaseMana, sustMult, restMult, 0))
+		a.regenPool(poolKindMovement, economy.RegenAmount(cfg.BaseMovement, sustMult, restMult, 0))
 	}
 }
 

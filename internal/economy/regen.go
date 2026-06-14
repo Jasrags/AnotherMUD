@@ -20,6 +20,15 @@ type RegenConfig struct {
 	// awake tier (multiplier 1.0). Tiers and rest scale it; the room
 	// healing_rate adds to it.
 	BaseHP int
+	// BaseMana is the baseline mana / One-Power restored per regen tick
+	// at the awake tier. Deliberately slow (channeling should not be
+	// spammable, per the WoTMUD prior art); scaled by the same sustenance
+	// and rest multipliers as HP, but with no room healing_rate term (that
+	// is an HP-specific affordance). Zero-max pools (non-channelers) no-op.
+	BaseMana int
+	// BaseMovement is the baseline movement restored per regen tick at the
+	// awake tier, scaled like BaseMana.
+	BaseMovement int
 	// Cadence is the regen interval in engine ticks. The world-tick
 	// subscriber registers at this cadence.
 	Cadence uint64
@@ -28,9 +37,11 @@ type RegenConfig struct {
 // DefaultRegenConfig returns gentle out-of-combat regen: 2 HP every 100
 // ticks (10s at the default 100ms tick), so a full+awake player in a
 // plain room recovers 2 HP per cycle, a resting one 4, a sleeping one
-// 6, and a famished one nothing.
+// 6, and a famished one nothing. Mana regenerates slower (1/cycle — the
+// One Power should not refill faster than it is spent) and movement at
+// the HP rate.
 func DefaultRegenConfig() RegenConfig {
-	return RegenConfig{BaseHP: 2, Cadence: 100}
+	return RegenConfig{BaseHP: 2, BaseMana: 1, BaseMovement: 2, Cadence: 100}
 }
 
 // RegenAmount composes the per-tick heal (spec §4.3 × §5.5 + §5.7).

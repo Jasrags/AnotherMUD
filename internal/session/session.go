@@ -3543,6 +3543,19 @@ func (a *connActor) DeductMana(amount int) {
 	}
 }
 
+// regenPool restores amount to the named pool, capped at its max. The
+// owner-driven regen step (the pool itself has no clock); called by the
+// RegenTick heartbeat. No-op for a non-positive amount or an unseeded /
+// zero-max pool (pool.Restore caps at max, so a full pool absorbs nothing).
+func (a *connActor) regenPool(kind pool.Kind, amount int) {
+	if amount <= 0 {
+		return
+	}
+	if p, ok := a.resourcePool(kind); ok {
+		p.Restore(amount)
+	}
+}
+
 // SetLastAbility records the §4.5 step-2 "last ability used"
 // property. In-memory only (transient combat feedback, not durable
 // save state).
