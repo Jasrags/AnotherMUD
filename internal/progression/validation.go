@@ -102,6 +102,26 @@ type ValidationPipeline struct {
 	effects    EffectPresence
 	pulseDelay PulseDelayReader
 	targets    TargetLookup
+
+	// reserveMultiple is the §Power "reserve-to-begin" gate (WoT S2 /
+	// WoTMUD): a mana/spell ability requires the caller to HOLD this
+	// multiple of its cost before it may begin, even though only the cost
+	// itself is spent — a "you need headroom to channel safely" gate.
+	// Defaults to 1 (the historic Mana() >= cost check); a channeling
+	// ruleset sets 2 via SetReserveMultiple. Applies to the mana/spell
+	// resource only — movement abilities keep the plain cost gate.
+	reserveMultiple int
+}
+
+// SetReserveMultiple sets the spell-resource reserve-to-begin multiple
+// (WoT S2). A value < 1 is clamped to 1 (the no-op default). Mirrors the
+// resolver's SetSaveResolver: an optional knob set post-construction by the
+// composition root from ruleset config, leaving the constructor unchanged.
+func (p *ValidationPipeline) SetReserveMultiple(mult int) {
+	if mult < 1 {
+		mult = 1
+	}
+	p.reserveMultiple = mult
 }
 
 // ProficiencyReader is the read-only seam ValidationPipeline needs
@@ -143,11 +163,12 @@ func NewValidationPipeline(
 		targets = nopTargetLookup{}
 	}
 	return &ValidationPipeline{
-		abilities:  abilities,
-		proficient: proficient,
-		effects:    effects,
-		pulseDelay: pulseDelay,
-		targets:    targets,
+		abilities:       abilities,
+		proficient:      proficient,
+		effects:         effects,
+		pulseDelay:      pulseDelay,
+		targets:         targets,
+		reserveMultiple: 1, // no-op default; SetReserveMultiple opts in
 	}
 }
 
@@ -250,13 +271,20 @@ func (p *ValidationPipeline) Validate(source ValidationEntity, action QueuedActi
 		return ValidationResult{Reason: FizzlePulseDelay, Ability: ability}
 	}
 
-	// 9. Resource pool vs race-adjusted cost.
+	// 9. Resource pool vs race-adjusted cost. The mana/spell resource adds
+	// the reserve-to-begin gate (default multiple 1 = plain cost check):
+	// a channeler must HOLD reserveMultiple × cost to start, though only
+	// cost is spent. Movement abilities keep the plain cost gate.
 	if ability.Cost > 0 {
 		cost := AdjustCost(ability.Cost, source.Race())
 		if cost > 0 {
 			switch ResourceFor(ability) {
 			case ResourceMana:
-				if source.Mana() < cost {
+				mult := p.reserveMultiple
+				if mult < 1 {
+					mult = 1 // tolerate a zero-value pipeline (test fakes)
+				}
+				if source.Mana() < cost*mult {
 					return ValidationResult{Reason: FizzleInsufficientResources, Ability: ability}
 				}
 			default:

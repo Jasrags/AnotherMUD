@@ -1925,8 +1925,15 @@ func run() error {
 	abilityPipeline := progression.NewValidationPipeline(
 		registries.Abilities, proficiencyMgr, effectMgr, pulseDelayTracker, abilityTargets,
 	)
+	// WoT S2 channeling knobs (default off → fantasy behavior unchanged): the
+	// reserve-to-begin gate and spend-on-success. A channeling ruleset boot
+	// sets ANOTHERMUD_CHANNEL_RESERVE_MULTIPLE (e.g. 2) and
+	// ANOTHERMUD_SPEND_ON_SUCCESS=true; both apply server-wide.
+	resolutionCfg := progression.DefaultResolutionConfig()
+	resolutionCfg.SpendOnSuccess = envBoolOr("ANOTHERMUD_SPEND_ON_SUCCESS", false)
+	abilityPipeline.SetReserveMultiple(envIntOr("ANOTHERMUD_CHANNEL_RESERVE_MULTIPLE", 1))
 	abilityResolver := progression.NewAbilityResolver(
-		progression.DefaultResolutionConfig(),
+		resolutionCfg,
 		proficiencyMgr, // ProficiencyReader (hit chance + cap)
 		proficiencyMgr, // ProficiencyMutator (gain)
 		pulseDelayTracker,
@@ -2451,6 +2458,18 @@ func envIntOr(key string, def int) int {
 	if v, ok := os.LookupEnv(key); ok && v != "" {
 		if n, err := strconv.Atoi(strings.TrimSpace(v)); err == nil {
 			return n
+		}
+	}
+	return def
+}
+
+// envBoolOr reads a boolean env knob, falling back to def when unset or
+// unparseable. Accepts the strconv.ParseBool vocabulary (1/t/true/0/f/false,
+// case-insensitive).
+func envBoolOr(key string, def bool) bool {
+	if v, ok := os.LookupEnv(key); ok && v != "" {
+		if b, err := strconv.ParseBool(strings.TrimSpace(v)); err == nil {
+			return b
 		}
 	}
 	return def

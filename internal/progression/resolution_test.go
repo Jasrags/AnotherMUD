@@ -176,6 +176,65 @@ func TestResolve_SpellDeductsMana(t *testing.T) {
 	}
 }
 
+// SpendOnSuccess: a MISSED spell draws no mana (a fizzled weave costs tempo,
+// not Power) but last-used is still recorded (the attempt happened).
+func TestResolve_SpendOnSuccess_MissRefunds(t *testing.T) {
+	cfg := DefaultResolutionConfig()
+	cfg.SpendOnSuccess = true
+	roller := &seqRoller{t: t, seq: []int{99}} // prof-0 stub + Variance 50 → miss
+	r := NewAbilityResolver(cfg, newProfStub(), nil, nil, nil, nil, nil, roller)
+	ab := &Ability{ID: "fireball", Category: AbilitySpell, Cost: 12, Variance: 50}
+	src := &fakeSource{id: "p1", mana: 40}
+
+	out := r.Resolve(context.Background(), src, ab, "m1", 0)
+
+	if out.Hit {
+		t.Fatalf("fixture should miss")
+	}
+	if src.deductedMn != 0 || out.ResourceSpent != 0 {
+		t.Fatalf("missed weave must refund: deductedMn=%d spent=%d", src.deductedMn, out.ResourceSpent)
+	}
+	if src.lastUsed != "fireball" {
+		t.Fatalf("last-used still recorded on a missed weave, got %q", src.lastUsed)
+	}
+}
+
+// SpendOnSuccess: a HIT spell spends exactly its cost.
+func TestResolve_SpendOnSuccess_HitSpends(t *testing.T) {
+	cfg := DefaultResolutionConfig()
+	cfg.SpendOnSuccess = true
+	r := NewAbilityResolver(cfg, newProfStub(), nil, nil, nil, nil, nil, nil)
+	ab := &Ability{ID: "fireball", Category: AbilitySpell, Cost: 12} // Variance 0 → always hit
+	src := &fakeSource{id: "p1", mana: 40}
+
+	out := r.Resolve(context.Background(), src, ab, "m1", 0)
+
+	if !out.Hit {
+		t.Fatalf("Variance 0 should always hit")
+	}
+	if src.deductedMn != 12 || out.ResourceSpent != 12 {
+		t.Fatalf("hit weave must spend its cost: deductedMn=%d spent=%d", src.deductedMn, out.ResourceSpent)
+	}
+}
+
+// Default model (deduct-on-cast): a MISSED spell still draws mana — the
+// historic behavior the fantasy ruleset keeps.
+func TestResolve_DeductOnCast_MissStillSpends(t *testing.T) {
+	roller := &seqRoller{t: t, seq: []int{99}} // miss
+	r := NewAbilityResolver(DefaultResolutionConfig(), newProfStub(), nil, nil, nil, nil, nil, roller)
+	ab := &Ability{ID: "fireball", Category: AbilitySpell, Cost: 12, Variance: 50}
+	src := &fakeSource{id: "p1", mana: 40}
+
+	out := r.Resolve(context.Background(), src, ab, "m1", 0)
+
+	if out.Hit {
+		t.Fatalf("fixture should miss")
+	}
+	if src.deductedMn != 12 {
+		t.Fatalf("default model: a missed spell still spends, deductedMn=%d", src.deductedMn)
+	}
+}
+
 func TestResolve_RecordsLastUsedLowercased(t *testing.T) {
 	src := &fakeSource{id: "p1"}
 	r := NewAbilityResolver(DefaultResolutionConfig(), newProfStub(), nil, nil, nil, nil, nil, nil)

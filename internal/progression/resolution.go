@@ -112,6 +112,14 @@ type ResolutionConfig struct {
 	// to 100 (no cap). Spec §8 lists the hit-chance ceiling as
 	// configurable.
 	DefaultMaxHitChance int
+
+	// SpendOnSuccess defers the resource spend to a successful hit
+	// (WoT S2 / WoTMUD's channeling model): a missed or interrupted
+	// invocation costs tempo, not Power. Default false = the historic
+	// deduct-on-cast behavior (the resource is spent the moment the
+	// ability resolves, miss or hit), which the fantasy ruleset keeps.
+	// A channeling ruleset sets it true so a fizzled weave refunds.
+	SpendOnSuccess bool
 }
 
 // DefaultResolutionConfig returns the engine defaults: no hit-chance
@@ -240,29 +248,41 @@ func (r *AbilityResolver) Resolve(ctx context.Context, source ResolutionSource, 
 	abilityID := normalizeAbilityID(ability.ID)
 	out := ResolveOutcome{AbilityID: abilityID, ResolvedTarget: resolvedTarget}
 
-	// 1. Deduct resource (race-adjusted), skipped when cost is zero.
+	// 1. Resource spend (race-adjusted, skipped when cost is zero). The
+	// deduction is captured in a closure so the timing is config-driven:
+	// the default deduct-on-cast model spends here (miss or hit), while the
+	// SpendOnSuccess model defers the spend to a successful hit below — a
+	// missed/interrupted invocation then costs tempo, not Power (WoT S2).
+	var spendResource func()
 	if ability.Cost > 0 {
-		cost := AdjustCost(ability.Cost, source.Race())
-		if cost > 0 {
-			switch ResourceFor(ability) {
-			case ResourceMana:
-				source.DeductMana(cost)
-			default:
-				source.DeductMovement(cost)
+		if cost := AdjustCost(ability.Cost, source.Race()); cost > 0 {
+			resource := ResourceFor(ability)
+			spendResource = func() {
+				switch resource {
+				case ResourceMana:
+					source.DeductMana(cost)
+				default:
+					source.DeductMovement(cost)
+				}
+				out.ResourceSpent = cost
 			}
-			out.ResourceSpent = cost
 		}
 	}
+	if spendResource != nil && !r.cfg.SpendOnSuccess {
+		spendResource()
+	}
 
-	// 2. Record last-used.
+	// 2. Record last-used. (Unlike the resource, last-used applies on a
+	// miss in BOTH models — attempting the weave is what's recorded.)
 	source.SetLastAbility(abilityID)
 
 	// 3. Roll hit/miss. (Pulse delay is recorded AFTER the roll, on
 	// the hit branch only — spec §4.5's narrative lists the record as
 	// step 3, but the §4.8 acceptance criterion "pulse delay is
 	// recorded on success, not on miss or fizzle" is authoritative.
-	// Resource + last-used still apply on a miss; only the cooldown
-	// is success-gated.)
+	// In the default model the resource is already spent (step 1) so it
+	// applies on a miss too; under SpendOnSuccess it is spent only on the
+	// hit branch below. The cooldown is success-gated in both.)
 	hit := r.rollHit(entityID, abilityID, ability)
 	out.Hit = hit
 
@@ -285,7 +305,15 @@ func (r *AbilityResolver) Resolve(ctx context.Context, source ResolutionSource, 
 		return out
 	}
 
-	// 6. On hit: record pulse delay (next-ready = currentPulse +
+	// 6. On hit under the SpendOnSuccess model: NOW spend the resource (the
+	// cast completed). Deduct-on-cast already spent it in step 1, so this is
+	// a no-op there (spendResource is invoked exactly once across the two
+	// models).
+	if spendResource != nil && r.cfg.SpendOnSuccess {
+		spendResource()
+	}
+
+	// 6b. On hit: record pulse delay (next-ready = currentPulse +
 	// delay + 1, spec §4.5 step 3 / §4.8 success-gated).
 	if ability.PulseDelay > 0 && r.pulseDelay != nil {
 		r.pulseDelay.Record(entityID, abilityID, currentPulse+int64(ability.PulseDelay)+1)

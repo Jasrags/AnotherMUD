@@ -285,6 +285,55 @@ func TestValidate_InsufficientResources(t *testing.T) {
 	}
 }
 
+// The reserve-to-begin gate (WoT S2): a spell requires the caller to HOLD
+// reserveMultiple × cost to begin, though only cost is spent. Default
+// multiple 1 = the plain cost check; the gate applies to mana only.
+func TestValidate_ReserveToBeginGate(t *testing.T) {
+	spell := &progression.Ability{
+		ID: "weave", DisplayName: "Weave",
+		Type: progression.AbilityActive, Category: progression.AbilitySpell,
+		Cost: 20,
+	}
+
+	// Default multiple (1): exactly cost worth of mana passes.
+	p1, _, prof1, _, _, _ := buildPipeline(t, []*progression.Ability{spell})
+	prof1["ent-1"]["weave"] = true
+	if res := p1.Validate(&fakeEntity{id: "ent-1", mana: 20},
+		progression.QueuedAction{AbilityID: "weave"}, 1); res.Reason != progression.FizzleOK {
+		t.Fatalf("default multiple: 20 mana / cost 20 should pass, got %q", res.Reason)
+	}
+
+	// Reserve multiple 2: needs 40 to BEGIN even though only 20 is spent.
+	p2, _, prof2, _, _, _ := buildPipeline(t, []*progression.Ability{spell})
+	prof2["ent-1"]["weave"] = true
+	p2.SetReserveMultiple(2)
+	// 30 mana — can pay, but lacks the headroom → fizzle.
+	if res := p2.Validate(&fakeEntity{id: "ent-1", mana: 30},
+		progression.QueuedAction{AbilityID: "weave"}, 1); res.Reason != progression.FizzleInsufficientResources {
+		t.Fatalf("reserve 2×: 30 mana / cost 20 should fizzle (need 40), got %q", res.Reason)
+	}
+	// 40 mana — meets the reserve.
+	if res := p2.Validate(&fakeEntity{id: "ent-1", mana: 40},
+		progression.QueuedAction{AbilityID: "weave"}, 1); res.Reason != progression.FizzleOK {
+		t.Fatalf("reserve 2×: 40 mana / cost 20 should pass, got %q", res.Reason)
+	}
+
+	// The reserve multiple does NOT gate movement abilities — cost worth of
+	// movement still passes under a 2× reserve.
+	skill := &progression.Ability{
+		ID: "kick", DisplayName: "Kick",
+		Type: progression.AbilityActive, Category: progression.AbilitySkill,
+		Cost: 20,
+	}
+	p3, _, prof3, _, _, _ := buildPipeline(t, []*progression.Ability{skill})
+	prof3["ent-1"]["kick"] = true
+	p3.SetReserveMultiple(2)
+	if res := p3.Validate(&fakeEntity{id: "ent-1", inCombat: true, hasTarget: true, target: "mob-1", movement: 20},
+		progression.QueuedAction{AbilityID: "kick"}, 1); res.Reason != progression.FizzleOK {
+		t.Fatalf("movement ability ignores reserve: 20 mv / cost 20 should pass, got %q", res.Reason)
+	}
+}
+
 func TestValidate_HappyPath(t *testing.T) {
 	ability := &progression.Ability{
 		ID: "kick", DisplayName: "Kick",
