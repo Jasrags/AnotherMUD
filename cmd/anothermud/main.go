@@ -2009,6 +2009,13 @@ func run() error {
 		}
 		if tpl, ok := registries.Effects.Get(effectID); ok {
 			effectMgr.Apply(ctx, entityID, tpl, entityID, "overchannel")
+		} else {
+			// The cascade message implies a mechanical bite; if the content
+			// pack is missing the effect the player would be misled into
+			// thinking nothing happened. Surface it rather than swallow.
+			logging.From(ctx).Warn("overchannel cascade effect missing from content",
+				slog.String("event", "overchannel.cascade_missing"),
+				slog.String("effect_id", effectID), slog.String("entity_id", entityID))
 		}
 		_ = actor.Write(ctx, msg)
 	}
