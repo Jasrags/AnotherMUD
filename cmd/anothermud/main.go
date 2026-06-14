@@ -2078,6 +2078,9 @@ func run() error {
 	// now that the tracker + notifier exist.
 	combatSink.casts = castTracker
 	combatSink.castNotify = castNotifier
+	combatSink.incapacitated = func(bareID string) bool {
+		return conditionImpact(bareID).Incapacitated
+	}
 
 	// Slice 3: moving rooms also disrupts a weave — you can't walk (or be
 	// teleported/recalled) away mid-channel and keep the weave. Reuses the
@@ -2092,6 +2095,18 @@ func run() error {
 			return
 		}
 		combatSink.interruptCast(ctx, combat.NewPlayerCombatantID(e.PlayerID), "moved")
+	})
+
+	// Slice 3: being incapacitated (stunned) mid-weave drops it — a control
+	// weave like bonds-of-air deals no damage, so the hit path never sees it;
+	// this effect-apply seam catches the disable. onEffectApplied gates on the
+	// post-apply condition state, so only an incapacitating effect interrupts.
+	bus.Subscribe(eventbus.EventEffectApplied, func(ctx context.Context, ev eventbus.Event) {
+		e, ok := ev.(eventbus.EffectApplied)
+		if !ok {
+			return
+		}
+		combatSink.onEffectApplied(ctx, e.EntityID)
 	})
 
 	combatHeartbeat := combat.NewHeartbeat(combatMgr, combat.Phases{
@@ -3229,6 +3244,10 @@ type productionCombatSink struct {
 	// after construction once the tracker + notifier exist.
 	casts      *progression.CastTracker
 	castNotify progression.CastNotifier
+	// incapacitated reports whether an entity is currently too disabled to act
+	// (stunned). onEffectApplied uses it to break a weave when an incapacitating
+	// condition lands. nil ⇒ the stun-interrupt path is inert.
+	incapacitated func(bareID string) bool
 }
 
 // tell sends msg to the combatant if it is an online player (M10 combat
@@ -3346,6 +3365,20 @@ func (s *productionCombatSink) interruptCast(ctx context.Context, victimCID comb
 		AbilityName: cast.AbilityName,
 		Cause:       cause,
 	})
+}
+
+// onEffectApplied breaks entityID's in-flight weave when the just-applied
+// condition leaves them incapacitated (WoT S2 interrupt game, slice 3). The
+// rule is principled rather than a hand-listed set: a condition that stops you
+// ACTING (stunned) drops your weave; one that merely hampers you (blinded,
+// frightened, fatigued) does not — so any future incapacitating condition
+// interrupts automatically. interruptCast no-ops when entityID isn't casting,
+// so this is safe to call for every effect application.
+func (s *productionCombatSink) onEffectApplied(ctx context.Context, entityID string) {
+	if s.incapacitated == nil || !s.incapacitated(entityID) {
+		return
+	}
+	s.interruptCast(ctx, combat.NewPlayerCombatantID(entityID), "stunned")
 }
 
 func (s *productionCombatSink) OnMiss(ctx context.Context, e combat.Miss) {

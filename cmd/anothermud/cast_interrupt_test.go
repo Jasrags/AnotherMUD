@@ -98,6 +98,55 @@ func TestCombatSink_OnHitNonCasterNoOp(t *testing.T) {
 	}
 }
 
+// An incapacitating condition landing on a mid-cast entity drops the weave
+// (cause "stunned"); a non-incapacitating one leaves it channeling.
+func TestCombatSink_OnEffectAppliedInterruptsWhenIncapacitated(t *testing.T) {
+	cases := []struct {
+		name          string
+		incapacitated bool
+		wantInterrupt bool
+	}{
+		{"stunned breaks the weave", true, true},
+		{"a non-incapacitating condition does not", false, false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			casts := progression.NewCastTracker()
+			notify := &recordingCastNotifier{}
+			sink := newInterruptSink(casts, notify)
+			sink.incapacitated = func(string) bool { return tc.incapacitated }
+
+			casts.Begin("alice", progression.Cast{AbilityID: "firebolt", AbilityName: "Firebolt", Remaining: 2})
+			sink.onEffectApplied(context.Background(), "alice")
+
+			if casts.IsCasting("alice") == tc.wantInterrupt {
+				t.Fatalf("incapacitated=%v: IsCasting=%v, wantInterrupt=%v", tc.incapacitated, casts.IsCasting("alice"), tc.wantInterrupt)
+			}
+			if tc.wantInterrupt {
+				if len(notify.interrupted) != 1 || notify.interrupted[0].Cause != "stunned" {
+					t.Fatalf("want one interrupt with cause \"stunned\", got %+v", notify.interrupted)
+				}
+			} else if len(notify.interrupted) != 0 {
+				t.Fatalf("no interrupt expected, got %+v", notify.interrupted)
+			}
+		})
+	}
+}
+
+// With no incapacitation predicate wired the stun-interrupt path is inert.
+func TestCombatSink_OnEffectAppliedNilPredicateNoOp(t *testing.T) {
+	casts := progression.NewCastTracker()
+	notify := &recordingCastNotifier{}
+	sink := newInterruptSink(casts, notify) // incapacitated left nil
+	casts.Begin("alice", progression.Cast{AbilityID: "firebolt", AbilityName: "Firebolt", Remaining: 2})
+
+	sink.onEffectApplied(context.Background(), "alice")
+
+	if !casts.IsCasting("alice") {
+		t.Fatal("a nil incapacitation predicate must not interrupt")
+	}
+}
+
 // The caster who LANDS a hit (attacker) is not the one interrupted — only the
 // victim's cast is at risk. A mid-cast attacker keeps weaving (their own swing
 // shouldn't disrupt them).
