@@ -1,0 +1,19 @@
+id: one-power
+name: The One Power
+# The channeler's advancement track (WoT S2). Same triangular XP curve as the
+# core adventurer track — channelers level at the same pace; the One Power is
+# expressed through the class's stat growth + weaves, not a faster curve.
+max_level: 10
+xp_table:
+  - 0
+  - 0
+  - 100
+  - 300
+  - 600
+  - 1000
+  - 1500
+  - 2100
+  - 2800
+  - 3600
+  - 4500
+death_penalty: 0.0

@@ -268,6 +268,17 @@ func (p *Pool) Restore(amount int) int {
 	return p.current
 }
 
+// Refill sets Current to Max in one lock acquisition — "restore to full".
+// Used at character creation, where a pool whose max was just raised from
+// 0 (a fresh channeler's One Power endowment) must also fill its current;
+// SetMax deliberately does NOT raise current (level-up semantics), so the
+// fill is an explicit, separate step.
+func (p *Pool) Refill() {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	p.current = p.max
+}
+
 // SetCurrent writes Current to an explicit value, clamped to [Floor, Max]
 // in one lock acquisition (the admin `set vital` write). Returns the new
 // Current.

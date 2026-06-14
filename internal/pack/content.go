@@ -372,6 +372,10 @@ type ClassFile struct {
 	BoundTrack            string               `yaml:"bound_track,omitempty"`
 	StatGrowth            map[string]string    `yaml:"stat_growth,omitempty"`
 	GrowthBonuses         map[string]string    `yaml:"growth_bonuses,omitempty"`
+	// StartingStats is a flat base-stat grant applied once at character
+	// creation (e.g. a channeler's `resource_max: 30` One Power pool). Values
+	// are plain ints, not dice — StatGrowth covers per-level-up dice.
+	StartingStats         map[string]int       `yaml:"starting_stats,omitempty"`
 	Path                  []ClassPathEntryFile `yaml:"path,omitempty"`
 	TrainsPerLevel        int                  `yaml:"trains_per_level,omitempty"`
 	AllowedCategories     []string             `yaml:"allowed_categories,omitempty"`

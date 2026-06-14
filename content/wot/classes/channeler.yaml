@@ -1,0 +1,59 @@
+id: channeler
+name: Channeler
+tagline: One who wields the One Power, drawing saidin or saidar.
+description: |
+  A channeler reaches out to the True Source and draws the One Power —
+  saidin for men, saidar for women — weaving the Five Powers into effects
+  the untrained cannot dream of. The gift is rare and perilous: a weave
+  costs Power that must be held in reserve before it can be safely begun,
+  and a channeler who overreaches risks far worse than failure.
+level_up_flavor: |
+  The flows come a little more readily. Your reach into the Source deepens.
+
+# Bound to the one-power track: stat growth + path weaves fire on every
+# one-power level-up (WoT S2). XP earned channeling advances this track.
+bound_track: one-power
+
+# WoT S2 Phase 1: the level-1 endowment that gives a channeler an actual
+# One Power pool. DefaultPlayerBase leaves resource_max at 0 (non-channelers
+# have no pool); this flat grant is applied once at creation via AdjustBase
+# and persists in the base snapshot. The session's mana pool seeds from it.
+starting_stats:
+  resource_max: 30
+
+# Per-level-up growth. hp_max grows slowly (channelers are not front-line
+# soldiers); resource_max deepens the pool, scaled by the channeler's mental
+# discipline (WIS modifier added to the roll via growth_bonuses).
+stat_growth:
+  hp_max: 1d6
+  resource_max: 1d4
+
+growth_bonuses:
+  resource_max: wis
+
+trains_per_level: 5
+
+# Class path. Phase 1 grants the core heal spell as the first castable weave
+# so the channeling loop (draw Power → weave → Power drains → effect) is live
+# end to end; WoT-flavored weaves (a damage weave, a light, a save-gated
+# control) land as Phase 1b content alongside it.
+path:
+  - level: 1
+    ability: heal
+
+# Saving throws (saves §2). The channeler's discipline is mental: a strong
+# Will save, weak Fortitude and Reflex.
+save_progressions:
+  will: strong
+  fortitude: weak
+  reflex: weak
+
+# Eligibility — humanoid races. Both genders channel (the saidin/saidar split
+# is affinity, not eligibility); the gender→affinity assignment is a later
+# slice, so no allowed_genders restriction here yet.
+allowed_categories:
+  - humanoid
+
+starting_alignment: 0
+
+priority: 0

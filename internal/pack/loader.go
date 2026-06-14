@@ -2055,6 +2055,17 @@ func decodeClass(path, ns string) (*progression.Class, error) {
 			bonuses[progression.StatType(key)] = progression.StatType(src)
 		}
 	}
+	var startingStats map[progression.StatType]int
+	if len(f.StartingStats) > 0 {
+		startingStats = make(map[progression.StatType]int, len(f.StartingStats))
+		for k, v := range f.StartingStats {
+			key := strings.ToLower(strings.TrimSpace(k))
+			if key == "" {
+				return nil, fmt.Errorf("%w: %s: starting_stats has empty key", ErrInvalidContent, path)
+			}
+			startingStats[progression.StatType(key)] = v
+		}
+	}
 	var path2 []progression.ClassPathEntry
 	if len(f.Path) > 0 {
 		path2 = make([]progression.ClassPathEntry, 0, len(f.Path))
@@ -2111,6 +2122,7 @@ func decodeClass(path, ns string) (*progression.Class, error) {
 		BoundTrack:            strings.TrimSpace(f.BoundTrack),
 		StatGrowth:            growth,
 		GrowthBonuses:         bonuses,
+		StartingStats:         startingStats,
 		Path:                  path2,
 		TrainsPerLevel:        trains,
 		AllowedCategories:     append([]string(nil), f.AllowedCategories...),

@@ -3559,6 +3559,18 @@ func (a *connActor) DeductMana(amount int) {
 	}
 }
 
+// FillResourcePools sets every resource pool's current to its max. Called
+// once at character creation, after a class's StartingStats endows the pool
+// maxes (the channeler's One Power): SetMax raised the ceiling via
+// OnMaxChange but left current at 0, so a fresh pool would otherwise begin
+// empty. Relogin doesn't need this — RestoreBase sets the max before
+// seedResourcePools, which then seeds current full (or from the save).
+func (a *connActor) FillResourcePools() {
+	if a.pools != nil {
+		a.pools.Fill()
+	}
+}
+
 // regenPool restores amount to the named pool, capped at its max. The
 // owner-driven regen step (the pool itself has no clock); called by the
 // RegenTick heartbeat. No-op for a non-positive amount or an unseeded /

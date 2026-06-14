@@ -32,6 +32,17 @@ func (s *Set) Add(p *Pool) {
 	s.pools[p.kind] = p
 }
 
+// Fill restores every pool in the set to its max (Pool.Refill). The
+// "start full" used once at character creation after a pool's max is
+// endowed; a no-op for pools already at max or with a zero max.
+func (s *Set) Fill() {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	for _, p := range s.pools {
+		p.Refill()
+	}
+}
+
 // Get returns the pool of the given kind and whether it exists.
 func (s *Set) Get(k Kind) (*Pool, bool) {
 	s.mu.RLock()

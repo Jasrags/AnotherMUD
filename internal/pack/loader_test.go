@@ -1219,6 +1219,59 @@ allowed_categories:
 	}
 }
 
+// WoT S2 Phase 1: a class's starting_stats decode into a flat level-1
+// base-stat grant (the channeler's resource_max One Power pool), with the
+// stat key lowercased like stat_growth.
+func TestLoadClasses_StartingStats(t *testing.T) {
+	root := t.TempDir()
+	pack := filepath.Join(root, "core")
+	writeFile(t, filepath.Join(pack, "pack.yaml"), `
+name: tapestry-core
+content:
+  classes: [classes/*.yaml]
+`)
+	writeFile(t, filepath.Join(pack, "classes/channeler.yaml"), `
+id: channeler
+name: Channeler
+bound_track: one-power
+starting_stats:
+  RESOURCE_MAX: 30
+`)
+
+	regs := NewRegistries()
+	if err := Load(context.Background(), root, nil, regs, nil, nil, nil); err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	c, ok := regs.Classes.Get("channeler")
+	if !ok {
+		t.Fatal("class channeler not registered")
+	}
+	if v, ok := c.StartingStats["resource_max"]; !ok || v != 30 {
+		t.Errorf("StartingStats[resource_max] = %d (ok=%v), want 30 (key lowercased)", v, ok)
+	}
+}
+
+// An empty starting_stats key is an authoring error, not a silent skip.
+func TestLoadClassesRejectsEmptyStartingStatKey(t *testing.T) {
+	root := t.TempDir()
+	pack := filepath.Join(root, "core")
+	writeFile(t, filepath.Join(pack, "pack.yaml"), `
+name: tapestry-core
+content:
+  classes: [classes/*.yaml]
+`)
+	writeFile(t, filepath.Join(pack, "classes/bad.yaml"), `
+id: bad
+name: Bad
+starting_stats:
+  "": 5
+`)
+	regs := NewRegistries()
+	if err := Load(context.Background(), root, nil, regs, nil, nil, nil); err == nil {
+		t.Fatal("Load: want error for empty starting_stats key, got nil")
+	}
+}
+
 // Weapon-identity §3: a class declares the weapon proficiency tiers and
 // categories it grants; both are lowercased at registration.
 func TestLoadClasses_ProficiencyGrants(t *testing.T) {

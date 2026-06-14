@@ -269,3 +269,18 @@ func TestPool_ConcurrentMixedOps(t *testing.T) {
 		t.Fatalf("current %d out of range [0, %d] after concurrent ops", cur, max)
 	}
 }
+
+// Refill sets current to max in one step — used at character creation, where
+// SetMax raised the ceiling (0→N) without touching current.
+func TestPool_Refill(t *testing.T) {
+	p := NewAt(Kind("mana"), 0, 30, Rules{Floor: 0})
+	p.Refill()
+	if c := p.Current(); c != 30 {
+		t.Fatalf("Current after Refill = %d; want 30", c)
+	}
+	// Refill on a full pool is a no-op (stays at max).
+	p.Refill()
+	if c := p.Current(); c != 30 {
+		t.Fatalf("Current after second Refill = %d; want 30", c)
+	}
+}

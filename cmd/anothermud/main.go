@@ -1102,7 +1102,23 @@ func run() error {
 			// with no track gate. Pass empty trackName so Apply
 			// short-circuits the gate check.
 			classPath.Apply(ctx, e.EntityID, classID, "", 1)
+			// WoT S2 Phase 1: a flat level-1 base-stat endowment (the
+			// channeler's resource_max One Power pool). Applied additively
+			// via AdjustBase so it composes across a multiclass character;
+			// it persists into the base snapshot and the OnMaxChange listener
+			// (wired in seedResourcePools at login) propagates a resource_max
+			// bump straight to the live mana pool. Fires once — this event
+			// never re-fires on relogin, where RestoreBase carries the value.
+			if cls, ok := registries.Classes.Get(classID); ok {
+				for stat, amount := range cls.StartingStats {
+					actor.StatBlock().AdjustBase(stat, amount)
+				}
+			}
 		}
+		// A freshly created character starts with full resource pools: the
+		// StartingStats above raised a channeler's resource_max via OnMaxChange,
+		// but SetMax leaves current at 0 (level-up semantics), so fill once here.
+		actor.FillResourcePools()
 		// backgrounds §4: grant the chosen background's starting package once.
 		if bgID := actor.BackgroundID(); bgID != "" {
 			if bg, ok := registries.Backgrounds.Get(bgID); ok {

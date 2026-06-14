@@ -58,6 +58,15 @@ type Class struct {
 	// growth (§4.1 / §4.6 step 3 second bullet).
 	GrowthBonuses map[StatType]StatType
 
+	// StartingStats is a flat base-stat grant applied ONCE at character
+	// creation (added to the base via AdjustBase, so it composes additively
+	// across a multiclass character). Unlike StatGrowth (dice rolled on each
+	// level-up) this is a deterministic level-1 endowment — the mechanism a
+	// channeler uses to begin with a non-zero resource_max (its One Power
+	// pool capacity), which DefaultPlayerBase leaves at 0. Persisted into
+	// the base snapshot, so it survives relogin without re-applying.
+	StartingStats map[StatType]int
+
 	// Path is the (level, abilityId, unlockedVia) list (§4.1). Path
 	// entries with non-empty UnlockedVia are skipped by the
 	// processor; the field exists so content can declare which
@@ -163,6 +172,13 @@ func (cr *ClassRegistry) Register(c *Class) error {
 			b[StatType(strings.ToLower(string(k)))] = StatType(strings.ToLower(string(v)))
 		}
 		clone.GrowthBonuses = b
+	}
+	if len(c.StartingStats) > 0 {
+		s := make(map[StatType]int, len(c.StartingStats))
+		for k, v := range c.StartingStats {
+			s[StatType(strings.ToLower(string(k)))] = v
+		}
+		clone.StartingStats = s
 	}
 	if len(c.Path) > 0 {
 		p := make([]ClassPathEntry, len(c.Path))

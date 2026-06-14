@@ -133,3 +133,23 @@ func TestSet_EmptySnapshotIsNil(t *testing.T) {
 		t.Fatalf("empty set snapshot = %+v; want nil", s)
 	}
 }
+
+// Fill restores every pool to its max — the "start full" used at character
+// creation after a pool's max is endowed. A pool whose max was raised from
+// 0 (a fresh channeler) but whose current stayed 0 ends full.
+func TestSet_Fill(t *testing.T) {
+	s := NewSet()
+	drained := NewAt(Kind("mana"), 0, 30, Rules{Floor: 0}) // max raised, current 0
+	half := NewAt(Kind("movement"), 5, 20, Rules{Floor: 0})
+	s.Add(drained)
+	s.Add(half)
+
+	s.Fill()
+
+	if c := drained.Current(); c != 30 {
+		t.Fatalf("mana after Fill = %d; want 30 (full)", c)
+	}
+	if c := half.Current(); c != 20 {
+		t.Fatalf("movement after Fill = %d; want 20 (full)", c)
+	}
+}

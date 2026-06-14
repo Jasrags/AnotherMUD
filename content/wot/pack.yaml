@@ -16,6 +16,10 @@ description: |
 dependencies:
   tapestry-core: "*"
 content:
+  tracks:
+    - tracks/*.yaml
+  classes:
+    - classes/*.yaml
   areas:
     - areas/*.yaml
   rooms:
