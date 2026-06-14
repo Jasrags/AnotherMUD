@@ -68,32 +68,24 @@ func (a *connActor) flushPrompt(ctx context.Context) error {
 }
 
 // promptVitals snapshots the values the prompt tokens read. HP comes
-// from the combat Vitals; mana/movement report their max stats (thin
-// pools — no current-pool tracking until M11, so current == max). Gold
-// is 0 until economy-survival (M11) adds currency.
+// from the combat Vitals; mana/movement report their live pool current
+// and max separately (real pools landed with the generalized-pool
+// substrate). Gold is 0 until economy-survival (M11) adds currency.
 func (a *connActor) promptVitals() render.PromptVitals {
 	var hp, maxHP int
 	if a.vitals != nil {
 		hp, maxHP = a.vitals.Snapshot()
 	}
-	// statBlock is always set in production (actor construction); guard
-	// nil so the prompt path doesn't panic on minimal test actors.
-	var mana, mv int
-	if a.statBlock != nil {
-		mana = a.Mana()
-		mv = a.Movement()
-	}
-	// Thin pools (M9.4b): no current-pool tracking yet, so current ==
-	// max for mana/movement. When economy-survival (M11) adds real
-	// current pools + regen, Mana/Movement become the CURRENT values and
-	// MaxMana/MaxMV must switch to the resource_max / movement_max stats.
+	// The pool accessors are nil-safe (return 0 for bare test actors that
+	// never seeded a pool.Set); they read the live current/max so a drained
+	// pool shows current < max instead of the old current == max stub.
 	return render.PromptVitals{
 		HP:      hp,
 		MaxHP:   maxHP,
-		Mana:    mana,
-		MaxMana: mana,
-		MV:      mv,
-		MaxMV:   mv,
+		Mana:    a.Mana(),
+		MaxMana: a.ManaMax(),
+		MV:      a.Movement(),
+		MaxMV:   a.MovementMax(),
 		Gold:    0,
 	}
 }

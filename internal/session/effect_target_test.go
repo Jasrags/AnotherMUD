@@ -69,6 +69,23 @@ func TestConnActor_ResourcePoolDeduction(t *testing.T) {
 	if mn := a.Mana(); mn != 5 {
 		t.Fatalf("after DeductMana(10) = %d; want 5", mn)
 	}
+	// Max accessors report the ceiling, unchanged by spending — the
+	// prompt needs current/max separately, not current/current.
+	if mx := a.ManaMax(); mx != 15 {
+		t.Fatalf("ManaMax = %d; want 15 (unchanged by spend)", mx)
+	}
+	if mx := a.MovementMax(); mx != 20 {
+		t.Fatalf("MovementMax = %d; want 20 (unchanged by spend)", mx)
+	}
+	// promptVitals surfaces the drained current against the full max
+	// (the old stub reported MaxMana == current).
+	pv := a.promptVitals()
+	if pv.Mana != 5 || pv.MaxMana != 15 {
+		t.Fatalf("promptVitals mana = %d/%d; want 5/15", pv.Mana, pv.MaxMana)
+	}
+	if pv.MV != 15 || pv.MaxMV != 20 {
+		t.Fatalf("promptVitals mv = %d/%d; want 15/20", pv.MV, pv.MaxMV)
+	}
 	// Over-spend floors at zero, never negative.
 	a.DeductMovement(1000)
 	if mv := a.Movement(); mv != 0 {

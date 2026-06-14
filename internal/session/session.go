@@ -3438,6 +3438,25 @@ func (a *connActor) Mana() int {
 	return 0
 }
 
+// ManaMax returns the actor's mana pool ceiling (0 when no pool is
+// seeded). Distinct from Mana(): with real pools the prompt must show
+// current/max separately, not current/current.
+func (a *connActor) ManaMax() int {
+	if p, ok := a.resourcePool(poolKindMana); ok {
+		return p.Max()
+	}
+	return 0
+}
+
+// MovementMax returns the actor's movement pool ceiling (0 when no pool
+// is seeded). See ManaMax for why this is distinct from Movement().
+func (a *connActor) MovementMax() int {
+	if p, ok := a.resourcePool(poolKindMovement); ok {
+		return p.Max()
+	}
+	return 0
+}
+
 // Race returns the actor's resolved race for §4.7 cost adjustment.
 // nil when raceless; AdjustCost handles the nil case.
 func (a *connActor) Race() *progression.Race { return a.race }
