@@ -160,11 +160,15 @@ func (d *AbilityPhaseDriver) run(ctx context.Context, combatantID combat.Combata
 		}
 
 		// §4.2 step 3: valid → resolve + drop + stop.
-		d.resolver.Resolve(ctx, source, result.Ability, result.ResolvedTarget, currentPulse)
-		// WoT S2: a deliberate overdraw resolved — exact the consequence
-		// (Fortitude save + cascade) AFTER the weave's own effects landed and
-		// the pool was spent. The deficit was captured pre-spend by validation.
-		if result.Overchannel && d.overchannel != nil {
+		outcome := d.resolver.Resolve(ctx, source, result.Ability, result.ResolvedTarget, currentPulse)
+		// WoT S2: a deliberate overdraw exacts the consequence (Fortitude save
+		// + cascade) AFTER the weave's own effects landed — but ONLY when the
+		// Power was actually drawn past the reserve (ResourceSpent > 0). That
+		// keeps the two spend models coherent: under deduct-on-cast a miss
+		// still drew the Power (risk applies), while under spend-on-success a
+		// missed weave drew nothing — it cost tempo, not Power, so it carries
+		// no stilling risk. The deficit was captured pre-spend by validation.
+		if result.Overchannel && d.overchannel != nil && outcome.ResourceSpent > 0 {
 			d.overchannel(ctx, entityID, result.Ability.ID, result.OverchannelDeficit)
 		}
 		d.queue.Pop(entityID)

@@ -102,6 +102,43 @@ func TestDriver_OverchannelHandlerFires(t *testing.T) {
 	}
 }
 
+// Under SpendOnSuccess, an overchanneled weave that MISSES draws no Power, so
+// it carries no overchannel consequence — the handler must not fire (a miss
+// cost tempo, not Power). Gated on ResolveOutcome.ResourceSpent > 0.
+func TestDriver_OverchannelSkippedWhenMissDrewNothing(t *testing.T) {
+	reg := NewAbilityRegistry()
+	// variance > 0 so the roll can miss; prof 1 + high roll → miss.
+	weave := &Ability{ID: "weave", DisplayName: "Weave", Type: AbilityActive, Category: AbilitySpell, Cost: 20, Variance: 50}
+	if err := reg.Register(weave); err != nil {
+		t.Fatalf("register: %v", err)
+	}
+	prof := newProfStub()
+	prof.vals["weave"] = 1
+	queue := NewActionQueueManager(ActionQueueConfig{})
+	pipeline := NewValidationPipeline(reg, prof, nil, nil, nil)
+	cfg := DefaultResolutionConfig()
+	cfg.SpendOnSuccess = true
+	roller := &seqRoller{t: t, seq: []int{99}} // forces a miss
+	resolver := NewAbilityResolver(cfg, prof, nil, nil, nil, nil, &recordingSink{}, roller)
+	src := &fakeSource{id: "p1", mana: 8} // below the 20 threshold → overchannel
+	lookup := ResolutionSourceLookupFunc(func(id string) (ResolutionSource, bool) {
+		return src, id == "player:p1"
+	})
+	calls := 0
+	phase := NewAbilityPhaseDriver(queue, pipeline, resolver, lookup, &recordingSink{},
+		func(context.Context, string, string, int) { calls++ })
+
+	queue.Push("p1", QueuedAction{AbilityID: "weave", Overchannel: true})
+	phase(context.Background(), "player:p1", nil, 0)
+
+	if calls != 0 {
+		t.Fatalf("overchannel handler fired on a spend-on-success miss (no Power drawn); calls=%d want 0", calls)
+	}
+	if src.deductedMn != 0 {
+		t.Fatalf("spend-on-success miss must draw no mana; deductedMn=%d", src.deductedMn)
+	}
+}
+
 func TestDriver_EmptyQueueNoOp(t *testing.T) {
 	rig := newDriverRig(t, &fakeSource{id: "p1"}, []string{"heal"}, selfSpell("heal"))
 	rig.phase(context.Background(), "player:p1", nil, 0)

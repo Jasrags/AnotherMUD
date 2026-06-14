@@ -2496,6 +2496,16 @@ func snapshotSave(save *player.Save) player.Save {
 		copy(dup, save.Pools)
 		out.Pools = dup
 	}
+	if save.StatsBase != nil {
+		// BaseEntry is a flat value struct (no pointer fields), so a shallow
+		// element copy is a full deep copy. syncStatsToSaveLocked reassigns
+		// a.save.StatsBase wholesale today (no in-place append), so this is
+		// belt-and-suspenders — but it matches every sibling field above so a
+		// future in-place mutation can't tear the async YAML encode.
+		dup := make(progression.BaseSnapshot, len(save.StatsBase))
+		copy(dup, save.StatsBase)
+		out.StatsBase = dup
+	}
 	if save.KnownFeats != nil {
 		// KnownFeat is a flat value struct, so a shallow element copy is a full
 		// deep copy. Snapshotted here (EPIC S4 Phase 2) so the Phase-4 spend
