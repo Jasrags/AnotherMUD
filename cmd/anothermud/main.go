@@ -1822,6 +1822,25 @@ func run() error {
 		return nil, "", false
 	}
 
+	// WoT S2 Phase 3 — affinity potency. A channeler weaving a spell whose
+	// Five-Power elements lie outside their gender-derived affinity does so at
+	// reduced magnitude (soft scaling, never a hard gate). Inert outside the
+	// WoT pack: an ability with no `elements` (every starter-world ability)
+	// returns 1.0, as does a caster with no gender. The weak factor is tunable;
+	// the default halves a weak weave's payload.
+	affinityWeakFactor := envFloatOr("ANOTHERMUD_AFFINITY_WEAK_FACTOR", 0.5)
+	casterAffinityPotency := func(sourceID, abilityID string) float64 {
+		ab, ok := registries.Abilities.Get(abilityID)
+		if !ok || len(ab.Elements) == 0 {
+			return 1.0
+		}
+		gender := ""
+		if a, ok := mgr.GetByPlayerID(sourceID); ok {
+			gender = a.Gender()
+		}
+		return affinityPotency(gender, ab.Elements, affinityWeakFactor)
+	}
+
 	// ability.used side-effect handler. Runs synchronously inside the
 	// resolver's §4.5 step-8 emit (tick goroutine), BEFORE the
 	// resolver's step-9 HP probe — so damage it applies is visible to
@@ -1851,6 +1870,7 @@ func run() error {
 				return
 			}
 			amount := dice.damage.Roll(combatRNG)
+			amount = scaleByPotency(amount, casterAffinityPotency(e.SourceID, e.AbilityID))
 			if amount < 1 {
 				amount = 1
 			}
@@ -1895,6 +1915,7 @@ func run() error {
 				return
 			}
 			amount := dice.heal.Roll(combatRNG)
+			amount = scaleByPotency(amount, casterAffinityPotency(e.SourceID, e.AbilityID))
 			if amount < 1 {
 				amount = 1
 			}
@@ -2546,6 +2567,17 @@ func envBoolOr(key string, def bool) bool {
 	if v, ok := os.LookupEnv(key); ok && v != "" {
 		if b, err := strconv.ParseBool(strings.TrimSpace(v)); err == nil {
 			return b
+		}
+	}
+	return def
+}
+
+// envFloatOr reads a float env knob, falling back to def when unset or
+// unparseable.
+func envFloatOr(key string, def float64) float64 {
+	if v, ok := os.LookupEnv(key); ok && v != "" {
+		if f, err := strconv.ParseFloat(strings.TrimSpace(v), 64); err == nil {
+			return f
 		}
 	}
 	return def
