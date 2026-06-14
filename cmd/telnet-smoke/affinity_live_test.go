@@ -83,6 +83,66 @@ func TestLive_ChannelerAffinity(t *testing.T) {
 	t.Logf("affinity verified: female saidar Fire=%d (weak) < male saidin Fire=%d (strong)", femaleDmg, maleDmg)
 }
 
+// TestLive_ChannelerAffinityEffectPath is the WoT S2 Phase 4 regression test:
+// affinity now scales the EFFECT path, not just damage/heal. It drives two
+// channelers weaving Warding (a self-buff installing +2 AC / +1 hit) and reads
+// the Armor Class delta off the score sheet.
+//
+// Warding draws Air+Spirit. For a woman (saidar) both are STRONG → full +2 AC.
+// For a man (saidin) Air is WEAK → the modifier scales by the weak factor;
+// at 0.1, round(2 × 0.1) = 0, so a male ward raises AC by 0. A female delta of
+// 2 and a male delta of 0 — woven from the identical content — is dice-proof
+// evidence the affinity potency reaches the effect/modifier seam (resolver
+// step 7), with no sampling. Variance-0, self-targeted Warding never misses and
+// rolls no save, so the deltas are deterministic.
+func TestLive_ChannelerAffinityEffectPath(t *testing.T) {
+	if os.Getenv("ANOTHERMUD_LIVE") == "" {
+		t.Skip("set ANOTHERMUD_LIVE=1 to run (boots a real engine subprocess via `go run`)")
+	}
+	addr := bootEngine(t, map[string]string{
+		"ANOTHERMUD_PACKS":                "wot",
+		"ANOTHERMUD_START_ROOM":           "wot:deep-westwood",
+		"ANOTHERMUD_AFFINITY_WEAK_FACTOR": "0.1",
+	})
+
+	cf, err := telnettest.Dial(addr, telnettest.WithTimeout(12*time.Second))
+	if err != nil {
+		t.Fatalf("dial female: %v", err)
+	}
+	defer cf.Close()
+	if err := createChanneler(cf, "Wardf", "female"); err != nil {
+		t.Fatalf("create female channeler: %v", err)
+	}
+	femaleAC, ferr := wardingACDelta(cf)
+	if ferr != nil {
+		t.Fatalf("female warding: %v", ferr)
+	}
+
+	cm, err := telnettest.Dial(addr, telnettest.WithTimeout(12*time.Second))
+	if err != nil {
+		t.Fatalf("dial male: %v", err)
+	}
+	defer cm.Close()
+	if err := createChanneler(cm, "Wardm", "male"); err != nil {
+		t.Fatalf("create male channeler: %v", err)
+	}
+	maleAC, merr := wardingACDelta(cm)
+	if merr != nil {
+		t.Fatalf("male warding: %v", merr)
+	}
+
+	if femaleAC != 2 {
+		t.Errorf("female (saidar) Warding AC delta = %d, want 2 (Air+Spirit both strong → full +2)", femaleAC)
+	}
+	if maleAC != 0 {
+		t.Errorf("male (saidin) Warding AC delta = %d, want 0 (Air weak → round(2×0.1)=0)", maleAC)
+	}
+	if femaleAC <= maleAC {
+		t.Errorf("female ward (%d) was not stronger than male (%d) — affinity did not reach the effect path", femaleAC, maleAC)
+	}
+	t.Logf("effect-path affinity verified: female saidar ward AC+%d (strong) > male saidin ward AC+%d (weak)", femaleAC, maleAC)
+}
+
 // bootEngine launches the engine via `go run ./cmd/anothermud` from the module
 // root with the given env overrides, waits until it accepts connections, and
 // registers teardown (kills the whole process group, since `go run` spawns the

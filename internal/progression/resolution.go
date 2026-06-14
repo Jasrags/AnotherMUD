@@ -153,6 +153,7 @@ type AbilityResolver struct {
 	sink       AbilitySink
 	roller     Roller
 	saves      SaveResolver // optional; conditions §4 entry save (resist-on-apply)
+	potency    PotencyFunc  // optional; setting-specific weave potency (WoT affinity)
 }
 
 // SetSaveResolver wires the entry-save resolver an ability with an ApplySave
@@ -162,6 +163,14 @@ type AbilityResolver struct {
 // nil-safe: with no resolver an ApplySave ability always lands its effect
 // (the pre-conditions behavior).
 func (r *AbilityResolver) SetSaveResolver(s SaveResolver) { r.saves = s }
+
+// SetPotencyProvider wires the host's optional weave-potency hook (WoT S2
+// One-Power affinity). On a landed effect the resolver scales the entry-save
+// DC, the effect's stat-modifier magnitudes, and its recurring-save DC by the
+// returned factor. nil-safe: with no provider every weave lands at full
+// potency — the setting-agnostic default that leaves fantasy packs unchanged.
+// See PotencyFunc.
+func (r *AbilityResolver) SetPotencyProvider(f PotencyFunc) { r.potency = f }
 
 // NewAbilityResolver builds a resolver. proficient + roller are
 // required for hit/miss + gain rolls; the others are nil-safe:
@@ -330,16 +339,28 @@ func (r *AbilityResolver) Resolve(ctx context.Context, source ResolutionSource, 
 		if target == "" {
 			target = entityID // self-targeted buff
 		}
+		// WoT S2 Phase 4 — affinity potency on the effect path. A weave woven
+		// outside the caster's affinity lands weaker: its entry-save DC drops
+		// (easier to resist) and, once installed, its stat modifiers and
+		// recurring-save DC are scaled down. nil provider (or a factor ≥ 1) ⇒
+		// the pre-affinity behavior, so this is inert for fantasy. The same
+		// host factor scales the damage/heal payload in the ability.used
+		// handler — this seam covers the effect/DC half the resolver owns.
+		potency := 1.0
+		if r.potency != nil {
+			potency = r.potency(entityID, abilityID)
+		}
 		resisted := false
 		if ability.ApplySave != nil && r.saves != nil && target != entityID {
 			// Only a hostile (non-self) effect is save-gated; a self-buff
 			// with an ApplySave would otherwise let you resist your own buff.
-			resisted = r.saves.ResolveSave(ctx, target, ability.ApplySave.Axis, ability.ApplySave.DC, abilityID)
+			dc := scaleDC(ability.ApplySave.DC, potency)
+			resisted = r.saves.ResolveSave(ctx, target, ability.ApplySave.Axis, dc, abilityID)
 		}
 		if resisted {
 			out.EffectResisted = true
 		} else {
-			out.EffectApplied = r.effects.Apply(ctx, target, *ability.Effect, entityID, abilityID)
+			out.EffectApplied = r.effects.Apply(ctx, target, ability.Effect.scaledBy(potency), entityID, abilityID)
 		}
 	}
 

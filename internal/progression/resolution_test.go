@@ -531,10 +531,12 @@ func TestResolve_HitChanceClampedByMaxHitChance(t *testing.T) {
 type fakeSaveResolver struct {
 	made bool
 	axes []SaveType
+	dcs  []int
 }
 
-func (f *fakeSaveResolver) ResolveSave(_ context.Context, _ string, axis SaveType, _ int, _ string) bool {
+func (f *fakeSaveResolver) ResolveSave(_ context.Context, _ string, axis SaveType, dc int, _ string) bool {
 	f.axes = append(f.axes, axis)
+	f.dcs = append(f.dcs, dc)
 	return f.made
 }
 

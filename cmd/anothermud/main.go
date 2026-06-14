@@ -2002,6 +2002,14 @@ func run() error {
 	// save through the emitting resolver so a resisted condition reads in-game.
 	abilityResolver.SetSaveResolver(entrySaveResolver)
 
+	// WoT S2 Phase 4 — affinity potency on the effect path. The same affinity
+	// factor that scales weave damage/heal in the ability.used handler now also
+	// scales a landed effect's entry-save DC, recurring-save DC, and modifier
+	// magnitudes: bonds-of-air is easier to resist and warding's ac/hit buff is
+	// smaller when woven outside the channeler's gender-derived affinity. Inert
+	// outside the WoT pack (no `elements` ⇒ casterAffinityPotency returns 1.0).
+	abilityResolver.SetPotencyProvider(casterAffinityPotency)
+
 	// WoT S2 Phase 2 — the overchannel consequence. After a deliberately
 	// overdrawn weave resolves, the channeler makes a Fortitude save whose DC
 	// rises with how far past the safe reserve they reached; on a failure the

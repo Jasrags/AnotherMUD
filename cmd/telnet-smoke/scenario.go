@@ -110,6 +110,51 @@ func fireboltBoarDamage(c *telnettest.Client) (int, error) {
 	return n, nil
 }
 
+// wardingACDelta weaves Warding (a self-buff that installs +ac/+hit modifiers)
+// and returns how much the channeler's Armor Class rose. Warding is variance-0
+// (always lands) and self-targeted (no save), so the delta is exactly the
+// installed ac modifier — full (+2) at affinity, or affinity-scaled when woven
+// outside the caster's strength. This is the WoT S2 Phase 4 proof for the
+// EFFECT path (the firebolt test covers the damage path). Reads Armor Class off
+// the score sheet before and after the weave.
+func wardingACDelta(c *telnettest.Client) (int, error) {
+	before, err := scoreArmorClass(c)
+	if err != nil {
+		return 0, fmt.Errorf("AC before warding: %w", err)
+	}
+	if err := c.SendLine("channel warding"); err != nil {
+		return 0, err
+	}
+	if _, err := c.ExpectString("cast Warding"); err != nil {
+		return 0, fmt.Errorf("Warding did not resolve: %w", err)
+	}
+	after, err := scoreArmorClass(c)
+	if err != nil {
+		return 0, fmt.Errorf("AC after warding: %w", err)
+	}
+	return after - before, nil
+}
+
+// armorClassRe pulls the signed Armor Class value off the score sheet.
+var armorClassRe = regexp.MustCompile(`Armor Class[^\d-]*(-?\d+)`)
+
+// scoreArmorClass sends `score` and parses the Armor Class value off the sheet.
+func scoreArmorClass(c *telnettest.Client) (int, error) {
+	if err := c.SendLine("score"); err != nil {
+		return 0, err
+	}
+	out, err := c.Expect(armorClassRe)
+	if err != nil {
+		return 0, fmt.Errorf("no Armor Class line on score sheet: %w", err)
+	}
+	m := armorClassRe.FindStringSubmatch(out)
+	n, err := strconv.Atoi(m[1])
+	if err != nil {
+		return 0, fmt.Errorf("parse Armor Class from %q: %w", out, err)
+	}
+	return n, nil
+}
+
 // engageBoar starts combat with the wild boar, polling until one is present.
 // The Westwood spawns its boar on the area reset interval (~30s), not at boot,
 // so a freshly-booted engine has an empty room for the first half-minute — the

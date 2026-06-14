@@ -19,8 +19,11 @@ import "strings"
 // root beside the Phase 2 overchannel / stilling wiring rather than in a
 // setting-agnostic engine package. It is inert outside the WoT pack: a
 // non-weave ability carries no elements (→ full potency), as does a character
-// with no gender. v1 scales damage and heal only; save-DC and buff-modifier
-// scaling (bonds-of-air, warding) are a noted follow-up.
+// with no gender. The same potency factor scales both halves of a weave: its
+// damage/heal payload here in the ability.used handler, and its effect payload
+// (save-gated entry DC, recurring-save DC, and installed stat modifiers) via
+// the resolver's injected PotencyProvider (WoT S2 Phase 4) — so bonds-of-air is
+// easier to resist and warding's buff is smaller when woven off-affinity.
 
 // maleAffinity / femaleAffinity are the strong-Power sets per gender (the
 // saidin / saidar element split). A Power absent from the set is "weak".
