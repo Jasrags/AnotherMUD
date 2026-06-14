@@ -2079,6 +2079,21 @@ func run() error {
 	combatSink.casts = castTracker
 	combatSink.castNotify = castNotifier
 
+	// Slice 3: moving rooms also disrupts a weave — you can't walk (or be
+	// teleported/recalled) away mid-channel and keep the weave. Reuses the
+	// sink's interrupt+notify path (it owns the tracker + notifier refs). Fires
+	// on the connection goroutine that moved the player, concurrent with the
+	// tick goroutine's cast advance; CastTracker.Interrupt is lock-guarded, so
+	// the cast resolves OR interrupts exactly once. Skips presence-only moves
+	// (From == To: link-dead reconnect) — only a real room change breaks focus.
+	bus.Subscribe(eventbus.EventPlayerMoved, func(ctx context.Context, ev eventbus.Event) {
+		e, ok := ev.(eventbus.PlayerMoved)
+		if !ok || e.From == e.To {
+			return
+		}
+		combatSink.interruptCast(ctx, combat.NewPlayerCombatantID(e.PlayerID), "moved")
+	})
+
 	combatHeartbeat := combat.NewHeartbeat(combatMgr, combat.Phases{
 		Ability:    abilityPhase,
 		AutoAttack: autoAttackPhase,

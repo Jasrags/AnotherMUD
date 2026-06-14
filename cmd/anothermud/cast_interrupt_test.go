@@ -61,6 +61,24 @@ func TestCombatSink_OnHitInterruptsMidCast(t *testing.T) {
 	}
 }
 
+// interruptCast carries the disruption cause through to the notification, so
+// the movement path ("moved") reads distinctly from a combat hit ("hit").
+func TestCombatSink_InterruptCastCarriesCause(t *testing.T) {
+	casts := progression.NewCastTracker()
+	notify := &recordingCastNotifier{}
+	sink := newInterruptSink(casts, notify)
+
+	casts.Begin("alice", progression.Cast{AbilityID: "warding", AbilityName: "Warding", Remaining: 2})
+	sink.interruptCast(context.Background(), combat.NewPlayerCombatantID("alice"), "moved")
+
+	if casts.IsCasting("alice") {
+		t.Fatal("interruptCast should clear the in-flight weave")
+	}
+	if len(notify.interrupted) != 1 || notify.interrupted[0].Cause != "moved" {
+		t.Fatalf("interrupt cause = %+v; want one with cause \"moved\"", notify.interrupted)
+	}
+}
+
 // A hit on a target who is NOT casting is a harmless no-op: nothing to
 // interrupt, no spurious notification.
 func TestCombatSink_OnHitNonCasterNoOp(t *testing.T) {

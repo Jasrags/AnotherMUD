@@ -72,3 +72,43 @@ func TestLive_WeaveInterruptedByHit(t *testing.T) {
 	}
 	t.Fatal("no weave was interrupted in 75s of sustained combat — the interrupt path appears dead")
 }
+
+// TestLive_WeaveInterruptedByMovement is the slice-3 regression test: moving
+// rooms disrupts an in-flight weave (you can't walk away mid-channel). Unlike
+// the hit test this is DETERMINISTIC — no combat RNG. A channeler weaves
+// Warding (a self-buff, cast_time 2, no target/combat needed), then walks east
+// while it is still warming up; the player.moved event aborts the weave.
+func TestLive_WeaveInterruptedByMovement(t *testing.T) {
+	if os.Getenv("ANOTHERMUD_LIVE") == "" {
+		t.Skip("set ANOTHERMUD_LIVE=1 to run (boots a real engine subprocess via `go run`)")
+	}
+	addr := bootEngine(t, map[string]string{
+		"ANOTHERMUD_PACKS":      "wot",
+		"ANOTHERMUD_START_ROOM": "wot:deep-westwood",
+	})
+
+	c, err := telnettest.Dial(addr, telnettest.WithTimeout(20*time.Second))
+	if err != nil {
+		t.Fatalf("dial: %v", err)
+	}
+	defer c.Close()
+	if err := createChanneler(c, "Walker", "female"); err != nil {
+		t.Fatalf("create channeler: %v", err)
+	}
+
+	if err := c.SendLine("channel warding"); err != nil {
+		t.Fatalf("send weave: %v", err)
+	}
+	// Wait until the warmup has begun (so there is a cast in flight to break)...
+	if _, err := c.ExpectString("begin to weave Warding"); err != nil {
+		t.Fatalf("warmup never began: %v", err)
+	}
+	// ...then walk east (deep-westwood → westwood-edge) before it resolves.
+	if err := c.SendLine("east"); err != nil {
+		t.Fatalf("send move: %v", err)
+	}
+	if _, err := c.ExpectString("is disrupted"); err != nil {
+		t.Fatalf("moving did not disrupt the in-flight weave: %v", err)
+	}
+	t.Log("movement interrupt verified: walking east disrupted the in-flight Warding weave")
+}
