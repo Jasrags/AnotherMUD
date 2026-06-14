@@ -963,6 +963,51 @@ func TestSave_RoundTripsRecall(t *testing.T) {
 	}
 }
 
+func TestLoad_V21MigratesToV22(t *testing.T) {
+	ctx := context.Background()
+	st, dir := newStore(t)
+	playerDir := filepath.Join(dir, "players", "olduser")
+	if err := os.MkdirAll(playerDir, 0o755); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+	// A v21 save carries no gender key; migration must preserve the
+	// absence as the empty "unset" gender (the documented default).
+	if err := os.WriteFile(filepath.Join(playerDir, "player.yaml"),
+		[]byte("version: 21\nid: p-1\naccount_id: acct-1\nname: OldUser\nlocation: tapestry-core:town-square\n"),
+		0o600); err != nil {
+		t.Fatalf("write: %v", err)
+	}
+	got, err := st.Load(ctx, "olduser")
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if got.Version != player.CurrentVersion {
+		t.Errorf("Version after migrate = %d, want %d", got.Version, player.CurrentVersion)
+	}
+	if got.Gender != "" {
+		t.Errorf("v21 migration produced non-empty gender: %q", got.Gender)
+	}
+}
+
+func TestSaveLoad_GenderRoundTrips(t *testing.T) {
+	ctx := context.Background()
+	st, _ := newStore(t)
+	in := &player.Save{
+		Version: player.CurrentVersion, ID: "p-g", AccountID: "acct-g",
+		Name: "Channeler", Gender: "female",
+	}
+	if err := st.Save(ctx, in); err != nil {
+		t.Fatalf("Save: %v", err)
+	}
+	got, err := st.Load(ctx, "channeler")
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if got.Gender != "female" {
+		t.Errorf("Gender round-trip = %q, want female", got.Gender)
+	}
+}
+
 func TestLoad_V11MigratesToV12(t *testing.T) {
 	ctx := context.Background()
 	st, dir := newStore(t)

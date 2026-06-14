@@ -23,6 +23,7 @@ type scoreSubject interface {
 	RaceID() string
 	ClassID() string
 	BackgroundID() string
+	Gender() string
 	Alignment() int
 	AlignmentTag() string
 	Gold() int
@@ -45,6 +46,7 @@ func ScoreHandler(ctx context.Context, c *Context) error {
 	d := scoreData{Name: c.Actor.Name()}
 
 	if ss, ok := c.Actor.(scoreSubject); ok {
+		d.Gender = titleCase(ss.Gender())
 		d.Race = titleCase(ss.RaceID())
 		d.Class = titleCase(ss.ClassID())
 		d.Background = titleCase(ss.BackgroundID())
@@ -168,6 +170,7 @@ type equipRow struct {
 // its name).
 type scoreData struct {
 	Name        string
+	Gender      string
 	Race, Class string
 	Background  string
 
@@ -225,7 +228,9 @@ func renderScore(d scoreData) string {
 	// Top-left: identity. Top-right: combat + vitals.
 	var charCol, combatCol []string
 	charCol = append(charCol, scHi(d.Name))
-	if identity := strings.TrimSpace(d.Race + " " + d.Class); identity != "" {
+	// "Gender Race Class", omitting any empty part (gender is empty for
+	// pre-v22 characters; race/class for the raceless/classless).
+	if identity := strings.TrimSpace(strings.Join(nonEmpty(d.Gender, d.Race, d.Class), " ")); identity != "" {
 		charCol = append(charCol, scHi(identity))
 	}
 	if d.Background != "" {
@@ -475,4 +480,17 @@ func titleCase(s string) string {
 	}
 	r := []rune(s)
 	return strings.ToUpper(string(r[0])) + string(r[1:])
+}
+
+// nonEmpty returns the non-blank arguments in order — used to join an
+// identity line ("Gender Race Class") without leaving stray spaces when a
+// part is absent.
+func nonEmpty(parts ...string) []string {
+	out := make([]string, 0, len(parts))
+	for _, p := range parts {
+		if strings.TrimSpace(p) != "" {
+			out = append(out, p)
+		}
+	}
+	return out
 }

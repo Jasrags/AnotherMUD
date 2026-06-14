@@ -364,14 +364,14 @@ type ClassPathEntryFile struct {
 // on every level-up roll. Bound track is case-insensitive at runtime
 // but stored verbatim for diagnostics.
 type ClassFile struct {
-	ID                    string               `yaml:"id"`
-	Name                  string               `yaml:"name,omitempty"`
-	Tagline               string               `yaml:"tagline,omitempty"`
-	Description           string               `yaml:"description,omitempty"`
-	LevelUpFlavor         string               `yaml:"level_up_flavor,omitempty"`
-	BoundTrack            string               `yaml:"bound_track,omitempty"`
-	StatGrowth            map[string]string    `yaml:"stat_growth,omitempty"`
-	GrowthBonuses         map[string]string    `yaml:"growth_bonuses,omitempty"`
+	ID            string            `yaml:"id"`
+	Name          string            `yaml:"name,omitempty"`
+	Tagline       string            `yaml:"tagline,omitempty"`
+	Description   string            `yaml:"description,omitempty"`
+	LevelUpFlavor string            `yaml:"level_up_flavor,omitempty"`
+	BoundTrack    string            `yaml:"bound_track,omitempty"`
+	StatGrowth    map[string]string `yaml:"stat_growth,omitempty"`
+	GrowthBonuses map[string]string `yaml:"growth_bonuses,omitempty"`
 	// StartingStats is a flat base-stat grant applied once at character
 	// creation (e.g. a channeler's `resource_max: 30` One Power pool). Values
 	// are plain ints, not dice — StatGrowth covers per-level-up dice.

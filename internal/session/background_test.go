@@ -91,7 +91,7 @@ func TestRunCreation_CommitsBackground(t *testing.T) {
 	_ = br.Register(&progression.Background{ID: "soldier", DisplayName: "Soldier"})
 	cfg := Config{CreationFlow: NewCreationFlow(rr, cr, br)}
 	loaded := newPlayerLoaded("Bob")
-	conn := &scriptedConn{inputs: []string{"elf", "fighter", "soldier", "yes"}}
+	conn := &scriptedConn{inputs: []string{"male", "elf", "fighter", "soldier", "yes"}}
 
 	if err := runCreation(context.Background(), conn, cfg, loaded); err != nil {
 		t.Fatalf("runCreation: %v", err)
@@ -185,8 +185,8 @@ func TestRunCreation_NoBackgroundsSkipsStep(t *testing.T) {
 	br := progression.NewBackgroundRegistry() // empty → no background step
 	cfg := Config{CreationFlow: NewCreationFlow(rr, cr, br)}
 	loaded := newPlayerLoaded("Bob")
-	// Only race + class + confirm are prompted — no background input.
-	conn := &scriptedConn{inputs: []string{"elf", "fighter", "yes"}}
+	// Only gender + race + class + confirm are prompted — no background input.
+	conn := &scriptedConn{inputs: []string{"male", "elf", "fighter", "yes"}}
 
 	if err := runCreation(context.Background(), conn, cfg, loaded); err != nil {
 		t.Fatalf("runCreation: %v", err)

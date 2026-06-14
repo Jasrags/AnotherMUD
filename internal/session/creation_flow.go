@@ -53,7 +53,18 @@ type creationEntity struct {
 	raceID       string
 	classID      string
 	backgroundID string
+	gender       string
 	rejected     bool
+}
+
+// genderOptions is the v1 binary gender set offered at creation. Gender is a
+// general character attribute (it fills the engine's pre-existing
+// AllowedGenders eligibility contract); in the WoT pack it also derives a
+// channeler's saidin/saidar affinity (WoT S2 Phase 3). Static (no registry) —
+// a pack wanting a different set is a future content-driven concern.
+var genderOptions = []wizard.Option{
+	{Label: "Male", Value: "male"},
+	{Label: "Female", Value: "female"},
 }
 
 // NewCreationFlow builds the engine-default creation flow from the race
@@ -77,6 +88,15 @@ func NewCreationFlow(races *progression.RaceRegistry, classes *progression.Class
 	steps = append(steps, &wizard.InfoStep{
 		ID:   "intro",
 		Text: "Time to create your character.",
+	})
+	// Gender precedes race/class so a future dynamic flow can gate
+	// class/background eligibility on it (AllowedGenders). Always present once
+	// any content exists — gender is intrinsic to the character.
+	steps = append(steps, &wizard.ChoiceStep{
+		ID:       "gender",
+		Prompt:   "Choose your gender:",
+		Options:  genderOptions,
+		OnSelect: func(e wizard.Entity, v any) { e.(*creationEntity).gender = v.(string) },
 	})
 	if len(raceOpts) > 0 {
 		steps = append(steps, &wizard.ChoiceStep{
@@ -307,6 +327,11 @@ func runCreation(ctx context.Context, c conn.Connection, cfg Config, loaded *log
 			// The background label (backgrounds §5). Its starting package is
 			// granted at character.created (skills/items/gold), not here.
 			loaded.Player.Background = pending.backgroundID
+		}
+		if pending.gender != "" {
+			// Gender (v22). A general attribute; the WoT affinity layer reads it
+			// off the actor's save to derive saidin/saidar element strengths.
+			loaded.Player.Gender = pending.gender
 		}
 		return nil
 	}

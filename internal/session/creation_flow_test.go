@@ -47,6 +47,8 @@ func TestNewCreationFlow_AssemblesRaceAndClass(t *testing.T) {
 	e := &creationEntity{}
 	in := wizard.NewInstance(flow, e, &wizFakeIO{}, nil)
 	in.Start(context.Background())
+	// gender menu order: male(1), female(2). Pick male=1.
+	in.Input(context.Background(), "1")
 	// race menu order is sorted by id: elf(1), human(2). Pick human=2.
 	in.Input(context.Background(), "2")
 	// only class is fighter=1.
@@ -59,6 +61,9 @@ func TestNewCreationFlow_AssemblesRaceAndClass(t *testing.T) {
 	if e.raceID != "human" || e.classID != "fighter" {
 		t.Errorf("race/class = %q/%q, want human/fighter", e.raceID, e.classID)
 	}
+	if e.gender != "male" {
+		t.Errorf("gender = %q, want male", e.gender)
+	}
 	if ok, _ := flow.OnComplete(context.Background(), e); !ok {
 		t.Error("OnComplete should accept a confirmed character")
 	}
@@ -70,6 +75,7 @@ func TestNewCreationFlow_ConfirmNoFailsValidation(t *testing.T) {
 	e := &creationEntity{}
 	in := wizard.NewInstance(flow, e, &wizFakeIO{}, nil)
 	in.Start(context.Background())
+	in.Input(context.Background(), "male")    // gender
 	in.Input(context.Background(), "elf")     // prefix match
 	in.Input(context.Background(), "fighter") // prefix match
 	in.Input(context.Background(), "no")      // decline
@@ -126,13 +132,16 @@ func TestRunCreation_PopulatesRaceClassOnSave(t *testing.T) {
 	rr, cr := twoRaceOneClass(t)
 	cfg := Config{CreationFlow: NewCreationFlow(rr, cr, nil)}
 	loaded := newPlayerLoaded("Bob")
-	conn := &scriptedConn{inputs: []string{"elf", "fighter", "yes"}}
+	conn := &scriptedConn{inputs: []string{"male", "elf", "fighter", "yes"}}
 
 	if err := runCreation(context.Background(), conn, cfg, loaded); err != nil {
 		t.Fatalf("runCreation: %v", err)
 	}
 	if loaded.Player.Race != "elf" || len(loaded.Player.Class) != 1 || loaded.Player.Class[0] != "fighter" {
 		t.Errorf("save race/class = %q/%v, want elf/[fighter]", loaded.Player.Race, loaded.Player.Class)
+	}
+	if loaded.Player.Gender != "male" {
+		t.Errorf("save gender = %q, want male", loaded.Player.Gender)
 	}
 }
 
@@ -152,7 +161,7 @@ func TestRunCreation_DisconnectReturnsError(t *testing.T) {
 	cfg := Config{CreationFlow: NewCreationFlow(rr, cr, nil)}
 	loaded := newPlayerLoaded("Bob")
 	// Disconnect after the race choice (script exhausts → io.EOF).
-	conn := &scriptedConn{inputs: []string{"elf"}}
+	conn := &scriptedConn{inputs: []string{"male", "elf"}}
 
 	if err := runCreation(context.Background(), conn, cfg, loaded); err == nil {
 		t.Fatal("expected an error on mid-creation disconnect")
@@ -169,8 +178,8 @@ func TestRunCreation_DeclineRestarts(t *testing.T) {
 	cfg := Config{CreationFlow: NewCreationFlow(rr, cr, nil)}
 	loaded := newPlayerLoaded("Bob")
 	conn := &scriptedConn{inputs: []string{
-		"human", "fighter", "no", // decline → restart
-		"elf", "fighter", "yes", // second pass commits
+		"male", "human", "fighter", "no", // decline → restart
+		"male", "elf", "fighter", "yes", // second pass commits
 	}}
 
 	if err := runCreation(context.Background(), conn, cfg, loaded); err != nil {
@@ -192,10 +201,10 @@ func TestRunCreation_RestartCapAbandons(t *testing.T) {
 	rr, cr := twoRaceOneClass(t)
 	cfg := Config{CreationFlow: NewCreationFlow(rr, cr, nil)}
 	loaded := newPlayerLoaded("Bob")
-	// Decline forever: each pass is race, class, "no" → restart.
+	// Decline forever: each pass is gender, race, class, "no" → restart.
 	var script []string
 	for i := 0; i < maxCreationRestarts+2; i++ {
-		script = append(script, "elf", "fighter", "no")
+		script = append(script, "male", "elf", "fighter", "no")
 	}
 	conn := &scriptedConn{inputs: script}
 
@@ -212,8 +221,8 @@ func TestRunCreation_HelpPassthroughDoesNotAdvance(t *testing.T) {
 	cfg := Config{CreationFlow: NewCreationFlow(rr, cr, nil)} // Help nil → "not available"
 	loaded := newPlayerLoaded("Bob")
 	// A help line at the race step must NOT consume the step: the
-	// following real "elf" selection still lands.
-	conn := &scriptedConn{inputs: []string{"help races", "elf", "fighter", "yes"}}
+	// following real "elf" selection still lands. (Gender is answered first.)
+	conn := &scriptedConn{inputs: []string{"male", "help races", "elf", "fighter", "yes"}}
 
 	if err := runCreation(context.Background(), conn, cfg, loaded); err != nil {
 		t.Fatalf("runCreation: %v", err)

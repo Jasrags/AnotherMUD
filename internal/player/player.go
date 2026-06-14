@@ -127,7 +127,7 @@ import (
 // means "knows no recipes beyond what a discipline grants at runtime";
 // the migration injects nothing. A known id whose recipe was removed from
 // content loads cleanly and is ignored at restore (§9), never an error.
-const CurrentVersion = 21
+const CurrentVersion = 22
 
 // Sentinel errors callers may check via errors.Is.
 var (
@@ -154,17 +154,17 @@ var (
 // effect of every equipped item's modifiers — persisted under the
 // same source keys that were live when the save was written.
 type Save struct {
-	Version         int                             `yaml:"version"`
-	ID              string                          `yaml:"id"`
-	AccountID       string                          `yaml:"account_id"`
-	Name            string                          `yaml:"name"`
-	Location        string                          `yaml:"location"`
-	Inventory       []InventoryEntry                `yaml:"inventory,omitempty"`
-	Equipment       map[string]EquippedItem         `yaml:"equipment,omitempty"`
-	Stats           stats.Snapshot                  `yaml:"stats,omitempty"`
-	StatsBase       progression.BaseSnapshot        `yaml:"stats_base,omitempty"`
-	Progression     progression.ProgressionSnapshot `yaml:"progression,omitempty"`
-	Race            string                          `yaml:"race,omitempty"`
+	Version     int                             `yaml:"version"`
+	ID          string                          `yaml:"id"`
+	AccountID   string                          `yaml:"account_id"`
+	Name        string                          `yaml:"name"`
+	Location    string                          `yaml:"location"`
+	Inventory   []InventoryEntry                `yaml:"inventory,omitempty"`
+	Equipment   map[string]EquippedItem         `yaml:"equipment,omitempty"`
+	Stats       stats.Snapshot                  `yaml:"stats,omitempty"`
+	StatsBase   progression.BaseSnapshot        `yaml:"stats_base,omitempty"`
+	Progression progression.ProgressionSnapshot `yaml:"progression,omitempty"`
+	Race        string                          `yaml:"race,omitempty"`
 	// Class is the character's class id list (v18+). A character holds one
 	// class today (single-element list), but the field is a list so a future
 	// second class-track (multiclass — wot-character-model D1) is additive
@@ -172,15 +172,22 @@ type Save struct {
 	// scalar `class: fighter` is wrapped to `class: [fighter]` by
 	// migrateV17toV18; the primary class (first element) is what single-value
 	// readers (quest gate, score, GMCP) surface.
-	Class           []string                        `yaml:"class,omitempty"`
+	Class []string `yaml:"class,omitempty"`
 	// Background is the character-creation origin id (v19+ — backgrounds §5).
 	// One per character (a scalar, unlike the class list). Empty/absent =
 	// background-less. The granted starting package (skills, items, gold)
 	// persists through the proficiency/inventory/gold surfaces; this field is
 	// the label for display + future reference.
-	Background      string                          `yaml:"background,omitempty"`
-	TrainsAvailable int                             `yaml:"trains_available,omitempty"`
-	Alignment       int                             `yaml:"alignment,omitempty"`
+	Background string `yaml:"background,omitempty"`
+	// Gender is the character's gender, chosen at creation (v22+). A general
+	// character attribute that fills the engine's pre-existing AllowedGenders
+	// contract (class/background eligibility) and, in the WoT pack, derives a
+	// channeler's saidin/saidar affinity (WoT S2 Phase 3). Stored lowercase
+	// ("male"/"female" in v1). Empty/absent = unset (pre-v22 saves, or a pack
+	// whose flow omits the step) — readers treat unset as "no affinity".
+	Gender          string `yaml:"gender,omitempty"`
+	TrainsAvailable int    `yaml:"trains_available,omitempty"`
+	Alignment       int    `yaml:"alignment,omitempty"`
 	// Gold is the §2.1 integer currency balance (v12+). Zero serializes
 	// as no `gold:` key via omitempty, indistinguishable from a legacy
 	// v11 save where the field never existed — both load as a zero
@@ -534,6 +541,7 @@ var playerMigrations = map[int]func(map[string]any) (map[string]any, error){
 	18: migrateV18toV19,
 	19: migrateV19toV20,
 	20: migrateV20toV21,
+	21: migrateV21toV22,
 }
 
 // migrateV1toV2 adds the empty inventory/equipment blocks introduced
@@ -827,6 +835,15 @@ func migrateV19toV20(in map[string]any) (map[string]any, error) {
 // stat-derived max" — the correct default (a pre-pools character was always
 // reseeded full anyway), so the migration is a no-op.
 func migrateV20toV21(in map[string]any) (map[string]any, error) {
+	return in, nil
+}
+
+// migrateV21toV22 introduces the `gender` field (WoT S2 Phase 3 — a channeler's
+// saidin/saidar affinity derives from it). A pre-v22 save has no `gender` key;
+// its absence decodes to the empty string, which readers treat as "unset / no
+// affinity". Existing characters keep their weaves at full potency until a
+// gender is assigned, so the migration is a no-op.
+func migrateV21toV22(in map[string]any) (map[string]any, error) {
 	return in, nil
 }
 

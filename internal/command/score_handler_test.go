@@ -18,6 +18,7 @@ type sheetActor struct {
 func (a *sheetActor) RaceID() string       { return "human" }
 func (a *sheetActor) ClassID() string      { return "fighter" }
 func (a *sheetActor) BackgroundID() string { return "soldier" }
+func (a *sheetActor) Gender() string       { return "male" }
 func (a *sheetActor) Alignment() int       { return 0 }
 func (a *sheetActor) AlignmentTag() string { return "alignment_neutral" } // raw tag id; sheet strips the prefix
 func (a *sheetActor) Gold() int            { return 1000 }
@@ -45,7 +46,7 @@ func TestScore_Handler(t *testing.T) {
 
 	out := a.lastLine()
 	for _, want := range []string{
-		"<highlight>Human Fighter</highlight>",
+		"<highlight>Male Human Fighter</highlight>",
 		"<title>Combat</title>",
 		"<highlight>16</highlight>", // STR value
 		"neutral (0)",

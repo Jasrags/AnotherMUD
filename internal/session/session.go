@@ -2878,6 +2878,20 @@ func (a *connActor) CombatantIDString() string {
 // construction; never mutates for the life of the actor.
 func (a *connActor) RaceID() string { return a.raceID }
 
+// Gender returns the actor's gender ("male"/"female", lowercase), chosen at
+// creation and persisted on the save (v22+). Empty means unset (a pre-v22
+// character, or a pack whose creation flow omits the gender step). Read under
+// the lock because it lives on the shared save struct. The WoT affinity layer
+// reads this to derive a channeler's saidin/saidar element strengths.
+func (a *connActor) Gender() string {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	if a.save == nil {
+		return ""
+	}
+	return a.save.Gender
+}
+
 // Tags returns the actor's session-side tag set — today just the
 // racial flags from the race definition (M8.3). Returns a fresh
 // slice so callers cannot alias the backing storage. Surfaces to
