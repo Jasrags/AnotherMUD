@@ -1,15 +1,19 @@
 # Proposal: The One Power (channeling) — WoT EPIC S2
 
-**Status:** Phases 0–2 SHIPPED (2026-06-14) · Phase 3+ open · **Type:** the marquee
+**Status:** Phases 0–3 SHIPPED (Phase 3 = affinities, 2026-06-14) · Phase 4+ open · **Type:** the marquee
 WoT sub-epic, a **multi-slice arc** (XL)
 > **Shipped:** Phase 0 (generalized resource-pool substrate + persistence + regen +
 > the spend knobs reserve-to-begin / spend-on-success), Phase 1 (the `channeler` class
-> with a starting One Power pool, the classic-four weaves, the `channel` verb), and
+> with a starting One Power pool, the classic-four weaves, the `channel` verb),
 > Phase 2 (the `overchannel` verb → Fortitude save → fatigued/stunned/**stilled**
-> cascade, with stilling blocking channeling). Save bumped to v21. Phase 3+ (the
-> §6 "depth" list: affinities/the Five Powers + element eligibility, Initiate/Wilder
-> split, the combat interrupt game, taint/madness, angreal, linking, a restore path
-> for stilling) remains open. The phase text below is the original design spine.
+> cascade, with stilling blocking channeling), and **Phase 3 — affinities & the Five
+> Powers** (an `elements` field on abilities; gender collected at creation, save
+> **v22**; gender-derived two-tier affinity — men Earth/Fire/Spirit, women
+> Air/Water/Spirit — driving **soft potency scaling** of weave damage/heal, weakest
+> element governing). Phase 4+ (Initiate/Wilder split, the combat interrupt game,
+> taint/madness, angreal, linking, a restore path for stilling; v1 affinity scales
+> damage+heal only — save-DC + buff-modifier scaling are an affinity follow-up)
+> remains open. The phase text below is the original design spine.
 **Implements:** EPIC sub-epic **S2** — `docs/themes/wot-mechanics-epic.md` §2 row S2
 **Builds on:** `internal/progression` (abilities, proficiency, effects, saves),
 `internal/combat` (vitals, `ResolveSave`, heartbeat), `internal/session` (`connActor`,

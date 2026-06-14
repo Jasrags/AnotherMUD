@@ -1829,6 +1829,15 @@ func run() error {
 	// returns 1.0, as does a caster with no gender. The weak factor is tunable;
 	// the default halves a weak weave's payload.
 	affinityWeakFactor := envFloatOr("ANOTHERMUD_AFFINITY_WEAK_FACTOR", 0.5)
+	if affinityWeakFactor <= 0 || affinityWeakFactor > 1.0 {
+		// A weak factor must be in (0, 1]: 1.0 = no penalty, smaller = harsher.
+		// Out of range is nonsense (zero/negative would zero the weave, >1 would
+		// be a bonus the scaler ignores) — warn and fall back to the default
+		// rather than ship a silently-broken tuning.
+		slog.Warn("ANOTHERMUD_AFFINITY_WEAK_FACTOR out of range (0,1]; using default 0.5",
+			slog.Float64("got", affinityWeakFactor))
+		affinityWeakFactor = 0.5
+	}
 	casterAffinityPotency := func(sourceID, abilityID string) float64 {
 		ab, ok := registries.Abilities.Get(abilityID)
 		if !ok || len(ab.Elements) == 0 {
