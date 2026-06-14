@@ -1953,6 +1953,11 @@ func run() error {
 			slog.String("component", "server"), slog.Int("configured", reserveMult))
 	}
 	abilityPipeline.SetReserveMultiple(reserveMult)
+	// WoT S2 Phase 2b: a stilled channeler is cut off from the Source and
+	// cannot weave (spell-category abilities fizzle). The "stilled" effect is
+	// WoT content; in non-WoT boots no one ever carries it, so the gate is
+	// inert. Hardcoded id (the engine's one stilling concept), not env-tuned.
+	abilityPipeline.SetChannelBlockEffect("stilled")
 	abilityResolver := progression.NewAbilityResolver(
 		resolutionCfg,
 		proficiencyMgr, // ProficiencyReader (hit chance + cap)
@@ -1976,8 +1981,9 @@ func run() error {
 	// driver loop, so combatRNG stays single-goroutine like the other saves.
 	const (
 		overchannelBaseDC       = 12
-		overchannelDeficitScale = 1 // +1 DC per point of mana drawn past the reserve
-		overchannelStunMargin   = 5 // fail by ≥ this → stunned, else fatigued
+		overchannelDeficitScale = 1  // +1 DC per point of mana drawn past the reserve
+		overchannelStunMargin   = 5  // fail by ≥ this → stunned, else fatigued
+		overchannelStillMargin  = 15 // fail by ≥ this → stilled (reached catastrophically far)
 	)
 	overchannelHandler := func(ctx context.Context, entityID, abilityID string, deficit int) {
 		actor, ok := mgr.GetByPlayerID(entityID)
@@ -1990,9 +1996,15 @@ func run() error {
 			_ = actor.Write(ctx, "You draw far more of the One Power than is safe — and hold it, the Source raging through you and away.")
 			return
 		}
+		// Cascade by the miss margin: tired → stunned → stilled (cut off from
+		// the Source). The stilled effect is WoT content (absent in non-WoT
+		// boots, where channelers don't exist); the channel-block gate keys on it.
 		margin := out.DC - out.Total
 		effectID, msg := "fatigued", "The Power scours you as it tears free; you sag, wrung out and shaking."
-		if margin >= overchannelStunMargin {
+		switch {
+		case margin >= overchannelStillMargin:
+			effectID, msg = "stilled", "You reach catastrophically too far. The Source rips away — and is simply GONE. You are stilled."
+		case margin >= overchannelStunMargin:
 			effectID, msg = "stunned", "You reach too far. The One Power turns on you — the world whites out and your knees give way."
 		}
 		if tpl, ok := registries.Effects.Get(effectID); ok {
@@ -3675,6 +3687,8 @@ func fizzleMessage(abilityName, reason string) string {
 		return fmt.Sprintf("You can't use %s again so soon.", abilityName)
 	case "insufficient_resources":
 		return fmt.Sprintf("You're too exhausted to use %s.", abilityName)
+	case "stilled":
+		return "You reach for the Source and find nothing — you are stilled, cut off from the One Power."
 	default:
 		return fmt.Sprintf("Your %s fizzles.", abilityName)
 	}

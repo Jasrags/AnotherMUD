@@ -22,6 +22,8 @@ content:
     - classes/*.yaml
   abilities:
     - abilities/*.yaml
+  effects:
+    - effects/*.yaml
   areas:
     - areas/*.yaml
   rooms:

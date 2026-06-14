@@ -47,6 +47,12 @@ const (
 	// FizzleInsufficientResources — race-adjusted cost exceeds
 	// the entity's pool (spec §4.3 step 9, §4.7).
 	FizzleInsufficientResources FizzleReason = "insufficient_resources"
+	// FizzleStilled — the caster is cut off from the Source (WoT S2): a
+	// configured channel-block effect is active and the ability draws on the
+	// channeling resource. Set only when a ruleset wires SetChannelBlockEffect;
+	// gates spell-category abilities, never skills/melee (a stilled channeler
+	// can still swing a sword).
+	FizzleStilled FizzleReason = "stilled"
 )
 
 // IsOffensive reports whether ability is offensive per spec §4.6.

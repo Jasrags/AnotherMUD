@@ -103,6 +103,13 @@ type ValidationPipeline struct {
 	pulseDelay PulseDelayReader
 	targets    TargetLookup
 
+	// channelBlockEffectID, when set, names an active-effect id that blocks
+	// channeling (WoT S2 — "stilled"). A source carrying it cannot use
+	// spell-category abilities (it is cut off from the Source); skills and
+	// melee are unaffected. Empty (the default / non-channeling rulesets)
+	// disables the gate. Set via SetChannelBlockEffect from composition.
+	channelBlockEffectID string
+
 	// reserveMultiple is the §Power "reserve-to-begin" gate (WoT S2 /
 	// WoTMUD): a mana/spell ability requires the caller to HOLD this
 	// multiple of its cost before it may begin, even though only the cost
@@ -122,6 +129,14 @@ func (p *ValidationPipeline) SetReserveMultiple(mult int) {
 		mult = 1
 	}
 	p.reserveMultiple = mult
+}
+
+// SetChannelBlockEffect names the active-effect id that blocks channeling
+// (WoT S2 — "stilled"). While a source carries it, spell-category abilities
+// fizzle as FizzleStilled. Empty disables the gate (the default). Mirrors
+// SetReserveMultiple / SetSaveResolver: a composition-root opt-in.
+func (p *ValidationPipeline) SetChannelBlockEffect(effectID string) {
+	p.channelBlockEffectID = strings.ToLower(strings.TrimSpace(effectID))
 }
 
 // effectiveReserveMultiple is the single source of truth for the gate's
@@ -295,6 +310,15 @@ func (p *ValidationPipeline) Validate(source ValidationEntity, action QueuedActi
 	// 8. Pulse-delay cooldown.
 	if ability.PulseDelay > 0 && p.pulseDelay != nil && p.pulseDelay.IsCoolingDown(entityID, ability.ID, currentPulse) {
 		return ValidationResult{Reason: FizzlePulseDelay, Ability: ability}
+	}
+
+	// 8b. Channel-block (WoT S2): a stilled caster is cut off from the Source
+	// and cannot weave. Gates spell-category abilities only — a stilled
+	// channeler can still swing a sword. Disabled unless a ruleset wired the
+	// block effect id (and a matching effect exists on the source).
+	if ability.Category == AbilitySpell && p.channelBlockEffectID != "" && p.effects != nil &&
+		p.effects.Has(entityID, p.channelBlockEffectID) {
+		return ValidationResult{Reason: FizzleStilled, Ability: ability}
 	}
 
 	// 9. Resource pool vs race-adjusted cost. The mana/spell resource adds

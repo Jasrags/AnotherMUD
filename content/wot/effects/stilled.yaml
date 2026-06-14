@@ -1,0 +1,15 @@
+# WoT S2 — stilling. The catastrophic overchannel outcome: the channeler has
+# reached too far and been cut off from the True Source. While stilled they
+# cannot weave at all (the validation channel-block gate keys on this effect
+# id); it carries no stat modifiers — the block is the consequence.
+#
+# v1 is SEVERE BUT TIMED: a long duration in effect-ticks (≈ combat rounds at
+# the combat cadence, ~3s each) — 300 ≈ 15 minutes — then it lifts on its own.
+# There is no shake-off save (you do not simply will your way back to the
+# Source). A true permanent stilling that needs a Healing/quest restore path
+# is a later slice, once such a restore exists.
+id: stilled
+name: Stilled
+duration: 300
+flags:
+  - channeling:stilled

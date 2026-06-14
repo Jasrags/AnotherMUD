@@ -338,6 +338,37 @@ func TestValidate_ReserveToBeginGate(t *testing.T) {
 // fizzle — it validates as an overchannel and reports the deficit (how far
 // below the reserve threshold the caster was). An unflagged short cast still
 // fizzles; a flagged cast that holds the reserve is an ordinary cast.
+// Channel-block (WoT S2): a stilled caster cannot weave (spell-category
+// fizzles FizzleStilled) but can still use a skill; the gate is inert until a
+// ruleset wires SetChannelBlockEffect.
+func TestValidate_StilledBlocksChanneling(t *testing.T) {
+	weave := &progression.Ability{ID: "weave", DisplayName: "Weave", Type: progression.AbilityActive, Category: progression.AbilitySpell}
+	kick := &progression.Ability{ID: "kick", DisplayName: "Kick", Type: progression.AbilityActive, Category: progression.AbilitySkill}
+
+	p, _, prof, eff, _, _ := buildPipeline(t, []*progression.Ability{weave, kick})
+	prof["ent-1"]["weave"] = true
+	prof["ent-1"]["kick"] = true
+	eff["ent-1"]["stilled"] = true // the caster carries the block effect
+
+	// Gate inert until wired: the weave validates fine.
+	if res := p.Validate(&fakeEntity{id: "ent-1"},
+		progression.QueuedAction{AbilityID: "weave"}, 1); res.Reason != progression.FizzleOK {
+		t.Fatalf("gate not wired: weave should pass, got %q", res.Reason)
+	}
+
+	p.SetChannelBlockEffect("stilled")
+	// Spell fizzles stilled.
+	if res := p.Validate(&fakeEntity{id: "ent-1"},
+		progression.QueuedAction{AbilityID: "weave"}, 1); res.Reason != progression.FizzleStilled {
+		t.Fatalf("stilled caster: weave should fizzle stilled, got %q", res.Reason)
+	}
+	// Skill still works (a stilled channeler can swing a sword) — needs combat+target.
+	if res := p.Validate(&fakeEntity{id: "ent-1", inCombat: true, hasTarget: true, target: "mob-1"},
+		progression.QueuedAction{AbilityID: "kick"}, 1); res.Reason != progression.FizzleOK {
+		t.Fatalf("stilled caster: kick should still pass, got %q", res.Reason)
+	}
+}
+
 func TestValidate_Overchannel(t *testing.T) {
 	spell := &progression.Ability{
 		ID: "weave", DisplayName: "Weave",
