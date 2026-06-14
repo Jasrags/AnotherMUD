@@ -76,16 +76,19 @@ func (a *connActor) promptVitals() render.PromptVitals {
 	if a.vitals != nil {
 		hp, maxHP = a.vitals.Snapshot()
 	}
-	// The pool accessors are nil-safe (return 0 for bare test actors that
-	// never seeded a pool.Set); they read the live current/max so a drained
-	// pool shows current < max instead of the old current == max stub.
+	// resourceSnapshot is nil-safe (returns 0/0 for bare test actors that
+	// never seeded a pool.Set) and reads current+max atomically, so a
+	// concurrent regen tick can't tear the pair into a transient current >
+	// max. A drained pool shows current < max instead of the old stub.
+	mana, maxMana := a.resourceSnapshot(poolKindMana)
+	mv, maxMV := a.resourceSnapshot(poolKindMovement)
 	return render.PromptVitals{
 		HP:      hp,
 		MaxHP:   maxHP,
-		Mana:    a.Mana(),
-		MaxMana: a.ManaMax(),
-		MV:      a.Movement(),
-		MaxMV:   a.MovementMax(),
+		Mana:    mana,
+		MaxMana: maxMana,
+		MV:      mv,
+		MaxMV:   maxMV,
 		Gold:    0,
 	}
 }

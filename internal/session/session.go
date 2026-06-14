@@ -2418,6 +2418,11 @@ func (a *connActor) syncVitalsToSaveLocked() bool {
 // Returns true if the save record actually changed. Caller MUST hold a.mu;
 // lives beside syncVitalsToSaveLocked (HP is in Vitals, the other pools
 // here) so the persist path has one read-pool → write-save touchpoint.
+//
+// Lock order: this takes a.mu then pool.Set.mu (via Snapshot). That order
+// is deadlock-free because the only goroutine touching pools concurrently
+// (the regen tick via regenPool, the prompt via resourceSnapshot) acquires
+// pool.Set.mu WITHOUT ever holding a.mu — so the two never form a cycle.
 func (a *connActor) syncPoolsToSaveLocked() bool {
 	if a.save == nil || a.pools == nil {
 		return false
@@ -3520,6 +3525,17 @@ func (a *connActor) MovementMax() int {
 		return p.Max()
 	}
 	return 0
+}
+
+// resourceSnapshot returns the (current, max) of the named pool atomically
+// — the TOCTOU-safe way for a caller (the prompt) needing both, vs two
+// separate Current()/Max() reads a concurrent regen tick could tear into a
+// transient current > max. (0, 0) for an unseeded pool.
+func (a *connActor) resourceSnapshot(kind pool.Kind) (cur, max int) {
+	if p, ok := a.resourcePool(kind); ok {
+		return p.Snapshot()
+	}
+	return 0, 0
 }
 
 // Race returns the actor's resolved race for §4.7 cost adjustment.

@@ -119,14 +119,22 @@ func TestConnActor_SeedAndSyncResourcePools(t *testing.T) {
 		t.Fatalf("MovementMax = %d; want 0 (no movement_max stat)", mx)
 	}
 
+	// syncPoolsToSaveLocked's contract requires a.mu held; honor it (the
+	// test is single-goroutine, but the lock keeps the call honest).
+	syncPools := func() bool {
+		a.mu.Lock()
+		defer a.mu.Unlock()
+		return a.syncPoolsToSaveLocked()
+	}
+
 	// Live state (mana 7/20) already matches the save, so sync is a no-op.
-	if a.syncPoolsToSaveLocked() {
+	if syncPools() {
 		t.Fatalf("syncPoolsToSaveLocked: want no change when live == save")
 	}
 
 	// Spend more → the non-full pool is rewritten into the save.
 	a.DeductMana(2) // 7 → 5
-	if !a.syncPoolsToSaveLocked() {
+	if !syncPools() {
 		t.Fatalf("syncPoolsToSaveLocked: want change after draining to 5")
 	}
 	if len(a.save.Pools) != 1 || a.save.Pools[0].Current != 5 {
@@ -136,7 +144,7 @@ func TestConnActor_SeedAndSyncResourcePools(t *testing.T) {
 	// Refill to full → the pool is OMITTED (current == max), keeping the save clean.
 	p, _ := a.pools.Get(poolKindMana)
 	p.SetCurrent(20)
-	if !a.syncPoolsToSaveLocked() {
+	if !syncPools() {
 		t.Fatalf("syncPoolsToSaveLocked: want change when refilling to full")
 	}
 	if len(a.save.Pools) != 0 {

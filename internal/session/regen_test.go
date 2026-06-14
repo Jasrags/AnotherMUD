@@ -4,6 +4,7 @@ import (
 	"context"
 	"testing"
 
+	"github.com/Jasrags/AnotherMUD/internal/combat"
 	"github.com/Jasrags/AnotherMUD/internal/economy"
 	"github.com/Jasrags/AnotherMUD/internal/pool"
 	"github.com/Jasrags/AnotherMUD/internal/world"
@@ -110,6 +111,25 @@ func TestRegenTick_RefillsManaAtFullHP(t *testing.T) {
 
 	if mn := a.Mana(); mn != 3+cfg.BaseMana {
 		t.Fatalf("mana regen at full HP = %d, want %d", mn, 3+cfg.BaseMana)
+	}
+}
+
+// a dead actor (HP 0) gets NO regen — neither HP nor pools. Revival is the
+// death system's job; a dead channeler must not refill Power before it runs.
+func TestRegenTick_DeadActorNoPoolRegen(t *testing.T) {
+	mgr := NewManager()
+	sust, rest := regenServices()
+	a, _ := newFakeActor("c1", "p1", "acc1", "Alice", &world.Room{ID: "x:1"})
+	a.sustenance = 100
+	a.vitals.ApplyDamage(combat.DefaultPlayerMaxHP * 2) // drive HP to 0 (dead)
+	a.pools = pool.NewSet()
+	a.pools.Add(pool.NewAt(poolKindMana, 3, 20, pool.Rules{Floor: 0}))
+	mgr.Add(a)
+
+	mgr.RegenTick(context.Background(), sust, rest, economy.DefaultRegenConfig())
+
+	if mn := a.Mana(); mn != 3 {
+		t.Fatalf("dead actor mana regen = %d, want 3 (no regen while dead)", mn)
 	}
 }
 

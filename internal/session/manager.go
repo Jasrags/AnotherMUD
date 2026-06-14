@@ -868,13 +868,24 @@ func (m *Manager) RegenTick(ctx context.Context, sustSvc *economy.SustenanceServ
 		if a.InCombat() {
 			continue
 		}
+		// Dead actors get NO regen — HP or pools. Revival is the death
+		// system's job, and a dead channeler must not passively refill the
+		// Power pool between death and the revival event. This guard covers
+		// the whole actor (the pre-refactor structure skipped dead actors
+		// before any regen); a nil-vitals actor has no death concept and
+		// falls through to pool regen.
+		if a.vitals != nil {
+			if cur, _ := a.vitals.Snapshot(); cur <= 0 {
+				continue
+			}
+		}
 		sustMult := sustSvc.GetRegenMultiplier(a.Sustenance())
 		restMult := restSvc.GetRestMultiplier(economy.RestState(a.RestState()))
 
-		// HP — skipped when dead (revival is the death system's job) or
-		// already full; the room healing_rate adds only to HP (§5.7).
+		// HP — skipped when already full; the room healing_rate adds only
+		// to HP (§5.7).
 		if a.vitals != nil {
-			if cur, max := a.vitals.Snapshot(); cur > 0 && cur < max {
+			if cur, max := a.vitals.Snapshot(); cur < max {
 				healingRate := 0
 				if room := a.Room(); room != nil {
 					healingRate = room.HealingRate
