@@ -1,12 +1,16 @@
 # WoT S2 weave — Fire. A bolt of flame hurled at a foe (a channeler's
 # bread-and-butter offensive weave). category:spell draws the One Power
 # from the mana pool; damage dice + enemy target make it offensive, so it
-# needs a combat target. (Element: Fire — element-based eligibility is a
-# later slice; tagged in prose for now.)
+# needs a combat target. (Element: Fire.)
 id: firebolt
 name: Firebolt
 type: active
 category: spell
+
+# The Five Powers this weave draws on (WoT S2 affinities). A channeler
+# weak in Fire weaves this at reduced potency.
+elements:
+  - fire
 
 default_cap: 30
 gain_base_chance: 20

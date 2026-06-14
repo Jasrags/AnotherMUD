@@ -218,6 +218,16 @@ type Ability struct {
 	// of the §6.1 binary check (which uses Variance + MaxHitChance).
 	MaxBonus int
 
+	// Elements is the open-vocabulary list of "powers" a spell weaves
+	// (e.g. the Wheel-of-Time Five Powers air/earth/fire/water/spirit).
+	// Pure authoring metadata at registration — the engine attaches no
+	// meaning to the strings (mirrors TargetTypes' open vocabulary).
+	// A setting layer (WoT affinities) reads this to scale a weave's
+	// effectiveness against the channeler's affinity; an unknown or
+	// typo'd element simply matches no affinity and degrades to "weak".
+	// Stored normalized lowercase + deduped. Empty on non-weave abilities.
+	Elements []string
+
 	// Pack records the pack that registered this ability.
 	// Diagnostic only — mirrors Race.Pack / Class.Pack.
 	Pack string
@@ -326,6 +336,26 @@ func (r *AbilityRegistry) Register(a *Ability) error {
 			clone.TargetTypes = tt
 		} else {
 			clone.TargetTypes = nil
+		}
+	}
+	if len(a.Elements) > 0 {
+		el := make([]string, 0, len(a.Elements))
+		seen := make(map[string]struct{}, len(a.Elements))
+		for _, e := range a.Elements {
+			n := strings.ToLower(strings.TrimSpace(e))
+			if n == "" {
+				continue
+			}
+			if _, dup := seen[n]; dup {
+				continue
+			}
+			seen[n] = struct{}{}
+			el = append(el, n)
+		}
+		if len(el) > 0 {
+			clone.Elements = el
+		} else {
+			clone.Elements = nil
 		}
 	}
 	if a.Effect != nil {

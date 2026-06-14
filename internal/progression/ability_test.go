@@ -68,6 +68,44 @@ func TestAbilityRegistry_Register_LowercasesAndStores(t *testing.T) {
 	}
 }
 
+func TestAbilityRegistry_Register_NormalizesElements(t *testing.T) {
+	r := progression.NewAbilityRegistry()
+	in := mkAbility("firebolt", func(a *progression.Ability) {
+		a.Category = progression.AbilitySpell
+		a.Elements = []string{"  Fire  ", "fire", "", "AIR"}
+	})
+	if err := r.Register(in); err != nil {
+		t.Fatalf("Register: %v", err)
+	}
+	got, ok := r.Get("firebolt")
+	if !ok {
+		t.Fatal("Get(firebolt) = false")
+	}
+	want := []string{"fire", "air"}
+	if len(got.Elements) != len(want) {
+		t.Fatalf("Elements = %v, want %v", got.Elements, want)
+	}
+	for i, e := range want {
+		if got.Elements[i] != e {
+			t.Errorf("Elements[%d] = %q, want %q", i, got.Elements[i], e)
+		}
+	}
+}
+
+func TestAbilityRegistry_Register_EmptyElementsStaysNil(t *testing.T) {
+	r := progression.NewAbilityRegistry()
+	in := mkAbility("kick", func(a *progression.Ability) {
+		a.Elements = []string{"  ", ""}
+	})
+	if err := r.Register(in); err != nil {
+		t.Fatalf("Register: %v", err)
+	}
+	got, _ := r.Get("kick")
+	if got.Elements != nil {
+		t.Errorf("Elements = %v, want nil (all-blank input)", got.Elements)
+	}
+}
+
 func TestAbilityRegistry_Register_PriorityOverride(t *testing.T) {
 	r := progression.NewAbilityRegistry()
 	if err := r.Register(mkAbility("kick", withDisplay("Low"), withPriority(0))); err != nil {

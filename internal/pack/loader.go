@@ -1363,6 +1363,7 @@ func decodeAbility(path, ns string) (*progression.Ability, error) {
 		HealDice:              strings.TrimSpace(f.Heal),
 		Hook:                  strings.ToLower(strings.TrimSpace(f.Hook)),
 		MaxBonus:              f.MaxBonus,
+		Elements:              normalizeLowerDedup(f.Elements),
 		HasAlignmentRange:     hasAlignRange,
 		AlignmentMin:          alignMin,
 		AlignmentMax:          alignMax,

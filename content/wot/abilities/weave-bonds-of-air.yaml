@@ -9,6 +9,11 @@ name: Bonds of Air
 type: active
 category: spell
 
+# The Five Powers this weave draws on (WoT S2 affinities). A channeler
+# weak in Air weaves this at reduced potency.
+elements:
+  - air
+
 default_cap: 25
 gain_base_chance: 20
 gain_failure_multiplier: 0.5

@@ -7,6 +7,11 @@ name: Healing
 type: active
 category: spell
 
+# The Five Powers this weave draws on (WoT S2 affinities). A channeler
+# weak in Water weaves this at reduced potency.
+elements:
+  - water
+
 default_cap: 30
 gain_base_chance: 20
 gain_failure_multiplier: 0.5

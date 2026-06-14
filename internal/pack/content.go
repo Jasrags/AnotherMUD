@@ -451,6 +451,11 @@ type AbilityFile struct {
 	// the §6.2 scaling ceiling. Only meaningful on passive abilities.
 	Hook     string `yaml:"hook,omitempty"`
 	MaxBonus int    `yaml:"max_bonus,omitempty"`
+	// Elements is the open-vocabulary list of "powers" a spell weaves
+	// (WoT S2: the Five Powers air/earth/fire/water/spirit). Authoring
+	// metadata only; a setting layer (affinities) reads it. Normalized
+	// lowercase + deduped at registration.
+	Elements []string `yaml:"elements,omitempty"`
 }
 
 // EffectFile is the YAML shape for an Ability.Effect template (spec

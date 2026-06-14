@@ -1458,6 +1458,9 @@ gain_base_chance: 25
 gain_failure_multiplier: 0.5
 gain_stat: dex
 gain_stat_scale: 0.1
+elements:
+  - Fire
+  - air
 `)
 	writeFile(t, filepath.Join(pack, "abilities/second-attack.yaml"), `
 id: second-attack
@@ -1487,6 +1490,11 @@ category: skill
 	}
 	if a.Pack != "tapestry-core" {
 		t.Errorf("Pack = %q", a.Pack)
+	}
+	// Elements decode through normalized lowercase, order preserved.
+	if want := []string{"fire", "air"}; len(a.Elements) != len(want) ||
+		a.Elements[0] != want[0] || a.Elements[1] != want[1] {
+		t.Errorf("Elements = %v, want %v", a.Elements, want)
 	}
 	// Display falls back to id when name omitted.
 	sa, _ := regs.Abilities.Get("second-attack")

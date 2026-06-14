@@ -7,6 +7,12 @@ name: Warding
 type: active
 category: spell
 
+# The Five Powers this weave draws on (WoT S2 affinities). A two-element
+# weave: its potency follows the channeler's weaker affinity of the two.
+elements:
+  - air
+  - spirit
+
 default_cap: 30
 gain_base_chance: 20
 gain_failure_multiplier: 0.5
