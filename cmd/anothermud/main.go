@@ -1931,7 +1931,14 @@ func run() error {
 	// ANOTHERMUD_SPEND_ON_SUCCESS=true; both apply server-wide.
 	resolutionCfg := progression.DefaultResolutionConfig()
 	resolutionCfg.SpendOnSuccess = envBoolOr("ANOTHERMUD_SPEND_ON_SUCCESS", false)
-	abilityPipeline.SetReserveMultiple(envIntOr("ANOTHERMUD_CHANNEL_RESERVE_MULTIPLE", 1))
+	reserveMult := envIntOr("ANOTHERMUD_CHANNEL_RESERVE_MULTIPLE", 1)
+	if reserveMult < 1 {
+		// SetReserveMultiple clamps to 1, but surface the misconfiguration so
+		// an operator who typed 0 / a negative isn't silently ignored.
+		slog.Warn("ANOTHERMUD_CHANNEL_RESERVE_MULTIPLE < 1; clamped to 1 (gate disabled)",
+			slog.String("component", "server"), slog.Int("configured", reserveMult))
+	}
+	abilityPipeline.SetReserveMultiple(reserveMult)
 	abilityResolver := progression.NewAbilityResolver(
 		resolutionCfg,
 		proficiencyMgr, // ProficiencyReader (hit chance + cap)

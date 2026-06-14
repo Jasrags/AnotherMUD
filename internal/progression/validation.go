@@ -124,6 +124,19 @@ func (p *ValidationPipeline) SetReserveMultiple(mult int) {
 	p.reserveMultiple = mult
 }
 
+// effectiveReserveMultiple is the single source of truth for the gate's
+// "always ≥ 1" rule: the constructor sets 1 and SetReserveMultiple clamps,
+// but a zero-value pipeline (a direct struct literal in a within-package
+// test) would otherwise carry a 0 multiple and disable the resource gate
+// entirely (cost×0 ≤ Mana always passes). Floor it here so neither the
+// constructor default nor the gate logic can drift.
+func (p *ValidationPipeline) effectiveReserveMultiple() int {
+	if p.reserveMultiple < 1 {
+		return 1
+	}
+	return p.reserveMultiple
+}
+
 // ProficiencyReader is the read-only seam ValidationPipeline needs
 // from a ProficiencyManager. Mirrors the AbilityProficiency seam
 // in shape but strips the mutation surface so tests can hand the
@@ -280,11 +293,7 @@ func (p *ValidationPipeline) Validate(source ValidationEntity, action QueuedActi
 		if cost > 0 {
 			switch ResourceFor(ability) {
 			case ResourceMana:
-				mult := p.reserveMultiple
-				if mult < 1 {
-					mult = 1 // tolerate a zero-value pipeline (test fakes)
-				}
-				if source.Mana() < cost*mult {
+				if source.Mana() < cost*p.effectiveReserveMultiple() {
 					return ValidationResult{Reason: FizzleInsufficientResources, Ability: ability}
 				}
 			default:
