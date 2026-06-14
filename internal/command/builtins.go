@@ -124,7 +124,7 @@ func RegisterBuiltins(r *Registry) error {
 		// Abilities (M9.6).
 		{Keyword: "abilities", Aliases: []string{"abi"}, Handler: AbilitiesHandler, Brief: "List the abilities you have learned.", Syntax: []string{"abilities"}},
 		{Keyword: "skills", Handler: SkillsHandler, Brief: "List your skills and their proficiency.", Syntax: []string{"skills"}},
-		{Keyword: "cast", Handler: CastHandler, Brief: "Use an ability by name.", Syntax: []string{"cast <ability>", "cast <ability> <target>"}},
+		{Keyword: "cast", Aliases: []string{"channel"}, Handler: CastHandler, Brief: "Use an ability by name (channel a weave).", Syntax: []string{"cast <ability>", "cast <ability> <target>", "channel <weave>", "channel <weave> <target>"}},
 
 		// Help (M10.5).
 		{Keyword: "help", Handler: HelpHandler, Brief: "Find help on commands and topics.", Syntax: []string{"help", "help <topic>"}, Category: "general"},
