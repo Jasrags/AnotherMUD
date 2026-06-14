@@ -139,7 +139,21 @@ func CastHandler(ctx context.Context, c *Context) error {
 	}
 	abilityArg := c.Args[0]
 	target := strings.Join(c.Args[1:], " ")
-	return enqueueAbility(ctx, c, abilityArg, target)
+	return enqueueAbility(ctx, c, abilityArg, target, false)
+}
+
+// OverchannelHandler implements `overchannel <weave> [target]` (WoT S2) —
+// the deliberate draw past a channeler's safe reserve. It enqueues exactly
+// like `channel`/`cast` but sets the Overchannel flag, so a weave the caster
+// cannot safely afford resolves anyway (instead of fizzling) at the cost of
+// a Fortitude save + condition cascade exacted by the host after it lands.
+func OverchannelHandler(ctx context.Context, c *Context) error {
+	if len(c.Args) == 0 {
+		return c.Actor.Write(ctx, "Overchannel what?")
+	}
+	abilityArg := c.Args[0]
+	target := strings.Join(c.Args[1:], " ")
+	return enqueueAbility(ctx, c, abilityArg, target, true)
 }
 
 // AbilityVerb returns a Handler that enqueues a fixed ability id,
@@ -151,7 +165,7 @@ func CastHandler(ctx context.Context, c *Context) error {
 func AbilityVerb(abilityID string) Handler {
 	id := strings.ToLower(strings.TrimSpace(abilityID))
 	return func(ctx context.Context, c *Context) error {
-		return enqueueAbility(ctx, c, id, strings.Join(c.Args, " "))
+		return enqueueAbility(ctx, c, id, strings.Join(c.Args, " "), false)
 	}
 }
 
@@ -168,7 +182,7 @@ func AbilityVerb(abilityID string) Handler {
 // On success the actor sees a "you prepare …" confirmation. Hit/miss/
 // fizzle feedback arrives later from the ability.* event renderer when
 // the combat phase resolves the entry.
-func enqueueAbility(ctx context.Context, c *Context, abilityArg, targetArg string) error {
+func enqueueAbility(ctx context.Context, c *Context, abilityArg, targetArg string, overchannel bool) error {
 	if c.ActionQueue == nil || c.Abilities == nil {
 		return c.Actor.Write(ctx, "You can't use abilities right now.")
 	}
@@ -196,15 +210,20 @@ func enqueueAbility(ctx context.Context, c *Context, abilityArg, targetArg strin
 	if !c.ActionQueue.Push(abilityEntityID(c.Actor), progression.QueuedAction{
 		AbilityID:      ability.ID,
 		TargetEntityID: targetID,
+		Overchannel:    overchannel,
 	}) {
 		return c.Actor.Write(ctx, "You can't prepare any more actions right now.")
 	}
 
+	verb := "use"
+	if overchannel {
+		verb = "overchannel" // "You reach for more of the Power than you should…"
+	}
 	if targetName != "" {
 		return c.Actor.Write(ctx,
-			fmt.Sprintf("You prepare to use %s on %s.", ability.DisplayName, targetName))
+			fmt.Sprintf("You prepare to %s %s on %s.", verb, ability.DisplayName, targetName))
 	}
-	return c.Actor.Write(ctx, fmt.Sprintf("You prepare to use %s.", ability.DisplayName))
+	return c.Actor.Write(ctx, fmt.Sprintf("You prepare to %s %s.", verb, ability.DisplayName))
 }
 
 // stripTargetPreposition drops a single leading "on"/"at" token so

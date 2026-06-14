@@ -334,6 +334,50 @@ func TestValidate_ReserveToBeginGate(t *testing.T) {
 	}
 }
 
+// Overchannel (WoT S2): a flagged action that lacks the reserve does NOT
+// fizzle — it validates as an overchannel and reports the deficit (how far
+// below the reserve threshold the caster was). An unflagged short cast still
+// fizzles; a flagged cast that holds the reserve is an ordinary cast.
+func TestValidate_Overchannel(t *testing.T) {
+	spell := &progression.Ability{
+		ID: "weave", DisplayName: "Weave",
+		Type: progression.AbilityActive, Category: progression.AbilitySpell,
+		Cost: 20,
+	}
+	build := func() (*progression.ValidationPipeline, profSet) {
+		p, _, prof, _, _, _ := buildPipeline(t, []*progression.Ability{spell})
+		prof["ent-1"]["weave"] = true
+		p.SetReserveMultiple(2) // threshold = 40
+		return p, prof
+	}
+
+	// Unflagged + below reserve → fizzle (the safe default).
+	p1, _ := build()
+	if res := p1.Validate(&fakeEntity{id: "ent-1", mana: 25},
+		progression.QueuedAction{AbilityID: "weave"}, 1); res.Reason != progression.FizzleInsufficientResources {
+		t.Fatalf("unflagged short cast: want fizzle, got %q", res.Reason)
+	}
+
+	// Flagged + below reserve → allowed as overchannel, deficit = 40 − 25 = 15.
+	p2, _ := build()
+	res := p2.Validate(&fakeEntity{id: "ent-1", mana: 25},
+		progression.QueuedAction{AbilityID: "weave", Overchannel: true}, 1)
+	if res.Reason != progression.FizzleOK {
+		t.Fatalf("flagged overchannel: want FizzleOK, got %q", res.Reason)
+	}
+	if !res.Overchannel || res.OverchannelDeficit != 15 {
+		t.Fatalf("overchannel=%v deficit=%d; want true/15", res.Overchannel, res.OverchannelDeficit)
+	}
+
+	// Flagged but the caster HOLDS the reserve → ordinary cast, no risk.
+	p3, _ := build()
+	res = p3.Validate(&fakeEntity{id: "ent-1", mana: 40},
+		progression.QueuedAction{AbilityID: "weave", Overchannel: true}, 1)
+	if res.Reason != progression.FizzleOK || res.Overchannel {
+		t.Fatalf("flagged-but-sufficient: want ordinary cast, got reason=%q overchannel=%v", res.Reason, res.Overchannel)
+	}
+}
+
 func TestValidate_HappyPath(t *testing.T) {
 	ability := &progression.Ability{
 		ID: "kick", DisplayName: "Kick",

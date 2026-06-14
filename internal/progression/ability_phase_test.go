@@ -45,7 +45,7 @@ func newDriverRig(t *testing.T, src *fakeSource, learned []string, abilities ...
 		}
 		return nil, false
 	})
-	phase := NewAbilityPhaseDriver(queue, pipeline, resolver, lookup, sink)
+	phase := NewAbilityPhaseDriver(queue, pipeline, resolver, lookup, sink, nil)
 	return &driverRig{queue: queue, prof: prof, sink: sink, phase: phase, src: src}
 }
 
@@ -54,6 +54,52 @@ func newDriverRig(t *testing.T, src *fakeSource, learned []string, abilities ...
 // without a combat target wired into the fake source.
 func selfSpell(id string) *Ability {
 	return &Ability{ID: id, DisplayName: id, Type: AbilityActive, Category: AbilitySpell, Variance: 0}
+}
+
+// The driver invokes the overchannel handler — with the deficit captured by
+// validation BEFORE the spend — when a flagged action resolves below the
+// reserve. An ordinary (unflagged-sufficient) cast does not.
+func TestDriver_OverchannelHandlerFires(t *testing.T) {
+	reg := NewAbilityRegistry()
+	weave := &Ability{ID: "weave", DisplayName: "Weave", Type: AbilityActive, Category: AbilitySpell, Cost: 20}
+	if err := reg.Register(weave); err != nil {
+		t.Fatalf("register: %v", err)
+	}
+	prof := newProfStub()
+	prof.vals["weave"] = 1
+	queue := NewActionQueueManager(ActionQueueConfig{})
+	pipeline := NewValidationPipeline(reg, prof, nil, nil, nil) // reserveMultiple 1 → threshold = cost 20
+	resolver := NewAbilityResolver(DefaultResolutionConfig(), prof, nil, nil, nil, nil, &recordingSink{}, nil)
+	src := &fakeSource{id: "p1", mana: 8} // below the 20 threshold
+	lookup := ResolutionSourceLookupFunc(func(id string) (ResolutionSource, bool) {
+		return src, id == "player:p1"
+	})
+	var gotEntity, gotAbility string
+	var gotDeficit int
+	calls := 0
+	phase := NewAbilityPhaseDriver(queue, pipeline, resolver, lookup, &recordingSink{},
+		func(_ context.Context, entityID, abilityID string, deficit int) {
+			calls++
+			gotEntity, gotAbility, gotDeficit = entityID, abilityID, deficit
+		})
+
+	queue.Push("p1", QueuedAction{AbilityID: "weave", Overchannel: true})
+	phase(context.Background(), "player:p1", nil, 0)
+
+	if calls != 1 {
+		t.Fatalf("overchannel handler called %d times; want 1", calls)
+	}
+	if gotEntity != "p1" || gotAbility != "weave" || gotDeficit != 12 { // 20 − 8
+		t.Fatalf("handler got (%q,%q,%d); want (p1,weave,12)", gotEntity, gotAbility, gotDeficit)
+	}
+
+	// A sufficient cast (mana ≥ threshold) does not fire the handler.
+	src.mana = 20
+	queue.Push("p1", QueuedAction{AbilityID: "weave", Overchannel: true})
+	phase(context.Background(), "player:p1", nil, 0)
+	if calls != 1 {
+		t.Fatalf("handler fired on a sufficient cast; calls=%d want still 1", calls)
+	}
 }
 
 func TestDriver_EmptyQueueNoOp(t *testing.T) {
@@ -183,7 +229,7 @@ func TestDriver_ThroughCombatHeartbeat(t *testing.T) {
 		}
 		return nil, false // mob is not an ability source
 	})
-	phase := NewAbilityPhaseDriver(queue, pipeline, resolver, sources, sink)
+	phase := NewAbilityPhaseDriver(queue, pipeline, resolver, sources, sink, nil)
 
 	hb := combat.NewHeartbeat(mgr, combat.Phases{Ability: phase})
 	queue.Push("p1", QueuedAction{AbilityID: "heal"})
@@ -218,7 +264,7 @@ func TestDriver_PulseThreadedToResolver(t *testing.T) {
 	lookup := ResolutionSourceLookupFunc(func(id string) (ResolutionSource, bool) {
 		return src, id == "player:p1"
 	})
-	phase := NewAbilityPhaseDriver(queue, pipeline, resolver, lookup, sink)
+	phase := NewAbilityPhaseDriver(queue, pipeline, resolver, lookup, sink, nil)
 	queue.Push("p1", QueuedAction{AbilityID: "heal"})
 
 	phase(context.Background(), "player:p1", nil, 7)

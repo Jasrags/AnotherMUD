@@ -196,6 +196,19 @@ type ValidationResult struct {
 	Reason         FizzleReason
 	Ability        *Ability
 	ResolvedTarget string
+	// Overchannel reports that this was a deliberate overdraw (the action's
+	// Overchannel flag was set AND the caster lacked the safe reserve, so a
+	// normal cast would have fizzled insufficient_resources). The driver
+	// hands this to the host's overchannel handler after the weave resolves.
+	// False when the action wasn't flagged, or was flagged but the caster
+	// actually held the reserve (then it's just an ordinary cast).
+	Overchannel bool
+	// OverchannelDeficit is how far below the reserve-to-begin threshold the
+	// caster was at validation time (reserveMultiple×cost − currentMana,
+	// floored at 1 when Overchannel is true). It MUST be captured here,
+	// before the resolver spends the pool — scaling the Fortitude DC off the
+	// post-spend mana would read zero. Zero when Overchannel is false.
+	OverchannelDeficit int
 }
 
 // Validate runs the §4.3 pipeline for one queued action invoked by
@@ -288,15 +301,32 @@ func (p *ValidationPipeline) Validate(source ValidationEntity, action QueuedActi
 	// the reserve-to-begin gate (default multiple 1 = plain cost check):
 	// a channeler must HOLD reserveMultiple × cost to start, though only
 	// cost is spent. Movement abilities keep the plain cost gate.
+	//
+	// Overchannel (WoT S2): when the action is flagged AND the mana branch
+	// falls short of the reserve, the cast is NOT fizzled — it proceeds as a
+	// deliberate overdraw, and the shortfall is reported so the host can
+	// exact the Fortitude-save consequence. A flagged action that DOES hold
+	// the reserve is just an ordinary cast (no risk).
+	overchannel := false
+	deficit := 0
 	if ability.Cost > 0 {
 		cost := AdjustCost(ability.Cost, source.Race())
 		if cost > 0 {
 			switch ResourceFor(ability) {
 			case ResourceMana:
-				if source.Mana() < cost*p.effectiveReserveMultiple() {
-					return ValidationResult{Reason: FizzleInsufficientResources, Ability: ability}
+				threshold := cost * p.effectiveReserveMultiple()
+				if source.Mana() < threshold {
+					if !action.Overchannel {
+						return ValidationResult{Reason: FizzleInsufficientResources, Ability: ability}
+					}
+					overchannel = true
+					if deficit = threshold - source.Mana(); deficit < 1 {
+						deficit = 1
+					}
 				}
 			default:
+				// Overchannel is a channeling (mana) concept only; movement
+				// abilities keep the hard cost gate even when flagged.
 				if source.Movement() < cost {
 					return ValidationResult{Reason: FizzleInsufficientResources, Ability: ability}
 				}
@@ -304,7 +334,13 @@ func (p *ValidationPipeline) Validate(source ValidationEntity, action QueuedActi
 		}
 	}
 
-	return ValidationResult{Reason: FizzleOK, Ability: ability, ResolvedTarget: resolvedTarget}
+	return ValidationResult{
+		Reason:             FizzleOK,
+		Ability:            ability,
+		ResolvedTarget:     resolvedTarget,
+		Overchannel:        overchannel,
+		OverchannelDeficit: deficit,
+	}
 }
 
 // resolveTarget implements spec §4.4 target resolution against the

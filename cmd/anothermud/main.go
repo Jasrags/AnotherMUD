@@ -1966,8 +1966,44 @@ func run() error {
 	// conditions §4: save-gated ability effects (trip/bash) roll their entry
 	// save through the emitting resolver so a resisted condition reads in-game.
 	abilityResolver.SetSaveResolver(entrySaveResolver)
+
+	// WoT S2 Phase 2 — the overchannel consequence. After a deliberately
+	// overdrawn weave resolves, the channeler makes a Fortitude save whose DC
+	// rises with how far past the safe reserve they reached; on a failure the
+	// Power scours them — fatigued for a mild miss, stunned for a bad one,
+	// scaling with the save margin. (The catastrophic "stilled" tier — losing
+	// the Power outright — is Phase 2b.) Runs on the tick goroutine inside the
+	// driver loop, so combatRNG stays single-goroutine like the other saves.
+	const (
+		overchannelBaseDC       = 12
+		overchannelDeficitScale = 1 // +1 DC per point of mana drawn past the reserve
+		overchannelStunMargin   = 5 // fail by ≥ this → stunned, else fatigued
+	)
+	overchannelHandler := func(ctx context.Context, entityID, abilityID string, deficit int) {
+		actor, ok := mgr.GetByPlayerID(entityID)
+		if !ok {
+			return // logged out between resolve and consequence
+		}
+		dc := overchannelBaseDC + overchannelDeficitScale*deficit
+		out := combat.ResolveSave(combatRNG, actor.Saves().Fortitude, dc)
+		if out.Success {
+			_ = actor.Write(ctx, "You draw far more of the One Power than is safe — and hold it, the Source raging through you and away.")
+			return
+		}
+		margin := out.DC - out.Total
+		effectID, msg := "fatigued", "The Power scours you as it tears free; you sag, wrung out and shaking."
+		if margin >= overchannelStunMargin {
+			effectID, msg = "stunned", "You reach too far. The One Power turns on you — the world whites out and your knees give way."
+		}
+		if tpl, ok := registries.Effects.Get(effectID); ok {
+			effectMgr.Apply(ctx, entityID, tpl, entityID, "overchannel")
+		}
+		_ = actor.Write(ctx, msg)
+	}
+
 	abilityPhase := progression.NewAbilityPhaseDriver(
 		actionQueueMgr, abilityPipeline, abilityResolver, abilitySources, abilitySink,
+		overchannelHandler,
 	)
 
 	combatHeartbeat := combat.NewHeartbeat(combatMgr, combat.Phases{

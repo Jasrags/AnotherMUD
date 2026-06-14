@@ -51,12 +51,23 @@ func (f ResolutionSourceLookupFunc) ResolveSource(combatantID string) (Resolutio
 // so the queue strictly shrinks; it is additionally bounded by the
 // queue's configured depth limit.
 type AbilityPhaseDriver struct {
-	queue    *ActionQueueManager
-	pipeline *ValidationPipeline
-	resolver *AbilityResolver
-	sources  ResolutionSourceLookup
-	sink     AbilitySink
+	queue       *ActionQueueManager
+	pipeline    *ValidationPipeline
+	resolver    *AbilityResolver
+	sources     ResolutionSourceLookup
+	sink        AbilitySink
+	overchannel OverchannelFunc
 }
+
+// OverchannelFunc is the host hook invoked after a deliberately overdrawn
+// weave resolves (WoT S2). entityID is the caster (no combat prefix),
+// abilityID the resolved weave, and deficit how far below the safe reserve
+// the caster was (ValidationResult.OverchannelDeficit). The host exacts the
+// consequence — a Fortitude save scaled by deficit, with a condition cascade
+// on failure. It runs on the tick goroutine, in the driver's serial loop,
+// AFTER the weave's own effects resolved and the pool was spent. nil disables
+// the consequence (a non-channeling ruleset never flags an action).
+type OverchannelFunc func(ctx context.Context, entityID, abilityID string, deficit int)
 
 // NewAbilityPhaseDriver builds the driver and returns it as a
 // combat.PhaseFunc ready to register as combat.Phases.Ability.
@@ -82,6 +93,7 @@ func NewAbilityPhaseDriver(
 	resolver *AbilityResolver,
 	sources ResolutionSourceLookup,
 	sink AbilitySink,
+	overchannel OverchannelFunc,
 ) combat.PhaseFunc {
 	if queue == nil {
 		panic("progression.NewAbilityPhaseDriver: nil queue")
@@ -96,11 +108,12 @@ func NewAbilityPhaseDriver(
 		panic("progression.NewAbilityPhaseDriver: nil sources")
 	}
 	d := &AbilityPhaseDriver{
-		queue:    queue,
-		pipeline: pipeline,
-		resolver: resolver,
-		sources:  sources,
-		sink:     sink,
+		queue:       queue,
+		pipeline:    pipeline,
+		resolver:    resolver,
+		sources:     sources,
+		sink:        sink,
+		overchannel: overchannel,
 	}
 	return d.run
 }
@@ -148,6 +161,12 @@ func (d *AbilityPhaseDriver) run(ctx context.Context, combatantID combat.Combata
 
 		// §4.2 step 3: valid → resolve + drop + stop.
 		d.resolver.Resolve(ctx, source, result.Ability, result.ResolvedTarget, currentPulse)
+		// WoT S2: a deliberate overdraw resolved — exact the consequence
+		// (Fortitude save + cascade) AFTER the weave's own effects landed and
+		// the pool was spent. The deficit was captured pre-spend by validation.
+		if result.Overchannel && d.overchannel != nil {
+			d.overchannel(ctx, entityID, result.Ability.ID, result.OverchannelDeficit)
+		}
 		d.queue.Pop(entityID)
 		return
 	}

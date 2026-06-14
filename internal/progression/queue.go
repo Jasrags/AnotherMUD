@@ -23,6 +23,13 @@ const DefaultActionQueueLimit = 16
 type QueuedAction struct {
 	AbilityID      string
 	TargetEntityID string
+	// Overchannel marks a deliberate draw past the caster's safe reserve
+	// (WoT S2 — the `overchannel` verb). It tells validation to allow a
+	// spell whose cost exceeds the reserve-to-begin threshold (which would
+	// otherwise fizzle as insufficient_resources) and flags the resolved
+	// cast as risky, so the host can exact the overchannel consequence
+	// (a Fortitude save + condition cascade). False = an ordinary cast.
+	Overchannel bool
 }
 
 // ActionQueueConfig is the host-side configuration for
