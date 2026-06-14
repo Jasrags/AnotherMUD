@@ -19,11 +19,13 @@ gain_failure_multiplier: 0.5
 gain_stat: wis
 gain_stat_scale: 0.1
 
-# Draws the One Power. variance 0 ⇒ always lands once begun (the future
-# interrupt game is where a weave gets disrupted, not a miss roll). A short
-# cast time relative to the heavier weaves below.
+# Draws the One Power. variance 0 ⇒ always lands once begun (the interrupt
+# game is where a weave gets disrupted, not a miss roll). cast_time is the
+# interruptible warmup in combat rounds; pulse_delay the recovery after. A
+# short cast relative to the heavier weaves below.
 cost: 12
 pulse_delay: 2
+cast_time: 1
 variance: 0
 
 target_types:

@@ -415,6 +415,11 @@ type AbilityFile struct {
 	// M9.3 validation surface (spec abilities-and-effects §2.2, §4.3).
 	Cost          int      `yaml:"cost,omitempty"`
 	PulseDelay    int      `yaml:"pulse_delay,omitempty"`
+	// CastTime is the interruptible warmup in combat rounds before the
+	// ability resolves (WoT S2 — the channel interrupt game). 0 ⇒ instant
+	// (the default for every skill and instant weave). Distinct from
+	// PulseDelay (post-cast recovery cooldown).
+	CastTime      int      `yaml:"cast_time,omitempty"`
 	InitiateOnly  bool     `yaml:"initiate_only,omitempty"`
 	TargetTypes   []string `yaml:"target_types,omitempty"`
 	EquipmentSlot string   `yaml:"equipment_slot,omitempty"`

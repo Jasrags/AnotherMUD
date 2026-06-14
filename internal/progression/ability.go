@@ -119,6 +119,16 @@ type Ability struct {
 	// / §4.3 step 8 / §4.5 step 3). Zero means no cooldown.
 	PulseDelay int
 
+	// CastTime is the interruptible warmup, in combat rounds, that the
+	// ability occupies before it resolves (WoT S2 — the channel interrupt
+	// game). Zero ⇒ instant resolution (every skill and instant weave, the
+	// pre-S2 behavior). A positive value makes the ability phase BEGIN the
+	// cast, hold it for CastTime rounds, and resolve it only if it survives
+	// to the end — a hit (or other disruption) on the caster aborts it.
+	// Distinct from PulseDelay, which is the post-cast recovery cooldown:
+	// CastTime is the windup before, PulseDelay the recovery after.
+	CastTime int
+
 	// InitiateOnly marks combat-opening moves that fizzle when
 	// the source is already in combat (spec §2.2 / §4.3 step 5).
 	InitiateOnly bool

@@ -23,6 +23,7 @@ gain_stat_scale: 0.1
 # the ward.
 cost: 8
 pulse_delay: 4
+cast_time: 2
 variance: 0
 
 # Self-targeted ward: a modest armor + to-hit steadying for its duration.

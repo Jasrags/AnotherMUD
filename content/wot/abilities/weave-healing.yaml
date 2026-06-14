@@ -20,6 +20,7 @@ gain_stat_scale: 0.1
 
 cost: 10
 pulse_delay: 3
+cast_time: 1
 variance: 0
 
 handler: heal

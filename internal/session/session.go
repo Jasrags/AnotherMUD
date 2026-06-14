@@ -251,6 +251,13 @@ type Config struct {
 	// logout calls Drop. nil-safe like ActionQueue.
 	PulseDelay *progression.PulseDelayTracker
 
+	// Casts is the WoT S2 per-entity in-flight timed-cast tracker (the
+	// channel interrupt game). The ability phase records a weave's warmup
+	// into it; logout calls Drop so a half-woven weave does not survive a
+	// reconnect (it is simply lost, like a mid-pulse cancellation). nil-safe
+	// like ActionQueue — non-channeling boots leave it nil.
+	Casts *progression.CastTracker
+
 	// DefaultRace is the race id assigned to legacy saves with no
 	// `race` field, and to fresh characters that haven't been
 	// through a M12 character-creation flow yet. Empty means the
@@ -1129,6 +1136,9 @@ func fullTeardown(ctx context.Context, cfg Config, a *connActor) {
 	}
 	if cfg.PulseDelay != nil {
 		cfg.PulseDelay.Drop(a.PlayerID())
+	}
+	if cfg.Casts != nil {
+		cfg.Casts.Drop(a.PlayerID())
 	}
 
 	// M10.8: drop in-memory quest state + the persistence name cache so

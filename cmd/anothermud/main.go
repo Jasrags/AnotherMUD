@@ -1014,6 +1014,11 @@ func run() error {
 	// production today — the wiring is live but dormant.
 	actionQueueMgr := progression.NewActionQueueManager(progression.ActionQueueConfig{})
 	pulseDelayTracker := progression.NewPulseDelayTracker()
+	// WoT S2 — the channel interrupt game. Tracks each entity's single
+	// in-flight timed weave (warmup countdown). Behavior-neutral until content
+	// authors a `cast_time` > 0 ability: with no timed casts the ability phase
+	// resolves everything instantly, exactly as before. Logout drops state.
+	castTracker := progression.NewCastTracker()
 
 	// M8.5: alignment manager + bus-bridging sink. Config uses
 	// the engine defaults (-1000/+1000 bounds, ±500 bucket
@@ -2058,9 +2063,15 @@ func run() error {
 		_ = actor.Write(ctx, msg)
 	}
 
+	// WoT S2 — the channel interrupt game. The cast notifier messages the
+	// caster when a timed weave begins its warmup and when one is disrupted.
+	// Both look the caster up by entity id (== player id) and write directly,
+	// mirroring the overchannel handler. nil-safe inside the driver; supplied
+	// unconditionally because it is inert until a `cast_time` weave is woven.
+	castNotifier := castMessenger{mgr: mgr}
 	abilityPhase := progression.NewAbilityPhaseDriver(
 		actionQueueMgr, abilityPipeline, abilityResolver, abilitySources, abilitySink,
-		overchannelHandler,
+		overchannelHandler, castTracker, castNotifier,
 	)
 
 	combatHeartbeat := combat.NewHeartbeat(combatMgr, combat.Phases{
@@ -2100,12 +2111,32 @@ func run() error {
 	// abilities (M9.4), so the bare queue key maps back to a player
 	// combatant id.
 	if err := loop.Register("ability-idle-tick", combatCadence, func(ctx context.Context, n uint64) {
-		for _, id := range actionQueueMgr.PendingEntities() {
+		// Union the queued-action set with the in-flight-cast set: once a timed
+		// weave (WoT S2) begins, its queue entry is popped, so a casting-but-
+		// idle channeler would vanish from PendingEntities and its warmup would
+		// never advance. Dedupe so an entity that is both queued and casting is
+		// driven once per round. Both sets are bare PLAYER ids: only players
+		// queue abilities or channel today (the same M9.4 invariant the queue
+		// loop already relies on), so NewPlayerCombatantID is correct. A future
+		// mob weave (cast_time on a mob ability) would need prefix-aware routing
+		// here — guard with that, not silently, when mob casting lands.
+		seen := make(map[string]struct{})
+		drive := func(id string) {
+			if _, dup := seen[id]; dup {
+				return
+			}
+			seen[id] = struct{}{}
 			cid := combat.NewPlayerCombatantID(id)
 			if combatMgr.InCombat(cid) {
-				continue
+				return // engaged casters are the heartbeat's job (no double-advance)
 			}
 			abilityPhase(ctx, cid, combatMgr, n)
+		}
+		for _, id := range actionQueueMgr.PendingEntities() {
+			drive(id)
+		}
+		for _, id := range castTracker.CastingEntities() {
+			drive(id)
 		}
 	}); err != nil {
 		return fmt.Errorf("register ability idle tick: %w", err)
@@ -2200,6 +2231,7 @@ func run() error {
 		SkillRoller:     stdRoller{},
 		ActionQueue:     actionQueueMgr,
 		PulseDelay:      pulseDelayTracker,
+		Casts:           castTracker,
 		Races:           registries.Races,
 		Classes:         registries.Classes,
 		Feats:           registries.Feats,
@@ -3946,6 +3978,29 @@ func (n notifierAdapter) Notify(ctx context.Context, entityID, msg string) {
 		return
 	}
 	_ = a.Write(ctx, msg)
+}
+
+// castMessenger bridges progression.CastNotifier to session.Manager (WoT S2 —
+// the channel interrupt game). It messages the caster when a timed weave begins
+// its warmup and when an in-flight weave is disrupted, looking the actor up by
+// entity id (== player id) and writing directly, like notifierAdapter. A
+// missing actor (disconnected mid-cast) silently drops the message.
+type castMessenger struct{ mgr *session.Manager }
+
+func (m castMessenger) OnCastBegan(ctx context.Context, ev progression.CastBeganEvent) {
+	a, ok := m.mgr.GetByPlayerID(ev.SourceID)
+	if !ok {
+		return
+	}
+	_ = a.Write(ctx, fmt.Sprintf("You begin to weave %s...", ev.AbilityName))
+}
+
+func (m castMessenger) OnCastInterrupted(ctx context.Context, ev progression.CastInterruptedEvent) {
+	a, ok := m.mgr.GetByPlayerID(ev.SourceID)
+	if !ok {
+		return
+	}
+	_ = a.Write(ctx, fmt.Sprintf("Your weave of %s is disrupted!", ev.AbilityName))
 }
 
 // trainsAdapter routes CreditTrains calls to the live actor. The

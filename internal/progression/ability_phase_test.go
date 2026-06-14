@@ -45,7 +45,7 @@ func newDriverRig(t *testing.T, src *fakeSource, learned []string, abilities ...
 		}
 		return nil, false
 	})
-	phase := NewAbilityPhaseDriver(queue, pipeline, resolver, lookup, sink, nil)
+	phase := NewAbilityPhaseDriver(queue, pipeline, resolver, lookup, sink, nil, nil, nil)
 	return &driverRig{queue: queue, prof: prof, sink: sink, phase: phase, src: src}
 }
 
@@ -81,7 +81,7 @@ func TestDriver_OverchannelHandlerFires(t *testing.T) {
 		func(_ context.Context, entityID, abilityID string, deficit int) {
 			calls++
 			gotEntity, gotAbility, gotDeficit = entityID, abilityID, deficit
-		})
+		}, nil, nil)
 
 	queue.Push("p1", QueuedAction{AbilityID: "weave", Overchannel: true})
 	phase(context.Background(), "player:p1", nil, 0)
@@ -126,7 +126,7 @@ func TestDriver_OverchannelSkippedWhenMissDrewNothing(t *testing.T) {
 	})
 	calls := 0
 	phase := NewAbilityPhaseDriver(queue, pipeline, resolver, lookup, &recordingSink{},
-		func(context.Context, string, string, int) { calls++ })
+		func(context.Context, string, string, int) { calls++ }, nil, nil)
 
 	queue.Push("p1", QueuedAction{AbilityID: "weave", Overchannel: true})
 	phase(context.Background(), "player:p1", nil, 0)
@@ -266,7 +266,7 @@ func TestDriver_ThroughCombatHeartbeat(t *testing.T) {
 		}
 		return nil, false // mob is not an ability source
 	})
-	phase := NewAbilityPhaseDriver(queue, pipeline, resolver, sources, sink, nil)
+	phase := NewAbilityPhaseDriver(queue, pipeline, resolver, sources, sink, nil, nil, nil)
 
 	hb := combat.NewHeartbeat(mgr, combat.Phases{Ability: phase})
 	queue.Push("p1", QueuedAction{AbilityID: "heal"})
@@ -301,7 +301,7 @@ func TestDriver_PulseThreadedToResolver(t *testing.T) {
 	lookup := ResolutionSourceLookupFunc(func(id string) (ResolutionSource, bool) {
 		return src, id == "player:p1"
 	})
-	phase := NewAbilityPhaseDriver(queue, pipeline, resolver, lookup, sink, nil)
+	phase := NewAbilityPhaseDriver(queue, pipeline, resolver, lookup, sink, nil, nil, nil)
 	queue.Push("p1", QueuedAction{AbilityID: "heal"})
 
 	phase(context.Background(), "player:p1", nil, 7)
@@ -309,5 +309,136 @@ func TestDriver_PulseThreadedToResolver(t *testing.T) {
 	readyAt, ok := tracker.ReadyAt("p1", "heal")
 	if !ok || readyAt != 10 {
 		t.Fatalf("want readyAt 10 (pulse 7 + delay 2 + 1), got %d ok=%v", readyAt, ok)
+	}
+}
+
+// --- WoT S2: the channel interrupt game (timed casts) -----------------------
+
+// recordingCastNotifier captures cast-lifecycle emissions.
+type recordingCastNotifier struct {
+	began       []CastBeganEvent
+	interrupted []CastInterruptedEvent
+}
+
+func (n *recordingCastNotifier) OnCastBegan(_ context.Context, ev CastBeganEvent) {
+	n.began = append(n.began, ev)
+}
+func (n *recordingCastNotifier) OnCastInterrupted(_ context.Context, ev CastInterruptedEvent) {
+	n.interrupted = append(n.interrupted, ev)
+}
+
+// newTimedDriverRig is newDriverRig with a CastTracker + recording notifier
+// wired, so timed (cast_time > 0) weaves exercise the warmup state machine.
+func newTimedDriverRig(t *testing.T, src *fakeSource, learned []string, abilities ...*Ability) (combat.PhaseFunc, *ActionQueueManager, *CastTracker, *recordingCastNotifier, *recordingSink) {
+	t.Helper()
+	reg := NewAbilityRegistry()
+	for _, a := range abilities {
+		if err := reg.Register(a); err != nil {
+			t.Fatalf("register %q: %v", a.ID, err)
+		}
+	}
+	prof := newProfStub()
+	for _, id := range learned {
+		prof.vals[id] = 1
+	}
+	queue := NewActionQueueManager(ActionQueueConfig{})
+	pipeline := NewValidationPipeline(reg, prof, nil, nil, nil)
+	sink := &recordingSink{}
+	resolver := NewAbilityResolver(DefaultResolutionConfig(), prof, nil, nil, nil, nil, sink, nil)
+	lookup := ResolutionSourceLookupFunc(func(id string) (ResolutionSource, bool) {
+		return src, id == "player:p1"
+	})
+	casts := NewCastTracker()
+	notifier := &recordingCastNotifier{}
+	phase := NewAbilityPhaseDriver(queue, pipeline, resolver, lookup, sink, nil, casts, notifier)
+	return phase, queue, casts, notifier, sink
+}
+
+// A weave with cast_time > 0 BEGINS a warmup instead of resolving in the pulse
+// it is validated: the begin event fires, the queue drains into the tracker,
+// and no used event is emitted yet.
+func TestDriver_TimedCastBeginsNotResolveImmediately(t *testing.T) {
+	src := &fakeSource{id: "p1", mana: 100}
+	weave := &Ability{ID: "firebolt", DisplayName: "Firebolt", Type: AbilityActive, Category: AbilitySpell, Variance: 0, CastTime: 2}
+	phase, queue, casts, notifier, sink := newTimedDriverRig(t, src, []string{"firebolt"}, weave)
+
+	queue.Push("p1", QueuedAction{AbilityID: "firebolt"})
+	phase(context.Background(), "player:p1", nil, 0)
+
+	if len(notifier.began) != 1 || notifier.began[0].AbilityID != "firebolt" || notifier.began[0].Rounds != 2 {
+		t.Fatalf("begin event = %+v; want one firebolt/2", notifier.began)
+	}
+	if len(sink.used) != 0 {
+		t.Fatalf("a timed cast must NOT resolve on begin; got used=%+v", sink.used)
+	}
+	if !casts.IsCasting("p1") {
+		t.Fatal("entity should be mid-cast after begin")
+	}
+	if queue.Len("p1") != 0 {
+		t.Fatal("the queue entry should be consumed at begin")
+	}
+}
+
+// Across rounds the warmup counts down and the weave resolves only when it
+// elapses — one used event, at the end, and the tracker clears.
+func TestDriver_TimedCastResolvesAfterWarmup(t *testing.T) {
+	src := &fakeSource{id: "p1", mana: 100}
+	weave := &Ability{ID: "firebolt", DisplayName: "Firebolt", Type: AbilityActive, Category: AbilitySpell, Variance: 0, CastTime: 2}
+	phase, queue, casts, _, sink := newTimedDriverRig(t, src, []string{"firebolt"}, weave)
+
+	queue.Push("p1", QueuedAction{AbilityID: "firebolt"})
+	phase(context.Background(), "player:p1", nil, 0) // begin (remaining 2)
+	phase(context.Background(), "player:p1", nil, 1) // warmup (remaining 1) — still no resolve
+	if len(sink.used) != 0 {
+		t.Fatalf("weave resolved mid-warmup; used=%+v", sink.used)
+	}
+	phase(context.Background(), "player:p1", nil, 2) // remaining 0 → resolve
+
+	if len(sink.used) != 1 || sink.used[0].AbilityID != "firebolt" {
+		t.Fatalf("weave should resolve once after warmup; used=%+v", sink.used)
+	}
+	if casts.IsCasting("p1") {
+		t.Fatal("tracker should clear once the weave resolves")
+	}
+}
+
+// An interrupted weave never resolves: clearing the tracker mid-warmup means
+// the next ability phase finds nothing to advance and emits no used event.
+func TestDriver_InterruptedTimedCastDoesNotResolve(t *testing.T) {
+	src := &fakeSource{id: "p1", mana: 100}
+	weave := &Ability{ID: "firebolt", DisplayName: "Firebolt", Type: AbilityActive, Category: AbilitySpell, Variance: 0, CastTime: 2}
+	phase, queue, casts, _, sink := newTimedDriverRig(t, src, []string{"firebolt"}, weave)
+
+	queue.Push("p1", QueuedAction{AbilityID: "firebolt"})
+	phase(context.Background(), "player:p1", nil, 0) // begin
+	if _, ok := casts.Interrupt("p1"); !ok {           // a hit lands (slice 2 trigger, simulated)
+		t.Fatal("expected an in-flight cast to interrupt")
+	}
+	phase(context.Background(), "player:p1", nil, 1) // nothing in flight → no-op
+	phase(context.Background(), "player:p1", nil, 2)
+
+	if len(sink.used) != 0 {
+		t.Fatalf("an interrupted weave must not resolve; used=%+v", sink.used)
+	}
+}
+
+// An instant (cast_time 0) ability still resolves in the pulse it validates,
+// even with the cast tracker wired — timed casts are opt-in per ability.
+func TestDriver_InstantAbilityUnaffectedByCastTracker(t *testing.T) {
+	src := &fakeSource{id: "p1", mana: 100}
+	instant := selfSpell("bless") // CastTime 0
+	phase, queue, casts, notifier, sink := newTimedDriverRig(t, src, []string{"bless"}, instant)
+
+	queue.Push("p1", QueuedAction{AbilityID: "bless"})
+	phase(context.Background(), "player:p1", nil, 0)
+
+	if len(sink.used) != 1 {
+		t.Fatalf("instant ability should resolve immediately; used=%+v", sink.used)
+	}
+	if len(notifier.began) != 0 {
+		t.Fatalf("instant ability should not emit a begin event; began=%+v", notifier.began)
+	}
+	if casts.IsCasting("p1") {
+		t.Fatal("instant ability should not enter the cast tracker")
 	}
 }

@@ -1352,6 +1352,7 @@ func decodeAbility(path, ns string) (*progression.Ability, error) {
 		GainStatScale:         f.GainStatScale,
 		Cost:                  f.Cost,
 		PulseDelay:            f.PulseDelay,
+		CastTime:              f.CastTime,
 		InitiateOnly:          f.InitiateOnly,
 		TargetTypes:           normalizeLowerDedup(f.TargetTypes),
 		EquipmentSlot:         strings.ToLower(strings.TrimSpace(f.EquipmentSlot)),
