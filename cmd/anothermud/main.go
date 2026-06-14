@@ -2073,6 +2073,11 @@ func run() error {
 		actionQueueMgr, abilityPipeline, abilityResolver, abilitySources, abilitySink,
 		overchannelHandler, castTracker, castNotifier,
 	)
+	// WoT S2 interrupt game: let the combat sink abort a mid-cast target's
+	// weave when a blow lands. Set here (post-construction, like mgr/rest)
+	// now that the tracker + notifier exist.
+	combatSink.casts = castTracker
+	combatSink.castNotify = castNotifier
 
 	combatHeartbeat := combat.NewHeartbeat(combatMgr, combat.Phases{
 		Ability:    abilityPhase,
@@ -3203,6 +3208,12 @@ type productionCombatSink struct {
 	// rest is the M11.4 rest service. OnEngagement forcibly wakes a
 	// resting/sleeping target (spec §5.4). nil disables combat wake.
 	rest *economy.RestService
+	// casts + castNotify drive the WoT S2 interrupt game: a hit on a
+	// mid-cast target aborts its weave (cost was tempo, not Power — under
+	// spend-on-success an unresolved cast never spent). Both nil-safe; set
+	// after construction once the tracker + notifier exist.
+	casts      *progression.CastTracker
+	castNotify progression.CastNotifier
 }
 
 // tell sends msg to the combatant if it is an online player (M10 combat
@@ -3291,6 +3302,35 @@ func (s *productionCombatSink) OnHit(ctx context.Context, e combat.Hit) {
 	s.tell(ctx, e.AttackerID, fmt.Sprintf("<good>You hit %s for %d damage.</good>%s", tn, e.Damage, crit))
 	s.tell(ctx, e.TargetID, fmt.Sprintf("<danger>%s hits you for %d damage.</danger>", an, e.Damage))
 	s.announce(ctx, e.RoomID, fmt.Sprintf("%s hits %s.", an, tn), e.AttackerID, e.TargetID)
+
+	// WoT S2 — the channel interrupt game. A landed blow aborts the victim's
+	// in-flight weave. A miss or evade does not (only OnHit fires here): a
+	// dodged blow doesn't break concentration.
+	s.interruptCast(ctx, e.TargetID, "hit")
+}
+
+// interruptCast aborts victimCID's in-flight weave, if any, and tells the
+// caster. cause is the disruption keyword (today only "hit"; slice 3 adds
+// "stunned"/"moved"). No Power is refunded because none was spent — a timed
+// weave only draws the One Power when it RESOLVES, and an interrupted weave
+// never does (the cost was tempo). casts + castNotify are an all-or-nothing
+// feature pair (both set together, or both nil outside the WoT pack), so the
+// outer nil-guard covers both; the inner guard is belt-and-suspenders.
+func (s *productionCombatSink) interruptCast(ctx context.Context, victimCID combat.CombatantID, cause string) {
+	if s.casts == nil {
+		return
+	}
+	victimID := combat.EntityIDOf(victimCID)
+	cast, ok := s.casts.Interrupt(victimID)
+	if !ok || s.castNotify == nil {
+		return
+	}
+	s.castNotify.OnCastInterrupted(ctx, progression.CastInterruptedEvent{
+		SourceID:    victimID,
+		AbilityID:   cast.AbilityID,
+		AbilityName: cast.AbilityName,
+		Cause:       cause,
+	})
 }
 
 func (s *productionCombatSink) OnMiss(ctx context.Context, e combat.Miss) {
