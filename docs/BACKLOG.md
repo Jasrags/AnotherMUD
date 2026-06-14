@@ -227,24 +227,19 @@ old five-theme partition left uncovered.
   fatigue) — best decided as one "survival v2" design pass. Reshapes the single
   `sustenance` pool that `restore` and the drain knob currently operate on. Needs
   a spec slice on `economy-survival §4` before building.
-- **Mana / Movement current pools + regen** — the prompt's `MA`/`MV` columns
-  (`render.DefaultPromptTemplate`, ui-rendering-help §7.1) render **stat-derived
-  MAX only**: `session/prompt.go` builds `PromptVitals` with `Mana == MaxMana` and
-  `MV == MaxMV` because **there is no current-pool tracking** (the code's own
-  "Thin pools (M9.4b)" note). So MA/MV always show `current == max` (e.g. `0/0`
-  for a fighter whose `resource_max`/`movement_max` stats are 0), and nothing
-  drains or refills them. ⚠️ **Greenfield — only the *max* side exists.** What's
-  present: `resource_max`/`movement_max` stats, plus `ResourceMana` cost handling
-  in ability validation/resolution (`progression/validation.go`, `resolution.go`)
-  — abilities can *declare* a mana cost, but there's no live pool to spend from.
-  What's missing: a **current pool** for mana and movement analogous to
-  `combat.Vitals` (HP-only today) — spend-on-cast, drain-on-move, a regen tick,
-  and `restore`/effects integration (admin `restore` is HP-only by design; see
-  `restore.go`), plus persistence. Pre-decisions: a per-resource pool type (like
-  `Vitals`) vs. a generic resource-pool model; whether this rides with a future
-  economy/survival slice (the prompt comment anticipated M11, which shipped
-  sustenance/rest but not these). Until then MA/MV are display-only and `restore`
-  correctly touches HP only.
+- ~~**Mana / Movement current pools + regen**~~ — **DONE 2026-06-13** (WoT S2
+  "One Power" Phase 0 — the generalized-pool substrate + its wiring). The
+  pre-decision resolved to a **generic resource-pool model** (`internal/pool`, a
+  leaf package) rather than a per-resource type: `connActor` carries a `pool.Set`
+  (mana/movement alongside HP's `combat.Vitals`), seeded full from
+  `resource_max`/`movement_max` with `OnMaxChange`-bound ceilings. `DeductMana`/
+  `DeductMovement` are real spends; `RegenTick` refills both (`BaseMana`/
+  `BaseMovement` in `economy.RegenConfig`, independent of HP fullness, dead actors
+  skip); the prompt's `MA`/`MV` columns show real `current/max` (`resourceSnapshot`);
+  and currents persist across login (`player.Save.Pools`, save **v21**). Still
+  behavior-neutral in live play (no content grants a non-zero max yet — the WoT S2
+  channeler class will be the first). The cast-side reserve-to-begin gate +
+  spend-on-success refinements ride with WoT S2 Phase 1 (their only consumer).
 - **Completion args for the remaining hand-parsed verbs (M17.2d non-fits)** —
   a handful of verbs still hand-parse and declare no arg types, so tab-completion
   (`tab-completion §8`) returns nothing for their arguments. The easy ones —
