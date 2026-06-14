@@ -33,13 +33,20 @@ growth_bonuses:
 
 trains_per_level: 5
 
-# Class path. Phase 1 grants the core heal spell as the first castable weave
-# so the channeling loop (draw Power → weave → Power drains → effect) is live
-# end to end; WoT-flavored weaves (a damage weave, a light, a save-gated
-# control) land as Phase 1b content alongside it.
+# Class path — the starter weaves (WoT S2 Phase 1b), one per handler path:
+# Firebolt (Fire damage), Healing (Water restore), Warding (Air/Spirit self
+# buff), Bonds of Air (Air save-gated control). All granted at level 1 so a
+# fresh channeler can draw the Power across the full weave surface; deeper
+# weaves + element/affinity eligibility come in later phases.
 path:
   - level: 1
-    ability: heal
+    ability: firebolt
+  - level: 1
+    ability: healing
+  - level: 1
+    ability: warding
+  - level: 1
+    ability: bonds-of-air
 
 # Saving throws (saves §2). The channeler's discipline is mental: a strong
 # Will save, weak Fortitude and Reflex.

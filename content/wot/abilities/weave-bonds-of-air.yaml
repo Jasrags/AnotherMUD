@@ -1,0 +1,34 @@
+# WoT S2 weave — Air. Bands of woven Air clamp a foe rigid: a save-gated
+# control weave. On a failed Reflex save (dodging the closing bonds) the
+# target is held — flagged condition:stunned, so it lands no swings and is
+# easier to hit — with a Reflex save each round to wrench free (the effect's
+# recurring_save). category:spell draws the One Power; the heaviest cast of
+# the four. (Element: Air.) Mirrors core trip/bash for the save-gate path.
+id: bonds-of-air
+name: Bonds of Air
+type: active
+category: spell
+
+default_cap: 25
+gain_base_chance: 20
+gain_failure_multiplier: 0.5
+gain_stat: wis
+gain_stat_scale: 0.1
+
+cost: 14
+pulse_delay: 3
+variance: 0
+
+target_types:
+  - enemy
+effect:
+  id: bound
+  duration: 3
+  flags:
+    - condition:stunned
+  recurring_save:
+    axis: reflex
+    dc: 14
+apply_save:
+  axis: reflex
+  dc: 14

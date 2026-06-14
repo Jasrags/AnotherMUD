@@ -20,6 +20,8 @@ content:
     - tracks/*.yaml
   classes:
     - classes/*.yaml
+  abilities:
+    - abilities/*.yaml
   areas:
     - areas/*.yaml
   rooms:

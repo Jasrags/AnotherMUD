@@ -1,0 +1,21 @@
+# WoT S2 weave — Water/Spirit. Healing is the rarest and most prized of
+# Talents; here it is the channeler's restorative weave. No damage dice and
+# no enemy target ⇒ non-offensive (§4.6), resolves to self (or `channel
+# healing on <ally>`). category:spell draws the One Power. (Element: Water.)
+id: healing
+name: Healing
+type: active
+category: spell
+
+default_cap: 30
+gain_base_chance: 20
+gain_failure_multiplier: 0.5
+gain_stat: wis
+gain_stat_scale: 0.1
+
+cost: 10
+pulse_delay: 3
+variance: 0
+
+handler: heal
+heal: 2d4

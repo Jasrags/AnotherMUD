@@ -1,0 +1,28 @@
+# WoT S2 weave — Fire. A bolt of flame hurled at a foe (a channeler's
+# bread-and-butter offensive weave). category:spell draws the One Power
+# from the mana pool; damage dice + enemy target make it offensive, so it
+# needs a combat target. (Element: Fire — element-based eligibility is a
+# later slice; tagged in prose for now.)
+id: firebolt
+name: Firebolt
+type: active
+category: spell
+
+default_cap: 30
+gain_base_chance: 20
+gain_failure_multiplier: 0.5
+# WIS governs the weave's gain roll — a channeler's strength is mental.
+gain_stat: wis
+gain_stat_scale: 0.1
+
+# Draws the One Power. variance 0 ⇒ always lands once begun (the future
+# interrupt game is where a weave gets disrupted, not a miss roll). A short
+# cast time relative to the heavier weaves below.
+cost: 12
+pulse_delay: 2
+variance: 0
+
+target_types:
+  - enemy
+handler: damage
+damage: 2d4
