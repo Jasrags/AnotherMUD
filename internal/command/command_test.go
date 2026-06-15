@@ -301,6 +301,17 @@ type testActor struct {
 	hidden          bool
 	hideScore       int    // HideScore() return (0 ⇒ default test value below)
 	concealInstance uint64 // bumped on each Hide
+
+	// Sneak (moving) concealment state (visibility §3.2).
+	sneaking       bool
+	sneakScore     int    // SneakConcealmentScore(); SneakDifficulty default below
+	sneakInstanceN uint64 // bumped on each Sneak
+
+	// Observer-side perception (visibility §4): the bonus this actor brings
+	// to a contest, plus its sticky detection memory. Lets testActor stand in
+	// as an observer of others' hide/sneak.
+	perceptionBonus int
+	contested       map[uint64]bool
 }
 
 // IsHidden / HideScore / Hide / Reveal make testActor satisfy the (unexported)
@@ -335,6 +346,73 @@ func (a *testActor) Reveal() bool {
 	was := a.hidden
 	a.hidden = false
 	return was
+}
+
+// IsSneaking / SneakDifficulty / Sneak / Unsneak make testActor satisfy the
+// sneaker capability (visibility §3.2); IsSneaking + SneakConcealmentScore
+// also satisfy movingConcealment for the movement-broadcast filter.
+func (a *testActor) IsSneaking() bool {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	return a.sneaking
+}
+
+func (a *testActor) SneakDifficulty() int {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	if a.sneakScore != 0 {
+		return a.sneakScore
+	}
+	return 12
+}
+
+func (a *testActor) SneakConcealmentScore() int {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	return a.sneakScore
+}
+
+func (a *testActor) Sneak(score int) uint64 {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	a.sneaking = true
+	a.sneakScore = score
+	a.sneakInstanceN++
+	return a.sneakInstanceN
+}
+
+func (a *testActor) Unsneak() bool {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	was := a.sneaking
+	a.sneaking = false
+	a.sneakScore = 0
+	return was
+}
+
+// PerceptionBonus / ContestOutcome / RecordContest make testActor satisfy the
+// perceiver capability (visibility §4.1/§4.2) so it can observe others'
+// hide/sneak. Defaults to a zero bonus.
+func (a *testActor) PerceptionBonus() int {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	return a.perceptionBonus
+}
+
+func (a *testActor) ContestOutcome(i uint64) (won, done bool) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	won, done = a.contested[i]
+	return won, done
+}
+
+func (a *testActor) RecordContest(i uint64, won bool) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	if a.contested == nil {
+		a.contested = map[uint64]bool{}
+	}
+	a.contested[i] = won
 }
 
 // IsWeaponProficient makes testActor satisfy the equip handler's

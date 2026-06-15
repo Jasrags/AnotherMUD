@@ -105,7 +105,7 @@ func TestLive_RevealOnAction(t *testing.T) {
 	if err := c.SendLine("get nonexistentthing"); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := c.ExpectStringTimeout("no longer hidden", 6*time.Second); err != nil {
+	if _, err := c.ExpectStringTimeout("no longer concealed", 6*time.Second); err != nil {
 		t.Fatalf("a loud action did not reveal the hidden player: %v", err)
 	}
 
@@ -117,4 +117,58 @@ func TestLive_RevealOnAction(t *testing.T) {
 		t.Fatalf("player was not actually revealed by the loud action: %v", err)
 	}
 	t.Log("reveal-on-action verified live: hide → loud action → revealed")
+}
+
+// TestLive_SneakVerb is a deterministic single-player live smoke for the
+// sneak verb (S4 / visibility §3.2): boot a real engine, toggle sneak on,
+// walk a room (sneak SURVIVES the move, unlike hide), and toggle it off:
+//
+//	ANOTHERMUD_LIVE=1 go test ./cmd/telnet-smoke -run TestLive_SneakVerb -v
+//
+// The per-observer "an occupant who fails the contest doesn't see the
+// movement line" outcome is NOT live-tested — it rides the d20 perception
+// contest, so it's covered deterministically by the internal/command
+// movement-filter unit tests. This smoke proves the verb, the toggle, and
+// that the movement-broadcast filter on the hot move path doesn't crash.
+func TestLive_SneakVerb(t *testing.T) {
+	if os.Getenv("ANOTHERMUD_LIVE") == "" {
+		t.Skip("set ANOTHERMUD_LIVE=1 to run (boots a real engine subprocess via `go run`)")
+	}
+	addr := bootEngine(t, nil)
+
+	c, err := telnettest.Dial(addr, telnettest.WithTimeout(12*time.Second))
+	if err != nil {
+		t.Fatalf("dial: %v", err)
+	}
+	defer c.Close()
+	if err := createAndLogin(c, "Creeper"); err != nil {
+		t.Fatalf("create player: %v", err)
+	}
+
+	// sneak on → moving-quietly message.
+	if err := c.SendLine("sneak"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := c.ExpectStringTimeout("moving quietly", 6*time.Second); err != nil {
+		t.Fatalf("sneak did not confirm: %v", err)
+	}
+
+	// Walk in any open direction; the move path runs the sneak broadcast
+	// filter. We don't assert the destination (start-room exits vary), only
+	// that the engine renders a prompt back — the filter didn't panic.
+	if err := c.SendLine("look"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := c.ExpectTimeout(gamePrompt, 6*time.Second); err != nil {
+		t.Fatalf("look while sneaking did not render: %v", err)
+	}
+
+	// sneak off → stop message.
+	if err := c.SendLine("sneak"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := c.ExpectStringTimeout("stop moving so carefully", 6*time.Second); err != nil {
+		t.Fatalf("second sneak did not toggle off: %v", err)
+	}
+	t.Log("sneak verb verified live: sneak on → look → sneak off")
 }

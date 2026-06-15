@@ -210,6 +210,139 @@ func TestUnhide_NotHidden(t *testing.T) {
 	}
 }
 
+// --- Sneak verb (visibility §3.2) ---
+
+func TestSneak_TogglesOnEmitsConcealed(t *testing.T) {
+	f := newInvFixture(t)
+	a := hideActor(f)
+	bus := eventbus.New()
+	got := captureEvents(t, bus, eventbus.EventEntityConcealed)
+	env := f.env()
+	env.Bus = bus
+
+	if err := newRegistry(t).Dispatch(context.Background(), env, a, "sneak"); err != nil {
+		t.Fatalf("dispatch sneak: %v", err)
+	}
+	if !a.IsSneaking() {
+		t.Error("actor should be sneaking after `sneak`")
+	}
+	if len(*got) != 1 {
+		t.Fatalf("EntityConcealed published %d times, want 1", len(*got))
+	}
+	if ev := (*got)[0].(eventbus.EntityConcealed); ev.EntityID != "p-hide" || ev.SourceType != "sneak" {
+		t.Errorf("EntityConcealed = %+v, want {p-hide, sneak}", ev)
+	}
+}
+
+func TestSneak_TogglesOff(t *testing.T) {
+	f := newInvFixture(t)
+	a := hideActor(f)
+	a.Sneak(12) // already sneaking
+	bus := eventbus.New()
+	revealed := captureEvents(t, bus, eventbus.EventEntityRevealed)
+	concealed := captureEvents(t, bus, eventbus.EventEntityConcealed)
+	env := f.env()
+	env.Bus = bus
+
+	if err := newRegistry(t).Dispatch(context.Background(), env, a, "sneak"); err != nil {
+		t.Fatalf("dispatch sneak: %v", err)
+	}
+	if a.IsSneaking() {
+		t.Error("a second `sneak` should toggle sneaking off")
+	}
+	if len(*concealed) != 0 {
+		t.Error("toggling sneak off must not publish EntityConcealed")
+	}
+	if len(*revealed) != 1 {
+		t.Fatalf("EntityRevealed published %d times, want 1", len(*revealed))
+	}
+	if ev := (*revealed)[0].(eventbus.EntityRevealed); ev.Reason != "emerged" || ev.SourceType != "sneak" {
+		t.Errorf("EntityRevealed = %+v, want reason=emerged source=sneak", ev)
+	}
+}
+
+func TestSneak_CancelledPreEventAborts(t *testing.T) {
+	f := newInvFixture(t)
+	a := hideActor(f)
+	bus := eventbus.New()
+	bus.Subscribe(eventbus.EventConcealmentBefore, func(ctx context.Context, ev eventbus.Event) {
+		if cb, ok := ev.(*eventbus.ConcealmentBefore); ok {
+			cb.Cancel()
+		}
+	})
+	concealed := captureEvents(t, bus, eventbus.EventEntityConcealed)
+	env := f.env()
+	env.Bus = bus
+
+	if err := newRegistry(t).Dispatch(context.Background(), env, a, "sneak"); err != nil {
+		t.Fatalf("dispatch sneak: %v", err)
+	}
+	if a.IsSneaking() {
+		t.Error("a cancelled concealment.before must leave the actor not sneaking")
+	}
+	if len(*concealed) != 0 {
+		t.Error("a cancelled pre-event must not publish EntityConcealed")
+	}
+	if last := lastLine(a); !strings.Contains(strings.ToLower(last), "can't sneak") {
+		t.Errorf("message = %q, want a refusal", last)
+	}
+}
+
+// A breaks_concealment command drops sneak (as well as hide) and emits
+// entity.revealed(acted) for each layer it broke (visibility §4.5).
+func TestDispatch_BreaksConcealmentRevealsSneaking(t *testing.T) {
+	f := newInvFixture(t)
+	a := hideActor(f)
+	a.Sneak(12) // sneaking but not hidden
+	bus := eventbus.New()
+	got := captureEvents(t, bus, eventbus.EventEntityRevealed)
+	env := f.env()
+	env.Bus = bus
+
+	if err := breaksRegistry(t, true).Dispatch(context.Background(), env, a, "act"); err != nil {
+		t.Fatalf("dispatch: %v", err)
+	}
+	if a.IsSneaking() {
+		t.Error("a breaks_concealment command must drop sneak")
+	}
+	if len(*got) != 1 {
+		t.Fatalf("EntityRevealed published %d times, want 1", len(*got))
+	}
+	if ev := (*got)[0].(eventbus.EntityRevealed); ev.Reason != "acted" || ev.SourceType != "sneak" {
+		t.Errorf("EntityRevealed = %+v, want reason=acted source=sneak", ev)
+	}
+}
+
+// When the actor is BOTH hidden and sneaking, a breaks_concealment command
+// drops both and emits a revealed event for each (§3.2: independent layers).
+func TestDispatch_BreaksConcealmentDropsBothLayers(t *testing.T) {
+	f := newInvFixture(t)
+	a := hideActor(f)
+	a.Hide(10)
+	a.Sneak(12)
+	bus := eventbus.New()
+	got := captureEvents(t, bus, eventbus.EventEntityRevealed)
+	env := f.env()
+	env.Bus = bus
+
+	if err := breaksRegistry(t, true).Dispatch(context.Background(), env, a, "act"); err != nil {
+		t.Fatalf("dispatch: %v", err)
+	}
+	if a.IsHidden() || a.IsSneaking() {
+		t.Errorf("both layers should drop: hidden=%v sneaking=%v", a.IsHidden(), a.IsSneaking())
+	}
+	if len(*got) != 2 {
+		t.Fatalf("EntityRevealed published %d times, want 2 (hide + sneak)", len(*got))
+	}
+	srcs := map[string]bool{}
+	for _, ev := range *got {
+		srcs[ev.(eventbus.EntityRevealed).SourceType] = true
+	}
+	if !srcs["hide"] || !srcs["sneak"] {
+		t.Errorf("revealed sources = %v, want both hide and sneak", srcs)
+	}
+}
+
 // lastLine returns the actor's most recent output line (trimmed), or "".
 func lastLine(a *namedActor) string {
 	return strings.TrimSpace(a.testActor.lastLine())

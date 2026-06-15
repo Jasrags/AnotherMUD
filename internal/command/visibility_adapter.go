@@ -159,6 +159,53 @@ func (c *Context) visibilityPredicate() func(string) bool {
 	}
 }
 
+// movingConcealment is the mover-read capability for the §3.2 movement
+// filter: a mover that may be sneaking. connActor implements it; a
+// non-implementer (test actor) is treated as not sneaking, so its movement
+// broadcasts unfiltered.
+type movingConcealment interface {
+	IsSneaking() bool
+	SneakConcealmentScore() int
+}
+
+// sneakUnseenBy returns the player ids of the occupants of roomID who FAIL to
+// perceive the sneaking mover, so the movement broadcaster can add them to
+// its exclusion list (visibility §3.2: an occupant who pierces the sneak sees
+// the enter/leave line, one who does not sees nothing). Returns nil when the
+// mover is not sneaking, the locator is unwired, or no roller is available —
+// the legacy path (everyone sees the line).
+//
+// The contest is a FRESH per-call perception check, deliberately NOT routed
+// through the §4.1 sticky detection memory: movement is event-driven, so
+// there is no per-look re-roll to dedupe, and recording into another actor's
+// detection set from the mover's goroutine would add a needless cross-actor
+// writer. (The sticky memory remains a render/resolver — i.e. CanSee —
+// concern; §4.1.) The mover itself is never in the returned set.
+func sneakUnseenBy(c *Context, roomID world.RoomID, mover Actor) []string {
+	mc, ok := mover.(movingConcealment)
+	if !ok || !mc.IsSneaking() || c.Locator == nil || c.SkillRoller == nil {
+		return nil // legacy permissive path: everyone sees the line
+	}
+	score := mc.SneakConcealmentScore()
+	moverID := mover.PlayerID()
+	var unseen []string
+	for _, o := range c.Locator.PlayersInRoom(roomID) {
+		oid := o.PlayerID()
+		if oid == "" || oid == moverID {
+			continue // self always perceives its own movement (§2.1)
+		}
+		// An occupant pierces iff it has a perception capability and wins the
+		// §4.2 contest against the sneak score. No perceiver ⇒ cannot pierce ⇒
+		// does not see the line. (A nil roller short-circuits to the permissive
+		// path above, so it never reaches here.)
+		per, hasPer := o.(perceiver)
+		if !hasPer || !progression.ResolveSkillCheck(c.SkillRoller, per.PerceptionBonus(), score).Success {
+			unseen = append(unseen, oid)
+		}
+	}
+	return unseen
+}
+
 // hiddenOccupants returns the hide concealment layer of every currently-
 // hidden player in the room, keyed by player id (visibility §3.1). Empty
 // when the locator is unwired or no one is hidden. Mobs are not hideable in

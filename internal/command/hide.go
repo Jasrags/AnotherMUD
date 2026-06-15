@@ -24,6 +24,21 @@ type concealer interface {
 	Reveal() bool
 }
 
+// sneaker is the optional actor capability the `sneak` verb and the
+// reveal-on-action hook need (visibility.md §3.2). connActor implements it;
+// test actors that don't simply cannot sneak. Like concealer, kept optional
+// so the broad Actor interface (and its fakes) need not grow.
+type sneaker interface {
+	// IsSneaking reports current sneak (moving) concealment.
+	IsSneaking() bool
+	// SneakDifficulty computes the would-be per-observer contest score (§3.2).
+	SneakDifficulty() int
+	// Sneak commits sneaking at score and returns the new instance id.
+	Sneak(score int) uint64
+	// Unsneak clears sneaking, returning whether it was sneaking.
+	Unsneak() bool
+}
+
 // HideHandler implements `hide` (visibility.md §3.1): a stationary attempt
 // to conceal the actor in its current room. Publishes the cancellable
 // concealment.before so packs may forbid hiding (no cover, full light,
@@ -79,28 +94,87 @@ func RevealHandler(ctx context.Context, c *Context) error {
 	return c.Actor.Write(ctx, "You step out of hiding.")
 }
 
-// breakConcealmentOnAction reveals a hidden actor when a breaks_concealment
-// command runs (visibility §4.5: attacking/casting/speaking/loud manipulation
-// drops roll-based concealment so the action is observed). The dispatcher
-// calls this BEFORE the handler, after any typed-arg resolution succeeded, so
-// the action is seen the instant it resolves. A no-op unless the actor is a
-// hidden concealer; flag-gated invisibility (S5) is exempt and not handled
-// here. Sneak (S4) will extend the same hook to drop the sneaking tag.
-func breakConcealmentOnAction(ctx context.Context, c *Context) {
-	h, ok := c.Actor.(concealer)
-	if !ok || !h.IsHidden() {
-		return
+// SneakHandler implements `sneak` (visibility.md §3.2): toggles a MOVING
+// concealment. Unlike hide, sneak survives room changes; it instead filters
+// the per-observer enter/leave movement lines (§3.2, the movementHandler
+// filter). Toggling it on publishes the cancellable concealment.before (so
+// packs may forbid sneaking) and, when uncancelled, sets the sneak score +
+// emits entity.concealed (type = sneak). Toggling it off is a plain
+// actor-only action that emits entity.revealed (reason = emerged).
+func SneakHandler(ctx context.Context, c *Context) error {
+	s, ok := c.Actor.(sneaker)
+	if !ok {
+		return c.Actor.Write(ctx, "You can't sneak.")
 	}
-	h.Reveal()
+	roomID := roomIDOf(c)
+
+	// Toggle off: a plain, uncontested action.
+	if s.IsSneaking() {
+		s.Unsneak()
+		if c.Bus != nil {
+			c.Bus.Publish(ctx, eventbus.EntityRevealed{
+				EntityID:   c.Actor.PlayerID(),
+				SourceType: string(visibility.SourceSneak),
+				Reason:     "emerged",
+				Room:       roomID,
+			})
+		}
+		return c.Actor.Write(ctx, "You stop moving so carefully.")
+	}
+
+	// Toggle on: cancellable pre-event (§3.2 / §6) lets a pack veto with a
+	// generic refusal so the pack owns the specific reason.
+	pre := eventbus.NewConcealmentBefore(c.Actor.PlayerID(), string(visibility.SourceSneak), roomID)
+	if c.Bus != nil && c.Bus.PublishCancellable(ctx, pre) {
+		return c.Actor.Write(ctx, "You can't sneak here.")
+	}
+	s.Sneak(s.SneakDifficulty())
 	if c.Bus != nil {
-		c.Bus.Publish(ctx, eventbus.EntityRevealed{
+		c.Bus.Publish(ctx, eventbus.EntityConcealed{
 			EntityID:   c.Actor.PlayerID(),
-			SourceType: string(visibility.SourceHide),
-			Reason:     "acted",
-			Room:       roomIDOf(c),
+			SourceType: string(visibility.SourceSneak),
+			Room:       roomID,
 		})
 	}
-	_ = c.Actor.Write(ctx, "Your sudden action gives you away; you are no longer hidden.")
+	return c.Actor.Write(ctx, "You begin moving quietly, keeping to the shadows.")
+}
+
+// breakConcealmentOnAction reveals a hidden or sneaking actor when a
+// breaks_concealment command runs (visibility §4.5: attacking/casting/
+// speaking/loud manipulation drops roll-based concealment so the action is
+// observed). The dispatcher calls this BEFORE the handler, after any
+// typed-arg resolution succeeded, so the action is seen the instant it
+// resolves. A no-op unless the actor carries hide or sneak; flag-gated
+// invisibility (S5) is exempt and not handled here.
+func breakConcealmentOnAction(ctx context.Context, c *Context) {
+	var broke bool
+	if h, ok := c.Actor.(concealer); ok && h.IsHidden() {
+		h.Reveal()
+		broke = true
+		if c.Bus != nil {
+			c.Bus.Publish(ctx, eventbus.EntityRevealed{
+				EntityID:   c.Actor.PlayerID(),
+				SourceType: string(visibility.SourceHide),
+				Reason:     "acted",
+				Room:       roomIDOf(c),
+			})
+		}
+	}
+	if s, ok := c.Actor.(sneaker); ok && s.IsSneaking() {
+		s.Unsneak()
+		broke = true
+		if c.Bus != nil {
+			c.Bus.Publish(ctx, eventbus.EntityRevealed{
+				EntityID:   c.Actor.PlayerID(),
+				SourceType: string(visibility.SourceSneak),
+				Reason:     "acted",
+				Room:       roomIDOf(c),
+			})
+		}
+	}
+	if broke {
+		_ = c.Actor.Write(ctx, "Your sudden action gives you away; you are no longer concealed.")
+	}
 }
 
 // roomIDOf returns the actor's current room id, or empty when roomless

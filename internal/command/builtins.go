@@ -229,6 +229,10 @@ func RegisterBuiltins(r *Registry) error {
 		// per-observer perception contest (visibility §4).
 		{Keyword: "hide", Handler: HideHandler, Brief: "Conceal yourself in the current room.", Syntax: []string{"hide"}},
 		{Keyword: "unhide", Aliases: []string{"reveal"}, Handler: RevealHandler, Brief: "Step out of hiding.", Syntax: []string{"unhide"}},
+		// Sneak (visibility §3.2): toggle moving concealment — your enter/leave
+		// lines reach only occupants who pierce a perception contest. Survives
+		// room changes (unlike hide); dropped by a revealing action (§4.5).
+		{Keyword: "sneak", Handler: SneakHandler, Brief: "Toggle moving quietly between rooms.", Syntax: []string{"sneak"}},
 
 		// Prompt (ui-rendering-help §7.4). Show / set / reset the
 		// status prompt template. The template uses {tokens} (§7.2)
@@ -437,9 +441,17 @@ func movementHandler(dir world.Direction) Handler {
 		// optional (tests pass nil); skip the announcement when name
 		// or PlayerID is empty (test actors that don't participate in
 		// presence).
+		//
+		// Sneak filter (visibility §3.2): when the mover is sneaking, the
+		// enter/leave lines reach only occupants who pierce the sneak in a
+		// fresh perception contest — those who fail are added to the
+		// exclusion list alongside the mover itself, so they see nothing.
+		// sneakUnseenBy returns nil for a non-sneaking mover, preserving the
+		// legacy "everyone sees the line" path.
 		if c.Broadcaster != nil && name != "" {
+			depExcl := append([]string{pid}, sneakUnseenBy(c, srcID, c.Actor)...)
 			c.Broadcaster.SendToRoom(ctx, srcID,
-				fmt.Sprintf("%s heads %s.", name, dir.Long()), pid)
+				fmt.Sprintf("%s heads %s.", name, dir.Long()), depExcl...)
 		}
 		c.Actor.SetRoom(dst)
 		if c.Broadcaster != nil && name != "" {
@@ -447,8 +459,9 @@ func movementHandler(dir world.Direction) Handler {
 			if from == "" {
 				from = "elsewhere"
 			}
+			arrExcl := append([]string{pid}, sneakUnseenBy(c, dst.ID, c.Actor)...)
 			c.Broadcaster.SendToRoom(ctx, dst.ID,
-				fmt.Sprintf("%s arrives from the %s.", name, from), pid)
+				fmt.Sprintf("%s arrives from the %s.", name, from), arrExcl...)
 		}
 		// Publish player.moved so the disposition evaluator can clear
 		// per-room reaction state for srcID (spec mobs-ai-spawning

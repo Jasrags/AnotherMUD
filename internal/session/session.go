@@ -1968,6 +1968,20 @@ type connActor struct {
 	concealScore    int
 	concealInstance uint64
 
+	// Sneak concealment (visibility.md §3.2) — the MOVING counterpart to
+	// hide: unlike hidden (which the move-drops-hide subscriber clears on a
+	// room change), sneaking SURVIVES room changes and instead filters the
+	// per-observer enter/leave movement lines (§3.2). sneaking marks the
+	// actor as moving quietly; sneakScore is the snapshot difficulty an
+	// occupant's perception contest must beat to see the movement line;
+	// sneakInstance identifies this sneak establishment. Same writer
+	// invariant + a.mu guard as the hide fields above (mutated only on this
+	// actor's own goroutine: the sneak verb, the reveal-on-action hook;
+	// NEVER persisted, cleared on logout/restart).
+	sneaking      bool
+	sneakScore    int
+	sneakInstance uint64
+
 	// contested is this actor's sticky detection memory AS AN OBSERVER
 	// (visibility.md §4.1): instance id → contest outcome (true = pierced,
 	// false = failed to pierce). Presence means "already contested this
@@ -2275,6 +2289,68 @@ func (a *connActor) HiddenInstance() uint64 {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	return a.concealInstance
+}
+
+// --- Sneak (visibility.md §3.2): moving concealment.
+
+// Sneak marks the actor as moving quietly with the given per-observer
+// contest difficulty, allocating a fresh concealment instance and returning
+// it. Reuses nextConcealInstance so a sneak and a hide can never share an
+// instance id (the observer's sticky-detection map keys both). Ephemeral —
+// never persisted. Re-sneaking overwrites the score and bumps the instance.
+func (a *connActor) Sneak(score int) uint64 {
+	inst := nextConcealInstance.Add(1)
+	a.mu.Lock()
+	a.sneaking = true
+	a.sneakScore = score
+	a.sneakInstance = inst
+	a.mu.Unlock()
+	return inst
+}
+
+// Unsneak clears the actor's sneak concealment, returning whether it had been
+// sneaking. Idempotent. Unlike Reveal (hide), this is NOT called by the
+// move-drops-hide subscriber — sneak survives a room change (§3.2).
+func (a *connActor) Unsneak() bool {
+	a.mu.Lock()
+	was := a.sneaking
+	a.sneaking = false
+	a.sneakScore = 0
+	a.sneakInstance = 0
+	a.mu.Unlock()
+	return was
+}
+
+// IsSneaking reports whether the actor is currently moving concealed
+// (visibility.md §3.2). Read by the movement-broadcast filter.
+func (a *connActor) IsSneaking() bool {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	return a.sneaking
+}
+
+// SneakDifficulty computes the would-be sneak score for a new sneak attempt
+// (visibility.md §3.2 / §8: sneak proficiency + governing stat + mods). v1
+// mirrors HideScore — a base plus the actor's DEX modifier — with the
+// proficiency + situational terms deferred to a later tuning pass (§8).
+func (a *connActor) SneakDifficulty() int {
+	const baseSneakDC = 10
+	a.mu.Lock()
+	sb := a.statBlock
+	a.mu.Unlock()
+	if sb == nil {
+		return baseSneakDC
+	}
+	return baseSneakDC + progression.AbilityModifier(sb.Effective(progression.StatDEX))
+}
+
+// SneakConcealmentScore returns the snapshot difficulty an occupant's
+// perception contest must beat to see this mover's movement line (§3.2);
+// zero when not sneaking.
+func (a *connActor) SneakConcealmentScore() int {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	return a.sneakScore
 }
 
 // --- Observer side (visibility.md §4): perception + sticky detection memory.
