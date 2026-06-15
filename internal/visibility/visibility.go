@@ -98,7 +98,18 @@ type Observer interface {
 	// Contest runs the §4.2 perception contest against a roll-gated layer
 	// the observer has not yet pierced, recording a success in the
 	// observer's detection set. The caller owns the RNG and formula; the
-	// primitive only decides when a contest is needed.
+	// primitive only decides WHEN a contest is needed (after DetectsHidden
+	// and AlreadyPierced have both declined).
+	//
+	// Synchronization contract: AlreadyPierced and Contest are the only
+	// side-effecting members (Contest writes the detection set). The
+	// primitive does NOT lock across the AlreadyPierced→Contest pair, so an
+	// ADAPTER MUST make each call individually safe (its own lock). The
+	// unlocked gap means two concurrent CanSee calls for the same observer
+	// and instance may both contest before either records — a benign
+	// double-roll that converges (sticky memory makes the next call cheap);
+	// it is never a correctness bug. Per-observer concurrent CanSee is rare
+	// in practice (dispatch is largely serial), so the gap is acceptable.
 	Contest(layer Layer) bool
 }
 
@@ -149,15 +160,19 @@ func pierces(o Observer, layer Layer) bool {
 
 // Visible returns the subset of targets the observer can see (spec §2's
 // VisibleEntities, generic so callers keep their concrete element type). The
-// observer itself, if present, is always retained (§2.1, via CanSee). A nil
-// input yields a nil result; the input slice is never mutated.
+// observer itself, if present, is always retained (§2.1, via CanSee). The
+// input slice is never mutated. The result is nil whenever nothing is visible
+// — empty input, all-concealed, or nil input all return nil, so a caller may
+// treat nil as "nothing to show". The backing array is allocated lazily on
+// the first visible target, so an all-concealed room (common on a render
+// tick) allocates nothing.
 func Visible[T Target](o Observer, targets []T) []T {
-	if len(targets) == 0 {
-		return nil
-	}
-	out := make([]T, 0, len(targets))
+	var out []T
 	for _, t := range targets {
 		if CanSee(o, t) {
+			if out == nil {
+				out = make([]T, 0, len(targets))
+			}
 			out = append(out, t)
 		}
 	}

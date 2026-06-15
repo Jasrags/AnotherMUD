@@ -163,6 +163,31 @@ func TestCanSee_RollGatedPaths(t *testing.T) {
 	}
 }
 
+// Sneak resolves through the SAME roll-gated path as hide (§3.2) — guard
+// against someone splitting the SourceHide/SourceSneak switch arm.
+func TestCanSee_SneakUsesRollGatedPath(t *testing.T) {
+	tgt := fakeTarget{id: "tgt", layers: []Layer{{Source: SourceSneak, Score: 10, Instance: 5}}}
+
+	winner := &fakeObserver{id: "o", contestWins: true}
+	if !CanSee(winner, tgt) {
+		t.Error("winning the contest must reveal a sneaking target")
+	}
+	if !slices.Equal(winner.contested, []uint64{5}) {
+		t.Errorf("sneak contest invoked for %v, want [5]", winner.contested)
+	}
+
+	loser := &fakeObserver{id: "o", contestWins: false}
+	if CanSee(loser, tgt) {
+		t.Error("losing the contest must hide a sneaking target")
+	}
+
+	// detect_hidden auto-pierces sneak without a contest, same as hide.
+	det := &fakeObserver{id: "o", detectsHidden: true}
+	if !CanSee(det, tgt) || len(det.contested) != 0 {
+		t.Error("detect_hidden must auto-pierce sneak without contesting")
+	}
+}
+
 // An unknown source fails open — visibility is not security (§1.2).
 func TestCanSee_UnknownSourceFailsOpen(t *testing.T) {
 	o := &fakeObserver{id: "o"}
@@ -196,6 +221,20 @@ func TestVisible_NilInputNilResult(t *testing.T) {
 	o := &fakeObserver{id: "o"}
 	if got := Visible[fakeTarget](o, nil); got != nil {
 		t.Errorf("Visible(nil) = %v, want nil", got)
+	}
+}
+
+// Visible returns nil (not an empty non-nil slice) when every target is
+// concealed, so a caller may treat nil as "nothing to show" — and the
+// all-concealed render path allocates nothing.
+func TestVisible_AllConcealedReturnsNil(t *testing.T) {
+	o := &fakeObserver{id: "me", contestWins: false} // pierces nothing
+	occupants := []fakeTarget{
+		{id: "a", layers: []Layer{hideLayer(10, 1)}},
+		{id: "b", layers: []Layer{{Source: SourceMagicalInvis}}},
+	}
+	if got := Visible(o, occupants); got != nil {
+		t.Errorf("Visible(all concealed) = %v, want nil", got)
 	}
 }
 
