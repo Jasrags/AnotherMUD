@@ -251,6 +251,12 @@ func (c *Context) BuildResolveContext() ResolveContext {
 		}
 	}
 
+	// Visibility predicate (visibility §5.4): the room-scoped resolvers
+	// filter their candidates through this so a command cannot target what
+	// the actor cannot see. nil (a lit room, or no light resolver wired)
+	// means "everything visible" — the resolvers then skip filtering.
+	rc.CanSee = c.visibilityPredicate()
+
 	return rc
 }
 

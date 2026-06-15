@@ -3553,10 +3553,15 @@ wizinvis. Built as a multi-slice arc; each slice its own commit + review.
       roll-gated detect→sticky→contest). Decoupled from the engine via small
       Observer/Target interfaces; unknown source fails open (§1.2). 100% cov,
       behavior-neutral (no sources wired yet).
-- [ ] **S2 — consumer seam + darkness** — route render / `who` / GMCP / §5.4
-      resolvers through the filter (legacy parity); darkness leans on the
-      **already-shipped `internal/light`** resolver (render already gates
-      occupants by light tier, so this is mostly the non-render consumers).
+- [x] **S2 — command-resolver seam + darkness targeting gate** — `ResolveContext.CanSee`
+      predicate (nil = permissive/legacy), honored by the room-scoped entity/item
+      resolvers (entity/player/npc/room_item/container/visible/findable) unless the
+      arg sets `BypassVisibility`. `BuildResolveContext` populates it via the
+      `visibility` filter: in a pitch-black room (effective light Black) a
+      non-luminous occupant can't be targeted (`kill`/`get`), a luminous item
+      (a dropped lit torch) still can. Render already gates occupants by light
+      tier, and `who`/GMCP are invis concerns — so those consumers get wired when
+      their source lands (S3–S5) rather than a behavior-neutral wire-everything pass.
 - [ ] **S3 — hide + the perception contest** — concealment state, sticky
       detection set, `concealment.before`, `hide` verb, `breaks_concealment`
       flag + reveal-on-action, move-drops-hide. Needs a `perception`/`stealth`

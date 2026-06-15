@@ -111,6 +111,18 @@ type ResolveContext struct {
 	// returns the stock as keyword.Named so the default disambiguation
 	// path produces tokens that round-trip through the buy resolver.
 	Shop ShopScope
+
+	// CanSee is the per-room visibility predicate (visibility §2, §5.4):
+	// reports whether the actor can see the room candidate with the given
+	// entity id. The room-scoped entity/item resolvers filter their
+	// candidates through it so a command cannot target what the actor
+	// cannot see (e.g. a mob in a pitch-dark room). nil means "everything
+	// is visible" — the legacy permissive path used by tests and any
+	// context built without a visibility source — so it is always
+	// nil-safe. An argument flagged BypassVisibility skips the predicate
+	// (admin verbs, look-at-fixture). Inventory / equipped / self are
+	// never filtered (you always see what you carry and yourself).
+	CanSee func(entityID string) bool
 }
 
 // ShopScope enumerates a room shop's sellable stock for ArgShopItem
@@ -266,10 +278,11 @@ func resolveInventory(in ResolverInput) (ResolverOutput, error) {
 // the current room. Bulk-capable on the same terms as
 // resolveInventory.
 func resolveRoomItem(in ResolverInput) (ResolverOutput, error) {
+	roomItems := visibleItems(in, in.Context.RoomItems)
 	if in.Def.Bulk && isBulkToken(in.Tokens[0]) {
-		return bulkItemRefs(in.Context.RoomItems, in.Tokens[0], ErrItemNotInRoom)
+		return bulkItemRefs(roomItems, in.Tokens[0], ErrItemNotInRoom)
 	}
-	cand := itemsAsNamed(in.Context.RoomItems)
+	cand := itemsAsNamed(roomItems)
 	match := keyword.Resolve(cand, in.Tokens[0])
 	if match == nil {
 		return ResolverOutput{}, ErrItemNotInRoom
@@ -278,12 +291,44 @@ func resolveRoomItem(in ResolverInput) (ResolverOutput, error) {
 	return ResolverOutput{Value: itemRefFrom(item), Consumed: 1}, nil
 }
 
+// visibleItems filters room item candidates through the context's
+// visibility predicate (visibility §5.4), unless the argument bypasses it
+// or no predicate is set (the legacy permissive path). The input slice is
+// never mutated.
+func visibleItems(in ResolverInput, cands []ItemCandidate) []ItemCandidate {
+	if in.Context.CanSee == nil || in.Def.BypassVisibility {
+		return cands
+	}
+	out := make([]ItemCandidate, 0, len(cands))
+	for _, c := range cands {
+		if in.Context.CanSee(c.EntityID()) {
+			out = append(out, c)
+		}
+	}
+	return out
+}
+
+// visibleEntities is visibleItems for room entity candidates (players +
+// mobs). Same predicate, same bypass, same nil-safety.
+func visibleEntities(in ResolverInput, cands []EntityCandidate) []EntityCandidate {
+	if in.Context.CanSee == nil || in.Def.BypassVisibility {
+		return cands
+	}
+	out := make([]EntityCandidate, 0, len(cands))
+	for _, c := range cands {
+		if in.Context.CanSee(c.EntityID()) {
+			out = append(out, c)
+		}
+	}
+	return out
+}
+
 // resolveEntity matches input against any player or mob in the
 // current room. Self is intentionally excluded from candidates
 // (spec §5.2 note) — `kill self` must be the handler's explicit
 // concern.
 func resolveEntity(in ResolverInput) (ResolverOutput, error) {
-	cand := entitiesAsNamed(in.Context.RoomEntities)
+	cand := entitiesAsNamed(visibleEntities(in, in.Context.RoomEntities))
 	match := keyword.Resolve(cand, in.Tokens[0])
 	if match == nil {
 		return ResolverOutput{}, ErrEntityNotInRoom
@@ -295,7 +340,7 @@ func resolveEntity(in ResolverInput) (ResolverOutput, error) {
 // resolvePlayer filters room entities to players only, then
 // keyword-matches.
 func resolvePlayer(in ResolverInput) (ResolverOutput, error) {
-	filtered := filterEntityType(in.Context.RoomEntities, entityTypePlayer)
+	filtered := filterEntityType(visibleEntities(in, in.Context.RoomEntities), entityTypePlayer)
 	match := keyword.Resolve(entitiesAsNamed(filtered), in.Tokens[0])
 	if match == nil {
 		return ResolverOutput{}, ErrPlayerNotInRoom
@@ -306,7 +351,7 @@ func resolvePlayer(in ResolverInput) (ResolverOutput, error) {
 
 // resolveNPC filters room entities to mobs only.
 func resolveNPC(in ResolverInput) (ResolverOutput, error) {
-	filtered := filterEntityType(in.Context.RoomEntities, entityTypeMob)
+	filtered := filterEntityType(visibleEntities(in, in.Context.RoomEntities), entityTypeMob)
 	match := keyword.Resolve(entitiesAsNamed(filtered), in.Tokens[0])
 	if match == nil {
 		return ResolverOutput{}, ErrNpcNotInRoom
@@ -324,7 +369,7 @@ func resolveContainer(in ResolverInput) (ResolverOutput, error) {
 		item := match.(ItemCandidate)
 		return ResolverOutput{Value: itemRefFrom(item), Consumed: 1}, nil
 	}
-	if match := keyword.Resolve(containersAsNamed(in.Context.RoomItems), in.Tokens[0]); match != nil {
+	if match := keyword.Resolve(containersAsNamed(visibleItems(in, in.Context.RoomItems)), in.Tokens[0]); match != nil {
 		item := match.(ItemCandidate)
 		return ResolverOutput{Value: itemRefFrom(item), Consumed: 1}, nil
 	}
@@ -368,7 +413,7 @@ func resolveVisible(in ResolverInput) (ResolverOutput, error) {
 			Consumed: 1,
 		}, nil
 	}
-	if match := keyword.Resolve(itemsAsNamed(in.Context.RoomItems), token); match != nil {
+	if match := keyword.Resolve(itemsAsNamed(visibleItems(in, in.Context.RoomItems)), token); match != nil {
 		item := match.(ItemCandidate)
 		return ResolverOutput{
 			Value: VisibleRef{
@@ -382,7 +427,7 @@ func resolveVisible(in ResolverInput) (ResolverOutput, error) {
 			Consumed: 1,
 		}, nil
 	}
-	if match := keyword.Resolve(entitiesAsNamed(in.Context.RoomEntities), token); match != nil {
+	if match := keyword.Resolve(entitiesAsNamed(visibleEntities(in, in.Context.RoomEntities)), token); match != nil {
 		ent := match.(EntityCandidate)
 		return ResolverOutput{
 			Value: VisibleRef{
@@ -402,7 +447,7 @@ func resolveFindable(in ResolverInput) (ResolverOutput, error) {
 		item := match.(ItemCandidate)
 		return ResolverOutput{Value: itemRefFrom(item), Consumed: 1}, nil
 	}
-	if match := keyword.Resolve(itemsAsNamed(in.Context.RoomItems), in.Tokens[0]); match != nil {
+	if match := keyword.Resolve(itemsAsNamed(visibleItems(in, in.Context.RoomItems)), in.Tokens[0]); match != nil {
 		item := match.(ItemCandidate)
 		return ResolverOutput{Value: itemRefFrom(item), Consumed: 1}, nil
 	}
