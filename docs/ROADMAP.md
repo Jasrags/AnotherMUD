@@ -3587,7 +3587,19 @@ wizinvis. Built as a multi-slice arc; each slice its own commit + review.
       doesn't reveal); hand-parsed loud verbs reveal on attempt. Magical/admin
       invis (S5) is exempt. Unit-tested + live (hide → loud action → revealed).
       Closes the "hide is permanent" gap — hide (S3) is now complete.
-- [ ] **S4 — sneak** + per-observer movement-broadcast filtering (§3.2).
+- [x] **S4 — sneak** + per-observer movement-broadcast filtering (§3.2). The
+      `sneak` verb toggles a MOVING concealment: ephemeral `connActor` state
+      (sneaking/score/instance, like hide but it SURVIVES a room change), the
+      cancellable `concealment.before` on toggle-on + `entity.concealed/revealed`
+      (source = sneak). `movementHandler` now filters its two enter/leave
+      `SendToRoom` lines through `sneakUnseenBy` — a fresh per-move perception
+      contest per occupant, reusing the existing `excludePlayerIDs` param (no
+      Broadcaster change): a piercer sees the line, a failer sees nothing. Sneak
+      does NOT feed the stationary `CanSee` render/resolve predicate (§3.2: hide
+      governs stationary, sneak governs movement). `breakConcealmentOnAction`
+      drops both hide and sneak. Unit-tested (state machine, verb toggle/cancel,
+      drops-both-layers, end-to-end movement filter) + live (sneak on → look →
+      sneak off).
 - [ ] **S5 — magical + admin invisibility** + detect traits; closes `who §4`
       and `admin-verbs §3` wizinvis forward-refs.
 - [ ] **S6 — the `search` verb**, then **hidden exits** (`hidden-exits.md`) drops
