@@ -2125,6 +2125,52 @@ func run() error {
 		}
 	})
 
+	// Magical invisibility ends through the effect lifecycle (visibility §3.4):
+	// when an `invisible`-flagged effect expires or is dispelled, surface an
+	// entity.revealed(magical-invis) so visibility-aware subscribers learn the
+	// bearer is back in view. The predicate already re-shows them on the next
+	// render (it reads the flag live), so this is the explicit signal, not the
+	// mechanism. The expired/removed event carries only the effect id, so the
+	// invisible flag is recovered from the effect template registry.
+	revealOnInvisEffectEnd := func(ctx context.Context, entityID, effectID, reason string) {
+		tpl, ok := registries.Effects.Get(effectID)
+		if !ok {
+			return
+		}
+		invis := false
+		for _, f := range tpl.Flags {
+			if strings.EqualFold(f, command.InvisibleFlag) {
+				invis = true
+				break
+			}
+		}
+		if !invis {
+			return
+		}
+		var room world.RoomID
+		if a, ok := mgr.GetByPlayerID(entityID); ok {
+			if r := a.Room(); r != nil {
+				room = r.ID
+			}
+		}
+		bus.Publish(ctx, eventbus.EntityRevealed{
+			EntityID:   entityID,
+			SourceType: string(visibility.SourceMagicalInvis),
+			Reason:     reason,
+			Room:       room,
+		})
+	}
+	bus.Subscribe(eventbus.EventEffectExpired, func(ctx context.Context, ev eventbus.Event) {
+		if e, ok := ev.(eventbus.EffectExpired); ok {
+			revealOnInvisEffectEnd(ctx, e.EntityID, e.EffectID, "expired")
+		}
+	})
+	bus.Subscribe(eventbus.EventEffectRemoved, func(ctx context.Context, ev eventbus.Event) {
+		if e, ok := ev.(eventbus.EffectRemoved); ok {
+			revealOnInvisEffectEnd(ctx, e.EntityID, e.EffectID, "dispelled")
+		}
+	})
+
 	// Slice 3: being incapacitated (stunned) mid-weave drops it — a control
 	// weave like bonds-of-air deals no damage, so the hit path never sees it;
 	// this effect-apply seam catches the disable. onEffectApplied gates on the

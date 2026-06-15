@@ -47,12 +47,20 @@ func WhoHandler(ctx context.Context, c *Context) error {
 	}
 	entries := c.Roster.OnlineRoster()
 	// Per-viewer visibility filter (who §4 / visibility §3.4): an admin
-	// walking via `wizinvis` is excluded from a non-staff viewer's roster and
-	// count. The viewer always sees their own row (self is always visible,
+	// walking via `wizinvis` is excluded from a non-staff viewer; a
+	// magically-invisible character from a viewer lacking the see-invisible
+	// counter. Both are independent (admin rank does NOT pierce magical invis,
+	// §4.3). The viewer always sees their own row (self is always visible,
 	// §2.1). Done before the count line so the summary reflects what's shown.
 	viewerIsAdmin := actorIsAdmin(c.Actor, c.AdminRole)
+	viewerSeesInvis := c.viewerSeesInvisible()
 	self := c.Actor.PlayerID()
-	entries = filterWhoVisible(entries, viewerIsAdmin, self)
+	// Magical invisibility is sourced from active effects, which the command
+	// layer queries directly (the roster needs no effect coupling). nil-safe.
+	isInvisible := func(playerID string) bool {
+		return c.Effects != nil && c.Effects.HasFlag(playerID, InvisibleFlag)
+	}
+	entries = filterWhoVisible(entries, viewerIsAdmin, viewerSeesInvis, self, isInvisible)
 	// Stable, alphabetical-by-name (who §2): presentational, not ranked.
 	sort.SliceStable(entries, func(i, j int) bool {
 		return strings.ToLower(entries[i].Name) < strings.ToLower(entries[j].Name)
@@ -74,17 +82,23 @@ func WhoHandler(ctx context.Context, c *Context) error {
 	return c.Actor.Write(ctx, b.String())
 }
 
-// filterWhoVisible drops admin-invisible characters that the viewer may not
-// see (who §4 / visibility §3.4): a non-staff viewer never sees a wizinvis
-// admin, but every viewer always sees their own row. Returns the input
-// unchanged when nothing is filtered (the common case).
-func filterWhoVisible(entries []WhoEntry, viewerIsAdmin bool, self string) []WhoEntry {
-	if viewerIsAdmin {
-		return entries // staff see everyone (rank ≥ any wizinvis rank)
-	}
+// filterWhoVisible drops characters the viewer may not see (who §4 /
+// visibility §3.4): a non-staff viewer never sees a wizinvis admin, and a
+// viewer lacking the see-invisible counter never sees a magically-invisible
+// character. The two gates are independent (admin rank does not pierce magical
+// invis, §4.3). Every viewer always sees their own row (self is always
+// visible, §2.1). isInvisible reports magical invisibility per player id.
+func filterWhoVisible(entries []WhoEntry, viewerIsAdmin, viewerSeesInvis bool, self string, isInvisible func(string) bool) []WhoEntry {
 	out := entries[:0:0] // fresh backing array; never alias the caller's slice
 	for _, e := range entries {
-		if e.AdminInvisible && e.PlayerID != self {
+		if e.PlayerID == self {
+			out = append(out, e) // self always visible
+			continue
+		}
+		if e.AdminInvisible && !viewerIsAdmin {
+			continue
+		}
+		if !viewerSeesInvis && isInvisible(e.PlayerID) {
 			continue
 		}
 		out = append(out, e)

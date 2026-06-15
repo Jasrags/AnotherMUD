@@ -315,6 +315,23 @@ type testActor struct {
 
 	// Admin invisibility / wizinvis (visibility §3.4).
 	adminInvisible bool
+
+	// tags backs HasTag so testActor can stand in as a taggable viewer
+	// (e.g. carrying the see_invisible / darkvision trait, visibility §4.3).
+	tags []string
+}
+
+// HasTag makes testActor satisfy the taggable capability (used by the light
+// system for darkvision and by the visibility filter for see_invisible).
+func (a *testActor) HasTag(tag string) bool {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	for _, t := range a.tags {
+		if t == tag {
+			return true
+		}
+	}
+	return false
 }
 
 // IsHidden / HideScore / Hide / Reveal make testActor satisfy the (unexported)

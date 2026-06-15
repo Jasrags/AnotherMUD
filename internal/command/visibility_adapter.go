@@ -49,6 +49,7 @@ type perceiver interface {
 type visObserver struct {
 	id          string
 	piercesDark bool
+	seesInvis   bool               // the see_invisible counter (§4.3) → pierces magical invis
 	adminRank   int                // 0 = ordinary; ≥1 = staff (pierces admin-invis of ≤ rank)
 	per         perceiver          // nil ⇒ cannot pierce roll-gated concealment
 	roller      progression.Roller // nil ⇒ ditto (no contest possible)
@@ -57,9 +58,20 @@ type visObserver struct {
 func (o visObserver) VisibilityID() string  { return o.id }
 func (o visObserver) Bypass() bool          { return false }
 func (o visObserver) PiercesDarkness() bool { return o.piercesDark }
-func (o visObserver) SeesInvisible() bool   { return false }
+func (o visObserver) SeesInvisible() bool   { return o.seesInvis }
 func (o visObserver) AdminRank() int        { return o.adminRank }
 func (o visObserver) DetectsHidden() bool   { return false }
+
+// InvisibleFlag is the effect flag that makes an entity magically invisible
+// (visibility §3.4): any active effect carrying it conceals the bearer behind
+// the see-invisible counter. SeeInvisibleFlag is the counter that pierces it —
+// honored both as a racial/ability tag (HasTag, like darkvision) and as an
+// effect flag (HasFlag). Content-contract strings, exported so the effect
+// lifecycle bridge (entity.revealed on expiry) can reference the same names.
+const (
+	InvisibleFlag    = "invisible"
+	SeeInvisibleFlag = "see_invisible"
+)
 
 // AlreadyPierced reports a remembered WINNING contest, so the filter
 // short-circuits to visible without re-rolling (§4.1). A remembered LOSS is
@@ -136,7 +148,19 @@ func (c *Context) visibilityPredicate() func(string) bool {
 	// layer's (here, any admin sees any wizinvis admin; non-admins see none).
 	adminInvis := adminInvisibleOccupants(c, room.ID)
 
-	if !dark && len(hidden) == 0 && len(adminInvis) == 0 {
+	// Magical-invis term (§3.4): the occupants carrying an active `invisible`
+	// effect flag, keyed by player id. Flag-gated by the see-invisible counter
+	// (§4.3) — NOT by admin rank or a perception contest. Resolve the viewer's
+	// counter first and skip building the map entirely when they already pierce
+	// it: a see-invisible viewer would pierce every magical-invis layer anyway,
+	// so the per-player HasFlag scan would be wasted work.
+	seesInvis := c.viewerSeesInvisible()
+	var magicalInvis map[string]struct{}
+	if !seesInvis {
+		magicalInvis = magicalInvisibleOccupants(c, room.ID)
+	}
+
+	if !dark && len(hidden) == 0 && len(adminInvis) == 0 && len(magicalInvis) == 0 {
 		return nil // nothing concealed from this viewer
 	}
 
@@ -147,6 +171,7 @@ func (c *Context) visibilityPredicate() func(string) bool {
 		// darkness is not a barrier for them. When dark, a SourceDarkness layer
 		// is appended below and this false correctly fails to pierce it.
 		piercesDark: !dark,
+		seesInvis:   seesInvis,
 		roller:      c.SkillRoller,
 	}
 	// Admin rank (flat roles → binary, §3.4): a staff observer pierces the
@@ -169,8 +194,48 @@ func (c *Context) visibilityPredicate() func(string) bool {
 		if _, ok := adminInvis[id]; ok {
 			layers = append(layers, visibility.Layer{Source: visibility.SourceAdminInvis, Score: adminInvisRank})
 		}
+		if _, ok := magicalInvis[id]; ok {
+			layers = append(layers, visibility.Layer{Source: visibility.SourceMagicalInvis})
+		}
 		return visibility.CanSee(obs, visTarget{id: id, layers: layers})
 	}
+}
+
+// viewerSeesInvisible reports whether the actor carries the see-invisible
+// counter (§4.3): honored as a racial/ability tag (HasTag, like darkvision)
+// OR as an active effect flag (HasFlag). Either grants the binary pierce.
+func (c *Context) viewerSeesInvisible() bool {
+	if t, ok := c.Actor.(taggable); ok && t.HasTag(SeeInvisibleFlag) {
+		return true
+	}
+	return c.Effects != nil && c.Effects.HasFlag(c.Actor.PlayerID(), SeeInvisibleFlag)
+}
+
+// magicalInvisibleOccupants returns the set of room players carrying an active
+// `invisible` effect flag (§3.4), keyed by player id. Empty when the locator
+// or effect manager is unwired or no one is invisible. The observer is
+// self-excluded (self is always visible to self, §2.1). Players only in v1 —
+// magically invisible mobs are a future extension (§9), matching hide/sneak.
+func magicalInvisibleOccupants(c *Context, roomID world.RoomID) map[string]struct{} {
+	if c.Locator == nil || c.Effects == nil {
+		return nil
+	}
+	self := c.Actor.PlayerID()
+	var out map[string]struct{}
+	for _, p := range c.Locator.PlayersInRoom(roomID) {
+		pid := p.PlayerID()
+		if pid == "" || pid == self {
+			continue
+		}
+		if !c.Effects.HasFlag(pid, InvisibleFlag) {
+			continue
+		}
+		if out == nil {
+			out = make(map[string]struct{})
+		}
+		out[pid] = struct{}{}
+	}
+	return out
 }
 
 // adminInvisRank is the binary admin rank used for wizinvis (§3.4): with the
