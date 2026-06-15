@@ -3579,10 +3579,14 @@ wizinvis. Built as a multi-slice arc; each slice its own commit + review.
       capability interfaces keep the Actor interface unchanged. Unit-tested
       (contest win/lose/sticky/no-perception) + live verb smoke; the 2-player
       "can't see" outcome rides the contest RNG so it's unit-covered, not live.
-- [ ] **S3c — reveal-on-action** — the `breaks_concealment` Command-registry flag
-      + dispatch hook that drops hide and emits `entity.revealed(acted)` when a
-      hidden actor attacks / casts / speaks / loudly manipulates (§4.5). Closes
-      the "hide is permanent" gap; magical/admin invis (S5) is exempt.
+- [x] **S3c — reveal-on-action** — `Command.BreaksConcealment` registry flag +
+      a dispatch hook (`breakConcealmentOnAction`) that drops a hidden actor's
+      concealment and emits `entity.revealed(acted)` before the handler runs
+      (§4.5). Flagged the loud verbs: kill, cast/channel, get/take, drop, give,
+      open/close. Fires after a successful typed-arg resolution (a failed target
+      doesn't reveal); hand-parsed loud verbs reveal on attempt. Magical/admin
+      invis (S5) is exempt. Unit-tested + live (hide → loud action → revealed).
+      Closes the "hide is permanent" gap — hide (S3) is now complete.
 - [ ] **S4 — sneak** + per-observer movement-broadcast filtering (§3.2).
 - [ ] **S5 — magical + admin invisibility** + detect traits; closes `who §4`
       and `admin-verbs §3` wizinvis forward-refs.

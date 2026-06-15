@@ -105,6 +105,15 @@ type Command struct {
 	// free. When false (the default), declared Args are auto-resolved as
 	// before.
 	HandParsed bool
+
+	// BreaksConcealment marks a "loud" command that reveals a hidden/sneaking
+	// actor (visibility §4.5): attacking, casting an offensive weave, speaking
+	// aloud, or loud manipulation. Before such a command's handler runs, the
+	// dispatcher drops the actor's roll-based concealment and emits
+	// entity.revealed(acted), so the action is observed. Quiet commands (look,
+	// inventory, score) leave it false. Magical/admin invisibility (a flag-
+	// gated source) is exempt — it does not break on action (§3.4).
+	BreaksConcealment bool
 }
 
 // CommandInfo is the read-only view of a registered command's metadata,
@@ -167,6 +176,10 @@ type registration struct {
 	// §2). Carried on every registration (primary AND alias) so an alias
 	// of an admin command is gated too.
 	admin bool
+	// breaksConcealment reveals a hidden/sneaking actor before the handler
+	// runs (visibility §4.5; see Command.BreaksConcealment). Carried on
+	// aliases too so `take` reveals exactly like `get`.
+	breaksConcealment bool
 }
 
 // Registry holds the command keyword → handler bindings.
@@ -267,13 +280,14 @@ func (r *Registry) RegisterCommand(c Command) error {
 
 	r.order++
 	r.byKey[k] = registration{
-		keyword:    k,
-		order:      r.order,
-		handler:    c.Handler,
-		meta:       meta,
-		args:       append([]ArgDefinition(nil), c.Args...),
-		handParsed: c.HandParsed,
-		admin:      c.Admin,
+		keyword:           k,
+		order:             r.order,
+		handler:           c.Handler,
+		meta:              meta,
+		args:              append([]ArgDefinition(nil), c.Args...),
+		handParsed:        c.HandParsed,
+		admin:             c.Admin,
+		breaksConcealment: c.BreaksConcealment,
 	}
 	r.ordered = append(r.ordered, k)
 	for _, la := range lowered {
@@ -284,13 +298,14 @@ func (r *Registry) RegisterCommand(c Command) error {
 		// `take` == `get`). Meta stays nil so aliases remain out of help
 		// listings.
 		r.byKey[la] = registration{
-			keyword:    la,
-			order:      r.order,
-			handler:    c.Handler,
-			alias:      true,
-			args:       append([]ArgDefinition(nil), c.Args...),
-			handParsed: c.HandParsed,
-			admin:      c.Admin,
+			keyword:           la,
+			order:             r.order,
+			handler:           c.Handler,
+			alias:             true,
+			args:              append([]ArgDefinition(nil), c.Args...),
+			handParsed:        c.HandParsed,
+			admin:             c.Admin,
+			breaksConcealment: c.BreaksConcealment,
 		}
 		r.ordered = append(r.ordered, la)
 	}
@@ -499,6 +514,16 @@ func (r *Registry) Dispatch(ctx context.Context, env Env, actor Actor, raw strin
 			return actor.Write(ctx, err.Error())
 		}
 		c.Resolved = resolved
+	}
+
+	// Reveal-on-action (visibility §4.5): a "loud" command drops the actor's
+	// roll-based concealment before the handler runs. Placed after a
+	// successful arg resolution so a typed-arg command that failed to resolve
+	// a target ("kill nothing") does not reveal its caller. (Hand-parsed
+	// verbs resolve inside the handler, so they reveal on attempt — an
+	// accepted v1 over-reveal for the few hand-parsed loud verbs.)
+	if reg.breaksConcealment {
+		breakConcealmentOnAction(ctx, c)
 	}
 
 	return reg.handler(ctx, c)

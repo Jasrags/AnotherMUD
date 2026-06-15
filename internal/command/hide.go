@@ -79,6 +79,30 @@ func RevealHandler(ctx context.Context, c *Context) error {
 	return c.Actor.Write(ctx, "You step out of hiding.")
 }
 
+// breakConcealmentOnAction reveals a hidden actor when a breaks_concealment
+// command runs (visibility §4.5: attacking/casting/speaking/loud manipulation
+// drops roll-based concealment so the action is observed). The dispatcher
+// calls this BEFORE the handler, after any typed-arg resolution succeeded, so
+// the action is seen the instant it resolves. A no-op unless the actor is a
+// hidden concealer; flag-gated invisibility (S5) is exempt and not handled
+// here. Sneak (S4) will extend the same hook to drop the sneaking tag.
+func breakConcealmentOnAction(ctx context.Context, c *Context) {
+	h, ok := c.Actor.(concealer)
+	if !ok || !h.IsHidden() {
+		return
+	}
+	h.Reveal()
+	if c.Bus != nil {
+		c.Bus.Publish(ctx, eventbus.EntityRevealed{
+			EntityID:   c.Actor.PlayerID(),
+			SourceType: string(visibility.SourceHide),
+			Reason:     "acted",
+			Room:       roomIDOf(c),
+		})
+	}
+	_ = c.Actor.Write(ctx, "Your sudden action gives you away; you are no longer hidden.")
+}
+
 // roomIDOf returns the actor's current room id, or empty when roomless
 // (tests / pre-spawn).
 func roomIDOf(c *Context) world.RoomID {

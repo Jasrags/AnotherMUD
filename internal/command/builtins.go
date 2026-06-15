@@ -45,12 +45,12 @@ func RegisterBuiltins(r *Registry) error {
 		// enumerate the bare-form room item and the `from` container,
 		// while GetHandler keeps reading raw Args. `take` is an alias.
 		{Keyword: "get", Aliases: []string{"take"}, Handler: GetHandler, Brief: "Pick up an item from the room or a container.", Syntax: []string{"get <item>", "get <item> from <container>", "get coins from <corpse>"},
-			HandParsed: true, Args: []ArgDefinition{
+			HandParsed: true, BreaksConcealment: true, Args: []ArgDefinition{
 				{Name: "item", Type: ArgRoomItem},
 				{Name: "container", Type: ArgContainer, Prepositions: []string{"from"}},
 			}},
-		{Keyword: "drop", Handler: DropHandler, Brief: "Drop an item from your inventory.", Syntax: []string{"drop <item>"}, Args: []ArgDefinition{{Name: "item", Type: ArgInventory}}},
-		{Keyword: "give", Handler: GiveHandler, Brief: "Give an item to another character.", Syntax: []string{"give <item> to <target>"}, Args: []ArgDefinition{{Name: "item", Type: ArgInventory}, {Name: "target", Type: ArgPlayer, Prepositions: []string{"to"}}}},
+		{Keyword: "drop", Handler: DropHandler, Brief: "Drop an item from your inventory.", Syntax: []string{"drop <item>"}, BreaksConcealment: true, Args: []ArgDefinition{{Name: "item", Type: ArgInventory}}},
+		{Keyword: "give", Handler: GiveHandler, Brief: "Give an item to another character.", Syntax: []string{"give <item> to <target>"}, BreaksConcealment: true, Args: []ArgDefinition{{Name: "item", Type: ArgInventory}, {Name: "target", Type: ArgPlayer, Prepositions: []string{"to"}}}},
 		{Keyword: "put", Handler: PutHandler, Brief: "Put an item into a container.", Syntax: []string{"put <item> in <container>"}, Args: []ArgDefinition{{Name: "item", Type: ArgInventory}, {Name: "container", Type: ArgContainer, Prepositions: []string{"in", "into"}}}},
 		// fill <target> [from] <source>: a carried vessel filled from a
 		// room source (the well). HandParsed (the handler runs
@@ -108,7 +108,7 @@ func RegisterBuiltins(r *Registry) error {
 		// KillHandler keeps its self-check-first resolution via
 		// findCombatantInRoom (which resolves the same `entity` arg).
 		{Keyword: "kill", Handler: KillHandler, Brief: "Attack a target.", Syntax: []string{"kill <target>"},
-			HandParsed: true, Args: []ArgDefinition{{Name: "target", Type: ArgEntity}}},
+			HandParsed: true, BreaksConcealment: true, Args: []ArgDefinition{{Name: "target", Type: ArgEntity}}},
 		{Keyword: "flee", Handler: FleeHandler, Brief: "Try to escape from combat.", Syntax: []string{"flee"}},
 		{Keyword: "wimpy", Handler: WimpyHandler, Brief: "Auto-flee when your health drops below a percent.", Syntax: []string{"wimpy <percent>"}},
 
@@ -124,7 +124,11 @@ func RegisterBuiltins(r *Registry) error {
 		// Abilities (M9.6).
 		{Keyword: "abilities", Aliases: []string{"abi"}, Handler: AbilitiesHandler, Brief: "List the abilities you have learned.", Syntax: []string{"abilities"}},
 		{Keyword: "skills", Handler: SkillsHandler, Brief: "List your skills and their proficiency.", Syntax: []string{"skills"}},
-		{Keyword: "cast", Aliases: []string{"channel"}, Handler: CastHandler, Brief: "Use an ability by name (channel a weave).", Syntax: []string{"cast <ability>", "cast <ability> <target>", "channel <weave>", "channel <weave> <target>"}},
+		// BreaksConcealment: channeling the One Power / casting is dramatic and
+		// gives a hidden caster away (visibility §4.5). v1 reveals on ANY cast;
+		// restricting it to offensive weaves only is a later refinement needing
+		// per-ability offensive metadata.
+		{Keyword: "cast", Aliases: []string{"channel"}, Handler: CastHandler, Brief: "Use an ability by name (channel a weave).", Syntax: []string{"cast <ability>", "cast <ability> <target>", "channel <weave>", "channel <weave> <target>"}, BreaksConcealment: true},
 		{Keyword: "overchannel", Handler: OverchannelHandler, Brief: "Draw a weave past your safe reserve, at real risk.", Syntax: []string{"overchannel <weave>", "overchannel <weave> <target>"}},
 
 		// Help (M10.5).
@@ -194,8 +198,8 @@ func RegisterBuiltins(r *Registry) error {
 		// Doors (M15.1). Operate the door on an exit; target is
 		// either a direction or a door keyword (with optional
 		// ordinal for disambiguation).
-		{Keyword: "open", Handler: OpenHandler, Brief: "Open a door.", Syntax: []string{"open <direction>", "open <door>"}, Args: []ArgDefinition{{Name: "door", Type: ArgDoor}}},
-		{Keyword: "close", Aliases: []string{"shut"}, Handler: CloseHandler, Brief: "Close a door.", Syntax: []string{"close <direction>", "close <door>"}, Args: []ArgDefinition{{Name: "door", Type: ArgDoor}}},
+		{Keyword: "open", Handler: OpenHandler, Brief: "Open a door.", Syntax: []string{"open <direction>", "open <door>"}, BreaksConcealment: true, Args: []ArgDefinition{{Name: "door", Type: ArgDoor}}},
+		{Keyword: "close", Aliases: []string{"shut"}, Handler: CloseHandler, Brief: "Close a door.", Syntax: []string{"close <direction>", "close <door>"}, BreaksConcealment: true, Args: []ArgDefinition{{Name: "door", Type: ArgDoor}}},
 		{Keyword: "lock", Handler: LockHandler, Brief: "Lock a door (requires the key).", Syntax: []string{"lock <direction>", "lock <door>"}, Args: []ArgDefinition{{Name: "door", Type: ArgDoor}}},
 		{Keyword: "unlock", Handler: UnlockHandler, Brief: "Unlock a door (requires the key).", Syntax: []string{"unlock <direction>", "unlock <door>"}, Args: []ArgDefinition{{Name: "door", Type: ArgDoor}}},
 		{Keyword: "pick", Aliases: []string{"picklock"}, Handler: PickHandler, Brief: "Pick a lock with the Open Lock skill (no key needed).", Syntax: []string{"pick <direction>", "pick <door>"}, Args: []ArgDefinition{{Name: "door", Type: ArgDoor}}},

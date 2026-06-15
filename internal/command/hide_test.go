@@ -5,8 +5,88 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/Jasrags/AnotherMUD/internal/command"
 	"github.com/Jasrags/AnotherMUD/internal/eventbus"
 )
+
+// breaksRegistry builds a registry with one no-op command whose
+// BreaksConcealment flag is `breaks`, for reveal-on-action tests.
+func breaksRegistry(t *testing.T, breaks bool) *command.Registry {
+	t.Helper()
+	r := command.New()
+	if err := r.RegisterCommand(command.Command{
+		Keyword:           "act",
+		Handler:           func(ctx context.Context, c *command.Context) error { return nil },
+		BreaksConcealment: breaks,
+	}); err != nil {
+		t.Fatalf("RegisterCommand: %v", err)
+	}
+	return r
+}
+
+// A breaks_concealment command reveals a hidden actor before its handler
+// runs and emits entity.revealed(acted) (visibility §4.5).
+func TestDispatch_BreaksConcealmentRevealsHidden(t *testing.T) {
+	f := newInvFixture(t)
+	a := hideActor(f)
+	a.Hide(10)
+	bus := eventbus.New()
+	got := captureEvents(t, bus, eventbus.EventEntityRevealed)
+	env := f.env()
+	env.Bus = bus
+
+	if err := breaksRegistry(t, true).Dispatch(context.Background(), env, a, "act"); err != nil {
+		t.Fatalf("dispatch: %v", err)
+	}
+	if a.IsHidden() {
+		t.Error("a breaks_concealment command must reveal a hidden actor")
+	}
+	if len(*got) != 1 {
+		t.Fatalf("EntityRevealed published %d times, want 1", len(*got))
+	}
+	if ev := (*got)[0].(eventbus.EntityRevealed); ev.Reason != "acted" || ev.EntityID != "p-hide" {
+		t.Errorf("EntityRevealed = %+v, want reason=acted entity=p-hide", ev)
+	}
+}
+
+// A non-breaks command leaves a hidden actor hidden.
+func TestDispatch_QuietCommandKeepsConcealment(t *testing.T) {
+	f := newInvFixture(t)
+	a := hideActor(f)
+	a.Hide(10)
+	bus := eventbus.New()
+	got := captureEvents(t, bus, eventbus.EventEntityRevealed)
+	env := f.env()
+	env.Bus = bus
+
+	if err := breaksRegistry(t, false).Dispatch(context.Background(), env, a, "act"); err != nil {
+		t.Fatalf("dispatch: %v", err)
+	}
+	if !a.IsHidden() {
+		t.Error("a quiet command must not reveal a hidden actor")
+	}
+	if len(*got) != 0 {
+		t.Error("a quiet command must not emit entity.revealed")
+	}
+}
+
+// A breaks_concealment command run by an actor who isn't hidden is a no-op
+// (no event, no error).
+func TestDispatch_BreaksConcealmentNoopWhenNotHidden(t *testing.T) {
+	f := newInvFixture(t)
+	a := hideActor(f) // not hidden
+	bus := eventbus.New()
+	got := captureEvents(t, bus, eventbus.EventEntityRevealed)
+	env := f.env()
+	env.Bus = bus
+
+	if err := breaksRegistry(t, true).Dispatch(context.Background(), env, a, "act"); err != nil {
+		t.Fatalf("dispatch: %v", err)
+	}
+	if len(*got) != 0 {
+		t.Error("a breaks_concealment command must not emit revealed when the actor isn't hidden")
+	}
+}
 
 // hideActor is a named test actor with the concealer capability (testActor
 // already implements IsHidden/HideScore/Hide/Reveal).
