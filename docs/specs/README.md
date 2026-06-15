@@ -127,6 +127,13 @@ The verbs players use and the systems that resolve them.
   the first consumer: lockpicking (`pick` vs a door's pick difficulty) + the
   Open Lock skill + a `skills` listing. Layers on `progression` proficiency +
   the door lock system; EPIC sub-epic S3 *(substrate shipped 2026-06-10)*.
+- [feats](feats.md) — player-chosen passive perks: the global feat
+  registry, pure prerequisite/eligibility evaluation, the three multi-take
+  rules, banked feat credits earned on a level cadence, and the grant bridge
+  that confers bonuses through the source-keyed modifier surface (recomputed
+  from known feats on load). Layers on `progression` §2.4 + the saves / skills /
+  weapon-identity / abilities consumers; EPIC sub-epic S4
+  *(shipped 2026-06-11)*.
 - [loot-and-corpses](loot-and-corpses.md) — the death → drop path:
   corpse creation on the mob-killed event, coin drops, the killer-
   first looting-rights window, the loot / get-from verbs, the
@@ -281,6 +288,7 @@ load time:
 | Effect template | [abilities-and-effects](abilities-and-effects.md); applied by consumables [economy-survival](economy-survival.md) §6 |
 | Race, class | [progression](progression.md) §3, §4 |
 | Background | [backgrounds](backgrounds.md) §2 |
+| Feat | [feats](feats.md) §2 |
 | Track | [progression](progression.md) §5 |
 | Faction | [faction](faction.md) §2 *(spec; build pending)* |
 | Biome | [biomes](biomes.md) §2 *(spec; build pending)* |
@@ -309,7 +317,9 @@ Each spec calls out what it persists. The aggregate view:
   proficiencies**, **resource pools** (current values only — pools at
   full are omitted and re-seeded from the attribute-derived maximum on
   load, so rebalancing a pool's max needs no migration;
-  [progression](progression.md) §2.6), **recall address**, **prompt template**,
+  [progression](progression.md) §2.6), **known feats + banked feat
+  credits** (the conferred bonuses are derived, not stored;
+  [feats](feats.md) §8), **recall address**, **prompt template**,
   **autoloot preference** ([loot-and-corpses](loot-and-corpses.md) §6),
   **faction standing bag + history** ([faction](faction.md) §8 *(spec; build pending)*).
 - **Quest file** (sibling of player file) — active list,

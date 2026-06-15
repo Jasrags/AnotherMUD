@@ -1,6 +1,14 @@
 # Proposal: Feats — a player-chosen passive-perk selection engine (EPIC S4)
 
-**Status:** scoping / design-first (pre-spec) · **Type:** EPIC sub-epic S4
+**Status:** SHIPPED 2026-06-11 (8 reviewed phases, save v20) · **Type:** EPIC sub-epic S4
+**Engine contract (setting-agnostic):** the reusable selection engine described
+below — registry, prerequisite/eligibility evaluation, multi-take rules, banked
+feat credits, the grant bridge, and persistence — is now specified in
+[`docs/specs/feats.md`](../specs/feats.md). This proposal remains the record of
+the **WoT-specific** content: the feat catalog (Great Fortitude, Toughness,
+Weapon Focus, …), the content triage (§3 — what ships vs. defers to which
+sub-epic), and the scoping decisions. Numeric content (credit cadence, bonus
+magnitudes) is policy, not in the engine spec.
 **Feeds:** the deferred half of **S9** (background/class feats), perk depth for
 **S1** (weapon feats), and the slot model **S2** channeling feats will reuse.
 **Governed by:** EPIC **Decision 0** (translate WoT onto the tick/chance model;
