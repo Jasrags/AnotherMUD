@@ -37,6 +37,17 @@ func RegisterBuiltins(r *Registry) error {
 		{Keyword: "quit", Handler: QuitHandler, Brief: "Leave the game; your progress is saved.", Syntax: []string{"quit"}},
 		{Keyword: "color", Handler: ColorHandler, Brief: "Toggle ANSI color, or show the current setting.", Syntax: []string{"color", "color on", "color off"}},
 
+		// Reveal-on-action policy (visibility §4.5): the "loud" verbs below
+		// carry BreaksConcealment — combat (kill), casting (cast/channel/
+		// overchannel), and physical item/door manipulation (get/take, drop,
+		// give, put, loot, open, close). DELIBERATELY NOT flagged in v1, as a
+		// stealth-friendly call: quiet lock work (pick/lock/unlock — a thief
+		// stays hidden) and slow careful activity (forage/harvest/craft/build).
+		// The vocal/emote tier (emote/pose + pack emotes + chat channels) is
+		// also unflagged — channels are cross-room, and the dynamic emote
+		// registration has no flag-carrying path yet; revisit "speaking aloud"
+		// reveal as its own slice if it earns its keep.
+		//
 		// Items (M5.5-M5.9).
 		// get/take is hand-parsed (the item scope flips on the `from`
 		// preposition — room items for the bare form, container contents
@@ -51,7 +62,7 @@ func RegisterBuiltins(r *Registry) error {
 			}},
 		{Keyword: "drop", Handler: DropHandler, Brief: "Drop an item from your inventory.", Syntax: []string{"drop <item>"}, BreaksConcealment: true, Args: []ArgDefinition{{Name: "item", Type: ArgInventory}}},
 		{Keyword: "give", Handler: GiveHandler, Brief: "Give an item to another character.", Syntax: []string{"give <item> to <target>"}, BreaksConcealment: true, Args: []ArgDefinition{{Name: "item", Type: ArgInventory}, {Name: "target", Type: ArgPlayer, Prepositions: []string{"to"}}}},
-		{Keyword: "put", Handler: PutHandler, Brief: "Put an item into a container.", Syntax: []string{"put <item> in <container>"}, Args: []ArgDefinition{{Name: "item", Type: ArgInventory}, {Name: "container", Type: ArgContainer, Prepositions: []string{"in", "into"}}}},
+		{Keyword: "put", Handler: PutHandler, Brief: "Put an item into a container.", Syntax: []string{"put <item> in <container>"}, BreaksConcealment: true, Args: []ArgDefinition{{Name: "item", Type: ArgInventory}, {Name: "container", Type: ArgContainer, Prepositions: []string{"in", "into"}}}},
 		// fill <target> [from] <source>: a carried vessel filled from a
 		// room source (the well). HandParsed (the handler runs
 		// parseFillArgs); the two args let completion enumerate the
@@ -62,7 +73,7 @@ func RegisterBuiltins(r *Registry) error {
 				{Name: "target", Type: ArgInventory},
 				{Name: "source", Type: ArgRoomItem, Prepositions: []string{"from"}},
 			}},
-		{Keyword: "loot", Handler: LootHandler, Brief: "Take everything from a corpse.", Syntax: []string{"loot", "loot <corpse>"}},
+		{Keyword: "loot", Handler: LootHandler, Brief: "Take everything from a corpse.", Syntax: []string{"loot", "loot <corpse>"}, BreaksConcealment: true},
 		{Keyword: "autoloot", Handler: AutolootHandler, Brief: "Toggle auto-looting your own kills.", Syntax: []string{"autoloot", "autoloot on|off"}},
 		{Keyword: "equip", Aliases: []string{"wear", "wield", "hold"}, Handler: EquipHandler, Brief: "Wear or wield an item from your inventory.", Syntax: []string{"equip <item> [slot]"}, Args: []ArgDefinition{{Name: "item", Type: ArgInventory}, {Name: "slot", Type: ArgKeyword, Optional: true}}},
 		// unequip declares its equipped-item arg + HandParsed so completion
@@ -129,7 +140,9 @@ func RegisterBuiltins(r *Registry) error {
 		// restricting it to offensive weaves only is a later refinement needing
 		// per-ability offensive metadata.
 		{Keyword: "cast", Aliases: []string{"channel"}, Handler: CastHandler, Brief: "Use an ability by name (channel a weave).", Syntax: []string{"cast <ability>", "cast <ability> <target>", "channel <weave>", "channel <weave> <target>"}, BreaksConcealment: true},
-		{Keyword: "overchannel", Handler: OverchannelHandler, Brief: "Draw a weave past your safe reserve, at real risk.", Syntax: []string{"overchannel <weave>", "overchannel <weave> <target>"}},
+		// overchannel is a (riskier) cast, so it reveals a hidden channeler
+		// exactly like `cast`/`channel` (visibility §4.5).
+		{Keyword: "overchannel", Handler: OverchannelHandler, Brief: "Draw a weave past your safe reserve, at real risk.", Syntax: []string{"overchannel <weave>", "overchannel <weave> <target>"}, BreaksConcealment: true},
 
 		// Help (M10.5).
 		{Keyword: "help", Handler: HelpHandler, Brief: "Find help on commands and topics.", Syntax: []string{"help", "help <topic>"}, Category: "general"},

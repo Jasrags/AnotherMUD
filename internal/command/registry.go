@@ -518,10 +518,12 @@ func (r *Registry) Dispatch(ctx context.Context, env Env, actor Actor, raw strin
 
 	// Reveal-on-action (visibility §4.5): a "loud" command drops the actor's
 	// roll-based concealment before the handler runs. Placed after a
-	// successful arg resolution so a typed-arg command that failed to resolve
-	// a target ("kill nothing") does not reveal its caller. (Hand-parsed
-	// verbs resolve inside the handler, so they reveal on attempt — an
-	// accepted v1 over-reveal for the few hand-parsed loud verbs.)
+	// successful typed-arg resolution, so a typed-arg command that failed to
+	// resolve a target ("kill nothing") returns its arg error above and does
+	// NOT reveal its caller. Hand-parsed loud verbs (kill, get) resolve their
+	// target INSIDE the handler, so reaching here means they reveal on
+	// attempt regardless of whether the target exists — an accepted v1
+	// over-reveal for those few verbs.
 	if reg.breaksConcealment {
 		breakConcealmentOnAction(ctx, c)
 	}
