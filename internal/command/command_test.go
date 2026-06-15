@@ -296,6 +296,45 @@ type testActor struct {
 
 	carryMax      int  // StatValue(StatCarryMax); 0 ⇒ no carry-weight limit
 	nonProficient bool // IsWeaponProficient() returns !nonProficient
+
+	// Concealment state for the visibility hide verbs (visibility §3.1).
+	hidden          bool
+	hideScore       int    // HideScore() return (0 ⇒ default test value below)
+	concealInstance uint64 // bumped on each Hide
+}
+
+// IsHidden / HideScore / Hide / Reveal make testActor satisfy the (unexported)
+// concealer capability the hide/reveal verbs assert (visibility §3.1).
+func (a *testActor) IsHidden() bool {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	return a.hidden
+}
+
+func (a *testActor) HideScore() int {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	if a.hideScore != 0 {
+		return a.hideScore
+	}
+	return 12
+}
+
+func (a *testActor) Hide(score int) uint64 {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	a.hidden = true
+	a.hideScore = score
+	a.concealInstance++
+	return a.concealInstance
+}
+
+func (a *testActor) Reveal() bool {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	was := a.hidden
+	a.hidden = false
+	return was
 }
 
 // IsWeaponProficient makes testActor satisfy the equip handler's

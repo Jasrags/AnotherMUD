@@ -3562,10 +3562,18 @@ wizinvis. Built as a multi-slice arc; each slice its own commit + review.
       (a dropped lit torch) still can. Render already gates occupants by light
       tier, and `who`/GMCP are invis concerns — so those consumers get wired when
       their source lands (S3–S5) rather than a behavior-neutral wire-everything pass.
-- [ ] **S3 — hide + the perception contest** — concealment state, sticky
-      detection set, `concealment.before`, `hide` verb, `breaks_concealment`
-      flag + reveal-on-action, move-drops-hide. Needs a `perception`/`stealth`
-      skill in content.
+- [x] **S3a — hide mechanic foundation** — ephemeral concealment state on
+      `connActor` (hidden + score + instance, never persisted), the `hide`/`unhide`
+      verbs, the `concealment.before` (cancellable) + `entity.concealed` +
+      `entity.revealed` events, and move-drops-hide (a `player.moved` subscriber
+      reveals a hidden mover). Hide score is `10 + DEX mod` for v1. Unit-tested;
+      not yet observable to others — the filter wiring is S3b.
+- [ ] **S3b — light up hide in the filter** — the observer side (perception value +
+      sticky detection set + the contest reusing the d20 `ResolveSave` shape) on
+      `connActor`, the real `visObserver`/`visTarget` adapters, extend the
+      visibility predicate so a hidden player can't be targeted, and filter the
+      **room render** occupant list so a hidden player vanishes from `look`. Then
+      `breaks_concealment` flag + reveal-on-action (§4.5).
 - [ ] **S4 — sneak** + per-observer movement-broadcast filtering (§3.2).
 - [ ] **S5 — magical + admin invisibility** + detect traits; closes `who §4`
       and `admin-verbs §3` wizinvis forward-refs.

@@ -68,6 +68,7 @@ import (
 	"github.com/Jasrags/AnotherMUD/internal/spawn"
 	"github.com/Jasrags/AnotherMUD/internal/stacking"
 	"github.com/Jasrags/AnotherMUD/internal/tick"
+	"github.com/Jasrags/AnotherMUD/internal/visibility"
 	"github.com/Jasrags/AnotherMUD/internal/weather"
 	"github.com/Jasrags/AnotherMUD/internal/world"
 )
@@ -2095,6 +2096,31 @@ func run() error {
 			return
 		}
 		combatSink.interruptCast(ctx, combat.NewPlayerCombatantID(e.PlayerID), "moved")
+	})
+
+	// Moving rooms drops hide concealment (visibility §3.1): you cannot stay
+	// hidden while walking into a new room — only sneak (a later slice) is the
+	// moving concealment that survives a move. Reuses the player.moved seam;
+	// Reveal is lock-guarded and reports whether it actually dropped a hide,
+	// so the entity.revealed (reason = moved) fires only for a hidden mover.
+	// Skips presence-only moves (From == To: link-dead reconnect).
+	bus.Subscribe(eventbus.EventPlayerMoved, func(ctx context.Context, ev eventbus.Event) {
+		e, ok := ev.(eventbus.PlayerMoved)
+		if !ok || e.From == e.To {
+			return
+		}
+		actor, ok := mgr.GetByPlayerID(e.PlayerID)
+		if !ok {
+			return
+		}
+		if actor.Reveal() {
+			bus.Publish(ctx, eventbus.EntityRevealed{
+				EntityID:   e.PlayerID,
+				SourceType: string(visibility.SourceHide),
+				Reason:     "moved",
+				Room:       e.To,
+			})
+		}
 	})
 
 	// Slice 3: being incapacitated (stunned) mid-weave drops it — a control

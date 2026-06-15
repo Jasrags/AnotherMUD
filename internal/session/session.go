@@ -1945,6 +1945,18 @@ type connActor struct {
 	mu           sync.Mutex
 	room         *world.Room
 	colorEnabled bool
+
+	// Concealment state (visibility.md §3.1, §7) — ephemeral, NEVER
+	// persisted (cleared on logout/restart, like active effects). hidden
+	// marks the actor as concealed via the `hide` verb; concealScore is the
+	// snapshot difficulty an observer's perception contest must beat
+	// (§4.2); concealInstance identifies this concealment establishment for
+	// observers' sticky detection memory (§4.1) — it changes on each
+	// re-hide so a remembered pierce keys off the right thing. All guarded
+	// by a.mu.
+	hidden          bool
+	concealScore    int
+	concealInstance uint64
 	// colorTier is the per-session capability ceiling captured from
 	// the conn at construction (M16.6a). Sources:
 	//   - telnet: derived from TTYPE + IsMudClient per spec §7.2.
@@ -2162,6 +2174,77 @@ func (a *connActor) SetRoom(r *world.Room) {
 	// through the conn's own write mutex). No-op when GMCP isn't
 	// negotiated or the conn doesn't speak it.
 	a.sendGmcpRoomInfo(context.Background(), r)
+}
+
+// nextConcealInstance hands out a process-unique id for each concealment
+// establishment (visibility.md §4.1) so an observer's sticky detection
+// memory keys off the right thing — a re-hide is a new instance and forces
+// a fresh perception contest. Atomic: hide can fire from any goroutine.
+var nextConcealInstance atomic.Uint64
+
+// Hide marks the actor concealed with the given perception-contest
+// difficulty (visibility.md §3.1), allocating a fresh concealment instance
+// and returning it. Ephemeral state — never persisted. Re-hiding overwrites
+// the score and bumps the instance, invalidating observers' prior pierces.
+func (a *connActor) Hide(score int) uint64 {
+	inst := nextConcealInstance.Add(1)
+	a.mu.Lock()
+	a.hidden = true
+	a.concealScore = score
+	a.concealInstance = inst
+	a.mu.Unlock()
+	return inst
+}
+
+// Reveal clears the actor's hide concealment, returning whether it had been
+// hidden (so the caller can decide whether to emit entity.revealed and a
+// message). Idempotent.
+func (a *connActor) Reveal() bool {
+	a.mu.Lock()
+	was := a.hidden
+	a.hidden = false
+	a.concealScore = 0
+	a.concealInstance = 0
+	a.mu.Unlock()
+	return was
+}
+
+// HideScore computes the would-be concealment difficulty for a hide
+// attempt (visibility.md §3.1 / §8: proficiency + governing stat + mods).
+// v1 is a base plus the actor's DEX modifier — stealthy/agile characters
+// hide better; the proficiency + situational (cover/light) terms are a
+// later tuning pass (§8). Exposed so the `hide` verb sets a score it cannot
+// compute itself (it has no stat access through the Actor interface).
+func (a *connActor) HideScore() int {
+	const baseHideDC = 10
+	a.mu.Lock()
+	dex := a.statBlock.Effective(progression.StatDEX)
+	a.mu.Unlock()
+	return baseHideDC + progression.AbilityModifier(dex)
+}
+
+// IsHidden reports whether the actor is currently hide-concealed
+// (visibility.md §3.1). Used by the visibility filter's target side.
+func (a *connActor) IsHidden() bool {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	return a.hidden
+}
+
+// ConcealmentScore returns the snapshot perception-contest difficulty of
+// the actor's current hide (visibility.md §4.2); zero when not hidden.
+func (a *connActor) ConcealmentScore() int {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	return a.concealScore
+}
+
+// HiddenInstance returns the id of the actor's current concealment
+// establishment (visibility.md §4.1); zero when not hidden.
+func (a *connActor) HiddenInstance() uint64 {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	return a.concealInstance
 }
 
 // ColorTier returns the actor's color-capability tier captured

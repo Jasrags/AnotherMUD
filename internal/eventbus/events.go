@@ -289,6 +289,19 @@ const (
 	// intentionally generic so subscribers can write their own
 	// specific reason.
 	EventRecallBefore = "recall.before"
+	// EventConcealmentBefore is the cancellable pre-event fired when a
+	// hide/sneak attempt is about to commit (visibility.md §3.1, §6).
+	// Subscribers (packs forbidding hiding in lit/no-cover/sanctuary rooms)
+	// flip the cancel flag to veto; the verb emits a generic refusal so the
+	// subscriber owns the specific reason. Mirrors recall.before.
+	EventConcealmentBefore = "concealment.before"
+	// EventEntityConcealed is the post-fact signal that a concealment layer
+	// (hide/sneak/invisibility) was established on an entity (visibility.md §6).
+	EventEntityConcealed = "entity.concealed"
+	// EventEntityRevealed is the post-fact signal that a concealment layer
+	// dropped, carrying the reason (moved / acted / detected / dispelled /
+	// expired) (visibility.md §6).
+	EventEntityRevealed = "entity.revealed"
 	// EventResourceGathering is the cancellable pre-event fired before a
 	// forage/harvest resolves (gathering.md §6). Content forbids gathering
 	// in protected/quest-gated spots by subscribing and cancelling; the
@@ -1464,6 +1477,56 @@ func NewRecallBefore(playerID string, from, to world.RoomID) *RecallBefore {
 		To:         to,
 	}
 }
+
+// ConcealmentBefore is the cancellable pre-event fired by the hide/sneak
+// verbs before concealment commits (visibility.md §3.1 step 1 / §6).
+// Listeners flip the embedded CancelFlag to veto (no cover, full light,
+// sanctuary); the verb emits a generic refusal on veto so subscribers own
+// the specific reason. Mirrors RecallBefore — a thin substrate hook.
+type ConcealmentBefore struct {
+	*CancelFlag
+	EntityID   string
+	SourceType string // "hide" / "sneak" (visibility.SourceType value)
+	Room       world.RoomID
+}
+
+// Name implements Event.
+func (ConcealmentBefore) Name() string { return EventConcealmentBefore }
+
+// NewConcealmentBefore constructs a cancellable concealment.before with the
+// flag pre-wired (mirrors NewRecallBefore).
+func NewConcealmentBefore(entityID, sourceType string, room world.RoomID) *ConcealmentBefore {
+	return &ConcealmentBefore{
+		CancelFlag: &CancelFlag{},
+		EntityID:   entityID,
+		SourceType: sourceType,
+		Room:       room,
+	}
+}
+
+// EntityConcealed is the post-fact signal that a concealment layer was
+// established (visibility.md §6). Not cancellable.
+type EntityConcealed struct {
+	EntityID   string
+	SourceType string
+	Room       world.RoomID
+}
+
+// Name implements Event.
+func (EntityConcealed) Name() string { return EventEntityConcealed }
+
+// EntityRevealed is the post-fact signal that a concealment layer dropped
+// (visibility.md §6). Reason is one of: moved, acted, detected, dispelled,
+// expired. Not cancellable.
+type EntityRevealed struct {
+	EntityID   string
+	SourceType string
+	Reason     string
+	Room       world.RoomID
+}
+
+// Name implements Event.
+func (EntityRevealed) Name() string { return EventEntityRevealed }
 
 // RecallAfter is the post-fact event fired after an uncancelled
 // recall teleport commits (spec recall.md §5). The room-change

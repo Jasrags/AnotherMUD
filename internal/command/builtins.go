@@ -207,6 +207,12 @@ func RegisterBuiltins(r *Registry) error {
 		// Spec: docs/specs/recall.md.
 		{Keyword: "recall", Handler: RecallHandler, Brief: "Return to your bound recall point.", Syntax: []string{"recall", "recall set"}},
 
+		// Hide / reveal (visibility.md §3.1): conceal the actor in its
+		// current room; emerge voluntarily. Discovery by others is the
+		// per-observer perception contest (visibility §4).
+		{Keyword: "hide", Handler: HideHandler, Brief: "Conceal yourself in the current room.", Syntax: []string{"hide"}},
+		{Keyword: "unhide", Aliases: []string{"reveal"}, Handler: RevealHandler, Brief: "Step out of hiding.", Syntax: []string{"unhide"}},
+
 		// Prompt (ui-rendering-help §7.4). Show / set / reset the
 		// status prompt template. The template uses {tokens} (§7.2)
 		// and color tags (§2).
