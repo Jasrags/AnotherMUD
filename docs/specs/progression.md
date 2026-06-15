@@ -155,6 +155,53 @@ This is the only point at which the feature exposes the
 configures it once; renderers and help generators consume it
 everywhere.
 
+### 2.6 Resource pools
+
+The three current vitals (§2.1) are the engine's canonical pools, but
+they are special cases of a general **resource pool** model. Each entity
+carries a set of pools keyed by a **pool kind** (a content-friendly
+string; `hp`, the primary `resource`, and `movement` are always
+present). A ruleset MAY declare additional pools — a second magic
+resource, a stamina or stun track — without engine changes.
+
+Each pool holds a current value, a maximum, and a **floor** the current
+clamps to (zero for the canonical pools; a ruleset MAY set a different
+floor for a track that bottoms out elsewhere). A pool MAY carry optional
+rules a ruleset attaches: routing the overflow past its floor into
+another named pool, or capping a derived value's maximum by this pool's
+current. These are reserved for rulesets that need them; the canonical
+pools carry neither.
+
+Pool maxima are derived from base attributes (§2.1) — max-resource,
+max-movement, and so on. A pool's ceiling tracks its backing maximum:
+raising the maximum (level-up, a buff) does NOT auto-fill the pool, but
+lowering it clamps the current down (the §2.3 re-clamp rule, generalized
+to every pool).
+
+**Spending and depletion:**
+
+- **Conditional spend** deducts only if the pool would not drop below
+  its floor, atomically, and reports whether it spent. Used for an
+  up-front affordability check that must not partially drain a pool.
+- **Unconditional deduct** subtracts a pre-validated amount, clamping at
+  the floor. Used on the spend-on-success path
+  (`docs/specs/abilities-and-effects.md` §4.5) once validation has
+  already proven affordability.
+- A pool does not itself emit events. When a deduction or damage
+  application drives a pool to its floor, the **owner** (combat /
+  session) emits the vital-depleted signal exactly once, on the
+  transition into the floor — not on subsequent hits to an
+  already-floored pool.
+
+**Regeneration:** pools regenerate by the owner restoring an amount on a
+periodic tick; a pool has no clock of its own and never reads time
+(honoring the F3 clock convention). Restore caps at the maximum.
+
+The durable form of pools is covered by the save surface
+(`docs/specs/saves.md`): only pools below full are persisted, and maxima
+are re-derived from attributes at load, so rebalancing a pool's maximum
+never requires a save migration.
+
 **Acceptance criteria**
 
 - [ ] Effective reads return `base + sum(modifiers)` for every
@@ -166,6 +213,17 @@ everywhere.
       source key in one operation.
 - [ ] Display-name lookup falls through overrides → defaults →
       raw name.
+- [ ] Current vitals are entries in a per-entity pool set; the
+      canonical hp / resource / movement pools are always present,
+      and rulesets may add pools without engine changes.
+- [ ] Conditional spend deducts only when the result stays at or
+      above the floor and reports whether it spent; unconditional
+      deduct clamps at the floor.
+- [ ] A pool emits no events; the owner emits vital-depleted exactly
+      once on the transition to the floor.
+- [ ] Raising a pool maximum does not refill it; lowering it clamps
+      the current down.
+- [ ] Pool regeneration is owner-driven; a pool never reads a clock.
 
 ---
 

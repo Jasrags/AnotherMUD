@@ -20,6 +20,16 @@ WoT sub-epic, a **multi-slice arc** (XL)
 > save-DC + buff-modifier scaling are an affinity follow-up) remains open. The
 > phase text below is the original design spine.
 **Implements:** EPIC sub-epic **S2** — `docs/themes/wot-mechanics-epic.md` §2 row S2
+**Engine contract (setting-agnostic):** the reusable substrate this arc introduced
+is now specified in the engine specs — generalized **resource pools**
+([`progression.md`](../specs/progression.md) §2.6, persistence in
+[`README.md`](../specs/README.md) save surface), the **cast-time + interrupt game**
+and the **reserve-gate / overexertion** pattern
+([`abilities-and-effects.md`](../specs/abilities-and-effects.md) §4.9–§4.10), and the
+**derived-channel formula layer** ([`combat.md`](../specs/combat.md) §4.4). This
+proposal remains the authoritative record of the **WoT-specific** instantiation
+(saidin/saidar, the Five Powers, taint, Aes Sedai, Initiate/Wilder) — the numeric
+and lore content that, by spec convention, does not belong in `docs/specs/`.
 **Builds on:** `internal/progression` (abilities, proficiency, effects, saves),
 `internal/combat` (vitals, `ResolveSave`, heartbeat), `internal/session` (`connActor`,
 the dormant `Mana()`/`DeductMana()` stubs), `internal/command` (verb + typed args),

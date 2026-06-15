@@ -105,6 +105,8 @@ A registration MAY carry:
 
 - A resource cost.
 - A pulse-delay cooldown in pulses.
+- A cast time in combat rounds (a warmup before the ability resolves;
+  see §4.9). Default zero, meaning the ability resolves instantly.
 - An "initiate-only" flag (cannot be used while already in combat —
   intended for combat-opening moves like ambush).
 - A target-type list (e.g. `enemy`, `self`, `ally`).
@@ -225,7 +227,9 @@ Each entry MUST carry at minimum:
 - The ability id.
 - Optionally, an explicit target entity id.
 
-Entries MAY carry additional content-defined data the handler uses.
+Entries MAY carry additional content-defined data the handler uses,
+including an **overdraw flag** marking the invocation as a deliberate
+overexertion (§4.10).
 
 The queue is exposed as an entity property so any system (commands,
 AI, scripted hooks) can enqueue actions consistently and so it is
@@ -305,6 +309,11 @@ the same target unless world state changed mid-pulse.
 
 ### 4.5 Resolution
 
+When the ability declares a non-zero cast time and is being dequeued for
+the first time, resolution is deferred — the engine begins a timed cast
+instead (§4.9). The steps below run when an instant ability is dequeued,
+or when a timed cast's warmup completes and it resolves.
+
 Resolution proceeds in this order:
 
 1. **Deduct resource.** Subtract the race-adjusted cost from the
@@ -382,6 +391,168 @@ strings rather than failing.
 - [ ] Proficiency gain is rolled on both hit and miss.
 - [ ] A post-resolution vital-depleted event is emitted only when
       the target reached HP ≤ 0 *during* this resolution.
+
+### 4.9 Timed resolution and interruption
+
+By default an ability resolves the moment it is dequeued (§4.5). An
+ability MAY instead declare a **cast time** — a warmup, measured in
+combat rounds, that must elapse before the ability resolves. A timed
+ability occupies its caster while it warms up and can be **interrupted**
+before it completes.
+
+#### Lifecycle
+
+A timed ability moves through three stages, all driven by the ability
+resolution phase:
+
+1. **Begin.** When a timed ability passes validation (§4.3) at the
+   front of the queue, the engine does not resolve it. Instead it
+   records an **in-flight cast** for the entity — capturing the ability
+   id, the resolved target (§4.4), and a remaining-rounds counter set
+   from the cast time (clamped to at least one round, so a cast always
+   occupies the round it began and resolves no earlier than the next).
+   The queue entry is consumed and a "cast began" event is emitted. An
+   entity has at most one in-flight cast.
+
+2. **Advance.** On each subsequent ability-resolution phase, if the
+   entity has an in-flight cast its remaining-rounds counter is
+   decremented. While the counter is above zero the cast still occupies
+   the caster: the entity's action queue is NOT processed this round
+   (the caster is busy channeling).
+
+3. **Resolve.** On the round the counter reaches zero, the in-flight
+   cast is cleared and the ability resolves through the **same**
+   resolution path as an instant ability (§4.5) — the hit/miss roll,
+   effect application, resource deduction, and proficiency gain are
+   identical. Resolution MUST re-validate against current world state
+   first; a cast that is no longer valid fizzles instead of resolving.
+
+The warmup is counted in **combat rounds, not ticks**, so cast timing is
+independent of the tick interval and its round-cadence mapping.
+
+#### Re-validation at resolve
+
+Because world state can change during the warmup, the stored cast MUST
+be re-validated the moment it is due to resolve. At minimum the engine
+re-checks that the target is still resolvable (offensive casts) and that
+the caster has not since acquired a state that blocks the ability (e.g.
+a resource-blocking condition, §4.10). A cast that fails re-validation
+fizzles with the appropriate reason (§4.8) and is discarded; it does not
+resolve and spends nothing.
+
+#### Cost timing (spend-on-success)
+
+A timed ability is **not** charged its resource cost when it begins —
+only when it resolves (§4.5 step 1). Validation at begin time proves the
+caster can afford the cost (and any reserve gate, §4.10), but the
+resource is not deducted until resolution actually occurs. As a
+consequence, an interrupted or fizzled cast costs nothing and needs no
+refund: the cast occupies tempo, not resource.
+
+#### Interruption
+
+An in-flight cast is **interrupted** — cleared with no resolution and no
+cost — when any of the following happens to the caster while the cast is
+in flight:
+
+- The caster is **struck** by a landed attack. A missed or evaded attack
+  does NOT interrupt (a dodged blow does not break concentration).
+- The caster **changes rooms**. A presence-only move that does not change
+  room (e.g. a link-dead reconnect resolving to the same room) does NOT
+  interrupt.
+- The caster gains an **incapacitating condition** (one that stops the
+  entity from acting, such as stun). A non-incapacitating condition
+  (fatigue, fear, a stat debuff) does NOT interrupt.
+
+On interruption a "cast interrupted" event is emitted carrying the
+ability identity and a lower-case **cause** keyword (e.g. `hit`,
+`moved`, `stunned`). The cause set is open; observers SHOULD treat an
+unknown cause as opaque.
+
+Interruption is idempotent: clearing an in-flight cast happens exactly
+once, so an interrupt trigger and the resolve path cannot both consume
+the same cast.
+
+#### Out-of-combat casting
+
+Timed casts advance on the ability-resolution cadence, which runs as
+part of the combat round. An entity with an in-flight cast (or a pending
+action queue) MUST therefore be advanced even when not in combat, so a
+warmup that began out of combat still progresses and resolves.
+
+**Acceptance criteria**
+
+- [ ] An ability with no cast time resolves immediately on dequeue,
+      exactly as §4.5 (unchanged behavior).
+- [ ] A cast-time ability records an in-flight cast on begin, emits a
+      "cast began" event, and does not resolve that round.
+- [ ] While a cast is in flight the caster's action queue is not
+      processed.
+- [ ] A cast resolves through the same path as an instant ability once
+      its warmup elapses, after re-validating against current state.
+- [ ] The resource cost is deducted only on resolution, never on begin.
+- [ ] An interrupted or fizzled cast deducts no resource and requires no
+      refund.
+- [ ] A landed hit interrupts; a miss or evade does not.
+- [ ] A room change interrupts; a same-room presence move does not.
+- [ ] An incapacitating condition interrupts; a non-incapacitating one
+      does not.
+- [ ] "Cast began" and "cast interrupted" are distinct events; the
+      interrupt event carries a lower-case cause keyword.
+- [ ] An in-flight cast is cleared exactly once (interrupt and resolve
+      cannot both fire on the same cast).
+
+### 4.10 Reserve gate and overexertion
+
+Some rulesets let an entity spend a resource **past a safe threshold** at
+a risk to itself. This is modeled as an optional, ruleset-configured
+gate layered on the resource check (§4.3 step 9). With the default
+configuration none of this is active and the resource check is exactly
+the plain cost comparison of §4.3 step 9.
+
+- **Reserve multiple.** A ruleset MAY require that a spell-category
+  ability have not just its cost available but a configurable **multiple**
+  of its cost in the resource pool before the cast may *begin*. The
+  default multiple is one (the plain cost check); a channeling ruleset
+  might set it higher. This keeps a caster from beginning a cast they can
+  technically afford but cannot safely sustain.
+
+- **Overexertion.** When an invocation is explicitly flagged as a
+  deliberate overdraw AND the caster's resource is below the reserve
+  threshold (but the cast is otherwise valid), the cast is NOT rejected.
+  It proceeds as an overexertion, and the engine records the **deficit** —
+  how far below the reserve threshold the caster reached — captured at
+  begin time, before any resource is spent, so later regeneration cannot
+  soften it.
+
+- **Consequence.** After an overexerted ability resolves AND actually
+  spends resource, the engine invokes a ruleset-defined consequence hook
+  with the deficit. The canonical consequence is a saving throw whose
+  difficulty scales with the deficit, with a failure cascade of
+  conditions (mild → moderate → severe) keyed on how badly the save was
+  missed. The save axis, difficulty formula, and condition ids are
+  policy and live outside this spec.
+
+- **Resource-block condition.** A ruleset MAY designate one condition id
+  that, while present on the caster, blocks all spell-category abilities
+  (modeling a caster temporarily cut off from their resource). This is
+  enforced as an additional validation check; the default (no id) leaves
+  spellcasting ungated.
+
+**Acceptance criteria**
+
+- [ ] With the default reserve multiple (one), the resource check is the
+      plain cost comparison of §4.3 step 9 (unchanged behavior).
+- [ ] A reserve multiple above one requires that multiple of the cost to
+      begin a spell-category cast.
+- [ ] A deliberate overdraw below the reserve threshold proceeds (does
+      not fizzle) and records the deficit captured before any spend.
+- [ ] The overexertion consequence fires only after the ability resolves
+      and actually spends resource — never on a fizzle, miss-without-spend,
+      or interrupt.
+- [ ] A caster carrying the designated resource-block condition fizzles
+      every spell-category ability; with no designated condition,
+      spellcasting is ungated.
 
 ---
 
@@ -551,6 +722,8 @@ common case.
 | ability used | a queued ability resolved as a hit (§4.5) |
 | ability missed | a queued ability resolved as a miss (§4.5) |
 | ability fizzled | a queued ability failed validation (§4.3, §4.8) |
+| cast began | a timed ability started its warmup (§4.9) |
+| cast interrupted | an in-flight timed cast was cleared before resolving, carrying a cause keyword (§4.9) |
 | effect applied | an active effect was added to a target (§5.2) |
 | effect removed | an active effect was removed by id or by flag (§5.3) |
 | effect expired | an active effect's remaining count hit zero (§5.4) |
@@ -582,6 +755,11 @@ spec.
 | Luck scaling factor in hit chance | §4.5 |
 | Race cost-adjustment formula | §4.7 |
 | Resource pool used by skill vs spell | §4.7 |
+| Cast time per ability (warmup in combat rounds) | §2.2, §4.9 |
+| Interrupt causes and their cause keywords | §4.9 |
+| Reserve multiple (cost-to-begin gate for spells) | §4.10 |
+| Overexertion save axis, difficulty formula, condition cascade | §4.10 |
+| Resource-block condition id | §4.10 |
 | Default variance and max-chance when ability omits them | §2.2, §6.1 |
 | Passive hook keys (e.g. "extra_attack", "defensive_check") | §6.3 |
 | Reserved metadata keys (e.g. damage_dice, heal_dice, max_bonus) | §4.6, §6.2 |

@@ -263,6 +263,17 @@ derivation is policy; the spec requires only that the same inputs
 produce the same outputs and that critical/fumble override the
 modifier comparison.
 
+The derivation is supplied by a content-defined **channel map** rather
+than hardcoded: a ruleset declares a named **derived channel** (`attack`,
+`defense`, `damage_bonus`, `mitigation`, …) as a formula over attribute
+names, and the resolver reads the channel by name, never the attributes
+directly. This is what lets different rulesets feed the same resolution
+kernel without engine changes. A pack that declares no formula for a
+channel inherits the engine baseline (which reproduces the pre-channel
+behavior); a later pack overrides a single channel's formula without
+touching the others. The channel name set is the contract; the formulas
+behind each name are policy.
+
 ### 4.5 Damage roll
 
 Damage uses a dice expression (notation: `<count>d<sides>[+/-mod]`)
@@ -474,7 +485,8 @@ spec.
 | Player-vs-mob iteration order on ties | §4.1 |
 | Default unarmed damage dice and damage type | §4.5 |
 | Critical / fumble effect on damage | §4.5 |
-| Hit-modifier and AC derivation formulas | §4.4 |
+| Hit-modifier and AC derivation formulas (via the channel map) | §4.4 |
+| Derived-channel names and their per-pack formulas | §4.4 |
 | Damage scaling formula (e.g. stat-based multiplier) | §4.5 |
 | Flee cooldown length | §5.3 |
 | Wimpy threshold property name | §5.1 |

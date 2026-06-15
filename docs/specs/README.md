@@ -277,6 +277,7 @@ load time:
 | Theme | [ui-rendering-help](ui-rendering-help.md) §3 |
 | Mob template, loot table, area-spawn | [mobs-ai-spawning](mobs-ai-spawning.md) §2, §3 |
 | Ability | [abilities-and-effects](abilities-and-effects.md) §2 |
+| Channel map (derived-stat formulas) | [combat](combat.md) §4.4 |
 | Effect template | [abilities-and-effects](abilities-and-effects.md); applied by consumables [economy-survival](economy-survival.md) §6 |
 | Race, class | [progression](progression.md) §3, §4 |
 | Background | [backgrounds](backgrounds.md) §2 |
@@ -305,7 +306,10 @@ Each spec calls out what it persists. The aggregate view:
 - **Player file** — entity id, account id, name, location,
   tags, roles, stats (base + modifiers + vitals), properties,
   equipment, inventory, flat item list, **abilities +
-  proficiencies**, **recall address**, **prompt template**,
+  proficiencies**, **resource pools** (current values only — pools at
+  full are omitted and re-seeded from the attribute-derived maximum on
+  load, so rebalancing a pool's max needs no migration;
+  [progression](progression.md) §2.6), **recall address**, **prompt template**,
   **autoloot preference** ([loot-and-corpses](loot-and-corpses.md) §6),
   **faction standing bag + history** ([faction](faction.md) §8 *(spec; build pending)*).
 - **Quest file** (sibling of player file) — active list,
