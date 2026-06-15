@@ -33,7 +33,8 @@ than adding new combat machinery.
 **Non-goals (this slice).** Ranged combat, ammunition, range increments (a
 separate `ranged-combat` slice). Armor depth / per-damage-type AC — the
 **damage type recorded here is inert** until that slice lands; a single AC still
-applies (`combat §4.4`). Size-relative wielding, two-weapon penalties,
+applies (`combat §4.4`). Size-relative wielding (now its own spec,
+`size-and-wielding.md`), two-weapon penalties,
 masterwork grades, special-weapon handlers (later increments). Player-chosen
 feats (deferred per character-model D2). No confirmation-roll step, no
 initiative/action-economy (Decision 0).

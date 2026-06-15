@@ -109,6 +109,13 @@ The verbs players use and the systems that resolve them.
   non-proficient to-hit penalty, and per-weapon critical threat range +
   multiplier. Layers on `combat` §4.4–§4.5; EPIC sub-epic S1 *(spec;
   build pending)*.
+- [size-and-wielding](size-and-wielding.md) — size-relative wielding: a
+  creature size + a weapon size, the wield mode (light / one-handed /
+  two-handed / too-large) derived from their ordered distance, and the two
+  consequences — the equip footprint (two-handed ties up the off hand) and a
+  two-handed Strength bonus to melee damage. Layers on `weapon-identity` +
+  `inventory-equipment-items` §3.3 + `combat` §4.5; EPIC sub-epic S1
+  increment F *(spec; build pending)*.
 - [saves](saves.md) — saving throws (Fortitude / Reflex / Will): three
   derived save values (class strong/weak base + governing-ability
   modifier), the `d20 + bonus vs DC` resolve primitive + the

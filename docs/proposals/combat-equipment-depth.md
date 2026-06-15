@@ -30,7 +30,7 @@ Each row is independently shippable except where a dependency is noted. Sizes ar
 | **C** | **Crit threat-range + multiplier** | 19–20/x2, x3, x4 columns; threat range + crit dice | combat.md (flags it) | spec slice | **M** |
 | **D** | **Damage types (B/P/S)** | Bludgeon/Pierce/Slash on weapons | — (inert until E) | thin | **S**, low payoff alone |
 | **E** | **Armor depth** | armor bonus / max-Dex / check penalty / per-damage-type AC; armor proficiency | D (type-vs-AC); slots | big spec | **L** |
-| **F** | **Size-relative wielding** | light/1h/2h by (weapon size − wielder size); 1.5× Str two-handed | A | spec slice | **M** |
+| **F** | **Size-relative wielding** | light/1h/2h by (weapon size − wielder size); 1.5× Str two-handed | A | **spec written** ([`size-and-wielding.md`](../specs/size-and-wielding.md), build pending) | **M** |
 | **G** | **Ranged combat** | bows/crossbows/thrown; range increments; ammo as consumables; Str-on-thrown-not-projectile | combat-model change | **big standalone spec** | **L** |
 | **H** | **Masterwork / masterpiece / power-wrought** | +N attack/damage item grades; unbreakable power-wrought | A, C | thin (rides rarity) | **S–M** |
 | **I** | **Encumbrance / carry weight** | weight caps, armor speed penalty, the `Wt` column | container caps (specced §1) | spec slice | **M** |
@@ -56,6 +56,15 @@ Each row is independently shippable except where a dependency is noted. Sizes ar
 > chain test. **Remaining in this proposal:** D (damage-type effect, with E),
 > E (armor depth), F (size-wield), G (ranged), H (masterwork), I (encumbrance —
 > carry-weight shipped separately), J (special weapons).
+>
+> **F (size-wield) SPECCED 2026-06-15** — `docs/specs/size-and-wielding.md`
+> (forward spec, build pending): creature size + weapon size, the wield mode
+> derived from their ordered distance (light / one-handed / two-handed /
+> too-large), and the two consequences (the equip footprint via the existing
+> companion-slot seam + the two-handed Strength factor on `combat §4.5`). Size
+> derives the footprint when both sides carry size data; otherwise the static
+> footprint is the fallback (legacy weapons unchanged). Two-weapon penalties and
+> ranged Strength rules stay out of scope (their own increments).
 
 ## 5. Recommended first slice: M-Weapon-Identity (A + B + C)
 
