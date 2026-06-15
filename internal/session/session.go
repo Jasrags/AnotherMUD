@@ -1954,6 +1954,16 @@ type connActor struct {
 	// observers' sticky detection memory (§4.1) — it changes on each
 	// re-hide so a remembered pierce keys off the right thing. All guarded
 	// by a.mu.
+	//
+	// WRITER INVARIANT: every mutation (Hide/Reveal — via the hide/unhide
+	// verbs, move-drops-hide, and S3b reveal-on-action) happens on THIS
+	// actor's owning connection goroutine (command dispatch + the
+	// synchronous player.moved subscriber). Cross-goroutine access is
+	// READ-ONLY (the S3b visibility filter reading IsHidden/score/instance
+	// from the tick goroutine), and every getter takes a.mu, so reads never
+	// tear. The verb pre-checks (IsHidden then Hide/Reveal) are therefore a
+	// benign message-only TOCTOU, not a data race — keep it that way: do NOT
+	// add a tick-goroutine writer without making the check-and-act atomic.
 	hidden          bool
 	concealScore    int
 	concealInstance uint64
@@ -2218,9 +2228,12 @@ func (a *connActor) Reveal() bool {
 func (a *connActor) HideScore() int {
 	const baseHideDC = 10
 	a.mu.Lock()
-	dex := a.statBlock.Effective(progression.StatDEX)
+	sb := a.statBlock
 	a.mu.Unlock()
-	return baseHideDC + progression.AbilityModifier(dex)
+	if sb == nil {
+		return baseHideDC // no stats wired (defensive; the player path always has them)
+	}
+	return baseHideDC + progression.AbilityModifier(sb.Effective(progression.StatDEX))
 }
 
 // IsHidden reports whether the actor is currently hide-concealed

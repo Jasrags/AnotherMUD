@@ -2106,7 +2106,9 @@ func run() error {
 	// Skips presence-only moves (From == To: link-dead reconnect).
 	bus.Subscribe(eventbus.EventPlayerMoved, func(ctx context.Context, ev eventbus.Event) {
 		e, ok := ev.(eventbus.PlayerMoved)
-		if !ok || e.From == e.To {
+		// Skip same-room (link-dead reconnect) and login spawn (From == ""):
+		// neither is a real room-to-room move that should break hide.
+		if !ok || e.From == "" || e.From == e.To {
 			return
 		}
 		actor, ok := mgr.GetByPlayerID(e.PlayerID)
