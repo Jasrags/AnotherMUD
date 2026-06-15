@@ -306,6 +306,11 @@ different configured default, the previously-recorded id wins.
 
 ## 4. Classes
 
+A character holds a **class set** (§4.7) — one class in v1, but modeled as
+an ordered list so adding a second class is additive content rather than a
+save migration. Sections 4.1–4.6 describe a single class definition and
+how it applies on level-up; §4.7 describes how the set composes.
+
 ### 4.1 Definition shape
 
 A class definition carries:
@@ -372,11 +377,12 @@ event.
 
 ### 4.5 Class path processor
 
-Listens to `progression.level.up` and `character.created`. On
-each:
+Listens to `progression.level.up` and `character.created`. It is
+applied **once per class in the entity's class set** (§4.7); for each
+class:
 
-1. Resolve the entity, its class id, and its class definition.
-   If any is missing or the class declares no track, return.
+1. Resolve the entity and the class definition. If the class is missing
+   or declares no track, skip it.
 2. For level-up events, require the event's `track` field to
    equal the class's bound track (case-insensitive).
 3. For character-created events, treat the level as 1.
@@ -395,9 +401,10 @@ treats them as not-its-problem.
 
 ### 4.6 Stat growth on level up
 
-Listens to `progression.level.up`. On each event:
+Listens to `progression.level.up`. Applied **once per class in the
+entity's class set** (§4.7). For each class:
 
-1. Resolve the entity and class. Return on missing.
+1. Resolve the entity and the class. Skip on missing.
 2. **No track gate.** This handler runs for every level-up,
    regardless of which track triggered it. (Whether to gate on
    track is open — see §10.)
@@ -410,6 +417,48 @@ Listens to `progression.level.up`. On each event:
    - Apply the resulting delta to the entity's base stat
      (which invalidates the stat block).
 4. Grant `trainsPerLevel` trains via the training feature.
+
+### 4.7 The character's class set (multiclass)
+
+A character's class assignment is an **ordered class set** — a list of
+class ids, not a single class. The first element is the **primary class**:
+single-value readers (a quest class gate, the score sheet, the generated
+character description, GMCP) use the primary, while systems that must
+account for the whole build iterate the full set. v1 content gives each
+character exactly one class, so the set holds a single element today; the
+list shape exists so that granting a second class is additive content, not
+a save migration.
+
+The class set is persisted with the character. On load each id is
+validated against the class registry; unresolved ids are dropped
+fail-soft (a class removed from content does not break the character), and
+the first id that resolves becomes the primary.
+
+**Per-class application.** The level-up and character-created class
+effects (§4.5, §4.6) are applied **once per class in the set**. Each
+application still gates on that class's bound track, so a class's path and
+growth fire only on level-ups of the track it is bound to — two classes
+bound to two different tracks route independently and correctly. At
+character creation, every class's level-1 path and starting stats are
+granted (treated as level 1 with no track gate).
+
+**Cross-class composition.** Values that must reflect the whole build
+compose across the set rather than reading the primary alone. The class's
+level for these computations is the level of its **bound track**, read
+from the multi-track state (§5):
+
+- **Saving throws** take, per axis, the **strongest** contributing class's
+  base bonus (a character is as resilient on each axis as its best class
+  for that axis), then add the governing-ability modifier (`saves.md`).
+- **Weapon proficiency** is the **union** of every class's granted
+  proficiency tiers and categories — proficient if any held class grants
+  the wielded weapon (`weapon-identity.md`).
+
+**Mutation.** Replacing a character's class (a quest or admin class swap)
+sets the set to a single class. Adding a *second* class without removing
+the first (true in-play multiclass) is a distinct operation reserved for
+when multiclass content ships; the set shape already supports it without a
+further migration.
 
 **Acceptance criteria**
 
@@ -426,6 +475,16 @@ Listens to `progression.level.up`. On each event:
 - [ ] Growth-bonus formula uses the *effective* (post-modifier)
       value of the source attribute.
 - [ ] Trains-per-level are credited on every level-up.
+- [ ] A character's class assignment is an ordered set; the first
+      element is the primary, used by single-value readers.
+- [ ] On load, unresolved class ids are dropped fail-soft and the first
+      resolved id becomes the primary.
+- [ ] Class path and stat growth are applied once per class in the set,
+      each gated on its own bound track.
+- [ ] Saving throws take the strongest contributing class per axis;
+      weapon proficiency is the union across classes.
+- [ ] Replacing the class sets the set to a single class; the set shape
+      supports a future additive second class without a migration.
 
 ---
 

@@ -1,7 +1,8 @@
 # Proposal: WoT Character Model (classes · multiclass · features · feats · skills)
 
-**Status:** Draft / pre-spec design note — for alignment · **Type:** the keystone pre-decision for the WoT mechanics program
+**Status:** keystone design note — **decisions now specified in the engine specs** (see below) · **Type:** the keystone pre-decision for the WoT mechanics program
 **Feeds:** EPIC sub-epics **S3 (skills)**, **S4 (feats/traits)**, **S9 (class/background/multiclass)**, and the eligibility half of **S2 (the One Power)** — `docs/themes/wot-mechanics-epic.md`
+**Where the decisions live now (setting-agnostic):** **D1 (multi-track-as-multiclass)** — the class set, per-class level-up routing, and cross-class composition — is specified in [`progression.md`](../specs/progression.md) §4.7 (tracks themselves: §5). **D2 (feats)** → [`feats.md`](../specs/feats.md) (authored grants ride the class `Path`, §4.5). **D3 (skills)** → [`skills.md`](../specs/skills.md). **S9 backgrounds** → [`backgrounds.md`](../specs/backgrounds.md). **D4/D5** are existing creation-gate + stat-growth behavior in `progression.md` §4.3/§4.6. This note remains the record of *why* the model is shaped this way; the per-system behavior is in those specs.
 **Builds on:** `internal/progression` (tracks, classes, abilities, proficiency, training), `internal/player` (the save), `internal/session` (`connActor`)
 **Governed by:** EPIC **Decision 0** — translate WoT onto the tick/chance model; no d20 rewrite.
 

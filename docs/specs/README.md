@@ -312,7 +312,11 @@ Each spec calls out what it persists. The aggregate view:
 - **Account file** — id, email, password hash, character list,
   creation / verification timestamps.
 - **Player file** — entity id, account id, name, location,
-  tags, roles, stats (base + modifiers + vitals), properties,
+  tags, roles, stats (base + modifiers + vitals),
+  **class set** (an ordered list of class ids — one in v1, the list shape
+  so a second class needs no migration; [progression](progression.md) §4.7)
+  + **per-track progression** (level + xp per track;
+  [progression](progression.md) §5.2), properties,
   equipment, inventory, flat item list, **abilities +
   proficiencies**, **resource pools** (current values only — pools at
   full are omitted and re-seeded from the attribute-derived maximum on
