@@ -8,6 +8,11 @@ cooking** — §22, **player maps** — §23, **saving throws** — §24, **cond
 **expected behavior**; tick the box when it matches, and note anything that
 doesn't.
 
+> **§27 (Channeling — the One Power)** is a **separate pack**: it runs the
+> **Wheel of Time** world (`make run-wot`), not the core/starter-world demo the
+> rest of this guide assumes. The pre-built Jasrags/Bob characters belong to the
+> core pack — make a fresh **channeler** in the WoT boot. See §27's own boot block.
+
 > Format: `- [ ] command` — what should happen. Mark `[x]` on pass; add a
 > `BUG:` note inline on fail.
 
@@ -864,6 +869,108 @@ The forge cellar's **iron door** (`down`, to the vault) is **pickable**
 > engine default (`internal/progression` skill config). Other skills
 > (hide/search/spot) are owned by the **visibility** spec and call the same
 > `ResolveSkillCheck` primitive; crafting disciplines are skills too (§22).
+
+## 27. Channeling — the One Power (WoT pack)
+
+> **Different world.** This section runs the **Wheel of Time** pack, not the
+> core demo. Boot it on its own and make a fresh **channeler** (Jasrags/Bob are
+> core-pack fighters and don't exist here).
+
+A channeler draws the **One Power** (a pool, shown as **MA** on `score`) to weave
+**spells** (weaves). Strength in the Five Powers is **gendered** — the
+saidin/saidar split — so the same weave is stronger or weaker by gender
+(affinity). Weaves take an interruptible **cast time** to channel, and a hit, a
+move, or being stunned **breaks** an in-flight weave. Overdrawing the Power
+(**overchannel**) risks a Fortitude-save cascade up to being **stilled**.
+
+### Boot (WoT pack, in the Westwood, full channeling flavor)
+
+```sh
+# Start in the Westwood (a wild boar to fight), with the channeling knobs on
+# and a stark affinity contrast for the demo:
+ANOTHERMUD_PACKS=wot \
+ANOTHERMUD_START_ROOM=wot:deep-westwood \
+ANOTHERMUD_SPEND_ON_SUCCESS=true \
+ANOTHERMUD_CHANNEL_RESERVE_MULTIPLE=2 \
+ANOTHERMUD_AFFINITY_WEAK_FACTOR=0.25 \
+go run ./cmd/anothermud
+```
+
+(Plain `make run-wot` works too — it starts at `wot:the-green` with the knobs at
+their defaults; the env above just puts the boar at hand and sharpens the demo.)
+
+### Create a channeler & the One Power pool
+
+- [ ] New name → walk the wizard: it asks **gender** (male/female) **before**
+      race/class, then offer the **Channeler** class. Commit it.
+- [ ] `score` (`sc`) — the identity line reads **Gender Race Class**, and the
+      Combat column shows **MA  30/30** (the One Power pool — non-channelers read
+      `0/0`). Strong **Will**.
+- [ ] `channel firebolt` with no target out of combat — fizzles (it needs an
+      enemy); a self weave like `channel warding` works anywhere.
+
+### Weaving (the four starter weaves)
+
+`channel` is an alias of `cast`. The starters: **Firebolt** (Fire, enemy,
+damage), **Healing** (Water, self/ally), **Warding** (Air+Spirit, self-buff
+ac/hit), **Bonds of Air** (Air, enemy, save-gated stun).
+
+- [ ] `kill boar` to engage, then `channel firebolt boar` — after a short
+      warmup you see **"You cast Firebolt on a wild boar."** + a damage line, and
+      **MA drops** by the weave's cost (`score` to confirm). Idle a while → MA
+      **regenerates**; `quit` + relog → the drained pool **persists**.
+- [ ] `channel warding` (out of combat) — a self-buff; `score` shows **AC/hit
+      rise** for its duration.
+
+### Affinity & the Five Powers (the gender split)
+
+Men are strong in **Earth/Fire/Spirit**, women in **Air/Water/Spirit**; a weave
+woven outside your strength lands at reduced magnitude (soft, never a hard gate).
+With `ANOTHERMUD_AFFINITY_WEAK_FACTOR=0.25` the contrast is stark.
+
+- [ ] As a **man** (saidin), `channel firebolt boar` — Fire is strong, so it
+      hits for full damage. As a **woman** (saidar), the same Firebolt hits for
+      far less (Fire is weak) — pinned near the floor at a low weak-factor.
+- [ ] Affinity also scales the **effect** path: a woman's **Warding** (Air+Spirit,
+      both strong) gives the full **AC +2**; a man's gives less (Air is weak) —
+      compare the `score` AC delta before/after `channel warding` by gender.
+
+### The cast warmup & the interrupt game
+
+A weave with a `cast_time` no longer resolves instantly — it **begins** ("You
+begin to weave X…") and resolves a round or two later. While it warms up, a
+**hit, a room change, or a stun** aborts it.
+
+- [ ] `channel warding` — you see **"You begin to weave Warding…"**, then a beat
+      later **"You cast Warding."** (the warmup is real — Warding takes 2 rounds).
+- [ ] **Hit interrupt:** engage the boar (`kill boar`), then `channel bonds-of-air
+      boar` (a 2-round weave). When a boar's blow lands during the warmup:
+      **"Your weave of Bonds of Air is disrupted!"** — and **MA is not spent** (an
+      interrupted weave never drew the Power; cost was tempo, not Power).
+- [ ] **Move interrupt:** out of combat, `channel warding`, and once you see
+      "begin to weave Warding" walk `east` before it resolves — **"Your weave of
+      Warding is disrupted!"**. You can't channel and travel at once.
+- [ ] **Stun interrupt:** being incapacitated mid-weave drops it (cause
+      "stunned") — e.g. a foe's Bonds of Air landing on you while you weave. (A
+      miss or a dodge does **not** interrupt — only a blow that lands.)
+
+### Overchannel — drawing past the safe reserve
+
+- [ ] Drain your pool low (weave a few times), then `overchannel firebolt boar`
+      — it casts a weave you couldn't safely afford (a plain `channel` would
+      fizzle "insufficient"), then forces a **Fortitude save**. On a pass: "You
+      draw far more of the One Power than is safe…". On a fail, a cascade by
+      margin — **fatigued** → **stunned** → **stilled** ("The Source rips away —
+      and is simply GONE. You are stilled.").
+- [ ] While **stilled**, `channel firebolt` — fizzles "cut off from the One
+      Power" (the block lasts the effect's duration; it does **not** survive a
+      relogin yet — a known gap).
+
+> The channeling knobs default **off** (the core/fantasy packs don't channel);
+> the WoT boot turns them on. Remaining One-Power depth (Initiate/Wilder split,
+> taint/madness, angreal, linking, a stilling **restore** path) is tracked in the
+> WoT mechanics EPIC (`docs/themes/wot-mechanics-epic.md`, S2) — not in this
+> slice. The interrupt game's optional polish (a GMCP cast-bar) is also pending.
 
 ---
 
