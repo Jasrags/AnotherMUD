@@ -9,6 +9,7 @@ description: |
 exits:
   south: town-square
   down: forge-cellar
+  west: forge-nook
 # M15.1 doors: a plain (unlocked) oak door down to the cellar — the
 # open/close test. Starts closed (door default), so `down` is blocked
 # until you `open down`. Its reverse is declared on forge-cellar `up`.
@@ -16,6 +17,13 @@ doors:
   down:
     name: a sturdy oak door
     keywords: [oak, door]
+# Hidden exits (hidden-exits §2): a secret alcove behind the western wall,
+# unlisted and unwalkable until a character `search`es and beats the
+# (deliberately easy) difficulty — the demo's "find the secret room". The
+# reverse (forge-nook `east`) is authored NOT hidden.
+hidden_exits:
+  west:
+    search_difficulty: 1
 # M15.4: the forge is enclosed — shielded from weather and time
 # ambience by default. No exposure flags so a rainstorm doesn't
 # rain into the smithy.

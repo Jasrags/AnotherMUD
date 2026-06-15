@@ -302,6 +302,9 @@ const (
 	// dropped, carrying the reason (moved / acted / detected / dispelled /
 	// expired) (visibility.md §6).
 	EventEntityRevealed = "entity.revealed"
+	// EventExitDiscovered fires when a character discovers a hidden exit via
+	// `search` (hidden-exits.md §6).
+	EventExitDiscovered = "exit.discovered"
 	// EventResourceGathering is the cancellable pre-event fired before a
 	// forage/harvest resolves (gathering.md §6). Content forbids gathering
 	// in protected/quest-gated spots by subscribing and cancelling; the
@@ -1527,6 +1530,20 @@ type EntityRevealed struct {
 
 // Name implements Event.
 func (EntityRevealed) Name() string { return EventEntityRevealed }
+
+// ExitDiscovered fires when a character first discovers a hidden exit
+// (hidden-exits.md §6) — the natural hook for "find the secret vault" quest
+// objectives. Per-character + ephemeral: re-discovering after the memory
+// clears (room change / logout / restart) fires it again. Not cancellable.
+type ExitDiscovered struct {
+	ActorID    string
+	Room       world.RoomID
+	Direction  string
+	TargetRoom world.RoomID
+}
+
+// Name implements Event.
+func (ExitDiscovered) Name() string { return EventExitDiscovered }
 
 // RecallAfter is the post-fact event fired after an uncancelled
 // recall teleport commits (spec recall.md §5). The room-change

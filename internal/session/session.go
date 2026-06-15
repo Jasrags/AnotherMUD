@@ -920,7 +920,7 @@ func run(ctx context.Context, c conn.Connection, cfg Config) error {
 		firstEntry = command.FirstEntryBanner(command.MapAreaName(cfg.World, start.AreaID))
 	}
 	startLvl := command.EffectiveLight(cfg.Light, start, a, cfg.Items, cfg.Placement)
-	spawnView := command.RenderRoom(start, cfg.Placement, cfg.Items, questMarkerFor(cfg.Quests, a.PlayerID()), cfg.Ambience, nil, startLvl, otherPlayerNames(cfg.Manager, start.ID, a.PlayerID())...)
+	spawnView := command.RenderRoom(start, cfg.Placement, cfg.Items, questMarkerFor(cfg.Quests, a.PlayerID()), cfg.Ambience, nil, startLvl, exitVisibleFor(a, cfg.AdminRole), otherPlayerNames(cfg.Manager, start.ID, a.PlayerID())...)
 	spawnView = command.AppendMinimap(spawnView, start, a, cfg.World)
 	spawnView = command.AppendRoomData(spawnView, start, a, cfg.AdminRole)
 	if firstEntry != "" {
@@ -1999,6 +1999,15 @@ type connActor struct {
 	// observer changes rooms (SetRoom). Lazily allocated; guarded by a.mu.
 	// Ephemeral, never persisted.
 	contested map[uint64]bool
+
+	// discoveredExits is this actor's per-room hidden-exit discovery memory
+	// (hidden-exits §3.4): the directions whose hidden exit this character has
+	// found via `search`. Direction-keyed (not concealment-instance-keyed like
+	// contested) because exits are room-scoped edges, not entities — and the
+	// whole set is invalidated on a room change, so a direction uniquely
+	// identifies the exit within the current room. Lazily allocated; guarded
+	// by a.mu. Ephemeral, never persisted (PD-3).
+	discoveredExits map[world.Direction]bool
 	// colorTier is the per-session capability ceiling captured from
 	// the conn at construction (M16.6a). Sources:
 	//   - telnet: derived from TTYPE + IsMudClient per spec §7.2.
@@ -2435,11 +2444,62 @@ func (a *connActor) RecordContest(instance uint64, won bool) {
 	a.mu.Unlock()
 }
 
-// clearDetectionLocked drops this observer's sticky contest memory — called
-// on a room change (§4.1: you lose track of who you spotted when you leave,
-// and re-contest fresh on arrival). Caller holds a.mu.
+// clearDetectionLocked drops this observer's sticky contest memory AND its
+// hidden-exit discovery memory — called on a room change (visibility §4.1 /
+// hidden-exits §3.4: you lose track of what you spotted when you leave, and
+// must re-search on return). Caller holds a.mu.
 func (a *connActor) clearDetectionLocked() {
 	a.contested = nil
+	a.discoveredExits = nil
+}
+
+// exitVisibleFor builds the hidden-exits §5.1 render filter for a freshly-
+// shown actor (spawn + link-dead reattach): a hidden exit is listed only if
+// this character may see it. Mirrors command.canSeeExit so the first room view
+// agrees with the live command-render path — an admin or a detect_hidden
+// carrier sees hidden exits "without searching" (§3.3), and an ordinary
+// character sees only what it has discovered (empty on these cold paths, since
+// discovery clears on every room change). Effect-granted detect_hidden is not
+// resolved here (connActor.HasTag covers racial/alignment tags only); that
+// refinement is picked up on the next `look` through canSeeExit.
+func exitVisibleFor(a *connActor, adminRole string) func(world.Direction, world.Exit) bool {
+	return func(d world.Direction, e world.Exit) bool {
+		if !e.Hidden {
+			return true
+		}
+		if adminRole != "" && a.HasRole(adminRole) {
+			return true
+		}
+		if a.HasTag(command.DetectHiddenFlag) {
+			return true
+		}
+		return a.IsExitDiscovered(d)
+	}
+}
+
+// IsExitDiscovered reports whether this character has found the hidden exit in
+// the given direction in the current room (hidden-exits §3). A non-hidden exit
+// is the caller's concern; this only tracks discovery memory.
+func (a *connActor) IsExitDiscovered(dir world.Direction) bool {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	return a.discoveredExits[dir]
+}
+
+// DiscoverExit records a hidden exit as found, returning true if it was newly
+// discovered (so the caller emits the discovery message + event exactly once).
+// Lazily allocates the set. Cleared on room change by clearDetectionLocked.
+func (a *connActor) DiscoverExit(dir world.Direction) bool {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	if a.discoveredExits == nil {
+		a.discoveredExits = make(map[world.Direction]bool)
+	}
+	if a.discoveredExits[dir] {
+		return false
+	}
+	a.discoveredExits[dir] = true
+	return true
 }
 
 // ColorTier returns the actor's color-capability tier captured

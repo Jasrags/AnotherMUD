@@ -1,0 +1,16 @@
+id: forge-nook
+area: town
+name: Hidden Alcove
+description: |
+  A cramped alcove behind the forge's western wall, just wide enough to
+  stand in. Soot-blackened shelves hold a few oddments the smith would
+  rather keep out of sight. The only way out is back east into the forge.
+terrain: indoors
+# Lit so the alcove renders fully once a searcher slips inside — a wall
+# lamp the smith keeps burning.
+properties:
+  light: lit
+exits:
+  # The way back is NOT hidden — once you are inside, the forge is in plain
+  # view (hidden-exits §2: each side's hidden flag is authored independently).
+  east: forge

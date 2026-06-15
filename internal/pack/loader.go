@@ -2551,6 +2551,29 @@ func decodeRoom(ctx context.Context, path, ns string) (*world.Room, []string, []
 		r.Exits[dir] = exit
 	}
 
+	// Hidden exits (hidden-exits §2): mark the matching exit secret. Like
+	// doors, each key MUST name an existing exit — a hidden_exits entry with
+	// no exit is a content authoring error caught at load.
+	for dirStr, hf := range rf.HiddenExits {
+		dir, ok := world.ParseDirection(dirStr)
+		if !ok {
+			return nil, nil, nil, fmt.Errorf("%w: %s: hidden_exits direction %q is not a Direction",
+				ErrInvalidContent, path, dirStr)
+		}
+		exit, hasExit := r.Exits[dir]
+		if !hasExit {
+			return nil, nil, nil, fmt.Errorf("%w: %s: hidden_exits %s has no matching exit",
+				ErrInvalidContent, path, dirStr)
+		}
+		if hf.SearchDifficulty < 0 {
+			return nil, nil, nil, fmt.Errorf("%w: %s: hidden_exits %s: search_difficulty must be non-negative",
+				ErrInvalidContent, path, dirStr)
+		}
+		exit.Hidden = true
+		exit.SearchDifficulty = hf.SearchDifficulty
+		r.Exits[dir] = exit
+	}
+
 	// Item placements: qualify each template id now so we can validate
 	// in a single pass at the end. We do NOT touch dst.Items here —
 	// the template may live in a pack that hasn't been read yet.

@@ -262,6 +262,12 @@ type RoomFile struct {
 	// optional flags. Loaded into world.Exit.Door and synchronized
 	// with the reverse side at load when both sides declare.
 	Doors map[string]DoorFile `yaml:"doors,omitempty"`
+	// HiddenExits marks exits as secret (hidden-exits §2). Keys are the
+	// direction name (short or long) matching one of the Exits entries;
+	// the value carries the optional search difficulty. Mirrors the Doors
+	// block — a separate map so the simple `exits:` shape stays
+	// backward-compatible. Each side is authored independently (§2).
+	HiddenExits map[string]HiddenExitFile `yaml:"hidden_exits,omitempty"`
 
 	// Terrain is the room's weather/time eligibility classifier
 	// (spec world-rooms-movement §6.4). Empty defaults to
@@ -323,6 +329,16 @@ type DoorFile struct {
 	// the lockpick verb itself is deferred.
 	Pickable       bool `yaml:"pickable,omitempty"`
 	PickDifficulty int  `yaml:"pick_difficulty,omitempty"`
+}
+
+// HiddenExitFile is the YAML shape for one hidden-exit declaration
+// (hidden-exits §2). The presence of the entry marks the exit hidden;
+// SearchDifficulty is optional (0 → the configured default applies at the
+// search site).
+type HiddenExitFile struct {
+	// SearchDifficulty is the concealment score a searcher's perception
+	// contest must beat (§2/§3). Optional; 0 → configured default.
+	SearchDifficulty int `yaml:"search_difficulty,omitempty"`
 }
 
 // TrackFile is the YAML shape for a progression-track definition

@@ -319,6 +319,30 @@ type testActor struct {
 	// tags backs HasTag so testActor can stand in as a taggable viewer
 	// (e.g. carrying the see_invisible / darkvision trait, visibility §4.3).
 	tags []string
+
+	// discoveredExits backs the exitDiscoverer capability (hidden-exits §3).
+	discoveredExits map[world.Direction]bool
+}
+
+// IsExitDiscovered / DiscoverExit make testActor satisfy exitDiscoverer
+// (hidden-exits §3) so search/movement tests can drive discovery memory.
+func (a *testActor) IsExitDiscovered(dir world.Direction) bool {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	return a.discoveredExits[dir]
+}
+
+func (a *testActor) DiscoverExit(dir world.Direction) bool {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	if a.discoveredExits == nil {
+		a.discoveredExits = map[world.Direction]bool{}
+	}
+	if a.discoveredExits[dir] {
+		return false
+	}
+	a.discoveredExits[dir] = true
+	return true
 }
 
 // HasTag makes testActor satisfy the taggable capability (used by the light

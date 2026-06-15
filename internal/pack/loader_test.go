@@ -2089,6 +2089,82 @@ doors:
 	}
 }
 
+// A hidden_exits block marks the matching exit secret and carries its search
+// difficulty (hidden-exits §2). The reverse exit is independent.
+func TestLoadRoomHiddenExit_HappyPath(t *testing.T) {
+	root := t.TempDir()
+	pack := filepath.Join(root, "core")
+	writeFile(t, filepath.Join(pack, "pack.yaml"), `
+name: tapestry-core
+content:
+  areas: [areas/*.yaml]
+  rooms: [rooms/*.yaml]
+`)
+	writeFile(t, filepath.Join(pack, "areas/town.yaml"), "id: town\nname: Town\n")
+	writeFile(t, filepath.Join(pack, "rooms/study.yaml"), `
+id: study
+area: town
+name: Study
+exits:
+  north: vault
+hidden_exits:
+  north:
+    search_difficulty: 18
+`)
+	writeFile(t, filepath.Join(pack, "rooms/vault.yaml"), `
+id: vault
+area: town
+name: Vault
+exits:
+  south: study
+`)
+
+	regs := NewRegistries()
+	if err := Load(context.Background(), root, nil, regs, nil, nil, nil); err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	study, _ := regs.World.Room("tapestry-core:study")
+	exit := study.Exits[world.DirNorth]
+	if !exit.Hidden {
+		t.Error("north exit should be hidden")
+	}
+	if exit.SearchDifficulty != 18 {
+		t.Errorf("SearchDifficulty = %d, want 18", exit.SearchDifficulty)
+	}
+	// The reverse exit is independent — vault's south is NOT hidden.
+	vault, _ := regs.World.Room("tapestry-core:vault")
+	if vault.Exits[world.DirSouth].Hidden {
+		t.Error("reverse exit must be independently NOT hidden")
+	}
+}
+
+// A hidden_exits entry naming a direction with no matching exit is a content
+// authoring error caught at load.
+func TestLoadRoomHiddenExit_NoMatchingExit(t *testing.T) {
+	root := t.TempDir()
+	pack := filepath.Join(root, "core")
+	writeFile(t, filepath.Join(pack, "pack.yaml"), `
+name: tapestry-core
+content:
+  areas: [areas/*.yaml]
+  rooms: [rooms/*.yaml]
+`)
+	writeFile(t, filepath.Join(pack, "areas/town.yaml"), "id: town\nname: Town\n")
+	writeFile(t, filepath.Join(pack, "rooms/study.yaml"), `
+id: study
+area: town
+name: Study
+exits:
+  north: study
+hidden_exits:
+  south: {}
+`)
+	regs := NewRegistries()
+	if err := Load(context.Background(), root, nil, regs, nil, nil, nil); err == nil {
+		t.Fatal("expected load error for hidden_exits with no matching exit")
+	}
+}
+
 // TestLoadRoomDoor_DefaultsClosedTrue pins the §5.1 default that
 // an omitted `closed:` field means closed=true (a door is closed
 // unless content explicitly opens it).

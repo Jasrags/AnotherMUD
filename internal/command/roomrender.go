@@ -101,17 +101,26 @@ func (c *Context) hostileMarker() func(*entities.MobInstance) bool {
 // exits); `black` suppresses everything to a single dark line. Callers
 // that do not gate on light (tests, unwired paths) pass light.Lit for
 // the unchanged full render.
-func RenderRoom(r *world.Room, placement *entities.Placement, items *entities.Store, marker func(templateID string) bool, ambience func(*world.Room) string, hostile func(*entities.MobInstance) bool, lvl light.Level, players ...string) string {
+// exitVisible, when non-nil, reports whether a given exit should be shown to
+// the viewer — the hidden-exits §5.1 filter: an undiscovered secret exit
+// contributes nothing to the exits line. nil shows every exit (legacy / tests
+// / renderers without a per-observer discovery set).
+func RenderRoom(r *world.Room, placement *entities.Placement, items *entities.Store, marker func(templateID string) bool, ambience func(*world.Room) string, hostile func(*entities.MobInstance) bool, lvl light.Level, exitVisible func(world.Direction, world.Exit) bool, players ...string) string {
 	switch {
 	case lvl <= light.Black:
 		// Suppressed: name, description, occupants all withheld (§5.1).
 		return "<subtle>" + blackRoomText + "</subtle>"
 	case lvl == light.Gloom:
-		return renderGloomRoom(r, placement, items, players)
+		return renderGloomRoom(r, placement, items, exitVisible, players)
 	default:
 		// Lit or Dim: full render; dim mutes the description prose.
-		return renderFullRoom(r, placement, items, marker, ambience, hostile, lvl == light.Dim, players)
+		return renderFullRoom(r, placement, items, marker, ambience, hostile, lvl == light.Dim, exitVisible, players)
 	}
+}
+
+// exitShown applies the per-observer exit filter (nil = show all).
+func exitShown(exitVisible func(world.Direction, world.Exit) bool, d world.Direction, e world.Exit) bool {
+	return exitVisible == nil || exitVisible(d, e)
 }
 
 // Reduced-light render strings (§5.1). Hardcoded for v1; externalizing
@@ -127,7 +136,7 @@ const (
 // rest of the body keeps its semantic colors (a single SGR attribute
 // over plain prose, so no nested-tag reset problem). Both forms degrade
 // to clean text on no-color clients.
-func renderFullRoom(r *world.Room, placement *entities.Placement, items *entities.Store, marker func(templateID string) bool, ambience func(*world.Room) string, hostile func(*entities.MobInstance) bool, dim bool, players []string) string {
+func renderFullRoom(r *world.Room, placement *entities.Placement, items *entities.Store, marker func(templateID string) bool, ambience func(*world.Room) string, hostile func(*entities.MobInstance) bool, dim bool, exitVisible func(world.Direction, world.Exit) bool, players []string) string {
 	var b strings.Builder
 	b.WriteString("<title>")
 	b.WriteString(r.Name)
@@ -152,7 +161,7 @@ func renderFullRoom(r *world.Room, placement *entities.Placement, items *entitie
 		b.WriteString(line)
 		b.WriteString("\n")
 	}
-	b.WriteString(renderExits(r))
+	b.WriteString(renderExits(r, exitVisible))
 	return b.String()
 }
 
@@ -182,7 +191,7 @@ func reflowDescription(s string) string {
 // by a terse dark line, occupants are coarsened to presence-without-
 // identity (names hidden), and exits render as bare directions with no
 // door/weather detail.
-func renderGloomRoom(r *world.Room, placement *entities.Placement, items *entities.Store, players []string) string {
+func renderGloomRoom(r *world.Room, placement *entities.Placement, items *entities.Store, exitVisible func(world.Direction, world.Exit) bool, players []string) string {
 	var b strings.Builder
 	b.WriteString("<title>")
 	b.WriteString(r.Name)
@@ -196,7 +205,7 @@ func renderGloomRoom(r *world.Room, placement *entities.Placement, items *entiti
 		b.WriteString(line)
 		b.WriteString("\n")
 	}
-	b.WriteString(renderBareExits(r))
+	b.WriteString(renderBareExits(r, exitVisible))
 	return b.String()
 }
 
@@ -232,13 +241,16 @@ func renderCoarseOccupants(r *world.Room, placement *entities.Placement, items *
 // renderBareExits lists exit directions only — no door state, no
 // decoration — for the gloom render (§5.1: "exits shown as bare
 // directions").
-func renderBareExits(r *world.Room) string {
-	if len(r.Exits) == 0 {
-		return "<subtle>Exits:</subtle> none"
-	}
+func renderBareExits(r *world.Room, exitVisible func(world.Direction, world.Exit) bool) string {
 	longs := make([]string, 0, len(r.Exits))
-	for d := range r.Exits {
+	for d, e := range r.Exits {
+		if !exitShown(exitVisible, d, e) {
+			continue
+		}
 		longs = append(longs, "<exit>"+d.Long()+"</exit>")
+	}
+	if len(longs) == 0 {
+		return "<subtle>Exits:</subtle> none"
 	}
 	sort.Strings(longs)
 	return "<subtle>Exits:</subtle> " + strings.Join(longs, ", ")
@@ -352,17 +364,21 @@ func templateIDOf(e entities.Entity) string {
 	}
 }
 
-func renderExits(r *world.Room) string {
-	if len(r.Exits) == 0 {
-		return "<subtle>Exits:</subtle> none"
-	}
+func renderExits(r *world.Room, exitVisible func(world.Direction, world.Exit) bool) string {
 	// Build a slice of (long-name, decorated-name) pairs so we can
 	// sort by long-name (stable, alphabetical) while emitting the
-	// decorated form (M15.1c: doors render their state).
+	// decorated form (M15.1c: doors render their state). Undiscovered
+	// hidden exits are filtered out per-observer (hidden-exits §5.1).
 	type labelled struct{ key, label string }
 	out := make([]labelled, 0, len(r.Exits))
 	for d, e := range r.Exits {
+		if !exitShown(exitVisible, d, e) {
+			continue
+		}
 		out = append(out, labelled{key: d.Long(), label: decorateExit(d, e)})
+	}
+	if len(out) == 0 {
+		return "<subtle>Exits:</subtle> none"
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i].key < out[j].key })
 	labels := make([]string, len(out))

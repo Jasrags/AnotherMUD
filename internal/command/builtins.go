@@ -233,6 +233,11 @@ func RegisterBuiltins(r *Registry) error {
 		// lines reach only occupants who pierce a perception contest. Survives
 		// room changes (unlike hide); dropped by a revealing action (§4.5).
 		{Keyword: "sneak", Handler: SneakHandler, Brief: "Toggle moving quietly between rooms.", Syntax: []string{"sneak"}},
+		// Search (visibility §4.4 / hidden-exits §3.1): a deliberate scan of
+		// the room that runs a perception contest against hidden exits and can
+		// reveal a secret passage. BreaksConcealment: rummaging around is not a
+		// quiet action — it gives away a hidden searcher.
+		{Keyword: "search", Handler: SearchHandler, Brief: "Search the room for hidden exits.", Syntax: []string{"search"}, BreaksConcealment: true},
 
 		// Prompt (ui-rendering-help §7.4). Show / set / reset the
 		// status prompt template. The template uses {tokens} (§7.2)
@@ -400,6 +405,15 @@ func movementHandler(dir world.Direction) Handler {
 		room := c.Actor.Room()
 		if room == nil {
 			return c.Actor.Write(ctx, "You cannot move from nowhere.")
+		}
+		// Knowledge-gated traversal (hidden-exits §4.1): an undiscovered hidden
+		// exit is non-existent for this player — typing its direction fails
+		// exactly like there is no exit (same message, so it is indistinguishable
+		// from a wall). The move primitive stays unconditional (§4.1); the gate
+		// lives here, in the player-volition command, so mob AI / scripted /
+		// admin moves through the primitive are not blocked by player discovery.
+		if e, ok := room.Exits[dir]; ok && e.Hidden && !c.canSeeExit(dir, e) {
+			return c.Actor.Write(ctx, "You cannot go that way.")
 		}
 		dst, err := c.World.Move(room.ID, dir)
 		if err != nil {

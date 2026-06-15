@@ -103,6 +103,19 @@ type Exit struct {
 	// transition without a key. Reverse-side synchronization is
 	// the World's responsibility (spec §5.2 step 4).
 	Door *DoorState
+
+	// Hidden marks a secret exit (hidden-exits §2): concealed from a
+	// character until they discover it via `search` (visibility §4.4).
+	// Until then it is — for that character — unlisted, unwalkable, and
+	// (if it carries a Door) un-operable. Orthogonal to Door: a hidden exit
+	// may or may not carry one. The reverse-direction exit is a separate
+	// Exit with its own Hidden flag (§2: each side authored independently).
+	Hidden bool
+	// SearchDifficulty is the concealment score a searcher's perception
+	// contest must beat to discover this exit (hidden-exits §2 / §3) — the
+	// exit-side analog of the Door's pick difficulty. Zero with Hidden set
+	// means "use the configured default" (resolved at the search site).
+	SearchDifficulty int
 }
 
 // DoorState lives in door.go (internal/world/door.go). Moved out

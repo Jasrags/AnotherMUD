@@ -217,3 +217,75 @@ func TestLive_WizinvisVerb(t *testing.T) {
 	}
 	t.Log("wizinvis verb verified live: on → off")
 }
+
+// TestLive_SearchHiddenExit is a deterministic live smoke for S6 (the
+// `search` verb + hidden exits). The starter-world forge has a secret alcove
+// to its west with search_difficulty 1, so a search always succeeds:
+//
+//	ANOTHERMUD_LIVE=1 go test ./cmd/telnet-smoke -run TestLive_SearchHiddenExit -v
+//
+// It proves the full loop end to end: the exit is unwalkable + unlisted until
+// found, `search` discovers it (with the actor-only discovery line), and the
+// direction then walks the player into the hidden room.
+func TestLive_SearchHiddenExit(t *testing.T) {
+	if os.Getenv("ANOTHERMUD_LIVE") == "" {
+		t.Skip("set ANOTHERMUD_LIVE=1 to run (boots a real engine subprocess via `go run`)")
+	}
+	addr := bootEngine(t, nil) // default starter-world boot
+
+	// The first account's first character is the bootstrap admin, and admins
+	// bypass hidden exits (§3.3). Create a throwaway founder first so our
+	// tester "Delver" is an ordinary non-admin the discovery gate applies to.
+	founder, err := telnettest.Dial(addr, telnettest.WithTimeout(12*time.Second))
+	if err != nil {
+		t.Fatalf("dial founder: %v", err)
+	}
+	defer founder.Close()
+	if err := createAndLogin(founder, "Founder"); err != nil {
+		t.Fatalf("create founder: %v", err)
+	}
+
+	c, err := telnettest.Dial(addr, telnettest.WithTimeout(12*time.Second))
+	if err != nil {
+		t.Fatalf("dial: %v", err)
+	}
+	defer c.Close()
+	if err := createAndLogin(c, "Delver"); err != nil {
+		t.Fatalf("create player: %v", err)
+	}
+
+	// Spawn is town-square; the forge is north.
+	if err := c.SendLine("north"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := c.ExpectStringTimeout("Forge", 6*time.Second); err != nil {
+		t.Fatalf("did not reach the forge: %v", err)
+	}
+
+	// Before discovery: walking west fails like a wall (no exit), and west is
+	// not in the exits line — drain by issuing the move and expecting the
+	// no-exit message.
+	if err := c.SendLine("west"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := c.ExpectStringTimeout("cannot go that way", 6*time.Second); err != nil {
+		t.Fatalf("an undiscovered hidden exit should be unwalkable: %v", err)
+	}
+
+	// search finds the secret passage (difficulty 1 → always succeeds).
+	if err := c.SendLine("search"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := c.ExpectStringTimeout("hidden passage leading west", 6*time.Second); err != nil {
+		t.Fatalf("search did not discover the hidden exit: %v", err)
+	}
+
+	// Now west walks into the alcove.
+	if err := c.SendLine("west"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := c.ExpectStringTimeout("Hidden Alcove", 6*time.Second); err != nil {
+		t.Fatalf("discovered hidden exit did not become walkable: %v", err)
+	}
+	t.Log("hidden exit verified live: blocked → search → discovered → walked")
+}
