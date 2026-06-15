@@ -3541,11 +3541,14 @@ S4 polish items above. See `BACKLOG.md` §2 + the EPIC doc for sequencing.
 
 ---
 
-### M28 — Visibility (Gameplay Systems keystone) — in progress
+### M28 — Visibility (Gameplay Systems keystone) — COMPLETE
 
 The per-observer "can X see Y?" model (`docs/specs/visibility.md`), the
-keystone that unblocks hidden exits, `who` per-viewer hiding, and admin
-wizinvis. Built as a multi-slice arc; each slice its own commit + review.
+keystone that unblocked hidden exits, `who` per-viewer hiding, and admin
+wizinvis. Built as a multi-slice arc (S1–S6); each slice its own commit +
+review. All six slices shipped; the only open items are the recorded S6b
+refinements (secret-door op gating, flee gate, GMCP exit filter, passive-find,
+active entity-search) — none block the headline behavior.
 
 - [x] **S1 — the filter primitive** (`internal/visibility`): `CanSee` /
       `Visible[T]`, layer AND-composition (§2.2), self-always-visible + bypass
@@ -3616,9 +3619,17 @@ wizinvis. Built as a multi-slice arc; each slice its own commit + review.
         players-only (invisible mobs are a §9 extension); no content grants it
         yet, so the in-game trigger (a potion/spell) is a follow-up authoring
         task. Engine mechanic unit-verified.
-- [ ] **S6 — the `search` verb**, then **hidden exits** (`hidden-exits.md`) drops
-      onto the search + detection set + filter — the original ask that started
-      this arc.
+- [x] **S6 — the `search` verb + hidden exits** (`hidden-exits.md`) — the
+      original ask that started this arc. `world.Exit` gains `Hidden` +
+      `SearchDifficulty` (a `hidden_exits:` room block); `search` runs the
+      perception contest (with the active-search bonus, or auto-find via
+      detect_hidden/admin) and records discovery in a per-observer, ephemeral,
+      direction-keyed set cleared on room change. An undiscovered hidden exit
+      is unlisted (exits-line filter) AND unwalkable (movement gate fails
+      identically to no exit, PD-4); the move primitive stays unconditional
+      (§4.1). Emits `exit.discovered`. A secret alcove off the starter-world
+      forge makes it playable; unit + live verified. S6b refinements (secret-
+      door op gating, flee gate, GMCP exits, passive-find) deferred + recorded.
 
 Key finding (S1): light/darkness is ~80% shipped (`internal/light` per-viewer
 resolver), so the spec's §3.3 darkness layer mostly *integrates* rather than
