@@ -16,11 +16,11 @@ type fakeItem struct {
 	container  bool
 }
 
-func (f *fakeItem) Name() string         { return f.name }
-func (f *fakeItem) Keywords() []string   { return f.keywords }
-func (f *fakeItem) EntityID() string     { return f.id }
-func (f *fakeItem) TemplateID() string   { return f.templateID }
-func (f *fakeItem) IsContainer() bool    { return f.container }
+func (f *fakeItem) Name() string       { return f.name }
+func (f *fakeItem) Keywords() []string { return f.keywords }
+func (f *fakeItem) EntityID() string   { return f.id }
+func (f *fakeItem) TemplateID() string { return f.templateID }
+func (f *fakeItem) IsContainer() bool  { return f.container }
 
 // fakeEntity implements EntityCandidate.
 type fakeEntity struct {

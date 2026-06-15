@@ -18,8 +18,8 @@ type roomDataActor struct {
 }
 
 func (a *roomDataActor) HasRole(role string) bool { return a.admin && role == "admin" }
-func (a *roomDataActor) ShowRoomData() bool        { return a.showData }
-func (a *roomDataActor) SetShowRoomData(v bool)    { a.showData = v }
+func (a *roomDataActor) ShowRoomData() bool       { return a.showData }
+func (a *roomDataActor) SetShowRoomData(v bool)   { a.showData = v }
 
 func coordTestRoom() *world.Room {
 	return &world.Room{
@@ -46,14 +46,14 @@ func TestLook_RoomDataBlock_ShownForAdminWithToggleOn(t *testing.T) {
 	}
 	out := a.lastLine()
 	for _, want := range []string{
-		"room data",          // block header
-		"core:square",        // room id
-		"core:town",          // area id
-		"(0,0,0) derived",    // coordinate + source
-		"outdoors",           // terrain
-		"no-summon, safe-room", // sorted tags
-		"scripted=true",      // property
-		"n -> core:market",   // exit + target
+		"room data",                      // block header
+		"core:square",                    // room id
+		"core:town",                      // area id
+		"(0,0,0) derived",                // coordinate + source
+		"outdoors",                       // terrain
+		"no-summon, safe-room",           // sorted tags
+		"scripted=true",                  // property
+		"n -> core:market",               // exit + target
 		"e -> core:forge (door: locked)", // exit + door state
 	} {
 		if !strings.Contains(out, want) {

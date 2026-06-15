@@ -27,12 +27,12 @@ func TestRenderScore_FullSheet(t *testing.T) {
 		"<title>Combat</title>",
 		"<title>Attributes</title>",
 		"<title>Purse & Training</title>",
-		"<highlight>16</highlight>", // STR value
-		"<highlight>18</highlight>", // AC value
-		"<highlight>+5</highlight>", // hit bonus
-		"neutral (0)",               // alignment text
-		"<gold>1,000</gold>",        // purse, thousands-separated
-		"Full (84/100)",             // sustenance text
+		"<highlight>16</highlight>",     // STR value
+		"<highlight>18</highlight>",     // AC value
+		"<highlight>+5</highlight>",     // hit bonus
+		"neutral (0)",                   // alignment text
+		"<gold>1,000</gold>",            // purse, thousands-separated
+		"Full (84/100)",                 // sustenance text
 		"<highlight>12,500</highlight>", // XP value, in the Character column
 		"to next level)",                // XP remaining tail
 	} {

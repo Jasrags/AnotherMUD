@@ -67,6 +67,13 @@ func (c *Context) visibilityPredicate() func(string) bool {
 	if EffectiveLight(c.Light, room, c.Actor, c.Items, c.Placement) > light.Black {
 		return nil // the actor sees adequately — no concealment (legacy path)
 	}
+	// piercesDark is false here by construction, NOT a stub: EffectiveLight is
+	// PER-VIEWER and already max-combines this actor's darkvision floor
+	// (light.Resolve: eff = max(ambient, sources, viewerFloor); darkvision's
+	// floor is Gloom > Black). So a darkvision (or lit) actor never reaches
+	// this branch — their effective light is ≥ Gloom and the predicate is nil
+	// above. Reaching here means *this* actor's own effective light is Black,
+	// i.e. they genuinely cannot pierce the dark, so false is correct.
 	obs := visObserver{id: c.Actor.PlayerID(), piercesDark: false}
 	items := c.Items
 	return func(id string) bool {
@@ -82,6 +89,14 @@ func (c *Context) visibilityPredicate() func(string) bool {
 // (a lit torch on the ground) — such a target is visible in the dark to
 // anyone (visibility §3.3). Mobs and players are not luminous in v1, so a
 // non-item id is never luminous.
+//
+// Precondition: callers pass only IDs that came from the room's candidate
+// lists (RoomItems/RoomEntities), which BuildResolveContext already filters
+// to room-placed entities. The luminosity check itself reads c.Items by id
+// and does NOT re-validate room placement, so passing an arbitrary in-world
+// item id (e.g. one in an inventory) would report its raw lit state — fine
+// for the current single caller (the predicate, fed only room candidates),
+// but revisit this if the helper gains other callers.
 func luminousItemID(items *entities.Store, id string) bool {
 	if items == nil {
 		return false

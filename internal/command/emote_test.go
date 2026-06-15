@@ -15,8 +15,8 @@ import (
 // the room-view line and the exclusion set without needing a full
 // session.Manager.
 type roomBroadcaster struct {
-	mu     sync.Mutex
-	calls  []broadcastCall
+	mu    sync.Mutex
+	calls []broadcastCall
 }
 
 type broadcastCall struct {

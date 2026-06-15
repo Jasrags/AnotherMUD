@@ -189,4 +189,3 @@ func TestEquip_NoAutoLightWhenOff(t *testing.T) {
 		t.Fatal("torch auto-lit despite AutoLightOnEquip=false")
 	}
 }
-

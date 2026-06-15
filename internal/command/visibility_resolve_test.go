@@ -101,6 +101,71 @@ func TestResolve_RoomItem_VisibilityHidesUnseen(t *testing.T) {
 	}
 }
 
+// resolveContainer's room branch filters through the predicate (its
+// inventory branch is never filtered — you see your own containers).
+func TestResolve_Container_RoomBranchVisibility(t *testing.T) {
+	r := resolveDefault()
+	ctx := ResolveContext{
+		RoomItems: []ItemCandidate{
+			&fakeItem{id: "c1", name: "an iron chest", keywords: []string{"chest"}, container: true},
+		},
+		CanSee: hideOnly("c1"),
+	}
+	if _, _, _, err := r.ResolveArgsWithContext(
+		[]ArgDefinition{{Name: "c", Type: ArgContainer}}, []string{"chest"}, ctx); !errors.Is(err, ErrContainerNotFound) {
+		t.Errorf("concealed room container err = %v, want ErrContainerNotFound", err)
+	}
+	// Bypass reaches it.
+	if _, _, _, err := r.ResolveArgsWithContext(
+		[]ArgDefinition{{Name: "c", Type: ArgContainer, BypassVisibility: true}}, []string{"chest"}, ctx); err != nil {
+		t.Errorf("bypass should reach concealed container: %v", err)
+	}
+}
+
+// resolveFindable's room branch filters; its inventory branch does not.
+func TestResolve_Findable_RoomBranchVisibility(t *testing.T) {
+	r := resolveDefault()
+	ctx := ResolveContext{
+		Inventory: []ItemCandidate{
+			&fakeItem{id: "inv", name: "a carried map", keywords: []string{"map"}},
+		},
+		RoomItems: []ItemCandidate{
+			&fakeItem{id: "r1", name: "a stone tablet", keywords: []string{"tablet"}},
+		},
+		CanSee: func(id string) bool { return id == "inv" }, // room hidden, inventory not
+	}
+	// Carried item still findable (inventory never filtered).
+	if _, _, _, err := r.ResolveArgsWithContext(
+		[]ArgDefinition{{Name: "f", Type: ArgFindable}}, []string{"map"}, ctx); err != nil {
+		t.Errorf("carried item should be findable: %v", err)
+	}
+	// Concealed room item is not.
+	if _, _, _, err := r.ResolveArgsWithContext(
+		[]ArgDefinition{{Name: "f", Type: ArgFindable}}, []string{"tablet"}, ctx); !errors.Is(err, ErrNotFindable) {
+		t.Errorf("concealed room item err = %v, want ErrNotFindable", err)
+	}
+}
+
+// resolveVisible matches the actor's own name as "self" BEFORE consulting
+// the (filtered) candidate lists — self is always visible (§2.1) even with
+// a deny-all predicate.
+func TestResolve_Visible_SelfAlwaysResolvesUnderConcealment(t *testing.T) {
+	r := resolveDefault()
+	ctx := ResolveContext{
+		ActorName: "Aiel",
+		ActorID:   "p1",
+		CanSee:    func(string) bool { return false }, // pitch black
+	}
+	res, _, _, err := r.ResolveArgsWithContext(
+		[]ArgDefinition{{Name: "t", Type: ArgVisible}}, []string{"Aiel"}, ctx)
+	if err != nil {
+		t.Fatalf("self should resolve even in total darkness: %v", err)
+	}
+	if ref := res["t"].(VisibleRef); ref.Source != "self" || ref.ID != "p1" {
+		t.Errorf("resolved %+v, want self/p1", ref)
+	}
+}
+
 // The NPC and player resolvers filter through the same predicate.
 func TestResolve_NPCAndPlayer_VisibilityHidesUnseen(t *testing.T) {
 	r := resolveDefault()

@@ -76,11 +76,11 @@ func renderTargeted(ctx context.Context, c *Context, e *emote.Emote, targetArg s
 	actor := emote.Subject{Name: c.Actor.Name(), Pronouns: emote.DefaultPronouns}
 
 	var (
-		target          emote.Subject
-		targetActor     Actor // populated when target is a player
-		targetPlayerID  string
-		resolved        bool
-		isSelf          bool
+		target         emote.Subject
+		targetActor    Actor // populated when target is a player
+		targetPlayerID string
+		resolved       bool
+		isSelf         bool
 	)
 
 	// Self-reference resolves to the actor (spec §5).
