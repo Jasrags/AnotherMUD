@@ -1967,6 +1967,14 @@ type connActor struct {
 	hidden          bool
 	concealScore    int
 	concealInstance uint64
+
+	// pierced is this actor's sticky detection memory AS AN OBSERVER
+	// (visibility.md §4.1): the set of concealment-instance ids it has
+	// already won a perception contest against, so CanSee returns true
+	// without re-rolling. Invalidated (cleared) when the observer changes
+	// rooms (SetRoom) — you lose track of who you spotted when you leave.
+	// Lazily allocated; guarded by a.mu. Ephemeral, never persisted.
+	pierced map[uint64]bool
 	// colorTier is the per-session capability ceiling captured from
 	// the conn at construction (M16.6a). Sources:
 	//   - telnet: derived from TTYPE + IsMudClient per spec §7.2.
@@ -2167,6 +2175,13 @@ func (a *connActor) SetRoom(r *world.Room) {
 		a.hasCraft = false
 		craftBroke = true
 	}
+	// Leaving a room invalidates this observer's sticky detection memory
+	// (visibility.md §4.1): the rogue you spotted last room must be
+	// re-contested here. The mover's OWN hide is dropped by the player.moved
+	// subscriber (move-drops-hide), not here.
+	if oldID != r.ID {
+		a.clearDetectionLocked()
+	}
 	mgr := a.manager
 	a.mu.Unlock()
 
@@ -2258,6 +2273,48 @@ func (a *connActor) HiddenInstance() uint64 {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	return a.concealInstance
+}
+
+// --- Observer side (visibility.md §4): perception + sticky detection memory.
+
+// PerceptionBonus is the actor's bonus in the §4.2 perception contest that
+// pierces another's hide/sneak. v1 keys it to WIS (awareness); the awareness
+// proficiency + situational terms are a later tuning pass (§8). Defensive
+// against a nil stat block (mirrors HideScore).
+func (a *connActor) PerceptionBonus() int {
+	a.mu.Lock()
+	sb := a.statBlock
+	a.mu.Unlock()
+	if sb == nil {
+		return 0
+	}
+	return progression.AbilityModifier(sb.Effective(progression.StatWIS))
+}
+
+// HasPiercedConcealment reports whether this observer has already won a
+// contest against the given concealment instance (sticky memory, §4.1).
+func (a *connActor) HasPiercedConcealment(instance uint64) bool {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	return a.pierced[instance]
+}
+
+// RecordConcealmentPierce remembers a successful pierce so subsequent CanSee
+// checks for this instance skip the contest (§4.1). Lazily allocates the set.
+func (a *connActor) RecordConcealmentPierce(instance uint64) {
+	a.mu.Lock()
+	if a.pierced == nil {
+		a.pierced = make(map[uint64]bool)
+	}
+	a.pierced[instance] = true
+	a.mu.Unlock()
+}
+
+// clearDetectionLocked drops this observer's sticky pierces — called on a
+// room change (§4.1: you lose track of who you spotted when you leave).
+// Caller holds a.mu.
+func (a *connActor) clearDetectionLocked() {
+	a.pierced = nil
 }
 
 // ColorTier returns the actor's color-capability tier captured

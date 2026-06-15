@@ -29,9 +29,19 @@ func (c *Context) otherPlayerNames(roomID world.RoomID) []string {
 		return nil
 	}
 	self := c.Actor.PlayerID()
+	// Visibility filter (visibility §5): a player the viewer cannot see —
+	// hidden and uncontested, or concealed by darkness — is omitted from the
+	// room's occupant line, exactly as the §5.4 resolvers omit them from
+	// targeting. Same predicate, so "what you see" and "what you can target"
+	// agree and the sticky detection set converges. nil predicate (lit room,
+	// nobody concealed, or no light/locator wired) = no filtering.
+	canSee := c.visibilityPredicate()
 	var out []string
 	for _, p := range c.Locator.PlayersInRoom(roomID) {
 		if p == nil || (self != "" && p.PlayerID() == self) {
+			continue
+		}
+		if canSee != nil && !canSee(p.PlayerID()) {
 			continue
 		}
 		if n := p.Name(); n != "" {

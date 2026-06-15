@@ -3568,12 +3568,21 @@ wizinvis. Built as a multi-slice arc; each slice its own commit + review.
       `entity.revealed` events, and move-drops-hide (a `player.moved` subscriber
       reveals a hidden mover). Hide score is `10 + DEX mod` for v1. Unit-tested;
       not yet observable to others — the filter wiring is S3b.
-- [ ] **S3b — light up hide in the filter** — the observer side (perception value +
-      sticky detection set + the contest reusing the d20 `ResolveSave` shape) on
-      `connActor`, the real `visObserver`/`visTarget` adapters, extend the
-      visibility predicate so a hidden player can't be targeted, and filter the
-      **room render** occupant list so a hidden player vanishes from `look`. Then
-      `breaks_concealment` flag + reveal-on-action (§4.5).
+- [x] **S3b — light up hide in the filter** — the observer side on `connActor`
+      (`PerceptionBonus` = WIS mod, sticky detection set cleared on room change,
+      the contest via `ResolveSkillCheck`); the real `visObserver`/`visTarget`
+      adapters (Contest + sticky AlreadyPierced); the visibility predicate now
+      composes darkness AND hide, so a hidden player can't be `kill`ed/`look at`
+      unless the viewer wins the contest (reuses the S2 resolver seam); and the
+      **room render** occupant list filters through the SAME predicate, so a
+      hidden player vanishes from `look`. Optional `hideable`/`perceiver`
+      capability interfaces keep the Actor interface unchanged. Unit-tested
+      (contest win/lose/sticky/no-perception) + live verb smoke; the 2-player
+      "can't see" outcome rides the contest RNG so it's unit-covered, not live.
+- [ ] **S3c — reveal-on-action** — the `breaks_concealment` Command-registry flag
+      + dispatch hook that drops hide and emits `entity.revealed(acted)` when a
+      hidden actor attacks / casts / speaks / loudly manipulates (§4.5). Closes
+      the "hide is permanent" gap; magical/admin invis (S5) is exempt.
 - [ ] **S4 — sneak** + per-observer movement-broadcast filtering (§3.2).
 - [ ] **S5 — magical + admin invisibility** + detect traits; closes `who §4`
       and `admin-verbs §3` wizinvis forward-refs.
