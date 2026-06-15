@@ -1982,6 +1982,14 @@ type connActor struct {
 	sneakScore    int
 	sneakInstance uint64
 
+	// Admin invisibility / "wizinvis" (visibility.md §3.4) — a flag-gated
+	// (no contest, no score) concealment toggled by the `wizinvis` admin verb:
+	// the actor is hidden from the room render, target resolution, and `who`
+	// for any observer of LOWER admin rank, and — unlike hide/sneak — it does
+	// NOT break on a revealing action (§4.5). Ephemeral, never persisted; same
+	// a.mu guard + own-goroutine writer invariant as the hide/sneak fields.
+	adminInvisible bool
+
 	// contested is this actor's sticky detection memory AS AN OBSERVER
 	// (visibility.md §4.1): instance id → contest outcome (true = pierced,
 	// false = failed to pierce). Presence means "already contested this
@@ -2351,6 +2359,37 @@ func (a *connActor) SneakConcealmentScore() int {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	return a.sneakScore
+}
+
+// --- Admin invisibility (visibility.md §3.4): flag-gated "wizinvis".
+
+// SetAdminInvisible sets the actor's admin-invisibility and returns the
+// PREVIOUS state. Ephemeral — never persisted.
+func (a *connActor) SetAdminInvisible(v bool) bool {
+	a.mu.Lock()
+	prev := a.adminInvisible
+	a.adminInvisible = v
+	a.mu.Unlock()
+	return prev
+}
+
+// ToggleAdminInvisible flips admin-invisibility under a SINGLE lock and
+// returns the NEW state, so the `wizinvis` verb's check-and-act is atomic
+// (no read-then-write window) and it knows which event to emit.
+func (a *connActor) ToggleAdminInvisible() bool {
+	a.mu.Lock()
+	a.adminInvisible = !a.adminInvisible
+	now := a.adminInvisible
+	a.mu.Unlock()
+	return now
+}
+
+// IsAdminInvisible reports whether the actor is walking invisibly (§3.4).
+// Read by the visibility filter's target side and the `who` roster.
+func (a *connActor) IsAdminInvisible() bool {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	return a.adminInvisible
 }
 
 // --- Observer side (visibility.md §4): perception + sticky detection memory.

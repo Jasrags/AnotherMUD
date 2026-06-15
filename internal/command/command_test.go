@@ -312,6 +312,9 @@ type testActor struct {
 	// as an observer of others' hide/sneak.
 	perceptionBonus int
 	contested       map[uint64]bool
+
+	// Admin invisibility / wizinvis (visibility §3.4).
+	adminInvisible bool
 }
 
 // IsHidden / HideScore / Hide / Reveal make testActor satisfy the (unexported)
@@ -413,6 +416,29 @@ func (a *testActor) RecordContest(i uint64, won bool) {
 		a.contested = map[uint64]bool{}
 	}
 	a.contested[i] = won
+}
+
+// IsAdminInvisible / SetAdminInvisible make testActor satisfy the
+// adminInvisible capability (visibility §3.4).
+func (a *testActor) IsAdminInvisible() bool {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	return a.adminInvisible
+}
+
+func (a *testActor) SetAdminInvisible(v bool) bool {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	prev := a.adminInvisible
+	a.adminInvisible = v
+	return prev
+}
+
+func (a *testActor) ToggleAdminInvisible() bool {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	a.adminInvisible = !a.adminInvisible
+	return a.adminInvisible
 }
 
 // IsWeaponProficient makes testActor satisfy the equip handler's

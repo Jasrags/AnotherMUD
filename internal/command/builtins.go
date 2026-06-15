@@ -254,6 +254,10 @@ func RegisterBuiltins(r *Registry) error {
 		// "ungated until roles" verbs the spec §2 calls out).
 		{Keyword: "xp", Handler: XPHandler, Admin: true, Brief: "Grant yourself XP (admin probe).", Syntax: []string{"xp", "xp <amount> [track]"}},
 		{Keyword: "reload", Handler: ReloadHandler, Admin: true, Brief: "Reload pack scripts.", Syntax: []string{"reload"}},
+		// wizinvis (visibility §3.4): toggle admin invisibility — staff walk
+		// unseen by lower ranks (render, target resolution, who). Flag-gated,
+		// does not break on action.
+		{Keyword: "wizinvis", Aliases: []string{"invis"}, Handler: WizinvisHandler, Admin: true, Brief: "Toggle admin invisibility.", Syntax: []string{"wizinvis"}},
 
 		// announce (M19.4a — admin-verbs §5): broadcast a server-wide
 		// message to every connected session, attributed as an

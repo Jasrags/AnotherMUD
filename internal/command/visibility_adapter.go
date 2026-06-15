@@ -49,6 +49,7 @@ type perceiver interface {
 type visObserver struct {
 	id          string
 	piercesDark bool
+	adminRank   int                // 0 = ordinary; ≥1 = staff (pierces admin-invis of ≤ rank)
 	per         perceiver          // nil ⇒ cannot pierce roll-gated concealment
 	roller      progression.Roller // nil ⇒ ditto (no contest possible)
 }
@@ -57,7 +58,7 @@ func (o visObserver) VisibilityID() string  { return o.id }
 func (o visObserver) Bypass() bool          { return false }
 func (o visObserver) PiercesDarkness() bool { return o.piercesDark }
 func (o visObserver) SeesInvisible() bool   { return false }
-func (o visObserver) AdminRank() int        { return 0 }
+func (o visObserver) AdminRank() int        { return o.adminRank }
 func (o visObserver) DetectsHidden() bool   { return false }
 
 // AlreadyPierced reports a remembered WINNING contest, so the filter
@@ -130,7 +131,12 @@ func (c *Context) visibilityPredicate() func(string) bool {
 	// lookup per candidate.
 	hidden := hiddenOccupants(c, room.ID)
 
-	if !dark && len(hidden) == 0 {
+	// Admin-invis term (§3.4): the wizinvis occupants of the room, keyed by
+	// player id. Flag-gated — an observer pierces iff its admin rank ≥ the
+	// layer's (here, any admin sees any wizinvis admin; non-admins see none).
+	adminInvis := adminInvisibleOccupants(c, room.ID)
+
+	if !dark && len(hidden) == 0 && len(adminInvis) == 0 {
 		return nil // nothing concealed from this viewer
 	}
 
@@ -142,6 +148,11 @@ func (c *Context) visibilityPredicate() func(string) bool {
 		// is appended below and this false correctly fails to pierce it.
 		piercesDark: !dark,
 		roller:      c.SkillRoller,
+	}
+	// Admin rank (flat roles → binary, §3.4): a staff observer pierces the
+	// admin-invis layer (Score 1); an ordinary viewer (rank 0) does not.
+	if actorIsAdmin(c.Actor, c.AdminRole) {
+		obs.adminRank = adminInvisRank
 	}
 	if p, ok := c.Actor.(perceiver); ok {
 		obs.per = p
@@ -155,8 +166,43 @@ func (c *Context) visibilityPredicate() func(string) bool {
 		if hl, ok := hidden[id]; ok {
 			layers = append(layers, hl)
 		}
+		if _, ok := adminInvis[id]; ok {
+			layers = append(layers, visibility.Layer{Source: visibility.SourceAdminInvis, Score: adminInvisRank})
+		}
 		return visibility.CanSee(obs, visTarget{id: id, layers: layers})
 	}
+}
+
+// adminInvisRank is the binary admin rank used for wizinvis (§3.4): with the
+// engine's flat role model there is one staff tier, so an admin-invis layer
+// carries rank 1 and any admin observer (also rank 1) pierces it while an
+// ordinary observer (rank 0) does not.
+const adminInvisRank = 1
+
+// adminInvisibleOccupants returns the set of room players currently walking
+// invisibly via `wizinvis` (§3.4), keyed by player id. Empty when the locator
+// is unwired or no one is wizinvis. The observer is self-excluded (self is
+// always visible to self, §2.1).
+func adminInvisibleOccupants(c *Context, roomID world.RoomID) map[string]struct{} {
+	if c.Locator == nil {
+		return nil
+	}
+	self := c.Actor.PlayerID()
+	var out map[string]struct{}
+	for _, p := range c.Locator.PlayersInRoom(roomID) {
+		if self != "" && p.PlayerID() == self {
+			continue
+		}
+		ai, ok := p.(adminInvisible)
+		if !ok || !ai.IsAdminInvisible() {
+			continue
+		}
+		if out == nil {
+			out = make(map[string]struct{})
+		}
+		out[p.PlayerID()] = struct{}{}
+	}
+	return out
 }
 
 // movingConcealment is the mover-read capability for the §3.2 movement

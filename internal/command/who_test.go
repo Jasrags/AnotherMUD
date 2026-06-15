@@ -68,6 +68,74 @@ func TestWho_EmptyRoster(t *testing.T) {
 	}
 }
 
+// A wizinvis admin is excluded from a non-staff viewer's roster and count
+// (who §4 / visibility §3.4).
+func TestWho_AdminInvisibleHiddenFromNonAdmin(t *testing.T) {
+	f := newInvFixture(t)
+	viewer := newNamedTestActor("Pleb", "p-pleb", f.room) // not a RoleHolder → non-admin
+	env := f.env()
+	env.Roster = stubRoster{
+		{Name: "Pleb", PlayerID: "p-pleb"},
+		{Name: "Ghost", PlayerID: "p-ghost", AdminInvisible: true},
+		{Name: "Bob", PlayerID: "p-bob"},
+	}
+	dispatchActor(t, newRegistry(t), env, viewer, "who")
+
+	out := viewer.lastLine()
+	if strings.Contains(out, "Ghost") {
+		t.Errorf("a wizinvis admin must be hidden from a non-admin who: %q", out)
+	}
+	if !strings.Contains(out, "2 players online.") {
+		t.Errorf("count must exclude the hidden admin: %q", out)
+	}
+}
+
+// An admin viewer sees a wizinvis peer (equal rank pierces, §3.4).
+func TestWho_AdminInvisibleVisibleToAdmin(t *testing.T) {
+	f := newInvFixture(t)
+	viewer := newRoleActor("Watcher", "p-watch", "admin")
+	viewer.testActor.room = f.room
+	env := f.env()
+	env.AdminRole = "admin"
+	env.Roster = stubRoster{
+		{Name: "Watcher", PlayerID: "p-watch", RoleMarker: "Admin"},
+		{Name: "Ghost", PlayerID: "p-ghost", AdminInvisible: true},
+	}
+	dispatchActor(t, newRegistry(t), env, viewer, "who")
+
+	out := viewer.lastLine()
+	if !strings.Contains(out, "Ghost") {
+		t.Errorf("an admin must see a wizinvis peer in who: %q", out)
+	}
+	if !strings.Contains(out, "2 players online.") {
+		t.Errorf("admin count must include the wizinvis peer: %q", out)
+	}
+}
+
+// The viewer always sees their own row, even when admin-invisible and somehow
+// not classed as staff (self is always visible, §2.1 — defensive self-guard).
+func TestWho_SelfVisibleWhenWizinvis(t *testing.T) {
+	f := newInvFixture(t)
+	viewer := newNamedTestActor("Me", "p-me", f.room) // non-admin viewer
+	env := f.env()
+	env.Roster = stubRoster{
+		{Name: "Me", PlayerID: "p-me", AdminInvisible: true},
+		{Name: "Other", PlayerID: "p-other", AdminInvisible: true},
+	}
+	dispatchActor(t, newRegistry(t), env, viewer, "who")
+
+	out := viewer.lastLine()
+	if !strings.Contains(out, "Me") {
+		t.Errorf("viewer must always see their own row: %q", out)
+	}
+	if strings.Contains(out, "Other") {
+		t.Errorf("another wizinvis character must stay hidden: %q", out)
+	}
+	if !strings.Contains(out, "1 player online.") {
+		t.Errorf("count should be self only: %q", out)
+	}
+}
+
 func TestWho_NilRosterDegrades(t *testing.T) {
 	f := newInvFixture(t)
 	a := newNamedTestActor("Alice", "p-a", f.room)

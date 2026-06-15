@@ -172,3 +172,48 @@ func TestLive_SneakVerb(t *testing.T) {
 	}
 	t.Log("sneak verb verified live: sneak on → look → sneak off")
 }
+
+// TestLive_WizinvisVerb is a deterministic single-player live smoke for
+// admin invisibility (S5a / visibility §3.4). It seeds the player as admin
+// via ANOTHERMUD_ROLE_SEED so the admin-gated `wizinvis` verb is reachable,
+// then toggles it on and off:
+//
+//	ANOTHERMUD_LIVE=1 go test ./cmd/telnet-smoke -run TestLive_WizinvisVerb -v
+//
+// The per-viewer "a non-admin can't see the wizinvis admin" outcome needs two
+// connected players of differing rank; that is covered deterministically by
+// the internal who + predicate unit tests. This proves the verb, the admin
+// gate, and the toggle in a real boot.
+func TestLive_WizinvisVerb(t *testing.T) {
+	if os.Getenv("ANOTHERMUD_LIVE") == "" {
+		t.Skip("set ANOTHERMUD_LIVE=1 to run (boots a real engine subprocess via `go run`)")
+	}
+	// Seed the character as admin so the admin gate admits `wizinvis`.
+	addr := bootEngine(t, map[string]string{"ANOTHERMUD_ROLE_SEED": "warder:admin"})
+
+	c, err := telnettest.Dial(addr, telnettest.WithTimeout(12*time.Second))
+	if err != nil {
+		t.Fatalf("dial: %v", err)
+	}
+	defer c.Close()
+	if err := createAndLogin(c, "Warder"); err != nil {
+		t.Fatalf("create player: %v", err)
+	}
+
+	// wizinvis on → wink-out message.
+	if err := c.SendLine("wizinvis"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := c.ExpectStringTimeout("wink out of sight", 6*time.Second); err != nil {
+		t.Fatalf("wizinvis did not confirm: %v", err)
+	}
+
+	// wizinvis off → fade-back message.
+	if err := c.SendLine("wizinvis"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := c.ExpectStringTimeout("fade back into view", 6*time.Second); err != nil {
+		t.Fatalf("second wizinvis did not toggle off: %v", err)
+	}
+	t.Log("wizinvis verb verified live: on → off")
+}
