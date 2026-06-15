@@ -46,6 +46,41 @@ This intentionally **overrides** any default "branch off the default branch
 first" rule. Per-slice commits on `main` are the rhythm; code review still
 runs before a phase is called complete (that gate is independent of branching).
 
+### Model selection
+
+Pick the cheaper model that can do the job; escalate only when the work
+actually demands deeper reasoning. Default to **`claude-sonnet-4-6`** and
+reach for **`claude-opus-4-8`** for the hard, high-stakes work.
+
+**Use `claude-sonnet-4-6` (default) for:**
+- Implementing a specced slice where the design is already settled.
+- Single-file or small multi-file edits, bug fixes, and refactors with a clear shape.
+- Writing tests, docs, commit messages, and routine YAML/content authoring.
+- Mechanical follow-ups from a review (applying agreed fixes).
+- Tracing/answering "where does X live" and other code-navigation questions.
+
+**Use `claude-opus-4-8` for:**
+- Architectural decisions that shape multiple packages or cross a spec boundary
+  (e.g. a new substrate seam, an event-versioning primitive, a save-version bump
+  whose migration chain is non-trivial).
+- New spec authoring or resolving an Open Question / Decision-0-style fork.
+- Cross-cutting changes that touch the tick/event/layer model or a dependency
+  boundary, where getting the seam wrong is expensive to unwind.
+- Debugging subtle concurrency / ordering / race issues (the `-race`-class bugs).
+- Multi-step work spanning many files where the plan itself is uncertain.
+
+**Escalate Sonnet → Opus mid-task when:**
+- Sonnet has tried twice and the fix isn't converging (thrashing, re-introducing
+  the same bug, or fighting the type/borrow/lock model).
+- The change turns out to deviate from a spec or violate a convention, and the
+  right call needs design judgment (see "Drift detection" below).
+- The blast radius grew past the original estimate — what looked like a one-file
+  edit now reshapes a package contract or a persisted save shape.
+- A code review surfaces a CRITICAL/architectural finding rather than a mechanical one.
+
+When escalating, hand off with the current state captured (what was tried, what
+failed, the relevant file:line) so Opus isn't re-deriving from scratch.
+
 ### Roadmap and foundations
 
 - `docs/ROADMAP.md` — the milestone **done-log** (M0 echo telnet → … → M27 + all five themes + light/dark + biomes/gathering). It is now mostly history; for **what to build next**, read `docs/BACKLOG.md` (open §1 specced-ready items, §2 greenfield design items, candidate themes) and — for the next planned arc — `docs/themes/wot-mechanics-epic.md` + `docs/themes/wot-world-plan.md`. The old "current milestone = the section with unchecked boxes" heuristic no longer applies — the planned arc shipped, so new work is scoped from the BACKLOG.
