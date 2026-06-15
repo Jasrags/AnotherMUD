@@ -1,6 +1,6 @@
 # Proposal: The One Power (channeling) — WoT EPIC S2
 
-**Status:** Phases 0–3 SHIPPED (Phase 3 = affinities, 2026-06-14) · Phase 4+ open · **Type:** the marquee
+**Status:** Phases 0–4 SHIPPED (Phase 4 = interrupt game + Initiate/Wilder split, 2026-06-14) · Phase 4+ depth open · **Type:** the marquee
 WoT sub-epic, a **multi-slice arc** (XL)
 > **Shipped:** Phase 0 (generalized resource-pool substrate + persistence + regen +
 > the spend knobs reserve-to-begin / spend-on-success), Phase 1 (the `channeler` class
@@ -10,10 +10,15 @@ WoT sub-epic, a **multi-slice arc** (XL)
 > Powers** (an `elements` field on abilities; gender collected at creation, save
 > **v22**; gender-derived two-tier affinity — men Earth/Fire/Spirit, women
 > Air/Water/Spirit — driving **soft potency scaling** of weave damage/heal, weakest
-> element governing). Phase 4+ (Initiate/Wilder split, the combat interrupt game,
-> taint/madness, angreal, linking, a restore path for stilling; v1 affinity scales
-> damage+heal only — save-DC + buff-modifier scaling are an affinity follow-up)
-> remains open. The phase text below is the original design spine.
+> element governing). **Phase 4** shipped the combat interrupt game (a hit, a
+> move, or a stun breaks a mid-cast weave) **and the Initiate/Wilder split** (the
+> single `channeler` class replaced by `initiate` — INT-keyed pool, weak Fort —
+> and `wilder` — WIS-keyed pool, strong Fort + bigger HP die; content-only, the
+> divergence rides the existing growth-bonus + save-progression seams, zero engine
+> code). Phase 4+ depth (taint/madness, angreal, linking, a restore path for
+> stilling, the Wilder emotional Block; v1 affinity scales damage+heal only —
+> save-DC + buff-modifier scaling are an affinity follow-up) remains open. The
+> phase text below is the original design spine.
 **Implements:** EPIC sub-epic **S2** — `docs/themes/wot-mechanics-epic.md` §2 row S2
 **Builds on:** `internal/progression` (abilities, proficiency, effects, saves),
 `internal/combat` (vitals, `ResolveSave`, heartbeat), `internal/session` (`connActor`,
@@ -147,14 +152,30 @@ effect magnitude, per-weave). **No new content registry** — weaves are abiliti
   from being *used*) is the noted character-model D4 gap; **flag, don't build** in v1
   — creation gating covers normal play.
 
-### D4 — Class shape: **one `channeler` class for v1; the seam to split is free.** ✅
+### D4 — Class shape: **split into `initiate` + `wilder` (Phase 4); the seam was free.** ✅ SHIPPED
 
 WoTMUD ships one Channeler class; d20 splits Initiate (Int, Talents) vs Wilder (Wis,
-emotional Block). Our engine's multiclass seam (character-model D1, save v18, shipped)
-makes splitting into two classes **cheap content** later. For v1 we ship **one
-`channeler` class** (simpler, fully playable) bound to a `one-power` track, and note
-the seam. The Initiate/Wilder distinction, Talents, and the emotional Block become a
-later depth slice if wanted.
+emotional Block). Our engine's class content + multiclass seam (character-model D1, save
+v18) made splitting **cheap content** — exactly as predicted. v1 shipped one `channeler`
+class (Phase 1); **Phase 4 replaced it with two**, `initiate` and `wilder`, both bound to
+the `one-power` track and granting the same four starter weaves. The split was **content
+only** (`content/wot/classes/initiate.yaml` + `wilder.yaml`, the old `channeler.yaml`
+deleted) — the divergence rides seams the engine already had:
+
+- **Governing stat** (the build choice): the One Power pool's per-level growth keys to
+  **INT** for the Initiate (studied Tower discipline) vs **WIS** for the Wilder (raw
+  instinct) — a `growth_bonuses: resource_max` difference, the d20 Int-initiate /
+  Wis-wilder distinction in spirit.
+- **Backlash resilience** (the signature asymmetry): the Wilder has a **strong Fortitude**
+  save vs the Initiate's weak one — the translation of d20's "wilders are more practiced at
+  overchanneling (+Fort vs failed overchannels)." The shipped overchannel handler already
+  rolls `actor.Saves().Fortitude` against the cascade DC, so a Wilder survives overdrawing
+  more often **with zero engine code**. The Wilder also gets a bigger HP die (1d8 vs 1d6),
+  reinforcing the hardy-raw vs brittle-refined identity. Both keep a strong Will.
+
+**Not ported** (d20 bookkeeping, Decision 0): Talents catalogs and weave-level learn caps.
+**Deferred** to a later depth slice: the Wilder **emotional Block** (channeling gated on an
+emotional trigger) — iconic but a whole state machine.
 
 ### D5 — Affinities / the Five Powers: **deferred to a later phase; weaves carry the tags now.** 
 
@@ -223,7 +244,9 @@ Each phase is its own commit(s) + go-review, in the project's rhythm.
 - **Phase 3+ — depth, each its own slice as content demands:**
   - **Affinities & the Five Powers** — element-tag eligibility + effective-level
     adjustment (D5); the specialize-vs-diversify build identity.
-  - **Talents / Initiate-vs-Wilder split** — D4's deferred class depth.
+  - ~~**Initiate-vs-Wilder split**~~ — **SHIPPED (Phase 4, 2026-06-14)**: two
+    classes, INT- vs WIS-keyed pool + weak vs strong Fort. See D4. (Talents
+    catalogs not ported; the Wilder emotional Block still deferred.)
   - **Combat interrupt game** — getting hit aborts a cast (tempo cost); `Slice
     Weaves`-style weave interrupts; `Shield` as a cut-from-Source disable.
   - **Madness / the taint** — the deferred asymmetric saidin curse (D3).

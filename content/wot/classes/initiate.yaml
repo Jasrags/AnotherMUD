@@ -1,0 +1,71 @@
+id: initiate
+name: Initiate
+tagline: A channeler trained in the disciplines of the White Tower.
+description: |
+  An Initiate has been taught to embrace the True Source — saidin for men,
+  saidar for women — and to weave the Five Powers with control. The training
+  is a study of forms and disciplines: an Initiate's reach into the Source
+  deepens with the keenness of the mind (Intelligence). That refinement comes
+  at a price — an Initiate's body is no hardier than a scholar's, and reaching
+  too far for the Power scours all the worse for it.
+level_up_flavor: |
+  The forms settle deeper into memory. Your trained reach into the Source widens.
+
+# Bound to the one-power track: stat growth + path weaves fire on every
+# one-power level-up (WoT S2). XP earned channeling advances this track.
+bound_track: one-power
+
+# WoT S2 Phase 1: the level-1 endowment that gives a channeler an actual
+# One Power pool. DefaultPlayerBase leaves resource_max at 0 (non-channelers
+# have no pool); this flat grant is applied once at creation via AdjustBase
+# and persists in the base snapshot. The session's mana pool seeds from it.
+starting_stats:
+  resource_max: 30
+
+# Per-level-up growth. hp_max grows slowly (an Initiate is a scholar, not a
+# soldier); resource_max deepens the pool, scaled by trained mental discipline —
+# INT for the studied Initiate (Wilders key the same pool to WIS).
+stat_growth:
+  hp_max: 1d6
+  resource_max: 1d4
+
+growth_bonuses:
+  resource_max: int
+
+trains_per_level: 5
+
+# Class path — the starter weaves (WoT S2 Phase 1b), one per handler path:
+# Firebolt (Fire damage), Healing (Water restore), Warding (Air/Spirit self
+# buff), Bonds of Air (Air save-gated control). All granted at level 1 so a
+# fresh channeler can draw the Power across the full weave surface; deeper
+# weaves + element/affinity eligibility come in later phases. Shared with the
+# Wilder class — the Initiate/Wilder split is governing-stat + resilience, not
+# a different weave library (Talents are not ported; Decision 0).
+path:
+  - level: 1
+    ability: firebolt
+  - level: 1
+    ability: healing
+  - level: 1
+    ability: warding
+  - level: 1
+    ability: bonds-of-air
+
+# Saving throws (saves §2). The channeler's discipline is mental: a strong
+# Will save. The Initiate's body is unhardened — weak Fortitude — so the
+# overchannel backlash (overchannel → Fort save → fatigued/stunned/stilled
+# cascade) bites harder than it does for a Wilder.
+save_progressions:
+  will: strong
+  fortitude: weak
+  reflex: weak
+
+# Eligibility — humanoid races. Both genders channel (the saidin/saidar split
+# is affinity, not eligibility); the gender→affinity assignment happens at
+# creation and is class-independent.
+allowed_categories:
+  - humanoid
+
+starting_alignment: 0
+
+priority: 0

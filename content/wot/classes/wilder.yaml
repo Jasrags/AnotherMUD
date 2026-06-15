@@ -1,0 +1,71 @@
+id: wilder
+name: Wilder
+tagline: A self-taught channeler who found the Source untrained.
+description: |
+  A Wilder reached the True Source alone — saidin for men, saidar for women —
+  with no Tower to teach the forms. What a Wilder lacks in discipline they make
+  up in raw resilience: a Wilder's reach into the Source flows from instinct
+  (Wisdom), and long practice surviving their own untrained overreach has left
+  them hardy where an Initiate is brittle. They draw too much of the Power and
+  live where another would be torn apart.
+level_up_flavor: |
+  Instinct sharpens into something like skill. Your untrained reach steadies.
+
+# Bound to the one-power track: stat growth + path weaves fire on every
+# one-power level-up (WoT S2). XP earned channeling advances this track.
+bound_track: one-power
+
+# WoT S2 Phase 1: the level-1 endowment that gives a channeler an actual
+# One Power pool. DefaultPlayerBase leaves resource_max at 0 (non-channelers
+# have no pool); this flat grant is applied once at creation via AdjustBase
+# and persists in the base snapshot. The session's mana pool seeds from it.
+starting_stats:
+  resource_max: 30
+
+# Per-level-up growth. hp_max grows a touch faster than an Initiate's (1d8 vs
+# 1d6 — a Wilder's hardiness is bodily, not just in saves); resource_max
+# deepens the pool, scaled by instinct — WIS for the self-taught Wilder
+# (Initiates key the same pool to INT).
+stat_growth:
+  hp_max: 1d8
+  resource_max: 1d4
+
+growth_bonuses:
+  resource_max: wis
+
+trains_per_level: 5
+
+# Class path — identical starter weaves to the Initiate (WoT S2 Phase 1b):
+# Firebolt, Healing, Warding, Bonds of Air, all at level 1. The Initiate/Wilder
+# split is governing-stat + backlash resilience, not a different weave library
+# (Talents and weave-level learn caps are not ported; Decision 0).
+path:
+  - level: 1
+    ability: firebolt
+  - level: 1
+    ability: healing
+  - level: 1
+    ability: warding
+  - level: 1
+    ability: bonds-of-air
+
+# Saving throws (saves §2). Strong Will, like the Initiate — both are mentally
+# disciplined channelers. The Wilder diverges on Fortitude: STRONG, the
+# translation of the d20 rule that Wilders are "more practiced at overchanneling"
+# (+Fort vs failed overchannels). Our shipped overchannel → Fort save → cascade
+# reads actor.Saves().Fortitude directly, so a Wilder survives the backlash more
+# often than an Initiate with no extra engine code — the signature class asymmetry.
+save_progressions:
+  will: strong
+  fortitude: strong
+  reflex: weak
+
+# Eligibility — humanoid races. Both genders channel (the saidin/saidar split
+# is affinity, not eligibility); the gender→affinity assignment happens at
+# creation and is class-independent.
+allowed_categories:
+  - humanoid
+
+starting_alignment: 0
+
+priority: 0

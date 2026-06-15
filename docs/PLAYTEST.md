@@ -901,11 +901,23 @@ their defaults; the env above just puts the boar at hand and sharpens the demo.)
 
 ### Create a channeler & the One Power pool
 
+There are **two channeling classes** (WoT S2 Initiate/Wilder split) — both draw
+the One Power and know the same starter weaves; they diverge on the **governing
+stat** that deepens the pool and on **backlash resilience**:
+
+- **Initiate** — White-Tower-trained. Pool deepens with **INT** (studied
+  discipline); **weak Fortitude**, so the overchannel cascade bites harder.
+- **Wilder** — self-taught. Pool deepens with **WIS** (raw instinct); **strong
+  Fortitude** (and a bigger HP die), so they survive overdrawing the Power more
+  often. The translation of d20's "wilders are more practiced at overchanneling."
+
 - [ ] New name → walk the wizard: it asks **gender** (male/female) **before**
-      race/class, then offer the **Channeler** class. Commit it.
+      race/class, then offers both the **Initiate** and **Wilder** classes (pick
+      either; the weaves below are identical). Commit it.
 - [ ] `score` (`sc`) — the identity line reads **Gender Race Class**, and the
       Combat column shows **MA  30/30** (the One Power pool — non-channelers read
-      `0/0`). Strong **Will**.
+      `0/0`). Strong **Will**. (A Wilder also shows strong **Fort**; an Initiate's
+      is weak.)
 - [ ] `channel firebolt` with no target out of combat — fizzles (it needs an
       enemy); a self weave like `channel warding` works anywhere.
 

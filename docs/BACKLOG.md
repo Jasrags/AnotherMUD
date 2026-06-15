@@ -133,13 +133,15 @@ old five-theme partition left uncovered.
   player-choice feat selection engine — slots + `feat`/`feats` verbs + all six grant
   kinds + authored background feats, save v20, `proposals/wot-feats.md`; v1 static-bonus
   feat family). See ROADMAP "WoT Mechanics EPIC" + the EPIC doc's status table.
-  **S2 The One Power — Phases 0–2 SHIPPED 2026-06-14** (save v21: pool substrate,
+  **S2 The One Power — Phases 0–4 SHIPPED 2026-06-14** (save v21/v22: pool substrate,
   channeler class + One Power pool + classic-four weaves + `channel` verb, `overchannel`
-  → Fort save → fatigued/stunned/stilled cascade + channel-block; see
-  `proposals/wot-the-one-power.md`). S2 Phase 3+ (affinities/Five-Powers + element
-  eligibility, Initiate/Wilder split, the combat interrupt game, taint/madness, angreal,
-  linking, a stilling restore path) remains open.
-  **Next candidates:** S2 Phase 3+ (above); S7 survival v2; S8 reputation;
+  → Fort save → fatigued/stunned/stilled cascade + channel-block; P3 affinities/Five-Powers
+  + gender; P4 affinity-on-effect-path + the combat interrupt game + the **Initiate/Wilder
+  class split** (`initiate` INT-keyed/weak-Fort, `wilder` WIS-keyed/strong-Fort); see
+  `proposals/wot-the-one-power.md`). S2 Phase 4+ depth (taint/madness, angreal, linking,
+  a stilling restore path, the Wilder emotional Block, save-DC/buff affinity scaling)
+  remains open.
+  **Next candidates:** S2 Phase 4+ depth (above); S7 survival v2; S8 reputation;
   the separate ranged (G) / armor (E) S1 follow-ons; and S4 polish (creation-wizard
   feat-pick step, Power Attack's combat effect, choose-a-feat-from-a-pool).
 - **Combat & Equipment Depth (WoT weapon/armor system)** — *(EPIC sub-epic S1 — see WoT

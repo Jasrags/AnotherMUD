@@ -8,6 +8,7 @@ import (
 
 	"github.com/Jasrags/AnotherMUD/internal/item"
 	"github.com/Jasrags/AnotherMUD/internal/light"
+	"github.com/Jasrags/AnotherMUD/internal/progression"
 	"github.com/Jasrags/AnotherMUD/internal/slot"
 	"github.com/Jasrags/AnotherMUD/internal/world"
 )
@@ -92,6 +93,81 @@ func TestLoad_WotPackSelectionBootSwap(t *testing.T) {
 		if got := res.Effective(wild, light.Black, light.Black); got != light.Gloom {
 			t.Errorf("deep-westwood at night = %v, want Gloom (wilds stay dark)", got)
 		}
+	}
+}
+
+// TestLoad_WotChannelerInitiateWilderSplit verifies the WoT S2 Initiate/Wilder
+// split end-to-end on real content: both channeling classes load, share the
+// One Power pool + starter weave path, and diverge on the two meaningful axes
+// the split is built around — the pool's governing stat (Initiate→INT studied
+// discipline, Wilder→WIS raw instinct) and Fortitude resilience (the Wilder's
+// strong Fort is the translation of d20's "wilders are more practiced at
+// overchanneling"; our shipped overchannel→Fort→cascade reads it for free).
+// The single legacy `channeler` class id must be gone (replaced, not kept).
+func TestLoad_WotChannelerInitiateWilderSplit(t *testing.T) {
+	root, err := filepath.Abs("../../content")
+	if err != nil {
+		t.Fatalf("abs: %v", err)
+	}
+	regs := NewRegistries()
+	if err := RegisterEngineBaselineProperties(regs.Properties); err != nil {
+		t.Fatalf("baseline properties: %v", err)
+	}
+	if err := slot.RegisterEngineBaseline(regs.Slots); err != nil {
+		t.Fatalf("baseline slots: %v", err)
+	}
+	if err := Load(context.Background(), root, []string{"wot"}, regs, nil, nil, nil); err != nil {
+		t.Fatalf("Load wot: %v", err)
+	}
+
+	// The pre-split single class id is gone — the split replaces it, it does
+	// not add a third channeling class.
+	if _, ok := regs.Classes.Get("channeler"); ok {
+		t.Error("legacy 'channeler' class still registered; the Initiate/Wilder split should replace it")
+	}
+
+	initiate, ok := regs.Classes.Get("initiate")
+	if !ok {
+		t.Fatal("initiate class not loaded")
+	}
+	wilder, ok := regs.Classes.Get("wilder")
+	if !ok {
+		t.Fatal("wilder class not loaded")
+	}
+
+	// Shared identity: both bind the one-power track and grant a One Power pool.
+	for _, c := range []*progression.Class{initiate, wilder} {
+		if c.BoundTrack != "one-power" {
+			t.Errorf("%s bound_track = %q, want one-power", c.ID, c.BoundTrack)
+		}
+		if c.StartingStats[progression.StatResourceMax] != 30 {
+			t.Errorf("%s starting resource_max = %d, want 30 (the One Power pool)",
+				c.ID, c.StartingStats[progression.StatResourceMax])
+		}
+	}
+
+	// Divergence axis 1 — the pool's governing stat (the build choice).
+	if got := initiate.GrowthBonuses[progression.StatResourceMax]; got != progression.StatINT {
+		t.Errorf("initiate resource_max growth keyed to %q, want int (studied discipline)", got)
+	}
+	if got := wilder.GrowthBonuses[progression.StatResourceMax]; got != progression.StatWIS {
+		t.Errorf("wilder resource_max growth keyed to %q, want wis (raw instinct)", got)
+	}
+
+	// Divergence axis 2 — Fortitude resilience to overchannel backlash. Both
+	// share a strong Will (mentally disciplined channelers); only the Wilder
+	// has strong Fort.
+	if initiate.SaveProgressions[progression.SaveFortitude] != progression.SaveWeak {
+		t.Errorf("initiate fortitude = %q, want weak (brittle, refined)",
+			initiate.SaveProgressions[progression.SaveFortitude])
+	}
+	if wilder.SaveProgressions[progression.SaveFortitude] != progression.SaveStrong {
+		t.Errorf("wilder fortitude = %q, want strong (hardy against backlash)",
+			wilder.SaveProgressions[progression.SaveFortitude])
+	}
+	if initiate.SaveProgressions[progression.SaveWill] != progression.SaveStrong ||
+		wilder.SaveProgressions[progression.SaveWill] != progression.SaveStrong {
+		t.Error("both channeling classes should have a strong Will save")
 	}
 }
 

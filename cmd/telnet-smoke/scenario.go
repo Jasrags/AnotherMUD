@@ -155,6 +155,31 @@ func scoreArmorClass(c *telnettest.Client) (int, error) {
 	return n, nil
 }
 
+// fortitudeRe pulls the signed Fortitude save value off the score sheet's
+// "Saves  Fort +N  Ref +N  Will +N" line (saves §2; ANSI markup stripped by the
+// telnet client).
+var fortitudeRe = regexp.MustCompile(`Fort\s*([+-]?\d+)`)
+
+// scoreFortitude sends `score` and parses the Fortitude save value off the sheet.
+// Used by the Initiate/Wilder split test: the two channeling classes diverge on
+// the Fortitude save curve (initiate weak, wilder strong), which is RNG-free at a
+// fixed level + identical stats, so the value is a deterministic class fingerprint.
+func scoreFortitude(c *telnettest.Client) (int, error) {
+	if err := c.SendLine("score"); err != nil {
+		return 0, err
+	}
+	out, err := c.Expect(fortitudeRe)
+	if err != nil {
+		return 0, fmt.Errorf("no Fortitude save on score sheet: %w", err)
+	}
+	m := fortitudeRe.FindStringSubmatch(out)
+	n, err := strconv.Atoi(m[1])
+	if err != nil {
+		return 0, fmt.Errorf("parse Fortitude from %q: %w", out, err)
+	}
+	return n, nil
+}
+
 // engageBoar starts combat with the wild boar, polling until one is present.
 // The Westwood spawns its boar on the area reset interval (~30s), not at boot,
 // so a freshly-booted engine has an empty room for the first half-minute — the
@@ -194,14 +219,24 @@ func createAndLogin(c *telnettest.Client, name string) error {
 }
 
 // createChanneler is createAndLogin with explicit wizard answers: the given
-// gender and the channeler class (everything else takes the first option).
+// gender and the Initiate channeler class (everything else takes the first
+// option). The Initiate/Wilder split (WoT S2) means there is no longer a single
+// "channeler" class id; either channeling class gives the same One Power pool
+// and weaves, so the affinity/cast/interrupt smokes pick Initiate arbitrarily.
 func createChanneler(c *telnettest.Client, name, gender string) error {
+	return createChannelerClass(c, name, gender, "initiate")
+}
+
+// createChannelerClass is createChanneler with an explicit channeling class id
+// ("initiate" or "wilder") — used by the Initiate/Wilder split test, which must
+// create one of each to compare their divergent save sheets.
+func createChannelerClass(c *telnettest.Client, name, gender, class string) error {
 	isNew, err := doLogin(c, name)
 	if err != nil {
 		return err
 	}
 	if isNew {
-		return runWizardWith(c, map[string]string{"gender": gender, "class": "channeler"})
+		return runWizardWith(c, map[string]string{"gender": gender, "class": class})
 	}
 	if _, err := c.ExpectTimeout(gamePrompt, 8*time.Second); err != nil {
 		return fmt.Errorf("returning login never reached the game prompt: %w", err)
@@ -251,7 +286,7 @@ func doLogin(c *telnettest.Client, name string) (bool, error) {
 
 // runWizardWith answers the character-creation wizard until the game prompt
 // appears. For each "Choose your <field>" menu it sends answers[field] if
-// present (e.g. "gender"→"female", "class"→"channeler"), else the first option;
+// present (e.g. "gender"→"female", "class"→"initiate"), else the first option;
 // every "(yes/no)" confirm gets "yes". Being menu-shape-agnostic means it
 // survives pack-specific wizard differences without edits.
 func runWizardWith(c *telnettest.Client, answers map[string]string) error {
