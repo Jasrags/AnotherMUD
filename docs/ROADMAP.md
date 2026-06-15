@@ -3600,7 +3600,7 @@ wizinvis. Built as a multi-slice arc; each slice its own commit + review.
       drops both hide and sneak. Unit-tested (state machine, verb toggle/cancel,
       drops-both-layers, end-to-end movement filter) + live (sneak on → look →
       sneak off).
-- [~] **S5 — magical + admin invisibility** + detect traits; closes `who §4`
+- [x] **S5 — magical + admin invisibility** + detect traits; closes `who §4`
       and `admin-verbs §3` wizinvis forward-refs.
   - [x] **S5a — admin invisibility (wizinvis).** `wizinvis` admin-gated verb
         toggles an ephemeral, flag-gated concealment (atomic toggle on
@@ -3609,8 +3609,13 @@ wizinvis. Built as a multi-slice arc; each slice its own commit + review.
         render occupant list, the §5.4 resolvers, AND `who` all hide a wizinvis
         admin from lower ranks per-viewer — the viewer always sees themselves.
         Does NOT break on action (§3.4). Unit + live verified.
-  - [ ] **S5b — magical invisibility** — an `invisible` effect/tag pierced only
-        by the `see_invisible` trait; reuses the S5a predicate/who seams.
+  - [x] **S5b — magical invisibility** — an `invisible` effect flag pierced only
+        by the `see_invisible` counter (honored as a racial/ability tag OR an
+        active effect flag); reuses the S5a predicate/who seams. An effect-
+        lifecycle bridge emits `entity.revealed` when the effect ends. v1 is
+        players-only (invisible mobs are a §9 extension); no content grants it
+        yet, so the in-game trigger (a potion/spell) is a follow-up authoring
+        task. Engine mechanic unit-verified.
 - [ ] **S6 — the `search` verb**, then **hidden exits** (`hidden-exits.md`) drops
       onto the search + detection set + filter — the original ask that started
       this arc.
