@@ -3541,6 +3541,40 @@ S4 polish items above. See `BACKLOG.md` §2 + the EPIC doc for sequencing.
 
 ---
 
+### M28 — Visibility (Gameplay Systems keystone) — in progress
+
+The per-observer "can X see Y?" model (`docs/specs/visibility.md`), the
+keystone that unblocks hidden exits, `who` per-viewer hiding, and admin
+wizinvis. Built as a multi-slice arc; each slice its own commit + review.
+
+- [x] **S1 — the filter primitive** (`internal/visibility`): `CanSee` /
+      `Visible[T]`, layer AND-composition (§2.2), self-always-visible + bypass
+      (§2.1), per-source pierce dispatch (flag-gated darkness/invis/admin vs
+      roll-gated detect→sticky→contest). Decoupled from the engine via small
+      Observer/Target interfaces; unknown source fails open (§1.2). 100% cov,
+      behavior-neutral (no sources wired yet).
+- [ ] **S2 — consumer seam + darkness** — route render / `who` / GMCP / §5.4
+      resolvers through the filter (legacy parity); darkness leans on the
+      **already-shipped `internal/light`** resolver (render already gates
+      occupants by light tier, so this is mostly the non-render consumers).
+- [ ] **S3 — hide + the perception contest** — concealment state, sticky
+      detection set, `concealment.before`, `hide` verb, `breaks_concealment`
+      flag + reveal-on-action, move-drops-hide. Needs a `perception`/`stealth`
+      skill in content.
+- [ ] **S4 — sneak** + per-observer movement-broadcast filtering (§3.2).
+- [ ] **S5 — magical + admin invisibility** + detect traits; closes `who §4`
+      and `admin-verbs §3` wizinvis forward-refs.
+- [ ] **S6 — the `search` verb**, then **hidden exits** (`hidden-exits.md`) drops
+      onto the search + detection set + filter — the original ask that started
+      this arc.
+
+Key finding (S1): light/darkness is ~80% shipped (`internal/light` per-viewer
+resolver), so the spec's §3.3 darkness layer mostly *integrates* rather than
+gets built — the darkness work is extending light-awareness to the non-render
+consumers, not re-gating render.
+
+---
+
 ## How to use this document
 
 - The **current milestone** is whichever section above has unchecked
