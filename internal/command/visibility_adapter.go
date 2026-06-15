@@ -33,11 +33,13 @@ type hideable interface {
 // memory for the §4.2 contest (visibility §4.1). connActor implements it; a
 // nil perceiver cannot pierce roll-gated concealment (it never wins a
 // contest), which is the correct degraded behavior for a viewer with no
-// perception wired (tests).
+// perception wired (tests). ContestOutcome reports the remembered result
+// (won, done) so a contest — win OR loss — is rolled at most once per
+// room-entry; RecordContest stores it.
 type perceiver interface {
 	PerceptionBonus() int
-	HasPiercedConcealment(instance uint64) bool
-	RecordConcealmentPierce(instance uint64)
+	ContestOutcome(instance uint64) (won, done bool)
+	RecordContest(instance uint64, won bool)
 }
 
 // visObserver adapts a viewer to visibility.Observer. PiercesDarkness comes
@@ -58,23 +60,32 @@ func (o visObserver) SeesInvisible() bool   { return false }
 func (o visObserver) AdminRank() int        { return 0 }
 func (o visObserver) DetectsHidden() bool   { return false }
 
+// AlreadyPierced reports a remembered WINNING contest, so the filter
+// short-circuits to visible without re-rolling (§4.1). A remembered LOSS is
+// not "pierced" — it falls through to Contest, which returns the sticky loss.
 func (o visObserver) AlreadyPierced(instance uint64) bool {
-	return o.per != nil && o.per.HasPiercedConcealment(instance)
+	if o.per == nil {
+		return false
+	}
+	won, done := o.per.ContestOutcome(instance)
+	return done && won
 }
 
-// Contest runs the §4.2 perception contest (d20 + perception vs the layer's
-// concealment score, reusing the skill-check primitive) and records a win in
-// the observer's detection set so subsequent checks skip the roll (§4.1).
-// Without a perceiver or roller the observer cannot pierce — returns false.
+// Contest resolves a roll-gated layer with one-roll-per-room-entry sticky
+// memory (§4.1): a remembered outcome (win OR loss) is returned without
+// re-rolling; otherwise it runs the §4.2 contest (d20 + perception vs the
+// concealment score, via the skill-check primitive), records the result, and
+// returns it. Without a perceiver or roller the observer cannot pierce.
 func (o visObserver) Contest(layer visibility.Layer) bool {
 	if o.per == nil || o.roller == nil {
 		return false
 	}
-	if progression.ResolveSkillCheck(o.roller, o.per.PerceptionBonus(), layer.Score).Success {
-		o.per.RecordConcealmentPierce(layer.Instance)
-		return true
+	if won, done := o.per.ContestOutcome(layer.Instance); done {
+		return won // sticky — never re-roll the same instance this room
 	}
-	return false
+	won := progression.ResolveSkillCheck(o.roller, o.per.PerceptionBonus(), layer.Score).Success
+	o.per.RecordContest(layer.Instance, won)
+	return won
 }
 
 // visTarget adapts a room occupant to visibility.Target, carrying the
@@ -124,8 +135,12 @@ func (c *Context) visibilityPredicate() func(string) bool {
 	}
 
 	obs := visObserver{
-		id:          c.Actor.PlayerID(),
-		piercesDark: !dark, // sees adequately when above Black (§3.3)
+		id: c.Actor.PlayerID(),
+		// !dark = the viewer is in an adequately lit room (above Black, with
+		// their own light/darkvision already folded into EffectiveLight), so
+		// darkness is not a barrier for them. When dark, a SourceDarkness layer
+		// is appended below and this false correctly fails to pierce it.
+		piercesDark: !dark,
 		roller:      c.SkillRoller,
 	}
 	if p, ok := c.Actor.(perceiver); ok {
@@ -152,8 +167,15 @@ func hiddenOccupants(c *Context, roomID world.RoomID) map[string]visibility.Laye
 	if c.Locator == nil {
 		return nil
 	}
+	self := c.Actor.PlayerID()
 	var out map[string]visibility.Layer
 	for _, p := range c.Locator.PlayersInRoom(roomID) {
+		// Self is always visible to self (§2.1); exclude the observer from the
+		// hidden map so the function is correct independent of the CanSee
+		// self-guard and the upstream self-exclusions.
+		if self != "" && p.PlayerID() == self {
+			continue
+		}
 		h, ok := p.(hideable)
 		if !ok || !h.IsHidden() {
 			continue

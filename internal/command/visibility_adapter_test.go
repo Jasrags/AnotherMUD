@@ -12,19 +12,23 @@ type fakeRoller struct{ n int }
 
 func (r fakeRoller) IntN(int) int { return r.n }
 
-// fakePerceiver records pierces and reports a fixed perception bonus.
+// fakePerceiver records contest outcomes and reports a fixed perception
+// bonus. `set[i]` holds the remembered outcome; presence = already contested.
 type fakePerceiver struct {
 	bonus int
 	set   map[uint64]bool
 }
 
-func (p *fakePerceiver) PerceptionBonus() int                { return p.bonus }
-func (p *fakePerceiver) HasPiercedConcealment(i uint64) bool { return p.set[i] }
-func (p *fakePerceiver) RecordConcealmentPierce(i uint64) {
+func (p *fakePerceiver) PerceptionBonus() int { return p.bonus }
+func (p *fakePerceiver) ContestOutcome(i uint64) (won, done bool) {
+	won, done = p.set[i]
+	return won, done
+}
+func (p *fakePerceiver) RecordContest(i uint64, won bool) {
 	if p.set == nil {
 		p.set = map[uint64]bool{}
 	}
-	p.set[i] = true
+	p.set[i] = won
 }
 
 func hideLayer(score int, inst uint64) visibility.Layer {
@@ -47,16 +51,38 @@ func TestVisObserver_ContestWinRecordsPierce(t *testing.T) {
 	}
 }
 
-// A lost contest neither pierces nor records.
-func TestVisObserver_ContestLoseNoPierce(t *testing.T) {
+// A lost contest does not pierce, but it IS recorded (sticky loss) so the
+// same instance is not re-rolled this room.
+func TestVisObserver_ContestLoseRecordsStickyLoss(t *testing.T) {
 	per := &fakePerceiver{bonus: 0}
 	// roll 3 (IntN 2 + 1) + 0 = 3 < score 15 → lose.
 	o := visObserver{id: "obs", per: per, roller: fakeRoller{n: 2}}
 	if o.Contest(hideLayer(15, 9)) {
 		t.Fatal("a failing roll should lose the contest")
 	}
-	if per.set[9] {
-		t.Error("a lost contest must not record a pierce")
+	won, done := per.ContestOutcome(9)
+	if !done || won {
+		t.Errorf("a lost contest must be recorded as done+lost; got won=%v done=%v", won, done)
+	}
+	if o.AlreadyPierced(9) {
+		t.Error("a lost contest is not a pierce")
+	}
+}
+
+// The HIGH fix: a lost contest is sticky — a SECOND contest against the same
+// instance returns the remembered loss WITHOUT re-rolling, even if the roller
+// would now win. This stops render+resolve in one command (or repeated looks)
+// from giving the observer extra rolls against a hidden target.
+func TestVisObserver_LostContestNotRerolled(t *testing.T) {
+	per := &fakePerceiver{bonus: 0}
+	loser := visObserver{id: "obs", per: per, roller: fakeRoller{n: 0}} // roll 1 → lose
+	if loser.Contest(hideLayer(15, 4)) {
+		t.Fatal("first contest should lose")
+	}
+	// A roller that would now WIN — but the sticky loss must hold.
+	wouldWin := visObserver{id: "obs", per: per, roller: fakeRoller{n: 19}} // roll 20 (nat-20)
+	if wouldWin.Contest(hideLayer(15, 4)) {
+		t.Error("a remembered loss must not be re-rolled into a win this room")
 	}
 }
 

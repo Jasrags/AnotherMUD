@@ -1968,13 +1968,15 @@ type connActor struct {
 	concealScore    int
 	concealInstance uint64
 
-	// pierced is this actor's sticky detection memory AS AN OBSERVER
-	// (visibility.md §4.1): the set of concealment-instance ids it has
-	// already won a perception contest against, so CanSee returns true
-	// without re-rolling. Invalidated (cleared) when the observer changes
-	// rooms (SetRoom) — you lose track of who you spotted when you leave.
-	// Lazily allocated; guarded by a.mu. Ephemeral, never persisted.
-	pierced map[uint64]bool
+	// contested is this actor's sticky detection memory AS AN OBSERVER
+	// (visibility.md §4.1): instance id → contest outcome (true = pierced,
+	// false = failed to pierce). Presence means "already contested this
+	// instance this room" — the result is sticky for BOTH outcomes, so
+	// CanSee never re-rolls (in either direction) until the concealment
+	// re-establishes or the observer leaves. Invalidated (cleared) when the
+	// observer changes rooms (SetRoom). Lazily allocated; guarded by a.mu.
+	// Ephemeral, never persisted.
+	contested map[uint64]bool
 	// colorTier is the per-session capability ceiling captured from
 	// the conn at construction (M16.6a). Sources:
 	//   - telnet: derived from TTYPE + IsMudClient per spec §7.2.
@@ -2291,30 +2293,38 @@ func (a *connActor) PerceptionBonus() int {
 	return progression.AbilityModifier(sb.Effective(progression.StatWIS))
 }
 
-// HasPiercedConcealment reports whether this observer has already won a
-// contest against the given concealment instance (sticky memory, §4.1).
-func (a *connActor) HasPiercedConcealment(instance uint64) bool {
+// ContestOutcome reports this observer's remembered result against a
+// concealment instance (sticky memory, §4.1): won is the outcome, done is
+// whether a contest was already resolved against this instance. The result
+// is sticky for BOTH win and loss — a single contest per room-entry (the
+// memory clears on room change), so a hidden target the observer failed to
+// spot stays unseen until it re-establishes or the observer leaves, and one
+// it spotted stays seen. This prevents per-look re-rolling in either
+// direction.
+func (a *connActor) ContestOutcome(instance uint64) (won, done bool) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
-	return a.pierced[instance]
+	won, done = a.contested[instance]
+	return won, done
 }
 
-// RecordConcealmentPierce remembers a successful pierce so subsequent CanSee
-// checks for this instance skip the contest (§4.1). Lazily allocates the set.
-func (a *connActor) RecordConcealmentPierce(instance uint64) {
+// RecordContest remembers the outcome of a perception contest (win or loss)
+// so subsequent checks for this instance skip the re-roll (§4.1). Lazily
+// allocates the set.
+func (a *connActor) RecordContest(instance uint64, won bool) {
 	a.mu.Lock()
-	if a.pierced == nil {
-		a.pierced = make(map[uint64]bool)
+	if a.contested == nil {
+		a.contested = make(map[uint64]bool)
 	}
-	a.pierced[instance] = true
+	a.contested[instance] = won
 	a.mu.Unlock()
 }
 
-// clearDetectionLocked drops this observer's sticky pierces — called on a
-// room change (§4.1: you lose track of who you spotted when you leave).
-// Caller holds a.mu.
+// clearDetectionLocked drops this observer's sticky contest memory — called
+// on a room change (§4.1: you lose track of who you spotted when you leave,
+// and re-contest fresh on arrival). Caller holds a.mu.
 func (a *connActor) clearDetectionLocked() {
-	a.pierced = nil
+	a.contested = nil
 }
 
 // ColorTier returns the actor's color-capability tier captured
