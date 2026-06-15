@@ -2331,6 +2331,9 @@ func run() error {
 			// off the engine Clock (F3) so it's testable.
 			Clock:       clk,
 			IdleTimeout: cfg.LoginIdleTimeout,
+			// Per-phase overrides (login §6.1): each absent phase falls
+			// back to IdleTimeout above.
+			PhaseIdleTimeouts: cfg.LoginPhaseIdle,
 			// Name-gates (login §3): refuse reserved/system names at
 			// character creation. nil NameGates → the default
 			// reserved-names gate over this list.
@@ -2483,6 +2486,10 @@ type config struct {
 	// (login spec §6.1). Zero disables it; the default closes a peer
 	// that opens a connection but never responds.
 	LoginIdleTimeout time.Duration
+	// LoginPhaseIdle overrides LoginIdleTimeout for individual login
+	// phases (login spec §6.1). nil — or a phase absent from it — uses
+	// the global LoginIdleTimeout fallback.
+	LoginPhaseIdle map[login.Phase]time.Duration
 	// SlowTickThreshold warns when a tick's duration exceeds it
 	// (time-and-clock §5). Zero falls back to the tick interval.
 	SlowTickThreshold time.Duration
@@ -2554,6 +2561,7 @@ func loadConfig() config {
 		IdleSweepInterval:       envDurationOr("ANOTHERMUD_IDLE_SWEEP_INTERVAL", 30*time.Second),
 		LinkDeadSweepInterval:   envDurationOr("ANOTHERMUD_LINKDEAD_SWEEP_INTERVAL", 30*time.Second),
 		LoginIdleTimeout:        envDurationOr("ANOTHERMUD_LOGIN_IDLE_TIMEOUT", 60*time.Second),
+		LoginPhaseIdle:          loginPhaseIdleFromEnv(),
 		SlowTickThreshold:       envDurationOr("ANOTHERMUD_SLOW_TICK_THRESHOLD", 0),
 		ReservedNames:           envCSVOr("ANOTHERMUD_RESERVED_NAMES", defaultReservedNames),
 		SustenanceDrainInterval: envDurationOr("ANOTHERMUD_SUSTENANCE_DRAIN_INTERVAL", 30*time.Second),
@@ -2603,6 +2611,44 @@ func envOr(key, def string) string {
 		return v
 	}
 	return def
+}
+
+// loginPhaseIdleFromEnv builds the per-phase login idle-timeout overrides
+// (login §6.1) from ANOTHERMUD_LOGIN_IDLE_TIMEOUT_{NAME,EMAIL,PASSWORD}.
+// A phase whose env var is unset is omitted, so it falls back to the global
+// ANOTHERMUD_LOGIN_IDLE_TIMEOUT. A set-but-invalid value (unparseable or
+// non-positive) is warned about rather than silently ignored — a mistyped
+// timeout is a misconfiguration the operator should hear about, since the
+// silent fallback could leave a phase far more (or less) permissive than
+// intended. Returns nil when no override is configured (the common case).
+func loginPhaseIdleFromEnv() map[login.Phase]time.Duration {
+	overrides := []struct {
+		env   string
+		phase login.Phase
+	}{
+		{"ANOTHERMUD_LOGIN_IDLE_TIMEOUT_NAME", login.PhaseName},
+		{"ANOTHERMUD_LOGIN_IDLE_TIMEOUT_EMAIL", login.PhaseEmail},
+		{"ANOTHERMUD_LOGIN_IDLE_TIMEOUT_PASSWORD", login.PhasePassword},
+	}
+	var m map[login.Phase]time.Duration
+	for _, o := range overrides {
+		v, ok := os.LookupEnv(o.env)
+		if !ok || v == "" {
+			continue
+		}
+		d, err := time.ParseDuration(v)
+		if err != nil || d <= 0 {
+			slog.Warn("ignoring invalid login phase idle timeout; falling back to global",
+				slog.String("component", "server"),
+				slog.String("env", o.env), slog.String("value", v), slog.Any("err", err))
+			continue
+		}
+		if m == nil {
+			m = make(map[login.Phase]time.Duration)
+		}
+		m[o.phase] = d
+	}
+	return m
 }
 
 // defaultReservedNames seeds the login name-gate (login §3): privileged

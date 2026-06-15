@@ -10,9 +10,12 @@
 //   - Hands off a Loaded record to the session layer on success
 //
 // Idle timeout (spec §6.1): every interactive read is bounded by a
-// Clock-driven idle timeout (Config.IdleTimeout). v1 applies a single
-// global timeout to all phases (the spec's global fallback); per-phase
-// override values are a future extension on the same read primitive.
+// Clock-driven idle timeout. Config.IdleTimeout is the global fallback;
+// Config.PhaseIdleTimeouts overrides it per interactive phase (Name,
+// Email, Password — the phases this package owns; the SessionTakeover
+// and Creating-wizard phases are bounded by the session/wizard layer).
+// Each read passes its phase's resolved timeout to the read primitive,
+// so a fresh timer with the right window is created per read.
 //
 // Deferred:
 //
@@ -59,6 +62,18 @@ const (
 	DefaultMaxNameLength       = 16
 )
 
+// Phase names the interactive login phases this package owns and bounds
+// with an idle timeout (spec §6.1, §2). Used as the key for per-phase
+// timeout overrides. SessionTakeover and Creating are spec phases too,
+// but their idle bounding lives in the session/wizard layer, not here.
+type Phase string
+
+const (
+	PhaseName     Phase = "name"
+	PhaseEmail    Phase = "email"
+	PhasePassword Phase = "password"
+)
+
 // Sentinel errors returned from Run.
 var (
 	ErrAborted      = errors.New("login: connection closed before login")
@@ -101,9 +116,14 @@ type Config struct {
 	// IdleTimeout bounds every interactive read. Zero (or negative)
 	// disables the timeout entirely — the historical behavior — so
 	// callers that don't set it read with no deadline. This is the
-	// global fallback of spec §6.1; per-phase overrides are a future
-	// extension layered on the same read primitive.
+	// global fallback of spec §6.1.
 	IdleTimeout time.Duration
+
+	// PhaseIdleTimeouts overrides IdleTimeout for specific interactive
+	// phases (spec §6.1). A phase absent from the map — or mapped to a
+	// non-positive value — falls back to IdleTimeout. nil disables all
+	// per-phase overrides (every phase uses the global fallback).
+	PhaseIdleTimeouts map[Phase]time.Duration
 
 	// NameGates is the ordered list of new-player name policies (spec
 	// §3). The first non-allow decision wins. Empty falls back to a
@@ -129,6 +149,16 @@ func (c Config) idleClock() clock.Clock {
 		return c.Clock
 	}
 	return clock.RealClock{}
+}
+
+// phaseIdle resolves the idle timeout for a phase (spec §6.1): the
+// per-phase override when configured with a positive value, else the
+// global IdleTimeout fallback.
+func (c Config) phaseIdle(p Phase) time.Duration {
+	if d, ok := c.PhaseIdleTimeouts[p]; ok && d > 0 {
+		return d
+	}
+	return c.IdleTimeout
 }
 
 func (c Config) maxPwAttempts() int {
@@ -166,7 +196,7 @@ func (c Config) maxNameLen() int {
 // record is produced or the connection is closed / the context is
 // cancelled.
 func Run(ctx context.Context, c conn.Connection, cfg Config) (*Loaded, error) {
-	lio := &lineIO{c: c, clock: cfg.idleClock(), idle: cfg.IdleTimeout}
+	lio := &lineIO{c: c, clock: cfg.idleClock()}
 	loaded, err := runLoop(ctx, lio, cfg)
 	if errors.Is(err, ErrIdleTimeout) {
 		// Spec §6.1: close with a timeout reason. Send a final line so
@@ -236,7 +266,7 @@ func promptName(ctx context.Context, lio *lineIO, cfg Config) (string, error) {
 		if err := lio.writeln(ctx, "By what name shall we know you?"); err != nil {
 			return "", err
 		}
-		raw, err := lio.readln(ctx)
+		raw, err := lio.readln(ctx, cfg.phaseIdle(PhaseName))
 		if err != nil {
 			return "", err
 		}
@@ -283,7 +313,7 @@ func returningPlayer(ctx context.Context, lio *lineIO, cfg Config, name string) 
 	}
 
 	for attempts := 0; attempts < cfg.maxPwAttempts(); attempts++ {
-		pw, err := promptPassword(ctx, lio, "Password: ")
+		pw, err := promptPassword(ctx, lio, "Password: ", cfg.phaseIdle(PhasePassword))
 		if err != nil {
 			return nil, err
 		}
@@ -328,7 +358,7 @@ func newPlayer(ctx context.Context, lio *lineIO, cfg Config, name string) (*Load
 // success, attaches the chosen character name to the existing account.
 // One failed attempt bounces back to the name prompt (login spec §5.2).
 func newCharacterOnExistingAccount(ctx context.Context, lio *lineIO, cfg Config, email, name string) (*Loaded, error) {
-	pw, err := promptPassword(ctx, lio, fmt.Sprintf("Password for %s: ", email))
+	pw, err := promptPassword(ctx, lio, fmt.Sprintf("Password for %s: ", email), cfg.phaseIdle(PhasePassword))
 	if err != nil {
 		return nil, err
 	}
@@ -348,7 +378,7 @@ func newCharacterOnExistingAccount(ctx context.Context, lio *lineIO, cfg Config,
 // is created until both the policy check and the confirmation succeed,
 // so a mistyped or short password leaves no trace on disk.
 func newCharacterOnNewAccount(ctx context.Context, lio *lineIO, cfg Config, email, name string) (*Loaded, error) {
-	pw, err := promptPassword(ctx, lio, fmt.Sprintf("Choose a password for %s: ", email))
+	pw, err := promptPassword(ctx, lio, fmt.Sprintf("Choose a password for %s: ", email), cfg.phaseIdle(PhasePassword))
 	if err != nil {
 		return nil, err
 	}
@@ -356,7 +386,7 @@ func newCharacterOnNewAccount(ctx context.Context, lio *lineIO, cfg Config, emai
 		_ = lio.writeln(ctx, msg)
 		return nil, errBackToName
 	}
-	confirm, err := promptPassword(ctx, lio, "Confirm password: ")
+	confirm, err := promptPassword(ctx, lio, "Confirm password: ", cfg.phaseIdle(PhasePassword))
 	if err != nil {
 		return nil, err
 	}
@@ -418,7 +448,7 @@ func promptEmail(ctx context.Context, lio *lineIO, cfg Config) (string, error) {
 		if err := lio.writeln(ctx, "Email address: "); err != nil {
 			return "", err
 		}
-		raw, err := lio.readln(ctx)
+		raw, err := lio.readln(ctx, cfg.phaseIdle(PhaseEmail))
 		if err != nil {
 			return "", err
 		}
@@ -435,14 +465,16 @@ func promptEmail(ctx context.Context, lio *lineIO, cfg Config) (string, error) {
 	return "", ErrEmailCap
 }
 
-func promptPassword(ctx context.Context, lio *lineIO, prompt string) (string, error) {
+// promptPassword reads a password with echo suppressed, bounded by the
+// Password phase idle timeout (spec §6.1).
+func promptPassword(ctx context.Context, lio *lineIO, prompt string, idle time.Duration) (string, error) {
 	if err := lio.writeCommand(ctx, iacWillEcho); err != nil {
 		return "", err
 	}
 	if err := lio.writeRaw(ctx, []byte(prompt)); err != nil {
 		return "", err
 	}
-	pw, readErr := lio.readln(ctx)
+	pw, readErr := lio.readln(ctx, idle)
 	// Restore echo before doing anything else so the next prompt is
 	// visible — even if Read errored.
 	if err := lio.writeCommand(ctx, iacWontEcho); err != nil {
@@ -464,11 +496,13 @@ func promptPassword(ctx context.Context, lio *lineIO, prompt string) (string, er
 type lineIO struct {
 	c     conn.Connection
 	clock clock.Clock
-	idle  time.Duration
 }
 
-func (l *lineIO) readln(ctx context.Context) (string, error) {
-	line, err := l.readBounded(ctx)
+// readln reads one line bounded by the given per-phase idle timeout
+// (spec §6.1). A non-positive idle means no deadline (the historical
+// behavior).
+func (l *lineIO) readln(ctx context.Context, idle time.Duration) (string, error) {
+	line, err := l.readBounded(ctx, idle)
 	if err == nil {
 		return line, nil
 	}
@@ -493,8 +527,8 @@ func (l *lineIO) readln(ctx context.Context) (string, error) {
 // cancels the in-flight read (unblocking the transport) and returns
 // ErrIdleTimeout. A fresh timer is created per read, so a late timer
 // from a prior phase can never affect the current one (spec §6.1).
-func (l *lineIO) readBounded(ctx context.Context) (string, error) {
-	if l.idle <= 0 {
+func (l *lineIO) readBounded(ctx context.Context, idle time.Duration) (string, error) {
+	if idle <= 0 {
 		return l.c.Read(ctx)
 	}
 
@@ -505,7 +539,7 @@ func (l *lineIO) readBounded(ctx context.Context) (string, error) {
 	// Register the timer before spawning the reader so the reader being
 	// observed as "running" implies the timer exists (deterministic for
 	// a ManualClock-driven test).
-	tick, stop := clk.Ticker(l.idle)
+	tick, stop := clk.Ticker(idle)
 	defer stop()
 
 	rctx, cancel := context.WithCancel(ctx)
