@@ -43,6 +43,14 @@ type Manifest struct {
 	// Default true; only false skips the pack entirely.
 	Active *bool `yaml:"active,omitempty"`
 
+	// Kind flags whether this pack is a "world" (a leaf ruleset a
+	// character may belong to) or a "library" (a shared baseline
+	// dependency). Empty defaults to "library", so a pack must opt in to
+	// being a world and a baseline like the engine pack is never a valid
+	// world stamp (character-identity §2). Validated at load: only
+	// "", "world", or "library" are accepted.
+	Kind string `yaml:"kind,omitempty"`
+
 	// Version is informational today (spec §2.2).
 	Version string `yaml:"version,omitempty"`
 
@@ -145,6 +153,32 @@ type ContentPaths struct {
 // IsActive reports whether the manifest is active (default true).
 func (m *Manifest) IsActive() bool {
 	return m.Active == nil || *m.Active
+}
+
+// Pack-kind values for Manifest.Kind (character-identity §2). Empty is
+// treated as KindLibrary — a pack opts in to being a world.
+const (
+	KindWorld   = "world"
+	KindLibrary = "library"
+)
+
+// IsWorld reports whether this pack is a world — a leaf ruleset a
+// character may be stamped to (character-identity §2). Only an explicit
+// `kind: world` is a world; empty or "library" is not. Case-insensitive.
+func (m *Manifest) IsWorld() bool {
+	return strings.EqualFold(m.Kind, KindWorld)
+}
+
+// ValidKind reports whether a manifest Kind value is one the engine
+// accepts: empty (⇒ library), "world", or "library" (case-insensitive).
+// Anything else is an authoring error caught at load.
+func ValidKind(kind string) bool {
+	switch strings.ToLower(strings.TrimSpace(kind)) {
+	case "", KindWorld, KindLibrary:
+		return true
+	default:
+		return false
+	}
 }
 
 // Namespace derives the pack namespace per spec §2.3.

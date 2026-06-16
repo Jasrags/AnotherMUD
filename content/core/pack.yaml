@@ -1,5 +1,8 @@
 name: tapestry-core
 version: "0.1.0"
+# A library pack (character-identity §2): the shared baseline worlds depend
+# on. Characters are never stamped to a library — only to a world pack.
+kind: library
 description: |
   Engine-scope baseline pack — the mechanical content every world depends on:
   races, classes, tracks, equipment slots, effects, abilities, the item

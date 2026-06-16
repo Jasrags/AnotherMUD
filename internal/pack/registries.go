@@ -128,6 +128,14 @@ type Registries struct {
 	// the composition root Build()s it into a channel.Mapping that
 	// combat.Stats derives HitMod/AC through. Distinct from Channels (chat).
 	ChannelMap *channel.Registry
+
+	// Worlds is the active world set (character-identity §2): the
+	// namespaces of the loaded packs flagged `kind: world`, in load order.
+	// Library/baseline packs are loaded but excluded. Populated by Load
+	// (not a content registry — loaded-pack metadata the composition root
+	// reads to gate character login/creation by world). Empty means the
+	// active packs declare no world — a configuration the boot rejects.
+	Worlds []string
 }
 
 // NewRegistries returns a Registries with every field initialized.

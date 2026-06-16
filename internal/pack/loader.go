@@ -143,12 +143,24 @@ func Load(ctx context.Context, root string, filter []string, dst *Registries, sp
 	logger.Info("packs discovered", slog.Int("count", len(ordered)))
 
 	// Phase 1: manifest pass. M2 records only; no tags/properties yet.
+	// Also validate each pack's kind and collect the active world set
+	// (character-identity §2): the namespaces of `kind: world` packs, in
+	// load order. Library/baseline packs are loaded but excluded.
+	dst.Worlds = dst.Worlds[:0]
 	for _, p := range ordered {
+		if !ValidKind(p.Manifest.Kind) {
+			return fmt.Errorf("%w: pack %q: kind %q is not valid (expected \"world\", \"library\", or empty)",
+				ErrInvalidContent, p.Manifest.Name, p.Manifest.Kind)
+		}
 		logging.From(ctx).Info("pack manifest",
 			slog.String("event", "pack.manifest"),
 			slog.String("pack", p.Manifest.Name),
 			slog.String("namespace", p.Namespace()),
+			slog.String("kind", p.Manifest.Kind),
 		)
+		if p.Manifest.IsWorld() {
+			dst.Worlds = append(dst.Worlds, p.Namespace())
+		}
 	}
 
 	// Phase 2: content pass.

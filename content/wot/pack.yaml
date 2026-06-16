@@ -1,5 +1,8 @@
 name: wot
 version: "0.1.0"
+# A world pack (character-identity §2): a leaf ruleset a character is
+# stamped to and locked to (the tapestry-core baseline is a library).
+kind: world
 description: |
   The Wheel of Time world pack — the Two Rivers and outward
   (docs/themes/wot-world-plan.md). Original room/NPC prose set in the licensed

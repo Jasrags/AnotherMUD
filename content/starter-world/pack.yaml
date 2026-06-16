@@ -1,5 +1,9 @@
 name: starter-world
 version: "0.1.0"
+# A world pack (character-identity §2): a leaf ruleset a character is
+# stamped to and locked to. The tapestry-core baseline it depends on is a
+# library — characters are never stamped to a library.
+kind: world
 description: |
   The Hearthwick demo world — a small village (Hearthwick) and the wilderness
   path + outskirts around it. This is the engine's reference/demo content: the
