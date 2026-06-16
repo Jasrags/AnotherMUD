@@ -362,8 +362,52 @@ func validateItemGrades(dst *Registries) error {
 		if t.Grade != "" && !dst.Grades.Has(t.Grade) {
 			return fmt.Errorf("%w: item %q grade %q", ErrItemUnknownGrade, t.ID, t.Grade)
 		}
+		// quality_grades (masterwork §7): the map VALUES are grade keys a
+		// craft stamps onto the result, so a typo here would silently produce
+		// an ungraded crafted item — validate them too.
+		for _, g := range qualityGradeValues(t.Properties) {
+			if !dst.Grades.Has(g) {
+				return fmt.Errorf("%w: item %q quality_grades value %q", ErrItemUnknownGrade, t.ID, g)
+			}
+		}
 	}
 	return nil
+}
+
+// qualityGradeValues returns the grade keys referenced by a template's
+// `quality_grades` map (the crafting quality→grade map, masterwork §7) — its
+// VALUES. Handles the two YAML map decodings (map[string]any / map[any]any);
+// non-string or blank values are ignored (they map to no grade).
+func qualityGradeValues(props map[string]any) []string {
+	if props == nil {
+		return nil
+	}
+	raw, ok := props["quality_grades"] // matches crafting.propQualityGrades (a content wire key)
+	if !ok {
+		return nil
+	}
+	collect := func(v any) string {
+		if s, ok := v.(string); ok {
+			return strings.TrimSpace(s)
+		}
+		return ""
+	}
+	var out []string
+	switch m := raw.(type) {
+	case map[string]any:
+		for _, v := range m {
+			if s := collect(v); s != "" {
+				out = append(out, s)
+			}
+		}
+	case map[any]any:
+		for _, v := range m {
+			if s := collect(v); s != "" {
+				out = append(out, s)
+			}
+		}
+	}
+	return out
 }
 
 // poiRank orders the map point-of-interest classes by precedence so a

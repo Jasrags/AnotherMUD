@@ -134,6 +134,33 @@ content:
 	}
 }
 
+// TestLoad_RejectsUnknownQualityGradeValue extends validateItemGrades to the
+// crafting quality_grades map: a value that resolves to no registered grade
+// fails the load, so a craft-grade typo surfaces at boot instead of silently
+// producing ungraded crafted items (masterwork §7).
+func TestLoad_RejectsUnknownQualityGradeValue(t *testing.T) {
+	root := t.TempDir()
+	pack := filepath.Join(root, "core")
+	writeFile(t, filepath.Join(pack, "pack.yaml"), `
+name: tapestry-core
+content:
+  items: [items/*.yaml]
+`)
+	// No grades vocabulary, so the quality_grades value is unknown. The item
+	// has no template grade and no slots, so it reaches the grade post-pass.
+	writeFile(t, filepath.Join(pack, "items/bad.yaml"),
+		"id: bad\nname: a confused blade\ntype: weapon\nproperties:\n  quality_grades:\n    rare: masterwrok\n")
+
+	regs := NewRegistries()
+	if err := slot.RegisterEngineBaseline(regs.Slots); err != nil {
+		t.Fatalf("baseline: %v", err)
+	}
+	err := Load(context.Background(), root, nil, regs, nil, nil, nil)
+	if !errors.Is(err, ErrItemUnknownGrade) {
+		t.Fatalf("Load err = %v, want ErrItemUnknownGrade", err)
+	}
+}
+
 // TestLoad_AcceptsKnownItemSlots is the happy-path counterpart: an item
 // whose eligible + companion slots all resolve loads cleanly, and the
 // template carries the decoded slot sets.
