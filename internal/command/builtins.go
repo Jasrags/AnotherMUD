@@ -458,8 +458,9 @@ func movementHandler(dir world.Direction) Handler {
 		// moves through the primitive never pay. Checked after the other
 		// "can I take this step" gates (hidden exit, door, darkness) and
 		// before any side effect, so an insufficient pool aborts cleanly.
-		// Flat cost for now; biome-weighted cost is the next slice.
-		if !spendMovement(c) {
+		// Cost is the destination biome's weight (rough terrain costs more),
+		// falling back to the configured flat default.
+		if !spendMovement(c, dst) {
 			return c.Actor.Write(ctx, tooWindedText)
 		}
 		srcID := room.ID
@@ -539,10 +540,12 @@ const (
 	darkBlockedText     = "It is too dark to risk going that way."
 )
 
-// flatMoveCost is the movement-point cost of a single step. A flat
-// constant for the spike; a later slice derives it from the destination
-// room's biome (rough terrain costing more) with this as the fallback.
-const flatMoveCost = 1
+// fallbackMoveCost is the last-resort movement-point cost of a step when
+// neither the destination biome nor the Context configures one (e.g. test
+// paths with no biome registry and no DefaultMoveCost). Live boots set
+// Context.DefaultMoveCost from ANOTHERMUD_MOVE_COST (default 1), so this
+// only governs bare fixtures.
+const fallbackMoveCost = 1
 
 // tooWindedText is the refusal when the mover lacks the movement points
 // for a step.
@@ -557,18 +560,35 @@ type movementCostSubject interface {
 	DeductMovement(int)
 }
 
-// spendMovement charges the actor for one step and reports whether the
-// step may proceed. It returns true (allow) when the actor has no
-// movement pool that can afford a full step — a zero max (until content
-// grants one) or a cost above capacity must never strand the mover.
-// Otherwise it blocks when the current pool is short, or deducts the
-// cost and allows the step.
-func spendMovement(c *Context) bool {
+// moveCost is the movement-point cost of stepping into dst. The
+// destination biome's MoveCost wins when it sets one (rough terrain costs
+// more, world-rooms-movement §3.3); otherwise the Context's configured
+// flat default applies, and fallbackMoveCost backstops a Context that
+// configures none (bare fixtures).
+func moveCost(c *Context, dst *world.Room) int {
+	if c.Biomes != nil && dst != nil {
+		if b, ok := c.Biomes.Resolve(dst.Terrain); ok && b.MoveCost > 0 {
+			return b.MoveCost
+		}
+	}
+	if c.DefaultMoveCost > 0 {
+		return c.DefaultMoveCost
+	}
+	return fallbackMoveCost
+}
+
+// spendMovement charges the actor for one step into dst and reports
+// whether the step may proceed. It returns true (allow) when the actor has
+// no movement pool that can afford a full step — a zero max (mobs / test
+// actors) or a cost above capacity must never strand the mover. Otherwise
+// it blocks when the current pool is short, or deducts the cost and allows
+// the step.
+func spendMovement(c *Context, dst *world.Room) bool {
 	mc, ok := c.Actor.(movementCostSubject)
 	if !ok {
 		return true
 	}
-	cost := flatMoveCost
+	cost := moveCost(c, dst)
 	if cost <= 0 || mc.MovementMax() < cost {
 		return true
 	}

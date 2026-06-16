@@ -71,6 +71,7 @@ func commandEnv(cfg Config) command.Env {
 		Light:                 cfg.Light,
 		NowTick:               cfg.NowTick,
 		CorpseOwnershipWindow: cfg.CorpseOwnershipWindow,
+		DefaultMoveCost:       cfg.DefaultMoveCost,
 	}
 }
 

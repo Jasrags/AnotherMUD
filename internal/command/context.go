@@ -162,9 +162,14 @@ type Context struct {
 	// the loot verb treats every corpse as open.
 	NowTick               func() uint64
 	CorpseOwnershipWindow uint64
-	Raw                   string   // raw input line, trimmed
-	Verb                  string   // resolved verb (lowercase)
-	Args                  []string // tokens after the verb (space-split)
+	// DefaultMoveCost is the flat movement-point cost of a step when the
+	// destination biome sets none (world-rooms-movement §3.3). Copied from
+	// Env at dispatch; sourced from ANOTHERMUD_MOVE_COST (default 1). Zero
+	// in bare fixtures, where the gate falls back to fallbackMoveCost.
+	DefaultMoveCost int
+	Raw             string   // raw input line, trimmed
+	Verb            string   // resolved verb (lowercase)
+	Args            []string // tokens after the verb (space-split)
 
 	// Resolved holds the §5 typed-argument values, keyed by each
 	// declared ArgDefinition.Name, for commands that declared Args.

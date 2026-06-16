@@ -12,3 +12,6 @@ ambience:
   - The resin smell of pine sap hangs heavy between the trunks.
 forage_table: forest-forage
 node_spawn_table: forest-nodes
+# Undergrowth and roots: a step through the trees costs more movement than
+# open ground (world-rooms-movement §3.3 cost gate; default is 1).
+move_cost: 2

@@ -20,6 +20,7 @@ type File struct {
 	ForageTable     string   `yaml:"forage_table,omitempty"`
 	NodeSpawnTable  string   `yaml:"node_spawn_table,omitempty"`
 	MobSpawnTable   string   `yaml:"mob_spawn_table,omitempty"`
+	MoveCost        int      `yaml:"move_cost,omitempty"`
 }
 
 // Decode parses one biome YAML document into a *Biome. The id is required;
@@ -43,5 +44,6 @@ func Decode(data []byte) (*Biome, error) {
 		ForageTable:     f.ForageTable,
 		NodeSpawnTable:  f.NodeSpawnTable,
 		MobSpawnTable:   f.MobSpawnTable,
+		MoveCost:        f.MoveCost,
 	}, nil
 }

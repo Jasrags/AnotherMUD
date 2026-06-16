@@ -57,6 +57,13 @@ type Biome struct {
 	NodeSpawnTable string
 	MobSpawnTable  string
 
+	// MoveCost is the movement-point cost of stepping INTO a room of this
+	// biome (world-rooms-movement §3.3 cost gate). Zero (the default) means
+	// "unset" — the move command falls back to its configured flat default,
+	// so open/easy terrain leaves this absent and only rough terrain
+	// (forest, mountain, cave) opts into a higher figure.
+	MoveCost int
+
 	// Pack records the pack that registered this biome (diagnostic only,
 	// like item/recipe provenance). Empty for engine-scope biomes.
 	Pack string

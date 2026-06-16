@@ -385,6 +385,10 @@ type Env struct {
 	// for its owner set after creation (loot-and-corpses §4/§9). Zero
 	// means no reservation (open immediately).
 	CorpseOwnershipWindow uint64
+	// DefaultMoveCost is the flat movement-point cost of a step when the
+	// destination biome configures none (world-rooms-movement §3.3).
+	// Sourced from ANOTHERMUD_MOVE_COST (default 1).
+	DefaultMoveCost int
 }
 
 // TellResolver maps a player name to a recipient route. Returns

@@ -13,3 +13,6 @@ ambience:
   - The air sits cold and dead, untouched by any wind.
   - Loose grit trickles from the ceiling and goes still.
 node_spawn_table: cave-nodes
+# Uneven footing in the dark: rougher than open ground (world-rooms-movement
+# §3.3 cost gate; default is 1).
+move_cost: 2

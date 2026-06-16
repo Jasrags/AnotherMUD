@@ -11,3 +11,6 @@ ambience:
   - Scree shifts and clatters somewhere down the slope.
   - A hawk wheels high overhead, riding the updraft.
 node_spawn_table: mountain-nodes
+# Steep, broken ground: the hardest terrain to cross (world-rooms-movement
+# §3.3 cost gate; default is 1).
+move_cost: 3
