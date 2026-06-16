@@ -205,17 +205,13 @@ func engageBoar(c *telnettest.Client) error {
 // createAndLogin drives the login flow for name, creating the character with
 // wizard defaults if it's new, and returns once the in-game prompt appears.
 func createAndLogin(c *telnettest.Client, name string) error {
+	// Account-first: `name` is both the account username and the character
+	// name (the smoke harness keeps them the same).
 	isNew, err := doLogin(c, name)
 	if err != nil {
 		return err
 	}
-	if isNew {
-		return runWizardWith(c, nil)
-	}
-	if _, err := c.ExpectTimeout(gamePrompt, 8*time.Second); err != nil {
-		return fmt.Errorf("returning login never reached the game prompt: %w", err)
-	}
-	return nil
+	return finishLogin(c, name, isNew, nil)
 }
 
 // createChanneler is createAndLogin with explicit wizard answers: the given
@@ -235,37 +231,29 @@ func createChannelerClass(c *telnettest.Client, name, gender, class string) erro
 	if err != nil {
 		return err
 	}
-	if isNew {
-		return runWizardWith(c, map[string]string{"gender": gender, "class": class})
-	}
-	if _, err := c.ExpectTimeout(gamePrompt, 8*time.Second); err != nil {
-		return fmt.Errorf("returning login never reached the game prompt: %w", err)
-	}
-	return nil
+	return finishLogin(c, name, isNew, map[string]string{"gender": gender, "class": class})
 }
 
-// doLogin handles the name prompt and the password-or-email branch. It returns
-// true when this is a NEW account (the caller must then drive the creation
-// wizard); false for a returning character already logged in past the password.
-func doLogin(c *telnettest.Client, name string) (bool, error) {
-	if _, err := c.ExpectString("name shall we know you"); err != nil {
-		return false, fmt.Errorf("name prompt: %w", err)
+// doLogin authenticates (or creates) the ACCOUNT named `username` at the
+// account-first front door (character-select.md). It writes the username,
+// then drives the password branch: a new account chooses + confirms a
+// password; an existing one just enters it. Returns true for a freshly
+// created account (the caller then creates a character), false for an
+// existing one (the caller selects from the roster).
+func doLogin(c *telnettest.Client, username string) (bool, error) {
+	if _, err := c.ExpectString("Account username:"); err != nil {
+		return false, fmt.Errorf("username prompt: %w", err)
 	}
-	if err := c.SendLine(name); err != nil {
+	if err := c.SendLine(username); err != nil {
 		return false, err
 	}
-	// Returning characters are asked for a password; new ones for an email.
-	out, err := c.Expect(regexp.MustCompile(`(?i)password|email`))
+	// A new account is asked to "Choose a password"; an existing one just
+	// "Password:". Both contain "password"; the "choose" word disambiguates.
+	out, err := c.Expect(regexp.MustCompile(`(?i)password`))
 	if err != nil {
-		return false, fmt.Errorf("post-name prompt (password|email): %w", err)
+		return false, fmt.Errorf("post-username prompt: %w", err)
 	}
-	if strings.Contains(strings.ToLower(out), "email") {
-		if err := c.SendLine(name + "@smoke.test"); err != nil {
-			return false, err
-		}
-		if _, err := c.ExpectString("password"); err != nil { // "Choose a password for …:"
-			return false, fmt.Errorf("choose-password prompt: %w", err)
-		}
+	if regexp.MustCompile(`(?i)choose`).MatchString(out) {
 		if err := c.SendLine(smokePassword); err != nil {
 			return false, err
 		}
@@ -277,11 +265,37 @@ func doLogin(c *telnettest.Client, name string) (bool, error) {
 		}
 		return true, nil
 	}
-	// Returning character.
+	// Existing account.
 	if err := c.SendLine(smokePassword); err != nil {
 		return false, err
 	}
 	return false, nil
+}
+
+// finishLogin completes an authenticated session: a new account creates its
+// first character (character-name prompt → wizard with the given answers); an
+// existing account selects `charName` from the roster. Leaves the connection
+// at the in-game prompt. `charName` is used as the character name.
+func finishLogin(c *telnettest.Client, charName string, isNew bool, answers map[string]string) error {
+	if isNew {
+		if _, err := c.ExpectString("new character's name"); err != nil {
+			return fmt.Errorf("character-name prompt: %w", err)
+		}
+		if err := c.SendLine(charName); err != nil {
+			return err
+		}
+		return runWizardWith(c, answers)
+	}
+	if _, err := c.Expect(regexp.MustCompile("Select a character")); err != nil {
+		return fmt.Errorf("roster prompt: %w", err)
+	}
+	if err := c.SendLine(charName); err != nil {
+		return err
+	}
+	if _, err := c.ExpectTimeout(gamePrompt, 8*time.Second); err != nil {
+		return fmt.Errorf("login never reached the game prompt: %w", err)
+	}
+	return nil
 }
 
 // runWizardWith answers the character-creation wizard until the game prompt
