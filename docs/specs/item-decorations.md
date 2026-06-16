@@ -50,7 +50,10 @@ renders into the same item-display surfaces (look, inventory, shop).
 - Not gameplay stats. A rarity tier or essence is *presentation* — it
   colors and decorates. Any mechanical effect (a "legendary" item being
   stronger) comes from the item's own modifiers, not from its rarity key.
-  The decoration and the power are independent.
+  The decoration and the power are independent. (The **masterwork** quality
+  grade, `masterwork.md`, is the mechanical counterpart — a separate property
+  that confers a bonus and MAY reuse these rendering surfaces, but is never
+  the source of the bonus itself.)
 - Not a single system. Rarity is an *ordered ladder with decorators*;
   essence is a *flat glyph set*. They are not two views of one registry
   (§9).

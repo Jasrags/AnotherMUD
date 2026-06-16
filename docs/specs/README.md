@@ -126,6 +126,13 @@ The verbs players use and the systems that resolve them.
   Consumes the damage type `weapon-identity` recorded inertly. Layers on
   `combat` §4.4–§4.5 + the channel map; EPIC sub-epic S1 increments E+D
   *(spec; build pending)*.
+- [masterwork](masterwork.md) — item quality grades (masterwork / masterpiece /
+  power-wrought): a grade-scaled bonus delivered through existing seams — weapon
+  to-hit, power-wrought `damage_bonus`, armor check-penalty, tool skill-check —
+  plus the power-wrought unbreakable flag (a forward hook; no durability system
+  yet). The mechanical grade stays independent of the cosmetic rarity/essence
+  decoration (`item-decorations` §1.1). EPIC sub-epic S1 increment H
+  *(spec; build pending)*.
 - [saves](saves.md) — saving throws (Fortitude / Reflex / Will): three
   derived save values (class strong/weak base + governing-ability
   modifier), the `d20 + bonus vs DC` resolve primitive + the

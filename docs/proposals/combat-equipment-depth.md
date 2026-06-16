@@ -32,7 +32,7 @@ Each row is independently shippable except where a dependency is noted. Sizes ar
 | **E** | **Armor depth** | armor bonus / max-Dex / check penalty / per-type **resistance** (mitigation); armor proficiency | D (type→mitigation); slots | **spec written** ([`armor-depth.md`](../specs/armor-depth.md), build pending) | **L** |
 | **F** | **Size-relative wielding** | light/1h/2h by (weapon size − wielder size); 1.5× Str two-handed | A | **spec written** ([`size-and-wielding.md`](../specs/size-and-wielding.md), build pending) | **M** |
 | **G** | **Ranged combat** | bows/crossbows/thrown; range increments; ammo as consumables; Str-on-thrown-not-projectile | combat-model change | **big standalone spec** | **L** |
-| **H** | **Masterwork / masterpiece / power-wrought** | +N attack/damage item grades; unbreakable power-wrought | A, C | thin (rides rarity) | **S–M** |
+| **H** | **Masterwork / masterpiece / power-wrought** | +N attack/damage item grades; unbreakable power-wrought | A, C | **spec written** ([`masterwork.md`](../specs/masterwork.md), build pending) | **S–M** |
 | **I** | **Encumbrance / carry weight** | weight caps, armor speed penalty, the `Wt` column | container caps (specced §1) | spec slice | **M** |
 | **J** | **Special-weapon handlers** | reach, set-vs-charge, trip, disarm, net entangle, whip, swordbreaker | A + most of the above | per-weapon | **L, open-ended** |
 
@@ -76,6 +76,15 @@ Each row is independently shippable except where a dependency is noted. Sizes ar
 > armor proficiency, the check penalty, and don/doff timers. D's damage type is
 > consumed as the mitigation key. Speed/encumbrance (I) and shield bash (J) stay
 > out of scope.
+>
+> **H (masterwork) SPECCED 2026-06-15** — `docs/specs/masterwork.md` (forward
+> spec, build pending): an ordered quality-grade ladder (masterwork / masterpiece
+> / power-wrought) whose bonus rides existing seams — weapon to-hit, power-wrought
+> `damage_bonus`, armor check-penalty (`armor-depth §6`), tool skill-check — plus
+> the power-wrought unbreakable flag (a forward hook; no durability system yet).
+> The mechanical grade is kept **independent** of the cosmetic rarity/essence
+> decoration per `item-decorations §1.1`. Masterwork ammo defers to ranged (G);
+> visible-gear Reputation defers to S8.
 
 ## 5. Recommended first slice: M-Weapon-Identity (A + B + C)
 
