@@ -107,6 +107,33 @@ content:
 	}
 }
 
+// TestLoad_RejectsUnknownItemGrade exercises the boot post-pass
+// (validateItemGrades): an item whose `grade:` key resolves to no registered
+// grade fails the load with ErrItemUnknownGrade, naming the template — a typo
+// surfaces at boot instead of as a silently ungraded item (masterwork §2).
+func TestLoad_RejectsUnknownItemGrade(t *testing.T) {
+	root := t.TempDir()
+	pack := filepath.Join(root, "core")
+	writeFile(t, filepath.Join(pack, "pack.yaml"), `
+name: tapestry-core
+content:
+  items: [items/*.yaml]
+`)
+	// No grades vocabulary is declared, so any grade key is unknown. The item
+	// has no slots, so it clears the slot post-pass and reaches the grade one.
+	writeFile(t, filepath.Join(pack, "items/bad.yaml"),
+		"id: bad\nname: a confused blade\ntype: weapon\ngrade: masterwrok\n")
+
+	regs := NewRegistries()
+	if err := slot.RegisterEngineBaseline(regs.Slots); err != nil {
+		t.Fatalf("baseline: %v", err)
+	}
+	err := Load(context.Background(), root, nil, regs, nil, nil, nil)
+	if !errors.Is(err, ErrItemUnknownGrade) {
+		t.Fatalf("Load err = %v, want ErrItemUnknownGrade", err)
+	}
+}
+
 // TestLoad_AcceptsKnownItemSlots is the happy-path counterpart: an item
 // whose eligible + companion slots all resolve loads cleanly, and the
 // template carries the decoded slot sets.

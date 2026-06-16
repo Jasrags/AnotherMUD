@@ -49,6 +49,7 @@ var (
 	ErrMissingSpawnRoom    = errors.New("spawn rule references unknown room")
 	ErrInvalidContent      = errors.New("invalid content file")
 	ErrItemUnknownSlot     = errors.New("item references unknown slot")
+	ErrItemUnknownGrade    = errors.New("item references unknown grade")
 	ErrMissingDoorKey      = errors.New("door references unknown key template")
 )
 
@@ -236,6 +237,13 @@ func Load(ctx context.Context, root string, filter []string, dst *Registries, sp
 		return err
 	}
 
+	// Item grade references (masterwork §2) must resolve against the
+	// fully-populated grade registry. Runs after every pack loads so a grade
+	// defined by a dependency is visible (mirrors validateItemSlots).
+	if err := validateItemGrades(dst); err != nil {
+		return err
+	}
+
 	// Door key references (the item template id a keyed door requires)
 	// must resolve in the item registry. Runs after every pack has loaded
 	// so a cross-pack key (`other-pack:foo-key`) is visible regardless of
@@ -339,6 +347,20 @@ func validateItemSlots(dst *Registries) error {
 			if !dst.Slots.Has(name) {
 				return fmt.Errorf("%w: item %q companion slot %q", ErrItemUnknownSlot, t.ID, name)
 			}
+		}
+	}
+	return nil
+}
+
+// validateItemGrades verifies that every item template's quality grade (if
+// set) resolves in the grade registry (masterwork §2). Runs after all packs
+// load so a grade defined by a dependency is visible. Boot-time validation
+// turns a `grade:` typo into a precise load failure instead of a silently
+// ungraded item; the sentinel ErrItemUnknownGrade mirrors ErrItemUnknownSlot.
+func validateItemGrades(dst *Registries) error {
+	for _, t := range dst.Items.All() {
+		if t.Grade != "" && !dst.Grades.Has(t.Grade) {
+			return fmt.Errorf("%w: item %q grade %q", ErrItemUnknownGrade, t.ID, t.Grade)
 		}
 	}
 	return nil
