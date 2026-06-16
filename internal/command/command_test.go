@@ -297,6 +297,13 @@ type testActor struct {
 	carryMax      int  // StatValue(StatCarryMax); 0 ⇒ no carry-weight limit
 	nonProficient bool // IsWeaponProficient() returns !nonProficient
 
+	// Movement pool for the movement-cost gate (world-rooms-movement
+	// §3.3). mvMax 0 (the default) means no pool, so the gate is a no-op
+	// and the actor moves for free — the legacy behavior every other
+	// movement test relies on.
+	mv    int
+	mvMax int
+
 	// Concealment state for the visibility hide verbs (visibility §3.1).
 	hidden          bool
 	hideScore       int    // HideScore() return (0 ⇒ default test value below)
@@ -557,6 +564,29 @@ func (a *testActor) SetSustenance(v int) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	a.sust = v
+}
+
+// Movement / MovementMax / DeductMovement make testActor satisfy the
+// movementCostSubject the move command's cost gate looks for. With the
+// default mvMax 0 the gate is a no-op (free movement).
+func (a *testActor) Movement() int {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	return a.mv
+}
+
+func (a *testActor) MovementMax() int {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	return a.mvMax
+}
+
+func (a *testActor) DeductMovement(n int) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	if a.mv -= n; a.mv < 0 {
+		a.mv = 0
+	}
 }
 
 // RestState / SetRestState / SetRestTarget / SetSleepStart make

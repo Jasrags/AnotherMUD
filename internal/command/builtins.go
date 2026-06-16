@@ -451,6 +451,17 @@ func movementHandler(dir world.Direction) Handler {
 		if blocked, _ := dst.PropertyBool(PropRoomDarkBlocked); c.Light != nil && dstLvl <= light.Black && blocked {
 			return c.Actor.Write(ctx, darkBlockedText)
 		}
+		// Movement-cost gate (world-rooms-movement §3.3): walking spends
+		// movement points. The move primitive stays unconditional on
+		// resource availability — the spend lives here, in the
+		// player-volition command, so mob AI / flee / scripted / admin
+		// moves through the primitive never pay. Checked after the other
+		// "can I take this step" gates (hidden exit, door, darkness) and
+		// before any side effect, so an insufficient pool aborts cleanly.
+		// Flat cost for now; biome-weighted cost is the next slice.
+		if !spendMovement(c) {
+			return c.Actor.Write(ctx, tooWindedText)
+		}
 		srcID := room.ID
 		name := c.Actor.Name()
 		pid := c.Actor.PlayerID()
@@ -527,3 +538,43 @@ const (
 	PropRoomDarkBlocked = "dark_blocked"
 	darkBlockedText     = "It is too dark to risk going that way."
 )
+
+// flatMoveCost is the movement-point cost of a single step. A flat
+// constant for the spike; a later slice derives it from the destination
+// room's biome (rough terrain costing more) with this as the fallback.
+const flatMoveCost = 1
+
+// tooWindedText is the refusal when the mover lacks the movement points
+// for a step.
+const tooWindedText = "You are too winded to go that way. Catch your breath."
+
+// movementCostSubject is the optional view the movement-cost gate needs.
+// The live connActor satisfies it; bare test actors do not, so the gate
+// is a no-op for them — keeping movement-only command tests untouched.
+type movementCostSubject interface {
+	Movement() int
+	MovementMax() int
+	DeductMovement(int)
+}
+
+// spendMovement charges the actor for one step and reports whether the
+// step may proceed. It returns true (allow) when the actor has no
+// movement pool that can afford a full step — a zero max (until content
+// grants one) or a cost above capacity must never strand the mover.
+// Otherwise it blocks when the current pool is short, or deducts the
+// cost and allows the step.
+func spendMovement(c *Context) bool {
+	mc, ok := c.Actor.(movementCostSubject)
+	if !ok {
+		return true
+	}
+	cost := flatMoveCost
+	if cost <= 0 || mc.MovementMax() < cost {
+		return true
+	}
+	if mc.Movement() < cost {
+		return false
+	}
+	mc.DeductMovement(cost)
+	return true
+}

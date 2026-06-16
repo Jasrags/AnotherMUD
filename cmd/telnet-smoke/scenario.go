@@ -180,6 +180,32 @@ func scoreFortitude(c *telnettest.Client) (int, error) {
 	return n, nil
 }
 
+// movementRe pulls the current/max movement pool off the score sheet's
+// "MV cur/max" cell (the WoT S2 resource columns; ANSI markup stripped by the
+// telnet client).
+var movementRe = regexp.MustCompile(`MV\s*(\d+)/(\d+)`)
+
+// scoreMovement sends `score` and parses the (current, max) movement pool.
+func scoreMovement(c *telnettest.Client) (cur, max int, err error) {
+	if err := c.SendLine("score"); err != nil {
+		return 0, 0, err
+	}
+	out, err := c.Expect(movementRe)
+	if err != nil {
+		return 0, 0, fmt.Errorf("no MV cell on score sheet: %w", err)
+	}
+	m := movementRe.FindStringSubmatch(out)
+	cur, err = strconv.Atoi(m[1])
+	if err != nil {
+		return 0, 0, fmt.Errorf("parse MV current from %q: %w", out, err)
+	}
+	max, err = strconv.Atoi(m[2])
+	if err != nil {
+		return 0, 0, fmt.Errorf("parse MV max from %q: %w", out, err)
+	}
+	return cur, max, nil
+}
+
 // engageBoar starts combat with the wild boar, polling until one is present.
 // The Westwood spawns its boar on the area reset interval (~30s), not at boot,
 // so a freshly-booted engine has an empty room for the first half-minute — the

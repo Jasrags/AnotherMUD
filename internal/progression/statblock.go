@@ -88,22 +88,33 @@ const (
 // The six classic attributes are seeded at 10 even though only STR
 // is read by combat today, so the M8.4 stat-growth handler has a
 // non-zero baseline to apply growth dice to without first having to
-// roll a character-creation initial roll. Resource and movement
-// maxima are deliberately zero — those vital pools have no
-// consumers yet.
+// roll a character-creation initial roll. The resource (mana / One
+// Power) max stays zero — only a channeler class grants that. The
+// movement max is a flat baseline every character carries: travel now
+// spends it (the movement-cost gate in the move command), so a zero
+// pool would strand a character. Balance (final size, regen rate,
+// biome-weighted cost) is deliberately rough at this stage.
 func DefaultPlayerBase() map[StatType]int {
 	return map[StatType]int{
-		StatSTR:    10,
-		StatINT:    10,
-		StatWIS:    10,
-		StatDEX:    10,
-		StatCON:    10,
-		StatLUCK:   10,
-		StatHPMax:  20,
-		StatHitMod: 0,
-		StatAC:     10,
+		StatSTR:         10,
+		StatINT:         10,
+		StatWIS:         10,
+		StatDEX:         10,
+		StatCON:         10,
+		StatLUCK:        10,
+		StatHPMax:       20,
+		StatMovementMax: DefaultMovementMax,
+		StatHitMod:      0,
+		StatAC:          10,
 	}
 }
+
+// DefaultMovementMax is the baseline movement pool every new character
+// starts with. With a flat per-step cost of 1 it buys a stretch of
+// uninterrupted travel before the mover is winded; out-of-combat regen
+// (economy.RegenConfig.BaseMovement) refills it between bouts. A starter
+// figure, not a balanced one.
+const DefaultMovementMax = 30
 
 // ModifierType discriminates modifier application kinds. M8.1 supports
 // only Flat (additive). The discriminator is present so percent /
