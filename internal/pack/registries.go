@@ -172,5 +172,8 @@ func NewRegistries() *Registries {
 		Channels:     chat.NewRegistry(),
 		Emotes:       emote.NewRegistry(),
 		ChannelMap:   channel.NewRegistry(),
+		// Non-nil per the all-fields-initialized invariant; Load resets and
+		// repopulates it (the active world set is empty until Load runs).
+		Worlds: []string{},
 	}
 }
