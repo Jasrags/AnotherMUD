@@ -67,11 +67,11 @@ walk is metered.
   and relocating the entity belong to
   [world-rooms-movement](world-rooms-movement.md) §3.3; this feature is a
   precondition layered above it.
-- The pool substrate and regen mechanics. The renewable-pool model and
-  the out-of-combat regen heartbeat are owned by
-  [progression](progression.md) (the max attribute) and
-  [economy-survival](economy-survival.md) (regen); this spec only
-  specifies how movement *spends* the pool.
+- The pool substrate and regen mechanics. The max attribute is owned by
+  [progression](progression.md); the out-of-combat regen heartbeat is the
+  regen tick handler, modulated by the sustenance/rest multipliers
+  [economy-survival](economy-survival.md) exposes (§4.3, §5.5). This spec
+  only specifies how movement *spends* the pool.
 - Encumbrance, mounts, and fatigue conditions. Carry-weight-driven cost,
   mounted travel, and exhaustion-as-a-condition are future couplings
   (§9), not part of this slice.
@@ -96,12 +96,13 @@ A character's movement pool exposes a `current` and a `max`:
 
 ### 2.2 Regen
 
-The pool regenerates outside of combat on the regen heartbeat owned by
-[economy-survival](economy-survival.md) §4–§5, by a configured amount
-per regen tick, independent of hit-point fullness. A dead or
-disconnected character does not regenerate. This spec does not redefine
-that heartbeat; it only relies on it to make the pool renewable rather
-than a one-time budget.
+The pool regenerates outside of combat on the **regen tick handler**, by
+a configured amount per regen tick, independent of hit-point fullness,
+and modulated by the sustenance/rest regen multipliers
+[economy-survival](economy-survival.md) exposes (§4.3, §5.5). A dead or
+disconnected character does not regenerate. This spec does not define the
+heartbeat or the multipliers; it only relies on them to make the pool
+renewable rather than a one-time budget.
 
 **Acceptance criteria**
 
@@ -264,7 +265,8 @@ on load. A character whose persisted base predates this feature acquires
 the baseline max from the engine default at load (the construction
 default is merged under the persisted base), and a save migration makes
 that value explicit on disk. See [progression](progression.md) for the
-base-attribute persistence and the migration that backfills it.
+base-attribute semantics, and [persistence](persistence.md) for the
+persisted base block and the versioned migration that backfills it.
 
 **Acceptance criteria**
 
@@ -292,7 +294,8 @@ The following are externally configurable and not fixed by this spec.
 | Policy | Where it applies |
 |---|---|
 | Baseline movement-pool max for a new character | §2.1 |
-| Out-of-combat movement regen amount and cadence | §2.2 (owned by economy-survival) |
+| Out-of-combat movement regen amount and cadence | §2.2 (the regen tick handler) |
+| Sustenance/rest regen multipliers applied to the pool | §2.2 (owned by economy-survival §4.3, §5.5) |
 | Flat default per-step cost | §4.2 |
 | Per-biome movement cost | §4.1 (content) |
 | The user-facing refusal and difficulty-hint copy | §3.4, §5 |

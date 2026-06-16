@@ -89,8 +89,8 @@ The simulated environment and the things in it.
   primitive, terrain-weighted step cost via [biomes](biomes.md), the
   never-strand safety rule, and the difficulty hint. Owns the cost
   concern `world-rooms-movement` §3.3 declares a non-goal; spends the
-  generalized pool ([progression](progression.md) max,
-  [economy-survival](economy-survival.md) regen).
+  generalized pool ([progression](progression.md) max, regen-tick
+  heartbeat with [economy-survival](economy-survival.md) multipliers).
 - [room-coordinates](room-coordinates.md) — area-local integer
   `(x, y, z)` **derived from the exit graph** at load: the
   derivation walk, the collision / non-square-loop / unplaced-room
