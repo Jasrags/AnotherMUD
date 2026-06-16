@@ -460,9 +460,15 @@ func movementHandler(dir world.Direction) Handler {
 		// before any side effect, so an insufficient pool aborts cleanly.
 		// Cost is the destination biome's weight (rough terrain costs more),
 		// falling back to the configured flat default.
-		if !spendMovement(c, dst) {
+		dstCost := moveCost(c, dst)
+		if !spendMovement(c, dstCost) {
 			return c.Actor.Write(ctx, tooWindedText)
 		}
+		// Terrain-difficulty hint: stepping onto rougher ground than the room
+		// just left costs more movement, so name it once on the transition
+		// (silent when walking within one terrain) so the larger spend isn't a
+		// mystery. Measured against the source room before the actor leaves.
+		harderGoing := dstCost > moveCost(c, room)
 		srcID := room.ID
 		name := c.Actor.Name()
 		pid := c.Actor.PlayerID()
@@ -523,6 +529,10 @@ func movementHandler(dir world.Direction) Handler {
 				}
 			}
 		}
+		// Below the room text, flag the rougher terrain (see harderGoing).
+		if harderGoing {
+			_ = c.Actor.Write(ctx, goingHardText)
+		}
 		// Deferred (full) hook AFTER the description so non-hostile
 		// reactions arrive below the room text.
 		if c.Disposition != nil && pid != "" {
@@ -551,6 +561,10 @@ const fallbackMoveCost = 1
 // for a step.
 const tooWindedText = "You are too winded to go that way. Catch your breath."
 
+// goingHardText is the subtle line shown when a step crosses onto terrain
+// that costs more movement than the ground just left (rough country).
+const goingHardText = "<subtle>The going is hard here.</subtle>"
+
 // movementCostSubject is the optional view the movement-cost gate needs.
 // The live connActor satisfies it; bare test actors do not, so the gate
 // is a no-op for them — keeping movement-only command tests untouched.
@@ -577,18 +591,17 @@ func moveCost(c *Context, dst *world.Room) int {
 	return fallbackMoveCost
 }
 
-// spendMovement charges the actor for one step into dst and reports
+// spendMovement charges the actor cost points for one step and reports
 // whether the step may proceed. It returns true (allow) when the actor has
 // no movement pool that can afford a full step — a zero max (mobs / test
 // actors) or a cost above capacity must never strand the mover. Otherwise
 // it blocks when the current pool is short, or deducts the cost and allows
 // the step.
-func spendMovement(c *Context, dst *world.Room) bool {
+func spendMovement(c *Context, cost int) bool {
 	mc, ok := c.Actor.(movementCostSubject)
 	if !ok {
 		return true
 	}
-	cost := moveCost(c, dst)
 	if cost <= 0 || mc.MovementMax() < cost {
 		return true
 	}

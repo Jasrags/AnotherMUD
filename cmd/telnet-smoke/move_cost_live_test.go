@@ -5,6 +5,7 @@ package main
 import (
 	"os"
 	"regexp"
+	"strings"
 	"testing"
 	"time"
 
@@ -85,9 +86,9 @@ func TestLive_BiomeWeightedMovementCost(t *testing.T) {
 		t.Fatalf("read starting movement: %v", err)
 	}
 
-	walkStep(t, c, "south") // town-square -> village-gate (cost 1)
-	walkStep(t, c, "south") // village-gate -> meadow      (cost 1)
-	walkStep(t, c, "east")  // meadow -> forest-edge        (forest, cost 2)
+	walkStep(t, c, "south")              // town-square -> village-gate (cost 1)
+	walkStep(t, c, "south")              // village-gate -> meadow      (cost 1)
+	forestStep := walkStep(t, c, "east") // meadow -> forest-edge   (forest, cost 2)
 
 	after, _, err := scoreMovement(c)
 	if err != nil {
@@ -98,20 +99,27 @@ func TestLive_BiomeWeightedMovementCost(t *testing.T) {
 		t.Fatalf("3 steps ending in a forest should spend %d (1+1+2), spent %d (%d/%d -> %d/%d)",
 			wantSpent, spent, max, max, after, max)
 	}
-	t.Logf("biome-weighted cost verified: 3 steps (last into forest) spent %d points, %d/%d -> %d/%d",
+	// The forest step crossed onto rougher ground, so it carries the hint.
+	if !strings.Contains(forestStep, "going is hard") {
+		t.Fatalf("step into forest should show the hard-going hint, got:\n%s", forestStep)
+	}
+	t.Logf("biome-weighted cost + hard-going hint verified: 3 steps (last into forest) spent %d points, %d/%d -> %d/%d",
 		wantSpent, max, max, after, max)
 }
 
 // walkStep sends one movement command and waits for the next prompt so the
-// engine processes it before the caller's follow-up command.
-func walkStep(t *testing.T, c *telnettest.Client, dir string) {
+// engine processes it before the caller's follow-up command. It returns the
+// output captured up to that prompt (room view + any movement lines).
+func walkStep(t *testing.T, c *telnettest.Client, dir string) string {
 	t.Helper()
 	if err := c.SendLine(dir); err != nil {
 		t.Fatalf("send %s: %v", dir, err)
 	}
-	if _, err := c.ExpectTimeout(promptOrBlocked, 4*time.Second); err != nil {
+	out, err := c.ExpectTimeout(promptOrBlocked, 4*time.Second)
+	if err != nil {
 		t.Fatalf("no prompt after %s: %v", dir, err)
 	}
+	return out
 }
 
 // promptOrBlocked matches the in-game status prompt (every command echoes one)

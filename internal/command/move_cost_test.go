@@ -120,6 +120,47 @@ func TestMove_BiomeWeightedCost(t *testing.T) {
 	}
 }
 
+// Stepping onto rougher terrain than the room just left surfaces the
+// "going is hard" hint; walking within the same terrain stays silent.
+func TestMove_HardGoingHintOnRougherTerrain(t *testing.T) {
+	// road(outdoors) -e-> wood(forest) -e-> deep(forest), and back west.
+	road := &world.Room{ID: "road", Name: "Road", Terrain: world.TerrainOutdoors,
+		Exits: map[world.Direction]world.Exit{world.DirEast: {Target: "wood"}}}
+	wood := &world.Room{ID: "wood", Name: "Wood", Terrain: "forest",
+		Exits: map[world.Direction]world.Exit{world.DirEast: {Target: "deep"}, world.DirWest: {Target: "road"}}}
+	deep := &world.Room{ID: "deep", Name: "Deep Wood", Terrain: "forest",
+		Exits: map[world.Direction]world.Exit{world.DirWest: {Target: "wood"}}}
+	w := world.New()
+	w.AddRoom(road)
+	w.AddRoom(wood)
+	w.AddRoom(deep)
+
+	biomes := biome.NewRegistry()
+	if err := biomes.RegisterEngine(&biome.Biome{ID: "forest", MoveCost: 2}); err != nil {
+		t.Fatalf("register forest biome: %v", err)
+	}
+
+	actor := newTestActor(road)
+	actor.mvMax, actor.mv = 20, 20
+
+	// road (cost 1) -> wood (forest, cost 2): rougher, so the hint fires.
+	if err := moveCostBiomeDispatch(w, biomes, 1, actor, "e"); err != nil {
+		t.Fatalf("move east: %v", err)
+	}
+	if joined := strings.Join(actorLines(actor), "\n"); !strings.Contains(joined, "going is hard") {
+		t.Fatalf("entering forest from open ground should hint hard going:\n%s", joined)
+	}
+
+	// wood -> deep: same terrain (forest -> forest), so no new hint.
+	actor.lines = nil
+	if err := moveCostBiomeDispatch(w, biomes, 1, actor, "e"); err != nil {
+		t.Fatalf("move east again: %v", err)
+	}
+	if joined := strings.Join(actorLines(actor), "\n"); strings.Contains(joined, "going is hard") {
+		t.Fatalf("walking within forest should not repeat the hint:\n%s", joined)
+	}
+}
+
 // When the destination biome sets no MoveCost, the Env's flat default applies.
 func TestMove_DefaultCostWhenBiomeUnset(t *testing.T) {
 	w, a, _ := moveCostWorld() // both rooms are bare outdoors, no biome registered
