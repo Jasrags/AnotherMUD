@@ -127,7 +127,7 @@ import (
 // means "knows no recipes beyond what a discipline grants at runtime";
 // the migration injects nothing. A known id whose recipe was removed from
 // content loads cleanly and is ignored at restore (§9), never an error.
-const CurrentVersion = 22
+const CurrentVersion = 23
 
 // Sentinel errors callers may check via errors.Is.
 var (
@@ -329,6 +329,14 @@ type Save struct {
 	// mana/movement default full) writes no `pools:` key and a pre-v21 save
 	// round-trips as "all pools full on login".
 	Pools pool.Snapshot `yaml:"pools,omitempty"`
+
+	// WorldID is the leaf ruleset pack this character belongs to
+	// (character-identity §3) — e.g. "starter-world" or "wot". Stamped at
+	// creation from the active world; the login gate refuses a character
+	// whose WorldID is not in the server's active world set. Added in v23;
+	// pre-v23 saves are backfilled from the Location namespace by
+	// migrateV22toV23. Never empty after migration.
+	WorldID string `yaml:"world_id,omitempty"`
 }
 
 // KnownFeat is one taken feat on a player save (EPIC S4 Phase 2 —
@@ -542,6 +550,7 @@ var playerMigrations = map[int]func(map[string]any) (map[string]any, error){
 	19: migrateV19toV20,
 	20: migrateV20toV21,
 	21: migrateV21toV22,
+	22: migrateV22toV23,
 }
 
 // migrateV1toV2 adds the empty inventory/equipment blocks introduced
@@ -844,6 +853,32 @@ func migrateV20toV21(in map[string]any) (map[string]any, error) {
 // affinity". Existing characters keep their weaves at full potency until a
 // gender is assigned, so the migration is a no-op.
 func migrateV21toV22(in map[string]any) (map[string]any, error) {
+	return in, nil
+}
+
+// DefaultBackfillWorld is the world a pre-v23 save is stamped with when its
+// Location has no parseable namespace (character-identity §4). It matches the
+// engine's default start world.
+const DefaultBackfillWorld = "starter-world"
+
+// migrateV22toV23 backfills the `world_id` field introduced for world-locking
+// (character-identity §4). It derives the world from the namespace of the
+// save's `location` room id ("starter-world:town-square" → "starter-world"),
+// falling back to DefaultBackfillWorld when location is missing or carries no
+// namespace. Deterministic; needs no operator input. After this every save has
+// a non-empty world_id, so the login gate never sees an unstamped character.
+func migrateV22toV23(in map[string]any) (map[string]any, error) {
+	world := DefaultBackfillWorld
+	if locRaw, ok := in["location"]; ok {
+		if loc, ok := locRaw.(string); ok {
+			if ns, _, found := strings.Cut(loc, ":"); found {
+				if ns = strings.TrimSpace(ns); ns != "" {
+					world = ns
+				}
+			}
+		}
+	}
+	in["world_id"] = world
 	return in, nil
 }
 

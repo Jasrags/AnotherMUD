@@ -320,6 +320,54 @@ func TestLoad_V2EquipmentMigratesToV3Struct(t *testing.T) {
 	}
 }
 
+func TestLoad_V22BackfillsWorldIDFromLocationNamespace(t *testing.T) {
+	// character-identity §4: a pre-v23 save is stamped with the world derived
+	// from its location room-id namespace.
+	ctx := context.Background()
+	st, dir := newStore(t)
+	playerDir := filepath.Join(dir, "players", "wotchar")
+	if err := os.MkdirAll(playerDir, 0o755); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(playerDir, "player.yaml"),
+		[]byte("version: 22\nid: p-1\naccount_id: acct-1\nname: WotChar\nlocation: wot:the-green\n"),
+		0o600); err != nil {
+		t.Fatalf("write: %v", err)
+	}
+	got, err := st.Load(ctx, "wotchar")
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if got.Version != player.CurrentVersion {
+		t.Errorf("Version = %d, want %d", got.Version, player.CurrentVersion)
+	}
+	if got.WorldID != "wot" {
+		t.Errorf("WorldID = %q, want wot (derived from location namespace)", got.WorldID)
+	}
+}
+
+func TestLoad_V22BackfillsWorldIDFallbackWhenNoNamespace(t *testing.T) {
+	// A location with no namespace falls back to the default backfill world.
+	ctx := context.Background()
+	st, dir := newStore(t)
+	playerDir := filepath.Join(dir, "players", "oldchar")
+	if err := os.MkdirAll(playerDir, 0o755); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(playerDir, "player.yaml"),
+		[]byte("version: 22\nid: p-2\naccount_id: acct-1\nname: OldChar\nlocation: orphan-room\n"),
+		0o600); err != nil {
+		t.Fatalf("write: %v", err)
+	}
+	got, err := st.Load(ctx, "oldchar")
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if got.WorldID != player.DefaultBackfillWorld {
+		t.Errorf("WorldID = %q, want %q (fallback)", got.WorldID, player.DefaultBackfillWorld)
+	}
+}
+
 func TestLoad_V3InventoryMigratesToV4Entries(t *testing.T) {
 	// A v3 save with the old flat string-list inventory must lift to
 	// v4 InventoryEntry{Template, Contents=nil} entries. The migration
