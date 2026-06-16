@@ -133,6 +133,14 @@ The verbs players use and the systems that resolve them.
   yet). The mechanical grade stays independent of the cosmetic rarity/essence
   decoration (`item-decorations` §1.1). EPIC sub-epic S1 increment H
   *(spec; build pending)*.
+- [ranged-combat](ranged-combat.md) — thrown/projectile weapons via **abstract
+  per-engagement range bands** (far → near → melee) *within one room* — an archer
+  opens at range and gets shots while a melee opponent closes band by band, with
+  advance/withdraw (kiting). Plus ammo as consumables (thrown lands recoverable,
+  projectile consumes matching ammo, masterwork ammo destroyed on use) and the
+  thrown/projectile Strength rules. Built A-first (same-room ranged mechanics)
+  then B (bands); cross-room targeting deferred. All inside `internal/combat`;
+  EPIC sub-epic S1 increment G *(spec; build pending)*.
 - [saves](saves.md) — saving throws (Fortitude / Reflex / Will): three
   derived save values (class strong/weak base + governing-ability
   modifier), the `d20 + bonus vs DC` resolve primitive + the

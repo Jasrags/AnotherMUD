@@ -31,7 +31,7 @@ Each row is independently shippable except where a dependency is noted. Sizes ar
 | **D** | **Damage types (B/P/S)** | Bludgeon/Pierce/Slash on weapons | — (inert until E) | **consumed by E** ([`armor-depth.md`](../specs/armor-depth.md) §4) | **S**, low payoff alone |
 | **E** | **Armor depth** | armor bonus / max-Dex / check penalty / per-type **resistance** (mitigation); armor proficiency | D (type→mitigation); slots | **spec written** ([`armor-depth.md`](../specs/armor-depth.md), build pending) | **L** |
 | **F** | **Size-relative wielding** | light/1h/2h by (weapon size − wielder size); 1.5× Str two-handed | A | **spec written** ([`size-and-wielding.md`](../specs/size-and-wielding.md), build pending) | **M** |
-| **G** | **Ranged combat** | bows/crossbows/thrown; range increments; ammo as consumables; Str-on-thrown-not-projectile | combat-model change | **big standalone spec** | **L** |
+| **G** | **Ranged combat** | bows/crossbows/thrown; range increments; ammo as consumables; Str-on-thrown-not-projectile | combat-model change | **spec written** ([`ranged-combat.md`](../specs/ranged-combat.md), build pending — range bands within one room; cross-room deferred) | **L** |
 | **H** | **Masterwork / masterpiece / power-wrought** | +N attack/damage item grades; unbreakable power-wrought | A, C | **spec written** ([`masterwork.md`](../specs/masterwork.md), build pending) | **S–M** |
 | **I** | **Encumbrance / carry weight** | weight caps, armor speed penalty, the `Wt` column | container caps (specced §1) | spec slice | **M** |
 | **J** | **Special-weapon handlers** | reach, set-vs-charge, trip, disarm, net entangle, whip, swordbreaker | A + most of the above | per-weapon | **L, open-ended** |
@@ -85,6 +85,15 @@ Each row is independently shippable except where a dependency is noted. Sizes ar
 > The mechanical grade is kept **independent** of the cosmetic rarity/essence
 > decoration per `item-decorations §1.1`. Masterwork ammo defers to ranged (G);
 > visible-gear Reputation defers to S8.
+>
+> **G (ranged) SPECCED 2026-06-16** — `docs/specs/ranged-combat.md` (forward
+> spec, build pending), resolving the §7 ranged-model fork. Range = **abstract
+> per-engagement bands within one room** (far → near → melee; archer out-ranges,
+> melee closes band by band, advance/withdraw = kiting) — **not** cross-room
+> targeting (Model C, deferred as its own theme). Built **A-first** (same-room
+> ranged mechanics: ranged flag + ammo-as-consumables + thrown/projectile Str
+> rules) then **B** (the band state). Masterwork ammo lands here. All inside
+> `internal/combat`; the same-room invariant is preserved.
 
 ## 5. Recommended first slice: M-Weapon-Identity (A + B + C)
 
@@ -110,7 +119,7 @@ Armor depth (E), size rules (F), encumbrance (I), masterwork (H), and special we
 - **Where the non-proficient penalty applies (B).** Hit-mod only (the −4), or also a damage/speed cost? combat.md's hit path is the natural seam.
 - **Crit semantics (C).** Doubled dice vs. fixed bonus vs. max-plus-roll; threat range interacts with any future to-hit-roll model (combat is currently chance-based, not a d20 roll — does C imply a roll model?).
 - **AC model (D/E). ✅ RESOLVED 2026-06-15** (`armor-depth.md` §3–§4, §10). Armor **layers** onto a decomposed single AC (`defense` channel) — armor bonus + a max-Dex cap on the Dex term; unarmored/legacy AC unchanged ("replace" rejected — d20 armor is additive-with-a-cap). **Per-damage-type differentiation lives on the `mitigation` channel** (damage resistance / soak), **not** on AC — per-type *AC* was a category error (you resist fire, you don't dodge it). This is the cross-ruleset soak primitive: WoT leans on `defense`, a future Shadowrun pack leans on `mitigation` (physical + elemental resistance). Damage types (D) are consumed here as the mitigation key.
-- **Ranged model (G).** Does "range" mean adjacent-room targeting, an abstract range band, or stays same-room with a to-hit bonus? Ammo as standard consumables vs. a bespoke quiver slot. Str-bonus rules (full on thrown, none on projectile, negative-Str penalty on bows).
+- **Ranged model (G). ✅ RESOLVED 2026-06-16** (`ranged-combat.md` §1, §5, §9). "Range" = **abstract per-engagement range bands within one room** (far → near → melee) — the archer out-ranges and the melee opponent closes band by band — built **A-first** (same-room ranged mechanics) then **B** (bands). **Not** cross-room targeting (Model C — a separate theme, deferred: it would invert the same-room invariant + add LoS/two-room render). Ammo = **standard consumables** (no quiver slot; thrown lands recoverable, projectile consumes matching ammo, masterwork ammo destroyed on use). Str = **full on thrown / none-positive on plain projectile (negative still applies) / capped on a Strength-rated bow**.
 - **Fidelity ceiling.** How much of the d20 system is actually wanted vs. a lighter MUD-idiomatic abstraction? The sourcebook is a tabletop ruleset; a real-time MUD may want less.
 
 ## 8. Relationship to other work
