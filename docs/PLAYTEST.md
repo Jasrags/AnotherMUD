@@ -1,17 +1,20 @@
 # AnotherMUD Playtest Guide
 
-A manual QA checklist for verifying implemented features (M0–M27 + recent
+A manual QA checklist for verifying implemented features (M0–M28 + recent
 polish: the look/consider appearance lens, tab-completion surfaces, weapon
 damage dice + critical hits, **light & darkness** — §21, **crafting &
-cooking** — §22, **player maps** — §23, **saving throws** — §24, **conditions** — §25, and
-**skills / lockpicking** — §26). Work top-to-bottom or jump to a section. Each step gives a **command** and the
-**expected behavior**; tick the box when it matches, and note anything that
-doesn't.
+cooking** — §22, **player maps** — §23, **saving throws** — §24, **conditions** — §25,
+**skills / lockpicking** — §26, **channeling** — §27, **movement cost &
+encumbrance** — §28, **gathering** — §29, **visibility & hidden exits** — §30,
+**feats** — §31, and **masterwork item grades** — §32). Work top-to-bottom or jump
+to a section. Each step gives a **command** and the **expected behavior**; tick
+the box when it matches, and note anything that doesn't.
 
 > **§27 (Channeling — the One Power)** is a **separate pack**: it runs the
 > **Wheel of Time** world (`make run-wot`), not the core/starter-world demo the
-> rest of this guide assumes. The pre-built Jasrags/Bob characters belong to the
-> core pack — make a fresh **channeler** in the WoT boot. See §27's own boot block.
+> rest of this guide assumes. The `admin1`/`player1` characters you make below are
+> core-pack fighters — make a fresh **channeler** in the WoT boot. See §27's own
+> boot block.
 
 > Format: `- [ ] command` — what should happen. Mark `[x]` on pass; add a
 > `BUG:` note inline on fail.
@@ -46,49 +49,86 @@ ANOTHERMUD_CORPSE_LIFETIME=30s \
 ANOTHERMUD_CORPSE_OWNERSHIP_WINDOW=20s \
 ANOTHERMUD_LINKDEAD_TIMEOUT=20s \
 ANOTHERMUD_IDLE_SWEEP_INTERVAL=10s \
+ANOTHERMUD_FORAGE_COOLDOWN=5s \
 ANOTHERMUD_WS_ADDR=:4001 \
 go run ./cmd/anothermud
 ```
 
-(WebSocket on `:4001` is only needed for §17.)
+(WebSocket on `:4001` is only needed for §17. `FORAGE_COOLDOWN` helps §29.)
 
-### Test characters (already provisioned)
+### Provision your test characters (self-serve)
 
-Two characters are pre-built in `saves/`. Log in by typing the **name**, then
-your existing password (the accounts already exist — `jrags@jasrags.net` /
-`bob@bob.com`).
+The guide is **self-provisioning** — it does not assume any pre-built saves.
+Boot the server with an **admin seed** so the first character you make is an
+admin (`roles-and-permissions` §5; the seed grants the role by character name
+when that character logs in):
 
-| Char | Level | Role | Gear / gold | Use for |
-|---|---|---|---|---|
-| **Jasrags** | 10 fighter (110 HP) | **admin** | full kit + 1000g, slash/parry/kick/heal/bless learned | most testing + all admin verbs |
-| **Bob** | 5 fighter (55 HP) | player | starter kit + 200g, slash learned | 2nd player for social/combat/trade |
+```sh
+ANOTHERMUD_ROLE_SEED="admin1:admin" make run
+```
 
-Both spawn in **Town Square** with their kit in **inventory** — `equip sword`
-and `equip cap` first thing. Multi-player sections (§11) need both logged in at
-once (two telnet windows).
+Then create three fresh **fighters** (see §1 login + §2 creation):
 
-### The world (core pack)
+| Char | Boot as | Role | Use for |
+|---|---|---|---|
+| **admin1** | seeded `admin1:admin` | **admin** | most testing + all admin verbs |
+| **player1** | normal | player | 2nd player for social/combat/trade (§11) |
+| **player2** | normal | player | 3rd party where a test needs one |
+
+You can put all three under **one account** (the roster holds many characters —
+§1) or separate accounts; for the multi-session tests (§11) log two in at once
+in two telnet windows. A fresh fighter starts at **Town Square** at level 1 with
+its kit in **inventory** — `equip sword` and `equip cap` first thing.
+
+**Bootstrap `admin1` to a useful state** (it starts level 1). As `admin1`, the
+admin verbs (§17) let you skip the grind:
+
+- `xp 5000` — level up (a fighter gains HP + STR per level; repeat to taste).
+- `set stat str admin1 16` etc. — raise an attribute directly.
+- `restore` — refill vitals + sustenance.
+- For gold, sell starter kit or use shops (§9); there is no direct "give gold"
+  admin verb, so buy/sell to seed a balance if a test needs one.
+
+A fresh fighter already knows `kick`, `heal`, `bless`, `parry`, `trip`, `bash`,
+and `open-lock` at level 1 (the class path); `slash`/`parry` deepen at the
+trainer (Maerys, §8). So most `cast …` steps work on a brand-new fighter — only
+`slash` needs a trainer visit first.
+
+### The world (core / starter-world pack)
 
 ```
-        Hearthwick Forge (Maerys trainer; Brandr      [indoors]
-              |  blacksmith — smithing trainer+shop,    Tier-2 smithing
-              |  down: oak door (plain)                  station
-        Forge Cellar (iron key)                   [underground]
-              |  down: iron door (locked)
-        Forge Vault (coins)                       [underground]
+   Forge Nook  ·· (hidden: `search` in the Forge — §30)
+        |
+   Hearthwick Forge (Maerys trainer; Brandr blacksmith)   [indoors, lit]
+        |   down: oak door (plain)
+   Forge Cellar (iron key; pine torch)                     [underground, dim]
+        |   down: iron door (locked / pickable — §26)
+   Forge Vault (coins)                                      [underground, black]
 
-        Hearthwick Forge
-              |
-   Market Row — Town Square — Village Gate — Long-Grass Meadow
-   (Marta cook —  (safe hub,        (wilderness)   (bandit — combat arena)
-    cooking         well, gear)
-    trainer+shop,
-    Tier-2 kitchen)
+   Forge
+     |
+   Market Row — Town Square — Village Gate
+   (Marta cook)   (safe hub)        |
+                                  Long-Grass Meadow   (grassland · bandit arena)
+                                     |  e
+                                  The Forest's Edge   (forest · forage)
+                                   /  |  \
+                              (meadow) e  s
+                                      |   Cave Mouth (cave) — down → Old Diggings (cave)
+                                  Deep Forest (forest · forage)
+                                      |  s
+                                  Rocky Foothills (mountain)
+                                      |  w
+                                  Cave Mouth → down → Old Diggings
 ```
 
 - **Town Square** is a `safe-room` — combat is blocked here. The **Meadow**
   (south through the Gate) is the one place you can fight: a hostile **road
   bandit** spawns there with loot + coins.
+- The **wilderness loop** east/south of the Meadow (Forest's Edge → Deep Forest
+  → Foothills → Cave Mouth → Old Diggings) is the showcase for **biome-weighted
+  movement cost** (§28) and **gathering** (§29): grassland/forest/mountain/cave
+  cost different amounts to cross and carry different forage.
 - Below the Forge is a **door test branch** (§12): `down` through a plain
   oak door to the **Forge Cellar**, then `down` through a *locked* iron
   door (key in the cellar) to the **Forge Vault**.
@@ -101,25 +141,68 @@ once (two telnet windows).
 
 ---
 
-## 1. Connection & login
+## 1. Connection & login (account-first + roster)
 
-- [x] `telnet localhost 4000` — you get a name prompt.
-- [x] Enter `Jasrags`, then the password — you land in Town Square with its
-      room description, exits, and a "You see here:" line.
-- [x] Enter a wrong password — rejected, re-prompted (not crashed).
-- [x] Type a name with a digit/symbol (e.g. `Tester1`) — rejected with "Names
-      must use ASCII letters only." (names are letters-only, 2–16 chars).
-- [x] Type a brand-new letters-only name (e.g. `Tester`) — it asks for email,
-      then a new password with confirmation (new-account flow).
-- [x] `quit` — "Goodbye." and the connection closes; reconnecting and logging
-      back in puts you in the room you left.
+Login is **account-first**: you authenticate an **account username** (not a
+character name, and **email is no longer asked**), then pick a character from the
+account's **roster** or create a new one. One account can hold many characters.
+
+### New account + first character
+
+- [ ] `telnet localhost 4000` — "Welcome to AnotherMUD." then "Account
+      username:".
+- [ ] Enter a brand-new username (e.g. `admin1`) — "No account named "admin1"
+      exists. Creating it." then "Choose a password:" → "Confirm password:".
+- [ ] Mismatch the confirmation — "Passwords did not match…" and it bounces back
+      to the username prompt (no account created).
+- [ ] A too-short password (< 6) — "Passwords must be at least 6 characters."
+- [ ] A bad username (spaces/symbols, or < 3 / > 32 chars) — "Usernames are 3-32
+      characters: letters, digits, or underscore."
+- [ ] On a matching password, the account is created and the roster is **empty**
+      — it drops you straight into character creation (§2).
+
+### Existing account + roster
+
+- [ ] Reconnect, enter `admin1`, then the password — "Your characters:" lists
+      your characters, one per numbered line with its `[world]`, plus a final
+      "create a new character" entry; the prompt is "Select a character (number
+      or name), or 'n' to create:".
+- [ ] Select a character by **number** or by **name** — you land in its room with
+      the room description, exits, and a "You see here:" line.
+- [ ] Enter a wrong password — rejected; after several failures the connection
+      closes (not crashed).
+- [ ] Pick an out-of-list number/name — "No such character. Pick a number from
+      the list, or 'n' to create." (re-prompted).
+- [ ] `n` at the roster — starts a fresh character (§2) under the same account.
+- [ ] `quit` — "Goodbye." and the connection closes; reconnecting, authenticating,
+      and selecting the same character puts you back where you left it.
+
+> **World-locking (character-identity):** a character whose world isn't running
+> on this server shows in the roster marked **"(unavailable on this server)"** and
+> can't be selected — picking it replies "…belongs to the "<world>" world, which
+> is not running on this server." (Make a core character on the default boot and a
+> WoT channeler on the `wot` boot — §27 — to see one greyed out under the other.)
 
 ## 2. Character creation (new character)
 
-- [x] With a new name, walk the wizard — you're prompted to choose a **race**
-      (human/dwarf) and **class** (fighter), with descriptions.
-- [x] Complete it — character commits, spawns at Town Square, and survives a
-      `quit` + relog (it's persisted).
+Reached by creating a new account or choosing `n` at the roster (§1). The wizard
+asks for a **character name** (letters-only, 2–16 chars — a digit/symbol is
+rejected with "Names must use ASCII letters only."), then walks the choice steps.
+
+- [ ] Walk the wizard — after "Time to create your character." it prompts, in
+      order:
+      **gender** ("Choose your gender:" — 1) Male 2) Female),
+      then **race** ("Choose your race:" — 1) Dwarf 2) Human, each with a
+      one-line description),
+      then **class** ("Choose your class:" — 1) Fighter),
+      then **background** ("Choose your background:" — 1) Commoner).
+      Each choice accepts the **number** or a **name prefix** (`d`/`dw` → Dwarf).
+- [ ] Final step: "Create this character? (yes/no)" — answer `no` and it restarts
+      ("All right, let's start over."); answer `yes` and the character commits.
+- [ ] It spawns at **Town Square**, and `score` shows the chosen
+      **Gender Race Class** identity line plus the background.
+- [ ] `quit` + relog (authenticate, pick it from the roster) — the character
+      persisted.
 
 ## 3. Movement & rooms
 
@@ -140,6 +223,10 @@ once (two telnet windows).
       run immediately, not paced across ticks.
 - [x] When another player is present, you see "X arrives" / "X leaves" as they
       move (covered in §11).
+- [ ] **Wilderness loop:** from the Meadow, `e` to the Forest's Edge, then `e`
+      Deep Forest, `s` Foothills, `w` Cave Mouth, `down` to the Old Diggings —
+      this loop drives **movement cost** (§28) and **gathering** (§29). Each step
+      spends **movement points** (see §28); `score` shows your `MV` pool.
 
 ## 4. Items & inventory
 
@@ -214,9 +301,15 @@ Go to the **Meadow** (`s` from the Gate). The bandit is hostile.
 - [x] `flee` — escapes combat to an adjacent room (when there's an exit); you
       see the new room rendered, and others see "X flees to the <dir>!".
 - [x] `wimpy 30` then fight — at ≤30% HP you auto-flee.
-- [x] Let the bandit kill a low-HP character (use Bob unarmed) — on death you
+- [x] Let the bandit kill a low-HP character (use player1 unarmed) — on death you
       respawn (healed) at the recall/start room, not disconnected.
-- [x] `cast slash` / `cast kick` in combat — the ability fires (Jasrags has them).
+- [x] `cast kick` in combat — the ability fires (a fresh fighter has `kick`,
+      `bash`, `trip`; `slash` is learned at Maerys first — `practice slash`, §8).
+- [ ] **Weapon proficiency (weapon-identity §3):** a fighter is proficient with
+      **simple + martial** weapons, so the short sword carries no penalty. Wield
+      an **exotic** weapon a fighter isn't proficient with (none ship in the core
+      demo — see the WoT ashandarei in §32's boot) and the to-hit takes the
+      non-proficient penalty until a feat grants the kind (§31).
 
 ## 7. Loot & corpses
 
@@ -235,7 +328,7 @@ After killing the bandit (Meadow):
       is removed once empty.
 - [x] `autoloot on`, kill the bandit again — its loot is taken automatically at
       death ("You quickly loot…"); `autoloot off` restores manual looting.
-- [x] Ownership window: with Bob also present, Bob looting *your* fresh kill is
+- [x] Ownership window: with player1 also present, player1 looting *your* fresh kill is
       refused during the window, then allowed after it elapses
       (`CORPSE_OWNERSHIP_WINDOW`).
 - [x] Decay: kill the bandit, leave the corpse; after `CORPSE_LIFETIME` it
@@ -249,16 +342,17 @@ After killing the bandit (Meadow):
 - [x] `consider` with no target (or `consider me`) — points you to `score` now
       (self stats moved there); `consider <target>` still sizes up that target.
 - [x] `abilities` (`abi`) — lists learned abilities + proficiencies.
-- [ ] `train str` — spends a train credit, raises STR (Jasrags has credits).
+- [ ] `train str` — spends a train credit, raises STR (a fresh fighter has
+      starting trains; level-ups grant 5 more each).
 - [ ] At the Forge, `practice slash` (Maerys teaches slash/parry) — raises the
       ability's cap.
-- [ ] `cast bless` / `cast heal` — self buff/heal; resolves on the next
-      pulse whether in combat or idle (out-of-combat drain). bless bumps
-      AC/hit (check `score`); heal restores HP (only visible if injured —
-      take a hit first).
-- [x] (Admin) `xp 500` — grants XP; crossing a threshold levels you up with a
-      level-up message (Jasrags is level 10 / track max, so use a fresh char to
-      see a level-up, or grant on a lower track).
+- [ ] `cast bless` / `cast heal` — self buff/heal (a fresh fighter has both);
+      resolves on the next pulse whether in combat or idle (out-of-combat drain).
+      bless bumps AC/hit (check `score`); heal restores HP (only visible if
+      injured — take a hit first).
+- [ ] (Admin) `xp 500` — grants XP; crossing a threshold levels you up with a
+      level-up message. On a fresh level-1 fighter the first few grants level you
+      quickly (HP + STR climb each level — this is how you bootstrap `admin1`).
 
 ## 9. Economy & survival
 
@@ -326,32 +420,32 @@ two quests — **Forge Errand** (auto-grant) and **Gate Patrol** (turn-in)
       anywhere (not giver-bound, unlike `accept`). Only *abandonable* active
       quests are offered.
 
-## 11. Social / multi-session (Jasrags + Bob, two windows)
+## 11. Social / multi-session (admin1 + player1, two windows)
 
 - [x] Both in Town Square — `look` lists the other in "You see here:";
-      movement shows "Bob arrives" / "Bob leaves".
-- [ ] `look Bob` — Bob's **generated description** prints (the appearance lens):
-      "You see Bob, a &lt;Race&gt; &lt;Class&gt;." composed from his race/class
+      movement shows "player1 arrives" / "player1 leaves".
+- [ ] `look player1` — player1's **generated description** prints (the appearance lens):
+      "You see player1, a &lt;Race&gt; &lt;Class&gt;." composed from his race/class
       (no authored prose — players are described from their character).
-- [x] `tell Bob hello` — Bob receives it; `reply hi` goes back; `tells` shows
+- [x] `tell player1 hello` — player1 receives it; `reply hi` goes back; `tells` shows
       the history.
 - [x] `channels` (`chanlist`) — lists channels; post on one and the other sees
       it; `chathistory` (`chhist`) shows scrollback.
-- [x] `emote waves` (`pose`) — the room sees "Jasrags waves".
-- [ ] `give ration to Bob` — the ration leaves your inventory and enters Bob's
+- [x] `emote waves` (`pose`) — the room sees "admin1 waves".
+- [ ] `give ration to player1` — the ration leaves your inventory and enters player1's
       (`i` on each to confirm); both args tab-complete (item from your pack,
-      target a player). Bob must be in the room.
+      target a player). player1 must be in the room.
 - [x] `who` — lists every online character (world-wide, not just this room),
-      one per line, alphabetical, then "N players online." Jasrags shows an
+      one per line, alphabetical, then "N players online." admin1 shows an
       `[Admin]` tag; a character idle >60s shows `(idle)`. You always see
       yourself.
-- [x] Log in as Jasrags from a 3rd connection — you're prompted to **take over**
+- [x] Log in as admin1 from a 3rd connection — you're prompted to **take over**
       the existing session; confirming moves you to the new connection.
 - [x] Drop a connection abruptly (close the terminal) — the character goes
       **link-dead**, then reconnecting resumes the session; left long enough
       (`LINKDEAD_TIMEOUT`) it's swept.
 - [ ] Sit idle past `IDLE_SWEEP_INTERVAL`/idle timeout — you get an idle warning
-      then disconnect (admins are exempt — Jasrags won't be swept).
+      then disconnect (admins are exempt — admin1 won't be swept).
 
 ## 12. Doors & locks
 
@@ -415,23 +509,23 @@ while closed, and the two sides stay in sync.
 - [x] Restart the **server** (Ctrl-C, `make run` again), log back in — character
       state survived (corpses/weather/mobs reset by design; player save does not).
 
-## 17. Admin verbs (Jasrags — already admin)
+## 17. Admin verbs (as admin1 — seeded admin via `ANOTHERMUD_ROLE_SEED`)
 
 - [x] `inspect bandit` (in the Meadow) — full diagnostic record of the target.
 - [ ] `roomdata on` (admin/builder) — `look` now appends a room metadata block
       (room id, coordinates, terrain, tags, properties incl. `craft_stations`,
       exit targets); `roomdata off` removes it. Persists across logout; gated
       to admins/builders at render time.
-- [x] `restore` / `restore Bob` — refills vitals to full **and** tops off
+- [x] `restore` / `restore player1` — refills vitals to full **and** tops off
       sustenance (hunger/thirst); the reply notes "fully fed" for a player target.
 - [x] `set vital hp <target> 1` — sets a field on a target (then `restore`).
-- [x] `teleport meadow` (`goto meadow`) — jump to a room by id; `goto Bob`
+- [x] `teleport meadow` (`goto meadow`) — jump to a room by id; `goto player1`
       jumps to a player.
 - [x] `purge bandit` — removes the mob from the world.
 - [x] `announce Server test in progress` — all connected players see the
       broadcast.
-- [x] `grant builder to Bob` then `revoke builder from Bob` — role changes (Bob
-      sees nothing player-facing; verify via `inspect Bob`).
+- [x] `grant builder to player1` then `revoke builder from player1` — role changes (player1
+      sees nothing player-facing; verify via `inspect player1`).
 - [x] `xp 1000` — grants XP to yourself (admin probe).
 - [x] `reload` — reloads pack Lua scripts. The **count comes back to your
       client**: "Reloaded N script(s)." (core ships one — `track_kills.lua`).
@@ -441,7 +535,7 @@ while closed, and the two sides stay in sync.
       "Huh?". Then `badinput` lists them ranked by count (`xyzzy` ×2 on top);
       `badinput clear` resets the tracker. (Unknown verbs also log
       `event=command.unknown` on the server.)
-- [ ] As **Bob** (non-admin), any admin verb (`inspect`, `goto`, …) — refused /
+- [ ] As **player1** (non-admin), any admin verb (`inspect`, `goto`, …) — refused /
       hidden in `help`.
 
 ## 18. Modern client (WebSocket / GMCP / MSSP)
@@ -510,7 +604,7 @@ type. (Trailing space is trimmed, so type a partial letter: `suggest get s`.)
 
 ### `complete` — admin debug dump
 
-Run as **Jasrags** (admin); prints the raw candidate set (kind/token/display).
+Run as **admin1** (admin); prints the raw candidate set (kind/token/display).
 
 > Note: the verb can't express a *trailing space* (the input is trimmed), so to
 > see a fresh argument slot type a partial letter (`complete get s`, not
@@ -551,7 +645,7 @@ In the **Meadow** (`s` from the Gate — the road bandit is here):
 - [x] `complete say hel` — argument slot, but **no candidates** (`say`'s body is
       free text — nothing to enumerate).
 - [x] `complete frobnicate x` — "no completable slot" (unknown verb).
-- [ ] As **Bob** (non-admin), `complete loo` — refused with `Huh?`, identical to
+- [ ] As **player1** (non-admin), `complete loo` — refused with `Huh?`, identical to
       an unknown verb (the debug verb's existence is not disclosed).
 
 ## 21. Light & darkness
@@ -646,7 +740,8 @@ Crafting turns inputs into an output via a **recipe**, gated by a **discipline**
 (a proficiency you learn at a trainer), the **station** you work at, your
 **tool**, and **ingredient** quality. Output quality renders as a rarity tier.
 Cooking is crafting whose output is food (clears sustenance; at quality, grants
-a **well-fed** buff). Use **Jasrags** (has 1000g for ingredients).
+a **well-fed** buff). Use a character with some gold for ingredients (sell
+starter kit or seed a balance via shops, §9 — or gather your own inputs, §29).
 
 The craft NPCs/stations in the core pack:
 
@@ -714,10 +809,11 @@ The craft NPCs/stations in the core pack:
       known recipes persist (player save v17). A crafted item keeps its rolled
       quality across logout.
 
-> Acquisition today is **baseline only** (learning a discipline grants its
-> starter recipes); common/uncommon/rare/regional recipes via shops/quests/loot,
-> and **gathering** as the real ingredient source (vs. the current vendor
-> stopgap), are post-MVP — see `docs/BACKLOG.md`.
+> **Gathering** is the real ingredient source now (forage/harvest over biome
+> resource tables — see **§29**); the vendor ingredients above are a convenience,
+> not the only path. Recipe-acquisition breadth (common/uncommon/rare/regional
+> recipes via shops/quests/loot beyond the starter set) is the remaining post-MVP
+> piece — see `docs/BACKLOG.md`.
 
 ## 23. Player maps
 
@@ -784,18 +880,18 @@ Status conditions are flagged effects that change combat. The **Core 5**:
 **blinded** (heavy −to-hit + easier to hit), **frightened** (−attack/−saves +
 flees each round), **fatigued** (−Str/−Dex). They're inflicted by the admin
 `afflict` verb or the fighter's save-gated **trip**/**bash** abilities, and
-appear in `affects`. Use **Jasrags** (admin).
+appear in `affects`. Use **admin1** (admin).
 
 ### Admin inflict + the listing
 
-- [ ] `afflict Jasrags stunned` (on yourself) — "You are stunned!"; `affects`
+- [ ] `afflict admin1 stunned` (on yourself) — "You are stunned!"; `affects`
       (alias `effects`) lists `Stunned — N round(s) [condition]`.
-- [ ] `afflict Jasrags fatigued` — `score` shows STR/DEX dropped (−2 each);
-      `cure Jasrags fatigued` restores them. `cure Jasrags` clears all
+- [ ] `afflict admin1 fatigued` — `score` shows STR/DEX dropped (−2 each);
+      `cure admin1 fatigued` restores them. `cure admin1` clears all
       conditions at once (leaving non-condition buffs like bless).
 - [ ] `afflict ghost stunned` — "You don't see them here." (bad target);
-      `afflict Jasrags bless` — "no such condition" (`bless` isn't a condition).
-- [ ] As **Bob** (non-admin), `afflict Jasrags stunned` — "Huh?" (admin-gated).
+      `afflict admin1 bless` — "no such condition" (`bless` isn't a condition).
+- [ ] As **player1** (non-admin), `afflict admin1 stunned` — "Huh?" (admin-gated).
 
 ### Conditions in combat (the Meadow)
 
@@ -833,7 +929,7 @@ Fortitude save) at level 1.
 A skill is a use-based proficiency resolved by a `d20 + skill bonus vs DC`
 check (the same idiom as saves). The first consumer is **lockpicking**: the
 **Open Lock** skill vs a door's pick difficulty — a keyless alternative to
-`unlock`. The fighter learns Open Lock at creation. Use **Jasrags** or a fresh
+`unlock`. The fighter learns Open Lock at creation. Use **admin1** or a fresh
 fighter.
 
 ### The skills listing
@@ -873,7 +969,7 @@ The forge cellar's **iron door** (`down`, to the vault) is **pickable**
 ## 27. Channeling — the One Power (WoT pack)
 
 > **Different world.** This section runs the **Wheel of Time** pack, not the
-> core demo. Boot it on its own and make a fresh **channeler** (Jasrags/Bob are
+> core demo. Boot it on its own and make a fresh **channeler** (admin1/player1 are
 > core-pack fighters and don't exist here).
 
 A channeler draws the **One Power** (a pool, shown as **MA** on `score`) to weave
@@ -986,13 +1082,250 @@ begin to weave X…") and resolves a round or two later. While it warms up, a
 
 ---
 
+## 28. Movement cost & encumbrance
+
+Walking spends **movement points (MV)** from a pool, and rough terrain costs
+more per step. A fresh character has **MV 30**; the flat per-step cost is
+**`ANOTHERMUD_MOVE_COST`** (default **2**), and biomes override it. Use a fresh
+fighter (full MV).
+
+### The MV pool on the score sheet
+
+- [ ] `score` (`sc`) — the Combat column shows an **`MV <current>/<max>`** line
+      (e.g. `MV 30/30`). A non-channeler also shows `MA 0/0`.
+- [ ] Walk a few rooms in the village (Square ↔ Gate ↔ Market, all flat cost 2)
+      and re-check `score` — **MV drops** by the step cost each move.
+- [ ] Idle a while (or `rest`, §9) — **MV regenerates** over time, like HP.
+
+### Biome-weighted step cost (the wilderness loop)
+
+Costs: **grassland 2** (the flat default), **forest 3**, **mountain 4**,
+**cave 3**. From the Meadow head east/south into the loop:
+
+- [ ] From the **Meadow** (grassland, 2), `e` into **The Forest's Edge**
+      (forest, 3) — the step costs 3, and because it's *rougher than the ground
+      you left* you see the hint **"The going is hard here."**
+- [ ] `e` again into **Deep Forest** (forest, 3) — same terrain, so **no hint**
+      (it only fires when the cost goes *up*).
+- [ ] `s` into **Rocky Foothills** (mountain, 4) — the hint fires again (4 > 3),
+      and MV drops by 4.
+- [ ] `w` into **Cave Mouth** (cave, 3), `down` into the **Old Diggings** — watch
+      MV; the loop is the cheapest way to drain the pool.
+
+### Encumbrance (load → surcharge)
+
+Carry capacity is derived from **Strength** (≈ STR × 8). Load raises the per-step
+cost: **< 50%** of capacity is free, **50–89%** adds **+1** MV/step, **90%+**
+adds **+2**.
+
+- [ ] Load up (pick up the heavy starter items, or admin `set stat str <you> 6`
+      to shrink your capacity), then walk — the per-step MV cost is **higher**
+      than the unburdened baseline for the same room.
+- [ ] Try to `get` an item that would exceed your capacity — refused: **"<item>
+      is too heavy for you to carry."**
+- [ ] A creature with `carry_max` set **negative** is treated as **unlimited**
+      (the sentinel) — mobs/test actors aren't gated.
+
+### The winded gate (and the no-strand rule)
+
+- [ ] Drain MV low (cross several mountain/cave rooms), then try to move with
+      **insufficient MV** — refused: **"You are too winded to go that way. Catch
+      your breath."** Wait/`rest` for MV to regen, then continue.
+- [ ] (Design note) actors with **no MV pool at all** (mobs, scripted/admin
+      moves) move for free and are never stranded — only metered characters spend.
+
+> Tune with `ANOTHERMUD_MOVE_COST` (flat default) and per-biome `move_cost:` in
+> `content/starter-world/biomes/*.yaml`. No per-step "MV −N" feedback line is
+> shown today beyond the difficulty hint (a known LOW gap).
+
+## 29. Gathering (forage & harvest)
+
+Two ways to pull ingredients from the land: ambient **`forage`** (rolls the
+room's biome forage table, on a cooldown) and discrete **`harvest <node>`**
+(a respawning resource node, often tool-gated). Launch with
+`ANOTHERMUD_FORAGE_COOLDOWN=5s` (§0) so you don't wait between forages.
+
+### Forage (ambient, biome-driven)
+
+- [ ] In the **Meadow** (grassland), `forage` (alias `gather`) — **"You forage
+      <item>."** (a wild herb or, less often, a wildflower). `i` shows it.
+- [ ] `forage` again immediately — cooldown: **"You've picked this area over;
+      give it time to recover."** Wait out `FORAGE_COOLDOWN`, then it works again.
+- [ ] In **The Forest's Edge** / **Deep Forest** (forest), `forage` — yields the
+      forest table (wild herb or forest mushroom, both cooking ingredients).
+- [ ] In **Rocky Foothills** (mountain) or a cave room, `forage` — **"There's
+      nothing to forage here."** (those biomes declare no forage table — absence,
+      not a refusal).
+- [ ] `abilities` (`abi`) — a **gathering** proficiency appears and **climbs**
+      with successful forages (use-based gain).
+
+### Harvest (resource nodes, tool-gated)
+
+Nodes spawn **per biome on the area cadence** (not hand-placed) — one per room:
+**timber stands** in forest rooms, **rock outcrops** in grassland/mountain,
+**iron veins** in caves. They need the right tool: an **axe** (woodcutting) for
+timber, a **pickaxe** (mining) for outcrops/veins.
+
+- [ ] In a forest room, `look` for **"a stand of straight timber"** (give the
+      server a moment after boot for nodes to spawn). With a woodcutting axe in
+      hand, `harvest timber` — **"You harvest <item>."** (timber-stand has **3
+      charges**).
+- [ ] `harvest timber` with **no axe** — refused: **"You need … to harvest
+      that."** (the one allowed harvest refusal — a tool gate).
+- [ ] Work a node to empty — the last charge reads **"You harvest <item>. <node>
+      is exhausted."**; a further `harvest` says **"<node> has nothing left to
+      give."** until it respawns.
+- [ ] In the **Meadow** or **Foothills**, `harvest outcrop` (rock, 2 charges,
+      pickaxe); in a **cave** room, `harvest vein` (iron ore, 3 charges, pickaxe).
+
+> Node/forage state is **transient** — depletion and cooldowns reset on restart
+> (they're not persisted). Gathering feeds the §22 crafting loop (the forest/cave
+> yields are smithing/cooking inputs).
+
+## 30. Visibility & hidden exits
+
+Concealment is a per-observer "can X see Y?" model: **hide**, moving **sneak**,
+admin **wizinvis**, and the **search** verb that finds hidden exits. Two players
+(`player1` + `player2`) make hide/detect observable; the forge shows hidden exits
+solo.
+
+### Hide / unhide / sneak
+
+- [ ] `hide` — **"You slip into the shadows and go still."** `hide` again — **"You
+      are already hidden."** A room with no cover may veto: **"You can't hide
+      here."**
+- [ ] With `player2` in the room, `player1` `hide`, then `player2` `look` —
+      whether `player1` shows up is an opposed **perception contest** (a strong
+      observer auto-spots; a weak one may miss). A spotted-once observer stays
+      able to see you (sticky).
+- [ ] While hidden, take an action that gives you away (`cast …`, attack, or
+      `search`) — **"Your sudden action gives you away; you are no longer
+      concealed."**
+- [ ] `unhide` (`reveal`) — **"You step out of hiding."**; `unhide` when not
+      hidden — **"You aren't hidden."**
+- [ ] `sneak` — toggle on: **"You begin moving quietly, keeping to the shadows."**
+      Move between rooms — sneak **persists across rooms** (each move re-runs the
+      contest per observer). `sneak` again — **"You stop moving so carefully."**
+
+### Admin invisibility (`wizinvis`)
+
+- [ ] As `admin1`, `wizinvis` (`invis`) — **"You wink out of sight; only your
+      peers can see you now."** A non-admin in the room no longer sees you in
+      `look`/`who`; another admin still does. It does **not** break on action.
+- [ ] `wizinvis` again — **"You fade back into view."**
+
+> Magical (non-admin) invisibility exists in the engine (the `invisible`
+> effect-flag, pierced by `see_invisible`) but **no core/WoT content grants it
+> yet** — there's no potion/spell to live-test in v1.
+
+### Hidden exits (the forge secret passage)
+
+The Forge has a **hidden west exit** to the **Forge Nook** (`search_difficulty`
+1). It's unlisted *and* unwalkable until found.
+
+- [ ] In the **Forge**, `look` — the exits list shows `south`/`down` but **not**
+      `west`. Try `west` anyway — **"You cannot go that way."** (indistinguishable
+      from a real no-exit — knowledge-gated).
+- [ ] `search` — **"You discover a hidden passage leading west."** (a low
+      difficulty, so it finds quickly). `look` now lists `west`; `west` walks you
+      into the Forge Nook.
+- [ ] From the Nook, `east` back to the Forge — the **reverse is not hidden**
+      (authored open). Discovery is per-character and ephemeral (re-find after a
+      relog).
+- [ ] `search` in a room with nothing hidden (e.g. Town Square) — **"You search
+      carefully but find nothing hidden."**
+
+## 31. Feats
+
+Feats are player-chosen passive perks bought with **banked feat credits** (1 at
+creation, +1 every 3rd level). A fresh fighter has **1 credit** to spend
+immediately.
+
+### List & take
+
+- [ ] `feats` — lists feats you hold, your **available credits**, and the feats
+      you're eligible to take. (`feat` with no args also shows the listing.)
+- [ ] `feat great-fortitude` — spends a credit and grants the feat; `score` (§24)
+      shows **Fortitude +2**. `feats` now lists it held with one fewer credit.
+- [ ] `feat iron-will` with **no credits left** — refused (no feat slot
+      available).
+- [ ] `feat nonesuch` — an unknown feat is rejected gracefully.
+
+### The core feat set (`content/core/feats/`)
+
+Eight feats ship in the core pack, no hard prereqs in v1:
+
+- **great-fortitude / iron-will / lightning-reflexes** — +2 Fort / Will / Reflex
+  save respectively (verify on `score`, §24).
+- **toughness** — +3 max HP (stackable — take it again with another credit and HP
+  climbs again).
+- **weapon-focus** / **improved-critical** — *per-parameter*: pass a weapon
+  category, e.g. `feat weapon-focus martial` (+1 to-hit) or `feat
+  improved-critical martial` (+2 crit threat). Omitting the parameter is refused
+  (it needs a target).
+- **skill-emphasis** — per-parameter: `feat skill-emphasis open-lock` (+3 to that
+  skill check, §26).
+- **power-attack** — unlocks the Power Attack ability (the ability's combat effect
+  is still pending — a known gap).
+
+> The creation wizard has no feat-pick step yet — feats are taken in-session with
+> the verb. Prereqs are not enforced in v1 (the d20 prereq chains are deferred).
+
+## 32. Masterwork item grades
+
+Item **quality grades** (masterwork / masterpiece / power-wrought) layer a
+mechanical bonus over an item through existing seams — weapon to-hit, power-wrought
+damage, armor check-penalty, tool skill-check. The grade is **mechanical only**:
+it is *not* printed in the item name or inventory (it's independent of the
+cosmetic rarity/essence decoration). The full weapon demo lives in the **WoT
+pack**.
+
+### Core pack (the tool seam)
+
+- [ ] The starter-world lockpick (§26) is the **tool skill-check** seam: it grants
+      a flat Open Lock bonus and is **ungraded** in core. A *graded* tool would
+      aid the check more — there's no graded tool in the core demo to compare, so
+      this seam is proven by the §26 pick bonus + the unit tests.
+
+### WoT pack (the weapon demo)
+
+Boot the WoT world:
+
+```sh
+ANOTHERMUD_PACKS=wot ANOTHERMUD_START_ROOM=wot:the-forge make run
+```
+
+- [ ] In **the-forge**, a **heron-mark blade** (grade **masterwork**) is placed
+      ready to claim — `get heron-mark-blade`, `equip heron-mark-blade wield`. It
+      carries a **+1 to-hit** from its grade (silent — nothing marks it
+      "masterwork" in the name). Fight a mob and note it lands a touch more often
+      than an ungraded blade of the same type.
+- [ ] **Power-wrought** is the top grade: crafting an **iron dagger** at the WoT
+      forge (§22 crafting flow) rolls a quality that stamps a grade —
+      *uncommon→masterwork* (+1 hit), *rare→masterpiece* (+2 hit),
+      *epic→power-wrought* (+3 hit **and** +3 damage). A power-wrought blade is the
+      clearest in-combat jump; it also carries the **unbreakable** flag (a forward
+      hook — no durability system yet).
+- [ ] (Proficiency cross-check, §6) the WoT **ashandarei** is an *exotic* weapon —
+      a non-proficient wielder takes the to-hit penalty regardless of grade until a
+      feat grants the kind (§31).
+
+> Boot validation rejects unknown grade keys at load (a typo'd grade fails fast).
+> No graded **armor** content ships yet — the armor check-penalty grade seam is
+> unit-proven.
+
+---
+
 ## Notes / known gaps (already understood)
 
 - **Combat only happens in the Meadow.** Town Square is a safe-room; the bandit
   in the Meadow is the intended target.
-- **Passwords** for Jasrags/Bob are whatever was set when their accounts were
-  created. If unknown, delete `saves/accounts/<id>/` + `saves/players/<name>/`
-  and re-create, or just make a fresh character.
+- **Characters are self-provisioned** (§0) — no pre-built saves are assumed. Boot
+  with `ANOTHERMUD_ROLE_SEED="admin1:admin"` so `admin1` is an admin, then create
+  the characters you need. Passwords are whatever you set; to reset, delete
+  `saves/accounts/<id>/` + `saves/players/<name>/` and re-create.
+- **Login is account-first (§1):** authenticate by **account username** (email is
+  no longer asked), then pick from the character **roster**.
 - Time/weather, corpse decay, idle, and link-dead are **timer-driven** — use the
   fast-testing env above to see them quickly.
 - **Light & darkness (§21):** the Forge Vault is deliberately black and the

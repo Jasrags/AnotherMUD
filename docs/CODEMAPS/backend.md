@@ -1,4 +1,4 @@
-<!-- Generated: 2026-06-07 | Engine core: tick, eventbus, command, services | Token estimate: ~950 -->
+<!-- Generated: 2026-06-16 | Engine core: tick, eventbus, command, services | Token estimate: ~980 -->
 
 # Engine & Command Flow
 
@@ -40,9 +40,12 @@ raw line ─▶ Fields() ─▶ resolveRegistration(verb)   (exact match, else
 ## Tick loop
 `internal/tick` — `Loop.Register(name, cadence, fn)`, default 100ms tick.
 Handlers wired in `main.go`: combat round (`_COMBAT_CADENCE`), `autosave`
-(`Manager.SaveAll` of dirty actors), `idle-sweep`, effect ticks, vitals regen,
-`fuel-burn` (lit light-source fuel → gutter), GMCP flushers
-(Char.Items/Combat/Effects/Vitals — cadence-1 poll-and-diff), prompt render.
+(`Manager.SaveAll` of dirty actors), `idle-sweep`, `linkdead-cleanup`, effect
+ticks, `ability-idle-tick`, vitals regen, `fuel-burn` (lit light-source fuel →
+gutter), `biome-ambience`, `corpse-decay`, `campfire-decay`, `craft-complete`
+(timed crafting), `ai-tick`/`area-tick` (spawn), GMCP flushers
+(Char.Items/Combat/Effects/Vitals/Experience/Status — cadence-1 poll-and-diff),
+`scripting-schedule`, prompt render. (Canonical table: `docs/specs/README.md`.)
 In-game clock (`gameclock`) is tick-driven, not wall-clock, and **persists**
 (`gameclock.Store` → `saves/clock.yaml`, seeded at boot, flushed on hour
 advance + clean shutdown) so darkness doesn't reset to night on restart.
@@ -62,6 +65,8 @@ Cancellable-event index lives in `docs/specs/README.md`.
 | quest.Service + queststore + questwatch | quest* | accept/advance/turn-in |
 | effect.Manager | effect | buffs/debuffs over ticks |
 | light.Resolver | light | per-viewer effective light; gated at render/look/combat/move chokepoints via `command.EffectiveLight` (held source + room luminous items + darkvision); drives §6 transitions + fuel burn |
+| visibility filter | visibility | per-observer can-see predicate (hide/sneak/invis/search); composed into `BuildResolveContext.CanSee` + render + `who`; pierces darkness/concealment |
+| condition + feat + grade | condition/feat/grade | status conditions (combat hooks), player-chosen perks (source-keyed bonuses), item quality grades (to-hit/damage/check/skill seams) |
 | entities.{Store,Placement,Contents} | entities | items/mobs, room placement, containers |
 | session.Manager | session (7.1k) | actors, flood/idle/link-dead/takeover, SaveAll |
 

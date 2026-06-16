@@ -115,8 +115,8 @@ The verbs players use and the systems that resolve them.
 - [weapon-identity](weapon-identity.md) — weapon categories /
   proficiency tiers / damage types, class-granted proficiency + the
   non-proficient to-hit penalty, and per-weapon critical threat range +
-  multiplier. Layers on `combat` §4.4–§4.5; EPIC sub-epic S1 *(spec;
-  build pending)*.
+  multiplier. Layers on `combat` §4.4–§4.5; EPIC sub-epic S1
+  *(shipped)*.
 - [size-and-wielding](size-and-wielding.md) — size-relative wielding: a
   creature size + a weapon size, the wield mode (light / one-handed /
   two-handed / too-large) derived from their ordered distance, and the two
@@ -140,7 +140,7 @@ The verbs players use and the systems that resolve them.
   plus the power-wrought unbreakable flag (a forward hook; no durability system
   yet). The mechanical grade stays independent of the cosmetic rarity/essence
   decoration (`item-decorations` §1.1). EPIC sub-epic S1 increment H
-  *(spec; build pending)*.
+  *(shipped 2026-06-16)*.
 - [ranged-combat](ranged-combat.md) — thrown/projectile weapons via **abstract
   per-engagement range bands** (far → near → melee) *within one room* — an archer
   opens at range and gets shots while a melee opponent closes band by band, with
@@ -314,15 +314,15 @@ operation. The set of cancellable events across the engine:
 | `alignment.shift.check` | [progression](progression.md) §6.4 |
 | `entity.death.check` | [combat](combat.md) §6.1 |
 | `entity.rest_state.changed` | [economy-survival](economy-survival.md) §5.3 |
-| `entity.equipping` *(spec; build pending)* | [inventory-equipment-items](inventory-equipment-items.md) §3.4 |
+| `entity.equipping` | [inventory-equipment-items](inventory-equipment-items.md) §3.4 |
 | `container.item_adding` | [inventory-equipment-items](inventory-equipment-items.md) §4.5 |
 | `item.consuming` | [economy-survival](economy-survival.md) §6.2 |
 | `shop.buy`, `shop.sell` | [economy-survival](economy-survival.md) §3 |
 | `recall.before` | [recall](recall.md) §3.1 |
 | `corpse.creating` | [loot-and-corpses](loot-and-corpses.md) §2.1 |
-| `concealment.before` *(spec; build pending)* | [visibility](visibility.md) §3.1 |
+| `concealment.before` | [visibility](visibility.md) §3.1 |
 | `faction.shift.check` *(spec; build pending)* | [faction](faction.md) §4 |
-| `resource.gathering` *(spec; build pending)* | [gathering](gathering.md) §6 |
+| `resource.gathering` | [gathering](gathering.md) §6 |
 | `trade.committing` *(spec; build pending)* | [trade-escrow](trade-escrow.md) §3 |
 
 ### Registries and content
@@ -350,14 +350,14 @@ load time:
 | Feat | [feats](feats.md) §2 |
 | Track | [progression](progression.md) §5 |
 | Faction | [faction](faction.md) §2 *(spec; build pending)* |
-| Biome | [biomes](biomes.md) §2 *(spec; build pending)* |
-| Resource node template | [gathering](gathering.md) §3 *(spec; build pending)* |
+| Biome | [biomes](biomes.md) §2 |
+| Resource node template | [gathering](gathering.md) §3 |
 | Command | [commands-and-dispatch](commands-and-dispatch.md) §2 |
 | Emote | [commands-and-dispatch](commands-and-dispatch.md) §7 |
 | Quest | [quests](quests.md) §2 |
 | Help topic | [ui-rendering-help](ui-rendering-help.md) §9 |
 | Rarity tier, Essence | [item-decorations](item-decorations.md) §2, §3 |
-| Recipe | [crafting-and-cooking](crafting-and-cooking.md) §3 *(spec; build pending)* |
+| Recipe | [crafting-and-cooking](crafting-and-cooking.md) §3 |
 
 Engine-vs-pack scope (engine-scope registrations are visible
 to all packs without prefixing; pack-scope registrations are
@@ -452,16 +452,20 @@ composition root):
 | `prompt-flush` | 1 | [ui-rendering-help](ui-rendering-help.md) §7.3 |
 | `scripting-schedule` | 1 | [scripting-and-packs](scripting-and-packs.md) (the `engine.schedule` primitive) |
 | `gmcp-vitals-flush` / `-items-` / `-combat-` / `-effects-` / `-experience-` / `-charstatus-` | 1 each | [networking-protocols](networking-protocols.md) (GMCP package layer) |
-| `biome-ambience` *(spec; build pending)* | configured | [biomes](biomes.md) §4 |
+| `biome-ambience` | configured | [biomes](biomes.md) §4 |
 | `node-respawn` / `forage-regen` *(spec; build pending)* | configured | [gathering](gathering.md) §3, §5 |
+| `corpse-decay` | configured | [loot-and-corpses](loot-and-corpses.md) §7 |
+| `campfire-decay` | configured | [crafting-and-cooking](crafting-and-cooking.md) §4 |
+| `craft-complete` | configured | [crafting-and-cooking](crafting-and-cooking.md) §5 |
+| `ability-idle-tick` | configured | [abilities-and-effects](abilities-and-effects.md) §4 |
 | `autosave` | configured | [persistence](persistence.md) §6.2 |
 | `idle-sweep` | configured | [session-lifecycle](session-lifecycle.md) §5 |
 | `linkdead-cleanup` | configured | [session-lifecycle](session-lifecycle.md) §7.3 |
 
 Cadence is in *ticks* (or "1s"/"configured" where derived from a
 duration). With the default 100 ms tick rate, an interval of 10 fires
-every second. (`mob-command-queue` and `corpse-decay` are specced but
-not yet wired as standalone handlers.)
+every second. (`mob-command-queue` is specced but not yet wired as a
+standalone handler.)
 
 ---
 
@@ -509,13 +513,13 @@ highest-impact themes that recur across specs:
   "is this event stale?" guards (session takeover, combat
   death). A general staleness primitive (event versioning,
   generation counters) could replace ad-hoc guards.
-- **Role enforcement not yet built.** The help-service role
-  "tier" is a no-op stub — it doesn't actually elevate anyone.
-  The real authorization model is now specced
-  ([roles-and-permissions](roles-and-permissions.md): a flat
-  `HasRole` capability check) and [admin-verbs](admin-verbs.md)
-  gates on it, but neither is implemented yet, so no privilege
-  gating is live today.
+- **Role enforcement — landed.** The authorization model is
+  implemented and live: [roles-and-permissions](roles-and-permissions.md)
+  (a flat `HasRole` capability check) plus [admin-verbs](admin-verbs.md),
+  with the command registry refusing admin verbs unless the actor holds
+  the admin role (`internal/command/registry.go`), live `grant`/`revoke`,
+  and role-change events. Downstream gates (e.g. auction moderation) can
+  rely on it.
 - **Unbounded growth.** Render cache, bad-input tracker,
   alignment history (this one is bounded), notification
   queues, and a few others have no eviction or cap.
@@ -523,4 +527,4 @@ highest-impact themes that recur across specs:
 
 ---
 
-<!-- Updated: 2026-06-16 · 45 specs covering the engine substrate, world, action, lifecycle, and presentation layers. Behavior contracts still ahead of code: tag-observers, faction, and the trade trio (trade-escrow, direct-trade, auction-house). Since-shipped: roles-and-permissions, admin-verbs, item-decorations (M19/M20), loot-and-corpses (M22), tab-completion Phase 0–2, who, light-and-darkness, room-coordinates (M23), player-maps (M24 — Mudlet GMCP wire-shape pending live-client validation), biomes, gathering, crafting-and-cooking (M27), weapon-identity (WoT EPIC S1), saves (WoT EPIC S6), conditions (WoT EPIC S5), skills (WoT EPIC S3, substrate), visibility + hidden-exits (M28), movement-cost (spec back-filled after the shipped flat→biome-weighted cost gate). -->
+<!-- Updated: 2026-06-16 · 53 specs covering the engine substrate, world, action, lifecycle, and presentation layers. Behavior contracts still ahead of code: tag-observers, faction, the trade trio (trade-escrow, direct-trade, auction-house), and the remaining WoT EPIC S1 increments (armor-depth E+D, size-and-wielding F, ranged-combat G). Since-shipped: roles-and-permissions, admin-verbs, item-decorations (M19/M20), loot-and-corpses (M22), tab-completion Phase 0–2, who, light-and-darkness, room-coordinates (M23), player-maps (M24 — Mudlet GMCP wire-shape pending live-client validation), biomes, gathering, crafting-and-cooking (M27), weapon-identity (WoT EPIC S1), masterwork (WoT EPIC S1.H), saves (WoT EPIC S6), conditions (WoT EPIC S5), skills (WoT EPIC S3, substrate), feats (WoT EPIC S4), backgrounds, visibility + hidden-exits (M28), movement-cost (flat→biome-weighted cost gate + encumbrance), character-select (account-first login), character-identity (world-locking, save v23). -->

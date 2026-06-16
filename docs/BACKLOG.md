@@ -13,10 +13,11 @@ the theme-axis plan (its method survives below).
   A single source for "done" is what keeps this list from rotting the way the matrix did.
 - **Specs are the source of truth for behavior; this doc never duplicates it.** A
   specced item links its `docs/specs/<file> §X` — the *what* lives there. An unspecced
-  item's first deliverable *is* a new spec slice (the spec set has grown 17 → **32** as
+  item's first deliverable *is* a new spec slice (the spec set has grown 17 → **53** as
   ideas get promoted; of the write-ahead batch, roles, admin-verbs, and item-decorations
-  have since shipped (M19/M20; `who` shipped too, and `crafting-and-cooking` at M27),
-  leaving `tag-observers` and the trade trio as contracts still ahead of code in §1).
+  have since shipped (M19/M20; `who` shipped too, `crafting-and-cooking` at M27, and
+  `visibility` + `hidden-exits` at M28), leaving `tag-observers`, `faction`, and the
+  trade trio as contracts still ahead of code in §1).
 - **Verified against code.** Every item below was confirmed absent in the codebase as of
   2026-06-02, not trusted from the old matrix (which misreported several shipped systems).
   **Re-verified 2026-06-10:** Biomes, Gathering, and Room coordinates were found *shipped*
@@ -38,8 +39,10 @@ render/combat/movement friction + period transitions + persisted in-game time).
 **M18** (Command & UI polish) is now **complete** — `prompt`, `who`, auto-help
 synthesis, command chaining/repeat, and the bad-input tracker all shipped.
 **Biomes, Gathering, and Room coordinates have since shipped too** (removed from §1
-on 2026-06-10). Behavior contracts still written-ahead-of-code: `tag-observers`,
-`visibility`, `hidden-exits`, `faction`, and the trade trio (§1). What remains
+on 2026-06-10). **M28** (Visibility + Hidden exits) shipped 2026-06-15 (removed from §1).
+**Movement cost / encumbrance**, **account-first login + character roster**, and
+**character world-locking** (save v23) shipped 2026-06-16. Behavior contracts still
+written-ahead-of-code: `tag-observers`, `faction`, and the trade trio (§1). What remains
 unspecced (§2) is the greenfield gameplay/economy-depth tail the themes didn't claim,
 plus the **WoT Mechanics EPIC** (`docs/themes/wot-mechanics-epic.md`).
 
@@ -60,8 +63,6 @@ go straight into a milestone.
 | Slow-tick observability — full breakdown / routing | time-and-clock §5 | core **shipped**: `Loop.SetSlowTickObserver` times each tick, warns (`slog`) when it exceeds a threshold (`ANOTHERMUD_SLOW_TICK_THRESHOLD`, default = tick interval); reports total + handlers. Remaining: the §5 event-queue/command components (no such tick phases in this engine) + admin-channel / OTel routing (a consumer on the callback seam) |
 | Reactive tag observers | **tag-observers §2–§4** (new) | `entity.tag_added/removed` bus events for non-index reactors. Substrate ahead of a consumer. Ported from Tapestry `ITagObserver` |
 | **Player trade** (escrow + direct trade + auction) | **trade-escrow / direct-trade / auction-house** (new) + plan `plans/trade-plan.md` | shared escrow/atomic-commit primitive (cancellable bus); sync zero-sum direct trade; async persisted buyout auction (global, pickup delivery, fee gold sink). Admin moderation gates on roles/admin (now shipped + enforcing). Push delivery deferred to Mail (§2) |
-| **Visibility** (hide / sneak / darkness / invisibility) | **visibility §2–§7** (new) | the keystone of the Gameplay Systems cluster. Hybrid model: flag-gated darkness + magical/admin invis, opposed-contest hide/sneak. Four detection paths (passive sticky auto-detect, see-invisible/see-in-dark/detect traits, `search` verb, reveal-on-action). Fills the `world-rooms-movement §7` filter seam + `commands-and-dispatch §5.4` `BypassVisibility`; unblocks `who §4` per-viewer hiding, `admin-verbs §3` wizinvis, and hidden exits. All ephemeral (no save). The minimal light model this row once sketched is **superseded** — light-and-darkness shipped (per-viewer effective light, sources, darkvision); visibility must compose darkness (this) with concealment, pinning the precedence per `light-and-darkness §12` |
-| **Hidden exits** (secret doors / passages) | **hidden-exits §2–§7** (new) | `hidden` + `search_difficulty` flag on the Exit (works with or without a door, mirrors door `pick-difficulty`). Discovery reuses visibility's `search` + sticky memory; search-only (passive off by default). **Knowledge-gated**: an undiscovered hidden exit is unwalkable + door un-operable, not just unlisted — gate lives in the player movement command + `flee`, NOT the unconditional move primitive (mob/scripted/admin moves ungated). Per-character ephemeral; no save change. Emits `exit.discovered` (quest hook). Depends on visibility |
 | **Faction / standing** | **faction §2–§8** (new) | per-character signed standing per content-defined faction; generalizes alignment's architecture (`progression §6`) to N axes as a **parallel sibling** — alignment untouched, no v1 interaction. Linear per-player (no opposition ripple in v1). Named ranks → rank tags, bounded combined history, cancellable `faction.shift.check`→`shifted`→`rank.changed`, admin-immune shift, `ResolveRanks` gating helper. Earn via quest rewards + faction-mob kills. New Faction registry + player-save `faction_standing` bag (version bump). Consumers (disposition/abilities/rooms/shops/quests) adopt the helper as they're wired |
 
 > **Shipped since this table was written (deleted per the delete-on-ship rule):**
@@ -69,6 +70,9 @@ go straight into a milestone.
 > `internal/gathering`, `forage`/`harvest` verbs, recipe re-point) and **Room
 > coordinates** (M23 — `internal/world/coords.go`). The remaining slivers from those
 > arcs live in their deferred-fix memories, not here. Verified against code 2026-06-10.
+> **Visibility** + **Hidden exits** (the M28 arc — `internal/visibility`,
+> hide/sneak/wizinvis/magical-invis verbs, `search` + secret-exit discovery) shipped
+> 2026-06-15; S6b refinements live in the `visibility-deferred-fixes` memory, not here.
 
 ---
 
@@ -145,9 +149,10 @@ old five-theme partition left uncovered.
   feat-pick step, Power Attack's combat effect, choose-a-feat-from-a-pool).
 - **Combat & Equipment Depth (WoT weapon/armor system)** — *(EPIC sub-epic S1 — see WoT
   Mechanics above and [`docs/themes/wot-mechanics-epic.md`](themes/wot-mechanics-epic.md))*
-  **✅ A+B+C (`M-Weapon-Identity`) SHIPPED 2026-06-10** (`weapon-identity.md`); what
-  remains is the later increments — ranged (G), armor (E), size-wield (F), masterwork
-  (H), special weapons (J), damage-type effect (D, with E).
+  **✅ A+B+C (`M-Weapon-Identity`) SHIPPED 2026-06-10** (`weapon-identity.md`);
+  **✅ masterwork item grades (H) SHIPPED 2026-06-16** (`masterwork.md`, `internal/grade`);
+  what remains is the later increments — ranged (G), armor (E), size-wield (F),
+  special weapons (J), damage-type effect (D, with E).
   Originally: make weapons and armor
   mechanically distinct the way `docs/wot/equipment.md` (the WoT d20 tables) describes:
   proficiency tiers (Simple/Martial/Exotic + the −4 non-proficient rule), crit threat

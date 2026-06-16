@@ -18,9 +18,9 @@ For **behavior contracts**, see `docs/specs/`. The old `TAPESTRY-GAP-MATRIX.md`
 and `THEME-AXIS-PLAN.md` are superseded by `BACKLOG.md` and now live under
 `docs/archive/` (the five themes they framed have all shipped — M13–M17).
 
-## Status (as of 2026-06-11)
+## Status (as of 2026-06-16)
 
-- **Done:** **M0–M23.** The five original themes — A/M13 (Social), B/M16
+- **Done:** **M0–M28.** The five original themes — A/M13 (Social), B/M16
   (Modern-Client + GMCP), C/M15 (World-Depth), D/M17 (Content-Authoring +
   Lua scripting), E/M14 (Engine-Debt) — plus **M18** (Command & UI polish —
   prompt, who, bad-input tracker, chaining/repeat, auto-help),
@@ -35,10 +35,18 @@ and `THEME-AXIS-PLAN.md` are superseded by `BACKLOG.md` and now live under
   footprint, contention, mob capacity), **M26** (Engine Debt II —
   door-key boot validation, passive gain stat factor, GMCP wizard panel),
   and **M27** (Crafting & Cooking MVP — recipes, crafting-skill proficiency,
-  the quality roll, cooking→well-fed, fixed/portable/campfire stations).
+  the quality roll, cooking→well-fed, fixed/portable/campfire stations), and
+  **M28** (Visibility + Hidden exits — hide/sneak/wizinvis/magical-invis, the
+  per-observer can-see predicate, `search` + secret-exit discovery). Since M28,
+  three orthogonal features shipped 2026-06-16: **movement cost / encumbrance**
+  (biome-weighted step cost + carry-from-Strength, save v24), **account-first
+  login + character roster** (login by account username), and **character
+  world-locking** (a `WorldID` stamp gating login to a server running that
+  world, save v23).
   The core loop, world, combat, progression, economy, quests, scripting,
   sessions, modern-client, roles/admin, decorations, stacking, loot, room
-  coordinates, player maps, equipment slots, and crafting all work.
+  coordinates, player maps, equipment slots, crafting, visibility, and
+  movement cost all work.
 - **Active:** none — M27 closed (Crafting & Cooking MVP, Phases 0–5,
   reviewed twice) plus the deferred-cleanup follow-ups (B1 tool-quality, B2
   gain-stat, and **B3 timed crafting** — recipe `time_pulses` now occupies
@@ -49,20 +57,27 @@ and `THEME-AXIS-PLAN.md` are superseded by `BACKLOG.md` and now live under
   from `BACKLOG.md` §1 (specced, ready) or §2 (greenfield).
 - **Active arc — WoT Mechanics EPIC** (post-M27, additive sub-epics; Decision 0
   = posture A, translate onto tick/chance). Shipped so far: **S1 weapon-identity**,
+  **S1.H masterwork** (item quality grades — masterwork/power-wrought, delivered
+  through the to-hit / damage / check-penalty / skill-check seams, `internal/grade`),
+  **S2 The One Power** (Phases 0–4 — pool substrate, channeler class + weaves +
+  `channel`, overchannel cascade, affinities/gender, the interrupt game +
+  Initiate/Wilder split, save v21/v22),
   **S3 skills** (use-based proficiency + skill-check primitive + lockpicking),
   **S5 conditions** (Core 5), **S6 saves** (Fort/Reflex/Will), the **multiclass
   seam** (class widened to a list, save v18), **S9 backgrounds** (the
   creation-origin starting package — skills/items/gold, save v19), and **S4 feats**
   (the player-choice feat selection engine — slots, the `feat`/`feats` verbs, all
   six grant kinds, authored background feats, save v20). The per-sub-epic done-log
-  + remaining S2/S7/S8/S10/S11 candidates live in the EPIC tracker
+  + remaining S2-Phase-4+/S7/S8/S10/S11 candidates live in the EPIC tracker
   `docs/themes/wot-mechanics-epic.md`; the arc is summarized below after M27.
 - **Specs ahead of code.** Behavior contracts written without
-  implementation, still awaiting a milestone: `tag-observers`,
-  `crafting-and-cooking`, and the trade trio
-  (`trade-escrow` / `direct-trade` / `auction-house`). They sit in
-  `BACKLOG.md` §1. The earlier `roles-and-permissions` / `admin-verbs` /
-  `item-decorations` contracts have since shipped (M19 / M20).
+  implementation, still awaiting a milestone: `tag-observers`, `faction`,
+  the trade trio (`trade-escrow` / `direct-trade` / `auction-house`), and
+  the remaining WoT EPIC S1 increments (`armor-depth`, `size-and-wielding`,
+  `ranged-combat`). They sit in `BACKLOG.md` §1. The earlier
+  `roles-and-permissions` / `admin-verbs` / `item-decorations` contracts
+  have since shipped (M19 / M20), as have `crafting-and-cooking` (M27) and
+  `visibility` / `hidden-exits` (M28).
 
 ---
 
@@ -3533,10 +3548,25 @@ holds the detail and the open candidates.
       lost-ability feats are deferred to their owning sub-epics. Open polish:
       creation-wizard feat-pick step, the Power Attack ability's combat effect,
       choose-a-feat-from-a-pool for backgrounds.
+- [x] **S2 — The One Power (Phases 0–4).** The marquee channeling arc, built on
+      the generalized-pool substrate: a channeler class with a One Power pool, the
+      classic-four weaves + the `channel` verb, the `overchannel` → Fortitude-save
+      fatigued/stunned/stilled cascade, Five-Powers affinities + gender-derived
+      saidin/saidar potency, the cast-time **interrupt game** (warmup + hit / move /
+      stun interrupts), and the content-only **Initiate/Wilder split**. **Player
+      saves v21** (pool currents) **+ v22** (gender). Phase-4+ depth — taint/madness,
+      angreal, linking, stilling-restore, the Wilder Block — remains open. Scope
+      `proposals/wot-the-one-power.md`.
+- [x] **S1.H — Masterwork (item quality grades).** Grade-scaled bonuses
+      (masterwork / power-wrought) delivered through existing seams — weapon to-hit,
+      power-wrought damage, armor check-penalty, tool skill-check — plus the
+      power-wrought unbreakable flag and boot-time grade-key validation;
+      `internal/grade`, spec `masterwork.md`. Mechanically independent of the
+      cosmetic rarity/essence decoration.
 
-**Open / next candidates:** S2 The One Power (the marquee arc; consumes the
-Mana-pool substrate), S7 survival v2, S8 reputation, S10 travel/planes,
-S11 Shadowspawn, plus the separate ranged (G) / armor (E) S1 follow-ons, and the
+**Open / next candidates:** S2 Phase 4+ depth (taint/madness, angreal, linking),
+S7 survival v2, S8 reputation, S10 travel/planes, S11 Shadowspawn, plus the
+separate ranged (G) / armor (E) / size-wield (F) S1 follow-ons, and the
 S4 polish items above. See `BACKLOG.md` §2 + the EPIC doc for sequencing.
 
 ---

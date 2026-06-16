@@ -1,4 +1,4 @@
-<!-- Generated: 2026-06-07 | Client-facing layer (no web frontend) | Token estimate: ~680 -->
+<!-- Generated: 2026-06-16 | Client-facing layer (no web frontend) | Token estimate: ~700 -->
 
 # Presentation & Networking
 
@@ -49,6 +49,11 @@ status vars on connect.
   bare-direction exits); `black` = single "you can see nothing" line. All
   degrade to clean text (markup the renderer strips). `daylight` verb probes
   time + light.
+- **Visibility filtering** (M28): the room render also filters the occupant +
+  exit lists through the per-observer `visibility` predicate — concealed
+  (hidden/sneaking/invisible) occupants the viewer fails to detect are omitted,
+  and an undiscovered hidden exit is unlisted (and unwalkable). Composes with the
+  light gate above.
 - **Builder room-data overlay** (`command.AppendRoomData`): a single seam
   every "you see the room" render routes through — `look`, movement, recall,
   teleport, flee, login spawn, link-dead reattach — appending an admin

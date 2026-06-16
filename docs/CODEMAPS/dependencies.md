@@ -1,4 +1,4 @@
-<!-- Generated: 2026-06-06 | External deps + conventions | Token estimate: ~550 -->
+<!-- Generated: 2026-06-16 | External deps + conventions | Token estimate: ~600 -->
 
 # Dependencies & Conventions
 
@@ -23,6 +23,14 @@ in-process tick loop / event bus.
 - `internal/clock` (wall) + `internal/gameclock` (tick-driven in-game time +
   global `clock.yaml` persistence).
 - `internal/srckey` — modifier-source leaf, breaks the entities↔stats cycle.
+- `internal/logging` — `log/slog` setup carried on ctx (F2).
+- `internal/pool` — generalized resource-pool primitive (vitals/mana/movement/
+  the One Power); a Vitals facade fronts it, save-persisted currents only.
+- `internal/channel` — derived-stat formula layer (hand-rolled eval, no
+  code-exec); combat attack/defense/damage/mitigation derive via a content map.
+- `internal/grade` — item quality-grade vocabulary (masterwork/power-wrought).
+- `internal/visibility` — per-observer can-see predicate (decoupled via small
+  Observer/Target interfaces; composes darkness + concealment).
 - `internal/property` — registry + tagged-value envelope.
 - `internal/light` — pure per-viewer effective-light resolver (level/config/
   resolve/source/fuel/viewer); imports only `world` (terrain) + `gameclock`
@@ -41,7 +49,7 @@ in-process tick loop / event bus.
 ## Config (env, all `ANOTHERMUD_*`)
 `SAVE_DIR`, `CONTENT_DIR`, `ADDR`, `WS_ADDR`, `START_ROOM`, `TICK_INTERVAL`,
 `AUTOSAVE_INTERVAL`, `COMBAT_CADENCE`, `FLEE_COOLDOWN`, `IDLE_SWEEP_INTERVAL`,
-`SUSTENANCE_DRAIN_INTERVAL`/`_AMOUNT`, `LINKDEAD_*`,
+`SUSTENANCE_DRAIN_INTERVAL`/`_AMOUNT`, `LINKDEAD_*`, `MOVE_COST`,
 `CORPSE_LIFETIME`/`_OWNERSHIP_WINDOW`, `LOG_FORMAT`/`_LEVEL`, `WS_*`.
 
 ## Build / test

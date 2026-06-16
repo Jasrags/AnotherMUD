@@ -1,4 +1,4 @@
-<!-- Generated: 2026-06-07 | Persistence (YAML files) + content packs — no database | Token estimate: ~800 -->
+<!-- Generated: 2026-06-16 | Persistence (YAML files) + content packs — no database | Token estimate: ~820 -->
 
 # Data: Saves & Content
 
@@ -7,20 +7,26 @@ atomic writes) and **read-only content packs** (YAML + Lua, loaded at boot).
 
 ## Save surface (`<ANOTHERMUD_SAVE_DIR>`, default ./saves)
 ```
-accounts/index.yaml              email → account id
-accounts/<id>/account.yaml       bcrypt creds, created_at
+accounts/index.yaml              username → id (+ legacy email → id map)
+accounts/<id>/account.yaml       bcrypt creds, username, created_at
 players/<lname>/player.yaml      versioned char save (tags, roles, stats,
    ├ quest.yaml                  properties, equip/inventory, abilities+profs,
-   ├ notifications.yaml          recall, prompt, roomdata toggle)
-   └ chat-subscriptions          per-player
+   ├ notifications.yaml          known recipes, feats, resource pools, gender,
+   └ chat-subscriptions          WorldID, recall, prompt, roomdata toggle)
 channels/<id>.yaml               global channel scrollback
 clock.yaml                       global in-game time (CurrentHour, DayCount)
 ```
 - Writes via `internal/persistence`: tmp → bak → rename rotation, path-safety.
-- `internal/player` — `player.yaml` carries `version`; `CurrentVersion = 16`
-  with an **append-only migration chain** (never edit an old migration).
-  Boolean/string prefs with a safe zero-value (autoloot, wimpy, prompt,
-  `show_room_data`) are added `omitempty` **without** a version bump.
+- **Login is account-first by username** (`character-select`): `index.yaml` keeps
+  a username→id map alongside the legacy email→id map (backfilled on load); one
+  account holds a roster of characters across worlds.
+- `internal/player` — `player.yaml` carries `version`; `CurrentVersion = 24`
+  with an **append-only migration chain** (never edit an old migration). Recent
+  bumps: v19 backgrounds, v20 feats, v21 resource-pool currents, v22 gender,
+  v23 `WorldID` (world-locking, backfilled from the location namespace),
+  v24 `movement_max` base stat. Boolean/string prefs with a safe zero-value
+  (autoloot, wimpy, prompt, `show_room_data`) are added `omitempty` **without** a
+  version bump.
 - **Equipment save shape**: one entry per equipped item, keyed by its TARGET
   slot key (`{Template, Entity}`). A spanning item (two-hander) is NOT
   duplicated across its footprint — companion keys are re-derived from the
@@ -36,15 +42,20 @@ clock.yaml                       global in-game time (CurrentHour, DayCount)
   restart), rest state, direct-trade sessions.
 
 ## Content packs (`<ANOTHERMUD_CONTENT_DIR>`, default ./content)
-`internal/pack` (3.4k LOC) — manifest/discovery/dep-order/two-phase loader.
-`content/core/` ships the `tapestry-core` starter pack (placeholder setting).
+`internal/pack` — manifest/discovery/dep-order/two-phase loader. Three packs ship:
+`content/core/` (the `tapestry-core` engine baseline — slots/races/classes/tracks/
+abilities/effects/rarity/essence/biomes/channels/feats/backgrounds/conditions/
+theme/help; **no world**), `content/starter-world/` (the default-boot demo village,
+depends on core), and `content/wot/` (a Wheel-of-Time pack in progress, depends on
+core). Manifests declare `kind: world | library` (`character-identity` world-locking).
 Registries (roughly load order):
 ```
 theme · slots · races · classes · tracks · abilities · effects ·
-items · mobs · loot_tables · rooms · areas · weather_zones ·
-quests · help · scripts(*.lua)
+conditions · feats · backgrounds · rarity · essence · channels/channel-map ·
+biomes · items · grades · mobs · loot_tables · forage/nodes · recipes ·
+emotes · rooms · areas · weather_zones · quests · help · scripts(*.lua)
 ```
-- Ids are namespaced (`tapestry-core:town-square`); unqualified ids resolve
+- Ids are namespaced (`starter-world:town-square`); unqualified ids resolve
   against the current pack, `other-pack:foo` crosses packs.
 - **Equippable items** declare `eligible_slots` (which slots they fit) and
   optional `companion_slots` (footprint spanned when worn, e.g. a two-hander's

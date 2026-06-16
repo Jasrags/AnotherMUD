@@ -1,4 +1,4 @@
-<!-- Generated: 2026-06-07 | Go files scanned: 277 (+268 tests) | ~61k LOC | 53 internal pkgs | Token estimate: ~700 -->
+<!-- Generated: 2026-06-16 | Go files scanned: 344 (+367 tests) | 62 internal pkgs | Token estimate: ~720 -->
 
 # Architecture
 
@@ -12,24 +12,29 @@ telnet/WebSocket line connections; state is YAML save files + content packs.
 (`ANOTHERMUD_SAVE_DIR`), loads content via `pack.Load` (`ANOTHERMUD_CONTENT_DIR`),
 wires every service, registers tick handlers, runs the telnet listener
 (`ANOTHERMUD_ADDR`) + optional WS (`ANOTHERMUD_WS_ADDR`). Start room
-`ANOTHERMUD_START_ROOM` (default `tapestry-core:town-square`).
+`ANOTHERMUD_START_ROOM` (default `starter-world:town-square`).
 
 ## Layer stack (bottom-up; deps point down)
 ```
-Foundations   tick, eventbus, clock+gameclock, logging, persistence, srckey
+Foundations   tick, eventbus, clock+gameclock, logging, persistence, srckey,
+              pool (generalized resource pools)
 World/things  world (rooms/exits/doors + load-time area-local room
               coordinate derivation), entities, item/mob/slot, keyword,
-              spawn, ai, portal, weather, property, corpse
-Mechanics     stats, progression, combat, effect, light (per-viewer
-              effective-light resolver: terrain sky-gate · room override ·
-              lit sources · darkvision floor)
-Action        command (registry+dispatch+§5 typed args), economy, quest*,
-              loot, decoration, stacking
+              spawn, ai, portal, weather, biome, property, corpse,
+              light (per-viewer effective-light resolver: terrain sky-gate ·
+              room override · lit sources · darkvision floor),
+              visibility (per-observer can-see: hide/sneak/invis/search)
+Mechanics     stats, progression, combat, effect, condition (status conditions),
+              feat (player-chosen perks), channel (derived-stat formula layer)
+Action        command (registry+dispatch+§5 typed args), economy,
+              crafting/recipe/campfire, gathering, grade (item quality grades),
+              quest*, loot, decoration, stacking
 Lifecycle     account, player, login, session, wizard
 Social        chat, notifications, emote
 Presentation  render, ansi, help
 Networking    conn{telnet,ws}, server, gmcp, mssp
 Content       pack (manifest/loader), script, scripting (gopher-lua sandbox)
+Test infra    telnettest (send/expect telnet driver)
 ```
 
 ## Core data flow
@@ -56,4 +61,4 @@ gameclock (tick-driven) ─▶ time.period.change ─▶ weather ambience +
 - `data.md` — save surface + content packs (registries, load order).
 - `dependencies.md` — external libs + foundations conventions.
 - Specs are the behavior source of truth: `docs/specs/README.md` (canonical order).
-  Roadmap/backlog: `docs/ROADMAP.md` (done-log, M0–M25), `docs/BACKLOG.md`.
+  Roadmap/backlog: `docs/ROADMAP.md` (done-log, M0–M28 + WoT EPIC), `docs/BACKLOG.md`.
