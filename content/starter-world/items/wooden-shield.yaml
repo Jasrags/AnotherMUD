@@ -10,6 +10,10 @@ keywords: [shield, wooden, oak]
 # the hand with a two-handed weapon: equipping the shield over a worn
 # greatsword displaces the greatsword, and vice versa (§3.6 contention).
 eligible_slots: [offhand]
+# A strapped shield hampers nimble work: an armor check penalty reduces the
+# wearer's Strength/Dexterity skill checks while worn (armor-depth §6). A
+# masterwork shield (masterwork §3) would improve this; this plain one does not.
+armor_check_penalty: 2
 properties:
   weight: 5
   value: 18

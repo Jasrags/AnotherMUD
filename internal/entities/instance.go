@@ -116,6 +116,11 @@ type ItemInstance struct {
 	// (armor-depth §4), keyed by damage type. nil = none. Aggregated across
 	// worn armor into the holder's combat.Stats.Resistances at Stats() time.
 	resistances map[string]int
+	// armorCheckPenalty is the magnitude (non-negative) of the penalty this
+	// armor imposes on Str/Dex skill checks while worn (armor-depth §6). 0 =
+	// none. The equip path applies the grade-reduced penalty as an armor_check
+	// stat modifier the skill check subtracts.
+	armorCheckPenalty int
 }
 
 // ID implements Entity.
@@ -330,6 +335,11 @@ func (it *ItemInstance) Resistances() map[string]int {
 	return out
 }
 
+// ArmorCheckPenalty returns the magnitude (non-negative) of the penalty
+// this armor imposes on Str/Dex skill checks while worn (armor-depth §6);
+// 0 for an item that imposes none.
+func (it *ItemInstance) ArmorCheckPenalty() int { return it.armorCheckPenalty }
+
 // EligibleSlots returns the slots this item may be equipped into
 // (inventory-equipment-items §3.3) as a fresh slice so callers cannot
 // alias instance state. Empty means the item is not equippable. Lifted
@@ -457,23 +467,24 @@ func buildInstanceFromTemplate(tpl *item.Template, id EntityID) *ItemInstance {
 	}
 
 	return &ItemInstance{
-		id:              id,
-		typ:             tpl.Type,
-		name:            tpl.Name,
-		desc:            tpl.Description, // §2.3: snapshot prose alongside name.
-		tags:            tags,
-		keywords:        keywords,
-		properties:      props,
-		modifiers:       mods,
-		templateID:      tpl.ID,
-		weaponDamage:    weaponDamage,
-		eligibleSlots:   eligible,
-		companionSlots:  companion,
-		weaponCategory:  tpl.WeaponCategory,
-		proficiencyTier: tpl.ProficiencyTier,
-		critThreatLow:   tpl.CritThreatLow,
-		critMultiplier:  tpl.CritMultiplier,
-		damageTypes:     damageTypes,
-		resistances:     resistances,
+		id:                id,
+		typ:               tpl.Type,
+		name:              tpl.Name,
+		desc:              tpl.Description, // §2.3: snapshot prose alongside name.
+		tags:              tags,
+		keywords:          keywords,
+		properties:        props,
+		modifiers:         mods,
+		templateID:        tpl.ID,
+		weaponDamage:      weaponDamage,
+		eligibleSlots:     eligible,
+		companionSlots:    companion,
+		weaponCategory:    tpl.WeaponCategory,
+		proficiencyTier:   tpl.ProficiencyTier,
+		critThreatLow:     tpl.CritThreatLow,
+		critMultiplier:    tpl.CritMultiplier,
+		damageTypes:       damageTypes,
+		resistances:       resistances,
+		armorCheckPenalty: tpl.ArmorCheckPenalty,
 	}
 }

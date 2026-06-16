@@ -217,6 +217,12 @@ effective check bonus, summed before the roll.
 - [ ] The check penalty reaches attack rolls only when the wearer is
       non-proficient with the armor (§5).
 
+**Status (2026-06-16):** the **skill-check** application is BUILT — a worn
+armor's grade-reduced check penalty is summed on the `armor_check` stat
+(applied at equip) and subtracted from Str/Dex skill checks (the `pick`
+Open-Lock check today; gated to Str/Dex governing stats). The **attack-roll**
+extension when non-proficient awaits armor proficiency (§5, build pending).
+
 ## 7. Donning and removing
 
 Putting on and taking off armor **takes time**, scaled by the armor's bulk (the

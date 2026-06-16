@@ -16,6 +16,12 @@ import (
 	"github.com/Jasrags/AnotherMUD/internal/world"
 )
 
+// statKeyArmorCheck is the stat carrying the wearer's total worn-armor check
+// penalty MAGNITUDE (armor-depth §6) — the sum of each worn armor/shield's
+// grade-reduced penalty, applied as equipment modifiers. A Str/Dex skill
+// check subtracts it from the roll bonus.
+const statKeyArmorCheck = "armor_check"
+
 // EquipHandler implements `equip <item> <slot>` per spec
 // inventory-equipment-items §3.3.
 //
@@ -199,6 +205,22 @@ func EquipHandler(ctx context.Context, c *Context) error {
 					mods = append(mods, stats.Modifier{Stat: combat.StatKeyDamageMod, Value: g.WeaponDamage})
 				}
 			}
+		}
+	}
+	// Armor check penalty (armor-depth §6) + masterwork armor grade
+	// (masterwork §3): a worn armor/shield's check penalty reduces the
+	// wearer's Str/Dex skill checks; a quality grade IMPROVES (reduces) that
+	// penalty, floored at zero. Applied as an armor_check stat modifier the
+	// skill check subtracts, under the SAME EquipmentSourceKey so it stacks
+	// across pieces and reverses cleanly on unequip.
+	if penalty := item.ArmorCheckPenalty(); penalty > 0 {
+		if c.Grades != nil {
+			if g, ok := c.Grades.Get(item.Grade()); ok {
+				penalty -= g.ArmorCheckImprove
+			}
+		}
+		if penalty > 0 {
+			mods = append(mods, stats.Modifier{Stat: statKeyArmorCheck, Value: penalty})
 		}
 	}
 
