@@ -28,6 +28,15 @@ const propEffectID = "effect_id"
 // effect (the §6 cold-ration baseline).
 const propQualityEffects = "quality_effects"
 
+// propQualityGrades is the output-template property declaring a
+// rarity-tier → quality-grade map (masterwork §7/§9): a craft stamps the
+// grade for the highest tier not exceeding the rolled quality onto the
+// result, so a finely-crafted weapon is mechanically masterwork (its grade
+// confers the equip-time to-hit/damage/armor bonuses). The grade is
+// MECHANICAL, separate from the cosmetic rarity the same roll also stamps.
+// An output that declares none is never graded by crafting.
+const propQualityGrades = "quality_grades"
+
 // Crafter is the inventory-bearing actor a craft operates on — the player.
 // The command layer's Actor interface satisfies this structurally, so no
 // adapter is needed. All inventory mutation flows through these methods.
@@ -167,6 +176,13 @@ func (s *Service) craftResolved(_ context.Context, c Crafter, rec *recipe.Recipe
 		}
 		if qualityKey != "" {
 			inst.SetProperty(propRarity, qualityKey)
+		}
+		// Masterwork (§7/§9): stamp a quality-scaled grade when the output
+		// template declares quality_grades, so a fine craft is mechanically
+		// graded (its grade confers the equip-time bonuses). Independent of the
+		// cosmetic rarity above.
+		if g := s.qualityGradeFor(tpl, qualityKey); g != "" {
+			inst.SetProperty(entities.PropGrade, g)
 		}
 		// Cooking (§6): stamp a quality-scaled well-fed effect_id when the
 		// output template declares quality_effects. The existing eat
@@ -339,10 +355,26 @@ func (s *Service) meetsMinQuality(inst *entities.ItemInstance, minKey string) bo
 // lowest declared tier gets none (the cold-ration baseline). Returns "" if
 // the template declares no map, the key is unknown, or nothing qualifies.
 func (s *Service) qualityEffectFor(tpl *item.Template, qualityKey string) string {
+	return s.qualityMappedValue(tpl, qualityKey, propQualityEffects)
+}
+
+// qualityGradeFor returns the quality grade for a craft of tier qualityKey
+// from tpl's quality_grades map (masterwork §7/§9) — the highest tier not
+// exceeding the rolled quality, "" when none maps. Same ladder resolution as
+// qualityEffectFor.
+func (s *Service) qualityGradeFor(tpl *item.Template, qualityKey string) string {
+	return s.qualityMappedValue(tpl, qualityKey, propQualityGrades)
+}
+
+// qualityMappedValue resolves a tier → value content map on the output
+// template (propKey): the value mapped to the highest rarity tier not
+// exceeding the rolled quality, or "" when the template declares no such map
+// or no tier at/below the roll. Shared by the effect (§6) and grade (§7) maps.
+func (s *Service) qualityMappedValue(tpl *item.Template, qualityKey, propKey string) string {
 	if tpl == nil || qualityKey == "" || tpl.Properties == nil {
 		return ""
 	}
-	m := stringMap(tpl.Properties[propQualityEffects])
+	m := stringMap(tpl.Properties[propKey])
 	if len(m) == 0 {
 		return ""
 	}
@@ -351,13 +383,13 @@ func (s *Service) qualityEffectFor(tpl *item.Template, qualityKey string) string
 		return ""
 	}
 	best, bestPos := "", -1
-	for tierKey, effID := range m {
+	for tierKey, val := range m {
 		pos := ladderPosition(s.rarity, tierKey)
 		if pos < 0 || pos > rolledPos {
 			continue
 		}
 		if pos > bestPos {
-			bestPos, best = pos, strings.TrimSpace(effID)
+			bestPos, best = pos, strings.TrimSpace(val)
 		}
 	}
 	return best
@@ -528,8 +560,11 @@ func stationRequirementMessage(tier int) string {
 // lockedRoller serializes roller use for the gain roll (Craft runs on
 // per-session goroutines). Mirrors the inline guard in rollQuality.
 type lockedRoller struct {
-	mu interface{ Lock(); Unlock() }
-	r  Roller
+	mu interface {
+		Lock()
+		Unlock()
+	}
+	r Roller
 }
 
 func (l lockedRoller) IntN(n int) int {

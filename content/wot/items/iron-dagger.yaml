@@ -11,6 +11,14 @@ eligible_slots: [wield]
 properties:
   weight: 2
   value: 30
+  # Masterwork via crafting (masterwork §7): a high-quality forge stamps a
+  # quality grade on the dagger, so a finely-smithed one hits truer. The grade
+  # is the highest tier at/below the rolled quality (mechanical, separate from
+  # the cosmetic rarity the same roll stamps). A common forge leaves it plain.
+  quality_grades:
+    uncommon: masterwork
+    rare: masterpiece
+    epic: power-wrought
 weapon_damage: "1d4"
 modifiers:
   - stat: str
