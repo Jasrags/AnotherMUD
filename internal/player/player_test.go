@@ -1037,6 +1037,107 @@ func TestLoad_V21MigratesToV22(t *testing.T) {
 	}
 }
 
+// baseStatValue returns the value of stat in snap and whether it is present.
+func baseStatValue(snap progression.BaseSnapshot, stat progression.StatType) (int, bool) {
+	for _, e := range snap {
+		if e.Stat == stat {
+			return e.Value, true
+		}
+	}
+	return 0, false
+}
+
+// A v23 save whose persisted base predates the movement-cost feature gets
+// movement_max backfilled (the on-disk shape is made explicit).
+func TestLoad_V23BackfillsMovementMax(t *testing.T) {
+	ctx := context.Background()
+	st, dir := newStore(t)
+	playerDir := filepath.Join(dir, "players", "oldwalker")
+	if err := os.MkdirAll(playerDir, 0o755); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+	// A v23 base block carries the classics + hp_max but no movement_max.
+	if err := os.WriteFile(filepath.Join(playerDir, "player.yaml"),
+		[]byte("version: 23\nid: p-1\naccount_id: acct-1\nname: OldWalker\nlocation: starter-world:town-square\nstats_base:\n  - stat: str\n    value: 10\n  - stat: hp_max\n    value: 20\n"),
+		0o600); err != nil {
+		t.Fatalf("write: %v", err)
+	}
+	got, err := st.Load(ctx, "oldwalker")
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if got.Version != player.CurrentVersion {
+		t.Errorf("Version after migrate = %d, want %d", got.Version, player.CurrentVersion)
+	}
+	v, ok := baseStatValue(got.StatsBase, progression.StatMovementMax)
+	if !ok {
+		t.Fatalf("movement_max not backfilled into StatsBase: %v", got.StatsBase)
+	}
+	if v != player.BackfillMovementMax {
+		t.Errorf("backfilled movement_max = %d, want %d", v, player.BackfillMovementMax)
+	}
+	// The pre-existing entries survive (append, not replace).
+	if hp, ok := baseStatValue(got.StatsBase, progression.StatHPMax); !ok || hp != 20 {
+		t.Errorf("hp_max = (%d,%v), want (20,true) — backfill must not drop existing stats", hp, ok)
+	}
+}
+
+// A v23 save that already carries movement_max is left untouched (no
+// duplicate entry, value preserved).
+func TestLoad_V23MovementMaxBackfillIdempotent(t *testing.T) {
+	ctx := context.Background()
+	st, dir := newStore(t)
+	playerDir := filepath.Join(dir, "players", "newwalker")
+	if err := os.MkdirAll(playerDir, 0o755); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(playerDir, "player.yaml"),
+		[]byte("version: 23\nid: p-2\naccount_id: acct-2\nname: NewWalker\nlocation: starter-world:town-square\nstats_base:\n  - stat: movement_max\n    value: 25\n"),
+		0o600); err != nil {
+		t.Fatalf("write: %v", err)
+	}
+	got, err := st.Load(ctx, "newwalker")
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	n := 0
+	for _, e := range got.StatsBase {
+		if e.Stat == progression.StatMovementMax {
+			n++
+		}
+	}
+	if n != 1 {
+		t.Fatalf("movement_max entry count = %d, want 1 (no duplicate)", n)
+	}
+	if v, _ := baseStatValue(got.StatsBase, progression.StatMovementMax); v != 25 {
+		t.Errorf("existing movement_max = %d, want 25 preserved", v)
+	}
+}
+
+// A v23 save with no persisted base block stays empty after migration — the
+// full DefaultPlayerBase (movement_max included) applies at construction, so
+// the migration must NOT fabricate a partial base.
+func TestLoad_V23NoStatsBaseStaysEmpty(t *testing.T) {
+	ctx := context.Background()
+	st, dir := newStore(t)
+	playerDir := filepath.Join(dir, "players", "baselessuser")
+	if err := os.MkdirAll(playerDir, 0o755); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(playerDir, "player.yaml"),
+		[]byte("version: 23\nid: p-3\naccount_id: acct-3\nname: BaselessUser\nlocation: starter-world:town-square\n"),
+		0o600); err != nil {
+		t.Fatalf("write: %v", err)
+	}
+	got, err := st.Load(ctx, "baselessuser")
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if len(got.StatsBase) != 0 {
+		t.Errorf("StatsBase = %v, want empty (no partial base fabricated)", got.StatsBase)
+	}
+}
+
 func TestSaveLoad_GenderRoundTrips(t *testing.T) {
 	ctx := context.Background()
 	st, _ := newStore(t)

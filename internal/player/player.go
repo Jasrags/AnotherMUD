@@ -127,7 +127,7 @@ import (
 // means "knows no recipes beyond what a discipline grants at runtime";
 // the migration injects nothing. A known id whose recipe was removed from
 // content loads cleanly and is ignored at restore (§9), never an error.
-const CurrentVersion = 23
+const CurrentVersion = 24
 
 // Sentinel errors callers may check via errors.Is.
 var (
@@ -551,6 +551,7 @@ var playerMigrations = map[int]func(map[string]any) (map[string]any, error){
 	20: migrateV20toV21,
 	21: migrateV21toV22,
 	22: migrateV22toV23,
+	23: migrateV23toV24,
 }
 
 // migrateV1toV2 adds the empty inventory/equipment blocks introduced
@@ -879,6 +880,53 @@ func migrateV22toV23(in map[string]any) (map[string]any, error) {
 		}
 	}
 	in["world_id"] = world
+	return in, nil
+}
+
+// BackfillMovementMax is the movement_max base-stat value migrateV23toV24
+// stamps onto a pre-v24 save. Frozen at the v24-era
+// progression.DefaultMovementMax so the migration stays deterministic if that
+// default is later rebalanced (a migration must produce the same result
+// regardless of future code).
+const BackfillMovementMax = 30
+
+// migrateV23toV24 backfills the `movement_max` base stat onto saves whose
+// persisted `stats_base` block predates the movement-cost feature
+// (world-rooms-movement §3.3 — walking spends movement points). Such a block
+// carries the classic attributes + hp_max but no movement_max.
+//
+// Belt-and-suspenders by design: at login RestoreBase MERGES the persisted
+// base onto a block already seeded from DefaultPlayerBase (which now carries
+// movement_max), so a pre-v24 character already resolves the pool correctly at
+// runtime — the merge keeps the construction default for any key the save
+// omits. This migration makes the value explicit ON DISK (so an unread save
+// already carries it) and decouples it from the merge + the live default.
+//
+// Only a present, non-empty stats_base that is missing movement_max is
+// touched: an absent block already loads the FULL default (movement_max
+// included, since RestoreBase isn't invoked for an empty snapshot), and a
+// block already carrying the key is left as-is.
+func migrateV23toV24(in map[string]any) (map[string]any, error) {
+	raw, ok := in["stats_base"]
+	if !ok || raw == nil {
+		return in, nil // no persisted base — the full default applies at load
+	}
+	list, ok := raw.([]any)
+	if !ok {
+		return in, nil // malformed shape — leave it for the decoder to reject
+	}
+	movementMax := string(progression.StatMovementMax)
+	for _, e := range list {
+		if m, ok := toStringKeyMap(e); ok {
+			if s, _ := m["stat"].(string); s == movementMax {
+				return in, nil // already present
+			}
+		}
+	}
+	in["stats_base"] = append(list, map[string]any{
+		"stat":  movementMax,
+		"value": BackfillMovementMax,
+	})
 	return in, nil
 }
 
