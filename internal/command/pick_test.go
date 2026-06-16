@@ -6,9 +6,20 @@ import (
 	"testing"
 
 	"github.com/Jasrags/AnotherMUD/internal/command"
+	"github.com/Jasrags/AnotherMUD/internal/grade"
+	"github.com/Jasrags/AnotherMUD/internal/item"
 	"github.com/Jasrags/AnotherMUD/internal/progression"
 	"github.com/Jasrags/AnotherMUD/internal/world"
 )
+
+// gradeLadderWithTool is a grade registry whose grades set ToolSkill (a
+// masterwork tool adds +1 to a skill check, masterpiece +2).
+func gradeLadderWithTool() *grade.Registry {
+	r := grade.NewRegistry()
+	r.Register(grade.Grade{Key: "masterwork", Order: 1, ToolSkill: 1})
+	r.Register(grade.Grade{Key: "masterpiece", Order: 2, ToolSkill: 2})
+	return r
+}
 
 // pickRoller serves a fixed raw IntN value (a d20 face N is programmed as N-1,
 // since ResolveSkillCheck does IntN(20)+1).
@@ -111,6 +122,90 @@ func TestPickVerb_ArmorCheckPenaltyFailsBoundaryPick(t *testing.T) {
 	}
 	if d, _ := f2.world.GetDoor("a", world.DirNorth); !d.Locked {
 		t.Error("door unlocked despite the armor-check penalty failing the pick")
+	}
+}
+
+// lockpickTpl is a carried tool that assists Open Lock (skills.md tool seam),
+// optionally graded.
+func lockpickTpl(bonus int, g string) *item.Template {
+	return &item.Template{
+		ID: "x:lockpick", Name: "a lockpick", Type: "tool",
+		Keywords: []string{"lockpick", "pick"},
+		Properties: map[string]any{
+			"skill_tool":       "open-lock",
+			"skill_tool_bonus": bonus,
+		},
+		Grade: g,
+	}
+}
+
+func giveLockpick(t *testing.T, f *doorFixture, a *testActor, bonus int, g string) {
+	t.Helper()
+	inst, err := f.store.Spawn(lockpickTpl(bonus, g))
+	if err != nil {
+		t.Fatalf("spawn lockpick: %v", err)
+	}
+	a.AddToInventory(inst.ID())
+}
+
+// A carried lockpick adds its bonus to the Open-Lock check (the skills.md tool
+// seam): at DC 18 a bare attempt (bonus 5, roll 11 → total 16) fails, but a +2
+// lockpick lifts the total to 18 and the lock yields.
+func TestPickVerb_CarriedLockpickAddsBonus(t *testing.T) {
+	f := newDoorFixture(t, pickableGate("village-key", 18), nil)
+	a := newNamedTestActor("Picker", "p-pick", f.roomA(t))
+	dispatchDoorEnv(t, pickEnv(t, f, a.PlayerID(), 50, 11), a, "pick gate")
+	if got := a.lastLine(); !strings.Contains(got, "fail to pick") {
+		t.Fatalf("control (no tool) should fail at DC 18; got %q", got)
+	}
+
+	f2 := newDoorFixture(t, pickableGate("village-key", 18), nil)
+	a2 := newNamedTestActor("Picker", "p-pick2", f2.roomA(t))
+	giveLockpick(t, f2, a2, 2, "")
+	dispatchDoorEnv(t, pickEnv(t, f2, a2.PlayerID(), 50, 11), a2, "pick gate")
+	if got := a2.lastLine(); !strings.Contains(got, "deftly pick") {
+		t.Fatalf("a carried lockpick should make the boundary pick succeed; got %q", got)
+	}
+}
+
+// A masterwork lockpick aids the check more than a plain one (masterwork §3):
+// at DC 19 a plain +2 pick (total 18) fails, but a masterwork +2 pick (base 2 +
+// grade ToolSkill 1 = 3, total 19) succeeds.
+func TestPickVerb_MasterworkLockpickAddsGradeBonus(t *testing.T) {
+	grades := gradeLadderWithTool()
+
+	f := newDoorFixture(t, pickableGate("village-key", 19), nil)
+	a := newNamedTestActor("Picker", "p-pick", f.roomA(t))
+	giveLockpick(t, f, a, 2, "") // plain → +2 → total 18 < 19
+	env := pickEnv(t, f, a.PlayerID(), 50, 11)
+	env.Grades = grades
+	dispatchDoorEnv(t, env, a, "pick gate")
+	if got := a.lastLine(); !strings.Contains(got, "fail to pick") {
+		t.Fatalf("a plain lockpick should fail at DC 19; got %q", got)
+	}
+
+	f2 := newDoorFixture(t, pickableGate("village-key", 19), nil)
+	a2 := newNamedTestActor("Picker", "p-pick2", f2.roomA(t))
+	giveLockpick(t, f2, a2, 2, "masterwork") // +2 base + 1 grade = +3 → total 19
+	env2 := pickEnv(t, f2, a2.PlayerID(), 50, 11)
+	env2.Grades = grades
+	dispatchDoorEnv(t, env2, a2, "pick gate")
+	if got := a2.lastLine(); !strings.Contains(got, "deftly pick") {
+		t.Fatalf("a masterwork lockpick should succeed where a plain one fails; got %q", got)
+	}
+}
+
+// Carried tools toward one check do NOT stack (masterwork §3): two +2 lockpicks
+// still contribute only +2 (best-applies), so at DC 19 the pick fails — were
+// they stacking (+4) it would succeed.
+func TestPickVerb_LockpicksDoNotStack(t *testing.T) {
+	f := newDoorFixture(t, pickableGate("village-key", 19), nil)
+	a := newNamedTestActor("Picker", "p-pick", f.roomA(t))
+	giveLockpick(t, f, a, 2, "")
+	giveLockpick(t, f, a, 2, "")
+	dispatchDoorEnv(t, pickEnv(t, f, a.PlayerID(), 50, 11), a, "pick gate")
+	if got := a.lastLine(); !strings.Contains(got, "fail to pick") {
+		t.Fatalf("two lockpicks must not stack (best-applies, +2 → total 18 < 19); got %q", got)
 	}
 }
 

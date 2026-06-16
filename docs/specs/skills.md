@@ -155,6 +155,12 @@ a `pick-difficulty` threshold). A `pick` verb is the keyless alternative to
   (the existing gain-on-miss multiplier).
 - An actor with **no lockpicking proficiency** (untrained, and Open Lock is
   trained-only) is refused — "You don't know how to pick locks."
+- **Tools (skills.md tool seam, built 2026-06-16).** A carried item declaring
+  the skill it assists (`skill_tool: open-lock`) adds its base `skill_tool_bonus`
+  to the check — a lockpick aids the pick. A quality grade on the tool adds the
+  grade's tool bonus on top (`masterwork §3`). Tools toward one check do **not**
+  stack — only the best carried tool's contribution counts. The seam is generic
+  (keyed by the skill id) so a future Str/Dex skill reuses it.
 
 Lockpicking changes no existing door mechanic: the key path, lock/unlock verbs,
 and door sync are untouched; `pick` is an additional way to clear a lock gated

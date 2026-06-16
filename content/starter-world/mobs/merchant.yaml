@@ -24,3 +24,6 @@ properties:
     sells:
       - starter-world:healing-draught
       - starter-world:leather-cap
+      # The skills.md tool seam demo: lockpicks aid the Open-Lock check on the
+      # forge vault/cellar doors (buy, then `pick` a locked pickable door).
+      - starter-world:lockpick

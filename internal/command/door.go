@@ -158,6 +158,10 @@ func handlePick(ctx context.Context, c *Context, src world.RoomID, dir world.Dir
 	if fb, ok := c.Actor.(featSkillBonuser); ok {
 		bonus += fb.FeatSkillBonus(skillOpenLock)
 	}
+	// Tool bonus (skills.md tool seam + masterwork §3): a carried lockpick
+	// aids the Open-Lock check; a graded one aids it more. Best-applies across
+	// carried tools (non-stacking).
+	bonus += c.skillToolBonus(skillOpenLock)
 	// Armor check penalty (armor-depth §6): a worn armor/shield's check penalty
 	// reduces Str- and Dex-based skill checks (Open Lock keys off Dex). The
 	// total worn penalty is carried on the armor_check stat (applied at equip,
