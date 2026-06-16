@@ -161,6 +161,35 @@ func TestMove_HardGoingHintOnRougherTerrain(t *testing.T) {
 	}
 }
 
+// A mover with no movement pool is not charged for the step, so it gets no
+// hard-going hint even when the destination terrain is rougher.
+func TestMove_NoHintWhenUnmetered(t *testing.T) {
+	road := &world.Room{ID: "road", Name: "Road", Terrain: world.TerrainOutdoors,
+		Exits: map[world.Direction]world.Exit{world.DirEast: {Target: "wood"}}}
+	wood := &world.Room{ID: "wood", Name: "Wood", Terrain: "forest",
+		Exits: map[world.Direction]world.Exit{world.DirWest: {Target: "road"}}}
+	w := world.New()
+	w.AddRoom(road)
+	w.AddRoom(wood)
+
+	biomes := biome.NewRegistry()
+	if err := biomes.RegisterEngine(&biome.Biome{ID: "forest", MoveCost: 2}); err != nil {
+		t.Fatalf("register forest biome: %v", err)
+	}
+
+	actor := newTestActor(road) // mvMax defaults to 0 — unmetered, moves free
+
+	if err := moveCostBiomeDispatch(w, biomes, 1, actor, "e"); err != nil {
+		t.Fatalf("move east: %v", err)
+	}
+	if actor.Room().ID != "wood" {
+		t.Fatalf("unmetered move blocked; room = %q, want wood", actor.Room().ID)
+	}
+	if joined := strings.Join(actorLines(actor), "\n"); strings.Contains(joined, "going is hard") {
+		t.Fatalf("an unmetered mover should not get the hard-going hint:\n%s", joined)
+	}
+}
+
 // When the destination biome sets no MoveCost, the Env's flat default applies.
 func TestMove_DefaultCostWhenBiomeUnset(t *testing.T) {
 	w, a, _ := moveCostWorld() // both rooms are bare outdoors, no biome registered

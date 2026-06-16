@@ -461,14 +461,16 @@ func movementHandler(dir world.Direction) Handler {
 		// Cost is the destination biome's weight (rough terrain costs more),
 		// falling back to the configured flat default.
 		dstCost := moveCost(c, dst)
-		if !spendMovement(c, dstCost) {
+		allowed, charged := spendMovement(c, dstCost)
+		if !allowed {
 			return c.Actor.Write(ctx, tooWindedText)
 		}
-		// Terrain-difficulty hint: stepping onto rougher ground than the room
-		// just left costs more movement, so name it once on the transition
-		// (silent when walking within one terrain) so the larger spend isn't a
-		// mystery. Measured against the source room before the actor leaves.
-		harderGoing := dstCost > moveCost(c, room)
+		// Terrain-difficulty hint: surfaced only when the step actually cost
+		// the mover extra — they were charged (so an unmetered/free mover stays
+		// silent) AND the destination is rougher than the room just left. Fired
+		// once on the transition; walking within one terrain stays quiet.
+		// Measured against the source room before the actor leaves.
+		harderGoing := charged && dstCost > moveCost(c, room)
 		srcID := room.ID
 		name := c.Actor.Name()
 		pid := c.Actor.PlayerID()
@@ -591,23 +593,23 @@ func moveCost(c *Context, dst *world.Room) int {
 	return fallbackMoveCost
 }
 
-// spendMovement charges the actor cost points for one step and reports
-// whether the step may proceed. It returns true (allow) when the actor has
-// no movement pool that can afford a full step — a zero max (mobs / test
-// actors) or a cost above capacity must never strand the mover. Otherwise
-// it blocks when the current pool is short, or deducts the cost and allows
-// the step.
-func spendMovement(c *Context, cost int) bool {
+// spendMovement charges the actor cost points for one step. It reports
+// whether the step may proceed (allowed) and whether the cost was actually
+// deducted (charged). charged is false for an unmetered mover — no movement
+// pool (mobs / test actors) or a cost above the pool's capacity — both of
+// which move for free and must never be stranded. A step blocked by an
+// insufficient pool returns (false, false).
+func spendMovement(c *Context, cost int) (allowed, charged bool) {
 	mc, ok := c.Actor.(movementCostSubject)
 	if !ok {
-		return true
+		return true, false
 	}
 	if cost <= 0 || mc.MovementMax() < cost {
-		return true
+		return true, false
 	}
 	if mc.Movement() < cost {
-		return false
+		return false, false
 	}
 	mc.DeductMovement(cost)
-	return true
+	return true, true
 }
