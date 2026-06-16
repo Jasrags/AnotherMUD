@@ -83,6 +83,14 @@ The simulated environment and the things in it.
   forage / node resource tables gathering consumes. Richer
   terrain, one axis, fully backward-compatible. Designed with
   gathering.
+- [movement-cost](movement-cost.md) — the movement-point pool a
+  character spends to travel: the per-step cost gate the
+  player-volition layer adds over the (still unconditional) move
+  primitive, terrain-weighted step cost via [biomes](biomes.md), the
+  never-strand safety rule, and the difficulty hint. Owns the cost
+  concern `world-rooms-movement` §3.3 declares a non-goal; spends the
+  generalized pool ([progression](progression.md) max,
+  [economy-survival](economy-survival.md) regen).
 - [room-coordinates](room-coordinates.md) — area-local integer
   `(x, y, z)` **derived from the exit graph** at load: the
   derivation walk, the collision / non-square-loop / unplaced-room
@@ -515,4 +523,4 @@ highest-impact themes that recur across specs:
 
 ---
 
-<!-- Updated: 2026-06-10 · 44 specs covering the engine substrate, world, action, lifecycle, and presentation layers. Behavior contracts still ahead of code: tag-observers, visibility, hidden-exits, faction, and the trade trio (trade-escrow, direct-trade, auction-house). Since-shipped: roles-and-permissions, admin-verbs, item-decorations (M19/M20), loot-and-corpses (M22), tab-completion Phase 0–2, who, light-and-darkness, room-coordinates (M23), player-maps (M24 — Mudlet GMCP wire-shape pending live-client validation), biomes, gathering, crafting-and-cooking (M27), weapon-identity (WoT EPIC S1), saves (WoT EPIC S6), conditions (WoT EPIC S5), skills (WoT EPIC S3, substrate). -->
+<!-- Updated: 2026-06-16 · 45 specs covering the engine substrate, world, action, lifecycle, and presentation layers. Behavior contracts still ahead of code: tag-observers, faction, and the trade trio (trade-escrow, direct-trade, auction-house). Since-shipped: roles-and-permissions, admin-verbs, item-decorations (M19/M20), loot-and-corpses (M22), tab-completion Phase 0–2, who, light-and-darkness, room-coordinates (M23), player-maps (M24 — Mudlet GMCP wire-shape pending live-client validation), biomes, gathering, crafting-and-cooking (M27), weapon-identity (WoT EPIC S1), saves (WoT EPIC S6), conditions (WoT EPIC S5), skills (WoT EPIC S3, substrate), visibility + hidden-exits (M28), movement-cost (spec back-filled after the shipped flat→biome-weighted cost gate). -->

@@ -85,9 +85,10 @@ stands on. It owns:
   the engine's default but content/UI layers may extend it; this
   spec treats Direction as opaque except where it explicitly says
   otherwise.
-- Movement *cost* (movement points / stamina). Cost gating lives
-  outside this feature; the move primitive here is unconditional
-  on resource availability.
+- Movement *cost* (movement points / stamina). The move primitive
+  here is unconditional on resource availability; the cost gate the
+  player-volition layer builds on top of it is owned by
+  [movement-cost](movement-cost.md).
 - Pathfinding or routing. The world exposes the graph; navigation
   is a caller concern.
 - Persistence of rooms / world state across restart. Room and
@@ -263,7 +264,8 @@ emitted by the command layer).
 The move primitive is unconditional with respect to:
 
 - Movement cost (movement points / stamina). Callers check and
-  deduct.
+  deduct; the player-volition cost gate is owned by
+  [movement-cost](movement-cost.md).
 - Door locks beyond the closed check (a closed-but-locked door
   is still just "closed" for movement purposes).
 - Alignment access (§3.5).
