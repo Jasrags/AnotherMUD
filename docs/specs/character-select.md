@@ -30,8 +30,9 @@ surface: out-of-world characters are listed but unavailable.
 
 ### Core concepts
 
-- **Account authentication** — identifying the account by email + password,
-  replacing the character-name entry as the front door.
+- **Account authentication** — identifying the account by a dedicated
+  **account username** + password (§2), replacing the character-name entry as
+  the front door; email is demoted to an optional recovery field.
 - **Roster** — the list of the account's characters presented after auth, each
   with its name, its world, and whether it is **available** (its world is in the
   server's active world set) or **unavailable** (greyed).
@@ -60,24 +61,51 @@ surface: out-of-world characters are listed but unavailable.
 
 ---
 
-## 2. Account authentication
+## 2. Account identity and authentication
 
-The connection's front door identifies the **account**:
+The front door identifies the **account** by a dedicated **account username** —
+not a character name and not an email. (Decision 2026-06-16: name-based account
+login; email is demoted to an optional recovery field on a path to deprecation.)
 
-- Prompt for the account's **email**, then its **password**, authenticating
-  against the account service (the same credential store `login.md` uses).
-- An email that **matches no account** begins the **new-account** path (choose +
-  confirm a password), creating the account, after which the roster is empty and
-  the flow goes straight to **create a character** (§4).
+### 2.1 The account username
+
+The account model gains a **username**: a unique, case-insensitive account
+identifier the player logs in with, distinct from any character name. It is
+indexed for lookup alongside (and eventually replacing) the email index.
+
+- **Email becomes optional.** It is retained on the account as a recovery /
+  contact field, no longer the login key. New-account creation MAY collect an
+  email but does not require it; the deprecation path is to stop collecting it.
+- **Uniqueness.** Usernames are unique case-insensitively (like emails today);
+  character names remain globally unique and independent of usernames.
+- **Migration.** Existing accounts predate the username. They are backfilled
+  deterministically — the username is derived from the existing email's local
+  part (before the `@`), de-duplicated if it collides — so no operator input is
+  needed and every account has a username after migration. (The account store is
+  versioned/indexed; the backfill rebuilds the username index at load.)
+
+### 2.2 Authentication
+
+- Prompt for the **username**, then the **password**, authenticating against the
+  account service.
+- A username that **matches no account** begins the **new-account** path (choose
+  the username if not already taken, then choose + confirm a password; email
+  optional), creating the account; the roster is then empty and the flow goes
+  straight to **create a character** (§4).
 - Authentication failures, attempt caps, and password handling reuse `login.md`
   §6.2 unchanged (no new credential mechanics).
 
 **Acceptance criteria**
 
-- [ ] The front door authenticates an account by email + password, not by
-      character name.
-- [ ] An unknown email begins new-account creation; on success the account has
-      no characters and the flow proceeds to character creation.
+- [ ] The account model carries a unique (case-insensitive) username, indexed;
+      existing accounts are backfilled from the email local part (collision-
+      de-duplicated) with no operator input.
+- [ ] The front door authenticates by username + password — not character name,
+      not email.
+- [ ] An unknown username begins new-account creation (username availability +
+      password, email optional); on success the account has no characters and the
+      flow proceeds to character creation.
+- [ ] Email is optional on the account and is not the login key.
 - [ ] Password handling and attempt caps match `login.md` §6.2.
 
 ## 3. The roster
@@ -160,18 +188,21 @@ Playing/Creating; the Playing and Creating phases are entered exactly as before.
 
 ## 6. Persistence and state
 
-No new persistence is introduced:
-
-- The roster is **derived at authentication time** from `account.Characters`
-  (the names), each character's persisted `WorldID` (its world), and the server's
-  active world set (availability).
+- **Account save** gains one field — the **username** (§2.1) — plus its lookup
+  index; existing accounts are backfilled at load. Email is retained but
+  optional. This is the only new persistence.
+- The **roster** itself adds no storage: it is **derived at authentication time**
+  from `account.Characters` (the names), each character's persisted `WorldID`
+  (its world), and the server's active world set (availability).
 - Creating a character adds it to `account.Characters` (already wired) and stamps
   its `WorldID` (already wired, `character-identity.md`).
 
 **Acceptance criteria**
 
+- [ ] The account save carries a username + index; existing accounts are
+      backfilled with no operator input.
 - [ ] The roster is derived from existing state (account character list + each
-      save's WorldID + the active world set); this spec adds no new save field.
+      save's WorldID + the active world set); it adds no new player-save field.
 
 ## 7. Configuration surface
 
@@ -183,11 +214,14 @@ No new persistence is introduced:
 
 ## 8. Open questions / future work
 
-- **Keep character-name login as a shortcut?** Account-first is the model here;
-  whether to also accept a typed character name as a convenience entry (resolving
-  to its account) — preserving muscle memory from the name-first flow — is
-  undecided. Lean: drop it for a single clear front door; revisit if players miss
-  it.
+- **Email deprecation path.** Email is demoted to optional this slice (§2.1);
+  when/whether to stop collecting it entirely, and whether to keep it for
+  password recovery, is a follow-up. (Decision 2026-06-16: account login is by
+  username, not character name and not email.)
+- **Keep character-name login as a shortcut?** The front door is the account
+  username; whether to also accept a typed character name as a convenience entry
+  (resolving to its account) is undecided. Lean: drop it for a single clear
+  front door; revisit if players miss it.
 - **Max characters per account.** A cap bounds roster size and abuse; unbounded
   is simplest. Decide if/when abuse is a concern.
 - **Roster operations** — delete / rename a character from the roster — are
