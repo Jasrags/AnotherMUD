@@ -190,8 +190,9 @@ today); this is intentional and matches the existing natural-maximum rule.
   proficiency.
 - **Light & darkness** (`light-and-darkness §5.3`): the non-proficient penalty
   and the darkness penalty share the attacker to-hit-adjust seam and sum.
-- **Damage types** are recorded for the future armor-depth slice (EPIC E); until
-  then a single AC applies to all types (`combat §4.4`).
+- **Damage types** are recorded here and **consumed by the armor-depth slice**
+  (`armor-depth.md` §4, EPIC E): they key the per-type **damage-mitigation**
+  (soak) step, not a per-type AC — AC stays single (`combat §4.4`).
 
 ## 6. Configuration surface
 

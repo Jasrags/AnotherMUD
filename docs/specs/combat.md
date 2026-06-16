@@ -285,6 +285,12 @@ A critical hit's effect on damage (e.g. doubled dice, fixed bonus,
 or "no extra effect, just guaranteed hit") is a policy decision and
 is signaled to listeners via the `isCritical` flag on the hit event.
 
+Incoming damage carries a damage type, and a future **mitigation step**
+(the reserved `mitigation` channel, §4.4) MAY reduce it by the
+defender's per-type resistance before the final-damage floor — see
+`armor-depth.md` §4 *(spec; build pending)*. Until that lands, damage is
+unmitigated and the min-1 floor above is final.
+
 **Acceptance criteria**
 
 - [ ] An attacker with no primary target or a dead/missing/distant

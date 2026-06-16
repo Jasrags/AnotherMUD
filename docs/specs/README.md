@@ -116,6 +116,15 @@ The verbs players use and the systems that resolve them.
   two-handed Strength bonus to melee damage. Layers on `weapon-identity` +
   `inventory-equipment-items` §3.3 + `combat` §4.5; EPIC sub-epic S1
   increment F *(spec; build pending)*.
+- [armor-depth](armor-depth.md) — armor's depth split across the two
+  defensive channels: a **single** armor class on `defense` (decompose-and-cap
+  — armor bonus + a max-Dex cap on the Dex term, shields stack) and **per-type
+  damage resistance** on the reserved `mitigation` channel (its first consumer —
+  the cross-ruleset soak primitive where physical *and* elemental resistance
+  live), plus armor proficiency, the check penalty, and don/doff timers.
+  Consumes the damage type `weapon-identity` recorded inertly. Layers on
+  `combat` §4.4–§4.5 + the channel map; EPIC sub-epic S1 increments E+D
+  *(spec; build pending)*.
 - [saves](saves.md) — saving throws (Fortitude / Reflex / Will): three
   derived save values (class strong/weak base + governing-ability
   modifier), the `d20 + bonus vs DC` resolve primitive + the

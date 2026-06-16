@@ -1,0 +1,301 @@
+# Armor Depth (armor class · damage resistance · armor proficiency)
+
+EPIC sub-epic **S1** — increment **E** (and **D**, damage types, now consumed) of
+the WoT Combat & Equipment Depth program
+(`docs/themes/wot-mechanics-epic.md`, `docs/proposals/combat-equipment-depth.md`).
+Governed by EPIC **Decision 0** (translate onto the existing tick model; no d20
+rewrite). *Spec ahead of code — build pending.* Layers on `combat §4.4`–`§4.5`,
+the **channel map** (`combat §4.4`: the `defense` and `mitigation` derived
+channels), `weapon-identity` (damage types, the proficiency-penalty seam),
+`inventory-equipment-items` (armor slots), and the sibling `size-and-wielding`.
+
+## 1. Overview
+
+Armor in the source does several distinct jobs that the engine currently
+collapses into one flat AC modifier. This slice separates them across the **two
+defensive channels the engine already reserves**, and that separation is the
+key design decision:
+
+- **To-hit avoidance** lives on the **`defense` channel** (armor class) — heavier
+  armor makes you **harder to hit**. This stays a **single** value vs all damage
+  types, faithful to the WoT armor table's single "Bonus" column. Armor
+  **layers** onto the existing derived AC additively, with one new primitive: a
+  **max-Dex cap** the worn armor places on the Dex contribution.
+- **Damage reduction** lives on the **`mitigation` channel** (soak) — you are
+  hit, but incoming damage is reduced **by damage type**. This is the reserved
+  `mitigation` channel's **first consumer**, and it is where **per-type
+  resistance** belongs (slash/pierce/bludgeon *and* elemental types like fire or
+  electricity), not on AC.
+
+The deliberate split: **per-damage-type differentiation is a damage-mitigation
+concept, not an AC concept.** A fire attack is not dodged by a "fire AC"; it
+lands and is *resisted*. Modeling resistance as per-type AC would be a category
+error. Keeping AC single and putting per-type resistance on `mitigation` serves
+both settings cleanly — **WoT leans on `defense`** (armor = harder to hit),
+**a future Shadowrun-style pack leans on `mitigation`** (armor = damage
+resistance, plus elemental resistances) — on one kernel, with each ruleset
+choosing where its armor does its work.
+
+This slice also **consumes the damage type (D)** recorded inertly by
+`weapon-identity §2`: incoming damage now carries a type, and mitigation is keyed
+by it.
+
+**Goals.** Give armor the WoT table's depth (armor bonus, max-Dex cap, armor
+check penalty, armor proficiency, don/doff timers, shields) on a **single** AC;
+introduce the per-type **damage-mitigation step** as the cross-ruleset soak
+primitive; reuse the `defense`/`mitigation` channels and the existing equipment
+slots rather than new machinery.
+
+**Non-goals (this slice).** Encumbrance, carry weight, and the armor **speed**
+penalty (increment I — cross-referenced, not built here). Shield **bash** as an
+offensive weapon and other special handlers (increment J). Two-weapon penalties
+(a later increment). No initiative or action economy (Decision 0).
+
+## 2. Armor as equipment
+
+Armor is ordinary equippable gear (`inventory-equipment-items`) carrying armor
+metadata; non-armor items declare none and are unaffected. An armor item
+declares:
+
+- An **armor bonus** — its additive contribution to AC (the `defense` channel,
+  §3).
+- A **max-Dex cap** — the most of the wearer's Dex modifier that counts toward AC
+  while this armor is worn (§3). Absent ⇒ no cap.
+- An **armor check penalty** — a penalty applied to Strength- and Dexterity-based
+  skill checks while worn (§5). Absent ⇒ none.
+- An **armor category / tier** — for proficiency matching (§5), drawn from a
+  pack-declared armor-tier vocabulary (the WoT pack uses *light / medium /
+  heavy*).
+- Optional **per-type resistance** contributions (§4) — a map of *damage type →
+  amount of incoming damage of that type reduced*. Absent ⇒ the armor grants no
+  damage resistance (a pure to-hit armor, the WoT default).
+- **Don / remove durations** and a **hastily-donned** variant (§7). Absent ⇒
+  instant.
+
+**Shields** are a distinct equippable (an off-hand item) that grants its own AC
+bonus and may carry its own check penalty; a shield's bonus **stacks** with body
+armor (§3). Shield offensive use (bash) is out of scope (increment J).
+
+## 3. Armor class — the `defense` channel (single, decompose-and-cap)
+
+AC (the `defense` channel) is a **derived value composed of named terms** rather
+than one opaque number, so the max-Dex cap can apply to the Dex term alone:
+
+```
+AC = base + min(DexMod, armorMaxDex) + armorBonus + shieldBonus + misc
+```
+
+- **Base** — the configured unarmored baseline.
+- **Dex term, capped** — the wearer's Dexterity modifier, **capped** by the worn
+  armor's max-Dex (if it declares one). With no armor (or no cap) the full Dex
+  modifier applies, exactly as today. If multiple worn pieces declare caps, the
+  **most restrictive (lowest)** cap applies.
+- **Armor bonus** + **shield bonus** + **misc** (deflection, natural armor,
+  size, spell effects) — additive contributors that **stack** across distinct
+  sources. Same-slot exclusivity (you wear one body armor) is enforced by the
+  equipment slot rules (`inventory-equipment-items §3`), not here.
+
+AC is **single** — one value compared against the attack roll regardless of the
+weapon's damage type (`combat §4.4`). Damage-type differentiation is handled on
+`mitigation` (§4), not here.
+
+**Unarmored and legacy behavior is unchanged.** With no armor worn, there is no
+cap and AC is `base + full Dex + any existing AC item modifiers` — byte-identical
+to today. Existing AC-granting items remain additive `misc` contributors.
+
+This composes through the existing `defense` channel formula (`combat §4.4`): the
+ruleset's `defense` derivation sums these terms, and the engine reads the channel
+by name. The non-armored baseline `defense` formula is unchanged; armor adds
+terms and the cap.
+
+**Acceptance criteria**
+
+- [ ] AC is composed of a base, a Dex term, an armor bonus, a shield bonus, and
+      misc contributors that stack across distinct sources.
+- [ ] The worn armor caps the Dex term at its max-Dex; with no armor or no cap
+      the full Dex modifier applies; the most restrictive cap wins if several
+      apply.
+- [ ] AC is a single value vs all damage types (no per-type AC).
+- [ ] A character wearing no armor has identical AC to before this slice.
+- [ ] A shield's bonus stacks with body armor's bonus.
+
+## 4. Damage resistance — the `mitigation` channel (per type)
+
+The damage roll (`combat §4.5`) gains a **mitigation step**. After damage is
+rolled (dice + Strength, criticals applied), the engine reduces it by the
+defender's **resistance to the incoming damage's type**:
+
+```
+finalDamage = rolledDamage − mitigation[incomingType]
+```
+
+- **Incoming damage carries a type** — from the weapon (`weapon-identity §2`'s
+  recorded damage type, now consumed) or from the ability/effect that dealt it
+  (e.g. a fire weave declares `fire`). Untyped damage matches no resistance and
+  is unmitigated.
+- **Mitigation is a per-type map** keyed over the pack-declared damage-type
+  vocabulary (`weapon-identity §6`) — `mitigation[slash]`, `mitigation[fire]`,
+  `mitigation[electricity]`, … Each entry is the amount of incoming damage of
+  that type the defender soaks. A type with no entry gets zero mitigation (full
+  damage).
+- **Sources compose additively** — a defender's resistance to a type is the sum
+  of contributions from worn armor, active effects, racial traits, and any other
+  source, read through the `mitigation` channel (the reserved channel's first
+  consumer, `combat §4.4`).
+- **The post-mitigation floor is policy.** Whether fully-resisted damage floors
+  at the existing "at least 1 on a hit" rule (`combat §4.5`) or may be reduced to
+  zero (full soak) is a **configurable** per-ruleset choice (§9): WoT keeps the
+  min-1 floor; a Shadowrun-style pack allows full absorption.
+
+This is the cross-ruleset soak primitive. **WoT armor** may optionally grant
+physical-type resistance (plate shrugging off a slash) but primarily works via
+`defense` (§3); a **Shadowrun-style pack** leans here, with armor and gear
+granting physical *and* elemental resistances. Both use the same machinery.
+
+**Acceptance criteria**
+
+- [ ] Incoming damage carries a damage type (from the weapon or the dealing
+      ability/effect); untyped damage is unmitigated.
+- [ ] Final damage is reduced by the defender's per-type mitigation for the
+      incoming type; an unmatched type is reduced by zero.
+- [ ] Mitigation sources (armor, effects, racial) compose additively per type
+      via the `mitigation` channel.
+- [ ] The post-mitigation damage floor (min-1 vs full-absorb) follows the
+      configured per-ruleset policy.
+- [ ] Damage types and resistance vocabularies are pack-declared and extensible
+      (a pack may add elemental types without engine changes).
+
+## 5. Armor proficiency
+
+Mirroring weapon proficiency (`weapon-identity §3`), a character holds an
+**armor-proficiency set** — the armor tiers/categories they may wear without
+penalty — **granted by class** and composed across a multiclass character's
+classes (`progression §4.7`). It is a static capability set, not use-gained.
+
+Wearing armor **outside** that set imposes the **non-proficient consequence**:
+the armor's check penalty (§6) is extended to the wearer's **attack rolls** (and,
+per §6, applies to Str/Dex skills as it always does). Proficient wear applies no
+attack penalty. As with weapons, this gates *effectiveness*, not *equipping* —
+non-proficient armor may still be worn, just clumsily — and equipping
+non-proficient armor emits a one-time cue to the wearer.
+
+Mobs, having no class, wear any armor without penalty unless content declares
+otherwise.
+
+**Acceptance criteria**
+
+- [ ] The armor-proficiency set is class-granted and composed across multiclass.
+- [ ] Wearing non-proficient armor extends its check penalty to attack rolls;
+      proficient wear adds no attack penalty.
+- [ ] Non-proficient armor may still be worn; equipping it emits a one-time cue.
+- [ ] A mob with no class wears any armor without penalty unless content states
+      otherwise.
+
+## 6. Armor check penalty
+
+A worn armor's **check penalty** applies to the wearer's **Strength- and
+Dexterity-based skill checks** while worn (climbing, stealth, etc.) — always, not
+only when non-proficient. A shield's check penalty applies likewise and stacks
+with body armor's. Non-proficiency (§5) additionally extends the penalty to
+attack rolls.
+
+The check penalty composes through the same skill-check resolution the skills
+feature already exposes (`skills.md`); it is one more contributor to the
+effective check bonus, summed before the roll.
+
+**Acceptance criteria**
+
+- [ ] A worn armor's (and shield's) check penalty reduces Str/Dex skill checks
+      while worn, stacking across pieces.
+- [ ] The check penalty reaches attack rolls only when the wearer is
+      non-proficient with the armor (§5).
+
+## 7. Donning and removing
+
+Putting on and taking off armor **takes time**, scaled by the armor's bulk (the
+source's don / don-hastily / remove durations). The durations are armor metadata
+(§2); the exact action model (a simple timed equip, or an interruptible timed
+action) is policy (§9).
+
+A **hastily donned** armor is worn faster at a cost: its **armor bonus and check
+penalty are each one step worse** than normal until it is properly re-seated.
+
+Armor declaring no durations dons and removes instantly (the default for minimal
+content).
+
+**Acceptance criteria**
+
+- [ ] Donning/removing armor that declares durations takes the configured time;
+      armor without durations is instant.
+- [ ] Hastily donned armor applies a worsened armor bonus and check penalty until
+      properly donned.
+
+## 8. Interaction with existing systems
+
+- **Combat** (`combat §4.4`–`§4.5`): §3 feeds the `defense` channel (single AC,
+  capped Dex); §4 adds the per-type **mitigation step** to the damage roll. The
+  to-hit roll, fumble, and crit-dice shapes are otherwise unchanged.
+- **Channel map** (`combat §4.4`): `defense` gains armor terms + the Dex cap;
+  `mitigation` gets its first real consumer (per-type resistance). Both remain
+  content-defined formulas read by name.
+- **Weapon identity** (`weapon-identity §2`–§3): the recorded **damage type** is
+  now consumed by §4; armor proficiency mirrors weapon proficiency (§5).
+- **Progression / classes** (`progression §4.7`): armor proficiency is a
+  class-granted, multiclass-composed capability set, like weapon proficiency.
+- **Skills** (`skills.md`): the armor check penalty is a contributor to Str/Dex
+  skill checks (§6).
+- **Equipment** (`inventory-equipment-items §3`): armor and shields are ordinary
+  slotted items; slot rules enforce one body armor / one shield.
+- **Encumbrance** (increment I): the armor **speed** penalty and weight caps are
+  that slice's concern — cross-referenced, not built here.
+
+## 9. Configuration surface
+
+| Setting | Meaning | Default |
+|---|---|---|
+| Unarmored AC base | The baseline AC with no armor (§3). | the existing AC baseline |
+| Armor-tier vocabulary | The ordered set of armor tier/category names (§2, §5). | the WoT pack tiers (light / medium / heavy) |
+| Non-proficient armor consequence | How wearing out-of-set armor is penalized (§5). | the armor check penalty extended to attack |
+| Post-mitigation damage floor | Whether fully-resisted damage floors at 1 (on a hit) or may reach 0 (§4). | min-1 (WoT); full-absorb available per pack |
+| Damage-type / resistance vocabulary | The pack-declared types mitigation is keyed over (§4). | `weapon-identity`'s set (B/P/S), extensible (e.g. fire, electricity) |
+| Don / remove / hasty durations | Per-armor timing (§7). | per-armor metadata; instant when absent |
+| Hastily-donned penalty step | How much worse the bonus and check penalty get (§7). | one step |
+
+All numeric magnitudes live here; the prose names behaviors, not values.
+
+## 10. Decisions and open questions
+
+**Decided (resolves the proposal §7 AC-model fork):**
+
+- **AC is single and layered (decompose-and-cap), not replaced.** Armor adds an
+  armor bonus and a max-Dex cap to a decomposed `defense` value; unarmored and
+  legacy AC are unchanged. "Replace the AC" was rejected — d20/WoT armor is
+  additive-with-a-cap (armor + shield + Dex + misc stack), and replacement breaks
+  legacy AC sources.
+- **Per-damage-type differentiation lives on `mitigation`, not on AC.** Per-type
+  resistance (physical *and* elemental) is the damage-reduction (soak) primitive
+  on the reserved `mitigation` channel — its first consumer. This serves a future
+  Shadowrun-style pack's elemental resistances correctly and keeps WoT armor
+  faithful to its single-bonus table. Per-type *AC* was rejected as a category
+  error (you resist fire, you don't dodge a "fire AC").
+- **Damage types (increment D) are consumed here.** The type recorded inertly by
+  `weapon-identity §2` now keys mitigation; no separate D slice.
+
+**Still open (non-blocking):**
+
+- **Post-mitigation floor** — min-1 vs full-absorb is configured per ruleset
+  (§9); whether any ruleset wants a partial floor (e.g. min-1 for physical,
+  full-absorb for elemental) is a later refinement.
+- **Don/doff action model** — a simple timer vs an interruptible timed action
+  (the cast-time machinery of `abilities-and-effects §4.9` is a candidate if
+  interruption is wanted). v1 may ship a simple timer.
+- **Typed-bonus stacking** — d20's "same-type bonuses don't stack" (two deflection
+  bonuses) is bookkeeping Decision 0 may drop; this spec stacks distinct sources
+  and relies on slot exclusivity, leaving fine-grained typed-bonus rules as a
+  later call.
+- **Armor speed penalty / encumbrance** — increment I.
+- **Shield bash** — using a shield as an off-hand weapon is increment J.
+
+---
+
+<!-- Spec style: narrative + acceptance criteria · Detail level: behavior only · Status: forward spec (build pending) — EPIC S1 increments E + D · AC-model fork resolved: single AC on `defense`, per-type resistance on `mitigation` -->

@@ -28,8 +28,8 @@ Each row is independently shippable except where a dependency is noted. Sizes ar
 | **A** | **Weapon category + proficiency tier metadata** | Simple/Martial/Exotic tier; weapon "kind" (sword/axe/bow) as real data, not free-form tags | — | thin spec | **S** |
 | **B** | **Proficiency gating** (the −4 rule) | Class proficiency sets (Armsman→all martial, Initiate→few); non-proficient hit penalty | A; class system | spec slice | **M** |
 | **C** | **Crit threat-range + multiplier** | 19–20/x2, x3, x4 columns; threat range + crit dice | combat.md (flags it) | spec slice | **M** |
-| **D** | **Damage types (B/P/S)** | Bludgeon/Pierce/Slash on weapons | — (inert until E) | thin | **S**, low payoff alone |
-| **E** | **Armor depth** | armor bonus / max-Dex / check penalty / per-damage-type AC; armor proficiency | D (type-vs-AC); slots | big spec | **L** |
+| **D** | **Damage types (B/P/S)** | Bludgeon/Pierce/Slash on weapons | — (inert until E) | **consumed by E** ([`armor-depth.md`](../specs/armor-depth.md) §4) | **S**, low payoff alone |
+| **E** | **Armor depth** | armor bonus / max-Dex / check penalty / per-type **resistance** (mitigation); armor proficiency | D (type→mitigation); slots | **spec written** ([`armor-depth.md`](../specs/armor-depth.md), build pending) | **L** |
 | **F** | **Size-relative wielding** | light/1h/2h by (weapon size − wielder size); 1.5× Str two-handed | A | **spec written** ([`size-and-wielding.md`](../specs/size-and-wielding.md), build pending) | **M** |
 | **G** | **Ranged combat** | bows/crossbows/thrown; range increments; ammo as consumables; Str-on-thrown-not-projectile | combat-model change | **big standalone spec** | **L** |
 | **H** | **Masterwork / masterpiece / power-wrought** | +N attack/damage item grades; unbreakable power-wrought | A, C | thin (rides rarity) | **S–M** |
@@ -65,6 +65,16 @@ Each row is independently shippable except where a dependency is noted. Sizes ar
 > derives the footprint when both sides carry size data; otherwise the static
 > footprint is the fallback (legacy weapons unchanged). Two-weapon penalties and
 > ranged Strength rules stay out of scope (their own increments).
+>
+> **E (armor depth) + D (damage types) SPECCED 2026-06-15** —
+> `docs/specs/armor-depth.md` (forward spec, build pending), resolving the §7
+> AC-model fork. Single AC on the `defense` channel (decompose-and-cap: armor
+> bonus + max-Dex cap, shields stack, legacy unchanged) + **per-type damage
+> resistance on the reserved `mitigation` channel** (its first consumer — the
+> cross-ruleset soak primitive for physical *and* elemental resistance), plus
+> armor proficiency, the check penalty, and don/doff timers. D's damage type is
+> consumed as the mitigation key. Speed/encumbrance (I) and shield bash (J) stay
+> out of scope.
 
 ## 5. Recommended first slice: M-Weapon-Identity (A + B + C)
 
@@ -89,7 +99,7 @@ Armor depth (E), size rules (F), encumbrance (I), masterwork (H), and special we
 - **Proficiency representation (A/B).** Reuse the ability-keyed proficiency store with weapon-category keys, or a parallel weapon-proficiency set on the character? The WoT model is class-granted tiers + per-weapon feats — closer to a set than to use-based gain.
 - **Where the non-proficient penalty applies (B).** Hit-mod only (the −4), or also a damage/speed cost? combat.md's hit path is the natural seam.
 - **Crit semantics (C).** Doubled dice vs. fixed bonus vs. max-plus-roll; threat range interacts with any future to-hit-roll model (combat is currently chance-based, not a d20 roll — does C imply a roll model?).
-- **AC model (D/E).** Single AC stays until E; per-damage-type AC is the deferred "M8+" work. Does WoT armor's "armor bonus + max Dex + check penalty" replace the current flat AC or layer over it?
+- **AC model (D/E). ✅ RESOLVED 2026-06-15** (`armor-depth.md` §3–§4, §10). Armor **layers** onto a decomposed single AC (`defense` channel) — armor bonus + a max-Dex cap on the Dex term; unarmored/legacy AC unchanged ("replace" rejected — d20 armor is additive-with-a-cap). **Per-damage-type differentiation lives on the `mitigation` channel** (damage resistance / soak), **not** on AC — per-type *AC* was a category error (you resist fire, you don't dodge it). This is the cross-ruleset soak primitive: WoT leans on `defense`, a future Shadowrun pack leans on `mitigation` (physical + elemental resistance). Damage types (D) are consumed here as the mitigation key.
 - **Ranged model (G).** Does "range" mean adjacent-room targeting, an abstract range band, or stays same-room with a to-hit bonus? Ammo as standard consumables vs. a bespoke quiver slot. Str-bonus rules (full on thrown, none on projectile, negative-Str penalty on bows).
 - **Fidelity ceiling.** How much of the d20 system is actually wanted vs. a lighter MUD-idiomatic abstraction? The sourcebook is a tabletop ruleset; a real-time MUD may want less.
 
