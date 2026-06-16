@@ -1755,6 +1755,14 @@ type connActor struct {
 	// atomic.Pointer keeps that read off a.mu so combat never blocks on
 	// a session-side equip. nil means "no weapon → unarmed default".
 	weapon atomic.Pointer[weaponInfo]
+	// armorResist caches the actor's aggregated per-damage-type resistance
+	// from worn armor (armor-depth §4), recomputed on equip/unequip/login
+	// (recomputeWeaponLocked, lock-held) and read LOCK-FREE in Stats() —
+	// the same atomic.Pointer discipline as `weapon`, so the combat hot
+	// path never enumerates the live equipment map under a.mu. nil = no
+	// resistances. The stored map is never mutated after Store (copy-on-
+	// recompute), so readers may share it without copying.
+	armorResist atomic.Pointer[armorResistances]
 	// featWeaponBonus caches the per-weapon-category feat hit/crit bonuses
 	// (EPIC S4 Phase 3c), recomputed on feat change (applyFeatGrants) and read
 	// LOCK-FREE in Stats() — same atomic.Pointer discipline as `weapon`, so the
@@ -2942,6 +2950,17 @@ type weaponInfo struct {
 	// carried into combat.Stats. Zero ⇒ the resolver applies its defaults.
 	critThreatLow  int
 	critMultiplier int
+	// damageTypes are the weapon's damage type(s) (weapon-identity §2),
+	// carried into combat.Stats so the defender's per-type resistance can
+	// be selected (armor-depth §4). nil ⇒ untyped.
+	damageTypes []string
+}
+
+// armorResistances is the atomic snapshot of an actor's aggregated
+// per-damage-type damage reduction from worn armor (armor-depth §4),
+// summed across distinct equipped items. Immutable after Store.
+type armorResistances struct {
+	byType map[string]int
 }
 
 // recomputeWeaponLocked refreshes the cached wielded-weapon snapshot
@@ -2956,6 +2975,7 @@ type weaponInfo struct {
 func (a *connActor) recomputeWeaponLocked() {
 	if a.items == nil || len(a.equipment) == 0 {
 		a.weapon.Store(nil)
+		a.armorResist.Store(nil)
 		return
 	}
 	keys := make([]string, 0, len(a.equipment))
@@ -2963,8 +2983,21 @@ func (a *connActor) recomputeWeaponLocked() {
 		keys = append(keys, k)
 	}
 	sort.Strings(keys)
+	// One pass over the equipped set: pick the wielded weapon (the first
+	// distinct item by sorted key that declares dice) and sum per-type
+	// armor resistances across every distinct item (armor-depth §4). A
+	// spanning item (two-hander, multi-slot armor) appears under several
+	// keys mapping to the same id, so dedup by id keeps the weapon pick
+	// stable and the resistance sum from double-counting one piece.
+	seen := make(map[entities.EntityID]bool, len(keys))
+	var picked *weaponInfo
+	var resist map[string]int
 	for _, k := range keys {
-		e, ok := a.items.GetByID(a.equipment[k])
+		id := a.equipment[k]
+		if seen[id] {
+			continue
+		}
+		e, ok := a.items.GetByID(id)
 		if !ok {
 			continue
 		}
@@ -2972,19 +3005,33 @@ func (a *connActor) recomputeWeaponLocked() {
 		if !ok {
 			continue
 		}
-		if dice, ok := it.WeaponDamage(); ok {
-			a.weapon.Store(&weaponInfo{
-				dice:           dice,
-				name:           it.Name(),
-				category:       it.WeaponCategory(),
-				tier:           it.ProficiencyTier(),
-				critThreatLow:  it.CritThreatLow(),
-				critMultiplier: it.CritMultiplier(),
-			})
-			return
+		seen[id] = true
+		for dt, amt := range it.Resistances() {
+			if resist == nil {
+				resist = make(map[string]int)
+			}
+			resist[dt] += amt
+		}
+		if picked == nil {
+			if dice, ok := it.WeaponDamage(); ok {
+				picked = &weaponInfo{
+					dice:           dice,
+					name:           it.Name(),
+					category:       it.WeaponCategory(),
+					tier:           it.ProficiencyTier(),
+					critThreatLow:  it.CritThreatLow(),
+					critMultiplier: it.CritMultiplier(),
+					damageTypes:    it.DamageTypes(),
+				}
+			}
 		}
 	}
-	a.weapon.Store(nil)
+	a.weapon.Store(picked)
+	if resist != nil {
+		a.armorResist.Store(&armorResistances{byType: resist})
+	} else {
+		a.armorResist.Store(nil)
+	}
 }
 
 // IsWeaponProficient reports whether the actor may wield their current
@@ -4660,9 +4707,13 @@ func (a *connActor) Stats() combat.Stats {
 		DamageBonus: damageBonus,
 		Mitigation:  mitigation,
 	}
+	if ar := a.armorResist.Load(); ar != nil {
+		s.Resistances = ar.byType // immutable after Store — safe to share (armor-depth §4)
+	}
 	if w := a.weapon.Load(); w != nil {
 		s.Damage = w.dice
 		s.WeaponName = w.name
+		s.WeaponDamageTypes = w.damageTypes
 		s.CritThreatLow = w.critThreatLow
 		s.CritMultiplier = w.critMultiplier
 		// EPIC S4 Phase 3c: per-weapon-category feat bonuses (Weapon Focus

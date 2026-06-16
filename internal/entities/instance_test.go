@@ -72,6 +72,49 @@ func TestItemInstance_WeaponIdentityFields(t *testing.T) {
 	}
 }
 
+// armor-depth §2/§4: weapon damage types and armor resistances snapshot
+// onto the instance and the accessors return fresh, unaliased copies.
+func TestItemInstance_DamageTypesAndResistances(t *testing.T) {
+	s := NewStore()
+	sword, err := s.Spawn(&item.Template{
+		ID: "wot:sword", Name: "a sword", Type: "weapon",
+		WeaponDamage: "1d8", DamageTypes: []string{"slashing"},
+	})
+	if err != nil {
+		t.Fatalf("Spawn: %v", err)
+	}
+	if got := sword.DamageTypes(); len(got) != 1 || got[0] != "slashing" {
+		t.Errorf("DamageTypes() = %v, want [slashing]", got)
+	}
+	// Mutating the returned slice must not affect the instance.
+	sword.DamageTypes()[0] = "mutated"
+	if sword.DamageTypes()[0] != "slashing" {
+		t.Error("DamageTypes() returned an aliased slice; mutation leaked")
+	}
+
+	armor, err := s.Spawn(&item.Template{
+		ID: "wot:plate", Name: "plate", Type: "armor",
+		Resistances: map[string]int{"slashing": 3, "piercing": 1},
+	})
+	if err != nil {
+		t.Fatalf("Spawn: %v", err)
+	}
+	got := armor.Resistances()
+	if got["slashing"] != 3 || got["piercing"] != 1 {
+		t.Errorf("Resistances() = %v, want slashing:3 piercing:1", got)
+	}
+	got["slashing"] = 99 // mutate the copy
+	if armor.Resistances()["slashing"] != 3 {
+		t.Error("Resistances() returned an aliased map; mutation leaked")
+	}
+
+	rock, _ := s.Spawn(&item.Template{ID: "wot:pebble", Name: "a pebble", Type: "item"})
+	if rock.DamageTypes() != nil || rock.Resistances() != nil {
+		t.Errorf("plain item should expose nil types/resistances, got types=%v res=%v",
+			rock.DamageTypes(), rock.Resistances())
+	}
+}
+
 func TestDecrementInt(t *testing.T) {
 	s := NewStore()
 	it, err := s.Spawn(&item.Template{

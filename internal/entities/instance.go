@@ -103,6 +103,14 @@ type ItemInstance struct {
 	// Zero means unset — the combat resolver applies the engine defaults.
 	critThreatLow  int
 	critMultiplier int
+	// damageTypes are the weapon's damage type(s) (weapon-identity §2),
+	// lifted onto the instance at build. nil = untyped. Read by the combat
+	// path to select a defender's per-type resistance (armor-depth §4).
+	damageTypes []string
+	// resistances are the armor's per-damage-type damage reduction
+	// (armor-depth §4), keyed by damage type. nil = none. Aggregated across
+	// worn armor into the holder's combat.Stats.Resistances at Stats() time.
+	resistances map[string]int
 }
 
 // ID implements Entity.
@@ -285,6 +293,26 @@ func (it *ItemInstance) CritThreatLow() int { return it.critThreatLow }
 // (weapon-identity §4), zero when unset (the resolver uses the default).
 func (it *ItemInstance) CritMultiplier() int { return it.critMultiplier }
 
+// DamageTypes returns the weapon's damage type(s) (weapon-identity §2) as
+// a fresh slice; nil when untyped. Read by the combat path to select a
+// defender's per-type resistance (armor-depth §4).
+func (it *ItemInstance) DamageTypes() []string {
+	return append([]string(nil), it.damageTypes...)
+}
+
+// Resistances returns the armor's per-damage-type damage reduction
+// (armor-depth §4) as a fresh map; nil when the item grants none.
+func (it *ItemInstance) Resistances() map[string]int {
+	if len(it.resistances) == 0 {
+		return nil
+	}
+	out := make(map[string]int, len(it.resistances))
+	for k, v := range it.resistances {
+		out[k] = v
+	}
+	return out
+}
+
 // EligibleSlots returns the slots this item may be equipped into
 // (inventory-equipment-items §3.3) as a fresh slice so callers cannot
 // alias instance state. Empty means the item is not equippable. Lifted
@@ -396,16 +424,28 @@ func buildInstanceFromTemplate(tpl *item.Template, id EntityID) *ItemInstance {
 	}
 	companion := append([]string(nil), tpl.CompanionSlots...)
 
+	// Weapon damage types (weapon-identity §2) + armor resistances
+	// (armor-depth §4), snapshotted onto the instance. Both copied so the
+	// instance never aliases the shared template's slices/maps.
+	damageTypes := append([]string(nil), tpl.DamageTypes...)
+	var resistances map[string]int
+	if len(tpl.Resistances) > 0 {
+		resistances = make(map[string]int, len(tpl.Resistances))
+		for k, v := range tpl.Resistances {
+			resistances[k] = v
+		}
+	}
+
 	return &ItemInstance{
-		id:             id,
-		typ:            tpl.Type,
-		name:           tpl.Name,
-		desc:           tpl.Description, // §2.3: snapshot prose alongside name.
-		tags:           tags,
-		keywords:       keywords,
-		properties:     props,
-		modifiers:      mods,
-		templateID:     tpl.ID,
+		id:              id,
+		typ:             tpl.Type,
+		name:            tpl.Name,
+		desc:            tpl.Description, // §2.3: snapshot prose alongside name.
+		tags:            tags,
+		keywords:        keywords,
+		properties:      props,
+		modifiers:       mods,
+		templateID:      tpl.ID,
 		weaponDamage:    weaponDamage,
 		eligibleSlots:   eligible,
 		companionSlots:  companion,
@@ -413,5 +453,7 @@ func buildInstanceFromTemplate(tpl *item.Template, id EntityID) *ItemInstance {
 		proficiencyTier: tpl.ProficiencyTier,
 		critThreatLow:   tpl.CritThreatLow,
 		critMultiplier:  tpl.CritMultiplier,
+		damageTypes:     damageTypes,
+		resistances:     resistances,
 	}
 }

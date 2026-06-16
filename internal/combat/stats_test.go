@@ -1,6 +1,9 @@
 package combat
 
-import "testing"
+import (
+	"reflect"
+	"testing"
+)
 
 func TestDefaultPlayerStats(t *testing.T) {
 	s := DefaultPlayerStats()
@@ -32,7 +35,7 @@ func TestFromTemplateStatsReadsKnownKeys(t *testing.T) {
 		t.Errorf("maxHP = %d, want 40", maxHP)
 	}
 	want := Stats{HitMod: 3, AC: 15, STR: 14}
-	if s != want {
+	if !reflect.DeepEqual(s, want) {
 		t.Errorf("stats = %+v, want %+v", s, want)
 	}
 }

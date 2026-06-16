@@ -282,12 +282,15 @@ func runAutoAttack(ctx context.Context, attackerID CombatantID, mgr *Manager, cf
 			dmg *= critMultiplier
 		}
 		// §4.5 damage: rolled (crit-multiplied) dice + the attacker's flat
-		// DamageBonus, minus the defender's Mitigation (the channel layer's
-		// damage_bonus/mitigation channels — design §6). DamageBonus is added
-		// after the crit multiply (the bonus is not multiplied); Mitigation
-		// is 0 for fantasy (armor folds into AC). The per-swing minimum of 1
-		// still holds, so a landed hit always lands ≥1 even under full soak.
-		raw := dmg + atkStats.DamageBonus - defStats.Mitigation
+		// DamageBonus, minus the defender's soak. DamageBonus is added after
+		// the crit multiply (the bonus is not multiplied). Soak is the
+		// type-agnostic Mitigation (the channel layer's `mitigation` channel,
+		// design §6; 0 for fantasy) PLUS the defender's per-damage-type
+		// Resistance against the attacker's weapon types (armor-depth §4) —
+		// the two compose additively. The per-swing minimum of 1 still holds,
+		// so a landed hit always lands ≥1 even under full soak.
+		soak := defStats.Mitigation + TypedResistance(defStats.Resistances, atkStats.WeaponDamageTypes)
+		raw := dmg + atkStats.DamageBonus - soak
 		if raw < 1 {
 			raw = 1
 		}

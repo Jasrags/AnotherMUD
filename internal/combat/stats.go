@@ -65,6 +65,41 @@ type Stats struct {
 	// auto-attack phase falls back to the configured global default
 	// (AutoAttackConfig.CritMultiplier). Populated from the wielded weapon.
 	CritMultiplier int
+
+	// WeaponDamageTypes are the wielded weapon's damage type(s)
+	// (weapon-identity §2 — bludgeoning/piercing/slashing, extensible).
+	// Empty means untyped. The damage application reads them to select the
+	// defender's per-type Resistances (armor-depth §4). Populated from the
+	// wielded weapon; a non-weapon/untyped attacker leaves this nil and is
+	// reduced only by the type-agnostic Mitigation.
+	WeaponDamageTypes []string
+
+	// Resistances is the DEFENDER's per-damage-type damage reduction
+	// (armor-depth §4), keyed by damage type, value the amount soaked.
+	// Aggregated from worn armor at the holder's Stats() build time; nil
+	// when unarmored or no resistances apply. Reduction is additive with
+	// Mitigation and the per-swing minimum-1 rule still applies after both,
+	// so resistance never zeroes a landed hit.
+	Resistances map[string]int
+}
+
+// TypedResistance returns the defender's damage reduction against an
+// attack of the given damage type(s) (armor-depth §4). It returns the
+// resistance of the FIRST of the attacker's declared types that the
+// defender has an entry for (iterating in the weapon's declared order, so
+// content controls the precedence); an untyped attacker, an empty map, or
+// no matching type yields zero. This composes additively with the
+// type-agnostic Mitigation at the damage step — it does not replace it.
+func TypedResistance(resistances map[string]int, damageTypes []string) int {
+	if len(resistances) == 0 {
+		return 0
+	}
+	for _, t := range damageTypes {
+		if r, ok := resistances[t]; ok {
+			return r
+		}
+	}
+	return 0
 }
 
 // EffectiveDamage returns the dice expression the auto-attack phase

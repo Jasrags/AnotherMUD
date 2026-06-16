@@ -1,6 +1,7 @@
 package session
 
 import (
+	"reflect"
 	"testing"
 
 	"github.com/Jasrags/AnotherMUD/internal/combat"
@@ -29,7 +30,7 @@ func TestConnActorImplementsCombatant(t *testing.T) {
 		t.Errorf("Vitals at login = (%d, %d), want (%d, %d)",
 			cur, max, combat.DefaultPlayerMaxHP, combat.DefaultPlayerMaxHP)
 	}
-	if c.Stats() != combat.DefaultPlayerStats() {
+	if !reflect.DeepEqual(c.Stats(), combat.DefaultPlayerStats()) {
 		t.Errorf("Stats() = %+v, want DefaultPlayerStats()", c.Stats())
 	}
 }
