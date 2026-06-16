@@ -29,5 +29,8 @@ properties:
 items:
   - two-rivers-longsword
   - ashandarei
+  # The masterwork (S1.H) demo: a heron-mark blade among the finished work —
+  # its grade alone (no hand-written modifier) hits truer when wielded.
+  - heron-mark-blade
 mobs:
   - haral-luhhan
