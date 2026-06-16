@@ -29,6 +29,22 @@ func TestMapping_Value(t *testing.T) {
 	}
 }
 
+// The baseline damage_bonus channel composes the STR-derived bonus with a
+// flat damage_mod stat (masterwork §3 power-wrought): 0 damage_mod is
+// byte-identical to the old STR-only formula; a positive damage_mod adds.
+func TestBaselineMapping_DamageBonusComposesDamageMod(t *testing.T) {
+	m := BaselineMapping()
+	// str 14 → trunc((14-10)/2) = 2.
+	noMod := statLookup(map[string]int{"str": 14})
+	if got := m.Value(DamageBonus, noMod); got != 2 {
+		t.Errorf("DamageBonus with no damage_mod = %d; want 2 (STR only, byte-identical)", got)
+	}
+	withMod := statLookup(map[string]int{"str": 14, "damage_mod": 3})
+	if got := m.Value(DamageBonus, withMod); got != 5 {
+		t.Errorf("DamageBonus with damage_mod 3 = %d; want 5 (2 STR + 3 power-wrought)", got)
+	}
+}
+
 func TestMapping_UnmappedReadsDefault(t *testing.T) {
 	m, _ := NewMapping(map[Channel]string{Attack: "hit_mod"})
 	lookup := statLookup(map[string]int{"hit_mod": 5})

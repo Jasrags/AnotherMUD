@@ -181,16 +181,23 @@ func EquipHandler(ctx context.Context, c *Context) error {
 	for _, m := range item.Modifiers() {
 		mods = append(mods, stats.Modifier{Stat: m.Stat, Value: m.Value})
 	}
-	// Masterwork grade (masterwork §3): a graded WEAPON adds a grade-scaled
-	// to-hit bonus while wielded, delivered as a hit_mod modifier under the
-	// SAME EquipmentSourceKey so it composes with the item's own modifiers
-	// and reverses cleanly on unequip. The bonus rides the existing hit-mod
-	// seam — no new resolution path. Other-kind grade bonuses (armor check,
-	// tool skill, power-wrought damage) are later increments.
+	// Masterwork grade (masterwork §3): a graded WEAPON adds its grade-scaled
+	// bonuses while wielded, delivered as stat modifiers under the SAME
+	// EquipmentSourceKey so they compose with the item's own modifiers and
+	// the combat channels, and reverse cleanly on unequip — no new
+	// resolution path. A graded weapon adds to-hit (hit_mod); a power-wrought
+	// weapon ALSO adds flat damage (damage_mod, composed into the damage_bonus
+	// channel post-crit, masterwork §3). Armor-check / tool-skill grades are
+	// later increments.
 	if c.Grades != nil {
 		if _, isWeapon := item.WeaponDamage(); isWeapon {
-			if g, ok := c.Grades.Get(item.Grade()); ok && g.WeaponToHit != 0 {
-				mods = append(mods, stats.Modifier{Stat: combat.StatKeyHitMod, Value: g.WeaponToHit})
+			if g, ok := c.Grades.Get(item.Grade()); ok {
+				if g.WeaponToHit != 0 {
+					mods = append(mods, stats.Modifier{Stat: combat.StatKeyHitMod, Value: g.WeaponToHit})
+				}
+				if g.WeaponDamage != 0 {
+					mods = append(mods, stats.Modifier{Stat: combat.StatKeyDamageMod, Value: g.WeaponDamage})
+				}
 			}
 		}
 	}

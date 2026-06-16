@@ -47,6 +47,18 @@ func TestAll_OrderedLowToHigh(t *testing.T) {
 	}
 }
 
+// The power-wrought grade records the unbreakable flag (masterwork §4) — an
+// inert forward hook today (no durability system), carried by the grade.
+func TestPowerWrought_RecordsUnbreakable(t *testing.T) {
+	r := ladder()
+	if g, ok := r.Get("power-wrought"); !ok || !g.Unbreakable {
+		t.Errorf("power-wrought grade Unbreakable = %v,%v; want true", g.Unbreakable, ok)
+	}
+	if g, _ := r.Get("masterwork"); g.Unbreakable {
+		t.Error("masterwork should not be unbreakable")
+	}
+}
+
 func TestIsHigher(t *testing.T) {
 	r := ladder()
 	if !r.IsHigher("power-wrought", "masterwork") {

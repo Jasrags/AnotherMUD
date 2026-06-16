@@ -9,8 +9,11 @@ channels:
   defense: ac
   # trunc (toward zero), not mod (floor), to match the engine's
   # (str-10)/2 integer-division damage scaling exactly. A non-d20 setting
-  # might scale damage off a different attribute entirely.
-  damage_bonus: trunc((str - 10) / 2)
+  # might scale damage off a different attribute entirely. The `+ damage_mod`
+  # term composes a flat weapon-damage modifier (the sibling of `hit_mod`):
+  # 0 for an ordinary fighter, the grade step for a power-wrought weapon
+  # (masterwork §3).
+  damage_bonus: trunc((str - 10) / 2) + damage_mod
   # mitigation is intentionally absent → defaults to 0 (fantasy folds armor
   # into defense/AC). A setting with soak (e.g. Shadowrun) maps it, e.g.
   # `mitigation: body + armor`.

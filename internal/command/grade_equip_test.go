@@ -61,8 +61,9 @@ func TestEquip_UngradedWeaponNoGradeBonus(t *testing.T) {
 	}
 }
 
-// The grade bonus scales with the grade: power-wrought adds +3 to-hit.
-func TestEquip_PowerWroughtWeaponScalesToHit(t *testing.T) {
+// A power-wrought weapon adds BOTH to-hit (hit_mod) and flat damage
+// (damage_mod) — masterwork §3. masterwork adds to-hit only.
+func TestEquip_PowerWroughtWeaponAddsToHitAndDamage(t *testing.T) {
 	f := newEqFixture(t)
 	a := newTestActor(f.room)
 	inst := f.spawnInInventory(t, gradedBladeTpl("power-wrought"), a)
@@ -72,8 +73,37 @@ func TestEquip_PowerWroughtWeaponScalesToHit(t *testing.T) {
 	dispatch(t, newRegistry(t), env, a, "equip blade wield")
 
 	mods := a.mods[entities.EquipmentSourceKey(inst.ID())]
-	if len(mods) != 1 || mods[0].Stat != "hit_mod" || mods[0].Value != 3 {
-		t.Fatalf("power-wrought weapon mods = %+v; want one {hit_mod 3}", mods)
+	hit, dmg := 0, 0
+	for _, m := range mods {
+		switch m.Stat {
+		case "hit_mod":
+			hit = m.Value
+		case "damage_mod":
+			dmg = m.Value
+		default:
+			t.Errorf("unexpected grade modifier %+v", m)
+		}
+	}
+	if hit != 3 || dmg != 3 {
+		t.Fatalf("power-wrought mods = %+v; want hit_mod 3 + damage_mod 3", mods)
+	}
+}
+
+// A masterwork weapon (no weapon_damage grade step) adds to-hit but NOT
+// damage — only power-wrought buffs damage.
+func TestEquip_MasterworkWeaponNoDamageMod(t *testing.T) {
+	f := newEqFixture(t)
+	a := newTestActor(f.room)
+	inst := f.spawnInInventory(t, gradedBladeTpl("masterwork"), a)
+	env := f.env()
+	env.Grades = gradeLadder()
+
+	dispatch(t, newRegistry(t), env, a, "equip blade wield")
+
+	for _, m := range a.mods[entities.EquipmentSourceKey(inst.ID())] {
+		if m.Stat == "damage_mod" {
+			t.Fatalf("masterwork weapon must not add damage_mod, got %+v", m)
+		}
 	}
 }
 

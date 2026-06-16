@@ -156,6 +156,11 @@ const (
 	StatKeyHPMax = "hp_max"
 	// StatKeyHitMod is the mob's d20 hit modifier. Default 0.
 	StatKeyHitMod = "hit_mod"
+	// StatKeyDamageMod is the flat weapon-damage modifier composed into the
+	// `damage_bonus` channel (the sibling of hit_mod for the damage axis).
+	// Default 0; a power-wrought weapon contributes it on equip (masterwork
+	// §3). The baseline channel map adds it to the STR-derived damage bonus.
+	StatKeyDamageMod = "damage_mod"
 	// StatKeyAC is the mob's armor class. Default DefaultAC.
 	StatKeyAC = "ac"
 	// StatKeySTR is the mob's strength score. Default DefaultSTR.

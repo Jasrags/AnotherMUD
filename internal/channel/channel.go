@@ -117,8 +117,12 @@ func BaselineMapping() *Mapping {
 		Attack:  "hit_mod",
 		Defense: "ac",
 		// trunc (round toward zero), NOT mod (floor), to match combat.STRBonus
-		// = (str-10)/2 under Go integer division — exact for all int str.
-		DamageBonus: "trunc((str - 10) / 2)",
+		// = (str-10)/2 under Go integer division — exact for all int str. The
+		// `+ damage_mod` term composes a flat weapon-damage modifier (the
+		// sibling of `hit_mod` on the attack channel): 0 for an ordinary
+		// fighter — byte-identical to before — and the grade step for a
+		// power-wrought weapon (masterwork §3).
+		DamageBonus: "trunc((str - 10) / 2) + damage_mod",
 		// Mitigation is intentionally unmapped → defaults to 0: fantasy folds
 		// armor into Defense (AC), so the §6 soak step is inert until a
 		// setting (e.g. Shadowrun) maps it.
