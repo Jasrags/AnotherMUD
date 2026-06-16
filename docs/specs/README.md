@@ -251,8 +251,9 @@ How a connection becomes a session becomes a character.
   characters are listed greyed/unavailable (the surface for
   `character-identity` §5's world gate); selection/create reuse login's
   concurrency + Creating handoff. Revises `login.md`'s name-first entry;
-  no new persistence (roster derived from `account.Characters` + each save's
-  WorldID + the active world set) *(spec; build pending)*.
+  the account gains a unique username (login key; email demoted to optional)
+  + the roster is derived from `account.Characters` + each save's WorldID +
+  the active world set *(shipped 2026-06-16)*.
 - [session-lifecycle](session-lifecycle.md) — PlayerSession,
   SessionManager, flood protection, idle timeouts, link-dead,
   takeover.
