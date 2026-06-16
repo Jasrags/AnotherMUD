@@ -119,7 +119,8 @@ The verbs players use and the systems that resolve them.
 - [armor-depth](armor-depth.md) — armor's depth split across the two
   defensive channels: a **single** armor class on `defense` (decompose-and-cap
   — armor bonus + a max-Dex cap on the Dex term, shields stack) and **per-type
-  damage resistance** on the reserved `mitigation` channel (its first consumer —
+  damage resistance** on the `mitigation` channel (already subtracted from
+  damage as a scalar; this slice makes it per-type and is its first real source —
   the cross-ruleset soak primitive where physical *and* elemental resistance
   live), plus armor proficiency, the check penalty, and don/doff timers.
   Consumes the damage type `weapon-identity` recorded inertly. Layers on

@@ -70,7 +70,8 @@ Each row is independently shippable except where a dependency is noted. Sizes ar
 > `docs/specs/armor-depth.md` (forward spec, build pending), resolving the §7
 > AC-model fork. Single AC on the `defense` channel (decompose-and-cap: armor
 > bonus + max-Dex cap, shields stack, legacy unchanged) + **per-type damage
-> resistance on the reserved `mitigation` channel** (its first consumer — the
+> resistance on the `mitigation` channel** (already subtracted from damage as a
+> scalar; this slice makes it per-type and is its first real source — the
 > cross-ruleset soak primitive for physical *and* elemental resistance), plus
 > armor proficiency, the check penalty, and don/doff timers. D's damage type is
 > consumed as the mitigation key. Speed/encumbrance (I) and shield bash (J) stay

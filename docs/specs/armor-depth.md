@@ -22,10 +22,12 @@ key design decision:
   **layers** onto the existing derived AC additively, with one new primitive: a
   **max-Dex cap** the worn armor places on the Dex contribution.
 - **Damage reduction** lives on the **`mitigation` channel** (soak) — you are
-  hit, but incoming damage is reduced **by damage type**. This is the reserved
-  `mitigation` channel's **first consumer**, and it is where **per-type
-  resistance** belongs (slash/pierce/bludgeon *and* elemental types like fire or
-  electricity), not on AC.
+  hit, but incoming damage is reduced **by damage type**. The damage roll
+  already subtracts a single scalar `mitigation` (baseline zero today,
+  `combat §4.5`); this slice is its **first real source** and makes it
+  **per-type** — and per-type resistance (slash/pierce/bludgeon *and* elemental
+  types like fire or electricity) is where damage-type differentiation belongs,
+  not on AC.
 
 The deliberate split: **per-damage-type differentiation is a damage-mitigation
 concept, not an AC concept.** A fire attack is not dodged by a "fire AC"; it
@@ -121,13 +123,18 @@ terms and the cap.
 
 ## 4. Damage resistance — the `mitigation` channel (per type)
 
-The damage roll (`combat §4.5`) gains a **mitigation step**. After damage is
-rolled (dice + Strength, criticals applied), the engine reduces it by the
-defender's **resistance to the incoming damage's type**:
+The damage roll already subtracts a **single scalar** `mitigation` (soak) from
+damage before the min-1 floor (`combat §4.5`; baseline maps it to zero). This
+slice makes that subtraction **per damage type** — the incoming damage's type
+selects which resistance applies:
 
 ```
 finalDamage = rolledDamage − mitigation[incomingType]
 ```
+
+It extends the existing step rather than adding a new one: the scalar
+`mitigation` channel becomes a per-type lookup, and the incoming damage's type
+is threaded into the subtraction.
 
 - **Incoming damage carries a type** — from the weapon (`weapon-identity §2`'s
   recorded damage type, now consumed) or from the ability/effect that dealt it
@@ -140,8 +147,8 @@ finalDamage = rolledDamage − mitigation[incomingType]
   damage).
 - **Sources compose additively** — a defender's resistance to a type is the sum
   of contributions from worn armor, active effects, racial traits, and any other
-  source, read through the `mitigation` channel (the reserved channel's first
-  consumer, `combat §4.4`).
+  source, read through the `mitigation` channel — already subtracted from
+  damage, this slice being its first non-zero source (`combat §4.4`–§4.5).
 - **The post-mitigation floor is policy.** Whether fully-resisted damage floors
   at the existing "at least 1 on a hit" rule (`combat §4.5`) or may be reduced to
   zero (full soak) is a **configurable** per-ruleset choice (§9): WoT keeps the
@@ -274,7 +281,8 @@ All numeric magnitudes live here; the prose names behaviors, not values.
   legacy AC sources.
 - **Per-damage-type differentiation lives on `mitigation`, not on AC.** Per-type
   resistance (physical *and* elemental) is the damage-reduction (soak) primitive
-  on the reserved `mitigation` channel — its first consumer. This serves a future
+  on the `mitigation` channel — already subtracted from damage as a scalar
+  (zero today); this slice makes it per-type and is its first real source. This serves a future
   Shadowrun-style pack's elemental resistances correctly and keeps WoT armor
   faithful to its single-bonus table. Per-type *AC* was rejected as a category
   error (you resist fire, you don't dodge a "fire AC").

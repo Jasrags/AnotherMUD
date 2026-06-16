@@ -285,11 +285,15 @@ A critical hit's effect on damage (e.g. doubled dice, fixed bonus,
 or "no extra effect, just guaranteed hit") is a policy decision and
 is signaled to listeners via the `isCritical` flag on the hit event.
 
-Incoming damage carries a damage type, and a future **mitigation step**
-(the reserved `mitigation` channel, §4.4) MAY reduce it by the
-defender's per-type resistance before the final-damage floor — see
-`armor-depth.md` §4 *(spec; build pending)*. Until that lands, damage is
-unmitigated and the min-1 floor above is final.
+The applied damage is then adjusted by the channel layer (§4.4): the
+attacker's `damage_bonus` is added (it is *not* multiplied by a
+critical) and the defender's `mitigation` (soak) is subtracted, with the
+min-1-on-hit floor applied last. The strength scaling above is the
+baseline `damage_bonus`; `mitigation` is a **single** scalar today
+(baseline maps it to zero). The **armor-depth** slice (`armor-depth.md`
+§4, *spec; build pending*) makes `mitigation` **per damage type** — the
+incoming damage's type selects the resistance — without otherwise
+changing this step.
 
 **Acceptance criteria**
 
