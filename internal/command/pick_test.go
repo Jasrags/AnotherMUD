@@ -86,6 +86,34 @@ func TestPickVerb_FailureLeavesLocked(t *testing.T) {
 	}
 }
 
+// TestPickVerb_ArmorCheckPenaltyFailsBoundaryPick exercises armor-depth §6's
+// skill-check consumer: a worn-armor check penalty reduces the pick bonus. At
+// the success boundary (prof 50 → bonus 5, roll 11 → total 16, DC 16) the pick
+// just succeeds with no armor; a check penalty of 3 drops the total to 13 < 16
+// and the lock holds.
+func TestPickVerb_ArmorCheckPenaltyFailsBoundaryPick(t *testing.T) {
+	// Control: no armor → total 16 >= DC 16 → succeeds.
+	f := newDoorFixture(t, pickableGate("village-key", 16), nil)
+	a := newNamedTestActor("Picker", "p-pick", f.roomA(t))
+	dispatchDoorEnv(t, pickEnv(t, f, a.PlayerID(), 50, 11), a, "pick gate")
+	if got := a.lastLine(); !strings.Contains(got, "deftly pick") {
+		t.Fatalf("control (no armor) should succeed at the boundary; got %q", got)
+	}
+
+	// Same check, but a worn-armor check penalty of 3 drops the total below the
+	// DC → the pick fails and the door stays locked.
+	f2 := newDoorFixture(t, pickableGate("village-key", 16), nil)
+	a2 := newNamedTestActor("Picker", "p-pick2", f2.roomA(t))
+	a2.armorCheck = 3
+	dispatchDoorEnv(t, pickEnv(t, f2, a2.PlayerID(), 50, 11), a2, "pick gate")
+	if got := a2.lastLine(); !strings.Contains(got, "fail to pick") {
+		t.Fatalf("armor check penalty should fail the boundary pick; got %q", got)
+	}
+	if d, _ := f2.world.GetDoor("a", world.DirNorth); !d.Locked {
+		t.Error("door unlocked despite the armor-check penalty failing the pick")
+	}
+}
+
 func TestPickVerb_UntrainedRefused(t *testing.T) {
 	f := newDoorFixture(t, pickableGate("village-key", 15), nil)
 	a := newNamedTestActor("Picker", "p-pick", f.roomA(t))

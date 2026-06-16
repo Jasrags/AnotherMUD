@@ -296,6 +296,7 @@ type testActor struct {
 
 	carryMax      int  // StatValue(StatCarryMax); 0 ⇒ no explicit carry cap
 	str           int  // StatValue(StatSTR); 0 ⇒ no STR-derived carry cap
+	armorCheck    int  // StatValue("armor_check"); the worn-armor check penalty (armor-depth §6)
 	nonProficient bool // IsWeaponProficient() returns !nonProficient
 
 	// Movement pool for the movement-cost gate (world-rooms-movement
@@ -511,6 +512,8 @@ func (a *testActor) StatValue(s progression.StatType) int {
 		return a.carryMax
 	case progression.StatSTR:
 		return a.str
+	case "armor_check":
+		return a.armorCheck
 	}
 	return 0
 }
