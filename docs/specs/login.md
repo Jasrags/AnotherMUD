@@ -148,6 +148,13 @@ name and require the connection to be closed.
 
 ## 4. Returning-Player flow
 
+> **Revised by `character-select.md` (account-first roster, build pending):**
+> the character-name entry below is superseded by account-first authentication
+> + a character roster. The mechanics of §4.3–§4.5 (concurrency, takeover,
+> link-dead reconnect) and §4.6 (direct play) are **reused unchanged** — they
+> are reached by selecting a roster entry instead of by a typed name. Until that
+> ships, the name-first flow described here is current.
+
 The Returning-Player flow loads the saved character, authenticates the
 owning account, and routes the connection to one of three terminal
 outcomes: takeover, link-dead reconnect, or direct play.
