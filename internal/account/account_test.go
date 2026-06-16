@@ -3,6 +3,7 @@ package account_test
 import (
 	"context"
 	"errors"
+	"slices"
 	"testing"
 
 	"github.com/Jasrags/AnotherMUD/internal/account"
@@ -111,6 +112,35 @@ func TestAddCharacter_IdempotentCaseInsensitive(t *testing.T) {
 	}
 	if len(got.Characters) != 1 {
 		t.Errorf("characters = %v, want 1 entry", got.Characters)
+	}
+}
+
+// One account holds several distinct characters (the substrate behind a
+// per-account roster split across worlds — character-identity).
+func TestAddCharacter_MultipleDistinctPersist(t *testing.T) {
+	ctx := context.Background()
+	svc := newService(t)
+
+	acc, err := svc.Create(ctx, "house@example.com", "pw")
+	if err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+	for _, name := range []string{"Rand", "Mat", "Perrin"} {
+		if err := svc.AddCharacter(ctx, acc.ID, name); err != nil {
+			t.Fatalf("AddCharacter(%s): %v", name, err)
+		}
+	}
+	got, err := svc.LoadByID(ctx, acc.ID)
+	if err != nil {
+		t.Fatalf("LoadByID: %v", err)
+	}
+	if len(got.Characters) != 3 {
+		t.Fatalf("characters = %v, want 3 distinct entries", got.Characters)
+	}
+	for _, want := range []string{"Rand", "Mat", "Perrin"} {
+		if !slices.Contains(got.Characters, want) {
+			t.Errorf("characters %v missing %q", got.Characters, want)
+		}
 	}
 }
 
