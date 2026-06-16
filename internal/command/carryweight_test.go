@@ -78,6 +78,24 @@ func TestGet_ZeroCarryMaxMeansNoLimit(t *testing.T) {
 	}
 }
 
+// A negative carry_max is the explicit "unlimited" sentinel: it overrides
+// the STR-derived cap, so even a very heavy item is picked up.
+func TestGet_NegativeCarryMaxMeansUnlimited(t *testing.T) {
+	f := newInvFixture(t)
+	heavyItemInRoom(t, f, 1000)
+	a := &namedActor{testActor: newTestActor(f.room), name: "Alice", playerID: "p-1"}
+	a.carryMax = -1 // explicit unlimited
+	a.str = 10      // would otherwise derive a cap of 80
+
+	r := newRegistry(t)
+	if err := r.Dispatch(context.Background(), f.env(), a, "get sword"); err != nil {
+		t.Fatalf("dispatch: %v", err)
+	}
+	if len(a.Inventory()) != 1 {
+		t.Errorf("unlimited sentinel should impose no limit; inventory=%v", a.Inventory())
+	}
+}
+
 // With no explicit carry_max, capacity is derived from Strength
 // (carryPerStrength × STR = 8 × 5 = 40 here), and a heavier item is refused
 // — proving the STR-derived cap activates the pickup gate.

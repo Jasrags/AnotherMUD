@@ -37,17 +37,23 @@ const carryPerStrength = 8
 
 // carryCapacity returns the actor's carry-weight ceiling — the shared
 // notion of capacity for the pickup gate and the movement-encumbrance
-// surcharge. An explicit positive StatCarryMax (a content override) wins;
-// otherwise capacity is derived from Strength (carryPerStrength × STR). It
-// is 0 ("no limit") only for an actor with no stat surface or non-positive
-// Strength (weightless content / minimal test stubs).
+// surcharge. Resolution: a NEGATIVE StatCarryMax is the explicit
+// "unlimited" sentinel (a pack-mule / admin opt-out) and reports 0 ("no
+// limit"); a POSITIVE StatCarryMax is a content-set cap; otherwise (the
+// absent/zero default) capacity is derived from Strength (carryPerStrength
+// × STR). It is also 0 for an actor with no stat surface or non-positive
+// Strength (weightless content / minimal test stubs). Callers treat a
+// non-positive return as "no limit".
 func (c *Context) carryCapacity() int {
 	lim, ok := c.Actor.(carryWeightLimited)
 	if !ok {
 		return 0
 	}
-	if max := lim.StatValue(progression.StatCarryMax); max > 0 {
-		return max
+	switch max := lim.StatValue(progression.StatCarryMax); {
+	case max < 0:
+		return 0 // explicit unlimited sentinel — overrides STR derivation
+	case max > 0:
+		return max // explicit content cap
 	}
 	if str := lim.StatValue(progression.StatSTR); str > 0 {
 		return str * carryPerStrength

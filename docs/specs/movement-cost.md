@@ -227,12 +227,14 @@ steps up by tier as the load nears capacity. Thresholds and per-tier
 surcharges are policy (§8).
 
 **Carry capacity** is a single quantity shared by the encumbrance
-surcharge and the carry-weight pickup limit, resolved as: an explicit
-carry-capacity attribute (a content override) if positive, otherwise
-**derived from Strength** (a configured weight-per-Strength, §8). Only a
-character with no stat surface or non-positive Strength has no capacity
-("no limit"); every ordinary character therefore has a real capacity, so
-both the surcharge and the pickup limit are **live**.
+surcharge and the carry-weight pickup limit, resolved as: a **negative**
+carry-capacity attribute is the explicit "unlimited" opt-out (no limit —
+for a pack-mule or admin character); a **positive** attribute is a content
+cap; otherwise capacity is **derived from Strength** (a configured
+weight-per-Strength, §8). Only a character with the unlimited sentinel, no
+stat surface, or non-positive Strength has no capacity ("no limit"); every
+ordinary character therefore has a real capacity, so both the surcharge
+and the pickup limit are **live**.
 
 The surcharge depends only on the mover, not the room, so it adds equally
 to a step's source and destination cost and therefore does **not** affect
