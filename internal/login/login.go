@@ -361,19 +361,7 @@ func selectFromRoster(ctx context.Context, lio *lineIO, cfg Config, acc *account
 	}
 
 	for {
-		_ = lio.writeln(ctx, "Your characters:")
-		for i, e := range entries {
-			line := fmt.Sprintf("  %d) %s", i+1, e.name)
-			if e.world != "" {
-				line += " [" + e.world + "]"
-			}
-			if !e.available {
-				line += " (unavailable on this server)"
-			}
-			_ = lio.writeln(ctx, line)
-		}
-		_ = lio.writeln(ctx, "  n) create a new character")
-		if err := lio.writeln(ctx, "Select a character (number or name), or 'n' to create:"); err != nil {
+		if err := printRoster(ctx, lio, entries); err != nil {
 			return nil, err
 		}
 		raw, err := lio.readln(ctx, cfg.phaseIdle(PhaseName))
@@ -406,6 +394,31 @@ func selectFromRoster(ctx context.Context, lio *lineIO, cfg Config, acc *account
 		}
 		return &Loaded{Account: acc, Player: e.save, New: false}, nil
 	}
+}
+
+// printRoster renders the numbered character roster (character-select §3):
+// each character with its world and an "(unavailable on this server)" marker
+// when out-of-world, plus the create-new option and the selection prompt.
+func printRoster(ctx context.Context, lio *lineIO, entries []rosterEntry) error {
+	if err := lio.writeln(ctx, "Your characters:"); err != nil {
+		return err
+	}
+	for i, e := range entries {
+		line := fmt.Sprintf("  %d) %s", i+1, e.name)
+		if e.world != "" {
+			line += " [" + e.world + "]"
+		}
+		if !e.available {
+			line += " (unavailable on this server)"
+		}
+		if err := lio.writeln(ctx, line); err != nil {
+			return err
+		}
+	}
+	if err := lio.writeln(ctx, "  n) create a new character"); err != nil {
+		return err
+	}
+	return lio.writeln(ctx, "Select a character (number or name), or 'n' to create:")
 }
 
 // resolveRosterChoice matches a selection against the roster by 1-based

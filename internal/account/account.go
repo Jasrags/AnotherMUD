@@ -52,7 +52,9 @@ type Account struct {
 	// Username is the account's login identifier (character-select §2.1):
 	// unique case-insensitively, distinct from any character name. Added
 	// alongside the username index; existing accounts are backfilled from
-	// the email local part at load.
+	// the email local part at load. Stored in NORMALIZED (lowercased) form —
+	// the login key and the display form are the same; unlike character
+	// names, the typed casing is not preserved.
 	Username string `yaml:"username,omitempty"`
 	// Email is now an optional recovery/contact field, no longer the login
 	// key (character-select §2.1 — on a deprecation path).
@@ -410,19 +412,35 @@ func (s *Service) create(ctx context.Context, username, email, password string) 
 		PasswordHash: string(hash),
 		CreatedAt:    time.Now().UTC(),
 	}
-	if err := s.writeAccountLocked(acc); err != nil {
-		return nil, fmt.Errorf("account.Create: write: %w", err)
-	}
-	if normEmail != "" {
-		s.index[normEmail] = id
-	}
-	s.userIndex[normUser] = id
-	if err := s.saveIndexLocked(); err != nil {
-		// Best-effort: the account file exists but the index won't see
-		// it on restart. Surface the error so the caller can decide.
-		return nil, fmt.Errorf("account.Create: save index: %w", err)
+	if err := s.commitAccountLocked(acc, normEmail, normUser); err != nil {
+		return nil, err
 	}
 	return acc, nil
+}
+
+// commitAccountLocked writes the account file, updates the in-memory email +
+// username indexes, and persists them. The caller holds s.mu. On an index-save
+// failure the in-memory index entries are ROLLED BACK so a retry (or a
+// concurrent create) is not wrongly refused with ErrUsernameTaken/ErrEmailTaken
+// for a registration that did not durably complete.
+func (s *Service) commitAccountLocked(acc *Account, normEmail, normUser string) error {
+	if err := s.writeAccountLocked(acc); err != nil {
+		return fmt.Errorf("account.Create: write: %w", err)
+	}
+	if normEmail != "" {
+		s.index[normEmail] = acc.ID
+	}
+	s.userIndex[normUser] = acc.ID
+	if err := s.saveIndexLocked(); err != nil {
+		delete(s.userIndex, normUser)
+		if normEmail != "" {
+			delete(s.index, normEmail)
+		}
+		// The account file is left on disk (orphaned until a future re-create
+		// or cleanup); the in-memory index is consistent again so a retry works.
+		return fmt.Errorf("account.Create: save index: %w", err)
+	}
+	return nil
 }
 
 // AuthenticateByEmail returns the account on success, ErrAuthFailed on
