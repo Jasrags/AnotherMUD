@@ -15,6 +15,10 @@ properties:
 # §3.3). Weaker than the player's short sword (1d6); the small modifiers
 # nudge the bandit's accuracy/damage without making the Meadow brutal.
 weapon_damage: "1d4"
+# A bladed weapon deals slashing damage (weapon-identity §2). Inert until
+# a defender carries slashing resistance — the warded coif (armor-depth §4)
+# uses exactly this to soak the bandit's hits to the per-swing floor of 1.
+damage_types: [slashing]
 modifiers:
   - stat: str
     value: 1

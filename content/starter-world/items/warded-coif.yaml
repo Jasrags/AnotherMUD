@@ -1,0 +1,18 @@
+id: warded-coif
+name: a warded coif
+type: item
+tags: [armor, wearable, warded]
+keywords: [coif, warded]
+eligible_slots: [head]
+properties:
+  weight: 2
+  value: 40
+# Demo of armor-depth §4 — per-type damage resistance. Unlike the leather
+# cap (which raises AC so attacks MISS more), the warded coif lets blows
+# land but SOAKS slashing damage: each slashing hit is reduced by 5 before
+# the per-swing minimum of 1. The road bandit's rusty dagger is a 1d4
+# slashing weapon, so 1d4 − 5 floors to exactly 1 on every hit a wearer
+# takes — a visible, deterministic demonstration of type-specific soak.
+# It grants NO armor bonus, so the reduction is the resistance, not AC.
+resistances:
+  slashing: 5
