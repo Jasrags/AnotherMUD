@@ -66,6 +66,7 @@ func (s *Store) EquipMobAtSpawn(m *MobInstance, ids []string, items *item.Templa
 	}
 	occupied := make(map[string]bool) // slot keys claimed by fitting gear
 	weaponSet := false                // first equipped weapon wins; overrides the natural weapon
+	var resist map[string]int         // per-type resistance summed across fitting armor (armor-depth §4)
 	for _, id := range ids {
 		tpl, err := items.Get(item.TemplateID(id))
 		if err != nil {
@@ -100,9 +101,17 @@ func (s *Store) EquipMobAtSpawn(m *MobInstance, ids []string, items *item.Templa
 			// fit a slot cannot arm the mob.
 			if !weaponSet {
 				if dice, ok := it.WeaponDamage(); ok {
-					m.SetWeapon(dice, it.Name())
+					m.SetWeapon(dice, it.Name(), it.DamageTypes())
 					weaponSet = true
 				}
+			}
+			// armor-depth §4: sum per-type resistance across fitting armor
+			// (only slot-equipped gear soaks, mirroring the modifier rule).
+			for dt, amt := range it.Resistances() {
+				if resist == nil {
+					resist = make(map[string]int)
+				}
+				resist[dt] += amt
 			}
 		} else {
 			// Carried but not slot-equipped: modifiers skipped (§3.7).
@@ -115,6 +124,9 @@ func (s *Store) EquipMobAtSpawn(m *MobInstance, ids []string, items *item.Templa
 			contents.Put(m.ID(), it.ID())
 		}
 		res.Equipped++
+	}
+	if resist != nil {
+		m.SetResistances(resist)
 	}
 	return res, nil
 }

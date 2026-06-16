@@ -119,6 +119,18 @@ type MobInstance struct {
 	// then read by combat — no lock, like proficiencies/race.
 	weapon     combat.DiceExpr
 	weaponName string
+	// weaponDamageTypes are the equipped weapon's damage type(s)
+	// (weapon-identity §2), fed into combat.Stats so a defender's per-type
+	// resistance applies (armor-depth §4). nil = untyped (the default for a
+	// natural weapon, which declares no types). Set during the spawn
+	// pipeline by SetWeapon, read lock-free by Stats.
+	weaponDamageTypes []string
+	// resistances is the mob's aggregated per-damage-type damage reduction
+	// from worn armor (armor-depth §4), summed across equipped armor at
+	// spawn (EquipMobAtSpawn → SetResistances). nil = none. Mutated only
+	// during the spawn pipeline, then read lock-free by Stats — same
+	// discipline as weapon/proficiencies.
+	resistances map[string]int
 }
 
 // Proficiency reports the mob's proficiency for abilityID (M9.5 #3).
@@ -286,6 +298,12 @@ func (m *MobInstance) Stats() combat.Stats {
 	if !m.weapon.IsZero() {
 		s.Damage = m.weapon
 		s.WeaponName = m.weaponName
+		s.WeaponDamageTypes = m.weaponDamageTypes
+	}
+	// Per-type resistance from worn armor (armor-depth §4); immutable after
+	// the spawn pipeline so it is safe to share the map with combat.Stats.
+	if len(m.resistances) > 0 {
+		s.Resistances = m.resistances
 	}
 	return s
 }
@@ -295,9 +313,18 @@ func (m *MobInstance) Stats() combat.Stats {
 // natural weapon, then EquipMobAtSpawn overrides it with an equipped
 // weapon. Not safe to call after the mob is targetable in combat (the
 // field is read lock-free by Stats on the tick goroutine).
-func (m *MobInstance) SetWeapon(dice combat.DiceExpr, name string) {
+func (m *MobInstance) SetWeapon(dice combat.DiceExpr, name string, damageTypes []string) {
 	m.weapon = dice
 	m.weaponName = name
+	m.weaponDamageTypes = damageTypes
+}
+
+// SetResistances installs the mob's aggregated per-damage-type damage
+// reduction from worn armor (armor-depth §4). Called once during the spawn
+// pipeline (EquipMobAtSpawn) after gear is placed; not safe to call after
+// the mob is targetable (read lock-free by Stats on the tick goroutine).
+func (m *MobInstance) SetResistances(resistances map[string]int) {
+	m.resistances = resistances
 }
 
 // EntityID implements progression.EffectTarget: the bare id the effect

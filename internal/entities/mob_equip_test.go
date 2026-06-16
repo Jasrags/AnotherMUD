@@ -174,6 +174,38 @@ func TestEquipMobAtSpawnSetsWeaponDice(t *testing.T) {
 	}
 }
 
+// armor-depth §4: an equipped weapon's damage types and an equipped
+// armor's per-type resistances flow into the mob's combat.Stats.
+func TestEquipMobAtSpawnSetsDamageTypesAndResistances(t *testing.T) {
+	r := item.NewTemplates()
+	r.Add(&item.Template{
+		ID: "core:slasher", Name: "a slasher", Type: "weapon",
+		Properties:   map[string]any{"slot": "wield"},
+		WeaponDamage: "1d6", DamageTypes: []string{"slashing"},
+	})
+	r.Add(&item.Template{
+		ID: "core:warded-helm", Name: "a warded helm", Type: "armor",
+		EligibleSlots: []string{"head"},
+		Resistances:   map[string]int{"slashing": 2, "piercing": 1},
+	})
+
+	s := NewStore()
+	inst, err := s.SpawnMob(guardTpl())
+	if err != nil {
+		t.Fatalf("SpawnMob: %v", err)
+	}
+	if _, err := s.EquipMobAtSpawn(inst, []string{"core:slasher", "core:warded-helm"}, r, NewContents(), mobEqSlots()); err != nil {
+		t.Fatalf("EquipMobAtSpawn: %v", err)
+	}
+	st := inst.Stats()
+	if len(st.WeaponDamageTypes) != 1 || st.WeaponDamageTypes[0] != "slashing" {
+		t.Errorf("WeaponDamageTypes = %v, want [slashing]", st.WeaponDamageTypes)
+	}
+	if st.Resistances["slashing"] != 2 || st.Resistances["piercing"] != 1 {
+		t.Errorf("Resistances = %v, want slashing:2 piercing:1", st.Resistances)
+	}
+}
+
 func TestEquipMobAtSpawnFirstWeaponWins(t *testing.T) {
 	s := NewStore()
 	inst, err := s.SpawnMob(guardTpl())
