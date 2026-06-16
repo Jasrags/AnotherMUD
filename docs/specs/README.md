@@ -260,7 +260,8 @@ How a connection becomes a session becomes a character.
   namespace) + a login/roster gate; the within-world fail-soft restore is
   unchanged. Co-hosting multiple worlds (and the global-registry
   namespacing it needs) is deferred. Resolves
-  `docs/proposals/character-identity-across-packs.md` §7 *(spec; build pending)*.
+  `docs/proposals/character-identity-across-packs.md` §7 *(shipped 2026-06-16 —
+  manifest `kind` flag + save v23 WorldID + login gate)*.
 
 ### 5. Presentation
 
@@ -369,7 +370,7 @@ Each spec calls out what it persists. The aggregate view:
   **faction standing bag + history** ([faction](faction.md) §8 *(spec; build pending)*),
   **world stamp** (`WorldID` — the leaf ruleset pack a character belongs
   to; an additive v23 field backfilled from the location namespace;
-  [character-identity](character-identity.md) §4 *(spec; build pending)*).
+  [character-identity](character-identity.md) §4).
 - **Quest file** (sibling of player file) — active list,
   completed list.
 - **Notifications file** (sibling of player file) — per-entity
