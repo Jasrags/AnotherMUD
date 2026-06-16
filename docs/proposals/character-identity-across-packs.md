@@ -1,7 +1,7 @@
 # Proposal: Character identity across content packs — world-locked, not portable
 
-**Status:** design-first; **open questions UNRESOLVED** (§7 — to be decided in a later
-pass), no code yet
+**Status:** design-first; **§7 RESOLVED 2026-06-16** (all six recommended defaults
+adopted — see §7) — **spec-ready**, no code yet
 · **Type:** player-lifecycle + persistence design (introduces a character↔world
 binding; one additive save field)
 **Builds on:** the multi-pack reality already in the loader — namespaced `pack:id`
@@ -139,37 +139,38 @@ logic, not save-format changes.
    until co-hosting is actually needed (§7-Q6). Already flagged in the
    `multi-ruleset-engine-state` memory.
 
-## 7. Open questions (UNRESOLVED — recommended defaults noted)
+## 7. Decisions (RESOLVED 2026-06-16)
 
-Deferred to a later decision pass. Defaults are recommendations, not locked.
+All six resolved in favor of the recommended defaults (each marked ✅ below).
+The proposal is now spec-ready.
 
 1. **Granularity of the world stamp** — single leaf-pack id vs. full active-pack
    set vs. a declared `ruleset:`/`world:` manifest field.
-   → *Default:* **leaf-pack id**, plus a manifest flag marking a pack `world` vs
+   → ✅ **ADOPTED 2026-06-16:** **leaf-pack id**, plus a manifest flag marking a pack `world` vs
    `library` (so `core` is never a valid stamp). Full-pack-set is too brittle; a
    separate ruleset field is more indirection than needed today.
 
 2. **One world per process, or co-host multiple worlds?**
-   → *Default:* build the roster/login gate to *support* multiple worlds, but ship
+   → ✅ **ADOPTED 2026-06-16:** build the roster/login gate to *support* multiple worlds, but ship
    and run **one world per process** for now. Co-hosting two full rulesets is
    blocked on namespacing the global registries — record as prerequisite, don't
    build yet.
 
 3. **Character whose world isn't active on this server?**
-   → *Default:* shown **greyed in the roster, login refused** with a clear message.
+   → ✅ **ADOPTED 2026-06-16:** shown **greyed in the roster, login refused** with a clear message.
    Never auto-deleted, never silently degraded.
 
 4. **Backfill `WorldID` for existing v22 saves?**
-   → *Default:* derive from the `Location` room-id namespace; fall back to
+   → ✅ **ADOPTED 2026-06-16:** derive from the `Location` room-id namespace; fall back to
    `starter-world`. Deterministic, no operator input.
 
 5. **Can `core` (or any shared baseline) ever be a character's world?**
-   → *Default:* **no.** Baseline/library packs are dependencies; worlds are the
+   → ✅ **ADOPTED 2026-06-16:** **no.** Baseline/library packs are dependencies; worlds are the
    leaves that depend on them. Enforced by the manifest `world|library` flag.
 
 6. **Namespace the global registries (race/class/track/background) as part of
    this?**
-   → *Default:* **no — defer.** It is the prerequisite for co-hosting two rulesets
+   → ✅ **ADOPTED 2026-06-16:** **no — defer.** It is the prerequisite for co-hosting two rulesets
    in one process; single-world-per-process doesn't need it. Capture as the next
    domino, ship `WorldID` locking first.
 
