@@ -168,6 +168,13 @@ func run() error {
 	if err := pack.Load(ctx, cfg.ContentDir, cfg.Packs, registries, spawner, spawner, scriptEngine); err != nil {
 		return fmt.Errorf("loading content from %s: %w", cfg.ContentDir, err)
 	}
+	// Character-identity §2: a server must host at least one world (a
+	// `kind: world` pack) — characters are stamped to and gated by the
+	// active world set. A pack set that is all libraries can host no one;
+	// fail loudly at boot rather than silently disabling the world gate.
+	if len(registries.Worlds) == 0 {
+		return fmt.Errorf("no active world pack (kind: world) among packs %v — a server must host at least one world", cfg.Packs)
+	}
 	// Channel layer (docs/themes/channel-vocabulary.md): build the active
 	// ruleset's stat→combat-channel derivation from the loaded packs
 	// (later-wins per channel). Built AFTER Load because the mapping is
@@ -2400,6 +2407,10 @@ func run() error {
 			Accounts:        accounts,
 			Players:         players,
 			DefaultLocation: string(cfg.StartRoom),
+			// World gate (character-identity §5): the active world set
+			// derived by pack.Load. A returning character whose WorldID
+			// isn't here is refused login.
+			ActiveWorlds: registries.Worlds,
 			// Per-phase idle timeout (login §6.1): bound interactive
 			// reads so a connection that never responds is reaped. Driven
 			// off the engine Clock (F3) so it's testable.

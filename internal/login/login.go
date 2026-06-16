@@ -100,6 +100,13 @@ type Config struct {
 	// DefaultLocation is the starting room for newly created characters.
 	DefaultLocation string
 
+	// ActiveWorlds is the server's active world set (character-identity §5):
+	// the namespaces of the loaded `kind: world` packs. A returning
+	// character whose WorldID is not in this set is refused login (its world
+	// isn't running here). Empty disables the gate entirely — the historical
+	// behavior — so callers/tests that don't set it are unaffected.
+	ActiveWorlds []string
+
 	// Policy knobs — zero values fall back to package defaults so
 	// callers can leave them blank.
 	MaxPasswordAttempts int
@@ -312,6 +319,20 @@ func returningPlayer(ctx context.Context, lio *lineIO, cfg Config, name string) 
 		return nil, errBackToName
 	}
 
+	// World gate (character-identity §5): a character may only enter a server
+	// running its world. Refused before password auth or any content
+	// restore, so an out-of-world character's save is read but never touched.
+	// (Skipped when unstamped or when no world set is configured.)
+	if save.WorldID != "" && !cfg.worldActive(save.WorldID) {
+		logging.From(ctx).Warn("returning character refused: world not active here",
+			slog.String("name", name),
+			slog.String("world_id", save.WorldID),
+			slog.Any("active_worlds", cfg.ActiveWorlds))
+		_ = lio.writeln(ctx, fmt.Sprintf(
+			"%q belongs to the %q world, which is not running on this server.", name, save.WorldID))
+		return nil, errBackToName
+	}
+
 	for attempts := 0; attempts < cfg.maxPwAttempts(); attempts++ {
 		pw, err := promptPassword(ctx, lio, "Password: ", cfg.phaseIdle(PhasePassword))
 		if err != nil {
@@ -439,8 +460,37 @@ func buildNewCharacter(ctx context.Context, lio *lineIO, cfg Config, acc *accoun
 		AccountID: acc.ID,
 		Name:      name,
 		Location:  cfg.DefaultLocation,
+		// Stamp the world this character belongs to (character-identity §3):
+		// the namespace of the start room it spawns into. Empty when the
+		// configured start location carries no namespace (test configs).
+		WorldID: worldOf(cfg.DefaultLocation),
 	}
 	return &Loaded{Account: acc, Player: save, New: true}, nil
+}
+
+// worldOf extracts the world id (namespace) from a namespaced room id
+// ("starter-world:town-square" → "starter-world"); "" when the id carries
+// no namespace (character-identity §3/§4).
+func worldOf(roomID string) string {
+	if ns, _, found := strings.Cut(roomID, ":"); found {
+		return strings.TrimSpace(ns)
+	}
+	return ""
+}
+
+// worldActive reports whether worldID is in the configured active world set.
+// An empty set disables the gate (every world passes) — the historical
+// behavior for callers that don't configure ActiveWorlds.
+func (c Config) worldActive(worldID string) bool {
+	if len(c.ActiveWorlds) == 0 {
+		return true
+	}
+	for _, w := range c.ActiveWorlds {
+		if w == worldID {
+			return true
+		}
+	}
+	return false
 }
 
 func promptEmail(ctx context.Context, lio *lineIO, cfg Config) (string, error) {
