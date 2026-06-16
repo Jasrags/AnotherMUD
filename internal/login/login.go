@@ -31,6 +31,7 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"strconv"
 	"strings"
 	"time"
 
@@ -213,52 +214,44 @@ func Run(ctx context.Context, c conn.Connection, cfg Config) (*Loaded, error) {
 	return loaded, err
 }
 
+// runLoop drives the account-first login (character-select.md): the front
+// door identifies the ACCOUNT by username (not a character name), then a
+// roster lets the player pick a character or create one. Both the
+// existing-account and new-account paths converge on the roster — a new
+// account simply has an empty one, which routes straight to creation.
 func runLoop(ctx context.Context, lio *lineIO, cfg Config) (*Loaded, error) {
 	if err := lio.writeln(ctx, "Welcome to AnotherMUD."); err != nil {
 		return nil, err
 	}
 
 	for {
-		name, err := promptName(ctx, lio, cfg)
+		username, err := promptUsername(ctx, lio, cfg)
 		if err != nil {
 			return nil, err
 		}
 
-		if cfg.Players.Exists(name) {
-			res, err := returningPlayer(ctx, lio, cfg, name)
-			if err != nil {
-				if errors.Is(err, errBackToName) {
-					continue
-				}
-				return nil, err
-			}
-			return res, nil
+		var (
+			acc  *account.Account
+			aerr error
+		)
+		if cfg.Accounts.UsernameExists(username) {
+			acc, aerr = authExistingAccount(ctx, lio, cfg, username)
+		} else {
+			acc, aerr = createNewAccount(ctx, lio, cfg, username)
 		}
-
-		// Name-gates (spec §3) run only on the new-player path — they
-		// guard entry into character creation. A reject reprompts; a
-		// disconnect closes the connection.
-		switch decision, reason := runNameGates(name, cfg.nameGates()); decision {
-		case NameReject:
-			if reason != "" {
-				if err := lio.writeln(ctx, reason); err != nil {
-					return nil, err
-				}
-			}
-			continue
-		case NameDisconnect:
-			if reason != "" {
-				_ = lio.writeln(ctx, reason)
-			}
-			return nil, ErrNameRejected
-		}
-
-		res, err := newPlayer(ctx, lio, cfg, name)
-		if err != nil {
-			if errors.Is(err, errBackToName) {
+		if aerr != nil {
+			if errors.Is(aerr, errBackToName) {
 				continue
 			}
-			return nil, err
+			return nil, aerr
+		}
+
+		res, rerr := selectFromRoster(ctx, lio, cfg, acc)
+		if rerr != nil {
+			if errors.Is(rerr, errBackToName) {
+				continue
+			}
+			return nil, rerr
 		}
 		return res, nil
 	}
@@ -268,26 +261,26 @@ func runLoop(ctx context.Context, lio *lineIO, cfg Config) (*Loaded, error) {
 // the user back to the Name prompt without aborting the connection.
 var errBackToName = errors.New("login: back to name prompt")
 
-func promptName(ctx context.Context, lio *lineIO, cfg Config) (string, error) {
+// promptUsername reads the account username — the account-first front door
+// (character-select §2). Uses the Name-phase idle timeout. Returns the
+// typed-as-typed username; the account service normalizes for lookup.
+func promptUsername(ctx context.Context, lio *lineIO, cfg Config) (string, error) {
 	for {
-		if err := lio.writeln(ctx, "By what name shall we know you?"); err != nil {
+		if err := lio.writeln(ctx, "Account username:"); err != nil {
 			return "", err
 		}
 		raw, err := lio.readln(ctx, cfg.phaseIdle(PhaseName))
 		if err != nil {
 			return "", err
 		}
-		name := strings.TrimSpace(raw)
-		if msg := validateName(name, cfg); msg != "" {
-			if err := lio.writeln(ctx, msg); err != nil {
+		username := strings.TrimSpace(raw)
+		if !account.ValidUsername(account.NormalizeUsername(username)) {
+			if err := lio.writeln(ctx, "Usernames are 3-32 characters: letters, digits, or underscore."); err != nil {
 				return "", err
 			}
 			continue
 		}
-		// Return the typed-as-typed name. The store lowercases for
-		// path computation (spec §3.2); display preserves what the
-		// user typed so MUD-traditional PascalCase names render right.
-		return name, nil
+		return username, nil
 	}
 }
 
@@ -308,37 +301,16 @@ func validateName(name string, cfg Config) string {
 	return ""
 }
 
-func returningPlayer(ctx context.Context, lio *lineIO, cfg Config, name string) (*Loaded, error) {
-	save, err := cfg.Players.Load(ctx, name)
-	if err != nil {
-		// Player file disappeared between Exists and Load, or version
-		// drift. Surface a generic message and bounce.
-		logging.From(ctx).Warn("returning player load failed",
-			slog.String("name", name), slog.Any("err", err))
-		_ = lio.writeln(ctx, "Sorry, your character file could not be loaded right now.")
-		return nil, errBackToName
-	}
-
-	// World gate (character-identity §5): a character may only enter a server
-	// running its world. Refused before password auth or any content
-	// restore, so an out-of-world character's save is read but never touched.
-	// (Skipped when unstamped or when no world set is configured.)
-	if save.WorldID != "" && !cfg.worldActive(save.WorldID) {
-		logging.From(ctx).Warn("returning character refused: world not active here",
-			slog.String("name", name),
-			slog.String("world_id", save.WorldID),
-			slog.Any("active_worlds", cfg.ActiveWorlds))
-		_ = lio.writeln(ctx, fmt.Sprintf(
-			"%q belongs to the %q world, which is not running on this server.", name, save.WorldID))
-		return nil, errBackToName
-	}
-
+// authExistingAccount runs the password loop for a known account username
+// (character-select §2.2). On success returns the authenticated account;
+// errBackToName after a wrong password, ErrPasswordCap after the cap.
+func authExistingAccount(ctx context.Context, lio *lineIO, cfg Config, username string) (*account.Account, error) {
 	for attempts := 0; attempts < cfg.maxPwAttempts(); attempts++ {
 		pw, err := promptPassword(ctx, lio, "Password: ", cfg.phaseIdle(PhasePassword))
 		if err != nil {
 			return nil, err
 		}
-		acc, err := cfg.Accounts.AuthenticateByID(ctx, save.AccountID, pw)
+		acc, err := cfg.Accounts.AuthenticateByUsername(ctx, username, pw)
 		if err != nil {
 			if errors.Is(err, account.ErrAuthFailed) {
 				if err := lio.writeln(ctx, "Incorrect password."); err != nil {
@@ -346,60 +318,185 @@ func returningPlayer(ctx context.Context, lio *lineIO, cfg Config, name string) 
 				}
 				continue
 			}
-			return nil, fmt.Errorf("returning auth: %w", err)
+			return nil, fmt.Errorf("auth by username: %w", err)
 		}
-		return &Loaded{Account: acc, Player: save, New: false}, nil
+		return acc, nil
 	}
 	_ = lio.writeln(ctx, "Too many failed attempts. Goodbye.")
 	return nil, ErrPasswordCap
 }
 
-func newPlayer(ctx context.Context, lio *lineIO, cfg Config, name string) (*Loaded, error) {
-	if err := lio.writeln(ctx, fmt.Sprintf("No character named %q exists. Creating a new one.", name)); err != nil {
-		return nil, err
-	}
-
-	email, err := promptEmail(ctx, lio, cfg)
-	if err != nil {
-		return nil, err
-	}
-
-	// Branch on EmailExists rather than try-and-create. This avoids
-	// the "created with typoed password" trap and lets us validate +
-	// confirm before any irreversible work. The check leaks no more
-	// than the eventual "incorrect password" message already does, and
-	// matches login spec §5.1's explicit existing-vs-new lookup.
-	if cfg.Accounts.EmailExists(email) {
-		return newCharacterOnExistingAccount(ctx, lio, cfg, email, name)
-	}
-	return newCharacterOnNewAccount(ctx, lio, cfg, email, name)
+// rosterEntry is one line of the character roster (character-select §3):
+// the character's name, its world, whether it is available on this server
+// (its world is in the active set), and its loaded save (nil if the load
+// failed — shown unavailable).
+type rosterEntry struct {
+	name      string
+	world     string
+	available bool
+	save      *player.Save
 }
 
-// newCharacterOnExistingAccount asks for the email's password and, on
-// success, attaches the chosen character name to the existing account.
-// One failed attempt bounces back to the name prompt (login spec §5.2).
-func newCharacterOnExistingAccount(ctx context.Context, lio *lineIO, cfg Config, email, name string) (*Loaded, error) {
-	pw, err := promptPassword(ctx, lio, fmt.Sprintf("Password for %s: ", email), cfg.phaseIdle(PhasePassword))
-	if err != nil {
-		return nil, err
-	}
-	acc, err := cfg.Accounts.AuthenticateByEmail(ctx, email, pw)
-	if err != nil {
-		if errors.Is(err, account.ErrAuthFailed) {
-			_ = lio.writeln(ctx, "Incorrect password for that email.")
-			return nil, errBackToName
+// selectFromRoster presents the account's characters (character-select §3-§4)
+// and returns the selected one, or routes to creation. An empty roster goes
+// straight to create. An out-of-world character is listed but not selectable
+// (the character-identity §5 world gate, surfaced here).
+func selectFromRoster(ctx context.Context, lio *lineIO, cfg Config, acc *account.Account) (*Loaded, error) {
+	entries := make([]rosterEntry, 0, len(acc.Characters))
+	for _, name := range acc.Characters {
+		save, err := cfg.Players.Load(ctx, name)
+		if err != nil {
+			// A listed character whose save won't load (version drift,
+			// removed file): show it, but unselectable.
+			logging.From(ctx).Warn("roster: character load failed",
+				slog.String("name", name), slog.Any("err", err))
+			entries = append(entries, rosterEntry{name: name})
+			continue
 		}
-		return nil, fmt.Errorf("auth by email: %w", err)
+		avail := save.WorldID == "" || cfg.worldActive(save.WorldID)
+		entries = append(entries, rosterEntry{name: name, world: save.WorldID, available: avail, save: save})
 	}
-	return buildNewCharacter(ctx, lio, cfg, acc, name)
+	if len(entries) == 0 {
+		return createCharacter(ctx, lio, cfg, acc)
+	}
+
+	for {
+		_ = lio.writeln(ctx, "Your characters:")
+		for i, e := range entries {
+			line := fmt.Sprintf("  %d) %s", i+1, e.name)
+			if e.world != "" {
+				line += " [" + e.world + "]"
+			}
+			if !e.available {
+				line += " (unavailable on this server)"
+			}
+			_ = lio.writeln(ctx, line)
+		}
+		_ = lio.writeln(ctx, "  n) create a new character")
+		if err := lio.writeln(ctx, "Select a character (number or name), or 'n' to create:"); err != nil {
+			return nil, err
+		}
+		raw, err := lio.readln(ctx, cfg.phaseIdle(PhaseName))
+		if err != nil {
+			return nil, err
+		}
+		choice := strings.TrimSpace(raw)
+		if choice == "" {
+			continue
+		}
+		if strings.EqualFold(choice, "n") || strings.EqualFold(choice, "new") {
+			return createCharacter(ctx, lio, cfg, acc)
+		}
+		e := resolveRosterChoice(entries, choice)
+		if e == nil {
+			if err := lio.writeln(ctx, "No such character. Pick a number from the list, or 'n' to create."); err != nil {
+				return nil, err
+			}
+			continue
+		}
+		if !e.available {
+			msg := fmt.Sprintf("%q is not available on this server.", e.name)
+			if e.world != "" {
+				msg = fmt.Sprintf("%q belongs to the %q world, which is not running on this server.", e.name, e.world)
+			}
+			if err := lio.writeln(ctx, msg); err != nil {
+				return nil, err
+			}
+			continue
+		}
+		return &Loaded{Account: acc, Player: e.save, New: false}, nil
+	}
 }
 
-// newCharacterOnNewAccount runs the password policy + confirmation
-// dance, then creates the account and binds the character. No account
-// is created until both the policy check and the confirmation succeed,
-// so a mistyped or short password leaves no trace on disk.
-func newCharacterOnNewAccount(ctx context.Context, lio *lineIO, cfg Config, email, name string) (*Loaded, error) {
-	pw, err := promptPassword(ctx, lio, fmt.Sprintf("Choose a password for %s: ", email), cfg.phaseIdle(PhasePassword))
+// resolveRosterChoice matches a selection against the roster by 1-based
+// index or by character name (case-insensitive). nil on no match.
+func resolveRosterChoice(entries []rosterEntry, choice string) *rosterEntry {
+	if n, err := strconv.Atoi(choice); err == nil {
+		if n >= 1 && n <= len(entries) {
+			return &entries[n-1]
+		}
+		return nil
+	}
+	for i := range entries {
+		if strings.EqualFold(entries[i].name, choice) {
+			return &entries[i]
+		}
+	}
+	return nil
+}
+
+// createCharacter prompts for a new character name (validated + name-gated +
+// soft-uniqueness-checked) and builds the new-character baseline stamped with
+// the active world (character-select §4; character-identity §3). Persistence +
+// account linking happen in the session completion pipeline.
+func createCharacter(ctx context.Context, lio *lineIO, cfg Config, acc *account.Account) (*Loaded, error) {
+	for {
+		if err := lio.writeln(ctx, "What is your new character's name?"); err != nil {
+			return nil, err
+		}
+		raw, err := lio.readln(ctx, cfg.phaseIdle(PhaseName))
+		if err != nil {
+			return nil, err
+		}
+		name := strings.TrimSpace(raw)
+		if msg := validateName(name, cfg); msg != "" {
+			if err := lio.writeln(ctx, msg); err != nil {
+				return nil, err
+			}
+			continue
+		}
+		// Name-gates (spec §3) guard character creation — reserved names
+		// (admin, guard, …) are refused; a disconnect gate closes the conn.
+		switch decision, reason := runNameGates(name, cfg.nameGates()); decision {
+		case NameReject:
+			if reason != "" {
+				if err := lio.writeln(ctx, reason); err != nil {
+					return nil, err
+				}
+			}
+			continue
+		case NameDisconnect:
+			if reason != "" {
+				_ = lio.writeln(ctx, reason)
+			}
+			return nil, ErrNameRejected
+		}
+		// Soft uniqueness pre-check (the commit-time mutex re-check in the
+		// session completion pipeline is authoritative — character-creation §6.4).
+		if cfg.Players.Exists(name) {
+			if err := lio.writeln(ctx, fmt.Sprintf("A character named %q already exists. Choose another.", name)); err != nil {
+				return nil, err
+			}
+			continue
+		}
+		return buildNewCharacter(ctx, lio, cfg, acc, name)
+	}
+}
+
+// createNewAccount creates an account for a not-yet-registered username
+// (character-select §2.2): name-gate the username, choose + confirm a
+// password, register (email omitted — demoted/deprecated). No account is
+// written until the confirmation succeeds.
+func createNewAccount(ctx context.Context, lio *lineIO, cfg Config, username string) (*account.Account, error) {
+	// Name-gates (spec §3) apply to the username too — reserved names
+	// (admin, guard, …) cannot be accounts.
+	switch decision, reason := runNameGates(username, cfg.nameGates()); decision {
+	case NameReject:
+		if reason != "" {
+			_ = lio.writeln(ctx, reason)
+		}
+		return nil, errBackToName
+	case NameDisconnect:
+		if reason != "" {
+			_ = lio.writeln(ctx, reason)
+		}
+		return nil, ErrNameRejected
+	}
+
+	if err := lio.writeln(ctx, fmt.Sprintf("No account named %q exists. Creating it.", username)); err != nil {
+		return nil, err
+	}
+	pw, err := promptPassword(ctx, lio, "Choose a password: ", cfg.phaseIdle(PhasePassword))
 	if err != nil {
 		return nil, err
 	}
@@ -412,21 +509,21 @@ func newCharacterOnNewAccount(ctx context.Context, lio *lineIO, cfg Config, emai
 		return nil, err
 	}
 	if confirm != pw {
-		_ = lio.writeln(ctx, "Passwords did not match. Returning to name prompt.")
+		_ = lio.writeln(ctx, "Passwords did not match. Returning to the username prompt.")
 		return nil, errBackToName
 	}
 
-	acc, err := cfg.Accounts.Create(ctx, email, pw)
+	acc, err := cfg.Accounts.CreateWithUsername(ctx, username, "", pw)
 	if err != nil {
-		// Treat a lost race against a concurrent create the same way
-		// we'd treat a returning visitor at the name prompt — bounce.
-		if errors.Is(err, account.ErrEmailTaken) {
-			_ = lio.writeln(ctx, "That email is already registered.")
+		// A concurrent create may have taken the username while we were
+		// collecting the password — bounce to the username prompt.
+		if errors.Is(err, account.ErrUsernameTaken) {
+			_ = lio.writeln(ctx, "That username was just taken. Try another.")
 			return nil, errBackToName
 		}
 		return nil, fmt.Errorf("create account: %w", err)
 	}
-	return buildNewCharacter(ctx, lio, cfg, acc, name)
+	return acc, nil
 }
 
 func validateNewPassword(pw string, cfg Config) string {
@@ -491,28 +588,6 @@ func (c Config) worldActive(worldID string) bool {
 		}
 	}
 	return false
-}
-
-func promptEmail(ctx context.Context, lio *lineIO, cfg Config) (string, error) {
-	for attempts := 0; attempts < cfg.maxEmailAttempts(); attempts++ {
-		if err := lio.writeln(ctx, "Email address: "); err != nil {
-			return "", err
-		}
-		raw, err := lio.readln(ctx, cfg.phaseIdle(PhaseEmail))
-		if err != nil {
-			return "", err
-		}
-		email := account.NormalizeEmail(raw)
-		if !account.ValidEmail(email) {
-			if err := lio.writeln(ctx, "That doesn't look like an email address."); err != nil {
-				return "", err
-			}
-			continue
-		}
-		return email, nil
-	}
-	_ = lio.writeln(ctx, "Too many invalid attempts. Goodbye.")
-	return "", ErrEmailCap
 }
 
 // promptPassword reads a password with echo suppressed, bounded by the

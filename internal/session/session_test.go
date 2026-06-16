@@ -164,28 +164,36 @@ func (d *driveClient) drainUntil(marker string) string {
 	return ""
 }
 
-// loginNew drives the new-character flow: name, email, password (and
-// confirmation). Leaves the connection at the first in-game prompt.
+// loginNew drives the account-first new-account + first-character flow
+// (character-select.md): account username, password (+ confirm), then the
+// character name (empty roster → create). `name` is used as both the
+// account username and the character name; `email` is ignored (email is no
+// longer collected — character-select §2.1). Leaves the connection at the
+// first in-game prompt.
 func (d *driveClient) loginNew(name, email, password string) {
 	d.t.Helper()
-	d.drainUntil("name shall we know")
+	_ = email
+	d.drainUntil("Account username:")
 	d.writeLine(name)
-	d.drainUntil("Email address")
-	d.writeLine(email)
 	d.drainUntil("Choose a password")
 	d.writeLine(password)
 	d.drainUntil("Confirm password")
 	d.writeLine(password)
+	d.drainUntil("new character's name")
+	d.writeLine(name)
 	d.drainUntil(fmt.Sprintf("Welcome, %s.", name))
 }
 
-// loginReturning drives the returning-character flow.
+// loginReturning drives the account-first returning flow: account username,
+// password, then selecting the character from the roster by name.
 func (d *driveClient) loginReturning(name, password string) {
 	d.t.Helper()
-	d.drainUntil("name shall we know")
+	d.drainUntil("Account username:")
 	d.writeLine(name)
 	d.drainUntil("Password")
 	d.writeLine(password)
+	d.drainUntil("Select a character")
+	d.writeLine(name)
 }
 
 // TestSessionColorFallback proves the plain-text color fallback after

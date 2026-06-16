@@ -8,6 +8,7 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/Jasrags/AnotherMUD/internal/account"
 	"github.com/Jasrags/AnotherMUD/internal/player"
 )
 
@@ -124,8 +125,14 @@ func TestRun_ReservedNameReprompts(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewStore: %v", err)
 	}
-	conn := &scriptConn{lines: []string{"Admin"}} // reserved; then EOF on reprompt
-	cfg := Config{Players: store, ReservedNames: []string{"admin"}}
+	accts, err := account.NewService(t.TempDir(), account.WithBcryptCost(account.MinBcryptCostForTests))
+	if err != nil {
+		t.Fatalf("NewService: %v", err)
+	}
+	// "Admin" is a valid username but a reserved name: account creation
+	// name-gates it and reprompts; EOF on the reprompt aborts.
+	conn := &scriptConn{lines: []string{"Admin"}}
+	cfg := Config{Players: store, Accounts: accts, ReservedNames: []string{"admin"}}
 
 	loaded, runErr := Run(context.Background(), conn, cfg)
 	if loaded != nil {
