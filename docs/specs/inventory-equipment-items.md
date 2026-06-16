@@ -469,10 +469,13 @@ contents:
 
 1. **Tag gate.** Reject items carrying the `fixture` or `no_get`
    tag. No event, no mutation.
-2. **Weight check.** If the actor has a positive max-carry-weight
-   property, compute the actor's current carry weight plus the
-   item's weight. If the total exceeds the ceiling, fail. (A
-   missing or zero max indicates "no limit".)
+2. **Weight check.** If the actor has a positive **carry capacity**,
+   compute the actor's current carry weight plus the item's weight. If
+   the total exceeds the capacity, fail. Capacity is the shared quantity
+   defined in [movement-cost](movement-cost.md) §4.4 — an explicit
+   max-carry-weight attribute if positive, otherwise derived from
+   Strength; only a character with no stat surface / non-positive
+   Strength has "no limit".
 3. **Remove from room.** If the item has a location room, remove
    it from that room's entity list.
 4. **Add to contents.**
@@ -770,7 +773,7 @@ spec.
 | Slot list and per-slot capacity | §3.1 |
 | Per-item eligible slots and companion (footprint) slots | §3.3 |
 | Equip policy rules (class/level/alignment/curse gates) via the `entity equipping` veto | §3.4, §3.6 |
-| Default max carry weight (or none) | §4.2 |
+| Carry capacity: explicit attribute or Strength-derived | §4.2, [movement-cost](movement-cost.md) §4.4 |
 | Container capacity / weight limit defaults | §4.5 |
 | Rarity tiers (key, order, display text, decorators, color, visibility) | §5.3 |
 | Essence catalog (key, glyph, color) | §5.3 |

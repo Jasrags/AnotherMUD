@@ -220,20 +220,23 @@ higher-of-source-or-destination or leaving-cost model is considered in
 
 A loaded character pays more per step. The step cost is the terrain cost
 (§4.1–§4.2) **plus an encumbrance surcharge** derived from how full the
-character's carry capacity is — the same load the carry-weight pickup
-limit measures (summed inventory weight against the carry-capacity
-attribute). The surcharge is tiered: below a **burdened** threshold the
-load is free; at or above it the surcharge steps up by tier as the load
-nears capacity. Thresholds and per-tier surcharges are policy (§8).
+character's **carry capacity** is — the same load the carry-weight pickup
+limit measures (summed inventory weight). The surcharge is tiered: below a
+**burdened** threshold the load is free; at or above it the surcharge
+steps up by tier as the load nears capacity. Thresholds and per-tier
+surcharges are policy (§8).
+
+**Carry capacity** is a single quantity shared by the encumbrance
+surcharge and the carry-weight pickup limit, resolved as: an explicit
+carry-capacity attribute (a content override) if positive, otherwise
+**derived from Strength** (a configured weight-per-Strength, §8). Only a
+character with no stat surface or non-positive Strength has no capacity
+("no limit"); every ordinary character therefore has a real capacity, so
+both the surcharge and the pickup limit are **live**.
 
 The surcharge depends only on the mover, not the room, so it adds equally
 to a step's source and destination cost and therefore does **not** affect
 the terrain difficulty hint (§5) — that hint stays purely terrain-driven.
-
-A character with **no carry capacity** (a zero capacity attribute — the
-same "no limit" case the pickup gate honors) carries no encumbrance
-surcharge. This makes the coupling dormant until content gives characters
-a positive carry capacity, exactly as the carry-weight pickup limit is.
 
 **Acceptance criteria**
 
@@ -245,8 +248,10 @@ a positive carry capacity, exactly as the carry-weight pickup limit is.
       not the source.
 - [ ] Carrying load at or above the burdened threshold adds the tier
       surcharge on top of the terrain cost; heavier load adds more.
-- [ ] A character with no carry capacity carries no surcharge (the
-      coupling is dormant), and the surcharge never affects the §5 hint.
+- [ ] Carry capacity comes from an explicit attribute when set, else from
+      Strength; the same capacity gates both the surcharge and pickup.
+- [ ] A character with no stat surface / non-positive Strength carries no
+      surcharge, and the surcharge never affects the §5 hint.
 
 ---
 
@@ -321,6 +326,7 @@ The following are externally configurable and not fixed by this spec.
 | Sustenance/rest regen multipliers applied to the pool | §2.2 (owned by economy-survival §4.3, §5.5) |
 | Flat default per-step cost | §4.2 |
 | Per-biome movement cost | §4.1 (content) |
+| Carry-capacity derivation from Strength (weight per point) | §4.4 |
 | Encumbrance tier thresholds (as a fraction of carry capacity) | §4.4 |
 | Per-tier encumbrance surcharge | §4.4 |
 | The user-facing refusal and difficulty-hint copy | §3.4, §5 |
@@ -333,15 +339,13 @@ The following are externally configurable and not fixed by this spec.
   costs, and regen rate are placeholders chosen to make the mechanic
   observable, not balanced against real travel distances. A tuning pass
   against the actual room graph is owed before this is load-bearing.
-- **Encumbrance activation.** The encumbrance surcharge (§4.4) is
-  specified and built, but **dormant**: no content yet gives a character
-  a positive carry capacity, so every character is unburdened (exactly as
-  the carry-weight pickup limit is dormant for the same reason). Lighting
-  it up needs a carry-capacity source — the intended strength-derived
-  carry cap — which activates both the surcharge here and the pickup
-  limit. That derivation, plus a balance pass on the tier thresholds and
-  surcharges, is the remaining work; it is a gameplay decision (it begins
-  restricting what characters can carry), not a mechanical gap.
+- **Encumbrance balance.** The surcharge (§4.4) is **live** — carry
+  capacity now derives from Strength, so both it and the carry-weight
+  pickup limit apply to every ordinary character. The shipped
+  weight-per-Strength, tier thresholds, and surcharges are starting
+  figures (a light traveler unburdened, a loot-laden one burdened) chosen
+  without playtest data; tuning them against real item weights and travel
+  patterns is the remaining work.
 - **Encumbrance model breadth.** The surcharge is an additive,
   inventory-only, tiered term. Equipped-item weight is excluded (matching
   the pickup limit), and a multiplicative model (load *amplifies* rough

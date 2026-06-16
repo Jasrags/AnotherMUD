@@ -67,7 +67,7 @@ func TestGet_ZeroCarryMaxMeansNoLimit(t *testing.T) {
 	f := newInvFixture(t)
 	heavyItemInRoom(t, f, 1000)
 	a := &namedActor{testActor: newTestActor(f.room), name: "Alice", playerID: "p-1"}
-	// carryMax defaults to 0 → no limit, even for a very heavy item.
+	// carryMax AND str both default to 0 → no derived capacity, no limit.
 
 	r := newRegistry(t)
 	if err := r.Dispatch(context.Background(), f.env(), a, "get sword"); err != nil {
@@ -75,5 +75,23 @@ func TestGet_ZeroCarryMaxMeansNoLimit(t *testing.T) {
 	}
 	if len(a.Inventory()) != 1 {
 		t.Errorf("zero ceiling should impose no limit; inventory=%v", a.Inventory())
+	}
+}
+
+// With no explicit carry_max, capacity is derived from Strength
+// (carryPerStrength × STR = 8 × 5 = 40 here), and a heavier item is refused
+// — proving the STR-derived cap activates the pickup gate.
+func TestGet_StrengthDerivedCapacityGatesPickup(t *testing.T) {
+	f := newInvFixture(t)
+	heavyItemInRoom(t, f, 50) // 50 > 8×5 = 40
+	a := &namedActor{testActor: newTestActor(f.room), name: "Alice", playerID: "p-1"}
+	a.str = 5 // derived capacity 40; no explicit carry_max
+
+	r := newRegistry(t)
+	if err := r.Dispatch(context.Background(), f.env(), a, "get sword"); err != nil {
+		t.Fatalf("dispatch: %v", err)
+	}
+	if len(a.Inventory()) != 0 {
+		t.Errorf("item over STR-derived capacity should be refused; inventory=%v", a.Inventory())
 	}
 }

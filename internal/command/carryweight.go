@@ -29,10 +29,18 @@ func (c *Context) carryWeightExceeded(incoming *entities.ItemInstance) bool {
 	return c.carriedWeight()+intProp(incoming, propWeight) > max
 }
 
-// carryCapacity returns the actor's StatCarryMax ceiling, or 0 ("no
-// limit") when the actor exposes no stat surface or its ceiling is
-// non-positive — the shared notion of capacity for the pickup gate and
-// the movement-encumbrance surcharge.
+// carryPerStrength derives carry capacity from Strength when content sets
+// no explicit carry_max: capacity = STR × this. The default (STR 10 →
+// capacity 80) keeps a light traveler unburdened and a loot-laden one
+// burdened — a balance figure (movement-cost §4.4), not a fixed rule.
+const carryPerStrength = 8
+
+// carryCapacity returns the actor's carry-weight ceiling — the shared
+// notion of capacity for the pickup gate and the movement-encumbrance
+// surcharge. An explicit positive StatCarryMax (a content override) wins;
+// otherwise capacity is derived from Strength (carryPerStrength × STR). It
+// is 0 ("no limit") only for an actor with no stat surface or non-positive
+// Strength (weightless content / minimal test stubs).
 func (c *Context) carryCapacity() int {
 	lim, ok := c.Actor.(carryWeightLimited)
 	if !ok {
@@ -40,6 +48,9 @@ func (c *Context) carryCapacity() int {
 	}
 	if max := lim.StatValue(progression.StatCarryMax); max > 0 {
 		return max
+	}
+	if str := lim.StatValue(progression.StatSTR); str > 0 {
+		return str * carryPerStrength
 	}
 	return 0
 }

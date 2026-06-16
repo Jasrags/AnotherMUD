@@ -251,6 +251,25 @@ func TestMove_EncumbranceSurcharge(t *testing.T) {
 	}
 }
 
+// With no explicit carry_max, encumbrance keys off the STR-derived
+// capacity (carryPerStrength × STR = 8 × 10 = 80): a load at half of that
+// burdens the mover and surcharges the step.
+func TestMove_EncumbranceFromStrengthDerivedCapacity(t *testing.T) {
+	w, a, _ := moveCostWorld()
+	store := entities.NewStore()
+	actor := newTestActor(a)
+	actor.mvMax, actor.mv = 20, 20
+	actor.str = 10                 // derived capacity 80; no explicit carry_max
+	loadActor(t, store, actor, 40) // 50% of 80 → burdened, +1
+
+	if err := encumbranceDispatch(w, store, 1, actor, "n"); err != nil {
+		t.Fatalf("move: %v", err)
+	}
+	if got := 20 - actor.Movement(); got != 2 {
+		t.Fatalf("burdened step spent %d; want 2 (terrain 1 + burdened 1)", got)
+	}
+}
+
 // The encumbrance surcharge stacks on top of biome-weighted terrain cost.
 func TestMove_EncumbranceStacksWithBiome(t *testing.T) {
 	road := &world.Room{ID: "road", Name: "Road", Terrain: world.TerrainOutdoors,

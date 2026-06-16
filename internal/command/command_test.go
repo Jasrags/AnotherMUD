@@ -294,7 +294,8 @@ type testActor struct {
 	lastArea  world.AreaID
 	seenAreas map[world.AreaID]struct{}
 
-	carryMax      int  // StatValue(StatCarryMax); 0 ⇒ no carry-weight limit
+	carryMax      int  // StatValue(StatCarryMax); 0 ⇒ no explicit carry cap
+	str           int  // StatValue(StatSTR); 0 ⇒ no STR-derived carry cap
 	nonProficient bool // IsWeaponProficient() returns !nonProficient
 
 	// Movement pool for the movement-cost gate (world-rooms-movement
@@ -505,8 +506,11 @@ func (a *testActor) IsWeaponProficient() bool {
 func (a *testActor) StatValue(s progression.StatType) int {
 	a.mu.Lock()
 	defer a.mu.Unlock()
-	if s == progression.StatCarryMax {
+	switch s {
+	case progression.StatCarryMax:
 		return a.carryMax
+	case progression.StatSTR:
+		return a.str
 	}
 	return 0
 }
