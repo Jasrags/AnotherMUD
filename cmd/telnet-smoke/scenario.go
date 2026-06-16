@@ -84,30 +84,55 @@ func scenarioChannelerAffinity(c *telnettest.Client, name string) error {
 	return nil
 }
 
-// fireboltBoarDamage engages the wild boar, casts Firebolt at it, and returns
-// the weave's damage. It reads the cast confirmation then the immediately
-// following hit line (Firebolt has variance 0, so it always lands) — the
-// auto-attack swing only happens on the next combat round, after this returns.
+// fireboltBoarDamage engages the wild boar and casts Firebolt at it, returning
+// the weave's damage.
+//
+// Firebolt is a combat weave (it can only be cast while fighting) with a
+// cast_time warmup, and the WoT S2 interrupt-on-hit mechanic disrupts a weave
+// whenever the caster is struck mid-warmup. So a single in-melee cast is
+// unreliable — the boar's swing often lands during the warmup and disrupts it
+// (this is why the old single-shot flow began failing once weaves gained cast
+// times). The boar misses often enough, though, that retrying yields an
+// uninterrupted resolution; this loops until one cast lands (mirroring the
+// interrupt smoke's retry structure, but succeeding on resolution rather than
+// disruption). Firebolt is variance-0, so the damage line immediately follows
+// the cast confirmation, before the next auto-attack swing.
 func fireboltBoarDamage(c *telnettest.Client) (int, error) {
 	if err := engageBoar(c); err != nil {
 		return 0, err
 	}
-	if err := c.SendLine("channel firebolt boar"); err != nil {
-		return 0, err
+	damageRe := regexp.MustCompile(`hit a wild boar for (\d+) damage`)
+	outcome := regexp.MustCompile(`cast Firebolt|is disrupted|isn't here|don't see|no longer|have to be fighting`)
+	deadline := time.Now().Add(45 * time.Second)
+	for time.Now().Before(deadline) {
+		if err := c.SendLine("channel firebolt boar"); err != nil {
+			return 0, err
+		}
+		out, err := c.ExpectTimeout(outcome, 8*time.Second)
+		if err != nil {
+			continue // no clear outcome in time; retry
+		}
+		switch {
+		case strings.Contains(out, "cast Firebolt"):
+			dmg, derr := c.ExpectTimeout(damageRe, 4*time.Second)
+			if derr != nil {
+				return 0, fmt.Errorf("Firebolt resolved but no damage line followed: %w", derr)
+			}
+			m := damageRe.FindStringSubmatch(dmg)
+			n, perr := strconv.Atoi(m[1])
+			if perr != nil {
+				return 0, fmt.Errorf("parse damage from %q: %w", dmg, perr)
+			}
+			return n, nil
+		case strings.Contains(out, "isn't here"), strings.Contains(out, "don't see"),
+			strings.Contains(out, "no longer"), strings.Contains(out, "have to be fighting"):
+			// Boar slain / fell out of combat — a fresh boar respawns on the area
+			// reset; re-engage before the next attempt.
+			_ = engageBoar(c)
+		}
+		// "is disrupted" (or an unmatched line) → just retry the cast.
 	}
-	if _, err := c.ExpectString("cast Firebolt"); err != nil {
-		return 0, fmt.Errorf("Firebolt did not resolve: %w", err)
-	}
-	out, err := c.Expect(regexp.MustCompile(`hit a wild boar for (\d+) damage`))
-	if err != nil {
-		return 0, fmt.Errorf("no Firebolt damage line: %w", err)
-	}
-	m := regexp.MustCompile(`for (\d+) damage`).FindStringSubmatch(out)
-	n, err := strconv.Atoi(m[1])
-	if err != nil {
-		return 0, fmt.Errorf("parse damage from %q: %w", out, err)
-	}
-	return n, nil
+	return 0, fmt.Errorf("Firebolt never resolved uninterrupted against a wild boar within 45s")
 }
 
 // wardingACDelta weaves Warding (a self-buff that installs +ac/+hit modifiers)
