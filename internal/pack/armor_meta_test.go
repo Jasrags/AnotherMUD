@@ -90,6 +90,15 @@ func TestDecodeItem_RejectsBadArmorTier(t *testing.T) {
 	}
 }
 
+func TestDecodeItem_RejectsNegativeArmorBonus(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "item.yaml")
+	writeFile(t, path, "id: x\nname: x\ntype: armor\narmor_bonus: -3\n")
+	_, err := decodeItem(path, "wot")
+	if !errors.Is(err, ErrInvalidContent) {
+		t.Fatalf("decodeItem err = %v, want ErrInvalidContent for negative armor_bonus", err)
+	}
+}
+
 func TestDecodeItem_RejectsNegativeArmorMaxDex(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "item.yaml")
 	writeFile(t, path, "id: x\nname: x\ntype: armor\narmor_max_dex: -1\n")

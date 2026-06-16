@@ -298,12 +298,16 @@ func (m *MobInstance) Stats() combat.Stats {
 	if !m.weapon.IsZero() {
 		s.Damage = m.weapon
 		s.WeaponName = m.weaponName
-		s.WeaponDamageTypes = m.weaponDamageTypes
+		s.WeaponDamageTypes = append([]string(nil), m.weaponDamageTypes...) // copy: combat.Stats is self-contained
 	}
-	// Per-type resistance from worn armor (armor-depth §4); immutable after
-	// the spawn pipeline so it is safe to share the map with combat.Stats.
+	// Per-type resistance from worn armor (armor-depth §4). Copy out so
+	// combat.Stats does not alias the instance's cached map (matches the
+	// per-round self-contained-snapshot contract on combat.Stats).
 	if len(m.resistances) > 0 {
-		s.Resistances = m.resistances
+		s.Resistances = make(map[string]int, len(m.resistances))
+		for k, v := range m.resistances {
+			s.Resistances[k] = v
+		}
 	}
 	return s
 }

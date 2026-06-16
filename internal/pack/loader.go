@@ -2709,6 +2709,10 @@ func decodeItem(path, ns string) (*item.Template, error) {
 		return nil, fmt.Errorf("%w: %s: armor_tier %q is not a known armor tier %v",
 			ErrInvalidContent, path, armorTier, item.ArmorTierNames())
 	}
+	if f.ArmorBonus < 0 {
+		return nil, fmt.Errorf("%w: %s: armor_bonus %d must be non-negative",
+			ErrInvalidContent, path, f.ArmorBonus)
+	}
 	if f.ArmorMaxDex != nil && *f.ArmorMaxDex < 0 {
 		return nil, fmt.Errorf("%w: %s: armor_max_dex %d must be non-negative",
 			ErrInvalidContent, path, *f.ArmorMaxDex)

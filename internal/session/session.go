@@ -4708,12 +4708,17 @@ func (a *connActor) Stats() combat.Stats {
 		Mitigation:  mitigation,
 	}
 	if ar := a.armorResist.Load(); ar != nil {
-		s.Resistances = ar.byType // immutable after Store — safe to share (armor-depth §4)
+		// Copy out of the shared snapshot: combat.Stats is a self-contained
+		// per-round value (see its doc), so it must not alias a cached map.
+		s.Resistances = make(map[string]int, len(ar.byType))
+		for k, v := range ar.byType {
+			s.Resistances[k] = v
+		}
 	}
 	if w := a.weapon.Load(); w != nil {
 		s.Damage = w.dice
 		s.WeaponName = w.name
-		s.WeaponDamageTypes = w.damageTypes
+		s.WeaponDamageTypes = append([]string(nil), w.damageTypes...) // copy: don't alias the cached weaponInfo slice
 		s.CritThreatLow = w.critThreatLow
 		s.CritMultiplier = w.critMultiplier
 		// EPIC S4 Phase 3c: per-weapon-category feat bonuses (Weapon Focus
