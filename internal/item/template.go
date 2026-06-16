@@ -90,6 +90,35 @@ type Template struct {
 	// (weapon-identity §4). Zero means unset — the engine uses the
 	// configured global default. Validated at load to be non-negative.
 	CritMultiplier int
+	// Armor depth (armor-depth §2). All optional and, in this slice,
+	// RECORDED ONLY — inert until the AC / mitigation / proficiency /
+	// check-penalty slices consume them (mirrors how DamageTypes shipped
+	// inert ahead of armor depth). A non-armor item declares none.
+	//
+	// ArmorBonus is the structured AC contribution (armor-depth §3) — the
+	// additive armor term in the decomposed defense value. Zero means none.
+	// Distinct from a legacy `{stat: ac}` modifier, which remains a "misc"
+	// AC contributor; armor_bonus is the term the max-Dex cap composes with.
+	ArmorBonus int
+	// ArmorMaxDex caps how much of the wearer's Dex modifier counts toward
+	// AC while worn (armor-depth §3). A pointer because zero is a valid cap
+	// (heavy armor): nil means "no cap" (the full Dex modifier applies),
+	// a non-nil value is the cap. Validated non-negative at load.
+	ArmorMaxDex *int
+	// ArmorCheckPenalty is the magnitude (non-negative) of the penalty this
+	// armor imposes on Strength/Dexterity skill checks while worn
+	// (armor-depth §6). Zero means none.
+	ArmorCheckPenalty int
+	// ArmorTier is the armor's proficiency tier (armor-depth §5) from the
+	// engine armor-tier vocabulary (light/medium/heavy). Empty means
+	// "untiered". Validated at pack load; normalized lowercase.
+	ArmorTier string
+	// Resistances is the per-damage-type damage reduction this item grants
+	// while worn (armor-depth §4) — keyed by damage type (the weapon.go
+	// vocabulary), value the amount soaked. nil/empty means none. Keys are
+	// validated against the damage-type vocabulary and values to be
+	// non-negative at pack load; keys normalized lowercase.
+	Resistances map[string]int
 }
 
 // Errors callers may distinguish at the boundary.

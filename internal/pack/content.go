@@ -94,6 +94,19 @@ type ItemFile struct {
 	// (0 = unset = configured default; validated non-negative).
 	CritThreatLow  int `yaml:"crit_threat_low,omitempty"`
 	CritMultiplier int `yaml:"crit_multiplier,omitempty"`
+	// Armor depth (armor-depth §2). All optional, recorded-only this slice
+	// (inert until the AC/mitigation/proficiency/check-penalty consumers
+	// land). armor_bonus is the structured AC term; armor_max_dex caps the
+	// Dex contribution (a pointer so 0 is a valid cap, absent = no cap);
+	// armor_check_penalty is a non-negative skill-check penalty magnitude;
+	// armor_tier validates against the engine light/medium/heavy vocabulary;
+	// resistances maps a damage type to the amount of that damage soaked
+	// (keys validated against the damage-type vocabulary, values >= 0).
+	ArmorBonus        int            `yaml:"armor_bonus,omitempty"`
+	ArmorMaxDex       *int           `yaml:"armor_max_dex,omitempty"`
+	ArmorCheckPenalty int            `yaml:"armor_check_penalty,omitempty"`
+	ArmorTier         string         `yaml:"armor_tier,omitempty"`
+	Resistances       map[string]int `yaml:"resistances,omitempty"`
 }
 
 // ModifierFile is one entry of an ItemFile.Modifiers list.
@@ -429,8 +442,8 @@ type AbilityFile struct {
 	GainStatScale         float64 `yaml:"gain_stat_scale,omitempty"`
 	Priority              int     `yaml:"priority,omitempty"`
 	// M9.3 validation surface (spec abilities-and-effects §2.2, §4.3).
-	Cost          int      `yaml:"cost,omitempty"`
-	PulseDelay    int      `yaml:"pulse_delay,omitempty"`
+	Cost       int `yaml:"cost,omitempty"`
+	PulseDelay int `yaml:"pulse_delay,omitempty"`
 	// CastTime is the interruptible warmup in combat rounds before the
 	// ability resolves (WoT S2 — the channel interrupt game). 0 ⇒ instant
 	// (the default for every skill and instant weave). Distinct from

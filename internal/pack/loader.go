@@ -2700,23 +2700,70 @@ func decodeItem(path, ns string) (*item.Template, error) {
 			ErrInvalidContent, path, f.CritMultiplier)
 	}
 
+	// Armor depth (armor-depth §2). All optional; validated at load so an
+	// authoring typo fails the pack by file name rather than producing
+	// silent garbage (as the weapon fields above do). Recorded only this
+	// slice — no combat/skill consumer wires them yet.
+	armorTier := strings.ToLower(strings.TrimSpace(f.ArmorTier))
+	if armorTier != "" && !item.ValidArmorTier(armorTier) {
+		return nil, fmt.Errorf("%w: %s: armor_tier %q is not a known armor tier %v",
+			ErrInvalidContent, path, armorTier, item.ArmorTierNames())
+	}
+	if f.ArmorMaxDex != nil && *f.ArmorMaxDex < 0 {
+		return nil, fmt.Errorf("%w: %s: armor_max_dex %d must be non-negative",
+			ErrInvalidContent, path, *f.ArmorMaxDex)
+	}
+	if f.ArmorCheckPenalty < 0 {
+		return nil, fmt.Errorf("%w: %s: armor_check_penalty %d must be non-negative (it is a penalty magnitude)",
+			ErrInvalidContent, path, f.ArmorCheckPenalty)
+	}
+	var resistances map[string]int
+	for rawType, amount := range f.Resistances {
+		dt := strings.ToLower(strings.TrimSpace(rawType))
+		if !item.ValidDamageType(dt) {
+			return nil, fmt.Errorf("%w: %s: resistances key %q is not a valid damage type %v",
+				ErrInvalidContent, path, rawType, item.DamageTypeNames())
+		}
+		if amount < 0 {
+			return nil, fmt.Errorf("%w: %s: resistances[%q] %d must be non-negative",
+				ErrInvalidContent, path, dt, amount)
+		}
+		if resistances == nil {
+			resistances = make(map[string]int, len(f.Resistances))
+		}
+		resistances[dt] = amount
+	}
+
+	// Copy the optional max-Dex pointer so the template does not alias the
+	// decoded file struct (which the caller may reuse/free).
+	var armorMaxDex *int
+	if f.ArmorMaxDex != nil {
+		v := *f.ArmorMaxDex
+		armorMaxDex = &v
+	}
+
 	return &item.Template{
-		ID:              item.TemplateID(id),
-		Name:            f.Name,
-		Type:            f.Type,
-		Description:     strings.TrimSpace(f.Description),
-		Tags:            f.Tags,
-		Keywords:        f.Keywords,
-		Properties:      f.Properties,
-		Modifiers:       mods,
-		WeaponDamage:    weaponDamage,
-		EligibleSlots:   eligible,
-		CompanionSlots:  companion,
-		WeaponCategory:  weaponCategory,
-		ProficiencyTier: weaponTier,
-		DamageTypes:     damageTypes,
-		CritThreatLow:   f.CritThreatLow,
-		CritMultiplier:  f.CritMultiplier,
+		ID:                item.TemplateID(id),
+		Name:              f.Name,
+		Type:              f.Type,
+		Description:       strings.TrimSpace(f.Description),
+		Tags:              f.Tags,
+		Keywords:          f.Keywords,
+		Properties:        f.Properties,
+		Modifiers:         mods,
+		WeaponDamage:      weaponDamage,
+		EligibleSlots:     eligible,
+		CompanionSlots:    companion,
+		WeaponCategory:    weaponCategory,
+		ProficiencyTier:   weaponTier,
+		DamageTypes:       damageTypes,
+		CritThreatLow:     f.CritThreatLow,
+		CritMultiplier:    f.CritMultiplier,
+		ArmorBonus:        f.ArmorBonus,
+		ArmorMaxDex:       armorMaxDex,
+		ArmorCheckPenalty: f.ArmorCheckPenalty,
+		ArmorTier:         armorTier,
+		Resistances:       resistances,
 	}, nil
 }
 
