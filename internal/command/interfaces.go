@@ -13,6 +13,7 @@ import (
 	"github.com/Jasrags/AnotherMUD/internal/entities"
 	"github.com/Jasrags/AnotherMUD/internal/eventbus"
 	"github.com/Jasrags/AnotherMUD/internal/gathering"
+	"github.com/Jasrags/AnotherMUD/internal/grade"
 	"github.com/Jasrags/AnotherMUD/internal/help"
 	"github.com/Jasrags/AnotherMUD/internal/light"
 	"github.com/Jasrags/AnotherMUD/internal/notifications"
@@ -265,6 +266,10 @@ type Env struct {
 	Gathering    *gathering.Service
 	Biomes       *biome.Registry
 	ForageTables *gathering.ForageRegistry
+	// Grades is the masterwork quality-grade registry (masterwork §3): the
+	// equip path reads a graded item's bonus through it. nil disables the
+	// grade bonus (ungraded everywhere).
+	Grades *grade.Registry
 
 	// Help is the M10.5 help-topic service. The help verb queries it.
 	// nil in tests that don't exercise help.

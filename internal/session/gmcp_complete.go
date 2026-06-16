@@ -47,6 +47,7 @@ func commandEnv(cfg Config) command.Env {
 		Craft:                 cfg.Craft,
 		Gathering:             cfg.Gathering,
 		Biomes:                cfg.Biomes,
+		Grades:                cfg.Grades,
 		ForageTables:          cfg.ForageTables,
 		Help:                  cfg.Help,
 		Quests:                cfg.Quests,

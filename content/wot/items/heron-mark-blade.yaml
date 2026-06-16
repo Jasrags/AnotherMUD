@@ -1,0 +1,25 @@
+id: heron-mark-blade
+name: a heron-mark blade
+description: |
+  A sword that proclaims its maker. The heron stamped into the blade and graven
+  on the long two-handed hilt is the mark a master smith earns and a blademaster
+  wears — finer steel, finer balance, finer edge than honest soldier's work.
+  It does not boast; it simply cuts truer in a trained hand.
+type: weapon
+tags: [weapon, metal, bladed]
+keywords: [blade, sword, heron, heron-mark]
+eligible_slots: [wield]
+properties:
+  weight: 3
+  value: 600
+weapon_damage: "1d8"
+weapon_category: longsword
+proficiency_tier: martial
+damage_types: [slashing]
+crit_threat_low: 19
+crit_multiplier: 2
+# Masterwork grade (masterwork §2): the heron mark IS the quality grade. The
+# +1 to-hit comes from the grade ladder (grades/quality-grades.yaml), applied
+# while wielded — NOT from a hand-written hit_mod modifier, so the bonus is the
+# grade's, cleanly.
+grade: masterwork

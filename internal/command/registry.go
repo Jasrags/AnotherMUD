@@ -466,6 +466,7 @@ func (r *Registry) Dispatch(ctx context.Context, env Env, actor Actor, raw strin
 		Craft:                 env.Craft,
 		Gathering:             env.Gathering,
 		Biomes:                env.Biomes,
+		Grades:                env.Grades,
 		ForageTables:          env.ForageTables,
 		WeatherState:          env.WeatherState,
 		Help:                  env.Help,

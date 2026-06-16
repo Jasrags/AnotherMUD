@@ -20,6 +20,7 @@ import (
 	"github.com/Jasrags/AnotherMUD/internal/emote"
 	"github.com/Jasrags/AnotherMUD/internal/feat"
 	"github.com/Jasrags/AnotherMUD/internal/gathering"
+	"github.com/Jasrags/AnotherMUD/internal/grade"
 	"github.com/Jasrags/AnotherMUD/internal/help"
 	"github.com/Jasrags/AnotherMUD/internal/item"
 	"github.com/Jasrags/AnotherMUD/internal/light"
@@ -119,7 +120,7 @@ type pendingMobPlacement struct {
 // Filter, when non-empty, restricts discovery (spec §2.4). Pass nil to
 // load every active pack under root.
 func Load(ctx context.Context, root string, filter []string, dst *Registries, spawner Spawner, mobSpawner MobSpawner, scriptCompiler ScriptCompiler) error {
-	if dst == nil || dst.World == nil || dst.Items == nil || dst.Slots == nil || dst.Mobs == nil || dst.Tracks == nil || dst.Races == nil || dst.Classes == nil || dst.Backgrounds == nil || dst.Feats == nil || dst.Abilities == nil || dst.Theme == nil || dst.Help == nil || dst.Quests == nil || dst.Weather == nil || dst.Scripts == nil || dst.Rarity == nil || dst.Essence == nil || dst.Loot == nil || dst.Channels == nil || dst.Emotes == nil || dst.ChannelMap == nil {
+	if dst == nil || dst.World == nil || dst.Items == nil || dst.Slots == nil || dst.Mobs == nil || dst.Tracks == nil || dst.Races == nil || dst.Classes == nil || dst.Backgrounds == nil || dst.Feats == nil || dst.Abilities == nil || dst.Theme == nil || dst.Help == nil || dst.Quests == nil || dst.Weather == nil || dst.Scripts == nil || dst.Rarity == nil || dst.Essence == nil || dst.Grades == nil || dst.Loot == nil || dst.Channels == nil || dst.Emotes == nil || dst.ChannelMap == nil {
 		return errors.New("pack.Load: dst has nil registry field; use pack.NewRegistries()")
 	}
 	logger := logging.From(ctx).With(slog.String("event", "pack.load"), slog.String("root", root))
@@ -645,6 +646,10 @@ func loadPackContent(ctx context.Context, p Discovered, dst *Registries, scriptC
 	if err != nil {
 		return nil, nil, err
 	}
+	gradePaths, err := resolveGlobs(p.Dir, p.Manifest.Content.Grades)
+	if err != nil {
+		return nil, nil, err
+	}
 	essencePaths, err := resolveGlobs(p.Dir, p.Manifest.Content.Essence)
 	if err != nil {
 		return nil, nil, err
@@ -917,6 +922,21 @@ func loadPackContent(ctx context.Context, p Discovered, dst *Registries, scriptC
 				return nil, nil, fmt.Errorf("%w (in %s)", err, rp)
 			}
 			dst.Rarity.Register(t)
+		}
+	}
+	// Quality grades: global vocabulary, later-wins (masterwork §2). Keys
+	// validated at this boundary; a malformed grade key fails the boot
+	// loudly with pack + path attribution.
+	for _, gp := range gradePaths {
+		grades, err := decodeGrades(gp)
+		if err != nil {
+			return nil, nil, err
+		}
+		for _, g := range grades {
+			if err := grade.ValidateKey(g.Key); err != nil {
+				return nil, nil, fmt.Errorf("%w (in %s)", err, gp)
+			}
+			dst.Grades.Register(g)
 		}
 	}
 	for _, ep := range essencePaths {
@@ -1476,6 +1496,32 @@ func decodeChannelMap(path string) (map[channel.Channel]string, error) {
 // is not checked here — like the theme, an unrecognized fg/bg degrades to
 // no color at Compile rather than failing the boot. Key validity IS the
 // caller's concern (decoration.ValidateKey at the load boundary).
+// decodeGrades reads a GradeFile and returns its grades as grade.Grade
+// values (masterwork §2). Mirrors decodeRarity.
+func decodeGrades(path string) ([]grade.Grade, error) {
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		return nil, fmt.Errorf("reading grades %s: %w", path, err)
+	}
+	var f GradeFile
+	if err := yaml.Unmarshal(raw, &f); err != nil {
+		return nil, fmt.Errorf("%w: %s: %v", ErrInvalidContent, path, err)
+	}
+	out := make([]grade.Grade, 0, len(f.Grades))
+	for _, g := range f.Grades {
+		out = append(out, grade.Grade{
+			Key:               g.Key,
+			Order:             g.Order,
+			WeaponToHit:       g.WeaponToHit,
+			WeaponDamage:      g.WeaponDamage,
+			ArmorCheckImprove: g.ArmorCheckImprove,
+			ToolSkill:         g.ToolSkill,
+			Unbreakable:       g.Unbreakable,
+		})
+	}
+	return out, nil
+}
+
 func decodeRarity(path string) ([]decoration.Tier, error) {
 	raw, err := os.ReadFile(path)
 	if err != nil {
@@ -2773,6 +2819,7 @@ func decodeItem(path, ns string) (*item.Template, error) {
 		WeaponCategory:    weaponCategory,
 		ProficiencyTier:   weaponTier,
 		DamageTypes:       damageTypes,
+		Grade:             strings.ToLower(strings.TrimSpace(f.Grade)),
 		CritThreatLow:     f.CritThreatLow,
 		CritMultiplier:    f.CritMultiplier,
 		ArmorBonus:        f.ArmorBonus,

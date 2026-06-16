@@ -22,6 +22,11 @@ const (
 	// (spec §2.3 step 4) — templates do not get to dictate where their
 	// instances are created.
 	PropRoomID = "room_id"
+	// PropGrade is the item's quality-grade key (masterwork §2). Seeded
+	// from the template's Grade at instantiation; a runtime producer (a
+	// craft) may overwrite it on the instance, where it persists with the
+	// item's other instance properties (masterwork §6).
+	PropGrade = "grade"
 )
 
 // SourceKey is the modifier-source convention from §2.3 step 6 and
@@ -118,6 +123,18 @@ func (it *ItemInstance) ID() EntityID { return it.id }
 
 // Type implements Entity.
 func (it *ItemInstance) Type() string { return it.typ }
+
+// Grade returns the item's quality-grade key (masterwork §2), or "" for an
+// ordinary item. Reads the PropGrade instance property — seeded from the
+// template at build and overridable by a runtime producer (a craft).
+func (it *ItemInstance) Grade() string {
+	if v, ok := it.Property(PropGrade); ok {
+		if s, ok := v.(string); ok {
+			return s
+		}
+	}
+	return ""
+}
 
 // Tags implements Entity. Returns a fresh slice so callers cannot
 // alias the backing storage; required for safe coexistence with the
@@ -376,6 +393,9 @@ func buildInstanceFromTemplate(tpl *item.Template, id EntityID) *ItemInstance {
 	props := normalizeProperties(tpl.Properties)
 	delete(props, PropRoomID)              // §2.3 step 4: never honor a template-supplied room_id.
 	props[PropTemplateID] = string(tpl.ID) // §2.3 step 5.
+	if tpl.Grade != "" {                   // masterwork §6: authored grade rides the template.
+		props[PropGrade] = tpl.Grade
+	}
 
 	// §2.3 step 2: tags from the template, minus the implicit tag that
 	// matches the entity's own type (which is implied and never

@@ -9,6 +9,7 @@ import (
 	"github.com/Jasrags/AnotherMUD/internal/emote"
 	"github.com/Jasrags/AnotherMUD/internal/feat"
 	"github.com/Jasrags/AnotherMUD/internal/gathering"
+	"github.com/Jasrags/AnotherMUD/internal/grade"
 	"github.com/Jasrags/AnotherMUD/internal/help"
 	"github.com/Jasrags/AnotherMUD/internal/item"
 	"github.com/Jasrags/AnotherMUD/internal/loot"
@@ -85,6 +86,12 @@ type Registries struct {
 	// (M20.5) resolves an item's rarity/essence key through these.
 	Rarity  *decoration.RarityRegistry
 	Essence *decoration.EssenceRegistry
+	// Grades is the masterwork quality-grade vocabulary (masterwork §2).
+	// Packs register grade ladders from their `grades:` manifest glob; the
+	// equip path reads an item's grade key through it to apply the
+	// grade-scaled bonus (weapon to-hit this slice). Mechanically
+	// independent of Rarity/Essence (masterwork §5).
+	Grades *grade.Registry
 	// Loot is the M22.1 loot-table registry. Packs register tables from
 	// their `loot_tables:` manifest glob; the spawn pipeline rolls a
 	// mob's referenced table into its contents at spawn time
@@ -164,6 +171,7 @@ func NewRegistries() *Registries {
 		Scripts:      script.New(),
 		Rarity:       decoration.NewRarityRegistry(),
 		Essence:      decoration.NewEssenceRegistry(),
+		Grades:       grade.NewRegistry(),
 		Loot:         loot.NewRegistry(),
 		Recipes:      recipe.NewRegistry(),
 		Biomes:       biome.NewRegistry(),

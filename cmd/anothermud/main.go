@@ -2339,6 +2339,7 @@ func run() error {
 		Craft:           craftSvc,
 		Gathering:       gatheringSvc,
 		Biomes:          registries.Biomes,
+		Grades:          registries.Grades,
 		ForageTables:    registries.ForageTables,
 		Effects:         effectMgr,
 		EffectTemplates: registries.Effects,

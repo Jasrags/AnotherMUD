@@ -38,6 +38,7 @@ import (
 	"github.com/Jasrags/AnotherMUD/internal/feat"
 	"github.com/Jasrags/AnotherMUD/internal/gathering"
 	"github.com/Jasrags/AnotherMUD/internal/gmcp"
+	"github.com/Jasrags/AnotherMUD/internal/grade"
 	"github.com/Jasrags/AnotherMUD/internal/help"
 	"github.com/Jasrags/AnotherMUD/internal/item"
 	"github.com/Jasrags/AnotherMUD/internal/light"
@@ -218,6 +219,9 @@ type Config struct {
 	Gathering    *gathering.Service
 	Biomes       *biome.Registry
 	ForageTables *gathering.ForageRegistry
+	// Grades is the masterwork quality-grade registry (masterwork §3),
+	// threaded into command.Env via commandEnv. nil-safe.
+	Grades *grade.Registry
 
 	// Effects is the M9.2 active-effect manager (spec
 	// abilities-and-effects §5). Resolves targets via a closure

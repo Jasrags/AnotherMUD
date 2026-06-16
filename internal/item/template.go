@@ -44,6 +44,13 @@ type Template struct {
 	Keywords    []string
 	Properties  map[string]any
 	Modifiers   []Modifier
+	// Grade is the item's quality-grade key (masterwork §2) from the
+	// pack-loaded grade vocabulary (internal/grade) — masterwork /
+	// masterpiece / power-wrought. Empty means an ordinary item (no grade
+	// bonus). Validated against the grade registry at pack load; normalized
+	// lowercase. A runtime-produced item (a craft) may instead set the grade
+	// as an instance property, which overrides the template value.
+	Grade string
 	// WeaponDamage is the wielded-weapon damage dice (combat §4.5) as a
 	// raw NdM±K string, e.g. "1d6+1". Empty means the item is not a
 	// weapon — a holder wielding only non-weapon items rolls the engine's

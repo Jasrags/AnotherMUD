@@ -100,6 +100,10 @@ type ContentPaths struct {
 	// rarity/essence property references a key these define.
 	Rarity  []string `yaml:"rarity,omitempty"`
 	Essence []string `yaml:"essence,omitempty"`
+	// Grades are the masterwork quality-grade vocabulary files (masterwork
+	// §2). Loaded into Registries.Grades; an item's `grade:` key references
+	// a grade these define.
+	Grades []string `yaml:"grades,omitempty"`
 	// LootTables are loot-table definition files (M22.1 —
 	// mobs-ai-spawning §6.3). Loaded into Registries.Loot; a mob
 	// template's `loot_table` field references a table by id.

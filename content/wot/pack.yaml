@@ -35,6 +35,8 @@ content:
     - mobs/*.yaml
   items:
     - items/*.yaml
+  grades:
+    - grades/*.yaml
   recipes:
     - recipes/*.yaml
   biomes:

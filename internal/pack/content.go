@@ -88,6 +88,9 @@ type ItemFile struct {
 	WeaponCategory  string   `yaml:"weapon_category,omitempty"`
 	ProficiencyTier string   `yaml:"proficiency_tier,omitempty"`
 	DamageTypes     []string `yaml:"damage_types,omitempty"`
+	// Grade is the item's quality-grade key (masterwork §2) from the pack's
+	// `grades:` vocabulary. Empty = ordinary. Normalized lowercase at load.
+	Grade string `yaml:"grade,omitempty"`
 	// Critical threat range + multiplier (weapon-identity §4). crit_threat_low
 	// is the lowest d20 face that crits (0 = unset = natural max only;
 	// validated to 0 or [2,20]). crit_multiplier scales the dice on a crit
@@ -549,6 +552,29 @@ type ThemeTagEntry struct {
 //	  defense: 10 + mod(dex) + armor
 type ChannelMapFile struct {
 	Channels map[string]string `yaml:"channels"`
+}
+
+// GradeFile is the YAML shape for a pack's quality-grade vocabulary
+// (masterwork §2). Each grade carries a key, an order (low → high), and the
+// per-kind bonus magnitudes it confers (all optional; an axis left zero
+// contributes nothing on that axis — masterwork §3, §8).
+//
+//	grades:
+//	  - { key: masterwork,    order: 1, weapon_to_hit: 1, armor_check_improve: 1, tool_skill: 1 }
+//	  - { key: power-wrought, order: 3, weapon_to_hit: 3, weapon_damage: 3, unbreakable: true }
+type GradeFile struct {
+	Grades []GradeEntry `yaml:"grades"`
+}
+
+// GradeEntry is one grade in a GradeFile.
+type GradeEntry struct {
+	Key               string `yaml:"key"`
+	Order             int    `yaml:"order"`
+	WeaponToHit       int    `yaml:"weapon_to_hit,omitempty"`
+	WeaponDamage      int    `yaml:"weapon_damage,omitempty"`
+	ArmorCheckImprove int    `yaml:"armor_check_improve,omitempty"`
+	ToolSkill         int    `yaml:"tool_skill,omitempty"`
+	Unbreakable       bool   `yaml:"unbreakable,omitempty"`
 }
 
 // RarityFile is the YAML shape for a pack's rarity-tier vocabulary (spec

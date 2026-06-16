@@ -26,8 +26,8 @@ func TestValidateRecipeEconomy_FlagsMoneyLosers(t *testing.T) {
 	regs := NewRegistries()
 	// Inputs and outputs across the cases.
 	addValuedItem(regs, "p:ore", 3)
-	addValuedItem(regs, "p:ingot", 8)    // healthy output (> 2*3)
-	addValuedItem(regs, "p:trinket", 5)  // money-loser output (< 2*3)
+	addValuedItem(regs, "p:ingot", 8)      // healthy output (> 2*3)
+	addValuedItem(regs, "p:trinket", 5)    // money-loser output (< 2*3)
 	addValuedItem(regs, "p:break-even", 6) // exactly equal -> still flagged (<=)
 
 	healthy := &recipe.Recipe{

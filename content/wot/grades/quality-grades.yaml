@@ -1,0 +1,27 @@
+# Quality-grade vocabulary (masterwork.md §2) — the Wheel-of-Time smith's
+# ladder. A graded item confers a small, grade-scaled mechanical bonus through
+# the seam its kind already uses (masterwork §3): a finer blade hits truer
+# (weapon_to_hit), finer armour hinders less (armor_check_improve), a finer tool
+# aids a craft (tool_skill). Power-wrought is the legendary tier — a Power-forged
+# blade that adds to damage too and never breaks (unbreakable).
+#
+# The grade is MECHANICAL and independent of the cosmetic rarity/essence marker
+# (masterwork §5). All magnitudes are content policy (masterwork §8).
+grades:
+  - key: masterwork
+    order: 1
+    weapon_to_hit: 1
+    armor_check_improve: 1
+    tool_skill: 1
+  - key: masterpiece
+    order: 2
+    weapon_to_hit: 2
+    armor_check_improve: 2
+    tool_skill: 2
+  - key: power-wrought
+    order: 3
+    weapon_to_hit: 3
+    weapon_damage: 3
+    armor_check_improve: 3
+    tool_skill: 3
+    unbreakable: true

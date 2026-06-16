@@ -217,4 +217,4 @@ All numeric magnitudes live here; the prose names behaviors, not values.
 
 ---
 
-<!-- Spec style: narrative + acceptance criteria · Detail level: behavior only · Status: forward spec (build pending) — EPIC S1 increment H · grade (mechanical) kept independent of decoration (cosmetic) per item-decorations §1.1 -->
+<!-- Spec style: narrative + acceptance criteria · Detail level: behavior only · Status: PARTIAL — EPIC S1 increment H. SHIPPED slice 1 (2026-06-16): the grade vocabulary substrate (internal/grade, pack-loaded `grades:`), the grade on item template + instance, and the WEAPON to-hit bonus applied as a grade-scoped equip modifier (§2, §3 weapon kind, §5 independence, §6 authored persistence). BUILD PENDING: power-wrought damage + unbreakable flag (§3/§4), armor/shield check-penalty (§3), tool skill-check (§3), crafting→grade mapping (§7/§9). grade (mechanical) kept independent of decoration (cosmetic) per item-decorations §1.1 -->
