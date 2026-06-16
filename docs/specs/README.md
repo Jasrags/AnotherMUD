@@ -252,6 +252,15 @@ How a connection becomes a session becomes a character.
   role set, the `HasRole` authorization check, grant/revoke,
   config seed/bootstrap. Consulted by admin verbs, the admin
   channel, and the §5 idle-sweep exemption.
+- [character-identity](character-identity.md) — world-locking: a
+  character is stamped with a `WorldID` (its leaf ruleset pack) and may
+  only log in on a server running that world; an out-of-world character
+  is greyed in the roster and refused, never deleted or silently
+  degraded. One additive save field (v23, backfilled from the location
+  namespace) + a login/roster gate; the within-world fail-soft restore is
+  unchanged. Co-hosting multiple worlds (and the global-registry
+  namespacing it needs) is deferred. Resolves
+  `docs/proposals/character-identity-across-packs.md` §7 *(spec; build pending)*.
 
 ### 5. Presentation
 
@@ -357,7 +366,10 @@ Each spec calls out what it persists. The aggregate view:
   credits** (the conferred bonuses are derived, not stored;
   [feats](feats.md) §8), **recall address**, **prompt template**,
   **autoloot preference** ([loot-and-corpses](loot-and-corpses.md) §6),
-  **faction standing bag + history** ([faction](faction.md) §8 *(spec; build pending)*).
+  **faction standing bag + history** ([faction](faction.md) §8 *(spec; build pending)*),
+  **world stamp** (`WorldID` — the leaf ruleset pack a character belongs
+  to; an additive v23 field backfilled from the location namespace;
+  [character-identity](character-identity.md) §4 *(spec; build pending)*).
 - **Quest file** (sibling of player file) — active list,
   completed list.
 - **Notifications file** (sibling of player file) — per-entity

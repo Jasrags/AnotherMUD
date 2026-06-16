@@ -1,7 +1,9 @@
 # Proposal: Character identity across content packs — world-locked, not portable
 
-**Status:** design-first; **§7 RESOLVED 2026-06-16** (all six recommended defaults
-adopted — see §7) — **spec-ready**, no code yet
+**Status:** **SPECCED 2026-06-16** — `docs/specs/character-identity.md` (behavior
+spec, build pending). §7 resolved (all six recommended defaults adopted — see §7).
+This proposal remains the design rationale (why world-locking, the portable/
+content-bound split); the spec is the authority for behavior. No code yet.
 · **Type:** player-lifecycle + persistence design (introduces a character↔world
 binding; one additive save field)
 **Builds on:** the multi-pack reality already in the loader — namespaced `pack:id`
