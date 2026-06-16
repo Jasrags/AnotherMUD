@@ -2637,7 +2637,7 @@ func loadConfig() config {
 		NonProficientPenalty:    envIntOr("ANOTHERMUD_NONPROFICIENT_PENALTY", combat.DefaultNonProficientPenalty),
 		MassiveDamageThreshold:  envIntOr("ANOTHERMUD_MASSIVE_DAMAGE_THRESHOLD", combat.DefaultMassiveDamageThreshold),
 		MassiveDamageDC:         envIntOr("ANOTHERMUD_MASSIVE_DAMAGE_DC", combat.DefaultMassiveDamageDC),
-		DefaultMoveCost:         envIntOr("ANOTHERMUD_MOVE_COST", 1),
+		DefaultMoveCost:         envIntOr("ANOTHERMUD_MOVE_COST", 2),
 		CorpseOwnershipWindow:   envDurationOr("ANOTHERMUD_CORPSE_OWNERSHIP_WINDOW", 60*time.Second),
 		CorpseLifetime:          envDurationOr("ANOTHERMUD_CORPSE_LIFETIME", 5*time.Minute),
 		CorpseDecayInterval:     envDurationOr("ANOTHERMUD_CORPSE_DECAY_INTERVAL", 3*time.Second),

@@ -337,10 +337,16 @@ The following are externally configurable and not fixed by this spec.
 
 ## 9. Open questions / future work
 
-- **Balance is provisional.** The shipped baseline pool, per-terrain
-  costs, and regen rate are placeholders chosen to make the mechanic
-  observable, not balanced against real travel distances. A tuning pass
-  against the actual room graph is owed before this is load-bearing.
+- **Balance — first pass done, playtest pending.** The numbers were
+  tuned once to a **moderate travel-friction** target against the shipped
+  (small) room graph: step costs scaled so a round-trip across the map
+  meaningfully drains the pool while local errands stay free, and
+  movement regen brisked up so recovery is a short pause. This was a
+  judgment without live playtest data; the values remain configuration
+  (§8) and content, open to retuning once real play informs them. The
+  pool size itself was deliberately left fixed (re-sizing it would need a
+  save migration, like the one that backfilled it) — friction is tuned
+  via cost and regen instead.
 - **Encumbrance balance.** The surcharge (§4.4) is **live** — carry
   capacity now derives from Strength, so both it and the carry-weight
   pickup limit apply to every ordinary character. The shipped

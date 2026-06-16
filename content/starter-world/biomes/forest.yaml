@@ -13,5 +13,5 @@ ambience:
 forage_table: forest-forage
 node_spawn_table: forest-nodes
 # Undergrowth and roots: a step through the trees costs more movement than
-# open ground (world-rooms-movement §3.3 cost gate; default is 1).
-move_cost: 2
+# open ground (world-rooms-movement §3.3 cost gate; the flat default is 2).
+move_cost: 3

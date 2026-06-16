@@ -45,8 +45,12 @@ func TestLive_MovementSpend(t *testing.T) {
 	}
 
 	// Round-trip between town-square and the forge to the north — both default
-	// (cost-1) terrain, so each of 12 steps spends exactly one point.
-	const steps = 12
+	// terrain, so each step costs the flat default (the moderate-friction
+	// tuning is 2). 12 steps spend 12 × defaultStepCost.
+	const (
+		steps           = 12
+		defaultStepCost = 2 // ANOTHERMUD_MOVE_COST default
+	)
 	for i := 0; i < steps/2; i++ {
 		walkStep(t, c, "north")
 		walkStep(t, c, "south")
@@ -56,8 +60,8 @@ func TestLive_MovementSpend(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read movement after walking: %v", err)
 	}
-	if want := max - steps; after != want {
-		t.Fatalf("movement after %d steps = %d/%d; want %d/%d (one point per step)", steps, after, max, want, max)
+	if want := max - steps*defaultStepCost; after != want {
+		t.Fatalf("movement after %d steps = %d/%d; want %d/%d (%d per step)", steps, after, max, want, max, defaultStepCost)
 	}
 	t.Logf("movement spend verified: %d/%d at start, %d/%d after %d steps", cur, max, after, max, steps)
 }
@@ -86,17 +90,17 @@ func TestLive_BiomeWeightedMovementCost(t *testing.T) {
 		t.Fatalf("read starting movement: %v", err)
 	}
 
-	walkStep(t, c, "south")              // town-square -> village-gate (cost 1)
-	walkStep(t, c, "south")              // village-gate -> meadow      (cost 1)
-	forestStep := walkStep(t, c, "east") // meadow -> forest-edge   (forest, cost 2)
+	walkStep(t, c, "south")              // town-square -> village-gate (default 2)
+	walkStep(t, c, "south")              // village-gate -> meadow      (grassland, default 2)
+	forestStep := walkStep(t, c, "east") // meadow -> forest-edge       (forest, 3)
 
 	after, _, err := scoreMovement(c)
 	if err != nil {
 		t.Fatalf("read movement after walking: %v", err)
 	}
-	const wantSpent = 4 // 1 + 1 + 2
+	const wantSpent = 7 // 2 + 2 + 3
 	if spent := max - after; spent != wantSpent {
-		t.Fatalf("3 steps ending in a forest should spend %d (1+1+2), spent %d (%d/%d -> %d/%d)",
+		t.Fatalf("3 steps ending in a forest should spend %d (2+2+3), spent %d (%d/%d -> %d/%d)",
 			wantSpent, spent, max, max, after, max)
 	}
 	// The forest step crossed onto rougher ground, so it carries the hint.

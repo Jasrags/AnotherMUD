@@ -38,10 +38,12 @@ type RegenConfig struct {
 // ticks (10s at the default 100ms tick), so a full+awake player in a
 // plain room recovers 2 HP per cycle, a resting one 4, a sleeping one
 // 6, and a famished one nothing. Mana regenerates slower (1/cycle — the
-// One Power should not refill faster than it is spent) and movement at
-// the HP rate.
+// One Power should not refill faster than it is spent). Movement
+// regenerates a touch faster than HP (3/cycle) so the higher per-step
+// travel cost (moderate-friction tuning) recovers in a short pause rather
+// than a long wait — full from empty in ~100s.
 func DefaultRegenConfig() RegenConfig {
-	return RegenConfig{BaseHP: 2, BaseMana: 1, BaseMovement: 2, Cadence: 100}
+	return RegenConfig{BaseHP: 2, BaseMana: 1, BaseMovement: 3, Cadence: 100}
 }
 
 // RegenAmount composes the per-tick heal (spec §4.3 × §5.5 + §5.7).
