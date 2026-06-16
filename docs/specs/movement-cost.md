@@ -72,9 +72,9 @@ walk is metered.
   regen tick handler, modulated by the sustenance/rest multipliers
   [economy-survival](economy-survival.md) exposes (§4.3, §5.5). This spec
   only specifies how movement *spends* the pool.
-- Encumbrance, mounts, and fatigue conditions. Carry-weight-driven cost,
-  mounted travel, and exhaustion-as-a-condition are future couplings
-  (§9), not part of this slice.
+- Mounts and fatigue conditions. Mounted travel and
+  exhaustion-as-a-condition are future couplings (§9). Carry-weight-driven
+  cost (encumbrance) **is** in scope — see §4.4.
 - Pathfinding or auto-travel. Cost is charged one player-issued step at
   a time; multi-room routing is out of scope.
 
@@ -216,14 +216,37 @@ only the difficulty hint (§5), not the amount charged. (A
 higher-of-source-or-destination or leaving-cost model is considered in
 §9 and deliberately not adopted here.)
 
+### 4.4 Encumbrance surcharge
+
+A loaded character pays more per step. The step cost is the terrain cost
+(§4.1–§4.2) **plus an encumbrance surcharge** derived from how full the
+character's carry capacity is — the same load the carry-weight pickup
+limit measures (summed inventory weight against the carry-capacity
+attribute). The surcharge is tiered: below a **burdened** threshold the
+load is free; at or above it the surcharge steps up by tier as the load
+nears capacity. Thresholds and per-tier surcharges are policy (§8).
+
+The surcharge depends only on the mover, not the room, so it adds equally
+to a step's source and destination cost and therefore does **not** affect
+the terrain difficulty hint (§5) — that hint stays purely terrain-driven.
+
+A character with **no carry capacity** (a zero capacity attribute — the
+same "no limit" case the pickup gate honors) carries no encumbrance
+surcharge. This makes the coupling dormant until content gives characters
+a positive carry capacity, exactly as the carry-weight pickup limit is.
+
 **Acceptance criteria**
 
 - [ ] A destination biome that declares a movement cost charges that
       cost, overriding the flat default.
 - [ ] A destination with no per-biome cost (including unregistered
       terrain) charges the configured flat default.
-- [ ] The amount charged depends only on the destination terrain, not
-      the source.
+- [ ] The terrain contribution depends only on the destination terrain,
+      not the source.
+- [ ] Carrying load at or above the burdened threshold adds the tier
+      surcharge on top of the terrain cost; heavier load adds more.
+- [ ] A character with no carry capacity carries no surcharge (the
+      coupling is dormant), and the surcharge never affects the §5 hint.
 
 ---
 
@@ -298,6 +321,8 @@ The following are externally configurable and not fixed by this spec.
 | Sustenance/rest regen multipliers applied to the pool | §2.2 (owned by economy-survival §4.3, §5.5) |
 | Flat default per-step cost | §4.2 |
 | Per-biome movement cost | §4.1 (content) |
+| Encumbrance tier thresholds (as a fraction of carry capacity) | §4.4 |
+| Per-tier encumbrance surcharge | §4.4 |
 | The user-facing refusal and difficulty-hint copy | §3.4, §5 |
 
 ---
@@ -308,12 +333,20 @@ The following are externally configurable and not fixed by this spec.
   costs, and regen rate are placeholders chosen to make the mechanic
   observable, not balanced against real travel distances. A tuning pass
   against the actual room graph is owed before this is load-bearing.
-- **Encumbrance coupling.** A carry-weight attribute already exists on
-  the character (the strength-derived carry cap) but does not yet modify
-  step cost. Letting load scale movement cost — heavier packs cost more
-  per step — is the most likely next coupling and would turn movement
-  points into the spine of a survival/encumbrance economy rather than an
-  isolated tax. Deferred pending a survival-v2 design pass.
+- **Encumbrance activation.** The encumbrance surcharge (§4.4) is
+  specified and built, but **dormant**: no content yet gives a character
+  a positive carry capacity, so every character is unburdened (exactly as
+  the carry-weight pickup limit is dormant for the same reason). Lighting
+  it up needs a carry-capacity source — the intended strength-derived
+  carry cap — which activates both the surcharge here and the pickup
+  limit. That derivation, plus a balance pass on the tier thresholds and
+  surcharges, is the remaining work; it is a gameplay decision (it begins
+  restricting what characters can carry), not a mechanical gap.
+- **Encumbrance model breadth.** The surcharge is an additive,
+  inventory-only, tiered term. Equipped-item weight is excluded (matching
+  the pickup limit), and a multiplicative model (load *amplifies* rough
+  terrain rather than adding a flat surcharge) was considered and not
+  adopted for the first cut; revisit if balance asks.
 - **Cost model breadth.** Cost is destination-only today. A
   higher-of-source-or-destination model (crossing a rough/easy boundary
   costs the worse of the two) or an explicit leaving-cost were

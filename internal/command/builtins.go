@@ -576,12 +576,22 @@ type movementCostSubject interface {
 	DeductMovement(int)
 }
 
-// moveCost is the movement-point cost of stepping into dst. The
+// moveCost is the movement-point cost of stepping into dst (movement-cost
+// §4): the destination terrain's cost plus the mover's encumbrance
+// surcharge. Because the surcharge depends only on the mover (not the
+// room), it adds equally to a step's source and destination cost, so it
+// cancels in the difficulty-hint comparison (§5) — the hint stays purely
+// terrain-driven.
+func moveCost(c *Context, dst *world.Room) int {
+	return terrainStepCost(c, dst) + c.encumbranceSurcharge()
+}
+
+// terrainStepCost is the destination terrain's contribution to a step. The
 // destination biome's MoveCost wins when it sets one (rough terrain costs
 // more, world-rooms-movement §3.3); otherwise the Context's configured
 // flat default applies, and fallbackMoveCost backstops a Context that
 // configures none (bare fixtures).
-func moveCost(c *Context, dst *world.Room) int {
+func terrainStepCost(c *Context, dst *world.Room) int {
 	if c.Biomes != nil && dst != nil {
 		if b, ok := c.Biomes.Resolve(dst.Terrain); ok && b.MoveCost > 0 {
 			return b.MoveCost

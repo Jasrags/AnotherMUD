@@ -8,6 +8,7 @@ import (
 	"github.com/Jasrags/AnotherMUD/internal/biome"
 	"github.com/Jasrags/AnotherMUD/internal/command"
 	"github.com/Jasrags/AnotherMUD/internal/entities"
+	"github.com/Jasrags/AnotherMUD/internal/item"
 	"github.com/Jasrags/AnotherMUD/internal/world"
 )
 
@@ -187,6 +188,135 @@ func TestMove_NoHintWhenUnmetered(t *testing.T) {
 	}
 	if joined := strings.Join(actorLines(actor), "\n"); strings.Contains(joined, "going is hard") {
 		t.Fatalf("an unmetered mover should not get the hard-going hint:\n%s", joined)
+	}
+}
+
+// encumbranceDispatch dispatches one move with an item store wired (so
+// carried weight resolves) and a flat default cost.
+func encumbranceDispatch(w *world.World, store *entities.Store, defaultCost int, a *testActor, line string) error {
+	reg := command.New()
+	if err := command.RegisterBuiltins(reg); err != nil {
+		return err
+	}
+	env := command.Env{World: w, Items: store, DefaultMoveCost: defaultCost}
+	return reg.Dispatch(context.Background(), env, a, line)
+}
+
+// loadActor spawns a single item of the given weight into the store and the
+// actor's inventory.
+func loadActor(t *testing.T, store *entities.Store, a *testActor, weight int) {
+	t.Helper()
+	inst, err := store.Spawn(&item.Template{ID: "x:ballast", Name: "ballast", Type: "junk"})
+	if err != nil {
+		t.Fatalf("spawn weighted item: %v", err)
+	}
+	inst.SetProperty("weight", weight)
+	a.AddToInventory(inst.ID())
+}
+
+// Encumbrance surcharges each step by tier as load nears carry capacity:
+// burdened (≥50%) adds 1, heavily burdened (≥90%) adds 2, on top of the
+// terrain cost.
+func TestMove_EncumbranceSurcharge(t *testing.T) {
+	cases := []struct {
+		name      string
+		carryMax  int
+		weight    int
+		wantSpent int // terrain default 1 + tier surcharge
+	}{
+		{"unburdened (40%)", 10, 4, 1},       // 1 + 0
+		{"burdened (50%)", 10, 5, 2},         // 1 + 1
+		{"heavily burdened (90%)", 10, 9, 3}, // 1 + 2
+		{"no carry cap → inert", 0, 100, 1},  // 1 + 0 (dormant without carry_max)
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			w, a, _ := moveCostWorld()
+			store := entities.NewStore()
+			actor := newTestActor(a)
+			actor.mvMax, actor.mv = 20, 20
+			actor.carryMax = tc.carryMax
+			loadActor(t, store, actor, tc.weight)
+
+			if err := encumbranceDispatch(w, store, 1, actor, "n"); err != nil {
+				t.Fatalf("move: %v", err)
+			}
+			if actor.Room().ID != "b" {
+				t.Fatalf("move blocked; room = %q, want b", actor.Room().ID)
+			}
+			if got := 20 - actor.Movement(); got != tc.wantSpent {
+				t.Fatalf("step spent %d movement; want %d (terrain 1 + tier)", got, tc.wantSpent)
+			}
+		})
+	}
+}
+
+// The encumbrance surcharge stacks on top of biome-weighted terrain cost.
+func TestMove_EncumbranceStacksWithBiome(t *testing.T) {
+	road := &world.Room{ID: "road", Name: "Road", Terrain: world.TerrainOutdoors,
+		Exits: map[world.Direction]world.Exit{world.DirEast: {Target: "wood"}}}
+	wood := &world.Room{ID: "wood", Name: "Wood", Terrain: "forest",
+		Exits: map[world.Direction]world.Exit{world.DirWest: {Target: "road"}}}
+	w := world.New()
+	w.AddRoom(road)
+	w.AddRoom(wood)
+
+	biomes := biome.NewRegistry()
+	if err := biomes.RegisterEngine(&biome.Biome{ID: "forest", MoveCost: 2}); err != nil {
+		t.Fatalf("register forest biome: %v", err)
+	}
+	store := entities.NewStore()
+	actor := newTestActor(road)
+	actor.mvMax, actor.mv = 20, 20
+	actor.carryMax = 10
+	loadActor(t, store, actor, 9) // 90% → heavily burdened, +2
+
+	reg := command.New()
+	if err := command.RegisterBuiltins(reg); err != nil {
+		t.Fatalf("register: %v", err)
+	}
+	env := command.Env{World: w, Items: store, Biomes: biomes, DefaultMoveCost: 1}
+	if err := reg.Dispatch(context.Background(), env, actor, "e"); err != nil {
+		t.Fatalf("move east: %v", err)
+	}
+	// forest terrain 2 + heavy surcharge 2 = 4.
+	if got := 20 - actor.Movement(); got != 4 {
+		t.Fatalf("loaded forest step spent %d; want 4 (terrain 2 + heavy 2)", got)
+	}
+}
+
+// Encumbrance must not leak into the difficulty hint: a burdened mover
+// walking within one terrain (no roughening) still gets no hint, because
+// the surcharge adds equally to the source and destination cost.
+func TestMove_EncumbranceDoesNotTriggerHint(t *testing.T) {
+	wood := &world.Room{ID: "wood", Name: "Wood", Terrain: "forest",
+		Exits: map[world.Direction]world.Exit{world.DirEast: {Target: "deep"}}}
+	deep := &world.Room{ID: "deep", Name: "Deep Wood", Terrain: "forest",
+		Exits: map[world.Direction]world.Exit{world.DirWest: {Target: "wood"}}}
+	w := world.New()
+	w.AddRoom(wood)
+	w.AddRoom(deep)
+
+	biomes := biome.NewRegistry()
+	if err := biomes.RegisterEngine(&biome.Biome{ID: "forest", MoveCost: 2}); err != nil {
+		t.Fatalf("register forest biome: %v", err)
+	}
+	store := entities.NewStore()
+	actor := newTestActor(wood)
+	actor.mvMax, actor.mv = 20, 20
+	actor.carryMax = 10
+	loadActor(t, store, actor, 9) // heavily burdened
+
+	reg := command.New()
+	if err := command.RegisterBuiltins(reg); err != nil {
+		t.Fatalf("register: %v", err)
+	}
+	env := command.Env{World: w, Items: store, Biomes: biomes, DefaultMoveCost: 1}
+	if err := reg.Dispatch(context.Background(), env, actor, "e"); err != nil {
+		t.Fatalf("move east: %v", err)
+	}
+	if joined := strings.Join(actorLines(actor), "\n"); strings.Contains(joined, "going is hard") {
+		t.Fatalf("encumbrance must not trigger the terrain hint within one biome:\n%s", joined)
 	}
 }
 
