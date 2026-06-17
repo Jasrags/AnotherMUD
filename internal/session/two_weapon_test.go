@@ -56,6 +56,52 @@ func TestStats_OffHandProfile(t *testing.T) {
 	}
 }
 
+// The two-weapon feats (slice 2) SUBTRACT from the baked penalties
+// (two-weapon-fighting §4.1): Two-Weapon Fighting trims both hands by 2,
+// Ambidexterity removes the off-hand-specific extra (4). With both, the baseline
+// -4 main / -8 off becomes -2 / -2. The reductions ride the lock-free feat cache.
+func TestStats_OffHandFeatReducesPenalty(t *testing.T) {
+	newDualWielder := func() *connActor {
+		a := &connActor{statBlock: progression.NewWithBase(map[progression.StatType]int{progression.StatSTR: 10})}
+		a.weapon.Store(&weaponInfo{dice: combat.DiceExpr{Count: 1, Sides: 8}, name: "a sword", wieldMode: size.OneHanded})
+		a.offWeapon.Store(&weaponInfo{dice: combat.DiceExpr{Count: 1, Sides: 4}, name: "a dagger", wieldMode: size.Light})
+		return a
+	}
+
+	// Two-Weapon Fighting alone: both penalties drop by 2.
+	a := newDualWielder()
+	a.featWeaponBonus.Store(&featWeaponBonuses{twoWeaponHitReduce: 2})
+	s := a.Stats()
+	if want := -(combat.DefaultTwoWeaponMainPenalty - 2); s.HitMod != want {
+		t.Errorf("TWF main HitMod = %d, want %d", s.HitMod, want)
+	}
+	if want := -(combat.DefaultTwoWeaponOffHandPenalty - 2); s.OffHand == nil || s.OffHand.HitMod != want {
+		t.Errorf("TWF off HitMod = %v, want %d", s.OffHand, want)
+	}
+
+	// Two-Weapon Fighting + Ambidexterity: -2 main / -2 off (the canonical result).
+	a = newDualWielder()
+	a.featWeaponBonus.Store(&featWeaponBonuses{twoWeaponHitReduce: 2, offHandHitReduce: 4})
+	s = a.Stats()
+	if s.HitMod != -2 {
+		t.Errorf("both feats main HitMod = %d, want -2", s.HitMod)
+	}
+	if s.OffHand == nil || s.OffHand.HitMod != -2 {
+		t.Errorf("both feats off HitMod = %v, want -2", s.OffHand)
+	}
+
+	// Over-reduction clamps at zero — a feat never turns the penalty into a bonus.
+	a = newDualWielder()
+	a.featWeaponBonus.Store(&featWeaponBonuses{twoWeaponHitReduce: 99, offHandHitReduce: 99})
+	s = a.Stats()
+	if s.HitMod != 0 {
+		t.Errorf("clamped main HitMod = %d, want 0", s.HitMod)
+	}
+	if s.OffHand == nil || s.OffHand.HitMod != 0 {
+		t.Errorf("clamped off HitMod = %v, want 0", s.OffHand)
+	}
+}
+
 // A non-light off-hand weapon (one-handed or larger for the wielder) occupies
 // the slot but grants NO off-hand attack, and imposes no two-weapon penalty
 // (two-weapon-fighting §2.2).

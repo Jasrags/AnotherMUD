@@ -227,6 +227,12 @@ func (a *connActor) GrantFeat(featID, param string) {
 type featWeaponBonuses struct {
 	hit  map[string]int // weapon category → to-hit bonus (Weapon Focus)
 	crit map[string]int // weapon category → threat-low widen (Improved Critical)
+	// twoWeaponHitReduce / offHandHitReduce are the GLOBAL two-weapon penalty
+	// reductions (Two-Weapon Fighting / Ambidexterity — two-weapon-fighting
+	// §4.1), read in Stats()'s off-hand block and subtracted from the baked
+	// main/off penalties (clamped at zero). Slice 2.
+	twoWeaponHitReduce int
+	offHandHitReduce   int
 }
 
 // applyFeatGrants recomputes ALL feat grants from the actor's known_feats and
@@ -264,8 +270,14 @@ func (a *connActor) applyFeatGrants() {
 		}
 	}
 
-	// 3c: per-weapon-category hit/crit cache (read lock-free in Stats).
-	a.featWeaponBonus.Store(&featWeaponBonuses{hit: b.HitByCategory, crit: b.CritByCategory})
+	// 3c: per-weapon-category hit/crit cache + (slice 2) the global two-weapon
+	// penalty reductions, read lock-free in Stats().
+	a.featWeaponBonus.Store(&featWeaponBonuses{
+		hit:                b.HitByCategory,
+		crit:               b.CritByCategory,
+		twoWeaponHitReduce: b.TwoWeaponHitReduce,
+		offHandHitReduce:   b.OffHandHitReduce,
+	})
 
 	// 3c: ability grants (Power Attack). Teach at baseline ONLY if not already
 	// known — prof.Learn overwrites the proficiency value, so re-Learning on

@@ -55,6 +55,26 @@ func TestComputeBonuses_MaxHP(t *testing.T) {
 	}
 }
 
+// The two-weapon feats aggregate into the global penalty-reduction fields
+// (two-weapon-fighting §4.1, slice 2): Two-Weapon Fighting → TwoWeaponHitReduce
+// (both hands), Ambidexterity → OffHandHitReduce (off hand only).
+func TestComputeBonuses_TwoWeaponFeats(t *testing.T) {
+	r := NewRegistry()
+	_ = r.Register(&Feat{ID: "two-weapon-fighting", Grants: []Grant{{Kind: GrantTwoWeaponHit, Magnitude: 2}}})
+	_ = r.Register(&Feat{ID: "ambidexterity", Grants: []Grant{{Kind: GrantOffHandHit, Magnitude: 4}}})
+
+	if b := ComputeBonuses([]Taken{{FeatID: "two-weapon-fighting"}}, r); b.TwoWeaponHitReduce != 2 || b.OffHandHitReduce != 0 {
+		t.Errorf("TWF alone = (%d,%d), want (2,0)", b.TwoWeaponHitReduce, b.OffHandHitReduce)
+	}
+	if b := ComputeBonuses([]Taken{{FeatID: "ambidexterity"}}, r); b.OffHandHitReduce != 4 || b.TwoWeaponHitReduce != 0 {
+		t.Errorf("Ambidexterity alone = (%d,%d), want (0,4)", b.TwoWeaponHitReduce, b.OffHandHitReduce)
+	}
+	b := ComputeBonuses([]Taken{{FeatID: "two-weapon-fighting"}, {FeatID: "ambidexterity"}}, r)
+	if b.TwoWeaponHitReduce != 2 || b.OffHandHitReduce != 4 {
+		t.Errorf("both feats = (%d,%d), want (2,4)", b.TwoWeaponHitReduce, b.OffHandHitReduce)
+	}
+}
+
 // The per-weapon/skill kinds key by the take's Param; the ability kind by the
 // grant Target (EPIC S4 Phase 3c).
 func TestComputeBonuses_PerParamAndAbility(t *testing.T) {

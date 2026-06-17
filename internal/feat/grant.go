@@ -31,12 +31,23 @@ const (
 	// GrantAbility teaches an ability (Power Attack). Target is the ability id;
 	// Magnitude unused. Consumer: prof.Learn at grant time (applyFeatGrants).
 	GrantAbility GrantKind = "ability"
+	// GrantTwoWeaponHit reduces the two-weapon to-hit penalty on BOTH hands by
+	// Magnitude (Two-Weapon Fighting — two-weapon-fighting §4.1). A GLOBAL grant
+	// (Target unused; not per-weapon). Consumer: connActor.Stats() subtracts it
+	// from the main- and off-hand two-weapon penalties (clamped at zero).
+	GrantTwoWeaponHit GrantKind = "two_weapon_hit"
+	// GrantOffHandHit reduces the OFF-HAND two-weapon penalty by Magnitude
+	// (Ambidexterity — removes the off-hand-specific extra, two-weapon-fighting
+	// §4.1). A GLOBAL grant (Target unused). Consumer: connActor.Stats()
+	// subtracts it from the off-hand penalty only (clamped at zero).
+	GrantOffHandHit GrantKind = "off_hand_hit"
 )
 
 // ValidGrantKind reports whether k is a known grant kind.
 func ValidGrantKind(k GrantKind) bool {
 	switch k {
-	case GrantSaveBonus, GrantMaxHP, GrantHitBonus, GrantCritThreat, GrantSkillBonus, GrantAbility:
+	case GrantSaveBonus, GrantMaxHP, GrantHitBonus, GrantCritThreat, GrantSkillBonus, GrantAbility,
+		GrantTwoWeaponHit, GrantOffHandHit:
 		return true
 	}
 	return false

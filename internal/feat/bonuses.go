@@ -35,6 +35,14 @@ type Bonuses struct {
 	SkillByID map[string]int
 	// Abilities are the ability ids a feat teaches (Power Attack). Nil = none.
 	Abilities []string
+	// TwoWeaponHitReduce is the additive reduction to the two-weapon to-hit
+	// penalty on BOTH hands (Two-Weapon Fighting — two-weapon-fighting §4.1).
+	// Zero = none. The consumer clamps the resulting penalty at zero.
+	TwoWeaponHitReduce int
+	// OffHandHitReduce is the additive reduction to the OFF-HAND two-weapon
+	// penalty only (Ambidexterity, removing the off-hand-specific extra — §4.1).
+	// Zero = none. Composes additively with TwoWeaponHitReduce on the off hand.
+	OffHandHitReduce int
 }
 
 // ComputeBonuses aggregates the bonuses conferred by the held feats, resolving
@@ -89,6 +97,10 @@ func ComputeBonuses(held []Taken, reg *Registry) Bonuses {
 					}
 					b.SkillByID[t.Param] += g.Magnitude * mult
 				}
+			case GrantTwoWeaponHit:
+				b.TwoWeaponHitReduce += g.Magnitude * mult
+			case GrantOffHandHit:
+				b.OffHandHitReduce += g.Magnitude * mult
 			case GrantAbility:
 				if g.Target != "" {
 					// Normalize for uniformity with the other keyed kinds

@@ -2523,6 +2523,26 @@ grants:
 	}
 }
 
+// The two global two-weapon penalty-reduction grants decode (slice 2): single
+// take, positive magnitude, no target.
+func TestLoadFeats_DecodesTwoWeaponGrants(t *testing.T) {
+	root := t.TempDir()
+	pack := filepath.Join(root, "core")
+	writeFile(t, filepath.Join(pack, "pack.yaml"), "name: tapestry-core\ncontent:\n  feats: [feats/*.yaml]\n")
+	writeFile(t, filepath.Join(pack, "feats/twf.yaml"), "id: twf\nname: Two-Weapon Fighting\ngrants:\n  - { kind: two_weapon_hit, magnitude: 2 }\n")
+	writeFile(t, filepath.Join(pack, "feats/ambi.yaml"), "id: ambi\nname: Ambidexterity\ngrants:\n  - { kind: off_hand_hit, magnitude: 4 }\n")
+	regs := NewRegistries()
+	if err := Load(context.Background(), root, nil, regs, nil, nil, nil); err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if f, ok := regs.Feats.Get("twf"); !ok || len(f.Grants) != 1 || f.Grants[0].Kind != feat.GrantTwoWeaponHit || f.Grants[0].Magnitude != 2 {
+		t.Errorf("twf grant = %+v", f)
+	}
+	if f, ok := regs.Feats.Get("ambi"); !ok || len(f.Grants) != 1 || f.Grants[0].Kind != feat.GrantOffHandHit || f.Grants[0].Magnitude != 4 {
+		t.Errorf("ambi grant = %+v", f)
+	}
+}
+
 func TestLoadFeats_RejectsBadGrants(t *testing.T) {
 	bad := []string{
 		// unknown kind
@@ -2540,6 +2560,13 @@ func TestLoadFeats_RejectsBadGrants(t *testing.T) {
 		"id: bad\ngrants:\n  - { kind: hit_bonus, magnitude: 1 }\n",
 		// ability grant with no target
 		"id: bad\ngrants:\n  - { kind: ability }\n",
+		// two-weapon global grants: zero magnitude
+		"id: bad\ngrants:\n  - { kind: two_weapon_hit }\n",
+		"id: bad\ngrants:\n  - { kind: off_hand_hit }\n",
+		// two-weapon global grants: a stray target (they take none)
+		"id: bad\ngrants:\n  - { kind: two_weapon_hit, target: swords, magnitude: 2 }\n",
+		// two-weapon global grants: cannot be stackable (would over-reduce)
+		"id: bad\nmulti_take: stackable\ngrants:\n  - { kind: two_weapon_hit, magnitude: 2 }\n",
 	}
 	for i, body := range bad {
 		root := t.TempDir()

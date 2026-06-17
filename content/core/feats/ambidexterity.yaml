@@ -1,0 +1,14 @@
+# Ambidexterity (two-weapon-fighting §4.1 / wot-feats.md): removes the
+# off-hand-specific extra penalty (the difference between the off-hand and
+# main-hand two-weapon penalties — baseline 8 - 4 = 4), so the off hand fights as
+# accurately as the main hand. A GLOBAL combat feat (no per-weapon param).
+# Single take. Stacks with Two-Weapon Fighting: with both, the baseline -4/-8
+# becomes -2 main / -2 off (TWF trims both by 2 → -2/-6, Ambidexterity removes
+# the remaining off-hand extra of 4 → -2). The consumer clamps at zero.
+# (Canonical d20 prereq is Dex 15+; omitted for the v1 demo, mirroring
+# weapon-focus/power-attack, since a fresh character is Dex 10.)
+id: ambidexterity
+name: Ambidexterity
+description: You are equally adept with either hand — the extra penalty for off-hand attacks is removed.
+grants:
+  - { kind: off_hand_hit, magnitude: 4 }

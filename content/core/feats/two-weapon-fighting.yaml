@@ -1,0 +1,13 @@
+# Two-Weapon Fighting (two-weapon-fighting §4.1 / wot-feats.md): reduce the
+# two-weapon to-hit penalty on BOTH hands by 2. A GLOBAL combat feat (no
+# per-weapon param). Single take. Stacks with Ambidexterity, which additionally
+# removes the off-hand-specific extra penalty. The baseline two-weapon penalties
+# are -4 main / -8 off (combat.DefaultTwoWeapon*Penalty); this feat takes them to
+# -2 main / -6 off (Ambidexterity then trims the off hand to -2).
+# (Canonical d20 prereq is Dex 13+ / Int 13+ depending on edition; omitted for
+# the v1 demo, mirroring weapon-focus/power-attack.)
+id: two-weapon-fighting
+name: Two-Weapon Fighting
+description: You fight more effectively with a weapon in each hand — your two-weapon attack penalties are reduced.
+grants:
+  - { kind: two_weapon_hit, magnitude: 2 }

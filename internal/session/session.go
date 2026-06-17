@@ -4973,6 +4973,12 @@ func (a *connActor) Stats() combat.Stats {
 			s.Resistances[k] = v
 		}
 	}
+	// Single consistent snapshot of the feat-bonus cache for this whole Stats()
+	// call: it feeds BOTH the per-weapon-category Weapon Focus / Improved
+	// Critical path and the two-weapon penalty reductions below. Loading it once
+	// avoids observing two cache generations if a concurrent feat grant Stores a
+	// new pointer mid-call (the same snapshot discipline as armorResist).
+	fb := a.featWeaponBonus.Load()
 	w := a.weapon.Load()
 	if w != nil {
 		s.Damage = w.dice
@@ -4999,7 +5005,7 @@ func (a *connActor) Stats() combat.Stats {
 		// EPIC S4 Phase 3c: per-weapon-category feat bonuses (Weapon Focus
 		// to-hit, Improved Critical threat widen), read lock-free from the
 		// cache. Category match is case-insensitive (feat params are lowercased).
-		if fb := a.featWeaponBonus.Load(); fb != nil && w.category != "" {
+		if fb != nil && w.category != "" {
 			cat := strings.ToLower(w.category)
 			s.HitMod += fb.hit[cat]
 			if widen := fb.crit[cat]; widen > 0 {
@@ -5025,7 +5031,24 @@ func (a *connActor) Stats() combat.Stats {
 	// larger off-hand penalty and the reduced (½×) Strength damage (§4.2).
 	if w != nil && w.rangedClass == "" {
 		if off := a.offWeapon.Load(); off != nil && off.wieldMode == size.Light {
-			s.HitMod -= combat.DefaultTwoWeaponMainPenalty
+			// Slice 2: the two-weapon feats SUBTRACT from the baseline penalties
+			// (two-weapon-fighting §4.1). Two-Weapon Fighting reduces both hands;
+			// Ambidexterity removes the off-hand-specific extra. Reductions ride
+			// the same lock-free feat cache as Weapon Focus; penalties clamp at
+			// zero so a feat never turns the penalty into a bonus.
+			mainPenalty := combat.DefaultTwoWeaponMainPenalty
+			offPenalty := combat.DefaultTwoWeaponOffHandPenalty
+			if fb != nil {
+				mainPenalty -= fb.twoWeaponHitReduce
+				offPenalty -= fb.twoWeaponHitReduce + fb.offHandHitReduce
+			}
+			if mainPenalty < 0 {
+				mainPenalty = 0
+			}
+			if offPenalty < 0 {
+				offPenalty = 0
+			}
+			s.HitMod -= mainPenalty
 			strBonus := combat.STRBonus(str)
 			s.OffHand = &combat.OffHandProfile{
 				Damage:            off.dice,
@@ -5033,7 +5056,7 @@ func (a *connActor) Stats() combat.Stats {
 				WeaponDamageTypes: append([]string(nil), off.damageTypes...),
 				CritThreatLow:     off.critThreatLow,
 				CritMultiplier:    off.critMultiplier,
-				HitMod:            baseHitMod - combat.DefaultTwoWeaponOffHandPenalty,
+				HitMod:            baseHitMod - offPenalty,
 				// ½× Strength on the off hand: the full damage bonus with only the
 				// Strength term reduced (flat bonuses stay 1×), mirroring the
 				// two-handed 1.5× rule (size-and-wielding §4.2).

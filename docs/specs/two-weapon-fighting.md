@@ -236,4 +236,4 @@ All numeric magnitudes live here; the prose names behaviors, not values.
 
 ---
 
-<!-- Spec style: narrative + acceptance criteria · Detail level: behavior only · Status: slice 1 (off-hand attack substrate) SHIPPED 2026-06-17; the feats (§4.1, Two-Weapon Fighting / Ambidexterity / Improved TWF) are slice 2 — EPIC S1 increment K -->
+<!-- Spec style: narrative + acceptance criteria · Detail level: behavior only · Status: slice 1 (off-hand attack substrate) SHIPPED 2026-06-17; slice 2 (the Two-Weapon Fighting + Ambidexterity feats — §4.1, subtractive penalty reductions via the feat system) SHIPPED 2026-06-17. Improved Two-Weapon Fighting (a SECOND off-hand attack) remains deferred with its feat (§7). EPIC S1 increment K. -->

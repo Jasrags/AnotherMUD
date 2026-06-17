@@ -2153,6 +2153,26 @@ func decodeFeat(path, ns string) (*feat.Feat, error) {
 					return nil, fmt.Errorf("%w: %s: grants[%d] ability needs a target (ability id)",
 						ErrInvalidContent, path, i)
 				}
+			case feat.GrantTwoWeaponHit, feat.GrantOffHandHit:
+				// Global penalty-reduction grants (Two-Weapon Fighting /
+				// Ambidexterity): beneficial-only, so a non-positive magnitude is
+				// a content typo. Target is unused.
+				if g.Magnitude <= 0 {
+					return nil, fmt.Errorf("%w: %s: grants[%d] %s needs a positive magnitude",
+						ErrInvalidContent, path, i, kind)
+				}
+				if strings.TrimSpace(g.Target) != "" {
+					return nil, fmt.Errorf("%w: %s: grants[%d] %s is a global grant and takes no target",
+						ErrInvalidContent, path, i, kind)
+				}
+				// A stackable two-weapon feat would over-reduce the penalty (the
+				// clamp at the consumer floors it at zero, so extra ranks would be
+				// silently wasted). Reject it at load so the content surface stays
+				// honest — these are single-take perks.
+				if mt == feat.MultiTakeStackable {
+					return nil, fmt.Errorf("%w: %s: grants[%d] %s cannot be stackable (the reduction caps at the baseline penalty)",
+						ErrInvalidContent, path, i, kind)
+				}
 			}
 			// Per-weapon/skill kinds (hit_bonus/crit_threat/skill_bonus) take
 			// their target from the take's PARAM, so the feat must be
