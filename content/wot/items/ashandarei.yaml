@@ -10,13 +10,18 @@ description: |
 tags: [weapon, metal, polearm]
 keywords: [ashandarei, polearm, glaive, spear]
 eligible_slots: [wield]
-companion_slots: [offhand]
 properties:
   weight: 12
   value: 600
 weapon_damage: "1d8"
 weapon_category: ashandarei
 proficiency_tier: exotic
+# Size-and-wielding §3: a polearm "taller than a tall man" is LARGE — one step
+# above a medium wielder, so it is wielded TWO-HANDED (tying up the off hand,
+# §4.1) and earns the two-handed Strength bonus (§4.2). The footprint is now
+# size-derived; the former static `companion_slots: [offhand]` is dropped — a
+# larger (e.g. Ogier) wielder would one-hand it, the point of size relativity.
+size: large
 damage_types: [slashing, bludgeoning]
 crit_threat_low: 19
 crit_multiplier: 2

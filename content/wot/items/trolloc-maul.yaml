@@ -1,0 +1,24 @@
+id: trolloc-maul
+name: a Trolloc maul
+type: weapon
+description: |
+  A brutal slab of black iron on a haft of charred oak, taken off a Trolloc
+  carcass after a Winternight raid and hauled to the forge to be broken down for
+  good metal. It is built for an arm half again the length of a man's — hoisting
+  it off the floor is labor enough; no human could ever swing it true.
+tags: [weapon, metal, trophy, huge]
+keywords: [maul, trolloc, hammer]
+eligible_slots: [wield]
+# Size-and-wielding §3: HUGE — two steps above a medium wielder, so it is
+# TOO LARGE for a human to wield at all; the equip is refused (§4.1). A weapon
+# for the Shadow's get, kept here only as scrap. (No size bonus is reachable —
+# it simply cannot be equipped by a baseline-size character.)
+size: huge
+weapon_damage: "2d6"
+weapon_category: maul
+proficiency_tier: exotic
+damage_types: [bludgeoning]
+crit_multiplier: 3
+properties:
+  weight: 30
+  value: 40

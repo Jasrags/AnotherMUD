@@ -12,6 +12,7 @@ import (
 	"github.com/Jasrags/AnotherMUD/internal/keyword"
 	"github.com/Jasrags/AnotherMUD/internal/light"
 	"github.com/Jasrags/AnotherMUD/internal/progression"
+	"github.com/Jasrags/AnotherMUD/internal/size"
 	"github.com/Jasrags/AnotherMUD/internal/slot"
 	"github.com/Jasrags/AnotherMUD/internal/stats"
 	"github.com/Jasrags/AnotherMUD/internal/world"
@@ -56,6 +57,34 @@ type weaponProficiencyChecker interface {
 // proficiency simply don't, and the equip path skips the clumsy-wear cue.
 type armorProficiencyChecker interface {
 	IsArmorProficient() bool
+}
+
+// sizedActor optionally exposes the wielder's size so the equip path can
+// derive a weapon's size-relative wield mode (size-and-wielding §4.1).
+// connActor implements it; an actor that doesn't is treated as the baseline
+// size (so the derivation still runs for a sized weapon).
+type sizedActor interface {
+	Size() string
+}
+
+// offhandSlot is the base name of the hand a two-handed weapon ties up
+// (slot.RegisterEngineBaseline). Used to derive a sized two-handed weapon's
+// footprint (size-and-wielding §4.1).
+const offhandSlot = "offhand"
+
+// withOffhand returns companions with the off-hand slot included exactly once
+// — the footprint of a size-derived two-handed weapon (size-and-wielding §4.1),
+// merged with any statically declared companions. Note the asymmetry: only the
+// TwoHanded branch passes the static companions through here; Light/OneHanded
+// pass nil, intentionally discarding a sized weapon's static companion slots
+// (the off hand must stay free).
+func withOffhand(companions []string) []string {
+	for _, c := range companions {
+		if c == offhandSlot {
+			return companions
+		}
+	}
+	return append(append([]string(nil), companions...), offhandSlot)
 }
 
 func EquipHandler(ctx context.Context, c *Context) error {
@@ -120,7 +149,30 @@ func EquipHandler(ctx context.Context, c *Context) error {
 	for k := range equipped {
 		occupied[k] = true
 	}
-	footprint, err := c.Slots.Footprint(def.Name, item.CompanionSlots(), occupied)
+	// size-and-wielding §4.1: a sized weapon's footprint is DERIVED from its
+	// size-relative wield mode — two-handed ties up the off hand, light/one-
+	// handed leave it free, too-large is refused. A weapon that declares no
+	// size keeps its static companion-slot footprint (legacy unchanged), so
+	// size content opts in per-weapon.
+	companions := item.CompanionSlots()
+	if ws := item.WeaponSize(); ws != "" {
+		wielderSize := size.Baseline
+		if sa, ok := c.Actor.(sizedActor); ok {
+			wielderSize = sa.Size()
+		}
+		switch size.Mode(ws, wielderSize) {
+		case size.TooLarge:
+			return c.Actor.Write(ctx, fmt.Sprintf(
+				"%s is too large for you to wield.", item.Name()))
+		case size.TwoHanded:
+			companions = withOffhand(companions)
+		default:
+			// Light / one-handed: the off hand stays free. Size derivation
+			// fully replaces any statically declared companion slots.
+			companions = nil
+		}
+	}
+	footprint, err := c.Slots.Footprint(def.Name, companions, occupied)
 	if err != nil {
 		return c.Actor.Write(ctx, fmt.Sprintf("Can't equip to %s right now.", def.Name))
 	}

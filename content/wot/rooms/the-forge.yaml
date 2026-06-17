@@ -28,7 +28,12 @@ properties:
 # (the non-proficient to-hit penalty).
 items:
   - two-rivers-longsword
+  # Size-and-wielding (S1.F) demo: the ashandarei is LARGE — a medium wielder
+  # two-hands it (off hand tied up + the two-handed Strength bonus), an Ogier
+  # would one-hand it. The Trolloc maul is HUGE — too large for a human to
+  # wield at all (`equip maul` → refused). `equip ashandarei` then `equip maul`.
   - ashandarei
+  - trolloc-maul
   # The masterwork (S1.H) demo: a heron-mark blade among the finished work —
   # its grade alone (no hand-written modifier) hits truer when wielded.
   - heron-mark-blade
