@@ -1,5 +1,11 @@
 package combat
 
+import (
+	"context"
+
+	"github.com/Jasrags/AnotherMUD/internal/world"
+)
+
 // Range bands (ranged-combat §5.1). A fight between two combatants carries a
 // range state: an ordered vocabulary indexed from the MELEE band (0 — the
 // colocated state all pre-ranged combat assumes) outward to the farthest band.
@@ -77,6 +83,56 @@ func (m *Manager) setBandLocked(a, b CombatantID, band int) {
 		m.bands = make(map[bandKey]int)
 	}
 	m.bands[makeBandKey(a, b)] = band
+}
+
+// MoveBand is the verb-facing band move (ranged-combat §5.4): it steps the
+// subject↔opponent pairing one band toward melee (closing — advance) or toward
+// far (opening — withdraw), emits the BandChange so both sides see it, and
+// returns the new band. moved is false when the two aren't engaged or the band
+// is already at the requested extreme (already in melee for an advance, already
+// at far for a withdraw) — the caller maps that to a precise message. Distinct
+// from flee: this stays in the room (§5.4).
+func (m *Manager) MoveBand(ctx context.Context, subject, opponent CombatantID, roomID world.RoomID, closing bool) (int, bool) {
+	delta := 1
+	if closing {
+		delta = -1
+	}
+	m.mu.Lock()
+	if !contains(m.lists[subject], opponent) {
+		m.mu.Unlock()
+		return meleeBand, false
+	}
+	key := makeBandKey(subject, opponent)
+	cur := m.bands[key]
+	next := cur + delta
+	if next < meleeBand {
+		next = meleeBand
+	}
+	if next > farBand() {
+		next = farBand()
+	}
+	if next == cur {
+		m.mu.Unlock()
+		return cur, false // already at the requested extreme
+	}
+	if m.bands == nil {
+		m.bands = make(map[bandKey]int)
+	}
+	m.bands[key] = next
+	m.mu.Unlock()
+
+	// Names + emit outside m.mu (lock-order — see engageWithReason).
+	m.sink.OnBandChange(ctx, BandChange{
+		SubjectID:    subject,
+		SubjectName:  m.lookupName(subject),
+		OpponentID:   opponent,
+		OpponentName: m.lookupName(opponent),
+		NewBand:      next,
+		NewBandName:  BandName(next),
+		Closing:      closing,
+		RoomID:       roomID,
+	})
+	return next, true
 }
 
 // AdjustBand moves the a↔b pairing one band toward melee (delta < 0, advance)

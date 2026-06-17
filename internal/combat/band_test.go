@@ -78,3 +78,29 @@ func TestAdjustBand_AdvanceWithdrawClamp(t *testing.T) {
 		t.Errorf("withdraw past far = %d, want clamp at far (%d)", got, farBand())
 	}
 }
+
+// MoveBand is the verb-facing kiting move (ranged-combat §5.4): it steps the
+// band, emits a BandChange, and reports false at the extremes / when unengaged.
+func TestMoveBand_AdvanceWithdraw(t *testing.T) {
+	atk, tgt, m := bandPair(RangedProjectile) // opens at far
+	sink := m.sink.(*recordingSink)
+	m.EngageWithReason(context.Background(), atk.id, tgt.id, roomA)
+
+	// Withdraw at far → already at the extreme, no move.
+	if _, moved := m.MoveBand(context.Background(), atk.id, tgt.id, roomA, false); moved {
+		t.Error("withdraw at far should report no move (already at the extreme)")
+	}
+	// Advance (closing) steps toward melee and emits a closing BandChange.
+	if band, moved := m.MoveBand(context.Background(), atk.id, tgt.id, roomA, true); !moved || band != farBand()-1 {
+		t.Errorf("advance = (%d,%v), want (%d,true)", band, moved, farBand()-1)
+	}
+	bc := sink.snapshotBandChanges()
+	if len(bc) != 1 || !bc[0].Closing || bc[0].SubjectID != atk.id {
+		t.Errorf("want 1 closing BandChange by the archer, got %+v", bc)
+	}
+	// Not engaged → no move.
+	other := NewMobCombatantID("stranger")
+	if _, moved := m.MoveBand(context.Background(), atk.id, other, roomA, true); moved {
+		t.Error("MoveBand against an unengaged opponent should report no move")
+	}
+}
