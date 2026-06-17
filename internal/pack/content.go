@@ -97,6 +97,19 @@ type ItemFile struct {
 	// (0 = unset = configured default; validated non-negative).
 	CritThreatLow  int `yaml:"crit_threat_low,omitempty"`
 	CritMultiplier int `yaml:"crit_multiplier,omitempty"`
+	// Ranged weapon metadata (ranged-combat §2). All optional, recorded-only
+	// this slice (inert until the ammo + Strength-rule consumer lands).
+	// ranged_class is "thrown" or "projectile" (absent = melee, validated
+	// against the engine vocabulary); ammo_kind matches a projectile to its
+	// ammunition and an ammo item to what it supplies (a projectile must
+	// declare one); range_increment is the distance falloff unit (inert
+	// until Slice B); str_rating caps a Strength-rated bow's positive
+	// Strength bonus (a pointer so 0 is a valid cap, absent = the default
+	// no-positive-Strength projectile rule).
+	RangedClass    string `yaml:"ranged_class,omitempty"`
+	AmmoKind       string `yaml:"ammo_kind,omitempty"`
+	RangeIncrement int    `yaml:"range_increment,omitempty"`
+	StrRating      *int   `yaml:"str_rating,omitempty"`
 	// Armor depth (armor-depth §2). All optional, recorded-only this slice
 	// (inert until the AC/mitigation/proficiency/check-penalty consumers
 	// land). armor_bonus is the structured AC term; armor_max_dex caps the

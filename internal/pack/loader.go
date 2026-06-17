@@ -2824,6 +2824,35 @@ func decodeItem(path, ns string) (*item.Template, error) {
 			ErrInvalidContent, path, f.CritMultiplier)
 	}
 
+	// Ranged weapon metadata (ranged-combat §2). Optional; recorded only
+	// this slice (no ammo/Strength consumer wired yet). ranged_class
+	// validates against the engine vocabulary; a projectile weapon must name
+	// the ammo kind it fires (a bow with no ammo_kind is an authoring error);
+	// range_increment and a declared str_rating are non-negative.
+	rangedClass := strings.ToLower(strings.TrimSpace(f.RangedClass))
+	if rangedClass != "" && !item.ValidRangedClass(rangedClass) {
+		return nil, fmt.Errorf("%w: %s: ranged_class %q is not a known ranged class %v",
+			ErrInvalidContent, path, rangedClass, item.RangedClassNames())
+	}
+	ammoKind := strings.ToLower(strings.TrimSpace(f.AmmoKind))
+	if rangedClass == item.RangedProjectile && ammoKind == "" {
+		return nil, fmt.Errorf("%w: %s: a projectile weapon must declare ammo_kind (what it fires)",
+			ErrInvalidContent, path)
+	}
+	if f.RangeIncrement < 0 {
+		return nil, fmt.Errorf("%w: %s: range_increment %d must be non-negative",
+			ErrInvalidContent, path, f.RangeIncrement)
+	}
+	if f.StrRating != nil && *f.StrRating < 0 {
+		return nil, fmt.Errorf("%w: %s: str_rating %d must be non-negative",
+			ErrInvalidContent, path, *f.StrRating)
+	}
+	var strRating *int
+	if f.StrRating != nil {
+		v := *f.StrRating
+		strRating = &v
+	}
+
 	// Armor depth (armor-depth §2). All optional; validated at load so an
 	// authoring typo fails the pack by file name rather than producing
 	// silent garbage (as the weapon fields above do). Recorded only this
@@ -2888,6 +2917,10 @@ func decodeItem(path, ns string) (*item.Template, error) {
 		Grade:             strings.ToLower(strings.TrimSpace(f.Grade)),
 		CritThreatLow:     f.CritThreatLow,
 		CritMultiplier:    f.CritMultiplier,
+		RangedClass:       rangedClass,
+		AmmoKind:          ammoKind,
+		RangeIncrement:    f.RangeIncrement,
+		StrRating:         strRating,
 		ArmorBonus:        f.ArmorBonus,
 		ArmorMaxDex:       armorMaxDex,
 		ArmorCheckPenalty: f.ArmorCheckPenalty,

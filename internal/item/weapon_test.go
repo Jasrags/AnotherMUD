@@ -28,6 +28,25 @@ func TestWeaponTierVocabulary(t *testing.T) {
 	}
 }
 
+func TestRangedClassVocabulary(t *testing.T) {
+	for _, class := range []string{"thrown", "projectile"} {
+		if !ValidRangedClass(class) {
+			t.Errorf("ValidRangedClass(%q) = false, want true", class)
+		}
+	}
+	if ValidRangedClass("hurled") {
+		t.Error("ValidRangedClass(hurled) = true, want false (not a class)")
+	}
+	// The empty string is "melee" — not a ranged class; callers treat
+	// absence as melee separately.
+	if ValidRangedClass("") {
+		t.Error(`ValidRangedClass("") = true, want false (melee, not a class)`)
+	}
+	if got := RangedClassNames(); !slices.Equal(got, []string{"thrown", "projectile"}) {
+		t.Errorf("RangedClassNames() = %v, want thrown/projectile", got)
+	}
+}
+
 func TestProficient(t *testing.T) {
 	tiers := []string{"martial"}    // class grants all martial
 	cats := []string{"two-rivers-longbow"} // ...plus this one exotic kind

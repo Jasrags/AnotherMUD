@@ -55,6 +55,34 @@ func ValidDamageType(name string) bool {
 	return false
 }
 
+// Ranged weapon classes (ranged-combat §2). A weapon that declares no
+// ranged class is melee, exactly as today. "thrown" means the weapon
+// itself is hurled (a knife, a spear) and lands recoverable in the room;
+// "projectile" means it launches separate ammunition (a bow, a crossbow,
+// a sling) consumed one unit per shot.
+const (
+	RangedThrown     = "thrown"
+	RangedProjectile = "projectile"
+)
+
+var rangedClasses = []string{RangedThrown, RangedProjectile}
+
+// RangedClassNames returns a copy of the valid ranged-class vocabulary.
+// Used for validation error messages.
+func RangedClassNames() []string { return append([]string(nil), rangedClasses...) }
+
+// ValidRangedClass reports whether name is a known ranged class. The empty
+// string ("melee") is NOT a ranged class — callers treat absence as melee
+// separately.
+func ValidRangedClass(name string) bool {
+	for _, c := range rangedClasses {
+		if c == name {
+			return true
+		}
+	}
+	return false
+}
+
 // Proficient reports whether a wielder whose class grants the given weapon
 // tiers and categories may use a weapon of weaponTier / weaponCategory
 // without the non-proficient penalty (weapon-identity §3). Every wielder is

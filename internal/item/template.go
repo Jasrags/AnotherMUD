@@ -97,6 +97,32 @@ type Template struct {
 	// (weapon-identity §4). Zero means unset — the engine uses the
 	// configured global default. Validated at load to be non-negative.
 	CritMultiplier int
+	// Ranged weapon metadata (ranged-combat §2). All optional; a weapon
+	// that declares no RangedClass is melee, unchanged. RECORDED in this
+	// data slice — inert until the combat consumer (ammo + Strength rules +
+	// the round-loop ammo hook) lands, mirroring how weapon-identity and
+	// armor-depth shipped their data ahead of the consumer.
+	//
+	// RangedClass is "thrown" or "projectile" (item.RangedThrown /
+	// RangedProjectile); empty means melee. Validated at load; lowercased.
+	RangedClass string
+	// AmmoKind matches a projectile weapon to the ammunition it fires and
+	// an ammo item to what it is (ranged-combat §3) — compared verbatim. On
+	// a projectile weapon it names the kind it consumes (e.g. "arrow"); on
+	// an ammunition item it names the kind it supplies. Empty on a
+	// thrown/melee weapon and on a non-ammo item. Normalized lowercase. A
+	// projectile weapon must declare one (validated at load).
+	AmmoKind string
+	// RangeIncrement is the distance unit over which accuracy falls off
+	// (ranged-combat §2, §5.3). Zero means unset. Inert until Slice B's
+	// range bands consume it. Validated non-negative at load.
+	RangeIncrement int
+	// StrRating caps the positive Strength damage bonus a projectile weapon
+	// grants (ranged-combat §4 — a composite / Strength-rated bow). nil is
+	// the default projectile rule (no positive Strength bonus; a negative
+	// modifier still applies). Ignored for thrown/melee weapons. A non-nil
+	// value is the cap, validated non-negative at load.
+	StrRating *int
 	// Armor depth (armor-depth §2). All optional and, in this slice,
 	// RECORDED ONLY — inert until the AC / mitigation / proficiency /
 	// check-penalty slices consume them (mirrors how DamageTypes shipped
