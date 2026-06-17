@@ -127,7 +127,7 @@ import (
 // means "knows no recipes beyond what a discipline grants at runtime";
 // the migration injects nothing. A known id whose recipe was removed from
 // content loads cleanly and is ignored at restore (§9), never an error.
-const CurrentVersion = 24
+const CurrentVersion = 25
 
 // Sentinel errors callers may check via errors.Is.
 var (
@@ -337,6 +337,17 @@ type Save struct {
 	// pre-v23 saves are backfilled from the Location namespace by
 	// migrateV22toV23. Never empty after migration.
 	WorldID string `yaml:"world_id,omitempty"`
+
+	// Madness is the saidin taint a MALE channeler has accumulated (WoT S2
+	// Phase 4+ — the One Power's signature asymmetry: saidin is tainted, saidar
+	// is clean). It rises as a man weaves (overchannel adds more), decays slowly
+	// when he abstains, and above thresholds drives a per-tick chance to suffer a
+	// condition (S5). Female channelers never accrue it. Unlike active effects
+	// (ephemeral), the accumulator is character state, so it persists across
+	// relogin — no escape hatch. Added in v25; 0 (clean) for every pre-v25 save
+	// and every non-channeler. Cured by the Heal-the-Mind weave / Mental
+	// Stability feat.
+	Madness int `yaml:"madness,omitempty"`
 }
 
 // KnownFeat is one taken feat on a player save (EPIC S4 Phase 2 —
@@ -552,6 +563,7 @@ var playerMigrations = map[int]func(map[string]any) (map[string]any, error){
 	21: migrateV21toV22,
 	22: migrateV22toV23,
 	23: migrateV23toV24,
+	24: migrateV24toV25,
 }
 
 // migrateV1toV2 adds the empty inventory/equipment blocks introduced
@@ -927,6 +939,15 @@ func migrateV23toV24(in map[string]any) (map[string]any, error) {
 		"stat":  movementMax,
 		"value": BackfillMovementMax,
 	})
+	return in, nil
+}
+
+// migrateV24toV25 is a no-op: the v25 addition (Save.Madness, the saidin taint
+// accumulator) defaults to 0 (clean) for every pre-v25 character, which is the
+// correct starting value — a returning channeler simply begins untainted. The
+// field is append-only; the bump exists so the on-disk version reflects the new
+// shape. Like every migration in this chain it must never be edited once shipped.
+func migrateV24toV25(in map[string]any) (map[string]any, error) {
 	return in, nil
 }
 

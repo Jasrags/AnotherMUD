@@ -95,6 +95,16 @@ func ScoreHandler(ctx context.Context, c *Context) error {
 		d.Trains = th.TrainsAvailable()
 	}
 
+	// Saidin taint (WoT S2 Phase 4+). Probed via an anonymous interface (like
+	// trains) so the sheet stays decoupled from the channeling adapter; shown
+	// only once accrued, so it surfaces precisely when the curse takes hold.
+	if mh, ok := c.Actor.(interface{ Madness() int }); ok {
+		if m := mh.Madness(); m > 0 {
+			d.HasMadness = true
+			d.Madness = m
+		}
+	}
+
 	if ph, ok := c.Actor.(ProgressionHolder); ok && c.Progression != nil {
 		// Primary track = the first registered track the actor has info
 		// for (adventure today; the score sheet shows one headline level).
@@ -187,6 +197,12 @@ type scoreData struct {
 	HasSaves           bool
 	Fort, Reflex, Will int
 
+	// HasMadness shows the saidin-taint row only when a channeler has begun to
+	// accrue it (Madness > 0) — it never clutters a non-channeler or a woman
+	// (WoT S2 Phase 4+). The label coarsens the number into an ominous band.
+	HasMadness bool
+	Madness    int
+
 	HasAlign bool
 	AlignTag string
 	Align    int
@@ -264,6 +280,13 @@ func renderScore(d scoreData) string {
 		// push a weak save below zero).
 		combatCol = append(combatCol, scKV("Saves",
 			scHi(fmt.Sprintf("Fort %+d  Ref %+d  Will %+d", d.Fort, d.Reflex, d.Will)), 12))
+	}
+	if d.HasMadness {
+		// Saidin taint (WoT S2 Phase 4+) — shown in alarming red, the number
+		// coarsened into an ominous band so it reads as dread, not a stat to
+		// optimize.
+		combatCol = append(combatCol, scKV("Madness",
+			"<danger>"+madnessBand(d.Madness)+"</danger>", 12))
 	}
 
 	// Lower row: three columns — Attributes, Purse & Training, and the worn
@@ -449,6 +472,25 @@ func scTier(value, max int, fullTag, text string) string {
 
 func scHi(s string) string  { return "<highlight>" + s + "</highlight>" }
 func scSub(s string) string { return "<subtle>" + s + "</subtle>" }
+
+// madnessBand coarsens a saidin-taint score into an ominous qualitative band for
+// the score sheet (WoT S2 Phase 4+). The number is deliberately hidden behind
+// dread-flavored words — the curse should read as creeping unease, not a meter
+// to min-max. The bands roughly track the manifestation thresholds (the
+// mechanical bite escalates as the words darken). Callers gate on Madness > 0,
+// so the "untouched" band never shows.
+func madnessBand(m int) string {
+	switch {
+	case m >= 75:
+		return "the madness has you"
+	case m >= 50:
+		return "voices clamor"
+	case m >= 25:
+		return "a shadow on your mind"
+	default:
+		return "a faint whisper"
+	}
+}
 
 // commafy formats an integer with thousands separators ("1250" → "1,250").
 func commafy(n int64) string {

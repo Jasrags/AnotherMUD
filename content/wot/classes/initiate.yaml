@@ -55,6 +55,11 @@ path:
     ability: warding
   - level: 1
     ability: bonds-of-air
+  # WoT S2 Phase 4+ — the cure for saidin taint (men accrue madness as they
+  # weave; Heal the Mind reduces it). Granted at level 1 so a channeler has
+  # agency over the curse from the start.
+  - level: 1
+    ability: heal-the-mind
 
 # Saving throws (saves §2). The channeler's discipline is mental: a strong
 # Will save. The Initiate's body is unhardened — weak Fortitude — so the

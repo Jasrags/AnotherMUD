@@ -905,6 +905,34 @@ func (m *Manager) RegenTick(ctx context.Context, sustSvc *economy.SustenanceServ
 	}
 }
 
+// MadnessActor is the slice of a playing actor the saidin-taint tick needs
+// (WoT S2 Phase 4+). The mechanic — when a man's madness decays, when it
+// manifests, which condition it inflicts — is WoT-specific and lives in the
+// composition root; this interface is the neutral seam the Manager hands each
+// playing actor across.
+type MadnessActor interface {
+	PlayerID() string
+	Gender() string
+	Madness() int
+	AddMadness(delta int) int
+	Write(ctx context.Context, msg string) error
+}
+
+// MadnessTick invokes fn once per PLAYING actor (the saidin-taint tick, WoT S2
+// Phase 4+). It only iterates — decay, the manifestation roll, and the
+// condition application are the caller's (composition-root) business, keeping
+// the WoT curse out of the session package. Mirrors RegenTick's
+// snapshot-then-iterate shape so a callback that logs an actor out cannot
+// mutate the map mid-range.
+func (m *Manager) MadnessTick(ctx context.Context, fn func(ctx context.Context, a MadnessActor)) {
+	if fn == nil {
+		return
+	}
+	for _, a := range m.playingActors() {
+		fn(ctx, a)
+	}
+}
+
 // hungerReminder returns the nudge message for a below-Full tier (spec
 // §4.4 "hunger reminder messages"). Full returns "" (no reminder).
 func hungerReminder(tier economy.Tier) string {

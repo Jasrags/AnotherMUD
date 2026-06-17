@@ -3570,6 +3570,42 @@ func (a *connActor) Gender() string {
 	return a.save.Gender
 }
 
+// Madness returns the actor's accumulated saidin taint (WoT S2 Phase 4+);
+// 0 means clean. Lives on the save (like Gender), read under the lock.
+func (a *connActor) Madness() int {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	if a.save == nil {
+		return 0
+	}
+	return a.save.Madness
+}
+
+// AddMadness adjusts the actor's saidin taint by delta — positive accrues (a
+// man weaving), negative cures (Heal the Mind) — floored at 0, and returns the
+// resulting value. Marks the save dirty so autosave persists the change. WoT S2
+// Phase 4+. The MALE-only rule lives at the call site (the composition root),
+// not here: this is a neutral counter mutator.
+func (a *connActor) AddMadness(delta int) int {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	if a.save == nil {
+		return 0
+	}
+	next := a.save.Madness + delta
+	if next < 0 {
+		next = 0
+	}
+	if next == a.save.Madness {
+		// No change (e.g. curing an already-clean target, or decaying at 0) —
+		// don't dirty the save and force a spurious autosave write.
+		return next
+	}
+	a.save.Madness = next
+	a.markDirtyLocked()
+	return next
+}
+
 // Tags returns the actor's session-side tag set — today just the
 // racial flags from the race definition (M8.3). Returns a fresh
 // slice so callers cannot alias the backing storage. Surfaces to

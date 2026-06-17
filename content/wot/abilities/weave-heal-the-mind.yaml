@@ -1,0 +1,32 @@
+# WoT S2 weave — Heal the Mind (Air/Spirit/Water). The channeler's cure for
+# saidin taint: it soothes a clouded mind, REDUCING accumulated madness (the
+# `heal_mind` handler rolls its `heal` dice as madness removed, not HP). A man
+# weaves it on himself to push back the taint his own channeling builds; a woman
+# can weave it on a tainted man (touch). category:spell draws the One Power.
+id: heal-the-mind
+name: Heal the Mind
+type: active
+category: spell
+
+# Air + Spirit + Water (the source's Healing affinity set). A channeler weak in
+# any of these soothes less effectively (affinity potency).
+elements:
+  - air
+  - spirit
+  - water
+
+default_cap: 30
+gain_base_chance: 20
+gain_failure_multiplier: 0.5
+gain_stat: wis
+gain_stat_scale: 0.1
+
+cost: 12
+pulse_delay: 3
+cast_time: 1
+variance: 0
+
+# heal_mind rolls these dice as the MADNESS reduced on the target (or self),
+# not HP — the player's active agency against the curse.
+handler: heal_mind
+heal: 2d6

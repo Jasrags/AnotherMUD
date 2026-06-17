@@ -2053,8 +2053,73 @@ func run() error {
 				slog.String("target", targetID),
 				slog.String("ability", e.AbilityID),
 				slog.Int("amount", amount))
+		case "heal_mind":
+			// WoT S2 Phase 4+ — Heal the Mind: the channeler's cure for saidin
+			// taint. The heal dice roll the madness REDUCED on the target (or
+			// self), the player's active agency against the curse. No combatant
+			// lookup — madness lives on the connActor, reached via the manager.
+			if !dice.hasHeal {
+				return
+			}
+			targetID := e.TargetID
+			if targetID == "" {
+				targetID = e.SourceID
+			}
+			a, ok := mgr.GetByPlayerID(targetID)
+			if !ok {
+				return // target is not a player (a mob has no madness to soothe)
+			}
+			amount := dice.heal.Roll(combatRNG)
+			if amount < 1 {
+				amount = 1
+			}
+			newVal := a.AddMadness(-amount)
+			logging.From(ctx).Info("ability.heal_mind",
+				slog.String("source", e.SourceID),
+				slog.String("target", targetID),
+				slog.String("ability", e.AbilityID),
+				slog.Int("reduced_by", amount), slog.Int("madness", newVal))
 		}
 	})
+
+	// WoT S2 Phase 4+ — saidin taint accrual. A MALE channeler accumulates
+	// madness every time he weaves; saidar (female) is clean and never accrues.
+	// This is the One Power's signature asymmetry. The accumulator persists on
+	// the save (survives relogin) and, above thresholds, drives the per-tick
+	// condition manifestation (the madness tick handler). A weave is an
+	// element-tagged ability; a non-weave (a fighter's strike) and a woman's
+	// weave add nothing. Inert outside the WoT pack (no gendered channelers).
+	madnessPerCast := envIntOr("ANOTHERMUD_MADNESS_PER_CAST", 1)
+	if madnessPerCast < 0 {
+		slog.Warn("ANOTHERMUD_MADNESS_PER_CAST must be >= 0; using default 1",
+			slog.Int("got", madnessPerCast))
+		madnessPerCast = 1
+	}
+	if madnessPerCast > 0 {
+		bus.Subscribe(eventbus.EventAbilityUsed, func(ctx context.Context, ev eventbus.Event) {
+			e, ok := ev.(eventbus.AbilityUsed)
+			if !ok {
+				return
+			}
+			ab, ok := registries.Abilities.Get(e.AbilityID)
+			if !ok || len(ab.Elements) == 0 {
+				return // not a weave — no Source touched
+			}
+			if ab.HandlerToken == "heal_mind" {
+				return // the cleansing weave (Heal the Mind) soothes the taint; it
+				// must never deepen it, or the cure would net-increase madness.
+			}
+			a, ok := mgr.GetByPlayerID(e.SourceID)
+			if !ok || a.Gender() != "male" {
+				return // saidar is untainted; a woman never goes mad from channeling
+			}
+			newVal := a.AddMadness(madnessPerCast)
+			logging.From(ctx).Debug("madness.accrued",
+				slog.String("source", e.SourceID),
+				slog.String("ability", e.AbilityID),
+				slog.Int("madness", newVal))
+		})
+	}
 
 	// ability.vital_depleted → combat death bridge. The resolver emits
 	// this on its own topic (M9.4b) to avoid a progression→combat edge;
@@ -2142,10 +2207,23 @@ func run() error {
 		overchannelStunMargin   = 5  // fail by ≥ this → stunned, else fatigued
 		overchannelStillMargin  = 15 // fail by ≥ this → stilled (reached catastrophically far)
 	)
+	// Overchanneling deepens a man's taint beyond the ordinary per-cast accrual:
+	// reaching past the safe reserve is exactly when the corruption bites hardest.
+	// Applied to a male channeler regardless of the Fort outcome (the strain
+	// taints whether or not it scours him). 0 disables the bonus.
+	madnessOverchannelBonus := envIntOr("ANOTHERMUD_MADNESS_OVERCHANNEL", 3)
+	if madnessOverchannelBonus < 0 {
+		slog.Warn("ANOTHERMUD_MADNESS_OVERCHANNEL must be >= 0; using default 3",
+			slog.Int("got", madnessOverchannelBonus))
+		madnessOverchannelBonus = 3
+	}
 	overchannelHandler := func(ctx context.Context, entityID, abilityID string, deficit int) {
 		actor, ok := mgr.GetByPlayerID(entityID)
 		if !ok {
 			return // logged out between resolve and consequence
+		}
+		if madnessOverchannelBonus > 0 && actor.Gender() == "male" {
+			actor.AddMadness(madnessOverchannelBonus)
 		}
 		dc := overchannelBaseDC + overchannelDeficitScale*deficit
 		out := combat.ResolveSave(combatRNG, actor.Saves().Fortitude, dc)
@@ -2362,6 +2440,79 @@ func run() error {
 		}
 	}); err != nil {
 		return fmt.Errorf("register ability idle tick: %w", err)
+	}
+
+	// WoT S2 Phase 4+ — the madness manifestation tick. A male channeler's
+	// accumulated saidin taint (Save.Madness, raised by the accrual subscriber
+	// above) slowly decays when he abstains and, above a threshold, has a
+	// per-tick chance — scaled by how far past the threshold he has gone — to
+	// turn the Power on him: a condition (S5) by band, fatigued → frightened →
+	// stunned as the taint deepens. Female channelers are clean and skipped.
+	// Runs on the tick goroutine (combatRNG is single-goroutine-safe here, same
+	// as combat + the affinity handlers). Inert outside the WoT pack (no man
+	// accrues madness, so no actor is ever processed). All gameplay numbers are
+	// env-tunable; the cadence is a fixed ~10s sweep.
+	madnessDecayPerTick := envIntOr("ANOTHERMUD_MADNESS_DECAY", 1)
+	if madnessDecayPerTick < 0 {
+		// A negative decay would deepen the taint every sweep — the opposite of
+		// abstinence cleansing it. Warn (like the other madness knobs) rather than
+		// silently invert; 0 is the documented way to disable decay.
+		slog.Warn("ANOTHERMUD_MADNESS_DECAY must be >= 0; using default 1",
+			slog.Int("got", madnessDecayPerTick))
+		madnessDecayPerTick = 1
+	}
+	madnessThreshold := envIntOr("ANOTHERMUD_MADNESS_THRESHOLD", 25)
+	// chanceDenom scales the manifestation probability: p = (madness - threshold)
+	// / denom, clamped to [0,1]. Higher = rarer. At denom 200, a man 50 past the
+	// threshold suffers a fit ~25% of sweeps.
+	madnessChanceDenom := envIntOr("ANOTHERMUD_MADNESS_CHANCE_DENOM", 200)
+	if madnessChanceDenom < 1 {
+		madnessChanceDenom = 200
+	}
+	madnessManifest := func(ctx context.Context, a session.MadnessActor) {
+		if a.Gender() != "male" {
+			return // saidar is untainted
+		}
+		m := a.Madness()
+		if m <= 0 {
+			return
+		}
+		// Abstaining slowly cleanses; active channeling (per-cast accrual)
+		// outpaces this drift, so the meter still climbs under heavy weaving.
+		// Re-read after decay so the threshold + chance use the CURRENT value —
+		// otherwise a man decaying to exactly the threshold still rolls off the
+		// pre-decay snapshot (an off-by-decay boundary hole).
+		if madnessDecayPerTick > 0 {
+			m = a.AddMadness(-madnessDecayPerTick)
+		}
+		if m < madnessThreshold {
+			return // taint present but below the manifestation floor
+		}
+		chance := float64(m-madnessThreshold) / float64(madnessChanceDenom)
+		if chance > 1 {
+			chance = 1
+		}
+		if combatRNG.Float64() >= chance {
+			return
+		}
+		effectID, msg := madnessManifestation(m)
+		if tpl, ok := registries.Effects.Get(effectID); ok {
+			effectMgr.Apply(ctx, a.PlayerID(), tpl, a.PlayerID(), "madness")
+		} else {
+			logging.From(ctx).Warn("madness manifestation effect missing from content",
+				slog.String("event", "madness.manifest_missing"),
+				slog.String("effect_id", effectID), slog.String("entity_id", a.PlayerID()))
+		}
+		_ = a.Write(ctx, msg)
+		logging.From(ctx).Debug("madness.manifested",
+			slog.String("entity_id", a.PlayerID()),
+			slog.Int("madness", m), slog.String("effect", effectID))
+	}
+	madnessCadence := cadenceTicks(cfg.TickInterval, 10*time.Second)
+	if err := loop.Register("madness-tick", madnessCadence, func(ctx context.Context, _ uint64) {
+		mgr.MadnessTick(ctx, madnessManifest)
+	}); err != nil {
+		return fmt.Errorf("register madness tick: %w", err)
 	}
 
 	var wg sync.WaitGroup

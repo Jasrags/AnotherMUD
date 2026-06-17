@@ -146,7 +146,12 @@ old five-theme partition left uncovered.
   remains open. **Angreal/sa'angreal SHIPPED 2026-06-17** — a same-gender held
   device amplifies woven damage/heal (`angreal_power`/`angreal_gender` item metadata,
   strongest-equipped-wins, `ANOTHERMUD_ANGREAL_PER_POINT`; effect-path amplification
-  deferred — `PotencyFunc` stays weaken-only).
+  deferred — `PotencyFunc` stays weaken-only). **Taint/madness SHIPPED 2026-06-17** —
+  the saidin asymmetry: a persisted accumulator (`Save.Madness`, save v25) only men
+  accrue (per saidin weave + overchannel; the Heal-the-Mind cure excluded), a ~10s tick
+  that above a threshold inflicts a Core-5 condition (fatigued→frightened→stunned by
+  band) and decays, the Heal-the-Mind cure weave, an ominous `score` band; knobs
+  `ANOTHERMUD_MADNESS_*`. Mental Stability feat + social persecution deferred.
   **Next candidates:** S2 Phase 4+ depth (above); S7 survival v2; S8 reputation;
   the separate armor (E) S1 follow-on; and S4 polish (creation-wizard
   feat-pick step, Power Attack's combat effect, choose-a-feat-from-a-pool).
