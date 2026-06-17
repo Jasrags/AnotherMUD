@@ -19,5 +19,9 @@ terrain: outdoors
 # §5.2). One step `east` from the Smithy (the §33 WoT boot start).
 mobs:
   - brigand-archer
+  # Two-weapon-fighting §2.3 (dual-wield demo): a cutthroat fights with a
+  # longsword and an off-hand belt knife — a main swing AND an off-hand strike
+  # each round, the mob mirror of player dual-wielding.
+  - brigand-cutthroat
 # M1 stub: the road west into the Westwood and up the Quarry Road to the Sand
 # Hills + Mountains-of-Mist diggings lands in M2 (the wilds).

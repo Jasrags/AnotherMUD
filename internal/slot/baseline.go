@@ -1,5 +1,17 @@
 package slot
 
+// Engine-baseline slot keys with combat consumers. Exported so packages that
+// resolve a wielded/off-hand weapon (entities mob equip, session) share one
+// definition rather than re-spelling the literal. These are the bare keys for
+// the cap-1 wield and off-hand slots registered below.
+const (
+	// WieldSlot is the primary weapon slot.
+	WieldSlot = "wield"
+	// OffHandSlot is the off hand — a one-handed weapon, a shield, or a
+	// two-handed weapon's companion footprint (two-weapon-fighting §2).
+	OffHandSlot = "offhand"
+)
+
 // RegisterEngineBaseline installs the engine's default body-slot set
 // onto r. Called at boot before pack loading so packs can supplement
 // (and would error on collision if they try to redefine these).
@@ -11,11 +23,11 @@ package slot
 // hand a two-handed weapon spans. Authoring more slots is a pack concern.
 func RegisterEngineBaseline(r *Registry) error {
 	baseline := []Def{
-		{Name: "wield", Label: "wielded", Max: 1, Scope: EngineScope},
+		{Name: WieldSlot, Label: "wielded", Max: 1, Scope: EngineScope},
 		// The off hand. Cap 1, bare key. A one-handed weapon or shield
 		// targets it directly; a two-handed weapon lists it as a companion
 		// slot so its footprint (§3.3) ties up both hands.
-		{Name: "offhand", Label: "held in the off hand", Max: 1, Scope: EngineScope},
+		{Name: OffHandSlot, Label: "held in the off hand", Max: 1, Scope: EngineScope},
 		{Name: "head", Label: "worn on head", Max: 1, Scope: EngineScope},
 		{Name: "finger", Label: "worn on finger", Max: 2, Scope: EngineScope},
 		// The held-light slot (light-and-darkness §3.3): the one active

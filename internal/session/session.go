@@ -3067,8 +3067,11 @@ type armorResistances struct {
 // (two-weapon-fighting §2) "offhand" sorts before "wield" and would otherwise
 // be mistaken for the main weapon.
 const (
-	mainHandSlot = "wield"
-	offHandSlot  = "offhand"
+	// Alias the canonical engine slot keys so the player and mob (entities) weapon
+	// resolvers share one definition (slot/baseline.go) rather than re-spelling
+	// the literals.
+	mainHandSlot = slot.WieldSlot
+	offHandSlot  = slot.OffHandSlot
 )
 
 // buildWeaponInfoLocked builds the cached weaponInfo for an equipped item id,

@@ -45,6 +45,11 @@ func (m *MobInstance) Stats() combat.Stats {
 		damageBonus = m.channelMap.Value(channel.DamageBonus, lookup)
 		mitigation = m.channelMap.Value(channel.Mitigation, lookup)
 	}
+	// Capture the un-penalized hit modifier BEFORE building the block, so the
+	// off-hand profile prices its larger penalty off the same base the main hand
+	// does even if a future modifier mutates s.HitMod between here and the
+	// off-hand branch (mirrors the player producer's baseHitMod discipline).
+	baseHitMod := hitMod
 	s := combat.Stats{
 		HitMod:      hitMod,
 		AC:          ac,
@@ -75,6 +80,31 @@ func (m *MobInstance) Stats() combat.Stats {
 		if m.weaponRangedClass == "" && size.Mode(m.weaponSize, m.size) == size.TwoHanded {
 			s.DamageBonus += size.TwoHandedStrBonus(combat.STRBonus(str), size.DefaultTwoHandedStrFactor)
 		}
+		// two-weapon-fighting §2.3: a mob that spawned with a second weapon in the
+		// off-hand slot dual-wields. The off hand grants an extra strike only when
+		// the main weapon is MELEE (§3) and the off-hand weapon resolves the LIGHT
+		// wield mode for the MOB's own size (§2.2, relative to the mob) — a two-
+		// handed main ties up the off hand at equip time, so it never reaches here.
+		// A mob holds no feats, so it always fights at the full un-feated penalty:
+		// the main-hand penalty folds into s.HitMod, the off-hand profile carries
+		// the larger off-hand penalty off the pre-penalty hit and the ½× Strength
+		// damage, and makes exactly ONE strike. This mirrors connActor.Stats minus
+		// the feat-cache reads. Crit fields are left default, as the mob main weapon
+		// also omits them.
+		if m.weaponRangedClass == "" && !m.offWeapon.IsZero() && size.Mode(m.offWeaponSize, m.size) == size.Light {
+			s.HitMod -= combat.DefaultTwoWeaponMainPenalty
+			strBonus := combat.STRBonus(str)
+			s.OffHand = &combat.OffHandProfile{
+				Damage:            m.offWeapon,
+				WeaponName:        m.offWeaponName,
+				WeaponDamageTypes: append([]string(nil), m.offWeaponDamageTypes...), // copy: self-contained
+				HitMod:            baseHitMod - combat.DefaultTwoWeaponOffHandPenalty,
+				// ½× Strength on the off hand (only the Strength term reduced, flat
+				// bonuses stay 1×), mirroring the player and the two-handed rule.
+				DamageBonus: damageBonus + size.StrBonusDelta(strBonus, size.DefaultOffHandStrFactor),
+				Attacks:     1, // mobs never take Improved Two-Weapon Fighting
+			}
+		}
 	}
 	// Per-type resistance from worn armor (armor-depth §4). Copy out so
 	// combat.Stats does not alias the instance's cached map (matches the
@@ -104,6 +134,20 @@ func (m *MobInstance) SetWeapon(dice combat.DiceExpr, name string, damageTypes [
 	m.weaponRangedClass = rangedClass
 	m.weaponAmmoKind = ammoKind
 	m.weaponSize = weaponSize
+}
+
+// SetOffWeapon installs the mob's OFF-HAND weapon (two-weapon-fighting §2.3) —
+// the dice, display name, damage types, and size of a second equipped weapon
+// that fits the off-hand slot. Called during the spawn pipeline only
+// (EquipMobAtSpawn, after the main weapon is set), then read lock-free by Stats
+// on the tick goroutine — the same write-once-at-spawn contract as SetWeapon.
+// Whether the off-hand weapon actually grants the off-hand attack is decided in
+// Stats (melee main + light-for-the-mob off-hand); this setter only records it.
+func (m *MobInstance) SetOffWeapon(dice combat.DiceExpr, name string, damageTypes []string, weaponSize string) {
+	m.offWeapon = dice
+	m.offWeaponName = name
+	m.offWeaponDamageTypes = damageTypes
+	m.offWeaponSize = weaponSize
 }
 
 // SetResistances installs the mob's aggregated per-damage-type damage

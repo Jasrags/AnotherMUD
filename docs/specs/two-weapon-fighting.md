@@ -42,8 +42,8 @@ un-feated baseline (anyone may dual-wield, at the full penalty) and the seam the
 feats plug into. Slice 2 (SHIPPED) is the penalty-reducing feats — Two-Weapon
 Fighting and Ambidexterity. Slice 3 (SHIPPED) is **Improved Two-Weapon
 Fighting** — a *second* off-hand attack (§3.1), gated behind the other two feats,
-made at a further accuracy penalty (§4.3). Slice 4 (SCOPED, build pending) is
-**mob dual-wield** — a mob striking with two equipped weapons (§2.3), un-feated.
+made at a further accuracy penalty (§4.3). Slice 4 (SHIPPED) is **mob
+dual-wield** — a mob striking with two equipped weapons (§2.3), un-feated.
 
 **Non-goals.** No new action economy, initiative, or attacks-of-opportunity
 (Decision 0). Shield mechanics (an off-hand *shield's* AC contribution) are an
@@ -340,4 +340,4 @@ All numeric magnitudes live here; the prose names behaviors, not values.
 
 ---
 
-<!-- Spec style: narrative + acceptance criteria · Detail level: behavior only · Status: slice 1 (off-hand attack substrate) SHIPPED 2026-06-17; slice 2 (Two-Weapon Fighting + Ambidexterity feats — §4.1) SHIPPED 2026-06-17; slice 3 (Improved Two-Weapon Fighting — a second off-hand strike at a cumulative secondary penalty, §3.1/§4.3) SHIPPED 2026-06-17; slice 4 (mob dual-wield — content-driven, un-feated, one strike, §2.3) SCOPED 2026-06-17, build pending. EPIC S1 increment K. -->
+<!-- Spec style: narrative + acceptance criteria · Detail level: behavior only · Status: slice 1 (off-hand attack substrate) SHIPPED 2026-06-17; slice 2 (Two-Weapon Fighting + Ambidexterity feats — §4.1) SHIPPED 2026-06-17; slice 3 (Improved Two-Weapon Fighting — a second off-hand strike at a cumulative secondary penalty, §3.1/§4.3) SHIPPED 2026-06-17; slice 4 (mob dual-wield — content-driven, un-feated, one strike, §2.3) SHIPPED 2026-06-17. Increment K COMPLETE (slices 1-4); nothing deferred. EPIC S1 increment K. -->

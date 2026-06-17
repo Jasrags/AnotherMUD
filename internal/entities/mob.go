@@ -146,6 +146,21 @@ type MobInstance struct {
 	// declares no size). Set during the spawn pipeline by SetWeapon, read
 	// lock-free by Stats.
 	weaponSize string
+	// offWeapon / offWeaponName / offWeaponDamageTypes / offWeaponSize are the
+	// mob's OFF-HAND weapon (two-weapon-fighting §2.3) — a second equipped weapon
+	// that fits the off-hand slot. Set during the spawn pipeline by SetOffWeapon
+	// (EquipMobAtSpawn detects the weapon that lands in the off-hand slot), read
+	// lock-free by Stats — same discipline as the main weapon. A zero offWeapon
+	// means the mob is not dual-wielding (the common case). Stats grants the
+	// off-hand attack only when the main weapon is melee and offWeapon resolves
+	// the LIGHT wield mode for the mob's size; a mob holds no feats, so the off
+	// hand always fights at the full un-feated penalty and makes one strike. The
+	// off hand is always melee (no ranged/ammo) and uses default crit, exactly as
+	// the mob main weapon does.
+	offWeapon            combat.DiceExpr
+	offWeaponName        string
+	offWeaponDamageTypes []string
+	offWeaponSize        string
 	// resistances is the mob's aggregated per-damage-type damage reduction
 	// from worn armor (armor-depth §4), summed across equipped armor at
 	// spawn (EquipMobAtSpawn → SetResistances). nil = none. Mutated only

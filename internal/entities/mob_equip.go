@@ -65,7 +65,8 @@ func (s *Store) EquipMobAtSpawn(m *MobInstance, ids []string, items *item.Templa
 		return res, nil
 	}
 	occupied := make(map[string]bool) // slot keys claimed by fitting gear
-	weaponSet := false                // first equipped weapon wins; overrides the natural weapon
+	weaponSet := false                // main weapon chosen (overrides the natural weapon)
+	offSet := false                   // off-hand weapon chosen (two-weapon-fighting §2.3)
 	var resist map[string]int         // per-type resistance summed across fitting armor (armor-depth §4)
 	for _, id := range ids {
 		tpl, err := items.Get(item.TemplateID(id))
@@ -80,12 +81,13 @@ func (s *Store) EquipMobAtSpawn(m *MobInstance, ids []string, items *item.Templa
 			return res, fmt.Errorf("equip mob %s: spawn item %q: %w", m.ID(), id, err)
 		}
 
-		// Decide whether this item occupies a slot. With no registry we
-		// cannot enforce slots, so every item is treated as fitting
-		// (legacy apply-all).
+		// Decide whether this item occupies a slot, and which. With no registry
+		// we cannot enforce slots, so every item is treated as fitting (legacy
+		// apply-all) and the base slot is unknown.
 		fits := true
+		base := ""
 		if slots != nil {
-			fits = placeMobItem(slots, it, occupied)
+			base, fits = placeMobItem(slots, it, occupied)
 		}
 
 		if fits {
@@ -96,13 +98,29 @@ func (s *Store) EquipMobAtSpawn(m *MobInstance, ids []string, items *item.Templa
 				}
 				m.AddModifiers(EquipmentSourceKey(it.ID()), translated)
 			}
-			// §4.5: the first equipped weapon becomes the mob's attack
-			// dice, overriding any natural weapon. A weapon that does not
-			// fit a slot cannot arm the mob.
-			if !weaponSet {
-				if dice, ok := it.WeaponDamage(); ok {
+			// Weapon assignment (combat §4.5, two-weapon-fighting §2.3). The MAIN
+			// weapon is the one in the wield slot (overriding any natural weapon);
+			// a second weapon in the OFF-HAND slot becomes the off-hand weapon,
+			// lighting up dual-wield. Whether the off-hand actually attacks is
+			// decided in Stats (melee main + light-for-the-mob). With no registry
+			// the slot is unknown, so we keep the legacy "first weapon is the main
+			// weapon" rule and grant no off-hand (it needs the slot signal).
+			if dice, ok := it.WeaponDamage(); ok {
+				switch {
+				case slots == nil:
+					if !weaponSet {
+						m.SetWeapon(dice, it.Name(), it.DamageTypes(), it.RangedClass(), it.AmmoKind(), it.WeaponSize())
+						weaponSet = true
+					}
+				case base == slot.WieldSlot && !weaponSet:
 					m.SetWeapon(dice, it.Name(), it.DamageTypes(), it.RangedClass(), it.AmmoKind(), it.WeaponSize())
 					weaponSet = true
+				case base == slot.OffHandSlot && !offSet:
+					// First off-hand weapon wins. The off-hand slot's Max-1 cap
+					// already prevents a second item landing here, so !offSet is
+					// belt-and-braces, parallel to the main-weapon guard.
+					m.SetOffWeapon(dice, it.Name(), it.DamageTypes(), it.WeaponSize())
+					offSet = true
 				}
 			}
 			// armor-depth §4: sum per-type resistance across fitting armor
@@ -132,16 +150,18 @@ func (s *Store) EquipMobAtSpawn(m *MobInstance, ids []string, items *item.Templa
 }
 
 // placeMobItem reports whether it fits a free eligible slot and, when it
-// does, marks its whole footprint occupied. Mirrors the player equip
-// path's eligibility + footprint logic (shared slot helpers) but without
-// auto-swap: a slot already taken by earlier gear is simply unavailable,
-// so the item is skipped rather than displacing the occupant. Returns
-// false when the item declares no eligible slots or none can host its
-// footprint with every key free.
-func placeMobItem(reg *slot.Registry, it *ItemInstance, occupied map[string]bool) bool {
+// does, marks its whole footprint occupied and returns the BASE slot it was
+// placed into (the eligible-slot key, e.g. slot.WieldSlot or slot.OffHandSlot —
+// used by the caller to tell a main weapon from an off-hand one,
+// two-weapon-fighting §2.3). Mirrors the player equip path's eligibility +
+// footprint logic (shared slot helpers) but without auto-swap: a slot already
+// taken by earlier gear is simply unavailable, so the item is skipped rather
+// than displacing the occupant. Returns ("", false) when the item declares no
+// eligible slots or none can host its footprint with every key free.
+func placeMobItem(reg *slot.Registry, it *ItemInstance, occupied map[string]bool) (string, bool) {
 	eligible := it.EligibleSlots()
 	if len(eligible) == 0 {
-		return false
+		return "", false
 	}
 	companions := it.CompanionSlots()
 	for _, base := range eligible {
@@ -168,7 +188,7 @@ func placeMobItem(reg *slot.Registry, it *ItemInstance, occupied map[string]bool
 		for _, k := range fp {
 			occupied[k] = true
 		}
-		return true
+		return base, true
 	}
-	return false
+	return "", false
 }

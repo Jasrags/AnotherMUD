@@ -1,0 +1,24 @@
+id: brigand-cutthroat
+name: a brigand cutthroat
+type: npc
+behavior: stationary
+description: |
+  A scarred roadsman with a longsword in his fist and a broad belt knife held
+  low in the off hand. He fights with both at once — a hacking blade and a
+  darting point — trusting two edges to find the gap one would miss.
+tags: [humanoid, outlaw]
+keywords: [brigand, cutthroat, outlaw, roadsman]
+# Hostile: he sets on travellers where the Quarry Road meets the Westwood.
+disposition_rules:
+  default: hostile
+# Two-weapon-fighting §2.3 (dual-wield demo): equipped with a main longsword
+# (wield slot, one-handed for a medium mob) AND a belt knife (a SMALL weapon →
+# light → off-hand eligible). EquipMobAtSpawn files the longsword in the wield
+# slot and the knife in the off-hand slot, so his combat.Stats carry an off-hand
+# profile: he makes a main swing AND an off-hand strike each round, at the full
+# un-feated two-weapon penalty (mobs hold no feats). Both blades drop on death.
+equipment: [two-rivers-longsword, belt-knife]
+stats:
+  hp_max: 24
+  str: 13
+loot_table: boar-loot
