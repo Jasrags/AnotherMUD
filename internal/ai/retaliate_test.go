@@ -28,8 +28,7 @@ func newAggroBus() (*eventbus.Bus, *aggroRecorder) {
 }
 
 func setGrudge(m *entities.MobInstance, playerID string, room world.RoomID) {
-	m.SetProperty(entities.PropRetaliateTarget, playerID)
-	m.SetProperty(entities.PropRetaliateRoom, string(room))
+	m.SetRetaliation(playerID, string(room))
 }
 
 // retaliateDeps is f.deps() plus a MobAggro-capturing bus.

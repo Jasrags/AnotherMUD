@@ -267,6 +267,52 @@ func (m *MobInstance) SetProperty(key string, value any) {
 	m.properties[key] = value
 }
 
+// SetRetaliation / Retaliation / ClearRetaliation are the atomic
+// accessors for a mob's ranged-combat Model C (§10) retaliation grudge —
+// the shooter's player id + the room the shot came from. The grudge is a
+// (target, room) PAIR written from a session goroutine (the `shoot` verb)
+// and read/cleared from the tick goroutine (the AI dispatcher), so the two
+// fields MUST move together under one lock: three separate SetProperty
+// calls would let a reader observe a half-written or half-cleared grudge
+// (target set but room blank). These take propsMu once across both keys.
+// (The AI-managed pursuit expiry stays an ordinary property — it is touched
+// only by the single tick goroutine, so it needs no cross-goroutine pairing.)
+func (m *MobInstance) SetRetaliation(targetPlayerID string, room string) {
+	m.propsMu.Lock()
+	defer m.propsMu.Unlock()
+	if m.properties == nil {
+		m.properties = make(map[string]any)
+	}
+	m.properties[PropRetaliateTarget] = targetPlayerID
+	m.properties[PropRetaliateRoom] = room
+}
+
+// Retaliation returns the live grudge (target player id, room) and whether
+// one is set. A blank target is the "no grudge" sentinel; a non-string value
+// (a stray write under the key) reads as no grudge rather than panicking.
+func (m *MobInstance) Retaliation() (targetPlayerID string, room string, ok bool) {
+	m.propsMu.RLock()
+	defer m.propsMu.RUnlock()
+	t, _ := m.properties[PropRetaliateTarget].(string)
+	if t == "" {
+		return "", "", false
+	}
+	r, _ := m.properties[PropRetaliateRoom].(string)
+	return t, r, true
+}
+
+// ClearRetaliation drops the grudge pair atomically. Property maps have no
+// delete, so blanking the target is the sentinel Retaliation() checks.
+func (m *MobInstance) ClearRetaliation() {
+	m.propsMu.Lock()
+	defer m.propsMu.Unlock()
+	if m.properties == nil {
+		return
+	}
+	m.properties[PropRetaliateTarget] = ""
+	m.properties[PropRetaliateRoom] = ""
+}
+
 // TemplateID returns the source template id (§2.3 step 4 → set on
 // the entity's properties; here we additionally surface a typed
 // accessor so loot listeners and AI don't have to round-trip through

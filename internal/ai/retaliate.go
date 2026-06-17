@@ -2,12 +2,15 @@ package ai
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"log/slog"
 	"sort"
 	"time"
 
 	"github.com/Jasrags/AnotherMUD/internal/entities"
 	"github.com/Jasrags/AnotherMUD/internal/eventbus"
+	"github.com/Jasrags/AnotherMUD/internal/logging"
 	"github.com/Jasrags/AnotherMUD/internal/world"
 )
 
@@ -45,8 +48,8 @@ const propRetaliateExpireAt = "retaliate_expire_at"
 //   - shooter's room is not adjacent (mob moved, or multi-room) → drop the
 //     grudge. Multi-room pursuit is a deferred refinement (§10).
 func tryRetaliate(ctx context.Context, m *entities.MobInstance, deps Deps) bool {
-	targetID := stringProp(m, entities.PropRetaliateTarget)
-	if targetID == "" {
+	targetID, destRoomStr, ok := m.Retaliation()
+	if !ok {
 		return false
 	}
 	// Without world/placement/bus the step can't act; leave the grudge for a
@@ -54,7 +57,7 @@ func tryRetaliate(ctx context.Context, m *entities.MobInstance, deps Deps) bool 
 	if deps.World == nil || deps.Placement == nil || deps.Bus == nil {
 		return false
 	}
-	destRoom := world.RoomID(stringProp(m, entities.PropRetaliateRoom))
+	destRoom := world.RoomID(destRoomStr)
 	if destRoom == "" {
 		clearRetaliation(m)
 		return true
@@ -87,8 +90,19 @@ func tryRetaliate(ctx context.Context, m *entities.MobInstance, deps Deps) bool 
 	}
 	dst, err := deps.World.Move(srcID, dir)
 	if err != nil {
-		// A closed door (or other block) stands between them: keep the grudge
-		// and try again next tick until the timeout — mobs don't open doors.
+		if errors.Is(err, world.ErrDoorClosed) {
+			// A closed door stands between them: keep the grudge and retry next
+			// tick until the timeout — mobs don't open doors.
+			return true
+		}
+		// Any other Move error means the exit is broken (the target room went
+		// missing) — a content/wiring fault, not a door the mob can wait out.
+		// Drop the grudge so it doesn't chase a phantom room until the timeout.
+		logging.From(ctx).Warn("retaliate: broken exit during pursuit",
+			slog.String("mob_id", string(m.ID())),
+			slog.String("dir", dir.Long()),
+			slog.Any("err", err))
+		clearRetaliation(m)
 		return true
 	}
 
@@ -153,7 +167,11 @@ func announceCharge(ctx context.Context, b Broadcaster, name string, src, dst wo
 	if b == nil || name == "" {
 		return
 	}
-	b.SendToRoom(ctx, src, fmt.Sprintf("%s charges off to the %s.", name, dir.Long()))
+	to := dir.Long()
+	if to == "" {
+		to = "away"
+	}
+	b.SendToRoom(ctx, src, fmt.Sprintf("%s charges off to the %s.", name, to))
 	from := dir.Opposite().Long()
 	if from == "" {
 		from = "elsewhere"
@@ -188,12 +206,12 @@ func retaliationExpired(m *entities.MobInstance, deps Deps) bool {
 	return now >= deadline
 }
 
-// clearRetaliation drops the grudge (and its expiry). Property maps have no
-// delete, so an empty target string is the "no grudge" sentinel tryRetaliate
-// and the dispatcher's combat-gate both check.
+// clearRetaliation drops the grudge (target+room, atomically) and resets its
+// AI-managed expiry. The expiry is a single-goroutine (tick) property, so it
+// needs no pairing with the grudge — but it is reset here so a re-grudged mob
+// re-arms a fresh deadline on its next handling.
 func clearRetaliation(m *entities.MobInstance) {
-	m.SetProperty(entities.PropRetaliateTarget, "")
-	m.SetProperty(entities.PropRetaliateRoom, "")
+	m.ClearRetaliation()
 	m.SetProperty(propRetaliateExpireAt, int64(0))
 }
 
@@ -201,15 +219,6 @@ func clearRetaliation(m *entities.MobInstance) {
 // the dispatcher's combat-gate to drop a satisfied grudge when the mob is
 // already fighting.
 func hasRetaliation(m *entities.MobInstance) bool {
-	return stringProp(m, entities.PropRetaliateTarget) != ""
-}
-
-// stringProp reads a string-valued property, treating absent/wrong-type as "".
-func stringProp(m *entities.MobInstance, key string) string {
-	raw, ok := m.Property(key)
-	if !ok {
-		return ""
-	}
-	s, _ := raw.(string)
-	return s
+	_, _, ok := m.Retaliation()
+	return ok
 }

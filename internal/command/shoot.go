@@ -155,8 +155,13 @@ func ShootHandler(ctx context.Context, c *Context) error {
 	// only survivors (a kill ends it).
 	if alive {
 		if mob, ok := targetCombatant.(*entities.MobInstance); ok {
-			mob.SetProperty(entities.PropRetaliateTarget, c.Actor.PlayerID())
-			mob.SetProperty(entities.PropRetaliateRoom, string(room.ID))
+			// A headless/test actor has no player id; an unresolvable grudge
+			// would just be a no-op, so skip stamping it. The pair is set
+			// atomically (SetRetaliation) — the AI tick reads target+room
+			// together, so a half-written grudge must never be observable.
+			if shooterID := c.Actor.PlayerID(); shooterID != "" {
+				mob.SetRetaliation(shooterID, string(room.ID))
+			}
 		}
 	}
 	return nil

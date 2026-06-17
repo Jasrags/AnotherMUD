@@ -104,7 +104,9 @@ func (d *Dispatcher) Tick(ctx context.Context, tickCount uint64) {
 		if d.deps.Combat != nil && d.deps.Combat.InCombat(m.CombatantID()) {
 			// A mob already in a fight has had its grudge settled — drop any
 			// lingering retaliation intent so it doesn't re-pursue after this
-			// combat ends (ranged-combat §10 slice 2).
+			// combat ends (ranged-combat §10 slice 2). A grudge from a
+			// *different* attacker is also dropped here: multi-target
+			// retaliation is out of scope (§10).
 			if hasRetaliation(m) {
 				clearRetaliation(m)
 			}
