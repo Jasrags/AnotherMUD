@@ -131,6 +131,24 @@ type ItemInstance struct {
 	// none. The equip path applies the grade-reduced penalty as an armor_check
 	// stat modifier the skill check subtracts.
 	armorCheckPenalty int
+	// armorBonus is the item's structured additive AC contribution
+	// (armor-depth §3), applied as an `ac` stat modifier at equip. 0 = none.
+	// Distinct from a legacy `{stat: ac}` modifier (a "misc" AC source): both
+	// raise AC, but armor_bonus is the named armor term — kept structured so
+	// future grade-scaling / typed-bonus rules have a handle. The max-Dex cap
+	// composes with the Dex term (§3 dex_ac), never with this.
+	armorBonus int
+	// armorMaxDex caps how much of the wearer's Dex modifier counts toward AC
+	// while this armor is worn (armor-depth §3). nil = no cap (full Dex). The
+	// most restrictive (lowest) cap across worn pieces wins, snapshotted at
+	// equip into the holder's armorDexCap. Aliases the template pointer (the
+	// template is immutable, never mutated through this).
+	armorMaxDex *int
+	// armorTier is the item's armor proficiency tier (armor-depth §5) from the
+	// engine armor-tier vocabulary (light/medium/heavy); "" = untiered. Matched
+	// against the wearer's class-granted armor tiers to gate the non-proficient
+	// attack penalty.
+	armorTier string
 }
 
 // ID implements Entity.
@@ -374,6 +392,26 @@ func (it *ItemInstance) Resistances() map[string]int {
 // 0 for an item that imposes none.
 func (it *ItemInstance) ArmorCheckPenalty() int { return it.armorCheckPenalty }
 
+// ArmorBonus returns the item's structured additive AC contribution
+// (armor-depth §3); 0 when it grants none. The equip path applies it as an
+// `ac` stat modifier, stacking across distinct worn pieces.
+func (it *ItemInstance) ArmorBonus() int { return it.armorBonus }
+
+// ArmorMaxDex returns the cap this armor places on the wearer's Dex
+// contribution to AC (armor-depth §3), or nil for no cap (full Dex applies).
+// The returned pointer is a copy — mutating it does not affect the instance.
+func (it *ItemInstance) ArmorMaxDex() *int {
+	if it.armorMaxDex == nil {
+		return nil
+	}
+	v := *it.armorMaxDex
+	return &v
+}
+
+// ArmorTier returns the item's armor proficiency tier (armor-depth §5) from
+// the light/medium/heavy vocabulary; "" when untiered.
+func (it *ItemInstance) ArmorTier() string { return it.armorTier }
+
 // EligibleSlots returns the slots this item may be equipped into
 // (inventory-equipment-items §3.3) as a fresh slice so callers cannot
 // alias instance state. Empty means the item is not equippable. Lifted
@@ -531,5 +569,8 @@ func buildInstanceFromTemplate(tpl *item.Template, id EntityID) *ItemInstance {
 		strRating:         strRating,
 		resistances:       resistances,
 		armorCheckPenalty: tpl.ArmorCheckPenalty,
+		armorBonus:        tpl.ArmorBonus,
+		armorMaxDex:       tpl.ArmorMaxDex,
+		armorTier:         tpl.ArmorTier,
 	}
 }

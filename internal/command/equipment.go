@@ -11,6 +11,7 @@ import (
 	"github.com/Jasrags/AnotherMUD/internal/eventbus"
 	"github.com/Jasrags/AnotherMUD/internal/keyword"
 	"github.com/Jasrags/AnotherMUD/internal/light"
+	"github.com/Jasrags/AnotherMUD/internal/progression"
 	"github.com/Jasrags/AnotherMUD/internal/slot"
 	"github.com/Jasrags/AnotherMUD/internal/stats"
 	"github.com/Jasrags/AnotherMUD/internal/world"
@@ -47,6 +48,14 @@ const statKeyArmorCheck = "armor_check"
 // non-proficient warning for them.
 type weaponProficiencyChecker interface {
 	IsWeaponProficient() bool
+}
+
+// armorProficiencyChecker mirrors weaponProficiencyChecker for armor
+// (armor-depth §5): whether every worn tiered armor is one the actor's
+// class(es) grant. connActor implements it; actors that don't model armor
+// proficiency simply don't, and the equip path skips the clumsy-wear cue.
+type armorProficiencyChecker interface {
+	IsArmorProficient() bool
 }
 
 func EquipHandler(ctx context.Context, c *Context) error {
@@ -223,6 +232,16 @@ func EquipHandler(ctx context.Context, c *Context) error {
 			mods = append(mods, stats.Modifier{Stat: statKeyArmorCheck, Value: penalty})
 		}
 	}
+	// Armor bonus (armor-depth §3): a worn armor/shield's structured AC
+	// contribution applies as an `ac` stat modifier under the SAME
+	// EquipmentSourceKey — additive, stacking across distinct pieces (body
+	// armor + shield), reversing cleanly on unequip. The defense channel reads
+	// `ac`, so this makes armor harder-to-hit in EVERY ruleset; the max-Dex
+	// cap (WoT only, via the synthetic `dex_ac` channel input) is computed at
+	// recompute time, not here.
+	if ab := item.ArmorBonus(); ab != 0 {
+		mods = append(mods, stats.Modifier{Stat: string(progression.StatAC), Value: ab})
+	}
 
 	if !c.Actor.Equip(footprint, item.ID(), mods) {
 		// TOCTOU: inventory lost the item between resolve and equip (a
@@ -282,6 +301,17 @@ func EquipHandler(ctx context.Context, c *Context) error {
 		if wpc, ok := c.Actor.(weaponProficiencyChecker); ok && !wpc.IsWeaponProficient() {
 			_ = c.Actor.Write(ctx, fmt.Sprintf(
 				"You handle %s clumsily — it is not a weapon you were trained to wield.", item.Name()))
+		}
+	}
+	// armor-depth §5: the non-proficient armor penalty (its check penalty
+	// extended to attack rolls) is otherwise silent, so warn when wearing
+	// tiered armor the class is not trained in. Checked after Equip so the
+	// worn-armor-tier snapshot IsArmorProficient reads reflects the item just
+	// equipped; an untiered piece never triggers it.
+	if item.ArmorTier() != "" {
+		if apc, ok := c.Actor.(armorProficiencyChecker); ok && !apc.IsArmorProficient() {
+			_ = c.Actor.Write(ctx, fmt.Sprintf(
+				"You wear %s clumsily — it is not armor you were trained to use.", item.Name()))
 		}
 	}
 

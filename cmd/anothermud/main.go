@@ -1593,6 +1593,21 @@ func run() error {
 		}
 		return -cfg.NonProficientPenalty
 	}
+	// armor-depth §5: the non-proficient ARMOR consequence — its check penalty
+	// extended to attack rolls. Players only (mobs have no class → always
+	// proficient); the magnitude is the actor's summed armor_check stat, so it
+	// composes additively through the same HitModAdjust seam as the weapon
+	// penalty and the darkness/condition penalties.
+	attackerArmorPenalty := func(id combat.CombatantID) int {
+		if !strings.HasPrefix(string(id), combat.PlayerPrefix) {
+			return 0
+		}
+		a, ok := mgr.GetByPlayerID(string(id)[len(combat.PlayerPrefix):])
+		if !ok || a.IsArmorProficient() {
+			return 0
+		}
+		return -a.ArmorCheckPenaltyTotal()
+	}
 	// conditions §3/§5: a bare entity id → the aggregate combat/save impact
 	// of its active condition flags (prone/stunned/blinded/frightened/…).
 	// Reads the live effect-flag set; the leaf `condition` package does the
@@ -1605,7 +1620,7 @@ func run() error {
 		// conditions §3 — the attacker-penalty half (prone/blinded/fear)
 		// composes additively here alongside darkness + proficiency.
 		condPenalty := -conditionImpact(combat.EntityIDOf(id)).AttackerHitPenalty
-		return attackerDarknessPenalty(id) + attackerProficiencyPenalty(id) + condPenalty
+		return attackerDarknessPenalty(id) + attackerProficiencyPenalty(id) + attackerArmorPenalty(id) + condPenalty
 	}
 
 	// baseSaveBonus resolves a bare entity's class+ability save on an axis,

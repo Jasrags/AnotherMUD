@@ -427,6 +427,7 @@ type ClassFile struct {
 	AllowedGenders        []string             `yaml:"allowed_genders,omitempty"`
 	ProficiencyTiers      []string             `yaml:"proficiency_tiers,omitempty"`
 	ProficiencyCategories []string             `yaml:"proficiency_categories,omitempty"`
+	ArmorProficiencyTiers []string             `yaml:"armor_proficiency_tiers,omitempty"`
 	// SaveProgressions maps a save axis (fortitude/reflex/will) to a
 	// strong or weak base-save curve (saves §2). An omitted axis defaults
 	// to weak. Validated at load: unknown axis or progression names are an

@@ -1,0 +1,13 @@
+# WoT combat-channel override (armor-depth §3). Unlike the fantasy baseline
+# (content/core/channel-map: `defense: ac`), the WoT d20-flavored ruleset folds
+# the wearer's Dexterity into AC. `dex_ac` is an ENGINE-COMPUTED synthetic input
+# (session.cappedDexAC): the Dexterity modifier, capped by the most restrictive
+# worn armor's max-Dex — the full modifier when unarmored. Heavier armor both
+# raises `ac` (its armor_bonus) AND clamps how much Dex still counts, exactly
+# the WoT armor table's bonus + max-Dex columns.
+#
+# This file depends on core (later-wins) and overrides ONLY `defense`; attack /
+# damage_bonus / mitigation keep the core baseline. A boot that does not include
+# the wot pack never sees this, so the fantasy AC is byte-identical to before.
+channels:
+  defense: ac + dex_ac

@@ -115,6 +115,41 @@ func TestItemInstance_DamageTypesAndResistances(t *testing.T) {
 	}
 }
 
+// Armor-depth §3/§5: ArmorBonus / ArmorMaxDex / ArmorTier lift onto the
+// instance from the template, ArmorMaxDex returns a defensive copy, and a
+// plain item exposes the zero/nil defaults.
+func TestItemInstance_ArmorDepthMetadata(t *testing.T) {
+	s := NewStore()
+	cap := 1
+	helm, err := s.Spawn(&item.Template{
+		ID: "wot:great-helm", Name: "a great helm", Type: "item",
+		ArmorBonus: 4, ArmorMaxDex: &cap, ArmorTier: "heavy",
+	})
+	if err != nil {
+		t.Fatalf("Spawn: %v", err)
+	}
+	if helm.ArmorBonus() != 4 {
+		t.Errorf("ArmorBonus() = %d, want 4", helm.ArmorBonus())
+	}
+	if helm.ArmorTier() != "heavy" {
+		t.Errorf("ArmorTier() = %q, want heavy", helm.ArmorTier())
+	}
+	mdx := helm.ArmorMaxDex()
+	if mdx == nil || *mdx != 1 {
+		t.Fatalf("ArmorMaxDex() = %v, want ptr to 1", mdx)
+	}
+	*mdx = 99 // mutate the returned copy
+	if got := helm.ArmorMaxDex(); got == nil || *got != 1 {
+		t.Error("ArmorMaxDex() returned an aliased pointer; mutation leaked")
+	}
+
+	plain, _ := s.Spawn(&item.Template{ID: "wot:rock", Name: "a rock", Type: "item"})
+	if plain.ArmorBonus() != 0 || plain.ArmorTier() != "" || plain.ArmorMaxDex() != nil {
+		t.Errorf("plain item armor metadata = (bonus %d, tier %q, maxDex %v), want (0, \"\", nil)",
+			plain.ArmorBonus(), plain.ArmorTier(), plain.ArmorMaxDex())
+	}
+}
+
 func TestDecrementInt(t *testing.T) {
 	s := NewStore()
 	it, err := s.Spawn(&item.Template{

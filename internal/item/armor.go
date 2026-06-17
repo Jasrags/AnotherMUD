@@ -31,3 +31,21 @@ func ValidArmorTier(name string) bool {
 	}
 	return false
 }
+
+// ArmorProficient reports whether a wearer whose class(es) grant grantedTiers
+// may wear an armor of armorTier without the non-proficient consequence
+// (armor-depth §5). Untiered armor ("") is always proficient; a tiered armor
+// is proficient only when its tier is in the granted set. The mirror of
+// Proficient for weapons, minus the category axis (armor has no categories)
+// and the lowest-tier-is-free rule (armor §5 grants nothing for free).
+func ArmorProficient(grantedTiers []string, armorTier string) bool {
+	if armorTier == "" {
+		return true
+	}
+	for _, t := range grantedTiers {
+		if t == armorTier {
+			return true
+		}
+	}
+	return false
+}

@@ -76,6 +76,11 @@ const (
 const (
 	StatHitMod StatType = "hit_mod"
 	StatAC     StatType = "ac"
+	// StatArmorCheck is the summed armor check penalty from worn armor
+	// (armor-depth §6) — a positive magnitude applied at equip that Str/Dex
+	// skill checks subtract, and that the §5 non-proficient consequence
+	// extends to attack rolls. Modifier-only (base 0).
+	StatArmorCheck StatType = "armor_check"
 )
 
 // DefaultPlayerBase returns the engine-default base attribute map

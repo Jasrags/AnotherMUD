@@ -50,5 +50,14 @@ items:
   - arrow
   - fine-arrow
   - fine-arrow
+  # Armor-depth (S1.E) demo — finished smithwork waiting to be claimed. A
+  # padded cap (LIGHT: a channeler wears it trained, keeps most Dex) and a great
+  # helm (HEAVY: big AC bonus but clamps Dex to +1, and untrained on a channeler
+  # so it fouls attacks). On `make run-wot`, an initiate: `score` (note AC),
+  # `equip padded cap` → AC up by armor_bonus + Dex; `equip great helm` → clumsy
+  # cue, AC reflects the +4 bonus but Dex capped to +1, and swings take the -1
+  # non-proficient penalty.
+  - padded-cap
+  - great-helm
 mobs:
   - haral-luhhan

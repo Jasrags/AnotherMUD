@@ -1777,6 +1777,18 @@ type connActor struct {
 	// resistances. The stored map is never mutated after Store (copy-on-
 	// recompute), so readers may share it without copying.
 	armorResist atomic.Pointer[armorResistances]
+	// armorDexCap is the most restrictive (lowest) max-Dex cap across worn
+	// armor (armor-depth §3), recomputed on equip/unequip/login alongside
+	// armorResist and read LOCK-FREE in Stats() to derive the synthetic
+	// `dex_ac` channel input — same atomic discipline as `weapon`. nil = no
+	// cap (the full Dex modifier counts toward AC, the d20 unarmored case).
+	armorDexCap atomic.Pointer[int]
+	// armorTiers caches the distinct non-empty armor tiers currently worn
+	// (armor-depth §5), recomputed alongside armorDexCap and read by
+	// IsArmorProficient (off a.mu, on the combat goroutine via HitModAdjust).
+	// nil = no tiered armor worn. The stored slice is never mutated after
+	// Store (copy-on-recompute), so readers may share it.
+	armorTiers atomic.Pointer[[]string]
 	// featWeaponBonus caches the per-weapon-category feat hit/crit bonuses
 	// (EPIC S4 Phase 3c), recomputed on feat change (applyFeatGrants) and read
 	// LOCK-FREE in Stats() — same atomic.Pointer discipline as `weapon`, so the
@@ -2558,6 +2570,12 @@ func (a *connActor) SetColorEnabled(v bool) {
 // line evicts.
 const tellsSessionHistoryCap = 50
 
+// channelInputDexAC is the synthetic defense-channel variable name (armor-depth
+// §3) the WoT mapping references (`defense: ac + dex_ac`). It is NOT a stored
+// stat — Stats()'s lookup computes it via cappedDexAC. Kept as a const so the
+// engine side and the content formula agree on the spelling.
+const channelInputDexAC = "dex_ac"
+
 // LastTellPartner returns the display name of the most recent
 // tell counterparty for this actor, or "" if none.
 func (a *connActor) LastTellPartner() string {
@@ -3042,6 +3060,8 @@ func (a *connActor) recomputeWeaponLocked() {
 	if a.items == nil || len(a.equipment) == 0 {
 		a.weapon.Store(nil)
 		a.armorResist.Store(nil)
+		a.armorDexCap.Store(nil)
+		a.armorTiers.Store(nil)
 		return
 	}
 	keys := make([]string, 0, len(a.equipment))
@@ -3058,6 +3078,10 @@ func (a *connActor) recomputeWeaponLocked() {
 	seen := make(map[entities.EntityID]bool, len(keys))
 	var picked *weaponInfo
 	var resist map[string]int
+	// Armor-depth §3/§5: the most restrictive (lowest) max-Dex cap across worn
+	// armor, and the distinct tiers worn. minCap nil ⇒ no piece caps Dex.
+	var minCap *int
+	var tiers []string
 	for _, k := range keys {
 		id := a.equipment[k]
 		if seen[id] {
@@ -3077,6 +3101,21 @@ func (a *connActor) recomputeWeaponLocked() {
 				resist = make(map[string]int)
 			}
 			resist[dt] += amt
+		}
+		if mdx := it.ArmorMaxDex(); mdx != nil && (minCap == nil || *mdx < *minCap) {
+			minCap = mdx // ArmorMaxDex returns a fresh copy — safe to retain
+		}
+		if t := it.ArmorTier(); t != "" {
+			already := false
+			for _, existing := range tiers {
+				if existing == t {
+					already = true
+					break
+				}
+			}
+			if !already {
+				tiers = append(tiers, t)
+			}
 		}
 		if picked == nil {
 			if dice, ok := it.WeaponDamage(); ok {
@@ -3101,6 +3140,12 @@ func (a *connActor) recomputeWeaponLocked() {
 		a.armorResist.Store(&armorResistances{byType: resist})
 	} else {
 		a.armorResist.Store(nil)
+	}
+	a.armorDexCap.Store(minCap)
+	if len(tiers) > 0 {
+		a.armorTiers.Store(&tiers)
+	} else {
+		a.armorTiers.Store(nil)
 	}
 }
 
@@ -3132,6 +3177,59 @@ func (a *connActor) IsWeaponProficient() bool {
 	}
 	a.mu.Unlock()
 	return item.Proficient(tiers, cats, w.tier, w.category)
+}
+
+// cappedDexAC is the synthetic `dex_ac` channel input (armor-depth §3): the
+// wearer's Dex modifier contribution to AC, capped by the most restrictive
+// worn armor's max-Dex. With no cap (unarmored, or all-uncapped armor) the
+// full Dex modifier applies — the d20 unarmored case. Read live each round by
+// the defense-channel lookup, so a Dex buff moves AC immediately; only the cap
+// snapshot (armorDexCap) moves on equip. Uses the same trunc-toward-zero
+// modifier as the WoT defense formula's `trunc((dex-10)/2)`, so the full-Dex
+// term and this cap share arithmetic.
+func (a *connActor) cappedDexAC() int {
+	dexMod := progression.AbilityModifier(a.statBlock.Effective(progression.StatDEX))
+	cap := a.armorDexCap.Load()
+	if cap == nil || dexMod <= *cap {
+		return dexMod
+	}
+	return *cap
+}
+
+// IsArmorProficient reports whether every worn tiered armor is one the actor's
+// class(es) grant (armor-depth §5). An unarmored actor and untiered armor are
+// always proficient. Mirrors IsWeaponProficient: the class is resolved LIVE by
+// id and grants are unioned across a multiclass character. Read on the combat
+// goroutine (HitModAdjust) and by the equip cue.
+func (a *connActor) IsArmorProficient() bool {
+	worn := a.armorTiers.Load()
+	if worn == nil || len(*worn) == 0 {
+		return true
+	}
+	a.mu.Lock()
+	var granted []string
+	if a.classes != nil {
+		for _, cid := range a.classIDs {
+			if cls, ok := a.classes.Get(cid); ok {
+				granted = append(granted, cls.ArmorProficiencyTiers...)
+			}
+		}
+	}
+	a.mu.Unlock()
+	for _, t := range *worn {
+		if !item.ArmorProficient(granted, t) {
+			return false
+		}
+	}
+	return true
+}
+
+// ArmorCheckPenaltyTotal returns the actor's summed armor check penalty
+// (armor-depth §6) — the grade-reduced check penalties of worn armor, already
+// applied as the `armor_check` stat at equip. The §5 non-proficient
+// consequence extends this magnitude to attack rolls.
+func (a *connActor) ArmorCheckPenaltyTotal() int {
+	return a.statBlock.Effective(progression.StatArmorCheck)
 }
 
 // Saves derives the actor's three saving throws (saves §2): the class-
@@ -4764,7 +4862,19 @@ func (a *connActor) Stats() combat.Stats {
 	damageBonus := combat.STRBonus(str)
 	mitigation := 0
 	if a.channelMap != nil {
-		lookup := func(name string) int { return a.statBlock.Effective(progression.StatType(name)) }
+		// The lookup resolves a channel-formula variable to its value. Most are
+		// real stats; `dex_ac` is a SYNTHETIC input (armor-depth §3) — the
+		// wearer's Dex contribution to AC, capped by worn armor — computed live
+		// here rather than stored, so a Dex change is reflected immediately and
+		// only the cap snapshot moves on equip. A ruleset that wants Dex in AC
+		// (the WoT d20 mapping: `defense: ac + dex_ac`) references it; the
+		// fantasy baseline (`defense: ac`) never asks, so this stays inert there.
+		lookup := func(name string) int {
+			if name == channelInputDexAC {
+				return a.cappedDexAC()
+			}
+			return a.statBlock.Effective(progression.StatType(name))
+		}
 		hitMod = a.channelMap.Value(channel.Attack, lookup)
 		ac = a.channelMap.Value(channel.Defense, lookup)
 		damageBonus = a.channelMap.Value(channel.DamageBonus, lookup)

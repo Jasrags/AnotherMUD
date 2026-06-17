@@ -1,0 +1,23 @@
+id: great-helm
+name: a great helm
+type: item
+description: |
+  A heavy barrel of riveted steel that swallows the whole head, sight narrowed
+  to a slit. It turns nearly anything — and weighs like it. A soldier's armor,
+  not a channeler's: worn untrained, it fouls every swing and pins the head
+  too heavily to dodge with.
+tags: [armor, metal, wearable, heavy]
+keywords: [helm, great, helmet]
+eligible_slots: [head]
+# Armor-depth §3/§5: HEAVY armor. A big armor bonus (harder to hit), but a tight
+# max-Dex of 1 clamps how much Dex still counts toward AC. An Initiate/Wilder is
+# NOT trained in heavy armor (armor_proficiency_tiers: [light]), so wearing it is
+# non-proficient: its check penalty (1) extends to attack rolls, and the equip
+# emits a clumsy-wear cue.
+armor_tier: heavy
+armor_bonus: 4
+armor_max_dex: 1
+armor_check_penalty: 1
+properties:
+  weight: 8
+  value: 60

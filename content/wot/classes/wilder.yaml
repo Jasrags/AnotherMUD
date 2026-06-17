@@ -15,6 +15,11 @@ level_up_flavor: |
 # one-power level-up (WoT S2). XP earned channeling advances this track.
 bound_track: one-power
 
+# Armor-depth §5: a self-taught channeler is no soldier — light armor only.
+# Medium/heavy armor is non-proficient: its check penalty extends to attack
+# rolls (and a heavy piece also clamps the Dex that counts toward AC).
+armor_proficiency_tiers: [light]
+
 # WoT S2 Phase 1: the level-1 endowment that gives a channeler an actual
 # One Power pool. DefaultPlayerBase leaves resource_max at 0 (non-channelers
 # have no pool); this flat grant is applied once at creation via AdjustBase

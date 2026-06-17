@@ -18,6 +18,28 @@ func TestValidArmorTier(t *testing.T) {
 	}
 }
 
+func TestArmorProficient(t *testing.T) {
+	tests := []struct {
+		name      string
+		granted   []string
+		armorTier string
+		want      bool
+	}{
+		{"untiered armor is always proficient", []string{"light"}, "", true},
+		{"untiered armor with no grants is proficient", nil, "", true},
+		{"granted tier is proficient", []string{"light", "medium"}, "light", true},
+		{"ungranted tier is not proficient", []string{"light"}, "heavy", false},
+		{"no grants: any tiered armor is non-proficient", nil, "light", false},
+		{"exact-only grant", []string{"heavy"}, "heavy", true},
+	}
+	for _, tt := range tests {
+		if got := ArmorProficient(tt.granted, tt.armorTier); got != tt.want {
+			t.Errorf("%s: ArmorProficient(%v, %q) = %v, want %v",
+				tt.name, tt.granted, tt.armorTier, got, tt.want)
+		}
+	}
+}
+
 func TestArmorTierNamesOrderedAndCopied(t *testing.T) {
 	got := ArmorTierNames()
 	if !slices.Equal(got, []string{"light", "medium", "heavy"}) {

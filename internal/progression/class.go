@@ -98,6 +98,13 @@ type Class struct {
 	// at Register.
 	ProficiencyCategories []string
 
+	// ArmorProficiencyTiers is the set of armor tiers this class may wear
+	// without the non-proficient consequence (armor-depth §5, e.g. "light",
+	// "medium", "heavy"), mirroring ProficiencyTiers for weapons. Composed
+	// across a multiclass character's classes. Empty = no tiered armor is
+	// worn proficiently. Lowercased at Register.
+	ArmorProficiencyTiers []string
+
 	// SaveProgressions declares this class's base-save curve per axis
 	// (saves §2): a SaveType mapped to strong or weak. An axis the class
 	// does not list defaults to weak. Composed across a multiclass
@@ -212,6 +219,13 @@ func (cr *ClassRegistry) Register(c *Class) error {
 			cs[i] = strings.ToLower(strings.TrimSpace(v))
 		}
 		clone.ProficiencyCategories = cs
+	}
+	if len(c.ArmorProficiencyTiers) > 0 {
+		at := make([]string, len(c.ArmorProficiencyTiers))
+		for i, v := range c.ArmorProficiencyTiers {
+			at[i] = strings.ToLower(strings.TrimSpace(v))
+		}
+		clone.ArmorProficiencyTiers = at
 	}
 	if len(c.SaveProgressions) > 0 {
 		sp := make(map[SaveType]SaveProgression, len(c.SaveProgressions))

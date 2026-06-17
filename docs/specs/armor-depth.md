@@ -112,14 +112,28 @@ terms and the cap.
 
 **Acceptance criteria**
 
-- [ ] AC is composed of a base, a Dex term, an armor bonus, a shield bonus, and
+- [x] AC is composed of a base, a Dex term, an armor bonus, a shield bonus, and
       misc contributors that stack across distinct sources.
-- [ ] The worn armor caps the Dex term at its max-Dex; with no armor or no cap
+- [x] The worn armor caps the Dex term at its max-Dex; with no armor or no cap
       the full Dex modifier applies; the most restrictive cap wins if several
       apply.
-- [ ] AC is a single value vs all damage types (no per-type AC).
-- [ ] A character wearing no armor has identical AC to before this slice.
-- [ ] A shield's bonus stacks with body armor's bonus.
+- [x] AC is a single value vs all damage types (no per-type AC).
+- [x] A character wearing no armor has identical AC to before this slice.
+- [x] A shield's bonus stacks with body armor's bonus.
+
+**Status (2026-06-16):** BUILT. The Dex term + max-Dex cap are scoped to a
+**WoT channel-map override** (`content/wot/channel-map`: `defense: ac + dex_ac`)
+— the engine's `dex_ac` synthetic input (`session.cappedDexAC`) is the Dex
+modifier capped by the most restrictive worn armor (`armorDexCap`, snapshotted
+on equip; full Dex when unarmored). The **fantasy/core baseline keeps `defense:
+ac`** (no Dex term), so the default boot's AC is byte-identical to before — the
+spec's "identical AC to before" criterion holds per-ruleset (the source assumed
+Dex already fed AC; this engine had no Dex-AC term, so adding it globally was
+rejected). The **armor bonus** applies as an `ac` stat modifier at equip
+(`internal/command/equipment.go`), stacking across body armor + shield in every
+ruleset. Item metadata (`ArmorBonus`/`ArmorMaxDex`/`ArmorTier`) lifts onto
+`entities.ItemInstance`. Live-verified on `make run-wot` (AC 10→11→14 across
+unarmored → light cap → heavy helm).
 
 ## 4. Damage resistance — the `mitigation` channel (per type)
 
@@ -191,12 +205,25 @@ otherwise.
 
 **Acceptance criteria**
 
-- [ ] The armor-proficiency set is class-granted and composed across multiclass.
-- [ ] Wearing non-proficient armor extends its check penalty to attack rolls;
+- [x] The armor-proficiency set is class-granted and composed across multiclass.
+- [x] Wearing non-proficient armor extends its check penalty to attack rolls;
       proficient wear adds no attack penalty.
-- [ ] Non-proficient armor may still be worn; equipping it emits a one-time cue.
-- [ ] A mob with no class wears any armor without penalty unless content states
+- [x] Non-proficient armor may still be worn; equipping it emits a one-time cue.
+- [x] A mob with no class wears any armor without penalty unless content states
       otherwise.
+
+**Status (2026-06-16):** BUILT. A class declares `ArmorProficiencyTiers`
+(`armor_proficiency_tiers:` YAML), unioned across a multiclass character;
+`connActor.IsArmorProficient` checks the worn tiers (`armorTiers`, snapshotted
+on equip) against the grants (`item.ArmorProficient`). When non-proficient, the
+attacker's summed `armor_check` penalty extends to the to-hit roll via the
+`HitModAdjust` seam (`cmd/anothermud/main.go`), composing additively with the
+weapon/darkness/condition penalties. Equipping tiered armor the class lacks
+emits a one-time clumsy-wear cue. Mobs have no class → always proficient. The
+WoT channelers grant `[light]`; the demo great helm (heavy) shows the penalty +
+cue. **Known simplification:** the attack penalty uses the *total* `armor_check`
+(over-penalizes the rare proficient-shield + non-proficient-body mix); the
+precise per-piece attribution is a later refinement.
 
 ## 6. Armor check penalty
 
@@ -221,7 +248,7 @@ effective check bonus, summed before the roll.
 armor's grade-reduced check penalty is summed on the `armor_check` stat
 (applied at equip) and subtracted from Str/Dex skill checks (the `pick`
 Open-Lock check today; gated to Str/Dex governing stats). The **attack-roll**
-extension when non-proficient awaits armor proficiency (§5, build pending).
+extension when non-proficient is now BUILT (§5, 2026-06-16).
 
 ## 7. Donning and removing
 
@@ -312,4 +339,4 @@ All numeric magnitudes live here; the prose names behaviors, not values.
 
 ---
 
-<!-- Spec style: narrative + acceptance criteria · Detail level: behavior only · Status: forward spec (build pending) — EPIC S1 increments E + D · AC-model fork resolved: single AC on `defense`, per-type resistance on `mitigation` -->
+<!-- Spec style: narrative + acceptance criteria · Detail level: behavior only · Status: §3 (AC composition) + §5 (armor proficiency) + §6 (attack-roll extension) BUILT 2026-06-16; §4 (per-type mitigation) shipped earlier with masterwork; §7 (don/doff timers) deferred (instant default). EPIC S1 increments E + D · AC-model fork resolved: single AC on `defense` (Dex term WoT-only via channel-map override), per-type resistance on `mitigation` -->

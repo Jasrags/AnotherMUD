@@ -1,0 +1,18 @@
+id: padded-cap
+name: a padded cap
+type: item
+description: |
+  A close cap of quilted wool and boiled leather. Light enough to forget you
+  are wearing it, it turns a glancing blow without slowing a quick head.
+tags: [armor, leather, wearable]
+keywords: [cap, padded]
+eligible_slots: [head]
+# Armor-depth §3/§5: LIGHT armor an Initiate/Wilder is trained to wear. A small
+# armor bonus raises AC (defense = ac + dex_ac), and its generous max-Dex cap
+# barely bites a nimble channeler — light armor lets you keep most of your Dex.
+armor_tier: light
+armor_bonus: 1
+armor_max_dex: 5
+properties:
+  weight: 1
+  value: 10
