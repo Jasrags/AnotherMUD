@@ -123,7 +123,18 @@ The verbs players use and the systems that resolve them.
   consequences — the equip footprint (two-handed ties up the off hand) and a
   two-handed Strength bonus to melee damage. Layers on `weapon-identity` +
   `inventory-equipment-items` §3.3 + `combat` §4.5; EPIC sub-epic S1
-  increment F *(spec; build pending)*.
+  increment F *(slices 1–3 shipped 2026-06-17: substrate + two-handed Strength,
+  size-derived footprint, mob relativity; §4.3 off-hand eligibility consumed by
+  `two-weapon-fighting`)*.
+- [two-weapon-fighting](two-weapon-fighting.md) — dual wield: a second weapon in
+  the off-hand slot grants an extra **off-hand attack** (its own dice/crit/type),
+  at a to-hit penalty on both hands and reduced (½×) Strength on the off-hand
+  damage. The off-hand weapon must resolve **light** for its wielder — the off-hand
+  eligibility `size-and-wielding` §4.3 reserved. Open to all (the feats —
+  Two-Weapon Fighting / Ambidexterity / Improved TWF — *improve* it, slice 2).
+  Reuses `combat` §4.2 swing count + the `HitMod` adjustment seam + the
+  Strength-to-damage step. EPIC sub-epic S1 increment K *(spec; build pending —
+  slice 1 substrate)*.
 - [armor-depth](armor-depth.md) — armor's depth split across the two
   defensive channels: a **single** armor class on `defense` (decompose-and-cap
   — armor bonus + a max-Dex cap on the Dex term, shields stack) and **per-type
@@ -530,4 +541,4 @@ highest-impact themes that recur across specs:
 
 ---
 
-<!-- Updated: 2026-06-16 · 53 specs covering the engine substrate, world, action, lifecycle, and presentation layers. Behavior contracts still ahead of code: tag-observers, faction, the trade trio (trade-escrow, direct-trade, auction-house), and the remaining WoT EPIC S1 increments (armor-depth E+D, size-and-wielding F). Since-shipped: roles-and-permissions, admin-verbs, item-decorations (M19/M20), loot-and-corpses (M22), tab-completion Phase 0–2, who, light-and-darkness, room-coordinates (M23), player-maps (M24 — Mudlet GMCP wire-shape pending live-client validation), biomes, gathering, crafting-and-cooking (M27), weapon-identity (WoT EPIC S1), masterwork (WoT EPIC S1.H), ranged-combat (WoT EPIC S1.G — Slice A+B + Model C cross-room), saves (WoT EPIC S6), conditions (WoT EPIC S5), skills (WoT EPIC S3, substrate), feats (WoT EPIC S4), backgrounds, visibility + hidden-exits (M28), movement-cost (flat→biome-weighted cost gate + encumbrance), character-select (account-first login), character-identity (world-locking, save v23). -->
+<!-- Updated: 2026-06-17 · 54 specs covering the engine substrate, world, action, lifecycle, and presentation layers. Behavior contracts still ahead of code: tag-observers, faction, the trade trio (trade-escrow, direct-trade, auction-house), and the WoT EPIC S1 two-weapon-fighting increment (K). Since-shipped: roles-and-permissions, admin-verbs, item-decorations (M19/M20), loot-and-corpses (M22), tab-completion Phase 0–2, who, light-and-darkness, room-coordinates (M23), player-maps (M24 — Mudlet GMCP wire-shape pending live-client validation), biomes, gathering, crafting-and-cooking (M27), weapon-identity (WoT EPIC S1), masterwork (WoT EPIC S1.H), ranged-combat (WoT EPIC S1.G — Slice A+B + Model C cross-room), armor-depth (WoT EPIC S1.E+D), size-and-wielding (WoT EPIC S1.F), saves (WoT EPIC S6), conditions (WoT EPIC S5), skills (WoT EPIC S3, substrate), feats (WoT EPIC S4), backgrounds, visibility + hidden-exits (M28), movement-cost (flat→biome-weighted cost gate + encumbrance), character-select (account-first login), character-identity (world-locking, save v23). -->
