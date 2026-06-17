@@ -1770,6 +1770,13 @@ type connActor struct {
 	// atomic.Pointer keeps that read off a.mu so combat never blocks on
 	// a session-side equip. nil means "no weapon → unarmed default".
 	weapon atomic.Pointer[weaponInfo]
+	// offWeapon is the cached off-hand weapon snapshot for a dual-wielding
+	// actor (two-weapon-fighting §2) — the weapon in the `offhand` slot when it
+	// is a DISTINCT weapon from the main hand (not a spanning two-hander, whose
+	// id appears under both slot keys). Recomputed under a.mu alongside `weapon`
+	// and read lock-free by Stats(); nil means no off-hand weapon. Stats() grants
+	// the off-hand attack only when this resolves the LIGHT wield mode (§2.2).
+	offWeapon atomic.Pointer[weaponInfo]
 	// armorResist caches the actor's aggregated per-damage-type resistance
 	// from worn armor (armor-depth §4), recomputed on equip/unequip/login
 	// (recomputeWeaponLocked, lock-held) and read LOCK-FREE in Stats() —
@@ -3054,18 +3061,66 @@ type armorResistances struct {
 	byType map[string]int
 }
 
-// recomputeWeaponLocked refreshes the cached wielded-weapon snapshot
-// from the current equipment set (combat §4.5). The caller MUST hold
-// a.mu. It scans equipped slots in deterministic (sorted) key order and
-// picks the first item that declares weapon damage dice. A spanning
-// weapon (two-hander) appears under several equipment keys all mapping to
-// the same id, so it is picked once regardless of which of its keys sorts
-// first; a multi-weapon layout resolves stably to the lowest slot key.
-// Stores nil when nothing wielded is a weapon, so Stats() falls back to
-// the unarmed default. A nil item store (tests) yields nil.
+// mainHandSlot / offHandSlot are the equipment-map keys for the primary and
+// off hand. The main weapon is read from the wield slot specifically (not
+// "first weapon by sorted key"), because once the off hand can hold a weapon
+// (two-weapon-fighting §2) "offhand" sorts before "wield" and would otherwise
+// be mistaken for the main weapon.
+const (
+	mainHandSlot = "wield"
+	offHandSlot  = "offhand"
+)
+
+// buildWeaponInfoLocked builds the cached weaponInfo for an equipped item id,
+// or nil when the id is empty/unknown or the item declares no weapon dice. The
+// caller MUST hold a.mu. Shared by recomputeWeaponLocked for both the main
+// (wield) and off-hand weapon picks (combat §4.5, two-weapon-fighting §2).
+func (a *connActor) buildWeaponInfoLocked(id entities.EntityID) *weaponInfo {
+	if id == "" || a.items == nil {
+		return nil
+	}
+	e, ok := a.items.GetByID(id)
+	if !ok {
+		return nil
+	}
+	it, ok := e.(*entities.ItemInstance)
+	if !ok {
+		return nil
+	}
+	dice, ok := it.WeaponDamage()
+	if !ok {
+		return nil
+	}
+	return &weaponInfo{
+		dice:           dice,
+		name:           it.Name(),
+		category:       it.WeaponCategory(),
+		tier:           it.ProficiencyTier(),
+		critThreatLow:  it.CritThreatLow(),
+		critMultiplier: it.CritMultiplier(),
+		damageTypes:    it.DamageTypes(),
+		// size-and-wielding §3: resolve the grip for THIS wielder.
+		wieldMode:      size.Mode(it.WeaponSize(), a.sizeLocked()),
+		rangedClass:    it.RangedClass(),
+		ammoKind:       it.AmmoKind(),
+		rangeIncrement: it.RangeIncrement(),
+		strRating:      it.StrRating(),
+	}
+}
+
+// recomputeWeaponLocked refreshes the cached wielded-weapon snapshots from the
+// current equipment set (combat §4.5, two-weapon-fighting §2). The caller MUST
+// hold a.mu. The MAIN weapon is the item in the wield slot; the OFF-HAND weapon
+// is the item in the off-hand slot when it is a DISTINCT id (a spanning
+// two-hander shares one id across both slot keys, so it is the main weapon, not
+// a second one). It also scans every equipped slot to sum per-type armor
+// resistances and the most restrictive Dex cap / worn tiers (armor-depth §3/§4).
+// Stores nil weapon(s) when nothing relevant is wielded, so Stats() falls back
+// to the unarmed default. A nil item store (tests) yields nil.
 func (a *connActor) recomputeWeaponLocked() {
 	if a.items == nil || len(a.equipment) == 0 {
 		a.weapon.Store(nil)
+		a.offWeapon.Store(nil)
 		a.armorResist.Store(nil)
 		a.armorDexCap.Store(nil)
 		a.armorTiers.Store(nil)
@@ -3083,7 +3138,6 @@ func (a *connActor) recomputeWeaponLocked() {
 	// keys mapping to the same id, so dedup by id keeps the weapon pick
 	// stable and the resistance sum from double-counting one piece.
 	seen := make(map[entities.EntityID]bool, len(keys))
-	var picked *weaponInfo
 	var resist map[string]int
 	// Armor-depth §3/§5: the most restrictive (lowest) max-Dex cap across worn
 	// armor, and the distinct tiers worn. minCap nil ⇒ no piece caps Dex.
@@ -3124,27 +3178,17 @@ func (a *connActor) recomputeWeaponLocked() {
 				tiers = append(tiers, t)
 			}
 		}
-		if picked == nil {
-			if dice, ok := it.WeaponDamage(); ok {
-				picked = &weaponInfo{
-					dice:           dice,
-					name:           it.Name(),
-					category:       it.WeaponCategory(),
-					tier:           it.ProficiencyTier(),
-					critThreatLow:  it.CritThreatLow(),
-					critMultiplier: it.CritMultiplier(),
-					damageTypes:    it.DamageTypes(),
-					// size-and-wielding §3: resolve the grip for THIS wielder.
-					wieldMode:      size.Mode(it.WeaponSize(), a.sizeLocked()),
-					rangedClass:    it.RangedClass(),
-					ammoKind:       it.AmmoKind(),
-					rangeIncrement: it.RangeIncrement(),
-					strRating:      it.StrRating(),
-				}
-			}
-		}
 	}
-	a.weapon.Store(picked)
+	// Main weapon = the wield slot; off-hand weapon = the off-hand slot when it
+	// holds a DISTINCT weapon (two-weapon-fighting §2). A spanning two-hander
+	// has the same id under both keys, so the off-hand pick is suppressed for it.
+	mainID := a.equipment[mainHandSlot]
+	a.weapon.Store(a.buildWeaponInfoLocked(mainID))
+	if offID := a.equipment[offHandSlot]; offID != "" && offID != mainID {
+		a.offWeapon.Store(a.buildWeaponInfoLocked(offID))
+	} else {
+		a.offWeapon.Store(nil)
+	}
 	if resist != nil {
 		a.armorResist.Store(&armorResistances{byType: resist})
 	} else {
@@ -4909,6 +4953,11 @@ func (a *connActor) Stats() combat.Stats {
 		damageBonus = a.channelMap.Value(channel.DamageBonus, lookup)
 		mitigation = a.channelMap.Value(channel.Mitigation, lookup)
 	}
+	// baseHitMod is the attribute/channel-derived attack modifier BEFORE any
+	// per-weapon feat bonus (Weapon Focus, added below for the main weapon). The
+	// off-hand swing (two-weapon-fighting §4.1) derives its hit from this base so
+	// it does not inherit the main weapon's feat bonus.
+	baseHitMod := hitMod
 	s := combat.Stats{
 		HitMod:      hitMod,
 		AC:          ac,
@@ -4924,7 +4973,8 @@ func (a *connActor) Stats() combat.Stats {
 			s.Resistances[k] = v
 		}
 	}
-	if w := a.weapon.Load(); w != nil {
+	w := a.weapon.Load()
+	if w != nil {
 		s.Damage = w.dice
 		s.WeaponName = w.name
 		s.WeaponDamageTypes = append([]string(nil), w.damageTypes...) // copy: don't alias the cached weaponInfo slice
@@ -4962,6 +5012,32 @@ func (a *connActor) Stats() combat.Stats {
 					low = 2
 				}
 				s.CritThreatLow = low
+			}
+		}
+	}
+	// two-weapon-fighting §3/§4: a valid off-hand weapon grants one extra
+	// off-hand attack. It requires a MELEE main weapon (the off-hand strike is a
+	// melee concern, §3) and an off-hand weapon that resolves the LIGHT wield
+	// mode for this wielder (size-and-wielding §2.2/§4.3 — the off-hand
+	// eligibility F reserved). Open to all: the full two-weapon penalty applies
+	// to both hands now; the feats (slice 2) will reduce it. The penalty on the
+	// main hand is folded into s.HitMod here; the off-hand profile carries the
+	// larger off-hand penalty and the reduced (½×) Strength damage (§4.2).
+	if w != nil && w.rangedClass == "" {
+		if off := a.offWeapon.Load(); off != nil && off.wieldMode == size.Light {
+			s.HitMod -= combat.DefaultTwoWeaponMainPenalty
+			strBonus := combat.STRBonus(str)
+			s.OffHand = &combat.OffHandProfile{
+				Damage:            off.dice,
+				WeaponName:        off.name,
+				WeaponDamageTypes: append([]string(nil), off.damageTypes...),
+				CritThreatLow:     off.critThreatLow,
+				CritMultiplier:    off.critMultiplier,
+				HitMod:            baseHitMod - combat.DefaultTwoWeaponOffHandPenalty,
+				// ½× Strength on the off hand: the full damage bonus with only the
+				// Strength term reduced (flat bonuses stay 1×), mirroring the
+				// two-handed 1.5× rule (size-and-wielding §4.2).
+				DamageBonus: damageBonus + size.StrBonusDelta(strBonus, size.DefaultOffHandStrFactor),
 			}
 		}
 	}

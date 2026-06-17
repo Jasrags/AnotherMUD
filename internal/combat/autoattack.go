@@ -229,17 +229,20 @@ func runAutoAttack(ctx context.Context, attackerID CombatantID, mgr *Manager, cf
 	// §5.3 darkness penalty: the host adjusts the attacker's to-hit by
 	// their effective light once per round (the light doesn't shift
 	// mid-round under normal play). nil hook ⇒ no adjustment.
-	hitMod := atkStats.HitMod
-	if cfg.HitModAdjust != nil {
-		hitMod += cfg.HitModAdjust(attackerID)
-	}
 	// conditions §3 — vulnerability. A prone/stunned/blinded defender is
 	// easier to hit: the host returns a positive delta keyed on the target,
 	// summed into the attacker's effective hit modifier (mirror of the
 	// attacker-keyed HitModAdjust above). Stable for the round.
-	if cfg.DefenderHitAdjust != nil {
-		hitMod += cfg.DefenderHitAdjust(targetID)
+	// Both deltas are per-attacker/per-target (not per-weapon), so the
+	// off-hand swing (two-weapon-fighting §4.1) reuses the same hitAdjust.
+	hitAdjust := 0
+	if cfg.HitModAdjust != nil {
+		hitAdjust += cfg.HitModAdjust(attackerID)
 	}
+	if cfg.DefenderHitAdjust != nil {
+		hitAdjust += cfg.DefenderHitAdjust(targetID)
+	}
+	hitMod := atkStats.HitMod + hitAdjust
 	damageExpr := atkStats.EffectiveDamage()
 	weaponName := atkStats.EffectiveWeaponName()
 	// §4 weapon critical: the wielded weapon's threat range + multiplier
@@ -331,6 +334,47 @@ func runAutoAttack(ctx context.Context, attackerID CombatantID, mgr *Manager, cf
 			return
 		}
 	}
+
+	// two-weapon-fighting §3 — the off-hand attack. After the main swing(s),
+	// a dual-wielding attacker makes ONE extra swing with its off-hand weapon
+	// profile (its own dice/crit/type, the off-hand-penalized hit, and the ½×
+	// Strength damage — all baked in by the producer's Stats()). It is a melee
+	// strike (suppressed while the main weapon fires as a projectile, §3) and
+	// reuses the same per-swing resolver. Reaching here means the target
+	// survived every main swing (a kill returns above), so the off-hand swing
+	// is only made against a live target.
+	if off := atkStats.OffHand; off != nil && !isProjectile {
+		offThreatLow := off.CritThreatLow
+		if offThreatLow <= 0 {
+			offThreatLow = 20
+		}
+		offMult := off.CritMultiplier
+		if offMult <= 0 {
+			offMult = cfg.CritMultiplier
+		}
+		// Copy the round's attacker stats and swap in the off-hand weapon's
+		// profile so resolveSwing reads the off-hand DamageBonus / damage types
+		// (it sources those from in.atkStats), while the swingInputs fields carry
+		// the off-hand dice / name / crit / hit. RangedClass clears with the copy
+		// override so the ammo gate never fires for the melee off-hand swing.
+		offStats := atkStats
+		offStats.Damage = off.Damage
+		offStats.WeaponName = off.WeaponName
+		offStats.WeaponDamageTypes = off.WeaponDamageTypes
+		offStats.DamageBonus = off.DamageBonus
+		offStats.CritThreatLow = off.CritThreatLow
+		offStats.CritMultiplier = off.CritMultiplier
+		offStats.RangedClass = ""
+		offStats.OffHand = nil
+		offIn := in
+		offIn.atkStats = offStats
+		offIn.weaponName = offStats.EffectiveWeaponName()
+		offIn.damageExpr = offStats.EffectiveDamage()
+		offIn.hitMod = off.HitMod + hitAdjust
+		offIn.critThreatLow = offThreatLow
+		offIn.critMultiplier = offMult
+		resolveSwing(ctx, offIn, cfg)
+	}
 }
 
 // swingInputs bundles the round-stable inputs one swing reads, so the shared
@@ -341,13 +385,13 @@ type swingInputs struct {
 	attackerID, targetID CombatantID
 	attacker, target     Combatant
 	atkStats, defStats   Stats
-	atkName, tgtName      string
-	weaponName            string
-	hitMod                int
-	damageExpr            DiceExpr
-	critThreatLow         int
-	critMultiplier        int
-	attackerRoom          world.RoomID
+	atkName, tgtName     string
+	weaponName           string
+	hitMod               int
+	damageExpr           DiceExpr
+	critThreatLow        int
+	critMultiplier       int
+	attackerRoom         world.RoomID
 }
 
 // swingResult signals whether the caller should keep swinging.

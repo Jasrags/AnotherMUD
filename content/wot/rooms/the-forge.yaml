@@ -34,6 +34,12 @@ items:
   # wield at all (`equip maul` → refused). `equip ashandarei` then `equip maul`.
   - ashandarei
   - trolloc-maul
+  # Two-weapon fighting (S1.K) demo: a belt knife is SMALL ⇒ light ⇒ off-hand
+  # eligible. `equip longsword`, then `equip knife offhand` to dual-wield —
+  # the off hand adds an extra attack each round (at a two-weapon to-hit penalty
+  # on both hands and ½× Strength on the off-hand blow). A two-handed weapon
+  # (the ashandarei) ties up the off hand, so it can't be paired with the knife.
+  - belt-knife
   # The masterwork (S1.H) demo: a heron-mark blade among the finished work —
   # its grade alone (no hand-written modifier) hits truer when wielded.
   - heron-mark-blade

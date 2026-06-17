@@ -1,0 +1,24 @@
+id: belt-knife
+name: a belt knife
+type: weapon
+description: |
+  A short, broad-bladed belt knife — the everyday tool of any Two Rivers folk,
+  worn at the hip for rope, bread, and a hundred small chores. Light and quick
+  in the hand; in a pinch it serves for the off hand while a longer blade does
+  the real work.
+tags: [weapon, metal, bladed]
+keywords: [knife, belt]
+# Size-and-wielding §2 + two-weapon-fighting §2.2: a SMALL weapon is one step
+# below a medium wielder, so it resolves LIGHT — off-hand eligible. It declares
+# both hands among its eligible slots so a player can `equip knife offhand`
+# (the wield slot lets it serve as a primary weapon too).
+size: small
+eligible_slots: [wield, offhand]
+weapon_damage: "1d3"
+weapon_category: dagger
+proficiency_tier: simple
+damage_types: [piercing, slashing]
+crit_multiplier: 2
+properties:
+  weight: 1
+  value: 15

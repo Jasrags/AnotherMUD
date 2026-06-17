@@ -236,4 +236,4 @@ All numeric magnitudes live here; the prose names behaviors, not values.
 
 ---
 
-<!-- Spec style: narrative + acceptance criteria · Detail level: behavior only · Status: forward spec (build pending) — EPIC S1 increment K -->
+<!-- Spec style: narrative + acceptance criteria · Detail level: behavior only · Status: slice 1 (off-hand attack substrate) SHIPPED 2026-06-17; the feats (§4.1, Two-Weapon Fighting / Ambidexterity / Improved TWF) are slice 2 — EPIC S1 increment K -->

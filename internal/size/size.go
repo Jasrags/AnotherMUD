@@ -126,11 +126,22 @@ func Mode(weaponSize, wielderSize string) WieldMode {
 // contribution for a two-handed melee wield (§4.2) — the WoT value (1.5×).
 const DefaultTwoHandedStrFactor = 1.5
 
-// TwoHandedStrBonus returns the EXTRA Strength-derived melee damage from
-// wielding two-handed: floor(strBonus × factor) − strBonus (§4.2, round down).
-// Callers ADD this on top of the normal 1× Strength contribution, so only the
-// Strength term is scaled — grade and other flat bonuses stay at 1×. Returns 0
-// when the factor leaves the contribution unchanged.
-func TwoHandedStrBonus(strBonus int, factor float64) int {
+// DefaultOffHandStrFactor is the multiplier on the Strength damage contribution
+// for an off-hand melee wield (two-weapon-fighting §4.2) — the WoT value (½×).
+const DefaultOffHandStrFactor = 0.5
+
+// StrBonusDelta returns the adjustment to ADD to the normal 1× Strength damage
+// contribution to leave only the factor× share: floor(strBonus × factor) −
+// strBonus (round down). It is the general primitive behind both the two-handed
+// (factor > 1 ⇒ positive, more Strength) and off-hand (factor < 1 ⇒ negative,
+// less Strength) rules — callers add it so only the Strength term is scaled;
+// grade and other flat bonuses stay at 1×. Returns 0 when factor == 1.
+func StrBonusDelta(strBonus int, factor float64) int {
 	return int(math.Floor(float64(strBonus)*factor)) - strBonus
+}
+
+// TwoHandedStrBonus returns the EXTRA Strength-derived melee damage from
+// wielding two-handed (§4.2): StrBonusDelta with the two-handed factor.
+func TwoHandedStrBonus(strBonus int, factor float64) int {
+	return StrBonusDelta(strBonus, factor)
 }

@@ -109,7 +109,54 @@ type Stats struct {
 	// Mitigation and the per-swing minimum-1 rule still applies after both,
 	// so resistance never zeroes a landed hit.
 	Resistances map[string]int
+
+	// OffHand is the off-hand weapon profile for a dual-wielding combatant
+	// (two-weapon-fighting §3). nil ⇒ no off-hand attack (the common case:
+	// single weapon, weapon+shield, or a two-hander). When set, the round
+	// loop resolves ONE extra swing using these fields after the main swing(s).
+	// The two-weapon to-hit penalty and the reduced (½×) off-hand Strength are
+	// already baked in by the producer (the holder's Stats() builder), so
+	// combat stays rules-agnostic — it just swings a second weapon profile.
+	OffHand *OffHandProfile
 }
+
+// OffHandProfile is the weapon a dual-wielding combatant strikes with in its
+// off hand (two-weapon-fighting §3). It mirrors the wielded-weapon fields of
+// Stats for the off-hand swing: its own dice, crit range/multiplier, damage
+// type(s), the off-hand-penalized HitMod, and the reduced-Strength DamageBonus.
+// The off-hand swing is resolved by the same machinery as the main swing — only
+// these fields and the per-attacker hit adjustments feed it.
+type OffHandProfile struct {
+	// Damage is the off-hand weapon's damage expression (zero ⇒ unarmed default).
+	Damage DiceExpr
+	// WeaponName is the display name carried on the off-hand swing's events.
+	WeaponName string
+	// WeaponDamageTypes are the off-hand weapon's damage type(s), read for the
+	// defender's per-type resistance on the off-hand swing.
+	WeaponDamageTypes []string
+	// CritThreatLow / CritMultiplier are the off-hand weapon's §4 crit params
+	// (zero ⇒ the round loop's defaults), exactly as for the main weapon.
+	CritThreatLow  int
+	CritMultiplier int
+	// HitMod is the off-hand swing's to-hit modifier with the two-weapon
+	// penalty already applied; the round loop still adds the same per-attacker
+	// adjustments (darkness/armor/condition) it adds to the main swing.
+	HitMod int
+	// DamageBonus is the off-hand swing's flat damage bonus — the reduced (½×)
+	// Strength share plus any flat bonuses (two-weapon-fighting §4.2).
+	DamageBonus int
+}
+
+// DefaultTwoWeaponMainPenalty / DefaultTwoWeaponOffHandPenalty are the to-hit
+// penalties applied while fighting with two weapons (two-weapon-fighting §4.1):
+// a smaller penalty on the main hand, a larger one on the off hand. The WoT/d20
+// light-weapon baseline (-4 main / -8 off); the Two-Weapon Fighting and
+// Ambidexterity feats reduce these (slice 2). Constants for now; the spec's
+// configuration surface anticipates env-wiring these like the other knobs.
+const (
+	DefaultTwoWeaponMainPenalty    = 4
+	DefaultTwoWeaponOffHandPenalty = 8
+)
 
 // TypedResistance returns the defender's damage reduction against an
 // attack of the given damage type(s) (armor-depth §4). It returns the
