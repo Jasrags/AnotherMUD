@@ -2330,6 +2330,12 @@ func run() error {
 		Flee: func(ctx context.Context, c combat.CombatantID) combat.FleeOutcome {
 			return combat.Flee(ctx, c, fleeCfg)
 		},
+		// ranged-combat §3: the `throw` verb resolves one out-of-loop swing
+		// with the wielded thrown weapon (full-STR via combat.Stats), reusing
+		// the same hit/damage/death path as a normal swing.
+		ResolveAttack: func(ctx context.Context, attacker, target combat.CombatantID, room world.RoomID) bool {
+			return combatMgr.ResolveSingleAttack(ctx, attacker, target, room, combatRNG, cfg.CritMultiplier)
+		},
 		// M17.3: the `reload` verb re-discovers pack Lua from disk and
 		// hot-swaps the scripting runtime — script-only, so world.World
 		// and the content registries are untouched. DiscoverScripts'

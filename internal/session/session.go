@@ -132,6 +132,11 @@ type Config struct {
 	// nil in tests that don't exercise the flee verb.
 	Flee func(ctx context.Context, c combat.CombatantID) combat.FleeOutcome
 
+	// ResolveAttack is the ranged-combat §3 one-shot attack primitive used by
+	// the throw verb; passed through to command.Env. nil in tests that don't
+	// exercise throw.
+	ResolveAttack func(ctx context.Context, attacker, target combat.CombatantID, room world.RoomID) bool
+
 	// ReloadScripts is the M17.3 script hot-reload trigger, passed
 	// through to command.Env so the `reload` verb can re-discover pack
 	// Lua and swap the scripting runtime. nil disables the verb.

@@ -120,6 +120,8 @@ func RegisterBuiltins(r *Registry) error {
 		// findCombatantInRoom (which resolves the same `entity` arg).
 		{Keyword: "kill", Handler: KillHandler, Brief: "Attack a target.", Syntax: []string{"kill <target>"},
 			HandParsed: true, BreaksConcealment: true, Args: []ArgDefinition{{Name: "target", Type: ArgEntity}}},
+		{Keyword: "throw", Handler: ThrowHandler, Brief: "Hurl your wielded thrown weapon at a target.", Syntax: []string{"throw <target>"},
+			HandParsed: true, BreaksConcealment: true, Args: []ArgDefinition{{Name: "target", Type: ArgEntity}}},
 		{Keyword: "flee", Handler: FleeHandler, Brief: "Try to escape from combat.", Syntax: []string{"flee"}},
 		{Keyword: "wimpy", Handler: WimpyHandler, Brief: "Auto-flee when your health drops below a percent.", Syntax: []string{"wimpy <percent>"}},
 

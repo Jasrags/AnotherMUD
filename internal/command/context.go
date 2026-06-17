@@ -48,6 +48,12 @@ type Context struct {
 	// Flee is the M7.6 verb-driven §5.2 flee primitive closure. nil
 	// in tests that don't exercise the flee verb.
 	Flee func(ctx context.Context, c combat.CombatantID) combat.FleeOutcome
+	// ResolveAttack is the ranged-combat §3 one-shot attack primitive (the
+	// thrown-weapon throw): it resolves a single swing from attacker against
+	// target in room, returning whether the target survived. Wired in main.go
+	// from combat.Manager.ResolveSingleAttack + the combat roller; nil in tests
+	// that don't exercise throw.
+	ResolveAttack func(ctx context.Context, attacker, target combat.CombatantID, room world.RoomID) bool
 	// ReloadScripts is the M17.3 script hot-reload trigger (re-discover
 	// pack Lua → swap the scripting runtime). nil disables the reload
 	// verb; tests that don't exercise reload leave it unset.

@@ -209,6 +209,13 @@ type Env struct {
 	// tests that don't exercise the flee verb.
 	Flee func(ctx context.Context, c combat.CombatantID) combat.FleeOutcome
 
+	// ResolveAttack is the ranged-combat §3 one-shot attack primitive used by
+	// the throw verb: it resolves a single swing from attacker against target
+	// in room and returns whether the target survived. Wired at the
+	// composition root from combat.Manager.ResolveSingleAttack; nil in tests
+	// that don't exercise throw.
+	ResolveAttack func(ctx context.Context, attacker, target combat.CombatantID, room world.RoomID) bool
+
 	// ReloadScripts is the M17.3 script hot-reload trigger. It
 	// re-discovers pack Lua from disk and swaps the scripting runtime
 	// without a restart, returning the number of scripts loaded. Wired
