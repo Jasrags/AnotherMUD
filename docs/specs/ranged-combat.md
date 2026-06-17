@@ -3,8 +3,11 @@
 EPIC sub-epic **S1** — increment **G** of the WoT Combat & Equipment Depth
 program (`docs/themes/wot-mechanics-epic.md`,
 `docs/proposals/combat-equipment-depth.md`). Governed by EPIC **Decision 0**
-(translate onto the existing tick model; no d20 rewrite). *Spec ahead of code —
-build pending.* Layers on `combat` (the round loop, engage/disengage),
+(translate onto the existing tick model; no d20 rewrite). *Shipped — Slice A
+(same-room ranged: thrown/projectile + ammo + Strength rules + masterwork ammo)
+and Slice B (the far→near→melee range bands + auto-close + advance/withdraw
+kiting). Cross-room targeting (Model C, §9) remains deferred.* Layers on `combat`
+(the round loop, engage/disengage),
 `weapon-identity` (weapon categories/proficiency), `inventory-equipment-items`
 (ammo as items), and `masterwork` (masterwork ammo, now in scope).
 
@@ -258,4 +261,4 @@ All numeric magnitudes live here; the prose names behaviors, not values.
 
 ---
 
-<!-- Spec style: narrative + acceptance criteria · Detail level: behavior only · Status: forward spec (build pending) — EPIC S1 increment G · range model resolved: abstract per-engagement bands within one room (Model B), built A-first; cross-room (Model C) deferred -->
+<!-- Spec style: narrative + acceptance criteria · Detail level: behavior only · Status: SHIPPED — EPIC S1 increment G · Slice A (thrown/projectile + ammo + Strength + masterwork ammo) and Slice B (per-engagement far→near→melee bands within one room, auto-close, advance/withdraw kiting). Cross-room (Model C) deferred. -->

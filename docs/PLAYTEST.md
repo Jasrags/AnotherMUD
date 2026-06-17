@@ -1379,9 +1379,38 @@ ANOTHERMUD_PACKS=wot ANOTHERMUD_START_ROOM=wot:the-forge make run
       non-proficient penalty until a feat grants the kind (compare a few swings'
       hit rate against a martial weapon).
 
-> Slice A keeps everything same-room: the bow doesn't out-range a melee foe yet
-> (no opening volley / kiting) — the far→near→melee **range bands** are Slice B
-> (`ranged-combat.md` §5), not built. Mob ranged AI is also deferred.
+### Range bands (Slice B) — WoT boot
+
+A fight now carries a **range band** (far → near → melee) *per pairing*, within
+the one room. An archer opens at distance and looses while a melee foe closes —
+the opening volley — and can **kite** by withdrawing. Bands default to melee, so
+a pure melee fight is unchanged.
+
+- [ ] Wield the **longbow** (a projectile) and `kill <a melee foe>` — the
+      engagement **opens at the far band** (a melee `kill` opens at melee, as
+      before). You loose from range while the foe **closes one band per round**:
+      each round it can't reach you it shows "X closes on you — now at *near*
+      range," then *melee*.
+- [ ] **Distance falloff (§5.3):** your shots are **less accurate at far** than
+      at near (the per-band to-hit penalty, `ANOTHERMUD_RANGE_FALLOFF`); compare
+      hit rates as the foe closes.
+- [ ] **Point-blank (§5.3):** once the foe reaches the **melee** band, your bow
+      takes a **point-blank penalty** (`ANOTHERMUD_POINT_BLANK_PENALTY`) — the
+      cue to switch to a melee sidearm.
+- [ ] **Kiting (§5.4):** `withdraw` — "You open the distance … now at *near*
+      range." Opens one band, staying in the room (distinct from `flee`, which
+      leaves it). Withdraw each round a melee foe advances to keep shooting.
+- [ ] `advance` — "You close on X … now at *melee* range." Closes one band; at
+      melee it refuses ("You're already in melee range."). `advance`/`withdraw`
+      when not fighting — "You aren't fighting anyone."
+- [ ] A **melee** combatant (or you wielding a melee weapon) out of melee range
+      lands **no swing** that round — it spends the round closing, exactly the
+      mechanic that gives the archer its volley.
+
+> Still deferred (the spec records these): **mob ranged AI** (mobs auto-close
+> but don't choose to kite/shoot — no content gives a mob a bow yet) and
+> **cross-room targeting** (Model C — shooting into the next room), a separate
+> theme.
 
 ---
 

@@ -148,7 +148,7 @@ The verbs players use and the systems that resolve them.
   projectile consumes matching ammo, masterwork ammo destroyed on use) and the
   thrown/projectile Strength rules. Built A-first (same-room ranged mechanics)
   then B (bands); cross-room targeting deferred. All inside `internal/combat`;
-  EPIC sub-epic S1 increment G *(spec; build pending)*.
+  EPIC sub-epic S1 increment G *(shipped — Slice A + B; Model C deferred)*.
 - [saves](saves.md) — saving throws (Fortitude / Reflex / Will): three
   derived save values (class strong/weak base + governing-ability
   modifier), the `d20 + bonus vs DC` resolve primitive + the
@@ -527,4 +527,4 @@ highest-impact themes that recur across specs:
 
 ---
 
-<!-- Updated: 2026-06-16 · 53 specs covering the engine substrate, world, action, lifecycle, and presentation layers. Behavior contracts still ahead of code: tag-observers, faction, the trade trio (trade-escrow, direct-trade, auction-house), and the remaining WoT EPIC S1 increments (armor-depth E+D, size-and-wielding F, ranged-combat G). Since-shipped: roles-and-permissions, admin-verbs, item-decorations (M19/M20), loot-and-corpses (M22), tab-completion Phase 0–2, who, light-and-darkness, room-coordinates (M23), player-maps (M24 — Mudlet GMCP wire-shape pending live-client validation), biomes, gathering, crafting-and-cooking (M27), weapon-identity (WoT EPIC S1), masterwork (WoT EPIC S1.H), saves (WoT EPIC S6), conditions (WoT EPIC S5), skills (WoT EPIC S3, substrate), feats (WoT EPIC S4), backgrounds, visibility + hidden-exits (M28), movement-cost (flat→biome-weighted cost gate + encumbrance), character-select (account-first login), character-identity (world-locking, save v23). -->
+<!-- Updated: 2026-06-16 · 53 specs covering the engine substrate, world, action, lifecycle, and presentation layers. Behavior contracts still ahead of code: tag-observers, faction, the trade trio (trade-escrow, direct-trade, auction-house), and the remaining WoT EPIC S1 increments (armor-depth E+D, size-and-wielding F). Since-shipped: roles-and-permissions, admin-verbs, item-decorations (M19/M20), loot-and-corpses (M22), tab-completion Phase 0–2, who, light-and-darkness, room-coordinates (M23), player-maps (M24 — Mudlet GMCP wire-shape pending live-client validation), biomes, gathering, crafting-and-cooking (M27), weapon-identity (WoT EPIC S1), masterwork (WoT EPIC S1.H), ranged-combat (WoT EPIC S1.G — Slice A+B), saves (WoT EPIC S6), conditions (WoT EPIC S5), skills (WoT EPIC S3, substrate), feats (WoT EPIC S4), backgrounds, visibility + hidden-exits (M28), movement-cost (flat→biome-weighted cost gate + encumbrance), character-select (account-first login), character-identity (world-locking, save v23). -->

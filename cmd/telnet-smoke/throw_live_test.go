@@ -61,3 +61,32 @@ func TestLive_ThrowVerb(t *testing.T) {
 	}
 	t.Log("throw verb wired: refused with no thrown weapon; resolves a target once the knife is wielded")
 }
+
+// TestLive_BandVerbs proves the advance/withdraw kiting verbs (ranged-combat
+// §5.4) are wired in a real engine. Kept deterministic by exercising the
+// not-fighting path (no live mob / combat RNG) — the band-move mechanics
+// themselves are unit-covered (internal/combat, internal/command).
+func TestLive_BandVerbs(t *testing.T) {
+	if os.Getenv("ANOTHERMUD_LIVE") == "" {
+		t.Skip("set ANOTHERMUD_LIVE=1 to run (boots a real engine subprocess via `go run`)")
+	}
+	addr := bootEngine(t, nil)
+	c, err := telnettest.Dial(addr, telnettest.WithTimeout(15*time.Second))
+	if err != nil {
+		t.Fatalf("dial: %v", err)
+	}
+	defer c.Close()
+	if err := createAndLogin(c, "Kiter"); err != nil {
+		t.Fatalf("create+login: %v", err)
+	}
+
+	for _, verb := range []string{"advance", "withdraw"} {
+		if err := c.SendLine(verb); err != nil {
+			t.Fatalf("send %s: %v", verb, err)
+		}
+		if _, err := c.ExpectStringTimeout("aren't fighting anyone", 4*time.Second); err != nil {
+			t.Fatalf("%s out of combat should be refused: %v", verb, err)
+		}
+	}
+	t.Log("advance/withdraw verbs wired (refuse cleanly out of combat)")
+}
