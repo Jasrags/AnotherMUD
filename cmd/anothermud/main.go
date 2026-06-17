@@ -2356,7 +2356,11 @@ func run() error {
 		// with the wielded thrown weapon (full-STR via combat.Stats), reusing
 		// the same hit/damage/death path as a normal swing.
 		ResolveAttack: func(ctx context.Context, attacker, target combat.CombatantID, room world.RoomID) bool {
-			return combatMgr.ResolveSingleAttack(ctx, attacker, target, room, combatRNG, cfg.CritMultiplier)
+			// stdRoller (concurrency-safe package-level RNG), NOT combatRNG: the
+			// throw verb resolves on the per-connection goroutine, concurrent
+			// with the tick's combat round loop and with other throwers, so it
+			// must not share combat's tick-confined *rand.Rand.
+			return combatMgr.ResolveSingleAttack(ctx, attacker, target, room, stdRoller{}, cfg.CritMultiplier)
 		},
 		// M17.3: the `reload` verb re-discovers pack Lua from disk and
 		// hot-swaps the scripting runtime — script-only, so world.World
