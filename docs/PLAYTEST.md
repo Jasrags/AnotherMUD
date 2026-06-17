@@ -6,9 +6,10 @@ damage dice + critical hits, **light & darkness** — §21, **crafting &
 cooking** — §22, **player maps** — §23, **saving throws** — §24, **conditions** — §25,
 **skills / lockpicking** — §26, **channeling** — §27, **movement cost &
 encumbrance** — §28, **gathering** — §29, **visibility & hidden exits** — §30,
-**feats** — §31, and **masterwork item grades** — §32). Work top-to-bottom or jump
-to a section. Each step gives a **command** and the **expected behavior**; tick
-the box when it matches, and note anything that doesn't.
+**feats** — §31, **masterwork item grades** — §32, and **ranged combat (thrown &
+projectile)** — §33). Work top-to-bottom or jump to a section. Each step gives a
+**command** and the **expected behavior**; tick the box when it matches, and note
+anything that doesn't.
 
 > **§27 (Channeling — the One Power)** is a **separate pack**: it runs the
 > **Wheel of Time** world (`make run-wot`), not the core/starter-world demo the
@@ -1313,6 +1314,74 @@ ANOTHERMUD_PACKS=wot ANOTHERMUD_START_ROOM=wot:the-forge make run
 > Boot validation rejects unknown grade keys at load (a typo'd grade fails fast).
 > No graded **armor** content ships yet — the armor check-penalty grade seam is
 > unit-proven.
+
+---
+
+## 33. Ranged combat (thrown & projectile — Slice A)
+
+Ranged weapons add **ammo** and **Strength rules** on the existing same-room
+path (no distance/range bands yet — that's Slice B). Two classes: **thrown**
+(the weapon itself is hurled, lands recoverable) and **projectile** (a bow that
+consumes arrows each swing). Thrown demos in the **default boot**; the projectile
+bow is in the **WoT boot**.
+
+### Thrown weapons (`throw`) — default boot
+
+Town Square holds a **throwing knife** (1d4, thrown).
+
+- [ ] `get knife`, `equip knife` — it occupies the wield slot (`equipment`).
+- [ ] Go to the **Meadow** (`s`, `s` from Square). `throw bandit` — "You hurl a
+      throwing knife at a road bandit!"; the room sees the hurl; a hit/miss line
+      follows (the same combat renderer as a melee swing), and the bandit
+      **engages** you (it retaliates).
+- [ ] **Full Strength on a throw (§4):** a thrown weapon adds your **full** STR
+      damage bonus (unlike a bow) — a hit lands for the die + your STR bonus.
+- [ ] After the throw the knife is **gone from your hand** (`equipment` shows the
+      wield slot empty) and **lies in the room** — `look` shows it, `get knife`
+      picks it back up (thrown weapons are recoverable).
+- [ ] `throw bandit` with **nothing throwable wielded** (unequip the knife first)
+      — "You aren't wielding anything you can throw."
+- [ ] In **Town Square** (safe room), `throw <anyone>` — "Violence is forbidden
+      here." (throw honors the same gates as `kill`).
+
+> A *graded* thrown weapon would **shatter on impact** (destroyed, not
+> recoverable — §3); no graded thrown weapon ships in core, so that path is
+> unit-proven.
+
+### Projectile weapons (bow + arrows) — WoT boot
+
+Boot the WoT world; the forge holds the bow + ammo:
+
+```sh
+ANOTHERMUD_PACKS=wot ANOTHERMUD_START_ROOM=wot:the-forge make run
+```
+
+- [ ] `get longbow`, `equip longbow` — a **Two Rivers longbow** (`equipment`
+      shows it spanning both hands — it's two-handed).
+- [ ] `get arrow`, `get arrow`, `get arrow` (and `get fine-arrow` ×2) — arrows
+      stack in your inventory (`i` shows `an arrow (x3)`).
+- [ ] Engage a foe (find a mob, `kill <it>`) — each combat round the bow
+      **consumes one arrow** per swing; `i` shows the stack shrinking. A hit/miss
+      line renders like any swing.
+- [ ] **Out of ammo (§3):** keep firing until the arrows run out — the swing is
+      skipped with **"*click* — you are out of arrows!"** and you **stay
+      engaged** (re-supply with `get arrow` and firing resumes next round, no
+      re-engage).
+- [ ] **Masterwork ammo (§3):** the **fine arrows** (`fine-arrow`, masterwork)
+      add a to-hit bonus to the shot and are **spent on use** (gone whether they
+      hit or miss). A plain arrow is also consumed per shot.
+- [ ] **No positive Strength on a bow (§4):** unlike a thrown knife, a plain bow
+      adds **no** positive STR damage bonus (the string does the work) — but the
+      Two Rivers longbow is **Strength-rated** (`str_rating: 3`), so it adds a
+      positive STR bonus **capped at +3** (a heavy warbow built to a draw).
+- [ ] **Non-proficient exotic (§6 / weapon-identity):** the longbow is an
+      **exotic** weapon — a fighter isn't proficient, so the to-hit takes the
+      non-proficient penalty until a feat grants the kind (compare a few swings'
+      hit rate against a martial weapon).
+
+> Slice A keeps everything same-room: the bow doesn't out-range a melee foe yet
+> (no opening volley / kiting) — the far→near→melee **range bands** are Slice B
+> (`ranged-combat.md` §5), not built. Mob ranged AI is also deferred.
 
 ---
 
