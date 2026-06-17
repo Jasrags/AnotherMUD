@@ -109,3 +109,65 @@ func TestResolveSingleAttack_OneShotHit(t *testing.T) {
 		t.Errorf("weapon = %q, want the knife", hits[0].WeaponName)
 	}
 }
+
+// ranged-combat §5.2/§5.3 — band effectiveness in the round loop.
+
+// A melee combatant out of melee range CLOSES one band this round instead of
+// swinging (the auto-close); no hit/miss is emitted, a BandChange is.
+func TestAutoAttack_MeleeOutOfRangeCloses(t *testing.T) {
+	atkStats := Stats{HitMod: 100, STR: 10} // melee (no RangedClass)
+	defStats := Stats{AC: 10}
+	rig := newAutoAttackRig(t, atkStats, defStats, 10, 20, nil) // no rolls — no swing expected
+	// Push the engagement out to the far band.
+	rig.mgr.AdjustBand(rig.attacker.id, rig.target.id, +farBand())
+	rig.phase()(context.Background(), rig.attacker.id, rig.mgr, 0)
+
+	bc := rig.sink.snapshotBandChanges()
+	if len(bc) != 1 || !bc[0].Closing {
+		t.Fatalf("want 1 closing BandChange, got %+v", bc)
+	}
+	if got := rig.mgr.BandOf(rig.attacker.id, rig.target.id); got != farBand()-1 {
+		t.Errorf("band after close = %d, want %d (one step toward melee)", got, farBand()-1)
+	}
+	if h, m := len(rig.sink.snapshotHits()), len(rig.sink.snapshotMisses()); h != 0 || m != 0 {
+		t.Errorf("a closing round lands no swing: hits=%d misses=%d", h, m)
+	}
+}
+
+// A projectile SHOOTS from range (doesn't auto-close); the per-band falloff
+// applies — a roll that hits at melee misses at far.
+func TestAutoAttack_ProjectileShootsFromRangeWithFalloff(t *testing.T) {
+	atkStats := Stats{HitMod: 0, RangedClass: RangedProjectile, AmmoKind: "arrow"}
+	defStats := Stats{AC: 10}
+	// d20 index 14 = raw 15. At melee (no falloff) 15 ≥ 10 hits; at far with
+	// falloff 100, 15 - 200 misses. Same roll, opposite outcome by band.
+	rig := newAutoAttackRig(t, atkStats, defStats, 10, 20, []int{14})
+	rig.falloff = 100
+	rig.mgr.AdjustBand(rig.attacker.id, rig.target.id, +farBand())
+	rig.phase()(context.Background(), rig.attacker.id, rig.mgr, 0)
+
+	if bc := rig.sink.snapshotBandChanges(); len(bc) != 0 {
+		t.Fatalf("a projectile shoots from range, it does not auto-close: %+v", bc)
+	}
+	if m := len(rig.sink.snapshotMisses()); m != 1 {
+		t.Fatalf("want 1 miss (falloff drops the shot under AC), got %d miss / %d hit",
+			m, len(rig.sink.snapshotHits()))
+	}
+}
+
+// The same projectile roll HITS at the melee band (no falloff there) — proving
+// the miss above was the band falloff, not the roll.
+func TestAutoAttack_ProjectileHitsAtMeleeBand(t *testing.T) {
+	atkStats := Stats{HitMod: 0, RangedClass: RangedProjectile, AmmoKind: "arrow"}
+	defStats := Stats{AC: 10}
+	rig := newAutoAttackRig(t, atkStats, defStats, 10, 20, []int{14, 0}) // d20=15 hit, then 1d3 dmg
+	rig.falloff = 100 // irrelevant at the melee band
+	// A projectile engage auto-opens at far; pull it in to the melee band
+	// (pblank stays 0, so no point-blank penalty for this roll).
+	rig.mgr.AdjustBand(rig.attacker.id, rig.target.id, -farBand())
+	rig.phase()(context.Background(), rig.attacker.id, rig.mgr, 0)
+
+	if h := len(rig.sink.snapshotHits()); h != 1 {
+		t.Fatalf("want 1 hit at the melee band, got %d hit / %d miss", h, len(rig.sink.snapshotMisses()))
+	}
+}

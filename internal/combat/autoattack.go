@@ -68,6 +68,16 @@ type AutoAttackConfig struct {
 	// then treats a bow like an infinite-ammo melee weapon. Thrown and melee
 	// weapons never call this hook.
 	AmmoFor func(attackerID CombatantID) (canFire bool, toHitBonus int)
+	// RangeFalloff is the to-hit penalty a projectile takes per band of
+	// distance from melee (ranged-combat §5.3) — at the near band it is
+	// -RangeFalloff, at far -2×RangeFalloff, and so on. PointBlankPenalty is
+	// the to-hit penalty a projectile takes when firing AT the melee band
+	// (awkward up close). Both are host policy (§8); zero (tests/headless)
+	// means no band-distance to-hit effect, so a projectile shoots at face
+	// value from any band. Only projectile weapons consult these — melee and
+	// thrown auto-close instead.
+	RangeFalloff      int
+	PointBlankPenalty int
 	// MassiveDamage configures the saves §4 massive-damage Fortitude save:
 	// a single swing whose applied damage is at or above the threshold and
 	// did NOT already kill forces the victim to save or suffer the lethal
@@ -237,6 +247,38 @@ func runAutoAttack(ctx context.Context, attackerID CombatantID, mgr *Manager, cf
 	}
 	atkName := attacker.Name()
 	tgtName := target.Name()
+
+	// ranged-combat §5.2/§5.3 — range bands. The band is the distance between
+	// this attacker and its target (meleeBand when untracked, so a melee fight
+	// is unchanged). Only a PROJECTILE can strike from range; a melee/thrown/
+	// unarmed combatant out of melee range CLOSES one band this round instead
+	// of swinging (the auto-close that produces an archer's opening volley).
+	band := mgr.BandOf(attackerID, targetID)
+	isProjectile := atkStats.RangedClass == RangedProjectile
+	if band != meleeBand && !isProjectile {
+		newBand := mgr.AdjustBand(attackerID, targetID, -1)
+		cfg.Sink.OnBandChange(ctx, BandChange{
+			SubjectID:    attackerID,
+			SubjectName:  atkName,
+			OpponentID:   targetID,
+			OpponentName: tgtName,
+			NewBand:      newBand,
+			NewBandName:  BandName(newBand),
+			Closing:      true,
+			RoomID:       attackerRoom,
+		})
+		return
+	}
+	// A projectile's accuracy depends on the band: a per-band falloff at range,
+	// or the point-blank penalty when firing at the melee band (§5.3). Folded
+	// into the round-stable hit modifier. Zero config ⇒ no band effect.
+	if isProjectile {
+		if band == meleeBand {
+			hitMod -= cfg.PointBlankPenalty
+		} else {
+			hitMod -= cfg.RangeFalloff * band
+		}
+	}
 
 	in := swingInputs{
 		attackerID:     attackerID,

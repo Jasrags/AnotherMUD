@@ -45,6 +45,9 @@ type EventSink interface {
 	// OnRangedDry reports a projectile swing skipped for want of ammo
 	// (ranged-combat §3). Sinks that don't care embed nopSink.
 	OnRangedDry(ctx context.Context, e RangedDry)
+	// OnBandChange reports a range-band move (ranged-combat §5.2/§5.4): an
+	// auto-close, advance, or withdraw. Sinks that don't care embed nopSink.
+	OnBandChange(ctx context.Context, e BandChange)
 }
 
 // Engagement is dispatched after both sides of an Engage have been
@@ -159,6 +162,24 @@ type RangedDry struct {
 	RoomID       world.RoomID
 }
 
+// BandChange is dispatched when a pairing's range band moves (ranged-combat
+// §5.2/§5.4): a melee combatant auto-closing toward melee, or a manual
+// advance/withdraw. Subject is the combatant who moved, Opponent the other side
+// of the pairing. Closing is true when the band moved toward melee (advance /
+// auto-close), false when it opened toward far (withdraw). NewBand/NewBandName
+// are the resulting band so a renderer can phrase "X closes to near" / "X opens
+// to far".
+type BandChange struct {
+	SubjectID    CombatantID
+	SubjectName  string
+	OpponentID   CombatantID
+	OpponentName string
+	NewBand      int
+	NewBandName  string
+	Closing      bool
+	RoomID       world.RoomID
+}
+
 // DamageTypePhysical is the single damage-type label M7.4 emits on
 // every hit event. M8 widens the type space (slashing, piercing,
 // elemental, etc.) when AC tables exist to discriminate them.
@@ -184,3 +205,4 @@ func (nopSink) OnEvade(context.Context, Evade)                 {}
 func (nopSink) OnVitalDepleted(context.Context, VitalDepleted) {}
 func (nopSink) OnSaveResolved(context.Context, SaveResolved)   {}
 func (nopSink) OnRangedDry(context.Context, RangedDry)         {}
+func (nopSink) OnBandChange(context.Context, BandChange)       {}

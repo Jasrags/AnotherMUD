@@ -1708,6 +1708,10 @@ func run() error {
 		// grade registry lives in the binary, keeping session decoupled). A
 		// combatant without inventory (a mob) fires freely — mob ranged AI is
 		// deferred (ranged-combat §9).
+		// ranged-combat §5.3: a projectile's per-band to-hit falloff (per band
+		// of distance) and the point-blank penalty firing at the melee band.
+		RangeFalloff:      envIntOr("ANOTHERMUD_RANGE_FALLOFF", 2),
+		PointBlankPenalty: envIntOr("ANOTHERMUD_POINT_BLANK_PENALTY", 4),
 		AmmoFor: func(attackerID combat.CombatantID) (bool, int) {
 			c, ok := combatLocator.LookupCombatant(attackerID)
 			if !ok {
@@ -3595,6 +3599,28 @@ func (s *productionCombatSink) OnRangedDry(ctx context.Context, e combat.RangedD
 	}
 	s.tell(ctx, e.AttackerID, fmt.Sprintf("*click* — you are out of %s!", ammo))
 	s.announce(ctx, e.RoomID, fmt.Sprintf("%s grasps for %s that isn't there.", an, ammo), e.AttackerID)
+}
+
+// OnBandChange narrates a range-band move (ranged-combat §5.2/§5.4): a melee
+// foe auto-closing the distance, or a manual advance/withdraw. The subject sees
+// it second-person, the room third-person, both keyed on the new band name.
+func (s *productionCombatSink) OnBandChange(ctx context.Context, e combat.BandChange) {
+	s.logger.Info("combat.band_change",
+		slog.String("subject", string(e.SubjectID)),
+		slog.String("opponent", string(e.OpponentID)),
+		slog.String("band", e.NewBandName),
+		slog.Bool("closing", e.Closing),
+		slog.String("room", string(e.RoomID)))
+
+	sn := s.nameOf(string(e.SubjectID))
+	on := s.nameOf(string(e.OpponentID))
+	if e.Closing {
+		s.tell(ctx, e.SubjectID, fmt.Sprintf("You close on %s — now at %s range.", on, e.NewBandName))
+		s.announce(ctx, e.RoomID, fmt.Sprintf("%s closes on %s, now at %s range.", sn, on, e.NewBandName), e.SubjectID)
+	} else {
+		s.tell(ctx, e.SubjectID, fmt.Sprintf("You open the distance from %s — now at %s range.", on, e.NewBandName))
+		s.announce(ctx, e.RoomID, fmt.Sprintf("%s opens the distance from %s, now at %s range.", sn, on, e.NewBandName), e.SubjectID)
+	}
 }
 
 // OnSaveResolved renders a saving-throw resolution to the creature
