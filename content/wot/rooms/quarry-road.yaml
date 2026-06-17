@@ -13,5 +13,11 @@ exits:
   west: the-forge
   north: wisdoms-cottage
 terrain: outdoors
+# Ranged-combat demo (MR3): a hostile brigand archer lurks on the cart track,
+# wielding a Two Rivers longbow (a projectile). He aggros on sight — the fight
+# opens at the FAR band and he looses while a melee foe closes (ranged-combat
+# §5.2). One step `east` from the Smithy (the §33 WoT boot start).
+mobs:
+  - brigand-archer
 # M1 stub: the road west into the Westwood and up the Quarry Road to the Sand
 # Hills + Mountains-of-Mist diggings lands in M2 (the wilds).

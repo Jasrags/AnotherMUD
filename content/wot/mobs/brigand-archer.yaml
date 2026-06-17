@@ -1,0 +1,25 @@
+id: brigand-archer
+name: a brigand archer
+type: npc
+behavior: stationary
+description: |
+  A lean, hard-eyed outlaw lurking on the Quarry Road with a Two Rivers longbow
+  already half-drawn. He keeps his distance and lets the bow do the talking —
+  loosing shaft after shaft as a foe struggles to close the ground between them.
+tags: [humanoid, outlaw]
+keywords: [brigand, archer, outlaw, bowman]
+# Hostile: he looses on sight (mob-initiated engage), so the fight OPENS at the
+# far band (ranged-combat §5.2 — the opener's weapon is ranged) and he shoots
+# while the closing foe spends rounds advancing. The archer's opening volley,
+# seen from the player's side.
+disposition_rules:
+  default: hostile
+# Equipped at spawn (mobs-ai-spawning §3.3). The Two Rivers longbow is a
+# PROJECTILE (ranged-combat §2), so his combat.Stats carry the ranged class and
+# the round loop shoots it from range (per-band falloff, point-blank up close).
+# Mobs fire free — no quiver bookkeeping. The bow also drops on death.
+equipment: [two-rivers-longbow]
+stats:
+  hp_max: 20
+  str: 12
+loot_table: boar-loot

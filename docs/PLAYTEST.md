@@ -1407,10 +1407,25 @@ a pure melee fight is unchanged.
       lands **no swing** that round — it spends the round closing, exactly the
       mechanic that gives the archer its volley.
 
-> Still deferred (the spec records these): **mob ranged AI** (mobs auto-close
-> but don't choose to kite/shoot — no content gives a mob a bow yet) and
-> **cross-room targeting** (Model C — shooting into the next room), a separate
-> theme.
+### Ranged mobs — WoT boot
+
+A bow-wielding **mob** is the player-facing side of all this: it opens at range
+and looses while *you* close.
+
+- [ ] From the Smithy go **`east`** to the **Quarry Road** — a hostile **brigand
+      archer** (wielding a Two Rivers longbow) lurks there. It aggros on sight
+      and, because its weapon is a projectile, the fight **opens at the far
+      band**: you see the archer loose at you while you spend the next rounds
+      **auto-closing** ("you close … now at *near* range", then *melee*).
+- [ ] Its shots are **less accurate while you're far** (the falloff), and once
+      you reach melee it's a straight fight. Bring a bow yourself (the longbow in
+      the Smithy, §33 above) to trade volleys, or `withdraw` to keep your own
+      distance.
+
+> Still deferred (the spec records these): **mob ranged *kiting* AI** (a ranged
+> mob shoots and auto-closes, but doesn't yet choose to *withdraw* to keep the
+> distance open) and **cross-room targeting** (Model C — shooting into the next
+> room), a separate theme.
 
 ---
 

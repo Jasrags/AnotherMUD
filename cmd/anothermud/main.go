@@ -739,6 +739,13 @@ func run() error {
 		clockCfg.InitialHour = saved.CurrentHour
 		clockCfg.InitialDay = saved.DayCount
 	}
+	// ANOTHERMUD_START_HOUR overrides the seeded hour (0–23) — useful for ops
+	// and tests that need a deterministic time-of-day (e.g. daylight so outdoor
+	// rooms are lit). Negative/unset leaves the saved/default seed. Out-of-range
+	// values are clamped by the game clock.
+	if h := envIntOr("ANOTHERMUD_START_HOUR", -1); h >= 0 {
+		clockCfg.InitialHour = h
+	}
 	gameClock := gameclock.New(clockCfg)
 	if err := loop.Register("game-clock", 1, func(ctx context.Context, _ uint64) {
 		gameClock.Tick(ctx)

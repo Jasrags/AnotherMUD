@@ -125,6 +125,15 @@ type MobInstance struct {
 	// natural weapon, which declares no types). Set during the spawn
 	// pipeline by SetWeapon, read lock-free by Stats.
 	weaponDamageTypes []string
+	// weaponRangedClass / weaponAmmoKind are the equipped weapon's ranged
+	// metadata (ranged-combat §2), fed into combat.Stats so a bow-wielding mob
+	// shoots from range (opens at far, per-band falloff, point-blank) exactly
+	// like a player. Empty = melee (the default for a natural weapon). Set
+	// during the spawn pipeline by SetWeapon, read lock-free by Stats. Mobs
+	// fire free (no ammo pool) — the round loop's AmmoFor hook only gates
+	// inventory-bearing combatants.
+	weaponRangedClass string
+	weaponAmmoKind    string
 	// resistances is the mob's aggregated per-damage-type damage reduction
 	// from worn armor (armor-depth §4), summed across equipped armor at
 	// spawn (EquipMobAtSpawn → SetResistances). nil = none. Mutated only
@@ -299,6 +308,12 @@ func (m *MobInstance) Stats() combat.Stats {
 		s.Damage = m.weapon
 		s.WeaponName = m.weaponName
 		s.WeaponDamageTypes = append([]string(nil), m.weaponDamageTypes...) // copy: combat.Stats is self-contained
+		// Ranged class (ranged-combat §2): a projectile-wielding mob shoots
+		// from range — the round loop opens it at far, applies the per-band
+		// falloff/point-blank, and (via the AmmoFor hook's mob branch) fires
+		// it free. Empty for a melee/natural weapon.
+		s.RangedClass = m.weaponRangedClass
+		s.AmmoKind = m.weaponAmmoKind
 	}
 	// Per-type resistance from worn armor (armor-depth §4). Copy out so
 	// combat.Stats does not alias the instance's cached map (matches the
@@ -312,15 +327,19 @@ func (m *MobInstance) Stats() combat.Stats {
 	return s
 }
 
-// SetWeapon installs the mob's attack dice + display name (combat §4.5).
-// Called during the spawn pipeline only: buildMobFromTemplate seeds the
-// natural weapon, then EquipMobAtSpawn overrides it with an equipped
-// weapon. Not safe to call after the mob is targetable in combat (the
-// field is read lock-free by Stats on the tick goroutine).
-func (m *MobInstance) SetWeapon(dice combat.DiceExpr, name string, damageTypes []string) {
+// SetWeapon installs the mob's attack dice + display name (combat §4.5) plus
+// the equipped weapon's damage types and ranged class (ranged-combat §2 — a
+// bow-wielding mob shoots from range). Called during the spawn pipeline only:
+// buildMobFromTemplate seeds the natural weapon (melee — empty ranged class),
+// then EquipMobAtSpawn overrides it with an equipped weapon. Not safe to call
+// after the mob is targetable in combat (read lock-free by Stats on the tick
+// goroutine).
+func (m *MobInstance) SetWeapon(dice combat.DiceExpr, name string, damageTypes []string, rangedClass, ammoKind string) {
 	m.weapon = dice
 	m.weaponName = name
 	m.weaponDamageTypes = damageTypes
+	m.weaponRangedClass = rangedClass
+	m.weaponAmmoKind = ammoKind
 }
 
 // SetResistances installs the mob's aggregated per-damage-type damage

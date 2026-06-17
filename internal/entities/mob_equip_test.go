@@ -50,6 +50,15 @@ func equipTemplates() *item.Templates {
 		Type:         "item",
 		WeaponDamage: "2d6+1",
 	})
+	r.Add(&item.Template{
+		ID:            "core:short-bow",
+		Name:          "a short bow",
+		Type:          "item",
+		Properties:    map[string]any{"slot": "wield"},
+		WeaponDamage:  "1d6",
+		RangedClass:   item.RangedProjectile,
+		AmmoKind:      "arrow",
+	})
 	return r
 }
 
@@ -413,5 +422,44 @@ func TestEquipMobAtSpawn_SpanningBlocksOffhand(t *testing.T) {
 	want, _ := combat.ParseDice("2d6")
 	if got := inst.Stats().Damage; got != want {
 		t.Errorf("Damage = %+v, want %+v (greatsword armed the mob)", got, want)
+	}
+}
+
+// ranged-combat (MR1): a mob equipped with a projectile weapon carries its
+// ranged class + ammo kind into combat.Stats, so the round loop treats it as a
+// shooter (opens at far, per-band falloff) rather than a melee auto-closer.
+func TestEquipMobAtSpawnSetsRangedClass(t *testing.T) {
+	s := NewStore()
+	contents := NewContents()
+	inst, err := s.SpawnMob(guardTpl())
+	if err != nil {
+		t.Fatalf("SpawnMob: %v", err)
+	}
+	if _, err := s.EquipMobAtSpawn(inst, []string{"core:short-bow"}, equipTemplates(), contents, mobEqSlots()); err != nil {
+		t.Fatalf("EquipMobAtSpawn: %v", err)
+	}
+	st := inst.Stats()
+	if st.RangedClass != "projectile" {
+		t.Errorf("Stats.RangedClass = %q, want projectile", st.RangedClass)
+	}
+	if st.AmmoKind != "arrow" {
+		t.Errorf("Stats.AmmoKind = %q, want arrow", st.AmmoKind)
+	}
+}
+
+// A melee-equipped (or natural-weapon) mob carries no ranged class — it remains
+// a melee auto-closer.
+func TestEquipMobAtSpawnMeleeHasNoRangedClass(t *testing.T) {
+	s := NewStore()
+	contents := NewContents()
+	inst, err := s.SpawnMob(guardTpl())
+	if err != nil {
+		t.Fatalf("SpawnMob: %v", err)
+	}
+	if _, err := s.EquipMobAtSpawn(inst, []string{"core:short-sword"}, equipTemplates(), contents, mobEqSlots()); err != nil {
+		t.Fatalf("EquipMobAtSpawn: %v", err)
+	}
+	if st := inst.Stats(); st.RangedClass != "" {
+		t.Errorf("melee mob Stats.RangedClass = %q, want empty", st.RangedClass)
 	}
 }

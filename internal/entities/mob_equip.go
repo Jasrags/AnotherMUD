@@ -101,7 +101,7 @@ func (s *Store) EquipMobAtSpawn(m *MobInstance, ids []string, items *item.Templa
 			// fit a slot cannot arm the mob.
 			if !weaponSet {
 				if dice, ok := it.WeaponDamage(); ok {
-					m.SetWeapon(dice, it.Name(), it.DamageTypes())
+					m.SetWeapon(dice, it.Name(), it.DamageTypes(), it.RangedClass(), it.AmmoKind())
 					weaponSet = true
 				}
 			}
