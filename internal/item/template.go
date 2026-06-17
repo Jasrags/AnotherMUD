@@ -97,6 +97,13 @@ type Template struct {
 	// (weapon-identity §4). Zero means unset — the engine uses the
 	// configured global default. Validated at load to be non-negative.
 	CritMultiplier int
+	// Size is the weapon's size category (size-and-wielding §2) from the
+	// engine size vocabulary (tiny … huge). Empty ⇒ the baseline size, so a
+	// weapon authored before this feature is one-handed for a baseline-size
+	// wielder. The wield mode (light / one-handed / two-handed / too-large) is
+	// DERIVED from (weapon size − wielder size), never declared. Validated at
+	// pack load; normalized lowercase.
+	Size string
 	// Ranged weapon metadata (ranged-combat §2). All optional; a weapon
 	// that declares no RangedClass is melee, unchanged. RECORDED in this
 	// data slice — inert until the combat consumer (ammo + Strength rules +

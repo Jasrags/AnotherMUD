@@ -88,6 +88,11 @@ type MobInstance struct {
 	// no race.
 	race string
 
+	// size is the mob's size category (size-and-wielding §3.2), stamped from
+	// the template at spawn. "" ⇒ the baseline size. Read to derive the
+	// size-relative wield mode of a weapon the mob wields. Write-once at build.
+	size string
+
 	// trainerTier / trainerTeach are the primitive trainer payload
 	// copied from the template (M8.6 — progression.md §7.3). The
 	// session-side TrainerInRoom adapter reconstructs a
@@ -458,6 +463,10 @@ func (m *MobInstance) TrainerTeach() []string {
 // the race definition and apply ApplyRacialFlags + alignment.
 func (m *MobInstance) RaceID() string { return m.race }
 
+// Size returns the mob's declared size category (size-and-wielding §3.2); ""
+// when the template declares none (callers resolve to the baseline size).
+func (m *MobInstance) Size() string { return m.size }
+
 // ApplyRacialFlags merges flags into the mob's tag list and seeds
 // the alignment property. Called from the spawn pipeline AFTER
 // Store.SpawnMob returns the freshly-tracked instance, so the tag
@@ -696,6 +705,7 @@ func buildMobFromTemplate(tpl *mob.Template, id EntityID) *MobInstance {
 		vitals:       combat.NewVitals(maxHP),
 		statBlock:    sb,
 		race:         tpl.Race,
+		size:         tpl.Size,
 		trainerTier:  tpl.TrainerTier,
 		trainerTeach: append([]string(nil), tpl.TrainerTeach...),
 		// Copy (not alias) the template's passive proficiencies so a

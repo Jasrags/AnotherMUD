@@ -108,6 +108,11 @@ type ItemInstance struct {
 	// Zero means unset — the combat resolver applies the engine defaults.
 	critThreatLow  int
 	critMultiplier int
+	// weaponSize is the weapon's size category (size-and-wielding §2), lifted
+	// onto the instance at build. "" = undeclared (the equip/combat paths
+	// resolve it to the baseline, and the footprint falls back to the static
+	// companion slots). Read to derive the wield mode against a wielder's size.
+	weaponSize string
 	// damageTypes are the weapon's damage type(s) (weapon-identity §2),
 	// lifted onto the instance at build. nil = untyped. Read by the combat
 	// path to select a defender's per-type resistance (armor-depth §4).
@@ -329,6 +334,11 @@ func (it *ItemInstance) WeaponDamage() (combat.DiceExpr, bool) {
 // empty when the weapon declares none. Read by the equip path that
 // computes proficiency.
 func (it *ItemInstance) WeaponCategory() string { return it.weaponCategory }
+
+// WeaponSize returns the weapon's declared size category (size-and-wielding
+// §2); "" when undeclared (callers resolve to the baseline size, and the
+// footprint falls back to the static companion slots).
+func (it *ItemInstance) WeaponSize() string { return it.weaponSize }
 
 // ProficiencyTier returns the weapon's proficiency tier (weapon-identity
 // §2), empty for an untiered weapon (treated as the lowest tier). Read by
@@ -560,6 +570,7 @@ func buildInstanceFromTemplate(tpl *item.Template, id EntityID) *ItemInstance {
 		companionSlots:    companion,
 		weaponCategory:    tpl.WeaponCategory,
 		proficiencyTier:   tpl.ProficiencyTier,
+		weaponSize:        tpl.Size,
 		critThreatLow:     tpl.CritThreatLow,
 		critMultiplier:    tpl.CritMultiplier,
 		damageTypes:       damageTypes,

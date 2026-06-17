@@ -53,6 +53,7 @@ import (
 	"github.com/Jasrags/AnotherMUD/internal/queststore"
 	"github.com/Jasrags/AnotherMUD/internal/recipe"
 	"github.com/Jasrags/AnotherMUD/internal/render"
+	"github.com/Jasrags/AnotherMUD/internal/size"
 	"github.com/Jasrags/AnotherMUD/internal/slot"
 	"github.com/Jasrags/AnotherMUD/internal/srckey"
 	"github.com/Jasrags/AnotherMUD/internal/stacking"
@@ -3029,6 +3030,12 @@ type weaponInfo struct {
 	// carried into combat.Stats so the defender's per-type resistance can
 	// be selected (armor-depth §4). nil ⇒ untyped.
 	damageTypes []string
+	// wieldMode is the size-relative grip this weapon resolves to for THIS
+	// wielder (size-and-wielding §3), derived in recomputeWeaponLocked from
+	// the wielder's size and the weapon's size. Drives the two-handed melee
+	// Strength bonus (§4.2). Recomputed whenever equipment or (via re-login)
+	// race changes; ephemeral, never persisted.
+	wieldMode size.WieldMode
 	// Ranged metadata (ranged-combat §2/§4). rangedClass empty ⇒ melee;
 	// ammoKind is what a projectile fires; rangeIncrement is the §5.3 falloff
 	// unit (inert until Slice B); strRating caps a Strength-rated bow's
@@ -3127,6 +3134,8 @@ func (a *connActor) recomputeWeaponLocked() {
 					critThreatLow:  it.CritThreatLow(),
 					critMultiplier: it.CritMultiplier(),
 					damageTypes:    it.DamageTypes(),
+					// size-and-wielding §3: resolve the grip for THIS wielder.
+					wieldMode:      size.Mode(it.WeaponSize(), a.sizeLocked()),
 					rangedClass:    it.RangedClass(),
 					ammoKind:       it.AmmoKind(),
 					rangeIncrement: it.RangeIncrement(),
@@ -3440,6 +3449,26 @@ func (a *connActor) CombatantIDString() string {
 // raceless (no flags applied, no cast-cost modifier). Set once at
 // construction; never mutates for the life of the actor.
 func (a *connActor) RaceID() string { return a.raceID }
+
+// Size returns the actor's size category (size-and-wielding §3.1), resolved
+// from its race (the baseline when raceless or the race declares none). No
+// per-character size choice exists. Acquires a.mu.
+func (a *connActor) Size() string {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	return a.sizeLocked()
+}
+
+// sizeLocked is Size without taking a.mu — for callers that already hold it
+// (recomputeWeaponLocked). Reads the resolved race id and the immutable race
+// registry; falls back to the baseline size when raceless or the race carries
+// no size.
+func (a *connActor) sizeLocked() string {
+	if a.race != nil && a.race.Size != "" {
+		return a.race.Size
+	}
+	return size.Baseline
+}
 
 // Gender returns the actor's gender ("male"/"female", lowercase), chosen at
 // creation and persisted on the save (v22+). Empty means unset (a pre-v22
@@ -4909,6 +4938,14 @@ func (a *connActor) Stats() combat.Stats {
 		s.AmmoKind = w.ammoKind
 		s.RangeIncrement = w.rangeIncrement
 		s.DamageBonus = item.RangedDamageBonus(w.rangedClass, w.strRating, s.DamageBonus)
+		// size-and-wielding §4.2: a two-handed MELEE wield multiplies the
+		// Strength contribution to damage by the two-handed factor. Add only the
+		// EXTRA Strength (TwoHandedStrBonus) on top of the 1× already in
+		// DamageBonus, so grade / flat bonuses stay at 1×. Ranged weapons are
+		// excluded — their Strength rule is the ranged concern handled above.
+		if w.wieldMode == size.TwoHanded && w.rangedClass == "" {
+			s.DamageBonus += size.TwoHandedStrBonus(combat.STRBonus(str), size.DefaultTwoHandedStrFactor)
+		}
 		// EPIC S4 Phase 3c: per-weapon-category feat bonuses (Weapon Focus
 		// to-hit, Improved Critical threat widen), read lock-free from the
 		// cache. Category match is case-insensitive (feat params are lowercased).

@@ -124,6 +124,12 @@ type Template struct {
 	// but no level still spawns at base stats.
 	Level int
 
+	// Size is the mob's size category (size-and-wielding §3.2) from the
+	// engine size vocabulary (tiny … huge). Empty ⇒ the baseline size. Drives
+	// the size-relative wield mode of any weapon the mob wields. Validated at
+	// pack load; lowercased.
+	Size string
+
 	// TrainerTier is the cap-tier value (0/25/50/75/100) the mob
 	// can raise abilities TO when running as a `skill_trainer`
 	// (progression.md §7.3). Zero on non-trainer mobs. The pack

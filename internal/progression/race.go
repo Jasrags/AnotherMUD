@@ -64,6 +64,12 @@ type Race struct {
 	// entity's tag set.
 	RacialFlags []string
 
+	// Size is the race's nominal size category (size-and-wielding §3.1) from
+	// the engine size vocabulary (tiny … huge). Empty ⇒ the baseline size
+	// (most playable races). A character's size is read from its race; no
+	// per-character size choice exists. Validated at pack load; lowercased.
+	Size string
+
 	// Pack is the pack that registered this race. Diagnostic
 	// only — used in "where did this come from" logs.
 	Pack string

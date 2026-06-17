@@ -97,6 +97,9 @@ type ItemFile struct {
 	// (0 = unset = configured default; validated non-negative).
 	CritThreatLow  int `yaml:"crit_threat_low,omitempty"`
 	CritMultiplier int `yaml:"crit_multiplier,omitempty"`
+	// Size is the weapon's size category (size-and-wielding §2) — tiny … huge.
+	// Empty = baseline. Validated against the size vocabulary at load.
+	Size string `yaml:"size,omitempty"`
 	// Ranged weapon metadata (ranged-combat §2). All optional, recorded-only
 	// this slice (inert until the ammo + Strength-rule consumer lands).
 	// ranged_class is "thrown" or "projectile" (absent = melee, validated
@@ -193,6 +196,10 @@ type MobFile struct {
 	// Level is the optional level (M14.3). Zero disables class
 	// growth even when Class is set.
 	Level int `yaml:"level,omitempty"`
+
+	// Size is the mob's size category (size-and-wielding §3.2) — tiny … huge.
+	// Empty = baseline. Validated against the size vocabulary at load.
+	Size string `yaml:"size,omitempty"`
 
 	// BaseDisposition is the static reaction string (spec §5.1).
 	// Optional; when present overrides player-state-driven rules
@@ -794,6 +801,7 @@ type RaceFile struct {
 	StatCaps          map[string]int `yaml:"stat_caps,omitempty"`
 	CastCostModifier  int            `yaml:"cast_cost_modifier,omitempty"`
 	RacialFlags       []string       `yaml:"racial_flags,omitempty"`
+	Size              string         `yaml:"size,omitempty"`
 	Priority          int            `yaml:"priority,omitempty"`
 }
 

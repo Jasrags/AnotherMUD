@@ -33,6 +33,7 @@ import (
 	"github.com/Jasrags/AnotherMUD/internal/recipe"
 	"github.com/Jasrags/AnotherMUD/internal/render"
 	"github.com/Jasrags/AnotherMUD/internal/script"
+	"github.com/Jasrags/AnotherMUD/internal/size"
 	"github.com/Jasrags/AnotherMUD/internal/slot"
 	"github.com/Jasrags/AnotherMUD/internal/stats"
 	"github.com/Jasrags/AnotherMUD/internal/weather"
@@ -1996,6 +1997,13 @@ func decodeRace(path, ns string) (*progression.Race, error) {
 		}
 	}
 
+	// Size (size-and-wielding §3.1). Optional; empty ⇒ baseline at resolution.
+	raceSize := strings.ToLower(strings.TrimSpace(f.Size))
+	if raceSize != "" && !size.Valid(raceSize) {
+		return nil, fmt.Errorf("%w: %s: size %q is not a known size %v",
+			ErrInvalidContent, path, raceSize, size.Names())
+	}
+
 	return &progression.Race{
 		ID:                f.ID,
 		DisplayName:       strings.TrimSpace(f.Name),
@@ -2006,6 +2014,7 @@ func decodeRace(path, ns string) (*progression.Race, error) {
 		StatCaps:          caps,
 		CastCostModifier:  f.CastCostModifier,
 		RacialFlags:       flags,
+		Size:              raceSize,
 		Pack:              ns,
 		Priority:          f.Priority,
 	}, nil
@@ -2891,6 +2900,14 @@ func decodeItem(path, ns string) (*item.Template, error) {
 		strRating = &v
 	}
 
+	// Size (size-and-wielding §2). Optional; empty ⇒ baseline at resolution.
+	// A declared size must be in the engine vocabulary, caught at load.
+	weaponSize := strings.ToLower(strings.TrimSpace(f.Size))
+	if weaponSize != "" && !size.Valid(weaponSize) {
+		return nil, fmt.Errorf("%w: %s: size %q is not a known size %v",
+			ErrInvalidContent, path, weaponSize, size.Names())
+	}
+
 	// Armor depth (armor-depth §2). All optional; validated at load so an
 	// authoring typo fails the pack by file name rather than producing
 	// silent garbage (as the weapon fields above do). Recorded only this
@@ -2955,6 +2972,7 @@ func decodeItem(path, ns string) (*item.Template, error) {
 		Grade:             strings.ToLower(strings.TrimSpace(f.Grade)),
 		CritThreatLow:     f.CritThreatLow,
 		CritMultiplier:    f.CritMultiplier,
+		Size:              weaponSize,
 		RangedClass:       rangedClass,
 		AmmoKind:          ammoKind,
 		RangeIncrement:    f.RangeIncrement,
@@ -3055,6 +3073,13 @@ func decodeMob(path, ns string) (*mob.Template, error) {
 		}
 	}
 
+	// Size (size-and-wielding §3.2). Optional; empty ⇒ baseline at resolution.
+	mobSize := strings.ToLower(strings.TrimSpace(f.Size))
+	if mobSize != "" && !size.Valid(mobSize) {
+		return nil, fmt.Errorf("%w: %s: size %q is not a known size %v",
+			ErrInvalidContent, path, mobSize, size.Names())
+	}
+
 	return &mob.Template{
 		ID:                  mob.TemplateID(id),
 		Name:                f.Name,
@@ -3076,6 +3101,7 @@ func decodeMob(path, ns string) (*mob.Template, error) {
 		Race:                strings.ToLower(strings.TrimSpace(f.Race)),
 		Class:               strings.ToLower(strings.TrimSpace(f.Class)),
 		Level:               f.Level,
+		Size:                mobSize,
 		TrainerTier:         tier,
 		TrainerTeach:        teach,
 	}, nil
