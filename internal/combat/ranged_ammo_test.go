@@ -171,3 +171,67 @@ func TestAutoAttack_ProjectileHitsAtMeleeBand(t *testing.T) {
 		t.Fatalf("want 1 hit at the melee band, got %d hit / %d miss", h, len(rig.sink.snapshotMisses()))
 	}
 }
+
+// ranged-combat §5.4 (MR2 kiting AI): a projectile combatant with room to open
+// the band withdraws this round instead of shooting when KitePolicy says so —
+// no shot, a band-opening BandChange, and the band steps toward far.
+func TestAutoAttack_ProjectileKitesInsteadOfShooting(t *testing.T) {
+	atkStats := Stats{HitMod: 100, RangedClass: RangedProjectile, AmmoKind: "arrow"}
+	defStats := Stats{AC: 10}
+	rig := newAutoAttackRig(t, atkStats, defStats, 10, 20, nil) // no rolls — no shot expected
+	// Pull the band in to near (room to withdraw toward far).
+	rig.mgr.AdjustBand(rig.attacker.id, rig.target.id, +farBand()) // far
+	rig.mgr.AdjustBand(rig.attacker.id, rig.target.id, -1)         // near
+	rig.kite = func(CombatantID, CombatantID, int) bool { return true }
+	rig.phase()(context.Background(), rig.attacker.id, rig.mgr, 0)
+
+	bc := rig.sink.snapshotBandChanges()
+	if len(bc) != 1 || bc[0].Closing {
+		t.Fatalf("want 1 opening (withdraw) BandChange, got %+v", bc)
+	}
+	if got := rig.mgr.BandOf(rig.attacker.id, rig.target.id); got != farBand() {
+		t.Errorf("band after kite = %d, want far (%d)", got, farBand())
+	}
+	if h, m := len(rig.sink.snapshotHits()), len(rig.sink.snapshotMisses()); h != 0 || m != 0 {
+		t.Errorf("a kiting round fires no shot: hits=%d misses=%d", h, m)
+	}
+}
+
+// KitePolicy returning false (or at the far band, no room) means the projectile
+// shoots normally — kiting never blocks a shot it shouldn't.
+func TestAutoAttack_ProjectileShootsWhenNotKiting(t *testing.T) {
+	atkStats := Stats{HitMod: 100, RangedClass: RangedProjectile, AmmoKind: "arrow"}
+	defStats := Stats{AC: 10}
+	rig := newAutoAttackRig(t, atkStats, defStats, 10, 20, []int{5, 0}) // d20 hit + 1d3 dmg
+	rig.mgr.AdjustBand(rig.attacker.id, rig.target.id, +farBand()) // far
+	rig.mgr.AdjustBand(rig.attacker.id, rig.target.id, -1)         // near (room to kite)
+	rig.kite = func(CombatantID, CombatantID, int) bool { return false }
+	rig.phase()(context.Background(), rig.attacker.id, rig.mgr, 0)
+
+	if len(rig.sink.snapshotBandChanges()) != 0 {
+		t.Error("a non-kiting projectile should not move the band")
+	}
+	if h := len(rig.sink.snapshotHits()); h != 1 {
+		t.Fatalf("want 1 hit when not kiting, got %d", h)
+	}
+}
+
+// At the far band there is no room to withdraw, so KitePolicy isn't even
+// consulted — the projectile shoots.
+func TestAutoAttack_NoKiteAtFarBand(t *testing.T) {
+	atkStats := Stats{HitMod: 100, RangedClass: RangedProjectile, AmmoKind: "arrow"}
+	defStats := Stats{AC: 10}
+	rig := newAutoAttackRig(t, atkStats, defStats, 10, 20, []int{5, 0})
+	rig.mgr.AdjustBand(rig.attacker.id, rig.target.id, +farBand()) // far — no room to kite
+	called := false
+	rig.kite = func(CombatantID, CombatantID, int) bool { called = true; return true }
+	rig.falloff = 0 // shoot lands
+	rig.phase()(context.Background(), rig.attacker.id, rig.mgr, 0)
+
+	if called {
+		t.Error("KitePolicy must not be consulted at the far band (no room to withdraw)")
+	}
+	if h := len(rig.sink.snapshotHits()); h != 1 {
+		t.Errorf("want 1 hit at far, got %d", h)
+	}
+}

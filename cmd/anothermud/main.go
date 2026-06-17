@@ -1691,6 +1691,7 @@ func run() error {
 			slog.Int("default", combat.DefaultMassiveDamageThreshold))
 		massiveThreshold = combat.DefaultMassiveDamageThreshold
 	}
+	kiteChance := envIntOr("ANOTHERMUD_KITE_CHANCE", 50) // ranged-mob kite probability (%)
 	autoAttackPhase := combat.NewAutoAttack(combat.AutoAttackConfig{
 		Locator:        combatLocator,
 		RoomLocator:    combatLocator,
@@ -1719,6 +1720,16 @@ func run() error {
 		// of distance) and the point-blank penalty firing at the melee band.
 		RangeFalloff:      envIntOr("ANOTHERMUD_RANGE_FALLOFF", 2),
 		PointBlankPenalty: envIntOr("ANOTHERMUD_POINT_BLANK_PENALTY", 4),
+		// ranged-combat §5.4: kiting AI. A ranged MOB (players kite manually via
+		// the withdraw verb) opens the distance instead of shooting with chance
+		// ANOTHERMUD_KITE_CHANCE % when a foe has closed inside far — probabilistic
+		// so the foe still net-closes rather than stalemating one-band-for-one.
+		KitePolicy: func(attackerID, _ combat.CombatantID, _ int) bool {
+			if !strings.HasPrefix(string(attackerID), combat.MobPrefix) {
+				return false // players choose to kite with the withdraw verb
+			}
+			return combatRNG.IntN(100) < kiteChance
+		},
 		AmmoFor: func(attackerID combat.CombatantID) (bool, int) {
 			c, ok := combatLocator.LookupCombatant(attackerID)
 			if !ok {

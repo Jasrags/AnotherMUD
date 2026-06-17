@@ -50,3 +50,37 @@ func TestLive_RangedMob(t *testing.T) {
 	}
 	t.Log("ranged mob verified: a bow-wielding archer opened at far and we closed the distance")
 }
+
+// TestLive_RangedMobKites proves the MR2 kiting AI end to end: with the kite
+// chance pinned to 100%, the ranged archer ALWAYS opens the distance instead of
+// shooting once a foe has closed inside far. After the player auto-closes to
+// near, the archer withdraws — narrated to the room as "opens the distance …
+// far range". Deterministic (kite chance 100, daylight so the archer can see).
+func TestLive_RangedMobKites(t *testing.T) {
+	if os.Getenv("ANOTHERMUD_LIVE") == "" {
+		t.Skip("set ANOTHERMUD_LIVE=1 to run (boots a real engine subprocess via `go run`)")
+	}
+	addr := bootEngine(t, map[string]string{
+		"ANOTHERMUD_PACKS":       "wot",
+		"ANOTHERMUD_START_ROOM":  "wot:the-forge",
+		"ANOTHERMUD_START_HOUR":  "12",
+		"ANOTHERMUD_KITE_CHANCE": "100", // the archer always kites when it can
+	})
+	c, err := telnettest.Dial(addr, telnettest.WithTimeout(15*time.Second))
+	if err != nil {
+		t.Fatalf("dial: %v", err)
+	}
+	defer c.Close()
+	if err := createChanneler(c, "Chaser", "male"); err != nil {
+		t.Fatalf("create+login: %v", err)
+	}
+
+	if err := c.SendLine("east"); err != nil {
+		t.Fatalf("send east: %v", err)
+	}
+	// We close (near range); the archer then opens the distance back to far.
+	if _, err := c.ExpectStringTimeout("opens the distance", 15*time.Second); err != nil {
+		t.Fatalf("expected the ranged archer to kite (open the distance): %v", err)
+	}
+	t.Log("kiting AI verified: the archer opened the distance instead of letting us close")
+}

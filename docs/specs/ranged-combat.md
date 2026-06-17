@@ -251,13 +251,18 @@ All numeric magnitudes live here; the prose names behaviors, not values.
 - **Cross-room targeting (Model C)** — sniping into adjacent rooms remains a
   future theme if ever wanted; it inverts the same-room invariant and adds
   line-of-sight and two-room render. Recorded, not scheduled.
-- **Mixed-band parties / multiple opponents** — when several opponents engage one
-  combatant at different bands, whether each pairing tracks its own band (the
-  model here) or a fight has one shared band is a refinement to settle in B.
-- **Mob ranged AI** — how mobs choose to advance/withdraw/kite (the AI policy for
-  using bands) is content/AI work layered on B.
+- **Mixed-band parties / multiple opponents** — bands track per attacker↔target
+  pair (the shipped model), but the round-loop auto-close/kite acts only against
+  the PRIMARY target each round; how a combatant relates to several foes at
+  different bands at once is a refinement, not yet built.
 - **A bespoke quiver/ammo slot** — if ammo management via ordinary inventory
   proves clumsy, a dedicated slot is a later refinement.
+
+**Shipped since (mob AI):** a bow-wielding mob is a real ranged attacker — its
+equipped weapon's ranged class flows into combat.Stats, so it opens at far and
+shoots with the band falloff/point-blank, and a **kiting AI** opens the distance
+(probabilistically, so a closing foe still net-advances) instead of shooting
+when a foe gets inside far. Players kite manually with the withdraw verb.
 
 ---
 

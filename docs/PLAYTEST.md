@@ -1421,11 +1421,17 @@ and looses while *you* close.
       you reach melee it's a straight fight. Bring a bow yourself (the longbow in
       the Smithy, §33 above) to trade volleys, or `withdraw` to keep your own
       distance.
+- [ ] **Kiting (the mob's AI):** as you close, the archer sometimes **opens the
+      distance** back out instead of shooting ("a brigand archer opens the
+      distance from you, now at *far* range") — trading a shot to stay out of
+      reach. It's **probabilistic** (`ANOTHERMUD_KITE_CHANCE`, default 50%), so
+      you still net-close over a few rounds rather than chasing forever; set it
+      to `100` to see the archer kite every chance, or `0` to disable. Bring your
+      own bow to out-shoot it, or corner it where it can't open further.
 
-> Still deferred (the spec records these): **mob ranged *kiting* AI** (a ranged
-> mob shoots and auto-closes, but doesn't yet choose to *withdraw* to keep the
-> distance open) and **cross-room targeting** (Model C — shooting into the next
-> room), a separate theme.
+> Still deferred (the spec records it): **cross-room targeting** (Model C —
+> shooting into the *next* room), a separate theme that inverts the same-room
+> invariant.
 
 ---
 

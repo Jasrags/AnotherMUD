@@ -68,6 +68,7 @@ type autoAttackRig struct {
 	ammoFor  func(CombatantID) (bool, int) // nil ⇒ no ammo gate (ranged-combat §3)
 	falloff  int                           // RangeFalloff (ranged-combat §5.3)
 	pblank   int                           // PointBlankPenalty (ranged-combat §5.3)
+	kite     func(CombatantID, CombatantID, int) bool // KitePolicy (ranged-combat §5.4)
 }
 
 // fakePassives is a deterministic PassiveEvaluator for the §4.2/§4.3
@@ -116,6 +117,7 @@ func (r *autoAttackRig) phase() PhaseFunc {
 		AmmoFor:           r.ammoFor,
 		RangeFalloff:      r.falloff,
 		PointBlankPenalty: r.pblank,
+		KitePolicy:        r.kite,
 	})
 }
 

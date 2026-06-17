@@ -78,6 +78,15 @@ type AutoAttackConfig struct {
 	// thrown auto-close instead.
 	RangeFalloff      int
 	PointBlankPenalty int
+	// KitePolicy decides whether a projectile combatant should WITHDRAW this
+	// round to keep distance instead of shooting (ranged-combat §5.4 kiting AI).
+	// Called only for a projectile attacker that has room to open the band
+	// (band < far); returning true opens one band and skips the shot. The host
+	// wires it for mobs (players kite manually via the withdraw verb) and SHOULD
+	// make it probabilistic — a deterministic kite stalemates against a foe that
+	// closes one band per round. nil-safe: no auto-kiting (tests/headless and
+	// the pre-MR2 behavior).
+	KitePolicy func(attackerID, targetID CombatantID, band int) bool
 	// MassiveDamage configures the saves §4 massive-damage Fortitude save:
 	// a single swing whose applied damage is at or above the threshold and
 	// did NOT already kill forces the victim to save or suffer the lethal
@@ -265,6 +274,27 @@ func runAutoAttack(ctx context.Context, attackerID CombatantID, mgr *Manager, cf
 			NewBand:      newBand,
 			NewBandName:  BandName(newBand),
 			Closing:      true,
+			RoomID:       attackerRoom,
+		})
+		return
+	}
+	// ranged-combat §5.4 — kiting (mob AI). A projectile combatant with room to
+	// open the distance (band < far) may WITHDRAW this round instead of shooting,
+	// keeping a closing melee foe at bay. The host decides via KitePolicy (mobs
+	// only — players kite with the withdraw verb); it is deliberately
+	// probabilistic so the foe still net-closes (a deterministic kite would
+	// stalemate at one-band-per-round) and the kiter trades the shot for the
+	// step. nil hook ⇒ no auto-kiting (the pre-MR2 behavior).
+	if isProjectile && band < farBand() && cfg.KitePolicy != nil && cfg.KitePolicy(attackerID, targetID, band) {
+		newBand := mgr.AdjustBand(attackerID, targetID, +1)
+		cfg.Sink.OnBandChange(ctx, BandChange{
+			SubjectID:    attackerID,
+			SubjectName:  atkName,
+			OpponentID:   targetID,
+			OpponentName: tgtName,
+			NewBand:      newBand,
+			NewBandName:  BandName(newBand),
+			Closing:      false,
 			RoomID:       attackerRoom,
 		})
 		return
