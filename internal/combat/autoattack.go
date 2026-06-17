@@ -238,147 +238,264 @@ func runAutoAttack(ctx context.Context, attackerID CombatantID, mgr *Manager, cf
 	atkName := attacker.Name()
 	tgtName := target.Name()
 
+	in := swingInputs{
+		attackerID:     attackerID,
+		targetID:       targetID,
+		attacker:       attacker,
+		target:         target,
+		atkStats:       atkStats,
+		defStats:       defStats,
+		atkName:        atkName,
+		tgtName:        tgtName,
+		weaponName:     weaponName,
+		hitMod:         hitMod,
+		damageExpr:     damageExpr,
+		critThreatLow:  critThreatLow,
+		critMultiplier: critMultiplier,
+		attackerRoom:   attackerRoom,
+	}
 	for i := 0; i < swings; i++ {
-		// §4.3 step 1 — live check is folded into ApplyDamageIfAlive
-		// below (single lock acquisition). Early-exit here if the
-		// target is already dead so we skip the full hit/damage
-		// computation; the canonical "did the swing land" decision
-		// still happens atomically at the damage-apply site, so a
-		// concurrent killer cannot trick this branch into double-
-		// emitting VitalDepleted.
-		if target.Vitals().IsDead() {
+		if resolveSwing(ctx, in, cfg) == swingStop {
 			return
-		}
-
-		// §4.3 step 2 — defensive passive evade. The evaluator
-		// binary-checks the DEFENDER's defensive passives; the first
-		// that fires pre-empts this swing. nil evaluator ⇒ no evades.
-		if ability, evaded := defensiveEvade(cfg.Passives, target); evaded {
-			cfg.Sink.OnEvade(ctx, Evade{
-				AttackerID:   attackerID,
-				TargetID:     targetID,
-				AttackerName: atkName,
-				TargetName:   tgtName,
-				AbilityName:  ability,
-				RoomID:       attackerRoom,
-			})
-			continue
-		}
-
-		// ranged-combat §3 — ammunition. A projectile swing consumes one
-		// matching ammo unit; with none available the swing is skipped (a
-		// RangedDry event) and the attacker stays engaged — it resumes the
-		// moment ammo returns. Masterwork ammo returns a to-hit bonus folded
-		// into this swing only. Thrown/melee weapons never enter this branch,
-		// and a nil AmmoFor fires every projectile swing (unwired/headless).
-		swingHitMod := hitMod
-		if atkStats.RangedClass == RangedProjectile && cfg.AmmoFor != nil {
-			canFire, ammoBonus := cfg.AmmoFor(attackerID)
-			if !canFire {
-				cfg.Sink.OnRangedDry(ctx, RangedDry{
-					AttackerID:   attackerID,
-					TargetID:     targetID,
-					AttackerName: atkName,
-					TargetName:   tgtName,
-					WeaponName:   weaponName,
-					AmmoKind:     atkStats.AmmoKind,
-					RoomID:       attackerRoom,
-				})
-				continue
-			}
-			swingHitMod += ammoBonus
-		}
-
-		// §4.4 hit roll (attacker hit-mod already adjusted for darkness +
-		// per-swing masterwork-ammo bonus; threat range from the wielded
-		// weapon, weapon-identity §4).
-		outcome := rollHit(cfg.Roller, swingHitMod, defStats.AC, critThreatLow)
-		if !outcome.hit {
-			cfg.Sink.OnMiss(ctx, Miss{
-				AttackerID:   attackerID,
-				TargetID:     targetID,
-				AttackerName: atkName,
-				TargetName:   tgtName,
-				WeaponName:   weaponName,
-				IsFumble:     outcome.fumble,
-				RoomID:       attackerRoom,
-			})
-			continue
-		}
-
-		// §4.5 damage roll: dice + STR bonus, clamped to >= 1 on hit.
-		//
-		// CRIT POLICY: on a critical hit the rolled DICE are multiplied
-		// by cfg.CritMultiplier (default 2 — the §4.5 "doubled dice"
-		// option); the STR bonus is added afterward and is NOT
-		// multiplied. A multiplier of 1 restores the original "crit =
-		// normal damage" policy. IsCritical still flows on the event so
-		// renderers can dramatize either way.
-		dmg := damageExpr.Roll(cfg.Roller)
-		if outcome.critical && critMultiplier > 1 {
-			dmg *= critMultiplier
-		}
-		// §4.5 damage: rolled (crit-multiplied) dice + the attacker's flat
-		// DamageBonus, minus the defender's soak. DamageBonus is added after
-		// the crit multiply (the bonus is not multiplied). Soak is the
-		// type-agnostic Mitigation (the channel layer's `mitigation` channel,
-		// design §6; 0 for fantasy) PLUS the defender's per-damage-type
-		// Resistance against the attacker's weapon types (armor-depth §4) —
-		// the two compose additively. The per-swing minimum of 1 still holds,
-		// so a landed hit always lands ≥1 even under full soak.
-		soak := defStats.Mitigation + TypedResistance(defStats.Resistances, atkStats.WeaponDamageTypes)
-		raw := dmg + atkStats.DamageBonus - soak
-		if raw < 1 {
-			raw = 1
-		}
-
-		remainingHP, wasAlive := target.Vitals().ApplyDamageIfAlive(raw)
-		if !wasAlive {
-			// A concurrent damage source (DoT effect, ability, racing
-			// swing from a future parallel phase) killed the target
-			// between the early-exit live check above and this
-			// damage-apply. Treat as if our swing never landed: no
-			// Hit event, no VitalDepleted (the other source emits it),
-			// and we stop swinging on a corpse.
-			return
-		}
-		cfg.Sink.OnHit(ctx, Hit{
-			AttackerID:   attackerID,
-			TargetID:     targetID,
-			AttackerName: atkName,
-			TargetName:   tgtName,
-			WeaponName:   weaponName,
-			Damage:       raw,
-			DamageType:   DamageTypePhysical,
-			IsCritical:   outcome.critical,
-			RoomID:       attackerRoom,
-		})
-
-		if remainingHP <= 0 {
-			cfg.Sink.OnVitalDepleted(ctx, VitalDepleted{
-				VictimID:   targetID,
-				VictimName: tgtName,
-				AttackerID: attackerID,
-				Vital:      VitalHP,
-				RoomID:     attackerRoom,
-			})
-			// §4.3 "If HP reached zero ... stop further swings."
-			return
-		}
-
-		// saves §4 — massive-damage Fortitude save. A single swing whose
-		// applied damage meets the threshold and did NOT already kill (the
-		// branch above handled that) forces the victim to save; a failure
-		// drives the lethal consequence through the same VitalDepleted
-		// death path. A success leaves the already-applied normal damage
-		// untouched. nil MassiveDamage ⇒ rule disabled (pre-slice behavior).
-		if cfg.MassiveDamage != nil && raw >= cfg.MassiveDamage.Threshold {
-			if massiveDamageKill(ctx, cfg, attackerID, targetID, tgtName, attackerRoom) {
-				// §4.3 stop swinging on a corpse.
-				return
-			}
 		}
 	}
+}
+
+// swingInputs bundles the round-stable inputs one swing reads, so the shared
+// per-swing resolver takes a single argument rather than a dozen. Every field
+// is computed once at round start (runAutoAttack) or once at the one-shot call
+// site (ResolveSingleAttack) — none mutate across swings.
+type swingInputs struct {
+	attackerID, targetID CombatantID
+	attacker, target     Combatant
+	atkStats, defStats   Stats
+	atkName, tgtName      string
+	weaponName            string
+	hitMod                int
+	damageExpr            DiceExpr
+	critThreatLow         int
+	critMultiplier        int
+	attackerRoom          world.RoomID
+}
+
+// swingResult signals whether the caller should keep swinging.
+type swingResult int
+
+const (
+	// swingContinue: this swing resolved (hit / miss / evade / dry / non-lethal
+	// hit); a multi-swing caller may proceed to the next swing.
+	swingContinue swingResult = iota
+	// swingStop: the target is gone or dead; the caller must stop swinging.
+	swingStop
+)
+
+// resolveSwing resolves exactly one attack swing — the §4.3–§4.5 body plus the
+// ranged-ammo gate (ranged-combat §3) and the massive-damage save (saves §4) —
+// shared by runAutoAttack's round loop and the one-shot ResolveSingleAttack
+// (ranged-combat §3 throw). It emits the swing's outcome through cfg.Sink and
+// returns swingStop when the target is gone/dead (caller stops), swingContinue
+// otherwise. All cfg hooks are nil-safe, so a minimal config (sink + roller)
+// drives a complete swing.
+func resolveSwing(ctx context.Context, in swingInputs, cfg AutoAttackConfig) swingResult {
+	// §4.3 step 1 — live check is folded into ApplyDamageIfAlive below (single
+	// lock acquisition). Early-exit here if the target is already dead so we
+	// skip the full hit/damage computation; the canonical "did the swing land"
+	// decision still happens atomically at the damage-apply site, so a
+	// concurrent killer cannot trick this branch into double-emitting
+	// VitalDepleted.
+	if in.target.Vitals().IsDead() {
+		return swingStop
+	}
+
+	// §4.3 step 2 — defensive passive evade. The evaluator binary-checks the
+	// DEFENDER's defensive passives; the first that fires pre-empts this swing.
+	// nil evaluator ⇒ no evades.
+	if ability, evaded := defensiveEvade(cfg.Passives, in.target); evaded {
+		cfg.Sink.OnEvade(ctx, Evade{
+			AttackerID:   in.attackerID,
+			TargetID:     in.targetID,
+			AttackerName: in.atkName,
+			TargetName:   in.tgtName,
+			AbilityName:  ability,
+			RoomID:       in.attackerRoom,
+		})
+		return swingContinue
+	}
+
+	// ranged-combat §3 — ammunition. A projectile swing consumes one matching
+	// ammo unit; with none available the swing is skipped (a RangedDry event)
+	// and the attacker stays engaged — it resumes the moment ammo returns.
+	// Masterwork ammo returns a to-hit bonus folded into this swing only.
+	// Thrown/melee weapons never enter this branch, and a nil AmmoFor fires
+	// every projectile swing (unwired/headless).
+	swingHitMod := in.hitMod
+	if in.atkStats.RangedClass == RangedProjectile && cfg.AmmoFor != nil {
+		canFire, ammoBonus := cfg.AmmoFor(in.attackerID)
+		if !canFire {
+			cfg.Sink.OnRangedDry(ctx, RangedDry{
+				AttackerID:   in.attackerID,
+				TargetID:     in.targetID,
+				AttackerName: in.atkName,
+				TargetName:   in.tgtName,
+				WeaponName:   in.weaponName,
+				AmmoKind:     in.atkStats.AmmoKind,
+				RoomID:       in.attackerRoom,
+			})
+			return swingContinue
+		}
+		swingHitMod += ammoBonus
+	}
+
+	// §4.4 hit roll (attacker hit-mod already adjusted for darkness + per-swing
+	// masterwork-ammo bonus; threat range from the wielded weapon,
+	// weapon-identity §4).
+	outcome := rollHit(cfg.Roller, swingHitMod, in.defStats.AC, in.critThreatLow)
+	if !outcome.hit {
+		cfg.Sink.OnMiss(ctx, Miss{
+			AttackerID:   in.attackerID,
+			TargetID:     in.targetID,
+			AttackerName: in.atkName,
+			TargetName:   in.tgtName,
+			WeaponName:   in.weaponName,
+			IsFumble:     outcome.fumble,
+			RoomID:       in.attackerRoom,
+		})
+		return swingContinue
+	}
+
+	// §4.5 damage roll: dice + STR bonus, clamped to >= 1 on hit.
+	//
+	// CRIT POLICY: on a critical hit the rolled DICE are multiplied by the
+	// crit multiplier (default 2 — the §4.5 "doubled dice" option); the STR
+	// bonus is added afterward and is NOT multiplied. A multiplier of 1
+	// restores the original "crit = normal damage" policy. IsCritical still
+	// flows on the event so renderers can dramatize either way.
+	dmg := in.damageExpr.Roll(cfg.Roller)
+	if outcome.critical && in.critMultiplier > 1 {
+		dmg *= in.critMultiplier
+	}
+	// §4.5 damage: rolled (crit-multiplied) dice + the attacker's flat
+	// DamageBonus, minus the defender's soak. DamageBonus is added after the
+	// crit multiply (the bonus is not multiplied). Soak is the type-agnostic
+	// Mitigation (the channel layer's `mitigation` channel, design §6; 0 for
+	// fantasy) PLUS the defender's per-damage-type Resistance against the
+	// attacker's weapon types (armor-depth §4) — the two compose additively.
+	// The per-swing minimum of 1 still holds, so a landed hit always lands ≥1
+	// even under full soak.
+	soak := in.defStats.Mitigation + TypedResistance(in.defStats.Resistances, in.atkStats.WeaponDamageTypes)
+	raw := dmg + in.atkStats.DamageBonus - soak
+	if raw < 1 {
+		raw = 1
+	}
+
+	remainingHP, wasAlive := in.target.Vitals().ApplyDamageIfAlive(raw)
+	if !wasAlive {
+		// A concurrent damage source (DoT effect, ability, racing swing from a
+		// future parallel phase) killed the target between the early-exit live
+		// check above and this damage-apply. Treat as if our swing never
+		// landed: no Hit event, no VitalDepleted (the other source emits it),
+		// and we stop swinging on a corpse.
+		return swingStop
+	}
+	cfg.Sink.OnHit(ctx, Hit{
+		AttackerID:   in.attackerID,
+		TargetID:     in.targetID,
+		AttackerName: in.atkName,
+		TargetName:   in.tgtName,
+		WeaponName:   in.weaponName,
+		Damage:       raw,
+		DamageType:   DamageTypePhysical,
+		IsCritical:   outcome.critical,
+		RoomID:       in.attackerRoom,
+	})
+
+	if remainingHP <= 0 {
+		cfg.Sink.OnVitalDepleted(ctx, VitalDepleted{
+			VictimID:   in.targetID,
+			VictimName: in.tgtName,
+			AttackerID: in.attackerID,
+			Vital:      VitalHP,
+			RoomID:     in.attackerRoom,
+		})
+		// §4.3 "If HP reached zero ... stop further swings."
+		return swingStop
+	}
+
+	// saves §4 — massive-damage Fortitude save. A single swing whose applied
+	// damage meets the threshold and did NOT already kill (the branch above
+	// handled that) forces the victim to save; a failure drives the lethal
+	// consequence through the same VitalDepleted death path. A success leaves
+	// the already-applied normal damage untouched. nil MassiveDamage ⇒ rule
+	// disabled (pre-slice behavior).
+	if cfg.MassiveDamage != nil && raw >= cfg.MassiveDamage.Threshold {
+		if massiveDamageKill(ctx, cfg, in.attackerID, in.targetID, in.tgtName, in.attackerRoom) {
+			// §4.3 stop swinging on a corpse.
+			return swingStop
+		}
+	}
+	return swingContinue
+}
+
+// ResolveSingleAttack resolves exactly ONE attack swing from attacker against
+// target outside the round loop — the thrown-weapon one-shot (ranged-combat
+// §3). It reuses the same §4.4–§4.5 resolution the auto-attack loop uses
+// (resolveSwing), reading the attacker's current Stats so a thrown weapon's
+// full-Strength damage and crit profile apply, the defender's AC/soak, and the
+// Hit/Miss/VitalDepleted emission through the Manager's sink (so a thrown kill
+// runs the identical death flow as a weapon swing). The caller (the throw verb)
+// owns engagement, weapon removal, and the land-in-room / masterwork-destroy
+// rule; this method only resolves the swing.
+//
+// roller supplies the d20 + damage rolls; critMult is the dice multiplier on a
+// crit (<=0 ⇒ DefaultCritMultiplier, overridden by a per-weapon multiplier when
+// the weapon declares one). A thrown weapon is its own ammunition, so no ammo
+// hook fires; the massive-damage rule is not applied to a one-shot throw.
+// room is stamped on the emitted events for renderers. Returns true when the
+// target is still alive after the swing (false when it was missing/already
+// dead, or the swing killed it).
+func (m *Manager) ResolveSingleAttack(ctx context.Context, attackerID, targetID CombatantID, room world.RoomID, roller Roller, critMult int) bool {
+	attacker, ok := m.locator.LookupCombatant(attackerID)
+	if !ok {
+		return false
+	}
+	target, ok := m.locator.LookupCombatant(targetID)
+	if !ok || target.Vitals().IsDead() {
+		return false
+	}
+	if critMult <= 0 {
+		critMult = DefaultCritMultiplier
+	}
+
+	atkStats := attacker.Stats()
+	defStats := target.Stats()
+	critThreatLow := atkStats.CritThreatLow
+	if critThreatLow <= 0 {
+		critThreatLow = 20
+	}
+	critMultiplier := atkStats.CritMultiplier
+	if critMultiplier <= 0 {
+		critMultiplier = critMult
+	}
+
+	in := swingInputs{
+		attackerID:     attackerID,
+		targetID:       targetID,
+		attacker:       attacker,
+		target:         target,
+		atkStats:       atkStats,
+		defStats:       defStats,
+		atkName:        attacker.Name(),
+		tgtName:        target.Name(),
+		weaponName:     atkStats.EffectiveWeaponName(),
+		hitMod:         atkStats.HitMod,
+		damageExpr:     atkStats.EffectiveDamage(),
+		critThreatLow:  critThreatLow,
+		critMultiplier: critMultiplier,
+		attackerRoom:   room,
+	}
+	// A one-shot throw never consults the ammo hook or the massive-damage rule:
+	// the sink + roller are the only cfg fields resolveSwing needs here.
+	return resolveSwing(ctx, in, AutoAttackConfig{Sink: m.sink, Roller: roller}) == swingContinue
 }
 
 // massiveDamageKill resolves the saves §4 Fortitude save for a victim who

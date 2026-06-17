@@ -80,3 +80,32 @@ func TestAutoAttack_MeleeIgnoresAmmoHook(t *testing.T) {
 		t.Errorf("melee swing should land, got %d hits", h)
 	}
 }
+
+// ResolveSingleAttack (the throw one-shot, ranged-combat §3) resolves exactly
+// one swing through the shared resolver: a thrown weapon's full-STR damage is
+// applied and a Hit is emitted through the Manager's sink.
+func TestResolveSingleAttack_OneShotHit(t *testing.T) {
+	knife, err := ParseDice("1d4")
+	if err != nil {
+		t.Fatalf("ParseDice: %v", err)
+	}
+	atkStats := Stats{HitMod: 100, DamageBonus: 2, Damage: knife, WeaponName: "a throwing knife", RangedClass: RangedThrown}
+	defStats := Stats{AC: 10}
+	// roll seq: d20 index 5 (=6, +100 → hit, not a crit), then 1d4 index 0 (=1).
+	rig := newAutoAttackRig(t, atkStats, defStats, 10, 20, []int{5, 0})
+	alive := rig.mgr.ResolveSingleAttack(context.Background(), rig.attacker.id, rig.target.id, roomA, rig.roller, 0)
+
+	if !alive {
+		t.Error("target should survive a 3-damage knife at 20 HP")
+	}
+	hits := rig.sink.snapshotHits()
+	if len(hits) != 1 {
+		t.Fatalf("want 1 hit, got %d (misses=%d)", len(hits), len(rig.sink.snapshotMisses()))
+	}
+	if hits[0].Damage != 3 { // 1 die + 2 full-STR bonus
+		t.Errorf("damage = %d, want 3 (1 die + 2 thrown STR bonus)", hits[0].Damage)
+	}
+	if hits[0].WeaponName != "a throwing knife" {
+		t.Errorf("weapon = %q, want the knife", hits[0].WeaponName)
+	}
+}
