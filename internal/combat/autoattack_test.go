@@ -65,6 +65,7 @@ type autoAttackRig struct {
 	massive  *MassiveDamageConfig   // nil ⇒ saves §4 rule disabled
 	incap    func(CombatantID) bool // nil ⇒ never incapacitated (conditions §3)
 	defAdj   func(CombatantID) int  // nil ⇒ no defender vulnerability (conditions §3)
+	ammoFor  func(CombatantID) (bool, int) // nil ⇒ no ammo gate (ranged-combat §3)
 }
 
 // fakePassives is a deterministic PassiveEvaluator for the §4.2/§4.3
@@ -110,6 +111,7 @@ func (r *autoAttackRig) phase() PhaseFunc {
 		MassiveDamage:     r.massive,
 		Incapacitated:     r.incap,
 		DefenderHitAdjust: r.defAdj,
+		AmmoFor:           r.ammoFor,
 	})
 }
 

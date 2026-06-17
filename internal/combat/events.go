@@ -42,6 +42,9 @@ type EventSink interface {
 	// consumer (saves §4) emits it today; S2/S5 weaves and conditions
 	// will emit it as they land. Sinks that don't care embed nopSink.
 	OnSaveResolved(ctx context.Context, e SaveResolved)
+	// OnRangedDry reports a projectile swing skipped for want of ammo
+	// (ranged-combat §3). Sinks that don't care embed nopSink.
+	OnRangedDry(ctx context.Context, e RangedDry)
 }
 
 // Engagement is dispatched after both sides of an Engage have been
@@ -140,6 +143,22 @@ type VitalDepleted struct {
 	RoomID     world.RoomID
 }
 
+// RangedDry is dispatched when a projectile auto-attack swing cannot fire
+// for want of matching ammunition (ranged-combat §3). The swing is skipped
+// and the attacker stays engaged — it resumes firing the moment ammo is
+// available again. WeaponName is the launcher (e.g. "a short bow") and
+// AmmoKind is what it needed (e.g. "arrow"), so a renderer can phrase a
+// clear "click — out of arrows" line.
+type RangedDry struct {
+	AttackerID   CombatantID
+	TargetID     CombatantID
+	AttackerName string
+	TargetName   string
+	WeaponName   string
+	AmmoKind     string
+	RoomID       world.RoomID
+}
+
 // DamageTypePhysical is the single damage-type label M7.4 emits on
 // every hit event. M8 widens the type space (slashing, piercing,
 // elemental, etc.) when AC tables exist to discriminate them.
@@ -164,3 +183,4 @@ func (nopSink) OnMiss(context.Context, Miss)                   {}
 func (nopSink) OnEvade(context.Context, Evade)                 {}
 func (nopSink) OnVitalDepleted(context.Context, VitalDepleted) {}
 func (nopSink) OnSaveResolved(context.Context, SaveResolved)   {}
+func (nopSink) OnRangedDry(context.Context, RangedDry)         {}

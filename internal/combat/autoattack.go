@@ -56,6 +56,18 @@ type AutoAttackConfig struct {
 	// flags. nil-safe: no adjustment. Summed into the effective hit modifier
 	// alongside the attacker adjustments before the roll (§4.4).
 	DefenderHitAdjust func(targetID CombatantID) int
+	// AmmoFor resolves a projectile swing's ammunition (ranged-combat §3).
+	// It is called once per swing ONLY when the attacker's wielded weapon is
+	// a projectile (Stats.RangedClass == projectile). The host consumes one
+	// matching ammo unit from the attacker's inventory and returns
+	// canFire=true plus any masterwork-ammo to-hit bonus; with no matching
+	// ammo it returns canFire=false and the swing is skipped (a RangedDry
+	// event, the attacker stays engaged). Keyed on the full attacker
+	// CombatantID. nil-safe: a nil hook fires every projectile swing with no
+	// ammo bonus (tests/headless and any boot that doesn't wire ammo) — combat
+	// then treats a bow like an infinite-ammo melee weapon. Thrown and melee
+	// weapons never call this hook.
+	AmmoFor func(attackerID CombatantID) (canFire bool, toHitBonus int)
 	// MassiveDamage configures the saves §4 massive-damage Fortitude save:
 	// a single swing whose applied damage is at or above the threshold and
 	// did NOT already kill forces the victim to save or suffer the lethal
@@ -253,9 +265,34 @@ func runAutoAttack(ctx context.Context, attackerID CombatantID, mgr *Manager, cf
 			continue
 		}
 
-		// §4.4 hit roll (attacker hit-mod already adjusted for darkness;
-		// threat range from the wielded weapon, weapon-identity §4).
-		outcome := rollHit(cfg.Roller, hitMod, defStats.AC, critThreatLow)
+		// ranged-combat §3 — ammunition. A projectile swing consumes one
+		// matching ammo unit; with none available the swing is skipped (a
+		// RangedDry event) and the attacker stays engaged — it resumes the
+		// moment ammo returns. Masterwork ammo returns a to-hit bonus folded
+		// into this swing only. Thrown/melee weapons never enter this branch,
+		// and a nil AmmoFor fires every projectile swing (unwired/headless).
+		swingHitMod := hitMod
+		if atkStats.RangedClass == RangedProjectile && cfg.AmmoFor != nil {
+			canFire, ammoBonus := cfg.AmmoFor(attackerID)
+			if !canFire {
+				cfg.Sink.OnRangedDry(ctx, RangedDry{
+					AttackerID:   attackerID,
+					TargetID:     targetID,
+					AttackerName: atkName,
+					TargetName:   tgtName,
+					WeaponName:   weaponName,
+					AmmoKind:     atkStats.AmmoKind,
+					RoomID:       attackerRoom,
+				})
+				continue
+			}
+			swingHitMod += ammoBonus
+		}
+
+		// §4.4 hit roll (attacker hit-mod already adjusted for darkness +
+		// per-swing masterwork-ammo bonus; threat range from the wielded
+		// weapon, weapon-identity §4).
+		outcome := rollHit(cfg.Roller, swingHitMod, defStats.AC, critThreatLow)
 		if !outcome.hit {
 			cfg.Sink.OnMiss(ctx, Miss{
 				AttackerID:   attackerID,

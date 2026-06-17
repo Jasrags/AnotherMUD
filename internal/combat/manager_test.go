@@ -17,9 +17,10 @@ type recordingSink struct {
 	ended   []CombatEnded
 	hits    []Hit
 	misses  []Miss
-	evades  []Evade
-	deaths  []VitalDepleted
-	saves   []SaveResolved
+	evades    []Evade
+	deaths    []VitalDepleted
+	saves     []SaveResolved
+	rangedDry []RangedDry
 }
 
 func (r *recordingSink) OnEngagement(_ context.Context, e Engagement) {
@@ -62,6 +63,20 @@ func (r *recordingSink) OnSaveResolved(_ context.Context, e SaveResolved) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	r.saves = append(r.saves, e)
+}
+
+func (r *recordingSink) OnRangedDry(_ context.Context, e RangedDry) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.rangedDry = append(r.rangedDry, e)
+}
+
+func (r *recordingSink) snapshotRangedDry() []RangedDry {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	out := make([]RangedDry, len(r.rangedDry))
+	copy(out, r.rangedDry)
+	return out
 }
 
 func (r *recordingSink) snapshotHits() []Hit {

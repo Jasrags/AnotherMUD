@@ -1,5 +1,15 @@
 package combat
 
+// Ranged class values carried on Stats.RangedClass (ranged-combat §2).
+// These MUST match the item package's RangedThrown / RangedProjectile wire
+// values; combat keeps its own copy so the round loop can branch on the
+// class without importing the item feature (the same decoupling that keeps
+// the save axis and the damage-type label plain strings).
+const (
+	RangedThrown     = "thrown"
+	RangedProjectile = "projectile"
+)
+
 // Stats is the per-combatant derived stat block the hit and damage
 // rolls consume (spec combat §4.4-4.5). M7.1 carries only what combat
 // itself reads; richer attributes (DEX, CON, race, class, derived
@@ -67,7 +77,7 @@ type Stats struct {
 	CritMultiplier int
 
 	// RangedClass is the wielded weapon's ranged class (ranged-combat §2):
-	// "thrown", "projectile", or "" for a melee weapon. Populated from the
+	// RangedThrown, RangedProjectile, or "" for a melee weapon. Populated from the
 	// wielded weapon by the holder's Stats() builder. The round loop reads
 	// it to drive ammo consumption (projectile) and, in Slice B, the band /
 	// point-blank rules. Empty means melee, resolved exactly as today.

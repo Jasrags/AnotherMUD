@@ -2930,6 +2930,49 @@ func (a *connActor) RemoveFromInventory(id entities.EntityID) bool {
 	return false
 }
 
+// AmmoConsumer is the host seam the combat AmmoFor hook uses to spend a
+// projectile's ammunition (ranged-combat §3). The combat package never
+// touches inventory; the binary type-asserts a Combatant to this interface
+// and calls ConsumeAmmo once per projectile swing. A combatant that does not
+// satisfy it (a mob) fires freely — mob ranged AI is deferred (§9).
+type AmmoConsumer interface {
+	ConsumeAmmo(kind string) (gradeKey string, ok bool)
+}
+
+// ConsumeAmmo spends one matching ammunition unit (ranged-combat §3) and
+// returns its quality-grade key (masterwork §3; "" when ungraded) plus
+// whether anything was consumed. Inventory is N separate instances (stacking
+// is display-only), so consuming one unit = removing the first matching
+// instance, the same removal the eat/drink/use consumables use. A blank kind
+// never matches. Runs under a.mu — safe to call from the combat tick
+// goroutine, like the equip/unequip mutations.
+func (a *connActor) ConsumeAmmo(kind string) (string, bool) {
+	if kind == "" {
+		return "", false
+	}
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	if a.items == nil {
+		return "", false
+	}
+	for i, id := range a.inventory {
+		e, ok := a.items.GetByID(id)
+		if !ok {
+			continue
+		}
+		it, ok := e.(*entities.ItemInstance)
+		if !ok || it.AmmoKind() != kind {
+			continue
+		}
+		gradeKey := it.Grade()
+		a.inventory = append(a.inventory[:i], a.inventory[i+1:]...)
+		a.syncInventoryToSaveLocked()
+		a.markDirtyLocked()
+		return gradeKey, true
+	}
+	return "", false
+}
+
 // Equipment returns a snapshot of the actor's currently-equipped items
 // keyed by slot key. Fresh map — safe to mutate.
 func (a *connActor) Equipment() map[string]entities.EntityID {

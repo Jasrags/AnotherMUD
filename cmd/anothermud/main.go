@@ -1701,6 +1701,34 @@ func run() error {
 		DefenderHitAdjust: func(id combat.CombatantID) int {
 			return conditionImpact(combat.EntityIDOf(id)).DefenderVulnerability
 		},
+		// ranged-combat §3: a projectile swing spends one matching ammo unit.
+		// Resolve the attacker → its ammo kind (from its wielded weapon's
+		// combat.Stats) → spend one via the session-side AmmoConsumer, mapping
+		// the consumed unit's masterwork grade to a to-hit bonus here (the
+		// grade registry lives in the binary, keeping session decoupled). A
+		// combatant without inventory (a mob) fires freely — mob ranged AI is
+		// deferred (ranged-combat §9).
+		AmmoFor: func(attackerID combat.CombatantID) (bool, int) {
+			c, ok := combatLocator.LookupCombatant(attackerID)
+			if !ok {
+				return false, 0
+			}
+			consumer, ok := c.(session.AmmoConsumer)
+			if !ok {
+				return true, 0 // no inventory (mob) — fire freely
+			}
+			gradeKey, consumed := consumer.ConsumeAmmo(c.Stats().AmmoKind)
+			if !consumed {
+				return false, 0
+			}
+			bonus := 0
+			if registries.Grades != nil {
+				if g, gok := registries.Grades.Get(gradeKey); gok {
+					bonus = g.WeaponToHit
+				}
+			}
+			return true, bonus
+		},
 		MassiveDamage: &combat.MassiveDamageConfig{
 			Threshold: massiveThreshold,
 			DC:        cfg.MassiveDamageDC,
@@ -3541,6 +3569,26 @@ func (s *productionCombatSink) OnEvade(_ context.Context, e combat.Evade) {
 		slog.String("target", string(e.TargetID)),
 		slog.String("ability", e.AbilityName),
 		slog.String("room", string(e.RoomID)))
+}
+
+// OnRangedDry narrates a projectile swing skipped for want of ammo
+// (ranged-combat §3): the wielder gets a "click — out of <ammo>" line and
+// the room sees them grasping for ammunition. The attacker stays engaged, so
+// a re-supply resumes fire on the next round with no re-engage.
+func (s *productionCombatSink) OnRangedDry(ctx context.Context, e combat.RangedDry) {
+	s.logger.Info("combat.ranged_dry",
+		slog.String("attacker", string(e.AttackerID)),
+		slog.String("weapon", e.WeaponName),
+		slog.String("ammo_kind", e.AmmoKind),
+		slog.String("room", string(e.RoomID)))
+
+	an := s.nameOf(string(e.AttackerID))
+	ammo := e.AmmoKind
+	if ammo == "" {
+		ammo = "ammunition"
+	}
+	s.tell(ctx, e.AttackerID, fmt.Sprintf("*click* — you are out of %s!", ammo))
+	s.announce(ctx, e.RoomID, fmt.Sprintf("%s grasps for %s that isn't there.", an, ammo), e.AttackerID)
 }
 
 // OnSaveResolved renders a saving-throw resolution to the creature

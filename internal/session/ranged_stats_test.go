@@ -69,6 +69,65 @@ func TestRangedStrengthRule_FlowsThroughStats(t *testing.T) {
 	}
 }
 
+// ConsumeAmmo (the AmmoConsumer seam) removes one matching ammo instance
+// per call, returns the consumed unit's grade key, and reports no-match /
+// blank-kind correctly (ranged-combat §3).
+func TestConsumeAmmo(t *testing.T) {
+	store := entities.NewStore()
+	a := newEqActor(t, store)
+
+	// Two plain arrows + one masterwork arrow + a non-ammo item.
+	for i := 0; i < 2; i++ {
+		inst, _ := store.Spawn(&item.Template{
+			ID: "test:arrow", Name: "an arrow", Type: "item", AmmoKind: "arrow",
+		})
+		a.AddToInventory(inst.ID())
+	}
+	mw, _ := store.Spawn(&item.Template{
+		ID: "test:mw-arrow", Name: "a fine arrow", Type: "item", AmmoKind: "arrow", Grade: "masterwork",
+	})
+	a.AddToInventory(mw.ID())
+	other, _ := store.Spawn(&item.Template{ID: "test:rock", Name: "a rock", Type: "item"})
+	a.AddToInventory(other.ID())
+
+	startLen := len(a.Inventory())
+
+	// Blank kind never matches.
+	if grade, ok := a.ConsumeAmmo(""); ok || grade != "" {
+		t.Errorf("ConsumeAmmo(\"\") = (%q,%v), want (\"\",false)", grade, ok)
+	}
+	// A kind with no matching ammo.
+	if grade, ok := a.ConsumeAmmo("bolt"); ok || grade != "" {
+		t.Errorf("ConsumeAmmo(bolt) = (%q,%v), want (\"\",false)", grade, ok)
+	}
+	if len(a.Inventory()) != startLen {
+		t.Fatalf("inventory changed on a no-match consume: %d → %d", startLen, len(a.Inventory()))
+	}
+
+	// Consume three arrows: each removes exactly one matching instance.
+	// At least one of the three carries the masterwork grade key.
+	sawGrade := false
+	for i := 0; i < 3; i++ {
+		grade, ok := a.ConsumeAmmo("arrow")
+		if !ok {
+			t.Fatalf("ConsumeAmmo(arrow) #%d = not consumed, want consumed", i+1)
+		}
+		if grade == "masterwork" {
+			sawGrade = true
+		}
+		if got, want := len(a.Inventory()), startLen-(i+1); got != want {
+			t.Errorf("after consume #%d inventory = %d, want %d", i+1, got, want)
+		}
+	}
+	if !sawGrade {
+		t.Error("never observed the masterwork arrow's grade key across three consumes")
+	}
+	// All arrows gone — only the rock remains, so a further consume fails.
+	if grade, ok := a.ConsumeAmmo("arrow"); ok || grade != "" {
+		t.Errorf("ConsumeAmmo(arrow) after exhaustion = (%q,%v), want (\"\",false)", grade, ok)
+	}
+}
+
 // A melee weapon is unaffected by the ranged Strength rule — the full +2
 // bonus rides through, and the ranged fields stay empty.
 func TestMeleeWeapon_KeepsFullStrengthBonus(t *testing.T) {

@@ -241,3 +241,4 @@ func (r *recordingSink) OnMiss(context.Context, combat.Miss)                   {
 func (r *recordingSink) OnEvade(context.Context, combat.Evade)                 {}
 func (r *recordingSink) OnVitalDepleted(context.Context, combat.VitalDepleted) {}
 func (r *recordingSink) OnSaveResolved(context.Context, combat.SaveResolved)   {}
+func (r *recordingSink) OnRangedDry(context.Context, combat.RangedDry)         {}
