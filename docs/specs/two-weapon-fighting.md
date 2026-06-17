@@ -296,4 +296,4 @@ All numeric magnitudes live here; the prose names behaviors, not values.
 
 ---
 
-<!-- Spec style: narrative + acceptance criteria · Detail level: behavior only · Status: slice 1 (off-hand attack substrate) SHIPPED 2026-06-17; slice 2 (Two-Weapon Fighting + Ambidexterity feats — §4.1) SHIPPED 2026-06-17; slice 3 (Improved Two-Weapon Fighting — a second off-hand strike at a cumulative secondary penalty, §3.1/§4.3) SCOPED 2026-06-17, build pending. Mob dual-wield still deferred (§7). EPIC S1 increment K. -->
+<!-- Spec style: narrative + acceptance criteria · Detail level: behavior only · Status: slice 1 (off-hand attack substrate) SHIPPED 2026-06-17; slice 2 (Two-Weapon Fighting + Ambidexterity feats — §4.1) SHIPPED 2026-06-17; slice 3 (Improved Two-Weapon Fighting — a second off-hand strike at a cumulative secondary penalty, §3.1/§4.3) SHIPPED 2026-06-17. Increment K complete (slices 1-3). Mob dual-wield still deferred (§7). EPIC S1 increment K. -->
