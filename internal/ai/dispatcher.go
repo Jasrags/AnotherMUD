@@ -102,6 +102,19 @@ func (d *Dispatcher) Tick(ctx context.Context, tickCount uint64) {
 		// disengaged on different-room. nil gate disables (tests
 		// that don't wire combat).
 		if d.deps.Combat != nil && d.deps.Combat.InCombat(m.CombatantID()) {
+			// A mob already in a fight has had its grudge settled — drop any
+			// lingering retaliation intent so it doesn't re-pursue after this
+			// combat ends (ranged-combat §10 slice 2).
+			if hasRetaliation(m) {
+				clearRetaliation(m)
+			}
+			continue
+		}
+
+		// Retaliation (ranged-combat §10): a mob shot from the next room
+		// pursues + engages its attacker, preempting its normal behavior
+		// (so even a stationary or behavior-less mob comes after you).
+		if tryRetaliate(ctx, m, d.deps) {
 			continue
 		}
 

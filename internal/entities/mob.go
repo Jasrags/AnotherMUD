@@ -165,6 +165,18 @@ const (
 	// (spec mobs-ai-spawning §2.3 step 5). AI dispatch reads it to
 	// look up the behavior function.
 	PropBehavior = "behavior"
+
+	// PropRetaliateTarget / PropRetaliateRoom carry a mob's retaliation
+	// grudge for ranged-combat Model C (§10): when a cross-room shot lands
+	// on a living mob, the `shoot` verb stamps the shooter's player id and
+	// the room the shot came from here, and the AI dispatcher's retaliation
+	// step (internal/ai) reads them to path toward the shooter and engage.
+	// Shared keys (not in the ai package) so the command-layer writer and
+	// the ai-layer reader agree on one source of truth. An empty/absent
+	// target means "no grudge". Mutated through SetProperty (propsMu-guarded),
+	// so the session-goroutine writer and the tick-goroutine reader are safe.
+	PropRetaliateTarget = "retaliate_target"
+	PropRetaliateRoom   = "retaliate_room"
 )
 
 // TagMob is the synthetic tag applied to every MobInstance at

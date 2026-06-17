@@ -209,6 +209,44 @@ func TestShoot_OutOfAmmoDoesNotFire(t *testing.T) {
 	}
 }
 
+func TestShoot_LivingMobGetsRetaliationGrudge(t *testing.T) {
+	f := newShootFixture(t)
+	a := f.archer("")
+	env, shot, _ := f.shootEnv(a) // ResolveAttack returns true (target alive)
+	r := newRegistry(t)
+	dispatchActor(t, r, env, a, "shoot guard north")
+
+	if !shot.called {
+		t.Fatal("ResolveAttack should fire on a valid shot")
+	}
+	// A surviving mob bears a grudge: the shooter's id + the room the shot came
+	// from, stamped for the AI retaliation step.
+	tgt, _ := f.guard.Property(entities.PropRetaliateTarget)
+	if tgt != "p-1" {
+		t.Errorf("retaliate target = %v, want the shooter's player id p-1", tgt)
+	}
+	room, _ := f.guard.Property(entities.PropRetaliateRoom)
+	if room != string(f.roomA.ID) {
+		t.Errorf("retaliate room = %v, want the shooter's room %q", room, f.roomA.ID)
+	}
+}
+
+func TestShoot_KilledMobGetsNoGrudge(t *testing.T) {
+	f := newShootFixture(t)
+	a := f.archer("")
+	env, _, _ := f.shootEnv(a)
+	// Override ResolveAttack to report the target died (alive=false).
+	env.ResolveAttack = func(context.Context, combat.CombatantID, combat.CombatantID, world.RoomID) bool {
+		return false
+	}
+	r := newRegistry(t)
+	dispatchActor(t, r, env, a, "shoot guard north")
+
+	if tgt, ok := f.guard.Property(entities.PropRetaliateTarget); ok && tgt != "" {
+		t.Errorf("a killed mob must not bear a grudge, got %v", tgt)
+	}
+}
+
 func TestShoot_ConsumesOneAmmoOnShot(t *testing.T) {
 	f := newShootFixture(t)
 	base := f.archer("arrow")

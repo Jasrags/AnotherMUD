@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/Jasrags/AnotherMUD/internal/combat"
+	"github.com/Jasrags/AnotherMUD/internal/entities"
 	"github.com/Jasrags/AnotherMUD/internal/light"
 	"github.com/Jasrags/AnotherMUD/internal/world"
 )
@@ -145,7 +146,19 @@ func ShootHandler(ctx context.Context, c *Context) error {
 	// Resolve exactly one swing, stamped to the TARGET room so the third-person
 	// announce lands where the target is. No engagement: cross-room combat does
 	// not sustain (the round loop would disengage it next tick anyway).
-	c.ResolveAttack(ctx, attacker.CombatantID(), targetCombatant.CombatantID(), dst.ID)
+	alive := c.ResolveAttack(ctx, attacker.CombatantID(), targetCombatant.CombatantID(), dst.ID)
+
+	// Retaliation (Model C §10 slice 2): a living MOB that was shot bears a
+	// grudge — it will path toward the shooter and engage on the AI tick. Stamp
+	// the shooter's id + room; the AI retaliation step consumes it. Only mobs
+	// retaliate automatically (a player target chooses their own response), and
+	// only survivors (a kill ends it).
+	if alive {
+		if mob, ok := targetCombatant.(*entities.MobInstance); ok {
+			mob.SetProperty(entities.PropRetaliateTarget, c.Actor.PlayerID())
+			mob.SetProperty(entities.PropRetaliateRoom, string(room.ID))
+		}
+	}
 	return nil
 }
 

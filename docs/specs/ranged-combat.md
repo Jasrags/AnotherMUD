@@ -6,8 +6,10 @@ program (`docs/themes/wot-mechanics-epic.md`,
 (translate onto the existing tick model; no d20 rewrite). *Shipped — Slice A
 (same-room ranged: thrown/projectile + ammo + Strength rules + masterwork ammo)
 and Slice B (the far→near→melee range bands + auto-close + advance/withdraw
-kiting). Cross-room targeting (Model C, §10) is now in progress — slice 1 (the
-opportunistic adjacent-room `shoot` verb) has shipped.* Layers on `combat`
+kiting). Cross-room targeting (Model C, §10) ships as an opportunistic
+adjacent-room action — slice 1 (the `shoot` verb) + slice 2 (a shot mob paths to
+its attacker and engages) are in; sustained cross-room combat stays deferred.*
+Layers on `combat`
 (the round loop, engage/disengage),
 `weapon-identity` (weapon categories/proficiency), `inventory-equipment-items`
 (ammo as items), and `masterwork` (masterwork ammo, now in scope).
@@ -252,7 +254,9 @@ All numeric magnitudes live here; the prose names behaviors, not values.
 - **Cross-room targeting (Model C)** — **now in progress** (§10). Resolved as an
   opportunistic, adjacent-room **action** (not a sustained cross-room
   engagement), so the same-room round-loop invariant is preserved. Slice 1 (the
-  `shoot` verb) has shipped; retaliation pathing (slice 2) is the next increment.
+  `shoot` verb) and slice 2 (a shot mob paths to its attacker and engages) have
+  shipped. Remaining Model C work (sustained cross-room combat, multi-room LoS
+  and pursuit) stays deferred.
 - **Mixed-band parties / multiple opponents** — bands track per attacker↔target
   pair (the shipped model), but the round-loop auto-close/kite acts only against
   the PRIMARY target each round; how a combatant relates to several foes at
@@ -266,7 +270,7 @@ shoots with the band falloff/point-blank, and a **kiting AI** opens the distance
 (probabilistically, so a closing foe still net-advances) instead of shooting
 when a foe gets inside far. Players kite manually with the withdraw verb.
 
-## 10. Cross-room targeting (Model C) — in progress
+## 10. Cross-room targeting (Model C) — slices 1 & 2 shipped
 
 The §1 non-goal becomes scope here, but on the **least invasive reading of the
 proposal's Model C**. Two forks were resolved before any code:
@@ -324,16 +328,34 @@ regardless of room. The verb adds the directional flavor on each side: an
 - [x] No combat engagement persists across the boundary — the round loop is
       untouched.
 
-**Slice 2 (next) — retaliation pathing.** A mob shot from the next room becomes
-aware of and **paths toward** its attacker (reusing the existing mob aggro +
-movement), so the snipe provokes a response (the "charges toward you" beat)
-rather than free, riskless damage. Until it ships, a shot mob takes the hit
-without pursuing.
+**Slice 2 — retaliation pathing (shipped).** A **living mob** that is shot bears a
+**grudge**: on the AI tick it **paths toward** the shooter (adjacent-only,
+matching C1 — one step through the exit toward the shooter's room) and then
+**engages**, forced via the existing aggro→engage wiring **regardless of its base
+disposition** (being shot makes the fight personal, even for a neutral mob). The
+grudge **preempts** the mob's normal behavior, so a stationary or behaviour-less
+mob still comes after you. A closed door between them holds the grudge (the mob
+retries until a timeout); an unreachable or vanished shooter drops it. So the
+snipe **provokes a response** rather than dealing free, riskless damage.
+
+**Acceptance criteria (slice 2 — shipped).**
+
+- [x] A surviving shot mob paths one step into the shooter's room and engages on
+      the AI tick; a mob already co-located engages without moving.
+- [x] The engage is forced even for a non-hostile mob (the shot is the trigger).
+- [x] Retaliation preempts the mob's normal behavior (stationary/wander/none).
+- [x] A closed door keeps the grudge (retry until a timeout); an unreachable
+      shooter (not adjacent — multi-room pursuit is deferred) drops it.
+- [x] A **killed** mob and a **player** target bear no automatic grudge (a player
+      chooses their own response).
+- [x] A mob already in combat has its lingering grudge cleared (it won't
+      re-pursue after that fight ends).
 
 **Still deferred.** Sustained cross-room engagement (Model C full, the round-loop
-inversion); multi-room line-of-sight; per-observer target concealment across the
+inversion); **multi-room** retaliation pathing (slice 2 pursues only an adjacent
+shooter); multi-room line-of-sight; per-observer target concealment across the
 exit; thrown weapons across a boundary (the `throw` verb stays same-room).
 
 ---
 
-<!-- Spec style: narrative + acceptance criteria · Detail level: behavior only · Status: SHIPPED — EPIC S1 increment G · Slice A (thrown/projectile + ammo + Strength + masterwork ammo) and Slice B (per-engagement far→near→melee bands within one room, auto-close, advance/withdraw kiting). Cross-room (Model C, §10) IN PROGRESS — slice 1 (the opportunistic adjacent-room `shoot` verb) shipped; slice 2 (retaliation pathing) next. -->
+<!-- Spec style: narrative + acceptance criteria · Detail level: behavior only · Status: SHIPPED — EPIC S1 increment G · Slice A (thrown/projectile + ammo + Strength + masterwork ammo) and Slice B (per-engagement far→near→melee bands within one room, auto-close, advance/withdraw kiting). Cross-room (Model C, §10) — slice 1 (opportunistic adjacent-room `shoot` verb) + slice 2 (a shot mob paths to its attacker and engages) shipped; sustained cross-room combat + multi-room LoS/pursuit deferred. -->

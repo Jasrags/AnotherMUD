@@ -1449,12 +1449,17 @@ keep fighting you close in. The same-room round loop is untouched.
       unit, and out of ammo gives the *click* with no shot fired.
 - [ ] **No cross-room engagement:** after the shot you are **not** locked in a
       fight across the boundary — the round loop only sustains a fight within one
-      room. (Slice 2, not yet shipped: a shot mob will **path toward you** to
-      retaliate. Today it takes the hit without pursuing.)
+      room.
+- [ ] **Retaliation (slice 2):** a **living mob you shoot charges into your
+      room** on the next AI tick and engages — even a normally-passive one (the
+      shot made it personal). You'll see "a guard charges in from the south!"
+      then the fight. **Close the door** between you (`close <dir>`) and it's
+      stuck the other side until it gives up; a clean kill provokes nothing.
 
 > Still deferred (the spec records it, §10): **sustained** cross-room engagement
-> (the full round-loop inversion), **multi-room** line of sight, and thrown
-> weapons across a boundary (`throw` stays same-room).
+> (the full round-loop inversion), **multi-room** line of sight and pursuit (a
+> shot mob only chases a shooter in the *adjacent* room), and thrown weapons
+> across a boundary (`throw` stays same-room).
 
 ---
 
