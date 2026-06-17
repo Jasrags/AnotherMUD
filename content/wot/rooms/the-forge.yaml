@@ -37,6 +37,14 @@ items:
   # and a few fletcher's fine (masterwork) arrows that add to-hit and are spent
   # on use. `equip longbow`, `get arrow` (×N), `kill <foe>` to loose volleys.
   - two-rivers-longbow
+  # Cross-room demo (ranged-combat §10, Model C): a plain SIMPLE hunting bow —
+  # anyone wields it without penalty, so it hits cleanly. `get hunting-bow`,
+  # `equip hunting-bow`, `get arrow` (×N), then `shoot archer east` to snipe the
+  # brigand archer one room east on the Quarry Road — it charges back west into
+  # the Smithy to retaliate (slice 2). Shares the longbow's "arrow" ammo.
+  - hunting-bow
+  - arrow
+  - arrow
   - arrow
   - arrow
   - arrow

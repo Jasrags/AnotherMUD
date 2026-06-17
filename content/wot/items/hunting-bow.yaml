@@ -1,0 +1,31 @@
+id: hunting-bow
+name: a hunting bow
+description: |
+  A plain stave of Westwood ash, shorter and lighter than a Two Rivers warbow
+  and a good deal easier to draw. Every cottar's son has loosed one at rabbits
+  along the hedgerows; it lacks the reach and punch of a longbow, but it asks no
+  master's hand. A coil of waxed string is looped at the lower nock, ready to
+  brace.
+type: weapon
+tags: [weapon, wood, bow, ranged]
+keywords: [hunting-bow, huntingbow, bow]
+eligible_slots: [wield]
+companion_slots: [offhand]
+properties:
+  weight: 2
+  value: 20
+weapon_damage: "1d6"
+# Weapon identity (weapon-identity §2-§3): a SIMPLE bow — the lowest tier, which
+# every character is proficient with, so it draws no non-proficient to-hit
+# penalty (unlike the exotic two-rivers-longbow beside it). This makes it the
+# clean ranged demo weapon: anyone can pick it up and hit.
+weapon_category: bow
+proficiency_tier: simple
+damage_types: [piercing]
+# Ranged metadata (ranged-combat §2-§4). A PROJECTILE that consumes "arrow"
+# ammunition — the same arrows the longbow uses. A plain bow is NOT
+# Strength-rated, so it adds no positive Strength damage bonus (a negative
+# Strength still penalizes); the heavy two-rivers-longbow is the str_rating case.
+ranged_class: projectile
+ammo_kind: arrow
+range_increment: 8

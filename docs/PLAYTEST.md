@@ -1435,11 +1435,16 @@ You can now loose a projectile into the **next room**. It is an opportunistic
 **action**, not a sustained cross-room fight: you snipe through one open exit; to
 keep fighting you close in. The same-room round loop is untouched.
 
-- [ ] Stand in a room with an **open exit** into a room holding a hostile mob,
-      wield a **projectile** (a bow), and `shoot <mob> <direction>` (e.g.
-      `shoot guard north`; alias `fire`). You see "You loose a shot to the north
-      at …"; the hit/miss/damage line follows, and **the target's room** sees the
-      arrow "streak in from the south" and strike.
+**Walk it (WoT boot):** start in the **Smithy** (`the-forge`) — it stocks a plain
+**hunting bow** (a *simple* weapon, so any class hits with it) and **arrows**, and
+the hostile, *stationary* **brigand archer** waits one step **east** on the Quarry
+Road. `get hunting-bow`, `get arrow` (×a few), `wield hunting-bow`, then
+`shoot archer east`.
+
+- [ ] `shoot archer east` (alias `fire`) — you see "You loose a shot to the east
+      at a brigand archer"; the hit/damage line follows, and **the archer's room**
+      (the Quarry Road) sees the arrow "streak in from the west" and strike. The
+      general form is `shoot <mob> <direction>`.
 - [ ] **Line of sight = what you could walk through:** a **closed door** on that
       exit refuses ("The way north is closed; you can't shoot through it"); a
       direction with **no exit** (or an undiscovered **hidden** exit) reads as
@@ -1450,11 +1455,12 @@ keep fighting you close in. The same-room round loop is untouched.
 - [ ] **No cross-room engagement:** after the shot you are **not** locked in a
       fight across the boundary — the round loop only sustains a fight within one
       room.
-- [ ] **Retaliation (slice 2):** a **living mob you shoot charges into your
-      room** on the next AI tick and engages — even a normally-passive one (the
-      shot made it personal). You'll see "a guard charges in from the south!"
-      then the fight. **Close the door** between you (`close <dir>`) and it's
-      stuck the other side until it gives up; a clean kill provokes nothing.
+- [ ] **Retaliation (slice 2):** the **living mob you shoot charges into your
+      room** on the next AI tick and engages — even this *stationary* archer (the
+      shot made it personal, so it abandons its post). You'll see "a brigand
+      archer charges in from the east!" then the fight. A clean kill provokes
+      nothing; a **closed door** between you (`close <dir>`) leaves it stuck the
+      other side until it gives up.
 
 > Still deferred (the spec records it, §10): **sustained** cross-room engagement
 > (the full round-loop inversion), **multi-room** line of sight and pursuit (a
