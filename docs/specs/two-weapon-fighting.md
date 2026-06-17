@@ -40,13 +40,12 @@ behaving exactly as today.
 **Slices.** Slice 1 (SHIPPED) is the off-hand-attack substrate — the open,
 un-feated baseline (anyone may dual-wield, at the full penalty) and the seam the
 feats plug into. Slice 2 (SHIPPED) is the penalty-reducing feats — Two-Weapon
-Fighting and Ambidexterity. Slice 3 (SCOPED, build pending) is **Improved
-Two-Weapon Fighting** — a *second* off-hand attack (§3.1), gated behind the other
-two feats, made at a further accuracy penalty (§4.3).
+Fighting and Ambidexterity. Slice 3 (SHIPPED) is **Improved Two-Weapon
+Fighting** — a *second* off-hand attack (§3.1), gated behind the other two feats,
+made at a further accuracy penalty (§4.3). Slice 4 (SCOPED, build pending) is
+**mob dual-wield** — a mob striking with two equipped weapons (§2.3), un-feated.
 
-**Non-goals.** **Mob** dual-wielding (a mob striking with two equipped weapons)
-is deferred — mobs equip a single weapon at spawn today; the off-hand profile is
-player-only in v1. No new action economy, initiative, or attacks-of-opportunity
+**Non-goals.** No new action economy, initiative, or attacks-of-opportunity
 (Decision 0). Shield mechanics (an off-hand *shield's* AC contribution) are an
 armor concern (`armor-depth`), unaffected here. The engine does **not** apply an
 iterative accuracy penalty to *main-hand* extra attacks (`combat §4.2` — the
@@ -95,6 +94,40 @@ a larger wielder, and vice-versa — the same symmetry F established.
 - [ ] An off-hand weapon grants the off-hand attack only when it resolves to the
       **light** wield mode for its wielder; a non-light off-hand weapon grants no
       extra attack.
+
+### 2.3 Mob off-hand weapons — slice 4
+
+A **mob** arms its off hand the same way it arms its main hand: through its
+spawn-time equipment list (`mobs-ai-spawning §3.3`), not an equip verb. When a
+mob's equipment includes a **second weapon** that fits the **off-hand slot** and
+resolves the **light** wield mode for the mob's own size (§2.2 — relative to the
+mob, exactly as for a player), that weapon becomes the mob's off-hand weapon and
+the mob makes the off-hand attack (§3). This is **content-driven**: a mob opts in
+by carrying two qualifying weapons — no template flag and no new spawn field. The
+main weapon is the mob's first equipped weapon as today; the off-hand weapon is
+the one that lands in the off-hand slot. A two-handed main weapon ties up the off
+hand (F's footprint rule), so it precludes a mob off-hand weapon with no extra
+check, and a **ranged** main suppresses the mob off-hand strike (§3) exactly as
+for a player.
+
+A mob holds **no feats** (the feat system is player-only), so a dual-wielding mob
+always fights at the full un-feated two-weapon penalty (§4.1) with the reduced
+off-hand Strength (§4.2) and makes exactly **one** off-hand strike — the
+penalty-reducing feats (§4.1) and the second strike (§3.1) never apply to a mob.
+The combat round loop is unchanged: it already resolves any attacker's off-hand
+profile, so lighting up mob dual-wield is entirely a matter of the mob producing
+an off-hand profile from its `Stats()`, the mirror of the player's producer.
+
+**Acceptance criteria**
+
+- [ ] A mob whose spawn equipment includes a second weapon that fits the off-hand
+      slot and is light for the mob makes the off-hand attack, at the full
+      un-feated two-weapon penalty and reduced off-hand Strength.
+- [ ] A mob's off-hand weapon is the weapon that occupies the off-hand slot; its
+      first weapon remains the main weapon. A non-light or non-fitting second
+      weapon is carried (loot) but grants no off-hand attack.
+- [ ] A mob never benefits from the two-weapon feats and never makes a second
+      off-hand strike (mobs hold no feats).
 
 ## 3. The off-hand attack
 
@@ -233,8 +266,10 @@ main-hand extra-attack seam (`combat §4.2`) is intentionally left flat (non-goa
   seam (the same shape as the Weapon Focus to-hit bonus); they are slice 2.
 - **Weapon identity** (`weapon-identity §2, §4`): the off-hand weapon carries its
   own category / damage type / crit, read independently of the main weapon.
-- **Mobs** (`mobs-ai-spawning`): unaffected this slice — a mob wields its single
-  spawn weapon and takes no off-hand attack. Mob dual-wield is a later slice.
+- **Mobs** (`mobs-ai-spawning`): slice 4 gives the off-hand slot a mob combat
+  consumer. A mob that spawns with a second light off-hand-eligible weapon makes
+  the off-hand attack (§2.3) — un-feated, one strike. The spawn equip path gains
+  off-hand-weapon detection; the round loop and the player path are unchanged.
 
 ## 6. Configuration surface
 
@@ -281,11 +316,20 @@ All numeric magnitudes live here; the prose names behaviors, not values.
   Fighting + Ambidexterity; the source's BAB floor maps to a level prerequisite,
   omitted for the v1 demo (reachability, mirroring the slice-2 demo feats).
 
+- **Mob dual-wield is content-driven, un-feated, one strike (slice 4, decided).**
+  A mob opts into the off-hand attack by spawning with a second weapon that fits
+  the off-hand slot and is light for its size (§2.3) — no template flag, mirroring
+  the player's "carry two qualifying weapons" path. The spawn equip path
+  (`EquipMobAtSpawn`) gains off-hand-weapon detection (which equipped weapon
+  occupies the off-hand slot); `MobInstance.Stats()` builds the off-hand profile
+  the same way `connActor.Stats()` does, minus the feat-cache reads (mobs hold no
+  feats → full penalty, ½× Strength, one strike). The round loop is untouched (it
+  already swings any attacker's off-hand profile). Chosen over a `dual_wield:`
+  template flag to keep the mechanic uniform with the player and let any mob with
+  the right gear dual-wield.
+
 **Still open (non-blocking):**
 
-- **Mob dual-wield.** Giving a mob two equipped weapons (and the off-hand attack)
-  is deferred — the spawn equip path is single-weapon today. The combat seam is
-  built shared, so a later slice can light it up without reshaping the round.
 - **Per-swing penalty visibility.** Whether the player should see the two-weapon
   penalty surfaced (a cue like the non-proficiency "clumsy" message) or infer it
   from results is a UX call left for the build.
@@ -296,4 +340,4 @@ All numeric magnitudes live here; the prose names behaviors, not values.
 
 ---
 
-<!-- Spec style: narrative + acceptance criteria · Detail level: behavior only · Status: slice 1 (off-hand attack substrate) SHIPPED 2026-06-17; slice 2 (Two-Weapon Fighting + Ambidexterity feats — §4.1) SHIPPED 2026-06-17; slice 3 (Improved Two-Weapon Fighting — a second off-hand strike at a cumulative secondary penalty, §3.1/§4.3) SHIPPED 2026-06-17. Increment K complete (slices 1-3). Mob dual-wield still deferred (§7). EPIC S1 increment K. -->
+<!-- Spec style: narrative + acceptance criteria · Detail level: behavior only · Status: slice 1 (off-hand attack substrate) SHIPPED 2026-06-17; slice 2 (Two-Weapon Fighting + Ambidexterity feats — §4.1) SHIPPED 2026-06-17; slice 3 (Improved Two-Weapon Fighting — a second off-hand strike at a cumulative secondary penalty, §3.1/§4.3) SHIPPED 2026-06-17; slice 4 (mob dual-wield — content-driven, un-feated, one strike, §2.3) SCOPED 2026-06-17, build pending. EPIC S1 increment K. -->
