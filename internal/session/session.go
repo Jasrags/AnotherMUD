@@ -2963,6 +2963,15 @@ type weaponInfo struct {
 	// carried into combat.Stats so the defender's per-type resistance can
 	// be selected (armor-depth §4). nil ⇒ untyped.
 	damageTypes []string
+	// Ranged metadata (ranged-combat §2/§4). rangedClass empty ⇒ melee;
+	// ammoKind is what a projectile fires; rangeIncrement is the §5.3 falloff
+	// unit (inert until Slice B); strRating caps a Strength-rated bow's
+	// positive Strength bonus (nil ⇒ default no-positive-Strength rule). Read
+	// by Stats() to apply the Strength rule and carry the class into combat.
+	rangedClass    string
+	ammoKind       string
+	rangeIncrement int
+	strRating      *int
 }
 
 // armorResistances is the atomic snapshot of an actor's aggregated
@@ -3031,6 +3040,10 @@ func (a *connActor) recomputeWeaponLocked() {
 					critThreatLow:  it.CritThreatLow(),
 					critMultiplier: it.CritMultiplier(),
 					damageTypes:    it.DamageTypes(),
+					rangedClass:    it.RangedClass(),
+					ammoKind:       it.AmmoKind(),
+					rangeIncrement: it.RangeIncrement(),
+					strRating:      it.StrRating(),
 				}
 			}
 		}
@@ -4730,6 +4743,14 @@ func (a *connActor) Stats() combat.Stats {
 		s.WeaponDamageTypes = append([]string(nil), w.damageTypes...) // copy: don't alias the cached weaponInfo slice
 		s.CritThreatLow = w.critThreatLow
 		s.CritMultiplier = w.critMultiplier
+		// Ranged metadata + the §4 Strength rule. The class/ammo/increment
+		// are carried for the round loop's ammo + (Slice B) band logic; the
+		// Strength rule re-derives DamageBonus for a projectile (no positive
+		// bonus, or capped at a rating) while thrown keeps the full melee bonus.
+		s.RangedClass = w.rangedClass
+		s.AmmoKind = w.ammoKind
+		s.RangeIncrement = w.rangeIncrement
+		s.DamageBonus = item.RangedDamageBonus(w.rangedClass, w.strRating, s.DamageBonus)
 		// EPIC S4 Phase 3c: per-weapon-category feat bonuses (Weapon Focus
 		// to-hit, Improved Critical threat widen), read lock-free from the
 		// cache. Category match is case-insensitive (feat params are lowercased).

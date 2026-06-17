@@ -47,6 +47,38 @@ func TestRangedClassVocabulary(t *testing.T) {
 	}
 }
 
+func TestRangedDamageBonus(t *testing.T) {
+	rating2 := 2
+	rating0 := 0
+	cases := []struct {
+		name        string
+		class       string
+		strRating   *int
+		base        int
+		want        int
+	}{
+		{"melee keeps full bonus", "", nil, 3, 3},
+		{"melee keeps negative", "", nil, -1, -1},
+		{"thrown adds full bonus", RangedThrown, nil, 3, 3},
+		{"thrown keeps negative", RangedThrown, nil, -2, -2},
+		{"plain projectile drops positive bonus", RangedProjectile, nil, 3, 0},
+		{"plain projectile keeps negative (too weak to draw)", RangedProjectile, nil, -2, -2},
+		{"plain projectile zero stays zero", RangedProjectile, nil, 0, 0},
+		{"rated projectile caps positive at rating", RangedProjectile, &rating2, 5, 2},
+		{"rated projectile under cap keeps bonus", RangedProjectile, &rating2, 1, 1},
+		{"rated projectile keeps negative", RangedProjectile, &rating2, -1, -1},
+		{"rated-zero projectile caps positive to zero", RangedProjectile, &rating0, 4, 0},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := RangedDamageBonus(tc.class, tc.strRating, tc.base); got != tc.want {
+				t.Errorf("RangedDamageBonus(%q, %v, %d) = %d, want %d",
+					tc.class, tc.strRating, tc.base, got, tc.want)
+			}
+		})
+	}
+}
+
 func TestProficient(t *testing.T) {
 	tiers := []string{"martial"}    // class grants all martial
 	cats := []string{"two-rivers-longbow"} // ...plus this one exotic kind

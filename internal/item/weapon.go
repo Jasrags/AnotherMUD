@@ -83,6 +83,42 @@ func ValidRangedClass(name string) bool {
 	return false
 }
 
+// RangedDamageBonus applies the ranged-combat §4 Strength rule to a
+// weapon's base Strength-derived damage bonus, returning the bonus that
+// should actually be added to the rolled dice.
+//
+//   - Thrown (and melee): the FULL bonus — you put your body into the throw,
+//     exactly like a melee swing.
+//   - Plain projectile (strRating nil): NO positive bonus — the bowstring
+//     does the work — but a NEGATIVE modifier still applies (too weak to draw
+//     it cleanly).
+//   - Strength-rated projectile (strRating non-nil): a positive bonus CAPPED
+//     at the rating (a composite bow built to a draw); a negative modifier
+//     still applies in full.
+//
+// base is the holder's already-composed Strength damage bonus (the channel
+// layer's damage_bonus; in the baseline trunc((str-10)/2)). rangedClass is
+// the wielded weapon's class ("" / thrown / projectile).
+func RangedDamageBonus(rangedClass string, strRating *int, base int) int {
+	if rangedClass != RangedProjectile {
+		// Thrown adds the full Strength bonus; a melee weapon is unchanged.
+		return base
+	}
+	if base <= 0 {
+		// A negative Strength modifier still applies to a bow (and zero is
+		// already nothing to cap).
+		return base
+	}
+	if strRating == nil {
+		// Plain projectile: the string does the work, no positive bonus.
+		return 0
+	}
+	if base > *strRating {
+		return *strRating
+	}
+	return base
+}
+
 // Proficient reports whether a wielder whose class grants the given weapon
 // tiers and categories may use a weapon of weaponTier / weaponCategory
 // without the non-proficient penalty (weapon-identity §3). Every wielder is

@@ -66,6 +66,24 @@ type Stats struct {
 	// (AutoAttackConfig.CritMultiplier). Populated from the wielded weapon.
 	CritMultiplier int
 
+	// RangedClass is the wielded weapon's ranged class (ranged-combat §2):
+	// "thrown", "projectile", or "" for a melee weapon. Populated from the
+	// wielded weapon by the holder's Stats() builder. The round loop reads
+	// it to drive ammo consumption (projectile) and, in Slice B, the band /
+	// point-blank rules. Empty means melee, resolved exactly as today.
+	RangedClass string
+
+	// AmmoKind is the ammunition kind a projectile weapon consumes
+	// (ranged-combat §3), matched verbatim against ammo items. Empty for a
+	// thrown/melee weapon. The host's ammo hook reads it to find a matching
+	// unit in the wielder's inventory.
+	AmmoKind string
+
+	// RangeIncrement is the wielded weapon's distance-falloff unit
+	// (ranged-combat §2). Zero = unset. Carried for Slice B's band to-hit
+	// falloff; inert in Slice A.
+	RangeIncrement int
+
 	// WeaponDamageTypes are the wielded weapon's damage type(s)
 	// (weapon-identity §2 — bludgeoning/piercing/slashing, extensible).
 	// Empty means untyped. The damage application reads them to select the

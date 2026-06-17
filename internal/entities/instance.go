@@ -112,6 +112,16 @@ type ItemInstance struct {
 	// lifted onto the instance at build. nil = untyped. Read by the combat
 	// path to select a defender's per-type resistance (armor-depth §4).
 	damageTypes []string
+	// Ranged weapon metadata (ranged-combat §2), lifted onto the instance at
+	// build (mirrors weaponCategory). rangedClass empty = melee; ammoKind is
+	// what a projectile fires / an ammo item supplies; rangeIncrement is the
+	// distance-falloff unit; strRating caps a Strength-rated bow's positive
+	// Strength bonus (nil = the default no-positive-Strength projectile rule).
+	// Write-once at construction — no mutex needed.
+	rangedClass    string
+	ammoKind       string
+	rangeIncrement int
+	strRating      *int
 	// resistances are the armor's per-damage-type damage reduction
 	// (armor-depth §4), keyed by damage type. nil = none. Aggregated across
 	// worn armor into the holder's combat.Stats.Resistances at Stats() time.
@@ -322,6 +332,30 @@ func (it *ItemInstance) DamageTypes() []string {
 	return append([]string(nil), it.damageTypes...)
 }
 
+// RangedClass returns the weapon's ranged class (ranged-combat §2):
+// "thrown", "projectile", or "" for a melee weapon (or non-weapon).
+func (it *ItemInstance) RangedClass() string { return it.rangedClass }
+
+// AmmoKind returns the ammunition kind a projectile weapon consumes, or an
+// ammo item supplies (ranged-combat §3); empty for thrown/melee/non-ammo.
+func (it *ItemInstance) AmmoKind() string { return it.ammoKind }
+
+// RangeIncrement returns the weapon's distance-falloff unit (ranged-combat
+// §2); zero when unset. Inert until Slice B's range bands.
+func (it *ItemInstance) RangeIncrement() int { return it.rangeIncrement }
+
+// StrRating returns the cap on a Strength-rated projectile weapon's
+// positive Strength damage bonus (ranged-combat §4), or nil for the default
+// projectile rule (no positive Strength bonus). The returned pointer is a
+// copy — mutating it does not affect the instance.
+func (it *ItemInstance) StrRating() *int {
+	if it.strRating == nil {
+		return nil
+	}
+	v := *it.strRating
+	return &v
+}
+
 // Resistances returns the armor's per-damage-type damage reduction
 // (armor-depth §4) as a fresh map; nil when the item grants none.
 func (it *ItemInstance) Resistances() map[string]int {
@@ -465,6 +499,13 @@ func buildInstanceFromTemplate(tpl *item.Template, id EntityID) *ItemInstance {
 			resistances[k] = v
 		}
 	}
+	// Ranged Strength rating (ranged-combat §4): copy the optional pointer so
+	// the instance never aliases the shared template's pointer.
+	var strRating *int
+	if tpl.StrRating != nil {
+		v := *tpl.StrRating
+		strRating = &v
+	}
 
 	return &ItemInstance{
 		id:                id,
@@ -484,6 +525,10 @@ func buildInstanceFromTemplate(tpl *item.Template, id EntityID) *ItemInstance {
 		critThreatLow:     tpl.CritThreatLow,
 		critMultiplier:    tpl.CritMultiplier,
 		damageTypes:       damageTypes,
+		rangedClass:       tpl.RangedClass,
+		ammoKind:          tpl.AmmoKind,
+		rangeIncrement:    tpl.RangeIncrement,
+		strRating:         strRating,
 		resistances:       resistances,
 		armorCheckPenalty: tpl.ArmorCheckPenalty,
 	}
