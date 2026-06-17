@@ -43,6 +43,19 @@ func TestEngage_MeleeInitiatorOpensMelee(t *testing.T) {
 	}
 }
 
+// Only a PROJECTILE opens at far. A wielded THROWN weapon auto-attacks at melee
+// (it can't shoot from range), so engaging with one opens at melee — otherwise
+// `kill` with a knife would waste rounds closing before the first stab.
+func TestEngage_ThrownInitiatorOpensMelee(t *testing.T) {
+	atk, tgt, m := bandPair(RangedThrown)
+	if _, ok := m.EngageWithReason(context.Background(), atk.id, tgt.id, roomA); !ok {
+		t.Fatal("engage failed")
+	}
+	if got := m.BandOf(atk.id, tgt.id); got != meleeBand {
+		t.Errorf("thrown-initiated band = %d (%s), want melee", got, BandName(got))
+	}
+}
+
 // DisengageAll clears every band the combatant was part of (ranged-combat §5).
 func TestDisengageAll_ClearsBands(t *testing.T) {
 	atk, tgt, m := bandPair(RangedProjectile)

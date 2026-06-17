@@ -50,22 +50,23 @@ func makeBandKey(a, b CombatantID) bandKey {
 }
 
 // openingBand returns the band a fresh engagement INITIATED by attacker opens
-// at (§5.2): a ranged-wielding initiator (bow or thrown weapon in hand) opens
-// at the far band; a melee initiator opens at melee. Reads the attacker's
-// wielded-weapon class through the locator, so it MUST be called outside m.mu
-// (the locator takes session/entities locks; m.mu stays inner — see
-// engageWithReason's name-resolution rationale).
+// at (§5.2): a PROJECTILE-wielding initiator (a bow) opens at the far band; a
+// melee or thrown weapon opens at melee. Only a projectile actually shoots from
+// range in the round loop (§5.3) — a wielded thrown weapon auto-attacks at
+// melee, so opening its fight at far would only waste rounds closing for the
+// first swing. The deliberate ranged `throw` verb is one-shot and unaffected by
+// bands, so opening at melee costs it nothing. Reads the attacker's wielded
+// class through the locator, so it MUST be called outside m.mu (the locator
+// takes session/entities locks; m.mu stays inner — see engageWithReason).
 func (m *Manager) openingBand(attacker CombatantID) int {
 	c, ok := m.locator.LookupCombatant(attacker)
 	if !ok {
 		return meleeBand
 	}
-	switch c.Stats().RangedClass {
-	case RangedProjectile, RangedThrown:
+	if c.Stats().RangedClass == RangedProjectile {
 		return farBand()
-	default:
-		return meleeBand
 	}
+	return meleeBand
 }
 
 // BandOf returns the current range band index for the a↔b pairing, or meleeBand
