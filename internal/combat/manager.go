@@ -58,6 +58,12 @@ type Manager struct {
 	// nil clock + nil cooldowns means "no cooldown gating" so M7.2
 	// tests continue to pass with default Manager construction.
 	cooldowns *FleeCooldowns
+
+	// bands holds the per-pairing range band (ranged-combat §5), keyed on the
+	// order-independent bandKey. An absent entry reads as the melee band (0),
+	// so melee fights need no entry and pre-ranged behavior is unchanged. Set
+	// on a ranged-initiated engage, cleared on disengage. Guarded by m.mu.
+	bands map[bandKey]int
 }
 
 // TagSource is the read surface Manager consults for §2.1 tag-based
@@ -121,6 +127,7 @@ func NewManagerWith(cfg ManagerConfig) *Manager {
 		sink:      cfg.Sink,
 		tags:      cfg.Tags,
 		cooldowns: cfg.Cooldowns,
+		bands:     make(map[bandKey]int),
 	}
 }
 
@@ -208,6 +215,13 @@ func (m *Manager) engageWithReason(ctx context.Context, attacker, target Combata
 		return EngageRefusalFleeCooldown, false
 	}
 
+	// ranged-combat §5.2: the opening band depends on the initiator's wielded
+	// weapon — a ranged opener (bow/thrown) opens at far, a melee opener at
+	// melee. Resolved BEFORE m.mu because openingBand calls the locator (which
+	// takes session/entities locks); m.mu must stay inner (see name resolution
+	// below). A melee opener (meleeBand) needs no entry — absent reads as melee.
+	openBand := m.openingBand(attacker)
+
 	m.mu.Lock()
 	if contains(m.lists[attacker], target) {
 		m.mu.Unlock()
@@ -222,6 +236,9 @@ func (m *Manager) engageWithReason(ctx context.Context, attacker, target Combata
 	// breaks symmetry elsewhere.
 	if !contains(m.lists[target], attacker) {
 		m.lists[target] = append(m.lists[target], attacker)
+	}
+	if openBand != meleeBand {
+		m.setBandLocked(attacker, target, openBand)
 	}
 	m.mu.Unlock()
 
@@ -268,6 +285,8 @@ func (m *Manager) Disengage(ctx context.Context, a, b CombatantID, roomID world.
 		m.mu.Unlock()
 		return false
 	}
+	// The pairing's range band (ranged-combat §5) ends with the engagement.
+	delete(m.bands, makeBandKey(a, b))
 	if removedA && len(m.lists[a]) == 0 {
 		delete(m.lists, a)
 		endedIDs = append(endedIDs, a)
@@ -314,6 +333,8 @@ func (m *Manager) DisengageAll(ctx context.Context, c CombatantID, roomID world.
 	// explicitly calls out.
 	opponents := append([]CombatantID(nil), m.lists[c]...)
 	for _, opp := range opponents {
+		// The pairing's range band ends with the engagement (ranged-combat §5).
+		delete(m.bands, makeBandKey(c, opp))
 		if m.removeFromListLocked(opp, c) && len(m.lists[opp]) == 0 {
 			delete(m.lists, opp)
 			endedIDs = append(endedIDs, opp)
