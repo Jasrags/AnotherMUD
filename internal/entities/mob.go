@@ -8,6 +8,7 @@ import (
 	"github.com/Jasrags/AnotherMUD/internal/combat"
 	"github.com/Jasrags/AnotherMUD/internal/mob"
 	"github.com/Jasrags/AnotherMUD/internal/progression"
+	"github.com/Jasrags/AnotherMUD/internal/size"
 	"github.com/Jasrags/AnotherMUD/internal/srckey"
 	"github.com/Jasrags/AnotherMUD/internal/stats"
 )
@@ -139,6 +140,13 @@ type MobInstance struct {
 	// inventory-bearing combatants.
 	weaponRangedClass string
 	weaponAmmoKind    string
+	// weaponSize is the equipped weapon's size category (size-and-wielding §2),
+	// fed into the wield-mode derivation in Stats so a mob earns the two-handed
+	// Strength bonus relative to ITS OWN size (§4.2, §5) — the same relativity a
+	// player gets. Empty = baseline (the default for a natural weapon, which
+	// declares no size). Set during the spawn pipeline by SetWeapon, read
+	// lock-free by Stats.
+	weaponSize string
 	// resistances is the mob's aggregated per-damage-type damage reduction
 	// from worn armor (armor-depth §4), summed across equipped armor at
 	// spawn (EquipMobAtSpawn → SetResistances). nil = none. Mutated only
@@ -377,6 +385,16 @@ func (m *MobInstance) Stats() combat.Stats {
 		// it free. Empty for a melee/natural weapon.
 		s.RangedClass = m.weaponRangedClass
 		s.AmmoKind = m.weaponAmmoKind
+		// size-and-wielding §4.2 / §5: a two-handed MELEE wield multiplies the
+		// Strength contribution to damage by the two-handed factor — derived
+		// from the weapon's size relative to THIS mob's size, so a large mob
+		// one-hands (no bonus) a weapon a medium player must two-hand. Add only
+		// the EXTRA Strength on top of the 1× already in DamageBonus, and only
+		// for a melee weapon (ranged Strength is the ranged concern). Mirrors
+		// connActor.Stats. A natural/sizeless weapon resolves to baseline.
+		if m.weaponRangedClass == "" && size.Mode(m.weaponSize, m.size) == size.TwoHanded {
+			s.DamageBonus += size.TwoHandedStrBonus(combat.STRBonus(str), size.DefaultTwoHandedStrFactor)
+		}
 	}
 	// Per-type resistance from worn armor (armor-depth §4). Copy out so
 	// combat.Stats does not alias the instance's cached map (matches the
@@ -391,18 +409,21 @@ func (m *MobInstance) Stats() combat.Stats {
 }
 
 // SetWeapon installs the mob's attack dice + display name (combat §4.5) plus
-// the equipped weapon's damage types and ranged class (ranged-combat §2 — a
-// bow-wielding mob shoots from range). Called during the spawn pipeline only:
+// the equipped weapon's damage types, ranged class (ranged-combat §2 — a
+// bow-wielding mob shoots from range), and size (size-and-wielding §2 — the
+// two-handed grip is derived relative to the mob's own size). Called during the
+// spawn pipeline only:
 // buildMobFromTemplate seeds the natural weapon (melee — empty ranged class),
 // then EquipMobAtSpawn overrides it with an equipped weapon. Not safe to call
 // after the mob is targetable in combat (read lock-free by Stats on the tick
 // goroutine).
-func (m *MobInstance) SetWeapon(dice combat.DiceExpr, name string, damageTypes []string, rangedClass, ammoKind string) {
+func (m *MobInstance) SetWeapon(dice combat.DiceExpr, name string, damageTypes []string, rangedClass, ammoKind, weaponSize string) {
 	m.weapon = dice
 	m.weaponName = name
 	m.weaponDamageTypes = damageTypes
 	m.weaponRangedClass = rangedClass
 	m.weaponAmmoKind = ammoKind
+	m.weaponSize = weaponSize
 }
 
 // SetResistances installs the mob's aggregated per-damage-type damage
