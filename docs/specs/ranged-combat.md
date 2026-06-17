@@ -6,7 +6,8 @@ program (`docs/themes/wot-mechanics-epic.md`,
 (translate onto the existing tick model; no d20 rewrite). *Shipped — Slice A
 (same-room ranged: thrown/projectile + ammo + Strength rules + masterwork ammo)
 and Slice B (the far→near→melee range bands + auto-close + advance/withdraw
-kiting). Cross-room targeting (Model C, §9) remains deferred.* Layers on `combat`
+kiting). Cross-room targeting (Model C, §10) is now in progress — slice 1 (the
+opportunistic adjacent-room `shoot` verb) has shipped.* Layers on `combat`
 (the round loop, engage/disengage),
 `weapon-identity` (weapon categories/proficiency), `inventory-equipment-items`
 (ammo as items), and `masterwork` (masterwork ammo, now in scope).
@@ -248,9 +249,10 @@ All numeric magnitudes live here; the prose names behaviors, not values.
 
 **Still open (non-blocking):**
 
-- **Cross-room targeting (Model C)** — sniping into adjacent rooms remains a
-  future theme if ever wanted; it inverts the same-room invariant and adds
-  line-of-sight and two-room render. Recorded, not scheduled.
+- **Cross-room targeting (Model C)** — **now in progress** (§10). Resolved as an
+  opportunistic, adjacent-room **action** (not a sustained cross-room
+  engagement), so the same-room round-loop invariant is preserved. Slice 1 (the
+  `shoot` verb) has shipped; retaliation pathing (slice 2) is the next increment.
 - **Mixed-band parties / multiple opponents** — bands track per attacker↔target
   pair (the shipped model), but the round-loop auto-close/kite acts only against
   the PRIMARY target each round; how a combatant relates to several foes at
@@ -264,6 +266,74 @@ shoots with the band falloff/point-blank, and a **kiting AI** opens the distance
 (probabilistically, so a closing foe still net-advances) instead of shooting
 when a foe gets inside far. Players kite manually with the withdraw verb.
 
+## 10. Cross-room targeting (Model C) — in progress
+
+The §1 non-goal becomes scope here, but on the **least invasive reading of the
+proposal's Model C**. Two forks were resolved before any code:
+
+- **Engagement model — opportunistic action, NOT sustained engagement.** A
+  cross-room shot is a discrete `shoot` action; it does **not** open a fight that
+  persists across the room boundary. The same-room round-loop invariant (§1,
+  `combat §4.1`: a combatant whose target left the room disengages) is left
+  **intact** — Model C does not invert it. You snipe; to keep fighting you close
+  the distance (or the target comes to you). This is the lower-risk reading: a
+  ranged *verb*, not an engine-wide round-loop change.
+- **Range depth — adjacent room only.** Line of sight reaches through **one** open
+  exit. Multi-room line-of-sight (shooting N rooms down a corridor via room
+  coordinates) is a later increment, not built.
+
+**Line of sight = "what you could walk through."** A shot to a direction requires
+that the exit exists and is **visible** to the shooter (an undiscovered hidden
+exit reads exactly like a wall — `hidden-exits §4.1`), that its **door is open**
+(a closed door blocks the shot the way it blocks a step), and that the target
+room is **not pitch-black** to the shooter (the per-viewer `light` level gates
+aiming, mirroring within-room darkness §5.3). Fine-grained per-observer
+concealment of the target (a hidden/sneaking mob in the next room) is deferred to
+a later refinement; v1 gates on exit visibility + door + darkness.
+
+**Targeting.** `shoot <target> <direction>` (alias `fire`): the last token is the
+direction, the rest is the target keyword, resolved against the **adjacent**
+room — mobs by keyword, players by exact name (the same two channels and
+mob-wins-ties rule as same-room targeting).
+
+**Ammo, Strength, weapon profile.** Identical to the same-room projectile path:
+the shot consumes one matching ammo unit (out of ammo ⇒ a *click* and no shot),
+and the wielded bow's damage/crit/Strength rules ride its `combat.Stats`. (One
+recorded slice-1 gap: a consumed unit's **masterwork to-hit bonus** is not yet
+folded into this one-shot path, which reads the stable `Stats().HitMod` only.)
+
+**Two-room render — no event-struct change.** The swing's events are stamped with
+the **target's** room, so the third-person hit/miss/death announce lands where
+the target is, and the second-person tells route by player id to each participant
+regardless of room. The verb adds the directional flavor on each side: an
+*outbound* line in the shooter's room (`looses a shot to the north`) and an
+*inbound* line in the target's room (`a shot streaks in from the south`).
+
+**Acceptance criteria (slice 1 — shipped).**
+
+- [x] `shoot <target> <direction>` looses one projectile at a target in the
+      adjacent room through an open, visible exit.
+- [x] An absent, undiscovered-hidden, or closed-door exit refuses the shot; an
+      undiscovered hidden exit is indistinguishable from no exit.
+- [x] A target room that is black to the shooter refuses the shot.
+- [x] A projectile weapon must be wielded; one matching ammo unit is spent;
+      out-of-ammo refuses with a *click* and fires nothing.
+- [x] The hit/miss/death narration appears in the **target's** room; the
+      shooter's room sees only the outbound flavor; each participant gets their
+      own second-person line.
+- [x] No combat engagement persists across the boundary — the round loop is
+      untouched.
+
+**Slice 2 (next) — retaliation pathing.** A mob shot from the next room becomes
+aware of and **paths toward** its attacker (reusing the existing mob aggro +
+movement), so the snipe provokes a response (the "charges toward you" beat)
+rather than free, riskless damage. Until it ships, a shot mob takes the hit
+without pursuing.
+
+**Still deferred.** Sustained cross-room engagement (Model C full, the round-loop
+inversion); multi-room line-of-sight; per-observer target concealment across the
+exit; thrown weapons across a boundary (the `throw` verb stays same-room).
+
 ---
 
-<!-- Spec style: narrative + acceptance criteria · Detail level: behavior only · Status: SHIPPED — EPIC S1 increment G · Slice A (thrown/projectile + ammo + Strength + masterwork ammo) and Slice B (per-engagement far→near→melee bands within one room, auto-close, advance/withdraw kiting). Cross-room (Model C) deferred. -->
+<!-- Spec style: narrative + acceptance criteria · Detail level: behavior only · Status: SHIPPED — EPIC S1 increment G · Slice A (thrown/projectile + ammo + Strength + masterwork ammo) and Slice B (per-engagement far→near→melee bands within one room, auto-close, advance/withdraw kiting). Cross-room (Model C, §10) IN PROGRESS — slice 1 (the opportunistic adjacent-room `shoot` verb) shipped; slice 2 (retaliation pathing) next. -->

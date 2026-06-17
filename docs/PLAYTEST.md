@@ -1429,9 +1429,32 @@ and looses while *you* close.
       to `100` to see the archer kite every chance, or `0` to disable. Bring your
       own bow to out-shoot it, or corner it where it can't open further.
 
-> Still deferred (the spec records it): **cross-room targeting** (Model C —
-> shooting into the *next* room), a separate theme that inverts the same-room
-> invariant.
+### Cross-room targeting (Model C, slice 1) — `shoot`
+
+You can now loose a projectile into the **next room**. It is an opportunistic
+**action**, not a sustained cross-room fight: you snipe through one open exit; to
+keep fighting you close in. The same-room round loop is untouched.
+
+- [ ] Stand in a room with an **open exit** into a room holding a hostile mob,
+      wield a **projectile** (a bow), and `shoot <mob> <direction>` (e.g.
+      `shoot guard north`; alias `fire`). You see "You loose a shot to the north
+      at …"; the hit/miss/damage line follows, and **the target's room** sees the
+      arrow "streak in from the south" and strike.
+- [ ] **Line of sight = what you could walk through:** a **closed door** on that
+      exit refuses ("The way north is closed; you can't shoot through it"); a
+      direction with **no exit** (or an undiscovered **hidden** exit) reads as
+      "There's no way to shoot to the …"; a **pitch-black** target room refuses
+      ("too dark to make out anything …").
+- [ ] **Ammo** is spent exactly as same-room: each shot consumes one matching
+      unit, and out of ammo gives the *click* with no shot fired.
+- [ ] **No cross-room engagement:** after the shot you are **not** locked in a
+      fight across the boundary — the round loop only sustains a fight within one
+      room. (Slice 2, not yet shipped: a shot mob will **path toward you** to
+      retaliate. Today it takes the hit without pursuing.)
+
+> Still deferred (the spec records it, §10): **sustained** cross-room engagement
+> (the full round-loop inversion), **multi-room** line of sight, and thrown
+> weapons across a boundary (`throw` stays same-room).
 
 ---
 
