@@ -49,3 +49,23 @@ func TestMadness_NilSaveIsZero(t *testing.T) {
 		t.Errorf("AddMadness with nil save = %d, want 0 (no-op)", got)
 	}
 }
+
+// HasFeat backs the Mental Stability madness-resilience seam (WoT S2 Phase 4+):
+// a case-insensitive query over the persisted KnownFeats.
+func TestHasFeat(t *testing.T) {
+	a := newMadnessActor()
+	a.save.KnownFeats = []player.KnownFeat{{FeatID: "Mental-Stability", Count: 1}}
+
+	if !a.HasFeat("mental-stability") {
+		t.Error("HasFeat should match case-insensitively against KnownFeats")
+	}
+	if a.HasFeat("toughness") {
+		t.Error("HasFeat returned true for an untaken feat")
+	}
+	if a.HasFeat("") {
+		t.Error("HasFeat(\"\") should be false")
+	}
+	if (&connActor{}).HasFeat("mental-stability") {
+		t.Error("HasFeat with nil save should be false")
+	}
+}

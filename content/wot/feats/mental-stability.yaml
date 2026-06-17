@@ -1,0 +1,18 @@
+# WoT S2 Phase 4+ — Mental Stability. A male channeler's defense against the
+# taint on saidin: a disciplined, well-anchored mind bears the corruption far
+# longer before it breaks. It does NOT cleanse taint (Heal the Mind does that)
+# and the strain still shows on the score sheet — but the Power turns on a
+# steady man only at much higher madness (the manifestation threshold is raised
+# by ANOTHERMUD_MENTAL_STABILITY_THRESHOLD). Inert for anyone who never accrues
+# madness (women, non-channelers). The source names it the one General feat a
+# male channeler may pair with channeling; it is left ungated here (a wasted
+# pick for a non-channeler, harmless).
+#
+# Grantless by design: its effect is read by the engine's madness manifestation
+# tick via HasFeat, not conferred as a stat bonus — so it carries no `grants`.
+id: mental-stability
+name: Mental Stability
+description: |
+  Your mind is anchored against the madness that rides saidin. You still bear
+  the taint your channeling builds — but a disciplined will withstands far more
+  of it before the Power turns on you.

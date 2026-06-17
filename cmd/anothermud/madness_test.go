@@ -27,3 +27,17 @@ func TestMadnessManifestation(t *testing.T) {
 		}
 	}
 }
+
+// Mental Stability raises the manifestation floor only when the channeler has
+// the feat (WoT S2 Phase 4+).
+func TestEffectiveMadnessThreshold(t *testing.T) {
+	if got := effectiveMadnessThreshold(25, false, 25); got != 25 {
+		t.Errorf("no feat: threshold = %d, want 25 (unchanged)", got)
+	}
+	if got := effectiveMadnessThreshold(25, true, 25); got != 50 {
+		t.Errorf("with Mental Stability: threshold = %d, want 50 (base + bonus)", got)
+	}
+	if got := effectiveMadnessThreshold(25, true, 0); got != 25 {
+		t.Errorf("zero bonus makes the feat inert: threshold = %d, want 25", got)
+	}
+}

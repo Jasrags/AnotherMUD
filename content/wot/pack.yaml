@@ -27,6 +27,8 @@ content:
     - tracks/*.yaml
   classes:
     - classes/*.yaml
+  feats:
+    - feats/*.yaml
   abilities:
     - abilities/*.yaml
   effects:

@@ -32,10 +32,11 @@ WoT sub-epic, a **multi-slice arc** (XL)
 > weave adds taint, overchannel adds more; the Heal-the-Mind cure is excluded), a
 > ~10s tick that above a threshold rolls a madness-scaled chance to inflict a Core-5
 > condition (fatigued → frightened → stunned by band) and slowly decays, the
-> Heal-the-Mind cure weave, and an ominous `score` band. Mental Stability feat +
-> social persecution deferred. Phase 4+ depth still open: linking, a restore path
-> for stilling, the Wilder emotional Block. The phase text below is the original
-> design spine.
+> Heal-the-Mind cure weave, and an ominous `score` band. The **Mental Stability
+> feat** (raises the manifestation floor — a steady mind bears more taint before it
+> breaks) SHIPPED 2026-06-17; social persecution deferred. Phase 4+ depth still open:
+> linking, a restore path for stilling, the Wilder emotional Block. The phase text
+> below is the original design spine.
 **Implements:** EPIC sub-epic **S2** — `docs/themes/wot-mechanics-epic.md` §2 row S2
 **Engine contract (setting-agnostic):** the reusable substrate this arc introduced
 is now specified in the engine specs — generalized **resource pools**
@@ -285,7 +286,8 @@ Each phase is its own commit(s) + go-review, in the project's rhythm.
     band; the taint decays slowly when he abstains. Cured by the **Heal the Mind** weave
     (reduces madness). Surfaced on `score` as an ominous qualitative band, shown only
     once tainted. Knobs: `ANOTHERMUD_MADNESS_{PER_CAST,OVERCHANNEL,DECAY,THRESHOLD,CHANCE_DENOM}`.
-    Deferred: the Mental Stability feat (accrual reducer), social/NPC persecution.
+    The Mental Stability feat (raises the manifestation floor — a steady mind bears more
+    taint before it breaks) SHIPPED 2026-06-17. Deferred: social/NPC persecution.
   - ~~**Angreal / sa'angreal**~~ — **SHIPPED (2026-06-17)**: a same-gender held
     device amplifies woven damage/heal (the "effective level" boost as weave
     magnitude). Typed `angreal_power`/`angreal_gender`, strongest-equipped-wins,

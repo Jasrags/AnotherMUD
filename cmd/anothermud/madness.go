@@ -14,6 +14,17 @@ package main
 // `stunned`) — the same ids the overchannel cascade applies — so a missing
 // effect surfaces a warning rather than silently no-op'ing.
 
+// effectiveMadnessThreshold is the madness level a channeler must exceed before
+// the taint manifests (WoT S2 Phase 4+). The Mental Stability feat — a disciplined
+// mind — raises it by bonus: a feated man still accrues taint (it shows on his
+// score) but withstands far more before the Power turns on him. Pure for testing.
+func effectiveMadnessThreshold(base int, hasMentalStability bool, bonus int) int {
+	if hasMentalStability {
+		return base + bonus
+	}
+	return base
+}
+
 // madnessManifestation picks the condition a manifestation inflicts and the cue
 // shown to the channeler, by madness band. The bands mirror the score sheet's
 // qualitative labels (madnessBand): a faint whisper merely tires; a shadow on

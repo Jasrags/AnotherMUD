@@ -3581,6 +3581,28 @@ func (a *connActor) Madness() int {
 	return a.save.Madness
 }
 
+// HasFeat reports whether the actor has taken the given feat (case-insensitive),
+// reading the persisted KnownFeats under the lock. A lightweight query for hot
+// paths (the madness accrual / manifestation seam) that don't need the full
+// buildFeatCharView eligibility snapshot.
+func (a *connActor) HasFeat(featID string) bool {
+	id := strings.ToLower(strings.TrimSpace(featID))
+	if id == "" {
+		return false
+	}
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	if a.save == nil {
+		return false
+	}
+	for _, kf := range a.save.KnownFeats {
+		if strings.ToLower(strings.TrimSpace(kf.FeatID)) == id {
+			return true
+		}
+	}
+	return false
+}
+
 // AddMadness adjusts the actor's saidin taint by delta — positive accrues (a
 // man weaving), negative cures (Heal the Mind) — floored at 0, and returns the
 // resulting value. Marks the save dirty so autosave persists the change. WoT S2

@@ -915,6 +915,7 @@ type MadnessActor interface {
 	Gender() string
 	Madness() int
 	AddMadness(delta int) int
+	HasFeat(featID string) bool
 	Write(ctx context.Context, msg string) error
 }
 

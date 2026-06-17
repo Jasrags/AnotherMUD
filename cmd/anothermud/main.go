@@ -2469,6 +2469,13 @@ func run() error {
 	if madnessChanceDenom < 1 {
 		madnessChanceDenom = 200
 	}
+	// Mental Stability feat: how much higher the manifestation floor sits for a
+	// male channeler who has taken it (he tolerates this much more taint before
+	// episodes). 0 makes the feat inert.
+	mentalStabilityThreshold := envIntOr("ANOTHERMUD_MENTAL_STABILITY_THRESHOLD", 25)
+	if mentalStabilityThreshold < 0 {
+		mentalStabilityThreshold = 25
+	}
 	madnessManifest := func(ctx context.Context, a session.MadnessActor) {
 		if a.Gender() != "male" {
 			return // saidar is untainted
@@ -2485,10 +2492,14 @@ func run() error {
 		if madnessDecayPerTick > 0 {
 			m = a.AddMadness(-madnessDecayPerTick)
 		}
-		if m < madnessThreshold {
+		// Mental Stability (a feat) raises the floor: a disciplined mind bears
+		// far more taint before it breaks (the only General feat the source lets
+		// a male channeler pair with channeling).
+		threshold := effectiveMadnessThreshold(madnessThreshold, a.HasFeat("mental-stability"), mentalStabilityThreshold)
+		if m < threshold {
 			return // taint present but below the manifestation floor
 		}
-		chance := float64(m-madnessThreshold) / float64(madnessChanceDenom)
+		chance := float64(m-threshold) / float64(madnessChanceDenom)
 		if chance > 1 {
 			chance = 1
 		}
