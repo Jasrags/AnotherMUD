@@ -37,15 +37,22 @@ existing Strength-to-damage step, and F's light classification rather than
 adding new combat machinery; keep single-weapon and weapon-plus-shield combat
 behaving exactly as today.
 
-**Non-goals (this slice).** The two-weapon **feats** themselves — Two-Weapon
-Fighting, Ambidexterity, Improved Two-Weapon Fighting — are slice 2; this slice
-ships the open, un-feated baseline (anyone may dual-wield, at the full penalty)
-and the seam the feats plug into. **Mob** dual-wielding (a mob striking with two
-equipped weapons) is deferred — mobs equip a single weapon at spawn today; the
-off-hand profile is player-only in v1. A **second** off-hand attack (Improved
-Two-Weapon Fighting) is deferred with its feat. No new action economy, initiative,
-or attacks-of-opportunity (Decision 0). Shield mechanics (an off-hand *shield's*
-AC contribution) are an armor concern (`armor-depth`), unaffected here.
+**Slices.** Slice 1 (SHIPPED) is the off-hand-attack substrate — the open,
+un-feated baseline (anyone may dual-wield, at the full penalty) and the seam the
+feats plug into. Slice 2 (SHIPPED) is the penalty-reducing feats — Two-Weapon
+Fighting and Ambidexterity. Slice 3 (SCOPED, build pending) is **Improved
+Two-Weapon Fighting** — a *second* off-hand attack (§3.1), gated behind the other
+two feats, made at a further accuracy penalty (§4.3).
+
+**Non-goals.** **Mob** dual-wielding (a mob striking with two equipped weapons)
+is deferred — mobs equip a single weapon at spawn today; the off-hand profile is
+player-only in v1. No new action economy, initiative, or attacks-of-opportunity
+(Decision 0). Shield mechanics (an off-hand *shield's* AC contribution) are an
+armor concern (`armor-depth`), unaffected here. The engine does **not** apply an
+iterative accuracy penalty to *main-hand* extra attacks (`combat §4.2` — the
+`extra_attack` passive swings all fire at the same hit modifier); slice 3's
+secondary off-hand penalty (§4.3) is the first iterative-attack penalty modeled,
+and reworking the main-hand seam to match is out of scope.
 
 ## 2. The off-hand weapon
 
@@ -110,14 +117,36 @@ A combatant making a **ranged** attack does not make an off-hand melee strike;
 two-weapon fighting is a melee concern, and the off-hand attack is suppressed
 while the main weapon is resolved as a ranged attack (`ranged-combat §2`).
 
+### 3.1 A second off-hand attack (Improved Two-Weapon Fighting) — slice 3
+
+A combatant holding the **Improved Two-Weapon Fighting** feat makes a **second**
+off-hand attack in the round, for **two** off-hand strikes total. The number of
+off-hand attacks a valid off-hand weapon grants is the configured **off-hand
+attacks granted** count (§6) — **one** by default, raised by **one** per
+Improved Two-Weapon Fighting (a single-take feat in v1, so the cap is two). The
+feat is gated behind both penalty-reducing feats: it requires **Two-Weapon
+Fighting** and **Ambidexterity** (the same prerequisite chain the source uses;
+the source's BAB floor maps to a character-level prerequisite, deferred for the
+v1 demo so the feat is reachable, mirroring the slice-2 demo feats).
+
+The additional off-hand strike(s) use the **same off-hand weapon profile** (dice,
+crit, type) as the first, resolved by the same per-swing machinery, but at a
+**reduced accuracy** (§4.3). Each off-hand strike is independent: a strike that
+**kills** the target ends the round — no further off-hand strikes are made
+(exactly as a killing main swing stops the remaining main swings, `combat §4.3`).
+
 **Acceptance criteria**
 
-- [ ] A combatant wielding a valid off-hand weapon makes exactly one extra
-      attack per round (the off-hand strike), additive with any bonus main-hand
-      swing from the existing extra-attack step.
-- [ ] The off-hand attack uses the off-hand weapon's dice, crit rule, and damage
-      type(s), resolved by the same swing machinery as the main attack.
-- [ ] A ranged main attack suppresses the off-hand melee strike.
+- [ ] A combatant wielding a valid off-hand weapon makes the **off-hand-attacks-
+      granted** number of off-hand strikes per round (one by default), additive
+      with any bonus main-hand swing from the existing extra-attack step.
+- [ ] Improved Two-Weapon Fighting raises the off-hand-attacks-granted count by
+      one (to two), and requires the Two-Weapon Fighting and Ambidexterity feats.
+- [ ] Every off-hand strike uses the off-hand weapon's dice, crit rule, and
+      damage type(s), resolved by the same swing machinery as the main attack.
+- [ ] A ranged main attack suppresses **all** off-hand melee strikes.
+- [ ] An off-hand strike that kills the target ends the round; no further
+      off-hand strikes are made.
 
 ## 4. Consequences of fighting with two weapons
 
@@ -155,6 +184,23 @@ A weapon held in **both** hands cannot also be an off-hand weapon (§2.1), so th
 two-handed (1.5×) and off-hand (½×) Strength factors never apply to the same
 attack.
 
+### 4.3 Secondary off-hand penalty (the second strike) — slice 3
+
+When Improved Two-Weapon Fighting grants more than one off-hand strike (§3.1),
+each off-hand strike **after the first** takes an additional **secondary off-hand
+penalty** to hit, on top of the off-hand two-weapon penalty (§4.1) it already
+carries. The penalty is **cumulative** by strike order — the second strike takes
+it once, a (future) third strike twice — so accuracy falls off with each extra
+off-hand swing, the source's "second off-hand attack at −5" rendered as a
+configurable per-extra-strike step (§6). It rides the same attack-adjustment seam
+as every other to-hit modifier. The **first** off-hand strike is unaffected (it
+keeps exactly the §4.1 off-hand penalty), and the **damage** of every off-hand
+strike is unchanged — only later strikes' *accuracy* falls.
+
+This is the **first** iterative-attack accuracy penalty the engine models; the
+main-hand extra-attack seam (`combat §4.2`) is intentionally left flat (non-goal,
+§1).
+
 **Acceptance criteria**
 
 - [ ] A two-weapon to-hit penalty applies to both the main and off-hand attacks
@@ -166,6 +212,9 @@ attack.
       damage; the main attack uses full Strength.
 - [ ] The reduced-Strength factor scales only the Strength contribution, not the
       base dice or the critical dice multiplier.
+- [ ] With more than one off-hand strike, each strike after the first takes the
+      cumulative secondary off-hand penalty to hit; the first strike does not, and
+      no off-hand strike's damage changes.
 
 ## 5. Interaction with existing systems
 
@@ -195,7 +244,8 @@ attack.
 | Off-hand two-weapon penalty | The to-hit penalty on the off-hand attack while dual-wielding (§4.1); larger than the main-hand penalty. | the WoT value |
 | Off-hand Strength factor | The multiplier on the Strength damage contribution for the off-hand attack (§4.2). | the WoT value (½×) |
 | Off-hand rounding policy | How the scaled off-hand Strength contribution is rounded (§4.2). | pack policy (e.g. round down) |
-| Off-hand attacks granted | How many extra off-hand attacks a valid off-hand weapon grants (§3). | one (Improved Two-Weapon Fighting raises this — slice 2+) |
+| Off-hand attacks granted | How many off-hand attacks a valid off-hand weapon grants (§3, §3.1). | one; Improved Two-Weapon Fighting raises it by one (to two) |
+| Secondary off-hand penalty | The cumulative to-hit penalty on each off-hand strike after the first (§4.3). | the WoT value (5) |
 
 All numeric magnitudes live here; the prose names behaviors, not values.
 
@@ -218,14 +268,24 @@ All numeric magnitudes live here; the prose names behaviors, not values.
   distinct and leaves the passive extra-attack seam untouched.
 - **Substrate before feats.** Slice 1 ships the mechanic (the off-hand attack +
   baseline penalties); slice 2 adds the feats as subtractive adjustments.
+- **Improved Two-Weapon Fighting is a second off-hand strike at a penalty
+  (slice 3, decided).** The "off-hand attacks granted" count (§6) is the dial
+  the feat turns (+1, to two); the **second** strike takes a cumulative secondary
+  off-hand penalty (§4.3, default the source's −5) rather than firing at full
+  off-hand accuracy. Chosen over a flat (no-penalty) second swing to honor the
+  source ("second off-hand attack at −5") and keep the feat upside-with-tradeoff;
+  this is the first iterative-attack penalty the engine models (the main-hand
+  extra-attack seam stays flat — non-goal, §1). The off-hand profile carries the
+  attack **count**; the round loop loops the off-hand strike and subtracts the
+  cumulative penalty per extra strike. The feat is gated behind Two-Weapon
+  Fighting + Ambidexterity; the source's BAB floor maps to a level prerequisite,
+  omitted for the v1 demo (reachability, mirroring the slice-2 demo feats).
 
 **Still open (non-blocking):**
 
 - **Mob dual-wield.** Giving a mob two equipped weapons (and the off-hand attack)
   is deferred — the spawn equip path is single-weapon today. The combat seam is
   built shared, so a later slice can light it up without reshaping the round.
-- **Improved Two-Weapon Fighting (a second off-hand attack).** Deferred with its
-  feat; the "off-hand attacks granted" config knob (§6) is the dial it turns.
 - **Per-swing penalty visibility.** Whether the player should see the two-weapon
   penalty surfaced (a cue like the non-proficiency "clumsy" message) or infer it
   from results is a UX call left for the build.
@@ -236,4 +296,4 @@ All numeric magnitudes live here; the prose names behaviors, not values.
 
 ---
 
-<!-- Spec style: narrative + acceptance criteria · Detail level: behavior only · Status: slice 1 (off-hand attack substrate) SHIPPED 2026-06-17; slice 2 (the Two-Weapon Fighting + Ambidexterity feats — §4.1, subtractive penalty reductions via the feat system) SHIPPED 2026-06-17. Improved Two-Weapon Fighting (a SECOND off-hand attack) remains deferred with its feat (§7). EPIC S1 increment K. -->
+<!-- Spec style: narrative + acceptance criteria · Detail level: behavior only · Status: slice 1 (off-hand attack substrate) SHIPPED 2026-06-17; slice 2 (Two-Weapon Fighting + Ambidexterity feats — §4.1) SHIPPED 2026-06-17; slice 3 (Improved Two-Weapon Fighting — a second off-hand strike at a cumulative secondary penalty, §3.1/§4.3) SCOPED 2026-06-17, build pending. Mob dual-wield still deferred (§7). EPIC S1 increment K. -->
