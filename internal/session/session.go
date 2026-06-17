@@ -5038,9 +5038,12 @@ func (a *connActor) Stats() combat.Stats {
 			// zero so a feat never turns the penalty into a bonus.
 			mainPenalty := combat.DefaultTwoWeaponMainPenalty
 			offPenalty := combat.DefaultTwoWeaponOffHandPenalty
+			offHandAttacks := 1 // baseline: one off-hand strike (§3)
 			if fb != nil {
 				mainPenalty -= fb.twoWeaponHitReduce
 				offPenalty -= fb.twoWeaponHitReduce + fb.offHandHitReduce
+				// Improved Two-Weapon Fighting grants extra off-hand strikes (§3.1).
+				offHandAttacks += fb.offHandExtraAttacks
 			}
 			if mainPenalty < 0 {
 				mainPenalty = 0
@@ -5061,6 +5064,8 @@ func (a *connActor) Stats() combat.Stats {
 				// Strength term reduced (flat bonuses stay 1×), mirroring the
 				// two-handed 1.5× rule (size-and-wielding §4.2).
 				DamageBonus: damageBonus + size.StrBonusDelta(strBonus, size.DefaultOffHandStrFactor),
+				// Improved Two-Weapon Fighting raises the off-hand strike count (§3.1).
+				Attacks: offHandAttacks,
 			}
 		}
 	}

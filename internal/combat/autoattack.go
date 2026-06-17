@@ -78,6 +78,15 @@ type AutoAttackConfig struct {
 	// thrown auto-close instead.
 	RangeFalloff      int
 	PointBlankPenalty int
+	// SecondaryOffHandPenalty is the cumulative to-hit penalty applied to each
+	// off-hand strike AFTER the first when Improved Two-Weapon Fighting grants
+	// more than one (two-weapon-fighting §4.3): strike i (0-based) takes
+	// i×SecondaryOffHandPenalty on top of its baked off-hand penalty, so the
+	// second strike takes it once, a third twice. Host policy (§6, the source's
+	// −5); zero (tests/headless) means extra off-hand strikes fire at the same
+	// accuracy as the first. Only consulted when an off-hand profile grants more
+	// than one strike — single-strike dual-wielding never reads it.
+	SecondaryOffHandPenalty int
 	// KitePolicy decides whether a projectile combatant should WITHDRAW this
 	// round to keep distance instead of shooting (ranged-combat §5.4 kiting AI).
 	// Called only for a projectile attacker that has room to open the band
@@ -335,14 +344,17 @@ func runAutoAttack(ctx context.Context, attackerID CombatantID, mgr *Manager, cf
 		}
 	}
 
-	// two-weapon-fighting §3 — the off-hand attack. After the main swing(s),
-	// a dual-wielding attacker makes ONE extra swing with its off-hand weapon
-	// profile (its own dice/crit/type, the off-hand-penalized hit, and the ½×
-	// Strength damage — all baked in by the producer's Stats()). It is a melee
-	// strike (suppressed while the main weapon fires as a projectile, §3) and
-	// reuses the same per-swing resolver. Reaching here means the target
-	// survived every main swing (a kill returns above), so the off-hand swing
-	// is only made against a live target.
+	// two-weapon-fighting §3 — the off-hand attack(s). After the main swing(s),
+	// a dual-wielding attacker makes its off-hand strike(s) with its off-hand
+	// weapon profile (its own dice/crit/type, the off-hand-penalized hit, and the
+	// ½× Strength damage — all baked in by the producer's Stats()). The profile's
+	// Attacks count (§3.1) is one by default; Improved Two-Weapon Fighting raises
+	// it. Each strike after the first takes the cumulative secondary off-hand
+	// penalty (§4.3). Off-hand strikes are melee (suppressed while the main weapon
+	// fires as a projectile, §3) and reuse the same per-swing resolver. Reaching
+	// here means the target survived every main swing (a kill returns above), so
+	// the first off-hand strike is made against a live target; a strike that kills
+	// stops the remaining off-hand strikes (swingStop), mirroring the main loop.
 	if off := atkStats.OffHand; off != nil && !isProjectile {
 		offThreatLow := off.CritThreatLow
 		if offThreatLow <= 0 {
@@ -370,10 +382,20 @@ func runAutoAttack(ctx context.Context, attackerID CombatantID, mgr *Manager, cf
 		offIn.atkStats = offStats
 		offIn.weaponName = offStats.EffectiveWeaponName()
 		offIn.damageExpr = offStats.EffectiveDamage()
-		offIn.hitMod = off.HitMod + hitAdjust
 		offIn.critThreatLow = offThreatLow
 		offIn.critMultiplier = offMult
-		resolveSwing(ctx, offIn, cfg)
+		offHandSwings := off.Attacks
+		if offHandSwings < 1 {
+			offHandSwings = 1
+		}
+		for i := 0; i < offHandSwings; i++ {
+			// Strike i takes i× the cumulative secondary off-hand penalty (§4.3):
+			// the first strike is unpenalized beyond its baked off-hand penalty.
+			offIn.hitMod = off.HitMod + hitAdjust - i*cfg.SecondaryOffHandPenalty
+			if resolveSwing(ctx, offIn, cfg) == swingStop {
+				return
+			}
+		}
 	}
 }
 

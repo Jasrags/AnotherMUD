@@ -1,0 +1,19 @@
+# Improved Two-Weapon Fighting (two-weapon-fighting §3.1 / wot-feats.md): grants
+# a SECOND off-hand strike each round (off_hand_attack magnitude 1 → off-hand
+# attacks granted goes from one to two). The second strike fires at a cumulative
+# secondary off-hand penalty (combat AutoAttackConfig.SecondaryOffHandPenalty,
+# the source's -5), so it lands less often than the first. A GLOBAL combat feat
+# (no per-weapon param). Single take.
+#
+# Gated behind the two penalty-reducing feats, as in the source. The canonical
+# d20 prereq also includes a BAB +9 floor; that maps to a character-level
+# prerequisite, OMITTED for the v1 demo so the feat is reachable on a low-level
+# character (mirroring ambidexterity dropping its Dex 15 prereq).
+id: improved-two-weapon-fighting
+name: Improved Two-Weapon Fighting
+description: Your off hand strikes a second time each round, though the extra blow lands less surely.
+prerequisites:
+  - { kind: feat, target: two-weapon-fighting }
+  - { kind: feat, target: ambidexterity }
+grants:
+  - { kind: off_hand_attack, magnitude: 1 }

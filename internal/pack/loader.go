@@ -2153,10 +2153,10 @@ func decodeFeat(path, ns string) (*feat.Feat, error) {
 					return nil, fmt.Errorf("%w: %s: grants[%d] ability needs a target (ability id)",
 						ErrInvalidContent, path, i)
 				}
-			case feat.GrantTwoWeaponHit, feat.GrantOffHandHit:
-				// Global penalty-reduction grants (Two-Weapon Fighting /
-				// Ambidexterity): beneficial-only, so a non-positive magnitude is
-				// a content typo. Target is unused.
+			case feat.GrantTwoWeaponHit, feat.GrantOffHandHit, feat.GrantOffHandAttack:
+				// Global two-weapon grants (Two-Weapon Fighting / Ambidexterity /
+				// Improved Two-Weapon Fighting): beneficial-only, so a non-positive
+				// magnitude is a content typo. Target is unused.
 				if g.Magnitude <= 0 {
 					return nil, fmt.Errorf("%w: %s: grants[%d] %s needs a positive magnitude",
 						ErrInvalidContent, path, i, kind)
@@ -2165,12 +2165,13 @@ func decodeFeat(path, ns string) (*feat.Feat, error) {
 					return nil, fmt.Errorf("%w: %s: grants[%d] %s is a global grant and takes no target",
 						ErrInvalidContent, path, i, kind)
 				}
-				// A stackable two-weapon feat would over-reduce the penalty (the
-				// clamp at the consumer floors it at zero, so extra ranks would be
-				// silently wasted). Reject it at load so the content surface stays
-				// honest — these are single-take perks.
+				// These are single-take perks in v1: a stackable penalty-reduction
+				// would over-reduce (the consumer clamps at zero, silently wasting
+				// extra ranks), and a stackable off-hand-attack count is intentionally
+				// not yet a thing (the cap is two — one Improved TWF). Reject it at
+				// load so the content surface stays honest.
 				if mt == feat.MultiTakeStackable {
-					return nil, fmt.Errorf("%w: %s: grants[%d] %s cannot be stackable (the reduction caps at the baseline penalty)",
+					return nil, fmt.Errorf("%w: %s: grants[%d] %s cannot be stackable (single-take in v1)",
 						ErrInvalidContent, path, i, kind)
 				}
 			}

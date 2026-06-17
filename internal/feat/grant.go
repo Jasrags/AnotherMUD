@@ -41,13 +41,18 @@ const (
 	// §4.1). A GLOBAL grant (Target unused). Consumer: connActor.Stats()
 	// subtracts it from the off-hand penalty only (clamped at zero).
 	GrantOffHandHit GrantKind = "off_hand_hit"
+	// GrantOffHandAttack adds Magnitude EXTRA off-hand strikes per round (Improved
+	// Two-Weapon Fighting — two-weapon-fighting §3.1). A GLOBAL grant (Target
+	// unused). Consumer: connActor.Stats() raises OffHandProfile.Attacks; each
+	// strike after the first takes the cumulative secondary off-hand penalty (§4.3).
+	GrantOffHandAttack GrantKind = "off_hand_attack"
 )
 
 // ValidGrantKind reports whether k is a known grant kind.
 func ValidGrantKind(k GrantKind) bool {
 	switch k {
 	case GrantSaveBonus, GrantMaxHP, GrantHitBonus, GrantCritThreat, GrantSkillBonus, GrantAbility,
-		GrantTwoWeaponHit, GrantOffHandHit:
+		GrantTwoWeaponHit, GrantOffHandHit, GrantOffHandAttack:
 		return true
 	}
 	return false

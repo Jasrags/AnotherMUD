@@ -102,6 +102,30 @@ func TestStats_OffHandFeatReducesPenalty(t *testing.T) {
 	}
 }
 
+// Improved Two-Weapon Fighting (slice 3): the off-hand extra-attack count in the
+// feat cache raises OffHandProfile.Attacks (1 + extra). Baseline (no cache / no
+// feat) stays at one strike.
+func TestStats_OffHandAttackCount(t *testing.T) {
+	newDualWielder := func() *connActor {
+		a := &connActor{statBlock: progression.NewWithBase(map[progression.StatType]int{progression.StatSTR: 10})}
+		a.weapon.Store(&weaponInfo{dice: combat.DiceExpr{Count: 1, Sides: 8}, name: "a sword", wieldMode: size.OneHanded})
+		a.offWeapon.Store(&weaponInfo{dice: combat.DiceExpr{Count: 1, Sides: 4}, name: "a dagger", wieldMode: size.Light})
+		return a
+	}
+
+	// No feat cache ⇒ one off-hand strike (the slice-1 baseline).
+	if s := newDualWielder().Stats(); s.OffHand == nil || s.OffHand.Attacks != 1 {
+		t.Fatalf("baseline OffHand.Attacks = %v, want 1", s.OffHand)
+	}
+
+	// Improved TWF (one extra) ⇒ two off-hand strikes.
+	a := newDualWielder()
+	a.featWeaponBonus.Store(&featWeaponBonuses{offHandExtraAttacks: 1})
+	if s := a.Stats(); s.OffHand == nil || s.OffHand.Attacks != 2 {
+		t.Fatalf("with Improved TWF OffHand.Attacks = %v, want 2", s.OffHand)
+	}
+}
+
 // A non-light off-hand weapon (one-handed or larger for the wielder) occupies
 // the slot but grants NO off-hand attack, and imposes no two-weapon penalty
 // (two-weapon-fighting §2.2).

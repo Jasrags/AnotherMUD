@@ -233,6 +233,10 @@ type featWeaponBonuses struct {
 	// main/off penalties (clamped at zero). Slice 2.
 	twoWeaponHitReduce int
 	offHandHitReduce   int
+	// offHandExtraAttacks is the number of EXTRA off-hand strikes beyond the
+	// first (Improved Two-Weapon Fighting — §3.1, slice 3). Stats() sets
+	// OffHandProfile.Attacks = 1 + this.
+	offHandExtraAttacks int
 }
 
 // applyFeatGrants recomputes ALL feat grants from the actor's known_feats and
@@ -273,10 +277,11 @@ func (a *connActor) applyFeatGrants() {
 	// 3c: per-weapon-category hit/crit cache + (slice 2) the global two-weapon
 	// penalty reductions, read lock-free in Stats().
 	a.featWeaponBonus.Store(&featWeaponBonuses{
-		hit:                b.HitByCategory,
-		crit:               b.CritByCategory,
-		twoWeaponHitReduce: b.TwoWeaponHitReduce,
-		offHandHitReduce:   b.OffHandHitReduce,
+		hit:                 b.HitByCategory,
+		crit:                b.CritByCategory,
+		twoWeaponHitReduce:  b.TwoWeaponHitReduce,
+		offHandHitReduce:    b.OffHandHitReduce,
+		offHandExtraAttacks: b.OffHandExtraAttacks,
 	})
 
 	// 3c: ability grants (Power Attack). Teach at baseline ONLY if not already

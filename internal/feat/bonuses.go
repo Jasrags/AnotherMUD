@@ -43,6 +43,10 @@ type Bonuses struct {
 	// penalty only (Ambidexterity, removing the off-hand-specific extra — §4.1).
 	// Zero = none. Composes additively with TwoWeaponHitReduce on the off hand.
 	OffHandHitReduce int
+	// OffHandExtraAttacks is the number of EXTRA off-hand strikes beyond the
+	// first (Improved Two-Weapon Fighting — §3.1). Zero = the one baseline
+	// strike. The consumer sets OffHandProfile.Attacks = 1 + this.
+	OffHandExtraAttacks int
 }
 
 // ComputeBonuses aggregates the bonuses conferred by the held feats, resolving
@@ -101,6 +105,8 @@ func ComputeBonuses(held []Taken, reg *Registry) Bonuses {
 				b.TwoWeaponHitReduce += g.Magnitude * mult
 			case GrantOffHandHit:
 				b.OffHandHitReduce += g.Magnitude * mult
+			case GrantOffHandAttack:
+				b.OffHandExtraAttacks += g.Magnitude * mult
 			case GrantAbility:
 				if g.Target != "" {
 					// Normalize for uniformity with the other keyed kinds

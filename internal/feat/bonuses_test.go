@@ -73,6 +73,12 @@ func TestComputeBonuses_TwoWeaponFeats(t *testing.T) {
 	if b.TwoWeaponHitReduce != 2 || b.OffHandHitReduce != 4 {
 		t.Errorf("both feats = (%d,%d), want (2,4)", b.TwoWeaponHitReduce, b.OffHandHitReduce)
 	}
+
+	// Improved Two-Weapon Fighting → OffHandExtraAttacks (the second strike, §3.1).
+	_ = r.Register(&Feat{ID: "itwf", Grants: []Grant{{Kind: GrantOffHandAttack, Magnitude: 1}}})
+	if b := ComputeBonuses([]Taken{{FeatID: "itwf"}}, r); b.OffHandExtraAttacks != 1 {
+		t.Errorf("Improved TWF OffHandExtraAttacks = %d, want 1", b.OffHandExtraAttacks)
+	}
 }
 
 // The per-weapon/skill kinds key by the take's Param; the ability kind by the

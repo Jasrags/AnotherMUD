@@ -2541,6 +2541,14 @@ func TestLoadFeats_DecodesTwoWeaponGrants(t *testing.T) {
 	if f, ok := regs.Feats.Get("ambi"); !ok || len(f.Grants) != 1 || f.Grants[0].Kind != feat.GrantOffHandHit || f.Grants[0].Magnitude != 4 {
 		t.Errorf("ambi grant = %+v", f)
 	}
+	writeFile(t, filepath.Join(pack, "feats/itwf.yaml"), "id: itwf\nname: Improved Two-Weapon Fighting\ngrants:\n  - { kind: off_hand_attack, magnitude: 1 }\n")
+	regs2 := NewRegistries()
+	if err := Load(context.Background(), root, nil, regs2, nil, nil, nil); err != nil {
+		t.Fatalf("Load (with itwf): %v", err)
+	}
+	if f, ok := regs2.Feats.Get("itwf"); !ok || len(f.Grants) != 1 || f.Grants[0].Kind != feat.GrantOffHandAttack || f.Grants[0].Magnitude != 1 {
+		t.Errorf("itwf grant = %+v", f)
+	}
 }
 
 func TestLoadFeats_RejectsBadGrants(t *testing.T) {
@@ -2567,6 +2575,10 @@ func TestLoadFeats_RejectsBadGrants(t *testing.T) {
 		"id: bad\ngrants:\n  - { kind: two_weapon_hit, target: swords, magnitude: 2 }\n",
 		// two-weapon global grants: cannot be stackable (would over-reduce)
 		"id: bad\nmulti_take: stackable\ngrants:\n  - { kind: two_weapon_hit, magnitude: 2 }\n",
+		// off_hand_attack (Improved TWF): zero magnitude / stray target / stackable
+		"id: bad\ngrants:\n  - { kind: off_hand_attack }\n",
+		"id: bad\ngrants:\n  - { kind: off_hand_attack, target: swords, magnitude: 1 }\n",
+		"id: bad\nmulti_take: stackable\ngrants:\n  - { kind: off_hand_attack, magnitude: 1 }\n",
 	}
 	for i, body := range bad {
 		root := t.TempDir()

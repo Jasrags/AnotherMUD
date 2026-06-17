@@ -145,6 +145,13 @@ type OffHandProfile struct {
 	// DamageBonus is the off-hand swing's flat damage bonus — the reduced (½×)
 	// Strength share plus any flat bonuses (two-weapon-fighting §4.2).
 	DamageBonus int
+	// Attacks is the number of off-hand strikes this profile grants per round
+	// (two-weapon-fighting §3.1 — the "off-hand attacks granted" count). Zero or
+	// one means a single off-hand strike (the slice-1 baseline); Improved
+	// Two-Weapon Fighting raises it to two. Each strike AFTER the first takes the
+	// cumulative AutoAttackConfig.SecondaryOffHandPenalty to hit (§4.3); the
+	// damage is identical across strikes. The round loop floors this at one.
+	Attacks int
 }
 
 // DefaultTwoWeaponMainPenalty / DefaultTwoWeaponOffHandPenalty are the to-hit
