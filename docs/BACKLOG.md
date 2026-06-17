@@ -145,13 +145,18 @@ old five-theme partition left uncovered.
   a stilling restore path, the Wilder emotional Block, save-DC/buff affinity scaling)
   remains open.
   **Next candidates:** S2 Phase 4+ depth (above); S7 survival v2; S8 reputation;
-  the separate ranged (G) / armor (E) S1 follow-ons; and S4 polish (creation-wizard
+  the separate armor (E) S1 follow-on; and S4 polish (creation-wizard
   feat-pick step, Power Attack's combat effect, choose-a-feat-from-a-pool).
 - **Combat & Equipment Depth (WoT weapon/armor system)** — *(EPIC sub-epic S1 — see WoT
   Mechanics above and [`docs/themes/wot-mechanics-epic.md`](themes/wot-mechanics-epic.md))*
   **✅ A+B+C (`M-Weapon-Identity`) SHIPPED 2026-06-10** (`weapon-identity.md`);
   **✅ masterwork item grades (H) SHIPPED 2026-06-16** (`masterwork.md`, `internal/grade`);
-  what remains is the later increments — ranged (G), armor (E), size-wield (F),
+  **✅ ranged combat (G) SHIPPED 2026-06-16** (`ranged-combat.md`) — Slice A (thrown/
+  projectile + ammo + Strength rules + masterwork ammo), Slice B (far→near→melee range
+  bands + auto-close + kiting, incl. mob ranged AI), and **Model C** (cross-room
+  targeting — the `shoot` verb + a shot mob's retaliation pursuit, adjacent-room scope;
+  sustained cross-room combat + multi-room LoS/pursuit stay deferred per §10);
+  what remains is the later increments — armor (E), size-wield (F),
   special weapons (J), damage-type effect (D, with E).
   Originally: make weapons and armor
   mechanically distinct the way `docs/wot/equipment.md` (the WoT d20 tables) describes:
@@ -550,7 +555,7 @@ need a design pass first.
 | You want a real item economy — players selling loot to each other | **Player trade** *(specced — ready)*; then Economy depth (mail/banking, greenfield) |
 | You want to deepen the crafting loop | **Crafting & Cooking** (M27), **Gathering** + **Biomes** all shipped; next depth = regional recipes (geography-gated) or the WoT-flavored craft chains |
 | The world/character sheet feels mechanically thin | **Gameplay Systems** *(greenfield — design first)* |
-| You want WoT weapons to feel distinct / matter mechanically | **Combat & Equipment Depth** — start with `M-Weapon-Identity` (A+B+C); ranged + armor are later themes *(greenfield — design first)* |
+| You want WoT weapons to feel distinct / matter mechanically | **Combat & Equipment Depth** — `M-Weapon-Identity` (A+B+C), masterwork (H), and ranged (G — incl. Model C cross-room) all shipped; armor (E) is the next theme *(greenfield — design first)* |
 | You want more "things to do" — repeatable activities, destinations, prestige | **Gameplay content / activities** *(greenfield — small standalone specs)* |
 | You want a fast, low-stakes win to re-enter the codebase | take one **§1 warmup** (effect/item-triggered quest advance, reactive tag observers, …) |
 | Accreting code debt is blocking a feature you want | **Engine Debt III** *(specced)* |
