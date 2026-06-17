@@ -27,6 +27,10 @@ items:
   # displaces the shield — a live demo of spanning + slot contention.
   - iron-greatsword
   - wooden-shield
+  # Ranged playtest (ranged-combat §3): a thrown weapon — `equip knife` then
+  # `throw bandit` in the Meadow hurls it for one full-Strength swing; it lands
+  # in the room afterward (recoverable), or shatters if it were graded.
+  - throwing-knife
   # M11.1: a pile of coins to exercise currency auto-convert — `get
   # coins` credits gold instead of adding an item to inventory.
   - gold-coins

@@ -1,0 +1,17 @@
+id: arrow
+name: an arrow
+description: |
+  A straight ash shaft fletched with grey goose feather and tipped with a
+  bodkin point — the workaday arrow every Two Rivers cottage keeps by the
+  hundred. One per shot; a quiver empties faster than a fight lasts.
+type: item
+tags: [ammo, ammunition, stackable]
+keywords: [arrow, shaft, bodkin]
+properties:
+  stackable: true
+  weight: 1
+  value: 1
+# Ranged ammunition (ranged-combat §3): a projectile weapon whose ammo_kind is
+# "arrow" consumes one of these per shot. Matched verbatim against the bow's
+# ammo_kind; out of arrows, the bow fires nothing.
+ammo_kind: arrow

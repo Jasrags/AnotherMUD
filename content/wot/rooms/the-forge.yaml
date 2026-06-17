@@ -32,5 +32,15 @@ items:
   # The masterwork (S1.H) demo: a heron-mark blade among the finished work —
   # its grade alone (no hand-written modifier) hits truer when wielded.
   - heron-mark-blade
+  # Ranged demo (ranged-combat §3): a Two Rivers longbow (exotic — a fighter
+  # takes the non-proficient penalty), a stack of arrows it consumes per shot,
+  # and a few fletcher's fine (masterwork) arrows that add to-hit and are spent
+  # on use. `equip longbow`, `get arrow` (×N), `kill <foe>` to loose volleys.
+  - two-rivers-longbow
+  - arrow
+  - arrow
+  - arrow
+  - fine-arrow
+  - fine-arrow
 mobs:
   - haral-luhhan

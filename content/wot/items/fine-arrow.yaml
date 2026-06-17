@@ -1,0 +1,19 @@
+id: fine-arrow
+name: a fletcher's fine arrow
+description: |
+  A master fletcher's work: a spine-matched shaft, a needle-sharp hardened
+  point, fletching set true to the grain. It flies a hair flatter and bites a
+  hair deeper than a common arrow — and, being spent on the shot, it is gone
+  whether it strikes or misses.
+type: item
+tags: [ammo, ammunition, stackable]
+keywords: [arrow, fine, fletcher, shaft]
+properties:
+  stackable: true
+  weight: 1
+  value: 5
+# Ranged ammunition (ranged-combat §3) + masterwork grade (masterwork §3): a
+# graded arrow adds its grade's to-hit bonus to the shot (stacking with a
+# graded bow) and is destroyed on use. ammo_kind matches any "arrow"-firing bow.
+ammo_kind: arrow
+grade: masterwork

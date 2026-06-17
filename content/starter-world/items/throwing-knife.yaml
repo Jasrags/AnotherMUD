@@ -1,0 +1,20 @@
+id: throwing-knife
+name: a throwing knife
+description: |
+  A flat, balanced little knife meant to leave the hand, not hold an edge in a
+  melee — weighted at the blade so it turns true through the air. Thrown, it
+  buries itself in a target across the room; afterward it lies where it fell,
+  to be picked up again.
+type: weapon
+tags: [weapon, metal, bladed, thrown]
+keywords: [knife, dagger, throwing]
+eligible_slots: [wield]
+properties:
+  weight: 1
+  value: 8
+weapon_damage: "1d4"
+weapon_category: knife
+# Ranged metadata (ranged-combat §2): a THROWN weapon — `throw <target>` hurls
+# it for one full-Strength swing, then it lands in the room (recoverable). It
+# is its own ammunition, so it declares no ammo_kind.
+ranged_class: thrown

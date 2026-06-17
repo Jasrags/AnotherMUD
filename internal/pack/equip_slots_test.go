@@ -134,6 +134,59 @@ content:
 	}
 }
 
+// TestLoad_RejectsProjectileWithNoAmmoSupplier exercises the boot post-pass
+// (validateProjectileAmmo): a projectile weapon whose ammo_kind is supplied by
+// no item fails the load with ErrProjectileNoAmmo — a bow nothing can feed
+// surfaces at boot instead of as a weapon that silently never fires
+// (ranged-combat §3).
+func TestLoad_RejectsProjectileWithNoAmmoSupplier(t *testing.T) {
+	root := t.TempDir()
+	pack := filepath.Join(root, "core")
+	writeFile(t, filepath.Join(pack, "pack.yaml"), `
+name: tapestry-core
+content:
+  items: [items/*.yaml]
+`)
+	// A projectile bow naming "arrow", but no item supplies "arrow".
+	writeFile(t, filepath.Join(pack, "items/bow.yaml"),
+		"id: bow\nname: a bow\ntype: weapon\nweapon_damage: \"1d6\"\nranged_class: projectile\nammo_kind: arrow\n")
+
+	regs := NewRegistries()
+	if err := slot.RegisterEngineBaseline(regs.Slots); err != nil {
+		t.Fatalf("baseline: %v", err)
+	}
+	err := Load(context.Background(), root, nil, regs, nil, nil, nil)
+	if !errors.Is(err, ErrProjectileNoAmmo) {
+		t.Fatalf("Load err = %v, want ErrProjectileNoAmmo", err)
+	}
+}
+
+// TestLoad_ProjectileWithAmmoSupplierLoads is the positive case: once an ammo
+// item supplies the kind, the projectile loads clean. A bow does NOT supply its
+// own ammo (its ammo_kind is what it consumes), so the supplier must be a
+// separate item.
+func TestLoad_ProjectileWithAmmoSupplierLoads(t *testing.T) {
+	root := t.TempDir()
+	pack := filepath.Join(root, "core")
+	writeFile(t, filepath.Join(pack, "pack.yaml"), `
+name: tapestry-core
+content:
+  items: [items/*.yaml]
+`)
+	writeFile(t, filepath.Join(pack, "items/bow.yaml"),
+		"id: bow\nname: a bow\ntype: weapon\nweapon_damage: \"1d6\"\nranged_class: projectile\nammo_kind: arrow\n")
+	writeFile(t, filepath.Join(pack, "items/arrow.yaml"),
+		"id: arrow\nname: an arrow\ntype: item\nammo_kind: arrow\n")
+
+	regs := NewRegistries()
+	if err := slot.RegisterEngineBaseline(regs.Slots); err != nil {
+		t.Fatalf("baseline: %v", err)
+	}
+	if err := Load(context.Background(), root, nil, regs, nil, nil, nil); err != nil {
+		t.Fatalf("Load err = %v, want nil (arrow supplies the bow)", err)
+	}
+}
+
 // TestLoad_RejectsUnknownQualityGradeValue extends validateItemGrades to the
 // crafting quality_grades map: a value that resolves to no registered grade
 // fails the load, so a craft-grade typo surfaces at boot instead of silently

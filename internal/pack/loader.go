@@ -50,6 +50,7 @@ var (
 	ErrInvalidContent      = errors.New("invalid content file")
 	ErrItemUnknownSlot     = errors.New("item references unknown slot")
 	ErrItemUnknownGrade    = errors.New("item references unknown grade")
+	ErrProjectileNoAmmo    = errors.New("projectile weapon's ammo_kind is supplied by no item")
 	ErrMissingDoorKey      = errors.New("door references unknown key template")
 )
 
@@ -252,6 +253,15 @@ func Load(ctx context.Context, root string, filter []string, dst *Registries, sp
 		return err
 	}
 
+	// Projectile ammo references (ranged-combat §3): every projectile weapon's
+	// ammo_kind must be supplied by at least one ammo item, so a `ranged_class:
+	// projectile` weapon can never be unfireable for want of any matching ammo
+	// in the world. Runs after every pack loads so a cross-pack ammo item is
+	// visible (mirrors validateItemSlots).
+	if err := validateProjectileAmmo(dst); err != nil {
+		return err
+	}
+
 	// Economy guardrail (crafting-and-cooking §8 / plan D3): flag any recipe
 	// that loses money (output value ≤ Σ input value). Advisory only — the
 	// D2.1 invariant is a content-pricing discipline, not a load gate — so
@@ -369,6 +379,33 @@ func validateItemGrades(dst *Registries) error {
 			if !dst.Grades.Has(g) {
 				return fmt.Errorf("%w: item %q quality_grades value %q", ErrItemUnknownGrade, t.ID, g)
 			}
+		}
+	}
+	return nil
+}
+
+// validateProjectileAmmo verifies that every projectile weapon's ammo_kind
+// (ranged-combat §2/§3) is supplied by at least one item declaring the same
+// ammo_kind. Runs after all packs load so a cross-pack ammo item is visible.
+// Boot-time validation turns "a bow nothing can feed" into a precise load
+// failure rather than a weapon that silently never fires; the sentinel
+// ErrProjectileNoAmmo mirrors ErrItemUnknownGrade. The decode pass already
+// guarantees a projectile declares a non-empty ammo_kind (§2), so this only
+// checks that some item supplies it.
+func validateProjectileAmmo(dst *Registries) error {
+	items := dst.Items.All()
+	supplied := make(map[string]bool) // ammo_kind → at least one item supplies it
+	for _, t := range items {
+		// A projectile weapon's ammo_kind is what it CONSUMES, not what it
+		// supplies — exclude it so a bow can't satisfy its own requirement.
+		// Ammo items (and any non-projectile) declaring ammo_kind are suppliers.
+		if t.AmmoKind != "" && t.RangedClass != item.RangedProjectile {
+			supplied[t.AmmoKind] = true
+		}
+	}
+	for _, t := range items {
+		if t.RangedClass == item.RangedProjectile && !supplied[t.AmmoKind] {
+			return fmt.Errorf("%w: weapon %q needs ammo_kind %q", ErrProjectileNoAmmo, t.ID, t.AmmoKind)
 		}
 	}
 	return nil

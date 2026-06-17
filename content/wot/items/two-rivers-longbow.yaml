@@ -1,0 +1,34 @@
+id: two-rivers-longbow
+name: a Two Rivers longbow
+description: |
+  A great horn-nocked warbow of Two Rivers yew, taller than the man who draws
+  it. The folk of Emond's Field are raised to it from boyhood, and a heavy draw
+  no outland archer could bend sends a broadhead clean through a boiled-leather
+  jerkin at a hundred paces. It is a weapon of patience and distance — useless
+  the moment a Trolloc closes to sword's reach.
+type: weapon
+tags: [weapon, wood, bow, ranged]
+keywords: [longbow, bow, warbow]
+eligible_slots: [wield]
+companion_slots: [offhand]
+properties:
+  weight: 3
+  value: 75
+weapon_damage: "1d8"
+# Weapon identity (weapon-identity §2): the canonical EXOTIC category — an
+# untrained hand takes the non-proficient to-hit penalty (a fighter is NOT
+# proficient with it until a feat grants the kind). Longbows crit on a 20 for
+# triple dice.
+weapon_category: two-rivers-longbow
+proficiency_tier: exotic
+damage_types: [piercing]
+crit_threat_low: 20
+crit_multiplier: 3
+# Ranged metadata (ranged-combat §2-§4). A PROJECTILE that consumes "arrow"
+# ammunition; a heavy Strength-RATED warbow — it adds a positive Strength
+# damage bonus capped at +3 (the Two Rivers draw), unlike a plain bow that
+# adds none. range_increment feeds Slice B's distance falloff (inert today).
+ranged_class: projectile
+ammo_kind: arrow
+range_increment: 10
+str_rating: 3
