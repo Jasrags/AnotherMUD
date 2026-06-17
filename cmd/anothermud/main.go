@@ -1931,6 +1931,44 @@ func run() error {
 		return affinityPotency(gender, ab.Elements, affinityWeakFactor)
 	}
 
+	// WoT S2 Phase 4+ — angreal / sa'angreal. A same-gender channeling device
+	// held (equipped) while weaving amplifies the woven damage/heal payload —
+	// the engine analog of the d20 "extra effective casting level" (the magnitude
+	// axis affinity already scales). The per-point multiplier is tunable: a
+	// power-2 angreal at the default 0.25 weaves at ×1.5; a power-10 sa'angreal at
+	// ×3.5. Only weaves (element-tagged abilities) are boosted; a non-channeler's
+	// abilities and cross-gender devices are inert. Effect-path amplification
+	// (bigger save DCs / buffs) is deferred — the resolver's PotencyFunc stays
+	// weaken-only, so this rides only the damage/heal scaler.
+	angrealPerPoint := envFloatOr("ANOTHERMUD_ANGREAL_PER_POINT", 0.25)
+	if angrealPerPoint <= 0 {
+		// A non-positive per-point boost would make a device inert or, worse,
+		// weaken a weave — nonsense for an amplifier. Warn and fall back.
+		slog.Warn("ANOTHERMUD_ANGREAL_PER_POINT must be > 0; using default 0.25",
+			slog.Float64("got", angrealPerPoint))
+		angrealPerPoint = 0.25
+	}
+	// casterWeavePotency is the combined damage/heal multiplier: affinity (≤1,
+	// weakens off-gender weaves) times the angreal amplifier (≥1, a held device).
+	// The resolver's effect-path provider keeps the affinity-only func below — so
+	// only damage/heal amplify in this slice.
+	casterWeavePotency := func(sourceID, abilityID string) float64 {
+		pot := casterAffinityPotency(sourceID, abilityID)
+		// Re-confirm the ability is a weave before applying angreal: affinity
+		// returns 1.0 for BOTH a non-weave and an on-affinity weave, so the
+		// element check is what keeps a fighter's strike from riding a figurine.
+		ab, ok := registries.Abilities.Get(abilityID)
+		if !ok || len(ab.Elements) == 0 {
+			return pot
+		}
+		if a, ok := mgr.GetByPlayerID(sourceID); ok {
+			if power := a.AngrealPower(a.Gender()); power > 0 {
+				pot *= 1.0 + float64(power)*angrealPerPoint
+			}
+		}
+		return pot
+	}
+
 	// ability.used side-effect handler. Runs synchronously inside the
 	// resolver's §4.5 step-8 emit (tick goroutine), BEFORE the
 	// resolver's step-9 HP probe — so damage it applies is visible to
@@ -1960,7 +1998,7 @@ func run() error {
 				return
 			}
 			amount := dice.damage.Roll(combatRNG)
-			amount = scaleByPotency(amount, casterAffinityPotency(e.SourceID, e.AbilityID))
+			amount = scaleByPotency(amount, casterWeavePotency(e.SourceID, e.AbilityID))
 			if amount < 1 {
 				amount = 1
 			}
@@ -2005,7 +2043,7 @@ func run() error {
 				return
 			}
 			amount := dice.heal.Roll(combatRNG)
-			amount = scaleByPotency(amount, casterAffinityPotency(e.SourceID, e.AbilityID))
+			amount = scaleByPotency(amount, casterWeavePotency(e.SourceID, e.AbilityID))
 			if amount < 1 {
 				amount = 1
 			}

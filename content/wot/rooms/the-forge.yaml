@@ -70,5 +70,13 @@ items:
   # non-proficient penalty.
   - padded-cap
   - great-helm
+  # Angreal (S2 One Power, Phase 4+) demo — two ivory figurines among the
+  # finished work. A channeler `equip`s a same-gender device (held in hand) and
+  # weaves harder: a male initiate holding the man-figurine throws a stronger
+  # Firebolt / heals more; a woman's figurine is inert to him, and vice versa.
+  # `get figurine` (matches both — disambiguate by `man`/`woman`), `equip man`,
+  # then `channel firebolt <foe>` and compare the damage to an empty hand.
+  - saidin-angreal
+  - saidar-angreal
 mobs:
   - haral-luhhan

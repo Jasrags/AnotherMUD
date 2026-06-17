@@ -15,10 +15,20 @@ WoT sub-epic, a **multi-slice arc** (XL)
 > single `channeler` class replaced by `initiate` — INT-keyed pool, weak Fort —
 > and `wilder` — WIS-keyed pool, strong Fort + bigger HP die; content-only, the
 > divergence rides the existing growth-bonus + save-progression seams, zero engine
-> code). Phase 4+ depth (taint/madness, angreal, linking, a restore path for
-> stilling, the Wilder emotional Block; v1 affinity scales damage+heal only —
-> save-DC + buff-modifier scaling are an affinity follow-up) remains open. The
-> phase text below is the original design spine.
+> code). **Angreal / sa'angreal SHIPPED 2026-06-17** — a same-gender channeling
+> device, held (equipped), amplifies the woven damage/heal payload (the engine
+> analog of the d20 "extra effective casting level": more weave magnitude, the
+> axis affinity already scales). Typed item metadata `angreal_power` (1–3 angreal,
+> 4–10 sa'angreal — one scale) + `angreal_gender` (saidin/saidar gate; a
+> cross-gender device is inert); the strongest equipped matching device applies
+> (no stacking in v1). The boost rides the SAME damage/heal scaler affinity uses
+> (`casterWeavePotency` = affinity ≤1 × angreal ≥1, env
+> `ANOTHERMUD_ANGREAL_PER_POINT`, default 0.25); effect-path amplification (bigger
+> save-DCs / buffs) is deferred — the resolver's `PotencyFunc` stays weaken-only,
+> so an angreal does not yet make a ward harder to break. Demo: a saidin + a
+> saidar figurine in the Smithy (`content/wot/items/said{in,ar}-angreal.yaml`).
+> Phase 4+ depth still open: taint/madness, linking, a restore path for stilling,
+> the Wilder emotional Block. The phase text below is the original design spine.
 **Implements:** EPIC sub-epic **S2** — `docs/themes/wot-mechanics-epic.md` §2 row S2
 **Engine contract (setting-agnostic):** the reusable substrate this arc introduced
 is now specified in the engine specs — generalized **resource pools**
@@ -260,7 +270,11 @@ Each phase is its own commit(s) + go-review, in the project's rhythm.
   - **Combat interrupt game** — getting hit aborts a cast (tempo cost); `Slice
     Weaves`-style weave interrupts; `Shield` as a cut-from-Source disable.
   - **Madness / the taint** — the deferred asymmetric saidin curse (D3).
-  - **Angreal / sa'angreal** — items that add to the pool/effective level.
+  - ~~**Angreal / sa'angreal**~~ — **SHIPPED (2026-06-17)**: a same-gender held
+    device amplifies woven damage/heal (the "effective level" boost as weave
+    magnitude). Typed `angreal_power`/`angreal_gender`, strongest-equipped-wins,
+    `ANOTHERMUD_ANGREAL_PER_POINT`. Effect-path (save-DC/buff) amplification
+    deferred — the resolver's `PotencyFunc` is weaken-only.
   - **Linking / circles** — far later; WoTMUD likely never shipped it.
   - **Traveling / Gateways / wards** — overlap S10 (travel) and the world graph.
 

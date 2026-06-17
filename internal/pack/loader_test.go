@@ -373,6 +373,99 @@ weapon_damage: "not-dice"
 	}
 }
 
+func TestLoadAngrealMissingGender(t *testing.T) {
+	root := t.TempDir()
+	pack := filepath.Join(root, "core")
+	writeFile(t, filepath.Join(pack, "pack.yaml"), `
+name: tapestry-core
+content:
+  items: [items/*.yaml]
+`)
+	// A rating with no gender gate is an authoring slip — fail the pack rather
+	// than ship a device that works for everyone (or no one).
+	writeFile(t, filepath.Join(pack, "items/angreal.yaml"), `
+id: figurine
+name: a figurine
+type: item
+angreal_power: 2
+`)
+	err := Load(context.Background(), root, nil, NewRegistries(), nil, nil, nil)
+	if !errors.Is(err, ErrInvalidContent) {
+		t.Fatalf("err = %v, want ErrInvalidContent for angreal_power without gender", err)
+	}
+}
+
+func TestLoadAngrealBadGender(t *testing.T) {
+	root := t.TempDir()
+	pack := filepath.Join(root, "core")
+	writeFile(t, filepath.Join(pack, "pack.yaml"), `
+name: tapestry-core
+content:
+  items: [items/*.yaml]
+`)
+	writeFile(t, filepath.Join(pack, "items/angreal.yaml"), `
+id: figurine
+name: a figurine
+type: item
+angreal_power: 2
+angreal_gender: neither
+`)
+	err := Load(context.Background(), root, nil, NewRegistries(), nil, nil, nil)
+	if !errors.Is(err, ErrInvalidContent) {
+		t.Fatalf("err = %v, want ErrInvalidContent for unknown angreal_gender", err)
+	}
+}
+
+func TestLoadAngrealNonPositivePower(t *testing.T) {
+	root := t.TempDir()
+	pack := filepath.Join(root, "core")
+	writeFile(t, filepath.Join(pack, "pack.yaml"), `
+name: tapestry-core
+content:
+  items: [items/*.yaml]
+`)
+	// A gender with no positive rating is the mirror authoring slip.
+	writeFile(t, filepath.Join(pack, "items/angreal.yaml"), `
+id: figurine
+name: a figurine
+type: item
+angreal_gender: male
+`)
+	err := Load(context.Background(), root, nil, NewRegistries(), nil, nil, nil)
+	if !errors.Is(err, ErrInvalidContent) {
+		t.Fatalf("err = %v, want ErrInvalidContent for angreal_gender without positive power", err)
+	}
+}
+
+func TestLoadAngrealValid(t *testing.T) {
+	root := t.TempDir()
+	pack := filepath.Join(root, "core")
+	writeFile(t, filepath.Join(pack, "pack.yaml"), `
+name: tapestry-core
+content:
+  items: [items/*.yaml]
+`)
+	writeFile(t, filepath.Join(pack, "items/angreal.yaml"), `
+id: figurine
+name: a figurine
+type: item
+angreal_power: 2
+angreal_gender: Male
+`)
+	regs := NewRegistries()
+	if err := Load(context.Background(), root, nil, regs, nil, nil, nil); err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	tpl, err := regs.Items.Get("tapestry-core:figurine")
+	if err != nil {
+		t.Fatalf("figurine template not loaded: %v", err)
+	}
+	if tpl.AngrealPower != 2 || tpl.AngrealGender != "male" {
+		t.Errorf("angreal = (%d,%q), want (2,\"male\") — gender normalized lowercase",
+			tpl.AngrealPower, tpl.AngrealGender)
+	}
+}
+
 func TestLoadBadNaturalWeaponDice(t *testing.T) {
 	root := t.TempDir()
 	pack := filepath.Join(root, "core")

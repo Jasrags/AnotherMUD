@@ -159,6 +159,19 @@ type Template struct {
 	// validated against the damage-type vocabulary and values to be
 	// non-negative at pack load; keys normalized lowercase.
 	Resistances map[string]int
+	// Angreal (wot-the-one-power.md — S2 angreal/sa'angreal). AngrealPower is
+	// the One Power amplification rating of a channeling device (1–3 angreal,
+	// 4–10 sa'angreal — the same scale, the name is flavor): while a
+	// same-gender channeler has the device equipped, it multiplies the woven
+	// damage/heal payload upward (the engine analog of the d20 "extra effective
+	// casting level"). Zero ⇒ the item is not an angreal. AngrealGender gates
+	// which channeler the device serves ("male" / "female" — the saidin/saidar
+	// split); a cross-gender device is inert (invisible/dead to the wrong
+	// channeler). WoT-specific content; inert outside the WoT pack (no item
+	// carries it). Validated at pack load: a non-zero rating requires a
+	// positive value and a male/female gender. Normalized lowercase.
+	AngrealPower  int
+	AngrealGender string
 }
 
 // Errors callers may distinguish at the boundary.

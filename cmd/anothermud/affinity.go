@@ -60,11 +60,17 @@ func affinityPotency(gender string, elements []string, weakFactor float64) float
 }
 
 // scaleByPotency applies a potency multiplier to a rolled amount, rounding to
-// the nearest whole. A potency of 1.0 (or anything ≥ 1) returns the amount
+// the nearest whole. A potency below 1 weakens the payload (affinity woven off
+// one's gender-derived strength); a potency above 1 amplifies it (a same-gender
+// angreal/sa'angreal held while channeling — wot-the-one-power.md S2). A
+// potency of exactly 1.0 (the inert / full-strength case) returns the amount
 // unchanged. The caller still floors the result at 1 (a landed weave is never
-// for nothing).
+// for nothing). Unlike the resolver's effect-path PotencyFunc — contracted
+// weaken-only, (0,1] — this damage/heal scaler is the one path angreal can
+// amplify in slice 1; effect-path amplification (bigger save DCs / buffs) is a
+// deferred follow-up that would relax that contract.
 func scaleByPotency(amount int, potency float64) int {
-	if potency >= 1.0 {
+	if potency == 1.0 {
 		return amount
 	}
 	return int(float64(amount)*potency + 0.5)

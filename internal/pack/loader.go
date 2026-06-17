@@ -2975,6 +2975,22 @@ func decodeItem(path, ns string) (*item.Template, error) {
 		armorMaxDex = &v
 	}
 
+	// Angreal (wot-the-one-power.md S2). An item is an angreal when it declares
+	// either a non-zero rating or a gender; both are then required and validated
+	// so an authoring slip (a power with no gender, or vice versa) fails the
+	// pack by file name rather than producing a silently-inert device.
+	angrealGender := strings.ToLower(strings.TrimSpace(f.AngrealGender))
+	if f.AngrealPower != 0 || angrealGender != "" {
+		if f.AngrealPower <= 0 {
+			return nil, fmt.Errorf("%w: %s: angreal_power %d must be positive (it is an amplification rating)",
+				ErrInvalidContent, path, f.AngrealPower)
+		}
+		if angrealGender != "male" && angrealGender != "female" {
+			return nil, fmt.Errorf("%w: %s: angreal_gender %q must be \"male\" or \"female\"",
+				ErrInvalidContent, path, f.AngrealGender)
+		}
+	}
+
 	return &item.Template{
 		ID:                item.TemplateID(id),
 		Name:              f.Name,
@@ -3003,6 +3019,8 @@ func decodeItem(path, ns string) (*item.Template, error) {
 		ArmorCheckPenalty: f.ArmorCheckPenalty,
 		ArmorTier:         armorTier,
 		Resistances:       resistances,
+		AngrealPower:      f.AngrealPower,
+		AngrealGender:     angrealGender,
 	}, nil
 }
 

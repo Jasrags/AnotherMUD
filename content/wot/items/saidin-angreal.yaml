@@ -1,0 +1,22 @@
+id: saidin-angreal
+name: a carved figurine of a man
+type: item
+description: |
+  A small figurine no longer than a hand, carved from age-darkened ivory into
+  the likeness of a man holding a sphere aloft. It is warm to the touch, and a
+  man who has learned to reach for saidin feels the warmth answer him — a
+  remnant of the Age of Legends that lends a channeler's weaves more strength
+  than he could safely draw alone. To a woman it is a dead trinket.
+tags: [angreal, focus, ivory]
+keywords: [figurine, angreal, man, carving]
+# An angreal is held in the hand while channeling (wot-the-one-power.md S2 —
+# "use only requires touching the device while casting"), so it is eligible for
+# either hand. A channeler who carries no weapon simply holds it.
+eligible_slots: [wield, offhand]
+# Saidin device (male): amplifies a MALE channeler's woven damage/heal. Inert
+# to a woman. Power 2 ⇒ at the default per-point 0.25, weaves resolve at ×1.5.
+angreal_power: 2
+angreal_gender: male
+properties:
+  weight: 1
+  value: 5000

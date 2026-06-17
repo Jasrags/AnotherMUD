@@ -1,0 +1,20 @@
+id: saidar-angreal
+name: a carved figurine of a woman
+type: item
+description: |
+  A small figurine no longer than a hand, carved from age-darkened ivory into
+  the likeness of a woman with her hands cupped before her. A woman who has
+  embraced saidar feels it brighten the Source for her — a remnant of the Age of
+  Legends that lends her weaves more strength than she could safely draw alone.
+  To a man it is a dead trinket.
+tags: [angreal, focus, ivory]
+keywords: [figurine, angreal, woman, carving]
+# Held in the hand while channeling (see saidin-angreal): eligible for either hand.
+eligible_slots: [wield, offhand]
+# Saidar device (female): amplifies a FEMALE channeler's woven damage/heal.
+# Inert to a man. Power 2 ⇒ at the default per-point 0.25, weaves resolve at ×1.5.
+angreal_power: 2
+angreal_gender: female
+properties:
+  weight: 1
+  value: 5000

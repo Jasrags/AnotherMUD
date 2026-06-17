@@ -3016,6 +3016,45 @@ func (a *connActor) Equipment() map[string]entities.EntityID {
 	return out
 }
 
+// AngrealPower returns the highest One Power amplification rating among the
+// actor's EQUIPPED angreal/sa'angreal devices whose gender gate matches the
+// supplied channeler gender (wot-the-one-power.md S2). A cross-gender device is
+// inert (skipped); a device merely carried in inventory does not count (it must
+// be held/equipped). Returns 0 when the actor holds no matching device — the
+// caller treats 0 as "no amplification". Only the single strongest device
+// applies (v1 does not stack); the per-point multiplier math lives in the
+// composition root beside the affinity rule, keeping this method setting-free.
+func (a *connActor) AngrealPower(gender string) int {
+	g := strings.ToLower(strings.TrimSpace(gender))
+	if g == "" {
+		return 0
+	}
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	if a.items == nil {
+		return 0
+	}
+	best := 0
+	for _, id := range a.equipment {
+		e, ok := a.items.GetByID(id)
+		if !ok {
+			continue
+		}
+		it, ok := e.(*entities.ItemInstance)
+		if !ok {
+			continue
+		}
+		power, devGender, ok := it.Angreal()
+		if !ok || devGender != g {
+			continue
+		}
+		if power > best {
+			best = power
+		}
+	}
+	return best
+}
+
 // weaponInfo is the immutable wielded-weapon snapshot stored in
 // connActor.weapon and copied into combat.Stats each round. Held behind
 // an atomic.Pointer so the tick-goroutine read in Stats() never touches

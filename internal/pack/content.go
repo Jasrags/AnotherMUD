@@ -126,6 +126,14 @@ type ItemFile struct {
 	ArmorCheckPenalty int            `yaml:"armor_check_penalty,omitempty"`
 	ArmorTier         string         `yaml:"armor_tier,omitempty"`
 	Resistances       map[string]int `yaml:"resistances,omitempty"`
+	// Angreal (wot-the-one-power.md S2). angreal_power is the One Power
+	// amplification rating (1–3 angreal, 4–10 sa'angreal — same scale); 0 = not
+	// an angreal. angreal_gender gates the channeler the device serves
+	// (male/female — saidin/saidar); a cross-gender device is inert. A non-zero
+	// rating requires a positive value and a male/female gender (validated at
+	// load). WoT-specific; inert outside the WoT pack.
+	AngrealPower  int    `yaml:"angreal_power,omitempty"`
+	AngrealGender string `yaml:"angreal_gender,omitempty"`
 }
 
 // ModifierFile is one entry of an ItemFile.Modifiers list.

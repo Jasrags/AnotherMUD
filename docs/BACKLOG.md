@@ -143,7 +143,10 @@ old five-theme partition left uncovered.
   class split** (`initiate` INT-keyed/weak-Fort, `wilder` WIS-keyed/strong-Fort); see
   `proposals/wot-the-one-power.md`). S2 Phase 4+ depth (taint/madness, angreal, linking,
   a stilling restore path, the Wilder emotional Block, save-DC/buff affinity scaling)
-  remains open.
+  remains open. **Angreal/sa'angreal SHIPPED 2026-06-17** — a same-gender held
+  device amplifies woven damage/heal (`angreal_power`/`angreal_gender` item metadata,
+  strongest-equipped-wins, `ANOTHERMUD_ANGREAL_PER_POINT`; effect-path amplification
+  deferred — `PotencyFunc` stays weaken-only).
   **Next candidates:** S2 Phase 4+ depth (above); S7 survival v2; S8 reputation;
   the separate armor (E) S1 follow-on; and S4 polish (creation-wizard
   feat-pick step, Power Attack's combat effect, choose-a-feat-from-a-pool).

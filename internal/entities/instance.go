@@ -154,6 +154,13 @@ type ItemInstance struct {
 	// against the wearer's class-granted armor tiers to gate the non-proficient
 	// attack penalty.
 	armorTier string
+	// angrealPower / angrealGender are the One Power amplification rating and
+	// gender gate of an angreal/sa'angreal device (wot-the-one-power.md S2).
+	// angrealPower 0 ⇒ not an angreal. While a same-gender channeler has the
+	// device equipped, it multiplies woven damage/heal upward. Carried verbatim
+	// from the template (validated at pack load); never overridden at runtime.
+	angrealPower  int
+	angrealGender string
 }
 
 // ID implements Entity.
@@ -397,6 +404,18 @@ func (it *ItemInstance) Resistances() map[string]int {
 	return out
 }
 
+// Angreal returns the item's One Power amplification rating and gender gate
+// (wot-the-one-power.md S2). ok is false (power 0, gender "") for an item that
+// is not an angreal. When ok, gender is "male"/"female" and power is positive
+// (the pack loader guarantees the pairing). A same-gender channeler holding the
+// device weaves a stronger damage/heal payload.
+func (it *ItemInstance) Angreal() (power int, gender string, ok bool) {
+	if it.angrealPower <= 0 {
+		return 0, "", false
+	}
+	return it.angrealPower, it.angrealGender, true
+}
+
 // ArmorCheckPenalty returns the magnitude (non-negative) of the penalty
 // this armor imposes on Str/Dex skill checks while worn (armor-depth §6);
 // 0 for an item that imposes none.
@@ -583,5 +602,7 @@ func buildInstanceFromTemplate(tpl *item.Template, id EntityID) *ItemInstance {
 		armorBonus:        tpl.ArmorBonus,
 		armorMaxDex:       tpl.ArmorMaxDex,
 		armorTier:         tpl.ArmorTier,
+		angrealPower:      tpl.AngrealPower,
+		angrealGender:     tpl.AngrealGender,
 	}
 }
