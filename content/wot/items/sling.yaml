@@ -1,0 +1,22 @@
+id: sling
+name: a sling
+type: weapon
+description: |
+  A simple cradle of leather on two cords — a shepherd's tool, swung whistling
+  overhead to send a lead bullet cracking off a wolf's skull at fifty paces. It
+  weighs nothing and hides in a pocket, and every Two Rivers child can use one.
+tags: [weapon, leather, ranged]
+keywords: [sling]
+eligible_slots: [wield, offhand]
+weapon_damage: "1d4"
+weapon_category: sling
+proficiency_tier: simple
+damage_types: [bludgeoning]
+# Ranged (ranged-combat §2-§4): a PROJECTILE firing "bullet" ammo; one-handed and
+# weightless, but no Strength to damage (the default projectile rule).
+ranged_class: projectile
+ammo_kind: bullet
+range_increment: 5
+properties:
+  weight: 0
+  value: 5

@@ -1,0 +1,24 @@
+id: heavy-crossbow
+name: a heavy crossbow
+type: weapon
+description: |
+  A massive crossbow spanned by a cranked windlass, the prod a band of layered
+  steel — it throws a bolt with force enough to split mail and the man inside it.
+  Ruinously slow between shots, but at distance there is little a soldier dreads
+  more.
+tags: [weapon, wood, crossbow, ranged]
+keywords: [heavy crossbow, crossbow, bow]
+eligible_slots: [wield]
+companion_slots: [offhand]
+weapon_damage: "1d10"
+weapon_category: heavy-crossbow
+proficiency_tier: simple
+damage_types: [piercing]
+crit_threat_low: 19
+crit_multiplier: 2
+ranged_class: projectile
+ammo_kind: bolt
+range_increment: 12
+properties:
+  weight: 9
+  value: 500

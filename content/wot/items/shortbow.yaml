@@ -1,0 +1,25 @@
+id: shortbow
+name: a shortbow
+type: weapon
+description: |
+  A short, single-curved bow of horn and wood, light enough to draw from
+  horseback or a crouch in the brush. It lacks a warbow's reach and punch, but
+  it is quick to the string and asks far less of the arm.
+tags: [weapon, wood, bow, ranged]
+keywords: [shortbow, short bow, bow]
+eligible_slots: [wield]
+companion_slots: [offhand]
+weapon_damage: "1d6"
+weapon_category: shortbow
+proficiency_tier: martial
+damage_types: [piercing]
+crit_multiplier: 3
+# Ranged (ranged-combat §2-§4): a PROJECTILE firing "arrow" ammo. A plain bow
+# adds no positive Strength to damage (only a Strength-RATED warbow does — the
+# two-rivers-longbow); a negative Strength modifier still applies.
+ranged_class: projectile
+ammo_kind: arrow
+range_increment: 6
+properties:
+  weight: 2
+  value: 300

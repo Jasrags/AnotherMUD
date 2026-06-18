@@ -49,3 +49,11 @@ properties:
       - wot:pike
       - wot:poleaxe
       - wot:boarspear
+      # equipment.md Ranged arms + ammunition.
+      - wot:shortbow
+      - wot:longbow
+      - wot:light-crossbow
+      - wot:heavy-crossbow
+      - wot:sling
+      - wot:bolt
+      - wot:sling-bullet

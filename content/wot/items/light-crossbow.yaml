@@ -1,0 +1,27 @@
+id: light-crossbow
+name: a light crossbow
+type: weapon
+description: |
+  A compact crossbow of horn and yew on a wooden stock, spanned by hand against
+  a stirrup. No years of training the way a warbow demands — point, squeeze, and
+  the bolt flies as hard as any drawn arrow. Slow to reload, deadly when it
+  speaks.
+tags: [weapon, wood, crossbow, ranged]
+keywords: [light crossbow, crossbow, bow]
+eligible_slots: [wield]
+companion_slots: [offhand]
+weapon_damage: "1d8"
+weapon_category: light-crossbow
+proficiency_tier: simple
+damage_types: [piercing]
+crit_threat_low: 19
+crit_multiplier: 2
+# Ranged (ranged-combat §2-§4): a PROJECTILE firing "bolt" ammo. A crossbow's
+# mechanical draw adds no Strength to damage (the default projectile rule, no
+# str_rating). range_increment feeds Slice B falloff (abstract; inert today).
+ranged_class: projectile
+ammo_kind: bolt
+range_increment: 8
+properties:
+  weight: 6
+  value: 350

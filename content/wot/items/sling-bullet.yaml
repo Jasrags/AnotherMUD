@@ -1,0 +1,16 @@
+id: sling-bullet
+name: a sling bullet
+type: item
+description: |
+  A cast lead pellet, smooth and heavy in the palm — truer and harder-hitting
+  than a river stone, and the reason a practiced slinger is worth fearing. A
+  pouch holds a dozen.
+tags: [ammo, ammunition, stackable]
+keywords: [bullet, pellet, shot]
+properties:
+  stackable: true
+  weight: 1
+  value: 1
+# Ranged ammunition (ranged-combat §3): a sling (ammo_kind "bullet") spends one
+# per shot.
+ammo_kind: bullet

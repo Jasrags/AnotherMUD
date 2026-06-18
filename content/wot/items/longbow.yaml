@@ -1,0 +1,25 @@
+id: longbow
+name: a longbow
+type: weapon
+description: |
+  A tall self-bow of a single stave, the plain warbow carried by archers from
+  Andor to the Borderlands. It out-ranges a shortbow and hits harder, and a
+  trained company can darken the sky with its volleys.
+tags: [weapon, wood, bow, ranged]
+keywords: [longbow, long bow, bow, warbow]
+eligible_slots: [wield]
+companion_slots: [offhand]
+weapon_damage: "1d8"
+weapon_category: longbow
+proficiency_tier: martial
+damage_types: [piercing]
+crit_multiplier: 3
+# A PROJECTILE firing "arrow" ammo. A PLAIN longbow adds no positive Strength to
+# damage (no str_rating) — that is what sets the heavier Strength-rated Two Rivers
+# warbow apart.
+ranged_class: projectile
+ammo_kind: arrow
+range_increment: 10
+properties:
+  weight: 3
+  value: 750
