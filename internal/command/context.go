@@ -3,6 +3,7 @@ package command
 import (
 	"context"
 
+	"github.com/Jasrags/AnotherMUD/internal/auction"
 	"github.com/Jasrags/AnotherMUD/internal/biome"
 	"github.com/Jasrags/AnotherMUD/internal/chat"
 	"github.com/Jasrags/AnotherMUD/internal/clock"
@@ -114,6 +115,11 @@ type Context struct {
 	// trade/offer/confirm/decline verbs route through it. nil disables
 	// trading (tests / headless); handlers MUST nil-guard.
 	Trades *trade.Manager
+	// Auction is the auction-house manager (auction-house.md). The
+	// auction/auctions/unlist/browse/buyout/collect verbs route through it.
+	// nil disables the auction house (tests / headless); handlers MUST
+	// nil-guard.
+	Auction *auction.Manager
 	// Shop is the M11.2 shop service. nil in tests.
 	Shop *economy.ShopService
 	// Rest is the M11.4 rest service. nil in tests.

@@ -46,10 +46,11 @@ type pendingEntry struct {
 	Amount int    `yaml:"amount"`
 }
 
-// auctionFile is the on-disk container: a version header, the listing
-// records, and the pending-coin ledger.
+// auctionFile is the on-disk container: a version header, the monotonic id
+// counter, the listing records, and the pending-coin ledger.
 type auctionFile struct {
 	Version  int            `yaml:"version"`
+	Seq      uint64         `yaml:"seq"`
 	Listings []Listing      `yaml:"listings"`
 	Pending  []pendingEntry `yaml:"pending,omitempty"`
 }
@@ -65,6 +66,7 @@ type Store struct {
 	clk      clock.Clock
 	listings map[string]*Listing // id -> listing
 	pending  map[string]int      // playerID -> uncollected coin
+	seq      uint64              // monotonic id counter, persisted (survives prune + reboot)
 }
 
 // NewStore builds a store rooted at saveDir (artifact saveDir/auctions.yaml),
@@ -99,6 +101,7 @@ func (s *Store) Load() error {
 	}
 	f = migrateFile(f)
 
+	s.seq = f.Seq
 	s.listings = make(map[string]*Listing, len(f.Listings))
 	for i := range f.Listings {
 		l := f.Listings[i]
@@ -116,7 +119,7 @@ func (s *Store) Load() error {
 
 // persistLocked writes the whole store atomically. Caller holds s.mu.
 func (s *Store) persistLocked() error {
-	f := auctionFile{Version: CurrentFileVersion}
+	f := auctionFile{Version: CurrentFileVersion, Seq: s.seq}
 	f.Listings = make([]Listing, 0, len(s.listings))
 	for _, l := range s.listings {
 		f.Listings = append(f.Listings, *l)
@@ -140,6 +143,21 @@ func (s *Store) persistLocked() error {
 		return fmt.Errorf("auction persist: write: %w", err)
 	}
 	return nil
+}
+
+// NextID allocates a globally-unique listing id, incrementing and persisting
+// the monotonic counter so an id is never reused — even after the listing it
+// named is pruned, and even across a reboot (the counter is on disk). Audit
+// records reference these ids, so reuse would corrupt the trail.
+func (s *Store) NextID() (string, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.seq++
+	if err := s.persistLocked(); err != nil {
+		s.seq-- // not allocated — roll the counter back.
+		return "", err
+	}
+	return fmt.Sprintf("au-%d", s.seq), nil
 }
 
 // Add registers a new active listing and persists. The caller fills every

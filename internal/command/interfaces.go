@@ -3,6 +3,7 @@ package command
 import (
 	"context"
 
+	"github.com/Jasrags/AnotherMUD/internal/auction"
 	"github.com/Jasrags/AnotherMUD/internal/biome"
 	"github.com/Jasrags/AnotherMUD/internal/chat"
 	"github.com/Jasrags/AnotherMUD/internal/clock"
@@ -303,6 +304,11 @@ type Env struct {
 	// trade/offer/confirm/decline verbs route through it. nil disables
 	// trading; handlers MUST nil-guard.
 	Trades *trade.Manager
+
+	// Auction is the auction-house manager (auction-house.md). The
+	// auction/auctions/unlist/browse/buyout/collect verbs route through it.
+	// nil disables the auction house; handlers MUST nil-guard.
+	Auction *auction.Manager
 
 	// Shop is the M11.2 shop service (spec §3). The buy/sell/value/
 	// list verbs route through it after locating a shop-tagged NPC in

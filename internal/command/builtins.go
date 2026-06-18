@@ -208,6 +208,14 @@ func RegisterBuiltins(r *Registry) error {
 		{Keyword: "confirm", Handler: ConfirmHandler, Brief: "Confirm the current trade offers.", Syntax: []string{"confirm"}},
 		{Keyword: "decline", Aliases: []string{"untrade"}, Handler: DeclineHandler, Brief: "Cancel the current trade.", Syntax: []string{"decline"}},
 
+		// Auction house (auction-house.md). `auction <item> <price>` lists an
+		// item at an auctioneer for buyout; `auctions` shows your own active
+		// listings; `unlist <#>` withdraws one. browse/buyout/collect land in
+		// later slices.
+		{Keyword: "auction", Handler: AuctionHandler, Brief: "List an item for auction at an auctioneer.", Syntax: []string{"auction <item> <price>"}, Args: []ArgDefinition{{Name: "item", Type: ArgInventory}, {Name: "price", Type: ArgNumber}}},
+		{Keyword: "auctions", Handler: AuctionsHandler, Brief: "Show your own active auction listings.", Syntax: []string{"auctions"}},
+		{Keyword: "unlist", Handler: UnlistHandler, Brief: "Withdraw one of your auction listings.", Syntax: []string{"unlist <#>"}, Args: []ArgDefinition{{Name: "ref", Type: ArgText}}},
+
 		{Keyword: "affects", Aliases: []string{"effects"}, Handler: AffectsHandler, Brief: "List your active effects and conditions.", Syntax: []string{"affects"}},
 		{Keyword: "rest", Handler: RestHandler, Brief: "Rest to recover faster.", Syntax: []string{"rest"}},
 		{Keyword: "sleep", Handler: SleepHandler, Brief: "Sleep to recover fastest.", Syntax: []string{"sleep"}},

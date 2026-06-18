@@ -475,6 +475,7 @@ func (r *Registry) Dispatch(ctx context.Context, env Env, actor Actor, raw strin
 		Currency:              env.Currency,
 		Mounts:                env.Mounts,
 		Trades:                env.Trades,
+		Auction:               env.Auction,
 		Shop:                  env.Shop,
 		Rest:                  env.Rest,
 		Consumable:            env.Consumable,

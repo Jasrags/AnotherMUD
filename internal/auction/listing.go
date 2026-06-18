@@ -21,6 +21,16 @@ package auction
 
 import "time"
 
+// Access-point tags (§2). An auctioneer is content: either a room carrying
+// TagAuctionHouse or an NPC carrying TagAuctioneer makes that location an
+// access point. The engine provides the mechanism; which rooms/NPCs are
+// auctioneers is pack data. Reusing the room-tag / tagged-entity substrate
+// means the auction house needs no furniture system.
+const (
+	TagAuctionHouse = "auction_house"
+	TagAuctioneer   = "auctioneer"
+)
+
 // Status is a listing's lifecycle state (§4).
 type Status string
 
