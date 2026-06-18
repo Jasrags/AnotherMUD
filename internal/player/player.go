@@ -127,7 +127,7 @@ import (
 // means "knows no recipes beyond what a discipline grants at runtime";
 // the migration injects nothing. A known id whose recipe was removed from
 // content loads cleanly and is ignored at restore (§9), never an error.
-const CurrentVersion = 25
+const CurrentVersion = 26
 
 // Sentinel errors callers may check via errors.Is.
 var (
@@ -348,6 +348,29 @@ type Save struct {
 	// and every non-channeler. Cured by the Heal-the-Mind weave / Mental
 	// Stability feat.
 	Madness int `yaml:"madness,omitempty"`
+
+	// Mounts is the set of rideable mounts this character owns (mounts.md
+	// §2.2, §10) — durable, exclusive ownership colocated with the owner. Each
+	// record carries the mount's durable identity (its template) and, in later
+	// slices, its barding/saddlebag/upkeep. Added in v26; empty/absent (the
+	// common case: most characters own no mount) writes no `mounts:` key and a
+	// pre-v26 save round-trips as the empty set. The live ride relationship is
+	// NOT persisted (§10): on logout every owned mount resolves to a resting
+	// (stabled) record and the player re-mounts after login. A record whose
+	// template is no longer in content is ignored at materialization, never an
+	// error (fail-soft, like KnownRecipes).
+	Mounts []MountRecord `yaml:"mounts,omitempty"`
+}
+
+// MountRecord is one owned mount on a player save (mounts.md §10). It is the
+// durable resting form of a mount — what persists between sessions while the
+// live MobInstance does not. v1 carries the mount's identity (its template);
+// barding, saddlebag contents, and upkeep state are additive fields added by
+// later slices (each omitempty so the shape stays migration-free as it grows).
+type MountRecord struct {
+	// TemplateID is the namespace-qualified mob-template id the mount is
+	// materialized from (mounts.md §10 "type/identity"). Required.
+	TemplateID string `yaml:"template_id"`
 }
 
 // KnownFeat is one taken feat on a player save (EPIC S4 Phase 2 —
@@ -564,6 +587,7 @@ var playerMigrations = map[int]func(map[string]any) (map[string]any, error){
 	22: migrateV22toV23,
 	23: migrateV23toV24,
 	24: migrateV24toV25,
+	25: migrateV25toV26,
 }
 
 // migrateV1toV2 adds the empty inventory/equipment blocks introduced
@@ -948,6 +972,14 @@ func migrateV23toV24(in map[string]any) (map[string]any, error) {
 // field is append-only; the bump exists so the on-disk version reflects the new
 // shape. Like every migration in this chain it must never be edited once shipped.
 func migrateV24toV25(in map[string]any) (map[string]any, error) {
+	return in, nil
+}
+
+// migrateV25toV26 is a no-op: the v26 addition (Save.Mounts, the owned-mount
+// list — mounts.md §10) is absent on a pre-v26 save, which decodes to a nil
+// slice — the correct default for a character who owns no mount. No on-disk
+// shape needs to change.
+func migrateV25toV26(in map[string]any) (map[string]any, error) {
 	return in, nil
 }
 
