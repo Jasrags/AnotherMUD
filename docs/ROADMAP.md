@@ -47,14 +47,12 @@ and `THEME-AXIS-PLAN.md` are superseded by `BACKLOG.md` and now live under
   sessions, modern-client, roles/admin, decorations, stacking, loot, room
   coordinates, player maps, equipment slots, crafting, visibility, and
   movement cost all work.
-- **Active:** none — M27 closed (Crafting & Cooking MVP, Phases 0–5,
-  reviewed twice) plus the deferred-cleanup follow-ups (B1 tool-quality, B2
-  gain-stat, and **B3 timed crafting** — recipe `time_pulses` now occupies
-  the player: `craft` arms a per-actor timer, a cadence-1 `craft-complete`
-  tick finishes it, movement/combat interrupt with no material loss). Only
-  Post-MVP crafting breadth + gathering stay deferred (a separate milestone;
-  see `BACKLOG.md` §1 + `[[crafting-deferred-fixes]]`). Pick the next theme
-  from `BACKLOG.md` §1 (specced, ready) or §2 (greenfield).
+- **Active — M29 Player Trade** (specced, `BACKLOG.md` §1 → in build). The
+  escrow primitive + direct trade + buyout auction house. **Phase 0 (the
+  escrow/atomic-transaction primitive, `internal/escrow`) + Phase 1 (the audit
+  log) shipped;** Phase 2 (direct trade — the Custodian adapter + session +
+  verbs) is next. Plan: `docs/plans/trade-plan.md`; details in the M29 section
+  below.
 - **Active arc — WoT Mechanics EPIC** (post-M27, additive sub-epics; Decision 0
   = posture A, translate onto tick/chance). Shipped so far: **S1 weapon-identity**,
   **S1.H masterwork** (item quality grades — masterwork/power-wrought, delivered
@@ -3665,6 +3663,60 @@ Key finding (S1): light/darkness is ~80% shipped (`internal/light` per-viewer
 resolver), so the spec's §3.3 darkness layer mostly *integrates* rather than
 gets built — the darkness work is extending light-awareness to the non-render
 consumers, not re-gating render.
+
+---
+
+### M29 — Player Trade (active)
+
+The escrow/atomic-transaction substrate plus its two consumers — direct
+player-to-player trade and a buyout auction house. Built once, consumed twice:
+both consumers commit through the **one** escrow primitive
+(`docs/specs/trade-escrow.md`), the engine's first true all-or-nothing
+multi-actor value mover (`give` today is a documented racy two-step). Plan +
+phase order in `docs/plans/trade-plan.md`. Two ship lines: A = Direct Trade
+(Phases 0–2), B = Auction House (Phases 3–8).
+
+- [x] **Phase 0 — escrow / atomic-transaction primitive** (`internal/escrow`,
+      `trade-escrow.md` §2–§4). The `Transaction` (stage/withdraw/commit/
+      rollback) over two injected seams — `Custodian` (the value mover) and
+      `Bus` (the publish seam) — so the package stays free of session/entities/
+      economy deps. Commit publishes the cancellable `trade.committing`
+      pre-event (the validation/veto seam), moves every leg as one unit on
+      no-veto, fires the non-cancellable `trade.committed`, and rolls everyone
+      whole on any veto/withdraw/failure. Coin is debit-at-stage / credit-at-
+      deliver (no `CurrencyService` change); cross-txn double-staging is
+      structurally impossible (staging removes the item from the owner).
+      Delivery is items-first / coin-last so a mid-commit failure never has to
+      reverse a coin credit. Unit + `-race` tested (concurrent withdraw-vs-
+      commit asserts value conservation), 86% cov; two review passes (APPROVE).
+      Events: `trade.committing` / `trade.committed` (`internal/eventbus`).
+- [x] **Phase 1 — audit log** (`trade-escrow.md` §5): append-only, versioned,
+      persisted (`saves/trade-audit.yaml` via `persistence.AtomicWrite`); one
+      record per commit (parties, item instances, coin, source, time), enough
+      to reconstruct and reverse. Lands with Phase 0.
+- [ ] **Phase 2 — direct trade** (`direct-trade.md`): the transient same-room
+      session, offers (add/remove items+coin), the confirm + total-reset rule,
+      the atomic swap via Phase 0, graceful teardown. The real connActor/
+      entities/economy `Custodian` adapter + the capacity/weight veto subscriber
+      + the `no_trade`/bound item-flag convention land here. **Ship line A done.**
+- [ ] **Phase 3 — pickup delivery** (`auction-house.md` §7): escrow-holds-until-
+      collected + the `collect` verb + notification notice (text only).
+- [ ] **Phase 4 — listing + persisted store** (`auction-house.md` §3–§4): the
+      `list` verb, the new versioned `internal/auction` store with restart
+      reconciliation, the non-refundable listing fee, the per-player cap.
+- [ ] **Phase 5 — browse / search** (`auction-house.md` §5): category/name
+      filter, price/time sort, pagination, stable per-listing reference.
+- [ ] **Phase 6 — buyout purchase** (`auction-house.md` §6): atomic buy through
+      Phase 0 (coin to seller minus cut, item to buyer pickup).
+- [ ] **Phase 7 — tick expiry + returns** (`auction-house.md` §8): recurring
+      expiry handler, idempotent + expire-on-load for lapsed-while-down.
+- [ ] **Phase 8 — fees as the gold sink** (`auction-house.md` §9): listing fee +
+      sale cut wired as config; zero disables the sink. **Ship line B done.**
+
+Deferred (post-MVP): bidding (Phase 9 — needs anti-sniping policy),
+push-delivery/mail-attachments (Phase 10 — greenfield, shared with Mail),
+location-scoped markets (Phase 11), admin moderation (role-gated, dependency
+already shipped). See `docs/plans/trade-plan.md`.
 
 ---
 
