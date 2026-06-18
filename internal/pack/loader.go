@@ -2158,7 +2158,7 @@ func decodeFeat(path, ns string) (*feat.Feat, error) {
 		for i, g := range f.Grants {
 			kind := feat.GrantKind(strings.ToLower(strings.TrimSpace(g.Kind)))
 			if !feat.ValidGrantKind(kind) {
-				return nil, fmt.Errorf("%w: %s: grants[%d] unknown kind %q (want save_bonus/max_hp)",
+				return nil, fmt.Errorf("%w: %s: grants[%d] unknown kind %q (see feat.GrantKind for valid kinds)",
 					ErrInvalidContent, path, i, g.Kind)
 			}
 			// Per-kind validation.

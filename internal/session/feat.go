@@ -227,7 +227,10 @@ const abilityPowerAttack = "power-attack"
 // featWeaponBonuses is the per-weapon-category feat bonus cache (EPIC S4
 // Phase 3c), recomputed on every feat change and read LOCK-FREE in
 // connActor.Stats() (the combat hot path, which deliberately avoids a.mu).
-// Mirrors the a.weapon atomic-pointer pattern. Nil maps read as zero.
+// Mirrors the a.weapon atomic-pointer pattern. The per-category maps (hit/crit/
+// dmg) are nil when no feat populates them; callers index them directly (Go
+// returns the zero value for a missing/nil-map key) and must NOT range over
+// them without a nil check.
 type featWeaponBonuses struct {
 	hit  map[string]int // weapon category → to-hit bonus (Weapon Focus)
 	crit map[string]int // weapon category → threat-low widen (Improved Critical)
