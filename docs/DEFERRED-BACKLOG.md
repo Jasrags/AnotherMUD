@@ -9,7 +9,8 @@ index.
 **Generated:** 2026-05-28 (M0→M12 body); **post-M12 section added 2026-06-02**
 (M13→M22, from the memory index); **tab-completion deferrals added 2026-06-03**;
 **M23→M27 + light/dark section added 2026-06-10**; **WoT EPIC S1 equipment-debt
-section added 2026-06-17**. Regenerate by re-scanning the memory deferral files.
+section added 2026-06-17**; **WoT EPIC feats-catalog section added 2026-06-18**.
+Regenerate by re-scanning the memory deferral files.
 
 > **Not yet folded in (read the memory files directly):** the M28 **visibility**
 > arc (`visibility-deferred-fixes` — HIGH secret-door op-gating + S6b refinements),
@@ -288,6 +289,46 @@ cap (pre-existing G concern).
   demolition / cross-room lobbing / ally friendly-fire deferred to Open Questions.
 
 **Track C is now fully specced (C1 mounts + C2/C3 area-effects); both await build.**
+
+---
+
+## WoT EPIC — feats catalog buildout
+
+The `docs/wot/feats.md` catalog is being filled bucket-by-bucket (source-of-truth
+memory file: `feats-catalog-build-log`). Shipped 2026-06-18: Bucket A (Alertness /
+Sharp-Eyed / Stealthy), Bucket C (Power Attack stance, save v27), Bucket B (Weapon
+Specialization / Dodge). Open deferred items from those phases:
+
+- **(MEDIUM) Power Attack trade is main-hand only.** The stance applies its to-hit
+  penalty to `s.HitMod` (main hand) but the off-hand profile (`s.OffHand`) is built
+  *before* the Power Attack block in `connActor.Stats()` (`internal/session/session.go`),
+  so a dual-wielder in Power Attack loses main-hand accuracy while the off-hand swing
+  takes neither the penalty nor the damage. d20 applies Power Attack to all melee
+  attacks that round. Surprising in play (flagged by go-review). **Fix-by:** when the
+  off-hand×stance interaction is next touched, or before a dual-wield + Power Attack
+  build is balanced — fold the same trade into the `OffHandProfile` (penalty to
+  `HitMod`, the damage half — likely ½× like the off-hand Strength rule).
+- **(LOW) `DefaultPowerAttackTrade` not env-wired** (`internal/combat/stats.go`).
+  Same class as the A3 two-weapon-penalty knob above (consumed at stat-build time,
+  no config seam). **Fix-by:** fold in when a `combat` tuning-config seam lands.
+- **(LOW) `FeatSkillBonus` recomputes all feat bonuses per call** — used by
+  `PerceptionBonus`/`HideScore`/`SneakDifficulty` (`internal/session/`). Cold paths
+  today (player commands, not the tick). **Fix-by:** if any becomes tick-driven, cache
+  `skillPerception`/`skillStealth` on `featWeaponBonuses` like the weapon-category
+  bonuses and read lock-free.
+- **(LOW, content) canonical prereqs relaxed for demo reachability** — Power Attack
+  (Str 13), Dodge (Dex 13), Weapon Specialization (Armsman 4th + same-weapon Weapon
+  Focus) omit/relax their d20 prereqs so a starting/demo character can take them; the
+  prereq engine also can't match Weapon Focus at weapon-param granularity. **Fix-by:**
+  when starting-stat budgets support the gates, or a param-aware feat prereq lands.
+- **Bucket-shrink note (not debt, triage):** Weapon Finesse and Quickness/Run moved to
+  Bucket D — no consumer exists (to-hit is the `hit_mod` stat with no Str term to
+  substitute; no speed/movement-rate consumer). They unblock only after the attack
+  formula incorporates an attribute / a movement-speed subsystem lands.
+
+Still open from the prior S9 class work: the **class bonus-feat gap** (`feats-deferred-fixes`
+— no `bonus_feat_levels` mechanism; the multiclass feat-credit over-earning fix shares
+that hook — do both together).
 
 ---
 
