@@ -2396,6 +2396,16 @@ func (a *connActor) Reveal() bool {
 	return was
 }
 
+// Feat skill-bonus axes wired into the live perception/stealth check sites
+// (feats Phase 1). The WoT detection/concealment feats fold onto the engine's
+// two composite skill axes: perception (Alertness, Sharp-Eyed) raises the
+// observer's contest, stealth (Stealthy) raises the hider's concealment. These
+// are bonus-channel keys for FeatSkillBonus, distinct from proficiency abilities.
+const (
+	skillPerception = "perception"
+	skillStealth    = "stealth"
+)
+
 // HideScore computes the would-be concealment difficulty for a hide
 // attempt (visibility.md §3.1 / §8: proficiency + governing stat + mods).
 // v1 is a base plus the actor's DEX modifier — stealthy/agile characters
@@ -2410,7 +2420,8 @@ func (a *connActor) HideScore() int {
 	if sb == nil {
 		return baseHideDC // no stats wired (defensive; the player path always has them)
 	}
-	return baseHideDC + progression.AbilityModifier(sb.Effective(progression.StatDEX))
+	// FeatSkillBonus takes a.mu itself; safe now that the read above unlocked.
+	return baseHideDC + progression.AbilityModifier(sb.Effective(progression.StatDEX)) + a.FeatSkillBonus(skillStealth)
 }
 
 // IsHidden reports whether the actor is currently hide-concealed
@@ -2487,7 +2498,7 @@ func (a *connActor) SneakDifficulty() int {
 	if sb == nil {
 		return baseSneakDC
 	}
-	return baseSneakDC + progression.AbilityModifier(sb.Effective(progression.StatDEX))
+	return baseSneakDC + progression.AbilityModifier(sb.Effective(progression.StatDEX)) + a.FeatSkillBonus(skillStealth)
 }
 
 // SneakConcealmentScore returns the snapshot difficulty an occupant's
@@ -2543,7 +2554,7 @@ func (a *connActor) PerceptionBonus() int {
 	if sb == nil {
 		return 0
 	}
-	return progression.AbilityModifier(sb.Effective(progression.StatWIS))
+	return progression.AbilityModifier(sb.Effective(progression.StatWIS)) + a.FeatSkillBonus(skillPerception)
 }
 
 // ContestOutcome reports this observer's remembered result against a

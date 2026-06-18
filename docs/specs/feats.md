@@ -261,6 +261,16 @@ The grant kinds wired today, each riding an already-shipped consumer:
 | Skill bonus, per skill | +N to a named skill check | skills (`skills.md`) |
 | Ability unlock | teaches/unlocks a named ability | abilities (`abilities-and-effects.md`) |
 
+A **skill bonus** has two forms, mirroring the save bonus: a *per-parameter*
+feat names its skill via the take's parameter (Skill Emphasis — `feat
+skill-emphasis open-lock`), while a *fixed-axis* feat names a single skill on
+the grant itself and is taken once (Alertness/Sharp-Eyed → the engine's
+composite *perception* axis; Stealthy → the *stealth* axis that an observer's
+perception must beat). A fixed-axis skill bonus only takes effect where a check
+site already reads the feat bridge — today the perception and concealment
+contests (`visibility.md`) and lockpicking (`skills.md`); a bonus to a skill no
+site rolls is rejected at content load rather than shipped inert.
+
 The grant set is engine-extensible (a new kind wires a new consumer) but is not
 open to content beyond the declared kinds.
 

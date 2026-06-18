@@ -1,0 +1,9 @@
+# Sharp-Eyed (wot-feats.md): +2 on Search and Sense Motive. Search routes
+# through the engine's perception axis (the contest behind `search` and the
+# visibility find); Sense Motive has no check site yet, so this lands its
+# perception half. Stacks with Alertness — two distinct detection feats.
+id: sharp-eyed
+name: Sharp-Eyed
+description: You catch details others overlook — +2 to search and read intent.
+grants:
+  - { kind: skill_bonus, target: perception, magnitude: 2 }

@@ -95,11 +95,20 @@ func ComputeBonuses(held []Taken, reg *Registry) Bonuses {
 					b.CritByCategory[t.Param] += g.Magnitude * mult
 				}
 			case GrantSkillBonus:
-				if t.Param != "" {
+				// Two forms (symmetric with GrantSaveBonus): a per-param feat
+				// (Skill Emphasis) names its skill via the take's Param; a
+				// fixed-axis feat (Alertness → perception) names it via the
+				// grant Target, already lowercased+trimmed by Register. Param
+				// wins when both are present.
+				key := t.Param
+				if key == "" {
+					key = g.Target
+				}
+				if key != "" {
 					if b.SkillByID == nil {
 						b.SkillByID = make(map[string]int)
 					}
-					b.SkillByID[t.Param] += g.Magnitude * mult
+					b.SkillByID[key] += g.Magnitude * mult
 				}
 			case GrantTwoWeaponHit:
 				b.TwoWeaponHitReduce += g.Magnitude * mult

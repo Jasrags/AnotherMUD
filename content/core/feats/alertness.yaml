@@ -1,0 +1,9 @@
+# Alertness (wot-feats.md): +2 on Listen and Spot. The engine collapses both
+# onto its single perception axis (the observer's contest that pierces a
+# target's hide/sneak and finds hidden exits/items), so this folds a flat +2
+# into PerceptionBonus via the fixed-target skill_bonus form.
+id: alertness
+name: Alertness
+description: You have finely tuned senses — +2 to notice what others miss.
+grants:
+  - { kind: skill_bonus, target: perception, magnitude: 2 }

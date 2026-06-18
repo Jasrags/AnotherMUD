@@ -2902,6 +2902,30 @@ grants:
 	}
 }
 
+// A fixed-axis skill_bonus feat (Alertness → perception) decodes as single-take
+// with the skill on the grant Target — the symmetric counterpart to the
+// per-param Skill Emphasis form, mirroring save_bonus.
+func TestLoadFeats_DecodesFixedSkillGrant(t *testing.T) {
+	root := t.TempDir()
+	pack := filepath.Join(root, "core")
+	writeFile(t, filepath.Join(pack, "pack.yaml"), "name: tapestry-core\ncontent:\n  feats: [feats/*.yaml]\n")
+	writeFile(t, filepath.Join(pack, "feats/alertness.yaml"), "id: alertness\nname: Alertness\ngrants:\n  - { kind: skill_bonus, target: Perception, magnitude: 2 }\n")
+	regs := NewRegistries()
+	if err := Load(context.Background(), root, nil, regs, nil, nil, nil); err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	f, ok := regs.Feats.Get("alertness")
+	if !ok || len(f.Grants) != 1 {
+		t.Fatalf("alertness grants = %+v", f)
+	}
+	if g := f.Grants[0]; g.Kind != feat.GrantSkillBonus || g.Target != "perception" || g.Magnitude != 2 {
+		t.Errorf("grant = %+v, want {skill_bonus perception 2}", g)
+	}
+	if f.MultiTake != feat.MultiTakeSingle {
+		t.Errorf("MultiTake = %q, want single", f.MultiTake)
+	}
+}
+
 // The two global two-weapon penalty-reduction grants decode (slice 2): single
 // take, positive magnitude, no target.
 func TestLoadFeats_DecodesTwoWeaponGrants(t *testing.T) {
@@ -2945,6 +2969,8 @@ func TestLoadFeats_RejectsBadGrants(t *testing.T) {
 		"id: bad\ngrants:\n  - { kind: max_hp, magnitude: -3 }\n",
 		// per-weapon/skill kind on a non-per_param feat
 		"id: bad\ngrants:\n  - { kind: hit_bonus, magnitude: 1 }\n",
+		// skill_bonus with neither a fixed target nor per_param (ambiguous)
+		"id: bad\ngrants:\n  - { kind: skill_bonus, magnitude: 2 }\n",
 		// ability grant with no target
 		"id: bad\ngrants:\n  - { kind: ability }\n",
 		// two-weapon global grants: zero magnitude

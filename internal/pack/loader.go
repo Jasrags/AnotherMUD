@@ -2209,13 +2209,17 @@ func decodeFeat(path, ns string) (*feat.Feat, error) {
 			}
 			// Per-weapon/skill kinds (hit_bonus/crit_threat/skill_bonus) take
 			// their target from the take's PARAM, so the feat must be
-			// per_param + carry a positive magnitude.
+			// per_param + carry a positive magnitude. Exception: a skill_bonus
+			// MAY instead be a fixed-axis feat (Alertness → perception) that
+			// names its skill via a grant Target; that form is single-take,
+			// mirroring save_bonus.
 			if feat.IsPerWeaponOrSkill(kind) {
 				if g.Magnitude <= 0 {
 					return nil, fmt.Errorf("%w: %s: grants[%d] %s needs a positive magnitude",
 						ErrInvalidContent, path, i, kind)
 				}
-				if mt != feat.MultiTakeParam {
+				fixedSkill := kind == feat.GrantSkillBonus && strings.TrimSpace(g.Target) != ""
+				if !fixedSkill && mt != feat.MultiTakeParam {
 					return nil, fmt.Errorf("%w: %s: grants[%d] %s requires multi_take: per_param (the param names the weapon/skill)",
 						ErrInvalidContent, path, i, kind)
 				}

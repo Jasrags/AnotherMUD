@@ -115,6 +115,29 @@ func TestComputeBonuses_PerParamAndAbility(t *testing.T) {
 	}
 }
 
+// A fixed-axis skill_bonus feat (Alertness → perception) names its skill via
+// the grant Target (single-take), the symmetric counterpart to the per-param
+// Skill Emphasis form. Two distinct detection feats stack on the same axis.
+func TestComputeBonuses_FixedTargetSkill(t *testing.T) {
+	r := NewRegistry()
+	_ = r.Register(&Feat{ID: "alertness", Grants: []Grant{{Kind: GrantSkillBonus, Target: "perception", Magnitude: 2}}})
+	_ = r.Register(&Feat{ID: "sharp-eyed", Grants: []Grant{{Kind: GrantSkillBonus, Target: "perception", Magnitude: 2}}})
+	_ = r.Register(&Feat{ID: "stealthy", Grants: []Grant{{Kind: GrantSkillBonus, Target: "stealth", Magnitude: 2}}})
+
+	b := ComputeBonuses([]Taken{
+		{FeatID: "alertness"},
+		{FeatID: "sharp-eyed"},
+		{FeatID: "stealthy"},
+	}, r)
+
+	if b.SkillByID["perception"] != 4 {
+		t.Errorf("SkillByID[perception] = %d, want 4 (alertness + sharp-eyed stack)", b.SkillByID["perception"])
+	}
+	if b.SkillByID["stealth"] != 2 {
+		t.Errorf("SkillByID[stealth] = %d, want 2", b.SkillByID["stealth"])
+	}
+}
+
 // A stackable feat with Count 0 (the contract: "non-positive counts as one")
 // applies its grant exactly once.
 func TestComputeBonuses_StackableZeroCountAppliesOnce(t *testing.T) {

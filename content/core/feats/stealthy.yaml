@@ -1,0 +1,9 @@
+# Stealthy (wot-feats.md): +2 on Hide and Move Silently. Both map onto the
+# engine's stealth axis — Hide raises a stationary concealment (HideScore),
+# Move Silently raises a moving one (SneakDifficulty) — so this folds a flat
+# +2 into the concealment an observer's perception must beat.
+id: stealthy
+name: Stealthy
+description: You move and conceal yourself with practiced quiet — +2 to hide and sneak.
+grants:
+  - { kind: skill_bonus, target: stealth, magnitude: 2 }

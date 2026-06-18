@@ -25,7 +25,38 @@ func featTestRegistry() *feat.Registry {
 		Grants: []feat.Grant{{Kind: feat.GrantMaxHP, Magnitude: 3}}})
 	_ = r.Register(&feat.Feat{ID: "born-strong", DisplayName: "Born Strong",
 		Prerequisites: []feat.Prerequisite{{Kind: feat.PrereqAbilityScore, Target: "str", Min: 99}}})
+	// Fixed-axis skill feats wired into the live perception/stealth sites.
+	_ = r.Register(&feat.Feat{ID: "alertness", DisplayName: "Alertness",
+		Grants: []feat.Grant{{Kind: feat.GrantSkillBonus, Target: "perception", Magnitude: 2}}})
+	_ = r.Register(&feat.Feat{ID: "stealthy", DisplayName: "Stealthy",
+		Grants: []feat.Grant{{Kind: feat.GrantSkillBonus, Target: "stealth", Magnitude: 2}}})
 	return r
+}
+
+// Phase 1: a fixed-axis skill feat lifts the live concealment/perception
+// checks — Alertness raises the observer's PerceptionBonus, Stealthy raises
+// both HideScore (stationary) and SneakDifficulty (moving). This proves the
+// feat→skill bridge reaches the sites, not just FeatSkillBonus in isolation.
+func TestPerceptionAndStealth_FoldFeatBonus(t *testing.T) {
+	a := newFeatActor(t, 5)
+	basePer, baseHide, baseSneak := a.PerceptionBonus(), a.HideScore(), a.SneakDifficulty()
+
+	if ok, msg := a.TakeFeat("alertness", ""); !ok {
+		t.Fatalf("TakeFeat(alertness) = %q", msg)
+	}
+	if ok, msg := a.TakeFeat("stealthy", ""); !ok {
+		t.Fatalf("TakeFeat(stealthy) = %q", msg)
+	}
+
+	if got := a.PerceptionBonus(); got != basePer+2 {
+		t.Errorf("PerceptionBonus = %d, want %d (+2 Alertness)", got, basePer+2)
+	}
+	if got := a.HideScore(); got != baseHide+2 {
+		t.Errorf("HideScore = %d, want %d (+2 Stealthy)", got, baseHide+2)
+	}
+	if got := a.SneakDifficulty(); got != baseSneak+2 {
+		t.Errorf("SneakDifficulty = %d, want %d (+2 Stealthy)", got, baseSneak+2)
+	}
 }
 
 func newFeatActor(t *testing.T, credits int) *connActor {
