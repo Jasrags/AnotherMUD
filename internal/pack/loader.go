@@ -3030,6 +3030,21 @@ func decodeItem(path, ns string) (*item.Template, error) {
 			ErrInvalidContent, path, f.Reach)
 	}
 
+	// Recorded-only equipment-depth metadata (no consumer yet). double_damage is
+	// a dice string validated like weapon_damage so an authoring typo fails the
+	// pack; armor_speed is non-negative; subdual/reputation need no validation
+	// (a bool and a signed delta).
+	doubleDamage := strings.TrimSpace(f.DoubleDamage)
+	if doubleDamage != "" {
+		if _, derr := combat.ParseDice(doubleDamage); derr != nil {
+			return nil, fmt.Errorf("%w: %s: double_damage %q: %v", ErrInvalidContent, path, doubleDamage, derr)
+		}
+	}
+	if f.ArmorSpeed < 0 {
+		return nil, fmt.Errorf("%w: %s: armor_speed %d must be non-negative",
+			ErrInvalidContent, path, f.ArmorSpeed)
+	}
+
 	return &item.Template{
 		ID:                item.TemplateID(id),
 		Name:              f.Name,
@@ -3064,6 +3079,10 @@ func decodeItem(path, ns string) (*item.Template, error) {
 		Reach:             f.Reach,
 		TripBonus:         f.TripBonus,
 		DisarmBonus:       f.DisarmBonus,
+		Subdual:           f.Subdual,
+		DoubleDamage:      doubleDamage,
+		ArmorSpeed:        f.ArmorSpeed,
+		Reputation:        f.Reputation,
 	}, nil
 }
 

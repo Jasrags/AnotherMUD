@@ -193,6 +193,34 @@ type Template struct {
 	// "the engine default bonus".
 	TripBonus   int
 	DisarmBonus int
+	// The fields below are RECORDED-ONLY equipment-depth metadata
+	// (special-weapons.md / the equipment.md authoring surface). Each is
+	// validated at load but has NO engine consumer yet — they let the WoT
+	// equipment table be authored once at full data, each lighting up for free
+	// when its mechanic's slice lands (the pattern damage_types / reach used).
+	// Authoring rule: record the real value; the mechanic stays inert, never
+	// wrong (a `Subdual` weapon still deals normal damage until subdual ships).
+	//
+	// Subdual marks a nonlethal weapon (the source's `§` — sap, whip, unarmed):
+	// it should deal subdual/knock-out damage. Inert until a subdual damage mode
+	// exists; a subdual weapon deals ordinary damage today.
+	Subdual bool
+	// DoubleDamage is the SECOND damage figure of a double weapon (the source's
+	// `1d6/1d6` quarterstaff, `1d6/1d8` ashandarei) — the dice of the extra
+	// off-hand attack a double weapon grants when wielded two-handed. An NdM±K
+	// string, validated at load like WeaponDamage. Empty ⇒ not a double weapon.
+	// Inert until double-weapon support (a two-weapon-fighting extension) reads
+	// it; a double weapon swings only its main WeaponDamage today.
+	DoubleDamage string
+	// ArmorSpeed is the worn-speed value of a piece of armor (the source's Speed
+	// column — heavy armor slows the wearer). 0 ⇒ unset (no speed effect).
+	// Validated non-negative. Inert until the armor speed-penalty consumer
+	// (armor §7 / encumbrance I tail) reads it.
+	ArmorSpeed int
+	// Reputation is the SIGNED reputation delta a piece of visible gear confers
+	// while equipped (the source's masterwork +1 / Trolloc scythesword −2). 0 ⇒
+	// none. Inert until S8 reputation reads it.
+	Reputation int
 }
 
 // Errors callers may distinguish at the boundary.

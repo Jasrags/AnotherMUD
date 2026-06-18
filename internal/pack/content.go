@@ -143,6 +143,15 @@ type ItemFile struct {
 	Reach       int      `yaml:"reach,omitempty"`
 	TripBonus   int      `yaml:"trip_bonus,omitempty"`
 	DisarmBonus int      `yaml:"disarm_bonus,omitempty"`
+	// Recorded-only equipment-depth metadata (special-weapons.md). No engine
+	// consumer yet; validated at load so content authors once + upgrades free.
+	// subdual = a nonlethal weapon; double_damage = a double weapon's second
+	// dice; armor_speed = worn speed (non-negative); reputation = a signed
+	// visible-gear delta.
+	Subdual      bool   `yaml:"subdual,omitempty"`
+	DoubleDamage string `yaml:"double_damage,omitempty"`
+	ArmorSpeed   int    `yaml:"armor_speed,omitempty"`
+	Reputation   int    `yaml:"reputation,omitempty"`
 }
 
 // ModifierFile is one entry of an ItemFile.Modifiers list.

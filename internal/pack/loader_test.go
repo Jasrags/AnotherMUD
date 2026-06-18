@@ -487,6 +487,90 @@ special: [trip, parry]
 	}
 }
 
+func TestLoadEquipmentMetadataValid(t *testing.T) {
+	root := t.TempDir()
+	pack := filepath.Join(root, "core")
+	writeFile(t, filepath.Join(pack, "pack.yaml"), `
+name: tapestry-core
+content:
+  items: [items/*.yaml]
+`)
+	// A double-weapon quarterstaff with the recorded-only metadata + the new
+	// special tags (set), all validated + carried.
+	writeFile(t, filepath.Join(pack, "items/quarterstaff.yaml"), `
+id: quarterstaff
+name: a quarterstaff
+type: weapon
+weapon_damage: "1d6"
+double_damage: "1d6"
+subdual: true
+special: [set]
+reputation: -2
+armor_speed: 0
+`)
+	regs := NewRegistries()
+	if err := Load(context.Background(), root, nil, regs, nil, nil, nil); err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	tpl, err := regs.Items.Get("tapestry-core:quarterstaff")
+	if err != nil {
+		t.Fatalf("quarterstaff not loaded: %v", err)
+	}
+	if !tpl.Subdual {
+		t.Error("subdual flag dropped")
+	}
+	if tpl.DoubleDamage != "1d6" {
+		t.Errorf("DoubleDamage = %q, want 1d6", tpl.DoubleDamage)
+	}
+	if tpl.Reputation != -2 {
+		t.Errorf("Reputation = %d, want -2 (signed)", tpl.Reputation)
+	}
+	if len(tpl.Special) != 1 || tpl.Special[0] != "set" {
+		t.Errorf("Special = %v, want [set] (recorded-only tag)", tpl.Special)
+	}
+}
+
+func TestLoadBadDoubleDamage(t *testing.T) {
+	root := t.TempDir()
+	pack := filepath.Join(root, "core")
+	writeFile(t, filepath.Join(pack, "pack.yaml"), `
+name: tapestry-core
+content:
+  items: [items/*.yaml]
+`)
+	writeFile(t, filepath.Join(pack, "items/staff.yaml"), `
+id: staff
+name: a staff
+type: weapon
+weapon_damage: "1d6"
+double_damage: "not-dice"
+`)
+	err := Load(context.Background(), root, nil, NewRegistries(), nil, nil, nil)
+	if !errors.Is(err, ErrInvalidContent) {
+		t.Fatalf("err = %v, want ErrInvalidContent for malformed double_damage", err)
+	}
+}
+
+func TestLoadNegativeArmorSpeed(t *testing.T) {
+	root := t.TempDir()
+	pack := filepath.Join(root, "core")
+	writeFile(t, filepath.Join(pack, "pack.yaml"), `
+name: tapestry-core
+content:
+  items: [items/*.yaml]
+`)
+	writeFile(t, filepath.Join(pack, "items/plate.yaml"), `
+id: plate
+name: plate armor
+type: item
+armor_speed: -5
+`)
+	err := Load(context.Background(), root, nil, NewRegistries(), nil, nil, nil)
+	if !errors.Is(err, ErrInvalidContent) {
+		t.Fatalf("err = %v, want ErrInvalidContent for negative armor_speed", err)
+	}
+}
+
 func TestLoadSpecialWeaponNegativeReach(t *testing.T) {
 	root := t.TempDir()
 	pack := filepath.Join(root, "core")

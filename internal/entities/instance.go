@@ -170,6 +170,15 @@ type ItemInstance struct {
 	reach       int
 	tripBonus   int
 	disarmBonus int
+	// Recorded-only equipment-depth metadata (special-weapons §2) — no engine
+	// consumer yet; carried so the WoT equipment table is authored once and each
+	// mechanic lights up free when its slice lands. subdual = nonlethal weapon;
+	// doubleDamage = a double weapon's parsed second dice; armorSpeed = worn
+	// speed; reputation = a signed visible-gear delta.
+	subdual      bool
+	doubleDamage combat.DiceExpr
+	armorSpeed   int
+	reputation   int
 }
 
 // ID implements Entity.
@@ -438,6 +447,19 @@ func (it *ItemInstance) DisarmBonus() int { return it.disarmBonus }
 // defense-roll modifier.
 func (it *ItemInstance) Reach() int { return it.reach }
 
+// Subdual / DoubleDamage / ArmorSpeed / Reputation expose the recorded-only
+// equipment-depth metadata (special-weapons.md §2) — no engine consumer reads
+// them yet; they exist so the equipment table is authored once and each mechanic
+// lights up free when its slice lands. Subdual: a nonlethal weapon. DoubleDamage:
+// a double weapon's second-attack dice (ok=false when not a double weapon).
+// ArmorSpeed: worn speed (0 = unset). Reputation: a signed visible-gear delta.
+func (it *ItemInstance) Subdual() bool { return it.subdual }
+func (it *ItemInstance) DoubleDamage() (combat.DiceExpr, bool) {
+	return it.doubleDamage, !it.doubleDamage.IsZero()
+}
+func (it *ItemInstance) ArmorSpeed() int { return it.armorSpeed }
+func (it *ItemInstance) Reputation() int { return it.reputation }
+
 // Angreal returns the item's One Power amplification rating and gender gate
 // (wot-the-one-power.md S2). ok is false (power 0, gender "") for an item that
 // is not an angreal. When ok, gender is "male"/"female" and power is positive
@@ -573,6 +595,15 @@ func buildInstanceFromTemplate(tpl *item.Template, id EntityID) *ItemInstance {
 			weaponDamage = d
 		}
 	}
+	// Double weapon's second-attack dice (special-weapons §2, recorded-only) —
+	// parsed once like weaponDamage; validated at load, so a parse miss here means
+	// a hand-built test template (treat as "not a double weapon").
+	var doubleDamage combat.DiceExpr
+	if tpl.DoubleDamage != "" {
+		if d, err := combat.ParseDice(tpl.DoubleDamage); err == nil {
+			doubleDamage = d
+		}
+	}
 
 	// Equipment slot eligibility + footprint (§3.3), lifted onto the
 	// instance (R5). Explicit template fields win; an item declaring only
@@ -642,5 +673,9 @@ func buildInstanceFromTemplate(tpl *item.Template, id EntityID) *ItemInstance {
 		reach:             tpl.Reach,
 		tripBonus:         tpl.TripBonus,
 		disarmBonus:       tpl.DisarmBonus,
+		subdual:           tpl.Subdual,
+		doubleDamage:      doubleDamage,
+		armorSpeed:        tpl.ArmorSpeed,
+		reputation:        tpl.Reputation,
 	}
 }

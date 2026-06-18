@@ -93,6 +93,29 @@ Special-weapon data splits into two kinds:
 - Metadata is recorded-only until the consuming slice (reach/trip/disarm) wires
   it — a weapon-identity-style "data ahead of consumer" landing is permitted.
 
+### Recorded-only equipment-depth metadata
+
+To let the source equipment table (`docs/wot/equipment.md`) be **authored once at
+full data** — each mechanic lighting up for free when its slice lands, with no
+content re-touch — the following carry-only fields are validated at load but have
+**no engine consumer yet** (the same "data ahead of consumer" pattern `damage_types`
+and `reach` used). Authoring rule: **record the real value; the mechanic stays
+inert, never wrong** (a `subdual` weapon still deals ordinary damage until the
+subdual mode ships — it does not behave as something else).
+
+- **`subdual`** (bool) — a nonlethal weapon (the source's `§`: sap, whip, unarmed).
+  Lights up when a subdual/knock-out damage mode lands.
+- **`double_damage`** (NdM±K) — the *second* attack dice of a double weapon (the
+  source's `1d6/1d6` quarterstaff, `1d6/1d8` ashandarei). Validated like
+  `weapon_damage`. Lights up with double-weapon support (a two-weapon extension).
+- **`armor_speed`** (int ≥ 0) — a piece of armor's worn Speed value. Lights up with
+  the armor speed-penalty consumer (armor §7 / encumbrance I tail).
+- **`reputation`** (signed int) — a visible-gear reputation delta (masterwork +1,
+  Trolloc scythesword −2). Lights up with S8 reputation.
+- The `special:` tags **`set` / `net` / `whip` / `entangle`** — the remaining
+  special-weapon tail, validated as vocabulary but read by no combat code yet; each
+  lights up in its own later slice.
+
 ## 3. Reach
 
 Reach is a **numeric weapon stat** (`Template.Reach`, §2) read **per ruleset**:
