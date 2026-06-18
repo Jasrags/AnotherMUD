@@ -66,6 +66,7 @@ mud-research/
 │   └── game-history.md
 └── nukefire/
     ├── overview-classes-systems.md
+    ├── login-and-character-creation.md   (live telnet intake capture)
     ├── combat-mechanics.md
     ├── classes-and-progression.md
     ├── magic-and-skills.md
