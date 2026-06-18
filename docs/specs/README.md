@@ -214,6 +214,15 @@ The verbs players use and the systems that resolve them.
   scarcity controls (cooldown, node charges/respawn) that keep
   crafting a gold sink. Designed with biomes; consumes its
   resource tables.
+- [mounts](mounts.md) — rideable **mount** creatures a character owns:
+  the owner/ride relationship, `mount`/`dismount`, and **mounted travel**
+  where the mount *becomes the metered mover* (re-pointing
+  [movement-cost](movement-cost.md)'s pool/gate from rider → mount, the move
+  primitive unchanged). Barding is mount-worn armor reusing
+  [armor-depth](armor-depth.md); saddlebags are a container; stabling/feed are
+  economy gold sinks; combat is a conservative v1 boundary (fight-from-saddle,
+  temperament-gated danger entry, killable mount — charge/Ride-contest deferred).
+  Greenfield from the `equipment.md` review *(spec; build pending)*.
 - [trade-escrow](trade-escrow.md) — the shared escrow / atomic-
   transaction primitive (stage value → cancellable commit → all-or-
   nothing or make-whole rollback → audit log). Built once, consumed
@@ -339,6 +348,7 @@ operation. The set of cancellable events across the engine:
 | `concealment.before` | [visibility](visibility.md) §3.1 |
 | `faction.shift.check` *(spec; build pending)* | [faction](faction.md) §4 |
 | `resource.gathering` | [gathering](gathering.md) §6 |
+| `mount.before` *(spec; build pending)* | [mounts](mounts.md) §4.1 |
 | `trade.committing` *(spec; build pending)* | [trade-escrow](trade-escrow.md) §3 |
 
 ### Registries and content
@@ -358,6 +368,7 @@ load time:
 | Item template | [inventory-equipment-items](inventory-equipment-items.md) §2 |
 | Theme | [ui-rendering-help](ui-rendering-help.md) §3 |
 | Mob template, loot table, area-spawn | [mobs-ai-spawning](mobs-ai-spawning.md) §2, §3 |
+| Mount template (roster: speed/carry/temperament/price) *(spec; build pending)* | [mounts](mounts.md) §2 |
 | Ability | [abilities-and-effects](abilities-and-effects.md) §2 |
 | Channel map (derived-stat formulas) | [combat](combat.md) §4.4 |
 | Effect template | [abilities-and-effects](abilities-and-effects.md); applied by consumables [economy-survival](economy-survival.md) §6 |
@@ -432,6 +443,12 @@ Each spec calls out what it persists. The aggregate view:
 - **Trade audit log** *(spec; build pending)* — append-only,
   tamper-evident record of every committed transaction; see
   [trade-escrow](trade-escrow.md) §5.
+- **Owned mounts** *(spec; build pending)* — durable per-character mount
+  ownership: each owned mount's identity, barding/tack, saddlebag contents,
+  upkeep state, and resting location (stabled/parked). Additive and
+  versioned/migrated; the live ride relationship is NOT persisted. Save shape
+  (player-save list vs. mount sub-store vs. world registry) is an open
+  implementation choice; see [mounts](mounts.md) §10.
 - **NOT persisted** — sessions, link-dead state,
   weather, mob spawn tracking, temporary exits, active
   effects, rest state, **direct-trade sessions** (transient by design),
@@ -543,4 +560,4 @@ highest-impact themes that recur across specs:
 
 ---
 
-<!-- Updated: 2026-06-17 · 54 specs covering the engine substrate, world, action, lifecycle, and presentation layers. Behavior contracts still ahead of code: tag-observers, faction, the trade trio (trade-escrow, direct-trade, auction-house). Since-shipped: roles-and-permissions, admin-verbs, item-decorations (M19/M20), loot-and-corpses (M22), tab-completion Phase 0–2, who, light-and-darkness, room-coordinates (M23), player-maps (M24 — Mudlet GMCP wire-shape pending live-client validation), biomes, gathering, crafting-and-cooking (M27), weapon-identity (WoT EPIC S1), masterwork (WoT EPIC S1.H), ranged-combat (WoT EPIC S1.G — Slice A+B + Model C cross-room), armor-depth (WoT EPIC S1.E+D), size-and-wielding (WoT EPIC S1.F), two-weapon-fighting (WoT EPIC S1.K — slices 1-4: off-hand attack, the feats, Improved TWF, mob dual-wield), saves (WoT EPIC S6), conditions (WoT EPIC S5), skills (WoT EPIC S3, substrate), feats (WoT EPIC S4), backgrounds, visibility + hidden-exits (M28), movement-cost (flat→biome-weighted cost gate + encumbrance), character-select (account-first login), character-identity (world-locking, save v23). -->
+<!-- Updated: 2026-06-17 · 55 specs covering the engine substrate, world, action, lifecycle, and presentation layers. Behavior contracts still ahead of code: tag-observers, faction, the trade trio (trade-escrow, direct-trade, auction-house), mounts (greenfield from the equipment.md review). Since-shipped: roles-and-permissions, admin-verbs, item-decorations (M19/M20), loot-and-corpses (M22), tab-completion Phase 0–2, who, light-and-darkness, room-coordinates (M23), player-maps (M24 — Mudlet GMCP wire-shape pending live-client validation), biomes, gathering, crafting-and-cooking (M27), weapon-identity (WoT EPIC S1), masterwork (WoT EPIC S1.H), ranged-combat (WoT EPIC S1.G — Slice A+B + Model C cross-room), armor-depth (WoT EPIC S1.E+D), size-and-wielding (WoT EPIC S1.F), two-weapon-fighting (WoT EPIC S1.K — slices 1-4: off-hand attack, the feats, Improved TWF, mob dual-wield), saves (WoT EPIC S6), conditions (WoT EPIC S5), skills (WoT EPIC S3, substrate), feats (WoT EPIC S4), backgrounds, visibility + hidden-exits (M28), movement-cost (flat→biome-weighted cost gate + encumbrance), character-select (account-first login), character-identity (world-locking, save v23). -->

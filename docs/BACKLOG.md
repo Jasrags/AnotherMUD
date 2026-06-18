@@ -197,9 +197,18 @@ old five-theme partition left uncovered.
   (masterwork/power-wrought grades, H), container caps (encumbrance, I, specced §1).
   Pre-decisions in the proposal §7 (proficiency representation, the to-hit-roll model crit
   implies, the AC model, the ranged model, the fidelity ceiling).
-- **Mounts & barding (rideable entities)** — `docs/wot/equipment.md` ships a full
+- **Mounts & barding (rideable entities)** — ✅ **SPECCED 2026-06-17** →
+  [`docs/specs/mounts.md`](specs/mounts.md) (behavior contract; build pending).
+  The spec resolves the v1 scope: a ridden mount *becomes the metered mover*
+  (re-points `movement-cost`'s pool/gate from rider → mount), barding is
+  mount-worn armor reusing `armor-depth`, saddlebags are a container, stabling/
+  feed are economy gold sinks, and combat is a conservative boundary (fight-from-
+  saddle no-bonus, temperament-gated danger entry, killable mount). Deferred to
+  Open Questions: mounted-combat depth (charge + Ride contest, waits on a Ride
+  skill), multi-seat, pack trains, flight, transfer/theft, entity-vs-mob impl.
+  Original notes preserved below. `docs/wot/equipment.md` ships a full
   Mounts table (horses/ponies/donkeys, warhorses), barding, saddles, and a barding
-  speed-penalty table. ⚠️ **Greenfield — no Mount concept in code or specs; the
+  speed-penalty table. ⚠️ **Greenfield — no Mount concept in code yet; the
   whole equipment.md "Mounts" block is pure flavor until this lands.** Today a mob
   is a combat/AI entity with no owner/controller and no ride relationship; movement
   is per-character step cost (`movement-cost`). A mount is a **separate `Mount`

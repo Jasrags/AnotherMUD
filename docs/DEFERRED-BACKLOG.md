@@ -266,9 +266,14 @@ hasty-don escape (combat gate shipped); mobs skip `RangedDamageBonus`/`strRating
 cap (pre-existing G concern).
 
 ### Track C — greenfield, spec-first (in `BACKLOG.md` §2)
-Mounts & barding (Large); grenadelike weapons (Medium–Large) + room hazards
-(Medium) share an "area effect over a region" primitive → spec jointly. Author
-items as flavor now; the mechanic upgrades for free when the system lands.
+- **Mounts & barding (Large) — ✅ SPECCED 2026-06-17** → `docs/specs/mounts.md`
+  (behavior contract; build pending). v1: ridden mount becomes the metered mover
+  (reuses movement-cost), barding reuses armor-depth, saddlebags are a container,
+  stabling/feed gold sinks, conservative combat boundary; charge/Ride-contest/
+  multi-seat/flight deferred to Open Questions.
+- Grenadelike weapons (Medium–Large) + room hazards (Medium) share an "area
+  effect over a region" primitive → spec jointly (not yet written). Author items
+  as flavor now; the mechanic upgrades for free when the system lands.
 
 ---
 
