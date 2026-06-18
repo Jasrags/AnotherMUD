@@ -1,4 +1,4 @@
-<!-- Generated: 2026-06-16 | Persistence (YAML files) + content packs — no database | Token estimate: ~820 -->
+<!-- Generated: 2026-06-17 | Persistence (YAML files) + content packs — no database | Token estimate: ~840 -->
 
 # Data: Saves & Content
 
@@ -12,7 +12,8 @@ accounts/<id>/account.yaml       bcrypt creds, username, created_at
 players/<lname>/player.yaml      versioned char save (tags, roles, stats,
    ├ quest.yaml                  properties, equip/inventory, abilities+profs,
    ├ notifications.yaml          known recipes, feats, resource pools, gender,
-   └ chat-subscriptions          WorldID, recall, prompt, roomdata toggle)
+   └ chat-subscriptions          WorldID, recall, prompt, roomdata toggle,
+                                 madness, owned mounts)
 channels/<id>.yaml               global channel scrollback
 clock.yaml                       global in-game time (CurrentHour, DayCount)
 ```
@@ -20,11 +21,13 @@ clock.yaml                       global in-game time (CurrentHour, DayCount)
 - **Login is account-first by username** (`character-select`): `index.yaml` keeps
   a username→id map alongside the legacy email→id map (backfilled on load); one
   account holds a roster of characters across worlds.
-- `internal/player` — `player.yaml` carries `version`; `CurrentVersion = 24`
+- `internal/player` — `player.yaml` carries `version`; `CurrentVersion = 26`
   with an **append-only migration chain** (never edit an old migration). Recent
   bumps: v19 backgrounds, v20 feats, v21 resource-pool currents, v22 gender,
   v23 `WorldID` (world-locking, backfilled from the location namespace),
-  v24 `movement_max` base stat. Boolean/string prefs with a safe zero-value
+  v24 `movement_max` base stat, v25 `madness` (saidin taint accumulator,
+  no-op/0 for non-channelers), v26 `Mounts []MountRecord` (owned-mount list,
+  no-op/nil for the mountless common case). Boolean/string prefs with a safe zero-value
   (autoloot, wimpy, prompt, `show_room_data`) are added `omitempty` **without** a
   version bump.
 - **Equipment save shape**: one entry per equipped item, keyed by its TARGET
@@ -39,7 +42,10 @@ clock.yaml                       global in-game time (CurrentHour, DayCount)
   missing/corrupt cold-starts at hour 0/day 0. Global, not per-player.
 - **Not persisted** (by design): sessions, weather, link-dead state, mob spawn
   tracking, temporary exits, active effects (incl. light source lit/fuel across
-  restart), rest state, direct-trade sessions.
+  restart), rest state, direct-trade sessions. **Mounts**: only the durable
+  `MountRecord` (template identity) persists on the player save; the live
+  materialized `MobInstance` + the ride relationship are transient (on logout an
+  owned mount resolves to a resting/stabled record, re-mounted after login).
 
 ## Content packs (`<ANOTHERMUD_CONTENT_DIR>`, default ./content)
 `internal/pack` — manifest/discovery/dep-order/two-phase loader. Three packs ship:
@@ -63,6 +69,11 @@ emotes · rooms · areas · weather_zones · quests · help · scripts(*.lua)
   eligible set. Slot names are validated against the registry in a boot
   post-pass (`validateItemSlots`). Engine baseline slots: `wield`, `offhand`,
   `head`, `finger`(×2), `light`; packs add more (e.g. `cloak`).
+- **Rideable mounts** are ordinary mobs carrying an optional `mount:` block
+  (`mob.MountSpec`: temperament + travel-pool config, mounts.md §2.1); its
+  presence is what makes a mob a mount. No new registry — they load through the
+  `mobs` registry. Demo content: `starter-world` riding-horse + village
+  stablemaster at the village gate.
 - Pack load order is **dependency-ordered**: `internal/pack/order.go` runs a
   Kahn's-algorithm topological sort over declared deps (alphabetical
   tie-breaks; `ErrCycle`/`ErrUnknownDep`), wired into `pack.Load`.

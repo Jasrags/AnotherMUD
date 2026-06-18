@@ -1,4 +1,4 @@
-<!-- Generated: 2026-06-16 | External deps + conventions | Token estimate: ~600 -->
+<!-- Generated: 2026-06-17 | External deps + conventions | Token estimate: ~620 -->
 
 # Dependencies & Conventions
 
@@ -29,6 +29,10 @@ in-process tick loop / event bus.
 - `internal/channel` — derived-stat formula layer (hand-rolled eval, no
   code-exec); combat attack/defense/damage/mitigation derive via a content map.
 - `internal/grade` — item quality-grade vocabulary (masterwork/power-wrought).
+- `internal/mount` — near-leaf mount vocabulary: the temperament ladder
+  (war/steady/skittish danger-entry gate) + the `travel` pool-kind identity a
+  ridden mount spends; imports only stdlib + the leaf `pool`, so mob/entities/
+  command/session share it without a cycle.
 - `internal/visibility` — per-observer can-see predicate (decoupled via small
   Observer/Target interfaces; composes darkness + concealment).
 - `internal/property` — registry + tagged-value envelope.

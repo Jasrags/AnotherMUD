@@ -1,4 +1,4 @@
-<!-- Generated: 2026-06-16 | Go files scanned: 344 (+367 tests) | 62 internal pkgs | Token estimate: ~720 -->
+<!-- Generated: 2026-06-17 | Go files scanned: 360 (+408 tests) | 64 internal pkgs | Token estimate: ~730 -->
 
 # Architecture
 
@@ -17,7 +17,8 @@ wires every service, registers tick handlers, runs the telnet listener
 ## Layer stack (bottom-up; deps point down)
 ```
 Foundations   tick, eventbus, clock+gameclock, logging, persistence, srckey,
-              pool (generalized resource pools)
+              pool (generalized resource pools),
+              mount (near-leaf: temperament ladder + travel-pool identity)
 World/things  world (rooms/exits/doors + load-time area-local room
               coordinate derivation), entities, item/mob/slot, keyword,
               spawn, ai, portal, weather, biome, property, corpse,
@@ -28,7 +29,8 @@ Mechanics     stats, progression, combat, effect, condition (status conditions),
               feat (player-chosen perks), channel (derived-stat formula layer)
 Action        command (registry+dispatch+§5 typed args), economy,
               crafting/recipe/campfire, gathering, grade (item quality grades),
-              quest*, loot, decoration, stacking
+              quest*, loot, decoration, stacking,
+              mounts (ride/stable verbs in command; service in cmd)
 Lifecycle     account, player, login, session, wizard
 Social        chat, notifications, emote
 Presentation  render, ansi, help

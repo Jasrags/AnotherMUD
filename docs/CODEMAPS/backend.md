@@ -43,7 +43,8 @@ Handlers wired in `main.go`: combat round (`_COMBAT_CADENCE`), `autosave`
 (`Manager.SaveAll` of dirty actors), `idle-sweep`, `linkdead-cleanup`, effect
 ticks, `ability-idle-tick`, vitals regen, `fuel-burn` (lit light-source fuel →
 gutter), `biome-ambience`, `corpse-decay`, `campfire-decay`, `craft-complete`
-(timed crafting), `ai-tick`/`area-tick` (spawn), GMCP flushers
+(timed crafting), `mount-travel-regen` (ridden/parked mounts recover their
+travel pool, vitals-regen cadence), `ai-tick`/`area-tick` (spawn), GMCP flushers
 (Char.Items/Combat/Effects/Vitals/Experience/Status — cadence-1 poll-and-diff),
 `scripting-schedule`, prompt render. (Canonical table: `docs/specs/README.md`.)
 In-game clock (`gameclock`) is tick-driven, not wall-clock, and **persists**
@@ -68,6 +69,7 @@ Cancellable-event index lives in `docs/specs/README.md`.
 | visibility filter | visibility | per-observer can-see predicate (hide/sneak/invis/search); composed into `BuildResolveContext.CanSee` + render + `who`; pierces darkness/concealment |
 | condition + feat + grade | condition/feat/grade | status conditions (combat hooks), player-chosen perks (source-keyed bonuses), item quality grades (to-hit/damage/check/skill seams) |
 | entities.{Store,Placement,Contents} | entities | items/mobs, room placement, containers |
+| mount service | cmd/anothermud/mountservice.go | materialize/dematerialize an owned mount into a live `MobInstance` (mounts.md §3); `MountInstance` surface (`IsMount`/`OwnerID`/`Travel`/`Temperament`) lives in `entities/mob_mount.go`. Verbs `mounts`/`buymount`/`stable`/`unstable`/`mount`/`dismount` in `command/mount.go`; mounted travel re-points the metered mover so the **mount** spends `travel` per step (not the rider's movement). `mount.before` cancellable event |
 | session.Manager | session (7.1k) | actors, flood/idle/link-dead/takeover, SaveAll |
 
 ## Key files
