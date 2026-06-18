@@ -53,6 +53,7 @@ func commandEnv(cfg Config) command.Env {
 		Help:                  cfg.Help,
 		Quests:                cfg.Quests,
 		Currency:              cfg.Currency,
+		Mounts:                cfg.Mounts,
 		Shop:                  cfg.Shop,
 		Rest:                  cfg.Rest,
 		Consumable:            cfg.Consumable,

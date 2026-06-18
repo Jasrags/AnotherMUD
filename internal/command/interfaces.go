@@ -292,6 +292,12 @@ type Env struct {
 	// that don't exercise currency; handlers MUST nil-guard.
 	Currency *economy.CurrencyService
 
+	// Mounts is the mount lifecycle service (mounts.md §2/§3): materialize /
+	// dematerialize / name an owned mount. The stable verbs (buymount, stable,
+	// unstable) route through it after locating a stable-tagged NPC in the
+	// room. nil disables mount verbs; handlers MUST nil-guard.
+	Mounts MountService
+
 	// Shop is the M11.2 shop service (spec §3). The buy/sell/value/
 	// list verbs route through it after locating a shop-tagged NPC in
 	// the room. nil in tests that don't exercise shops; handlers MUST

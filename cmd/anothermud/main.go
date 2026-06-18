@@ -160,6 +160,9 @@ func run() error {
 		bus:          bus,
 		nodes:        registries.Nodes,
 	}
+	// mountSvc materializes/dematerializes owned mounts over the spawn
+	// pipeline; the stable verbs route through it (mounts.md §2/§3).
+	mountSvc := &mountService{spawner: spawner, store: entityStore}
 	// M17.1b: a sandboxed scripting.Engine is the ScriptCompiler the
 	// pack loader uses to syntax-check each pack-supplied Lua file
 	// at boot. M17.1c reuses the same Engine via a Runtime that
@@ -275,6 +278,8 @@ func run() error {
 	command.GenerateHelpTopics(cmds, registries.Help)
 
 	mgr := session.NewManager()
+	// Dematerialize a departing owner's live mounts on logout (mounts.md §9).
+	mgr.SetMounts(mountSvc)
 
 	// Help visibility through HasRole (M19.4f — ui-rendering-help §9.5):
 	// resolve a requester's help tier from their live role set so admins see
@@ -2672,6 +2677,7 @@ func run() error {
 		ChatSubscribers: subscribers,
 		ChatScrollbacks: scrollbackLookup,
 		Currency:        currencySvc,
+		Mounts:          mountSvc,
 		Shop:            shopSvc,
 		Sustenance:      sustenanceSvc,
 		Rest:            restSvc,

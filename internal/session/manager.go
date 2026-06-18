@@ -56,6 +56,13 @@ type Manager struct {
 	// and a pointer-typed callback would force the composition root
 	// to depend on the unexported actor type.
 	onRemove func(playerID string)
+
+	// mounts dematerializes a departing actor's live mounts on full Remove
+	// (mounts.md §9, §10): a logged-out owner's retrieved mount resolves to
+	// its stabled record — the live creature must leave the world so it is
+	// never orphaned or duplicated on the owner's return. nil disables the
+	// teardown (tests / headless). Set once at startup via SetMounts.
+	mounts command.MountService
 }
 
 // NewManager returns an empty Manager.
@@ -79,6 +86,15 @@ func NewManager() *Manager {
 func (m *Manager) SetOnRemove(fn func(playerID string)) {
 	m.mu.Lock()
 	m.onRemove = fn
+	m.mu.Unlock()
+}
+
+// SetMounts installs the mount lifecycle service used to dematerialize a
+// departing actor's live mounts on full Remove (mounts.md §9, §10). Set once
+// at startup from the composition root; nil-safe (no teardown when unset).
+func (m *Manager) SetMounts(svc command.MountService) {
+	m.mu.Lock()
+	m.mounts = svc
 	m.mu.Unlock()
 }
 
@@ -175,7 +191,22 @@ func (m *Manager) Remove(a *connActor) {
 		}
 	}
 	cb := m.onRemove
+	mounts := m.mounts
 	m.mu.Unlock()
+
+	// Dematerialize the departing actor's live mounts (mounts.md §9, §10):
+	// a logged-out owner's retrieved mount resolves to its stabled record, so
+	// the live creature leaves the world rather than standing orphaned (and
+	// duplicating when the owner returns and retrieves it again). Ownership
+	// (the save record) is untouched. Runs outside m.mu — Dematerialize touches
+	// the entity store / placement, not the manager indices.
+	if mounts != nil {
+		// drainLiveMounts clears the set atomically, so a concurrent stable
+		// verb can't double-remove the same creature (it finds nothing left).
+		for _, id := range a.drainLiveMounts() {
+			mounts.Dematerialize(context.Background(), id)
+		}
+	}
 
 	// Fire the post-remove callback outside the manager lock so
 	// the callback can re-enter Manager (e.g., to look up the

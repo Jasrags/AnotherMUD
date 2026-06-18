@@ -105,6 +105,10 @@ type Context struct {
 	Quests *quest.Service
 	// Currency is the M11.1 economy currency service. nil in tests.
 	Currency *economy.CurrencyService
+	// Mounts is the mount lifecycle service (mounts.md §2/§3) — materialize /
+	// dematerialize / name an owned mount. The stable verbs route through it.
+	// nil disables mount verbs (tests / headless).
+	Mounts MountService
 	// Shop is the M11.2 shop service. nil in tests.
 	Shop *economy.ShopService
 	// Rest is the M11.4 rest service. nil in tests.

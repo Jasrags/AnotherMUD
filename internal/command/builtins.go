@@ -186,6 +186,13 @@ func RegisterBuiltins(r *Registry) error {
 		{Keyword: "value", Handler: ValueHandler, Brief: "Ask a shop what it pays for an item.", Syntax: []string{"value <item>"},
 			HandParsed: true, Args: []ArgDefinition{{Name: "item", Type: ArgInventory}}},
 		{Keyword: "list", Handler: ListHandler, Brief: "List a shop's wares.", Syntax: []string{"list"}},
+
+		// Mounts (mounts.md §3/§9). buymount/stable/unstable require a
+		// stablemaster in the room; mounts lists what you own anywhere.
+		{Keyword: "mounts", Handler: MountsHandler, Brief: "List the mounts you own.", Syntax: []string{"mounts"}},
+		{Keyword: "buymount", Handler: BuyMountHandler, Brief: "Buy a mount from a stablemaster.", Syntax: []string{"buymount <mount>"}},
+		{Keyword: "stable", Handler: StableHandler, Brief: "Stable a mount at a stablemaster.", Syntax: []string{"stable [<mount>]"}},
+		{Keyword: "unstable", Aliases: []string{"retrieve"}, Handler: UnstableHandler, Brief: "Retrieve a stabled mount.", Syntax: []string{"unstable <mount>"}},
 		{Keyword: "affects", Aliases: []string{"effects"}, Handler: AffectsHandler, Brief: "List your active effects and conditions.", Syntax: []string{"affects"}},
 		{Keyword: "rest", Handler: RestHandler, Brief: "Rest to recover faster.", Syntax: []string{"rest"}},
 		{Keyword: "sleep", Handler: SleepHandler, Brief: "Sleep to recover fastest.", Syntax: []string{"sleep"}},

@@ -332,6 +332,11 @@ type testActor struct {
 
 	// discoveredExits backs the exitDiscoverer capability (hidden-exits §3).
 	discoveredExits map[world.Direction]bool
+
+	// ownedMounts / liveMountSet back the mountOwner capability (mounts.md
+	// §2.2): durable owned template ids + the transient materialized overlay.
+	ownedMounts  []string
+	liveMountSet map[entities.EntityID]string
 }
 
 // IsExitDiscovered / DiscoverExit make testActor satisfy exitDiscoverer

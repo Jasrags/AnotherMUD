@@ -8,3 +8,7 @@ description: |
 exits:
   north: town-square
   south: meadow
+# Hob runs the gate stable (mounts.md): buy a mount here, stable it between
+# journeys, and retrieve it before riding out south into the wilds.
+mobs:
+  - village-stablemaster

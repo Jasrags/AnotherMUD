@@ -377,6 +377,12 @@ type Config struct {
 	// auto-convert is a no-op (currency items just enter inventory).
 	Currency *economy.CurrencyService
 
+	// Mounts is the mount lifecycle service (mounts.md §2/§3). Passed
+	// through command.Env so the buymount/stable/unstable verbs can
+	// materialize and dematerialize owned mounts. nil-safe: the verbs
+	// report "no stable here" when unwired.
+	Mounts command.MountService
+
 	// Shop is the M11.2 shop service (spec §3). Passed through
 	// command.Env so the buy/sell/value/list verbs can reach it.
 	// nil-safe: the verbs report "no shop here" when unwired.
@@ -2048,6 +2054,16 @@ type connActor struct {
 	// observer changes rooms (SetRoom). Lazily allocated; guarded by a.mu.
 	// Ephemeral, never persisted.
 	contested map[uint64]bool
+
+	// liveMounts tracks which of this character's owned mounts (mounts.md §2.2)
+	// currently have a live creature in the world — entity id → mount template
+	// id. Durable ownership lives on the save (save.Mounts); this is the
+	// transient overlay distinguishing a stabled mount (record only) from a
+	// retrieved one (record + a live MobInstance). Lazily allocated, guarded by
+	// a.mu, never persisted: on logout every live mount is dematerialized and
+	// the character returns to all-stabled (§9, §10). The mount-riding methods
+	// live in mount.go.
+	liveMounts map[entities.EntityID]string
 
 	// discoveredExits is this actor's per-room hidden-exit discovery memory
 	// (hidden-exits §3.4): the directions whose hidden exit this character has

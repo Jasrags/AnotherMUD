@@ -1,0 +1,26 @@
+id: village-stablemaster
+name: Hob the stablemaster
+type: npc
+behavior: stationary
+tags: [humanoid, stable]
+keywords: [stablemaster, hob, ostler, groom]
+description: |
+  A weathered man in a leather apron, hay clinging to his sleeves. He runs the
+  gate stable — boards mounts for travellers and sells a steady horse to anyone
+  with the coin. He eyes your boots, judging how far you mean to go.
+# Friendly to everyone — a tradesman, not a threat.
+disposition_rules:
+  default: friendly
+stats:
+  hp_max: 20
+  str: 11
+# Stable block (mounts.md §3.1, §3.2). The `stable` tag marks this mob as a
+# stable access point — `stable`/`unstable` work in its room. The `sells` map
+# (mount-template-id → price) is the mount roster on offer; `buymount` resolves
+# a query against it. Ids are namespace-qualified: like the shop block, this is
+# an arbitrary property map the loader does NOT rewrite, so the mount service
+# looks them up verbatim in the (namespaced) mob registry.
+properties:
+  stable:
+    sells:
+      starter-world:riding-horse: 200
