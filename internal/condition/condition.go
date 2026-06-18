@@ -25,15 +25,22 @@ const (
 	FlagBlinded    = "condition:blinded"
 	FlagFrightened = "condition:frightened"
 	FlagStunned    = "condition:stunned"
+	// FlagDisarmed marks the disarm maneuver's condition (special-weapons §5,
+	// EPIC S1 J). Like fatigued it has NO Resolve entry — its to-hit penalty is a
+	// pure stat modifier (hit_mod) carried on the effect, not a combat hook. It is
+	// registered here so it is recognized as a condition (afflict/cure treat it
+	// like its trip/bash siblings — `cure` clears it).
+	FlagDisarmed = "condition:disarmed"
 )
 
 // flagPrefix segregates condition flags from ordinary effect flags.
 const flagPrefix = "condition:"
 
-// Flags returns the recognized condition flags in a stable order (the Core 5,
-// conditions §2). Used by the `cure` verb to clear every condition.
+// Flags returns the recognized condition flags in a stable order (the Core 5 +
+// disarmed, conditions §2 / special-weapons §5). Used by the `cure` verb to clear
+// every condition.
 func Flags() []string {
-	return []string{FlagFatigued, FlagProne, FlagBlinded, FlagFrightened, FlagStunned}
+	return []string{FlagFatigued, FlagProne, FlagBlinded, FlagFrightened, FlagStunned, FlagDisarmed}
 }
 
 // IsConditionFlag reports whether f is a condition flag (carries the

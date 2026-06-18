@@ -1,0 +1,29 @@
+id: swordbreaker
+name: a swordbreaker
+type: weapon
+description: |
+  A heavy parrying dagger, its back edge cut into deep, comb-like teeth made to
+  catch and bind an opponent's blade — and, with a sharp twist, to wrench it from
+  their grip. More tool of the duelist than killer, it rewards a patient hand.
+tags: [weapon, metal, bladed]
+keywords: [swordbreaker, breaker, dagger]
+# A light parrying dagger (size-and-wielding §2): SMALL ⇒ light, off-hand
+# eligible.
+size: small
+eligible_slots: [wield, offhand]
+weapon_damage: "1d6"
+weapon_category: dagger
+proficiency_tier: martial
+damage_types: [piercing]
+crit_threat_low: 19
+crit_multiplier: 2
+# Special-weapons §5 — DISARM: the toothed back edge is built to wrench a weapon
+# from a foe's hand. `special: [disarm]` marks the maneuver; `disarm_bonus` raises
+# the Reflex-save DC the target must beat (so a fighter wielding it disarms far
+# more reliably than bare-handed — the generic `disarm` skill is still usable by
+# anyone who knows it, at the base DC). `equip swordbreaker`, then `disarm <foe>`.
+special: [disarm]
+disarm_bonus: 3
+properties:
+  weight: 2
+  value: 75

@@ -20,3 +20,7 @@ items:
   # more reliably than a bare-handed trip (its trip_bonus raises the Reflex-save
   # DC). Its reach also strikes at the near band as a ranged foe closes.
   - billhook
+  # Special-weapons (S1 J) disarm demo: a swordbreaker (disarm_bonus 3). A fighter
+  # knows `disarm` — `equip swordbreaker`, then `disarm <foe>` afflicts it with the
+  # `disarmed` condition (-4 to its attacks) far more reliably than bare-handed.
+  - swordbreaker

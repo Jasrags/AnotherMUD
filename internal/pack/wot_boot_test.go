@@ -243,3 +243,73 @@ func TestLoad_WotWeaponIdentityChain(t *testing.T) {
 		t.Error("a fighter should NOT be proficient with the exotic ashandarei")
 	}
 }
+
+// special-weapons §5 (EPIC S1 J) — the disarm maneuver is wired: the core pack
+// loads the `disarm` ability as a Reflex-save skill applying a `disarmed`
+// to-hit-penalty condition, and the fighter is granted it (like trip/bash).
+func TestLoad_DisarmManeuverWired(t *testing.T) {
+	root, err := filepath.Abs("../../content")
+	if err != nil {
+		t.Fatalf("abs: %v", err)
+	}
+	regs := NewRegistries()
+	if err := RegisterEngineBaselineProperties(regs.Properties); err != nil {
+		t.Fatalf("baseline properties: %v", err)
+	}
+	if err := slot.RegisterEngineBaseline(regs.Slots); err != nil {
+		t.Fatalf("baseline slots: %v", err)
+	}
+	if err := Load(context.Background(), root, []string{"starter-world"}, regs, nil, nil, nil); err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+
+	ab, ok := regs.Abilities.Get("disarm")
+	if !ok {
+		t.Fatal("disarm ability not loaded")
+	}
+	if ab.Category != progression.AbilitySkill {
+		t.Errorf("disarm category = %q, want skill", ab.Category)
+	}
+	if ab.ApplySave == nil || ab.ApplySave.Axis != progression.SaveReflex {
+		t.Errorf("disarm ApplySave = %+v, want a Reflex save", ab.ApplySave)
+	}
+	if ab.Effect == nil {
+		t.Fatal("disarm has no effect (the disarmed condition)")
+	}
+	if ab.Effect.ID != "disarmed" {
+		t.Errorf("disarm effect id = %q, want \"disarmed\" (not a copy-pasted prone/stun)", ab.Effect.ID)
+	}
+	hasFlag := false
+	for _, f := range ab.Effect.Flags {
+		if f == "condition:disarmed" {
+			hasFlag = true
+		}
+	}
+	if !hasFlag {
+		t.Errorf("disarm effect flags = %v, want condition:disarmed (so cure/afflict recognize it)", ab.Effect.Flags)
+	}
+	var hitPenalty int
+	for _, m := range ab.Effect.Modifiers {
+		if m.Stat == "hit_mod" {
+			hitPenalty = m.Value
+		}
+	}
+	if hitPenalty >= 0 {
+		t.Errorf("disarmed effect hit_mod = %d, want a negative to-hit penalty", hitPenalty)
+	}
+
+	// The core fighter is granted disarm (a class maneuver, like trip).
+	fighter, ok := regs.Classes.Get("fighter")
+	if !ok {
+		t.Fatal("fighter class not loaded")
+	}
+	granted := false
+	for _, p := range fighter.Path {
+		if p.AbilityID == "disarm" {
+			granted = true
+		}
+	}
+	if !granted {
+		t.Error("fighter is not granted the disarm maneuver")
+	}
+}

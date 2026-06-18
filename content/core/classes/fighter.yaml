@@ -68,6 +68,10 @@ path:
     ability: trip
   - level: 1
     ability: bash
+  # Special-weapons (EPIC S1 J): disarm (→ disarmed, a Reflex-save to-hit
+  # penalty). A disarm weapon (a swordbreaker) raises its save DC.
+  - level: 1
+    ability: disarm
   # Skills (EPIC S3): the Open Lock skill, granted so a fresh fighter can
   # exercise the `pick` lockpicking verb (skills §4). A class skill capped
   # higher than cross-class would be; raised further with `practice`.

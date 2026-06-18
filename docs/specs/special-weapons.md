@@ -54,8 +54,10 @@ No new range geometry; reach rides the bands `ranged-combat.md` already ships.
 accessor, recorded-only) — SHIPPED; (2) **reach** (the band-gate extension;
 reach modeled as a numeric cross-ruleset stat per §3) — SHIPPED; (3) **trip**
 weapon-awareness (the DC bonus, via a per-caster `SaveDCBonusFunc` on the
-resolver) — SHIPPED; (4) **disarm** (the new maneuver). Each is its own commit +
-review in the project rhythm.
+resolver) — SHIPPED; (4) **disarm** (the new maneuver — a save-gated `disarmed`
+to-hit-penalty condition, the trip/bash sibling; physical-drop variant deferred)
+— SHIPPED. The J starter set is complete; the bottomless tail (set-vs-charge,
+net, whip, swordbreaker-breaking, …) stays deferred on the `special:` seam.
 
 ## 2. The metadata: maneuver tags + the numeric reach stat
 
@@ -166,52 +168,52 @@ unchanged; only its DC reads the wielder's weapon.
 
 ## 5. Disarm (new maneuver)
 
-A new combat maneuver: **`disarm`** attempts to knock a target's **main wielded
-weapon** out of its hands. It resolves as a save-gated maneuver in the same shape
-as `trip`/`bash` (`conditions.md` §6): the target rolls a save (Reflex — agility
-to keep its grip); on a **failure** its main weapon is **unequipped and dropped to
-the room floor**, where it lies until someone `get`s it. The disarmed combatant
-fights **unarmed** (the engine's unarmed default) until it re-`equip`s a weapon.
+A new combat maneuver: **`disarm`** — the natural sibling of `trip` (→ prone) and
+`bash` (→ stunned) in the `conditions.md` §6 save-gated family. The target rolls a
+save (Reflex — agility to keep its grip); on a **failure** it is afflicted with a
+**`disarmed` condition**: a to-hit penalty for a few rounds, the combatant
+fumbling and off-balance without a settled weapon. On a made save the maneuver is
+resisted (no condition). This translates the source's "the weapon is knocked
+away, you fight at a disadvantage until you recover it" into the engine's
+condition vocabulary — the same way trip translates "knocked down" into the
+`prone` condition rather than simulating a physics fall.
 
 A **disarm** weapon resolves the maneuver at an **elevated DC** (`base DC +
-disarm_bonus`) — the boarspear's +2, the swordbreaker's +3. A wielder with no
-disarm weapon may still attempt a disarm at the base DC (a generic maneuver, like
-trip), so the verb is universally available and the weapon is an amplifier.
+disarm_bonus`) — the boarspear's +2, the swordbreaker's +3 (wired via the
+per-caster `SaveDCBonusFunc`, §4). A wielder with no disarm weapon may still
+attempt a disarm at the base DC (a generic maneuver, like trip), so the verb is
+universally available and the weapon is an amplifier.
 
-Edge rules:
-
-- A target with **no weapon wielded** (already unarmed, or fighting with natural
-  weapons) cannot be disarmed — the maneuver reports "nothing to disarm" and
-  spends nothing (or its cost, per the config — see Open Questions).
-- A target wielding a **two-handed** weapon is disarmed normally (the whole weapon
-  drops); off-hand-only edge cases follow "main wielded weapon" (the `wield`
-  slot), leaving an off-hand weapon in place.
-- The dropped weapon enters the room via the existing unequip → room-placement
-  path (the same machinery `drop` and corpse-spill use); ownership/decay is
-  whatever that path already does (it does not vanish).
+Because the outcome is a **condition**, it applies uniformly to a **player or a
+mob** target through the thread-safe effect manager — no weapon-item manipulation,
+so player-disarms-mob (the common case) and mob-disarms-player both work.
 
 ### Acceptance criteria
 
-- A successful `disarm` unequips the target's `wield`-slot weapon and places it in
-  the current room; the target's combat profile reverts to unarmed next round.
-- A failed save leaves the target armed (the maneuver is resisted).
+- A successful `disarm` (target fails the save) afflicts the target with the
+  `disarmed` condition (a to-hit penalty) for its duration; the target's swings
+  land less often while disarmed.
+- A failed maneuver (target makes the save) applies nothing — the maneuver is
+  resisted, exactly like a resisted trip.
 - A `disarm` weapon raises the DC by its `disarm_bonus`; a non-disarm weapon
   disarms at the base DC.
-- Disarming an unarmed target is a no-op with a clear message (no weapon drops).
-- A **player** target may `get` + `equip` the dropped weapon to re-arm; a
-  **mob** target fights unarmed after a disarm in v1 (mob re-equip AI is deferred
-  — see Open Questions).
-- The maneuver is available to players via a `disarm <target>` verb and to mobs
-  as an authorable ability (a mob may carry `disarm` in its proficiencies, like
-  `trip`/`bash` today).
+- The maneuver applies to both player and mob targets (it is an effect, not an
+  item move).
+- The maneuver is available to players via a `disarm <target>` verb (every ability
+  auto-registers a verb) and grantable to a class (the core fighter, like `trip`),
+  and authorable on mobs as a proficiency.
 
-### Deferred
+### Deferred — the physical-drop variant
 
-- **Mob re-equip AI** (a disarmed mob picking its weapon back up) — v1 leaves the
-  mob unarmed; the disarm is a real, lasting tempo swing. Revisit when mob
-  pick-up/equip AI is wanted.
-- **Swordbreaker weapon-breaking** (destroying the weapon instead of dropping it)
-  and **off-hand disarm without the two-weapon penalty** — later J slices.
+The richer "the weapon physically flies to the room floor and is retrievable"
+disarm is **deferred**. It needs an **unequip-to-room** path for players (the
+current `Unequip` returns the item to inventory, not the floor) and, for mobs, a
+**slot→item link plus thread-safe weapon mutation** the engine does not have today
+(a mob's weapon is write-once dice with no retained item reference). The v1
+condition translation delivers the *mechanical* disarm — the target fights worse
+without its weapon — without those engine extensions; the physical drop is a later
+refinement on top. Also deferred: **swordbreaker weapon-breaking** (destroying the
+weapon) and **off-hand disarm without the two-weapon penalty**.
 
 ## 6. Configuration surface
 
@@ -230,13 +232,14 @@ values come from the ability YAML rather than env where the existing maneuvers d
 
 ## 7. Open questions
 
-- **Disarm-an-unarmed-target cost.** Should a disarm whiffed against an
-  already-unarmed target cost the attempt's resource/cooldown (it was a real
-  action), or refund as a no-op (the player mis-targeted)? Lean: spend nothing
-  and message, matching how an unresolvable cast is handled.
 - **Disarm save axis.** Reflex (keep your grip by agility) vs a Strength contest
-  (raw grip strength) vs the attacker's to-hit. Lean Reflex for consistency with
-  `trip`; revisit if a grip-strength feel is wanted.
+  (raw grip strength) vs the attacker's to-hit. **Resolved: Reflex** (v1), for
+  consistency with `trip`; revisit if a grip-strength feel is wanted.
+- **Physical drop vs condition.** v1 ships the **condition** translation (a
+  `disarmed` to-hit penalty), uniform across players and mobs. The physical
+  weapon-drop (knocked to the floor, retrievable) is deferred — see §5 Deferred.
+  Open: when built, should it *replace* the condition for player targets (you're
+  physically unarmed, not penalized) or *stack* with it?
 - **Reach vs two reach weapons.** When *both* combatants wield reach, do they
   simply both strike at `near` (the natural reading), or does reach-vs-reach
   collapse to a melee-like exchange? Lean: both strike at `near`, no special case.

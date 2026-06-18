@@ -1,0 +1,35 @@
+# Special-weapons §5 (EPIC S1 J) — a save-gated maneuver, the sibling of trip
+# (→ prone) and bash (→ stunned). Disarm knocks a foe off its weapon: on a failed
+# Reflex save the target takes the `disarmed` condition — a to-hit penalty while
+# it fumbles and recovers, the engine's translation of "the weapon is knocked
+# away, you fight worse until you recover it". A disarm weapon (special: [disarm]
+# + disarm_bonus) raises the save DC via the per-caster SaveDCBonus hook, so a
+# swordbreaker disarms far more reliably than a bare hand. Dex-keyed skill, drawn
+# from movement. The physical weapon-drop variant is deferred (see the spec §5).
+id: disarm
+name: Disarm
+type: active
+category: skill
+default_cap: 25
+gain_base_chance: 25
+gain_failure_multiplier: 0.5
+gain_stat: dex
+gain_stat_scale: 0.1
+cost: 6
+pulse_delay: 3
+variance: 0
+target_types:
+  - enemy
+# On a failed save the foe is disarmed: -4 to its attack rolls for the duration
+# (it fights off-balance without a settled weapon).
+effect:
+  id: disarmed
+  duration: 3
+  modifiers:
+    - stat: hit_mod
+      value: -4
+  flags:
+    - condition:disarmed
+apply_save:
+  axis: reflex
+  dc: 13
