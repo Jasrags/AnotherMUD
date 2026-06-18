@@ -1,6 +1,6 @@
 # MUD Research — Cross-Game Feature Inventory
 
-Compiled: 2026-06-09 (reorganized into per-MUD folders + AwakeMUD/NukeFire deep-dive added 2026-06-18)
+Compiled: 2026-06-09 (reorganized into per-MUD folders + AwakeMUD/NukeFire/WoTMUD deep-dives added 2026-06-18)
 Sources: Aardwolf, Achaea, AwakeMUD (Shadowrun), BatMUD, Discworld MUD (search snippets), NukeFire, WoTMUD, Evennia, Ranvier
 
 This document is the master cross-reference. Each section is a feature category with notes
@@ -46,8 +46,24 @@ mud-research/
 │   └── features-and-guilds.md
 ├── discworld/
 │   └── features-notes.md
-├── wotmud/
-│   └── channeling.md
+├── wotmud/                    (Wheel of Time MUD — direct prior art for AnotherMUD's WoT arc)
+│   ├── channeling.md          (One Power translation analysis)
+│   ├── classes-overview.md
+│   ├── warrior.md
+│   ├── hunter.md
+│   ├── rogue.md
+│   ├── myrddraal.md
+│   ├── weaves.md
+│   ├── factions-and-clans.md
+│   ├── races.md
+│   ├── world-homelands-and-zones.md
+│   ├── equipment-guide.md
+│   ├── horses.md
+│   ├── crafting-and-survival.md
+│   ├── progression-and-exp.md
+│   ├── pvp-and-pk.md
+│   ├── reference-and-lore.md
+│   └── game-history.md
 └── nukefire/
     ├── overview-classes-systems.md
     ├── combat-mechanics.md
