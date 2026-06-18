@@ -172,6 +172,21 @@ type Template struct {
 	// positive value and a male/female gender. Normalized lowercase.
 	AngrealPower  int
 	AngrealGender string
+	// Special is the set of special-weapon tags this weapon carries
+	// (special-weapons.md §2 — the increment J starter set: reach / trip /
+	// disarm). nil/empty means an ordinary weapon (every weapon today).
+	// Validated against the engine vocabulary at pack load; normalized
+	// lowercase. Recorded-only until the consuming slice (reach/trip/disarm)
+	// wires each tag, mirroring how damage types shipped ahead of armor depth.
+	Special []string
+	// TripBonus / DisarmBonus are the magnitudes (non-negative) by which a
+	// weapon carrying the matching tag raises that maneuver's save DC
+	// (special-weapons.md §4/§5): the tag says WHETHER, the scalar says HOW
+	// MUCH. A bonus with no matching tag is an authoring error (load fails) so
+	// a typo cannot ship an inert magnitude. Zero with the tag present means
+	// "the engine default bonus".
+	TripBonus   int
+	DisarmBonus int
 }
 
 // Errors callers may distinguish at the boundary.

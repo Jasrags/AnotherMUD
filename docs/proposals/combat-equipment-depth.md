@@ -57,6 +57,15 @@ Each row is independently shippable except where a dependency is noted. Sizes ar
 > E (armor depth), F (size-wield), G (ranged), H (masterwork), I (encumbrance —
 > carry-weight shipped separately), J (special weapons).
 >
+> **J (special weapons) SPECCED + SLICE 1 SHIPPED 2026-06-17** —
+> `docs/specs/special-weapons.md` picks a starter set of three (reach / trip /
+> disarm) and establishes the `special:` weapon-tag seam later J behaviors reuse.
+> Slice 1 (the `special:` metadata substrate — template + loader validation +
+> instance accessor, recorded-only) shipped; remaining slices: reach (the
+> range-band-gate extension), trip weapon-awareness (the DC bonus), disarm (the
+> new save-gated maneuver). The bottomless tail (set-vs-charge, net/entangle,
+> whip, swordbreaker, double weapons) stays deferred on the same seam.
+>
 > **F (size-wield) SPECCED 2026-06-15** — `docs/specs/size-and-wielding.md`
 > (forward spec, build pending): creature size + weapon size, the wield mode
 > derived from their ordered distance (light / one-handed / two-handed /

@@ -2991,6 +2991,43 @@ func decodeItem(path, ns string) (*item.Template, error) {
 		}
 	}
 
+	// Special-weapon tags (special-weapons.md §2, increment J). Each tag
+	// validates against the engine vocabulary; normalized lowercase. The bonus
+	// scalars are non-negative, and a bonus with no matching tag is an authoring
+	// slip (an inert magnitude) that fails the pack by file name.
+	var special []string
+	hasTrip, hasDisarm := false, false
+	for _, raw := range f.Special {
+		tag := strings.ToLower(strings.TrimSpace(raw))
+		if !item.ValidSpecialTag(tag) {
+			return nil, fmt.Errorf("%w: %s: special %q is not a known special-weapon tag %v",
+				ErrInvalidContent, path, raw, item.SpecialTagNames())
+		}
+		switch tag {
+		case item.SpecialTrip:
+			hasTrip = true
+		case item.SpecialDisarm:
+			hasDisarm = true
+		}
+		special = append(special, tag)
+	}
+	if f.TripBonus < 0 {
+		return nil, fmt.Errorf("%w: %s: trip_bonus %d must be non-negative",
+			ErrInvalidContent, path, f.TripBonus)
+	}
+	if f.DisarmBonus < 0 {
+		return nil, fmt.Errorf("%w: %s: disarm_bonus %d must be non-negative",
+			ErrInvalidContent, path, f.DisarmBonus)
+	}
+	if f.TripBonus > 0 && !hasTrip {
+		return nil, fmt.Errorf("%w: %s: trip_bonus %d set without the \"trip\" special tag",
+			ErrInvalidContent, path, f.TripBonus)
+	}
+	if f.DisarmBonus > 0 && !hasDisarm {
+		return nil, fmt.Errorf("%w: %s: disarm_bonus %d set without the \"disarm\" special tag",
+			ErrInvalidContent, path, f.DisarmBonus)
+	}
+
 	return &item.Template{
 		ID:                item.TemplateID(id),
 		Name:              f.Name,
@@ -3021,6 +3058,9 @@ func decodeItem(path, ns string) (*item.Template, error) {
 		Resistances:       resistances,
 		AngrealPower:      f.AngrealPower,
 		AngrealGender:     angrealGender,
+		Special:           special,
+		TripBonus:         f.TripBonus,
+		DisarmBonus:       f.DisarmBonus,
 	}, nil
 }
 

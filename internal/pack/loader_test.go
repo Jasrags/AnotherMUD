@@ -466,6 +466,83 @@ angreal_gender: Male
 	}
 }
 
+func TestLoadSpecialWeaponUnknownTag(t *testing.T) {
+	root := t.TempDir()
+	pack := filepath.Join(root, "core")
+	writeFile(t, filepath.Join(pack, "pack.yaml"), `
+name: tapestry-core
+content:
+  items: [items/*.yaml]
+`)
+	writeFile(t, filepath.Join(pack, "items/polearm.yaml"), `
+id: polearm
+name: a polearm
+type: weapon
+weapon_damage: "1d10"
+special: [reach, parry]
+`)
+	err := Load(context.Background(), root, nil, NewRegistries(), nil, nil, nil)
+	if !errors.Is(err, ErrInvalidContent) {
+		t.Fatalf("err = %v, want ErrInvalidContent for unknown special tag", err)
+	}
+}
+
+func TestLoadSpecialWeaponBonusWithoutTag(t *testing.T) {
+	root := t.TempDir()
+	pack := filepath.Join(root, "core")
+	writeFile(t, filepath.Join(pack, "pack.yaml"), `
+name: tapestry-core
+content:
+  items: [items/*.yaml]
+`)
+	// A disarm_bonus with no `disarm` tag is an inert magnitude — fail the pack.
+	writeFile(t, filepath.Join(pack, "items/spear.yaml"), `
+id: spear
+name: a spear
+type: weapon
+weapon_damage: "1d8"
+special: [reach]
+disarm_bonus: 2
+`)
+	err := Load(context.Background(), root, nil, NewRegistries(), nil, nil, nil)
+	if !errors.Is(err, ErrInvalidContent) {
+		t.Fatalf("err = %v, want ErrInvalidContent for disarm_bonus without the disarm tag", err)
+	}
+}
+
+func TestLoadSpecialWeaponValid(t *testing.T) {
+	root := t.TempDir()
+	pack := filepath.Join(root, "core")
+	writeFile(t, filepath.Join(pack, "pack.yaml"), `
+name: tapestry-core
+content:
+  items: [items/*.yaml]
+`)
+	writeFile(t, filepath.Join(pack, "items/bill.yaml"), `
+id: bill
+name: a bill
+type: weapon
+weapon_damage: "2d4"
+special: [Reach, Trip, Disarm]
+trip_bonus: 2
+disarm_bonus: 3
+`)
+	regs := NewRegistries()
+	if err := Load(context.Background(), root, nil, regs, nil, nil, nil); err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	tpl, err := regs.Items.Get("tapestry-core:bill")
+	if err != nil {
+		t.Fatalf("bill template not loaded: %v", err)
+	}
+	if len(tpl.Special) != 3 || tpl.Special[0] != "reach" {
+		t.Errorf("Special = %v, want [reach trip disarm] (normalized lowercase)", tpl.Special)
+	}
+	if tpl.TripBonus != 2 || tpl.DisarmBonus != 3 {
+		t.Errorf("bonuses = (%d,%d), want (2,3)", tpl.TripBonus, tpl.DisarmBonus)
+	}
+}
+
 func TestLoadBadNaturalWeaponDice(t *testing.T) {
 	root := t.TempDir()
 	pack := filepath.Join(root, "core")

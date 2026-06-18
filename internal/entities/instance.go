@@ -161,6 +161,13 @@ type ItemInstance struct {
 	// from the template (validated at pack load); never overridden at runtime.
 	angrealPower  int
 	angrealGender string
+	// special / tripBonus / disarmBonus are the special-weapon tags and their
+	// maneuver DC magnitudes (special-weapons.md §2, increment J). nil special
+	// ⇒ an ordinary weapon. Carried verbatim from the template (validated at
+	// pack load); read by the combat maneuvers (reach / trip / disarm).
+	special     []string
+	tripBonus   int
+	disarmBonus int
 }
 
 // ID implements Entity.
@@ -404,6 +411,25 @@ func (it *ItemInstance) Resistances() map[string]int {
 	return out
 }
 
+// HasSpecial reports whether the weapon carries the given special-weapon tag
+// (special-weapons.md §2 — reach / trip / disarm). Tags are normalized lowercase
+// at load, so the caller passes the bare tag constant.
+func (it *ItemInstance) HasSpecial(tag string) bool {
+	for _, t := range it.special {
+		if t == tag {
+			return true
+		}
+	}
+	return false
+}
+
+// TripBonus / DisarmBonus return the DC magnitude this weapon adds to the
+// matching maneuver (special-weapons.md §4/§5); 0 when the weapon lacks the tag
+// or declares no explicit bonus (the engine default applies). Read alongside
+// HasSpecial so a 0 with the tag present still means "amplify by the default".
+func (it *ItemInstance) TripBonus() int   { return it.tripBonus }
+func (it *ItemInstance) DisarmBonus() int { return it.disarmBonus }
+
 // Angreal returns the item's One Power amplification rating and gender gate
 // (wot-the-one-power.md S2). ok is false (power 0, gender "") for an item that
 // is not an angreal. When ok, gender is "male"/"female" and power is positive
@@ -604,5 +630,8 @@ func buildInstanceFromTemplate(tpl *item.Template, id EntityID) *ItemInstance {
 		armorTier:         tpl.ArmorTier,
 		angrealPower:      tpl.AngrealPower,
 		angrealGender:     tpl.AngrealGender,
+		special:           tpl.Special,
+		tripBonus:         tpl.TripBonus,
+		disarmBonus:       tpl.DisarmBonus,
 	}
 }
