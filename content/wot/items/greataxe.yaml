@@ -1,0 +1,19 @@
+id: greataxe
+name: a great axe
+type: weapon
+description: |
+  A huge hafted axe, the double-bitted head as broad as two hands and the haft
+  as long as a man's leg — a two-handed brute that shears through shield and
+  shoulder in one terrible arc.
+tags: [weapon, metal, axe]
+keywords: [great axe, greataxe, axe, hafted]
+size: large
+eligible_slots: [wield]
+weapon_damage: "1d12"
+weapon_category: axe
+proficiency_tier: martial
+damage_types: [slashing]
+crit_multiplier: 3
+properties:
+  weight: 20
+  value: 200

@@ -1,0 +1,19 @@
+id: short-sword
+name: a short sword
+type: weapon
+description: |
+  A broad-bladed short sword, double-edged and quick — the soldier's sidearm,
+  meant for the press of bodies where a longer blade has no room to work.
+tags: [weapon, metal, bladed]
+keywords: [short sword, shortsword, sword, blade]
+size: small
+eligible_slots: [wield, offhand]
+weapon_damage: "1d6"
+weapon_category: sword
+proficiency_tier: martial
+damage_types: [piercing]
+crit_threat_low: 19
+crit_multiplier: 2
+properties:
+  weight: 3
+  value: 100

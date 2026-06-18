@@ -1,0 +1,19 @@
+id: battleaxe
+name: a battleaxe
+type: weapon
+description: |
+  A heavy single-bitted war axe, the head broad and deeply bearded, the haft
+  long enough for a two-handed swing or a one-handed chop. It hews where a sword
+  cuts.
+tags: [weapon, metal, axe]
+keywords: [battleaxe, battle axe, axe]
+size: medium
+eligible_slots: [wield]
+weapon_damage: "1d8"
+weapon_category: axe
+proficiency_tier: martial
+damage_types: [slashing]
+crit_multiplier: 3
+properties:
+  weight: 7
+  value: 100

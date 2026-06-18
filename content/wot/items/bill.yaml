@@ -1,0 +1,25 @@
+id: bill
+name: a bill
+type: weapon
+description: |
+  A long war-bill — a hedger's hooked blade grown to a polearm's haft, the hook
+  set to catch a leg or a rein and the spike above it to punch through mail. It
+  reaches past a swordsman's guard and sweeps him off his feet.
+tags: [weapon, metal, hafted, polearm]
+keywords: [bill, war bill, polearm]
+size: large
+eligible_slots: [wield]
+weapon_damage: "2d4"
+weapon_category: polearm
+proficiency_tier: martial
+damage_types: [slashing]
+crit_multiplier: 3
+# equipment.md "reach, trip-set": REACH (strikes at the near band, §3), TRIP (the
+# hook sweeps a foe down — special-weapons §4, raises the trip save DC), and SET
+# vs a charge (recorded-only until the set consumer lands).
+reach: 1
+special: [trip, set]
+trip_bonus: 2
+properties:
+  weight: 15
+  value: 90

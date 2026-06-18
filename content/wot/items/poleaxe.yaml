@@ -1,0 +1,23 @@
+id: poleaxe
+name: a poleaxe
+type: weapon
+description: |
+  An axe-head, a hammer-poll, and a spike all mounted on a stout haft — the
+  knight's answer to plate. It can hew, crush, or punch, and a hooked blow drags
+  a man off his feet.
+tags: [weapon, metal, hafted, polearm]
+keywords: [poleaxe, pole axe, polearm]
+size: large
+eligible_slots: [wield]
+weapon_damage: "1d10"
+weapon_category: polearm
+proficiency_tier: martial
+damage_types: [piercing, slashing]
+crit_multiplier: 3
+# equipment.md "set, trip": TRIP (special-weapons §4, raises the trip save DC) +
+# SET vs a charge (recorded-only). No reach (a shorter haft than the pike/bill).
+special: [trip, set]
+trip_bonus: 2
+properties:
+  weight: 15
+  value: 100

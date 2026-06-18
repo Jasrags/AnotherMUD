@@ -1,0 +1,22 @@
+id: sap
+name: a sap
+type: weapon
+description: |
+  A leather sack of lead shot on a short flexible handle — a quiet, ugly little
+  thing built to drop a man without killing him. A blow behind the ear and the
+  lights go out.
+tags: [weapon, leather]
+keywords: [sap, blackjack, cosh]
+size: small
+eligible_slots: [wield, offhand]
+weapon_damage: "1d6"
+weapon_category: club
+proficiency_tier: martial
+damage_types: [bludgeoning]
+# equipment.md `§` — a SUBDUAL (nonlethal) weapon: it knocks out rather than
+# kills. RECORDED-ONLY: deals ordinary damage today; the knock-out behavior lights
+# up when a subdual damage mode lands.
+subdual: true
+properties:
+  weight: 3
+  value: 10

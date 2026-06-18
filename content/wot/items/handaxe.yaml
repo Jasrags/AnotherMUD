@@ -1,0 +1,18 @@
+id: handaxe
+name: a handaxe
+type: weapon
+description: |
+  A short single-bitted axe, balanced as well for the hand as for splitting
+  kindling. Light and wicked at close quarters, it bites deep when it lands.
+tags: [weapon, metal, axe]
+keywords: [handaxe, axe, hatchet]
+size: small
+eligible_slots: [wield, offhand]
+weapon_damage: "1d6"
+weapon_category: axe
+proficiency_tier: martial
+damage_types: [slashing]
+crit_multiplier: 3
+properties:
+  weight: 5
+  value: 60

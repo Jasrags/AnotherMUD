@@ -1,0 +1,21 @@
+id: trident
+name: a trident
+type: weapon
+description: |
+  A three-tined fishing spear pressed into war, the barbed heads as happy in a
+  man as in a netted catch. Balanced to throw as well as to thrust.
+tags: [weapon, metal, hafted]
+keywords: [trident, spear, fork]
+size: medium
+eligible_slots: [wield]
+weapon_damage: "1d8"
+weapon_category: spear
+proficiency_tier: martial
+damage_types: [piercing]
+# Also thrown (equipment.md: trident, thrown 10 ft) — fights in melee, can be
+# hurled and recovered (ranged-combat).
+ranged_class: thrown
+range_increment: 10
+properties:
+  weight: 5
+  value: 150

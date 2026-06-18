@@ -1,0 +1,17 @@
+id: greatclub
+name: a greatclub
+type: weapon
+description: |
+  A massive two-handed club of knotted oak, banded with iron at the head — no
+  edge, no point, just a falling weight of wood that breaks whatever it meets.
+tags: [weapon, wood]
+keywords: [greatclub, great club, club, maul]
+size: large
+eligible_slots: [wield]
+weapon_damage: "1d10"
+weapon_category: club
+proficiency_tier: martial
+damage_types: [bludgeoning]
+properties:
+  weight: 10
+  value: 50

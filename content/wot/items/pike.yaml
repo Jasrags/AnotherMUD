@@ -1,0 +1,23 @@
+id: pike
+name: a pike
+type: weapon
+description: |
+  A long ash pike tipped with a narrow steel head — the footman's wall against
+  horse and charge. Too long to fence with, but it keeps a foe at the end of its
+  reach and brings down anything that runs onto it.
+tags: [weapon, metal, hafted, polearm]
+keywords: [pike, polearm, spear]
+size: large
+eligible_slots: [wield]
+weapon_damage: "1d8"
+weapon_category: polearm
+proficiency_tier: martial
+damage_types: [piercing]
+crit_multiplier: 3
+# equipment.md "reach, set": REACH (strikes at the near band, §3) + SET vs a
+# charge (recorded-only).
+reach: 1
+special: [set]
+properties:
+  weight: 9
+  value: 50

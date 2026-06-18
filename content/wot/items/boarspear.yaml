@@ -1,0 +1,25 @@
+id: boarspear
+name: a boar spear
+type: weapon
+description: |
+  A heavy hunting spear with a broad leaf-shaped head and a crossbar below it to
+  stop a charging boar — or man — from running up the haft. The crossbar binds a
+  blade as readily as a tusk, and a twist wrenches it from the hand.
+tags: [weapon, metal, hafted, polearm]
+keywords: [boar spear, boarspear, spear]
+size: large
+eligible_slots: [wield]
+weapon_damage: "2d4"
+weapon_category: spear
+proficiency_tier: martial
+damage_types: [piercing]
+crit_multiplier: 3
+# equipment.md "reach, set, +2 disarm": REACH (§3) + DISARM (the crossbar binds +
+# wrenches a weapon away — special-weapons §5, +2 to the disarm save DC) + SET vs
+# a charge (recorded-only).
+reach: 1
+special: [disarm, set]
+disarm_bonus: 2
+properties:
+  weight: 15
+  value: 100

@@ -88,5 +88,14 @@ items:
   - heavy-mace
   - sickle
   - morningstar
+  # equipment.md Martial-Melee special-weapon polearms — the showcase for the
+  # special-weapons (S1 J) maneuvers among the smith's heavier work. The bill is
+  # the WoT REACH demo (`reach: 1` → strikes at the near band as a foe closes) and
+  # also a TRIP weapon; the poleaxe trips; the boar spear DISARMS (a fighter who
+  # knows the maneuvers gets the raised save DC — `equip bill`, `trip <foe>`).
+  - bill
+  - poleaxe
+  - boarspear
+  - pike
 mobs:
   - haral-luhhan

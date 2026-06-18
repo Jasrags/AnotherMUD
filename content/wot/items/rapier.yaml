@@ -1,0 +1,23 @@
+id: rapier
+name: a rapier
+type: weapon
+description: |
+  A long, slender thrusting blade with a swept guard — a duelist's weapon from
+  the courts of the great cities, all speed and point. In a trained hand it
+  finds the gap in a guard before a heavier blade has begun to move.
+tags: [weapon, metal, bladed]
+keywords: [rapier, sword, blade]
+size: medium
+eligible_slots: [wield]
+weapon_damage: "1d6"
+weapon_category: sword
+proficiency_tier: martial
+damage_types: [piercing]
+# equipment.md: a wide 18-20 threat range — the rapier crits often, rewarding the
+# duelist. (Weapon Finesse — using agility rather than strength to land it — is a
+# deferred mechanic; authored as a normal martial weapon for now.)
+crit_threat_low: 18
+crit_multiplier: 2
+properties:
+  weight: 3
+  value: 200

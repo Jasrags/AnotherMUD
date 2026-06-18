@@ -35,3 +35,17 @@ properties:
       - wot:sickle
       - wot:morningstar
       - wot:quarterstaff
+      # equipment.md Martial-Melee arms.
+      - wot:handaxe
+      - wot:sap
+      - wot:short-sword
+      - wot:battleaxe
+      - wot:rapier
+      - wot:trident
+      - wot:greataxe
+      - wot:greatclub
+      - wot:scythe
+      - wot:bill
+      - wot:pike
+      - wot:poleaxe
+      - wot:boarspear

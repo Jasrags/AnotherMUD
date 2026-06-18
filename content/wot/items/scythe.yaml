@@ -1,0 +1,20 @@
+id: scythe
+name: a war scythe
+type: weapon
+description: |
+  A harvest scythe re-forged for war, the long curved blade set in line with the
+  haft to thrust and reap alike. Rare to land cleanly — but when it does, it
+  opens a man wide.
+tags: [weapon, metal, bladed, farm]
+keywords: [scythe, war scythe]
+size: large
+eligible_slots: [wield]
+weapon_damage: "2d4"
+weapon_category: polearm
+proficiency_tier: martial
+damage_types: [piercing, slashing]
+# equipment.md: x4 crit — the rarest, most devastating crit on the table.
+crit_multiplier: 4
+properties:
+  weight: 12
+  value: 180
