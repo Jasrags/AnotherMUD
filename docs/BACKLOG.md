@@ -197,6 +197,58 @@ old five-theme partition left uncovered.
   (masterwork/power-wrought grades, H), container caps (encumbrance, I, specced §1).
   Pre-decisions in the proposal §7 (proficiency representation, the to-hit-roll model crit
   implies, the AC model, the ranged model, the fidelity ceiling).
+- **Mounts & barding (rideable entities)** — `docs/wot/equipment.md` ships a full
+  Mounts table (horses/ponies/donkeys, warhorses), barding, saddles, and a barding
+  speed-penalty table. ⚠️ **Greenfield — no Mount concept in code or specs; the
+  whole equipment.md "Mounts" block is pure flavor until this lands.** Today a mob
+  is a combat/AI entity with no owner/controller and no ride relationship; movement
+  is per-character step cost (`movement-cost`). A mount is a **separate `Mount`
+  entity** the rider owns — owning its own encumbrance + barding + saddle slots and
+  *replacing* the rider's movement (speed, run multiplier, terrain access) while
+  ridden — plus a `mount`/`dismount` command surface and combat-from-the-saddle
+  rules (the source's charge bonus, Ride checks to control a non-warhorse). Touches
+  `mobs-ai-spawning` (an owned, followable entity — overlaps **Player/NPC follow**
+  and **Hireable mobs** below), `world-rooms-movement` (the mount drives the step),
+  `economy` (purchase + stabling + feed as gold sinks), and persistence (does a
+  stabled mount survive logout?). Pre-decisions: mount as a specialized mob vs. a
+  new entity type; one rider or howdah/multi-seat; combat scope (ride-by charge vs.
+  full mounted combat); barding as armor-on-the-mount reusing `armor-depth`. Large;
+  spec-first. Authoring note: author mount *items/prices* now as plain flavor items;
+  do **not** encode ride/speed mechanics until the entity exists.
+- **Grenadelike weapons (acid · oil · fireworks)** — `equipment.md` Table 7-10 +
+  the Illuminator's rocket: thrown weapons that deal **direct + splash area damage**
+  with an ignition/fuse state. ⚠️ **Greenfield — no area-effect or thrown-consumable-
+  damage system.** Today `ranged-combat` (G) handles thrown *weapons* (single-target,
+  recoverable) and `consumables` handle drink/use effects, but nothing throws an item
+  for **area** damage to everything within N ft of a landing point, and there is no
+  ignition/delayed-detonation state. A `GrenadeLikeWeapon`-style consumable: throw →
+  direct hit on the target + splash on others in the room (or an adjacent range band),
+  optional fuse/ignite step (oil 50% ignite, rocket delayed blast), Reflex-to-
+  extinguish. Touches `combat` (the only multi-target attack — every other attack is
+  1v1), `ranged-combat` (range bands as the splash radius proxy), `economy`
+  (consumable item). Pre-decisions: splash target set (whole room vs. a band/zone);
+  damage-type/condition on splash; ignition as a per-tick scheduled effect; whether
+  the rocket-stack demolition mechanic is in scope at all (likely not). Medium–Large;
+  spec-first. Pairs with the **caltrops/oil-pool room hazards** item below (shared
+  "area damage over a region" primitive). Authoring note: author the flasks/rocket as
+  plain items now; the throw-for-area mechanic is the deferred system.
+- **Room hazards (caltrops · oil pools · scatterables)** — `equipment.md` caltrops
+  (a 2-lb bag covers 5 ft²; attacks each creature entering/fighting in the area,
+  halves speed on a hit) and poured/lit oil pools. ⚠️ **Greenfield — no on-enter or
+  in-room persistent hazard system.** Today rooms carry static properties (terrain,
+  light, craft stations, hidden exits) and weather, but nothing supports a
+  **player-placed, persistent, on-trigger** hazard that damages or debuffs whoever
+  enters/lingers and persists across reboots. A room-hazard layer: an entity or
+  room-attached hazard with a trigger (on-enter, on-tick-while-present), an effect
+  (damage / a condition like the caltrops speed-halve, reusing S5), a footprint, and
+  persistence. Touches `world` (room-attached state), `combat`/`effect` (the applied
+  damage/condition), `movement` (the speed penalty), persistence (scattered hazards
+  survive a reboot). Pre-decisions: hazard as a room property vs. a placed entity;
+  cleanup/duration (do caltrops persist forever, sweepable?); friend-or-foe (does it
+  hit the placer / their party?); interaction with the visibility system (a *hidden*
+  trap — overlaps `visibility`/`search`). Medium; spec-first. Shares the "area
+  effect over a region" primitive with grenadelike weapons above; a trap/snare
+  system would extend the same layer.
 - **Player grouping / party** — a party of players with combat assist plus
   **XP-sharing and loot-sharing options**. ⚠️ **Greenfield — no grouping exists.**
   Substrate that's already in place: combat keys kill credit off the **attacker
