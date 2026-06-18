@@ -289,6 +289,13 @@ const (
 	// intentionally generic so subscribers can write their own
 	// specific reason.
 	EventRecallBefore = "recall.before"
+	// EventMountBefore is the cancellable pre-event fired when `mount`
+	// resolves an owned mount and is about to bind the ride relationship
+	// (mounts.md §4.1). Subscribers (a mounting cost, cooldown, or skill gate
+	// supplied by content) flip the cancel flag to veto; the actor-facing
+	// message on cancel is intentionally generic so subscribers write their own
+	// reason.
+	EventMountBefore = "mount.before"
 	// EventConcealmentBefore is the cancellable pre-event fired when a
 	// hide/sneak attempt is about to commit (visibility.md §3.1, §6).
 	// Subscribers (packs forbidding hiding in lit/no-cover/sanctuary rooms)
@@ -1468,6 +1475,31 @@ type RecallBefore struct {
 
 // Name implements Event.
 func (RecallBefore) Name() string { return EventRecallBefore }
+
+// MountBefore is the cancellable pre-event a `mount` attempt fires once it has
+// resolved an owned, present mount and is about to bind the ride relationship
+// (mounts.md §4.1). A listener that flips the embedded CancelFlag aborts the
+// mount with no state change. RiderID is the mounting character; MountID is the
+// target creature's entity id; RoomID is where both stand.
+type MountBefore struct {
+	*CancelFlag
+	RiderID string
+	MountID string
+	RoomID  world.RoomID
+}
+
+// Name implements Event.
+func (MountBefore) Name() string { return EventMountBefore }
+
+// NewMountBefore builds a cancellable mount.before event.
+func NewMountBefore(riderID, mountID string, room world.RoomID) *MountBefore {
+	return &MountBefore{
+		CancelFlag: &CancelFlag{},
+		RiderID:    riderID,
+		MountID:    mountID,
+		RoomID:     room,
+	}
+}
 
 // NewRecallBefore constructs a cancellable recall.before with the
 // flag wired so the publisher doesn't have to remember to allocate

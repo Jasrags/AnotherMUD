@@ -190,6 +190,8 @@ func RegisterBuiltins(r *Registry) error {
 		// Mounts (mounts.md §3/§9). buymount/stable/unstable require a
 		// stablemaster in the room; mounts lists what you own anywhere.
 		{Keyword: "mounts", Handler: MountsHandler, Brief: "List the mounts you own.", Syntax: []string{"mounts"}},
+		{Keyword: "mount", Handler: MountHandler, Brief: "Mount a creature you own.", Syntax: []string{"mount <mount>"}, BreaksConcealment: true},
+		{Keyword: "dismount", Handler: DismountHandler, Brief: "Dismount the creature you're riding.", Syntax: []string{"dismount"}},
 		{Keyword: "buymount", Handler: BuyMountHandler, Brief: "Buy a mount from a stablemaster.", Syntax: []string{"buymount <mount>"}},
 		{Keyword: "stable", Handler: StableHandler, Brief: "Stable a mount at a stablemaster.", Syntax: []string{"stable [<mount>]"}},
 		{Keyword: "unstable", Aliases: []string{"retrieve"}, Handler: UnstableHandler, Brief: "Retrieve a stabled mount.", Syntax: []string{"unstable <mount>"}},

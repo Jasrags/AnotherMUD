@@ -98,6 +98,22 @@ func (a *connActor) LiveMountTemplates() []string {
 	return out
 }
 
+// MountID returns the entity id of the mount this character is riding, or ""
+// when on foot (mounts.md §4.3).
+func (a *connActor) MountID() entities.EntityID {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	return a.mountedOn
+}
+
+// SetMountID binds (non-empty) or clears (empty) the ride relationship — the
+// mount/dismount verbs call it (mounts.md §4). Transient; never persisted.
+func (a *connActor) SetMountID(id entities.EntityID) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	a.mountedOn = id
+}
+
 // drainLiveMounts atomically snapshots AND clears the live-mount set, returning
 // the entity ids to dematerialize. Used at logout to remove every live mount
 // from the world (§9, §10). Snapshot-and-clear in ONE lock acquisition so a

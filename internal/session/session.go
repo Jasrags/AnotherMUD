@@ -2065,6 +2065,13 @@ type connActor struct {
 	// live in mount.go.
 	liveMounts map[entities.EntityID]string
 
+	// mountedOn is the entity id of the mount this character is currently
+	// riding (mounts.md §4.3), or empty when on foot. Transient — the live
+	// ride relationship is never persisted (§10); a logout/restart resolves
+	// the rider to on-foot. Guarded by a.mu. While set, SetRoom relocates the
+	// mount with the rider (co-located travel, §4.3, §5).
+	mountedOn entities.EntityID
+
 	// discoveredExits is this actor's per-room hidden-exit discovery memory
 	// (hidden-exits §3.4): the directions whose hidden exit this character has
 	// found via `search`. Direction-keyed (not concealment-instance-keyed like
@@ -2280,11 +2287,23 @@ func (a *connActor) SetRoom(r *world.Room) {
 	if oldID != r.ID {
 		a.clearDetectionLocked()
 	}
+	// Co-located mounted travel (mounts.md §4.3, §5): while ridden, the mount
+	// relocates WITH its rider through whatever moved them — travel, recall,
+	// teleport, flee — so the never-strand rule holds across every relocation
+	// path, not just the walk verb. The mount is a world entity in placement,
+	// so moving its placement entry is the whole of co-location. Captured under
+	// the lock; the placement write (its own lock) runs after release.
+	ridden := a.mountedOn
+	placement := a.placement
 	mgr := a.manager
 	a.mu.Unlock()
 
 	if craftBroke {
 		_ = a.Write(context.Background(), "You set your work aside and move on.")
+	}
+
+	if ridden != "" && placement != nil && oldID != r.ID {
+		placement.Place(ridden, r.ID)
 	}
 
 	if mgr != nil && oldID != r.ID {

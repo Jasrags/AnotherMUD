@@ -8,8 +8,17 @@ import (
 
 	"github.com/Jasrags/AnotherMUD/internal/economy"
 	"github.com/Jasrags/AnotherMUD/internal/entities"
+	"github.com/Jasrags/AnotherMUD/internal/eventbus"
 	"github.com/Jasrags/AnotherMUD/internal/world"
 )
+
+// mountRider is the per-character ride-relationship surface the connActor
+// satisfies (mounts.md §4.3). Transient — the live ride is never persisted.
+// The mount/dismount verbs type-assert c.Actor to this.
+type mountRider interface {
+	MountID() entities.EntityID
+	SetMountID(entities.EntityID)
+}
 
 // This file implements the mount acquisition + stabling verbs (mounts.md §3,
 // §9): listing owned mounts, buying one from a stablemaster, and stabling /
@@ -200,9 +209,17 @@ func StableHandler(ctx context.Context, c *Context) error {
 	if len(mine) == 0 {
 		return c.Actor.Write(ctx, "You have no mount here to stable.")
 	}
+	rider, _ := c.Actor.(mountRider)
 	stabledAny := false
+	ridingHere := false
 	for _, m := range mine {
 		if query != "" && !mountMatches(c, m, query) {
+			continue
+		}
+		// A mount you're riding can't be led into the stable — dismount first
+		// (mounts.md §4.2). Skip it so `stable` (all) stables the rest.
+		if rider != nil && rider.MountID() == m.ID() {
+			ridingHere = true
 			continue
 		}
 		if c.Mounts.Dematerialize(ctx, m.ID()) {
@@ -215,9 +232,128 @@ func StableHandler(ctx context.Context, c *Context) error {
 		}
 	}
 	if !stabledAny {
+		if ridingHere {
+			return c.Actor.Write(ctx, "You can't stable a mount you're riding — dismount first.")
+		}
 		return c.Actor.Write(ctx, "You have no such mount here to stable.")
 	}
 	return nil
+}
+
+// MountHandler implements `mount <name>` (mounts.md §4.1): bind the ride
+// relationship to an owned mount sharing the room. Refused for a non-mount, an
+// unowned mount, an absent target, or an already-mounted rider — each with a
+// clear message — and gated by a cancellable mount.before event.
+func MountHandler(ctx context.Context, c *Context) error {
+	rider, ok := c.Actor.(mountRider)
+	if !ok {
+		return c.Actor.Write(ctx, "You can't ride anything.")
+	}
+	if rider.MountID() != "" {
+		return c.Actor.Write(ctx, "You are already mounted. Dismount first.")
+	}
+	if len(c.Args) == 0 {
+		return c.Actor.Write(ctx, "Mount what?")
+	}
+	room := c.Actor.Room()
+	if room == nil || c.Placement == nil || c.Items == nil {
+		return c.Actor.Write(ctx, "You don't see that here.")
+	}
+	target, why := findMountTargetInRoom(c, room.ID, strings.Join(c.Args, " "))
+	if target == nil {
+		return c.Actor.Write(ctx, why)
+	}
+	// Cancellable pre-event (mounts.md §4.1): content may gate or charge
+	// mounting. A veto aborts with no state change.
+	if c.Bus != nil {
+		pre := eventbus.NewMountBefore(ownerID(c), string(target.ID()), room.ID)
+		if c.Bus.PublishCancellable(ctx, pre) {
+			return c.Actor.Write(ctx, "You can't mount right now.")
+		}
+	}
+	rider.SetMountID(target.ID())
+	if c.Broadcaster != nil {
+		c.Broadcaster.SendToRoom(ctx, room.ID, fmt.Sprintf("%s climbs onto %s.", c.Actor.Name(), target.Name()), c.Actor.PlayerID())
+	}
+	return c.Actor.Write(ctx, fmt.Sprintf("You climb onto %s.", target.Name()))
+}
+
+// DismountHandler implements `dismount` (mounts.md §4.2): end the ride
+// relationship, leaving rider and mount in the current room. Always available
+// to a conscious rider (the never-strand guarantee, §6).
+func DismountHandler(ctx context.Context, c *Context) error {
+	rider, ok := c.Actor.(mountRider)
+	if !ok || rider.MountID() == "" {
+		return c.Actor.Write(ctx, "You aren't mounted.")
+	}
+	name := "your mount"
+	if m, ok := riddenMount(c, rider); ok {
+		name = m.Name()
+	}
+	rider.SetMountID("")
+	room := c.Actor.Room()
+	if c.Broadcaster != nil && room != nil {
+		c.Broadcaster.SendToRoom(ctx, room.ID, fmt.Sprintf("%s climbs down from %s.", c.Actor.Name(), name), c.Actor.PlayerID())
+	}
+	return c.Actor.Write(ctx, fmt.Sprintf("You climb down from %s.", name))
+}
+
+// riddenMount resolves the live mount a rider is on, or clears a stale ride
+// pointer and reports false (lazy never-strand, mounts.md §6): if the mount has
+// left the world (died, was removed), the rider is simply on foot again. Safe
+// to call from any mount-aware handler before relying on the ride.
+func riddenMount(c *Context, rider mountRider) (*entities.MobInstance, bool) {
+	id := rider.MountID()
+	if id == "" || c.Items == nil {
+		return nil, false
+	}
+	e, ok := c.Items.GetByID(id)
+	if !ok {
+		rider.SetMountID("") // the mount is gone — set the rider back on foot
+		return nil, false
+	}
+	m, ok := e.(*entities.MobInstance)
+	if !ok || !m.IsMount() {
+		rider.SetMountID("")
+		return nil, false
+	}
+	return m, true
+}
+
+// findMountTargetInRoom resolves a `mount <query>` target, returning the
+// rideable+owned mount or a nil mount plus a precise refusal message. It
+// prefers the most specific failure: an unowned matching mount over a
+// non-mount match over no match at all.
+func findMountTargetInRoom(c *Context, roomID world.RoomID, query string) (*entities.MobInstance, string) {
+	q := strings.ToLower(strings.TrimSpace(query))
+	var unowned, notMount bool
+	for _, id := range c.Placement.InRoom(roomID) {
+		e, ok := c.Items.GetByID(id)
+		if !ok {
+			continue
+		}
+		m, ok := e.(*entities.MobInstance)
+		if !ok || !templateMatches(m.Name(), string(m.TemplateID()), q) {
+			continue
+		}
+		if !m.IsMount() {
+			notMount = true
+			continue
+		}
+		if !m.IsOwnedBy(ownerID(c)) {
+			unowned = true
+			continue
+		}
+		return m, ""
+	}
+	switch {
+	case unowned:
+		return nil, "That isn't your mount."
+	case notMount:
+		return nil, "You can't ride that."
+	default:
+		return nil, "You don't see that mount here."
+	}
 }
 
 // --- helpers ---

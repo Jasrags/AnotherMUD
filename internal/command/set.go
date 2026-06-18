@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/Jasrags/AnotherMUD/internal/combat"
+	"github.com/Jasrags/AnotherMUD/internal/economy"
 	"github.com/Jasrags/AnotherMUD/internal/entities"
 	"github.com/Jasrags/AnotherMUD/internal/keyword"
 	"github.com/Jasrags/AnotherMUD/internal/property"
@@ -49,6 +50,12 @@ var setCatalogue = []settableKind{
 		types:     nil, // free-form: the `type` slot is the property name, validated against the registry
 		appliesTo: "npc, item",
 		apply:     applyProperty,
+	},
+	{
+		name:      "gold",
+		types:     []string{"amount"},
+		appliesTo: "player",
+		apply:     applyGold,
 	},
 }
 
@@ -142,6 +149,31 @@ func findRoomItem(c *Context, roomID world.RoomID, token string) (*entities.Item
 // applyVital sets a live vital on the target, clamped to its maximum
 // (admin-verbs §4). M19.4c settable vital: hp. The value must be numeric;
 // a non-numeric value is a usage error that writes nothing.
+// applyGold sets a currency holder's balance through the authoritative
+// currency service (admin-verbs §4 — the general-purpose admin write; also the
+// supported way to fund a character for testing/GMing). The `type` slot is
+// "amount". Mirrors applyVital's shape.
+func applyGold(ctx context.Context, c *Context, target any, typeName, value string) (string, error) {
+	if c.Currency == nil {
+		return "", fmt.Errorf("Currency is not enabled.")
+	}
+	holder, ok := target.(economy.Entity)
+	if !ok {
+		return "", fmt.Errorf("That target has no purse to set.")
+	}
+	if !strings.EqualFold(typeName, "amount") {
+		return "", fmt.Errorf("Unknown gold field %q. Settable: amount.", typeName)
+	}
+	n, err := strconv.Atoi(strings.TrimSpace(value))
+	if err != nil || n < 0 {
+		return "", fmt.Errorf("Gold amount must be a non-negative whole number.")
+	}
+	if err := c.Currency.SetGold(ctx, holder, n, "admin_set"); err != nil {
+		return "", fmt.Errorf("Couldn't set gold: %v", err)
+	}
+	return fmt.Sprintf("Gold set to %d.", c.Currency.Read(holder)), nil
+}
+
 func applyVital(ctx context.Context, c *Context, target any, typeName, value string) (string, error) {
 	cb, ok := target.(combat.Combatant)
 	if !ok {

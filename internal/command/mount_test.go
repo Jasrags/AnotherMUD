@@ -8,6 +8,7 @@ import (
 	"github.com/Jasrags/AnotherMUD/internal/command"
 	"github.com/Jasrags/AnotherMUD/internal/economy"
 	"github.com/Jasrags/AnotherMUD/internal/entities"
+	"github.com/Jasrags/AnotherMUD/internal/eventbus"
 	"github.com/Jasrags/AnotherMUD/internal/mob"
 	"github.com/Jasrags/AnotherMUD/internal/world"
 )
@@ -65,6 +66,18 @@ func (a *testActor) LiveMountTemplates() []string {
 		out = append(out, t)
 	}
 	return out
+}
+
+func (a *testActor) MountID() entities.EntityID {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	return a.mountedOn
+}
+
+func (a *testActor) SetMountID(id entities.EntityID) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	a.mountedOn = id
 }
 
 // --- fake MountService over the inv fixture's store ---
@@ -217,6 +230,98 @@ func TestUnstableThenStable(t *testing.T) {
 	// Ownership is preserved across the stable (never deleted, §9).
 	if len(a.OwnedMountTemplates()) != 1 {
 		t.Errorf("owned = %v, want the mount still owned after stabling", a.OwnedMountTemplates())
+	}
+}
+
+// spawnOwnedMount materializes an owned mount into the actor's room via the
+// fake service and returns it.
+func spawnOwnedMount(t *testing.T, env command.Env, svc *fakeMountService, a *testActor) *entities.MobInstance {
+	t.Helper()
+	id, err := svc.Materialize(context.Background(), "p-1", "tapestry-core:riding-horse", a.Room().ID)
+	if err != nil {
+		t.Fatalf("Materialize: %v", err)
+	}
+	e, _ := env.Items.GetByID(id)
+	m, _ := e.(*entities.MobInstance)
+	return m
+}
+
+func TestMount_Success(t *testing.T) {
+	env, a, svc := mountFixture(t)
+	m := spawnOwnedMount(t, env, svc, a)
+	dispatchBuiltin(t, env, a, "mount horse")
+	if a.MountID() != m.ID() {
+		t.Errorf("MountID = %q, want the horse %q", a.MountID(), m.ID())
+	}
+	if !strings.Contains(a.lastLine(), "climb onto") {
+		t.Errorf("reply = %q, want a mount confirmation", a.lastLine())
+	}
+}
+
+func TestMount_NotOwned(t *testing.T) {
+	env, a, svc := mountFixture(t)
+	m := spawnOwnedMount(t, env, svc, a)
+	m.SetOwner("someone-else")
+	dispatchBuiltin(t, env, a, "mount horse")
+	if a.MountID() != "" {
+		t.Errorf("MountID = %q, want empty (refused)", a.MountID())
+	}
+	if !strings.Contains(a.lastLine(), "isn't your mount") {
+		t.Errorf("reply = %q, want a not-owned refusal", a.lastLine())
+	}
+}
+
+func TestMount_AlreadyMounted(t *testing.T) {
+	env, a, svc := mountFixture(t)
+	spawnOwnedMount(t, env, svc, a)
+	a.SetMountID("something")
+	dispatchBuiltin(t, env, a, "mount horse")
+	if !strings.Contains(a.lastLine(), "already mounted") {
+		t.Errorf("reply = %q, want an already-mounted refusal", a.lastLine())
+	}
+}
+
+func TestDismount(t *testing.T) {
+	env, a, svc := mountFixture(t)
+	m := spawnOwnedMount(t, env, svc, a)
+	a.SetMountID(m.ID())
+	dispatchBuiltin(t, env, a, "dismount")
+	if a.MountID() != "" {
+		t.Errorf("MountID = %q, want empty after dismount", a.MountID())
+	}
+	if !strings.Contains(a.lastLine(), "climb down") {
+		t.Errorf("reply = %q, want a dismount confirmation", a.lastLine())
+	}
+}
+
+// A stale ride pointer (mount left the world) clears lazily on dismount — the
+// never-strand guarantee: the rider is just on foot again.
+func TestDismount_StaleMountClears(t *testing.T) {
+	env, a, _ := mountFixture(t)
+	a.SetMountID("ghost-mount-id") // not in the store
+	dispatchBuiltin(t, env, a, "dismount")
+	if a.MountID() != "" {
+		t.Errorf("MountID = %q, want cleared", a.MountID())
+	}
+}
+
+// A mount.before listener that vetoes aborts the mount with no state change.
+func TestMount_BeforeCancelled(t *testing.T) {
+	env, a, svc := mountFixture(t)
+	spawnOwnedMount(t, env, svc, a)
+	bus := eventbus.New()
+	bus.Subscribe(eventbus.EventMountBefore, func(_ context.Context, e eventbus.Event) {
+		if pre, ok := e.(*eventbus.MountBefore); ok {
+			pre.Cancel()
+		}
+	})
+	env.Bus = bus
+	dispatchBuiltin(t, env, a, "mount horse")
+	if a.MountID() != "" {
+		t.Errorf("MountID = %q, want empty (mount.before vetoed)", a.MountID())
+	}
+	if !strings.Contains(a.lastLine(), "can't mount right now") {
+		t.Errorf("reply = %q, want a veto message", a.lastLine())
 	}
 }
 

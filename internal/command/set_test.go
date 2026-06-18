@@ -4,6 +4,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/Jasrags/AnotherMUD/internal/economy"
 	"github.com/Jasrags/AnotherMUD/internal/eventbus"
 	"github.com/Jasrags/AnotherMUD/internal/property"
 )
@@ -50,6 +51,38 @@ func TestSet_VitalHPOnMobLivesAndAudits(t *testing.T) {
 	ev := (*got)[0].(eventbus.AdminAction)
 	if ev.Verb != "set" || ev.Target != f.guard.EntityID() || ev.Args != "vital hp=10" {
 		t.Errorf("event = %+v, want verb=set target=%s args='vital hp=10'", ev, f.guard.EntityID())
+	}
+}
+
+// `set gold amount self <n>` funds the admin through the currency service —
+// the supported way to seed gold for testing/GMing (admin-verbs §4).
+func TestSet_GoldOnSelf(t *testing.T) {
+	f := newConsiderFixture(t)
+	admin := adminInRoom(f, "Maerys", "p-admin")
+	env := f.env()
+	env.Currency = economy.NewCurrencyService(nil)
+
+	dispatchRole(t, env, admin, "set gold amount self 500")
+
+	if env.Currency.Read(admin) != 500 {
+		t.Errorf("gold = %d, want 500", env.Currency.Read(admin))
+	}
+	if !strings.Contains(admin.lastLine(), "Gold set to 500") {
+		t.Errorf("confirmation = %q, want 'Gold set to 500'", admin.lastLine())
+	}
+}
+
+// A negative gold value is refused with no write (§4).
+func TestSet_GoldNegativeRefused(t *testing.T) {
+	f := newConsiderFixture(t)
+	admin := adminInRoom(f, "Maerys", "p-admin")
+	env := f.env()
+	env.Currency = economy.NewCurrencyService(nil)
+
+	dispatchRole(t, env, admin, "set gold amount self -5")
+
+	if env.Currency.Read(admin) != 0 {
+		t.Errorf("gold = %d, want 0 (refused)", env.Currency.Read(admin))
 	}
 }
 

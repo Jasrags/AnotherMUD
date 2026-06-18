@@ -337,6 +337,7 @@ type testActor struct {
 	// §2.2): durable owned template ids + the transient materialized overlay.
 	ownedMounts  []string
 	liveMountSet map[entities.EntityID]string
+	mountedOn    entities.EntityID // mountRider ride pointer (mounts.md §4.3)
 }
 
 // IsExitDiscovered / DiscoverExit make testActor satisfy exitDiscoverer
