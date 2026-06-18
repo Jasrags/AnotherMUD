@@ -78,5 +78,10 @@ items:
   # then `channel firebolt <foe>` and compare the damage to an empty hand.
   - saidin-angreal
   - saidar-angreal
+  # Special-weapons (S1 J) reach demo: a quarterstaff has `reach: 1`, so it
+  # strikes at the `near` range band. `equip quarterstaff`, then engage a foe
+  # that opens at range (the Quarry Road archer, `kill archer`): the staff lands
+  # blows at near while a sword wielder would still be closing.
+  - quarterstaff
 mobs:
   - haral-luhhan

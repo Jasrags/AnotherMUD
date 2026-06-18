@@ -21,6 +21,10 @@ var rangeBands = []string{"melee", "near", "far"}
 // meleeBand is the closest band (index 0) — the default colocated state.
 const meleeBand = 0
 
+// nearBand is one step out from melee (index 1) — the band a `reach` weapon can
+// strike at (special-weapons §3) and the last band a closing melee foe crosses.
+const nearBand = 1
+
 // farBand is the farthest band a ranged engagement opens at (§5.2).
 func farBand() int { return len(rangeBands) - 1 }
 

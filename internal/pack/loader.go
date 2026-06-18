@@ -3025,6 +3025,10 @@ func decodeItem(path, ns string) (*item.Template, error) {
 		return nil, fmt.Errorf("%w: %s: disarm_bonus %d set without the \"disarm\" special tag",
 			ErrInvalidContent, path, f.DisarmBonus)
 	}
+	if f.Reach < 0 {
+		return nil, fmt.Errorf("%w: %s: reach %d must be non-negative",
+			ErrInvalidContent, path, f.Reach)
+	}
 
 	return &item.Template{
 		ID:                item.TemplateID(id),
@@ -3057,6 +3061,7 @@ func decodeItem(path, ns string) (*item.Template, error) {
 		AngrealPower:      f.AngrealPower,
 		AngrealGender:     angrealGender,
 		Special:           special,
+		Reach:             f.Reach,
 		TripBonus:         f.TripBonus,
 		DisarmBonus:       f.DisarmBonus,
 	}, nil

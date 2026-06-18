@@ -479,11 +479,32 @@ id: polearm
 name: a polearm
 type: weapon
 weapon_damage: "1d10"
-special: [reach, parry]
+special: [trip, parry]
 `)
 	err := Load(context.Background(), root, nil, NewRegistries(), nil, nil, nil)
 	if !errors.Is(err, ErrInvalidContent) {
 		t.Fatalf("err = %v, want ErrInvalidContent for unknown special tag", err)
+	}
+}
+
+func TestLoadSpecialWeaponNegativeReach(t *testing.T) {
+	root := t.TempDir()
+	pack := filepath.Join(root, "core")
+	writeFile(t, filepath.Join(pack, "pack.yaml"), `
+name: tapestry-core
+content:
+  items: [items/*.yaml]
+`)
+	writeFile(t, filepath.Join(pack, "items/pike.yaml"), `
+id: pike
+name: a pike
+type: weapon
+weapon_damage: "1d8"
+reach: -1
+`)
+	err := Load(context.Background(), root, nil, NewRegistries(), nil, nil, nil)
+	if !errors.Is(err, ErrInvalidContent) {
+		t.Fatalf("err = %v, want ErrInvalidContent for negative reach", err)
 	}
 }
 
@@ -501,7 +522,7 @@ id: spear
 name: a spear
 type: weapon
 weapon_damage: "1d8"
-special: [reach]
+special: [trip]
 disarm_bonus: 2
 `)
 	err := Load(context.Background(), root, nil, NewRegistries(), nil, nil, nil)
@@ -523,7 +544,8 @@ id: bill
 name: a bill
 type: weapon
 weapon_damage: "2d4"
-special: [Reach, Trip, Disarm]
+special: [Trip, Disarm]
+reach: 1
 trip_bonus: 2
 disarm_bonus: 3
 `)
@@ -535,8 +557,11 @@ disarm_bonus: 3
 	if err != nil {
 		t.Fatalf("bill template not loaded: %v", err)
 	}
-	if len(tpl.Special) != 3 || tpl.Special[0] != "reach" {
-		t.Errorf("Special = %v, want [reach trip disarm] (normalized lowercase)", tpl.Special)
+	if len(tpl.Special) != 2 || tpl.Special[0] != "trip" {
+		t.Errorf("Special = %v, want [trip disarm] (normalized lowercase)", tpl.Special)
+	}
+	if tpl.Reach != 1 {
+		t.Errorf("Reach = %d, want 1", tpl.Reach)
 	}
 	if tpl.TripBonus != 2 || tpl.DisarmBonus != 3 {
 		t.Errorf("bonuses = (%d,%d), want (2,3)", tpl.TripBonus, tpl.DisarmBonus)
@@ -556,7 +581,7 @@ id: polearm
 name: a polearm
 type: weapon
 weapon_damage: "1d10"
-special: [reach, Reach, reach]
+special: [trip, Trip, trip]
 `)
 	regs := NewRegistries()
 	if err := Load(context.Background(), root, nil, regs, nil, nil, nil); err != nil {
@@ -566,8 +591,8 @@ special: [reach, Reach, reach]
 	if err != nil {
 		t.Fatalf("polearm not loaded: %v", err)
 	}
-	if len(tpl.Special) != 1 || tpl.Special[0] != "reach" {
-		t.Errorf("Special = %v, want [reach] (deduped + normalized)", tpl.Special)
+	if len(tpl.Special) != 1 || tpl.Special[0] != "trip" {
+		t.Errorf("Special = %v, want [trip] (deduped + normalized)", tpl.Special)
 	}
 }
 

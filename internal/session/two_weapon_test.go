@@ -226,3 +226,18 @@ func TestRecompute_TwoHanderIsNotAnOffHandWeapon(t *testing.T) {
 		t.Error("a spanning two-hander must not produce an off-hand attack")
 	}
 }
+
+// special-weapons §3 — reach plumbs from the wielded weaponInfo into
+// combat.Stats.Reach (the band-gate reads it). A non-reach weapon leaves it 0.
+func TestStats_ReachPlumbsToCombatStats(t *testing.T) {
+	a := &connActor{statBlock: progression.NewWithBase(map[progression.StatType]int{progression.StatSTR: 10})}
+	a.weapon.Store(&weaponInfo{dice: combat.DiceExpr{Count: 1, Sides: 6}, name: "a quarterstaff", wieldMode: size.TwoHanded, reach: 1})
+	if got := a.Stats().Reach; got != 1 {
+		t.Errorf("Stats().Reach = %d, want 1 (a reach weapon)", got)
+	}
+
+	a.weapon.Store(&weaponInfo{dice: combat.DiceExpr{Count: 1, Sides: 8}, name: "a sword", wieldMode: size.OneHanded})
+	if got := a.Stats().Reach; got != 0 {
+		t.Errorf("Stats().Reach = %d, want 0 (an ordinary weapon)", got)
+	}
+}

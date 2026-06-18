@@ -172,13 +172,19 @@ type Template struct {
 	// positive value and a male/female gender. Normalized lowercase.
 	AngrealPower  int
 	AngrealGender string
-	// Special is the set of special-weapon tags this weapon carries
-	// (special-weapons.md §2 — the increment J starter set: reach / trip /
-	// disarm). nil/empty means an ordinary weapon (every weapon today).
-	// Validated against the engine vocabulary at pack load; normalized
-	// lowercase. Recorded-only until the consuming slice (reach/trip/disarm)
-	// wires each tag, mirroring how damage types shipped ahead of armor depth.
+	// Special is the set of special-maneuver tags this weapon enables
+	// (special-weapons.md §2 — the increment J starter set: trip / disarm).
+	// nil/empty means an ordinary weapon (every weapon today). Validated against
+	// the engine vocabulary at pack load; normalized lowercase. (reach is NOT
+	// here — it is the numeric Reach field below.)
 	Special []string
+	// Reach is the weapon's reach rating (special-weapons.md §3) — a numeric
+	// weapon stat shared across rulesets, not a maneuver tag. 0 means an
+	// ordinary close weapon (every weapon today). WoT reads `Reach > 0` as
+	// "strikes at the near range band as well as melee"; a Shadowrun pack reads
+	// the NET reach (attacker − defender) as a defense-roll modifier. Validated
+	// non-negative at pack load.
+	Reach int
 	// TripBonus / DisarmBonus are the magnitudes (non-negative) by which a
 	// weapon carrying the matching tag raises that maneuver's save DC
 	// (special-weapons.md §4/§5): the tag says WHETHER, the scalar says HOW

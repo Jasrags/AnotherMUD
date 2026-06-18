@@ -94,6 +94,16 @@ type Stats struct {
 	// falloff; inert in Slice A.
 	RangeIncrement int
 
+	// Reach is the wielded weapon's reach rating (special-weapons §3) — a
+	// numeric, cross-ruleset weapon stat (0 = an ordinary close weapon). In WoT
+	// the round loop reads `Reach > 0` so a reach wielder swings at the `near`
+	// band as well as melee instead of auto-closing — the polearm's opening blows
+	// on a foe still closing. A Shadowrun pack instead reads the NET reach
+	// (attacker − defender) as a defense-roll modifier. Inert for a projectile
+	// (RangedClass governs those) and at the melee band. Populated from the
+	// wielded weapon by the holder's Stats() builder.
+	Reach int
+
 	// WeaponDamageTypes are the wielded weapon's damage type(s)
 	// (weapon-identity §2 — bludgeoning/piercing/slashing, extensible).
 	// Empty means untyped. The damage application reads them to select the

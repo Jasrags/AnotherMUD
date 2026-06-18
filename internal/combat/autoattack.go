@@ -276,7 +276,12 @@ func runAutoAttack(ctx context.Context, attackerID CombatantID, mgr *Manager, cf
 	// of swinging (the auto-close that produces an archer's opening volley).
 	band := mgr.BandOf(attackerID, targetID)
 	isProjectile := atkStats.RangedClass == RangedProjectile
-	if band != meleeBand && !isProjectile {
+	// special-weapons §3 — reach. A reach melee weapon (Reach > 0) strikes at the
+	// `near` band as well as melee, so it does NOT auto-close from near (it is
+	// already in range) — landing the polearm's opening blows on a foe still
+	// closing. It still closes from `far` (reach is one band, not unlimited).
+	canStrikeHere := band == meleeBand || (atkStats.Reach > 0 && band == nearBand)
+	if !canStrikeHere && !isProjectile {
 		newBand := mgr.AdjustBand(attackerID, targetID, -1)
 		cfg.Sink.OnBandChange(ctx, BandChange{
 			SubjectID:    attackerID,

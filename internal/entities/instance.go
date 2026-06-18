@@ -161,11 +161,13 @@ type ItemInstance struct {
 	// from the template (validated at pack load); never overridden at runtime.
 	angrealPower  int
 	angrealGender string
-	// special / tripBonus / disarmBonus are the special-weapon tags and their
-	// maneuver DC magnitudes (special-weapons.md §2, increment J). nil special
-	// ⇒ an ordinary weapon. Carried verbatim from the template (validated at
-	// pack load); read by the combat maneuvers (reach / trip / disarm).
+	// special / tripBonus / disarmBonus are the special-maneuver tags and their
+	// DC magnitudes (special-weapons.md §2, increment J). nil special ⇒ no
+	// maneuver. reach is the numeric reach rating (§3, cross-ruleset). Carried
+	// verbatim from the template (validated at pack load); read by the combat
+	// maneuvers (trip / disarm) and the reach band-gate.
 	special     []string
+	reach       int
 	tripBonus   int
 	disarmBonus int
 }
@@ -430,6 +432,12 @@ func (it *ItemInstance) HasSpecial(tag string) bool {
 func (it *ItemInstance) TripBonus() int   { return it.tripBonus }
 func (it *ItemInstance) DisarmBonus() int { return it.disarmBonus }
 
+// Reach returns the weapon's reach rating (special-weapons.md §3) — a numeric,
+// cross-ruleset weapon stat (0 = an ordinary close weapon). WoT reads `> 0` as
+// "strikes at the near range band"; a Shadowrun pack reads net reach as a
+// defense-roll modifier.
+func (it *ItemInstance) Reach() int { return it.reach }
+
 // Angreal returns the item's One Power amplification rating and gender gate
 // (wot-the-one-power.md S2). ok is false (power 0, gender "") for an item that
 // is not an angreal. When ok, gender is "male"/"female" and power is positive
@@ -631,6 +639,7 @@ func buildInstanceFromTemplate(tpl *item.Template, id EntityID) *ItemInstance {
 		angrealPower:      tpl.AngrealPower,
 		angrealGender:     tpl.AngrealGender,
 		special:           append([]string(nil), tpl.Special...), // copy: never alias the shared template slice
+		reach:             tpl.Reach,
 		tripBonus:         tpl.TripBonus,
 		disarmBonus:       tpl.DisarmBonus,
 	}

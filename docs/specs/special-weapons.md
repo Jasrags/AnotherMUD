@@ -50,44 +50,65 @@ swordbreaker weapon-breaking, double weapons, the "drop your weapon to dodge a
 counter-trip" nuance — stay deferred, each its own later slice on this same seam.
 No new range geometry; reach rides the bands `ranged-combat.md` already ships.
 
-**Slices.** (1) the `special:` weapon-tag metadata substrate (load + validate +
-accessor, recorded-only); (2) **reach** (the band-gate extension); (3) **trip**
+**Slices.** (1) the maneuver-tag + reach metadata substrate (load + validate +
+accessor, recorded-only) — SHIPPED; (2) **reach** (the band-gate extension;
+reach modeled as a numeric cross-ruleset stat per §3) — SHIPPED; (3) **trip**
 weapon-awareness (the DC bonus); (4) **disarm** (the new maneuver). Each is its
 own commit + review in the project rhythm.
 
-## 2. The `special:` weapon tag
+## 2. The metadata: maneuver tags + the numeric reach stat
 
-A weapon template MAY declare a set of **special tags** naming the behaviors it
-unlocks, from a fixed engine vocabulary. This slice's vocabulary is
-`reach`, `trip`, `disarm`; later J slices extend it (`set`, `entangle`, …).
+Special-weapon data splits into two kinds:
 
-A separate scalar, **`disarm_bonus`**, carries the *magnitude* of a disarm
-weapon's advantage (the source rates them +2 boarspear / +3 swordbreaker), so the
-tag says *whether* and the scalar says *how much*. `trip` likewise reads a
-**`trip_bonus`** scalar (default applies when the tag is present without one).
+- **Maneuver tags** — a `special:` set naming the *maneuvers* a weapon enables,
+  from a fixed engine vocabulary. This slice's vocabulary is `trip`, `disarm`;
+  later J slices extend it (`set`, `entangle`, …). Each carries an optional
+  magnitude scalar — **`trip_bonus`** / **`disarm_bonus`** — so the tag says
+  *whether* and the scalar says *how much* (the source rates a boarspear +2
+  disarm, a swordbreaker +3).
+- **`reach`** — a **numeric weapon stat**, NOT a maneuver tag. Reach is a rating
+  (`0` = an ordinary close weapon, `1`, `2`, …) that sits alongside crit / size /
+  range-increment, because it is a **cross-ruleset** property each ruleset reads
+  differently (§3): WoT thresholds it (`reach > 0` → the near-band strike); a
+  Shadowrun pack diffs it (net reach → a defense-roll modifier). Modeling reach
+  as one integer lets a WoT polearm (`reach: 1`) and a Shadowrun staff (`reach:
+  2`) share a field, with the *interpretation* living in each ruleset's combat
+  layer — the engine's standing "one substrate, many rulesets" posture.
 
 ### Acceptance criteria
 
-- A weapon template may carry `special: [reach, trip, disarm]` (any subset);
-  absent means an ordinary weapon (every weapon today).
-- Each tag is validated against the engine vocabulary at **pack load** — an
-  unknown tag fails the pack by file name (mirrors `damage_types` / `ranged_class`
-  validation), never silently ignored.
-- `disarm_bonus` / `trip_bonus` are non-negative integers, validated at load; a
-  bonus with no corresponding tag is an authoring error (load fails) so a typo
-  cannot ship an inert magnitude.
-- A built weapon instance exposes its special tags + bonuses to the combat path.
-- Tags are recorded-only until the consuming slice (reach/trip/disarm) wires
-  them — a weapon-identity-style "data ahead of consumer" landing is permitted.
+- A weapon template may carry `special: [trip, disarm]` (any subset) and a
+  numeric `reach: N`; absent/zero means an ordinary weapon (every weapon today).
+- Each `special:` tag is validated against the engine vocabulary at **pack load**
+  — an unknown tag fails the pack by file name (mirrors `damage_types` /
+  `ranged_class`), never silently ignored; tags are normalized + deduplicated.
+- `reach`, `trip_bonus`, `disarm_bonus` are non-negative integers, validated at
+  load; a bonus with no corresponding tag is an authoring error (load fails) so a
+  typo cannot ship an inert magnitude. (`reach` needs no tag — it IS the stat.)
+- A built weapon instance exposes its maneuver tags, bonuses, and reach rating to
+  the combat path.
+- Metadata is recorded-only until the consuming slice (reach/trip/disarm) wires
+  it — a weapon-identity-style "data ahead of consumer" landing is permitted.
 
 ## 3. Reach
 
-A **reach** weapon engages one range band further out than an ordinary melee
-weapon. `ranged-combat.md` §5 models the distance between two combatants as bands
-`melee → near → far`; a melee weapon may swing only at the **melee** band and
-otherwise **closes one band** per round (the auto-close), while a projectile
-fires from range. A reach weapon's **effective striking band includes `near`**:
-it swings at both `melee` and `near`.
+Reach is a **numeric weapon stat** (`Template.Reach`, §2) read **per ruleset**:
+
+- **WoT (this increment):** a weapon with `reach > 0` engages one range band
+  further out than an ordinary melee weapon. `ranged-combat.md` §5 models the
+  distance between two combatants as bands `melee → near → far`; a melee weapon
+  may swing only at the **melee** band and otherwise **closes one band** per round
+  (the auto-close), while a projectile fires from range. A reach weapon's
+  **effective striking band includes `near`**: it swings at both `melee` and
+  `near`. WoT reads reach as a **threshold** (any positive rating grants the
+  near-band strike); the magnitude beyond 1 is not yet consumed (a `reach: 2`
+  WoT weapon plays as `reach: 1` until a future slice gives the bands more depth).
+- **Shadowrun (a future pack):** reach is a **relative** modifier — the *net*
+  reach (attacker reach − defender reach) adjusts the defense roll (the source's
+  "±1 defense per point of net Reach"). No band system; the same integer, a
+  different consumer. Out of scope here; recorded so the field's shape is right.
+
+The rest of this section specifies the **WoT** near-band behavior.
 
 Consequences, all falling out of the existing band loop:
 

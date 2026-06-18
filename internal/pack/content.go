@@ -134,11 +134,13 @@ type ItemFile struct {
 	// load). WoT-specific; inert outside the WoT pack.
 	AngrealPower  int    `yaml:"angreal_power,omitempty"`
 	AngrealGender string `yaml:"angreal_gender,omitempty"`
-	// Special-weapon tags + maneuver bonuses (special-weapons.md §2, increment
-	// J). special is a subset of {reach, trip, disarm}; trip_bonus/disarm_bonus
-	// are the DC magnitudes for the matching tag. Validated at load: unknown tag,
-	// negative bonus, or a bonus with no matching tag all fail the pack.
+	// Special-maneuver tags + maneuver bonuses (special-weapons.md §2, increment
+	// J). special is a subset of {trip, disarm}; trip_bonus/disarm_bonus are the
+	// DC magnitudes for the matching tag. reach is a separate numeric stat (§3),
+	// not a tag — a cross-ruleset reach rating (0 = none). Validated at load:
+	// unknown tag, negative bonus/reach, or a bonus with no matching tag fail.
 	Special     []string `yaml:"special,omitempty"`
+	Reach       int      `yaml:"reach,omitempty"`
 	TripBonus   int      `yaml:"trip_bonus,omitempty"`
 	DisarmBonus int      `yaml:"disarm_bonus,omitempty"`
 }

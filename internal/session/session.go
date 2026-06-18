@@ -3091,6 +3091,10 @@ type weaponInfo struct {
 	ammoKind       string
 	rangeIncrement int
 	strRating      *int
+	// reach is the weapon's reach rating (special-weapons §3) — a numeric
+	// cross-ruleset stat; WoT reads `> 0` as "strikes at the near band". Read by
+	// Stats() into combat.Stats.Reach.
+	reach int
 }
 
 // armorResistances is the atomic snapshot of an actor's aggregated
@@ -3147,6 +3151,7 @@ func (a *connActor) buildWeaponInfoLocked(id entities.EntityID) *weaponInfo {
 		ammoKind:       it.AmmoKind(),
 		rangeIncrement: it.RangeIncrement(),
 		strRating:      it.StrRating(),
+		reach:          it.Reach(),
 	}
 }
 
@@ -5093,6 +5098,7 @@ func (a *connActor) Stats() combat.Stats {
 		s.RangedClass = w.rangedClass
 		s.AmmoKind = w.ammoKind
 		s.RangeIncrement = w.rangeIncrement
+		s.Reach = w.reach // special-weapons §3: strikes at the `near` band too
 		s.DamageBonus = item.RangedDamageBonus(w.rangedClass, w.strRating, s.DamageBonus)
 		// size-and-wielding §4.2: a two-handed MELEE wield multiplies the
 		// Strength contribution to damage by the two-handed factor. Add only the
