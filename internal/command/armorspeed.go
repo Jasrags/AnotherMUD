@@ -17,7 +17,11 @@ const (
 	// (equipment.md Speed 30). Worn armor at or above it costs nothing extra.
 	armorBaselineSpeed = 30
 	// armorSpeedPenaltyUnit converts speed lost below the baseline into a movement
-	// surcharge: each full unit lost adds 1 to a step's cost (30 -> 20 = +1).
+	// surcharge: each full unit lost adds 1 to a step's cost (30 -> 20 = +1). The
+	// surcharge is integer-divided, so only speeds a FULL unit below the baseline
+	// register — an armor_speed of 25 truncates to 0. That suits today's content
+	// (equipment.md sets only 30 and 20); if finer-grained speeds are ever
+	// authored, shrink the unit or add a boot-time validation against the dead zone.
 	armorSpeedPenaltyUnit = 10
 )
 

@@ -404,4 +404,21 @@ func TestMove_ArmorSpeedSurcharge(t *testing.T) {
 	if got := step(heavy.ID()); got != 2 {
 		t.Errorf("heavy-armored step cost = %d, want 2 (terrain 1 + armor-speed surcharge 1)", got)
 	}
+
+	// Min-governs: wearing a slow (20) and a fast (30) piece together, the
+	// slowest governs — the step costs the heavy penalty, not the light one.
+	w, a, _ := moveCostWorld()
+	actor := newTestActor(a)
+	actor.mvMax, actor.mv = 10, 10
+	actor.equipment = map[string]entities.EntityID{"body": heavy.ID(), "cloak": light.ID()}
+	reg := command.New()
+	if err := command.RegisterBuiltins(reg); err != nil {
+		t.Fatalf("builtins: %v", err)
+	}
+	if err := reg.Dispatch(context.Background(), command.Env{World: w, Items: store, DefaultMoveCost: 1}, actor, "n"); err != nil {
+		t.Fatalf("move: %v", err)
+	}
+	if got := actor.mvMax - actor.Movement(); got != 2 {
+		t.Errorf("slow+fast armor step cost = %d, want 2 (the slowest piece governs)", got)
+	}
 }

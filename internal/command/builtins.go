@@ -466,7 +466,11 @@ func movementHandler(dir world.Direction) Handler {
 		// before any side effect, so an insufficient pool aborts cleanly.
 		// Cost is the destination biome's weight (rough terrain costs more),
 		// falling back to the configured flat default.
-		dstCost := moveCost(c, dst)
+		// The mover's surcharges (encumbrance + armor speed) depend only on the
+		// mover, not the room, so compute them ONCE — they add equally to every
+		// step's cost. moveCost = the destination terrain plus that surcharge.
+		moverSurcharge := c.encumbranceSurcharge() + c.armorSpeedSurcharge()
+		dstCost := terrainStepCost(c, dst) + moverSurcharge
 		allowed, charged := spendMovement(c, dstCost)
 		if !allowed {
 			return c.Actor.Write(ctx, tooWindedText)
@@ -474,9 +478,10 @@ func movementHandler(dir world.Direction) Handler {
 		// Terrain-difficulty hint: surfaced only when the step actually cost
 		// the mover extra — they were charged (so an unmetered/free mover stays
 		// silent) AND the destination is rougher than the room just left. Fired
-		// once on the transition; walking within one terrain stays quiet.
-		// Measured against the source room before the actor leaves.
-		harderGoing := charged && dstCost > moveCost(c, room)
+		// once on the transition; walking within one terrain stays quiet. The
+		// mover surcharge cancels by construction (it is identical for source and
+		// destination), so the hint compares TERRAIN only — purely room-driven.
+		harderGoing := charged && terrainStepCost(c, dst) > terrainStepCost(c, room)
 		srcID := room.ID
 		name := c.Actor.Name()
 		pid := c.Actor.PlayerID()
@@ -580,16 +585,6 @@ type movementCostSubject interface {
 	Movement() int
 	MovementMax() int
 	DeductMovement(int)
-}
-
-// moveCost is the movement-point cost of stepping into dst (movement-cost
-// §4): the destination terrain's cost plus the mover's encumbrance and
-// armor-speed surcharges (heavier load / heavier armor each slow the step).
-// Because both surcharges depend only on the mover (not the room), they add
-// equally to a step's source and destination cost, so they cancel in the
-// difficulty-hint comparison (§5) — the hint stays purely terrain-driven.
-func moveCost(c *Context, dst *world.Room) int {
-	return terrainStepCost(c, dst) + c.encumbranceSurcharge() + c.armorSpeedSurcharge()
 }
 
 // terrainStepCost is the destination terrain's contribution to a step. The
