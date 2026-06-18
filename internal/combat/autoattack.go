@@ -48,6 +48,14 @@ type AutoAttackConfig struct {
 	// attacker's active condition flags. nil-safe: never incapacitated (the
 	// pre-conditions behavior, tests/headless).
 	Incapacitated func(attackerID CombatantID) bool
+	// CleaveFor reports whether the attacker has Cleave and/or Great Cleave
+	// (feats Bucket C), keyed on the full attacker CombatantID. When a melee
+	// swing drops its target, a Cleave-capable attacker makes one bonus melee
+	// swing against another engaged foe in the room (Great Cleave keeps cleaving
+	// as long as each bonus swing also drops a foe). The host resolves it from
+	// the attacker's held feats. nil-safe: no cleaving (the pre-feat behavior,
+	// tests/headless). Returns (hasCleave, hasGreatCleave); great implies cleave.
+	CleaveFor func(attackerID CombatantID) (cleave, greatCleave bool)
 	// DefenderHitAdjust returns a to-hit DELTA applied to every swing aimed
 	// at this target (conditions §3 — a prone/stunned/blinded victim is
 	// easier to hit). It is the mirror of HitModAdjust: HitModAdjust is
@@ -344,7 +352,11 @@ func runAutoAttack(ctx context.Context, attackerID CombatantID, mgr *Manager, cf
 		attackerRoom:   attackerRoom,
 	}
 	for i := 0; i < swings; i++ {
-		if resolveSwing(ctx, in, cfg) == swingStop {
+		switch resolveSwing(ctx, in, cfg) {
+		case swingKill:
+			cleaveFollowUp(ctx, in, mgr, cfg)
+			return
+		case swingStop:
 			return
 		}
 	}
@@ -397,11 +409,94 @@ func runAutoAttack(ctx context.Context, attackerID CombatantID, mgr *Manager, cf
 			// Strike i takes i× the cumulative secondary off-hand penalty (§4.3):
 			// the first strike is unpenalized beyond its baked off-hand penalty.
 			offIn.hitMod = off.HitMod + hitAdjust - i*cfg.SecondaryOffHandPenalty
-			if resolveSwing(ctx, offIn, cfg) == swingStop {
+			switch resolveSwing(ctx, offIn, cfg) {
+			case swingKill:
+				// An off-hand kill cleaves with the MAIN-hand profile (`in`),
+				// not the off-hand one — the bonus swing is a main-hand strike.
+				cleaveFollowUp(ctx, in, mgr, cfg)
+				return
+			case swingStop:
 				return
 			}
 		}
 	}
+}
+
+// cleaveFollowUp makes Cleave's bonus melee swing(s) after the attacker drops a
+// foe (feats Bucket C — wot-feats.md). Cleave grants ONE bonus swing against
+// another engaged foe in the room at the attacker's MAIN-hand profile and bonus;
+// Great Cleave keeps cleaving as long as each bonus swing also drops its target
+// and a fresh foe remains. `in` is always the main-hand swingInputs (an off-hand
+// kill still cleaves with the main hand). No-op without the CleaveFor hook, for a
+// non-cleaving attacker, or for a projectile killer (Cleave is a melee feat).
+//
+// Runs on the tick goroutine inside the attacker's round (same single-goroutine
+// guarantee as the swing loop), so the Manager / Locator reads need no extra
+// synchronization beyond their own.
+func cleaveFollowUp(ctx context.Context, in swingInputs, mgr *Manager, cfg AutoAttackConfig) {
+	if cfg.CleaveFor == nil || in.atkStats.RangedClass == RangedProjectile {
+		return
+	}
+	cleave, great := cfg.CleaveFor(in.attackerID)
+	if !cleave {
+		return
+	}
+	// The target-independent part of the attacker's to-hit (weapon + Weapon Focus
+	// + Power Attack stance are already in atkStats.HitMod; darkness is the only
+	// attacker-keyed delta). The per-target defender vulnerability is re-added per
+	// foe below, reconstructing the same formula runAutoAttack used — minus the
+	// projectile band terms, which never apply (cleave is melee-gated above).
+	attackerHitBase := in.atkStats.HitMod
+	if cfg.HitModAdjust != nil {
+		attackerHitBase += cfg.HitModAdjust(in.attackerID)
+	}
+	// Exclude the just-killed target. The bounded set of distinct opponents (each
+	// excluded once chosen) guarantees termination even if every bonus swing kills.
+	excluded := map[CombatantID]bool{in.targetID: true}
+	for {
+		opp, oppID, ok := nextCleaveTarget(in.attackerID, in.attackerRoom, excluded, mgr, cfg)
+		if !ok {
+			return
+		}
+		excluded[oppID] = true
+		next := in
+		next.targetID = oppID
+		next.target = opp
+		next.tgtName = opp.Name()
+		next.defStats = opp.Stats()
+		next.hitMod = attackerHitBase
+		if cfg.DefenderHitAdjust != nil {
+			next.hitMod += cfg.DefenderHitAdjust(oppID)
+		}
+		result := resolveSwing(ctx, next, cfg)
+		// Cleave is one bonus swing per round regardless of outcome; Great Cleave
+		// chains another swing only when this one also dropped its target.
+		if result == swingKill && great {
+			continue
+		}
+		return
+	}
+}
+
+// nextCleaveTarget picks the first engaged opponent of attackerID that is alive,
+// in room, and not already excluded — the foe a Cleave bonus swing strikes. The
+// just-killed target is excluded by the caller (and would also fail the dead
+// check). Order follows the Manager's opponent list, so selection is deterministic.
+func nextCleaveTarget(attackerID CombatantID, room world.RoomID, excluded map[CombatantID]bool, mgr *Manager, cfg AutoAttackConfig) (Combatant, CombatantID, bool) {
+	for _, oppID := range mgr.OpponentsOf(attackerID) {
+		if excluded[oppID] {
+			continue
+		}
+		opp, ok := cfg.Locator.LookupCombatant(oppID)
+		if !ok || opp.Vitals().IsDead() {
+			continue
+		}
+		if oppRoom, ok := cfg.RoomLocator.RoomOf(oppID); !ok || oppRoom != room {
+			continue
+		}
+		return opp, oppID, true
+	}
+	return nil, "", false
 }
 
 // swingInputs bundles the round-stable inputs one swing reads, so the shared
@@ -428,8 +523,16 @@ const (
 	// swingContinue: this swing resolved (hit / miss / evade / dry / non-lethal
 	// hit); a multi-swing caller may proceed to the next swing.
 	swingContinue swingResult = iota
-	// swingStop: the target is gone or dead; the caller must stop swinging.
+	// swingStop: the target is gone or dead by another hand (already-dead check
+	// or a concurrent killer); the caller must stop swinging but did NOT land the
+	// killing blow itself.
 	swingStop
+	// swingKill: THIS swing dealt the killing blow. The caller must stop swinging
+	// at the (now dead) target, exactly like swingStop, but may additionally
+	// trigger on-kill follow-ups (Cleave — feats Bucket C). Kept distinct from
+	// swingStop so a Cleave swing fires only on a kill the attacker actually
+	// caused, never on a corpse a concurrent source produced.
+	swingKill
 )
 
 // resolveSwing resolves exactly one attack swing — the §4.3–§4.5 body plus the
@@ -560,8 +663,9 @@ func resolveSwing(ctx context.Context, in swingInputs, cfg AutoAttackConfig) swi
 			Vital:      VitalHP,
 			RoomID:     in.attackerRoom,
 		})
-		// §4.3 "If HP reached zero ... stop further swings."
-		return swingStop
+		// §4.3 "If HP reached zero ... stop further swings." This swing landed the
+		// killing blow, so a Cleave-capable attacker may follow up (Bucket C).
+		return swingKill
 	}
 
 	// saves §4 — massive-damage Fortitude save. A single swing whose applied
@@ -572,8 +676,9 @@ func resolveSwing(ctx context.Context, in swingInputs, cfg AutoAttackConfig) swi
 	// disabled (pre-slice behavior).
 	if cfg.MassiveDamage != nil && raw >= cfg.MassiveDamage.Threshold {
 		if massiveDamageKill(ctx, cfg, in.attackerID, in.targetID, in.tgtName, in.attackerRoom) {
-			// §4.3 stop swinging on a corpse.
-			return swingStop
+			// §4.3 stop swinging on a corpse; the massive-damage save killed the
+			// victim by this attacker's swing, so Cleave may follow up (Bucket C).
+			return swingKill
 		}
 	}
 	return swingContinue

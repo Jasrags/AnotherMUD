@@ -1,0 +1,15 @@
+# Cleave (wot-feats.md): when you drop a foe with a melee swing, you immediately
+# make one bonus melee swing against another engaged foe in the room (combat
+# Bucket C). Teaches the cleave ability; the combat round reads the capability
+# off the feat cache (CleaveFor) at the on-kill seam.
+#
+# Prereq is Power Attack (the source also lists Str 13, dropped for demo
+# reachability as elsewhere in the v1 set — Power Attack is the meaningful gate
+# and is itself reachable).
+id: cleave
+name: Cleave
+description: When you drop an enemy in melee, you may strike another foe with the same blow's momentum.
+prerequisites:
+  - { kind: feat, target: power-attack }
+grants:
+  - { kind: ability, target: cleave }

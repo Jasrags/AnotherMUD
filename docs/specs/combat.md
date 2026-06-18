@@ -241,7 +241,14 @@ For each swing:
    name (or a default unarmed name), attacker/target names, and a
    critical flag. If HP reached zero, emit a vital-depleted event
    for the target with vital="hp" and the attacker id; then stop
-   further swings.
+   further swings. A killing melee blow MAY additionally trigger an
+   on-kill follow-up — the **Cleave** feat (feats Bucket C) grants one
+   bonus melee swing against another foe engaged with the attacker in
+   the room, at the attacker's main-hand profile; **Great Cleave**
+   repeats while each bonus swing also drops its target and a fresh foe
+   remains. The follow-up fires only on a kill the attacker itself
+   landed (not a corpse left by a concurrent source) and only for a
+   melee killing blow (a projectile kill never cleaves).
 5. **On miss:** emit a "miss" event carrying weapon combat name,
    attacker/target names, and a fumble flag.
 

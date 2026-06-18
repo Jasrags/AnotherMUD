@@ -1,0 +1,14 @@
+# Great Cleave (wot-feats.md): as Cleave, but with no once-per-round limit — you
+# keep making bonus melee swings as long as each one also drops a foe and another
+# engaged enemy remains in the room (combat Bucket C). Teaches the great-cleave
+# ability, which the combat CleaveFor hook reads as the uncapped Cleave form.
+#
+# Prereq is Cleave (which transitively requires Power Attack); the source also
+# lists Str 13 + BAB +4, dropped for demo reachability as elsewhere in the v1 set.
+id: great-cleave
+name: Great Cleave
+description: Your cleaving blows chain from foe to foe, never slowing while enemies keep falling.
+prerequisites:
+  - { kind: feat, target: cleave }
+grants:
+  - { kind: ability, target: great-cleave }

@@ -1760,6 +1760,20 @@ func run() error {
 		DefenderHitAdjust: func(id combat.CombatantID) int {
 			return conditionImpact(combat.EntityIDOf(id)).DefenderVulnerability
 		},
+		// feats Bucket C — Cleave / Great Cleave. Resolve the attacker → its held
+		// feats; a non-player combatant (mob) does not cleave in v1 (mobs take no
+		// feats). The combat round calls this only after a melee kill.
+		CleaveFor: func(id combat.CombatantID) (bool, bool) {
+			c, ok := combatLocator.LookupCombatant(id)
+			if !ok {
+				return false, false
+			}
+			cc, ok := c.(interface{ HasCleave() (bool, bool) })
+			if !ok {
+				return false, false
+			}
+			return cc.HasCleave()
+		},
 		// ranged-combat §3: a projectile swing spends one matching ammo unit.
 		// Resolve the attacker → its ammo kind (from its wielded weapon's
 		// combat.Stats) → spend one via the session-side AmmoConsumer, mapping

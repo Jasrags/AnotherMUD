@@ -5008,6 +5008,18 @@ func (a *connActor) HasPowerAttackFeat() bool {
 	return fb != nil && fb.hasPowerAttack
 }
 
+// HasCleave reports whether the actor holds the Cleave and/or Great Cleave
+// feats (feats Bucket C), read from the feat-bonus cache so it recomputes on any
+// feat change. The combat CleaveFor hook calls it to drive the on-kill bonus
+// swing; great implies cleave (Great Cleave is the uncapped form).
+func (a *connActor) HasCleave() (cleave, great bool) {
+	fb := a.featWeaponBonus.Load()
+	if fb == nil {
+		return false, false
+	}
+	return fb.hasCleave || fb.hasGreatCleave, fb.hasGreatCleave
+}
+
 // SetPowerAttack toggles the Power Attack stance and marks the save dirty so
 // the new value persists on the next autosave. Mirrors SetWimpyThreshold: the
 // atomic write keeps the combat-round read lock-free, while a.mu guards the

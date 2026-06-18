@@ -296,8 +296,19 @@ cap (pre-existing G concern).
 
 The `docs/wot/feats.md` catalog is being filled bucket-by-bucket (source-of-truth
 memory file: `feats-catalog-build-log`). Shipped 2026-06-18: Bucket A (Alertness /
-Sharp-Eyed / Stealthy), Bucket C (Power Attack stance, save v27), Bucket B (Weapon
-Specialization / Dodge). Open deferred items from those phases:
+Sharp-Eyed / Stealthy), Bucket C (Power Attack stance, save v27; Cleave + Great
+Cleave on-kill seam), Bucket B (Weapon Specialization / Dodge). Open deferred
+items from those phases:
+
+- **(Bucket D — bigger) Whirlwind Attack — needs a multi-target round + missing
+  prereqs.** "Hit every foe in reach" violates the round loop's single-primary-
+  target assumption (`runAutoAttack` / combat §4 / Decision 0 "one swing, one
+  target, stop on kill") — it needs the loop restructured into a multi-target
+  sweep (~150 lines) plus a spec decision (does a mid-sweep kill halt the
+  remaining targets?). Separately, 3 of its 4 d20 prereqs don't exist (Combat
+  Expertise — a defensive toggle stance; Mobility — AoO; Spring Attack — move-and-
+  attack, Decision-0 action-economy), only Dodge shipped. **Fix-by:** its own
+  milestone once a multi-target round and the prereq feats land — not a small add.
 
 - **(MEDIUM) Power Attack trade is main-hand only.** The stance applies its to-hit
   penalty to `s.HitMod` (main hand) but the off-hand profile (`s.OffHand`) is built

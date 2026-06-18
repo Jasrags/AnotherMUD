@@ -1,0 +1,12 @@
+# The Cleave ability (feats Bucket C): granted by the Cleave feat. A passive
+# marker — it exists so the feat's ability-grant resolves and the ability shows
+# in the character's known set. The combat effect (one bonus melee swing when
+# you drop a foe) is driven by the feat cache via the combat CleaveFor hook, not
+# by a passive hook on this ability, so no Hook is declared.
+id: cleave
+name: Cleave
+type: passive
+category: skill
+default_cap: 100
+gain_base_chance: 0
+gain_stat: str

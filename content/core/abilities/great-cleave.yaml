@@ -1,0 +1,11 @@
+# The Great Cleave ability (feats Bucket C): granted by the Great Cleave feat.
+# A passive marker (see cleave.yaml) — the combat effect (keep cleaving as long
+# as each bonus swing drops a foe) is driven by the feat cache via the combat
+# CleaveFor hook, so no passive Hook is declared.
+id: great-cleave
+name: Great Cleave
+type: passive
+category: skill
+default_cap: 100
+gain_base_chance: 0
+gain_stat: str

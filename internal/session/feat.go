@@ -220,9 +220,14 @@ func (a *connActor) GrantFeat(featID, param string) {
 	a.applyFeatGrants()
 }
 
-// abilityPowerAttack is the ability id the Power Attack feat grants (feats
-// Bucket C). The feat's combat effect (the stance trade) keys on holding it.
-const abilityPowerAttack = "power-attack"
+// Ability ids that feats grant and whose combat effect keys on holding them
+// (feats Bucket C). The capability is read from the feat cache below, not the
+// proficiency manager, so the effect auto-clears if the feat is ever removed.
+const (
+	abilityPowerAttack = "power-attack"
+	abilityCleave      = "cleave"
+	abilityGreatCleave = "great-cleave"
+)
 
 // featWeaponBonuses is the per-weapon-category feat bonus cache (EPIC S4
 // Phase 3c), recomputed on every feat change and read LOCK-FREE in
@@ -251,6 +256,12 @@ type featWeaponBonuses struct {
 	// (rather than a per-round proficiency lookup) means it recomputes on feat
 	// change and the trade auto-clears if the feat is ever removed.
 	hasPowerAttack bool
+	// hasCleave / hasGreatCleave report whether a held feat grants the cleave /
+	// great-cleave ability (feats Bucket C). Read (via HasCleave) by the combat
+	// CleaveFor hook to drive the on-kill bonus swing. Great Cleave implies the
+	// Cleave capability (it is the uncapped form).
+	hasCleave      bool
+	hasGreatCleave bool
 }
 
 // applyFeatGrants recomputes ALL feat grants from the actor's known_feats and
@@ -299,11 +310,15 @@ func (a *connActor) applyFeatGrants() {
 
 	// 3c: per-weapon-category hit/crit cache + (slice 2) the global two-weapon
 	// penalty reductions, read lock-free in Stats().
-	hasPowerAttack := false
+	var hasPowerAttack, hasCleave, hasGreatCleave bool
 	for _, abID := range b.Abilities {
-		if abID == abilityPowerAttack {
+		switch abID {
+		case abilityPowerAttack:
 			hasPowerAttack = true
-			break
+		case abilityCleave:
+			hasCleave = true
+		case abilityGreatCleave:
+			hasGreatCleave = true
 		}
 	}
 	a.featWeaponBonus.Store(&featWeaponBonuses{
@@ -314,6 +329,8 @@ func (a *connActor) applyFeatGrants() {
 		offHandHitReduce:    b.OffHandHitReduce,
 		offHandExtraAttacks: b.OffHandExtraAttacks,
 		hasPowerAttack:      hasPowerAttack,
+		hasCleave:           hasCleave,
+		hasGreatCleave:      hasGreatCleave,
 	})
 
 	// 3c: ability grants (Power Attack). Teach at baseline ONLY if not already

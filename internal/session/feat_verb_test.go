@@ -37,7 +37,30 @@ func featTestRegistry() *feat.Registry {
 		Grants: []feat.Grant{{Kind: feat.GrantDamageBonus, Magnitude: 2}}})
 	_ = r.Register(&feat.Feat{ID: "dodge", DisplayName: "Dodge",
 		Grants: []feat.Grant{{Kind: feat.GrantACBonus, Magnitude: 1}}})
+	// Bucket C: Cleave / Great Cleave grant their marker abilities; HasCleave
+	// reads the resulting feat-cache flags.
+	_ = r.Register(&feat.Feat{ID: "cleave", DisplayName: "Cleave",
+		Grants: []feat.Grant{{Kind: feat.GrantAbility, Target: "cleave"}}})
+	_ = r.Register(&feat.Feat{ID: "great-cleave", DisplayName: "Great Cleave",
+		Grants: []feat.Grant{{Kind: feat.GrantAbility, Target: "great-cleave"}}})
 	return r
+}
+
+// Bucket C: HasCleave reports the Cleave / Great Cleave capability the combat
+// CleaveFor hook reads; Great Cleave implies Cleave.
+func TestHasCleave(t *testing.T) {
+	a := newFeatActor(t, 3)
+	if c, g := a.HasCleave(); c || g {
+		t.Fatalf("fresh actor HasCleave = (%v,%v), want (false,false)", c, g)
+	}
+	a.GrantFeat("cleave", "")
+	if c, g := a.HasCleave(); !c || g {
+		t.Errorf("after Cleave HasCleave = (%v,%v), want (true,false)", c, g)
+	}
+	a.GrantFeat("great-cleave", "")
+	if c, g := a.HasCleave(); !c || !g {
+		t.Errorf("after Great Cleave HasCleave = (%v,%v), want (true,true)", c, g)
+	}
 }
 
 // Bucket B: Weapon Specialization adds melee damage for the wielded weapon's
