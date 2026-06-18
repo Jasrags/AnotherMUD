@@ -1,0 +1,18 @@
+id: half-plate
+name: a half-plate harness
+type: item
+description: |
+  Plate over mail — shaped steel for the chest, shoulders, and thighs with mail
+  filling the gaps. Nearly the proof of full plate at a fraction of the fitting,
+  and nearly the weight.
+tags: [armor, metal, plate, wearable, heavy]
+keywords: [half-plate, half plate, plate and mail, harness, armor]
+eligible_slots: [body]
+armor_tier: heavy
+armor_bonus: 7
+armor_max_dex: 0
+armor_check_penalty: 7
+armor_speed: 20
+properties:
+  weight: 50
+  value: 6000

@@ -1,0 +1,18 @@
+id: banded-mail
+name: a banded mail harness
+type: item
+description: |
+  Mail reinforced with horizontal bands of overlapping steel splints across the
+  torso and limbs — heavy plate's protection at a soldier's price, and stiff
+  across the back for it.
+tags: [armor, metal, mail, wearable, heavy]
+keywords: [banded mail, splint, harness, armor]
+eligible_slots: [body]
+armor_tier: heavy
+armor_bonus: 6
+armor_max_dex: 1
+armor_check_penalty: 6
+armor_speed: 20
+properties:
+  weight: 35
+  value: 2500

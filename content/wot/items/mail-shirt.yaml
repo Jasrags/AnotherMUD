@@ -1,0 +1,18 @@
+id: mail-shirt
+name: a mail shirt
+type: item
+description: |
+  A shirt of riveted iron rings hanging to the hip — proof against a slash and
+  most thrusts, and light enough to wear under a coat. The smith's pride and a
+  season's patient work.
+tags: [armor, metal, mail, wearable, light]
+keywords: [mail shirt, chain shirt, mail, chainmail]
+eligible_slots: [body]
+armor_tier: light
+armor_bonus: 4
+armor_max_dex: 4
+armor_check_penalty: 2
+armor_speed: 30
+properties:
+  weight: 25
+  value: 1000

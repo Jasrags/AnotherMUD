@@ -1,0 +1,18 @@
+id: hide-armor
+name: a hide coat
+type: item
+description: |
+  A heavy coat of thick, cured animal hides, crude but proof — the armor of
+  herders and hunters in the hills where no smith forges mail. It hangs heavy
+  and stiffens the shoulders.
+tags: [armor, hide, wearable, medium]
+keywords: [hide, coat, armor]
+eligible_slots: [body]
+armor_tier: medium
+armor_bonus: 3
+armor_max_dex: 4
+armor_check_penalty: 3
+armor_speed: 20
+properties:
+  weight: 25
+  value: 150

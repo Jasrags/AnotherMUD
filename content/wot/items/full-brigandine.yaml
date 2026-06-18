@@ -1,0 +1,18 @@
+id: full-brigandine
+name: a full brigandine harness
+type: item
+description: |
+  A heavy head-to-thigh brigandine of overlapping plates, skirted and sleeved —
+  the foot-soldier's plate, ponderous and proof, that clamps the wearer's reach
+  to a crawl but turns nearly everything short of a warbow at close range.
+tags: [armor, metal, cloth, wearable, heavy]
+keywords: [full brigandine, brigandine, harness, armor]
+eligible_slots: [body]
+armor_tier: heavy
+armor_bonus: 6
+armor_max_dex: 0
+armor_check_penalty: 7
+armor_speed: 20
+properties:
+  weight: 45
+  value: 2000

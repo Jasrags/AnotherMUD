@@ -1,0 +1,17 @@
+id: padded-armor
+name: a padded gambeson
+type: item
+description: |
+  A thick quilted coat stuffed with wool and tow — the poor man's armor and the
+  underlayer of every richer harness. It turns a glancing edge and little more,
+  but it weighs nothing and never slows the arm.
+tags: [armor, cloth, wearable, light]
+keywords: [gambeson, padded, armor]
+eligible_slots: [body]
+armor_tier: light
+armor_bonus: 1
+armor_max_dex: 8
+armor_speed: 30
+properties:
+  weight: 10
+  value: 50

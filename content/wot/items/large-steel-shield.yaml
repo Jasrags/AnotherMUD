@@ -1,0 +1,14 @@
+id: large-steel-shield
+name: a large steel shield
+type: item
+description: |
+  A great shield of riveted steel, a wall on the arm — it turns near anything the
+  front rank can throw, at the cost of an arm grown leaden by the day's end.
+tags: [armor, metal, shield, wearable]
+keywords: [large steel shield, steel shield, shield, kite]
+eligible_slots: [offhand]
+armor_bonus: 2
+armor_check_penalty: 2
+properties:
+  weight: 15
+  value: 200

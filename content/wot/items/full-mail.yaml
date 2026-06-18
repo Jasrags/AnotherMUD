@@ -1,0 +1,18 @@
+id: full-mail
+name: a mail hauberk
+type: item
+description: |
+  A full hauberk of riveted mail to the knee, with a coif and sleeves — the
+  knight's harness before plate, a hundredweight of patient rings that shrug off
+  the cut of any blade.
+tags: [armor, metal, mail, wearable, medium]
+keywords: [mail hauberk, hauberk, full mail, chainmail, mail]
+eligible_slots: [body]
+armor_tier: medium
+armor_bonus: 5
+armor_max_dex: 2
+armor_check_penalty: 5
+armor_speed: 20
+properties:
+  weight: 40
+  value: 1500

@@ -1,0 +1,18 @@
+id: brigandine
+name: a brigandine
+type: item
+description: |
+  A cloth coat lined with hundreds of small iron plates riveted between the
+  layers — the rivets stud the outside in neat rows. It moves better than plate
+  and turns more than mail.
+tags: [armor, metal, cloth, wearable, medium]
+keywords: [brigandine, coat of plates, armor]
+eligible_slots: [body]
+armor_tier: medium
+armor_bonus: 4
+armor_max_dex: 3
+armor_check_penalty: 4
+armor_speed: 20
+properties:
+  weight: 30
+  value: 500

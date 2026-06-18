@@ -1,0 +1,18 @@
+id: full-plate
+name: a full plate harness
+type: item
+description: |
+  A full harness of articulated steel plate, every piece fitted to its wearer by
+  a master armorer — the most a man can wear and still walk, proof against the
+  cut and thrust of war. A lord's armor, worth a manor and worn like one.
+tags: [armor, metal, plate, wearable, heavy]
+keywords: [full plate, plate, harness, armor]
+eligible_slots: [body]
+armor_tier: heavy
+armor_bonus: 8
+armor_max_dex: 1
+armor_check_penalty: 6
+armor_speed: 20
+properties:
+  weight: 50
+  value: 15000

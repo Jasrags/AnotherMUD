@@ -57,3 +57,21 @@ properties:
       - wot:sling
       - wot:bolt
       - wot:sling-bullet
+      # equipment.md Armor table (Table 7-5) — body armor + shields the smith forges.
+      - wot:padded-armor
+      - wot:leather-armor
+      - wot:studded-leather
+      - wot:mail-shirt
+      - wot:hide-armor
+      - wot:brigandine
+      - wot:full-mail
+      - wot:breastplate
+      - wot:full-brigandine
+      - wot:banded-mail
+      - wot:half-plate
+      - wot:full-plate
+      - wot:buckler
+      - wot:small-wood-shield
+      - wot:small-steel-shield
+      - wot:large-wood-shield
+      - wot:large-steel-shield

@@ -70,6 +70,12 @@ items:
   # non-proficient penalty.
   - padded-cap
   - great-helm
+  # equipment.md Armor (Table 7-5) body-slot demo: a leather jerkin worn on the
+  # new `body` slot. `score` (note AC), `equip leather` → AC up by its armor_bonus
+  # + Dex (light armor keeps most Dex). Heavier body armor (mail/plate) is sold by
+  # the smith and clamps Dex harder; on a channeler it's non-proficient like the
+  # great helm.
+  - leather-armor
   # Angreal (S2 One Power, Phase 4+) demo — two ivory figurines among the
   # finished work. A channeler `equip`s a same-gender device (held in hand) and
   # weaves harder: a male initiate holding the man-figurine throws a stronger

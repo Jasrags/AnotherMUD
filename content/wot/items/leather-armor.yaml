@@ -1,0 +1,16 @@
+id: leather-armor
+name: a leather jerkin
+type: item
+description: |
+  A sleeveless coat of boiled and hardened leather, shaped to the chest. Supple
+  enough to let an archer draw and a forester run, stiff enough to blunt a knife.
+tags: [armor, leather, wearable, light]
+keywords: [leather, jerkin, armor]
+eligible_slots: [body]
+armor_tier: light
+armor_bonus: 2
+armor_max_dex: 6
+armor_speed: 30
+properties:
+  weight: 15
+  value: 100

@@ -1,0 +1,14 @@
+id: buckler
+name: a buckler
+type: item
+description: |
+  A small round shield of banded steel strapped to the forearm, leaving the hand
+  free. A duelist's guard — it deflects more than it covers, and a quick wrist
+  turns a thrust aside.
+tags: [armor, metal, shield, wearable]
+keywords: [buckler, shield]
+eligible_slots: [offhand]
+armor_bonus: 1
+properties:
+  weight: 2
+  value: 250

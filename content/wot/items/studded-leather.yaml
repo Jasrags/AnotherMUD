@@ -1,0 +1,18 @@
+id: studded-leather
+name: a studded leather coat
+type: item
+description: |
+  A leather coat sewn close with rows of iron rivets — the studs spread a blow
+  and catch a point that smooth leather would let through. A guardsman's
+  workaday harness.
+tags: [armor, leather, metal, wearable, light]
+keywords: [studded leather, studded, armor]
+eligible_slots: [body]
+armor_tier: light
+armor_bonus: 3
+armor_max_dex: 5
+armor_check_penalty: 1
+armor_speed: 30
+properties:
+  weight: 20
+  value: 250

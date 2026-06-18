@@ -1,0 +1,14 @@
+id: small-wood-shield
+name: a small wooden shield
+type: item
+description: |
+  A round shield of planked wood faced with hide, light on the arm. It covers a
+  flank and turns an arrow, and when it splinters another is cheaply made.
+tags: [armor, wood, shield, wearable]
+keywords: [small wooden shield, wooden shield, shield, buckler]
+eligible_slots: [offhand]
+armor_bonus: 1
+armor_check_penalty: 1
+properties:
+  weight: 5
+  value: 30

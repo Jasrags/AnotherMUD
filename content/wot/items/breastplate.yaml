@@ -1,0 +1,18 @@
+id: breastplate
+name: a breastplate
+type: item
+description: |
+  A single shaped plate of steel guarding chest and back, buckled over a padded
+  coat. Lighter than it looks and freer at the arms — a cavalryman's choice,
+  proof against most that the front rank can offer.
+tags: [armor, metal, plate, wearable, medium]
+keywords: [breastplate, cuirass, plate, armor]
+eligible_slots: [body]
+armor_tier: medium
+armor_bonus: 5
+armor_max_dex: 3
+armor_check_penalty: 4
+armor_speed: 20
+properties:
+  weight: 30
+  value: 2000

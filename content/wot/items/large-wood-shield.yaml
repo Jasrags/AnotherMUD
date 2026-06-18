@@ -1,0 +1,14 @@
+id: large-wood-shield
+name: a large wooden shield
+type: item
+description: |
+  A tall kite of planked wood that covers a man from shoulder to thigh — the
+  shield-wall's plank, heavy to carry but a moving wall in the press.
+tags: [armor, wood, shield, wearable]
+keywords: [large wooden shield, wooden shield, shield, kite]
+eligible_slots: [offhand]
+armor_bonus: 2
+armor_check_penalty: 2
+properties:
+  weight: 10
+  value: 70
