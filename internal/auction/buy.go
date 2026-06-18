@@ -73,7 +73,7 @@ func (m *Manager) Buyout(ctx context.Context, buyer Party, listingID string) (Li
 
 	// Commit point: flip active -> sold (single-winner). Credits the seller's
 	// proceeds to the pending ledger. On a lost race, refund the buyer.
-	if err := m.store.MarkSold(listingID, buyer.ID(), proceeds); err != nil {
+	if err := m.store.MarkSold(listingID, buyer.ID(), buyer.Name(), proceeds); err != nil {
 		m.coin.AddGold(ctx, buyer, l.Price, "auction:buyout-refund")
 		return Listing{}, err // ErrNotActive (sold/expired a moment earlier) or ErrNotFound.
 	}

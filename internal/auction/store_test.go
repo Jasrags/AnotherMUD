@@ -130,7 +130,7 @@ func TestStore_SoldCreditsSellerAndIsExactlyOnce(t *testing.T) {
 	s, _ := testStore(t)
 	_ = s.Add(sampleListing("a-1", "alice", time.Now().Add(time.Hour)))
 
-	if err := s.MarkSold("a-1", "bob", 90); err != nil {
+	if err := s.MarkSold("a-1", "bob", "Bob", 90); err != nil {
 		t.Fatalf("mark sold: %v", err)
 	}
 	if got := s.PendingCoin("alice"); got != 90 {
@@ -140,7 +140,7 @@ func TestStore_SoldCreditsSellerAndIsExactlyOnce(t *testing.T) {
 	if l.Status != StatusSold || l.Collector != "bob" || l.Buyer != "bob" {
 		t.Errorf("post-sale listing wrong: %+v", l)
 	}
-	if err := s.MarkSold("a-1", "carol", 90); !errors.Is(err, ErrNotActive) {
+	if err := s.MarkSold("a-1", "carol", "Carol", 90); !errors.Is(err, ErrNotActive) {
 		t.Errorf("second sale err = %v, want ErrNotActive", err)
 	}
 }
@@ -190,7 +190,7 @@ func TestStore_CollectItemPrunes(t *testing.T) {
 func TestStore_ClaimCoinSingleWinner(t *testing.T) {
 	s, _ := testStore(t)
 	_ = s.Add(sampleListing("a-1", "alice", time.Now().Add(time.Hour)))
-	_ = s.MarkSold("a-1", "bob", 75)
+	_ = s.MarkSold("a-1", "bob", "Bob", 75)
 
 	got, err := s.ClaimCoin("alice")
 	if err != nil {
@@ -209,7 +209,7 @@ func TestStore_ClaimCoinSingleWinner(t *testing.T) {
 func TestStore_PendingCoinPersists(t *testing.T) {
 	s, dir := testStore(t)
 	_ = s.Add(sampleListing("a-1", "alice", time.Now().Add(time.Hour)))
-	_ = s.MarkSold("a-1", "bob", 60)
+	_ = s.MarkSold("a-1", "bob", "Bob", 60)
 
 	s2 := NewStore(dir, clock.RealClock{})
 	if err := s2.Load(); err != nil {

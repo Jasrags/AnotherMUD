@@ -37,6 +37,11 @@ var (
 	// ErrTemplateGone — a listing's item template no longer exists (a
 	// content edit removed it); the escrowed value needs operator handling.
 	ErrTemplateGone = errors.New("auction: item template no longer exists")
+	// ErrCannotRefund — a sale cannot be auto-reversed: it is not sold, the
+	// buyer already collected the item, or the seller already collected the
+	// proceeds (no safe clawback). The operator handles it manually via the
+	// audit log.
+	ErrCannotRefund = errors.New("auction: sale cannot be refunded")
 )
 
 // pendingEntry is one player's uncollected coin proceeds, in the persisted
@@ -249,7 +254,7 @@ func (s *Store) HeldForPickup(playerID string) []Listing {
 // Idempotent against a race: returns ErrNotActive if the listing already
 // left the active set (another buyer won a tick earlier). The actual coin
 // move runs through escrow in the Manager; this records the outcome.
-func (s *Store) MarkSold(id, buyerID string, proceeds int) error {
+func (s *Store) MarkSold(id, buyerID, buyerName string, proceeds int) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	l, ok := s.listings[id]
@@ -261,11 +266,48 @@ func (s *Store) MarkSold(id, buyerID string, proceeds int) error {
 	}
 	l.Status = StatusSold
 	l.Buyer = buyerID
+	l.BuyerName = buyerName
 	l.Collector = buyerID
 	if proceeds > 0 {
 		s.pending[l.Seller] += proceeds
 	}
 	return s.persistLocked()
+}
+
+// RefundSale reverses a sold-but-uncollected listing for admin moderation
+// (§11): it claws the seller's proceeds back out of the pending ledger,
+// credits the buyer's refund to the buyer's pending ledger (the buyer may be
+// offline), and re-earmarks the item for the seller to collect. It is
+// all-or-nothing and refuses (ErrCannotRefund) unless the sale can be cleanly
+// reversed — still sold, item not yet collected, and the seller's proceeds
+// still in the ledger (not yet collected) — so no balance ever goes negative
+// and no item is duplicated. Returns the updated listing.
+func (s *Store) RefundSale(id string, refundToBuyer, proceedsBack int) (Listing, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	l, ok := s.listings[id]
+	if !ok {
+		return Listing{}, ErrNotFound
+	}
+	if l.Status != StatusSold || l.ItemCollected {
+		return Listing{}, ErrCannotRefund
+	}
+	if s.pending[l.Seller] < proceedsBack {
+		return Listing{}, ErrCannotRefund // seller already collected — no safe clawback.
+	}
+	s.pending[l.Seller] -= proceedsBack
+	if s.pending[l.Seller] == 0 {
+		delete(s.pending, l.Seller)
+	}
+	if refundToBuyer > 0 {
+		s.pending[l.Buyer] += refundToBuyer
+	}
+	l.Status = StatusCancelled
+	l.Collector = l.Seller // item goes back to the seller's pickup.
+	if err := s.persistLocked(); err != nil {
+		return Listing{}, err
+	}
+	return *l, nil
 }
 
 // MarkExpired transitions an active listing to expired and earmarks the item

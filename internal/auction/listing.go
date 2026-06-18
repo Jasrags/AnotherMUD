@@ -99,9 +99,11 @@ type Listing struct {
 	// seller for an expired/cancelled listing, the buyer for a sold one.
 	// Empty while active.
 	Collector string `yaml:"collector,omitempty"`
-	// Buyer is recorded on a sold listing for the audit trail; Collector
-	// equals it for a sale.
-	Buyer string `yaml:"buyer,omitempty"`
+	// Buyer / BuyerName are recorded on a sold listing for the audit trail
+	// and to route an offline refund notice; Collector equals Buyer for a
+	// sale.
+	Buyer     string `yaml:"buyer,omitempty"`
+	BuyerName string `yaml:"buyer_name,omitempty"`
 	// ItemCollected is set once the held item has been claimed; a fully
 	// collected non-active listing is prunable.
 	ItemCollected bool `yaml:"item_collected,omitempty"`

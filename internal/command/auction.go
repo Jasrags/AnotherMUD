@@ -336,6 +336,77 @@ func closesIn(l auction.Listing, now time.Time) string {
 	return fmt.Sprintf("%dm", min)
 }
 
+// AuctionRemoveHandler implements `auctionremove <#>` (admin, §11) — force a
+// listing off the market; the item returns to the seller. Role-gated by the
+// dispatcher (Admin verb).
+func AuctionRemoveHandler(ctx context.Context, c *Context) error {
+	me, ok := adminAuctionActor(ctx, c)
+	if !ok {
+		return nil
+	}
+	ref, _ := c.Resolved["ref"].(string)
+	id := normalizeListingRef(ref)
+	if id == "" {
+		return c.Actor.Write(ctx, "Remove which auction? (auctionremove <#>)")
+	}
+	l, err := c.Auction.AdminRemove(ctx, me, id)
+	if err != nil {
+		return mapAuctionErr(ctx, c, err)
+	}
+	return c.Actor.Write(ctx, fmt.Sprintf("Removed auction %s (%s); item returned to %s.", id, l.Item.Name, l.SellerName))
+}
+
+// AuctionRefundHandler implements `auctionrefund <#>` (admin, §11) — reverse
+// a sale: coin back to the buyer, item back to the seller.
+func AuctionRefundHandler(ctx context.Context, c *Context) error {
+	me, ok := adminAuctionActor(ctx, c)
+	if !ok {
+		return nil
+	}
+	ref, _ := c.Resolved["ref"].(string)
+	id := normalizeListingRef(ref)
+	if id == "" {
+		return c.Actor.Write(ctx, "Refund which auction? (auctionrefund <#>)")
+	}
+	l, err := c.Auction.AdminRefund(ctx, me, id)
+	if err != nil {
+		if errors.Is(err, auction.ErrCannotRefund) {
+			return c.Actor.Write(ctx, "That sale can't be auto-reversed (already collected). Check the audit log.")
+		}
+		return mapAuctionErr(ctx, c, err)
+	}
+	return c.Actor.Write(ctx, fmt.Sprintf("Reversed the sale of %s; buyer refunded, item returned to %s.", l.Item.Name, l.SellerName))
+}
+
+// adminAuctionActor is the shared guard for the admin auction verbs.
+func adminAuctionActor(ctx context.Context, c *Context) (auction.Party, bool) {
+	if c.Auction == nil {
+		_ = c.Actor.Write(ctx, "The auction house isn't available.")
+		return nil, false
+	}
+	me, ok := auctionParty(c)
+	if !ok {
+		_ = c.Actor.Write(ctx, "You can't do that.")
+		return nil, false
+	}
+	return me, true
+}
+
+// normalizeListingRef maps a numeric ref to a listing id ("5" → "au-5"), or
+// passes a full id through. Unlike a buyout ref it does not require the
+// listing be active (admin acts on sold/expired too); the Manager checks the
+// status.
+func normalizeListingRef(ref string) string {
+	ref = strings.TrimSpace(ref)
+	if ref == "" {
+		return ""
+	}
+	if _, err := strconv.Atoi(ref); err == nil {
+		return "au-" + ref
+	}
+	return ref
+}
+
 // resolveListingRef maps a player-supplied reference to a listing id: a
 // 1-based ordinal into the seller's own listings, or a raw id match.
 func resolveListingRef(mine []auction.Listing, ref string) string {
