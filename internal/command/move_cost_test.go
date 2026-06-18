@@ -353,3 +353,55 @@ func TestMove_DefaultCostWhenBiomeUnset(t *testing.T) {
 		t.Fatalf("uncosted-terrain step should use the default 3 (mv 10 -> 7), got %d", actor.Movement())
 	}
 }
+
+// Armor speed penalty (armor-depth §7): heavier armor adds a movement surcharge.
+// equipment.md gives medium/heavy body armor Speed 20 (vs 30 baseline) → +1 per
+// step on top of terrain. A heavily-armored mover spends 2 where an unarmored one
+// spends 1.
+func TestMove_ArmorSpeedSurcharge(t *testing.T) {
+	store := entities.NewStore()
+	// A heavy armor (armor_speed 20) and a light one (armor_speed 30, no penalty).
+	heavy, err := store.Spawn(&item.Template{
+		ID: "core:plate", Name: "plate", Type: "item",
+		EligibleSlots: []string{"body"}, ArmorTier: "heavy", ArmorBonus: 8, ArmorSpeed: 20,
+	})
+	if err != nil {
+		t.Fatalf("spawn plate: %v", err)
+	}
+	light, _ := store.Spawn(&item.Template{
+		ID: "core:padded", Name: "padded", Type: "item",
+		EligibleSlots: []string{"body"}, ArmorTier: "light", ArmorBonus: 1, ArmorSpeed: 30,
+	})
+
+	step := func(armorID entities.EntityID) int {
+		w, a, _ := moveCostWorld()
+		actor := newTestActor(a)
+		actor.mvMax, actor.mv = 10, 10
+		actor.equipment = map[string]entities.EntityID{}
+		if armorID != "" {
+			actor.equipment["body"] = armorID
+		}
+		reg := command.New()
+		if err := command.RegisterBuiltins(reg); err != nil {
+			t.Fatalf("builtins: %v", err)
+		}
+		env := command.Env{World: w, Items: store, DefaultMoveCost: 1}
+		if err := reg.Dispatch(context.Background(), env, actor, "n"); err != nil {
+			t.Fatalf("move: %v", err)
+		}
+		if actor.Room().ID != "b" {
+			t.Fatalf("move blocked; room = %q", actor.Room().ID)
+		}
+		return actor.mvMax - actor.Movement() // points spent on the step
+	}
+
+	if got := step(""); got != 1 {
+		t.Errorf("unarmored step cost = %d, want 1 (terrain only)", got)
+	}
+	if got := step(light.ID()); got != 1 {
+		t.Errorf("light-armored step cost = %d, want 1 (speed 30, no penalty)", got)
+	}
+	if got := step(heavy.ID()); got != 2 {
+		t.Errorf("heavy-armored step cost = %d, want 2 (terrain 1 + armor-speed surcharge 1)", got)
+	}
+}

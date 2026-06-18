@@ -108,8 +108,11 @@ subdual mode ships — it does not behave as something else).
 - **`double_damage`** (NdM±K) — the *second* attack dice of a double weapon (the
   source's `1d6/1d6` quarterstaff, `1d6/1d8` ashandarei). Validated like
   `weapon_damage`. Lights up with double-weapon support (a two-weapon extension).
-- **`armor_speed`** (int ≥ 0) — a piece of armor's worn Speed value. Lights up with
-  the armor speed-penalty consumer (armor §7 / encumbrance I tail).
+- **`armor_speed`** (int ≥ 0) — a piece of armor's worn Speed value. **CONSUMED
+  (2026-06-17):** heavier armor adds a per-step movement-cost surcharge — the
+  equipment.md Speed drop (30 → 20) becomes a `+1` surcharge in `moveCost`,
+  stacking with terrain + encumbrance, the slowest worn piece governing
+  (`internal/command/armorspeed.go`). No longer inert.
 - **`reputation`** (signed int) — a visible-gear reputation delta (masterwork +1,
   Trolloc scythesword −2). Lights up with S8 reputation.
 - The `special:` tags **`set` / `net` / `whip` / `entangle`** — the remaining

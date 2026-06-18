@@ -583,13 +583,13 @@ type movementCostSubject interface {
 }
 
 // moveCost is the movement-point cost of stepping into dst (movement-cost
-// §4): the destination terrain's cost plus the mover's encumbrance
-// surcharge. Because the surcharge depends only on the mover (not the
-// room), it adds equally to a step's source and destination cost, so it
-// cancels in the difficulty-hint comparison (§5) — the hint stays purely
-// terrain-driven.
+// §4): the destination terrain's cost plus the mover's encumbrance and
+// armor-speed surcharges (heavier load / heavier armor each slow the step).
+// Because both surcharges depend only on the mover (not the room), they add
+// equally to a step's source and destination cost, so they cancel in the
+// difficulty-hint comparison (§5) — the hint stays purely terrain-driven.
 func moveCost(c *Context, dst *world.Room) int {
-	return terrainStepCost(c, dst) + c.encumbranceSurcharge()
+	return terrainStepCost(c, dst) + c.encumbranceSurcharge() + c.armorSpeedSurcharge()
 }
 
 // terrainStepCost is the destination terrain's contribution to a step. The
