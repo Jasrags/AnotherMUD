@@ -1,0 +1,95 @@
+id: armsman
+name: Armsman
+tagline: Steel and discipline — the soldier's trade made art.
+description: |
+  An Armsman is a professional of arms: a Warder's blade, a Defender of the
+  Stone, a Queen's Guardsman, a blademaster who has earned the heron-mark. Where
+  a channeler reaches for the Source, an Armsman trusts hand, eye, and a lifetime
+  of drill. They close the distance, weather the long round, and end fights with
+  steel — the most heavily armed and armored of those who never touch the Power.
+level_up_flavor: |
+  Another thousand repetitions settle into the body. The blade moves before thought.
+
+# Bound to the shared non-channeler track (the worldly counterpart to the
+# channeler's one-power track). Stat growth + path abilities fire on every
+# martial-track level-up. See tracks/martial.yaml.
+bound_track: martial
+
+# Book Table 3-3: the Armsman is a d10 hit-die class — the heaviest martial
+# frame. hp_max grows fastest of any WoT class; the CON modifier rides the roll
+# (an Armsman with CON 14 gains 3-12 hp/level instead of 1-10). STR climbs with
+# the trade.
+stat_growth:
+  hp_max: 1d10
+  str: 1d3
+growth_bonuses:
+  hp_max: con
+
+# Standard 5 trains per level (progression §4.6 step 4).
+trains_per_level: 5
+
+# Class path — the martial kit, granted at level 1 so a fresh Armsman exercises
+# the full melee surface end-to-end:
+#   basic-strike  — the showcase damage skill
+#   kick          — interrupt + movement-drain maneuver
+#   bash          — save-gated knockdown (→ stunned, Fortitude save; EPIC S5)
+#   parry         — defensive passive (evade hook)
+#   second-attack — offensive passive (extra-swing hook)
+#   trip          — save-gated prone (Reflex save; EPIC S5)
+#   disarm        — save-gated to-hit penalty (Reflex save; special-weapons S1.J)
+# power-attack lands at level 2 (mirrors the core fighter). All abilities fire
+# off proficiency, so a brand-new Armsman (prof 1) rarely triggers the passives
+# until `practice` raises the skill.
+#
+# Deliberately NOT granted (unlike the core fighter showcase): heal / bless — an
+# Armsman neither channels nor invokes; and open-lock — lockwork is the
+# Wanderer's trade, not a soldier's.
+path:
+  - level: 1
+    ability: basic-strike
+  - level: 1
+    ability: kick
+  - level: 1
+    ability: bash
+  - level: 1
+    ability: parry
+  - level: 1
+    ability: second-attack
+  - level: 1
+    ability: trip
+  - level: 1
+    ability: disarm
+  - level: 2
+    ability: power-attack
+
+# Weapon proficiency (weapon-identity §3). Book: all simple + martial weapons.
+# Exotic weapons (e.g. an ashandarei) still carry the non-proficient to-hit
+# penalty until a feat grants the kind.
+proficiency_tiers:
+  - simple
+  - martial
+
+# Armor proficiency (armor-depth §5). The Armsman is the one martial WoT class
+# with no armor limit — all armor weights and shields, worn without the
+# non-proficient check penalty bleeding into attack rolls.
+armor_proficiency_tiers:
+  - light
+  - medium
+  - heavy
+
+# Saving throws (saves §2). The soldier's archetype: a strong Fortitude save
+# (toughness vs poison/trauma/massive-damage), weak Reflex and Will. Composed
+# best-per-axis on a multiclass character.
+save_progressions:
+  fortitude: strong
+  reflex: weak
+  will: weak
+
+# Eligibility — humanoid races, both genders. The Armsman is open to anyone who
+# can carry a blade.
+allowed_categories:
+  - humanoid
+
+starting_alignment: 0
+
+priority: 0

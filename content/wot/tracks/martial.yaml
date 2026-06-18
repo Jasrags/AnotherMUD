@@ -1,0 +1,26 @@
+id: martial
+name: Path of Arms
+# The shared advancement track for every NON-channeler WoT class (the book's
+# mundane "hero" classes — Armsman first, with Woodsman / Wanderer / Noble /
+# Algai'd'siswai to follow). It is the worldly counterpart to the channeler's
+# `one-power` track: the same triangular XP curve and pace, expressed through
+# each class's stat growth + path abilities rather than the Source.
+#
+# Mirrors the core `adventurer` curve exactly, but lives in the WoT world pack
+# so all WoT progression stays inside the world (character-identity world-locking
+# — a WoT character never advances a library-pack track). Rename freely before
+# more classes bind to it; nothing else references the name yet.
+max_level: 10
+xp_table:
+  - 0
+  - 0
+  - 100
+  - 300
+  - 600
+  - 1000
+  - 1500
+  - 2100
+  - 2800
+  - 3600
+  - 4500
+death_penalty: 0.0
