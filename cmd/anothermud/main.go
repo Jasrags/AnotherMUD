@@ -26,6 +26,7 @@ import (
 
 	"github.com/Jasrags/AnotherMUD/internal/account"
 	"github.com/Jasrags/AnotherMUD/internal/ai"
+	"github.com/Jasrags/AnotherMUD/internal/auction"
 	"github.com/Jasrags/AnotherMUD/internal/biome"
 	"github.com/Jasrags/AnotherMUD/internal/campfire"
 	"github.com/Jasrags/AnotherMUD/internal/channel"
@@ -2582,6 +2583,61 @@ func run() error {
 		return fmt.Errorf("register madness tick: %w", err)
 	}
 
+	// Shared trade audit log (trade-escrow §5), consumed by both direct-trade
+	// and the auction house. Built here — before the tick loop starts —
+	// because the auction expiry tick must register before loop.Run.
+	escrowAudit := escrow.NewAuditStore(cfg.SaveDir, clk)
+
+	// Auction house (auction-house.md): the persisted listing store, the
+	// manager (reusing the escrow audit log + currency seam + entity store +
+	// templates), an offline-notice adapter over the notification manager, a
+	// recurring expiry sweep, and a boot reconcile that expires any listing
+	// whose deadline passed while the server was down. The tradable predicate
+	// is the same `no_trade` gate the direct-trade manager uses.
+	auctionStore := auction.NewStore(cfg.SaveDir, clk)
+	if err := auctionStore.Load(); err != nil {
+		return fmt.Errorf("load auction store: %w", err)
+	}
+	auctionCfg := auction.Config{
+		ListingFee:   envIntOr("ANOTHERMUD_AUCTION_LISTING_FEE", 10),
+		SaleCutPct:   envIntOr("ANOTHERMUD_AUCTION_SALE_CUT_PCT", 5),
+		Duration:     envDurationOr("ANOTHERMUD_AUCTION_DURATION", 24*time.Hour),
+		MinPrice:     envIntOr("ANOTHERMUD_AUCTION_MIN_PRICE", 1),
+		PerSellerCap: envIntOr("ANOTHERMUD_AUCTION_PER_SELLER_CAP", 10),
+		PageSize:     envIntOr("ANOTHERMUD_AUCTION_PAGE_SIZE", 10),
+	}
+	auctionMgr := auction.NewManager(auctionStore, escrowAudit, bus, currencySvc, entityStore, registries.Items, clk, auctionCfg,
+		func(id entities.EntityID) bool {
+			e, ok := entityStore.GetByID(id)
+			if !ok {
+				return true
+			}
+			it, ok := e.(*entities.ItemInstance)
+			if !ok {
+				return true
+			}
+			for _, t := range it.Tags() {
+				if t == "no_trade" {
+					return false
+				}
+			}
+			return true
+		},
+	)
+	auctionMgr.SetNotifier(auctionNotifier{m: notifMgr})
+
+	// Boot reconcile (auction-house §4/§8): expire anything that lapsed while
+	// the server was down before the world opens.
+	auctionMgr.SweepExpired(ctx, clk.Now())
+
+	// Recurring expiry sweep — must register before loop.Run below.
+	auctionSweepCadence := cadenceTicks(cfg.TickInterval, envDurationOr("ANOTHERMUD_AUCTION_SWEEP_INTERVAL", time.Minute))
+	if err := loop.Register("auction-expire", auctionSweepCadence, func(ctx context.Context, _ uint64) {
+		auctionMgr.SweepExpired(ctx, clk.Now())
+	}); err != nil {
+		return fmt.Errorf("register auction-expire tick: %w", err)
+	}
+
 	var wg sync.WaitGroup
 	wg.Add(1)
 	go func() {
@@ -2604,10 +2660,11 @@ func run() error {
 		slog.Bool("color_default", cfg.ColorDefault),
 	)
 
-	// Direct trade (direct-trade.md): the escrow audit log + the session
-	// manager. tradable refuses `no_trade`-tagged items; describe renders
-	// item names in offer views. Both read the live entity store.
-	escrowAudit := escrow.NewAuditStore(cfg.SaveDir, clk)
+	// Direct trade (direct-trade.md): the session manager over the shared
+	// escrow audit log (escrowAudit is built above, before the tick loop
+	// starts, because the auction house registers an expiry tick against it).
+	// tradable refuses `no_trade`-tagged items; describe renders item names in
+	// offer views. Both read the live entity store.
 	tradeMgr := trade.NewManager(bus, escrowAudit, currencySvc,
 		func(id entities.EntityID) bool {
 			e, ok := entityStore.GetByID(id)
@@ -2634,7 +2691,6 @@ func run() error {
 			return ""
 		},
 	)
-
 	handler := session.Handler(session.Config{
 		World:         w,
 		ChannelMap:    channelMap,
@@ -2738,6 +2794,7 @@ func run() error {
 		Currency:        currencySvc,
 		Mounts:          mountSvc,
 		Trades:          tradeMgr,
+		Auction:         auctionMgr,
 		Shop:            shopSvc,
 		Sustenance:      sustenanceSvc,
 		Rest:            restSvc,
@@ -4500,6 +4557,27 @@ func (s *progressionSink) OnTrackReset(ctx context.Context, entityID, track stri
 // currencySink bridges economy.Sink to eventbus.Bus (M11.1 — spec
 // economy-survival §2.2). Same composition-root pattern as
 // alignmentSink: the economy package must not import eventbus, so the
+// auctionNotifier adapts the notification manager to auction.Notifier so the
+// auction house can deliver sold/expired/cancelled/refund notices that reach
+// a player online-now or on next login (auction-house §7 — text only; goods
+// wait for pickup).
+type auctionNotifier struct {
+	m *notifications.Manager
+}
+
+func (a auctionNotifier) Notify(ctx context.Context, playerID, playerName, text string) {
+	if a.m == nil || playerID == "" {
+		return
+	}
+	n := notifications.Notification{
+		Recipients: []string{playerID},
+		Priority:   notifications.PrioritySystem,
+		Kind:       "auction",
+		Text:       text,
+	}
+	_ = a.m.Publish(ctx, n, map[string]string{playerID: playerName})
+}
+
 // service reports through this adapter and we map 1:1 to the bus.
 type currencySink struct {
 	bus *eventbus.Bus

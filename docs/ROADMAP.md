@@ -47,13 +47,15 @@ and `THEME-AXIS-PLAN.md` are superseded by `BACKLOG.md` and now live under
   sessions, modern-client, roles/admin, decorations, stacking, loot, room
   coordinates, player maps, equipment slots, crafting, visibility, and
   movement cost all work.
-- **Active — M29 Player Trade** (specced, `BACKLOG.md` §1 → in build). The
-  escrow primitive + direct trade + buyout auction house. **Phase 0 (the
-  escrow/atomic-transaction primitive, `internal/escrow`) + Phase 1 (the audit
-  log) + Phase 2 (direct trade — `internal/trade`, the verbs, teardown hooks)
-  shipped — Ship line A (player-to-player trade) is complete.** Next is Ship
-  line B, the auction house (Phases 3–8). Plan: `docs/plans/trade-plan.md`;
-  details in the M29 section below.
+- **M29 Player Trade — COMPLETE** (specced, `BACKLOG.md` §1). The escrow
+  primitive + direct trade + buyout auction house. **All shipped:** Phase 0
+  (the escrow/atomic-transaction primitive, `internal/escrow`) + Phase 1 (the
+  audit log) + **Ship line A** (direct trade — `internal/trade`, the verbs,
+  teardown hooks) + **Ship line B** (the auction house — `internal/auction`:
+  persisted listing store, list/cancel, browse, buyout, collect, expiry sweep,
+  admin moderation, town-square auctioneer; slices B0–B6). Plan:
+  `docs/plans/trade-plan.md`; details in the M29 section below. Deferred
+  post-MVP: bidding, push/mail delivery, location-scoped markets.
 - **Active arc — WoT Mechanics EPIC** (post-M27, additive sub-epics; Decision 0
   = posture A, translate onto tick/chance). Shipped so far: **S1 weapon-identity**,
   **S1.H masterwork** (item quality grades — masterwork/power-wrought, delivered
@@ -3667,7 +3669,7 @@ consumers, not re-gating render.
 
 ---
 
-### M29 — Player Trade (active)
+### M29 — Player Trade (complete)
 
 The escrow/atomic-transaction substrate plus its two consumers — direct
 player-to-player trade and a buyout auction house. Built once, consumed twice:
@@ -3710,24 +3712,55 @@ phase order in `docs/plans/trade-plan.md`. Two ship lines: A = Direct Trade
       deferred (the seam exists). Unit-tested over the real escrow + currency
       (incl. veto-make-whole, retry-after-veto, confirm-reset, rescind-by-query)
       + a live two-client smoke (`cmd/telnet-smoke`); two review passes.
-- [ ] **Phase 3 — pickup delivery** (`auction-house.md` §7): escrow-holds-until-
-      collected + the `collect` verb + notification notice (text only).
-- [ ] **Phase 4 — listing + persisted store** (`auction-house.md` §3–§4): the
-      `list` verb, the new versioned `internal/auction` store with restart
-      reconciliation, the non-refundable listing fee, the per-player cap.
-- [ ] **Phase 5 — browse / search** (`auction-house.md` §5): category/name
-      filter, price/time sort, pagination, stable per-listing reference.
-- [ ] **Phase 6 — buyout purchase** (`auction-house.md` §6): atomic buy through
-      Phase 0 (coin to seller minus cut, item to buyer pickup).
-- [ ] **Phase 7 — tick expiry + returns** (`auction-house.md` §8): recurring
-      expiry handler, idempotent + expire-on-load for lapsed-while-down.
-- [ ] **Phase 8 — fees as the gold sink** (`auction-house.md` §9): listing fee +
-      sale cut wired as config; zero disables the sink. **Ship line B done.**
+- [x] **Auction house** (`auction-house.md`) — **Ship line B done.** The
+      asynchronous, persisted, fee-bearing marketplace, the second consumer of
+      the Phase 0 escrow primitive, built in seven slices on `main`:
+      - **B0 — listing store + serialization** (§4): `internal/auction`, a
+        versioned/atomic/migratable `Store`; the richer item serialization §4
+        needs (template **+ per-instance property bag**, so a craft's grade
+        override and decorations survive — fidelity the template-id-only player
+        save lacks); the held item lives only as serialized listing data
+        (never a live entity until collect), so it is never duplicated and
+        round-trips a reboot; a persisted monotonic id counter.
+      - **B1 — access point + custody + list/cancel** (§2–§3): the auctioneer
+        substrate (room `auction_house` tag / `auctioneer` NPC, reusing the
+        tagged-entity trick — no furniture system); `auction <item> <price>` /
+        `auctions` / `unlist <#>`; non-refundable fee charged first; per-seller
+        cap; cancel earmarks the item for pickup.
+      - **B2 — browse + buyout** (§5–§6, §9): `browse [name] [price|time]
+        [page]` (filter/sort/paginate, stable per-listing ref); `buyout <#>` —
+        cancellable veto, single-winner `MarkSold` (refund on a lost race),
+        seller proceeds = price − cut, the cut sunk (gold sink).
+      - **B3 — collect + pickup holdings** (§7): `collect` claims proceeds +
+        won/returned items through the normal carry-weight gate; what doesn't
+        fit stays in escrow, never lost; mark-collected before the inventory
+        add so a failure never duplicates.
+      - **B4 — expiry sweep** (§8): one `SweepExpired` path for the recurring
+        `auction-expire` tick AND the boot reconcile (lapsed-while-down expires
+        on load); exactly-once; fee not refunded.
+      - **B5 — admin moderation** (§11): `auctionremove` (active → seller) and
+        `auctionrefund` (sold-but-uncollected reversal: buyer refunded, seller
+        proceeds clawed back, item returned), role-gated; refuses once either
+        party collected (no negative balances / dupes).
+      - **B6 — content + wiring + verify + docs**: town-square auctioneer,
+        `ANOTHERMUD_AUCTION_*` config (fee/cut/duration/min/cap/page/sweep),
+        composition-root wiring (manager + notifier adapter + tick + reconcile,
+        built before `loop.Run`), a live two-client smoke (list → browse → buy
+        → collect both sides).
+      **Design note:** the buyout does NOT use an `escrow.Transaction` — that
+      abstraction assumes two live parties swapping staged legs, but the
+      auction seller is an offline ledger and the price splits into proceeds +
+      a sunk cut. The buyout keeps the same `trade.committing` veto + the same
+      audit log; only the leg machinery differs (one buyer-coin debit + a
+      single-winner status flip, made whole by a refund). Unit-tested per
+      slice (`-race`) + the live smoke; the buy verb is `buyout` (not `buy`,
+      the shop verb) and name search is folded into `browse <name>` (`search`
+      is the hidden-exits verb).
 
-Deferred (post-MVP): bidding (Phase 9 — needs anti-sniping policy),
-push-delivery/mail-attachments (Phase 10 — greenfield, shared with Mail),
-location-scoped markets (Phase 11), admin moderation (role-gated, dependency
-already shipped). See `docs/plans/trade-plan.md`.
+Deferred (post-MVP): bidding (needs anti-sniping policy), push-delivery/
+mail-attachments (greenfield, shared with Mail), location-scoped markets,
+container listing (a listed container rehydrates empty in v1), graded-item
+[rarity] render polish. See `docs/plans/trade-plan.md`.
 
 ---
 

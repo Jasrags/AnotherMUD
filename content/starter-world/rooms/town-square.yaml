@@ -49,6 +49,8 @@ healing_rate: 1
 # Cluster 2: the town square is a safe hub. `safe-room` blocks combat
 # engagement here (combat §2.1); `safe` satisfies the training safe-room
 # gate (progression §7.4) if a host enables RequireSafeRoomForStats.
-tags: [safe-room, safe]
+# `auction_house` makes the square an auctioneer access point (auction-house
+# §2): `auction <item> <price>`, `browse`, `buyout <#>`, `collect` work here.
+tags: [safe-room, safe, auction_house]
 # Mobs now spawn via area-level spawn_rules (spec
 # mobs-ai-spawning §3.5). See areas/town.yaml.

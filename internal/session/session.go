@@ -23,6 +23,7 @@ import (
 	"time"
 
 	"github.com/Jasrags/AnotherMUD/internal/ansi"
+	"github.com/Jasrags/AnotherMUD/internal/auction"
 	"github.com/Jasrags/AnotherMUD/internal/biome"
 	"github.com/Jasrags/AnotherMUD/internal/channel"
 	"github.com/Jasrags/AnotherMUD/internal/chat"
@@ -390,6 +391,13 @@ type Config struct {
 	// link-death / room change) to cancel an actor's open trade. nil-safe:
 	// the verbs report trading is unavailable when unwired.
 	Trades *trade.Manager
+
+	// Auction is the auction-house manager (auction-house.md). Passed
+	// through command.Env so the auction/browse/buyout/collect verbs route
+	// through it. nil-safe: the verbs report the auction house is unavailable
+	// when unwired. No teardown hook — listings persist independent of a
+	// session.
+	Auction *auction.Manager
 
 	// Shop is the M11.2 shop service (spec §3). Passed through
 	// command.Env so the buy/sell/value/list verbs can reach it.
