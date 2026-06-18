@@ -210,6 +210,63 @@ func BuyoutHandler(ctx context.Context, c *Context) error {
 	return c.Actor.Write(ctx, fmt.Sprintf("You win %s for %d gold. Collect it at an auctioneer.", won.Item.Name, won.Price))
 }
 
+// CollectHandler implements `collect` — claim everything waiting for the
+// caller at an access point (§7): proceeds from sales, won items, and
+// returned (expired/cancelled) items. Items pass the normal carry-weight
+// gate; what doesn't fit stays in escrow for a later collect and is never
+// lost.
+func CollectHandler(ctx context.Context, c *Context) error {
+	if c.Auction == nil {
+		return c.Actor.Write(ctx, "There's no auction house here.")
+	}
+	me, ok := auctionParty(c)
+	if !ok {
+		return c.Actor.Write(ctx, "You can't use the auction house.")
+	}
+	if !atAuctioneer(ctx, c) {
+		return nil
+	}
+
+	var got []string
+	if coin := c.Auction.CollectCoin(ctx, me); coin > 0 {
+		got = append(got, fmt.Sprintf("%d gold", coin))
+	}
+
+	heldBack := false
+	for _, l := range c.Auction.PendingPickups(me.ID()) {
+		inst, err := c.Auction.RehydratePickup(ctx, l)
+		if err != nil {
+			// Template vanished since listing — leave it for an operator
+			// (the item is still recorded in the store), keep collecting.
+			continue
+		}
+		if c.carryWeightExceeded(inst) {
+			_ = c.Items.Untrack(inst.ID()) // not delivered — drop the live copy.
+			heldBack = true
+			break // stop; the rest stays waiting (PD: never silently lose it).
+		}
+		if err := c.Auction.ConfirmItemCollected(ctx, me, l, inst.ID()); err != nil {
+			_ = c.Items.Untrack(inst.ID())
+			heldBack = true
+			break
+		}
+		me.AddToInventory(inst.ID())
+		got = append(got, inst.Name())
+	}
+
+	if len(got) == 0 {
+		if heldBack {
+			return c.Actor.Write(ctx, "You can't carry any more right now; your goods are still waiting.")
+		}
+		return c.Actor.Write(ctx, "There's nothing waiting for you here.")
+	}
+	msg := "You collect " + strings.Join(got, ", ") + "."
+	if heldBack {
+		msg += " (You couldn't carry the rest — it's still waiting.)"
+	}
+	return c.Actor.Write(ctx, msg)
+}
+
 // parseBrowseArgs classifies loose browse tokens: a number is the page,
 // "price"/"time" the sort, "cat:<type>" the category, anything else joins
 // into the name substring (§5 example: `browse sword price`).
