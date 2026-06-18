@@ -475,14 +475,32 @@ func movementHandler(dir world.Direction) Handler {
 		// before any side effect, so an insufficient pool aborts cleanly.
 		// Cost is the destination biome's weight (rough terrain costs more),
 		// falling back to the configured flat default.
-		// The mover's surcharges (encumbrance + armor speed) depend only on the
-		// mover, not the room, so compute them ONCE — they add equally to every
-		// step's cost. moveCost = the destination terrain plus that surcharge.
-		moverSurcharge := c.encumbranceSurcharge() + c.armorSpeedSurcharge()
-		dstCost := terrainStepCost(c, dst) + moverSurcharge
-		allowed, charged := spendMovement(c, dstCost)
-		if !allowed {
-			return c.Actor.Write(ctx, tooWindedText)
+		// Mounted travel (mounts.md §5): while RIDDEN the MOUNT is the metered
+		// mover — the step spends the mount's travel pool, not the rider's
+		// movement, and some terrain a mount cannot enter at all (§5.3). The
+		// mount bears the load, so the rider's own encumbrance/armor surcharge
+		// does NOT apply. On foot it's the rider's movement pool plus that
+		// surcharge. Either way the move primitive stays unconditional; the
+		// spend lives here in the volition verb.
+		var allowed, charged bool
+		// NOTE: mountedSteed clears a stale ride pointer as a side effect (lazy
+		// never-strand) — call it once and reuse the result.
+		if steed := mountedSteed(c); steed != nil {
+			if mountBlockedBy(c, dst, steed) {
+				return c.Actor.Write(ctx, mountImpassableText)
+			}
+			allowed, charged = spendMountTravel(steed, terrainStepCost(c, dst))
+			if !allowed {
+				return c.Actor.Write(ctx, mountBlownText)
+			}
+		} else {
+			// The mover's surcharges (encumbrance + armor speed) depend only on
+			// the mover, not the room, so they add equally to every step.
+			moverSurcharge := c.encumbranceSurcharge() + c.armorSpeedSurcharge()
+			allowed, charged = spendMovement(c, terrainStepCost(c, dst)+moverSurcharge)
+			if !allowed {
+				return c.Actor.Write(ctx, tooWindedText)
+			}
 		}
 		// Terrain-difficulty hint: surfaced only when the step actually cost
 		// the mover extra — they were charged (so an unmetered/free mover stays

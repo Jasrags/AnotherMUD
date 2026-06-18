@@ -40,6 +40,12 @@ const (
 	Skittish Temperament = "skittish"
 )
 
+// DefaultTravelRegen is the per-regen-tick travel-pool restore applied to a
+// mount whose content left travel_regen unset (mounts.md §5.4). A mount always
+// recovers SOME travel out of combat so a blown mount is never permanently
+// stuck (the rider can also always dismount and walk, §6).
+const DefaultTravelRegen = 5
+
 // Default is the temperament a mount resolves to when its content declares
 // none (mounts.md §7.2): the cautious ordinary riding animal. A mount authored
 // without a temperament is therefore skittish, never accidentally war-trained.

@@ -50,6 +50,7 @@ import (
 	"github.com/Jasrags/AnotherMUD/internal/login"
 	"github.com/Jasrags/AnotherMUD/internal/loot"
 	"github.com/Jasrags/AnotherMUD/internal/mob"
+	"github.com/Jasrags/AnotherMUD/internal/mount"
 	"github.com/Jasrags/AnotherMUD/internal/mssp"
 	"github.com/Jasrags/AnotherMUD/internal/notifications"
 	"github.com/Jasrags/AnotherMUD/internal/pack"
@@ -532,6 +533,31 @@ func run() error {
 		mgr.RegenTick(ctx, sustenanceSvc, restSvc, regenCfg)
 	}); err != nil {
 		return fmt.Errorf("register vitals-regen tick: %w", err)
+	}
+
+	// Mount travel-pool regen (mounts.md §5.4): a ridden/parked mount recovers
+	// travel out of combat so a blown mount becomes rideable again. Shares the
+	// vitals-regen cadence. Iterates the live mounts in the entity store and
+	// restores each by its content travel_regen (or the engine default). v1
+	// regens unconditionally — mounts aren't combatants yet (the §7 boundary);
+	// a future mounted-combat slice can gate this on the mount's combat state.
+	if err := loop.Register("mount-travel-regen", regenCfg.Cadence, func(_ context.Context, _ uint64) {
+		// GetByTag returns the read-side snapshot, which can lag one tick: a
+		// just-stabled/killed mount may appear here once more. Tolerated —
+		// RestoreTravel is a capped no-op on its (discarded) pool, never a leak.
+		for _, e := range entityStore.GetByTag(entities.TagMob) {
+			m, ok := e.(*entities.MobInstance)
+			if !ok || !m.IsMount() {
+				continue
+			}
+			amt := m.TravelRegenAmount()
+			if amt <= 0 {
+				amt = mount.DefaultTravelRegen
+			}
+			m.RestoreTravel(amt)
+		}
+	}); err != nil {
+		return fmt.Errorf("register mount-travel-regen tick: %w", err)
 	}
 
 	// AI tick (spec mobs-ai-spawning §4). Registers AFTER the

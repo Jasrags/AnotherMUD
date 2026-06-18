@@ -298,6 +298,68 @@ func DismountHandler(ctx context.Context, c *Context) error {
 	return c.Actor.Write(ctx, fmt.Sprintf("You climb down from %s.", name))
 }
 
+// PropRoomMountImpassable is the room property flag marking a destination no
+// mount can enter (mounts.md §5.3) — a cramped interior, a sheer stair. A
+// mounted step into such a room is refused; the rider dismounts and walks. This
+// is the broad room-level gate; a mount type's own Impassable list is the
+// narrower per-mount gate (CannotEnterTerrain).
+const PropRoomMountImpassable = "mount_impassable"
+
+// mountImpassableText / mountBlownText are the player-facing refusals for the
+// two mounted-travel blocks (§5.3, §5.4). Both leave dismount-and-walk open
+// (the never-strand rule, §6).
+const (
+	mountImpassableText = "Your mount can't go that way. (Dismount to continue on foot.)"
+	mountBlownText      = "Your mount is blown and won't go on. (Dismount to walk, or wait for it to recover.)"
+)
+
+// mountedSteed returns the live mount the actor is currently riding, or nil
+// when on foot. Clears a stale ride pointer as a side effect (lazy
+// never-strand). The movement gate calls this to decide who pays for the step.
+func mountedSteed(c *Context) *entities.MobInstance {
+	rider, ok := c.Actor.(mountRider)
+	if !ok {
+		return nil
+	}
+	m, ok := riddenMount(c, rider)
+	if !ok {
+		return nil
+	}
+	return m
+}
+
+// mountBlockedBy reports whether a mount is barred from entering dst (§5.3):
+// either the room flags itself mount-impassable for all mounts, or this mount
+// type's own impassable-terrain list names dst's terrain.
+func mountBlockedBy(c *Context, dst *world.Room, steed *entities.MobInstance) bool {
+	if dst == nil {
+		return false
+	}
+	if blocked, _ := dst.PropertyBool(PropRoomMountImpassable); blocked {
+		return true
+	}
+	return steed.CannotEnterTerrain(dst.Terrain)
+}
+
+// spendMountTravel charges a mounted step against the mount's travel pool
+// (mounts.md §5.1, §5.4): a non-positive cost moves free; a cost the mount can
+// afford is charged; otherwise the step is refused (the mount is blown — or the
+// terrain is permanently beyond its ceiling, in which case the rider dismounts
+// and walks it). Unlike the on-foot spendMovement gate, there is NO
+// "cost > max ⇒ free" branch: a mount always has a pool (the loader enforces
+// travel_max > 0), so a step it can never afford is a refusal, not a free pass —
+// that surfaces a content misconfiguration instead of silently galloping
+// through impassably-costly terrain. Returns (allowed, charged).
+func spendMountTravel(steed *entities.MobInstance, cost int) (allowed, charged bool) {
+	if cost <= 0 {
+		return true, false
+	}
+	if steed.TrySpendTravel(cost) {
+		return true, true
+	}
+	return false, false
+}
+
 // riddenMount resolves the live mount a rider is on, or clears a stale ride
 // pointer and reports false (lazy never-strand, mounts.md §6): if the mount has
 // left the world (died, was removed), the rider is simply on foot again. Safe

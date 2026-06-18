@@ -46,12 +46,27 @@ func TestLive_MountLifecycle(t *testing.T) {
 	mountCmd(t, c, "unstable horse", "brings out")
 	mountCmd(t, c, "mount horse", "climb onto")
 
+	// Metering (mounts.md §5.1): while mounted, the MOUNT is the metered mover —
+	// riding spends the mount's travel pool, not the rider's movement. So the
+	// rider's MV must be unchanged across a mounted step.
+	mvBefore, _, err := scoreMovement(c)
+	if err != nil {
+		t.Fatalf("read movement before mounted step: %v", err)
+	}
+
 	// Ride north into the town square — the mount must FOLLOW the rider
 	// (co-located travel). Proof that doesn't depend on the (dark) room render:
 	// dismount and re-mount. `mount horse` succeeds ONLY if the horse is in
 	// this room — i.e. it came along. Had it stayed at the gate, this would be
 	// "You don't see that mount here."
 	walkStep(t, c, "north") // village-gate -> town-square (mounted)
+	mvAfter, _, err := scoreMovement(c)
+	if err != nil {
+		t.Fatalf("read movement after mounted step: %v", err)
+	}
+	if mvAfter != mvBefore {
+		t.Fatalf("mounted step charged the rider's movement: %d -> %d (the mount should be the metered mover)", mvBefore, mvAfter)
+	}
 	mountCmd(t, c, "dismount", "climb down")
 	mountCmd(t, c, "mount horse", "climb onto") // co-location proof
 
