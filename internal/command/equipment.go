@@ -109,6 +109,12 @@ func EquipHandler(ctx context.Context, c *Context) error {
 		return c.Actor.Write(ctx, fmt.Sprintf("You can't equip %s.", item.Name()))
 	}
 
+	// Armor §7: bulky armor can't be buckled on in the middle of a fight.
+	if err, blocked := c.armorChangeBlockedInCombat(ctx,
+		item, fmt.Sprintf("There's no time to buckle on %s in the thick of a fight.", item.Name())); blocked {
+		return err
+	}
+
 	// §3.4 step 1 / Decision A: resolve the target slot. Named slot wins;
 	// with none named, a sole-eligible item auto-targets, a multi-eligible
 	// item asks which (rather than silently mis-targeting).
@@ -479,6 +485,12 @@ func UnequipHandler(ctx context.Context, c *Context) error {
 		return c.Actor.Write(ctx, "You aren't wearing that.")
 	}
 	target := match.(*entities.ItemInstance)
+
+	// Armor §7: bulky armor can't be shed in the middle of a fight either.
+	if err, blocked := c.armorChangeBlockedInCombat(ctx,
+		target, fmt.Sprintf("You can't shed %s in the middle of a fight.", target.Name())); blocked {
+		return err
+	}
 
 	var slotKey string
 	for _, p := range pairs {

@@ -265,10 +265,16 @@ content).
 
 **Acceptance criteria**
 
-- [ ] Donning/removing armor that declares durations takes the configured time;
-      armor without durations is instant.
+- [x] Donning/removing armor that declares durations takes the configured time;
+      armor without durations is instant. **SHIPPED 2026-06-17** as a *combat gate*
+      (the chosen §9 action-model policy, Decision 0): "takes time" is translated
+      to "can't be managed mid-fight" rather than a wall-clock wait. Slow armor
+      (medium/heavy tier) cannot be equipped or removed while in combat; light
+      armor, shields, and untiered gear stay free (`internal/command/armordon.go`).
 - [ ] Hastily donned armor applies a worsened armor bonus and check penalty until
-      properly donned.
+      properly donned. **DEFERRED** — the §7 escape hatch (`equip ... hastily`,
+      fast but −1 armor bonus / +1 check until re-donned). Needs per-slot hasty
+      runtime state + an armor-aggregation change; a follow-up on the combat gate.
 
 ## 8. Interaction with existing systems
 

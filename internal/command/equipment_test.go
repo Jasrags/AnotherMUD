@@ -626,3 +626,72 @@ func TestEquip_BroadcastFiresWithItemName(t *testing.T) {
 		t.Errorf("broadcast leaked a slot-key colon: %q", rec.calls[0].text)
 	}
 }
+
+// heavyHelmTpl is a heavy-tier armor on the head slot (like the great helm) —
+// "slow" armor for the §7 don/doff combat gate.
+func heavyHelmTpl() *item.Template {
+	return &item.Template{
+		ID: "tapestry-core:great-helm", Name: "a great helm", Type: "item",
+		Keywords: []string{"helm"}, EligibleSlots: []string{"head"},
+		ArmorTier: "heavy", ArmorBonus: 4,
+	}
+}
+
+// lightCapTpl is light-tier head armor — NOT gated in combat.
+func lightCapTpl() *item.Template {
+	return &item.Template{
+		ID: "tapestry-core:padded-cap", Name: "a padded cap", Type: "item",
+		Keywords: []string{"cap"}, EligibleSlots: []string{"head"},
+		ArmorTier: "light", ArmorBonus: 1,
+	}
+}
+
+// Armor §7: bulky (medium/heavy) armor can't be donned or removed mid-combat;
+// light armor and out-of-combat changes are unaffected.
+func TestEquip_SlowArmorBlockedInCombat(t *testing.T) {
+	r := newRegistry(t)
+
+	// In combat: a heavy helm is refused, and stays in inventory.
+	f := newEqFixture(t)
+	a := newTestActor(f.room)
+	a.inCombat = true
+	helm := f.spawnInInventory(t, heavyHelmTpl(), a)
+	dispatch(t, r, f.env(), a, "equip helm")
+	if _, worn := a.Equipment()["head"]; worn {
+		t.Error("heavy helm equipped in combat; the §7 gate should refuse it")
+	}
+	if !containsID(a.Inventory(), helm.ID()) {
+		t.Error("refused helm should stay in inventory")
+	}
+	if joined := strings.Join(actorLines(a), "\n"); !strings.Contains(joined, "no time to buckle on") {
+		t.Errorf("expected the don-in-combat refusal:\n%s", joined)
+	}
+
+	// In combat: light armor is quick — it equips fine.
+	f2 := newEqFixture(t)
+	a2 := newTestActor(f2.room)
+	a2.inCombat = true
+	f2.spawnInInventory(t, lightCapTpl(), a2)
+	dispatch(t, r, f2.env(), a2, "equip cap")
+	if _, worn := a2.Equipment()["head"]; !worn {
+		t.Error("light cap should equip even in combat")
+	}
+
+	// Out of combat: the heavy helm equips; then entering combat, it can't be shed.
+	f3 := newEqFixture(t)
+	a3 := newTestActor(f3.room)
+	f3.spawnInInventory(t, heavyHelmTpl(), a3)
+	dispatch(t, r, f3.env(), a3, "equip helm")
+	if _, worn := a3.Equipment()["head"]; !worn {
+		t.Fatal("heavy helm should equip out of combat")
+	}
+	a3.inCombat = true
+	a3.lines = nil
+	dispatch(t, r, f3.env(), a3, "unequip helm")
+	if _, worn := a3.Equipment()["head"]; !worn {
+		t.Error("heavy helm removed in combat; the §7 gate should refuse the doff")
+	}
+	if joined := strings.Join(actorLines(a3), "\n"); !strings.Contains(joined, "can't shed") {
+		t.Errorf("expected the doff-in-combat refusal:\n%s", joined)
+	}
+}

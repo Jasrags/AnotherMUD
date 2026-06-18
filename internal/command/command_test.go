@@ -287,6 +287,7 @@ type testActor struct {
 	sleepStartTick uint64
 	sust           int
 	autoloot       bool
+	inCombat       bool
 
 	craftPending crafting.PendingCraft
 	hasCraft     bool
@@ -780,6 +781,13 @@ func (a *testActor) Equipment() map[string]entities.EntityID {
 		out[k] = v
 	}
 	return out
+}
+
+// InCombat satisfies the optional capability the armor §7 don/doff gate probes.
+func (a *testActor) InCombat() bool {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	return a.inCombat
 }
 
 func (a *testActor) Equip(footprint []string, id entities.EntityID, mods []stats.Modifier) bool {
