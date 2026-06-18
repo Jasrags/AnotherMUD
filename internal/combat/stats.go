@@ -175,6 +175,15 @@ const (
 	DefaultTwoWeaponOffHandPenalty = 8
 )
 
+// DefaultPowerAttackTrade is the Power Attack stance magnitude (feats Bucket C):
+// the attacker subtracts this from to-hit and adds it to melee damage while the
+// stance is on (a two-handed wield adds twice this to damage — size-and-wielding
+// §4.2). d20 lets the attacker pick any value up to BAB per action; this engine
+// has no BAB and no per-swing choice (Decision 0), so the trade is a fixed
+// posture. A constant for now; env-wiring is a follow-up like the two-weapon
+// penalties above.
+const DefaultPowerAttackTrade = 2
+
 // TypedResistance returns the defender's damage reduction against an
 // attack of the given damage type(s) (armor-depth §4). It returns the
 // resistance of the FIRST of the attacker's declared types that the

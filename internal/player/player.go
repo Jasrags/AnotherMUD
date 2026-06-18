@@ -127,7 +127,7 @@ import (
 // means "knows no recipes beyond what a discipline grants at runtime";
 // the migration injects nothing. A known id whose recipe was removed from
 // content loads cleanly and is ignored at restore (§9), never an error.
-const CurrentVersion = 26
+const CurrentVersion = 27
 
 // Sentinel errors callers may check via errors.Is.
 var (
@@ -360,6 +360,17 @@ type Save struct {
 	// template is no longer in content is ignored at materialization, never an
 	// error (fail-soft, like KnownRecipes).
 	Mounts []MountRecord `yaml:"mounts,omitempty"`
+
+	// PowerAttackActive is the Power Attack combat stance (feats Bucket C — a
+	// melee accuracy-for-power trade). A persistent posture, not a per-swing
+	// d20 choice (Decision 0: tick/chance, not action economy): while on, the
+	// attacker trades to-hit for damage every melee swing. Toggled by the
+	// `powerattack on|off` verb. Added in v27; the false zero-value (the common
+	// case — stance off, or the character never took the feat) writes no key
+	// and a pre-v27 save round-trips as off. The trade only applies if the
+	// character also holds the power-attack ability, so a stale-on stance on a
+	// character without the feat is inert rather than wrong.
+	PowerAttackActive bool `yaml:"power_attack_active,omitempty"`
 }
 
 // MountRecord is one owned mount on a player save (mounts.md §10). It is the
@@ -588,6 +599,7 @@ var playerMigrations = map[int]func(map[string]any) (map[string]any, error){
 	23: migrateV23toV24,
 	24: migrateV24toV25,
 	25: migrateV25toV26,
+	26: migrateV26toV27,
 }
 
 // migrateV1toV2 adds the empty inventory/equipment blocks introduced
@@ -980,6 +992,14 @@ func migrateV24toV25(in map[string]any) (map[string]any, error) {
 // slice — the correct default for a character who owns no mount. No on-disk
 // shape needs to change.
 func migrateV25toV26(in map[string]any) (map[string]any, error) {
+	return in, nil
+}
+
+// migrateV26toV27 is a no-op: the v27 addition (Save.PowerAttackActive, the
+// Power Attack combat stance — feats Bucket C) is absent on a pre-v27 save,
+// which decodes to false — the correct default (stance off). No on-disk shape
+// needs to change.
+func migrateV26toV27(in map[string]any) (map[string]any, error) {
 	return in, nil
 }
 

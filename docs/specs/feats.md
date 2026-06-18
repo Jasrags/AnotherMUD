@@ -271,6 +271,17 @@ site already reads the feat bridge — today the perception and concealment
 contests (`visibility.md`) and lockpicking (`skills.md`); a bonus to a skill no
 site rolls is rejected at content load rather than shipped inert.
 
+An **ability unlock** teaches an ability id; the ability's own runtime effect
+(if any) is then keyed on holding it. Most unlocks are passive bonuses, but an
+ability MAY carry an active effect — e.g. Power Attack unlocks a melee
+accuracy-for-power **stance** toggled by `powerattack on|off`: while on, the
+attacker trades a fixed to-hit penalty for added melee damage every swing (a
+two-handed wield doubles the damage half). The stance is a persistent posture,
+not a per-swing d20 choice (the engine is tick/chance, not action economy), and
+it persists across login; the trade applies only while the actor still holds the
+unlocking feat, so removing the feat makes a left-on stance inert rather than
+wrong.
+
 The grant set is engine-extensible (a new kind wires a new consumer) but is not
 open to content beyond the declared kinds.
 

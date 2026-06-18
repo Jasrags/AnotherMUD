@@ -128,6 +128,7 @@ func RegisterBuiltins(r *Registry) error {
 		{Keyword: "withdraw", Handler: WithdrawHandler, Brief: "Open one range band (kite), staying in the room.", Syntax: []string{"withdraw"}, BreaksConcealment: true},
 		{Keyword: "flee", Handler: FleeHandler, Brief: "Try to escape from combat.", Syntax: []string{"flee"}},
 		{Keyword: "wimpy", Handler: WimpyHandler, Brief: "Auto-flee when your health drops below a percent.", Syntax: []string{"wimpy <percent>"}},
+		{Keyword: "powerattack", Handler: PowerAttackHandler, Brief: "Toggle the Power Attack stance: trade accuracy for melee damage.", Syntax: []string{"powerattack <on|off>"}},
 
 		// Progression (M8.6).
 		{Keyword: "train", Handler: TrainHandler, Brief: "Spend a train credit to raise a stat.", Syntax: []string{"train <stat>"}},

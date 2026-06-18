@@ -220,6 +220,10 @@ func (a *connActor) GrantFeat(featID, param string) {
 	a.applyFeatGrants()
 }
 
+// abilityPowerAttack is the ability id the Power Attack feat grants (feats
+// Bucket C). The feat's combat effect (the stance trade) keys on holding it.
+const abilityPowerAttack = "power-attack"
+
 // featWeaponBonuses is the per-weapon-category feat bonus cache (EPIC S4
 // Phase 3c), recomputed on every feat change and read LOCK-FREE in
 // connActor.Stats() (the combat hot path, which deliberately avoids a.mu).
@@ -237,6 +241,12 @@ type featWeaponBonuses struct {
 	// first (Improved Two-Weapon Fighting — §3.1, slice 3). Stats() sets
 	// OffHandProfile.Attacks = 1 + this.
 	offHandExtraAttacks int
+	// hasPowerAttack reports whether a held feat grants the power-attack ability
+	// (feats Bucket C). Stats() reads it to gate the Power Attack stance trade,
+	// and the `powerattack` verb to gate entering the stance. Caching it here
+	// (rather than a per-round proficiency lookup) means it recomputes on feat
+	// change and the trade auto-clears if the feat is ever removed.
+	hasPowerAttack bool
 }
 
 // applyFeatGrants recomputes ALL feat grants from the actor's known_feats and
@@ -276,12 +286,20 @@ func (a *connActor) applyFeatGrants() {
 
 	// 3c: per-weapon-category hit/crit cache + (slice 2) the global two-weapon
 	// penalty reductions, read lock-free in Stats().
+	hasPowerAttack := false
+	for _, abID := range b.Abilities {
+		if abID == abilityPowerAttack {
+			hasPowerAttack = true
+			break
+		}
+	}
 	a.featWeaponBonus.Store(&featWeaponBonuses{
 		hit:                 b.HitByCategory,
 		crit:                b.CritByCategory,
 		twoWeaponHitReduce:  b.TwoWeaponHitReduce,
 		offHandHitReduce:    b.OffHandHitReduce,
 		offHandExtraAttacks: b.OffHandExtraAttacks,
+		hasPowerAttack:      hasPowerAttack,
 	})
 
 	// 3c: ability grants (Power Attack). Teach at baseline ONLY if not already

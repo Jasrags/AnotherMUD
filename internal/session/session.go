@@ -778,6 +778,8 @@ func run(ctx context.Context, c conn.Connection, cfg Config) error {
 	a.wimpyThreshold.Store(int32(clampWimpy(loaded.Player.WimpyThreshold)))
 	// M22.4: seed the autoloot preference from the persisted save.
 	a.autoloot.Store(loaded.Player.Autoloot)
+	// feats Bucket C: seed the Power Attack stance from the persisted save.
+	a.powerAttack.Store(loaded.Player.PowerAttackActive)
 
 	// M15.3: hydrate the recall room id from the persisted save.
 	// Empty = no recall point bound (the documented default for
@@ -2027,6 +2029,13 @@ type connActor struct {
 	// (same rationale as wimpyThreshold). The write path takes a.mu to
 	// also mutate a.save. Persistence: player.Save.Autoloot.
 	autoloot atomic.Bool
+
+	// powerAttack is the Power Attack combat stance (feats Bucket C — a melee
+	// accuracy-for-power trade). Toggled by `powerattack on|off`; read by
+	// Stats() every combat round, so stored as atomic.Bool to keep that read
+	// lock-free (same rationale as wimpyThreshold). The write path takes a.mu to
+	// also mutate a.save. Persistence: player.Save.PowerAttackActive (v27).
+	powerAttack atomic.Bool
 
 	mu           sync.Mutex
 	room         *world.Room
@@ -4984,6 +4993,38 @@ func (a *connActor) SetWimpyThreshold(pct int) {
 	}
 }
 
+// PowerAttackActive reports whether the Power Attack stance is on (feats
+// Bucket C). Lock-free read off the atomic; read by Stats() every combat round.
+func (a *connActor) PowerAttackActive() bool {
+	return a.powerAttack.Load()
+}
+
+// HasPowerAttackFeat reports whether the actor holds the power-attack ability
+// (granted by the Power Attack feat). Read from the feat-bonus cache so it
+// recomputes on any feat change. The `powerattack on` verb gates on this so a
+// character cannot enter a stance they have no feat for.
+func (a *connActor) HasPowerAttackFeat() bool {
+	fb := a.featWeaponBonus.Load()
+	return fb != nil && fb.hasPowerAttack
+}
+
+// SetPowerAttack toggles the Power Attack stance and marks the save dirty so
+// the new value persists on the next autosave. Mirrors SetWimpyThreshold: the
+// atomic write keeps the combat-round read lock-free, while a.mu guards the
+// coupled a.save mutation. No-ops (and skips the dirty flip) when unchanged.
+func (a *connActor) SetPowerAttack(on bool) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	if a.powerAttack.Load() == on {
+		return
+	}
+	a.powerAttack.Store(on)
+	if a.save != nil {
+		a.save.PowerAttackActive = on
+		a.markDirtyLocked()
+	}
+}
+
 // Autoloot reports the actor's autoloot preference (loot-and-corpses
 // §6). Lock-free read off the atomic; safe from the tick goroutine.
 func (a *connActor) Autoloot() bool {
@@ -5366,6 +5407,22 @@ func (a *connActor) Stats() combat.Stats {
 				Attacks: offHandAttacks,
 			}
 		}
+	}
+	// Power Attack stance (feats Bucket C): a melee accuracy-for-power trade.
+	// Applies only with the stance on, a held power-attack feat, and a MELEE
+	// weapon (d20 Power Attack is melee-only — a ranged or unarmed wield is
+	// excluded). -trade to-hit / +trade damage; a two-handed melee wield doubles
+	// the damage half (size-and-wielding §4.2). Main-hand only for now — the
+	// off-hand interaction is a fidelity follow-up. Folded in last so the penalty
+	// rides on top of the per-weapon feat hit bonus already applied above.
+	if a.powerAttack.Load() && fb != nil && fb.hasPowerAttack && w != nil && w.rangedClass == "" {
+		trade := combat.DefaultPowerAttackTrade
+		s.HitMod -= trade
+		dmg := trade
+		if w.wieldMode == size.TwoHanded {
+			dmg *= 2
+		}
+		s.DamageBonus += dmg
 	}
 	return s
 }

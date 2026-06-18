@@ -4,8 +4,10 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/Jasrags/AnotherMUD/internal/combat"
 	"github.com/Jasrags/AnotherMUD/internal/feat"
 	"github.com/Jasrags/AnotherMUD/internal/progression"
+	"github.com/Jasrags/AnotherMUD/internal/size"
 	"github.com/Jasrags/AnotherMUD/internal/world"
 )
 
@@ -185,6 +187,69 @@ func TestStats_WeaponFeats(t *testing.T) {
 	a.weapon.Store(&weaponInfo{category: "axe"})
 	if got := a.Stats(); got.HitMod != 0 || got.CritThreatLow != 0 {
 		t.Errorf("axe Stats = {Hit %d, Crit %d}, want {0, 0} (focus is on sword)", got.HitMod, got.CritThreatLow)
+	}
+}
+
+// feats Bucket C: the Power Attack stance trades to-hit for melee damage in
+// Stats() — only with the stance on, the feat held, and a melee weapon. A
+// two-handed wield doubles the damage half. Measured as deltas (stance on minus
+// off) so the test is independent of the actor's base hit/damage.
+func TestStats_PowerAttackStance(t *testing.T) {
+	const trade = combat.DefaultPowerAttackTrade
+	a := newFeatActor(t, 2)
+	a.GrantFeat("power-attack", "")
+
+	// One-handed melee: -trade to-hit, +trade damage.
+	a.weapon.Store(&weaponInfo{category: "sword", wieldMode: size.OneHanded})
+	off := a.Stats()
+	a.SetPowerAttack(true)
+	on := a.Stats()
+	if got := off.HitMod - on.HitMod; got != trade {
+		t.Errorf("one-handed HitMod penalty = %d, want %d", got, trade)
+	}
+	if got := on.DamageBonus - off.DamageBonus; got != trade {
+		t.Errorf("one-handed damage bonus = %d, want %d", got, trade)
+	}
+
+	// Two-handed melee: same to-hit penalty, DOUBLED damage (size §4.2).
+	a.weapon.Store(&weaponInfo{category: "greatsword", wieldMode: size.TwoHanded})
+	thOn := a.Stats()
+	a.SetPowerAttack(false)
+	thOff := a.Stats()
+	if got := thOff.HitMod - thOn.HitMod; got != trade {
+		t.Errorf("two-handed HitMod penalty = %d, want %d", got, trade)
+	}
+	if got := thOn.DamageBonus - thOff.DamageBonus; got != 2*trade {
+		t.Errorf("two-handed damage bonus = %d, want %d (doubled)", got, 2*trade)
+	}
+
+	// Ranged weapon: the melee-only trade does not apply (no stat change on/off).
+	a.weapon.Store(&weaponInfo{category: "bow", rangedClass: "bow"})
+	rOff := a.Stats()
+	a.SetPowerAttack(true)
+	rOn := a.Stats()
+	if rOn.HitMod != rOff.HitMod || rOn.DamageBonus != rOff.DamageBonus {
+		t.Errorf("ranged stance applied a trade: on={%d,%d} off={%d,%d}",
+			rOn.HitMod, rOn.DamageBonus, rOff.HitMod, rOff.DamageBonus)
+	}
+}
+
+// The stance is inert without the feat: a flag set on a character who never
+// took Power Attack produces no trade (a stale-on stance after a hypothetical
+// respec stays harmless).
+func TestStats_PowerAttackWithoutFeatIsInert(t *testing.T) {
+	withStance := newFeatActor(t, 0)
+	withStance.weapon.Store(&weaponInfo{category: "sword", wieldMode: size.OneHanded})
+	withStance.SetPowerAttack(true) // flag on, but no power-attack feat held
+	got := withStance.Stats()
+
+	ref := newFeatActor(t, 0)
+	ref.weapon.Store(&weaponInfo{category: "sword", wieldMode: size.OneHanded})
+	want := ref.Stats()
+
+	if got.HitMod != want.HitMod || got.DamageBonus != want.DamageBonus {
+		t.Errorf("stance without feat changed stats: got={%d,%d} want={%d,%d}",
+			got.HitMod, got.DamageBonus, want.HitMod, want.DamageBonus)
 	}
 }
 
