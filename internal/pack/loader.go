@@ -2180,6 +2180,12 @@ func decodeFeat(path, ns string) (*feat.Feat, error) {
 					return nil, fmt.Errorf("%w: %s: grants[%d] max_hp needs a positive magnitude",
 						ErrInvalidContent, path, i)
 				}
+			case feat.GrantACBonus:
+				// Global AC grant (Dodge): beneficial-only, Target unused.
+				if g.Magnitude <= 0 {
+					return nil, fmt.Errorf("%w: %s: grants[%d] ac_bonus needs a positive magnitude",
+						ErrInvalidContent, path, i)
+				}
 			case feat.GrantAbility:
 				if strings.TrimSpace(g.Target) == "" {
 					return nil, fmt.Errorf("%w: %s: grants[%d] ability needs a target (ability id)",

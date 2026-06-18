@@ -5347,6 +5347,12 @@ func (a *connActor) Stats() combat.Stats {
 		if fb != nil && w.category != "" {
 			cat := strings.ToLower(w.category)
 			s.HitMod += fb.hit[cat]
+			// Weapon Specialization (feats Bucket B): per-category melee damage,
+			// the damage sibling of Weapon Focus's to-hit. Ranged weapons are
+			// excluded — it specializes melee technique (d20 Special feat).
+			if w.rangedClass == "" {
+				s.DamageBonus += fb.dmg[cat]
+			}
 			if widen := fb.crit[cat]; widen > 0 {
 				low := s.CritThreatLow
 				if low <= 0 {

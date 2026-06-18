@@ -1,0 +1,14 @@
+# Dodge (wot-feats.md): +1 dodge bonus to Defense. The source scopes it to a
+# single designated opponent (re-designated each action) and drops it when the
+# Dex bonus is lost — that per-target, per-action nuance is d20 action economy
+# (Decision 0), so the engine treats it as a flat +1 AC always-on. Rides the
+# `ac` stat-modifier surface (like Toughness's hp_max), so it composes with the
+# channel-map defense formula and shows in score.
+#
+# Canonical d20 prereq is Dex 13; OMITTED for the v1 demo so a starting
+# character can take it (mirroring ambidexterity dropping its Dex 15 prereq).
+id: dodge
+name: Dodge
+description: You are adept at dodging blows — +1 to your Armor Class.
+grants:
+  - { kind: ac_bonus, magnitude: 1 }

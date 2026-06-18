@@ -257,7 +257,9 @@ The grant kinds wired today, each riding an already-shipped consumer:
 | Save bonus | +N on a named save axis | saves (`saves.md`) |
 | Vital bonus | +N max HP (stackable counts) | vitals (`progression` §2) |
 | Hit bonus, per weapon | +N to-hit with a weapon category | weapon hit-mod chain (`weapon-identity.md`) |
+| Damage bonus, per weapon | +N melee damage with a weapon category | weapon damage step (`weapon-identity.md`) |
 | Crit-threat widen, per weapon | widen the per-weapon threat range | crit step (`weapon-identity.md`) |
+| AC bonus | +N Armor Class | the `ac` stat modifier the defense channel reads |
 | Skill bonus, per skill | +N to a named skill check | skills (`skills.md`) |
 | Ability unlock | teaches/unlocks a named ability | abilities (`abilities-and-effects.md`) |
 

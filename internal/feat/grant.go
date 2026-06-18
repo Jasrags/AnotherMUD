@@ -46,13 +46,23 @@ const (
 	// unused). Consumer: connActor.Stats() raises OffHandProfile.Attacks; each
 	// strike after the first takes the cumulative secondary off-hand penalty (§4.3).
 	GrantOffHandAttack GrantKind = "off_hand_attack"
+	// GrantDamageBonus adds Magnitude to melee damage with a weapon CATEGORY
+	// (Weapon Specialization) — the take's Param, the damage sibling of
+	// GrantHitBonus. Consumer: connActor.Stats() raises DamageBonus for the
+	// wielded weapon of that category.
+	GrantDamageBonus GrantKind = "damage_bonus"
+	// GrantACBonus adds Magnitude to the character's Armor Class (Dodge). A
+	// GLOBAL grant (Target unused), the AC sibling of GrantMaxHP. Consumer: an
+	// `ac` stat modifier under srckey.Feat, which the channel-map defense formula
+	// (`ac` / `ac + dex_ac`) reads — so it lands for both baseline and WoT.
+	GrantACBonus GrantKind = "ac_bonus"
 )
 
 // ValidGrantKind reports whether k is a known grant kind.
 func ValidGrantKind(k GrantKind) bool {
 	switch k {
 	case GrantSaveBonus, GrantMaxHP, GrantHitBonus, GrantCritThreat, GrantSkillBonus, GrantAbility,
-		GrantTwoWeaponHit, GrantOffHandHit, GrantOffHandAttack:
+		GrantTwoWeaponHit, GrantOffHandHit, GrantOffHandAttack, GrantDamageBonus, GrantACBonus:
 		return true
 	}
 	return false
@@ -63,7 +73,7 @@ func ValidGrantKind(k GrantKind) bool {
 // requires such a feat to be multi_take: per_param.
 func IsPerWeaponOrSkill(k GrantKind) bool {
 	switch k {
-	case GrantHitBonus, GrantCritThreat, GrantSkillBonus:
+	case GrantHitBonus, GrantCritThreat, GrantSkillBonus, GrantDamageBonus:
 		return true
 	}
 	return false

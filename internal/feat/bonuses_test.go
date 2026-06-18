@@ -138,6 +138,33 @@ func TestComputeBonuses_FixedTargetSkill(t *testing.T) {
 	}
 }
 
+// Bucket B: damage_bonus is a per-weapon-category grant (Weapon Specialization,
+// the damage sibling of Weapon Focus); ac_bonus is a global grant (Dodge, the
+// AC sibling of max_hp) that sums across feats.
+func TestComputeBonuses_DamageAndAC(t *testing.T) {
+	r := NewRegistry()
+	_ = r.Register(&Feat{ID: "weapon-specialization", MultiTake: MultiTakeParam, Grants: []Grant{{Kind: GrantDamageBonus, Magnitude: 2}}})
+	_ = r.Register(&Feat{ID: "dodge", Grants: []Grant{{Kind: GrantACBonus, Magnitude: 1}}})
+	_ = r.Register(&Feat{ID: "fancy-footwork", Grants: []Grant{{Kind: GrantACBonus, Magnitude: 1}}})
+
+	b := ComputeBonuses([]Taken{
+		{FeatID: "weapon-specialization", Param: "sword"},
+		{FeatID: "dodge"},
+		{FeatID: "fancy-footwork"},
+	}, r)
+
+	if b.DamageByCategory["sword"] != 2 {
+		t.Errorf("DamageByCategory[sword] = %d, want 2", b.DamageByCategory["sword"])
+	}
+	if b.ACBonus != 2 {
+		t.Errorf("ACBonus = %d, want 2 (two AC feats sum)", b.ACBonus)
+	}
+	// A paramless per-weapon damage grant contributes nothing (guarded).
+	if got := ComputeBonuses([]Taken{{FeatID: "weapon-specialization"}}, r); got.DamageByCategory != nil {
+		t.Errorf("paramless weapon-specialization should contribute nothing, got %v", got.DamageByCategory)
+	}
+}
+
 // A stackable feat with Count 0 (the contract: "non-positive counts as one")
 // applies its grant exactly once.
 func TestComputeBonuses_StackableZeroCountAppliesOnce(t *testing.T) {

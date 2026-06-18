@@ -1,0 +1,19 @@
+# Weapon Specialization (wot-feats.md — a Special feat for armsmen): +2 melee
+# damage with a chosen weapon category. The damage sibling of Weapon Focus's
+# to-hit, taken once per weapon category (`feat weapon-specialization sword`).
+# Folded into DamageBonus at Stats() for the wielded melee weapon of that
+# category; ranged wields are excluded (it specializes melee technique).
+#
+# Class-gated to the armsman (the source restricts it to Armsman 4th+ /
+# Woodsman 6th+). The canonical d20 prereqs — a class-level floor and Weapon
+# Focus with the SAME weapon — are relaxed: the engine's prereq engine checks
+# feats by id, not by weapon param, so "same weapon" can't be enforced, and the
+# level floor is dropped for demo reachability (as elsewhere in this v1 set).
+id: weapon-specialization
+name: Weapon Specialization
+description: You deal +2 damage with a weapon you have specialized in.
+multi_take: per_param
+allowed_classes:
+  - armsman
+grants:
+  - { kind: damage_bonus, magnitude: 2 }

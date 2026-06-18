@@ -32,7 +32,48 @@ func featTestRegistry() *feat.Registry {
 		Grants: []feat.Grant{{Kind: feat.GrantSkillBonus, Target: "perception", Magnitude: 2}}})
 	_ = r.Register(&feat.Feat{ID: "stealthy", DisplayName: "Stealthy",
 		Grants: []feat.Grant{{Kind: feat.GrantSkillBonus, Target: "stealth", Magnitude: 2}}})
+	// Bucket B: per-weapon damage (Weapon Specialization) + global AC (Dodge).
+	_ = r.Register(&feat.Feat{ID: "weapon-specialization", DisplayName: "Weapon Specialization", MultiTake: feat.MultiTakeParam,
+		Grants: []feat.Grant{{Kind: feat.GrantDamageBonus, Magnitude: 2}}})
+	_ = r.Register(&feat.Feat{ID: "dodge", DisplayName: "Dodge",
+		Grants: []feat.Grant{{Kind: feat.GrantACBonus, Magnitude: 1}}})
 	return r
+}
+
+// Bucket B: Weapon Specialization adds melee damage for the wielded weapon's
+// category only, and not for a ranged wield. Mirrors Weapon Focus's per-weapon
+// to-hit, on the damage axis.
+func TestStats_WeaponSpecialization(t *testing.T) {
+	a := newFeatActor(t, 2)
+	a.GrantFeat("weapon-specialization", "sword")
+
+	a.weapon.Store(&weaponInfo{category: "sword", wieldMode: size.OneHanded})
+	withSword := a.Stats().DamageBonus
+	a.weapon.Store(&weaponInfo{category: "axe", wieldMode: size.OneHanded})
+	withAxe := a.Stats().DamageBonus
+	if withSword-withAxe != 2 {
+		t.Errorf("sword vs axe damage delta = %d, want 2 (specialization is sword-only)", withSword-withAxe)
+	}
+
+	// A ranged wield of the specialized category gets no bonus (melee-only).
+	a.weapon.Store(&weaponInfo{category: "sword", rangedClass: "bow"})
+	rangedDmg := a.Stats().DamageBonus
+	a.weapon.Store(&weaponInfo{category: "bow", rangedClass: "bow"})
+	otherRanged := a.Stats().DamageBonus
+	if rangedDmg != otherRanged {
+		t.Errorf("ranged specialization applied: sword-ranged=%d other-ranged=%d, want equal", rangedDmg, otherRanged)
+	}
+}
+
+// Bucket B: Dodge raises Armor Class via the `ac` stat-modifier surface (like
+// Toughness's hp_max), so it shows up in the combat stat block.
+func TestStats_DodgeRaisesAC(t *testing.T) {
+	a := newFeatActor(t, 1)
+	base := a.Stats().AC
+	a.GrantFeat("dodge", "")
+	if got := a.Stats().AC; got != base+1 {
+		t.Errorf("AC = %d, want %d (+1 Dodge)", got, base+1)
+	}
 }
 
 // Phase 1: a fixed-axis skill feat lifts the live concealment/perception

@@ -231,6 +231,7 @@ const abilityPowerAttack = "power-attack"
 type featWeaponBonuses struct {
 	hit  map[string]int // weapon category → to-hit bonus (Weapon Focus)
 	crit map[string]int // weapon category → threat-low widen (Improved Critical)
+	dmg  map[string]int // weapon category → melee damage bonus (Weapon Specialization)
 	// twoWeaponHitReduce / offHandHitReduce are the GLOBAL two-weapon penalty
 	// reductions (Two-Weapon Fighting / Ambidexterity — two-weapon-fighting
 	// §4.1), read in Stats()'s off-hand block and subtracted from the baked
@@ -282,6 +283,15 @@ func (a *connActor) applyFeatGrants() {
 			// Remove any stale feat hp_max modifier (empty list removes it).
 			sb.AddModifiers(srckey.Feat("hp_max"), nil)
 		}
+		// Bucket B: ac stat modifier (Dodge). Rides the same source-keyed surface
+		// as hp_max; the channel-map defense formula (`ac` / `ac + dex_ac`) reads
+		// the modified stat, so it lands for both baseline and WoT and shows in
+		// score. Removed (empty list) when no held feat grants an AC bonus.
+		if b.ACBonus != 0 {
+			sb.AddModifier(srckey.Feat("ac"), progression.StatAC, b.ACBonus)
+		} else {
+			sb.AddModifiers(srckey.Feat("ac"), nil)
+		}
 	}
 
 	// 3c: per-weapon-category hit/crit cache + (slice 2) the global two-weapon
@@ -296,6 +306,7 @@ func (a *connActor) applyFeatGrants() {
 	a.featWeaponBonus.Store(&featWeaponBonuses{
 		hit:                 b.HitByCategory,
 		crit:                b.CritByCategory,
+		dmg:                 b.DamageByCategory,
 		twoWeaponHitReduce:  b.TwoWeaponHitReduce,
 		offHandHitReduce:    b.OffHandHitReduce,
 		offHandExtraAttacks: b.OffHandExtraAttacks,

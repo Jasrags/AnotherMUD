@@ -47,6 +47,13 @@ type Bonuses struct {
 	// first (Improved Two-Weapon Fighting — §3.1). Zero = the one baseline
 	// strike. The consumer sets OffHandProfile.Attacks = 1 + this.
 	OffHandExtraAttacks int
+	// DamageByCategory is the per-weapon-category melee damage bonus (Weapon
+	// Specialization), keyed by the lowercased weapon category. Nil = none. The
+	// damage sibling of HitByCategory.
+	DamageByCategory map[string]int
+	// ACBonus is the additive Armor Class bonus (Dodge and friends). Zero = no
+	// bonus. The AC sibling of MaxHP.
+	ACBonus int
 }
 
 // ComputeBonuses aggregates the bonuses conferred by the held feats, resolving
@@ -79,6 +86,8 @@ func ComputeBonuses(held []Taken, reg *Registry) Bonuses {
 				b.Saves[g.Target] += g.Magnitude * mult
 			case GrantMaxHP:
 				b.MaxHP += g.Magnitude * mult
+			case GrantACBonus:
+				b.ACBonus += g.Magnitude * mult
 			case GrantHitBonus:
 				// per-weapon-category: the take's Param names the category.
 				if t.Param != "" {
@@ -93,6 +102,15 @@ func ComputeBonuses(held []Taken, reg *Registry) Bonuses {
 						b.CritByCategory = make(map[string]int)
 					}
 					b.CritByCategory[t.Param] += g.Magnitude * mult
+				}
+			case GrantDamageBonus:
+				// per-weapon-category: the take's Param names the category
+				// (Weapon Specialization, the damage sibling of Weapon Focus).
+				if t.Param != "" {
+					if b.DamageByCategory == nil {
+						b.DamageByCategory = make(map[string]int)
+					}
+					b.DamageByCategory[t.Param] += g.Magnitude * mult
 				}
 			case GrantSkillBonus:
 				// Two forms (symmetric with GrantSaveBonus): a per-param feat

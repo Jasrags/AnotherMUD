@@ -2926,6 +2926,26 @@ func TestLoadFeats_DecodesFixedSkillGrant(t *testing.T) {
 	}
 }
 
+// Bucket B grants decode: damage_bonus is per-weapon (per_param, like
+// hit_bonus); ac_bonus is a global single-take grant (like max_hp).
+func TestLoadFeats_DecodesBucketBGrants(t *testing.T) {
+	root := t.TempDir()
+	pack := filepath.Join(root, "core")
+	writeFile(t, filepath.Join(pack, "pack.yaml"), "name: tapestry-core\ncontent:\n  feats: [feats/*.yaml]\n")
+	writeFile(t, filepath.Join(pack, "feats/wspec.yaml"), "id: wspec\nname: Weapon Specialization\nmulti_take: per_param\ngrants:\n  - { kind: damage_bonus, magnitude: 2 }\n")
+	writeFile(t, filepath.Join(pack, "feats/dodge.yaml"), "id: dodge\nname: Dodge\ngrants:\n  - { kind: ac_bonus, magnitude: 1 }\n")
+	regs := NewRegistries()
+	if err := Load(context.Background(), root, nil, regs, nil, nil, nil); err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if f, ok := regs.Feats.Get("wspec"); !ok || len(f.Grants) != 1 || f.Grants[0].Kind != feat.GrantDamageBonus || f.Grants[0].Magnitude != 2 {
+		t.Errorf("wspec grant = %+v", f)
+	}
+	if f, ok := regs.Feats.Get("dodge"); !ok || len(f.Grants) != 1 || f.Grants[0].Kind != feat.GrantACBonus || f.Grants[0].Magnitude != 1 {
+		t.Errorf("dodge grant = %+v", f)
+	}
+}
+
 // The two global two-weapon penalty-reduction grants decode (slice 2): single
 // take, positive magnitude, no target.
 func TestLoadFeats_DecodesTwoWeaponGrants(t *testing.T) {
@@ -2971,6 +2991,10 @@ func TestLoadFeats_RejectsBadGrants(t *testing.T) {
 		"id: bad\ngrants:\n  - { kind: hit_bonus, magnitude: 1 }\n",
 		// skill_bonus with neither a fixed target nor per_param (ambiguous)
 		"id: bad\ngrants:\n  - { kind: skill_bonus, magnitude: 2 }\n",
+		// damage_bonus is per-weapon (per_param) — a non-per_param feat is invalid
+		"id: bad\ngrants:\n  - { kind: damage_bonus, magnitude: 2 }\n",
+		// ac_bonus is beneficial-only — zero magnitude is a typo
+		"id: bad\ngrants:\n  - { kind: ac_bonus }\n",
 		// ability grant with no target
 		"id: bad\ngrants:\n  - { kind: ability }\n",
 		// two-weapon global grants: zero magnitude
