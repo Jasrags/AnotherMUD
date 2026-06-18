@@ -1,11 +1,12 @@
 # MUD Research — Cross-Game Feature Inventory
 
-Compiled: 2026-06-09
-Sources: Aardwolf, Achaea, BatMUD, Discworld MUD (search snippets), Evennia, Ranvier
+Compiled: 2026-06-09 (reorganized into per-MUD folders + AwakeMUD/NukeFire deep-dive added 2026-06-18)
+Sources: Aardwolf, Achaea, AwakeMUD (Shadowrun), BatMUD, Discworld MUD (search snippets), NukeFire, WoTMUD, Evennia, Ranvier
 
 This document is the master cross-reference. Each section is a feature category with notes
 on how different MUDs have implemented it. Use as inspiration and comparison when writing
-feature proposals and specs for AnotherMUD.
+feature proposals and specs for AnotherMUD. Single-source notes live in per-MUD folders;
+this file and `command-taxonomy.md` are the cross-MUD comparison docs.
 
 ---
 
@@ -13,22 +14,49 @@ feature proposals and specs for AnotherMUD.
 
 ```
 mud-research/
+├── README.md  ← this file (cross-MUD feature inventory)
+├── command-taxonomy.md  ← cross-MUD command surface
 ├── aardwolf/
 │   ├── features-index.md
 │   ├── auction-system.md
 │   ├── quests-gquests-campaigns.md
 │   ├── clans.md
-│   └── warfare-manors-remort-channels.md
+│   ├── warfare-manors-remort-channels.md
+│   └── commands-reference.md
 ├── achaea/
 │   ├── features-overview.md
 │   ├── crafting-tradeskills.md
 │   ├── player-economy.md
-│   └── housing.md
+│   ├── housing.md
+│   └── commands-help-index.md
+├── awakemud/                  (Shadowrun 3 MUD — SR3→MUD ruleset translation)
+│   ├── features-overview.md
+│   ├── house-rules.md
+│   ├── combat-numerics.md
+│   ├── character-creation.md
+│   ├── archetypes-and-magic.md
+│   ├── getting-started.md
+│   ├── building-olc-overview.md
+│   ├── room-and-zone-editing.md
+│   ├── item-and-mob-editing.md
+│   ├── matrix-host-editing.md
+│   ├── flags-reference.md
+│   └── design-and-source-material.md
 ├── batmud/
 │   └── features-and-guilds.md
 ├── discworld/
 │   └── features-notes.md
-└── feature-inventory.md  ← this file
+├── wotmud/
+│   └── channeling.md
+└── nukefire/
+    ├── overview-classes-systems.md
+    ├── combat-mechanics.md
+    ├── classes-and-progression.md
+    ├── magic-and-skills.md
+    ├── commands-reference.md
+    ├── wiki-help-index.md       (catalog of all 817 in-game HELP topics)
+    ├── items-schema-samples.md
+    └── identified_objects.csv   (8,022 live items)
 ```
 
 ---

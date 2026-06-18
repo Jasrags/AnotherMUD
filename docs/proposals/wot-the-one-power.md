@@ -56,7 +56,7 @@ the dormant `Mana()`/`DeductMana()` stubs), `internal/command` (verb + typed arg
 d20 rewrite. And the character model: `docs/proposals/wot-character-model.md` (D1
 multiclass seam, D4 creation-time gender/category gating).
 **Sources:** `docs/wot/the-one-power.md` (the d20 RPG extract) ·
-`docs/research/wotmud-channeling.md` (how the shipped WoTMUD real-time MUD translated it)
+`docs/mud-research/wotmud/channeling.md` (how the shipped WoTMUD real-time MUD translated it)
 
 ---
 
@@ -81,7 +81,7 @@ Our design is bracketed by two prior translations of WoT channeling:
   weaves as known spells, **Initiate** (Int) vs **Wilder** (Wis) classes, a secret
   **Madness rating**, Concentration→Fortitude overchannel cascade, full **linking**
   tables. Much of this is tabletop bookkeeping Decision 0 says to **not port**.
-- **WoTMUD** (`docs/research/wotmud-channeling.md`, the only long-running shipped WoT
+- **WoTMUD** (`docs/mud-research/wotmud/channeling.md`, the only long-running shipped WoT
   MUD): **a single mana pool** ("Spell Points") from one stat, slow tic-refill;
   weaves as **use-improved % skills**; **one Channeler class**; the saidin curse
   expressed **socially**, no madness meter; overchannel risks **permanent stilling**;
