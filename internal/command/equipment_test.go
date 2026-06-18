@@ -667,6 +667,23 @@ func TestEquip_SlowArmorBlockedInCombat(t *testing.T) {
 		t.Errorf("expected the don-in-combat refusal:\n%s", joined)
 	}
 
+	// In combat: medium armor is gated too (a mail hauberk).
+	fm := newEqFixture(t)
+	am := newTestActor(fm.room)
+	am.inCombat = true
+	mail := fm.spawnInInventory(t, &item.Template{
+		ID: "tapestry-core:mail", Name: "a mail hauberk", Type: "item",
+		Keywords: []string{"mail"}, EligibleSlots: []string{"head"},
+		ArmorTier: "medium", ArmorBonus: 5,
+	}, am)
+	dispatch(t, r, fm.env(), am, "equip mail")
+	if _, worn := am.Equipment()["head"]; worn {
+		t.Error("medium armor equipped in combat; the §7 gate should refuse it")
+	}
+	if !containsID(am.Inventory(), mail.ID()) {
+		t.Error("refused mail should stay in inventory")
+	}
+
 	// In combat: light armor is quick — it equips fine.
 	f2 := newEqFixture(t)
 	a2 := newTestActor(f2.room)

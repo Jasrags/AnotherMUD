@@ -41,11 +41,12 @@ func (c *Context) actorInCombat() bool {
 }
 
 // armorChangeBlockedInCombat refuses a don/doff of slow armor mid-fight
-// (armor-depth §7). Returns a non-nil error (the player message already written)
-// when the change is blocked; nil to proceed. verb is "buckle on" / "shed".
-func (c *Context) armorChangeBlockedInCombat(ctx context.Context, it *entities.ItemInstance, refusal string) (error, bool) {
+// (armor-depth §7). Returns blocked=true (with the player refusal already
+// written) when the change must be refused, or (false, nil) to proceed. The
+// returned error is the refusal Write's result, propagated by the caller.
+func (c *Context) armorChangeBlockedInCombat(ctx context.Context, it *entities.ItemInstance, refusal string) (blocked bool, err error) {
 	if isSlowArmor(it) && c.actorInCombat() {
-		return c.Actor.Write(ctx, refusal), true
+		return true, c.Actor.Write(ctx, refusal)
 	}
-	return nil, false
+	return false, nil
 }

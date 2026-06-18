@@ -110,7 +110,7 @@ func EquipHandler(ctx context.Context, c *Context) error {
 	}
 
 	// Armor §7: bulky armor can't be buckled on in the middle of a fight.
-	if err, blocked := c.armorChangeBlockedInCombat(ctx,
+	if blocked, err := c.armorChangeBlockedInCombat(ctx,
 		item, fmt.Sprintf("There's no time to buckle on %s in the thick of a fight.", item.Name())); blocked {
 		return err
 	}
@@ -487,7 +487,7 @@ func UnequipHandler(ctx context.Context, c *Context) error {
 	target := match.(*entities.ItemInstance)
 
 	// Armor §7: bulky armor can't be shed in the middle of a fight either.
-	if err, blocked := c.armorChangeBlockedInCombat(ctx,
+	if blocked, err := c.armorChangeBlockedInCombat(ctx,
 		target, fmt.Sprintf("You can't shed %s in the middle of a fight.", target.Name())); blocked {
 		return err
 	}
