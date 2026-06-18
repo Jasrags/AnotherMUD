@@ -360,7 +360,7 @@ operation. The set of cancellable events across the engine:
 | `concealment.before` | [visibility](visibility.md) §3.1 |
 | `faction.shift.check` *(spec; build pending)* | [faction](faction.md) §4 |
 | `resource.gathering` | [gathering](gathering.md) §6 |
-| `mount.before` *(spec; build pending)* | [mounts](mounts.md) §4.1 |
+| `mount.before` | [mounts](mounts.md) §4.1 |
 | `area_effect.before` *(spec; build pending)* | [area-effects](area-effects.md) §2.4 |
 | `trade.committing` *(spec; build pending)* | [trade-escrow](trade-escrow.md) §3 |
 
@@ -381,7 +381,7 @@ load time:
 | Item template | [inventory-equipment-items](inventory-equipment-items.md) §2 |
 | Theme | [ui-rendering-help](ui-rendering-help.md) §3 |
 | Mob template, loot table, area-spawn | [mobs-ai-spawning](mobs-ai-spawning.md) §2, §3 |
-| Mount template (roster: speed/carry/temperament/price) *(spec; build pending)* | [mounts](mounts.md) §2 |
+| Mount template (mob `mount:` block: temperament/travel/impassable) | [mounts](mounts.md) §2 |
 | Hazard template (payload/trigger/duration) *(spec; build pending)* | [area-effects](area-effects.md) §4 |
 | Ability | [abilities-and-effects](abilities-and-effects.md) §2 |
 | Channel map (derived-stat formulas) | [combat](combat.md) §4.4 |
@@ -457,12 +457,11 @@ Each spec calls out what it persists. The aggregate view:
 - **Trade audit log** *(spec; build pending)* — append-only,
   tamper-evident record of every committed transaction; see
   [trade-escrow](trade-escrow.md) §5.
-- **Owned mounts** *(spec; build pending)* — durable per-character mount
-  ownership: each owned mount's identity, barding/tack, saddlebag contents,
-  upkeep state, and resting location (stabled/parked). Additive and
-  versioned/migrated; the live ride relationship is NOT persisted. Save shape
-  (player-save list vs. mount sub-store vs. world registry) is an open
-  implementation choice; see [mounts](mounts.md) §10.
+- **Owned mounts** — durable per-character mount ownership on the **player
+  save** (`Save.Mounts []MountRecord`, save v26): each owned mount's identity
+  (its template id; barding/tack/saddlebag/upkeep are additive later fields).
+  The live ride relationship is NOT persisted — on logout every mount resolves
+  to its stabled record. See [mounts](mounts.md) §10.
 - **Placed hazards** *(spec; build pending)* — durable world store of live room
   hazards (caltrops, oil pools): each hazard's room, payload, trigger model,
   remaining duration/charges, concealment, and placer attribution. Additive and
@@ -502,6 +501,7 @@ composition root):
 | `sustenance-drain` | configured | [economy-survival](economy-survival.md) §4.4 |
 | `fuel-burn` (lit light-source fuel) | configured | [light-and-darkness](light-and-darkness.md) §3.2 |
 | `vitals-regen` | configured | [session-lifecycle](session-lifecycle.md) (via game loop) |
+| `mount-travel-regen` | configured | [mounts](mounts.md) §5.4 |
 | `prompt-flush` | 1 | [ui-rendering-help](ui-rendering-help.md) §7.3 |
 | `scripting-schedule` | 1 | [scripting-and-packs](scripting-and-packs.md) (the `engine.schedule` primitive) |
 | `gmcp-vitals-flush` / `-items-` / `-combat-` / `-effects-` / `-experience-` / `-charstatus-` | 1 each | [networking-protocols](networking-protocols.md) (GMCP package layer) |
@@ -581,4 +581,4 @@ highest-impact themes that recur across specs:
 
 ---
 
-<!-- Updated: 2026-06-17 · 56 specs covering the engine substrate, world, action, lifecycle, and presentation layers. Behavior contracts still ahead of code: tag-observers, faction, the trade trio (trade-escrow, direct-trade, auction-house), mounts + area-effects (grenades & room hazards) — the last two greenfield from the equipment.md review. Since-shipped: roles-and-permissions, admin-verbs, item-decorations (M19/M20), loot-and-corpses (M22), tab-completion Phase 0–2, who, light-and-darkness, room-coordinates (M23), player-maps (M24 — Mudlet GMCP wire-shape pending live-client validation), biomes, gathering, crafting-and-cooking (M27), weapon-identity (WoT EPIC S1), masterwork (WoT EPIC S1.H), ranged-combat (WoT EPIC S1.G — Slice A+B + Model C cross-room), armor-depth (WoT EPIC S1.E+D), size-and-wielding (WoT EPIC S1.F), two-weapon-fighting (WoT EPIC S1.K — slices 1-4: off-hand attack, the feats, Improved TWF, mob dual-wield), saves (WoT EPIC S6), conditions (WoT EPIC S5), skills (WoT EPIC S3, substrate), feats (WoT EPIC S4), backgrounds, visibility + hidden-exits (M28), movement-cost (flat→biome-weighted cost gate + encumbrance), character-select (account-first login), character-identity (world-locking, save v23). -->
+<!-- Updated: 2026-06-17 · 56 specs covering the engine substrate, world, action, lifecycle, and presentation layers. Behavior contracts still ahead of code: tag-observers, faction, the trade trio (trade-escrow, direct-trade, auction-house), area-effects (grenades & room hazards) — greenfield from the equipment.md review. Since-shipped: roles-and-permissions, admin-verbs, item-decorations (M19/M20), loot-and-corpses (M22), tab-completion Phase 0–2, who, light-and-darkness, room-coordinates (M23), player-maps (M24 — Mudlet GMCP wire-shape pending live-client validation), biomes, gathering, crafting-and-cooking (M27), weapon-identity (WoT EPIC S1), masterwork (WoT EPIC S1.H), ranged-combat (WoT EPIC S1.G — Slice A+B + Model C cross-room), armor-depth (WoT EPIC S1.E+D), size-and-wielding (WoT EPIC S1.F), two-weapon-fighting (WoT EPIC S1.K — slices 1-4: off-hand attack, the feats, Improved TWF, mob dual-wield), saves (WoT EPIC S6), conditions (WoT EPIC S5), skills (WoT EPIC S3, substrate), feats (WoT EPIC S4), backgrounds, visibility + hidden-exits (M28), movement-cost (flat→biome-weighted cost gate + encumbrance), character-select (account-first login), character-identity (world-locking, save v23), mounts (core v1 — substrate/persist save v26/acquire+stablemaster/ride+co-located travel/the mount as metered mover; barding + temperament-combat + lead pending). -->
