@@ -40,6 +40,15 @@ clock.yaml                       global in-game time (CurrentHour, DayCount)
 - **In-game time persists**: `gameclock.Store` writes `clock.yaml` (atomic),
   flushed on each in-game hour advance + clean shutdown, seeded at boot;
   missing/corrupt cold-starts at hour 0/day 0. Global, not per-player.
+- **Trade audit log persists**: `escrow.AuditStore` → `<save-dir>/trade-audit.yaml`
+  (atomic, versioned, append-only); every direct-trade + auction event. Global.
+- **Auction listings persist**: `auction.Store` → `<save-dir>/auctions.yaml`
+  (atomic, versioned/migratable, in-memory-authoritative, whole-file rewrite per
+  mutation). Holds active/sold/expired/cancelled listings (each embeds the
+  **serialized escrowed item** — template + property bag, so grade/decorations
+  survive — never a live entity until collect), a pending-coin ledger (proceeds +
+  refunds awaiting pickup), and a monotonic id counter. Reconciled on boot
+  (lapsed-while-down listings expire on load). Global, not per-player.
 - **Not persisted** (by design): sessions, weather, link-dead state, mob spawn
   tracking, temporary exits, active effects (incl. light source lit/fuel across
   restart), rest state, direct-trade sessions. **Mounts**: only the durable

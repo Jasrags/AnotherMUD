@@ -63,6 +63,9 @@ Cancellable-event index lives in `docs/specs/README.md`.
 | combat.Manager | combat | engage/round/flee/death |
 | progression.Manager + Training/Ability/Proficiency/ActionQueue | progression (6.2k) | XP, tracks, abilities, effects-into-combat |
 | economy.{Currency,Shop,Rest,Consumable}Service | economy | gold, shops, sustenance/rest |
+| escrow.Transaction + AuditStore | escrow | stage/commit/rollback atomic value swap; shared trade audit log (consumed by trade + auction) |
+| trade.Manager | trade | synchronous same-room player swap (direct-trade.md) |
+| auction.Manager + Store | auction | async persisted marketplace: list/browse/buyout/collect/expire/admin; versioned listing store w/ serialized item; verbs `auction`/`auctions`/`unlist`/`browse`/`buyout`/`collect`/`auctionremove`/`auctionrefund`; `auction-expire` tick |
 | quest.Service + queststore + questwatch | quest* | accept/advance/turn-in |
 | effect.Manager | effect | buffs/debuffs over ticks |
 | light.Resolver | light | per-viewer effective light; gated at render/look/combat/move chokepoints via `command.EffectiveLight` (held source + room luminous items + darkvision); drives §6 transitions + fuel burn |

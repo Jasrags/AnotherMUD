@@ -28,6 +28,8 @@ World/things  world (rooms/exits/doors + load-time area-local room
 Mechanics     stats, progression, combat, effect, condition (status conditions),
               feat (player-chosen perks), channel (derived-stat formula layer)
 Action        command (registry+dispatch+§5 typed args), economy,
+              escrow (atomic-transaction primitive + trade audit log),
+              trade (direct player-to-player swap), auction (async marketplace),
               crafting/recipe/campfire, gathering, grade (item quality grades),
               quest*, loot, decoration, stacking,
               mounts (ride/stable verbs in command; service in cmd)
