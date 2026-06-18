@@ -8,8 +8,16 @@ index.
 
 **Generated:** 2026-05-28 (M0→M12 body); **post-M12 section added 2026-06-02**
 (M13→M22, from the memory index); **tab-completion deferrals added 2026-06-03**;
-**M23→M27 + light/dark section added 2026-06-10**. Regenerate by re-scanning the
-memory deferral files.
+**M23→M27 + light/dark section added 2026-06-10**; **WoT EPIC S1 equipment-debt
+section added 2026-06-17**. Regenerate by re-scanning the memory deferral files.
+
+> **Not yet folded in (read the memory files directly):** the M28 **visibility**
+> arc (`visibility-deferred-fixes` — HIGH secret-door op-gating + S6b refinements),
+> the M29 **player-trade trio** (`auction-house-deferred-fixes` — cap read-then-add
+> race, StatusRefunded, container listing), **mounts** core-v1
+> (`mounts-build-log` — impassable-terrain vocab validation), and the WoT **S9
+> class** bonus-feat gap (`feats-deferred-fixes` — MEDIUM, blocks martial classes).
+> These shipped after this snapshot; the per-topic memory files are authoritative.
 
 Excludes everything marked RESOLVED/FIXED/CLOSED. Note: several M0→M12 items
 below were later resolved by M14 (Engine-Debt) and the M9.x mob-effect sweep —

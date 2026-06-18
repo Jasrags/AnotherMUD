@@ -15,9 +15,10 @@ the theme-axis plan (its method survives below).
   specced item links its `docs/specs/<file> §X` — the *what* lives there. An unspecced
   item's first deliverable *is* a new spec slice (the spec set has grown 17 → **53** as
   ideas get promoted; of the write-ahead batch, roles, admin-verbs, and item-decorations
-  have since shipped (M19/M20; `who` shipped too, `crafting-and-cooking` at M27, and
-  `visibility` + `hidden-exits` at M28), leaving `tag-observers`, `faction`, and the
-  trade trio as contracts still ahead of code in §1).
+  have since shipped (M19/M20; `who` shipped too, `crafting-and-cooking` at M27,
+  `visibility` + `hidden-exits` at M28, and the trade trio — `trade-escrow` /
+  `direct-trade` / `auction-house` — at M29), leaving `tag-observers` and `faction`
+  as the contracts still ahead of code in §1).
 - **Verified against code.** Every item below was confirmed absent in the codebase as of
   2026-06-02, not trusted from the old matrix (which misreported several shipped systems).
   **Re-verified 2026-06-10:** Biomes, Gathering, and Room coordinates were found *shipped*
@@ -41,8 +42,9 @@ synthesis, command chaining/repeat, and the bad-input tracker all shipped.
 **Biomes, Gathering, and Room coordinates have since shipped too** (removed from §1
 on 2026-06-10). **M28** (Visibility + Hidden exits) shipped 2026-06-15 (removed from §1).
 **Movement cost / encumbrance**, **account-first login + character roster**, and
-**character world-locking** (save v23) shipped 2026-06-16. Behavior contracts still
-written-ahead-of-code: `tag-observers`, `faction`, and the trade trio (§1). What remains
+**character world-locking** (save v23) shipped 2026-06-16. **M29** (the player-trade
+trio — `trade-escrow` / `direct-trade` / `auction-house`) shipped too. Behavior
+contracts still written-ahead-of-code: `tag-observers` and `faction` (§1). What remains
 unspecced (§2) is the greenfield gameplay/economy-depth tail the themes didn't claim,
 plus the **WoT Mechanics EPIC** (`docs/themes/wot-mechanics-epic.md`).
 
@@ -62,7 +64,6 @@ go straight into a milestone.
 | Property-registry save-pipeline integration | persistence §2 / §4.4 | registry substrate exists (M14.4); not wired into the save pipeline — m14 |
 | Slow-tick observability — full breakdown / routing | time-and-clock §5 | core **shipped**: `Loop.SetSlowTickObserver` times each tick, warns (`slog`) when it exceeds a threshold (`ANOTHERMUD_SLOW_TICK_THRESHOLD`, default = tick interval); reports total + handlers. Remaining: the §5 event-queue/command components (no such tick phases in this engine) + admin-channel / OTel routing (a consumer on the callback seam) |
 | Reactive tag observers | **tag-observers §2–§4** (new) | `entity.tag_added/removed` bus events for non-index reactors. Substrate ahead of a consumer. Ported from Tapestry `ITagObserver` |
-| **Player trade** (escrow + direct trade + auction) | **trade-escrow / direct-trade / auction-house** (new) + plan `plans/trade-plan.md` | shared escrow/atomic-commit primitive (cancellable bus); sync zero-sum direct trade; async persisted buyout auction (global, pickup delivery, fee gold sink). Admin moderation gates on roles/admin (now shipped + enforcing). Push delivery deferred to Mail (§2) |
 | **Faction / standing** | **faction §2–§8** (new) | per-character signed standing per content-defined faction; generalizes alignment's architecture (`progression §6`) to N axes as a **parallel sibling** — alignment untouched, no v1 interaction. Linear per-player (no opposition ripple in v1). Named ranks → rank tags, bounded combined history, cancellable `faction.shift.check`→`shifted`→`rank.changed`, admin-immune shift, `ResolveRanks` gating helper. Earn via quest rewards + faction-mob kills. New Faction registry + player-save `faction_standing` bag (version bump). Consumers (disposition/abilities/rooms/shops/quests) adopt the helper as they're wired |
 
 > **Shipped since this table was written (deleted per the delete-on-ship rule):**
@@ -197,19 +198,24 @@ old five-theme partition left uncovered.
   (masterwork/power-wrought grades, H), container caps (encumbrance, I, specced §1).
   Pre-decisions in the proposal §7 (proficiency representation, the to-hit-roll model crit
   implies, the AC model, the ranged model, the fidelity ceiling).
-- **Mounts & barding (rideable entities)** — ✅ **SPECCED 2026-06-17** →
-  [`docs/specs/mounts.md`](specs/mounts.md) (behavior contract; build pending).
-  The spec resolves the v1 scope: a ridden mount *becomes the metered mover*
-  (re-points `movement-cost`'s pool/gate from rider → mount), barding is
-  mount-worn armor reusing `armor-depth`, saddlebags are a container, stabling/
-  feed are economy gold sinks, and combat is a conservative boundary (fight-from-
-  saddle no-bonus, temperament-gated danger entry, killable mount). Deferred to
-  Open Questions: mounted-combat depth (charge + Ride contest, waits on a Ride
-  skill), multi-seat, pack trains, flight, transfer/theft, entity-vs-mob impl.
-  Original notes preserved below. `docs/wot/equipment.md` ships a full
+- **Mounts & barding (rideable entities)** — ✅ **SPECCED + CORE SHIPPED 2026-06-17** →
+  [`docs/specs/mounts.md`](specs/mounts.md). The spec resolves the v1 scope: a
+  ridden mount *becomes the metered mover* (re-points `movement-cost`'s pool/gate
+  from rider → mount), barding is mount-worn armor reusing `armor-depth`,
+  saddlebags are a container, stabling/feed are economy gold sinks, and combat is
+  a conservative boundary (fight-from-saddle no-bonus, temperament-gated danger
+  entry, killable mount). **Core-v1 is built and shipped:** `mount`/`dismount`
+  verbs + the ride relationship + the mount becoming the metered mover for travel,
+  persisted as a `MountRecord` list on the player save (save **v26**). What remains
+  is the deferred depth in the spec's Open Questions — mounted-combat (charge +
+  Ride contest, waits on a Ride skill), barding/saddlebag/stabling economy slices,
+  multi-seat, pack trains, flight, transfer/theft. Original notes preserved below.
+  `docs/wot/equipment.md` ships a full
   Mounts table (horses/ponies/donkeys, warhorses), barding, saddles, and a barding
-  speed-penalty table. ⚠️ **Greenfield — no Mount concept in code yet; the
-  whole equipment.md "Mounts" block is pure flavor until this lands.** Today a mob
+  speed-penalty table. *(The notes below predate the core-v1 build — the Mount
+  concept and the `mount`/`dismount` ride relationship now exist in code; treat the
+  greenfield framing as the original design context, with the equipment.md "Mounts"
+  block's depth still flavor until the deferred slices land.)* Today a mob
   is a combat/AI entity with no owner/controller and no ride relationship; movement
   is per-character step cost (`movement-cost`). A mount is a **separate `Mount`
   entity** the rider owns — owning its own encumbrance + barding + saddle slots and
@@ -459,7 +465,7 @@ old five-theme partition left uncovered.
   read-only config + live `who`/room inspection over the WS port's HTTP mux — and grow.
 - **Gameplay modules ported from GoMud (greenfield feature cluster)** — GoMud's module
   catalog surfaces several **genuinely-new** gameplay systems we have no spec or code for.
-  (Overlap already tracked/shipped: auction → `auction-house` spec §1; mail → Mail §2;
+  (Overlap already tracked/shipped: auction → `auction-house` shipped (M29); mail → Mail §2;
   in-game time → `gameclock` shipped. **Storage/banking, fast travel, missions, world
   cleanup, follow, and onboarding now have their own §2 entries** — below or above.) ⚠️
   **Each is greenfield and needs its own spec slice; listed here as a clustered candidate
@@ -614,7 +620,6 @@ need a design pass first.
 
 | Theme | Pulls in | Size |
 |---|---|---|
-| **Player trade** | trade-escrow + direct-trade + auction-house + plan; atomic escrow, sync trade, buyout auction | M |
 | **Engine Debt III** | **nearly closed (2026-06-10):** area-transition lock fix, container caps, and carry-weight-on-pickup all shipped; tag-indexed reads deferred (no proportionate win at scale); only the property-save pipeline + §6.2 scaling-bonus consumer remain — both trigger-gated YAGNI (pull when a consumer needs them) | XS |
 
 **Needs a design pass first (greenfield — §2):**
@@ -634,7 +639,7 @@ need a design pass first.
 
 | If yes → | start with |
 |---|---|
-| You want a real item economy — players selling loot to each other | **Player trade** *(specced — ready)*; then Economy depth (mail/banking, greenfield) |
+| You want a real item economy — players selling loot to each other | **Player trade shipped (M29)**; next is Economy depth (mail/banking, greenfield) |
 | You want to deepen the crafting loop | **Crafting & Cooking** (M27), **Gathering** + **Biomes** all shipped; next depth = regional recipes (geography-gated) or the WoT-flavored craft chains |
 | The world/character sheet feels mechanically thin | **Gameplay Systems** *(greenfield — design first)* |
 | You want WoT weapons to feel distinct / matter mechanically | **Combat & Equipment Depth** — `M-Weapon-Identity` (A+B+C), masterwork (H), and ranged (G — incl. Model C cross-room) all shipped; armor (E) is the next theme *(greenfield — design first)* |

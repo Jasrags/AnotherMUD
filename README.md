@@ -10,11 +10,17 @@ built bottom-up in thin vertical slices against a set of behavior
 specifications (`docs/specs/`), which are the source of truth for what each
 system does.
 
-> **Status:** well past prototype. Milestones **M0–M27** are complete (plus
-> light & darkness, crafting & cooking, biomes/gathering, player maps). Content
-> now ships as three packs — `core` (engine-baseline `tapestry-core`),
-> `starter-world` (the demo village, the default boot), and `wot` (a
-> Wheel-of-Time content pack in progress). The engine and specs stay
+> **Status:** well past prototype. Milestones **M0–M29** are complete —
+> through **M28** (visibility + hidden exits) and **M29** (player trade:
+> escrow/atomic-transaction primitive, direct player-to-player trade, and a
+> buyout auction house) — plus movement cost/encumbrance, account-first login
+> with a character roster and world-locking, **mounts** (ride/dismount +
+> mounted travel), and the in-progress **Wheel-of-Time mechanics EPIC**
+> (weapon identity, masterwork grades, ranged combat, two-weapon fighting,
+> armor depth, saves, conditions, skills, feats, and The One Power /
+> channeling). Content ships as three packs — `core` (engine-baseline
+> `tapestry-core`), `starter-world` (the demo village, the default boot), and
+> `wot` (a Wheel-of-Time content pack in progress). The engine and specs stay
 > **setting-agnostic**; settings live entirely in packs.
 
 ---
@@ -40,6 +46,10 @@ system does.
 - **Maps** — an ASCII `map`/minimap verb with persisted fog-of-war, terrain
   coloring, and points-of-interest.
 - **Economy** — currency, shops, sustenance, rest, and consumables.
+- **Trade** — direct player-to-player trade, an escrow/atomic-transaction
+  primitive, and a buyout **auction house** (M29).
+- **Mounts** — rideable creatures you own; `ride`/`dismount` and mounted
+  travel, where the mount becomes the metered mover.
 - **Quests**, **social** (tells, channels, emotes, notifications), and a
   **roles & permissions** model with **admin verbs**.
 - **Content authoring** — a manifest-driven pack loader and a **sandboxed Lua
@@ -69,10 +79,14 @@ Connect from another terminal:
 telnet localhost 4000
 ```
 
-At the prompt, enter a character name. A new name walks you through
-email → password → the character-creation wizard; a returning name asks for
-your password. New characters spawn at `starter-world:town-square` (the demo
-pack). To boot the Wheel-of-Time pack instead: `make run-wot` (or
+At the prompt, enter an **account username**. An existing account asks for
+your password, then shows a **character roster** — the account's characters,
+each with its world and availability — from which you select an available
+character or create a new one (which runs the character-creation wizard). A new
+username prompts you to choose and confirm a password (no email), creating an
+account with an empty roster. New characters spawn at
+`starter-world:town-square` (the demo pack); returning characters land where
+they logged out. To boot the Wheel-of-Time pack instead: `make run-wot` (or
 `ANOTHERMUD_PACKS=wot ANOTHERMUD_START_ROOM=wot:the-green`).
 
 Try: `look`, `n`/`s`/`e`/`w`, `inventory`, `get <item>`, `consider <mob>`,
@@ -205,7 +219,7 @@ Conventions the codebase follows (see [`docs/ROADMAP.md`](docs/ROADMAP.md)
 
 | Doc | What it is |
 |---|---|
-| [`docs/specs/`](docs/specs/) | **Behavior specifications — the source of truth** (41 specs; read `docs/specs/README.md` first) |
+| [`docs/specs/`](docs/specs/) | **Behavior specifications — the source of truth** (57 specs; read `docs/specs/README.md` first) |
 | [`docs/ROADMAP.md`](docs/ROADMAP.md) | Milestone done-log + foundations/conventions |
 | [`docs/BACKLOG.md`](docs/BACKLOG.md) | Open work + candidate next themes |
 | [`docs/DEFERRED-BACKLOG.md`](docs/DEFERRED-BACKLOG.md) | Index of deferred fixes across milestones |
