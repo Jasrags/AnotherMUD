@@ -242,6 +242,27 @@ type MobFile struct {
 	// `skill_trainer` tag; the pack loader rejects the pair when
 	// only one side is set.
 	Trainer *TrainerFile `yaml:"trainer,omitempty"`
+
+	// Mount is the optional rideable-mount block (mounts.md §2). Its
+	// presence marks the mob as a rideable, owned mount. Validated at load
+	// (temperament against the mount vocabulary; travel_max must be positive).
+	Mount *MountFile `yaml:"mount,omitempty"`
+}
+
+// MountFile is the YAML shape for a mob's `mount:` block (mounts.md §2.1).
+// Presence marks the mob as a mount.
+type MountFile struct {
+	// Temperament gates danger entry (§7.2): "war" / "steady" / "skittish".
+	// Empty resolves to the cautious default. Validated at load.
+	Temperament string `yaml:"temperament,omitempty"`
+	// TravelMax is the mount's travel-resource ceiling (§5.1). Required
+	// positive — a mount with no travel budget could never move while ridden.
+	TravelMax int `yaml:"travel_max"`
+	// TravelRegen is the per-regen-tick travel restore (§5.4). Optional;
+	// zero ⇒ the engine default.
+	TravelRegen int `yaml:"travel_regen,omitempty"`
+	// Impassable lists terrain ids this mount cannot enter (§5.3). Optional.
+	Impassable []string `yaml:"impassable,omitempty"`
 }
 
 // NaturalWeaponFile is the YAML shape for a mob's innate weapon

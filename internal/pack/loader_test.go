@@ -702,6 +702,78 @@ natural_weapon:
 	}
 }
 
+func TestLoadMountBlock(t *testing.T) {
+	root := t.TempDir()
+	pack := filepath.Join(root, "core")
+	writeFile(t, filepath.Join(pack, "pack.yaml"), `
+name: tapestry-core
+content:
+  mobs: [mobs/*.yaml]
+`)
+	writeFile(t, filepath.Join(pack, "mobs/horse.yaml"), `
+id: horse
+name: a horse
+behavior: stationary
+mount:
+  temperament: war
+  travel_max: 60
+  travel_regen: 5
+  impassable: [cave, " Indoors ", CAVE, ""]
+`)
+	regs := NewRegistries()
+	if err := Load(context.Background(), root, nil, regs, nil, nil, nil); err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	tpl, err := regs.Mobs.Get("tapestry-core:horse")
+	if err != nil {
+		t.Fatalf("Get horse: %v", err)
+	}
+	if tpl.Mount == nil {
+		t.Fatal("Mount block not decoded")
+	}
+	if tpl.Mount.Temperament != "war" || tpl.Mount.TravelMax != 60 || tpl.Mount.TravelRegen != 5 {
+		t.Errorf("Mount = %+v, want temperament=war travel_max=60 travel_regen=5", tpl.Mount)
+	}
+	if len(tpl.Mount.Impassable) != 2 || tpl.Mount.Impassable[0] != "cave" || tpl.Mount.Impassable[1] != "indoors" {
+		t.Errorf("Impassable = %v, want [cave indoors] (trimmed+lowercased)", tpl.Mount.Impassable)
+	}
+}
+
+func TestLoadMountBadTemperament(t *testing.T) {
+	root := t.TempDir()
+	pack := filepath.Join(root, "core")
+	writeFile(t, filepath.Join(pack, "pack.yaml"), "name: tapestry-core\ncontent:\n  mobs: [mobs/*.yaml]\n")
+	writeFile(t, filepath.Join(pack, "mobs/horse.yaml"), `
+id: horse
+name: a horse
+behavior: stationary
+mount:
+  temperament: bogus
+  travel_max: 60
+`)
+	err := Load(context.Background(), root, nil, NewRegistries(), nil, nil, nil)
+	if !errors.Is(err, ErrInvalidContent) {
+		t.Fatalf("err = %v, want ErrInvalidContent for unknown mount temperament", err)
+	}
+}
+
+func TestLoadMountBadTravelMax(t *testing.T) {
+	root := t.TempDir()
+	pack := filepath.Join(root, "core")
+	writeFile(t, filepath.Join(pack, "pack.yaml"), "name: tapestry-core\ncontent:\n  mobs: [mobs/*.yaml]\n")
+	writeFile(t, filepath.Join(pack, "mobs/horse.yaml"), `
+id: horse
+name: a horse
+behavior: stationary
+mount:
+  travel_max: 0
+`)
+	err := Load(context.Background(), root, nil, NewRegistries(), nil, nil, nil)
+	if !errors.Is(err, ErrInvalidContent) {
+		t.Fatalf("err = %v, want ErrInvalidContent for non-positive travel_max", err)
+	}
+}
+
 func TestLoadValidWeaponDamageParses(t *testing.T) {
 	root := t.TempDir()
 	pack := filepath.Join(root, "core")

@@ -144,6 +144,39 @@ type Template struct {
 	// TrainerTeach is the list of ability ids the mob teaches.
 	// Lowercased + de-trimmed by the loader.
 	TrainerTeach []string
+
+	// Mount is the optional rideable-mount descriptor (mounts.md §2). A
+	// non-nil Mount marks this mob as a mount: a rideable, owned creature
+	// that becomes the metered mover while ridden (§5) and gates danger
+	// entry by temperament (§7.2). Nil ⇒ an ordinary mob. Decoded and
+	// validated at pack load (the temperament string is checked against the
+	// mount vocabulary there, like Size against the size vocabulary); carried
+	// as a plain struct so mob stays independent of the mount package.
+	Mount *MountSpec
+}
+
+// MountSpec is the rideable-mount descriptor copied from a mob template's
+// `mount:` block (mounts.md §2.1). Its presence is what makes a mob a mount.
+// Temperament is a load-validated plain string (resolved against the mount
+// vocabulary by the consumer) so the mob package stays free of a mount-package
+// import — the same discipline Size uses for the size vocabulary.
+type MountSpec struct {
+	// Temperament governs danger entry (mounts.md §7.2): "war" / "steady" /
+	// "skittish". Empty resolves to the cautious default at the consumer.
+	Temperament string
+	// TravelMax is the mount's travel-resource ceiling (mounts.md §5.1) — the
+	// renewable movement budget a mounted step spends instead of the rider's.
+	// A larger budget out-travels legs; required positive at load.
+	TravelMax int
+	// TravelRegen is the per-regen-tick travel-pool restore amount (§5.4).
+	// Zero ⇒ the engine default applied by the regen tick.
+	TravelRegen int
+	// Impassable lists terrain ids a mount of this type cannot enter at all
+	// (§5.3 — a cramped tunnel, a building interior). A mounted step into such
+	// a destination is refused; the rider dismounts and proceeds on foot.
+	// Optional; nil ⇒ the mount is bound only by the room-level
+	// mount-impassable flag. Consumed by mounted travel (§5.3).
+	Impassable []string
 }
 
 // Errors callers may distinguish at the boundary.

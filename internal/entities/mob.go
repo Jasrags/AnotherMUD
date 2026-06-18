@@ -7,6 +7,8 @@ import (
 	"github.com/Jasrags/AnotherMUD/internal/channel"
 	"github.com/Jasrags/AnotherMUD/internal/combat"
 	"github.com/Jasrags/AnotherMUD/internal/mob"
+	"github.com/Jasrags/AnotherMUD/internal/mount"
+	"github.com/Jasrags/AnotherMUD/internal/pool"
 	"github.com/Jasrags/AnotherMUD/internal/progression"
 	"github.com/Jasrags/AnotherMUD/internal/srckey"
 	"github.com/Jasrags/AnotherMUD/internal/stats"
@@ -167,6 +169,28 @@ type MobInstance struct {
 	// during the spawn pipeline, then read lock-free by Stats — same
 	// discipline as weapon/proficiencies.
 	resistances map[string]int
+
+	// The mount surface (mounts.md §2) — its methods live in mob_mount.go.
+	//
+	// mountSpec is the rideable-mount descriptor copied from the template;
+	// nil ⇒ an ordinary (non-rideable) mob. temperament is its resolved
+	// danger-entry trait (§7.2). Both are set once at build (the template is
+	// fixed) and read lock-free thereafter, like race/size.
+	mountSpec   *mob.MountSpec
+	temperament mount.Temperament
+	// travel is the mount's travel-resource pool (§5.1) — the renewable
+	// movement budget a mounted step spends instead of the rider's. Built at
+	// spawn from mountSpec.TravelMax; nil on non-mounts. The pool carries its
+	// own mutex, so the regen tick and a mounted-travel spend are safe without
+	// MobInstance-level locking (same contract as vitals).
+	travel *pool.Pool
+	// ownerID is the id of the character who owns this mount (§2.2) — exclusive
+	// and durable. Empty ⇒ unowned (an ordinary mob, or a mount not yet
+	// claimed). Guarded by ownerMu because, unlike race/weapon, ownership is
+	// runtime state assigned at materialization (purchase / un-stable) and read
+	// by ride-relationship checks on the session goroutine.
+	ownerMu sync.RWMutex
+	ownerID string
 }
 
 // Proficiency reports the mob's proficiency for abilityID (M9.5 #3).
@@ -657,6 +681,21 @@ func buildMobFromTemplate(tpl *mob.Template, id EntityID) *MobInstance {
 		mob.vitals.SetMax(newMax)
 	})
 
+	// Mount surface (mounts.md §2): a non-nil template Mount block marks this
+	// mob a rideable mount. Resolve the temperament and seed the travel pool
+	// from the content ceiling. The travel pool floors at 0 and signals no
+	// depletion — an exhausted mount simply refuses the next mounted step
+	// (§5.4), it does not "die" at zero like HP. Built before the mob is
+	// placed/targetable; read lock-free thereafter.
+	if tpl.Mount != nil {
+		// Copy (not alias) the template's mount spec so a future template
+		// mutation (hot-reload, scripting) can't reach into a live instance —
+		// the same defense copyProficiencies gives the proficiency map.
+		mob.mountSpec = copyMountSpec(tpl.Mount)
+		mob.temperament = mount.Resolve(tpl.Mount.Temperament)
+		mob.travel = pool.New(mount.PoolKindTravel, tpl.Mount.TravelMax, pool.Rules{Floor: 0})
+	}
+
 	// Natural weapon (combat §4.5): a beast with no item still attacks.
 	// The damage string was validated at pack load; a parse error on a
 	// hand-built template (tests) leaves the mob unarmed rather than
@@ -668,6 +707,21 @@ func buildMobFromTemplate(tpl *mob.Template, id EntityID) *MobInstance {
 		}
 	}
 	return mob
+}
+
+// copyMountSpec returns a defensive heap copy of a template's mount spec
+// (mounts.md §2), including its Impassable slice, so a live mount instance
+// never aliases the registry's template. Returns nil for a nil input.
+func copyMountSpec(s *mob.MountSpec) *mob.MountSpec {
+	if s == nil {
+		return nil
+	}
+	return &mob.MountSpec{
+		Temperament: s.Temperament,
+		TravelMax:   s.TravelMax,
+		TravelRegen: s.TravelRegen,
+		Impassable:  append([]string(nil), s.Impassable...),
+	}
 }
 
 // copyProficiencies returns a defensive copy of a template's passive

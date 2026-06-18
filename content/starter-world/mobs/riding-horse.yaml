@@ -1,0 +1,26 @@
+id: riding-horse
+name: a riding horse
+type: npc
+behavior: stationary
+description: |
+  A sturdy bay riding horse stands patiently, tail flicking. Saddle-broken and
+  even-tempered, it will carry a rider far across open country — but it is no
+  warhorse, and shies from the smell of blood.
+tags: [animal, beast, mount]
+keywords: [horse, mount, mare, bay]
+# A rideable mount (mounts.md). The `mount:` block is what marks it: presence
+# makes the mob a mount with an owner, a travel resource, and a temperament.
+# Skittish — an ordinary riding animal that balks at carrying its rider into a
+# fight (§7.2); a player who wants to fight from the saddle dismounts or buys a
+# warhorse. travel_max is the renewable budget a mounted step spends instead of
+# the rider's movement pool (§5.1) — larger than a character's ~30 so a fresh
+# mount out-travels legs.
+mount:
+  temperament: skittish
+  travel_max: 60
+  travel_regen: 5
+disposition_rules:
+  default: neutral
+stats:
+  hp_max: 30
+  str: 14

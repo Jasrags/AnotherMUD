@@ -27,6 +27,7 @@ import (
 	"github.com/Jasrags/AnotherMUD/internal/logging"
 	"github.com/Jasrags/AnotherMUD/internal/loot"
 	"github.com/Jasrags/AnotherMUD/internal/mob"
+	"github.com/Jasrags/AnotherMUD/internal/mount"
 	"github.com/Jasrags/AnotherMUD/internal/progression"
 	"github.com/Jasrags/AnotherMUD/internal/property"
 	"github.com/Jasrags/AnotherMUD/internal/quest"
@@ -3212,6 +3213,12 @@ func decodeMob(path, ns string) (*mob.Template, error) {
 			ErrInvalidContent, path, mobSize, size.Names())
 	}
 
+	// Mount block (mounts.md §2). Optional; presence marks the mob a mount.
+	mountSpec, err := decodeMount(f.Mount, path)
+	if err != nil {
+		return nil, err
+	}
+
 	return &mob.Template{
 		ID:                  mob.TemplateID(id),
 		Name:                f.Name,
@@ -3236,6 +3243,50 @@ func decodeMob(path, ns string) (*mob.Template, error) {
 		Size:                mobSize,
 		TrainerTier:         tier,
 		TrainerTeach:        teach,
+		Mount:               mountSpec,
+	}, nil
+}
+
+// decodeMount converts a mob's optional `mount:` block (mounts.md §2.1) into a
+// validated *mob.MountSpec. Returns (nil, nil) when the block is absent — an
+// ordinary mob. Validates the temperament against the mount vocabulary (like
+// size against the size vocabulary) and requires a positive travel_max so a
+// mount can never spawn unable to move while ridden.
+func decodeMount(f *MountFile, path string) (*mob.MountSpec, error) {
+	if f == nil {
+		return nil, nil
+	}
+	temperament := strings.ToLower(strings.TrimSpace(f.Temperament))
+	if temperament != "" && !mount.Valid(temperament) {
+		return nil, fmt.Errorf("%w: %s: mount temperament %q is not a known temperament %v",
+			ErrInvalidContent, path, temperament, mount.Names())
+	}
+	if f.TravelMax <= 0 {
+		return nil, fmt.Errorf("%w: %s: mount travel_max must be positive (got %d)",
+			ErrInvalidContent, path, f.TravelMax)
+	}
+	if f.TravelRegen < 0 {
+		return nil, fmt.Errorf("%w: %s: mount travel_regen must not be negative (got %d)",
+			ErrInvalidContent, path, f.TravelRegen)
+	}
+	var impassable []string
+	seen := make(map[string]struct{})
+	for _, terr := range f.Impassable {
+		t := strings.ToLower(strings.TrimSpace(terr))
+		if t == "" {
+			continue
+		}
+		if _, dup := seen[t]; dup {
+			continue
+		}
+		seen[t] = struct{}{}
+		impassable = append(impassable, t)
+	}
+	return &mob.MountSpec{
+		Temperament: temperament,
+		TravelMax:   f.TravelMax,
+		TravelRegen: f.TravelRegen,
+		Impassable:  impassable,
 	}, nil
 }
 
