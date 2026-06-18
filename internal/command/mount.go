@@ -3,6 +3,7 @@ package command
 import (
 	"context"
 	"fmt"
+	"math"
 	"sort"
 	"strings"
 
@@ -83,7 +84,9 @@ func MountsHandler(ctx context.Context, c *Context) error {
 	if len(owned) == 0 {
 		return c.Actor.Write(ctx, "You own no mounts.")
 	}
-	// Stabled = owned multiset minus the live (materialized) multiset.
+	// Owned total per template, and stabled = owned minus the live
+	// (materialized) multiset. Compute the owned multiset ONCE and reuse it.
+	ownedSet := multiset(owned)
 	stabled := multiset(owned)
 	for _, t := range owner.LiveMountTemplates() {
 		if stabled[t] > 0 {
@@ -92,12 +95,12 @@ func MountsHandler(ctx context.Context, c *Context) error {
 	}
 	var b strings.Builder
 	b.WriteString("You own:")
-	for _, t := range sortedKeys(multiset(owned)) {
+	for _, t := range sortedKeys(ownedSet) {
 		name, ok := c.Mounts.MountName(t)
 		if !ok {
 			name = t // content drift: name the id rather than hide the asset
 		}
-		total := multiset(owned)[t]
+		total := ownedSet[t]
 		stab := stabled[t]
 		for i := 0; i < total; i++ {
 			state := "out in the world"
@@ -387,6 +390,9 @@ func riddenMount(c *Context, rider mountRider) (*entities.MobInstance, bool) {
 // prefers the most specific failure: an unowned matching mount over a
 // non-mount match over no match at all.
 func findMountTargetInRoom(c *Context, roomID world.RoomID, query string) (*entities.MobInstance, string) {
+	if c.Placement == nil || c.Items == nil {
+		return nil, "You don't see that mount here."
+	}
 	q := strings.ToLower(strings.TrimSpace(query))
 	var unowned, notMount bool
 	for _, id := range c.Placement.InRoom(roomID) {
@@ -629,7 +635,11 @@ func qualifyAgainst(ns, id string) string {
 	return ns + ":" + id
 }
 
-// intFromAny coerces a YAML-decoded numeric (int / int64 / float64) to int.
+// intFromAny coerces a YAML-decoded numeric (int / int64 / float64) to int. An
+// out-of-range float64 reads as 0 rather than wrapping to a huge negative via a
+// bare int() cast — a wrapped negative price would otherwise be clamped to 0
+// (a free mount) by the caller. Pathological content only (the sells block is
+// content-authored, never player-writable), but fail loud-and-safe.
 func intFromAny(v any) int {
 	switch n := v.(type) {
 	case int:
@@ -637,6 +647,9 @@ func intFromAny(v any) int {
 	case int64:
 		return int(n)
 	case float64:
+		if n < float64(math.MinInt) || n > float64(math.MaxInt) {
+			return 0
+		}
 		return int(n)
 	default:
 		return 0

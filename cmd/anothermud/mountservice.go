@@ -56,6 +56,10 @@ func (m *mountService) Dematerialize(ctx context.Context, mountID entities.Entit
 	if _, ok := m.store.GetByID(mountID); !ok {
 		return false
 	}
+	// Remove from placement first (the mount is immediately unreachable by room
+	// queries), then untrack from the store. The mount-travel-regen tick may
+	// still see it once via GetByTag between these two calls, but RestoreTravel
+	// on its about-to-be-discarded pool is a capped no-op — safe.
 	m.spawner.placement.Remove(mountID)
 	if err := m.store.Untrack(mountID); err != nil {
 		// Already untracked (a concurrent remove) — the creature is gone
