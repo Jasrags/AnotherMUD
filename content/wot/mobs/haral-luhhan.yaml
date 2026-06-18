@@ -28,3 +28,10 @@ properties:
       - wot:iron-hammer
       - wot:iron-pickaxe
       - wot:woodcutters-axe
+      # equipment.md Simple-Melee arms the smith forges and sells.
+      - wot:club
+      - wot:light-mace
+      - wot:heavy-mace
+      - wot:sickle
+      - wot:morningstar
+      - wot:quarterstaff

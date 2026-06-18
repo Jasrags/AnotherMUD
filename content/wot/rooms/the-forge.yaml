@@ -78,10 +78,15 @@ items:
   # then `channel firebolt <foe>` and compare the damage to an empty hand.
   - saidin-angreal
   - saidar-angreal
-  # Special-weapons (S1 J) reach demo: a quarterstaff has `reach: 1`, so it
-  # strikes at the `near` range band. `equip quarterstaff`, then engage a foe
-  # that opens at range (the Quarry Road archer, `kill archer`): the staff lands
-  # blows at near while a sword wielder would still be closing.
+  # equipment.md Simple-Melee arms — the common Two Rivers weapons among the
+  # smith's finished work. The quarterstaff is a DOUBLE weapon (1d6/1d6, the
+  # second figure recorded-only until double-weapon support lands); the rest are
+  # the plain bludgeon/blade arms a villager or guard carries.
   - quarterstaff
+  - club
+  - light-mace
+  - heavy-mace
+  - sickle
+  - morningstar
 mobs:
   - haral-luhhan

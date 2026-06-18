@@ -1,0 +1,22 @@
+id: club
+name: a club
+type: weapon
+description: |
+  A stout length of seasoned wood, knot-headed and worn smooth at the grip —
+  a hedge weapon anyone can find and few can't swing. Light enough to hurl at a
+  fleeing back if it comes to that.
+tags: [weapon, wood]
+keywords: [club, cudgel]
+size: medium
+eligible_slots: [wield]
+weapon_damage: "1d6"
+weapon_category: club
+proficiency_tier: simple
+damage_types: [bludgeoning]
+# Simple-melee, also thrown (equipment.md: club, thrown 10 ft) — a thrown weapon
+# fights in melee normally and can be hurled, landing recoverable (ranged-combat).
+ranged_class: thrown
+range_increment: 10
+properties:
+  weight: 3
+  value: 5

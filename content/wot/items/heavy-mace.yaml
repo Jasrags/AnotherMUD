@@ -1,0 +1,18 @@
+id: heavy-mace
+name: a heavy mace
+type: weapon
+description: |
+  A heavy two-handed-feeling mace, its squat iron head ridged to bite through
+  helm and mail alike. It is a brute's tool — no finesse, just weight driven
+  down — and it leaves a man's harness dented even when the blow turns.
+tags: [weapon, metal, hafted]
+keywords: [mace, heavy mace]
+size: medium
+eligible_slots: [wield]
+weapon_damage: "1d8"
+weapon_category: mace
+proficiency_tier: simple
+damage_types: [bludgeoning]
+properties:
+  weight: 12
+  value: 120

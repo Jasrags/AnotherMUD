@@ -1,0 +1,18 @@
+id: sickle
+name: a sickle
+type: weapon
+description: |
+  A harvest sickle, the curved blade honed bright on the inside edge — a
+  farmer's tool that hooks and draws as readily through cloth and flesh as
+  through standing grain. Every Two Rivers cot has one by the door.
+tags: [weapon, metal, bladed, farm]
+keywords: [sickle]
+size: small
+eligible_slots: [wield, offhand]
+weapon_damage: "1d6"
+weapon_category: sickle
+proficiency_tier: simple
+damage_types: [slashing]
+properties:
+  weight: 3
+  value: 60

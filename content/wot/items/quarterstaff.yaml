@@ -4,8 +4,8 @@ type: weapon
 description: |
   A stout length of ash as tall as a man, smooth-worn at the grips and shod with
   iron at both ends. A herder's walking staff and a Two Rivers lad's first weapon
-  — held two-handed and swung in wide arcs, it keeps a closing foe at the end of
-  its reach where a sword cannot yet answer.
+  — held two-handed and worked at both ends, a trained hand strikes with one tip
+  and follows with the other in the same breath.
 tags: [weapon, wood, hafted]
 keywords: [quarterstaff, staff]
 # Two-handed haft (size-and-wielding §2): a LARGE weapon a medium wielder
@@ -17,11 +17,12 @@ weapon_category: staff
 proficiency_tier: simple
 damage_types: [bludgeoning]
 crit_multiplier: 2
-# Special-weapons §3 — REACH. A reach weapon strikes at the `near` range band as
-# well as melee: against a closing foe it lands the first blows while a sword
-# wielder must still close to melee. `reach` is a numeric cross-ruleset stat (a
-# Shadowrun staff is reach 2); WoT reads `reach > 0` = the near-band strike.
-reach: 1
+# Special-weapons §2 — DOUBLE WEAPON (equipment.md: quarterstaff 1d6/1d6). The
+# second figure is the off-hand strike a double weapon grants when worked two-
+# handed. RECORDED-ONLY: carried so the weapon is authored once; the extra strike
+# lights up when double-weapon support (a two-weapon extension) reads it. Today it
+# swings only its main 1d6.
+double_damage: "1d6"
 properties:
   weight: 4
-  value: 20
+  value: 10

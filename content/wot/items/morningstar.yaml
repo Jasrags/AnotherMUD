@@ -1,0 +1,18 @@
+id: morningstar
+name: a morningstar
+type: weapon
+description: |
+  A spiked ball of iron on a stout haft — a morningstar, blunt and piercing at
+  once, the spikes punching where the weight crushes. An ugly, dependable arm
+  for a man who never learned the sword.
+tags: [weapon, metal, hafted]
+keywords: [morningstar, star]
+size: medium
+eligible_slots: [wield]
+weapon_damage: "1d8"
+weapon_category: mace
+proficiency_tier: simple
+damage_types: [bludgeoning, piercing]
+properties:
+  weight: 8
+  value: 80

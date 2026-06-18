@@ -1,0 +1,18 @@
+id: light-mace
+name: a light mace
+type: weapon
+description: |
+  A short iron mace, the head flanged and the haft wrapped in leather — light
+  enough to swing one-handed all day, the sort of plain crowd-keeper a village
+  watchman or a merchant's guard carries at the belt.
+tags: [weapon, metal, hafted]
+keywords: [mace, light mace]
+size: small
+eligible_slots: [wield, offhand]
+weapon_damage: "1d6"
+weapon_category: mace
+proficiency_tier: simple
+damage_types: [bludgeoning]
+properties:
+  weight: 6
+  value: 50
