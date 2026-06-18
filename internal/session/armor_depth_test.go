@@ -1,6 +1,7 @@
 package session
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/Jasrags/AnotherMUD/internal/entities"
@@ -72,6 +73,62 @@ func TestIsArmorProficient(t *testing.T) {
 		if got := a.IsArmorProficient(); got != tt.want {
 			t.Errorf("%s: IsArmorProficient() = %v, want %v", tt.name, got, tt.want)
 		}
+	}
+}
+
+// NonProficientArmorCheckPenalty sums the (grade-reduced) check penalty of only
+// the worn pieces the actor is NOT proficient with (armor-depth §5). A
+// proficient piece — and an untiered one — contributes nothing, so a mixed
+// loadout no longer over-penalizes to-hit with the proficient pieces' penalty.
+func TestNonProficientArmorCheckPenalty(t *testing.T) {
+	reg := progression.NewClassRegistry()
+	if err := reg.Register(&progression.Class{ID: "initiate", ArmorProficiencyTiers: []string{"light"}}); err != nil {
+		t.Fatalf("register initiate: %v", err)
+	}
+
+	type piece struct {
+		tier    string
+		penalty int
+	}
+	tests := []struct {
+		name    string
+		classID string
+		pieces  []piece
+		want    int
+	}{
+		{"no armor worn", "initiate", nil, 0},
+		{"proficient light only", "initiate", []piece{{"light", 1}}, 0},
+		{"non-proficient heavy only", "initiate", []piece{{"heavy", 6}}, 6},
+		{"mixed: only the non-proficient piece counts", "initiate", []piece{{"light", 1}, {"heavy", 6}}, 6},
+		{"untiered piece never counts", "initiate", []piece{{"", 2}, {"light", 1}}, 0},
+		{"classless: every tiered piece counts", "", []piece{{"light", 1}, {"heavy", 6}}, 7},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			store := entities.NewStore()
+			a := newEqActor(t, store)
+			a.classes = reg
+			if tt.classID != "" {
+				a.classIDs = []string{tt.classID}
+			}
+			for i, p := range tt.pieces {
+				inst, err := store.Spawn(&item.Template{
+					ID: item.TemplateID(fmt.Sprintf("t:armor-%d", i)), Name: "armor", Type: "item",
+					ArmorTier: p.tier, ArmorCheckPenalty: p.penalty,
+				})
+				if err != nil {
+					t.Fatalf("spawn piece %d: %v", i, err)
+				}
+				a.AddToInventory(inst.ID())
+				if !a.Equip([]string{fmt.Sprintf("slot%d", i)}, inst.ID(), nil) {
+					t.Fatalf("equip piece %d returned false", i)
+				}
+			}
+			if got := a.NonProficientArmorCheckPenalty(); got != tt.want {
+				t.Errorf("NonProficientArmorCheckPenalty() = %d, want %d", got, tt.want)
+			}
+		})
 	}
 }
 

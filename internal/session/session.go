@@ -1715,6 +1715,13 @@ type connActor struct {
 	// read under a.mu. Nil for test/headless actors.
 	feats *feat.Registry
 
+	// grades is the masterwork quality-grade registry (Config.Grades),
+	// captured at applyClass so NonProficientArmorCheckPenalty can reduce a
+	// worn piece's check penalty by its grade live — the same grade reduction
+	// the equip path applies to the `armor_check` stat (masterwork §3). Read
+	// under a.mu. Nil for test/headless actors → no reduction.
+	grades *grade.Registry
+
 	// lastAbility is the spec §4.5 step 2 "last ability used"
 	// property, recorded by the resolver on every resolution.
 	// In-memory only today (not persisted) — it's a transient
@@ -3349,12 +3356,68 @@ func (a *connActor) IsArmorProficient() bool {
 	return true
 }
 
-// ArmorCheckPenaltyTotal returns the actor's summed armor check penalty
-// (armor-depth §6) — the grade-reduced check penalties of worn armor, already
-// applied as the `armor_check` stat at equip. The §5 non-proficient
-// consequence extends this magnitude to attack rolls.
-func (a *connActor) ArmorCheckPenaltyTotal() int {
-	return a.statBlock.Effective(progression.StatArmorCheck)
+// NonProficientArmorCheckPenalty sums the grade-reduced check penalty of ONLY
+// the worn pieces whose tier the actor's class(es) do not grant (armor-depth
+// §5). This is the magnitude the §5 non-proficient consequence extends to
+// attack rolls — distinct from the summed `armor_check` stat (the §6 skill
+// penalty the lockpick path reads, which counts every worn piece). Attributing
+// per-piece keeps a mixed loadout
+// (a proficient shield + non-proficient body) from over-penalizing to-hit with
+// the proficient pieces' penalty. Untiered and proficient pieces contribute
+// nothing; 0 when fully proficient or unarmored. Grade reduction mirrors the
+// equip-time computation (masterwork §3); a nil Grades registry skips it.
+// Iterates the live equipment set under a.mu like recomputeWeaponLocked, so a
+// class change (multiclass / SetClass) is honored without a re-equip — the same
+// live-proficiency discipline as IsArmorProficient / IsWeaponProficient.
+func (a *connActor) NonProficientArmorCheckPenalty() int {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	if a.items == nil || len(a.equipment) == 0 {
+		return 0
+	}
+	var granted []string
+	if a.classes != nil {
+		for _, cid := range a.classIDs {
+			if cls, ok := a.classes.Get(cid); ok {
+				granted = append(granted, cls.ArmorProficiencyTiers...)
+			}
+		}
+	}
+	// Dedup by id: a spanning piece (multi-slot armor) appears under several
+	// keys mapping to one id, so counting distinct ids avoids double-charging it.
+	seen := make(map[entities.EntityID]bool, len(a.equipment))
+	total := 0
+	for _, id := range a.equipment {
+		if seen[id] {
+			continue
+		}
+		seen[id] = true
+		e, ok := a.items.GetByID(id)
+		if !ok {
+			continue
+		}
+		it, ok := e.(*entities.ItemInstance)
+		if !ok {
+			continue
+		}
+		tier := it.ArmorTier()
+		if tier == "" || item.ArmorProficient(granted, tier) {
+			continue
+		}
+		penalty := it.ArmorCheckPenalty()
+		if penalty <= 0 {
+			continue
+		}
+		if a.grades != nil {
+			if g, ok := a.grades.Get(it.Grade()); ok {
+				penalty -= g.ArmorCheckImprove
+			}
+		}
+		if penalty > 0 {
+			total += penalty
+		}
+	}
+	return total
 }
 
 // Saves derives the actor's three saving throws (saves §2): the class-
@@ -4434,6 +4497,7 @@ func applyClass(a *connActor, cfg *Config, saved []string) {
 	// changes (and classless characters who gain a class later) can still
 	// resolve weapon proficiency by id (weapon-identity §3).
 	a.classes = cfg.Classes
+	a.grades = cfg.Grades // class-independent, but captured here alongside classes
 	a.classIDs = a.classIDs[:0] // replace, never accumulate (mirrors applyRace)
 	a.class = nil
 	if cfg.Classes == nil {

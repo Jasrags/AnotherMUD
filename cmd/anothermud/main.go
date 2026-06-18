@@ -1595,18 +1595,20 @@ func run() error {
 	}
 	// armor-depth §5: the non-proficient ARMOR consequence — its check penalty
 	// extended to attack rolls. Players only (mobs have no class → always
-	// proficient); the magnitude is the actor's summed armor_check stat, so it
-	// composes additively through the same HitModAdjust seam as the weapon
-	// penalty and the darkness/condition penalties.
+	// proficient); the magnitude is the check penalty of ONLY the pieces the
+	// actor is non-proficient with (per-piece attribution, so a proficient
+	// shield over a non-proficient body doesn't over-penalize), composed
+	// additively through the same HitModAdjust seam as the weapon penalty and
+	// the darkness/condition penalties. Returns 0 when fully proficient.
 	attackerArmorPenalty := func(id combat.CombatantID) int {
 		if !strings.HasPrefix(string(id), combat.PlayerPrefix) {
 			return 0
 		}
 		a, ok := mgr.GetByPlayerID(string(id)[len(combat.PlayerPrefix):])
-		if !ok || a.IsArmorProficient() {
+		if !ok {
 			return 0
 		}
-		return -a.ArmorCheckPenaltyTotal()
+		return -a.NonProficientArmorCheckPenalty()
 	}
 	// conditions §3/§5: a bare entity id → the aggregate combat/save impact
 	// of its active condition flags (prone/stunned/blinded/frightened/…).
