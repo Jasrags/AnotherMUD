@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/Jasrags/AnotherMUD/internal/auction"
 	"github.com/Jasrags/AnotherMUD/internal/entities"
@@ -162,6 +163,120 @@ func UnlistHandler(ctx context.Context, c *Context) error {
 		return c.Actor.Write(ctx, "You have no auction matching that.")
 	}
 	return mapAuctionErr(ctx, c, c.Auction.Cancel(ctx, me, id))
+}
+
+// BrowseHandler implements `browse [name] [price|time] [page] [cat:<type>]`
+// — the buyer's view of the global market (§5). search is an alias narrowing
+// by name.
+func BrowseHandler(ctx context.Context, c *Context) error {
+	if c.Auction == nil {
+		return c.Actor.Write(ctx, "There's no auction house here.")
+	}
+	if _, ok := auctionParty(c); !ok {
+		return c.Actor.Write(ctx, "You can't use the auction house.")
+	}
+	if !atAuctioneer(ctx, c) {
+		return nil
+	}
+	now := nowFromCtx(c)
+	f := parseBrowseArgs(c.Args)
+	page := c.Auction.Browse(now, f)
+	return c.Actor.Write(ctx, renderBrowsePage(page, now))
+}
+
+// BuyoutHandler implements `buyout <#>` — buy a listing outright by its
+// browse reference (§6). Distinct from the shop `buy` so the two coexist at
+// a room that is both shop and auctioneer.
+func BuyoutHandler(ctx context.Context, c *Context) error {
+	if c.Auction == nil {
+		return c.Actor.Write(ctx, "There's no auction house here.")
+	}
+	me, ok := auctionParty(c)
+	if !ok {
+		return c.Actor.Write(ctx, "You can't use the auction house.")
+	}
+	if !atAuctioneer(ctx, c) {
+		return nil
+	}
+	ref, _ := c.Resolved["ref"].(string)
+	id := c.Auction.FindActiveByRef(ref)
+	if id == "" {
+		return c.Actor.Write(ctx, "There's no auction with that number. (see `browse`)")
+	}
+	won, err := c.Auction.Buyout(ctx, me, id)
+	if err != nil {
+		return mapAuctionErr(ctx, c, err)
+	}
+	return c.Actor.Write(ctx, fmt.Sprintf("You win %s for %d gold. Collect it at an auctioneer.", won.Item.Name, won.Price))
+}
+
+// parseBrowseArgs classifies loose browse tokens: a number is the page,
+// "price"/"time" the sort, "cat:<type>" the category, anything else joins
+// into the name substring (§5 example: `browse sword price`).
+func parseBrowseArgs(args []string) auction.BrowseFilter {
+	f := auction.BrowseFilter{}
+	var nameParts []string
+	for _, a := range args {
+		la := strings.ToLower(a)
+		switch {
+		case la == "price":
+			f.Sort = auction.SortByPrice
+		case la == "time":
+			f.Sort = auction.SortByTime
+		case strings.HasPrefix(la, "cat:"):
+			f.Category = strings.TrimPrefix(la, "cat:")
+		default:
+			if n, err := strconv.Atoi(a); err == nil {
+				f.Page = n
+				continue
+			}
+			nameParts = append(nameParts, a)
+		}
+	}
+	f.Name = strings.Join(nameParts, " ")
+	return f
+}
+
+// renderBrowsePage formats one page of listings (§5): a header, then a line
+// per listing with its stable reference, name, price, and time remaining.
+func renderBrowsePage(p auction.BrowsePage, now time.Time) string {
+	if p.Total == 0 {
+		return "The auction house has nothing matching that."
+	}
+	var b strings.Builder
+	fmt.Fprintf(&b, "Auction House — page %d/%d — %d listing(s)\n", p.Page, p.TotalPages, p.Total)
+	fmt.Fprintf(&b, " %-6s %-30s %10s  %s\n", "Ref", "Item", "Price", "Closes in")
+	for _, l := range p.Listings {
+		ref := strings.TrimPrefix(l.ID, "au-")
+		fmt.Fprintf(&b, " %-6s %-30s %10d  %s\n", ref, browseItemName(l), l.Price, closesIn(l, now))
+	}
+	b.WriteString("(buyout <#> to buy | browse <name> price|time <page>)")
+	return b.String()
+}
+
+// browseItemName renders the listing's item name with a leading [RARITY]
+// marker when the serialized item carries a rarity decoration (§5 renders
+// with decorations). Falls back to the bare name.
+func browseItemName(l auction.Listing) string {
+	if r, ok := l.Item.Properties["rarity"].(string); ok && r != "" && !strings.EqualFold(r, "common") {
+		return "[" + strings.ToUpper(r) + "] " + l.Item.Name
+	}
+	return l.Item.Name
+}
+
+// closesIn formats the time remaining until a listing expires (e.g. "2h 14m")
+// from the stored ExpiresAt against now.
+func closesIn(l auction.Listing, now time.Time) string {
+	d := l.ExpiresAt.Sub(now)
+	if d <= 0 {
+		return "closing"
+	}
+	h := int(d.Hours())
+	min := int(d.Minutes()) % 60
+	if h > 0 {
+		return fmt.Sprintf("%dh %02dm", h, min)
+	}
+	return fmt.Sprintf("%dm", min)
 }
 
 // resolveListingRef maps a player-supplied reference to a listing id: a

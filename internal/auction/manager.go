@@ -69,6 +69,29 @@ type Manager struct {
 
 	// tradable gates non-tradable items (nil → everything tradable).
 	tradable func(entities.EntityID) bool
+
+	// notifier delivers offline-capable sold/expired/cancelled notices (§7);
+	// nil disables them. Set via SetNotifier at composition time.
+	notifier Notifier
+}
+
+// Notifier delivers an offline-capable notice to a player (§7 — the queue
+// carries text, not goods). The composition root adapts the notification
+// manager to it; nil disables notices (tests / headless).
+type Notifier interface {
+	Notify(ctx context.Context, playerID, playerName, text string)
+}
+
+// SetNotifier wires the offline-notice seam. Kept off the constructor so the
+// many tests that don't exercise notices need not pass it.
+func (m *Manager) SetNotifier(n Notifier) { m.notifier = n }
+
+// notifySeller delivers text to a listing's seller, online-now or on next
+// login. nil-safe.
+func (m *Manager) notifySeller(ctx context.Context, l Listing, text string) {
+	if m.notifier != nil {
+		m.notifier.Notify(ctx, l.Seller, l.SellerName, text)
+	}
 }
 
 // NewManager wires a Manager. store must already be Loaded. bus drives the

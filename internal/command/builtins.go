@@ -215,6 +215,8 @@ func RegisterBuiltins(r *Registry) error {
 		{Keyword: "auction", Handler: AuctionHandler, Brief: "List an item for auction at an auctioneer.", Syntax: []string{"auction <item> <price>"}, Args: []ArgDefinition{{Name: "item", Type: ArgInventory}, {Name: "price", Type: ArgNumber}}},
 		{Keyword: "auctions", Handler: AuctionsHandler, Brief: "Show your own active auction listings.", Syntax: []string{"auctions"}},
 		{Keyword: "unlist", Handler: UnlistHandler, Brief: "Withdraw one of your auction listings.", Syntax: []string{"unlist <#>"}, Args: []ArgDefinition{{Name: "ref", Type: ArgText}}},
+		{Keyword: "browse", Handler: BrowseHandler, Brief: "Browse the auction listings (filter by name).", Syntax: []string{"browse [name] [price|time] [page]"}},
+		{Keyword: "buyout", Handler: BuyoutHandler, Brief: "Buy an auction listing outright.", Syntax: []string{"buyout <#>"}, Args: []ArgDefinition{{Name: "ref", Type: ArgText}}},
 
 		{Keyword: "affects", Aliases: []string{"effects"}, Handler: AffectsHandler, Brief: "List your active effects and conditions.", Syntax: []string{"affects"}},
 		{Keyword: "rest", Handler: RestHandler, Brief: "Rest to recover faster.", Syntax: []string{"rest"}},
