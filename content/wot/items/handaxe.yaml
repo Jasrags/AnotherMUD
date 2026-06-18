@@ -9,7 +9,7 @@ keywords: [handaxe, axe, hatchet]
 size: small
 eligible_slots: [wield, offhand]
 weapon_damage: "1d6"
-weapon_category: axe
+weapon_category: handaxe
 proficiency_tier: martial
 damage_types: [slashing]
 crit_multiplier: 3

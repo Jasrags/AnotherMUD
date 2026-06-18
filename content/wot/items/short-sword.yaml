@@ -9,7 +9,7 @@ keywords: [short sword, shortsword, sword, blade]
 size: small
 eligible_slots: [wield, offhand]
 weapon_damage: "1d6"
-weapon_category: sword
+weapon_category: short-sword
 proficiency_tier: martial
 damage_types: [piercing]
 crit_threat_low: 19

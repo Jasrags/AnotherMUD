@@ -10,7 +10,7 @@ keywords: [mace, light mace]
 size: small
 eligible_slots: [wield, offhand]
 weapon_damage: "1d6"
-weapon_category: mace
+weapon_category: light-mace
 proficiency_tier: simple
 damage_types: [bludgeoning]
 properties:

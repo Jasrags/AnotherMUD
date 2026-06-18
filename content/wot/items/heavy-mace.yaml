@@ -10,7 +10,7 @@ keywords: [mace, heavy mace]
 size: medium
 eligible_slots: [wield]
 weapon_damage: "1d8"
-weapon_category: mace
+weapon_category: heavy-mace
 proficiency_tier: simple
 damage_types: [bludgeoning]
 properties:

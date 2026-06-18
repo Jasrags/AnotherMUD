@@ -10,7 +10,7 @@ keywords: [scythe, war scythe]
 size: large
 eligible_slots: [wield]
 weapon_damage: "2d4"
-weapon_category: polearm
+weapon_category: scythe
 proficiency_tier: martial
 damage_types: [piercing, slashing]
 # equipment.md: x4 crit — the rarest, most devastating crit on the table.

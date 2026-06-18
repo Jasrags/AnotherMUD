@@ -10,7 +10,7 @@ keywords: [rapier, sword, blade]
 size: medium
 eligible_slots: [wield]
 weapon_damage: "1d6"
-weapon_category: sword
+weapon_category: rapier
 proficiency_tier: martial
 damage_types: [piercing]
 # equipment.md: a wide 18-20 threat range — the rapier crits often, rewarding the

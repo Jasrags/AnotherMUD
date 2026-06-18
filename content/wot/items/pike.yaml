@@ -10,7 +10,7 @@ keywords: [pike, polearm, spear]
 size: large
 eligible_slots: [wield]
 weapon_damage: "1d8"
-weapon_category: polearm
+weapon_category: pike
 proficiency_tier: martial
 damage_types: [piercing]
 crit_multiplier: 3

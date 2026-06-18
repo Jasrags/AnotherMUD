@@ -13,7 +13,7 @@ keywords: [quarterstaff, staff]
 size: large
 eligible_slots: [wield]
 weapon_damage: "1d6"
-weapon_category: staff
+weapon_category: quarterstaff
 proficiency_tier: simple
 damage_types: [bludgeoning]
 crit_multiplier: 2

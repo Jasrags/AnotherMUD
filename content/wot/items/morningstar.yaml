@@ -10,7 +10,7 @@ keywords: [morningstar, star]
 size: medium
 eligible_slots: [wield]
 weapon_damage: "1d8"
-weapon_category: mace
+weapon_category: morningstar
 proficiency_tier: simple
 damage_types: [bludgeoning, piercing]
 properties:

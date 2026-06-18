@@ -10,7 +10,7 @@ keywords: [poleaxe, pole axe, polearm]
 size: large
 eligible_slots: [wield]
 weapon_damage: "1d10"
-weapon_category: polearm
+weapon_category: poleaxe
 proficiency_tier: martial
 damage_types: [piercing, slashing]
 crit_multiplier: 3

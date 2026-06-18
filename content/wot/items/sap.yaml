@@ -10,7 +10,7 @@ keywords: [sap, blackjack, cosh]
 size: small
 eligible_slots: [wield, offhand]
 weapon_damage: "1d6"
-weapon_category: club
+weapon_category: sap
 proficiency_tier: martial
 damage_types: [bludgeoning]
 # equipment.md `§` — a SUBDUAL (nonlethal) weapon: it knocks out rather than

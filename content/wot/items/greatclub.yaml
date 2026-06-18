@@ -9,7 +9,7 @@ keywords: [greatclub, great club, club, maul]
 size: large
 eligible_slots: [wield]
 weapon_damage: "1d10"
-weapon_category: club
+weapon_category: greatclub
 proficiency_tier: martial
 damage_types: [bludgeoning]
 properties:

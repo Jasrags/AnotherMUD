@@ -9,7 +9,7 @@ keywords: [trident, spear, fork]
 size: medium
 eligible_slots: [wield]
 weapon_damage: "1d8"
-weapon_category: spear
+weapon_category: trident
 proficiency_tier: martial
 damage_types: [piercing]
 # Also thrown (equipment.md: trident, thrown 10 ft) — fights in melee, can be
