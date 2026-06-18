@@ -224,6 +224,19 @@ old five-theme partition left uncovered.
   full mounted combat); barding as armor-on-the-mount reusing `armor-depth`. Large;
   spec-first. Authoring note: author mount *items/prices* now as plain flavor items;
   do **not** encode ride/speed mechanics until the entity exists.
+- **Grenadelike weapons + room hazards** — ✅ **SPECCED JOINTLY 2026-06-17** →
+  [`docs/specs/area-effects.md`](specs/area-effects.md) (behavior contract; build
+  pending). The two share the engine's first **multi-target attack** — an
+  *area-effect primitive* (a payload of typed damage and/or a condition applied to
+  everyone in a region, friend-or-foe rule) — so they're one spec: a grenade fires
+  it once on impact (direct + splash + ignition), a hazard fires it on a trigger
+  (on-enter / on-tick) until cleared/expired. The igniting oil flask *becomes* a
+  hazard (the bridge). Reuses combat/armor-depth (damage+resistance), conditions,
+  saves (Reflex-to-avoid), ranged-combat (throw), economy (consumable), visibility
+  (hidden-hazard hook). Adds a durable placed-hazard world store (the first dynamic
+  room state to persist). Deferred to Open Questions: sub-room footprints, the full
+  hidden-trap system, rocket-stack demolition, cross-room lobbing, ally
+  friendly-fire. The original per-item notes are preserved below.
 - **Grenadelike weapons (acid · oil · fireworks)** — `equipment.md` Table 7-10 +
   the Illuminator's rocket: thrown weapons that deal **direct + splash area damage**
   with an ignition/fuse state. ⚠️ **Greenfield — no area-effect or thrown-consumable-

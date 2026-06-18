@@ -271,9 +271,15 @@ cap (pre-existing G concern).
   (reuses movement-cost), barding reuses armor-depth, saddlebags are a container,
   stabling/feed gold sinks, conservative combat boundary; charge/Ride-contest/
   multi-seat/flight deferred to Open Questions.
-- Grenadelike weapons (Medium–Large) + room hazards (Medium) share an "area
-  effect over a region" primitive → spec jointly (not yet written). Author items
-  as flavor now; the mechanic upgrades for free when the system lands.
+- **Grenadelike weapons + room hazards — ✅ SPECCED JOINTLY 2026-06-17** →
+  `docs/specs/area-effects.md` (behavior contract; build pending). One spec: the
+  shared multi-target *area-effect primitive* (payload to everyone in a region),
+  consumed by thrown grenades (direct+splash+ignition) and placed hazards
+  (on-enter/on-tick, durable world store). The igniting oil flask becomes a
+  hazard (bridge). Sub-room footprints / full hidden-trap system / rocket-stack
+  demolition / cross-room lobbing / ally friendly-fire deferred to Open Questions.
+
+**Track C is now fully specced (C1 mounts + C2/C3 area-effects); both await build.**
 
 ---
 
