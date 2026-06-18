@@ -14,7 +14,7 @@ func TestAutoAttack_ReachStrikesAtNear(t *testing.T) {
 	atkStats := Stats{HitMod: 0, STR: 10, Reach: 1} // reach melee weapon
 	defStats := Stats{AC: 10}
 	rig := newAutoAttackRig(t, atkStats, defStats, 10, 20, []int{14, 0}) // d20=15 hits AC10, then 1d3 dmg
-	rig.mgr.AdjustBand(rig.attacker.id, rig.target.id, +1)              // melee → near
+	rig.mgr.AdjustBand(rig.attacker.id, rig.target.id, +1)               // melee → near
 	rig.phase()(context.Background(), rig.attacker.id, rig.mgr, 0)
 
 	if bc := rig.sink.snapshotBandChanges(); len(bc) != 0 {
