@@ -2916,3 +2916,25 @@ func TestLoadFeats_RejectsBadPrereq(t *testing.T) {
 		t.Errorf("want ErrInvalidContent for prereq missing target, got %v", err)
 	}
 }
+
+// sizedCompanionConflicts flags items declaring BOTH a size and static
+// companion_slots — the size-derived equip footprint silently overrides the
+// static list (size-and-wielding §4.1), so the pairing is an authoring mistake.
+func TestSizedCompanionConflicts(t *testing.T) {
+	dst := NewRegistries()
+	dst.Items.Add(&item.Template{ID: "p:sized-and-companion", Type: "weapon", Size: "large", CompanionSlots: []string{"offhand"}})
+	dst.Items.Add(&item.Template{ID: "p:sized-only", Type: "weapon", Size: "large"})
+	dst.Items.Add(&item.Template{ID: "p:companion-only", Type: "item", CompanionSlots: []string{"offhand"}})
+	dst.Items.Add(&item.Template{ID: "p:plain", Type: "item"})
+	dst.Items.Add(&item.Template{ID: "p:another-conflict", Type: "weapon", Size: "huge", CompanionSlots: []string{"body", "legs"}})
+
+	got := sizedCompanionConflicts(dst)
+	want := []string{"p:another-conflict", "p:sized-and-companion"} // sorted by id
+	if !slices.Equal(got, want) {
+		t.Errorf("sizedCompanionConflicts() = %v, want %v", got, want)
+	}
+
+	if conflicts := sizedCompanionConflicts(nil); conflicts != nil {
+		t.Errorf("nil registries: got %v, want nil", conflicts)
+	}
+}

@@ -275,6 +275,15 @@ func Load(ctx context.Context, root string, filter []string, dst *Registries, sp
 		)
 	}
 
+	// Size-and-wielding §4.1 authoring guardrail: an item that declares BOTH a
+	// size and static companion_slots has the static list silently overridden
+	// by the size-derived equip footprint. Advisory only — the item still loads.
+	for _, id := range sizedCompanionConflicts(dst) {
+		logger.Warn("item declares both size and companion_slots; the size-derived equip footprint overrides the static companion slots (size-and-wielding §4.1)",
+			slog.String("item", id),
+		)
+	}
+
 	return nil
 }
 
@@ -640,6 +649,28 @@ func validateRecipeEconomy(dst *Registries) []recipeEconomyWarning {
 	}
 	sort.Slice(warns, func(i, j int) bool { return warns[i].Recipe < warns[j].Recipe })
 	return warns
+}
+
+// sizedCompanionConflicts returns the ids of item templates that declare BOTH a
+// `size` and static `companion_slots`. A sized item's equip footprint is
+// DERIVED from its size (size-and-wielding §4.1): a light/one-handed weapon
+// discards its static companion slots entirely, a two-handed one merges them
+// with the off-hand slot — so the authored companion list is silently (wholly
+// or partly) overridden. Flagging the co-occurrence surfaces the authoring
+// mistake without failing the pack (advisory, like the recipe-economy /
+// coordinate warnings). Sorted by id for deterministic logging.
+func sizedCompanionConflicts(dst *Registries) []string {
+	if dst == nil || dst.Items == nil {
+		return nil
+	}
+	var ids []string
+	for _, t := range dst.Items.All() {
+		if t.Size != "" && len(t.CompanionSlots) > 0 {
+			ids = append(ids, string(t.ID))
+		}
+	}
+	sort.Strings(ids)
+	return ids
 }
 
 // itemValueProp reads the integer `value` property off a template, tolerating
