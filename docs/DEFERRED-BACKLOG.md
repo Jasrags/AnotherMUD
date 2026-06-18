@@ -239,27 +239,31 @@ load-readiness pass (commit `ce4c0e1`). Source-of-truth memory file:
 `equipment-debt-roundup`. Three tracks; only **Track A** is actionable now.
 
 ### Track A — actionable now (small, no design)
-- **A1 (MEDIUM) — armor check-penalty over-counts in mixed proficiency.**
-  `attackerArmorPenalty` (`cmd/anothermud/main.go:1601`) applies the SUM of every
-  worn piece's `armor_check` (`ArmorCheckPenaltyTotal`) whenever the actor is
-  non-proficient in *any* piece. A proficient-shield + non-proficient-body mix
-  over-penalizes to-hit. Fix = sum only the non-proficient pieces' check penalty.
-  (`armor-depth-build-log`.)
-- **A2 (MEDIUM) — sized weapon + static `companion_slots` silently discarded.**
-  A weapon with both `size:` and explicit `companion_slots` has the static
-  companions overridden by equip-time size derivation, no warning. Cheap fix =
-  loader warning when both are present (`internal/pack/loader.go`). (`size-wielding-build-log`.)
-- **A3 (LOW) — two-weapon penalty consts not env-wired.**
-  `DefaultTwoWeapon{Main,OffHand}Penalty` (`internal/combat/stats.go:174`) are
-  hardcoded; sibling `SecondaryOffHandPenalty` is env-wired. Wire to
-  `ANOTHERMUD_TWO_WEAPON_*`. (`size-wielding-build-log`.)
+- **A1 (MEDIUM) — armor check-penalty over-counts in mixed proficiency. ✅ SHIPPED 2026-06-17.**
+  `attackerArmorPenalty` applied the SUM of every worn piece's `armor_check`
+  whenever non-proficient in *any* piece. Fixed via
+  `connActor.NonProficientArmorCheckPenalty` (per-piece, grade-reduced, live);
+  the dead `ArmorCheckPenaltyTotal` was removed. (`armor-depth-build-log`.)
+- **A2 (MEDIUM) — sized weapon + static `companion_slots` silently discarded. ✅ SHIPPED 2026-06-17.**
+  Non-fatal boot warning (`sizedCompanionConflicts` → `slog.Warn` in `Load`) when
+  an item declares both. No shipping item trips it (verified). (`size-wielding-build-log`.)
+- **A3 (LOW) — two-weapon penalty consts not env-wired. DEFERRED (reclassified — not cheap).**
+  `DefaultTwoWeapon{Main,OffHand}Penalty` (`internal/combat/stats.go`) are consumed
+  at STAT-BUILD time (`connActor.Stats` + `MobInstance.Stats`), which take no config —
+  unlike the round-loop `SecondaryOffHandPenalty`. Clean env-wiring needs a combat
+  config struct threaded into both hot `Stats()` methods (the codebase has no
+  boot-mutable-package-var precedent; env is read only at the composition root).
+  Low value (the two-weapon feats already tune the effective penalty). **Fix-by:**
+  when a `combat` tuning-config seam is introduced for another knob, fold these in.
 
 ### Track B — keep deferred (YAGNI; trigger-gated)
-`no_remove` tag → §8 config; multi-cap companion slots untested; spanning robe
-body/legs (a `body` slot landed 2026-06-17 — verify partial closure); score sheet
-shows 2h spanner in both slots (intentional); `cappedDexAC` equip-snapshot cap
-staleness; no graded ARMOR/TOOL content; armor §7 hasty-don escape (combat gate
-shipped); mobs skip `RangedDamageBonus`/`strRating` cap (pre-existing G concern).
+`no_remove` tag → §8 config; multi-cap companion slots untested; **spanning robe
+body/legs — PARTIAL: a `body` slot landed 2026-06-17 (`content/core/slots/body.yaml`)
+and body armor uses it; the `legs` slot + a body+legs spanning robe remain unshipped
+(no content needs them)**; score sheet shows 2h spanner in both slots (intentional);
+`cappedDexAC` equip-snapshot cap staleness; no graded ARMOR/TOOL content; armor §7
+hasty-don escape (combat gate shipped); mobs skip `RangedDamageBonus`/`strRating`
+cap (pre-existing G concern).
 
 ### Track C — greenfield, spec-first (in `BACKLOG.md` §2)
 Mounts & barding (Large); grenadelike weapons (Medium–Large) + room hazards
