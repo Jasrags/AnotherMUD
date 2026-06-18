@@ -3364,15 +3364,20 @@ func (a *connActor) IsArmorProficient() bool {
 // per-piece keeps a mixed loadout
 // (a proficient shield + non-proficient body) from over-penalizing to-hit with
 // the proficient pieces' penalty. Untiered and proficient pieces contribute
-// nothing; 0 when fully proficient or unarmored. Grade reduction mirrors the
-// equip-time computation (masterwork §3); a nil Grades registry skips it.
-// Iterates the live equipment set under a.mu like recomputeWeaponLocked, so a
-// class change (multiclass / SetClass) is honored without a re-equip — the same
+// nothing; 0 when fully proficient or unarmored. The grade reduction mirrors
+// the equip-time computation in internal/command/equipment.go (masterwork §3) —
+// the two paths must stay in sync; a nil Grades registry skips it. A class
+// change (multiclass / SetClass) is honored without a re-equip — the same
 // live-proficiency discipline as IsArmorProficient / IsWeaponProficient.
+//
+// Locking mirrors IsArmorProficient's NARROW window: snapshot the granted
+// tiers + worn ids + registry pointers under a.mu, release, then read the item
+// store OUTSIDE the lock. This keeps the combat-goroutine hot path (HitModAdjust)
+// from holding a.mu across item-store reads — no a.mu→store lock ordering.
 func (a *connActor) NonProficientArmorCheckPenalty() int {
 	a.mu.Lock()
-	defer a.mu.Unlock()
 	if a.items == nil || len(a.equipment) == 0 {
+		a.mu.Unlock()
 		return 0
 	}
 	var granted []string
@@ -3383,16 +3388,23 @@ func (a *connActor) NonProficientArmorCheckPenalty() int {
 			}
 		}
 	}
+	ids := make([]entities.EntityID, 0, len(a.equipment))
+	for _, id := range a.equipment {
+		ids = append(ids, id)
+	}
+	items, grades := a.items, a.grades
+	a.mu.Unlock()
+
 	// Dedup by id: a spanning piece (multi-slot armor) appears under several
 	// keys mapping to one id, so counting distinct ids avoids double-charging it.
-	seen := make(map[entities.EntityID]bool, len(a.equipment))
+	seen := make(map[entities.EntityID]bool, len(ids))
 	total := 0
-	for _, id := range a.equipment {
+	for _, id := range ids {
 		if seen[id] {
 			continue
 		}
 		seen[id] = true
-		e, ok := a.items.GetByID(id)
+		e, ok := items.GetByID(id)
 		if !ok {
 			continue
 		}
@@ -3408,8 +3420,8 @@ func (a *connActor) NonProficientArmorCheckPenalty() int {
 		if penalty <= 0 {
 			continue
 		}
-		if a.grades != nil {
-			if g, ok := a.grades.Get(it.Grade()); ok {
+		if grades != nil {
+			if g, ok := grades.Get(it.Grade()); ok {
 				penalty -= g.ArmorCheckImprove
 			}
 		}
