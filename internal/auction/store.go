@@ -354,6 +354,10 @@ func (s *Store) MarkItemCollected(id string) error {
 	if l.Status != StatusActive {
 		delete(s.listings, id) // terminal + collected — done.
 	}
+	// An active listing is never collected (the verb only collects
+	// HeldForPickup, i.e. non-active, listings), so the not-deleted branch is
+	// unreachable in practice; if a future path reaches it the flag is set
+	// defensively without pruning a still-live listing.
 	return s.persistLocked()
 }
 

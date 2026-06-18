@@ -81,6 +81,12 @@ func mapAuctionErr(ctx context.Context, c *Context, err error) error {
 		return c.Actor.Write(ctx, fmt.Sprintf("You can't afford the %d gold listing fee.", c.Auction.Config().ListingFee))
 	case errors.Is(err, auction.ErrNotYours):
 		return c.Actor.Write(ctx, "That isn't your auction.")
+	case errors.Is(err, auction.ErrOwnListing):
+		return c.Actor.Write(ctx, "That's your own listing — use `unlist` to withdraw it.")
+	case errors.Is(err, auction.ErrInsufficientCoin):
+		return c.Actor.Write(ctx, "You can't afford that.")
+	case errors.Is(err, auction.ErrVetoed):
+		return c.Actor.Write(ctx, "The purchase was refused.")
 	case errors.Is(err, auction.ErrNotFound):
 		return c.Actor.Write(ctx, "There's no such auction.")
 	case errors.Is(err, auction.ErrNotActive):
@@ -126,6 +132,9 @@ func AuctionsHandler(ctx context.Context, c *Context) error {
 	me, ok := auctionParty(c)
 	if !ok {
 		return c.Actor.Write(ctx, "You can't use the auction house.")
+	}
+	if !atAuctioneer(ctx, c) {
+		return nil
 	}
 	mine := c.Auction.ListingsBySeller(me.ID())
 	if len(mine) == 0 {
@@ -243,12 +252,12 @@ func CollectHandler(ctx context.Context, c *Context) error {
 		if c.carryWeightExceeded(inst) {
 			_ = c.Items.Untrack(inst.ID()) // not delivered — drop the live copy.
 			heldBack = true
-			break // stop; the rest stays waiting (PD: never silently lose it).
+			continue // this one stays waiting; keep collecting lighter items.
 		}
 		if err := c.Auction.ConfirmItemCollected(ctx, me, l, inst.ID()); err != nil {
 			_ = c.Items.Untrack(inst.ID())
 			heldBack = true
-			break
+			continue
 		}
 		me.AddToInventory(inst.ID())
 		got = append(got, inst.Name())

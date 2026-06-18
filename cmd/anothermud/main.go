@@ -4554,9 +4554,6 @@ func (s *progressionSink) OnTrackReset(ctx context.Context, entityID, track stri
 	})
 }
 
-// currencySink bridges economy.Sink to eventbus.Bus (M11.1 — spec
-// economy-survival §2.2). Same composition-root pattern as
-// alignmentSink: the economy package must not import eventbus, so the
 // auctionNotifier adapts the notification manager to auction.Notifier so the
 // auction house can deliver sold/expired/cancelled/refund notices that reach
 // a player online-now or on next login (auction-house §7 — text only; goods
@@ -4578,7 +4575,10 @@ func (a auctionNotifier) Notify(ctx context.Context, playerID, playerName, text 
 	_ = a.m.Publish(ctx, n, map[string]string{playerID: playerName})
 }
 
-// service reports through this adapter and we map 1:1 to the bus.
+// currencySink bridges economy.Sink to eventbus.Bus (M11.1 — spec
+// economy-survival §2.2). Same composition-root pattern as alignmentSink:
+// the economy package must not import eventbus, so the currency service
+// reports through this adapter and we map 1:1 to the bus.
 type currencySink struct {
 	bus *eventbus.Bus
 }
