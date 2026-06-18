@@ -2194,6 +2194,27 @@ func run() error {
 	// outside the WoT pack (no `elements` ⇒ casterAffinityPotency returns 1.0).
 	abilityResolver.SetPotencyProvider(casterAffinityPotency)
 
+	// special-weapons §4/§5 — a trip/disarm weapon raises that maneuver's entry-
+	// save DC by the wielded weapon's bonus (the `trip`/`disarm` maneuver lands
+	// harder with a bill or a swordbreaker). Looks the caster up by id and reads
+	// the wielded weapon's maneuver bonus; 0 for any other ability, an unarmed
+	// caster, an ordinary weapon, or a non-player caster (a mob trip weapon is
+	// deferred). Inert outside content that authors a maneuver weapon.
+	abilityResolver.SetSaveDCBonus(func(sourceID, abilityID string) int {
+		a, ok := mgr.GetByPlayerID(sourceID)
+		if !ok {
+			return 0
+		}
+		switch abilityID {
+		case "trip":
+			return a.WieldedTripBonus()
+		case "disarm":
+			return a.WieldedDisarmBonus()
+		default:
+			return 0
+		}
+	})
+
 	// WoT S2 Phase 2 — the overchannel consequence. After a deliberately
 	// overdrawn weave resolves, the channeler makes a Fortitude save whose DC
 	// rises with how far past the safe reserve they reached; on a failure the

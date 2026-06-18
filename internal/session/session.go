@@ -3095,6 +3095,11 @@ type weaponInfo struct {
 	// cross-ruleset stat; WoT reads `> 0` as "strikes at the near band". Read by
 	// Stats() into combat.Stats.Reach.
 	reach int
+	// tripBonus / disarmBonus are the wielded weapon's maneuver DC bonuses
+	// (special-weapons §4/§5) — read by the composition root's save-DC hook so a
+	// trip/disarm weapon raises the maneuver's save DC. 0 for an ordinary weapon.
+	tripBonus   int
+	disarmBonus int
 }
 
 // armorResistances is the atomic snapshot of an actor's aggregated
@@ -3152,6 +3157,8 @@ func (a *connActor) buildWeaponInfoLocked(id entities.EntityID) *weaponInfo {
 		rangeIncrement: it.RangeIncrement(),
 		strRating:      it.StrRating(),
 		reach:          it.Reach(),
+		tripBonus:      it.TripBonus(),
+		disarmBonus:    it.DisarmBonus(),
 	}
 }
 
@@ -3257,6 +3264,24 @@ func (a *connActor) recomputeWeaponLocked() {
 // proficient. Read on the combat tick goroutine; combat cadence makes the
 // per-swing class lookup (a registry RLock + a tiny tier/category scan)
 // negligible, so no cached result is kept.
+// WieldedTripBonus / WieldedDisarmBonus return the maneuver DC bonus of the
+// actor's currently-wielded main weapon (special-weapons §4/§5); 0 unarmed or
+// with an ordinary weapon. Read lock-free off the weapon atomic (the combat-tick
+// goroutine's save-DC hook reads them), like IsWeaponProficient.
+func (a *connActor) WieldedTripBonus() int {
+	if w := a.weapon.Load(); w != nil {
+		return w.tripBonus
+	}
+	return 0
+}
+
+func (a *connActor) WieldedDisarmBonus() int {
+	if w := a.weapon.Load(); w != nil {
+		return w.disarmBonus
+	}
+	return 0
+}
+
 func (a *connActor) IsWeaponProficient() bool {
 	w := a.weapon.Load()
 	if w == nil {

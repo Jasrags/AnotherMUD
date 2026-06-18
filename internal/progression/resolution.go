@@ -144,17 +144,28 @@ func DefaultResolutionConfig() ResolutionConfig {
 // process; concurrency is bounded by the Roller contract (single
 // goroutine).
 type AbilityResolver struct {
-	cfg        ResolutionConfig
-	proficient ProficiencyReader
-	gainer     ProficiencyMutator
-	pulseDelay *PulseDelayTracker
-	effects    effectApplier
-	targetHP   TargetHPLookup
-	sink       AbilitySink
-	roller     Roller
-	saves      SaveResolver // optional; conditions §4 entry save (resist-on-apply)
-	potency    PotencyFunc  // optional; setting-specific weave potency (WoT affinity)
+	cfg         ResolutionConfig
+	proficient  ProficiencyReader
+	gainer      ProficiencyMutator
+	pulseDelay  *PulseDelayTracker
+	effects     effectApplier
+	targetHP    TargetHPLookup
+	sink        AbilitySink
+	roller      Roller
+	saves       SaveResolver    // optional; conditions §4 entry save (resist-on-apply)
+	potency     PotencyFunc     // optional; setting-specific weave potency (WoT affinity)
+	saveDCBonus SaveDCBonusFunc // optional; per-caster additive entry-save DC (special-weapons trip/disarm)
 }
+
+// SaveDCBonusFunc is the host's optional hook for an ADDITIVE entry-save DC
+// adjustment that depends on the caster, not the ability content — e.g. a
+// special-weapon maneuver where the wielded weapon raises the DC (a trip weapon
+// trips harder; a disarm weapon disarms harder — special-weapons §4/§5). It
+// returns the points to ADD to the ability's base ApplySave.DC for this
+// (caster, ability) pair, applied AFTER the potency scale. Returns 0 (no
+// adjustment) when the caster wields no matching weapon. nil-safe: with no hook
+// the DC is the content value, leaving every existing maneuver unchanged.
+type SaveDCBonusFunc func(sourceID, abilityID string) int
 
 // SetSaveResolver wires the entry-save resolver an ability with an ApplySave
 // rolls before installing its effect (conditions §4). The host's emitting
@@ -171,6 +182,12 @@ func (r *AbilityResolver) SetSaveResolver(s SaveResolver) { r.saves = s }
 // potency — the setting-agnostic default that leaves fantasy packs unchanged.
 // See PotencyFunc.
 func (r *AbilityResolver) SetPotencyProvider(f PotencyFunc) { r.potency = f }
+
+// SetSaveDCBonus wires the host's optional per-caster entry-save DC bonus
+// (special-weapons §4/§5 — a trip/disarm weapon raises the maneuver's DC). The
+// returned points are added to ApplySave.DC after the potency scale. nil-safe.
+// See SaveDCBonusFunc.
+func (r *AbilityResolver) SetSaveDCBonus(f SaveDCBonusFunc) { r.saveDCBonus = f }
 
 // NewAbilityResolver builds a resolver. proficient + roller are
 // required for hit/miss + gain rolls; the others are nil-safe:
@@ -355,6 +372,15 @@ func (r *AbilityResolver) Resolve(ctx context.Context, source ResolutionSource, 
 			// Only a hostile (non-self) effect is save-gated; a self-buff
 			// with an ApplySave would otherwise let you resist your own buff.
 			dc := scaleDC(ability.ApplySave.DC, potency)
+			// special-weapons §4/§5: a trip/disarm weapon raises the maneuver's
+			// DC by its bonus — additive, on top of the (affinity) potency scale.
+			// nil hook ⇒ no change, so every non-weapon maneuver is unchanged. The
+			// bonus is contracted non-negative (the loader validates trip_bonus /
+			// disarm_bonus >= 0), so this only raises the floored DC; a future
+			// SUBTRACTING hook would need to re-floor the sum at 1.
+			if r.saveDCBonus != nil {
+				dc += r.saveDCBonus(entityID, abilityID)
+			}
 			resisted = r.saves.ResolveSave(ctx, target, ability.ApplySave.Axis, dc, abilityID)
 		}
 		if resisted {

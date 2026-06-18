@@ -1,0 +1,29 @@
+id: billhook
+name: a billhook
+type: weapon
+description: |
+  A long ash haft ending in a hooked, broad-bladed head — a hedger's tool pressed
+  into war. The hook catches a leg or an ankle as readily as a bramble, and a
+  practiced sweep drops a man on his back before he can close.
+tags: [weapon, metal, hafted, polearm]
+keywords: [billhook, bill, hook]
+# A two-handed polearm (size-and-wielding §2): LARGE for a medium wielder.
+size: large
+eligible_slots: [wield]
+weapon_damage: "2d4"
+weapon_category: polearm
+proficiency_tier: martial
+damage_types: [slashing, piercing]
+crit_multiplier: 3
+# Special-weapons §3 — REACH: the long haft strikes at the near band (any
+# wielder, a passive band-gate). §4 — TRIP: the hook is made for sweeping a foe
+# off his feet. `special: [trip]` marks the maneuver; `trip_bonus` raises the
+# Reflex-save DC a tripped target must beat, so a fighter wielding the billhook
+# trips far more reliably than with a bare hand (the generic `trip` skill is
+# still usable by anyone who knows it, at the base DC). Equip it, then `trip <foe>`.
+reach: 1
+special: [trip]
+trip_bonus: 4
+properties:
+  weight: 6
+  value: 90

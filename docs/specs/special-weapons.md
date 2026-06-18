@@ -53,8 +53,9 @@ No new range geometry; reach rides the bands `ranged-combat.md` already ships.
 **Slices.** (1) the maneuver-tag + reach metadata substrate (load + validate +
 accessor, recorded-only) — SHIPPED; (2) **reach** (the band-gate extension;
 reach modeled as a numeric cross-ruleset stat per §3) — SHIPPED; (3) **trip**
-weapon-awareness (the DC bonus); (4) **disarm** (the new maneuver). Each is its
-own commit + review in the project rhythm.
+weapon-awareness (the DC bonus, via a per-caster `SaveDCBonusFunc` on the
+resolver) — SHIPPED; (4) **disarm** (the new maneuver). Each is its own commit +
+review in the project rhythm.
 
 ## 2. The metadata: maneuver tags + the numeric reach stat
 

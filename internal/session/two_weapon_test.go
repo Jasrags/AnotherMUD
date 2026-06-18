@@ -241,3 +241,23 @@ func TestStats_ReachPlumbsToCombatStats(t *testing.T) {
 		t.Errorf("Stats().Reach = %d, want 0 (an ordinary weapon)", got)
 	}
 }
+
+// special-weapons §4/§5 — the wielded weapon's maneuver bonuses surface to the
+// composition root's save-DC hook (a trip/disarm weapon raises the maneuver DC).
+func TestWieldedManeuverBonus(t *testing.T) {
+	a := &connActor{}
+	if a.WieldedTripBonus() != 0 || a.WieldedDisarmBonus() != 0 {
+		t.Error("unarmed: maneuver bonuses must be 0")
+	}
+	a.weapon.Store(&weaponInfo{dice: combat.DiceExpr{Count: 2, Sides: 4}, name: "a billhook", tripBonus: 4})
+	if got := a.WieldedTripBonus(); got != 4 {
+		t.Errorf("WieldedTripBonus() = %d, want 4 (a trip weapon)", got)
+	}
+	if got := a.WieldedDisarmBonus(); got != 0 {
+		t.Errorf("WieldedDisarmBonus() = %d, want 0 (not a disarm weapon)", got)
+	}
+	a.weapon.Store(&weaponInfo{dice: combat.DiceExpr{Count: 1, Sides: 8}, name: "a sword"})
+	if a.WieldedTripBonus() != 0 {
+		t.Error("an ordinary sword carries no trip bonus")
+	}
+}

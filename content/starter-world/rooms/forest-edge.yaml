@@ -15,3 +15,8 @@ terrain: forest
 # blacksmith; left here so a new gatherer can start without a trip back.
 items:
   - woodcutters-axe
+  # Special-weapons (S1 J) trip + reach demo: a billhook (martial polearm). A
+  # fighter knows the `trip` skill — `equip billhook`, then `trip <foe>` lands far
+  # more reliably than a bare-handed trip (its trip_bonus raises the Reflex-save
+  # DC). Its reach also strikes at the near band as a ranged foe closes.
+  - billhook
