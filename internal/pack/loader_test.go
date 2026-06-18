@@ -543,6 +543,34 @@ disarm_bonus: 3
 	}
 }
 
+func TestLoadSpecialWeaponDedups(t *testing.T) {
+	root := t.TempDir()
+	pack := filepath.Join(root, "core")
+	writeFile(t, filepath.Join(pack, "pack.yaml"), `
+name: tapestry-core
+content:
+  items: [items/*.yaml]
+`)
+	writeFile(t, filepath.Join(pack, "items/polearm.yaml"), `
+id: polearm
+name: a polearm
+type: weapon
+weapon_damage: "1d10"
+special: [reach, Reach, reach]
+`)
+	regs := NewRegistries()
+	if err := Load(context.Background(), root, nil, regs, nil, nil, nil); err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	tpl, err := regs.Items.Get("tapestry-core:polearm")
+	if err != nil {
+		t.Fatalf("polearm not loaded: %v", err)
+	}
+	if len(tpl.Special) != 1 || tpl.Special[0] != "reach" {
+		t.Errorf("Special = %v, want [reach] (deduped + normalized)", tpl.Special)
+	}
+}
+
 func TestLoadBadNaturalWeaponDice(t *testing.T) {
 	root := t.TempDir()
 	pack := filepath.Join(root, "core")

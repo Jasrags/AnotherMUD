@@ -630,7 +630,7 @@ func buildInstanceFromTemplate(tpl *item.Template, id EntityID) *ItemInstance {
 		armorTier:         tpl.ArmorTier,
 		angrealPower:      tpl.AngrealPower,
 		angrealGender:     tpl.AngrealGender,
-		special:           tpl.Special,
+		special:           append([]string(nil), tpl.Special...), // copy: never alias the shared template slice
 		tripBonus:         tpl.TripBonus,
 		disarmBonus:       tpl.DisarmBonus,
 	}

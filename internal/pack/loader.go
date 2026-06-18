@@ -2995,13 +2995,12 @@ func decodeItem(path, ns string) (*item.Template, error) {
 	// validates against the engine vocabulary; normalized lowercase. The bonus
 	// scalars are non-negative, and a bonus with no matching tag is an authoring
 	// slip (an inert magnitude) that fails the pack by file name.
-	var special []string
+	special := normalizeLowerDedup(f.Special) // normalize + dedup, like elements/target_types
 	hasTrip, hasDisarm := false, false
-	for _, raw := range f.Special {
-		tag := strings.ToLower(strings.TrimSpace(raw))
+	for _, tag := range special {
 		if !item.ValidSpecialTag(tag) {
 			return nil, fmt.Errorf("%w: %s: special %q is not a known special-weapon tag %v",
-				ErrInvalidContent, path, raw, item.SpecialTagNames())
+				ErrInvalidContent, path, tag, item.SpecialTagNames())
 		}
 		switch tag {
 		case item.SpecialTrip:
@@ -3009,7 +3008,6 @@ func decodeItem(path, ns string) (*item.Template, error) {
 		case item.SpecialDisarm:
 			hasDisarm = true
 		}
-		special = append(special, tag)
 	}
 	if f.TripBonus < 0 {
 		return nil, fmt.Errorf("%w: %s: trip_bonus %d must be non-negative",
