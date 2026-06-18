@@ -23,6 +23,7 @@ import (
 	"github.com/Jasrags/AnotherMUD/internal/recipe"
 	"github.com/Jasrags/AnotherMUD/internal/slot"
 	"github.com/Jasrags/AnotherMUD/internal/stacking"
+	"github.com/Jasrags/AnotherMUD/internal/trade"
 	"github.com/Jasrags/AnotherMUD/internal/world"
 )
 
@@ -109,6 +110,10 @@ type Context struct {
 	// dematerialize / name an owned mount. The stable verbs route through it.
 	// nil disables mount verbs (tests / headless).
 	Mounts MountService
+	// Trades is the direct-trade session manager (direct-trade.md). The
+	// trade/offer/confirm/decline verbs route through it. nil disables
+	// trading (tests / headless); handlers MUST nil-guard.
+	Trades *trade.Manager
 	// Shop is the M11.2 shop service. nil in tests.
 	Shop *economy.ShopService
 	// Rest is the M11.4 rest service. nil in tests.

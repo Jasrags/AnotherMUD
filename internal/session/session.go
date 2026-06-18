@@ -58,6 +58,7 @@ import (
 	"github.com/Jasrags/AnotherMUD/internal/srckey"
 	"github.com/Jasrags/AnotherMUD/internal/stacking"
 	"github.com/Jasrags/AnotherMUD/internal/stats"
+	"github.com/Jasrags/AnotherMUD/internal/trade"
 	"github.com/Jasrags/AnotherMUD/internal/wizard"
 	"github.com/Jasrags/AnotherMUD/internal/world"
 )
@@ -383,6 +384,13 @@ type Config struct {
 	// report "no stable here" when unwired.
 	Mounts command.MountService
 
+	// Trades is the direct-trade session manager (direct-trade.md).
+	// Passed through command.Env so the trade/offer/confirm/decline verbs
+	// route through it, and used by the teardown hooks (disconnect /
+	// link-death / room change) to cancel an actor's open trade. nil-safe:
+	// the verbs report trading is unavailable when unwired.
+	Trades *trade.Manager
+
 	// Shop is the M11.2 shop service (spec §3). Passed through
 	// command.Env so the buy/sell/value/list verbs can reach it.
 	// nil-safe: the verbs report "no shop here" when unwired.
@@ -581,6 +589,7 @@ func run(ctx context.Context, c conn.Connection, cfg Config) error {
 		items:         cfg.Items,
 		contents:      cfg.Contents,
 		placement:     cfg.Placement,
+		trades:        cfg.Trades,
 		light:         cfg.Light,
 		equipment:     make(map[string]entities.EntityID),
 		footprints:    make(map[entities.EntityID][]string),
@@ -1110,6 +1119,12 @@ func dispatchTeardown(ctx context.Context, cfg Config, a *connActor, exit pumpEx
 // reconnects. They will be respawned on the next login from the
 // freshly-saved Inventory list.
 func fullTeardown(ctx context.Context, cfg Config, a *connActor) {
+	// Cancel any open trade FIRST so staged items/coin return to this actor
+	// before Persist flushes the save (direct-trade.md §6). Without this, a
+	// disconnect mid-trade would persist a save missing the staged value.
+	if cfg.Trades != nil {
+		cfg.Trades.CancelFor(ctx, a.PlayerID(), fmt.Sprintf("%s disconnected", a.Name()))
+	}
 	room := a.Room()
 	if room != nil {
 		cfg.Manager.SendToRoom(ctx, room.ID,
@@ -1465,6 +1480,14 @@ func enterLinkDeadTeardown(ctx context.Context, cfg Config, a *connActor, clk cl
 		return
 	}
 	cfg.Manager.RemoveConnectionOnly(a)
+
+	// A link-dead player can't hold a trade hostage while the partner waits
+	// for a maybe-reconnect — end it now with full restore (direct-trade.md
+	// §6). Returned value lands in the parked actor's inventory and persists
+	// whenever it is next saved/reaped.
+	if cfg.Trades != nil {
+		cfg.Trades.CancelFor(ctx, a.PlayerID(), fmt.Sprintf("%s lost their connection", a.Name()))
+	}
 
 	room := a.Room()
 	if room != nil {
@@ -2216,8 +2239,14 @@ type connActor struct {
 	// stale state and then cleared dirty on completion. Comparing
 	// individual fields (the M3-era approach, which compared only
 	// Location) doesn't scale as the save shape grows.
-	saveGen       uint64
-	manager       *Manager
+	saveGen uint64
+	manager *Manager
+	// trades is the direct-trade session manager (direct-trade.md), set once
+	// at construction and never mutated, so it is read without a.mu. nil
+	// disables trading. SetRoom / teardown use it to cancel an open trade on
+	// separation / disconnect. The cancel is invoked WITHOUT holding a.mu
+	// (lock order: trade.Manager.mu → actor.mu).
+	trades        *trade.Manager
 	flood         *floodGate
 	gmcpFlood     *floodGate   // inbound-GMCP rate limit, separate from the command gate
 	floodCfg      *FloodConfig // retained so reattach() can rebuild a fresh bucket
@@ -2297,6 +2326,14 @@ func (a *connActor) SetRoom(r *world.Room) {
 	placement := a.placement
 	mgr := a.manager
 	a.mu.Unlock()
+
+	// Leaving the room ends any open direct trade — you can't trade with
+	// someone you walked away from (direct-trade.md §6). Fired AFTER the
+	// a.mu release (lock order: trade.Manager.mu → actor.mu) and only on an
+	// actual room change. CancelFor is idempotent / a no-op when not trading.
+	if a.trades != nil && oldID != r.ID {
+		a.trades.CancelFor(context.Background(), a.playerID, fmt.Sprintf("%s left", a.Name()))
+	}
 
 	if craftBroke {
 		_ = a.Write(context.Background(), "You set your work aside and move on.")
@@ -4544,7 +4581,7 @@ func applyClass(a *connActor, cfg *Config, saved []string) {
 	// changes (and classless characters who gain a class later) can still
 	// resolve weapon proficiency by id (weapon-identity §3).
 	a.classes = cfg.Classes
-	a.grades = cfg.Grades // class-independent, but captured here alongside classes
+	a.grades = cfg.Grades       // class-independent, but captured here alongside classes
 	a.classIDs = a.classIDs[:0] // replace, never accumulate (mirrors applyRace)
 	a.class = nil
 	if cfg.Classes == nil {

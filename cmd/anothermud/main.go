@@ -39,6 +39,7 @@ import (
 	"github.com/Jasrags/AnotherMUD/internal/crafting"
 	"github.com/Jasrags/AnotherMUD/internal/economy"
 	"github.com/Jasrags/AnotherMUD/internal/entities"
+	"github.com/Jasrags/AnotherMUD/internal/escrow"
 	"github.com/Jasrags/AnotherMUD/internal/eventbus"
 	"github.com/Jasrags/AnotherMUD/internal/feat"
 	"github.com/Jasrags/AnotherMUD/internal/gameclock"
@@ -69,6 +70,7 @@ import (
 	"github.com/Jasrags/AnotherMUD/internal/spawn"
 	"github.com/Jasrags/AnotherMUD/internal/stacking"
 	"github.com/Jasrags/AnotherMUD/internal/tick"
+	"github.com/Jasrags/AnotherMUD/internal/trade"
 	"github.com/Jasrags/AnotherMUD/internal/visibility"
 	"github.com/Jasrags/AnotherMUD/internal/weather"
 	"github.com/Jasrags/AnotherMUD/internal/world"
@@ -2602,6 +2604,37 @@ func run() error {
 		slog.Bool("color_default", cfg.ColorDefault),
 	)
 
+	// Direct trade (direct-trade.md): the escrow audit log + the session
+	// manager. tradable refuses `no_trade`-tagged items; describe renders
+	// item names in offer views. Both read the live entity store.
+	escrowAudit := escrow.NewAuditStore(cfg.SaveDir, clk)
+	tradeMgr := trade.NewManager(bus, escrowAudit, currencySvc,
+		func(id entities.EntityID) bool {
+			e, ok := entityStore.GetByID(id)
+			if !ok {
+				return true
+			}
+			it, ok := e.(*entities.ItemInstance)
+			if !ok {
+				return true
+			}
+			for _, t := range it.Tags() {
+				if t == "no_trade" {
+					return false
+				}
+			}
+			return true
+		},
+		func(id entities.EntityID) string {
+			if e, ok := entityStore.GetByID(id); ok {
+				if it, ok := e.(*entities.ItemInstance); ok {
+					return it.Name()
+				}
+			}
+			return ""
+		},
+	)
+
 	handler := session.Handler(session.Config{
 		World:         w,
 		ChannelMap:    channelMap,
@@ -2704,6 +2737,7 @@ func run() error {
 		ChatScrollbacks: scrollbackLookup,
 		Currency:        currencySvc,
 		Mounts:          mountSvc,
+		Trades:          tradeMgr,
 		Shop:            shopSvc,
 		Sustenance:      sustenanceSvc,
 		Rest:            restSvc,

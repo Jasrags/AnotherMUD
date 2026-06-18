@@ -24,6 +24,7 @@ import (
 	"github.com/Jasrags/AnotherMUD/internal/slot"
 	"github.com/Jasrags/AnotherMUD/internal/stacking"
 	"github.com/Jasrags/AnotherMUD/internal/stats"
+	"github.com/Jasrags/AnotherMUD/internal/trade"
 	"github.com/Jasrags/AnotherMUD/internal/world"
 )
 
@@ -297,6 +298,11 @@ type Env struct {
 	// unstable) route through it after locating a stable-tagged NPC in the
 	// room. nil disables mount verbs; handlers MUST nil-guard.
 	Mounts MountService
+
+	// Trades is the direct-trade session manager (direct-trade.md). The
+	// trade/offer/confirm/decline verbs route through it. nil disables
+	// trading; handlers MUST nil-guard.
+	Trades *trade.Manager
 
 	// Shop is the M11.2 shop service (spec §3). The buy/sell/value/
 	// list verbs route through it after locating a shop-tagged NPC in

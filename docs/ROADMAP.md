@@ -50,9 +50,10 @@ and `THEME-AXIS-PLAN.md` are superseded by `BACKLOG.md` and now live under
 - **Active — M29 Player Trade** (specced, `BACKLOG.md` §1 → in build). The
   escrow primitive + direct trade + buyout auction house. **Phase 0 (the
   escrow/atomic-transaction primitive, `internal/escrow`) + Phase 1 (the audit
-  log) shipped;** Phase 2 (direct trade — the Custodian adapter + session +
-  verbs) is next. Plan: `docs/plans/trade-plan.md`; details in the M29 section
-  below.
+  log) + Phase 2 (direct trade — `internal/trade`, the verbs, teardown hooks)
+  shipped — Ship line A (player-to-player trade) is complete.** Next is Ship
+  line B, the auction house (Phases 3–8). Plan: `docs/plans/trade-plan.md`;
+  details in the M29 section below.
 - **Active arc — WoT Mechanics EPIC** (post-M27, additive sub-epics; Decision 0
   = posture A, translate onto tick/chance). Shipped so far: **S1 weapon-identity**,
   **S1.H masterwork** (item quality grades — masterwork/power-wrought, delivered
@@ -3694,11 +3695,21 @@ phase order in `docs/plans/trade-plan.md`. Two ship lines: A = Direct Trade
       persisted (`saves/trade-audit.yaml` via `persistence.AtomicWrite`); one
       record per commit (parties, item instances, coin, source, time), enough
       to reconstruct and reverse. Lands with Phase 0.
-- [ ] **Phase 2 — direct trade** (`direct-trade.md`): the transient same-room
-      session, offers (add/remove items+coin), the confirm + total-reset rule,
-      the atomic swap via Phase 0, graceful teardown. The real connActor/
-      entities/economy `Custodian` adapter + the capacity/weight veto subscriber
-      + the `no_trade`/bound item-flag convention land here. **Ship line A done.**
+- [x] **Phase 2 — direct trade** (`direct-trade.md`) — **Ship line A done.**
+      `internal/trade` (Manager/Session/custodian) over a `Party` interface the
+      connActor satisfies; the symmetric `trade <player>` handshake, offer/
+      rescind/offergold/rescindgold/confirm/decline verbs, the confirm +
+      total-reset rule, the atomic swap via Phase 0, and graceful teardown
+      (cancel on disconnect / link-death / room-separation, wired in session.go
+      outside `a.mu`). **Stage model is remove-at-stage** (a staged item leaves
+      inventory, coin is debited) — chosen over lock-in-place so no verb in any
+      package (incl. the cross-package shop `sell`) can touch staged value, at
+      the cost of a documented §6 deviation (a hard crash mid-trade loses staged
+      value, matching the engine's existing give/buy window; graceful teardown
+      is lossless). The `no_trade` tag gates tradability; capacity/weight veto
+      deferred (the seam exists). Unit-tested over the real escrow + currency
+      (incl. veto-make-whole, retry-after-veto, confirm-reset, rescind-by-query)
+      + a live two-client smoke (`cmd/telnet-smoke`); two review passes.
 - [ ] **Phase 3 — pickup delivery** (`auction-house.md` §7): escrow-holds-until-
       collected + the `collect` verb + notification notice (text only).
 - [ ] **Phase 4 — listing + persisted store** (`auction-house.md` §3–§4): the

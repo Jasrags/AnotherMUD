@@ -195,6 +195,19 @@ func RegisterBuiltins(r *Registry) error {
 		{Keyword: "buymount", Handler: BuyMountHandler, Brief: "Buy a mount from a stablemaster.", Syntax: []string{"buymount <mount>"}},
 		{Keyword: "stable", Handler: StableHandler, Brief: "Stable a mount at a stablemaster.", Syntax: []string{"stable [<mount>]"}},
 		{Keyword: "unstable", Aliases: []string{"retrieve"}, Handler: UnstableHandler, Brief: "Retrieve a stabled mount.", Syntax: []string{"unstable <mount>"}},
+
+		// Direct trade (direct-trade.md). A same-room two-player swap:
+		// `trade <player>` initiates and (symmetrically) accepts; offer/
+		// rescind build each side's offer; confirm fires the atomic swap
+		// only when both confirm an unchanged pair; decline aborts.
+		{Keyword: "trade", Handler: TradeHandler, Brief: "Begin or accept a trade with another player.", Syntax: []string{"trade <player>"}, BreaksConcealment: true, Args: []ArgDefinition{{Name: "target", Type: ArgPlayer}}},
+		{Keyword: "offer", Handler: OfferItemHandler, Brief: "Add an item to your trade offer.", Syntax: []string{"offer <item>"}, Args: []ArgDefinition{{Name: "item", Type: ArgInventory}}},
+		{Keyword: "offergold", Aliases: []string{"offercoin"}, Handler: OfferGoldHandler, Brief: "Add gold to your trade offer.", Syntax: []string{"offergold <amount>"}, Args: []ArgDefinition{{Name: "amount", Type: ArgNumber}}},
+		{Keyword: "rescind", Aliases: []string{"unoffer"}, Handler: RescindItemHandler, Brief: "Remove an item from your trade offer.", Syntax: []string{"rescind <item>"}, Args: []ArgDefinition{{Name: "item", Type: ArgText}}},
+		{Keyword: "rescindgold", Aliases: []string{"rescindcoin"}, Handler: RescindGoldHandler, Brief: "Remove gold from your trade offer.", Syntax: []string{"rescindgold <amount>"}, Args: []ArgDefinition{{Name: "amount", Type: ArgNumber}}},
+		{Keyword: "confirm", Handler: ConfirmHandler, Brief: "Confirm the current trade offers.", Syntax: []string{"confirm"}},
+		{Keyword: "decline", Aliases: []string{"untrade"}, Handler: DeclineHandler, Brief: "Cancel the current trade.", Syntax: []string{"decline"}},
+
 		{Keyword: "affects", Aliases: []string{"effects"}, Handler: AffectsHandler, Brief: "List your active effects and conditions.", Syntax: []string{"affects"}},
 		{Keyword: "rest", Handler: RestHandler, Brief: "Rest to recover faster.", Syntax: []string{"rest"}},
 		{Keyword: "sleep", Handler: SleepHandler, Brief: "Sleep to recover fastest.", Syntax: []string{"sleep"}},
