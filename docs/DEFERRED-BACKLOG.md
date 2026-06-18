@@ -231,6 +231,43 @@ corpse growth) is now RESOLVED** — M22.5 shipped `corpse.Service.DecaySweep`.
 
 ---
 
+## WoT EPIC S1 — equipment debt effort
+
+Consolidated 2026-06-17 from the equipment review across the WoT S1 build logs
+(`armor-depth`, `size-wielding`, `masterwork`, `m25` slots) + the `equipment.md`
+load-readiness pass (commit `ce4c0e1`). Source-of-truth memory file:
+`equipment-debt-roundup`. Three tracks; only **Track A** is actionable now.
+
+### Track A — actionable now (small, no design)
+- **A1 (MEDIUM) — armor check-penalty over-counts in mixed proficiency.**
+  `attackerArmorPenalty` (`cmd/anothermud/main.go:1601`) applies the SUM of every
+  worn piece's `armor_check` (`ArmorCheckPenaltyTotal`) whenever the actor is
+  non-proficient in *any* piece. A proficient-shield + non-proficient-body mix
+  over-penalizes to-hit. Fix = sum only the non-proficient pieces' check penalty.
+  (`armor-depth-build-log`.)
+- **A2 (MEDIUM) — sized weapon + static `companion_slots` silently discarded.**
+  A weapon with both `size:` and explicit `companion_slots` has the static
+  companions overridden by equip-time size derivation, no warning. Cheap fix =
+  loader warning when both are present (`internal/pack/loader.go`). (`size-wielding-build-log`.)
+- **A3 (LOW) — two-weapon penalty consts not env-wired.**
+  `DefaultTwoWeapon{Main,OffHand}Penalty` (`internal/combat/stats.go:174`) are
+  hardcoded; sibling `SecondaryOffHandPenalty` is env-wired. Wire to
+  `ANOTHERMUD_TWO_WEAPON_*`. (`size-wielding-build-log`.)
+
+### Track B — keep deferred (YAGNI; trigger-gated)
+`no_remove` tag → §8 config; multi-cap companion slots untested; spanning robe
+body/legs (a `body` slot landed 2026-06-17 — verify partial closure); score sheet
+shows 2h spanner in both slots (intentional); `cappedDexAC` equip-snapshot cap
+staleness; no graded ARMOR/TOOL content; armor §7 hasty-don escape (combat gate
+shipped); mobs skip `RangedDamageBonus`/`strRating` cap (pre-existing G concern).
+
+### Track C — greenfield, spec-first (in `BACKLOG.md` §2)
+Mounts & barding (Large); grenadelike weapons (Medium–Large) + room hazards
+(Medium) share an "area effect over a region" primitive → spec jointly. Author
+items as flavor now; the mechanic upgrades for free when the system lands.
+
+---
+
 ## Accepted design / open questions (not really debt)
 
 Cap-tier ladder hardcoded; class-swap path absent; alignment history
