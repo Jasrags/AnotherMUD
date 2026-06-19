@@ -1,0 +1,15 @@
+id: healers-balm
+name: a pot of healer's balm
+type: item
+description: |
+  A small clay pot of pungent salve — boiled herbs, beeswax, and tallow worked
+  into a green paste a Wisdom or village herbalist would know by smell. Smeared on
+  a cut or burn it eases the sting and keeps the wound clean.
+tags: [gear, herbal]
+keywords: [balm, healer's balm, salve, ointment]
+# Flavour for now: a heal-on-use consumable would need a healing-consumable
+# system the engine does not yet have (backgrounds expansion #5, deferred). The
+# balm carries weight and value so it reads as real kit and can be traded.
+properties:
+  weight: 1
+  value: 25

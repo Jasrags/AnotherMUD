@@ -19,10 +19,14 @@ skills:
   - ability: move-silently
     proficiency: 10
 feats: []
-# No item grant in the thin slice — the Taraboner package is thieves' or
-# artisan's tools and an Illuminator's rocket, none of which exist as templates
-# yet. The character starts with a merchant-city purse instead.
+# Pick-one equipment package (docs/wot/backgrounds.md Table 2-1): a burglar's kit
+# of tools, lantern, crowbar, and mirror; masterwork artisan's tools; or a single
+# precious Illuminator's rocket.
 items: []
+equipment_packages:
+  - [thieves-tools, hooded-lantern, crowbar, steel-mirror]
+  - [artisans-tools]
+  - [illuminators-rocket]
 gold: 30
 allowed_categories:
   - humanoid

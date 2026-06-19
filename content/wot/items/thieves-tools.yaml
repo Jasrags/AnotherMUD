@@ -1,0 +1,15 @@
+id: thieves-tools
+name: a set of thieves' tools
+type: item
+description: |
+  A slim leather roll of picks, tension wrenches, and probes — the quiet trade's
+  honest tools, whatever the magistrate calls them. With patience and a steady
+  hand they coax open a lock that has no key to be had.
+tags: [gear, metal]
+keywords: [thieves' tools, thieves tools, picks, lockpicks, tools]
+# Flavour for now: an open-lock bonus from carried tools would need a
+# tool-bonus hook the lock system does not yet expose (backgrounds #5, deferred).
+# The open-lock *skill* itself is granted separately by a background's `skills`.
+properties:
+  weight: 1
+  value: 30

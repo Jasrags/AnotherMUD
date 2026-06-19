@@ -1,0 +1,12 @@
+id: courtiers-outfit
+name: a courtier's outfit
+type: item
+description: |
+  Bright, fashionable dress made to catch a court's eye — slashed sleeves, fine
+  embroidery, ribbons and a jaunty hat. Less stately than a noble's plain wealth
+  and more about charm, the kind of clothes worn to be remembered at a ball.
+tags: [clothing, valuable]
+keywords: [outfit, courtier's outfit, clothing, clothes]
+properties:
+  weight: 6
+  value: 30

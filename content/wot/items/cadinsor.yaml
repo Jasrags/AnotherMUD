@@ -1,0 +1,13 @@
+id: cadinsor
+name: a suit of cadin'sor
+type: item
+description: |
+  The Aiel's working garb — coat and breeches in browns and greys that fade into
+  rock and shadow, soft laced boots, and the shoufa, a long head-and-neck wrap
+  that veils the face when an Aiel is ready to kill. Plain, hard-wearing, and
+  made for the Three-fold Land.
+tags: [clothing, cloth]
+keywords: [cadinsor, cadin'sor, garb, shoufa]
+properties:
+  weight: 4
+  value: 20

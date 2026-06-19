@@ -1,0 +1,12 @@
+id: trade-goods
+name: a bundle of trade goods
+type: item
+description: |
+  A merchant's stake done up for the road — bolts of cloth, twists of dye, spices,
+  or worked trinkets, whatever moves well from one town to the next. Worth coin to
+  the right buyer and dead weight to the wrong one.
+tags: [gear, valuable]
+keywords: [trade goods, goods, wares, bundle]
+properties:
+  weight: 10
+  value: 50

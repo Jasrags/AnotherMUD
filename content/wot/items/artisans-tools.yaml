@@ -1,0 +1,12 @@
+id: artisans-tools
+name: a set of artisan's tools
+type: item
+description: |
+  A craftsman's roll of fine tools — gravers, files, calipers, and small clamps,
+  each worn smooth at the grip. The masterwork set of a Taraboner artist, good
+  enough that the work is limited by the hand and not the steel.
+tags: [gear, metal]
+keywords: [artisan's tools, artisan tools, tools, craft tools]
+properties:
+  weight: 5
+  value: 55

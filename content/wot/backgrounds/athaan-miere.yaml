@@ -11,10 +11,14 @@ description: |
   given.
 skills: []
 feats: []
-# A duelist's rapier — the Sea Folk's deck-fighting blade. Hourglass, silks, and
-# the gold rings of the full package await their item templates.
-items:
-  - rapier
+# Pick-one equipment package (docs/wot/backgrounds.md Table 2-1): the duelist's
+# rapier and hourglass, a sailor's kit of balms, lantern, and rope, or a purse
+# of gold rings.
+items: []
+equipment_packages:
+  - [rapier, hourglass]
+  - [healers-balm, healers-balm, hooded-lantern, hemp-rope, silk-rope]
+  - [fine-jewelry]
 gold: 30
 allowed_categories:
   - humanoid

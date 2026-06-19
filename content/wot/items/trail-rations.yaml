@@ -1,0 +1,14 @@
+id: trail-rations
+name: a bundle of trail rations
+type: item
+description: |
+  Dried meat, hard journeybread, and a twist of salt wrapped in oilcloth — plain
+  road fare meant to keep a traveller on their feet, not to please the tongue.
+  Filling enough on a cold march when there's nothing warm to be had.
+tags: [food, consumable]
+keywords: [rations, trail rations, food, journeybread]
+properties:
+  weight: 2
+  value: 5
+  consume_method: eat
+  sustenance_value: 40

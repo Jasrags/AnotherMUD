@@ -1,0 +1,12 @@
+id: disguise-kit
+name: a disguise kit
+type: item
+description: |
+  A flat case of paints, false hair, wax, and small brushes — the trade tools of
+  someone who would rather not be recognised. In skilled hands it turns a known
+  face into a stranger's; in clumsy ones, into a poorly painted fool's.
+tags: [gear]
+keywords: [disguise kit, disguise, kit, paints]
+properties:
+  weight: 3
+  value: 50

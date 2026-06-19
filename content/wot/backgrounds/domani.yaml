@@ -12,10 +12,15 @@ skills: []
 # Militia — Arad Doman keeps a trained levy. One feat per background (the pick-one chooser lands later).
 feats:
   - militia
-# No item grant in the thin slice — the Domani package is jewelry, fine clothes,
-# and merchant goods, none of which exist as templates yet. The character starts
-# instead with a heavier purse befitting a trader.
+# Pick-one equipment package (docs/wot/backgrounds.md Table 2-1): a jeweled
+# signet ring, a courtier's outfit with two bottles of fine wine, or a masterwork
+# musical instrument. (Gold normalized back to the peer baseline now that the
+# thin-slice empty-items purse is replaced by real packages.)
 items: []
-gold: 50
+equipment_packages:
+  - [jeweled-signet-ring]
+  - [courtiers-outfit, fine-wine, fine-wine]
+  - [musical-instrument]
+gold: 30
 allowed_categories:
   - humanoid

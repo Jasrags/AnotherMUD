@@ -257,7 +257,7 @@ func engageBoar(c *telnettest.Client) error {
 // scenarioBackgroundGrant verifies, end to end, that a WoT background's
 // starting package actually lands on a freshly created character. It creates an
 // Aiel (gift "cannot channel" → the non-channeler Armsman class), then asserts:
-//   - inventory holds the Aiel item grant (a shortbow + a buckler),
+//   - inventory holds the chosen equipment package (the bow + buckler, package 3),
 //   - the feats listing holds the Aiel feat grant (Stealthy),
 //   - the score sheet shows the channeling-gift row ("cannot channel"),
 //     which also re-confirms the gift→score plumbing.
@@ -271,10 +271,11 @@ func scenarioBackgroundGrant(c *telnettest.Client, name string) error {
 		return err
 	}
 	answers := map[string]string{
-		"channeling":      "cannot",  // "Cannot channel" → non-channeler classes
-		"class":           "armsman", // the only class offered to a non-channeler
-		"background":      "aiel",
-		"background feat": "blooded", // the pick-one chooser: Aiel offers Stealthy/Blooded
+		"channeling":         "cannot",  // "Cannot channel" → non-channeler classes
+		"class":              "armsman", // the only class offered to a non-channeler
+		"background":         "aiel",
+		"background feat":    "blooded", // the pick-one chooser: Aiel offers Stealthy/Blooded
+		"starting equipment": "3",       // Aiel's 3rd package is the bow + buckler (shortbow, arrow, buckler)
 	}
 	if err := finishLogin(c, name, isNew, answers); err != nil {
 		return err

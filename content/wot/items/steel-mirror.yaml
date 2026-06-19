@@ -1,0 +1,12 @@
+id: steel-mirror
+name: a small steel mirror
+type: item
+description: |
+  A palm-sized disc of polished steel in a leather sleeve — it gives a dimmer,
+  truer reflection than silvered glass and will not shatter in a saddlebag. Handy
+  for a shave, a signal flash, or looking around a corner unseen.
+tags: [gear, metal]
+keywords: [mirror, steel mirror]
+properties:
+  weight: 1
+  value: 10

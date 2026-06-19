@@ -26,15 +26,18 @@ skills:
 # Stealthy is one of the Aiel background feats (the only one that yet exists as
 # engine content); a thin-slice grant in place of the RPG's pick-one chooser.
 # Pick-one background feat (the chooser): Stealthy (desert stealth) or Blooded
-# (a scout's honed senses) — both canonical Aiel background feats. A single kit
-# (no equipment choice yet — the cadin'sor/jewelry/tent packages await their
-# item templates).
+# (a scout's honed senses) — both canonical Aiel background feats.
 feat_options:
   - stealthy
   - blooded
-items:
-  - shortbow
-  - buckler
+# Pick-one equipment package (docs/wot/backgrounds.md Table 2-1): the desert
+# traveller's kit (two healer's balms), a purse of jewelry, or an Aiel bow with
+# a buckler.
+items: []
+equipment_packages:
+  - [tent, cadinsor, buckler, waterskin, healers-balm, healers-balm]
+  - [fine-jewelry]
+  - [shortbow, arrow, buckler]
 gold: 10
 allowed_categories:
   - humanoid

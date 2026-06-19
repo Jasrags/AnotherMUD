@@ -1,0 +1,12 @@
+id: gaming-set
+name: a gaming set
+type: item
+description: |
+  A worn drawstring pouch of bone dice and a greasy deck of painted cards — the
+  whole apparatus of a tavern's idle evening. In the right company it turns a
+  stranger into a friend, or a friend into a debtor.
+tags: [gear]
+keywords: [gaming set, dice, cards, gaming]
+properties:
+  weight: 1
+  value: 5

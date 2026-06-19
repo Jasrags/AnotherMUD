@@ -1,0 +1,12 @@
+id: signet-ring
+name: a signet ring
+type: item
+description: |
+  A heavy ring of gold or dark silver, its face cut with a house mark or merchant
+  device meant to be pressed into hot wax. It seals a letter, vouches for a
+  bearer, and quietly tells the world its owner is a person of standing.
+tags: [valuable, metal]
+keywords: [ring, signet ring, signet]
+properties:
+  weight: 1
+  value: 80

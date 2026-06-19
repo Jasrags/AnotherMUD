@@ -1,0 +1,19 @@
+id: longsword
+name: a longsword
+type: weapon
+description: |
+  A plain straight-bladed longsword, double-edged and balanced for the cut — the
+  common sidearm of guardsmen and soldiers across the Westlands. No maker's mark
+  worth boasting of, just serviceable steel and a wire-wound grip.
+tags: [weapon, metal, bladed]
+keywords: [longsword, sword, blade]
+eligible_slots: [wield]
+weapon_damage: "1d8"
+weapon_category: longsword
+proficiency_tier: martial
+damage_types: [slashing]
+crit_threat_low: 19
+crit_multiplier: 2
+properties:
+  weight: 4
+  value: 150

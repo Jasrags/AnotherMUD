@@ -1,0 +1,12 @@
+id: healers-kit
+name: a healer's kit
+type: item
+description: |
+  A rolled leather case of a Wisdom's tools — clean linen strips, a curved needle
+  and gut thread, a bone splint, and stoppered vials of herbs. Everything a
+  steady hand needs to close a wound and bind a broken limb on the road.
+tags: [gear, herbal]
+keywords: [kit, healer's kit, healing kit, bandages]
+properties:
+  weight: 3
+  value: 50

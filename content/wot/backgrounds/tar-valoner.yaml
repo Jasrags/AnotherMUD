@@ -12,11 +12,14 @@ skills: []
 # Militia — the Tower Guard's reserve drills the city. One feat per background (the pick-one chooser lands later).
 feats:
   - militia
-# A Warder's-style kit: a sword and studded leather. The lantern, mirror, and
-# the heavier purse of the full package await later phases.
-items:
-  - short-sword
-  - studded-leather
+# Pick-one equipment package (docs/wot/backgrounds.md Table 2-1): a sword with
+# Warder's studded leather, a light crossbow with lantern and mirror, or a purse
+# of 65 marks.
+items: []
+equipment_packages:
+  - [longsword, warders-studded-leather]
+  - [light-crossbow, hooded-lantern, steel-mirror]
+  - [purse-of-marks]
 gold: 50
 allowed_categories:
   - humanoid

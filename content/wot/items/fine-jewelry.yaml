@@ -1,0 +1,12 @@
+id: fine-jewelry
+name: a piece of fine jewelry
+type: item
+description: |
+  A worked ornament of gold and bright stones — a torc, a brooch, or a string of
+  beads, depending on the eye that values it. Wealth made portable, the sort a
+  person carries when coin is too heavy or too plain to trust.
+tags: [valuable, metal]
+keywords: [jewelry, jewellery, ornament, gold]
+properties:
+  weight: 1
+  value: 600

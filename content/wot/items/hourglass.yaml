@@ -1,0 +1,12 @@
+id: hourglass
+name: an hourglass
+type: item
+description: |
+  A blown-glass hourglass in a turned wooden frame, the fine white sand running
+  steady from bulb to bulb. A merchant's or scholar's instrument — it measures a
+  watch, a sermon, or the steeping of tea with the same patience.
+tags: [gear, glass]
+keywords: [hourglass, glass, timer]
+properties:
+  weight: 1
+  value: 30

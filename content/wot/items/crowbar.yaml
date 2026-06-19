@@ -1,0 +1,12 @@
+id: crowbar
+name: an iron crowbar
+type: item
+description: |
+  A forearm-length bar of iron, one end flattened to a chisel and the other hooked.
+  It pops a crate, pries a shutter, or settles an argument in a pinch — plain,
+  heavy, and honest about what it does.
+tags: [gear, metal]
+keywords: [crowbar, bar, pry bar]
+properties:
+  weight: 5
+  value: 4

@@ -1,0 +1,14 @@
+id: fine-wine
+name: a bottle of fine wine
+type: item
+description: |
+  A dark bottle of good vintage, wax-sealed and dusty from a cellar — a Domani red
+  or a pale wine of Tear, depending on the label. Worth uncorking for a guest
+  worth impressing, and worth coin to a merchant who knows the difference.
+tags: [food, consumable, valuable]
+keywords: [wine, bottle, fine wine]
+properties:
+  weight: 3
+  value: 40
+  consume_method: drink
+  sustenance_value: 5

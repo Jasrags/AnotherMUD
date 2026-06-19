@@ -1,0 +1,12 @@
+id: musical-instrument
+name: a fine musical instrument
+type: item
+description: |
+  A well-made instrument in a fitted case — a flute of dark wood, a lap harp, or a
+  long-necked bittern, polished by years of careful hands. The joints are true and
+  the tone is sweet; a gleeman would not be ashamed to play it for a lord.
+tags: [gear, wooden, valuable]
+keywords: [instrument, musical instrument, flute, harp]
+properties:
+  weight: 3
+  value: 100

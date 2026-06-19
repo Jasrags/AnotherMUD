@@ -18,10 +18,12 @@ feat_options:
   - luck-of-heroes
   - strong-soul
   - militia
-# Pick-one equipment package: the boar-spear / leather-armor / shield soldier's
-# kit, or a Two Rivers longbow.
+# Pick-one equipment package (docs/wot/backgrounds.md Table 2-1): a healer's kit
+# (the RPG pairs it with a light horse — mount deferred), the boar-spear /
+# longsword / leather / shield / tent soldier's kit, or a Two Rivers longbow.
 equipment_packages:
-  - [boarspear, leather-armor, small-steel-shield]
+  - [healers-kit]
+  - [boarspear, longsword, leather-armor, small-steel-shield, tent]
   - [two-rivers-longbow]
 gold: 20
 allowed_categories:

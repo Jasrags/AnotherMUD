@@ -1,0 +1,23 @@
+id: jeweled-dagger
+name: a jeweled dagger
+type: weapon
+description: |
+  A slender, beautifully made dagger — the grip chased with silver wire and set
+  with small stones, the blade itself honest steel beneath the ornament. In Ebou
+  Dar such a knife is as much a statement of standing as a weapon, and a marriage
+  knife is worn with open pride.
+tags: [weapon, metal, bladed, valuable]
+keywords: [dagger, jeweled dagger, marriage knife, knife, blade]
+# Size-and-wielding §2: a small blade resolves LIGHT for a medium wielder, so it
+# is off-hand eligible like the belt-knife it is modelled on. The ornament lifts
+# its value, not its bite — the damage profile is a plain dagger.
+size: small
+eligible_slots: [wield, offhand]
+weapon_damage: "1d4"
+weapon_category: dagger
+proficiency_tier: simple
+damage_types: [piercing, slashing]
+crit_multiplier: 2
+properties:
+  weight: 1
+  value: 600

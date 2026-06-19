@@ -1,0 +1,12 @@
+id: nobles-outfit
+name: a noble's outfit
+type: item
+description: |
+  A full suit of fine clothing — close-cut coat of good wool, linen shirt,
+  polished boots, and a cloak with a worked clasp. Cut and colour mark the wearer
+  as someone owed a bow, the sort of dress that opens a manor door without a word.
+tags: [clothing, valuable]
+keywords: [outfit, noble's outfit, clothing, clothes]
+properties:
+  weight: 6
+  value: 75

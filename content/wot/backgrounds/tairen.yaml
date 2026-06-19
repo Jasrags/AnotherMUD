@@ -17,10 +17,15 @@ skills:
 # Militia — the Defenders' levy trains Tairen commoners. One feat per background (the pick-one chooser lands later).
 feats:
   - militia
-# A mail shirt — a Defender's or guardsman's armor. The horse, courtier's dress,
-# and the gambler's dice of the full package await later phases.
-items:
-  - mail-shirt
+# Pick-one equipment package (docs/wot/backgrounds.md Table 2-1): a courtier's
+# outfit (the RPG pairs it with a light horse — mount deferred), a gambler's
+# purse and gaming set, or a mail shirt. (The RPG's two near-identical money
+# options are collapsed into the single purse package.)
+items: []
+equipment_packages:
+  - [courtiers-outfit]
+  - [purse-of-marks, gaming-set]
+  - [mail-shirt]
 gold: 35
 allowed_categories:
   - humanoid

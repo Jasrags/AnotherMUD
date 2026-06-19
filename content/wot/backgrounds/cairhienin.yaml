@@ -12,10 +12,14 @@ skills: []
 # Militia — drilled with the city militia of Cairhien. One feat per background (the pick-one chooser lands later).
 feats:
   - militia
-# A short blade for a duelist of the Game. The signet ring, mirror, and noble's
-# silks of the full package await their item templates.
-items:
-  - short-sword
+# Pick-one equipment package (docs/wot/backgrounds.md Table 2-1): a longsword and
+# steel mirror (the RPG pairs these with a military saddle — mount deferred), an
+# hourglass and two balms, or a noble's outfit and signet ring.
+items: []
+equipment_packages:
+  - [longsword, steel-mirror]
+  - [hourglass, healers-balm, healers-balm]
+  - [nobles-outfit, signet-ring]
 gold: 35
 allowed_categories:
   - humanoid

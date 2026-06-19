@@ -1,0 +1,12 @@
+id: tent
+name: a traveller's tent
+type: item
+description: |
+  A low oilcloth tent on jointed poles, weathered grey and patched at the seams.
+  It sheds rain and breaks the wind — shelter enough for one on a long road, and
+  it rolls into a bundle a pack can carry.
+tags: [gear, cloth]
+keywords: [tent, shelter]
+properties:
+  weight: 20
+  value: 10

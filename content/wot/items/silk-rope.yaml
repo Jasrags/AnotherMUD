@@ -1,0 +1,12 @@
+id: silk-rope
+name: a coil of silk rope
+type: item
+description: |
+  Fifty feet of braided silk rope — light as a scarf, supple in the hand, and far
+  stronger than its slenderness suggests. The Sea Folk prize it; it pays for
+  itself the first time it must be carried up a mast in a gale.
+tags: [gear, fiber, valuable]
+keywords: [rope, silk rope, coil, silk]
+properties:
+  weight: 5
+  value: 100

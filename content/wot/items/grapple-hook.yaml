@@ -1,0 +1,12 @@
+id: grapple-hook
+name: a grappling hook
+type: item
+description: |
+  A four-pronged iron hook with an eye for a rope, the tines filed to bite stone
+  or timber. Thrown well it catches a parapet on the first cast; thrown badly it
+  clangs down for the whole watch to hear.
+tags: [gear, metal]
+keywords: [grapple, grappling hook, hook, grapple hook]
+properties:
+  weight: 4
+  value: 10

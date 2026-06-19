@@ -1,0 +1,12 @@
+id: hemp-rope
+name: a coil of hemp rope
+type: item
+description: |
+  Fifty feet of stout hemp rope, hand-laid and waxed against the wet. Heavy and a
+  little stiff, but it holds a knot and a weight without complaint — the kind
+  coiled over a sailor's or climber's shoulder.
+tags: [gear, fiber]
+keywords: [rope, hemp rope, coil, hemp]
+properties:
+  weight: 10
+  value: 10

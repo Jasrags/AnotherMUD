@@ -1,0 +1,19 @@
+id: warders-studded-leather
+name: a suit of Warder's studded leather
+type: item
+description: |
+  Studded leather of Tar Valon make, cut close and worked with a Warder's
+  color-shifting dye so the surface drinks the light and shifts with the
+  background. The same iron-riveted coat a guardsman wears, but quieter in shadow
+  and finished to a standard the Tower does not sell cheaply.
+tags: [armor, leather, metal, wearable, light]
+keywords: [warder's studded leather, studded leather, warder, armor]
+eligible_slots: [body]
+armor_tier: light
+armor_bonus: 3
+armor_max_dex: 5
+armor_check_penalty: 1
+armor_speed: 30
+properties:
+  weight: 20
+  value: 400

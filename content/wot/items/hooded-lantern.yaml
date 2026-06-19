@@ -1,0 +1,19 @@
+id: hooded-lantern
+name: a hooded lantern
+type: light
+description: |
+  A tin lantern with a hinged shutter — drop the hood and the flame is masked to
+  a thread, lift it and a steady pool of light spills out. Burns oil rather than
+  pitch, so it lasts the better part of a night without guttering.
+tags: [light, metal]
+keywords: [lantern, hooded lantern, light]
+# Light & darkness (§3): mirrors pine-torch — `light` is the level it
+# contributes when lit, `fuel` burns down on the fuel-burn tick. Occupies the
+# dedicated `light` equipment slot (`equip lantern light`, then `light lantern`
+# to ignite). Oil burns longer than a torch's pitch, hence the larger fuel pool.
+eligible_slots: [light]
+properties:
+  light: gloom
+  fuel: 240
+  weight: 2
+  value: 12

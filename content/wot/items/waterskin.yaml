@@ -1,0 +1,12 @@
+id: waterskin
+name: a waterskin
+type: item
+description: |
+  A stitched leather skin with a horn stopper, the kind slung over a shoulder on
+  any long walk. Full it sloshes pleasantly; empty it folds flat. In the Waste a
+  full one is worth more than its weight in silver.
+tags: [gear, leather]
+keywords: [waterskin, water, skin]
+properties:
+  weight: 4
+  value: 8

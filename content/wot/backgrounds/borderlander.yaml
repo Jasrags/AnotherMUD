@@ -25,10 +25,13 @@ skills:
 feat_options:
   - strong-soul
   - stealthy
-# Pick-one equipment package: studded leather, or a mail shirt — the two armor
-# options of the Borderlander package that exist as templates.
+# Pick-one equipment package (docs/wot/backgrounds.md Table 2-1): studded
+# leather, two healer's balms, or a mail shirt. The RPG's first two options ride
+# with a heavy/light warhorse and tack — the mount is deferred to the mounts arc,
+# so each keeps only its non-mount gear.
 equipment_packages:
   - [studded-leather]
+  - [healers-balm, healers-balm]
   - [mail-shirt]
 gold: 20
 allowed_categories:

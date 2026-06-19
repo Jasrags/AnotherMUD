@@ -1,0 +1,12 @@
+id: jeweled-signet-ring
+name: a jeweled signet ring
+type: item
+description: |
+  A signet ring made for display as much as use — the seal-face ringed with small
+  cut stones, the band thick and bright. In Arad Doman such a ring is worn to be
+  seen, a fortune carried on one finger and a calling card all at once.
+tags: [valuable, metal]
+keywords: [ring, signet ring, jeweled ring, signet]
+properties:
+  weight: 1
+  value: 700

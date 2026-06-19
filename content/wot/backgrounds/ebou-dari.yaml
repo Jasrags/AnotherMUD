@@ -17,10 +17,14 @@ skills:
   - ability: hide
     proficiency: 10
 feats: []
-# A belt knife — the everyday blade of the Rahad. The marriage knife and
-# thieves' tools of the full package await their item templates.
-items:
-  - belt-knife
+# Pick-one equipment package (docs/wot/backgrounds.md Table 2-1): a jeweled
+# marriage knife, a burglar's kit of disguise/grapple/rope, or masterwork
+# thieves' tools.
+items: []
+equipment_packages:
+  - [jeweled-dagger]
+  - [disguise-kit, grapple-hook, hemp-rope]
+  - [thieves-tools]
 gold: 25
 allowed_categories:
   - humanoid

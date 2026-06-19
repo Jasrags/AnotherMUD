@@ -1,0 +1,15 @@
+id: purse-of-marks
+name: a purse of marks
+type: item
+description: |
+  A leather purse heavy with silver marks — a traveller's stake, ready coin for
+  the road. It buys a bed, a meal, or a bribe without the bother of bartering
+  goods.
+tags: [valuable]
+keywords: [purse, marks, coin, money]
+# Item-only stand-in: a background equipment package is a list of item ids, so a
+# pure-money option (e.g. Tar Valon's "65 mk") rides as this purse rather than a
+# variable per-package gold grant, which would need schema work (deferred, #5).
+properties:
+  weight: 1
+  value: 50

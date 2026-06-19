@@ -17,10 +17,14 @@ skills:
 # Militia — Illian's companies drill its citizens. One feat per background (the pick-one chooser lands later).
 feats:
   - militia
-# A short sword — a watchman's or merchant-guard's blade. The courtier's coat,
-# crossbow, and trade goods of the full package await their item templates.
-items:
-  - short-sword
+# Pick-one equipment package (docs/wot/backgrounds.md Table 2-1): a courtier's
+# outfit with a light crossbow, a short sword with trail rations and balms, or a
+# bundle of trade goods.
+items: []
+equipment_packages:
+  - [courtiers-outfit, light-crossbow]
+  - [short-sword, trail-rations, healers-balm, healers-balm]
+  - [trade-goods]
 gold: 30
 allowed_categories:
   - humanoid

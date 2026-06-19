@@ -165,6 +165,12 @@ func TestWoTBackgrounds_ReferentialIntegrity(t *testing.T) {
 				}
 			}
 		}
+		// Backgrounds expansion #5: every human background offers a pick-one
+		// starting equipment choice (Table 2-1). This guards the re-point so a
+		// future edit can't silently regress a background to flavor-only.
+		if len(bg.EquipmentPackages) == 0 {
+			t.Errorf("%s: declares no equipment_packages (expected the pick-one starting kit)", bg.ID)
+		}
 	}
 
 	for id := range wantIDs {

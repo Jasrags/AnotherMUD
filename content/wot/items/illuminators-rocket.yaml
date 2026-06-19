@@ -1,0 +1,13 @@
+id: illuminators-rocket
+name: an Illuminator's rocket
+type: item
+description: |
+  A paper-and-clay nightflower on a slender wooden stick, packed by the Guild of
+  Illuminators with their jealously kept powders. Lit and loosed, it climbs on a
+  trail of sparks and bursts into colour overhead — a fortune spent on a few
+  heartbeats of wonder, and a guild secret to possess at all.
+tags: [gear, valuable]
+keywords: [rocket, nightflower, firework, illuminator's rocket]
+properties:
+  weight: 2
+  value: 75
