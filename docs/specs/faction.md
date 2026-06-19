@@ -76,6 +76,12 @@ layer that can be added later **without changing stored data**
   wanted, is "standing ≥ a threshold" or a content tag; a
   first-class membership concept is deferred (§10).
 - **Not alignment.** See §1.1 — separate axis, separate storage.
+- **Not renown.** Per-faction *standing* ("does the Tower like
+  me?") is not single-axis *renown* ("how famous am I?"). Renown
+  is the separate [reputation](reputation.md) sibling — the two
+  share this feature's architecture but no data and no consumers
+  in v1 (`reputation.md` §1.1). The source material's loose use of
+  "reputation" for both is the only overlap.
 - **Not global faction war state.** Standing is per-character.
   Whether two factions are "at war" world-wide is not modeled
   (§10).

@@ -57,6 +57,12 @@ The simulated environment and the things in it.
   history, the cancellable shift pipeline, and the `ResolveRanks`
   gating helper. A parallel sibling that generalizes alignment's
   architecture (`progression` §6) to N axes without touching it.
+- [reputation](reputation.md) — per-character single-axis **renown**
+  (fame ↔ infamy): a signed score with content-defined tier bands
+  mirrored as tags, the shared cancellable shift pipeline, and a
+  recognition check. Distinct from faction's per-faction *standing*
+  (`reputation` §1.1) — the axis the WoT Fame/Infamy/Low Profile
+  feats need. Substrate ahead of a consumer.
 - [inventory-equipment-items](inventory-equipment-items.md) —
   item templates, slots, equip / unequip, container ops,
   stacking, keyword resolution.
@@ -359,6 +365,7 @@ operation. The set of cancellable events across the engine:
 | `corpse.creating` | [loot-and-corpses](loot-and-corpses.md) §2.1 |
 | `concealment.before` | [visibility](visibility.md) §3.1 |
 | `faction.shift.check` *(spec; build pending)* | [faction](faction.md) §4 |
+| `reputation.shift.check` *(spec; build pending)* | [reputation](reputation.md) §4 |
 | `resource.gathering` | [gathering](gathering.md) §6 |
 | `mount.before` | [mounts](mounts.md) §4.1 |
 | `area_effect.before` *(spec; build pending)* | [area-effects](area-effects.md) §2.4 |
@@ -426,6 +433,8 @@ Each spec calls out what it persists. The aggregate view:
   [feats](feats.md) §8), **recall address**, **prompt template**,
   **autoloot preference** ([loot-and-corpses](loot-and-corpses.md) §6),
   **faction standing bag + history** ([faction](faction.md) §8 *(spec; build pending)*),
+  **renown score** (the single-axis reputation/fame value; the tier tag is
+  derived on load, not stored; [reputation](reputation.md) §10 *(spec; build pending)*),
   **world stamp** (`WorldID` — the leaf ruleset pack a character belongs
   to; an additive v23 field backfilled from the location namespace;
   [character-identity](character-identity.md) §4).
@@ -581,4 +590,4 @@ highest-impact themes that recur across specs:
 
 ---
 
-<!-- Updated: 2026-06-17 · 56 specs covering the engine substrate, world, action, lifecycle, and presentation layers. Behavior contracts still ahead of code: tag-observers, faction, the trade trio (trade-escrow, direct-trade, auction-house), area-effects (grenades & room hazards) — greenfield from the equipment.md review. Since-shipped: roles-and-permissions, admin-verbs, item-decorations (M19/M20), loot-and-corpses (M22), tab-completion Phase 0–2, who, light-and-darkness, room-coordinates (M23), player-maps (M24 — Mudlet GMCP wire-shape pending live-client validation), biomes, gathering, crafting-and-cooking (M27), weapon-identity (WoT EPIC S1), masterwork (WoT EPIC S1.H), ranged-combat (WoT EPIC S1.G — Slice A+B + Model C cross-room), armor-depth (WoT EPIC S1.E+D), size-and-wielding (WoT EPIC S1.F), two-weapon-fighting (WoT EPIC S1.K — slices 1-4: off-hand attack, the feats, Improved TWF, mob dual-wield), saves (WoT EPIC S6), conditions (WoT EPIC S5), skills (WoT EPIC S3, substrate), feats (WoT EPIC S4), backgrounds, visibility + hidden-exits (M28), movement-cost (flat→biome-weighted cost gate + encumbrance), character-select (account-first login), character-identity (world-locking, save v23), mounts (core v1 — substrate/persist save v26/acquire+stablemaster/ride+co-located travel/the mount as metered mover; barding + temperament-combat + lead pending). -->
+<!-- Updated: 2026-06-18 · 58 specs covering the engine substrate, world, action, lifecycle, and presentation layers. Behavior contracts still ahead of code: tag-observers, faction, reputation, the trade trio (trade-escrow, direct-trade, auction-house), area-effects (grenades & room hazards) — greenfield from the equipment.md review. Since-shipped: roles-and-permissions, admin-verbs, item-decorations (M19/M20), loot-and-corpses (M22), tab-completion Phase 0–2, who, light-and-darkness, room-coordinates (M23), player-maps (M24 — Mudlet GMCP wire-shape pending live-client validation), biomes, gathering, crafting-and-cooking (M27), weapon-identity (WoT EPIC S1), masterwork (WoT EPIC S1.H), ranged-combat (WoT EPIC S1.G — Slice A+B + Model C cross-room), armor-depth (WoT EPIC S1.E+D), size-and-wielding (WoT EPIC S1.F), two-weapon-fighting (WoT EPIC S1.K — slices 1-4: off-hand attack, the feats, Improved TWF, mob dual-wield), saves (WoT EPIC S6), conditions (WoT EPIC S5), skills (WoT EPIC S3, substrate), feats (WoT EPIC S4), backgrounds, visibility + hidden-exits (M28), movement-cost (flat→biome-weighted cost gate + encumbrance), character-select (account-first login), character-identity (world-locking, save v23), mounts (core v1 — substrate/persist save v26/acquire+stablemaster/ride+co-located travel/the mount as metered mover; barding + temperament-combat + lead pending). -->
