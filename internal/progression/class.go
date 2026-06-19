@@ -320,6 +320,14 @@ func (c *Class) AllowsGift(gift string) bool {
 	return categoryAllowed(c.AllowedGifts, strings.ToLower(strings.TrimSpace(gift)))
 }
 
+// EligibleFor reports whether a character of the given race category + gender
+// may pick this class (§4.3) — the per-class form of GetEligible, for the
+// creation wizard's dynamic option filter. Empty allow-lists are unrestricted.
+func (c *Class) EligibleFor(raceCategory, gender string) bool {
+	return categoryAllowed(c.AllowedCategories, strings.ToLower(strings.TrimSpace(raceCategory))) &&
+		categoryAllowed(c.AllowedGenders, strings.ToLower(strings.TrimSpace(gender)))
+}
+
 // categoryAllowed reports whether value is in the allow list, or
 // the allow list is empty (unrestricted). Comparisons are
 // case-insensitive against pre-lowercased values; the list itself

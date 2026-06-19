@@ -100,8 +100,11 @@ type Step interface {
 	// Interactive reports whether the step waits for input. Info steps
 	// are non-interactive and auto-advance (§3.1).
 	Interactive() bool
-	// Render writes the step's text to io and returns its StepEvent.
-	Render(ctx context.Context, io IO) (StepEvent, error)
+	// Render writes the step's text to io and returns its StepEvent. The
+	// in-progress entity is supplied so a step may render content that depends
+	// on earlier answers (a ChoiceStep with a dynamic OptionsFn); most steps
+	// ignore it.
+	Render(ctx context.Context, io IO, e Entity) (StepEvent, error)
 	// Handle processes one input line against the entity, returning
 	// whether to advance or repeat. Only called for interactive steps.
 	Handle(ctx context.Context, io IO, e Entity, input string) (stepResult, error)
@@ -202,7 +205,7 @@ func (in *Instance) Input(ctx context.Context, line string) (Status, error) {
 	case resultAdvance:
 		return in.advance(ctx)
 	default: // resultRepeat
-		ev, err := step.Render(ctx, in.io)
+		ev, err := step.Render(ctx, in.io, in.entity)
 		if err != nil {
 			return StatusAwaitingInput, err
 		}
@@ -226,7 +229,7 @@ func (in *Instance) advance(ctx context.Context) (Status, error) {
 		if step.ShouldSkip(in.entity) {
 			continue
 		}
-		ev, err := step.Render(ctx, in.io)
+		ev, err := step.Render(ctx, in.io, in.entity)
 		if err != nil {
 			return StatusAwaitingInput, err
 		}

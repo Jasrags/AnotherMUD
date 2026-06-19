@@ -2,6 +2,7 @@ package wizard
 
 import (
 	"context"
+	"strings"
 	"testing"
 )
 
@@ -258,5 +259,42 @@ func TestInputAfterCompletionIsNoop(t *testing.T) {
 	in.Start(ctx())
 	if st, _ := in.Input(ctx(), "anything"); st != StatusCompleted {
 		t.Errorf("input after completion = %v, want Completed", st)
+	}
+}
+
+// A ChoiceStep with a dynamic OptionsFn renders options that depend on the
+// in-progress entity (the seam the background chooser + eligibility filter use).
+func TestChoiceOptionsFn_DynamicByEntity(t *testing.T) {
+	io, sink := &fakeIO{}, &recordSink{}
+	e := &testEntity{race: "human"} // OptionsFn keys off this
+
+	var picked string
+	step := &ChoiceStep{
+		ID:     "class",
+		Prompt: "Choose your class:",
+		OptionsFn: func(ent Entity) []Option {
+			if ent.(*testEntity).race == "human" {
+				return []Option{{Label: "Soldier", Value: "soldier"}, {Label: "Scholar", Value: "scholar"}}
+			}
+			return []Option{{Label: "Outsider", Value: "outsider"}}
+		},
+		OnSelect: func(_ Entity, v any) { picked = v.(string) },
+	}
+	flow := &Flow{ID: "f", Steps: []Step{step}}
+	in := NewInstance(flow, e, io, sink)
+	if _, err := in.Start(ctx()); err != nil {
+		t.Fatalf("Start: %v", err)
+	}
+	// The human entity sees Soldier/Scholar; a prefix pick resolves against them.
+	if st, err := in.Input(ctx(), "scho"); err != nil || st != StatusCompleted {
+		t.Fatalf("Input = (%v, %v)", st, err)
+	}
+	if picked != "scholar" {
+		t.Errorf("picked = %q, want scholar (resolved against the dynamic options)", picked)
+	}
+	// The rendered prompt listed both dynamic options.
+	joined := strings.Join(io.lines, "")
+	if !strings.Contains(joined, "Soldier") || !strings.Contains(joined, "Scholar") {
+		t.Errorf("dynamic options not rendered; writes = %q", joined)
 	}
 }

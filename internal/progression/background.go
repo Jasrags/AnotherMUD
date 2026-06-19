@@ -46,6 +46,19 @@ type Background struct {
 	// Gold is added to the new character's starting balance (backgrounds §4).
 	Gold int
 
+	// FeatOptions are feat ids the character chooses ONE of at creation (the
+	// WoT pick-one background feat — backgrounds §2). Empty = no feat choice
+	// (only the always-granted Feats apply). A single option auto-grants without
+	// a choice step. Global feat ids, like Feats; lowercased at Register.
+	FeatOptions []string
+	// EquipmentPackages are mutually-exclusive starting-gear bundles; the
+	// character chooses ONE at creation (the WoT equipment-package choice —
+	// backgrounds §2). Each inner slice is one package's item template ids.
+	// Empty = no choice (only the always-granted Items apply); a single package
+	// auto-grants. Namespace-qualified at decode (like Items); lowercased at
+	// Register.
+	EquipmentPackages [][]string
+
 	// AllowedCategories / AllowedGenders gate which characters may pick this
 	// background at creation (mirrors Class eligibility, §3). Empty =
 	// unrestricted on that axis.
@@ -124,6 +137,24 @@ func (br *BackgroundRegistry) Register(b *Background) error {
 		}
 		clone.Feats = feats
 	}
+	if len(b.FeatOptions) > 0 {
+		fo := make([]string, len(b.FeatOptions))
+		for i, ft := range b.FeatOptions {
+			fo[i] = strings.ToLower(strings.TrimSpace(ft))
+		}
+		clone.FeatOptions = fo
+	}
+	if len(b.EquipmentPackages) > 0 {
+		pkgs := make([][]string, len(b.EquipmentPackages))
+		for i, pkg := range b.EquipmentPackages {
+			cp := make([]string, len(pkg))
+			for j, it := range pkg {
+				cp[j] = strings.ToLower(strings.TrimSpace(it))
+			}
+			pkgs[i] = cp
+		}
+		clone.EquipmentPackages = pkgs
+	}
 	if len(b.AllowedCategories) > 0 {
 		cats := make([]string, len(b.AllowedCategories))
 		for i, v := range b.AllowedCategories {
@@ -176,6 +207,15 @@ func (br *BackgroundRegistry) All() []*Background {
 		out = append(out, br.backgrounds[id])
 	}
 	return out
+}
+
+// EligibleFor reports whether a character of the given race category + gender
+// may pick this background (§3) — the per-background form of GetEligible, for
+// the creation wizard's dynamic option filter. Empty allow-lists are
+// unrestricted. Mirrors Class.EligibleFor.
+func (b *Background) EligibleFor(raceCategory, gender string) bool {
+	return categoryAllowed(b.AllowedCategories, strings.ToLower(strings.TrimSpace(raceCategory))) &&
+		categoryAllowed(b.AllowedGenders, strings.ToLower(strings.TrimSpace(gender)))
 }
 
 // GetEligible returns the backgrounds whose AllowedCategories + AllowedGenders

@@ -867,6 +867,8 @@ type BackgroundFile struct {
 	Skills            []BackgroundSkillFile `yaml:"skills,omitempty"`
 	Items             []string              `yaml:"items,omitempty"`
 	Feats             []string              `yaml:"feats,omitempty"`
+	FeatOptions       []string              `yaml:"feat_options,omitempty"`
+	EquipmentPackages [][]string            `yaml:"equipment_packages,omitempty"`
 	Gold              int                   `yaml:"gold,omitempty"`
 	AllowedCategories []string              `yaml:"allowed_categories,omitempty"`
 	AllowedGenders    []string              `yaml:"allowed_genders,omitempty"`

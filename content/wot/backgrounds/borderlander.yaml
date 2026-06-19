@@ -19,12 +19,17 @@ skills:
 # Strong Soul — the hard-bitten Blight-warden's save feat (+1 Fortitude and Will;
 # a Borderlander background feat). One feat per background in the thin slice, in
 # place of the pick-one chooser; Stealthy/Blooded are the canonical alternates.
-feats:
+# Pick-one background feat (the chooser): Strong Soul (the hard-bitten
+# Blight-warden) or Stealthy (the silent scout) — both canonical Borderlander
+# feats.
+feat_options:
   - strong-soul
-# Studded leather, a Borderland soldier's serviceable armor. The horse, lances,
-# and heavier kit of the full package await later phases.
-items:
-  - studded-leather
+  - stealthy
+# Pick-one equipment package: studded leather, or a mail shirt — the two armor
+# options of the Borderlander package that exist as templates.
+equipment_packages:
+  - [studded-leather]
+  - [mail-shirt]
 gold: 20
 allowed_categories:
   - humanoid

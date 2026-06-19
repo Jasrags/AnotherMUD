@@ -12,14 +12,17 @@ skills: []
 # Luck of Heroes — the Midlander's signature feat (+1 luck on all saves); some
 # carry the old blood of Manetheren. One feat per background (the chooser lands
 # later); Militia/Strong Soul are the canonical alternates.
-feats:
+# Pick-one background feat (the chooser): Luck of Heroes (the old blood of
+# Manetheren), Strong Soul, or Militia — all canonical Midlander feats.
+feat_options:
   - luck-of-heroes
-# The boar-spear / leather-armor / shield option from the Midlander package —
-# all three exist as templates. The horse and healer's kit await later phases.
-items:
-  - boarspear
-  - leather-armor
-  - small-steel-shield
+  - strong-soul
+  - militia
+# Pick-one equipment package: the boar-spear / leather-armor / shield soldier's
+# kit, or a Two Rivers longbow.
+equipment_packages:
+  - [boarspear, leather-armor, small-steel-shield]
+  - [two-rivers-longbow]
 gold: 20
 allowed_categories:
   - humanoid

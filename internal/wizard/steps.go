@@ -36,7 +36,7 @@ func (s *InfoStep) StepID() string           { return s.ID }
 func (s *InfoStep) ShouldSkip(e Entity) bool { return runSkip(s.Skip, e) }
 func (s *InfoStep) Interactive() bool        { return false }
 
-func (s *InfoStep) Render(ctx context.Context, io IO) (StepEvent, error) {
+func (s *InfoStep) Render(ctx context.Context, io IO, _ Entity) (StepEvent, error) {
 	ev := StepEvent{StepID: s.ID, StepType: stepTypeInfo, Prompt: s.Text}
 	return ev, io.Write(ctx, s.Text)
 }
@@ -59,63 +59,82 @@ type Option struct {
 
 // ChoiceStep renders a prompt + an ordered option list. Input is a
 // 1-based index OR a unique case-insensitive prefix of an option label.
+//
+// Options are usually static (the Options slice). A step whose choices depend
+// on an earlier answer sets OptionsFn instead — it is called with the
+// in-progress entity at render AND resolve time and MUST be deterministic
+// across that pair (it reads only already-committed earlier answers, so it is).
+// OptionsFn takes precedence over Options when set.
 type ChoiceStep struct {
-	ID       string
-	Prompt   string
-	Options  []Option
-	OnSelect func(e Entity, value any)
-	Skip     skipFn
+	ID        string
+	Prompt    string
+	Options   []Option
+	OptionsFn func(e Entity) []Option
+	OnSelect  func(e Entity, value any)
+	Skip      skipFn
 }
 
 func (s *ChoiceStep) StepID() string           { return s.ID }
 func (s *ChoiceStep) ShouldSkip(e Entity) bool { return runSkip(s.Skip, e) }
 func (s *ChoiceStep) Interactive() bool        { return true }
 
-func (s *ChoiceStep) Render(ctx context.Context, io IO) (StepEvent, error) {
+// opts returns the live option list for the entity: the dynamic OptionsFn when
+// set, else the static Options.
+func (s *ChoiceStep) opts(e Entity) []Option {
+	if s.OptionsFn != nil {
+		return s.OptionsFn(e)
+	}
+	return s.Options
+}
+
+func (s *ChoiceStep) Render(ctx context.Context, io IO, e Entity) (StepEvent, error) {
+	options := s.opts(e)
 	var b strings.Builder
 	b.WriteString(s.Prompt)
-	for i, opt := range s.Options {
+	for i, opt := range options {
 		b.WriteString(fmt.Sprintf("\n  %d) %s", i+1, opt.Label))
 		if opt.Tag != "" {
 			b.WriteString(" — " + opt.Tag)
 		}
 	}
 	ev := StepEvent{StepID: s.ID, StepType: stepTypeChoice, Prompt: s.Prompt}
-	for _, opt := range s.Options {
+	for _, opt := range options {
 		ev.Options = append(ev.Options, StepOption{Label: opt.Label, Tag: opt.Tag})
 	}
 	return ev, io.Write(ctx, b.String())
 }
 
 func (s *ChoiceStep) Handle(ctx context.Context, io IO, e Entity, input string) (stepResult, error) {
-	idx, ok := s.resolve(input)
+	options := s.opts(e)
+	idx, ok := resolveChoice(options, input)
 	if !ok {
 		return resultRepeat, nil
 	}
 	if s.OnSelect != nil {
-		s.OnSelect(e, s.Options[idx].Value)
+		s.OnSelect(e, options[idx].Value)
 	}
 	return resultAdvance, nil
 }
 
-// resolve maps input to an option index: a 1-based numeric index, or a
-// unique case-insensitive prefix of exactly one option's label. Returns
-// (idx, false) on no-match or ambiguous prefix (§3.2 "invalid input
-// repeats the prompt").
-func (s *ChoiceStep) resolve(input string) (int, bool) {
+// resolveChoice maps input to an option index in the supplied list: a 1-based
+// numeric index, or a unique case-insensitive prefix of exactly one option's
+// label. Returns (idx, false) on no-match or ambiguous prefix (§3.2 "invalid
+// input repeats the prompt"). A free function (not a method) so it resolves
+// against the live option list — static Options or a dynamic OptionsFn result.
+func resolveChoice(options []Option, input string) (int, bool) {
 	in := strings.TrimSpace(input)
 	if in == "" {
 		return 0, false
 	}
 	if n, err := strconv.Atoi(in); err == nil {
-		if n >= 1 && n <= len(s.Options) {
+		if n >= 1 && n <= len(options) {
 			return n - 1, true
 		}
 		return 0, false
 	}
 	low := strings.ToLower(in)
 	match, count := -1, 0
-	for i, opt := range s.Options {
+	for i, opt := range options {
 		if strings.HasPrefix(strings.ToLower(opt.Label), low) {
 			match = i
 			count++
@@ -145,7 +164,7 @@ func (s *TextStep) StepID() string           { return s.ID }
 func (s *TextStep) ShouldSkip(e Entity) bool { return runSkip(s.Skip, e) }
 func (s *TextStep) Interactive() bool        { return true }
 
-func (s *TextStep) Render(ctx context.Context, io IO) (StepEvent, error) {
+func (s *TextStep) Render(ctx context.Context, io IO, _ Entity) (StepEvent, error) {
 	// Secret steps suppress echo BEFORE the prompt and rely on Handle to
 	// restore it before any subsequent output (§3.3).
 	if s.Secret {
@@ -194,7 +213,7 @@ func (s *ConfirmStep) StepID() string           { return s.ID }
 func (s *ConfirmStep) ShouldSkip(e Entity) bool { return runSkip(s.Skip, e) }
 func (s *ConfirmStep) Interactive() bool        { return true }
 
-func (s *ConfirmStep) Render(ctx context.Context, io IO) (StepEvent, error) {
+func (s *ConfirmStep) Render(ctx context.Context, io IO, _ Entity) (StepEvent, error) {
 	ev := StepEvent{StepID: s.ID, StepType: stepTypeConfirm, Prompt: s.Prompt}
 	return ev, io.Write(ctx, s.Prompt)
 }

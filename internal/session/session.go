@@ -4713,6 +4713,19 @@ func applyBackground(a *connActor, saved string) {
 // RaceID.
 func (a *connActor) BackgroundID() string { return a.backgroundID }
 
+// BackgroundChoices returns the pick-one background-chooser selections persisted
+// on the save (v29): the chosen feat id (from the background's FeatOptions) and
+// the chosen equipment-package index. Read once by the character.created grant.
+// Lives on the save (like Gender), read under the lock.
+func (a *connActor) BackgroundChoices() (feat string, equipmentIndex int) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	if a.save == nil {
+		return "", 0
+	}
+	return a.save.BackgroundFeat, a.save.BackgroundEquipmentChoice
+}
+
 // MarkContentsDirty re-runs syncInventoryToSaveLocked so the save
 // tree picks up Contents mutations the actor itself didn't perform
 // (M5.9b put: the handler removes from inventory, then writes into

@@ -31,7 +31,7 @@ func TestBackgroundGranter_GrantsSkillsAndItems(t *testing.T) {
 		Items:  []string{"core:lockpicks"},
 		Gold:   50, // skipped (nil currency)
 	}
-	g.Grant(context.Background(), "p1", bg)
+	g.Grant(context.Background(), "p1", bg, BackgroundChoices{})
 
 	// Skill learned at the declared starting proficiency.
 	if v, ok := prof.Proficiency("p1", "open-lock"); !ok || v != 15 {
@@ -64,7 +64,7 @@ func TestBackgroundGranter_DefaultsProficiencyAndSkipsMissing(t *testing.T) {
 		// proficiency 0 → defaults to baseline 1.
 		Skills: []progression.BackgroundSkill{{AbilityID: "open-lock", Proficiency: 0}},
 		Items:  []string{"core:nope"}, // missing template → skipped silently
-	})
+	}, BackgroundChoices{})
 
 	if v, _ := prof.Proficiency("p1", "open-lock"); v != 1 {
 		t.Errorf("default proficiency = %d, want 1", v)
@@ -78,9 +78,9 @@ func TestBackgroundGranter_OfflineAndNilAreNoops(t *testing.T) {
 	mgr := NewManager() // actor never Added → offline
 	g := NewBackgroundGranter(mgr, nil, item.NewTemplates(), entities.NewStore(), nil)
 	// Offline recipient: silent no-op, no panic.
-	g.Grant(context.Background(), "ghost", &progression.Background{ID: "x", Gold: 10})
+	g.Grant(context.Background(), "ghost", &progression.Background{ID: "x", Gold: 10}, BackgroundChoices{})
 	// nil background: no-op.
-	g.Grant(context.Background(), "p1", nil)
+	g.Grant(context.Background(), "p1", nil, BackgroundChoices{})
 }
 
 // The creation wizard offers a background step when backgrounds are loaded, and
@@ -89,7 +89,7 @@ func TestRunCreation_CommitsBackground(t *testing.T) {
 	rr, cr := twoRaceOneClass(t)
 	br := progression.NewBackgroundRegistry()
 	_ = br.Register(&progression.Background{ID: "soldier", DisplayName: "Soldier"})
-	cfg := Config{CreationFlow: NewCreationFlow(rr, cr, br)}
+	cfg := Config{CreationFlow: NewCreationFlow(rr, cr, br, nil)}
 	loaded := newPlayerLoaded("Bob")
 	conn := &scriptedConn{inputs: []string{"male", "elf", "fighter", "soldier", "yes"}}
 
@@ -98,6 +98,62 @@ func TestRunCreation_CommitsBackground(t *testing.T) {
 	}
 	if loaded.Player.Background != "soldier" {
 		t.Errorf("save background = %q, want soldier", loaded.Player.Background)
+	}
+}
+
+// The pick-one chooser: a background with FeatOptions + EquipmentPackages grants
+// the CHOSEN feat + the CHOSEN package, not all of them (backgrounds §2).
+func TestBackgroundGranter_GrantsChosenFeatAndPackage(t *testing.T) {
+	mgr := NewManager()
+	a, _ := newFakeActor("c1", "p1", "acc1", "Hero", &world.Room{ID: "r"})
+	reg := feat.NewRegistry()
+	_ = reg.Register(&feat.Feat{ID: "stealthy"})
+	_ = reg.Register(&feat.Feat{ID: "blooded"})
+	a.feats = reg
+	mgr.Add(a)
+
+	store := entities.NewStore()
+	tpls := item.NewTemplates()
+	tpls.Add(&item.Template{ID: "wot:studded-leather", Name: "studded leather", Type: "item"})
+	tpls.Add(&item.Template{ID: "wot:mail-shirt", Name: "mail shirt", Type: "item"})
+
+	g := NewBackgroundGranter(mgr, nil, tpls, store, nil)
+	bg := &progression.Background{
+		ID:                "borderlander",
+		FeatOptions:       []string{"stealthy", "blooded"},
+		EquipmentPackages: [][]string{{"wot:studded-leather"}, {"wot:mail-shirt"}},
+	}
+	// Choose Blooded + the second package (mail shirt).
+	g.Grant(context.Background(), "p1", bg, BackgroundChoices{Feat: "blooded", EquipmentIndex: 1})
+
+	if len(a.save.KnownFeats) != 1 || a.save.KnownFeats[0].FeatID != "blooded" {
+		t.Errorf("KnownFeats = %+v, want only [blooded]", a.save.KnownFeats)
+	}
+	inv := a.Inventory()
+	if len(inv) != 1 {
+		t.Fatalf("inventory = %d items, want 1 (only the chosen package)", len(inv))
+	}
+	if ent, ok := store.GetByID(inv[0]); !ok || string(ent.(*entities.ItemInstance).TemplateID()) != "wot:mail-shirt" {
+		t.Errorf("granted item = %v, want wot:mail-shirt", ent)
+	}
+}
+
+// A single-option / no-choice background auto-grants the first feat option and
+// the first package without any recorded choice (the step is skipped at creation).
+func TestBackgroundGranter_AutoGrantsSingleOption(t *testing.T) {
+	mgr := NewManager()
+	a, _ := newFakeActor("c2", "p2", "acc2", "Solo", &world.Room{ID: "r"})
+	reg := feat.NewRegistry()
+	_ = reg.Register(&feat.Feat{ID: "militia"})
+	a.feats = reg
+	mgr.Add(a)
+
+	g := NewBackgroundGranter(mgr, nil, item.NewTemplates(), entities.NewStore(), nil)
+	bg := &progression.Background{ID: "cairhienin", FeatOptions: []string{"militia"}}
+	g.Grant(context.Background(), "p2", bg, BackgroundChoices{}) // no choice recorded
+
+	if len(a.save.KnownFeats) != 1 || a.save.KnownFeats[0].FeatID != "militia" {
+		t.Errorf("KnownFeats = %+v, want [militia] (single option auto-granted)", a.save.KnownFeats)
 	}
 }
 
@@ -116,7 +172,7 @@ func TestBackgroundGranter_GrantsFeats(t *testing.T) {
 	g := NewBackgroundGranter(mgr, nil, item.NewTemplates(), entities.NewStore(), nil)
 	g.Grant(context.Background(), "p1", &progression.Background{
 		ID: "soldier", Feats: []string{"great-fortitude", "ghost-feat"}, // ghost skipped fail-soft
-	})
+	}, BackgroundChoices{})
 
 	if len(a.save.KnownFeats) != 1 || a.save.KnownFeats[0].FeatID != "great-fortitude" {
 		t.Fatalf("KnownFeats = %+v, want [great-fortitude]", a.save.KnownFeats)
@@ -183,7 +239,7 @@ func TestCreditFeats_BanksAndSyncsSave(t *testing.T) {
 func TestRunCreation_NoBackgroundsSkipsStep(t *testing.T) {
 	rr, cr := twoRaceOneClass(t)
 	br := progression.NewBackgroundRegistry() // empty → no background step
-	cfg := Config{CreationFlow: NewCreationFlow(rr, cr, br)}
+	cfg := Config{CreationFlow: NewCreationFlow(rr, cr, br, nil)}
 	loaded := newPlayerLoaded("Bob")
 	// Only gender + race + class + confirm are prompted — no background input.
 	conn := &scriptedConn{inputs: []string{"male", "elf", "fighter", "yes"}}

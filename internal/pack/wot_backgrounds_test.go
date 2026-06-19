@@ -93,8 +93,10 @@ type bgDoc struct {
 	Skills []struct {
 		Ability string `yaml:"ability"`
 	} `yaml:"skills"`
-	Items []string `yaml:"items"`
-	Feats []string `yaml:"feats"`
+	Items             []string   `yaml:"items"`
+	Feats             []string   `yaml:"feats"`
+	FeatOptions       []string   `yaml:"feat_options"`
+	EquipmentPackages [][]string `yaml:"equipment_packages"`
 }
 
 // The thin-slice WoT human backgrounds must reference only skills/items/feats
@@ -147,6 +149,20 @@ func TestWoTBackgrounds_ReferentialIntegrity(t *testing.T) {
 		for _, ft := range bg.Feats {
 			if !feats[ft] {
 				t.Errorf("%s: feat %q does not exist", bg.ID, ft)
+			}
+		}
+		// The pick-one chooser fields: every feat option + every item in every
+		// equipment package must resolve too (backgrounds §2 — the chooser).
+		for _, ft := range bg.FeatOptions {
+			if !feats[ft] {
+				t.Errorf("%s: feat_option %q does not exist", bg.ID, ft)
+			}
+		}
+		for pi, pkg := range bg.EquipmentPackages {
+			for _, it := range pkg {
+				if !items[it] {
+					t.Errorf("%s: equipment_packages[%d] item %q does not exist", bg.ID, pi, it)
+				}
 			}
 		}
 	}

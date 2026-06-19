@@ -1171,10 +1171,13 @@ func run() error {
 		// StartingStats above raised a channeler's resource_max via OnMaxChange,
 		// but SetMax leaves current at 0 (level-up semantics), so fill once here.
 		actor.FillResourcePools()
-		// backgrounds §4: grant the chosen background's starting package once.
+		// backgrounds §4: grant the chosen background's starting package once,
+		// applying the pick-one chooser selections (the chosen feat + equipment
+		// package, persisted on the save at creation — v29).
 		if bgID := actor.BackgroundID(); bgID != "" {
 			if bg, ok := registries.Backgrounds.Get(bgID); ok {
-				backgroundGranter.Grant(ctx, e.EntityID, bg)
+				feat, equip := actor.BackgroundChoices()
+				backgroundGranter.Grant(ctx, e.EntityID, bg, session.BackgroundChoices{Feat: feat, EquipmentIndex: equip})
 			}
 		}
 		// feats §2.2 (EPIC S4 Phase 2): the base feat slot granted at creation
@@ -2827,7 +2830,7 @@ func run() error {
 		// assembly by the server's primary active world (character-identity
 		// §2: registries.Worlds holds the kind:world namespaces in load
 		// order; one world boots today, co-host deferred). "" → default flow.
-		CreationFlow: session.CreationFlowFor(primaryWorld, registries.Races, registries.Classes, registries.Backgrounds),
+		CreationFlow: session.CreationFlowFor(primaryWorld, registries.Races, registries.Classes, registries.Backgrounds, registries.Feats),
 		Clock:        clk,
 		Flood:        session.DefaultFloodConfig(),
 		// Raising ChainCap multiplies a client's effective command throughput:

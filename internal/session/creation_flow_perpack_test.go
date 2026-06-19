@@ -61,22 +61,20 @@ func giftTaggedClasses(t *testing.T) *progression.ClassRegistry {
 	return cr
 }
 
-// activeClassOptions returns the option labels of the class step that would
-// RENDER for the given gift — i.e. the one class step whose Skip predicate is
-// false for an entity carrying that gift. This is the decoupled capability
-// gate as the player sees it.
+// activeClassOptions returns the class-step option labels offered to an entity
+// carrying the given gift — the decoupled capability gate as the player sees
+// it. The class step is now ONE dynamic step whose OptionsFn filters by the
+// gift (and eligibility); an empty raceID yields an unrestricted category, so
+// the gift is the only filter for the test's unrestricted classes.
 func activeClassOptions(flow *wizard.Flow, gift string) []string {
 	e := &creationEntity{channelingGift: gift}
 	for _, s := range flow.Steps {
 		cs, ok := s.(*wizard.ChoiceStep)
-		if !ok || cs.ID != "class" {
+		if !ok || cs.ID != "class" || cs.OptionsFn == nil {
 			continue
 		}
-		if cs.ShouldSkip(e) {
-			continue
-		}
-		labels := make([]string, 0, len(cs.Options))
-		for _, o := range cs.Options {
+		labels := make([]string, 0)
+		for _, o := range cs.OptionsFn(e) {
 			labels = append(labels, o.Label)
 		}
 		return labels
@@ -89,10 +87,10 @@ func activeClassOptions(flow *wizard.Flow, gift string) []string {
 // preserved byte-for-byte".
 func TestCreationFlowFor_DefaultMatchesNewCreationFlow(t *testing.T) {
 	rr, cr := twoRaceOneClass(t)
-	want := stepIDs(NewCreationFlow(rr, cr, nil))
+	want := stepIDs(NewCreationFlow(rr, cr, nil, nil))
 
 	for _, world := range []string{"", "starter-world", "STARTER-WORLD", "nonsense", "  "} {
-		got := stepIDs(CreationFlowFor(world, rr, cr, nil))
+		got := stepIDs(CreationFlowFor(world, rr, cr, nil, nil))
 		if !equalStrings(got, want) {
 			t.Errorf("CreationFlowFor(%q) step IDs = %v, want %v (default)", world, got, want)
 		}
@@ -102,7 +100,7 @@ func TestCreationFlowFor_DefaultMatchesNewCreationFlow(t *testing.T) {
 // The nil-content path propagates through the selector for every branch.
 func TestCreationFlowFor_NilWhenNoContent(t *testing.T) {
 	for _, world := range []string{"", "starter-world", "wot"} {
-		if f := CreationFlowFor(world, progression.NewRaceRegistry(), progression.NewClassRegistry(), progression.NewBackgroundRegistry()); f != nil {
+		if f := CreationFlowFor(world, progression.NewRaceRegistry(), progression.NewClassRegistry(), progression.NewBackgroundRegistry(), nil); f != nil {
 			t.Errorf("CreationFlowFor(%q) with empty registries = non-nil, want nil", world)
 		}
 	}
@@ -117,12 +115,12 @@ func TestCreationFlowFor_WoTInsertsChannelingAfterGender(t *testing.T) {
 	}
 	cr := giftTaggedClasses(t)
 
-	def := stepIDs(NewCreationFlow(rr, cr, nil))
+	def := stepIDs(NewCreationFlow(rr, cr, nil, nil))
 	if indexOf(def, "channeling") >= 0 {
 		t.Fatalf("default flow unexpectedly has a channeling step: %v", def)
 	}
 
-	wot := stepIDs(CreationFlowFor("wot", rr, cr, nil))
+	wot := stepIDs(CreationFlowFor("wot", rr, cr, nil, nil))
 	gi, ci := indexOf(wot, "gender"), indexOf(wot, "channeling")
 	if gi < 0 {
 		t.Fatalf("WoT flow missing gender step: %v", wot)
@@ -146,7 +144,7 @@ func TestCreationFlowFor_WoTGiftGatesClassOptions(t *testing.T) {
 		t.Fatalf("register human: %v", err)
 	}
 	cr := giftTaggedClasses(t)
-	flow := CreationFlowFor("wot", rr, cr, nil)
+	flow := CreationFlowFor("wot", rr, cr, nil, nil)
 
 	cases := []struct {
 		gift string
@@ -172,7 +170,7 @@ func TestWoTCreationFlow_NoneSelectsNonChanneler(t *testing.T) {
 		t.Fatalf("register human: %v", err)
 	}
 	cr := giftTaggedClasses(t)
-	flow := CreationFlowFor("wot", rr, cr, nil)
+	flow := CreationFlowFor("wot", rr, cr, nil, nil)
 	e := &creationEntity{}
 	in := wizard.NewInstance(flow, e, &wizFakeIO{}, nil)
 	in.Start(context.Background())
@@ -201,7 +199,7 @@ func TestWoTCreationFlow_SparkSelectsChanneler(t *testing.T) {
 		t.Fatalf("register human: %v", err)
 	}
 	cr := giftTaggedClasses(t)
-	flow := CreationFlowFor("wot", rr, cr, nil)
+	flow := CreationFlowFor("wot", rr, cr, nil, nil)
 	if flow == nil {
 		t.Fatal("WoT flow should not be nil with races+classes")
 	}
@@ -233,7 +231,7 @@ func TestRunCreation_WoTPersistsChanneling(t *testing.T) {
 		t.Fatalf("register human: %v", err)
 	}
 	cr := giftTaggedClasses(t)
-	cfg := Config{CreationFlow: CreationFlowFor("wot", rr, cr, nil)}
+	cfg := Config{CreationFlow: CreationFlowFor("wot", rr, cr, nil, nil)}
 	loaded := newPlayerLoaded("Rand")
 	// gender, channeling("born"→spark), race, channeler class, confirm.
 	conn := &scriptedConn{inputs: []string{"male", "born", "human", "initiate", "yes"}}
@@ -256,7 +254,7 @@ func TestRunCreation_WoTPersistsChanneling(t *testing.T) {
 // ChannelingGift stays empty (no key written).
 func TestRunCreation_DefaultLeavesChannelingUnset(t *testing.T) {
 	rr, cr := twoRaceOneClass(t)
-	cfg := Config{CreationFlow: NewCreationFlow(rr, cr, nil)}
+	cfg := Config{CreationFlow: NewCreationFlow(rr, cr, nil, nil)}
 	loaded := newPlayerLoaded("Bob")
 	conn := &scriptedConn{inputs: []string{"male", "elf", "fighter", "yes"}}
 

@@ -127,7 +127,7 @@ import (
 // means "knows no recipes beyond what a discipline grants at runtime";
 // the migration injects nothing. A known id whose recipe was removed from
 // content loads cleanly and is ignored at restore (§9), never an error.
-const CurrentVersion = 28
+const CurrentVersion = 29
 
 // Sentinel errors callers may check via errors.Is.
 var (
@@ -179,6 +179,18 @@ type Save struct {
 	// persists through the proficiency/inventory/gold surfaces; this field is
 	// the label for display + future reference.
 	Background string `yaml:"background,omitempty"`
+	// BackgroundFeat is the feat the character chose from its background's
+	// FeatOptions at creation (v29+ — the pick-one chooser). Empty = the
+	// background offered no feat choice (the always-granted feats applied). Read
+	// once by the character.created grant to apply the chosen feat; the result
+	// persists as a KnownFeat, so this is the choice record, not the effect.
+	BackgroundFeat string `yaml:"background_feat,omitempty"`
+	// BackgroundEquipmentChoice is the index of the equipment package the
+	// character chose from its background's EquipmentPackages at creation (v29+).
+	// 0 (the default) is the first package or "no packages offered" — the
+	// granter bounds-checks against the live background. Like BackgroundFeat,
+	// the chosen items persist in inventory; this is the choice record.
+	BackgroundEquipmentChoice int `yaml:"background_equipment_choice,omitempty"`
 	// Gender is the character's gender, chosen at creation (v22+). A general
 	// character attribute that fills the engine's pre-existing AllowedGenders
 	// contract (class/background eligibility) and, in the WoT pack, derives a
@@ -610,6 +622,7 @@ var playerMigrations = map[int]func(map[string]any) (map[string]any, error){
 	25: migrateV25toV26,
 	26: migrateV26toV27,
 	27: migrateV27toV28,
+	28: migrateV28toV29,
 }
 
 // migrateV1toV2 adds the empty inventory/equipment blocks introduced
@@ -1019,6 +1032,15 @@ func migrateV26toV27(in map[string]any) (map[string]any, error) {
 // characters predate the WoT per-pack creation flow, so none carry a gift. No
 // on-disk shape needs to change.
 func migrateV27toV28(in map[string]any) (map[string]any, error) {
+	return in, nil
+}
+
+// migrateV28toV29 is a no-op: the v29 additions (Save.BackgroundFeat +
+// Save.BackgroundEquipmentChoice, the pick-one background chooser) are absent on
+// a pre-v29 save, which decode to "" / 0 — the correct default (no choice;
+// older backgrounds granted their package without a choice anyway). No on-disk
+// shape needs to change.
+func migrateV28toV29(in map[string]any) (map[string]any, error) {
 	return in, nil
 }
 

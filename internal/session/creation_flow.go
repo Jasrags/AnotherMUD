@@ -8,6 +8,7 @@ import (
 
 	"github.com/Jasrags/AnotherMUD/internal/ansi"
 	"github.com/Jasrags/AnotherMUD/internal/conn"
+	"github.com/Jasrags/AnotherMUD/internal/feat"
 	"github.com/Jasrags/AnotherMUD/internal/help"
 	"github.com/Jasrags/AnotherMUD/internal/login"
 	"github.com/Jasrags/AnotherMUD/internal/progression"
@@ -63,6 +64,14 @@ type creationEntity struct {
 	// giftedClassStep / progression.Class.AllowsGift), and runCreation
 	// stamps it onto loaded.Player.ChannelingGift (persisted, save v28).
 	channelingGift string
+
+	// backgroundFeat is the feat chosen from the background's FeatOptions
+	// (the pick-one chooser); empty when the background offers <2 options
+	// (the granter then auto-grants the single option). backgroundEquipment is
+	// the chosen EquipmentPackages index (0 default). runCreation stamps both
+	// onto the save (v29); the character.created granter applies them.
+	backgroundFeat      string
+	backgroundEquipment int
 }
 
 // genderOptions is the v1 binary gender set offered at creation. Gender is a
@@ -83,12 +92,12 @@ var genderOptions = []wizard.Option{
 // string is the namespace of the single kind:world pack (registries.Worlds[0]
 // today; co-host is deferred). A nil return propagates (the §2 "no flow →
 // immediate commit" path) regardless of branch.
-func CreationFlowFor(world string, races *progression.RaceRegistry, classes *progression.ClassRegistry, backgrounds *progression.BackgroundRegistry) *wizard.Flow {
+func CreationFlowFor(world string, races *progression.RaceRegistry, classes *progression.ClassRegistry, backgrounds *progression.BackgroundRegistry, feats *feat.Registry) *wizard.Flow {
 	switch strings.ToLower(strings.TrimSpace(world)) {
 	case "wot":
-		return newWoTCreationFlow(races, classes, backgrounds)
+		return newWoTCreationFlow(races, classes, backgrounds, feats)
 	default:
-		return NewCreationFlow(races, classes, backgrounds)
+		return NewCreationFlow(races, classes, backgrounds, feats)
 	}
 }
 
@@ -102,16 +111,12 @@ func CreationFlowFor(world string, races *progression.RaceRegistry, classes *pro
 // Returns nil when there is nothing to choose (no races AND no classes AND
 // no backgrounds) so the caller takes the §2 "no flow → immediate commit"
 // path.
-func NewCreationFlow(races *progression.RaceRegistry, classes *progression.ClassRegistry, backgrounds *progression.BackgroundRegistry) *wizard.Flow {
-	raceOpts := raceOptions(races)
-	classOpts := classOptions(classes)
-	bgOpts := backgroundOptions(backgrounds)
-	if len(raceOpts) == 0 && len(classOpts) == 0 && len(bgOpts) == 0 {
+func NewCreationFlow(races *progression.RaceRegistry, classes *progression.ClassRegistry, backgrounds *progression.BackgroundRegistry, feats *feat.Registry) *wizard.Flow {
+	if !hasCreationContent(races, classes, backgrounds) {
 		return nil
 	}
-
 	steps := []wizard.Step{introStep(), genderStep()}
-	steps = appendContentSteps(steps, raceOpts, classOpts, bgOpts)
+	steps = appendCreationContent(steps, races, classes, backgrounds, feats, false)
 	steps = append(steps, confirmStep())
 	return creationFlow(steps)
 }
@@ -128,73 +133,228 @@ func NewCreationFlow(races *progression.RaceRegistry, classes *progression.Class
 // engine evaluates Skip against the channeling gift chosen two steps earlier);
 // no wizard-engine change is needed. Returns nil on empty content for the same
 // reason NewCreationFlow does.
-func newWoTCreationFlow(races *progression.RaceRegistry, classes *progression.ClassRegistry, backgrounds *progression.BackgroundRegistry) *wizard.Flow {
-	raceOpts := raceOptions(races)
-	classOpts := classOptions(classes)
-	bgOpts := backgroundOptions(backgrounds)
-	if len(raceOpts) == 0 && len(classOpts) == 0 && len(bgOpts) == 0 {
+func newWoTCreationFlow(races *progression.RaceRegistry, classes *progression.ClassRegistry, backgrounds *progression.BackgroundRegistry, feats *feat.Registry) *wizard.Flow {
+	if !hasCreationContent(races, classes, backgrounds) {
 		return nil
 	}
-
 	steps := []wizard.Step{introStep(), genderStep(), channelingStep()}
-	if len(raceOpts) > 0 {
-		steps = append(steps, raceStep(raceOpts))
-	}
-	// The two halves of the decoupled gate. giftedClassStep returns nil when
-	// no class is eligible for the gift values, so a pack missing one
-	// population simply omits that step.
-	if s := giftedClassStep(classes, "spark", "learn"); s != nil {
-		steps = append(steps, s)
-	}
-	if s := giftedClassStep(classes, "none"); s != nil {
-		steps = append(steps, s)
-	}
-	if len(bgOpts) > 0 {
-		steps = append(steps, backgroundStep(bgOpts))
-	}
+	steps = appendCreationContent(steps, races, classes, backgrounds, feats, true)
 	steps = append(steps, confirmStep())
 	return creationFlow(steps)
 }
 
-// giftedClassStep builds a class ChoiceStep whose options are the classes
-// eligible for any of the given channeling gifts, gated to render only when
-// the entity's chosen channelingGift is one of them (the decoupled capability
-// gate). Returns nil when no class is eligible, so the caller omits an empty
-// step. All variants share the "class" step ID and write classID — only one
-// ever renders for a given character (the gifts partition the population), so
-// the duplicate ID is inert (the wizard iterates by index, skipping the rest).
-func giftedClassStep(classes *progression.ClassRegistry, gifts ...string) *wizard.ChoiceStep {
-	opts := classOptionsForGift(classes, gifts...)
-	if len(opts) == 0 {
-		return nil
+// hasCreationContent reports whether any pickable creation content exists — the
+// §2 "no flow → immediate commit" guard.
+func hasCreationContent(races *progression.RaceRegistry, classes *progression.ClassRegistry, backgrounds *progression.BackgroundRegistry) bool {
+	return (races != nil && len(races.All()) > 0) ||
+		(classes != nil && len(classes.All()) > 0) ||
+		(backgrounds != nil && len(backgrounds.All()) > 0)
+}
+
+// appendCreationContent adds the race → class → background → background-feat →
+// background-equipment steps. Class and background options are eligibility-
+// filtered against the entity's chosen race category + gender (dynamic
+// OptionsFn); when giftGated, the class options are ALSO filtered by the chosen
+// channeling gift (the WoT decoupled capability gate, now one dynamic step
+// instead of two Skip-gated ones). The two background-choice steps Skip unless
+// the chosen background offers ≥2 options. Shared by every flow builder.
+func appendCreationContent(steps []wizard.Step, races *progression.RaceRegistry, classes *progression.ClassRegistry, backgrounds *progression.BackgroundRegistry, feats *feat.Registry, giftGated bool) []wizard.Step {
+	if races != nil && len(races.All()) > 0 {
+		steps = append(steps, raceStep(raceOptions(races)))
 	}
-	allowed := make(map[string]bool, len(gifts))
-	for _, g := range gifts {
-		allowed[g] = true
+	if classes != nil && len(classes.All()) > 0 {
+		steps = append(steps, dynamicClassStep(classes, races, giftGated))
+	}
+	if backgrounds != nil && len(backgrounds.All()) > 0 {
+		steps = append(steps,
+			dynamicBackgroundStep(backgrounds, races),
+			backgroundFeatStep(backgrounds, feats),
+			backgroundEquipmentStep(backgrounds),
+		)
+	}
+	return steps
+}
+
+// eligibilityOf returns the (race category, gender) of an in-creation entity,
+// for the GetEligible/EligibleFor option filter. Empty category when raceless.
+func eligibilityOf(ce *creationEntity, races *progression.RaceRegistry) (category, gender string) {
+	gender = ce.gender
+	if races != nil && ce.raceID != "" {
+		if r, ok := races.Get(ce.raceID); ok {
+			category = r.Category
+		}
+	}
+	return category, gender
+}
+
+// dynamicClassStep is the single class step (default + WoT). Its options are the
+// classes the entity is eligible for (race category + gender); when giftGated
+// they are further filtered by the chosen channeling gift (Class.AllowsGift) —
+// the WoT capability gate. One dynamic step replaces the prior two Skip-gated
+// gift steps.
+func dynamicClassStep(classes *progression.ClassRegistry, races *progression.RaceRegistry, giftGated bool) *wizard.ChoiceStep {
+	options := func(e wizard.Entity) []wizard.Option {
+		ce := e.(*creationEntity)
+		cat, gen := eligibilityOf(ce, races)
+		return classOptionsFiltered(classes, func(c *progression.Class) bool {
+			if !c.EligibleFor(cat, gen) {
+				return false
+			}
+			if giftGated {
+				return c.AllowsGift(ce.channelingGift)
+			}
+			return true
+		})
 	}
 	return &wizard.ChoiceStep{
-		ID:       "class",
-		Prompt:   "Choose your class:",
-		Options:  opts,
-		OnSelect: func(e wizard.Entity, v any) { e.(*creationEntity).classID = v.(string) },
-		Skip:     func(e wizard.Entity) bool { return !allowed[e.(*creationEntity).channelingGift] },
+		ID:        "class",
+		Prompt:    "Choose your class:",
+		OptionsFn: options,
+		OnSelect:  func(e wizard.Entity, v any) { e.(*creationEntity).classID = v.(string) },
+		// Skip an empty menu (no class the entity is eligible for, given its
+		// gift) rather than render an unsatisfiable prompt — matches the old
+		// "omit the step" behavior and avoids a creation soft-lock. applyClass
+		// falls back to the default class downstream.
+		Skip: func(e wizard.Entity) bool { return len(options(e)) == 0 },
 	}
 }
 
-// appendContentSteps appends the race/class/background choice steps that
-// have any options, in the canonical order. Shared by every flow builder so
-// the content-gated section stays identical across packs.
-func appendContentSteps(steps []wizard.Step, raceOpts, classOpts, bgOpts []wizard.Option) []wizard.Step {
-	if len(raceOpts) > 0 {
-		steps = append(steps, raceStep(raceOpts))
+// dynamicBackgroundStep offers the backgrounds the entity is eligible for (race
+// category + gender) — closing the standing "wizard never calls GetEligible"
+// gap on the same dynamic-options seam.
+func dynamicBackgroundStep(backgrounds *progression.BackgroundRegistry, races *progression.RaceRegistry) *wizard.ChoiceStep {
+	options := func(e wizard.Entity) []wizard.Option {
+		ce := e.(*creationEntity)
+		cat, gen := eligibilityOf(ce, races)
+		return backgroundOptionsFiltered(backgrounds, func(b *progression.Background) bool {
+			return b.EligibleFor(cat, gen)
+		})
 	}
-	if len(classOpts) > 0 {
-		steps = append(steps, classStep(classOpts))
+	return &wizard.ChoiceStep{
+		ID:        "background",
+		Prompt:    "Choose your background:",
+		OptionsFn: options,
+		OnSelect:  func(e wizard.Entity, v any) { e.(*creationEntity).backgroundID = v.(string) },
+		// Skip when no eligible background (avoids an unsatisfiable prompt).
+		Skip: func(e wizard.Entity) bool { return len(options(e)) == 0 },
 	}
-	if len(bgOpts) > 0 {
-		steps = append(steps, backgroundStep(bgOpts))
+}
+
+// backgroundFeatStep lets the player pick ONE feat from the chosen background's
+// FeatOptions (backgrounds §2). Skipped unless the chosen background offers ≥2
+// options — 0 means no feat choice, 1 is auto-granted by the granter.
+func backgroundFeatStep(backgrounds *progression.BackgroundRegistry, feats *feat.Registry) *wizard.ChoiceStep {
+	return &wizard.ChoiceStep{
+		ID:     "background-feat",
+		Prompt: "Choose your background feat:",
+		OptionsFn: func(e wizard.Entity) []wizard.Option {
+			bg := chosenBackground(e, backgrounds)
+			if bg == nil {
+				return nil
+			}
+			opts := make([]wizard.Option, 0, len(bg.FeatOptions))
+			for _, fid := range bg.FeatOptions {
+				label := fid
+				tag, desc := "", ""
+				if feats != nil {
+					if f, ok := feats.Get(fid); ok {
+						label = displayOr(f.DisplayName, fid)
+						desc = f.Description
+					}
+				}
+				opts = append(opts, wizard.Option{Label: label, Tag: tag, Description: desc, Value: fid})
+			}
+			return opts
+		},
+		OnSelect: func(e wizard.Entity, v any) { e.(*creationEntity).backgroundFeat = v.(string) },
+		// Skip unless the chosen background offers ≥2 feat options — 0 = no
+		// choice, 1 = auto-granted by the granter. Same chosenBackground path as
+		// OptionsFn so the two never disagree.
+		Skip: func(e wizard.Entity) bool {
+			bg := chosenBackground(e, backgrounds)
+			return bg == nil || len(bg.FeatOptions) < 2
+		},
 	}
-	return steps
+}
+
+// backgroundEquipmentStep lets the player pick ONE equipment package from the
+// chosen background's EquipmentPackages (backgrounds §2). Skipped unless the
+// chosen background offers ≥2 packages. The package label joins the bare item
+// ids (namespace stripped) — readable without the item-template registry.
+func backgroundEquipmentStep(backgrounds *progression.BackgroundRegistry) *wizard.ChoiceStep {
+	return &wizard.ChoiceStep{
+		ID:     "background-equipment",
+		Prompt: "Choose your starting equipment:",
+		OptionsFn: func(e wizard.Entity) []wizard.Option {
+			bg := chosenBackground(e, backgrounds)
+			if bg == nil {
+				return nil
+			}
+			opts := make([]wizard.Option, 0, len(bg.EquipmentPackages))
+			for i, pkg := range bg.EquipmentPackages {
+				opts = append(opts, wizard.Option{Label: packageLabel(pkg), Value: i})
+			}
+			return opts
+		},
+		OnSelect: func(e wizard.Entity, v any) { e.(*creationEntity).backgroundEquipment = v.(int) },
+		Skip: func(e wizard.Entity) bool {
+			bg := chosenBackground(e, backgrounds)
+			return bg == nil || len(bg.EquipmentPackages) < 2
+		},
+	}
+}
+
+// chosenBackground resolves the entity's selected background (nil when none).
+func chosenBackground(e wizard.Entity, backgrounds *progression.BackgroundRegistry) *progression.Background {
+	if backgrounds == nil {
+		return nil
+	}
+	id := e.(*creationEntity).backgroundID
+	if id == "" {
+		return nil
+	}
+	b, _ := backgrounds.Get(id)
+	return b
+}
+
+// packageLabel renders an equipment package as a comma-joined list of its bare
+// item ids (namespace stripped), e.g. "wot:shortbow" + "wot:buckler" →
+// "shortbow, buckler".
+func packageLabel(pkg []string) string {
+	if len(pkg) == 0 {
+		return "(nothing)"
+	}
+	parts := make([]string, 0, len(pkg))
+	for _, it := range pkg {
+		if i := strings.LastIndex(it, ":"); i >= 0 {
+			it = it[i+1:]
+		}
+		parts = append(parts, it)
+	}
+	return strings.Join(parts, ", ")
+}
+
+// backgroundOptionsFiltered builds sorted background options, keeping only the
+// backgrounds the predicate accepts. Mirrors classOptionsFiltered.
+func backgroundOptionsFiltered(backgrounds *progression.BackgroundRegistry, keep func(*progression.Background) bool) []wizard.Option {
+	if backgrounds == nil {
+		return nil
+	}
+	all := backgrounds.All()
+	sort.Slice(all, func(i, j int) bool { return all[i].ID < all[j].ID })
+	opts := make([]wizard.Option, 0, len(all))
+	for _, b := range all {
+		if keep != nil && !keep(b) {
+			continue
+		}
+		opts = append(opts, wizard.Option{
+			Label:       displayOr(b.DisplayName, b.ID),
+			Tag:         b.Tagline,
+			Description: b.Description,
+			Value:       b.ID,
+		})
+	}
+	return opts
 }
 
 // creationFlow wraps an ordered step slice in the standard non-cancellable
@@ -265,24 +425,6 @@ func raceStep(opts []wizard.Option) *wizard.ChoiceStep {
 	}
 }
 
-func classStep(opts []wizard.Option) *wizard.ChoiceStep {
-	return &wizard.ChoiceStep{
-		ID:       "class",
-		Prompt:   "Choose your class:",
-		Options:  opts,
-		OnSelect: func(e wizard.Entity, v any) { e.(*creationEntity).classID = v.(string) },
-	}
-}
-
-func backgroundStep(opts []wizard.Option) *wizard.ChoiceStep {
-	return &wizard.ChoiceStep{
-		ID:       "background",
-		Prompt:   "Choose your background:",
-		Options:  opts,
-		OnSelect: func(e wizard.Entity, v any) { e.(*creationEntity).backgroundID = v.(string) },
-	}
-}
-
 func confirmStep() *wizard.ConfirmStep {
 	return &wizard.ConfirmStep{
 		ID:     "confirm",
@@ -312,28 +454,10 @@ func raceOptions(races *progression.RaceRegistry) []wizard.Option {
 	return opts
 }
 
-func classOptions(classes *progression.ClassRegistry) []wizard.Option {
-	return classOptionsFiltered(classes, nil)
-}
-
-// classOptionsForGift returns the class options whose AllowsGift accepts any
-// of the supplied gifts (the WoT decoupled capability gate). A class with no
-// gift restriction (empty AllowedGifts) is unrestricted and matches every
-// gift, so non-WoT classes always pass.
-func classOptionsForGift(classes *progression.ClassRegistry, gifts ...string) []wizard.Option {
-	return classOptionsFiltered(classes, func(c *progression.Class) bool {
-		for _, g := range gifts {
-			if c.AllowsGift(g) {
-				return true
-			}
-		}
-		return false
-	})
-}
-
 // classOptionsFiltered builds sorted class options, keeping only classes the
-// predicate accepts (nil predicate = keep all). Shared by classOptions and
-// classOptionsForGift so the option mapping + deterministic sort live once.
+// predicate accepts (nil predicate = keep all). The single home for the class
+// option mapping + deterministic sort; dynamicClassStep supplies the
+// eligibility/gift predicate.
 func classOptionsFiltered(classes *progression.ClassRegistry, keep func(*progression.Class) bool) []wizard.Option {
 	if classes == nil {
 		return nil
@@ -350,28 +474,6 @@ func classOptionsFiltered(classes *progression.ClassRegistry, keep func(*progres
 			Tag:         c.Tagline,
 			Description: c.Description,
 			Value:       c.ID,
-		})
-	}
-	return opts
-}
-
-// backgroundOptions builds choice options from the background registry,
-// sorted by id (backgrounds §3). Eligibility (AllowedCategories/Genders) is
-// not enforced in the static wizard — like class options, every background is
-// offered; the gates exist for a future dynamic flow.
-func backgroundOptions(backgrounds *progression.BackgroundRegistry) []wizard.Option {
-	if backgrounds == nil {
-		return nil
-	}
-	all := backgrounds.All()
-	sort.Slice(all, func(i, j int) bool { return all[i].ID < all[j].ID })
-	opts := make([]wizard.Option, 0, len(all))
-	for _, b := range all {
-		opts = append(opts, wizard.Option{
-			Label:       displayOr(b.DisplayName, b.ID),
-			Tag:         b.Tagline,
-			Description: b.Description,
-			Value:       b.ID,
 		})
 	}
 	return opts
@@ -501,6 +603,12 @@ func runCreation(ctx context.Context, c conn.Connection, cfg Config, loaded *log
 			// The background label (backgrounds §5). Its starting package is
 			// granted at character.created (skills/items/gold), not here.
 			loaded.Player.Background = pending.backgroundID
+			// The pick-one chooser selections (v29): the chosen feat (empty when
+			// the background offered <2 options → granter auto-grants the single
+			// one) and the chosen equipment-package index. The character.created
+			// granter reads these to apply the chosen feat + package.
+			loaded.Player.BackgroundFeat = pending.backgroundFeat
+			loaded.Player.BackgroundEquipmentChoice = pending.backgroundEquipment
 		}
 		if pending.gender != "" {
 			// Gender (v22). A general attribute; the WoT affinity layer reads it

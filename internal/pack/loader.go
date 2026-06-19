@@ -2091,6 +2091,19 @@ func decodeBackground(path, ns string) (*progression.Background, error) {
 	if err != nil {
 		return nil, err
 	}
+	// Equipment packages are namespace-qualified per package (each inner list
+	// is a mutually-exclusive bundle of item template ids), mirroring Items.
+	var packages [][]string
+	if len(f.EquipmentPackages) > 0 {
+		packages = make([][]string, 0, len(f.EquipmentPackages))
+		for i, pkg := range f.EquipmentPackages {
+			q, err := qualifyIDList(pkg, ns, path, fmt.Sprintf("equipment_packages[%d]", i))
+			if err != nil {
+				return nil, err
+			}
+			packages = append(packages, q)
+		}
+	}
 	return &progression.Background{
 		ID:          f.ID,
 		DisplayName: strings.TrimSpace(f.Name),
@@ -2101,6 +2114,8 @@ func decodeBackground(path, ns string) (*progression.Background, error) {
 		// Feat ids are global (not namespace-qualified, like abilities); the
 		// granter resolves them fail-soft. Register lowercases them.
 		Feats:             append([]string(nil), f.Feats...),
+		FeatOptions:       append([]string(nil), f.FeatOptions...),
+		EquipmentPackages: packages,
 		Gold:              f.Gold,
 		AllowedCategories: append([]string(nil), f.AllowedCategories...),
 		AllowedGenders:    append([]string(nil), f.AllowedGenders...),

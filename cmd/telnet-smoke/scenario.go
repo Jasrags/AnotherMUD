@@ -271,9 +271,10 @@ func scenarioBackgroundGrant(c *telnettest.Client, name string) error {
 		return err
 	}
 	answers := map[string]string{
-		"channeling": "cannot",  // "Cannot channel" → non-channeler classes
-		"class":      "armsman", // the only class offered to a non-channeler
-		"background": "aiel",
+		"channeling":      "cannot",  // "Cannot channel" → non-channeler classes
+		"class":           "armsman", // the only class offered to a non-channeler
+		"background":      "aiel",
+		"background feat": "blooded", // the pick-one chooser: Aiel offers Stealthy/Blooded
 	}
 	if err := finishLogin(c, name, isNew, answers); err != nil {
 		return err
@@ -294,7 +295,8 @@ func scenarioBackgroundGrant(c *telnettest.Client, name string) error {
 		}
 	}
 
-	// Feat: the Aiel package granted Stealthy.
+	// Feat: the chooser granted the CHOSEN Aiel feat (Blooded), not the
+	// alternate (Stealthy) — proving the pick-one chooser selects.
 	if err := c.SendLine("feats"); err != nil {
 		return err
 	}
@@ -302,8 +304,18 @@ func scenarioBackgroundGrant(c *telnettest.Client, name string) error {
 	if err != nil {
 		return fmt.Errorf("feats output: %w", err)
 	}
-	if !strings.Contains(strings.ToLower(feats), "stealthy") {
-		return fmt.Errorf("feats listing missing Stealthy (Aiel feat grant); got:\n%s", feats)
+	// Check the KNOWN-feats section only (before the "Available:" catalog line) —
+	// Stealthy legitimately appears in Available as a takeable feat; the point is
+	// the chooser put Blooded, not Stealthy, in the granted/known set.
+	known := strings.ToLower(feats)
+	if i := strings.Index(known, "available:"); i >= 0 {
+		known = known[:i]
+	}
+	if !strings.Contains(known, "blooded") {
+		return fmt.Errorf("known feats missing Blooded (the chosen Aiel feat); got:\n%s", feats)
+	}
+	if strings.Contains(known, "stealthy") {
+		return fmt.Errorf("known feats has Stealthy — the chooser granted the unchosen alternate; got:\n%s", feats)
 	}
 
 	// Skills: the Aiel package taught the Hide / Move Silently / Perception
@@ -433,10 +445,11 @@ func finishLogin(c *telnettest.Client, charName string, isNew bool, answers map[
 }
 
 // runWizardWith answers the character-creation wizard until the game prompt
-// appears. For each "Choose your <field>" menu it sends answers[field] if
-// present (e.g. "gender"→"female", "class"→"initiate"), else the first option;
-// every "(yes/no)" confirm gets "yes". Being menu-shape-agnostic means it
-// survives pack-specific wizard differences without edits.
+// appears. For each "Choose your <field>:" menu it sends answers[field] if
+// present (the FULL field phrase, e.g. "gender"→"female", "class"→"initiate",
+// "background feat"→"blooded"), else the first option; every "(yes/no)" confirm
+// gets "yes". Being menu-shape-agnostic means it survives pack-specific wizard
+// differences without edits.
 func runWizardWith(c *telnettest.Client, answers map[string]string) error {
 	// The WoT pack inserts a channeling step ("Your relationship to the One
 	// Power:") between gender and class — it is not a "Choose your <field>"
@@ -444,8 +457,12 @@ func runWizardWith(c *telnettest.Client, answers map[string]string) error {
 	// (default: first option). Keeping it here keeps the driver menu-shape-
 	// agnostic across the default and WoT flows.
 	const channelingCue = "relationship to the One Power"
-	step := regexp.MustCompile(`Choose your (\w+)|` + channelingCue + `|\(yes/no\)|` + gamePrompt.String())
-	field := regexp.MustCompile(`Choose your (\w+)`)
+	// The step matcher consumes the FULL "Choose your <field>:" prompt (through
+	// the colon) so a multi-word field isn't truncated mid-phrase — otherwise
+	// Expect would return the buffer ending at "Choose your background" and the
+	// field extractor below couldn't tell it from "Choose your background feat:".
+	step := regexp.MustCompile(`Choose your [\w ]+:|` + channelingCue + `|\(yes/no\)|` + gamePrompt.String())
+	field := regexp.MustCompile(`Choose your ([\w ]+):`)
 	const maxSteps = 20 // generous guard against an unexpected loop
 	for i := 0; i < maxSteps; i++ {
 		out, err := c.ExpectTimeout(step, 8*time.Second)

@@ -25,11 +25,13 @@ skills:
     proficiency: 10
 # Stealthy is one of the Aiel background feats (the only one that yet exists as
 # engine content); a thin-slice grant in place of the RPG's pick-one chooser.
-feats:
+# Pick-one background feat (the chooser): Stealthy (desert stealth) or Blooded
+# (a scout's honed senses) — both canonical Aiel background feats. A single kit
+# (no equipment choice yet — the cadin'sor/jewelry/tent packages await their
+# item templates).
+feat_options:
   - stealthy
-# A spear-and-horn warrior's kit: a Maiden's shortbow and a buckler. The
-# cadin'sor, shoufa, and waterskins of the full Aiel package await their item
-# templates (later phase).
+  - blooded
 items:
   - shortbow
   - buckler
