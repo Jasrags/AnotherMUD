@@ -2705,6 +2705,14 @@ func run() error {
 			return ""
 		},
 	)
+	// The primary active world selects the per-pack creation flow
+	// (character-identity §2). registries.Worlds lists kind:world namespaces
+	// in load order; one world boots today (co-host deferred), so the first
+	// entry is the primary. Empty → "" → the engine-default flow.
+	primaryWorld := ""
+	if len(registries.Worlds) > 0 {
+		primaryWorld = registries.Worlds[0]
+	}
 	handler := session.Handler(session.Config{
 		World:         w,
 		ChannelMap:    channelMap,
@@ -2815,8 +2823,11 @@ func run() error {
 		Consumable:      consumableSvc,
 		// M12.3: interactive character-creation wizard built from the
 		// race/class registries. Nil when neither is populated → the §2
-		// "no flow → immediate commit" path.
-		CreationFlow: session.NewCreationFlow(registries.Races, registries.Classes, registries.Backgrounds),
+		// "no flow → immediate commit" path. CreationFlowFor branches the
+		// assembly by the server's primary active world (character-identity
+		// §2: registries.Worlds holds the kind:world namespaces in load
+		// order; one world boots today, co-host deferred). "" → default flow.
+		CreationFlow: session.CreationFlowFor(primaryWorld, registries.Races, registries.Classes, registries.Backgrounds),
 		Clock:        clk,
 		Flood:        session.DefaultFloodConfig(),
 		// Raising ChainCap multiplies a client's effective command throughput:

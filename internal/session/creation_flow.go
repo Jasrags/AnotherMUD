@@ -55,6 +55,15 @@ type creationEntity struct {
 	backgroundID string
 	gender       string
 	rejected     bool
+
+	// channelingGift records the WoT channeling-flavor choice (option (a)).
+	// It is recorded by the WoT flow's channeling step but is deliberately
+	// NOT stamped onto loaded.Player in runCreation (non-persisted, no
+	// downstream effect, no save bump). It exists to demonstrate the
+	// per-pack-step pattern end-to-end; making it consequential (a
+	// spark-vs-learned eligibility gate) is an explicit follow-up that
+	// needs a real WoT-chargen design pass. See CreationFlowFor.
+	channelingGift string
 }
 
 // genderOptions is the v1 binary gender set offered at creation. Gender is a
@@ -67,17 +76,34 @@ var genderOptions = []wizard.Option{
 	{Label: "Female", Value: "female"},
 }
 
+// CreationFlowFor selects a creation flow by the server's primary active
+// world (character-identity §2). Customized worlds branch here ("Option A":
+// the flow assembly is per-pack Go, while the wizard engine stays generic);
+// every other world — "", "starter-world", or an unknown namespace — takes
+// the engine-default NewCreationFlow, preserved byte-for-byte. The world
+// string is the namespace of the single kind:world pack (registries.Worlds[0]
+// today; co-host is deferred). A nil return propagates (the §2 "no flow →
+// immediate commit" path) regardless of branch.
+func CreationFlowFor(world string, races *progression.RaceRegistry, classes *progression.ClassRegistry, backgrounds *progression.BackgroundRegistry) *wizard.Flow {
+	switch strings.ToLower(strings.TrimSpace(world)) {
+	case "wot":
+		return newWoTCreationFlow(races, classes, backgrounds)
+	default:
+		return NewCreationFlow(races, classes, backgrounds)
+	}
+}
+
 // NewCreationFlow builds the engine-default creation flow from the race
-// and class registries (spec §2/§3): an intro, a race choice (when any
-// races are registered), a class choice (when any classes are), and a
-// confirm. The completion handler (§6.3) fails only when the player
-// declined at the confirm step, which restarts the flow (§7); a missing
-// race/class is acceptable because the downstream applyRace/applyClass
-// fall back to the configured defaults. Returns nil when there is
-// nothing to choose (no races AND no classes) so the caller takes the
-// §2 "no flow → immediate commit" path.
+// and class registries (spec §2/§3): an intro, a gender choice, a race
+// choice (when any races are registered), a class choice (when any classes
+// are), an optional background choice, and a confirm. The completion
+// handler (§6.3) fails only when the player declined at the confirm step,
+// which restarts the flow (§7); a missing race/class is acceptable because
+// the downstream applyRace/applyClass fall back to the configured defaults.
+// Returns nil when there is nothing to choose (no races AND no classes AND
+// no backgrounds) so the caller takes the §2 "no flow → immediate commit"
+// path.
 func NewCreationFlow(races *progression.RaceRegistry, classes *progression.ClassRegistry, backgrounds *progression.BackgroundRegistry) *wizard.Flow {
-	var steps []wizard.Step
 	raceOpts := raceOptions(races)
 	classOpts := classOptions(classes)
 	bgOpts := backgroundOptions(backgrounds)
@@ -85,50 +111,55 @@ func NewCreationFlow(races *progression.RaceRegistry, classes *progression.Class
 		return nil
 	}
 
-	steps = append(steps, &wizard.InfoStep{
-		ID:   "intro",
-		Text: "Time to create your character.",
-	})
-	// Gender precedes race/class so a future dynamic flow can gate
-	// class/background eligibility on it (AllowedGenders). Always present once
-	// any content exists — gender is intrinsic to the character.
-	steps = append(steps, &wizard.ChoiceStep{
-		ID:       "gender",
-		Prompt:   "Choose your gender:",
-		Options:  genderOptions,
-		OnSelect: func(e wizard.Entity, v any) { e.(*creationEntity).gender = v.(string) },
-	})
+	steps := []wizard.Step{introStep(), genderStep()}
+	steps = appendContentSteps(steps, raceOpts, classOpts, bgOpts)
+	steps = append(steps, confirmStep())
+	return creationFlow(steps)
+}
+
+// newWoTCreationFlow is the Wheel-of-Time pack's creation flow. It reuses
+// every engine-default step (so race/class/background/confirm behavior is
+// identical) but inserts a channeling-flavor step immediately after gender
+// — gender must precede it, since saidin/saidar affinity already derives
+// from the chosen gender downstream. The channeling step is option (a): a
+// non-consequential, non-persisted placeholder demonstrating the per-pack
+// step pattern (see creationEntity.channelingGift). It returns nil on empty
+// content for the same reason NewCreationFlow does.
+func newWoTCreationFlow(races *progression.RaceRegistry, classes *progression.ClassRegistry, backgrounds *progression.BackgroundRegistry) *wizard.Flow {
+	raceOpts := raceOptions(races)
+	classOpts := classOptions(classes)
+	bgOpts := backgroundOptions(backgrounds)
+	if len(raceOpts) == 0 && len(classOpts) == 0 && len(bgOpts) == 0 {
+		return nil
+	}
+
+	steps := []wizard.Step{introStep(), genderStep(), channelingStep()}
+	steps = appendContentSteps(steps, raceOpts, classOpts, bgOpts)
+	steps = append(steps, confirmStep())
+	return creationFlow(steps)
+}
+
+// appendContentSteps appends the race/class/background choice steps that
+// have any options, in the canonical order. Shared by every flow builder so
+// the content-gated section stays identical across packs.
+func appendContentSteps(steps []wizard.Step, raceOpts, classOpts, bgOpts []wizard.Option) []wizard.Step {
 	if len(raceOpts) > 0 {
-		steps = append(steps, &wizard.ChoiceStep{
-			ID:       "race",
-			Prompt:   "Choose your race:",
-			Options:  raceOpts,
-			OnSelect: func(e wizard.Entity, v any) { e.(*creationEntity).raceID = v.(string) },
-		})
+		steps = append(steps, raceStep(raceOpts))
 	}
 	if len(classOpts) > 0 {
-		steps = append(steps, &wizard.ChoiceStep{
-			ID:       "class",
-			Prompt:   "Choose your class:",
-			Options:  classOpts,
-			OnSelect: func(e wizard.Entity, v any) { e.(*creationEntity).classID = v.(string) },
-		})
+		steps = append(steps, classStep(classOpts))
 	}
 	if len(bgOpts) > 0 {
-		steps = append(steps, &wizard.ChoiceStep{
-			ID:       "background",
-			Prompt:   "Choose your background:",
-			Options:  bgOpts,
-			OnSelect: func(e wizard.Entity, v any) { e.(*creationEntity).backgroundID = v.(string) },
-		})
+		steps = append(steps, backgroundStep(bgOpts))
 	}
-	steps = append(steps, &wizard.ConfirmStep{
-		ID:     "confirm",
-		Prompt: "Create this character? (yes/no)",
-		OnYes:  func(wizard.Entity) {},
-		OnNo:   func(e wizard.Entity) { e.(*creationEntity).rejected = true },
-	})
+	return steps
+}
 
+// creationFlow wraps an ordered step slice in the standard non-cancellable
+// character-creation flow with the §6.3/§7 confirm-restart completion
+// handler. Every flow builder funnels through here so the Flow envelope
+// (ID, Trigger, Cancellable, OnComplete) is identical across packs.
+func creationFlow(steps []wizard.Step) *wizard.Flow {
 	return &wizard.Flow{
 		ID:          "character-creation",
 		Trigger:     "new-player",
@@ -140,6 +171,82 @@ func NewCreationFlow(races *progression.RaceRegistry, classes *progression.Class
 			}
 			return true, ""
 		},
+	}
+}
+
+func introStep() *wizard.InfoStep {
+	return &wizard.InfoStep{
+		ID:   "intro",
+		Text: "Time to create your character.",
+	}
+}
+
+// genderStep precedes race/class so a future dynamic flow can gate
+// class/background eligibility on it (AllowedGenders). Always present once
+// any content exists — gender is intrinsic to the character.
+func genderStep() *wizard.ChoiceStep {
+	return &wizard.ChoiceStep{
+		ID:       "gender",
+		Prompt:   "Choose your gender:",
+		Options:  genderOptions,
+		OnSelect: func(e wizard.Entity, v any) { e.(*creationEntity).gender = v.(string) },
+	}
+}
+
+// channelingStep is the WoT per-pack step (option (a)). It is gender-agnostic
+// on purpose: wizard.ChoiceStep options are static, so saidin/saidar-specific
+// wording would require two Skip-gated steps (out of scope). The downstream
+// affinity already derives from Gender, so this stays flavor for now — the
+// selection is recorded on the entity but not persisted.
+func channelingStep() *wizard.ChoiceStep {
+	return &wizard.ChoiceStep{
+		ID:     "channeling",
+		Prompt: "Your relationship to the One Power:",
+		Options: []wizard.Option{
+			{Label: "Born with the spark", Value: "spark",
+				Description: "The Power came to you unbidden; you must learn control or die."},
+			{Label: "Able to learn", Value: "learn",
+				Description: "You could be taught to channel, given a teacher."},
+			{Label: "Cannot channel", Value: "none",
+				Description: "The True Source is closed to you."},
+		},
+		OnSelect: func(e wizard.Entity, v any) { e.(*creationEntity).channelingGift = v.(string) },
+	}
+}
+
+func raceStep(opts []wizard.Option) *wizard.ChoiceStep {
+	return &wizard.ChoiceStep{
+		ID:       "race",
+		Prompt:   "Choose your race:",
+		Options:  opts,
+		OnSelect: func(e wizard.Entity, v any) { e.(*creationEntity).raceID = v.(string) },
+	}
+}
+
+func classStep(opts []wizard.Option) *wizard.ChoiceStep {
+	return &wizard.ChoiceStep{
+		ID:       "class",
+		Prompt:   "Choose your class:",
+		Options:  opts,
+		OnSelect: func(e wizard.Entity, v any) { e.(*creationEntity).classID = v.(string) },
+	}
+}
+
+func backgroundStep(opts []wizard.Option) *wizard.ChoiceStep {
+	return &wizard.ChoiceStep{
+		ID:       "background",
+		Prompt:   "Choose your background:",
+		Options:  opts,
+		OnSelect: func(e wizard.Entity, v any) { e.(*creationEntity).backgroundID = v.(string) },
+	}
+}
+
+func confirmStep() *wizard.ConfirmStep {
+	return &wizard.ConfirmStep{
+		ID:     "confirm",
+		Prompt: "Create this character? (yes/no)",
+		OnYes:  func(wizard.Entity) {},
+		OnNo:   func(e wizard.Entity) { e.(*creationEntity).rejected = true },
 	}
 }
 
