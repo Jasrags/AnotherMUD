@@ -127,7 +127,7 @@ import (
 // means "knows no recipes beyond what a discipline grants at runtime";
 // the migration injects nothing. A known id whose recipe was removed from
 // content loads cleanly and is ignored at restore (§9), never an error.
-const CurrentVersion = 27
+const CurrentVersion = 28
 
 // Sentinel errors callers may check via errors.Is.
 var (
@@ -185,7 +185,16 @@ type Save struct {
 	// channeler's saidin/saidar affinity (WoT S2 Phase 3). Stored lowercase
 	// ("male"/"female" in v1). Empty/absent = unset (pre-v22 saves, or a pack
 	// whose flow omits the step) — readers treat unset as "no affinity".
-	Gender          string `yaml:"gender,omitempty"`
+	Gender string `yaml:"gender,omitempty"`
+	// ChannelingGift is the character's relationship to the One Power, chosen
+	// at creation in the WoT pack's flow (v28+): "spark" (born channeling),
+	// "learn" (can be taught), or "none" (the Source is closed). A durable
+	// origin trait distinct from the chosen class — the WoT creation flow's
+	// decoupled capability gate uses it to offer channeler vs non-channeler
+	// classes (see progression.Class.AllowsGift), and it persists so `score`
+	// and future S2 hooks can read it. Empty/absent = unset (pre-v28 saves, or
+	// any non-WoT pack whose flow omits the channeling step). Stored lowercase.
+	ChannelingGift  string `yaml:"channeling_gift,omitempty"`
 	TrainsAvailable int    `yaml:"trains_available,omitempty"`
 	Alignment       int    `yaml:"alignment,omitempty"`
 	// Gold is the §2.1 integer currency balance (v12+). Zero serializes
@@ -600,6 +609,7 @@ var playerMigrations = map[int]func(map[string]any) (map[string]any, error){
 	24: migrateV24toV25,
 	25: migrateV25toV26,
 	26: migrateV26toV27,
+	27: migrateV27toV28,
 }
 
 // migrateV1toV2 adds the empty inventory/equipment blocks introduced
@@ -1000,6 +1010,15 @@ func migrateV25toV26(in map[string]any) (map[string]any, error) {
 // which decodes to false — the correct default (stance off). No on-disk shape
 // needs to change.
 func migrateV26toV27(in map[string]any) (map[string]any, error) {
+	return in, nil
+}
+
+// migrateV27toV28 is a no-op: the v28 addition (Save.ChannelingGift, the WoT
+// channeling origin chosen at creation) is absent on a pre-v28 save, which
+// decodes to "" — the correct default (unset; no gift gate, no affinity). Old
+// characters predate the WoT per-pack creation flow, so none carry a gift. No
+// on-disk shape needs to change.
+func migrateV27toV28(in map[string]any) (map[string]any, error) {
 	return in, nil
 }
 

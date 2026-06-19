@@ -2362,6 +2362,7 @@ func decodeClass(path, ns string) (*progression.Class, error) {
 		TrainsPerLevel:        trains,
 		AllowedCategories:     append([]string(nil), f.AllowedCategories...),
 		AllowedGenders:        append([]string(nil), f.AllowedGenders...),
+		AllowedGifts:          append([]string(nil), f.AllowedGifts...),
 		ProficiencyTiers:      append([]string(nil), f.ProficiencyTiers...),
 		ProficiencyCategories: append([]string(nil), f.ProficiencyCategories...),
 		ArmorProficiencyTiers: append([]string(nil), f.ArmorProficiencyTiers...),

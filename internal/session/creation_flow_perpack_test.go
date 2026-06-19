@@ -33,6 +33,57 @@ func equalStrings(a, b []string) bool {
 	return true
 }
 
+func indexOf(ids []string, want string) int {
+	for i, id := range ids {
+		if id == want {
+			return i
+		}
+	}
+	return -1
+}
+
+// giftTaggedClasses registers three classes mirroring the WoT pack's gift
+// eligibility: two channeler classes (spark|learn) and one non-channeler
+// (none). Sorted-by-id, the channeler set is [initiate, wilder] and the
+// non-channeler set is [armsman].
+func giftTaggedClasses(t *testing.T) *progression.ClassRegistry {
+	t.Helper()
+	cr := progression.NewClassRegistry()
+	must := func(c *progression.Class) {
+		t.Helper()
+		if err := cr.Register(c); err != nil {
+			t.Fatalf("register %s: %v", c.ID, err)
+		}
+	}
+	must(&progression.Class{ID: "initiate", DisplayName: "Initiate", AllowedGifts: []string{"spark", "learn"}})
+	must(&progression.Class{ID: "wilder", DisplayName: "Wilder", AllowedGifts: []string{"spark", "learn"}})
+	must(&progression.Class{ID: "armsman", DisplayName: "Armsman", AllowedGifts: []string{"none"}})
+	return cr
+}
+
+// activeClassOptions returns the option labels of the class step that would
+// RENDER for the given gift — i.e. the one class step whose Skip predicate is
+// false for an entity carrying that gift. This is the decoupled capability
+// gate as the player sees it.
+func activeClassOptions(flow *wizard.Flow, gift string) []string {
+	e := &creationEntity{channelingGift: gift}
+	for _, s := range flow.Steps {
+		cs, ok := s.(*wizard.ChoiceStep)
+		if !ok || cs.ID != "class" {
+			continue
+		}
+		if cs.ShouldSkip(e) {
+			continue
+		}
+		labels := make([]string, 0, len(cs.Options))
+		for _, o := range cs.Options {
+			labels = append(labels, o.Label)
+		}
+		return labels
+	}
+	return nil
+}
+
 // CreationFlowFor for the default/unknown worlds must produce the exact
 // same flow as NewCreationFlow — the regression lock for "default flow
 // preserved byte-for-byte".
@@ -58,15 +109,17 @@ func TestCreationFlowFor_NilWhenNoContent(t *testing.T) {
 }
 
 // The WoT flow inserts the channeling step immediately after gender and
-// before race/class, and the default flow has no such step.
+// before the class step(s); the default flow has no channeling step.
 func TestCreationFlowFor_WoTInsertsChannelingAfterGender(t *testing.T) {
-	rr, cr := twoRaceOneClass(t)
+	rr := progression.NewRaceRegistry()
+	if err := rr.Register(&progression.Race{ID: "human", DisplayName: "Human"}); err != nil {
+		t.Fatalf("register human: %v", err)
+	}
+	cr := giftTaggedClasses(t)
 
 	def := stepIDs(NewCreationFlow(rr, cr, nil))
-	for _, id := range def {
-		if id == "channeling" {
-			t.Fatalf("default flow unexpectedly has a channeling step: %v", def)
-		}
+	if indexOf(def, "channeling") >= 0 {
+		t.Fatalf("default flow unexpectedly has a channeling step: %v", def)
 	}
 
 	wot := stepIDs(CreationFlowFor("wot", rr, cr, nil))
@@ -80,39 +133,74 @@ func TestCreationFlowFor_WoTInsertsChannelingAfterGender(t *testing.T) {
 	if ci != gi+1 {
 		t.Errorf("channeling at %d, gender at %d; want channeling immediately after gender (%v)", ci, gi, wot)
 	}
-	// channeling must precede race and class.
-	if ri := indexOf(wot, "race"); ri >= 0 && ci > ri {
-		t.Errorf("channeling (%d) should precede race (%d): %v", ci, ri, wot)
-	}
-	if cli := indexOf(wot, "class"); cli >= 0 && ci > cli {
-		t.Errorf("channeling (%d) should precede class (%d): %v", ci, cli, wot)
-	}
-	// Stripping channeling out of the WoT flow yields the default flow —
-	// proves every other step is reused unchanged.
-	var stripped []string
-	for _, id := range wot {
-		if id != "channeling" {
-			stripped = append(stripped, id)
-		}
-	}
-	if !equalStrings(stripped, def) {
-		t.Errorf("WoT flow minus channeling = %v, want default %v", stripped, def)
+	if firstClass := indexOf(wot, "class"); firstClass >= 0 && ci > firstClass {
+		t.Errorf("channeling (%d) should precede the class step (%d): %v", ci, firstClass, wot)
 	}
 }
 
-func indexOf(ids []string, want string) int {
-	for i, id := range ids {
-		if id == want {
-			return i
+// The decoupled capability gate: a "cannot channel" character is offered only
+// non-channeler classes; a spark/learn character only channeler classes.
+func TestCreationFlowFor_WoTGiftGatesClassOptions(t *testing.T) {
+	rr := progression.NewRaceRegistry()
+	if err := rr.Register(&progression.Race{ID: "human", DisplayName: "Human"}); err != nil {
+		t.Fatalf("register human: %v", err)
+	}
+	cr := giftTaggedClasses(t)
+	flow := CreationFlowFor("wot", rr, cr, nil)
+
+	cases := []struct {
+		gift string
+		want []string
+	}{
+		{"none", []string{"Armsman"}},
+		{"spark", []string{"Initiate", "Wilder"}},
+		{"learn", []string{"Initiate", "Wilder"}},
+	}
+	for _, tc := range cases {
+		if got := activeClassOptions(flow, tc.gift); !equalStrings(got, tc.want) {
+			t.Errorf("gift %q → class options %v, want %v", tc.gift, got, tc.want)
 		}
 	}
-	return -1
 }
 
-// Driving the WoT channeling step records the choice on the entity (option
-// (a): recorded, not persisted). Exercises the OnSelect wiring end-to-end.
-func TestWoTCreationFlow_RecordsChannelingGift(t *testing.T) {
-	rr, cr := twoRaceOneClass(t)
+// Driving the WoT flow for a "cannot channel" character lands on the
+// non-channeler class step (the channeler step is skipped) and records the
+// gift. Exercises the Skip-gated gate end-to-end through the instance.
+func TestWoTCreationFlow_NoneSelectsNonChanneler(t *testing.T) {
+	rr := progression.NewRaceRegistry()
+	if err := rr.Register(&progression.Race{ID: "human", DisplayName: "Human"}); err != nil {
+		t.Fatalf("register human: %v", err)
+	}
+	cr := giftTaggedClasses(t)
+	flow := CreationFlowFor("wot", rr, cr, nil)
+	e := &creationEntity{}
+	in := wizard.NewInstance(flow, e, &wizFakeIO{}, nil)
+	in.Start(context.Background())
+	in.Input(context.Background(), "male")    // gender
+	in.Input(context.Background(), "cannot")  // channeling: "Cannot channel" → none
+	in.Input(context.Background(), "human")   // race
+	in.Input(context.Background(), "armsman") // the non-channeler class step
+	st, _ := in.Input(context.Background(), "yes")
+
+	if st != wizard.StatusCompleted {
+		t.Fatalf("status = %v, want Completed", st)
+	}
+	if e.channelingGift != "none" {
+		t.Errorf("channelingGift = %q, want none", e.channelingGift)
+	}
+	if e.classID != "armsman" {
+		t.Errorf("classID = %q, want armsman", e.classID)
+	}
+}
+
+// Driving the WoT channeling step records the choice on the entity and lands
+// on a channeler class. Exercises the OnSelect wiring end-to-end.
+func TestWoTCreationFlow_SparkSelectsChanneler(t *testing.T) {
+	rr := progression.NewRaceRegistry()
+	if err := rr.Register(&progression.Race{ID: "human", DisplayName: "Human"}); err != nil {
+		t.Fatalf("register human: %v", err)
+	}
+	cr := giftTaggedClasses(t)
 	flow := CreationFlowFor("wot", rr, cr, nil)
 	if flow == nil {
 		t.Fatal("WoT flow should not be nil with races+classes")
@@ -120,13 +208,10 @@ func TestWoTCreationFlow_RecordsChannelingGift(t *testing.T) {
 	e := &creationEntity{}
 	in := wizard.NewInstance(flow, e, &wizFakeIO{}, nil)
 	in.Start(context.Background())
-	in.Input(context.Background(), "male") // gender
-	// channeling: option 1 = "Born with the spark" (Value "spark"). Selecting
-	// by index — "spark" is the Value, not a label prefix, so a prefix match
-	// would not resolve it.
-	in.Input(context.Background(), "1")
-	in.Input(context.Background(), "elf")     // race
-	in.Input(context.Background(), "fighter") // class
+	in.Input(context.Background(), "male")   // gender
+	in.Input(context.Background(), "born")   // channeling: "Born with the spark" → spark
+	in.Input(context.Background(), "human")  // race
+	in.Input(context.Background(), "wilder") // channeler class step
 	st, _ := in.Input(context.Background(), "yes")
 
 	if st != wizard.StatusCompleted {
@@ -135,29 +220,50 @@ func TestWoTCreationFlow_RecordsChannelingGift(t *testing.T) {
 	if e.channelingGift != "spark" {
 		t.Errorf("channelingGift = %q, want spark", e.channelingGift)
 	}
-	// Sanity: the rest of the character still assembled.
-	if e.gender != "male" || e.raceID != "elf" || e.classID != "fighter" {
-		t.Errorf("entity = %+v, want gender=male race=elf class=fighter", e)
+	if e.classID != "wilder" {
+		t.Errorf("classID = %q, want wilder", e.classID)
 	}
 }
 
-// The recorded channeling gift is NOT stamped onto the player save (option
-// (a) is non-persisted). runCreation commits race/class/gender but leaves no
-// channeling trace on loaded.Player.
-func TestRunCreation_WoTDoesNotPersistChanneling(t *testing.T) {
-	rr, cr := twoRaceOneClass(t)
+// The recorded channeling gift IS stamped onto the player save (v28) by
+// runCreation, alongside race/class/gender.
+func TestRunCreation_WoTPersistsChanneling(t *testing.T) {
+	rr := progression.NewRaceRegistry()
+	if err := rr.Register(&progression.Race{ID: "human", DisplayName: "Human"}); err != nil {
+		t.Fatalf("register human: %v", err)
+	}
+	cr := giftTaggedClasses(t)
 	cfg := Config{CreationFlow: CreationFlowFor("wot", rr, cr, nil)}
 	loaded := newPlayerLoaded("Rand")
-	// gender, channeling(index 1), race, class, confirm.
-	conn := &scriptedConn{inputs: []string{"male", "1", "elf", "fighter", "yes"}}
+	// gender, channeling("born"→spark), race, channeler class, confirm.
+	conn := &scriptedConn{inputs: []string{"male", "born", "human", "initiate", "yes"}}
 
 	if err := runCreation(context.Background(), conn, cfg, loaded); err != nil {
 		t.Fatalf("runCreation: %v", err)
 	}
-	if loaded.Player.Race != "elf" || loaded.Player.Gender != "male" {
-		t.Errorf("save race/gender = %q/%q, want elf/male", loaded.Player.Race, loaded.Player.Gender)
+	if loaded.Player.ChannelingGift != "spark" {
+		t.Errorf("save ChannelingGift = %q, want spark", loaded.Player.ChannelingGift)
 	}
-	// player.Save has no channeling field — the contract is "no save bump".
-	// This test documents that the commit path is unchanged; if a future
-	// change persists the gift, it must add a field + a save migration.
+	if loaded.Player.Gender != "male" || loaded.Player.Race != "human" {
+		t.Errorf("save gender/race = %q/%q, want male/human", loaded.Player.Gender, loaded.Player.Race)
+	}
+	if len(loaded.Player.Class) != 1 || loaded.Player.Class[0] != "initiate" {
+		t.Errorf("save class = %v, want [initiate]", loaded.Player.Class)
+	}
+}
+
+// The default (non-WoT) flow never sets a channeling gift, so the save's
+// ChannelingGift stays empty (no key written).
+func TestRunCreation_DefaultLeavesChannelingUnset(t *testing.T) {
+	rr, cr := twoRaceOneClass(t)
+	cfg := Config{CreationFlow: NewCreationFlow(rr, cr, nil)}
+	loaded := newPlayerLoaded("Bob")
+	conn := &scriptedConn{inputs: []string{"male", "elf", "fighter", "yes"}}
+
+	if err := runCreation(context.Background(), conn, cfg, loaded); err != nil {
+		t.Fatalf("runCreation: %v", err)
+	}
+	if loaded.Player.ChannelingGift != "" {
+		t.Errorf("default flow set ChannelingGift = %q, want empty", loaded.Player.ChannelingGift)
+	}
 }

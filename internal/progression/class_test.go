@@ -134,3 +134,43 @@ func TestGetEligible(t *testing.T) {
 		}
 	}
 }
+
+// AllowsGift gates character-creation eligibility by channeling gift. An empty
+// AllowedGifts is unrestricted (every non-WoT class); a populated list matches
+// case-insensitively against the Register-lowercased values.
+func TestClass_AllowsGift(t *testing.T) {
+	r := NewClassRegistry()
+	if err := r.Register(&Class{ID: "initiate", AllowedGifts: []string{"Spark", "LEARN"}}); err != nil {
+		t.Fatalf("register initiate: %v", err)
+	}
+	if err := r.Register(&Class{ID: "armsman", AllowedGifts: []string{"none"}}); err != nil {
+		t.Fatalf("register armsman: %v", err)
+	}
+	if err := r.Register(&Class{ID: "fighter"}); err != nil { // no gift gate
+		t.Fatalf("register fighter: %v", err)
+	}
+	init, _ := r.Get("initiate")
+	arms, _ := r.Get("armsman")
+	fight, _ := r.Get("fighter")
+
+	cases := []struct {
+		name string
+		c    *Class
+		gift string
+		want bool
+	}{
+		{"channeler accepts spark (case-insensitive)", init, "spark", true},
+		{"channeler accepts learn", init, "LEARN", true},
+		{"channeler rejects none", init, "none", false},
+		{"mundane accepts none", arms, "none", true},
+		{"mundane rejects spark", arms, "spark", false},
+		{"unrestricted accepts anything", fight, "spark", true},
+		{"unrestricted accepts none", fight, "none", true},
+		{"unrestricted accepts empty", fight, "", true},
+	}
+	for _, tc := range cases {
+		if got := tc.c.AllowsGift(tc.gift); got != tc.want {
+			t.Errorf("%s: AllowsGift(%q) = %v, want %v", tc.name, tc.gift, got, tc.want)
+		}
+	}
+}

@@ -56,13 +56,12 @@ type creationEntity struct {
 	gender       string
 	rejected     bool
 
-	// channelingGift records the WoT channeling-flavor choice (option (a)).
-	// It is recorded by the WoT flow's channeling step but is deliberately
-	// NOT stamped onto loaded.Player in runCreation (non-persisted, no
-	// downstream effect, no save bump). It exists to demonstrate the
-	// per-pack-step pattern end-to-end; making it consequential (a
-	// spark-vs-learned eligibility gate) is an explicit follow-up that
-	// needs a real WoT-chargen design pass. See CreationFlowFor.
+	// channelingGift records the WoT channeling origin chosen at the
+	// channeling step ("spark"/"learn"/"none"). It is consequential: the
+	// WoT flow's gift-gated class steps offer channeler vs non-channeler
+	// classes based on it (the decoupled capability gate — see
+	// giftedClassStep / progression.Class.AllowsGift), and runCreation
+	// stamps it onto loaded.Player.ChannelingGift (persisted, save v28).
 	channelingGift string
 }
 
@@ -117,14 +116,18 @@ func NewCreationFlow(races *progression.RaceRegistry, classes *progression.Class
 	return creationFlow(steps)
 }
 
-// newWoTCreationFlow is the Wheel-of-Time pack's creation flow. It reuses
-// every engine-default step (so race/class/background/confirm behavior is
-// identical) but inserts a channeling-flavor step immediately after gender
-// — gender must precede it, since saidin/saidar affinity already derives
-// from the chosen gender downstream. The channeling step is option (a): a
-// non-consequential, non-persisted placeholder demonstrating the per-pack
-// step pattern (see creationEntity.channelingGift). It returns nil on empty
-// content for the same reason NewCreationFlow does.
+// newWoTCreationFlow is the Wheel-of-Time pack's creation flow. It reuses the
+// engine-default intro/gender/race/background/confirm steps, but (1) inserts a
+// channeling step immediately after gender — gender must precede it, since
+// saidin/saidar affinity derives from the chosen gender downstream — and (2)
+// replaces the single class step with a decoupled capability gate: two
+// gift-gated class steps, of which exactly one renders per character. A
+// channeling-capable character (spark/learn) is offered the channeler classes;
+// a "cannot channel" character is offered the non-channeler classes. The gate
+// lives in the static-options wizard via per-entity Skip predicates (the
+// engine evaluates Skip against the channeling gift chosen two steps earlier);
+// no wizard-engine change is needed. Returns nil on empty content for the same
+// reason NewCreationFlow does.
 func newWoTCreationFlow(races *progression.RaceRegistry, classes *progression.ClassRegistry, backgrounds *progression.BackgroundRegistry) *wizard.Flow {
 	raceOpts := raceOptions(races)
 	classOpts := classOptions(classes)
@@ -134,9 +137,48 @@ func newWoTCreationFlow(races *progression.RaceRegistry, classes *progression.Cl
 	}
 
 	steps := []wizard.Step{introStep(), genderStep(), channelingStep()}
-	steps = appendContentSteps(steps, raceOpts, classOpts, bgOpts)
+	if len(raceOpts) > 0 {
+		steps = append(steps, raceStep(raceOpts))
+	}
+	// The two halves of the decoupled gate. giftedClassStep returns nil when
+	// no class is eligible for the gift values, so a pack missing one
+	// population simply omits that step.
+	if s := giftedClassStep(classes, "spark", "learn"); s != nil {
+		steps = append(steps, s)
+	}
+	if s := giftedClassStep(classes, "none"); s != nil {
+		steps = append(steps, s)
+	}
+	if len(bgOpts) > 0 {
+		steps = append(steps, backgroundStep(bgOpts))
+	}
 	steps = append(steps, confirmStep())
 	return creationFlow(steps)
+}
+
+// giftedClassStep builds a class ChoiceStep whose options are the classes
+// eligible for any of the given channeling gifts, gated to render only when
+// the entity's chosen channelingGift is one of them (the decoupled capability
+// gate). Returns nil when no class is eligible, so the caller omits an empty
+// step. All variants share the "class" step ID and write classID — only one
+// ever renders for a given character (the gifts partition the population), so
+// the duplicate ID is inert (the wizard iterates by index, skipping the rest).
+func giftedClassStep(classes *progression.ClassRegistry, gifts ...string) *wizard.ChoiceStep {
+	opts := classOptionsForGift(classes, gifts...)
+	if len(opts) == 0 {
+		return nil
+	}
+	allowed := make(map[string]bool, len(gifts))
+	for _, g := range gifts {
+		allowed[g] = true
+	}
+	return &wizard.ChoiceStep{
+		ID:       "class",
+		Prompt:   "Choose your class:",
+		Options:  opts,
+		OnSelect: func(e wizard.Entity, v any) { e.(*creationEntity).classID = v.(string) },
+		Skip:     func(e wizard.Entity) bool { return !allowed[e.(*creationEntity).channelingGift] },
+	}
 }
 
 // appendContentSteps appends the race/class/background choice steps that
@@ -271,6 +313,28 @@ func raceOptions(races *progression.RaceRegistry) []wizard.Option {
 }
 
 func classOptions(classes *progression.ClassRegistry) []wizard.Option {
+	return classOptionsFiltered(classes, nil)
+}
+
+// classOptionsForGift returns the class options whose AllowsGift accepts any
+// of the supplied gifts (the WoT decoupled capability gate). A class with no
+// gift restriction (empty AllowedGifts) is unrestricted and matches every
+// gift, so non-WoT classes always pass.
+func classOptionsForGift(classes *progression.ClassRegistry, gifts ...string) []wizard.Option {
+	return classOptionsFiltered(classes, func(c *progression.Class) bool {
+		for _, g := range gifts {
+			if c.AllowsGift(g) {
+				return true
+			}
+		}
+		return false
+	})
+}
+
+// classOptionsFiltered builds sorted class options, keeping only classes the
+// predicate accepts (nil predicate = keep all). Shared by classOptions and
+// classOptionsForGift so the option mapping + deterministic sort live once.
+func classOptionsFiltered(classes *progression.ClassRegistry, keep func(*progression.Class) bool) []wizard.Option {
 	if classes == nil {
 		return nil
 	}
@@ -278,6 +342,9 @@ func classOptions(classes *progression.ClassRegistry) []wizard.Option {
 	sort.Slice(all, func(i, j int) bool { return all[i].ID < all[j].ID })
 	opts := make([]wizard.Option, 0, len(all))
 	for _, c := range all {
+		if keep != nil && !keep(c) {
+			continue
+		}
 		opts = append(opts, wizard.Option{
 			Label:       displayOr(c.DisplayName, c.ID),
 			Tag:         c.Tagline,
@@ -439,6 +506,13 @@ func runCreation(ctx context.Context, c conn.Connection, cfg Config, loaded *log
 			// Gender (v22). A general attribute; the WoT affinity layer reads it
 			// off the actor's save to derive saidin/saidar element strengths.
 			loaded.Player.Gender = pending.gender
+		}
+		if pending.channelingGift != "" {
+			// Channeling origin (v28). Only the WoT flow's channeling step sets
+			// this; the default flow leaves it empty (no key written). A durable
+			// trait distinct from the chosen class — score + future S2 hooks
+			// read it off the save.
+			loaded.Player.ChannelingGift = pending.channelingGift
 		}
 		return nil
 	}

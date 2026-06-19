@@ -479,6 +479,7 @@ type ClassFile struct {
 	TrainsPerLevel        int                  `yaml:"trains_per_level,omitempty"`
 	AllowedCategories     []string             `yaml:"allowed_categories,omitempty"`
 	AllowedGenders        []string             `yaml:"allowed_genders,omitempty"`
+	AllowedGifts          []string             `yaml:"allowed_gifts,omitempty"`
 	ProficiencyTiers      []string             `yaml:"proficiency_tiers,omitempty"`
 	ProficiencyCategories []string             `yaml:"proficiency_categories,omitempty"`
 	ArmorProficiencyTiers []string             `yaml:"armor_proficiency_tiers,omitempty"`

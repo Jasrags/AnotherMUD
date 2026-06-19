@@ -105,6 +105,13 @@ func ScoreHandler(ctx context.Context, c *Context) error {
 		}
 	}
 
+	// Channeling origin (WoT, v28). Probed via an anonymous interface (like
+	// madness) so the sheet stays decoupled from the channeling adapter; shown
+	// only when set, so it never clutters a non-WoT character's sheet.
+	if gh, ok := c.Actor.(interface{ ChannelingGift() string }); ok {
+		d.Gift = channelingGiftLabel(gh.ChannelingGift())
+	}
+
 	if ph, ok := c.Actor.(ProgressionHolder); ok && c.Progression != nil {
 		// Primary track = the first registered track the actor has info
 		// for (adventure today; the score sheet shows one headline level).
@@ -183,6 +190,9 @@ type scoreData struct {
 	Gender      string
 	Race, Class string
 	Background  string
+	// Gift is the WoT channeling origin (spark/learn/none), shown as a friendly
+	// phrase under the identity line when set; empty for non-WoT characters.
+	Gift string
 
 	HasVitals     bool
 	HP, MaxHP     int
@@ -251,6 +261,9 @@ func renderScore(d scoreData) string {
 	}
 	if d.Background != "" {
 		charCol = append(charCol, scKV("Background", scHi(d.Background), 11))
+	}
+	if d.Gift != "" {
+		charCol = append(charCol, scKV("The Power", scHi(d.Gift), 11))
 	}
 	if d.HasLevel {
 		// ASCII separator (not "·") — panel width math is byte-based, so a
@@ -489,6 +502,22 @@ func madnessBand(m int) string {
 		return "a shadow on your mind"
 	default:
 		return "a faint whisper"
+	}
+}
+
+// channelingGiftLabel maps a stored channeling gift ("spark"/"learn"/"none")
+// to the phrase shown on the score sheet. An empty or unrecognized gift maps
+// to "" so the row is omitted (non-WoT characters, pre-v28 saves).
+func channelingGiftLabel(gift string) string {
+	switch strings.ToLower(strings.TrimSpace(gift)) {
+	case "spark":
+		return "born with the spark"
+	case "learn":
+		return "able to learn"
+	case "none":
+		return "cannot channel"
+	default:
+		return ""
 	}
 }
 

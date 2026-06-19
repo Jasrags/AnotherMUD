@@ -76,6 +76,15 @@ save_progressions:
 allowed_categories:
   - humanoid
 
+# Channeling-gift eligibility (character-creation): only a character who can
+# touch the Source may walk the Wilder's self-taught path. Both the spark (born
+# channeling) and the learner (can be taught) qualify; the gift gates
+# channeler-vs-not, while the Initiate/Wilder choice stays a separate pick. A
+# "cannot channel" character never sees this class.
+allowed_gifts:
+  - spark
+  - learn
+
 starting_alignment: 0
 
 priority: 0

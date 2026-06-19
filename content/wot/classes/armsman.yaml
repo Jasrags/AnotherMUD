@@ -90,6 +90,13 @@ save_progressions:
 allowed_categories:
   - humanoid
 
+# Channeling-gift eligibility (character-creation): the Armsman is the path for
+# those the True Source is closed to — "cannot channel". A character who can
+# touch the Source (spark or learn) takes a channeler class instead; the
+# decoupled capability gate keeps the two populations separate at creation.
+allowed_gifts:
+  - none
+
 starting_alignment: 0
 
 priority: 0

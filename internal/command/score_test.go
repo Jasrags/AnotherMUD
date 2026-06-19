@@ -102,3 +102,41 @@ func TestTitleCase(t *testing.T) {
 		}
 	}
 }
+
+// The WoT channeling origin renders as a friendly "The Power" row when set,
+// and is absent for a character without a gift.
+func TestRenderScore_ChannelingGift(t *testing.T) {
+	with := renderScore(scoreData{
+		Name: "Rand", Race: "Human", Class: "Wilder", Gift: "born with the spark",
+		HasVitals: true, HP: 30, MaxHP: 30,
+	})
+	if !strings.Contains(with, "born with the spark") {
+		t.Errorf("gift row missing\n--- got ---\n%s", with)
+	}
+	if !strings.Contains(with, "The Power") {
+		t.Errorf("gift row label missing\n--- got ---\n%s", with)
+	}
+	without := renderScore(scoreData{
+		Name: "Perrin", Race: "Human", Class: "Armsman",
+		HasVitals: true, HP: 40, MaxHP: 40,
+	})
+	if strings.Contains(without, "The Power") {
+		t.Errorf("gift row should be absent when unset\n--- got ---\n%s", without)
+	}
+}
+
+func TestChannelingGiftLabel(t *testing.T) {
+	cases := map[string]string{
+		"spark": "born with the spark",
+		"learn": "able to learn",
+		"none":  "cannot channel",
+		"SPARK": "born with the spark", // case-insensitive
+		"":      "",                    // unset → omitted
+		"bogus": "",                    // unknown → omitted
+	}
+	for in, want := range cases {
+		if got := channelingGiftLabel(in); got != want {
+			t.Errorf("channelingGiftLabel(%q) = %q, want %q", in, got, want)
+		}
+	}
+}

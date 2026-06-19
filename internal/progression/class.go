@@ -35,10 +35,10 @@ type ClassPathEntry struct {
 // Class is value-typed for registry storage. The registry hands
 // callers a pointer to its own copy; callers MUST NOT mutate it.
 type Class struct {
-	ID           string
-	DisplayName  string
-	Tagline      string
-	Description  string
+	ID            string
+	DisplayName   string
+	Tagline       string
+	Description   string
 	LevelUpFlavor string
 
 	// BoundTrack is the case-insensitive track name a level-up event
@@ -85,6 +85,14 @@ type Class struct {
 	// AllowedGenders filters character-creation eligibility by
 	// gender (§4.1). Empty = unrestricted.
 	AllowedGenders []string
+
+	// AllowedGifts filters character-creation eligibility by the character's
+	// channeling gift — a pack-defined creation attribute (the WoT pack uses
+	// "spark"/"learn"/"none"). Empty = unrestricted (no gift gate; the case
+	// for every non-WoT class). Lowercased at Register. Consumed by the WoT
+	// creation flow's decoupled capability gate: a class is offered only when
+	// AllowsGift(chosenGift) is true.
+	AllowedGifts []string
 
 	// ProficiencyTiers is the set of weapon proficiency tiers this class
 	// grants (weapon-identity §3, e.g. "simple", "martial"). A character
@@ -206,6 +214,13 @@ func (cr *ClassRegistry) Register(c *Class) error {
 		}
 		clone.AllowedGenders = gens
 	}
+	if len(c.AllowedGifts) > 0 {
+		gifts := make([]string, len(c.AllowedGifts))
+		for i, v := range c.AllowedGifts {
+			gifts[i] = strings.ToLower(strings.TrimSpace(v))
+		}
+		clone.AllowedGifts = gifts
+	}
 	if len(c.ProficiencyTiers) > 0 {
 		ts := make([]string, len(c.ProficiencyTiers))
 		for i, v := range c.ProficiencyTiers {
@@ -295,6 +310,14 @@ func (cr *ClassRegistry) GetEligible(raceCategory, gender string) []*Class {
 		out = append(out, c)
 	}
 	return out
+}
+
+// AllowsGift reports whether a character with the given channeling gift may
+// pick this class. An empty AllowedGifts means "no gift gate" (unrestricted —
+// every non-WoT class). Comparison is case-insensitive against the
+// Register-lowercased list. Used by the WoT creation flow's capability gate.
+func (c *Class) AllowsGift(gift string) bool {
+	return categoryAllowed(c.AllowedGifts, strings.ToLower(strings.TrimSpace(gift)))
 }
 
 // categoryAllowed reports whether value is in the allow list, or

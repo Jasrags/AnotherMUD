@@ -3786,6 +3786,19 @@ func (a *connActor) Madness() int {
 	return a.save.Madness
 }
 
+// ChannelingGift returns the actor's WoT channeling origin chosen at creation
+// ("spark"/"learn"/"none"); empty means unset (a non-WoT character, or a save
+// pre-v28). Lives on the save (like Gender/Madness), read under the lock. Read
+// by `score` and available to future S2 hooks.
+func (a *connActor) ChannelingGift() string {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	if a.save == nil {
+		return ""
+	}
+	return a.save.ChannelingGift
+}
+
 // HasFeat reports whether the actor has taken the given feat (case-insensitive),
 // reading the persisted KnownFeats under the lock. A lightweight query for hot
 // paths (the madness accrual / manifestation seam) that don't need the full
