@@ -29,6 +29,7 @@ const smokePassword = "smoketest-pw"
 var scenarios = map[string]func(*telnettest.Client, string) error{
 	"login-look":         scenarioLoginLook,
 	"channeler-affinity": scenarioChannelerAffinity,
+	"background-grant":   scenarioBackgroundGrant,
 }
 
 func scenarioNames() []string {
@@ -253,6 +254,72 @@ func engageBoar(c *telnettest.Client) error {
 	return fmt.Errorf("could not engage a wild boar within 45s (last response: %q)", last)
 }
 
+// scenarioBackgroundGrant verifies, end to end, that a WoT background's
+// starting package actually lands on a freshly created character. It creates an
+// Aiel (gift "cannot channel" → the non-channeler Armsman class), then asserts:
+//   - inventory holds the Aiel item grant (a shortbow + a buckler),
+//   - the feats listing holds the Aiel feat grant (Stealthy),
+//   - the score sheet shows the channeling-gift row ("cannot channel"),
+//     which also re-confirms the gift→score plumbing.
+//
+// Requires a WoT engine (ANOTHERMUD_PACKS=wot). Run against a throwaway save
+// dir so the character is created fresh (the wizard answers below apply only on
+// first creation).
+func scenarioBackgroundGrant(c *telnettest.Client, name string) error {
+	isNew, err := doLogin(c, name)
+	if err != nil {
+		return err
+	}
+	answers := map[string]string{
+		"channeling": "cannot",  // "Cannot channel" → non-channeler classes
+		"class":      "armsman", // the only class offered to a non-channeler
+		"background": "aiel",
+	}
+	if err := finishLogin(c, name, isNew, answers); err != nil {
+		return err
+	}
+
+	// Items: the Aiel package put a shortbow + a buckler in inventory.
+	if err := c.SendLine("inventory"); err != nil {
+		return err
+	}
+	inv, err := c.Expect(gamePrompt)
+	if err != nil {
+		return fmt.Errorf("inventory output: %w", err)
+	}
+	invLower := strings.ToLower(inv)
+	for _, want := range []string{"shortbow", "buckler"} {
+		if !strings.Contains(invLower, want) {
+			return fmt.Errorf("inventory missing %q (Aiel item grant); got:\n%s", want, inv)
+		}
+	}
+
+	// Feat: the Aiel package granted Stealthy.
+	if err := c.SendLine("feats"); err != nil {
+		return err
+	}
+	feats, err := c.Expect(gamePrompt)
+	if err != nil {
+		return fmt.Errorf("feats output: %w", err)
+	}
+	if !strings.Contains(strings.ToLower(feats), "stealthy") {
+		return fmt.Errorf("feats listing missing Stealthy (Aiel feat grant); got:\n%s", feats)
+	}
+
+	// Bonus: the channeling gift shows on the score sheet ("The Power").
+	if err := c.SendLine("score"); err != nil {
+		return err
+	}
+	sheet, err := c.Expect(gamePrompt)
+	if err != nil {
+		return fmt.Errorf("score output: %w", err)
+	}
+	if !strings.Contains(strings.ToLower(sheet), "cannot channel") {
+		return fmt.Errorf("score sheet missing the channeling-gift row; got:\n%s", sheet)
+	}
+	return nil
+}
+
 // createAndLogin drives the login flow for name, creating the character with
 // wizard defaults if it's new, and returns once the in-game prompt appears.
 func createAndLogin(c *telnettest.Client, name string) error {
@@ -355,7 +422,13 @@ func finishLogin(c *telnettest.Client, charName string, isNew bool, answers map[
 // every "(yes/no)" confirm gets "yes". Being menu-shape-agnostic means it
 // survives pack-specific wizard differences without edits.
 func runWizardWith(c *telnettest.Client, answers map[string]string) error {
-	step := regexp.MustCompile(`Choose your (\w+)|\(yes/no\)|` + gamePrompt.String())
+	// The WoT pack inserts a channeling step ("Your relationship to the One
+	// Power:") between gender and class — it is not a "Choose your <field>"
+	// menu, so it gets its own recognizer + the "channeling" answer key
+	// (default: first option). Keeping it here keeps the driver menu-shape-
+	// agnostic across the default and WoT flows.
+	const channelingCue = "relationship to the One Power"
+	step := regexp.MustCompile(`Choose your (\w+)|` + channelingCue + `|\(yes/no\)|` + gamePrompt.String())
 	field := regexp.MustCompile(`Choose your (\w+)`)
 	const maxSteps = 20 // generous guard against an unexpected loop
 	for i := 0; i < maxSteps; i++ {
@@ -374,6 +447,10 @@ func runWizardWith(c *telnettest.Client, answers map[string]string) error {
 			ans := "1"
 			if m := field.FindStringSubmatch(out); m != nil {
 				if a, ok := answers[strings.ToLower(m[1])]; ok {
+					ans = a
+				}
+			} else if strings.Contains(out, channelingCue) {
+				if a, ok := answers["channeling"]; ok {
 					ans = a
 				}
 			}
