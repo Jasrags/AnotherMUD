@@ -32,6 +32,10 @@ content:
     - tracks/*.yaml
   classes:
     - classes/*.yaml
+  # The eleven human homelands of the Westlands (docs/wot/backgrounds.md) —
+  # thin-slice creation packages (existing skills/items/feats + gold + flavor).
+  backgrounds:
+    - backgrounds/*.yaml
   feats:
     - feats/*.yaml
   abilities:

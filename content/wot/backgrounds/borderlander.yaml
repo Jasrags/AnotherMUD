@@ -1,0 +1,22 @@
+# See aiel.yaml for the WoT background contract (thin slice; docs/specs/backgrounds.md §2).
+id: borderlander
+name: Borderlander
+tagline: Raised in the shadow of the Blight.
+description: |
+  You come from the Borderlands — Saldaea, Kandor, Arafel, or fallen Shienar —
+  the kingdoms that stand watch along the Blight. "Peace, Beauty, Life" is your
+  creed, and you value all three the more for living a day's ride from the
+  Shadow. Hard-bitten and unflinching, you learned the sword and the watchtower
+  before you learned to read.
+skills: []
+# Stealthy is one of the Borderlander background feats that exists as engine
+# content — a thin-slice grant in place of the pick-one chooser.
+feats:
+  - stealthy
+# Studded leather, a Borderland soldier's serviceable armor. The horse, lances,
+# and heavier kit of the full package await later phases.
+items:
+  - studded-leather
+gold: 20
+allowed_categories:
+  - humanoid

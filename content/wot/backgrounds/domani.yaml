@@ -1,0 +1,19 @@
+# See aiel.yaml for the WoT background contract (thin slice; docs/specs/backgrounds.md §2).
+id: domani
+name: Domani
+tagline: Of Arad Doman — trader, schemer, charmer.
+description: |
+  You hail from Arad Doman, between the Mountains of Mist and the Aryth Ocean,
+  where trade, politics, and pleasure are practiced as one art. Domani are
+  cunning bargainers and famed for a charm that disarms; you were taught to read
+  a counterpart's wants and turn them to your profit. A full purse opens more
+  doors than a drawn blade.
+skills: []
+feats: []
+# No item grant in the thin slice — the Domani package is jewelry, fine clothes,
+# and merchant goods, none of which exist as templates yet. The character starts
+# instead with a heavier purse befitting a trader.
+items: []
+gold: 50
+allowed_categories:
+  - humanoid

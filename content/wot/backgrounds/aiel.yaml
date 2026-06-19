@@ -1,0 +1,29 @@
+# A WoT human background (docs/wot/backgrounds.md; docs/specs/backgrounds.md §2):
+# the homeland/culture a character arises from, granting a one-time starting
+# package. THIN SLICE — only skills/items/feats that already exist are granted;
+# the RPG's languages, skill/weapon restrictions, "pick one feat", and the full
+# equipment-package choice are deferred (later phases). allowed_categories is
+# authored for correctness even though the wizard does not yet enforce it.
+id: aiel
+name: Aiel
+tagline: Of the Three-fold Land, bound by ji'e'toh.
+description: |
+  You were raised in the Aiel Waste, the harsh desert your people call the
+  Three-fold Land. Honor and obligation — ji'e'toh — order your every act; a
+  debt of toh must be repaid, and shame is worse than any wound. You move
+  veiled and silent, and you despise the soft wetlanders who have never known
+  thirst. By custom you will not touch a sword.
+skills: []
+# Stealthy is one of the Aiel background feats (the only one that yet exists as
+# engine content); a thin-slice grant in place of the RPG's pick-one chooser.
+feats:
+  - stealthy
+# A spear-and-horn warrior's kit: a Maiden's shortbow and a buckler. The
+# cadin'sor, shoufa, and waterskins of the full Aiel package await their item
+# templates (later phase).
+items:
+  - shortbow
+  - buckler
+gold: 10
+allowed_categories:
+  - humanoid

@@ -1,0 +1,21 @@
+# See aiel.yaml for the WoT background contract (thin slice; docs/specs/backgrounds.md §2).
+id: midlander
+name: Midlander
+tagline: Of the heartlands — solid, dependable, slow to anger.
+description: |
+  You come from the broad middle of the westlands — Andor, Murandy, the Two
+  Rivers, Baerlon and beyond — the settled farms and market towns that feed the
+  world. Midlanders are steady, hard-working, and slow to anger, and some carry
+  the old blood of Manetheren under plain wool. You leave home with a working
+  blade and a countryman's practical kit.
+skills: []
+feats: []
+# The boar-spear / leather-armor / shield option from the Midlander package —
+# all three exist as templates. The horse and healer's kit await later phases.
+items:
+  - boarspear
+  - leather-armor
+  - small-steel-shield
+gold: 20
+allowed_categories:
+  - humanoid

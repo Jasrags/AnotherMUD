@@ -1,0 +1,20 @@
+# See aiel.yaml for the WoT background contract (thin slice; docs/specs/backgrounds.md §2).
+id: athaan-miere
+name: Atha'an Miere
+tagline: Of the Sea Folk, salt-named and ship-born.
+description: |
+  You are of the Atha'an Miere — the Sea Folk — raised on the decks of the
+  raker and soarer fleets that ply the waters south of the Sea of Storms. You
+  bargain hard and honestly, keep your discipline under any storm, and turn
+  sociable in port over food, music, and games. The Mistress of the Ships rules
+  your clans; a Windfinder reads the weather, and a salt name is earned, not
+  given.
+skills: []
+feats: []
+# A duelist's rapier — the Sea Folk's deck-fighting blade. Hourglass, silks, and
+# the gold rings of the full package await their item templates.
+items:
+  - rapier
+gold: 30
+allowed_categories:
+  - humanoid

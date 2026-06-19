@@ -1,0 +1,20 @@
+# See aiel.yaml for the WoT background contract (thin slice; docs/specs/backgrounds.md §2).
+id: tar-valoner
+name: Tar Valoner
+tagline: Of the island city at Dragonmount's foot.
+description: |
+  You were raised in Tar Valon, the white island city on the Erinin beneath
+  Dragonmount, home of the White Tower. More cosmopolitan and better schooled
+  than most midlanders, you grew up with Aes Sedai, novices, and Accepted a
+  common sight on the streets — respected rather than feared. Few places in the
+  world prepare a mind so well for the world beyond.
+skills: []
+feats: []
+# A Warder's-style kit: a sword and studded leather. The lantern, mirror, and
+# the heavier purse of the full package await later phases.
+items:
+  - short-sword
+  - studded-leather
+gold: 50
+allowed_categories:
+  - humanoid

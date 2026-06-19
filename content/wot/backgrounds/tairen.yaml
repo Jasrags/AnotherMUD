@@ -1,0 +1,19 @@
+# See aiel.yaml for the WoT background contract (thin slice; docs/specs/backgrounds.md §2).
+id: tairen
+name: Tairen
+tagline: Of Tear, beneath the shadow of the Stone.
+description: |
+  You are of Tear, the great port at the mouth of the Erinin, guarded by the
+  fortress-Stone that has never fallen. Tairen nobles are proud to the edge of
+  arrogance, the divide between High Lord and commoner rigid as stone. In Tear
+  the Power is forbidden and the Prophecies of the Dragon are outlawed — a law
+  you grew up never questioning aloud.
+skills: []
+feats: []
+# A mail shirt — a Defender's or guardsman's armor. The horse, courtier's dress,
+# and the gambler's dice of the full package await later phases.
+items:
+  - mail-shirt
+gold: 35
+allowed_categories:
+  - humanoid

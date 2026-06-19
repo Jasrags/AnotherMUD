@@ -1,0 +1,19 @@
+# See aiel.yaml for the WoT background contract (thin slice; docs/specs/backgrounds.md §2).
+id: cairhienin
+name: Cairhienin
+tagline: A player of the Great Game.
+description: |
+  You were born to Cairhien of the Topless Towers, where Daes Dae'mar — the
+  Game of Houses — is breathed in with the air. You crave order, plan three
+  moves ahead, and read a room's loyalties before you cross it. Fair-skinned and
+  dark-eyed, you wear your ambitions as carefully as a noble wears the slashes
+  of rank.
+skills: []
+feats: []
+# A short blade for a duelist of the Game. The signet ring, mirror, and noble's
+# silks of the full package await their item templates.
+items:
+  - short-sword
+gold: 35
+allowed_categories:
+  - humanoid

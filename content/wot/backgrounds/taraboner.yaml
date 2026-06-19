@@ -1,0 +1,23 @@
+# See aiel.yaml for the WoT background contract (thin slice; docs/specs/backgrounds.md §2).
+id: taraboner
+name: Taraboner
+tagline: Of Tarabon, where the face is kept veiled.
+description: |
+  You hail from Tarabon in the humid southwest, its capital Tanchico sprawled
+  across three peninsulas. Taraboners define themselves by the veil — to bare
+  your face in private company is a discourtesy — and trace their pride to the
+  Age of Legends. You learned the trades of a great harbor city, and the quiet
+  skills that thrive in its crowded lanes.
+# Open Lock is one of the Taraboner background skills and exists as an engine
+# skill (use-based proficiency) — taught at a modest starting proficiency.
+skills:
+  - ability: open-lock
+    proficiency: 10
+feats: []
+# No item grant in the thin slice — the Taraboner package is thieves' or
+# artisan's tools and an Illuminator's rocket, none of which exist as templates
+# yet. The character starts with a merchant-city purse instead.
+items: []
+gold: 30
+allowed_categories:
+  - humanoid
