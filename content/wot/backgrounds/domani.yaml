@@ -9,7 +9,9 @@ description: |
   a counterpart's wants and turn them to your profit. A full purse opens more
   doors than a drawn blade.
 skills: []
-feats: []
+# Militia — Arad Doman keeps a trained levy. One feat per background (the pick-one chooser lands later).
+feats:
+  - militia
 # No item grant in the thin slice — the Domani package is jewelry, fine clothes,
 # and merchant goods, none of which exist as templates yet. The character starts
 # instead with a heavier purse befitting a trader.

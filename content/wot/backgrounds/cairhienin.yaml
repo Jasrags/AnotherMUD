@@ -9,7 +9,9 @@ description: |
   dark-eyed, you wear your ambitions as carefully as a noble wears the slashes
   of rank.
 skills: []
-feats: []
+# Militia — drilled with the city militia of Cairhien. One feat per background (the pick-one chooser lands later).
+feats:
+  - militia
 # A short blade for a duelist of the Game. The signet ring, mirror, and noble's
 # silks of the full package await their item templates.
 items:

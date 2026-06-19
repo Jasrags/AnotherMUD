@@ -2191,6 +2191,13 @@ func decodeFeat(path, ns string) (*feat.Feat, error) {
 					return nil, fmt.Errorf("%w: %s: grants[%d] ability needs a target (ability id)",
 						ErrInvalidContent, path, i)
 				}
+			case feat.GrantWeaponProficiency:
+				// Fixed-target proficiency grant (Militia): Target = the weapon
+				// category id; Magnitude unused (proficiency is boolean).
+				if strings.TrimSpace(g.Target) == "" {
+					return nil, fmt.Errorf("%w: %s: grants[%d] weapon_proficiency needs a target (weapon category id)",
+						ErrInvalidContent, path, i)
+				}
 			case feat.GrantTwoWeaponHit, feat.GrantOffHandHit, feat.GrantOffHandAttack:
 				// Global two-weapon grants (Two-Weapon Fighting / Ambidexterity /
 				// Improved Two-Weapon Fighting): beneficial-only, so a non-positive

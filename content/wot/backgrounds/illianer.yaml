@@ -14,7 +14,9 @@ description: |
 skills:
   - ability: perception
     proficiency: 10
-feats: []
+# Militia — Illian's companies drill its citizens. One feat per background (the pick-one chooser lands later).
+feats:
+  - militia
 # A short sword — a watchman's or merchant-guard's blade. The courtier's coat,
 # crossbow, and trade goods of the full package await their item templates.
 items:

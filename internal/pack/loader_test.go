@@ -2946,6 +2946,37 @@ func TestLoadFeats_DecodesBucketBGrants(t *testing.T) {
 	}
 }
 
+// weapon_proficiency decodes as a fixed-target grant (the category id); a
+// missing target is rejected (Militia — feats Bucket B).
+func TestLoadFeats_DecodesWeaponProficiencyGrant(t *testing.T) {
+	root := t.TempDir()
+	pack := filepath.Join(root, "core")
+	writeFile(t, filepath.Join(pack, "pack.yaml"), "name: tapestry-core\ncontent:\n  feats: [feats/*.yaml]\n")
+	writeFile(t, filepath.Join(pack, "feats/militia.yaml"), "id: militia\nname: Militia\ngrants:\n  - { kind: weapon_proficiency, target: light-crossbow }\n  - { kind: weapon_proficiency, target: pike }\n")
+	regs := NewRegistries()
+	if err := Load(context.Background(), root, nil, regs, nil, nil, nil); err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	f, ok := regs.Feats.Get("militia")
+	if !ok || len(f.Grants) != 2 {
+		t.Fatalf("militia grants = %+v", f)
+	}
+	for _, g := range f.Grants {
+		if g.Kind != feat.GrantWeaponProficiency || (g.Target != "light-crossbow" && g.Target != "pike") {
+			t.Errorf("unexpected grant %+v", g)
+		}
+	}
+
+	// Missing target is a content error.
+	bad := t.TempDir()
+	bp := filepath.Join(bad, "core")
+	writeFile(t, filepath.Join(bp, "pack.yaml"), "name: tapestry-core\ncontent:\n  feats: [feats/*.yaml]\n")
+	writeFile(t, filepath.Join(bp, "feats/badmil.yaml"), "id: badmil\nname: Bad Militia\ngrants:\n  - { kind: weapon_proficiency }\n")
+	if err := Load(context.Background(), bad, nil, NewRegistries(), nil, nil, nil); err == nil {
+		t.Error("weapon_proficiency with no target should fail to load")
+	}
+}
+
 // The two global two-weapon penalty-reduction grants decode (slice 2): single
 // take, positive magnitude, no target.
 func TestLoadFeats_DecodesTwoWeaponGrants(t *testing.T) {

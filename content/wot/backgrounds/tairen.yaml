@@ -14,7 +14,9 @@ description: |
 skills:
   - ability: perception
     proficiency: 10
-feats: []
+# Militia — the Defenders' levy trains Tairen commoners. One feat per background (the pick-one chooser lands later).
+feats:
+  - militia
 # A mail shirt — a Defender's or guardsman's armor. The horse, courtier's dress,
 # and the gambler's dice of the full package await later phases.
 items:

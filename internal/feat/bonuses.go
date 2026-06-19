@@ -54,6 +54,10 @@ type Bonuses struct {
 	// ACBonus is the additive Armor Class bonus (Dodge and friends). Zero = no
 	// bonus. The AC sibling of MaxHP.
 	ACBonus int
+	// WeaponProficiencyCategories are weapon category ids the held feats grant
+	// proficiency with (Militia). Nil = none. The consumer
+	// (connActor.IsWeaponProficient) unions these with the class proficiency set.
+	WeaponProficiencyCategories []string
 }
 
 // ComputeBonuses aggregates the bonuses conferred by the held feats, resolving
@@ -88,6 +92,14 @@ func ComputeBonuses(held []Taken, reg *Registry) Bonuses {
 				b.MaxHP += g.Magnitude * mult
 			case GrantACBonus:
 				b.ACBonus += g.Magnitude * mult
+			case GrantWeaponProficiency:
+				// Fixed-target (like save_bonus): g.Target is the weapon category,
+				// lowercased+trimmed by Register. Multiplicity is meaningless for a
+				// boolean proficiency, so a duplicate just lists the category twice
+				// (the consumer's membership check is idempotent).
+				if g.Target != "" {
+					b.WeaponProficiencyCategories = append(b.WeaponProficiencyCategories, g.Target)
+				}
 			case GrantHitBonus:
 				// per-weapon-category: the take's Param names the category.
 				if t.Param != "" {

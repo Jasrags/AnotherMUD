@@ -261,6 +261,7 @@ The grant kinds wired today, each riding an already-shipped consumer:
 | Crit-threat widen, per weapon | widen the per-weapon threat range | crit step (`weapon-identity.md`) |
 | AC bonus | +N Armor Class | the `ac` stat modifier the defense channel reads |
 | Skill bonus, per skill | +N to a named skill check | skills (`skills.md`) |
+| Weapon proficiency | proficient with a named weapon category | the weapon-proficiency check (`weapon-identity.md` §3) |
 | Ability unlock | teaches/unlocks a named ability | abilities (`abilities-and-effects.md`) |
 
 A **skill bonus** has two forms, mirroring the save bonus: a *per-parameter*

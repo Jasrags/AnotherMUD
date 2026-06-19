@@ -1,0 +1,14 @@
+# A WoT background feat (docs/wot/backgrounds.md — Cairhienin, Domani, Illianer,
+# Midlander, Tairen, Tar Valoner). Militia: trained in the local levy, proficient
+# with the crossbow and the pike (the canonical feat grants Martial Weapon
+# Proficiency for a crossbow and a pike/halberd). Modeled as two
+# weapon_proficiency grants naming the weapon categories — a character outside a
+# martial class no longer takes the non-proficient to-hit penalty with them.
+# Lives in the wot pack (the weapon categories are WoT content). No prerequisites
+# (granted free by backgrounds).
+id: militia
+name: Militia
+description: You drilled with the local levy. You are proficient with the crossbow and the pike.
+grants:
+  - { kind: weapon_proficiency, target: light-crossbow }
+  - { kind: weapon_proficiency, target: pike }

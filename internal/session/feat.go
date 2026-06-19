@@ -262,6 +262,11 @@ type featWeaponBonuses struct {
 	// Cleave capability (it is the uncapped form).
 	hasCleave      bool
 	hasGreatCleave bool
+	// weaponProficiencyCategories are weapon category ids held feats grant
+	// proficiency with (Militia — feats Bucket B). IsWeaponProficient unions
+	// them with the class proficiency set, so a granted category no longer
+	// takes the non-proficient to-hit penalty. Recomputes on feat change.
+	weaponProficiencyCategories []string
 }
 
 // applyFeatGrants recomputes ALL feat grants from the actor's known_feats and
@@ -331,6 +336,8 @@ func (a *connActor) applyFeatGrants() {
 		hasPowerAttack:      hasPowerAttack,
 		hasCleave:           hasCleave,
 		hasGreatCleave:      hasGreatCleave,
+
+		weaponProficiencyCategories: b.WeaponProficiencyCategories,
 	})
 
 	// 3c: ability grants (Power Attack). Teach at baseline ONLY if not already

@@ -16,10 +16,11 @@ skills:
     proficiency: 10
   - ability: perception
     proficiency: 10
-# Stealthy is one of the Borderlander background feats that exists as engine
-# content — a thin-slice grant in place of the pick-one chooser.
+# Strong Soul — the hard-bitten Blight-warden's save feat (+1 Fortitude and Will;
+# a Borderlander background feat). One feat per background in the thin slice, in
+# place of the pick-one chooser; Stealthy/Blooded are the canonical alternates.
 feats:
-  - stealthy
+  - strong-soul
 # Studded leather, a Borderland soldier's serviceable armor. The horse, lances,
 # and heavier kit of the full package await later phases.
 items:

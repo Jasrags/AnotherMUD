@@ -1,0 +1,12 @@
+# A WoT background feat (docs/wot/backgrounds.md — Midlander). Luck of Heroes:
+# a +1 luck bonus on ALL saving throws, modeled as one save_bonus grant per axis
+# (save_bonus targets a single axis; multiple grants compose — feats.md §7). No
+# prerequisites: backgrounds grant it free at creation, bypassing the slot/prereq
+# path. Lives in tapestry-core (the engine baseline) like the saves trio.
+id: luck-of-heroes
+name: Luck of Heroes
+description: Fortune favors you. You gain a +1 luck bonus on all saving throws.
+grants:
+  - { kind: save_bonus, target: fortitude, magnitude: 1 }
+  - { kind: save_bonus, target: reflex, magnitude: 1 }
+  - { kind: save_bonus, target: will, magnitude: 1 }

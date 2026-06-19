@@ -3434,6 +3434,11 @@ func (a *connActor) IsWeaponProficient() bool {
 	if w == nil {
 		return true // unarmed → lowest tier → always proficient
 	}
+	// Snapshot the feat bonus (atomic) BEFORE taking a.mu, matching how
+	// hasCleave/hasPowerAttack are read — so the class set and the feat-granted
+	// categories come from a deterministic ordering rather than a mix straddling
+	// an unlock (a concurrent applyFeatGrants then yields a coherent before/after).
+	fb := a.featWeaponBonus.Load()
 	a.mu.Lock()
 	// Union the proficiency grants across every class — proficient if ANY
 	// class grants the weapon's tier or category (weapon-identity §3,
@@ -3448,6 +3453,12 @@ func (a *connActor) IsWeaponProficient() bool {
 		}
 	}
 	a.mu.Unlock()
+	// Feat-granted categories (Militia — feats Bucket B) union with the class
+	// set: a weapon whose category a feat grants is proficient even if no class
+	// grants it. Empty when no such feat is held → behavior unchanged.
+	if fb != nil && len(fb.weaponProficiencyCategories) > 0 {
+		cats = append(cats, fb.weaponProficiencyCategories...)
+	}
 	return item.Proficient(tiers, cats, w.tier, w.category)
 }
 

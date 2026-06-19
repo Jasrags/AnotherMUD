@@ -9,7 +9,9 @@ description: |
   common sight on the streets — respected rather than feared. Few places in the
   world prepare a mind so well for the world beyond.
 skills: []
-feats: []
+# Militia — the Tower Guard's reserve drills the city. One feat per background (the pick-one chooser lands later).
+feats:
+  - militia
 # A Warder's-style kit: a sword and studded leather. The lantern, mirror, and
 # the heavier purse of the full package await later phases.
 items:

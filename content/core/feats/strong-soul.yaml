@@ -1,0 +1,10 @@
+# A WoT background feat (docs/wot/backgrounds.md — Borderlander, Midlander).
+# Strong Soul: +1 Fortitude and +1 Will. The canonical feat also grants an extra
+# +1 vs energy-drain and death effects — DEFERRED (no energy-drain/death-effect
+# consumer exists yet); the core two-save bonus lands here. No prerequisites.
+id: strong-soul
+name: Strong Soul
+description: Your spirit is hardy. You gain a +1 bonus on Fortitude and Will saving throws.
+grants:
+  - { kind: save_bonus, target: fortitude, magnitude: 1 }
+  - { kind: save_bonus, target: will, magnitude: 1 }

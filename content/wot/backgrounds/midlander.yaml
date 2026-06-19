@@ -9,7 +9,11 @@ description: |
   the old blood of Manetheren under plain wool. You leave home with a working
   blade and a countryman's practical kit.
 skills: []
-feats: []
+# Luck of Heroes — the Midlander's signature feat (+1 luck on all saves); some
+# carry the old blood of Manetheren. One feat per background (the chooser lands
+# later); Militia/Strong Soul are the canonical alternates.
+feats:
+  - luck-of-heroes
 # The boar-spear / leather-armor / shield option from the Midlander package —
 # all three exist as templates. The horse and healer's kit await later phases.
 items:

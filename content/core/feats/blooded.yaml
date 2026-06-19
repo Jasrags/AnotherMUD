@@ -1,0 +1,10 @@
+# A WoT background feat (docs/wot/backgrounds.md — Aiel, Borderlander). Blooded:
+# the canonical feat grants +2 initiative AND +2 Spot. The initiative half is
+# DEFERRED (Decision 0 — the engine has no initiative/action economy); the Spot
+# half lands here, folded onto the collapsed Perception skill axis (skills.md /
+# the perception/stealth formalization). No prerequisites.
+id: blooded
+name: Blooded
+description: Blood and danger have honed your senses. You gain a +2 bonus to spot hidden threats.
+grants:
+  - { kind: skill_bonus, target: perception, magnitude: 2 }

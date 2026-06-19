@@ -27,6 +27,46 @@ func TestComputeBonuses_Saves(t *testing.T) {
 	}
 }
 
+// A feat carrying multiple save_bonus grants (Luck of Heroes → all three axes;
+// Strong Soul → Fort + Will) sums per axis — the background-feat shape.
+func TestComputeBonuses_MultiGrantSaves(t *testing.T) {
+	r := NewRegistry()
+	_ = r.Register(&Feat{ID: "luck-of-heroes", Grants: []Grant{
+		{Kind: GrantSaveBonus, Target: "fortitude", Magnitude: 1},
+		{Kind: GrantSaveBonus, Target: "reflex", Magnitude: 1},
+		{Kind: GrantSaveBonus, Target: "will", Magnitude: 1},
+	}})
+	_ = r.Register(&Feat{ID: "strong-soul", Grants: []Grant{
+		{Kind: GrantSaveBonus, Target: "fortitude", Magnitude: 1},
+		{Kind: GrantSaveBonus, Target: "will", Magnitude: 1},
+	}})
+	b := ComputeBonuses([]Taken{{FeatID: "luck-of-heroes"}, {FeatID: "strong-soul"}}, r)
+	if b.Saves["fortitude"] != 2 || b.Saves["will"] != 2 || b.Saves["reflex"] != 1 {
+		t.Errorf("saves = %v, want fort 2 / will 2 / reflex 1", b.Saves)
+	}
+}
+
+// weapon_proficiency grants collect the targeted weapon categories (Militia).
+func TestComputeBonuses_WeaponProficiency(t *testing.T) {
+	r := NewRegistry()
+	_ = r.Register(&Feat{ID: "militia", Grants: []Grant{
+		{Kind: GrantWeaponProficiency, Target: "light-crossbow"},
+		{Kind: GrantWeaponProficiency, Target: "pike"},
+	}})
+	b := ComputeBonuses([]Taken{{FeatID: "militia"}}, r)
+	got := map[string]bool{}
+	for _, c := range b.WeaponProficiencyCategories {
+		got[c] = true
+	}
+	if !got["light-crossbow"] || !got["pike"] {
+		t.Errorf("granted categories = %v, want light-crossbow + pike", b.WeaponProficiencyCategories)
+	}
+	// No such feat → nil.
+	if b2 := ComputeBonuses([]Taken{{FeatID: "iron-will"}}, NewRegistry()); b2.WeaponProficiencyCategories != nil {
+		t.Errorf("absent feat should yield nil categories, got %v", b2.WeaponProficiencyCategories)
+	}
+}
+
 func TestComputeBonuses_Empties(t *testing.T) {
 	r := NewRegistry()
 	if b := ComputeBonuses(nil, r); b.Saves != nil {

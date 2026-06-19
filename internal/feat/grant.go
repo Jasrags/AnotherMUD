@@ -56,13 +56,21 @@ const (
 	// `ac` stat modifier under srckey.Feat, which the channel-map defense formula
 	// (`ac` / `ac + dex_ac`) reads — so it lands for both baseline and WoT.
 	GrantACBonus GrantKind = "ac_bonus"
+	// GrantWeaponProficiency makes the actor proficient with a weapon CATEGORY
+	// (Target = the category id, e.g. "light-crossbow"; Militia). Magnitude
+	// unused. A fixed-target grant (like save_bonus), NOT per-param. Consumer:
+	// connActor.IsWeaponProficient unions these granted categories with the
+	// class proficiency set, so a weapon outside the class's proficiencies no
+	// longer takes the non-proficient to-hit penalty.
+	GrantWeaponProficiency GrantKind = "weapon_proficiency"
 )
 
 // ValidGrantKind reports whether k is a known grant kind.
 func ValidGrantKind(k GrantKind) bool {
 	switch k {
 	case GrantSaveBonus, GrantMaxHP, GrantHitBonus, GrantCritThreat, GrantSkillBonus, GrantAbility,
-		GrantTwoWeaponHit, GrantOffHandHit, GrantOffHandAttack, GrantDamageBonus, GrantACBonus:
+		GrantTwoWeaponHit, GrantOffHandHit, GrantOffHandAttack, GrantDamageBonus, GrantACBonus,
+		GrantWeaponProficiency:
 		return true
 	}
 	return false
