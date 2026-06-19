@@ -107,7 +107,7 @@ allowed_categories:
   - humanoid
 
 # starting_alignment 0 keeps fighters on the neutral axis at
-# creation; race override (e.g. dwarf's +50) still applies.
+# creation; a race's starting_alignment override still applies.
 starting_alignment: 0
 
 priority: 0

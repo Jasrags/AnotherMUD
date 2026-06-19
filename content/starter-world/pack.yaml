@@ -17,6 +17,8 @@ description: |
 dependencies:
   tapestry-core: "*"
 content:
+  races:
+    - races/*.yaml
   backgrounds:
     - backgrounds/*.yaml
   areas:

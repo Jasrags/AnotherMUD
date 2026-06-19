@@ -1,0 +1,34 @@
+# Human — the WoT playable people. Overrides the core baseline `human`
+# (priority 1 > core's 0) when the wot pack is active, so a WoT boot uses this
+# setting-shaped entry; a non-WoT boot (starter-world) keeps the core human.
+# In the Wheel of Time the speaking peoples are all human (Ogier aside), so
+# this is the universal stock — the nations differ by culture, not blood.
+#
+# Shaped for the setting: no darkvision (a fantasy trait WoT humans lack); the
+# `common-tongue` flag stays — the Common Tongue is literally the shared
+# language of the Westlands. Balanced caps keep humans the versatile everyfolk;
+# the ability to channel is a class/gift concern (the One Power), not racial.
+id: human
+name: Human
+tagline: The people of the Westlands, from Tar Valon to the Waste.
+description: |
+  Humankind fills the Westlands from the Mountains of Mist to the Spine of
+  the World — Andormen and Cairhienin, Borderlanders and Tairen, Aiel and
+  Sea Folk. They are bound by no single throne and divided by a hundred
+  ancient grudges, yet it is humans who raise the great cities, fight the
+  long war against the Shadow, and from whom the Wheel weaves both the
+  Dragon Reborn and the Forsaken. Adaptable in body and temperament, a
+  human may be turned to any craft, calling, or cause.
+category: humanoid
+starting_alignment: 0
+stat_caps:
+  str: 22
+  int: 22
+  wis: 22
+  dex: 22
+  con: 22
+  luck: 22
+cast_cost_modifier: 0
+racial_flags:
+  - common-tongue
+priority: 1

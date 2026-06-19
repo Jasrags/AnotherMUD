@@ -19,6 +19,11 @@ description: |
 dependencies:
   tapestry-core: "*"
 content:
+  # WoT ships its own playable peoples (the nations of the Westlands are all
+  # human) and overrides the core `human` by priority so a WoT boot uses the
+  # setting-shaped entry; core's fantasy races (dwarf) live in starter-world.
+  races:
+    - races/*.yaml
   # WoT folds Dexterity into AC (armor-depth §3) — overrides the core
   # baseline's flat `defense: ac` with the d20 `defense: ac + dex_ac`.
   channel_map:
