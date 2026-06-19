@@ -306,6 +306,22 @@ func scenarioBackgroundGrant(c *telnettest.Client, name string) error {
 		return fmt.Errorf("feats listing missing Stealthy (Aiel feat grant); got:\n%s", feats)
 	}
 
+	// Skills: the Aiel package taught the Hide / Move Silently / Perception
+	// proficiencies (S3 skill formalization) — they appear in the skills list.
+	if err := c.SendLine("skills"); err != nil {
+		return err
+	}
+	skills, err := c.Expect(gamePrompt)
+	if err != nil {
+		return fmt.Errorf("skills output: %w", err)
+	}
+	skillsLower := strings.ToLower(skills)
+	for _, want := range []string{"hide", "move silently", "perception"} {
+		if !strings.Contains(skillsLower, want) {
+			return fmt.Errorf("skills listing missing %q (Aiel skill grant); got:\n%s", want, skills)
+		}
+	}
+
 	// Bonus: the channeling gift shows on the score sheet ("The Power").
 	if err := c.SendLine("score"); err != nil {
 		return err

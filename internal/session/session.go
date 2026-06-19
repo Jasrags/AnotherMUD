@@ -2415,6 +2415,33 @@ const (
 	skillStealth    = "stealth"
 )
 
+// Skill-ability ids (skills §2 — EPIC S3) whose use-based proficiency folds
+// into the visibility perception contest (§4.2). Distinct from the feat-bonus
+// axes above: these key the ProficiencyManager, those key FeatSkillBonus. The
+// perception SKILL id intentionally equals the perception FEAT axis string —
+// both name awareness, but they are read from different systems and their
+// contributions stack additively in PerceptionBonus.
+const (
+	skillAbilityHide         = "hide"
+	skillAbilityMoveSilently = "move-silently"
+	// Aliases the perception feat axis so the two systems' shared "perception"
+	// string is enforced by the compiler, not by convention — renaming one
+	// without the other can't silently break the feat+proficiency stacking.
+	skillAbilityPerception = skillPerception
+)
+
+// skillProficiency reads the actor's current 1–100 proficiency in a skill
+// ability (0 when untrained or no proficiency manager is wired). The
+// ProficiencyManager carries its own lock, and playerID is set once at
+// construction, so this takes no actor lock.
+func (a *connActor) skillProficiency(abilityID string) int {
+	if a.prof == nil {
+		return 0
+	}
+	prof, _ := a.prof.Proficiency(a.playerID, abilityID)
+	return prof
+}
+
 // HideScore computes the would-be concealment difficulty for a hide
 // attempt (visibility.md §3.1 / §8: proficiency + governing stat + mods).
 // v1 is a base plus the actor's DEX modifier — stealthy/agile characters
@@ -2430,7 +2457,12 @@ func (a *connActor) HideScore() int {
 		return baseHideDC // no stats wired (defensive; the player path always has them)
 	}
 	// FeatSkillBonus takes a.mu itself; safe now that the read above unlocked.
-	return baseHideDC + progression.AbilityModifier(sb.Effective(progression.StatDEX)) + a.FeatSkillBonus(skillStealth)
+	// Hide proficiency (skills §2) folds into the concealment difficulty via
+	// SkillBonus (= proficiency term + the Dex modifier); at proficiency 0 this
+	// equals the bare Dex modifier — the pre-skill behavior. The Stealthy feat
+	// axis stays additive on top.
+	prof := a.skillProficiency(skillAbilityHide)
+	return baseHideDC + progression.SkillBonus(prof, sb.Effective(progression.StatDEX), progression.DefaultSkillConfig()) + a.FeatSkillBonus(skillStealth)
 }
 
 // IsHidden reports whether the actor is currently hide-concealed
@@ -2507,7 +2539,11 @@ func (a *connActor) SneakDifficulty() int {
 	if sb == nil {
 		return baseSneakDC
 	}
-	return baseSneakDC + progression.AbilityModifier(sb.Effective(progression.StatDEX)) + a.FeatSkillBonus(skillStealth)
+	// Move Silently proficiency folds in via SkillBonus (proficiency 0 = the
+	// bare Dex modifier, the pre-skill behavior); the Stealthy feat axis stays
+	// additive on top.
+	prof := a.skillProficiency(skillAbilityMoveSilently)
+	return baseSneakDC + progression.SkillBonus(prof, sb.Effective(progression.StatDEX), progression.DefaultSkillConfig()) + a.FeatSkillBonus(skillStealth)
 }
 
 // SneakConcealmentScore returns the snapshot difficulty an occupant's
@@ -2563,7 +2599,11 @@ func (a *connActor) PerceptionBonus() int {
 	if sb == nil {
 		return 0
 	}
-	return progression.AbilityModifier(sb.Effective(progression.StatWIS)) + a.FeatSkillBonus(skillPerception)
+	// Perception proficiency (collapsing Spot/Listen/Search) folds in via
+	// SkillBonus (proficiency 0 = the bare Wis modifier, the pre-skill
+	// behavior); the Alertness/Sharp-Eyed feat axis stays additive on top.
+	prof := a.skillProficiency(skillAbilityPerception)
+	return progression.SkillBonus(prof, sb.Effective(progression.StatWIS), progression.DefaultSkillConfig()) + a.FeatSkillBonus(skillPerception)
 }
 
 // ContestOutcome reports this observer's remembered result against a

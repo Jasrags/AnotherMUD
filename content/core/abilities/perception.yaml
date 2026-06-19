@@ -1,0 +1,24 @@
+# The Perception skill (skills §2 — EPIC S3; visibility §4.2). A use-based
+# proficiency (NOT a combat ability) that COLLAPSES the d20 Spot / Listen /
+# Search trio onto the engine's single perception surface (skills.md
+# collapse decision). It feeds the observer's PerceptionBonus in the perception
+# contest — a trained observer pierces hide/sneak concealment more often — and
+# the active `search` for hidden exits. Improves through use every time you
+# `search`.
+#
+# Untrained use is allowed (proficiency 0 reproduces the pre-skill behavior:
+# the bare Wisdom modifier). NOTE: the string "perception" is also the feat-
+# bonus axis (Alertness / Sharp-Eyed target it); that is a SEPARATE system
+# (FeatSkillBonus) whose contribution is additive on top of this proficiency.
+id: perception
+name: Perception
+type: passive
+category: skill
+
+default_cap: 30
+
+# Keys off Wisdom — awareness (skills §2/§3; visibility §4.2).
+gain_base_chance: 30
+gain_failure_multiplier: 0.5
+gain_stat: wis
+gain_stat_scale: 0.1

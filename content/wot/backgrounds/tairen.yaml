@@ -8,7 +8,12 @@ description: |
   arrogance, the divide between High Lord and commoner rigid as stone. In Tear
   the Power is forbidden and the Prophecies of the Dragon are outlawed — a law
   you grew up never questioning aloud.
-skills: []
+# Tairen background skills (docs/wot/backgrounds.md): Search (Profession, Ride,
+# Sense Motive have no engine skill). Search collapses onto Perception
+# (skills.md).
+skills:
+  - ability: perception
+    proficiency: 10
 feats: []
 # A mail shirt — a Defender's or guardsman's armor. The horse, courtier's dress,
 # and the gambler's dice of the full package await later phases.

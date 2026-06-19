@@ -110,6 +110,10 @@ func SearchHandler(ctx context.Context, c *Context) error {
 			})
 		}
 	}
+	// An active search trains the Perception skill (use-gain; skills §2 — the
+	// collapsed Spot/Listen/Search surface). Finding something is the successful
+	// use; a fruitless search still gains at the ability's reduced rate.
+	rollSkillGain(c, skillPerception, found > 0)
 	if found == 0 {
 		return c.Actor.Write(ctx, "You search carefully but find nothing hidden.")
 	}

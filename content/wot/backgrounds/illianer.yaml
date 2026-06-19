@@ -8,7 +8,12 @@ description: |
   speak with the thick, rolling accent outsiders strain to follow. Yours is a
   great trading nation — and the city from which the Hunters of the Horn ride
   out into legend.
-skills: []
+# Illianer background skills (docs/wot/backgrounds.md): Search (Craft,
+# Intimidate, Knowledge have no engine skill). Search collapses onto Perception
+# (skills.md).
+skills:
+  - ability: perception
+    proficiency: 10
 feats: []
 # A short sword — a watchman's or merchant-guard's blade. The courtier's coat,
 # crossbow, and trade goods of the full package await their item templates.

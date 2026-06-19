@@ -1,0 +1,20 @@
+# The Move Silently skill (skills §2 — EPIC S3; visibility §3.2). A use-based
+# proficiency (NOT a combat ability), modeled like Hide / Open Lock: a `passive`
+# `skill` consumed by the visibility perception contest — a sneaking actor's
+# difficulty (SneakDifficulty) folds in this proficiency, so a trained sneak is
+# harder to hear. Improves through use every time you `sneak`.
+#
+# Untrained use is allowed (proficiency 0 reproduces the pre-skill behavior:
+# the bare Dexterity modifier).
+id: move-silently
+name: Move Silently
+type: passive
+category: skill
+
+default_cap: 30
+
+# Keys off Dexterity (skills §2/§3; visibility §3.2).
+gain_base_chance: 30
+gain_failure_multiplier: 0.5
+gain_stat: dex
+gain_stat_scale: 0.1

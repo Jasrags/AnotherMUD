@@ -8,7 +8,14 @@ description: |
   creed, and you value all three the more for living a day's ride from the
   Shadow. Hard-bitten and unflinching, you learned the sword and the watchtower
   before you learned to read.
-skills: []
+# Borderlander background skills (docs/wot/backgrounds.md): Listen, Move
+# Silently (Knowledge (Blight) and Ride have no engine skill). Listen collapses
+# onto Perception (skills.md).
+skills:
+  - ability: move-silently
+    proficiency: 10
+  - ability: perception
+    proficiency: 10
 # Stealthy is one of the Borderlander background feats that exists as engine
 # content — a thin-slice grant in place of the pick-one chooser.
 feats:

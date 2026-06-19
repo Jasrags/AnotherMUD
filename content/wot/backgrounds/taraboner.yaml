@@ -8,10 +8,15 @@ description: |
   your face in private company is a discourtesy — and trace their pride to the
   Age of Legends. You learned the trades of a great harbor city, and the quiet
   skills that thrive in its crowded lanes.
-# Open Lock is one of the Taraboner background skills and exists as an engine
-# skill (use-based proficiency) — taught at a modest starting proficiency.
+# Taraboner background skills (docs/wot/backgrounds.md): Open Lock, Hide, Move
+# Silently (Appraise has no engine skill) — use-based proficiencies, taught at a
+# modest starting proficiency.
 skills:
   - ability: open-lock
+    proficiency: 10
+  - ability: hide
+    proficiency: 10
+  - ability: move-silently
     proficiency: 10
 feats: []
 # No item grant in the thin slice — the Taraboner package is thieves' or

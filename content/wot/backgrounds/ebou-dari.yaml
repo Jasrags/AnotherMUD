@@ -8,10 +8,13 @@ description: |
   with a knife. Polite and easygoing until offended, you carry a curved blade in
   your sash and know the city's locks and back ways as well as its duelling
   circles.
-# Open Lock is one of the Ebou Dari background skills and exists as an engine
-# skill (use-based proficiency) — taught at a modest starting proficiency.
+# Ebou Dari background skills (docs/wot/backgrounds.md): Open Lock + Hide (with
+# Appraise and Balance having no engine skill) — both use-based proficiencies,
+# taught at a modest starting proficiency.
 skills:
   - ability: open-lock
+    proficiency: 10
+  - ability: hide
     proficiency: 10
 feats: []
 # A belt knife — the everyday blade of the Rahad. The marriage knife and

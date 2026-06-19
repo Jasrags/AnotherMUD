@@ -13,7 +13,16 @@ description: |
   debt of toh must be repaid, and shame is worse than any wound. You move
   veiled and silent, and you despise the soft wetlanders who have never known
   thirst. By custom you will not touch a sword.
-skills: []
+# Aiel background skills (docs/wot/backgrounds.md): Hide, Move Silently, Spot.
+# Spot collapses onto the engine's Perception surface (skills.md). Granted at a
+# novice-trained proficiency.
+skills:
+  - ability: hide
+    proficiency: 10
+  - ability: move-silently
+    proficiency: 10
+  - ability: perception
+    proficiency: 10
 # Stealthy is one of the Aiel background feats (the only one that yet exists as
 # engine content); a thin-slice grant in place of the RPG's pick-one chooser.
 feats:

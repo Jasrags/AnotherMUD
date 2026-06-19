@@ -1,0 +1,24 @@
+# The Hide skill (skills §2 — EPIC S3; visibility §3.1). A use-based proficiency
+# (NOT a combat ability), modeled like Open Lock / the crafting disciplines: a
+# `passive` `skill` carrying a per-character proficiency, its cap, and use-gain
+# parameters. It is consumed by the visibility perception contest — the hider's
+# concealment difficulty (HideScore) folds in this proficiency, so a trained
+# hider is harder to spot. Improves through use every time you `hide`.
+#
+# Untrained use is allowed (a character with no proficiency hides at the bare
+# Dexterity modifier — proficiency 0 reproduces the pre-skill behavior).
+id: hide
+name: Hide
+type: passive
+category: skill
+
+# Novice starting cap; a trainer raises it via `practice`.
+default_cap: 30
+
+# Use-based gain (§3.5): every hide attempt rolls a gain that tapers toward the
+# cap. Hide keys off Dexterity — its governing stat for the concealment fold and
+# the gain-roll nudge (skills §2/§3; visibility §3.1).
+gain_base_chance: 30
+gain_failure_multiplier: 0.5
+gain_stat: dex
+gain_stat_scale: 0.1

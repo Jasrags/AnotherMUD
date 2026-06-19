@@ -4,9 +4,36 @@ import (
 	"context"
 
 	"github.com/Jasrags/AnotherMUD/internal/eventbus"
+	"github.com/Jasrags/AnotherMUD/internal/progression"
 	"github.com/Jasrags/AnotherMUD/internal/visibility"
 	"github.com/Jasrags/AnotherMUD/internal/world"
 )
+
+// Skill ability ids whose use-based proficiency the visibility verbs train
+// (skills §2 — EPIC S3). Hide/Move Silently fold into the hider's concealment
+// difficulty; Perception (collapsing Spot/Listen/Search) into the observer's
+// contest. Mirrors skillOpenLock (door.go).
+const (
+	skillHide         = "hide"
+	skillMoveSilently = "move-silently"
+	skillPerception   = "perception"
+)
+
+// rollSkillGain rolls one use-based proficiency gain for a skill the actor just
+// exercised — the same loop the `pick` verb runs for Open Lock. success scales
+// the gain (a miss gains at the ability's reduced rate). A no-op when the
+// proficiency manager or skill roller isn't wired (test fakes), so it is safe
+// to call unconditionally from a verb.
+func rollSkillGain(c *Context, abilityID string, success bool) {
+	if c.Proficiency == nil || c.SkillRoller == nil {
+		return
+	}
+	var stats progression.StatReader
+	if sv, ok := c.Actor.(statValuer); ok {
+		stats = actorStatReader{sv}
+	}
+	c.Proficiency.RollUseGain(c.Actor.PlayerID(), abilityID, success, c.SkillRoller, stats)
+}
 
 // concealer is the optional actor capability the hide/reveal verbs need
 // (visibility.md §3.1). connActor implements it; test actors that don't
@@ -64,6 +91,9 @@ func HideHandler(ctx context.Context, c *Context) error {
 
 	score := h.HideScore()
 	h.Hide(score)
+	// The act of hiding trains the Hide skill (use-gain; skills §2). Concealment
+	// always establishes — the contest comes later — so this is a successful use.
+	rollSkillGain(c, skillHide, true)
 	if c.Bus != nil {
 		c.Bus.Publish(ctx, eventbus.EntityConcealed{
 			EntityID:   c.Actor.PlayerID(),
@@ -129,6 +159,8 @@ func SneakHandler(ctx context.Context, c *Context) error {
 		return c.Actor.Write(ctx, "You can't sneak here.")
 	}
 	s.Sneak(s.SneakDifficulty())
+	// Beginning to sneak trains the Move Silently skill (use-gain; skills §2).
+	rollSkillGain(c, skillMoveSilently, true)
 	if c.Bus != nil {
 		c.Bus.Publish(ctx, eventbus.EntityConcealed{
 			EntityID:   c.Actor.PlayerID(),
