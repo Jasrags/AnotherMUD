@@ -106,6 +106,14 @@ func tryRetaliate(ctx context.Context, m *entities.MobInstance, deps Deps) bool 
 		return true
 	}
 
+	// Shadowspawn will not cross a stedding's bound even in pursuit
+	// (other-worlds.md §Stedding): a quarry who flees into the stedding escapes
+	// — the hunter recoils at the threshold and drops the grudge.
+	if mobRefusesEntry(m, dst) {
+		clearRetaliation(m)
+		return true
+	}
+
 	deps.Placement.Remove(m.ID())
 	deps.Placement.Place(m.ID(), dst.ID)
 	announceCharge(ctx, deps.Broadcaster, m.Name(), srcID, dst.ID, dir)

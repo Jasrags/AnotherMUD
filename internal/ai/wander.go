@@ -77,6 +77,13 @@ func BehaviorWander(ctx context.Context, m *entities.MobInstance, deps Deps) err
 		return nil
 	}
 
+	// Shadowspawn will not wander across a stedding's bound (other-worlds.md
+	// §Stedding) — recoil at the threshold and stay put this tick.
+	if mobRefusesEntry(m, dst) {
+		setNextWander(m, now)
+		return nil
+	}
+
 	deps.Placement.Remove(m.ID())
 	deps.Placement.Place(m.ID(), dst.ID)
 	setNextWander(m, now)

@@ -18,7 +18,7 @@ exits:
 terrain: field
 # Within the stedding's bound: the One Power is still here — a channeler
 # cannot weave in this room (other-worlds.md §Stedding; the cast gate reads this tag).
-tags: [stedding]
+tags: [stedding, safe-room]
 # Stedding are the safest rest in the world (other-worlds.md §Stedding): a
 # generous room-level regen, like the inn hearth (economy-survival §5.7).
 healing_rate: 3

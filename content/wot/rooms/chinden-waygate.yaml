@@ -14,7 +14,10 @@ exits:
 terrain: forest
 # Within the stedding's bound: the One Power is still here — a channeler
 # cannot weave in this room (other-worlds.md §Stedding; the cast gate reads this tag).
-tags: [stedding]
+tags: [stedding, safe-room]
+# The stedding's aura of peace (other-worlds.md §Stedding): a passive regen bonus
+# felt by all in the room, channeler or not, and `safe-room` forbids violence.
+healing_rate: 2
 # Lore + a future hook (other-worlds.md §The Ways): the Waygate is deliberately
 # SHUT — the Avendesora leaf is missing — so it is non-functional today. When/if
 # the Ways are built as a realm-graph, this is Chinden's gateway node.
