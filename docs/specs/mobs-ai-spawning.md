@@ -455,6 +455,18 @@ bucket**, and **tags**:
   (the alignment feature owns the bucketing).
 - `has tag` — the player must carry the named tag.
 
+Rules may also match against **faction standing** and **renown**:
+
+- `faction` + `min standing` / `max standing` — inclusive bounds
+  against the player's effective standing with the named faction
+  (faction.md §6). A view without standing data for that faction
+  never matches.
+- `min renown` — a magnitude floor on the player's **effective**
+  renown (reputation.md §6/§7); fame or infamy of that magnitude
+  both qualify (the Fame feat folds into effective renown).
+- `infamous` — gates on the Infamy feat flag: `true` matches only
+  an infamous player, `false` only a non-infamous one.
+
 A rule with all conditions present requires all of them. A rule
 with no conditions matches anything (typically the last entry in
 the list).

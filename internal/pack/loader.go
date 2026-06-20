@@ -3645,6 +3645,15 @@ func decodeDispositionRules(src *DispositionFile, path, ns string) (*mob.Definit
 			rule.MaxStanding = *r.MaxStanding
 			rule.HasMaxStanding = true
 		}
+		// reputation.md §6/§7 renown clause (single-axis, no id to qualify).
+		if r.MinRenown != nil {
+			rule.MinRenown = *r.MinRenown
+			rule.HasMinRenown = true
+		}
+		if r.Infamous != nil {
+			rule.RequireInfamous = *r.Infamous
+			rule.HasInfamous = true
+		}
 		out.Rules = append(out.Rules, rule)
 	}
 	return out, nil

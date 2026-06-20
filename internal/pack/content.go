@@ -313,7 +313,14 @@ type DispositionRuleFile struct {
 	Faction     string `yaml:"faction,omitempty"`
 	MinStanding *int   `yaml:"min_standing,omitempty"`
 	MaxStanding *int   `yaml:"max_standing,omitempty"`
-	Reaction    string `yaml:"reaction"`
+	// MinRenown + Infamous are the reputation.md §6/§7 renown clause. min_renown
+	// is a MAGNITUDE floor on the player's effective renown (how widely known —
+	// fame or infamy both qualify); infamous (a pointer to distinguish
+	// omitted-vs-false) gates on the Infamy feat flag: true = only infamous,
+	// false = only not-infamous.
+	MinRenown *int   `yaml:"min_renown,omitempty"`
+	Infamous  *bool  `yaml:"infamous,omitempty"`
+	Reaction  string `yaml:"reaction"`
 }
 
 // RoomFile is the YAML shape for a single-room file.

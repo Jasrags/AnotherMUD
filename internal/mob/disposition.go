@@ -66,11 +66,25 @@ type Rule struct {
 	MaxStanding    int
 	HasMinStanding bool
 	HasMaxStanding bool
+
+	// MinRenown + RequireInfamous are the reputation.md §6/§7 renown clause: the
+	// rule matches on how widely known the player is and/or whether they are
+	// infamous. MinRenown (when HasMinRenown) is a MAGNITUDE floor on the
+	// player's EFFECTIVE renown — fame or infamy of that magnitude both qualify
+	// (PD-5: magnitude = how known, the Infamy flag = the reaction's kind).
+	// RequireInfamous (when HasInfamous) gates on the Infamy flag: true matches
+	// only an infamous player, false only a non-infamous one. The evaluator
+	// resolves both from PlayerView (effective renown + the flag).
+	MinRenown       int
+	HasMinRenown    bool
+	RequireInfamous bool
+	HasInfamous     bool
 }
 
 // HasConditions reports whether r carries any condition. A rule with
 // no conditions matches every player (spec §5.3 "A rule with no
 // conditions matches anything").
 func (r Rule) HasConditions() bool {
-	return r.HasTag != "" || r.HasMinAlignment || r.HasMaxAlignment || len(r.Buckets) > 0 || r.Faction != ""
+	return r.HasTag != "" || r.HasMinAlignment || r.HasMaxAlignment || len(r.Buckets) > 0 ||
+		r.Faction != "" || r.HasMinRenown || r.HasInfamous
 }

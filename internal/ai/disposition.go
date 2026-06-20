@@ -36,6 +36,15 @@ type PlayerView struct {
 	// faction condition for that faction never matches (no faction data: a
 	// pre-faction view, or a faction not in content).
 	Standings map[string]int
+	// Renown is the player's EFFECTIVE renown (base + the Fame feat — reputation.md
+	// §6/§7), signed (fame +, infamy −). Infamous is the Infamy-feat flag. Both are
+	// consulted only when a rule declares a renown clause. HasRenown distinguishes
+	// "renown data present" from a minimal view (the room-entry hooks build a
+	// tags-only PlayerView) — a renown clause never matches a view without it,
+	// mirroring HasAlignment.
+	Renown    int
+	Infamous  bool
+	HasRenown bool
 }
 
 // PlayerLookup is the seam the evaluator uses to find players. The
@@ -392,6 +401,27 @@ func ruleMatches(r mob.Rule, player PlayerView) bool {
 			return false
 		}
 		if r.HasMaxStanding && standing > r.MaxStanding {
+			return false
+		}
+	}
+	if r.HasMinRenown || r.HasInfamous {
+		// reputation.md §6/§7: a view without renown data cannot satisfy a renown
+		// condition (a minimal room-entry view) — the same "never match" stance
+		// the alignment/faction clauses take.
+		if !player.HasRenown {
+			return false
+		}
+		if r.HasMinRenown {
+			// Magnitude floor: fame or infamy of equal magnitude both qualify (PD-5).
+			mag := player.Renown
+			if mag < 0 {
+				mag = -mag
+			}
+			if mag < r.MinRenown {
+				return false
+			}
+		}
+		if r.HasInfamous && player.Infamous != r.RequireInfamous {
 			return false
 		}
 	}

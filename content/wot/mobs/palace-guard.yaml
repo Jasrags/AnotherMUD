@@ -23,6 +23,11 @@ disposition_rules:
     - faction: queens-guard
       max_standing: -1
       reaction: hostile
+    # reputation.md §6/§7: the Queen's Guard keep a wary eye on a known
+    # troublemaker — anyone the Infamy feat marks as infamous (rule order
+    # matters: an outright lawbreaker is met with hostility above first).
+    - infamous: true
+      reaction: wary
 
 # faction membership (faction.md §5.2): killing this mob shifts the
 # killer's standing with the faction by the on-kill delta.

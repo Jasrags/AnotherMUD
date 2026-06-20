@@ -3809,9 +3809,12 @@ func (p playerLookup) PlayersInRoom(_ context.Context, room world.RoomID) []ai.P
 			Bucket:       info.Bucket,
 			HasAlignment: info.Bucket != "",
 		}
-		// Resolve standings from the live actor (info.ID is the PlayerID key).
+		// Resolve standings + renown from the live actor (info.ID is the PlayerID key).
 		if a, ok := p.mgr.GetByPlayerID(info.ID); ok {
 			view.Standings = p.standingsFor(a)
+			view.Renown = a.EffectiveRenown()
+			view.Infamous = a.Infamous()
+			view.HasRenown = true
 		}
 		out = append(out, view)
 	}
@@ -3830,6 +3833,9 @@ func (p playerLookup) PlayerByID(_ context.Context, id string) (ai.PlayerView, b
 		Tags:      a.Tags(),
 		Alignment: a.Alignment(),
 		Standings: p.standingsFor(a),
+		Renown:    a.EffectiveRenown(),
+		Infamous:  a.Infamous(),
+		HasRenown: true,
 	}
 	switch tag {
 	case progression.TagAlignmentEvil:
