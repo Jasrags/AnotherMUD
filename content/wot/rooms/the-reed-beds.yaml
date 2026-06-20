@@ -1,0 +1,16 @@
+id: the-reed-beds
+area: the-waterwood
+name: "{g}The Reed-Beds{x}"
+description: |
+  Reeds close over your head on every side, a whispering green world with the
+  sky cut to a narrow strip above and the path no more than a line of trodden
+  hummocks through the wet. Redwings cling to the swaying stems and scold, and
+  the water between the roots is alive with the dart and plop of unseen things.
+  Fenroot grows thick in the mud here, and reed-shoots for the taking. The path
+  runs on east toward a stand of drowned trees; southward the beds open onto
+  darker, deeper pools, and the way back west leads to firm ground.
+exits:
+  west: the-fen-edge
+  east: the-drowned-wood
+  south: the-black-pools
+terrain: swamp

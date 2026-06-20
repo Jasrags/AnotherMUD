@@ -1,0 +1,19 @@
+id: fen-trapper
+name: a fen-trapper
+type: npc
+behavior: stationary
+description: |
+  Lean and weathered as an old boot, the trapper stands at the edge of the reeds
+  with a coil of snare-wire over one shoulder and a brace of muskrat hung at his
+  belt, mud to the knee and entirely at his ease in a place that puts the hair up
+  on everyone else. He works the Mire that the Deven Ride folk will not, and has
+  the still, watchful patience of a man who has learned exactly how far the
+  footing can be trusted. He gives you a long look and a slow nod, and says
+  nothing you have not earned.
+tags: [humanoid]
+keywords: [trapper, fenman, man]
+stats:
+  hp_max: 28
+  str: 12
+disposition_rules:
+  default: neutral

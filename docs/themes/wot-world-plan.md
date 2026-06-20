@@ -88,7 +88,7 @@ weather zone carries over.
 | **The Westwood** | forest | timber, herbs, mushrooms; boar, wolves | existing forest zone |
 | **The Sand Hills** | mountain | stone outcrops; rises toward the Mountains of Mist | existing foothills |
 | **Mountains of Mist diggings** | cave | iron veins (the smithing chain) | existing cave-mouth/old-mine |
-| **The Waterwood (the Mire)** | **swamp (new biome)** | reeds/fenroot/marsh forage; leeches, marsh-things | new |
+| **The Waterwood (the Mire)** | **swamp** ✅ | reeds/fenroot/marsh forage; leeches, marsh-adder. SHIPPED — `the-waterwood` area east of Deven Ride (6 rooms: fen edge → reed-beds → black pools → drowned wood → mire heart → White River bank), the `swamp` biome + `mire-forage`, a fen-trapper anchor + neutral/hostile fauna. | new |
 | **The pastures / commons** | grassland | open-field forage | existing meadow |
 
 ### Roads (live in the *region/area*, not the settlement — world-builder rule)
@@ -296,8 +296,9 @@ sub-slices shipped (453af1a split → 3c09172 wot boot), each code-reviewed:
 - **M0 refactor touches boot + tests.** The core/starter-world split rewrites
   namespaces and the default start room; lean on the existing pack/loader tests
   as the no-regression proof and split M0 into small reviewed commits.
-- **New swamp biome.** Low risk (biomes are content), but it's the first biome
-  authored without a Milestone-C precedent — verify forage/ambience wiring.
+- **New swamp biome.** ✅ Resolved — shipped with the Waterwood (the `swamp`
+  biome + `mire-forage` table load and wire clean; confirmed on a `wot` boot:
+  biomes 5→6, forage_tables 5→6). Low risk as predicted; biomes are content.
 - **NPC naming vs canon.** Lore-accuracy rule cuts both ways: canonical minor
   NPCs (e.g. the village smith) ground the world, but protagonist names entangle
   the plot. Default to generic roles; see Open questions.

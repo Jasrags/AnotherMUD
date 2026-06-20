@@ -1,0 +1,14 @@
+id: the-white-river-bank
+area: the-waterwood
+name: "{c}The White River Bank{x}"
+description: |
+  The fen gathers itself at last into a true channel, and the White River runs
+  out of the Mire here over a bed of pale stones that give the water its name —
+  clear and quick and cold after the dead pools behind, chuckling away south and
+  east toward the wider world. A spit of firm gravel makes a landing of sorts at
+  the water's edge, where a trapper might beach a flat-bottomed punt and an
+  angler try the pools. The trackless heart of the Waterwood lies back north;
+  beyond the river the Two Rivers ends, and the country runs on toward Andor.
+exits:
+  north: the-mire-heart
+terrain: swamp

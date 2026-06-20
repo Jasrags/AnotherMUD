@@ -1,0 +1,20 @@
+id: marsh-leeches
+name: a writhing knot of leeches
+type: npc
+behavior: stationary
+description: |
+  The shallows seethe where the warmth of you reaches the water — a dark,
+  glistening knot of leeches uncoiling from the mud and the rotten logs, each as
+  long as a finger and questing blindly toward the bank. Singly they are nothing;
+  in this patient, hungry mass they are a reason the black pools are best left
+  well alone.
+# Hostile (aggros) — but only here, in the dead-end black-pools pocket a player
+# chooses to enter, so the main forage path stays safe. Low hp, no real weapon
+# (they just fasten on); a swarm hazard, not a hunt target — no loot block.
+tags: [animal, vermin]
+keywords: [leeches, leech, knot, swarm]
+disposition_rules:
+  default: hostile
+stats:
+  hp_max: 12
+  str: 8

@@ -1,0 +1,14 @@
+id: fenroot
+name: a knob of fenroot
+type: item
+description: |
+  A dark, knobbled tuber dug from the mud at the foot of the reeds, skinned with
+  black river-silt and starchy white within. Boiled long enough it makes a
+  filling, earthy mash; the Wisdom keeps a little dried for its own quiet uses.
+  The Mire grows it in plenty, for those willing to go in after it.
+tags: [ingredient, foraged, stackable]
+keywords: [fenroot, root, tuber]
+properties:
+  stackable: true
+  weight: 1
+  value: 3

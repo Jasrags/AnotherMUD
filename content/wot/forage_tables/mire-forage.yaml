@@ -1,0 +1,11 @@
+# Ambient-forage pool for the swamp biome (gathering.md §2). `forage` in the
+# Waterwood yields the Mire's gifts: usually a handful of crisp reed-shoots,
+# often a knob of fenroot, now and then a sprig of marsh herb — a third gather
+# source for the cook, out in the wet country rather than garden or wood.
+id: mire-forage
+richness: 40
+ceiling: uncommon
+entries:
+  - { item: reed-shoots, weight: 3 }
+  - { item: fenroot, weight: 2 }
+  - { item: wild-herb, weight: 1 }

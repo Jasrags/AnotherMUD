@@ -1,0 +1,15 @@
+# Swamp biome (biomes.md §2) — the Waterwood / the Mire, the first swamp zone
+# in the world and the new-biome introduction the world plan earmarked for the
+# Two Rivers. Outdoors but wet underfoot; carries its own dank ambience and a
+# forage table (fenroot, reed-shoots, marsh herbs). Rooms key in via
+# `terrain: swamp`. No node spawn table yet — the Mire is forage-only for now.
+id: swamp
+name: trackless fen
+description: Black water lies still between the reeds, and the ground gives like a held breath underfoot.
+ambience:
+  - A frog plops into unseen water and the chorus stutters, then resumes.
+  - Something heavy shifts in the reeds and goes still again.
+  - A cloud of midges lifts off the water and settles, whining, at your ear.
+  - The smell of rot and stagnant water hangs thick and windless.
+  - Marsh-gas bubbles up somewhere close with a slow, sucking sigh.
+forage_table: mire-forage

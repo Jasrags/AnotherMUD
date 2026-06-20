@@ -1,0 +1,16 @@
+id: the-mire-heart
+area: the-waterwood
+name: "{D}The Heart of the Mire{x}"
+description: |
+  Here in the deep of the Waterwood the noise of birds and frogs falls away to a
+  waiting hush, and the water spreads wide and brown and motionless, islanded
+  with low hummocks of reed and the bones of old trees. The air is heavy and
+  close, and there is a feeling to the place — old, and patient, and watchful —
+  that sets the hair on your neck and makes you glad of the daylight. Few trap
+  this far in, and fewer linger. The drowned wood lies back to the west; south,
+  the water gathers and finds a current, where the White River runs out of the
+  fen toward the bank.
+exits:
+  west: the-drowned-wood
+  south: the-white-river-bank
+terrain: swamp

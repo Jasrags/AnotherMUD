@@ -1,0 +1,16 @@
+id: the-black-pools
+area: the-waterwood
+name: "{D}The Black Pools{x}"
+description: |
+  The reeds fall back around a spread of deep, dead-still pools, their water
+  black as steeped tea and skinned with a sheen that breaks into rainbows where
+  the marsh-gas rises. Nothing sings here. Half-sunk logs lie like sleeping
+  things along the margins, and the patient leeches wait in the shallows for
+  warmth to wade in. The footing is a lie of floating root and soft mud, and a
+  misjudged step would take you down where the bottom is a long way off. The
+  reed-beds and the safer path lie back to the north.
+exits:
+  north: the-reed-beds
+terrain: swamp
+mobs:
+  - marsh-leeches

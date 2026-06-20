@@ -1,0 +1,17 @@
+id: the-drowned-wood
+area: the-waterwood
+name: "{D}The Drowned Wood{x}"
+description: |
+  The reeds give way to trees that died standing when the water rose over their
+  roots — grey, barkless trunks leaning at every angle out of the flood, hung
+  with beards of pale moss that stir without any wind. The light comes thin and
+  green-grey through the dead branches, and the water lies brown and deep around
+  the boles, deep enough to swallow a careless wader whole. Something glides
+  away under the surface as you come. The reed-beds lie back west; eastward the
+  wood thins toward the still heart of the Mire.
+exits:
+  west: the-reed-beds
+  east: the-mire-heart
+terrain: swamp
+mobs:
+  - marsh-adder

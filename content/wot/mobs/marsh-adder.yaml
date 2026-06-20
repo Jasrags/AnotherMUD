@@ -1,0 +1,20 @@
+id: marsh-adder
+name: a marsh adder
+type: npc
+behavior: stationary
+description: |
+  A thick, dark-banded snake lies looped on a half-sunk log, basking in the thin
+  fen-light, its blunt head resting still as a stone. It is in no hurry and means
+  no harm to anything too large to swallow — but it does not like to be trodden
+  on, and the bite of a roused adder is a bad business a long way from the
+  Wisdom's poultices.
+# Neutral, not hostile (the wild-boar pattern): the adder does not aggro, so the
+# main path through the Waterwood stays passable to forage. Tread on it (`kill
+# adder`) and it fights back. Unarmed (fangs); carries no purse, so no loot block.
+tags: [animal, beast]
+keywords: [adder, snake, serpent]
+disposition_rules:
+  default: neutral
+stats:
+  hp_max: 14
+  str: 9
