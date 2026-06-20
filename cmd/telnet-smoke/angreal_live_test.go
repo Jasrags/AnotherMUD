@@ -32,9 +32,9 @@ func TestLive_AngrealBoostsFirebolt(t *testing.T) {
 		t.Skip("set ANOTHERMUD_LIVE=1 to run (boots a real engine subprocess via `go run`)")
 	}
 	addr := bootEngine(t, map[string]string{
-		"ANOTHERMUD_PACKS":               "wot",
-		"ANOTHERMUD_START_ROOM":          "wot:the-forge",
-		"ANOTHERMUD_ANGREAL_PER_POINT":   "5",
+		"ANOTHERMUD_PACKS":                "wot",
+		"ANOTHERMUD_START_ROOM":           "wot:the-forge",
+		"ANOTHERMUD_ANGREAL_PER_POINT":    "5",
 		"ANOTHERMUD_AFFINITY_WEAK_FACTOR": "0.5", // irrelevant for a Fire-strong male; pinned for clarity
 	})
 

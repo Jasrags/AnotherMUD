@@ -213,9 +213,8 @@ func (m *Manager) Shift(ctx context.Context, e Entity, def *Definition, delta in
 	}
 }
 
-// MeetsStanding is the convenience threshold predicate (faction.md §6):
-// the entity's standing with def is at or above min. Nil-safe (nil → false
-// unless min <= the faction starting standing is moot; nil entity is false).
+// MeetsStanding is the convenience threshold predicate (faction.md §6): true
+// iff the entity's standing with def is at or above min. Nil entity or def → false.
 func (m *Manager) MeetsStanding(e Entity, def *Definition, min int) bool {
 	if e == nil || def == nil {
 		return false
@@ -282,10 +281,10 @@ func (m *Manager) History(entityID string) []HistoryEntry {
 func (m *Manager) appendHistory(entityID string, entry HistoryEntry) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	cap := m.reg.cfg.HistoryCapacity
+	histCap := m.reg.cfg.HistoryCapacity
 	ring := append(m.history[entityID], entry)
-	if len(ring) > cap {
-		drop := len(ring) - cap
+	if len(ring) > histCap {
+		drop := len(ring) - histCap
 		ring = append(ring[:0], ring[drop:]...)
 	}
 	m.history[entityID] = ring

@@ -1202,7 +1202,19 @@ func loadPackContent(ctx context.Context, p Discovered, dst *Registries, scriptC
 		}
 		def.ID = qid
 		if dst.Factions != nil {
-			dst.Factions.AddWithFlags(def, hasMin, hasMax, hasStarting)
+			stored := dst.Factions.AddWithFlags(def, hasMin, hasMax, hasStarting)
+			// Validate the resolved (defaults-filled) definition at LOAD so a
+			// content misconfiguration fails the pack rather than silently
+			// pinning every standing at the floor on the first shift — the
+			// "catch at load" guarantee the alignment manager has (which panics
+			// on a bad config; here a bad content file is an ErrInvalidContent,
+			// not a crash).
+			if stored.Min > stored.Max {
+				return nil, nil, fmt.Errorf("%w: %s: faction min (%d) exceeds max (%d)", ErrInvalidContent, fp, stored.Min, stored.Max)
+			}
+			if n := len(stored.Ranks); n == 0 || stored.Ranks[0].Threshold > stored.Max {
+				return nil, nil, fmt.Errorf("%w: %s: faction rank ladder is unreachable (no rank at or below max %d)", ErrInvalidContent, fp, stored.Max)
+			}
 		}
 	}
 

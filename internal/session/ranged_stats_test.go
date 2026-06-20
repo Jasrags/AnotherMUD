@@ -27,13 +27,13 @@ func newRangedActor(t *testing.T, store *entities.Store) *connActor {
 func TestRangedStrengthRule_FlowsThroughStats(t *testing.T) {
 	intp := func(v int) *int { return &v }
 	cases := []struct {
-		name        string
-		class       string
-		ammoKind    string
-		strRating   *int
-		wantBonus   int
-		wantClass   string
-		wantAmmo    string
+		name      string
+		class     string
+		ammoKind  string
+		strRating *int
+		wantBonus int
+		wantClass string
+		wantAmmo  string
 	}{
 		{"thrown adds full STR bonus", item.RangedThrown, "", nil, 2, "thrown", ""},
 		{"plain projectile drops the positive STR bonus", item.RangedProjectile, "arrow", nil, 0, "projectile", "arrow"},
