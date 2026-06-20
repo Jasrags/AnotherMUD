@@ -194,6 +194,10 @@ func (d *driveClient) loginReturning(name, password string) {
 	d.writeLine(password)
 	d.drainUntil("Select a character")
 	d.writeLine(name)
+	// The selection opens the per-character action menu (character-select §8);
+	// pick "Enter the game" to drop into the world.
+	d.drainUntil("Make your choice:")
+	d.writeLine("1")
 }
 
 // TestSessionColorFallback proves the plain-text color fallback after

@@ -563,6 +563,18 @@ func runCreation(ctx context.Context, c conn.Connection, cfg Config, loaded *log
 			if err != nil {
 				return err // disconnect mid-creation → nothing persisted (§8)
 			}
+			// §3.2 inline inspect: `? <token>` matching a choice option shows
+			// that option's detail and re-displays the menu without spending
+			// the choice. Tried before help so `? warrior` inspects the class
+			// rather than searching help; a non-matching token falls through to
+			// the help passthrough below (so `? combat` still reaches help).
+			if token, isInspect := creationInspectToken(line); isInspect {
+				if handled, ierr := inst.Inspect(ctx, token); ierr != nil {
+					return ierr
+				} else if handled {
+					continue
+				}
+			}
 			// §4 help passthrough: answer help without advancing the step.
 			if handled, herr := maybeCreationHelp(ctx, io, cfg, line); herr != nil {
 				return herr
@@ -624,6 +636,22 @@ func runCreation(ctx context.Context, c conn.Connection, cfg Config, loaded *log
 		}
 		return nil
 	}
+}
+
+// creationInspectToken extracts the inspect token from a `? <token>` line
+// (§3.2). It matches only the question-mark-prefixed form with a non-empty
+// token — a bare "?" or the "help" keyword is not an inspect request and is
+// left to the help passthrough. The token is whatever follows the "?".
+func creationInspectToken(line string) (string, bool) {
+	trimmed := strings.TrimSpace(line)
+	if !strings.HasPrefix(trimmed, "?") {
+		return "", false
+	}
+	token := strings.TrimSpace(trimmed[1:])
+	if token == "" {
+		return "", false
+	}
+	return token, true
 }
 
 // maybeCreationHelp implements §4 help passthrough: input starting with

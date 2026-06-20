@@ -548,6 +548,25 @@ func (s *Store) Exists(name string) bool {
 	return err == nil
 }
 
+// Delete removes a character's entire on-disk record — the players/<name>/
+// directory and every sibling file under it (player.yaml plus quest.yaml,
+// notifications.yaml, the chat-subscriptions file): a hard delete
+// (character-select §8 roster operations). Removing a non-existent record is
+// not an error (idempotent), so a racing double-delete is harmless. The
+// account unlink is the caller's separate step (account.RemoveCharacter).
+func (s *Store) Delete(ctx context.Context, name string) error {
+	dir, err := s.playerDir(name)
+	if err != nil {
+		return fmt.Errorf("player.Delete: %w", err)
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if err := os.RemoveAll(dir); err != nil {
+		return fmt.Errorf("player.Delete %q: %w", name, err)
+	}
+	return nil
+}
+
 // Save writes the record atomically. Save.Version is stamped to
 // CurrentVersion if zero so callers don't have to remember.
 func (s *Store) Save(ctx context.Context, save *Save) error {

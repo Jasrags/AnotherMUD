@@ -131,6 +131,15 @@ flow advances. On invalid input the prompt is repeated.
 Each option carries a label and may carry a description and a short
 tag line for richer rendering.
 
+A choice step also supports **non-committal inspection**: input of the
+form `? <token>` (where `<token>` is an option index or unique label
+prefix) shows that option's tag line + description and **re-renders the
+menu without spending the choice** (prior art: NukeFire's `? <letter>`
+class inspection). A `? <token>` that matches no option falls through to
+the §4 help passthrough, so `? <help-topic>` still reaches help. When any
+option carries a description, the menu advertises the affordance. (A bare
+`?` and the `help` keyword remain help, not inspection.)
+
 ### 3.3 Text step
 
 Interactive. Renders a prompt and accepts free-form input. The step

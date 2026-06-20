@@ -534,6 +534,61 @@ func (s *Service) AddCharacter(ctx context.Context, id, name string) error {
 	return s.writeAccountLocked(acc)
 }
 
+// RemoveCharacter drops name from the account's character list, matching
+// case-insensitively. Idempotent: a name not on the list is a no-op (no
+// error), so a double-delete or a stale roster entry can't fail the caller.
+// The character save itself is removed separately by the player store
+// (character-select §8 roster operations).
+func (s *Service) RemoveCharacter(ctx context.Context, id, name string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	acc, err := s.loadByIDLocked(id)
+	if err != nil {
+		return err
+	}
+	kept := acc.Characters[:0:0] // new backing array — never mutate in place
+	removed := false
+	for _, existing := range acc.Characters {
+		if strings.EqualFold(existing, name) {
+			removed = true
+			continue
+		}
+		kept = append(kept, existing)
+	}
+	if !removed {
+		return nil
+	}
+	acc.Characters = kept
+	return s.writeAccountLocked(acc)
+}
+
+// ChangePassword replaces the account's password hash after verifying the
+// current password (character-select §8 roster operations). The caller is
+// expected to have collected both; verifying here keeps the credential
+// check and the rehash atomic under the account lock. Returns ErrAuthFailed
+// when current does not match, so the caller can reprompt without leaking
+// which field was wrong.
+func (s *Service) ChangePassword(ctx context.Context, id, current, next string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	acc, err := s.loadByIDLocked(id)
+	if err != nil {
+		if errors.Is(err, ErrNotFound) {
+			return ErrAuthFailed
+		}
+		return err
+	}
+	if err := bcrypt.CompareHashAndPassword([]byte(acc.PasswordHash), []byte(current)); err != nil {
+		return ErrAuthFailed
+	}
+	hash, err := bcrypt.GenerateFromPassword([]byte(next), s.bcryptCost)
+	if err != nil {
+		return fmt.Errorf("account.ChangePassword: hash: %w", err)
+	}
+	acc.PasswordHash = string(hash)
+	return s.writeAccountLocked(acc)
+}
+
 func (s *Service) loadByIDLocked(id string) (*Account, error) {
 	// Same as LoadByID but assumes the caller holds s.mu so callers
 	// composing read+modify+write don't race with each other.

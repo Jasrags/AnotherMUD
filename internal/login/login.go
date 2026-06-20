@@ -82,6 +82,10 @@ var (
 	ErrPasswordCap  = errors.New("login: too many password attempts")
 	ErrEmailCap     = errors.New("login: too many email attempts")
 	ErrNameRejected = errors.New("login: name policy rejected")
+	// ErrQuit is returned when the player chooses to quit from the roster
+	// menu (character-select §8). The session treats it as a clean close,
+	// like ErrAborted, but it is a distinct, deliberate user exit.
+	ErrQuit = errors.New("login: player quit from menu")
 )
 
 // Loaded is what Run hands back to the session layer on success: an
@@ -337,30 +341,20 @@ type rosterEntry struct {
 	save      *player.Save
 }
 
-// selectFromRoster presents the account's characters (character-select §3-§4)
-// and returns the selected one, or routes to creation. An empty roster goes
-// straight to create. An out-of-world character is listed but not selectable
-// (the character-identity §5 world gate, surfaced here).
+// selectFromRoster presents the account's characters (character-select §3-§4,
+// §8) and returns the selected one, or routes to creation. The roster is
+// rebuilt from the account on every iteration so a character-management action
+// (delete) is reflected immediately. An empty roster goes straight to create.
+// An out-of-world character is listed but not selectable (the character-identity
+// §5 world gate, surfaced here). Roster-level actions: create (n), change
+// account password (p), and quit (q). Selecting an available character opens
+// the per-character action menu (§8).
 func selectFromRoster(ctx context.Context, lio *lineIO, cfg Config, acc *account.Account) (*Loaded, error) {
-	entries := make([]rosterEntry, 0, len(acc.Characters))
-	for _, name := range acc.Characters {
-		save, err := cfg.Players.Load(ctx, name)
-		if err != nil {
-			// A listed character whose save won't load (version drift,
-			// removed file): show it, but unselectable.
-			logging.From(ctx).Warn("roster: character load failed",
-				slog.String("name", name), slog.Any("err", err))
-			entries = append(entries, rosterEntry{name: name})
-			continue
-		}
-		avail := save.WorldID == "" || cfg.worldActive(save.WorldID)
-		entries = append(entries, rosterEntry{name: name, world: save.WorldID, available: avail, save: save})
-	}
-	if len(entries) == 0 {
-		return createCharacter(ctx, lio, cfg, acc)
-	}
-
 	for {
+		entries := buildRoster(ctx, cfg, acc)
+		if len(entries) == 0 {
+			return createCharacter(ctx, lio, cfg, acc)
+		}
 		if err := printRoster(ctx, lio, entries); err != nil {
 			return nil, err
 		}
@@ -369,15 +363,23 @@ func selectFromRoster(ctx context.Context, lio *lineIO, cfg Config, acc *account
 			return nil, err
 		}
 		choice := strings.TrimSpace(raw)
-		if choice == "" {
+		switch {
+		case choice == "":
 			continue
-		}
-		if strings.EqualFold(choice, "n") || strings.EqualFold(choice, "new") {
+		case strings.EqualFold(choice, "n"), strings.EqualFold(choice, "new"):
 			return createCharacter(ctx, lio, cfg, acc)
+		case strings.EqualFold(choice, "q"), strings.EqualFold(choice, "quit"):
+			_ = lio.writeln(ctx, "Goodbye.")
+			return nil, ErrQuit
+		case strings.EqualFold(choice, "p"), strings.EqualFold(choice, "password"):
+			if err := changeAccountPassword(ctx, lio, cfg, acc); err != nil {
+				return nil, err
+			}
+			continue
 		}
 		e := resolveRosterChoice(entries, choice)
 		if e == nil {
-			if err := lio.writeln(ctx, "No such character. Pick a number from the list, or 'n' to create."); err != nil {
+			if err := lio.writeln(ctx, "No such character. Pick a number from the list, or n / p / q."); err != nil {
 				return nil, err
 			}
 			continue
@@ -392,33 +394,210 @@ func selectFromRoster(ctx context.Context, lio *lineIO, cfg Config, acc *account
 			}
 			continue
 		}
-		return &Loaded{Account: acc, Player: e.save, New: false}, nil
+		// An available character opens its action menu (§8). A nil Loaded
+		// (back or deleted) re-loops and rebuilds the roster.
+		loaded, err := characterMenu(ctx, lio, cfg, acc, e)
+		if err != nil {
+			return nil, err
+		}
+		if loaded != nil {
+			return loaded, nil
+		}
 	}
 }
 
-// printRoster renders the numbered character roster (character-select §3):
-// each character with its world and an "(unavailable on this server)" marker
-// when out-of-world, plus the create-new option and the selection prompt.
+// buildRoster loads the account's characters into roster entries
+// (character-select §3). A character whose save won't load (version drift,
+// a removed file) is listed but unselectable. The account is reloaded by the
+// caller between iterations so deletes are reflected; this just maps the
+// current Characters list.
+func buildRoster(ctx context.Context, cfg Config, acc *account.Account) []rosterEntry {
+	// Reload the account so a prior delete in this session is reflected. Read
+	// the fresh character list into a local — never mutate the caller's *acc
+	// (immutability convention). A load failure falls back to the in-memory
+	// snapshot so the roster still renders rather than vanishing.
+	chars := acc.Characters
+	if fresh, err := cfg.Accounts.LoadByID(ctx, acc.ID); err == nil {
+		chars = fresh.Characters
+	}
+	entries := make([]rosterEntry, 0, len(chars))
+	for _, name := range chars {
+		save, err := cfg.Players.Load(ctx, name)
+		if err != nil {
+			logging.From(ctx).Warn("roster: character load failed",
+				slog.String("name", name), slog.Any("err", err))
+			entries = append(entries, rosterEntry{name: name})
+			continue
+		}
+		avail := save.WorldID == "" || cfg.worldActive(save.WorldID)
+		entries = append(entries, rosterEntry{name: name, world: save.WorldID, available: avail, save: save})
+	}
+	return entries
+}
+
+// characterMenu is the per-character action menu shown after selecting an
+// available character (character-select §8): enter the game, delete the
+// character, or go back to the roster. Returns a non-nil Loaded only when the
+// player chooses to enter; nil (with no error) means return to the roster —
+// either an explicit "back" or after a delete. IO errors propagate.
+func characterMenu(ctx context.Context, lio *lineIO, cfg Config, acc *account.Account, e *rosterEntry) (*Loaded, error) {
+	for {
+		if err := printCharacterMenu(ctx, lio, e); err != nil {
+			return nil, err
+		}
+		raw, err := lio.readln(ctx, cfg.phaseIdle(PhaseName))
+		if err != nil {
+			return nil, err
+		}
+		switch strings.ToLower(strings.TrimSpace(raw)) {
+		case "1", "enter", "play":
+			return &Loaded{Account: acc, Player: e.save, New: false}, nil
+		case "2", "delete":
+			deleted, err := confirmDelete(ctx, lio, cfg, acc, e)
+			if err != nil {
+				return nil, err
+			}
+			if deleted {
+				return nil, nil // back to the roster, which rebuilds
+			}
+			// Not confirmed — re-show the menu.
+		case "0", "back", "":
+			return nil, nil
+		default:
+			if err := lio.writeln(ctx, "Pick 1 (enter), 2 (delete), or 0 (back)."); err != nil {
+				return nil, err
+			}
+		}
+	}
+}
+
+// printCharacterMenu renders the per-character action menu (character-select §8).
+func printCharacterMenu(ctx context.Context, lio *lineIO, e *rosterEntry) error {
+	header := e.name
+	if e.world != "" {
+		header += " [" + e.world + "]"
+	}
+	lines := []string{
+		header,
+		"  1) Enter the game.",
+		"  2) Delete this character.",
+		"  0) Back to your characters.",
+		"Make your choice:",
+	}
+	for _, l := range lines {
+		if err := lio.writeln(ctx, l); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// confirmDelete runs the name-typed confirmation and, on a match, hard-deletes
+// the character: the save first (player.Delete), then the account unlink
+// (account.RemoveCharacter). Save-first ordering is the recoverable one — if the
+// process dies between the two, the account lists a character whose save is
+// gone, which renders as an unselectable roster entry that can simply be deleted
+// again (both store ops are idempotent). Returns whether a delete happened.
+func confirmDelete(ctx context.Context, lio *lineIO, cfg Config, acc *account.Account, e *rosterEntry) (bool, error) {
+	if err := lio.writeln(ctx, fmt.Sprintf("Delete %q? This cannot be undone.", e.name)); err != nil {
+		return false, err
+	}
+	if err := lio.writeln(ctx, "Type the character's name to confirm, or press enter to cancel:"); err != nil {
+		return false, err
+	}
+	raw, err := lio.readln(ctx, cfg.phaseIdle(PhaseName))
+	if err != nil {
+		return false, err
+	}
+	typed := strings.TrimSpace(raw)
+	if typed == "" || !strings.EqualFold(typed, e.name) {
+		return false, lio.writeln(ctx, "Deletion cancelled.")
+	}
+	if err := cfg.Players.Delete(ctx, e.name); err != nil {
+		logging.From(ctx).Error("roster: character delete failed",
+			slog.String("name", e.name), slog.Any("err", err))
+		return false, lio.writeln(ctx, "Could not delete that character. Try again later.")
+	}
+	if err := cfg.Accounts.RemoveCharacter(ctx, acc.ID, e.name); err != nil {
+		// The save is already gone; the unlink is what's stuck. Log and tell
+		// the player — the now-orphaned name renders unselectable next loop.
+		logging.From(ctx).Error("roster: character unlink failed",
+			slog.String("name", e.name), slog.Any("err", err))
+		return true, lio.writeln(ctx, fmt.Sprintf("%q was deleted.", e.name))
+	}
+	logging.From(ctx).Info("roster: character deleted", slog.String("name", e.name))
+	return true, lio.writeln(ctx, fmt.Sprintf("%q has been deleted.", e.name))
+}
+
+// changeAccountPassword is the roster-level account password change
+// (character-select §8). It re-verifies the current password (via the account
+// service) before applying the new one. Soft failures (wrong current, mismatch,
+// too short) print a message and return nil to stay on the roster; only IO or
+// store errors propagate.
+func changeAccountPassword(ctx context.Context, lio *lineIO, cfg Config, acc *account.Account) error {
+	cur, err := promptPassword(ctx, lio, "Current password: ", cfg.phaseIdle(PhasePassword))
+	if err != nil {
+		return err
+	}
+	next, err := promptPassword(ctx, lio, "New password: ", cfg.phaseIdle(PhasePassword))
+	if err != nil {
+		return err
+	}
+	if msg := validateNewPassword(next, cfg); msg != "" {
+		return lio.writeln(ctx, msg)
+	}
+	confirm, err := promptPassword(ctx, lio, "Confirm new password: ", cfg.phaseIdle(PhasePassword))
+	if err != nil {
+		return err
+	}
+	if confirm != next {
+		return lio.writeln(ctx, "Passwords did not match. Password unchanged.")
+	}
+	if err := cfg.Accounts.ChangePassword(ctx, acc.ID, cur, next); err != nil {
+		if errors.Is(err, account.ErrAuthFailed) {
+			return lio.writeln(ctx, "Current password incorrect. Password unchanged.")
+		}
+		return fmt.Errorf("change password: %w", err)
+	}
+	return lio.writeln(ctx, "Password changed.")
+}
+
+// printRoster renders the numbered character roster (character-select §3, §8):
+// each character with its world (name-aligned), an "(unavailable here)" marker
+// when out-of-world, plus the create / password / quit actions and the prompt.
 func printRoster(ctx context.Context, lio *lineIO, entries []rosterEntry) error {
 	if err := lio.writeln(ctx, "Your characters:"); err != nil {
 		return err
 	}
+	// Align the world column under a name field as wide as the longest name.
+	nameW := 0
+	for _, e := range entries {
+		if len(e.name) > nameW {
+			nameW = len(e.name)
+		}
+	}
 	for i, e := range entries {
-		line := fmt.Sprintf("  %d) %s", i+1, e.name)
+		line := fmt.Sprintf("  %d) %-*s", i+1, nameW, e.name)
 		if e.world != "" {
-			line += " [" + e.world + "]"
+			line += "  " + e.world
 		}
 		if !e.available {
-			line += " (unavailable on this server)"
+			line += "  (unavailable here)"
 		}
 		if err := lio.writeln(ctx, line); err != nil {
 			return err
 		}
 	}
-	if err := lio.writeln(ctx, "  n) create a new character"); err != nil {
-		return err
+	for _, action := range []string{
+		"  n) create a new character",
+		"  p) change account password",
+		"  q) quit",
+	} {
+		if err := lio.writeln(ctx, action); err != nil {
+			return err
+		}
 	}
-	return lio.writeln(ctx, "Select a character (number or name), or 'n' to create:")
+	return lio.writeln(ctx, "Select a character (number or name), or n / p / q:")
 }
 
 // resolveRosterChoice matches a selection against the roster by 1-based

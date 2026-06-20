@@ -525,7 +525,7 @@ func Handler(cfg Config) func(ctx context.Context, c conn.Connection) error {
 func run(ctx context.Context, c conn.Connection, cfg Config) error {
 	loaded, err := login.Run(ctx, c, cfg.Login)
 	if err != nil {
-		if errors.Is(err, login.ErrAborted) {
+		if errors.Is(err, login.ErrAborted) || errors.Is(err, login.ErrQuit) {
 			return nil
 		}
 		// ErrPasswordCap / ErrEmailCap are terminal but not actionable

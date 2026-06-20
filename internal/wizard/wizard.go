@@ -167,6 +167,45 @@ func NewInstance(flow *Flow, entity Entity, io IO, sink EventSink) *Instance {
 	return &Instance{flow: flow, entity: entity, io: io, sink: sink, cur: -1}
 }
 
+// inspectable is the optional capability a step implements to support the
+// non-committal `? <token>` inspect affordance (§3.2): return detail text for
+// the option identified by token and whether a unique option matched. Only
+// ChoiceStep implements it today; other step types are simply not inspectable.
+type inspectable interface {
+	inspectOption(e Entity, token string) (string, bool)
+}
+
+// Inspect handles a non-committal `? <token>` inspect request against the
+// current step (§3.2). When the current step is inspectable AND token
+// resolves to a unique option, it writes that option's detail block, re-renders
+// the menu (so the player sees the choices again without the prompt scrolling
+// away), and reports handled=true — the flow does NOT advance. Otherwise it
+// reports handled=false so the driver can fall back to its help handler. A
+// no-op (handled=false) before Start or after completion.
+func (in *Instance) Inspect(ctx context.Context, token string) (bool, error) {
+	if in.done || in.cur < 0 || in.cur >= len(in.flow.Steps) {
+		return false, nil
+	}
+	step := in.flow.Steps[in.cur]
+	insp, ok := step.(inspectable)
+	if !ok {
+		return false, nil
+	}
+	detail, matched := insp.inspectOption(in.entity, token)
+	if !matched {
+		return false, nil
+	}
+	if err := in.io.Write(ctx, detail); err != nil {
+		return false, err
+	}
+	ev, err := step.Render(ctx, in.io, in.entity)
+	if err != nil {
+		return false, err
+	}
+	in.sink.OnFlowStep(ctx, ev)
+	return true, nil
+}
+
 // Flow returns the flow being executed (used by the driver for restart
 // by id, §7).
 func (in *Instance) Flow() *Flow { return in.flow }

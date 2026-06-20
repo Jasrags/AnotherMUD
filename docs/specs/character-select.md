@@ -142,11 +142,12 @@ Rules:
 
 The player selects a roster entry (by index or name) or the create action:
 
-- **Available character** → the character is loaded and the session enters
+- **Available character** → the player lands on the **character action menu**
+  (§4.1). Choosing *enter the game* loads the character and the session enters
   **Playing**. Because only active-world characters are selectable, the
   `character-identity.md` §5 world gate is satisfied by construction. The
   concurrency check, existing-session resolution, takeover, and link-dead
-  reconnect rules (`login.md` §4.3–§4.5) apply here unchanged.
+  reconnect rules (`login.md` §4.3–§4.5) apply at the point of entry, unchanged.
 - **Unavailable (greyed) character** → selection is **refused** with the
   `character-identity.md` §5 message ("belongs to a world not running here"); the
   player stays on the roster.
@@ -164,6 +165,50 @@ The player selects a roster entry (by index or name) or the create action:
       returns to the roster.
 - [ ] Creating from the roster runs the creation wizard, stamps the active
       world, adds the character to the account, and enters Playing.
+
+### 4.1 Character action menu and roster operations (implemented)
+
+Selecting an available character does not drop straight into the world; it opens
+a per-character **action menu** (prior art: the NukeFire intake capture,
+`docs/mud-research/nukefire/login-and-character-creation.md`). Plus the roster
+itself carries account-scoped actions. These are the roster-operations slice of
+§8, now built:
+
+- **Character menu** — after selecting an available character:
+  - **Enter the game** → load + Playing (the §4 selection path).
+  - **Delete this character** → §4.1 deletion below.
+  - **Back** → return to the roster.
+- **Delete (hard, confirmed)** — the player must **type the character's name** to
+  confirm (anything else, including empty, cancels). On confirm the character is
+  hard-deleted: the **player save and all its sibling files** are removed
+  (`player.Store.Delete` — the whole `players/<name>/` directory), then the
+  character is **unlinked from the account** (`account.RemoveCharacter`).
+  Save-first ordering is the recoverable one: a crash between the two leaves an
+  account entry whose save is gone, which renders as an **unselectable** roster
+  row that can simply be deleted again (both store ops are idempotent). Deletion
+  is irreversible — there is no soft-delete/undo.
+- **Change account password** — a roster-level action. It re-verifies the
+  **current** password (`account.ChangePassword`, which rehashes under the
+  account lock) before applying the new one; password length reuses `login.md`
+  §6.2. Wrong-current / mismatch / too-short are soft failures (a message, stay
+  on the roster); only IO / store errors abort.
+- **Quit** — a roster-level action; a clean disconnect (`login.ErrQuit`, which
+  the session treats like a normal close).
+
+After a delete the roster is **rebuilt from the account** (so the removed entry
+disappears); a roster emptied by deletion routes to create (§3).
+
+**Acceptance criteria**
+
+- [ ] Selecting an available character shows the action menu (enter / delete /
+      back), not an immediate world entry.
+- [ ] Delete requires typing the character name; a non-matching entry cancels;
+      confirming removes the save (with siblings) and the account link.
+- [ ] A character whose save is gone but whose account link remains shows as an
+      unselectable roster row (and can be deleted again without error).
+- [ ] Change-password re-verifies the current password and rejects a wrong one
+      without altering the stored credential.
+- [ ] Quit ends the connection cleanly without loading a character.
 
 ## 5. Relationship to `login.md`
 
@@ -224,14 +269,15 @@ Playing/Creating; the Playing and Creating phases are entered exactly as before.
   front door; revisit if players miss it.
 - **Max characters per account.** A cap bounds roster size and abuse; unbounded
   is simplest. Decide if/when abuse is a concern.
-- **Roster operations** — delete / rename a character from the roster — are
-  deferred; they pair with the broader account-management feature, not this
-  selection flow.
-- **Account management** (password change, email change, account deletion) is a
-  separate feature; this spec only authenticates and selects.
+- **Roster operations** — **character delete** and **account password change**
+  are now implemented (§4.1). Still open: **rename**, **email change**, and
+  **account deletion** (the rest of account management).
+- **Character description / background story** — the NukeFire menu also offered
+  "edit description" and "read background"; these need a player description field
+  and per-world background text, so they are deferred (not yet built).
 - **New-visitor routing** — land on an empty roster then create, vs. go straight
   into creation — is a minor UX choice (§3 routes empty straight to create).
 
 ---
 
-<!-- Scope: account-first auth + character roster (per-world availability) + select/create, revising login.md's identity entry; consumes character-identity §5 world gate + account.Characters · Spec style: narrative + acceptance criteria · Detail level: behavior only · Status: forward spec (build pending) -->
+<!-- Scope: account-first auth + character roster (per-world availability) + select/create + roster operations (character menu/delete/password/quit, §4.1), revising login.md's identity entry; consumes character-identity §5 world gate + account.Characters · Spec style: narrative + acceptance criteria · Detail level: behavior only · Status: implemented (core + roster operations); deferred: rename / email-change / account deletion / description+background -->

@@ -91,17 +91,51 @@ func (s *ChoiceStep) Render(ctx context.Context, io IO, e Entity) (StepEvent, er
 	options := s.opts(e)
 	var b strings.Builder
 	b.WriteString(s.Prompt)
+	hasDetail := false
 	for i, opt := range options {
 		b.WriteString(fmt.Sprintf("\n  %d) %s", i+1, opt.Label))
 		if opt.Tag != "" {
 			b.WriteString(" — " + opt.Tag)
 		}
+		if opt.Description != "" {
+			hasDetail = true
+		}
+	}
+	// When any option carries a longer Description, advertise the
+	// non-committal inspect affordance (§3.2): `? <number>` shows the detail
+	// and re-displays the menu without spending the choice.
+	if hasDetail {
+		b.WriteString("\n(Type '? <number>' to inspect a choice before picking.)")
 	}
 	ev := StepEvent{StepID: s.ID, StepType: stepTypeChoice, Prompt: s.Prompt}
 	for _, opt := range options {
 		ev.Options = append(ev.Options, StepOption{Label: opt.Label, Tag: opt.Tag})
 	}
 	return ev, io.Write(ctx, b.String())
+}
+
+// inspectOption implements the inspectable seam: given a token (a 1-based
+// index or a unique case-insensitive label prefix, the same grammar the
+// choice itself accepts), it returns the matched option's detail block and
+// whether a unique option matched. No match (or ambiguous prefix) returns
+// ok=false so the caller can fall back to its help handler. The entity is
+// passed so a dynamic OptionsFn resolves against the live list.
+func (s *ChoiceStep) inspectOption(e Entity, token string) (string, bool) {
+	options := s.opts(e)
+	idx, ok := resolveChoice(options, token)
+	if !ok {
+		return "", false
+	}
+	opt := options[idx]
+	var b strings.Builder
+	b.WriteString(opt.Label)
+	if opt.Tag != "" {
+		b.WriteString(" — " + opt.Tag)
+	}
+	if opt.Description != "" {
+		b.WriteString("\n" + opt.Description)
+	}
+	return b.String(), true
 }
 
 func (s *ChoiceStep) Handle(ctx context.Context, io IO, e Entity, input string) (stepResult, error) {
