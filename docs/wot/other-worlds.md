@@ -186,6 +186,10 @@ Roll **once per trip**: percentile vs. number of pedestals. Below = encounter oc
 
 ## Stedding
 
+> Full canonical reference + the AnotherMUD implementation status:
+> [`stedding.md`](stedding.md). The summary below is kept for the Ways /
+> Tel'aran'rhiod context.
+
 ### Nature
 
 - Localized regions; pleasant air, ancient flora, deep peace.
