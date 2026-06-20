@@ -17,8 +17,8 @@ the theme-axis plan (its method survives below).
   ideas get promoted; of the write-ahead batch, roles, admin-verbs, and item-decorations
   have since shipped (M19/M20; `who` shipped too, `crafting-and-cooking` at M27,
   `visibility` + `hidden-exits` at M28, and the trade trio — `trade-escrow` /
-  `direct-trade` / `auction-house` — at M29), leaving `tag-observers` and `faction`
-  as the contracts still ahead of code in §1).
+  `direct-trade` / `auction-house` — at M29, `faction` since shipped too — see
+  below), leaving `tag-observers` as the only contract still ahead of code in §1).
 - **Verified against code.** Every item below was confirmed absent in the codebase as of
   2026-06-02, not trusted from the old matrix (which misreported several shipped systems).
   **Re-verified 2026-06-10:** Biomes, Gathering, and Room coordinates were found *shipped*
@@ -43,11 +43,16 @@ synthesis, command chaining/repeat, and the bad-input tracker all shipped.
 on 2026-06-10). **M28** (Visibility + Hidden exits) shipped 2026-06-15 (removed from §1).
 **Movement cost / encumbrance**, **account-first login + character roster**, and
 **character world-locking** (save v23) shipped 2026-06-16. **M29** (the player-trade
-trio — `trade-escrow` / `direct-trade` / `auction-house`) shipped too. Behavior
-contracts still written-ahead-of-code: `tag-observers` and `faction` (§1), plus
-`reputation` and `area-effects` (specced but build-pending, tracked in §2). What remains
-unspecced (§2) is the greenfield gameplay/economy-depth tail the themes didn't claim,
-plus the **WoT Mechanics EPIC** (`docs/themes/wot-mechanics-epic.md`).
+trio — `trade-escrow` / `direct-trade` / `auction-house`) shipped too.
+**Faction/standing** (WoT EPIC S8) shipped 2026-06-19→20 — engine + persistence
+(save v31) + all consumers (score line, quest reward/prereq, shop access/pricing,
+ability gate; room/area access deferred). **Reputation/renown** (the single-axis
+sibling) shipped 2026-06-20 — core, persistence (save v32), quest-reward earn,
+the Fame/Infamy/Low-Profile feats, and the disposition reaction (R4 recognition
++ some earn sources deferred). Behavior contracts still written-ahead-of-code:
+`tag-observers` (§1) and `area-effects` (specced but build-pending, §2). What
+remains unspecced (§2) is the greenfield gameplay/economy-depth tail the themes
+didn't claim, plus the **WoT Mechanics EPIC** (`docs/themes/wot-mechanics-epic.md`).
 
 ---
 
@@ -65,7 +70,6 @@ go straight into a milestone.
 | Property-registry save-pipeline integration | persistence §2 / §4.4 | registry substrate exists (M14.4); not wired into the save pipeline — m14 |
 | Slow-tick observability — full breakdown / routing | time-and-clock §5 | core **shipped**: `Loop.SetSlowTickObserver` times each tick, warns (`slog`) when it exceeds a threshold (`ANOTHERMUD_SLOW_TICK_THRESHOLD`, default = tick interval); reports total + handlers. Remaining: the §5 event-queue/command components (no such tick phases in this engine) + admin-channel / OTel routing (a consumer on the callback seam) |
 | Reactive tag observers | **tag-observers §2–§4** (new) | `entity.tag_added/removed` bus events for non-index reactors. Substrate ahead of a consumer. Ported from Tapestry `ITagObserver` |
-| **Faction / standing** | **faction §2–§8** (new) | per-character signed standing per content-defined faction; generalizes alignment's architecture (`progression §6`) to N axes as a **parallel sibling** — alignment untouched, no v1 interaction. Linear per-player (no opposition ripple in v1). Named ranks → rank tags, bounded combined history, cancellable `faction.shift.check`→`shifted`→`rank.changed`, admin-immune shift, `ResolveRanks` gating helper. Earn via quest rewards + faction-mob kills. New Faction registry + player-save `faction_standing` bag (version bump). Consumers (disposition/abilities/rooms/shops/quests) adopt the helper as they're wired |
 
 > **Shipped since this table was written (deleted per the delete-on-ship rule):**
 > **Biomes** + **Gathering** (the `biomes-gathering-plan.md` arc — `internal/biome`,
@@ -75,6 +79,18 @@ go straight into a milestone.
 > **Visibility** + **Hidden exits** (the M28 arc — `internal/visibility`,
 > hide/sneak/wizinvis/magical-invis verbs, `search` + secret-exit discovery) shipped
 > 2026-06-15; S6b refinements live in the `visibility-deferred-fixes` memory, not here.
+> **Faction / standing** (WoT EPIC S8 — `internal/faction`, save v31; per-character
+> signed standing, ranks/tags/history, the cancellable shift pipeline, `ResolveRanks`,
+> earn via quest rewards + faction-mob kills) shipped 2026-06-19, and ALL its consumers
+> (score line, quest reward/prereq, shop access-gate + ally pricing, ability faction
+> gate) shipped 2026-06-20; only **room/area access** is deferred (greenfield — alignment
+> room-access was itself never built). **Reputation / renown** (the single-axis sibling —
+> `internal/reputation`, save v32; magnitude-symmetric tiers, the cancellable shift
+> pipeline, recognition-check primitive, quest-reward earn, the Fame/Infamy/Low-Profile
+> feats, and the renown/infamy disposition reaction) shipped 2026-06-20; the **R4
+> recognition consumer** and some **earn sources** (worn `item.Reputation` signifier,
+> class level-up increment, creation starting-renown seed) are deferred. Both arcs'
+> deferred slivers live in the `faction-s8-build-log` / `reputation-build-log` memories.
 
 ---
 
@@ -154,9 +170,17 @@ old five-theme partition left uncovered.
   that above a threshold inflicts a Core-5 condition (fatigued→frightened→stunned by
   band) and decays, the Heal-the-Mind cure weave, an ominous `score` band; knobs
   `ANOTHERMUD_MADNESS_*`. Mental Stability feat (raises the manifestation floor) SHIPPED 2026-06-17; social persecution deferred.
-  **Next candidates:** S2 Phase 4+ depth (above); S7 survival v2; S8 reputation;
-  the separate armor (E) S1 follow-on; and S4 polish (creation-wizard
-  feat-pick step, Power Attack's combat effect, choose-a-feat-from-a-pool).
+  **S8 reputation SHIPPED 2026-06-19→20** — both the per-character **faction/standing**
+  axis (`internal/faction`, save v31; ranks/tags/history, the cancellable shift pipeline,
+  earn via quest rewards + faction-mob kills, and all consumers: score line, quest
+  reward/prereq, shop access-gate + ally pricing, ability faction gate; room/area access
+  deferred) AND its single-axis **renown** sibling (`internal/reputation`, save v32;
+  magnitude-symmetric tiers, recognition-check primitive, quest-reward earn, the
+  Fame/Infamy/Low-Profile feats, the renown/infamy disposition reaction; R4 recognition
+  consumer + worn-signifier/class-increment/creation-seed earn deferred). Demos: the
+  Queen's Guard questline + faction shops + the Palace Guard's wary-of-the-infamous rule.
+  **Next candidates:** S2 Phase 4+ depth (above); S7 survival v2; the separate armor (E)
+  S1 follow-on; and S4 polish (creation-wizard feat-pick step, choose-a-feat-from-a-pool).
 - **Combat & Equipment Depth (WoT weapon/armor system)** — *(EPIC sub-epic S1 — see WoT
   Mechanics above and [`docs/themes/wot-mechanics-epic.md`](themes/wot-mechanics-epic.md))*
   **✅ A+B+C (`M-Weapon-Identity`) SHIPPED 2026-06-10** (`weapon-identity.md`);
@@ -507,7 +531,7 @@ old five-theme partition left uncovered.
       ("Sammy, Mayor of Frostfang"); a **zone coffer** fed by a **configurable % tax on
       every shop purchase in the zone** (a player-controlled gold sink + economic lever —
       *novel; we have nothing like it*); **elected-officials-only restricted areas** (the
-      official + their party may enter). Large, setting-heavy; wants **faction (§1)** + roles
+      official + their party may enter). Large, setting-heavy; wants **faction (shipped)** + roles
       (shipped) + the zone-tax economy hook as substrate. Long-tail candidate — but the
       **zone-tax→coffer gold-sink is worth extracting on its own**, even without the full
       elections system (pairs with Banking's gold-at-risk discussion).
@@ -627,7 +651,7 @@ need a design pass first.
 
 | Theme | Pulls in | Why design-first |
 |---|---|---|
-| **Gameplay Systems** | hireable mobs, follow, party/grouping | no port reference; needs pre-decisions before a spec. (Visibility, hidden exits, faction, biomes, and gathering are now **specced** and moved to §1; hireable mobs is best designed alongside/after grouping, and **follow** is the shared movement primitive under grouping + hirelings + onboarding.) |
+| **Gameplay Systems** | hireable mobs, follow, party/grouping | no port reference; needs pre-decisions before a spec. (Visibility, hidden exits, biomes, and gathering are now **specced** and moved to §1; **faction + reputation have since shipped**; hireable mobs is best designed alongside/after grouping, and **follow** is the shared movement primitive under grouping + hirelings + onboarding.) |
 | **WoT Mechanics (EPIC)** | a 12-sub-epic program: weapon/equipment depth, The One Power, skills, feats, conditions, saves, survival, reputation, classes, travel, Shadowspawn; see `themes/wot-mechanics-epic.md` | the WoT RPG is d20; the engine is real-time tick/chance. **Decision 0 RESOLVED — posture A** (translate onto tick/chance; no d20 rewrite, S12 shelved). **Start with S1 `M-Weapon-Identity`** (small); The One Power (S2) is the marquee arc. The d20 tabletop scaffolding is deliberately *not* ported. |
 | **Gameplay content / activities** | procedural missions (escort), fast-travel waypoints, gambling, fishing→gathering, leaderboards, onboarding-guide NPC, dropped-item decay | the GoMud-module cluster — repeatable "things to do." Each is a small standalone spec; best delivered as **feature-modules** if that seam lands first. (Corpse decay already shipped M22.5; only dropped-item decay remains.) |
 | **Player Economy depth** | mail (push delivery / attachment escrow), banking (gold-bank **+ item vault = GoMud `storage`**) + a gold-at-risk rule, zone-tax→coffer gold-sink (from elections) | extends the now-specced trade; banking wants gold-at-risk to matter; zone-tax is a reusable sink worth extracting from elections |
