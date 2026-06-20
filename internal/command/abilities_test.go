@@ -251,3 +251,43 @@ func TestCast_DisabledWhenManagersUnwired(t *testing.T) {
 		t.Errorf("disabled = %q", got)
 	}
 }
+
+// other-worlds.md §Stedding: the One Power is still within a stedding's bound. A
+// weave (spell) cast from a stedding-tagged room is refused; a mundane skill is
+// unaffected, and the same weave casts normally outside the bound.
+func TestCast_SteddingStillsThePower(t *testing.T) {
+	f := newAbilityFixture(t)
+	stedding := &world.Room{ID: "chinden-stump", Tags: []string{"stedding"}}
+	plain := &world.Room{ID: "open-field"}
+
+	// A weave inside the stedding is refused.
+	a := newNamedTestActor("Chan", "p-1", stedding)
+	ctx := &command.Context{Actor: a, Abilities: f.reg, ActionQueue: f.queue, Verb: "cast", Args: []string{"bless"}}
+	if err := command.CastHandler(context.Background(), ctx); err != nil {
+		t.Fatalf("CastHandler: %v", err)
+	}
+	if got := a.lastLine(); !strings.Contains(got, "beyond your reach") {
+		t.Errorf("weave in stedding not blocked: %q", got)
+	}
+
+	// A mundane skill inside the stedding is NOT blocked (the One Power gate is
+	// weave-only) — it prepares like normal.
+	a2 := newNamedTestActor("Fighter", "p-2", stedding)
+	ctx2 := &command.Context{Actor: a2, Abilities: f.reg, ActionQueue: f.queue, Verb: "cast", Args: []string{"kick"}}
+	if err := command.CastHandler(context.Background(), ctx2); err != nil {
+		t.Fatalf("CastHandler: %v", err)
+	}
+	if got := a2.lastLine(); strings.Contains(got, "beyond your reach") {
+		t.Errorf("mundane skill wrongly blocked in stedding: %q", got)
+	}
+
+	// The same weave outside a stedding prepares normally.
+	a3 := newNamedTestActor("Chan2", "p-3", plain)
+	ctx3 := &command.Context{Actor: a3, Abilities: f.reg, ActionQueue: f.queue, Verb: "cast", Args: []string{"bless"}}
+	if err := command.CastHandler(context.Background(), ctx3); err != nil {
+		t.Fatalf("CastHandler: %v", err)
+	}
+	if got := a3.lastLine(); strings.Contains(got, "beyond your reach") {
+		t.Errorf("weave wrongly blocked outside stedding: %q", got)
+	}
+}

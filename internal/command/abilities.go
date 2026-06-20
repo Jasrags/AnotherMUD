@@ -133,6 +133,11 @@ func SkillsHandler(ctx context.Context, c *Context) error {
 //
 // `cast` is the discoverable spell verb; skill-named verbs (kick,
 // bless, …) route to the same enqueue path via AbilityVerb.
+// steddingTag marks a room as lying within a stedding's bound, where the One
+// Power is still and a channeler cannot weave (other-worlds.md §Stedding).
+// Authored as a room `tags:` entry; the cast gate reads it. WoT-only content.
+const steddingTag = "stedding"
+
 func CastHandler(ctx context.Context, c *Context) error {
 	if len(c.Args) == 0 {
 		return c.Actor.Write(ctx, "Cast what?")
@@ -189,6 +194,18 @@ func enqueueAbility(ctx context.Context, c *Context, abilityArg, targetArg strin
 	ability, ok := c.Abilities.Get(abilityArg)
 	if !ok {
 		return c.Actor.Write(ctx, "You don't know how to do that.")
+	}
+
+	// Stedding still the One Power (other-worlds.md §Stedding): a channeler
+	// cannot weave within a stedding's bound. Gate any One-Power weave
+	// (AbilitySpell — the channeling category) cast from a stedding-tagged room;
+	// mundane abilities (skills) are unaffected. Covers cast/channel,
+	// overchannel, and ability-named verbs (all route through here). Stedding are
+	// WoT-only content, so a "spell" there is always a weave.
+	if ability.Category == progression.AbilitySpell {
+		if room := c.Actor.Room(); room != nil && hasTag(room.Tags, steddingTag) {
+			return c.Actor.Write(ctx, "Within the stedding the True Source lies beyond your reach. You cannot channel here.")
+		}
 	}
 
 	targetArg = stripTargetPreposition(targetArg)

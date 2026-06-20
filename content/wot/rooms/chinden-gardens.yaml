@@ -12,5 +12,8 @@ description: |
 exits:
   north: chinden-stump
 terrain: field
+# Within the stedding's bound: the One Power is still here — a channeler
+# cannot weave in this room (other-worlds.md §Stedding; the cast gate reads this tag).
+tags: [stedding]
 mobs:
   - ogier

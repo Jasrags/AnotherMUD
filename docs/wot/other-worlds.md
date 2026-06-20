@@ -242,9 +242,9 @@ Roll **once per trip**: percentile vs. number of pedestals. Below = encounter oc
 - **Portal Stones:** each Stone has a list of `(symbol, destinationStoneID, destinationRealm)` edges. The `Use Portal Stone` weave (`the-one-power.md`) consumes a symbol selection and channels into the destination realm.
 - **Mirror Worlds catalog:** seed a small registry of named worlds (the book gives none, so this is GM territory). Each has its own region-danger tags from `encounters.md` and its own Stone subgraph.
 - **Stedding effect:** add a room flag `noOnePower` that:
-  - blocks any cast attempt by characters inside the room (returns a "the True Source slips away" failure),
-  - blocks weave effects originating outside whose target is inside the stedding,
-  - silences `Tel'aran'rhiod` mirror access from inside.
+  - blocks any cast attempt by characters inside the room (returns a "the True Source slips away" failure), — ✅ SHIPPED 2026-06-19 as the `stedding` room tag + a gate in the cast path (`enqueueAbility`): any One-Power weave (`AbilitySpell`) cast from a `stedding`-tagged room is refused ("Within the stedding the True Source lies beyond your reach"). Stedding Chinden's interior rooms carry the tag.
+  - blocks weave effects originating outside whose target is inside the stedding, — ⛔ deferred (needs target-room awareness in the weave-effect path).
+  - silences `Tel'aran'rhiod` mirror access from inside. — ⛔ deferred (Tel'aran'rhiod is unbuilt).
 - **NPC behavior in stedding:** Trolloc and Myrddraal NPCs gain a strong refusal-to-enter AI flag; Darkfriend NPCs gain a discomfort modifier (-2 to social checks while inside).
 - **Aelfinn / Eelfinn / Tower of Ghenjei:** model as pluggable scripted scenes, not generic rooms. The Snakes-and-Foxes hint suggests encounter-as-puzzle gameplay; leave the resolver as a custom encounter type rather than wiring rules.
 - **Dream world wolves:** when a wolf NPC dies, schedule its `Tel'aran'rhiod` ghost spawn with a respawn-elsewhere timer. Wolfbrothers (`gamemastering.md`) gain access to encounter them.
