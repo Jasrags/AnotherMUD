@@ -84,6 +84,7 @@ type ContentPaths struct {
 	Races       []string `yaml:"races,omitempty"`
 	Classes     []string `yaml:"classes,omitempty"`
 	Backgrounds []string `yaml:"backgrounds,omitempty"`
+	Languages   []string `yaml:"languages,omitempty"`
 	Feats       []string `yaml:"feats,omitempty"`
 	Abilities   []string `yaml:"abilities,omitempty"`
 	Theme       []string `yaml:"theme,omitempty"`

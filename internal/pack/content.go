@@ -870,9 +870,22 @@ type BackgroundFile struct {
 	FeatOptions       []string              `yaml:"feat_options,omitempty"`
 	EquipmentPackages [][]string            `yaml:"equipment_packages,omitempty"`
 	Gold              int                   `yaml:"gold,omitempty"`
+	HomeLanguage      string                `yaml:"home_language,omitempty"`
+	BonusLanguages    []string              `yaml:"bonus_languages,omitempty"`
 	AllowedCategories []string              `yaml:"allowed_categories,omitempty"`
 	AllowedGenders    []string              `yaml:"allowed_genders,omitempty"`
 	Priority          int                   `yaml:"priority,omitempty"`
+}
+
+// LanguageFile is the YAML shape for a language (languages.md §2): a tongue a
+// character can speak, with an optional comprehension `family` (dialects of one
+// tongue share a family). Authored per pack alongside races/feats.
+type LanguageFile struct {
+	ID          string `yaml:"id"`
+	Name        string `yaml:"name,omitempty"`
+	Family      string `yaml:"family,omitempty"`
+	Description string `yaml:"description,omitempty"`
+	Priority    int    `yaml:"priority,omitempty"`
 }
 
 // BackgroundSkillFile is one skill grant in a BackgroundFile (backgrounds §2).

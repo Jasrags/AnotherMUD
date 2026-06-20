@@ -112,6 +112,13 @@ func ScoreHandler(ctx context.Context, c *Context) error {
 		d.Gift = channelingGiftLabel(gh.ChannelingGift())
 	}
 
+	// Known languages (languages.md §4). Probed via an anonymous interface (like
+	// the gift) so the sheet stays decoupled; shown only when the character
+	// knows at least one tongue, so it never clutters a language-less sheet.
+	if lh, ok := c.Actor.(interface{ KnownLanguages() []string }); ok {
+		d.Languages = strings.Join(lh.KnownLanguages(), ", ")
+	}
+
 	if ph, ok := c.Actor.(ProgressionHolder); ok && c.Progression != nil {
 		// Primary track = the first registered track the actor has info
 		// for (adventure today; the score sheet shows one headline level).
@@ -190,6 +197,9 @@ type scoreData struct {
 	Gender      string
 	Race, Class string
 	Background  string
+	// Languages is the comma-joined display names of the character's known
+	// tongues (languages.md §4); empty hides the row.
+	Languages string
 	// Gift is the WoT channeling origin (spark/learn/none), shown as a friendly
 	// phrase under the identity line when set; empty for non-WoT characters.
 	Gift string
@@ -264,6 +274,9 @@ func renderScore(d scoreData) string {
 	}
 	if d.Gift != "" {
 		charCol = append(charCol, scKV("The Power", scHi(d.Gift), 11))
+	}
+	if d.Languages != "" {
+		charCol = append(charCol, scKV("Languages", scHi(d.Languages), 11))
 	}
 	if d.HasLevel {
 		// ASCII separator (not "·") — panel width math is byte-based, so a

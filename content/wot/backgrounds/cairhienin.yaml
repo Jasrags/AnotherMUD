@@ -21,5 +21,8 @@ equipment_packages:
   - [hourglass, healers-balm, healers-balm]
   - [nobles-outfit, signet-ring]
 gold: 35
+# Home + bonus languages (docs/wot/backgrounds.md Table 2-1; languages.md §3).
+home_language: common-cairhien
+bonus_languages: [common-aiel, common-borderlands, common-midlands, common-tairen]
 allowed_categories:
   - humanoid

@@ -34,5 +34,8 @@ equipment_packages:
   - [healers-balm, healers-balm]
   - [mail-shirt]
 gold: 20
+# Home + bonus languages (docs/wot/backgrounds.md Table 2-1; languages.md §3).
+home_language: common-borderlands
+bonus_languages: [common-arad-doman, common-cairhien, common-midlands, trolloc]
 allowed_categories:
   - humanoid

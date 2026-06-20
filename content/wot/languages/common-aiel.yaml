@@ -1,0 +1,10 @@
+id: common-aiel
+name: Common (Aiel)
+# All dialects of the Common tongue share one comprehension family — a wetlander
+# and an Aiel understand each other across the accent (languages.md §1). Only the
+# Old Tongue, the Ogier speech, Trolloc, and hand-speech are true barriers.
+family: common
+description: |
+  The Aiel dialect of the Common Tongue — clipped and formal, laced with words
+  of the Old Tongue the Aiel never let fall from use. An ear from the wetlands
+  follows it well enough, though the cadence marks the speaker for the Waste.

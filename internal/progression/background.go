@@ -46,6 +46,16 @@ type Background struct {
 	// Gold is added to the new character's starting balance (backgrounds §4).
 	Gold int
 
+	// HomeLanguage is the language id this background grants free at creation
+	// (languages.md §3). Empty = no language grant. An unregistered id is
+	// skipped fail-soft at grant time. Lowercased at Register.
+	HomeLanguage string
+	// BonusLanguages are language ids a future creation step will let the
+	// character choose from (languages.md §3 / Open Questions). Authored now for
+	// fidelity; no step consumes them in the identity-substrate slice.
+	// Lowercased at Register.
+	BonusLanguages []string
+
 	// FeatOptions are feat ids the character chooses ONE of at creation (the
 	// WoT pick-one background feat — backgrounds §2). Empty = no feat choice
 	// (only the always-granted Feats apply). A single option auto-grants without
@@ -113,6 +123,14 @@ func (br *BackgroundRegistry) Register(b *Background) error {
 	}
 	clone := *b
 	clone.ID = id
+	clone.HomeLanguage = strings.ToLower(strings.TrimSpace(b.HomeLanguage))
+	if len(b.BonusLanguages) > 0 {
+		bl := make([]string, len(b.BonusLanguages))
+		for i, v := range b.BonusLanguages {
+			bl[i] = strings.ToLower(strings.TrimSpace(v))
+		}
+		clone.BonusLanguages = bl
+	}
 	if len(b.Skills) > 0 {
 		sk := make([]BackgroundSkill, len(b.Skills))
 		for i, s := range b.Skills {

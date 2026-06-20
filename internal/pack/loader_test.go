@@ -2815,6 +2815,68 @@ skills:
 	}
 }
 
+func TestLoadLanguages_HappyPath(t *testing.T) {
+	root := t.TempDir()
+	pack := filepath.Join(root, "core")
+	writeFile(t, filepath.Join(pack, "pack.yaml"), `
+name: tapestry-core
+content:
+  languages: [languages/*.yaml]
+  backgrounds: [backgrounds/*.yaml]
+`)
+	writeFile(t, filepath.Join(pack, "languages/common-aiel.yaml"), `
+id: Common-Aiel
+name: Common (Aiel)
+family: Common
+description: The Aiel dialect.
+`)
+	// A background's home/bonus language refs are namespace-qualified at decode
+	// (like items), so a bare id resolves against the pack namespace.
+	writeFile(t, filepath.Join(pack, "backgrounds/aiel.yaml"), `
+id: aiel
+name: Aiel
+home_language: common-aiel
+bonus_languages: [common-aiel]
+`)
+	regs := NewRegistries()
+	if err := Load(context.Background(), root, nil, regs, nil, nil, nil); err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	// Language id is namespace-qualified; family is lowercased.
+	l, ok := regs.Languages.Get("tapestry-core:common-aiel")
+	if !ok {
+		t.Fatal("language tapestry-core:common-aiel not registered")
+	}
+	if l.Name != "Common (Aiel)" || l.Family != "common" {
+		t.Errorf("decoded %+v, want name 'Common (Aiel)', family 'common'", l)
+	}
+	// The background's home_language is qualified to match the registered id.
+	b, ok := regs.Backgrounds.Get("aiel")
+	if !ok {
+		t.Fatal("background aiel not registered")
+	}
+	if b.HomeLanguage != "tapestry-core:common-aiel" {
+		t.Errorf("HomeLanguage = %q, want tapestry-core:common-aiel (qualified)", b.HomeLanguage)
+	}
+	if len(b.BonusLanguages) != 1 || b.BonusLanguages[0] != "tapestry-core:common-aiel" {
+		t.Errorf("BonusLanguages = %v, want [tapestry-core:common-aiel]", b.BonusLanguages)
+	}
+}
+
+func TestLoadLanguages_RejectsMissingID(t *testing.T) {
+	root := t.TempDir()
+	pack := filepath.Join(root, "core")
+	writeFile(t, filepath.Join(pack, "pack.yaml"), `
+name: tapestry-core
+content:
+  languages: [languages/*.yaml]
+`)
+	writeFile(t, filepath.Join(pack, "languages/bad.yaml"), "name: No ID\n")
+	if err := Load(context.Background(), root, nil, NewRegistries(), nil, nil, nil); !errors.Is(err, ErrInvalidContent) {
+		t.Errorf("want ErrInvalidContent for missing language id, got %v", err)
+	}
+}
+
 func TestLoadFeats_HappyPath(t *testing.T) {
 	root := t.TempDir()
 	pack := filepath.Join(root, "core")

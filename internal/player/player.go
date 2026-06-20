@@ -127,7 +127,7 @@ import (
 // means "knows no recipes beyond what a discipline grants at runtime";
 // the migration injects nothing. A known id whose recipe was removed from
 // content loads cleanly and is ignored at restore (§9), never an error.
-const CurrentVersion = 29
+const CurrentVersion = 30
 
 // Sentinel errors callers may check via errors.Is.
 var (
@@ -338,6 +338,13 @@ type Save struct {
 	// no longer in content is ignored when its bonus is recomputed, never an
 	// error (fail-soft, like KnownRecipes).
 	KnownFeats []KnownFeat `yaml:"known_feats,omitempty"`
+
+	// KnownLanguages is the per-character set of tongues the character speaks,
+	// read, and writes (languages.md §5). Added in v30; empty/absent = no
+	// languages. Entries are language ids (namespace-qualified, like the
+	// background home_language that seeds them); an id with no registered
+	// language renders by id rather than erroring (fail-soft, like KnownFeats).
+	KnownLanguages []string `yaml:"known_languages,omitempty"`
 
 	// Pools is the persisted current value of the actor's generalized
 	// resource pools — mana / movement today, the One Power tomorrow (WoT
@@ -623,6 +630,7 @@ var playerMigrations = map[int]func(map[string]any) (map[string]any, error){
 	26: migrateV26toV27,
 	27: migrateV27toV28,
 	28: migrateV28toV29,
+	29: migrateV29toV30,
 }
 
 // migrateV1toV2 adds the empty inventory/equipment blocks introduced
@@ -1041,6 +1049,16 @@ func migrateV27toV28(in map[string]any) (map[string]any, error) {
 // older backgrounds granted their package without a choice anyway). No on-disk
 // shape needs to change.
 func migrateV28toV29(in map[string]any) (map[string]any, error) {
+	return in, nil
+}
+
+// migrateV29toV30 is a no-op: the v30 addition (Save.KnownLanguages, the
+// per-character set of tongues a character speaks — languages.md §5) is absent
+// on a pre-v30 save, which decodes to an empty set — the correct default (no
+// character loses or gains a language across the bump; older characters predate
+// the languages substrate, and a returning character's home language is not
+// re-granted). No on-disk shape needs to change.
+func migrateV29toV30(in map[string]any) (map[string]any, error) {
 	return in, nil
 }
 

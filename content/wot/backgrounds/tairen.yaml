@@ -27,5 +27,8 @@ equipment_packages:
   - [purse-of-marks, gaming-set]
   - [mail-shirt]
 gold: 35
+# Home + bonus languages (docs/wot/backgrounds.md Table 2-1; languages.md §3).
+home_language: common-tairen
+bonus_languages: [common-athaan-miere, common-cairhien, common-ebou-dar, common-illian, common-midlands, common-tarabon]
 allowed_categories:
   - humanoid

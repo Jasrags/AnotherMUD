@@ -188,6 +188,11 @@ type Config struct {
 	// nothing.
 	Feats *feat.Registry
 
+	// Languages is the tongue registry (languages.md §2). Held so the actor
+	// resolves its known-language ids into display names for `score` + the
+	// `languages` listing. nil-safe: a missing registry renders ids verbatim.
+	Languages *progression.LanguageRegistry
+
 	// Proficiency is the M9.1 per-entity ability proficiency
 	// manager (spec abilities-and-effects §3). The session-load
 	// path restores the actor's persisted Abilities snapshot into
@@ -666,7 +671,8 @@ func run(ctx context.Context, c conn.Connection, cfg Config) error {
 	applyClass(a, &cfg, loaded.Player.Class)
 	applyBackground(a, loaded.Player.Background)
 	a.mu.Lock()
-	a.feats = cfg.Feats // EPIC S4: feat registry for known_feats → bonuses
+	a.feats = cfg.Feats         // EPIC S4: feat registry for known_feats → bonuses
+	a.languages = cfg.Languages // languages.md: registry for known-language display
 	a.trainsAvailable = loaded.Player.TrainsAvailable
 	a.featCredits = loaded.Player.FeatCredits
 	// Re-sync the save's class list if applyClass dropped a removed-content
@@ -1753,6 +1759,12 @@ type connActor struct {
 	// actor's known_feats into conferred bonuses. Set-once at construction;
 	// read under a.mu. Nil for test/headless actors.
 	feats *feat.Registry
+
+	// languages is the tongue registry (Config.Languages), resolving the
+	// actor's known-language ids to display names for `score` + the `languages`
+	// listing. Set-once at construction; read under a.mu. Nil for test/headless
+	// actors (ids render verbatim).
+	languages *progression.LanguageRegistry
 
 	// grades is the masterwork quality-grade registry (Config.Grades),
 	// captured at applyClass so NonProficientArmorCheckPenalty can reduce a
@@ -3057,6 +3069,13 @@ func snapshotSave(save *player.Save) player.Save {
 		copy(dup, save.KnownFeats)
 		out.KnownFeats = dup
 	}
+	if save.KnownLanguages != nil {
+		// String slice — a shallow copy is a full deep copy. Snapshotted (like
+		// KnownFeats) so the LearnLanguage append path can't race the encoder.
+		dup := make([]string, len(save.KnownLanguages))
+		copy(dup, save.KnownLanguages)
+		out.KnownLanguages = dup
+	}
 	return out
 }
 
@@ -3848,6 +3867,58 @@ func (a *connActor) ChannelingGift() string {
 		return ""
 	}
 	return a.save.ChannelingGift
+}
+
+// LearnLanguage adds a language id to the actor's known set (languages.md §3),
+// idempotent and case-insensitive — a tongue already known is a no-op. The id
+// is stored as given (the granter passes the qualified id the registry uses).
+// Marks the save dirty on a real change so autosave persists it. The granter
+// calls this for a background's home language; an empty id is ignored.
+func (a *connActor) LearnLanguage(id string) {
+	id = strings.ToLower(strings.TrimSpace(id))
+	if id == "" {
+		return
+	}
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	if a.save == nil {
+		return
+	}
+	for _, known := range a.save.KnownLanguages {
+		if known == id {
+			return // already known — idempotent
+		}
+	}
+	a.save.KnownLanguages = append(a.save.KnownLanguages, id)
+	a.markDirtyLocked()
+}
+
+// KnownLanguages returns the display names of every language the actor knows,
+// id-sorted for a stable listing (languages.md §4). Resolves each id through the
+// language registry; an id with no registered language renders by its id rather
+// than vanishing or erroring. Read by `score` and the `languages` verb via a
+// duck-typed interface assertion, mirroring ChannelingGift.
+func (a *connActor) KnownLanguages() []string {
+	a.mu.Lock()
+	var ids []string
+	if a.save != nil {
+		ids = append([]string(nil), a.save.KnownLanguages...)
+	}
+	reg := a.languages
+	a.mu.Unlock()
+	if len(ids) == 0 {
+		return nil
+	}
+	sort.Strings(ids)
+	out := make([]string, 0, len(ids))
+	for _, id := range ids {
+		if reg != nil {
+			out = append(out, reg.DisplayName(id))
+			continue
+		}
+		out = append(out, id)
+	}
+	return out
 }
 
 // HasFeat reports whether the actor has taken the given feat (case-insensitive),

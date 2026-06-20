@@ -124,7 +124,7 @@ type pendingMobPlacement struct {
 // Filter, when non-empty, restricts discovery (spec §2.4). Pass nil to
 // load every active pack under root.
 func Load(ctx context.Context, root string, filter []string, dst *Registries, spawner Spawner, mobSpawner MobSpawner, scriptCompiler ScriptCompiler) error {
-	if dst == nil || dst.World == nil || dst.Items == nil || dst.Slots == nil || dst.Mobs == nil || dst.Tracks == nil || dst.Races == nil || dst.Classes == nil || dst.Backgrounds == nil || dst.Feats == nil || dst.Abilities == nil || dst.Theme == nil || dst.Help == nil || dst.Quests == nil || dst.Weather == nil || dst.Scripts == nil || dst.Rarity == nil || dst.Essence == nil || dst.Grades == nil || dst.Loot == nil || dst.Channels == nil || dst.Emotes == nil || dst.ChannelMap == nil {
+	if dst == nil || dst.World == nil || dst.Items == nil || dst.Slots == nil || dst.Mobs == nil || dst.Tracks == nil || dst.Races == nil || dst.Classes == nil || dst.Backgrounds == nil || dst.Languages == nil || dst.Feats == nil || dst.Abilities == nil || dst.Theme == nil || dst.Help == nil || dst.Quests == nil || dst.Weather == nil || dst.Scripts == nil || dst.Rarity == nil || dst.Essence == nil || dst.Grades == nil || dst.Loot == nil || dst.Channels == nil || dst.Emotes == nil || dst.ChannelMap == nil {
 		return errors.New("pack.Load: dst has nil registry field; use pack.NewRegistries()")
 	}
 	logger := logging.From(ctx).With(slog.String("event", "pack.load"), slog.String("root", root))
@@ -742,6 +742,10 @@ func loadPackContent(ctx context.Context, p Discovered, dst *Registries, scriptC
 	if err != nil {
 		return nil, nil, err
 	}
+	languagePaths, err := resolveGlobs(p.Dir, p.Manifest.Content.Languages)
+	if err != nil {
+		return nil, nil, err
+	}
 	featPaths, err := resolveGlobs(p.Dir, p.Manifest.Content.Feats)
 	if err != nil {
 		return nil, nil, err
@@ -984,6 +988,19 @@ func loadPackContent(ctx context.Context, p Discovered, dst *Registries, scriptC
 		}
 		if err := dst.Backgrounds.Register(b); err != nil {
 			return nil, nil, fmt.Errorf("%w (in %s)", err, bp)
+		}
+	}
+
+	// Languages: id-keyed registry mirroring backgrounds (languages.md §2). A
+	// background's home_language references one (resolved fail-soft at grant);
+	// the loader validates only id presence.
+	for _, lp := range languagePaths {
+		l, err := decodeLanguage(lp, ns)
+		if err != nil {
+			return nil, nil, err
+		}
+		if err := dst.Languages.Register(l); err != nil {
+			return nil, nil, fmt.Errorf("%w (in %s)", err, lp)
 		}
 	}
 
@@ -1356,6 +1373,7 @@ func loadPackContent(ctx context.Context, p Discovered, dst *Registries, scriptC
 		slog.Int("races", len(racePaths)),
 		slog.Int("classes", len(classPaths)),
 		slog.Int("backgrounds", len(backgroundPaths)),
+		slog.Int("languages", len(languagePaths)),
 		slog.Int("feats", len(featPaths)),
 		slog.Int("abilities", len(abilityPaths)),
 		slog.Int("theme", len(themePaths)),
@@ -2104,6 +2122,18 @@ func decodeBackground(path, ns string) (*progression.Background, error) {
 			packages = append(packages, q)
 		}
 	}
+	// Language refs are namespace-qualified like items (a bare id resolves
+	// against this pack's ns); the granter resolves the home language by its
+	// qualified key, so a bare id stored here would never match at grant time
+	// (languages.md §3). An empty home_language is fine (no grant).
+	homeLang, err := qualifyOptional(f.HomeLanguage, ns, path, "home_language")
+	if err != nil {
+		return nil, err
+	}
+	bonusLangs, err := qualifyIDList(f.BonusLanguages, ns, path, "bonus_languages")
+	if err != nil {
+		return nil, err
+	}
 	return &progression.Background{
 		ID:          f.ID,
 		DisplayName: strings.TrimSpace(f.Name),
@@ -2117,10 +2147,43 @@ func decodeBackground(path, ns string) (*progression.Background, error) {
 		FeatOptions:       append([]string(nil), f.FeatOptions...),
 		EquipmentPackages: packages,
 		Gold:              f.Gold,
+		HomeLanguage:      homeLang,
+		BonusLanguages:    bonusLangs,
 		AllowedCategories: append([]string(nil), f.AllowedCategories...),
 		AllowedGenders:    append([]string(nil), f.AllowedGenders...),
 		Pack:              ns,
 		Priority:          f.Priority,
+	}, nil
+}
+
+// decodeLanguage reads a LanguageFile and builds a progression.Language
+// (languages.md §2). Mirrors decodeBackground's id check; the language id is
+// namespace-qualified (like items) so a background's qualified home_language
+// reference resolves. The comprehension family is a grouping label, not an id
+// reference, so it is NOT qualified (lowercased at Register).
+func decodeLanguage(path, ns string) (*progression.Language, error) {
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		return nil, fmt.Errorf("reading language %s: %w", path, err)
+	}
+	var f LanguageFile
+	if err := yaml.Unmarshal(raw, &f); err != nil {
+		return nil, fmt.Errorf("%w: %s: %v", ErrInvalidContent, path, err)
+	}
+	if strings.TrimSpace(f.ID) == "" {
+		return nil, fmt.Errorf("%w: %s: missing 'id'", ErrInvalidContent, path)
+	}
+	id, err := qualifyID(f.ID, ns)
+	if err != nil {
+		return nil, fmt.Errorf("%w: %s: id: %v", ErrInvalidContent, path, err)
+	}
+	return &progression.Language{
+		ID:          id,
+		Name:        strings.TrimSpace(f.Name),
+		Family:      strings.TrimSpace(f.Family),
+		Description: f.Description,
+		Pack:        ns,
+		Priority:    f.Priority,
 	}, nil
 }
 

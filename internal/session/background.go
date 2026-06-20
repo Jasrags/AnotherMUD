@@ -92,6 +92,13 @@ func (g *BackgroundGranter) Grant(ctx context.Context, playerID string, bg *prog
 		}
 		a.GrantFeat(chosen, "")
 	}
+	// The home language (languages.md §3): added to the character's known set,
+	// idempotent + fail-soft. An empty home_language grants nothing; an
+	// unregistered id is still recorded (it renders by id) — the granter does
+	// not gate on the registry, matching the fail-soft item/feat grants.
+	if bg.HomeLanguage != "" {
+		a.LearnLanguage(bg.HomeLanguage)
+	}
 	if bg.Gold > 0 && g.currency != nil {
 		g.currency.AddGold(ctx, a, bg.Gold, "background:"+bg.ID)
 	}

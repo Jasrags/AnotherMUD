@@ -26,5 +26,8 @@ equipment_packages:
   - [short-sword, trail-rations, healers-balm, healers-balm]
   - [trade-goods]
 gold: 30
+# Home + bonus languages (docs/wot/backgrounds.md Table 2-1; languages.md §3).
+home_language: common-illian
+bonus_languages: [common-athaan-miere, common-ebou-dar, common-midlands, common-tairen, common-tarabon]
 allowed_categories:
   - humanoid

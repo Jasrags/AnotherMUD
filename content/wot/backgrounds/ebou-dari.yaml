@@ -26,5 +26,8 @@ equipment_packages:
   - [disguise-kit, grapple-hook, hemp-rope]
   - [thieves-tools]
 gold: 25
+# Home + bonus languages (docs/wot/backgrounds.md Table 2-1; languages.md §3).
+home_language: common-ebou-dar
+bonus_languages: [common-athaan-miere, common-illian, common-midlands, common-tairen, common-tarabon]
 allowed_categories:
   - humanoid

@@ -39,5 +39,9 @@ equipment_packages:
   - [fine-jewelry]
   - [shortbow, arrow, buckler]
 gold: 10
+# Home + bonus languages (docs/wot/backgrounds.md Table 2-1; languages.md §3).
+# Bonus languages are authored for fidelity; no creation step spends them yet.
+home_language: common-aiel
+bonus_languages: [aiel-handspeech, common-cairhien]
 allowed_categories:
   - humanoid

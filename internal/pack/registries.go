@@ -41,6 +41,11 @@ type Registries struct {
 	Classes *progression.ClassRegistry
 	// Backgrounds is the character-creation origin registry (backgrounds §2).
 	Backgrounds *progression.BackgroundRegistry
+	// Languages is the tongue registry (languages.md §2). Packs register
+	// languages from their `languages:` glob; a background grants its
+	// home_language through it, and `score`/`languages` resolve known ids to
+	// display names. Ids are namespace-qualified at load.
+	Languages *progression.LanguageRegistry
 	// Feats is the player-chosen feat registry (EPIC S4 Phase 0 —
 	// docs/proposals/wot-feats.md §2.1).
 	Feats     *feat.Registry
@@ -160,6 +165,7 @@ func NewRegistries() *Registries {
 		Races:        progression.NewRaceRegistry(),
 		Classes:      progression.NewClassRegistry(),
 		Backgrounds:  progression.NewBackgroundRegistry(),
+		Languages:    progression.NewLanguageRegistry(),
 		Feats:        feat.NewRegistry(),
 		Abilities:    progression.NewAbilityRegistry(),
 		Theme:        render.NewThemeRegistry(),

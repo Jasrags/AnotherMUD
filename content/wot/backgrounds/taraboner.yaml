@@ -28,5 +28,8 @@ equipment_packages:
   - [artisans-tools]
   - [illuminators-rocket]
 gold: 30
+# Home + bonus languages (docs/wot/backgrounds.md Table 2-1; languages.md §3).
+home_language: common-tarabon
+bonus_languages: [common-arad-doman, common-athaan-miere, common-ebou-dar, common-illian, common-tairen]
 allowed_categories:
   - humanoid

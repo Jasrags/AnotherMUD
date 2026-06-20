@@ -36,6 +36,13 @@ content:
   # thin-slice creation packages (existing skills/items/feats + gold + flavor).
   backgrounds:
     - backgrounds/*.yaml
+  # The tongues of the Westlands (docs/specs/languages.md): the regional dialects
+  # of the Common speech (one comprehension family) plus the Old Tongue, Ogier,
+  # Trolloc, and Aiel hand-speech. A background grants its home_language from this
+  # set. Loader enumerates by this glob, NOT directory convention (the
+  # backgrounds-glob lesson) — without it the languages silently register 0.
+  languages:
+    - languages/*.yaml
   feats:
     - feats/*.yaml
   abilities:

@@ -190,6 +190,35 @@ func TestBackgroundGranter_GrantsFeats(t *testing.T) {
 	}
 }
 
+// languages.md §3: a background grants its home language at creation —
+// idempotent, fail-soft, and skipped when unset.
+func TestBackgroundGranter_GrantsHomeLanguage(t *testing.T) {
+	mgr := NewManager()
+	a, _ := newFakeActor("c1", "p1", "acc1", "Hero", &world.Room{ID: "r"})
+	mgr.Add(a)
+	g := NewBackgroundGranter(mgr, nil, nil, nil, nil) // nil prof/tpls/store/currency: only the language grant under test
+
+	g.Grant(context.Background(), "p1", &progression.Background{
+		ID: "aiel", HomeLanguage: "wot:common-aiel",
+	}, BackgroundChoices{})
+	if len(a.save.KnownLanguages) != 1 || a.save.KnownLanguages[0] != "wot:common-aiel" {
+		t.Fatalf("KnownLanguages = %+v, want [wot:common-aiel]", a.save.KnownLanguages)
+	}
+	// Re-granting (a relog re-fire) does not duplicate the home language.
+	g.Grant(context.Background(), "p1", &progression.Background{ID: "aiel", HomeLanguage: "wot:common-aiel"}, BackgroundChoices{})
+	if len(a.save.KnownLanguages) != 1 {
+		t.Errorf("re-grant duplicated the home language: %+v", a.save.KnownLanguages)
+	}
+
+	// A background with no home language grants none (and does not error).
+	a2, _ := newFakeActor("c2", "p2", "acc2", "Hero2", &world.Room{ID: "r"})
+	mgr.Add(a2)
+	g.Grant(context.Background(), "p2", &progression.Background{ID: "languageless"}, BackgroundChoices{})
+	if len(a2.save.KnownLanguages) != 0 {
+		t.Errorf("a home-language-less background granted %+v", a2.save.KnownLanguages)
+	}
+}
+
 // An authored grant is GRANT-ONCE even for a stackable feat: re-firing must not
 // inflate the stack (a background grants "you have this feat", not "+1 stack").
 func TestGrantFeat_StackableIsGrantOnce(t *testing.T) {

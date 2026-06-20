@@ -20,5 +20,8 @@ equipment_packages:
   - [healers-balm, healers-balm, hooded-lantern, hemp-rope, silk-rope]
   - [fine-jewelry]
 gold: 30
+# Home + bonus languages (docs/wot/backgrounds.md Table 2-1; languages.md §3).
+home_language: common-athaan-miere
+bonus_languages: [common-arad-doman, common-ebou-dar, common-illian, common-tarabon, common-tairen]
 allowed_categories:
   - humanoid

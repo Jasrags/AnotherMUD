@@ -322,6 +322,13 @@ How a connection becomes a session becomes a character.
   namespacing it needs) is deferred. Resolves
   `docs/proposals/character-identity-across-packs.md` §7 *(shipped 2026-06-16 —
   manifest `kind` flag + save v23 WorldID + login gate)*.
+- [languages](languages.md) — content-driven tongues a character speaks:
+  a language registry (id + name + comprehension **family** + flavor), a
+  per-character known-language set (save v30), and a background-granted
+  **home language** at creation, shown on `score` + a `languages` listing.
+  Comprehension gating (garble unknown tongues) and Intelligence-budget
+  bonus-language picks are deferred to the spec's open questions *(identity
+  substrate shipped 2026-06-19)*.
 
 ### 5. Presentation
 

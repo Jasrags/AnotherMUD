@@ -22,5 +22,8 @@ equipment_packages:
   - [courtiers-outfit, fine-wine, fine-wine]
   - [musical-instrument]
 gold: 30
+# Home + bonus languages (docs/wot/backgrounds.md Table 2-1; languages.md §3).
+home_language: common-arad-doman
+bonus_languages: [common-athaan-miere, common-borderlands, common-midlands, common-tarabon]
 allowed_categories:
   - humanoid

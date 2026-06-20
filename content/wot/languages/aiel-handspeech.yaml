@@ -1,0 +1,11 @@
+id: aiel-handspeech
+name: Aiel hand-speech
+# A signed language, not spoken — its own family, opaque to anyone untaught. The
+# clan and society hand-codes collapse into one entry for this slice (a richer
+# medium axis is a languages.md open question).
+family: hand-speech
+description: |
+  The silent hand-signals of the Aiel, used by warriors to coordinate a raid
+  without a sound and by clans and societies to speak past wetlander ears. A
+  flicker of fingers carries orders, warnings, and names; to the untaught it is
+  only restless hands.

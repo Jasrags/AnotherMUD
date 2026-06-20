@@ -346,6 +346,19 @@ func scenarioBackgroundGrant(c *telnettest.Client, name string) error {
 	if !strings.Contains(strings.ToLower(sheet), "cannot channel") {
 		return fmt.Errorf("score sheet missing the channeling-gift row; got:\n%s", sheet)
 	}
+
+	// Languages (languages.md §3): the Aiel home language was granted at
+	// creation, so the `languages` listing shows Common (Aiel).
+	if err := c.SendLine("languages"); err != nil {
+		return err
+	}
+	langs, err := c.Expect(gamePrompt)
+	if err != nil {
+		return fmt.Errorf("languages output: %w", err)
+	}
+	if !strings.Contains(strings.ToLower(langs), "common (aiel)") {
+		return fmt.Errorf("languages listing missing the Aiel home language; got:\n%s", langs)
+	}
 	return nil
 }
 
