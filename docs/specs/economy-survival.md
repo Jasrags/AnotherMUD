@@ -169,6 +169,30 @@ The shop's per-config multipliers take precedence over the
 global defaults when set to a positive value. Zero or unset
 falls through to the global config.
 
+#### 3.3.1 Faction standing (faction.md §6)
+
+A shop may declare a **faction** affiliation and react to the
+buyer's standing with it (the faction-as-consumer seam,
+`faction.md` §6):
+
+- **Access gate** — an optional standing floor (`min_standing`).
+  A buyer below the floor is refused *all* trade (buy and sell),
+  before any stock resolution, pricing, or charge. An
+  unresolvable standing (no faction wired / faction not in
+  content) **fails open** — no refusal — mirroring the §7 skill
+  gate's nil checker.
+- **Favored-customer pricing** — an optional `ally_standing` +
+  `ally_discount`: at/above `ally_standing` the buyer pays
+  `ally_discount` less on buys and receives `ally_discount` more
+  on sells. The discount is capped so a buy price never reaches
+  zero. Below the threshold pricing is flat.
+
+The faction id is written **fully-qualified** in the shop block
+(the NPC property block is not namespace-resolved). All three
+fields are optional; absent = no faction effect. The standing is
+resolved by the command layer (the engine economy package stays
+free of the faction dependency, mirroring the skill gate).
+
 ### 3.4 Listings
 
 `GetListings(npc)` returns a list of `(templateId, name,

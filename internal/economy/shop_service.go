@@ -72,8 +72,8 @@ func NewShopService(tpls *item.Templates, store *entities.Store, currency *Curre
 // Listings returns the shop's offered stock (spec §3.4). check is the
 // buyer's §7 skill predicate; items the buyer can't yet buy are omitted
 // (nil check lists everything).
-func (s *ShopService) Listings(shop ShopConfig, check SkillChecker) []Listing {
-	return listings(s.tpls, shop, s.cfg, check)
+func (s *ShopService) Listings(shop ShopConfig, check SkillChecker, standing StandingFunc) []Listing {
+	return listings(s.tpls, shop, s.cfg, check, standing)
 }
 
 // StockNamed returns the shop's sellable stock as keyword.Named — the
@@ -111,6 +111,10 @@ type BuyResult struct {
 	// ShopSkillTooLow outcome so the caller can name what the buyer lacks.
 	RequiredSkill string
 	RequiredLevel int
+	// RequiredStanding / Faction carry the faction access floor on a
+	// ShopStandingTooLow outcome (faction.md §6) so the caller can report it.
+	RequiredStanding int
+	Faction          string
 }
 
 // Buy purchases an item from the shop's stock (spec §3.5). The player
@@ -118,7 +122,12 @@ type BuyResult struct {
 // creation fails (spec §9 open question, kept as-is). check is the buyer's
 // §7 skill predicate: a gated item below the buyer's proficiency is refused
 // (ShopSkillTooLow) before any charge. A nil check never gates.
-func (s *ShopService) Buy(ctx context.Context, sh Shopper, npcID string, shop ShopConfig, query string, check SkillChecker) BuyResult {
+func (s *ShopService) Buy(ctx context.Context, sh Shopper, npcID string, shop ShopConfig, query string, check SkillChecker, standing StandingFunc) BuyResult {
+	// faction.md §6 access gate: a hostile buyer is refused all trade before
+	// any stock resolution / pricing / charge.
+	if shop.refusesStanding(standing) {
+		return BuyResult{Outcome: ShopStandingTooLow, Faction: shop.Faction, RequiredStanding: *shop.MinStanding}
+	}
 	gold := s.currency.Read(sh)
 	tpl := resolveStock(s.tpls, shop, query)
 	if tpl == nil {
@@ -130,7 +139,7 @@ func (s *ShopService) Buy(ctx context.Context, sh Shopper, npcID string, shop Sh
 		disc, level, _ := skillRequirement(tpl)
 		return BuyResult{Outcome: ShopSkillTooLow, ItemName: tpl.Name, RequiredSkill: disc, RequiredLevel: level}
 	}
-	price := buyPrice(templateValue(tpl), shop, s.cfg)
+	price := buyPrice(templateValue(tpl), shop, s.cfg, standing)
 
 	if int64(gold) < price {
 		return BuyResult{Outcome: ShopInsufficientGold, ItemName: tpl.Name, Price: price, Gold: gold}
@@ -165,11 +174,19 @@ type SellResult struct {
 	ItemName string
 	Price    int64
 	Gold     int
+	// Faction / RequiredStanding carry the access floor on a ShopStandingTooLow
+	// outcome (faction.md §6) so the caller can report the refusal.
+	Faction          string
+	RequiredStanding int
 }
 
 // Sell sells a player-held item to the shop (spec §3.6). An equipped
-// match is auto-unequipped silently before transfer.
-func (s *ShopService) Sell(ctx context.Context, sh Shopper, npcID string, shop ShopConfig, query string) SellResult {
+// match is auto-unequipped silently before transfer. A hostile seller (below
+// the shop's faction access floor) is refused (faction.md §6).
+func (s *ShopService) Sell(ctx context.Context, sh Shopper, npcID string, shop ShopConfig, query string, standing StandingFunc) SellResult {
+	if shop.refusesStanding(standing) {
+		return SellResult{Outcome: ShopStandingTooLow, Faction: shop.Faction, RequiredStanding: *shop.MinStanding}
+	}
 	inst, slotKey := s.resolveInventory(sh, query)
 	if inst == nil {
 		return SellResult{Outcome: ShopItemNotInInventory}
@@ -181,7 +198,7 @@ func (s *ShopService) Sell(ctx context.Context, sh Shopper, npcID string, shop S
 	if value <= 0 {
 		return SellResult{Outcome: ShopItemValueZero, ItemName: inst.Name()}
 	}
-	price := sellPrice(value, shop, s.cfg)
+	price := sellPrice(value, shop, s.cfg, standing)
 
 	if s.sink.OnShopSell(ctx, sh.ID(), npcID, string(inst.TemplateID()), price) {
 		return SellResult{Outcome: ShopItemNotForSale, ItemName: inst.Name(), Price: price}
@@ -222,12 +239,12 @@ type ValueResult struct {
 // Value answers "what's this worth?" (spec §3.9). Inventory is tried
 // first (sell price), then stock (buy price). A held item shows the
 // price the player would receive, not the shop's asking price.
-func (s *ShopService) Value(_ context.Context, sh Shopper, shop ShopConfig, query string) ValueResult {
+func (s *ShopService) Value(_ context.Context, sh Shopper, shop ShopConfig, query string, standing StandingFunc) ValueResult {
 	if inst, _ := s.resolveInventory(sh, query); inst != nil {
 		return ValueResult{
 			Outcome:  ShopOK,
 			ItemName: inst.Name(),
-			Price:    sellPrice(instanceValue(inst), shop, s.cfg),
+			Price:    sellPrice(instanceValue(inst), shop, s.cfg, standing),
 			Scope:    ScopeInventory,
 		}
 	}
@@ -235,7 +252,7 @@ func (s *ShopService) Value(_ context.Context, sh Shopper, shop ShopConfig, quer
 		return ValueResult{
 			Outcome:  ShopOK,
 			ItemName: tpl.Name,
-			Price:    buyPrice(templateValue(tpl), shop, s.cfg),
+			Price:    buyPrice(templateValue(tpl), shop, s.cfg, standing),
 			Scope:    ScopeStock,
 		}
 	}

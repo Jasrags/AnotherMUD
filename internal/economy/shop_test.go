@@ -115,10 +115,10 @@ func TestPricing(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := buyPrice(tt.value, tt.cfg, global); got != tt.wantBuy {
+			if got := buyPrice(tt.value, tt.cfg, global, nil); got != tt.wantBuy {
 				t.Errorf("buyPrice = %d, want %d", got, tt.wantBuy)
 			}
-			if got := sellPrice(tt.value, tt.cfg, global); got != tt.wantSell {
+			if got := sellPrice(tt.value, tt.cfg, global, nil); got != tt.wantSell {
 				t.Errorf("sellPrice = %d, want %d", got, tt.wantSell)
 			}
 		})
@@ -208,7 +208,7 @@ func TestValue_StockByKeyword(t *testing.T) {
 	sh := newShopper("p1", 0) // holds nothing
 	cfg := ShopConfig{Sells: []string{"core:leather-cap"}}
 
-	res := f.svc.Value(context.Background(), sh, cfg, "cap")
+	res := f.svc.Value(context.Background(), sh, cfg, "cap", nil)
 	if res.Outcome != ShopOK || res.Scope != ScopeStock {
 		t.Fatalf("value cap = %v/%v, want OK/stock", res.Outcome, res.Scope)
 	}
@@ -221,7 +221,7 @@ func TestValue_InventoryByKeyword(t *testing.T) {
 	sh.AddToInventory(inst.ID())
 
 	// Held item answers to its keyword; inventory (sell) price wins.
-	res := f.svc.Value(context.Background(), sh, ShopConfig{}, "cap")
+	res := f.svc.Value(context.Background(), sh, ShopConfig{}, "cap", nil)
 	if res.Outcome != ShopOK || res.Scope != ScopeInventory {
 		t.Fatalf("value cap (held) = %v/%v, want OK/inventory", res.Outcome, res.Scope)
 	}
@@ -235,7 +235,7 @@ func TestListings(t *testing.T) {
 	f.tpls.Add(valTpl("core:freebie", "a freebie", 0)) // zero value dropped
 	cfg := ShopConfig{Sells: []string{"core:potion", "core:freebie", "core:missing"}}
 
-	got := f.svc.Listings(cfg, nil)
+	got := f.svc.Listings(cfg, nil, nil)
 	if len(got) != 1 {
 		t.Fatalf("listings = %d rows, want 1 (zero-value + missing dropped): %+v", len(got), got)
 	}
@@ -252,7 +252,7 @@ func TestBuy_Success(t *testing.T) {
 	cfg := ShopConfig{Sells: []string{"core:potion"}}
 	sh := newShopper("p1", 100)
 
-	res := f.svc.Buy(context.Background(), sh, "npc1", cfg, "potion", nil)
+	res := f.svc.Buy(context.Background(), sh, "npc1", cfg, "potion", nil, nil)
 	if res.Outcome != ShopOK {
 		t.Fatalf("outcome = %v, want ShopOK", res.Outcome)
 	}
@@ -279,7 +279,7 @@ func TestBuy_InsufficientGold(t *testing.T) {
 	cfg := ShopConfig{Sells: []string{"core:potion"}}
 	sh := newShopper("p1", 10) // needs 24
 
-	res := f.svc.Buy(context.Background(), sh, "npc1", cfg, "potion", nil)
+	res := f.svc.Buy(context.Background(), sh, "npc1", cfg, "potion", nil, nil)
 	if res.Outcome != ShopInsufficientGold {
 		t.Fatalf("outcome = %v, want ShopInsufficientGold", res.Outcome)
 	}
@@ -301,7 +301,7 @@ func TestBuy_CancelledEvent(t *testing.T) {
 	cfg := ShopConfig{Sells: []string{"core:potion"}}
 	sh := newShopper("p1", 100)
 
-	res := f.svc.Buy(context.Background(), sh, "npc1", cfg, "potion", nil)
+	res := f.svc.Buy(context.Background(), sh, "npc1", cfg, "potion", nil, nil)
 	if res.Outcome != ShopItemNotForSale {
 		t.Fatalf("outcome = %v, want ShopItemNotForSale", res.Outcome)
 	}
@@ -317,7 +317,7 @@ func TestBuy_StockMiss(t *testing.T) {
 	f := newShopFixture(t, DefaultEconomyConfig())
 	cfg := ShopConfig{Sells: []string{}}
 	sh := newShopper("p1", 100)
-	res := f.svc.Buy(context.Background(), sh, "npc1", cfg, "potion", nil)
+	res := f.svc.Buy(context.Background(), sh, "npc1", cfg, "potion", nil, nil)
 	if res.Outcome != ShopItemNotForSale {
 		t.Errorf("outcome = %v, want ShopItemNotForSale", res.Outcome)
 	}
@@ -331,7 +331,7 @@ func TestSell_Success(t *testing.T) {
 	sh := newShopper("p1", 0)
 	sh.AddToInventory(inst.ID())
 
-	res := f.svc.Sell(context.Background(), sh, "npc1", ShopConfig{}, "ruby")
+	res := f.svc.Sell(context.Background(), sh, "npc1", ShopConfig{}, "ruby", nil)
 	if res.Outcome != ShopOK {
 		t.Fatalf("outcome = %v, want ShopOK", res.Outcome)
 	}
@@ -352,7 +352,7 @@ func TestSell_NoSellTag(t *testing.T) {
 	sh := newShopper("p1", 0)
 	sh.AddToInventory(inst.ID())
 
-	res := f.svc.Sell(context.Background(), sh, "npc1", ShopConfig{}, "relic")
+	res := f.svc.Sell(context.Background(), sh, "npc1", ShopConfig{}, "relic", nil)
 	if res.Outcome != ShopItemIsNoSell {
 		t.Fatalf("outcome = %v, want ShopItemIsNoSell", res.Outcome)
 	}
@@ -368,7 +368,7 @@ func TestSell_ValueZero(t *testing.T) {
 	sh.AddToInventory(inst.ID())
 
 	// Prefix-match on the full name (§3.8): "some" leads "some junk".
-	res := f.svc.Sell(context.Background(), sh, "npc1", ShopConfig{}, "some junk")
+	res := f.svc.Sell(context.Background(), sh, "npc1", ShopConfig{}, "some junk", nil)
 	if res.Outcome != ShopItemValueZero {
 		t.Errorf("outcome = %v, want ShopItemValueZero", res.Outcome)
 	}
@@ -377,7 +377,7 @@ func TestSell_ValueZero(t *testing.T) {
 func TestSell_NotInInventory(t *testing.T) {
 	f := newShopFixture(t, DefaultEconomyConfig())
 	sh := newShopper("p1", 0)
-	res := f.svc.Sell(context.Background(), sh, "npc1", ShopConfig{}, "ruby")
+	res := f.svc.Sell(context.Background(), sh, "npc1", ShopConfig{}, "ruby", nil)
 	if res.Outcome != ShopItemNotInInventory {
 		t.Errorf("outcome = %v, want ShopItemNotInInventory", res.Outcome)
 	}
@@ -390,7 +390,7 @@ func TestSell_AutoUnequipsEquipped(t *testing.T) {
 	sh.equip["wield"] = inst.ID() // worn, not carried
 
 	// "short" prefixes the article-stripped name "short sword" (§3.8).
-	res := f.svc.Sell(context.Background(), sh, "npc1", ShopConfig{}, "short")
+	res := f.svc.Sell(context.Background(), sh, "npc1", ShopConfig{}, "short", nil)
 	if res.Outcome != ShopOK {
 		t.Fatalf("outcome = %v, want ShopOK (equipped item sellable)", res.Outcome)
 	}
@@ -412,7 +412,7 @@ func TestSell_CancelledEvent(t *testing.T) {
 	sh := newShopper("p1", 0)
 	sh.AddToInventory(inst.ID())
 
-	res := f.svc.Sell(context.Background(), sh, "npc1", ShopConfig{}, "ruby")
+	res := f.svc.Sell(context.Background(), sh, "npc1", ShopConfig{}, "ruby", nil)
 	if res.Outcome != ShopItemNotForSale {
 		t.Fatalf("outcome = %v, want ShopItemNotForSale", res.Outcome)
 	}
@@ -432,7 +432,7 @@ func TestValue_InventoryFirst(t *testing.T) {
 	sh.AddToInventory(inst.ID())
 	cfg := ShopConfig{Sells: []string{"core:gem"}}
 
-	res := f.svc.Value(context.Background(), sh, cfg, "ruby")
+	res := f.svc.Value(context.Background(), sh, cfg, "ruby", nil)
 	if res.Outcome != ShopOK || res.Scope != ScopeInventory {
 		t.Fatalf("outcome/scope = %v/%v, want OK/inventory", res.Outcome, res.Scope)
 	}
@@ -447,7 +447,7 @@ func TestValue_StockFallback(t *testing.T) {
 	sh := newShopper("p1", 0) // holds nothing
 	cfg := ShopConfig{Sells: []string{"core:gem"}}
 
-	res := f.svc.Value(context.Background(), sh, cfg, "ruby")
+	res := f.svc.Value(context.Background(), sh, cfg, "ruby", nil)
 	if res.Outcome != ShopOK || res.Scope != ScopeStock {
 		t.Fatalf("outcome/scope = %v/%v, want OK/stock", res.Outcome, res.Scope)
 	}
@@ -459,7 +459,7 @@ func TestValue_StockFallback(t *testing.T) {
 func TestValue_Miss(t *testing.T) {
 	f := newShopFixture(t, DefaultEconomyConfig())
 	sh := newShopper("p1", 0)
-	res := f.svc.Value(context.Background(), sh, ShopConfig{}, "ruby")
+	res := f.svc.Value(context.Background(), sh, ShopConfig{}, "ruby", nil)
 	if res.Outcome != ShopItemNotForSale {
 		t.Errorf("outcome = %v, want ShopItemNotForSale", res.Outcome)
 	}
@@ -476,12 +476,12 @@ func TestBuy_ExactKeywordBeatsScrollNameSubstring(t *testing.T) {
 	cfg := ShopConfig{Sells: []string{"core:rusty-dagger", "core:scroll"}}
 	sh := newShopper("p1", 1000)
 
-	res := f.svc.Buy(context.Background(), sh, "npc1", cfg, "dagger", nil)
+	res := f.svc.Buy(context.Background(), sh, "npc1", cfg, "dagger", nil, nil)
 	if res.Outcome != ShopOK || res.ItemName != "a rusty dagger" {
 		t.Fatalf("buy dagger = %v/%q, want OK/rusty dagger (exact keyword wins)", res.Outcome, res.ItemName)
 	}
 	// The scroll still resolves uniquely by its own keyword.
-	if res := f.svc.Buy(context.Background(), sh, "npc1", cfg, "scroll", nil); res.Outcome != ShopOK || res.ItemName != "a recipe scroll - forging an iron dagger" {
+	if res := f.svc.Buy(context.Background(), sh, "npc1", cfg, "scroll", nil, nil); res.Outcome != ShopOK || res.ItemName != "a recipe scroll - forging an iron dagger" {
 		t.Errorf("buy scroll = %v/%q, want OK/the scroll", res.Outcome, res.ItemName)
 	}
 }

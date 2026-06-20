@@ -7,6 +7,7 @@ import (
 
 	"github.com/Jasrags/AnotherMUD/internal/economy"
 	"github.com/Jasrags/AnotherMUD/internal/entities"
+	"github.com/Jasrags/AnotherMUD/internal/faction"
 	"github.com/Jasrags/AnotherMUD/internal/world"
 )
 
@@ -25,7 +26,7 @@ func BuyHandler(ctx context.Context, c *Context) error {
 	if len(c.Args) == 0 {
 		return c.Actor.Write(ctx, "Buy what?")
 	}
-	res := c.Shop.Buy(ctx, shopper, string(npc.ID()), cfg, strings.Join(c.Args, " "), shopSkillChecker(c))
+	res := c.Shop.Buy(ctx, shopper, string(npc.ID()), cfg, strings.Join(c.Args, " "), shopSkillChecker(c), shopStandingFunc(c))
 	switch res.Outcome {
 	case economy.ShopOK:
 		return c.Actor.Write(ctx, fmt.Sprintf("You buy %s for %d gold. You have %d gold left.", res.ItemName, res.Price, res.Gold))
@@ -33,6 +34,8 @@ func BuyHandler(ctx context.Context, c *Context) error {
 		return c.Actor.Write(ctx, fmt.Sprintf("%s costs %d gold; you only have %d.", res.ItemName, res.Price, res.Gold))
 	case economy.ShopSkillTooLow:
 		return c.Actor.Write(ctx, fmt.Sprintf("%s requires %s skill %d before you can buy it.", capitalize(res.ItemName), res.RequiredSkill, res.RequiredLevel))
+	case economy.ShopStandingTooLow:
+		return c.Actor.Write(ctx, "The shopkeeper refuses to deal with the likes of you.")
 	default:
 		return c.Actor.Write(ctx, "The shop doesn't sell that.")
 	}
@@ -56,6 +59,29 @@ func shopSkillChecker(c *Context) economy.SkillChecker {
 	}
 }
 
+// shopStandingFunc builds the faction §6 standing resolver for the buyer from
+// the faction manager, or nil when faction isn't wired / the actor carries no
+// standing surface (no gate, no price scaling). The economy package stays free
+// of the faction import — the command layer owns the lookup (mirrors
+// shopSkillChecker). Returns ok=false for a faction not in content so the shop
+// fails open on a content typo.
+func shopStandingFunc(c *Context) economy.StandingFunc {
+	if c.Faction == nil {
+		return nil
+	}
+	fe, ok := c.Actor.(faction.Entity)
+	if !ok {
+		return nil
+	}
+	return func(factionID string) (int, bool) {
+		def, ok := c.Faction.Registry().Get(factionID)
+		if !ok {
+			return 0, false
+		}
+		return c.Faction.Get(fe, def), true
+	}
+}
+
 // SellHandler implements `sell <item>` (spec §3.6).
 func SellHandler(ctx context.Context, c *Context) error {
 	shopper, npc, cfg, ok := shopContext(ctx, c)
@@ -65,7 +91,7 @@ func SellHandler(ctx context.Context, c *Context) error {
 	if len(c.Args) == 0 {
 		return c.Actor.Write(ctx, "Sell what?")
 	}
-	res := c.Shop.Sell(ctx, shopper, string(npc.ID()), cfg, strings.Join(c.Args, " "))
+	res := c.Shop.Sell(ctx, shopper, string(npc.ID()), cfg, strings.Join(c.Args, " "), shopStandingFunc(c))
 	switch res.Outcome {
 	case economy.ShopOK:
 		return c.Actor.Write(ctx, fmt.Sprintf("You sell %s for %d gold. You now have %d gold.", res.ItemName, res.Price, res.Gold))
@@ -75,6 +101,8 @@ func SellHandler(ctx context.Context, c *Context) error {
 		return c.Actor.Write(ctx, fmt.Sprintf("The shop won't give you anything for %s.", res.ItemName))
 	case economy.ShopItemNotInInventory:
 		return c.Actor.Write(ctx, "You aren't carrying that.")
+	case economy.ShopStandingTooLow:
+		return c.Actor.Write(ctx, "The shopkeeper refuses to deal with the likes of you.")
 	default:
 		return c.Actor.Write(ctx, "The shop refuses to buy that.")
 	}
@@ -91,7 +119,7 @@ func ValueHandler(ctx context.Context, c *Context) error {
 	if len(c.Args) == 0 {
 		return c.Actor.Write(ctx, "Value what?")
 	}
-	res := c.Shop.Value(ctx, shopper, cfg, strings.Join(c.Args, " "))
+	res := c.Shop.Value(ctx, shopper, cfg, strings.Join(c.Args, " "), shopStandingFunc(c))
 	switch {
 	case res.Outcome != economy.ShopOK:
 		return c.Actor.Write(ctx, "The shop doesn't deal in that.")
@@ -108,7 +136,7 @@ func ListHandler(ctx context.Context, c *Context) error {
 	if !ok {
 		return nil
 	}
-	rows := c.Shop.Listings(cfg, shopSkillChecker(c))
+	rows := c.Shop.Listings(cfg, shopSkillChecker(c), shopStandingFunc(c))
 	if len(rows) == 0 {
 		return c.Actor.Write(ctx, "The shop has nothing for sale.")
 	}
@@ -197,6 +225,54 @@ func shopConfigFromMob(mob *entities.MobInstance) economy.ShopConfig {
 		Sells:        stringSlice(block["sells"]),
 		BuyMarkup:    floatProp(block["buy_markup"]),
 		SellDiscount: floatProp(block["sell_discount"]),
+		// Faction §6: affiliation + optional access floor + favored-customer
+		// pricing. The faction id is written fully-qualified in the block (the
+		// property map is not namespace-resolved). min_standing is a pointer so
+		// 0 is a real floor, distinct from "no gate".
+		Faction:      blockString(block["faction"]),
+		MinStanding:  blockIntPtr(block["min_standing"]),
+		AllyStanding: blockInt(block["ally_standing"]),
+		AllyDiscount: floatProp(block["ally_discount"]),
+	}
+}
+
+// blockString coerces a shop-block value to a trimmed string, "" when absent /
+// non-string. (Distinct from fill.go's instance-property stringProp.)
+func blockString(v any) string {
+	s, _ := v.(string)
+	return strings.TrimSpace(s)
+}
+
+// blockInt coerces a numeric shop-block scalar to int (int / int64 / float64),
+// zero when absent / non-numeric.
+func blockInt(v any) int {
+	switch n := v.(type) {
+	case int:
+		return n
+	case int64:
+		return int(n)
+	case float64:
+		return int(n)
+	default:
+		return 0
+	}
+}
+
+// blockIntPtr coerces a numeric shop-block scalar to *int, nil when the key is
+// absent (so a missing min_standing means "no access gate" while an explicit 0
+// is a real floor).
+func blockIntPtr(v any) *int {
+	switch n := v.(type) {
+	case int:
+		return &n
+	case int64:
+		m := int(n)
+		return &m
+	case float64:
+		m := int(n)
+		return &m
+	default:
+		return nil
 	}
 }
 

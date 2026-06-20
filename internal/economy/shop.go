@@ -34,6 +34,14 @@ const (
 // (ungated shops / tests / a build without progression wired).
 type SkillChecker func(discipline string, level int) bool
 
+// StandingFunc reports the buyer's standing with a faction id and whether it
+// could be resolved. The command layer builds it from the faction manager +
+// the buyer, keeping the economy package free of the faction import (mirrors
+// SkillChecker). A nil func — or an unresolvable faction (ok=false) — means
+// "no faction effect": access is never gated and pricing is never scaled
+// (ungated shops / tests / a build without faction wired). See faction.md §6.
+type StandingFunc func(factionID string) (standing int, ok bool)
+
 // EconomyConfig holds the global shop defaults a per-shop ShopConfig
 // falls back to (spec §3.1). The documented defaults are a 1.2 buy
 // markup and a 0.5 sell discount; both are configurable.
@@ -55,6 +63,64 @@ type ShopConfig struct {
 	Sells        []string
 	BuyMarkup    float64
 	SellDiscount float64
+	// Faction is the shop's faction affiliation (faction.md §6), a faction id
+	// written FULLY-QUALIFIED in the shop block (the property block is not
+	// namespace-resolved by the loader). Empty = no faction effects.
+	Faction string
+	// MinStanding is the access floor: a buyer whose standing with Faction is
+	// below it is refused all trade (ShopStandingTooLow). A pointer so 0 ("must
+	// not be hostile/unfriendly") is distinguishable from unset; nil = no access
+	// gate (sells to anyone). An unresolvable standing fails open (no refusal).
+	MinStanding *int
+	// AllyStanding / AllyDiscount are the favored-customer pricing (faction.md §6
+	// "ally discount"): at/above AllyStanding the buyer pays AllyDiscount less on
+	// buys and receives AllyDiscount more on sells. AllyDiscount<=0 = flat
+	// pricing; it is capped (allyDiscountFor) so prices never invert.
+	AllyStanding int
+	AllyDiscount float64
+}
+
+// buyerStanding resolves the buyer's standing with the shop's faction. ok=false
+// when the shop has no faction, no resolver is wired, or the faction is unknown
+// — in which case faction effects (gate + pricing) are skipped (fail-open).
+func (c ShopConfig) buyerStanding(standing StandingFunc) (int, bool) {
+	if c.Faction == "" || standing == nil {
+		return 0, false
+	}
+	return standing(c.Faction)
+}
+
+// refusesStanding reports whether the shop refuses to trade with a buyer at the
+// resolved standing: only when the shop gates (MinStanding set), the standing is
+// resolvable, and it is below the floor. An unresolvable standing fails open
+// (mirrors the skill gate's nil checker).
+func (c ShopConfig) refusesStanding(standing StandingFunc) bool {
+	if c.MinStanding == nil {
+		return false
+	}
+	v, ok := c.buyerStanding(standing)
+	if !ok {
+		return false
+	}
+	return v < *c.MinStanding
+}
+
+// allyDiscountFor returns the favored-customer discount fraction the buyer
+// earns: 0 unless the shop offers one (AllyDiscount>0) and the buyer's standing
+// is at/above AllyStanding. Capped at 0.9 so a buy price never reaches zero and
+// a sell payout never more than ~doubles.
+func (c ShopConfig) allyDiscountFor(standing StandingFunc) float64 {
+	if c.AllyDiscount <= 0 {
+		return 0
+	}
+	v, ok := c.buyerStanding(standing)
+	if !ok || v < c.AllyStanding {
+		return 0
+	}
+	if c.AllyDiscount > 0.9 {
+		return 0.9
+	}
+	return c.AllyDiscount
 }
 
 // markup returns the effective buy multiplier: the per-shop override
@@ -74,16 +140,19 @@ func (c ShopConfig) discount(global EconomyConfig) float64 {
 	return global.SellDiscount
 }
 
-// buyPrice computes max(1, round(value × markup)) as int64 so very
-// expensive items don't overflow and a shop never sells for free
-// (spec §3.3).
-func buyPrice(value int, cfg ShopConfig, global EconomyConfig) int64 {
-	return floorAtOne(float64(value) * cfg.markup(global))
+// buyPrice computes max(1, round(value × markup × (1−allyDiscount))) as int64
+// so very expensive items don't overflow and a shop never sells for free
+// (spec §3.3; faction.md §6 ally discount). A nil standing leaves the price at
+// the base markup.
+func buyPrice(value int, cfg ShopConfig, global EconomyConfig, standing StandingFunc) int64 {
+	return floorAtOne(float64(value) * cfg.markup(global) * (1 - cfg.allyDiscountFor(standing)))
 }
 
-// sellPrice computes max(1, round(value × discount)) (spec §3.3).
-func sellPrice(value int, cfg ShopConfig, global EconomyConfig) int64 {
-	return floorAtOne(float64(value) * cfg.discount(global))
+// sellPrice computes max(1, round(value × discount × (1+allyDiscount)))
+// (spec §3.3; faction.md §6 favored-customer payout). A nil standing leaves the
+// price at the base discount.
+func sellPrice(value int, cfg ShopConfig, global EconomyConfig, standing StandingFunc) int64 {
+	return floorAtOne(float64(value) * cfg.discount(global) * (1 + cfg.allyDiscountFor(standing)))
 }
 
 func floorAtOne(v float64) int64 {
@@ -119,6 +188,10 @@ const (
 	// stock item's purchase gate (§7 availability by skill level). The
 	// required discipline + level ride along so the caller can report them.
 	ShopSkillTooLow
+	// ShopStandingTooLow — the buyer's faction standing is below the shop's
+	// access floor (faction.md §6 "refuse hostiles"). The faction id + required
+	// standing ride along so the caller can report them.
+	ShopStandingTooLow
 )
 
 // Listing is one row of a shop's offered stock (spec §3.4).
@@ -132,7 +205,7 @@ type Listing struct {
 // dropping entries whose template id is unknown, whose value is not
 // positive, or whose §7 skill gate the buyer fails (check). Order follows
 // the sells list. A nil check leaves every gated item listed (ungated).
-func listings(tpls *item.Templates, cfg ShopConfig, global EconomyConfig, check SkillChecker) []Listing {
+func listings(tpls *item.Templates, cfg ShopConfig, global EconomyConfig, check SkillChecker, standing StandingFunc) []Listing {
 	if tpls == nil {
 		return nil
 	}
@@ -152,7 +225,7 @@ func listings(tpls *item.Templates, cfg ShopConfig, global EconomyConfig, check 
 		out = append(out, Listing{
 			TemplateID: string(tpl.ID),
 			Name:       tpl.Name,
-			BuyPrice:   buyPrice(value, cfg, global),
+			BuyPrice:   buyPrice(value, cfg, global, standing),
 		})
 	}
 	return out
