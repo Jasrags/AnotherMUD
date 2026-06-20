@@ -14,11 +14,27 @@ description: |
 # not auto-hostile, so the town stays passable). The Dark's quiet reach onto the
 # roads of Andor; like the Baerlon Child of the Light, this mob is the hook for
 # S8 reputation / a Darkfriend questline when those land.
-tags: [humanoid]
+tags: [humanoid, shop]
 keywords: [merchant, trader, man, stranger]
 stats:
   hp_max: 28
   str: 12
+# faction.md §6 shop gate + favored-customer pricing (economy-survival §3.3.1).
+# This fence keeps a quiet line of goods for the discreet — but he will not deal
+# with a known servant of the Light: a buyer Unfriendly-or-worse with the
+# Darkfriends (standing < 0) is refused outright. A proven friend of the Dark
+# (Friendly+, standing >= 300) gets the friends'-price discount. The faction id
+# is written fully-qualified (the shop block is not namespace-resolved).
+properties:
+  shop:
+    faction: wot:darkfriends
+    min_standing: 0
+    ally_standing: 300
+    ally_discount: 0.2
+    sells:
+      - wot:disguise-kit
+      - wot:belt-knife
+      - wot:fine-wine
 # faction.md §6: a Darkfriend warms to one who has proven a friend of the Dark
 # (Friendly+ Darkfriend standing) and grows wary of a sworn servant of the Light
 # (Allied with the Children). An untouched character is met with the same

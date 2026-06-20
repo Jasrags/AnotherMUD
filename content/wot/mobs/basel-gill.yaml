@@ -19,6 +19,14 @@ disposition_rules:
   default: friendly
 properties:
   shop:
+    # faction.md §6 favored-customer pricing (economy-survival §3.3.1): the
+    # Queen's Blessing keeps a soft spot for the Queen's own — a guest who has
+    # earned the Queen's Guard's regard (Honored+, standing >= 500) dines at a
+    # friend's price. No access gate: Basel turns no paying guest away. The
+    # faction id is written fully-qualified (the shop block is not ns-resolved).
+    faction: wot:queens-guard
+    ally_standing: 500
+    ally_discount: 0.15
     sells:
       - wot:cooked-meal
       - wot:trail-rations
