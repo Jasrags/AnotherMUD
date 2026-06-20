@@ -1,0 +1,41 @@
+# Queen's Guard initiation — the faction earn-path demo (faction.md §5.1).
+# An auto-grant quest from the Palace Guardsman: walk to the Queen's own square
+# to be sworn in. On completion the reward GRANTS Queen's Guard standing (the
+# §5.1 quest-currency path), which simultaneously:
+#   - lifts the swearer to Honored (>=500) → the Guard's drill `guards-bulwark`
+#     becomes usable (its faction §6 gate), and
+#   - earns a friend's price at the Queen's Blessing (basel-gill's ally pricing),
+#     and unlocks the follow-up `the-queens-trust` (its faction prerequisite).
+# The reward also TEACHES the gated skill, so the swearer leaves able to use it.
+#
+# Unqualified ids (giver, objective target, reward.faction) resolve against the
+# wot namespace at load; the reward ability id is a bare GLOBAL id.
+id: oath-to-the-queen
+name: An Oath to the Queen
+classification: side
+giver: palace-guard
+offer: >-
+  "You carry yourself well enough. If you'd serve the Queen's peace, walk to the
+  square and take the oath before the people — then you're one of us, and the
+  Guard looks after its own."
+abandonable: true
+stages:
+  - id: swear
+    description: The Palace Guardsman bids you take the Queen's oath in the square.
+    hint: Go to the Caemlyn square and be sworn in.
+    objectives:
+      - type: visit
+        target: the-caemlyn-square
+        description: Take the oath in the Caemlyn square.
+reward:
+  xp: 150
+  gold: 30
+  # faction.md §5.1: the standing grant is the heart of the demo — +600 lifts a
+  # neutral newcomer to Honored with the Queen's Guard.
+  faction:
+    - faction: queens-guard
+      delta: 600
+  # Teach the faction-gated Guard drill (bare GLOBAL ability id). The standing
+  # grant above clears its §6 use-gate, so the swearer can use it at once.
+  abilities:
+    - guards-bulwark

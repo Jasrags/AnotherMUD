@@ -78,3 +78,8 @@ content:
     - node_spawn_tables/*.yaml
   loot_tables:
     - loot_tables/*.yaml
+  # Quests (quests.md). The Queen's Guard initiation arc demos the faction
+  # consumers (faction.md §5.1/§6): a quest grants standing + teaches a
+  # faction-gated skill, and a follow-up requires the standing it grants.
+  quests:
+    - quests/*.yaml

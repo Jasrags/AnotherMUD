@@ -1,0 +1,38 @@
+# The follow-up that demos the faction PREREQUISITE (faction.md §6 / quests
+# §5.1): the Palace Guardsman only offers this to one the Guard already trusts —
+# Honored-or-better (>=500) Queen's Guard standing, exactly what `oath-to-the-
+# queen` grants. A newcomer at neutral standing will not be offered it (the
+# giver's pitch stays hidden / acceptance is refused); a sworn Guard is.
+#
+# Unqualified ids (giver, target, prerequisite.faction) resolve against the wot
+# namespace at load.
+id: the-queens-trust
+name: The Queen's Trust
+classification: side
+giver: palace-guard
+offer: >-
+  "You've proven yourself, so I'll trust you with this: walk the Queen's plaza
+  and keep an eye on the crowd. Quiet work — but the Queen's peace is kept in the
+  small things."
+abandonable: true
+prerequisite:
+  # faction.md §6: only the trusted are offered this. Honored (>=500) with the
+  # Queen's Guard — the standing `oath-to-the-queen` awards.
+  faction:
+    - faction: queens-guard
+      min_standing: 500
+stages:
+  - id: watch
+    description: The Palace Guardsman trusts you to walk the Queen's plaza.
+    hint: Visit the Queen's plaza.
+    objectives:
+      - type: visit
+        target: the-queens-plaza
+        description: Keep watch over the Queen's plaza.
+reward:
+  xp: 200
+  gold: 50
+  # A further token of regard — lifting a trusted Guard toward Allied.
+  faction:
+    - faction: queens-guard
+      delta: 200

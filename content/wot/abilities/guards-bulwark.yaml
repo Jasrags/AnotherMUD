@@ -1,0 +1,38 @@
+# A Queen's Guard combat drill — the shield-and-shoulder bulwark the Guard
+# train in the Caemlyn barracks yard. An active skill (not the One Power), so any
+# character may wield it once taught; Str-keyed and drawn from movement, like the
+# core bash.
+#
+# faction.md §6 ability gate (the F4 demo): the drill is Guard lore, and the
+# Guard only teach — and only trust — their own. faction_requirements gates use
+# on Honored-or-better standing with the Queen's Guard (>= 500): a character who
+# learned the drill but later fell from the Guard's regard can no longer call on
+# it (fizzle `faction_restricted` — "You lack the standing to use Guard's
+# Bulwark."). Taught by completing `wot:oath-to-the-queen`, whose standing reward
+# also lifts the learner past the gate.
+id: guards-bulwark
+name: Guard's Bulwark
+type: active
+category: skill
+
+default_cap: 25
+gain_base_chance: 25
+gain_failure_multiplier: 0.5
+gain_stat: str
+gain_stat_scale: 0.1
+
+# Movement-drawn martial strike (mirrors core bash's economy). variance 0 ⇒ the
+# trained blow always lands once thrown.
+cost: 8
+pulse_delay: 3
+variance: 0
+
+target_types:
+  - enemy
+handler: damage
+damage: 1d8+2
+
+# The Queen's Guard standing gate (faction.md §6). Faction id fully-qualified.
+faction_requirements:
+  - faction: wot:queens-guard
+    min_standing: 500
