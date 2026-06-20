@@ -1,0 +1,25 @@
+id: sheran-stallholder
+name: a market stallholder
+type: npc
+behavior: stationary
+description: |
+  A weather-browned farmwife presiding over a trestle heaped with the plain
+  bounty of the district — eggs, cheese, butter in crocks, bundled greens, and a
+  sideline of the small gear a traveller might need on the road east. She has a
+  shrewd eye and a quick tongue, drives a hard bargain with a smile, and can tell
+  you to the copper what a thing is worth and to the day what the weather will do.
+  She is glad of trade and gladder of news from the road west.
+tags: [humanoid, shop]
+keywords: [stallholder, farmwife, trader, woman]
+stats:
+  hp_max: 22
+  str: 10
+disposition_rules:
+  default: friendly
+properties:
+  shop:
+    sells:
+      - wot:trail-rations
+      - wot:waterskin
+      - wot:cooked-meal
+      - wot:hemp-rope

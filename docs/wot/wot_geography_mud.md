@@ -337,8 +337,15 @@ per-terrain flavor messages.
 ### Named Roads:
 | Road | Connects |
 |------|----------|
-| Caemlyn Road | Whitebridge → Four Kings → Market Sheran → Carysford → Arien → Caemlyn (east-west spine of Andor) |
+| Caemlyn Road | Whitebridge → **Arien** → Four Kings → Market Sheran → Carysford → Caemlyn (east-west spine of Andor; order per the Andor wall-maps — see note below) |
 | North Road | Caemlyn → northward through Braem Wood toward Kandor/Arafel |
+
+> **Caemlyn Road order — map-authoritative (2026-06-19).** The order above
+> follows the project's Andor wall-maps (which show the road lines), and the
+> maps **override book travel-order** where they conflict: the maps put **Arien
+> first** (directly east of Whitebridge) with Four Kings east of it, the reverse
+> of *The Eye of the World*. The earlier text-list order here (Four Kings first,
+> Arien last) was wrong and is corrected. See memory `wot-geography-map-canon`.
 | Road to Tar Valon | Caemlyn → northeast → Tar Valon (via Aringill crossing) |
 | Road to Tear/Illian | Caemlyn → south through Murandy → Illian or Tear |
 
@@ -873,7 +880,7 @@ Built on a large island in a lake in the Hills of Madding (between Murandy and T
 
 | Road Name | Route | Nations |
 |-----------|-------|---------|
-| Caemlyn Road | Whitebridge → Four Kings → Market Sheran → Carysford → Arien → Caemlyn | Andor |
+| Caemlyn Road | Whitebridge → Arien → Four Kings → Market Sheran → Carysford → Caemlyn (map-authoritative order — see the §"Roads" note) | Andor |
 | North Road | Caemlyn → Braem Wood → north toward Kandor | Andor, Kandor |
 | Tar Valon Road | Caemlyn → Aringill → Tar Valon | Andor, Cairhien border |
 | Amador Road | Tanchico → east through Tarabon → Amador | Tarabon, Amadicia |

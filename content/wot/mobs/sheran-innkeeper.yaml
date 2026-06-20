@@ -1,0 +1,24 @@
+id: sheran-innkeeper
+name: the Harvest Home innkeeper
+type: npc
+behavior: stationary
+description: |
+  A comfortable, apple-cheeked woman in a clean apron, she keeps the Harvest Home
+  the way she keeps everything — spotless, orderly, and with a sharp eye for a
+  guest who might be trouble. She is kind enough to a civil traveller and generous
+  with a plate, but the uneasy times have taught her caution, and she will know
+  your name and your business before she shows you to a room. Cross her and you
+  will find the whole village has decided it has no bed to spare.
+tags: [humanoid, shop]
+keywords: [innkeeper, host, goodwife, woman]
+stats:
+  hp_max: 24
+  str: 10
+disposition_rules:
+  default: friendly
+properties:
+  shop:
+    sells:
+      - wot:cooked-meal
+      - wot:trail-rations
+      - wot:fine-wine

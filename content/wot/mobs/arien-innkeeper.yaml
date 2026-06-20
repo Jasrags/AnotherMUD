@@ -1,0 +1,24 @@
+id: arien-innkeeper
+name: the Wagoner's Rest innkeeper
+type: npc
+behavior: stationary
+description: |
+  A broad, even-tempered man with a tap-cloth over one shoulder and the
+  unflappable calm of a host whose whole custom turns over every night, he keeps
+  a plain house well and wastes no charm on folk he will likely never see again.
+  He pulls a fair pint, serves a fair plate, names a fair price, and has long
+  since stopped asking travellers where they are bound — on the Caemlyn Road the
+  answer is always the same: away, and soon.
+tags: [humanoid, shop]
+keywords: [innkeeper, host, wagoner, man]
+stats:
+  hp_max: 26
+  str: 11
+disposition_rules:
+  default: friendly
+properties:
+  shop:
+    sells:
+      - wot:cooked-meal
+      - wot:trail-rations
+      - wot:fine-wine

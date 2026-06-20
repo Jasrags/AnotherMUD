@@ -1,0 +1,16 @@
+id: the-arien-inn
+area: arien
+name: "{y}Arien — the Wagoner's Rest{x}"
+description: |
+  A plain, honest road-inn built for the trade that passes the door: a long
+  low common room with a row of trestle tables, a board of cold meat and bread,
+  and a tap kept busy by thirsty teamsters washing the dust of the road from
+  their throats. The innkeeper knows that most of his custom will be gone by
+  dawn and treats them all with the brisk, friendly indifference of a man who
+  has seen ten thousand strangers and will see ten thousand more. The green and
+  the road lie back out to the south.
+exits:
+  south: the-arien-green
+terrain: indoors
+mobs:
+  - arien-innkeeper

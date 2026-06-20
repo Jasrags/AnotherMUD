@@ -1,0 +1,16 @@
+id: the-sheran-market
+area: market-sheran
+name: "{y}Market Sheran — the Market{x}"
+description: |
+  The market that names the village fills a cobbled yard off the green, busier
+  than its size would suggest: farmwives sell butter and eggs and early greens
+  from trestle stalls, a grain-factor weighs sacks on a great iron balance, and
+  the smell of new bread and cut hay hangs over it all. This is where the
+  district's harvest changes hands before it goes down the road to feed Caemlyn,
+  and a stallholder keeps a stock of the plain goods a traveller might want. The
+  green lies back to the south.
+exits:
+  south: the-sheran-green
+terrain: outdoors
+mobs:
+  - sheran-stallholder

@@ -1,0 +1,16 @@
+id: the-sheran-inn
+area: market-sheran
+name: "{y}Market Sheran — the Harvest Home{x}"
+description: |
+  The Harvest Home is a comfortable village inn, its common room low and
+  whitewashed and bright with a good fire, smelling of beeswax and baking and
+  spilled ale soaked into old oak. Farmers gather here of an evening to talk
+  weather and prices over their mugs, and the talk dies for a moment when a
+  stranger comes in — not unfriendly, just careful, for the times are uneasy and
+  word travels slowly out here. The innkeeper sizes you up, decides you will do,
+  and the murmur picks up again. The green lies back out to the north.
+exits:
+  north: the-sheran-green
+terrain: indoors
+mobs:
+  - sheran-innkeeper

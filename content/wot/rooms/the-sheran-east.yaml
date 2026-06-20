@@ -1,0 +1,15 @@
+id: the-sheran-east
+area: market-sheran
+name: "{g}Market Sheran — the East Road{x}"
+description: |
+  The last houses of Market Sheran thin out at the eastern edge of the village,
+  giving way to orchard and hedge and the open road beyond. A waymarker stone
+  stands at the verge, its cut letters worn but readable: CARYSFORD, and below
+  it, CAEMLYN — the Queen's city, and the end of the long road east. The green
+  and the village lie back west; the Caemlyn Road runs on east toward the ford
+  at Carysford, though that stretch waits to be travelled another day.
+exits:
+  west: the-sheran-green
+  # East stub: the Caemlyn Road runs on to Carysford -> Caemlyn (per the Andor
+  # map). Wired when that leg is authored.
+terrain: grassland

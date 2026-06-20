@@ -7,8 +7,9 @@ description: |
   a bowshot. Wagons grind by in both directions, raising a haze of dust that
   hangs golden in the afternoon light, and the white arch of the bridge dwindles
   behind. This is the long middle of Andor, prosperous and dull and safe — for
-  now. Whitebridge lies back west; the road runs on east toward Four Kings.
+  now. Whitebridge lies back west; the road runs on east toward the waystop of
+  Arien.
 exits:
   west: whitebridge-square
-  east: the-wagon-road
+  east: the-arien-green
 terrain: grassland

@@ -1,0 +1,24 @@
+id: arien-wright
+name: the Arien wainwright
+type: npc
+behavior: stationary
+description: |
+  A stringy, sharp-eyed old craftsman with sawdust in his grey hair and hands
+  scarred by a lifetime of spokeshave and adze, he runs the busiest wheel-yard
+  between Whitebridge and Caemlyn and knows it. He sizes up a stranger the way he
+  sizes up a wagon — looking for the weak joint — and will sell you rope, grease,
+  and the small gear of the road readily enough, at a price that reflects exactly
+  how badly he reckons you need it.
+tags: [humanoid, shop]
+keywords: [wright, wainwright, wheelwright, craftsman]
+stats:
+  hp_max: 24
+  str: 12
+disposition_rules:
+  default: neutral
+properties:
+  shop:
+    sells:
+      - wot:hemp-rope
+      - wot:waterskin
+      - wot:trail-rations

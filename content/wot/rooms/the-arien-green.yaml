@@ -1,0 +1,16 @@
+id: the-arien-green
+area: arien
+name: "{g}Arien{x}"
+description: |
+  The Caemlyn Road widens into a dusty patch of common at the heart of Arien,
+  hardly a village green and more a place for wagons to draw off and stand while
+  their teams are seen to. A weathered inn faces the road to the north, the open
+  shed of a wainwright's yard stands to the south loud with the rasp of a saw,
+  and a few plain houses look on. The road runs back west toward Whitebridge;
+  eastward it carries on toward Four Kings.
+exits:
+  west: the-eastward-road
+  east: the-wagon-road
+  north: the-arien-inn
+  south: the-arien-wright
+terrain: grassland

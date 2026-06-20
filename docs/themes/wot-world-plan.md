@@ -120,12 +120,15 @@ regional pole). **M6 added the Whitebridge corridor** (see the M6 milestone
 below): a crossroads ~2/3 up the Baerlon road branches east onto the **Caemlyn
 Road**, which runs down the Arinelle vale to the **White Bridge** — the
 Age-of-Legends glass span — and into **Whitebridge** town on the far bank.
-**M7 pushed the Caemlyn Road east** to **Four Kings** (see the M7 milestone
-below) — the grubby crossroads wagon-town, the first stop east of Whitebridge.
-Still future: a fuller Baerlon (the Queen's Guard, a Whitecloak garrison once
-S8 reputation lands); the **Caemlyn Road east** of Four Kings (Market Sheran →
-Carysford → Arien → Caemlyn — the East End is the stub); and the **Arinelle
-river route** south toward Illian (the Whitebridge docks + riverman are the seam).
+**M7–M8 pushed the Caemlyn Road east** (see those milestones below): the
+map-correct spine now runs **Whitebridge → Arien → Four Kings → Market Sheran**,
+with the order set by the project's Andor wall-maps (which override book
+travel-order — Arien sits *between* Whitebridge and Four Kings). Still future:
+a fuller Baerlon (the Queen's Guard, a Whitecloak garrison once S8 reputation
+lands); the **Caemlyn Road east** of Market Sheran (Carysford → Caemlyn — the
+Sheran East Road is the stub); the map's **northern arm** (Braem Wood, New
+Braem) and **southern arm** (the Black Tower, Harlon Bridge, Damelien, …); and
+the **Arinelle river route** south toward Illian (the Whitebridge docks are the seam).
 
 ## Engine mapping (how WoT content rides the existing systems)
 
@@ -321,9 +324,10 @@ sub-slices shipped (453af1a split → 3c09172 wot boot), each code-reviewed:
 ### M7 — The Caemlyn Road east → Four Kings — ✅ SHIPPED
 
 - **The road east** (added to the `caemlyn-road` area, `region: andor`): Whitebridge's
-  market square now exits east onto 3 road rooms — the highway east of town → the
-  wagon road (where the rough roads up from the southern mines join) → the grubby
-  approach to Four Kings.
+  market square exits east onto road rooms toward Four Kings. (**Corrected in M8:**
+  the Andor wall-maps put **Arien** between Whitebridge and Four Kings, so M7's
+  Four-Kings-directly-east placement was off by one town — Arien was inserted into
+  this corridor in M8. See the map-canon note below.)
 - **Four Kings** (new area, `region: andor`): a starter cut of the lawless
   crossroads wagon-town — the west end (a hard-faced tough loitering), the
   Crossroads that names the town (the mine-road meets the Caemlyn Road), the
@@ -334,8 +338,34 @@ sub-slices shipped (453af1a split → 3c09172 wot boot), each code-reviewed:
   a town that "belongs to nobody."
 - Verified: WoT pack boots clean — areas 12→13, rooms 58→66 (+8), mobs +3; all
   130 room exits resolve and are reciprocal; pack tests green under `-race`.
-- **Onward stub:** the East End's east exit is unwired — the next leg (Market
-  Sheran → Carysford → Arien → Caemlyn) picks up there.
+- **Onward stub:** the East End's east exit picks up the next leg (built in M8).
+
+### M8 — Map reconciliation: Arien + Market Sheran — ✅ SHIPPED
+
+**Geography source-of-truth decision (2026-06-19):** the WoT pack follows the
+project's **Andor wall-maps**, which **override book travel-order**. The
+map-correct Caemlyn Road order is **Whitebridge → Arien → Four Kings → Market
+Sheran → Carysford → Caemlyn** — reversing Arien/Four Kings vs the books. The
+geography doc (`docs/wot/wot_geography_mud.md`) was corrected to match, and the
+decision is recorded in memory `wot-geography-map-canon`.
+
+- **Arien** (new area `arien`, `region: andor`) — inserted **between Whitebridge
+  and Four Kings** to fix the M7 order. A deliberately small **waystop** (3 rooms:
+  the road-green, the Wagoner's Rest inn, the wainwright's yard) living off the
+  wagon trade. The M7 corridor was re-threaded (`the-eastward-road` → Arien →
+  `the-wagon-road`) so the spine now reads Whitebridge → Arien → Four Kings.
+- **Market Sheran** (new area `market-sheran`, `region: andor`) — the next town
+  **east of Four Kings**: a prosperous, orderly Andoran **farming village** (4
+  rooms: the green + well, the market that names it, the Harvest Home inn, the
+  east road) — a wholesome counterweight to Four Kings' squalor, its folk civil
+  but wary in uneasy times. Reached via one new road room (`the-sheran-road`).
+- Verified: WoT pack boots clean — areas 13→15, rooms 66→74 (+8), mobs +4; the
+  full W→E spine traces Whitebridge → Arien → Four Kings → Market Sheran; all 146
+  room exits resolve and are reciprocal; pack tests green under `-race`.
+- **Onward stub:** Market Sheran's East Road is the seam — next leg is **Carysford**
+  (the ford) → **Caemlyn** (the capital — a major build). The maps also open the
+  northern arm (Braem Wood) and southern arm (the Black Tower, Harlon Bridge,
+  Damelien, …) as future content.
 
 ## Risks
 
