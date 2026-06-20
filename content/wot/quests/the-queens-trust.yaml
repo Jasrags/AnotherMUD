@@ -1,8 +1,9 @@
 # The follow-up that demos the faction PREREQUISITE (faction.md §6 / quests
 # §5.1): the Palace Guardsman only offers this to one the Guard already trusts —
-# Honored-or-better (>=500) Queen's Guard standing, exactly what `oath-to-the-
-# queen` grants. A newcomer at neutral standing will not be offered it (the
-# giver's pitch stays hidden / acceptance is refused); a sworn Guard is.
+# Friendly-or-better (>=500) Queen's Guard standing, which `oath-to-the-queen`
+# clears comfortably (it grants 700 = Honored). A newcomer at neutral standing
+# will not be offered it (the giver's pitch stays hidden / acceptance is
+# refused); a sworn Guard is.
 #
 # Unqualified ids (giver, target, prerequisite.faction) resolve against the wot
 # namespace at load.
@@ -16,8 +17,8 @@ offer: >-
   small things."
 abandonable: true
 prerequisite:
-  # faction.md §6: only the trusted are offered this. Honored (>=500) with the
-  # Queen's Guard — the standing `oath-to-the-queen` awards.
+  # faction.md §6: only the trusted are offered this. Friendly-or-better (>=500)
+  # with the Queen's Guard — comfortably cleared by oath-to-the-queen's +700 (Honored).
   faction:
     - faction: queens-guard
       min_standing: 500

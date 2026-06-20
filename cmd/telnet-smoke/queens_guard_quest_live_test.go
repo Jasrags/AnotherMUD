@@ -20,7 +20,7 @@ import (
 //
 // Flow: a fresh character reads Unknown renown; the follow-up `the-queens-trust`
 // is refused (faction prereq unmet); accepting + completing `oath-to-the-queen`
-// (auto-grant on the visit objective, reachable by admin teleport) grants +600
+// (auto-grant on the visit objective, reachable by admin teleport) grants +700
 // Queen's Guard standing and +120 renown; afterwards `score`/`standing` show the
 // new values and `the-queens-trust` is accepted (the prereq now met).
 func TestLive_QueensGuardQuestline(t *testing.T) {
@@ -68,7 +68,7 @@ func TestLive_QueensGuardQuestline(t *testing.T) {
 
 	// 4. Complete the visit objective by teleporting to the square (teleport emits
 	//    PlayerMoved, which the quest watcher advances visit objectives on). The
-	//    auto-grant reward then fires (+600 standing, +120 renown, teach the skill).
+	//    auto-grant reward then fires (+700 standing, +120 renown, teach the skill).
 	if err := c.SendLine("teleport wot:the-caemlyn-square"); err != nil {
 		t.Fatal(err)
 	}
@@ -82,15 +82,15 @@ func TestLive_QueensGuardQuestline(t *testing.T) {
 		t.Fatalf("score did not show the earned renown Known Locally (120): %v", err)
 	}
 
-	// 6. standing shows the Queen's Guard at the granted +600.
+	// 6. standing shows the Queen's Guard at the granted +700.
 	if err := c.SendLine("standing"); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := c.ExpectStringTimeout("(600)", 6*time.Second); err != nil {
-		t.Fatalf("standing did not show the Queen's Guard at 600: %v", err)
+	if _, err := c.ExpectStringTimeout("(700)", 6*time.Second); err != nil {
+		t.Fatalf("standing did not show the Queen's Guard at 700: %v", err)
 	}
 
-	// 7. With +600 (≥ the 500 floor) the follow-up is now accepted (F2 prereq met).
+	// 7. With +700 (≥ the 500 floor) the follow-up is now accepted (F2 prereq met).
 	if err := c.SendLine("accept the-queens-trust"); err != nil {
 		t.Fatal(err)
 	}

@@ -5,7 +5,7 @@
 #
 # faction.md §6 ability gate (the F4 demo): the drill is Guard lore, and the
 # Guard only teach — and only trust — their own. faction_requirements gates use
-# on Honored-or-better standing with the Queen's Guard (>= 500): a character who
+# on Friendly-or-better standing with the Queen's Guard (>= 500): a character who
 # learned the drill but later fell from the Guard's regard can no longer call on
 # it (fizzle `faction_restricted` — "You lack the standing to use Guard's
 # Bulwark."). Taught by completing `wot:oath-to-the-queen`, whose standing reward

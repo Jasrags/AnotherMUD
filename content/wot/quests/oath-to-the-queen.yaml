@@ -2,8 +2,8 @@
 # An auto-grant quest from the Palace Guardsman: walk to the Queen's own square
 # to be sworn in. On completion the reward GRANTS Queen's Guard standing (the
 # §5.1 quest-currency path), which simultaneously:
-#   - lifts the swearer to Honored (>=500) → the Guard's drill `guards-bulwark`
-#     becomes usable (its faction §6 gate), and
+#   - lifts the swearer to Honored (700) → the Guard's drill `guards-bulwark`
+#     becomes usable (its faction §6 gate, a Friendly-or-better floor at 500), and
 #   - earns a friend's price at the Queen's Blessing (basel-gill's ally pricing),
 #     and unlocks the follow-up `the-queens-trust` (its faction prerequisite).
 # The reward also TEACHES the gated skill, so the swearer leaves able to use it.
@@ -30,11 +30,12 @@ stages:
 reward:
   xp: 150
   gold: 30
-  # faction.md §5.1: the standing grant is the heart of the demo — +600 lifts a
-  # neutral newcomer to Honored with the Queen's Guard.
+  # faction.md §5.1: the standing grant is the heart of the demo — +700 lifts a
+  # neutral newcomer to Honored with the Queen's Guard (Honored's floor is 700;
+  # this clears every Friendly-floor (500) gate the oath unlocks with room to spare).
   faction:
     - faction: queens-guard
-      delta: 600
+      delta: 700
   # reputation.md §5.3: swearing the oath publicly in the square is a notable,
   # witnessed act — +120 lifts the swearer from Unknown to Known Locally (the
   # renown earn-path demo; visible on `score`).
