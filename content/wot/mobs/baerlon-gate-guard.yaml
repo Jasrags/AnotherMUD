@@ -14,8 +14,16 @@ keywords: [guard, gate, gateguard, watchman]
 stats:
   hp_max: 38
   str: 14
+# faction.md §6 / §3.3: the Queen's Guard come down hard on a known lawbreaker —
+# a character whose Queen's-Guard standing has fallen to Unfriendly or Hostile.
+# An untouched character is met at the neutral default.
 disposition_rules:
   default: neutral
+  rules:
+    - has_tag: faction:wot:queens-guard:Hostile
+      reaction: hostile
+    - has_tag: faction:wot:queens-guard:Unfriendly
+      reaction: hostile
 
 # faction membership (faction.md §5.2): killing this mob shifts the
 # killer's standing with the faction by the on-kill delta.

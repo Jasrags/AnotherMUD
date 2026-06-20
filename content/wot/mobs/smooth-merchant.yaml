@@ -19,8 +19,21 @@ keywords: [merchant, trader, man, stranger]
 stats:
   hp_max: 28
   str: 12
+# faction.md §6 / §3.3: a Darkfriend warms to one who has proven a friend of
+# the Dark (high Darkfriend standing), and grows wary of a sworn servant of the
+# Light (high Children-of-the-Light standing). An untouched character is met
+# with the same too-smooth neutrality as anyone.
 disposition_rules:
   default: neutral
+  rules:
+    - has_tag: faction:wot:darkfriends:Allied
+      reaction: friendly
+    - has_tag: faction:wot:darkfriends:Honored
+      reaction: friendly
+    - has_tag: faction:wot:darkfriends:Friendly
+      reaction: friendly
+    - has_tag: faction:wot:children-of-the-light:Allied
+      reaction: wary
 
 # faction membership (faction.md §5.2): killing this mob shifts the
 # killer's standing with the faction by the on-kill delta.
