@@ -10,6 +10,7 @@ import (
 	"github.com/Jasrags/AnotherMUD/internal/progression"
 	"github.com/Jasrags/AnotherMUD/internal/quest"
 	"github.com/Jasrags/AnotherMUD/internal/recipe"
+	"github.com/Jasrags/AnotherMUD/internal/reputation"
 )
 
 // NewQuestRewards builds the quest reward dispatcher wired to the live
@@ -42,6 +43,7 @@ func NewQuestRewards(
 	currency *economy.CurrencyService,
 	known *recipe.KnownManager,
 	factionMgr *faction.Manager,
+	reputationMgr *reputation.Manager,
 	defaultTrack string,
 ) *quest.Dispatcher {
 	opts := []quest.DispatcherOption{
@@ -60,6 +62,9 @@ func NewQuestRewards(
 	}
 	if factionMgr != nil {
 		opts = append(opts, quest.WithFaction(questFaction{mgr: mgr, faction: factionMgr}))
+	}
+	if reputationMgr != nil {
+		opts = append(opts, quest.WithRenown(questRenown{mgr: mgr, reputation: reputationMgr}))
 	}
 	return quest.NewDispatcher(opts...)
 }
@@ -99,6 +104,25 @@ func (q questFaction) ShiftStanding(entityID, factionID string, delta int, reaso
 		return // recipient offline
 	}
 	q.faction.Shift(context.Background(), a, def, delta, reason)
+}
+
+// questRenown bridges the quest RenownShifter (entityId-addressed) to the
+// reputation manager (entity-addressed): it resolves the recipient actor
+// through the session manager, then routes the renown change through Shift so
+// the cancellable reputation.shift.check pipeline and admin-immunity apply
+// (reputation.md §5.3). An offline recipient is skipped silently, mirroring the
+// other granters; the detached grant uses a background context like questGold.
+type questRenown struct {
+	mgr        *Manager
+	reputation *reputation.Manager
+}
+
+func (q questRenown) ShiftRenown(entityID string, delta int, reason string) {
+	a, ok := q.mgr.GetByPlayerID(entityID)
+	if !ok {
+		return // recipient offline
+	}
+	q.reputation.Shift(context.Background(), a, delta, reason)
 }
 
 // questFactionGate bridges the quest FactionGate to faction.Manager.MeetsStanding,

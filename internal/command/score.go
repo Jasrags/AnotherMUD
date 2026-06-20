@@ -134,6 +134,21 @@ func ScoreHandler(ctx context.Context, c *Context) error {
 		d.Gift = channelingGiftLabel(gh.ChannelingGift())
 	}
 
+	// Renown (reputation.md §3). Probed via an anonymous interface so the sheet
+	// stays decoupled from the reputation adapter; shown whenever reputation is
+	// wired (RenownTier returns a non-empty name), so it reads as a core
+	// character attribute alongside alignment — Unknown included.
+	if rh, ok := c.Actor.(interface {
+		Renown() int
+		RenownTier() string
+	}); ok {
+		if tier := rh.RenownTier(); tier != "" {
+			d.HasRenown = true
+			d.Renown = rh.Renown()
+			d.RenownTier = tier
+		}
+	}
+
 	// Known languages (languages.md §4). Probed via an anonymous interface (like
 	// the gift) so the sheet stays decoupled; shown only when the character
 	// knows at least one tongue, so it never clutters a language-less sheet.
@@ -249,6 +264,13 @@ type scoreData struct {
 	AlignTag string
 	Align    int
 
+	// HasRenown shows the renown line (reputation.md §3) when reputation is
+	// wired. RenownTier is the display tier name (e.g. "Known in the Region");
+	// Renown is the signed score.
+	HasRenown  bool
+	RenownTier string
+	Renown     int
+
 	// Standings is one pre-formatted "Faction (Rank)" string per faction the
 	// character has *touched* (faction.md §6) — an untouched character shows no
 	// standing rows, keeping a fresh sheet clean. The full list (including
@@ -314,6 +336,9 @@ func renderScore(d scoreData) string {
 	}
 	if d.HasAlign {
 		charCol = append(charCol, scKV("Alignment", scHi(fmt.Sprintf("%s (%d)", d.AlignTag, d.Align)), 11))
+	}
+	if d.HasRenown {
+		charCol = append(charCol, scKV("Renown", scHi(fmt.Sprintf("%s (%d)", d.RenownTier, d.Renown)), 11))
 	}
 	if d.HasVitals {
 		combatCol = append(combatCol,

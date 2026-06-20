@@ -35,6 +35,10 @@ reward:
   faction:
     - faction: queens-guard
       delta: 600
+  # reputation.md §5.3: swearing the oath publicly in the square is a notable,
+  # witnessed act — +120 lifts the swearer from Unknown to Known Locally (the
+  # renown earn-path demo; visible on `score`).
+  reputation: 120
   # Teach the faction-gated Guard drill (bare GLOBAL ability id). The standing
   # grant above clears its §6 use-gate, so the swearer can use it at once.
   abilities:

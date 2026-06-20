@@ -583,11 +583,11 @@ func run() error {
 	factionMgr := faction.NewManager(registries.Factions, &factionSink{bus: bus}, clk.Now)
 
 	// Reputation/renown manager (reputation.md) — the single-axis sibling of
-	// faction. R2 wires persistence only: the connActor reputation.Entity adapter
-	// restores the score and re-syncs the tier tag on login. The Sink is nil (no
-	// events) because no earn source Shifts renown yet — the eventbus bridge +
-	// the class-level-up/quest/signifier earn paths land with R3.
-	reputationMgr := reputation.NewManager(reputation.DefaultConfig(), nil, clk.Now)
+	// faction. Persistence (R2): the connActor reputation.Entity adapter restores
+	// the score and re-syncs the tier tag on login. Earn (R3): the bus-bridged
+	// sink fires reputation.shift.check/shifted/tier.changed, and the quest reward
+	// path Shifts renown. (Class level-up + worn-signifier earn paths deferred.)
+	reputationMgr := reputation.NewManager(reputation.DefaultConfig(), &reputationSink{bus: bus}, clk.Now)
 
 	// Disposition evaluator (spec mobs-ai-spawning §5). Constructed
 	// before the AI dispatcher so it can be passed in via Deps, and
@@ -946,7 +946,7 @@ func run() error {
 	questSvc := quest.NewService(quest.Config{
 		Registry: registries.Quests,
 		Persist:  questStore,
-		Rewards:  session.NewQuestRewards(mgr, progressionMgr, proficiencyMgr, registries.Items, entityStore, currencySvc, knownRecipesMgr, factionMgr, cfg.DefaultXPTrack),
+		Rewards:  session.NewQuestRewards(mgr, progressionMgr, proficiencyMgr, registries.Items, entityStore, currencySvc, knownRecipesMgr, factionMgr, reputationMgr, cfg.DefaultXPTrack),
 		Events:   session.NewQuestNotifier(mgr, registries.Quests, questGiverName, questItemNameFn, logging.From(ctx)),
 		Faction:  session.NewQuestFactionGate(mgr, factionMgr),
 	})
@@ -4715,6 +4715,46 @@ func (s *factionSink) OnRankChanged(ctx context.Context, entityID, factionID, ol
 		FactionID: factionID,
 		OldRank:   oldRank,
 		NewRank:   newRank,
+	})
+}
+
+// reputationSink bridges the reputation.Manager event seam to the eventbus
+// (reputation.md §9) — the single-axis analog of factionSink.
+type reputationSink struct {
+	bus *eventbus.Bus
+}
+
+func (s *reputationSink) OnShiftCheck(ctx context.Context, entityID, reason string, suggested int) (int, bool) {
+	if s.bus == nil {
+		return suggested, false
+	}
+	ev := eventbus.NewReputationShiftCheck(entityID, reason, suggested)
+	cancelled := s.bus.PublishCancellable(ctx, ev)
+	return ev.SuggestedDelta(), cancelled
+}
+
+func (s *reputationSink) OnShifted(ctx context.Context, entityID, reason string, oldValue, newValue, actualDelta int, tierChanged bool) {
+	if s.bus == nil {
+		return
+	}
+	s.bus.Publish(ctx, eventbus.ReputationShifted{
+		EntityID:    entityID,
+		Reason:      reason,
+		OldValue:    oldValue,
+		NewValue:    newValue,
+		ActualDelta: actualDelta,
+		TierChanged: tierChanged,
+	})
+}
+
+func (s *reputationSink) OnTierChanged(ctx context.Context, entityID, oldTier, newTier string) {
+	if s.bus == nil {
+		return
+	}
+	s.bus.Publish(ctx, eventbus.ReputationTierChanged{
+		EntityID: entityID,
+		OldTier:  oldTier,
+		NewTier:  newTier,
 	})
 }
 

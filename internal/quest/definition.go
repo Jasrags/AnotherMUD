@@ -68,6 +68,7 @@ type Reward struct {
 	Abilities   []string        // ability ids to teach
 	Recipes     []string        // recipe ids to teach (crafting-and-cooking §7 uncommon tier)
 	Faction     []FactionReward // faction standing shifts (faction.md §5.1)
+	Reputation  int             // renown shift on completion (reputation.md §5.3)
 	ClassUnlock string
 	RaceUnlock  string
 }

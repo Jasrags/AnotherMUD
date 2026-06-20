@@ -2006,6 +2006,7 @@ func decodeQuest(path, ns, packDir string) (*quest.Definition, error) {
 			Abilities:   f.Reward.Abilities,
 			Recipes:     rewardRecipes,
 			Faction:     rewardFactions,
+			Reputation:  f.Reward.Reputation,
 			ClassUnlock: f.Reward.ClassUnlock,
 			RaceUnlock:  f.Reward.RaceUnlock,
 		},

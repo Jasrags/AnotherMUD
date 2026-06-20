@@ -176,6 +176,16 @@ const (
 	// FactionRankChanged fires IN ADDITION to faction.shifted when the
 	// shift crosses a rank boundary (faction.md §4.1).
 	EventFactionRankChanged = "faction.rank.changed"
+	// ReputationShiftCheck is the cancellable pre-event fired by the
+	// reputation manager before applying a renown shift (reputation.md §4
+	// step 2). The faction analog, single-axis (no faction id).
+	EventReputationShiftCheck = "reputation.shift.check"
+	// ReputationShifted is the post-fact notification fired after a renown
+	// shift applies a non-zero delta (reputation.md §4 step 3).
+	EventReputationShifted = "reputation.shifted"
+	// ReputationTierChanged fires IN ADDITION to reputation.shifted when the
+	// shift crosses a tier boundary (reputation.md §4 step 3).
+	EventReputationTierChanged = "reputation.tier.changed"
 	// EffectApplied fires after EffectManager.Apply successfully
 	// installs a new active effect on a target (spec
 	// abilities-and-effects §5.2 step 4). Single-instance
@@ -1179,6 +1189,79 @@ type FactionRankChanged struct {
 
 // Name implements Event.
 func (FactionRankChanged) Name() string { return EventFactionRankChanged }
+
+// ReputationShiftCheck is the cancellable pre-event fired by the reputation
+// manager before applying a renown shift (reputation.md §4 step 2). The faction
+// analog, single-axis. Listeners may flip the cancel flag or rewrite the
+// suggested delta via RewriteDelta.
+type ReputationShiftCheck struct {
+	*CancelFlag
+	EntityID       string
+	Reason         string
+	suggestedDelta *int
+}
+
+// Name implements Event.
+func (ReputationShiftCheck) Name() string { return EventReputationShiftCheck }
+
+// NewReputationShiftCheck constructs a fresh check event (the suggested-delta
+// pointer is owned by the event so listeners can rewrite without an alloc).
+func NewReputationShiftCheck(entityID, reason string, suggested int) *ReputationShiftCheck {
+	d := suggested
+	return &ReputationShiftCheck{
+		CancelFlag:     &CancelFlag{},
+		EntityID:       entityID,
+		Reason:         reason,
+		suggestedDelta: &d,
+	}
+}
+
+// SuggestedDelta returns the current proposed delta (shared backing storage so
+// siblings see prior rewrites).
+func (e *ReputationShiftCheck) SuggestedDelta() int {
+	if e.suggestedDelta == nil {
+		return 0
+	}
+	return *e.suggestedDelta
+}
+
+// RewriteDelta lets a listener override the proposed delta, observed by
+// subsequent listeners and by the manager when dispatch completes.
+func (e *ReputationShiftCheck) RewriteDelta(v int) {
+	if e.suggestedDelta == nil {
+		d := v
+		e.suggestedDelta = &d
+		return
+	}
+	*e.suggestedDelta = v
+}
+
+// ReputationShifted fires after a renown shift applies a non-zero delta
+// (reputation.md §4 step 3). OldValue + ActualDelta == NewValue; TierChanged is
+// true iff the shift crossed a tier boundary (in which case
+// ReputationTierChanged also fires).
+type ReputationShifted struct {
+	EntityID    string
+	Reason      string
+	OldValue    int
+	NewValue    int
+	ActualDelta int
+	TierChanged bool
+}
+
+// Name implements Event.
+func (ReputationShifted) Name() string { return EventReputationShifted }
+
+// ReputationTierChanged fires in addition to ReputationShifted when the shift
+// crosses a tier boundary (reputation.md §4 step 3).
+type ReputationTierChanged struct {
+	EntityID string
+	OldTier  string
+	NewTier  string
+}
+
+// Name implements Event.
+func (ReputationTierChanged) Name() string { return EventReputationTierChanged }
 
 // EffectApplied fires after EffectManager.Apply installs a new
 // active effect on a target (spec abilities-and-effects §5.2

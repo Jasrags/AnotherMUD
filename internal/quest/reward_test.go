@@ -86,3 +86,42 @@ func TestDispatch_NopFactionNoPanic(t *testing.T) {
 	d := NewDispatcher()
 	d.Dispatch(&fakePlayer{id: "p1"}, Reward{Faction: []FactionReward{{Faction: "wot:x", Delta: 1}}})
 }
+
+// recRenown records the renown shifts the dispatcher routes.
+type recRenown struct {
+	deltas []int
+	ids    []string
+}
+
+func (r *recRenown) ShiftRenown(entityID string, delta int, _ string) {
+	r.deltas = append(r.deltas, delta)
+	r.ids = append(r.ids, entityID)
+}
+
+func TestDispatch_GrantsRenown(t *testing.T) {
+	rec := &recRenown{}
+	d := NewDispatcher(WithRenown(rec))
+	d.Dispatch(&fakePlayer{id: "p1"}, Reward{Reputation: 150})
+
+	if len(rec.deltas) != 1 || rec.deltas[0] != 150 {
+		t.Fatalf("renown shifts = %v, want [150]", rec.deltas)
+	}
+	if rec.ids[0] != "p1" {
+		t.Errorf("renown target = %q, want p1", rec.ids[0])
+	}
+}
+
+func TestDispatch_RenownSkipsZero(t *testing.T) {
+	rec := &recRenown{}
+	d := NewDispatcher(WithRenown(rec))
+	d.Dispatch(&fakePlayer{id: "p1"}, Reward{XP: 5}) // no Reputation field
+	if len(rec.deltas) != 0 {
+		t.Errorf("zero renown reward should not shift: %v", rec.deltas)
+	}
+}
+
+func TestDispatch_NopRenownNoPanic(t *testing.T) {
+	// A dispatcher with no renown shifter must not panic on a renown reward.
+	d := NewDispatcher()
+	d.Dispatch(&fakePlayer{id: "p1"}, Reward{Reputation: 50})
+}

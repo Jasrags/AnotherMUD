@@ -4450,6 +4450,19 @@ func (a *connActor) SetTierTag(tierTag string) {
 	a.reputationTierTag = tierTag
 }
 
+// RenownTier returns the actor's current renown tier display name (reputation.md
+// §3), resolved from the score via the manager's ladder. "" when reputation
+// isn't wired. Used by the score sheet. TierOf is pure (no callback), so holding
+// a.mu across it is safe.
+func (a *connActor) RenownTier() string {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	if a.reputation == nil {
+		return ""
+	}
+	return a.reputation.Config().TierOf(a.renown)
+}
+
 // Gold returns the actor's current balance (M11.1 — spec §2.1).
 // Reads under a.mu so the value is consistent with concurrent
 // AddGold / SetGold writes. Satisfies economy.Entity.

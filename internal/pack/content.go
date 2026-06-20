@@ -862,6 +862,7 @@ type RewardFile struct {
 	Abilities   []string            `yaml:"abilities,omitempty"`
 	Recipes     []string            `yaml:"recipes,omitempty"`
 	Faction     []FactionRewardFile `yaml:"faction,omitempty"`
+	Reputation  int                 `yaml:"reputation,omitempty"`
 	ClassUnlock string              `yaml:"class_unlock,omitempty"`
 	RaceUnlock  string              `yaml:"race_unlock,omitempty"`
 }
