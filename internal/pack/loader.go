@@ -3290,7 +3290,7 @@ func decodeMob(path, ns string) (*mob.Template, error) {
 		typ = defaultMobType
 	}
 
-	def, err := decodeDispositionRules(f.DispositionRules, path)
+	def, err := decodeDispositionRules(f.DispositionRules, path, ns)
 	if err != nil {
 		return nil, err
 	}
@@ -3504,7 +3504,7 @@ func decodeTrainer(src *TrainerFile, tags []string, path string) (int, []string,
 // declare a non-empty reaction; missing reactions are an
 // ErrInvalidContent surface so content authors don't ship a silently
 // inert rule.
-func decodeDispositionRules(src *DispositionFile, path string) (*mob.Definition, error) {
+func decodeDispositionRules(src *DispositionFile, path, ns string) (*mob.Definition, error) {
 	if src == nil {
 		return nil, nil
 	}
@@ -3528,6 +3528,24 @@ func decodeDispositionRules(src *DispositionFile, path string) (*mob.Definition,
 		if r.MaxAlignment != nil {
 			rule.MaxAlignment = *r.MaxAlignment
 			rule.HasMaxAlignment = true
+		}
+		// faction.md §6 standing clause: qualify the faction id against this
+		// pack's namespace so a bare `faction: children-of-the-light` matches
+		// the qualified id the faction registry + player standing bag store.
+		if fid := strings.TrimSpace(r.Faction); fid != "" {
+			qid, err := qualifyID(fid, ns)
+			if err != nil {
+				return nil, fmt.Errorf("%w: %s: disposition_rules[%d]: faction: %v", ErrInvalidContent, path, i, err)
+			}
+			rule.Faction = qid
+		}
+		if r.MinStanding != nil {
+			rule.MinStanding = *r.MinStanding
+			rule.HasMinStanding = true
+		}
+		if r.MaxStanding != nil {
+			rule.MaxStanding = *r.MaxStanding
+			rule.HasMaxStanding = true
 		}
 		out.Rules = append(out.Rules, rule)
 	}

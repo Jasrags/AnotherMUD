@@ -306,7 +306,14 @@ type DispositionRuleFile struct {
 	MinAlignment *int     `yaml:"min_alignment,omitempty"`
 	MaxAlignment *int     `yaml:"max_alignment,omitempty"`
 	Buckets      []string `yaml:"buckets,omitempty"`
-	Reaction     string   `yaml:"reaction"`
+	// Faction + MinStanding / MaxStanding are the faction.md §6 standing clause.
+	// Faction is a faction id (bare ids resolve against the pack namespace at
+	// load); the rule matches when the player's standing with it is within the
+	// given bounds. Pointer bounds distinguish omitted-vs-zero.
+	Faction     string `yaml:"faction,omitempty"`
+	MinStanding *int   `yaml:"min_standing,omitempty"`
+	MaxStanding *int   `yaml:"max_standing,omitempty"`
+	Reaction    string `yaml:"reaction"`
 }
 
 // RoomFile is the YAML shape for a single-room file.

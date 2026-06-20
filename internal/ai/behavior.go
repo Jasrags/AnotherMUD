@@ -99,8 +99,8 @@ var (
 // (RegisterEngineBaseline + pack registrations), reads happen on the
 // tick goroutine. Safe for concurrent reads under sync.RWMutex.
 type Registry struct {
-	mu      sync.RWMutex
-	byName  map[string]Behavior
+	mu     sync.RWMutex
+	byName map[string]Behavior
 }
 
 // NewRegistry returns an empty registry.

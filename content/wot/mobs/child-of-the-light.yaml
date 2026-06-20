@@ -18,17 +18,15 @@ keywords: [child, children, light, whitecloak, whitecloaks, questioner]
 stats:
   hp_max: 40
   str: 14
-# faction.md §6 / §3.3: the Children turn on a known enemy of their order.
-# A character whose Children-of-the-Light standing has fallen to Unfriendly or
-# Hostile (e.g. by killing Whitecloaks) carries the matching rank tag, and the
-# rest of the order reacts in kind on the next AI sweep. An untouched character
-# carries no Children tag and stays at the neutral default.
+# faction.md §6: the Children turn on a known enemy of their order — any
+# character whose Children-of-the-Light standing has fallen below Neutral (e.g.
+# by killing Whitecloaks). An untouched character reads at the starting Neutral
+# standing (0) and stays at the neutral default.
 disposition_rules:
   default: neutral
   rules:
-    - has_tag: faction:wot:children-of-the-light:Hostile
-      reaction: hostile
-    - has_tag: faction:wot:children-of-the-light:Unfriendly
+    - faction: children-of-the-light
+      max_standing: -1
       reaction: hostile
 
 # faction membership (faction.md §5.2): killing this mob shifts the

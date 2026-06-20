@@ -28,6 +28,14 @@ type PlayerView struct {
 	Alignment    int
 	Bucket       string // one of "evil" / "neutral" / "good" / ""
 	HasAlignment bool
+	// Standings is the player's effective standing per (namespace-qualified)
+	// faction id (faction.md §6) — the faction's starting standing for an
+	// untouched character. Populated by the player-lookup adapter from the
+	// faction manager for every registered faction, so a rule's faction clause
+	// can resolve a standing for any faction it names. nil/missing key → a
+	// faction condition for that faction never matches (no faction data: a
+	// pre-faction view, or a faction not in content).
+	Standings map[string]int
 }
 
 // PlayerLookup is the seam the evaluator uses to find players. The
@@ -367,6 +375,23 @@ func ruleMatches(r mob.Rule, player PlayerView) bool {
 			return false
 		}
 		if len(r.Buckets) > 0 && !bucketMatch(r.Buckets, player.Bucket) {
+			return false
+		}
+	}
+	if r.Faction != "" {
+		// faction.md §6: resolve the player's effective standing with the named
+		// faction. A view without standing data for it cannot satisfy the
+		// condition (a pre-faction view, or a faction no longer in content) —
+		// the same "never match" stance the alignment clause takes for a view
+		// that lacks alignment data.
+		standing, ok := player.Standings[r.Faction]
+		if !ok {
+			return false
+		}
+		if r.HasMinStanding && standing < r.MinStanding {
+			return false
+		}
+		if r.HasMaxStanding && standing > r.MaxStanding {
 			return false
 		}
 	}

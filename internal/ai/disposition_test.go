@@ -13,7 +13,9 @@ import (
 
 // ---- test doubles ----
 
-type stubTemplates struct{ m map[mob.TemplateID]*mob.Template }
+type stubTemplates struct {
+	m map[mob.TemplateID]*mob.Template
+}
 
 func (s *stubTemplates) Get(id mob.TemplateID) (*mob.Template, error) {
 	t, ok := s.m[id]

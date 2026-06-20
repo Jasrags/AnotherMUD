@@ -14,15 +14,14 @@ keywords: [guard, guardsman, soldier, queens]
 stats:
   hp_max: 40
   str: 14
-# faction.md §6 / §3.3: the Queen's Guard come down hard on a known lawbreaker —
-# a character whose Queen's-Guard standing has fallen to Unfriendly or Hostile.
-# An untouched character is met at the neutral default.
+# faction.md §6: the Queen's Guard come down hard on a known lawbreaker — any
+# character whose Queen's-Guard standing has fallen below Neutral. An untouched
+# character reads at the starting Neutral standing and is met at the default.
 disposition_rules:
   default: neutral
   rules:
-    - has_tag: faction:wot:queens-guard:Hostile
-      reaction: hostile
-    - has_tag: faction:wot:queens-guard:Unfriendly
+    - faction: queens-guard
+      max_standing: -1
       reaction: hostile
 
 # faction membership (faction.md §5.2): killing this mob shifts the

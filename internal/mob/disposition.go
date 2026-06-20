@@ -53,11 +53,24 @@ type Rule struct {
 	HasMinAlignment bool
 	HasMaxAlignment bool
 	Buckets         []string
+
+	// Faction + MinStanding / MaxStanding are the faction.md §6 standing
+	// clause: the rule matches only when the player's standing with the named
+	// (namespace-qualified) faction falls within [MinStanding, MaxStanding].
+	// HasMinStanding / HasMaxStanding distinguish "bound omitted" from "set to
+	// 0", mirroring the alignment fields. Faction empty = no faction condition.
+	// The evaluator resolves the player's effective standing (the faction's
+	// starting standing for an untouched character) from PlayerView.Standings.
+	Faction        string
+	MinStanding    int
+	MaxStanding    int
+	HasMinStanding bool
+	HasMaxStanding bool
 }
 
 // HasConditions reports whether r carries any condition. A rule with
 // no conditions matches every player (spec §5.3 "A rule with no
 // conditions matches anything").
 func (r Rule) HasConditions() bool {
-	return r.HasTag != "" || r.HasMinAlignment || r.HasMaxAlignment || len(r.Buckets) > 0
+	return r.HasTag != "" || r.HasMinAlignment || r.HasMaxAlignment || len(r.Buckets) > 0 || r.Faction != ""
 }

@@ -573,13 +573,21 @@ func run() error {
 	if err := ai.RegisterEngineBaseline(aiReg); err != nil {
 		return fmt.Errorf("register ai baseline: %w", err)
 	}
+	// S8 faction/standing manager (faction.md) over the pack-loaded faction
+	// registry, bridged to the bus (faction.shift.check / shifted /
+	// rank.changed). Per-character standing is read/written through the
+	// connActor faction.Entity adapter; the on-kill hook shifts it, and the
+	// disposition player-lookup resolves standings through it. Constructed here
+	// (before the evaluator) so playerLookup can carry it.
+	factionMgr := faction.NewManager(registries.Factions, &factionSink{bus: bus}, clk.Now)
+
 	// Disposition evaluator (spec mobs-ai-spawning §5). Constructed
 	// before the AI dispatcher so it can be passed in via Deps, and
 	// before session.Handler so the room-entry hook surface is
 	// available at first login.
 	evaluator := ai.NewEvaluator(ai.EvaluatorConfig{
 		Templates: registries.Mobs,
-		Players:   playerLookup{mgr: mgr},
+		Players:   playerLookup{mgr: mgr, faction: factionMgr},
 		Placement: placement,
 		Store:     entityStore,
 		Bus:       bus,
@@ -1080,12 +1088,6 @@ func run() error {
 		&alignmentSink{bus: bus},
 		clk.Now,
 	)
-
-	// S8 faction/standing manager (faction.md) over the pack-loaded faction
-	// registry, bridged to the bus (faction.shift.check / shifted /
-	// rank.changed). Per-character standing is read/written through the
-	// connActor faction.Entity adapter; the on-kill hook below shifts it.
-	factionMgr := faction.NewManager(registries.Factions, &factionSink{bus: bus}, clk.Now)
 
 	// M8.4: class-side level-up subscribers. Path processor grants
 	// abilities (logs as unknown until M9 abilities ship). Stat
@@ -3716,20 +3718,49 @@ func (p presenceSource) PlayerCountInArea(areaID world.AreaID) int {
 // bootSpawner does: ai and session don't directly depend on each
 // other, and stitching them here avoids inventing a shared package
 // just to host the bridge.
-type playerLookup struct{ mgr *session.Manager }
+type playerLookup struct {
+	mgr     *session.Manager
+	faction *faction.Manager
+}
+
+// standingsFor resolves the player's effective standing with every registered
+// faction (faction.md §6) — the starting standing for an untouched faction —
+// so a disposition rule's faction clause can resolve a standing for any faction
+// it names. Returns nil when there are no factions (the disposition faction
+// clause then never matches), avoiding a per-tick allocation in worlds with no
+// factions. e is the connActor (a faction.Entity).
+func (p playerLookup) standingsFor(e faction.Entity) map[string]int {
+	if p.faction == nil {
+		return nil
+	}
+	defs := p.faction.Registry().All()
+	if len(defs) == 0 {
+		return nil
+	}
+	out := make(map[string]int, len(defs))
+	for _, def := range defs {
+		out[def.ID] = p.faction.Get(e, def)
+	}
+	return out
+}
 
 func (p playerLookup) PlayersInRoom(_ context.Context, room world.RoomID) []ai.PlayerView {
 	infos := p.mgr.PlayersInRoom(room)
 	out := make([]ai.PlayerView, 0, len(infos))
 	for _, info := range infos {
-		out = append(out, ai.PlayerView{
+		view := ai.PlayerView{
 			ID:           info.ID,
 			Name:         info.Name,
 			Tags:         info.Tags,
 			Alignment:    info.Alignment,
 			Bucket:       info.Bucket,
 			HasAlignment: info.Bucket != "",
-		})
+		}
+		// Resolve standings from the live actor (info.ID is the PlayerID key).
+		if a, ok := p.mgr.GetByPlayerID(info.ID); ok {
+			view.Standings = p.standingsFor(a)
+		}
+		out = append(out, view)
 	}
 	return out
 }
@@ -3745,6 +3776,7 @@ func (p playerLookup) PlayerByID(_ context.Context, id string) (ai.PlayerView, b
 		Name:      a.PlayerName(),
 		Tags:      a.Tags(),
 		Alignment: a.Alignment(),
+		Standings: p.standingsFor(a),
 	}
 	switch tag {
 	case progression.TagAlignmentEvil:
