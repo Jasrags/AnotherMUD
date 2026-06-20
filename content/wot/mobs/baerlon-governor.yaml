@@ -1,0 +1,19 @@
+id: baerlon-governor
+name: the Governor of Baerlon
+type: npc
+behavior: stationary
+description: |
+  A portly, well-fed man in a fur-trimmed robe a little too fine for the rough
+  town he rules, the Queen's Governor carries himself with the prickly dignity of
+  a small authority a long way from the throne that grants it. He frets about the
+  mines, the merchant-tolls, the white-cloaked Children who have lately made his
+  streets so uneasy, and the dim chance that any of it might one day be laid at
+  his door in Caemlyn. He has no time for strangers and less for trouble, and
+  makes both plain with a glance.
+tags: [humanoid]
+keywords: [governor, lord, official, man]
+stats:
+  hp_max: 26
+  str: 10
+disposition_rules:
+  default: neutral

@@ -1,0 +1,16 @@
+id: the-caemlyn-gate
+area: baerlon
+name: "{w}Baerlon — the Caemlyn Gate{x}"
+description: |
+  The eastern gate of Baerlon — the Caemlyn Gate, the townsfolk call it, though
+  it opens first on the road to Whitebridge — stands in the wall where Market
+  Street runs out of the town. Through it pours the trade bound east across
+  Andor: ore-wagons heavy with the week's smelting, merchants for the Caemlyn
+  markets, couriers and carters and travellers without number. The Guard wave
+  the honest traffic through and eye the rest. The Governor's Hall and the town
+  lie back west; the Caemlyn Road runs out east toward the White Bridge and
+  Whitebridge beyond.
+exits:
+  west: the-governors-hall
+  east: the-caemlyn-road
+terrain: outdoors

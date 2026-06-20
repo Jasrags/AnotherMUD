@@ -1,0 +1,24 @@
+id: comfrey-innkeeper
+name: the Miner's Rest innkeeper
+type: npc
+behavior: stationary
+description: |
+  A spare, weathered mountain woman with grey hair scraped back hard and forearms
+  like a smith's, she keeps the Miner's Rest single-handed and brooks no nonsense
+  from the rough trade that drinks there. She has lived her whole life in the lap
+  of the Mountains of Mist and carries their cold patience in her; she will feed
+  and bed a civil stranger without fuss, and turn a troublemaker out into the
+  night without a second thought.
+tags: [humanoid, shop]
+keywords: [innkeeper, host, woman]
+stats:
+  hp_max: 24
+  str: 11
+disposition_rules:
+  default: neutral
+properties:
+  shop:
+    sells:
+      - wot:cooked-meal
+      - wot:trail-rations
+      - wot:waterskin

@@ -7,14 +7,15 @@ description: |
   hawkers working the crowd. Miners come down off the slopes shoulder to
   shoulder with wagoners, peddlers, and hard-eyed strangers, and through the
   press a pair of white-cloaked Children of the Light walk untouched, the crowd
-  parting around them like water round a stone. The Watch Gate stands back to
-  the west; the lamps of an inn glow to the north, a smithy's red light shows
-  south, and the open market lies east.
+  parting around them like water round a stone. The Mountain Gate stands back to
+  the west; the lamps of an inn glow to the north, a silversmith's shop shows
+  south, and ahead east the street runs on to the Town Square at the heart of
+  Baerlon.
 exits:
-  west: the-watch-gate
+  west: the-mountain-gate
   north: the-stag-and-lion
   south: the-silverworks
-  east: the-market-square
+  east: the-town-square
 terrain: outdoors
 mobs:
   - child-of-the-light

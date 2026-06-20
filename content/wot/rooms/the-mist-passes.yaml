@@ -1,0 +1,16 @@
+id: the-mist-passes
+area: comfrey
+name: "{w}The High Passes of the Mountains of Mist{x}"
+description: |
+  The miners' track climbs steeply above Comfrey and loses itself in the high
+  country, a world of bare grey rock and drifting cloud where the air is thin and
+  cold and the silence enormous. A few played-out diggings scar the slopes, and
+  somewhere ahead the track dwindles to a footpath and then to nothing among the
+  peaks. They say old ways run on through these mountains for those with the
+  nerve to find them, but the road, such as it is, ends here. Comfrey lies back
+  down the slope to the east.
+exits:
+  east: comfrey-green
+  # Stub: deeper passes through the Mountains of Mist (toward the Two Rivers'
+  # western wall / long-horizon mountain content) — a future arm.
+terrain: mountain

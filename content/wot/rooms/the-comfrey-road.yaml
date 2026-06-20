@@ -1,0 +1,15 @@
+id: the-comfrey-road
+area: baerlon-road
+name: "{g}The Comfrey Road{x}"
+description: |
+  A rougher, narrower track than the great Caemlyn highway, the Comfrey road
+  leaves the Mountain Gate behind and climbs north-west along the skirts of the
+  Mountains of Mist, the stony pasture giving way to bracken and scree and the
+  grey peaks crowding closer overhead. The ore-wagon traffic thins to the odd
+  miner's cart and a drover or two; this is a back-country road into hard upland.
+  Baerlon and the Mountain Gate lie back south; the road climbs on north toward
+  Comfrey.
+exits:
+  south: baerlon-approach
+  north: the-mist-road
+terrain: mountain

@@ -1,0 +1,17 @@
+id: the-town-square
+area: baerlon
+name: "{w}Baerlon — the Town Square{x}"
+description: |
+  The heart of Baerlon is a broad cobbled square where the town's two main
+  streets cross, loud with the business of a mining town that has grown fat on
+  the iron and silver of the mountains. Carters and miners and merchants throng
+  it, a town crier bawls the Governor's latest proclamation from the steps of a
+  fountain, and the solid stone front of the Governor's Hall faces the square to
+  the east. Market Street runs back west to the Mountain Gate; the ore-market and
+  the mining quarter lie north, and the way east leads on past the Hall to the
+  Caemlyn Gate and the road to Whitebridge.
+exits:
+  west: market-street
+  east: the-governors-hall
+  north: the-market-square
+terrain: outdoors

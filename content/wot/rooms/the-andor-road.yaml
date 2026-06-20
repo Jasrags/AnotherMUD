@@ -11,5 +11,5 @@ description: |
   waits Baerlon.
 exits:
   south: the-north-bank
-  north: the-caemlyn-crossing
+  north: baerlon-approach
 terrain: grassland

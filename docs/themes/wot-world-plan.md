@@ -405,6 +405,31 @@ Sheran → Carysford → Caemlyn**.
   Tower** (the Asha'man fortress, on the southern arm) is **deferred by request
   (2026-06-19)** — not to be built next until the deferral is lifted.
 
+### M10 — Reroute the western spine through Baerlon (canon-map correction)
+
+New canon maps (Whitebridge, Baerlon, and the route maps from the same set as
+the Andor/Caemlyn maps) showed the Caemlyn Road runs **through Baerlon**, not
+past it on a bypass. The original M5/M6 had a `the-caemlyn-crossing` branching
+east to Whitebridge *before* Baerlon (per an earlier instruction); that's now
+**corrected** — the bypass is deleted and the road runs **Two Rivers → Baerlon
+(in the Mountain Gate, out the Caemlyn Gate) → White Bridge → Whitebridge**.
+
+- **Baerlon reworked** to its city map: the west gate is the **Mountain Gate**
+  (renamed from "Watch Gate"; outside it the roads fork — **south to the Two
+  Rivers**, **north to Comfrey & the Mountains of Mist**), the main street runs
+  east through a new **Town Square** past the new **Governor's Hall** (a new
+  *Governor of Andor's-appointee* NPC — Baerlon is administered, not self-ruled)
+  to the new **Caemlyn Gate** (east, onto the road to Whitebridge).
+- **Comfrey route** (the NW fork, new `comfrey` area): the Comfrey road climbs
+  the skirts of the Mountains of Mist to the upland hamlet of **Comfrey** (the
+  Miner's Rest inn) and a stub on into the high passes — the user-requested
+  route to Comfrey & the Mountains of Mist. The **Two Rivers** fork (south) is
+  the existing ferry road, now wired to the Mountain Gate approach.
+- Verified: rooms now 101; the full W→E spine traces Two Rivers → **through
+  Baerlon** → Whitebridge → … → Caemlyn; all 200 exits resolve and are
+  reciprocal; pack tests green under `-race`. (Whitebridge's own N/S arms — to
+  Shadar Logoth/Maradon and to Remen/Illian down the Arinelle — remain future.)
+
 ## Risks
 
 - **Scope creep into the wider Westlands.** `the-westlands.md` is a whole

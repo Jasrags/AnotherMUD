@@ -1,0 +1,17 @@
+id: the-governors-hall
+area: baerlon
+name: "{w}Baerlon — the Governor's Hall{x}"
+description: |
+  The Governor's Hall is the grandest building in Baerlon, a square pile of good
+  grey stone with the rising-sun of Andor carved over its doors, from which the
+  Queen's appointed Governor administers the town and the mines on her behalf.
+  Clerks and petitioners come and go up the broad steps, a brace of liveried
+  guards flank the entrance, and the whole place wears the fussy, self-important
+  air of provincial authority. The Town Square lies back west; the Caemlyn Gate
+  and the eastern road stand just beyond to the east.
+exits:
+  west: the-town-square
+  east: the-caemlyn-gate
+terrain: outdoors
+mobs:
+  - baerlon-governor
