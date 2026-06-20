@@ -31,7 +31,7 @@ func TestQuestRecipeRewardLearnsForOnlinePlayer(t *testing.T) {
 	mgr.Add(a)
 
 	known := recipe.NewKnownManager(testRecipeRegistry(t))
-	rewards := NewQuestRewards(mgr, nil, nil, item.NewTemplates(), entities.NewStore(), nil, known, "")
+	rewards := NewQuestRewards(mgr, nil, nil, item.NewTemplates(), entities.NewStore(), nil, known, nil, "")
 	rewards.Dispatch(a, quest.Reward{Recipes: []string{"core:stew"}})
 
 	if !known.Knows("p1", "core:stew") {
@@ -42,7 +42,7 @@ func TestQuestRecipeRewardLearnsForOnlinePlayer(t *testing.T) {
 func TestQuestRecipeRewardOfflinePlayerNoop(t *testing.T) {
 	mgr := NewManager() // actor never Added → offline
 	known := recipe.NewKnownManager(testRecipeRegistry(t))
-	rewards := NewQuestRewards(mgr, nil, nil, item.NewTemplates(), entities.NewStore(), nil, known, "")
+	rewards := NewQuestRewards(mgr, nil, nil, item.NewTemplates(), entities.NewStore(), nil, known, nil, "")
 	rewards.Dispatch(offlinePlayer{"ghost"}, quest.Reward{Recipes: []string{"core:stew"}})
 
 	if known.Knows("ghost", "core:stew") {
@@ -55,7 +55,7 @@ func TestQuestRecipeRewardNilManagerIsNoop(t *testing.T) {
 	a, _ := newFakeActor("c1", "p1", "acc1", "Hero", &world.Room{ID: "r"})
 	mgr.Add(a)
 	// nil known → no recipe granter wired → silent no-op, no panic.
-	rewards := NewQuestRewards(mgr, nil, nil, item.NewTemplates(), entities.NewStore(), nil, nil, "")
+	rewards := NewQuestRewards(mgr, nil, nil, item.NewTemplates(), entities.NewStore(), nil, nil, nil, "")
 	rewards.Dispatch(a, quest.Reward{Recipes: []string{"core:stew"}})
 }
 
@@ -81,7 +81,7 @@ func TestQuestXPRewardGrantsOnConfiguredTrack(t *testing.T) {
 	}
 	prog := progression.NewManager(tracks, nil)
 
-	rewards := NewQuestRewards(mgr, prog, nil, item.NewTemplates(), entities.NewStore(), nil, nil, "adventurer")
+	rewards := NewQuestRewards(mgr, prog, nil, item.NewTemplates(), entities.NewStore(), nil, nil, nil, "adventurer")
 	rewards.Dispatch(a, quest.Reward{XP: 25})
 
 	if got := a.progress.XP("adventurer"); got != 25 {
@@ -102,7 +102,7 @@ func TestQuestItemRewardGrantsToInventory(t *testing.T) {
 	tpls.Add(&item.Template{ID: "core:potion", Name: "a potion", Type: "consumable"})
 
 	// prog/prof nil → XP/ability stay no-op; only the item granter is exercised.
-	rewards := NewQuestRewards(mgr, nil, nil, tpls, store, nil, nil, "")
+	rewards := NewQuestRewards(mgr, nil, nil, tpls, store, nil, nil, nil, "")
 	rewards.Dispatch(a, quest.Reward{Items: []string{"core:potion"}})
 
 	inv := a.Inventory()
@@ -120,7 +120,7 @@ func TestQuestItemRewardMissingTemplateSilent(t *testing.T) {
 	mgr := NewManager()
 	a, _ := newFakeActor("c1", "p1", "acc1", "Hero", &world.Room{ID: "r"})
 	mgr.Add(a)
-	rewards := NewQuestRewards(mgr, nil, nil, item.NewTemplates(), entities.NewStore(), nil, nil, "")
+	rewards := NewQuestRewards(mgr, nil, nil, item.NewTemplates(), entities.NewStore(), nil, nil, nil, "")
 	// unknown template → silent no-op, no panic, empty inventory.
 	rewards.Dispatch(a, quest.Reward{Items: []string{"core:nope"}})
 	if len(a.Inventory()) != 0 {
@@ -133,7 +133,7 @@ func TestQuestItemRewardOfflinePlayerNoop(t *testing.T) {
 	store := entities.NewStore()
 	tpls := item.NewTemplates()
 	tpls.Add(&item.Template{ID: "core:potion", Name: "a potion", Type: "consumable"})
-	rewards := NewQuestRewards(mgr, nil, nil, tpls, store, nil, nil, "")
+	rewards := NewQuestRewards(mgr, nil, nil, tpls, store, nil, nil, nil, "")
 	// recipient not online → GetByPlayerID misses → silent no-op.
 	rewards.Dispatch(offlinePlayer{"ghost"}, quest.Reward{Items: []string{"core:potion"}})
 	// nothing to assert beyond no panic + nothing spawned for a player.
@@ -145,7 +145,7 @@ func TestQuestGoldRewardCreditsPlayer(t *testing.T) {
 	mgr.Add(a)
 
 	currency := economy.NewCurrencyService(nil)
-	rewards := NewQuestRewards(mgr, nil, nil, item.NewTemplates(), entities.NewStore(), currency, nil, "")
+	rewards := NewQuestRewards(mgr, nil, nil, item.NewTemplates(), entities.NewStore(), currency, nil, nil, "")
 	rewards.Dispatch(a, quest.Reward{Gold: 30})
 
 	if got := a.Gold(); got != 30 {
@@ -159,7 +159,7 @@ func TestQuestGoldRewardNoServiceIsNoop(t *testing.T) {
 	mgr.Add(a)
 
 	// nil currency → no gold granter wired → reward is a silent no-op.
-	rewards := NewQuestRewards(mgr, nil, nil, item.NewTemplates(), entities.NewStore(), nil, nil, "")
+	rewards := NewQuestRewards(mgr, nil, nil, item.NewTemplates(), entities.NewStore(), nil, nil, nil, "")
 	rewards.Dispatch(a, quest.Reward{Gold: 30})
 
 	if got := a.Gold(); got != 0 {

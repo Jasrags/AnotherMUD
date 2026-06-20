@@ -938,8 +938,9 @@ func run() error {
 	questSvc := quest.NewService(quest.Config{
 		Registry: registries.Quests,
 		Persist:  questStore,
-		Rewards:  session.NewQuestRewards(mgr, progressionMgr, proficiencyMgr, registries.Items, entityStore, currencySvc, knownRecipesMgr, cfg.DefaultXPTrack),
+		Rewards:  session.NewQuestRewards(mgr, progressionMgr, proficiencyMgr, registries.Items, entityStore, currencySvc, knownRecipesMgr, factionMgr, cfg.DefaultXPTrack),
 		Events:   session.NewQuestNotifier(mgr, registries.Quests, questGiverName, questItemNameFn, logging.From(ctx)),
+		Faction:  session.NewQuestFactionGate(mgr, factionMgr),
 	})
 	questWatcher := questwatch.New(questSvc, entityStore)
 	// §7.2 quest_grant item side channel: resolve a picker's id to a

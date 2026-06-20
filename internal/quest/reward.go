@@ -37,6 +37,15 @@ type ItemGranter interface {
 	GrantItem(entityID, templateID string, silent bool)
 }
 
+// FactionShifter shifts a player's standing with a faction (faction.md §5.1).
+// The composition root bridges this to faction.Manager.Shift (resolving the
+// entity through the session manager), so the cancellable shift pipeline and
+// admin-immunity apply. An unregistered faction / offline player is a silent
+// no-op on the implementer's side, mirroring the other granters.
+type FactionShifter interface {
+	ShiftStanding(entityID, factionID string, delta int, reason string)
+}
+
 type nopExperience struct{}
 
 func (nopExperience) GrantExperience(string, int64, string, string) {}
@@ -57,6 +66,10 @@ type nopItem struct{}
 
 func (nopItem) GrantItem(string, string, bool) {}
 
+type nopFaction struct{}
+
+func (nopFaction) ShiftStanding(string, string, int, string) {}
+
 // Dispatcher applies a Reward to a player through the four services in
 // the documented order (§5.2), each step independent. A zero-value
 // Dispatcher (via NewDispatcher with no options) uses no-op services, so
@@ -67,6 +80,7 @@ type Dispatcher struct {
 	ability AbilityTeacher
 	recipe  RecipeTeacher
 	item    ItemGranter
+	faction FactionShifter
 	track   string
 }
 
@@ -118,6 +132,15 @@ func WithItems(i ItemGranter) DispatcherOption {
 	}
 }
 
+// WithFaction sets the faction standing shifter.
+func WithFaction(f FactionShifter) DispatcherOption {
+	return func(d *Dispatcher) {
+		if f != nil {
+			d.faction = f
+		}
+	}
+}
+
 // WithTrack overrides the XP track (default DefaultTrack).
 func WithTrack(track string) DispatcherOption {
 	return func(d *Dispatcher) {
@@ -135,6 +158,7 @@ func NewDispatcher(opts ...DispatcherOption) *Dispatcher {
 		ability: nopAbility{},
 		recipe:  nopRecipe{},
 		item:    nopItem{},
+		faction: nopFaction{},
 		track:   DefaultTrack,
 	}
 	for _, o := range opts {
@@ -144,8 +168,8 @@ func NewDispatcher(opts ...DispatcherOption) *Dispatcher {
 }
 
 // Dispatch applies r to player in the §5.2 order: XP, gold, abilities,
-// recipes, class unlock, race unlock, items. Each step is independent and a
-// no-op when its field is zero/empty.
+// recipes, faction shifts, class unlock, race unlock, items. Each step is
+// independent and a no-op when its field is zero/empty.
 func (d *Dispatcher) Dispatch(player Player, r Reward) {
 	id := player.EntityID()
 	if r.XP > 0 {
@@ -159,6 +183,11 @@ func (d *Dispatcher) Dispatch(player Player, r Reward) {
 	}
 	for _, recipeID := range r.Recipes {
 		d.recipe.GrantRecipe(id, recipeID)
+	}
+	for _, fr := range r.Faction {
+		if fr.Faction != "" && fr.Delta != 0 {
+			d.faction.ShiftStanding(id, fr.Faction, fr.Delta, "quest")
+		}
 	}
 	if r.ClassUnlock != "" {
 		player.SetClass(r.ClassUnlock)

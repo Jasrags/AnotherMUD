@@ -39,6 +39,21 @@ type NopPersister struct{}
 // Save implements Persister.
 func (NopPersister) Save(string, *State) {}
 
+// FactionGate resolves a faction-standing prerequisite (§3.2, faction.md §6
+// MeetsStanding): does playerID hold at least min standing with factionID? The
+// composition root bridges this to faction.Manager.MeetsStanding. The no-op
+// default admits everyone, so quests without a faction prereq — and headless
+// boots that wire no gate — are unaffected.
+type FactionGate interface {
+	MeetsStanding(playerID, factionID string, min int) bool
+}
+
+// NopFactionGate admits every faction prerequisite (no gate wired).
+type NopFactionGate struct{}
+
+// MeetsStanding implements FactionGate.
+func (NopFactionGate) MeetsStanding(string, string, int) bool { return true }
+
 // AcceptStatus enumerates the outcomes of an acceptance attempt (§3.1).
 type AcceptStatus int
 
@@ -64,8 +79,9 @@ type Config struct {
 	Rewards  *Dispatcher
 	Events   EventSink
 	Persist  Persister
-	Cap      int    // abandonable active-quest cap; <=0 → DefaultActiveCap
-	Track    string // main progression track for prereq level; "" → DefaultTrack
+	Faction  FactionGate // faction-standing prereq resolver; nil → admits all
+	Cap      int         // abandonable active-quest cap; <=0 → DefaultActiveCap
+	Track    string      // main progression track for prereq level; "" → DefaultTrack
 }
 
 // Service owns per-player quest state and the accept/advance/abandon
@@ -78,6 +94,7 @@ type Service struct {
 	rewards  *Dispatcher
 	events   EventSink
 	persist  Persister
+	faction  FactionGate
 	states   map[string]*State
 	players  map[string]Player // cache populated on Accept (§4.3)
 	cap      int
@@ -94,6 +111,7 @@ func NewService(cfg Config) *Service {
 		rewards:  cfg.Rewards,
 		events:   cfg.Events,
 		persist:  cfg.Persist,
+		faction:  cfg.Faction,
 		states:   make(map[string]*State),
 		players:  make(map[string]Player),
 		cap:      cfg.Cap,
@@ -107,6 +125,9 @@ func NewService(cfg Config) *Service {
 	}
 	if s.persist == nil {
 		s.persist = NopPersister{}
+	}
+	if s.faction == nil {
+		s.faction = NopFactionGate{}
 	}
 	if s.cap <= 0 {
 		s.cap = DefaultActiveCap
@@ -237,6 +258,14 @@ func (s *Service) prereqMet(player Player, st *State, p Prerequisite) bool {
 	}
 	for _, q := range p.QuestsNotCompleted {
 		if st.hasCompleted(q) {
+			return false
+		}
+	}
+	for _, fr := range p.Faction {
+		if fr.Faction == "" {
+			continue
+		}
+		if !s.faction.MeetsStanding(player.EntityID(), fr.Faction, fr.MinStanding) {
 			return false
 		}
 	}

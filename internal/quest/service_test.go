@@ -158,6 +158,52 @@ func TestAcceptPrereqs(t *testing.T) {
 	}
 }
 
+// fakeFactionGate admits a (player, faction) when the player's recorded
+// standing meets the minimum; an absent entry reads as 0.
+type fakeFactionGate struct {
+	standing map[string]map[string]int // playerID → factionID → standing
+}
+
+func (g fakeFactionGate) MeetsStanding(playerID, factionID string, min int) bool {
+	return g.standing[playerID][factionID] >= min
+}
+
+func TestAcceptFactionPrereq(t *testing.T) {
+	reg := NewRegistry()
+	d := twoStageDef("q")
+	d.Prereq = Prerequisite{Faction: []FactionRequirement{{Faction: "wot:queens-guard", MinStanding: 100}}}
+	_ = reg.Register(d)
+
+	gate := fakeFactionGate{standing: map[string]map[string]int{
+		"hi": {"wot:queens-guard": 250},
+		"lo": {"wot:queens-guard": 50},
+	}}
+	svc := NewService(Config{Registry: reg, Faction: gate})
+
+	// below the floor → refused
+	if r := svc.Accept(&fakePlayer{id: "lo"}, "q", false); r.Status != PrereqNotMet {
+		t.Errorf("below standing = %v, want PrereqNotMet", r.Status)
+	}
+	// at/above the floor → accepted
+	if r := svc.Accept(&fakePlayer{id: "hi"}, "q", false); r.Status != Accepted {
+		t.Errorf("met standing = %v, want Accepted", r.Status)
+	}
+}
+
+func TestAcceptFactionPrereq_NoGateAdmits(t *testing.T) {
+	// With no FactionGate wired (NopFactionGate default), a faction prereq is a
+	// no-op — the quest stays acceptable rather than silently locked.
+	reg := NewRegistry()
+	d := twoStageDef("q")
+	d.Prereq = Prerequisite{Faction: []FactionRequirement{{Faction: "wot:queens-guard", MinStanding: 100}}}
+	_ = reg.Register(d)
+	svc := NewService(Config{Registry: reg})
+
+	if r := svc.Accept(&fakePlayer{id: "p"}, "q", false); r.Status != Accepted {
+		t.Errorf("no gate = %v, want Accepted", r.Status)
+	}
+}
+
 func TestAcceptCap(t *testing.T) {
 	reg := NewRegistry()
 	for _, id := range []string{"a", "b"} {

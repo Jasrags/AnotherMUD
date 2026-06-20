@@ -29,6 +29,17 @@ type Stage struct {
 	Objectives  []Objective
 }
 
+// FactionRequirement gates acceptance on a minimum faction standing
+// (faction.md §5.1 / §6 — "a quest prerequisite may require a minimum
+// standing"). Faction is a namespaced faction id; MinStanding is the lowest
+// standing (inclusive) the character must hold with it. Resolved through the
+// service's FactionGate, so a quest with no faction gate — and a headless boot
+// that wires no gate — is unaffected.
+type FactionRequirement struct {
+	Faction     string
+	MinStanding int
+}
+
 // Prerequisite gates acceptance (§3.2). All present gates must pass;
 // absent gates (zero value / empty) are no-ops.
 type Prerequisite struct {
@@ -36,15 +47,27 @@ type Prerequisite struct {
 	Class              string
 	QuestsCompleted    []string
 	QuestsNotCompleted []string
+	Faction            []FactionRequirement
+}
+
+// FactionReward shifts the completer's standing with a faction on completion
+// (faction.md §5.1 — quest rewards are the primary earn path). Faction is a
+// namespaced faction id; Delta is the signed standing change, routed through
+// Shift so the cancellable faction.shift.check pipeline and admin-immunity
+// apply.
+type FactionReward struct {
+	Faction string
+	Delta   int
 }
 
 // Reward is dispatched on completion (§5.1). Any field may be zero/empty.
 type Reward struct {
 	XP          int64
 	Gold        int
-	Items       []string // item template ids
-	Abilities   []string // ability ids to teach
-	Recipes     []string // recipe ids to teach (crafting-and-cooking §7 uncommon tier)
+	Items       []string        // item template ids
+	Abilities   []string        // ability ids to teach
+	Recipes     []string        // recipe ids to teach (crafting-and-cooking §7 uncommon tier)
+	Faction     []FactionReward // faction standing shifts (faction.md §5.1)
 	ClassUnlock string
 	RaceUnlock  string
 }

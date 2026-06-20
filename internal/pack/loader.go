@@ -1939,6 +1939,30 @@ func decodeQuest(path, ns, packDir string) (*quest.Definition, error) {
 	if err != nil {
 		return nil, err
 	}
+	// Faction ids are namespaced content (faction registry), so reward/prereq
+	// faction references qualify against the pack namespace (faction.md §5.1).
+	var rewardFactions []quest.FactionReward
+	for i, fr := range f.Reward.Faction {
+		fid, err := qualifyOptional(fr.Faction, ns, path, fmt.Sprintf("reward.faction[%d].faction", i))
+		if err != nil {
+			return nil, err
+		}
+		if fid == "" {
+			continue
+		}
+		rewardFactions = append(rewardFactions, quest.FactionReward{Faction: fid, Delta: fr.Delta})
+	}
+	var prereqFactions []quest.FactionRequirement
+	for i, fr := range f.Prerequisite.Faction {
+		fid, err := qualifyOptional(fr.Faction, ns, path, fmt.Sprintf("prerequisite.faction[%d].faction", i))
+		if err != nil {
+			return nil, err
+		}
+		if fid == "" {
+			continue
+		}
+		prereqFactions = append(prereqFactions, quest.FactionRequirement{Faction: fid, MinStanding: fr.MinStanding})
+	}
 
 	abandonable := f.Abandonable == nil || *f.Abandonable
 
@@ -1957,6 +1981,7 @@ func decodeQuest(path, ns, packDir string) (*quest.Definition, error) {
 			Class:              f.Prerequisite.Class,
 			QuestsCompleted:    prereqDone,
 			QuestsNotCompleted: prereqNotDone,
+			Faction:            prereqFactions,
 		},
 		Stages: stages,
 		Reward: quest.Reward{
@@ -1965,6 +1990,7 @@ func decodeQuest(path, ns, packDir string) (*quest.Definition, error) {
 			Items:       rewardItems,
 			Abilities:   f.Reward.Abilities,
 			Recipes:     rewardRecipes,
+			Faction:     rewardFactions,
 			ClassUnlock: f.Reward.ClassUnlock,
 			RaceUnlock:  f.Reward.RaceUnlock,
 		},

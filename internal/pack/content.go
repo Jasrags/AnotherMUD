@@ -810,10 +810,19 @@ type QuestFile struct {
 
 // PrerequisiteFile is the YAML shape for a quest prerequisite block.
 type PrerequisiteFile struct {
-	MinLevel           int      `yaml:"min_level,omitempty"`
-	Class              string   `yaml:"class,omitempty"`
-	QuestsCompleted    []string `yaml:"quests_completed,omitempty"`
-	QuestsNotCompleted []string `yaml:"quests_not_completed,omitempty"`
+	MinLevel           int                      `yaml:"min_level,omitempty"`
+	Class              string                   `yaml:"class,omitempty"`
+	QuestsCompleted    []string                 `yaml:"quests_completed,omitempty"`
+	QuestsNotCompleted []string                 `yaml:"quests_not_completed,omitempty"`
+	Faction            []FactionRequirementFile `yaml:"faction,omitempty"`
+}
+
+// FactionRequirementFile is the YAML shape for one faction-standing
+// prerequisite (faction.md §5.1). Faction is a faction id (qualified against
+// the pack namespace at load); MinStanding is the inclusive floor.
+type FactionRequirementFile struct {
+	Faction     string `yaml:"faction"`
+	MinStanding int    `yaml:"min_standing,omitempty"`
 }
 
 // QuestStageFile is the YAML shape for a quest stage.
@@ -836,13 +845,22 @@ type QuestObjectiveFile struct {
 
 // RewardFile is the YAML shape for a quest reward block.
 type RewardFile struct {
-	XP          int64    `yaml:"xp,omitempty"`
-	Gold        int      `yaml:"gold,omitempty"`
-	Items       []string `yaml:"items,omitempty"`
-	Abilities   []string `yaml:"abilities,omitempty"`
-	Recipes     []string `yaml:"recipes,omitempty"`
-	ClassUnlock string   `yaml:"class_unlock,omitempty"`
-	RaceUnlock  string   `yaml:"race_unlock,omitempty"`
+	XP          int64               `yaml:"xp,omitempty"`
+	Gold        int                 `yaml:"gold,omitempty"`
+	Items       []string            `yaml:"items,omitempty"`
+	Abilities   []string            `yaml:"abilities,omitempty"`
+	Recipes     []string            `yaml:"recipes,omitempty"`
+	Faction     []FactionRewardFile `yaml:"faction,omitempty"`
+	ClassUnlock string              `yaml:"class_unlock,omitempty"`
+	RaceUnlock  string              `yaml:"race_unlock,omitempty"`
+}
+
+// FactionRewardFile is the YAML shape for one faction-standing reward
+// (faction.md §5.1). Faction is a faction id (qualified against the pack
+// namespace at load); Delta is the signed standing shift.
+type FactionRewardFile struct {
+	Faction string `yaml:"faction"`
+	Delta   int    `yaml:"delta,omitempty"`
 }
 
 // RaceFile is the YAML shape for a race definition (spec

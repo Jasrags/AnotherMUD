@@ -32,3 +32,57 @@ func TestDispatch_NopRecipeNoPanic(t *testing.T) {
 	d := NewDispatcher()
 	d.Dispatch(&fakePlayer{id: "p1"}, Reward{Recipes: []string{"core:x"}})
 }
+
+// recFaction records the faction standing shifts the dispatcher routes.
+type recFaction struct {
+	got []FactionReward
+	ids []string // entity ids the shift targeted
+}
+
+func (r *recFaction) ShiftStanding(entityID, factionID string, delta int, _ string) {
+	r.got = append(r.got, FactionReward{Faction: factionID, Delta: delta})
+	r.ids = append(r.ids, entityID)
+}
+
+func TestDispatch_GrantsFaction(t *testing.T) {
+	rec := &recFaction{}
+	d := NewDispatcher(WithFaction(rec))
+	d.Dispatch(&fakePlayer{id: "p1"}, Reward{Faction: []FactionReward{
+		{Faction: "wot:queens-guard", Delta: 50},
+		{Faction: "wot:darkfriends", Delta: -25},
+	}})
+
+	if len(rec.got) != 2 {
+		t.Fatalf("shifts = %v, want 2", rec.got)
+	}
+	if rec.got[0] != (FactionReward{Faction: "wot:queens-guard", Delta: 50}) {
+		t.Errorf("shift[0] = %+v", rec.got[0])
+	}
+	if rec.got[1] != (FactionReward{Faction: "wot:darkfriends", Delta: -25}) {
+		t.Errorf("shift[1] = %+v", rec.got[1])
+	}
+	if rec.ids[0] != "p1" || rec.ids[1] != "p1" {
+		t.Errorf("shift targets = %v, want both p1", rec.ids)
+	}
+}
+
+func TestDispatch_FactionSkipsEmptyOrZero(t *testing.T) {
+	rec := &recFaction{}
+	d := NewDispatcher(WithFaction(rec))
+	// Empty faction id and zero delta are both no-ops; only the valid one applies.
+	d.Dispatch(&fakePlayer{id: "p1"}, Reward{Faction: []FactionReward{
+		{Faction: "", Delta: 10},                // no id
+		{Faction: "wot:queens-guard", Delta: 0}, // no change
+		{Faction: "wot:queens-guard", Delta: 5},
+	}})
+
+	if len(rec.got) != 1 || rec.got[0].Delta != 5 {
+		t.Errorf("shifts = %v, want a single +5", rec.got)
+	}
+}
+
+func TestDispatch_NopFactionNoPanic(t *testing.T) {
+	// A dispatcher with no faction shifter must not panic on a faction reward.
+	d := NewDispatcher()
+	d.Dispatch(&fakePlayer{id: "p1"}, Reward{Faction: []FactionReward{{Faction: "wot:x", Delta: 1}}})
+}

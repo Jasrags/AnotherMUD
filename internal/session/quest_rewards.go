@@ -5,6 +5,7 @@ import (
 
 	"github.com/Jasrags/AnotherMUD/internal/economy"
 	"github.com/Jasrags/AnotherMUD/internal/entities"
+	"github.com/Jasrags/AnotherMUD/internal/faction"
 	"github.com/Jasrags/AnotherMUD/internal/item"
 	"github.com/Jasrags/AnotherMUD/internal/progression"
 	"github.com/Jasrags/AnotherMUD/internal/quest"
@@ -40,6 +41,7 @@ func NewQuestRewards(
 	store *entities.Store,
 	currency *economy.CurrencyService,
 	known *recipe.KnownManager,
+	factionMgr *faction.Manager,
 	defaultTrack string,
 ) *quest.Dispatcher {
 	opts := []quest.DispatcherOption{
@@ -56,7 +58,69 @@ func NewQuestRewards(
 	if known != nil {
 		opts = append(opts, quest.WithRecipes(questRecipes{mgr: mgr, known: known}))
 	}
+	if factionMgr != nil {
+		opts = append(opts, quest.WithFaction(questFaction{mgr: mgr, faction: factionMgr}))
+	}
 	return quest.NewDispatcher(opts...)
+}
+
+// NewQuestFactionGate builds the faction-standing prerequisite resolver
+// (quest.FactionGate, faction.md §6) wired to the live faction manager. Returns
+// a NopFactionGate when factionMgr is nil (tests / headless boots), so quests
+// with a faction prereq stay acceptable rather than silently locked. The
+// recipient is resolved through the session manager — acceptance always happens
+// online, so an offline player is treated as not meeting the gate.
+func NewQuestFactionGate(mgr *Manager, factionMgr *faction.Manager) quest.FactionGate {
+	if factionMgr == nil {
+		return quest.NopFactionGate{}
+	}
+	return questFactionGate{mgr: mgr, faction: factionMgr}
+}
+
+// questFaction bridges the quest FactionShifter (entityId-addressed) to the
+// faction manager (entity + Definition addressed): it resolves the faction
+// definition from the registry and the recipient actor through the session
+// manager, then routes the standing change through Shift so the cancellable
+// faction.shift.check pipeline and admin-immunity apply (faction.md §5.1). An
+// unregistered faction or offline recipient is skipped silently, mirroring the
+// other granters; the detached grant uses a background context like questGold.
+type questFaction struct {
+	mgr     *Manager
+	faction *faction.Manager
+}
+
+func (q questFaction) ShiftStanding(entityID, factionID string, delta int, reason string) {
+	def, ok := q.faction.Registry().Get(factionID)
+	if !ok {
+		return // faction not in content — skip silently
+	}
+	a, ok := q.mgr.GetByPlayerID(entityID)
+	if !ok {
+		return // recipient offline
+	}
+	q.faction.Shift(context.Background(), a, def, delta, reason)
+}
+
+// questFactionGate bridges the quest FactionGate to faction.Manager.MeetsStanding,
+// resolving the faction definition from the registry and the player actor through
+// the session manager. An unregistered faction admits (a content typo must not
+// silently lock a quest, mirroring the shifter's fail-silent); an offline player
+// fails the gate (acceptance happens online).
+type questFactionGate struct {
+	mgr     *Manager
+	faction *faction.Manager
+}
+
+func (q questFactionGate) MeetsStanding(playerID, factionID string, min int) bool {
+	def, ok := q.faction.Registry().Get(factionID)
+	if !ok {
+		return true // unknown faction → don't block
+	}
+	a, ok := q.mgr.GetByPlayerID(playerID)
+	if !ok {
+		return false // offline can't be evaluated
+	}
+	return q.faction.MeetsStanding(a, def, min)
 }
 
 // questRecipes bridges the quest RecipeTeacher to the per-character
