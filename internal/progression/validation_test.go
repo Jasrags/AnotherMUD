@@ -10,6 +10,7 @@ type fakeEntity struct {
 	id        string
 	resting   bool
 	align     int
+	standings map[string]int // faction id → standing; nil ⇒ MeetsFactionStanding fails open
 	tags      map[string][]string
 	equipped  map[string]bool
 	inCombat  bool
@@ -23,6 +24,12 @@ type fakeEntity struct {
 func (f *fakeEntity) EntityID() string { return f.id }
 func (f *fakeEntity) IsResting() bool  { return f.resting }
 func (f *fakeEntity) Alignment() int   { return f.align }
+func (f *fakeEntity) MeetsFactionStanding(faction string, min int) bool {
+	if f.standings == nil {
+		return true
+	}
+	return f.standings[faction] >= min
+}
 func (f *fakeEntity) EquippedTags(slot string) ([]string, bool) {
 	if !f.equipped[slot] {
 		return nil, false
@@ -118,6 +125,53 @@ func TestValidate_AlignmentRestricted(t *testing.T) {
 		progression.QueuedAction{AbilityID: "smite"}, 1)
 	if res.Reason != progression.FizzleAlignmentRestricted {
 		t.Errorf("Reason = %q, want alignment_restricted", res.Reason)
+	}
+}
+
+func TestValidate_FactionRestricted(t *testing.T) {
+	ability := &progression.Ability{
+		ID: "rally", DisplayName: "Rally the Guard",
+		Type: progression.AbilityActive, Category: progression.AbilitySkill,
+		FactionRequirements: []progression.AbilityFactionRequirement{
+			{Faction: "wot:queens-guard", MinStanding: 100},
+		},
+	}
+	p, _, prof, _, _, _ := buildPipeline(t, []*progression.Ability{ability})
+	prof["ent-1"]["rally"] = true
+
+	// Below the threshold → faction_restricted.
+	res := p.Validate(&fakeEntity{id: "ent-1", standings: map[string]int{"wot:queens-guard": 50},
+		inCombat: true, hasTarget: true, target: "mob-1"},
+		progression.QueuedAction{AbilityID: "rally"}, 1)
+	if res.Reason != progression.FizzleFactionRestricted {
+		t.Errorf("below standing Reason = %q, want faction_restricted", res.Reason)
+	}
+
+	// At/above the threshold → passes the faction gate (FizzleOK).
+	res = p.Validate(&fakeEntity{id: "ent-1", standings: map[string]int{"wot:queens-guard": 250},
+		inCombat: true, hasTarget: true, target: "mob-1"},
+		progression.QueuedAction{AbilityID: "rally"}, 1)
+	if res.Reason != progression.FizzleOK {
+		t.Errorf("met standing Reason = %q, want OK", res.Reason)
+	}
+}
+
+func TestValidate_FactionGateFailsOpenWhenUnresolved(t *testing.T) {
+	ability := &progression.Ability{
+		ID: "rally", DisplayName: "Rally the Guard",
+		Type: progression.AbilityActive, Category: progression.AbilitySkill,
+		FactionRequirements: []progression.AbilityFactionRequirement{
+			{Faction: "wot:queens-guard", MinStanding: 100},
+		},
+	}
+	p, _, prof, _, _, _ := buildPipeline(t, []*progression.Ability{ability})
+	prof["ent-1"]["rally"] = true
+	// nil standings (no faction wired) → MeetsFactionStanding returns true; the
+	// gate does not refuse, so the ability passes validation.
+	res := p.Validate(&fakeEntity{id: "ent-1", inCombat: true, hasTarget: true, target: "mob-1"},
+		progression.QueuedAction{AbilityID: "rally"}, 1)
+	if res.Reason != progression.FizzleOK {
+		t.Errorf("unwired faction Reason = %q, want OK (fail open)", res.Reason)
 	}
 }
 

@@ -1533,6 +1533,20 @@ func decodeAbility(path, ns string) (*progression.Ability, error) {
 		}
 	}
 
+	// Faction requirements (faction.md §6): qualify each faction id against the
+	// pack namespace (faction ids are namespaced content, like reward factions).
+	var factionReqs []progression.AbilityFactionRequirement
+	for i, fr := range f.FactionRequirements {
+		fid, err := qualifyOptional(fr.Faction, ns, path, fmt.Sprintf("faction_requirements[%d].faction", i))
+		if err != nil {
+			return nil, err
+		}
+		if fid == "" {
+			continue
+		}
+		factionReqs = append(factionReqs, progression.AbilityFactionRequirement{Faction: fid, MinStanding: fr.MinStanding})
+	}
+
 	// Effect template: decode modifiers; empty id is an authoring
 	// error because the single-instance + removal paths key on id.
 	var effect *progression.EffectTemplate
@@ -1603,6 +1617,7 @@ func decodeAbility(path, ns string) (*progression.Ability, error) {
 		HasAlignmentRange:     hasAlignRange,
 		AlignmentMin:          alignMin,
 		AlignmentMax:          alignMax,
+		FactionRequirements:   factionReqs,
 		Effect:                effect,
 		ApplySave:             applySave,
 		Pack:                  ns,

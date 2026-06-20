@@ -21,11 +21,20 @@ type fakeSource struct {
 	lastUsed   string
 	deductedMv int
 	deductedMn int
+	// factionStandings drives MeetsFactionStanding (faction.md §6 gate). nil ⇒
+	// every check passes (fail open), the default for tests that don't gate.
+	factionStandings map[string]int
 }
 
 func (s *fakeSource) EntityID() string                     { return s.id }
 func (s *fakeSource) IsResting() bool                      { return false }
 func (s *fakeSource) Alignment() int                       { return 0 }
+func (s *fakeSource) MeetsFactionStanding(faction string, min int) bool {
+	if s.factionStandings == nil {
+		return true
+	}
+	return s.factionStandings[faction] >= min
+}
 func (s *fakeSource) EquippedTags(string) ([]string, bool) { return nil, false }
 func (s *fakeSource) InCombat() bool                       { return true }
 func (s *fakeSource) CurrentTarget() (string, bool)        { return "", false }

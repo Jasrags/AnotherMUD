@@ -514,6 +514,14 @@ type ClassFile struct {
 // Ability ids are NOT namespaced — the registry is global and the
 // override semantics §2.1 already permit a pack to replace a
 // baseline ability by id+priority (mirrors the slot registry).
+// AbilityFactionReqFile is the YAML shape for one ability faction-standing gate
+// (faction.md §6). Faction is a faction id (qualified at load); MinStanding is
+// the inclusive floor.
+type AbilityFactionReqFile struct {
+	Faction     string `yaml:"faction"`
+	MinStanding int    `yaml:"min_standing,omitempty"`
+}
+
 type AbilityFile struct {
 	ID                    string  `yaml:"id"`
 	Name                  string  `yaml:"name,omitempty"`
@@ -549,6 +557,9 @@ type AbilityFile struct {
 	// content-friendly extreme (Min defaults to MinInt, Max to MaxInt).
 	AlignmentMin *int `yaml:"alignment_min,omitempty"`
 	AlignmentMax *int `yaml:"alignment_max,omitempty"`
+	// FactionRequirements gate usage on minimum faction standing (faction.md
+	// §6). Each faction id is qualified against the pack namespace at load.
+	FactionRequirements []AbilityFactionReqFile `yaml:"faction_requirements,omitempty"`
 	// Effect is the optional template applied on hit (spec §5.1).
 	Effect *EffectFile `yaml:"effect,omitempty"`
 	// ApplySave is the optional entry save the target rolls to resist the

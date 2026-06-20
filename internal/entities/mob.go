@@ -494,6 +494,12 @@ func (m *MobInstance) Alignment() int {
 	}
 }
 
+// MeetsFactionStanding satisfies progression.ValidationEntity (faction.md §6
+// ability gate). Mobs carry no per-character faction standing, so a
+// faction-gated ability is never refused on a mob's account — return true
+// (fail open), the same posture the connActor takes when faction is unwired.
+func (m *MobInstance) MeetsFactionStanding(string, int) bool { return true }
+
 // SetAlignment writes the integer alignment property. Used by
 // the AlignmentEntity adapter under the manager's lock. Does NOT
 // adjust tags — SetAlignmentTag is the paired call.

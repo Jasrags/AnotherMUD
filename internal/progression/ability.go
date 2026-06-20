@@ -59,6 +59,14 @@ func ParseAbilityCategory(s string) (AbilityCategory, bool) {
 	}
 }
 
+// AbilityFactionRequirement is one faction-standing gate on an ability
+// (faction.md §6): the entity must hold at least MinStanding with Faction (a
+// namespaced faction id) to use it. Mirrors the quest faction prerequisite.
+type AbilityFactionRequirement struct {
+	Faction     string
+	MinStanding int
+}
+
 // Ability is a content-defined ability definition (spec
 // abilities-and-effects §2). M9.1 wired identity + classification +
 // gain. M9.3 grows the surface used by validation (spec §4.3):
@@ -163,6 +171,14 @@ type Ability struct {
 	// invocation fizzles `alignment_restricted`.
 	AlignmentMin int
 	AlignmentMax int
+
+	// FactionRequirements gate usage on minimum faction standing (faction.md
+	// §6 — the ability-as-consumer sibling of the alignment range). Every
+	// requirement must be met; an entity below any threshold fizzles
+	// `faction_restricted`. Empty = no faction gate. Resolved through the
+	// entity (MeetsFactionStanding), so the progression package stays free of
+	// the faction dependency and an entity with no faction wired admits all.
+	FactionRequirements []AbilityFactionRequirement
 
 	// Effect is the optional effect template applied to the
 	// target on hit (spec §2.2 / §5.1). When present, the

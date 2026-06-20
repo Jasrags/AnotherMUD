@@ -28,6 +28,14 @@ type ValidationEntity interface {
 	// (spec §4.3 step 2).
 	Alignment() int
 
+	// MeetsFactionStanding reports whether the entity holds at least min
+	// standing with factionID (faction.md §6). Consulted only when the ability
+	// declares FactionRequirements. The entity owns the resolution (so the
+	// progression package stays free of the faction dependency); an entity with
+	// no faction wired — or an unknown faction — returns true (fail open),
+	// mirroring the shop gate.
+	MeetsFactionStanding(factionID string, min int) bool
+
 	// EquippedTags returns the tag list of the item equipped in
 	// slot (spec §4.3 step 4). The second return is false when
 	// the slot is empty; (nil, true) means "item equipped but
@@ -258,6 +266,16 @@ func (p *ValidationPipeline) Validate(source ValidationEntity, action QueuedActi
 		a := source.Alignment()
 		if a < ability.AlignmentMin || a > ability.AlignmentMax {
 			return ValidationResult{Reason: FizzleAlignmentRestricted, Ability: ability}
+		}
+	}
+
+	// 2b. Faction standing (faction.md §6) — every requirement must be met.
+	for _, req := range ability.FactionRequirements {
+		if req.Faction == "" {
+			continue
+		}
+		if !source.MeetsFactionStanding(req.Faction, req.MinStanding) {
+			return ValidationResult{Reason: FizzleFactionRestricted, Ability: ability}
 		}
 	}
 

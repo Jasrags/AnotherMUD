@@ -4565,6 +4565,8 @@ func fizzleMessage(abilityName, reason string) string {
 		return "You can't do that right now."
 	case "alignment_restricted":
 		return fmt.Sprintf("Your conscience won't let you use %s.", abilityName)
+	case "faction_restricted":
+		return fmt.Sprintf("You lack the standing to use %s.", abilityName)
 	case "no_proficiency":
 		return fmt.Sprintf("You haven't learned %s.", abilityName)
 	case "equipment_required":

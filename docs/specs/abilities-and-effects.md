@@ -115,6 +115,8 @@ A registration MAY carry:
 - An equipment-slot requirement (slot id, optional required tag on
   the equipped item).
 - An alignment range restricting who may use it.
+- Optional faction-standing requirements (faction.md §6) — minimum
+  standing with one or more named factions.
 - A variance percentage controlling how proficiency translates into
   success chance.
 - A max-chance ceiling on success.
@@ -263,6 +265,12 @@ reason found is the reason reported. The order is:
 2. **Alignment range check.** When the ability declares an
    alignment range, the entity's current alignment must fall inside
    it. Result: `alignment_restricted`.
+2b. **Faction standing check.** When the ability declares faction
+   requirements (faction.md §6 — the alignment-range sibling), the
+   entity must hold at least the named minimum standing with every
+   listed faction. The entity owns the resolution, so an entity with
+   no faction system wired — or a faction not in content — passes
+   (fail open). Result: `faction_restricted`.
 3. **Proficiency check.** The entity must have an entry for the
    ability in its proficiency map. Result: `no_proficiency`.
 4. **Equipment-slot check.** When the ability declares a required

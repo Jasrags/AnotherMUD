@@ -23,6 +23,9 @@ const (
 	// FizzleAlignmentRestricted — entity alignment outside the
 	// ability's permitted range (spec §4.3 step 2).
 	FizzleAlignmentRestricted FizzleReason = "alignment_restricted"
+	// FizzleFactionRestricted — entity standing with a required faction
+	// below the ability's threshold (faction.md §6; spec §4.3 step 2 sibling).
+	FizzleFactionRestricted FizzleReason = "faction_restricted"
 	// FizzleNoProficiency — entity hasn't learned the ability
 	// (spec §4.3 step 3).
 	FizzleNoProficiency FizzleReason = "no_proficiency"

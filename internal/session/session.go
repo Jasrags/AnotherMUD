@@ -608,6 +608,7 @@ func run(ctx context.Context, c conn.Connection, cfg Config) error {
 		colorTier:     readColorTier(c),
 		save:          loaded.Player,
 		players:       cfg.Players,
+		faction:       cfg.Faction,
 		prof:          cfg.Proficiency,
 		known:         cfg.Known,
 		combat:        cfg.Combat,
@@ -2004,6 +2005,12 @@ type connActor struct {
 	// Tags() appends it to racialTags so the AI evaluator's
 	// PlayerView carries it for has_tag matchers.
 	alignmentTag string
+
+	// faction is the S8 faction manager (faction.md), retained so consumers
+	// like the ability faction gate (MeetsFactionStanding) can resolve the
+	// actor's EFFECTIVE standing (starting-substituted) through the registry.
+	// nil when faction isn't wired → those gates fail open.
+	faction *faction.Manager
 
 	// factionStanding is the actor's per-faction standing bag (faction.md
 	// §3.1): faction id → signed standing. Loaded from save.FactionStanding,
@@ -4265,6 +4272,24 @@ func (a *connActor) Alignment() int {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	return a.alignment
+}
+
+// MeetsFactionStanding reports whether the actor's effective standing with
+// factionID is at least min (faction.md §6 — the ability faction gate seam,
+// progression.ValidationEntity). Resolves through the faction manager so an
+// untouched faction reads at its starting standing; fails open (true) when
+// faction isn't wired or the faction isn't in content, so a content typo never
+// locks an ability. Does not take a.mu — the manager's Get reads the standing
+// bag through the faction.Entity adapter, which locks a.mu itself.
+func (a *connActor) MeetsFactionStanding(factionID string, min int) bool {
+	if a.faction == nil {
+		return true
+	}
+	def, ok := a.faction.Registry().Get(factionID)
+	if !ok {
+		return true
+	}
+	return a.faction.MeetsStanding(a, def, min)
 }
 
 // SetAlignment writes the alignment integer. Used by the
