@@ -20,3 +20,7 @@ terrain: indoors
 healing_rate: 2
 mobs:
   - bran-alvere
+  # Loial the Ogier (the iconic Two Rivers Ogier; non-playable NPC race) folded
+  # into a chair by the fire — book-faithful (he comes to Emond's Field with
+  # Perrin) and a fitting first encounter with the Ogier race a step off the Green.
+  - loial

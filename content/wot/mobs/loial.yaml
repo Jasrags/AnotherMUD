@@ -1,0 +1,26 @@
+id: loial
+name: Loial son of Arent son of Halan
+type: npc
+behavior: stationary
+# The iconic Two Rivers Ogier (Ogier are a non-playable NPC race). Book-faithful:
+# Loial accompanies Perrin back to the Two Rivers in The Shadow Rising, and a
+# warm inn full of books and ale is exactly where a young, curious Ogier would
+# fold himself in. A named instance of the `ogier` race template — same Large
+# size + ogier tag, distinct flavor.
+size: large
+description: |
+  An Ogier sits folded into the largest chair the inn can offer, knees nearly to
+  his chest, a book the size of a paving stone open across them. Loial son of
+  Arent son of Halan, of Stedding Shangtai, is easily ten feet of gentle scholar
+  — broad nose, tufted eyebrows that rise like horns, and ears whose delicate
+  tips twitch and stiffen with every passing thought. Young as Ogier reckon
+  things, and reckoned hasty for it, he peers at you with wide brown eyes, a pen
+  poised over his notes; he is writing a book about his travels, and you, it
+  seems, may be about to become a paragraph.
+tags: [humanoid, ogier]
+keywords: [loial, ogier, scholar]
+disposition_rules:
+  default: friendly
+stats:
+  hp_max: 90
+  str: 22
