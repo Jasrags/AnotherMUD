@@ -67,6 +67,27 @@ The front door identifies the **account** by a dedicated **account username** �
 not a character name and not an email. (Decision 2026-06-16: name-based account
 login; email is demoted to an optional recovery field on a path to deprecation.)
 
+### 2.0 Connect splash (per-world)
+
+Before the account-username prompt, the connection is shown a **connect splash**
+— the door identity. The splash is **content, not engine**: each `kind: world`
+pack supplies its own (`pack.yaml` `splash:` → a text file in the pack, with
+engine color markup). It is **required** for world packs and validated at load —
+a world pack with no splash, or an unreadable/empty splash file, fails boot;
+library packs have no splash (they are never a connect door). The splash shown
+is the **primary active world's** (`Registries.Worlds[0]`; co-host is deferred,
+character-identity §9). The composition root renders it through the theme once
+and hands the final text to the login front door, which emits it ahead of the
+prompt; an absent splash falls back to a one-line greeting (tests / non-pack
+boots).
+
+**Acceptance criteria**
+
+- [ ] Every `kind: world` pack declares a splash; the loader reads it and
+      rejects a world pack that lacks one or points at an empty/missing file.
+- [ ] The connect splash (primary world's, theme-rendered) is shown before the
+      account-username prompt; an unset splash falls back to a one-line greeting.
+
 ### 2.1 The account username
 
 The account model gains a **username**: a unique, case-insensitive account

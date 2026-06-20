@@ -18,6 +18,9 @@ description: |
   wilds and the wider Westlands land in M2+.
 dependencies:
   tapestry-core: "*"
+# Connect splash (required for kind:world) — the door identity shown before
+# the account prompt. Plain text with engine color markup ({Y}…{x}).
+splash: splash.txt
 content:
   # WoT ships its own playable peoples (the nations of the Westlands are all
   # human) and overrides the core `human` by priority so a WoT boot uses the

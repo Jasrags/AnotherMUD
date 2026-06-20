@@ -1,0 +1,7 @@
+{K}      .-~~~-.{x}
+{K}    .'       '.{x}      {W}A N O T H E R M U D{x}
+{Y}   /  {x}[#]{Y}  [#]  \{x}     {C}the Hearthwick demo world{x}
+{Y}   |    .---.   |{x}
+{Y}   |    | {r}+{Y} |   |{x}    {w}A lantern-lit village on the edge of the wild.{x}
+{g}~~~^^^~~~~~~~~~^^^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~{x}
+{K}Sign in or create an account to begin.{x}

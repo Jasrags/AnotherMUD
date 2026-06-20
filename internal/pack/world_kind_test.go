@@ -41,7 +41,9 @@ func writeWorldKindPacks(t *testing.T) string {
 	t.Helper()
 	root := t.TempDir()
 	writeFile(t, filepath.Join(root, "lib/pack.yaml"), "name: lib\nkind: library\n")
-	writeFile(t, filepath.Join(root, "w1/pack.yaml"), "name: w1\nkind: world\ndependencies:\n  lib: \"*\"\n")
+	// A world pack must declare a splash (loadPackSplash); supply one.
+	writeFile(t, filepath.Join(root, "w1/pack.yaml"), "name: w1\nkind: world\nsplash: splash.txt\ndependencies:\n  lib: \"*\"\n")
+	writeFile(t, filepath.Join(root, "w1/splash.txt"), "{Y}W1{x}\n")
 	return root
 }
 

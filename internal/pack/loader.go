@@ -153,6 +153,7 @@ func Load(ctx context.Context, root string, filter []string, dst *Registries, sp
 	// (character-identity §2): the namespaces of `kind: world` packs, in
 	// load order. Library/baseline packs are loaded but excluded.
 	dst.Worlds = dst.Worlds[:0]
+	dst.Splashes = make(map[string]string)
 	for _, p := range ordered {
 		if !ValidKind(p.Manifest.Kind) {
 			return fmt.Errorf("%w: pack %q: kind %q is not valid (expected \"world\", \"library\", or empty)",
@@ -166,6 +167,14 @@ func Load(ctx context.Context, root string, filter []string, dst *Registries, sp
 		)
 		if p.Manifest.IsWorld() {
 			dst.Worlds = append(dst.Worlds, p.Namespace())
+			// A world pack MUST declare a connect splash (login/character-select):
+			// the door identity. Required + validated here so a world can't boot
+			// faceless. Library packs are never a connect door and are exempt.
+			splash, err := loadPackSplash(p)
+			if err != nil {
+				return err
+			}
+			dst.Splashes[p.Namespace()] = splash
 		}
 	}
 
@@ -2564,6 +2573,44 @@ func loadScripts(p Discovered, reg *script.Registry, scriptCompiler ScriptCompil
 // Matches MUST stay within packDir. A pattern containing ".." (or
 // otherwise escaping) is rejected — packs may not read host files
 // outside their own directory.
+// loadPackSplash reads and validates a world pack's connect splash file. The
+// path is taken from the manifest's `splash:` field, resolved relative to the
+// pack dir with the same escape guard resolveGlobs applies. It is a boot error
+// (ErrInvalidContent) for a world pack to declare no splash, point at an
+// unreadable file, or supply an empty one — a world must have a door identity.
+// The returned text is the raw file contents (trailing newline trimmed); color
+// markup is rendered downstream at display time.
+func loadPackSplash(p Discovered) (string, error) {
+	rel := strings.TrimSpace(p.Manifest.Splash)
+	if rel == "" {
+		return "", fmt.Errorf("%w: world pack %q declares no splash (add `splash: <file>` to the manifest)",
+			ErrInvalidContent, p.Manifest.Name)
+	}
+	cleanRoot, err := filepath.Abs(p.Dir)
+	if err != nil {
+		return "", fmt.Errorf("resolving pack dir %s: %w", p.Dir, err)
+	}
+	full, err := filepath.Abs(filepath.Join(cleanRoot, filepath.FromSlash(rel)))
+	if err != nil {
+		return "", fmt.Errorf("resolving splash %s: %w", rel, err)
+	}
+	if full != cleanRoot && !strings.HasPrefix(full, cleanRoot+string(os.PathSeparator)) {
+		return "", fmt.Errorf("%w: world pack %q splash %q escapes the pack dir",
+			ErrInvalidContent, p.Manifest.Name, rel)
+	}
+	raw, err := os.ReadFile(full)
+	if err != nil {
+		return "", fmt.Errorf("%w: world pack %q splash %q: %v",
+			ErrInvalidContent, p.Manifest.Name, rel, err)
+	}
+	text := strings.TrimRight(string(raw), "\n")
+	if strings.TrimSpace(text) == "" {
+		return "", fmt.Errorf("%w: world pack %q splash %q is empty",
+			ErrInvalidContent, p.Manifest.Name, rel)
+	}
+	return text, nil
+}
+
 func resolveGlobs(packDir string, patterns []string) ([]string, error) {
 	cleanRoot, err := filepath.Abs(packDir)
 	if err != nil {

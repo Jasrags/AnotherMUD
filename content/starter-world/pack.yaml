@@ -16,6 +16,9 @@ description: |
   allowlist to boot a different world without losing the engine baseline.
 dependencies:
   tapestry-core: "*"
+# Connect splash (required for kind:world) — the door identity shown before
+# the account prompt. Plain text with engine color markup ({Y}…{x}).
+splash: splash.txt
 content:
   races:
     - races/*.yaml

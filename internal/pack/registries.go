@@ -155,6 +155,14 @@ type Registries struct {
 	// reads to gate character login/creation by world). Empty means the
 	// active packs declare no world — a configuration the boot rejects.
 	Worlds []string
+
+	// Splashes maps a world pack's namespace → its connect splash text
+	// (the raw file contents with engine color markup, not yet rendered).
+	// Populated by Load for every kind:world pack (required, validated);
+	// the composition root renders the primary world's entry through the
+	// theme and hands it to the login front door. Not a content registry —
+	// loaded-pack metadata, like Worlds.
+	Splashes map[string]string
 }
 
 // NewRegistries returns a Registries with every field initialized.
@@ -196,6 +204,7 @@ func NewRegistries() *Registries {
 		Factions:     faction.NewRegistry(faction.DefaultConfig()),
 		// Non-nil per the all-fields-initialized invariant; Load resets and
 		// repopulates it (the active world set is empty until Load runs).
-		Worlds: []string{},
+		Worlds:   []string{},
+		Splashes: map[string]string{},
 	}
 }

@@ -2756,6 +2756,18 @@ func run() error {
 	if len(registries.Worlds) > 0 {
 		primaryWorld = registries.Worlds[0]
 	}
+	// Connect splash (character-select §4.1): the primary world's per-pack
+	// splash, rendered through the theme once at boot using the server color
+	// default. Handed to the login front door as final text. Empty when no
+	// world is active (login falls back to a one-line greeting).
+	loginSplash := ""
+	if raw, ok := registries.Splashes[primaryWorld]; ok {
+		if cfg.ColorDefault {
+			loginSplash = colorRenderer.RenderAnsi(raw)
+		} else {
+			loginSplash = colorRenderer.RenderPlain(raw)
+		}
+	}
 	handler := session.Handler(session.Config{
 		World:         w,
 		ChannelMap:    channelMap,
@@ -2904,6 +2916,9 @@ func run() error {
 			Accounts:        accounts,
 			Players:         players,
 			DefaultLocation: string(cfg.StartRoom),
+			// Connect splash (character-select §4.1): primary world's per-pack
+			// splash, pre-rendered above. Empty → login's one-line fallback.
+			Splash: loginSplash,
 			// World gate (character-identity §5): the active world set
 			// derived by pack.Load. A returning character whose WorldID
 			// isn't here is refused login.

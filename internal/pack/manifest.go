@@ -66,6 +66,15 @@ type Manifest struct {
 	// Validation is "strict" (default) or "lenient" (spec §2.2).
 	Validation string `yaml:"validation,omitempty"`
 
+	// Splash is the path (relative to the pack dir) of the connect splash
+	// screen shown before the account prompt (character-select §4 / login).
+	// REQUIRED for kind:world packs — the world's door identity — and
+	// validated at load: a world pack with no splash, or an unreadable/empty
+	// splash file, fails boot. Library packs ignore it (they are never a
+	// connect door). The file is plain text with engine color markup
+	// ({Y}…{x}); it is rendered through the theme at display time.
+	Splash string `yaml:"splash,omitempty"`
+
 	// Content paths — only the categories M2 cares about are listed.
 	// Unknown keys are tolerated (no strict YAML decoding) so future
 	// content types do not fail manifests authored ahead of time.

@@ -105,6 +105,14 @@ type Config struct {
 	// DefaultLocation is the starting room for newly created characters.
 	DefaultLocation string
 
+	// Splash is the connect screen shown once before the account-username
+	// prompt (character-select §4.1 / the per-pack splash). It is the
+	// already-rendered text (color markup resolved by the composition root to
+	// the primary active world's splash). Empty falls back to a one-line
+	// greeting, so tests and non-pack callers are unaffected. Multi-line text
+	// is written line by line (each CRLF-terminated for telnet).
+	Splash string
+
 	// ActiveWorlds is the server's active world set (character-identity §5):
 	// the namespaces of the loaded `kind: world` packs. A returning
 	// character whose WorldID is not in this set is refused login (its world
@@ -224,7 +232,10 @@ func Run(ctx context.Context, c conn.Connection, cfg Config) (*Loaded, error) {
 // existing-account and new-account paths converge on the roster — a new
 // account simply has an empty one, which routes straight to creation.
 func runLoop(ctx context.Context, lio *lineIO, cfg Config) (*Loaded, error) {
-	if err := lio.writeln(ctx, "Welcome to AnotherMUD."); err != nil {
+	// Connect splash (character-select §4.1): the primary active world's
+	// per-pack splash, already rendered. Falls back to a one-line greeting when
+	// unset (tests / non-pack callers).
+	if err := writeSplash(ctx, lio, cfg.Splash); err != nil {
 		return nil, err
 	}
 
@@ -259,6 +270,21 @@ func runLoop(ctx context.Context, lio *lineIO, cfg Config) (*Loaded, error) {
 		}
 		return res, nil
 	}
+}
+
+// writeSplash emits the connect splash, one line at a time so each is
+// CRLF-terminated for telnet (the rendered text uses bare "\n" line breaks).
+// An empty splash falls back to a one-line greeting.
+func writeSplash(ctx context.Context, lio *lineIO, splash string) error {
+	if strings.TrimSpace(splash) == "" {
+		return lio.writeln(ctx, "Welcome to AnotherMUD.")
+	}
+	for _, line := range strings.Split(splash, "\n") {
+		if err := lio.writeln(ctx, line); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // errBackToName is an internal signal that a sub-phase wants to bounce
