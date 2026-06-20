@@ -9,9 +9,11 @@ description: |
   Wisdom's house, where the village comes to be healed, to have the weather
   foretold, and to be told plain truths it would rather not hear. The Green
   cottage sits a little apart on the western edge of the village; the Quarry
-  Road lies back to the south.
+  Road lies back to the south, and the village sickhouse stands close by to the
+  east.
 exits:
   south: quarry-road
+  east: the-sickhouse
 # herb-garden biome: `forage` here gathers cooking herbs + garden greens (the
 # M1 gather source for the pottage recipe).
 terrain: herb-garden

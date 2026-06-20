@@ -1,0 +1,18 @@
+id: jon-thane
+name: Jon Thane
+type: npc
+behavior: stationary
+description: |
+  The village miller is a big, floury, deliberate man, white from cap to boot
+  with the dust of his trade and gone a little deaf from a life beside the
+  grinding stones, so that he speaks a shade too loud. He is honest as the day and
+  slow as his own wheel, takes his miller's share and not a grain over, and knows
+  the price of grain and the state of every field in the district. He gives a
+  stranger a long, mild, dusty look, and goes back to his sacks.
+tags: [humanoid]
+keywords: [jon, thane, miller, man]
+stats:
+  hp_max: 28
+  str: 14
+disposition_rules:
+  default: friendly

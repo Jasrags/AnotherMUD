@@ -430,6 +430,24 @@ east to Whitebridge *before* Baerlon (per an earlier instruction); that's now
   reciprocal; pack tests green under `-race`. (Whitebridge's own N/S arms — to
   Shadar Logoth/Maradon and to Remen/Illian down the Arinelle — remain future.)
 
+### M11 — Emond's Field enrichment (from the village map)
+
+The Emond's Field map (named buildings + the Winespring Water) drove a content
+pass on the starter village:
+
+- **The Winespring Water east axis** — a lane off the North Road over the
+  **Wagon Bridge**, down the stream to **Jon Thane's Mill** (the miller, a new
+  NPC) and on to the **Aybara farm** (Perrin's smithing-and-farming family
+  steading — an outlying hook).
+- **The al'Thor farm** — Rand's family farm, a quiet steading off the Quarry
+  Road toward the Westwood (a south branch; another ta'veren hook).
+- **The Sickhouse** — the village sick-house beside the Wisdom's cottage.
+- Verified: rooms now 106; all exits resolve and are reciprocal; boots clean.
+- The farms are deliberately **atmospheric hooks** (no protagonist NPCs placed —
+  Tam/the Aybaras stay offstage to avoid plot entanglement). Further village
+  detail from the map (Cauthon farm, Calder/Beril Thane houses, the second
+  sickhouse, the named outlying farms) remains available for later passes.
+
 ## Risks
 
 - **Scope creep into the wider Westlands.** `the-westlands.md` is a whole

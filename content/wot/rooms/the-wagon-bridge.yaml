@@ -1,0 +1,14 @@
+id: the-wagon-bridge
+area: emonds-field
+name: "The Wagon Bridge"
+description: |
+  The Wagon Bridge carries the road over the Winespring Water just east of the
+  Green, a sturdy span of old grey stone broad enough for a hay-wain, its parapets
+  worn smooth by generations of leaning elbows. Below, the Winespring Water runs
+  clear and quick and cold over a bed of clean gravel, bright as the spring it
+  rises from, hurrying away east past the houses toward the mill. The village and
+  the Green lie back west; the lane runs on east along the water.
+exits:
+  west: north-road
+  east: jon-thanes-mill
+terrain: outdoors

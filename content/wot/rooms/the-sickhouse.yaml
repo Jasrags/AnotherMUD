@@ -1,0 +1,13 @@
+id: the-sickhouse
+area: emonds-field
+name: "Emond's Field — the Sickhouse"
+description: |
+  A low, clean, whitewashed cottage beside the Wisdom's own, the village
+  sickhouse is where Emond's Field tends those too ill to be nursed at home — a
+  quiet room of narrow cots, the smell of the Wisdom's herbs and clean linen, and
+  a window kept open to the garden. More often than not it stands empty and
+  waiting, which the folk of the Two Rivers count a blessing on a healthy
+  district. The Wisdom's cottage and her herb-garden lie back west.
+exits:
+  west: wisdoms-cottage
+terrain: indoors

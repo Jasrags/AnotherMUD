@@ -1,0 +1,17 @@
+id: jon-thanes-mill
+area: emonds-field
+name: "Jon Thane's Mill"
+description: |
+  Jon Thane's mill stands where the Winespring Water has been dammed to a broad
+  millpond, the great wheel turning slow and dripping and the whole building
+  trembling with the patient grind of the stones within. Flour-dust hangs white
+  in the air and powders every surface, sacks of grain and meal are stacked to
+  the rafters, and the miller goes about his work in a haze of it. The Wagon
+  Bridge and the village lie back west; the lane runs on east toward the Aybara
+  farm.
+exits:
+  west: the-wagon-bridge
+  east: the-aybara-farm
+terrain: outdoors
+mobs:
+  - jon-thane

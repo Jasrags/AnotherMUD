@@ -6,12 +6,14 @@ description: |
   a rutted cart track toward the dark line of the Westwood and, beyond it, the
   grey shoulders of the Mountains of Mist. The village smithy stands close on
   the west side, smoke rising from its roof; a lane turns off north to the
-  Wisdom's cottage on the village edge. The Green lies back east; the road west
-  peters out at the field's edge for now.
+  Wisdom's cottage on the village edge, and a track runs south toward the al'Thor
+  farm out by the Westwood. The Green lies back east; the road west peters out at
+  the field's edge for now.
 exits:
   east: the-green
   west: the-forge
   north: wisdoms-cottage
+  south: the-althor-farm
 terrain: outdoors
 # Ranged-combat demo (MR3): a hostile brigand archer lurks on the cart track,
 # wielding a Two Rivers longbow (a projectile). He aggros on sight — the fight

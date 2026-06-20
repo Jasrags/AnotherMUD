@@ -6,9 +6,11 @@ description: |
   of the village, bound for Watch Hill and, beyond it, the ferry over the Taren.
   Hedgerows give way to open sheep pasture, and from the top of the rise a
   walker can see the smoke of Emond's Field behind and a great deal of empty
-  green country ahead. The village lies back to the south; the road runs on
-  north through the sheep-pastures toward Watch Hill.
+  green country ahead. The village lies back to the south; the road runs on north
+  through the sheep-pastures toward Watch Hill, and a lane turns off east over the
+  Wagon Bridge to follow the Winespring Water down to the mill.
 exits:
   south: the-green
   north: the-north-pasture
+  east: the-wagon-bridge
 terrain: outdoors
