@@ -42,6 +42,31 @@ func TestRenderScore_FullSheet(t *testing.T) {
 	}
 }
 
+func TestRenderScore_FactionStanding(t *testing.T) {
+	// A character who has touched two factions shows a Standing row per faction
+	// (faction.md §6); the first carries the "Standing" label, continuations
+	// align under it.
+	d := scoreData{
+		Name: "Galad", Race: "Human", Class: "Fighter",
+		HasStats: true, STR: 16, INT: 10, WIS: 12, DEX: 14, CON: 15, LUCK: 8,
+		Standings: []string{"The Children of the Light (Honored)", "The Friends of the Dark (Hostile)"},
+	}
+	out := renderScore(d)
+	for _, want := range []string{
+		"Standing",
+		"The Children of the Light (Honored)",
+		"The Friends of the Dark (Hostile)",
+	} {
+		if !strings.Contains(out, want) {
+			t.Errorf("score sheet missing %q\n--- got ---\n%s", want, out)
+		}
+	}
+	// An untouched character shows no Standing row at all (a clean fresh sheet).
+	if out := renderScore(scoreData{Name: "Fresh"}); strings.Contains(out, "Standing") {
+		t.Errorf("fresh sheet should carry no Standing row\n--- got ---\n%s", out)
+	}
+}
+
 func TestRenderScore_TierColors(t *testing.T) {
 	// Low HP and low sustenance switch from the healthy tag to danger.
 	d := scoreData{

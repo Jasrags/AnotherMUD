@@ -9,6 +9,7 @@ import (
 	"github.com/Jasrags/AnotherMUD/internal/combat"
 	"github.com/Jasrags/AnotherMUD/internal/economy"
 	"github.com/Jasrags/AnotherMUD/internal/entities"
+	"github.com/Jasrags/AnotherMUD/internal/faction"
 	"github.com/Jasrags/AnotherMUD/internal/progression"
 	"github.com/Jasrags/AnotherMUD/internal/render"
 	"github.com/Jasrags/AnotherMUD/internal/slot"
@@ -85,6 +86,23 @@ func ScoreHandler(ctx context.Context, c *Context) error {
 		d.HP, d.MaxHP = cb.Vitals().Snapshot()
 		st := cb.Stats()
 		d.AC, d.Hit = st.AC, st.HitMod
+	}
+
+	// Faction standing (faction.md §6): one row per faction the character has
+	// touched (a present entry in the standing bag), so a fresh sheet stays
+	// uncluttered. The full per-faction list is the `standing` verb.
+	if c.Faction != nil {
+		if fe, ok := c.Actor.(faction.Entity); ok {
+			for _, def := range c.Faction.Registry().All() {
+				if v, present := fe.Standing(def.ID); present {
+					name := def.Name
+					if name == "" {
+						name = def.ID
+					}
+					d.Standings = append(d.Standings, fmt.Sprintf("%s (%s)", name, def.RankOf(v)))
+				}
+			}
+		}
 	}
 
 	// Trains available to spend (training §; same surface the `train` verb
@@ -227,6 +245,12 @@ type scoreData struct {
 	AlignTag string
 	Align    int
 
+	// Standings is one pre-formatted "Faction (Rank)" string per faction the
+	// character has *touched* (faction.md §6) — an untouched character shows no
+	// standing rows, keeping a fresh sheet clean. The full list (including
+	// untouched factions at their starting standing) is the `standing` verb.
+	Standings []string
+
 	HasGold bool
 	Gold    int
 
@@ -365,6 +389,20 @@ func renderScore(d scoreData) string {
 	}
 	if len(lower) > 0 {
 		sections = append(sections, render.Section{SeparatorAbove: render.RuleMinor, Rows: scColumns(lower)})
+	}
+
+	// Faction standing (faction.md §6): a full-width section so long faction
+	// names ("The Children of the Light") fit without truncating in the narrow
+	// Character column. One line per touched faction; absent for a fresh sheet.
+	if len(d.Standings) > 0 {
+		standingLines := make([]string, 0, len(d.Standings))
+		for _, s := range d.Standings {
+			standingLines = append(standingLines, scHi(s))
+		}
+		sections = append(sections, render.Section{
+			SeparatorAbove: render.RuleMinor,
+			Rows:           scColumns([]scCol{{title: "Standing", lines: standingLines}}),
+		})
 	}
 
 	out, err := render.Panel{Width: scorePanelWidth, Sections: sections}.Render()
