@@ -1082,11 +1082,10 @@ func run() error {
 	)
 
 	// S8 faction/standing manager (faction.md) over the pack-loaded faction
-	// registry. The bus sink is deferred to the phase that wires consumers
-	// (on-kill / disposition) — a nil sink means Shift applies standing and
-	// rank tags but publishes no events yet. Per-character standing is read/
-	// written through the connActor faction.Entity adapter.
-	factionMgr := faction.NewManager(registries.Factions, nil, clk.Now)
+	// registry, bridged to the bus (faction.shift.check / shifted /
+	// rank.changed). Per-character standing is read/written through the
+	// connActor faction.Entity adapter; the on-kill hook below shifts it.
+	factionMgr := faction.NewManager(registries.Factions, &factionSink{bus: bus}, clk.Now)
 
 	// M8.4: class-side level-up subscribers. Path processor grants
 	// abilities (logs as unknown until M9 abilities ship). Stat
@@ -1420,6 +1419,37 @@ func run() error {
 		mgr.SendToRoom(ctx, e.RoomID,
 			fmt.Sprintf("%s quickly loots %s.", actor.Name(), target.Name()),
 			actor.PlayerID())
+	})
+
+	// faction.md §5.2: on-kill standing shift. When a player lands the killing
+	// blow on a faction-member mob, lower the killer's standing with that
+	// faction by the configured on-kill delta — routed through Shift so the
+	// cancellable faction.shift.check pipeline (and any modifiers) apply.
+	// Fail-silent on a non-player killer, a mob with no faction, or a faction
+	// no longer in content. Process-lifetime subscription.
+	factionOnKillDelta := registries.Factions.Config().OnKillDelta
+	bus.Subscribe(eventbus.EventMobKilled, func(ctx context.Context, ev eventbus.Event) {
+		e, ok := ev.(eventbus.MobKilled)
+		if !ok || e.KillerID == "" || e.TemplateID == "" {
+			return
+		}
+		tmpl, terr := registries.Mobs.Get(mob.TemplateID(e.TemplateID))
+		if terr != nil || tmpl.Faction == "" {
+			return // mob belongs to no faction
+		}
+		def, ok := registries.Factions.Get(tmpl.Faction)
+		if !ok {
+			return // faction not in content
+		}
+		pid, ok := strings.CutPrefix(e.KillerID, combat.PlayerPrefix)
+		if !ok {
+			return // killer is a mob/scripted source — no standing change
+		}
+		actor, ok := mgr.GetByPlayerID(pid)
+		if !ok {
+			return // killer not online
+		}
+		factionMgr.Shift(ctx, actor, def, factionOnKillDelta, "kill:"+e.TemplateID)
 	})
 
 	// M7.5: mob.killed → entity untrack closes M6.6's deferred death-
@@ -4583,6 +4613,49 @@ func (s *alignmentSink) OnAlignmentBucketChanged(ctx context.Context, entityID s
 		EntityID:  entityID,
 		OldBucket: string(oldBucket),
 		NewBucket: string(newBucket),
+	})
+}
+
+// factionSink bridges faction.Sink to eventbus.Bus (faction.md §7). Same
+// composition-root pattern as alignmentSink — the faction package must not
+// import eventbus. nil bus is a silent no-op.
+type factionSink struct {
+	bus *eventbus.Bus
+}
+
+func (s *factionSink) OnShiftCheck(ctx context.Context, entityID, factionID, reason string, suggested int) (int, bool) {
+	if s.bus == nil {
+		return suggested, false
+	}
+	ev := eventbus.NewFactionShiftCheck(entityID, factionID, reason, suggested)
+	cancelled := s.bus.PublishCancellable(ctx, ev)
+	return ev.SuggestedDelta(), cancelled
+}
+
+func (s *factionSink) OnShifted(ctx context.Context, entityID, factionID, reason string, oldValue, newValue, actualDelta int, rankChanged bool) {
+	if s.bus == nil {
+		return
+	}
+	s.bus.Publish(ctx, eventbus.FactionShifted{
+		EntityID:    entityID,
+		FactionID:   factionID,
+		Reason:      reason,
+		OldValue:    oldValue,
+		NewValue:    newValue,
+		ActualDelta: actualDelta,
+		RankChanged: rankChanged,
+	})
+}
+
+func (s *factionSink) OnRankChanged(ctx context.Context, entityID, factionID, oldRank, newRank string) {
+	if s.bus == nil {
+		return
+	}
+	s.bus.Publish(ctx, eventbus.FactionRankChanged{
+		EntityID:  entityID,
+		FactionID: factionID,
+		OldRank:   oldRank,
+		NewRank:   newRank,
 	})
 }
 

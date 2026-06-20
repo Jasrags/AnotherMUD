@@ -84,6 +84,11 @@ type Config struct {
 	DefaultMax      int
 	DefaultStarting int
 	HistoryCapacity int
+	// OnKillDelta is the standing shift applied to a killer when they land the
+	// killing blow on a faction member (faction.md §5.2 / §9). Typically
+	// negative — killing a faction's own lowers the killer's standing with it.
+	// Used by the composition root's on-kill hook, not the manager itself.
+	OnKillDelta int
 }
 
 // DefaultConfig returns the engine defaults (faction.md §9 example): the
@@ -103,6 +108,7 @@ func DefaultConfig() Config {
 		DefaultMax:      1000,
 		DefaultStarting: 0,
 		HistoryCapacity: 20,
+		OnKillDelta:     -100,
 	}
 }
 

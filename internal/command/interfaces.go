@@ -13,6 +13,7 @@ import (
 	"github.com/Jasrags/AnotherMUD/internal/economy"
 	"github.com/Jasrags/AnotherMUD/internal/entities"
 	"github.com/Jasrags/AnotherMUD/internal/eventbus"
+	"github.com/Jasrags/AnotherMUD/internal/faction"
 	"github.com/Jasrags/AnotherMUD/internal/gathering"
 	"github.com/Jasrags/AnotherMUD/internal/grade"
 	"github.com/Jasrags/AnotherMUD/internal/help"
@@ -229,6 +230,9 @@ type Env struct {
 	// through it; future verbs (score, train, practice) will too.
 	// nil in tests that don't exercise progression verbs.
 	Progression *progression.Manager
+	// Faction is the S8 faction/standing manager (faction.md). The `standing`
+	// verb reads it; nil disables the verb. Copied into Context at dispatch.
+	Faction *faction.Manager
 	// Effects is the effect manager (conditions §5): the afflict/cure
 	// verbs and the `stand` (wake) prone-clear route through it. nil
 	// disables them.

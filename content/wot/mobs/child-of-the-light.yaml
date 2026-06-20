@@ -20,3 +20,7 @@ stats:
   str: 14
 disposition_rules:
   default: neutral
+
+# faction membership (faction.md §5.2): killing this mob shifts the
+# killer's standing with the faction by the on-kill delta.
+faction: children-of-the-light

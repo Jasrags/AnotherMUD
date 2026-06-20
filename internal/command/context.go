@@ -13,6 +13,7 @@ import (
 	"github.com/Jasrags/AnotherMUD/internal/economy"
 	"github.com/Jasrags/AnotherMUD/internal/entities"
 	"github.com/Jasrags/AnotherMUD/internal/eventbus"
+	"github.com/Jasrags/AnotherMUD/internal/faction"
 	"github.com/Jasrags/AnotherMUD/internal/gathering"
 	"github.com/Jasrags/AnotherMUD/internal/grade"
 	"github.com/Jasrags/AnotherMUD/internal/help"
@@ -62,6 +63,10 @@ type Context struct {
 	ReloadScripts func(ctx context.Context) (int, error)
 	// Progression is the M8.2 XP/level service. nil in tests.
 	Progression *progression.Manager
+	// Faction is the S8 faction/standing manager (faction.md). The `standing`
+	// verb reads it to show the player's standing + rank with each faction.
+	// nil disables the verb.
+	Faction *faction.Manager
 	// Effects is the effect manager (conditions §5): the afflict/cure/stand
 	// verbs apply + remove condition effects through it. nil disables them.
 	Effects *progression.EffectManager

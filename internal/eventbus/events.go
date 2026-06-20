@@ -165,6 +165,17 @@ const (
 	// when the bucket boundary is crossed (spec §6.5 step 6). Two
 	// events fire on a bucket-crossing shift, in this order.
 	EventAlignmentBucketChanged = "alignment.bucket.changed"
+	// FactionShiftCheck is the cancellable pre-event fired by the
+	// faction manager before applying a standing shift (faction.md §4
+	// step 3). Listeners may cancel or rewrite SuggestedDelta. The
+	// alignment analog, keyed additionally by FactionID.
+	EventFactionShiftCheck = "faction.shift.check"
+	// FactionShifted is the post-fact notification fired after a
+	// standing shift applies a non-zero delta (faction.md §4.1).
+	EventFactionShifted = "faction.shifted"
+	// FactionRankChanged fires IN ADDITION to faction.shifted when the
+	// shift crosses a rank boundary (faction.md §4.1).
+	EventFactionRankChanged = "faction.rank.changed"
 	// EffectApplied fires after EffectManager.Apply successfully
 	// installs a new active effect on a target (spec
 	// abilities-and-effects §5.2 step 4). Single-instance
@@ -1091,6 +1102,83 @@ type AlignmentBucketChanged struct {
 
 // Name implements Event.
 func (AlignmentBucketChanged) Name() string { return EventAlignmentBucketChanged }
+
+// FactionShiftCheck is the cancellable pre-event fired by the faction manager
+// before applying a standing shift (faction.md §4 step 3). The alignment
+// analog (AlignmentShiftCheck) keyed additionally by FactionID. Listeners may
+// flip the cancel flag or rewrite the suggested delta via RewriteDelta.
+type FactionShiftCheck struct {
+	*CancelFlag
+	EntityID       string
+	FactionID      string
+	Reason         string
+	suggestedDelta *int
+}
+
+// Name implements Event.
+func (FactionShiftCheck) Name() string { return EventFactionShiftCheck }
+
+// NewFactionShiftCheck constructs a fresh check event (the suggested-delta
+// pointer is owned by the event so listeners can rewrite without an alloc).
+func NewFactionShiftCheck(entityID, factionID, reason string, suggested int) *FactionShiftCheck {
+	d := suggested
+	return &FactionShiftCheck{
+		CancelFlag:     &CancelFlag{},
+		EntityID:       entityID,
+		FactionID:      factionID,
+		Reason:         reason,
+		suggestedDelta: &d,
+	}
+}
+
+// SuggestedDelta returns the current proposed delta (shared backing storage so
+// siblings see prior rewrites).
+func (e *FactionShiftCheck) SuggestedDelta() int {
+	if e.suggestedDelta == nil {
+		return 0
+	}
+	return *e.suggestedDelta
+}
+
+// RewriteDelta lets a listener override the proposed delta, observed by
+// subsequent listeners and by the manager when dispatch completes.
+func (e *FactionShiftCheck) RewriteDelta(v int) {
+	if e.suggestedDelta == nil {
+		d := v
+		e.suggestedDelta = &d
+		return
+	}
+	*e.suggestedDelta = v
+}
+
+// FactionShifted fires after a standing shift applies a non-zero delta
+// (faction.md §4.1). OldValue + ActualDelta == NewValue; RankChanged is true
+// iff the shift crossed a rank boundary (in which case FactionRankChanged also
+// fires).
+type FactionShifted struct {
+	EntityID    string
+	FactionID   string
+	Reason      string
+	OldValue    int
+	NewValue    int
+	ActualDelta int
+	RankChanged bool
+}
+
+// Name implements Event.
+func (FactionShifted) Name() string { return EventFactionShifted }
+
+// FactionRankChanged fires in addition to FactionShifted when the shift crosses
+// a rank boundary (faction.md §4.1).
+type FactionRankChanged struct {
+	EntityID  string
+	FactionID string
+	OldRank   string
+	NewRank   string
+}
+
+// Name implements Event.
+func (FactionRankChanged) Name() string { return EventFactionRankChanged }
 
 // EffectApplied fires after EffectManager.Apply installs a new
 // active effect on a target (spec abilities-and-effects §5.2

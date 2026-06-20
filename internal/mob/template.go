@@ -64,6 +64,13 @@ type Template struct {
 	// none of this — it owns the tactical lens (HP/threat).
 	Description string
 
+	// Faction is the optional faction-membership id (faction.md §5.2): the
+	// single faction this mob belongs to. When a player lands the killing
+	// blow, the on-kill hook shifts the killer's standing with this faction by
+	// the configured on-kill delta. Namespace-qualified at load. Empty = the
+	// mob belongs to no faction (no on-kill standing change).
+	Faction string
+
 	Behavior   string
 	Tags       []string
 	Keywords   []string

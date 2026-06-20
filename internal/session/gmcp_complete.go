@@ -36,6 +36,7 @@ func commandEnv(cfg Config) command.Env {
 		ResolveAttack:         cfg.ResolveAttack,
 		ReloadScripts:         cfg.ReloadScripts,
 		Progression:           cfg.Progression,
+		Faction:               cfg.Faction,
 		Effects:               cfg.Effects,
 		EffectTemplates:       cfg.EffectTemplates,
 		SkillRoller:           cfg.SkillRoller,

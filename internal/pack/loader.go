@@ -3295,6 +3295,13 @@ func decodeMob(path, ns string) (*mob.Template, error) {
 		return nil, err
 	}
 
+	// faction is namespace-qualified so it matches the (qualified) id the
+	// faction registry stores (faction.md §5.2); empty stays empty.
+	factionID, err := qualifyOptional(f.Faction, ns, path, "faction")
+	if err != nil {
+		return nil, err
+	}
+
 	// Equipment ids are namespace-qualified here (bare ids resolve
 	// against the current pack) so the §3.3 spawn lookup can match the
 	// item registry, whose template ids are stored qualified. This is a
@@ -3364,6 +3371,7 @@ func decodeMob(path, ns string) (*mob.Template, error) {
 		NaturalWeaponName:   natWeaponName,
 		NaturalWeaponDamage: natWeaponDamage,
 		LootTable:           lootTable,
+		Faction:             factionID,
 		Proficiencies:       profs,
 		Race:                strings.ToLower(strings.TrimSpace(f.Race)),
 		Class:               strings.ToLower(strings.TrimSpace(f.Class)),

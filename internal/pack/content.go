@@ -204,6 +204,11 @@ type MobFile struct {
 	// Unknown ids are tolerated at load (resolution runs at spawn,
 	// matching the fail-silent convention used for race/class).
 	LootTable string `yaml:"loot_table,omitempty"`
+	// Faction is the optional faction-membership id (faction.md §5.2): the one
+	// faction this mob belongs to, for the on-kill standing shift. Bare ids
+	// resolve against the pack namespace at load; unknown ids are tolerated
+	// (the on-kill hook fail-silently no-ops on a missing faction).
+	Faction string `yaml:"faction,omitempty"`
 	// Proficiencies maps ability id -> proficiency value for the mob's
 	// passive abilities (M9.5 #3 — abilities-and-effects §6). Optional;
 	// keys are lowercased + trimmed at decode. Mobs do not train, so

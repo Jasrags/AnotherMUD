@@ -142,6 +142,7 @@ func RegisterBuiltins(r *Registry) error {
 
 		// Abilities (M9.6).
 		{Keyword: "abilities", Aliases: []string{"abi"}, Handler: AbilitiesHandler, Brief: "List the abilities you have learned.", Syntax: []string{"abilities"}},
+		{Keyword: "standing", Aliases: []string{"factions", "reputation"}, Handler: StandingHandler, Brief: "Show your standing with each faction.", Syntax: []string{"standing"}},
 		{Keyword: "skills", Handler: SkillsHandler, Brief: "List your skills and their proficiency.", Syntax: []string{"skills"}},
 		// BreaksConcealment: channeling the One Power / casting is dramatic and
 		// gives a hidden caster away (visibility §4.5). v1 reveals on ANY cast;
