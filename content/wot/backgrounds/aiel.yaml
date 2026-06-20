@@ -43,5 +43,14 @@ gold: 10
 # Bonus languages are authored for fidelity; no creation step spends them yet.
 home_language: common-aiel
 bonus_languages: [aiel-handspeech, common-cairhien]
+# Weapon restriction (docs/wot/backgrounds.md §Restrictions): the Aiel hold the
+# sword in contempt and will not wield one. Enforced as an equip refusal on every
+# sword weapon_category (the engine has no single "sword" kind — these are the
+# sword categories; extend the list as new ones are authored). The Aiel use
+# spears, bows, and knives, so daggers/bows are deliberately untouched.
+weapon_restrictions: [longsword, short-sword, rapier]
+weapon_restriction_message: |-
+  Your hand will not close on it. The spear and the bow are the ways of the
+  People; the sword is for wetlanders and the soft-handed. You set it aside.
 allowed_categories:
   - humanoid

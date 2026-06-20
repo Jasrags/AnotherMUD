@@ -2799,6 +2799,7 @@ func run() error {
 		Classes:         registries.Classes,
 		Feats:           registries.Feats,
 		Languages:       registries.Languages,
+		Backgrounds:     registries.Backgrounds,
 		Alignment:       alignmentMgr,
 		DefaultRace:     cfg.DefaultRace,
 		RoleSeed:        cfg.RoleSeed,

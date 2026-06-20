@@ -2863,6 +2863,44 @@ bonus_languages: [common-aiel]
 	}
 }
 
+func TestLoadBackgrounds_WeaponRestrictions(t *testing.T) {
+	root := t.TempDir()
+	pack := filepath.Join(root, "core")
+	writeFile(t, filepath.Join(pack, "pack.yaml"), `
+name: tapestry-core
+content:
+  backgrounds: [backgrounds/*.yaml]
+`)
+	writeFile(t, filepath.Join(pack, "backgrounds/aiel.yaml"), `
+id: aiel
+name: Aiel
+weapon_restrictions: [Longsword, Short-Sword, Rapier]
+weapon_restriction_message: "Not the Aiel way."
+`)
+	regs := NewRegistries()
+	if err := Load(context.Background(), root, nil, regs, nil, nil, nil); err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	b, ok := regs.Backgrounds.Get("aiel")
+	if !ok {
+		t.Fatal("background aiel not registered")
+	}
+	// Categories are global strings (NOT namespace-qualified, like feat ids) and
+	// lowercased at Register.
+	want := []string{"longsword", "short-sword", "rapier"}
+	if len(b.WeaponRestrictions) != len(want) {
+		t.Fatalf("WeaponRestrictions = %v, want %v", b.WeaponRestrictions, want)
+	}
+	for i, w := range want {
+		if b.WeaponRestrictions[i] != w {
+			t.Errorf("WeaponRestrictions[%d] = %q, want %q (lowercased, not qualified)", i, b.WeaponRestrictions[i], w)
+		}
+	}
+	if b.WeaponRestrictionMessage != "Not the Aiel way." {
+		t.Errorf("WeaponRestrictionMessage = %q", b.WeaponRestrictionMessage)
+	}
+}
+
 func TestLoadLanguages_RejectsMissingID(t *testing.T) {
 	root := t.TempDir()
 	pack := filepath.Join(root, "core")

@@ -28,9 +28,15 @@ is buildable today:
   template ids that are placed in the new character's inventory at creation
   (no starting-loadout system exists today — not even class starting gear; this
   introduces it).
-- **Background feat** — ⛔ deferred (the feat-selection engine is S4, unbuilt).
-- **Languages**, **skill/weapon restrictions** — ⛔ deferred (no language system;
-  the restriction XP-gates are low-value bookkeeping).
+- **Background feat** — ✅ shipped (S4 feat-selection + the pick-one chooser).
+- **Languages** — ✅ shipped (the home-language grant — see languages.md).
+- **Weapon restriction** — ✅ shipped as an **equip refusal** (the Aiel sword
+  taboo): a background lists forbidden weapon categories + an in-character
+  message, and the equip path blocks wielding them. The d20 XP-gate framing was
+  dropped (low-value bookkeeping with no engine hook); the equip-block is the
+  faithful, legible form of "will not touch a sword."
+- **Skill restriction / required skill** — ⛔ deferred (key on skills the engine
+  has no equivalent for — Ride, Profession).
 
 So a v1 background grants the **buildable trio — skills + items + gold**. It is
 chosen once at creation, persisted for display, and never re-applied.
@@ -210,5 +216,10 @@ not values.
   cross-class (the d20 "they become class skills") waits on cross-class caps.
 - **WoT homelands** — the setting-specific backgrounds (with their feat/language
   packages) are wot-pack content for when those systems exist.
-- **Skill / weapon restrictions** — the Aiel-style XP-gate restrictions are
-  deferred; revisit only if the restriction flavor is wanted.
+- **Weapon restriction** — ✅ shipped as an equip refusal (a background's
+  `weapon_restrictions` list of forbidden weapon categories + a
+  `weapon_restriction_message`; the equip path blocks wielding them, derived from
+  the background registry at login, no save field). The Aiel forbid swords.
+- **Skill restriction / required skill** — still deferred: these key on Ride /
+  Profession skills the engine has no equivalent for. Revisit if those skills
+  land.

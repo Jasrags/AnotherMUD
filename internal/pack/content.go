@@ -864,17 +864,19 @@ type BackgroundFile struct {
 	Description string `yaml:"description,omitempty"`
 	// Skills: ability id → starting proficiency (default the baseline trained
 	// value when omitted/<=0).
-	Skills            []BackgroundSkillFile `yaml:"skills,omitempty"`
-	Items             []string              `yaml:"items,omitempty"`
-	Feats             []string              `yaml:"feats,omitempty"`
-	FeatOptions       []string              `yaml:"feat_options,omitempty"`
-	EquipmentPackages [][]string            `yaml:"equipment_packages,omitempty"`
-	Gold              int                   `yaml:"gold,omitempty"`
-	HomeLanguage      string                `yaml:"home_language,omitempty"`
-	BonusLanguages    []string              `yaml:"bonus_languages,omitempty"`
-	AllowedCategories []string              `yaml:"allowed_categories,omitempty"`
-	AllowedGenders    []string              `yaml:"allowed_genders,omitempty"`
-	Priority          int                   `yaml:"priority,omitempty"`
+	Skills                   []BackgroundSkillFile `yaml:"skills,omitempty"`
+	Items                    []string              `yaml:"items,omitempty"`
+	Feats                    []string              `yaml:"feats,omitempty"`
+	FeatOptions              []string              `yaml:"feat_options,omitempty"`
+	EquipmentPackages        [][]string            `yaml:"equipment_packages,omitempty"`
+	Gold                     int                   `yaml:"gold,omitempty"`
+	HomeLanguage             string                `yaml:"home_language,omitempty"`
+	BonusLanguages           []string              `yaml:"bonus_languages,omitempty"`
+	WeaponRestrictions       []string              `yaml:"weapon_restrictions,omitempty"`
+	WeaponRestrictionMessage string                `yaml:"weapon_restriction_message,omitempty"`
+	AllowedCategories        []string              `yaml:"allowed_categories,omitempty"`
+	AllowedGenders           []string              `yaml:"allowed_genders,omitempty"`
+	Priority                 int                   `yaml:"priority,omitempty"`
 }
 
 // LanguageFile is the YAML shape for a language (languages.md §2): a tongue a

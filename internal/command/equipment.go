@@ -24,6 +24,15 @@ import (
 // check subtracts it from the roll bonus.
 const statKeyArmorCheck = "armor_check"
 
+// weaponRestrictor is the capability the equip gate asserts to enforce a
+// background's weapon-category taboo (backgrounds.md §Restrictions). Kept tiny
+// and separate so non-restricted actors (and test actors) stay decoupled.
+type weaponRestrictor interface {
+	// WeaponRestrictionRefusal returns an in-character refusal for a forbidden
+	// weapon category, or "" when the weapon is allowed (or not a weapon).
+	WeaponRestrictionRefusal(category string) string
+}
+
 // EquipHandler implements `equip <item> <slot>` per spec
 // inventory-equipment-items §3.3.
 //
@@ -107,6 +116,17 @@ func EquipHandler(ctx context.Context, c *Context) error {
 	eligible := item.EligibleSlots()
 	if len(eligible) == 0 {
 		return c.Actor.Write(ctx, fmt.Sprintf("You can't equip %s.", item.Name()))
+	}
+
+	// Background weapon restriction (backgrounds.md §Restrictions — the Aiel
+	// sword taboo): a culture that forbids a weapon category refuses to wield
+	// it, with an in-character message. Checked before slot resolution + the
+	// veto so the refusal is the player's first, clearest feedback. A
+	// non-weapon (empty category) or an unrestricted actor returns "".
+	if wr, ok := c.Actor.(weaponRestrictor); ok {
+		if msg := wr.WeaponRestrictionRefusal(item.WeaponCategory()); msg != "" {
+			return c.Actor.Write(ctx, msg)
+		}
 	}
 
 	// Armor §7: bulky armor can't be buckled on in the middle of a fight.

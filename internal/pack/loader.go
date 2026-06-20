@@ -2149,10 +2149,14 @@ func decodeBackground(path, ns string) (*progression.Background, error) {
 		Gold:              f.Gold,
 		HomeLanguage:      homeLang,
 		BonusLanguages:    bonusLangs,
-		AllowedCategories: append([]string(nil), f.AllowedCategories...),
-		AllowedGenders:    append([]string(nil), f.AllowedGenders...),
-		Pack:              ns,
-		Priority:          f.Priority,
+		// Weapon-restriction categories are global strings (not namespace-
+		// qualified, like feat ids + weapon_category itself); Register lowercases.
+		WeaponRestrictions:       append([]string(nil), f.WeaponRestrictions...),
+		WeaponRestrictionMessage: strings.TrimSpace(f.WeaponRestrictionMessage),
+		AllowedCategories:        append([]string(nil), f.AllowedCategories...),
+		AllowedGenders:           append([]string(nil), f.AllowedGenders...),
+		Pack:                     ns,
+		Priority:                 f.Priority,
 	}, nil
 }
 

@@ -219,6 +219,54 @@ func TestBackgroundGranter_GrantsHomeLanguage(t *testing.T) {
 	}
 }
 
+// backgrounds.md §Restrictions: a background's weapon restriction is DERIVED at
+// login from the registry (no save field) and refuses the forbidden categories.
+func TestApplyBackground_DerivesWeaponRestriction(t *testing.T) {
+	reg := progression.NewBackgroundRegistry()
+	_ = reg.Register(&progression.Background{
+		ID:                       "aiel",
+		WeaponRestrictions:       []string{"Longsword", "Short-Sword"}, // mixed case → lowercased at Register
+		WeaponRestrictionMessage: "Not the Aiel way.",
+	})
+
+	a, _ := newFakeActor("c1", "p1", "acc1", "Hero", &world.Room{ID: "r"})
+	applyBackground(a, "Aiel", reg)
+
+	// A restricted category is refused with the authored message (case-insensitive).
+	if msg := a.WeaponRestrictionRefusal("longsword"); msg != "Not the Aiel way." {
+		t.Errorf("longsword refusal = %q, want the authored message", msg)
+	}
+	if msg := a.WeaponRestrictionRefusal("SHORT-SWORD"); msg == "" {
+		t.Error("short-sword should be refused (case-insensitive)")
+	}
+	// An allowed weapon + a non-weapon (empty category) are never refused.
+	if msg := a.WeaponRestrictionRefusal("shortbow"); msg != "" {
+		t.Errorf("shortbow (allowed) refusal = %q, want empty", msg)
+	}
+	if msg := a.WeaponRestrictionRefusal(""); msg != "" {
+		t.Errorf("non-weapon refusal = %q, want empty", msg)
+	}
+
+	// A background with no restriction (or a nil registry) refuses nothing.
+	a2, _ := newFakeActor("c2", "p2", "acc2", "Plain", &world.Room{ID: "r"})
+	applyBackground(a2, "aiel", nil) // nil registry → no restriction derived
+	if msg := a2.WeaponRestrictionRefusal("longsword"); msg != "" {
+		t.Errorf("nil-registry actor refused %q, want empty", msg)
+	}
+}
+
+// The generic fallback fires when a background restricts a category but authors
+// no custom message.
+func TestWeaponRestrictionRefusal_GenericFallback(t *testing.T) {
+	reg := progression.NewBackgroundRegistry()
+	_ = reg.Register(&progression.Background{ID: "stoic", WeaponRestrictions: []string{"rapier"}})
+	a, _ := newFakeActor("c1", "p1", "acc1", "Hero", &world.Room{ID: "r"})
+	applyBackground(a, "stoic", reg)
+	if msg := a.WeaponRestrictionRefusal("rapier"); msg == "" {
+		t.Error("a restricted category with no authored message should use the generic refusal")
+	}
+}
+
 // An authored grant is GRANT-ONCE even for a stackable feat: re-firing must not
 // inflate the stack (a background grants "you have this feat", not "+1 stack").
 func TestGrantFeat_StackableIsGrantOnce(t *testing.T) {

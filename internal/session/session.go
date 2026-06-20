@@ -193,6 +193,12 @@ type Config struct {
 	// `languages` listing. nil-safe: a missing registry renders ids verbatim.
 	Languages *progression.LanguageRegistry
 
+	// Backgrounds is the creation-origin registry (backgrounds §2). Held so the
+	// actor can derive its background's weapon restrictions at login (the equip
+	// gate — backgrounds.md §Restrictions). nil-safe: a missing registry means
+	// no restriction is enforced.
+	Backgrounds *progression.BackgroundRegistry
+
 	// Proficiency is the M9.1 per-entity ability proficiency
 	// manager (spec abilities-and-effects §3). The session-load
 	// path restores the actor's persisted Abilities snapshot into
@@ -669,7 +675,7 @@ func run(ctx context.Context, c conn.Connection, cfg Config) error {
 	// id (a.classID="") leaves the save's class field untouched so
 	// re-adding the class later reattaches the character.
 	applyClass(a, &cfg, loaded.Player.Class)
-	applyBackground(a, loaded.Player.Background)
+	applyBackground(a, loaded.Player.Background, cfg.Backgrounds)
 	a.mu.Lock()
 	a.feats = cfg.Feats         // EPIC S4: feat registry for known_feats → bonuses
 	a.languages = cfg.Languages // languages.md: registry for known-language display
@@ -1927,6 +1933,15 @@ type connActor struct {
 	// background granted (skills/items/gold) lives in the proficiency/
 	// inventory/gold state, not here — this is the label for display.
 	backgroundID string
+
+	// weaponRestrictions are the weapon-category ids the actor's background
+	// forbids wielding (backgrounds.md §Restrictions — the Aiel sword taboo),
+	// DERIVED from the background registry at login (not persisted — the
+	// background id is the single source of truth). weaponRestrictionMessage is
+	// the in-character refusal. Both set-once before the actor is published, so
+	// the equip gate reads them lock-free (like backgroundID/raceID).
+	weaponRestrictions       []string
+	weaponRestrictionMessage string
 
 	// trainsAvailable is the actor's training pool (spec §4.6
 	// step 4 + §7.1). M8.4 credits via StatGrowthSubscriber on
@@ -4771,11 +4786,22 @@ func applyClass(a *connActor, cfg *Config, saved []string) {
 }
 
 // applyBackground records the actor's background id from save (backgrounds
-// §5). Display-only — the granted package already persists in the proficiency/
-// inventory/gold state. Lowercased for case-insensitive registry lookups; an
-// empty id leaves the actor background-less.
-func applyBackground(a *connActor, saved string) {
+// §5) and derives its weapon restrictions from the registry (backgrounds.md
+// §Restrictions). Lowercased for case-insensitive registry lookups; an empty id
+// leaves the actor background-less. reg may be nil (no restriction enforced).
+// Set-once before the actor is published — the equip gate reads the restriction
+// fields lock-free, like backgroundID.
+func applyBackground(a *connActor, saved string, reg *progression.BackgroundRegistry) {
 	a.backgroundID = strings.ToLower(strings.TrimSpace(saved))
+	a.weaponRestrictions = nil
+	a.weaponRestrictionMessage = ""
+	if reg == nil || a.backgroundID == "" {
+		return
+	}
+	if bg, ok := reg.Get(a.backgroundID); ok {
+		a.weaponRestrictions = bg.WeaponRestrictions // Register-lowercased
+		a.weaponRestrictionMessage = bg.WeaponRestrictionMessage
+	}
 }
 
 // BackgroundID returns the actor's creation origin id, or "" when
@@ -4783,6 +4809,28 @@ func applyBackground(a *connActor, saved string) {
 // before the actor is published) and never mutates — read lock-free, like
 // RaceID.
 func (a *connActor) BackgroundID() string { return a.backgroundID }
+
+// WeaponRestrictionRefusal returns an in-character refusal message if the
+// actor's background forbids wielding the given weapon category (backgrounds.md
+// §Restrictions — the Aiel sword taboo), else "". An empty category (a
+// non-weapon) is never refused. Reads the set-once restriction fields lock-free
+// (like BackgroundID); the equip gate calls it before any mutation.
+func (a *connActor) WeaponRestrictionRefusal(category string) string {
+	category = strings.ToLower(strings.TrimSpace(category))
+	if category == "" || len(a.weaponRestrictions) == 0 {
+		return ""
+	}
+	for _, restricted := range a.weaponRestrictions {
+		if restricted != category {
+			continue
+		}
+		if a.weaponRestrictionMessage != "" {
+			return a.weaponRestrictionMessage
+		}
+		return "You will not wield such a weapon — it is against the ways you were raised."
+	}
+	return ""
+}
 
 // BackgroundChoices returns the pick-one background-chooser selections persisted
 // on the save (v29): the chosen feat id (from the background's FeatOptions) and

@@ -69,6 +69,16 @@ type Background struct {
 	// Register.
 	EquipmentPackages [][]string
 
+	// WeaponRestrictions are weapon-category ids this background's culture
+	// forbids wielding (backgrounds.md §Restrictions — the Aiel sword taboo).
+	// The equip path refuses a weapon whose category is in this set. Global
+	// category strings (like feat ids, not namespace-qualified); lowercased at
+	// Register. Empty = no weapon is forbidden.
+	WeaponRestrictions []string
+	// WeaponRestrictionMessage is the in-character refusal shown when the equip
+	// path blocks a restricted weapon. Empty falls back to a generic line.
+	WeaponRestrictionMessage string
+
 	// AllowedCategories / AllowedGenders gate which characters may pick this
 	// background at creation (mirrors Class eligibility, §3). Empty =
 	// unrestricted on that axis.
@@ -172,6 +182,13 @@ func (br *BackgroundRegistry) Register(b *Background) error {
 			pkgs[i] = cp
 		}
 		clone.EquipmentPackages = pkgs
+	}
+	if len(b.WeaponRestrictions) > 0 {
+		wr := make([]string, len(b.WeaponRestrictions))
+		for i, v := range b.WeaponRestrictions {
+			wr[i] = strings.ToLower(strings.TrimSpace(v))
+		}
+		clone.WeaponRestrictions = wr
 	}
 	if len(b.AllowedCategories) > 0 {
 		cats := make([]string, len(b.AllowedCategories))
