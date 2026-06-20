@@ -1,0 +1,25 @@
+id: ogier
+name: an Ogier
+type: npc
+behavior: stationary
+# Ogier are a NON-PLAYABLE NPC race (the WoTMUD precedent — docs/mud-research/
+# wotmud/races.md: Ogier are mob-only). This is the race's presence in the world:
+# a reusable template for builders to place (a Treesinger among the groves, a
+# stonemason at a great work, a traveller like Loial passing through). Large size
+# drives size-relative combat (size-and-wielding §3.2); the `ogier` tag marks the
+# race for stedding / Shadowspawn-aversion logic if that world content is built.
+size: large
+description: |
+  Easily ten feet tall, broad as a doorway and unhurried as the hills, the Ogier
+  regards you from beneath tufted eyebrows with eyes as wide and brown as a
+  cow's. A broad nose, ears that taper to delicate points and twitch with each
+  thought, and a voice like a slow drum underground — gentle, bookish, and slow
+  to anger, though the wise do not test that last too far. They say an Ogier
+  roused to the Long Memory can break stone with their hands.
+tags: [humanoid, ogier]
+keywords: [ogier, treesinger, giant]
+disposition_rules:
+  default: friendly
+stats:
+  hp_max: 90
+  str: 22
