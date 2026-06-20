@@ -1,0 +1,18 @@
+id: whitebridge-square
+area: whitebridge
+name: "{w}Whitebridge — the Market Square{x}"
+description: |
+  The town's market square is a wide cobbled space loud with the business of a
+  busy river crossing, ringed with the signboards of inns and chandlers and
+  carters' yards. Goods off the river barges and goods off the Caemlyn Road change
+  hands here together — bolts of cloth, casks of Two Rivers tabac, ironmongery,
+  grain — and a sharp-tongued dealer keeps a well-stocked stall in the middle of
+  it all. The bridge and the river lie back west; the lamps of an inn glow warm
+  to the north, and a lane drops south toward the river docks.
+exits:
+  west: the-bridge-foot
+  north: the-wayfarers-rest
+  south: the-whitebridge-docks
+terrain: outdoors
+mobs:
+  - whitebridge-dealer

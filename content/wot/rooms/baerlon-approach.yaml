@@ -10,6 +10,6 @@ description: |
   rumble up toward the wall ahead, where a gate stands open under a watchful
   guard; the long road back south drops away behind.
 exits:
-  south: the-andor-road
+  south: the-caemlyn-crossing
   north: the-watch-gate
 terrain: mountain

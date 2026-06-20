@@ -1,0 +1,16 @@
+id: the-white-bridge
+area: whitebridge
+name: "{w}The White Bridge{x}"
+description: |
+  You step out onto the bridge itself, and it is like walking on light. The whole
+  vast span is a single piece of the same milky, glasslike stone, smooth and
+  seamless and faintly translucent, arching high over the Arinelle without pier
+  or joint or rivet — the work of the Age of Legends, when men could raise such
+  things, and unmarked by all the centuries since. Far below, the green river
+  slides past; the boards of no lesser bridge ever felt so strange underfoot. The
+  west bank and the road from Baerlon lie behind; ahead the bridge comes down into
+  the streets of Whitebridge town.
+exits:
+  west: the-west-bank
+  east: the-bridge-foot
+terrain: outdoors

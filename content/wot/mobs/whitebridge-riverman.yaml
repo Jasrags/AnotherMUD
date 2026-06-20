@@ -1,0 +1,18 @@
+id: whitebridge-riverman
+name: a weathered riverman
+type: npc
+behavior: stationary
+description: |
+  Brown and seamed as old leather, the riverman sits on a coil of hawser with a
+  clay pipe between his teeth and watches the Arinelle the way other men watch a
+  fire. He has worked the barges down to Illian and back more times than he can
+  count, and knows the river's every shoal and mood and current. He will spin a
+  newcomer a yarn of the long water south for the price of a listen, and speaks of
+  the great river as a man speaks of a wife he has long since stopped arguing with.
+tags: [humanoid]
+keywords: [riverman, bargeman, boatman, sailor]
+stats:
+  hp_max: 26
+  str: 12
+disposition_rules:
+  default: friendly

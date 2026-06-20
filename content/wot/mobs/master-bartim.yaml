@@ -1,0 +1,24 @@
+id: master-bartim
+name: Master Bartim
+type: npc
+behavior: stationary
+description: |
+  The innkeeper of the Wayfarers' Rest is a stout, balding man with a reader's
+  squint and a publican's easy patter, a bar-rag forever in one hand and a fund
+  of road-news and river-gossip in the other. He has fed and bedded travellers off
+  the Caemlyn Road for thirty years and reckons there is little he has not heard,
+  though he will lean in close and lower his voice for a tale with a chill in it.
+  He is glad of your custom, and gladder still of your coin.
+tags: [humanoid, shop]
+keywords: [bartim, innkeeper, host, master]
+stats:
+  hp_max: 24
+  str: 10
+disposition_rules:
+  default: friendly
+properties:
+  shop:
+    sells:
+      - wot:cooked-meal
+      - wot:trail-rations
+      - wot:fine-wine

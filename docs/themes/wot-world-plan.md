@@ -108,7 +108,7 @@ weather zone carries over.
 - **Two Rivers tabac** & **wool** — luxury trade goods (sell high elsewhere;
   a future trade-route economy hook).
 
-## Region 2 — Beyond the Taren (✅ seam + Baerlon starter cut shipped, M5)
+## Region 2 — Beyond the Taren (✅ Baerlon + the Whitebridge corridor shipped, M5–M6)
 
 Across the ferry: the road north toward **Baerlon** (an Andoran mining town
 under the Mountains of Mist) and east on the **Caemlyn Road**. Baerlon's
@@ -116,10 +116,14 @@ identity — a walled mining/trade town with Whitecloak and Queen's-Guard
 presence — contrasts the Two Rivers' rural self-governance, giving regional
 recipes and goods a real second pole. **M5 built the seam *and* a Baerlon
 starter cut** (the Baerlon road + 6 town rooms + silversmithing as the second
-regional pole — see the M5 milestone below). Still future: a fuller Baerlon
-(more streets, the Queen's Guard, a Whitecloak garrison once S8 reputation
-lands), the **Caemlyn Road** east (Four Kings, Market Sheran, …), and the road
-deeper into Andor.
+regional pole). **M6 added the Whitebridge corridor** (see the M6 milestone
+below): a crossroads ~2/3 up the Baerlon road branches east onto the **Caemlyn
+Road**, which runs down the Arinelle vale to the **White Bridge** — the
+Age-of-Legends glass span — and into **Whitebridge** town on the far bank.
+Still future: a fuller Baerlon (the Queen's Guard, a Whitecloak garrison once
+S8 reputation lands); the **Caemlyn Road east** of Whitebridge (Four Kings →
+Market Sheran → Carysford → Arien → Caemlyn); and the **Arinelle river route**
+south toward Illian (the Whitebridge docks + riverman are the seam).
 
 ## Engine mapping (how WoT content rides the existing systems)
 
@@ -287,6 +291,30 @@ sub-slices shipped (453af1a split → 3c09172 wot boot), each code-reviewed:
   bowyer/fletcher longbow chain — stave node → bowyer discipline → recipe) is a
   crafting milestone, not geography; the longbow exists as an item/shop good but
   has no craft recipe yet.
+
+### M6 — The Whitebridge corridor (Caemlyn Road west + the Arinelle) — ✅ SHIPPED
+
+- **The crossroads:** a new `the-caemlyn-crossing` room inserted into the Baerlon
+  road ~2/3 of the way up (between `the-andor-road` and `baerlon-approach`) — a
+  signposted junction: north to Baerlon, south to the Taren/Two Rivers, **east on
+  the Caemlyn Road**. (The road sequence rewired cleanly; all exits stay
+  reciprocal.)
+- **The Caemlyn Road corridor** (new area `caemlyn-road`, `region: andor`): 3
+  rooms east off the crossing — the highway proper → the Arinelle vale (the land
+  falling toward the river) → the west bank, where the **White Bridge** first
+  comes into view.
+- **Whitebridge** (new area `whitebridge`, `region: andor`): the **White Bridge**
+  itself (the seamless Age-of-Legends glass span over the Arinelle), the bridge
+  foot (a Queen's Guardsman — Andor's law, contrasting Baerlon's Whitecloaks), the
+  market square (a dealer), the **Wayfarers' Rest** (Master Bartim, canon
+  innkeeper), and the river docks (a riverman — the seam for a future Arinelle
+  river route south to Illian). 5 rooms.
+- Verified: WoT pack boots clean — areas 10→12, rooms 49→58 (+9), mobs +4; all
+  114 room exits resolve and are reciprocal; pack tests green under `-race`.
+- **Onward seams (deferred):** the Caemlyn Road *east* of Whitebridge (Four Kings
+  → Market Sheran → Carysford → Arien → Caemlyn) and the Arinelle river route
+  south. No regional craft good for Whitebridge (a trade/crossing town, not a
+  craft-signature one) — left for a later economy pass.
 
 ## Risks
 

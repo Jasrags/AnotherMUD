@@ -1,0 +1,16 @@
+id: the-caemlyn-crossing
+area: baerlon-road
+name: "{g}The Caemlyn Road Crossing{x}"
+description: |
+  The Baerlon road meets another here in a broad, rutted crossroads, and a
+  weathered signpost leans at the meeting of the ways with its arms pointing
+  three directions at once. North the road climbs the last of the way to Baerlon
+  under the grey mountains; south it runs back down toward the Taren and the Two
+  Rivers beyond. The third arm points east, down the long Caemlyn Road that runs
+  clear across Andor — and the first stage of it makes for the White Bridge over
+  the Arinelle. Wagons stand waiting their turn through the muddy crossing.
+exits:
+  south: the-andor-road
+  north: baerlon-approach
+  east: the-caemlyn-road
+terrain: grassland

@@ -1,0 +1,18 @@
+id: whitebridge-guard
+name: a Queen's Guardsman
+type: npc
+behavior: stationary
+description: |
+  A trim, well-kept soldier in the red coat and burnished breastplate of the
+  Queen's Guard, the white collar of Andor bright at his throat, he holds the
+  bridgehead with the bored competence of a man on easy duty in a peaceful town.
+  He marks every stranger off the bridge from long habit, but his hand stays well
+  clear of his sword; Whitebridge is the Queen's, and trouble here is rare and
+  swiftly answered.
+tags: [humanoid]
+keywords: [guard, guardsman, soldier, queens]
+stats:
+  hp_max: 40
+  str: 14
+disposition_rules:
+  default: neutral

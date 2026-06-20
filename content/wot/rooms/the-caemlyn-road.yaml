@@ -1,0 +1,14 @@
+id: the-caemlyn-road
+area: caemlyn-road
+name: "{g}The Caemlyn Road{x}"
+description: |
+  East of the crossing the road broadens and the going turns easy, a fine wide
+  highway of packed gravel running between hedged fields where Andoran farmers
+  bring in the hay. Traffic thickens with every mile — a merchant's train of
+  canvas-topped wagons, a drover walking cattle to market, a Queen's courier who
+  passes at a hard gallop without a glance. The road runs on east toward the
+  river country and the White Bridge; the Baerlon crossing lies back west.
+exits:
+  west: the-caemlyn-crossing
+  east: the-arinelle-vale
+terrain: grassland

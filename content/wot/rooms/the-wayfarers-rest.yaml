@@ -1,0 +1,16 @@
+id: the-wayfarers-rest
+area: whitebridge
+name: "{y}Whitebridge — the Wayfarers' Rest{x}"
+description: |
+  The best inn in Whitebridge is a big, busy, prosperous house, its common room
+  low-beamed and bright with lamplight and crowded with merchants, rivermen, and
+  travellers off the Caemlyn Road trading news over wine and good plain food. A
+  fire snaps in a wide hearth, a serving girl threads the tables with a loaded
+  tray, and the innkeeper holds court behind the bar, full of gossip and gladly
+  parting a traveller from his coin. It is the kind of room where, on a lucky
+  night, a gleeman might unsling his harp. The square lies back out to the south.
+exits:
+  south: whitebridge-square
+terrain: indoors
+mobs:
+  - master-bartim

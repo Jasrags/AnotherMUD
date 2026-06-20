@@ -1,0 +1,26 @@
+id: whitebridge-dealer
+name: a sharp-tongued dealer
+type: npc
+behavior: stationary
+description: |
+  A brisk, hard-bargaining trader in a good coat going shiny at the elbows, he
+  keeps the best-stocked stall in the square and a running patter of complaint
+  about his own generous prices. River goods and road goods alike pass over his
+  counter — rope and lanterns, rations and waterskins, whatever a traveller wants
+  and a few things he did not know he wanted — and the dealer can price any of it
+  to the copper before you have finished asking.
+tags: [humanoid, shop]
+keywords: [dealer, trader, merchant, stall]
+stats:
+  hp_max: 24
+  str: 10
+disposition_rules:
+  default: friendly
+properties:
+  shop:
+    sells:
+      - wot:trail-rations
+      - wot:waterskin
+      - wot:hemp-rope
+      - wot:hooded-lantern
+      - wot:tent

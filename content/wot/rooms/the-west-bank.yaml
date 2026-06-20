@@ -1,0 +1,16 @@
+id: the-west-bank
+area: caemlyn-road
+name: "{c}The West Bank of the Arinelle{x}"
+description: |
+  The road runs out onto the western bank of the Arinelle, and the river opens
+  wide and slow and deep before you, sliding south toward distant Illian with
+  the unhurried weight of all the water in Andor. And spanning it — impossibly,
+  beautifully — stands the White Bridge: a single soaring arch of milky, glasslike
+  stone that throws back the sunlight in a thousand glints, left from the Age of
+  Legends and older than any kingdom now living. The road climbs back west up the
+  vale; ahead the bridge carries it dry-shod over the river to the town on the
+  far side.
+exits:
+  west: the-arinelle-vale
+  east: the-white-bridge
+terrain: grassland
