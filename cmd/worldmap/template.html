@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AnotherMUD — World Map</title>
+<style>
+  :root {
+    --ink: #2b2419; --parch: #f4ecd8; --parch2: #ece0c4;
+    --line: #b9a888; --cross: #b8860b; --accent: #7a1f1f;
+    --panel: #fbf6e9;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; font-family: -apple-system, Segoe UI, Roboto, sans-serif; color: var(--ink); }
+  body { display: flex; flex-direction: column; background: var(--parch2); overflow: hidden; }
+
+  header {
+    display: flex; align-items: center; gap: 18px; flex-wrap: wrap;
+    padding: 10px 16px; background: linear-gradient(180deg, #fbf6e9, #efe4ca);
+    border-bottom: 2px solid var(--line); box-shadow: 0 2px 8px rgba(0,0,0,.12); z-index: 5;
+  }
+  header h1 { font: 600 18px/1 "Iowan Old Style", Georgia, serif; margin: 0; letter-spacing: .3px; }
+  header h1 small { display: block; font: 400 11px/1.4 sans-serif; color: #8a7c5e; margin-top: 3px; }
+  .group { display: flex; align-items: center; gap: 8px; }
+  .group .lbl { font: 600 11px sans-serif; text-transform: uppercase; letter-spacing: .6px; color: #8a7c5e; }
+  #search { padding: 6px 10px; border: 1px solid var(--line); border-radius: 6px; background: #fff; font-size: 13px; width: 180px; }
+  button.ctl { padding: 6px 10px; border: 1px solid var(--line); border-radius: 6px; background: #fff; cursor: pointer; font-size: 12px; }
+  button.ctl:hover { background: var(--parch); }
+  button.ctl.on { background: var(--ink); color: var(--parch); border-color: var(--ink); }
+  .legend { display: flex; gap: 6px; flex-wrap: wrap; }
+  .chip { display: inline-flex; align-items: center; gap: 6px; padding: 4px 9px; border-radius: 20px; border: 1px solid; cursor: pointer; font-size: 12px; user-select: none; }
+  .chip .sw { width: 11px; height: 11px; border-radius: 3px; }
+  .chip.off { opacity: .35; }
+  .badges-key { font-size: 12px; color: #8a7c5e; }
+
+  #stage { position: relative; flex: 1; overflow: hidden; cursor: grab; background:
+      radial-gradient(circle at 30% 20%, #f7f0dd, var(--parch2)); }
+  #stage.grabbing { cursor: grabbing; }
+  #viewport { position: absolute; top: 0; left: 0; transform-origin: 0 0; will-change: transform; }
+  #edges { position: absolute; top: 0; left: 0; overflow: visible; pointer-events: none; }
+
+  .room {
+    position: absolute; width: 132px; min-height: 60px; padding: 7px 9px;
+    background: var(--rf, #fff); border: 2px solid var(--rb, #999); border-left-width: 6px;
+    border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,.14); cursor: pointer;
+    transition: box-shadow .12s, transform .12s; overflow: hidden;
+  }
+  .room:hover { box-shadow: 0 5px 14px rgba(0,0,0,.26); transform: translateY(-1px); z-index: 3; }
+  .room.sel { outline: 3px solid var(--accent); outline-offset: 2px; z-index: 4; }
+  .room.dim { opacity: .12; }
+  .room.hit { box-shadow: 0 0 0 4px #f3c34d, 0 4px 12px rgba(0,0,0,.3); }
+  .room .nm { font: 600 12px/1.25 sans-serif; }
+  .room .meta { font: 400 10px/1.3 sans-serif; color: #7a6f57; margin-top: 3px; }
+  .room .bdg { position: absolute; top: 5px; right: 6px; display: flex; gap: 2px; font-size: 12px; }
+  .room .tdot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 4px; vertical-align: middle; }
+
+  aside {
+    position: absolute; top: 0; right: 0; width: 300px; height: 100%;
+    background: var(--panel); border-left: 2px solid var(--line);
+    box-shadow: -4px 0 16px rgba(0,0,0,.16); transform: translateX(100%);
+    transition: transform .18s ease; z-index: 6; overflow-y: auto; padding: 18px;
+  }
+  aside.open { transform: translateX(0); }
+  aside .close { float: right; cursor: pointer; border: none; background: none; font-size: 20px; color: #8a7c5e; }
+  aside h2 { font: 600 17px/1.2 "Iowan Old Style", Georgia, serif; margin: 0 30px 2px 0; }
+  aside .sub { font-size: 12px; color: #8a7c5e; margin-bottom: 14px; }
+  aside .row { display: flex; gap: 8px; padding: 5px 0; border-top: 1px solid #e7dcc2; font-size: 13px; }
+  aside .row .k { width: 78px; color: #8a7c5e; flex-shrink: 0; font-size: 12px; text-transform: uppercase; letter-spacing: .4px; }
+  aside .row .v { flex: 1; }
+  aside .tag { display: inline-block; padding: 1px 7px; border-radius: 10px; background: #ece0c4; font-size: 11px; margin: 1px 2px 1px 0; }
+  aside .tag.shop { background: #e7f0d6; } aside .tag.trainer { background: #f5e2c0; }
+  aside a.exit { color: var(--accent); cursor: pointer; text-decoration: none; }
+  aside a.exit:hover { text-decoration: underline; }
+  aside a.exit.cross::after { content: " ⇲"; color: var(--cross); }
+  #empty { position: absolute; inset: 0; display: grid; place-items: center; color: #a8997a; font-size: 14px; pointer-events: none; }
+  #empty[hidden] { display: none; }   /* beats the UA [hidden] rule, which #empty's display:grid would otherwise override */
+</style>
+</head>
+<body>
+<header>
+  <h1>AnotherMUD · World Map <small id="meta"></small></h1>
+  <div class="group"><span class="lbl">Find</span><input id="search" placeholder="room name or id…" autocomplete="off"></div>
+  <div class="group"><span class="lbl">Region</span><div class="legend" id="legend"></div></div>
+  <div class="group"><span class="lbl">Level</span><div class="legend" id="zlevels"></div></div>
+  <div class="group">
+    <button class="ctl" id="reset">Recenter</button>
+    <span class="badges-key">◉ spawn · ⛁ shop · ⚒ trainer · ▪ items · ⇡⇣ stairs</span>
+  </div>
+</header>
+
+<div id="stage">
+  <div id="viewport">
+    <svg id="edges"></svg>
+  </div>
+  <div id="empty" hidden>No rooms on this level.</div>
+</div>
+
+<aside id="panel">
+  <button class="close" id="panelClose">×</button>
+  <h2 id="pName"></h2>
+  <div class="sub" id="pSub"></div>
+  <div id="pBody"></div>
+</aside>
+
+<script>
+const WORLD = __WORLD_DATA__;
+
+const CELL = 168, BOXW = 132, BOXH = 60;
+const PINNED = {
+  "two-rivers": { b: "#5c7a29", f: "#eef3db" },
+  "andor":      { b: "#b8860b", f: "#f7efda" },
+};
+const PALETTE = [
+  { b: "#2e6f8e", f: "#e1eef4" }, { b: "#8e2e6f", f: "#f4e1ee" },
+  { b: "#6f4a2e", f: "#f0e6da" }, { b: "#2e8e6a", f: "#dff3ec" },
+  { b: "#6a2e8e", f: "#ece1f4" }, { b: "#8e6a2e", f: "#f4ecda" },
+];
+const TERRAIN = {
+  grassland: "#7caa3f", forest: "#3f7a3f", mountain: "#8f8f8f", swamp: "#5a6b3a",
+  cave: "#6b5a45", field: "#b5a642", "herb-garden": "#6aa84f",
+  outdoors: "#9bb86a", indoors: "#c8a15a",
+};
+const DIR_FULL = { north: "north", south: "south", east: "east", west: "west", up: "up", down: "down" };
+
+// --- region colors ---
+const regionColor = {};
+WORLD.regions.forEach((r, i) => { regionColor[r] = PINNED[r] || PALETTE[i % PALETTE.length]; });
+const colorOf = r => regionColor[r] || { b: "#999", f: "#fff" };
+
+const roomById = {};
+WORLD.rooms.forEach(r => roomById[r.id] = r);
+const areaById = {};
+WORLD.areas.forEach(a => areaById[a.id] = a);
+
+// --- bounds (over all z, so the coordinate space is stable) ---
+let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+WORLD.rooms.forEach(r => {
+  minX = Math.min(minX, r.x); maxX = Math.max(maxX, r.x);
+  minY = Math.min(minY, r.y); maxY = Math.max(maxY, r.y);
+});
+const px = x => (x - minX) * CELL;
+const py = y => (maxY - y) * CELL;
+const worldW = (maxX - minX) * CELL + BOXW;
+const worldH = (maxY - minY) * CELL + BOXH;
+
+// --- state ---
+const zLevels = [...new Set(WORLD.rooms.map(r => r.z))].sort((a, b) => b - a);
+let curZ = zLevels.includes(0) ? 0 : zLevels[0];
+const hiddenRegions = new Set();
+let tx = 0, ty = 0, scale = 0.85, selId = null;
+
+const stage = document.getElementById("stage");
+const viewport = document.getElementById("viewport");
+const svg = document.getElementById("edges");
+document.getElementById("meta").textContent =
+  WORLD.rooms.length + " rooms · " + WORLD.areas.length + " areas · pack " + WORLD.pack + " · " + WORLD.generated;
+
+// --- legend (regions) ---
+const legend = document.getElementById("legend");
+WORLD.regions.forEach(r => {
+  const c = colorOf(r);
+  const el = document.createElement("span");
+  el.className = "chip"; el.style.borderColor = c.b; el.style.background = c.f;
+  el.innerHTML = '<span class="sw" style="background:' + c.b + '"></span>' + r;
+  el.onclick = () => { hiddenRegions.has(r) ? hiddenRegions.delete(r) : hiddenRegions.add(r); el.classList.toggle("off"); render(); };
+  legend.appendChild(el);
+});
+
+// --- z-level buttons ---
+const zbox = document.getElementById("zlevels");
+zLevels.forEach(z => {
+  const b = document.createElement("button");
+  b.className = "ctl" + (z === curZ ? " on" : "");
+  b.textContent = z === 0 ? "ground" : (z > 0 ? "+" + z : "" + z);
+  b.onclick = () => { curZ = z; [...zbox.children].forEach(c => c.classList.remove("on")); b.classList.add("on"); render(); };
+  zbox.appendChild(b);
+});
+if (zLevels.length < 2) zbox.parentElement.style.display = "none";
+
+// --- render ---
+const roomEls = {};
+function render() {
+  // edges
+  while (svg.firstChild) svg.removeChild(svg.firstChild);
+  svg.setAttribute("width", worldW); svg.setAttribute("height", worldH);
+  const drawn = new Set();
+  WORLD.rooms.forEach(r => {
+    if (r.z !== curZ || hiddenRegions.has(r.region)) return;
+    r.exits.forEach(e => {
+      if (!DIR_FULL[e.dir] || e.dir === "up" || e.dir === "down") return;
+      const t = roomById[e.to];
+      if (!t || t.z !== curZ || hiddenRegions.has(t.region)) return;
+      const key = [r.id, e.to].sort().join("|");
+      if (drawn.has(key)) return; drawn.add(key);
+      const l = document.createElementNS("http://www.w3.org/2000/svg", "line");
+      l.setAttribute("x1", px(r.x) + BOXW / 2); l.setAttribute("y1", py(r.y) + BOXH / 2);
+      l.setAttribute("x2", px(t.x) + BOXW / 2); l.setAttribute("y2", py(t.y) + BOXH / 2);
+      l.setAttribute("stroke", e.cross ? "#b8860b" : "#b9a888");
+      l.setAttribute("stroke-width", e.cross ? 3 : 2);
+      if (e.cross) l.setAttribute("stroke-dasharray", "7 5");
+      svg.appendChild(l);
+    });
+  });
+
+  // rooms
+  WORLD.rooms.forEach(r => {
+    let el = roomEls[r.id];
+    if (!el) { el = buildRoom(r); roomEls[r.id] = el; viewport.appendChild(el); }
+    const show = r.z === curZ && !hiddenRegions.has(r.region);
+    el.style.display = show ? "block" : "none";
+  });
+  document.getElementById("empty").hidden = WORLD.rooms.some(r => r.z === curZ);
+  applyTransform();
+}
+
+function buildRoom(r) {
+  const c = colorOf(r.region);
+  const el = document.createElement("div");
+  el.className = "room";
+  el.style.left = px(r.x) + "px"; el.style.top = py(r.y) + "px";
+  el.style.setProperty("--rb", c.b); el.style.setProperty("--rf", c.f);
+  const tdot = TERRAIN[r.terrain] || "#bbb";
+  let badges = "";
+  if (r.spawn) badges += "◉";
+  if (r.mobs.some(m => m.shop)) badges += "⛁";
+  if (r.mobs.some(m => m.trainer)) badges += "⚒";
+  if (r.items) badges += "▪";
+  if (r.exits.some(e => e.dir === "up")) badges += "⇡";
+  if (r.exits.some(e => e.dir === "down")) badges += "⇣";
+  el.innerHTML =
+    '<div class="bdg">' + badges + "</div>" +
+    '<div class="nm">' + esc(r.name) + "</div>" +
+    '<div class="meta"><span class="tdot" style="background:' + tdot + '"></span>' + (r.terrain || "—") + "</div>";
+  el.onclick = ev => { ev.stopPropagation(); selectRoom(r.id); };
+  return el;
+}
+
+function applyTransform() {
+  viewport.style.transform = "translate(" + tx + "px," + ty + "px) scale(" + scale + ")";
+}
+
+// --- selection + panel ---
+const panel = document.getElementById("panel");
+function selectRoom(id) {
+  if (selId && roomEls[selId]) roomEls[selId].classList.remove("sel");
+  selId = id; const r = roomById[id];
+  if (roomEls[id]) roomEls[id].classList.add("sel");
+  const area = areaById[r.area] || { name: r.area };
+  document.getElementById("pName").textContent = r.name;
+  document.getElementById("pSub").textContent = r.id;
+  const rows = [];
+  const tag = (t, cls) => '<span class="tag ' + (cls || "") + '">' + esc(t) + "</span>";
+  rows.push(row("Area", esc(area.name || r.area)));
+  rows.push(row("Region", r.region ? tag(r.region) : "—"));
+  rows.push(row("Terrain", '<span class="tdot" style="background:' + (TERRAIN[r.terrain] || "#bbb") + '"></span>' + (r.terrain || "—")));
+  const flags = [];
+  if (r.spawn) flags.push("spawn ◉"); if (r.items) flags.push("items ▪"); if (r.station) flags.push("craft station ⚒");
+  if (flags.length) rows.push(row("Flags", flags.map(f => tag(f)).join("")));
+  if (r.mobs.length) {
+    rows.push(row("NPCs", r.mobs.map(m =>
+      tag(m.name + (m.shop ? " ⛁" : "") + (m.trainer ? " ⚒" : ""), m.shop ? "shop" : m.trainer ? "trainer" : "")).join(" ")));
+  }
+  const ex = r.exits.map(e => {
+    const to = roomById[e.to];
+    const label = e.dir + " → " + (to ? esc(to.name) : e.to);
+    return '<a class="exit ' + (e.cross ? "cross" : "") + '" data-to="' + e.to + '">' + label + "</a>";
+  });
+  rows.push(row("Exits", ex.length ? ex.join("<br>") : "—"));
+  document.getElementById("pBody").innerHTML = rows.join("");
+  panel.querySelectorAll("a.exit").forEach(a => a.onclick = () => { const t = a.dataset.to; if (roomById[t]) { centerOn(roomById[t]); selectRoom(t); } });
+  panel.classList.add("open");
+}
+function row(k, v) { return '<div class="row"><div class="k">' + k + '</div><div class="v">' + v + "</div></div>"; }
+document.getElementById("panelClose").onclick = () => { panel.classList.remove("open"); if (selId && roomEls[selId]) roomEls[selId].classList.remove("sel"); selId = null; };
+
+// --- pan / zoom ---
+let dragging = false, lx = 0, ly = 0, moved = false;
+stage.addEventListener("mousedown", e => { dragging = true; moved = false; lx = e.clientX; ly = e.clientY; stage.classList.add("grabbing"); });
+window.addEventListener("mousemove", e => {
+  if (!dragging) return;
+  tx += e.clientX - lx; ty += e.clientY - ly; lx = e.clientX; ly = e.clientY; moved = true; applyTransform();
+});
+window.addEventListener("mouseup", () => { dragging = false; stage.classList.remove("grabbing"); });
+stage.addEventListener("click", e => { if (!moved && e.target === stage) { panel.classList.remove("open"); if (selId && roomEls[selId]) roomEls[selId].classList.remove("sel"); selId = null; } });
+stage.addEventListener("wheel", e => {
+  e.preventDefault();
+  const rect = stage.getBoundingClientRect();
+  const mx = e.clientX - rect.left, my = e.clientY - rect.top;
+  const factor = e.deltaY < 0 ? 1.12 : 1 / 1.12;
+  const ns = Math.min(2.5, Math.max(0.12, scale * factor));
+  tx = mx - (mx - tx) * (ns / scale); ty = my - (my - ty) * (ns / scale);
+  scale = ns; applyTransform();
+}, { passive: false });
+
+function centerOn(r) {
+  const rect = stage.getBoundingClientRect();
+  tx = rect.width / 2 - (px(r.x) + BOXW / 2) * scale;
+  ty = rect.height / 2 - (py(r.y) + BOXH / 2) * scale;
+  applyTransform();
+}
+document.getElementById("reset").onclick = () => { scale = 0.85; const s = WORLD.rooms.find(r => r.spawn) || WORLD.rooms[0]; if (s) { curZ = s.z; render(); centerOn(s); } };
+
+// --- search ---
+document.getElementById("search").addEventListener("input", e => {
+  const q = e.target.value.trim().toLowerCase();
+  let first = null;
+  WORLD.rooms.forEach(r => {
+    const el = roomEls[r.id]; if (!el) return;
+    const hit = q && (r.name.toLowerCase().includes(q) || r.id.includes(q));
+    el.classList.toggle("hit", !!hit);
+    el.classList.toggle("dim", !!q && !hit);
+    if (hit && !first) first = r;
+  });
+  if (first) { if (first.z !== curZ) { curZ = first.z; render(); } centerOn(first); }
+});
+
+// --- go ---
+render();
+const spawn = WORLD.rooms.find(r => r.spawn) || WORLD.rooms[0];
+if (spawn) centerOn(spawn);
+
+function esc(s) { return String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c])); }
+</script>
+</body>
+</html>

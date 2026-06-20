@@ -75,6 +75,12 @@ watch-wot: WORLD_PACKS := wot
 watch-wot: WORLD_START_ROOM := wot:the-green
 watch-wot: watch
 
+## worldmap: render the WoT world content to docs/maps/world.html (interactive)
+.PHONY: worldmap
+worldmap:
+	$(GO) run ./cmd/worldmap -pack wot -start the-green -out docs/maps/world.html
+	@echo "open docs/maps/world.html in a browser"
+
 ## test: run all tests
 .PHONY: test
 test:
