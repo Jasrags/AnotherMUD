@@ -6,8 +6,9 @@ damage dice + critical hits, **light & darkness** — §21, **crafting &
 cooking** — §22, **player maps** — §23, **saving throws** — §24, **conditions** — §25,
 **skills / lockpicking** — §26, **channeling** — §27, **movement cost &
 encumbrance** — §28, **gathering** — §29, **visibility & hidden exits** — §30,
-**feats** — §31, **masterwork item grades** — §32, and **ranged combat (thrown &
-projectile)** — §33). Work top-to-bottom or jump to a section. Each step gives a
+**feats** — §31, **masterwork item grades** — §32, **ranged combat (thrown &
+projectile)** — §33, **faction & standing** — §34, **reputation & renown** — §35,
+and **mounts** — §36). Work top-to-bottom or jump to a section. Each step gives a
 **command** and the **expected behavior**; tick the box when it matches, and note
 anything that doesn't.
 
@@ -1466,6 +1467,192 @@ Road. `get hunting-bow`, `get arrow` (×a few), `wield hunting-bow`, then
 > (the full round-loop inversion), **multi-room** line of sight and pursuit (a
 > shot mob only chases a shooter in the *adjacent* room), and thrown weapons
 > across a boundary (`throw` stays same-room).
+
+---
+
+## 34. Faction & standing (WoT pack)
+
+Per-character **standing** with content-defined factions — the WoT pack ships
+three (the **Children of the Light**, the **Friends of the Dark**, the **Queen's
+Guard of Andor**). Standing rises/falls through play and gates content: mob
+hostility, shop access/pricing, quest offers, and ability use. The demo spine is
+the **Queen's Guard initiation** questline.
+
+> **WoT pack + admin.** This runs the WoT world, not the core demo. The **first
+> character of a fresh save is auto-granted admin**, so `teleport` works for the
+> hops below; if you've already made WoT characters, boot with
+> `ANOTHERMUD_ROLE_SEED="<name>:admin"`.
+
+### Boot
+
+```sh
+ANOTHERMUD_PACKS=wot ANOTHERMUD_START_ROOM=wot:the-royal-palace make run
+```
+
+Make a fresh character (any class) — you start at the Royal Palace, where the
+**Palace Guardsman** (the quest giver) stands.
+
+### The `standing` verb
+
+- [ ] `standing` (aliases `factions`, `reputation`) — lists all three WoT
+      factions, each at the starting **Neutral (0)** for a fresh character
+      (`The Children of the Light   Neutral (0)`, …).
+- [ ] `score` (`sc`) on a fresh character — **no** Standing section yet (it lists
+      only factions you've *touched*, so a clean sheet stays uncluttered).
+
+### Earn path — the oath quest (faction reward)
+
+- [ ] `accept oath-to-the-queen` — accepted (acceptance works anywhere; the giver
+      need not be present). `quests` lists it active.
+- [ ] `teleport wot:the-caemlyn-square` — entering completes the **visit**
+      objective and the auto-grant reward fires: a completion banner. (Teleport
+      emits the same move event a walk does, so the visit advances.)
+- [ ] `standing` — the **Queen's Guard of Andor** now reads **Honored (700)**
+      (the +700 reward; 700 is the Honored floor). `score` now has a **Standing**
+      section listing it.
+
+### Prerequisite gate (the follow-up quest)
+
+- [ ] **Before** earning standing (a fresh character / new alt): `accept
+      the-queens-trust` — refused, **"You don't meet the requirements for that
+      quest."** (its prereq needs Queen's Guard ≥ 500).
+- [ ] **After** the oath (standing 700): `accept the-queens-trust` — **accepted**.
+      The same prereq, now satisfied.
+
+### Ability gate (guards-bulwark)
+
+The oath reward also **teaches** `guards-bulwark`, a Queen's Guard combat drill
+gated on Queen's Guard ≥ 500 (faction §6).
+
+- [ ] `abilities` (`abi`) — `Guard's Bulwark` is now listed (taught by the oath).
+- [ ] `cast guards-bulwark` out of combat — fizzles **needing an enemy** (not
+      *"You lack the standing…"*), proving the faction gate **passed** at 700.
+      (Below 500 the same cast fizzles `faction_restricted` — "You lack the
+      standing to use Guard's Bulwark." — observable only with negative standing.)
+
+### Shop pricing by standing (Basel Gill, favored customer)
+
+- [ ] `teleport wot:the-queens-blessing` — Basel Gill's inn (a faction-aware
+      shop affiliated with the Queen's Guard, ally threshold 500, 15% off).
+- [ ] `value fine-wine` **before** the oath (a fresh alt at Neutral) — full price
+      (≈48). **After** the oath (standing 700 ≥ 500) — the **favored-customer**
+      price (≈41, 15% off). `buy fine-wine` charges the discounted amount.
+- [ ] Basel has **no access gate** — he serves everyone; only the price changes.
+
+### Shop access gate (the Darkfriend fence)
+
+- [ ] `teleport wot:the-wagon-yard` (Four Kings) — a **well-dressed merchant**, a
+      Darkfriend fence. `list` shows his stock (a disguise kit, a belt knife,
+      wine). At Neutral you **can** buy (his floor is 0 = "not a sworn enemy of
+      the Dark").
+- [ ] *(Mechanism — needs negative Darkfriend standing to observe live, which no
+      content earns in v1.)* A character **hostile** to the Darkfriends (standing
+      < 0) is **refused** — "The shopkeeper refuses to deal with the likes of
+      you." A **friend of the Dark** (≥ 300) gets a 20% discount.
+
+### Mob disposition by standing (the hostile case)
+
+Non-hostile reactions (neutral/friendly/wary) aren't visibly distinct, but the
+**hostile** reaction is — a faction's members attack an enemy of the faction on
+sight. The observable path is the on-kill standing loss:
+
+- [ ] *(Involved — a real fight.)* Kill a **Queen's Guardsman** (e.g. `teleport
+      wot:the-bridge-foot`, then `kill guard`) — landing the kill **lowers** your
+      Queen's Guard standing by 100 (to −100). Now `teleport wot:the-royal-palace`
+      — the Palace Guardsman, hostile to anyone below Neutral with the Guard,
+      **aggros you on sight** (its `max_standing: -1 → hostile` rule). A bigger
+      character (admin `xp`/`restore`) makes the guard fight survivable.
+
+## 35. Reputation & renown (WoT pack)
+
+A single **renown** axis — how widely known you are (fame high, infamy low,
+**Unknown** at zero) — distinct from per-faction standing (§34). It shows on
+`score`, rises through deeds (quest rewards), and is shaped by three feats. Same
+WoT boot as §34.
+
+### The Renown line on `score`
+
+- [ ] `score` (`sc`) on a fresh character — the Character column shows
+      **`Renown   Unknown (0)`** (every character has a renown, like alignment).
+
+### Earn path (quest reward)
+
+- [ ] Do §34's **oath quest** (`accept oath-to-the-queen`, `teleport
+      wot:the-caemlyn-square`). The reward also grants **+120 renown** (a public,
+      witnessed oath).
+- [ ] `score` — the Renown line now reads **`Known Locally (120)`** (120 crosses
+      the Known-Locally threshold at 100).
+
+### The reputation feats
+
+A fresh character has **1 feat credit** (more every 3rd level — admin `xp` to
+bank extra). The three feats live in the WoT pack.
+
+- [ ] `feat fame` — spends a credit; `score` Renown **rises by 150** (Fame is a
+      flat *effective*-renown bonus — base + Fame). The tier shifts up if the new
+      effective total crosses a band.
+- [ ] `feat infamy` — `score` Renown reads **`… (infamous)`** — the same
+      magnitude reframed as *feared* rather than admired (the kind, not the
+      strength).
+- [ ] `feat low-profile` — *(mechanism)* scales **renown gains** down by
+      `ANOTHERMUD_LOW_PROFILE_FACTOR` (default 0.5); losses are untouched.
+      Observable only with a repeatable renown source (the oath isn't repeatable).
+
+### Infamy & disposition
+
+- [ ] *(Mechanism — wary isn't a visible greeting.)* With the **Infamy** feat,
+      the Palace Guardsman's rules mark you **wary** (its `infamous: true → wary`
+      rule, ordered after its hostile-to-lawbreakers rule). It does not aggro, so
+      there's no visible cue in v1 — the reaction is exercised by the unit tests;
+      a future deference/fear-flavored greeting would surface it.
+
+> The **recognition check** primitive (renown + die vs a difficulty — "are you
+> recognized here?") exists on the engine but has **no consumer verb yet**
+> (deferred). The worn-signifier earn path (gear that carries renown) and a
+> class-level renown bump are likewise deferred — see `docs/BACKLOG.md` /
+> `reputation.md`.
+
+## 36. Mounts (ride & travel)
+
+A **mount** is a rideable creature you own that carries you across the world,
+spending **its own** travel pool instead of your movement points. Default
+(core/starter-world) boot — **Hob the stablemaster** and a **riding horse** are
+at the **Village Gate** (`s` from Town Square).
+
+### Buy & list
+
+- [ ] At the **Village Gate**, `buymount horse` — Hob sells you the riding horse
+      (gold decreases); a confirmation prints. `mounts` (anywhere) — lists the
+      horse as an owned mount.
+- [ ] `buymount horse` again without the gold — refused (can't afford).
+
+### Ride & dismount
+
+- [ ] `mount horse` — "You mount …"; you're now riding (it follows you as your
+      mount). `mount` something you don't own — refused.
+- [ ] `dismount` — "You dismount …"; back on foot.
+
+### Mounted travel (the metered-mover swap)
+
+- [ ] Note your `MV` on `score`. **Mounted**, walk several rooms (Square ↔ Gate ↔
+      Market) — your **MV does not drop**: a mounted step spends the **mount's**
+      travel pool (the horse's `travel_max` 60), not your movement (mounts.md §5).
+      On foot the same steps drain MV (§28).
+- [ ] Ride far enough to drain the mount's travel pool — it tires and the swap
+      reverts to your own MV (the mount needs to rest/regen).
+
+### Stabling & temperament
+
+- [ ] At Hob's, `stable` — boards the mount (it's kept safe; `mounts` shows it
+      stabled). `unstable` — retrieves it. (A stabled mount survives logout; the
+      live ride relationship does not — re-`mount` after relog.)
+- [ ] The riding horse is **skittish** (temperament) — an ordinary animal that
+      **balks at carrying you into a fight**: entering combat (or a hostile room)
+      while mounted makes it shy. A warhorse (deferred content) would not.
+
+> Mounts core-v1 is ride + mounted travel + buy/stable. Deferred (mounts.md Open
+> Questions): mounted **combat** depth (charge / Ride contest), **barding** +
+> **saddlebags**, feed/upkeep economy, multi-seat, pack trains.
 
 ---
 
