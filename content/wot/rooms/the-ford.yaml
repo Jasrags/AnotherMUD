@@ -1,0 +1,17 @@
+id: the-ford
+area: carysford
+name: "{c}The Ford of the Cary{x}"
+description: |
+  The Caemlyn Road goes down into the River Cary here and crosses it on a broad
+  paved ford, the green water sliding clear and shallow over the worn stones and
+  chuckling about the legs of the wagons that splash through. A weathered fisherman
+  works a line from the bank in the shade of the willows, a watermill turns slow
+  on the downstream side, and the whole crossing has the cool, unhurried peace of
+  running water. The village lies back west; the road climbs the far bank east
+  toward the last leg to Caemlyn.
+exits:
+  west: the-carysford-green
+  east: the-cary-bank
+terrain: outdoors
+mobs:
+  - carysford-fisherman

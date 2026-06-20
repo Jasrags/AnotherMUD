@@ -1,0 +1,27 @@
+id: caemlyn-dealer
+name: a city dealer
+type: npc
+behavior: stationary
+description: |
+  Quick-eyed and quicker-tongued, the dealer presides over a stall heaped with
+  the overflow of a great city's trade — rope and lanterns, rations and skins,
+  oddments from every corner of the realm — and can price any of it, buy or sell,
+  before you have finished reaching for your purse. He has the brisk, unsentimental
+  patter of a man who sees a thousand strangers a day and means to have a coin from
+  each, and wastes no breath on any he judges has none to spare.
+tags: [humanoid, shop]
+keywords: [dealer, trader, merchant, stall]
+stats:
+  hp_max: 24
+  str: 10
+disposition_rules:
+  default: friendly
+properties:
+  shop:
+    sells:
+      - wot:trail-rations
+      - wot:waterskin
+      - wot:hemp-rope
+      - wot:hooded-lantern
+      - wot:tent
+      - wot:cooked-meal

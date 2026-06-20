@@ -1,0 +1,16 @@
+id: the-inner-city
+area: caemlyn
+name: "{w}Caemlyn — the Inner City{x}"
+description: |
+  Within the old wall the city changes utterly, and the noise of the New City
+  falls away to a hush. The streets climb the hill in broad curving tiers, white
+  stone underfoot and white towers above, and everywhere there are gardens —
+  hanging terraces of flowers, fountains playing in shaded courts, trees grown old
+  in stone planters older still. It is achingly beautiful, and built to a grander
+  and gentler measure than men keep now, the work of the Ogier in the morning of
+  the world. The outer wall and gate lie back west; ahead east the streets open
+  before the Royal Palace.
+exits:
+  west: the-inner-wall
+  east: the-palace-plaza
+terrain: outdoors

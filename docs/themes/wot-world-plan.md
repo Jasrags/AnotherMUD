@@ -362,10 +362,37 @@ decision is recorded in memory `wot-geography-map-canon`.
 - Verified: WoT pack boots clean — areas 13→15, rooms 66→74 (+8), mobs +4; the
   full W→E spine traces Whitebridge → Arien → Four Kings → Market Sheran; all 146
   room exits resolve and are reciprocal; pack tests green under `-race`.
-- **Onward stub:** Market Sheran's East Road is the seam — next leg is **Carysford**
-  (the ford) → **Caemlyn** (the capital — a major build). The maps also open the
-  northern arm (Braem Wood) and southern arm (the Black Tower, Harlon Bridge,
-  Damelien, …) as future content.
+- **Onward stub:** Market Sheran's East Road is the seam — built out in M9.
+
+### M9 — The road's end: Carysford → Caemlyn — ✅ SHIPPED
+
+The Caemlyn Road reaches the capital. The full west→east spine is now walkable
+end to end from the Two Rivers: **Emond's Field → the Taren → the Baerlon
+crossroads → the White Bridge → Whitebridge → Arien → Four Kings → Market
+Sheran → Carysford → Caemlyn**.
+
+- **Carysford** (new area `carysford`, `region: andor`): a pretty 4-room
+  ford-village where the road crosses the little **River Cary** — the green +
+  the Leaping Fish inn, the paved **ford** itself (a fisherman, the watermill),
+  and the east bank with the first distant gleam of Caemlyn's walls. The last
+  quiet stop before the city.
+- **Caemlyn** (new area `caemlyn`, `region: andor`): a **capital starter cut**
+  (8 rooms) that lands the iconic structure — the **High Gate** (Queen's Guard)
+  → the **New City** avenue + a city dealer → the **Great Square** (the famous
+  view of the Inner City) → the **Queen's Blessing** inn (**Basel Gill**, canon)
+  → the **Ogier-built Inner City wall** of silver-streaked white stone → the
+  garden-hung **Inner City** → the **Palace Plaza** (the white-spired Royal
+  Palace) → the **Palace Gates** (gated — the Queen's leave required; interior is
+  a future depth slice). Reached via one new road room (`the-caemlyn-approach`).
+- Verified: WoT pack boots clean — areas 15→17, rooms 74→88 (+14), mobs +6; the
+  full W→E spine traces Whitebridge → … → Caemlyn's Palace gates; all 174 room
+  exits resolve and are reciprocal; pack tests green under `-race`.
+- **Caemlyn is the eastern terminus for now.** Future depth: the Royal Palace
+  interior, more Inner/New-City districts, and the roads radiating out of Caemlyn
+  — the **northern arm** (Braem Wood: New Braem, Kore Springs), the **southern
+  arm** (the **Black Tower**, Harlon Bridge, Forel Market, Buryhill, Damelien,
+  Cullen's Crossing), and the hill ranges (Splintered, Tunaighan) — all from the
+  Andor map.
 
 ## Risks
 

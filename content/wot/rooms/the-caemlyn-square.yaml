@@ -1,0 +1,16 @@
+id: the-caemlyn-square
+area: caemlyn
+name: "{w}Caemlyn — the Great Square{x}"
+description: |
+  The avenue opens into a vast cobbled square at the centre of the New City,
+  ringed with the grand fronts of guildhalls and counting-houses and loud with
+  the business of a great capital. Above the rooftops to the east rises the
+  second wall and the white-towered crown of the Inner City, catching the light
+  like something out of a story; folk gather here just to stand and look at it. A
+  famous old inn, the Queen's Blessing, fronts the square to the north. The New
+  City avenue runs back west; the Inner City wall and its gate stand east.
+exits:
+  west: the-new-city
+  north: the-queens-blessing
+  east: the-inner-wall
+terrain: outdoors

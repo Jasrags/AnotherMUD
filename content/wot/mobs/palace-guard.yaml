@@ -1,0 +1,18 @@
+id: palace-guard
+name: a Palace Guardsman
+type: npc
+behavior: stationary
+description: |
+  One of the Queen's own, hand-picked for the Palace gate and turned out
+  flawless — mirror-bright plate-and-mail, a spotless red cloak, a halberd held
+  with parade precision — he stands the watch with the still, expressionless
+  discipline of a soldier who guards the person of the Queen herself. His eyes
+  move and nothing else does, and the message of his stance needs no words: the
+  Palace is the Queen's, you are not expected, and you will not be passing today.
+tags: [humanoid]
+keywords: [guard, guardsman, palace, soldier]
+stats:
+  hp_max: 46
+  str: 16
+disposition_rules:
+  default: neutral

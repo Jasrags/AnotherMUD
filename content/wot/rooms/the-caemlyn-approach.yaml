@@ -1,0 +1,15 @@
+id: the-caemlyn-approach
+area: caemlyn-road
+name: "{w}The Approach to Caemlyn{x}"
+description: |
+  The Caemlyn Road makes its last miles toward the capital, and the city rises
+  ahead to fill the eye: Caemlyn on its hills behind a great ring-wall of grey
+  stone, and within it, climbing higher still, the fabled Inner City — a crown of
+  white towers and silver-streaked walls left from the Age of Legends, gleaming
+  above the sprawl of the newer town. The road is a river of traffic now, wagons
+  and riders and folk afoot all drawn toward the same gates. Carysford and the
+  long road west lie behind; the high western gate of Caemlyn stands open ahead.
+exits:
+  west: the-cary-bank
+  east: the-high-gate
+terrain: grassland

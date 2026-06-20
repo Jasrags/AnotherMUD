@@ -1,0 +1,15 @@
+id: the-cary-bank
+area: carysford
+name: "{g}The East Bank of the Cary{x}"
+description: |
+  The road climbs dripping out of the ford onto the Cary's eastern bank and
+  shakes itself dry among the willows, the watermill creaking at your back and
+  the village rooftops small across the water. Ahead the country opens out one
+  last time, rich and rolling and busy with the traffic of the capital, and on
+  the eastern horizon — if the day is clear — a pale gleam shows where the walls
+  of Caemlyn catch the sun. The ford and Carysford lie back west; the Caemlyn
+  Road runs on east to the Queen's city.
+exits:
+  west: the-ford
+  east: the-caemlyn-approach
+terrain: grassland

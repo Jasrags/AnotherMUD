@@ -1,0 +1,15 @@
+id: the-palace-plaza
+area: caemlyn
+name: "{w}Caemlyn — the Palace Plaza{x}"
+description: |
+  The Inner City's tiers culminate in a great open plaza of pale marble, and
+  across it stands the Royal Palace of Andor — a confection of white spires and
+  golden domes and slim soaring towers, banner-hung and impossibly graceful,
+  rising against the sky like the dream of a palace rather than the stone fact of
+  one. Fountains ring the plaza and folk cross it on the Queen's business with a
+  hushed, purposeful air. The streets of the Inner City fall away west; the
+  Palace gates stand to the north.
+exits:
+  west: the-inner-city
+  north: the-palace-gate
+terrain: outdoors

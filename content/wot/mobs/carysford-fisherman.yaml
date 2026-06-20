@@ -1,0 +1,18 @@
+id: carysford-fisherman
+name: a weathered fisherman
+type: npc
+behavior: stationary
+description: |
+  An old man as brown and knotted as a willow-root, he sits the bank above the
+  ford with a line in the slow water and the bottomless patience of someone who
+  has nowhere he would rather be and all day to get there. He has fished the Cary
+  man and boy, knows every trout in it by name to hear him tell it, and will share
+  the river's lore and the road's news with anyone willing to sit a while and not
+  scare the fish.
+tags: [humanoid]
+keywords: [fisherman, angler, old, man]
+stats:
+  hp_max: 20
+  str: 9
+disposition_rules:
+  default: friendly

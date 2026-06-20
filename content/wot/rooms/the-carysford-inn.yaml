@@ -1,0 +1,15 @@
+id: the-carysford-inn
+area: carysford
+name: "{y}Carysford — the Leaping Fish{x}"
+description: |
+  The Leaping Fish is a small, bright, river-village inn, its windows thrown open
+  to the sound of the ford and its common room smelling of fried trout and
+  woodsmoke. A handful of locals and a traveller or two sit easy over their
+  drinks, in no hurry and glad of company, and the innkeeper trades gossip up and
+  down the road as freely as he draws his ale. After the road's long miles it is
+  a hard place to leave. The street and the ford lie back out to the south.
+exits:
+  south: the-carysford-green
+terrain: indoors
+mobs:
+  - carysford-innkeeper

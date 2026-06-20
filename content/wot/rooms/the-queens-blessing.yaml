@@ -1,0 +1,16 @@
+id: the-queens-blessing
+area: caemlyn
+name: "{y}Caemlyn — the Queen's Blessing{x}"
+description: |
+  The Queen's Blessing is an old and comfortable inn, its common room dim and
+  cool and smelling of good wine and beeswax, the walls hung with odd curios from
+  every corner of the realm — a Taraboner mask, a Sea Folk shell, a rusted sword
+  said to be older than Andor. The custom is a cut above the street, merchants and
+  off-duty Guardsmen and the odd traveller of quality, and the stout, balding
+  innkeeper presides over it all with an easy, watchful good humour and a soft
+  spot for a gleeman or a tale well told. The great square lies back out to the south.
+exits:
+  south: the-caemlyn-square
+terrain: indoors
+mobs:
+  - basel-gill

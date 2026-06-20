@@ -1,0 +1,14 @@
+id: the-carysford-road
+area: caemlyn-road
+name: "{g}The Caemlyn Road — toward Carysford{x}"
+description: |
+  The road runs on east through a country growing richer by the mile, the farms
+  larger and the traffic heavier as the pull of the great city ahead begins to
+  tell. Mile-stones march along the verge counting down the leagues to Caemlyn,
+  and the carts on the road carry finer goods now — wine, cloth, worked metal —
+  bound for the Queen's markets. Market Sheran lies back west; ahead the road
+  dips toward the willows and the gleam of water at the ford of Carysford.
+exits:
+  west: the-sheran-east
+  east: the-carysford-green
+terrain: grassland

@@ -1,0 +1,25 @@
+id: basel-gill
+name: Basel Gill
+type: npc
+behavior: stationary
+description: |
+  The innkeeper of the Queen's Blessing is a stout, balding, comfortable man with
+  a neat grey-shot fringe of hair, a fine waistcoat straining a little at its
+  buttons, and the easy good humour of a host who has kept the best inn in the New
+  City for thirty years and is quietly proud of it. He has a shrewd eye, a long
+  memory for a face, and a particular fondness for gleemen and travellers with a
+  tale to tell — for whom, it is said, there is always a bed at the Blessing, coin
+  or no coin.
+tags: [humanoid, shop]
+keywords: [basel, gill, innkeeper, host]
+stats:
+  hp_max: 28
+  str: 11
+disposition_rules:
+  default: friendly
+properties:
+  shop:
+    sells:
+      - wot:cooked-meal
+      - wot:trail-rations
+      - wot:fine-wine

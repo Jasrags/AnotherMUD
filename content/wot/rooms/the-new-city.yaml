@@ -1,0 +1,17 @@
+id: the-new-city
+area: caemlyn
+name: "{w}Caemlyn — the New City{x}"
+description: |
+  A broad cobbled avenue runs east into the heart of the New City, lined with
+  fine shops and tall houses of red brick and white stone under bright slate
+  roofs, their fronts gay with the awnings of a hundred trades. The street is a
+  swirl of every sort the realm can show — merchants and soldiers, fine ladies in
+  carriages, beggars and gleemen and country folk gawping like you — and a sharp
+  city dealer keeps a stall of every conceivable ware where the crowd is thickest.
+  The High Gate stands back west; ahead east the avenue opens into a great square.
+exits:
+  west: the-high-gate
+  east: the-caemlyn-square
+terrain: outdoors
+mobs:
+  - caemlyn-dealer

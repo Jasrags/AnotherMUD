@@ -1,0 +1,15 @@
+id: the-carysford-green
+area: carysford
+name: "{g}Carysford{x}"
+description: |
+  The village gathers along the western approach to the ford, a single street of
+  trim cottages with the green smell of the river over everything and the steady
+  rush of water at the crossing just ahead. Ducks squabble at the bank, washing
+  hangs between the houses, and a snug inn faces the street with a painted board
+  of a leaping fish. The Caemlyn Road comes in from Market Sheran to the west;
+  the ford itself lies just east across the Cary, and the inn stands to the north.
+exits:
+  west: the-carysford-road
+  east: the-ford
+  north: the-carysford-inn
+terrain: outdoors

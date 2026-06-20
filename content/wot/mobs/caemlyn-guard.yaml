@@ -1,0 +1,18 @@
+id: caemlyn-guard
+name: a Queen's Guardsman
+type: npc
+behavior: stationary
+description: |
+  A tall, well-drilled soldier of the Queen's Guard, immaculate in burnished mail
+  and a red coat with the white collar of Andor, the golden lion of the Queen
+  bright upon his breast. He holds the High Gate with an easy, professional
+  vigilance, waving the honest traffic through and marking the rest with a cool,
+  experienced eye. The Queen's law runs hard and fair in Caemlyn, and he is its
+  first edge — courteous to the orderly, and very quick to the rest.
+tags: [humanoid]
+keywords: [guard, guardsman, soldier, queens]
+stats:
+  hp_max: 42
+  str: 15
+disposition_rules:
+  default: neutral

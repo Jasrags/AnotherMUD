@@ -1,0 +1,24 @@
+id: carysford-innkeeper
+name: the Leaping Fish innkeeper
+type: npc
+behavior: stationary
+description: |
+  A round, ruddy, talkative man with flour on his apron and a fund of river-gossip
+  he is only too glad to share, he keeps the Leaping Fish as much for the company
+  as the coin and treats every traveller as a fresh source of news from the road.
+  He pulls a good pint, fries a fine trout, and will happily tell you the price of
+  a bed, the state of the road to Caemlyn, and the doings of half of Andor before
+  you have got your boots off.
+tags: [humanoid, shop]
+keywords: [innkeeper, host, man]
+stats:
+  hp_max: 24
+  str: 10
+disposition_rules:
+  default: friendly
+properties:
+  shop:
+    sells:
+      - wot:cooked-meal
+      - wot:trail-rations
+      - wot:fine-wine
