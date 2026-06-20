@@ -99,7 +99,11 @@ func ScoreHandler(ctx context.Context, c *Context) error {
 					if name == "" {
 						name = def.ID
 					}
-					d.Standings = append(d.Standings, fmt.Sprintf("%s (%s)", name, def.RankOf(v)))
+					rank := def.RankOf(v)
+					if rank == "" {
+						rank = "—" // standing below the lowest rung (matches the `standing` verb)
+					}
+					d.Standings = append(d.Standings, fmt.Sprintf("%s (%s)", name, rank))
 				}
 			}
 		}
