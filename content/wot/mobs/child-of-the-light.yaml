@@ -1,0 +1,22 @@
+id: child-of-the-light
+name: a Child of the Light
+type: npc
+behavior: stationary
+description: |
+  A hard-faced man in a spotless white cloak, a golden sunburst worked over the
+  heart and a mail shirt bright beneath, he walks the streets of Baerlon as
+  though they were his to judge. The Children of the Light name themselves the
+  one sure sword against the Shadow, and see Darkfriends in every face that does
+  not love them; his cold, measuring stare promises that yours has not yet
+  satisfied him. The townsfolk give him a wide and careful berth, and it would
+  be wise to do the same.
+# Flavor + faction seed (no faction system yet — disposition is a wary neutral,
+# not auto-hostile, so a town walk-through is safe). When S8 reputation lands,
+# the Children of the Light are a natural standing axis; this mob is the hook.
+tags: [humanoid]
+keywords: [child, children, light, whitecloak, whitecloaks, questioner]
+stats:
+  hp_max: 40
+  str: 14
+disposition_rules:
+  default: neutral

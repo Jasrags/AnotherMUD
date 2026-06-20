@@ -1,0 +1,17 @@
+id: the-watch-gate
+area: baerlon
+name: "{w}Baerlon — the Watch Gate{x}"
+description: |
+  The town's western gate is a heavy thing of iron-bound timber set in the high
+  wooden wall, wide enough for two ore-wagons abreast and crowded with the
+  comings and goings of a mining town. A guard in a battered breastplate leans
+  in the gateway and looks over every stranger who passes with the flat,
+  unhurried suspicion of a man who has seen trouble walk in on two legs before.
+  Beyond the gate the press of Market Street runs east into the town; the open
+  road drops away south toward the river and the Two Rivers beyond.
+exits:
+  south: baerlon-approach
+  east: market-street
+terrain: outdoors
+mobs:
+  - baerlon-gate-guard

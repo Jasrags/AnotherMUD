@@ -1,0 +1,24 @@
+# The signature Baerlon recipe (crafting-and-cooking §2) — chase a bar of
+# refined silver into a finished piece of fine silverwork at the silversmith's
+# bench. Granted free when you `learn silversmithing` from the Baerlon
+# silversmith (the discipline's one baseline recipe), so the loop runs
+# gold-light: learn -> buy a silver bar from her practice stock -> work it.
+#
+# This is the Two Rivers longbow's opposite number in the §8/Phase-7 regional
+# economy — region-exclusive to Baerlon NOT by a hard gate but by placement:
+# silversmithing is taught nowhere else, so the recipe is unreachable outside
+# Baerlon. (acquisition: baseline so `learn` grants it — the AcqRegional tier is
+# review-only metadata and, with no teach-a-single-recipe path in the engine
+# yet, would leave the recipe ungrantable; see the world-plan M5 note.)
+id: work-silver
+name: work a piece of Baerlon silver
+discipline: silversmithing
+skill_floor: 1
+station_tier: 2
+time_pulses: 30
+acquisition: baseline
+inputs:
+  - { template: silver-bar, quantity: 1 }
+output:
+  template: baerlon-silverwork
+  quantity: 1

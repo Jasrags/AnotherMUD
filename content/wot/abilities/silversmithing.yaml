@@ -1,0 +1,28 @@
+# The silversmithing crafting discipline (crafting-and-cooking §2) — Baerlon's
+# signature fine-metalwork craft, the second regional pole opposite the Two
+# Rivers longbow. Like smithing it is a `passive` `skill` carrying a per-
+# character proficiency value, its cap, and use-based-gain parameters — never a
+# combat hook.
+#
+# Region-exclusive by trainer placement: the only silversmithing trainer in the
+# world is the Baerlon silversmith (the §8/Phase-7 regional economy). Acquired
+# with `learn silversmithing` in the Silverworks, which seeds proficiency 1 and
+# grants the baseline `work-silver` recipe; `practice` raises the cap toward the
+# trainer's journeyman tier.
+id: silversmithing
+name: Silversmithing
+type: passive
+category: skill
+
+# Novice starting cap; the Baerlon silversmith is a journeyman trainer and
+# raises it to 75 via `practice` — past the apprentice ceiling a Two Rivers
+# village smith can reach at home.
+default_cap: 25
+
+# Use-based gain parameters (§3.5), mirroring smithing: a successful (or failed)
+# craft rolls a gain that tapers toward the cap. Fine silverwork rewards a
+# steady hand, so DEX nudges the gain roll.
+gain_base_chance: 30
+gain_failure_multiplier: 0.5
+gain_stat: dex
+gain_stat_scale: 0.1

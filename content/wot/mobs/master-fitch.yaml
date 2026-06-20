@@ -1,0 +1,24 @@
+id: master-fitch
+name: Master Fitch
+type: npc
+behavior: stationary
+description: |
+  The innkeeper of the Stag and Lion is a round, balding man with a fringe of
+  grey hair and the harried dignity of a host who means his house to be the
+  best in Baerlon and frets that it might not be. He bustles from table to
+  table with a cloth over one shoulder, full of bows and apologies and the
+  latest news, though he drops his voice and glances at the door whenever the
+  talk turns to the white cloaks who have lately made his town so uneasy.
+tags: [humanoid, shop]
+keywords: [fitch, innkeeper, host, master]
+stats:
+  hp_max: 24
+  str: 10
+disposition_rules:
+  default: friendly
+properties:
+  shop:
+    sells:
+      - wot:cooked-meal
+      - wot:trail-rations
+      - wot:fine-wine

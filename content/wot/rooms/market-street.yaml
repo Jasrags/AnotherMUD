@@ -1,0 +1,20 @@
+id: market-street
+area: baerlon
+name: "{w}Baerlon — Market Street{x}"
+description: |
+  The town's main street is a churn of mud and traffic, lined with the
+  shuttered fronts of merchants and chandlers and loud with the cries of
+  hawkers working the crowd. Miners come down off the slopes shoulder to
+  shoulder with wagoners, peddlers, and hard-eyed strangers, and through the
+  press a pair of white-cloaked Children of the Light walk untouched, the crowd
+  parting around them like water round a stone. The Watch Gate stands back to
+  the west; the lamps of an inn glow to the north, a smithy's red light shows
+  south, and the open market lies east.
+exits:
+  west: the-watch-gate
+  north: the-stag-and-lion
+  south: the-silverworks
+  east: the-market-square
+terrain: outdoors
+mobs:
+  - child-of-the-light

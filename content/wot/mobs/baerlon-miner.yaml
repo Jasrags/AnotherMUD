@@ -1,0 +1,18 @@
+id: baerlon-miner
+name: a soot-streaked miner
+type: npc
+behavior: stationary
+description: |
+  Lean and stooped from the low galleries, the miner trudges down off the slope
+  with a pick over one shoulder and a guttering lamp at his belt, his face and
+  hands so ground with coal and ore-dust that only the whites of his eyes show
+  clean. He digs the iron and silver that keep Baerlon alive, for wages that
+  keep him digging, and he spares a passing stranger no more than a tired,
+  incurious glance before turning for the lodging-houses and his bed.
+tags: [humanoid]
+keywords: [miner, digger, man]
+stats:
+  hp_max: 26
+  str: 13
+disposition_rules:
+  default: neutral

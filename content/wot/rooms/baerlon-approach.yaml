@@ -1,0 +1,15 @@
+id: baerlon-approach
+area: baerlon-road
+name: "{w}The Approach to Baerlon{x}"
+description: |
+  The road crests a last stony rise and Baerlon lies below you at the feet of
+  the mountains — a sprawl of slate and shingle roofs hemmed in by a high wooden
+  wall, smoke hazing up from a hundred chimneys and the deeper smudge of the
+  smelters. The Mountains of Mist heave up grey and enormous behind the town,
+  their lower slopes scarred with the spoil-heaps of the mines. Ore-wagons
+  rumble up toward the wall ahead, where a gate stands open under a watchful
+  guard; the long road back south drops away behind.
+exits:
+  south: the-andor-road
+  north: the-watch-gate
+terrain: mountain

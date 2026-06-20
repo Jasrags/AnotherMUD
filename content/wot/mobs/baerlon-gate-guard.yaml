@@ -1,0 +1,18 @@
+id: baerlon-gate-guard
+name: a Baerlon gate guard
+type: npc
+behavior: stationary
+description: |
+  A solid, sour-faced man in a dented breastplate and the red of Andor faded
+  almost to brown, he holds down the Watch Gate with a halberd grounded at his
+  boot and a chewed straw working from one corner of his mouth. He has stood
+  this gate through good years and bad and trusts no one who comes up the river
+  road, least of all in times like these. His eyes track you the whole way past,
+  weighing whether you are trouble, and plainly expecting that you are.
+tags: [humanoid]
+keywords: [guard, gate, gateguard, watchman]
+stats:
+  hp_max: 38
+  str: 14
+disposition_rules:
+  default: neutral

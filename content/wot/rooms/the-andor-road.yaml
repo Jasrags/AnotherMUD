@@ -1,0 +1,15 @@
+id: the-andor-road
+area: baerlon-road
+name: "{g}The Andor Road{x}"
+description: |
+  The road runs on north, broad and rutted and far more travelled than any
+  track in the Two Rivers — a real Andoran road, with mileposts and the deep
+  ruts of ore-wagons. Stony pasture rolls away on either hand, dotted with the
+  occasional huddled farmstead behind a drystone wall, and the wind comes down
+  off the heights with an edge to it. The river and the south lie behind; ahead
+  the land tilts up toward a grey wall of mountains, and somewhere beneath them
+  waits Baerlon.
+exits:
+  south: the-north-bank
+  north: baerlon-approach
+terrain: grassland

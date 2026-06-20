@@ -1,6 +1,12 @@
 # Wheel of Time world — implementation plan
 
-**Status:** M0 shipped; M1 (Emond's Field) next. **Setting source:**
+**Status:** M0–M5 shipped — the Two Rivers region is complete (Emond's Field,
+the wilds + roads, Watch Hill / Taren Ferry / Deven Ride, the longbow + region
+metadata), plus an off-roadmap westward arc (the Westwood, the Mountains of Mist,
+and Stedding Chinden), and **M5 (Beyond the Taren → Baerlon)** opens Region 2:
+the ferry crosses north onto the Baerlon road into Andor proper, ending in a
+starter cut of Baerlon (the walled mining town) with its own signature regional
+craft (silversmithing). **Setting source:**
 `docs/wot/wot_geography_mud.md` (the in-repo Westlands gazetteer the `wot` pack
 is authored from) + `wot-reference/` (symlink → WheelMUD RPG-sourcebook extracts;
 `the-westlands.md` for kingdom/culture detail). **Engine specs (source
@@ -102,14 +108,18 @@ weather zone carries over.
 - **Two Rivers tabac** & **wool** — luxury trade goods (sell high elsewhere;
   a future trade-route economy hook).
 
-## Region 2 — Beyond the Taren (future; unlocks Phase 7 contrast)
+## Region 2 — Beyond the Taren (✅ seam + Baerlon starter cut shipped, M5)
 
 Across the ferry: the road north toward **Baerlon** (an Andoran mining town
 under the Mountains of Mist) and east on the **Caemlyn Road**. Baerlon's
 identity — a walled mining/trade town with Whitecloak and Queen's-Guard
 presence — contrasts the Two Rivers' rural self-governance, giving regional
-recipes and goods a real second pole. v1 builds **only the seam** (Taren Ferry
-→ a first Baerlon-road room); the town itself is its own milestone.
+recipes and goods a real second pole. **M5 built the seam *and* a Baerlon
+starter cut** (the Baerlon road + 6 town rooms + silversmithing as the second
+regional pole — see the M5 milestone below). Still future: a fuller Baerlon
+(more streets, the Queen's Guard, a Whitecloak garrison once S8 reputation
+lands), the **Caemlyn Road** east (Four Kings, Market Sheran, …), and the road
+deeper into Andor.
 
 ## Engine mapping (how WoT content rides the existing systems)
 
@@ -244,12 +254,39 @@ sub-slices shipped (453af1a split → 3c09172 wot boot), each code-reviewed:
 - Acceptance: the longbow is craftable in the Two Rivers and unobtainable
   elsewhere; the `recipe.AcqRegional` tier is exercised end-to-end.
 
-### M5 — Beyond the Taren (Region 2 seam → Baerlon)
+### M5 — Beyond the Taren (Region 2 seam → Baerlon) — ✅ SHIPPED
 
-- Taren Ferry → first Baerlon-road rooms → a starter cut of Baerlon, with a
-  contrasting signature good/recipe so "regional" has a second pole.
-- Acceptance: two regions with distinct identities; a Baerlon-only and a
-  Two-Rivers-only recipe each gated to its region.
+- **The Baerlon road** (new area `baerlon-road`, `region: andor`): the ferry
+  landing's north stub now crosses the Taren onto the north bank → the Andor
+  road → the approach under the Mountains of Mist (3 rooms; grassland → mountain,
+  a deliberate hard-country contrast leaving the cozy Two Rivers).
+- **Baerlon** (new area `baerlon`, `region: andor`): a starter cut of the walled
+  mining town — the Watch Gate (suspicious Andoran guard), Market Street (the
+  hub, with a Child of the Light walking it — a Whitecloak flavor + S8-reputation
+  seed), the Stag and Lion (Master Fitch, canon innkeeper), the Silverworks, the
+  Market Square (a general dealer), and the Mining Quarter under the peaks
+  (6 rooms).
+- **The second region pole:** `silversmithing` — a new craft discipline taught
+  *only* by the Baerlon silversmith (region-exclusive by trainer placement, the
+  §8/Phase-7 economy). `learn silversmithing` → buy a silver bar → `work-silver`
+  at her tier-2 bench → a piece of Baerlon silverwork (a valuable trade good).
+  She's a **journeyman** trainer, so Baerlon also lets a Two Rivers smith raise a
+  craft cap past the apprentice ceiling at home.
+- **Acceptance met:** two regions with distinct identities (`two-rivers` /
+  `andor`); the Baerlon-only silversmithing recipe is gated to Baerlon by
+  placement. **One honest gap:** the `recipe.AcqRegional` tier is *not* literally
+  exercised — the recipe is tagged `baseline` because the engine has no
+  teach-a-single-recipe path, so a `regional`-tagged recipe would be ungrantable.
+  Region-exclusivity is achieved by the discipline's trainer placement instead.
+  Exercising `AcqRegional` end-to-end needs a crafting-system follow-on (a
+  trainer-teaches-named-recipe or region-grant path), not geography.
+- Verified: WoT pack boots clean — areas 7→9, rooms 34→43, mobs +6,
+  abilities +1, items +2; all 84 room exits resolve; pack/crafting/economy
+  tests green under `-race`.
+- **Remaining Region-2 pole (deferred):** the *Two-Rivers-only* recipe (the M4
+  bowyer/fletcher longbow chain — stave node → bowyer discipline → recipe) is a
+  crafting milestone, not geography; the longbow exists as an item/shop good but
+  has no craft recipe yet.
 
 ## Risks
 
@@ -287,8 +324,10 @@ sub-slices shipped (453af1a split → 3c09172 wot boot), each code-reviewed:
 ## Sequencing
 
 M0 (engine refactor) → M1 (Emond's Field) → M2 (wilds + roads) → M3 (outlying
-villages) → M4 (longbow + region metadata = Phase 7) → M5 (Baerlon seam). M0 is
-the only engine work; M1–M5 are content authored with the `mud-world-builder`
-skill into `content/wot`. Related: [[wot-setting-plan]] (architecture + boundary
+villages) → M4 (longbow + region metadata = Phase 7) → M5 (Baerlon seam +
+starter cut) — **all shipped.** M0 was the only engine work; M1–M5 are content
+authored with the `mud-world-builder` skill into `content/wot`. Next geography
+candidates: a fuller Baerlon, the Caemlyn Road east, or the Two-Rivers longbow
+craft chain (the deferred second recipe pole — a crafting slice, not geography). Related: [[wot-setting-plan]] (architecture + boundary
 audit), [[crafting-deferred-fixes]] (Phase 7 was the geography-blocked remainder
 this unblocks).

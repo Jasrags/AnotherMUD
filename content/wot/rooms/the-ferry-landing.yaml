@@ -10,8 +10,9 @@ description: |
   ferry waits to take you north across the water.
 exits:
   south: taren-ferry
+  # M5: the ferry crossing north over the Taren opens onto Andor proper — the
+  # north bank and the road to Baerlon (region: andor). The ferryman works it.
+  north: the-north-bank
 terrain: outdoors
-# M3c stub: the crossing north over the Taren opens onto Andor proper (the road
-# to Baerlon, Region 2) — the seam wired in M5. For now the ferry waits.
 mobs:
   - taren-ferryman

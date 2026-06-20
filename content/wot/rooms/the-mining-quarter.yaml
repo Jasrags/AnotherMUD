@@ -1,0 +1,17 @@
+id: the-mining-quarter
+area: baerlon
+name: "{w}Baerlon — the Mining Quarter{x}"
+description: |
+  The lane climbs to the upper edge of town, where Baerlon gives way to the
+  workings that feed it: a huddle of mean lodging-houses, ore-sheds, and the
+  black mouths of adits cut into the mountain's foot. Soot-streaked miners
+  trudge up and down the slope with picks over their shoulders and lamps at
+  their belts, and the air is thick with coal-smoke and the clatter of the
+  crushing-floors. Above, the Mountains of Mist climb grey into cloud, scarred
+  with the pale spoil of a hundred diggings. The square and the town proper lie
+  back down the slope to the south.
+exits:
+  south: the-market-square
+terrain: mountain
+mobs:
+  - baerlon-miner

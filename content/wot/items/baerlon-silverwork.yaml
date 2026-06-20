@@ -1,0 +1,15 @@
+id: baerlon-silverwork
+name: a piece of Baerlon silverwork
+type: item
+description: |
+  A fine-chased piece of worked silver — a footed cup, a chain, a clasp of
+  flowers, depending on the eye that prices it — the kind of luxury the Baerlon
+  silversmiths are known for the breadth of Andor. The work is patient and
+  precise, the bright metal taking the light in clean facets, and it carries
+  the quiet boast of a craft no Two Rivers village smith could match. Wealth and
+  taste made portable, and worth carrying a long way to sell.
+tags: [valuable, metal]
+keywords: [silverwork, silver, cup, work]
+properties:
+  weight: 1
+  value: 450

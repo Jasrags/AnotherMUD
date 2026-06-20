@@ -1,0 +1,18 @@
+id: the-market-square
+area: baerlon
+name: "{w}Baerlon — the Market Square{x}"
+description: |
+  The street opens into a broad square crowded with stalls and barrows, the
+  beating heart of Baerlon's trade. Andoran farmers sell grain and wool beside
+  peddlers hawking pins and ribbons, while ore-factors haggle over the worth of
+  the week's diggings and a town crier bawls the news from a barrel-top. A
+  general dealer keeps a well-stocked stall against the north side, and the
+  smell of the place is bread and dung and coal-smoke all at once. Market Street
+  runs back west; a steep lane climbs north toward the mining quarter and the
+  slopes above the town.
+exits:
+  west: market-street
+  north: the-mining-quarter
+terrain: outdoors
+mobs:
+  - baerlon-trader

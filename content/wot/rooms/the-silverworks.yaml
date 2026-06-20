@@ -1,0 +1,22 @@
+id: the-silverworks
+area: baerlon
+name: "{w}Baerlon — the Silverworks{x}"
+description: |
+  Down a short lane off the main street stands the workshop of one of Baerlon's
+  silversmiths, its open front breathing heat and the bright tang of hot metal.
+  Inside, the white gleam of worked silver catches the forge-light — cups and
+  chains and fine-chased plate, the luxury trade that the town's mines make
+  possible and that no Two Rivers village smith would ever attempt. The smith
+  works a delicate graver over a bowl with a jeweller's patience, and looks up
+  ready enough to teach a steady hand the craft. Market Street lies back north.
+exits:
+  north: market-street
+terrain: outdoors
+# Tier-2 silversmithing station (crafting-and-cooking §4): the silversmith's
+# bench. `learn silversmithing` here, then `craft work-silver` to chase a bought
+# silver bar into finished silverwork — the Baerlon regional craft loop.
+properties:
+  craft_stations:
+    silversmithing: 2
+mobs:
+  - baerlon-silversmith

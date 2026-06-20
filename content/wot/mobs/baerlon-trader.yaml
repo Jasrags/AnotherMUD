@@ -1,0 +1,26 @@
+id: baerlon-trader
+name: a general dealer
+type: npc
+behavior: stationary
+description: |
+  A brisk, comfortable woman in a good wool dress and a leather apron full of
+  pockets, she keeps the best-stocked stall in the square and prides herself on
+  having a little of everything an outfitter could want. Rope and lanterns,
+  rations and waterskins, the gear a traveller burns through on the road — she
+  has it all to hand, names a fair price the first time and a firm one the
+  second, and can tell a Two Rivers accent at twenty paces.
+tags: [humanoid, shop]
+keywords: [dealer, trader, merchant, woman, stall]
+stats:
+  hp_max: 24
+  str: 10
+disposition_rules:
+  default: friendly
+properties:
+  shop:
+    sells:
+      - wot:trail-rations
+      - wot:waterskin
+      - wot:hemp-rope
+      - wot:hooded-lantern
+      - wot:tent

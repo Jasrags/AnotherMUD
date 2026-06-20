@@ -1,0 +1,13 @@
+id: silver-bar
+name: a bar of refined silver
+type: item
+description: |
+  A short, heavy ingot of Baerlon silver, refined from the ore the miners bring
+  down off the slopes and stamped with the smelter's mark. It has the soft, cold
+  sheen of the true metal and a satisfying weight in the hand — the raw stock a
+  silversmith chases and draws into finished work.
+tags: [valuable, metal]
+keywords: [silver, bar, ingot]
+properties:
+  weight: 1
+  value: 80

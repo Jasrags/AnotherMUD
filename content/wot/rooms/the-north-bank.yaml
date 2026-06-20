@@ -1,0 +1,14 @@
+id: the-north-bank
+area: baerlon-road
+name: "{g}The North Bank of the Taren{x}"
+description: |
+  The ferry grinds against a gravel strand on the Taren's northern shore, and
+  with a few steps up the bank you are out of the Two Rivers altogether. The
+  land here feels different at once — drier, harder, the grass thinner over
+  stony ground, the hedges low and wind-combed. Behind you the brown river runs
+  broad and cold, and the rope ferry waits to carry folk back south to all you
+  know; ahead, a wide Andoran road climbs away north into open country.
+exits:
+  south: the-ferry-landing
+  north: the-andor-road
+terrain: grassland

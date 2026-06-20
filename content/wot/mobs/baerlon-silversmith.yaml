@@ -1,0 +1,39 @@
+id: baerlon-silversmith
+name: the Baerlon silversmith
+type: npc
+behavior: stationary
+description: |
+  A spare, precise woman with a jeweller's loupe pushed up into greying hair
+  and silver-dust worked permanently into the creases of her hands, she keeps
+  the finest metalworking shop on Market Street. Where a village smith beats out
+  hoes and horseshoes, she chases fine silver into cups and chains and ornament
+  for the merchants of half of Andor, and she carries the proud, exacting air of
+  a craftswoman who knows her work has no equal south of the river. She will
+  teach the trade to a steady, patient hand — and weigh out the silver to
+  practise on.
+# Trainer + shop on one mob (crafting-and-cooking §4): `learn silversmithing` /
+# `practice silversmithing` route through the trainer, `buy`/`list` through the
+# shop. She is the ONLY silversmithing trainer in the world — the discipline is
+# region-exclusive to Baerlon purely by her placement (the §8/Phase-7 regional
+# economy, second pole to the Two Rivers longbow). Journeyman tier: she also
+# lets a Two Rivers smith raise a craft cap past the apprentice ceiling at home.
+tags: [humanoid, skill_trainer, shop]
+keywords: [silversmith, smith, jeweller, woman]
+stats:
+  hp_max: 30
+  str: 11
+disposition_rules:
+  default: friendly
+trainer:
+  tier: journeyman
+  teach:
+    - silversmithing
+properties:
+  shop:
+    sells:
+      # The practice stock: a silver bar is the silversmithing input, so a new
+      # smith can learn -> buy a bar -> work it without a gathering chain (the
+      # M1 forge-iron-dagger loop, ported). The finished silverwork is the
+      # signature Baerlon regional good — buy it outright or craft your own.
+      - wot:silver-bar
+      - wot:baerlon-silverwork
