@@ -14,6 +14,13 @@ section added 2026-06-17**; **WoT EPIC feats-catalog section added 2026-06-18**;
 arc — M5 Baerlon road / M6 Whitebridge corridor).
 Regenerate by re-scanning the memory deferral files.
 
+> **Not yet folded in (2026-06-20):** the **M28 visibility**, **movement-cost**,
+> **mounts (core-v1)**, **M29 trade/auction**, and **M30 faction + reputation**
+> deferrals are not in the body below. Their open items live in the per-feature
+> memory files — `visibility-deferred-fixes`, `movement-cost-deferred-fixes`,
+> `mounts-build-log`, `auction-house-deferred-fixes`, `faction-s8-build-log`,
+> `reputation-build-log` — which are the source of truth until the next regen.
+
 > **Not yet folded in (read the memory files directly):** the M28 **visibility**
 > arc (`visibility-deferred-fixes` — HIGH secret-door op-gating + S6b refinements),
 > the M29 **player-trade trio** (`auction-house-deferred-fixes` — cap read-then-add

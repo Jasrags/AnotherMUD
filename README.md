@@ -10,12 +10,14 @@ built bottom-up in thin vertical slices against a set of behavior
 specifications (`docs/specs/`), which are the source of truth for what each
 system does.
 
-> **Status:** well past prototype. Milestones **M0–M29** are complete —
-> through **M28** (visibility + hidden exits) and **M29** (player trade:
+> **Status:** well past prototype. Milestones **M0–M30** are complete —
+> through **M28** (visibility + hidden exits), **M29** (player trade:
 > escrow/atomic-transaction primitive, direct player-to-player trade, and a
-> buyout auction house) — plus movement cost/encumbrance, account-first login
-> with a character roster and world-locking, **mounts** (ride/dismount +
-> mounted travel), and the in-progress **Wheel-of-Time mechanics EPIC**
+> buyout auction house), and **M30** (faction/standing + reputation/renown —
+> two per-character "how the world feels about you" axes) — plus movement
+> cost/encumbrance, account-first login with a character roster and
+> world-locking, **mounts** (ride/dismount + mounted travel), and the
+> in-progress **Wheel-of-Time mechanics EPIC**
 > (weapon identity, masterwork grades, ranged combat, two-weapon fighting,
 > armor depth, saves, conditions, skills, feats, and The One Power /
 > channeling). Content ships as three packs — `core` (engine-baseline
@@ -50,6 +52,10 @@ system does.
   primitive, and a buyout **auction house** (M29).
 - **Mounts** — rideable creatures you own; `ride`/`dismount` and mounted
   travel, where the mount becomes the metered mover.
+- **Faction & reputation** — per-character **standing** with content-defined
+  factions (the `standing` verb, quest rewards/prereqs, shop access & pricing,
+  ability gates, mob disposition) and a single-axis **renown** score with
+  Fame/Infamy/Low-Profile feats — both shown on `score`.
 - **Quests**, **social** (tells, channels, emotes, notifications), and a
   **roles & permissions** model with **admin verbs**.
 - **Content authoring** — a manifest-driven pack loader and a **sandboxed Lua
