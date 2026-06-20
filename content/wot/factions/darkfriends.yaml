@@ -1,0 +1,12 @@
+# The Friends of the Dark (faction.md §2) — those who have sworn themselves to
+# the Shadow. The Four Kings "well-dressed merchant" reputation seed gates its
+# disposition on this faction. Standing rises by serving the Shadow's ends and
+# falls by working against them.
+#
+# Rank ladder/bounds/starting default from the engine config.
+id: darkfriends
+name: The Friends of the Dark
+description: |
+  Darkfriends — those who have given themselves to the Shadow for power, or fear,
+  or promises whispered in the dark. They walk unmarked among the people of the
+  light, reward their own, and never forget a slight or a service.

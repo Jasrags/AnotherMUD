@@ -42,6 +42,7 @@ import (
 	"github.com/Jasrags/AnotherMUD/internal/entities"
 	"github.com/Jasrags/AnotherMUD/internal/escrow"
 	"github.com/Jasrags/AnotherMUD/internal/eventbus"
+	"github.com/Jasrags/AnotherMUD/internal/faction"
 	"github.com/Jasrags/AnotherMUD/internal/feat"
 	"github.com/Jasrags/AnotherMUD/internal/gameclock"
 	"github.com/Jasrags/AnotherMUD/internal/gathering"
@@ -1079,6 +1080,13 @@ func run() error {
 		&alignmentSink{bus: bus},
 		clk.Now,
 	)
+
+	// S8 faction/standing manager (faction.md) over the pack-loaded faction
+	// registry. The bus sink is deferred to the phase that wires consumers
+	// (on-kill / disposition) — a nil sink means Shift applies standing and
+	// rank tags but publishes no events yet. Per-character standing is read/
+	// written through the connActor faction.Entity adapter.
+	factionMgr := faction.NewManager(registries.Factions, nil, clk.Now)
 
 	// M8.4: class-side level-up subscribers. Path processor grants
 	// abilities (logs as unknown until M9 abilities ship). Stat
@@ -2801,6 +2809,7 @@ func run() error {
 		Languages:       registries.Languages,
 		Backgrounds:     registries.Backgrounds,
 		Alignment:       alignmentMgr,
+		Faction:         factionMgr,
 		DefaultRace:     cfg.DefaultRace,
 		RoleSeed:        cfg.RoleSeed,
 		StartID:         cfg.StartRoom,

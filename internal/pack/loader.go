@@ -18,6 +18,7 @@ import (
 	"github.com/Jasrags/AnotherMUD/internal/decoration"
 	"github.com/Jasrags/AnotherMUD/internal/effect"
 	"github.com/Jasrags/AnotherMUD/internal/emote"
+	"github.com/Jasrags/AnotherMUD/internal/faction"
 	"github.com/Jasrags/AnotherMUD/internal/feat"
 	"github.com/Jasrags/AnotherMUD/internal/gathering"
 	"github.com/Jasrags/AnotherMUD/internal/grade"
@@ -806,6 +807,10 @@ func loadPackContent(ctx context.Context, p Discovered, dst *Registries, scriptC
 	if err != nil {
 		return nil, nil, err
 	}
+	factionPaths, err := resolveGlobs(p.Dir, p.Manifest.Content.Factions)
+	if err != nil {
+		return nil, nil, err
+	}
 	foragePaths, err := resolveGlobs(p.Dir, p.Manifest.Content.ForageTables)
 	if err != nil {
 		return nil, nil, err
@@ -1175,6 +1180,29 @@ func loadPackContent(ctx context.Context, p Discovered, dst *Registries, scriptC
 			if err := dst.Biomes.RegisterPack(ns, b); err != nil {
 				return nil, nil, fmt.Errorf("%w (in %s)", err, bp)
 			}
+		}
+	}
+
+	// Factions (faction.md §2): per-character standing groups. The definition
+	// id is namespace-qualified (like loot/biomes); its rank ladder, bounds,
+	// and starting standing default from the registry config when omitted.
+	// Re-adding an id overrides (last-wins, like other content registries).
+	for _, fp := range factionPaths {
+		data, err := os.ReadFile(fp)
+		if err != nil {
+			return nil, nil, fmt.Errorf("read faction %s: %w", fp, err)
+		}
+		def, hasMin, hasMax, hasStarting, err := faction.Decode(data)
+		if err != nil {
+			return nil, nil, fmt.Errorf("%w (in %s)", err, fp)
+		}
+		qid, err := qualifyID(def.ID, ns)
+		if err != nil {
+			return nil, nil, fmt.Errorf("%w: %s: id: %v", ErrInvalidContent, fp, err)
+		}
+		def.ID = qid
+		if dst.Factions != nil {
+			dst.Factions.AddWithFlags(def, hasMin, hasMax, hasStarting)
 		}
 	}
 

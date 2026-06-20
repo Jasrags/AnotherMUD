@@ -1,0 +1,12 @@
+# The Queen's Guard of Andor (faction.md §2) — the soldiery that keeps the
+# Queen's law from Caemlyn to Baerlon. A natural gate for the Queen's Guardsmen
+# placed at the Caemlyn gates, the Whitebridge bridge-foot, and the Baerlon
+# Governor's Hall. Standing rises by upholding order and falls by breaking it.
+#
+# Rank ladder/bounds/starting default from the engine config.
+id: queens-guard
+name: The Queen's Guard of Andor
+description: |
+  The Queen's Guard keep the law and the Queen's peace across Andor — from the
+  white walls of Caemlyn to the rough streets of Baerlon. They value order above
+  all and look hard on those who disturb it.

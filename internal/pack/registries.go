@@ -7,6 +7,7 @@ import (
 	"github.com/Jasrags/AnotherMUD/internal/decoration"
 	"github.com/Jasrags/AnotherMUD/internal/effect"
 	"github.com/Jasrags/AnotherMUD/internal/emote"
+	"github.com/Jasrags/AnotherMUD/internal/faction"
 	"github.com/Jasrags/AnotherMUD/internal/feat"
 	"github.com/Jasrags/AnotherMUD/internal/gathering"
 	"github.com/Jasrags/AnotherMUD/internal/grade"
@@ -140,6 +141,12 @@ type Registries struct {
 	// the composition root Build()s it into a channel.Mapping that
 	// combat.Stats derives HitMod/AC through. Distinct from Channels (chat).
 	ChannelMap *channel.Registry
+	// Factions is the faction/standing registry (faction.md §2). Packs register
+	// faction definitions from their `factions:` glob; a character's per-faction
+	// standing (player save `faction_standing`) is read/written through the
+	// faction.Manager the composition root builds over this registry. Ids are
+	// namespace-qualified at load. May be empty (no factions defined).
+	Factions *faction.Registry
 
 	// Worlds is the active world set (character-identity §2): the
 	// namespaces of the loaded packs flagged `kind: world`, in load order.
@@ -186,6 +193,7 @@ func NewRegistries() *Registries {
 		Channels:     chat.NewRegistry(),
 		Emotes:       emote.NewRegistry(),
 		ChannelMap:   channel.NewRegistry(),
+		Factions:     faction.NewRegistry(faction.DefaultConfig()),
 		// Non-nil per the all-fields-initialized invariant; Load resets and
 		// repopulates it (the active world set is empty until Load runs).
 		Worlds: []string{},

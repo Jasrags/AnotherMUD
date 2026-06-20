@@ -36,6 +36,7 @@ import (
 	"github.com/Jasrags/AnotherMUD/internal/economy"
 	"github.com/Jasrags/AnotherMUD/internal/entities"
 	"github.com/Jasrags/AnotherMUD/internal/eventbus"
+	"github.com/Jasrags/AnotherMUD/internal/faction"
 	"github.com/Jasrags/AnotherMUD/internal/feat"
 	"github.com/Jasrags/AnotherMUD/internal/gathering"
 	"github.com/Jasrags/AnotherMUD/internal/gmcp"
@@ -174,6 +175,14 @@ type Config struct {
 	// leaves alignment at the persisted value with no tag
 	// (disposition rules that match on alignment won't fire).
 	Alignment *progression.AlignmentManager
+
+	// Faction is the S8 faction/standing manager (faction.md). Consulted at
+	// login to re-sync each touched faction's rank tag from the restored
+	// standing bag, and held by gameplay paths (on-kill, quests, the standing
+	// command) that Shift standing. nil-safe: a missing manager leaves
+	// standing at the persisted value with no rank tags (disposition rules
+	// that match on faction won't fire).
+	Faction *faction.Manager
 
 	// Classes is the M8.4 class registry. Consulted at login so
 	// the actor's classID is validated against loaded content, and
@@ -725,6 +734,18 @@ func run(ctx context.Context, c conn.Connection, cfg Config) error {
 	// history. AlignmentManager may be nil in tests.
 	a.mu.Lock()
 	a.alignment = loaded.Player.Alignment
+	// faction.md §8: restore the per-character standing bag. Rank tags are
+	// derived, re-synced from this bag below (outside the lock — the manager's
+	// Rank re-enters a.mu via Standing/SetRankTag). At this point in run() the
+	// actor is single-threaded (not yet registered with the manager or
+	// accepting input), so reading a.factionStanding outside the lock for the
+	// sync loop is safe.
+	if len(loaded.Player.FactionStanding) > 0 {
+		a.factionStanding = make(map[string]int, len(loaded.Player.FactionStanding))
+		for k, v := range loaded.Player.FactionStanding {
+			a.factionStanding[k] = v
+		}
+	}
 	// M11.1: restore persisted gold balance (spec §2.1). No manager
 	// involvement at login — gold has no bucket/tag derivation like
 	// alignment; the raw integer is the whole state.
@@ -761,6 +782,18 @@ func run(ctx context.Context, c conn.Connection, cfg Config) error {
 			}
 		} else {
 			_ = cfg.Alignment.Bucket(a)
+		}
+	}
+
+	// faction.md §8: re-mirror each touched faction's rank tag from the
+	// restored standing bag (derived state, not persisted). Outside the actor
+	// lock — Rank calls back into Standing/SetRankTag, which take a.mu. Skips
+	// any standing for a faction no longer in content (fail-soft).
+	if cfg.Faction != nil {
+		for fid := range a.factionStanding {
+			if def, ok := cfg.Faction.Registry().Get(fid); ok {
+				_ = cfg.Faction.Rank(a, def)
+			}
 		}
 	}
 
@@ -1971,6 +2004,17 @@ type connActor struct {
 	// Tags() appends it to racialTags so the AI evaluator's
 	// PlayerView carries it for has_tag matchers.
 	alignmentTag string
+
+	// factionStanding is the actor's per-faction standing bag (faction.md
+	// §3.1): faction id → signed standing. Loaded from save.FactionStanding,
+	// written through the faction.Entity adapter (SetStanding) which mirrors
+	// into a.save.FactionStanding. Guarded by a.mu.
+	factionStanding map[string]int
+	// factionRankTags mirrors the current rank tag per touched faction
+	// (faction.md §3.3): faction id → "faction:<id>:<rank>". Derived from
+	// standing on login and on every Shift; Tags()/HasTag fold the values in
+	// so disposition rules can match on them. Guarded by a.mu.
+	factionRankTags map[string]string
 
 	// gold is the actor's integer currency balance (M11.1 — spec
 	// economy-survival §2.1). Written through economy.CurrencyService
@@ -3993,15 +4037,20 @@ func (a *connActor) AddMadness(delta int) int {
 func (a *connActor) Tags() []string {
 	a.mu.Lock()
 	at := a.alignmentTag
+	ftags := make([]string, 0, len(a.factionRankTags))
+	for _, t := range a.factionRankTags {
+		ftags = append(ftags, t)
+	}
 	a.mu.Unlock()
-	if len(a.racialTags) == 0 && at == "" {
+	if len(a.racialTags) == 0 && at == "" && len(ftags) == 0 {
 		return nil
 	}
-	out := make([]string, 0, len(a.racialTags)+1)
+	out := make([]string, 0, len(a.racialTags)+1+len(ftags))
 	out = append(out, a.racialTags...)
 	if at != "" {
 		out = append(out, at)
 	}
+	out = append(out, ftags...)
 	return out
 }
 
@@ -4253,6 +4302,59 @@ func (a *connActor) AlignmentTag() string {
 	return a.alignmentTag
 }
 
+// --- faction.Entity adapter (faction.md §4) ----------------------------
+//
+// connActor satisfies faction.Entity so the FactionManager can read/write
+// per-faction standing and mirror rank tags. Mirrors the AlignmentEntity
+// adapter above; the same concurrency contract applies (the manager holds no
+// per-entity lock across these callbacks).
+
+// Standing returns the actor's stored standing with factionID and whether an
+// entry is present (faction.md §3.1; absent → the manager substitutes the
+// faction's starting standing).
+func (a *connActor) Standing(factionID string) (int, bool) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	v, ok := a.factionStanding[factionID]
+	return v, ok
+}
+
+// SetStanding writes the actor's standing with factionID (the manager passes a
+// value already clamped to the faction's bounds), mirrors it into the save bag,
+// and marks the actor dirty so it rides to disk on the next Persist.
+func (a *connActor) SetStanding(factionID string, value int) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	if a.factionStanding == nil {
+		a.factionStanding = make(map[string]int)
+	}
+	a.factionStanding[factionID] = value
+	if a.save != nil {
+		if a.save.FactionStanding == nil {
+			a.save.FactionStanding = make(map[string]int)
+		}
+		a.save.FactionStanding[factionID] = value
+	}
+	a.markDirtyLocked()
+}
+
+// SetRankTag installs the rank tag for factionID (faction.md §3.3). The map is
+// keyed by faction id, so a new tag inherently replaces the prior one for that
+// faction only; an empty tag clears it. Rank tags are derived state — never
+// persisted (re-synced from standing on login).
+func (a *connActor) SetRankTag(factionID, rankTag string) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	if a.factionRankTags == nil {
+		a.factionRankTags = make(map[string]string)
+	}
+	if rankTag == "" {
+		delete(a.factionRankTags, factionID)
+		return
+	}
+	a.factionRankTags[factionID] = rankTag
+}
+
 // Gold returns the actor's current balance (M11.1 — spec §2.1).
 // Reads under a.mu so the value is consistent with concurrent
 // AddGold / SetGold writes. Satisfies economy.Entity.
@@ -4427,7 +4529,15 @@ func (a *connActor) HasTag(tag string) bool {
 			return true
 		}
 	}
-	return a.alignmentTag == tag
+	if a.alignmentTag == tag {
+		return true
+	}
+	for _, t := range a.factionRankTags {
+		if t == tag {
+			return true
+		}
+	}
+	return false
 }
 
 // StatBlock returns the actor's progression-layer stat block. The

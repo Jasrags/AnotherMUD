@@ -1,0 +1,15 @@
+# The Children of the Light (faction.md §2) — the Whitecloaks, the militant
+# order that names itself the one sure sword against the Shadow and sees
+# Darkfriends in every face that does not love them. Standing rises by serving
+# their cause and falls by crossing them. This is the faction the Baerlon
+# Child-of-the-Light reputation seed gates its disposition on.
+#
+# Rank ladder, bounds, and starting standing default from the engine config
+# (Hostile … Allied, ±1000, start Neutral/0).
+id: children-of-the-light
+name: The Children of the Light
+description: |
+  The militant Children of the Light — the Whitecloaks — hold themselves the one
+  true sword against the Shadow and trust no one who does not love them. They
+  reward zeal in their cause and look on the rest of the world with cold,
+  unblinking suspicion.

@@ -127,7 +127,7 @@ import (
 // means "knows no recipes beyond what a discipline grants at runtime";
 // the migration injects nothing. A known id whose recipe was removed from
 // content loads cleanly and is ignored at restore (§9), never an error.
-const CurrentVersion = 30
+const CurrentVersion = 31
 
 // Sentinel errors callers may check via errors.Is.
 var (
@@ -345,6 +345,16 @@ type Save struct {
 	// background home_language that seeds them); an id with no registered
 	// language renders by id rather than erroring (fail-soft, like KnownFeats).
 	KnownLanguages []string `yaml:"known_languages,omitempty"`
+
+	// FactionStanding is the per-character standing bag (faction.md §8): a
+	// map of faction id → signed standing. Added in v31; empty/absent = an
+	// untouched character, who reads every faction at its starting standing.
+	// Written through the faction.Entity adapter (SetStanding) on a Shift/Set;
+	// rank tags are NOT persisted — they are re-derived from this bag on login
+	// (the manager's Rank sync), exactly as alignment re-mirrors its bucket
+	// tag. The combined faction history is runtime-only in v1 (matching
+	// alignment's runtime-only history; §8 history persistence deferred).
+	FactionStanding map[string]int `yaml:"faction_standing,omitempty"`
 
 	// Pools is the persisted current value of the actor's generalized
 	// resource pools — mana / movement today, the One Power tomorrow (WoT
@@ -631,6 +641,7 @@ var playerMigrations = map[int]func(map[string]any) (map[string]any, error){
 	27: migrateV27toV28,
 	28: migrateV28toV29,
 	29: migrateV29toV30,
+	30: migrateV30toV31,
 }
 
 // migrateV1toV2 adds the empty inventory/equipment blocks introduced
@@ -1059,6 +1070,15 @@ func migrateV28toV29(in map[string]any) (map[string]any, error) {
 // the languages substrate, and a returning character's home language is not
 // re-granted). No on-disk shape needs to change.
 func migrateV29toV30(in map[string]any) (map[string]any, error) {
+	return in, nil
+}
+
+// migrateV30toV31 is a no-op: the v31 addition (Save.FactionStanding, the
+// per-character faction standing bag — faction.md §8) is absent on a pre-v31
+// save, which decodes to an empty bag — the correct default (an untouched
+// character reads every faction at its starting standing; §8.1). No on-disk
+// shape needs to change.
+func migrateV30toV31(in map[string]any) (map[string]any, error) {
 	return in, nil
 }
 

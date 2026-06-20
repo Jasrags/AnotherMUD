@@ -87,7 +87,10 @@ type ContentPaths struct {
 	Languages   []string `yaml:"languages,omitempty"`
 	Feats       []string `yaml:"feats,omitempty"`
 	Abilities   []string `yaml:"abilities,omitempty"`
-	Theme       []string `yaml:"theme,omitempty"`
+	// Factions declares faction/standing definition files (faction.md §2).
+	// Loaded into Registries.Factions; ids are namespace-qualified at load.
+	Factions []string `yaml:"factions,omitempty"`
+	Theme    []string `yaml:"theme,omitempty"`
 	// ChannelMap declares combat-channel derivation files (the channel
 	// layer — docs/themes/channel-vocabulary.md §7). Loaded into
 	// Registries.ChannelMap; later packs override earlier per-channel.

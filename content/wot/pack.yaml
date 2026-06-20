@@ -45,6 +45,10 @@ content:
     - languages/*.yaml
   feats:
     - feats/*.yaml
+  # Faction/standing definitions (faction.md §2) — the Children of the Light,
+  # Darkfriends, and the Queen's Guard. The loader enumerates by this glob.
+  factions:
+    - factions/*.yaml
   abilities:
     - abilities/*.yaml
   effects:
