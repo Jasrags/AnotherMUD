@@ -56,6 +56,18 @@ and `THEME-AXIS-PLAN.md` are superseded by `BACKLOG.md` and now live under
   admin moderation, town-square auctioneer; slices B0–B6). Plan:
   `docs/plans/trade-plan.md`; details in the M29 section below. Deferred
   post-MVP: bidding, push/mail delivery, location-scoped markets.
+- **M30 Faction & Reputation — COMPLETE** (WoT EPIC S8; `faction.md` +
+  `reputation.md`). Two per-character sibling axes generalizing alignment's
+  architecture: **faction/standing** (`internal/faction`, save v31 — N relational
+  axes, ranks/tags/history, the cancellable shift pipeline, earn via quest rewards
+  + faction-mob kills, and all consumers: score line, quest reward/prereq, shop
+  access-gate + ally pricing, ability faction gate) and the single-axis
+  **renown** sibling (`internal/reputation`, save v32 — magnitude-symmetric tiers,
+  recognition-check primitive, quest-reward earn, the Fame/Infamy/Low-Profile
+  feats, the renown/infamy disposition reaction). Details in the M30 section
+  below. Deferred: faction room/area access (greenfield), the R4 recognition
+  consumer, and the worn-signifier / class-increment / creation-seed renown earn
+  sources.
 - **Active arc — WoT Mechanics EPIC** (post-M27, additive sub-epics; Decision 0
   = posture A, translate onto tick/chance). Shipped so far: **S1 weapon-identity**,
   **S1.H masterwork** (item quality grades — masterwork/power-wrought, delivered
@@ -72,13 +84,14 @@ and `THEME-AXIS-PLAN.md` are superseded by `BACKLOG.md` and now live under
   + remaining S2-Phase-4+/S7/S8/S10/S11 candidates live in the EPIC tracker
   `docs/themes/wot-mechanics-epic.md`; the arc is summarized below after M27.
 - **Specs ahead of code.** Behavior contracts written without
-  implementation, still awaiting a milestone: `tag-observers`, `faction`,
-  the trade trio (`trade-escrow` / `direct-trade` / `auction-house`), and
-  the remaining WoT EPIC S1 increments (`armor-depth`, `size-and-wielding`,
-  `ranged-combat`). They sit in `BACKLOG.md` §1. The earlier
+  implementation, still awaiting a milestone: `tag-observers` and
+  `area-effects`. They sit in `BACKLOG.md` §1/§2. The earlier
   `roles-and-permissions` / `admin-verbs` / `item-decorations` contracts
-  have since shipped (M19 / M20), as have `crafting-and-cooking` (M27) and
-  `visibility` / `hidden-exits` (M28).
+  have since shipped (M19 / M20), as have `crafting-and-cooking` (M27),
+  `visibility` / `hidden-exits` (M28), the trade trio (`trade-escrow` /
+  `direct-trade` / `auction-house`, M29), `faction` + `reputation` (M30),
+  and the WoT EPIC S1 increments (`armor-depth`, `size-and-wielding`,
+  `ranged-combat`).
 
 ---
 
@@ -3761,6 +3774,72 @@ Deferred (post-MVP): bidding (needs anti-sniping policy), push-delivery/
 mail-attachments (greenfield, shared with Mail), location-scoped markets,
 container listing (a listed container rehydrates empty in v1), graded-item
 [rarity] render polish. See `docs/plans/trade-plan.md`.
+
+---
+
+### M30 — Faction & Reputation (complete)
+
+WoT EPIC sub-epic S8: two per-character "how the world feels about you" axes,
+both **generalizations of alignment's architecture** (`progression.md` §6 — a
+signed score, content-defined named bands mirrored as tags, a bounded history,
+a cancellable shift pipeline, admin-immune shifts, and a gating helper).
+**Faction/standing** is that pattern over **N relational axes** (per
+content-defined faction); **reputation/renown** is the **single absolute axis**
+(how widely known, not who likes you). Both are leaf packages
+(`internal/faction`, `internal/reputation`) the composition root drives via
+`Entity`/`Sink` adapters — the same seam alignment uses. Two ship lines:
+A = Faction, B = Reputation. Specs: `docs/specs/faction.md`,
+`docs/specs/reputation.md`.
+
+**Ship line A — Faction / standing** (`faction.md`):
+
+- [x] **Engine + persistence** (`internal/faction`, save **v31** — `migrateV30toV31`).
+      `Definition`/`Rank` ladder + `Registry` (default ladder Hostile…Allied,
+      ±1000, start 0); `Manager` (Get/Rank/Set/Shift/History/ResolveRanks/
+      MeetsStanding); the combined bounded history; the `Save.FactionStanding`
+      bag round-tripping through the connActor `faction.Entity` adapter; rank
+      tags re-derived on login (not persisted).
+- [x] **Events + on-kill + `standing` verb** — `faction.shift.check` (cancellable)
+      / `faction.shifted` / `faction.rank.changed`; mob `faction:` membership +
+      an on-kill `Shift` by the configured delta; the `standing` verb.
+- [x] **Disposition consumers** — the AI evaluator's `PlayerView.Standings` +
+      a numeric faction clause (`min_standing`/`max_standing`) on disposition
+      rules; the WoT Whitecloak/Darkfriend/Queen's-Guard seeds react.
+- [x] **Consumer closeout (F1–F4)** — score sheet standing line (F1); quest
+      reward **grant** + prerequisite **require** (F2, the primary earn/gate
+      path); shop access-gate ("refuse hostiles") + favored-customer pricing
+      (F3, a new `economy.StandingFunc` seam); ability faction-standing gate
+      (F4, a new `faction_restricted` fizzle via `MeetsFactionStanding`).
+- [x] **Demo content** — the Queen's Guard initiation questline + faction shops
+      (the Darkfriend fence's gate + discount; Basel Gill's ally pricing).
+
+**Ship line B — Reputation / renown** (`reputation.md`):
+
+- [x] **R1 core** (`internal/reputation`) — `Tier` ladder + `Config` +
+      **magnitude-symmetric** `TierOf` (fame +N and infamy −N share a tier,
+      PD-5); the `Manager` (Get/Tier/Set/Shift/Check/History); the recognition
+      **`Check`** primitive (`|renown| + die ≥ difficulty`, renown 0 auto-fails).
+- [x] **R2 persistence** — save **v32** (`Save.Reputation`, `migrateV31toV32`);
+      the connActor `reputation.Entity` adapter; tier tag re-synced on login.
+- [x] **R3 events + earn + score** — `reputation.shift.check` / `shifted` /
+      `tier.changed`; the quest-reward renown earn path; the `score` renown line.
+- [x] **R5 feats** — Fame (a flat **effective-renown** bonus, `EffectiveRenown`
+      = base + Fame), Infamy (a flag that reframes the reaction as feared,
+      PD-5), Low Profile (a `reputation.shift.check` subscriber scaling renown
+      gains down); the three feats authored in the WoT pack.
+- [x] **R6 disposition reaction** — a renown clause (`min_renown` magnitude +
+      `infamous` flag) on disposition rules, reading **effective** renown; the
+      Palace Guard is wary of the infamous.
+
+Every slice landed on `main`, `-race`-green, each reviewed clean (no
+CRITICAL/HIGH). Both arcs are **capability-ahead-of-content** at the engine
+level — the WoT pack demos exercise them, but most content has yet to adopt the
+hooks. Deferred (in the `faction-s8-build-log` / `reputation-build-log`
+memories): faction **room/area access** (genuinely greenfield — alignment
+room-access was itself never built), the **R4 recognition consumer** (the
+`Check` primitive exists but nothing calls it; should read effective renown),
+and the renown **earn sources** still open (worn `item.Reputation` signifier,
+class level-up increment, creation starting-renown seed).
 
 ---
 
