@@ -1,0 +1,15 @@
+id: the-vale-of-chinden
+area: mountains-of-mist
+name: "{g}The Vale of Chinden{x}"
+description: |
+  Down out of the wind, the world goes suddenly green and quiet. A high vale
+  opens here, ringed by peaks and carpeted in deep grass and wildflowers, a
+  stream chuckling down its centre over smooth stones. The air is warm and still
+  and smells of growing things, and the great trees ahead to the west stand
+  taller and straighter than any wood of men — the first sign, to those who can
+  read it, that this is no ordinary mountain hollow. The pass climbs back east
+  into cloud.
+exits:
+  east: the-cloudgate
+  west: the-elders-stone
+terrain: field

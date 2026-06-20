@@ -1,0 +1,22 @@
+id: chinden-treesinger
+name: an Ogier Treesinger
+type: npc
+behavior: stationary
+# An Ogier who practices the Treesong (the lost-among-men art the Ogier keep).
+# A non-playable NPC race member; descriptive name, no invented canon.
+size: large
+description: |
+  Hands spread toward a half-shaped trunk, eyes half-closed, the Treesinger stands
+  in the grove and sings — a deep, slow, wordless music that seems to come up
+  through the ground as much as from his chest. Under it the wood answers,
+  flowing by degrees too slow to watch into the curve he holds in his mind. He is
+  young by Ogier reckoning, perhaps a century and a half, and lost enough in the
+  song that he does not at once notice you; when he does, the music gentles but
+  does not stop.
+tags: [humanoid, ogier]
+keywords: [treesinger, singer, ogier, he]
+disposition_rules:
+  default: friendly
+stats:
+  hp_max: 90
+  str: 22

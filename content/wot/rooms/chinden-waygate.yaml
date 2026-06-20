@@ -1,0 +1,17 @@
+id: chinden-waygate
+area: stedding-chinden
+name: "{g}The Overgrown Waygate{x}"
+description: |
+  Set into a low rise at the grove's edge stands a slab of silvery metal twice
+  the height of a tall man, its surface a single carved thicket of vine and leaf
+  so fine and so deep it seems to stir at the corner of the eye. A Waygate — one
+  of the old roads the Ogier made in the Breaking — but the trefoil Avendesora
+  leaf that would open it is gone, prised loose and hidden, and ivy has grown
+  thick across the silver. The Ogier have not walked the Ways since they turned
+  foul, and they do not mean to open this one. The grove lies back south.
+exits:
+  south: chinden-grove
+terrain: forest
+# Lore + a future hook (other-worlds.md §The Ways): the Waygate is deliberately
+# SHUT — the Avendesora leaf is missing — so it is non-functional today. When/if
+# the Ways are built as a realm-graph, this is Chinden's gateway node.

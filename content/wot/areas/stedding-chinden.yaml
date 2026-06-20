@@ -1,0 +1,18 @@
+id: stedding-chinden
+name: Stedding Chinden
+description: |
+  A hidden Ogier stedding folded into a high sheltered vale of the Mountains of
+  Mist — the nearest of the forty-one occupied stedding to the Two Rivers, though
+  few in Emond's Field have ever seen it or know the way. Within its bounds the
+  One Power lies still and unreachable, no Shadowspawn will cross the threshold,
+  and the great trees are sung rather than felled. The Ogier keep to themselves
+  here, slow and gentle and long of memory, tending gardens older than the
+  nations of men.
+region: two-rivers
+reset_interval: 300
+# A tended Ogier holding, never pitch-black: a dim light floor keeps the stedding
+# navigable and its folk visible at any hour (light-and-darkness §2.4 — the same
+# lamp-lit-settlement knob Emond's Field uses), full daylight by day. The mountain
+# approach outside the bound (mountains-of-mist) deliberately keeps no floor, so a
+# night crossing of the passes still wants a torch or lantern.
+light_floor: dim

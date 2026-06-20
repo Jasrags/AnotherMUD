@@ -1,0 +1,23 @@
+id: chinden-stump
+area: stedding-chinden
+name: "{g}The Stump of Stedding Chinden{x}"
+description: |
+  At the heart of the stedding stands the Stump — the hollowed remnant of a tree
+  so vast that a ring of Ogier may sit in council within its open bole, its
+  rim worn to a soft sheen by generations of broad hands. Around it the ground is
+  swept earth and moss, shaded by trees grown in deliberate, graceful order, and
+  the stillness here is total: no bird startles, no wind hurries, and a channeler
+  would feel the One Power simply gone, beyond any reaching. Mounded dwellings rise
+  to the north, a singing-grove lies west, gardens open south, and the threshold
+  stone stands east.
+exits:
+  east: the-elders-stone
+  north: chinden-dwellings
+  west: chinden-grove
+  south: chinden-gardens
+terrain: field
+# Stedding are the safest rest in the world (other-worlds.md §Stedding): a
+# generous room-level regen, like the inn hearth (economy-survival §5.7).
+healing_rate: 3
+mobs:
+  - chinden-elder

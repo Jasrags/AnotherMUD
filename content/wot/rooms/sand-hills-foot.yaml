@@ -7,7 +7,10 @@ description: |
   mountains. A cold wind comes down off the heights, and the going grows hard
   underfoot, all loose scree and shouldered stone. The wood lies back east; west,
   a dark cleft in the hillside marks where the old diggings cut into the rock.
+  Few ever look up — but a faint trail switches away into the cloud above,
+  climbing toward the high passes of the Mountains of Mist.
 exits:
   east: deep-westwood
   west: the-diggings
+  up: the-mist-trail
 terrain: mountain

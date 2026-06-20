@@ -1,0 +1,24 @@
+id: chinden-elder
+name: the Eldest of Stedding Chinden
+type: npc
+behavior: stationary
+# An Ogier Elder (the Ogier are a non-playable NPC race). Descriptive title
+# rather than an invented proper name, to avoid conflicting with canon. The
+# Councils of Elders that lead a stedding are female-dominated (backgrounds.md
+# §Ogier), so the Eldest here is a matriarch.
+size: large
+description: |
+  Eldest of the Council that keeps Stedding Chinden, she sits within the bole of
+  the Stump as though she had grown there — white-haired, vast, and serene, her
+  broad face seamed with more years than the oldest throne of men has stood. Her
+  ears, long and tufted, lie still; little hurries an Ogier of her age, and
+  nothing hurries the Eldest. She regards you with the mild, measuring patience
+  of one who has watched empires rise and fall and found them, on the whole, a
+  trifle hasty.
+tags: [humanoid, ogier]
+keywords: [eldest, elder, ogier, council, she]
+disposition_rules:
+  default: friendly
+stats:
+  hp_max: 110
+  str: 21
