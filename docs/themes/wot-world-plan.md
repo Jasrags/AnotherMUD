@@ -376,23 +376,34 @@ Sheran → Carysford → Caemlyn**.
   the Leaping Fish inn, the paved **ford** itself (a fisherman, the watermill),
   and the east bank with the first distant gleam of Caemlyn's walls. The last
   quiet stop before the city.
-- **Caemlyn** (new area `caemlyn`, `region: andor`): a **capital starter cut**
-  (8 rooms) that lands the iconic structure — the **High Gate** (Queen's Guard)
-  → the **New City** avenue + a city dealer → the **Great Square** (the famous
-  view of the Inner City) → the **Queen's Blessing** inn (**Basel Gill**, canon)
-  → the **Ogier-built Inner City wall** of silver-streaked white stone → the
-  garden-hung **Inner City** → the **Palace Plaza** (the white-spired Royal
-  Palace) → the **Palace Gates** (gated — the Queen's leave required; interior is
-  a future depth slice). Reached via one new road room (`the-caemlyn-approach`).
-- Verified: WoT pack boots clean — areas 15→17, rooms 74→88 (+14), mobs +6; the
-  full W→E spine traces Whitebridge → … → Caemlyn's Palace gates; all 174 room
-  exits resolve and are reciprocal; pack tests green under `-race`.
-- **Caemlyn is the eastern terminus for now.** Future depth: the Royal Palace
-  interior, more Inner/New-City districts, and the roads radiating out of Caemlyn
-  — the **northern arm** (Braem Wood: New Braem, Kore Springs), the **southern
-  arm** (the **Black Tower**, Harlon Bridge, Forel Market, Buryhill, Damelien,
-  Cullen's Crossing), and the hill ranges (Splintered, Tunaighan) — all from the
-  Andor map.
+- **Caemlyn** (new area `caemlyn`, `region: andor`): the capital, **expanded to
+  be map-faithful** against Adam Whitehead's Caemlyn map (atlasoficeandfire) — a
+  14-room city, not a linear corridor. The **New City** ring carries all five
+  named outer gates, each a **stub seam for a future road arm**: the **Whitebridge
+  Gate** (W — our road in), the **Tar Valon Gate** (N → Tar Valon), the **Sunrise
+  Gate** (E → Cairhien), the **Far Madding Gate** (S), and the **Lugard Gate**
+  (SW → Murandy) — plus the **Great Square**, the **Queen's Blessing** inn
+  (**Basel Gill**, canon), and **Full Moon Street** dividing New City from Inner.
+  Through the **Mondel Gate** in the Ogier-built silver-streaked wall lies the
+  **Inner City**: the **Queen's Plaza**, the gated **Royal Palace** (the Queen's
+  leave required — interior is future depth), and — a gift of a hook — the
+  **Waygate** (a shut Ogier Waygate into the Ways; ties to the steddings, a future
+  travel system). Reached via one road room (`the-caemlyn-approach`).
+- Verified: WoT pack boots clean — rooms now 94 (Caemlyn 14); the full W→E spine
+  traces Whitebridge → … → the Royal Palace gates; all 186 room exits resolve and
+  are reciprocal; pack tests green under `-race`. (The M9 starter cut was 8 rooms;
+  the map-faithful gate/Inner-City/Waygate expansion brought it to 14.)
+- **Caemlyn is the hub for what comes next.** The five gate-stubs are the seams
+  for the roads radiating out: the **Tar Valon Gate** (N → Tar Valon / the White
+  Tower), the **Sunrise Gate** (E → Cairhien, over the Erinin), the **Far Madding
+  Gate** (S), and the **Lugard Gate** (SW → Murandy). Other future depth: the
+  Royal Palace interior; the Waygate → **the Ways** (a greenfield travel system);
+  more Inner/New-City districts and the named inns (Crown & Lion, Culain's Hound,
+  …); the **northern arm** (Braem Wood: New Braem, Kore Springs), the **southern
+  arm** (Harlon Bridge, Forel Market, Buryhill, Damelien, Cullen's Crossing), and
+  the hill ranges (Splintered, Tunaighan) — all from the Andor map. The **Black
+  Tower** (the Asha'man fortress, on the southern arm) is **deferred by request
+  (2026-06-19)** — not to be built next until the deferral is lifted.
 
 ## Risks
 

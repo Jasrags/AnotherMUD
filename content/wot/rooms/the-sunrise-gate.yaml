@@ -1,0 +1,14 @@
+id: the-sunrise-gate
+area: caemlyn
+name: "{w}Caemlyn — the Sunrise Gate{x}"
+description: |
+  The great eastern gate of Caemlyn faces the dawn, and through it runs the road
+  to Cairhien and the lands beyond the Erinin. It is one of the busiest gates in
+  the city, a ceaseless churn of merchant trains carrying the wealth of the east
+  — silks, wine, worked stone — in under the Queen's lions, and the Guard here are
+  many and sharp-eyed. The avenues of the New City run back west toward the great
+  square; the Cairhien road runs out east beyond the wall.
+exits:
+  west: the-caemlyn-square
+  # East stub: the road to Cairhien (over the Erinin) — a future arm.
+terrain: outdoors

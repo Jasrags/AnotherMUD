@@ -1,0 +1,16 @@
+id: the-full-moon-street
+area: caemlyn
+name: "{w}Caemlyn — Full Moon Street{x}"
+description: |
+  Full Moon Street curves along the foot of the Inner City's ancient wall, the
+  broad bright boundary where the red-brick bustle of the New City gives way to
+  the older, quieter splendour within. On one hand rise the shops and houses of
+  the new town; on the other, sheer and pale and streaked with silver, stands the
+  Ogier-built wall and the Mondel Gate that pierces it. The great square lies back
+  north; the Far Madding Gate and the southern road open to the south, and the
+  Mondel Gate leads west into the Inner City.
+exits:
+  north: the-caemlyn-square
+  south: the-far-madding-gate
+  west: the-mondel-gate
+terrain: outdoors

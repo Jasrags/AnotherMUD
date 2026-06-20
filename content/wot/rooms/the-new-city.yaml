@@ -8,10 +8,14 @@ description: |
   swirl of every sort the realm can show — merchants and soldiers, fine ladies in
   carriages, beggars and gleemen and country folk gawping like you — and a sharp
   city dealer keeps a stall of every conceivable ware where the crowd is thickest.
-  The High Gate stands back west; ahead east the avenue opens into a great square.
+  The Whitebridge Gate stands back west; northward a broad avenue runs to the Tar
+  Valon Gate and south to the Lugard Gate, and ahead east the way opens into the
+  great square.
 exits:
-  west: the-high-gate
+  west: the-whitebridge-gate
   east: the-caemlyn-square
+  north: the-tar-valon-gate
+  south: the-lugard-gate
 terrain: outdoors
 mobs:
   - caemlyn-dealer

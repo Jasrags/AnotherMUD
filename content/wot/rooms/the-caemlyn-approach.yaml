@@ -11,5 +11,5 @@ description: |
   long road west lie behind; the high western gate of Caemlyn stands open ahead.
 exits:
   west: the-cary-bank
-  east: the-high-gate
+  east: the-whitebridge-gate
 terrain: grassland

@@ -8,9 +8,11 @@ description: |
   hanging terraces of flowers, fountains playing in shaded courts, trees grown old
   in stone planters older still. It is achingly beautiful, and built to a grander
   and gentler measure than men keep now, the work of the Ogier in the morning of
-  the world. The outer wall and gate lie back west; ahead east the streets open
-  before the Royal Palace.
+  the world. The Mondel Gate and the outer city lie back east; south the streets
+  open before the Queen's Plaza and the Palace, and north, half-hidden in a quiet
+  garden court, stands a thing older even than this city — an Ogier Waygate.
 exits:
-  west: the-inner-wall
-  east: the-palace-plaza
+  east: the-mondel-gate
+  south: the-queens-plaza
+  north: the-waygate
 terrain: outdoors

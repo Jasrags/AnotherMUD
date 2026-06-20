@@ -1,0 +1,17 @@
+id: the-waygate
+area: caemlyn
+name: "{w}Caemlyn — the Waygate{x}"
+description: |
+  In a still, walled garden court apart from the streets stands the Waygate, and
+  the air about it is heavy and waiting. It is a great slab of what looks like
+  living silver, worked all over in a tracery of leaf and vine so fine and so
+  deep that the eye loses itself in it — and woven through the pattern, if you
+  know to look, the trefoil leaf of Avendesora, the Tree of Life. Behind that
+  worked silver lie the Ways, the Ogier's lost road between the steddings, dark
+  and dangerous and long untravelled. The gate is shut, and nothing here will
+  open it for you. The Inner City lies back south.
+exits:
+  south: the-inner-city
+  # Future: the Ways (a dark, dangerous Ogier travel network between Waygates) —
+  # a greenfield travel system; the gate stays shut until then. See the steddings.
+terrain: outdoors
