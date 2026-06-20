@@ -103,11 +103,11 @@ Shadoon**) refused.
 | Effect | Status |
 |---|---|
 | **One Power suppressed inside** | ✅ **Shipped** (commit `8231edf`). A `stedding` room tag + a gate in the cast chokepoint (`enqueueAbility`) refuses any One-Power weave (`AbilitySpell`) cast from a `stedding`-tagged room ("Within the stedding the True Source lies beyond your reach"). Mundane abilities pass; weaves work outside the bound. Stedding Chinden's five interior rooms carry the tag. |
-| **Rest haven** | ✅ **Shipped** (the aura of peace, partial): the Stump carries a generous `healing_rate`. A room-wide regen bonus across all stedding rooms + the no-PvP flag are the natural next increment. |
+| **Peace aura — rest haven** | ✅ **Shipped** (commit `261f917`): every stedding room carries a `healing_rate` regen bonus (Stump 3, the rest 2) — the aura of peace as a passive rest/regen for all in the room, channeler or not. |
+| **Peace aura — no violence** | ✅ **Shipped** (commit `261f917`): every stedding room is tagged `safe-room`, so the combat engage-refusal blocks all violence inside (PvP and PvE) — "Violence is forbidden here." |
+| **Shadowspawn refusal-to-enter** | ✅ **Shipped** (commit `261f917`): a mob tagged `shadowspawn` will not cross into a `stedding`-tagged room — gated in both wander (idle roaming) and retaliate (pursuit drops the grudge at the bound, so fleeing into a stedding is sanctuary). Pre-emptive — no Shadowspawn mobs exist yet; the gate fires on the `shadowspawn` mob tag, ready for the first Trolloc/Fade. |
 | **Suppress active weaves on entry / "can't even sense it"** | ⛔ Deferred — the current gate blocks the *cast*; collapsing already-active maintained weaves on entry (keeping persistent bonds) and suppressing Power-detection wants an effect-system hook on room transition. |
 | **Block weave effects originating outside, targeting inside** | ⛔ Deferred — needs target-room awareness in the weave-effect path. |
-| **Shadowspawn refusal-to-enter** | ⛔ Deferred — mob-AI gate on the `stedding` tag. The next stedding effect to build; matters once Shadowspawn range this far west. |
-| **No PvP inside** | ⛔ Deferred — a room flag the combat/PvP path honours (pairs with the peace aura). |
 | **Tel'aran'rhiod exclusion** | ⛔ Deferred — T'a'R is unbuilt. |
 | **Waygate** | 🟡 Placed as **lore** (Stedding Chinden's Overgrown Waygate, deliberately shut — the Avendesora leaf removed). The Ways as a traversable realm-graph are unbuilt; this is the gateway node for when they are. |
 | **The Longing** | ⛔ Not applicable as a player mechanic — Ogier are a non-playable NPC race here. Would be an Ogier-NPC timer only. |
