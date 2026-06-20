@@ -44,7 +44,8 @@ on 2026-06-10). **M28** (Visibility + Hidden exits) shipped 2026-06-15 (removed 
 **Movement cost / encumbrance**, **account-first login + character roster**, and
 **character world-locking** (save v23) shipped 2026-06-16. **M29** (the player-trade
 trio — `trade-escrow` / `direct-trade` / `auction-house`) shipped too. Behavior
-contracts still written-ahead-of-code: `tag-observers` and `faction` (§1). What remains
+contracts still written-ahead-of-code: `tag-observers` and `faction` (§1), plus
+`reputation` and `area-effects` (specced but build-pending, tracked in §2). What remains
 unspecced (§2) is the greenfield gameplay/economy-depth tail the themes didn't claim,
 plus the **WoT Mechanics EPIC** (`docs/themes/wot-mechanics-epic.md`).
 

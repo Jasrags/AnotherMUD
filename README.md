@@ -191,6 +191,7 @@ make watch      # live-reload: rebuild + restart on save (needs air)
 make test       # go test -race -count=1 ./...   (race detector is mandatory)
 make cover      # coverage profile + summary
 make check      # fmt + vet + test — the gate to run before committing
+make worldmap   # render docs/maps/world.html (interactive content map)
 make help       # list all targets
 ```
 
@@ -219,7 +220,7 @@ Conventions the codebase follows (see [`docs/ROADMAP.md`](docs/ROADMAP.md)
 
 | Doc | What it is |
 |---|---|
-| [`docs/specs/`](docs/specs/) | **Behavior specifications — the source of truth** (57 specs; read `docs/specs/README.md` first) |
+| [`docs/specs/`](docs/specs/) | **Behavior specifications — the source of truth** (59 specs; read `docs/specs/README.md` first) |
 | [`docs/ROADMAP.md`](docs/ROADMAP.md) | Milestone done-log + foundations/conventions |
 | [`docs/BACKLOG.md`](docs/BACKLOG.md) | Open work + candidate next themes |
 | [`docs/DEFERRED-BACKLOG.md`](docs/DEFERRED-BACKLOG.md) | Index of deferred fixes across milestones |
