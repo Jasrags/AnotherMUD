@@ -1,0 +1,15 @@
+id: the-four-kings-approach
+area: caemlyn-road
+name: "{y}The Approach to Four Kings{x}"
+description: |
+  The road runs in among the outbuildings of Four Kings, and the town makes a
+  poor first impression and lives down to it. Tumbledown wagon-yards and
+  ramshackle warehouses crowd the verges, the mud is deep and foul, and the few
+  folk about watch you pass with a flat, hungry calculation that has nothing
+  friendly in it. There is no wall and no gate worth the name — only the road
+  thickening into a mean street ahead, east into the town. The open country and
+  the long road to Whitebridge lie back west.
+exits:
+  west: the-wagon-road
+  east: four-kings-gate
+terrain: grassland

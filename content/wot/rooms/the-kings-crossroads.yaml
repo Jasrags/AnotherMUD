@@ -1,0 +1,17 @@
+id: the-kings-crossroads
+area: four-kings
+name: "{y}Four Kings — the Crossroads{x}"
+description: |
+  The heart of the town is the crossing that gives it its name, where the rough
+  track up from the southern mines meets the Caemlyn Road in a wide, filthy
+  square churned to a quagmire by the wagons. Cheap signboards creak over the
+  doors of two or three inns and a gambling-house, hawkers cry watered drink, and
+  the crowd is all teamsters, peddlers, and men whose trade does not bear asking
+  after. The Caemlyn Road runs back west and on east; a battered inn, the Dancing
+  Cartman, stands to the north, and a wagon-yard opens off the square to the south.
+exits:
+  west: four-kings-gate
+  east: the-east-end
+  north: the-dancing-cartman
+  south: the-wagon-yard
+terrain: outdoors

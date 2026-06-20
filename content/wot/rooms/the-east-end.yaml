@@ -1,0 +1,16 @@
+id: the-east-end
+area: four-kings
+name: "{y}Four Kings — the East End{x}"
+description: |
+  The street peters out at the eastern edge of town in a straggle of doss-houses
+  and shuttered stalls, and the Caemlyn Road gathers itself again beyond the last
+  of them to run on east. A signpost, much abused, points the way: Market Sheran,
+  Carysford, and far off down the long road, Caemlyn and the Queen. After the
+  mean crowding of Four Kings the open country ahead looks almost inviting. The
+  crossroads and the town lie back west; the road runs on east — though that
+  stretch waits to be travelled another day.
+exits:
+  west: the-kings-crossroads
+  # M7 east stub: the Caemlyn Road runs on to Market Sheran -> Carysford ->
+  # Arien -> Caemlyn (wot_geography_mud.md). Wired when that leg is authored.
+terrain: outdoors

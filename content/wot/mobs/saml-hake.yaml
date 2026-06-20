@@ -1,0 +1,24 @@
+id: saml-hake
+name: Saml Hake
+type: npc
+behavior: stationary
+description: |
+  The innkeeper of the Dancing Cartman is a lean, stooped, sallow man with a
+  permanent sour twist to his mouth and quick eyes that price everything they
+  light on, you included. He keeps a cheap house and a cheaper conscience, waters
+  his ale and shorts his change, and has a pair of broken-nosed bullyboys in the
+  back room for guests who object. He will sell you a bed and a bad supper civilly
+  enough — so long as your coin is on the table first.
+tags: [humanoid, shop]
+keywords: [saml, hake, innkeeper, host]
+stats:
+  hp_max: 24
+  str: 11
+disposition_rules:
+  default: neutral
+properties:
+  shop:
+    sells:
+      - wot:cooked-meal
+      - wot:trail-rations
+      - wot:fine-wine

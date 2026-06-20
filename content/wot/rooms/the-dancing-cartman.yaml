@@ -1,0 +1,16 @@
+id: the-dancing-cartman
+area: four-kings
+name: "{y}Four Kings — the Dancing Cartman{x}"
+description: |
+  The Dancing Cartman is the least bad of Four Kings' inns, which is to say it is
+  a dim, smoky, low-ceilinged room that smells of stale beer and frying fat, its
+  floor unswept and its custom rougher still. Teamsters and travellers hunch over
+  their drink at greasy tables, an unwashed potboy threads between them, and the
+  innkeeper watches the room and the door alike with a thin, grasping wariness, as
+  ready to short a man his change as to call the bullyboys on a guest who cannot
+  pay. The crossroads and the muddy square lie back out to the south.
+exits:
+  south: the-kings-crossroads
+terrain: indoors
+mobs:
+  - saml-hake

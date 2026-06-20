@@ -120,10 +120,12 @@ regional pole). **M6 added the Whitebridge corridor** (see the M6 milestone
 below): a crossroads ~2/3 up the Baerlon road branches east onto the **Caemlyn
 Road**, which runs down the Arinelle vale to the **White Bridge** — the
 Age-of-Legends glass span — and into **Whitebridge** town on the far bank.
+**M7 pushed the Caemlyn Road east** to **Four Kings** (see the M7 milestone
+below) — the grubby crossroads wagon-town, the first stop east of Whitebridge.
 Still future: a fuller Baerlon (the Queen's Guard, a Whitecloak garrison once
-S8 reputation lands); the **Caemlyn Road east** of Whitebridge (Four Kings →
-Market Sheran → Carysford → Arien → Caemlyn); and the **Arinelle river route**
-south toward Illian (the Whitebridge docks + riverman are the seam).
+S8 reputation lands); the **Caemlyn Road east** of Four Kings (Market Sheran →
+Carysford → Arien → Caemlyn — the East End is the stub); and the **Arinelle
+river route** south toward Illian (the Whitebridge docks + riverman are the seam).
 
 ## Engine mapping (how WoT content rides the existing systems)
 
@@ -315,6 +317,25 @@ sub-slices shipped (453af1a split → 3c09172 wot boot), each code-reviewed:
   → Market Sheran → Carysford → Arien → Caemlyn) and the Arinelle river route
   south. No regional craft good for Whitebridge (a trade/crossing town, not a
   craft-signature one) — left for a later economy pass.
+
+### M7 — The Caemlyn Road east → Four Kings — ✅ SHIPPED
+
+- **The road east** (added to the `caemlyn-road` area, `region: andor`): Whitebridge's
+  market square now exits east onto 3 road rooms — the highway east of town → the
+  wagon road (where the rough roads up from the southern mines join) → the grubby
+  approach to Four Kings.
+- **Four Kings** (new area, `region: andor`): a starter cut of the lawless
+  crossroads wagon-town — the west end (a hard-faced tough loitering), the
+  Crossroads that names the town (the mine-road meets the Caemlyn Road), the
+  **Dancing Cartman** (Saml Hake, canon innkeeper — a cheap, grasping house), the
+  wagon yard (a too-smooth merchant — a **Darkfriend seed**, the road-going twin of
+  Baerlon's Whitecloak), and the East End (the stub onward to Market Sheran).
+  5 rooms. A deliberate tonal drop from Whitebridge's Queen's-law respectability to
+  a town that "belongs to nobody."
+- Verified: WoT pack boots clean — areas 12→13, rooms 58→66 (+8), mobs +3; all
+  130 room exits resolve and are reciprocal; pack tests green under `-race`.
+- **Onward stub:** the East End's east exit is unwired — the next leg (Market
+  Sheran → Carysford → Arien → Caemlyn) picks up there.
 
 ## Risks
 

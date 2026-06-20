@@ -1,0 +1,16 @@
+id: the-wagon-yard
+area: four-kings
+name: "{y}Four Kings — the Wagon Yard{x}"
+description: |
+  A big muddy yard behind the square, fenced with grey weathered rails and
+  crowded with the canvas-topped wagons of the merchant trains that are Four
+  Kings' whole reason for being. Teamsters grease axles and curse their teams,
+  ostlers lead off blowing horses, and the air is thick with dung and harness-oil
+  and the bawling of oxen. Among the working folk a well-dressed merchant moves
+  with a soft, unhurried smile that does not quite fit the place. The crossroads
+  lies back north.
+exits:
+  north: the-kings-crossroads
+terrain: outdoors
+mobs:
+  - smooth-merchant

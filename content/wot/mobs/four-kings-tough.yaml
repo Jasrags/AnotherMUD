@@ -1,0 +1,20 @@
+id: four-kings-tough
+name: a hard-faced tough
+type: npc
+behavior: stationary
+description: |
+  A heavy-shouldered man with a flattened nose, a cudgel hung ready at his belt,
+  and the still, patient watchfulness of someone who hurts people for a living and
+  is good at it. He lounges against the fence as though he owns the street — which,
+  in the way that matters in Four Kings, he very nearly does — and his eyes follow
+  you with the frank, measuring interest of a man working out whether you are worth
+  the trouble. It would be wise to give him no reason to decide that you are.
+# Neutral, not hostile (the wild-boar pattern): he won't aggro, so the town stays
+# passable — but he fights back hard if provoked. The teeth of a lawless town.
+tags: [humanoid]
+keywords: [tough, bully, man, thug]
+stats:
+  hp_max: 36
+  str: 15
+disposition_rules:
+  default: neutral

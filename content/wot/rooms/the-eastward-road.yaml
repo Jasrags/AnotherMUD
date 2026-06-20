@@ -1,0 +1,14 @@
+id: the-eastward-road
+area: caemlyn-road
+name: "{g}The Caemlyn Road — East of Whitebridge{x}"
+description: |
+  Past the last houses of Whitebridge the Caemlyn Road throws off the town and
+  strikes out east across open Andoran farmland, broad and busy and straight as
+  a bowshot. Wagons grind by in both directions, raising a haze of dust that
+  hangs golden in the afternoon light, and the white arch of the bridge dwindles
+  behind. This is the long middle of Andor, prosperous and dull and safe — for
+  now. Whitebridge lies back west; the road runs on east toward Four Kings.
+exits:
+  west: whitebridge-square
+  east: the-wagon-road
+terrain: grassland

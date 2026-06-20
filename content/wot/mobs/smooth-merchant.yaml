@@ -1,0 +1,23 @@
+id: smooth-merchant
+name: a well-dressed merchant
+type: npc
+behavior: stationary
+description: |
+  Too well-dressed for Four Kings by half, the merchant wears good dark wool and
+  soft boots that have never known this mud, and he watches the wagon-yard with a
+  small, knowing smile, as though the whole grubby town were a private joke he is
+  enjoying. He is courteous, even warm, and asks after your road and your business
+  with a friendly interest that is somehow a half-step too keen — and there is
+  something behind his eyes, when the smile slips, that the rats in the walls seem
+  to feel before you do, for they have all gone very quiet.
+# Flavor + faction seed (no faction system yet — disposition is a wary neutral,
+# not auto-hostile, so the town stays passable). The Dark's quiet reach onto the
+# roads of Andor; like the Baerlon Child of the Light, this mob is the hook for
+# S8 reputation / a Darkfriend questline when those land.
+tags: [humanoid]
+keywords: [merchant, trader, man, stranger]
+stats:
+  hp_max: 28
+  str: 12
+disposition_rules:
+  default: neutral
