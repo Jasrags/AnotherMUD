@@ -134,18 +134,21 @@ func ScoreHandler(ctx context.Context, c *Context) error {
 		d.Gift = channelingGiftLabel(gh.ChannelingGift())
 	}
 
-	// Renown (reputation.md §3). Probed via an anonymous interface so the sheet
-	// stays decoupled from the reputation adapter; shown whenever reputation is
-	// wired (RenownTier returns a non-empty name), so it reads as a core
-	// character attribute alongside alignment — Unknown included.
+	// Renown (reputation.md §3 / §7). Probed via an anonymous interface so the
+	// sheet stays decoupled from the reputation adapter; shown whenever reputation
+	// is wired (RenownTier returns a non-empty name), as a core attribute beside
+	// alignment — Unknown included. EffectiveRenown folds in the Fame feat bonus
+	// (§7), and Infamous flags the Infamy feat so the line reads as feared.
 	if rh, ok := c.Actor.(interface {
-		Renown() int
+		EffectiveRenown() int
 		RenownTier() string
+		Infamous() bool
 	}); ok {
 		if tier := rh.RenownTier(); tier != "" {
 			d.HasRenown = true
-			d.Renown = rh.Renown()
+			d.Renown = rh.EffectiveRenown()
 			d.RenownTier = tier
+			d.Infamous = rh.Infamous()
 		}
 	}
 
@@ -266,10 +269,12 @@ type scoreData struct {
 
 	// HasRenown shows the renown line (reputation.md §3) when reputation is
 	// wired. RenownTier is the display tier name (e.g. "Known in the Region");
-	// Renown is the signed score.
+	// Renown is the effective score (base + Fame, §7); Infamous flags the Infamy
+	// feat so the line reads as feared rather than admired (PD-5).
 	HasRenown  bool
 	RenownTier string
 	Renown     int
+	Infamous   bool
 
 	// Standings is one pre-formatted "Faction (Rank)" string per faction the
 	// character has *touched* (faction.md §6) — an untouched character shows no
@@ -338,7 +343,12 @@ func renderScore(d scoreData) string {
 		charCol = append(charCol, scKV("Alignment", scHi(fmt.Sprintf("%s (%d)", d.AlignTag, d.Align)), 11))
 	}
 	if d.HasRenown {
-		charCol = append(charCol, scKV("Renown", scHi(fmt.Sprintf("%s (%d)", d.RenownTier, d.Renown)), 11))
+		// Infamy (PD-5) reframes the same magnitude as feared rather than known.
+		label := d.RenownTier
+		if d.Infamous {
+			label += " (infamous)"
+		}
+		charCol = append(charCol, scKV("Renown", scHi(fmt.Sprintf("%s (%d)", label, d.Renown)), 11))
 	}
 	if d.HasVitals {
 		combatCol = append(combatCol,

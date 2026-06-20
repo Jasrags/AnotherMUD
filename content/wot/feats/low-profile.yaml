@@ -1,0 +1,12 @@
+# Reputation feat (reputation.md §7 / docs/wot/feats.md — Low Profile). The
+# character actively stays out of the songs: renown GAINS are scaled down (by
+# ANOTHERMUD_LOW_PROFILE_FACTOR, default keep-half), while losses are untouched
+# — already-earned fame is not refunded. A boolean global flag read by the
+# reputation.shift.check subscriber. No prerequisites.
+id: low-profile
+name: Low Profile
+description: |
+  You take care not to be noticed. Your deeds spread slowly, if at all — fame
+  finds you reluctantly, no matter what you do.
+grants:
+  - { kind: low_profile }

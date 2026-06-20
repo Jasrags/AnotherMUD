@@ -238,3 +238,29 @@ func TestValidGrantKindAndAxis(t *testing.T) {
 		t.Error("ValidSaveAxis wrong")
 	}
 }
+
+// The reputation feats (Fame / Infamy / Low Profile — reputation.md §7) aggregate
+// as a flat renown bonus plus two boolean flags.
+func TestComputeBonuses_Reputation(t *testing.T) {
+	r := NewRegistry()
+	_ = r.Register(&Feat{ID: "fame", Grants: []Grant{{Kind: GrantRenownBonus, Magnitude: 2}}})
+	_ = r.Register(&Feat{ID: "infamy", Grants: []Grant{{Kind: GrantInfamy}}})
+	_ = r.Register(&Feat{ID: "low-profile", Grants: []Grant{{Kind: GrantLowProfile}}})
+
+	b := ComputeBonuses([]Taken{{FeatID: "fame"}, {FeatID: "infamy"}, {FeatID: "low-profile"}}, r)
+	if b.RenownBonus != 2 {
+		t.Errorf("RenownBonus = %d, want 2", b.RenownBonus)
+	}
+	if !b.Infamous {
+		t.Error("Infamous = false, want true")
+	}
+	if !b.LowProfile {
+		t.Error("LowProfile = false, want true")
+	}
+
+	// A character with none of them aggregates to zero/false.
+	empty := ComputeBonuses(nil, r)
+	if empty.RenownBonus != 0 || empty.Infamous || empty.LowProfile {
+		t.Errorf("empty reputation bonuses = %+v, want zero/false", empty)
+	}
+}

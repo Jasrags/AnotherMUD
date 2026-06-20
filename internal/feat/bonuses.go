@@ -58,6 +58,15 @@ type Bonuses struct {
 	// proficiency with (Militia). Nil = none. The consumer
 	// (connActor.IsWeaponProficient) unions these with the class proficiency set.
 	WeaponProficiencyCategories []string
+	// RenownBonus is the additive effective-renown bonus (Fame — reputation.md
+	// §7). Zero = none. The renown sibling of ACBonus.
+	RenownBonus int
+	// Infamous is true if any held feat flags the character as infamous (Infamy —
+	// reputation.md §7): reactions resolve as feared regardless of the score sign.
+	Infamous bool
+	// LowProfile is true if any held feat scales down renown gains (Low Profile —
+	// reputation.md §7). The reputation.shift.check consumer reads it.
+	LowProfile bool
 }
 
 // ComputeBonuses aggregates the bonuses conferred by the held feats, resolving
@@ -146,6 +155,12 @@ func ComputeBonuses(held []Taken, reg *Registry) Bonuses {
 				b.OffHandHitReduce += g.Magnitude * mult
 			case GrantOffHandAttack:
 				b.OffHandExtraAttacks += g.Magnitude * mult
+			case GrantRenownBonus:
+				b.RenownBonus += g.Magnitude * mult
+			case GrantInfamy:
+				b.Infamous = true
+			case GrantLowProfile:
+				b.LowProfile = true
 			case GrantAbility:
 				if g.Target != "" {
 					// Normalize for uniformity with the other keyed kinds

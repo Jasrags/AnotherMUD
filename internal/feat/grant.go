@@ -63,6 +63,21 @@ const (
 	// class proficiency set, so a weapon outside the class's proficiencies no
 	// longer takes the non-proficient to-hit penalty.
 	GrantWeaponProficiency GrantKind = "weapon_proficiency"
+	// GrantRenownBonus adds Magnitude to the character's EFFECTIVE renown (Fame —
+	// reputation.md §7). A GLOBAL grant (Target unused), the renown sibling of
+	// GrantACBonus. Consumer: connActor.EffectiveRenown folds it onto the stored
+	// score for display and (later) recognition checks.
+	GrantRenownBonus GrantKind = "renown_bonus"
+	// GrantInfamy flags the character as infamous (Infamy — reputation.md §7,
+	// PD-5): reactions resolve as feared/reviled regardless of the score's sign.
+	// A boolean GLOBAL grant (Target/Magnitude unused). Consumer: the disposition
+	// reaction (R6) and the score sheet's infamy marker.
+	GrantInfamy GrantKind = "infamy"
+	// GrantLowProfile scales DOWN subsequent renown gains (Low Profile —
+	// reputation.md §7): a famous-but-discreet character accrues fame slowly.
+	// A boolean GLOBAL grant (Target/Magnitude unused). Consumer: the
+	// reputation.shift.check subscriber scales a positive suggested delta.
+	GrantLowProfile GrantKind = "low_profile"
 )
 
 // ValidGrantKind reports whether k is a known grant kind.
@@ -70,7 +85,7 @@ func ValidGrantKind(k GrantKind) bool {
 	switch k {
 	case GrantSaveBonus, GrantMaxHP, GrantHitBonus, GrantCritThreat, GrantSkillBonus, GrantAbility,
 		GrantTwoWeaponHit, GrantOffHandHit, GrantOffHandAttack, GrantDamageBonus, GrantACBonus,
-		GrantWeaponProficiency:
+		GrantWeaponProficiency, GrantRenownBonus, GrantInfamy, GrantLowProfile:
 		return true
 	}
 	return false

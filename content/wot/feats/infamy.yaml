@@ -1,0 +1,12 @@
+# Reputation feat (reputation.md §7 / docs/wot/feats.md — Infamy, PD-5). The
+# character is known and FEARED rather than admired: their renown resolves as
+# dread regardless of its sign. A boolean global flag (no magnitude) — the score
+# sheet marks the renown line "(infamous)", and the disposition reaction (R6)
+# will read it to flip admiration into fear. No prerequisites.
+id: infamy
+name: Infamy
+description: |
+  Your name is spoken in fear, not admiration. Those who recognize you give way
+  — but they remember, and they do not forgive.
+grants:
+  - { kind: infamy }

@@ -1,0 +1,12 @@
+# Reputation feat (reputation.md §7 / docs/wot/feats.md — Fame). The character
+# is widely admired: a flat bump to effective renown, the renown sibling of a
+# save/AC bonus. Folds into EffectiveRenown (shown on `score`); a later
+# recognition-check consumer reads the same value. No prerequisites — fame can
+# come to anyone. A single global grant; magnitude is the renown added.
+id: fame
+name: Fame
+description: |
+  Your name has spread further than your deeds alone would carry it. You are
+  more widely recognized — and more readily trusted, served, and remembered.
+grants:
+  - { kind: renown_bonus, magnitude: 150 }

@@ -267,6 +267,13 @@ type featWeaponBonuses struct {
 	// them with the class proficiency set, so a granted category no longer
 	// takes the non-proficient to-hit penalty. Recomputes on feat change.
 	weaponProficiencyCategories []string
+	// renownBonus / infamous / lowProfile are the reputation feat grants
+	// (reputation.md §7): Fame's flat effective-renown bonus, the Infamy reaction
+	// flag, and the Low-Profile gain-rate reducer. Read lock-free via the
+	// RenownBonus/Infamous/HasLowProfile accessors; recompute on feat change.
+	renownBonus int
+	infamous    bool
+	lowProfile  bool
 }
 
 // applyFeatGrants recomputes ALL feat grants from the actor's known_feats and
@@ -338,6 +345,9 @@ func (a *connActor) applyFeatGrants() {
 		hasGreatCleave:      hasGreatCleave,
 
 		weaponProficiencyCategories: b.WeaponProficiencyCategories,
+		renownBonus:                 b.RenownBonus,
+		infamous:                    b.Infamous,
+		lowProfile:                  b.LowProfile,
 	})
 
 	// 3c: ability grants (Power Attack). Teach at baseline ONLY if not already

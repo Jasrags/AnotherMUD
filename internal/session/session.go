@@ -4451,16 +4451,19 @@ func (a *connActor) SetTierTag(tierTag string) {
 }
 
 // RenownTier returns the actor's current renown tier display name (reputation.md
-// §3), resolved from the score via the manager's ladder. "" when reputation
-// isn't wired. Used by the score sheet. TierOf is pure (no callback), so holding
-// a.mu across it is safe.
+// §3), resolved from EFFECTIVE renown (base + the Fame feat bonus, §7) via the
+// manager's ladder, so the score sheet's tier and number agree. "" when
+// reputation isn't wired. RenownBonus reads its own atomic cache, so it is
+// resolved outside a.mu (don't nest the locks).
 func (a *connActor) RenownTier() string {
 	a.mu.Lock()
-	defer a.mu.Unlock()
-	if a.reputation == nil {
+	mgr := a.reputation
+	base := a.renown
+	a.mu.Unlock()
+	if mgr == nil {
 		return ""
 	}
-	return a.reputation.Config().TierOf(a.renown)
+	return mgr.Config().TierOf(base + a.RenownBonus())
 }
 
 // Gold returns the actor's current balance (M11.1 — spec §2.1).
@@ -5435,6 +5438,40 @@ func (a *connActor) HasCleave() (cleave, great bool) {
 		return false, false
 	}
 	return fb.hasCleave || fb.hasGreatCleave, fb.hasGreatCleave
+}
+
+// RenownBonus returns the additive effective-renown bonus from held feats (Fame
+// — reputation.md §7), read lock-free from the feat-bonus cache. 0 when none.
+func (a *connActor) RenownBonus() int {
+	fb := a.featWeaponBonus.Load()
+	if fb == nil {
+		return 0
+	}
+	return fb.renownBonus
+}
+
+// Infamous reports whether a held feat flags the actor as infamous (Infamy —
+// reputation.md §7): reactions resolve as feared regardless of the score sign.
+// Read lock-free from the feat-bonus cache.
+func (a *connActor) Infamous() bool {
+	fb := a.featWeaponBonus.Load()
+	return fb != nil && fb.infamous
+}
+
+// HasLowProfile reports whether a held feat scales down renown gains (Low
+// Profile — reputation.md §7). The reputation.shift.check subscriber reads it.
+func (a *connActor) HasLowProfile() bool {
+	fb := a.featWeaponBonus.Load()
+	return fb != nil && fb.lowProfile
+}
+
+// EffectiveRenown returns the actor's renown score folded with the Fame feat
+// bonus (reputation.md §7) — the "how known am I" value the score sheet shows
+// and recognition checks (R4) will read. The stored base score (Renown) remains
+// the source of truth the manager shifts; Fame is an additive overlay. (Worn
+// signifiers, §5.4, will fold in here too when that earn path lands.)
+func (a *connActor) EffectiveRenown() int {
+	return a.Renown() + a.RenownBonus()
 }
 
 // SetPowerAttack toggles the Power Attack stance and marks the save dirty so

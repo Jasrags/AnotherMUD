@@ -2359,6 +2359,15 @@ func decodeFeat(path, ns string) (*feat.Feat, error) {
 					return nil, fmt.Errorf("%w: %s: grants[%d] ac_bonus needs a positive magnitude",
 						ErrInvalidContent, path, i)
 				}
+			case feat.GrantRenownBonus:
+				// Global renown grant (Fame): beneficial-only, Target unused.
+				if g.Magnitude <= 0 {
+					return nil, fmt.Errorf("%w: %s: grants[%d] renown_bonus needs a positive magnitude",
+						ErrInvalidContent, path, i)
+				}
+			case feat.GrantInfamy, feat.GrantLowProfile:
+				// Boolean global flags (Infamy / Low Profile): Target and Magnitude
+				// are unused — the presence of the grant is the whole effect.
 			case feat.GrantAbility:
 				if strings.TrimSpace(g.Target) == "" {
 					return nil, fmt.Errorf("%w: %s: grants[%d] ability needs a target (ability id)",

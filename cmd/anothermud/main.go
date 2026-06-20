@@ -1463,6 +1463,34 @@ func run() error {
 		factionMgr.Shift(ctx, actor, def, factionOnKillDelta, "kill:"+e.TemplateID)
 	})
 
+	// reputation.md §7 Low Profile: a holder of the Low-Profile feat accrues
+	// renown slowly. Subscribe to the cancellable reputation.shift.check and
+	// scale DOWN a positive (gain) delta by the configured factor — losses are
+	// untouched (you can still fall from fame at full speed). Resolves the actor
+	// through the session manager; a non-player, offline, or non-Low-Profile
+	// subject is left alone. Process-lifetime subscription.
+	lowProfileFactor := envFloatOr("ANOTHERMUD_LOW_PROFILE_FACTOR", 0.5)
+	if lowProfileFactor <= 0 || lowProfileFactor > 1 {
+		slog.Warn("ANOTHERMUD_LOW_PROFILE_FACTOR out of range (0,1]; using default 0.5",
+			slog.Float64("value", lowProfileFactor))
+		lowProfileFactor = 0.5
+	}
+	bus.Subscribe(eventbus.EventReputationShiftCheck, func(ctx context.Context, ev eventbus.Event) {
+		e, ok := ev.(*eventbus.ReputationShiftCheck)
+		if !ok {
+			return
+		}
+		gain := e.SuggestedDelta()
+		if gain <= 0 {
+			return // Low Profile scales gains only, not losses (§7)
+		}
+		actor, ok := mgr.GetByPlayerID(e.EntityID)
+		if !ok || !actor.HasLowProfile() {
+			return
+		}
+		e.RewriteDelta(int(float64(gain) * lowProfileFactor))
+	})
+
 	// M7.5: mob.killed → entity untrack closes M6.6's deferred death-
 	// driven purge. The spawn tracker's Purge predicate calls
 	// entities.Store.GetByID; an untracked mob fails that check on the
