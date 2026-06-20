@@ -9,7 +9,9 @@ index.
 **Generated:** 2026-05-28 (M0→M12 body); **post-M12 section added 2026-06-02**
 (M13→M22, from the memory index); **tab-completion deferrals added 2026-06-03**;
 **M23→M27 + light/dark section added 2026-06-10**; **WoT EPIC S1 equipment-debt
-section added 2026-06-17**; **WoT EPIC feats-catalog section added 2026-06-18**.
+section added 2026-06-17**; **WoT EPIC feats-catalog section added 2026-06-18**;
+**river-passage greenfield deferral added 2026-06-19** (from the WoT geography
+arc — M5 Baerlon road / M6 Whitebridge corridor).
 Regenerate by re-scanning the memory deferral files.
 
 > **Not yet folded in (read the memory files directly):** the M28 **visibility**
@@ -340,6 +342,49 @@ items from those phases:
 Still open from the prior S9 class work: the **class bonus-feat gap** (`feats-deferred-fixes`
 — no `bonus_feat_levels` mechanism; the multiclass feat-credit over-earning fix shares
 that hook — do both together).
+
+---
+
+## Greenfield — river passage & navigation (deferred)
+
+Surfaced 2026-06-19 from the WoT geography arc (M5 Baerlon road / M6 the
+Whitebridge corridor over the Arinelle). **Today rivers are content, not
+mechanics:** there is no water terrain or biome, no swimming, no
+current/drowning, no boats-as-vehicles, and no river you can travel *on*. The
+Arinelle, the Taren, and the White River are described scenery rendered in room
+prose; a player meets them three ways, all plain land rooms + ordinary exits:
+
+- **a described boundary** — a bank room sits *beside* the water (e.g.
+  `the-west-bank`, `the-whitebridge-docks`, `the-white-river-bank`); the river is
+  prose, not enterable;
+- **a fixed crossing** — a bridge or "ferry" is a normal room exit. The White
+  Bridge is one room with `east`/`west` exits; the Taren ferry is a free `north`
+  move (the `taren-ferryman` / Whitebridge `riverman` are flavor mobs — their
+  prose mentions a price, but there is **no toll/fare mechanic**);
+- **following the river** — a chain of bank rooms running *parallel* to the
+  water, never on it.
+
+`world.Exit` can only model `Target` / `Door` / `Hidden` — there is no water,
+current, fare, or vehicle concept an exit can carry. This is fine today and
+nothing needs more.
+
+**Eventually we want real river passage + navigation** (a barge down the
+Arinelle, river fast-travel, unbridged fording). Greenfield, **spec-first**.
+Rough shape from the 2026-06-19 design discussion:
+
+- a **water terrain/biome** (`terrain: water`) for river/lake rooms;
+- a **river-travel mode** — most naturally modeled like **mounts**
+  (`docs/specs/mounts.md`): a boat becomes a *metered mover* that re-points the
+  `movement-cost` points/gate from the walker to the vessel; or a simpler **paid
+  barge-route** fast-travel link between two dock rooms;
+- optionally **swim checks** (a Reflex/Strength `saves.md` contest to ford
+  unbridged water, drowning on failure) if unbridged crossing should carry risk.
+
+**Seam already in place:** the Whitebridge **docks + riverman** (M6) are the
+intended hang-point for an Arinelle route south toward Illian. **Fix-by:** when a
+navigable-river / water-travel feature is wanted — first deliverable is a new
+spec slice; promote to `BACKLOG.md` §2 (greenfield systems, alongside mail /
+banking) when scheduled.
 
 ---
 
