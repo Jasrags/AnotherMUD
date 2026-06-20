@@ -127,7 +127,7 @@ import (
 // means "knows no recipes beyond what a discipline grants at runtime";
 // the migration injects nothing. A known id whose recipe was removed from
 // content loads cleanly and is ignored at restore (§9), never an error.
-const CurrentVersion = 31
+const CurrentVersion = 32
 
 // Sentinel errors callers may check via errors.Is.
 var (
@@ -355,6 +355,20 @@ type Save struct {
 	// tag. The combined faction history is runtime-only in v1 (matching
 	// alignment's runtime-only history; §8 history persistence deferred).
 	FactionStanding map[string]int `yaml:"faction_standing,omitempty"`
+
+	// Reputation is the per-character single-axis renown score (reputation.md
+	// §10): how widely known the character is — fame positive, infamy negative,
+	// Unknown at 0. Added in v32; absent (the common case — a pre-v32 save, or a
+	// character who has earned no renown) decodes to 0 = Unknown, which is the
+	// engine's default Starting renown, so absent and a stored 0 are correctly
+	// indistinguishable. A class/background that begins a character "already
+	// known" applies its non-zero starting renown once at creation and stores it
+	// explicitly (omitempty writes a non-zero value). Written through the
+	// reputation.Entity adapter (SetRenown) on a Shift/Set; the tier tag is NOT
+	// persisted — it is re-derived from this score on login (the manager's Tier
+	// sync), exactly as faction re-mirrors its rank tag. Renown history is
+	// runtime-only in v1 (matching faction/alignment).
+	Reputation int `yaml:"reputation,omitempty"`
 
 	// Pools is the persisted current value of the actor's generalized
 	// resource pools — mana / movement today, the One Power tomorrow (WoT
@@ -661,6 +675,7 @@ var playerMigrations = map[int]func(map[string]any) (map[string]any, error){
 	28: migrateV28toV29,
 	29: migrateV29toV30,
 	30: migrateV30toV31,
+	31: migrateV31toV32,
 }
 
 // migrateV1toV2 adds the empty inventory/equipment blocks introduced
@@ -1098,6 +1113,15 @@ func migrateV29toV30(in map[string]any) (map[string]any, error) {
 // character reads every faction at its starting standing; §8.1). No on-disk
 // shape needs to change.
 func migrateV30toV31(in map[string]any) (map[string]any, error) {
+	return in, nil
+}
+
+// migrateV31toV32 is a no-op: the v32 addition (Save.Reputation, the
+// single-axis renown score — reputation.md §10) is absent on a pre-v32 save,
+// which decodes to 0 = Unknown — the engine's default starting renown (§2). No
+// on-disk shape needs to change; a character who predates the renown substrate
+// is correctly Unknown.
+func migrateV31toV32(in map[string]any) (map[string]any, error) {
 	return in, nil
 }
 

@@ -55,6 +55,7 @@ import (
 	"github.com/Jasrags/AnotherMUD/internal/queststore"
 	"github.com/Jasrags/AnotherMUD/internal/recipe"
 	"github.com/Jasrags/AnotherMUD/internal/render"
+	"github.com/Jasrags/AnotherMUD/internal/reputation"
 	"github.com/Jasrags/AnotherMUD/internal/size"
 	"github.com/Jasrags/AnotherMUD/internal/slot"
 	"github.com/Jasrags/AnotherMUD/internal/srckey"
@@ -183,6 +184,12 @@ type Config struct {
 	// standing at the persisted value with no rank tags (disposition rules
 	// that match on faction won't fire).
 	Faction *faction.Manager
+
+	// Reputation is the single-axis renown manager (reputation.md). Consulted at
+	// login to re-sync the tier tag from the restored score, and held by the
+	// earn paths (R3+) that Shift renown. nil-safe: a missing manager leaves the
+	// score at the persisted value with no tier tag.
+	Reputation *reputation.Manager
 
 	// Classes is the M8.4 class registry. Consulted at login so
 	// the actor's classID is validated against loaded content, and
@@ -609,6 +616,7 @@ func run(ctx context.Context, c conn.Connection, cfg Config) error {
 		save:          loaded.Player,
 		players:       cfg.Players,
 		faction:       cfg.Faction,
+		reputation:    cfg.Reputation,
 		prof:          cfg.Proficiency,
 		known:         cfg.Known,
 		combat:        cfg.Combat,
@@ -747,6 +755,11 @@ func run(ctx context.Context, c conn.Connection, cfg Config) error {
 			a.factionStanding[k] = v
 		}
 	}
+	// reputation.md §10: restore the single renown score. The tier tag is
+	// derived, re-synced from this score below (outside the lock — the manager's
+	// Tier re-enters a.mu via Renown/SetTierTag). Absent on a pre-v32 save → 0
+	// (Unknown), the correct default.
+	a.renown = loaded.Player.Reputation
 	// M11.1: restore persisted gold balance (spec §2.1). No manager
 	// involvement at login — gold has no bucket/tag derivation like
 	// alignment; the raw integer is the whole state.
@@ -796,6 +809,15 @@ func run(ctx context.Context, c conn.Connection, cfg Config) error {
 				_ = cfg.Faction.Rank(a, def)
 			}
 		}
+	}
+
+	// reputation.md §3/§10: install the renown tier tag from the restored score
+	// (derived state, not persisted). For a fresh or pre-v32 character this is
+	// renown:unknown, so rule matchers see a consistent renown tag from first
+	// login. Outside the actor lock — Tier calls back into Renown/SetTierTag,
+	// which take a.mu. (A class/background starting renown is an R3 seed.)
+	if cfg.Reputation != nil {
+		_ = cfg.Reputation.Tier(a)
 	}
 
 	// M11.3: seed a fresh character's sustenance pool to full (spec
@@ -2022,6 +2044,19 @@ type connActor struct {
 	// standing on login and on every Shift; Tags()/HasTag fold the values in
 	// so disposition rules can match on them. Guarded by a.mu.
 	factionRankTags map[string]string
+
+	// reputation is the single-axis renown manager (reputation.md), retained so
+	// future consumers (a score line, the recognition check, a disposition
+	// reaction) can resolve renown/tier through it. nil when unwired.
+	reputation *reputation.Manager
+	// renown is the actor's single renown score (reputation.md §10): fame +,
+	// infamy −, Unknown 0. Restored from save.Reputation on login, written
+	// through SetRenown (which mirrors into the save). Guarded by a.mu.
+	renown int
+	// reputationTierTag is the current renown tier tag ("renown:<slug>"),
+	// derived from renown on login and every Shift; Tags()/HasTag fold it in.
+	// Derived state — never persisted (re-synced on login). Guarded by a.mu.
+	reputationTierTag string
 
 	// gold is the actor's integer currency balance (M11.1 — spec
 	// economy-survival §2.1). Written through economy.CurrencyService
@@ -4044,18 +4079,22 @@ func (a *connActor) AddMadness(delta int) int {
 func (a *connActor) Tags() []string {
 	a.mu.Lock()
 	at := a.alignmentTag
+	rt := a.reputationTierTag
 	ftags := make([]string, 0, len(a.factionRankTags))
 	for _, t := range a.factionRankTags {
 		ftags = append(ftags, t)
 	}
 	a.mu.Unlock()
-	if len(a.racialTags) == 0 && at == "" && len(ftags) == 0 {
+	if len(a.racialTags) == 0 && at == "" && rt == "" && len(ftags) == 0 {
 		return nil
 	}
-	out := make([]string, 0, len(a.racialTags)+1+len(ftags))
+	out := make([]string, 0, len(a.racialTags)+2+len(ftags))
 	out = append(out, a.racialTags...)
 	if at != "" {
 		out = append(out, at)
+	}
+	if rt != "" {
+		out = append(out, rt)
 	}
 	out = append(out, ftags...)
 	return out
@@ -4380,6 +4419,37 @@ func (a *connActor) SetRankTag(factionID, rankTag string) {
 	a.factionRankTags[factionID] = rankTag
 }
 
+// Renown returns the actor's current renown score (reputation.md §10),
+// satisfying reputation.Entity. Reads under a.mu for consistency with concurrent
+// SetRenown writes.
+func (a *connActor) Renown() int {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	return a.renown
+}
+
+// SetRenown writes the actor's renown (the manager passes a value already
+// clamped to the configured bounds), mirrors it into the save, and marks the
+// actor dirty so it rides to disk on the next Persist.
+func (a *connActor) SetRenown(value int) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	a.renown = value
+	if a.save != nil {
+		a.save.Reputation = value
+	}
+	a.markDirtyLocked()
+}
+
+// SetTierTag installs the renown tier tag (reputation.md §3). A new tag replaces
+// the prior (exactly one renown tier tag); an empty tag clears it. Derived state
+// — never persisted (re-synced from the score on login).
+func (a *connActor) SetTierTag(tierTag string) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	a.reputationTierTag = tierTag
+}
+
 // Gold returns the actor's current balance (M11.1 — spec §2.1).
 // Reads under a.mu so the value is consistent with concurrent
 // AddGold / SetGold writes. Satisfies economy.Entity.
@@ -4555,6 +4625,9 @@ func (a *connActor) HasTag(tag string) bool {
 		}
 	}
 	if a.alignmentTag == tag {
+		return true
+	}
+	if a.reputationTierTag == tag {
 		return true
 	}
 	for _, t := range a.factionRankTags {

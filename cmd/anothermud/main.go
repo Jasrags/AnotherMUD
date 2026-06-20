@@ -65,6 +65,7 @@ import (
 	"github.com/Jasrags/AnotherMUD/internal/questwatch"
 	"github.com/Jasrags/AnotherMUD/internal/recipe"
 	"github.com/Jasrags/AnotherMUD/internal/render"
+	"github.com/Jasrags/AnotherMUD/internal/reputation"
 	"github.com/Jasrags/AnotherMUD/internal/scripting"
 	"github.com/Jasrags/AnotherMUD/internal/server"
 	"github.com/Jasrags/AnotherMUD/internal/session"
@@ -580,6 +581,13 @@ func run() error {
 	// disposition player-lookup resolves standings through it. Constructed here
 	// (before the evaluator) so playerLookup can carry it.
 	factionMgr := faction.NewManager(registries.Factions, &factionSink{bus: bus}, clk.Now)
+
+	// Reputation/renown manager (reputation.md) — the single-axis sibling of
+	// faction. R2 wires persistence only: the connActor reputation.Entity adapter
+	// restores the score and re-syncs the tier tag on login. The Sink is nil (no
+	// events) because no earn source Shifts renown yet — the eventbus bridge +
+	// the class-level-up/quest/signifier earn paths land with R3.
+	reputationMgr := reputation.NewManager(reputation.DefaultConfig(), nil, clk.Now)
 
 	// Disposition evaluator (spec mobs-ai-spawning §5). Constructed
 	// before the AI dispatcher so it can be passed in via Deps, and
@@ -2855,6 +2863,7 @@ func run() error {
 		Backgrounds:     registries.Backgrounds,
 		Alignment:       alignmentMgr,
 		Faction:         factionMgr,
+		Reputation:      reputationMgr,
 		DefaultRace:     cfg.DefaultRace,
 		RoleSeed:        cfg.RoleSeed,
 		StartID:         cfg.StartRoom,
