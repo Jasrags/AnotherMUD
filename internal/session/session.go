@@ -4695,12 +4695,28 @@ func (a *connActor) SetForageReadyAt(tick uint64) {
 
 // IsWeaponLoaded reports whether the wielded reload-gated weapon is chambered
 // (action-economy.md §7.1). The loaded state is keyed to a specific weapon id,
-// so it reads false after a weapon swap. The combat round loop and the shoot
-// verb gate a crossbow's shot on this.
+// so it reads false after a weapon swap. The `load` verb gates its already-loaded
+// check on this; the FIRE paths use TakeLoadedShot (an atomic check-and-clear).
 func (a *connActor) IsWeaponLoaded() bool {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	return a.loadedWeapon != "" && a.equipment[mainHandSlot] == a.loadedWeapon
+}
+
+// TakeLoadedShot atomically consumes the chambered shot for a fire: it returns
+// true (clearing the loaded state) only when the wielded weapon is the one that
+// was loaded, and false otherwise. One lock acquisition, so the check and the
+// discharge cannot interleave with a concurrent weapon swap (action-economy.md
+// §7.1) — the fire paths (round loop + shoot) call this instead of a separate
+// IsWeaponLoaded + ClearWeaponLoaded pair.
+func (a *connActor) TakeLoadedShot() bool {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	if a.loadedWeapon == "" || a.equipment[mainHandSlot] != a.loadedWeapon {
+		return false
+	}
+	a.loadedWeapon = ""
+	return true
 }
 
 // SetWeaponLoaded chambers the currently-wielded weapon (the load action's

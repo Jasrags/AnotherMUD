@@ -118,13 +118,11 @@ func ShootHandler(ctx context.Context, c *Context) error {
 	// freely (mirrors the mob path). Masterwork-grade to-hit on the consumed unit
 	// is not yet folded into this one-shot path — a recorded slice-1 limitation.
 	if st.ReloadTicks > 0 {
-		loader, ok := c.Actor.(weaponLoader)
-		if ok && !loader.IsWeaponLoaded() {
+		// Atomically take the chambered shot (check-and-clear); the bolt is loosed
+		// whether it hits or misses. A non-loader actor (test/headless) fires freely.
+		if taker, ok := c.Actor.(interface{ TakeLoadedShot() bool }); ok && !taker.TakeLoadedShot() {
 			_ = c.Actor.Write(ctx, "*click* — your weapon isn't loaded. (load it first)")
 			return nil
-		}
-		if ok {
-			loader.ClearWeaponLoaded() // the bolt is loosed whether it hits or misses
 		}
 	} else if consumer, ok := c.Actor.(ammoConsumer); ok && st.AmmoKind != "" {
 		if _, consumed := consumer.ConsumeAmmo(st.AmmoKind); !consumed {

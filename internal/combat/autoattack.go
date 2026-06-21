@@ -77,17 +77,17 @@ type AutoAttackConfig struct {
 	// weapons never call this hook.
 	AmmoFor func(attackerID CombatantID) (canFire bool, toHitBonus int)
 
-	// LoadedFor / OnFireLoaded drive reload-gated projectiles — a crossbow,
-	// Stats.ReloadTicks > 0 (action-economy.md §7.1). When the wielded weapon is
-	// reload-gated, the round loop does NOT consume ammo per swing (the bolt was
-	// spent at `load` time); instead LoadedFor reports whether the wielder has a
-	// chambered shot, and OnFireLoaded discharges it after a swing is loosed.
-	// LoadedFor nil — or an attacker the host can't resolve as a loader (a mob) —
-	// reads as always loaded, so an un-wired boot and mob crossbows fire freely.
-	// Keyed on the full attacker CombatantID; only called for a reload-gated
+	// TakeLoadedShot drives reload-gated projectiles — a crossbow, Stats.ReloadTicks
+	// > 0 (action-economy.md §7.1). When the wielded weapon is reload-gated the
+	// round loop does NOT consume ammo per swing (the bolt was spent at `load`
+	// time); instead this hook atomically reports whether the wielder had a
+	// chambered shot AND discharges it (check-and-clear in one step, so a weapon
+	// swap can't interleave). It returns false when nothing was chambered → the
+	// swing is skipped (a RangedDry{Unloaded}). A nil hook — or an attacker the
+	// host can't resolve as a loader (a mob) — reads as always loaded, so an
+	// un-wired boot and mob crossbows fire freely. Only called for a reload-gated
 	// projectile swing.
-	LoadedFor    func(attackerID CombatantID) bool
-	OnFireLoaded func(attackerID CombatantID)
+	TakeLoadedShot func(attackerID CombatantID) bool
 	// RangeFalloff is the to-hit penalty a projectile takes per band of
 	// distance from melee (ranged-combat §5.3) — at the near band it is
 	// -RangeFalloff, at far -2×RangeFalloff, and so on. PointBlankPenalty is
@@ -617,12 +617,12 @@ func resolveSwing(ctx context.Context, in swingInputs, cfg AutoAttackConfig) swi
 	swingHitMod := in.hitMod
 	if in.atkStats.RangedClass == RangedProjectile {
 		if in.atkStats.ReloadTicks > 0 {
-			// Reload-gated (a crossbow, action-economy.md §7.1): fire the
-			// chambered bolt — ammo was spent at `load`, so no per-swing consume.
-			// A nil hook or an attacker the host can't resolve as a loader (a mob)
-			// reads as loaded and fires freely. Discharge the loaded state after
-			// the shot is committed (it is loosed whether it lands or misses).
-			if cfg.LoadedFor != nil && !cfg.LoadedFor(in.attackerID) {
+			// Reload-gated (a crossbow, action-economy.md §7.1): fire the chambered
+			// bolt — ammo was spent at `load`, so no per-swing consume. The hook
+			// atomically takes the loaded shot (check-and-clear); false means the
+			// weapon wasn't chambered, so the swing is skipped. A nil hook or a
+			// non-loader attacker (a mob) reads as loaded and fires freely.
+			if cfg.TakeLoadedShot != nil && !cfg.TakeLoadedShot(in.attackerID) {
 				cfg.Sink.OnRangedDry(ctx, RangedDry{
 					AttackerID:   in.attackerID,
 					TargetID:     in.targetID,
@@ -634,9 +634,6 @@ func resolveSwing(ctx context.Context, in swingInputs, cfg AutoAttackConfig) swi
 					RoomID:       in.attackerRoom,
 				})
 				return swingContinue
-			}
-			if cfg.OnFireLoaded != nil {
-				cfg.OnFireLoaded(in.attackerID)
 			}
 		} else if cfg.AmmoFor != nil {
 			canFire, ammoBonus := cfg.AmmoFor(in.attackerID)

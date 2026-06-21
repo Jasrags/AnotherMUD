@@ -14,7 +14,7 @@ func TestAutoAttack_CrossbowUnloaded_SkipsSwing(t *testing.T) {
 	rig := newAutoAttackRig(t, atkStats, defStats, 10, 20, nil)
 	ammoCalled := false
 	rig.ammoFor = func(CombatantID) (bool, int) { ammoCalled = true; return true, 0 }
-	rig.loadedFor = func(CombatantID) bool { return false } // unloaded
+	rig.takeLoadedShot = func(CombatantID) bool { return false } // unloaded
 
 	rig.phase()(context.Background(), rig.attacker.id, rig.mgr, 0)
 
@@ -41,17 +41,16 @@ func TestAutoAttack_CrossbowLoaded_FiresAndDischarges(t *testing.T) {
 	rig := newAutoAttackRig(t, atkStats, defStats, 10, 20, []int{10, 0}) // d20 hit + 1d3 dmg
 	ammoCalled := false
 	rig.ammoFor = func(CombatantID) (bool, int) { ammoCalled = true; return true, 0 }
-	rig.loadedFor = func(CombatantID) bool { return true }
-	discharges := 0
-	rig.onFireLoaded = func(CombatantID) { discharges++ }
+	takes := 0
+	rig.takeLoadedShot = func(CombatantID) bool { takes++; return true }
 
 	rig.phase()(context.Background(), rig.attacker.id, rig.mgr, 0)
 
 	if h := len(rig.sink.snapshotHits()); h != 1 {
 		t.Fatalf("want 1 hit from a loaded crossbow, got %d (dry=%d)", h, len(rig.sink.snapshotRangedDry()))
 	}
-	if discharges != 1 {
-		t.Errorf("OnFireLoaded calls = %d, want 1 (the loaded bolt is loosed)", discharges)
+	if takes != 1 {
+		t.Errorf("TakeLoadedShot calls = %d, want 1 (the loaded bolt is loosed)", takes)
 	}
 	if ammoCalled {
 		t.Error("a reload-gated weapon must not consume ammo on fire (spent at load)")
@@ -64,7 +63,7 @@ func TestAutoAttack_CrossbowNilHook_FiresFreely(t *testing.T) {
 	atkStats := Stats{HitMod: 100, STR: 10, RangedClass: RangedProjectile, AmmoKind: "bolt", ReloadTicks: 20}
 	defStats := Stats{AC: 10}
 	rig := newAutoAttackRig(t, atkStats, defStats, 10, 20, []int{10, 0})
-	// loadedFor + ammoFor left nil.
+	// takeLoadedShot + ammoFor left nil.
 	rig.phase()(context.Background(), rig.attacker.id, rig.mgr, 0)
 
 	if h := len(rig.sink.snapshotHits()); h != 1 {

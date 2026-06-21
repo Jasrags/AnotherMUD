@@ -1936,25 +1936,18 @@ func run() error {
 			return true, bonus
 		},
 		// Reload-gated projectiles (a crossbow, action-economy.md §7.1): the round
-		// loop gates the shot on the wielder's chambered state and discharges it
-		// on fire, instead of consuming ammo per swing. A combatant with no loader
-		// state (a mob) reads as always loaded and fires freely, matching AmmoFor.
-		LoadedFor: func(attackerID combat.CombatantID) bool {
+		// loop atomically takes the wielder's chambered shot (check-and-clear)
+		// instead of consuming ammo per swing. A combatant with no loader state
+		// (a mob) reads as always loaded and fires freely, matching AmmoFor.
+		TakeLoadedShot: func(attackerID combat.CombatantID) bool {
 			c, ok := combatLocator.LookupCombatant(attackerID)
 			if !ok {
 				return false
 			}
-			if loader, ok := c.(interface{ IsWeaponLoaded() bool }); ok {
-				return loader.IsWeaponLoaded()
+			if loader, ok := c.(interface{ TakeLoadedShot() bool }); ok {
+				return loader.TakeLoadedShot()
 			}
 			return true
-		},
-		OnFireLoaded: func(attackerID combat.CombatantID) {
-			if c, ok := combatLocator.LookupCombatant(attackerID); ok {
-				if loader, ok := c.(interface{ ClearWeaponLoaded() }); ok {
-					loader.ClearWeaponLoaded()
-				}
-			}
 		},
 		MassiveDamage: &combat.MassiveDamageConfig{
 			Threshold: massiveThreshold,

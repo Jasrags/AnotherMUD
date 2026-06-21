@@ -65,9 +65,8 @@ type autoAttackRig struct {
 	massive       *MassiveDamageConfig                     // nil ⇒ saves §4 rule disabled
 	incap         func(CombatantID) bool                   // nil ⇒ never incapacitated (conditions §3)
 	defAdj        func(CombatantID) int                    // nil ⇒ no defender vulnerability (conditions §3)
-	ammoFor       func(CombatantID) (bool, int)            // nil ⇒ no ammo gate (ranged-combat §3)
-	loadedFor     func(CombatantID) bool                   // LoadedFor (action-economy §7.1) — nil ⇒ always loaded
-	onFireLoaded  func(CombatantID)                        // OnFireLoaded (action-economy §7.1)
+	ammoFor        func(CombatantID) (bool, int)           // nil ⇒ no ammo gate (ranged-combat §3)
+	takeLoadedShot func(CombatantID) bool                  // TakeLoadedShot (action-economy §7.1) — nil ⇒ always loaded
 	falloff       int                                      // RangeFalloff (ranged-combat §5.3)
 	pblank        int                                      // PointBlankPenalty (ranged-combat §5.3)
 	kite          func(CombatantID, CombatantID, int) bool // KitePolicy (ranged-combat §5.4)
@@ -120,8 +119,7 @@ func (r *autoAttackRig) phase() PhaseFunc {
 		Incapacitated:           r.incap,
 		DefenderHitAdjust:       r.defAdj,
 		AmmoFor:                 r.ammoFor,
-		LoadedFor:               r.loadedFor,
-		OnFireLoaded:            r.onFireLoaded,
+		TakeLoadedShot:          r.takeLoadedShot,
 		RangeFalloff:            r.falloff,
 		PointBlankPenalty:       r.pblank,
 		KitePolicy:              r.kite,
