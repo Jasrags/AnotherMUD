@@ -3,6 +3,7 @@ package command
 import (
 	"context"
 
+	"github.com/Jasrags/AnotherMUD/internal/action"
 	"github.com/Jasrags/AnotherMUD/internal/auction"
 	"github.com/Jasrags/AnotherMUD/internal/biome"
 	"github.com/Jasrags/AnotherMUD/internal/chat"
@@ -423,6 +424,21 @@ type Env struct {
 	// destination biome configures none (world-rooms-movement §3.3).
 	// Sourced from ANOTHERMUD_MOVE_COST (default 1).
 	DefaultMoveCost int
+
+	// Actions is the per-actor timed-action / busy-state tracker
+	// (action-economy.md). The dispatcher gates IsAction commands on it; the
+	// don/doff path begins occupations on it. nil disables timed actions —
+	// every action resolves instantly (the pre-substrate behavior).
+	Actions *action.Tracker
+	// ReplayAction is true only when this dispatch is the action-complete
+	// sweep replaying a deferred command (action-economy.md §3): it bypasses
+	// the busy gate and tells the consumer to perform the real mutation now
+	// rather than re-arming the timer. Always false on a player-typed command.
+	ReplayAction bool
+	// DonTicks is the occupation length (engine ticks) for donning/doffing slow
+	// armor (action-economy.md §7.2). 0 → the package default. Sourced from
+	// ANOTHERMUD_DON_TICKS.
+	DonTicks int
 }
 
 // TellResolver maps a player name to a recipient route. Returns

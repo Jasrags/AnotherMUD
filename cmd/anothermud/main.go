@@ -25,6 +25,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/Jasrags/AnotherMUD/internal/account"
+	"github.com/Jasrags/AnotherMUD/internal/action"
 	"github.com/Jasrags/AnotherMUD/internal/ai"
 	"github.com/Jasrags/AnotherMUD/internal/auction"
 	"github.com/Jasrags/AnotherMUD/internal/biome"
@@ -1101,6 +1102,11 @@ func run() error {
 	// resolves everything instantly, exactly as before. Logout drops state.
 	castTracker := progression.NewCastTracker()
 
+	// action-economy.md: the per-actor timed-action / busy-state tracker. The
+	// dispatcher gates IsAction commands on it and the don/doff path arms
+	// occupations on it; the action-complete tick (below) finishes due actions.
+	actionTracker := action.NewTracker()
+
 	// M8.5: alignment manager + bus-bridging sink. Config uses
 	// the engine defaults (-1000/+1000 bounds, ±500 bucket
 	// thresholds, history capacity 20) per the M8.5 ROADMAP
@@ -1679,6 +1685,15 @@ func run() error {
 		mgr.CompleteReadyCrafts(ctx, n, craftSvc)
 	}); err != nil {
 		return fmt.Errorf("register craft-complete tick: %w", err)
+	}
+
+	// action-economy.md §3: finish any timed action whose occupation timer has
+	// come due by replaying its command. Cadence 1 (every tick), like
+	// craft-complete; the sweep only acts on actors whose action is due.
+	if err := loop.Register("action-complete", 1, func(ctx context.Context, n uint64) {
+		mgr.CompleteReadyActions(ctx, n)
+	}); err != nil {
+		return fmt.Errorf("register action-complete tick: %w", err)
 	}
 
 	passiveResolver := progression.NewPassiveResolver(
@@ -2500,6 +2515,17 @@ func run() error {
 			return
 		}
 		combatSink.interruptCast(ctx, combat.NewPlayerCombatantID(e.PlayerID), "moved")
+		// action-economy.md §5: moving rooms also interrupts an interruptible
+		// timed action (you can't keep strapping on armor while walking off).
+		// Interrupt honors the flag, so a non-interruptible action is untouched.
+		if act, ok := actionTracker.Interrupt(e.PlayerID); ok {
+			label := act.Label
+			if label == "" {
+				label = "what you were doing"
+			}
+			combatSink.tell(ctx, combat.NewPlayerCombatantID(e.PlayerID),
+				fmt.Sprintf("You stop %s.", label))
+		}
 	})
 
 	// Moving rooms drops hide concealment (visibility §3.1): you cannot stay
@@ -2949,6 +2975,8 @@ func run() error {
 		ActionQueue:     actionQueueMgr,
 		PulseDelay:      pulseDelayTracker,
 		Casts:           castTracker,
+		Actions:         actionTracker,
+		DonTicks:        cfg.DonTicks,
 		Races:           registries.Races,
 		Classes:         registries.Classes,
 		Feats:           registries.Feats,
@@ -3173,6 +3201,7 @@ type config struct {
 	MassiveDamageThreshold int
 	MassiveDamageDC        int
 	DefaultMoveCost        int
+	DonTicks               int
 	CorpseOwnershipWindow  time.Duration
 	CorpseLifetime         time.Duration
 	CorpseDecayInterval    time.Duration
@@ -3252,6 +3281,7 @@ func loadConfig() config {
 		MassiveDamageThreshold:  envIntOr("ANOTHERMUD_MASSIVE_DAMAGE_THRESHOLD", combat.DefaultMassiveDamageThreshold),
 		MassiveDamageDC:         envIntOr("ANOTHERMUD_MASSIVE_DAMAGE_DC", combat.DefaultMassiveDamageDC),
 		DefaultMoveCost:         envIntOr("ANOTHERMUD_MOVE_COST", 2),
+		DonTicks:                envIntOr("ANOTHERMUD_DON_TICKS", 30),
 		CorpseOwnershipWindow:   envDurationOr("ANOTHERMUD_CORPSE_OWNERSHIP_WINDOW", 60*time.Second),
 		CorpseLifetime:          envDurationOr("ANOTHERMUD_CORPSE_LIFETIME", 5*time.Minute),
 		CorpseDecayInterval:     envDurationOr("ANOTHERMUD_CORPSE_DECAY_INTERVAL", 3*time.Second),

@@ -26,6 +26,7 @@ import (
 	"github.com/Jasrags/AnotherMUD/internal/auction"
 	"github.com/Jasrags/AnotherMUD/internal/biome"
 	"github.com/Jasrags/AnotherMUD/internal/channel"
+	"github.com/Jasrags/AnotherMUD/internal/action"
 	"github.com/Jasrags/AnotherMUD/internal/chat"
 	"github.com/Jasrags/AnotherMUD/internal/clock"
 	"github.com/Jasrags/AnotherMUD/internal/combat"
@@ -297,6 +298,17 @@ type Config struct {
 	// like ActionQueue — non-channeling boots leave it nil.
 	Casts *progression.CastTracker
 
+	// Actions is the per-actor timed-action / busy-state tracker
+	// (action-economy.md). The dispatcher gates IsAction commands on it and the
+	// don/doff path begins occupations on it; the action-complete tick sweep
+	// (CompleteReadyActions) finishes due actions by replaying their command.
+	// Logout calls Drop. nil disables timed actions (every action is instant).
+	Actions *action.Tracker
+	// DonTicks is the occupation length (engine ticks) for donning/doffing slow
+	// armor (action-economy.md §7.2). 0 → the command-package default. Sourced
+	// from ANOTHERMUD_DON_TICKS.
+	DonTicks int
+
 	// DefaultRace is the race id assigned to legacy saves with no
 	// `race` field, and to fresh characters that haven't been
 	// through a M12 character-creation flow yet. Empty means the
@@ -531,6 +543,11 @@ type Config struct {
 // Handler returns a server.Handler-compatible function that drives one
 // connection through login and into the game loop.
 func Handler(cfg Config) func(ctx context.Context, c conn.Connection) error {
+	// Wire the timed-action sweep once, here where the in-package commandEnv is
+	// reachable (action-economy.md §3). nil-safe; no-op when Actions is unset.
+	if cfg.Manager != nil {
+		cfg.Manager.enableActionSweep(cfg)
+	}
 	return func(ctx context.Context, c conn.Connection) error {
 		return run(ctx, c, cfg)
 	}
@@ -1261,6 +1278,11 @@ func fullTeardown(ctx context.Context, cfg Config, a *connActor) {
 	}
 	if cfg.Casts != nil {
 		cfg.Casts.Drop(a.PlayerID())
+	}
+	// action-economy.md §6: a timed action in flight at logout is simply lost
+	// (it reserved nothing, so the world is untouched).
+	if cfg.Actions != nil {
+		cfg.Actions.Drop(a.PlayerID())
 	}
 
 	// M10.8: drop in-memory quest state + the persistence name cache so

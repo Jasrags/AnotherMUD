@@ -135,6 +135,14 @@ func EquipHandler(ctx context.Context, c *Context) error {
 		return err
 	}
 
+	// Out of combat, donning slow armor is a timed occupation (action-economy
+	// §7.2): the equip is deferred to the action-complete sweep, which replays
+	// this command. Light gear / a disabled tracker / the replay itself fall
+	// through to the instant commit below.
+	if deferred, err := c.beginArmorTimer(ctx, item, false); deferred {
+		return err
+	}
+
 	// §3.4 step 1 / Decision A: resolve the target slot. Named slot wins;
 	// with none named, a sole-eligible item auto-targets, a multi-eligible
 	// item asks which (rather than silently mis-targeting).
@@ -509,6 +517,13 @@ func UnequipHandler(ctx context.Context, c *Context) error {
 	// Armor §7: bulky armor can't be shed in the middle of a fight either.
 	if blocked, err := c.armorChangeBlockedInCombat(ctx,
 		target, fmt.Sprintf("You can't shed %s in the middle of a fight.", target.Name())); blocked {
+		return err
+	}
+
+	// Out of combat, doffing slow armor is a timed occupation (action-economy
+	// §7.2), deferred to the sweep which replays this command. Light gear / a
+	// disabled tracker / the replay itself fall through to the instant commit.
+	if deferred, err := c.beginArmorTimer(ctx, target, true); deferred {
 		return err
 	}
 

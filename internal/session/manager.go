@@ -8,6 +8,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/Jasrags/AnotherMUD/internal/action"
 	"github.com/Jasrags/AnotherMUD/internal/combat"
 	"github.com/Jasrags/AnotherMUD/internal/command"
 	"github.com/Jasrags/AnotherMUD/internal/economy"
@@ -63,6 +64,15 @@ type Manager struct {
 	// never orphaned or duplicated on the owner's return. nil disables the
 	// teardown (tests / headless). Set once at startup via SetMounts.
 	mounts command.MountService
+
+	// action-economy.md timed-action sweep. actionTracker holds in-flight
+	// occupations; actionCommands + actionEnv replay a completed action's
+	// command with ReplayAction set so its consumer performs the deferred
+	// mutation. All nil until enableActionSweep wires them from the Config
+	// (timed actions disabled otherwise). Set once at startup via Handler.
+	actionTracker  *action.Tracker
+	actionCommands *command.Registry
+	actionEnv      command.Env
 }
 
 // NewManager returns an empty Manager.

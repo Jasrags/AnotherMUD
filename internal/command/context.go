@@ -3,6 +3,7 @@ package command
 import (
 	"context"
 
+	"github.com/Jasrags/AnotherMUD/internal/action"
 	"github.com/Jasrags/AnotherMUD/internal/auction"
 	"github.com/Jasrags/AnotherMUD/internal/biome"
 	"github.com/Jasrags/AnotherMUD/internal/chat"
@@ -220,6 +221,20 @@ type Context struct {
 	// helper. Dispatch always sets it; helpers fall back to a fresh
 	// registry when a test builds a Context directly.
 	ArgResolver *ArgResolverRegistry
+
+	// Actions is the per-actor timed-action / busy-state tracker
+	// (action-economy.md). The don/doff path begins occupations on it; nil
+	// disables timed actions (the action resolves instantly). Copied from
+	// Env.Actions by Dispatch.
+	Actions *action.Tracker
+	// ReplayAction is true only when this Context is the action-complete sweep
+	// replaying a deferred command: the consumer performs the real mutation
+	// instead of re-arming the timer (action-economy.md §3). Copied from
+	// Env.ReplayAction by Dispatch.
+	ReplayAction bool
+	// DonTicks is the don/doff occupation length in ticks (action-economy.md
+	// §7.2); 0 → the package default. Copied from Env.DonTicks by Dispatch.
+	DonTicks int
 
 	// registry back-references the dispatching command Registry so the
 	// `complete` debug verb (tab-completion §9) can run the completion

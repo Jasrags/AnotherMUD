@@ -16,8 +16,14 @@ This spec builds that state once; those features become consumers.
 
 Governed by EPIC **Decision 0** (translate WoT onto the existing tick/chance
 model; no d20 action-economy rewrite). The tabletop's standard / move / full-round
-/ free action grid is **deliberately not ported** — see §1. *Spec ahead of code —
-build pending; sliced so each piece ships independently.*
+/ free action grid is **deliberately not ported** — see §1.
+
+*Status: the substrate (§2–§6) and the **don/doff timers** consumer (§7.2)
+shipped 2026-06-21 — `internal/action.Tracker`, the dispatch busy-gate
+(`Command.IsAction`), the `action-complete` tick sweep (replays the deferred
+command), movement/`stop` interruption, logout drop, and the two-phase slow-armor
+don/doff (deferred equip via command replay). The **crossbow load** consumer
+(§7.1) is the pending follow-up slice.*
 
 ## 1. Overview
 

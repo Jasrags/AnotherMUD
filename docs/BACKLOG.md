@@ -236,23 +236,23 @@ old five-theme partition left uncovered.
   - [ ] **Lance charge** — double damage delivered from a mount (→ **mounted
         combat**, `mounts.md` deferred slices).
   - [ ] **Crossbow load actions** (light = move, heavy = full-round, provoke AoO;
-        1-handed −4) — needs an **action-economy** notion combat doesn't model.
+        1-handed −4) — **prerequisite shipped** (`action-economy.md`, the
+        timed-action substrate). Now ready: a wielded crossbow's transient
+        loaded state + a `reload` busy action gating BOTH the auto-attack round
+        loop and the `shoot` verb. The pending Slice A follow-up.
   - [ ] **Sling stones** (1d3, −1) + ammo break/loss; **arrows/bolts as improvised
         melee** (Tiny, 50% break on miss) — needs an **ammo break/loss** roll.
-  - [ ] **Don/doff timers** (`equipment.md` Table 7-6): timed don / hasty-don /
-        remove with helper-assist halving. The worn-Speed surcharge (`armor_speed`)
-        already shipped; only the timed donning table is unmodeled (needs the tick
-        scheduler + a per-actor "donning" busy state — the action-economy notion).
 
   > **The unblocked maneuvers are all done** (reach / trip / disarm / set / double
-  > / entangle + gear reputation). Every remaining tail item above waits on a
-  > prerequisite system the engine lacks: **whip** → a nonlethal **subdual damage
-  > mode** (the `subdual` field's consumer — ✅ **DONE 2026-06-21**, `subdual-damage.md`:
-  > knock-out-at-zero + unconscious + sap/whip content + anti-armor + unarmed +
-  > mob-attacker); **lance charge** → **mounted combat**
-  > (`mounts.md`); **crossbow load** + **don/doff timers** → an **action-economy /
-  > busy-state**; **sling / improvised-melee ammo** → an **ammo break/loss** roll.
-  > Build the prerequisite before the dependent J item.
+  > / entangle + gear reputation). Remaining tail items wait on a prerequisite
+  > system: **whip** → **subdual damage** (✅ **DONE 2026-06-21**,
+  > `subdual-damage.md`); **don/doff timers** → an **action-economy / busy-state**
+  > (✅ **DONE 2026-06-21**, `action-economy.md` §7.2 — two-phase timed slow-armor
+  > don/doff); **crossbow load** → the same action-economy substrate (✅ **shipped
+  > 2026-06-21** — crossbow load is now *ready to build*, Slice A); **lance
+  > charge** → **mounted combat** (`mounts.md`); **sling / improvised-melee ammo**
+  > → an **ammo break/loss** roll. Build the prerequisite before the dependent
+  > J item.
 
   Each tail item is its own slice on the `special:` seam — author the content data
   once, light up the handler when its prerequisite lands.

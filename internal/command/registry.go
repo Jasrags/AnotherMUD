@@ -114,6 +114,15 @@ type Command struct {
 	// inventory, score) leave it false. Magical/admin invisibility (a flag-
 	// gated source) is exempt — it does not break on action (§3.4).
 	BreaksConcealment bool
+
+	// IsAction marks a command that takes a physical action and is therefore
+	// refused while the actor is occupied by an in-flight timed action
+	// (action-economy.md §4): the dispatcher returns "You are busy <label>."
+	// before the handler runs, unless this dispatch is itself the deferred
+	// completion replaying the action (Env.ReplayAction). Passive/parser verbs
+	// (look, score, say, quit, stop) leave it false — a busy player can still
+	// observe, talk, and disconnect.
+	IsAction bool
 }
 
 // CommandInfo is the read-only view of a registered command's metadata,
@@ -180,6 +189,9 @@ type registration struct {
 	// runs (visibility §4.5; see Command.BreaksConcealment). Carried on
 	// aliases too so `take` reveals exactly like `get`.
 	breaksConcealment bool
+	// isAction gates the command on the actor's busy state at dispatch
+	// (action-economy.md §4; see Command.IsAction). Carried on aliases too.
+	isAction bool
 }
 
 // Registry holds the command keyword → handler bindings.
@@ -288,6 +300,7 @@ func (r *Registry) RegisterCommand(c Command) error {
 		handParsed:        c.HandParsed,
 		admin:             c.Admin,
 		breaksConcealment: c.BreaksConcealment,
+		isAction:          c.IsAction,
 	}
 	r.ordered = append(r.ordered, k)
 	for _, la := range lowered {
@@ -306,6 +319,7 @@ func (r *Registry) RegisterCommand(c Command) error {
 			handParsed:        c.HandParsed,
 			admin:             c.Admin,
 			breaksConcealment: c.BreaksConcealment,
+			isAction:          c.IsAction,
 		}
 		r.ordered = append(r.ordered, la)
 	}
@@ -433,8 +447,27 @@ func (r *Registry) Dispatch(ctx context.Context, env Env, actor Actor, raw strin
 		}
 	}
 
+	// Busy gate (action-economy.md §4): an action-marked command is refused
+	// while the actor has a timed action in flight — unless this dispatch is
+	// the deferred completion replaying the action itself. Checked here, before
+	// the Context is built and the handler runs, mirroring the admin gate.
+	if reg.isAction && !env.ReplayAction && env.Actions != nil {
+		if ider, ok := actor.(interface{ PlayerID() string }); ok {
+			if act, busy := env.Actions.Active(ider.PlayerID()); busy {
+				label := act.Label
+				if label == "" {
+					label = "occupied"
+				}
+				return actor.Write(ctx, fmt.Sprintf("You are busy %s.", label))
+			}
+		}
+	}
+
 	c := &Context{
 		Actor:                 actor,
+		Actions:               env.Actions,
+		ReplayAction:          env.ReplayAction,
+		DonTicks:              env.DonTicks,
 		World:                 env.World,
 		Broadcaster:           env.Broadcaster,
 		Items:                 env.Items,

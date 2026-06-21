@@ -204,7 +204,10 @@ The verbs players use and the systems that resolve them.
   flee-cooldown / cast-warmup / timed-craft occupation trackers into one primitive;
   the prerequisite the **crossbow load actions** + **don/doff timers** tail has
   been blocked on (`special-weapons.md`, `armor-depth.md` §7). EPIC Decision 0
-  (no d20 action grid). *(Spec ahead of code — build pending; sliced.)*
+  (no d20 action grid). *(Substrate + the don/doff-timers consumer shipped
+  2026-06-21: `internal/action`, the `IsAction` busy-gate, the action-complete
+  replay sweep, `stop`/movement interruption, two-phase slow-armor don/doff.
+  Crossbow load is the pending follow-up.)*
 - [skills](skills.md) — skills as use-based proficiencies + the
   `ResolveSkillCheck` primitive (`d20 + bonus vs DC`, mirroring saves), with
   the first consumer: lockpicking (`pick` vs a door's pick difficulty) + the
