@@ -195,43 +195,49 @@ old five-theme partition left uncovered.
   **✅ size-and-wielding (F) SHIPPED 2026-06-17** (`size-and-wielding.md`,
   `internal/size`); **✅ two-weapon fighting (K) SHIPPED 2026-06-17**
   (`two-weapon-fighting.md`); **✅ damage-type effect (D) SHIPPED with E** (weapons
-  carry `damage_types`, armor soaks per type). **The one remaining S1 increment is
-  J (special weapons)** — the long tail of `equipment.md` special-column behaviors
-  that ship today as **inert content tags with no combat-pipeline handler**:
+  carry `damage_types`, armor soaks per type); **✅ special weapons (J) STARTER SET
+  SHIPPED 2026-06-17** (`special-weapons.md`, `internal/item/special.go`) — the
+  `special:` maneuver-tag seam + the numeric `reach` stat, **reach** (near-band
+  strike), weapon-aware **trip** (`trip_bonus` DC), and **disarm** (the new
+  save-gated `disarmed` condition + verb). **What remains of J is the "bottomless
+  tail"** — the special-column behaviors that ride the shipped `special:` seam but
+  have **no combat handler yet** (the `set` / `net` / `whip` / `entangle` tags are
+  declared as valid vocabulary but read by no combat code; other items are recorded
+  fields awaiting a consumer):
 
-  - [ ] **Reach** (pike, bill, poleaxe, heavy lance) — a 10-ft reach band (only
-        striking the not-yet-adjacent; pairs with `ranged-combat`'s band model).
-  - [ ] **Set-vs-charge** (lance, pike, boarspear) — braced damage bonus vs. a
-        charging foe.
-  - [ ] **Trip-on-hit** + drop-weapon-to-avoid-trip (bill, poleaxe, whip,
-        quarterstaff) — reuses `condition` (prone).
-  - [ ] **Disarm bonus** (swordbreaker +3 & 2d6-vs-swords / weapon-break, boarspear
-        +2, whip +2) — no disarm action exists yet.
-  - [ ] **Net** — ranged-touch entangle (−2 atk, −4 effective Dex, ½ speed, escape
-        DC; refold cost) — a bespoke `condition` + the area/touch attack.
-  - [ ] **Whip** — subdual, 15-ft no-penalty reach, **ineffective vs. armor +1 /
-        natural +3**.
+  - [ ] **Set-vs-charge** (`set` tag — pike, bill, poleaxe, boarspear): braced
+        damage bonus when a foe closes a band into the setter (sibling of reach;
+        rides the `ranged-combat` band/auto-close model). Needs a "the opponent
+        charged this round" read.
+  - [ ] **Net / entangle** (`net`, `entangle`): a ranged-touch throw that applies a
+        new `entangled` condition (−atk, −effective Dex, ½ speed, escape DC). New
+        condition + a touch-attack path.
+  - [ ] **Whip** (`whip`): subdual mode + reach + **ineffective vs. armor +1 /
+        natural +3** — gated on the subdual damage mode (recorded `subdual` field).
+  - [ ] **Double-weapon second die** (`double_damage`, recorded): the off-hand swing
+        of a double weapon (ashandarei, quarterstaff) rolls its *second* dice, not
+        the main `weapon_damage`; the big-creature one-hand-loses-double rule. Reuses
+        the shipped TWF off-hand path (K).
+  - [ ] **Swordbreaker weapon-breaking** + physical-drop disarm: destroy/knock the
+        target's weapon to the floor — needs an unequip-to-room path + a mob
+        slot→item link (deferred in `special-weapons.md` §5).
   - [ ] **Lance charge** — double damage delivered from a mount (pairs with the
         Mounts deferred slices below).
   - [ ] **Crossbow load actions** (light = move, heavy = full-round, provoke AoO;
         1-handed −4) — needs an action-economy notion combat doesn't model.
   - [ ] **Sling stones** (1d3, −1) + ammo break/loss; **arrows/bolts as improvised
         melee** (Tiny, 50% break on miss).
-  - [ ] **Double weapons** (ashandarei, quarterstaff): the distinct **second damage
-        figure** on the off-hand swing + the big-creature one-hand-loses-double rule
-        — equip + the off-hand swing already work via TWF (K); only the
-        second-die/size nuance is unmodeled.
   - [ ] **Don/doff timers** (`equipment.md` Table 7-6): timed don / hasty-don /
-        remove with helper-assist halving. Today only a combat don-gate exists
-        (`armor-depth.md` §7); the timed table is unmodeled.
-  - [ ] **Gear-borne Reputation** (masterwork/masterpiece weapon +1/+2, masterwork
-        armor +1/+2 while worn, lacquered plate +1, Trolloc scythesword −2):
-        the worn `item.Reputation` signifier — already tracked as a deferred
-        **reputation earn source** (`reputation.md`; see the Reputation note in §1),
-        listed here only as the equipment-side cross-reference.
+        remove with helper-assist halving. The worn-Speed surcharge (`armor_speed`)
+        already shipped; only the timed donning table is unmodeled.
+  - [ ] **Gear-borne Reputation** (`reputation` field, recorded): masterwork/
+        masterpiece weapon +1/+2, masterwork armor +1/+2 while worn, lacquered plate
+        +1, Trolloc scythesword −2 — the worn signifier folded into the renown calc.
+        Reputation shipped (R1), but the worn-signifier earn path is deferred
+        (`reputation.md`; cross-ref the Reputation note in §1).
 
-  First deliverable for J is a `special-weapons.md` spec slice; several sub-items
-  (reach, set-vs-charge) lean on the `ranged-combat` band model already shipped.
+  Each tail item is its own later slice on the `special:` seam — author the content
+  data once (already done for the polearms), light up the handler per slice.
   Originally: make weapons and armor
   mechanically distinct the way `docs/wot/equipment.md` (the WoT d20 tables) describes:
   proficiency tiers (Simple/Martial/Exotic + the −4 non-proficient rule), crit threat
