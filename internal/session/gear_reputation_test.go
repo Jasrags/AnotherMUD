@@ -59,6 +59,26 @@ func TestGearReputation_FoldsIntoEffectiveRenown(t *testing.T) {
 	}
 }
 
+// A spanning two-hander (one id under both the wield and off-hand keys) counts
+// its reputation ONCE — the worn sum rides the same dedup-by-id pass as armor.
+func TestGearReputation_SpanningItemCountedOnce(t *testing.T) {
+	store := entities.NewStore()
+	a := newEqActor(t, store) // raceless ⇒ medium wielder
+	gs, _ := store.Spawn(&item.Template{
+		ID: "x:famed-greatsword", Name: "a famed greatsword", Type: "weapon",
+		Keywords: []string{"greatsword"}, WeaponDamage: "2d6",
+		Size: "large", Reputation: 3, // large ⇒ two-handed for a medium wielder
+	})
+	a.AddToInventory(gs.ID())
+	// The two-handed footprint spans both hands — the same id under both keys.
+	if !a.Equip([]string{"wield", "offhand"}, gs.ID(), nil) {
+		t.Fatal("equip the two-hander across both hands")
+	}
+	if got := a.WornReputation(); got != 3 {
+		t.Errorf("spanning item WornReputation = %d, want 3 (counted once, not 6)", got)
+	}
+}
+
 // Ordinary gear (no reputation field) contributes nothing — the common case is
 // unchanged.
 func TestGearReputation_PlainGearZero(t *testing.T) {
