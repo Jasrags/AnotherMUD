@@ -15,8 +15,9 @@ import (
 // ammoConsumer seams the `load` / crossbow path needs.
 type loaderActor struct {
 	*combatActor
-	loaded bool
-	ammo   int
+	loaded   bool
+	ammo     int
+	noWeapon bool // SetWeaponLoaded fails (simulates unwielding mid-load)
 }
 
 func newLoaderActor(name, pid string, room *world.Room, reloadTicks, ammo int) *loaderActor {
@@ -29,9 +30,15 @@ func newLoaderActor(name, pid string, room *world.Room, reloadTicks, ammo int) *
 	return a
 }
 
-func (a *loaderActor) IsWeaponLoaded() bool  { return a.loaded }
-func (a *loaderActor) SetWeaponLoaded() bool { a.loaded = true; return true }
-func (a *loaderActor) ClearWeaponLoaded()    { a.loaded = false }
+func (a *loaderActor) IsWeaponLoaded() bool { return a.loaded }
+func (a *loaderActor) SetWeaponLoaded() bool {
+	if a.noWeapon {
+		return false
+	}
+	a.loaded = true
+	return true
+}
+func (a *loaderActor) ClearWeaponLoaded() { a.loaded = false }
 func (a *loaderActor) ConsumeAmmo(kind string) (string, bool) {
 	if a.ammo <= 0 {
 		return "", false
@@ -112,6 +119,25 @@ func TestLoad_OutOfAmmo(t *testing.T) {
 	}
 	if !strings.Contains(strings.Join(actorLines(a.combatActor.testActor), "\n"), "no bolt") {
 		t.Errorf("expected an out-of-bolts message, got %v", actorLines(a.combatActor.testActor))
+	}
+}
+
+// A weapon unwielded between begin and completion costs NO ammunition — the
+// chamber is attempted before the bolt is spent, so a failed chamber keeps the
+// bolt (the HIGH review fix).
+func TestLoad_WeaponGoneAtCompletion_KeepsAmmo(t *testing.T) {
+	room := &world.Room{ID: "z:a", Name: "Road"}
+	a := newLoaderActor("Alice", "p-1", room, 20, 2)
+	a.noWeapon = true // SetWeaponLoaded will fail at completion
+	r := newRegistry(t)
+	if err := r.Dispatch(context.Background(), command.Env{}, a, "load"); err != nil {
+		t.Fatal(err)
+	}
+	if a.loaded {
+		t.Error("a failed chamber must not leave the weapon loaded")
+	}
+	if a.ammo != 2 {
+		t.Errorf("no bolt should be spent when the weapon is gone; ammo = %d, want 2", a.ammo)
 	}
 }
 

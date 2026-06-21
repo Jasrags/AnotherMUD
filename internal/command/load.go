@@ -86,16 +86,18 @@ func LoadHandler(ctx context.Context, c *Context) error {
 // cleanly and chambers nothing.
 func (c *Context) completeLoad(ctx context.Context, st combat.Stats, loader weaponLoader) error {
 	name := wieldedWeaponName(c)
-	consumer, ok := c.Actor.(ammoConsumer)
-	if ok && st.AmmoKind != "" {
+	// Chamber FIRST, spend the bolt second, so a weapon unwielded between begin
+	// and completion costs no ammunition (the bolt is never lost). If ammo ran
+	// out meanwhile, undo the chamber — lazy-completion: nothing was reserved at
+	// begin, so a failed completion leaves the world untouched.
+	if !loader.SetWeaponLoaded() {
+		return c.Actor.Write(ctx, "You have nothing to load it into.")
+	}
+	if consumer, ok := c.Actor.(ammoConsumer); ok && st.AmmoKind != "" {
 		if _, consumed := consumer.ConsumeAmmo(st.AmmoKind); !consumed {
+			loader.ClearWeaponLoaded() // back out — nothing was chambered after all
 			return c.Actor.Write(ctx, fmt.Sprintf("*click* — you have no %s to load.", st.AmmoKind))
 		}
-	}
-	if !loader.SetWeaponLoaded() {
-		// Unwielded between begin and completion — the consumed bolt is lost
-		// (you fumbled it loading nothing). Rare; the begin-gate checked wielding.
-		return c.Actor.Write(ctx, "You have nothing to load it into.")
 	}
 	if room := c.Actor.Room(); room != nil && c.Broadcaster != nil && c.Actor.Name() != "" {
 		c.Broadcaster.SendToRoom(ctx, room.ID,
