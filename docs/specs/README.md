@@ -288,6 +288,13 @@ The verbs players use and the systems that resolve them.
 - [recall](recall.md) — per-character recall room bookmark;
   `set recall` / `recall` verbs; cancellable pre-event for
   content-layer cost/cooldown policies.
+- [follow](follow.md) — the move-with-leader primitive: `follow` /
+  `unfollow` / `lose` verbs; when a leader steps to an adjacent room each
+  follower attempts the same move through the normal path (all gates apply),
+  failing-to-keep-up breaks the follow; chains + cycle-prevention; transient
+  (no persistence). The shared substrate under **grouping**, **hireable mobs**,
+  and the **onboarding guide** (each a future consumer). *(Spec ahead of code —
+  build pending.)*
 - [admin-verbs](admin-verbs.md) — the admin gate (commands marked
   admin, refused unless the actor holds the admin role), admin
   target resolution with visibility bypass, the baseline verb set
