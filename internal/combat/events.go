@@ -96,7 +96,11 @@ type Hit struct {
 	Damage       int
 	DamageType   string
 	IsCritical   bool
-	RoomID       world.RoomID
+	// Subdual is true when the wielded weapon is nonlethal (subdual-damage §2).
+	// Carried for renderers (a knock-out blow reads differently from a wound);
+	// the mechanical consequence rides VitalDepleted.Subdual on a finishing blow.
+	Subdual bool
+	RoomID  world.RoomID
 }
 
 // Miss is dispatched when a swing fails to land (combat §4.3 step 5).
@@ -143,7 +147,13 @@ type VitalDepleted struct {
 	VictimName string
 	AttackerID CombatantID
 	Vital      string
-	RoomID     world.RoomID
+	// Subdual is true when the FINISHING blow came from a nonlethal weapon
+	// (subdual-damage §4). The death pipeline reads it to KNOCK OUT (cancel the
+	// death, restore the victim, apply the unconscious condition) instead of
+	// killing. False (the default) on every lethal finish, an ability/DoT death,
+	// or a non-combat depletion — all of which kill exactly as before.
+	Subdual bool
+	RoomID  world.RoomID
 }
 
 // RangedDry is dispatched when a projectile auto-attack swing cannot fire

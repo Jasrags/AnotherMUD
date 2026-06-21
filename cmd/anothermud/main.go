@@ -2428,6 +2428,47 @@ func run() error {
 		return conditionImpact(bareID).Incapacitated
 	}
 
+	// subdual-damage §4 — the KNOCK-OUT path. A subdual finishing blow drops the
+	// victim to UNCONSCIOUS instead of killing: restore it to 1 HP (alive), apply
+	// the `unconscious` condition (incapacitated + helpless, subdual-damage §3),
+	// and disengage it. No corpse / loot / kill credit — knockOut returns true so
+	// OnVitalDepleted skips the death pipeline. A false return falls through to the
+	// ordinary lethal death (victim gone, or the `unconscious` template missing) —
+	// the safe fallback over a stuck 0-HP zombie. The template is resolved once at
+	// wire time; absent ⇒ the mode is inert (no pack defines it = no knock-outs).
+	unconsciousTpl, haveUnconscious := registries.Effects.Get(subdualUnconsciousEffectID)
+	combatSink.knockOut = func(ctx context.Context, e combat.VitalDepleted) bool {
+		if !haveUnconscious {
+			return false
+		}
+		victim, ok := combatSink.locator.LookupCombatant(e.VictimID)
+		if !ok {
+			return false
+		}
+		// Leave the victim ALIVE at 1 HP — the death the subdual blow "dealt" is
+		// converted to a knock-out, not undone.
+		victim.Vitals().SetCurrent(1)
+		// Apply the unconscious condition, attributed to the attacker. Apply may
+		// report false if the victim is already unconscious — that is still a
+		// knock-out (a re-knock refreshes the duration, subdual-damage §5), so the
+		// return is NOT gated on it.
+		effectMgr.Apply(ctx, combat.EntityIDOf(e.VictimID), unconsciousTpl, combat.EntityIDOf(e.AttackerID), subdualKnockoutReason)
+		// End the fight for the downed victim — both sides fall out, as on a kill.
+		combatSink.mgr.DisengageAll(ctx, e.VictimID, e.RoomID)
+
+		combatSink.logger.Info("combat.knockout",
+			slog.String("victim", string(e.VictimID)),
+			slog.String("attacker", string(e.AttackerID)),
+			slog.String("room", string(e.RoomID)))
+
+		combatSink.tell(ctx, e.VictimID, "Everything goes black — you crumple to the ground, unconscious.")
+		if e.AttackerID != "" {
+			combatSink.tell(ctx, e.AttackerID, fmt.Sprintf("You knock %s out cold!", e.VictimName))
+		}
+		combatSink.announce(ctx, e.RoomID, fmt.Sprintf("%s crumples to the ground, unconscious.", e.VictimName), e.VictimID, e.AttackerID)
+		return true
+	}
+
 	// Slice 3: moving rooms also disrupts a weave — you can't walk (or be
 	// teleported/recalled) away mid-channel and keep the weave. Reuses the
 	// sink's interrupt+notify path (it owns the tracker + notifier refs). Fires
@@ -3947,6 +3988,14 @@ func (l combatLocator) RoomOf(id combat.CombatantID) (world.RoomID, bool) {
 //
 // All other event methods stay log-only; M7.6 will use OnCombatEnded
 // to clear flee cooldowns.
+// subdualUnconsciousEffectID is the content effect id the knock-out applies
+// (subdual-damage §3 — content/core/effects/condition-unconscious.yaml);
+// subdualKnockoutReason is the effect-source-ability attribution recorded on it.
+const (
+	subdualUnconsciousEffectID = "unconscious"
+	subdualKnockoutReason      = "subdual"
+)
+
 type productionCombatSink struct {
 	logger   *slog.Logger
 	bus      *eventbus.Bus
@@ -3970,6 +4019,14 @@ type productionCombatSink struct {
 	// (stunned). onEffectApplied uses it to break a weave when an incapacitating
 	// condition lands. nil ⇒ the stun-interrupt path is inert.
 	incapacitated func(bareID string) bool
+	// knockOut handles a SUBDUAL finishing blow (subdual-damage §4): it restores
+	// the victim to 1 HP, applies the `unconscious` condition, disengages it, and
+	// announces the knock-out, returning true when the victim was knocked out
+	// instead of killed. nil (or a false return) ⇒ the ordinary death pipeline
+	// runs (the safe fallback: a subdual blow that cannot knock out still kills
+	// rather than leaving a 0-HP zombie). Set after construction once the effect
+	// manager + template registry are wired.
+	knockOut func(ctx context.Context, e combat.VitalDepleted) bool
 }
 
 // tell sends msg to the combatant if it is an online player (M10 combat
@@ -4212,6 +4269,16 @@ func (s *productionCombatSink) OnVitalDepleted(ctx context.Context, e combat.Vit
 	// Only HP-depletion is a death today. A future stamina/mana
 	// depletion event would land here as a separate code path.
 	if e.Vital != combat.VitalHP {
+		return
+	}
+
+	// subdual-damage §4: a SUBDUAL finishing blow KNOCKS OUT instead of killing.
+	// The knock-out restores the victim to 1 HP, applies the `unconscious`
+	// condition, and disengages it — no corpse, no loot, no kill credit. It
+	// intercepts before the death pipeline; a false return (victim gone / no
+	// unconscious template) falls through to the ordinary lethal death (the safe
+	// fallback). A lethal finish (Subdual=false) skips this entirely.
+	if e.Subdual && s.knockOut != nil && s.knockOut(ctx, e) {
 		return
 	}
 

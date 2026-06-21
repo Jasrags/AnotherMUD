@@ -415,6 +415,7 @@ func runAutoAttack(ctx context.Context, attackerID CombatantID, mgr *Manager, cf
 		offStats.CritMultiplier = off.CritMultiplier
 		offStats.RangedClass = ""
 		offStats.OffHand = nil
+		offStats.Subdual = off.Subdual // subdual-damage §2: off-hand lethality is its own
 		offIn := in
 		offIn.atkStats = offStats
 		offIn.weaponName = offStats.EffectiveWeaponName()
@@ -672,6 +673,7 @@ func resolveSwing(ctx context.Context, in swingInputs, cfg AutoAttackConfig) swi
 		Damage:       raw,
 		DamageType:   DamageTypePhysical,
 		IsCritical:   outcome.critical,
+		Subdual:      in.atkStats.Subdual,
 		RoomID:       in.attackerRoom,
 	})
 
@@ -681,7 +683,9 @@ func resolveSwing(ctx context.Context, in swingInputs, cfg AutoAttackConfig) swi
 			VictimName: in.tgtName,
 			AttackerID: in.attackerID,
 			Vital:      VitalHP,
-			RoomID:     in.attackerRoom,
+			// subdual-damage §4: a nonlethal finishing blow knocks out, not kills.
+			Subdual: in.atkStats.Subdual,
+			RoomID:  in.attackerRoom,
 		})
 		// §4.3 "If HP reached zero ... stop further swings." This swing landed the
 		// killing blow, so a Cleave-capable attacker may follow up (Bucket C).

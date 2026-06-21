@@ -3372,6 +3372,10 @@ type weaponInfo struct {
 	// Read by Stats() into combat.Stats.Set so a braced polearm answers a charge
 	// with a bonus blow. false for an ordinary weapon.
 	set bool
+	// subdual reports the weapon is nonlethal (subdual-damage §2 — sap/whip).
+	// Read by Stats() into combat.Stats.Subdual so a finishing blow knocks the
+	// foe out instead of killing. false for an ordinary (lethal) weapon.
+	subdual bool
 	// doubleDamage is a DOUBLE weapon's SECOND-end dice (special-weapons §7 —
 	// quarterstaff/ashandarei). When set and the weapon is wielded with no
 	// distinct off-hand item, Stats() grants an off-hand strike from this end (the
@@ -3440,6 +3444,7 @@ func (a *connActor) buildWeaponInfoLocked(id entities.EntityID) *weaponInfo {
 		strRating:      it.StrRating(),
 		reach:          it.Reach(),
 		set:            it.HasSpecial(item.SpecialSet),
+		subdual:        it.Subdual(),
 		doubleDamage:   doubleDamageOf(it),
 		tripBonus:      it.TripBonus(),
 		disarmBonus:    it.DisarmBonus(),
@@ -5832,8 +5837,9 @@ func (a *connActor) Stats() combat.Stats {
 		s.RangedClass = w.rangedClass
 		s.AmmoKind = w.ammoKind
 		s.RangeIncrement = w.rangeIncrement
-		s.Reach = w.reach // special-weapons §3: strikes at the `near` band too
-		s.Set = w.set     // special-weapons §4: braced bonus blow vs a charge
+		s.Reach = w.reach     // special-weapons §3: strikes at the `near` band too
+		s.Set = w.set         // special-weapons §4: braced bonus blow vs a charge
+		s.Subdual = w.subdual // subdual-damage §2: a nonlethal finish knocks out
 		s.DamageBonus = item.RangedDamageBonus(w.rangedClass, w.strRating, s.DamageBonus)
 		// size-and-wielding §4.2: a two-handed MELEE wield multiplies the
 		// Strength contribution to damage by the two-handed factor. Add only the
@@ -5894,13 +5900,16 @@ func (a *connActor) Stats() combat.Stats {
 			offCritMul int
 			haveOff    bool
 		)
+		offSubdual := false // subdual-damage §2: the off-hand end's lethality
 		if off := a.offWeapon.Load(); off != nil && off.wieldMode == size.Light {
 			offDice, offName, offTypes = off.dice, off.name, off.damageTypes
 			offCritLow, offCritMul = off.critThreatLow, off.critMultiplier
+			offSubdual = off.subdual
 			haveOff = true
 		} else if !w.doubleDamage.IsZero() {
 			offDice, offName, offTypes = w.doubleDamage, w.name, w.damageTypes
 			offCritLow, offCritMul = w.critThreatLow, w.critMultiplier
+			offSubdual = w.subdual // a double weapon's second end shares the weapon's lethality
 			haveOff = true
 		}
 		if haveOff {
@@ -5939,6 +5948,8 @@ func (a *connActor) Stats() combat.Stats {
 				DamageBonus: damageBonus + size.StrBonusDelta(strBonus, size.DefaultOffHandStrFactor),
 				// Improved Two-Weapon Fighting raises the off-hand strike count (§3.1).
 				Attacks: offHandAttacks,
+				// subdual-damage §2: a nonlethal off-hand end knocks out on a finish.
+				Subdual: offSubdual,
 			}
 		}
 	}

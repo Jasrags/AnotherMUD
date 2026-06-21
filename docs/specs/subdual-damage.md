@@ -92,7 +92,13 @@ machine; keep every non-subdual fight byte-for-byte unchanged.
    (`combat.Stats` → the `Hit`/`VitalDepleted` events) into the death pipeline; a
    death-check knock-out listener cancels the subdual death, restores HP, applies
    unconscious, and disengages; the victim wakes when the condition expires.
-   *(§4, §5.)*
+   *(§4, §5.)* **SHIPPED 2026-06-21** — the knock-out intercepts in
+   `OnVitalDepleted` (a branch before the death pipeline, the cancel-equivalent
+   that pre-empts corpse creation); the off-hand swing carries its own lethality
+   (`OffHandProfile.Subdual`); wake is the ordinary effect-duration expiry. Mob-
+   *attacker* subdual (a mob wielding a sap) waits on slice 3 — mobs do not yet
+   thread the `subdual`/reach/set weapon stats into combat, exactly as those
+   player-only consumers shipped.
 3. **Whip + content** — the `whip` special tag (subdual + reach + the source's
    "ineffective vs. armor" rule), and pointing the sap / whip / unarmed at the
    mode; a demo + a live walkthrough. *(§6.)*

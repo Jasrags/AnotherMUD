@@ -104,6 +104,15 @@ type Stats struct {
 	// wielded weapon by the holder's Stats() builder.
 	Reach int
 
+	// Subdual reports whether the wielded weapon is nonlethal (subdual-damage §2 —
+	// sap/whip/unarmed). It is inert for the whole swing pipeline (same dice,
+	// to-hit, crit, soak) and matters at exactly one point: a subdual FINISHING
+	// blow (one that drops the target to zero HP) rides out on the Hit /
+	// VitalDepleted events so the death pipeline can KNOCK OUT instead of kill
+	// (subdual-damage §4). Read live from the wielded weapon by the holder's
+	// Stats() builder; false for an ordinary weapon (every fight unchanged).
+	Subdual bool
+
 	// Set reports whether the wielded weapon carries the `set` special tag
 	// (special-weapons §4 — set vs a charge: pike/bill/poleaxe/boarspear). A set
 	// weapon braced against a foe that CHARGED into strike range this round (the
@@ -164,6 +173,12 @@ type OffHandProfile struct {
 	// DamageBonus is the off-hand swing's flat damage bonus — the reduced (½×)
 	// Strength share plus any flat bonuses (two-weapon-fighting §4.2).
 	DamageBonus int
+	// Subdual marks the off-hand weapon as nonlethal (subdual-damage §2). A
+	// double weapon's second end shares the weapon's lethality; a distinct
+	// off-hand weapon carries its own. Read onto the off-hand swing's Stats so an
+	// off-hand finishing blow knocks out iff the off-hand weapon is subdual,
+	// independent of the main hand.
+	Subdual bool
 	// Attacks is the number of off-hand strikes this profile grants per round
 	// (two-weapon-fighting §3.1 — the "off-hand attacks granted" count). Zero or
 	// one means a single off-hand strike (the slice-1 baseline); Improved

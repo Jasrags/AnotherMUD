@@ -855,3 +855,78 @@ func TestConditions_DefenderVulnerabilityComposesWithAttackerHitMod(t *testing.T
 			got, len(rig.sink.snapshotMisses()))
 	}
 }
+
+// TestSubdualFinishingBlowMarksVitalDepleted locks subdual-damage §2/§4: a
+// subdual weapon's FINISHING blow carries Subdual=true on both the Hit and the
+// VitalDepleted events, so the death pipeline can knock out instead of kill.
+func TestSubdualFinishingBlowMarksVitalDepleted(t *testing.T) {
+	atkStats := Stats{HitMod: 10, DamageBonus: 5, Subdual: true}
+	rig := newAutoAttackRig(t, atkStats, Stats{AC: 5}, 10, 3, []int{
+		9, // d20: 10, auto-hit
+		2, // damage 1d3: 3 → +5 = 8 on a 3HP target → finishing blow
+	})
+	rig.phase()(context.Background(), rig.attacker.id, rig.mgr, 0)
+
+	hits := rig.sink.snapshotHits()
+	if len(hits) != 1 || !hits[0].Subdual {
+		t.Fatalf("subdual Hit not marked: hits=%+v", hits)
+	}
+	deaths := rig.sink.snapshotDeaths()
+	if len(deaths) != 1 || !deaths[0].Subdual {
+		t.Fatalf("subdual VitalDepleted not marked: deaths=%+v", deaths)
+	}
+}
+
+// TestLethalFinishingBlowIsNotSubdual is the control: an ordinary (non-subdual)
+// weapon's finish carries Subdual=false, so the death pipeline kills as before.
+func TestLethalFinishingBlowIsNotSubdual(t *testing.T) {
+	atkStats := Stats{HitMod: 10, DamageBonus: 5} // Subdual defaults false
+	rig := newAutoAttackRig(t, atkStats, Stats{AC: 5}, 10, 3, []int{9, 2})
+	rig.phase()(context.Background(), rig.attacker.id, rig.mgr, 0)
+
+	deaths := rig.sink.snapshotDeaths()
+	if len(deaths) != 1 || deaths[0].Subdual {
+		t.Fatalf("lethal finish must not be subdual: deaths=%+v", deaths)
+	}
+	if hits := rig.sink.snapshotHits(); len(hits) != 1 || hits[0].Subdual {
+		t.Fatalf("lethal Hit must not be subdual: hits=%+v", hits)
+	}
+}
+
+// TestSubdualNonFinishingBlowStillSubdualButNoDeath: a subdual blow that leaves
+// the target above zero marks the Hit subdual (renderers) but emits no
+// VitalDepleted — subdual is inert above zero HP (subdual-damage §2).
+func TestSubdualNonFinishingBlowAboveZero(t *testing.T) {
+	atkStats := Stats{HitMod: 10, Subdual: true} // no bonus: a 1-damage scratch
+	rig := newAutoAttackRig(t, atkStats, Stats{AC: 5}, 10, 20, []int{9, 0})
+	rig.phase()(context.Background(), rig.attacker.id, rig.mgr, 0)
+
+	if hits := rig.sink.snapshotHits(); len(hits) != 1 || !hits[0].Subdual {
+		t.Fatalf("subdual non-finishing Hit not marked: hits=%+v", hits)
+	}
+	if deaths := rig.sink.snapshotDeaths(); len(deaths) != 0 {
+		t.Fatalf("a non-finishing blow must not deplete a vital: deaths=%+v", deaths)
+	}
+}
+
+// TestOffHandSubdualIndependentOfMainHand locks subdual-damage §2: the off-hand
+// swing's lethality is its OWN — a subdual off-hand finish is marked subdual even
+// when the main hand is lethal. The main swing here misses (low roll) so the
+// off-hand lands the finishing blow.
+func TestOffHandSubdualIndependentOfMainHand(t *testing.T) {
+	atkStats := Stats{
+		HitMod: 10, Subdual: false, // main hand: lethal, but it will miss
+		OffHand: &OffHandProfile{HitMod: 10, DamageBonus: 5, Subdual: true, Attacks: 1},
+	}
+	rig := newAutoAttackRig(t, atkStats, Stats{AC: 5}, 10, 3, []int{
+		0, // main d20: 1 → fumble/miss vs AC 5 (no damage roll consumed on a miss)
+		9, // off-hand d20: 10, auto-hit
+		2, // off-hand damage 1d3: 3 → +5 = 8 on 3HP → subdual finish
+	})
+	rig.phase()(context.Background(), rig.attacker.id, rig.mgr, 0)
+
+	deaths := rig.sink.snapshotDeaths()
+	if len(deaths) != 1 || !deaths[0].Subdual {
+		t.Fatalf("off-hand subdual finish should mark VitalDepleted subdual: deaths=%+v", deaths)
+	}
+}
