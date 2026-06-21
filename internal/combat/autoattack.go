@@ -421,7 +421,8 @@ func runAutoAttack(ctx context.Context, attackerID CombatantID, mgr *Manager, cf
 		offStats.CritMultiplier = off.CritMultiplier
 		offStats.RangedClass = ""
 		offStats.OffHand = nil
-		offStats.Subdual = off.Subdual // subdual-damage §2: off-hand lethality is its own
+		offStats.Subdual = off.Subdual                       // subdual-damage §2: off-hand lethality is its own
+		offStats.IneffectiveVsArmor = off.IneffectiveVsArmor // subdual-damage §6: off-hand whip-ness is its own (don't inherit main's)
 		offIn := in
 		offIn.atkStats = offStats
 		offIn.weaponName = offStats.EffectiveWeaponName()

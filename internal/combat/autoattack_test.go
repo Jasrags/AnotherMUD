@@ -1007,3 +1007,34 @@ func TestWhipGateDisabledWhenThresholdZero(t *testing.T) {
 		t.Fatalf("threshold 0 disables the gate — the whip should bite, got %+v", hits)
 	}
 }
+
+// TestOffHandWhipIndependentOfMainHand locks the review fix (subdual-damage §6):
+// the off-hand swing's anti-armor behavior is its OWN. A whip MAIN hand + a
+// steel (non-whip) off-hand vs an armored foe: the main swing is ineffective
+// (0 damage), but the off-hand swing bites normally — it must NOT inherit the
+// main hand's IneffectiveVsArmor.
+func TestOffHandWhipIndependentOfMainHand(t *testing.T) {
+	atk := Stats{
+		HitMod: 10, DamageBonus: 5, IneffectiveVsArmor: true, // main hand: a whip
+		OffHand: &OffHandProfile{HitMod: 10, DamageBonus: 5, IneffectiveVsArmor: false, Attacks: 1}, // off hand: steel
+	}
+	def := Stats{AC: 5, ArmorRating: 2}
+	rig := newAutoAttackRig(t, atk, def, 10, 50, []int{
+		9, // main d20: hit → ineffective (no damage roll consumed)
+		9, // off-hand d20: hit
+		2, // off-hand damage 1d3: 3 → +5 = 8 (a real bite)
+	})
+	rig.whipThreshold = 1
+	rig.phase()(context.Background(), rig.attacker.id, rig.mgr, 0)
+
+	hits := rig.sink.snapshotHits()
+	if len(hits) != 2 {
+		t.Fatalf("want 2 hits (main ineffective + off-hand bite), got %d: %+v", len(hits), hits)
+	}
+	if !hits[0].Ineffective || hits[0].Damage != 0 {
+		t.Errorf("main whip swing should be ineffective 0-damage, got %+v", hits[0])
+	}
+	if hits[1].Ineffective || hits[1].Damage == 0 {
+		t.Errorf("off-hand steel swing should bite (not inherit the main whip's anti-armor), got %+v", hits[1])
+	}
+}

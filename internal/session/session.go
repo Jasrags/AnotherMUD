@@ -5941,16 +5941,19 @@ func (a *connActor) Stats() combat.Stats {
 			offCritMul int
 			haveOff    bool
 		)
-		offSubdual := false // subdual-damage §2: the off-hand end's lethality
+		offSubdual := false     // subdual-damage §2: the off-hand end's lethality
+		offIneffective := false // subdual-damage §6: the off-hand end's whip-ness
 		if off := a.offWeapon.Load(); off != nil && off.wieldMode == size.Light {
 			offDice, offName, offTypes = off.dice, off.name, off.damageTypes
 			offCritLow, offCritMul = off.critThreatLow, off.critMultiplier
 			offSubdual = off.subdual
+			offIneffective = off.ineffectiveVsArmor
 			haveOff = true
 		} else if !w.doubleDamage.IsZero() {
 			offDice, offName, offTypes = w.doubleDamage, w.name, w.damageTypes
 			offCritLow, offCritMul = w.critThreatLow, w.critMultiplier
-			offSubdual = w.subdual // a double weapon's second end shares the weapon's lethality
+			offSubdual = w.subdual                // a double weapon's second end shares the weapon's lethality
+			offIneffective = w.ineffectiveVsArmor // ...and its whip-ness (no double weapon is a whip today)
 			haveOff = true
 		}
 		if haveOff {
@@ -5991,6 +5994,8 @@ func (a *connActor) Stats() combat.Stats {
 				Attacks: offHandAttacks,
 				// subdual-damage §2: a nonlethal off-hand end knocks out on a finish.
 				Subdual: offSubdual,
+				// subdual-damage §6: the off-hand end's own whip-ness (anti-armor).
+				IneffectiveVsArmor: offIneffective,
 			}
 		}
 	}

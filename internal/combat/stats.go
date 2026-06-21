@@ -195,6 +195,11 @@ type OffHandProfile struct {
 	// off-hand finishing blow knocks out iff the off-hand weapon is subdual,
 	// independent of the main hand.
 	Subdual bool
+	// IneffectiveVsArmor marks the off-hand weapon as a whip (subdual-damage §6).
+	// Read onto the off-hand swing's Stats so the anti-armor gate keys off the
+	// OFF-HAND weapon, independent of the main hand — a whip main + a steel
+	// off-hand bites armor normally with the off hand, and vice versa.
+	IneffectiveVsArmor bool
 	// Attacks is the number of off-hand strikes this profile grants per round
 	// (two-weapon-fighting §3.1 — the "off-hand attacks granted" count). Zero or
 	// one means a single off-hand strike (the slice-1 baseline); Improved
