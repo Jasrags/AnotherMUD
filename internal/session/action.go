@@ -39,13 +39,30 @@ func (m *Manager) CompleteReadyActions(ctx context.Context, now uint64) {
 	if m == nil || m.actionTracker == nil || m.actionCommands == nil {
 		return
 	}
-	for _, a := range m.playingActors() {
-		act, due := m.actionTracker.CompleteReady(a.PlayerID(), now)
+	// Iterate only the occupied actors (typically zero or a handful), not every
+	// logged-in player every tick. CompleteReady claims a due action atomically;
+	// an action interrupted (moved / stopped) between BusyEntities and the claim
+	// just reads not-due here.
+	for _, id := range m.actionTracker.BusyEntities() {
+		act, due := m.actionTracker.CompleteReady(id, now)
 		if !due {
 			continue
 		}
-		raw, ok := act.Payload.(string)
-		if !ok || raw == "" {
+		a, ok := m.GetByPlayerID(id)
+		if !ok {
+			// Actor vanished after BusyEntities (logout/teardown also Drops, so
+			// this is the rare interleave) — the claimed action is simply lost.
+			continue
+		}
+		raw, payloadOK := act.Payload.(string)
+		if !payloadOK || raw == "" {
+			// Every shipped consumer stores its replay command; a missing/non-
+			// string payload is a consumer bug, so surface it rather than drop
+			// silently (action-economy.md §3).
+			logging.From(ctx).Warn("action completion has no replayable payload",
+				slog.String("event", "action.bad_payload"),
+				slog.String("kind", string(act.Kind)),
+				slog.String("player", a.Name()))
 			continue
 		}
 		env := m.actionEnv
