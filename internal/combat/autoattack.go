@@ -102,6 +102,12 @@ type AutoAttackConfig struct {
 	// passes. Host policy; zero (tests/headless) means a set weapon plays as an
 	// ordinary weapon, so a fight with no set weapon is unchanged.
 	SetDamageBonus int
+	// WhipArmorThreshold is the defender ArmorRating at/above which a whip
+	// (Stats.IneffectiveVsArmor) deals NO damage (subdual-damage §6 — a whip
+	// cannot bite through armor). Zero (tests/headless, or env unset to 0)
+	// disables the rule, so a whip bites every foe and a non-whip weapon is
+	// unaffected regardless. Host policy.
+	WhipArmorThreshold int
 	// KitePolicy decides whether a projectile combatant should WITHDRAW this
 	// round to keep distance instead of shooting (ranged-combat §5.4 kiting AI).
 	// Called only for a projectile attacker that has room to open the band
@@ -625,6 +631,28 @@ func resolveSwing(ctx context.Context, in swingInputs, cfg AutoAttackConfig) swi
 			TargetName:   in.tgtName,
 			WeaponName:   in.weaponName,
 			IsFumble:     outcome.fumble,
+			RoomID:       in.attackerRoom,
+		})
+		return swingContinue
+	}
+
+	// subdual-damage §6 — whip vs. armor. The whip LANDED (it wrapped the foe)
+	// but cannot bite through armor: against a defender whose ArmorRating meets
+	// the threshold it deals NO damage. Emitted as an ineffective Hit (Damage 0)
+	// — no damage roll, no soak, no vital-depletion, no min-1 floor. Inert unless
+	// the weapon is a whip AND the threshold is configured AND the defender is
+	// armored, so every ordinary fight is unchanged.
+	if in.atkStats.IneffectiveVsArmor && cfg.WhipArmorThreshold > 0 && in.defStats.ArmorRating >= cfg.WhipArmorThreshold {
+		cfg.Sink.OnHit(ctx, Hit{
+			AttackerID:   in.attackerID,
+			TargetID:     in.targetID,
+			AttackerName: in.atkName,
+			TargetName:   in.tgtName,
+			WeaponName:   in.weaponName,
+			Damage:       0,
+			DamageType:   DamageTypePhysical,
+			Subdual:      in.atkStats.Subdual,
+			Ineffective:  true,
 			RoomID:       in.attackerRoom,
 		})
 		return swingContinue

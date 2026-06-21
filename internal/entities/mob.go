@@ -148,6 +148,19 @@ type MobInstance struct {
 	// declares no size). Set during the spawn pipeline by SetWeapon, read
 	// lock-free by Stats.
 	weaponSize string
+	// weaponSubdual reports whether the mob's EQUIPPED weapon is nonlethal
+	// (subdual-damage §2 — a sap/whip-wielding mob). Fed into combat.Stats.Subdual
+	// so a mob's finishing blow KNOCKS OUT instead of killing (subdual-damage §4).
+	// false for a natural weapon (a bite/claw is lethal — the player/mob-natural
+	// distinction), the default; set during the spawn pipeline by SetWeaponSubdual
+	// for an equipped subdual weapon, read lock-free by Stats.
+	weaponSubdual bool
+	// armorRating is the mob's worn-armor AC sum (subdual-damage §6 — the whip
+	// anti-armor gate reads it as the defender rating). Set during the spawn
+	// pipeline by SetArmorRating (EquipMobAtSpawn), read lock-free by Stats into
+	// combat.Stats.ArmorRating. 0 = unarmored (the default); intrinsic natural
+	// armor is not folded in (v1 = worn armor only).
+	armorRating int
 	// offWeapon / offWeaponName / offWeaponDamageTypes / offWeaponSize are the
 	// mob's OFF-HAND weapon (two-weapon-fighting §2.3) — a second equipped weapon
 	// that fits the off-hand slot. Set during the spawn pipeline by SetOffWeapon

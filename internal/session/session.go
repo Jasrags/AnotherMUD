@@ -387,6 +387,13 @@ type Config struct {
 	// combat input, not a chat channel.
 	ChannelMap *channel.Mapping
 
+	// UnarmedSubdual makes an unarmed player's strikes nonlethal — fists knock a
+	// foe OUT instead of killing (subdual-damage §6). The composition root sets it
+	// from ANOTHERMUD_UNARMED_SUBDUAL (default true — the faithful d20/WoT
+	// behavior). A wielded weapon ignores this (its own `subdual` flag decides);
+	// mob natural weapons are unaffected (this is a player-unarmed concern).
+	UnarmedSubdual bool
+
 	// ChatRegistry is the M13.6 channel catalog. Threaded through
 	// to command.Env for chat verbs. nil-safe.
 	ChatRegistry *chat.Registry
@@ -636,14 +643,15 @@ func run(ctx context.Context, c conn.Connection, cfg Config) error {
 		// absent block (fresh character, migrated-from-v4 save) spawns
 		// at full HP via NewVitals. The race/class/level inputs that
 		// would derive real numbers for max HP here are M8.3/M8.4.
-		vitals:      restorePlayerVitals(loaded.Player.Vitals),
-		pools:       pool.NewSet(),
-		channelMap:  cfg.ChannelMap,
-		flood:       newFloodGate(floodCfg, clk),
-		gmcpFlood:   newFloodGate(gmcpFloodConfig(floodCfg), clk),
-		floodCfg:    &floodCfg,
-		clk:         clk,
-		lastInputAt: clk.Now(),
+		vitals:         restorePlayerVitals(loaded.Player.Vitals),
+		pools:          pool.NewSet(),
+		channelMap:     cfg.ChannelMap,
+		unarmedSubdual: cfg.UnarmedSubdual,
+		flood:          newFloodGate(floodCfg, clk),
+		gmcpFlood:      newFloodGate(gmcpFloodConfig(floodCfg), clk),
+		floodCfg:       &floodCfg,
+		clk:            clk,
+		lastInputAt:    clk.Now(),
 	}
 
 	// M14.1: bind Vitals.SetMax to StatBlock hp_max changes so an
@@ -1923,6 +1931,12 @@ type connActor struct {
 	// equipment pass, read lock-free by EffectiveRenown / RenownTier. 0 = no gear
 	// reputation. The renown sibling of armorResist.
 	wornReputation atomic.Int64
+	// wornArmorBonus caches the summed AC contribution of worn armor (the defender
+	// armor rating the whip anti-armor gate reads — subdual-damage §6). Recomputed
+	// alongside armorResist over the same distinct-id equipment pass, read lock-free
+	// by Stats() into combat.Stats.ArmorRating. 0 = unarmored. Intrinsic natural
+	// armor is not folded in (v1 = worn armor only).
+	wornArmorBonus atomic.Int64
 	// featWeaponBonus caches the per-weapon-category feat hit/crit bonuses
 	// (EPIC S4 Phase 3c), recomputed on feat change (applyFeatGrants) and read
 	// LOCK-FREE in Stats() — same atomic.Pointer discipline as `weapon`, so the
@@ -1966,6 +1980,14 @@ type connActor struct {
 	// so both paths yield identical numbers. Read lock-free by Stats() on
 	// the tick goroutine (immutable after construction).
 	channelMap *channel.Mapping
+
+	// unarmedSubdual makes an UNARMED player's strikes nonlethal (subdual-damage
+	// §6 — fists knock out rather than kill, the faithful d20/WoT default). Set
+	// from Config.UnarmedSubdual at construction; false in bare test-built actors
+	// (so existing unarmed combat tests stay lethal). Read lock-free by Stats() on
+	// the tick goroutine. Only the unarmed branch (no wielded weapon) reads it — a
+	// wielded weapon's own `subdual` flag governs when armed.
+	unarmedSubdual bool
 
 	// raceID is the canonical race id the actor was constructed
 	// with (M8.3). Established at login from save (or the
@@ -3376,6 +3398,10 @@ type weaponInfo struct {
 	// Read by Stats() into combat.Stats.Subdual so a finishing blow knocks the
 	// foe out instead of killing. false for an ordinary (lethal) weapon.
 	subdual bool
+	// ineffectiveVsArmor reports the weapon is a whip (the `whip` special tag,
+	// subdual-damage §6): it cannot bite through armor. Read by Stats() into
+	// combat.Stats.IneffectiveVsArmor. false for an ordinary weapon.
+	ineffectiveVsArmor bool
 	// doubleDamage is a DOUBLE weapon's SECOND-end dice (special-weapons §7 —
 	// quarterstaff/ashandarei). When set and the weapon is wielded with no
 	// distinct off-hand item, Stats() grants an off-hand strike from this end (the
@@ -3437,17 +3463,18 @@ func (a *connActor) buildWeaponInfoLocked(id entities.EntityID) *weaponInfo {
 		critMultiplier: it.CritMultiplier(),
 		damageTypes:    it.DamageTypes(),
 		// size-and-wielding §3: resolve the grip for THIS wielder.
-		wieldMode:      size.Mode(it.WeaponSize(), a.sizeLocked()),
-		rangedClass:    it.RangedClass(),
-		ammoKind:       it.AmmoKind(),
-		rangeIncrement: it.RangeIncrement(),
-		strRating:      it.StrRating(),
-		reach:          it.Reach(),
-		set:            it.HasSpecial(item.SpecialSet),
-		subdual:        it.Subdual(),
-		doubleDamage:   doubleDamageOf(it),
-		tripBonus:      it.TripBonus(),
-		disarmBonus:    it.DisarmBonus(),
+		wieldMode:          size.Mode(it.WeaponSize(), a.sizeLocked()),
+		rangedClass:        it.RangedClass(),
+		ammoKind:           it.AmmoKind(),
+		rangeIncrement:     it.RangeIncrement(),
+		strRating:          it.StrRating(),
+		reach:              it.Reach(),
+		set:                it.HasSpecial(item.SpecialSet),
+		subdual:            it.Subdual(),
+		ineffectiveVsArmor: it.HasSpecial(item.SpecialWhip),
+		doubleDamage:       doubleDamageOf(it),
+		tripBonus:          it.TripBonus(),
+		disarmBonus:        it.DisarmBonus(),
 	}
 }
 
@@ -3475,6 +3502,7 @@ func (a *connActor) recomputeWeaponLocked() {
 		a.armorDexCap.Store(nil)
 		a.armorTiers.Store(nil)
 		a.wornReputation.Store(0)
+		a.wornArmorBonus.Store(0)
 		return
 	}
 	keys := make([]string, 0, len(a.equipment))
@@ -3494,7 +3522,8 @@ func (a *connActor) recomputeWeaponLocked() {
 	// armor, and the distinct tiers worn. minCap nil ⇒ no piece caps Dex.
 	var minCap *int
 	var tiers []string
-	var wornRep int // special-weapons §8: summed visible-gear reputation
+	var wornRep int   // special-weapons §8: summed visible-gear reputation
+	var wornArmor int // subdual-damage §6: summed worn armor AC contribution
 	for _, k := range keys {
 		id := a.equipment[k]
 		if seen[id] {
@@ -3509,7 +3538,8 @@ func (a *connActor) recomputeWeaponLocked() {
 			continue
 		}
 		seen[id] = true
-		wornRep += it.Reputation() // special-weapons §8: visible-gear renown delta
+		wornRep += it.Reputation()   // special-weapons §8: visible-gear renown delta
+		wornArmor += it.ArmorBonus() // subdual-damage §6: worn armor rating (whip gate)
 		for dt, amt := range it.Resistances() {
 			if resist == nil {
 				resist = make(map[string]int)
@@ -3554,6 +3584,7 @@ func (a *connActor) recomputeWeaponLocked() {
 		a.armorTiers.Store(nil)
 	}
 	a.wornReputation.Store(int64(wornRep))
+	a.wornArmorBonus.Store(int64(wornArmor))
 }
 
 // IsWeaponProficient reports whether the actor may wield their current
@@ -5817,6 +5848,9 @@ func (a *connActor) Stats() combat.Stats {
 			s.Resistances[k] = v
 		}
 	}
+	// subdual-damage §6: the defender armor rating (worn armor AC sum) the whip
+	// anti-armor gate reads when THIS actor is the target. 0 when unarmored.
+	s.ArmorRating = int(a.wornArmorBonus.Load())
 	// Single consistent snapshot of the feat-bonus cache for this whole Stats()
 	// call: it feeds BOTH the per-weapon-category Weapon Focus / Improved
 	// Critical path and the two-weapon penalty reductions below. Loading it once
@@ -5824,6 +5858,12 @@ func (a *connActor) Stats() combat.Stats {
 	// new pointer mid-call (the same snapshot discipline as armorResist).
 	fb := a.featWeaponBonus.Load()
 	w := a.weapon.Load()
+	if w == nil {
+		// subdual-damage §6: an UNARMED player strikes nonlethally when the host
+		// enables it (the faithful d20/WoT default) — fists knock out, they do not
+		// kill. A wielded weapon (the w != nil branch) carries its own lethality.
+		s.Subdual = a.unarmedSubdual
+	}
 	if w != nil {
 		s.Damage = w.dice
 		s.WeaponName = w.name
@@ -5837,9 +5877,10 @@ func (a *connActor) Stats() combat.Stats {
 		s.RangedClass = w.rangedClass
 		s.AmmoKind = w.ammoKind
 		s.RangeIncrement = w.rangeIncrement
-		s.Reach = w.reach     // special-weapons §3: strikes at the `near` band too
-		s.Set = w.set         // special-weapons §4: braced bonus blow vs a charge
-		s.Subdual = w.subdual // subdual-damage §2: a nonlethal finish knocks out
+		s.Reach = w.reach                           // special-weapons §3: strikes at the `near` band too
+		s.Set = w.set                               // special-weapons §4: braced bonus blow vs a charge
+		s.Subdual = w.subdual                       // subdual-damage §2: a nonlethal finish knocks out
+		s.IneffectiveVsArmor = w.ineffectiveVsArmor // subdual-damage §6: a whip can't bite armor
 		s.DamageBonus = item.RangedDamageBonus(w.rangedClass, w.strRating, s.DamageBonus)
 		// size-and-wielding §4.2: a two-handed MELEE wield multiplies the
 		// Strength contribution to damage by the two-handed factor. Add only the

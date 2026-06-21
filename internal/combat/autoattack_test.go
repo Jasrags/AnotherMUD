@@ -53,24 +53,25 @@ const (
 // AC 10, STR 10, no weapon damage = unarmed default) plus a recording
 // sink, a manager engaged on the pair, and a scriptedRoller.
 type autoAttackRig struct {
-	mgr      *Manager
-	sink     *recordingSink
-	attacker *liveCombatant
-	target   *liveCombatant
-	locator  MapLocator
-	rooms    MapRoomLocator
-	roller   *scriptedRoller
-	passives PassiveEvaluator                         // nil ⇒ pre-M9.5 behavior
-	critMult int                                      // 0 ⇒ NewAutoAttack default (DefaultCritMultiplier)
-	massive  *MassiveDamageConfig                     // nil ⇒ saves §4 rule disabled
-	incap    func(CombatantID) bool                   // nil ⇒ never incapacitated (conditions §3)
-	defAdj   func(CombatantID) int                    // nil ⇒ no defender vulnerability (conditions §3)
-	ammoFor  func(CombatantID) (bool, int)            // nil ⇒ no ammo gate (ranged-combat §3)
-	falloff  int                                      // RangeFalloff (ranged-combat §5.3)
-	pblank   int                                      // PointBlankPenalty (ranged-combat §5.3)
-	kite     func(CombatantID, CombatantID, int) bool // KitePolicy (ranged-combat §5.4)
-	secOff   int                                      // SecondaryOffHandPenalty (two-weapon-fighting §4.3)
-	setBonus int                                      // SetDamageBonus (special-weapons §4)
+	mgr           *Manager
+	sink          *recordingSink
+	attacker      *liveCombatant
+	target        *liveCombatant
+	locator       MapLocator
+	rooms         MapRoomLocator
+	roller        *scriptedRoller
+	passives      PassiveEvaluator                         // nil ⇒ pre-M9.5 behavior
+	critMult      int                                      // 0 ⇒ NewAutoAttack default (DefaultCritMultiplier)
+	massive       *MassiveDamageConfig                     // nil ⇒ saves §4 rule disabled
+	incap         func(CombatantID) bool                   // nil ⇒ never incapacitated (conditions §3)
+	defAdj        func(CombatantID) int                    // nil ⇒ no defender vulnerability (conditions §3)
+	ammoFor       func(CombatantID) (bool, int)            // nil ⇒ no ammo gate (ranged-combat §3)
+	falloff       int                                      // RangeFalloff (ranged-combat §5.3)
+	pblank        int                                      // PointBlankPenalty (ranged-combat §5.3)
+	kite          func(CombatantID, CombatantID, int) bool // KitePolicy (ranged-combat §5.4)
+	secOff        int                                      // SecondaryOffHandPenalty (two-weapon-fighting §4.3)
+	setBonus      int                                      // SetDamageBonus (special-weapons §4)
+	whipThreshold int                                      // WhipArmorThreshold (subdual-damage §6)
 }
 
 // fakePassives is a deterministic PassiveEvaluator for the §4.2/§4.3
@@ -122,6 +123,7 @@ func (r *autoAttackRig) phase() PhaseFunc {
 		KitePolicy:              r.kite,
 		SecondaryOffHandPenalty: r.secOff,
 		SetDamageBonus:          r.setBonus,
+		WhipArmorThreshold:      r.whipThreshold,
 	})
 }
 
@@ -944,5 +946,64 @@ func TestMassiveDamage_SubdualFailedSaveKnocksOut(t *testing.T) {
 	deaths := rig.sink.snapshotDeaths()
 	if len(deaths) != 1 || !deaths[0].Subdual {
 		t.Fatalf("a subdual massive-damage death must carry Subdual=true: deaths=%+v", deaths)
+	}
+}
+
+// TestWhipIneffectiveVsArmor locks subdual-damage §6: a whip that LANDS against
+// a defender whose ArmorRating meets the threshold deals NO damage (an
+// ineffective Hit), leaving the target's HP untouched.
+func TestWhipIneffectiveVsArmor(t *testing.T) {
+	atk := Stats{HitMod: 10, DamageBonus: 5, IneffectiveVsArmor: true}
+	def := Stats{AC: 5, ArmorRating: 2}
+	rig := newAutoAttackRig(t, atk, def, 10, 20, []int{9}) // hit; no damage roll consumed (ineffective)
+	rig.whipThreshold = 1
+	rig.phase()(context.Background(), rig.attacker.id, rig.mgr, 0)
+
+	hits := rig.sink.snapshotHits()
+	if len(hits) != 1 || !hits[0].Ineffective || hits[0].Damage != 0 {
+		t.Fatalf("want one ineffective 0-damage hit, got %+v", hits)
+	}
+	if got := rig.target.Vitals().Current(); got != 20 {
+		t.Errorf("armored target HP should be untouched by the whip, got %d/20", got)
+	}
+}
+
+// A whip vs an UNARMORED foe (ArmorRating below threshold) bites normally.
+func TestWhipBitesUnarmored(t *testing.T) {
+	atk := Stats{HitMod: 10, DamageBonus: 5, IneffectiveVsArmor: true}
+	def := Stats{AC: 5, ArmorRating: 0}
+	rig := newAutoAttackRig(t, atk, def, 10, 20, []int{9, 2}) // hit + damage roll
+	rig.whipThreshold = 1
+	rig.phase()(context.Background(), rig.attacker.id, rig.mgr, 0)
+
+	hits := rig.sink.snapshotHits()
+	if len(hits) != 1 || hits[0].Ineffective || hits[0].Damage == 0 {
+		t.Fatalf("a whip vs an unarmored foe should deal normal damage, got %+v", hits)
+	}
+}
+
+// A NON-whip weapon vs an armored foe is unaffected by the gate (bites normally).
+func TestNonWhipUnaffectedByArmorGate(t *testing.T) {
+	atk := Stats{HitMod: 10, DamageBonus: 5} // IneffectiveVsArmor false
+	def := Stats{AC: 5, ArmorRating: 99}
+	rig := newAutoAttackRig(t, atk, def, 10, 20, []int{9, 2})
+	rig.whipThreshold = 1
+	rig.phase()(context.Background(), rig.attacker.id, rig.mgr, 0)
+
+	if hits := rig.sink.snapshotHits(); len(hits) != 1 || hits[0].Ineffective {
+		t.Fatalf("a non-whip weapon must ignore the armor gate, got %+v", hits)
+	}
+}
+
+// Threshold 0 (disabled / unconfigured) makes even a whip bite an armored foe.
+func TestWhipGateDisabledWhenThresholdZero(t *testing.T) {
+	atk := Stats{HitMod: 10, DamageBonus: 5, IneffectiveVsArmor: true}
+	def := Stats{AC: 5, ArmorRating: 99}
+	rig := newAutoAttackRig(t, atk, def, 10, 20, []int{9, 2})
+	rig.whipThreshold = 0 // rule disabled
+	rig.phase()(context.Background(), rig.attacker.id, rig.mgr, 0)
+
+	if hits := rig.sink.snapshotHits(); len(hits) != 1 || hits[0].Ineffective {
+		t.Fatalf("threshold 0 disables the gate — the whip should bite, got %+v", hits)
 	}
 }

@@ -105,10 +105,17 @@ machine; keep every non-subdual fight byte-for-byte unchanged.
    2026-06-21** — a starter-world **sap** (subdual) and **coiled whip** (subdual
    + reach) stocked in the town square, and a live telnet walkthrough
    (`TestLive_SubdualKnockout`) proving a sapped road bandit is knocked out
-   (unconscious, no corpse) rather than slain. **Tail still open:** the whip's
-   **anti-armor** rule (the combat-soak special case), **unarmed-as-subdual**
-   (the player/mob-natural-weapon distinction), and **mob-attacker subdual**
-   (threading `subdual` into mob combat stats, as reach/set are not yet either).
+   (unconscious, no corpse) rather than slain. **Tail SHIPPED 2026-06-21:** the
+   whip's **anti-armor** rule (`Stats.IneffectiveVsArmor` + the defender
+   `Stats.ArmorRating` worn-armor sum + `WhipArmorThreshold`; a whip that lands
+   on an armored foe deals an ineffective 0-damage `Hit`), **unarmed-as-subdual**
+   (`Config.UnarmedSubdual`, default on; a player's fists knock out, mob natural
+   weapons stay lethal — the player/mob distinction falls out of the separate
+   player/mob `Stats()` builders), and **mob-attacker subdual** (a mob's equipped
+   subdual weapon threads `SetWeaponSubdual` → `Stats.Subdual`; natural weapons
+   stay lethal). Deferred within these: intrinsic **natural armor** for the whip
+   gate (v1 reads worn armor only) and the worn-vs-natural dual threshold
+   (collapsed to one).
 
 ## 2. What subdual is (and is not) on a swing
 
@@ -261,12 +268,15 @@ slice 1) lights up:
 - **Reach** — a whip strikes at the `near` band (`special-weapons.md` §3 reach),
   authored as `reach: 1`.
 - **Ineffective vs. armor** — the source's "a whip deals no damage to a foe with
-  armor bonus +1 or natural-armor +3" (`docs/wot/equipment.md`). Translated onto
-  the existing soak model: against a sufficiently armored/natural-armored
-  defender the whip's damage is fully soaked (it stings but cannot bite). The
-  exact translation (a hard cutoff vs. folding into the per-type resistance the
-  whip cannot overcome) is settled in the slice; recorded here as the third whip
-  behavior.
+  armor bonus +1 or natural-armor +3" (`docs/wot/equipment.md`). **Translated as
+  a hard cutoff** (not a soak): a whip swing that LANDS against a defender whose
+  **armor rating** (the worn-armor AC sum, `Stats.ArmorRating`) meets
+  `WhipArmorThreshold` deals an **ineffective 0-damage hit** (`Hit.Ineffective`)
+  — it bypasses the damage roll, the soak, and the per-swing min-1 floor, and
+  depletes no vital. Inert unless the weapon is a whip AND the threshold is
+  configured AND the defender is armored. v1 reads **worn armor only** and uses a
+  **single threshold** (the worn-vs-natural +1/+3 distinction is collapsed —
+  intrinsic natural armor is deferred).
 
 Content: point the **sap** (already `subdual: true`, the existing demo weapon),
 a new **whip**, and the **unarmed default** at the mode; a demo placement + a
@@ -289,8 +299,8 @@ knock-out, not a corpse.
 |---|---|---|
 | `unconscious` vulnerability | Incoming to-hit bonus against an unconscious (helpless) defender. Lives with the other condition magnitudes (`conditions.md` §8 engine config), not env. | (engine default, ~6 — strictly stronger than prone/stunned) |
 | `unconscious` duration | Effect-ticks a knock-out lasts before the victim wakes. Authored on the content effect. | (content, a handful of rounds) |
-| unarmed-default `subdual` | Whether the engine's unarmed strike is nonlethal (a bare-handed brawl knocks out). | (engine/pack default) |
-| whip anti-armor threshold | The armor / natural-armor rating at/above which a whip's damage is nullified (§6). | (content / engine default, source: +1 armor / +3 natural) |
+| `ANOTHERMUD_UNARMED_SUBDUAL` | Whether an unarmed PLAYER's strike is nonlethal (a bare-handed brawl knocks out). Mob natural weapons are unaffected. | true |
+| `ANOTHERMUD_WHIP_ARMOR_THRESHOLD` | The defender armor rating (worn-armor AC sum) at/above which a whip's hit is ineffective (§6). 0 disables the rule. | 1 |
 
 The knock-out itself adds **no env knob** — it is structural (a death-check
 subscriber). The restore-to-HP value (1) is the §6.1 minimum-non-dead and is not

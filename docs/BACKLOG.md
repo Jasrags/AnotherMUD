@@ -215,21 +215,21 @@ old five-theme partition left uncovered.
   **What remains of J is the "bottomless tail" — all of it substrate-blocked**
   (each needs a system the engine doesn't have yet; do the prerequisite first):
 
-  - [ ] **Whip** (`whip` tag): subdual mode + reach + **ineffective vs. armor +1 /
-        natural +3** — gated on a nonlethal **subdual damage mode** (the recorded
-        `subdual` field's consumer). **🚧 The subdual mode is being built**
-        (`subdual-damage.md` — knock-out-at-zero: a subdual finishing blow drops a
-        foe to **unconscious** instead of killing, via the cancellable
-        `entity.death.check` seam). **Spec + slices 1–2 SHIPPED 2026-06-21** —
-        slice 1 the `unconscious` condition, slice 2 the knock-out (subdual threads
-        weapon → `combat.Stats` → `VitalDepleted`; `OnVitalDepleted` heals to 1 +
-        applies unconscious + disengages instead of killing). **Slice 3 content + demo
-        SHIPPED 2026-06-21** — a starter-world sap + coiled whip (subdual + reach) in
-        the town square, live telnet walkthrough (a sapped bandit is knocked out, no
-        corpse). **Slice-3 tail still open:** the whip's **anti-armor** rule (the
-        combat-soak special case), **unarmed-as-subdual** (player vs mob-natural-weapon
-        distinction), and **mob-attacker subdual** (mobs don't thread subdual/reach/set
-        into combat stats yet).
+  - [x] **Whip** (`whip` tag): subdual mode + reach + **ineffective vs. armor** —
+        ✅ **COMPLETE 2026-06-21** (`subdual-damage.md`). The subdual damage mode is
+        knock-out-at-zero: a subdual finishing blow drops a foe to **unconscious**
+        (a new incapacitating+helpless condition) instead of killing, intercepted in
+        `OnVitalDepleted` (heal-to-1 + apply unconscious + disengage, no corpse).
+        Shipped end to end: the `unconscious` condition; subdual threaded weapon →
+        `combat.Stats` → `VitalDepleted` (incl. the massive-damage path + off-hand);
+        a starter-world **sap** + **coiled whip** in the town square + a live
+        knock-out walkthrough; the whip's **anti-armor** rule (an ineffective
+        0-damage hit vs an armored foe, `ANOTHERMUD_WHIP_ARMOR_THRESHOLD`);
+        **unarmed-as-subdual** for players (`ANOTHERMUD_UNARMED_SUBDUAL`, default on;
+        mob natural weapons stay lethal); and **mob-attacker subdual** (a mob's
+        equipped subdual weapon knocks out). Deferred: intrinsic natural armor for
+        the whip gate (worn armor only) + the separate-pool/coup-de-grace variants
+        (`subdual-damage.md` §8).
   - [ ] **Swordbreaker weapon-breaking** + physical-drop disarm: destroy/knock the
         target's weapon to the floor — needs an unequip-to-room path + a mob
         slot→item link (deferred in `special-weapons.md` §5).
@@ -247,8 +247,9 @@ old five-theme partition left uncovered.
   > **The unblocked maneuvers are all done** (reach / trip / disarm / set / double
   > / entangle + gear reputation). Every remaining tail item above waits on a
   > prerequisite system the engine lacks: **whip** → a nonlethal **subdual damage
-  > mode** (the `subdual` field's consumer — 🚧 **now building**, `subdual-damage.md`,
-  > spec + slices 1–2 shipped 2026-06-21, slice 3 whip/content remains); **lance charge** → **mounted combat**
+  > mode** (the `subdual` field's consumer — ✅ **DONE 2026-06-21**, `subdual-damage.md`:
+  > knock-out-at-zero + unconscious + sap/whip content + anti-armor + unarmed +
+  > mob-attacker); **lance charge** → **mounted combat**
   > (`mounts.md`); **crossbow load** + **don/doff timers** → an **action-economy /
   > busy-state**; **sling / improvised-melee ammo** → an **ammo break/loss** roll.
   > Build the prerequisite before the dependent J item.

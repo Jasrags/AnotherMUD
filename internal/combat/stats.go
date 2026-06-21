@@ -113,6 +113,22 @@ type Stats struct {
 	// Stats() builder; false for an ordinary weapon (every fight unchanged).
 	Subdual bool
 
+	// IneffectiveVsArmor reports whether the wielded weapon is a whip
+	// (subdual-damage §6 / special-weapons `whip` tag): it cannot bite through
+	// armor. When set, a swing that lands against a defender whose ArmorRating
+	// meets AutoAttackConfig.WhipArmorThreshold deals NO damage (an ineffective
+	// hit) instead of its dice. Read live from the wielded weapon; false for an
+	// ordinary weapon (every fight unchanged).
+	IneffectiveVsArmor bool
+
+	// ArmorRating is the DEFENDER's armor rating — the summed AC contribution of
+	// its worn armor (subdual-damage §6, the whip anti-armor gate). The whip's
+	// IneffectiveVsArmor check reads it on the defender's stats; an unarmored
+	// defender (rating 0) is bitten normally. Intrinsic natural armor is not yet
+	// folded in (v1 reads worn armor only). Populated by the holder's Stats()
+	// builder; 0 when unarmored.
+	ArmorRating int
+
 	// Set reports whether the wielded weapon carries the `set` special tag
 	// (special-weapons §4 — set vs a charge: pike/bill/poleaxe/boarspear). A set
 	// weapon braced against a foe that CHARGED into strike range this round (the

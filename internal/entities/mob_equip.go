@@ -68,6 +68,7 @@ func (s *Store) EquipMobAtSpawn(m *MobInstance, ids []string, items *item.Templa
 	weaponSet := false                // main weapon chosen (overrides the natural weapon)
 	offSet := false                   // off-hand weapon chosen (two-weapon-fighting §2.3)
 	var resist map[string]int         // per-type resistance summed across fitting armor (armor-depth §4)
+	armorRating := 0                  // worn armor AC sum (subdual-damage §6, the whip anti-armor gate)
 	for _, id := range ids {
 		tpl, err := items.Get(item.TemplateID(id))
 		if err != nil {
@@ -110,10 +111,12 @@ func (s *Store) EquipMobAtSpawn(m *MobInstance, ids []string, items *item.Templa
 				case slots == nil:
 					if !weaponSet {
 						m.SetWeapon(dice, it.Name(), it.DamageTypes(), it.RangedClass(), it.AmmoKind(), it.WeaponSize())
+						m.SetWeaponSubdual(it.Subdual()) // subdual-damage §2: a mob's nonlethal weapon
 						weaponSet = true
 					}
 				case base == slot.WieldSlot && !weaponSet:
 					m.SetWeapon(dice, it.Name(), it.DamageTypes(), it.RangedClass(), it.AmmoKind(), it.WeaponSize())
+					m.SetWeaponSubdual(it.Subdual()) // subdual-damage §2: a mob's nonlethal weapon
 					weaponSet = true
 				case base == slot.OffHandSlot && !offSet:
 					// First off-hand weapon wins. The off-hand slot's Max-1 cap
@@ -131,6 +134,7 @@ func (s *Store) EquipMobAtSpawn(m *MobInstance, ids []string, items *item.Templa
 				}
 				resist[dt] += amt
 			}
+			armorRating += it.ArmorBonus() // subdual-damage §6: worn armor rating (whip gate)
 		} else {
 			// Carried but not slot-equipped: modifiers skipped (§3.7).
 			res.Skipped = append(res.Skipped, id)
@@ -145,6 +149,9 @@ func (s *Store) EquipMobAtSpawn(m *MobInstance, ids []string, items *item.Templa
 	}
 	if resist != nil {
 		m.SetResistances(resist)
+	}
+	if armorRating != 0 {
+		m.SetArmorRating(armorRating)
 	}
 	return res, nil
 }

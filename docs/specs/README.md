@@ -192,10 +192,10 @@ The verbs players use and the systems that resolve them.
   `conditions` deferred) instead of killing, via the cancellable
   `entity.death.check` seam (`combat` §6.1). Layers on `combat` §6 +
   `conditions` + `abilities-and-effects` §5; EPIC sub-epic S1 J.
-  *(Spec + slices 1–2 (unconscious condition + knock-out) + slice 3
-  content/demo (sap + whip + live walkthrough) shipped 2026-06-21; the
-  slice-3 tail — whip anti-armor, unarmed-subdual, mob-attacker subdual —
-  pending.)*
+  *(Complete — shipped 2026-06-21: unconscious condition, the knock-out, sap +
+  whip content + a live walkthrough, plus the tail (whip anti-armor,
+  unarmed-subdual, mob-attacker subdual). Deferred: intrinsic natural armor for
+  the whip gate, and the separate-nonlethal-pool/coup-de-grace variants per §8.)*
 - [skills](skills.md) — skills as use-based proficiencies + the
   `ResolveSkillCheck` primitive (`d20 + bonus vs DC`, mirroring saves), with
   the first consumer: lockpicking (`pick` vs a door's pick difficulty) + the

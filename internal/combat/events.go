@@ -100,7 +100,12 @@ type Hit struct {
 	// Carried for renderers (a knock-out blow reads differently from a wound);
 	// the mechanical consequence rides VitalDepleted.Subdual on a finishing blow.
 	Subdual bool
-	RoomID  world.RoomID
+	// Ineffective is true when the swing LANDED but dealt no damage because the
+	// weapon could not penetrate the defender's armor (subdual-damage §6 — a whip
+	// vs. an armored foe). Damage is 0 and no vital is depleted; renderers phrase
+	// it as a harmless lash rather than a wound.
+	Ineffective bool
+	RoomID      world.RoomID
 }
 
 // Miss is dispatched when a swing fails to land (combat §4.3 step 5).

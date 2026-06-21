@@ -1871,6 +1871,10 @@ func run() error {
 		// special-weapons §4: a `set` weapon's bonus damage on a braced blow against
 		// a foe that charged into strike range (pike/bill/poleaxe/boarspear).
 		SetDamageBonus: envIntOr("ANOTHERMUD_SET_DAMAGE_BONUS", 4),
+		// subdual-damage §6: a whip deals NO damage to a foe whose worn armor
+		// rating meets this threshold (the source's "ineffective vs. armor +1").
+		// 0 disables the rule (a whip then bites every foe).
+		WhipArmorThreshold: envIntOr("ANOTHERMUD_WHIP_ARMOR_THRESHOLD", 1),
 		// ranged-combat §5.4: kiting AI. A ranged MOB (players kite manually via
 		// the withdraw verb) opens the distance instead of shooting with chance
 		// ANOTHERMUD_KITE_CHANCE % when a foe has closed inside far — probabilistic
@@ -2850,24 +2854,27 @@ func run() error {
 		}
 	}
 	handler := session.Handler(session.Config{
-		World:         w,
-		ChannelMap:    channelMap,
-		Commands:      cmds,
-		Players:       players,
-		Manager:       mgr,
-		Items:         entityStore,
-		Placement:     placement,
-		Contents:      contents,
-		Templates:     registries.Items,
-		Slots:         registries.Slots,
-		Bus:           bus,
-		Properties:    registries.Properties,
-		Rarity:        registries.Rarity,
-		Essence:       registries.Essence,
-		Stacking:      stackingSvc,
-		Disposition:   dispositionHook{e: evaluator},
-		Combat:        combatMgr,
-		CombatLocator: combatLocator,
+		World:      w,
+		ChannelMap: channelMap,
+		// subdual-damage §6: unarmed players knock out rather than kill (the
+		// faithful d20/WoT default); ANOTHERMUD_UNARMED_SUBDUAL=false disables it.
+		UnarmedSubdual: envBoolOr("ANOTHERMUD_UNARMED_SUBDUAL", true),
+		Commands:       cmds,
+		Players:        players,
+		Manager:        mgr,
+		Items:          entityStore,
+		Placement:      placement,
+		Contents:       contents,
+		Templates:      registries.Items,
+		Slots:          registries.Slots,
+		Bus:            bus,
+		Properties:     registries.Properties,
+		Rarity:         registries.Rarity,
+		Essence:        registries.Essence,
+		Stacking:       stackingSvc,
+		Disposition:    dispositionHook{e: evaluator},
+		Combat:         combatMgr,
+		CombatLocator:  combatLocator,
 		Flee: func(ctx context.Context, c combat.CombatantID) combat.FleeOutcome {
 			return combat.Flee(ctx, c, fleeCfg)
 		},
@@ -4104,10 +4111,21 @@ func (s *productionCombatSink) OnHit(ctx context.Context, e combat.Hit) {
 		slog.Bool("critical", e.IsCritical),
 		slog.String("room", string(e.RoomID)))
 
-	// M10 rendering: second-person to each player participant, third to
-	// the room. damage numbers are now visible (closes m9-6 #2).
 	an := s.nameOf(string(e.AttackerID))
 	tn := s.nameOf(string(e.TargetID))
+
+	// subdual-damage §6: an ineffective whip lash — it wrapped the foe but could
+	// not bite through the armor (Damage 0). Its own line, and no cast interrupt
+	// (a harmless tangle does not break concentration).
+	if e.Ineffective {
+		s.tell(ctx, e.AttackerID, fmt.Sprintf("Your %s lashes %s but cannot bite through the armor.", e.WeaponName, tn))
+		s.tell(ctx, e.TargetID, fmt.Sprintf("%s's %s lashes you but glances off your armor.", an, e.WeaponName))
+		s.announce(ctx, e.RoomID, fmt.Sprintf("%s's %s lashes %s but glances off the armor.", an, e.WeaponName, tn), e.AttackerID, e.TargetID)
+		return
+	}
+
+	// M10 rendering: second-person to each player participant, third to
+	// the room. damage numbers are now visible (closes m9-6 #2).
 	crit := ""
 	if e.IsCritical {
 		crit = " <danger>A critical hit!</danger>"

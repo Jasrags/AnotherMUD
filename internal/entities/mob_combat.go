@@ -70,6 +70,9 @@ func (m *MobInstance) Stats() combat.Stats {
 		// it free. Empty for a melee/natural weapon.
 		s.RangedClass = m.weaponRangedClass
 		s.AmmoKind = m.weaponAmmoKind
+		// subdual-damage §2: an equipped nonlethal weapon (a mob's sap) knocks the
+		// victim out on a finishing blow. A natural weapon leaves this false (lethal).
+		s.Subdual = m.weaponSubdual
 		// size-and-wielding §4.2 / §5: a two-handed MELEE wield multiplies the
 		// Strength contribution to damage by the two-handed factor — derived
 		// from the weapon's size relative to THIS mob's size, so a large mob
@@ -106,6 +109,9 @@ func (m *MobInstance) Stats() combat.Stats {
 			}
 		}
 	}
+	// subdual-damage §6: the worn-armor rating the whip anti-armor gate reads
+	// when this mob is the target. 0 = unarmored.
+	s.ArmorRating = m.armorRating
 	// Per-type resistance from worn armor (armor-depth §4). Copy out so
 	// combat.Stats does not alias the instance's cached map (matches the
 	// per-round self-contained-snapshot contract on combat.Stats).
@@ -136,6 +142,15 @@ func (m *MobInstance) SetWeapon(dice combat.DiceExpr, name string, damageTypes [
 	m.weaponSize = weaponSize
 }
 
+// SetWeaponSubdual marks the mob's equipped weapon nonlethal (subdual-damage §2
+// — a sap/whip-wielding mob), so its finishing blow knocks out (subdual-damage
+// §4). Called during the spawn pipeline only (EquipMobAtSpawn, after SetWeapon),
+// read lock-free by Stats — the same write-once-at-spawn contract. The natural
+// weapon never calls it, so a bite/claw stays lethal (the default).
+func (m *MobInstance) SetWeaponSubdual(subdual bool) {
+	m.weaponSubdual = subdual
+}
+
 // SetOffWeapon installs the mob's OFF-HAND weapon (two-weapon-fighting §2.3) —
 // the dice, display name, damage types, and size of a second equipped weapon
 // that fits the off-hand slot. Called during the spawn pipeline only
@@ -148,6 +163,14 @@ func (m *MobInstance) SetOffWeapon(dice combat.DiceExpr, name string, damageType
 	m.offWeaponName = name
 	m.offWeaponDamageTypes = damageTypes
 	m.offWeaponSize = weaponSize
+}
+
+// SetArmorRating installs the mob's worn-armor AC sum (subdual-damage §6 — the
+// whip anti-armor gate's defender rating). Called once during the spawn pipeline
+// (EquipMobAtSpawn) after gear is placed; read lock-free by Stats on the tick
+// goroutine — the same write-once-at-spawn contract as SetResistances.
+func (m *MobInstance) SetArmorRating(rating int) {
+	m.armorRating = rating
 }
 
 // SetResistances installs the mob's aggregated per-damage-type damage
