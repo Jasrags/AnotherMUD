@@ -227,6 +227,85 @@ func TestRecompute_TwoHanderIsNotAnOffHandWeapon(t *testing.T) {
 	}
 }
 
+// special-weapons §7 — a DOUBLE weapon (a quarterstaff/ashandarei, no distinct
+// off-hand item) is used as two weapons: its `double_damage` second end becomes a
+// light off-hand strike (½× Strength, two-weapon penalties), and the main end
+// takes the ordinary 1× Strength — NOT the 1.5× two-handed bonus.
+func TestStats_DoubleWeaponOffHand(t *testing.T) {
+	const str = 16 // STRBonus(16) = 3
+	strBonus := combat.STRBonus(str)
+	a := &connActor{statBlock: progression.NewWithBase(map[progression.StatType]int{progression.StatSTR: str})}
+	// A double weapon: wielded two-handed, no off-hand item, second-end dice set.
+	a.weapon.Store(&weaponInfo{
+		dice: combat.DiceExpr{Count: 1, Sides: 6}, name: "a quarterstaff",
+		wieldMode:      size.TwoHanded,
+		damageTypes:    []string{"bludgeoning"},
+		critMultiplier: 2,
+		doubleDamage:   combat.DiceExpr{Count: 1, Sides: 8}, // the second end (1d6/1d8)
+	})
+
+	s := a.Stats()
+	if s.OffHand == nil {
+		t.Fatal("a double weapon should grant an off-hand strike from its second end")
+	}
+	// Main end: 1× Strength only (the double weapon is used as two weapons, so the
+	// two-handed 1.5× bonus is suppressed), minus the two-weapon main penalty.
+	if s.DamageBonus != strBonus {
+		t.Errorf("main DamageBonus = %d, want %d (1× Strength, no two-handed 1.5×)", s.DamageBonus, strBonus)
+	}
+	if want := -combat.DefaultTwoWeaponMainPenalty; s.HitMod != want {
+		t.Errorf("main HitMod = %d, want %d (two-weapon main penalty)", s.HitMod, want)
+	}
+	// Off end: the double_damage dice, the weapon's own crit, the off-hand penalty,
+	// ½× Strength.
+	off := s.OffHand
+	if off.Damage.Sides != 8 || off.WeaponName != "a quarterstaff" {
+		t.Errorf("off-hand = %q %v, want the quarterstaff's 1d8 second end", off.WeaponName, off.Damage)
+	}
+	if want := -combat.DefaultTwoWeaponOffHandPenalty; off.HitMod != want {
+		t.Errorf("off-hand HitMod = %d, want %d", off.HitMod, want)
+	}
+	wantOffDmg := strBonus + size.StrBonusDelta(strBonus, size.DefaultOffHandStrFactor) // ½× Strength
+	if off.DamageBonus != wantOffDmg {
+		t.Errorf("off-hand DamageBonus = %d, want %d (½× Strength)", off.DamageBonus, wantOffDmg)
+	}
+}
+
+// A distinct off-hand weapon takes precedence over the double-weapon end (you are
+// dual-wielding two items, not using one item's two ends).
+func TestStats_DistinctOffHandBeatsDoubleEnd(t *testing.T) {
+	a := &connActor{statBlock: progression.NewWithBase(map[progression.StatType]int{progression.StatSTR: 10})}
+	a.weapon.Store(&weaponInfo{
+		dice: combat.DiceExpr{Count: 1, Sides: 6}, name: "a quarterstaff",
+		wieldMode: size.TwoHanded, doubleDamage: combat.DiceExpr{Count: 1, Sides: 8},
+	})
+	a.offWeapon.Store(&weaponInfo{dice: combat.DiceExpr{Count: 1, Sides: 4}, name: "a dagger", wieldMode: size.Light})
+
+	s := a.Stats()
+	if s.OffHand == nil || s.OffHand.WeaponName != "a dagger" {
+		t.Fatalf("a distinct light off-hand weapon should win over the double end, got %v", s.OffHand)
+	}
+}
+
+// A non-double two-handed weapon (a greatsword) keeps its 1.5× Strength and grants
+// NO off-hand — the contrast that proves double_damage is what flips the behavior.
+func TestStats_TwoHanderNoDoubleNoOffHand(t *testing.T) {
+	const str = 16
+	a := &connActor{statBlock: progression.NewWithBase(map[progression.StatType]int{progression.StatSTR: str})}
+	a.weapon.Store(&weaponInfo{dice: combat.DiceExpr{Count: 2, Sides: 6}, name: "a greatsword", wieldMode: size.TwoHanded})
+
+	s := a.Stats()
+	if s.OffHand != nil {
+		t.Error("a non-double two-hander grants no off-hand strike")
+	}
+	// 1.5× Strength: the base 1× plus the two-handed extra.
+	strBonus := combat.STRBonus(str)
+	want := strBonus + size.TwoHandedStrBonus(strBonus, size.DefaultTwoHandedStrFactor)
+	if s.DamageBonus != want {
+		t.Errorf("greatsword DamageBonus = %d, want %d (1.5× Strength)", s.DamageBonus, want)
+	}
+}
+
 // special-weapons §3 — reach plumbs from the wielded weaponInfo into
 // combat.Stats.Reach (the band-gate reads it). A non-reach weapon leaves it 0.
 func TestStats_ReachPlumbsToCombatStats(t *testing.T) {

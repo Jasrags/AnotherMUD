@@ -62,11 +62,13 @@ Each row is independently shippable except where a dependency is noted. Sizes ar
 > J behaviors reuse, and has shipped slices 1–5: the metadata substrate (template
 > + loader validation + instance accessor), **reach** (the range-band-gate
 > extension), weapon-aware **trip** (the DC bonus), **disarm** (the new save-gated
-> `disarmed` condition + verb) — the starter set (2026-06-17) — and **set vs a
+> `disarmed` condition + verb) — the starter set (2026-06-17) — **set vs a
 > charge** (§6, a braced polearm's bonus blow on a charging foe, riding the band
-> auto-close; `ANOTHERMUD_SET_DAMAGE_BONUS`) as the first tail slice (2026-06-20).
-> The bottomless tail (net/entangle, whip, swordbreaker-breaking, double-weapon
-> second die, lance charge) stays deferred on the same seam.
+> auto-close; `ANOTHERMUD_SET_DAMAGE_BONUS`) and **double weapons** (§7, a
+> quarterstaff/ashandarei used as two weapons — its `double_damage` second end is a
+> light off-hand strike via the two-weapon path) as the first two tail slices
+> (2026-06-20). The bottomless tail (net/entangle, whip, swordbreaker-breaking,
+> lance charge) stays deferred on the same seam.
 >
 > **F (size-wield) SPECCED 2026-06-15** — `docs/specs/size-and-wielding.md`
 > (forward spec, build pending): creature size + weapon size, the wield mode

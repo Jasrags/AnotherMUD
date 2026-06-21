@@ -1,4 +1,4 @@
-# Special Weapons (reach · trip · disarm · set)
+# Special Weapons (reach · trip · disarm · set · double)
 
 EPIC sub-epic **S1** — increment **J** of the WoT Combat & Equipment Depth
 program (`docs/themes/wot-mechanics-epic.md`,
@@ -46,9 +46,10 @@ new piece of metadata, validated at load like every other weapon field. Keep
 every weapon that declares no `special:` tags behaving exactly as today.
 
 **Non-goals.** The rest of J — net/entangle, whip subdual+range, swordbreaker
-weapon-breaking, double weapons, the "drop your weapon to dodge a counter-trip"
-nuance — stay deferred, each its own later slice on this same seam. No new range
-geometry; reach and set ride the bands `ranged-combat.md` already ships.
+weapon-breaking, the "drop your weapon to dodge a counter-trip" nuance — stay
+deferred, each its own later slice on this same seam. No new range geometry; reach
+and set ride the bands `ranged-combat.md` already ships, and double weapons reuse
+the two-weapon off-hand path `two-weapon-fighting.md` already ships.
 
 **Slices.** (1) the maneuver-tag + reach metadata substrate (load + validate +
 accessor, recorded-only) — SHIPPED; (2) **reach** (the band-gate extension;
@@ -57,10 +58,11 @@ weapon-awareness (the DC bonus, via a per-caster `SaveDCBonusFunc` on the
 resolver) — SHIPPED; (4) **disarm** (the new maneuver — a save-gated `disarmed`
 to-hit-penalty condition, the trip/bash sibling; physical-drop variant deferred)
 — SHIPPED; (5) **set vs a charge** (the braced bonus blow when a foe charges into
-a `set` weapon's strike range, riding the band auto-close — §6) — SHIPPED. The J
-starter set plus the first tail slice are complete; the bottomless tail (net,
-whip, swordbreaker-breaking, double-weapon second die, …) stays deferred on the
-`special:` seam.
+a `set` weapon's strike range, riding the band auto-close — §6) — SHIPPED; (6)
+**double weapons** (a `double_damage` weapon used as two weapons — its second end
+is a light off-hand strike, §7) — SHIPPED. The J starter set plus the first two
+tail slices are complete; the bottomless tail (net/entangle, whip,
+swordbreaker-breaking, lance charge, …) stays deferred on the `special:` seam.
 
 ## 2. The metadata: maneuver tags + the numeric reach stat
 
@@ -110,7 +112,8 @@ subdual mode ships — it does not behave as something else).
   Lights up when a subdual/knock-out damage mode lands.
 - **`double_damage`** (NdM±K) — the *second* attack dice of a double weapon (the
   source's `1d6/1d6` quarterstaff, `1d6/1d8` ashandarei). Validated like
-  `weapon_damage`. Lights up with double-weapon support (a two-weapon extension).
+  `weapon_damage`. **CONSUMED (§7):** a wielded double weapon grants a light
+  off-hand strike from this end. No longer inert.
 - **`armor_speed`** (int ≥ 0) — a piece of armor's worn Speed value. **CONSUMED
   (2026-06-17):** heavier armor adds a per-step movement-cost surcharge — the
   equipment.md Speed drop (30 → 20) becomes a `+1` surcharge in `moveCost`,
@@ -308,7 +311,62 @@ charge.
   rider charges**" is the *attacker* side of a charge and belongs with the Mounts
   deferred slices (`mounts.md`), not this defender-braced behavior.
 
-## 7. Configuration surface
+## 7. Double weapons
+
+A **double weapon** (the source's quarterstaff `1d6/1d6`, ashandarei `1d6/1d8`) is
+a single item with two striking ends. Wielded, it is used **as two weapons**: the
+primary end makes the main swing, and the **second end** (the `double_damage`
+dice, §2) makes an off-hand strike. This slice consumes `double_damage` by routing
+it through the **two-weapon off-hand path** `two-weapon-fighting.md` already ships
+— no new attack machinery, the double weapon simply *is* its own off-hand source.
+
+The d20 rule "a double weapon is used like a one-handed weapon and a light
+weapon": the second end counts as a **light off-hand weapon**, so it takes the
+ordinary two-weapon penalties (both hands), the **½× Strength** off-hand damage,
+and the two-weapon feats (Two-Weapon Fighting / Ambidexterity reduce the
+penalties; Improved Two-Weapon Fighting adds strikes) — identical to dual-wielding
+two separate weapons. The second end carries the **weapon's own** crit threat /
+multiplier and damage type(s).
+
+Because the weapon is used as two weapons, the main end takes the **ordinary 1×
+Strength**, **not** the 1.5× two-handed bonus a single two-handed weapon earns
+(`size-and-wielding.md` §4.2) — the wielder trades the heavy two-handed blow for a
+second attack. (A future stance slice could let a wielder choose the single
+two-handed blow instead; v1 always uses both ends.)
+
+A double weapon occupies both hands (it is size-large for a Medium wielder, a
+spanning two-hander), so there is no separate off-hand slot to fill; the off-hand
+strike comes from the **same item**. If a wielder somehow holds a double weapon
+*and* a distinct light off-hand weapon, the **distinct weapon wins** (you are
+dual-wielding two items, not using one item's two ends).
+
+### Acceptance criteria
+
+- A wielded double weapon (a `double_damage` weapon, melee, no distinct off-hand
+  item) grants one off-hand strike whose dice are its `double_damage`, with the
+  weapon's own crit threat/multiplier and damage type(s).
+- That off-hand strike takes the standard two-weapon penalties and ½× Strength,
+  and responds to the two-weapon feats exactly as a dual-wielded light weapon.
+- The main end of a double weapon takes **1× Strength**, not the two-handed 1.5×
+  bonus (it is used as two weapons).
+- A distinct light off-hand weapon takes precedence over the double-weapon end.
+- A non-double two-handed weapon is unchanged: it keeps its 1.5× Strength and
+  grants no off-hand strike (the contrast that proves `double_damage` is the gate).
+- Inert without content: a weapon with no `double_damage` behaves exactly as
+  pre-slice.
+
+### Deferred
+
+- **The single-two-handed-blow choice.** v1 always uses a double weapon as two
+  weapons (the extra attack). A per-round/stance choice to instead make one heavy
+  1.5×-Strength two-handed blow is deferred (no action/stance economy yet).
+- **Big-creature one-handing.** The source's "a Large creature using a double
+  weapon one-handed cannot use it as a double" rides the size system; v1 treats a
+  `double_damage` weapon as a double weapon for everyone who wields it.
+- **Double-weapon masterwork pricing** (the source's +600 mk for a masterwork
+  double weapon) is an economy concern, not this combat slice.
+
+## 8. Configuration surface
 
 | Setting | Meaning | Default |
 |---|---|---|
@@ -324,7 +382,7 @@ The trip/bash maneuvers' own DC/cost knobs (`conditions.md` §6) are unchanged;
 disarm reuses that ability shape, so its numeric surface mirrors theirs and most
 values come from the ability YAML rather than env where the existing maneuvers do.
 
-## 8. Open questions
+## 9. Open questions
 
 - **Disarm save axis.** Reflex (keep your grip by agility) vs a Strength contest
   (raw grip strength) vs the attacker's to-hit. **Resolved: Reflex** (v1), for

@@ -3366,6 +3366,11 @@ type weaponInfo struct {
 	// Read by Stats() into combat.Stats.Set so a braced polearm answers a charge
 	// with a bonus blow. false for an ordinary weapon.
 	set bool
+	// doubleDamage is a DOUBLE weapon's SECOND-end dice (special-weapons §7 —
+	// quarterstaff/ashandarei). When set and the weapon is wielded with no
+	// distinct off-hand item, Stats() grants an off-hand strike from this end (the
+	// weapon used as two weapons). Zero for an ordinary weapon.
+	doubleDamage combat.DiceExpr
 	// tripBonus / disarmBonus are the wielded weapon's maneuver DC bonuses
 	// (special-weapons §4/§5) — read by the composition root's save-DC hook so a
 	// trip/disarm weapon raises the maneuver's save DC. 0 for an ordinary weapon.
@@ -3429,9 +3434,17 @@ func (a *connActor) buildWeaponInfoLocked(id entities.EntityID) *weaponInfo {
 		strRating:      it.StrRating(),
 		reach:          it.Reach(),
 		set:            it.HasSpecial(item.SpecialSet),
+		doubleDamage:   doubleDamageOf(it),
 		tripBonus:      it.TripBonus(),
 		disarmBonus:    it.DisarmBonus(),
 	}
+}
+
+// doubleDamageOf returns a weapon's double-weapon second-end dice, or the zero
+// DiceExpr when it is not a double weapon (special-weapons §7).
+func doubleDamageOf(it *entities.ItemInstance) combat.DiceExpr {
+	dd, _ := it.DoubleDamage()
+	return dd
 }
 
 // recomputeWeaponLocked refreshes the cached wielded-weapon snapshots from the
@@ -5809,8 +5822,11 @@ func (a *connActor) Stats() combat.Stats {
 		// Strength contribution to damage by the two-handed factor. Add only the
 		// EXTRA Strength (TwoHandedStrBonus) on top of the 1× already in
 		// DamageBonus, so grade / flat bonuses stay at 1×. Ranged weapons are
-		// excluded — their Strength rule is the ranged concern handled above.
-		if w.wieldMode == size.TwoHanded && w.rangedClass == "" {
+		// excluded — their Strength rule is the ranged concern handled above. A
+		// DOUBLE weapon (special-weapons §7) is also excluded: it is used as two
+		// weapons (1× main + ½× off below), not as a single two-handed weapon, so
+		// the main end takes the ordinary 1× Strength, not the 1.5× two-hander bonus.
+		if w.wieldMode == size.TwoHanded && w.rangedClass == "" && w.doubleDamage.IsZero() {
 			s.DamageBonus += size.TwoHandedStrBonus(combat.STRBonus(str), size.DefaultTwoHandedStrFactor)
 		}
 		// EPIC S4 Phase 3c: per-weapon-category feat bonuses (Weapon Focus
@@ -5847,7 +5863,30 @@ func (a *connActor) Stats() combat.Stats {
 	// main hand is folded into s.HitMod here; the off-hand profile carries the
 	// larger off-hand penalty and the reduced (½×) Strength damage (§4.2).
 	if w != nil && w.rangedClass == "" {
+		// The off-hand strike has two sources (two-weapon-fighting §3,
+		// special-weapons §7): a distinct LIGHT off-hand weapon (dual-wielding),
+		// OR — when no second weapon is wielded — the SAME item's second end if it
+		// is a DOUBLE weapon (a quarterstaff/ashandarei used as two weapons). Both
+		// resolve to a light off-hand strike: identical penalties, ½× Strength, and
+		// feat reductions. The double-weapon end carries the weapon's own crit/type.
+		var (
+			offDice    combat.DiceExpr
+			offName    string
+			offTypes   []string
+			offCritLow int
+			offCritMul int
+			haveOff    bool
+		)
 		if off := a.offWeapon.Load(); off != nil && off.wieldMode == size.Light {
+			offDice, offName, offTypes = off.dice, off.name, off.damageTypes
+			offCritLow, offCritMul = off.critThreatLow, off.critMultiplier
+			haveOff = true
+		} else if !w.doubleDamage.IsZero() {
+			offDice, offName, offTypes = w.doubleDamage, w.name, w.damageTypes
+			offCritLow, offCritMul = w.critThreatLow, w.critMultiplier
+			haveOff = true
+		}
+		if haveOff {
 			// Slice 2: the two-weapon feats SUBTRACT from the baseline penalties
 			// (two-weapon-fighting §4.1). Two-Weapon Fighting reduces both hands;
 			// Ambidexterity removes the off-hand-specific extra. Reductions ride
@@ -5871,11 +5910,11 @@ func (a *connActor) Stats() combat.Stats {
 			s.HitMod -= mainPenalty
 			strBonus := combat.STRBonus(str)
 			s.OffHand = &combat.OffHandProfile{
-				Damage:            off.dice,
-				WeaponName:        off.name,
-				WeaponDamageTypes: append([]string(nil), off.damageTypes...),
-				CritThreatLow:     off.critThreatLow,
-				CritMultiplier:    off.critMultiplier,
+				Damage:            offDice,
+				WeaponName:        offName,
+				WeaponDamageTypes: append([]string(nil), offTypes...),
+				CritThreatLow:     offCritLow,
+				CritMultiplier:    offCritMul,
 				HitMod:            baseHitMod - offPenalty,
 				// ½× Strength on the off hand: the full damage bonus with only the
 				// Strength term reduced (flat bonuses stay 1×), mirroring the

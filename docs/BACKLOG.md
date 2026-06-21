@@ -202,20 +202,20 @@ old five-theme partition left uncovered.
   save-gated `disarmed` condition + verb); **✅ set-vs-charge (`set`) SHIPPED
   2026-06-20** (`special-weapons.md` §6, `ANOTHERMUD_SET_DAMAGE_BONUS`) — a braced
   polearm answering a foe that charges into strike range, riding the band
-  auto-close. **What remains of J is the "bottomless tail"** — the special-column
-  behaviors that ride the shipped `special:` seam but have **no combat handler
-  yet** (the `net` / `whip` / `entangle` tags are declared as valid vocabulary but
-  read by no combat code; other items are recorded fields awaiting a consumer):
+  auto-close; **✅ double weapons (`double_damage`) SHIPPED 2026-06-20**
+  (`special-weapons.md` §7) — a wielded quarterstaff/ashandarei is used as two
+  weapons (its second end is a light off-hand strike via the TWF path; main end
+  takes 1× Str, not the two-handed 1.5×). **What remains of J is the "bottomless
+  tail"** — the special-column behaviors that ride the shipped `special:` seam but
+  have **no combat handler yet** (the `net` / `whip` / `entangle` tags are declared
+  as valid vocabulary but read by no combat code; other items are recorded fields
+  awaiting a consumer):
 
   - [ ] **Net / entangle** (`net`, `entangle`): a ranged-touch throw that applies a
         new `entangled` condition (−atk, −effective Dex, ½ speed, escape DC). New
         condition + a touch-attack path.
   - [ ] **Whip** (`whip`): subdual mode + reach + **ineffective vs. armor +1 /
         natural +3** — gated on the subdual damage mode (recorded `subdual` field).
-  - [ ] **Double-weapon second die** (`double_damage`, recorded): the off-hand swing
-        of a double weapon (ashandarei, quarterstaff) rolls its *second* dice, not
-        the main `weapon_damage`; the big-creature one-hand-loses-double rule. Reuses
-        the shipped TWF off-hand path (K).
   - [ ] **Swordbreaker weapon-breaking** + physical-drop disarm: destroy/knock the
         target's weapon to the floor — needs an unequip-to-room path + a mob
         slot→item link (deferred in `special-weapons.md` §5).
