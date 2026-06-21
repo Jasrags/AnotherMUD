@@ -95,6 +95,8 @@ func JoinHandler(ctx context.Context, c *Context) error {
 		return c.Actor.Write(ctx, fmt.Sprintf("%s hasn't invited you to a party.", leader.Name()))
 	case errors.Is(err, ErrGroupCapFull):
 		return c.Actor.Write(ctx, fmt.Sprintf("%s's party is full.", leader.Name()))
+	case errors.Is(err, ErrGroupHasParty):
+		return c.Actor.Write(ctx, "You're already in a party — `leave` it first.")
 	case err != nil:
 		return c.Actor.Write(ctx, "You can't join that party.")
 	}
@@ -191,9 +193,9 @@ func (c *Context) listParty(ctx context.Context) error {
 	return c.Actor.Write(ctx, strings.TrimRight(b.String(), "\n"))
 }
 
-// resolveByName finds an online actor by exact name — the room first (the
-// inviter is usually present), then anywhere via ActorByID is not name-keyed, so
-// fall back to the room Locator only. Used by `join`.
+// resolveByName finds an online actor by name in the caller's room (the inviter
+// is normally still present to accept). Room-scoped by design — if the inviter
+// walked off, `join` reports they aren't here. Used by `join`.
 func (c *Context) resolveByName(name string) Actor {
 	if c.Locator == nil {
 		return nil

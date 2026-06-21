@@ -30,13 +30,19 @@ func (m *Manager) Invite(leaderID, inviteeID string) error {
 	if l, grouped := m.partyLeader[leaderID]; grouped && l != leaderID {
 		return command.ErrGroupInviterBad
 	}
+	// Check the cap BEFORE forming the party, so a too-small cap can't leave a
+	// dangling 1-member party behind a rejected invite. A fresh party would be
+	// just the leader (size 1).
+	size := 1
+	if existing := m.partyMembers[leaderID]; existing != nil {
+		size = len(existing)
+	}
+	if size >= m.partyCap {
+		return command.ErrGroupCapFull
+	}
 	if m.partyMembers[leaderID] == nil {
-		// Form the party with the leader as its first member.
 		m.partyLeader[leaderID] = leaderID
 		m.partyMembers[leaderID] = map[string]bool{leaderID: true}
-	}
-	if len(m.partyMembers[leaderID]) >= m.partyCap {
-		return command.ErrGroupCapFull
 	}
 	m.partyInvite[inviteeID] = leaderID
 	return nil

@@ -65,6 +65,21 @@ func TestParty_Cap(t *testing.T) {
 	}
 }
 
+func TestParty_CapOneLeavesNoDanglingParty(t *testing.T) {
+	m := NewManager()
+	m.SetPartyCap(1) // pathological cap: the leader alone fills it
+	if err := m.Invite("L", "A"); !errors.Is(err, command.ErrGroupCapFull) {
+		t.Fatalf("invite at cap 1 = %v, want ErrGroupCapFull", err)
+	}
+	// The refused invite must NOT have formed a dangling 1-member party.
+	if _, ok := m.LeaderOf("L"); ok {
+		t.Error("a cap-rejected invite left the leader in a dangling party")
+	}
+	if got := m.Members("L"); got != nil {
+		t.Errorf("Members(L) = %v, want nil (no party formed)", got)
+	}
+}
+
 func TestParty_NonLeaderLeave(t *testing.T) {
 	m := NewManager()
 	inviteAccept(t, m, "L", "A")
