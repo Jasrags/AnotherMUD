@@ -101,7 +101,14 @@ machine; keep every non-subdual fight byte-for-byte unchanged.
    player-only consumers shipped.
 3. **Whip + content** — the `whip` special tag (subdual + reach + the source's
    "ineffective vs. armor" rule), and pointing the sap / whip / unarmed at the
-   mode; a demo + a live walkthrough. *(§6.)*
+   mode; a demo + a live walkthrough. *(§6.)* **Content + demo SHIPPED
+   2026-06-21** — a starter-world **sap** (subdual) and **coiled whip** (subdual
+   + reach) stocked in the town square, and a live telnet walkthrough
+   (`TestLive_SubdualKnockout`) proving a sapped road bandit is knocked out
+   (unconscious, no corpse) rather than slain. **Tail still open:** the whip's
+   **anti-armor** rule (the combat-soak special case), **unarmed-as-subdual**
+   (the player/mob-natural-weapon distinction), and **mob-attacker subdual**
+   (threading `subdual` into mob combat stats, as reach/set are not yet either).
 
 ## 2. What subdual is (and is not) on a swing
 

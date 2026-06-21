@@ -35,6 +35,12 @@ items:
   # `entangle` but it is NET-ONLY — `equip net`, go to the Meadow, `entangle
   # bandit` binds it (−4 to its attacks, −2 AC). Bare-handed entangle fizzles.
   - weighted-net
+  # Subdual-damage (S1 J) knock-out demo: a sap (nonlethal) and a coiled whip
+  # (nonlethal + reach). `get sap` / `equip sap`, fight the Meadow bandit, and
+  # its finishing blow KNOCKS THE BANDIT OUT (unconscious, no corpse) instead of
+  # slaying it (subdual-damage §4/§6).
+  - sap
+  - whip
   # M11.1: a pile of coins to exercise currency auto-convert — `get
   # coins` credits gold instead of adding an item to inventory.
   - gold-coins

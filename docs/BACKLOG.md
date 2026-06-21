@@ -223,9 +223,13 @@ old five-theme partition left uncovered.
         `entity.death.check` seam). **Spec + slices 1–2 SHIPPED 2026-06-21** —
         slice 1 the `unconscious` condition, slice 2 the knock-out (subdual threads
         weapon → `combat.Stats` → `VitalDepleted`; `OnVitalDepleted` heals to 1 +
-        applies unconscious + disengages instead of killing). **Slice 3 = this whip**
-        (subdual + reach + anti-armor) + content (point sap/whip/unarmed at the mode,
-        mob-attacker subdual, live demo) is what remains.
+        applies unconscious + disengages instead of killing). **Slice 3 content + demo
+        SHIPPED 2026-06-21** — a starter-world sap + coiled whip (subdual + reach) in
+        the town square, live telnet walkthrough (a sapped bandit is knocked out, no
+        corpse). **Slice-3 tail still open:** the whip's **anti-armor** rule (the
+        combat-soak special case), **unarmed-as-subdual** (player vs mob-natural-weapon
+        distinction), and **mob-attacker subdual** (mobs don't thread subdual/reach/set
+        into combat stats yet).
   - [ ] **Swordbreaker weapon-breaking** + physical-drop disarm: destroy/knock the
         target's weapon to the floor — needs an unequip-to-room path + a mob
         slot→item link (deferred in `special-weapons.md` §5).

@@ -1,0 +1,25 @@
+# Subdual-damage demo weapon (subdual-damage §6). A nonlethal weapon: its
+# FINISHING blow knocks a foe UNCONSCIOUS instead of killing (the knock-out path,
+# subdual-damage §4) — no corpse, no kill, the foe simply drops. Stocked in the
+# town square so a fresh character can `get sap` / `equip sap` and subdue the
+# meadow road bandit rather than slaying it.
+id: sap
+name: a sap
+type: weapon
+description: |
+  A leather sack of lead shot on a short flexible handle — a quiet, ugly little
+  thing built to drop a man without killing him. A blow behind the ear and the
+  lights go out.
+tags: [weapon, leather]
+keywords: [sap, blackjack, cosh]
+size: small
+eligible_slots: [wield, offhand]
+weapon_damage: "1d6"
+weapon_category: sap
+proficiency_tier: martial
+damage_types: [bludgeoning]
+# The nonlethal flag (subdual-damage §2) — CONSUMED: a finishing blow knocks out.
+subdual: true
+properties:
+  weight: 3
+  value: 10

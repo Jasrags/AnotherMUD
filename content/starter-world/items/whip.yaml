@@ -1,0 +1,30 @@
+# Subdual-damage §6 — the whip. A nonlethal lash with REACH: it strikes at the
+# `near` band (special-weapons §3) AND knocks out on a finishing blow
+# (subdual-damage §4). The source's "ineffective vs. armor" rule
+# (special-weapons §2 / subdual-damage §6) is NOT yet wired — recorded via the
+# `whip` special tag, lit up in a later sub-slice; today a whip bites any foe.
+id: whip
+name: a coiled whip
+type: weapon
+description: |
+  A long plait of oiled leather tapering to a cracker, coiled and hung at the
+  hip. In a trained hand it snaps out across a room to wrap, sting, and stagger
+  — made to take a foe down, not cut one open.
+tags: [weapon, leather]
+keywords: [whip, lash, coil]
+size: small
+eligible_slots: [wield]
+weapon_damage: "1d3"
+weapon_category: whip
+proficiency_tier: exotic
+damage_types: [bludgeoning]
+# Nonlethal (subdual-damage §2) — knocks out on a finishing blow.
+subdual: true
+# Reach 1 (special-weapons §3) — strikes at the `near` band as well as melee.
+reach: 1
+# The whip maneuver tag (validated vocabulary; the anti-armor rule it gates is a
+# later sub-slice — recorded-but-inert per special-weapons §2).
+special: [whip]
+properties:
+  weight: 2
+  value: 15
