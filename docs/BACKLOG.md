@@ -190,8 +190,48 @@ old five-theme partition left uncovered.
   bands + auto-close + kiting, incl. mob ranged AI), and **Model C** (cross-room
   targeting — the `shoot` verb + a shot mob's retaliation pursuit, adjacent-room scope;
   sustained cross-room combat + multi-room LoS/pursuit stay deferred per §10);
-  what remains is the later increments — armor (E), size-wield (F),
-  special weapons (J), damage-type effect (D, with E).
+  **✅ armor depth (E) SHIPPED 2026-06-16** (`armor-depth.md`, AC composition +
+  max-Dex cap + non-proficient check-penalty→to-hit + per-type resistance soak);
+  **✅ size-and-wielding (F) SHIPPED 2026-06-17** (`size-and-wielding.md`,
+  `internal/size`); **✅ two-weapon fighting (K) SHIPPED 2026-06-17**
+  (`two-weapon-fighting.md`); **✅ damage-type effect (D) SHIPPED with E** (weapons
+  carry `damage_types`, armor soaks per type). **The one remaining S1 increment is
+  J (special weapons)** — the long tail of `equipment.md` special-column behaviors
+  that ship today as **inert content tags with no combat-pipeline handler**:
+
+  - [ ] **Reach** (pike, bill, poleaxe, heavy lance) — a 10-ft reach band (only
+        striking the not-yet-adjacent; pairs with `ranged-combat`'s band model).
+  - [ ] **Set-vs-charge** (lance, pike, boarspear) — braced damage bonus vs. a
+        charging foe.
+  - [ ] **Trip-on-hit** + drop-weapon-to-avoid-trip (bill, poleaxe, whip,
+        quarterstaff) — reuses `condition` (prone).
+  - [ ] **Disarm bonus** (swordbreaker +3 & 2d6-vs-swords / weapon-break, boarspear
+        +2, whip +2) — no disarm action exists yet.
+  - [ ] **Net** — ranged-touch entangle (−2 atk, −4 effective Dex, ½ speed, escape
+        DC; refold cost) — a bespoke `condition` + the area/touch attack.
+  - [ ] **Whip** — subdual, 15-ft no-penalty reach, **ineffective vs. armor +1 /
+        natural +3**.
+  - [ ] **Lance charge** — double damage delivered from a mount (pairs with the
+        Mounts deferred slices below).
+  - [ ] **Crossbow load actions** (light = move, heavy = full-round, provoke AoO;
+        1-handed −4) — needs an action-economy notion combat doesn't model.
+  - [ ] **Sling stones** (1d3, −1) + ammo break/loss; **arrows/bolts as improvised
+        melee** (Tiny, 50% break on miss).
+  - [ ] **Double weapons** (ashandarei, quarterstaff): the distinct **second damage
+        figure** on the off-hand swing + the big-creature one-hand-loses-double rule
+        — equip + the off-hand swing already work via TWF (K); only the
+        second-die/size nuance is unmodeled.
+  - [ ] **Don/doff timers** (`equipment.md` Table 7-6): timed don / hasty-don /
+        remove with helper-assist halving. Today only a combat don-gate exists
+        (`armor-depth.md` §7); the timed table is unmodeled.
+  - [ ] **Gear-borne Reputation** (masterwork/masterpiece weapon +1/+2, masterwork
+        armor +1/+2 while worn, lacquered plate +1, Trolloc scythesword −2):
+        the worn `item.Reputation` signifier — already tracked as a deferred
+        **reputation earn source** (`reputation.md`; see the Reputation note in §1),
+        listed here only as the equipment-side cross-reference.
+
+  First deliverable for J is a `special-weapons.md` spec slice; several sub-items
+  (reach, set-vs-charge) lean on the `ranged-combat` band model already shipped.
   Originally: make weapons and armor
   mechanically distinct the way `docs/wot/equipment.md` (the WoT d20 tables) describes:
   proficiency tiers (Simple/Martial/Exotic + the −4 non-proficient rule), crit threat
