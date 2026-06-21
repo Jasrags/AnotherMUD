@@ -96,7 +96,7 @@ func DefaultConfig() Config {
 		BlindedAttackPenalty:     4,
 		BlindedVulnerability:     2,
 		StunnedVulnerability:     2,
-		UnconsciousVulnerability: 4,
+		UnconsciousVulnerability: 6,
 		FearPenalty:              2,
 	}
 }

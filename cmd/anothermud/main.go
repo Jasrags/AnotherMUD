@@ -3969,6 +3969,14 @@ func (l combatLocator) RoomOf(id combat.CombatantID) (world.RoomID, bool) {
 	return "", false
 }
 
+// subdualUnconsciousEffectID is the content effect id the knock-out applies
+// (subdual-damage §3 — content/core/effects/condition-unconscious.yaml);
+// subdualKnockoutReason is the effect-source-ability attribution recorded on it.
+const (
+	subdualUnconsciousEffectID = "unconscious"
+	subdualKnockoutReason      = "subdual"
+)
+
 // productionCombatSink is the runtime combat.EventSink. M7.2 shipped
 // this as a log-only sink (loggingCombatSink) so the engage/disengage
 // path was observable in the default-configured server; M7.5 promotes
@@ -3988,14 +3996,6 @@ func (l combatLocator) RoomOf(id combat.CombatantID) (world.RoomID, bool) {
 //
 // All other event methods stay log-only; M7.6 will use OnCombatEnded
 // to clear flee cooldowns.
-// subdualUnconsciousEffectID is the content effect id the knock-out applies
-// (subdual-damage §3 — content/core/effects/condition-unconscious.yaml);
-// subdualKnockoutReason is the effect-source-ability attribution recorded on it.
-const (
-	subdualUnconsciousEffectID = "unconscious"
-	subdualKnockoutReason      = "subdual"
-)
-
 type productionCombatSink struct {
 	logger   *slog.Logger
 	bus      *eventbus.Bus

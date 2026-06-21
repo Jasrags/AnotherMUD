@@ -280,7 +280,7 @@ knock-out, not a corpse.
 
 | Setting | Meaning | Default |
 |---|---|---|
-| `unconscious` vulnerability | Incoming to-hit bonus against an unconscious (helpless) defender. Lives with the other condition magnitudes (`conditions.md` §8 engine config), not env. | (engine default, ~4 — stronger than prone/stunned) |
+| `unconscious` vulnerability | Incoming to-hit bonus against an unconscious (helpless) defender. Lives with the other condition magnitudes (`conditions.md` §8 engine config), not env. | (engine default, ~6 — strictly stronger than prone/stunned) |
 | `unconscious` duration | Effect-ticks a knock-out lasts before the victim wakes. Authored on the content effect. | (content, a handful of rounds) |
 | unarmed-default `subdual` | Whether the engine's unarmed strike is nonlethal (a bare-handed brawl knocks out). | (engine/pack default) |
 | whip anti-armor threshold | The armor / natural-armor rating at/above which a whip's damage is nullified (§6). | (content / engine default, source: +1 armor / +3 natural) |

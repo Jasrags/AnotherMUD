@@ -893,7 +893,7 @@ func TestLethalFinishingBlowIsNotSubdual(t *testing.T) {
 	}
 }
 
-// TestSubdualNonFinishingBlowStillSubdualButNoDeath: a subdual blow that leaves
+// TestSubdualNonFinishingBlowAboveZero: a subdual blow that leaves
 // the target above zero marks the Hit subdual (renderers) but emits no
 // VitalDepleted — subdual is inert above zero HP (subdual-damage §2).
 func TestSubdualNonFinishingBlowAboveZero(t *testing.T) {
@@ -928,5 +928,21 @@ func TestOffHandSubdualIndependentOfMainHand(t *testing.T) {
 	deaths := rig.sink.snapshotDeaths()
 	if len(deaths) != 1 || !deaths[0].Subdual {
 		t.Fatalf("off-hand subdual finish should mark VitalDepleted subdual: deaths=%+v", deaths)
+	}
+}
+
+// TestMassiveDamage_SubdualFailedSaveKnocksOut locks the review fix: a SUBDUAL
+// blow that drops the victim through the massive-damage Fortitude save still
+// carries Subdual=true on the resulting VitalDepleted, so the death pipeline
+// knocks out rather than kills on this path too (subdual-damage §4).
+func TestMassiveDamage_SubdualFailedSaveKnocksOut(t *testing.T) {
+	mc := &MassiveDamageConfig{Threshold: 40, DC: 15, FortBonus: func(CombatantID) int { return 0 }}
+	rig := massiveRig(t, 100, mc, []int{9, 0, 2}) // hit; raw 46 ≥ 40; save 3 < 15 → fail
+	rig.attacker.stats.Subdual = true
+	runMassive(t, rig)
+
+	deaths := rig.sink.snapshotDeaths()
+	if len(deaths) != 1 || !deaths[0].Subdual {
+		t.Fatalf("a subdual massive-damage death must carry Subdual=true: deaths=%+v", deaths)
 	}
 }

@@ -96,10 +96,10 @@ func TestResolve_Unconscious(t *testing.T) {
 	if got.DefenderVulnerability != cfg.UnconsciousVulnerability {
 		t.Errorf("unconscious vulnerability = %d, want %d", got.DefenderVulnerability, cfg.UnconsciousVulnerability)
 	}
-	// Helpless is the heaviest Core vulnerability — at least as exposed as a
-	// stunned or prone foe (subdual-damage §3).
-	if cfg.UnconsciousVulnerability < cfg.StunnedVulnerability || cfg.UnconsciousVulnerability < cfg.ProneVulnerability {
-		t.Errorf("unconscious (%d) should be the heaviest vulnerability vs stunned (%d)/prone (%d)",
+	// Helpless is the heaviest Core vulnerability — STRICTLY more exposed than a
+	// stunned or prone foe (subdual-damage §3: "stronger than prone/stunned").
+	if cfg.UnconsciousVulnerability <= cfg.StunnedVulnerability || cfg.UnconsciousVulnerability <= cfg.ProneVulnerability {
+		t.Errorf("unconscious (%d) should be the heaviest vulnerability, > stunned (%d)/prone (%d)",
 			cfg.UnconsciousVulnerability, cfg.StunnedVulnerability, cfg.ProneVulnerability)
 	}
 	// No shake-off / morale axis — the wake is duration-only (subdual-damage §5),

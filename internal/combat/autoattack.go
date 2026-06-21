@@ -699,7 +699,7 @@ func resolveSwing(ctx context.Context, in swingInputs, cfg AutoAttackConfig) swi
 	// the already-applied normal damage untouched. nil MassiveDamage ⇒ rule
 	// disabled (pre-slice behavior).
 	if cfg.MassiveDamage != nil && raw >= cfg.MassiveDamage.Threshold {
-		if massiveDamageKill(ctx, cfg, in.attackerID, in.targetID, in.tgtName, in.attackerRoom) {
+		if massiveDamageKill(ctx, cfg, in.attackerID, in.targetID, in.tgtName, in.attackerRoom, in.atkStats.Subdual) {
 			// §4.3 stop swinging on a corpse; the massive-damage save killed the
 			// victim by this attacker's swing, so Cleave may follow up (Bucket C).
 			return swingKill
@@ -775,7 +775,7 @@ func (m *Manager) ResolveSingleAttack(ctx context.Context, attackerID, targetID 
 // event either way, and on failure depletes the victim and emits exactly one
 // VitalDepleted (guarded by Deplete's wasAlive, so a concurrent killer cannot
 // double-emit). Returns true when the victim died (caller stops swinging).
-func massiveDamageKill(ctx context.Context, cfg AutoAttackConfig, attackerID, targetID CombatantID, tgtName string, room world.RoomID) bool {
+func massiveDamageKill(ctx context.Context, cfg AutoAttackConfig, attackerID, targetID CombatantID, tgtName string, room world.RoomID, subdual bool) bool {
 	bonus := cfg.MassiveDamage.FortBonus(targetID)
 	outcome := ResolveSave(cfg.Roller, bonus, cfg.MassiveDamage.DC)
 	cfg.Sink.OnSaveResolved(ctx, SaveResolved{
@@ -801,7 +801,11 @@ func massiveDamageKill(ctx context.Context, cfg AutoAttackConfig, attackerID, ta
 			VictimName: tgtName,
 			AttackerID: attackerID,
 			Vital:      VitalHP,
-			RoomID:     room,
+			// subdual-damage §4: a nonlethal blow that drops the victim through the
+			// massive-damage save still knocks out, not kills — the finishing-blow
+			// rule applies to this death path too.
+			Subdual: subdual,
+			RoomID:  room,
 		})
 	}
 	return true
