@@ -14,7 +14,7 @@ anything that doesn't.
 
 > **§27 (Channeling — the One Power)** is a **separate pack**: it runs the
 > **Wheel of Time** world (`make run-wot`), not the core/starter-world demo the
-> rest of this guide assumes. The `admin1`/`player1` characters you make below are
+> rest of this guide assumes. The `adminone`/`playerone` characters you make below are
 > core-pack fighters — make a fresh **channeler** in the WoT boot. See §27's own
 > boot block.
 
@@ -66,27 +66,35 @@ admin (`roles-and-permissions` §5; the seed grants the role by character name
 when that character logs in):
 
 ```sh
-ANOTHERMUD_ROLE_SEED="admin1:admin" make run
+ANOTHERMUD_ROLE_SEED="adminone:admin" make run
 ```
+
+> **Names:** the seed keys on the **character name**, and character names are
+> **letters-only** (§2) — so `adminone`, not `admin1`. (Account *usernames* may
+> contain digits/underscores, but the seed is not an account key.) This guide
+> uses `adminone`/`playerone`/`playertwo` as both the account username and the
+> character name for each tester, since the two can match and a digit-bearing
+> name like `admin1` is rejected at character creation.
 
 Then create three fresh **fighters** (see §1 login + §2 creation):
 
 | Char | Boot as | Role | Use for |
 |---|---|---|---|
-| **admin1** | seeded `admin1:admin` | **admin** | most testing + all admin verbs |
-| **player1** | normal | player | 2nd player for social/combat/trade (§11) |
-| **player2** | normal | player | 3rd party where a test needs one |
+| **adminone** | seeded `adminone:admin` | **admin** | most testing + all admin verbs |
+| **playerone** | normal | player | 2nd player for social/combat/trade (§11) |
+| **playertwo** | normal | player | 3rd party where a test needs one |
 
 You can put all three under **one account** (the roster holds many characters —
 §1) or separate accounts; for the multi-session tests (§11) log two in at once
-in two telnet windows. A fresh fighter starts at **Town Square** at level 1 with
-its kit in **inventory** — `equip sword` and `equip cap` first thing.
+in two telnet windows. A fresh fighter starts at **Town Square** at level 1; its
+starter kit lies **on the ground** there — `get sword`, `get cap`, then
+`equip sword` / `equip cap` first thing (see §4).
 
-**Bootstrap `admin1` to a useful state** (it starts level 1). As `admin1`, the
+**Bootstrap `adminone` to a useful state** (it starts level 1). As `adminone`, the
 admin verbs (§17) let you skip the grind:
 
 - `xp 5000` — level up (a fighter gains HP + STR per level; repeat to taste).
-- `set stat str admin1 16` etc. — raise an attribute directly.
+- `set stat str adminone 16` etc. — raise an attribute directly.
 - `restore` — refill vitals + sustenance.
 - For gold, sell starter kit or use shops (§9); there is no direct "give gold"
   admin verb, so buy/sell to seed a balance if a test needs one.
@@ -153,7 +161,7 @@ account's **roster** or create a new one. One account can hold many characters.
 
 - [ ] `telnet localhost 4000` — "Welcome to AnotherMUD." then "Account
       username:".
-- [ ] Enter a brand-new username (e.g. `admin1`) — "No account named "admin1"
+- [ ] Enter a brand-new username (e.g. `adminone`) — "No account named "adminone"
       exists. Creating it." then "Choose a password:" → "Confirm password:".
 - [ ] Mismatch the confirmation — "Passwords did not match…" and it bounces back
       to the username prompt (no account created).
@@ -165,19 +173,22 @@ account's **roster** or create a new one. One account can hold many characters.
 
 ### Existing account + roster
 
-- [ ] Reconnect, enter `admin1`, then the password — "Your characters:" lists
-      your characters, one per numbered line with its `[world]`, plus a final
-      "create a new character" entry; the prompt is "Select a character (number
-      or name), or 'n' to create:".
-- [ ] Select a character by **number** or by **name** — you land in its room with
-      the room description, exits, and a "You see here:" line.
+- [ ] Reconnect, enter `adminone`, then the password — "Your characters:" lists
+      your characters, one per numbered line with its `[world]`; the prompt is
+      "Select a character (number or name), or n / p / q:" (**n** = new
+      character, **p** = change password, **q** = quit).
+- [ ] Select a character by **number** or by **name** — a per-character **action
+      menu** opens: "1) Enter the game. / 2) Delete this character. / 0) Back to
+      your characters." at a "Make your choice:" prompt. Choose **1** and you land
+      in its room with the room description, exits, and a "You see here:" line.
+      (**0** returns to the roster; **2** deletes after a name-confirm.)
 - [ ] Enter a wrong password — rejected; after several failures the connection
       closes (not crashed).
-- [ ] Pick an out-of-list number/name — "No such character. Pick a number from
-      the list, or 'n' to create." (re-prompted).
+- [ ] Pick an out-of-list number/name — re-prompted (no such character).
 - [ ] `n` at the roster — starts a fresh character (§2) under the same account.
-- [ ] `quit` — "Goodbye." and the connection closes; reconnecting, authenticating,
-      and selecting the same character puts you back where you left it.
+- [ ] `q` at the roster (or `quit` in-world) — "Goodbye." and the connection
+      closes; reconnecting, authenticating, selecting the character, and choosing
+      "Enter the game" puts you back where you left it.
 
 > **World-locking (character-identity):** a character whose world isn't running
 > on this server shows in the roster marked **"(unavailable on this server)"** and
@@ -303,7 +314,7 @@ Go to the **Meadow** (`s` from the Gate). The bandit is hostile.
 - [x] `flee` — escapes combat to an adjacent room (when there's an exit); you
       see the new room rendered, and others see "X flees to the <dir>!".
 - [x] `wimpy 30` then fight — at ≤30% HP you auto-flee.
-- [x] Let the bandit kill a low-HP character (use player1 unarmed) — on death you
+- [x] Let the bandit kill a low-HP character (use playerone unarmed) — on death you
       respawn (healed) at the recall/start room, not disconnected.
 - [x] `cast kick` in combat — the ability fires (a fresh fighter has `kick`,
       `bash`, `trip`; `slash` is learned at Maerys first — `practice slash`, §8).
@@ -330,7 +341,7 @@ After killing the bandit (Meadow):
       is removed once empty.
 - [x] `autoloot on`, kill the bandit again — its loot is taken automatically at
       death ("You quickly loot…"); `autoloot off` restores manual looting.
-- [x] Ownership window: with player1 also present, player1 looting *your* fresh kill is
+- [x] Ownership window: with playerone also present, playerone looting *your* fresh kill is
       refused during the window, then allowed after it elapses
       (`CORPSE_OWNERSHIP_WINDOW`).
 - [x] Decay: kill the bandit, leave the corpse; after `CORPSE_LIFETIME` it
@@ -354,7 +365,7 @@ After killing the bandit (Meadow):
       injured — take a hit first).
 - [ ] (Admin) `xp 500` — grants XP; crossing a threshold levels you up with a
       level-up message. On a fresh level-1 fighter the first few grants level you
-      quickly (HP + STR climb each level — this is how you bootstrap `admin1`).
+      quickly (HP + STR climb each level — this is how you bootstrap `adminone`).
 
 ## 9. Economy & survival
 
@@ -422,32 +433,32 @@ two quests — **Forge Errand** (auto-grant) and **Gate Patrol** (turn-in)
       anywhere (not giver-bound, unlike `accept`). Only *abandonable* active
       quests are offered.
 
-## 11. Social / multi-session (admin1 + player1, two windows)
+## 11. Social / multi-session (adminone + playerone, two windows)
 
 - [x] Both in Town Square — `look` lists the other in "You see here:";
-      movement shows "player1 arrives" / "player1 leaves".
-- [ ] `look player1` — player1's **generated description** prints (the appearance lens):
-      "You see player1, a &lt;Race&gt; &lt;Class&gt;." composed from his race/class
+      movement shows "playerone arrives" / "playerone leaves".
+- [ ] `look playerone` — playerone's **generated description** prints (the appearance lens):
+      "You see playerone, a &lt;Race&gt; &lt;Class&gt;." composed from his race/class
       (no authored prose — players are described from their character).
-- [x] `tell player1 hello` — player1 receives it; `reply hi` goes back; `tells` shows
+- [x] `tell playerone hello` — playerone receives it; `reply hi` goes back; `tells` shows
       the history.
 - [x] `channels` (`chanlist`) — lists channels; post on one and the other sees
       it; `chathistory` (`chhist`) shows scrollback.
-- [x] `emote waves` (`pose`) — the room sees "admin1 waves".
-- [ ] `give ration to player1` — the ration leaves your inventory and enters player1's
+- [x] `emote waves` (`pose`) — the room sees "adminone waves".
+- [ ] `give ration to playerone` — the ration leaves your inventory and enters playerone's
       (`i` on each to confirm); both args tab-complete (item from your pack,
-      target a player). player1 must be in the room.
+      target a player). playerone must be in the room.
 - [x] `who` — lists every online character (world-wide, not just this room),
-      one per line, alphabetical, then "N players online." admin1 shows an
+      one per line, alphabetical, then "N players online." adminone shows an
       `[Admin]` tag; a character idle >60s shows `(idle)`. You always see
       yourself.
-- [x] Log in as admin1 from a 3rd connection — you're prompted to **take over**
+- [x] Log in as adminone from a 3rd connection — you're prompted to **take over**
       the existing session; confirming moves you to the new connection.
 - [x] Drop a connection abruptly (close the terminal) — the character goes
       **link-dead**, then reconnecting resumes the session; left long enough
       (`LINKDEAD_TIMEOUT`) it's swept.
 - [ ] Sit idle past `IDLE_SWEEP_INTERVAL`/idle timeout — you get an idle warning
-      then disconnect (admins are exempt — admin1 won't be swept).
+      then disconnect (admins are exempt — adminone won't be swept).
 
 ## 12. Doors & locks
 
@@ -511,23 +522,23 @@ while closed, and the two sides stay in sync.
 - [x] Restart the **server** (Ctrl-C, `make run` again), log back in — character
       state survived (corpses/weather/mobs reset by design; player save does not).
 
-## 17. Admin verbs (as admin1 — seeded admin via `ANOTHERMUD_ROLE_SEED`)
+## 17. Admin verbs (as adminone — seeded admin via `ANOTHERMUD_ROLE_SEED`)
 
 - [x] `inspect bandit` (in the Meadow) — full diagnostic record of the target.
 - [ ] `roomdata on` (admin/builder) — `look` now appends a room metadata block
       (room id, coordinates, terrain, tags, properties incl. `craft_stations`,
       exit targets); `roomdata off` removes it. Persists across logout; gated
       to admins/builders at render time.
-- [x] `restore` / `restore player1` — refills vitals to full **and** tops off
+- [x] `restore` / `restore playerone` — refills vitals to full **and** tops off
       sustenance (hunger/thirst); the reply notes "fully fed" for a player target.
 - [x] `set vital hp <target> 1` — sets a field on a target (then `restore`).
-- [x] `teleport meadow` (`goto meadow`) — jump to a room by id; `goto player1`
+- [x] `teleport meadow` (`goto meadow`) — jump to a room by id; `goto playerone`
       jumps to a player.
 - [x] `purge bandit` — removes the mob from the world.
 - [x] `announce Server test in progress` — all connected players see the
       broadcast.
-- [x] `grant builder to player1` then `revoke builder from player1` — role changes (player1
-      sees nothing player-facing; verify via `inspect player1`).
+- [x] `grant builder to playerone` then `revoke builder from playerone` — role changes (playerone
+      sees nothing player-facing; verify via `inspect playerone`).
 - [x] `xp 1000` — grants XP to yourself (admin probe).
 - [x] `reload` — reloads pack Lua scripts. The **count comes back to your
       client**: "Reloaded N script(s)." (core ships one — `track_kills.lua`).
@@ -537,7 +548,7 @@ while closed, and the two sides stay in sync.
       "Huh?". Then `badinput` lists them ranked by count (`xyzzy` ×2 on top);
       `badinput clear` resets the tracker. (Unknown verbs also log
       `event=command.unknown` on the server.)
-- [ ] As **player1** (non-admin), any admin verb (`inspect`, `goto`, …) — refused /
+- [ ] As **playerone** (non-admin), any admin verb (`inspect`, `goto`, …) — refused /
       hidden in `help`.
 
 ## 18. Modern client (WebSocket / GMCP / MSSP)
@@ -606,7 +617,7 @@ type. (Trailing space is trimmed, so type a partial letter: `suggest get s`.)
 
 ### `complete` — admin debug dump
 
-Run as **admin1** (admin); prints the raw candidate set (kind/token/display).
+Run as **adminone** (admin); prints the raw candidate set (kind/token/display).
 
 > Note: the verb can't express a *trailing space* (the input is trimmed), so to
 > see a fresh argument slot type a partial letter (`complete get s`, not
@@ -647,7 +658,7 @@ In the **Meadow** (`s` from the Gate — the road bandit is here):
 - [x] `complete say hel` — argument slot, but **no candidates** (`say`'s body is
       free text — nothing to enumerate).
 - [x] `complete frobnicate x` — "no completable slot" (unknown verb).
-- [ ] As **player1** (non-admin), `complete loo` — refused with `Huh?`, identical to
+- [ ] As **playerone** (non-admin), `complete loo` — refused with `Huh?`, identical to
       an unknown verb (the debug verb's existence is not disclosed).
 
 ## 21. Light & darkness
@@ -882,18 +893,18 @@ Status conditions are flagged effects that change combat. The **Core 5**:
 **blinded** (heavy −to-hit + easier to hit), **frightened** (−attack/−saves +
 flees each round), **fatigued** (−Str/−Dex). They're inflicted by the admin
 `afflict` verb or the fighter's save-gated **trip**/**bash** abilities, and
-appear in `affects`. Use **admin1** (admin).
+appear in `affects`. Use **adminone** (admin).
 
 ### Admin inflict + the listing
 
-- [ ] `afflict admin1 stunned` (on yourself) — "You are stunned!"; `affects`
+- [ ] `afflict adminone stunned` (on yourself) — "You are stunned!"; `affects`
       (alias `effects`) lists `Stunned — N round(s) [condition]`.
-- [ ] `afflict admin1 fatigued` — `score` shows STR/DEX dropped (−2 each);
-      `cure admin1 fatigued` restores them. `cure admin1` clears all
+- [ ] `afflict adminone fatigued` — `score` shows STR/DEX dropped (−2 each);
+      `cure adminone fatigued` restores them. `cure adminone` clears all
       conditions at once (leaving non-condition buffs like bless).
 - [ ] `afflict ghost stunned` — "You don't see them here." (bad target);
-      `afflict admin1 bless` — "no such condition" (`bless` isn't a condition).
-- [ ] As **player1** (non-admin), `afflict admin1 stunned` — "Huh?" (admin-gated).
+      `afflict adminone bless` — "no such condition" (`bless` isn't a condition).
+- [ ] As **playerone** (non-admin), `afflict adminone stunned` — "Huh?" (admin-gated).
 
 ### Conditions in combat (the Meadow)
 
@@ -931,7 +942,7 @@ Fortitude save) at level 1.
 A skill is a use-based proficiency resolved by a `d20 + skill bonus vs DC`
 check (the same idiom as saves). The first consumer is **lockpicking**: the
 **Open Lock** skill vs a door's pick difficulty — a keyless alternative to
-`unlock`. The fighter learns Open Lock at creation. Use **admin1** or a fresh
+`unlock`. The fighter learns Open Lock at creation. Use **adminone** or a fresh
 fighter.
 
 ### The skills listing
@@ -971,7 +982,7 @@ The forge cellar's **iron door** (`down`, to the vault) is **pickable**
 ## 27. Channeling — the One Power (WoT pack)
 
 > **Different world.** This section runs the **Wheel of Time** pack, not the
-> core demo. Boot it on its own and make a fresh **channeler** (admin1/player1 are
+> core demo. Boot it on its own and make a fresh **channeler** (adminone/playerone are
 > core-pack fighters and don't exist here).
 
 A channeler draws the **One Power** (a pool, shown as **MA** on `score`) to weave
@@ -1188,7 +1199,7 @@ timber, a **pickaxe** (mining) for outcrops/veins.
 
 Concealment is a per-observer "can X see Y?" model: **hide**, moving **sneak**,
 admin **wizinvis**, and the **search** verb that finds hidden exits. Two players
-(`player1` + `player2`) make hide/detect observable; the forge shows hidden exits
+(`playerone` + `playertwo`) make hide/detect observable; the forge shows hidden exits
 solo.
 
 ### Hide / unhide / sneak
@@ -1196,8 +1207,8 @@ solo.
 - [ ] `hide` — **"You slip into the shadows and go still."** `hide` again — **"You
       are already hidden."** A room with no cover may veto: **"You can't hide
       here."**
-- [ ] With `player2` in the room, `player1` `hide`, then `player2` `look` —
-      whether `player1` shows up is an opposed **perception contest** (a strong
+- [ ] With `playertwo` in the room, `playerone` `hide`, then `playertwo` `look` —
+      whether `playerone` shows up is an opposed **perception contest** (a strong
       observer auto-spots; a weak one may miss). A spotted-once observer stays
       able to see you (sticky).
 - [ ] While hidden, take an action that gives you away (`cast …`, attack, or
@@ -1211,7 +1222,7 @@ solo.
 
 ### Admin invisibility (`wizinvis`)
 
-- [ ] As `admin1`, `wizinvis` (`invis`) — **"You wink out of sight; only your
+- [ ] As `adminone`, `wizinvis` (`invis`) — **"You wink out of sight; only your
       peers can see you now."** A non-admin in the room no longer sees you in
       `look`/`who`; another admin still does. It does **not** break on action.
 - [ ] `wizinvis` again — **"You fade back into view."**
@@ -1661,7 +1672,7 @@ at the **Village Gate** (`s` from Town Square).
 - **Combat only happens in the Meadow.** Town Square is a safe-room; the bandit
   in the Meadow is the intended target.
 - **Characters are self-provisioned** (§0) — no pre-built saves are assumed. Boot
-  with `ANOTHERMUD_ROLE_SEED="admin1:admin"` so `admin1` is an admin, then create
+  with `ANOTHERMUD_ROLE_SEED="adminone:admin"` so `adminone` is an admin, then create
   the characters you need. Passwords are whatever you set; to reset, delete
   `saves/accounts/<id>/` + `saves/players/<name>/` and re-create.
 - **Login is account-first (§1):** authenticate by **account username** (email is
