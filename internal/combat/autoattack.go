@@ -76,6 +76,18 @@ type AutoAttackConfig struct {
 	// then treats a bow like an infinite-ammo melee weapon. Thrown and melee
 	// weapons never call this hook.
 	AmmoFor func(attackerID CombatantID) (canFire bool, toHitBonus int)
+
+	// LoadedFor / OnFireLoaded drive reload-gated projectiles — a crossbow,
+	// Stats.ReloadTicks > 0 (action-economy.md §7.1). When the wielded weapon is
+	// reload-gated, the round loop does NOT consume ammo per swing (the bolt was
+	// spent at `load` time); instead LoadedFor reports whether the wielder has a
+	// chambered shot, and OnFireLoaded discharges it after a swing is loosed.
+	// LoadedFor nil — or an attacker the host can't resolve as a loader (a mob) —
+	// reads as always loaded, so an un-wired boot and mob crossbows fire freely.
+	// Keyed on the full attacker CombatantID; only called for a reload-gated
+	// projectile swing.
+	LoadedFor    func(attackerID CombatantID) bool
+	OnFireLoaded func(attackerID CombatantID)
 	// RangeFalloff is the to-hit penalty a projectile takes per band of
 	// distance from melee (ranged-combat §5.3) — at the near band it is
 	// -RangeFalloff, at far -2×RangeFalloff, and so on. PointBlankPenalty is
@@ -603,21 +615,45 @@ func resolveSwing(ctx context.Context, in swingInputs, cfg AutoAttackConfig) swi
 	// Thrown/melee weapons never enter this branch, and a nil AmmoFor fires
 	// every projectile swing (unwired/headless).
 	swingHitMod := in.hitMod
-	if in.atkStats.RangedClass == RangedProjectile && cfg.AmmoFor != nil {
-		canFire, ammoBonus := cfg.AmmoFor(in.attackerID)
-		if !canFire {
-			cfg.Sink.OnRangedDry(ctx, RangedDry{
-				AttackerID:   in.attackerID,
-				TargetID:     in.targetID,
-				AttackerName: in.atkName,
-				TargetName:   in.tgtName,
-				WeaponName:   in.weaponName,
-				AmmoKind:     in.atkStats.AmmoKind,
-				RoomID:       in.attackerRoom,
-			})
-			return swingContinue
+	if in.atkStats.RangedClass == RangedProjectile {
+		if in.atkStats.ReloadTicks > 0 {
+			// Reload-gated (a crossbow, action-economy.md §7.1): fire the
+			// chambered bolt — ammo was spent at `load`, so no per-swing consume.
+			// A nil hook or an attacker the host can't resolve as a loader (a mob)
+			// reads as loaded and fires freely. Discharge the loaded state after
+			// the shot is committed (it is loosed whether it lands or misses).
+			if cfg.LoadedFor != nil && !cfg.LoadedFor(in.attackerID) {
+				cfg.Sink.OnRangedDry(ctx, RangedDry{
+					AttackerID:   in.attackerID,
+					TargetID:     in.targetID,
+					AttackerName: in.atkName,
+					TargetName:   in.tgtName,
+					WeaponName:   in.weaponName,
+					AmmoKind:     in.atkStats.AmmoKind,
+					Unloaded:     true,
+					RoomID:       in.attackerRoom,
+				})
+				return swingContinue
+			}
+			if cfg.OnFireLoaded != nil {
+				cfg.OnFireLoaded(in.attackerID)
+			}
+		} else if cfg.AmmoFor != nil {
+			canFire, ammoBonus := cfg.AmmoFor(in.attackerID)
+			if !canFire {
+				cfg.Sink.OnRangedDry(ctx, RangedDry{
+					AttackerID:   in.attackerID,
+					TargetID:     in.targetID,
+					AttackerName: in.atkName,
+					TargetName:   in.tgtName,
+					WeaponName:   in.weaponName,
+					AmmoKind:     in.atkStats.AmmoKind,
+					RoomID:       in.attackerRoom,
+				})
+				return swingContinue
+			}
+			swingHitMod += ammoBonus
 		}
-		swingHitMod += ammoBonus
 	}
 
 	// §4.4 hit roll (attacker hit-mod already adjusted for darkness + per-swing

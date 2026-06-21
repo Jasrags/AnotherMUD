@@ -2163,6 +2163,14 @@ type connActor struct {
 	// anti-spam, not durable state). Guarded by a.mu.
 	forageReadyAt uint64
 
+	// loadedWeapon is the entity id of the currently-loaded reload-gated
+	// projectile (a crossbow), or "" when nothing is chambered
+	// (action-economy.md §7.1). A shot is allowed only when this matches the
+	// wielded weapon, so swapping weapons drops the loaded state. TRANSIENT —
+	// never persisted; a relog leaves you unloaded. The in-flight RELOAD is the
+	// action.Tracker's busy state, not a field here. Guarded by a.mu.
+	loadedWeapon entities.EntityID
+
 	// progress is the actor's progression-track state (M8.2 —
 	// docs/specs/progression.md §5.2). Holds per-track (level, xp)
 	// maps; mutated through progression.Manager operations and
@@ -3407,6 +3415,7 @@ type weaponInfo struct {
 	rangedClass    string
 	ammoKind       string
 	rangeIncrement int
+	reloadTicks    int
 	strRating      *int
 	// reach is the weapon's reach rating (special-weapons §3) — a numeric
 	// cross-ruleset stat; WoT reads `> 0` as "strikes at the near band". Read by
@@ -3489,6 +3498,7 @@ func (a *connActor) buildWeaponInfoLocked(id entities.EntityID) *weaponInfo {
 		rangedClass:        it.RangedClass(),
 		ammoKind:           it.AmmoKind(),
 		rangeIncrement:     it.RangeIncrement(),
+		reloadTicks:        it.ReloadTicks(),
 		strRating:          it.StrRating(),
 		reach:              it.Reach(),
 		set:                it.HasSpecial(item.SpecialSet),
@@ -4681,6 +4691,39 @@ func (a *connActor) SetForageReadyAt(tick uint64) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	a.forageReadyAt = tick
+}
+
+// IsWeaponLoaded reports whether the wielded reload-gated weapon is chambered
+// (action-economy.md §7.1). The loaded state is keyed to a specific weapon id,
+// so it reads false after a weapon swap. The combat round loop and the shoot
+// verb gate a crossbow's shot on this.
+func (a *connActor) IsWeaponLoaded() bool {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	return a.loadedWeapon != "" && a.equipment[mainHandSlot] == a.loadedWeapon
+}
+
+// SetWeaponLoaded chambers the currently-wielded weapon (the load action's
+// completion). Returns false when nothing is wielded — the load then fails
+// cleanly (the player unwielded mid-load). The bolt is consumed by the load
+// handler, not here.
+func (a *connActor) SetWeaponLoaded() bool {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	id := a.equipment[mainHandSlot]
+	if id == "" {
+		return false
+	}
+	a.loadedWeapon = id
+	return true
+}
+
+// ClearWeaponLoaded discharges the chambered shot (a fire consumes the loaded
+// state). No-op when nothing is loaded.
+func (a *connActor) ClearWeaponLoaded() {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	a.loadedWeapon = ""
 }
 
 // CancelCraft drops any in-flight craft and, if there was one, writes an
@@ -5899,6 +5942,7 @@ func (a *connActor) Stats() combat.Stats {
 		s.RangedClass = w.rangedClass
 		s.AmmoKind = w.ammoKind
 		s.RangeIncrement = w.rangeIncrement
+		s.ReloadTicks = w.reloadTicks
 		s.Reach = w.reach                           // special-weapons §3: strikes at the `near` band too
 		s.Set = w.set                               // special-weapons §4: braced bonus blow vs a charge
 		s.Subdual = w.subdual                       // subdual-damage §2: a nonlethal finish knocks out

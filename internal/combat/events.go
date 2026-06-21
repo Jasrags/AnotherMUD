@@ -174,7 +174,12 @@ type RangedDry struct {
 	TargetName   string
 	WeaponName   string
 	AmmoKind     string
-	RoomID       world.RoomID
+	// Unloaded distinguishes a reload-gated weapon that is simply not chambered
+	// (a crossbow awaiting `load`) from one out of ammunition (action-economy.md
+	// §7.1). The sink renders a "reload it" prompt for the former, an
+	// out-of-ammo line for the latter.
+	Unloaded bool
+	RoomID   world.RoomID
 }
 
 // BandChange is dispatched when a pairing's range band moves (ranged-combat

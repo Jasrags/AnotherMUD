@@ -22,6 +22,9 @@ crit_multiplier: 2
 ranged_class: projectile
 ammo_kind: bolt
 range_increment: 8
+# Reload-gated (action-economy.md §7.1): holds one loaded bolt; firing empties
+# it and it must be `load`ed again. A light crossbow spans by hand — quick.
+reload_ticks: 20
 properties:
   weight: 6
   value: 350

@@ -1935,6 +1935,27 @@ func run() error {
 			}
 			return true, bonus
 		},
+		// Reload-gated projectiles (a crossbow, action-economy.md §7.1): the round
+		// loop gates the shot on the wielder's chambered state and discharges it
+		// on fire, instead of consuming ammo per swing. A combatant with no loader
+		// state (a mob) reads as always loaded and fires freely, matching AmmoFor.
+		LoadedFor: func(attackerID combat.CombatantID) bool {
+			c, ok := combatLocator.LookupCombatant(attackerID)
+			if !ok {
+				return false
+			}
+			if loader, ok := c.(interface{ IsWeaponLoaded() bool }); ok {
+				return loader.IsWeaponLoaded()
+			}
+			return true
+		},
+		OnFireLoaded: func(attackerID combat.CombatantID) {
+			if c, ok := combatLocator.LookupCombatant(attackerID); ok {
+				if loader, ok := c.(interface{ ClearWeaponLoaded() }); ok {
+					loader.ClearWeaponLoaded()
+				}
+			}
+		},
 		MassiveDamage: &combat.MassiveDamageConfig{
 			Threshold: massiveThreshold,
 			DC:        cfg.MassiveDamageDC,
@@ -4261,6 +4282,17 @@ func (s *productionCombatSink) OnRangedDry(ctx context.Context, e combat.RangedD
 		slog.String("room", string(e.RoomID)))
 
 	an := s.nameOf(string(e.AttackerID))
+	// A reload-gated weapon that simply isn't chambered (action-economy.md §7.1)
+	// prompts a reload rather than reading as out of ammo.
+	if e.Unloaded {
+		weapon := e.WeaponName
+		if weapon == "" {
+			weapon = "your weapon"
+		}
+		s.tell(ctx, e.AttackerID, fmt.Sprintf("*click* — %s isn't loaded. (load it)", weapon))
+		s.announce(ctx, e.RoomID, fmt.Sprintf("%s fumbles with an unloaded weapon.", an), e.AttackerID)
+		return
+	}
 	ammo := e.AmmoKind
 	if ammo == "" {
 		ammo = "ammunition"

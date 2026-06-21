@@ -124,6 +124,10 @@ type Template struct {
 	// (ranged-combat §2, §5.3). Zero means unset. Inert until Slice B's
 	// range bands consume it. Validated non-negative at load.
 	RangeIncrement int
+	// ReloadTicks marks a projectile weapon that must be reloaded between shots
+	// (a crossbow) and is its load time in engine ticks (action-economy.md §7.1).
+	// 0 = fires freely (a bow). Validated non-negative at load.
+	ReloadTicks int
 	// StrRating caps the positive Strength damage bonus a projectile weapon
 	// grants (ranged-combat §4 — a composite / Strength-rated bow). nil is
 	// the default projectile rule (no positive Strength bonus; a negative

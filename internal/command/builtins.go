@@ -82,6 +82,7 @@ func RegisterBuiltins(r *Registry) error {
 		{Keyword: "unequip", Handler: UnequipHandler, Brief: "Remove an equipped item.", Syntax: []string{"unequip <item>"},
 			HandParsed: true, Args: []ArgDefinition{{Name: "item", Type: ArgEquipped}}, IsAction: true},
 		{Keyword: "stop", Aliases: []string{"cancel"}, Handler: StopHandler, Brief: "Stop what you're currently doing.", Syntax: []string{"stop"}},
+		{Keyword: "load", Handler: LoadHandler, Brief: "Load a reloadable ranged weapon (a crossbow).", Syntax: []string{"load"}, IsAction: true},
 		{Keyword: "inventory", Aliases: []string{"i"}, Handler: InventoryHandler, Brief: "List the items you are carrying.", Syntax: []string{"inventory"}},
 		{Keyword: "equipment", Aliases: []string{"eq"}, Handler: EquipmentHandler, Brief: "Show your equipment slots (empty ones included).", Syntax: []string{"equipment"}},
 

@@ -23,7 +23,11 @@ shipped 2026-06-21 — `internal/action.Tracker`, the dispatch busy-gate
 (`Command.IsAction`), the `action-complete` tick sweep (replays the deferred
 command), movement/`stop` interruption, logout drop, and the two-phase slow-armor
 don/doff (deferred equip via command replay). The **crossbow load** consumer
-(§7.1) is the pending follow-up slice.*
+(§7.1) shipped 2026-06-21 too — a weapon `reload_ticks` field (a crossbow),
+per-actor loaded state keyed to the wielded weapon, the `load` verb (the same
+two-phase replay), and the loaded-gate on BOTH the auto-attack round loop
+(`LoadedFor`/`OnFireLoaded` hooks) and the `shoot` verb; ammo is spent at load,
+not at fire.*
 
 ## 1. Overview
 
@@ -299,13 +303,14 @@ retained for slow armor.
 
 | Knob | Governs | Default |
 |---|---|---|
-| `ANOTHERMUD_ACTION_SWEEP_CADENCE` | tick cadence of the completion sweep (§3) | a fine cadence (sub-second), e.g. matching the combat cadence |
-| `ANOTHERMUD_CROSSBOW_RELOAD_TICKS` *(consumer 7.1)* | default crossbow reload duration when a weapon declares none | a small number of seconds |
-| `ANOTHERMUD_DON_TICKS` *(consumer 7.2, if built)* | default don/doff duration for slow armor | a small number of seconds |
+| `ANOTHERMUD_DON_TICKS` *(consumer 7.2)* | default don/doff duration for slow armor | a small number of seconds |
 
-Per-weapon load time and per-armor don time are **content** (item template fields),
-falling back to the knob default — values themselves are not specced here (spec
-convention: numbers live in content / the config table, not the narrative).
+The completion sweep runs every tick (no cadence knob — like the craft-complete
+sweep). A reload-gated weapon's load time is **content** — the item template's
+`reload_ticks` (0 = a freely-firing bow); there is no global reload default,
+since `reload_ticks` is what *marks* a weapon as a crossbow at all. Per-armor don
+time is content too, falling back to `ANOTHERMUD_DON_TICKS`. Numeric values live
+in content / this table, not the narrative (spec convention).
 
 ## 9. Open questions
 

@@ -3181,6 +3181,10 @@ func decodeItem(path, ns string) (*item.Template, error) {
 		return nil, fmt.Errorf("%w: %s: range_increment %d must be non-negative",
 			ErrInvalidContent, path, f.RangeIncrement)
 	}
+	if f.ReloadTicks < 0 {
+		return nil, fmt.Errorf("%w: %s: reload_ticks %d must be non-negative",
+			ErrInvalidContent, path, f.ReloadTicks)
+	}
 	if f.StrRating != nil && *f.StrRating < 0 {
 		return nil, fmt.Errorf("%w: %s: str_rating %d must be non-negative",
 			ErrInvalidContent, path, *f.StrRating)
@@ -3337,6 +3341,7 @@ func decodeItem(path, ns string) (*item.Template, error) {
 		RangedClass:       rangedClass,
 		AmmoKind:          ammoKind,
 		RangeIncrement:    f.RangeIncrement,
+		ReloadTicks:       f.ReloadTicks,
 		StrRating:         strRating,
 		ArmorBonus:        f.ArmorBonus,
 		ArmorMaxDex:       armorMaxDex,

@@ -207,7 +207,8 @@ The verbs players use and the systems that resolve them.
   (no d20 action grid). *(Substrate + the don/doff-timers consumer shipped
   2026-06-21: `internal/action`, the `IsAction` busy-gate, the action-complete
   replay sweep, `stop`/movement interruption, two-phase slow-armor don/doff.
-  Crossbow load is the pending follow-up.)*
+  Crossbow load shipped too 2026-06-21 — `reload_ticks`, the `load` verb, and
+  the loaded-gate on the round loop + `shoot`.)*
 - [skills](skills.md) — skills as use-based proficiencies + the
   `ResolveSkillCheck` primitive (`d20 + bonus vs DC`, mirroring saves), with
   the first consumer: lockpicking (`pick` vs a door's pick difficulty) + the

@@ -66,6 +66,8 @@ type autoAttackRig struct {
 	incap         func(CombatantID) bool                   // nil ⇒ never incapacitated (conditions §3)
 	defAdj        func(CombatantID) int                    // nil ⇒ no defender vulnerability (conditions §3)
 	ammoFor       func(CombatantID) (bool, int)            // nil ⇒ no ammo gate (ranged-combat §3)
+	loadedFor     func(CombatantID) bool                   // LoadedFor (action-economy §7.1) — nil ⇒ always loaded
+	onFireLoaded  func(CombatantID)                        // OnFireLoaded (action-economy §7.1)
 	falloff       int                                      // RangeFalloff (ranged-combat §5.3)
 	pblank        int                                      // PointBlankPenalty (ranged-combat §5.3)
 	kite          func(CombatantID, CombatantID, int) bool // KitePolicy (ranged-combat §5.4)
@@ -118,6 +120,8 @@ func (r *autoAttackRig) phase() PhaseFunc {
 		Incapacitated:           r.incap,
 		DefenderHitAdjust:       r.defAdj,
 		AmmoFor:                 r.ammoFor,
+		LoadedFor:               r.loadedFor,
+		OnFireLoaded:            r.onFireLoaded,
 		RangeFalloff:            r.falloff,
 		PointBlankPenalty:       r.pblank,
 		KitePolicy:              r.kite,

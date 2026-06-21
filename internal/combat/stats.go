@@ -94,6 +94,13 @@ type Stats struct {
 	// falloff; inert in Slice A.
 	RangeIncrement int
 
+	// ReloadTicks > 0 marks the wielded projectile as RELOAD-GATED (a crossbow):
+	// it holds one loaded shot, firing consumes that loaded state, and reloading
+	// is a timed action (action-economy.md §7.1). The round loop reads this to
+	// gate the ranged swing on the wielder's loaded state instead of consuming
+	// ammo per shot. 0 = a freely-firing bow/thrown weapon (unchanged).
+	ReloadTicks int
+
 	// Reach is the wielded weapon's reach rating (special-weapons §3) — a
 	// numeric, cross-ruleset weapon stat (0 = an ordinary close weapon). In WoT
 	// the round loop reads `Reach > 0` so a reach wielder swings at the `near`

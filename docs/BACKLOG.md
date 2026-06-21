@@ -235,11 +235,6 @@ old five-theme partition left uncovered.
         slot→item link (deferred in `special-weapons.md` §5).
   - [ ] **Lance charge** — double damage delivered from a mount (→ **mounted
         combat**, `mounts.md` deferred slices).
-  - [ ] **Crossbow load actions** (light = move, heavy = full-round, provoke AoO;
-        1-handed −4) — **prerequisite shipped** (`action-economy.md`, the
-        timed-action substrate). Now ready: a wielded crossbow's transient
-        loaded state + a `reload` busy action gating BOTH the auto-attack round
-        loop and the `shoot` verb. The pending Slice A follow-up.
   - [ ] **Sling stones** (1d3, −1) + ammo break/loss; **arrows/bolts as improvised
         melee** (Tiny, 50% break on miss) — needs an **ammo break/loss** roll.
 
@@ -248,11 +243,11 @@ old five-theme partition left uncovered.
   > system: **whip** → **subdual damage** (✅ **DONE 2026-06-21**,
   > `subdual-damage.md`); **don/doff timers** → an **action-economy / busy-state**
   > (✅ **DONE 2026-06-21**, `action-economy.md` §7.2 — two-phase timed slow-armor
-  > don/doff); **crossbow load** → the same action-economy substrate (✅ **shipped
-  > 2026-06-21** — crossbow load is now *ready to build*, Slice A); **lance
-  > charge** → **mounted combat** (`mounts.md`); **sling / improvised-melee ammo**
-  > → an **ammo break/loss** roll. Build the prerequisite before the dependent
-  > J item.
+  > don/doff); **crossbow load** → the same substrate (✅ **DONE 2026-06-21**,
+  > `action-economy.md` §7.1 — `reload_ticks` + the `load` verb gating the round
+  > loop + `shoot`); **lance charge** → **mounted combat** (`mounts.md`); **sling /
+  > improvised-melee ammo** → an **ammo break/loss** roll. Build the prerequisite
+  > before the dependent J item.
 
   Each tail item is its own slice on the `special:` seam — author the content data
   once, light up the handler when its prerequisite lands.

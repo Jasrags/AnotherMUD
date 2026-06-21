@@ -110,12 +110,23 @@ func ShootHandler(ctx context.Context, c *Context) error {
 		return c.Actor.Write(ctx, fmt.Sprintf("You don't see anyone like that to the %s.", dir.Long()))
 	}
 
-	// Spend one matching ammo unit. A live player actor satisfies ammoConsumer;
-	// a headless/test actor does not and fires freely (mirrors the mob path).
-	// The consumed unit's masterwork grade is not yet folded into to-hit on this
-	// one-shot path (ResolveSingleAttack reads Stats().HitMod only) — a recorded
-	// slice-1 limitation, not a correctness bug.
-	if consumer, ok := c.Actor.(ammoConsumer); ok && st.AmmoKind != "" {
+	// Spend the shot. A reload-gated weapon (a crossbow, ReloadTicks > 0) fires
+	// the chambered bolt — the ammo was spent at `load` time, so here we only
+	// require it to be loaded and discharge that loaded state. A freely-firing
+	// bow/thrown weapon (ReloadTicks == 0) consumes one matching ammo unit now,
+	// as before. A headless/test actor satisfies neither interface and fires
+	// freely (mirrors the mob path). Masterwork-grade to-hit on the consumed unit
+	// is not yet folded into this one-shot path — a recorded slice-1 limitation.
+	if st.ReloadTicks > 0 {
+		loader, ok := c.Actor.(weaponLoader)
+		if ok && !loader.IsWeaponLoaded() {
+			_ = c.Actor.Write(ctx, "*click* — your weapon isn't loaded. (load it first)")
+			return nil
+		}
+		if ok {
+			loader.ClearWeaponLoaded() // the bolt is loosed whether it hits or misses
+		}
+	} else if consumer, ok := c.Actor.(ammoConsumer); ok && st.AmmoKind != "" {
 		if _, consumed := consumer.ConsumeAmmo(st.AmmoKind); !consumed {
 			_ = c.Actor.Write(ctx, fmt.Sprintf("*click* — you are out of %s!", st.AmmoKind))
 			if c.Broadcaster != nil && c.Actor.Name() != "" {

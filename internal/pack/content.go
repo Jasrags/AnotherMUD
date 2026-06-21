@@ -113,6 +113,10 @@ type ItemFile struct {
 	AmmoKind       string `yaml:"ammo_kind,omitempty"`
 	RangeIncrement int    `yaml:"range_increment,omitempty"`
 	StrRating      *int   `yaml:"str_rating,omitempty"`
+	// ReloadTicks marks a projectile weapon that must be RELOADED between shots
+	// (a crossbow) and is its load time in engine ticks (action-economy.md §7.1).
+	// 0 (absent) = fires freely (a bow). Validated non-negative at load.
+	ReloadTicks int `yaml:"reload_ticks,omitempty"`
 	// Armor depth (armor-depth §2). All optional, recorded-only this slice
 	// (inert until the AC/mitigation/proficiency/check-penalty consumers
 	// land). armor_bonus is the structured AC term; armor_max_dex caps the

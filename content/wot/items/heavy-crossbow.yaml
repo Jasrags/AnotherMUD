@@ -19,6 +19,9 @@ crit_multiplier: 2
 ranged_class: projectile
 ammo_kind: bolt
 range_increment: 12
+# Reload-gated (action-economy.md §7.1): a cranked windlass spans it — ruinously
+# slow between shots. Holds one loaded bolt; `load` to re-span after firing.
+reload_ticks: 50
 properties:
   weight: 9
   value: 500

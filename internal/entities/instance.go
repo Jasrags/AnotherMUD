@@ -126,6 +126,7 @@ type ItemInstance struct {
 	rangedClass    string
 	ammoKind       string
 	rangeIncrement int
+	reloadTicks    int
 	strRating      *int
 	// resistances are the armor's per-damage-type damage reduction
 	// (armor-depth §4), keyed by damage type. nil = none. Aggregated across
@@ -397,6 +398,10 @@ func (it *ItemInstance) AmmoKind() string { return it.ammoKind }
 // §2); zero when unset. Inert until Slice B's range bands.
 func (it *ItemInstance) RangeIncrement() int { return it.rangeIncrement }
 
+// ReloadTicks is the load time of a reload-gated projectile (a crossbow), in
+// engine ticks; 0 means the weapon fires freely (a bow). action-economy §7.1.
+func (it *ItemInstance) ReloadTicks() int { return it.reloadTicks }
+
 // StrRating returns the cap on a Strength-rated projectile weapon's
 // positive Strength damage bonus (ranged-combat §4), or nil for the default
 // projectile rule (no positive Strength bonus). The returned pointer is a
@@ -661,6 +666,7 @@ func buildInstanceFromTemplate(tpl *item.Template, id EntityID) *ItemInstance {
 		rangedClass:       tpl.RangedClass,
 		ammoKind:          tpl.AmmoKind,
 		rangeIncrement:    tpl.RangeIncrement,
+		reloadTicks:       tpl.ReloadTicks,
 		strRating:         strRating,
 		resistances:       resistances,
 		armorCheckPenalty: tpl.ArmorCheckPenalty,
