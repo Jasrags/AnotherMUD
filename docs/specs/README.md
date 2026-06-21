@@ -196,6 +196,15 @@ The verbs players use and the systems that resolve them.
   whip content + a live walkthrough, plus the tail (whip anti-armor,
   unarmed-subdual, mob-attacker subdual). Deferred: intrinsic natural armor for
   the whip gate, and the separate-nonlethal-pool/coup-de-grace variants per §8.)*
+- [action-economy](action-economy.md) — the generic per-actor **timed-action /
+  busy-state** substrate: one in-flight occupation per actor (busy doing `Kind`
+  until tick `ReadyAt`), a begin-refuse-if-busy gate, a completion sweep that
+  routes due actions to their consumer by kind, optional interruption
+  (movement / manual cancel), transient (no persistence). Generalizes the ad-hoc
+  flee-cooldown / cast-warmup / timed-craft occupation trackers into one primitive;
+  the prerequisite the **crossbow load actions** + **don/doff timers** tail has
+  been blocked on (`special-weapons.md`, `armor-depth.md` §7). EPIC Decision 0
+  (no d20 action grid). *(Spec ahead of code — build pending; sliced.)*
 - [skills](skills.md) — skills as use-based proficiencies + the
   `ResolveSkillCheck` primitive (`d20 + bonus vs DC`, mirroring saves), with
   the first consumer: lockpicking (`pick` vs a door's pick difficulty) + the
