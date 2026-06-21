@@ -60,9 +60,11 @@ to-hit-penalty condition, the trip/bash sibling; physical-drop variant deferred)
 — SHIPPED; (5) **set vs a charge** (the braced bonus blow when a foe charges into
 a `set` weapon's strike range, riding the band auto-close — §6) — SHIPPED; (6)
 **double weapons** (a `double_damage` weapon used as two weapons — its second end
-is a light off-hand strike, §7) — SHIPPED. The J starter set plus the first two
-tail slices are complete; the bottomless tail (net/entangle, whip,
-swordbreaker-breaking, lance charge, …) stays deferred on the `special:` seam.
+is a light off-hand strike, §7) — SHIPPED; (7) **gear-borne reputation** (worn
+gear's `reputation` delta folds into effective renown, §8) — SHIPPED. The J
+starter set plus the first three tail slices are complete; the bottomless tail
+(net/entangle, whip subdual, swordbreaker-breaking, lance charge, crossbow load,
+sling/improvised ammo, don/doff timers) stays deferred on the `special:` seam.
 
 ## 2. The metadata: maneuver tags + the numeric reach stat
 
@@ -120,7 +122,8 @@ subdual mode ships — it does not behave as something else).
   stacking with terrain + encumbrance, the slowest worn piece governing
   (`internal/command/armorspeed.go`). No longer inert.
 - **`reputation`** (signed int) — a visible-gear reputation delta (masterwork +1,
-  Trolloc scythesword −2). Lights up with S8 reputation.
+  Trolloc scythesword −2). **CONSUMED (§8):** the worn sum folds into the
+  character's effective renown. No longer inert.
 - The `special:` tags **`net` / `whip` / `entangle`** — the remaining
   special-weapon tail, validated as vocabulary but read by no combat code yet; each
   lights up in its own later slice. (The **`set`** tag is now consumed — §6.)
@@ -366,7 +369,49 @@ dual-wielding two items, not using one item's two ends).
 - **Double-weapon masterwork pricing** (the source's +600 mk for a masterwork
   double weapon) is an economy concern, not this combat slice.
 
-## 8. Configuration surface
+## 8. Gear-borne reputation
+
+The source rates some gear as a **visible reputation signifier**: a masterwork
+weapon is +1 and a masterpiece +2 while carried, masterwork armor +1 / masterpiece
++2 while worn, lacquered plate +1, the Trolloc scythesword −2 (`docs/wot/equipment.md`).
+The `reputation` weapon/armor field (§2) records the delta; this slice **consumes**
+it by folding the worn sum into the character's **effective renown** (`reputation.md`
+§7 — the single-axis renown that `score` shows and recognition checks read).
+
+A character's effective renown is its stored base score plus additive overlays:
+the **Fame** feat bonus (`reputation.md` §7) and now the **worn-gear sum**. The
+sum is the signed total of the `reputation` field across the character's distinct
+equipped items (a spanning item counts once), recomputed on every equip / unequip
+/ login over the same pass that aggregates armor — so donning a heron-mark blade
+nudges renown up, sheathing it (to inventory) drops it back. Both the effective
+**number** and the derived **tier** read the sum, so the score line stays
+self-consistent.
+
+This is the **worn-signifier earn path** `reputation.md` left deferred; it is
+recorded here because the `reputation` field is special-weapons metadata, with the
+renown mechanics owned by `reputation.md`.
+
+### Acceptance criteria
+
+- A character's effective renown (and its tier) includes the summed `reputation`
+  delta of its worn/equipped gear, on top of the base score and the Fame bonus.
+- The sum updates on equip / unequip / login; a spanning multi-slot item counts
+  once (no double-count).
+- Gear with no `reputation` field contributes nothing — an ordinary loadout's
+  renown is unchanged.
+- The base (stored) renown score is untouched — worn gear is a live overlay, not a
+  persisted shift; removing the gear removes its contribution.
+
+### Deferred
+
+- **Carried vs. worn.** v1 counts EQUIPPED gear (worn/wielded). The source's
+  "while carried" nuance for a stowed masterwork weapon is not modeled — only the
+  wielded/worn pieces signify.
+- **Recognition-check consumer.** Effective renown now reflects gear, but the
+  recognition check (`reputation.md` R4) still has no consumer verb; gear-borne
+  renown will feed it when that lands.
+
+## 9. Configuration surface
 
 | Setting | Meaning | Default |
 |---|---|---|
@@ -382,7 +427,7 @@ The trip/bash maneuvers' own DC/cost knobs (`conditions.md` §6) are unchanged;
 disarm reuses that ability shape, so its numeric surface mirrors theirs and most
 values come from the ability YAML rather than env where the existing maneuvers do.
 
-## 9. Open questions
+## 10. Open questions
 
 - **Disarm save axis.** Reflex (keep your grip by agility) vs a Strength contest
   (raw grip strength) vs the attacker's to-hit. **Resolved: Reflex** (v1), for

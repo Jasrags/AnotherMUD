@@ -1917,6 +1917,12 @@ type connActor struct {
 	// nil = no tiered armor worn. The stored slice is never mutated after
 	// Store (copy-on-recompute), so readers may share it.
 	armorTiers atomic.Pointer[[]string]
+	// wornReputation caches the summed signed reputation delta of worn/visible
+	// gear (special-weapons §8 / reputation.md §7 — masterwork +1, Trolloc
+	// scythesword −2). Recomputed alongside armorResist over the same distinct-id
+	// equipment pass, read lock-free by EffectiveRenown / RenownTier. 0 = no gear
+	// reputation. The renown sibling of armorResist.
+	wornReputation atomic.Int64
 	// featWeaponBonus caches the per-weapon-category feat hit/crit bonuses
 	// (EPIC S4 Phase 3c), recomputed on feat change (applyFeatGrants) and read
 	// LOCK-FREE in Stats() — same atomic.Pointer discipline as `weapon`, so the
@@ -3463,6 +3469,7 @@ func (a *connActor) recomputeWeaponLocked() {
 		a.armorResist.Store(nil)
 		a.armorDexCap.Store(nil)
 		a.armorTiers.Store(nil)
+		a.wornReputation.Store(0)
 		return
 	}
 	keys := make([]string, 0, len(a.equipment))
@@ -3482,6 +3489,7 @@ func (a *connActor) recomputeWeaponLocked() {
 	// armor, and the distinct tiers worn. minCap nil ⇒ no piece caps Dex.
 	var minCap *int
 	var tiers []string
+	var wornRep int // special-weapons §8: summed visible-gear reputation
 	for _, k := range keys {
 		id := a.equipment[k]
 		if seen[id] {
@@ -3496,6 +3504,7 @@ func (a *connActor) recomputeWeaponLocked() {
 			continue
 		}
 		seen[id] = true
+		wornRep += it.Reputation() // special-weapons §8: visible-gear renown delta
 		for dt, amt := range it.Resistances() {
 			if resist == nil {
 				resist = make(map[string]int)
@@ -3539,6 +3548,7 @@ func (a *connActor) recomputeWeaponLocked() {
 	} else {
 		a.armorTiers.Store(nil)
 	}
+	a.wornReputation.Store(int64(wornRep))
 }
 
 // IsWeaponProficient reports whether the actor may wield their current
@@ -4481,7 +4491,7 @@ func (a *connActor) RenownTier() string {
 	if mgr == nil {
 		return ""
 	}
-	return mgr.Config().TierOf(base + a.RenownBonus())
+	return mgr.Config().TierOf(base + a.RenownBonus() + a.WornReputation())
 }
 
 // Gold returns the actor's current balance (M11.1 — spec §2.1).
@@ -5483,13 +5493,20 @@ func (a *connActor) HasLowProfile() bool {
 	return fb != nil && fb.lowProfile
 }
 
+// WornReputation returns the summed signed reputation delta of worn/visible gear
+// (special-weapons §8 — masterwork +1, Trolloc scythesword −2), read lock-free
+// from the equip-time cache. 0 when no gear confers reputation.
+func (a *connActor) WornReputation() int {
+	return int(a.wornReputation.Load())
+}
+
 // EffectiveRenown returns the actor's renown score folded with the Fame feat
-// bonus (reputation.md §7) — the "how known am I" value the score sheet shows
-// and recognition checks (R4) will read. The stored base score (Renown) remains
-// the source of truth the manager shifts; Fame is an additive overlay. (Worn
-// signifiers, §5.4, will fold in here too when that earn path lands.)
+// bonus (reputation.md §7) and the worn-gear reputation (special-weapons §8) —
+// the "how known am I" value the score sheet shows and recognition checks (R4)
+// will read. The stored base score (Renown) remains the source of truth the
+// manager shifts; Fame and worn signifiers are additive overlays.
 func (a *connActor) EffectiveRenown() int {
-	return a.Renown() + a.RenownBonus()
+	return a.Renown() + a.RenownBonus() + a.WornReputation()
 }
 
 // SetPowerAttack toggles the Power Attack stance and marks the save dirty so

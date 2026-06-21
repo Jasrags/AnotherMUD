@@ -205,11 +205,14 @@ old five-theme partition left uncovered.
   auto-close; **✅ double weapons (`double_damage`) SHIPPED 2026-06-20**
   (`special-weapons.md` §7) — a wielded quarterstaff/ashandarei is used as two
   weapons (its second end is a light off-hand strike via the TWF path; main end
-  takes 1× Str, not the two-handed 1.5×). **What remains of J is the "bottomless
-  tail"** — the special-column behaviors that ride the shipped `special:` seam but
-  have **no combat handler yet** (the `net` / `whip` / `entangle` tags are declared
-  as valid vocabulary but read by no combat code; other items are recorded fields
-  awaiting a consumer):
+  takes 1× Str, not the two-handed 1.5×); **✅ gear-borne reputation
+  (`reputation`) SHIPPED 2026-06-20** (`special-weapons.md` §8) — worn gear's
+  reputation delta folds into effective renown (the worn-signifier earn path
+  `reputation.md` deferred). **What remains of J is the "bottomless tail"** — the
+  special-column behaviors that ride the shipped `special:` seam but have **no
+  combat handler yet** (the `net` / `whip` / `entangle` tags are declared as valid
+  vocabulary but read by no combat code; other items need substrate combat doesn't
+  model yet):
 
   - [ ] **Net / entangle** (`net`, `entangle`): a ranged-touch throw that applies a
         new `entangled` condition (−atk, −effective Dex, ½ speed, escape DC). New
@@ -227,15 +230,20 @@ old five-theme partition left uncovered.
         melee** (Tiny, 50% break on miss).
   - [ ] **Don/doff timers** (`equipment.md` Table 7-6): timed don / hasty-don /
         remove with helper-assist halving. The worn-Speed surcharge (`armor_speed`)
-        already shipped; only the timed donning table is unmodeled.
-  - [ ] **Gear-borne Reputation** (`reputation` field, recorded): masterwork/
-        masterpiece weapon +1/+2, masterwork armor +1/+2 while worn, lacquered plate
-        +1, Trolloc scythesword −2 — the worn signifier folded into the renown calc.
-        Reputation shipped (R1), but the worn-signifier earn path is deferred
-        (`reputation.md`; cross-ref the Reputation note in §1).
+        already shipped; only the timed donning table is unmodeled (needs the tick
+        scheduler + a per-actor "donning" busy state).
 
-  Each tail item is its own later slice on the `special:` seam — author the content
-  data once (already done for the polearms), light up the handler per slice.
+  > **Substrate-blocked tail** (each needs a system the engine doesn't have yet —
+  > do the prerequisite first): **whip** subdual+armor-immunity → a nonlethal
+  > **subdual damage mode** (the recorded `subdual` field's consumer); **lance
+  > charge** → **mounted combat** (`mounts.md` deferred slices); **crossbow load
+  > actions** + **don/doff timers** → an **action-economy / busy-state** notion the
+  > tick-based loop lacks; **sling stones / arrows-as-improvised-melee** → an
+  > **ammo break/loss** roll on the thrown/projectile path. Net/entangle (above) is
+  > the next unblocked slice — a maneuver on the disarm pattern.
+
+  Each unblocked tail item is its own slice on the `special:` seam — author the
+  content data once (already done for the polearms), light up the handler per slice.
   Originally: make weapons and armor
   mechanically distinct the way `docs/wot/equipment.md` (the WoT d20 tables) describes:
   proficiency tiers (Simple/Martial/Exotic + the −4 non-proficient rule), crit threat

@@ -66,9 +66,12 @@ Each row is independently shippable except where a dependency is noted. Sizes ar
 > charge** (§6, a braced polearm's bonus blow on a charging foe, riding the band
 > auto-close; `ANOTHERMUD_SET_DAMAGE_BONUS`) and **double weapons** (§7, a
 > quarterstaff/ashandarei used as two weapons — its `double_damage` second end is a
-> light off-hand strike via the two-weapon path) as the first two tail slices
-> (2026-06-20). The bottomless tail (net/entangle, whip, swordbreaker-breaking,
-> lance charge) stays deferred on the same seam.
+> light off-hand strike via the two-weapon path) and **gear-borne reputation**
+> (§8, worn gear's `reputation` delta folds into effective renown) as the first
+> three tail slices (2026-06-20). The bottomless tail (net/entangle, whip subdual,
+> swordbreaker-breaking, lance charge, crossbow load, sling/improvised ammo,
+> don/doff timers) stays deferred on the same seam, much of it behind substrate the
+> engine doesn't have yet (subdual mode, mounted combat, action economy).
 >
 > **F (size-wield) SPECCED 2026-06-15** — `docs/specs/size-and-wielding.md`
 > (forward spec, build pending): creature size + weapon size, the wield mode
