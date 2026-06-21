@@ -452,8 +452,21 @@ func finishLogin(c *telnettest.Client, charName string, isNew bool, answers map[
 	if err := c.SendLine(charName); err != nil {
 		return err
 	}
-	if _, err := c.ExpectTimeout(gamePrompt, 8*time.Second); err != nil {
-		return fmt.Errorf("login never reached the game prompt: %w", err)
+	// Selecting a character now opens a per-character action menu
+	// (login-menu-polish: "1) Enter the game / 2) Delete / 0) Back"). Send "1"
+	// to enter the world. Older builds dropped straight to the prompt, so accept
+	// either and only answer the menu when it appears.
+	out, err := c.ExpectTimeout(regexp.MustCompile("Make your choice:|"+gamePrompt.String()), 8*time.Second)
+	if err != nil {
+		return fmt.Errorf("post-select prompt: %w", err)
+	}
+	if strings.Contains(out, "Make your choice:") {
+		if err := c.SendLine("1"); err != nil {
+			return err
+		}
+		if _, err := c.ExpectTimeout(gamePrompt, 8*time.Second); err != nil {
+			return fmt.Errorf("login never reached the game prompt after the action menu: %w", err)
+		}
 	}
 	return nil
 }

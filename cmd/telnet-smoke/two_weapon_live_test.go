@@ -36,7 +36,19 @@ func TestLive_TwoWeaponEquip(t *testing.T) {
 		t.Fatalf("dial: %v", err)
 	}
 	defer c.Close()
-	if err := createChanneler(c, "Dualist", "male"); err != nil {
+	// Build a male Initiate with the Midlander background: the default background
+	// (Aiel, the first option) forbids swords ("the sword is for wetlanders"),
+	// which would refuse the longsword this test wields. Midlander is a wetlander
+	// background with no weapon restriction.
+	isNew, err := doLogin(c, "Dualist")
+	if err != nil {
+		t.Fatalf("login: %v", err)
+	}
+	if err := finishLogin(c, "Dualist", isNew, map[string]string{
+		"gender":     "male",
+		"class":      "initiate",
+		"background": "midlander",
+	}); err != nil {
 		t.Fatalf("create+login: %v", err)
 	}
 
