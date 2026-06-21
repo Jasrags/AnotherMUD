@@ -38,6 +38,7 @@ import (
 	"github.com/Jasrags/AnotherMUD/internal/conn/telnet"
 	"github.com/Jasrags/AnotherMUD/internal/corpse"
 	"github.com/Jasrags/AnotherMUD/internal/crafting"
+	"github.com/Jasrags/AnotherMUD/internal/dotenv"
 	"github.com/Jasrags/AnotherMUD/internal/economy"
 	"github.com/Jasrags/AnotherMUD/internal/entities"
 	"github.com/Jasrags/AnotherMUD/internal/escrow"
@@ -90,6 +91,19 @@ func main() {
 }
 
 func run() error {
+	// Load `.env` before reading any config so its values are visible to the
+	// os.LookupEnv-based readers below. The real environment always wins over
+	// the file (dotenv precedence), so `.env` is a convenience layer, never an
+	// override. Path is configurable via ANOTHERMUD_ENV_FILE (default `.env`
+	// in the working directory); a missing file is not an error.
+	envFile := os.Getenv("ANOTHERMUD_ENV_FILE")
+	if envFile == "" {
+		envFile = ".env"
+	}
+	if err := dotenv.Load(envFile); err != nil {
+		return fmt.Errorf("loading env file: %w", err)
+	}
+
 	cfg := loadConfig()
 
 	logger := newLogger(cfg)

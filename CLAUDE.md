@@ -37,6 +37,20 @@ go test -race ./...         # run tests (race detector mandatory)
 
 When asked to implement features, **read the relevant spec first** — they are the source of truth for behavior. The specs reference some Tapestry-specific names (e.g. `tapestry-core` engine namespace); treat those as placeholder strings unless/until renamed.
 
+### Configuration (.env)
+
+All `ANOTHERMUD_*` knobs can be set in a local `.env` file (gitignored), loaded
+at boot by `internal/dotenv` before any config is read. The real environment
+always wins over `.env`; a missing file is fine. `.env.example` is the committed
+template documenting every knob with its default.
+
+**When you add a new `ANOTHERMUD_*` (or other) env var, you MUST:**
+1. Add it to `.env.example` (commented out, with its default value and a brief
+   inline comment), in the appropriate section.
+2. Tell the user in your response that the new var was added to `.env.example`
+   and that **they need to add it to their own `.env`** if they want to override
+   the default — the loader cannot do this for them since `.env` is local/untracked.
+
 ### Git workflow
 
 **Work directly on `main`. Do NOT create feature branches.** This is a solo

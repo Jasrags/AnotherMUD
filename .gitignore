@@ -21,6 +21,10 @@ coverage.*
 # Local tool state
 .claude/settings.local.json
 
+# Local env config (loaded at boot; .env.example is the committed template)
+.env
+.env.local
+
 # Persistence root (default ANOTHERMUD_SAVE_DIR)
 /saves/
 
