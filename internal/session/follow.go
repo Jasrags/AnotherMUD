@@ -2,12 +2,18 @@ package session
 
 import (
 	"context"
+	"errors"
 	"log/slog"
 
 	"github.com/Jasrags/AnotherMUD/internal/command"
 	"github.com/Jasrags/AnotherMUD/internal/logging"
 	"github.com/Jasrags/AnotherMUD/internal/world"
 )
+
+// errInvalidFollow is returned for a nil manager or an empty player id — a
+// corrupt/degenerate call, distinct from a genuine self-follow. The verb maps it
+// to the generic "you can't follow that" rather than the self-follow message.
+var errInvalidFollow = errors.New("follow: invalid player id")
 
 // maxFollowDepth bounds the recursive pull when a follow chain (A→B→C…) all
 // relocates on one move: each follower's re-dispatched step re-publishes
@@ -26,7 +32,7 @@ type followDepthKey struct{}
 // Refuses self-follow and any follow that would close a cycle.
 func (m *Manager) Follow(followerID, leaderID string) error {
 	if m == nil || followerID == "" || leaderID == "" {
-		return command.ErrFollowSelf
+		return errInvalidFollow
 	}
 	if followerID == leaderID {
 		return command.ErrFollowSelf
@@ -162,6 +168,12 @@ func (m *Manager) PullFollowers(ctx context.Context, leaderID string, from, to w
 
 	dir, adjacent := m.directionBetween(from, to)
 	childCtx := context.WithValue(ctx, followDepthKey{}, depth+1)
+
+	// The graph is a FOREST — Follow gives each follower exactly one leader (a
+	// re-target removes the old edge), so no node is reachable by two leader
+	// chains and no follower is pulled twice in one event. The `!= from` check
+	// below therefore only fires for a follower genuinely left behind, never for
+	// one already relocated by a sibling chain (that case can't arise).
 
 	for _, fid := range followers {
 		fa, ok := m.GetByPlayerID(fid)

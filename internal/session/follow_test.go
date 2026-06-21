@@ -31,6 +31,19 @@ func TestFollowGraph_SelfRefused(t *testing.T) {
 	}
 }
 
+func TestFollowGraph_EmptyIDRefused(t *testing.T) {
+	m := NewManager()
+	if err := m.Follow("", "b"); !errors.Is(err, errInvalidFollow) {
+		t.Errorf("empty follower err = %v, want errInvalidFollow", err)
+	}
+	if err := m.Follow("a", ""); !errors.Is(err, errInvalidFollow) {
+		t.Errorf("empty leader err = %v, want errInvalidFollow", err)
+	}
+	if _, ok := m.Following("a"); ok {
+		t.Error("an invalid follow should record nothing")
+	}
+}
+
 func TestFollowGraph_CycleRefused(t *testing.T) {
 	m := NewManager()
 	// A→B→C is a legal chain.

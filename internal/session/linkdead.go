@@ -198,6 +198,11 @@ func (m *Manager) LinkDeadCleanup(ctx context.Context, cfg LinkDeadConfig, clk c
 				fmt.Sprintf("%s has left.", a.Name()), a.PlayerID())
 		}
 		m.Remove(a)
+		// follow.md §4: a reaped link-dead session leaves the world for good, so
+		// clear both sides of its follow edges — matching fullTeardown, which the
+		// reap path otherwise mirrors. Without this a reaped leader would leave
+		// undead followers and a reaped follower would linger in its leader's set.
+		m.dropFollow(ctx, a.PlayerID(), a.Name())
 		if err := a.Persist(ctx); err != nil {
 			logging.From(ctx).Warn("linkdead cleanup: persist failed",
 				slog.String("player", a.PlayerName()),
