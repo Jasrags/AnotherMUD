@@ -295,6 +295,14 @@ The verbs players use and the systems that resolve them.
   (no persistence). The shared substrate under **grouping**, **hireable mobs**,
   and the **onboarding guide** (each a future consumer). *(Spec ahead of code —
   build pending.)*
+- [grouping](grouping.md) — parties: invite/accept roster (`group` / `join` /
+  `leave` / `disband`), **shared kill-XP** (introduces combat kill-XP itself,
+  party-aware — solo = a party of one; even split among same-room members),
+  **shared loot** (fills the corpse owner-set with the party), and a `gtell`
+  party channel. The consensual counterpart to `follow` (resolves follow's parked
+  consent fork). Layers on `combat` §10 kill credit, `progression`,
+  `loot-and-corpses` §4, and `chat`. *(Spec ahead of code — build pending,
+  sliced: roster → kill-XP → loot.)*
 - [admin-verbs](admin-verbs.md) — the admin gate (commands marked
   admin, refused unless the actor holds the admin role), admin
   target resolution with visibility bypass, the baseline verb set
