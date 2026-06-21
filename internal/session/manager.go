@@ -73,6 +73,14 @@ type Manager struct {
 	actionTracker  *action.Tracker
 	actionCommands *command.Registry
 	actionEnv      command.Env
+
+	// follow.md move-with-leader graph. followLeader maps a follower id → its
+	// leader; followers maps a leader id → its follower set. Guarded by its OWN
+	// mutex (not m.mu) so PullFollowers can call GetByPlayerID (which locks m.mu)
+	// without a reentrant deadlock. Transient — never persisted.
+	followMu     sync.Mutex
+	followLeader map[string]string
+	followers    map[string]map[string]bool
 }
 
 // NewManager returns an empty Manager.
@@ -82,8 +90,10 @@ func NewManager() *Manager {
 		byPlayerID: make(map[string]*connActor),
 		byName:     make(map[string]*connActor),
 		byAccount:  make(map[string][]*connActor),
-		byRoom:     make(map[world.RoomID]map[string]*connActor),
-		roomByPID:  make(map[string]world.RoomID),
+		byRoom:       make(map[world.RoomID]map[string]*connActor),
+		roomByPID:    make(map[string]world.RoomID),
+		followLeader: make(map[string]string),
+		followers:    make(map[string]map[string]bool),
 	}
 }
 

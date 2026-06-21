@@ -55,16 +55,19 @@ prevention; clean teardown on logout/death; the relationship is **transient**
 
 **Non-goals.** Party/group reward-sharing (XP, loot, quest credit) — that is the
 **grouping** consumer, a separate spec that uses this primitive. Mob-as-follower
-(a hireling that trails its owner) — the **hireable-mobs** consumer; this spec's
-follower is a **player** (the leader may be a player *or* a mob, so "follow the
-guide" works). Group chat, formation/marching order, and "assist in combat" are
-grouping concerns, not follow's.
+(a hireling that trails its owner) — the **hireable-mobs** consumer. **Mob as
+leader** ("follow the guide") — deferred: a follower reacts to the leader's move
+signal, and only *player* moves emit it today; following a mob waits on a
+mob-move signal (the onboarding-guide / hireable-mobs consumer brings it). v1:
+**both follower and leader are players.** Group chat, formation/marching order,
+and "assist in combat" are grouping concerns, not follow's.
 
 ## 2. Following and unfollowing
 
-- **`follow <target>`** — begin following a character you can **see** in your
-  room (the visibility predicate, `visibility.md`): a player or a mob. The target
-  is **not** asked for consent (§7 open question); you simply trail them. A
+- **`follow <target>`** — begin following a **player** you can **see** in your
+  room (the visibility predicate, `visibility.md`; mob leaders are deferred, §1).
+  The target is **not** asked for consent (§7 open question); you simply trail
+  them. A
   confirmation is shown to the follower, and the leader is told someone follows
   them.
 - **`follow`** (no argument) — report who you are following, or that you follow

@@ -80,6 +80,20 @@ func commandEnv(cfg Config) command.Env {
 		DefaultMoveCost:       cfg.DefaultMoveCost,
 		Actions:               cfg.Actions,
 		DonTicks:              cfg.DonTicks,
+		// follow.md: the Manager owns the move-with-leader graph (it implements
+		// command.FollowService) and resolves a player id to its live Actor for
+		// cross-room follow messaging.
+		Follow: cfg.Manager,
+		ActorByID: func(id string) (command.Actor, bool) {
+			if cfg.Manager == nil {
+				return nil, false
+			}
+			a, ok := cfg.Manager.GetByPlayerID(id)
+			if !ok {
+				return nil, false
+			}
+			return a, true
+		},
 	}
 }
 

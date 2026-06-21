@@ -2540,6 +2540,10 @@ func run() error {
 			combatSink.tell(ctx, combat.NewPlayerCombatantID(e.PlayerID),
 				fmt.Sprintf("You stop %s.", label))
 		}
+		// follow.md §3: a leader's move pulls their followers along (or breaks the
+		// follow when they can't keep up). The bus is re-entrant, so a pulled
+		// follower's own move chains to their followers.
+		mgr.PullFollowers(ctx, e.PlayerID, e.From, e.To)
 	})
 
 	// Moving rooms drops hide concealment (visibility §3.1): you cannot stay

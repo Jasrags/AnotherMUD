@@ -1284,6 +1284,11 @@ func fullTeardown(ctx context.Context, cfg Config, a *connActor) {
 	if cfg.Actions != nil {
 		cfg.Actions.Drop(a.PlayerID())
 	}
+	// follow.md §4: logout clears both sides of every follow edge this actor was
+	// in (their leader, and everyone following them), notifying the survivors.
+	if cfg.Manager != nil {
+		cfg.Manager.dropFollow(ctx, a.PlayerID(), a.Name())
+	}
 
 	// M10.8: drop in-memory quest state + the persistence name cache so
 	// the working sets track connected players only. Save has already

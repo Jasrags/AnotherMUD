@@ -439,6 +439,13 @@ type Env struct {
 	// armor (action-economy.md §7.2). 0 → the package default. Sourced from
 	// ANOTHERMUD_DON_TICKS.
 	DonTicks int
+
+	// Follow is the move-with-leader relationship graph (follow.md). The
+	// follow/unfollow/lose verbs read/write it. nil disables following.
+	Follow FollowService
+	// ActorByID resolves a player id to its live Actor (for follow messaging
+	// across rooms). nil → names fall back to "someone".
+	ActorByID func(id string) (Actor, bool)
 }
 
 // TellResolver maps a player name to a recipient route. Returns

@@ -468,6 +468,8 @@ func (r *Registry) Dispatch(ctx context.Context, env Env, actor Actor, raw strin
 		Actions:               env.Actions,
 		ReplayAction:          env.ReplayAction,
 		DonTicks:              env.DonTicks,
+		Follow:                env.Follow,
+		ActorByID:             env.ActorByID,
 		World:                 env.World,
 		Broadcaster:           env.Broadcaster,
 		Items:                 env.Items,

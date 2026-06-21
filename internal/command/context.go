@@ -235,6 +235,12 @@ type Context struct {
 	// DonTicks is the don/doff occupation length in ticks (action-economy.md
 	// §7.2); 0 → the package default. Copied from Env.DonTicks by Dispatch.
 	DonTicks int
+	// Follow is the move-with-leader relationship graph (follow.md); the
+	// follow/unfollow/lose verbs use it. ActorByID resolves a player id to its
+	// Actor for cross-room follow messaging. Both copied from Env by Dispatch.
+	Follow    FollowService
+	ActorByID func(id string) (Actor, bool)
+
 	// HastyDon marks an in-flight don as the "hastily donned" escape
 	// (armor-depth §7): faster, but the armor's bonus is one step worse and its
 	// check penalty one step worse until re-donned properly. Set by
