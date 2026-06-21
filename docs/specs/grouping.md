@@ -135,12 +135,15 @@ grouping a **trade-off** — faster kills, shared spoils — not free multiplica
 
 ### Acceptance criteria
 
-- [ ] A solo killer of a mob with XP value `V` gains `V` on their default track;
-      a mob with no XP value grants nothing.
-- [ ] A party of `N` all present at the kill each gain `V/N` (integer split);
-      a member in another room gains nothing.
-- [ ] A subdual knock-out grants no XP (no kill).
-- [ ] XP lands on the default track and drives the normal level-up path.
+- [x] A solo killer of a mob with XP value `V` gains `V` on their default track;
+      a mob with no XP value grants nothing. **SHIPPED 2026-06-21.**
+- [x] A party of `N` all present at the kill each gain `V/N` (integer split);
+      a member in another room gains nothing. **SHIPPED** (the recipient set is
+      same-room party members; share = `V/len`, rounded-to-zero grants nothing).
+- [x] A subdual knock-out grants no XP (no kill) — subdual publishes no
+      `MobKilled`, so the XP hook never fires. **SHIPPED.**
+- [x] XP lands on the default track and drives the normal level-up path
+      (`GrantXP` → the existing `LevelUp` render). **SHIPPED 2026-06-21.**
 
 ## 5. Shared loot
 

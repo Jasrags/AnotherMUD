@@ -3487,6 +3487,7 @@ func decodeMob(path, ns string) (*mob.Template, error) {
 		NaturalWeaponDamage: natWeaponDamage,
 		LootTable:           lootTable,
 		Faction:             factionID,
+		XPValue:             f.XPValue,
 		Proficiencies:       profs,
 		Race:                strings.ToLower(strings.TrimSpace(f.Race)),
 		Class:               strings.ToLower(strings.TrimSpace(f.Class)),

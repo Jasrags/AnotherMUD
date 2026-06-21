@@ -2,8 +2,11 @@ package session
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/Jasrags/AnotherMUD/internal/command"
+	"github.com/Jasrags/AnotherMUD/internal/progression"
+	"github.com/Jasrags/AnotherMUD/internal/world"
 )
 
 // defaultPartyCap is the fallback party size cap (grouping.md §7) when
@@ -172,6 +175,48 @@ func (m *Manager) othersLocked(leaderID, exclude string) []string {
 		}
 	}
 	return others
+}
+
+// GrantKillXP awards a lethal kill's experience (grouping.md §4): recipients are
+// the killer's party members present in the kill room (proximity-gated), or just
+// the killer when ungrouped (a party of one). The total is split EVENLY; each
+// share lands on the recipient's default track and is announced. A total or a
+// rounded-to-zero share grants nothing. Called from the mob-killed reward hook.
+func (m *Manager) GrantKillXP(ctx context.Context, prog *progression.Manager, track, killerPID string, room world.RoomID, total int64) {
+	if m == nil || prog == nil || total <= 0 || track == "" || killerPID == "" {
+		return
+	}
+	recipients := m.killXPRecipients(killerPID, room)
+	if len(recipients) == 0 {
+		return
+	}
+	share := total / int64(len(recipients))
+	if share <= 0 {
+		return // the split rounds to nothing — a tiny-XP mob in a large party
+	}
+	for _, a := range recipients {
+		a.GrantXP(ctx, prog, track, "kill", share)
+		_ = a.Write(ctx, fmt.Sprintf("You gain %d experience.", share))
+	}
+}
+
+// killXPRecipients resolves the present, in-room XP recipients for a kill: the
+// killer's party (or the lone killer when ungrouped), filtered to those online
+// and standing in the kill room.
+func (m *Manager) killXPRecipients(killerPID string, room world.RoomID) []*connActor {
+	members := m.Members(killerPID)
+	if len(members) == 0 {
+		members = []string{killerPID} // ungrouped → a party of one
+	}
+	out := make([]*connActor, 0, len(members))
+	for _, id := range members {
+		a, ok := m.GetByPlayerID(id)
+		if !ok || a.Room() == nil || a.Room().ID != room {
+			continue
+		}
+		out = append(out, a)
+	}
+	return out
 }
 
 // dropParty removes id from any party on logout/teardown (grouping.md §3),

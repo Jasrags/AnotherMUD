@@ -71,6 +71,10 @@ type Template struct {
 	// mob belongs to no faction (no on-kill standing change).
 	Faction string
 
+	// XPValue is the experience a lethal kill of this mob awards (grouping.md
+	// §4), split among the killer's same-room party (solo = full). 0 = none.
+	XPValue int
+
 	Behavior   string
 	Tags       []string
 	Keywords   []string

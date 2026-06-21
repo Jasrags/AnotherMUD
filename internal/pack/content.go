@@ -213,6 +213,9 @@ type MobFile struct {
 	// resolve against the pack namespace at load; unknown ids are tolerated
 	// (the on-kill hook fail-silently no-ops on a missing faction).
 	Faction string `yaml:"faction,omitempty"`
+	// XPValue is the experience awarded for a lethal kill (grouping.md §4),
+	// split among the killer's same-room party. 0 / absent = no XP.
+	XPValue int `yaml:"xp_value,omitempty"`
 	// Proficiencies maps ability id -> proficiency value for the mob's
 	// passive abilities (M9.5 #3 — abilities-and-effects §6). Optional;
 	// keys are lowercased + trimmed at decode. Mobs do not train, so

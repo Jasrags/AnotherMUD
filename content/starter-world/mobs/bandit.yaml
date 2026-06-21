@@ -4,6 +4,9 @@ type: npc
 behavior: stationary
 tags: [humanoid]
 keywords: [bandit, troublemaker, rogue]
+# Experience for a lethal kill (grouping.md §4) — split among the killer's
+# same-room party; a solo killer gets it all.
+xp_value: 30
 # The playtest combat target. Hostile to everyone, so walking into the
 # meadow triggers mob.aggro → combat.Engage (the meadow is not a
 # safe-room). Beatable with the starter short-sword + leather-cap.

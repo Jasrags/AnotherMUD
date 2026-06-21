@@ -8,6 +8,8 @@ description: |
   reason not to.
 tags: [animal, beast]
 keywords: [boar, pig, hog]
+# Experience for a lethal kill (grouping.md §4).
+xp_value: 20
 # Neutral, not hostile: the boar does not aggro, so the forest stays safe to
 # gather in. A player who wants meat hunts it deliberately (`kill boar`) —
 # the loot-side source of raw meat (crafting §8: meat from the hunt, not only

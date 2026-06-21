@@ -1485,6 +1485,26 @@ func run() error {
 		factionMgr.Shift(ctx, actor, def, factionOnKillDelta, "kill:"+e.TemplateID)
 	})
 
+	// grouping.md §4: combat kill-XP. A lethal mob kill awards the mob's XPValue
+	// to the killer's party members present in the kill room (proximity-gated),
+	// split evenly; an ungrouped killer is a party of one and gets the full
+	// value. Subdual knock-outs publish no MobKilled, so they grant nothing.
+	bus.Subscribe(eventbus.EventMobKilled, func(ctx context.Context, ev eventbus.Event) {
+		e, ok := ev.(eventbus.MobKilled)
+		if !ok || e.KillerID == "" || e.TemplateID == "" {
+			return
+		}
+		pid, ok := strings.CutPrefix(e.KillerID, combat.PlayerPrefix)
+		if !ok {
+			return // a mob/scripted killer earns no XP
+		}
+		tmpl, terr := registries.Mobs.Get(mob.TemplateID(e.TemplateID))
+		if terr != nil || tmpl.XPValue <= 0 {
+			return // unvalued content grants nothing
+		}
+		mgr.GrantKillXP(ctx, progressionMgr, cfg.DefaultXPTrack, pid, e.RoomID, int64(tmpl.XPValue))
+	})
+
 	// reputation.md §7 Low Profile: a holder of the Low-Profile feat accrues
 	// renown slowly. Subscribe to the cancellable reputation.shift.check and
 	// scale DOWN a positive (gain) delta by the configured factor — losses are

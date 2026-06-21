@@ -6,7 +6,49 @@ import (
 	"testing"
 
 	"github.com/Jasrags/AnotherMUD/internal/command"
+	"github.com/Jasrags/AnotherMUD/internal/world"
 )
+
+// TestKillXPRecipients covers the grouping-specific XP recipient selection
+// (grouping.md §4): a solo killer is a party of one; a party shares only with
+// members present in the kill room.
+func TestKillXPRecipients(t *testing.T) {
+	mgr := NewManager()
+	roomA, roomB := world.RoomID("z:a"), world.RoomID("z:b")
+	add := func(pid string, r world.RoomID) *connActor {
+		a := &connActor{id: "c-" + pid, playerID: pid, room: &world.Room{ID: r}}
+		mgr.Add(a)
+		return a
+	}
+	killer := add("K", roomA)
+
+	if got := mgr.killXPRecipients("K", roomA); len(got) != 1 || got[0] != killer {
+		t.Fatalf("solo recipients = %v, want just the killer", got)
+	}
+	if got := mgr.killXPRecipients("K", roomB); len(got) != 0 {
+		t.Fatalf("a killer not in the kill room yields no recipients, got %v", got)
+	}
+
+	add("A", roomA) // same room as the kill
+	add("B", roomB) // a different room
+	for _, id := range []string{"A", "B"} {
+		if err := mgr.Invite("K", id); err != nil {
+			t.Fatal(err)
+		}
+		if err := mgr.Accept(id, "K"); err != nil {
+			t.Fatal(err)
+		}
+	}
+	got := mgr.killXPRecipients("K", roomA)
+	ids := make([]string, 0, len(got))
+	for _, a := range got {
+		ids = append(ids, a.playerID)
+	}
+	slices.Sort(ids)
+	if !slices.Equal(ids, []string{"A", "K"}) {
+		t.Fatalf("party recipients = %v, want [A K] (B is in another room)", ids)
+	}
+}
 
 // inviteAccept is the common "L invites X, X accepts" helper.
 func inviteAccept(t *testing.T, m *Manager, leader, invitee string) {
