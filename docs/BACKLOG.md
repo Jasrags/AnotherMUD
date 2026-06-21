@@ -217,7 +217,12 @@ old five-theme partition left uncovered.
 
   - [ ] **Whip** (`whip` tag): subdual mode + reach + **ineffective vs. armor +1 /
         natural +3** — gated on a nonlethal **subdual damage mode** (the recorded
-        `subdual` field's consumer).
+        `subdual` field's consumer). **🚧 The subdual mode is being built**
+        (`subdual-damage.md` — knock-out-at-zero: a subdual finishing blow drops a
+        foe to **unconscious** instead of killing, via the cancellable
+        `entity.death.check` seam). **Spec + slice 1 (the `unconscious` condition)
+        SHIPPED 2026-06-21**; slice 2 = the knock-out (thread `subdual` → death
+        pipeline), slice 3 = this whip (subdual + reach + anti-armor) + content.
   - [ ] **Swordbreaker weapon-breaking** + physical-drop disarm: destroy/knock the
         target's weapon to the floor — needs an unequip-to-room path + a mob
         slot→item link (deferred in `special-weapons.md` §5).
@@ -235,7 +240,8 @@ old five-theme partition left uncovered.
   > **The unblocked maneuvers are all done** (reach / trip / disarm / set / double
   > / entangle + gear reputation). Every remaining tail item above waits on a
   > prerequisite system the engine lacks: **whip** → a nonlethal **subdual damage
-  > mode** (the `subdual` field's consumer); **lance charge** → **mounted combat**
+  > mode** (the `subdual` field's consumer — 🚧 **now building**, `subdual-damage.md`,
+  > spec + slice 1 shipped 2026-06-21); **lance charge** → **mounted combat**
   > (`mounts.md`); **crossbow load** + **don/doff timers** → an **action-economy /
   > busy-state**; **sling / improvised-melee ammo** → an **ammo break/loss** roll.
   > Build the prerequisite before the dependent J item.

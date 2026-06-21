@@ -42,7 +42,10 @@ pattern.
 **Non-goals (this slice).** The deferred condition families and why:
 - **HP-state conditions** (dying / disabled / staggered / stable / helpless /
   unconscious) — need a combat HP-state machine the engine lacks (death is
-  binary today). Out of scope.
+  binary today). Out of scope. *(Exception since 2026-06-21: **unconscious**
+  now exists — `subdual-damage.md` §3 — built without an HP-state machine
+  because an **external trigger** (the subdual knock-out) applies it rather
+  than an HP threshold; the rest of the family still awaits the machine.)*
 - **Damage-over-time conditions** (bleeding / poison / disease) — DoT is **S7**;
   effects modify stats, not HP. Deferred with S7.
 - **Grapple family** (grappled / pinned / held / paralyzed) — need the grapple

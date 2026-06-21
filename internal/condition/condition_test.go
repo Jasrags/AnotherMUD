@@ -87,6 +87,45 @@ func TestResolve_StunnedAndProne_VulnerabilityStacks(t *testing.T) {
 	}
 }
 
+func TestResolve_Unconscious(t *testing.T) {
+	cfg := DefaultConfig()
+	got := Resolve([]string{FlagUnconscious}, cfg)
+	if !got.Incapacitated {
+		t.Error("unconscious must incapacitate (lands no swings)")
+	}
+	if got.DefenderVulnerability != cfg.UnconsciousVulnerability {
+		t.Errorf("unconscious vulnerability = %d, want %d", got.DefenderVulnerability, cfg.UnconsciousVulnerability)
+	}
+	// Helpless is the heaviest Core vulnerability — at least as exposed as a
+	// stunned or prone foe (subdual-damage §3).
+	if cfg.UnconsciousVulnerability < cfg.StunnedVulnerability || cfg.UnconsciousVulnerability < cfg.ProneVulnerability {
+		t.Errorf("unconscious (%d) should be the heaviest vulnerability vs stunned (%d)/prone (%d)",
+			cfg.UnconsciousVulnerability, cfg.StunnedVulnerability, cfg.ProneVulnerability)
+	}
+	// No shake-off / morale axis — the wake is duration-only (subdual-damage §5),
+	// and an unconscious attacker skips swings rather than swinging at a penalty.
+	if got.SavePenalty != 0 || got.AttackerHitPenalty != 0 || got.ForcesFlee {
+		t.Errorf("unconscious set unexpected fields: %+v", got)
+	}
+}
+
+func TestUnconscious_IsRecognizedConditionFlag(t *testing.T) {
+	// It must be a `condition:` flag so `cure` clears it and `afflict` applies it
+	// through the conditions §D inflict path (subdual-damage §3).
+	if !IsConditionFlag(FlagUnconscious) {
+		t.Errorf("%q is not recognized as a condition flag", FlagUnconscious)
+	}
+	found := false
+	for _, f := range Flags() {
+		if f == FlagUnconscious {
+			found = true
+		}
+	}
+	if !found {
+		t.Errorf("FlagUnconscious missing from Flags() — `cure` would not clear it")
+	}
+}
+
 func TestResolve_UnrecognizedFlagInert(t *testing.T) {
 	if got := Resolve([]string{"blessed", "well-fed", "condition:unknown"}, DefaultConfig()); (got != Impact{}) {
 		t.Errorf("non-condition flags must be inert: %+v", got)

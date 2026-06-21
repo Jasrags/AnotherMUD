@@ -1,0 +1,20 @@
+# Subdual-damage §3 (EPIC S1 J — the subdual mode) — unconscious. The knock-out
+# condition: applied when a SUBDUAL finishing blow drops a foe to zero HP
+# (subdual-damage §4) instead of killing it. The first condition adjacent to the
+# HP-state family conditions.md deferred — buildable without an HP-state machine
+# because an external trigger applies it, not an HP threshold.
+#
+# An incapacitating condition (the bearer lands no combat swings) AND helpless
+# (much easier to hit — the heaviest vulnerability of the Core conditions); the
+# magnitudes live in the engine `condition` package, not here. Unlike stunned it
+# carries NO recurring shake-off save: you do not Fortitude your way awake — the
+# victim wakes when this effect expires (subdual-damage §5). Duration is in
+# effect-ticks (≈ combat rounds).
+#
+# Slice 1: exercisable via `afflict <target> unconscious` / `cure` (the
+# conditions.md §D inflict path); the subdual knock-out trigger that will be its
+# real source lands in slice 2.
+id: unconscious
+duration: 10
+flags:
+  - condition:unconscious

@@ -31,6 +31,15 @@ const (
 	// registered here so it is recognized as a condition (afflict/cure treat it
 	// like its trip/bash siblings — `cure` clears it).
 	FlagDisarmed = "condition:disarmed"
+	// FlagUnconscious marks the knock-out condition (subdual-damage §3, EPIC S1 J
+	// the subdual mode). The first condition adjacent to the HP-state family
+	// conditions.md deferred — built without an HP-state machine because it is
+	// applied by an external trigger (the subdual knock-out, subdual-damage §4),
+	// not tracked off an HP threshold. Incapacitating (skips swings, like stunned)
+	// AND heavily vulnerable (helpless — much easier to hit than prone/stunned).
+	// Unlike stunned it carries NO recurring shake-off save: you wake when the
+	// effect expires (subdual-damage §5), not by saving each round.
+	FlagUnconscious = "condition:unconscious"
 )
 
 // flagPrefix segregates condition flags from ordinary effect flags.
@@ -40,7 +49,7 @@ const flagPrefix = "condition:"
 // disarmed, conditions §2 / special-weapons §5). Used by the `cure` verb to clear
 // every condition.
 func Flags() []string {
-	return []string{FlagFatigued, FlagProne, FlagBlinded, FlagFrightened, FlagStunned, FlagDisarmed}
+	return []string{FlagFatigued, FlagProne, FlagBlinded, FlagFrightened, FlagStunned, FlagDisarmed, FlagUnconscious}
 }
 
 // IsConditionFlag reports whether f is a condition flag (carries the
@@ -68,7 +77,12 @@ type Config struct {
 	BlindedAttackPenalty int // a blinded attacker's to-hit penalty
 	BlindedVulnerability int // to-hit bonus against a blinded defender
 	StunnedVulnerability int // to-hit bonus against a stunned defender
-	FearPenalty          int // morale penalty: a fear condition's −to attack AND saves
+	// UnconsciousVulnerability is the to-hit bonus against an unconscious
+	// (helpless) defender (subdual-damage §3). Stronger than prone/stunned —
+	// a knocked-out foe is defenseless. (A coup-de-grace finish on a helpless
+	// target is deferred, subdual-damage §8; v1 stops at "much easier to hit".)
+	UnconsciousVulnerability int
+	FearPenalty              int // morale penalty: a fear condition's −to attack AND saves
 }
 
 // DefaultConfig returns the engine-default magnitudes (the WoT pack may tune
@@ -77,12 +91,13 @@ type Config struct {
 // stunned grants foes the source's +2; fear is the source's −2 morale.
 func DefaultConfig() Config {
 	return Config{
-		ProneAttackPenalty:   4,
-		ProneVulnerability:   4,
-		BlindedAttackPenalty: 4,
-		BlindedVulnerability: 2,
-		StunnedVulnerability: 2,
-		FearPenalty:          2,
+		ProneAttackPenalty:       4,
+		ProneVulnerability:       4,
+		BlindedAttackPenalty:     4,
+		BlindedVulnerability:     2,
+		StunnedVulnerability:     2,
+		UnconsciousVulnerability: 4,
+		FearPenalty:              2,
 	}
 }
 
@@ -120,6 +135,12 @@ func Resolve(flags []string, cfg Config) Impact {
 		case FlagStunned:
 			im.Incapacitated = true
 			im.DefenderVulnerability += cfg.StunnedVulnerability
+		case FlagUnconscious:
+			// Knocked out (subdual-damage §3): lands no swings AND is helpless —
+			// the heaviest vulnerability of the Core conditions. No SavePenalty
+			// and no shake-off (the wake is duration-only, subdual-damage §5).
+			im.Incapacitated = true
+			im.DefenderVulnerability += cfg.UnconsciousVulnerability
 		case FlagFrightened:
 			im.AttackerHitPenalty += cfg.FearPenalty
 			im.SavePenalty += cfg.FearPenalty

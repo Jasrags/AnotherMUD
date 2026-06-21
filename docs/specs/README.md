@@ -184,6 +184,16 @@ The verbs players use and the systems that resolve them.
   (consumes `saves`), and the inflict path (`afflict`/`cure` admin verbs +
   save-gated `trip`/`bash` abilities). Layers on `abilities-and-effects` +
   `combat` §4–§5; EPIC sub-epic S5 *(shipped 2026-06-10)*.
+- [subdual-damage](subdual-damage.md) — nonlethal damage / the
+  **knock-out** mode (the `subdual` weapon field's consumer; the
+  special-weapons whip prerequisite). Knock-out-at-zero: a subdual
+  finishing blow drops a foe to **unconscious** (a new incapacitating +
+  helpless condition, the first member adjacent to the HP-state family
+  `conditions` deferred) instead of killing, via the cancellable
+  `entity.death.check` seam (`combat` §6.1). Layers on `combat` §6 +
+  `conditions` + `abilities-and-effects` §5; EPIC sub-epic S1 J.
+  *(Spec + slice 1 — the unconscious condition — shipped 2026-06-21;
+  knock-out + whip pending.)*
 - [skills](skills.md) — skills as use-based proficiencies + the
   `ResolveSkillCheck` primitive (`d20 + bonus vs DC`, mirroring saves), with
   the first consumer: lockpicking (`pick` vs a door's pick difficulty) + the
