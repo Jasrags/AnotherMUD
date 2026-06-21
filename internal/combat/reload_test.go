@@ -33,8 +33,8 @@ func TestAutoAttack_CrossbowUnloaded_SkipsSwing(t *testing.T) {
 	}
 }
 
-// A loaded crossbow fires (no ammo consume) and discharges its loaded state via
-// OnFireLoaded — exactly once, whether the shot hits or misses.
+// A loaded crossbow fires (no ammo consume) and takes its loaded shot via
+// TakeLoadedShot — exactly once, whether the shot hits or misses.
 func TestAutoAttack_CrossbowLoaded_FiresAndDischarges(t *testing.T) {
 	atkStats := Stats{HitMod: 100, STR: 10, RangedClass: RangedProjectile, AmmoKind: "bolt", ReloadTicks: 20}
 	defStats := Stats{AC: 10}
@@ -57,7 +57,7 @@ func TestAutoAttack_CrossbowLoaded_FiresAndDischarges(t *testing.T) {
 	}
 }
 
-// A nil LoadedFor hook (un-wired / a mob) fires freely — a reload-gated weapon
+// A nil TakeLoadedShot hook (un-wired / a mob) fires freely — a reload-gated weapon
 // then behaves like an ordinary projectile, never blocked for want of a load.
 func TestAutoAttack_CrossbowNilHook_FiresFreely(t *testing.T) {
 	atkStats := Stats{HitMod: 100, STR: 10, RangedClass: RangedProjectile, AmmoKind: "bolt", ReloadTicks: 20}

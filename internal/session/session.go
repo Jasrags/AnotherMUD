@@ -4734,8 +4734,9 @@ func (a *connActor) SetWeaponLoaded() bool {
 	return true
 }
 
-// ClearWeaponLoaded discharges the chambered shot (a fire consumes the loaded
-// state). No-op when nothing is loaded.
+// ClearWeaponLoaded drops the chambered state. Used only to back out a load
+// whose bolt couldn't be spent (the ammo-out undo); the fire paths discharge
+// atomically via TakeLoadedShot. No-op when nothing is loaded.
 func (a *connActor) ClearWeaponLoaded() {
 	a.mu.Lock()
 	defer a.mu.Unlock()
