@@ -72,6 +72,11 @@ path:
   # penalty). A disarm weapon (a swordbreaker) raises its save DC.
   - level: 1
     ability: disarm
+  # Special-weapons §9: entangle (→ entangled). NET-only — it fizzles without a
+  # wielded net, so granting it broadly is harmless (the equipment gate, not the
+  # class, decides who can actually use it). Demo: `equip net`, `entangle <foe>`.
+  - level: 1
+    ability: entangle
   # Skills (EPIC S3): the Open Lock skill, granted so a fresh fighter can
   # exercise the `pick` lockpicking verb (skills §4). A class skill capped
   # higher than cross-class would be; raised further with `practice`.

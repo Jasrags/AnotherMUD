@@ -1,0 +1,24 @@
+id: weighted-net
+name: a weighted net
+type: weapon
+description: |
+  A circle of knotted cord weighted with small lead beads around its rim, made to
+  be flung open over a foe and hauled tight — a fisherman's tool turned to the
+  pit-fight and the press-gang. Useless for a killing blow, deadly for taking a
+  man alive and tangled.
+tags: [weapon, net, fiber]
+keywords: [net, weighted net]
+# A net is wielded (it occupies the hand that flings it) but deals no real damage
+# — its purpose is the `entangle` maneuver, gated to a wielded `net`-tagged weapon
+# (special-weapons §9). The `special: [net, entangle]` tags carry the vocabulary;
+# the functional net-only gate is the general `net` tag the entangle ability's
+# equipment requirement matches.
+eligible_slots: [wield]
+weapon_damage: "1d2"
+weapon_category: net
+proficiency_tier: exotic
+damage_types: [bludgeoning]
+special: [net, entangle]
+properties:
+  weight: 8
+  value: 60

@@ -45,11 +45,13 @@ unequip + room-drop** path (disarm); add the **`special:` weapon tag** as the on
 new piece of metadata, validated at load like every other weapon field. Keep
 every weapon that declares no `special:` tags behaving exactly as today.
 
-**Non-goals.** The rest of J — net/entangle, whip subdual+range, swordbreaker
-weapon-breaking, the "drop your weapon to dodge a counter-trip" nuance — stay
-deferred, each its own later slice on this same seam. No new range geometry; reach
-and set ride the bands `ranged-combat.md` already ships, and double weapons reuse
-the two-weapon off-hand path `two-weapon-fighting.md` already ships.
+**Non-goals.** The rest of J — whip subdual+range, swordbreaker weapon-breaking,
+the "drop your weapon to dodge a counter-trip" nuance — stay deferred, each its own
+later slice on this same seam. No new range geometry; reach and set ride the bands
+`ranged-combat.md` already ships, double weapons reuse the two-weapon off-hand path
+`two-weapon-fighting.md` already ships, and entangle reuses the save-gated maneuver
++ equipment-requirement machinery `conditions.md` / `abilities-and-effects.md`
+already ship.
 
 **Slices.** (1) the maneuver-tag + reach metadata substrate (load + validate +
 accessor, recorded-only) — SHIPPED; (2) **reach** (the band-gate extension;
@@ -61,10 +63,13 @@ to-hit-penalty condition, the trip/bash sibling; physical-drop variant deferred)
 a `set` weapon's strike range, riding the band auto-close — §6) — SHIPPED; (6)
 **double weapons** (a `double_damage` weapon used as two weapons — its second end
 is a light off-hand strike, §7) — SHIPPED; (7) **gear-borne reputation** (worn
-gear's `reputation` delta folds into effective renown, §8) — SHIPPED. The J
-starter set plus the first three tail slices are complete; the bottomless tail
-(net/entangle, whip subdual, swordbreaker-breaking, lance charge, crossbow load,
-sling/improvised ammo, don/doff timers) stays deferred on the `special:` seam.
+gear's `reputation` delta folds into effective renown, §8) — SHIPPED; (8)
+**net / entangle** (a net-only `entangle` maneuver applying an `entangled`
+condition, §9) — SHIPPED. The J starter set plus the first four tail slices are
+complete; what remains is **substrate-blocked** — whip subdual, lance charge,
+crossbow load, sling/improvised ammo, don/doff timers — each needing a system the
+engine doesn't have yet (a subdual damage mode, mounted combat, an action
+economy, an ammo break/loss roll).
 
 ## 2. The metadata: maneuver tags + the numeric reach stat
 
@@ -124,9 +129,11 @@ subdual mode ships — it does not behave as something else).
 - **`reputation`** (signed int) — a visible-gear reputation delta (masterwork +1,
   Trolloc scythesword −2). **CONSUMED (§8):** the worn sum folds into the
   character's effective renown. No longer inert.
-- The `special:` tags **`net` / `whip` / `entangle`** — the remaining
-  special-weapon tail, validated as vocabulary but read by no combat code yet; each
-  lights up in its own later slice. (The **`set`** tag is now consumed — §6.)
+- The `special:` tag **`whip`** — the remaining special-weapon tail, validated as
+  vocabulary but read by no combat code yet; it lights up in its own later slice
+  (gated on a subdual damage mode). (The **`set`** tag is consumed — §6; **`net`**
+  / **`entangle`** are carried by the net weapon, gated for the entangle maneuver
+  via the general `net` equipment tag — §9.)
 
 ## 3. Reach
 
@@ -411,7 +418,59 @@ renown mechanics owned by `reputation.md`.
   recognition check (`reputation.md` R4) still has no consumer verb; gear-borne
   renown will feed it when that lands.
 
-## 9. Configuration surface
+## 9. Net / entangle
+
+A **net** (the source's thrown net, `docs/wot/equipment.md`) is the one weapon
+whose purpose is not damage but to **bind** a foe. This slice ships the
+**`entangle`** maneuver — the sibling of trip (→ prone) and disarm (→ disarmed) in
+the save-gated `conditions.md` §6 family — but with one difference: it is
+**net-only**. Trip and disarm are universal (anyone may attempt; a weapon
+amplifies) because you can plausibly trip or disarm bare-handed; you **cannot**
+entangle without a net, so `entangle` is **gated to a wielded net**.
+
+The gate reuses the generic ability **equipment requirement**
+(`abilities-and-effects.md` §4.3 step 4): the `entangle` ability declares it
+requires a wielded item carrying the `net` tag. A character who knows `entangle`
+but holds no net fizzles `equipment_required` ("you aren't wielding the right
+equipment") — so the maneuver can be granted broadly (the *gate*, not the class,
+decides who can use it), and no special-case code is needed beyond tagging the net
+weapon `net`. (The net weapon also carries the `special: [net, entangle]`
+vocabulary; the functional gate is the general `net` equipment tag.)
+
+On a **failed Reflex save** the target takes a new **`entangled`** condition (a
+fixed-duration effect, the same inline-effect mechanism `disarmed` uses): a
+heavy **to-hit penalty** and **easier-to-hit** (the source's −2 attack / −4
+effective Dex → an AC penalty) — bound in the mesh, fighting to get free. On a
+made save the maneuver is resisted (no condition), exactly like a resisted trip.
+Because the outcome is a condition applied through the effect manager, it works
+uniformly on a player or a mob target.
+
+### Acceptance criteria
+
+- A character wielding a `net`-tagged weapon may `entangle` a foe; on a failed
+  Reflex save the foe gains the `entangled` condition (a to-hit penalty + an AC
+  penalty) for its duration, and on a made save the maneuver is resisted.
+- A character with **no net wielded** who attempts `entangle` fizzles
+  `equipment_required` — the net-only gate (vs. the universal trip/disarm).
+- The maneuver applies to both player and mob targets (it is an effect, not an
+  item move).
+- The condition is live and time-limited; it expires on its own like any effect.
+- Inert without content: no weapon today carries the `net` tag outside the net
+  weapon itself, so nothing else changes.
+
+### Deferred — the full net
+
+The source net is richer than this v1 condition translation. Deferred:
+- **The struggle to get free** — Escape Artist / burst-the-net checks to end the
+  condition early (the engine has no per-condition escape check yet; the condition
+  simply times out).
+- **Half speed / no charge** while entangled — a movement effect, not modeled.
+- **Thrown delivery + range** — the net as a ranged-touch throw at the source's
+  range increment; v1 entangle is a same-room maneuver (like disarm), not a throw.
+- **The net's "useless once unfolded until refolded" / size limits** (only
+  Tiny–Large) — flavor not yet mechanized.
+
+## 10. Configuration surface
 
 | Setting | Meaning | Default |
 |---|---|---|
@@ -427,7 +486,7 @@ The trip/bash maneuvers' own DC/cost knobs (`conditions.md` §6) are unchanged;
 disarm reuses that ability shape, so its numeric surface mirrors theirs and most
 values come from the ability YAML rather than env where the existing maneuvers do.
 
-## 10. Open questions
+## 11. Open questions
 
 - **Disarm save axis.** Reflex (keep your grip by agility) vs a Strength contest
   (raw grip strength) vs the attacker's to-hit. **Resolved: Reflex** (v1), for

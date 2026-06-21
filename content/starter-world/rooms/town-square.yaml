@@ -31,6 +31,10 @@ items:
   # `throw bandit` in the Meadow hurls it for one full-Strength swing; it lands
   # in the room afterward (recoverable), or shatters if it were graded.
   - throwing-knife
+  # Special-weapons (S1 J) net/entangle demo: a weighted net. A fighter knows
+  # `entangle` but it is NET-ONLY — `equip net`, go to the Meadow, `entangle
+  # bandit` binds it (−4 to its attacks, −2 AC). Bare-handed entangle fizzles.
+  - weighted-net
   # M11.1: a pile of coins to exercise currency auto-convert — `get
   # coins` credits gold instead of adding an item to inventory.
   - gold-coins

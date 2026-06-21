@@ -1,0 +1,46 @@
+# Special-weapons §9 (EPIC S1 J) — net / entangle. A NET-ONLY maneuver: the
+# sibling of trip (→ prone) and disarm (→ disarmed), but unlike those it is gated
+# to a wielded net (equipment_slot + equipment_tag), because you cannot entangle a
+# foe bare-handed — the net IS the maneuver. On a failed Reflex save the target
+# takes the `entangled` condition: a heavy to-hit penalty AND easier-to-hit (the
+# source's −2 attack / −4 effective Dex → −2 AC), the engine's translation of
+# "bound in the net, fighting to get free". Dex-keyed skill, drawn from movement.
+#
+# Deferred (source net, equipment.md): the half-speed/no-charge clause and the
+# Escape Artist / burst struggle to get free (the engine has no per-condition
+# escape check yet) — v1 ships the combat-relevant penalties for a fixed duration.
+id: entangle
+name: Entangle
+type: active
+category: skill
+default_cap: 25
+gain_base_chance: 25
+gain_failure_multiplier: 0.5
+gain_stat: dex
+gain_stat_scale: 0.1
+cost: 6
+pulse_delay: 3
+variance: 0
+target_types:
+  - enemy
+# Net-only gate: requires a wielded weapon tagged `net` (the thrown net). Without
+# one the maneuver fizzles `equipment_required` — "you need a net". This reuses
+# the generic ability equipment-requirement step (abilities-and-effects §4.3
+# step 4), so no special-case code: tag the net weapon `net` and it qualifies.
+equipment_slot: wield
+equipment_tag: net
+# On a failed Reflex save the foe is entangled for the duration: -4 to its attacks
+# (it fights bound) and -2 AC (tangled and off-balance, easier to hit).
+effect:
+  id: entangled
+  duration: 4
+  modifiers:
+    - stat: hit_mod
+      value: -4
+    - stat: ac
+      value: -2
+  flags:
+    - condition:entangled
+apply_save:
+  axis: reflex
+  dc: 13

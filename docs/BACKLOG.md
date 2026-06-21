@@ -208,42 +208,40 @@ old five-theme partition left uncovered.
   takes 1× Str, not the two-handed 1.5×); **✅ gear-borne reputation
   (`reputation`) SHIPPED 2026-06-20** (`special-weapons.md` §8) — worn gear's
   reputation delta folds into effective renown (the worn-signifier earn path
-  `reputation.md` deferred). **What remains of J is the "bottomless tail"** — the
-  special-column behaviors that ride the shipped `special:` seam but have **no
-  combat handler yet** (the `net` / `whip` / `entangle` tags are declared as valid
-  vocabulary but read by no combat code; other items need substrate combat doesn't
-  model yet):
+  `reputation.md` deferred); **✅ net / entangle (`net`) SHIPPED 2026-06-20**
+  (`special-weapons.md` §9) — a NET-ONLY `entangle` maneuver (gated to a wielded
+  `net`-tagged weapon via the generic ability equipment-requirement) applying a
+  new `entangled` condition (−4 to-hit, −2 AC); a weighted net in the town-square.
+  **What remains of J is the "bottomless tail" — all of it substrate-blocked**
+  (each needs a system the engine doesn't have yet; do the prerequisite first):
 
-  - [ ] **Net / entangle** (`net`, `entangle`): a ranged-touch throw that applies a
-        new `entangled` condition (−atk, −effective Dex, ½ speed, escape DC). New
-        condition + a touch-attack path.
-  - [ ] **Whip** (`whip`): subdual mode + reach + **ineffective vs. armor +1 /
-        natural +3** — gated on the subdual damage mode (recorded `subdual` field).
+  - [ ] **Whip** (`whip` tag): subdual mode + reach + **ineffective vs. armor +1 /
+        natural +3** — gated on a nonlethal **subdual damage mode** (the recorded
+        `subdual` field's consumer).
   - [ ] **Swordbreaker weapon-breaking** + physical-drop disarm: destroy/knock the
         target's weapon to the floor — needs an unequip-to-room path + a mob
         slot→item link (deferred in `special-weapons.md` §5).
-  - [ ] **Lance charge** — double damage delivered from a mount (pairs with the
-        Mounts deferred slices below).
+  - [ ] **Lance charge** — double damage delivered from a mount (→ **mounted
+        combat**, `mounts.md` deferred slices).
   - [ ] **Crossbow load actions** (light = move, heavy = full-round, provoke AoO;
-        1-handed −4) — needs an action-economy notion combat doesn't model.
+        1-handed −4) — needs an **action-economy** notion combat doesn't model.
   - [ ] **Sling stones** (1d3, −1) + ammo break/loss; **arrows/bolts as improvised
-        melee** (Tiny, 50% break on miss).
+        melee** (Tiny, 50% break on miss) — needs an **ammo break/loss** roll.
   - [ ] **Don/doff timers** (`equipment.md` Table 7-6): timed don / hasty-don /
         remove with helper-assist halving. The worn-Speed surcharge (`armor_speed`)
         already shipped; only the timed donning table is unmodeled (needs the tick
-        scheduler + a per-actor "donning" busy state).
+        scheduler + a per-actor "donning" busy state — the action-economy notion).
 
-  > **Substrate-blocked tail** (each needs a system the engine doesn't have yet —
-  > do the prerequisite first): **whip** subdual+armor-immunity → a nonlethal
-  > **subdual damage mode** (the recorded `subdual` field's consumer); **lance
-  > charge** → **mounted combat** (`mounts.md` deferred slices); **crossbow load
-  > actions** + **don/doff timers** → an **action-economy / busy-state** notion the
-  > tick-based loop lacks; **sling stones / arrows-as-improvised-melee** → an
-  > **ammo break/loss** roll on the thrown/projectile path. Net/entangle (above) is
-  > the next unblocked slice — a maneuver on the disarm pattern.
+  > **The unblocked maneuvers are all done** (reach / trip / disarm / set / double
+  > / entangle + gear reputation). Every remaining tail item above waits on a
+  > prerequisite system the engine lacks: **whip** → a nonlethal **subdual damage
+  > mode** (the `subdual` field's consumer); **lance charge** → **mounted combat**
+  > (`mounts.md`); **crossbow load** + **don/doff timers** → an **action-economy /
+  > busy-state**; **sling / improvised-melee ammo** → an **ammo break/loss** roll.
+  > Build the prerequisite before the dependent J item.
 
-  Each unblocked tail item is its own slice on the `special:` seam — author the
-  content data once (already done for the polearms), light up the handler per slice.
+  Each tail item is its own slice on the `special:` seam — author the content data
+  once, light up the handler when its prerequisite lands.
   Originally: make weapons and armor
   mechanically distinct the way `docs/wot/equipment.md` (the WoT d20 tables) describes:
   proficiency tiers (Simple/Martial/Exotic + the −4 non-proficient rule), crit threat
