@@ -82,6 +82,25 @@ func TestManager_ChargeRecordConsume(t *testing.T) {
 	}
 }
 
+// Mutual charge: both combatants closing toward each other in the same round
+// each keep their own pending charge (the directional key — neither overwrites
+// the other), so both set-weapon wielders get their braced blow.
+func TestManager_MutualChargeBothKept(t *testing.T) {
+	m := NewManager(MapLocator{}, &recordingSink{})
+	a := NewMobCombatantID("a")
+	b := NewPlayerCombatantID("b")
+
+	m.recordCharge(a, b) // a charged toward b
+	m.recordCharge(b, a) // b charged toward a, same round
+
+	if !m.ConsumeCharge(a, b) {
+		t.Error("a's charge toward b should survive b's charge toward a")
+	}
+	if !m.ConsumeCharge(b, a) {
+		t.Error("b's charge toward a should survive (directional keys do not collide)")
+	}
+}
+
 // A pending charge dies with the engagement (no stale braced blow into a later,
 // unrelated fight reusing the same combatant ids).
 func TestManager_DisengageClearsCharge(t *testing.T) {

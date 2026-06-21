@@ -147,17 +147,22 @@ func (m *Manager) MoveBand(ctx context.Context, subject, opponent CombatantID, r
 	return next, true
 }
 
+// chargeKey is the DIRECTIONAL key for a pending charge — `charger` closed a band
+// toward `victim`. Unlike the order-independent bandKey, A→B and B→A are distinct
+// entries, so two combatants charging each other in the same round each keep
+// their own pending charge instead of one overwriting the other.
+type chargeKey struct{ charger, victim CombatantID }
+
 // recordCharge marks that `charger` closed a band toward `victim` (a charge):
 // the victim, if it wields a `set` weapon, lands a braced bonus blow on its next
-// swing (special-weapons §4). One pending charge per pairing — the latest closer
-// wins. Caller MUST NOT hold m.mu (takes it).
+// swing (special-weapons §4). Caller MUST NOT hold m.mu (takes it).
 func (m *Manager) recordCharge(charger, victim CombatantID) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	if m.charged == nil {
-		m.charged = make(map[bandKey]CombatantID)
+		m.charged = make(map[chargeKey]bool)
 	}
-	m.charged[makeBandKey(charger, victim)] = charger
+	m.charged[chargeKey{charger: charger, victim: victim}] = true
 }
 
 // ConsumeCharge reports whether `charger` has a pending charge toward `victim`
@@ -167,8 +172,8 @@ func (m *Manager) recordCharge(charger, victim CombatantID) {
 func (m *Manager) ConsumeCharge(charger, victim CombatantID) bool {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	key := makeBandKey(charger, victim)
-	if m.charged[key] != charger {
+	key := chargeKey{charger: charger, victim: victim}
+	if !m.charged[key] {
 		return false
 	}
 	delete(m.charged, key)

@@ -65,13 +65,15 @@ type Manager struct {
 	// on a ranged-initiated engage, cleared on disengage. Guarded by m.mu.
 	bands map[bandKey]int
 
-	// charged records, per pairing, the combatant that most recently CLOSED a
-	// band toward the other (a charge) and has not yet been answered. The value
-	// is the charger's id; a set-weapon wielder consumes it on its next swing to
-	// land the braced "set vs a charge" blow (special-weapons §4). Set by the
-	// round-loop auto-close + the advance verb, consumed by ConsumeCharge,
+	// charged records pending charges as DIRECTIONAL (charger→victim) entries: a
+	// combatant that CLOSED a band toward another and has not yet been answered.
+	// A set-weapon victim consumes its charger's entry on its next swing to land
+	// the braced "set vs a charge" blow (special-weapons §4). The key is
+	// directional (unlike the order-independent bandKey) so mutual charges — both
+	// combatants closing in the same round — coexist instead of overwriting. Set
+	// by the round-loop auto-close + the advance verb, consumed by ConsumeCharge,
 	// cleared on disengage. Guarded by m.mu.
-	charged map[bandKey]CombatantID
+	charged map[chargeKey]bool
 }
 
 // TagSource is the read surface Manager consults for §2.1 tag-based
@@ -295,7 +297,9 @@ func (m *Manager) Disengage(ctx context.Context, a, b CombatantID, roomID world.
 	}
 	// The pairing's range band (ranged-combat §5) ends with the engagement.
 	delete(m.bands, makeBandKey(a, b))
-	delete(m.charged, makeBandKey(a, b)) // a pending charge dies with the fight
+	// A pending charge (either direction) dies with the fight.
+	delete(m.charged, chargeKey{a, b})
+	delete(m.charged, chargeKey{b, a})
 
 	if removedA && len(m.lists[a]) == 0 {
 		delete(m.lists, a)
@@ -345,7 +349,8 @@ func (m *Manager) DisengageAll(ctx context.Context, c CombatantID, roomID world.
 	for _, opp := range opponents {
 		// The pairing's range band ends with the engagement (ranged-combat §5).
 		delete(m.bands, makeBandKey(c, opp))
-		delete(m.charged, makeBandKey(c, opp))
+		delete(m.charged, chargeKey{c, opp})
+		delete(m.charged, chargeKey{opp, c})
 		if m.removeFromListLocked(opp, c) && len(m.lists[opp]) == 0 {
 			delete(m.lists, opp)
 			endedIDs = append(endedIDs, opp)
