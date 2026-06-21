@@ -81,6 +81,7 @@ func RegisterBuiltins(r *Registry) error {
 		// raw term itself.
 		{Keyword: "unequip", Handler: UnequipHandler, Brief: "Remove an equipped item.", Syntax: []string{"unequip <item>"},
 			HandParsed: true, Args: []ArgDefinition{{Name: "item", Type: ArgEquipped}}, IsAction: true},
+		{Keyword: "hastydon", Aliases: []string{"quickdon"}, Handler: HastyDonHandler, Brief: "Throw on armor fast — quicker, but it protects less until re-donned.", Syntax: []string{"hastydon <item>"}, Args: []ArgDefinition{{Name: "item", Type: ArgInventory}}, IsAction: true},
 		{Keyword: "stop", Aliases: []string{"cancel"}, Handler: StopHandler, Brief: "Stop what you're currently doing.", Syntax: []string{"stop"}},
 		{Keyword: "load", Handler: LoadHandler, Brief: "Load a reloadable ranged weapon (a crossbow).", Syntax: []string{"load"}, IsAction: true},
 		{Keyword: "inventory", Aliases: []string{"i"}, Handler: InventoryHandler, Brief: "List the items you are carrying.", Syntax: []string{"inventory"}},

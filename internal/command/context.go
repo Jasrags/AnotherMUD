@@ -235,6 +235,12 @@ type Context struct {
 	// DonTicks is the don/doff occupation length in ticks (action-economy.md
 	// §7.2); 0 → the package default. Copied from Env.DonTicks by Dispatch.
 	DonTicks int
+	// HastyDon marks an in-flight don as the "hastily donned" escape
+	// (armor-depth §7): faster, but the armor's bonus is one step worse and its
+	// check penalty one step worse until re-donned properly. Set by
+	// HastyDonHandler before it delegates to EquipHandler — NOT copied from Env;
+	// a replay re-runs HastyDonHandler, which re-sets it.
+	HastyDon bool
 
 	// registry back-references the dispatching command Registry so the
 	// `complete` debug verb (tab-completion §9) can run the completion

@@ -308,7 +308,16 @@ func EquipHandler(ctx context.Context, c *Context) error {
 	// penalty, floored at zero. Applied as an armor_check stat modifier the
 	// skill check subtracts, under the SAME EquipmentSourceKey so it stacks
 	// across pieces and reverses cleanly on unequip.
-	if penalty := item.ArmorCheckPenalty(); penalty > 0 {
+	// Hasty-don degradation (armor-depth §7): a hastily-donned slow armor wears
+	// one step worse on BOTH the check penalty (+1) and the armor bonus (−1, below)
+	// until it is taken off and re-donned properly. Inert for a normal don, for
+	// light gear (which has no don timer), and on the replay's own re-seat.
+	hastyArmor := c.HastyDon && isSlowArmor(item)
+	penalty := item.ArmorCheckPenalty()
+	if hastyArmor {
+		penalty++
+	}
+	if penalty > 0 {
 		if c.Grades != nil {
 			if g, ok := c.Grades.Get(item.Grade()); ok {
 				penalty -= g.ArmorCheckImprove
@@ -325,7 +334,11 @@ func EquipHandler(ctx context.Context, c *Context) error {
 	// `ac`, so this makes armor harder-to-hit in EVERY ruleset; the max-Dex
 	// cap (WoT only, via the synthetic `dex_ac` channel input) is computed at
 	// recompute time, not here.
-	if ab := item.ArmorBonus(); ab != 0 {
+	ab := item.ArmorBonus()
+	if hastyArmor && ab > 0 {
+		ab-- // §7: one step worse until re-donned
+	}
+	if ab != 0 {
 		mods = append(mods, stats.Modifier{Stat: string(progression.StatAC), Value: ab})
 	}
 
@@ -376,6 +389,12 @@ func EquipHandler(ctx context.Context, c *Context) error {
 		_ = c.Actor.Write(ctx, fmt.Sprintf("You equip %s, and it flares to life.", item.Name()))
 	} else {
 		_ = c.Actor.Write(ctx, fmt.Sprintf("You equip %s.", item.Name()))
+	}
+	// Hasty-don note (armor-depth §7): tell the player the piece sits poorly so
+	// the lower AC / worse check isn't a silent surprise; re-don to fix it.
+	if hastyArmor {
+		_ = c.Actor.Write(ctx, fmt.Sprintf(
+			"%s sits poorly — strapped on in haste, it protects less until you re-don it properly.", item.Name()))
 	}
 
 	// weapon-identity §3: the non-proficient to-hit penalty is otherwise

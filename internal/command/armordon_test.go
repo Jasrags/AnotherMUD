@@ -6,6 +6,7 @@ import (
 
 	"github.com/Jasrags/AnotherMUD/internal/action"
 	"github.com/Jasrags/AnotherMUD/internal/command"
+	"github.com/Jasrags/AnotherMUD/internal/entities"
 )
 
 // Out of combat with timed actions enabled, donning slow armor is DEFERRED: the
@@ -98,5 +99,95 @@ func TestEquip_LightArmorInstantWithTimedActions(t *testing.T) {
 	}
 	if env.Actions.IsBusy("p-1") {
 		t.Error("light armor should not arm a don action")
+	}
+}
+
+// hastydon arms a FASTER timer than a normal don and, on completion, wears the
+// armor one step worse on both AC and the check penalty (armor-depth §7).
+func TestHastyDon_FasterTimerAndDegradedMods(t *testing.T) {
+	r := newRegistry(t)
+	f := newEqFixture(t)
+	inner := newTestActor(f.room)
+	a := &namedActor{testActor: inner, name: "Alice", playerID: "p-1"}
+	helm, err := f.store.Spawn(heavyHelmTpl()) // ArmorBonus 4, heavy, no base check penalty
+	if err != nil {
+		t.Fatalf("spawn: %v", err)
+	}
+	a.AddToInventory(helm.ID())
+
+	var now uint64 = 100
+	env := f.env()
+	env.Actions = action.NewTracker()
+	env.NowTick = func() uint64 { return now }
+	env.DonTicks = 30 // hasty = 30/3 = 10
+	ctx := context.Background()
+
+	// Phase 1: a hasty don is in flight, faster than the full 30-tick don.
+	if err := r.Dispatch(ctx, env, a, "hastydon helm"); err != nil {
+		t.Fatalf("dispatch: %v", err)
+	}
+	act, busy := env.Actions.Active("p-1")
+	if !busy {
+		t.Fatal("hastydon should arm a timed action")
+	}
+	if act.ReadyAt != now+10 {
+		t.Errorf("hasty ReadyAt = %d, want %d (a third of the 30-tick don)", act.ReadyAt, now+10)
+	}
+
+	// Phase 2: the sweep replays "hastydon helm" → degraded equip.
+	now += 10
+	if _, due := env.Actions.CompleteReady("p-1", now); !due {
+		t.Fatal("hasty don should be due")
+	}
+	env.ReplayAction = true
+	if err := r.Dispatch(ctx, env, a, "hastydon helm"); err != nil {
+		t.Fatalf("replay: %v", err)
+	}
+	if _, worn := a.Equipment()["head"]; !worn {
+		t.Fatal("the helm should be worn after the hasty don completes")
+	}
+
+	mods := a.mods[entities.EquipmentSourceKey(helm.ID())]
+	var ac, check int
+	var sawCheck bool
+	for _, m := range mods {
+		switch m.Stat {
+		case "ac":
+			ac = m.Value
+		case "armor_check":
+			check = m.Value
+			sawCheck = true
+		}
+	}
+	if ac != 3 {
+		t.Errorf("hasty AC modifier = %d, want 3 (armor bonus 4 − 1)", ac)
+	}
+	if !sawCheck || check != 1 {
+		t.Errorf("hasty check penalty = %d (present=%v), want 1 (base 0 + 1)", check, sawCheck)
+	}
+}
+
+// A normal don of the same helm applies the FULL armor bonus and no check
+// penalty — proving the degradation above is the hasty path, not the helm.
+func TestNormalDon_FullMods(t *testing.T) {
+	r := newRegistry(t)
+	f := newEqFixture(t)
+	a := newTestActor(f.room) // no timed actions → instant equip
+	helm := f.spawnInInventory(t, heavyHelmTpl(), a)
+
+	dispatch(t, r, f.env(), a, "equip helm")
+
+	mods := a.mods[entities.EquipmentSourceKey(helm.ID())]
+	var ac int
+	for _, m := range mods {
+		if m.Stat == "ac" {
+			ac = m.Value
+		}
+		if m.Stat == "armor_check" {
+			t.Errorf("a normal don should apply no check penalty, got %d", m.Value)
+		}
+	}
+	if ac != 4 {
+		t.Errorf("normal AC modifier = %d, want the full 4", ac)
 	}
 }

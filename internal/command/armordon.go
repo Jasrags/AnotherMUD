@@ -21,6 +21,24 @@ const KindArmorDon action.Kind = "armor-don"
 // enough not to be the wall-clock minutes the d20 table prescribes (Decision 0).
 const defaultDonTicks = 30
 
+// hastyDonDivisor scales the don time down for a hasty don (armor-depth §7) — a
+// hastily-donned piece takes 1/N the normal time. The cost is the degraded
+// bonus + check penalty applied in EquipHandler, not a separate timer.
+const hastyDonDivisor = 3
+
+// HastyDonHandler implements `hastydon <item>` (armor-depth §7): the
+// hastily-donned escape — armor up faster than a proper don, at the cost of a
+// worsened armor bonus and check penalty until re-seated. It sets the HastyDon
+// flag and delegates to the ordinary equip path, so all the resolution, slot,
+// veto, and two-phase timer machinery is shared; the flag only shortens the
+// timer (beginArmorTimer) and degrades the worn modifiers (EquipHandler). Hasty
+// is meaningless for light gear (it dons instantly anyway) — the flag is then a
+// no-op and the piece equips normally.
+func HastyDonHandler(ctx context.Context, c *Context) error {
+	c.HastyDon = true
+	return EquipHandler(ctx, c)
+}
+
 // Armor don/doff timers (armor-depth §7), translated for a real-time tick engine.
 // In the source, donning plate takes ~4 minutes and even a mail shirt a minute —
 // the meaningful consequence is that you cannot armor up (or shed armor) once a
@@ -91,6 +109,15 @@ func (c *Context) beginArmorTimer(ctx context.Context, it *entities.ItemInstance
 	gerund := "buckling on"
 	if remove {
 		gerund = "unstrapping"
+	} else if c.HastyDon {
+		// The hasty escape: a fraction of the time (armor-depth §7). The cost is
+		// the degraded modifiers EquipHandler applies, not the timer.
+		if ticks > hastyDonDivisor {
+			ticks /= hastyDonDivisor
+		} else {
+			ticks = 1
+		}
+		gerund = "hastily strapping on"
 	}
 	if !c.Actions.Begin(ider.PlayerID(), action.Action{
 		Kind:          KindArmorDon,

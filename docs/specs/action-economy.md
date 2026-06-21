@@ -278,26 +278,27 @@ combat, strapping on a hauberk takes a beat, and the act exposes you: the equip 
 unequip mutation is **deferred to completion** (two-phase, like craft) rather than
 applied instantly.
 
-⚠️ **Decision-0 tension (open).** The existing combat gate may already *be* the
-meaningful choice the repo wanted ("you can't armor up once a fight is on you"),
-in which case a wall-clock don timer is bookkeeping Decision 0 told us to drop.
-The reconciliation, if built: don/doff timers are **short** (seconds, real-time
-tempo) and exist mainly to (a) make the act interruptible/exposed and (b) host the
-source's **hasty-don** (faster, worse fit) and **helper-assist** (halved time)
-choices — which *are* meaningful. **Recommend confirming scope before building
-7.2**; the substrate and 7.1 do not depend on it. If built, donning is
-interruptible (movement aborts it) and the in-combat gate from `armordon.go` is
-retained for slow armor.
+**Decision-0 reconciliation (resolved).** The timer is kept **short** (seconds,
+real-time tempo) so it isn't the wall-clock bookkeeping Decision 0 dropped; it
+earns its place by being interruptible/exposed and by hosting the source's
+**hasty-don** — `hastydon <item>` dons at 1/3 the time but the armor wears one
+step worse (−1 armor bonus / +1 check) until re-donned, applied as degraded
+equipment modifiers that reverse on unequip (`armor-depth.md` §7, SHIPPED). The
+in-combat slow-armor gate from `armordon.go` is retained (hasty or not). The
+source's **helper-assist** (halved time) remains a possible future affordance.
 
 ### Acceptance criteria
 
-- [ ] (7.1) A loaded crossbow fires once and becomes unloaded; firing it again is
+- [x] (7.1) A loaded crossbow fires once and becomes unloaded; firing it again is
       refused until a reload completes; reload occupies the actor for the weapon's
-      load time and is gated by the busy state.
-- [ ] (7.1) Reloading is interrupted by movement and **not** by being hit.
-- [ ] (7.2, if built) Donning slow armor is a timed occupation whose equip lands
-      at completion; movement interrupts it; the in-combat slow-armor gate is
-      retained.
+      load time and is gated by the busy state. **SHIPPED 2026-06-21.**
+- [x] (7.1) Reloading is interrupted by movement and **not** by being hit
+      (movement Drops the action; no consumer wires the hit path). **SHIPPED.**
+- [x] (7.2) Donning slow armor is a timed occupation whose equip lands at
+      completion; movement interrupts it; the in-combat slow-armor gate is
+      retained. **SHIPPED 2026-06-21.**
+- [x] (7.2) `hastydon` dons at a fraction of the time but applies −1 armor bonus /
+      +1 check until re-donned (`armor-depth.md` §7). **SHIPPED 2026-06-21.**
 
 ## 8. Configuration surface
 
