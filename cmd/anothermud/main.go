@@ -301,6 +301,8 @@ func run() error {
 	mgr := session.NewManager()
 	// Dematerialize a departing owner's live mounts on logout (mounts.md §9).
 	mgr.SetMounts(mountSvc)
+	// grouping.md §7: party size cap (ANOTHERMUD_PARTY_CAP, default 6).
+	mgr.SetPartyCap(cfg.PartyCap)
 
 	// Help visibility through HasRole (M19.4f — ui-rendering-help §9.5):
 	// resolve a requester's help tier from their live role set so admins see
@@ -3220,6 +3222,7 @@ type config struct {
 	MassiveDamageDC        int
 	DefaultMoveCost        int
 	DonTicks               int
+	PartyCap               int
 	CorpseOwnershipWindow  time.Duration
 	CorpseLifetime         time.Duration
 	CorpseDecayInterval    time.Duration
@@ -3300,6 +3303,7 @@ func loadConfig() config {
 		MassiveDamageDC:         envIntOr("ANOTHERMUD_MASSIVE_DAMAGE_DC", combat.DefaultMassiveDamageDC),
 		DefaultMoveCost:         envIntOr("ANOTHERMUD_MOVE_COST", 2),
 		DonTicks:                envIntOr("ANOTHERMUD_DON_TICKS", 30),
+		PartyCap:                envIntOr("ANOTHERMUD_PARTY_CAP", 6),
 		CorpseOwnershipWindow:   envDurationOr("ANOTHERMUD_CORPSE_OWNERSHIP_WINDOW", 60*time.Second),
 		CorpseLifetime:          envDurationOr("ANOTHERMUD_CORPSE_LIFETIME", 5*time.Minute),
 		CorpseDecayInterval:     envDurationOr("ANOTHERMUD_CORPSE_DECAY_INTERVAL", 3*time.Second),

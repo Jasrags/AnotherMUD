@@ -443,6 +443,9 @@ type Env struct {
 	// Follow is the move-with-leader relationship graph (follow.md). The
 	// follow/unfollow/lose verbs read/write it. nil disables following.
 	Follow FollowService
+	// Group is the party roster (grouping.md). The group/join/leave/disband/gtell
+	// verbs read/write it. nil disables grouping.
+	Group GroupService
 	// ActorByID resolves a player id to its live Actor (for follow messaging
 	// across rooms). nil → names fall back to "someone".
 	ActorByID func(id string) (Actor, bool)

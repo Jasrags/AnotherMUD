@@ -1288,6 +1288,9 @@ func fullTeardown(ctx context.Context, cfg Config, a *connActor) {
 	// in (their leader, and everyone following them), notifying the survivors.
 	if cfg.Manager != nil {
 		cfg.Manager.dropFollow(ctx, a.PlayerID(), a.Name())
+		// grouping.md §3: logout removes the actor from their party (a leader
+		// leaving disbands it), notifying the survivors.
+		cfg.Manager.dropParty(ctx, a.PlayerID(), a.Name())
 	}
 
 	// M10.8: drop in-memory quest state + the persistence name cache so

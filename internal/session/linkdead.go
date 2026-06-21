@@ -203,6 +203,7 @@ func (m *Manager) LinkDeadCleanup(ctx context.Context, cfg LinkDeadConfig, clk c
 		// reap path otherwise mirrors. Without this a reaped leader would leave
 		// undead followers and a reaped follower would linger in its leader's set.
 		m.dropFollow(ctx, a.PlayerID(), a.Name())
+		m.dropParty(ctx, a.PlayerID(), a.Name())
 		if err := a.Persist(ctx); err != nil {
 			logging.From(ctx).Warn("linkdead cleanup: persist failed",
 				slog.String("player", a.PlayerName()),

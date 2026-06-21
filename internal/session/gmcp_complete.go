@@ -84,6 +84,7 @@ func commandEnv(cfg Config) command.Env {
 		// command.FollowService) and resolves a player id to its live Actor for
 		// cross-room follow messaging.
 		Follow: cfg.Manager,
+		Group:  cfg.Manager,
 		ActorByID: func(id string) (command.Actor, bool) {
 			if cfg.Manager == nil {
 				return nil, false

@@ -81,6 +81,17 @@ type Manager struct {
 	followMu     sync.Mutex
 	followLeader map[string]string
 	followers    map[string]map[string]bool
+
+	// grouping.md party roster. partyLeader maps a member → its leader (the
+	// leader maps to itself); partyMembers maps a leader → its member set
+	// (including the leader); partyInvite holds pending invites (invitee →
+	// leader). partyCap is the size cap. Guarded by partyMu (separate from m.mu,
+	// like followMu). Transient — never persisted.
+	partyMu      sync.Mutex
+	partyLeader  map[string]string
+	partyMembers map[string]map[string]bool
+	partyInvite  map[string]string
+	partyCap     int
 }
 
 // NewManager returns an empty Manager.
@@ -94,6 +105,20 @@ func NewManager() *Manager {
 		roomByPID:    make(map[string]world.RoomID),
 		followLeader: make(map[string]string),
 		followers:    make(map[string]map[string]bool),
+		partyLeader:  make(map[string]string),
+		partyMembers: make(map[string]map[string]bool),
+		partyInvite:  make(map[string]string),
+		partyCap:     defaultPartyCap,
+	}
+}
+
+// SetPartyCap overrides the party size cap (grouping.md §7; ANOTHERMUD_PARTY_CAP).
+// A non-positive value leaves the default. Call once at startup.
+func (m *Manager) SetPartyCap(n int) {
+	if m != nil && n > 0 {
+		m.partyMu.Lock()
+		m.partyCap = n
+		m.partyMu.Unlock()
 	}
 }
 

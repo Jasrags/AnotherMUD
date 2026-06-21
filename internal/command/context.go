@@ -239,6 +239,7 @@ type Context struct {
 	// follow/unfollow/lose verbs use it. ActorByID resolves a player id to its
 	// Actor for cross-room follow messaging. Both copied from Env by Dispatch.
 	Follow    FollowService
+	Group     GroupService
 	ActorByID func(id string) (Actor, bool)
 
 	// HastyDon marks an in-flight don as the "hastily donned" escape
