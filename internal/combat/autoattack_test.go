@@ -60,16 +60,17 @@ type autoAttackRig struct {
 	locator  MapLocator
 	rooms    MapRoomLocator
 	roller   *scriptedRoller
-	passives PassiveEvaluator       // nil ⇒ pre-M9.5 behavior
-	critMult int                    // 0 ⇒ NewAutoAttack default (DefaultCritMultiplier)
-	massive  *MassiveDamageConfig   // nil ⇒ saves §4 rule disabled
-	incap    func(CombatantID) bool // nil ⇒ never incapacitated (conditions §3)
-	defAdj   func(CombatantID) int  // nil ⇒ no defender vulnerability (conditions §3)
-	ammoFor  func(CombatantID) (bool, int) // nil ⇒ no ammo gate (ranged-combat §3)
-	falloff  int                           // RangeFalloff (ranged-combat §5.3)
-	pblank   int                           // PointBlankPenalty (ranged-combat §5.3)
+	passives PassiveEvaluator                         // nil ⇒ pre-M9.5 behavior
+	critMult int                                      // 0 ⇒ NewAutoAttack default (DefaultCritMultiplier)
+	massive  *MassiveDamageConfig                     // nil ⇒ saves §4 rule disabled
+	incap    func(CombatantID) bool                   // nil ⇒ never incapacitated (conditions §3)
+	defAdj   func(CombatantID) int                    // nil ⇒ no defender vulnerability (conditions §3)
+	ammoFor  func(CombatantID) (bool, int)            // nil ⇒ no ammo gate (ranged-combat §3)
+	falloff  int                                      // RangeFalloff (ranged-combat §5.3)
+	pblank   int                                      // PointBlankPenalty (ranged-combat §5.3)
 	kite     func(CombatantID, CombatantID, int) bool // KitePolicy (ranged-combat §5.4)
 	secOff   int                                      // SecondaryOffHandPenalty (two-weapon-fighting §4.3)
+	setBonus int                                      // SetDamageBonus (special-weapons §4)
 }
 
 // fakePassives is a deterministic PassiveEvaluator for the §4.2/§4.3
@@ -106,20 +107,21 @@ func newAutoAttackRig(t *testing.T, atkStats, defStats Stats, atkHP, defHP int, 
 
 func (r *autoAttackRig) phase() PhaseFunc {
 	return NewAutoAttack(AutoAttackConfig{
-		Locator:           r.locator,
-		RoomLocator:       r.rooms,
-		Sink:              r.sink,
-		Roller:            r.roller,
-		Passives:          r.passives,
-		CritMultiplier:    r.critMult,
-		MassiveDamage:     r.massive,
-		Incapacitated:     r.incap,
-		DefenderHitAdjust: r.defAdj,
-		AmmoFor:           r.ammoFor,
+		Locator:                 r.locator,
+		RoomLocator:             r.rooms,
+		Sink:                    r.sink,
+		Roller:                  r.roller,
+		Passives:                r.passives,
+		CritMultiplier:          r.critMult,
+		MassiveDamage:           r.massive,
+		Incapacitated:           r.incap,
+		DefenderHitAdjust:       r.defAdj,
+		AmmoFor:                 r.ammoFor,
 		RangeFalloff:            r.falloff,
 		PointBlankPenalty:       r.pblank,
 		KitePolicy:              r.kite,
 		SecondaryOffHandPenalty: r.secOff,
+		SetDamageBonus:          r.setBonus,
 	})
 }
 

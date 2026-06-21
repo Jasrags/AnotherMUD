@@ -104,6 +104,15 @@ type Stats struct {
 	// wielded weapon by the holder's Stats() builder.
 	Reach int
 
+	// Set reports whether the wielded weapon carries the `set` special tag
+	// (special-weapons §4 — set vs a charge: pike/bill/poleaxe/boarspear). A set
+	// weapon braced against a foe that CHARGED into strike range this round (the
+	// foe closed a band toward the wielder) lands a bonus blow — the polearm
+	// receiving a charge. Read live from the wielded weapon by the holder's
+	// Stats() builder; false for an ordinary weapon (every weapon without the
+	// tag), so a non-set fight is unchanged.
+	Set bool
+
 	// WeaponDamageTypes are the wielded weapon's damage type(s)
 	// (weapon-identity §2 — bludgeoning/piercing/slashing, extensible).
 	// Empty means untyped. The damage application reads them to select the

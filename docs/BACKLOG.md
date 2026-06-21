@@ -199,16 +199,14 @@ old five-theme partition left uncovered.
   SHIPPED 2026-06-17** (`special-weapons.md`, `internal/item/special.go`) — the
   `special:` maneuver-tag seam + the numeric `reach` stat, **reach** (near-band
   strike), weapon-aware **trip** (`trip_bonus` DC), and **disarm** (the new
-  save-gated `disarmed` condition + verb). **What remains of J is the "bottomless
-  tail"** — the special-column behaviors that ride the shipped `special:` seam but
-  have **no combat handler yet** (the `set` / `net` / `whip` / `entangle` tags are
-  declared as valid vocabulary but read by no combat code; other items are recorded
-  fields awaiting a consumer):
+  save-gated `disarmed` condition + verb); **✅ set-vs-charge (`set`) SHIPPED
+  2026-06-20** (`special-weapons.md` §6, `ANOTHERMUD_SET_DAMAGE_BONUS`) — a braced
+  polearm answering a foe that charges into strike range, riding the band
+  auto-close. **What remains of J is the "bottomless tail"** — the special-column
+  behaviors that ride the shipped `special:` seam but have **no combat handler
+  yet** (the `net` / `whip` / `entangle` tags are declared as valid vocabulary but
+  read by no combat code; other items are recorded fields awaiting a consumer):
 
-  - [ ] **Set-vs-charge** (`set` tag — pike, bill, poleaxe, boarspear): braced
-        damage bonus when a foe closes a band into the setter (sibling of reach;
-        rides the `ranged-combat` band/auto-close model). Needs a "the opponent
-        charged this round" read.
   - [ ] **Net / entangle** (`net`, `entangle`): a ranged-touch throw that applies a
         new `entangled` condition (−atk, −effective Dex, ½ speed, escape DC). New
         condition + a touch-attack path.

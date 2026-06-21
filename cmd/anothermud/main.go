@@ -1868,6 +1868,9 @@ func run() error {
 		// two-weapon-fighting §4.3: each off-hand strike after the first (Improved
 		// Two-Weapon Fighting) takes this cumulative to-hit penalty. The source's -5.
 		SecondaryOffHandPenalty: envIntOr("ANOTHERMUD_TWF_SECONDARY_OFFHAND_PENALTY", 5),
+		// special-weapons §4: a `set` weapon's bonus damage on a braced blow against
+		// a foe that charged into strike range (pike/bill/poleaxe/boarspear).
+		SetDamageBonus: envIntOr("ANOTHERMUD_SET_DAMAGE_BONUS", 4),
 		// ranged-combat §5.4: kiting AI. A ranged MOB (players kite manually via
 		// the withdraw verb) opens the distance instead of shooting with chance
 		// ANOTHERMUD_KITE_CHANCE % when a foe has closed inside far — probabilistic

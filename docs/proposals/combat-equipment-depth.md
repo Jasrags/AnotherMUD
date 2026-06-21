@@ -57,14 +57,16 @@ Each row is independently shippable except where a dependency is noted. Sizes ar
 > E (armor depth), F (size-wield), G (ranged), H (masterwork), I (encumbrance —
 > carry-weight shipped separately), J (special weapons).
 >
-> **J (special weapons) SPECCED + SLICE 1 SHIPPED 2026-06-17** —
-> `docs/specs/special-weapons.md` picks a starter set of three (reach / trip /
-> disarm) and establishes the `special:` weapon-tag seam later J behaviors reuse.
-> Slice 1 (the `special:` metadata substrate — template + loader validation +
-> instance accessor, recorded-only) shipped; remaining slices: reach (the
-> range-band-gate extension), trip weapon-awareness (the DC bonus), disarm (the
-> new save-gated maneuver). The bottomless tail (set-vs-charge, net/entangle,
-> whip, swordbreaker, double weapons) stays deferred on the same seam.
+> **J (special weapons) SPECCED + STARTER SET + FIRST TAIL SLICE SHIPPED** —
+> `docs/specs/special-weapons.md` establishes the `special:` weapon-tag seam later
+> J behaviors reuse, and has shipped slices 1–5: the metadata substrate (template
+> + loader validation + instance accessor), **reach** (the range-band-gate
+> extension), weapon-aware **trip** (the DC bonus), **disarm** (the new save-gated
+> `disarmed` condition + verb) — the starter set (2026-06-17) — and **set vs a
+> charge** (§6, a braced polearm's bonus blow on a charging foe, riding the band
+> auto-close; `ANOTHERMUD_SET_DAMAGE_BONUS`) as the first tail slice (2026-06-20).
+> The bottomless tail (net/entangle, whip, swordbreaker-breaking, double-weapon
+> second die, lance charge) stays deferred on the same seam.
 >
 > **F (size-wield) SPECCED 2026-06-15** — `docs/specs/size-and-wielding.md`
 > (forward spec, build pending): creature size + weapon size, the wield mode

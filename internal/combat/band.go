@@ -126,6 +126,13 @@ func (m *Manager) MoveBand(ctx context.Context, subject, opponent CombatantID, r
 	m.bands[key] = next
 	m.mu.Unlock()
 
+	// Closing the distance is a charge: the opponent may answer with a braced
+	// set-weapon blow (special-weapons §4). recordCharge takes m.mu, so call it
+	// after the unlock above.
+	if closing {
+		m.recordCharge(subject, opponent)
+	}
+
 	// Names + emit outside m.mu (lock-order — see engageWithReason).
 	m.sink.OnBandChange(ctx, BandChange{
 		SubjectID:    subject,
@@ -138,6 +145,34 @@ func (m *Manager) MoveBand(ctx context.Context, subject, opponent CombatantID, r
 		RoomID:       roomID,
 	})
 	return next, true
+}
+
+// recordCharge marks that `charger` closed a band toward `victim` (a charge):
+// the victim, if it wields a `set` weapon, lands a braced bonus blow on its next
+// swing (special-weapons §4). One pending charge per pairing — the latest closer
+// wins. Caller MUST NOT hold m.mu (takes it).
+func (m *Manager) recordCharge(charger, victim CombatantID) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if m.charged == nil {
+		m.charged = make(map[bandKey]CombatantID)
+	}
+	m.charged[makeBandKey(charger, victim)] = charger
+}
+
+// ConsumeCharge reports whether `charger` has a pending charge toward `victim`
+// and, if so, clears it (the braced moment is spent on this swing). A set-weapon
+// wielder (victim) calls this on its swing to decide whether the set-vs-charge
+// bonus applies. Safe for concurrent use.
+func (m *Manager) ConsumeCharge(charger, victim CombatantID) bool {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	key := makeBandKey(charger, victim)
+	if m.charged[key] != charger {
+		return false
+	}
+	delete(m.charged, key)
+	return true
 }
 
 // AdjustBand moves the a↔b pairing one band toward melee (delta < 0, advance)

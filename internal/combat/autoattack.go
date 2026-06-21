@@ -95,6 +95,13 @@ type AutoAttackConfig struct {
 	// accuracy as the first. Only consulted when an off-hand profile grants more
 	// than one strike — single-strike dual-wielding never reads it.
 	SecondaryOffHandPenalty int
+	// SetDamageBonus is the extra damage a `set` weapon (special-weapons §4)
+	// deals on a braced blow against a foe that CHARGED into strike range this
+	// round (the foe closed a band toward the wielder). Added to the round's
+	// DamageBonus and consumed once per charge — hit or miss, the braced moment
+	// passes. Host policy; zero (tests/headless) means a set weapon plays as an
+	// ordinary weapon, so a fight with no set weapon is unchanged.
+	SetDamageBonus int
 	// KitePolicy decides whether a projectile combatant should WITHDRAW this
 	// round to keep distance instead of shooting (ranged-combat §5.4 kiting AI).
 	// Called only for a projectile attacker that has room to open the band
@@ -291,6 +298,9 @@ func runAutoAttack(ctx context.Context, attackerID CombatantID, mgr *Manager, cf
 	canStrikeHere := band == meleeBand || (atkStats.Reach > 0 && band == nearBand)
 	if !canStrikeHere && !isProjectile {
 		newBand := mgr.AdjustBand(attackerID, targetID, -1)
+		// Closing toward the foe is a charge — the foe may answer with a braced
+		// set-weapon blow next round (special-weapons §4).
+		mgr.recordCharge(attackerID, targetID)
 		cfg.Sink.OnBandChange(ctx, BandChange{
 			SubjectID:    attackerID,
 			SubjectName:  atkName,
@@ -333,6 +343,16 @@ func runAutoAttack(ctx context.Context, attackerID CombatantID, mgr *Manager, cf
 		} else {
 			hitMod -= cfg.RangeFalloff * band
 		}
+	}
+
+	// special-weapons §4 — set vs a charge. A braced `set` weapon answering a foe
+	// that charged into strike range this round (consumed once per charge) lands a
+	// bonus blow. Folded into the round's DamageBonus so it flows through the
+	// normal damage pipeline; melee-only (a charge closes to a melee weapon's
+	// reach). No-op when the weapon isn't `set`, the foe didn't charge, or the
+	// bonus is unconfigured — every non-set fight is unchanged.
+	if atkStats.Set && cfg.SetDamageBonus != 0 && mgr.ConsumeCharge(targetID, attackerID) {
+		atkStats.DamageBonus += cfg.SetDamageBonus
 	}
 
 	in := swingInputs{

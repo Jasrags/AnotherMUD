@@ -1,4 +1,4 @@
-# Special Weapons (reach · trip · disarm)
+# Special Weapons (reach · trip · disarm · set)
 
 EPIC sub-epic **S1** — increment **J** of the WoT Combat & Equipment Depth
 program (`docs/themes/wot-mechanics-epic.md`,
@@ -45,10 +45,10 @@ unequip + room-drop** path (disarm); add the **`special:` weapon tag** as the on
 new piece of metadata, validated at load like every other weapon field. Keep
 every weapon that declares no `special:` tags behaving exactly as today.
 
-**Non-goals.** The rest of J — set-vs-charge, net/entangle, whip subdual+range,
-swordbreaker weapon-breaking, double weapons, the "drop your weapon to dodge a
-counter-trip" nuance — stay deferred, each its own later slice on this same seam.
-No new range geometry; reach rides the bands `ranged-combat.md` already ships.
+**Non-goals.** The rest of J — net/entangle, whip subdual+range, swordbreaker
+weapon-breaking, double weapons, the "drop your weapon to dodge a counter-trip"
+nuance — stay deferred, each its own later slice on this same seam. No new range
+geometry; reach and set ride the bands `ranged-combat.md` already ships.
 
 **Slices.** (1) the maneuver-tag + reach metadata substrate (load + validate +
 accessor, recorded-only) — SHIPPED; (2) **reach** (the band-gate extension;
@@ -56,8 +56,11 @@ reach modeled as a numeric cross-ruleset stat per §3) — SHIPPED; (3) **trip**
 weapon-awareness (the DC bonus, via a per-caster `SaveDCBonusFunc` on the
 resolver) — SHIPPED; (4) **disarm** (the new maneuver — a save-gated `disarmed`
 to-hit-penalty condition, the trip/bash sibling; physical-drop variant deferred)
-— SHIPPED. The J starter set is complete; the bottomless tail (set-vs-charge,
-net, whip, swordbreaker-breaking, …) stays deferred on the `special:` seam.
+— SHIPPED; (5) **set vs a charge** (the braced bonus blow when a foe charges into
+a `set` weapon's strike range, riding the band auto-close — §6) — SHIPPED. The J
+starter set plus the first tail slice are complete; the bottomless tail (net,
+whip, swordbreaker-breaking, double-weapon second die, …) stays deferred on the
+`special:` seam.
 
 ## 2. The metadata: maneuver tags + the numeric reach stat
 
@@ -115,9 +118,9 @@ subdual mode ships — it does not behave as something else).
   (`internal/command/armorspeed.go`). No longer inert.
 - **`reputation`** (signed int) — a visible-gear reputation delta (masterwork +1,
   Trolloc scythesword −2). Lights up with S8 reputation.
-- The `special:` tags **`set` / `net` / `whip` / `entangle`** — the remaining
+- The `special:` tags **`net` / `whip` / `entangle`** — the remaining
   special-weapon tail, validated as vocabulary but read by no combat code yet; each
-  lights up in its own later slice.
+  lights up in its own later slice. (The **`set`** tag is now consumed — §6.)
 
 ## 3. Reach
 
@@ -241,13 +244,78 @@ without its weapon — without those engine extensions; the physical drop is a l
 refinement on top. Also deferred: **swordbreaker weapon-breaking** (destroying the
 weapon) and **off-hand disarm without the two-weapon penalty**.
 
-## 6. Configuration surface
+## 6. Set vs a charge
+
+The first slice of J's deferred tail. A **`set`** weapon — a polearm braced to
+receive a rush (pike, bill, poleaxe, boarspear) — lands a **bonus blow** on a foe
+that **charges into its strike range**. It is the natural sibling of reach (§3):
+both read the **range-band** model `ranged-combat.md` §5 already ships, and the
+`set` content is authored alongside reach on the same weapons.
+
+A **charge** is a combatant **closing a band toward an opponent** — the round-loop
+auto-close (a melee foe stepping `far → near → melee` to reach its target,
+`ranged-combat.md` §5.3) or the deliberate **`advance`** verb (§5.4). The engine
+records, per pairing, who last closed and has not yet been answered. When a `set`
+weapon's wielder takes its swing against that charger, the swing deals its normal
+damage **plus a set bonus**, and the pending charge is **consumed** — the braced
+moment is spent (hit or miss; one bonus per charge). This translates the source's
+"set against a charge → extra damage as the enemy impales itself on the readied
+point" (`docs/wot/equipment.md`) into the tick/band model: there is no readied
+*action* (the engine has no action economy), so the brace is implicit in wielding
+a `set` weapon, and the bonus fires the round the charger arrives.
+
+The bonus is a **flat damage add** (`ANOTHERMUD_SET_DAMAGE_BONUS`), folded into the
+round's damage bonus so it flows through the normal pipeline (it is **not**
+multiplied by a critical — it is a positional bonus, like a Strength bonus, not
+extra weapon dice). The source's "double damage" is translated as a tunable flat
+add rather than a literal doubling, to stay within the engine's additive damage
+model and keep the magnitude a single host knob.
+
+Set and reach compose: a `set`+`reach` polearm (a pike) strikes a charger as it
+crosses into the `near` band (reach's strike band) and that strike carries the set
+bonus. A `set`-only weapon (a poleaxe, `reach: 0`) lands the bonus when the
+charger reaches `melee`. Either way the bonus rides the swing that answers the
+charge.
+
+### Acceptance criteria
+
+- A `set` weapon swinging at a foe that closed a band toward it this round (the
+  auto-close or `advance`) deals its damage **plus the set bonus**; the pending
+  charge is then consumed (a second swing without a fresh charge is unbonused).
+- A `set` weapon with **no pending charge** (the foe did not close — a standing
+  melee exchange, or the wielder itself closed) deals ordinary damage.
+- A **non-`set`** weapon ignores a pending charge entirely — the bonus is the
+  weapon's property, gated on the tag.
+- The set bonus is a flat add to the swing's damage and is **not** multiplied by a
+  critical hit.
+- The pending charge dies with the engagement (disengage/flee/death clears it), so
+  no stale brace carries into a later fight reusing the same combatant ids.
+- The read is live: swapping to or from a `set` weapon changes whether the next
+  charge is answered with a bonus.
+- Inert without configuration or content: with `ANOTHERMUD_SET_DAMAGE_BONUS`
+  unset/zero, or no weapon carrying the `set` tag, every fight behaves exactly as
+  pre-slice (the same "data ahead of consumer" safety the other slices keep).
+
+### Deferred
+
+- **Per-weapon set magnitude.** v1 uses one global bonus for every `set` weapon;
+  a future slice could read a per-weapon `set_bonus` scalar (the way `trip_bonus` /
+  `disarm_bonus` scale those maneuvers) so a heavy pike out-braces a light spear.
+- **The "ready an action" timing.** With no action economy, the brace is implicit
+  (always on while a `set` weapon is wielded) rather than a chosen ready. A future
+  stance/ready system could gate it.
+- **Lance charge (the rider side).** The mounted lance's "double damage **when the
+  rider charges**" is the *attacker* side of a charge and belongs with the Mounts
+  deferred slices (`mounts.md`), not this defender-braced behavior.
+
+## 7. Configuration surface
 
 | Setting | Meaning | Default |
 |---|---|---|
 | `ANOTHERMUD_DISARM_BASE_DC` | Base save DC a disarm must beat (before a disarm weapon's bonus). | (engine default, ~13 — matches `trip`/`bash`) |
 | `ANOTHERMUD_DISARM_COST` | Resource cost of a disarm attempt (movement, like `trip`/`bash`). | (engine default) |
 | `ANOTHERMUD_DISARM_PULSE_DELAY` | Cooldown pulses after a disarm attempt. | (engine default) |
+| `ANOTHERMUD_SET_DAMAGE_BONUS` | Flat bonus damage a `set` weapon (§6) deals on a braced blow against a charging foe. Zero ⇒ the `set` tag is inert. | (engine default, ~4) |
 | `reach` near-band striking | Whether reach grants the near-band swing. | on (the increment) |
 | weapon `trip_bonus` default | DC bonus when a `trip` weapon omits an explicit value. | content / engine default |
 | weapon `disarm_bonus` default | DC bonus when a `disarm` weapon omits an explicit value. | content / engine default |
@@ -256,7 +324,7 @@ The trip/bash maneuvers' own DC/cost knobs (`conditions.md` §6) are unchanged;
 disarm reuses that ability shape, so its numeric surface mirrors theirs and most
 values come from the ability YAML rather than env where the existing maneuvers do.
 
-## 7. Open questions
+## 8. Open questions
 
 - **Disarm save axis.** Reflex (keep your grip by agility) vs a Strength contest
   (raw grip strength) vs the attacker's to-hit. **Resolved: Reflex** (v1), for
