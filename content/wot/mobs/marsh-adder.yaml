@@ -1,5 +1,6 @@
 id: marsh-adder
 name: a marsh adder
+xp_value: 18  # kill experience (grouping.md §4)
 type: npc
 behavior: stationary
 description: |

@@ -1,5 +1,6 @@
 id: caemlyn-guard
 name: a Queen's Guardsman
+xp_value: 52  # kill experience (grouping.md §4)
 type: npc
 behavior: stationary
 description: |

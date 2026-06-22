@@ -1,5 +1,6 @@
 id: brigand-archer
 name: a brigand archer
+xp_value: 25  # kill experience (grouping.md §4)
 type: npc
 behavior: stationary
 description: |

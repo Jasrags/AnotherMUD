@@ -1,5 +1,6 @@
 id: child-of-the-light
 name: a Child of the Light
+xp_value: 55  # kill experience (grouping.md §4)
 type: npc
 behavior: stationary
 description: |

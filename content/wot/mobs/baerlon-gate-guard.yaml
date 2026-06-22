@@ -1,5 +1,6 @@
 id: baerlon-gate-guard
 name: a Baerlon gate guard
+xp_value: 48  # kill experience (grouping.md §4)
 type: npc
 behavior: stationary
 description: |

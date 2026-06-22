@@ -1,5 +1,6 @@
 id: palace-guard
 name: a Palace Guardsman
+xp_value: 60  # kill experience (grouping.md §4)
 type: npc
 behavior: stationary
 description: |

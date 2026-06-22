@@ -1,5 +1,6 @@
 id: marsh-leeches
 name: a writhing knot of leeches
+xp_value: 15  # kill experience (grouping.md §4)
 type: npc
 behavior: stationary
 description: |

@@ -1,5 +1,6 @@
 id: smooth-merchant
 name: a well-dressed merchant
+xp_value: 40  # kill experience (grouping.md §4)
 type: npc
 behavior: stationary
 description: |

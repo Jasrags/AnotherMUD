@@ -1,5 +1,6 @@
 id: brigand-cutthroat
 name: a brigand cutthroat
+xp_value: 30  # kill experience (grouping.md §4)
 type: npc
 behavior: stationary
 description: |

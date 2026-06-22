@@ -1,5 +1,6 @@
 id: village-guard
 name: a village guard
+xp_value: 28  # kill experience (grouping.md §4)
 type: npc
 behavior: stationary
 disposition: 0

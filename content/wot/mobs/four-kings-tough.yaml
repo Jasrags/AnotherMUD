@@ -1,5 +1,6 @@
 id: four-kings-tough
 name: a hard-faced tough
+xp_value: 45  # kill experience (grouping.md §4)
 type: npc
 behavior: stationary
 description: |

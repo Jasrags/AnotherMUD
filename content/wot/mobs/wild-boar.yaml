@@ -1,5 +1,6 @@
 id: wild-boar
 name: a wild boar
+xp_value: 20  # kill experience (grouping.md §4)
 type: npc
 behavior: stationary
 description: |
