@@ -3,8 +3,10 @@ package session
 import (
 	"context"
 	"fmt"
+	"log/slog"
 
 	"github.com/Jasrags/AnotherMUD/internal/command"
+	"github.com/Jasrags/AnotherMUD/internal/logging"
 	"github.com/Jasrags/AnotherMUD/internal/progression"
 	"github.com/Jasrags/AnotherMUD/internal/world"
 )
@@ -192,7 +194,12 @@ func (m *Manager) GrantKillXP(ctx context.Context, prog *progression.Manager, tr
 	}
 	share := total / int64(len(recipients))
 	if share <= 0 {
-		return // the split rounds to nothing — a tiny-XP mob in a large party
+		// The split rounds to nothing — a tiny-XP mob in a large party. Logged so
+		// content authors tuning xp_value can see why nobody gained.
+		logging.From(ctx).Debug("kill xp rounded to zero",
+			slog.String("event", "kill_xp.zero_share"),
+			slog.Int64("total", total), slog.Int("recipients", len(recipients)))
+		return
 	}
 	for _, a := range recipients {
 		a.GrantXP(ctx, prog, track, "kill", share)
@@ -211,7 +218,12 @@ func (m *Manager) killXPRecipients(killerPID string, room world.RoomID) []*connA
 	out := make([]*connActor, 0, len(members))
 	for _, id := range members {
 		a, ok := m.GetByPlayerID(id)
-		if !ok || a.Room() == nil || a.Room().ID != room {
+		if !ok {
+			continue
+		}
+		// Snapshot the room once (each Room() call takes a.mu) to avoid a
+		// check-then-use window on the proximity gate.
+		if r := a.Room(); r == nil || r.ID != room {
 			continue
 		}
 		out = append(out, a)
