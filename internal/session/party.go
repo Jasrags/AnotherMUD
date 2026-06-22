@@ -157,6 +157,17 @@ func (m *Manager) succeedLocked(oldLeaderID string) string {
 	for id := range set {
 		m.partyLeader[id] = newLeaderID
 	}
+	// The loot policy travels with the party: re-key it onto the new leader. A
+	// master pointing at the departed leader is handled by lootMasterLocked's
+	// membership fallback, so no master fix-up is needed here.
+	if mode, ok := m.partyLootMode[oldLeaderID]; ok {
+		m.partyLootMode[newLeaderID] = mode
+		delete(m.partyLootMode, oldLeaderID)
+	}
+	if master, ok := m.partyLootMaster[oldLeaderID]; ok {
+		m.partyLootMaster[newLeaderID] = master
+		delete(m.partyLootMaster, oldLeaderID)
+	}
 	// Pending invites the old leader had sent now belong to the new leader.
 	for invitee, l := range m.partyInvite {
 		if l == oldLeaderID {
@@ -164,6 +175,92 @@ func (m *Manager) succeedLocked(oldLeaderID string) string {
 		}
 	}
 	return newLeaderID
+}
+
+// LootPolicy returns the party's loot mode and (master-looter only) the
+// designated master's pid for playerID's party (grouping.md §9). A master that
+// is unset or no longer a member falls back to the leader. inParty is false when
+// ungrouped.
+func (m *Manager) LootPolicy(playerID string) (command.LootMode, string, bool) {
+	if m == nil {
+		return command.LootFFA, "", false
+	}
+	m.partyMu.Lock()
+	defer m.partyMu.Unlock()
+	leaderID, ok := m.partyLeader[playerID]
+	if !ok {
+		return command.LootFFA, "", false
+	}
+	if m.partyLootMode[leaderID] == command.LootMaster {
+		return command.LootMaster, m.lootMasterLocked(leaderID), true
+	}
+	return command.LootFFA, "", true
+}
+
+// SetLootMode sets the loot policy for leaderID's party (grouping.md §9), leader
+// only. For LootMaster, masterID names the designated member; "" defaults to the
+// leader. A non-member masterID is refused. On success it returns the resolved
+// policy (mode + effective master) under the same lock, so the caller announces
+// it without a second read.
+func (m *Manager) SetLootMode(leaderID string, mode command.LootMode, masterID string) (command.LootMode, string, error) {
+	if m == nil {
+		return command.LootFFA, "", command.ErrGroupNotLeader
+	}
+	m.partyMu.Lock()
+	defer m.partyMu.Unlock()
+	if l := m.partyLeader[leaderID]; l != leaderID || m.partyMembers[leaderID] == nil {
+		return command.LootFFA, "", command.ErrGroupNotLeader
+	}
+	if mode == command.LootMaster {
+		if masterID == "" {
+			masterID = leaderID
+		} else if !m.partyMembers[leaderID][masterID] {
+			return command.LootFFA, "", command.ErrLootMasterNotMember
+		}
+		m.partyLootMode[leaderID] = command.LootMaster
+		m.partyLootMaster[leaderID] = masterID
+		return command.LootMaster, masterID, nil
+	}
+	m.partyLootMode[leaderID] = command.LootFFA
+	delete(m.partyLootMaster, leaderID)
+	return command.LootFFA, "", nil
+}
+
+// LootOwners returns the bare player ids that own a corpse from killerPID's kill
+// per the party's loot policy (grouping.md §5/§9), for the corpse owner-set hook:
+//   - ungrouped → nil (the solo killer owns it; corpse creation falls back)
+//   - free-for-all → every party member (killer included)
+//   - master-looter → just the designated master (the leader if unset/departed)
+func (m *Manager) LootOwners(killerPID string) []string {
+	if m == nil {
+		return nil
+	}
+	m.partyMu.Lock()
+	defer m.partyMu.Unlock()
+	leaderID, ok := m.partyLeader[killerPID]
+	if !ok {
+		return nil
+	}
+	if m.partyLootMode[leaderID] == command.LootMaster {
+		return []string{m.lootMasterLocked(leaderID)}
+	}
+	set := m.partyMembers[leaderID]
+	ids := make([]string, 0, len(set))
+	for id := range set {
+		ids = append(ids, id)
+	}
+	return ids
+}
+
+// lootMasterLocked returns the effective master-looter pid for leaderID's party
+// (partyMu held): the designated member, or the leader when none is set or the
+// designated master has since left the party.
+func (m *Manager) lootMasterLocked(leaderID string) string {
+	master := m.partyLootMaster[leaderID]
+	if master == "" || !m.partyMembers[leaderID][master] {
+		return leaderID
+	}
+	return master
 }
 
 // Disband dissolves leaderID's party (only if they lead it).
@@ -224,6 +321,8 @@ func (m *Manager) disbandLocked(leaderID, exclude string) []string {
 		}
 	}
 	delete(m.partyMembers, leaderID)
+	delete(m.partyLootMode, leaderID)
+	delete(m.partyLootMaster, leaderID)
 	for invitee, l := range m.partyInvite {
 		if l == leaderID {
 			delete(m.partyInvite, invitee)

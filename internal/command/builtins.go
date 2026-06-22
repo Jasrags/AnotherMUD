@@ -92,6 +92,7 @@ func RegisterBuiltins(r *Registry) error {
 		{Keyword: "leave", Aliases: []string{"ungroup"}, Handler: LeaveHandler, Brief: "Leave your party.", Syntax: []string{"leave"}},
 		{Keyword: "disband", Handler: DisbandHandler, Brief: "Disband the party you lead.", Syntax: []string{"disband"}},
 		{Keyword: "gtell", Handler: GtellHandler, Brief: "Send a message to your party.", Syntax: []string{"gtell <message>"}, HandParsed: true, Args: []ArgDefinition{{Name: "message", Type: ArgText}}},
+		{Keyword: "lootmode", Handler: LootModeHandler, Brief: "Set or show your party's loot rules.", Syntax: []string{"lootmode", "lootmode ffa", "lootmode master [<member>]"}, HandParsed: true},
 		{Keyword: "load", Handler: LoadHandler, Brief: "Load a reloadable ranged weapon (a crossbow).", Syntax: []string{"load"}, IsAction: true},
 		{Keyword: "inventory", Aliases: []string{"i"}, Handler: InventoryHandler, Brief: "List the items you are carrying.", Syntax: []string{"inventory"}},
 		{Keyword: "equipment", Aliases: []string{"eq"}, Handler: EquipmentHandler, Brief: "Show your equipment slots (empty ones included).", Syntax: []string{"equipment"}},

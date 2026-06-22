@@ -53,9 +53,10 @@ loot rights (the corpse owner-set filled with the party); a party channel
 
 **Non-goals.** Combat **assist** / auto-engage (a party member's fight pulling
 the others) — a follow-up slice. **Shared quest credit** (quest objectives are
-per-character) — deferred. **Loot distribution policy** beyond shared *rights*
-(round-robin / need-greed / master-looter) — v1 is free-for-all within the
-party's rights window. A **mob-XP balance pass** across all content — v1 reads
+per-character) — deferred. The *auto-distribution* **loot policies**
+(round-robin / need-greed) — deferred (the manual-loot model needs new machinery
+for them); the **master-looter** policy shipped (§5/§9), beside the default
+free-for-all rights-sharing. A **mob-XP balance pass** across all content — v1 reads
 whatever `xp_value` content declares (0 when absent); tuning the curve is content
 work, not this spec. Persisted parties across logout.
 
@@ -177,14 +178,41 @@ killer's party** so any party member may loot the kill during the window.
 - The window, expiry, and open-to-all-after behavior are unchanged
   (`loot-and-corpses.md` §4).
 
+### Loot distribution policy (§9 resolved)
+
+A party's owner set follows its **loot mode**, set by the leader with
+`lootmode` (`loot` is the corpse-take verb, so the policy lives under its own
+keyword):
+
+- **Free-for-all** (`lootmode ffa`, the default): the owner set is the whole
+  party, as above — any member may loot the kill.
+- **Master-looter** (`lootmode master [<member>]`): the owner set is **just the
+  designated member** — loot funnels to them and they distribute it (e.g. via
+  `give`). The **killer is deliberately excluded** unless they are the master.
+  Naming no member designates the leader; a master who later leaves the party
+  falls back to the leader (so a corpse is never owner-locked to a departed
+  member). The leader-only mutation is announced to the whole party; any member
+  may read the current policy with a bare `lootmode`.
+
+The corpse owner set is the single seam both modes write through (the
+`OwnerSet` hook returns the complete set; killer-inclusion is the policy's call).
+Richer policies (round-robin / need-greed) would build on the same seam.
+
 ### Acceptance criteria
 
 - [x] A party kill's corpse admits every party member to loot during the rights
       window; a non-member is refused until the window expires. **SHIPPED
       2026-06-21** (the corpse owner set = killer + party; `MayLoot` admits them).
 - [x] A solo killer's corpse is owned by the killer alone (unchanged).
-      **SHIPPED** (no party → `PartyOf` returns nil → owner set is just the
+      **SHIPPED** (no party → `OwnerSet` returns nil → owner set is just the
       killer).
+- [x] Under master-looter, only the designated member owns the kill — the killer
+      is locked out (refused during the window), the master may loot. **SHIPPED
+      2026-06-22** (`lootmode master`; `Manager.LootOwners` returns the master
+      alone; live `TestLive_MasterLooter`).
+- [x] `lootmode` (no arg) reports the current policy; `lootmode ffa|master` is
+      leader-only and announced to the party; a non-member master is refused.
+      **SHIPPED 2026-06-22.**
 
 ## 6. Party channel
 
@@ -250,9 +278,16 @@ behavior, not knobs; the window itself is `loot-and-corpses.md`'s.
   logout now passes leadership to the longest-tenured remaining member (when ≥2
   remain); an explicit `disband` still hard-dissolves. (Still open: letting the
   leader *name* a successor, rather than always the longest-tenured.)
-- **Loot distribution policy.** v1 shares loot *rights* (free-for-all within the
-  window). Round-robin / need-greed / master-looter are richer policies on the
-  same owner-set seam; deferred.
+- **Loot distribution policy.** SHIPPED 2026-06-22 — see §5. The leader chooses a
+  per-party **loot mode** with `lootmode`: free-for-all (the v1 default — the
+  whole party owns the kill) or **master-looter** (only a designated member owns
+  it; loot funnels through them). Both write the corpse owner set through one
+  `OwnerSet` seam. (Still open: the *auto-distribution* policies — round-robin and
+  need/greed — which the engine's **manual** loot model would need new machinery
+  for: turn tracking, or a per-item roll/contention window. Also open: `lootmode
+  master <member>` resolves the member by their online actor name, so a link-dead
+  member can't be *named* as master — the `lootMasterLocked` fallback keeps this
+  safe; naming an offline member is a spec clarification for later.)
 - **XP split shape.** v1 is an even split among present members. Level-weighted
   (lower-level members get more, or a flat tax) and a small **group bonus** (the
   party earns slightly more total, rewarding cooperation) are common; deferred

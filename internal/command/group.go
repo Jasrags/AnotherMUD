@@ -9,11 +9,27 @@ import (
 
 // Group errors the GroupService returns; the verbs map them to player text.
 var (
-	ErrGroupSelf       = errors.New("group self")          // invited yourself
-	ErrGroupCapFull    = errors.New("group full")          // party at the size cap
-	ErrGroupHasParty   = errors.New("group target busy")   // target already grouped
-	ErrGroupNoInvite   = errors.New("group no invite")     // accept with no standing invite
-	ErrGroupInviterBad = errors.New("group inviter party") // inviter already in someone else's party
+	ErrGroupSelf           = errors.New("group self")            // invited yourself
+	ErrGroupCapFull        = errors.New("group full")            // party at the size cap
+	ErrGroupHasParty       = errors.New("group target busy")     // target already grouped
+	ErrGroupNoInvite       = errors.New("group no invite")       // accept with no standing invite
+	ErrGroupInviterBad     = errors.New("group inviter party")   // inviter already in someone else's party
+	ErrGroupNotLeader      = errors.New("group not leader")      // a non-leader tried a leader-only action
+	ErrLootMasterNotMember = errors.New("loot master nonmember") // designated master isn't in the party
+)
+
+// LootMode is a party's loot-distribution policy (grouping.md §9). It governs
+// the corpse owner set for the party's kills: who may loot during the
+// rights window.
+type LootMode int
+
+const (
+	// LootFFA — free-for-all: the whole party owns the kill, so any member may
+	// loot during the rights window. The v1 default (grouping.md §5).
+	LootFFA LootMode = iota
+	// LootMaster — master-looter: only the designated member owns the kill, so
+	// loot funnels through them; they distribute it (e.g. via `give`).
+	LootMaster
 )
 
 // GroupService is the engine's party roster (grouping.md). The session Manager
@@ -39,6 +55,15 @@ type GroupService interface {
 	Members(playerID string) []string
 	// LeaderOf returns playerID's party leader and whether they're grouped.
 	LeaderOf(playerID string) (leaderID string, inParty bool)
+	// LootPolicy returns the party's loot mode and (for master-looter) the
+	// designated master's player id; inParty is false when ungrouped.
+	LootPolicy(playerID string) (mode LootMode, masterID string, inParty bool)
+	// SetLootMode sets the party's loot policy (leader only → ErrGroupNotLeader
+	// otherwise). For LootMaster, masterID names the designated member; "" means
+	// the leader. A masterID that isn't a member → ErrLootMasterNotMember. On
+	// success it returns the RESOLVED policy (mode + effective master) so the
+	// caller can announce it without a second, racy read.
+	SetLootMode(leaderID string, mode LootMode, masterID string) (LootMode, string, error)
 }
 
 // GroupHandler implements `group [<player>]` (grouping.md §2): with a player, a
@@ -189,6 +214,92 @@ func GtellHandler(ctx context.Context, c *Context) error {
 		}
 	}
 	return c.Actor.Write(ctx, fmt.Sprintf("[party] You: %s", msg))
+}
+
+// LootModeHandler implements `lootmode [ffa | master [<member>]]` (grouping.md
+// §9): with no argument, show the party's current loot policy; otherwise the
+// leader sets it. (`loot` is the corpse-looting verb, so the policy lives under
+// its own keyword.)
+func LootModeHandler(ctx context.Context, c *Context) error {
+	if c.Group == nil {
+		return c.Actor.Write(ctx, "You can't set party loot rules right now.")
+	}
+	mode, masterID, inParty := c.Group.LootPolicy(c.Actor.PlayerID())
+	if !inParty {
+		return c.Actor.Write(ctx, "You aren't in a party.")
+	}
+	if len(c.Args) == 0 {
+		return c.Actor.Write(ctx, c.lootModeStatus(mode, masterID))
+	}
+	switch strings.ToLower(c.Args[0]) {
+	case "ffa", "free", "freeforall", "free-for-all", "all":
+		return c.setLootMode(ctx, LootFFA, "")
+	case "master", "ml", "masterlooter":
+		master := ""
+		if name := strings.TrimSpace(strings.Join(c.Args[1:], " ")); name != "" {
+			id, ok := c.partyMemberByName(name)
+			if !ok {
+				return c.Actor.Write(ctx, fmt.Sprintf("%q isn't in your party.", name))
+			}
+			master = id
+		}
+		return c.setLootMode(ctx, LootMaster, master)
+	default:
+		return c.Actor.Write(ctx, "Set party loot: `lootmode ffa` or `lootmode master [<member>]`.")
+	}
+}
+
+// setLootMode applies a loot-policy change (leader only) and announces the new
+// policy to every online member, the leader included.
+func (c *Context) setLootMode(ctx context.Context, mode LootMode, masterID string) error {
+	newMode, newMaster, err := c.Group.SetLootMode(c.Actor.PlayerID(), mode, masterID)
+	switch {
+	case errors.Is(err, ErrGroupNotLeader):
+		return c.Actor.Write(ctx, "Only the party leader can set the loot rules.")
+	case errors.Is(err, ErrLootMasterNotMember):
+		return c.Actor.Write(ctx, "That player isn't in your party.")
+	case err != nil:
+		return c.Actor.Write(ctx, "You can't set the loot rules right now.")
+	}
+	// The resolved policy (any defaulting applied — e.g. master mode with no
+	// member named → the leader) comes back from SetLootMode, so the
+	// announcement needs no second, racy read.
+	msg := c.lootModeChange(newMode, newMaster)
+	for _, id := range c.Group.Members(c.Actor.PlayerID()) {
+		if a, ok := c.actorByID(id); ok {
+			_ = a.Write(ctx, msg)
+		}
+	}
+	return nil
+}
+
+// lootModeStatus describes the current policy for `lootmode` with no argument.
+func (c *Context) lootModeStatus(mode LootMode, masterID string) string {
+	if mode == LootMaster {
+		return fmt.Sprintf("Party loot: master-looter — only %s may loot a kill.", c.actorName(masterID))
+	}
+	return "Party loot: free-for-all — any party member may loot a kill."
+}
+
+// lootModeChange is the announcement broadcast when the policy changes.
+func (c *Context) lootModeChange(mode LootMode, masterID string) string {
+	if mode == LootMaster {
+		return fmt.Sprintf("The party's loot now goes to %s (master-looter).", c.actorName(masterID))
+	}
+	return "The party's loot is now free-for-all."
+}
+
+// partyMemberByName resolves a party member by (case-insensitive) name to their
+// player id. Room-independent — it scans the roster, not the room — so a leader
+// can name any member as master, but the member must be online (named by an
+// actor the session can resolve).
+func (c *Context) partyMemberByName(name string) (string, bool) {
+	for _, id := range c.Group.Members(c.Actor.PlayerID()) {
+		if strings.EqualFold(c.actorName(id), name) {
+			return id, true
+		}
+	}
+	return "", false
 }
 
 // listParty renders the caller's party roster (grouping.md §2).

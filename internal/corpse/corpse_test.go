@@ -110,12 +110,12 @@ func (h *harness) findCorpse(t *testing.T) *entities.ItemInstance {
 // party (deduped, prefixed combatant ids), so any member may loot the kill.
 func TestCreateOnDeath_OwnerSetIncludesParty(t *testing.T) {
 	h := newHarness(t)
-	// Rebuild the service with a PartyOf that returns the killer's party —
-	// including the killer themselves (as the real Members does), to prove dedup.
+	// Rebuild the service with an OwnerSet that returns the killer's party —
+	// including the killer themselves (as the real LootOwners does), to prove dedup.
 	h.svc = New(Config{
 		Store: h.store, Contents: h.contents, Placement: h.placement, Bus: h.bus,
 		Mobs: h.mobs, Loot: h.loot, Roller: fixedRoller(0), Now: func() uint64 { return h.tick },
-		PartyOf: func(killerID string) []string {
+		OwnerSet: func(killerID string) []string {
 			if killerID != "player:bob" {
 				return nil
 			}
@@ -130,6 +130,45 @@ func TestCreateOnDeath_OwnerSetIncludesParty(t *testing.T) {
 	slices.Sort(owners)
 	if !slices.Equal(owners, []string{"player:amy", "player:bob"}) {
 		t.Fatalf("owner set = %v, want [player:amy player:bob] (killer + party, deduped)", owners)
+	}
+}
+
+// grouping.md §9 master-looter: the OwnerSet hook returns just the designated
+// master, so the corpse is owned by the master alone — the killer is excluded
+// (they may not loot their own kill under this policy).
+func TestCreateOnDeath_MasterLooterOwnerSetExcludesKiller(t *testing.T) {
+	h := newHarness(t)
+	h.svc = New(Config{
+		Store: h.store, Contents: h.contents, Placement: h.placement, Bus: h.bus,
+		Mobs: h.mobs, Loot: h.loot, Roller: fixedRoller(0), Now: func() uint64 { return h.tick },
+		OwnerSet: func(killerID string) []string {
+			return []string{"player:amy"} // master-looter: only the master, not the killer
+		},
+	})
+	h.spawnItemInMob(t, "trail-ration")
+
+	h.svc.CreateOnDeath(context.Background(), killedEvent("player:bob")) // bob killed it
+
+	owners := Owners(h.findCorpse(t))
+	if !slices.Equal(owners, []string{"player:amy"}) {
+		t.Fatalf("owner set = %v, want [player:amy] (master only, killer excluded)", owners)
+	}
+}
+
+// A nil OwnerSet hook (or one returning nothing) falls back to the solo killer.
+func TestCreateOnDeath_NilOwnerSetFallsBackToKiller(t *testing.T) {
+	h := newHarness(t)
+	h.svc = New(Config{
+		Store: h.store, Contents: h.contents, Placement: h.placement, Bus: h.bus,
+		Mobs: h.mobs, Loot: h.loot, Roller: fixedRoller(0), Now: func() uint64 { return h.tick },
+		OwnerSet: func(string) []string { return nil },
+	})
+	h.spawnItemInMob(t, "trail-ration")
+
+	h.svc.CreateOnDeath(context.Background(), killedEvent("player:bob"))
+
+	if owners := Owners(h.findCorpse(t)); !slices.Equal(owners, []string{"player:bob"}) {
+		t.Fatalf("owner set = %v, want [player:bob] (solo fallback)", owners)
 	}
 }
 

@@ -98,24 +98,33 @@ type Manager struct {
 	// stamp to hand out. Both live under partyMu.
 	partyJoinSeq map[string]uint64
 	partySeq     uint64
+	// partyLootMode is the party's loot-distribution policy keyed by leader id
+	// (absent = free-for-all, the default). partyLootMaster names the designated
+	// master-looter (leader id → member pid) when the mode is master-looter
+	// (grouping.md §9). Both live under partyMu and are re-keyed/cleared by
+	// succession + disband.
+	partyLootMode   map[string]command.LootMode
+	partyLootMaster map[string]string
 }
 
 // NewManager returns an empty Manager.
 func NewManager() *Manager {
 	return &Manager{
-		byConn:     make(map[string]*connActor),
-		byPlayerID: make(map[string]*connActor),
-		byName:     make(map[string]*connActor),
-		byAccount:  make(map[string][]*connActor),
-		byRoom:       make(map[world.RoomID]map[string]*connActor),
-		roomByPID:    make(map[string]world.RoomID),
-		followLeader: make(map[string]string),
-		followers:    make(map[string]map[string]bool),
-		partyLeader:  make(map[string]string),
-		partyMembers: make(map[string]map[string]bool),
-		partyInvite:  make(map[string]string),
-		partyJoinSeq: make(map[string]uint64),
-		partyCap:     defaultPartyCap,
+		byConn:          make(map[string]*connActor),
+		byPlayerID:      make(map[string]*connActor),
+		byName:          make(map[string]*connActor),
+		byAccount:       make(map[string][]*connActor),
+		byRoom:          make(map[world.RoomID]map[string]*connActor),
+		roomByPID:       make(map[string]world.RoomID),
+		followLeader:    make(map[string]string),
+		followers:       make(map[string]map[string]bool),
+		partyLeader:     make(map[string]string),
+		partyMembers:    make(map[string]map[string]bool),
+		partyInvite:     make(map[string]string),
+		partyJoinSeq:    make(map[string]uint64),
+		partyLootMode:   make(map[string]command.LootMode),
+		partyLootMaster: make(map[string]string),
+		partyCap:        defaultPartyCap,
 	}
 }
 

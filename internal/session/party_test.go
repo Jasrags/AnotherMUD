@@ -334,3 +334,116 @@ func TestParty_AcceptAfterDisbandFails(t *testing.T) {
 		t.Errorf("accept after disband = %v, want ErrGroupNoInvite", err)
 	}
 }
+
+// --- Loot distribution policy (grouping.md §9) ---
+
+// TestLootOwners_FreeForAllReturnsWholeParty: the default policy owns the kill
+// for every member (killer included).
+func TestLootOwners_FreeForAllReturnsWholeParty(t *testing.T) {
+	m := NewManager()
+	inviteAccept(t, m, "L", "A")
+	inviteAccept(t, m, "L", "B")
+	got := m.LootOwners("L")
+	slices.Sort(got)
+	if !slices.Equal(got, []string{"A", "B", "L"}) {
+		t.Fatalf("free-for-all owners = %v, want the whole party", got)
+	}
+}
+
+// TestLootOwners_UngroupedReturnsNil: a solo killer has no party policy, so the
+// hook returns nil and corpse creation falls back to the killer alone.
+func TestLootOwners_UngroupedReturnsNil(t *testing.T) {
+	m := NewManager()
+	if got := m.LootOwners("solo"); got != nil {
+		t.Fatalf("ungrouped owners = %v, want nil", got)
+	}
+}
+
+// TestLootOwners_MasterReturnsMasterOnly: under master-looter only the
+// designated member owns the kill — the killer is deliberately excluded.
+func TestLootOwners_MasterReturnsMasterOnly(t *testing.T) {
+	m := NewManager()
+	inviteAccept(t, m, "L", "A")
+	inviteAccept(t, m, "L", "B")
+	if _, _, err := m.SetLootMode("L", command.LootMaster, "A"); err != nil {
+		t.Fatal(err)
+	}
+	// The killer (L) is not the master, yet the corpse owner set is just {A}.
+	if got := m.LootOwners("L"); !slices.Equal(got, []string{"A"}) {
+		t.Fatalf("master-looter owners = %v, want [A] only", got)
+	}
+}
+
+// TestSetLootMode_DefaultsMasterToLeader: master mode with no member named
+// designates the leader.
+func TestSetLootMode_DefaultsMasterToLeader(t *testing.T) {
+	m := NewManager()
+	inviteAccept(t, m, "L", "A")
+	if _, _, err := m.SetLootMode("L", command.LootMaster, ""); err != nil {
+		t.Fatal(err)
+	}
+	mode, master, in := m.LootPolicy("A")
+	if !in || mode != command.LootMaster || master != "L" {
+		t.Fatalf("policy = (%v,%q,%v), want (master, L, true)", mode, master, in)
+	}
+}
+
+// TestSetLootMode_LeaderOnly: a non-leader may not change the policy.
+func TestSetLootMode_LeaderOnly(t *testing.T) {
+	m := NewManager()
+	inviteAccept(t, m, "L", "A")
+	if _, _, err := m.SetLootMode("A", command.LootMaster, ""); !errors.Is(err, command.ErrGroupNotLeader) {
+		t.Fatalf("non-leader SetLootMode = %v, want ErrGroupNotLeader", err)
+	}
+	if _, _, err := m.SetLootMode("nobody", command.LootFFA, ""); !errors.Is(err, command.ErrGroupNotLeader) {
+		t.Fatalf("ungrouped SetLootMode = %v, want ErrGroupNotLeader", err)
+	}
+}
+
+// TestSetLootMode_MasterMustBeMember: naming a non-member as master is refused.
+func TestSetLootMode_MasterMustBeMember(t *testing.T) {
+	m := NewManager()
+	inviteAccept(t, m, "L", "A")
+	if _, _, err := m.SetLootMode("L", command.LootMaster, "stranger"); !errors.Is(err, command.ErrLootMasterNotMember) {
+		t.Fatalf("non-member master = %v, want ErrLootMasterNotMember", err)
+	}
+}
+
+// TestLootPolicy_MasterFallsBackWhenMasterLeaves: a master who leaves the party
+// falls back to the leader (membership-checked), so the corpse is never owned by
+// a departed member.
+func TestLootPolicy_MasterFallsBackWhenMasterLeaves(t *testing.T) {
+	m := NewManager()
+	inviteAccept(t, m, "L", "A")
+	inviteAccept(t, m, "L", "B")
+	if _, _, err := m.SetLootMode("L", command.LootMaster, "A"); err != nil {
+		t.Fatal(err)
+	}
+	m.Leave("A") // the designated master departs
+	mode, master, _ := m.LootPolicy("L")
+	if mode != command.LootMaster || master != "L" {
+		t.Fatalf("policy after master left = (%v,%q), want (master, L)", mode, master)
+	}
+	if got := m.LootOwners("L"); !slices.Equal(got, []string{"L"}) {
+		t.Fatalf("owners after master left = %v, want [L]", got)
+	}
+}
+
+// TestSuccession_CarriesLootPolicy: when leadership passes, the loot policy
+// travels with the party onto the new leader.
+func TestSuccession_CarriesLootPolicy(t *testing.T) {
+	m := NewManager()
+	inviteAccept(t, m, "L", "A") // A is the longest-tenured member
+	inviteAccept(t, m, "L", "B")
+	if _, _, err := m.SetLootMode("L", command.LootMaster, "B"); err != nil {
+		t.Fatal(err)
+	}
+	disbanded, newLeader, _, had := m.Leave("L") // leader leaves → A succeeds
+	if !had || disbanded || newLeader != "A" {
+		t.Fatalf("succession = (disbanded %v, new %q, had %v), want (false, A, true)", disbanded, newLeader, had)
+	}
+	mode, master, _ := m.LootPolicy("A")
+	if mode != command.LootMaster || master != "B" {
+		t.Fatalf("policy after succession = (%v,%q), want (master, B)", mode, master)
+	}
+}

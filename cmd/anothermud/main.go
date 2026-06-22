@@ -1369,23 +1369,25 @@ func run() error {
 		Loot:      registries.Loot,
 		Roller:    corpseRNG,
 		Now:       loop.TickCount,
-		// grouping.md §5: a party kill's corpse admits the whole party to loot.
-		// The killer id is a prefixed combatant id; strip it to look up the party
-		// (bare pids), then re-prefix each member to match MayLoot's actor id.
-		PartyOf: func(killerID string) []string {
+		// grouping.md §5/§9: the corpse owner set follows the killer's party loot
+		// policy (free-for-all = the whole party, master-looter = just the master).
+		// The killer id is a prefixed combatant id; strip it to resolve the policy
+		// (bare pids), then re-prefix each owner to match MayLoot's actor id. nil
+		// (ungrouped / no policy) lets corpse creation fall back to the solo killer.
+		OwnerSet: func(killerID string) []string {
 			pid, ok := strings.CutPrefix(killerID, combat.PlayerPrefix)
 			if !ok {
 				return nil
 			}
-			members := mgr.Members(pid)
-			if len(members) == 0 {
+			owners := mgr.LootOwners(pid)
+			if len(owners) == 0 {
 				return nil
 			}
-			owners := make([]string, 0, len(members))
-			for _, m := range members {
-				owners = append(owners, string(combat.NewPlayerCombatantID(m)))
+			out := make([]string, 0, len(owners))
+			for _, o := range owners {
+				out = append(out, string(combat.NewPlayerCombatantID(o)))
 			}
-			return owners
+			return out
 		},
 	})
 	bus.Subscribe(eventbus.EventMobKilled, corpseSvc.OnMobKilled)

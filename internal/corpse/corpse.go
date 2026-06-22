@@ -74,7 +74,7 @@ type Service struct {
 	roller       loot.Roller
 	now          func() uint64
 	nameTemplate string
-	partyOf      func(killerID string) []string
+	ownerSet     func(killerID string) []string
 }
 
 // Config bundles the Service dependencies. store/contents/placement are
@@ -90,12 +90,15 @@ type Config struct {
 	Roller       loot.Roller
 	Now          func() uint64
 	NameTemplate string // defaults to DefaultNameTemplate when empty
-	// PartyOf returns the killer's looting-rights co-owners (grouping.md §5) as
-	// combatant ids in the SAME form MayLoot compares (the prefixed actor id),
-	// so a party member may loot the kill during the rights window. Given the
-	// killer's id; returns nil when the killer is in no party. nil disables
-	// loot-sharing (the owner set is just the killer).
-	PartyOf func(killerID string) []string
+	// OwnerSet returns the COMPLETE looting-rights owner set for a kill
+	// (grouping.md §5/§9) as combatant ids in the SAME form MayLoot compares
+	// (the prefixed actor id). Given the killer's id, it returns the set per the
+	// killer's party loot policy: the whole party (free-for-all), just the
+	// designated master-looter, or nil/empty when the killer is in no party
+	// (or there's no policy). Killer-inclusion is the policy's call — under
+	// master-looter the killer is deliberately absent unless they are the master.
+	// A nil/empty result falls back to the solo killer owning the corpse.
+	OwnerSet func(killerID string) []string
 }
 
 // New constructs a Service from cfg.
@@ -118,7 +121,7 @@ func New(cfg Config) *Service {
 		roller:       cfg.Roller,
 		now:          now,
 		nameTemplate: nt,
-		partyOf:      cfg.PartyOf,
+		ownerSet:     cfg.OwnerSet,
 	}
 }
 
@@ -164,20 +167,24 @@ func (s *Service) CreateOnDeath(ctx context.Context, e eventbus.MobKilled) {
 	}
 
 	// §2.1 steps 2 + 5: mint the corpse container, recording killer,
-	// creation tick, coin amount, and the owner set. grouping.md §5: the set is
-	// the killer PLUS their party (all members, so one arriving within the
-	// window may still loot), deduped. A solo killer owns it alone.
+	// creation tick, coin amount, and the owner set. grouping.md §5/§9: the
+	// OwnerSet hook returns the complete looting-rights set per the killer's
+	// party loot policy — the whole party (free-for-all), just the master-looter,
+	// or nil (no party / no policy). Killer-inclusion is the policy's call; a
+	// nil/empty result falls back to the solo killer owning the corpse. Deduped.
 	owners := []string{}
 	if e.KillerID != "" {
-		owners = append(owners, e.KillerID)
-		if s.partyOf != nil {
-			seen := map[string]bool{e.KillerID: true}
-			for _, m := range s.partyOf(e.KillerID) {
-				if m != "" && !seen[m] {
-					seen[m] = true
-					owners = append(owners, m)
+		if s.ownerSet != nil {
+			seen := map[string]bool{}
+			for _, o := range s.ownerSet(e.KillerID) {
+				if o != "" && !seen[o] {
+					seen[o] = true
+					owners = append(owners, o)
 				}
 			}
+		}
+		if len(owners) == 0 {
+			owners = []string{e.KillerID}
 		}
 	}
 	props := map[string]any{
