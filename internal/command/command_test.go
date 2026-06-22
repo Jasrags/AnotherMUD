@@ -287,6 +287,7 @@ type testActor struct {
 	sleepStartTick uint64
 	sust           int
 	autoloot       bool
+	autoAssist     bool
 	inCombat       bool
 
 	craftPending crafting.PendingCraft
@@ -563,6 +564,20 @@ func (a *testActor) SetAutoloot(on bool) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	a.autoloot = on
+}
+
+// AutoAssistEnabled / SetAutoAssist make testActor satisfy the inline
+// preference interface AutoAssistHandler asserts (grouping.md §9).
+func (a *testActor) AutoAssistEnabled() bool {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	return a.autoAssist
+}
+
+func (a *testActor) SetAutoAssist(on bool) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	a.autoAssist = on
 }
 
 // Sustenance / SetSustenance make testActor satisfy

@@ -241,6 +241,14 @@ type Save struct {
 	// and round-trip unchanged.
 	Autoloot bool `yaml:"autoloot,omitempty"`
 
+	// AutoAssist is the per-character auto-assist preference (grouping.md
+	// §9; off by default — opt-in so a party member's engage doesn't yank
+	// everyone into every fight). Added without a schema bump on the same
+	// logic as Autoloot/WimpyThreshold: the false zero-value is
+	// indistinguishable from "field absent" (omitempty), so older saves load
+	// with auto-assist off and round-trip unchanged.
+	AutoAssist bool `yaml:"auto_assist,omitempty"`
+
 	// PromptTemplate is the player's custom prompt format
 	// (ui-rendering-help §7.1). Empty means "use the engine default".
 	// Added in M10.3b without a schema bump: an absent field decodes to

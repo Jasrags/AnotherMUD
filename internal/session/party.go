@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"slices"
 
 	"github.com/Jasrags/AnotherMUD/internal/command"
 	"github.com/Jasrags/AnotherMUD/internal/logging"
@@ -219,6 +220,50 @@ func (m *Manager) killXPRecipients(killerPID string, room world.RoomID) []*connA
 	for _, id := range members {
 		a, ok := m.GetByPlayerID(id)
 		if !ok {
+			continue
+		}
+		// Snapshot the room once (each Room() call takes a.mu) to avoid a
+		// check-then-use window on the proximity gate.
+		if r := a.Room(); r == nil || r.ID != room {
+			continue
+		}
+		out = append(out, a)
+	}
+	return out
+}
+
+// AutoAssistCandidates resolves the party-mates who could be auto-pulled into
+// engagerID's fight (grouping.md §9): the engager's party members who are
+// online, standing in the given room (proximity-gated, mirroring kill-XP), have
+// auto-assist enabled, and are not the engager themselves. The combat-side
+// filter (already-in-combat) is applied by the caller, which holds the combat
+// manager; this method stays free of any combat dependency.
+//
+// oppID is the bare player id of the opponent, or "" when the opponent is not a
+// player (a mob can never be a party member). The PvP-safety guard — never
+// auto-pull a party against one of its own members (a friendly duel must not
+// snowball) — is resolved HERE, off the SAME membership snapshot used to build
+// the candidate list, so the guard and the list can't disagree under a
+// concurrent leave/disband. Returns nil when the engager is ungrouped or the
+// opponent is a party-mate.
+func (m *Manager) AutoAssistCandidates(engagerID, oppID string, room world.RoomID) []*connActor {
+	if m == nil || engagerID == "" {
+		return nil
+	}
+	members := m.Members(engagerID)
+	if len(members) == 0 {
+		return nil // ungrouped — no party to pull from
+	}
+	if oppID != "" && slices.Contains(members, oppID) {
+		return nil // PvP between party-mates — don't gang up on a friend
+	}
+	out := make([]*connActor, 0, len(members))
+	for _, id := range members {
+		if id == engagerID {
+			continue
+		}
+		a, ok := m.GetByPlayerID(id)
+		if !ok || !a.AutoAssistEnabled() {
 			continue
 		}
 		// Snapshot the room once (each Room() call takes a.mu) to avoid a

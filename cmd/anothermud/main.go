@@ -4197,6 +4197,80 @@ func (s *productionCombatSink) OnEngagement(ctx context.Context, e combat.Engage
 			}
 		}
 	}
+
+	// grouping.md §9 auto-assist: pull idle, opted-in party-mates into a
+	// party member's fresh fight. Runs last so the engagement is fully
+	// committed before we fan out.
+	s.autoAssist(ctx, e)
+}
+
+// autoAssist implements grouping.md §9 auto-assist: when a party member becomes
+// engaged with an enemy, that member's idle, in-room party-mates who have
+// auto-assist enabled are pulled into the fight against the same opponent. It
+// considers BOTH sides of the engagement, so it covers the offensive case (you
+// attack, your party joins) and the defensive case (you are attacked, your
+// party defends you).
+//
+// Recursion safety: engaging a candidate fires another Engagement event, which
+// re-enters OnEngagement → autoAssist. Termination relies on the InCombat guard
+// — a mate pulled in is now in combat and is no longer idle, so the chain
+// bottoms out after at most one engage per party member (party size is capped).
+// The opponent (typically a mob, never in a party) never pulls anyone in.
+func (s *productionCombatSink) autoAssist(ctx context.Context, e combat.Engagement) {
+	if s.sessions == nil || s.mgr == nil {
+		return
+	}
+	s.autoAssistSide(ctx, e.AttackerID, e.TargetID, e.RoomID)
+	s.autoAssistSide(ctx, e.TargetID, e.AttackerID, e.RoomID)
+}
+
+// autoAssistSide pulls engagerCID's party-mates onto oppCID when engagerCID is
+// a player in a party. The combat-side guards (the opponent must not be a
+// party member; a mate already in combat is left alone) live here because the
+// session manager that resolves candidates has no combat dependency.
+func (s *productionCombatSink) autoAssistSide(ctx context.Context, engagerCID, oppCID combat.CombatantID, room world.RoomID) {
+	// Only players form parties.
+	if !strings.HasPrefix(string(engagerCID), combat.PlayerPrefix) {
+		return
+	}
+	engagerPID := combat.EntityIDOf(engagerCID)
+	// Only a player opponent can be a party-mate, so the PvP guard inside
+	// AutoAssistCandidates only needs the opponent id when it's a player; a mob
+	// opponent passes "" and skips the membership scan.
+	oppPID := ""
+	if strings.HasPrefix(string(oppCID), combat.PlayerPrefix) {
+		oppPID = combat.EntityIDOf(oppCID)
+	}
+	candidates := s.sessions.AutoAssistCandidates(engagerPID, oppPID, room)
+	if len(candidates) == 0 {
+		return
+	}
+
+	engagerName := s.nameOf(string(engagerCID))
+	oppName := s.nameOf(string(oppCID))
+	for _, mate := range candidates {
+		mateCID := mate.CombatantID()
+		// A mate already fighting keeps their current target rather than being
+		// yanked onto a new one. This InCombat check is an optimistic early-out;
+		// the definitive guard is EngageWithReason below, which refuses an
+		// already-engaged mate — and THAT refusal is what terminates the
+		// recursive OnEngagement→autoAssist chain (a just-engaged mate is now in
+		// the combat lists, so re-engaging them is refused before any further
+		// fan-out).
+		if s.mgr.InCombat(mateCID) {
+			continue
+		}
+		// Lean on EngageWithReason for the remaining refusals (safe room,
+		// no-kill, flee cooldown, a race that engaged them first); skip
+		// silently on any of them.
+		if _, ok := s.mgr.EngageWithReason(ctx, mateCID, oppCID, room); !ok {
+			continue
+		}
+		_ = mate.Write(ctx, fmt.Sprintf("You leap to %s's aid, attacking %s!", engagerName, oppName))
+		s.announce(ctx, room,
+			fmt.Sprintf("%s leaps to %s's aid against %s!", s.nameOf(string(mateCID)), engagerName, oppName),
+			mateCID)
+	}
 }
 
 func (s *productionCombatSink) OnCombatEnded(_ context.Context, e combat.CombatEnded) {

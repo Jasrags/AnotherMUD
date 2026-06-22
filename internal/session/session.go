@@ -873,6 +873,8 @@ func run(ctx context.Context, c conn.Connection, cfg Config) error {
 	a.autoloot.Store(loaded.Player.Autoloot)
 	// feats Bucket C: seed the Power Attack stance from the persisted save.
 	a.powerAttack.Store(loaded.Player.PowerAttackActive)
+	// grouping.md §9: seed the auto-assist preference from the persisted save.
+	a.autoAssist.Store(loaded.Player.AutoAssist)
 
 	// M15.3: hydrate the recall room id from the persisted save.
 	// Empty = no recall point bound (the documented default for
@@ -2215,6 +2217,14 @@ type connActor struct {
 	// lock-free (same rationale as wimpyThreshold). The write path takes a.mu to
 	// also mutate a.save. Persistence: player.Save.PowerAttackActive (v27).
 	powerAttack atomic.Bool
+
+	// autoAssist is the grouping.md §9 auto-assist preference (off by
+	// default). Read by the combat sink's OnEngagement hook on the tick
+	// goroutine to decide whether to pull this member into a party-mate's
+	// fight; stored as atomic.Bool so that read stays lock-free (same
+	// rationale as wimpyThreshold). The write path takes a.mu to also mutate
+	// a.save. Persistence: player.Save.AutoAssist.
+	autoAssist atomic.Bool
 
 	mu           sync.Mutex
 	room         *world.Room
@@ -5669,6 +5679,28 @@ func (a *connActor) SetAutoloot(on bool) {
 	a.autoloot.Store(on)
 	if a.save != nil {
 		a.save.Autoloot = on
+		a.markDirtyLocked()
+	}
+}
+
+// AutoAssistEnabled reports the actor's auto-assist preference (grouping.md
+// §9). Lock-free read off the atomic; safe from the tick goroutine (the
+// combat sink reads it inside OnEngagement).
+func (a *connActor) AutoAssistEnabled() bool {
+	return a.autoAssist.Load()
+}
+
+// SetAutoAssist updates the auto-assist preference and marks the save dirty
+// so it persists on the next autosave. No-op when unchanged.
+func (a *connActor) SetAutoAssist(on bool) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	if a.autoAssist.Load() == on {
+		return
+	}
+	a.autoAssist.Store(on)
+	if a.save != nil {
+		a.save.AutoAssist = on
 		a.markDirtyLocked()
 	}
 }

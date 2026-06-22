@@ -216,9 +216,18 @@ behavior, not knobs; the window itself is `loot-and-corpses.md`'s.
 - **Assist / auto-engage.** Manual **`assist <ally>`** SHIPPED 2026-06-21 — you
   engage whatever an ally in your room is fighting (any visible combatant, not
   party-gated; kill credit + kill-XP/loot sharing already flow through the party).
-  **Auto-assist** (a party member's engage automatically pulling the rest in) is
-  the deferred follow-up — it needs an engage-event hook and a per-player opt-in
-  to avoid yanking everyone into every fight.
+  **Auto-assist** SHIPPED 2026-06-22 — a per-player opt-in (`autoassist on|off`,
+  off by default and persisted) that, when a party member becomes engaged with an
+  enemy, automatically pulls that member's idle, in-room, opted-in party-mates
+  into the same fight. It fires on the engagement event (the combat sink's
+  `OnEngagement` hook) for **both** sides of the engagement, so it covers the
+  offensive case (you attack, your party joins) and the defensive case (you are
+  attacked, your party defends you). Guards: a mate already in combat is left on
+  their current target (this is also the recursion terminator — an engaged mate
+  is no longer idle, so the engage→event→engage chain bottoms out within one
+  pass over the capped party); and a party is never auto-pulled against one of
+  its own members (no friendly-duel snowball). Still deferred: an opt-in to
+  auto-assist *non-party* allies, and a "only assist the leader" narrowing.
 - **Leadership succession.** v1 disbands on leader departure. Should leadership
   instead pass to the next member? Succession is friendlier for long sessions;
   deferred until parties are sticky enough to matter.

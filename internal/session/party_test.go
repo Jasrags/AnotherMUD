@@ -50,6 +50,49 @@ func TestKillXPRecipients(t *testing.T) {
 	}
 }
 
+// TestAutoAssistCandidates covers grouping.md §9 candidate selection: only
+// party-mates (not the engager), present in the engager's room, with
+// auto-assist enabled, qualify. An ungrouped engager has no candidates.
+func TestAutoAssistCandidates(t *testing.T) {
+	mgr := NewManager()
+	roomA, roomB := world.RoomID("z:a"), world.RoomID("z:b")
+	add := func(pid string, r world.RoomID, assist bool) *connActor {
+		a := &connActor{id: "c-" + pid, playerID: pid, room: &world.Room{ID: r}}
+		a.autoAssist.Store(assist)
+		mgr.Add(a)
+		return a
+	}
+
+	// Engager E, ungrouped → no candidates even with willing players around.
+	add("E", roomA, true)
+	if got := mgr.AutoAssistCandidates("E", "", roomA); len(got) != 0 {
+		t.Fatalf("ungrouped engager yields no candidates, got %v", got)
+	}
+
+	add("A", roomA, true)  // same room, assist on  → included
+	add("B", roomB, true)  // different room        → excluded
+	add("C", roomA, false) // same room, assist off → excluded
+	for _, id := range []string{"A", "B", "C"} {
+		inviteAccept(t, mgr, "E", id)
+	}
+
+	got := mgr.AutoAssistCandidates("E", "", roomA)
+	ids := make([]string, 0, len(got))
+	for _, a := range got {
+		ids = append(ids, a.playerID)
+	}
+	slices.Sort(ids)
+	if !slices.Equal(ids, []string{"A"}) {
+		t.Fatalf("candidates = %v, want [A] (E is the engager, B elsewhere, C opted out)", ids)
+	}
+
+	// PvP safety: if the opponent is a party-mate (a friendly duel), the whole
+	// party is withheld — no candidates, regardless of who is willing/present.
+	if got := mgr.AutoAssistCandidates("E", "A", roomA); len(got) != 0 {
+		t.Fatalf("opponent is a party-mate, want no candidates, got %v", got)
+	}
+}
+
 // inviteAccept is the common "L invites X, X accepts" helper.
 func inviteAccept(t *testing.T, m *Manager, leader, invitee string) {
 	t.Helper()
