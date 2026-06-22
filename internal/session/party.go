@@ -49,9 +49,17 @@ func (m *Manager) Invite(leaderID, inviteeID string) error {
 	if m.partyMembers[leaderID] == nil {
 		m.partyLeader[leaderID] = leaderID
 		m.partyMembers[leaderID] = map[string]bool{leaderID: true}
+		m.partyJoinSeq[leaderID] = m.nextSeqLocked() // founder is the most-tenured
 	}
 	m.partyInvite[inviteeID] = leaderID
 	return nil
+}
+
+// nextSeqLocked hands out the next monotonic join stamp (partyMu held). Used to
+// order members by tenure for leadership succession.
+func (m *Manager) nextSeqLocked() uint64 {
+	m.partySeq++
+	return m.partySeq
 }
 
 // Accept consumes inviteeID's pending invite from leaderID, adding them.
@@ -72,35 +80,90 @@ func (m *Manager) Accept(inviteeID, leaderID string) error {
 	}
 	m.partyMembers[leaderID][inviteeID] = true
 	m.partyLeader[inviteeID] = leaderID
+	m.partyJoinSeq[inviteeID] = m.nextSeqLocked()
 	delete(m.partyInvite, inviteeID)
 	return nil
 }
 
-// Leave removes memberID from their party (grouping.md §3): the leader leaving
-// disbands it; a party reduced to one dissolves.
-func (m *Manager) Leave(memberID string) (disbanded bool, others []string, had bool) {
+// Leave removes memberID from their party (grouping.md §3). Outcomes:
+//   - A non-leader leaves → only they are removed; the party persists.
+//   - The leader leaves and ≥2 members remain → leadership PASSES to the
+//     longest-tenured remaining member (succession); newLeaderID names them and
+//     others lists the surviving party (the new leader included) to notify.
+//   - The leader leaves and only one would remain → the party of one dissolves.
+//
+// Succession is the graceful path for an involuntary departure (a `leave` or a
+// logout). An explicit `Disband` still hard-dissolves — see Disband.
+func (m *Manager) Leave(memberID string) (disbanded bool, newLeaderID string, others []string, had bool) {
 	if m == nil {
-		return false, nil, false
+		return false, "", nil, false
 	}
 	m.partyMu.Lock()
 	defer m.partyMu.Unlock()
 	leaderID, ok := m.partyLeader[memberID]
 	if !ok {
-		return false, nil, false
+		return false, "", nil, false
 	}
 	if memberID == leaderID {
+		// Leader leaving. If ≥2 members would remain, pass leadership rather
+		// than punish the party; otherwise the lone survivor dissolves.
+		if len(m.partyMembers[leaderID]) > 2 {
+			newLeaderID = m.succeedLocked(leaderID)
+			return false, newLeaderID, m.othersLocked(newLeaderID, ""), true
+		}
 		others = m.disbandLocked(leaderID, memberID)
-		return true, others, true
+		return true, "", others, true
 	}
 	// A non-leader leaves: drop just them.
 	delete(m.partyMembers[leaderID], memberID)
 	delete(m.partyLeader, memberID)
+	delete(m.partyJoinSeq, memberID)
 	// A lone leader left → dissolve.
 	if len(m.partyMembers[leaderID]) <= 1 {
 		others = m.disbandLocked(leaderID, "")
-		return true, others, true
+		return true, "", others, true
 	}
-	return false, m.othersLocked(leaderID, memberID), true
+	return false, "", m.othersLocked(leaderID, memberID), true
+}
+
+// succeedLocked passes leadership of oldLeaderID's party to its longest-tenured
+// remaining member and removes the old leader (grouping.md §3 succession;
+// partyMu held). The party is keyed by leader id, so this RE-KEYS the member
+// set, every member's leader pointer, and any pending invites from the old
+// leader onto the new one. Returns the new leader's id. Precondition: the set
+// has >2 members, so at least two remain after the old leader is removed (a
+// successor and at least one other — else the caller dissolves the party).
+func (m *Manager) succeedLocked(oldLeaderID string) string {
+	set := m.partyMembers[oldLeaderID]
+	// The successor is the remaining member with the smallest join stamp (in
+	// the party the longest). Map iteration is unordered, so the seq compare —
+	// not iteration order — is what makes the choice deterministic.
+	newLeaderID := ""
+	var best uint64
+	for id := range set {
+		if id == oldLeaderID {
+			continue
+		}
+		if seq := m.partyJoinSeq[id]; newLeaderID == "" || seq < best {
+			newLeaderID, best = id, seq
+		}
+	}
+	// Drop the old leader and re-key the party onto the new one.
+	delete(set, oldLeaderID)
+	delete(m.partyMembers, oldLeaderID)
+	delete(m.partyLeader, oldLeaderID)
+	delete(m.partyJoinSeq, oldLeaderID)
+	m.partyMembers[newLeaderID] = set
+	for id := range set {
+		m.partyLeader[id] = newLeaderID
+	}
+	// Pending invites the old leader had sent now belong to the new leader.
+	for invitee, l := range m.partyInvite {
+		if l == oldLeaderID {
+			m.partyInvite[invitee] = newLeaderID
+		}
+	}
+	return newLeaderID
 }
 
 // Disband dissolves leaderID's party (only if they lead it).
@@ -155,6 +218,7 @@ func (m *Manager) disbandLocked(leaderID, exclude string) []string {
 	others := make([]string, 0, len(set))
 	for id := range set {
 		delete(m.partyLeader, id)
+		delete(m.partyJoinSeq, id)
 		if id != exclude {
 			others = append(others, id)
 		}
@@ -276,21 +340,34 @@ func (m *Manager) AutoAssistCandidates(engagerID, oppID string, room world.RoomI
 	return out
 }
 
-// dropParty removes id from any party on logout/teardown (grouping.md §3),
-// returning the members to notify and whether the party disbanded. Mirrors
-// Leave; the caller messages survivors.
+// dropParty removes id from any party on logout/teardown (grouping.md §3) and
+// messages the survivors. A departing leader passes leadership (succession)
+// rather than disbanding the party — the same graceful path as `leave`.
 func (m *Manager) dropParty(ctx context.Context, id, name string) {
-	disbanded, others, had := m.Leave(id)
+	disbanded, newLeaderID, others, had := m.Leave(id)
 	if !had {
 		return
 	}
-	notice := name + " leaves the party."
-	if disbanded {
-		notice = "The party disbands."
+	newLeaderName := ""
+	if newLeaderID != "" {
+		if a, ok := m.GetByPlayerID(newLeaderID); ok {
+			newLeaderName = a.Name()
+		}
 	}
 	for _, oid := range others {
-		if a, ok := m.GetByPlayerID(oid); ok {
-			_ = a.Write(ctx, notice)
+		a, ok := m.GetByPlayerID(oid)
+		if !ok {
+			continue
+		}
+		switch {
+		case disbanded:
+			_ = a.Write(ctx, "The party disbands.")
+		case newLeaderID != "" && oid == newLeaderID:
+			_ = a.Write(ctx, fmt.Sprintf("%s has left; you now lead the party.", name))
+		case newLeaderID != "":
+			_ = a.Write(ctx, fmt.Sprintf("%s has left; %s now leads the party.", name, newLeaderName))
+		default:
+			_ = a.Write(ctx, name+" leaves the party.")
 		}
 	}
 }

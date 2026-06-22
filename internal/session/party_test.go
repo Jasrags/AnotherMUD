@@ -169,9 +169,9 @@ func TestParty_NonLeaderLeave(t *testing.T) {
 	m := NewManager()
 	inviteAccept(t, m, "L", "A")
 	inviteAccept(t, m, "L", "B")
-	disbanded, others, had := m.Leave("A")
-	if !had || disbanded {
-		t.Fatalf("A leave: disbanded=%v had=%v, want false,true", disbanded, had)
+	disbanded, newLeaderID, others, had := m.Leave("A")
+	if !had || disbanded || newLeaderID != "" {
+		t.Fatalf("A leave: disbanded=%v newLeader=%q had=%v, want false,\"\",true", disbanded, newLeaderID, had)
 	}
 	if got := sortedCopy(others); !slices.Equal(got, []string{"B", "L"}) {
 		t.Fatalf("others = %v, want [B L]", got)
@@ -181,21 +181,53 @@ func TestParty_NonLeaderLeave(t *testing.T) {
 	}
 }
 
-func TestParty_LeaderLeaveDisbands(t *testing.T) {
+// TestParty_LeaderLeaveSucceeds: a leader leaving a party of three passes
+// leadership to the longest-tenured remaining member (grouping.md §3) rather
+// than disbanding. A joined before B, so A succeeds.
+func TestParty_LeaderLeaveSucceeds(t *testing.T) {
 	m := NewManager()
 	inviteAccept(t, m, "L", "A")
 	inviteAccept(t, m, "L", "B")
-	disbanded, others, had := m.Leave("L")
-	if !had || !disbanded {
-		t.Fatalf("L leave: disbanded=%v had=%v, want true,true", disbanded, had)
+	disbanded, newLeaderID, others, had := m.Leave("L")
+	if !had || disbanded {
+		t.Fatalf("L leave: disbanded=%v had=%v, want false,true", disbanded, had)
 	}
+	if newLeaderID != "A" {
+		t.Fatalf("newLeaderID = %q, want A (the longest-tenured remaining member)", newLeaderID)
+	}
+	// The survivors (new leader included) are notified; the old leader is gone.
 	if got := sortedCopy(others); !slices.Equal(got, []string{"A", "B"}) {
 		t.Fatalf("others = %v, want [A B]", got)
 	}
-	for _, id := range []string{"L", "A", "B"} {
-		if _, ok := m.LeaderOf(id); ok {
-			t.Errorf("%s still grouped after leader disband", id)
-		}
+	if _, ok := m.LeaderOf("L"); ok {
+		t.Error("the departed leader L should be ungrouped")
+	}
+	// The party is re-keyed onto A: both survivors point at A, the roster holds.
+	if l, ok := m.LeaderOf("A"); !ok || l != "A" {
+		t.Fatalf("LeaderOf(A) = %q,%v; want A,true (A now leads itself)", l, ok)
+	}
+	if l, ok := m.LeaderOf("B"); !ok || l != "A" {
+		t.Fatalf("LeaderOf(B) = %q,%v; want A,true", l, ok)
+	}
+	if got := sortedCopy(m.Members("B")); !slices.Equal(got, []string{"A", "B"}) {
+		t.Fatalf("Members after succession = %v, want [A B]", got)
+	}
+}
+
+// TestParty_LeaderLeaveOfTwoDissolves: with only one member left after the
+// leader goes, there is no one to lead — the party of one dissolves.
+func TestParty_LeaderLeaveOfTwoDissolves(t *testing.T) {
+	m := NewManager()
+	inviteAccept(t, m, "L", "A")
+	disbanded, newLeaderID, others, had := m.Leave("L")
+	if !had || !disbanded || newLeaderID != "" {
+		t.Fatalf("L leave (party of 2): disbanded=%v newLeader=%q had=%v, want true,\"\",true", disbanded, newLeaderID, had)
+	}
+	if got := sortedCopy(others); !slices.Equal(got, []string{"A"}) {
+		t.Fatalf("others = %v, want [A]", got)
+	}
+	if _, ok := m.LeaderOf("A"); ok {
+		t.Error("A should be ungrouped after the party dissolves")
 	}
 }
 
@@ -203,7 +235,7 @@ func TestParty_DissolvesAtOne(t *testing.T) {
 	m := NewManager()
 	inviteAccept(t, m, "L", "A")
 	// A leaves → only L remains → dissolve.
-	disbanded, others, _ := m.Leave("A")
+	disbanded, _, others, _ := m.Leave("A")
 	if !disbanded {
 		t.Fatalf("party should dissolve when reduced to one; disbanded=%v", disbanded)
 	}
@@ -212,6 +244,71 @@ func TestParty_DissolvesAtOne(t *testing.T) {
 	}
 	if _, ok := m.LeaderOf("L"); ok {
 		t.Error("L should be ungrouped after the party dissolves")
+	}
+}
+
+// TestParty_SuccessionPicksLongestTenured: succession follows join order, not
+// map iteration. With B joining before C, B succeeds when L leaves.
+func TestParty_SuccessionPicksLongestTenured(t *testing.T) {
+	m := NewManager()
+	inviteAccept(t, m, "L", "B")
+	inviteAccept(t, m, "L", "C")
+	_, newLeaderID, _, _ := m.Leave("L")
+	if newLeaderID != "B" {
+		t.Fatalf("newLeaderID = %q, want B (joined before C)", newLeaderID)
+	}
+	// A second succession: B leaves → C is the only remaining non-leader.
+	_, newLeaderID2, _, _ := m.Leave("B")
+	if newLeaderID2 != "" {
+		t.Fatalf("party of two leader-leave should dissolve, got newLeader=%q", newLeaderID2)
+	}
+}
+
+// TestParty_SuccessionTransfersPendingInvite: an invite the old leader had sent
+// but that wasn't accepted yet must re-target the new leader, so the invitee can
+// still `Accept` after succession (grouping.md §3 — succeedLocked re-keys invites).
+func TestParty_SuccessionTransfersPendingInvite(t *testing.T) {
+	m := NewManager()
+	inviteAccept(t, m, "L", "A")
+	inviteAccept(t, m, "L", "B")
+	// C is invited by L but hasn't joined when L leaves.
+	if err := m.Invite("L", "C"); err != nil {
+		t.Fatalf("Invite C: %v", err)
+	}
+	_, newLeaderID, _, _ := m.Leave("L")
+	if newLeaderID != "A" {
+		t.Fatalf("newLeaderID = %q, want A", newLeaderID)
+	}
+	// The stale invite (was against L) must now resolve against A.
+	if err := m.Accept("C", "L"); err == nil {
+		t.Fatal("Accept against the departed leader L should fail")
+	}
+	if err := m.Accept("C", "A"); err != nil {
+		t.Fatalf("Accept against the new leader A should succeed, got %v", err)
+	}
+	if got := sortedCopy(m.Members("C")); !slices.Equal(got, []string{"A", "B", "C"}) {
+		t.Fatalf("Members after invite-transfer = %v, want [A B C]", got)
+	}
+}
+
+// TestParty_DisbandStillHardDissolves: an explicit `disband` ends the party
+// outright even when succession would have been possible — the distinct,
+// deliberate counterpart to a leader's graceful `leave`.
+func TestParty_DisbandStillHardDissolves(t *testing.T) {
+	m := NewManager()
+	inviteAccept(t, m, "L", "A")
+	inviteAccept(t, m, "L", "B")
+	others, ok := m.Disband("L")
+	if !ok {
+		t.Fatal("Disband(L) should succeed")
+	}
+	if got := sortedCopy(others); !slices.Equal(got, []string{"A", "B"}) {
+		t.Fatalf("others = %v, want [A B]", got)
+	}
+	for _, id := range []string{"L", "A", "B"} {
+		if _, ok := m.LeaderOf(id); ok {
+			t.Errorf("%s still grouped after explicit disband", id)
+		}
 	}
 }
 

@@ -97,18 +97,36 @@ rescinded by disbanding, fails cleanly. A player is in **at most one** party.
 
 ## 3. Leadership and dissolution
 
-The **leader** is the party's owner: they hold the invite power and their
-departure ends the party. v1 keeps leadership **simple** — the leader leaving
-**disbands** the whole party (no automatic succession). A non-leader leaving
-removes only themselves.
+The **leader** is the party's owner: they hold the invite power. Two ways a
+leader can step away, with deliberately different outcomes:
 
-A party with **one member left** (everyone else left) **dissolves** — a
-"party of one" is just an ungrouped player.
+- **`leave` (or logout/link-loss)** is the *graceful* exit. If at least two
+  members would remain, leadership **passes** to the longest-tenured remaining
+  member — **succession** — and the party survives. If only one member would
+  remain, the "party of one" **dissolves** (an ungrouped player). This is the
+  friendly default: an involuntary or routine departure does not punish the
+  rest of the party.
+- **`disband`** is the *deliberate* end. It dissolves the whole party outright,
+  even when succession would have been possible. This is the leader's explicit
+  "we're done" — the distinct counterpart to a graceful `leave`.
+
+A non-leader leaving removes only themselves; the party persists for the rest.
+A party reduced to **one member** always dissolves.
+
+**Succession order.** The successor is the member who has been in the party the
+longest (excluding the departing leader) — join order, not arrival-in-room or
+any other signal. Pending invites the old leader had sent transfer to the new
+leader.
 
 ### Acceptance criteria
 
-- [ ] The leader's `leave` or `disband`, or their logout, dissolves the party;
-      every remaining member is notified and ends ungrouped.
+- [ ] A leader's `leave`/logout with ≥2 members remaining passes leadership to
+      the longest-tenured remaining member; the party persists, the new leader
+      is told they now lead, and the rest are told who leads.
+- [ ] A leader's `leave`/logout that would leave only one member dissolves the
+      party; the survivor ends ungrouped.
+- [ ] A leader's `disband` dissolves the party outright regardless of size; every
+      remaining member is notified and ends ungrouped.
 - [ ] A non-leader's `leave`/logout removes only them; the party persists for the
       rest.
 - [ ] A party reduced to one member dissolves.
@@ -228,9 +246,10 @@ behavior, not knobs; the window itself is `loot-and-corpses.md`'s.
   pass over the capped party); and a party is never auto-pulled against one of
   its own members (no friendly-duel snowball). Still deferred: an opt-in to
   auto-assist *non-party* allies, and a "only assist the leader" narrowing.
-- **Leadership succession.** v1 disbands on leader departure. Should leadership
-  instead pass to the next member? Succession is friendlier for long sessions;
-  deferred until parties are sticky enough to matter.
+- **Leadership succession.** SHIPPED 2026-06-22 — see §3. A leader's `leave` or
+  logout now passes leadership to the longest-tenured remaining member (when ≥2
+  remain); an explicit `disband` still hard-dissolves. (Still open: letting the
+  leader *name* a successor, rather than always the longest-tenured.)
 - **Loot distribution policy.** v1 shares loot *rights* (free-for-all within the
   window). Round-robin / need-greed / master-looter are richer policies on the
   same owner-set seam; deferred.

@@ -26,9 +26,11 @@ type GroupService interface {
 	// Accept consumes inviteeID's pending invite from leaderID, adding them.
 	Accept(inviteeID, leaderID string) error
 	// Leave removes memberID from their party. disbanded is true when the party
-	// dissolved (the leader left, or it dropped to one); others is everyone else
-	// who was in the party (to notify); had reports whether they were grouped.
-	Leave(memberID string) (disbanded bool, others []string, had bool)
+	// dissolved (the leader left with no one to succeed, or it dropped to one).
+	// newLeaderID is non-empty when a departing leader passed leadership to a
+	// remaining member (succession); others is everyone still in the party (the
+	// new leader included) to notify; had reports whether they were grouped.
+	Leave(memberID string) (disbanded bool, newLeaderID string, others []string, had bool)
 	// Disband dissolves leaderID's party (only if they are the leader),
 	// returning the other members to notify.
 	Disband(leaderID string) (others []string, ok bool)
@@ -117,18 +119,33 @@ func LeaveHandler(ctx context.Context, c *Context) error {
 	if c.Group == nil {
 		return c.Actor.Write(ctx, "You aren't in a party.")
 	}
-	disbanded, others, had := c.Group.Leave(c.Actor.PlayerID())
+	disbanded, newLeaderID, others, had := c.Group.Leave(c.Actor.PlayerID())
 	if !had {
 		return c.Actor.Write(ctx, "You aren't in a party.")
 	}
-	noun := c.Actor.Name() + " leaves the party."
-	if disbanded {
-		noun = "The party disbands."
+	leaverName := c.Actor.Name()
+	newLeaderName := ""
+	if newLeaderID != "" {
+		newLeaderName = c.actorName(newLeaderID)
 	}
 	for _, id := range others {
-		if a, ok := c.actorByID(id); ok {
-			_ = a.Write(ctx, noun)
+		a, ok := c.actorByID(id)
+		if !ok {
+			continue
 		}
+		switch {
+		case disbanded:
+			_ = a.Write(ctx, "The party disbands.")
+		case newLeaderID != "" && id == newLeaderID:
+			_ = a.Write(ctx, fmt.Sprintf("%s leaves; you now lead the party.", leaverName))
+		case newLeaderID != "":
+			_ = a.Write(ctx, fmt.Sprintf("%s leaves; %s now leads the party.", leaverName, newLeaderName))
+		default:
+			_ = a.Write(ctx, leaverName+" leaves the party.")
+		}
+	}
+	if newLeaderID != "" {
+		return c.Actor.Write(ctx, fmt.Sprintf("You leave the party; %s now leads it.", newLeaderName))
 	}
 	return c.Actor.Write(ctx, "You leave the party.")
 }

@@ -92,6 +92,12 @@ type Manager struct {
 	partyMembers map[string]map[string]bool
 	partyInvite  map[string]string
 	partyCap     int
+	// partyJoinSeq records each member's join order (a monotonic stamp from
+	// partySeq) so leadership succession (grouping.md §3) can pick the
+	// longest-tenured remaining member deterministically. partySeq is the next
+	// stamp to hand out. Both live under partyMu.
+	partyJoinSeq map[string]uint64
+	partySeq     uint64
 }
 
 // NewManager returns an empty Manager.
@@ -108,6 +114,7 @@ func NewManager() *Manager {
 		partyLeader:  make(map[string]string),
 		partyMembers: make(map[string]map[string]bool),
 		partyInvite:  make(map[string]string),
+		partyJoinSeq: make(map[string]uint64),
 		partyCap:     defaultPartyCap,
 	}
 }
