@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/Jasrags/AnotherMUD/internal/combat"
+	"github.com/Jasrags/AnotherMUD/internal/world"
 )
 
 // KillHandler implements `kill <target>` — the M7.2 verb that starts
@@ -75,25 +76,9 @@ func KillHandler(ctx context.Context, c *Context) error {
 	attackerID := attacker.CombatantID()
 	targetID := targetCombatant.CombatantID()
 
-	// Engage with explicit refusal code (M7.6 added tag and cooldown
-	// gates). Map each refusal to a precise player-facing message;
-	// the EngageWithReason result removes the TOCTOU window the
-	// M7.2 OpponentsOf-post-check had.
-	switch reason, ok := c.Combat.EngageWithReason(ctx, attackerID, targetID, room.ID); {
-	case ok:
-		// fall through to success path below.
-	case reason == combat.EngageRefusalAlreadyEngaged:
-		return c.Actor.Write(ctx,
-			fmt.Sprintf("You're already fighting %s.", targetName))
-	case reason == combat.EngageRefusalSafeRoom:
-		return c.Actor.Write(ctx, "Violence is forbidden here.")
-	case reason == combat.EngageRefusalNoKill:
-		return c.Actor.Write(ctx,
-			fmt.Sprintf("You can't bring yourself to attack %s.", targetName))
-	case reason == combat.EngageRefusalFleeCooldown:
-		return c.Actor.Write(ctx, "You're still catching your breath.")
-	default:
-		return c.Actor.Write(ctx, "You can't attack that.")
+	// Engage, mapping each refusal to a precise player-facing message.
+	if handled, err := c.tryEngage(ctx, attackerID, targetID, room.ID, targetName); handled {
+		return err
 	}
 
 	if err := c.Actor.Write(ctx,
@@ -111,4 +96,26 @@ func KillHandler(ctx context.Context, c *Context) error {
 	}
 
 	return nil
+}
+
+// tryEngage runs the combat engage and, on a refusal, writes the mapped
+// player-facing message and returns handled=true (the caller returns err). On a
+// successful engage it returns (false, nil) and the caller emits its own
+// success messaging. Shared by `kill` and `assist` (M7.6 refusal codes; the
+// EngageWithReason result closes the old OpponentsOf-post-check TOCTOU).
+func (c *Context) tryEngage(ctx context.Context, attackerID, targetID combat.CombatantID, roomID world.RoomID, targetName string) (handled bool, err error) {
+	switch reason, ok := c.Combat.EngageWithReason(ctx, attackerID, targetID, roomID); {
+	case ok:
+		return false, nil
+	case reason == combat.EngageRefusalAlreadyEngaged:
+		return true, c.Actor.Write(ctx, fmt.Sprintf("You're already fighting %s.", targetName))
+	case reason == combat.EngageRefusalSafeRoom:
+		return true, c.Actor.Write(ctx, "Violence is forbidden here.")
+	case reason == combat.EngageRefusalNoKill:
+		return true, c.Actor.Write(ctx, fmt.Sprintf("You can't bring yourself to attack %s.", targetName))
+	case reason == combat.EngageRefusalFleeCooldown:
+		return true, c.Actor.Write(ctx, "You're still catching your breath.")
+	default:
+		return true, c.Actor.Write(ctx, "You can't attack that.")
+	}
 }

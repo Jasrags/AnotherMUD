@@ -100,6 +100,32 @@ func resolveCombatantRef(c *Context, roomID world.RoomID, ref EntityRef) (combat
 	return nil, "", false
 }
 
+// resolveCombatantByID resolves a combatant from its CombatantID (not a
+// keyword) — used by `assist` to name and engage the foe a party-mate is
+// fighting. A player id routes through ActorByID; a mob id through the entity
+// store. Returns false when it no longer resolves (the foe left / fell).
+func resolveCombatantByID(c *Context, id combat.CombatantID) (combat.Combatant, string, bool) {
+	eid := combat.EntityIDOf(id)
+	if strings.HasPrefix(string(id), combat.PlayerPrefix) {
+		if c.ActorByID != nil {
+			if a, ok := c.ActorByID(eid); ok {
+				if cb, ok := a.(combat.Combatant); ok {
+					return cb, a.Name(), true
+				}
+			}
+		}
+		return nil, "", false
+	}
+	if c.Items != nil {
+		if e, ok := c.Items.GetByID(entities.EntityID(eid)); ok {
+			if mob, ok := e.(*entities.MobInstance); ok {
+				return mob, mob.Name(), true
+			}
+		}
+	}
+	return nil, "", false
+}
+
 // findMobByKeyword scans Placement-tracked entities in roomID, filters
 // to *MobInstance (item entities and any other future Entity type
 // drop out), and runs the shared keyword resolver. Returns nil if any

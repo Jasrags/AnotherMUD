@@ -213,9 +213,12 @@ behavior, not knobs; the window itself is `loot-and-corpses.md`'s.
 
 ## 9. Open questions
 
-- **Assist / auto-engage.** A party member attacking (or being attacked) pulling
-  the rest into the fight is the obvious next slice. Manual `assist <member>` vs.
-  automatic; how it interacts with the room-as-arena and kill credit. Deferred.
+- **Assist / auto-engage.** Manual **`assist <ally>`** SHIPPED 2026-06-21 — you
+  engage whatever an ally in your room is fighting (any visible combatant, not
+  party-gated; kill credit + kill-XP/loot sharing already flow through the party).
+  **Auto-assist** (a party member's engage automatically pulling the rest in) is
+  the deferred follow-up — it needs an engage-event hook and a per-player opt-in
+  to avoid yanking everyone into every fight.
 - **Leadership succession.** v1 disbands on leader departure. Should leadership
   instead pass to the next member? Succession is friendlier for long sessions;
   deferred until parties are sticky enough to matter.

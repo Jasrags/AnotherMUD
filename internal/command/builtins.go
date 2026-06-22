@@ -131,6 +131,8 @@ func RegisterBuiltins(r *Registry) error {
 		// findCombatantInRoom (which resolves the same `entity` arg).
 		{Keyword: "kill", Handler: KillHandler, Brief: "Attack a target.", Syntax: []string{"kill <target>"},
 			HandParsed: true, BreaksConcealment: true, Args: []ArgDefinition{{Name: "target", Type: ArgEntity}}},
+		{Keyword: "assist", Handler: AssistHandler, Brief: "Join the fight an ally is in (attack their foe).", Syntax: []string{"assist <ally>"},
+			HandParsed: true, BreaksConcealment: true, Args: []ArgDefinition{{Name: "target", Type: ArgEntity}}},
 		{Keyword: "throw", Handler: ThrowHandler, Brief: "Hurl your wielded thrown weapon at a target.", Syntax: []string{"throw <target>"},
 			HandParsed: true, BreaksConcealment: true, Args: []ArgDefinition{{Name: "target", Type: ArgEntity}}},
 		{Keyword: "shoot", Aliases: []string{"fire"}, Handler: ShootHandler, Brief: "Loose a projectile at a target in an adjacent room.", Syntax: []string{"shoot <target> <direction>"},
