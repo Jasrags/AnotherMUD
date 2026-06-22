@@ -91,6 +91,7 @@ func RegisterBuiltins(r *Registry) error {
 		{Keyword: "join", Handler: JoinHandler, Brief: "Accept a party invitation.", Syntax: []string{"join <leader>"}, HandParsed: true, Args: []ArgDefinition{{Name: "target", Type: ArgPlayer}}},
 		{Keyword: "leave", Aliases: []string{"ungroup"}, Handler: LeaveHandler, Brief: "Leave your party.", Syntax: []string{"leave"}},
 		{Keyword: "disband", Handler: DisbandHandler, Brief: "Disband the party you lead.", Syntax: []string{"disband"}},
+		{Keyword: "promote", Handler: PromoteHandler, Brief: "Hand party leadership to a member.", Syntax: []string{"promote <member>"}, HandParsed: true, Args: []ArgDefinition{{Name: "target", Type: ArgPlayer}}},
 		{Keyword: "gtell", Handler: GtellHandler, Brief: "Send a message to your party.", Syntax: []string{"gtell <message>"}, HandParsed: true, Args: []ArgDefinition{{Name: "message", Type: ArgText}}},
 		{Keyword: "lootmode", Handler: LootModeHandler, Brief: "Set or show your party's loot rules.", Syntax: []string{"lootmode", "lootmode ffa", "lootmode master [<member>]"}, HandParsed: true},
 		{Keyword: "load", Handler: LoadHandler, Brief: "Load a reloadable ranged weapon (a crossbow).", Syntax: []string{"load"}, IsAction: true},

@@ -16,6 +16,7 @@ var (
 	ErrGroupInviterBad     = errors.New("group inviter party")   // inviter already in someone else's party
 	ErrGroupNotLeader      = errors.New("group not leader")      // a non-leader tried a leader-only action
 	ErrLootMasterNotMember = errors.New("loot master nonmember") // designated master isn't in the party
+	ErrGroupPromoteTarget  = errors.New("group promote target")  // promote target isn't a member (or is self)
 )
 
 // LootMode is a party's loot-distribution policy (grouping.md §9). It governs
@@ -50,6 +51,12 @@ type GroupService interface {
 	// Disband dissolves leaderID's party (only if they are the leader),
 	// returning the other members to notify.
 	Disband(leaderID string) (others []string, ok bool)
+	// Promote hands leadership of leaderID's party to targetID (leader only →
+	// ErrGroupNotLeader otherwise; targetID must be a member other than the
+	// leader → ErrGroupPromoteTarget). The old leader stays as a member. On
+	// success it returns the party's members (snapshotted under the lock) so the
+	// caller can announce the handoff without a second, racy read.
+	Promote(leaderID, targetID string) (members []string, err error)
 	// Members returns the party member ids (including playerID), or nil when
 	// ungrouped.
 	Members(playerID string) []string
@@ -190,6 +197,49 @@ func DisbandHandler(ctx context.Context, c *Context) error {
 		}
 	}
 	return c.Actor.Write(ctx, "You disband your party.")
+}
+
+// PromoteHandler implements `promote <member>` (grouping.md §3): the leader hands
+// leadership to a chosen party member (who must be online to be named), staying
+// in the party as a regular member. Distinct from succession, which fires on an
+// unplanned leader departure and picks the longest-tenured member.
+func PromoteHandler(ctx context.Context, c *Context) error {
+	if c.Group == nil {
+		return c.Actor.Write(ctx, "You aren't leading a party.")
+	}
+	name := strings.TrimSpace(strings.Join(c.Args, " "))
+	if name == "" {
+		return c.Actor.Write(ctx, "Promote whom?  (try: promote <member>)")
+	}
+	target, ok := c.partyMemberByName(name)
+	if !ok {
+		return c.Actor.Write(ctx, fmt.Sprintf("%q isn't in your party.", name))
+	}
+	members, err := c.Group.Promote(c.Actor.PlayerID(), target)
+	switch {
+	case errors.Is(err, ErrGroupNotLeader):
+		return c.Actor.Write(ctx, "Only the party leader can promote a new leader.")
+	case errors.Is(err, ErrGroupPromoteTarget):
+		return c.Actor.Write(ctx, "You can't promote them.")
+	case err != nil:
+		return c.Actor.Write(ctx, "You can't promote them right now.")
+	}
+	newLeaderName := c.actorName(target)
+	for _, id := range members {
+		a, ok := c.actorByID(id)
+		if !ok {
+			continue
+		}
+		switch id {
+		case c.Actor.PlayerID():
+			_ = a.Write(ctx, fmt.Sprintf("You hand leadership of the party to %s.", newLeaderName))
+		case target:
+			_ = a.Write(ctx, "You are now the party leader.")
+		default:
+			_ = a.Write(ctx, fmt.Sprintf("%s now leads the party.", newLeaderName))
+		}
+	}
+	return nil
 }
 
 // GtellHandler implements `gtell <message>` (grouping.md §6): the party channel.

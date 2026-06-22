@@ -148,18 +148,33 @@ func (m *Manager) succeedLocked(oldLeaderID string) string {
 			newLeaderID, best = id, seq
 		}
 	}
-	// Drop the old leader and re-key the party onto the new one.
+	// Drop the departing leader from the set + the per-member maps, then re-key
+	// the (now leaderless) party onto the successor.
 	delete(set, oldLeaderID)
-	delete(m.partyMembers, oldLeaderID)
 	delete(m.partyLeader, oldLeaderID)
 	delete(m.partyJoinSeq, oldLeaderID)
+	m.rekeyLeaderLocked(oldLeaderID, newLeaderID)
+	return newLeaderID
+}
+
+// rekeyLeaderLocked moves the party currently keyed by oldLeaderID to be keyed by
+// newLeaderID (partyMu held): the member set, every member's leader pointer, any
+// pending invites from the old leader, and the loot policy all follow. The caller
+// has already shaped the member set — succession removes the departing leader;
+// promotion keeps them as a regular member. A master pointing at a now-absent
+// member is handled by lootMasterLocked's fallback, so no master fix-up is needed.
+func (m *Manager) rekeyLeaderLocked(oldLeaderID, newLeaderID string) {
+	set := m.partyMembers[oldLeaderID]
+	delete(m.partyMembers, oldLeaderID)
 	m.partyMembers[newLeaderID] = set
 	for id := range set {
 		m.partyLeader[id] = newLeaderID
 	}
-	// The loot policy travels with the party: re-key it onto the new leader. A
-	// master pointing at the departed leader is handled by lootMasterLocked's
-	// membership fallback, so no master fix-up is needed here.
+	for invitee, l := range m.partyInvite {
+		if l == oldLeaderID {
+			m.partyInvite[invitee] = newLeaderID
+		}
+	}
 	if mode, ok := m.partyLootMode[oldLeaderID]; ok {
 		m.partyLootMode[newLeaderID] = mode
 		delete(m.partyLootMode, oldLeaderID)
@@ -168,13 +183,33 @@ func (m *Manager) succeedLocked(oldLeaderID string) string {
 		m.partyLootMaster[newLeaderID] = master
 		delete(m.partyLootMaster, oldLeaderID)
 	}
-	// Pending invites the old leader had sent now belong to the new leader.
-	for invitee, l := range m.partyInvite {
-		if l == oldLeaderID {
-			m.partyInvite[invitee] = newLeaderID
-		}
+}
+
+// Promote hands leadership of leaderID's party to targetID (grouping.md §3),
+// leader only. Unlike succession (an unplanned departure → longest-tenured), this
+// is the leader's deliberate choice: the old leader REMAINS in the party as a
+// regular member. targetID must be a current member other than the leader.
+func (m *Manager) Promote(leaderID, targetID string) ([]string, error) {
+	if m == nil {
+		return nil, command.ErrGroupNotLeader
 	}
-	return newLeaderID
+	m.partyMu.Lock()
+	defer m.partyMu.Unlock()
+	if l := m.partyLeader[leaderID]; l != leaderID || m.partyMembers[leaderID] == nil {
+		return nil, command.ErrGroupNotLeader
+	}
+	if targetID == leaderID || !m.partyMembers[leaderID][targetID] {
+		return nil, command.ErrGroupPromoteTarget
+	}
+	m.rekeyLeaderLocked(leaderID, targetID)
+	// Snapshot the (now targetID-keyed) member set under the lock so the caller
+	// announces the handoff without a second, racy read.
+	set := m.partyMembers[targetID]
+	members := make([]string, 0, len(set))
+	for id := range set {
+		members = append(members, id)
+	}
+	return members, nil
 }
 
 // LootPolicy returns the party's loot mode and (master-looter only) the

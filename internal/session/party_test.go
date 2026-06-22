@@ -447,3 +447,85 @@ func TestSuccession_CarriesLootPolicy(t *testing.T) {
 		t.Fatalf("policy after succession = (%v,%q), want (master, B)", mode, master)
 	}
 }
+
+// --- Leader-named successor / promote (grouping.md §3) ---
+
+// TestPromote_TransfersLeadershipKeepsOldLeader: promotion makes the target the
+// leader while the old leader stays in the party as a regular member.
+func TestPromote_TransfersLeadershipKeepsOldLeader(t *testing.T) {
+	m := NewManager()
+	inviteAccept(t, m, "L", "A")
+	inviteAccept(t, m, "L", "B")
+	if _, err := m.Promote("L", "A"); err != nil {
+		t.Fatal(err)
+	}
+	if l, ok := m.LeaderOf("A"); !ok || l != "A" {
+		t.Fatalf("A leader = (%q,%v), want A as its own leader", l, ok)
+	}
+	// The old leader is still in the party, now pointing at A.
+	if l, ok := m.LeaderOf("L"); !ok || l != "A" {
+		t.Fatalf("old leader L = (%q,%v), want still grouped under A", l, ok)
+	}
+	got := m.Members("A")
+	slices.Sort(got)
+	if !slices.Equal(got, []string{"A", "B", "L"}) {
+		t.Fatalf("party after promote = %v, want all three (old leader retained)", got)
+	}
+}
+
+// TestPromote_LeaderOnly: a non-leader can't promote.
+func TestPromote_LeaderOnly(t *testing.T) {
+	m := NewManager()
+	inviteAccept(t, m, "L", "A")
+	if _, err := m.Promote("A", "L"); !errors.Is(err, command.ErrGroupNotLeader) {
+		t.Fatalf("non-leader promote = %v, want ErrGroupNotLeader", err)
+	}
+}
+
+// TestPromote_TargetMustBeMember: promoting a non-member or yourself is refused.
+func TestPromote_TargetMustBeMember(t *testing.T) {
+	m := NewManager()
+	inviteAccept(t, m, "L", "A")
+	if _, err := m.Promote("L", "stranger"); !errors.Is(err, command.ErrGroupPromoteTarget) {
+		t.Fatalf("promote non-member = %v, want ErrGroupPromoteTarget", err)
+	}
+	if _, err := m.Promote("L", "L"); !errors.Is(err, command.ErrGroupPromoteTarget) {
+		t.Fatalf("promote self = %v, want ErrGroupPromoteTarget", err)
+	}
+}
+
+// TestPromote_CarriesLootPolicy: the loot policy follows the leadership handoff.
+func TestPromote_CarriesLootPolicy(t *testing.T) {
+	m := NewManager()
+	inviteAccept(t, m, "L", "A")
+	inviteAccept(t, m, "L", "B")
+	if _, _, err := m.SetLootMode("L", command.LootMaster, "B"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := m.Promote("L", "A"); err != nil {
+		t.Fatal(err)
+	}
+	mode, master, _ := m.LootPolicy("A")
+	if mode != command.LootMaster || master != "B" {
+		t.Fatalf("policy after promote = (%v,%q), want (master, B)", mode, master)
+	}
+}
+
+// TestPromote_ThenSuccessionStillWorks: after a promote, an unplanned departure
+// of the new leader still falls back to longest-tenured succession (the re-key
+// left the join-order stamps intact).
+func TestPromote_ThenSuccessionStillWorks(t *testing.T) {
+	m := NewManager()
+	inviteAccept(t, m, "L", "A") // L founder (oldest), then A, then B
+	inviteAccept(t, m, "L", "B")
+	if _, err := m.Promote("L", "B"); err != nil { // B leads, L + A remain members
+		t.Fatal(err)
+	}
+	disbanded, newLeader, _, had := m.Leave("B") // B (leader) departs unplanned
+	if !had || disbanded {
+		t.Fatalf("leave = (disbanded %v, had %v), want a succession", disbanded, had)
+	}
+	if newLeader != "L" {
+		t.Fatalf("successor = %q, want L (the longest-tenured remaining)", newLeader)
+	}
+}

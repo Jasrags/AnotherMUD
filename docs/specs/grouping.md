@@ -114,10 +114,15 @@ leader can step away, with deliberately different outcomes:
 A non-leader leaving removes only themselves; the party persists for the rest.
 A party reduced to **one member** always dissolves.
 
-**Succession order.** The successor is the member who has been in the party the
-longest (excluding the departing leader) — join order, not arrival-in-room or
-any other signal. Pending invites the old leader had sent transfer to the new
-leader.
+**`promote <member>`** is the leader's *deliberate* handoff: leadership passes to
+a chosen member immediately, and the **old leader stays in the party** as a
+regular member (distinct from succession, which fires only on the leader's
+departure). The target must be a current member (and online, to be named).
+
+**Succession order.** When a leader departs without promoting, the successor is
+the member who has been in the party the longest (excluding the departing
+leader) — join order, not arrival-in-room or any other signal. Pending invites
+the old leader had sent transfer to the new leader (and likewise on a `promote`).
 
 ### Acceptance criteria
 
@@ -131,6 +136,9 @@ leader.
 - [ ] A non-leader's `leave`/logout removes only them; the party persists for the
       rest.
 - [ ] A party reduced to one member dissolves.
+- [x] `promote <member>` (leader only) hands leadership to a chosen member, the
+      old leader remaining in the party; a non-member/self target is refused.
+      **SHIPPED 2026-06-22** (`Manager.Promote`; live `TestLive_Promote`).
 
 ## 4. Shared experience (and kill-XP itself)
 
@@ -275,9 +283,13 @@ behavior, not knobs; the window itself is `loot-and-corpses.md`'s.
   its own members (no friendly-duel snowball). Still deferred: an opt-in to
   auto-assist *non-party* allies, and a "only assist the leader" narrowing.
 - **Leadership succession.** SHIPPED 2026-06-22 — see §3. A leader's `leave` or
-  logout now passes leadership to the longest-tenured remaining member (when ≥2
-  remain); an explicit `disband` still hard-dissolves. (Still open: letting the
-  leader *name* a successor, rather than always the longest-tenured.)
+  logout passes leadership to the longest-tenured remaining member (when ≥2
+  remain); an explicit `disband` still hard-dissolves. The leader can also
+  **`promote <member>`** to hand leadership to a chosen member deliberately
+  (SHIPPED 2026-06-22), staying in the party as a regular member. (Unplanned
+  departures still fall back to longest-tenured — a *pre-designated future
+  successor* honored on the leader's later departure remains a possible
+  refinement.)
 - **Loot distribution policy.** SHIPPED 2026-06-22 — see §5. The leader chooses a
   per-party **loot mode** with `lootmode`: free-for-all (the v1 default — the
   whole party owns the kill) or **master-looter** (only a designated member owns

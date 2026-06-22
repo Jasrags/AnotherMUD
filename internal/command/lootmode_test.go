@@ -18,14 +18,24 @@ type fakeGroup struct {
 	mode    command.LootMode
 	master  string
 	setErr  error // forced error from SetLootMode (leader/membership checks)
+
+	promoteErr error  // forced error from Promote
+	promoted   string // records the last Promote target
 }
 
 func (g *fakeGroup) Invite(string, string) error                 { return nil }
 func (g *fakeGroup) Accept(string, string) error                 { return nil }
 func (g *fakeGroup) Leave(string) (bool, string, []string, bool) { return false, "", nil, false }
 func (g *fakeGroup) Disband(string) ([]string, bool)             { return nil, false }
-func (g *fakeGroup) Members(string) []string                     { return g.members }
-func (g *fakeGroup) LeaderOf(string) (string, bool)              { return g.leader, g.leader != "" }
+func (g *fakeGroup) Promote(_ string, target string) ([]string, error) {
+	if g.promoteErr != nil {
+		return nil, g.promoteErr
+	}
+	g.promoted = target
+	return g.members, nil
+}
+func (g *fakeGroup) Members(string) []string        { return g.members }
+func (g *fakeGroup) LeaderOf(string) (string, bool) { return g.leader, g.leader != "" }
 
 func (g *fakeGroup) LootPolicy(string) (command.LootMode, string, bool) {
 	if g.leader == "" {
