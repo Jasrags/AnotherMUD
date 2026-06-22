@@ -74,6 +74,7 @@ type Service struct {
 	roller       loot.Roller
 	now          func() uint64
 	nameTemplate string
+	partyOf      func(killerID string) []string
 }
 
 // Config bundles the Service dependencies. store/contents/placement are
@@ -89,6 +90,12 @@ type Config struct {
 	Roller       loot.Roller
 	Now          func() uint64
 	NameTemplate string // defaults to DefaultNameTemplate when empty
+	// PartyOf returns the killer's looting-rights co-owners (grouping.md §5) as
+	// combatant ids in the SAME form MayLoot compares (the prefixed actor id),
+	// so a party member may loot the kill during the rights window. Given the
+	// killer's id; returns nil when the killer is in no party. nil disables
+	// loot-sharing (the owner set is just the killer).
+	PartyOf func(killerID string) []string
 }
 
 // New constructs a Service from cfg.
@@ -111,6 +118,7 @@ func New(cfg Config) *Service {
 		roller:       cfg.Roller,
 		now:          now,
 		nameTemplate: nt,
+		partyOf:      cfg.PartyOf,
 	}
 }
 
@@ -156,11 +164,21 @@ func (s *Service) CreateOnDeath(ctx context.Context, e eventbus.MobKilled) {
 	}
 
 	// §2.1 steps 2 + 5: mint the corpse container, recording killer,
-	// creation tick, coin amount, and the owner set (today just the
-	// killer — the §4 grouping seam).
+	// creation tick, coin amount, and the owner set. grouping.md §5: the set is
+	// the killer PLUS their party (all members, so one arriving within the
+	// window may still loot), deduped. A solo killer owns it alone.
 	owners := []string{}
 	if e.KillerID != "" {
-		owners = []string{e.KillerID}
+		owners = append(owners, e.KillerID)
+		if s.partyOf != nil {
+			seen := map[string]bool{e.KillerID: true}
+			for _, m := range s.partyOf(e.KillerID) {
+				if m != "" && !seen[m] {
+					seen[m] = true
+					owners = append(owners, m)
+				}
+			}
+		}
 	}
 	props := map[string]any{
 		PropKiller:      e.KillerID,

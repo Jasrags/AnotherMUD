@@ -2,6 +2,7 @@ package corpse
 
 import (
 	"context"
+	"slices"
 	"testing"
 
 	"github.com/Jasrags/AnotherMUD/internal/entities"
@@ -103,6 +104,33 @@ func (h *harness) findCorpse(t *testing.T) *entities.ItemInstance {
 	}
 	t.Fatal("no corpse found in room")
 	return nil
+}
+
+// grouping.md §5: a party kill's corpse owner set is the killer plus their
+// party (deduped, prefixed combatant ids), so any member may loot the kill.
+func TestCreateOnDeath_OwnerSetIncludesParty(t *testing.T) {
+	h := newHarness(t)
+	// Rebuild the service with a PartyOf that returns the killer's party —
+	// including the killer themselves (as the real Members does), to prove dedup.
+	h.svc = New(Config{
+		Store: h.store, Contents: h.contents, Placement: h.placement, Bus: h.bus,
+		Mobs: h.mobs, Loot: h.loot, Roller: fixedRoller(0), Now: func() uint64 { return h.tick },
+		PartyOf: func(killerID string) []string {
+			if killerID != "player:bob" {
+				return nil
+			}
+			return []string{"player:bob", "player:amy"} // killer (dup) + a member
+		},
+	})
+	h.spawnItemInMob(t, "trail-ration") // ensure a corpse forms
+
+	h.svc.CreateOnDeath(context.Background(), killedEvent("player:bob"))
+
+	owners := Owners(h.findCorpse(t))
+	slices.Sort(owners)
+	if !slices.Equal(owners, []string{"player:amy", "player:bob"}) {
+		t.Fatalf("owner set = %v, want [player:amy player:bob] (killer + party, deduped)", owners)
+	}
 }
 
 func TestCreateOnDeath_MovesContentsIntoCorpse(t *testing.T) {

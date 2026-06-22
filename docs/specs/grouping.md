@@ -161,9 +161,12 @@ killer's party** so any party member may loot the kill during the window.
 
 ### Acceptance criteria
 
-- [ ] A party kill's corpse admits every party member to loot during the rights
-      window; a non-member is refused until the window expires.
-- [ ] A solo killer's corpse is owned by the killer alone (unchanged).
+- [x] A party kill's corpse admits every party member to loot during the rights
+      window; a non-member is refused until the window expires. **SHIPPED
+      2026-06-21** (the corpse owner set = killer + party; `MayLoot` admits them).
+- [x] A solo killer's corpse is owned by the killer alone (unchanged).
+      **SHIPPED** (no party → `PartyOf` returns nil → owner set is just the
+      killer).
 
 ## 6. Party channel
 

@@ -1369,6 +1369,24 @@ func run() error {
 		Loot:      registries.Loot,
 		Roller:    corpseRNG,
 		Now:       loop.TickCount,
+		// grouping.md §5: a party kill's corpse admits the whole party to loot.
+		// The killer id is a prefixed combatant id; strip it to look up the party
+		// (bare pids), then re-prefix each member to match MayLoot's actor id.
+		PartyOf: func(killerID string) []string {
+			pid, ok := strings.CutPrefix(killerID, combat.PlayerPrefix)
+			if !ok {
+				return nil
+			}
+			members := mgr.Members(pid)
+			if len(members) == 0 {
+				return nil
+			}
+			owners := make([]string, 0, len(members))
+			for _, m := range members {
+				owners = append(owners, string(combat.NewPlayerCombatantID(m)))
+			}
+			return owners
+		},
 	})
 	bus.Subscribe(eventbus.EventMobKilled, corpseSvc.OnMobKilled)
 
