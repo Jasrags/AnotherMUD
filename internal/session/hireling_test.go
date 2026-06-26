@@ -3,12 +3,14 @@ package session
 import (
 	"context"
 	"strconv"
+	"strings"
 	"sync"
 	"testing"
 
 	"github.com/Jasrags/AnotherMUD/internal/combat"
 	"github.com/Jasrags/AnotherMUD/internal/command"
 	"github.com/Jasrags/AnotherMUD/internal/entities"
+	"github.com/Jasrags/AnotherMUD/internal/mob"
 	"github.com/Jasrags/AnotherMUD/internal/player"
 	"github.com/Jasrags/AnotherMUD/internal/world"
 )
@@ -104,6 +106,82 @@ func TestPullHirelings_FollowsOwner(t *testing.T) {
 	mgr.PullHirelings(context.Background(), "boss", from, to)
 	if got, _ := place.RoomOf(hid); got != to {
 		t.Fatalf("hireling room = %q, want %q (it should follow the owner)", got, to)
+	}
+}
+
+// When a bound hireling relocates with its owner, bystanders in the old and new
+// rooms see it leave and arrive (hireable-mobs.md §5).
+func TestPullHirelings_BroadcastsDepartureAndArrival(t *testing.T) {
+	from, to := world.RoomID("z:a"), world.RoomID("z:b")
+	w := world.New()
+	w.AddRoom(&world.Room{ID: from, Name: "A",
+		Exits: map[world.Direction]world.Exit{world.DirNorth: {Target: to}}})
+	w.AddRoom(&world.Room{ID: to, Name: "B",
+		Exits: map[world.Direction]world.Exit{world.DirSouth: {Target: from}}})
+
+	place := entities.NewPlacement()
+	store := entities.NewStore()
+	hireling, err := store.SpawnMob(&mob.Template{ID: "sw:sellsword", Name: "a grizzled sellsword", Type: "npc"})
+	if err != nil {
+		t.Fatalf("SpawnMob: %v", err)
+	}
+
+	mgr := NewManager()
+	mgr.actionEnv = command.Env{Placement: place, Items: store, World: w, Broadcaster: mgr}
+
+	// Owner arrives in `to`; a bystander stays in `from`, another waits in `to`.
+	owner, ownerConn := newFakeActor("c-boss", "boss", "acc", "Captara", &world.Room{ID: to})
+	stayer, stayerConn := newFakeActor("c-stay", "stay", "acc", "Stayer", &world.Room{ID: from})
+	greeter, greeterConn := newFakeActor("c-greet", "greet", "acc", "Greeter", &world.Room{ID: to})
+	mgr.Add(owner)
+	mgr.Add(stayer)
+	mgr.Add(greeter)
+
+	place.Place(hireling.ID(), from)
+	owner.TrackLiveHireling(hireling.ID(), "sw:sellsword")
+
+	mgr.PullHirelings(context.Background(), "boss", from, to)
+
+	if lines := stayerConn.writes(); len(lines) != 1 || !strings.Contains(lines[0], "a grizzled sellsword follows Captara north.") {
+		t.Errorf("bystander left behind saw %v, want a follow-north line", stayerConn.writes())
+	}
+	if lines := greeterConn.writes(); len(lines) != 1 || !strings.Contains(lines[0], "a grizzled sellsword arrives, following Captara.") {
+		t.Errorf("bystander in the new room saw %v, want an arrival line", greeterConn.writes())
+	}
+	// The owner is excluded from the arrival line (no per-step self-spam).
+	if lines := ownerConn.writes(); len(lines) != 0 {
+		t.Errorf("owner should not see their own hireling's arrival line, got %v", lines)
+	}
+}
+
+// A non-adjacent owner move (recall/teleport — no exit linking the rooms) drops
+// the direction and uses the "slips away" departure phrasing (hireable-mobs.md §5).
+func TestPullHirelings_NonAdjacentDeparturePhrase(t *testing.T) {
+	from, to := world.RoomID("z:a"), world.RoomID("z:far")
+	w := world.New()
+	w.AddRoom(&world.Room{ID: from, Name: "A"}) // no exit to `to` → non-adjacent
+	w.AddRoom(&world.Room{ID: to, Name: "Far"})
+
+	place := entities.NewPlacement()
+	store := entities.NewStore()
+	hireling, err := store.SpawnMob(&mob.Template{ID: "sw:sellsword", Name: "a grizzled sellsword", Type: "npc"})
+	if err != nil {
+		t.Fatalf("SpawnMob: %v", err)
+	}
+
+	mgr := NewManager()
+	mgr.actionEnv = command.Env{Placement: place, Items: store, World: w, Broadcaster: mgr}
+	owner, _ := newFakeActor("c-boss", "boss", "acc", "Captara", &world.Room{ID: to})
+	stayer, stayerConn := newFakeActor("c-stay", "stay", "acc", "Stayer", &world.Room{ID: from})
+	mgr.Add(owner)
+	mgr.Add(stayer)
+	place.Place(hireling.ID(), from)
+	owner.TrackLiveHireling(hireling.ID(), "sw:sellsword")
+
+	mgr.PullHirelings(context.Background(), "boss", from, to)
+
+	if lines := stayerConn.writes(); len(lines) != 1 || !strings.Contains(lines[0], "a grizzled sellsword slips away, following Captara.") {
+		t.Errorf("non-adjacent departure saw %v, want a slips-away line", stayerConn.writes())
 	}
 }
 

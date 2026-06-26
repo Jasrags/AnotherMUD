@@ -224,12 +224,8 @@ func (m *Manager) leaderDisplayName(leaderID string) string {
 	if la, ok := m.GetByPlayerID(leaderID); ok {
 		return la.Name()
 	}
-	if store := m.actionEnv.Items; store != nil {
-		if e, ok := store.GetByID(entities.EntityID(leaderID)); ok {
-			if mob, ok := e.(*entities.MobInstance); ok {
-				return mob.Name()
-			}
-		}
+	if name := m.mobName(entities.EntityID(leaderID)); name != "" {
+		return name
 	}
 	return "someone"
 }

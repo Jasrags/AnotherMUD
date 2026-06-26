@@ -221,10 +221,11 @@ func rematerializeHirelings(ctx context.Context, cfg Config, a *connActor) {
 // §5): when ownerID arrives in `to`, each of their materialized hirelings is moved
 // to `to` so a hireling stays at its owner's side — it is BOUND to the owner
 // (always co-located), distinct from a player follower that trails and can be left
-// behind. The relocate is a placement move (the entity Placement is mutex-guarded);
-// `from` is unused in v1 (the hireling is glued regardless of where it was). Runs
-// on the mover's goroutine, like PullFollowers. No-op when the owner is offline or
-// the placement isn't wired.
+// behind. The relocate is a placement move (the entity Placement is mutex-guarded),
+// and bystanders in the `from`/`to` rooms see the hireling leave and arrive (the
+// move handler already broadcast the owner's own lines before publishing the move).
+// Runs on the mover's goroutine, like PullFollowers. No-op when the owner is offline
+// or the placement isn't wired.
 func (m *Manager) PullHirelings(ctx context.Context, ownerID string, from, to world.RoomID) {
 	if m == nil {
 		return
@@ -238,6 +239,8 @@ func (m *Manager) PullHirelings(ctx context.Context, ownerID string, from, to wo
 		return
 	}
 	cm := m.actionEnv.Combat
+	dir, adjacent := m.directionBetween(from, to)
+	ownerName := owner.Name()
 	heldByCombat := false
 	// Only a follow-stance hireling trails (hireable-mobs.md §8); a stay/guard
 	// hireling holds the room it was left in.
@@ -253,11 +256,57 @@ func (m *Manager) PullHirelings(ctx context.Context, ownerID string, from, to wo
 			heldByCombat = true
 			continue
 		}
+		name := m.mobName(ref.id)
+		m.announceHirelingDeparture(ctx, name, ownerName, from, dir, adjacent)
 		place.Place(ref.id, to)
+		m.announceHirelingArrival(ctx, name, ownerName, ownerID, to)
 	}
 	if heldByCombat {
 		_ = owner.Write(ctx, "Your hireling stays behind, locked in combat.")
 	}
+}
+
+// announceHirelingDeparture broadcasts a bound hireling leaving `from` to trail
+// its owner (hireable-mobs.md §5). The phrasing names the owner so the hireling
+// reads as a follower, not a wanderer; a non-adjacent owner move (recall/teleport)
+// drops the direction. No exclusion: the owner has already left `from`, so the
+// line only reaches the bystanders left behind. A no-name hireling (store drift)
+// or unwired Broadcaster suppresses it.
+func (m *Manager) announceHirelingDeparture(ctx context.Context, name, ownerName string, from world.RoomID, dir world.Direction, adjacent bool) {
+	b := m.actionEnv.Broadcaster
+	if b == nil || name == "" {
+		return
+	}
+	if adjacent {
+		b.SendToRoom(ctx, from, name+" follows "+ownerName+" "+dir.Long()+".")
+	} else {
+		b.SendToRoom(ctx, from, name+" slips away, following "+ownerName+".")
+	}
+}
+
+// announceHirelingArrival broadcasts a bound hireling arriving in `to`, trailing
+// its owner (hireable-mobs.md §5). Fired AFTER the placement move so a bystander
+// who looks finds the hireling present. The owner is excluded — they're in `to`
+// and don't need to be told their own help arrived on every step.
+func (m *Manager) announceHirelingArrival(ctx context.Context, name, ownerName, ownerID string, to world.RoomID) {
+	b := m.actionEnv.Broadcaster
+	if b == nil || name == "" {
+		return
+	}
+	b.SendToRoom(ctx, to, name+" arrives, following "+ownerName+".", ownerID)
+}
+
+// mobName resolves a live mob's display name from the entity store, or "" when the
+// id no longer resolves to a mob (the caller suppresses output on empty).
+func (m *Manager) mobName(id entities.EntityID) string {
+	if store := m.actionEnv.Items; store != nil {
+		if e, ok := store.GetByID(id); ok {
+			if mob, ok := e.(*entities.MobInstance); ok {
+				return mob.Name()
+			}
+		}
+	}
+	return ""
 }
 
 // HirelingCombatantsOf returns the entity ids of ownerPID's live hirelings that
