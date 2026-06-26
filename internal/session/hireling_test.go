@@ -1,12 +1,15 @@
 package session
 
 import (
+	"context"
 	"strconv"
 	"sync"
 	"testing"
 
+	"github.com/Jasrags/AnotherMUD/internal/command"
 	"github.com/Jasrags/AnotherMUD/internal/entities"
 	"github.com/Jasrags/AnotherMUD/internal/player"
+	"github.com/Jasrags/AnotherMUD/internal/world"
 )
 
 // The durable hireling-ownership surface (hireable-mobs.md §9): add records,
@@ -79,4 +82,35 @@ func TestConnActor_DrainLiveHirelingsConcurrent(t *testing.T) {
 	if _, ok := a.LiveHireling("test:merc"); ok {
 		t.Error("live hirelings should be empty after concurrent drain+untrack")
 	}
+}
+
+// PullHirelings relocates an owner's live hirelings to the owner's new room
+// (hireable-mobs.md §5) — the hireling is bound, always co-located.
+func TestPullHirelings_FollowsOwner(t *testing.T) {
+	from, to := world.RoomID("z:a"), world.RoomID("z:b")
+	place := entities.NewPlacement()
+	mgr := NewManager()
+	mgr.actionEnv = command.Env{Placement: place}
+
+	owner := &connActor{id: "c-boss", playerID: "boss", room: &world.Room{ID: from}}
+	mgr.Add(owner)
+
+	const hid = entities.EntityID("h-1")
+	place.Place(hid, from)
+	owner.TrackLiveHireling(hid, "sw:sellsword")
+
+	// Owner walks from→to; the hireling is pulled along.
+	mgr.PullHirelings(context.Background(), "boss", from, to)
+	if got, _ := place.RoomOf(hid); got != to {
+		t.Fatalf("hireling room = %q, want %q (it should follow the owner)", got, to)
+	}
+}
+
+// An owner with no live hireling is a no-op (no panic, nothing to move).
+func TestPullHirelings_NoneIsNoop(t *testing.T) {
+	mgr := NewManager()
+	mgr.actionEnv = command.Env{Placement: entities.NewPlacement()}
+	owner := &connActor{id: "c-solo", playerID: "solo", room: &world.Room{ID: "z:a"}}
+	mgr.Add(owner)
+	mgr.PullHirelings(context.Background(), "solo", "z:a", "z:b") // must not panic
 }

@@ -2591,6 +2591,10 @@ func run() error {
 		// follow when they can't keep up). The bus is re-entrant, so a pulled
 		// follower's own move chains to their followers.
 		mgr.PullFollowers(ctx, e.PlayerID, e.From, e.To)
+		// hireable-mobs.md §5: an owner's move relocates their bound hirelings to
+		// stay at their side (a hireling is glued to its owner, not an independent
+		// trailer).
+		mgr.PullHirelings(ctx, e.PlayerID, e.From, e.To)
 	})
 
 	// Moving rooms drops hide concealment (visibility §3.1): you cannot stay

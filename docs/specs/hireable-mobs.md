@@ -1,8 +1,8 @@
 # Hireable Mobs — Feature Specification
 
-**Status:** Draft (spec; **slice 1 shipped** — the owned-companion substrate +
-`hire`/`dismiss`/`hirelings` + persistence/logout/login; follow + combat assist +
-upkeep are later slices) · **Scope:** NPCs a character hires to
+**Status:** Draft (spec; **slices 1–2 shipped** — the owned-companion substrate +
+`hire`/`dismiss`/`hirelings` + persistence/logout/login (slice 1), and the bound
+move-with-owner relocate (slice 2); combat assist + upkeep are later slices) · **Scope:** NPCs a character hires to
 follow, fight for, and obey them (mercenaries, henchmen, hirelings): the
 owner/controller relationship, the `hire` / `dismiss` / `order` verbs, a hireling
 trailing its owner, combat assistance with owner-routed loot, a recurring upkeep
@@ -189,25 +189,28 @@ never-orphan guarantee mounts give.
 
 ## 5. Following the owner
 
-A hireling automatically **trails its owner** room to room, reusing the
-[follow](follow.md) move-with-leader mechanic: when the owner steps to an adjacent
-room, the hireling attempts the same step through the normal move path (the same
-exit/door/darkness/movement gates a creature's step passes). A hireling that
-cannot keep up (a shut door, an impassable step) is left behind and rejoins when
-able — it is not stranded or deleted.
+A hireling stays at its owner's side: when the owner changes rooms, each of their
+live hirelings **relocates to the owner's new room**. A hireling is **bound** to
+its owner — always co-located — rather than an independent trailer that can drift
+or be left behind. This is the deliberate v1 model (`proposals/hireable-mobs.md`
+§3.1): a paid bodyguard sticks with you, including through recall/teleport, which
+distinguishes it from a [follow](follow.md) relationship (consent-free, gate-
+respecting, breakable).
 
-This is the consumer that **emits the mob-move signal** [follow](follow.md) §1
-deferred: a hireling's own move publishes the move event, so the mob-as-leader
-follow case (the onboarding guide, a player trailing a hireling) works once this
-lands.
+**Deferred refinements:** gate-respecting independent trailing (the
+[follow](follow.md) §5 "attempt the step / left behind / rejoin" model); room
+departure/arrival broadcasts so bystanders see the hireling move; and **emitting
+the mob-move signal** [follow](follow.md) §1 deferred (so a *player* can follow a
+*mob* — the onboarding-guide case). The relocate is a placement move today; the
+generalized "a mob changed rooms" event is a small follow-on (§11).
 
 **Acceptance criteria**
 
-- [ ] A hireling follows its owner's normal step into an adjacent room.
-- [ ] A hireling blocked by a gate is left behind, not stranded, and rejoins its
-      owner when the path allows.
-- [ ] A hireling's move emits the move signal (mob-as-leader following becomes
-      possible).
+- [x] A hireling relocates to its owner's room when the owner moves (it stays
+      co-located). **SHIPPED (slice 2** — `PullHirelings` on the `PlayerMoved`
+      reaction**).**
+- [x] An owner with no live hireling, or an offline owner, is a safe no-op.
+      **SHIPPED (slice 2).**
 
 ## 6. Combat
 

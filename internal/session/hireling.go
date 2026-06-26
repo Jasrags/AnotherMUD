@@ -7,6 +7,7 @@ import (
 	"github.com/Jasrags/AnotherMUD/internal/entities"
 	"github.com/Jasrags/AnotherMUD/internal/logging"
 	"github.com/Jasrags/AnotherMUD/internal/player"
+	"github.com/Jasrags/AnotherMUD/internal/world"
 )
 
 // This file holds the connActor's hireling-ownership surface (hireable-mobs.md
@@ -113,6 +114,21 @@ func (a *connActor) LiveHireling(templateID string) (entities.EntityID, bool) {
 	return "", false
 }
 
+// liveHirelingIDs snapshots the entity ids of this character's currently
+// materialized hirelings (for the move-with-owner relocate, §5). Fresh slice.
+func (a *connActor) liveHirelingIDs() []entities.EntityID {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	if len(a.liveHirelings) == 0 {
+		return nil
+	}
+	out := make([]entities.EntityID, 0, len(a.liveHirelings))
+	for id := range a.liveHirelings {
+		out = append(out, id)
+	}
+	return out
+}
+
 // drainLiveHirelings atomically snapshots AND clears the live-hireling set,
 // returning the entity ids to dematerialize. Used at logout to remove every live
 // hireling from the world (§4, §9). Snapshot-and-clear in ONE lock acquisition so
@@ -153,5 +169,30 @@ func rematerializeHirelings(ctx context.Context, cfg Config, a *connActor) {
 			continue
 		}
 		a.TrackLiveHireling(id, templateID)
+	}
+}
+
+// PullHirelings relocates the owner's live hirelings to follow them (hireable-mobs.md
+// §5): when ownerID arrives in `to`, each of their materialized hirelings is moved
+// to `to` so a hireling stays at its owner's side — it is BOUND to the owner
+// (always co-located), distinct from a player follower that trails and can be left
+// behind. The relocate is a placement move (the entity Placement is mutex-guarded);
+// `from` is unused in v1 (the hireling is glued regardless of where it was). Runs
+// on the mover's goroutine, like PullFollowers. No-op when the owner is offline or
+// the placement isn't wired.
+func (m *Manager) PullHirelings(ctx context.Context, ownerID string, from, to world.RoomID) {
+	if m == nil {
+		return
+	}
+	owner, ok := m.GetByPlayerID(ownerID)
+	if !ok || owner == nil {
+		return
+	}
+	place := m.actionEnv.Placement
+	if place == nil {
+		return
+	}
+	for _, id := range owner.liveHirelingIDs() {
+		place.Place(id, to)
 	}
 }

@@ -78,3 +78,54 @@ func TestLive_HireLifecycle(t *testing.T) {
 	}
 	t.Log("hire lifecycle verified live: hired (gold charged + materialized), listed, dismissed")
 }
+
+// TestLive_HirelingFollows proves hireable-mobs.md §5: a hired companion is bound
+// to its owner and relocates with them room to room.
+//
+//	ANOTHERMUD_LIVE=1 go test ./cmd/telnet-smoke -run TestLive_HirelingFollows -v
+func TestLive_HirelingFollows(t *testing.T) {
+	if os.Getenv("ANOTHERMUD_LIVE") == "" {
+		t.Skip("set ANOTHERMUD_LIVE=1 to run (boots a real engine subprocess via `go run`)")
+	}
+	addr := bootEngine(t, nil) // starter-world, town-square
+
+	c, err := telnettest.Dial(addr, telnettest.WithTimeout(15*time.Second))
+	if err != nil {
+		t.Fatalf("dial: %v", err)
+	}
+	defer c.Close()
+	if err := createAndLogin(c, "Bindara"); err != nil {
+		t.Fatalf("create+login: %v", err)
+	}
+	send := func(line string) string {
+		t.Helper()
+		if err := c.SendLine(line); err != nil {
+			t.Fatalf("send %q: %v", line, err)
+		}
+		out, err := c.ExpectTimeout(gamePrompt, 8*time.Second)
+		if err != nil {
+			t.Fatalf("no prompt after %q: %v", line, err)
+		}
+		return out
+	}
+
+	send("set gold amount self 500")
+	if out := send("hire sellsword"); !strings.Contains(out, "hire a grizzled sellsword") {
+		t.Fatalf("hire did not take:\n%s", out)
+	}
+	// Present in the starting room.
+	if out := send("look sellsword"); !strings.Contains(strings.ToLower(out), "sellsword") {
+		t.Fatalf("sellsword should be here at the start:\n%s", out)
+	}
+	// Walk north — the bound hireling relocates with the owner.
+	send("north") // town-square -> Hearthwick Forge
+	if out := send("look sellsword"); !strings.Contains(strings.ToLower(out), "sellsword") {
+		t.Fatalf("sellsword did not follow the owner north:\n%s", out)
+	}
+	// And back south.
+	send("south")
+	if out := send("look sellsword"); !strings.Contains(strings.ToLower(out), "sellsword") {
+		t.Fatalf("sellsword did not follow the owner back south:\n%s", out)
+	}
+	t.Log("hireling-follows verified live: the bound sellsword relocated with the owner both ways")
+}

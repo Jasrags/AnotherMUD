@@ -311,9 +311,10 @@ The verbs players use and the systems that resolve them.
   `follow` §1 deferred); combat assist with owner-routed loot and
   participation-gated XP; recurring upkeep as a gold sink. Layers on
   `mobs-ai-spawning`, `follow`, `combat`/`grouping`, `loot-and-corpses` §4, and
-  `economy-survival`. Design at `docs/proposals/hireable-mobs.md`. *(Slice 1
+  `economy-survival`. Design at `docs/proposals/hireable-mobs.md`. *(Slices 1–2
   shipped — the owned-companion substrate + `hire`/`dismiss`/`hirelings` + save
-  v33 persistence/logout/login; follow + combat assist + upkeep are later slices.)*
+  v33 persistence/logout/login, and the bound move-with-owner relocate; combat
+  assist + upkeep are later slices.)*
 - [admin-verbs](admin-verbs.md) — the admin gate (commands marked
   admin, refused unless the actor holds the admin role), admin
   target resolution with visibility bypass, the baseline verb set
