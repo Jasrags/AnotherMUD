@@ -40,6 +40,7 @@ func commandEnv(cfg Config) command.Env {
 		Effects:               cfg.Effects,
 		EffectTemplates:       cfg.EffectTemplates,
 		SkillRoller:           cfg.SkillRoller,
+		RecognitionDifficulty: cfg.RecognitionDifficulty,
 		Training:              cfg.Training,
 		Abilities:             cfg.Abilities,
 		Proficiency:           cfg.Proficiency,

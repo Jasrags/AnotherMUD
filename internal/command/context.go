@@ -79,6 +79,9 @@ type Context struct {
 	// verb). Must be safe to call from the command goroutine (the production
 	// wiring uses a concurrency-safe source). nil disables skill-check verbs.
 	SkillRoller progression.Roller
+	// RecognitionDifficulty is the renown check difficulty for the look-at-player
+	// recognition note (reputation.md §6). Flat v1 default; per-location deferred.
+	RecognitionDifficulty int
 	// Training is the M8.6 training service. nil in tests.
 	Training *progression.TrainingManager
 	// Abilities / Proficiency / ActionQueue are the M9.6 ability-verb

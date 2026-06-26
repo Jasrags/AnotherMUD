@@ -262,6 +262,28 @@ func TestCheck_Recognition(t *testing.T) {
 	}
 }
 
+// TestRecognized covers the pure recognition rule directly (the reusable
+// primitive effective-renown consumers call without an Entity).
+func TestRecognized(t *testing.T) {
+	cases := []struct {
+		name                    string
+		renown, die, difficulty int
+		want                    bool
+	}{
+		{"zero renown never recognized", 0, 100, 1, false},
+		{"fame passes when magnitude+die clears difficulty", 200, 10, 150, true},
+		{"infamy (negative) recognized by magnitude", -200, 10, 150, true},
+		{"obscure fails a hard check", 50, 5, 200, false},
+		{"exactly meets difficulty", 90, 10, 100, true},
+	}
+	for _, tc := range cases {
+		if got := Recognized(tc.renown, tc.die, tc.difficulty); got != tc.want {
+			t.Errorf("%s: Recognized(%d,%d,%d) = %v, want %v",
+				tc.name, tc.renown, tc.die, tc.difficulty, got, tc.want)
+		}
+	}
+}
+
 // --- History bounded ---
 
 func TestHistory_BoundedFIFO(t *testing.T) {

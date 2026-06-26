@@ -10,6 +10,7 @@ import (
 	"github.com/Jasrags/AnotherMUD/internal/entities"
 	"github.com/Jasrags/AnotherMUD/internal/keyword"
 	"github.com/Jasrags/AnotherMUD/internal/light"
+	"github.com/Jasrags/AnotherMUD/internal/reputation"
 	"github.com/Jasrags/AnotherMUD/internal/stacking"
 )
 
@@ -300,7 +301,7 @@ func (c *Context) resolveLookCreature(token string) (name, desc string, ok bool)
 				continue // never look at yourself via the creature path
 			}
 			if strings.HasPrefix(strings.ToLower(p.Name()), lower) {
-				return p.Name(), describePlayer(p), true
+				return p.Name(), c.recognizedDesc(describePlayer(p), p), true
 			}
 		}
 	}
@@ -316,6 +317,66 @@ func describePlayer(a Actor) string {
 		return d.Description()
 	}
 	return ""
+}
+
+// renownUnknownTier is the lowest (default) renown tier name; a recognition that
+// passes for a barely-renowned target shouldn't announce this tier. Matches the
+// DefaultConfig ladder's base; content that renames it just always shows a tier.
+const renownUnknownTier = "Unknown"
+
+// recognizedDesc appends the §6 recognition note to a player look target's
+// description when one applies (the target exposes renown and the check passes),
+// returning desc unchanged otherwise. Keeps resolveLookCreature flat.
+func (c *Context) recognizedDesc(desc string, target Actor) string {
+	rv, ok := target.(renownView)
+	if !ok {
+		return desc
+	}
+	rec := c.recognitionLine(rv)
+	if rec == "" {
+		return desc
+	}
+	return strings.TrimSpace(desc + "\n" + rec)
+}
+
+// renownView is the slice of a look target the recognition note reads
+// (reputation.md §6): its name plus its EFFECTIVE renown, tier, and infamy flag.
+// The session connActor satisfies it; targets that don't (mobs, test stubs) draw
+// no note.
+type renownView interface {
+	Name() string
+	EffectiveRenown() int
+	RenownTier() string
+	Infamous() bool
+}
+
+// recognitionLine produces the reputation.md §6 recognition note shown when the
+// observer looks at a renowned PLAYER target: a renown check (the target's
+// EFFECTIVE renown + a d20 vs the configured difficulty) that, when it passes,
+// names their standing. Empty when the roller is unavailable or the check fails —
+// an unknown/unrecognized person draws no note. Reads EFFECTIVE renown (base +
+// Fame + worn signifiers) per reputation.md §7's design note, not the base tag.
+func (c *Context) recognitionLine(rep renownView) string {
+	if c == nil || c.SkillRoller == nil || rep == nil {
+		return ""
+	}
+	die := c.SkillRoller.IntN(20) + 1
+	if !reputation.Recognized(rep.EffectiveRenown(), die, c.RecognitionDifficulty) {
+		return ""
+	}
+	name := rep.Name()
+	tier := rep.RenownTier()
+	named := tier != "" && tier != renownUnknownTier
+	switch {
+	case rep.Infamous() && named:
+		return fmt.Sprintf("You recognize %s — a notorious name, %s.", name, strings.ToLower(tier))
+	case rep.Infamous():
+		return fmt.Sprintf("You recognize %s, and the name sits ill with you.", name)
+	case named:
+		return fmt.Sprintf("You recognize %s — %s.", name, strings.ToLower(tier))
+	default:
+		return fmt.Sprintf("You recognize %s.", name)
+	}
 }
 
 // resolveLookTarget keyword-matches an item across the actor's inventory

@@ -245,6 +245,10 @@ type Env struct {
 	// verb). Must be concurrency-safe (called off the command goroutine).
 	// nil disables skill-check verbs.
 	SkillRoller progression.Roller
+	// RecognitionDifficulty is the renown check difficulty for the look-at-player
+	// recognition note (reputation.md §6). A flat v1 default; per-location
+	// difficulties are deferred.
+	RecognitionDifficulty int
 	// Training is the M8.6 training service. The train + practice
 	// verbs route through it. nil in tests that don't exercise
 	// training.

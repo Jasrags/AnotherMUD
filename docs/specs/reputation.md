@@ -219,10 +219,19 @@ Infamy/Low Profile feats and the "mask my identity" gameplay read.
 
 **Acceptance — checks**
 
-- [ ] A recognition check rolls renown + die vs. the location difficulty;
-      a renown of zero auto-fails (cannot be recognized).
-- [ ] The check is exposed as a reusable primitive (mirroring the saves /
+- [x] A recognition check rolls renown + die vs. the location difficulty;
+      a renown of zero auto-fails (cannot be recognized). **SHIPPED**
+      (`reputation.Recognized` / `Manager.Check`).
+- [x] The check is exposed as a reusable primitive (mirroring the saves /
       skill check idioms) so disposition, masking, and feats share it.
+      **SHIPPED** (`reputation.Recognized(renown, die, difficulty)` — the pure
+      rule `Manager.Check` and effective-renown consumers both call).
+- [x] **R4 consumer — recognition on `look <player>`.** SHIPPED 2026-06-25:
+      examining another character runs the check against their EFFECTIVE renown
+      (base + Fame + worn signifiers) at the configured difficulty
+      (`ANOTHERMUD_RECOGNITION_DIFFICULTY`, flat v1 — per-location deferred); a
+      pass appends a recognition note that names their tier (and reads infamous
+      for an Infamy holder). An unknown/below-threshold person draws no note.
 
 ---
 

@@ -22,11 +22,11 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/Jasrags/AnotherMUD/internal/action"
 	"github.com/Jasrags/AnotherMUD/internal/ansi"
 	"github.com/Jasrags/AnotherMUD/internal/auction"
 	"github.com/Jasrags/AnotherMUD/internal/biome"
 	"github.com/Jasrags/AnotherMUD/internal/channel"
-	"github.com/Jasrags/AnotherMUD/internal/action"
 	"github.com/Jasrags/AnotherMUD/internal/chat"
 	"github.com/Jasrags/AnotherMUD/internal/clock"
 	"github.com/Jasrags/AnotherMUD/internal/combat"
@@ -277,6 +277,9 @@ type Config struct {
 	// SkillRoller is the d20 source for skill checks (skills §3 — the `pick`
 	// verb). Must be concurrency-safe (used off the command goroutine).
 	SkillRoller progression.Roller
+	// RecognitionDifficulty is the look-at-player renown recognition difficulty
+	// (reputation.md §6), passed through to the command Env.
+	RecognitionDifficulty int
 
 	// ActionQueue is the M9.3 per-entity action queue (spec
 	// abilities-and-effects §4.1). The M9.4 ability phase pops from

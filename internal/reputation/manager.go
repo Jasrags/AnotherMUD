@@ -190,7 +190,17 @@ func (m *Manager) Check(e Entity, dieRoll, difficulty int) bool {
 	if e == nil {
 		return false
 	}
-	mag := e.Renown()
+	return Recognized(e.Renown(), dieRoll, difficulty)
+}
+
+// Recognized is the pure recognition rule (reputation.md §6): a renown MAGNITUDE
+// of zero is never recognized (an unknown person cannot be); otherwise
+// `|renown| + dieRoll >= difficulty`. The reusable primitive shared by
+// Manager.Check (which feeds it base renown) and effective-renown consumers like
+// the look-recognition surface — which must read EFFECTIVE renown (base + Fame +
+// worn signifiers), so they call this directly rather than through an Entity.
+func Recognized(renown, dieRoll, difficulty int) bool {
+	mag := renown
 	if mag < 0 {
 		mag = -mag
 	}
