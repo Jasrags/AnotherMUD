@@ -6,6 +6,7 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/Jasrags/AnotherMUD/internal/combat"
 	"github.com/Jasrags/AnotherMUD/internal/command"
 	"github.com/Jasrags/AnotherMUD/internal/entities"
 	"github.com/Jasrags/AnotherMUD/internal/player"
@@ -131,6 +132,48 @@ func TestPullHirelings_StanceHoldsPosition(t *testing.T) {
 	}
 	if got, _ := place.RoomOf(trailer); got != to {
 		t.Errorf("follow hireling room = %q, want %q (it should trail)", got, to)
+	}
+}
+
+// A follow hireling that is mid-combat is NOT yanked along when the owner moves
+// (hireable-mobs.md §5/§6) — it holds its ground; the owner is told. A second,
+// non-fighting follow hireling still trails normally.
+func TestPullHirelings_SkipsFightingHireling(t *testing.T) {
+	from, to := world.RoomID("z:a"), world.RoomID("z:b")
+	place := entities.NewPlacement()
+
+	// A real combat manager; engage the fighter so InCombat reports true.
+	const fighter = entities.EntityID("h-fighter")
+	const idler = entities.EntityID("h-idle")
+	fighterCID := combat.NewMobCombatantID(string(fighter))
+	foeCID := combat.NewMobCombatantID("foe-1")
+	loc := combat.MapLocator{
+		fighterCID: &fakeCombatant{id: fighterCID, name: "the fighter", vitals: combat.NewVitals(20)},
+		foeCID:     &fakeCombatant{id: foeCID, name: "a bandit", vitals: combat.NewVitals(20)},
+	}
+	cm := combat.NewManager(loc, nil)
+	if _, ok := cm.EngageWithReason(context.Background(), fighterCID, foeCID, from); !ok {
+		t.Fatal("could not engage the fighter for the test")
+	}
+
+	mgr := NewManager()
+	mgr.actionEnv = command.Env{Placement: place, Combat: cm}
+	owner := &connActor{id: "c-boss", playerID: "boss", room: &world.Room{ID: to},
+		conn: &fakeConn{id: "boss"}}
+	mgr.Add(owner)
+
+	place.Place(fighter, from)
+	place.Place(idler, from)
+	owner.TrackLiveHireling(fighter, "sw:sellsword") // follow by default
+	owner.TrackLiveHireling(idler, "sw:guard")       // follow by default
+
+	mgr.PullHirelings(context.Background(), "boss", from, to)
+
+	if got, _ := place.RoomOf(fighter); got != from {
+		t.Errorf("fighting hireling moved to %q, want %q (it should hold its fight)", got, from)
+	}
+	if got, _ := place.RoomOf(idler); got != to {
+		t.Errorf("idle hireling room = %q, want %q (it should still trail)", got, to)
 	}
 }
 

@@ -4,6 +4,7 @@ import (
 	"context"
 	"log/slog"
 
+	"github.com/Jasrags/AnotherMUD/internal/combat"
 	"github.com/Jasrags/AnotherMUD/internal/command"
 	"github.com/Jasrags/AnotherMUD/internal/entities"
 	"github.com/Jasrags/AnotherMUD/internal/logging"
@@ -236,13 +237,26 @@ func (m *Manager) PullHirelings(ctx context.Context, ownerID string, from, to wo
 	if place == nil {
 		return
 	}
+	cm := m.actionEnv.Combat
+	heldByCombat := false
 	// Only a follow-stance hireling trails (hireable-mobs.md §8); a stay/guard
 	// hireling holds the room it was left in.
 	for _, ref := range owner.liveHirelingStances() {
 		if ref.stance != command.HirelingStanceFollow {
 			continue
 		}
+		// Don't yank a hireling out of its own fight (hireable-mobs.md §5/§6): a
+		// follow hireling that is mid-combat holds its ground rather than being
+		// teleported away mid-round. It rejoins on the owner's next move once the
+		// fight is over (the bind is re-evaluated each move).
+		if cm != nil && cm.InCombat(combat.NewMobCombatantID(string(ref.id))) {
+			heldByCombat = true
+			continue
+		}
 		place.Place(ref.id, to)
+	}
+	if heldByCombat {
+		_ = owner.Write(ctx, "Your hireling stays behind, locked in combat.")
 	}
 }
 
