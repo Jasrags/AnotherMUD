@@ -1,6 +1,6 @@
 # Shadowrun as a pack — running SR alongside WoT on one kernel
 
-> **Status:** design draft (no code). Started 2026-06-18.
+> **Status:** design draft (no code). Started 2026-06-18 · Revised 2026-06-25 (added §3.1 unique pillars + §3.2 runner-role scorecard).
 > **Companion docs:** `docs/themes/channel-vocabulary.md` (the keystone — multi-ruleset on one kernel), `docs/themes/wot-mechanics-epic.md` (the WoT mechanics track), `docs/shadowrun/` (SR rules reference), `docs/specs/character-identity.md` (world-locking), `docs/ENGINE-VOCABULARY.md` (content↔engine contract).
 > **Decision posture:** *spirit, not fidelity* — inherited from `channel-vocabulary.md` §1 and WoT EPIC Decision 0. We keep the `d20 + mod vs difficulty` resolution kernel for every setting and translate SR's *flavor + meaningful choices* onto it. We do **not** simulate dice pools, glitches, drain staging, or addiction.
 
@@ -15,6 +15,8 @@ Can the Wheel of Time pack (d20-based) and a Shadowrun pack (dice-pool-based) bo
 But the kernel was deliberately built to resolve **every** setting with one `d20+mod vs difficulty` roll (`channel-vocabulary.md` §1, WoT EPIC Decision 0). Under that posture the two systems stop disagreeing about *how a check resolves* and only disagree about **which attribute feeds which game function** — WoT defense is `10 + dex + armor`; SR defense is `reaction + intuition`. That is a **mapping** problem, and the mapping machinery is shipped.
 
 This doc records: what is already built, how each SR subsystem maps onto it, the handful of pieces that genuinely need Go, a build sequence, and the one strategic decision (advancement model) worth making deliberately.
+
+**One caveat up front.** The ~60% figure is the *runner-with-a-gun* slice — attributes, skills, combat, gear, chrome — which is also exactly where the `docs/shadowrun/` reference corpus is deepest. The systems that define the *other* runner archetypes (the Matrix, full magic with spirits + astral, rigging/drones) have **no rule file in the corpus and no engine analog**; they are largely the unbuilt 40%. §3 below maps the slice we cover well; **§3.1 catalogs the unique pillars it doesn't**, and **§3.2 turns both into a per-archetype readiness scorecard** so the "60% built" headline isn't read as "SR is nearly done."
 
 ---
 
@@ -58,6 +60,38 @@ Each Shadowrun subsystem against the *actual* current code state, tagged by effo
 | **Karma / point-buy advancement** | Nothing — advancement is hardwired levels + tracks + XP | **Real Go** (§4.2) — the biggest single gap |
 
 The result that matters: **most of Shadowrun is content or small Go.** The damage model, the casting-resource model, even Essence's "exotic" decay decompose into machinery already shipped for WoT. The One Power pool + `resist.backlash` built for saidin drain is *structurally the same thing* SR Drain needs.
+
+> **Scope of §3.** The map above is complete and accurate for the **Street Samurai** path — and only that path. It stops at the combat / character / gear / economy layer, which is where the `docs/shadowrun/` corpus has rule files (`CHARACTER`, `CREATION`, `ACTIVE`/`GROUPS`/`KNOWLEDGE`/`LANGUAGE`, `ROLLS`/`TESTS`, `WEAPONS`/`ARMOR`/`CYBERWARE`/`BIOWARE`). The corpus *names* magic, the Matrix, rigging, contacts, and vehicles in its README roadmap but ships **no rule file for any of them** — the same systems that have no engine analog. §3.1 fills that hole.
+
+## 3.1 The unique pillars §3 doesn't cover (the hard 40%)
+
+These have **no engine analog, no `docs/shadowrun/` rule file, and only a passing mention above.** They are the genuinely SR-defining systems, and unlike §3's entries most are **Real Go / a new world or seam**, not content. The leverage point: two of them overlap AnotherMUD seams that are *already greenfield-designed* (`BACKLOG.md` §2), so they should be designed **together** rather than three times.
+
+| Unique pillar | Why it's new (no analog) | Reuses / overlaps | Effort |
+|---|---|---|---|
+| **The Matrix** — decking/hacking (hosts, IC, cyberdecks, programs) + **Technomancers / Resonance** (sprites, complex forms, compiling/registering) | A **second world** (cyberspace): its own rooms + entities and a *parallel action economy* running concurrently with meatspace. The single biggest build. | A parallel `world` + a parallel combat/effect loop. Net-new. | **Real Go (large)** |
+| **Full magic beyond drain** — **spirits** (summon / bind / banish: owned, controllable entities), **astral space** (projection / perception / astral combat: a parallel plane), foci / initiation / metamagic, mentor spirits, alchemy | Spellcasting itself ≈ abilities/effects (covered). But **spirits = an owned-summoned-entity system** and **astral = a parallel-plane movement + visibility layer**, neither of which exists. | **Spirits overlap the hireable-mobs / `mounts` "owned controllable entity" seam.** **Assensing extends `visibility`.** Astral is a new parallel space. | **Real Go (medium-large)** |
+| **Rigging — vehicles & drones** — "jumping in" (remote VR control of an AI entity), drone networks, vehicle combat/sensors | Vehicle-as-mover overlaps mounts, but **commanding + perceiving-through a remote drone** is new. | **Vehicle movement reuses the `mounts` metered-mover seam**; drone control overlaps **hireable mobs**. | **Medium–Real Go** |
+| **Contacts** — a per-NPC connection / loyalty network | **`faction` is per-*faction* standing, not per-NPC.** A relationship-with-named-NPCs system is new. | Reuses `faction`'s signed-axis + tag architecture; new "contact" record. | **Small–Medium Go** |
+| **Lifestyle + SIN / licenses / legality** — monthly upkeep; contraband gating; fake IDs | Upkeep ≈ a sustenance-style drain (partial). **Availability / legality gating** (the `F`/`R` gear codes → a SIN / contraband system) has no analog. | Upkeep reuses the tick-drain pattern; legality is a new gear tag + an identity/SIN system (overlaps the fast-travel "no contraband" idea). | **Medium Go** |
+| **Dual reputation — Street Rep + Notoriety** | `reputation.md` is a **single signed** axis (fame ↔ infamy) + per-faction standing; SR tracks **two independent** accumulators. | Extends `reputation.md` with a second axis. | **Small Go** |
+
+> **Design-together note.** Two pillars — **spirits** and **drones** — want the *same* not-yet-built seam: an **owned, controllable entity** that follows/obeys a player and acts on its turn. That seam is already on the backlog as **hireable mobs** (`BACKLOG.md` §2, the consumer beside `grouping`/`follow`). A bound spirit, a slaved drone, and a hired mercenary are one shape with different content and a different control surface — **build the owned-entity seam once.** This is the highest-leverage move toward the magic and rigging archetypes.
+
+## 3.2 Reality check — the six runner roles
+
+SR character creation gates on six archetypes (`CREATION.md`). The honest readiness scorecard, given §3 + §3.1:
+
+| Runner role | Readiness | What it still needs |
+|---|---|---|
+| **Street Samurai** | **~Turnkey** | The §3 slice *is* this role. Only the chargen attribute-set unlock (§4.1) + Essence wiring (§4.4). |
+| **Face** | **Mostly content + Contacts** | Social skills map to proficiency; the **contact network** (§3.1) is the one new system. |
+| **Mage / Adept / Mystic Adept** | **Half-built** | Drain + spellcasting reuse the One Power machinery; **spirits + astral** (§3.1) are net-new. |
+| **Decker** | **Blocked** | Needs **the Matrix** (§3.1) — a whole new world. |
+| **Technomancer** | **Blocked** | Needs the Matrix + **Resonance / sprites** (§3.1). |
+| **Rigger** | **Mostly new** | Drones / jumping-in (§3.1); vehicle movement partially reuses **`mounts`**. |
+
+**One of six is nearly turnkey; one is mostly content; three-to-four are gated on large unique systems.** A *simplified, combat-and-chrome Shadowrun* (Street Samurai first, per the §6 sequence) is genuinely close and needs no new resolution math. A **full Shadowrun supporting every archetype** is gated on the §3.1 pillars — which are the project's real Shadowrun cost, not the combat layer §3 dwells on. Each §3.1 pillar is its own arc *beyond* the §6 sequence; sequence the Matrix, magic-depth, and rigging as separate programs, and start the magic + rigging arcs from the shared owned-entity seam.
 
 ---
 
@@ -107,6 +141,8 @@ Each step pays for itself even if the program stops there.
 5. **The advancement fork** (§4.2) — the one real decision (§7).
 
 Steps 1–4 are a few focused slices and yield a *playable, if simplified, Shadowrun* on the existing level-track advancement (treat karma as XP for v1). Step 5 is where faithfulness is decided.
+
+**Beyond step 5 — the archetype arcs (§3.1).** Steps 1–5 ship the Street Samurai (and a simplified Face). The Mage, Decker, Technomancer, and Rigger are each gated on a §3.1 pillar that is its own program, *not* a step in this sequence. Recommended order if/when they're pursued: **(6) the owned-entity seam** (hireable mobs — unblocks spirits *and* drones at once); **(7) magic depth** (spirits on that seam + astral as a parallel space + assensing on `visibility`); **(8) rigging** (drones on that seam + vehicle movement on the `mounts` mover); **(9) the Matrix** (the largest — a parallel world; do it last or as a deliberate standalone). Contacts, Lifestyle/SIN, and dual reputation are small slices that can land opportunistically alongside any of the above.
 
 ---
 
