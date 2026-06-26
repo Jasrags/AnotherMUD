@@ -267,6 +267,28 @@ the upkeep gold sink is the counterweight. (This is the resolved fork,
       credits the owner only when the slain mob still lists the owner as an
       opponent; reliable because `MobKilled` fires before the kill's `DisengageAll`**).**
 
+### 6.5 Faction consequence (the responsibility rule)
+
+A hireling acts as its owner's **agent**: when it kills a faction-member mob, the
+owner takes the same standing hit they would for landing the blow themselves
+([faction](faction.md) §5.2 on-kill delta, applied to the owner).
+
+This **deliberately diverges** from the XP participation rule (§6.4): faction
+standing has **no participation gate** — *any* hireling kill shifts the owner's
+standing, whether or not the owner joined the fight. Standing is a **consequence,
+not a farmable reward**, so the AFK-farm rationale that gates XP does not apply
+(no one farms losing reputation); and a participation gate would let an owner
+**launder** faction consequences through a hired sword. The kill is attributed
+with a distinct reason (`hireling-kill:<template>`) so the audit trail shows the
+agent.
+
+**Acceptance criteria**
+
+- [x] A hireling's kill of a faction-member mob shifts the **owner's** standing
+      by the on-kill delta, with no participation gate. **SHIPPED** — the faction
+      on-kill handler resolves a hireling killer to its owner via the shared
+      `responsiblePlayer` attribution and `Shift`s the owner unconditionally.
+
 ## 7. Upkeep and contract end
 
 A hireling costs **recurring upkeep** — a gold sink charged on a configured

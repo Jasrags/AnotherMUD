@@ -115,6 +115,23 @@ func (h *hirelingService) Dematerialize(ctx context.Context, id entities.EntityI
 	return true
 }
 
+// responsiblePlayer maps a MobKilled killer id to the player who bears
+// responsibility for the kill: a direct player killer (viaHireling=false), or the
+// OWNER of a hireling that landed the blow (viaHireling=true — hireable-mobs.md
+// §6). Returns "" for a wild/scripted killer that credits no one. The on-kill
+// hooks (faction standing, kill-XP) share this resolution but differ on what they
+// do with it — kill-XP gates a hireling kill on owner participation (§6.4), while
+// faction standing attributes unconditionally (a consequence, not a reward).
+func responsiblePlayer(store *entities.Store, killerID string) (pid string, viaHireling bool) {
+	if p, ok := strings.CutPrefix(killerID, combat.PlayerPrefix); ok {
+		return p, false
+	}
+	if owner := hirelingOwnerOf(store, killerID); owner != "" {
+		return owner, true
+	}
+	return "", false
+}
+
 // hirelingOwnerOf maps a combatant id to the owner player id of the hireling it
 // names, or "" when the id is not an owned hireling (hireable-mobs.md §6.3/§6.4).
 // Used by the corpse owner-set + kill-XP hooks to credit a hireling's kill to its

@@ -1499,8 +1499,9 @@ func run() error {
 	// blow on a faction-member mob, lower the killer's standing with that
 	// faction by the configured on-kill delta — routed through Shift so the
 	// cancellable faction.shift.check pipeline (and any modifiers) apply.
-	// Fail-silent on a non-player killer, a mob with no faction, or a faction
-	// no longer in content. Process-lifetime subscription.
+	// Fail-silent on a wild/scripted killer, a mob with no faction, a faction no
+	// longer in content, or a responsible player who is offline. Process-lifetime
+	// subscription.
 	factionOnKillDelta := registries.Factions.Config().OnKillDelta
 	bus.Subscribe(eventbus.EventMobKilled, func(ctx context.Context, ev eventbus.Event) {
 		e, ok := ev.(eventbus.MobKilled)
@@ -1515,15 +1516,26 @@ func run() error {
 		if !ok {
 			return // faction not in content
 		}
-		pid, ok := strings.CutPrefix(e.KillerID, combat.PlayerPrefix)
-		if !ok {
-			return // killer is a mob/scripted source — no standing change
+		// Resolve the player who bears the consequence: a direct player killer, or
+		// the OWNER of a hireling that landed the blow (hireable-mobs.md §6 — a
+		// hireling acts as its owner's agent). Note the DELIBERATE divergence from
+		// kill-XP (§6.4 / PD-4): faction standing has NO participation gate. Standing
+		// is a consequence, not a farmable reward, so the AFK-farm rationale doesn't
+		// apply; and gating it would let a player launder faction consequences
+		// through a hired sword. Your paid blade's kills are on you.
+		pid, viaHireling := responsiblePlayer(entityStore, e.KillerID)
+		if pid == "" {
+			return // a wild mob / scripted source — no standing change
 		}
 		actor, ok := mgr.GetByPlayerID(pid)
 		if !ok {
-			return // killer not online
+			return // responsible player not online
 		}
-		factionMgr.Shift(ctx, actor, def, factionOnKillDelta, "kill:"+e.TemplateID)
+		reason := "kill:" + e.TemplateID
+		if viaHireling {
+			reason = "hireling-kill:" + e.TemplateID
+		}
+		factionMgr.Shift(ctx, actor, def, factionOnKillDelta, reason)
 	})
 
 	// grouping.md §4: combat kill-XP. A lethal mob kill awards the mob's XPValue
@@ -1535,24 +1547,22 @@ func run() error {
 		if !ok || e.KillerID == "" || e.TemplateID == "" {
 			return
 		}
-		pid, ok := strings.CutPrefix(e.KillerID, combat.PlayerPrefix)
-		if !ok {
-			// Not a player kill. A HIRELING kill credits its owner — but only for a
-			// foe the owner actively fought (hireable-mobs.md §6.4 / PD-4: no XP for a
-			// hireling's solo kill, so a hireling can't be an AFK XP farm). The
-			// participation check is reliable here: MobKilled fires before the slain
-			// mob's combat lists are torn down (DisengageAll runs later), so the slain
-			// mob still lists the owner as an opponent iff the owner was fighting it.
-			owner := hirelingOwnerOf(entityStore, e.KillerID)
-			if owner == "" {
-				return // a wild mob / scripted killer earns no one any XP
-			}
-			ownerCID := combat.NewPlayerCombatantID(owner)
+		pid, viaHireling := responsiblePlayer(entityStore, e.KillerID)
+		if pid == "" {
+			return // a wild mob / scripted killer earns no one any XP
+		}
+		if viaHireling {
+			// A HIRELING kill credits its owner — but only for a foe the owner
+			// actively fought (hireable-mobs.md §6.4 / PD-4: no XP for a hireling's
+			// solo kill, so a hireling can't be an AFK XP farm). The participation
+			// check is reliable here: MobKilled fires before the slain mob's combat
+			// lists are torn down (DisengageAll runs later), so the slain mob still
+			// lists the owner as an opponent iff the owner was fighting it.
+			ownerCID := combat.NewPlayerCombatantID(pid)
 			slainCID := combat.NewMobCombatantID(string(e.MobID))
 			if !slices.Contains(combatMgr.OpponentsOf(slainCID), ownerCID) {
 				return // the owner didn't fight this kill — no XP
 			}
-			pid = owner
 		}
 		tmpl, terr := registries.Mobs.Get(mob.TemplateID(e.TemplateID))
 		if terr != nil || tmpl.XPValue <= 0 {
