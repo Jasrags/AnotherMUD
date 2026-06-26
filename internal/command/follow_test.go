@@ -15,13 +15,17 @@ type stubFollow struct {
 	leaderOK            bool
 	lost                []string
 	gotFollower, gotLed string
+	unfollowCalled      bool
 }
 
 func (s *stubFollow) Follow(follower, leader string) error {
 	s.gotFollower, s.gotLed = follower, leader
 	return s.followErr
 }
-func (s *stubFollow) Unfollow(string) (string, bool)  { return s.leader, s.leaderOK }
+func (s *stubFollow) Unfollow(string) (string, bool) {
+	s.unfollowCalled = true
+	return s.leader, s.leaderOK
+}
 func (s *stubFollow) Lose(string) []string            { return s.lost }
 func (s *stubFollow) Following(string) (string, bool) { return s.leader, s.leaderOK }
 

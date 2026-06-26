@@ -25,7 +25,9 @@ type fakeGroup struct {
 
 func (g *fakeGroup) Invite(string, string) error                 { return nil }
 func (g *fakeGroup) Accept(string, string) error                 { return nil }
-func (g *fakeGroup) Leave(string) (bool, string, []string, bool) { return false, "", nil, false }
+func (g *fakeGroup) Leave(string) (bool, string, []string, bool) {
+	return false, "", nil, g.leader != "" // had = there is a party to leave
+}
 func (g *fakeGroup) Disband(string) ([]string, bool)             { return nil, false }
 func (g *fakeGroup) Promote(_ string, target string) ([]string, error) {
 	if g.promoteErr != nil {

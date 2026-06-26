@@ -143,7 +143,37 @@ func JoinHandler(ctx context.Context, c *Context) error {
 			_ = a.Write(ctx, fmt.Sprintf("%s joins the party.", c.Actor.Name()))
 		}
 	}
+	// Auto-follow the leader on join (grouping.md §9): a party travels together by
+	// default. Best-effort — skip silently if following is unavailable or would
+	// self/cycle. The relationship stays independent: `unfollow` ends it without
+	// leaving the party, and `leave` ends it symmetrically (LeaveHandler).
+	if c.autoFollowLeader(leader.PlayerID()) {
+		return c.Actor.Write(ctx, fmt.Sprintf("You join %s's party and begin following them.", leader.Name()))
+	}
 	return c.Actor.Write(ctx, fmt.Sprintf("You join %s's party.", leader.Name()))
+}
+
+// autoFollowLeader starts the joining member trailing leaderID (grouping.md §9),
+// reporting whether the follow took. Best-effort: a nil follow service, a self-
+// follow, or a cycle leaves the join unaffected.
+func (c *Context) autoFollowLeader(leaderID string) bool {
+	if c.Follow == nil || leaderID == "" || leaderID == c.Actor.PlayerID() {
+		return false
+	}
+	return c.Follow.Follow(c.Actor.PlayerID(), leaderID) == nil
+}
+
+// autoUnfollowLeader ends a party-induced follow when leaving (grouping.md §9):
+// the member stops trailing priorLeaderID, but ONLY if that is who they are
+// currently following — a manual follow of someone else (or none) is left
+// untouched. Silent: the leader is already told the member left.
+func (c *Context) autoUnfollowLeader(priorLeaderID string) {
+	if c.Follow == nil || priorLeaderID == "" || priorLeaderID == c.Actor.PlayerID() {
+		return
+	}
+	if cur, has := c.Follow.Following(c.Actor.PlayerID()); has && cur == priorLeaderID {
+		c.Follow.Unfollow(c.Actor.PlayerID())
+	}
 }
 
 // LeaveHandler implements `leave` / `ungroup` (grouping.md §2/§3).
@@ -151,10 +181,14 @@ func LeaveHandler(ctx context.Context, c *Context) error {
 	if c.Group == nil {
 		return c.Actor.Write(ctx, "You aren't in a party.")
 	}
+	// Capture the leader before leaving so the symmetric auto-unfollow (below) can
+	// tell a party-induced follow from a manual one.
+	priorLeaderID, _ := c.Group.LeaderOf(c.Actor.PlayerID())
 	disbanded, newLeaderID, others, had := c.Group.Leave(c.Actor.PlayerID())
 	if !had {
 		return c.Actor.Write(ctx, "You aren't in a party.")
 	}
+	c.autoUnfollowLeader(priorLeaderID)
 	leaverName := c.Actor.Name()
 	newLeaderName := ""
 	if newLeaderID != "" {

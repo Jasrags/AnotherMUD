@@ -28,9 +28,12 @@ A party has a **leader** (the creator) and **members**. Membership is by
 - **Share a channel** — a party-only `gtell` (§6).
 
 Travel together is **not** grouping's job — that's `follow` (members `follow` the
-leader). Grouping and follow are **independent**: you may follow without
-grouping, or group without following. (A future convenience could auto-follow on
-join; v1 keeps them decoupled.)
+leader). Grouping and follow stay **independent systems**: you may follow without
+grouping, or group without following, and `unfollow` ends a follow without
+leaving the party. As a **convenience**, joining a party now auto-`follow`s the
+leader (and leaving auto-stops that trail) so a party travels together by default
+— see §9; the relationship is still the `follow` graph's, just kicked off by
+`join`.
 
 ### Kill-XP, introduced here
 
@@ -304,7 +307,22 @@ behavior, not knobs; the window itself is `loot-and-corpses.md`'s.
   (lower-level members get more, or a flat tax) and a small **group bonus** (the
   party earns slightly more total, rewarding cooperation) are common; deferred
   until the kill-XP curve is tuned as content.
-- **Auto-follow on join.** Should joining a party auto-`follow` the leader for
-  cohesion? Convenient, but couples the two systems; v1 keeps them decoupled.
+- **Auto-follow on join.** SHIPPED 2026-06-25 — joining a party auto-`follow`s
+  the leader for cohesion (and `leave` auto-stops the trail, but only the
+  party-induced one — a manual follow of someone else survives). Best-effort: a
+  self/cycle or an unavailable follow service leaves the join unaffected. The two
+  systems stay independent code (the follow graph is unchanged); `join`/`leave`
+  just drive it. (Still open: an opt-out toggle for players who don't want it;
+  auto-unfollow on `disband`/logout teardown, which today leaves a harmless
+  consent-free trail the member can `unfollow`.)
+
+### Acceptance criteria (auto-follow)
+
+- [x] Accepting a party invite (`join`) starts the member following the leader
+      with no separate `follow`; the join message says so. **SHIPPED 2026-06-25.**
+- [x] `leave` stops a party-induced follow of the leader, but leaves a manual
+      follow of a different player intact. **SHIPPED 2026-06-25.**
+- [x] A self/cycle/no-service case leaves the join succeeding without a follow.
+      **SHIPPED 2026-06-25** (`autoFollowLeader` best-effort).
 - **Shared quest credit.** Party-wide quest objective advancement is desirable
   but quest objectives are per-character; needs a design pass on the quest side.
