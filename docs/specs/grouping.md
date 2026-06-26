@@ -263,6 +263,11 @@ behavior, not knobs; the window itself is `loot-and-corpses.md`'s.
 - **Loot & corpses** (`loot-and-corpses.md` §4): §5 fills the corpse owner set —
   the seam that doc reserved for grouping.
 - **Mobs** (`mobs-ai-spawning`): the per-mob **XP value** is new mob metadata.
+- **Hirelings** (`hireable-mobs.md` §6, §11): a hireling is **not** a party seat.
+  The recipient/owner sets (§4, §5) are keyed on player ids, so a co-located
+  hireling never dilutes the XP split nor joins the loot owner set. A hireling's
+  kill credits its **owner**, whose party then shares it through the owner's
+  single seat — a force multiplier, not a share multiplier.
 - **Chat** (`chat-channels-and-tells`): `gtell` is a party-scoped fan-out beside
   the global channels and `tell`.
 - **Session lifecycle** (`session-lifecycle`): logout teardown (§3) — a member

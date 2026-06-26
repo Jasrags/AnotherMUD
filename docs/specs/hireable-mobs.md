@@ -384,9 +384,15 @@ The following are externally configurable and not fixed by this spec.
 
 - **Multiple hirelings / bands.** v1 caps small; mercenary bands, formations, and
   patrol routes are deferred.
-- **Hireling as a party seat.** Does a hireling count toward grouping's XP/loot
-  split, or stay strictly the owner's asset (outside the party math)? Lean:
-  owner's asset, not a party seat (simpler; doesn't dilute human shares).
+- **Hireling as a party seat — RESOLVED: owner's asset, not a party seat.** A
+  hireling does **not** count toward grouping's XP or loot split. It is never an
+  XP recipient (so it can't dilute the human shares) and never a loot owner; its
+  kills instead flow through its **owner's** seat — the owner's party splits the
+  XP it helped earn (§6.4) and shares the corpse under the owner's loot policy
+  (§6.3). This is structural: grouping's party graph is keyed on player ids, so a
+  hireling (a mob) can never occupy a seat. (Chosen for simplicity and because a
+  force-multiplier shouldn't also be a share-multiplier; see [grouping](grouping.md)
+  §8.)
 - **Order depth.** Conditional orders ("attack anything that attacks me",
   "retreat below half HP"), patrol, and scripted dialogue are deferred.
 - **Hireling equipment / advancement.** Content-fixed in v1; gear management and

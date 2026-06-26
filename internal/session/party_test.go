@@ -6,8 +6,64 @@ import (
 	"testing"
 
 	"github.com/Jasrags/AnotherMUD/internal/command"
+	"github.com/Jasrags/AnotherMUD/internal/entities"
 	"github.com/Jasrags/AnotherMUD/internal/world"
 )
+
+// TestHirelingHoldsNoPartySeat locks the resolved hireable-mobs.md §11 decision:
+// a hireling is the owner's ASSET, not a party seat. A live hireling standing in
+// the kill room never becomes an XP recipient (so it can't dilute the human
+// split) nor a loot owner nor a party-roster member — its kills flow through the
+// owner's seat instead. The party graph is keyed on player ids throughout, so the
+// exclusion is structural; this is the executable guard against a future change
+// that wires co-located hirelings into the split.
+func TestHirelingHoldsNoPartySeat(t *testing.T) {
+	mgr := NewManager()
+	place := entities.NewPlacement()
+	mgr.actionEnv = command.Env{Placement: place}
+	roomA := world.RoomID("z:a")
+	add := func(pid string) *connActor {
+		a := &connActor{id: "c-" + pid, playerID: pid, room: &world.Room{ID: roomA}}
+		mgr.Add(a)
+		return a
+	}
+	owner := add("K")
+	add("A")
+	if err := mgr.Invite("K", "A"); err != nil {
+		t.Fatal(err)
+	}
+	if err := mgr.Accept("A", "K"); err != nil {
+		t.Fatal(err)
+	}
+
+	// The owner has a live hireling standing in the kill room.
+	const hid = entities.EntityID("entity-h")
+	place.Place(hid, roomA)
+	owner.TrackLiveHireling(hid, "sw:sellsword")
+
+	// XP recipients are the two humans only — the hireling adds no seat.
+	got := mgr.killXPRecipients("K", roomA)
+	ids := make([]string, 0, len(got))
+	for _, a := range got {
+		ids = append(ids, a.playerID)
+	}
+	slices.Sort(ids)
+	if !slices.Equal(ids, []string{"A", "K"}) {
+		t.Fatalf("XP recipients = %v, want [A K] (a hireling holds no seat)", ids)
+	}
+
+	// Loot owners are the two humans only.
+	owners := mgr.LootOwners("K")
+	slices.Sort(owners)
+	if !slices.Equal(owners, []string{"A", "K"}) {
+		t.Fatalf("loot owners = %v, want [A K] (a hireling holds no seat)", owners)
+	}
+
+	// And the hireling id never appears in the party roster.
+	if slices.Contains(mgr.Members("K"), string(hid)) {
+		t.Error("hireling id leaked into the party roster")
+	}
+}
 
 // TestKillXPRecipients covers the grouping-specific XP recipient selection
 // (grouping.md §4): a solo killer is a party of one; a party shares only with
