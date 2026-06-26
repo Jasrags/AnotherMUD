@@ -7,6 +7,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/Jasrags/AnotherMUD/internal/combat"
 	"github.com/Jasrags/AnotherMUD/internal/entities"
 	"github.com/Jasrags/AnotherMUD/internal/logging"
 	"github.com/Jasrags/AnotherMUD/internal/mob"
@@ -112,4 +113,21 @@ func (h *hirelingService) Dematerialize(ctx context.Context, id entities.EntityI
 			slog.String("hireling", string(id)), slog.Any("err", err))
 	}
 	return true
+}
+
+// hirelingOwnerOf maps a combatant id to the owner player id of the hireling it
+// names, or "" when the id is not an owned hireling (hireable-mobs.md §6.3/§6.4).
+// Used by the corpse owner-set + kill-XP hooks to credit a hireling's kill to its
+// owner.
+func hirelingOwnerOf(store *entities.Store, combatantID string) string {
+	eid := combat.EntityIDOf(combat.CombatantID(combatantID))
+	e, ok := store.GetByID(entities.EntityID(eid))
+	if !ok {
+		return ""
+	}
+	m, ok := e.(*entities.MobInstance)
+	if !ok || !m.IsHireling() {
+		return ""
+	}
+	return m.OwnerID()
 }

@@ -16,6 +16,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -1380,13 +1381,28 @@ func run() error {
 		// (bare pids), then re-prefix each owner to match MayLoot's actor id. nil
 		// (ungrouped / no policy) lets corpse creation fall back to the solo killer.
 		OwnerSet: func(killerID string) []string {
-			pid, ok := strings.CutPrefix(killerID, combat.PlayerPrefix)
-			if !ok {
+			// Resolve the loot-owning player: a player killer is themselves; a
+			// hireling killer routes loot to its OWNER (hireable-mobs.md §6.3) — the
+			// owner paid for the kill. Either way, run the owner through the party
+			// loot policy (LootOwners) so a party's FFA/master-looter rule applies.
+			ownerPID := ""
+			if pid, ok := strings.CutPrefix(killerID, combat.PlayerPrefix); ok {
+				ownerPID = pid
+			} else if h := hirelingOwnerOf(entityStore, killerID); h != "" {
+				ownerPID = h
+			}
+			if ownerPID == "" {
 				return nil
 			}
-			owners := mgr.LootOwners(pid)
+			owners := mgr.LootOwners(ownerPID)
 			if len(owners) == 0 {
-				return nil
+				// Ungrouped owner → the owner alone owns the kill. Return it
+				// EXPLICITLY (not nil) so a hireling kill is owned by the player,
+				// not by the hireling's own combatant id — which corpse creation's
+				// solo-killer fallback would otherwise use, locking the owner out of
+				// their own kill (a player kill is unaffected: its fallback id is
+				// already the player's).
+				return []string{string(combat.NewPlayerCombatantID(ownerPID))}
 			}
 			out := make([]string, 0, len(owners))
 			for _, o := range owners {
@@ -1521,7 +1537,22 @@ func run() error {
 		}
 		pid, ok := strings.CutPrefix(e.KillerID, combat.PlayerPrefix)
 		if !ok {
-			return // a mob/scripted killer earns no XP
+			// Not a player kill. A HIRELING kill credits its owner — but only for a
+			// foe the owner actively fought (hireable-mobs.md §6.4 / PD-4: no XP for a
+			// hireling's solo kill, so a hireling can't be an AFK XP farm). The
+			// participation check is reliable here: MobKilled fires before the slain
+			// mob's combat lists are torn down (DisengageAll runs later), so the slain
+			// mob still lists the owner as an opponent iff the owner was fighting it.
+			owner := hirelingOwnerOf(entityStore, e.KillerID)
+			if owner == "" {
+				return // a wild mob / scripted killer earns no one any XP
+			}
+			ownerCID := combat.NewPlayerCombatantID(owner)
+			slainCID := combat.NewMobCombatantID(string(e.MobID))
+			if !slices.Contains(combatMgr.OpponentsOf(slainCID), ownerCID) {
+				return // the owner didn't fight this kill — no XP
+			}
+			pid = owner
 		}
 		tmpl, terr := registries.Mobs.Get(mob.TemplateID(e.TemplateID))
 		if terr != nil || tmpl.XPValue <= 0 {
@@ -4239,6 +4270,40 @@ func (s *productionCombatSink) autoAssist(ctx context.Context, e combat.Engageme
 	}
 	s.autoAssistSide(ctx, e.AttackerID, e.TargetID, e.RoomID)
 	s.autoAssistSide(ctx, e.TargetID, e.AttackerID, e.RoomID)
+	// hireable-mobs.md §6.1: an owner's engagement pulls their bound hirelings onto
+	// the foe — both sides, so it fires whether the owner attacks or is attacked.
+	s.hirelingAssistSide(ctx, e.AttackerID, e.TargetID, e.RoomID)
+	s.hirelingAssistSide(ctx, e.TargetID, e.AttackerID, e.RoomID)
+}
+
+// hirelingAssistSide pulls engagerCID's live hirelings onto oppCID when engagerCID
+// is a player (only players own hirelings). A hireling already in combat keeps its
+// target — that InCombat refusal is also what terminates the recursive
+// OnEngagement→assist chain (a just-engaged hireling is now in the lists). Mirrors
+// autoAssistSide; a hireling is a mob, so it engages via a mob combatant id.
+func (s *productionCombatSink) hirelingAssistSide(ctx context.Context, engagerCID, oppCID combat.CombatantID, room world.RoomID) {
+	if !strings.HasPrefix(string(engagerCID), combat.PlayerPrefix) {
+		return
+	}
+	ownerPID := combat.EntityIDOf(engagerCID)
+	hirelings := s.sessions.HirelingCombatantsOf(ownerPID)
+	if len(hirelings) == 0 {
+		return
+	}
+	ownerName := s.nameOf(string(engagerCID))
+	oppName := s.nameOf(string(oppCID))
+	for _, hid := range hirelings {
+		hCID := combat.NewMobCombatantID(hid)
+		if s.mgr.InCombat(hCID) {
+			continue
+		}
+		if _, ok := s.mgr.EngageWithReason(ctx, hCID, oppCID, room); !ok {
+			continue
+		}
+		s.announce(ctx, room,
+			fmt.Sprintf("%s moves to defend %s, attacking %s!", s.nameOf(string(hCID)), ownerName, oppName),
+			hCID)
+	}
 }
 
 // autoAssistSide pulls engagerCID's party-mates onto oppCID when engagerCID is

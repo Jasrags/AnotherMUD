@@ -114,3 +114,23 @@ func TestPullHirelings_NoneIsNoop(t *testing.T) {
 	mgr.Add(owner)
 	mgr.PullHirelings(context.Background(), "solo", "z:a", "z:b") // must not panic
 }
+
+// HirelingCombatantsOf returns the owner's live hireling entity ids for the
+// combat-assist seam (hireable-mobs.md §6.1); an owner with none, or an unknown
+// owner, yields nothing.
+func TestHirelingCombatantsOf(t *testing.T) {
+	mgr := NewManager()
+	owner := &connActor{id: "c-boss", playerID: "boss", room: &world.Room{ID: "z:a"}}
+	mgr.Add(owner)
+	if got := mgr.HirelingCombatantsOf("boss"); got != nil {
+		t.Fatalf("no hirelings → %v, want nil", got)
+	}
+	owner.TrackLiveHireling("h-1", "sw:sellsword")
+	got := mgr.HirelingCombatantsOf("boss")
+	if len(got) != 1 || got[0] != "h-1" {
+		t.Fatalf("got %v, want [h-1]", got)
+	}
+	if got := mgr.HirelingCombatantsOf("ghost"); got != nil {
+		t.Fatalf("unknown owner → %v, want nil", got)
+	}
+}

@@ -196,3 +196,27 @@ func (m *Manager) PullHirelings(ctx context.Context, ownerID string, from, to wo
 		place.Place(id, to)
 	}
 }
+
+// HirelingCombatantsOf returns the entity ids of ownerPID's live hirelings, for
+// the combat-assist seam (hireable-mobs.md §6.1). Hirelings are bound to (always
+// co-located with) their owner, so when the owner engages a foe in their room the
+// hirelings are right there — no room filter is needed; the caller applies the
+// in-combat guard. Empty when the owner is offline or has no live hireling.
+func (m *Manager) HirelingCombatantsOf(ownerPID string) []string {
+	if m == nil {
+		return nil
+	}
+	owner, ok := m.GetByPlayerID(ownerPID)
+	if !ok || owner == nil {
+		return nil
+	}
+	ids := owner.liveHirelingIDs()
+	if len(ids) == 0 {
+		return nil
+	}
+	out := make([]string, 0, len(ids))
+	for _, id := range ids {
+		out = append(out, string(id))
+	}
+	return out
+}

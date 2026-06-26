@@ -1,8 +1,9 @@
 # Hireable Mobs — Feature Specification
 
-**Status:** Draft (spec; **slices 1–2 shipped** — the owned-companion substrate +
-`hire`/`dismiss`/`hirelings` + persistence/logout/login (slice 1), and the bound
-move-with-owner relocate (slice 2); combat assist + upkeep are later slices) · **Scope:** NPCs a character hires to
+**Status:** Draft (spec; **slices 1–3 shipped** — the owned-companion substrate +
+`hire`/`dismiss`/`hirelings` + persistence/logout/login (slice 1), the bound
+move-with-owner relocate (slice 2), and combat assist + owner-routed loot +
+participation-gated XP (slice 3); upkeep + death-ends-contract are slice 4) · **Scope:** NPCs a character hires to
 follow, fight for, and obey them (mercenaries, henchmen, hirelings): the
 owner/controller relationship, the `hire` / `dismiss` / `order` verbs, a hireling
 trailing its owner, combat assistance with owner-routed loot, a recurring upkeep
@@ -251,13 +252,19 @@ the upkeep gold sink is the counterweight. (This is the resolved fork,
 
 **Acceptance criteria**
 
-- [ ] An idle, co-located hireling joins its owner's fight against the owner's
-      enemy; a hireling already in combat is not redirected.
-- [ ] A hireling can be killed; its death ends the contract.
-- [ ] A corpse from a hireling's kill is owned by the owner (loot rights), under
-      the owner's party loot policy where a party exists.
-- [ ] A kill the owner actively fought grants the owner kill-XP; a hireling-only
-      kill grants the owner none.
+- [x] An idle, co-located hireling joins its owner's fight against the owner's
+      enemy; a hireling already in combat is not redirected. **SHIPPED (slice 3**
+      — `hirelingAssistSide` on the same `OnEngagement` hook as auto-assist; the
+      InCombat guard both skips a busy hireling and terminates the chain**).**
+- [ ] A hireling can be killed; its death ends the contract. *(Death is possible
+      today; **death-ends-contract is slice 4**, with upkeep.)*
+- [x] A corpse from a hireling's kill is owned by the owner (loot rights), under
+      the owner's party loot policy where a party exists. **SHIPPED (slice 3** —
+      the corpse `OwnerSet` hook maps a hireling killer → its owner → `LootOwners`**).**
+- [x] A kill the owner actively fought grants the owner kill-XP; a hireling-only
+      kill grants the owner none. **SHIPPED (slice 3** — the `MobKilled` handler
+      credits the owner only when the slain mob still lists the owner as an
+      opponent; reliable because `MobKilled` fires before the kill's `DisengageAll`**).**
 
 ## 7. Upkeep and contract end
 
