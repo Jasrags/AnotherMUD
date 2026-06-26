@@ -4,11 +4,20 @@ import (
 	"context"
 	"log/slog"
 
+	"github.com/Jasrags/AnotherMUD/internal/command"
 	"github.com/Jasrags/AnotherMUD/internal/entities"
 	"github.com/Jasrags/AnotherMUD/internal/logging"
 	"github.com/Jasrags/AnotherMUD/internal/player"
 	"github.com/Jasrags/AnotherMUD/internal/world"
 )
+
+// liveHireling is the transient overlay value for a materialized hireling: the
+// template it was hired from plus its current order stance (hireable-mobs.md §8).
+// Both live only while the creature is in the world; logout/death drops the entry.
+type liveHireling struct {
+	template string
+	stance   string // one of command.HirelingStance*; "" treated as follow
+}
 
 // This file holds the connActor's hireling-ownership surface (hireable-mobs.md
 // §2, §9), satisfying the command package's hirelingOwner interface. Durable
@@ -82,9 +91,24 @@ func (a *connActor) TrackLiveHireling(id entities.EntityID, templateID string) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	if a.liveHirelings == nil {
-		a.liveHirelings = make(map[entities.EntityID]string)
+		a.liveHirelings = make(map[entities.EntityID]liveHireling)
 	}
-	a.liveHirelings[id] = templateID
+	// A freshly materialized hireling defaults to follow (hireable-mobs.md §8);
+	// stance is transient, so re-materialize (login) always resets it.
+	a.liveHirelings[id] = liveHireling{template: templateID, stance: command.HirelingStanceFollow}
+}
+
+// SetHirelingStance updates a live hireling's order stance (hireable-mobs.md §8).
+// No-op when the id isn't currently materialized for this character.
+func (a *connActor) SetHirelingStance(id entities.EntityID, stance string) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	h, ok := a.liveHirelings[id]
+	if !ok {
+		return
+	}
+	h.stance = stance
+	a.liveHirelings[id] = h
 }
 
 // UntrackLiveHireling forgets a materialized hireling (it was dismissed, died, or
@@ -93,11 +117,11 @@ func (a *connActor) TrackLiveHireling(id entities.EntityID, templateID string) {
 func (a *connActor) UntrackLiveHireling(id entities.EntityID) (string, bool) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
-	t, ok := a.liveHirelings[id]
+	h, ok := a.liveHirelings[id]
 	if ok {
 		delete(a.liveHirelings, id)
 	}
-	return t, ok
+	return h.template, ok
 }
 
 // LiveHireling returns the entity id of a currently-materialized hireling whose
@@ -106,8 +130,8 @@ func (a *connActor) UntrackLiveHireling(id entities.EntityID) (string, bool) {
 func (a *connActor) LiveHireling(templateID string) (entities.EntityID, bool) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
-	for id, t := range a.liveHirelings {
-		if t == templateID {
+	for id, h := range a.liveHirelings {
+		if h.template == templateID {
 			return id, true
 		}
 	}
@@ -119,21 +143,32 @@ func (a *connActor) LiveHireling(templateID string) (entities.EntityID, bool) {
 func (a *connActor) liveHirelingTemplate(id entities.EntityID) (string, bool) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
-	t, ok := a.liveHirelings[id]
-	return t, ok
+	h, ok := a.liveHirelings[id]
+	return h.template, ok
 }
 
-// liveHirelingIDs snapshots the entity ids of this character's currently
-// materialized hirelings (for the move-with-owner relocate, §5). Fresh slice.
-func (a *connActor) liveHirelingIDs() []entities.EntityID {
+// hirelingStanceRef pairs a live hireling's entity id with its order stance,
+// for the stance-aware relocate (§5) and assist (§6.1) reads.
+type hirelingStanceRef struct {
+	id     entities.EntityID
+	stance string
+}
+
+// liveHirelingStances snapshots this character's live hirelings as (id, stance)
+// pairs. An empty stance is normalized to follow (the default). Fresh slice.
+func (a *connActor) liveHirelingStances() []hirelingStanceRef {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	if len(a.liveHirelings) == 0 {
 		return nil
 	}
-	out := make([]entities.EntityID, 0, len(a.liveHirelings))
-	for id := range a.liveHirelings {
-		out = append(out, id)
+	out := make([]hirelingStanceRef, 0, len(a.liveHirelings))
+	for id, h := range a.liveHirelings {
+		st := h.stance
+		if st == "" {
+			st = command.HirelingStanceFollow
+		}
+		out = append(out, hirelingStanceRef{id: id, stance: st})
 	}
 	return out
 }
@@ -201,17 +236,24 @@ func (m *Manager) PullHirelings(ctx context.Context, ownerID string, from, to wo
 	if place == nil {
 		return
 	}
-	for _, id := range owner.liveHirelingIDs() {
-		place.Place(id, to)
+	// Only a follow-stance hireling trails (hireable-mobs.md §8); a stay/guard
+	// hireling holds the room it was left in.
+	for _, ref := range owner.liveHirelingStances() {
+		if ref.stance != command.HirelingStanceFollow {
+			continue
+		}
+		place.Place(ref.id, to)
 	}
 }
 
-// HirelingCombatantsOf returns the entity ids of ownerPID's live hirelings, for
-// the combat-assist seam (hireable-mobs.md §6.1). Hirelings are bound to (always
-// co-located with) their owner, so when the owner engages a foe in their room the
-// hirelings are right there — no room filter is needed; the caller applies the
-// in-combat guard. Empty when the owner is offline or has no live hireling.
-func (m *Manager) HirelingCombatantsOf(ownerPID string) []string {
+// HirelingCombatantsOf returns the entity ids of ownerPID's live hirelings that
+// should join combat happening in `room` (hireable-mobs.md §6.1, §8). A stay
+// hireling never assists; a follow or guard hireling assists only when it is
+// actually in the combat room. For a follow hireling that is the owner's room (it
+// is bound there); for a guard hireling that is the room it was left holding —
+// "guard still assists if combat reaches the room". The caller applies the
+// in-combat guard. Empty when the owner is offline or no hireling qualifies.
+func (m *Manager) HirelingCombatantsOf(ownerPID string, room world.RoomID) []string {
 	if m == nil {
 		return nil
 	}
@@ -219,13 +261,27 @@ func (m *Manager) HirelingCombatantsOf(ownerPID string) []string {
 	if !ok || owner == nil {
 		return nil
 	}
-	ids := owner.liveHirelingIDs()
-	if len(ids) == 0 {
+	refs := owner.liveHirelingStances()
+	if len(refs) == 0 {
 		return nil
 	}
-	out := make([]string, 0, len(ids))
-	for _, id := range ids {
-		out = append(out, string(id))
+	place := m.actionEnv.Placement
+	out := make([]string, 0, len(refs))
+	for _, ref := range refs {
+		if ref.stance == command.HirelingStanceStay {
+			continue // stood down — never assists
+		}
+		// Room gate: a hireling only assists combat in its own room. Skipped when
+		// placement isn't wired (test paths) so unit tests need not stage rooms.
+		if place != nil {
+			if r, ok := place.RoomOf(ref.id); !ok || r != room {
+				continue
+			}
+		}
+		out = append(out, string(ref.id))
+	}
+	if len(out) == 0 {
+		return nil
 	}
 	return out
 }
@@ -287,8 +343,8 @@ func (a *connActor) liveHirelingPairs() []hirelingRef {
 		return nil
 	}
 	out := make([]hirelingRef, 0, len(a.liveHirelings))
-	for id, t := range a.liveHirelings {
-		out = append(out, hirelingRef{id: id, template: t})
+	for id, h := range a.liveHirelings {
+		out = append(out, hirelingRef{id: id, template: h.template})
 	}
 	return out
 }

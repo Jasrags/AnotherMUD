@@ -2310,9 +2310,10 @@ type connActor struct {
 
 	// liveHirelings tracks which of this character's owned hirelings
 	// (hireable-mobs.md §2) currently have a creature materialized in the world
-	// (entity id → template id). Transient session overlay over the durable
-	// save.Hirelings list; drained + dematerialized on logout (§9). Guarded by a.mu.
-	liveHirelings map[entities.EntityID]string
+	// (entity id → template + order stance). Transient session overlay over the
+	// durable save.Hirelings list; drained + dematerialized on logout (§9). The
+	// stance (§8) is transient too — reset to follow on re-materialize. Guarded by a.mu.
+	liveHirelings map[entities.EntityID]liveHireling
 
 	// mountedOn is the entity id of the mount this character is currently
 	// riding (mounts.md §4.3), or empty when on foot. Transient — the live

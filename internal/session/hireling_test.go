@@ -106,6 +106,34 @@ func TestPullHirelings_FollowsOwner(t *testing.T) {
 	}
 }
 
+// A stay/guard hireling holds its room when the owner moves (hireable-mobs.md §8):
+// only follow-stance hirelings trail.
+func TestPullHirelings_StanceHoldsPosition(t *testing.T) {
+	from, to := world.RoomID("z:a"), world.RoomID("z:b")
+	place := entities.NewPlacement()
+	mgr := NewManager()
+	mgr.actionEnv = command.Env{Placement: place}
+	owner := &connActor{id: "c-boss", playerID: "boss", room: &world.Room{ID: from}}
+	mgr.Add(owner)
+
+	const stayer = entities.EntityID("h-stay")
+	const trailer = entities.EntityID("h-follow")
+	place.Place(stayer, from)
+	place.Place(trailer, from)
+	owner.TrackLiveHireling(stayer, "sw:sellsword")
+	owner.TrackLiveHireling(trailer, "sw:guard")
+	owner.SetHirelingStance(stayer, command.HirelingStanceStay)
+
+	mgr.PullHirelings(context.Background(), "boss", from, to)
+
+	if got, _ := place.RoomOf(stayer); got != from {
+		t.Errorf("stay hireling moved to %q, want %q (it should hold)", got, from)
+	}
+	if got, _ := place.RoomOf(trailer); got != to {
+		t.Errorf("follow hireling room = %q, want %q (it should trail)", got, to)
+	}
+}
+
 // An owner with no live hireling is a no-op (no panic, nothing to move).
 func TestPullHirelings_NoneIsNoop(t *testing.T) {
 	mgr := NewManager()
@@ -143,18 +171,30 @@ func TestOnHirelingDeath_EndsContract(t *testing.T) {
 // combat-assist seam (hireable-mobs.md §6.1); an owner with none, or an unknown
 // owner, yields nothing.
 func TestHirelingCombatantsOf(t *testing.T) {
+	const room = world.RoomID("z:a")
 	mgr := NewManager()
-	owner := &connActor{id: "c-boss", playerID: "boss", room: &world.Room{ID: "z:a"}}
+	owner := &connActor{id: "c-boss", playerID: "boss", room: &world.Room{ID: room}}
 	mgr.Add(owner)
-	if got := mgr.HirelingCombatantsOf("boss"); got != nil {
+	if got := mgr.HirelingCombatantsOf("boss", room); got != nil {
 		t.Fatalf("no hirelings → %v, want nil", got)
 	}
-	owner.TrackLiveHireling("h-1", "sw:sellsword")
-	got := mgr.HirelingCombatantsOf("boss")
+	owner.TrackLiveHireling("h-1", "sw:sellsword") // defaults to follow → assists
+	got := mgr.HirelingCombatantsOf("boss", room)
 	if len(got) != 1 || got[0] != "h-1" {
 		t.Fatalf("got %v, want [h-1]", got)
 	}
-	if got := mgr.HirelingCombatantsOf("ghost"); got != nil {
+	// A stay-stance hireling stands down — excluded from the assist set (§8).
+	owner.SetHirelingStance("h-1", command.HirelingStanceStay)
+	if got := mgr.HirelingCombatantsOf("boss", room); got != nil {
+		t.Fatalf("stay hireling assisted → %v, want nil", got)
+	}
+	// Guard re-enters the assist set (placement unwired here, so the room gate is
+	// skipped — guard's room filtering is exercised in the live test).
+	owner.SetHirelingStance("h-1", command.HirelingStanceGuard)
+	if got := mgr.HirelingCombatantsOf("boss", room); len(got) != 1 || got[0] != "h-1" {
+		t.Fatalf("guard hireling → %v, want [h-1]", got)
+	}
+	if got := mgr.HirelingCombatantsOf("ghost", room); got != nil {
 		t.Fatalf("unknown owner → %v, want nil", got)
 	}
 }

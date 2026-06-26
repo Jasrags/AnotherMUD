@@ -342,8 +342,10 @@ type testActor struct {
 
 	// ownedHirelings / liveHirelingSet back the hirelingOwner capability
 	// (hireable-mobs.md §2): durable contracts + the materialized overlay.
+	// hirelingStance holds the per-hireling order stance (§8).
 	ownedHirelings  []string
 	liveHirelingSet map[entities.EntityID]string
+	hirelingStance  map[entities.EntityID]string
 }
 
 // IsExitDiscovered / DiscoverExit make testActor satisfy exitDiscoverer

@@ -5,6 +5,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/Jasrags/AnotherMUD/internal/combat"
 	"github.com/Jasrags/AnotherMUD/internal/command"
 	"github.com/Jasrags/AnotherMUD/internal/economy"
 	"github.com/Jasrags/AnotherMUD/internal/entities"
@@ -71,6 +72,21 @@ func (a *testActor) LiveHireling(templateID string) (entities.EntityID, bool) {
 		}
 	}
 	return "", false
+}
+
+func (a *testActor) SetHirelingStance(id entities.EntityID, stance string) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	if a.hirelingStance == nil {
+		a.hirelingStance = map[entities.EntityID]string{}
+	}
+	a.hirelingStance[id] = stance
+}
+
+func (a *testActor) stanceOf(id entities.EntityID) string {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	return a.hirelingStance[id]
 }
 
 // fakeHirelingService is a scriptable command.HirelingService: one hireable
@@ -197,6 +213,68 @@ func TestDismiss_RemovesContract(t *testing.T) {
 	}
 	if !strings.Contains(a.lastLine(), "dismiss a grizzled sellsword") {
 		t.Errorf("reply = %q, want a dismiss confirmation", a.lastLine())
+	}
+}
+
+func TestOrder_SetsStanceByName(t *testing.T) {
+	env, a, _ := hirelingFixture(t)
+	dispatchBuiltin(t, env, a, "hire sellsword")
+	dispatchBuiltin(t, env, a, "order sellsword stay")
+	if got := a.stanceOf("h-1"); got != command.HirelingStanceStay {
+		t.Errorf("stance = %q, want stay", got)
+	}
+	if !strings.Contains(a.lastLine(), "hold this position") {
+		t.Errorf("reply = %q, want a stay confirmation", a.lastLine())
+	}
+}
+
+func TestOrder_UnnamedSoleHireling(t *testing.T) {
+	env, a, _ := hirelingFixture(t)
+	dispatchBuiltin(t, env, a, "hire sellsword")
+	dispatchBuiltin(t, env, a, "order guard") // no name → the sole live hireling
+	if got := a.stanceOf("h-1"); got != command.HirelingStanceGuard {
+		t.Errorf("stance = %q, want guard", got)
+	}
+}
+
+func TestOrder_FollowResumes(t *testing.T) {
+	env, a, _ := hirelingFixture(t)
+	dispatchBuiltin(t, env, a, "hire sellsword")
+	dispatchBuiltin(t, env, a, "order sellsword stay")
+	dispatchBuiltin(t, env, a, "order sellsword follow")
+	if got := a.stanceOf("h-1"); got != command.HirelingStanceFollow {
+		t.Errorf("stance = %q, want follow after re-order", got)
+	}
+}
+
+func TestOrder_UnknownHireling(t *testing.T) {
+	env, a, _ := hirelingFixture(t)
+	dispatchBuiltin(t, env, a, "hire sellsword")
+	dispatchBuiltin(t, env, a, "order wolfhound stay")
+	if !strings.Contains(a.lastLine(), `no "wolfhound" to order`) {
+		t.Errorf("reply = %q, want unknown-hireling refusal", a.lastLine())
+	}
+}
+
+func TestOrder_UnknownKeyword(t *testing.T) {
+	env, a, _ := hirelingFixture(t)
+	dispatchBuiltin(t, env, a, "hire sellsword")
+	dispatchBuiltin(t, env, a, "order sellsword dance")
+	if !strings.Contains(a.lastLine(), "follow, stay, guard") {
+		t.Errorf("reply = %q, want usage hint", a.lastLine())
+	}
+}
+
+// attack requires the hireling to be co-located with the owner; the fake
+// Materialize never calls place.Place, so RoomOf returns not-found and the
+// co-location gate fires (the gate is only skipped when c.Placement is nil).
+func TestOrder_AttackRequiresColocation(t *testing.T) {
+	env, a, _ := hirelingFixture(t)
+	env.Combat = combat.NewManager(combat.MapLocator{}, nil)
+	dispatchBuiltin(t, env, a, "hire sellsword")
+	dispatchBuiltin(t, env, a, "order sellsword attack rat")
+	if !strings.Contains(a.lastLine(), "isn't here to take that order") {
+		t.Errorf("reply = %q, want co-location refusal", a.lastLine())
 	}
 }
 

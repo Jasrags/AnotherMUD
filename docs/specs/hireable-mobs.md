@@ -295,15 +295,22 @@ The contract ends — the hireling is removed and its record dropped — on any 
 
 The owner directs a hireling with **`order <hireling> <command>`**, a small stance
 set: **follow** (the default — trail and assist, §5/§6), **stay** (hold this
-room, don't trail), **guard** (stay but still assist the owner if combat reaches
-the room), and **attack `<target>`** (engage a specific enemy now). Orders set a
-stance the AI behavior reads; only the owner may order their hireling.
+room, don't trail, stand down), **guard** (hold this room but still assist combat
+that reaches it), and **attack `<target>`** (engage a specific enemy now). Orders
+set a stance the relocate (§5) and assist (§6.1) seams read; only the owner may
+order their hireling. With exactly one live hireling the name may be omitted
+(`order guard`). The stance is **transient** — it resets to follow on
+re-materialize (login), like the rest of the live-creature state (§9).
 
 **Acceptance criteria**
 
-- [ ] `order` is owner-only; a non-owner is refused.
-- [ ] `follow` / `stay` / `guard` / `attack` set the corresponding behavior; a
+- [x] `order` is owner-only; a non-owner is refused. **SHIPPED** — it resolves
+      only among the caller's own contracts, so another's hireling can't be named.
+- [x] `follow` / `stay` / `guard` / `attack` set the corresponding behavior; a
       `stay` hireling does not trail, a `guard` hireling holds but still assists.
+      **SHIPPED** — stance stored on the live hireling; `PullHirelings` relocates
+      only follow; `HirelingCombatantsOf(owner, room)` excludes stay and gates
+      follow/guard on being in the combat room; `attack` engages a co-located foe.
 
 ## 9. Persistence
 

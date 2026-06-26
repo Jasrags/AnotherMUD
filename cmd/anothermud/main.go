@@ -4338,7 +4338,7 @@ func (s *productionCombatSink) hirelingAssistSide(ctx context.Context, engagerCI
 		return
 	}
 	ownerPID := combat.EntityIDOf(engagerCID)
-	hirelings := s.sessions.HirelingCombatantsOf(ownerPID)
+	hirelings := s.sessions.HirelingCombatantsOf(ownerPID, room)
 	if len(hirelings) == 0 {
 		return
 	}
