@@ -376,17 +376,22 @@ old five-theme partition left uncovered.
   rest); party chat (overlaps `chat-channels-and-tells`); shared **quest credit**
   (overlaps `quests`). Needs a design conversation before a spec.
 - **Hireable mobs (mercenaries, hirelings)** — NPCs a player hires to follow, fight,
-  or guide. ⚠️ **Greenfield — nothing in code or specs.** Mobs have behavior +
-  disposition + AI only; there is no owner/controller relationship and no `follow`
-  verb. Effectively a single-player analog of **Player grouping / party** above and
-  reuses its substrate: a hireling follows its owner, assists in combat, and plugs into
-  the same kill-credit + **loot-and-corpses §4 owner-set** seam; it also touches
-  `mobs-ai-spawning` (a `MobInstance` with an owner + a follow/guard behavior) and
-  `economy-survival` (hire cost + upkeep as a gold sink). Pre-decisions: ownership +
-  lifetime (permanent vs. timed contract vs. dismissable); command surface
-  (`hire`/`dismiss`/`order`/`follow`); combat assist + XP/loot split (reuse grouping's
-  rules); cap on simultaneous hirelings; persistence (does a hireling survive logout?).
-  Best decided alongside or just after grouping.
+  or guide. ✅ **SCOPED 2026-06-25 →
+  [`docs/proposals/hireable-mobs.md`](proposals/hireable-mobs.md)** (design pass +
+  pre-decisions resolved; spec slice next). ⚠️ **Greenfield (no code yet) — but the
+  substrate is ~70% built.** A hireling is **mounts-but-it-fights**: an owned,
+  specialized `MobInstance` reusing the mount machinery (`MobInstance.OwnerID`,
+  materialize/dematerialize, a persisted owned-record list + logout drain). `follow`
+  shipped (slice 1); grouping shipped (the kill-credit + `corpse.OwnerSet` loot seams
+  it plugs into). The one **Real-Go** piece is a new **AI follow/guard behavior** — which
+  emits the **mob-move signal** `follow.md` deferred, so this also closes follow's
+  mob-leader gap, unblocks the onboarding-guide NPC, and is the shared owned-entity seam
+  the **Shadowrun** spirits + drones need (`shadowrun-pack-plan.md` §3.1). Pre-decisions
+  resolved in the proposal; the one open fork flagged for sign-off is **XP for a
+  hireling's kills** (proposal §5 PD-4 — recommend: XP only for fights the owner joins,
+  not an AFK gold→XP farm). Build sequence: substrate → follow/guard behavior → combat
+  assist + loot → upkeep economy. **The highest-leverage greenfield pick** — one seam,
+  four consumers.
 - **Input tab-completion — polish only (feature complete)** — all surfaces are
   **LANDED**: Phase 0 substrate; presentation policy (`tab-completion §12`); the
   line-mode `suggest` stopgap; **Phase 1** GMCP `Input.Complete` request/response
