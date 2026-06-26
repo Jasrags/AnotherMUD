@@ -14,19 +14,28 @@ import (
 
 // This file holds the hireling lifecycle verbs (hireable-mobs.md §3): `hire` a
 // companion, `dismiss` it, and `hirelings` to list them. It mirrors the mount
-// surface (mount.go) — a hireling fights where a mount carries. Acquisition is
-// model (b): `hire <name>` resolves against every hireable mob template (those
-// carrying a `hireling:` block) by name, with no recruiter access point in v1.
+// surface (mount.go) — a hireling fights where a mount carries. Acquisition is AT
+// a recruiter (§3.1): `hire` only works in a room with a recruiter NPC, and
+// resolves the request against the hirelings that recruiter offers.
+
+// HireableOffer is one hireling a recruiter will hire out (hireable-mobs.md §3.1):
+// the hireling template id, its display name, and the up-front hire cost.
+type HireableOffer struct {
+	TemplateID string
+	Name       string
+	HireCost   int
+}
 
 // HirelingService is the runtime hireling lifecycle the command layer depends on
 // (hireable-mobs.md §2, §3) — implemented at the composition root over the mob
 // spawn pipeline. The durable ownership records live on the player save
 // (hirelingOwner).
 type HirelingService interface {
-	// FindHireable resolves a hireling by name (or id) among all hireable mob
-	// templates, returning its template id, display name, and hire cost. ok is
-	// false when nothing hireable matches.
-	FindHireable(query string) (templateID, name string, hireCost int, ok bool)
+	// RecruiterOffers returns the hirelings offered by the given recruiter mob
+	// template ids (those present in the room), deduped and stably ordered. Empty
+	// when none of the ids is a recruiter. This is the catalog `hire` resolves a
+	// request against (hireable-mobs.md §3.1).
+	RecruiterOffers(recruiterTemplateIDs []string) []HireableOffer
 	// HirelingName returns a hireling template's display name and whether it
 	// resolves to a hireable template (a mob carrying a `hireling:` block).
 	HirelingName(templateID string) (string, bool)
@@ -79,20 +88,28 @@ type hirelingOwner interface {
 	SetHirelingStance(id entities.EntityID, stance string)
 }
 
-// HireHandler implements `hire <name>` (hireable-mobs.md §3.1): hire a companion
-// by name. Charges the hire cost up front, caps the number of simultaneous
-// hirelings, and materializes the hireling into the owner's room.
+// HireHandler implements `hire [<name>]` (hireable-mobs.md §3.1): hire a companion
+// from a **recruiter** present in the room. With no argument it browses the
+// recruiter's catalog; with a name it hires that companion — charging the hire
+// cost up front, capping the count, and materializing the hireling into the room.
 func HireHandler(ctx context.Context, c *Context) error {
 	owner, ok := c.Actor.(hirelingOwner)
 	if !ok || c.Hirelings == nil {
 		return c.Actor.Write(ctx, "You can't hire anyone right now.")
 	}
-	if len(c.Args) == 0 {
-		return c.Actor.Write(ctx, "Hire whom?  (try: hire <name>)")
-	}
 	room := c.Actor.Room()
 	if room == nil {
 		return c.Actor.Write(ctx, "You're nowhere to hire help.")
+	}
+	// Hiring happens AT a recruiter (§3.1): only what a recruiter in this room
+	// offers can be hired. No recruiter present → no one to hire from.
+	offers := c.recruiterOffersHere(room.ID)
+	if len(offers) == 0 {
+		return c.Actor.Write(ctx, "There's no one here to hire from.")
+	}
+	// Bare `hire` browses the catalog.
+	if len(c.Args) == 0 {
+		return c.Actor.Write(ctx, renderHireOffers(offers))
 	}
 	// A non-positive cap means "no limit" (the int zero-value shouldn't silently
 	// block every hire — mirrors the timeout<=0 = never convention).
@@ -100,9 +117,9 @@ func HireHandler(ctx context.Context, c *Context) error {
 		return c.Actor.Write(ctx, "You already have all the help you can manage.")
 	}
 	query := strings.Join(c.Args, " ")
-	templateID, name, cost, found := c.Hirelings.FindHireable(query)
+	offer, found := matchHireableOffer(offers, query)
 	if !found {
-		return c.Actor.Write(ctx, fmt.Sprintf("There is no %q to hire.", query))
+		return c.Actor.Write(ctx, fmt.Sprintf("There's no %q for hire here.", query))
 	}
 	// Charge the hire cost up front (hireable-mobs.md §3.1) — no creature until paid.
 	holder, ok := c.Actor.(economy.Entity)
@@ -110,22 +127,66 @@ func HireHandler(ctx context.Context, c *Context) error {
 		return c.Actor.Write(ctx, "You can't pay for that right now.")
 	}
 	balance := c.Currency.Read(holder)
-	if balance < cost {
-		return c.Actor.Write(ctx, fmt.Sprintf("%s costs %d gold to hire; you only have %d.", capitalize(name), cost, balance))
+	if balance < offer.HireCost {
+		return c.Actor.Write(ctx, fmt.Sprintf("%s costs %d gold to hire; you only have %d.", capitalize(offer.Name), offer.HireCost, balance))
 	}
-	left, okDebit := c.Currency.Debit(ctx, holder, cost, "hire:"+templateID)
+	left, okDebit := c.Currency.Debit(ctx, holder, offer.HireCost, "hire:"+offer.TemplateID)
 	if !okDebit {
-		return c.Actor.Write(ctx, fmt.Sprintf("%s costs %d gold to hire; you only have %d.", capitalize(name), cost, balance))
+		return c.Actor.Write(ctx, fmt.Sprintf("%s costs %d gold to hire; you only have %d.", capitalize(offer.Name), offer.HireCost, balance))
 	}
-	id, err := c.Hirelings.Materialize(ctx, c.Actor.PlayerID(), templateID, room.ID)
+	id, err := c.Hirelings.Materialize(ctx, c.Actor.PlayerID(), offer.TemplateID, room.ID)
 	if err != nil {
 		// Refund: the contract never formed, so the gold should not be lost.
-		c.Currency.AddGold(ctx, holder, cost, "hire-refund:"+templateID)
+		c.Currency.AddGold(ctx, holder, offer.HireCost, "hire-refund:"+offer.TemplateID)
 		return c.Actor.Write(ctx, "You couldn't hire them just now.")
 	}
-	owner.AddHireling(templateID)
-	owner.TrackLiveHireling(id, templateID)
-	return c.Actor.Write(ctx, fmt.Sprintf("You hire %s for %d gold. (You have %d gold left.)", name, cost, left))
+	owner.AddHireling(offer.TemplateID)
+	owner.TrackLiveHireling(id, offer.TemplateID)
+	return c.Actor.Write(ctx, fmt.Sprintf("You hire %s for %d gold. (You have %d gold left.)", offer.Name, offer.HireCost, left))
+}
+
+// recruiterOffersHere returns the hirelings any recruiter NPC in the room hires
+// out (hireable-mobs.md §3.1). It enumerates the room's mobs, gathers their
+// template ids, and asks the service which are recruiters and what they offer.
+// Empty when no recruiter is present or the room can't be enumerated (tests).
+func (c *Context) recruiterOffersHere(roomID world.RoomID) []HireableOffer {
+	if c.Placement == nil || c.Items == nil {
+		return nil
+	}
+	ids := c.Placement.InRoom(roomID)
+	tmpls := make([]string, 0, len(ids))
+	for _, id := range ids {
+		e, ok := c.Items.GetByID(id)
+		if !ok {
+			continue
+		}
+		if mi, ok := e.(*entities.MobInstance); ok {
+			tmpls = append(tmpls, string(mi.TemplateID()))
+		}
+	}
+	return c.Hirelings.RecruiterOffers(tmpls)
+}
+
+// matchOffer resolves a hire request to one of the recruiter's offers by name or
+// id (case-insensitive), the same keyword match the other targeting verbs use.
+func matchHireableOffer(offers []HireableOffer, query string) (HireableOffer, bool) {
+	q := strings.ToLower(strings.TrimSpace(query))
+	for _, o := range offers {
+		if templateMatches(o.Name, o.TemplateID, q) {
+			return o, true
+		}
+	}
+	return HireableOffer{}, false
+}
+
+// renderOffers lists a recruiter's catalog for a bare `hire` (hireable-mobs.md §3.1).
+func renderHireOffers(offers []HireableOffer) string {
+	var b strings.Builder
+	b.WriteString("Available for hire here:")
+	for _, o := range offers {
+		fmt.Fprintf(&b, "\n  %s — %d gold", o.Name, o.HireCost)
+	}
+	return b.String()
 }
 
 // DismissHandler implements `dismiss <name|number>` (hireable-mobs.md §3.2): the

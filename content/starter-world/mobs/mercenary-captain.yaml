@@ -1,0 +1,22 @@
+id: mercenary-captain
+name: a mercenary captain
+type: npc
+behavior: stationary
+disposition: 0
+description: |
+  A weathered captain in a travel-stained surcoat keeps a practiced eye on the
+  square, a roster of names tucked into her belt. For the right coin she'll put
+  one of her sellswords at your back.
+tags: [humanoid]
+keywords: [captain, mercenary]
+# A recruiter access point (hireable-mobs.md §3.1): a character may `hire` the
+# hirelings this NPC offers while in its room. `offers` lists the hireling
+# template ids it hires out (resolved to hireable templates at hire time).
+recruiter:
+  offers:
+    - sellsword
+disposition_rules:
+  default: friendly
+stats:
+  hp_max: 24
+  str: 11

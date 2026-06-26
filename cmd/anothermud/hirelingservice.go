@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/Jasrags/AnotherMUD/internal/combat"
+	"github.com/Jasrags/AnotherMUD/internal/command"
 	"github.com/Jasrags/AnotherMUD/internal/entities"
 	"github.com/Jasrags/AnotherMUD/internal/logging"
 	"github.com/Jasrags/AnotherMUD/internal/mob"
@@ -35,22 +36,58 @@ func (h *hirelingService) HirelingName(templateID string) (string, bool) {
 	return tpl.Name, true
 }
 
-// FindHireable resolves a hireling by name (or id leaf) among every hireable mob
-// template (hireable-mobs.md §3.1, acquisition model b). Deterministic: templates
-// are scanned in id order so the same query always resolves the same hireling.
-func (h *hirelingService) FindHireable(query string) (templateID, name string, hireCost int, ok bool) {
-	q := strings.ToLower(strings.TrimSpace(query))
+// RecruiterOffers returns the hirelings offered by the recruiter mob templates
+// among recruiterTemplateIDs (hireable-mobs.md §3.1) — the catalog `hire` resolves
+// against. A non-recruiter id contributes nothing; each recruiter's offer entries
+// resolve to hireable templates (carrying a `hireling:` block). Deduped by
+// hireling template id, stably ordered by name then id.
+func (h *hirelingService) RecruiterOffers(recruiterTemplateIDs []string) []command.HireableOffer {
+	seen := make(map[string]bool)
+	var out []command.HireableOffer
+	for _, rid := range recruiterTemplateIDs {
+		rt, err := h.spawner.mobTemplates.Get(mob.TemplateID(rid))
+		if err != nil || rt.Recruiter == nil {
+			continue
+		}
+		for _, offer := range rt.Recruiter.Offers {
+			tpl, ok := h.resolveHireable(offer)
+			if !ok || seen[string(tpl.ID)] {
+				continue
+			}
+			seen[string(tpl.ID)] = true
+			out = append(out, command.HireableOffer{
+				TemplateID: string(tpl.ID),
+				Name:       tpl.Name,
+				HireCost:   tpl.Hireling.HireCost,
+			})
+		}
+	}
+	sort.Slice(out, func(i, j int) bool {
+		if out[i].Name != out[j].Name {
+			return out[i].Name < out[j].Name
+		}
+		return out[i].TemplateID < out[j].TemplateID
+	})
+	return out
+}
+
+// resolveHireable resolves a recruiter's offer entry to a hireable mob template:
+// an exact template id first, else a name/keyword match against hireable
+// templates. Returns false when nothing hireable matches (a content typo just
+// drops that offer rather than failing the whole recruiter).
+func (h *hirelingService) resolveHireable(offer string) (*mob.Template, bool) {
+	if t, err := h.spawner.mobTemplates.Get(mob.TemplateID(offer)); err == nil && t.Hireling != nil {
+		return t, true
+	}
+	q := strings.ToLower(strings.TrimSpace(offer))
 	tpls := h.spawner.mobTemplates.All()
 	sort.Slice(tpls, func(i, j int) bool { return tpls[i].ID < tpls[j].ID })
 	for _, tpl := range tpls {
-		if tpl.Hireling == nil {
-			continue
-		}
-		if hireableMatches(tpl.Name, string(tpl.ID), q) {
-			return string(tpl.ID), tpl.Name, tpl.Hireling.HireCost, true
+		if tpl.Hireling != nil && hireableMatches(tpl.Name, string(tpl.ID), q) {
+			return tpl, true
 		}
 	}
-	return "", "", 0, false
+	return nil, false
 }
 
 // hireableMatches reports whether a query matches a hireling template by name or

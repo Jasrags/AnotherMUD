@@ -3475,6 +3475,13 @@ func decodeMob(path, ns string) (*mob.Template, error) {
 		return nil, err
 	}
 
+	// Recruiter block (hireable-mobs.md §3.1). Optional; presence marks it a
+	// hiring access point.
+	recruiterSpec, err := decodeRecruiter(f.Recruiter, path)
+	if err != nil {
+		return nil, err
+	}
+
 	return &mob.Template{
 		ID:                  mob.TemplateID(id),
 		Name:                f.Name,
@@ -3503,6 +3510,7 @@ func decodeMob(path, ns string) (*mob.Template, error) {
 		TrainerTeach:        teach,
 		Mount:               mountSpec,
 		Hireling:            hirelingSpec,
+		Recruiter:           recruiterSpec,
 	}, nil
 }
 
@@ -3522,6 +3530,28 @@ func decodeHireling(f *HirelingFile, path string) (*mob.HirelingSpec, error) {
 			ErrInvalidContent, path, f.Upkeep)
 	}
 	return &mob.HirelingSpec{HireCost: f.HireCost, Upkeep: f.Upkeep}, nil
+}
+
+// decodeRecruiter converts a mob's optional `recruiter:` block (hireable-mobs.md
+// §3.1) into a validated *mob.RecruiterSpec. Returns (nil, nil) when the block is
+// absent — a mob that is not a recruiter. Requires a non-empty offers list of
+// non-empty (trimmed) entries; the offered ids are resolved to hireable templates
+// at hire time, not here (load order within a pack is not guaranteed).
+func decodeRecruiter(f *RecruiterFile, path string) (*mob.RecruiterSpec, error) {
+	if f == nil {
+		return nil, nil
+	}
+	offers := make([]string, 0, len(f.Offers))
+	for _, o := range f.Offers {
+		if t := strings.TrimSpace(o); t != "" {
+			offers = append(offers, t)
+		}
+	}
+	if len(offers) == 0 {
+		return nil, fmt.Errorf("%w: %s: recruiter offers must be a non-empty list of hireling ids",
+			ErrInvalidContent, path)
+	}
+	return &mob.RecruiterSpec{Offers: offers}, nil
 }
 
 // decodeMount converts a mob's optional `mount:` block (mounts.md §2.1) into a

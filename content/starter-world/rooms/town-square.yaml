@@ -62,5 +62,9 @@ healing_rate: 1
 # `auction_house` makes the square an auctioneer access point (auction-house
 # §2): `auction <item> <price>`, `browse`, `buyout <#>`, `collect` work here.
 tags: [safe-room, safe, auction_house]
-# Mobs now spawn via area-level spawn_rules (spec
-# mobs-ai-spawning §3.5). See areas/town.yaml.
+# Most mobs spawn via area-level spawn_rules (spec mobs-ai-spawning §3.5; see
+# areas/town.yaml). The recruiter is a fixed service NPC placed at boot (like the
+# blacksmith / stablemaster) so `hire` always has an access point here from login
+# (hireable-mobs.md §3.1).
+mobs:
+  - mercenary-captain

@@ -170,6 +170,12 @@ type Template struct {
 	// `hire` it as an owned companion that follows and fights for them. Nil ⇒ an
 	// ordinary mob. Carries the hire cost (and upkeep for a later slice).
 	Hireling *HirelingSpec
+
+	// Recruiter is the optional recruiter descriptor (hireable-mobs.md §3.1). A
+	// non-nil Recruiter marks this mob as a hiring access point (a mercenary-post
+	// NPC): a character may `hire` one of the hirelings it Offers while in its
+	// room. Nil ⇒ not a recruiter.
+	Recruiter *RecruiterSpec
 }
 
 // HirelingSpec is the hireable-companion descriptor copied from a mob template's
@@ -183,6 +189,18 @@ type HirelingSpec struct {
 	// (hireable-mobs.md §7). Consumed by the upkeep tick in a later slice; zero ⇒
 	// no upkeep. Non-negative at load.
 	Upkeep int
+}
+
+// RecruiterSpec is the recruiter descriptor copied from a mob template's
+// `recruiter:` block (hireable-mobs.md §3.1). Its presence makes a mob a hiring
+// access point. Offers lists the hireling template ids it will hire out — the
+// catalog a player sees with a bare `hire` and resolves a `hire <name>` against.
+type RecruiterSpec struct {
+	// Offers is the hireling templates this recruiter hires out. Required
+	// non-empty at load; each entry resolves to a hireable template (one carrying
+	// a `hireling:` block) at hire time. An entry may be the full template id or a
+	// name/keyword of the offered hireling.
+	Offers []string
 }
 
 // MountSpec is the rideable-mount descriptor copied from a mob template's

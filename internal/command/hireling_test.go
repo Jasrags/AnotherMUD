@@ -10,6 +10,7 @@ import (
 	"github.com/Jasrags/AnotherMUD/internal/command"
 	"github.com/Jasrags/AnotherMUD/internal/economy"
 	"github.com/Jasrags/AnotherMUD/internal/entities"
+	"github.com/Jasrags/AnotherMUD/internal/mob"
 	"github.com/Jasrags/AnotherMUD/internal/world"
 )
 
@@ -102,21 +103,24 @@ func (a *testActor) stanceOf(id entities.EntityID) string {
 }
 
 // fakeHirelingService is a scriptable command.HirelingService: one hireable
-// template, and counters for the materialize/dematerialize calls.
+// template offered by one recruiter, and counters for materialize/dematerialize.
 type fakeHirelingService struct {
 	templateID    string
 	name          string
 	cost          int
+	recruiterID   string // the recruiter template id that offers templateID
 	nextID        int
 	materialized  int
 	dematerialize int
 }
 
-func (f *fakeHirelingService) FindHireable(query string) (string, string, int, bool) {
-	if query == "" || strings.Contains(strings.ToLower(f.name), strings.ToLower(query)) {
-		return f.templateID, f.name, f.cost, true
+func (f *fakeHirelingService) RecruiterOffers(recruiterTemplateIDs []string) []command.HireableOffer {
+	for _, id := range recruiterTemplateIDs {
+		if id == f.recruiterID {
+			return []command.HireableOffer{{TemplateID: f.templateID, Name: f.name, HireCost: f.cost}}
+		}
 	}
-	return "", "", 0, false
+	return nil
 }
 
 func (f *fakeHirelingService) HirelingName(templateID string) (string, bool) {
@@ -140,7 +144,18 @@ func (f *fakeHirelingService) Dematerialize(context.Context, entities.EntityID) 
 func hirelingFixture(t *testing.T) (command.Env, *testActor, *fakeHirelingService) {
 	t.Helper()
 	inv := newInvFixture(t)
-	svc := &fakeHirelingService{templateID: "starter-world:sellsword", name: "a grizzled sellsword", cost: 50}
+	svc := &fakeHirelingService{
+		templateID:  "starter-world:sellsword",
+		name:        "a grizzled sellsword",
+		cost:        50,
+		recruiterID: "starter-world:captain",
+	}
+	// A recruiter NPC stands in the room so `hire` has someone to hire from (§3.1).
+	rec, err := inv.store.SpawnMob(&mob.Template{ID: mob.TemplateID(svc.recruiterID), Name: "a mercenary captain", Type: "npc"})
+	if err != nil {
+		t.Fatalf("SpawnMob recruiter: %v", err)
+	}
+	inv.place.Place(rec.ID(), inv.room.ID)
 	a := newTestActor(inv.room)
 	a.playerID = "p-1"
 	a.SetGold(1000)
@@ -208,8 +223,36 @@ func TestHire_UnknownName(t *testing.T) {
 	if a.HirelingCount() != 0 {
 		t.Error("hiring an unknown name should not form a contract")
 	}
-	if !strings.Contains(a.lastLine(), "no \"dragon\" to hire") {
+	if !strings.Contains(a.lastLine(), "no \"dragon\" for hire here") {
 		t.Errorf("reply = %q, want a no-such-hireling message", a.lastLine())
+	}
+}
+
+// Hiring requires a recruiter in the room (hireable-mobs.md §3.1): with none
+// present, `hire` is refused and no gold/contract changes.
+func TestHire_NoRecruiterHere(t *testing.T) {
+	env, a, _ := hirelingFixture(t)
+	// Move the actor to an empty room (no recruiter there).
+	a.SetRoom(&world.Room{ID: "z:empty"})
+	dispatchBuiltin(t, env, a, "hire sellsword")
+	if !strings.Contains(a.lastLine(), "no one here to hire from") {
+		t.Errorf("reply = %q, want a no-recruiter refusal", a.lastLine())
+	}
+	if a.HirelingCount() != 0 || a.Gold() != 1000 {
+		t.Errorf("a refused hire changed state: count=%d gold=%d", a.HirelingCount(), a.Gold())
+	}
+}
+
+// A bare `hire` at a recruiter browses the catalog without charging anything.
+func TestHire_BrowsesCatalog(t *testing.T) {
+	env, a, _ := hirelingFixture(t)
+	dispatchBuiltin(t, env, a, "hire")
+	out := a.lastLine()
+	if !strings.Contains(out, "Available for hire here") || !strings.Contains(out, "a grizzled sellsword — 50 gold") {
+		t.Errorf("catalog = %q, want the sellsword listed with its cost", out)
+	}
+	if a.HirelingCount() != 0 || a.Gold() != 1000 {
+		t.Error("browsing the catalog should not hire or charge")
 	}
 }
 

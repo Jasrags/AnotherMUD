@@ -147,6 +147,10 @@ use the number. `order all <command>` addresses the whole band at once.
 
 **Acceptance criteria**
 
+- [x] `hire` works only at a recruiter: in a room with no recruiter it is refused
+      ("no one here to hire from"); a bare `hire` browses the present recruiter's
+      catalog; `hire <name>` resolves against that recruiter's offers. **SHIPPED**
+      — `recruiter:` mob block (`offers` list) + the room-recruiter gate.
 - [x] `hire` is refused for a non-recruitable target, an at-cap actor, an actor
       who can't pay, or a forbidding state — each with a clear message and no
       gold charged on refusal. **SHIPPED (slice 1).**
@@ -163,10 +167,13 @@ use the number. `order all <command>` addresses the whole band at once.
       targeting verbs resolve over a stable live-hireling roster (sorted by entity
       id); a number selects the N-th, a name must be unique.
 
-> **Slice 1 acquisition (model b):** `hire <name>` resolves the hireable template
-> by name among **all** mob templates carrying a `hireling:` block (no recruiter
-> access point in v1 — the recruiter gate is a later UX slice). The §3.1 "recruiter"
-> framing is the eventual model; slice 1 lets a player hire from anywhere.
+> **Recruiter access point — SHIPPED.** `hire` works **only in a room with a
+> recruiter NPC** (a mob carrying a `recruiter:` block whose `offers` list names
+> the hirelings it hires out). A bare `hire` browses that recruiter's catalog;
+> `hire <name>` resolves the request against the recruiter's offers. No recruiter
+> present → "no one here to hire from." This supersedes the slice-1 hire-from-
+> anywhere model (model b). Content: the starter-world recruiter is *a mercenary
+> captain* in the town square, offering the sellsword.
 
 ---
 
@@ -384,7 +391,7 @@ The following are externally configurable and not fixed by this spec.
 | Upkeep cost and cadence | §7 |
 | Lapsed-upkeep policy (depart immediately vs. grace period) | §7 |
 | Dismiss refund policy (none vs. partial) | §3.2 |
-| Recruiter access model (a tagged recruiter NPC vs. any suitable NPC) | §3.1 (content) |
+| Recruiter roster — which NPCs are recruiters and the hirelings each offers (`recruiter:` block) | §3.1 (content) |
 | XP participation rule constants (what counts as "owner fought it") | §6.4 |
 | Loose-hireling resolution (re-materialize location on login) | §9 |
 | User-facing copy for hire/dismiss/order, refusals, departure, death | §3–§8 |

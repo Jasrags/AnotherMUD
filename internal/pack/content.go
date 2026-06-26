@@ -264,6 +264,11 @@ type MobFile struct {
 	// Its presence marks the mob as hireable (a character may `hire` it).
 	// Validated at load (hire_cost / upkeep must be non-negative).
 	Hireling *HirelingFile `yaml:"hireling,omitempty"`
+
+	// Recruiter is the optional recruiter block (hireable-mobs.md §3.1). Its
+	// presence marks the mob a hiring access point. Validated at load (offers
+	// must be a non-empty list of non-empty entries).
+	Recruiter *RecruiterFile `yaml:"recruiter,omitempty"`
 }
 
 // HirelingFile is the YAML shape for a mob's `hireling:` block (hireable-mobs.md
@@ -273,6 +278,14 @@ type HirelingFile struct {
 	HireCost int `yaml:"hire_cost"`
 	// Upkeep is the recurring gold to keep it (§7). Optional; zero ⇒ none.
 	Upkeep int `yaml:"upkeep,omitempty"`
+}
+
+// RecruiterFile is the YAML shape for a mob's `recruiter:` block
+// (hireable-mobs.md §3.1). Presence marks the mob a hiring access point.
+type RecruiterFile struct {
+	// Offers lists the hirelings this recruiter hires out (template id, or a
+	// name/keyword of a hireable mob). Required non-empty.
+	Offers []string `yaml:"offers"`
 }
 
 // MountFile is the YAML shape for a mob's `mount:` block (mounts.md §2.1).
