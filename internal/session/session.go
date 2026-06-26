@@ -434,6 +434,12 @@ type Config struct {
 	// report "no stable here" when unwired.
 	Mounts command.MountService
 
+	// Hirelings is the hireling lifecycle service (hireable-mobs.md §2/§3).
+	// Passed through command.Env so the hire/dismiss verbs can materialize and
+	// dematerialize owned hirelings. HirelingCap is the simultaneous cap (§3.3).
+	Hirelings   command.HirelingService
+	HirelingCap int
+
 	// Trades is the direct-trade session manager (direct-trade.md).
 	// Passed through command.Env so the trade/offer/confirm/decline verbs
 	// route through it, and used by the teardown hooks (disconnect /
@@ -1015,6 +1021,11 @@ func run(ctx context.Context, c conn.Connection, cfg Config) error {
 	// while away). Done post-Add so the welcome line and in-room
 	// arrival broadcast settle before the drain text appears.
 	notifRegister(ctx, cfg, a)
+
+	// hireable-mobs.md §9: re-materialize the actor's owned hirelings into their
+	// room — a persisted hire contract puts the help back at the owner's side on
+	// login. Post-Add so the actor is placed and reachable first.
+	rematerializeHirelings(ctx, cfg, a)
 
 	// M12.2: publish character.created AFTER commit + placement (§6.4
 	// step 6) so the class-path processor's level-1 grant runs only for a

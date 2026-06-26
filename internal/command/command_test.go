@@ -339,6 +339,11 @@ type testActor struct {
 	ownedMounts  []string
 	liveMountSet map[entities.EntityID]string
 	mountedOn    entities.EntityID // mountRider ride pointer (mounts.md §4.3)
+
+	// ownedHirelings / liveHirelingSet back the hirelingOwner capability
+	// (hireable-mobs.md §2): durable contracts + the materialized overlay.
+	ownedHirelings  []string
+	liveHirelingSet map[entities.EntityID]string
 }
 
 // IsExitDiscovered / DiscoverExit make testActor satisfy exitDiscoverer

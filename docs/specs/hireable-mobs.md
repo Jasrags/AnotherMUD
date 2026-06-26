@@ -1,6 +1,8 @@
 # Hireable Mobs — Feature Specification
 
-**Status:** Draft (spec; slice 1 building) · **Scope:** NPCs a character hires to
+**Status:** Draft (spec; **slice 1 shipped** — the owned-companion substrate +
+`hire`/`dismiss`/`hirelings` + persistence/logout/login; follow + combat assist +
+upkeep are later slices) · **Scope:** NPCs a character hires to
 follow, fight for, and obey them (mercenaries, henchmen, hirelings): the
 owner/controller relationship, the `hire` / `dismiss` / `order` verbs, a hireling
 trailing its owner, combat assistance with owner-routed loot, a recurring upkeep
@@ -139,15 +141,21 @@ would exceed the cap is refused.
 
 **Acceptance criteria**
 
-- [ ] `hire` is refused for a non-recruitable target, an at-cap actor, an actor
+- [x] `hire` is refused for a non-recruitable target, an at-cap actor, an actor
       who can't pay, or a forbidding state — each with a clear message and no
-      gold charged on refusal.
-- [ ] A successful `hire` charges the hire cost, binds the hireling to the owner,
-      places it in the owner's room, and announces it.
-- [ ] `dismiss` (owner only) ends the contract and removes the hireling from the
-      world.
-- [ ] An owner at the hireling cap cannot hire another until one is dismissed,
-      dies, or its upkeep lapses.
+      gold charged on refusal. **SHIPPED (slice 1).**
+- [x] A successful `hire` charges the hire cost, binds the hireling to the owner,
+      places it in the owner's room, and announces it. **SHIPPED (slice 1).**
+- [x] `dismiss` (owner only) ends the contract and removes the hireling from the
+      world. **SHIPPED (slice 1).**
+- [x] An owner at the hireling cap cannot hire another until one is dismissed,
+      dies, or its upkeep lapses. **SHIPPED (slice 1** — `ANOTHERMUD_HIRELING_CAP`,
+      default 1**).**
+
+> **Slice 1 acquisition (model b):** `hire <name>` resolves the hireable template
+> by name among **all** mob templates carrying a `hireling:` block (no recruiter
+> access point in v1 — the recruiter gate is a later UX slice). The §3.1 "recruiter"
+> framing is the eventual model; slice 1 lets a player hire from anywhere.
 
 ---
 
@@ -169,11 +177,13 @@ never-orphan guarantee mounts give.
 
 **Acceptance criteria**
 
-- [ ] An owned hireling is always exactly one of active / resting / ended.
-- [ ] An owner logging out dematerializes the live hireling without ending the
-      contract; logging back in re-materializes it.
-- [ ] No owned hireling is left standing in a room after its owner leaves the
-      world.
+- [x] An owned hireling is always exactly one of active / resting / ended.
+      **SHIPPED (slice 1).**
+- [x] An owner logging out dematerializes the live hireling without ending the
+      contract; logging back in re-materializes it. **SHIPPED (slice 1** — logout
+      drain + login re-materialize**).**
+- [x] No owned hireling is left standing in a room after its owner leaves the
+      world. **SHIPPED (slice 1** — `Manager.Remove` drains + dematerializes**).**
 
 ---
 
@@ -303,12 +313,13 @@ owned-mount list).
 
 **Acceptance criteria**
 
-- [ ] A hire contract (ownership + the hireling's identity) round-trips across
-      logout and restart.
-- [ ] The live creature and its follow/combat state are **not** persisted; a
-      returning owner gets a fresh hireling instance in their room.
-- [ ] No owned hireling contract is lost across a restart (an active hireling
-      resolves to a resting contract and back).
+- [x] A hire contract (ownership + the hireling's identity) round-trips across
+      logout and restart. **SHIPPED (slice 1** — save v33 `Hirelings`**).**
+- [x] The live creature and its follow/combat state are **not** persisted; a
+      returning owner gets a fresh hireling instance in their room. **SHIPPED
+      (slice 1).**
+- [x] No owned hireling contract is lost across a restart (an active hireling
+      resolves to a resting contract and back). **SHIPPED (slice 1).**
 
 ## 10. Configuration surface
 

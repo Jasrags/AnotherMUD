@@ -184,6 +184,9 @@ func run() error {
 	// mountSvc materializes/dematerializes owned mounts over the spawn
 	// pipeline; the stable verbs route through it (mounts.md §2/§3).
 	mountSvc := &mountService{spawner: spawner, store: entityStore}
+	// hirelingSvc materializes/dematerializes owned hirelings over the same spawn
+	// pipeline; the hire/dismiss verbs route through it (hireable-mobs.md §2/§3).
+	hirelingSvc := &hirelingService{spawner: spawner, store: entityStore}
 	// M17.1b: a sandboxed scripting.Engine is the ScriptCompiler the
 	// pack loader uses to syntax-check each pack-supplied Lua file
 	// at boot. M17.1c reuses the same Engine via a Runtime that
@@ -301,6 +304,8 @@ func run() error {
 	mgr := session.NewManager()
 	// Dematerialize a departing owner's live mounts on logout (mounts.md §9).
 	mgr.SetMounts(mountSvc)
+	// Dematerialize a departing owner's live hirelings on logout (hireable-mobs.md §9).
+	mgr.SetHirelings(hirelingSvc)
 	// grouping.md §7: party size cap (ANOTHERMUD_PARTY_CAP, default 6).
 	mgr.SetPartyCap(cfg.PartyCap)
 
@@ -3068,6 +3073,8 @@ func run() error {
 		ChatScrollbacks:       scrollbackLookup,
 		Currency:              currencySvc,
 		Mounts:                mountSvc,
+		Hirelings:             hirelingSvc,
+		HirelingCap:           envIntOr("ANOTHERMUD_HIRELING_CAP", 1),
 		Trades:                tradeMgr,
 		Auction:               auctionMgr,
 		Shop:                  shopSvc,

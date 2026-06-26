@@ -120,6 +120,12 @@ type Context struct {
 	// dematerialize / name an owned mount. The stable verbs route through it.
 	// nil disables mount verbs (tests / headless).
 	Mounts MountService
+	// Hirelings is the hireling lifecycle service (hireable-mobs.md): materialize
+	// / dematerialize / resolve hireable templates. The hire/dismiss verbs route
+	// through it. nil disables hireling verbs (tests / headless). HirelingCap is
+	// the simultaneous-hireling cap (§3.3).
+	Hirelings   HirelingService
+	HirelingCap int
 	// Trades is the direct-trade session manager (direct-trade.md). The
 	// trade/offer/confirm/decline verbs route through it. nil disables
 	// trading (tests / headless); handlers MUST nil-guard.

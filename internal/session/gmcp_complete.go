@@ -56,6 +56,8 @@ func commandEnv(cfg Config) command.Env {
 		Quests:                cfg.Quests,
 		Currency:              cfg.Currency,
 		Mounts:                cfg.Mounts,
+		Hirelings:             cfg.Hirelings,
+		HirelingCap:           cfg.HirelingCap,
 		Trades:                cfg.Trades,
 		Auction:               cfg.Auction,
 		Shop:                  cfg.Shop,

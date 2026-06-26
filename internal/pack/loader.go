@@ -3469,6 +3469,12 @@ func decodeMob(path, ns string) (*mob.Template, error) {
 		return nil, err
 	}
 
+	// Hireling block (hireable-mobs.md §2). Optional; presence marks it hireable.
+	hirelingSpec, err := decodeHireling(f.Hireling, path)
+	if err != nil {
+		return nil, err
+	}
+
 	return &mob.Template{
 		ID:                  mob.TemplateID(id),
 		Name:                f.Name,
@@ -3496,7 +3502,26 @@ func decodeMob(path, ns string) (*mob.Template, error) {
 		TrainerTier:         tier,
 		TrainerTeach:        teach,
 		Mount:               mountSpec,
+		Hireling:            hirelingSpec,
 	}, nil
+}
+
+// decodeHireling converts a mob's optional `hireling:` block (hireable-mobs.md
+// §2) into a validated *mob.HirelingSpec. Returns (nil, nil) when the block is
+// absent — an ordinary, non-hireable mob. Requires non-negative gold sinks.
+func decodeHireling(f *HirelingFile, path string) (*mob.HirelingSpec, error) {
+	if f == nil {
+		return nil, nil
+	}
+	if f.HireCost < 0 {
+		return nil, fmt.Errorf("%w: %s: hireling hire_cost must not be negative (got %d)",
+			ErrInvalidContent, path, f.HireCost)
+	}
+	if f.Upkeep < 0 {
+		return nil, fmt.Errorf("%w: %s: hireling upkeep must not be negative (got %d)",
+			ErrInvalidContent, path, f.Upkeep)
+	}
+	return &mob.HirelingSpec{HireCost: f.HireCost, Upkeep: f.Upkeep}, nil
 }
 
 // decodeMount converts a mob's optional `mount:` block (mounts.md §2.1) into a

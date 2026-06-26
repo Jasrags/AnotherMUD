@@ -1,0 +1,27 @@
+id: sellsword
+name: a grizzled sellsword
+type: npc
+behavior: stationary
+description: |
+  A grizzled sellsword leans against the wall, one hand resting on a well-worn
+  blade. Scarred, unsmiling, and for hire to anyone whose coin is good — they'll
+  walk the roads at your side and put steel between you and trouble.
+tags: [humanoid]
+keywords: [sellsword, mercenary, merc, swordsman]
+# A hireable companion (hireable-mobs.md). The `hireling:` block is what marks
+# it: presence makes the mob hireable — a character may `hire` it as an owned
+# companion that follows and fights for them (slices 2–3). hire_cost is the
+# up-front gold charged at hire (§3.1); upkeep is the recurring sink consumed by
+# a later slice (§7).
+hireling:
+  hire_cost: 50
+  upkeep: 5
+disposition_rules:
+  default: neutral
+# A capable fighter — armed and armored like a guard so it earns its pay once the
+# combat-assist slice lands. The short-sword's modifiers buff it and drop into its
+# corpse on death (it can be killed, §6.2).
+equipment: [short-sword]
+stats:
+  hp_max: 26
+  str: 13

@@ -1,7 +1,11 @@
 package session
 
 import (
+	"context"
+	"log/slog"
+
 	"github.com/Jasrags/AnotherMUD/internal/entities"
+	"github.com/Jasrags/AnotherMUD/internal/logging"
 	"github.com/Jasrags/AnotherMUD/internal/player"
 )
 
@@ -126,4 +130,28 @@ func (a *connActor) drainLiveHirelings() []entities.EntityID {
 	}
 	a.liveHirelings = nil
 	return out
+}
+
+// rematerializeHirelings spawns the actor's owned hirelings into their room on
+// login (hireable-mobs.md §9): each persisted contract gets a fresh live creature
+// so the owner finds their help with them. A template no longer in content is
+// skipped (fail-soft, like a stale mount record). No-op when the service is
+// unwired or the actor has no hirelings.
+func rematerializeHirelings(ctx context.Context, cfg Config, a *connActor) {
+	if cfg.Hirelings == nil {
+		return
+	}
+	room := a.Room()
+	if room == nil {
+		return
+	}
+	for _, templateID := range a.OwnedHirelingTemplates() {
+		id, err := cfg.Hirelings.Materialize(ctx, a.PlayerID(), templateID, room.ID)
+		if err != nil {
+			logging.From(ctx).Warn("hireling re-materialize failed",
+				slog.String("template", templateID), slog.Any("err", err))
+			continue
+		}
+		a.TrackLiveHireling(id, templateID)
+	}
 }

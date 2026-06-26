@@ -65,6 +65,12 @@ type Manager struct {
 	// teardown (tests / headless). Set once at startup via SetMounts.
 	mounts command.MountService
 
+	// hirelings dematerializes a departing actor's live hirelings on full Remove
+	// (hireable-mobs.md §4, §9): a logged-out owner's hireling leaves the world so
+	// it is never orphaned or duplicated on return (the contract persists; the
+	// creature does not). nil disables the teardown. Set once via SetHirelings.
+	hirelings command.HirelingService
+
 	// action-economy.md timed-action sweep. actionTracker holds in-flight
 	// occupations; actionCommands + actionEnv replay a completed action's
 	// command with ReplayAction set so its consumer performs the deferred
@@ -156,6 +162,15 @@ func (m *Manager) SetOnRemove(fn func(playerID string)) {
 func (m *Manager) SetMounts(svc command.MountService) {
 	m.mu.Lock()
 	m.mounts = svc
+	m.mu.Unlock()
+}
+
+// SetHirelings installs the hireling lifecycle service used to dematerialize a
+// departing actor's live hirelings on full Remove (hireable-mobs.md §4, §9). Set
+// once at startup; nil-safe (no teardown when unset).
+func (m *Manager) SetHirelings(svc command.HirelingService) {
+	m.mu.Lock()
+	m.hirelings = svc
 	m.mu.Unlock()
 }
 
@@ -253,6 +268,7 @@ func (m *Manager) Remove(a *connActor) {
 	}
 	cb := m.onRemove
 	mounts := m.mounts
+	hirelings := m.hirelings
 	m.mu.Unlock()
 
 	// Dematerialize the departing actor's live mounts (mounts.md §9, §10):
@@ -266,6 +282,16 @@ func (m *Manager) Remove(a *connActor) {
 		// verb can't double-remove the same creature (it finds nothing left).
 		for _, id := range a.drainLiveMounts() {
 			mounts.Dematerialize(context.Background(), id)
+		}
+	}
+
+	// Dematerialize the departing actor's live hirelings (hireable-mobs.md §4,
+	// §9): the hire contract persists on the save, but the live creature leaves
+	// the world rather than standing orphaned (and re-materializes on the owner's
+	// return). drainLiveHirelings clears the set atomically (dismiss-race safe).
+	if hirelings != nil {
+		for _, id := range a.drainLiveHirelings() {
+			hirelings.Dematerialize(context.Background(), id)
 		}
 	}
 

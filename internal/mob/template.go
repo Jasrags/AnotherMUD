@@ -164,6 +164,25 @@ type Template struct {
 	// mount vocabulary there, like Size against the size vocabulary); carried
 	// as a plain struct so mob stays independent of the mount package.
 	Mount *MountSpec
+
+	// Hireling is the optional hireable-companion descriptor (hireable-mobs.md
+	// §2). A non-nil Hireling marks this mob as **hireable**: a character may
+	// `hire` it as an owned companion that follows and fights for them. Nil ⇒ an
+	// ordinary mob. Carries the hire cost (and upkeep for a later slice).
+	Hireling *HirelingSpec
+}
+
+// HirelingSpec is the hireable-companion descriptor copied from a mob template's
+// `hireling:` block (hireable-mobs.md §2). Its presence is what makes a mob
+// hireable; the values are the gold sinks (§3.1 hire cost, §7 upkeep).
+type HirelingSpec struct {
+	// HireCost is the up-front gold charged to hire this companion
+	// (hireable-mobs.md §3.1). Required non-negative at load.
+	HireCost int
+	// Upkeep is the recurring gold charged to keep this hireling
+	// (hireable-mobs.md §7). Consumed by the upkeep tick in a later slice; zero ⇒
+	// no upkeep. Non-negative at load.
+	Upkeep int
 }
 
 // MountSpec is the rideable-mount descriptor copied from a mob template's

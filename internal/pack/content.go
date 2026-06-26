@@ -259,6 +259,20 @@ type MobFile struct {
 	// presence marks the mob as a rideable, owned mount. Validated at load
 	// (temperament against the mount vocabulary; travel_max must be positive).
 	Mount *MountFile `yaml:"mount,omitempty"`
+
+	// Hireling is the optional hireable-companion block (hireable-mobs.md §2).
+	// Its presence marks the mob as hireable (a character may `hire` it).
+	// Validated at load (hire_cost / upkeep must be non-negative).
+	Hireling *HirelingFile `yaml:"hireling,omitempty"`
+}
+
+// HirelingFile is the YAML shape for a mob's `hireling:` block (hireable-mobs.md
+// §2). Presence marks the mob as hireable.
+type HirelingFile struct {
+	// HireCost is the up-front gold to hire this companion (§3.1). Non-negative.
+	HireCost int `yaml:"hire_cost"`
+	// Upkeep is the recurring gold to keep it (§7). Optional; zero ⇒ none.
+	Upkeep int `yaml:"upkeep,omitempty"`
 }
 
 // MountFile is the YAML shape for a mob's `mount:` block (mounts.md §2.1).
