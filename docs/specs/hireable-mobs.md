@@ -1,9 +1,10 @@
 # Hireable Mobs — Feature Specification
 
-**Status:** Draft (spec; **slices 1–3 shipped** — the owned-companion substrate +
-`hire`/`dismiss`/`hirelings` + persistence/logout/login (slice 1), the bound
-move-with-owner relocate (slice 2), and combat assist + owner-routed loot +
-participation-gated XP (slice 3); upkeep + death-ends-contract are slice 4) · **Scope:** NPCs a character hires to
+**Status:** Draft (spec; **all four slices shipped** — the owned-companion
+substrate + `hire`/`dismiss`/`hirelings` + persistence/logout/login (slice 1), the
+bound move-with-owner relocate (slice 2), combat assist + owner-routed loot +
+participation-gated XP (slice 3), and upkeep + death-ends-contract (slice 4). The
+core feature is complete; the §11 refinements remain) · **Scope:** NPCs a character hires to
 follow, fight for, and obey them (mercenaries, henchmen, hirelings): the
 owner/controller relationship, the `hire` / `dismiss` / `order` verbs, a hireling
 trailing its owner, combat assistance with owner-routed loot, a recurring upkeep
@@ -256,8 +257,8 @@ the upkeep gold sink is the counterweight. (This is the resolved fork,
       enemy; a hireling already in combat is not redirected. **SHIPPED (slice 3**
       — `hirelingAssistSide` on the same `OnEngagement` hook as auto-assist; the
       InCombat guard both skips a busy hireling and terminates the chain**).**
-- [ ] A hireling can be killed; its death ends the contract. *(Death is possible
-      today; **death-ends-contract is slice 4**, with upkeep.)*
+- [x] A hireling can be killed; its death ends the contract. **SHIPPED (slice 4**
+      — the `MobKilled` reaction ends the owner's contract for a slain hireling**).**
 - [x] A corpse from a hireling's kill is owned by the owner (loot rights), under
       the owner's party loot policy where a party exists. **SHIPPED (slice 3** —
       the corpse `OwnerSet` hook maps a hireling killer → its owner → `LootOwners`**).**
@@ -282,11 +283,13 @@ The contract ends — the hireling is removed and its record dropped — on any 
 
 **Acceptance criteria**
 
-- [ ] Upkeep is charged on its cadence; an owner who can pay keeps the hireling.
-- [ ] An owner who cannot pay upkeep loses the hireling (contract ends, message),
-      not a free worker.
-- [ ] `dismiss`, death, and upkeep-lapse each end the contract and remove the
-      hireling.
+- [x] Upkeep is charged on its cadence; an owner who can pay keeps the hireling.
+      **SHIPPED (slice 4** — the `hireling-upkeep` tick charges each live hireling's
+      `hireling.upkeep`; `ANOTHERMUD_HIRELING_UPKEEP_INTERVAL`**).**
+- [x] An owner who cannot pay upkeep loses the hireling (contract ends, message),
+      not a free worker. **SHIPPED (slice 4** — a failed debit departs the hireling**).**
+- [x] `dismiss`, death, and upkeep-lapse each end the contract and remove the
+      hireling. **SHIPPED (slices 1, 4).**
 
 ## 8. Orders
 

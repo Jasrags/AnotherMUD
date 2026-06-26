@@ -115,6 +115,30 @@ func TestPullHirelings_NoneIsNoop(t *testing.T) {
 	mgr.PullHirelings(context.Background(), "solo", "z:a", "z:b") // must not panic
 }
 
+// OnHirelingDeath ends the contract for a slain hireling and is a no-op for an
+// ordinary mob death (hireable-mobs.md §6.2).
+func TestOnHirelingDeath_EndsContract(t *testing.T) {
+	mgr := NewManager()
+	owner := &connActor{id: "c-boss", playerID: "boss", room: &world.Room{ID: "z:a"},
+		save: &player.Save{}, conn: &fakeConn{id: "boss"}}
+	mgr.Add(owner)
+	owner.AddHireling("sw:sellsword")
+	owner.TrackLiveHireling("h-1", "sw:sellsword")
+
+	if !mgr.OnHirelingDeath(context.Background(), "h-1") {
+		t.Fatal("OnHirelingDeath should report the slain mob was a hireling")
+	}
+	if owner.HirelingCount() != 0 {
+		t.Errorf("contract should be gone after death, count = %d", owner.HirelingCount())
+	}
+	if _, ok := owner.LiveHireling("sw:sellsword"); ok {
+		t.Error("the live hireling should be untracked after death")
+	}
+	if mgr.OnHirelingDeath(context.Background(), "wild-mob") {
+		t.Error("an ordinary (non-hireling) mob death should report false")
+	}
+}
+
 // HirelingCombatantsOf returns the owner's live hireling entity ids for the
 // combat-assist seam (hireable-mobs.md §6.1); an owner with none, or an unknown
 // owner, yields nothing.

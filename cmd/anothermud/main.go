@@ -1561,6 +1561,32 @@ func run() error {
 		mgr.GrantKillXP(ctx, progressionMgr, cfg.DefaultXPTrack, pid, e.RoomID, int64(tmpl.XPValue))
 	})
 
+	// hireable-mobs.md §6.2: a slain hireling ends its owner's contract. The
+	// VICTIM (not the killer) is checked here — the death/corpse path removes the
+	// creature; this tears down the ownership so a dead hireling isn't a ghost
+	// contract. No-op for an ordinary mob death.
+	bus.Subscribe(eventbus.EventMobKilled, func(ctx context.Context, ev eventbus.Event) {
+		if e, ok := ev.(eventbus.MobKilled); ok {
+			mgr.OnHirelingDeath(ctx, entities.EntityID(string(e.MobID)))
+		}
+	})
+
+	// hireable-mobs.md §7: recurring hireling upkeep. Each owner is charged each
+	// live hireling's upkeep on the cadence; one they can't pay departs. The
+	// per-template upkeep is read from the mob template's `hireling:` block.
+	if err := loop.Register("hireling-upkeep", cadenceTicks(cfg.TickInterval, cfg.HirelingUpkeepInterval),
+		func(ctx context.Context, n uint64) {
+			mgr.SweepHirelingUpkeep(ctx, func(templateID string) int {
+				tpl, terr := registries.Mobs.Get(mob.TemplateID(templateID))
+				if terr != nil || tpl.Hireling == nil {
+					return 0
+				}
+				return tpl.Hireling.Upkeep
+			})
+		}); err != nil {
+		return fmt.Errorf("register hireling-upkeep tick: %w", err)
+	}
+
 	// reputation.md §7 Low Profile: a holder of the Low-Profile feat accrues
 	// renown slowly. Subscribe to the cancellable reputation.shift.check and
 	// scale DOWN a positive (gain) delta by the configured factor — losses are
@@ -3339,17 +3365,20 @@ type config struct {
 	// DefaultSustenanceConfig (−1 every 30s at a 100ms tick = cadence 300).
 	SustenanceDrainInterval time.Duration
 	SustenanceDrainAmount   int
-	ContentDir              string
-	Packs                   []string
-	SaveDir                 string
-	StartRoom               world.RoomID
-	DefaultRace             string
-	DefaultXPTrack          string
-	RoleSeed                map[string][]string
-	GrantingRole            string
-	AdminRole               string
-	ColorDefault            bool
-	LinkDead                session.LinkDeadConfig
+	// HirelingUpkeepInterval is how often the recurring hireling upkeep is charged
+	// (hireable-mobs.md §7). A hireling whose upkeep the owner can't pay departs.
+	HirelingUpkeepInterval time.Duration
+	ContentDir             string
+	Packs                  []string
+	SaveDir                string
+	StartRoom              world.RoomID
+	DefaultRace            string
+	DefaultXPTrack         string
+	RoleSeed               map[string][]string
+	GrantingRole           string
+	AdminRole              string
+	ColorDefault           bool
+	LinkDead               session.LinkDeadConfig
 }
 
 func loadConfig() config {
@@ -3405,6 +3434,7 @@ func loadConfig() config {
 		SlowTickThreshold:       envDurationOr("ANOTHERMUD_SLOW_TICK_THRESHOLD", 0),
 		ReservedNames:           envCSVOr("ANOTHERMUD_RESERVED_NAMES", defaultReservedNames),
 		SustenanceDrainInterval: envDurationOr("ANOTHERMUD_SUSTENANCE_DRAIN_INTERVAL", 30*time.Second),
+		HirelingUpkeepInterval:  envDurationOr("ANOTHERMUD_HIRELING_UPKEEP_INTERVAL", 5*time.Minute),
 		SustenanceDrainAmount:   envIntOr("ANOTHERMUD_SUSTENANCE_DRAIN_AMOUNT", 1),
 		ContentDir:              envOr("ANOTHERMUD_CONTENT_DIR", "./content"),
 		// Pack allowlist. Names the world pack(s) to boot; the loader pulls in

@@ -114,6 +114,15 @@ func (a *connActor) LiveHireling(templateID string) (entities.EntityID, bool) {
 	return "", false
 }
 
+// liveHirelingTemplate returns the template id a live hireling entity belongs to,
+// and whether this character owns it (used to identify a slain hireling, §6.2).
+func (a *connActor) liveHirelingTemplate(id entities.EntityID) (string, bool) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	t, ok := a.liveHirelings[id]
+	return t, ok
+}
+
 // liveHirelingIDs snapshots the entity ids of this character's currently
 // materialized hirelings (for the move-with-owner relocate, §5). Fresh slice.
 func (a *connActor) liveHirelingIDs() []entities.EntityID {
@@ -219,4 +228,117 @@ func (m *Manager) HirelingCombatantsOf(ownerPID string) []string {
 		out = append(out, string(id))
 	}
 	return out
+}
+
+// OnHirelingDeath ends the hire contract for a slain hireling (hireable-mobs.md
+// §6.2): it finds the online owner whose live-hireling set holds entityID, drops
+// the contract (untrack + remove the save record) and tells them. Reports whether
+// entityID was an owned hireling. A live hireling implies an online owner (logout
+// dematerializes them), so scanning the online roster is sufficient. The slain
+// creature is removed from the world by the ordinary death/corpse path; this only
+// tears down the OWNERSHIP. Called from the mob-killed reaction.
+func (m *Manager) OnHirelingDeath(ctx context.Context, entityID entities.EntityID) bool {
+	if m == nil {
+		return false
+	}
+	owner, templateID, ok := m.ownerOfLiveHireling(entityID)
+	if !ok {
+		return false // not a hireling (or the owner went offline first)
+	}
+	owner.UntrackLiveHireling(entityID)
+	owner.RemoveHireling(templateID)
+	_ = owner.Write(ctx, "Your hireling falls in battle; the contract ends.")
+	return true
+}
+
+// ownerOfLiveHireling finds the online actor whose live-hireling set holds
+// entityID, returning them + the hireling's template id. Scans the online roster
+// (mob deaths are infrequent and hirelings rare; a reverse index is a later
+// optimization if this shows in a profile). Snapshots the actor set under m.mu,
+// then probes each off-lock.
+func (m *Manager) ownerOfLiveHireling(entityID entities.EntityID) (*connActor, string, bool) {
+	m.mu.RLock()
+	actors := make([]*connActor, 0, len(m.byPlayerID))
+	for _, a := range m.byPlayerID {
+		actors = append(actors, a)
+	}
+	m.mu.RUnlock()
+	for _, a := range actors {
+		if t, ok := a.liveHirelingTemplate(entityID); ok {
+			return a, t, true
+		}
+	}
+	return nil, "", false
+}
+
+// hirelingRef pairs a live hireling's entity id with its template (for the upkeep
+// sweep, which needs both: the template to price upkeep, the id to dematerialize).
+type hirelingRef struct {
+	id       entities.EntityID
+	template string
+}
+
+// liveHirelingPairs snapshots this character's live hirelings as (id, template)
+// pairs (for the upkeep sweep, §7). Fresh slice.
+func (a *connActor) liveHirelingPairs() []hirelingRef {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	if len(a.liveHirelings) == 0 {
+		return nil
+	}
+	out := make([]hirelingRef, 0, len(a.liveHirelings))
+	for id, t := range a.liveHirelings {
+		out = append(out, hirelingRef{id: id, template: t})
+	}
+	return out
+}
+
+// SweepHirelingUpkeep charges each online owner the recurring upkeep for their
+// live hirelings (hireable-mobs.md §7) — the tick handler's body. A hireling whose
+// upkeep its owner cannot pay DEPARTS: the contract ends and the creature leaves
+// the world (lapsed-upkeep-departs, §7). upkeepOf returns the per-template upkeep
+// cost (0 = free, skipped). No-op when the currency or hireling service is unwired.
+func (m *Manager) SweepHirelingUpkeep(ctx context.Context, upkeepOf func(templateID string) int) {
+	if m == nil || upkeepOf == nil {
+		return
+	}
+	currency := m.actionEnv.Currency
+	if currency == nil || m.hirelings == nil {
+		return
+	}
+	m.mu.RLock()
+	actors := make([]*connActor, 0, len(m.byPlayerID))
+	for _, a := range m.byPlayerID {
+		actors = append(actors, a)
+	}
+	m.mu.RUnlock()
+	for _, a := range actors {
+		for _, ref := range a.liveHirelingPairs() {
+			amount := upkeepOf(ref.template)
+			if amount <= 0 {
+				continue
+			}
+			// The snapshot can go stale: OnHirelingDeath runs on the combat goroutine
+			// and may end a contract between the snapshot and here. Skip a
+			// no-longer-live hireling so we never charge for (or depart) a dead one.
+			if _, live := a.liveHirelingTemplate(ref.id); !live {
+				continue
+			}
+			if _, ok := currency.Debit(ctx, a, amount, "hireling-upkeep:"+ref.template); ok {
+				continue
+			}
+			// Re-check after the debit (which dropped + re-took a.mu): if the hireling
+			// died in that window, OnHirelingDeath already ended the contract — skip the
+			// depart path to avoid a duplicate remove (which, with a same-template
+			// sibling, could drop the WRONG record) and a contradictory message.
+			if _, live := a.liveHirelingTemplate(ref.id); !live {
+				continue
+			}
+			// Can't pay → the hireling departs (§7): drop the contract + the creature.
+			m.hirelings.Dematerialize(ctx, ref.id)
+			a.UntrackLiveHireling(ref.id)
+			a.RemoveHireling(ref.template)
+			_ = a.Write(ctx, "You can no longer pay your hireling; they shoulder their pack and depart.")
+		}
+	}
 }
