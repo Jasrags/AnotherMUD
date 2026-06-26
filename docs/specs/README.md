@@ -303,6 +303,16 @@ The verbs players use and the systems that resolve them.
   consent fork). Layers on `combat` §10 kill credit, `progression`,
   `loot-and-corpses` §4, and `chat`. *(Spec ahead of code — build pending,
   sliced: roster → kill-XP → loot.)*
+- [hireable-mobs](hireable-mobs.md) — NPCs a character hires to follow, fight
+  for, and obey them: an **owned, world-resident creature** (mounts-but-it-fights)
+  reusing the [mounts](mounts.md) owner relationship, materialize/dematerialize,
+  owned-record persistence, and logout teardown; `hire` / `dismiss` / `order`; a
+  hireling trails its owner (the consumer that brings the **mob-move signal**
+  `follow` §1 deferred); combat assist with owner-routed loot and
+  participation-gated XP; recurring upkeep as a gold sink. Layers on
+  `mobs-ai-spawning`, `follow`, `combat`/`grouping`, `loot-and-corpses` §4, and
+  `economy-survival`. Design at `docs/proposals/hireable-mobs.md`. *(Spec ahead of
+  code — slice 1 building: the owned-companion substrate.)*
 - [admin-verbs](admin-verbs.md) — the admin gate (commands marked
   admin, refused unless the actor holds the admin role), admin
   target resolution with visibility bypass, the baseline verb set

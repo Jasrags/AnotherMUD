@@ -127,7 +127,7 @@ import (
 // means "knows no recipes beyond what a discipline grants at runtime";
 // the migration injects nothing. A known id whose recipe was removed from
 // content loads cleanly and is ignored at restore (§9), never an error.
-const CurrentVersion = 32
+const CurrentVersion = 33
 
 // Sentinel errors callers may check via errors.Is.
 var (
@@ -431,6 +431,27 @@ type Save struct {
 	// character also holds the power-attack ability, so a stale-on stance on a
 	// character without the feat is inert rather than wrong.
 	PowerAttackActive bool `yaml:"power_attack_active,omitempty"`
+
+	// Hirelings is the list of hire contracts this character owns (hireable-mobs.md
+	// §9) — the durable resting form of a hireling while the live MobInstance does
+	// not persist. Added in v33; empty/absent (the common case: most characters own
+	// no hireling) writes no `hirelings:` key and a pre-v33 save round-trips as the
+	// empty set. The live creature + its follow/combat state are NOT persisted (§9):
+	// on logout each contract dematerializes its creature and re-materializes it on
+	// login. A record whose template left content is ignored at materialization,
+	// never an error (fail-soft, like Mounts).
+	Hirelings []HirelingRecord `yaml:"hirelings,omitempty"`
+}
+
+// HirelingRecord is one hire contract on a player save (hireable-mobs.md §9). It
+// is the durable form of a hireling — what persists between sessions while the
+// live MobInstance does not. v1 carries the hireling's identity (its template);
+// upkeep/condition state are additive fields for later slices (each omitempty so
+// the shape stays migration-free as it grows).
+type HirelingRecord struct {
+	// TemplateID is the namespace-qualified mob-template id the hireling is
+	// materialized from (hireable-mobs.md §9 "template identity"). Required.
+	TemplateID string `yaml:"template_id"`
 }
 
 // MountRecord is one owned mount on a player save (mounts.md §10). It is the
@@ -684,6 +705,7 @@ var playerMigrations = map[int]func(map[string]any) (map[string]any, error){
 	29: migrateV29toV30,
 	30: migrateV30toV31,
 	31: migrateV31toV32,
+	32: migrateV32toV33,
 }
 
 // migrateV1toV2 adds the empty inventory/equipment blocks introduced
@@ -1130,6 +1152,13 @@ func migrateV30toV31(in map[string]any) (map[string]any, error) {
 // on-disk shape needs to change; a character who predates the renown substrate
 // is correctly Unknown.
 func migrateV31toV32(in map[string]any) (map[string]any, error) {
+	return in, nil
+}
+
+// migrateV32toV33 introduces the hireling list (hireable-mobs.md §9). No-op: an
+// absent `hirelings` key loads as the empty set (the common case — no hireling
+// owned), so absent and stored-empty are correctly indistinguishable.
+func migrateV32toV33(in map[string]any) (map[string]any, error) {
 	return in, nil
 }
 

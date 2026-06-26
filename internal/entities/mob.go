@@ -204,6 +204,11 @@ type MobInstance struct {
 	// by ride-relationship checks on the session goroutine.
 	ownerMu sync.RWMutex
 	ownerID string
+	// hireling marks this owned mob as a hireling (hireable-mobs.md §2) rather
+	// than a mount — both share ownerID, so this distinguishes the two roles over
+	// one entity type. Set at materialization under ownerMu (read by look/combat
+	// to tell a henchman from a steed). Zero value false = an ordinary mob/mount.
+	hireling bool
 }
 
 // Proficiency reports the mob's proficiency for abilityID (M9.5 #3).
