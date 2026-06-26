@@ -215,9 +215,9 @@ func RegisterBuiltins(r *Registry) error {
 		{Keyword: "stable", Handler: StableHandler, Brief: "Stable a mount at a stablemaster.", Syntax: []string{"stable [<mount>]"}},
 		{Keyword: "unstable", Aliases: []string{"retrieve"}, Handler: UnstableHandler, Brief: "Retrieve a stabled mount.", Syntax: []string{"unstable <mount>"}},
 		{Keyword: "hire", Handler: HireHandler, Brief: "Hire a companion to follow and fight for you.", Syntax: []string{"hire <name>"}, HandParsed: true},
-		{Keyword: "dismiss", Handler: DismissHandler, Brief: "Dismiss a hireling you've hired.", Syntax: []string{"dismiss <name>"}, HandParsed: true},
+		{Keyword: "dismiss", Handler: DismissHandler, Brief: "Dismiss a hireling you've hired.", Syntax: []string{"dismiss <name|number>"}, HandParsed: true},
 		{Keyword: "hirelings", Handler: HirelingsHandler, Brief: "List the hirelings under your contract.", Syntax: []string{"hirelings"}},
-		{Keyword: "order", Handler: OrderHandler, Brief: "Order a hireling: follow, stay, guard, or attack <target>.", Syntax: []string{"order <hireling> follow|stay|guard", "order <hireling> attack <target>"}, HandParsed: true},
+		{Keyword: "order", Handler: OrderHandler, Brief: "Order a hireling: follow, stay, guard, or attack <target>.", Syntax: []string{"order <name|number|all> follow|stay|guard", "order <name|number|all> attack <target>"}, HandParsed: true},
 
 		// Direct trade (direct-trade.md). A same-room two-player swap:
 		// `trade <player>` initiates and (symmetrically) accepts; offer/

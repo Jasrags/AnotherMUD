@@ -3167,7 +3167,7 @@ func run() error {
 		Currency:              currencySvc,
 		Mounts:                mountSvc,
 		Hirelings:             hirelingSvc,
-		HirelingCap:           envIntOr("ANOTHERMUD_HIRELING_CAP", 1),
+		HirelingCap:           envIntOr("ANOTHERMUD_HIRELING_CAP", 3),
 		Trades:                tradeMgr,
 		Auction:               auctionMgr,
 		Shop:                  shopSvc,

@@ -3,6 +3,9 @@ package session
 import (
 	"context"
 	"log/slog"
+	"sort"
+	"strconv"
+	"strings"
 
 	"github.com/Jasrags/AnotherMUD/internal/combat"
 	"github.com/Jasrags/AnotherMUD/internal/command"
@@ -155,6 +158,53 @@ type hirelingStanceRef struct {
 	stance string
 }
 
+// LiveHirelings returns this character's materialized hirelings in a STABLE order
+// (by the numeric "entity-N" mint order), satisfying command.hirelingOwner. Entity
+// ids are minted monotonically, so this is hire order, and a 1-based index over it
+// is a durable per-session targeting handle (hireable-mobs.md §3.3 — how the verbs
+// address same-template duplicates). Sorting on the NUMERIC suffix matters: a plain
+// string sort would put "entity-10" before "entity-9". Fresh slice.
+func (a *connActor) LiveHirelings() []command.LiveHirelingRef {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	if len(a.liveHirelings) == 0 {
+		return nil
+	}
+	out := make([]command.LiveHirelingRef, 0, len(a.liveHirelings))
+	for id, h := range a.liveHirelings {
+		out = append(out, command.LiveHirelingRef{ID: id, TemplateID: h.template})
+	}
+	sort.Slice(out, func(i, j int) bool { return entityIDLess(out[i].ID, out[j].ID) })
+	return out
+}
+
+// entityIDLess orders two entity ids by their numeric "entity-N" suffix (the mint
+// order), falling back to a plain string compare for any id that doesn't carry a
+// numeric suffix. A bare string sort misorders across digit-length boundaries
+// ("entity-9" vs "entity-10"), which would shuffle the hireling roster numbers.
+func entityIDLess(a, b entities.EntityID) bool {
+	na, oka := entityIDNum(a)
+	nb, okb := entityIDNum(b)
+	if oka && okb {
+		return na < nb
+	}
+	return a < b
+}
+
+// entityIDNum extracts the trailing numeric suffix of an "...-N" entity id.
+func entityIDNum(id entities.EntityID) (uint64, bool) {
+	s := string(id)
+	i := strings.LastIndexByte(s, '-')
+	if i < 0 {
+		return 0, false
+	}
+	n, err := strconv.ParseUint(s[i+1:], 10, 64)
+	if err != nil {
+		return 0, false
+	}
+	return n, true
+}
+
 // liveHirelingStances snapshots this character's live hirelings as (id, stance)
 // pairs. An empty stance is normalized to follow (the default). Fresh slice.
 func (a *connActor) liveHirelingStances() []hirelingStanceRef {
@@ -241,7 +291,7 @@ func (m *Manager) PullHirelings(ctx context.Context, ownerID string, from, to wo
 	cm := m.actionEnv.Combat
 	dir, adjacent := m.directionBetween(from, to)
 	ownerName := owner.Name()
-	heldByCombat := false
+	heldByCombat := 0
 	// Only a follow-stance hireling trails (hireable-mobs.md §8); a stay/guard
 	// hireling holds the room it was left in.
 	for _, ref := range owner.liveHirelingStances() {
@@ -253,7 +303,7 @@ func (m *Manager) PullHirelings(ctx context.Context, ownerID string, from, to wo
 		// teleported away mid-round. It rejoins on the owner's next move once the
 		// fight is over (the bind is re-evaluated each move).
 		if cm != nil && cm.InCombat(combat.NewMobCombatantID(string(ref.id))) {
-			heldByCombat = true
+			heldByCombat++
 			continue
 		}
 		name := m.mobName(ref.id)
@@ -261,8 +311,11 @@ func (m *Manager) PullHirelings(ctx context.Context, ownerID string, from, to wo
 		place.Place(ref.id, to)
 		m.announceHirelingArrival(ctx, name, ownerName, ownerID, to)
 	}
-	if heldByCombat {
+	switch {
+	case heldByCombat == 1:
 		_ = owner.Write(ctx, "Your hireling stays behind, locked in combat.")
+	case heldByCombat > 1:
+		_ = owner.Write(ctx, "Your hirelings stay behind, locked in combat.")
 	}
 }
 

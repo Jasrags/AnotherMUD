@@ -138,8 +138,12 @@ policy is §10).
 ### 3.3 The cap
 
 A character may field at most a configured number of hirelings at once
-(`Hireling cap`, §10; v1 default a small number — one henchman). A `hire` that
-would exceed the cap is refused.
+(`Hireling cap`, §10; a small band by default). A `hire` that would exceed the
+cap is refused. When an owner holds several hirelings — including duplicates of
+the same template, which share a name — `hirelings` numbers them, and the verbs
+that target one (`dismiss`, `order`) accept that **roster number** as an
+unambiguous handle; a bare name that matches several is refused with a hint to
+use the number. `order all <command>` addresses the whole band at once.
 
 **Acceptance criteria**
 
@@ -152,7 +156,12 @@ would exceed the cap is refused.
       world. **SHIPPED (slice 1).**
 - [x] An owner at the hireling cap cannot hire another until one is dismissed,
       dies, or its upkeep lapses. **SHIPPED (slice 1** — `ANOTHERMUD_HIRELING_CAP`,
-      default 1**).**
+      default 3**).**
+- [x] With several hirelings (cap > 1), each is addressable by a stable roster
+      number; an ambiguous bare name is refused, not silently applied to an
+      arbitrary one; `order all` targets the whole band. **SHIPPED** — the
+      targeting verbs resolve over a stable live-hireling roster (sorted by entity
+      id); a number selects the N-th, a name must be unique.
 
 > **Slice 1 acquisition (model b):** `hire <name>` resolves the hireable template
 > by name among **all** mob templates carrying a `hireling:` block (no recruiter
@@ -382,8 +391,10 @@ The following are externally configurable and not fixed by this spec.
 
 ## 11. Open questions / future work
 
-- **Multiple hirelings / bands.** v1 caps small; mercenary bands, formations, and
-  patrol routes are deferred.
+- **Multiple hirelings / bands — DONE for the small-band case.** The cap is
+  configurable (default 3); the targeting verbs address duplicates by roster
+  number and the whole band with `order all` (§3.3). Still deferred: large
+  mercenary bands, **formations / marching order**, and **patrol routes**.
 - **Hireling as a party seat — RESOLVED: owner's asset, not a party seat.** A
   hireling does **not** count toward grouping's XP or loot split. It is never an
   XP recipient (so it can't dilute the human shares) and never a loot owner; its

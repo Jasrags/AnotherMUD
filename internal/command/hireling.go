@@ -3,6 +3,7 @@ package command
 import (
 	"context"
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/Jasrags/AnotherMUD/internal/combat"
@@ -48,6 +49,15 @@ const (
 	HirelingStanceGuard  = "guard"
 )
 
+// LiveHirelingRef names one materialized hireling: its live entity id and the
+// template it was hired from. The roster of these (LiveHirelings) is the stable,
+// indexable handle the targeting verbs use when an owner holds several hirelings
+// (hireable-mobs.md §3.3) — distinct same-template duplicates that share a name.
+type LiveHirelingRef struct {
+	ID         entities.EntityID
+	TemplateID string
+}
+
 // hirelingOwner is the per-character hireling-ownership surface the connActor
 // satisfies (hireable-mobs.md §2, §9). Durable ownership is backed by the player
 // save; the live-materialized overlay (Track / Untrack / LiveHireling / stance) is
@@ -60,6 +70,10 @@ type hirelingOwner interface {
 	TrackLiveHireling(id entities.EntityID, templateID string)
 	UntrackLiveHireling(id entities.EntityID) (templateID string, ok bool)
 	LiveHireling(templateID string) (entities.EntityID, bool)
+	// LiveHirelings returns every materialized hireling in a STABLE order (by
+	// entity id), so a 1-based index over it is a durable targeting handle across
+	// commands within a session — the way to address same-template duplicates.
+	LiveHirelings() []LiveHirelingRef
 	// SetHirelingStance sets a live hireling's order stance (hireable-mobs.md §8).
 	// No-op if the id isn't a currently-live hireling.
 	SetHirelingStance(id entities.EntityID, stance string)
@@ -114,53 +128,76 @@ func HireHandler(ctx context.Context, c *Context) error {
 	return c.Actor.Write(ctx, fmt.Sprintf("You hire %s for %d gold. (You have %d gold left.)", name, cost, left))
 }
 
-// DismissHandler implements `dismiss <name>` (hireable-mobs.md §3.2): the owner
-// ends a hire contract, removing the hireling from the world. No refund.
+// DismissHandler implements `dismiss <name|number>` (hireable-mobs.md §3.2): the
+// owner ends a hire contract, removing the hireling from the world. No refund.
+// With several hirelings, a bare name that matches more than one is ambiguous —
+// dismiss it by its roster number (see `hirelings`).
 func DismissHandler(ctx context.Context, c *Context) error {
 	owner, ok := c.Actor.(hirelingOwner)
 	if !ok || c.Hirelings == nil {
 		return c.Actor.Write(ctx, "You have no one to dismiss.")
 	}
 	if len(c.Args) == 0 {
-		return c.Actor.Write(ctx, "Dismiss whom?  (try: dismiss <name>)")
+		return c.Actor.Write(ctx, "Dismiss whom?  (try: dismiss <name|number>)")
 	}
 	query := strings.ToLower(strings.TrimSpace(strings.Join(c.Args, " ")))
-	templateID, name, matched := c.matchOwnedHireling(owner, query)
-	if !matched {
+	matches := c.resolveHireling(owner, query)
+	switch len(matches) {
+	case 1:
+		m := matches[0]
+		// Untrack first: if the hireling died in the window between resolving and
+		// here (combat goroutine ran OnHirelingDeath), it's already gone — don't
+		// print a dismiss confirmation for a contract that no longer exists.
+		tmpl, ok := owner.UntrackLiveHireling(m.id)
+		if !ok {
+			return c.Actor.Write(ctx, fmt.Sprintf("%s is already gone.", capitalize(m.name)))
+		}
+		c.Hirelings.Dematerialize(ctx, m.id)
+		owner.RemoveHireling(tmpl)
+		return c.Actor.Write(ctx, fmt.Sprintf("You dismiss %s.", m.name))
+	case 0:
+		// No LIVE match. A stranded contract (owned but never materialized — content
+		// drift) still has a record to drop, so the owner is never stuck with a ghost.
+		if tmpl, name, ok := c.matchOwnedHireling(owner, query); ok {
+			owner.RemoveHireling(tmpl)
+			return c.Actor.Write(ctx, fmt.Sprintf("You dismiss %s.", name))
+		}
 		return c.Actor.Write(ctx, fmt.Sprintf("You have no %q to dismiss.", query))
+	default:
+		return c.Actor.Write(ctx, fmt.Sprintf("You have more than one %q — dismiss it by number (see `hirelings`).", query))
 	}
-	// Dematerialize the live creature if one is out, then drop the record.
-	if id, live := owner.LiveHireling(templateID); live {
-		c.Hirelings.Dematerialize(ctx, id)
-		owner.UntrackLiveHireling(id)
-	}
-	owner.RemoveHireling(templateID)
-	return c.Actor.Write(ctx, fmt.Sprintf("You dismiss %s.", name))
 }
 
 // HirelingsHandler implements `hirelings` (hireable-mobs.md §4): list the
-// hirelings this character has under contract and whether each is present.
+// hirelings this character has, NUMBERED — the number is the stable targeting
+// handle (`dismiss 2`, `order 2 guard`) that disambiguates same-template
+// duplicates. Each line shows whether the hireling is here with you or holding a
+// position elsewhere (a stay/guard order, §8).
 func HirelingsHandler(ctx context.Context, c *Context) error {
 	owner, ok := c.Actor.(hirelingOwner)
 	if !ok || c.Hirelings == nil {
 		return c.Actor.Write(ctx, "You have no hirelings.")
 	}
-	owned := owner.OwnedHirelingTemplates()
-	if len(owned) == 0 {
+	live := owner.LiveHirelings()
+	if len(live) == 0 {
 		return c.Actor.Write(ctx, "You have no hirelings.")
 	}
+	myRoom := c.Actor.Room()
 	var b strings.Builder
 	b.WriteString("Your hirelings:")
-	for _, t := range owned {
-		name, ok := c.Hirelings.HirelingName(t)
-		if !ok {
-			name = t // content drift: name the id rather than hide the contract
+	for i, ref := range live {
+		where := "with you"
+		if c.Placement != nil && myRoom != nil {
+			if r, ok := c.Placement.RoomOf(ref.ID); ok && r != myRoom.ID {
+				where = "elsewhere"
+			}
 		}
-		state := "away"
-		if _, live := owner.LiveHireling(t); live {
-			state = "with you"
-		}
-		b.WriteString(fmt.Sprintf("\n  %s — %s", name, state))
+		fmt.Fprintf(&b, "\n  %d) %s — %s", i+1, c.hirelingName(ref.TemplateID), where)
+	}
+	// Surface any contract with no creature in the world (content drift — a template
+	// that left content can't re-materialize) so the owner can `dismiss` it by name.
+	if absent := owner.HirelingCount() - len(live); absent > 0 {
+		fmt.Fprintf(&b, "\n  (%d more under contract but not present)", absent)
 	}
 	return c.Actor.Write(ctx, b.String())
 }
@@ -179,10 +216,11 @@ func (c *Context) matchOwnedHireling(owner hirelingOwner, query string) (templat
 
 // OrderHandler implements `order <hireling> <follow|stay|guard|attack [<target>]>`
 // (hireable-mobs.md §8). Owner-only by construction — it resolves only among the
-// caller's own contracts, so a non-owner can never name someone else's hireling.
+// caller's own live hirelings, so a non-owner can never name someone else's.
 // follow/stay/guard set a persistent stance the relocate (§5) and assist (§6.1)
 // seams read; `attack <target>` engages a foe now without changing the stance.
-// With exactly one live hireling the name may be omitted (`order guard`).
+// The hireling may be named, given as a roster number, or "all" (every hireling);
+// with exactly one hireling the target may be omitted (`order guard`).
 func OrderHandler(ctx context.Context, c *Context) error {
 	owner, ok := c.Actor.(hirelingOwner)
 	if !ok || c.Hirelings == nil {
@@ -192,23 +230,32 @@ func OrderHandler(ctx context.Context, c *Context) error {
 	if !parsed {
 		return c.Actor.Write(ctx, "Order them to do what?  (follow, stay, guard, or attack <target>)")
 	}
-	id, name, found := c.resolveOrderTarget(owner, hirelingQuery)
-	if !found {
-		if hirelingQuery == "" {
-			// Unnamed order: either nothing is present or it's ambiguous.
-			if c.liveHirelingCount(owner) == 0 {
-				return c.Actor.Write(ctx, "You have no hireling here to order.")
-			}
-			return c.Actor.Write(ctx, "Order which hireling?")
-		}
-		return c.Actor.Write(ctx, fmt.Sprintf("You have no %q to order.", hirelingQuery))
+	// Lowercase the name token so name-matching is case-insensitive (templateMatches
+	// expects a lowercased query); the number / "all" / "" forms are unaffected.
+	hirelingQuery = strings.ToLower(strings.TrimSpace(hirelingQuery))
+	targets, errMsg := c.orderTargets(owner, hirelingQuery)
+	if errMsg != "" {
+		return c.Actor.Write(ctx, errMsg)
 	}
 	switch order {
 	case HirelingStanceFollow, HirelingStanceStay, HirelingStanceGuard:
-		owner.SetHirelingStance(id, order)
-		return c.Actor.Write(ctx, orderStanceConfirm(name, order))
+		for _, t := range targets {
+			owner.SetHirelingStance(t.id, order)
+		}
+		if len(targets) == 1 {
+			return c.Actor.Write(ctx, orderStanceConfirm(targets[0].name, order))
+		}
+		return c.Actor.Write(ctx, orderStanceConfirmAll(len(targets), order))
 	case "attack":
-		return c.orderAttack(ctx, id, name, orderArgs)
+		if c.Combat == nil {
+			return c.Actor.Write(ctx, "There's nothing to fight right now.")
+		}
+		// Each hireling engages and reports its own line (so `order all attack rat`
+		// sics the whole band on the foe).
+		for _, t := range targets {
+			_ = c.orderAttack(ctx, t.id, t.name, orderArgs)
+		}
+		return nil
 	}
 	return c.Actor.Write(ctx, "Order them to do what?  (follow, stay, guard, or attack <target>)")
 }
@@ -246,54 +293,76 @@ func parseOrder(args []string) (hireling, order string, orderArgs []string, ok b
 	return "", "", nil, false
 }
 
-// resolveOrderTarget finds which live hireling an order applies to: by name when
-// one is given, else the owner's sole live hireling (cap-1 convenience). Returns
-// the live entity id + display name. Not ok when the name doesn't match a live
-// hireling, or when an unnamed order is ambiguous (zero or several live).
-func (c *Context) resolveOrderTarget(owner hirelingOwner, query string) (entities.EntityID, string, bool) {
-	query = strings.ToLower(strings.TrimSpace(query))
-	if query != "" {
-		t, n, matched := c.matchOwnedHireling(owner, query)
-		if !matched {
-			return "", "", false
-		}
-		id, live := owner.LiveHireling(t)
-		if !live {
-			return "", "", false
-		}
-		return id, n, true
-	}
-	// Unnamed: apply to the sole live hireling, if exactly one.
-	var (
-		foundID   entities.EntityID
-		foundName string
-		count     int
-	)
-	for _, t := range owner.OwnedHirelingTemplates() {
-		id, live := owner.LiveHireling(t)
-		if !live {
-			continue
-		}
-		count++
-		foundID = id
-		foundName, _ = c.Hirelings.HirelingName(t)
-	}
-	if count != 1 {
-		return "", "", false
-	}
-	return foundID, foundName, true
+// hirelingMatch names a resolved live hireling: its entity id + display name.
+type hirelingMatch struct {
+	id   entities.EntityID
+	name string
 }
 
-// liveHirelingCount reports how many of the owner's contracts are currently
-// materialized — used to tell "none present" from "ambiguous, name one".
-func (c *Context) liveHirelingCount(owner hirelingOwner) int {
-	n := 0
-	for _, t := range owner.OwnedHirelingTemplates() {
-		if _, live := owner.LiveHireling(t); live {
-			n++
+// hirelingName resolves a hireling template's display name, falling back to the
+// template id on content drift (a contract whose template left content).
+func (c *Context) hirelingName(templateID string) string {
+	if n, ok := c.Hirelings.HirelingName(templateID); ok {
+		return n
+	}
+	return templateID
+}
+
+// resolveHireling resolves a target token to live hireling(s) (hireable-mobs.md
+// §3.3). A bare NUMBER selects the N-th in the stable roster (1-based, the
+// `hirelings` index) — the unambiguous handle for same-template duplicates.
+// Otherwise the token is a name/keyword and EVERY live hireling whose template
+// matches is returned; callers read len 0 = none, 1 = the target, >1 = ambiguous.
+func (c *Context) resolveHireling(owner hirelingOwner, query string) []hirelingMatch {
+	live := owner.LiveHirelings()
+	if n, err := strconv.Atoi(query); err == nil {
+		if n >= 1 && n <= len(live) {
+			ref := live[n-1]
+			return []hirelingMatch{{id: ref.ID, name: c.hirelingName(ref.TemplateID)}}
+		}
+		return nil
+	}
+	var out []hirelingMatch
+	for _, ref := range live {
+		name := c.hirelingName(ref.TemplateID)
+		if templateMatches(name, ref.TemplateID, query) {
+			out = append(out, hirelingMatch{id: ref.ID, name: name})
 		}
 	}
-	return n
+	return out
+}
+
+// orderTargets resolves which hireling(s) an order applies to (hireable-mobs.md
+// §8), returning the targets and a player-facing error (empty on success):
+//   - "all" → every live hireling (band order);
+//   - "" (omitted) → the sole live hireling, else "which one?";
+//   - a number/name → resolveHireling (a name matching several is ambiguous).
+func (c *Context) orderTargets(owner hirelingOwner, query string) ([]hirelingMatch, string) {
+	live := owner.LiveHirelings()
+	if len(live) == 0 {
+		return nil, "You have no hireling here to order."
+	}
+	if strings.EqualFold(query, "all") {
+		out := make([]hirelingMatch, 0, len(live))
+		for _, ref := range live {
+			out = append(out, hirelingMatch{id: ref.ID, name: c.hirelingName(ref.TemplateID)})
+		}
+		return out, ""
+	}
+	if query == "" {
+		if len(live) == 1 {
+			return []hirelingMatch{{id: live[0].ID, name: c.hirelingName(live[0].TemplateID)}}, ""
+		}
+		return nil, "Order which hireling?  (by name or number — see `hirelings`)"
+	}
+	switch matches := c.resolveHireling(owner, query); len(matches) {
+	case 0:
+		return nil, fmt.Sprintf("You have no %q to order.", query)
+	case 1:
+		return matches, ""
+	default:
+		return nil, fmt.Sprintf("You have more than one %q — order it by number (see `hirelings`).", query)
+	}
 }
 
 // orderAttack engages a hireling on a foe in the owner's room (hireable-mobs.md
@@ -335,7 +404,7 @@ func (c *Context) orderAttack(ctx context.Context, hid entities.EntityID, hName 
 	return c.Actor.Write(ctx, fmt.Sprintf("%s moves to attack %s!", capitalize(hName), foeName))
 }
 
-// orderStanceConfirm is the owner-facing line for a stance order.
+// orderStanceConfirm is the owner-facing line for a single-hireling stance order.
 func orderStanceConfirm(name, stance string) string {
 	switch stance {
 	case HirelingStanceStay:
@@ -344,5 +413,18 @@ func orderStanceConfirm(name, stance string) string {
 		return fmt.Sprintf("%s takes up guard here.", capitalize(name))
 	default: // follow
 		return fmt.Sprintf("%s will follow you.", capitalize(name))
+	}
+}
+
+// orderStanceConfirmAll is the owner-facing line for a band stance order (`order
+// all ...`), summarizing the n hirelings affected.
+func orderStanceConfirmAll(n int, stance string) string {
+	switch stance {
+	case HirelingStanceStay:
+		return fmt.Sprintf("Your %d hirelings hold this position.", n)
+	case HirelingStanceGuard:
+		return fmt.Sprintf("Your %d hirelings take up guard here.", n)
+	default: // follow
+		return fmt.Sprintf("Your %d hirelings will follow you.", n)
 	}
 }

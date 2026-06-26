@@ -185,6 +185,28 @@ func TestPullHirelings_NonAdjacentDeparturePhrase(t *testing.T) {
 	}
 }
 
+// LiveHirelings orders by the NUMERIC entity-id suffix (the mint/hire order), not
+// lexicographically — so the roster numbers stay stable across digit-length
+// boundaries (entity-9 before entity-10), the targeting handle cap>1 relies on.
+func TestLiveHirelings_NumericOrder(t *testing.T) {
+	owner := &connActor{id: "c-boss", playerID: "boss", room: &world.Room{ID: "z:a"}}
+	// Track out of order, with ids that a string sort would invert.
+	owner.TrackLiveHireling("entity-10", "sw:a")
+	owner.TrackLiveHireling("entity-9", "sw:b")
+	owner.TrackLiveHireling("entity-100", "sw:c")
+
+	got := owner.LiveHirelings()
+	want := []entities.EntityID{"entity-9", "entity-10", "entity-100"}
+	if len(got) != len(want) {
+		t.Fatalf("got %d hirelings, want %d", len(got), len(want))
+	}
+	for i, w := range want {
+		if got[i].ID != w {
+			t.Errorf("position %d = %q, want %q (numeric order)", i+1, got[i].ID, w)
+		}
+	}
+}
+
 // A stay/guard hireling holds its room when the owner moves (hireable-mobs.md §8):
 // only follow-stance hirelings trail.
 func TestPullHirelings_StanceHoldsPosition(t *testing.T) {

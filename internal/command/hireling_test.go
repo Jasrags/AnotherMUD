@@ -2,6 +2,7 @@ package command_test
 
 import (
 	"context"
+	"sort"
 	"strings"
 	"testing"
 
@@ -72,6 +73,17 @@ func (a *testActor) LiveHireling(templateID string) (entities.EntityID, bool) {
 		}
 	}
 	return "", false
+}
+
+func (a *testActor) LiveHirelings() []command.LiveHirelingRef {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	out := make([]command.LiveHirelingRef, 0, len(a.liveHirelingSet))
+	for id, t := range a.liveHirelingSet {
+		out = append(out, command.LiveHirelingRef{ID: id, TemplateID: t})
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].ID < out[j].ID })
+	return out
 }
 
 func (a *testActor) SetHirelingStance(id entities.EntityID, stance string) {
@@ -275,6 +287,91 @@ func TestOrder_AttackRequiresColocation(t *testing.T) {
 	dispatchBuiltin(t, env, a, "order sellsword attack rat")
 	if !strings.Contains(a.lastLine(), "isn't here to take that order") {
 		t.Errorf("reply = %q, want co-location refusal", a.lastLine())
+	}
+}
+
+// seedTwoHirelings gives the actor two live hirelings of the SAME template (the
+// ambiguous duplicate case cap>1 must handle), with stable ids h-1 < h-2.
+func seedTwoHirelings(a *testActor) {
+	for _, id := range []entities.EntityID{"h-1", "h-2"} {
+		a.AddHireling("starter-world:sellsword")
+		a.TrackLiveHireling(id, "starter-world:sellsword")
+	}
+}
+
+func TestHirelings_NumberedRoster(t *testing.T) {
+	env, a, _ := hirelingFixture(t)
+	seedTwoHirelings(a)
+	dispatchBuiltin(t, env, a, "hirelings")
+	out := a.lastLine()
+	if !strings.Contains(out, "1) a grizzled sellsword") || !strings.Contains(out, "2) a grizzled sellsword") {
+		t.Errorf("roster not numbered:\n%s", out)
+	}
+}
+
+func TestOrder_ByNumber(t *testing.T) {
+	env, a, _ := hirelingFixture(t)
+	seedTwoHirelings(a)
+	dispatchBuiltin(t, env, a, "order 2 guard")
+	if got := a.stanceOf("h-2"); got != command.HirelingStanceGuard {
+		t.Errorf("h-2 stance = %q, want guard", got)
+	}
+	if got := a.stanceOf("h-1"); got == command.HirelingStanceGuard {
+		t.Error("h-1 should be untouched by `order 2`")
+	}
+}
+
+func TestOrder_AmbiguousNameRefused(t *testing.T) {
+	env, a, _ := hirelingFixture(t)
+	seedTwoHirelings(a)
+	dispatchBuiltin(t, env, a, "order sellsword guard")
+	if !strings.Contains(a.lastLine(), "more than one") {
+		t.Errorf("ambiguous name not refused: %q", a.lastLine())
+	}
+	if a.stanceOf("h-1") == command.HirelingStanceGuard || a.stanceOf("h-2") == command.HirelingStanceGuard {
+		t.Error("an ambiguous order should set no stance")
+	}
+}
+
+func TestOrder_All(t *testing.T) {
+	env, a, _ := hirelingFixture(t)
+	seedTwoHirelings(a)
+	dispatchBuiltin(t, env, a, "order all stay")
+	if a.stanceOf("h-1") != command.HirelingStanceStay || a.stanceOf("h-2") != command.HirelingStanceStay {
+		t.Errorf("order all did not set both: h-1=%q h-2=%q", a.stanceOf("h-1"), a.stanceOf("h-2"))
+	}
+	if !strings.Contains(a.lastLine(), "Your 2 hirelings hold this position") {
+		t.Errorf("band confirm = %q", a.lastLine())
+	}
+}
+
+func TestDismiss_ByNumber(t *testing.T) {
+	env, a, svc := hirelingFixture(t)
+	seedTwoHirelings(a)
+	dispatchBuiltin(t, env, a, "dismiss 2")
+	if a.HirelingCount() != 1 {
+		t.Errorf("count after dismiss = %d, want 1", a.HirelingCount())
+	}
+	if svc.dematerialize != 1 {
+		t.Errorf("dematerialize calls = %d, want 1", svc.dematerialize)
+	}
+	if _, live := a.liveHirelingSet["h-2"]; live {
+		t.Error("h-2 should be gone after `dismiss 2`")
+	}
+	if _, live := a.liveHirelingSet["h-1"]; !live {
+		t.Error("h-1 should remain after `dismiss 2`")
+	}
+}
+
+func TestDismiss_AmbiguousNameRefused(t *testing.T) {
+	env, a, svc := hirelingFixture(t)
+	seedTwoHirelings(a)
+	dispatchBuiltin(t, env, a, "dismiss sellsword")
+	if !strings.Contains(a.lastLine(), "more than one") {
+		t.Errorf("ambiguous dismiss not refused: %q", a.lastLine())
+	}
+	if a.HirelingCount() != 2 || svc.dematerialize != 0 {
+		t.Errorf("ambiguous dismiss removed something: count=%d demat=%d", a.HirelingCount(), svc.dematerialize)
 	}
 }
 
