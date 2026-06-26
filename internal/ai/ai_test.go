@@ -11,6 +11,7 @@ import (
 	"github.com/Jasrags/AnotherMUD/internal/clock"
 	"github.com/Jasrags/AnotherMUD/internal/combat"
 	"github.com/Jasrags/AnotherMUD/internal/entities"
+	"github.com/Jasrags/AnotherMUD/internal/eventbus"
 	"github.com/Jasrags/AnotherMUD/internal/mob"
 	"github.com/Jasrags/AnotherMUD/internal/world"
 )
@@ -303,6 +304,49 @@ func TestBehaviorWander_MovesMobAndBroadcasts(t *testing.T) {
 	}
 	if f.bcast.sent[1].Room != "core:b" || f.bcast.sent[1].Text != "a guard arrives from the south." {
 		t.Errorf("arrival broadcast wrong: %+v", f.bcast.sent[1])
+	}
+}
+
+func TestBehaviorWander_PublishesMobMoved(t *testing.T) {
+	f := newWanderFixture(t)
+	m := f.spawn(t)
+
+	bus := eventbus.New()
+	var got []eventbus.MobMoved
+	bus.Subscribe(eventbus.EventMobMoved, func(_ context.Context, e eventbus.Event) {
+		if mm, ok := e.(eventbus.MobMoved); ok {
+			got = append(got, mm)
+		}
+	})
+	deps := f.deps()
+	deps.Bus = bus
+
+	if err := BehaviorWander(context.Background(), m, deps); err != nil {
+		t.Fatalf("wander: %v", err)
+	}
+
+	if len(got) != 1 {
+		t.Fatalf("MobMoved events = %d, want 1: %+v", len(got), got)
+	}
+	ev := got[0]
+	if ev.MobID != m.ID() || ev.MobName != "a guard" || ev.From != "core:a" || ev.To != "core:b" {
+		t.Errorf("MobMoved = %+v, want {%s a guard core:a core:b}", ev, m.ID())
+	}
+}
+
+func TestBehaviorWander_NilBusTolerated(t *testing.T) {
+	// Headless / test setups may not wire a Bus. The mob still moves;
+	// the signal is simply not emitted.
+	f := newWanderFixture(t)
+	m := f.spawn(t)
+	deps := f.deps()
+	deps.Bus = nil
+
+	if err := BehaviorWander(context.Background(), m, deps); err != nil {
+		t.Fatalf("wander: %v", err)
+	}
+	if got, _ := f.place.RoomOf(m.ID()); got != "core:b" {
+		t.Errorf("mob moved to %q, want core:b", got)
 	}
 }
 

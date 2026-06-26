@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/Jasrags/AnotherMUD/internal/entities"
+	"github.com/Jasrags/AnotherMUD/internal/eventbus"
 	"github.com/Jasrags/AnotherMUD/internal/world"
 )
 
@@ -89,6 +90,19 @@ func BehaviorWander(ctx context.Context, m *entities.MobInstance, deps Deps) err
 	setNextWander(m, now)
 
 	announce(ctx, deps.Broadcaster, m.Name(), srcID, dst.ID, dir)
+
+	// Mob-move signal (follow.md §3): the mob counterpart of PlayerMoved,
+	// so a player trailing this mob is pulled along. Published right after
+	// the relocate + broadcasts, mirroring the player movement order
+	// (broadcasts, then PlayerMoved). nil bus disables it (tests).
+	if deps.Bus != nil {
+		deps.Bus.Publish(ctx, eventbus.MobMoved{
+			MobID:   m.ID(),
+			MobName: m.Name(),
+			From:    srcID,
+			To:      dst.ID,
+		})
+	}
 
 	// Mob-entered-room hook (spec §4): evaluate the arriving mob
 	// against every player already in dst. Evaluator handles nil

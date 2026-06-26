@@ -50,6 +50,10 @@ const (
 	// reaction state). Publishes on movement, login spawn, and
 	// link-dead reconnect. Not cancellable.
 	EventPlayerMoved = "player.moved"
+	// Post-fact notification fired after a mob's room has changed — the
+	// mob counterpart of EventPlayerMoved (follow.md §3 mob-leader
+	// following). Sources today: AI wander. Not cancellable.
+	EventMobMoved = "mob.moved"
 	// Post-fact notification fired when a disposition evaluator
 	// dispatches a fresh hostile reaction (spec
 	// mobs-ai-spawning §5.5). Combat's engagement listener
@@ -758,6 +762,24 @@ type PlayerMoved struct {
 
 // Name implements Event.
 func (PlayerMoved) Name() string { return EventPlayerMoved }
+
+// MobMoved fires after a mob's room has changed — the mob counterpart of
+// PlayerMoved (follow.md §3). It is what lets a player trail a mob: the
+// follow graph's PullFollowers reacts to this just as it does to a leader
+// player's move. Sources today: AI wander (the one autonomous mob-move
+// path). The bound hireling relocate deliberately does NOT emit this — a
+// hireling is glued to its owner and moves with the owner's PlayerMoved,
+// not as an independent leader. MobName is carried for observability /
+// future subscribers; the follow reaction re-resolves it from the store.
+type MobMoved struct {
+	MobID   entities.EntityID
+	MobName string
+	From    world.RoomID
+	To      world.RoomID
+}
+
+// Name implements Event.
+func (MobMoved) Name() string { return EventMobMoved }
 
 // MobAggro fires when the disposition evaluator dispatches a fresh
 // hostile reaction (spec §5.5). Combat's engagement listener

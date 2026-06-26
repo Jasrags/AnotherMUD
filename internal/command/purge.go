@@ -57,6 +57,17 @@ func (c *Context) purgeEntity(ctx context.Context, roomID world.RoomID, id entit
 	c.Placement.Remove(id)
 	_ = c.Items.Untrack(id) // benign if already untracked
 
+	// A purged mob emits no MobKilled, so release any players trailing it
+	// (follow.md §3 mob-leader) here — otherwise they keep a dead follow edge
+	// to a leader that can never move again. Only mobs are followable.
+	if kind == "npc" && c.Follow != nil {
+		for _, fid := range c.Follow.Lose(string(id)) {
+			if fa, ok := c.actorByID(fid); ok {
+				_ = fa.Write(ctx, fmt.Sprintf("You lose the trail of %s.", name))
+			}
+		}
+	}
+
 	if c.Broadcaster != nil && name != "" {
 		c.Broadcaster.SendToRoom(ctx, roomID,
 			fmt.Sprintf("%s is purged from existence.", name), c.Actor.PlayerID())

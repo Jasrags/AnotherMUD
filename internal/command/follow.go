@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+
+	"github.com/Jasrags/AnotherMUD/internal/entities"
 )
 
 // Follow errors the FollowService returns; the verbs map them to player text.
@@ -16,7 +18,9 @@ var (
 )
 
 // FollowService is the engine's move-with-leader relationship graph (follow.md).
-// The session Manager implements it; the verbs call it. All ids are player ids.
+// The session Manager implements it; the verbs call it. Follower ids are always
+// player ids; a leader id may be a player id OR a mob entity id (follow.md §3 —
+// the two spaces never collide: player ids are hex, mob ids are "entity-N").
 // nil disables following (the verbs then refuse cleanly).
 type FollowService interface {
 	// Follow records followerID trailing leaderID, replacing any prior leader.
@@ -31,9 +35,12 @@ type FollowService interface {
 	Following(followerID string) (leaderID string, had bool)
 }
 
-// FollowHandler implements `follow [<target>]` (follow.md §2): with a target, a
-// visible player in the room, begin trailing them; with no target, report the
-// current leader. Consent-free — the target isn't asked (the leader uses `lose`).
+// FollowHandler implements `follow [<target>]` (follow.md §2): with a target —
+// a visible player OR mob in the room — begin trailing them; with no target,
+// report the current leader. Consent-free — the target isn't asked (a player
+// leader uses `lose`; a mob can't be asked at all). A mob leader (follow.md §3)
+// is keyed in the follow graph by its entity id and reacts to MobMoved exactly
+// as a player leader reacts to PlayerMoved.
 func FollowHandler(ctx context.Context, c *Context) error {
 	if c.Follow == nil {
 		return c.Actor.Write(ctx, "You can't follow anyone right now.")
@@ -42,10 +49,32 @@ func FollowHandler(ctx context.Context, c *Context) error {
 	if !ok {
 		// No argument — report who we follow.
 		if lid, has := c.Follow.Following(c.Actor.PlayerID()); has {
-			return c.Actor.Write(ctx, fmt.Sprintf("You are following %s.", c.actorName(lid)))
+			return c.Actor.Write(ctx, fmt.Sprintf("You are following %s.", c.leaderName(lid)))
 		}
 		return c.Actor.Write(ctx, "You aren't following anyone.")
 	}
+	if tref.Type == entityTypeMob {
+		return followMob(ctx, c, tref)
+	}
+	return followPlayer(ctx, c, tref)
+}
+
+// followMob begins trailing a mob (follow.md §3). The mob's entity id is the
+// leader key; the mob isn't notified (it has no session). A cycle is impossible
+// (a mob never follows), so only the generic-failure branch can fire.
+func followMob(ctx context.Context, c *Context, tref EntityRef) error {
+	if tref.ID == "" {
+		return c.Actor.Write(ctx, "You can't follow that.")
+	}
+	if err := c.Follow.Follow(c.Actor.PlayerID(), tref.ID); err != nil {
+		return c.Actor.Write(ctx, "You can't follow that.")
+	}
+	return c.Actor.Write(ctx, fmt.Sprintf("You begin following %s.", tref.Name))
+}
+
+// followPlayer begins trailing another player, notifying that player (the
+// original follow.md §2 behavior).
+func followPlayer(ctx context.Context, c *Context, tref EntityRef) error {
 	room := c.Actor.Room()
 	if room == nil {
 		return c.Actor.Write(ctx, "You're nowhere to follow from.")
@@ -79,7 +108,7 @@ func UnfollowHandler(ctx context.Context, c *Context) error {
 	if la, ok := c.actorByID(leaderID); ok {
 		_ = la.Write(ctx, fmt.Sprintf("%s stops following you.", c.Actor.Name()))
 	}
-	return c.Actor.Write(ctx, fmt.Sprintf("You stop following %s.", c.actorName(leaderID)))
+	return c.Actor.Write(ctx, fmt.Sprintf("You stop following %s.", c.leaderName(leaderID)))
 }
 
 // LoseHandler implements `lose` (follow.md §2): shake off everyone following you.
@@ -104,6 +133,25 @@ func LoseHandler(ctx context.Context, c *Context) error {
 func (c *Context) actorName(id string) string {
 	if a, ok := c.actorByID(id); ok {
 		return a.Name()
+	}
+	return "someone"
+}
+
+// leaderName resolves a follow-leader id to a display name. A leader is either
+// a player (an online actor) or a mob the player is trailing (follow.md §3), so
+// it tries the actor lookup first, then the entity store for a mob name, then
+// the generic fallback. The two id spaces never collide (player ids are hex,
+// mob entity ids are "entity-N").
+func (c *Context) leaderName(id string) string {
+	if a, ok := c.actorByID(id); ok {
+		return a.Name()
+	}
+	if c.Items != nil && id != "" {
+		if e, ok := c.Items.GetByID(entities.EntityID(id)); ok {
+			if mob, ok := e.(*entities.MobInstance); ok {
+				return mob.Name()
+			}
+		}
 	}
 	return "someone"
 }

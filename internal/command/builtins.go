@@ -84,7 +84,7 @@ func RegisterBuiltins(r *Registry) error {
 			HandParsed: true, Args: []ArgDefinition{{Name: "item", Type: ArgEquipped}}, IsAction: true},
 		{Keyword: "hastydon", Aliases: []string{"quickdon"}, Handler: HastyDonHandler, Brief: "Throw on armor fast — quicker, but it protects less until re-donned.", Syntax: []string{"hastydon <item>"}, Args: []ArgDefinition{{Name: "item", Type: ArgInventory}}, IsAction: true},
 		{Keyword: "stop", Aliases: []string{"cancel"}, Handler: StopHandler, Brief: "Stop what you're currently doing.", Syntax: []string{"stop"}},
-		{Keyword: "follow", Handler: FollowHandler, Brief: "Follow another character so you travel with them.", Syntax: []string{"follow", "follow <player>"}, Args: []ArgDefinition{{Name: "target", Type: ArgPlayer, Optional: true}}},
+		{Keyword: "follow", Handler: FollowHandler, Brief: "Follow another character or creature so you travel with them.", Syntax: []string{"follow", "follow <target>"}, Args: []ArgDefinition{{Name: "target", Type: ArgEntity, Optional: true}}},
 		{Keyword: "unfollow", Handler: UnfollowHandler, Brief: "Stop following whoever you're following.", Syntax: []string{"unfollow"}},
 		{Keyword: "lose", Handler: LoseHandler, Brief: "Shake off everyone following you.", Syntax: []string{"lose"}},
 		{Keyword: "group", Handler: GroupHandler, Brief: "Invite a player to your party, or list your party.", Syntax: []string{"group", "group <player>"}, Args: []ArgDefinition{{Name: "target", Type: ArgPlayer, Optional: true}}},

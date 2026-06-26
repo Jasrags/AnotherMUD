@@ -54,6 +54,28 @@ func TestFollowHandler_BeginsFollowing(t *testing.T) {
 	}
 }
 
+// A mob target (EntityRef.Type == "mob") follows by entity id and is NOT
+// notified — it has no session (follow.md §3).
+func TestFollowHandler_FollowsMob(t *testing.T) {
+	room := &world.Room{ID: "z:a", Name: "Road"}
+	follower := newNamedTestActor("Alice", "p-1", room)
+	stub := &stubFollow{}
+	c := &command.Context{
+		Actor:    follower,
+		Follow:   stub,
+		Resolved: map[string]any{"target": command.EntityRef{ID: "entity-9", Name: "a town guard", Type: "mob"}},
+	}
+	if err := command.FollowHandler(context.Background(), c); err != nil {
+		t.Fatal(err)
+	}
+	if stub.gotFollower != "p-1" || stub.gotLed != "entity-9" {
+		t.Errorf("Follow(%q,%q), want (p-1,entity-9)", stub.gotFollower, stub.gotLed)
+	}
+	if follower.lastLine() != "You begin following a town guard." {
+		t.Errorf("follower msg = %q", follower.lastLine())
+	}
+}
+
 func TestFollowHandler_SelfAndCycleMessages(t *testing.T) {
 	room := &world.Room{ID: "z:a"}
 	for _, tc := range []struct {

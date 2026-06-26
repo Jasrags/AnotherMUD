@@ -6,6 +6,7 @@ import (
 	"log/slog"
 
 	"github.com/Jasrags/AnotherMUD/internal/command"
+	"github.com/Jasrags/AnotherMUD/internal/entities"
 	"github.com/Jasrags/AnotherMUD/internal/logging"
 	"github.com/Jasrags/AnotherMUD/internal/world"
 )
@@ -161,10 +162,7 @@ func (m *Manager) PullFollowers(ctx context.Context, leaderID string, from, to w
 	}
 	m.followMu.Unlock()
 
-	leaderName := "someone"
-	if la, ok := m.GetByPlayerID(leaderID); ok {
-		leaderName = la.Name()
-	}
+	leaderName := m.leaderDisplayName(leaderID)
 
 	dir, adjacent := m.directionBetween(from, to)
 	childCtx := context.WithValue(ctx, followDepthKey{}, depth+1)
@@ -193,6 +191,47 @@ func (m *Manager) PullFollowers(ctx context.Context, leaderID string, from, to w
 			m.breakFollow(ctx, fid, fa, leaderName) // blocked / exhausted / in combat
 		}
 	}
+}
+
+// DropMobLeader releases every player trailing a slain (or despawned) mob and
+// tells them the trail went cold (follow.md §3/§4). It is the mob counterpart
+// of a leader player's teardown: without it, a followed mob's death would leave
+// the player's follow edge pointing at a leader that will never move again. The
+// display name is passed in (the caller has it from the MobKilled event)
+// because the mob may already be gone from the entity store by the time the
+// death fan-out reaches here. No-op when nothing was following the mob.
+func (m *Manager) DropMobLeader(ctx context.Context, mobID entities.EntityID, name string) {
+	if m == nil {
+		return
+	}
+	if name == "" {
+		name = "your quarry"
+	}
+	for _, fid := range m.Lose(string(mobID)) {
+		if fa, ok := m.GetByPlayerID(fid); ok {
+			_ = fa.Write(ctx, "You lose the trail of "+name+".")
+		}
+	}
+}
+
+// leaderDisplayName resolves a leader id to a display name for follow
+// messaging. A leader is either a player (online actor) or a mob (a wandering
+// NPC the player is trailing, follow.md §3) — the two id spaces never collide
+// (player ids are hex, mob entity ids are "entity-N"), so a single lookup
+// chain is unambiguous: try the online actor, then the entity store, else the
+// generic fallback.
+func (m *Manager) leaderDisplayName(leaderID string) string {
+	if la, ok := m.GetByPlayerID(leaderID); ok {
+		return la.Name()
+	}
+	if store := m.actionEnv.Items; store != nil {
+		if e, ok := store.GetByID(entities.EntityID(leaderID)); ok {
+			if mob, ok := e.(*entities.MobInstance); ok {
+				return mob.Name()
+			}
+		}
+	}
+	return "someone"
 }
 
 // breakFollow ends fid's follow and tells them they lost the leader.

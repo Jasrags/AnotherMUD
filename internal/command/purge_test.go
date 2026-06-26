@@ -4,6 +4,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/Jasrags/AnotherMUD/internal/command"
 	"github.com/Jasrags/AnotherMUD/internal/eventbus"
 )
 
@@ -34,6 +35,28 @@ func TestPurge_MobRemovedAndAudits(t *testing.T) {
 	}
 	if ev := (*got)[0].(eventbus.AdminAction); ev.Verb != "purge" || ev.Target != string(guardID) {
 		t.Errorf("event = %+v, want verb=purge target=%s", ev, guardID)
+	}
+}
+
+// Purging a followed mob releases its trailing players (follow.md §3): the mob
+// emits no MobKilled, so purge must tear down the follow edge itself.
+func TestPurge_DropsMobFollowers(t *testing.T) {
+	f := newConsiderFixture(t)
+	admin := adminInRoom(f, "Maerys", "p-admin")
+	env := f.env()
+	follower := newNamedTestActor("Trailer", "p-foll", nil)
+	env.Follow = &stubFollow{lost: []string{"p-foll"}}
+	env.ActorByID = func(id string) (command.Actor, bool) {
+		if id == "p-foll" {
+			return follower, true
+		}
+		return nil, false
+	}
+
+	dispatchRole(t, env, admin, "purge guard")
+
+	if follower.lastLine() != "You lose the trail of a village guard." {
+		t.Errorf("follower msg = %q, want trail-lost notice", follower.lastLine())
 	}
 }
 

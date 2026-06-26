@@ -1571,6 +1571,15 @@ func run() error {
 		}
 	})
 
+	// follow.md §3/§4: a slain mob releases any players trailing it (the mob
+	// counterpart of a leader's teardown). The name comes from the event because
+	// the corpse path may already have removed the creature from the store.
+	bus.Subscribe(eventbus.EventMobKilled, func(ctx context.Context, ev eventbus.Event) {
+		if e, ok := ev.(eventbus.MobKilled); ok {
+			mgr.DropMobLeader(ctx, e.MobID, e.MobName)
+		}
+	})
+
 	// hireable-mobs.md §7: recurring hireling upkeep. Each owner is charged each
 	// live hireling's upkeep on the cadence; one they can't pay departs. The
 	// per-template upkeep is read from the mob template's `hireling:` block.
@@ -2652,6 +2661,19 @@ func run() error {
 		// stay at their side (a hireling is glued to its owner, not an independent
 		// trailer).
 		mgr.PullHirelings(ctx, e.PlayerID, e.From, e.To)
+	})
+
+	// follow.md §3 (mob-leader following): a mob's move pulls along any players
+	// trailing it, exactly as a leader player's move does. PullFollowers is
+	// leader-kind-agnostic (the follow graph keys on opaque ids; player ids are
+	// hex, mob ids are "entity-N", so they never collide), so the mob entity id
+	// flows straight through. Skips presence-only moves (From == To).
+	bus.Subscribe(eventbus.EventMobMoved, func(ctx context.Context, ev eventbus.Event) {
+		e, ok := ev.(eventbus.MobMoved)
+		if !ok || e.From == e.To {
+			return
+		}
+		mgr.PullFollowers(ctx, string(e.MobID), e.From, e.To)
 	})
 
 	// Moving rooms drops hide concealment (visibility §3.1): you cannot stay
