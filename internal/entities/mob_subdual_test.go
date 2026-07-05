@@ -27,7 +27,7 @@ func TestMobStats_Subdual(t *testing.T) {
 
 	t.Run("equipped subdual weapon → Stats.Subdual", func(t *testing.T) {
 		inst := spawn(t)
-		inst.SetWeapon(combat.DiceExpr{Count: 1, Sides: 6}, "a sap", nil, "", "", "small")
+		inst.SetWeapon(combat.DiceExpr{Count: 1, Sides: 6}, "a sap", nil, "", "", "", "small")
 		inst.SetWeaponSubdual(true)
 		if !inst.Stats().Subdual {
 			t.Error("a mob wielding a subdual weapon should report Stats.Subdual=true")
@@ -36,7 +36,7 @@ func TestMobStats_Subdual(t *testing.T) {
 
 	t.Run("natural weapon stays lethal", func(t *testing.T) {
 		inst := spawn(t)
-		inst.SetWeapon(combat.DiceExpr{Count: 1, Sides: 4}, "claws", nil, "", "", "")
+		inst.SetWeapon(combat.DiceExpr{Count: 1, Sides: 4}, "claws", nil, "", "", "", "")
 		// No SetWeaponSubdual — a bite/claw is lethal.
 		if inst.Stats().Subdual {
 			t.Error("a natural weapon must stay lethal (Subdual=false)")

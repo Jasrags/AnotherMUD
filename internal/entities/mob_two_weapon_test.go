@@ -37,7 +37,7 @@ func TestMobStats_OffHandProfile(t *testing.T) {
 		// Main weapon is MEDIUM (one-handed for a medium mob) so it earns no
 		// two-handed Strength bonus — base.DamageBonus is the clean 1× Strength,
 		// keeping the main-unchanged and ½×-off-hand assertions below honest.
-		inst.SetWeapon(combat.DiceExpr{Count: 1, Sides: 8}, "a sword", nil, "", "", "medium")
+		inst.SetWeapon(combat.DiceExpr{Count: 1, Sides: 8}, "a sword", nil, "", "", "", "medium")
 		base := inst.Stats() // no off-hand yet — the un-penalized baseline
 		inst.SetOffWeapon(combat.DiceExpr{Count: 1, Sides: 4}, "a dirk", []string{"piercing"}, "small")
 
@@ -71,7 +71,7 @@ func TestMobStats_OffHandProfile(t *testing.T) {
 
 	t.Run("non-light off-hand grants nothing", func(t *testing.T) {
 		inst := spawn(t)
-		inst.SetWeapon(combat.DiceExpr{Count: 1, Sides: 8}, "a sword", nil, "", "", "medium")
+		inst.SetWeapon(combat.DiceExpr{Count: 1, Sides: 8}, "a sword", nil, "", "", "", "medium")
 		base := inst.Stats()
 		// A medium weapon is one-handed (not light) for a medium mob.
 		inst.SetOffWeapon(combat.DiceExpr{Count: 1, Sides: 6}, "a mace", nil, "medium")
@@ -86,7 +86,7 @@ func TestMobStats_OffHandProfile(t *testing.T) {
 
 	t.Run("ranged main suppresses off-hand", func(t *testing.T) {
 		inst := spawn(t)
-		inst.SetWeapon(combat.DiceExpr{Count: 1, Sides: 6}, "a bow", nil, "projectile", "arrow", "large")
+		inst.SetWeapon(combat.DiceExpr{Count: 1, Sides: 6}, "a bow", nil, "projectile", "arrow", "", "large")
 		inst.SetOffWeapon(combat.DiceExpr{Count: 1, Sides: 4}, "a dirk", nil, "small")
 		if s := inst.Stats(); s.OffHand != nil {
 			t.Error("a ranged main weapon should suppress the off-hand attack")
@@ -95,7 +95,7 @@ func TestMobStats_OffHandProfile(t *testing.T) {
 
 	t.Run("no off-hand weapon ⇒ no profile", func(t *testing.T) {
 		inst := spawn(t)
-		inst.SetWeapon(combat.DiceExpr{Count: 1, Sides: 8}, "a sword", nil, "", "", "medium")
+		inst.SetWeapon(combat.DiceExpr{Count: 1, Sides: 8}, "a sword", nil, "", "", "", "medium")
 		if s := inst.Stats(); s.OffHand != nil {
 			t.Error("a single-weapon mob should have no off-hand profile")
 		}

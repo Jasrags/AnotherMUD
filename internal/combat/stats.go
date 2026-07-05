@@ -89,6 +89,13 @@ type Stats struct {
 	// unit in the wielder's inventory.
 	AmmoKind string
 
+	// RangedStyle is the wielded weapon's flavor-voice id (rangedflavor) —
+	// purely presentational, carried so the round loop's dry-fire event and the
+	// ranged verbs (shoot/load) can phrase style-appropriate text (bow vs
+	// crossbow vs a future firearm). Empty resolves to the default style / engine
+	// floor. Populated from the wielded weapon by the holder's Stats() builder.
+	RangedStyle string
+
 	// RangeIncrement is the wielded weapon's distance-falloff unit
 	// (ranged-combat §2). Zero = unset. Carried for Slice B's band to-hit
 	// falloff; inert in Slice A.

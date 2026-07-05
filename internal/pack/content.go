@@ -109,8 +109,13 @@ type ItemFile struct {
 	// until Slice B); str_rating caps a Strength-rated bow's positive
 	// Strength bonus (a pointer so 0 is a valid cap, absent = the default
 	// no-positive-Strength projectile rule).
-	RangedClass    string `yaml:"ranged_class,omitempty"`
-	AmmoKind       string `yaml:"ammo_kind,omitempty"`
+	RangedClass string `yaml:"ranged_class,omitempty"`
+	AmmoKind    string `yaml:"ammo_kind,omitempty"`
+	// RangedStyle names the weapon's flavor voice (rangedflavor) — bow /
+	// crossbow / thrown / a future firearm. A pack's ranged_flavor vocabulary
+	// keys off it; empty resolves to the default style, then the engine floor.
+	// Presentational only — validated leniently (an unknown value is tolerated).
+	RangedStyle    string `yaml:"ranged_style,omitempty"`
 	RangeIncrement int    `yaml:"range_increment,omitempty"`
 	StrRating      *int   `yaml:"str_rating,omitempty"`
 	// ReloadTicks marks a projectile weapon that must be RELOADED between shots
@@ -1132,6 +1137,25 @@ type EmoteFile struct {
 	RequiresTarget bool          `yaml:"requires_target,omitempty"`
 	NoTarget       EmoteViewFile `yaml:"no_target,omitempty"`
 	Targeted       EmoteViewFile `yaml:"targeted"`
+}
+
+// RangedFlavorFile is one ranged-weapon flavor style (rangedflavor): an id
+// (the `ranged_style` a weapon declares — bow / crossbow / thrown / firearm, or
+// "default" for the shared baseline) and a map of moment-key → the self/room
+// lines for that moment. Keys are the rangedflavor.Key* constants (dry /
+// unloaded / load_empty / load / fire); any subset may be given, unset keys
+// fall through to the default style and then the engine floor.
+type RangedFlavorFile struct {
+	ID       string                          `yaml:"id"`
+	Messages map[string]RangedFlavorLineFile `yaml:"messages"`
+}
+
+// RangedFlavorLineFile is one moment's two-audience templates — the
+// second-person `self` line and the third-person `room` line. Either may be
+// omitted to inherit that audience's line from the fallback chain.
+type RangedFlavorLineFile struct {
+	Self string `yaml:"self,omitempty"`
+	Room string `yaml:"room,omitempty"`
 }
 
 // EmoteViewFile is one view block in an EmoteFile: the actor's line, the

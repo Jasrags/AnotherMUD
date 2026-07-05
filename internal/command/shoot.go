@@ -9,6 +9,7 @@ import (
 	"github.com/Jasrags/AnotherMUD/internal/combat"
 	"github.com/Jasrags/AnotherMUD/internal/entities"
 	"github.com/Jasrags/AnotherMUD/internal/light"
+	"github.com/Jasrags/AnotherMUD/internal/rangedflavor"
 	"github.com/Jasrags/AnotherMUD/internal/world"
 )
 
@@ -121,30 +122,29 @@ func ShootHandler(ctx context.Context, c *Context) error {
 		// Atomically take the chambered shot (check-and-clear); the bolt is loosed
 		// whether it hits or misses. A non-loader actor (test/headless) fires freely.
 		if taker, ok := c.Actor.(interface{ TakeLoadedShot() bool }); ok && !taker.TakeLoadedShot() {
-			_ = c.Actor.Write(ctx, "*click* — your weapon isn't loaded. (load it first)")
+			_ = c.emitRangedFlavor(ctx, st.RangedStyle, rangedflavor.KeyUnloaded, map[string]string{
+				"actor": c.Actor.Name(), "weapon": wieldedWeaponName(c),
+			})
 			return nil
 		}
 	} else if consumer, ok := c.Actor.(ammoConsumer); ok && st.AmmoKind != "" {
 		if _, consumed := consumer.ConsumeAmmo(st.AmmoKind); !consumed {
-			_ = c.Actor.Write(ctx, fmt.Sprintf("*click* — you are out of %s!", st.AmmoKind))
-			if c.Broadcaster != nil && c.Actor.Name() != "" {
-				c.Broadcaster.SendToRoom(ctx, room.ID,
-					fmt.Sprintf("%s grasps for ammunition that isn't there.", c.Actor.Name()),
-					c.Actor.PlayerID())
-			}
+			_ = c.emitRangedFlavor(ctx, st.RangedStyle, rangedflavor.KeyDry, map[string]string{
+				"actor": c.Actor.Name(), "ammo": st.AmmoKind,
+			})
 			return nil
 		}
 	}
 
 	// Two-room narration. The hit/miss/death lines come from the combat sink
 	// (stamped to the target room below); here we add the directional flavor.
-	_ = c.Actor.Write(ctx, fmt.Sprintf("You loose a shot to the %s at %s!", dir.Long(), targetName))
+	// The shooter's own self + room lines come from the weapon's ranged style
+	// (rangedflavor KeyFire); the inbound line in the target room is a cross-room
+	// mechanic, not weapon voice, so it stays fixed.
+	_ = c.emitRangedFlavor(ctx, st.RangedStyle, rangedflavor.KeyFire, map[string]string{
+		"actor": c.Actor.Name(), "dir": dir.Long(), "target": targetName,
+	})
 	if c.Broadcaster != nil {
-		if c.Actor.Name() != "" {
-			c.Broadcaster.SendToRoom(ctx, room.ID,
-				fmt.Sprintf("%s looses a shot to the %s.", c.Actor.Name(), dir.Long()),
-				c.Actor.PlayerID())
-		}
 		// Inbound line in the target's room, from the reverse direction. Exclude
 		// the target (a player) — they get the sink's second-person "hits you".
 		c.Broadcaster.SendToRoom(ctx, dst.ID,

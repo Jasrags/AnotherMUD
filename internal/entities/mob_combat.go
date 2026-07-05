@@ -70,6 +70,7 @@ func (m *MobInstance) Stats() combat.Stats {
 		// it free. Empty for a melee/natural weapon.
 		s.RangedClass = m.weaponRangedClass
 		s.AmmoKind = m.weaponAmmoKind
+		s.RangedStyle = m.weaponRangedStyle
 		// subdual-damage §2: an equipped nonlethal weapon (a mob's sap) knocks the
 		// victim out on a finishing blow. A natural weapon leaves this false (lethal).
 		s.Subdual = m.weaponSubdual
@@ -133,12 +134,13 @@ func (m *MobInstance) Stats() combat.Stats {
 // then EquipMobAtSpawn overrides it with an equipped weapon. Not safe to call
 // after the mob is targetable in combat (read lock-free by Stats on the tick
 // goroutine).
-func (m *MobInstance) SetWeapon(dice combat.DiceExpr, name string, damageTypes []string, rangedClass, ammoKind, weaponSize string) {
+func (m *MobInstance) SetWeapon(dice combat.DiceExpr, name string, damageTypes []string, rangedClass, ammoKind, rangedStyle, weaponSize string) {
 	m.weapon = dice
 	m.weaponName = name
 	m.weaponDamageTypes = damageTypes
 	m.weaponRangedClass = rangedClass
 	m.weaponAmmoKind = ammoKind
+	m.weaponRangedStyle = rangedStyle
 	m.weaponSize = weaponSize
 }
 

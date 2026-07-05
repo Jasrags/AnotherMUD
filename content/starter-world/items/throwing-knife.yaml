@@ -18,3 +18,4 @@ weapon_category: knife
 # it for one full-Strength swing, then it lands in the room (recoverable). It
 # is its own ammunition, so it declares no ammo_kind.
 ranged_class: thrown
+ranged_style: thrown

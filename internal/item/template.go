@@ -120,6 +120,13 @@ type Template struct {
 	// thrown/melee weapon and on a non-ammo item. Normalized lowercase. A
 	// projectile weapon must declare one (validated at load).
 	AmmoKind string
+	// RangedStyle names the weapon's flavor voice for ranged moments — running
+	// dry, chambering, loosing a shot (rangedflavor). Content-defined (e.g.
+	// "bow" / "crossbow" / "thrown" / a future "firearm"); a pack keys its
+	// ranged_flavor vocabulary off it. Empty resolves to the default style, then
+	// the engine floor, so it never breaks. Purely presentational — mechanics
+	// ride RangedClass / AmmoKind / ReloadTicks. Normalized lowercase.
+	RangedStyle string
 	// RangeIncrement is the distance unit over which accuracy falls off
 	// (ranged-combat §2, §5.3). Zero means unset. Inert until Slice B's
 	// range bands consume it. Validated non-negative at load.

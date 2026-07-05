@@ -23,6 +23,7 @@ import (
 	"github.com/Jasrags/AnotherMUD/internal/progression"
 	"github.com/Jasrags/AnotherMUD/internal/property"
 	"github.com/Jasrags/AnotherMUD/internal/quest"
+	"github.com/Jasrags/AnotherMUD/internal/rangedflavor"
 	"github.com/Jasrags/AnotherMUD/internal/recipe"
 	"github.com/Jasrags/AnotherMUD/internal/slot"
 	"github.com/Jasrags/AnotherMUD/internal/stacking"
@@ -130,6 +131,11 @@ type Context struct {
 	// from a template into the world. The `spawn` verb routes through it. nil
 	// disables the verb (tests / headless).
 	Spawn SpawnService
+	// RangedFlavor resolves ranged-weapon moment text (rangedflavor) by the
+	// wielded weapon's ranged_style — the shoot/load verbs phrase their dry /
+	// unloaded / load / fire lines through it. nil resolves off the engine floor
+	// (the resolver nil-guards), so it degrades safely in tests.
+	RangedFlavor *rangedflavor.Registry
 	// Trades is the direct-trade session manager (direct-trade.md). The
 	// trade/offer/confirm/decline verbs route through it. nil disables
 	// trading (tests / headless); handlers MUST nil-guard.

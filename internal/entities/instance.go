@@ -125,6 +125,7 @@ type ItemInstance struct {
 	// Write-once at construction — no mutex needed.
 	rangedClass    string
 	ammoKind       string
+	rangedStyle    string
 	rangeIncrement int
 	reloadTicks    int
 	strRating      *int
@@ -393,6 +394,10 @@ func (it *ItemInstance) RangedClass() string { return it.rangedClass }
 // AmmoKind returns the ammunition kind a projectile weapon consumes, or an
 // ammo item supplies (ranged-combat §3); empty for thrown/melee/non-ammo.
 func (it *ItemInstance) AmmoKind() string { return it.ammoKind }
+
+// RangedStyle returns the weapon's ranged flavor-voice id (rangedflavor). Empty
+// means "use the default style / engine floor".
+func (it *ItemInstance) RangedStyle() string { return it.rangedStyle }
 
 // RangeIncrement returns the weapon's distance-falloff unit (ranged-combat
 // §2); zero when unset. Inert until Slice B's range bands.
@@ -665,6 +670,7 @@ func buildInstanceFromTemplate(tpl *item.Template, id EntityID) *ItemInstance {
 		damageTypes:       damageTypes,
 		rangedClass:       tpl.RangedClass,
 		ammoKind:          tpl.AmmoKind,
+		rangedStyle:       tpl.RangedStyle,
 		rangeIncrement:    tpl.RangeIncrement,
 		reloadTicks:       tpl.ReloadTicks,
 		strRating:         strRating,

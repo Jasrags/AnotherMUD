@@ -30,5 +30,6 @@ crit_multiplier: 3
 # adds none. range_increment feeds Slice B's distance falloff (inert today).
 ranged_class: projectile
 ammo_kind: arrow
+ranged_style: bow
 range_increment: 10
 str_rating: 3

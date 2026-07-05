@@ -141,6 +141,10 @@ type MobInstance struct {
 	// inventory-bearing combatants.
 	weaponRangedClass string
 	weaponAmmoKind    string
+	// weaponRangedStyle is the equipped weapon's flavor voice (rangedflavor);
+	// presentational only, carried onto RangedDry so a mob archer's dry-fire
+	// reads in its weapon's voice. Empty for a melee/natural weapon.
+	weaponRangedStyle string
 	// weaponSize is the equipped weapon's size category (size-and-wielding §2),
 	// fed into the wield-mode derivation in Stats so a mob earns the two-handed
 	// Strength bonus relative to ITS OWN size (§4.2, §5) — the same relativity a

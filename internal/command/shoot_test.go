@@ -8,6 +8,7 @@ import (
 	"github.com/Jasrags/AnotherMUD/internal/combat"
 	"github.com/Jasrags/AnotherMUD/internal/command"
 	"github.com/Jasrags/AnotherMUD/internal/entities"
+	"github.com/Jasrags/AnotherMUD/internal/rangedflavor"
 	"github.com/Jasrags/AnotherMUD/internal/world"
 )
 
@@ -204,8 +205,35 @@ func TestShoot_OutOfAmmoDoesNotFire(t *testing.T) {
 	if shot.called {
 		t.Error("ResolveAttack must not fire when out of ammo")
 	}
-	if got := a.lastLine(); got != "*click* — you are out of arrow!" {
-		t.Errorf("line = %q, want the out-of-ammo line", got)
+	// No RangedFlavor registry wired → the neutral engine floor (rangedflavor),
+	// which substitutes the ammo kind. The firearm-flavored "*click*" is gone.
+	if got := a.lastLine(); got != "You are out of arrow." {
+		t.Errorf("line = %q, want the floor out-of-ammo line", got)
+	}
+}
+
+// With a bow ranged-flavor style wired, the out-of-ammo line reads in the bow's
+// voice — proving the weapon's ranged_style routes through the resolver end to
+// end (item → combat.Stats → shoot handler → rangedflavor).
+func TestShoot_OutOfAmmoUsesRangedStyle(t *testing.T) {
+	f := newShootFixture(t)
+	base := f.archer("arrow")
+	base.stats.RangedStyle = "bow"
+	a := &ammoArcher{combatActor: base, arrows: 0}
+	env, shot, _ := f.shootEnv(base)
+	reg := rangedflavor.NewRegistry()
+	reg.Register(rangedflavor.Style{ID: "bow", Msgs: map[string]rangedflavor.Line{
+		rangedflavor.KeyDry: {Self: "You reach for another arrow, but your quiver is empty."},
+	}})
+	env.RangedFlavor = reg
+	r := newRegistry(t)
+	dispatchActor(t, r, env, a, "shoot guard north")
+
+	if shot.called {
+		t.Error("ResolveAttack must not fire when out of ammo")
+	}
+	if got := a.lastLine(); got != "You reach for another arrow, but your quiver is empty." {
+		t.Errorf("line = %q, want the bow-style out-of-ammo line", got)
 	}
 }
 

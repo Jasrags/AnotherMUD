@@ -110,12 +110,12 @@ func (s *Store) EquipMobAtSpawn(m *MobInstance, ids []string, items *item.Templa
 				switch {
 				case slots == nil:
 					if !weaponSet {
-						m.SetWeapon(dice, it.Name(), it.DamageTypes(), it.RangedClass(), it.AmmoKind(), it.WeaponSize())
+						m.SetWeapon(dice, it.Name(), it.DamageTypes(), it.RangedClass(), it.AmmoKind(), it.RangedStyle(), it.WeaponSize())
 						m.SetWeaponSubdual(it.Subdual()) // subdual-damage §2: a mob's nonlethal weapon
 						weaponSet = true
 					}
 				case base == slot.WieldSlot && !weaponSet:
-					m.SetWeapon(dice, it.Name(), it.DamageTypes(), it.RangedClass(), it.AmmoKind(), it.WeaponSize())
+					m.SetWeapon(dice, it.Name(), it.DamageTypes(), it.RangedClass(), it.AmmoKind(), it.RangedStyle(), it.WeaponSize())
 					m.SetWeaponSubdual(it.Subdual()) // subdual-damage §2: a mob's nonlethal weapon
 					weaponSet = true
 				case base == slot.OffHandSlot && !offSet:

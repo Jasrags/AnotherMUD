@@ -7,6 +7,7 @@ import (
 	"github.com/Jasrags/AnotherMUD/internal/action"
 	"github.com/Jasrags/AnotherMUD/internal/combat"
 	"github.com/Jasrags/AnotherMUD/internal/entities"
+	"github.com/Jasrags/AnotherMUD/internal/rangedflavor"
 	"github.com/Jasrags/AnotherMUD/internal/slot"
 )
 
@@ -96,14 +97,14 @@ func (c *Context) completeLoad(ctx context.Context, st combat.Stats, loader weap
 	if consumer, ok := c.Actor.(ammoConsumer); ok && st.AmmoKind != "" {
 		if _, consumed := consumer.ConsumeAmmo(st.AmmoKind); !consumed {
 			loader.ClearWeaponLoaded() // back out — nothing was chambered after all
-			return c.Actor.Write(ctx, fmt.Sprintf("*click* — you have no %s to load.", st.AmmoKind))
+			return c.emitRangedFlavor(ctx, st.RangedStyle, rangedflavor.KeyLoadEmpty, map[string]string{
+				"actor": c.Actor.Name(), "ammo": st.AmmoKind,
+			})
 		}
 	}
-	if room := c.Actor.Room(); room != nil && c.Broadcaster != nil && c.Actor.Name() != "" {
-		c.Broadcaster.SendToRoom(ctx, room.ID,
-			fmt.Sprintf("%s loads %s.", c.Actor.Name(), name), c.Actor.PlayerID())
-	}
-	return c.Actor.Write(ctx, fmt.Sprintf("You load %s. It's ready to fire.", name))
+	return c.emitRangedFlavor(ctx, st.RangedStyle, rangedflavor.KeyLoad, map[string]string{
+		"actor": c.Actor.Name(), "weapon": name,
+	})
 }
 
 // wieldedWeaponName resolves the display name of the actor's wielded weapon for

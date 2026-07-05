@@ -19,6 +19,7 @@ crit_multiplier: 3
 # two-rivers-longbow); a negative Strength modifier still applies.
 ranged_class: projectile
 ammo_kind: arrow
+ranged_style: bow
 range_increment: 6
 properties:
   weight: 2

@@ -157,6 +157,12 @@ type ContentPaths struct {
 	// Registries.Emotes; the engine baseline (smile/nod/…) ships in the
 	// core pack. Ids are namespace-qualified at load.
 	Emotes []string `yaml:"emotes,omitempty"`
+	// RangedFlavor are ranged-weapon flavor-style files (rangedflavor). Loaded
+	// into Registries.RangedFlavor; a weapon's `ranged_style` keys into it. The
+	// engine-namespace baseline (bow/crossbow/thrown + a `default`) ships in the
+	// core pack. Ids are a GLOBAL vocabulary (like slot names), NOT namespace-
+	// qualified, so `ranged_style: bow` resolves across packs.
+	RangedFlavor []string `yaml:"ranged_flavor,omitempty"`
 	// Scripts are Lua source files discovered by the M17.1b
 	// loader. Each path glob expands relative to the pack
 	// directory (e.g. `scripts/*.lua`). The loader compiles

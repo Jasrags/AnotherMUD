@@ -21,6 +21,7 @@ crit_multiplier: 2
 # str_rating). range_increment feeds Slice B falloff (abstract; inert today).
 ranged_class: projectile
 ammo_kind: bolt
+ranged_style: crossbow
 range_increment: 8
 # Reload-gated (action-economy.md §7.1): holds one loaded bolt; firing empties
 # it and it must be `load`ed again. A light crossbow spans by hand — quick.

@@ -16,6 +16,7 @@ damage_types: [bludgeoning]
 # weightless, but no Strength to damage (the default projectile rule).
 ranged_class: projectile
 ammo_kind: bullet
+ranged_style: sling
 range_increment: 5
 properties:
   weight: 0

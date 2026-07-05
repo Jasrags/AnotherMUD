@@ -41,5 +41,7 @@ content:
     - channels/*.yaml
   emotes:
     - emotes/*.yaml
+  ranged_flavor:
+    - ranged_flavor/*.yaml
   channel_map:
     - channel-map/*.yaml

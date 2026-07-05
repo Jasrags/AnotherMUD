@@ -32,6 +32,7 @@ import (
 	"github.com/Jasrags/AnotherMUD/internal/progression"
 	"github.com/Jasrags/AnotherMUD/internal/property"
 	"github.com/Jasrags/AnotherMUD/internal/quest"
+	"github.com/Jasrags/AnotherMUD/internal/rangedflavor"
 	"github.com/Jasrags/AnotherMUD/internal/recipe"
 	"github.com/Jasrags/AnotherMUD/internal/render"
 	"github.com/Jasrags/AnotherMUD/internal/script"
@@ -125,7 +126,7 @@ type pendingMobPlacement struct {
 // Filter, when non-empty, restricts discovery (spec §2.4). Pass nil to
 // load every active pack under root.
 func Load(ctx context.Context, root string, filter []string, dst *Registries, spawner Spawner, mobSpawner MobSpawner, scriptCompiler ScriptCompiler) error {
-	if dst == nil || dst.World == nil || dst.Items == nil || dst.Slots == nil || dst.Mobs == nil || dst.Tracks == nil || dst.Races == nil || dst.Classes == nil || dst.Backgrounds == nil || dst.Languages == nil || dst.Feats == nil || dst.Abilities == nil || dst.Theme == nil || dst.Help == nil || dst.Quests == nil || dst.Weather == nil || dst.Scripts == nil || dst.Rarity == nil || dst.Essence == nil || dst.Grades == nil || dst.Loot == nil || dst.Channels == nil || dst.Emotes == nil || dst.ChannelMap == nil {
+	if dst == nil || dst.World == nil || dst.Items == nil || dst.Slots == nil || dst.Mobs == nil || dst.Tracks == nil || dst.Races == nil || dst.Classes == nil || dst.Backgrounds == nil || dst.Languages == nil || dst.Feats == nil || dst.Abilities == nil || dst.Theme == nil || dst.Help == nil || dst.Quests == nil || dst.Weather == nil || dst.Scripts == nil || dst.Rarity == nil || dst.Essence == nil || dst.Grades == nil || dst.Loot == nil || dst.Channels == nil || dst.Emotes == nil || dst.RangedFlavor == nil || dst.ChannelMap == nil {
 		return errors.New("pack.Load: dst has nil registry field; use pack.NewRegistries()")
 	}
 	logger := logging.From(ctx).With(slog.String("event", "pack.load"), slog.String("root", root))
@@ -840,6 +841,10 @@ func loadPackContent(ctx context.Context, p Discovered, dst *Registries, scriptC
 	if err != nil {
 		return nil, nil, err
 	}
+	rangedFlavorPaths, err := resolveGlobs(p.Dir, p.Manifest.Content.RangedFlavor)
+	if err != nil {
+		return nil, nil, err
+	}
 
 	// M17.1b: discover, compile-check, and register pack scripts.
 	// Compile-check at boot is the cheapest place to surface a syntax
@@ -1349,6 +1354,17 @@ func loadPackContent(ctx context.Context, p Discovered, dst *Registries, scriptC
 		}
 	}
 
+	// Ranged flavor (rangedflavor): a global style vocabulary keyed by
+	// `ranged_style`. Ids are NOT namespace-qualified (like slot names), and
+	// registration is last-writer-wins so a pack may override the core baseline.
+	for _, rp := range rangedFlavorPaths {
+		style, err := decodeRangedFlavor(rp)
+		if err != nil {
+			return nil, nil, err
+		}
+		dst.RangedFlavor.Register(style)
+	}
+
 	// Help: per-pack topics (spec ui-rendering-help §9.2). Topics are
 	// registered with the pack's load order so a higher-order pack can
 	// override an upstream topic. PackName is the pack namespace so the
@@ -1439,6 +1455,7 @@ func loadPackContent(ctx context.Context, p Discovered, dst *Registries, scriptC
 		slog.Int("node_spawn_tables", len(nodeSpawnPaths)),
 		slog.Int("channels", len(channelPaths)),
 		slog.Int("emotes", len(emotePaths)),
+		slog.Int("ranged_flavor", len(rangedFlavorPaths)),
 		slog.Int("placements", len(placements)),
 		slog.Int("mob_placements", len(mobPlacements)),
 	)
@@ -3177,6 +3194,10 @@ func decodeItem(path, ns string) (*item.Template, error) {
 		return nil, fmt.Errorf("%w: %s: a projectile weapon must declare ammo_kind (what it fires)",
 			ErrInvalidContent, path)
 	}
+	// ranged_style is presentational (rangedflavor): normalized but NOT validated
+	// against the flavor vocabulary here — an unknown/missing style resolves to
+	// the default style and then the engine floor, so it never blocks a boot.
+	rangedStyle := strings.ToLower(strings.TrimSpace(f.RangedStyle))
 	if f.RangeIncrement < 0 {
 		return nil, fmt.Errorf("%w: %s: range_increment %d must be non-negative",
 			ErrInvalidContent, path, f.RangeIncrement)
@@ -3340,6 +3361,7 @@ func decodeItem(path, ns string) (*item.Template, error) {
 		Size:              weaponSize,
 		RangedClass:       rangedClass,
 		AmmoKind:          ammoKind,
+		RangedStyle:       rangedStyle,
 		RangeIncrement:    f.RangeIncrement,
 		ReloadTicks:       f.ReloadTicks,
 		StrRating:         strRating,
@@ -3860,6 +3882,30 @@ func decodeEmote(path, ns string) (emote.Emote, error) {
 			RoomView:   f.Targeted.Room,
 		},
 	}, nil
+}
+
+// decodeRangedFlavor reads a RangedFlavorFile and builds a rangedflavor.Style.
+// Required: id (the `ranged_style` key). Ids are a GLOBAL vocabulary (like slot
+// names), so they are NOT namespace-qualified. Every message key/audience is
+// optional — an omitted one falls through the resolver's default→floor chain.
+func decodeRangedFlavor(path string) (rangedflavor.Style, error) {
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		return rangedflavor.Style{}, fmt.Errorf("reading ranged_flavor %s: %w", path, err)
+	}
+	var f RangedFlavorFile
+	if err := yaml.Unmarshal(raw, &f); err != nil {
+		return rangedflavor.Style{}, fmt.Errorf("%w: %s: %v", ErrInvalidContent, path, err)
+	}
+	id := strings.ToLower(strings.TrimSpace(f.ID))
+	if id == "" {
+		return rangedflavor.Style{}, fmt.Errorf("%w: %s: missing 'id'", ErrInvalidContent, path)
+	}
+	msgs := make(map[string]rangedflavor.Line, len(f.Messages))
+	for key, line := range f.Messages {
+		msgs[strings.ToLower(strings.TrimSpace(key))] = rangedflavor.Line{Self: line.Self, Room: line.Room}
+	}
+	return rangedflavor.Style{ID: id, Msgs: msgs}, nil
 }
 
 // decodeRecipe reads a RecipeFile and builds a recipe.Recipe

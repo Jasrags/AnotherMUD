@@ -8,6 +8,7 @@ import (
 	"github.com/Jasrags/AnotherMUD/internal/action"
 	"github.com/Jasrags/AnotherMUD/internal/combat"
 	"github.com/Jasrags/AnotherMUD/internal/command"
+	"github.com/Jasrags/AnotherMUD/internal/rangedflavor"
 	"github.com/Jasrags/AnotherMUD/internal/world"
 )
 
@@ -138,6 +139,50 @@ func TestLoad_WeaponGoneAtCompletion_KeepsAmmo(t *testing.T) {
 	}
 	if a.ammo != 2 {
 		t.Errorf("no bolt should be spent when the weapon is gone; ammo = %d, want 2", a.ammo)
+	}
+}
+
+// A successful load speaks in the weapon's ranged_style voice (rangedflavor
+// KeyLoad) — proving ranged_style routes through the load verb end to end.
+func TestLoad_SuccessUsesRangedStyle(t *testing.T) {
+	room := &world.Room{ID: "z:a", Name: "Road"}
+	a := newLoaderActor("Alice", "p-1", room, 20, 2)
+	a.stats.RangedStyle = "crossbow"
+	reg := rangedflavor.NewRegistry()
+	reg.Register(rangedflavor.Style{ID: "crossbow", Msgs: map[string]rangedflavor.Line{
+		rangedflavor.KeyLoad: {Self: "You span the crossbow and seat a bolt."},
+	}})
+	r := newRegistry(t)
+	if err := r.Dispatch(context.Background(), command.Env{RangedFlavor: reg}, a, "load"); err != nil {
+		t.Fatal(err)
+	}
+	if !a.loaded {
+		t.Fatal("load should chamber the weapon")
+	}
+	if got := a.lastLine(); got != "You span the crossbow and seat a bolt." {
+		t.Errorf("line = %q, want the crossbow-style load line", got)
+	}
+}
+
+// A load with no ammunition speaks in the weapon's ranged_style voice
+// (rangedflavor KeyLoadEmpty).
+func TestLoad_EmptyUsesRangedStyle(t *testing.T) {
+	room := &world.Room{ID: "z:a", Name: "Road"}
+	a := newLoaderActor("Alice", "p-1", room, 20, 0) // no bolts
+	a.stats.RangedStyle = "crossbow"
+	reg := rangedflavor.NewRegistry()
+	reg.Register(rangedflavor.Style{ID: "crossbow", Msgs: map[string]rangedflavor.Line{
+		rangedflavor.KeyLoadEmpty: {Self: "You grope for a bolt, but there are none left."},
+	}})
+	r := newRegistry(t)
+	if err := r.Dispatch(context.Background(), command.Env{RangedFlavor: reg}, a, "load"); err != nil {
+		t.Fatal(err)
+	}
+	if a.loaded {
+		t.Error("load with no ammo must not chamber the weapon")
+	}
+	if got := a.lastLine(); got != "You grope for a bolt, but there are none left." {
+		t.Errorf("line = %q, want the crossbow-style empty line", got)
 	}
 }
 

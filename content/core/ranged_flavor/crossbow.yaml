@@ -1,0 +1,23 @@
+# Crossbow voice (rangedflavor) — a spanned, bolt-loaded mechanism. Here the
+# "*click*" reads RIGHT: a crossbow is a device you span and that snaps. A weapon
+# declares `ranged_style: crossbow`. Unset moments fall through to `default`,
+# then the engine floor.
+#
+# Tokens: {ammo} {weapon} {actor} {target} {dir}.
+id: crossbow
+messages:
+  dry:
+    self: "You grope for a bolt, but there are none left."
+    room: "{actor} gropes for a bolt that isn't there."
+  unloaded:
+    self: "*click* — {weapon} isn't spanned. Reload it first."
+    room: "{actor}'s crossbow gives an empty click."
+  load_empty:
+    self: "You have no bolts left to load."
+    room: "{actor} feels for a bolt and finds none."
+  load:
+    self: "You span {weapon} and seat a bolt. It's ready to fire."
+    room: "{actor} spans {weapon} and seats a bolt."
+  fire:
+    self: "Your crossbow snaps, sending a bolt to the {dir} at {target}!"
+    room: "{actor}'s crossbow snaps a bolt to the {dir}."

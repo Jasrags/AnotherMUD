@@ -1,0 +1,15 @@
+# Thrown voice (rangedflavor) — a hurled weapon (javelin, throwing knife) that
+# IS its own ammunition. It rarely hits the ammo-dry path (each throw is the
+# weapon itself), but the `fire` line gives a hurled opener its own character.
+# A weapon declares `ranged_style: thrown`. Unset moments fall through to
+# `default`, then the engine floor.
+#
+# Tokens: {ammo} {weapon} {actor} {target} {dir}.
+id: thrown
+messages:
+  dry:
+    self: "You have nothing left to throw."
+    room: "{actor} reaches for something to throw and finds nothing."
+  fire:
+    self: "You hurl {weapon} to the {dir} at {target}!"
+    room: "{actor} hurls {weapon} to the {dir}."

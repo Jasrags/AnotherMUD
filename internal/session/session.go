@@ -54,6 +54,7 @@ import (
 	"github.com/Jasrags/AnotherMUD/internal/property"
 	"github.com/Jasrags/AnotherMUD/internal/quest"
 	"github.com/Jasrags/AnotherMUD/internal/queststore"
+	"github.com/Jasrags/AnotherMUD/internal/rangedflavor"
 	"github.com/Jasrags/AnotherMUD/internal/recipe"
 	"github.com/Jasrags/AnotherMUD/internal/render"
 	"github.com/Jasrags/AnotherMUD/internal/reputation"
@@ -443,6 +444,10 @@ type Config struct {
 	// Spawn is the admin builder-spawn service (command SpawnService). Passed
 	// through command.Env so the `spawn` verb can mint items/mobs into the world.
 	Spawn command.SpawnService
+
+	// RangedFlavor resolves ranged-weapon moment text by ranged_style
+	// (rangedflavor). Passed through command.Env for the shoot/load verbs.
+	RangedFlavor *rangedflavor.Registry
 
 	// Trades is the direct-trade session manager (direct-trade.md).
 	// Passed through command.Env so the trade/offer/confirm/decline verbs
@@ -3457,6 +3462,7 @@ type weaponInfo struct {
 	// by Stats() to apply the Strength rule and carry the class into combat.
 	rangedClass    string
 	ammoKind       string
+	rangedStyle    string
 	rangeIncrement int
 	reloadTicks    int
 	strRating      *int
@@ -3540,6 +3546,7 @@ func (a *connActor) buildWeaponInfoLocked(id entities.EntityID) *weaponInfo {
 		wieldMode:          size.Mode(it.WeaponSize(), a.sizeLocked()),
 		rangedClass:        it.RangedClass(),
 		ammoKind:           it.AmmoKind(),
+		rangedStyle:        it.RangedStyle(),
 		rangeIncrement:     it.RangeIncrement(),
 		reloadTicks:        it.ReloadTicks(),
 		strRating:          it.StrRating(),
@@ -6023,6 +6030,7 @@ func (a *connActor) Stats() combat.Stats {
 		// bonus, or capped at a rating) while thrown keeps the full melee bonus.
 		s.RangedClass = w.rangedClass
 		s.AmmoKind = w.ammoKind
+		s.RangedStyle = w.rangedStyle
 		s.RangeIncrement = w.rangeIncrement
 		s.ReloadTicks = w.reloadTicks
 		s.Reach = w.reach                           // special-weapons §3: strikes at the `near` band too

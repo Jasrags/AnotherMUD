@@ -15,6 +15,7 @@ damage_types: [piercing]
 # Also thrown (equipment.md: trident, thrown 10 ft) — fights in melee, can be
 # hurled and recovered (ranged-combat).
 ranged_class: thrown
+ranged_style: thrown
 range_increment: 10
 properties:
   weight: 5

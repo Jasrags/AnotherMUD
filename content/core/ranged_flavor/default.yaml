@@ -1,0 +1,24 @@
+# The shared baseline voice for ranged weapons (rangedflavor). A weapon with no
+# `ranged_style`, or a style that omits a given moment, resolves here before the
+# engine floor. Kept generic and setting-agnostic — a specific weapon style
+# (bow/crossbow/…) or a pack overrides what should read differently.
+#
+# Tokens: {ammo} {weapon} {actor} {target} {dir}. `self` is the second-person
+# line shown to the actor; `room` is the third-person line shown to onlookers.
+id: default
+messages:
+  dry:
+    self: "You have no {ammo} left to shoot."
+    room: "{actor} reaches for {ammo} that isn't there."
+  unloaded:
+    self: "{weapon} isn't loaded — you need to reload first."
+    room: "{actor} fumbles with an unloaded weapon."
+  load_empty:
+    self: "You have no {ammo} left to load."
+    room: "{actor} searches for ammunition and comes up empty."
+  load:
+    self: "You ready {weapon}. It's set to fire."
+    room: "{actor} readies {weapon}."
+  fire:
+    self: "You loose a shot to the {dir} at {target}!"
+    room: "{actor} looses a shot to the {dir}."

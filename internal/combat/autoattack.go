@@ -630,6 +630,7 @@ func resolveSwing(ctx context.Context, in swingInputs, cfg AutoAttackConfig) swi
 					TargetName:   in.tgtName,
 					WeaponName:   in.weaponName,
 					AmmoKind:     in.atkStats.AmmoKind,
+					Style:        in.atkStats.RangedStyle,
 					Unloaded:     true,
 					RoomID:       in.attackerRoom,
 				})
@@ -645,6 +646,7 @@ func resolveSwing(ctx context.Context, in swingInputs, cfg AutoAttackConfig) swi
 					TargetName:   in.tgtName,
 					WeaponName:   in.weaponName,
 					AmmoKind:     in.atkStats.AmmoKind,
+					Style:        in.atkStats.RangedStyle,
 					RoomID:       in.attackerRoom,
 				})
 				return swingContinue

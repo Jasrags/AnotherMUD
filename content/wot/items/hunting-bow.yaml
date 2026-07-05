@@ -28,4 +28,5 @@ damage_types: [piercing]
 # Strength still penalizes); the heavy two-rivers-longbow is the str_rating case.
 ranged_class: projectile
 ammo_kind: arrow
+ranged_style: bow
 range_increment: 8

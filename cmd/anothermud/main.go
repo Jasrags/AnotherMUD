@@ -66,6 +66,7 @@ import (
 	"github.com/Jasrags/AnotherMUD/internal/quest"
 	"github.com/Jasrags/AnotherMUD/internal/queststore"
 	"github.com/Jasrags/AnotherMUD/internal/questwatch"
+	"github.com/Jasrags/AnotherMUD/internal/rangedflavor"
 	"github.com/Jasrags/AnotherMUD/internal/recipe"
 	"github.com/Jasrags/AnotherMUD/internal/render"
 	"github.com/Jasrags/AnotherMUD/internal/reputation"
@@ -897,12 +898,13 @@ func run() error {
 	// setter after construction so the sink and manager can reference
 	// each other without an init cycle.
 	combatSink := &productionCombatSink{
-		logger:   logging.From(ctx),
-		bus:      bus,
-		locator:  combatLocator,
-		entities: entityStore,
-		sessions: mgr,
-		nameOf:   combatantName,
+		logger:       logging.From(ctx),
+		bus:          bus,
+		locator:      combatLocator,
+		entities:     entityStore,
+		sessions:     mgr,
+		nameOf:       combatantName,
+		rangedFlavor: registries.RangedFlavor,
 	}
 	combatTags := combatTagSource{
 		entities: entityStore,
@@ -3169,6 +3171,7 @@ func run() error {
 		Hirelings:             hirelingSvc,
 		HirelingCap:           envIntOr("ANOTHERMUD_HIRELING_CAP", 3),
 		Spawn:                 &bootSpawnServiceAdapter{inner: spawner},
+		RangedFlavor:          registries.RangedFlavor,
 		Trades:                tradeMgr,
 		Auction:               auctionMgr,
 		Shop:                  shopSvc,
@@ -4267,6 +4270,10 @@ type productionCombatSink struct {
 	// participants; nameOf resolves a combatant id to a display name.
 	sessions *session.Manager
 	nameOf   func(bareID string) string
+	// rangedFlavor resolves the dry-fire / unloaded round-loop lines by the
+	// attacker's wielded-weapon ranged_style (rangedflavor). nil resolves off the
+	// engine floor (the resolver nil-guards).
+	rangedFlavor *rangedflavor.Registry
 	// rest is the M11.4 rest service. OnEngagement forcibly wakes a
 	// resting/sleeping target (spec §5.4). nil disables combat wake.
 	rest *economy.RestService
@@ -4579,23 +4586,29 @@ func (s *productionCombatSink) OnRangedDry(ctx context.Context, e combat.RangedD
 		slog.String("room", string(e.RoomID)))
 
 	an := s.nameOf(string(e.AttackerID))
-	// A reload-gated weapon that simply isn't chambered (action-economy.md §7.1)
-	// prompts a reload rather than reading as out of ammo.
-	if e.Unloaded {
-		weapon := e.WeaponName
-		if weapon == "" {
-			weapon = "your weapon"
-		}
-		s.tell(ctx, e.AttackerID, fmt.Sprintf("*click* — %s isn't loaded. (load it)", weapon))
-		s.announce(ctx, e.RoomID, fmt.Sprintf("%s fumbles with an unloaded weapon.", an), e.AttackerID)
-		return
+	weapon := e.WeaponName
+	if weapon == "" {
+		weapon = "your weapon"
 	}
 	ammo := e.AmmoKind
 	if ammo == "" {
 		ammo = "ammunition"
 	}
-	s.tell(ctx, e.AttackerID, fmt.Sprintf("*click* — you are out of %s!", ammo))
-	s.announce(ctx, e.RoomID, fmt.Sprintf("%s grasps for %s that isn't there.", an, ammo), e.AttackerID)
+	// A reload-gated weapon that simply isn't chambered (action-economy.md §7.1)
+	// prompts a reload; a freely-firing weapon out of ammo reads as dry. The
+	// weapon's ranged_style supplies the voice (rangedflavor); the floor is a
+	// neutral, non-firearm default.
+	key := rangedflavor.KeyDry
+	if e.Unloaded {
+		key = rangedflavor.KeyUnloaded
+	}
+	self, room := s.rangedFlavor.Resolve(e.Style, key, map[string]string{
+		"actor": an, "weapon": weapon, "ammo": ammo,
+	})
+	s.tell(ctx, e.AttackerID, self)
+	if room != "" {
+		s.announce(ctx, e.RoomID, room, e.AttackerID)
+	}
 }
 
 // OnBandChange narrates a range-band move (ranged-combat §5.2/§5.4): a melee

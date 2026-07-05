@@ -23,6 +23,7 @@ import (
 	"github.com/Jasrags/AnotherMUD/internal/progression"
 	"github.com/Jasrags/AnotherMUD/internal/property"
 	"github.com/Jasrags/AnotherMUD/internal/quest"
+	"github.com/Jasrags/AnotherMUD/internal/rangedflavor"
 	"github.com/Jasrags/AnotherMUD/internal/recipe"
 	"github.com/Jasrags/AnotherMUD/internal/slot"
 	"github.com/Jasrags/AnotherMUD/internal/stacking"
@@ -318,6 +319,11 @@ type Env struct {
 	// mints an item/mob/currency into the world through it. nil disables the
 	// verb; the handler nil-guards.
 	Spawn SpawnService
+
+	// RangedFlavor resolves ranged-weapon moment text (rangedflavor) by a
+	// weapon's ranged_style — the shoot/load verbs phrase their lines through
+	// it. nil resolves off the engine floor (the resolver nil-guards).
+	RangedFlavor *rangedflavor.Registry
 
 	// Trades is the direct-trade session manager (direct-trade.md). The
 	// trade/offer/confirm/decline verbs route through it. nil disables

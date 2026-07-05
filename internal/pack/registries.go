@@ -18,6 +18,7 @@ import (
 	"github.com/Jasrags/AnotherMUD/internal/progression"
 	"github.com/Jasrags/AnotherMUD/internal/property"
 	"github.com/Jasrags/AnotherMUD/internal/quest"
+	"github.com/Jasrags/AnotherMUD/internal/rangedflavor"
 	"github.com/Jasrags/AnotherMUD/internal/recipe"
 	"github.com/Jasrags/AnotherMUD/internal/render"
 	"github.com/Jasrags/AnotherMUD/internal/script"
@@ -135,6 +136,11 @@ type Registries struct {
 	// ships in the core pack. main derives per-emote verbs (+ aliases) from
 	// it. Ids are namespace-qualified at load.
 	Emotes *emote.Registry
+	// RangedFlavor holds ranged-weapon flavor styles (rangedflavor), keyed by
+	// `ranged_style` id. A weapon resolves its dry-fire / load / shoot text
+	// through it; the core baseline ships bow/crossbow/thrown + a `default`.
+	// Last-writer-wins across packs (a global vocabulary, not namespaced).
+	RangedFlavor *rangedflavor.Registry
 	// ChannelMap is the combat-channel derivation registry (the channel
 	// layer — docs/themes/channel-vocabulary.md §7). Packs register
 	// channel→formula entries from their `channel_map:` glob, later-wins;
@@ -200,6 +206,7 @@ func NewRegistries() *Registries {
 		Nodes:        gathering.NewNodeRegistry(),
 		Channels:     chat.NewRegistry(),
 		Emotes:       emote.NewRegistry(),
+		RangedFlavor: rangedflavor.NewRegistry(),
 		ChannelMap:   channel.NewRegistry(),
 		Factions:     faction.NewRegistry(faction.DefaultConfig()),
 		// Non-nil per the all-fields-initialized invariant; Load resets and

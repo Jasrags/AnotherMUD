@@ -18,6 +18,7 @@ crit_threat_low: 19
 crit_multiplier: 2
 ranged_class: projectile
 ammo_kind: bolt
+ranged_style: crossbow
 range_increment: 12
 # Reload-gated (action-economy.md §7.1): a cranked windlass spans it — ruinously
 # slow between shots. Holds one loaded bolt; `load` to re-span after firing.

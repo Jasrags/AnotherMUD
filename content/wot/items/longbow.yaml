@@ -19,6 +19,7 @@ crit_multiplier: 3
 # warbow apart.
 ranged_class: projectile
 ammo_kind: arrow
+ranged_style: bow
 range_increment: 10
 properties:
   weight: 3

@@ -46,7 +46,7 @@ func TestMobStats_TwoHandedStrengthBonus(t *testing.T) {
 			t.Fatalf("%s: SpawnMob: %v", tt.name, err)
 		}
 		// A melee weapon (empty ranged class) of the given size.
-		inst.SetWeapon(combat.DiceExpr{Count: 1, Sides: 8}, "blade", nil, "", "", tt.weaponSize)
+		inst.SetWeapon(combat.DiceExpr{Count: 1, Sides: 8}, "blade", nil, "", "", "", tt.weaponSize)
 		if got := inst.Stats().DamageBonus; got != tt.want {
 			t.Errorf("%s: DamageBonus = %d, want %d", tt.name, got, tt.want)
 		}
@@ -70,7 +70,7 @@ func TestMobStats_TwoHandedRangedExcluded(t *testing.T) {
 		t.Fatalf("SpawnMob: %v", err)
 	}
 	// A large (⇒ two-handed for a medium mob) PROJECTILE weapon.
-	inst.SetWeapon(combat.DiceExpr{Count: 1, Sides: 6}, "longbow", nil, "projectile", "arrow", "large")
+	inst.SetWeapon(combat.DiceExpr{Count: 1, Sides: 6}, "longbow", nil, "projectile", "arrow", "", "large")
 	if got := inst.Stats().DamageBonus; got != combat.STRBonus(str) {
 		t.Errorf("two-handed ranged DamageBonus = %d, want %d (no melee two-handed bonus)", got, combat.STRBonus(str))
 	}

@@ -174,6 +174,10 @@ type RangedDry struct {
 	TargetName   string
 	WeaponName   string
 	AmmoKind     string
+	// Style is the attacker's wielded-weapon flavor voice (rangedflavor), so the
+	// sink can phrase a style-appropriate dry-fire / unloaded line. Empty → the
+	// default style / engine floor.
+	Style string
 	// Unloaded distinguishes a reload-gated weapon that is simply not chambered
 	// (a crossbow awaiting `load`) from one out of ammunition (action-economy.md
 	// §7.1). The sink renders a "reload it" prompt for the former, an
