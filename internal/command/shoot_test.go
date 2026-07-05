@@ -223,7 +223,7 @@ func TestShoot_OutOfAmmoUsesRangedStyle(t *testing.T) {
 	env, shot, _ := f.shootEnv(base)
 	reg := rangedflavor.NewRegistry()
 	reg.Register(rangedflavor.Style{ID: "bow", Msgs: map[string]rangedflavor.Line{
-		rangedflavor.KeyDry: {Self: "You reach for another arrow, but your quiver is empty."},
+		rangedflavor.KeyDry: {Self: "You reach for another arrow, but you're out."},
 	}})
 	env.RangedFlavor = reg
 	r := newRegistry(t)
@@ -232,7 +232,7 @@ func TestShoot_OutOfAmmoUsesRangedStyle(t *testing.T) {
 	if shot.called {
 		t.Error("ResolveAttack must not fire when out of ammo")
 	}
-	if got := a.lastLine(); got != "You reach for another arrow, but your quiver is empty." {
+	if got := a.lastLine(); got != "You reach for another arrow, but you're out." {
 		t.Errorf("line = %q, want the bow-style out-of-ammo line", got)
 	}
 }

@@ -1,17 +1,19 @@
-# Bow voice (rangedflavor) — a drawn-and-loosed weapon fed from a quiver. No
-# "*click*": a bow runs out of arrows, it doesn't misfire mechanically. A weapon
-# declares `ranged_style: bow` to speak in this voice. Unset moments fall through
-# to the `default` style, then the engine floor.
+# Bow voice (rangedflavor) — a drawn-and-loosed weapon. No "*click*": a bow runs
+# out of arrows, it doesn't misfire mechanically. Ammo is ordinary inventory, not
+# a bespoke quiver slot (ranged-combat.md §3), so the wording stays "out of
+# arrows" rather than implying a quiver item exists. A weapon declares
+# `ranged_style: bow` to speak in this voice; unset moments fall through to the
+# `default` style, then the engine floor.
 #
 # Tokens: {ammo} {weapon} {actor} {target} {dir}.
 id: bow
 messages:
   dry:
-    self: "You reach for another arrow, but your quiver is empty."
-    room: "{actor} reaches back for an arrow that isn't there."
+    self: "You reach for another arrow, but you're out."
+    room: "{actor} reaches for an arrow that isn't there."
   load_empty:
     self: "You have no arrows left to nock."
-    room: "{actor} feels for an arrow and finds an empty quiver."
+    room: "{actor} feels for an arrow and finds none left."
   fire:
     self: "You draw and loose an arrow to the {dir} at {target}!"
     room: "{actor} draws and looses an arrow to the {dir}."
