@@ -170,6 +170,99 @@ func TestSpawn_MobIntoRoom(t *testing.T) {
 	}
 }
 
+// spawn item <id> <count> me mints N instances into the inventory, audits each,
+// and reports the multiplier.
+func TestSpawn_ItemCountToInventory(t *testing.T) {
+	f := newConsiderFixture(t)
+	bus := eventbus.New()
+	got := captureEvents(t, bus, eventbus.EventAdminAction)
+	admin := adminInRoom(f, "Maerys", "p-admin")
+	env := f.env()
+	env.Bus = bus
+	env.Spawn = spawnFixtureService(f)
+
+	dispatchRole(t, env, admin, "spawn item sword 3 me")
+
+	if n := len(admin.Inventory()); n != 3 {
+		t.Fatalf("inventory = %d items, want 3", n)
+	}
+	if !strings.Contains(admin.lastLine(), "a short sword (x3)") {
+		t.Errorf("confirmation = %q, want the (x3) multiplier", admin.lastLine())
+	}
+	if len(*got) != 3 {
+		t.Errorf("admin.action count = %d, want one per spawned item", len(*got))
+	}
+}
+
+// The count is position-independent: it can precede the destination keyword too.
+func TestSpawn_ItemCountBeforeDest(t *testing.T) {
+	f := newConsiderFixture(t)
+	admin := adminInRoom(f, "Maerys", "p-admin")
+	env := f.env()
+	env.Spawn = spawnFixtureService(f)
+
+	dispatchRole(t, env, admin, "spawn item sword 2 here")
+
+	if n := len(admin.Inventory()); n != 0 {
+		t.Errorf("inventory = %d, want empty (items went to the room)", n)
+	}
+	swords := 0
+	for _, id := range f.place.InRoom(f.room.ID) {
+		if e, ok := f.store.GetByID(id); ok {
+			if it, ok := e.(*entities.ItemInstance); ok && it.Name() == "a short sword" {
+				swords++
+			}
+		}
+	}
+	if swords != 2 {
+		t.Errorf("swords on the floor = %d, want 2", swords)
+	}
+	if !strings.Contains(admin.lastLine(), "a short sword (x2) onto the ground") {
+		t.Errorf("confirmation = %q", admin.lastLine())
+	}
+}
+
+// spawn mob <id> <count> mints N mobs into the room, auditing each.
+func TestSpawn_MobCount(t *testing.T) {
+	f := newConsiderFixture(t)
+	bus := eventbus.New()
+	got := captureEvents(t, bus, eventbus.EventAdminAction)
+	admin := adminInRoom(f, "Maerys", "p-admin")
+	env := f.env()
+	env.Bus = bus
+	env.Spawn = spawnFixtureService(f)
+
+	before := len(f.place.InRoom(f.room.ID))
+	dispatchRole(t, env, admin, "spawn mob guard 4")
+
+	if after := len(f.place.InRoom(f.room.ID)); after != before+4 {
+		t.Errorf("room occupants = %d, want %d", after, before+4)
+	}
+	if !strings.Contains(admin.lastLine(), "You spawn a village guard (x4)") {
+		t.Errorf("confirmation = %q", admin.lastLine())
+	}
+	if len(*got) != 4 {
+		t.Errorf("admin.action count = %d, want one per spawned mob", len(*got))
+	}
+}
+
+// An out-of-range count is rejected before anything is minted.
+func TestSpawn_CountOutOfRange(t *testing.T) {
+	f := newConsiderFixture(t)
+	admin := adminInRoom(f, "Maerys", "p-admin")
+	env := f.env()
+	env.Spawn = spawnFixtureService(f)
+
+	dispatchRole(t, env, admin, "spawn item sword 0 me")
+
+	if !strings.Contains(admin.lastLine(), "Spawn how many?") {
+		t.Errorf("message = %q, want the count-range refusal", admin.lastLine())
+	}
+	if len(admin.Inventory()) != 0 {
+		t.Error("a rejected count still minted an item")
+	}
+}
+
 // spawn gold <n> adds to the actor's purse through the currency service.
 func TestSpawn_Gold(t *testing.T) {
 	f := newConsiderFixture(t)

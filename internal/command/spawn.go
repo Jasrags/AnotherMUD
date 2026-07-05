@@ -36,6 +36,44 @@ type SpawnService interface {
 // empty candidate list (never happens — always ≥1) still reads as "unresolved".
 var errNoSpawn = errors.New("no spawn candidate resolved")
 
+// maxSpawnCount caps a single multi-mint so a fat-fingered count can't flood a
+// room or the entity store (admin-verbs §5 — a builder guardrail, not a balance
+// knob). A magic value externalized as a named constant per coding-style.
+const maxSpawnCount = 100
+
+// countable renders a name with an optional multiplier suffix. For a single
+// entity it returns the name verbatim (so count==1 output is byte-identical to
+// the pre-count behavior — the exact strings existing callers/tests rely on);
+// for n>1 it appends "(xN)". The article baked into item names ("a short
+// sword") makes a suffix cleaner than pluralization.
+func countable(n int, name string) string {
+	if n <= 1 {
+		return name
+	}
+	return fmt.Sprintf("%s (x%d)", name, n)
+}
+
+// parseSpawnCount pulls an optional positive-integer count out of args. It scans
+// for the first all-digits token so callers can accept the count in any position
+// relative to a keyword (e.g. a destination). It returns the count (default 1),
+// args with that token removed, and ok=false when a numeric token is present but
+// out of the 1..maxSpawnCount range — letting the caller reject it explicitly
+// rather than silently clamp.
+func parseSpawnCount(args []string) (count int, rest []string, ok bool) {
+	for i, a := range args {
+		n, err := strconv.Atoi(a)
+		if err != nil {
+			continue
+		}
+		if n < 1 || n > maxSpawnCount {
+			return 0, nil, false
+		}
+		rest = append(append([]string{}, args[:i]...), args[i+1:]...)
+		return n, rest, true
+	}
+	return 1, args, true
+}
+
 // roomNamespace returns the pack namespace of the actor's current room (the
 // prefix before ':' in a namespaced room id, e.g. "wot" from "wot:the-forge").
 // Empty when there's no room or the id carries no namespace.
@@ -65,9 +103,9 @@ func spawnCandidates(templateID, ns string) []string {
 // spawnUsage is the self-documenting panel a bare or malformed `spawn` prints,
 // mirroring the `set` usage convention (admin-verbs §4).
 const spawnUsage = "Spawn what?\n" +
-	"  spawn item <template-id> [here|me]   (default: into your hands)\n" +
-	"  spawn mob  <template-id>             (into this room)\n" +
-	"  spawn gold <amount>                  (into your purse)\n" +
+	"  spawn item <template-id> [count] [here|me]   (default: 1 into your hands)\n" +
+	"  spawn mob  <template-id> [count]             (into this room)\n" +
+	"  spawn gold <amount>                          (into your purse)\n" +
 	"Template ids are namespaced (e.g. wot:short-sword) or bare within the active pack."
 
 // SpawnHandler implements `spawn <item|mob|gold> …` (admin-verbs §5 builder
@@ -92,7 +130,8 @@ func SpawnHandler(ctx context.Context, c *Context) error {
 	}
 }
 
-// spawnItemHere mints `spawn item <id> [here|me]`. The optional trailing
+// spawnItemHere mints `spawn item <id> [count] [here|me]`. The optional count
+// (default 1, capped at maxSpawnCount) mints that many instances; the optional
 // destination chooses the room floor (here/room/floor) or the actor's inventory
 // (me/inv/bag); inventory is the default, since a builder usually wants the item
 // in hand to place or hand off.
@@ -101,21 +140,65 @@ func (c *Context) spawnItemHere(ctx context.Context, args []string) error {
 		return c.Actor.Write(ctx, "Spawning is not available.")
 	}
 	if len(args) == 0 {
-		return c.Actor.Write(ctx, "Spawn which item?  (spawn item <template-id> [here|me])")
+		return c.Actor.Write(ctx, "Spawn which item?  (spawn item <template-id> [count] [here|me])")
 	}
 	templateID := args[0]
+	count, rest, ok := parseSpawnCount(args[1:])
+	if !ok {
+		return c.Actor.Write(ctx, fmt.Sprintf("Spawn how many?  (1–%d)", maxSpawnCount))
+	}
 	toRoom := false
-	if len(args) > 1 {
-		switch strings.ToLower(args[1]) {
+	if len(rest) > 0 {
+		switch strings.ToLower(rest[0]) {
 		case "here", "room", "floor", "ground":
 			toRoom = true
 		case "me", "inv", "inventory", "bag", "hand", "hands":
 			toRoom = false
 		default:
-			return c.Actor.Write(ctx, fmt.Sprintf("Spawn %q where?  (here or me)", args[1]))
+			return c.Actor.Write(ctx, fmt.Sprintf("Spawn %q where?  (here or me)", rest[0]))
 		}
 	}
 
+	// A missing room/placement falls back to the inventory rather than leaking an
+	// unplaced instance — same fallback the single-spawn path had.
+	room := c.Actor.Room()
+	placeInRoom := toRoom && room != nil && c.Placement != nil
+
+	var name string
+	spawned := 0
+	for i := 0; i < count; i++ {
+		id, n, err := c.spawnOneItem(ctx, templateID)
+		if err != nil {
+			if spawned == 0 {
+				return c.Actor.Write(ctx, fmt.Sprintf("No item template %q.", templateID))
+			}
+			break // partial mint: report what did land rather than abort silently
+		}
+		name = n
+		if placeInRoom {
+			c.Placement.Place(id, room.ID)
+			auditAdmin(ctx, c, "spawn", string(id), "item:"+templateID+"@room")
+		} else {
+			c.Actor.AddToInventory(id)
+			auditAdmin(ctx, c, "spawn", string(id), "item:"+templateID+"@inv")
+		}
+		spawned++
+	}
+
+	shown := countable(spawned, name)
+	if placeInRoom {
+		if c.Broadcaster != nil {
+			c.Broadcaster.SendToRoom(ctx, room.ID,
+				fmt.Sprintf("%s appears on the ground.", capitalize(shown)), c.Actor.PlayerID())
+		}
+		return c.Actor.Write(ctx, fmt.Sprintf("You conjure %s onto the ground.", shown))
+	}
+	return c.Actor.Write(ctx, fmt.Sprintf("You conjure %s into your hands.", shown))
+}
+
+// spawnOneItem mints a single item, trying the template-id candidates (verbatim,
+// then room-namespace-qualified) in order and returning the first that resolves.
+func (c *Context) spawnOneItem(ctx context.Context, templateID string) (entities.EntityID, string, error) {
 	var (
 		id   entities.EntityID
 		name string
@@ -123,69 +206,69 @@ func (c *Context) spawnItemHere(ctx context.Context, args []string) error {
 	)
 	for _, cand := range spawnCandidates(templateID, roomNamespace(c)) {
 		if id, name, err = c.Spawn.SpawnItem(ctx, cand); err == nil {
-			break
+			return id, name, nil
 		}
 	}
-	if err != nil {
-		return c.Actor.Write(ctx, fmt.Sprintf("No item template %q.", templateID))
-	}
-
-	if toRoom {
-		room := c.Actor.Room()
-		if room == nil || c.Placement == nil {
-			// The item is already minted; without a room to hold it, fall back to
-			// the actor's inventory rather than leak an unplaced instance.
-			c.Actor.AddToInventory(id)
-			auditAdmin(ctx, c, "spawn", string(id), "item:"+templateID+"@inv")
-			return c.Actor.Write(ctx, fmt.Sprintf("You conjure %s into your hands.", name))
-		}
-		c.Placement.Place(id, room.ID)
-		if c.Broadcaster != nil {
-			c.Broadcaster.SendToRoom(ctx, room.ID,
-				fmt.Sprintf("%s appears on the ground.", capitalize(name)), c.Actor.PlayerID())
-		}
-		auditAdmin(ctx, c, "spawn", string(id), "item:"+templateID+"@room")
-		return c.Actor.Write(ctx, fmt.Sprintf("You conjure %s onto the ground.", name))
-	}
-
-	c.Actor.AddToInventory(id)
-	auditAdmin(ctx, c, "spawn", string(id), "item:"+templateID+"@inv")
-	return c.Actor.Write(ctx, fmt.Sprintf("You conjure %s into your hands.", name))
+	return "", "", err
 }
 
-// spawnMobHere mints `spawn mob <id>` into the actor's current room, running the
-// full mob spawn pipeline through the service.
+// spawnMobHere mints `spawn mob <id> [count]` into the actor's current room,
+// running the full mob spawn pipeline per instance through the service. The
+// optional count (default 1, capped at maxSpawnCount) mints that many.
 func (c *Context) spawnMobHere(ctx context.Context, args []string) error {
 	if c.Spawn == nil {
 		return c.Actor.Write(ctx, "Spawning is not available.")
 	}
 	if len(args) == 0 {
-		return c.Actor.Write(ctx, "Spawn which mob?  (spawn mob <template-id>)")
+		return c.Actor.Write(ctx, "Spawn which mob?  (spawn mob <template-id> [count])")
 	}
 	room := c.Actor.Room()
 	if room == nil {
 		return c.Actor.Write(ctx, "You're nowhere to spawn a mob.")
 	}
 	templateID := args[0]
+	count, _, ok := parseSpawnCount(args[1:])
+	if !ok {
+		return c.Actor.Write(ctx, fmt.Sprintf("Spawn how many?  (1–%d)", maxSpawnCount))
+	}
+
+	var name string
+	spawned := 0
+	for i := 0; i < count; i++ {
+		id, n, err := c.spawnOneMob(ctx, templateID, room.ID)
+		if err != nil {
+			if spawned == 0 {
+				return c.Actor.Write(ctx, fmt.Sprintf("No mob template %q.", templateID))
+			}
+			break // partial mint: report what did land
+		}
+		name = n
+		auditAdmin(ctx, c, "spawn", string(id), "mob:"+templateID)
+		spawned++
+	}
+
+	shown := countable(spawned, name)
+	if c.Broadcaster != nil {
+		c.Broadcaster.SendToRoom(ctx, room.ID,
+			fmt.Sprintf("%s appears in a shimmer of air.", capitalize(shown)), c.Actor.PlayerID())
+	}
+	return c.Actor.Write(ctx, fmt.Sprintf("You spawn %s.", shown))
+}
+
+// spawnOneMob mints a single mob into roomID, trying the template-id candidates
+// (verbatim, then room-namespace-qualified) in order.
+func (c *Context) spawnOneMob(ctx context.Context, templateID string, roomID world.RoomID) (entities.EntityID, string, error) {
 	var (
 		id   entities.EntityID
 		name string
 		err  error = errNoSpawn
 	)
 	for _, cand := range spawnCandidates(templateID, roomNamespace(c)) {
-		if id, name, err = c.Spawn.SpawnMob(ctx, cand, room.ID); err == nil {
-			break
+		if id, name, err = c.Spawn.SpawnMob(ctx, cand, roomID); err == nil {
+			return id, name, nil
 		}
 	}
-	if err != nil {
-		return c.Actor.Write(ctx, fmt.Sprintf("No mob template %q.", templateID))
-	}
-	if c.Broadcaster != nil {
-		c.Broadcaster.SendToRoom(ctx, room.ID,
-			fmt.Sprintf("%s appears in a shimmer of air.", capitalize(name)), c.Actor.PlayerID())
-	}
-	auditAdmin(ctx, c, "spawn", string(id), "mob:"+templateID)
-	return c.Actor.Write(ctx, fmt.Sprintf("You spawn %s.", name))
+	return "", "", err
 }
 
 // spawnGold mints `spawn gold <amount>` into the actor's purse through the
