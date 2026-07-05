@@ -11,7 +11,7 @@ map is produced by the in-repo Go tool `cmd/worldmap`, which parses a pack's
 `areas/`, `rooms/`, and `mobs/` YAML directly (no server boot) and lays every
 room out with a BFS over the exit graph — mirroring the engine's own coordinate
 derivation (`internal/world/coords.go`: north = +y, east = +x, up = +z). Output
-is a dependency-free `docs/maps/world.html`.
+is a dependency-free `docs/world/<pack>/map.html`.
 
 ## When to use
 
@@ -24,19 +24,19 @@ is a dependency-free `docs/maps/world.html`.
 From the repo root:
 
 ```bash
-make worldmap                 # renders docs/maps/world.html for the wot pack
+make worldmap                 # renders docs/world/wot/map.html for the wot pack
 # or directly, with options:
-go run ./cmd/worldmap -pack wot -start the-green -out docs/maps/world.html
+go run ./cmd/worldmap -pack wot -start the-green
 ```
 
 Flags: `-pack` (default `wot`), `-start` (BFS seed / spawn marker, default
-`the-green`), `-content` (default `./content`), `-out` (default
-`docs/maps/world.html`).
+`the-green`), `-content` (default `./content`), `-out` (defaults to
+`docs/world/<pack>/map.html` when unset).
 
 Then open it for the user:
 
 ```bash
-open docs/maps/world.html     # macOS
+open docs/world/wot/map.html     # macOS
 ```
 
 (On another platform, give the path; the file is fully self-contained and opens
@@ -92,7 +92,7 @@ those shapes and it shows up on the next `make worldmap`:
 1. Confirm you are in the repo root (the tool reads `./content`).
 2. Run `make worldmap` (or the `go run` form for a different pack/start/output).
 3. Report the room/area counts from the tool's stdout.
-4. Open the HTML (`open docs/maps/world.html` on macOS) or give the path.
+4. Open the HTML (`open docs/world/wot/map.html` on macOS) or give the path.
 
 ## Notes
 
@@ -102,5 +102,5 @@ those shapes and it shows up on the next `make worldmap`:
   back on itself the BFS spreads colliding rooms to the nearest free cell, so a
   few rooms may sit one cell off true compass position. Exits are always drawn,
   so connectivity stays correct.
-- `docs/maps/world.html` is a committed generated artifact — regenerate via this
-  skill / `make worldmap` rather than hand-editing it.
+- `docs/world/<pack>/map.html` is a committed generated artifact — regenerate via
+  this skill / `make worldmap` rather than hand-editing it.

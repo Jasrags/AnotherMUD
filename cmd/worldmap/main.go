@@ -1,5 +1,5 @@
 // Command worldmap renders the static world content of a pack into a single
-// self-contained interactive HTML map (docs/maps/world.html by default).
+// self-contained interactive HTML map (docs/world/<pack>/map.html by default).
 //
 // It parses the pack's areas/rooms/mobs YAML directly — no server boot, no
 // engine dependency — and lays every room out with a breadth-first walk of the
@@ -12,7 +12,7 @@
 //
 // Usage:
 //
-//	go run ./cmd/worldmap [-content ./content] [-pack wot] [-start the-green] [-out docs/maps/world.html]
+//	go run ./cmd/worldmap [-content ./content] [-pack wot] [-start the-green] [-out docs/world/<pack>/map.html]
 package main
 
 import (
@@ -156,10 +156,15 @@ func main() {
 	content := flag.String("content", "./content", "content directory")
 	pack := flag.String("pack", "wot", "pack to render")
 	start := flag.String("start", "the-green", "starting room id (spawn / BFS seed)")
-	out := flag.String("out", "docs/maps/world.html", "output HTML path")
+	out := flag.String("out", "", "output HTML path (default docs/world/<pack>/map.html)")
 	flag.Parse()
 
-	if err := run(*content, *pack, *start, *out); err != nil {
+	outPath := *out
+	if outPath == "" {
+		outPath = filepath.Join("docs", "world", *pack, "map.html")
+	}
+
+	if err := run(*content, *pack, *start, outPath); err != nil {
 		fmt.Fprintln(os.Stderr, "worldmap:", err)
 		os.Exit(1)
 	}

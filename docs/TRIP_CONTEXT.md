@@ -103,7 +103,7 @@ Mail/parcels (attachment push-delivery escrow) · banking/vault + a **gold-at-ri
 | `docs/specs/README.md` | Canonical spec reading order + cross-cutting tables (cancellable events, registries, save surface, tick handlers) | Finding which spec owns an event/registry/save field (footer is dated 2026-06-18; some "build pending" markers are stale) |
 | `docs/ROADMAP.md` / `docs/BACKLOG.md` / `docs/DEFERRED-BACKLOG.md` | Done-log / open-work list / deferred-fix aggregate | "What's done" / "what's next" / "what was punted" |
 | `docs/PLAYTEST.md` | Manual playtest walkthrough by system | Verifying live behavior section by section |
-| `docs/maps/world.html`, `docs/mockups/map-color.html` | Interactive world map + terrain-color mockup (visual references) | Eyeballing geography / render palette |
+| `docs/world/<pack>/map.html`, `docs/mockups/map-color.html` | Interactive world map + terrain-color mockup (visual references) | Eyeballing geography / render palette |
 | `docs/clients/tab-completion-gmcp.md` | GMCP tab-completion wire spec + Mudlet snippet | Client-side completion integration |
 | `docs/archive/` | Superseded docs (Tapestry gap-matrix, theme-axis plan) | Historical only — not active |
 | `docs/CODEMAPS/` | Token-lean derived architecture maps (regenerate via `/update-codemaps`) | Fast code-layout orientation (subordinate to specs) |

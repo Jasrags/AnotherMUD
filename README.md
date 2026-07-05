@@ -197,7 +197,7 @@ make watch      # live-reload: rebuild + restart on save (needs air)
 make test       # go test -race -count=1 ./...   (race detector is mandatory)
 make cover      # coverage profile + summary
 make check      # fmt + vet + test — the gate to run before committing
-make worldmap   # render docs/maps/world.html (interactive content map)
+make worldmap   # render docs/world/wot/map.html (interactive content map)
 make help       # list all targets
 ```
 
