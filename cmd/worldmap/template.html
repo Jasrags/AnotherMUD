@@ -77,6 +77,8 @@
   aside .row .v { flex: 1; }
   aside .tag { display: inline-block; padding: 1px 7px; border-radius: 10px; background: #ece0c4; font-size: 11px; margin: 1px 2px 1px 0; }
   aside .tag.shop { background: #e7f0d6; } aside .tag.trainer { background: #f5e2c0; }
+  aside .npc { display: inline-block; white-space: nowrap; margin: 1px 4px 1px 0; }
+  aside .mrole { font-size: 11px; padding: 0 3px; margin-left: 1px; border-radius: 6px; background: rgba(0,0,0,.06); cursor: help; }
   aside a.exit { color: var(--accent); cursor: pointer; text-decoration: none; }
   aside a.exit:hover { text-decoration: underline; }
   aside a.exit.cross::after { content: " ⇲"; color: var(--cross); }
@@ -175,6 +177,22 @@ const FEATURES = [
 const FEAT_GLYPH = {}, FEAT_LABEL = {};
 FEATURES.forEach(f => { FEAT_GLYPH[f.key] = f.glyph; FEAT_LABEL[f.key] = f.label; });
 
+// Per-NPC role badges — the glyphs shown after each mob's name in the detail
+// panel, so you can tell WHICH npc in a room does what (the room badge only
+// says a room HAS the function). Recruiter and hireling are distinct: a
+// recruiter hires OUT companions (the room's ⚔ hire access point), a hireling
+// IS a hireable companion. Each field mirrors a mobJSON boolean.
+const MOB_ROLES = [
+  { field: "shop",      glyph: "⛁",  label: "Shopkeeper" },
+  { field: "trainer",   glyph: "⚒",  label: "Trainer" },
+  { field: "stable",    glyph: "🐎", label: "Stablemaster" },
+  { field: "recruiter", glyph: "⚔",  label: "Recruiter — hires out companions" },
+  { field: "hireling",  glyph: "🤝", label: "Hireable companion" },
+  { field: "quest",     glyph: "❗", label: "Quest giver" },
+  { field: "faction",   glyph: "⚑",  label: "Faction NPC" },
+  { field: "hostile",   glyph: "☠",  label: "Hostile" },
+];
+
 // --- region colors ---
 const regionColor = {};
 WORLD.regions.forEach((r, i) => { regionColor[r] = PINNED[r] || PALETTE[i % PALETTE.length]; });
@@ -268,6 +286,8 @@ function buildLegend() {
   FEATURES.forEach(f => p.push(kv(f.glyph, esc(f.label))));
   p.push(kv('⇡ ⇣', 'Stairs up / down'));
   p.push(kv('<span style="color:#7a1f1f">⇡⇣</span>', 'Red = locked / hidden vertical door'));
+  p.push('<h4>NPC roles <small>(per-NPC, in panel)</small></h4>');
+  MOB_ROLES.forEach(r => p.push(kv(r.glyph, esc(r.label))));
   p.push('<h4>Exits &amp; doors</h4>');
   p.push(lineRow(lineSwatch('#b9a888', 2, '', ''), 'Path (same area)'));
   p.push(lineRow(lineSwatch('#b8860b', 3, '7 5', ''), 'Cross-area road'));
@@ -442,7 +462,7 @@ function selectRoom(id) {
   if (r.mobs.length) {
     rows.push(row("NPCs", r.mobs.map(m => {
       const cls = m.shop ? "shop" : m.trainer ? "trainer" : m.stable ? "stable" : (m.hireling || m.recruiter) ? "hire" : m.hostile ? "hostile" : m.quest ? "quest" : m.faction ? "faction" : "";
-      return tag(m.name + mobRoles(m), cls);
+      return '<span class="npc">' + tag(m.name, cls) + mobRoles(m) + "</span>";
     }).join(" ")));
   }
   const ex = r.exits.map(e => {
@@ -503,13 +523,15 @@ if (spawn) centerOn(spawn);
 
 function esc(s) { return String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c])); }
 
-// Role glyphs appended after an NPC's name in the detail panel.
+// Role badges appended after an NPC's name in the detail panel — one titled
+// chip per function the mob performs, so you can identify the recruiter, shop,
+// trainer, etc. among the room's NPCs (hover a chip for its label). Returns
+// HTML, so it must be appended OUTSIDE tag()'s esc() — see the NPCs row.
 function mobRoles(m) {
-  let s = "";
-  if (m.shop) s += " ⛁"; if (m.trainer) s += " ⚒"; if (m.stable) s += " 🐎";
-  if (m.recruiter || m.hireling) s += " ⚔"; if (m.quest) s += " ❗";
-  if (m.hostile) s += " ☠"; if (m.faction) s += " ⚑";
-  return s;
+  return MOB_ROLES.filter(r => m[r.field]).map(r => {
+    const label = r.field === "faction" && m.faction ? r.label + ": " + m.faction : r.label;
+    return '<span class="mrole" title="' + esc(label) + '">' + r.glyph + "</span>";
+  }).join("");
 }
 </script>
 </body>
