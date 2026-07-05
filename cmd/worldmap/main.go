@@ -5,8 +5,10 @@
 // engine dependency — and lays every room out with a breadth-first walk of the
 // exit graph, mirroring the engine's coordinate derivation (north = +y,
 // east = +x, up = +z; one exit = one unit step — see internal/world/coords.go).
-// The result is dependency-free HTML: pan/zoom/click, region tinting,
-// shop/trainer/spawn/item badges, search, and z-level toggles.
+// The result is dependency-free HTML: pan/zoom/click, region tinting, per-room
+// feature badges (shop/trainer/craft/stable/hire/quest/faction/hostile/locked/
+// hidden/dark/items/spawn), a feature filter, feature-aware search, distinct
+// hidden/locked exit rendering, and z-level toggles.
 //
 // Usage:
 //
@@ -47,58 +49,93 @@ var dirDelta = map[string][3]int{
 // --- YAML shapes (partial — only the fields the map needs) ---
 
 type areaYAML struct {
-	ID     string `yaml:"id"`
-	Name   string `yaml:"name"`
-	Region string `yaml:"region"`
+	ID          string `yaml:"id"`
+	Name        string `yaml:"name"`
+	Region      string `yaml:"region"`
+	WeatherZone string `yaml:"weather_zone"`
+}
+
+type doorYAML struct {
+	Name     string `yaml:"name"`
+	Locked   bool   `yaml:"locked"`
+	Key      string `yaml:"key"`
+	Pickable bool   `yaml:"pickable"`
 }
 
 type roomYAML struct {
-	ID         string            `yaml:"id"`
-	Area       string            `yaml:"area"`
-	Name       string            `yaml:"name"`
-	Terrain    string            `yaml:"terrain"`
-	Exits      map[string]string `yaml:"exits"`
-	Mobs       []string          `yaml:"mobs"`
-	Items      []any             `yaml:"items"`
-	Properties map[string]any    `yaml:"properties"`
+	ID          string              `yaml:"id"`
+	Area        string              `yaml:"area"`
+	Name        string              `yaml:"name"`
+	Terrain     string              `yaml:"terrain"`
+	Exits       map[string]string   `yaml:"exits"`
+	Mobs        []string            `yaml:"mobs"`
+	Items       []any               `yaml:"items"`
+	Properties  map[string]any      `yaml:"properties"`
+	Doors       map[string]doorYAML `yaml:"doors"`
+	HiddenExits map[string]any      `yaml:"hidden_exits"`
 }
 
 type mobYAML struct {
-	ID         string         `yaml:"id"`
-	Name       string         `yaml:"name"`
-	Tags       []string       `yaml:"tags"`
-	Trainer    any            `yaml:"trainer"`
-	Properties map[string]any `yaml:"properties"`
+	ID          string         `yaml:"id"`
+	Name        string         `yaml:"name"`
+	Tags        []string       `yaml:"tags"`
+	Trainer     any            `yaml:"trainer"`
+	Mount       any            `yaml:"mount"`
+	Hireling    any            `yaml:"hireling"`
+	Recruiter   any            `yaml:"recruiter"`
+	Faction     string         `yaml:"faction"`
+	Properties  map[string]any `yaml:"properties"`
+	Disposition struct {
+		Default string `yaml:"default"`
+	} `yaml:"disposition_rules"`
+}
+
+// questYAML picks just the giver link (quests/*.yaml). A room holding a giver
+// mob gets the quest badge.
+type questYAML struct {
+	Giver string `yaml:"giver"`
 }
 
 // --- JSON shapes (what gets embedded in the HTML) ---
 
 type exitJSON struct {
-	Dir   string `json:"dir"`
-	To    string `json:"to"`
-	Cross bool   `json:"cross"` // leaves this room's area
+	Dir    string `json:"dir"`
+	To     string `json:"to"`
+	Cross  bool   `json:"cross"`  // leaves this room's area
+	Hidden bool   `json:"hidden"` // an authored hidden exit (search to reveal)
+	Locked bool   `json:"locked"` // a locked door bars this exit
+	Door   string `json:"door"`   // door display name, if any
 }
 
 type mobJSON struct {
-	Name    string `json:"name"`
-	Shop    bool   `json:"shop"`
-	Trainer bool   `json:"trainer"`
+	Name      string `json:"name"`
+	Shop      bool   `json:"shop"`
+	Trainer   bool   `json:"trainer"`
+	Stable    bool   `json:"stable"`
+	Hireling  bool   `json:"hireling"`
+	Recruiter bool   `json:"recruiter"`
+	Hostile   bool   `json:"hostile"`
+	Quest     bool   `json:"quest"`
+	Faction   string `json:"faction"`
 }
 
 type roomJSON struct {
-	ID      string     `json:"id"`
-	Name    string     `json:"name"`
-	Area    string     `json:"area"`
-	Region  string     `json:"region"`
-	Terrain string     `json:"terrain"`
-	X       int        `json:"x"`
-	Y       int        `json:"y"`
-	Z       int        `json:"z"`
-	Exits   []exitJSON `json:"exits"`
-	Mobs    []mobJSON  `json:"mobs"`
-	Spawn   bool       `json:"spawn"`
-	Items   bool       `json:"items"`
-	Station bool       `json:"station"`
+	ID       string     `json:"id"`
+	Name     string     `json:"name"`
+	Area     string     `json:"area"`
+	Region   string     `json:"region"`
+	Terrain  string     `json:"terrain"`
+	X        int        `json:"x"`
+	Y        int        `json:"y"`
+	Z        int        `json:"z"`
+	Exits    []exitJSON `json:"exits"`
+	Mobs     []mobJSON  `json:"mobs"`
+	Spawn    bool       `json:"spawn"`
+	Items    bool       `json:"items"`
+	Station  bool       `json:"station"`
+	Light    string     `json:"light"`    // room light override (lit/dim/black), if any
+	Weather  string     `json:"weather"`  // the room's area weather zone, if any
+	Features []string   `json:"features"` // canonical feature keys — drives badges/filter/search
 }
 
 type worldJSON struct {
@@ -135,7 +172,11 @@ func run(content, pack, start, out string) error {
 	if err != nil {
 		return fmt.Errorf("loading areas: %w", err)
 	}
-	mobs, err := loadMobs(filepath.Join(base, "mobs"))
+	questGivers, err := loadQuests(filepath.Join(base, "quests"))
+	if err != nil {
+		return fmt.Errorf("loading quests: %w", err)
+	}
+	mobs, err := loadMobs(filepath.Join(base, "mobs"), questGivers)
 	if err != nil {
 		return fmt.Errorf("loading mobs: %w", err)
 	}
@@ -206,7 +247,7 @@ func loadRooms(dir string) (map[string]roomYAML, error) {
 	return out, nil
 }
 
-func loadMobs(dir string) (map[string]mobJSON, error) {
+func loadMobs(dir string, questGivers map[string]bool) (map[string]mobJSON, error) {
 	files, _ := filepath.Glob(filepath.Join(dir, "*.yaml"))
 	out := make(map[string]mobJSON, len(files))
 	for _, f := range files {
@@ -222,13 +263,41 @@ func loadMobs(dir string) (map[string]mobJSON, error) {
 			continue
 		}
 		_, hasShopProp := m.Properties["shop"]
+		_, hasStableProp := m.Properties["stable"]
 		out[m.ID] = mobJSON{
-			Name:    clean(m.Name),
-			Shop:    hasShopProp || hasTag(m.Tags, "shop"),
-			Trainer: m.Trainer != nil || hasTag(m.Tags, "skill_trainer"),
+			Name:      clean(m.Name),
+			Shop:      hasShopProp || hasTag(m.Tags, "shop"),
+			Trainer:   m.Trainer != nil || hasTag(m.Tags, "skill_trainer"),
+			Stable:    hasStableProp || hasTag(m.Tags, "stable"),
+			Hireling:  m.Hireling != nil,
+			Recruiter: m.Recruiter != nil,
+			Hostile:   m.Disposition.Default == "hostile",
+			Quest:     questGivers[m.ID],
+			Faction:   m.Faction,
 		}
 	}
 	return out, nil
+}
+
+// loadQuests returns the set of mob ids that give a quest (quests/*.yaml
+// `giver:`). Missing dir is fine — the pack may ship no quests.
+func loadQuests(dir string) (map[string]bool, error) {
+	files, _ := filepath.Glob(filepath.Join(dir, "*.yaml"))
+	givers := make(map[string]bool, len(files))
+	for _, f := range files {
+		b, err := os.ReadFile(f)
+		if err != nil {
+			return nil, err
+		}
+		var q questYAML
+		if err := yaml.Unmarshal(b, &q); err != nil {
+			return nil, fmt.Errorf("%s: %w", f, err)
+		}
+		if q.Giver != "" {
+			givers[q.Giver] = true
+		}
+	}
+	return givers, nil
 }
 
 // --- layout: global BFS over the exit graph with collision spread ---
@@ -331,6 +400,7 @@ func assemble(pack, start string, areas map[string]areaYAML, mobs map[string]mob
 		region := areas[r.Area].Region
 
 		exits := make([]exitJSON, 0, len(r.Exits))
+		anyLocked, anyHidden := false, false
 		for _, dir := range dirOrder {
 			to, ok := r.Exits[dir]
 			if !ok {
@@ -340,7 +410,18 @@ func assemble(pack, start string, areas map[string]areaYAML, mobs map[string]mob
 			if tr, ok := rooms[to]; ok {
 				cross = tr.Area != r.Area
 			}
-			exits = append(exits, exitJSON{Dir: dir, To: to, Cross: cross})
+			d := r.Doors[dir]
+			_, hidden := r.HiddenExits[dir]
+			if d.Locked {
+				anyLocked = true
+			}
+			if hidden {
+				anyHidden = true
+			}
+			exits = append(exits, exitJSON{
+				Dir: dir, To: to, Cross: cross,
+				Hidden: hidden, Locked: d.Locked, Door: clean(d.Name),
+			})
 		}
 
 		mobList := make([]mobJSON, 0, len(r.Mobs))
@@ -353,11 +434,16 @@ func assemble(pack, start string, areas map[string]areaYAML, mobs map[string]mob
 		}
 
 		_, station := r.Properties["craft_stations"]
+		light, _ := r.Properties["light"].(string)
+		weather := areas[r.Area].WeatherZone
+
+		feats := computeFeatures(id == start, len(r.Items) > 0, station, light, anyLocked, anyHidden, mobList)
 		roomsJSON = append(roomsJSON, roomJSON{
 			ID: id, Name: clean(r.Name), Area: r.Area, Region: region,
 			Terrain: r.Terrain, X: c.x, Y: c.y, Z: c.z,
 			Exits: exits, Mobs: mobList,
 			Spawn: id == start, Items: len(r.Items) > 0, Station: station,
+			Light: light, Weather: weather, Features: feats,
 		})
 	}
 	sort.Slice(roomsJSON, func(i, j int) bool { return roomsJSON[i].ID < roomsJSON[j].ID })
@@ -377,6 +463,65 @@ func assemble(pack, start string, areas map[string]areaYAML, mobs map[string]mob
 		Areas:     areaMetas,
 		Rooms:     roomsJSON,
 	}
+}
+
+// computeFeatures collapses a room's badge/filter/search-relevant traits into a
+// canonical, ordered key list. The template drives the badge glyphs, the feature
+// filter chips, and the "search matches feature keys" behavior off exactly this
+// list, so a new feature is added in one place (here + the glyph map in the
+// template).
+func computeFeatures(spawn, items, station bool, light string, locked, hidden bool, mobs []mobJSON) []string {
+	var f []string
+	add := func(k string) { f = append(f, k) }
+	if spawn {
+		add("spawn")
+	}
+	if anyMob(mobs, func(m mobJSON) bool { return m.Shop }) {
+		add("shop")
+	}
+	if anyMob(mobs, func(m mobJSON) bool { return m.Trainer }) {
+		add("trainer")
+	}
+	if station {
+		add("craft")
+	}
+	if anyMob(mobs, func(m mobJSON) bool { return m.Stable }) {
+		add("stable")
+	}
+	if anyMob(mobs, func(m mobJSON) bool { return m.Hireling || m.Recruiter }) {
+		add("hire")
+	}
+	if anyMob(mobs, func(m mobJSON) bool { return m.Quest }) {
+		add("quest")
+	}
+	if anyMob(mobs, func(m mobJSON) bool { return m.Faction != "" }) {
+		add("faction")
+	}
+	if anyMob(mobs, func(m mobJSON) bool { return m.Hostile }) {
+		add("hostile")
+	}
+	if locked {
+		add("locked")
+	}
+	if hidden {
+		add("hidden")
+	}
+	if light == "black" || light == "dark" {
+		add("dark")
+	}
+	if items {
+		add("items")
+	}
+	return f
+}
+
+func anyMob(mobs []mobJSON, pred func(mobJSON) bool) bool {
+	for _, m := range mobs {
+		if pred(m) {
+			return true
+		}
+	}
+	return false
 }
 
 // --- helpers ---

@@ -1,0 +1,25 @@
+id: guard-captain
+name: a caravan guard-captain
+type: npc
+behavior: stationary
+disposition: 0
+description: |
+  A hard-eyed woman in a travel-stained coat leans at the end of the counter, a
+  short list of names tucked into her belt. She captains the guard on the
+  merchant trains that pass through the Two Rivers, and when one of her people
+  wants a few days' work off the road she will hire them out — for the right
+  coin, and a nod that you can be trusted to bring them back.
+tags: [humanoid]
+keywords: [captain, guard-captain, guardcaptain, woman]
+# A recruiter access point (hireable-mobs.md §3.1): a character may `hire` the
+# hirelings this NPC offers while in its room. `offers` lists the hireling
+# template ids it hires out (resolved to hireable templates at hire time — bare
+# ids, resolved against the pack namespace, NOT pre-qualified like shop `sells`).
+recruiter:
+  offers:
+    - hired-guard
+disposition_rules:
+  default: friendly
+stats:
+  hp_max: 24
+  str: 12

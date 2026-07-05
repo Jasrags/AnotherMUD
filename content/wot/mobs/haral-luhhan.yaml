@@ -75,3 +75,10 @@ properties:
       - wot:small-steel-shield
       - wot:large-wood-shield
       - wot:large-steel-shield
+      # Open-Lock tool (skills.md): a set of lockpicks aids the pick check on the
+      # iron door down in the deep diggings (`pick iron`) as a keyless way in.
+      - wot:lockpick
+      # Recipe-scroll demo (crafting-and-cooking §7): a smith's scroll teaching a
+      # learnable belt-knife recipe. Skill-gated — the shop hides it and refuses
+      # `buy` until the buyer's smithing reaches level 5. `read` it to learn.
+      - wot:scroll-forge-belt-knife

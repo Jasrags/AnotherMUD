@@ -1,0 +1,24 @@
+id: scroll-forge-belt-knife
+name: a recipe scroll - forging a belt knife
+type: item
+description: |
+  A square of oiled vellum covered in a smith's cramped diagrams: the heat
+  colours, the hammer sequence, the quench that sets a good edge. Reading it
+  teaches the technique for good.
+# Keywords deliberately omit "knife" — that is belt-knife's keyword, and a
+# collision would make `buy knife` ambiguous in Haral's shop. The scroll
+# answers to `scroll` / `recipe` (unique in that shop).
+tags: [scroll, recipe]
+keywords: [scroll, recipe]
+properties:
+  weight: 1
+  value: 120
+  # COMMON-tier acquisition (crafting-and-cooking §7): sold by Haral, with
+  # availability gated by smithing skill. The shop hides it from `list` and
+  # refuses `buy` until the buyer's smithing reaches this level (economy shop
+  # §7 purchase gate).
+  requires_skill: smithing
+  requires_skill_level: 5
+  # The recipe the `read` verb teaches. Item property values are NOT
+  # namespace-rewritten by the loader, so this is the fully-qualified id.
+  recipe: wot:forge-belt-knife

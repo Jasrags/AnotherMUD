@@ -12,6 +12,9 @@ region: two-rivers
 # moon-cycle feature lands (docs/BACKLOG.md §2). A sealed room can still pin
 # `light: black` per-room to opt out — the pin outranks the floor.
 light_floor: dim
-# Temperate climate; the Two Rivers weather zone lands with the wilds (M2).
+# Temperate Two Rivers climate: outdoor rooms in this area draw their weather +
+# time ambience from the two-rivers zone (weather_zones/two-rivers.yaml). Indoor
+# rooms (terrain: indoors) are shielded from the roll.
+weather_zone: two-rivers
 # Persistent villagers are pinned to their rooms via each room's `mobs:` list,
 # not spawn_rules — they are fixtures, not respawning encounters.

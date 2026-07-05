@@ -1,0 +1,26 @@
+id: riding-horse
+name: a shaggy brown mare
+type: npc
+behavior: stationary
+description: |
+  A shaggy brown mare stands hipshot and patient, her winter coat still rough
+  and her eyes mild. Two Rivers-bred and sure-footed, she will carry a rider the
+  long roads out of the district without complaint — but she is a farm horse, not
+  a warhorse, and lays her ears back at the smell of blood.
+tags: [animal, beast, mount]
+keywords: [horse, mount, mare, brown]
+# A rideable mount (mounts.md). The `mount:` block is what marks it: presence
+# makes the mob a mount with an owner, a travel resource, and a temperament.
+# Skittish — an ordinary saddle horse that balks at carrying its rider into a
+# fight (§7.2); a rider who wants to fight mounted dismounts first. travel_max is
+# the renewable budget a mounted step spends instead of the rider's movement
+# pool (§5.1) — larger than a character's ~30 so a fresh mount out-travels legs.
+mount:
+  temperament: skittish
+  travel_max: 60
+  travel_regen: 5
+disposition_rules:
+  default: neutral
+stats:
+  hp_max: 30
+  str: 14

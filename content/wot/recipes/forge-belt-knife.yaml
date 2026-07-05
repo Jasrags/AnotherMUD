@@ -1,0 +1,19 @@
+# COMMON-tier smithing recipe (crafting-and-cooking §7). Not baseline — it is
+# learned by `read`ing a recipe scroll bought from Haral, whose availability is
+# gated by smithing skill (§7 "availability by skill level"). Forges a plain
+# belt knife from an iron ingot at a forge (Tier-2 station). Distinct from the
+# baseline forge-iron-dagger so the scroll teaches something a smith does not
+# already know from `learn smithing`.
+id: forge-belt-knife
+name: forge a belt knife
+discipline: smithing
+skill_floor: 1
+station_tier: 2
+tool: smithing-tool
+time_pulses: 20
+acquisition: common
+inputs:
+  - { template: iron-ingot, quantity: 1 }
+output:
+  template: belt-knife
+  quantity: 1

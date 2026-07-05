@@ -1,0 +1,12 @@
+id: inn-storeroom-key
+name: a brass storeroom key
+type: item
+tags: [key]
+keywords: [key, brass]
+properties:
+  weight: 1
+  # Base value so a shop can price it if sold (economy-survival §3.3).
+  value: 2
+# Unlocks the Winespring Inn's storeroom door (inventory-equipment-items §5.3):
+# the door's `key: inn-storeroom-key` matches this template id. Bran keeps it in
+# the kitchen; the storeroom lock is also pickable as a keyless alternative.

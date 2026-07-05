@@ -15,5 +15,9 @@ terrain: indoors
 properties:
   craft_stations:
     cooking: 2
+# Bran keeps the brass storeroom key here in the kitchen (staff-only) — fetch it
+# to `unlock` the storeroom door off the common room, or pick the lock instead.
+items:
+  - inn-storeroom-key
 mobs:
   - marin-alvere

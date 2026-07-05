@@ -1,0 +1,16 @@
+id: lockpick
+name: a set of lockpicks
+type: tool
+description: |
+  A slim leather roll of hooked and tensioned steel picks, worn bright at the
+  tips. In a trained hand they coax a lock open that bare fingers never could.
+tags: [tool, metal]
+keywords: [lockpicks, lockpick, picks]
+properties:
+  weight: 1
+  value: 25
+  # Tool seam (skills.md): carrying these aids the Open-Lock skill check by the
+  # base bonus below. A quality grade (masterwork §3) would aid it more; this
+  # plain set is ungraded. Tools toward one check do not stack — best applies.
+  skill_tool: open-lock
+  skill_tool_bonus: 2

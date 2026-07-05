@@ -13,7 +13,21 @@ exits:
   west: the-green
   north: inn-kitchen
   up: inn-guestroom
+  east: the-inn-storeroom
 terrain: indoors
+# A LOCKED stout door east into Bran's storeroom (inventory-equipment-items
+# §5.3). Bran keeps the brass key in the kitchen; the lock is also pickable
+# (skills §4: `pick stout`) as a keyless way in. Both sides of the door are
+# declared (the storeroom's `west`) so movement blocks both ways and the runtime
+# open/lock state stays in sync.
+doors:
+  east:
+    name: a stout storeroom door
+    keywords: [stout, storeroom, door]
+    locked: true
+    key: inn-storeroom-key
+    pickable: true
+    pick_difficulty: 12
 # Rest by the hearth: a room-level regen bonus (economy-survival §5.7).
 # Also lights the inn marker on the map (player-maps §6) — Bran is a plain
 # innkeeper, not a shop, so the rest bonus is what the room reads as.
@@ -24,3 +38,10 @@ mobs:
   # into a chair by the fire — book-faithful (he comes to Emond's Field with
   # Perrin) and a fitting first encounter with the Ogier race a step off the Green.
   - loial
+  # Hireable-companions demo (hireable-mobs.md §3.1): a caravan guard-captain
+  # rests at the inn and hires out one of her people — `hire` browses her
+  # catalog and takes on the road-worn guard as an owned companion that follows
+  # and fights (`order`/`dismiss`). An inn is where a traveller finds a sword for
+  # hire; outlander merchant guards pass through the Two Rivers.
+  - guard-captain
+  - hired-guard

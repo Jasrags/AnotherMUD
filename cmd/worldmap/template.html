@@ -31,7 +31,12 @@
   .chip { display: inline-flex; align-items: center; gap: 6px; padding: 4px 9px; border-radius: 20px; border: 1px solid; cursor: pointer; font-size: 12px; user-select: none; }
   .chip .sw { width: 11px; height: 11px; border-radius: 3px; }
   .chip.off { opacity: .35; }
+  .chip.feat { border-color: #b9a888; background: #fff; }
+  .chip.feat.active { background: var(--ink); color: var(--parch); border-color: var(--ink); }
   .badges-key { font-size: 12px; color: #8a7c5e; }
+  aside .tag.stable { background: #dfe8f0; } aside .tag.hire { background: #efe0d0; }
+  aside .tag.hostile { background: #f0d6d6; } aside .tag.quest { background: #f4eec4; }
+  aside .tag.faction { background: #e6ddf0; }
 
   #stage { position: relative; flex: 1; overflow: hidden; cursor: grab; background:
       radial-gradient(circle at 30% 20%, #f7f0dd, var(--parch2)); }
@@ -52,6 +57,9 @@
   .room .nm { font: 600 12px/1.25 sans-serif; }
   .room .meta { font: 400 10px/1.3 sans-serif; color: #7a6f57; margin-top: 3px; }
   .room .bdg { position: absolute; top: 5px; right: 6px; display: flex; gap: 2px; font-size: 12px; }
+  .room .bdg .lk, .room .bdg .hd { color: #7a1f1f; font-weight: 700; }
+  .ctl .zc { color: #7a1f1f; font-weight: 700; font-size: 10px; margin-left: 2px; }
+  .ctl.zmatch { border-color: #7a1f1f; }
   .room .tdot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 4px; vertical-align: middle; }
 
   aside {
@@ -74,17 +82,36 @@
   aside a.exit.cross::after { content: " ⇲"; color: var(--cross); }
   #empty { position: absolute; inset: 0; display: grid; place-items: center; color: #a8997a; font-size: 14px; pointer-events: none; }
   #empty[hidden] { display: none; }   /* beats the UA [hidden] rule, which #empty's display:grid would otherwise override */
+
+  #keyPanel {
+    position: absolute; left: 16px; bottom: 16px; width: 268px; max-height: calc(100% - 40px);
+    overflow-y: auto; background: var(--panel); border: 2px solid var(--line); border-radius: 10px;
+    box-shadow: 0 6px 20px rgba(0,0,0,.22); padding: 14px 16px; z-index: 6; font-size: 12px;
+  }
+  #keyPanel[hidden] { display: none; }
+  #keyPanel .close { float: right; cursor: pointer; border: none; background: none; font-size: 18px; color: #8a7c5e; line-height: 1; }
+  #keyPanel h3 { font: 600 15px/1.2 "Iowan Old Style", Georgia, serif; margin: 0 0 8px; }
+  #keyPanel h4 { font: 600 10px sans-serif; text-transform: uppercase; letter-spacing: .6px; color: #8a7c5e; margin: 12px 0 5px; }
+  #keyPanel .kv { display: flex; align-items: center; gap: 8px; padding: 2px 0; }
+  #keyPanel .kv .sym { width: 30px; text-align: center; flex-shrink: 0; font-size: 13px; }
+  #keyPanel .kv .dot { width: 10px; height: 10px; border-radius: 50%; }
+  #keyPanel .kv .sw { width: 20px; height: 12px; border-radius: 3px; border: 1px solid rgba(0,0,0,.15); flex-shrink: 0; }
+  #keyPanel .kv svg { flex-shrink: 0; }
+  #keyPanel .kv .lbl { color: var(--ink); }
+  #keyPanel .kv .lbl small { color: #8a7c5e; }
 </style>
 </head>
 <body>
 <header>
   <h1>AnotherMUD · World Map <small id="meta"></small></h1>
-  <div class="group"><span class="lbl">Find</span><input id="search" placeholder="room name or id…" autocomplete="off"></div>
+  <div class="group"><span class="lbl">Find</span><input id="search" placeholder="room, npc, or feature…" autocomplete="off"></div>
   <div class="group"><span class="lbl">Region</span><div class="legend" id="legend"></div></div>
+  <div class="group"><span class="lbl">Feature</span><div class="legend" id="features"></div></div>
   <div class="group"><span class="lbl">Level</span><div class="legend" id="zlevels"></div></div>
   <div class="group">
+    <button class="ctl on" id="toggleHidden" title="Show authored hidden exits as faint dotted lines">🔍 hidden</button>
+    <button class="ctl" id="toggleLegend" title="Show what the icons, lines, and colors mean">Legend</button>
     <button class="ctl" id="reset">Recenter</button>
-    <span class="badges-key">◉ spawn · ⛁ shop · ⚒ trainer · ▪ items · ⇡⇣ stairs</span>
   </div>
 </header>
 
@@ -93,6 +120,11 @@
     <svg id="edges"></svg>
   </div>
   <div id="empty" hidden>No rooms on this level.</div>
+  <div id="keyPanel" hidden>
+    <button class="close" id="keyClose" title="Close legend">×</button>
+    <h3>Legend</h3>
+    <div id="keyBody"></div>
+  </div>
 </div>
 
 <aside id="panel">
@@ -122,6 +154,27 @@ const TERRAIN = {
 };
 const DIR_FULL = { north: "north", south: "south", east: "east", west: "west", up: "up", down: "down" };
 
+// Feature metadata — the ONE place badges, filter chips, the panel, and search
+// keywords are defined. Order here is the badge/chip display order. Keys mirror
+// cmd/worldmap computeFeatures().
+const FEATURES = [
+  { key: "spawn",   glyph: "◉",  label: "Spawn" },
+  { key: "shop",    glyph: "⛁",  label: "Shop" },
+  { key: "trainer", glyph: "⚒",  label: "Trainer" },
+  { key: "craft",   glyph: "⚙",  label: "Craft station" },
+  { key: "stable",  glyph: "🐎", label: "Stable / mount" },
+  { key: "hire",    glyph: "⚔",  label: "Hire (recruiter)" },
+  { key: "quest",   glyph: "❗", label: "Quest giver" },
+  { key: "faction", glyph: "⚑",  label: "Faction NPC" },
+  { key: "hostile", glyph: "☠",  label: "Hostile" },
+  { key: "locked",  glyph: "🔒", label: "Locked door" },
+  { key: "hidden",  glyph: "🔍", label: "Hidden exit" },
+  { key: "dark",    glyph: "🌙", label: "Dark room" },
+  { key: "items",   glyph: "▪",  label: "Items" },
+];
+const FEAT_GLYPH = {}, FEAT_LABEL = {};
+FEATURES.forEach(f => { FEAT_GLYPH[f.key] = f.glyph; FEAT_LABEL[f.key] = f.label; });
+
 // --- region colors ---
 const regionColor = {};
 WORLD.regions.forEach((r, i) => { regionColor[r] = PINNED[r] || PALETTE[i % PALETTE.length]; });
@@ -147,6 +200,8 @@ const worldH = (maxY - minY) * CELL + BOXH;
 const zLevels = [...new Set(WORLD.rooms.map(r => r.z))].sort((a, b) => b - a);
 let curZ = zLevels.includes(0) ? 0 : zLevels[0];
 const hiddenRegions = new Set();
+const activeFeatures = new Set();
+let showHidden = true;
 let tx = 0, ty = 0, scale = 0.85, selId = null;
 
 const stage = document.getElementById("stage");
@@ -161,21 +216,89 @@ WORLD.regions.forEach(r => {
   const c = colorOf(r);
   const el = document.createElement("span");
   el.className = "chip"; el.style.borderColor = c.b; el.style.background = c.f;
-  el.innerHTML = '<span class="sw" style="background:' + c.b + '"></span>' + r;
+  el.innerHTML = '<span class="sw" style="background:' + c.b + '"></span>' + esc(r);
   el.onclick = () => { hiddenRegions.has(r) ? hiddenRegions.delete(r) : hiddenRegions.add(r); el.classList.toggle("off"); render(); };
   legend.appendChild(el);
 });
+
+// --- feature filter chips (only those present in this pack) ---
+const present = new Set();
+WORLD.rooms.forEach(r => (r.features || []).forEach(f => present.add(f)));
+const featBox = document.getElementById("features");
+FEATURES.filter(f => present.has(f.key)).forEach(f => {
+  const el = document.createElement("span");
+  el.className = "chip feat";
+  el.innerHTML = f.glyph + " " + f.label;
+  el.title = "Only rooms with: " + f.label;
+  el.onclick = () => {
+    activeFeatures.has(f.key) ? activeFeatures.delete(f.key) : activeFeatures.add(f.key);
+    el.classList.toggle("active");
+    applyDimming();
+  };
+  featBox.appendChild(el);
+});
+
+// --- hidden-exit edge toggle ---
+document.getElementById("toggleHidden").onclick = e => {
+  showHidden = !showHidden;
+  e.currentTarget.classList.toggle("on", showHidden);
+  render();
+};
+
+// --- legend panel (built from the same data the map renders) ---
+const keyPanel = document.getElementById("keyPanel");
+document.getElementById("toggleLegend").onclick = e => {
+  keyPanel.hidden = !keyPanel.hidden;
+  e.currentTarget.classList.toggle("on", !keyPanel.hidden);
+};
+document.getElementById("keyClose").onclick = () => {
+  keyPanel.hidden = true;
+  document.getElementById("toggleLegend").classList.remove("on");
+};
+function lineSwatch(stroke, width, dash, opacity) {
+  return '<svg width="34" height="12"><line x1="1" y1="6" x2="33" y2="6" stroke="' + stroke +
+    '" stroke-width="' + width + '"' + (dash ? ' stroke-dasharray="' + dash + '"' : '') +
+    (opacity ? ' opacity="' + opacity + '"' : '') + '/></svg>';
+}
+function buildLegend() {
+  const kv = (sym, label) => '<div class="kv"><span class="sym">' + sym + '</span><span class="lbl">' + label + '</span></div>';
+  const lineRow = (svg, label) => '<div class="kv">' + svg + '<span class="lbl">' + label + '</span></div>';
+  const p = [];
+  p.push('<h4>Room badges</h4>');
+  FEATURES.forEach(f => p.push(kv(f.glyph, esc(f.label))));
+  p.push(kv('⇡ ⇣', 'Stairs up / down'));
+  p.push(kv('<span style="color:#7a1f1f">⇡⇣</span>', 'Red = locked / hidden vertical door'));
+  p.push('<h4>Exits &amp; doors</h4>');
+  p.push(lineRow(lineSwatch('#b9a888', 2, '', ''), 'Path (same area)'));
+  p.push(lineRow(lineSwatch('#b8860b', 3, '7 5', ''), 'Cross-area road'));
+  p.push(lineRow(lineSwatch('#7a1f1f', 3, '10 4', ''), 'Locked door'));
+  p.push(lineRow(lineSwatch('#7a1f1f', 2, '2 5', '.6'), 'Hidden exit <small>(search to reveal)</small>'));
+  const terr = [...new Set(WORLD.rooms.map(r => r.terrain).filter(Boolean))].sort();
+  if (terr.length) {
+    p.push('<h4>Terrain</h4>');
+    terr.forEach(t => p.push('<div class="kv"><span class="dot" style="background:' + (TERRAIN[t] || "#bbb") + '"></span><span class="lbl">' + esc(t) + '</span></div>'));
+  }
+  if (WORLD.regions.length) {
+    p.push('<h4>Regions</h4>');
+    WORLD.regions.forEach(r => { const c = colorOf(r); p.push('<div class="kv"><span class="sw" style="background:' + c.f + ';border-color:' + c.b + '"></span><span class="lbl">' + esc(r) + '</span></div>'); });
+  }
+  document.getElementById("keyBody").innerHTML = p.join("");
+}
+buildLegend();
 
 // --- z-level buttons ---
 const zbox = document.getElementById("zlevels");
 zLevels.forEach(z => {
   const b = document.createElement("button");
   b.className = "ctl" + (z === curZ ? " on" : "");
-  b.textContent = z === 0 ? "ground" : (z > 0 ? "+" + z : "" + z);
-  b.onclick = () => { curZ = z; [...zbox.children].forEach(c => c.classList.remove("on")); b.classList.add("on"); render(); };
+  b.dataset.z = z;
+  b.dataset.label = z === 0 ? "ground" : (z > 0 ? "+" + z : "" + z);
+  b.innerHTML = b.dataset.label + '<sup class="zc"></sup>';
+  b.onclick = () => { curZ = z; syncZButtons(); render(); };
   zbox.appendChild(b);
 });
 if (zLevels.length < 2) zbox.parentElement.style.display = "none";
+function syncZButtons() { [...zbox.children].forEach(c => c.classList.toggle("on", +c.dataset.z === curZ)); }
 
 // --- render ---
 const roomEls = {};
@@ -192,12 +315,26 @@ function render() {
       if (!t || t.z !== curZ || hiddenRegions.has(t.region)) return;
       const key = [r.id, e.to].sort().join("|");
       if (drawn.has(key)) return; drawn.add(key);
+      // The pair is hidden/locked if EITHER side authors it so (the reverse exit
+      // is often authored plain).
+      const back = (t.exits || []).find(x => x.to === r.id) || {};
+      const hidden = e.hidden || back.hidden;
+      const locked = e.locked || back.locked;
+      if (hidden && !showHidden) return;
       const l = document.createElementNS("http://www.w3.org/2000/svg", "line");
       l.setAttribute("x1", px(r.x) + BOXW / 2); l.setAttribute("y1", py(r.y) + BOXH / 2);
       l.setAttribute("x2", px(t.x) + BOXW / 2); l.setAttribute("y2", py(t.y) + BOXH / 2);
-      l.setAttribute("stroke", e.cross ? "#b8860b" : "#b9a888");
-      l.setAttribute("stroke-width", e.cross ? 3 : 2);
-      if (e.cross) l.setAttribute("stroke-dasharray", "7 5");
+      if (hidden) {
+        l.setAttribute("stroke", "#7a1f1f"); l.setAttribute("stroke-width", 2);
+        l.setAttribute("stroke-dasharray", "2 5"); l.setAttribute("opacity", ".55");
+      } else if (locked) {
+        l.setAttribute("stroke", "#7a1f1f"); l.setAttribute("stroke-width", 3);
+        l.setAttribute("stroke-dasharray", "10 4");
+      } else {
+        l.setAttribute("stroke", e.cross ? "#b8860b" : "#b9a888");
+        l.setAttribute("stroke-width", e.cross ? 3 : 2);
+        if (e.cross) l.setAttribute("stroke-dasharray", "7 5");
+      }
       svg.appendChild(l);
     });
   });
@@ -210,7 +347,46 @@ function render() {
     el.style.display = show ? "block" : "none";
   });
   document.getElementById("empty").hidden = WORLD.rooms.some(r => r.z === curZ);
+  applyDimming();
   applyTransform();
+}
+
+// Combined dimming from the feature filter (OR over active chips) and the search
+// box. A shown room stays bright only if it clears both; others fade.
+function roomMatches(r, q) {
+  if (r.name.toLowerCase().includes(q) || r.id.includes(q)) return true;
+  if ((r.mobs || []).some(m => m.name.toLowerCase().includes(q))) return true;
+  if ((r.features || []).some(f => f.includes(q) || (FEAT_LABEL[f] || "").toLowerCase().includes(q))) return true;
+  if ((r.terrain || "").includes(q) || (r.weather || "").includes(q)) return true;
+  return false;
+}
+function applyDimming() {
+  const q = (document.getElementById("search").value || "").trim().toLowerCase();
+  const active = activeFeatures.size > 0 || !!q;
+  const perZ = {}; // z -> count of rooms matching the filter/search (any level)
+  WORLD.rooms.forEach(r => {
+    const matchFeat = activeFeatures.size === 0 || (r.features || []).some(f => activeFeatures.has(f));
+    const matchSearch = !q || roomMatches(r, q);
+    const match = matchFeat && matchSearch && !hiddenRegions.has(r.region);
+    if (match) perZ[r.z] = (perZ[r.z] || 0) + 1;
+    const el = roomEls[r.id];
+    if (!el || el.style.display === "none") return; // only style rooms shown on this level
+    el.classList.toggle("dim", !(matchFeat && matchSearch));
+    el.classList.toggle("hit", !!q && matchFeat && matchSearch);
+  });
+  updateZHints(active ? perZ : null);
+}
+
+// Annotate the Level buttons: when a filter/search is active, show a red count
+// on other levels that hold matches — so filtering by 🔒 on "ground" tells you
+// the hits are down on the diggings level instead of just blanking the view.
+function updateZHints(perZ) {
+  [...zbox.children].forEach(b => {
+    const z = +b.dataset.z, sup = b.querySelector(".zc");
+    const n = perZ && z !== curZ ? (perZ[z] || 0) : 0;
+    sup.textContent = n ? "•" + n : "";
+    b.classList.toggle("zmatch", n > 0);
+  });
 }
 
 function buildRoom(r) {
@@ -220,17 +396,23 @@ function buildRoom(r) {
   el.style.left = px(r.x) + "px"; el.style.top = py(r.y) + "px";
   el.style.setProperty("--rb", c.b); el.style.setProperty("--rf", c.f);
   const tdot = TERRAIN[r.terrain] || "#bbb";
-  let badges = "";
-  if (r.spawn) badges += "◉";
-  if (r.mobs.some(m => m.shop)) badges += "⛁";
-  if (r.mobs.some(m => m.trainer)) badges += "⚒";
-  if (r.items) badges += "▪";
-  if (r.exits.some(e => e.dir === "up")) badges += "⇡";
-  if (r.exits.some(e => e.dir === "down")) badges += "⇣";
+  // Badges from the room's feature list (in FEATURES order), plus stairs. A
+  // stair glyph is tinted red when that vertical door is locked/hidden — the
+  // only on-card cue for a vertical locked door (vertical exits aren't drawn as
+  // edges).
+  let badges = FEATURES.filter(f => (r.features || []).includes(f.key)).map(f => f.glyph).join("");
+  const stair = (dir, glyph) => {
+    const e = r.exits.find(x => x.dir === dir);
+    if (!e) return "";
+    if (e.locked) return '<span class="lk" title="locked ' + dir + '">' + glyph + "</span>";
+    if (e.hidden) return '<span class="hd" title="hidden ' + dir + '">' + glyph + "</span>";
+    return glyph;
+  };
+  badges += stair("up", "⇡") + stair("down", "⇣");
   el.innerHTML =
     '<div class="bdg">' + badges + "</div>" +
     '<div class="nm">' + esc(r.name) + "</div>" +
-    '<div class="meta"><span class="tdot" style="background:' + tdot + '"></span>' + (r.terrain || "—") + "</div>";
+    '<div class="meta"><span class="tdot" style="background:' + tdot + '"></span>' + esc(r.terrain || "—") + "</div>";
   el.onclick = ev => { ev.stopPropagation(); selectRoom(r.id); };
   return el;
 }
@@ -252,17 +434,22 @@ function selectRoom(id) {
   const tag = (t, cls) => '<span class="tag ' + (cls || "") + '">' + esc(t) + "</span>";
   rows.push(row("Area", esc(area.name || r.area)));
   rows.push(row("Region", r.region ? tag(r.region) : "—"));
-  rows.push(row("Terrain", '<span class="tdot" style="background:' + (TERRAIN[r.terrain] || "#bbb") + '"></span>' + (r.terrain || "—")));
-  const flags = [];
-  if (r.spawn) flags.push("spawn ◉"); if (r.items) flags.push("items ▪"); if (r.station) flags.push("craft station ⚒");
-  if (flags.length) rows.push(row("Flags", flags.map(f => tag(f)).join("")));
+  rows.push(row("Terrain", '<span class="tdot" style="background:' + (TERRAIN[r.terrain] || "#bbb") + '"></span>' + esc(r.terrain || "—")));
+  if (r.light) rows.push(row("Light", tag(r.light)));
+  if (r.weather) rows.push(row("Weather", tag(r.weather)));
+  const feats = (r.features || []).filter(f => f !== "spawn" || r.spawn);
+  if (feats.length) rows.push(row("Features", feats.map(f => tag((FEAT_GLYPH[f] || "") + " " + (FEAT_LABEL[f] || f), f)).join(" ")));
   if (r.mobs.length) {
-    rows.push(row("NPCs", r.mobs.map(m =>
-      tag(m.name + (m.shop ? " ⛁" : "") + (m.trainer ? " ⚒" : ""), m.shop ? "shop" : m.trainer ? "trainer" : "")).join(" ")));
+    rows.push(row("NPCs", r.mobs.map(m => {
+      const cls = m.shop ? "shop" : m.trainer ? "trainer" : m.stable ? "stable" : (m.hireling || m.recruiter) ? "hire" : m.hostile ? "hostile" : m.quest ? "quest" : m.faction ? "faction" : "";
+      return tag(m.name + mobRoles(m), cls);
+    }).join(" ")));
   }
   const ex = r.exits.map(e => {
     const to = roomById[e.to];
-    const label = e.dir + " → " + (to ? esc(to.name) : e.to);
+    let label = e.dir + " → " + (to ? esc(to.name) : e.to);
+    if (e.locked) label += " 🔒";
+    if (e.hidden) label += " 🔍";
     return '<a class="exit ' + (e.cross ? "cross" : "") + '" data-to="' + e.to + '">' + label + "</a>";
   });
   rows.push(row("Exits", ex.length ? ex.join("<br>") : "—"));
@@ -298,20 +485,15 @@ function centerOn(r) {
   ty = rect.height / 2 - (py(r.y) + BOXH / 2) * scale;
   applyTransform();
 }
-document.getElementById("reset").onclick = () => { scale = 0.85; const s = WORLD.rooms.find(r => r.spawn) || WORLD.rooms[0]; if (s) { curZ = s.z; render(); centerOn(s); } };
+document.getElementById("reset").onclick = () => { scale = 0.85; const s = WORLD.rooms.find(r => r.spawn) || WORLD.rooms[0]; if (s) { curZ = s.z; syncZButtons(); render(); centerOn(s); } };
 
-// --- search ---
+// --- search (matches room name/id, NPC names, feature keys, terrain, weather) ---
 document.getElementById("search").addEventListener("input", e => {
   const q = e.target.value.trim().toLowerCase();
-  let first = null;
-  WORLD.rooms.forEach(r => {
-    const el = roomEls[r.id]; if (!el) return;
-    const hit = q && (r.name.toLowerCase().includes(q) || r.id.includes(q));
-    el.classList.toggle("hit", !!hit);
-    el.classList.toggle("dim", !!q && !hit);
-    if (hit && !first) first = r;
-  });
-  if (first) { if (first.z !== curZ) { curZ = first.z; render(); } centerOn(first); }
+  applyDimming();
+  if (!q) return;
+  const first = WORLD.rooms.find(r => roomMatches(r, q) && !hiddenRegions.has(r.region));
+  if (first) { if (first.z !== curZ) { curZ = first.z; syncZButtons(); render(); } centerOn(first); }
 });
 
 // --- go ---
@@ -320,6 +502,15 @@ const spawn = WORLD.rooms.find(r => r.spawn) || WORLD.rooms[0];
 if (spawn) centerOn(spawn);
 
 function esc(s) { return String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c])); }
+
+// Role glyphs appended after an NPC's name in the detail panel.
+function mobRoles(m) {
+  let s = "";
+  if (m.shop) s += " ⛁"; if (m.trainer) s += " ⚒"; if (m.stable) s += " 🐎";
+  if (m.recruiter || m.hireling) s += " ⚔"; if (m.quest) s += " ❗";
+  if (m.hostile) s += " ☠"; if (m.faction) s += " ⚑";
+  return s;
+}
 </script>
 </body>
 </html>

@@ -11,7 +11,16 @@ description: |
 exits:
   east: sand-hills-foot
   down: deep-diggings
+  # A hairline fissure in the west wall opens on a hidden gallery — unlisted and
+  # unwalkable until a character `search`es it out (hidden-exits §2). The reverse
+  # (the gallery's `east`) is authored NOT hidden.
+  west: the-hidden-gallery
 terrain: cave
+# Hidden exit (hidden-exits §2): the fissure west stays concealed until searched.
+# A deliberately easy difficulty — the demo's "find the secret room".
+hidden_exits:
+  west:
+    search_difficulty: 2
 # A pickaxe left at the digging face — the mining-tool the iron veins require
 # (gathering §3.3). Also sold by Haral; left here so a new miner can start.
 items:

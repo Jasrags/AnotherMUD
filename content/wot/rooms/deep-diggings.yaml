@@ -5,8 +5,26 @@ description: |
   The shaft opens into a worked-out chamber deep in the mountain's flank, the
   props black with age and the walls scored by long-dead picks. Whoever cut this
   place left in a hurry, or never left at all — but the iron is not spent: a
-  fresh seam glitters in the rock where the old work stopped. The only way out is
-  back up the shaft.
+  fresh seam glitters in the rock where the old work stopped. A low iron door,
+  rusted near shut, is set into the far wall where the old miners walled off a
+  drift; the shaft climbs back up toward the light behind you.
 exits:
   up: the-diggings
+  down: the-sealed-drift
 terrain: cave
+# A LOCKED iron door down into the sealed drift (inventory-equipment-items §5.3).
+# It needs the rusted iron key — dropped here on the chamber floor — or an
+# Open-Lock pick as a keyless way through (skills §4: `pick iron`). Both sides of
+# the door are declared (the drift's `up`) so movement blocks both ways and the
+# runtime open/lock state stays in sync.
+doors:
+  down:
+    name: an iron door
+    keywords: [iron, door]
+    locked: true
+    key: rusted-iron-key
+    pickable: true
+    pick_difficulty: 15
+# The key to the iron door, left on the chamber floor for a miner to find.
+items:
+  - rusted-iron-key

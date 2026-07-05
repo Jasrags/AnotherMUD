@@ -45,14 +45,47 @@ in any browser.)
 ## What the map shows
 
 - **Every room** as a region-tinted card, positioned by compass geography
-  (north up). Spawn ◉, shop ⛁, trainer ⚒, items ▪, and stairs ⇡⇣ badges; a
-  terrain dot.
-- **Exits** as lines between rooms; **cross-area** roads are dashed gold.
+  (north up), with a terrain dot and **feature badges** drawn from the room's
+  content:
+  - ◉ spawn · ⛁ shop · ⚒ trainer · ⚙ craft station · ▪ items · ⇡⇣ stairs
+  - 🐎 stable/mount · ⚔ hire (recruiter/hireling) · ❗ quest giver · ⚑ faction NPC
+    · ☠ hostile mob
+  - 🔒 locked door · 🔍 hidden exit · 🌙 dark room
+- **Exits** as lines: normal tan, **cross-area** dashed gold, **locked** dashed
+  red, **hidden** faint red dotted (toggle with the "🔍 hidden" button).
 - **Regions** color-coded (Two Rivers, Andor, …) with a clickable legend filter.
-- **Interactions:** drag to pan, wheel to zoom, click a room for a detail panel
-  (area, region, terrain, NPCs with shop/trainer roles, every exit — click an
-  exit to jump), a search box (name or id), z-level toggles (ground / upstairs /
-  diggings), and "Recenter".
+- **Feature filter:** a chip per feature present in the pack. Toggle chips to
+  keep matching rooms bright and **dim the rest** (multiple chips = OR — any
+  selected feature). E.g. click 🐎 + 🔒 to spotlight stables and locked caches.
+- **Search** matches room name/id, **NPC names, feature keywords, terrain, and
+  weather zone** — so `recruiter`, `stable`, `guard`, `locked`, `hidden`, or a
+  mob name all find rooms (and jump to the first match, switching z-level if
+  needed).
+- **Detail panel** (click a room): area, region, terrain, **light level**,
+  **weather zone**, the room's feature tags, NPCs with role glyphs, and every
+  exit (marked 🔒 locked / 🔍 hidden) — click an exit to jump.
+- **Legend:** a "Legend" button opens a panel explaining every badge glyph, the
+  four exit/door line styles, terrain-dot colors, and region tints — built from
+  the same data the map renders, so it stays in sync.
+- **Controls:** drag to pan, wheel to zoom, z-level toggles (ground / upstairs /
+  diggings), the hidden-exit toggle, and "Recenter".
+
+### Feature detection (what maps to each badge)
+
+The renderer (`cmd/worldmap`) reads these YAML fields directly — add content in
+those shapes and it shows up on the next `make worldmap`:
+
+| Badge | Source |
+|-------|--------|
+| ⛁ shop / ⚒ trainer | mob `properties.shop`/`shop` tag · `trainer:`/`skill_trainer` tag |
+| 🐎 stable | mob `properties.stable` or `stable` tag |
+| ⚔ hire | mob `hireling:` or `recruiter:` block |
+| ❗ quest | mob is a quest `giver:` (from `quests/*.yaml`) |
+| ⚑ faction | mob `faction:` field |
+| ☠ hostile | mob `disposition_rules.default: hostile` |
+| 🔒 locked / 🔍 hidden | room `doors.<dir>.locked` · `hidden_exits:` |
+| ⚙ craft / 🌙 dark | room `properties.craft_stations` · `properties.light: black` |
+| weather (panel) | area `weather_zone:` |
 
 ## Procedure
 

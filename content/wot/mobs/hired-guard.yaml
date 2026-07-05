@@ -1,0 +1,28 @@
+id: hired-guard
+name: a road-worn guard
+type: npc
+behavior: stationary
+description: |
+  A road-worn guard sits with his back to the wall and a short sword across his
+  knees, watching the room over the rim of a mug. He has the look of a man who
+  has walked more miles than he cares to count at a merchant's wheel — and who
+  will walk them again at your side, for the right coin, and put steel between
+  you and trouble on the road.
+tags: [humanoid]
+keywords: [guard, sword, swordsman, mercenary, merc]
+# A hireable companion (hireable-mobs.md). The `hireling:` block is what marks
+# it: presence makes the mob hireable — a character may `hire` it as an owned
+# companion that follows and fights for them. hire_cost is the up-front gold
+# charged at hire (§3.1); upkeep is the recurring gold sink (§7).
+hireling:
+  hire_cost: 50
+  upkeep: 5
+disposition_rules:
+  default: neutral
+# A capable fighter — armed like a caravan guard so it earns its pay. The
+# short-sword's modifiers buff it and drop into its corpse on death (it can be
+# killed, §6.2).
+equipment: [short-sword]
+stats:
+  hp_max: 26
+  str: 13

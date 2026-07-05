@@ -11,3 +11,9 @@ description: |
 exits:
   north: quarry-road
 terrain: outdoors
+# Stable access point (mounts.md §3.1): Aldin keeps the district's paddock here
+# at the out-of-the-way farm. `stable`/`unstable` and `buymount` work in his
+# room — a saddle mare bought here carries a rider the long roads (the riding
+# horse is spawned on purchase from his `sells` map, never placed loose).
+mobs:
+  - ostler

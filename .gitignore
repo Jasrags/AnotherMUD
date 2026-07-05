@@ -40,3 +40,4 @@ coverage.*
 # Local symlink to the WheelMUD reference docs (WoT setting source, not part of this module)
 /wot-reference
 /telnet-smoke
+/worldmap

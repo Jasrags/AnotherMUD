@@ -1,0 +1,32 @@
+id: the-sealed-drift
+area: mountains-of-mist
+name: "The Sealed Drift"
+description: |
+  A drift hacked out of the bedrock and then walled off and forgotten — whatever
+  the old miners wanted kept out of easy reach still waits here in the dark. A
+  fresh iron seam glitters where a pick was set down and never taken up again.
+  The rusted iron door back up to the deep diggings is the only way out.
+terrain: cave
+# Light & darkness (§9): deliberately no light override — a cave room with no
+# override resolves toward darkness underground, so the drift is dim-to-black as
+# its prose promises. Bring a lit source (or darkvision) to make out the payoff;
+# the escape invariant still lets a visitor feel their way back out.
+exits:
+  up: deep-diggings
+# Reverse of the deep diggings' locked iron door on `up` — same name/key so the
+# two sides stay in sync at runtime (inventory-equipment-items §5.3). The reverse
+# side is pickable too, so the door's pick state is symmetric (skills §4).
+doors:
+  up:
+    name: an iron door
+    keywords: [iron, door]
+    locked: true
+    key: rusted-iron-key
+    pickable: true
+    pick_difficulty: 15
+# Payoff for getting through the locked door: a traveller's purse and a cache of
+# ore the old miners never hauled out.
+items:
+  - purse-of-marks
+  - iron-ore
+  - iron-ore

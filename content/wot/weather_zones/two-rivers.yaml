@@ -1,0 +1,61 @@
+id: two-rivers
+# Areas declaring `weather_zone: two-rivers` start at the initial state below
+# before the first roll. Default if omitted is "clear".
+initial_state: clear
+# Roll every in-game hour. Default if omitted is 1.
+roll_interval_hours: 1
+# Weighted transition table: each entry under a state lists possible next-states
+# and their weights. Weights must be > 0. A row whose entries all collapse to the
+# current state acts as "stay". The Two Rivers is a mild farming country — mostly
+# fair, with soft grey rains rolling up off the rivers.
+transitions:
+  clear:
+    - next: clear
+      weight: 6
+    - next: cloudy
+      weight: 4
+  cloudy:
+    - next: cloudy
+      weight: 5
+    - next: clear
+      weight: 3
+    - next: rain
+      weight: 2
+  rain:
+    - next: rain
+      weight: 4
+    - next: cloudy
+      weight: 4
+    - next: clear
+      weight: 2
+# Per-state x per-terrain message tables. Absent entries fall through the cascade
+# (room override -> area override -> zone[terrain] -> empty). `outdoors` is the
+# catch-all fallback. Each line is wrapped in its state's theme tag
+# (theme/theme.yaml: weather.* / time.*) so the ambience reads with a mood tint;
+# the renderer strips the tags for no-color clients.
+weather_messages:
+  cloudy:
+    outdoors:
+      start: "<weather.cloudy>Grey cloud gathers over the Two Rivers, dimming the light.</weather.cloudy>"
+      ongoing: "<weather.cloudy>Low grey cloud drifts up off the rivers.</weather.cloudy>"
+      end: "<weather.cloudy>The cloud begins to thin and break.</weather.cloudy>"
+  rain:
+    outdoors:
+      start: "<weather.rain>A soft rain begins to patter down out of the grey.</weather.rain>"
+      ongoing: "<weather.rain>A steady country rain falls across the fields.</weather.rain>"
+      end: "<weather.rain>The rain tapers off, leaving the air washed and cool.</weather.rain>"
+  clear:
+    outdoors:
+      start: "<weather.clear>The sky clears, and warmth returns to the land.</weather.clear>"
+      ongoing: "<weather.clear>Clear skies stretch over the fields and hedgerows.</weather.clear>"
+      end: "<weather.clear>The bright sky dulls as the air thickens.</weather.clear>"
+# Time-of-day ambience for the four standard periods.
+time_messages:
+  dawn:
+    outdoors: "<time.dawn>The first pale light leaks across the eastern fields.</time.dawn>"
+  day:
+    outdoors: "<time.day>Daylight settles over the Two Rivers.</time.day>"
+  dusk:
+    outdoors: "<time.dusk>The sky deepens toward purple as evening draws in.</time.dusk>"
+  night:
+    outdoors: "<time.night>The land lies wrapped in night, lit only by stars.</time.night>"

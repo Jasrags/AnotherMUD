@@ -83,3 +83,11 @@ content:
   # faction-gated skill, and a follow-up requires the standing it grants.
   quests:
     - quests/*.yaml
+  # Weather zones (weather-and-time): the Two Rivers climate the emonds-field
+  # area now wires via `weather_zone: two-rivers`. Loader enumerates by glob.
+  weather_zones:
+    - weather_zones/*.yaml
+  # Pack Lua scripts (scripting-and-packs): discovered by this glob, loaded into
+  # the sandboxed runtime, and hot-reloadable. A kill-logging demo ships here.
+  scripts:
+    - scripts/*.lua

@@ -1,0 +1,29 @@
+id: the-inn-storeroom
+area: emonds-field
+name: "{y}The Winespring Inn — Storeroom{x}"
+description: |
+  A cool, windowless storeroom off the common room, its shelves stacked with
+  the inn's stock — wheels of cheese under muslin, sacks of flour, and a rack of
+  good wine Bran keeps back for guests who can pay for it. The only way out is
+  the stout door back west into the common room.
+terrain: indoors
+# Lit by a lamp Bran leaves burning so the stock can be counted.
+properties:
+  light: lit
+exits:
+  west: inn-common-room
+# Reverse of the common room's locked storeroom door — same name/key so the two
+# sides stay in sync at runtime (inventory-equipment-items §5.3). Pickable too,
+# so the lock's pick state is symmetric (skills §4).
+doors:
+  west:
+    name: a stout storeroom door
+    keywords: [stout, storeroom, door]
+    locked: true
+    key: inn-storeroom-key
+    pickable: true
+    pick_difficulty: 12
+# The stock worth locking away: a bottle of good wine and the day's takings.
+items:
+  - fine-wine
+  - purse-of-marks

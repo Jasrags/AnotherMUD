@@ -1,0 +1,12 @@
+id: rusted-iron-key
+name: a rusted iron key
+type: item
+tags: [key]
+keywords: [key, iron]
+properties:
+  weight: 1
+  # Base value so a shop can price it if sold (economy-survival §3.3).
+  value: 2
+# Unlocks the sealed drift's iron door (inventory-equipment-items §5.3):
+# the door's `key: rusted-iron-key` matches this template id, so holding
+# this lets `unlock`/`lock` the iron door down in the deep diggings.
