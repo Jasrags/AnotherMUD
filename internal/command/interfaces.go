@@ -314,6 +314,11 @@ type Env struct {
 	Hirelings   HirelingService
 	HirelingCap int
 
+	// Spawn is the admin builder-spawn service (spawn.go): the `spawn` verb
+	// mints an item/mob/currency into the world through it. nil disables the
+	// verb; the handler nil-guards.
+	Spawn SpawnService
+
 	// Trades is the direct-trade session manager (direct-trade.md). The
 	// trade/offer/confirm/decline verbs route through it. nil disables
 	// trading; handlers MUST nil-guard.

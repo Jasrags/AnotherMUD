@@ -126,6 +126,10 @@ type Context struct {
 	// the simultaneous-hireling cap (§3.3).
 	Hirelings   HirelingService
 	HirelingCap int
+	// Spawn is the admin builder-spawn service (spawn.go): mint an item/mob
+	// from a template into the world. The `spawn` verb routes through it. nil
+	// disables the verb (tests / headless).
+	Spawn SpawnService
 	// Trades is the direct-trade session manager (direct-trade.md). The
 	// trade/offer/confirm/decline verbs route through it. nil disables
 	// trading (tests / headless); handlers MUST nil-guard.

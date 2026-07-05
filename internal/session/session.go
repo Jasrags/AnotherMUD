@@ -440,6 +440,10 @@ type Config struct {
 	Hirelings   command.HirelingService
 	HirelingCap int
 
+	// Spawn is the admin builder-spawn service (command SpawnService). Passed
+	// through command.Env so the `spawn` verb can mint items/mobs into the world.
+	Spawn command.SpawnService
+
 	// Trades is the direct-trade session manager (direct-trade.md).
 	// Passed through command.Env so the trade/offer/confirm/decline verbs
 	// route through it, and used by the teardown hooks (disconnect /

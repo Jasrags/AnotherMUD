@@ -514,6 +514,7 @@ func (r *Registry) Dispatch(ctx context.Context, env Env, actor Actor, raw strin
 		Mounts:                env.Mounts,
 		Hirelings:             env.Hirelings,
 		HirelingCap:           env.HirelingCap,
+		Spawn:                 env.Spawn,
 		Trades:                env.Trades,
 		Auction:               env.Auction,
 		Shop:                  env.Shop,

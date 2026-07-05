@@ -3168,6 +3168,7 @@ func run() error {
 		Mounts:                mountSvc,
 		Hirelings:             hirelingSvc,
 		HirelingCap:           envIntOr("ANOTHERMUD_HIRELING_CAP", 3),
+		Spawn:                 &bootSpawnServiceAdapter{inner: spawner},
 		Trades:                tradeMgr,
 		Auction:               auctionMgr,
 		Shop:                  shopSvc,
@@ -3941,6 +3942,45 @@ func (a *bootSpawnerAdapter) Spawn(ctx context.Context, templateID string, roomI
 		}
 	}
 	return a.inner.spawnMob(ctx, templateID, roomID)
+}
+
+// spawnItem mints an item instance from templateID WITHOUT placing it —
+// SpawnAndPlace minus the placement step. The admin spawn service files the
+// returned instance into a room or an inventory itself.
+func (b *bootSpawner) spawnItem(templateID string) (*entities.ItemInstance, error) {
+	tpl, err := b.templates.Get(item.TemplateID(templateID))
+	if err != nil {
+		return nil, fmt.Errorf("template lookup: %w", err)
+	}
+	return b.store.Spawn(tpl)
+}
+
+// bootSpawnServiceAdapter adapts *bootSpawner to command.SpawnService — the
+// admin `spawn` verb's builder pipeline. SpawnMob runs the full mob pipeline
+// and reports the placed mob's display name; SpawnItem mints an item and lets
+// the handler decide placement (room floor vs inventory).
+type bootSpawnServiceAdapter struct{ inner *bootSpawner }
+
+func (a *bootSpawnServiceAdapter) SpawnMob(ctx context.Context, templateID string, roomID world.RoomID) (entities.EntityID, string, error) {
+	id, err := a.inner.spawnMob(ctx, templateID, roomID)
+	if err != nil {
+		return "", "", err
+	}
+	name := templateID
+	if e, ok := a.inner.store.GetByID(id); ok {
+		if named, ok := e.(interface{ Name() string }); ok {
+			name = named.Name()
+		}
+	}
+	return id, name, nil
+}
+
+func (a *bootSpawnServiceAdapter) SpawnItem(_ context.Context, templateID string) (entities.EntityID, string, error) {
+	inst, err := a.inner.spawnItem(templateID)
+	if err != nil {
+		return "", "", err
+	}
+	return inst.ID(), inst.Name(), nil
 }
 
 // wireBiomeNodeSpawnRules generates per-room resource-node spawn rules from
