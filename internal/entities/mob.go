@@ -181,6 +181,12 @@ type MobInstance struct {
 	// combat.Stats.ArmorRating. 0 = unarmored (the default); intrinsic natural
 	// armor is not folded in (v1 = worn armor only).
 	armorRating int
+	// armorDexCap is the most restrictive (lowest) worn-armor max-Dex cap, the
+	// mob mirror of the player's armorDexCap (armor-depth §3). Set once during the
+	// spawn pipeline by SetArmorDexCap (EquipMobAtSpawn), read lock-free by
+	// cappedDexAC (the InputDexAC producer). nil = no piece caps Dex (the
+	// default), so the full Dex modifier reaches AC.
+	armorDexCap *int
 	// offWeapon / offWeaponName / offWeaponDamageTypes / offWeaponSize are the
 	// mob's OFF-HAND weapon (two-weapon-fighting §2.3) — a second equipped weapon
 	// that fits the off-hand slot. Set during the spawn pipeline by SetOffWeapon

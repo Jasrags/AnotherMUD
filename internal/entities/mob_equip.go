@@ -69,6 +69,7 @@ func (s *Store) EquipMobAtSpawn(m *MobInstance, ids []string, items *item.Templa
 	offSet := false                   // off-hand weapon chosen (two-weapon-fighting §2.3)
 	var resist map[string]int         // per-type resistance summed across fitting armor (armor-depth §4)
 	armorRating := 0                  // worn armor AC sum (subdual-damage §6, the whip anti-armor gate)
+	var armorDexCap *int              // most restrictive worn-armor max-Dex cap (armor-depth §3; the dex_ac producer)
 	for _, id := range ids {
 		tpl, err := items.Get(item.TemplateID(id))
 		if err != nil {
@@ -141,6 +142,12 @@ func (s *Store) EquipMobAtSpawn(m *MobInstance, ids []string, items *item.Templa
 				resist[dt] += amt
 			}
 			armorRating += it.ArmorBonus() // subdual-damage §6: worn armor rating (whip gate)
+			// armor-depth §3: the most restrictive (lowest) max-Dex cap across worn
+			// armor, feeding cappedDexAC (the dex_ac producer). Mirrors the player's
+			// recomputeWeaponLocked snapshot. ArmorMaxDex returns a fresh copy.
+			if mdx := it.ArmorMaxDex(); mdx != nil && (armorDexCap == nil || *mdx < *armorDexCap) {
+				armorDexCap = mdx
+			}
 		} else {
 			// Carried but not slot-equipped: modifiers skipped (§3.7).
 			res.Skipped = append(res.Skipped, id)
@@ -158,6 +165,9 @@ func (s *Store) EquipMobAtSpawn(m *MobInstance, ids []string, items *item.Templa
 	}
 	if armorRating != 0 {
 		m.SetArmorRating(armorRating)
+	}
+	if armorDexCap != nil {
+		m.SetArmorDexCap(armorDexCap)
 	}
 	return res, nil
 }

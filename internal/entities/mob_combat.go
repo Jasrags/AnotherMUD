@@ -56,6 +56,12 @@ func (m *MobInstance) Stats() combat.Stats {
 				// combat.Stats.ArmorRating below. 0 for an unarmoured mob.
 				return m.armorRating
 			}
+			if name == channel.InputDexAC {
+				// WoT defence input (`defense: ac + dex_ac`) — the mob mirror of the
+				// player's cappedDexAC. Without this the mob read 0 and silently
+				// ignored Dex on defence (sr-m3c-deferred-fixes).
+				return m.cappedDexAC()
+			}
 			return m.statBlock.Effective(progression.StatType(name))
 		}
 		hitMod = m.channelMap.Value(channel.Attack, lookup)
@@ -201,6 +207,26 @@ func (m *MobInstance) SetOffWeapon(dice combat.DiceExpr, name string, damageType
 // goroutine — the same write-once-at-spawn contract as SetResistances.
 func (m *MobInstance) SetArmorRating(rating int) {
 	m.armorRating = rating
+}
+
+// SetArmorDexCap installs the most restrictive worn-armor max-Dex cap (armor-
+// depth §3), the mob mirror of the player's armorDexCap. Called once during the
+// spawn pipeline (EquipMobAtSpawn) after gear is placed; read lock-free by
+// cappedDexAC on the tick goroutine — the same write-once-at-spawn contract as
+// SetArmorRating. nil ⇒ no piece caps Dex.
+func (m *MobInstance) SetArmorDexCap(cap *int) {
+	m.armorDexCap = cap
+}
+
+// cappedDexAC is the InputDexAC producer (`defense: ac + dex_ac`): the mob's Dex
+// ability modifier, clamped by the most restrictive worn-armor max-Dex cap.
+// Mirrors connActor.cappedDexAC. No cap ⇒ the full modifier.
+func (m *MobInstance) cappedDexAC() int {
+	dexMod := progression.AbilityModifier(m.statBlock.Effective(progression.StatDEX))
+	if m.armorDexCap == nil || dexMod <= *m.armorDexCap {
+		return dexMod
+	}
+	return *m.armorDexCap
 }
 
 // SetResistances installs the mob's aggregated per-damage-type damage
