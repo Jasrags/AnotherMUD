@@ -226,6 +226,13 @@ type Config struct {
 	AttributeSets      *progression.AttributeSetRegistry
 	WorldAttributeSets map[string]string
 
+	// Pools is the content-declared resource-pool registry (shadowrun-mvp
+	// SR-M3a). Held so the actor constructor seeds a character's pool.Set from
+	// the active world's player-seed pool decls (mana/movement in core, plus a
+	// world's own monitors) instead of the hardcoded pair. nil-safe: a missing
+	// registry falls back to the hardcoded mana/movement seed (seedResourcePools).
+	Pools *pool.Registry
+
 	// Proficiency is the M9.1 per-entity ability proficiency
 	// manager (spec abilities-and-effects §3). The session-load
 	// path restores the actor's persisted Abilities snapshot into
@@ -735,6 +742,7 @@ func run(ctx context.Context, c conn.Connection, cfg Config) error {
 		// would derive real numbers for max HP here are M8.3/M8.4.
 		vitals:         restorePlayerVitals(loaded.Player.Vitals),
 		pools:          pool.NewSet(),
+		poolDecls:      playerSeedPoolDecls(cfg.Pools),
 		channelMap:     cfg.ChannelMap,
 		unarmedSubdual: cfg.UnarmedSubdual,
 		flood:          newFloodGate(floodCfg, clk),
@@ -2089,6 +2097,14 @@ type connActor struct {
 	// from the stat maxes in the constructor; nil in bare test-built
 	// actors (the accessors are nil-safe).
 	pools *pool.Set
+
+	// poolDecls is the active world's player-seed pool declarations (SR-M3a),
+	// resolved once from Config.Pools at construction and consumed by
+	// seedResourcePools to build `pools`. Empty/nil (a bare test actor or a boot
+	// with no pool content) makes seedResourcePools fall back to the hardcoded
+	// mana/movement pair — the same nil-content fallback SR-M1 uses for the
+	// attribute set. Kind-sorted (registry order) so seeding is deterministic.
+	poolDecls []*pool.Decl
 
 	// channelMap is the active ruleset's stat→combat-channel derivation,
 	// set from Config.ChannelMap at construction (nil in bare test-built
@@ -5063,17 +5079,40 @@ func (a *connActor) seedResourcePools() {
 	if a.pools == nil {
 		a.pools = pool.NewSet()
 	}
-	binds := []struct {
-		kind pool.Kind
-		stat progression.StatType
-	}{
-		{poolKindMana, progression.StatResourceMax},
-		{poolKindMovement, progression.StatMovementMax},
+	// Binds come from the active world's player-seed pool decls (SR-M3a step 3);
+	// fall back to the hardcoded mana/movement pair only when no pool content
+	// resolved (a bare test actor or a degenerate boot) — the same nil-content
+	// fallback discipline SR-M1 uses for the attribute set. Because the core
+	// pack now declares mana/movement identically (the step-2 regression gate),
+	// the real boot takes the data-driven branch and produces the same pools.
+	type poolBind struct {
+		kind    pool.Kind
+		channel progression.StatType
+		rules   pool.Rules
+	}
+	var binds []poolBind
+	if len(a.poolDecls) > 0 {
+		for _, d := range a.poolDecls {
+			binds = append(binds, poolBind{d.Kind, progression.StatType(d.MaxChannel), d.Rules})
+		}
+	} else {
+		binds = []poolBind{
+			{poolKindMana, progression.StatResourceMax, pool.Rules{Floor: 0}},
+			{poolKindMovement, progression.StatMovementMax, pool.Rules{Floor: 0}},
+		}
 	}
 	for _, b := range binds {
-		p := pool.New(b.kind, a.statBlock.Effective(b.stat), pool.Rules{Floor: 0})
+		// A pool with no ceiling channel seeds at max 0 (inert until content
+		// grants one) and needs no OnMaxChange binding.
+		max := 0
+		if b.channel != "" {
+			max = a.statBlock.Effective(b.channel)
+		}
+		p := pool.New(b.kind, max, b.rules)
 		a.pools.Add(p)
-		a.statBlock.OnMaxChange(b.stat, func(_, newMax int) { p.SetMax(newMax) })
+		if b.channel != "" {
+			a.statBlock.OnMaxChange(b.channel, func(_, newMax int) { p.SetMax(newMax) })
+		}
 	}
 	// Apply persisted currents AFTER seeding full + binding maxes. SetCurrent
 	// clamps to [floor, live max], so a stale persisted value (max shrank
@@ -5085,6 +5124,23 @@ func (a *connActor) seedResourcePools() {
 			}
 		}
 	}
+}
+
+// playerSeedPoolDecls returns the player-seeded pool decls from the registry in
+// deterministic (kind-sorted) order. A nil registry yields nil, which makes
+// seedResourcePools fall back to the hardcoded mana/movement pair (a bare test
+// actor / a boot with no pool content).
+func playerSeedPoolDecls(reg *pool.Registry) []*pool.Decl {
+	if reg == nil {
+		return nil
+	}
+	var out []*pool.Decl
+	for _, d := range reg.All() {
+		if d.SeedOnPlayer {
+			out = append(out, d)
+		}
+	}
+	return out
 }
 
 // Movement returns the actor's current movement pool for the §4.7 skill

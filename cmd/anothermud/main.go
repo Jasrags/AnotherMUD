@@ -3154,6 +3154,7 @@ func run() error {
 		Backgrounds:           registries.Backgrounds,
 		AttributeSets:         registries.AttributeSets,
 		WorldAttributeSets:    registries.WorldAttributeSets,
+		Pools:                 registries.Pools,
 		Alignment:             alignmentMgr,
 		Faction:               factionMgr,
 		Reputation:            reputationMgr,
