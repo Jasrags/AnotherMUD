@@ -70,7 +70,7 @@ TOCTOU) were fixed pre-commit earlier.
 - ~~`m7-3 #1` — `removeFromListLocked` aliases the backing slice~~ — **NOT A LIVE BUG (verified 2026-07-06).** The in-place `append(list[:i], list[i+1:]...)` shift is safe because no un-copied `m.lists` slice ever escapes `m.mu` — every accessor snapshots (`OpponentsOf`/`AllCombatants` copy, `PrimaryTargetOf` returns a value, `DisengageAll` copies before its mutation loop). A latent footgun only, now documented as an INVARIANT comment on `removeFromListLocked`/`PromoteTarget` (a future accessor returning the raw slice would break it → copy-on-out or fresh-slice build). No code behavior change.
 - `m7-5 #2` — `DeathCheck` cancellation contract is doc-only
 - `m7-5 #4` — concurrent killing-blow unit test missing
-- `m7-5 #5` — `VitalsState` YAML decode is unbounded
+- ~~`m7-5 #5` — `VitalsState` YAML decode is unbounded~~ — **MISCHARACTERIZED (verified 2026-07-06).** `VitalsState` is two scalar ints (`HP`, `MaxHP`) — no array/collection to bound. The load path `restorePlayerVitals` already clamps out-of-bounds values (`HP > MaxHP`, `MaxHP < 1`). Nothing to fix.
 - `m7-5 #6` — bus `Publish` re-entrancy contract on `productionCombatSink`
 - `m7-6 #3` — `FleeOutcomeFailedUnknownRoom` overloaded with Mover-refusal
 - `m7-6 #4` — `Heartbeat.Tick` reaches into `Manager.cooldowns` (encapsulation)
