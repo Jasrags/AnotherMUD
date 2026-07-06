@@ -939,6 +939,7 @@ type RaceFile struct {
 	Category          string         `yaml:"category,omitempty"`
 	StartingAlignment int            `yaml:"starting_alignment,omitempty"`
 	StatCaps          map[string]int `yaml:"stat_caps,omitempty"`
+	StatBonuses       map[string]int `yaml:"stat_bonuses,omitempty"`
 	CastCostModifier  int            `yaml:"cast_cost_modifier,omitempty"`
 	RacialFlags       []string       `yaml:"racial_flags,omitempty"`
 	Size              string         `yaml:"size,omitempty"`

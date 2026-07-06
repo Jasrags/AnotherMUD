@@ -23,6 +23,12 @@ stat_caps:
   intuition: 6
   charisma: 6
   edge: 6
+# Starting skew (SR5 dwarf: Body 3, Strength 3, Willpower 2 min → +2/+2/+1 over
+# the human baseline of 1). Applied once at creation on top of the seed.
+stat_bonuses:
+  body: 2
+  strength: 2
+  willpower: 1
 cast_cost_modifier: 0
 racial_flags:
   - common-tongue

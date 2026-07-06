@@ -21,6 +21,11 @@ stat_caps:
   intuition: 6
   charisma: 5
   edge: 6
+# Starting skew (SR5 ork: Body 4, Strength 3 min → +3/+2 over the human baseline
+# of 1). "Soak a burst and keep walking." Applied once at creation.
+stat_bonuses:
+  body: 3
+  strength: 2
 cast_cost_modifier: 0
 racial_flags:
   - common-tongue

@@ -53,6 +53,14 @@ type Race struct {
 	// training reads these.
 	StatCaps map[StatType]int
 
+	// StatBonuses is a flat starting-attribute grant added ONCE at character
+	// creation via AdjustBase, the same seam as Class.StartingStats (so a
+	// metatype and a class compose additively). An ork's higher Body/Strength,
+	// a troll's far higher Body/Strength — the metatype's *starting* skew,
+	// distinct from StatCaps (its train *ceiling*). Absent ⇒ no seed skew.
+	// A negative entry is permitted (a metatype attribute penalty).
+	StatBonuses map[StatType]int
+
 	// CastCostModifier is added to every ability's base resource
 	// cost (spec §3.1 cast-cost). Clamped at zero by
 	// cost.AdjustCost. M9 abilities read this.
@@ -121,6 +129,13 @@ func (rg *RaceRegistry) Register(r *Race) error {
 			caps[k] = v
 		}
 		clone.StatCaps = caps
+	}
+	if len(r.StatBonuses) > 0 {
+		bonuses := make(map[StatType]int, len(r.StatBonuses))
+		for k, v := range r.StatBonuses {
+			bonuses[k] = v
+		}
+		clone.StatBonuses = bonuses
 	}
 	if len(r.RacialFlags) > 0 {
 		flags := make([]string, len(r.RacialFlags))

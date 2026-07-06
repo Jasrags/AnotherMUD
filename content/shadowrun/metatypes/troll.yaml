@@ -23,6 +23,12 @@ stat_caps:
   intuition: 5
   charisma: 4
   edge: 6
+# Starting skew (SR5 troll: Body 5, Strength 5 min → +4/+4 over the human
+# baseline of 1) — the sixth world's living cover. Applied once at creation;
+# body 3+4=7 sits well under the metatype's train ceiling of 10.
+stat_bonuses:
+  body: 4
+  strength: 4
 cast_cost_modifier: 0
 racial_flags:
   - common-tongue

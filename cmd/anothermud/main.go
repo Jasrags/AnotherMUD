@@ -1204,6 +1204,18 @@ func run() error {
 		if !ok {
 			return
 		}
+		// Metatype starting-attribute skew (sr-m3c-deferred-fixes): an ork
+		// begins stronger, a troll far stronger. Applied once via the same
+		// ApplyStartingStats seam as a class's StartingStats — additive
+		// AdjustBase, persisted into the base snapshot, never re-fired on
+		// relogin (RestoreBase carries it). Distinct from the race's StatCaps
+		// (its train ceiling); ApplyStartingStats no-ops an empty map, so a
+		// metatype with no skew (human) is a clean pass-through.
+		if rid := actor.RaceID(); rid != "" {
+			if race, ok := registries.Races.Get(rid); ok {
+				actor.ApplyStartingStats(race.StatBonuses)
+			}
+		}
 		for _, classID := range actor.ClassIDs() {
 			// Spec §4.5 step 3: character-created is treated as level 1
 			// with no track gate. Pass empty trackName so Apply

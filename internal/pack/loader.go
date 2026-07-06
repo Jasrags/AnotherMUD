@@ -2223,6 +2223,21 @@ func decodeRace(path, ns string) (*progression.Race, error) {
 		}
 	}
 
+	// stat_bonuses is the metatype's starting-attribute skew (applied at
+	// creation via AdjustBase). Unlike stat_caps, a negative value is allowed
+	// (a metatype attribute penalty). Mirrors the empty-key guard.
+	var bonuses map[progression.StatType]int
+	if len(f.StatBonuses) > 0 {
+		bonuses = make(map[progression.StatType]int, len(f.StatBonuses))
+		for k, v := range f.StatBonuses {
+			key := strings.ToLower(strings.TrimSpace(k))
+			if key == "" {
+				return nil, fmt.Errorf("%w: %s: stat_bonuses has empty key", ErrInvalidContent, path)
+			}
+			bonuses[progression.StatType(key)] = v
+		}
+	}
+
 	var flags []string
 	if len(f.RacialFlags) > 0 {
 		flags = make([]string, 0, len(f.RacialFlags))
@@ -2250,6 +2265,7 @@ func decodeRace(path, ns string) (*progression.Race, error) {
 		Category:          strings.TrimSpace(f.Category),
 		StartingAlignment: f.StartingAlignment,
 		StatCaps:          caps,
+		StatBonuses:       bonuses,
 		CastCostModifier:  f.CastCostModifier,
 		RacialFlags:       flags,
 		Size:              raceSize,
