@@ -93,9 +93,14 @@ type ContentPaths struct {
 	Races       []string `yaml:"races,omitempty"`
 	Classes     []string `yaml:"classes,omitempty"`
 	Backgrounds []string `yaml:"backgrounds,omitempty"`
-	Languages   []string `yaml:"languages,omitempty"`
-	Feats       []string `yaml:"feats,omitempty"`
-	Abilities   []string `yaml:"abilities,omitempty"`
+	// AttributeSets declares content-defined base attribute sets (SR-M1 —
+	// shadowrun-mvp.md Appendix A). Loaded into Registries.AttributeSets; set
+	// ids are GLOBAL (not namespace-qualified), higher priority wins. The core
+	// pack ships the `classic` six; a world pack may declare its own.
+	AttributeSets []string `yaml:"attribute_sets,omitempty"`
+	Languages     []string `yaml:"languages,omitempty"`
+	Feats         []string `yaml:"feats,omitempty"`
+	Abilities     []string `yaml:"abilities,omitempty"`
 	// Factions declares faction/standing definition files (faction.md §2).
 	// Loaded into Registries.Factions; ids are namespace-qualified at load.
 	Factions []string `yaml:"factions,omitempty"`

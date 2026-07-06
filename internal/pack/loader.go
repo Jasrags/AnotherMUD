@@ -126,7 +126,7 @@ type pendingMobPlacement struct {
 // Filter, when non-empty, restricts discovery (spec §2.4). Pass nil to
 // load every active pack under root.
 func Load(ctx context.Context, root string, filter []string, dst *Registries, spawner Spawner, mobSpawner MobSpawner, scriptCompiler ScriptCompiler) error {
-	if dst == nil || dst.World == nil || dst.Items == nil || dst.Slots == nil || dst.Mobs == nil || dst.Tracks == nil || dst.Races == nil || dst.Classes == nil || dst.Backgrounds == nil || dst.Languages == nil || dst.Feats == nil || dst.Abilities == nil || dst.Theme == nil || dst.Help == nil || dst.Quests == nil || dst.Weather == nil || dst.Scripts == nil || dst.Rarity == nil || dst.Essence == nil || dst.Grades == nil || dst.Loot == nil || dst.Channels == nil || dst.Emotes == nil || dst.RangedFlavor == nil || dst.ChannelMap == nil {
+	if dst == nil || dst.World == nil || dst.Items == nil || dst.Slots == nil || dst.Mobs == nil || dst.Tracks == nil || dst.Races == nil || dst.Classes == nil || dst.Backgrounds == nil || dst.AttributeSets == nil || dst.Languages == nil || dst.Feats == nil || dst.Abilities == nil || dst.Theme == nil || dst.Help == nil || dst.Quests == nil || dst.Weather == nil || dst.Scripts == nil || dst.Rarity == nil || dst.Essence == nil || dst.Grades == nil || dst.Loot == nil || dst.Channels == nil || dst.Emotes == nil || dst.RangedFlavor == nil || dst.ChannelMap == nil {
 		return errors.New("pack.Load: dst has nil registry field; use pack.NewRegistries()")
 	}
 	logger := logging.From(ctx).With(slog.String("event", "pack.load"), slog.String("root", root))
@@ -757,6 +757,10 @@ func loadPackContent(ctx context.Context, p Discovered, dst *Registries, scriptC
 	if err != nil {
 		return nil, nil, err
 	}
+	attributeSetPaths, err := resolveGlobs(p.Dir, p.Manifest.Content.AttributeSets)
+	if err != nil {
+		return nil, nil, err
+	}
 	featPaths, err := resolveGlobs(p.Dir, p.Manifest.Content.Feats)
 	if err != nil {
 		return nil, nil, err
@@ -1020,6 +1024,21 @@ func loadPackContent(ctx context.Context, p Discovered, dst *Registries, scriptC
 		}
 		if err := dst.Languages.Register(l); err != nil {
 			return nil, nil, fmt.Errorf("%w (in %s)", err, lp)
+		}
+	}
+
+	// Attribute sets: global-id registry (SR-M1 — shadowrun-mvp.md Appendix A).
+	// A world seeds its characters + score sheet + trainable gate from the set
+	// its manifest selects; the core pack ships `classic` (the engine six).
+	// Register validates set/attribute ids; malformed sets fail here with pack
+	// attribution rather than seeding a broken character later.
+	for _, ap := range attributeSetPaths {
+		s, err := decodeAttributeSet(ap, ns)
+		if err != nil {
+			return nil, nil, err
+		}
+		if err := dst.AttributeSets.Register(s); err != nil {
+			return nil, nil, fmt.Errorf("%w (in %s)", err, ap)
 		}
 	}
 
@@ -1438,6 +1457,7 @@ func loadPackContent(ctx context.Context, p Discovered, dst *Registries, scriptC
 		slog.Int("races", len(racePaths)),
 		slog.Int("classes", len(classPaths)),
 		slog.Int("backgrounds", len(backgroundPaths)),
+		slog.Int("attribute_sets", len(attributeSetPaths)),
 		slog.Int("languages", len(languagePaths)),
 		slog.Int("feats", len(featPaths)),
 		slog.Int("abilities", len(abilityPaths)),
@@ -2296,6 +2316,46 @@ func decodeLanguage(path, ns string) (*progression.Language, error) {
 		Description: f.Description,
 		Pack:        ns,
 		Priority:    f.Priority,
+	}, nil
+}
+
+// decodeAttributeSet reads an AttributeSetFile and builds a
+// progression.AttributeSet (SR-M1 — shadowrun-mvp.md Appendix A). The set id
+// and the attribute ids are GLOBAL (not namespace-qualified): the set id is a
+// vocabulary selected by manifest reference (like feats/abilities), and the
+// attribute ids are the raw stat keys the StatBlock stores under. Structural
+// validation (empty/duplicate ids) happens in Register; this only checks the
+// set id is present and normalizes whitespace.
+func decodeAttributeSet(path, ns string) (*progression.AttributeSet, error) {
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		return nil, fmt.Errorf("reading attribute set %s: %w", path, err)
+	}
+	var f AttributeSetFile
+	if err := yaml.Unmarshal(raw, &f); err != nil {
+		return nil, fmt.Errorf("%w: %s: %v", ErrInvalidContent, path, err)
+	}
+	if strings.TrimSpace(f.ID) == "" {
+		return nil, fmt.Errorf("%w: %s: missing 'id'", ErrInvalidContent, path)
+	}
+	attrs := make([]progression.Attribute, 0, len(f.Attributes))
+	for _, a := range f.Attributes {
+		attrs = append(attrs, progression.Attribute{
+			ID:        progression.StatType(strings.TrimSpace(a.ID)),
+			Name:      strings.TrimSpace(a.Name),
+			Abbrev:    strings.TrimSpace(a.Abbrev),
+			Default:   a.Default,
+			Cap:       a.Cap,
+			Trainable: a.Trainable,
+			Category:  strings.TrimSpace(a.Category),
+		})
+	}
+	return &progression.AttributeSet{
+		ID:         strings.TrimSpace(f.ID),
+		Name:       strings.TrimSpace(f.Name),
+		Attributes: attrs,
+		Pack:       ns,
+		Priority:   f.Priority,
 	}, nil
 }
 

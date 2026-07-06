@@ -43,6 +43,13 @@ type Registries struct {
 	Classes *progression.ClassRegistry
 	// Backgrounds is the character-creation origin registry (backgrounds §2).
 	Backgrounds *progression.BackgroundRegistry
+	// AttributeSets is the content-defined base attribute-set registry (SR-M1 —
+	// shadowrun-mvp.md Appendix A). Packs register sets from their
+	// `attribute_sets:` glob; the core pack ships `classic` (the engine six). A
+	// world seeds its characters + its `score` sheet + its trainable gate from
+	// the set its manifest selects (wiring lands in later SR-M1 steps). Set ids
+	// are global; higher priority wins.
+	AttributeSets *progression.AttributeSetRegistry
 	// Languages is the tongue registry (languages.md §2). Packs register
 	// languages from their `languages:` glob; a background grants its
 	// home_language through it, and `score`/`languages` resolve known ids to
@@ -178,37 +185,38 @@ type Registries struct {
 // try to redefine baseline slots).
 func NewRegistries() *Registries {
 	return &Registries{
-		World:        world.New(),
-		Items:        item.NewTemplates(),
-		Slots:        slot.NewRegistry(),
-		Mobs:         mob.NewTemplates(),
-		Tracks:       progression.NewTrackRegistry(),
-		Races:        progression.NewRaceRegistry(),
-		Classes:      progression.NewClassRegistry(),
-		Backgrounds:  progression.NewBackgroundRegistry(),
-		Languages:    progression.NewLanguageRegistry(),
-		Feats:        feat.NewRegistry(),
-		Abilities:    progression.NewAbilityRegistry(),
-		Theme:        render.NewThemeRegistry(),
-		Help:         help.NewService(),
-		Quests:       quest.NewRegistry(),
-		Effects:      effect.NewRegistry(),
-		Properties:   property.NewRegistry(),
-		Weather:      weather.NewRegistry(),
-		Scripts:      script.New(),
-		Rarity:       decoration.NewRarityRegistry(),
-		Essence:      decoration.NewEssenceRegistry(),
-		Grades:       grade.NewRegistry(),
-		Loot:         loot.NewRegistry(),
-		Recipes:      recipe.NewRegistry(),
-		Biomes:       biome.NewRegistry(),
-		ForageTables: gathering.NewForageRegistry(),
-		Nodes:        gathering.NewNodeRegistry(),
-		Channels:     chat.NewRegistry(),
-		Emotes:       emote.NewRegistry(),
-		RangedFlavor: rangedflavor.NewRegistry(),
-		ChannelMap:   channel.NewRegistry(),
-		Factions:     faction.NewRegistry(faction.DefaultConfig()),
+		World:         world.New(),
+		Items:         item.NewTemplates(),
+		Slots:         slot.NewRegistry(),
+		Mobs:          mob.NewTemplates(),
+		Tracks:        progression.NewTrackRegistry(),
+		Races:         progression.NewRaceRegistry(),
+		Classes:       progression.NewClassRegistry(),
+		Backgrounds:   progression.NewBackgroundRegistry(),
+		AttributeSets: progression.NewAttributeSetRegistry(),
+		Languages:     progression.NewLanguageRegistry(),
+		Feats:         feat.NewRegistry(),
+		Abilities:     progression.NewAbilityRegistry(),
+		Theme:         render.NewThemeRegistry(),
+		Help:          help.NewService(),
+		Quests:        quest.NewRegistry(),
+		Effects:       effect.NewRegistry(),
+		Properties:    property.NewRegistry(),
+		Weather:       weather.NewRegistry(),
+		Scripts:       script.New(),
+		Rarity:        decoration.NewRarityRegistry(),
+		Essence:       decoration.NewEssenceRegistry(),
+		Grades:        grade.NewRegistry(),
+		Loot:          loot.NewRegistry(),
+		Recipes:       recipe.NewRegistry(),
+		Biomes:        biome.NewRegistry(),
+		ForageTables:  gathering.NewForageRegistry(),
+		Nodes:         gathering.NewNodeRegistry(),
+		Channels:      chat.NewRegistry(),
+		Emotes:        emote.NewRegistry(),
+		RangedFlavor:  rangedflavor.NewRegistry(),
+		ChannelMap:    channel.NewRegistry(),
+		Factions:      faction.NewRegistry(faction.DefaultConfig()),
 		// Non-nil per the all-fields-initialized invariant; Load resets and
 		// repopulates it (the active world set is empty until Load runs).
 		Worlds:   []string{},

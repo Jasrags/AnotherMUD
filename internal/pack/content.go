@@ -978,6 +978,31 @@ type LanguageFile struct {
 	Priority    int    `yaml:"priority,omitempty"`
 }
 
+// AttributeSetFile is the YAML shape for a content-defined base attribute set
+// (SR-M1 — shadowrun-mvp.md Appendix A). Decoded into a progression.AttributeSet;
+// the set id is global (not namespace-qualified).
+type AttributeSetFile struct {
+	ID         string          `yaml:"id"`
+	Name       string          `yaml:"name,omitempty"`
+	Attributes []AttributeFile `yaml:"attributes"`
+	Priority   int             `yaml:"priority,omitempty"`
+}
+
+// AttributeFile is one attribute entry in an AttributeSetFile. The id is the
+// lowercased stat key the StatBlock stores under (str/body/edge); default is
+// the creation seed; cap is the set-level train ceiling (race stat_caps
+// override per-race); trainable gates the `train` verb; category groups the
+// score sheet (physical/mental/special).
+type AttributeFile struct {
+	ID        string `yaml:"id"`
+	Name      string `yaml:"name,omitempty"`
+	Abbrev    string `yaml:"abbrev,omitempty"`
+	Default   int    `yaml:"default,omitempty"`
+	Cap       int    `yaml:"cap,omitempty"`
+	Trainable bool   `yaml:"trainable,omitempty"`
+	Category  string `yaml:"category,omitempty"`
+}
+
 // BackgroundSkillFile is one skill grant in a BackgroundFile (backgrounds §2).
 type BackgroundSkillFile struct {
 	Ability     string `yaml:"ability"`
