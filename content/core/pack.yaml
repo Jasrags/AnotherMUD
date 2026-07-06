@@ -23,6 +23,14 @@ content:
   # existing worlds.
   attribute_sets:
     - attributes/*.yaml
+  # Resource pools (shadowrun-mvp SR-M3a). The engine mana/movement pools,
+  # declared as content — the regression gate: these reproduce the hardcoded
+  # seedResourcePools binds exactly (kind, floor 0, the resource_max/movement_max
+  # ceiling channel, player-only seeding), so making the seed data-driven is a
+  # no-op for the existing worlds. A world pack (Shadowrun) declares its own
+  # monitors (Stun/Physical) with their own rules.
+  pools:
+    - pools/*.yaml
   tracks:
     - tracks/*.yaml
   races:

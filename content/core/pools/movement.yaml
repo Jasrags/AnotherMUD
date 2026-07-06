@@ -1,0 +1,12 @@
+# The engine movement pool (shadowrun-mvp SR-M3a step 2). The content form of
+# the movement pool hardcoded in seedResourcePools — part of the step-2
+# regression gate (see mana.yaml). Movement points gate the §4.7 skill/step
+# resource check; the ceiling tracks movement_max.
+#
+#   floor        = 0.
+#   max_channel  = movement_max (progression.StatMovementMax).
+#   seed_on_*    = players only (mobs carry no movement pool today).
+id: movement
+floor: 0
+max_channel: movement_max
+seed_on_player: true

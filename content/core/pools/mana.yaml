@@ -1,0 +1,15 @@
+# The engine mana pool (shadowrun-mvp SR-M3a step 2). Declares as content the
+# pool hardcoded in seedResourcePools — the REGRESSION GATE: this must reproduce
+# that bind exactly so making the seed data-driven (step 3) is a no-op for the
+# existing worlds. A character with no channeling has resource_max 0, so this
+# pool spawns empty and cost-bearing abilities still fizzle — same as today.
+#
+#   floor        = 0 (mana bottoms out at zero, never overflows or kills).
+#   max_channel  = resource_max — the StatBlock key (progression.StatResourceMax)
+#                  the ceiling binds to via OnMaxChange.
+#   seed_on_*    = players only. Mobs carry no mana pool today (they have no
+#                  pool.Set until SR-M3a step 4; this keeps that unchanged).
+id: mana
+floor: 0
+max_channel: resource_max
+seed_on_player: true
