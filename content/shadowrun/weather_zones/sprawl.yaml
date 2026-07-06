@@ -1,0 +1,26 @@
+id: sprawl
+# The Seattle sprawl's weather: it is nearly always raining. Outdoor rooms in the
+# seattle area (weather_zone: sprawl) draw their sky ambience from this table.
+# Starts overcast; rain dominates the transitions, clear skies are rare.
+initial_state: rain
+roll_interval_hours: 1
+transitions:
+  clear:
+    - next: cloudy
+      weight: 5
+    - next: rain
+      weight: 4
+    - next: clear
+      weight: 1
+  cloudy:
+    - next: rain
+      weight: 6
+    - next: cloudy
+      weight: 3
+    - next: clear
+      weight: 1
+  rain:
+    - next: rain
+      weight: 7
+    - next: cloudy
+      weight: 3

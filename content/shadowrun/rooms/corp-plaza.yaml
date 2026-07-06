@@ -6,7 +6,7 @@ description: |
   A corporate arcology looms overhead, its logo turning slowly against the rain.
   Security drones drift on patrol, and a guard watches the entrance with the flat
   patience of someone paid to end trouble. Market Street lies back to the west.
-terrain: outdoors
+terrain: sprawl
 exits:
   west: market-street
 # Corp-sec holds the plaza (neutral — returns fire if you start something).

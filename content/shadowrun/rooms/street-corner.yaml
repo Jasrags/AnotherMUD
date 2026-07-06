@@ -7,7 +7,7 @@ description: |
   a skin of gang tags. Foot traffic hurries past with their collars up and
   their eyes down. An alley cuts north into the dark, and the street runs east
   toward the market stalls and the corp towers beyond.
-terrain: outdoors
+terrain: sprawl
 exits:
   north: back-alley
   east: market-street

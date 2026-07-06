@@ -6,7 +6,7 @@ description: |
   hawking everything from stimpatches to stolen commlinks. The crowd is thick
   and nobody meets your eye. Gang tags mark this as contested turf. The corner
   lies west; a plaza of glass and steel opens east.
-terrain: outdoors
+terrain: sprawl
 exits:
   west: street-corner
   east: corp-plaza

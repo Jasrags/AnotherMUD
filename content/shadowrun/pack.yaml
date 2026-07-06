@@ -67,6 +67,13 @@ content:
     - areas/*.yaml
   rooms:
     - rooms/*.yaml
+  # The urban biome (terrain: sprawl → ambience + easy paved movement) and the
+  # sprawl's perpetual-rain weather zone. The area's `light_floor: dim` (not a
+  # biome/weather concern) is what keeps the streets navigable after dark.
+  biomes:
+    - biomes/*.yaml
+  weather_zones:
+    - weather_zones/*.yaml
   # The district population (SR-M3c-3): a hostile ganger + a corp-sec guard,
   # each with SR combat stats + gear, dropping nuyen on death.
   mobs:

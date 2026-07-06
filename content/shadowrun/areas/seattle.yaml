@@ -7,3 +7,13 @@ description: |
   the district proper arrives with the runners who work it.
 # Reset cadence in ticks; ~30s at the default 100ms tick.
 reset_interval: 300
+# Neon-lit sprawl: a light floor keeps the streets navigable after dark — full
+# by day, DIM (not gloom) at night — without a torch, exactly as Emond's Field's
+# village lamps do. The megacity never really goes dark; ad-boards and street
+# lighting bleed across every wet surface. This is what lets a runner move
+# around the MVP district at any hour (the floor MAX-combines with the sky, so
+# it lifts night to Dim regardless of terrain).
+light_floor: dim
+# The sprawl's perpetual drizzle: outdoor rooms draw weather + time ambience from
+# the sprawl-rain zone (weather_zones/sprawl.yaml).
+weather_zone: sprawl

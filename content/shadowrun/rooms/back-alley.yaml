@@ -6,7 +6,7 @@ description: |
   A maintenance ladder climbs toward a fire escape, and a soy-caf vendor's
   shuttered cart rusts against the wall. The street corner glows south, past
   the mouth of the alley.
-terrain: outdoors
+terrain: sprawl
 exits:
   south: street-corner
 tags: [safe-room, safe]

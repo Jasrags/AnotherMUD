@@ -8,6 +8,7 @@ import (
 	"github.com/Jasrags/AnotherMUD/internal/channel"
 	"github.com/Jasrags/AnotherMUD/internal/entities"
 	"github.com/Jasrags/AnotherMUD/internal/item"
+	"github.com/Jasrags/AnotherMUD/internal/light"
 	"github.com/Jasrags/AnotherMUD/internal/mob"
 	"github.com/Jasrags/AnotherMUD/internal/pool"
 	"github.com/Jasrags/AnotherMUD/internal/progression"
@@ -350,6 +351,22 @@ func TestLoad_ShadowrunDistrictAndMobs(t *testing.T) {
 		if _, err := regs.World.Room("shadowrun:" + world.RoomID(id)); err != nil {
 			t.Errorf("room shadowrun:%s not loaded: %v", id, err)
 		}
+	}
+
+	// The neon sprawl is navigable after dark: the seattle area's `light_floor:
+	// dim` bakes onto every room, so a torchless runner reads Dim (not Gloom) at
+	// night. Without it the outdoor rooms ride the natural sky and go dark. This
+	// is the "move around the MVP area" fix.
+	corner, err := regs.World.Room("shadowrun:street-corner")
+	if err != nil {
+		t.Fatalf("street-corner: %v", err)
+	}
+	if got, ok := corner.PropertyString("light_floor"); !ok || got != "dim" {
+		t.Errorf("street-corner light_floor = (%q,%v), want (dim,true) baked from the seattle area", got, ok)
+	}
+	res := light.NewResolver(light.DefaultConfig(), fixedNight{})
+	if got := res.Effective(corner, light.Black, light.Black); got != light.Dim {
+		t.Errorf("street-corner at night = %v, want Dim (neon floor lifts the dark → navigable)", got)
 	}
 
 	ganger, err := regs.Mobs.Get("shadowrun:ganger")

@@ -1,0 +1,18 @@
+# The urban sprawl biome (biomes.md §2): paved streets and alleys under the
+# corp towers. Rooms key in via `terrain: sprawl`. Outdoors — it sees the sky
+# (weather + day/night), so the seattle area's rain and its `light_floor: dim`
+# both reach it. No forage/node tables (you don't harvest herbs off wet
+# ferrocrete); movement is easy on paving.
+id: sprawl
+name: the sprawl
+description: Wet ferrocrete and neon, hemmed in by walls of corporate glass.
+weather_shielded: false
+time_shielded: false
+ambience:
+  - A grav-ad flickers overhead, hawking a soykaf brand in three languages.
+  - Rain hisses off the ferrocrete and runs neon-coloured into the gutters.
+  - Somewhere close, a siren rises, holds, and fades back into the hum.
+  - The bassline from an unseen club thuds up through the pavement.
+  - A rotorcraft crosses the towers, running lights blinking through the drizzle.
+# Paved streets: a step costs the flat baseline (world-rooms-movement §3.3).
+move_cost: 1
