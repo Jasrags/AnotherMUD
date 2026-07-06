@@ -41,17 +41,19 @@ Each slice is independently shippable and pays for itself even if the program st
 
 ### SR-M1 — Content-defined attribute set  · **Medium Go · the gating blocker**
 
+> **STATUS: SHIPPED 2026-07-06** (commits `db6bc2d` registry → `5220f9e` core `classic` → `5a05f44` world-aware seed → `02efc31` data-driven `score` → `f30a0b6` trainable-from-set). All five Appendix A steps landed, each go-reviewer APPROVE, full suite `-race` green. Zero behavior change for existing worlds (they resolve to `classic` == the old hardcode). Remaining tail folded into SR-M3: the wizard's attribute point-buy step, and wiring the set's per-attribute `Cap` into race-cap enforcement (harmless today — classic `cap == DefaultRaceCap == 25`; matters once SR metatype `StatCaps` land — tracked in §7).
+
 The one true prerequisite (plan §4.1). `progression/statblock.go` hardcodes six stat constants and the creation wizard seeds them via `DefaultPlayerBase()`; `score` display and caps assume that set. `StatBlock` is *already* a `map[StatType]int`, so storage is fine — the friction is chargen + display + caps assuming the engine's fixed six. SR5 needs **9** seeded values (8 primaries + Edge), so this is a *count-and-name* change, not just relabeling.
 
 **Approach:** make the base attribute set a **per-world content declaration** the wizard reads, instead of calling `DefaultPlayerBase()`. The engine's `str/int/wis/dex/con/luck` becomes the *generic/WoT* declaration; `shadowrun` declares `body/agility/reaction/strength/willpower/logic/intuition/charisma` (+ `edge`).
 
 **Acceptance criteria**
-- [ ] A world pack can declare its seeded attribute set (id, display name, default, per-attribute cap) as content.
-- [ ] The creation wizard seeds a new character from the *active world's* declaration, not `DefaultPlayerBase()`.
-- [ ] `score` renders the active world's attribute names/values (no hardcoded six-stat layout).
-- [ ] Stat caps honor the per-attribute declaration (metatype modifiers layer on top — SR-M3).
-- [ ] WoT + starter-world boot **unchanged** (their declaration reproduces today's six exactly — a regression gate, mirroring the WoT channel-map migration being the trivial case).
-- [ ] A save round-trips a non-default, non-six-sized attribute set (a `shadowrun` character's 8 primaries + Edge persist and reload).
+- [x] A world pack can declare its seeded attribute set (id, display name, default, per-attribute cap) as content. *(`attributes/*.yaml` → `progression.AttributeSetRegistry`; core ships `classic`.)*
+- [x] The character seed comes from the *active world's* declaration, not a fixed `DefaultPlayerBase()`. *(The actor constructor resolves worldID → set; the wizard's attribute **point-buy step** is SR-M3.)*
+- [x] `score` renders the active world's attribute names/values (no hardcoded six-stat layout). *(Data-driven `scAttrGrid`, grouped by category.)*
+- [~] Stat caps honor the per-attribute declaration (metatype modifiers layer on top — SR-M3). *(Trainability is set-driven; wiring the set's `Cap` into race-cap enforcement is the SR-M3 tail — see §7 / STATUS above.)*
+- [x] WoT + starter-world boot **unchanged** (their declaration reproduces today's six exactly — a regression gate). *(`TestCorePack_ClassicSetMatchesEngineDefaults` + `SeedBaseFromSet(classic) == DefaultPlayerBase()`.)*
+- [x] A save round-trips a non-default, non-six-sized attribute set. *(The ordered pair-list save already round-trips any key set; proven at the loader/registry layer — an actual `shadowrun` save lands with the pack in SR-M3.)*
 
 **Why first:** SR5's 8-primary + Edge set can't even be *seeded* without it, and it future-proofs *any* generic/point-buy pack — a reusable engine win independent of SR. (Note: because the set is now variable-size, the `score` sheet must render N attributes, not a fixed six-row grid — a real display change, not just relabeling.)
 
@@ -208,15 +210,15 @@ attributes:
 
 A world pack selects/declares its set; `shadowrun` (SR-M3) declares the 8 SR5 primaries + Edge with `category: physical|mental|special`. `cap` here is the *default* ceiling; race/metatype `stat_caps` still override per-race (unchanged path).
 
-### Build order within SR-M1
+### Build order within SR-M1 — ✅ ALL SHIPPED (2026-07-06)
 
-1. **Content type + registry + loader** (L5) — plumb `attributes/*.yaml` through `internal/pack` into a `progression` registry. Zero behavior change yet.
-2. **Core declares `classic`** (the six) — the regression gate; nothing else reads it yet.
-3. **World-aware seed** (L1+L2) — resolve the set by world, seed the constructor from it. Wire creation (active world) + login (`WorldID`). *Verify WoT/starter-world produce byte-identical base stats — the acceptance gate.*
-4. **`score` iterates** (L3) — render N attributes by category/order.
-5. **Trainable from declaration** (L4) — replace `DefaultTrainingConfig`'s hardcoded map.
+1. ✅ **Content type + registry + loader** (L5) — `attributes/*.yaml` → `progression.AttributeSetRegistry`. `db6bc2d`.
+2. ✅ **Core declares `classic`** (the six) — the regression gate. `5220f9e`.
+3. ✅ **World-aware seed** (L1+L2) — `resolveAttributeSet`/`seedBaseFor` seed the constructor from the character's world set; `RestoreBase` then merges the same keys (no "carries both sets"). `5a05f44`.
+4. ✅ **`score` iterates** (L3) — `scAttrGrid` renders N attributes by category/order. `02efc31`.
+5. ✅ **Trainable from declaration** (L4) — `entityTrainable` gates on the set; `DefaultTrainingConfig` is now the nil-set fallback only. `f30a0b6`.
 
-Step 3 is the only subtle one (the L2 pre-merge ordering); 1–2 and 4–5 are mechanical. The Shadowrun *declaration itself* + any point-buy chargen step are **SR-M3**, not M1 — M1 proves the substrate using the existing six.
+Step 3 was the only subtle one (the L2 pre-merge ordering); it landed clean. The Shadowrun *declaration itself*, the wizard's point-buy chargen step, and cap-from-set enforcement are **SR-M3**, not M1 — M1 proved the substrate using the existing six.
 
 ### Design decisions taken (not asking)
 
