@@ -1,0 +1,15 @@
+id: street-corner
+area: seattle
+name: "{C}A Rain-Slick Street Corner{x}"
+description: |
+  Neon signage stutters in a dozen languages above a corner that never quite
+  dries out. A noodle stand hisses steam into the drizzle; a defunct ATM wears
+  a skin of gang tags. Foot traffic hurries past with their collars up and
+  their eyes down. An alley cuts north into the dark.
+terrain: outdoors
+exits:
+  north: back-alley
+# A safe hub for SR-M3c-1: no combat, no spawns yet — a place to stand, read
+# `score`, and confirm the runner seeded correctly. `safe` also satisfies the
+# training safe-room gate.
+tags: [safe-room, safe]

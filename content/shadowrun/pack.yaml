@@ -1,0 +1,56 @@
+name: shadowrun
+version: "0.1.0"
+# A world pack (character-identity §2): a leaf ruleset a character is stamped to
+# and locked to (the tapestry-core baseline is a library). SR-M3c-1 (the "Boots"
+# slice — docs/themes/shadowrun-mvp.md): the minimal bootable sixth-world pack —
+# a human metatype with the eight Shadowrun primaries + Edge, a Stun condition
+# monitor, the soak/defense channel map, and one small district to stand in.
+kind: world
+description: |
+  The Shadowrun world pack — the Sixth World, where magic returned and the
+  megacorps own everything worth owning. Original prose set in the Shadowrun
+  setting (a non-commercial fan project); it uses the setting's concepts and
+  vocabulary, never reproduced published text.
+
+  Depends on the tapestry-core engine baseline (slots, abilities, effects,
+  channels, emotes, rarity). Boot it with:
+    ANOTHERMUD_PACKS=shadowrun ANOTHERMUD_START_ROOM=shadowrun:street-corner
+
+  SR-M3c-1: a single street corner in the Seattle sprawl — enough to create a
+  runner, read the score sheet, and confirm the Stun monitor seeds from
+  Willpower. Metatypes, skills, weapons, the Street Samurai, and the district
+  land in SR-M3c-2/3.
+dependencies:
+  tapestry-core: "*"
+# Connect splash (required for kind:world) — the door identity shown before the
+# account prompt. Plain text with engine color markup ({Y}…{x}).
+splash: splash.txt
+# Select the world's base attribute set: the eight Shadowrun primaries + Edge
+# instead of the classic six (SR-M1). The set itself is declared under the
+# attribute_sets content glob below; this scalar picks it for a shadowrun boot.
+attribute_set: shadowrun-primaries
+content:
+  # The eight primaries (Body/Agility/Reaction/Strength/Willpower/Logic/
+  # Intuition/Charisma) plus Edge (SR-M1). The loader enumerates by this glob,
+  # NOT directory convention.
+  attribute_sets:
+    - attributes/*.yaml
+  # The Stun condition monitor (SR-M3a) — a nonlethal, willpower-derived pool
+  # that routes subdual damage to a knock-out. The Physical monitor is the hp/
+  # Vitals track (Design 1), seeded flat by the engine, so no pool is declared
+  # for it here.
+  pools:
+    - pools/*.yaml
+  # Shadowrun folds armour into a soak (mitigation) and derives defense from
+  # Reaction + Intuition — it overrides ALL FOUR combat channels because the
+  # core baseline reads attributes (hit_mod/ac/str) this world does not use.
+  channel_map:
+    - channel-map/*.yaml
+  # Metatypes (the playable peoples). SR-M3c-1 ships Human; the other four land
+  # in SR-M3c-2.
+  races:
+    - metatypes/*.yaml
+  areas:
+    - areas/*.yaml
+  rooms:
+    - rooms/*.yaml

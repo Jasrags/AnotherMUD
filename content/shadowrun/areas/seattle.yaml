@@ -1,0 +1,9 @@
+id: seattle
+name: The Seattle Sprawl
+description: |
+  The Emerald City, drowned in rain and neon. Corporate arcologies wall off
+  the skyline while the streets below run on grey markets, gang turf, and
+  whatever the shadows will pay for. SR-M3c-1 opens a single corner of it —
+  the district proper arrives with the runners who work it.
+# Reset cadence in ticks; ~30s at the default 100ms tick.
+reset_interval: 300

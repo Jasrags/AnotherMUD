@@ -1,0 +1,33 @@
+# Human — the baseline metatype of the Sixth World, and the only one SR-M3c-1
+# ships (elf/dwarf/ork/troll land in SR-M3c-2). Humans are the versatile
+# everyfolk: no attribute skews, the broadest Edge, and the widest spread of
+# viable roles. Overrides the core baseline `human` by priority when the
+# shadowrun pack is active, so a shadowrun boot uses this setting-shaped entry.
+#
+# stat_caps are keyed to the Shadowrun primaries (the shadowrun-primaries set),
+# not the classic six — the metatype's natural augmentation ceiling per attribute.
+id: human
+name: Human
+tagline: The adaptable baseline of the Sixth World.
+description: |
+  Humans remain the most common metatype in the sprawl — no thermographic
+  vision, no reach, no dermal plating, just range. Where an ork is muscle and
+  an elf is charm, a human is whatever the run needs: a decker one week, a
+  face the next, a shooter when the talking stops. Edge comes easiest to them,
+  and in the shadows a little luck outlasts a lot of chrome.
+category: humanoid
+starting_alignment: 0
+stat_caps:
+  body: 6
+  agility: 6
+  reaction: 6
+  strength: 6
+  willpower: 6
+  logic: 6
+  intuition: 6
+  charisma: 6
+  edge: 7
+cast_cost_modifier: 0
+racial_flags:
+  - common-tongue
+priority: 1

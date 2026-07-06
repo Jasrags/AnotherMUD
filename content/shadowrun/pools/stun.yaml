@@ -1,0 +1,24 @@
+# The Shadowrun Stun condition monitor (SR-M3a pool + SR-M3c-1). A nonlethal
+# damage track: subdual hits (a stun baton, a fist, stun rounds) fill it, and
+# crossing the floor knocks the runner out rather than killing them. Its ceiling
+# is DERIVED from Willpower — 8 + ⌈Willpower/2⌉ — so it uses max_formula, not
+# max_channel: StatBlock.Effective only reads base+modifiers and can NOT evaluate
+# a formula, so a plain channel named "hp_stun" would seed at 0 (SR-M3c-1 build
+# step 0). The seeder evaluates the formula through channel/expr and re-derives
+# the ceiling whenever Willpower changes.
+#
+# The Physical monitor is the hp / combat.Vitals track (Design 1), seeded flat by
+# the engine (engineVitalBase hp_max=20), so it is NOT a pool declared here.
+#
+#   floor           = 0 (bottoms out at knock-out; no negative overflow).
+#   nonlethal       = a depletion is a KNOCK-OUT, not a kill.
+#   depletion_event = crossing the floor is a reportable KO (drives unconscious).
+#   max_formula     = 8 + ⌈Willpower/2⌉ (SR5 Stun monitor).
+#   seed_on_*       = both — a runner and a mob are each stunnable.
+id: stun
+floor: 0
+nonlethal: true
+depletion_event: true
+max_formula: "8 + ceil(willpower / 2)"
+seed_on_player: true
+seed_on_mob: true

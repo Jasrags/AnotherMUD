@@ -1,0 +1,24 @@
+# Shadowrun combat-channel derivation (channel-vocabulary.md §7). Unlike the
+# fantasy baseline (attack: hit_mod; defense: ac; damage_bonus off Strength;
+# mitigation unmapped), the Sixth World derives combat from its own primaries and
+# folds armour into a SOAK. This overrides ALL FOUR channels because the core
+# baseline formulas read keys this world does not use (hit_mod, ac, str) — a
+# partial override would leave attack/defense reading engine defaults.
+#
+#   attack       = Agility. The wielded weapon's skill (Firearms, Blades…) adds
+#                  through the existing proficiency system, NOT this channel —
+#                  a single per-entity channel can't switch on the weapon
+#                  ("spirit not fidelity", SR-M3c decision a).
+#   defense      = Reaction + Intuition (the SR5 defense pool).
+#   damage_bonus = Strength (melee scaling; ranged weapons carry their own DV).
+#   mitigation   = Body + armor — the soak the core baseline's own comment cites
+#                  as the Shadowrun example. `armor` is the worn armour rating, a
+#                  SYNTHETIC lookup input (sibling of dex_ac) wired in SR-M3c-2
+#                  with the armour items; until then it resolves to 0, so
+#                  mitigation reads Body alone (harmless — no armour, no combat in
+#                  SR-M3c-1).
+channels:
+  attack: agility
+  defense: reaction + intuition
+  damage_bonus: strength
+  mitigation: body + armor

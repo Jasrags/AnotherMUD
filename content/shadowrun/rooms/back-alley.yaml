@@ -1,0 +1,12 @@
+id: back-alley
+area: seattle
+name: "{c}A Cramped Back Alley{x}"
+description: |
+  Dumpsters and stacked shipping crates funnel the rain into black puddles.
+  A maintenance ladder climbs toward a fire escape, and a soy-caf vendor's
+  shuttered cart rusts against the wall. The street corner glows south, past
+  the mouth of the alley.
+terrain: outdoors
+exits:
+  south: street-corner
+tags: [safe-room, safe]

@@ -1,0 +1,26 @@
+# The Shadowrun base attribute set (SR-M1 — docs/themes/shadowrun-mvp.md
+# Appendix A; pinned decision D2). Eight primaries plus Edge — MORE than the
+# engine's classic six, which is exactly why SR-M1 made the base set
+# world-selectable. This is SR 5th Edition: Reaction is a REAL primary (not
+# derived), and Edge is both an attribute rating and (later) a spendable pool.
+#
+#   default   = the fresh-character seed (3 = the sixth-world human average;
+#               point-buy at creation is a later slice).
+#   cap       = the natural trainable ceiling (6 for a metahuman primary;
+#               augmentation past it is post-MVP). Per-metatype caps override.
+#   trainable = whether the `train` verb applies.
+#   category  = score-sheet grouping (physical / mental / social / special).
+#
+# Order is the canonical StatBlock / score-sheet order.
+id: shadowrun-primaries
+name: Shadowrun Primaries
+attributes:
+  - { id: body,      name: Body,      abbrev: BOD, default: 3, cap: 6, trainable: true, category: physical }
+  - { id: agility,   name: Agility,   abbrev: AGI, default: 3, cap: 6, trainable: true, category: physical }
+  - { id: reaction,  name: Reaction,  abbrev: REA, default: 3, cap: 6, trainable: true, category: physical }
+  - { id: strength,  name: Strength,  abbrev: STR, default: 3, cap: 6, trainable: true, category: physical }
+  - { id: willpower, name: Willpower, abbrev: WIL, default: 3, cap: 6, trainable: true, category: mental }
+  - { id: logic,     name: Logic,     abbrev: LOG, default: 3, cap: 6, trainable: true, category: mental }
+  - { id: intuition, name: Intuition, abbrev: INT, default: 3, cap: 6, trainable: true, category: mental }
+  - { id: charisma,  name: Charisma,  abbrev: CHA, default: 3, cap: 6, trainable: true, category: social }
+  - { id: edge,      name: Edge,      abbrev: EDG, default: 2, cap: 7, trainable: true, category: special }
