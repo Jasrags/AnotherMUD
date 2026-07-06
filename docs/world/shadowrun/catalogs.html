@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Catalogs · shadowrun</title>
+<style>:root {
+  --ink: #2b2419; --parch: #f4ecd8; --parch2: #ece0c4;
+  --line: #b9a888; --cross: #b8860b; --accent: #7a1f1f;
+  --panel: #fbf6e9; --muted: #8a7c5e; --good: #4a6b3a;
+  --serif: "Iowan Old Style", Georgia, "Times New Roman", serif;
+  --sans: -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body {
+  display: flex; min-height: 100vh; color: var(--ink); font-family: var(--sans);
+  background: radial-gradient(circle at 28% 8%, #f7f0dd, var(--parch2));
+}
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+/* --- sidebar --- */
+.sidebar {
+  width: 240px; flex-shrink: 0; position: sticky; top: 0; align-self: flex-start;
+  height: 100vh; overflow-y: auto; padding: 20px 0;
+  background: linear-gradient(180deg, var(--panel), #efe4ca);
+  border-right: 2px solid var(--line); box-shadow: 2px 0 10px rgba(0,0,0,.08);
+}
+.sidebar .brand { padding: 0 20px 14px; border-bottom: 1px solid var(--line); margin-bottom: 10px; }
+.sidebar .brand h1 { font: 600 20px/1 var(--serif); margin: 0; letter-spacing: .4px; }
+.sidebar .brand small { display: block; font-size: 11px; color: var(--muted); margin-top: 4px; letter-spacing: .5px; text-transform: uppercase; }
+.sidebar .lbl { display: block; font: 600 10px var(--sans); text-transform: uppercase; letter-spacing: .7px; color: var(--muted); padding: 0 20px; margin: 16px 0 6px; }
+.sidebar nav a {
+  display: block; padding: 8px 20px; color: var(--ink); font-size: 14px;
+  border-left: 3px solid transparent; transition: background .12s, border-color .12s;
+}
+.sidebar nav a:hover { background: rgba(122,31,31,.06); text-decoration: none; }
+.sidebar nav a.active { background: rgba(122,31,31,.10); border-left-color: var(--accent); font-weight: 600; }
+.sidebar nav a.current { color: var(--muted); cursor: default; font-weight: 600; }
+.sidebar nav a.current::before { content: "▸ "; color: var(--accent); }
+
+/* --- main --- */
+main { flex: 1; min-width: 0; padding: 34px 48px 80px; max-width: 1160px; }
+.page-head { border-bottom: 2px solid var(--line); padding-bottom: 14px; margin-bottom: 8px; }
+.page-head h1 { font: 600 30px/1.15 var(--serif); margin: 0; }
+.page-head .lede { color: var(--muted); font-size: 14px; margin-top: 8px; max-width: 70ch; }
+
+main h2 {
+  font: 600 22px/1.2 var(--serif); margin: 34px 0 4px; padding-left: 12px;
+  border-left: 4px solid var(--accent);
+}
+main h3 { font: 600 16px/1.2 var(--serif); margin: 22px 0 6px; color: #4a4032; }
+main h2 .id, main h3 .id { font: 400 12px var(--sans); color: var(--muted); margin-left: 8px; }
+main p { line-height: 1.6; max-width: 74ch; }
+main .note { color: var(--muted); font-size: 13px; font-style: italic; margin: 4px 0 0; }
+
+/* --- tables --- */
+table { border-collapse: collapse; width: 100%; margin: 14px 0 8px; font-size: 13.5px; background: var(--panel); box-shadow: 0 1px 4px rgba(0,0,0,.08); }
+thead th { background: var(--ink); color: var(--parch); text-align: left; padding: 8px 12px; font-weight: 600; letter-spacing: .3px; position: sticky; top: 0; }
+tbody td { padding: 7px 12px; border-top: 1px solid #e7dcc2; vertical-align: top; }
+tbody tr:nth-child(even) { background: rgba(185,168,136,.10); }
+tbody tr:hover { background: rgba(122,31,31,.06); }
+td code, .mono { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 12.5px; color: #5a4a2a; }
+
+/* --- cards / entries --- */
+.cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 16px; margin: 18px 0; }
+.card {
+  display: block; padding: 16px 18px; background: var(--panel); border: 1px solid var(--line);
+  border-left: 5px solid var(--accent); border-radius: 10px; box-shadow: 0 2px 6px rgba(0,0,0,.10);
+  transition: box-shadow .12s, transform .12s; color: var(--ink);
+}
+a.card:hover { box-shadow: 0 6px 16px rgba(0,0,0,.18); transform: translateY(-2px); text-decoration: none; }
+.card h3 { margin: 0 0 4px; font: 600 17px/1.2 var(--serif); }
+.card p { margin: 0; font-size: 13px; color: var(--muted); line-height: 1.5; }
+
+.entry { padding: 14px 16px; margin: 12px 0; background: var(--panel); border: 1px solid var(--line); border-left: 4px solid var(--line); border-radius: 8px; }
+.entry h4 { margin: 0 0 8px; font: 600 15px/1.2 var(--serif); }
+.entry h4 .id { font: 400 12px var(--sans); color: var(--muted); margin-left: 6px; }
+.entry ul { margin: 6px 0 0; padding-left: 18px; }
+.entry li { line-height: 1.5; font-size: 13.5px; }
+.entry .attr { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .4px; }
+
+/* --- pills / tags --- */
+.tag { display: inline-block; padding: 1px 8px; border-radius: 10px; background: var(--parch2); font-size: 11.5px; margin: 1px 3px 1px 0; white-space: nowrap; }
+.tag.shop { background: #e7f0d6; } .tag.trainer { background: #f5e2c0; }
+.tag.stable { background: #dfe8f0; } .tag.hire, .tag.recruiter { background: #efe0d0; }
+.tag.hostile { background: #f0d6d6; } .tag.quest { background: #f4eec4; }
+.tag.faction { background: #e6ddf0; } .tag.start { background: #d9e8d2; }
+.tag.craft { background: #e4e0d0; } .tag.dark { background: #d8d2c4; }
+.tag.locked, .tag.hidden { background: #f0dcd6; color: #7a1f1f; }
+.marker { color: var(--accent); font-size: 12px; }
+.marker.cross { color: var(--cross); }
+
+/* --- health counts --- */
+.count { display: inline-block; min-width: 22px; text-align: center; padding: 0 7px; border-radius: 10px; font: 600 12px var(--sans); }
+.count.zero { background: rgba(74,107,58,.18); color: var(--good); }
+.count.some { background: rgba(122,31,31,.14); color: var(--accent); }
+main h2 .count { margin-left: 10px; vertical-align: middle; }
+.empty { color: var(--muted); font-style: italic; }
+
+/* --- back link (on the map) --- */
+.docs-back {
+  position: fixed; left: 14px; top: 14px; z-index: 20; padding: 6px 12px;
+  background: var(--panel); border: 1px solid var(--line); border-radius: 8px;
+  font: 600 12px var(--sans); box-shadow: 0 2px 8px rgba(0,0,0,.18);
+}
+
+@media (max-width: 760px) {
+  body { flex-direction: column; }
+  .sidebar { width: 100%; height: auto; position: static; border-right: none; border-bottom: 2px solid var(--line); }
+  main { padding: 24px 20px 60px; }
+}
+</style>
+</head>
+<body>
+<div class="sidebar"><div class="brand"><h1>shadowrun</h1><small>World Docs</small></div><nav><a href="index.html">Overview</a><a href="map.html">Map</a><a href="gazetteer.html">Gazetteer</a><a class="active" href="catalogs.html">Catalogs</a><a href="health.html">Health</a><a href="guide.html">Guide</a></nav><span class="lbl">Packs</span><nav><a href="../core/catalogs.html">core</a><a class="current">shadowrun</a><a href="../starter-world/catalogs.html">starter-world</a><a href="../wot/catalogs.html">wot</a></nav></div>
+<main>
+<div class="page-head"><h1>Catalogs</h1><p class="lede">Reference tables of the content this pack ships.</p></div>
+<p class="note"><strong>Characters:</strong> <a href="#races">Races (5)</a> · <a href="#classes">Classes (1)</a> · <a href="#tracks">Tracks (1)</a> · <a href="#backgrounds">Backgrounds (1)</a><br><strong>Abilities &amp; Effects:</strong> <a href="#channel_map">Channel Map (1)</a><br><strong>Creatures &amp; Items:</strong> <a href="#mobs">Mobs (2)</a> · <a href="#items">Items (8)</a><br><strong>World &amp; Crafting:</strong> <a href="#biomes">Biomes (1)</a> · <a href="#weather_zones">Weather Zones (1)</a> · <a href="#loot_tables">Loot Tables (2)</a><br><strong>Other:</strong> <a href="#attribute_sets">Attribute Sets (1)</a> · <a href="#pools">Pools (1)</a></p><h2>Characters</h2><h3 id="races">Races <span class="count some">5</span></h3><table><thead><tr><th>ID</th><th>Name</th><th>Description</th><th>Details</th></tr></thead><tbody><tr><td><code>dwarf</code></td><td>Dwarf</td><td>Dwarfs run compact and dense — a head shorter than a human and twice as hard</td><td>cast_cost_modifier: 0 · category: humanoid · priority: 1 · racial_flags: common-tongue, thermographic · size: small · starting_alignment: 0 · stat_bonuses: 4 fields · stat_caps: 9 fields</td></tr><tr><td><code>elf</code></td><td>Elf</td><td>Elves came back with the Awakening looking like the stories — tall, sharp of</td><td>cast_cost_modifier: 0 · category: humanoid · priority: 1 · racial_flags: common-tongue · starting_alignment: 0 · stat_bonuses: 2 fields · stat_caps: 9 fields</td></tr><tr><td><code>human</code></td><td>Human</td><td>Humans remain the most common metatype in the sprawl — no thermographic</td><td>cast_cost_modifier: 0 · category: humanoid · priority: 1 · racial_flags: common-tongue · starting_alignment: 0 · stat_caps: 9 fields</td></tr><tr><td><code>ork</code></td><td>Ork</td><td>Orks hit puberty as a growth spurt that never quite stops — broad, tusked, and</td><td>cast_cost_modifier: 0 · category: humanoid · priority: 1 · racial_flags: common-tongue, low-light · starting_alignment: 0 · stat_bonuses: 3 fields · stat_caps: 9 fields</td></tr><tr><td><code>troll</code></td><td>Troll</td><td>Trolls top three metres of horn, tusk, and bone-plated hide — the sixth world&#39;s</td><td>cast_cost_modifier: 0 · category: humanoid · priority: 1 · racial_flags: common-tongue, thermographic · size: large · starting_alignment: 0 · stat_bonuses: 3 fields · stat_caps: 9 fields</td></tr></tbody></table><h3 id="classes">Classes <span class="count some">1</span></h3><table><thead><tr><th>ID</th><th>Name</th><th>Description</th><th>Details</th></tr></thead><tbody><tr><td><code>street-samurai</code></td><td>Street Samurai</td><td>The Street Samurai is the sharp end of the shadows — a warrior who has traded</td><td>allowed_categories: humanoid · armor_proficiency_tiers: light, medium · bound_track: street · level_up_flavor: Another firefight survived, another lesson burned into muscle and wire. Your
+hands move a fraction faster than they did yesterday. · path: 4 entries · priority: 0 · proficiency_tiers: simple, martial · save_progressions: 3 fields · starting_alignment: 0 · stat_growth: 1 fields · trains_per_level: 5</td></tr></tbody></table><h3 id="tracks">Tracks <span class="count some">1</span></h3><table><thead><tr><th>ID</th><th>Name</th><th>Description</th><th>Details</th></tr></thead><tbody><tr><td><code>street</code></td><td>The Long Run</td><td>—</td><td>death_penalty: 0 · max_level: 10 · xp_table: 11 entries</td></tr></tbody></table><h3 id="backgrounds">Backgrounds <span class="count some">1</span></h3><table><thead><tr><th>ID</th><th>Name</th><th>Description</th><th>Details</th></tr></thead><tbody><tr><td><code>street-kid</code></td><td>Street Kid</td><td>No arcology creche, no corp scholarship — you came up in the barrens, where</td><td>allowed_categories: humanoid · equipment_packages: 3 entries · feat_options: alertness, stealthy · gold: 500 · skills: 3 entries</td></tr></tbody></table><h2>Abilities &amp; Effects</h2><h3 id="channel_map">Channel Map <span class="count some">1</span></h3><table><thead><tr><th>ID</th><th>Name</th><th>Description</th><th>Details</th></tr></thead><tbody><tr><td><code>combat</code></td><td>—</td><td>—</td><td>channels: 4 fields</td></tr></tbody></table><h2>Creatures &amp; Items</h2><h3 id="mobs">Mobs <span class="count some">2</span></h3><table><thead><tr><th>ID</th><th>Name</th><th>Roles</th><th>Faction</th><th>Rooms</th></tr></thead><tbody><tr><td><code>ganger</code></td><td>a street ganger</td><td><span class="tag hostile">hostile</span></td><td>—</td><td><code>market-street</code></td></tr><tr><td><code>sec-guard</code></td><td>a corporate security guard</td><td>—</td><td>—</td><td><code>corp-plaza</code></td></tr></tbody></table><h3 id="items">Items <span class="count some">8</span></h3><p class="note">Placement and source (loot tables, shops, recipes) are not yet cross-referenced.</p><table><thead><tr><th>ID</th><th>Name</th><th>Type</th><th>Value</th><th>Weight</th><th>Details</th></tr></thead><tbody><tr><td><code>ammo-clip</code></td><td>a clip of ammunition</td><td>item</td><td>20</td><td>1</td><td>—</td></tr><tr><td><code>armor-vest</code></td><td>an armored vest</td><td>item</td><td>900</td><td>7</td><td>armor +4 medium; slots: body</td></tr><tr><td><code>armored-jacket</code></td><td>an armored jacket</td><td>item</td><td>500</td><td>4</td><td>armor +3 light; slots: body</td></tr><tr><td><code>heavy-pistol</code></td><td>a heavy pistol</td><td>weapon</td><td>400</td><td>2</td><td>weapon: 2d6 pistol (martial); slots: wield</td></tr><tr><td><code>katana</code></td><td>a katana</td><td>weapon</td><td>1000</td><td>2</td><td>weapon: 2d6 sword (martial); slots: wield</td></tr><tr><td><code>nuyen</code></td><td>a certified credstick</td><td>treasure</td><td>100</td><td>—</td><td>—</td></tr><tr><td><code>smg</code></td><td>a submachine gun</td><td>weapon</td><td>700</td><td>4</td><td>weapon: 2d6+1 smg (martial); slots: wield</td></tr><tr><td><code>stun-baton</code></td><td>a stun baton</td><td>weapon</td><td>750</td><td>1</td><td>weapon: 2d6 club (simple); slots: wield</td></tr></tbody></table><h2>World &amp; Crafting</h2><h3 id="biomes">Biomes <span class="count some">1</span></h3><table><thead><tr><th>ID</th><th>Name</th><th>Description</th><th>Details</th></tr></thead><tbody><tr><td><code>sprawl</code></td><td>the sprawl</td><td>Wet ferrocrete and neon, hemmed in by walls of corporate glass.</td><td>ambience: A grav-ad flickers overhead, hawking a soykaf brand in three languages., Rain hisses off the ferrocrete and runs neon-coloured into the gutters., Somewhere close, a siren rises, holds, and fades back into the hum., The bassline from an unseen club thuds up through the pavement., A rotorcraft crosses the towers, running lights blinking through the drizzle. · move_cost: 1 · time_shielded: false · weather_shielded: false</td></tr></tbody></table><h3 id="weather_zones">Weather Zones <span class="count some">1</span></h3><table><thead><tr><th>ID</th><th>Name</th><th>Description</th><th>Details</th></tr></thead><tbody><tr><td><code>sprawl</code></td><td>—</td><td>—</td><td>initial_state: rain · roll_interval_hours: 1 · transitions: 3 fields</td></tr></tbody></table><h3 id="loot_tables">Loot Tables <span class="count some">2</span></h3><table><thead><tr><th>ID</th><th>Name</th><th>Description</th><th>Details</th></tr></thead><tbody><tr><td><code>ganger-loot</code></td><td>—</td><td>—</td><td>coin: 2 fields · pool_rolls: 1 · rare_bonus: 2 fields · weighted: 2 entries</td></tr><tr><td><code>sec-guard-loot</code></td><td>—</td><td>—</td><td>coin: 2 fields · guaranteed: 1 entries · pool_rolls: 1 · rare_bonus: 2 fields · weighted: 2 entries</td></tr></tbody></table><h2>Other</h2><h3 id="attribute_sets">Attribute Sets <span class="count some">1</span></h3><table><thead><tr><th>ID</th><th>Name</th><th>Description</th><th>Details</th></tr></thead><tbody><tr><td><code>shadowrun-primaries</code></td><td>Shadowrun Primaries</td><td>—</td><td>attributes: 9 entries</td></tr></tbody></table><h3 id="pools">Pools <span class="count some">1</span></h3><table><thead><tr><th>ID</th><th>Name</th><th>Description</th><th>Details</th></tr></thead><tbody><tr><td><code>stun</code></td><td>—</td><td>—</td><td>depletion_event: true · floor: 0 · max_formula: 8 + ceil(willpower / 2) · nonlethal: true · overflow_to: hp · seed_on_mob: true · seed_on_player: true</td></tr></tbody></table>
+</main>
+</body>
+</html>
