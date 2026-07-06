@@ -301,6 +301,49 @@ func TestRenderHealth(t *testing.T) {
 	}
 }
 
+// TestRenderGuide covers the Phase 6 acceptance: deterministic (identical on
+// repeat runs), every region with content appears, and services surface.
+func TestRenderGuide(t *testing.T) {
+	m := &worldModel{
+		Pack:  "t",
+		Start: "square",
+		Areas: map[string]areaYAML{
+			"town": {ID: "town", Name: "Town", Description: "A tidy town.", Region: "andor"},
+		},
+		Mobs: map[string]mobJSON{
+			"guard": {Name: "Guard", Shop: true},
+			"smith": {Name: "Smith", Trainer: true},
+		},
+		Rooms: map[string]roomYAML{
+			"square": {ID: "square", Area: "town", Name: "Square", Description: "The heart of town.",
+				Mobs: []string{"guard"}, Exits: map[string]string{"north": "forge"}},
+			"forge": {ID: "forge", Area: "town", Name: "Forge", Mobs: []string{"smith"}},
+		},
+	}
+	md := renderGuide(m)
+
+	wants := []string{
+		"You begin in **Square, in Town (Andor)**",
+		"The heart of town.",
+		"Paths lead north to Forge.",
+		"### Andor",
+		"**Town** — A tidy town.",
+		"- **Square**: shop",
+		"- **Forge**: trainer",
+		"**Shops:** Square (Town)",
+		"**Trainers:** Forge (Town)",
+	}
+	for _, want := range wants {
+		if !strings.Contains(md, want) {
+			t.Errorf("guide missing %q\n---\n%s", want, md)
+		}
+	}
+	// Deterministic: identical on repeat renders (no timestamp, stable ordering).
+	if md2 := renderGuide(m); md2 != md {
+		t.Error("renderGuide is not deterministic across calls")
+	}
+}
+
 func contains(ss []string, want string) bool {
 	for _, s := range ss {
 		if s == want {

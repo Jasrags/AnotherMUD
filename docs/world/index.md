@@ -14,6 +14,7 @@ Generated content documentation, one section per world pack. Derived from the co
 - [catalogs/factions.md](starter-world/catalogs/factions.md)
 - [catalogs/quests.md](starter-world/catalogs/quests.md)
 - [health.md](starter-world/health.md)
+- [guide.md](starter-world/guide.md)
 
 ## wot
 
@@ -27,4 +28,5 @@ Generated content documentation, one section per world pack. Derived from the co
 - [catalogs/factions.md](wot/catalogs/factions.md)
 - [catalogs/quests.md](wot/catalogs/quests.md)
 - [health.md](wot/health.md)
+- [guide.md](wot/guide.md)
 

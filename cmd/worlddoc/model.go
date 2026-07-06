@@ -29,6 +29,7 @@ var dirDelta = map[string][3]int{
 type areaYAML struct {
 	ID          string `yaml:"id"`
 	Name        string `yaml:"name"`
+	Description string `yaml:"description"`
 	Region      string `yaml:"region"`
 	WeatherZone string `yaml:"weather_zone"`
 }

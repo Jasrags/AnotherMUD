@@ -1,8 +1,10 @@
 # World Documentation — Implementation Plan
 
-**Status:** Planning — no code yet. **Audience:** the build sequence to review
-before implementation. **Supersedes:** the standalone `cmd/worldmap` +
-`world-map` skill, which become one emitter of a larger system.
+**Status:** Shipped — all six phases landed (`cmd/worlddoc`, emitters map /
+gazetteer / catalogs / health / guide, cross-pack index, `world-docs` skill).
+This doc is kept as the design record; the open questions below remain live.
+**Audience:** the build sequence. **Superseded:** the standalone `cmd/worldmap` +
+`world-map` skill, now one emitter of the larger system.
 
 A phased plan to promote the interactive world map from a one-off view into a
 **content-documentation system**: the pack YAML is the single source of truth,
