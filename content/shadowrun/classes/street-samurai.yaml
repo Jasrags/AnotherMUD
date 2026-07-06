@@ -1,0 +1,76 @@
+id: street-samurai
+name: Street Samurai
+tagline: Chrome, steel, and a code the corps can't buy.
+description: |
+  The Street Samurai is the sharp end of the shadows — a warrior who has traded
+  flesh for cybernetics and discipline for reflexes measured in milliseconds.
+  Where a mage reaches for the mana and a decker jacks the Matrix, the samurai
+  trusts a wired hand, a monofilament edge, and a personal code as unbending as
+  it is unfashionable. They close the distance, weather the fire, and end the
+  run with whoever is still standing.
+level_up_flavor: |
+  Another firefight survived, another lesson burned into muscle and wire. Your
+  hands move a fraction faster than they did yesterday.
+
+# Bound to the shadowrun world's advancement track (tracks/street.yaml) — SR
+# progression stays inside the world (character-identity world-locking).
+bound_track: street
+
+# The samurai is the durable front-line frame: hp_max (the Physical monitor,
+# Design 1 = hp/Vitals) grows fastest. No growth_bonuses: that bonus rides the
+# d20 modifier max(0,(v-10)/2), which is inert for Shadowrun's 1-6 attributes —
+# SR combat derives from RAW attribute values through the channel map, not d20
+# modifiers, so an attribute-scaled growth bonus would be silently zero.
+stat_growth:
+  hp_max: 1d10
+
+# Standard training budget per level (progression §4.6).
+trains_per_level: 5
+
+# The samurai's combat kit, granted at level 1 so a fresh runner exercises the
+# full melee/ranged surface — all reused from the tapestry-core ability set
+# (SR depends on core):
+#   basic-strike  — the showcase damage skill
+#   second-attack — offensive passive (extra-swing hook)
+#   perception    — spot/notice passive (also the sixth-world's "on guard")
+# power-attack lands at level 2 (the accuracy-for-power stance). Every ability
+# fires off proficiency, so a level-1 samurai rarely triggers the passives until
+# `practice`/`train` raises the skill.
+path:
+  - level: 1
+    ability: basic-strike
+  - level: 1
+    ability: second-attack
+  - level: 1
+    ability: perception
+  - level: 2
+    ability: power-attack
+
+# Weapon proficiency (weapon-identity §3): simple + martial. Pistols, SMGs, and
+# the katana are martial; the stun baton is simple. Exotic gear (a monofilament
+# whip, a milspec cannon) would still take the non-proficient penalty.
+proficiency_tiers:
+  - simple
+  - martial
+
+# Armour proficiency (armor-depth §5): light + medium — the armoured jacket and
+# vest, worn without the non-proficient check penalty bleeding into attacks.
+# Heavy milspec plate is beyond the street samurai's everyday kit.
+armor_proficiency_tiers:
+  - light
+  - medium
+
+# Saving throws (saves §2): the soldier's spread — strong Fortitude (wired
+# reflexes, augmented resilience), weak Reflex and Will.
+save_progressions:
+  fortitude: strong
+  reflex: weak
+  will: weak
+
+# Eligibility: any metahuman. No allowed_gifts gate — Shadowrun has no
+# channeling-origin creation gate (the default creation flow, giftGated=false).
+allowed_categories:
+  - humanoid
+
+starting_alignment: 0
+priority: 0

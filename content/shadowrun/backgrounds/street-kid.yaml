@@ -1,0 +1,34 @@
+id: street-kid
+name: Street Kid
+tagline: Raised by the sprawl, schooled by survival.
+description: |
+  No arcology creche, no corp scholarship — you came up in the barrens, where
+  the only tuition was staying alive. You learned to read a crowd, vanish down
+  an alley, and spot a shakedown before it started. The corps never had a file
+  on you, and that anonymity is worth more than any diploma when you run the
+  shadows.
+# Starting skills (backgrounds §2) — the barrens curriculum, granted at a novice
+# proficiency. All three are tapestry-core abilities (SR depends on core).
+skills:
+  - ability: hide
+    proficiency: 15
+  - ability: move-silently
+    proficiency: 15
+  - ability: perception
+    proficiency: 10
+# Pick-one background feat (the chooser, ≥2 options): the streetwise reflex of
+# noticing trouble early (Alertness) or the barrens-honed knack for going unseen
+# (Stealthy). Both are core feats.
+feat_options:
+  - alertness
+  - stealthy
+# Pick-one starting kit (backgrounds §2). Three loadouts a fresh runner might
+# have scraped together — the gunslinger, the blade, or the non-lethal
+# specialist. All items are shadowrun-pack gear (SR-M3c-2).
+equipment_packages:
+  - [heavy-pistol, ammo-clip, armored-jacket]
+  - [katana, armored-jacket]
+  - [stun-baton, armor-vest]
+gold: 500
+allowed_categories:
+  - humanoid

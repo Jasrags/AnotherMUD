@@ -50,6 +50,15 @@ content:
   # land in SR-M3c-2.
   races:
     - metatypes/*.yaml
+  # The advancement track every SR class binds to (world-locked: SR progression
+  # stays inside the SR world, never a library-pack track) + the playable
+  # classes (SR-M3c-3: the Street Samurai) and backgrounds.
+  tracks:
+    - tracks/*.yaml
+  classes:
+    - classes/*.yaml
+  backgrounds:
+    - backgrounds/*.yaml
   # Weapons, armour, and ammo (SR-M3c-2): firearms + katana + the stun baton
   # (target_pool: stun) and armour that feeds the Shadowrun soak.
   items:

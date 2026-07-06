@@ -1,0 +1,24 @@
+id: street
+name: The Long Run
+# The shared advancement track for every Shadowrun class (the Street Samurai
+# first; deckers/riggers/mages to follow). Karma-as-XP (pinned decision D3,
+# Option A): the same triangular curve every world uses, spent through each
+# class's stat growth + granted abilities rather than a separate karma ledger.
+#
+# Lives in the shadowrun world pack, not core — a world-locked character never
+# advances a library-pack track (character-identity). Mirrors the core
+# adventurer / WoT martial curve exactly.
+max_level: 10
+xp_table:
+  - 0
+  - 0
+  - 100
+  - 300
+  - 600
+  - 1000
+  - 1500
+  - 2100
+  - 2800
+  - 3600
+  - 4500
+death_penalty: 0.0

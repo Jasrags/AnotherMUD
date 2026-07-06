@@ -247,3 +247,78 @@ func TestLoad_ShadowrunWeaponsAndArmor(t *testing.T) {
 		t.Errorf("armor-vest eligible_slots = %v, want to include body", vest.EligibleSlots)
 	}
 }
+
+// TestLoad_ShadowrunClassAndBackground is the SR-M3c-3 creation-content gate:
+// the Street Samurai class, its bound world track, and the Street Kid background
+// load with the fields the creation flow + level-up + granter read. The default
+// creation flow (giftGated=false) offers these directly — Shadowrun needs no
+// custom flow, so there is no case in CreationFlowFor.
+func TestLoad_ShadowrunClassAndBackground(t *testing.T) {
+	root, err := filepath.Abs("../../content")
+	if err != nil {
+		t.Fatalf("abs: %v", err)
+	}
+	regs := NewRegistries()
+	if err := RegisterEngineBaselineProperties(regs.Properties); err != nil {
+		t.Fatalf("baseline properties: %v", err)
+	}
+	if err := slot.RegisterEngineBaseline(regs.Slots); err != nil {
+		t.Fatalf("baseline slots: %v", err)
+	}
+	if err := Load(context.Background(), root, []string{"shadowrun"}, regs, nil, nil, nil); err != nil {
+		t.Fatalf("Load shadowrun: %v", err)
+	}
+
+	// The world advancement track (SR classes bind here, not a core track).
+	if _, ok := regs.Tracks.Get("street"); !ok {
+		t.Error("street track not loaded")
+	}
+
+	sam, ok := regs.Classes.Get("street-samurai")
+	if !ok {
+		t.Fatal("street-samurai class not loaded")
+	}
+	if sam.BoundTrack != "street" {
+		t.Errorf("street-samurai bound_track = %q, want street", sam.BoundTrack)
+	}
+	if !containsStr(sam.ProficiencyTiers, "simple") || !containsStr(sam.ProficiencyTiers, "martial") {
+		t.Errorf("street-samurai proficiency tiers = %v, want simple+martial", sam.ProficiencyTiers)
+	}
+	if !containsStr(sam.ArmorProficiencyTiers, "light") || !containsStr(sam.ArmorProficiencyTiers, "medium") {
+		t.Errorf("street-samurai armor tiers = %v, want light+medium", sam.ArmorProficiencyTiers)
+	}
+	// The level-1 combat kit is reused core abilities.
+	granted := map[string]bool{}
+	for _, p := range sam.Path {
+		granted[p.AbilityID] = true
+	}
+	if !granted["basic-strike"] {
+		t.Errorf("street-samurai path = %v, want basic-strike granted", granted)
+	}
+
+	bg, ok := regs.Backgrounds.Get("street-kid")
+	if !ok {
+		t.Fatal("street-kid background not loaded")
+	}
+	if bg.Gold != 500 {
+		t.Errorf("street-kid gold = %d, want 500 (starting nuyen)", bg.Gold)
+	}
+	if len(bg.FeatOptions) != 2 {
+		t.Errorf("street-kid feat_options = %v, want 2 (a pick-one chooser)", bg.FeatOptions)
+	}
+	if len(bg.EquipmentPackages) != 3 {
+		t.Errorf("street-kid equipment_packages count = %d, want 3", len(bg.EquipmentPackages))
+	}
+	if len(bg.Skills) == 0 {
+		t.Error("street-kid grants no skills, want the barrens stealth kit")
+	}
+}
+
+func containsStr(ss []string, want string) bool {
+	for _, s := range ss {
+		if s == want {
+			return true
+		}
+	}
+	return false
+}
