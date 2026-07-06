@@ -44,6 +44,7 @@ type roomYAML struct {
 	ID          string              `yaml:"id"`
 	Area        string              `yaml:"area"`
 	Name        string              `yaml:"name"`
+	Description string              `yaml:"description"`
 	Terrain     string              `yaml:"terrain"`
 	Exits       map[string]string   `yaml:"exits"`
 	Mobs        []string            `yaml:"mobs"`

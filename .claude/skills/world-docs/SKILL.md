@@ -20,11 +20,14 @@ Output lives under `docs/world/`:
 - `docs/world/<pack>/catalogs/{mobs,items,recipes,factions,quests}.md` — reference
   tables of what the pack ships (mobs with room placement + roles, items with
   stats, recipes with inputs→output, factions, quests with reward summaries).
+- `docs/world/<pack>/health.md` — an authoring-gap audit (report only, never fails):
+  unreachable/orphan rooms, dangling exit targets, one-way exits, undescribed
+  rooms, empty areas, unknown mob refs, dangling quest givers/reward factions.
 - `docs/world/index.md` — a cross-pack table of contents (written on a full run).
 
 The tool is built as a shared parse feeding a registry of **emitters** (`map`,
-`gazetteer`, `catalogs`). A world-health report and a player guide arrive in
-later phases (see `docs/plans/world-docs-plan.md`).
+`gazetteer`, `catalogs`, `health`). A player guide arrives in the last phase
+(see `docs/plans/world-docs-plan.md`).
 
 ## When to use
 
@@ -46,8 +49,8 @@ go run ./cmd/worlddoc -pack wot -start the-green -emit map   # one pack, map onl
 Flags: `-pack` (`wot` default, or `all` for every kind:world pack), `-start`
 (BFS seed / spawn marker, default `the-green`; ignored for `-pack all`, which
 seeds each pack from a built-in default), `-content` (default `./content`),
-`-emit` (`all` default, or a single emitter — `map`, `gazetteer`, or `catalogs`),
-`-outdir` (default `docs/world`).
+`-emit` (`all` default, or a single emitter — `map`, `gazetteer`, `catalogs`, or
+`health`), `-outdir` (default `docs/world`).
 
 Then open the map for the user:
 

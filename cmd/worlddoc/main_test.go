@@ -254,6 +254,53 @@ func TestMdTableEscaping(t *testing.T) {
 	}
 }
 
+// TestRenderHealth feeds a deliberately broken world and asserts each class of
+// gap is surfaced (the plan's Phase 5 acceptance).
+func TestRenderHealth(t *testing.T) {
+	q1 := questYAML{ID: "q1", Giver: "ghost-giver"}
+	q1.Reward.Faction = []struct {
+		Faction string `yaml:"faction"`
+		Delta   int    `yaml:"delta"`
+	}{{Faction: "nofaction", Delta: 100}}
+
+	m := &worldModel{
+		Pack:  "t",
+		Start: "a",
+		Areas: map[string]areaYAML{
+			"known":      {ID: "known", Name: "Known"},
+			"empty-area": {ID: "empty-area", Name: "Empty"},
+		},
+		Mobs: map[string]mobJSON{"guard": {Name: "Guard"}}, // exists but placed nowhere
+		Rooms: map[string]roomYAML{
+			"a": {ID: "a", Area: "known", Name: "A", Description: "d", Exits: map[string]string{"north": "b"}},
+			"b": {ID: "b", Area: "known", Name: "B", Description: "d", Exits: map[string]string{"south": "a", "east": "c"}},
+			"c": {ID: "c", Area: "known", Name: "C", Exits: map[string]string{"down": "ghost"}, Mobs: []string{"unknown-mob"}},
+			"d": {ID: "d", Area: "known", Name: "D", Description: "d", Exits: map[string]string{"west": "a"}}, // orphan + unreachable
+		},
+		Quests: []questYAML{q1, {ID: "q2", Giver: "guard"}},
+	}
+	md := renderHealth(m)
+
+	wants := []string{
+		"## Unreachable rooms (1)",
+		"`d` (D) — area `known`",
+		"## Orphan rooms (1)",
+		"`c` down → `ghost`",              // dangling target
+		"`b` east → `c` (no return exit)", // one-way
+		"## Rooms missing a description (1)",
+		"`empty-area` (Empty)",
+		"`c` references mob `unknown-mob`",
+		"quest `q1` giver `ghost-giver` is not a known mob",
+		"quest `q2` giver `guard` is not placed in any room",
+		"quest `q1` reward references faction `nofaction`",
+	}
+	for _, want := range wants {
+		if !strings.Contains(md, want) {
+			t.Errorf("health report missing %q\n---\n%s", want, md)
+		}
+	}
+}
+
 func contains(ss []string, want string) bool {
 	for _, s := range ss {
 		if s == want {
