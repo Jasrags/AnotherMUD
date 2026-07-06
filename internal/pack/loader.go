@@ -766,9 +766,15 @@ func validateGrowthBonuses(dst *Registries) []growthBonusWarning {
 			}
 		}
 	}
+	// Group by (class, source): the finding is about the source stat's low cap,
+	// so warnings sharing a source cluster together even when one source drives
+	// several grown stats. Stat + Set are deterministic tie-breakers.
 	sort.Slice(warns, func(i, j int) bool {
 		if warns[i].Class != warns[j].Class {
 			return warns[i].Class < warns[j].Class
+		}
+		if warns[i].Source != warns[j].Source {
+			return warns[i].Source < warns[j].Source
 		}
 		if warns[i].Stat != warns[j].Stat {
 			return warns[i].Stat < warns[j].Stat
