@@ -15,6 +15,7 @@ import (
 	"github.com/Jasrags/AnotherMUD/internal/item"
 	"github.com/Jasrags/AnotherMUD/internal/loot"
 	"github.com/Jasrags/AnotherMUD/internal/mob"
+	"github.com/Jasrags/AnotherMUD/internal/pool"
 	"github.com/Jasrags/AnotherMUD/internal/progression"
 	"github.com/Jasrags/AnotherMUD/internal/property"
 	"github.com/Jasrags/AnotherMUD/internal/quest"
@@ -50,6 +51,12 @@ type Registries struct {
 	// the set its manifest selects (wiring lands in later SR-M1 steps). Set ids
 	// are global; higher priority wins.
 	AttributeSets *progression.AttributeSetRegistry
+	// Pools is the content-declared resource-pool registry (shadowrun-mvp
+	// SR-M3a). Packs register pools from their `pools:` glob; the core pack
+	// declares mana/movement, a world pack (Shadowrun) its Stun/Physical
+	// monitors. Read at character creation + mob spawn to seed each entity's
+	// pool.Set (later SR-M3a steps). Pool kinds are global; higher priority wins.
+	Pools *pool.Registry
 	// Languages is the tongue registry (languages.md §2). Packs register
 	// languages from their `languages:` glob; a background grants its
 	// home_language through it, and `score`/`languages` resolve known ids to
@@ -203,6 +210,7 @@ func NewRegistries() *Registries {
 		Classes:       progression.NewClassRegistry(),
 		Backgrounds:   progression.NewBackgroundRegistry(),
 		AttributeSets: progression.NewAttributeSetRegistry(),
+		Pools:         pool.NewRegistry(),
 		Languages:     progression.NewLanguageRegistry(),
 		Feats:         feat.NewRegistry(),
 		Abilities:     progression.NewAbilityRegistry(),

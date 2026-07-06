@@ -1003,6 +1003,42 @@ type AttributeFile struct {
 	Category  string `yaml:"category,omitempty"`
 }
 
+// PoolFile is the YAML shape for a content-declared resource pool (shadowrun-mvp
+// SR-M3a). Decoded into a pool.Decl and registered into Registries.Pools; the
+// pool kind is global (not namespace-qualified), like an attribute stat key. A
+// world declares its pools (Shadowrun's Stun/Physical monitors) instead of the
+// engine hardcoding them; the core pack declares mana/movement as the
+// regression gate (SR-M3a step 2).
+type PoolFile struct {
+	// ID is the pool.Kind identity ("stun", "mana"); lowercased on load.
+	ID string `yaml:"id"`
+	// Floor is the value Current clamps to (0 for most pools; a Physical
+	// overflow track may floor negative).
+	Floor int `yaml:"floor,omitempty"`
+	// OverflowTo names another pool that receives the excess when this one is
+	// driven below Floor (SR5 Stun spilling into Physical). Empty ⇒ discard.
+	OverflowTo string `yaml:"overflow_to,omitempty"`
+	// Degrades names a derived channel whose max this pool's Current caps
+	// (Essence → magic). Empty ⇒ caps nothing.
+	Degrades string `yaml:"degrades,omitempty"`
+	// DepletionEvent advertises that crossing to Floor is a reportable
+	// death-or-KO (hp, both Shadowrun monitors). A pure resource (mana) omits it.
+	DepletionEvent bool `yaml:"depletion_event,omitempty"`
+	// Nonlethal marks a depletion as a KNOCK-OUT rather than a kill (the Stun
+	// monitor). Only meaningful with DepletionEvent. See pool.Rules.Nonlethal.
+	Nonlethal bool `yaml:"nonlethal,omitempty"`
+	// MaxChannel names the derived channel/stat whose value is this pool's
+	// ceiling ("hp_stun", "resource_max"). Empty ⇒ a zero max (inert until
+	// content grants one).
+	MaxChannel string `yaml:"max_channel,omitempty"`
+	// SeedOnPlayer / SeedOnMob select which entity kinds instantiate this pool
+	// at creation/spawn.
+	SeedOnPlayer bool `yaml:"seed_on_player,omitempty"`
+	SeedOnMob    bool `yaml:"seed_on_mob,omitempty"`
+	// Priority drives override on a kind collision (higher wins; equal no-ops).
+	Priority int `yaml:"priority,omitempty"`
+}
+
 // BackgroundSkillFile is one skill grant in a BackgroundFile (backgrounds §2).
 type BackgroundSkillFile struct {
 	Ability     string `yaml:"ability"`

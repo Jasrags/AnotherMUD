@@ -115,9 +115,14 @@ type ContentPaths struct {
 	// ids are GLOBAL (not namespace-qualified), higher priority wins. The core
 	// pack ships the `classic` six; a world pack may declare its own.
 	AttributeSets []string `yaml:"attribute_sets,omitempty"`
-	Languages     []string `yaml:"languages,omitempty"`
-	Feats         []string `yaml:"feats,omitempty"`
-	Abilities     []string `yaml:"abilities,omitempty"`
+	// Pools declares content-defined resource pools (shadowrun-mvp SR-M3a).
+	// Loaded into Registries.Pools; pool kinds are GLOBAL (not
+	// namespace-qualified), higher priority wins. The core pack declares
+	// mana/movement; a world pack (Shadowrun) declares its Stun/Physical monitors.
+	Pools     []string `yaml:"pools,omitempty"`
+	Languages []string `yaml:"languages,omitempty"`
+	Feats     []string `yaml:"feats,omitempty"`
+	Abilities []string `yaml:"abilities,omitempty"`
 	// Factions declares faction/standing definition files (faction.md §2).
 	// Loaded into Registries.Factions; ids are namespace-qualified at load.
 	Factions []string `yaml:"factions,omitempty"`

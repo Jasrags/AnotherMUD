@@ -29,6 +29,7 @@ import (
 	"github.com/Jasrags/AnotherMUD/internal/loot"
 	"github.com/Jasrags/AnotherMUD/internal/mob"
 	"github.com/Jasrags/AnotherMUD/internal/mount"
+	"github.com/Jasrags/AnotherMUD/internal/pool"
 	"github.com/Jasrags/AnotherMUD/internal/progression"
 	"github.com/Jasrags/AnotherMUD/internal/property"
 	"github.com/Jasrags/AnotherMUD/internal/quest"
@@ -126,7 +127,7 @@ type pendingMobPlacement struct {
 // Filter, when non-empty, restricts discovery (spec §2.4). Pass nil to
 // load every active pack under root.
 func Load(ctx context.Context, root string, filter []string, dst *Registries, spawner Spawner, mobSpawner MobSpawner, scriptCompiler ScriptCompiler) error {
-	if dst == nil || dst.World == nil || dst.Items == nil || dst.Slots == nil || dst.Mobs == nil || dst.Tracks == nil || dst.Races == nil || dst.Classes == nil || dst.Backgrounds == nil || dst.AttributeSets == nil || dst.Languages == nil || dst.Feats == nil || dst.Abilities == nil || dst.Theme == nil || dst.Help == nil || dst.Quests == nil || dst.Weather == nil || dst.Scripts == nil || dst.Rarity == nil || dst.Essence == nil || dst.Grades == nil || dst.Loot == nil || dst.Channels == nil || dst.Emotes == nil || dst.RangedFlavor == nil || dst.ChannelMap == nil {
+	if dst == nil || dst.World == nil || dst.Items == nil || dst.Slots == nil || dst.Mobs == nil || dst.Tracks == nil || dst.Races == nil || dst.Classes == nil || dst.Backgrounds == nil || dst.AttributeSets == nil || dst.Pools == nil || dst.Languages == nil || dst.Feats == nil || dst.Abilities == nil || dst.Theme == nil || dst.Help == nil || dst.Quests == nil || dst.Weather == nil || dst.Scripts == nil || dst.Rarity == nil || dst.Essence == nil || dst.Grades == nil || dst.Loot == nil || dst.Channels == nil || dst.Emotes == nil || dst.RangedFlavor == nil || dst.ChannelMap == nil {
 		return errors.New("pack.Load: dst has nil registry field; use pack.NewRegistries()")
 	}
 	logger := logging.From(ctx).With(slog.String("event", "pack.load"), slog.String("root", root))
@@ -769,6 +770,10 @@ func loadPackContent(ctx context.Context, p Discovered, dst *Registries, scriptC
 	if err != nil {
 		return nil, nil, err
 	}
+	poolPaths, err := resolveGlobs(p.Dir, p.Manifest.Content.Pools)
+	if err != nil {
+		return nil, nil, err
+	}
 	featPaths, err := resolveGlobs(p.Dir, p.Manifest.Content.Feats)
 	if err != nil {
 		return nil, nil, err
@@ -1047,6 +1052,20 @@ func loadPackContent(ctx context.Context, p Discovered, dst *Registries, scriptC
 		}
 		if err := dst.AttributeSets.Register(s); err != nil {
 			return nil, nil, fmt.Errorf("%w (in %s)", err, ap)
+		}
+	}
+
+	// Resource pools: kind-keyed global registry (shadowrun-mvp SR-M3a). The
+	// core pack declares mana/movement; a world pack (Shadowrun) declares its
+	// Stun/Physical monitors. Read at creation + spawn to seed each entity's
+	// pool.Set. Register validates the kind + priority-overrides on collision.
+	for _, pp := range poolPaths {
+		d, err := decodePool(pp, ns)
+		if err != nil {
+			return nil, nil, err
+		}
+		if err := dst.Pools.Register(d); err != nil {
+			return nil, nil, fmt.Errorf("%w (in %s)", err, pp)
 		}
 	}
 
@@ -1466,6 +1485,7 @@ func loadPackContent(ctx context.Context, p Discovered, dst *Registries, scriptC
 		slog.Int("classes", len(classPaths)),
 		slog.Int("backgrounds", len(backgroundPaths)),
 		slog.Int("attribute_sets", len(attributeSetPaths)),
+		slog.Int("pools", len(poolPaths)),
 		slog.Int("languages", len(languagePaths)),
 		slog.Int("feats", len(featPaths)),
 		slog.Int("abilities", len(abilityPaths)),
@@ -2364,6 +2384,41 @@ func decodeAttributeSet(path, ns string) (*progression.AttributeSet, error) {
 		Attributes: attrs,
 		Pack:       ns,
 		Priority:   f.Priority,
+	}, nil
+}
+
+// decodePool reads a PoolFile and builds a pool.Decl (shadowrun-mvp SR-M3a).
+// The pool kind is GLOBAL (not namespace-qualified) — it is a vocabulary the
+// seeders and channel formulas reference by raw name, like an attribute stat
+// key. Register lowercases the kind + overflow target and enforces the
+// priority-override; this only checks the kind is present and normalizes
+// whitespace/booleans into pool.Rules.
+func decodePool(path, ns string) (*pool.Decl, error) {
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		return nil, fmt.Errorf("reading pool %s: %w", path, err)
+	}
+	var f PoolFile
+	if err := yaml.Unmarshal(raw, &f); err != nil {
+		return nil, fmt.Errorf("%w: %s: %v", ErrInvalidContent, path, err)
+	}
+	if strings.TrimSpace(f.ID) == "" {
+		return nil, fmt.Errorf("%w: %s: missing 'id'", ErrInvalidContent, path)
+	}
+	return &pool.Decl{
+		Kind: pool.Kind(strings.TrimSpace(f.ID)),
+		Rules: pool.Rules{
+			Floor:          f.Floor,
+			OverflowTo:     pool.Kind(strings.TrimSpace(f.OverflowTo)),
+			Degrades:       strings.TrimSpace(f.Degrades),
+			DepletionEvent: f.DepletionEvent,
+			Nonlethal:      f.Nonlethal,
+		},
+		MaxChannel:   strings.TrimSpace(f.MaxChannel),
+		SeedOnPlayer: f.SeedOnPlayer,
+		SeedOnMob:    f.SeedOnMob,
+		Pack:         ns,
+		Priority:     f.Priority,
 	}, nil
 }
 
