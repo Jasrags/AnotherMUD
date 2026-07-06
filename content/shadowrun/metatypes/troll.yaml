@@ -1,0 +1,30 @@
+# Troll — the largest metatype, a wall of muscle and dermal bone. Body/Strength
+# caps run to the ceiling; Agility/Logic/Intuition/Charisma are capped low. size:
+# large means the size-and-wielding rules let a troll handle oversized weapons a
+# human couldn't, and dermal armour + reach are flavor until their consumers land.
+id: troll
+name: Troll
+tagline: A doorway with opinions.
+description: |
+  Trolls top three metres of horn, tusk, and bone-plated hide — the sixth world's
+  living cover. A troll can two-hand a weapon meant for a weapon mount and walk
+  off fire that would drop a squad. What they pay for it is doorways, off-the-rack
+  gear, and anyone who assumes big means slow-witted and learns otherwise.
+category: humanoid
+starting_alignment: 0
+size: large
+stat_caps:
+  body: 10
+  agility: 5
+  reaction: 6
+  strength: 10
+  willpower: 6
+  logic: 5
+  intuition: 5
+  charisma: 4
+  edge: 6
+cast_cost_modifier: 0
+racial_flags:
+  - common-tongue
+  - thermographic
+priority: 1

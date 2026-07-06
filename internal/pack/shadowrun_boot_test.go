@@ -118,3 +118,50 @@ func TestLoad_ShadowrunBootSlice(t *testing.T) {
 		t.Fatalf("seeded stun max = %d, want 10 (8 + ceil(willpower 3 / 2)); 0 would mean the formula seam is broken", got)
 	}
 }
+
+// TestLoad_ShadowrunMetatypes is the SR-M3c-2 metatype-roster gate: all five
+// metatypes load, each overriding the core baseline (priority 1), and the four
+// metahumans carry their identity as distinct attribute CAPS + size (RaceFile
+// has no starting-stat bonus — see sr-m3c-deferred-fixes — so a metatype's edge
+// is its ceiling and frame, not a higher seed).
+func TestLoad_ShadowrunMetatypes(t *testing.T) {
+	root, err := filepath.Abs("../../content")
+	if err != nil {
+		t.Fatalf("abs: %v", err)
+	}
+	regs := NewRegistries()
+	if err := RegisterEngineBaselineProperties(regs.Properties); err != nil {
+		t.Fatalf("baseline properties: %v", err)
+	}
+	if err := slot.RegisterEngineBaseline(regs.Slots); err != nil {
+		t.Fatalf("baseline slots: %v", err)
+	}
+	if err := Load(context.Background(), root, []string{"shadowrun"}, regs, nil, nil, nil); err != nil {
+		t.Fatalf("Load shadowrun: %v", err)
+	}
+
+	for _, id := range []string{"human", "elf", "dwarf", "ork", "troll"} {
+		if !regs.Races.Has(id) {
+			t.Errorf("metatype %q not loaded", id)
+		}
+	}
+
+	// Identity spot-checks: the caps that make each metatype itself.
+	troll, _ := regs.Races.Get("troll")
+	if troll.StatCaps["body"] != 10 || troll.StatCaps["strength"] != 10 {
+		t.Errorf("troll body/strength caps = %d/%d, want 10/10", troll.StatCaps["body"], troll.StatCaps["strength"])
+	}
+	if troll.Size != "large" {
+		t.Errorf("troll size = %q, want large (size-and-wielding)", troll.Size)
+	}
+	dwarf, _ := regs.Races.Get("dwarf")
+	if dwarf.Size != "small" {
+		t.Errorf("dwarf size = %q, want small", dwarf.Size)
+	}
+	if elf, _ := regs.Races.Get("elf"); elf.StatCaps["charisma"] != 8 {
+		t.Errorf("elf charisma cap = %d, want 8", elf.StatCaps["charisma"])
+	}
+	if ork, _ := regs.Races.Get("ork"); ork.StatCaps["logic"] != 5 {
+		t.Errorf("ork logic cap = %d, want 5 (capped, the sprawl's prejudice in numbers)", ork.StatCaps["logic"])
+	}
+}

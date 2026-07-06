@@ -1,0 +1,28 @@
+# Ork — muscle and mass, cheap to underestimate. High Body/Strength caps, capped
+# Logic and Charisma (the sprawl's prejudice as much as anything), low-light eyes.
+# No size bump — orks are big but still fit a medium frame's gear.
+id: ork
+name: Ork
+tagline: Bigger, tougher, and sick of your attitude.
+description: |
+  Orks hit puberty as a growth spurt that never quite stops — broad, tusked, and
+  built for the kind of work that breaks smaller metatypes. The corps slot them
+  as security and heavy lifting and pay them accordingly; the shadows just see a
+  runner who can soak a burst and keep walking.
+category: humanoid
+starting_alignment: 0
+stat_caps:
+  body: 9
+  agility: 6
+  reaction: 6
+  strength: 8
+  willpower: 6
+  logic: 5
+  intuition: 6
+  charisma: 5
+  edge: 6
+cast_cost_modifier: 0
+racial_flags:
+  - common-tongue
+  - low-light
+priority: 1

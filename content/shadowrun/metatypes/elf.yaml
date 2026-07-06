@@ -1,0 +1,29 @@
+# Elf — the graceful metatype, all agility and presence. In engine terms a
+# metatype's identity is its per-attribute ceiling (how high training/augmentation
+# can push each attribute) plus its size and vision; RaceFile carries no starting
+# attribute bonus (see sr-m3c-deferred-fixes), so the elf's edge shows as higher
+# Agility and Charisma CAPS, not a higher seed.
+id: elf
+name: Elf
+tagline: Quick, comely, and quietly certain of it.
+description: |
+  Elves came back with the Awakening looking like the stories — tall, sharp of
+  ear, unfairly graceful — and the sprawl has resented them for it ever since.
+  They make natural faces and shooters, low-light eyes turning a dark alley into
+  dusk, though corp boardrooms and street gangs alike keep a wary distance.
+category: humanoid
+starting_alignment: 0
+stat_caps:
+  body: 6
+  agility: 7
+  reaction: 6
+  strength: 6
+  willpower: 6
+  logic: 6
+  intuition: 6
+  charisma: 8
+  edge: 6
+cast_cost_modifier: 0
+racial_flags:
+  - common-tongue
+priority: 1

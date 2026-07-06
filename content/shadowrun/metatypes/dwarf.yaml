@@ -1,0 +1,30 @@
+# Dwarf — short, stocky, and hard to put down. Expressed as high Body/Strength/
+# Willpower caps and a smaller frame (size: small → the size-and-wielding rules
+# treat a big two-hander as harder to swing). Thermographic vision is flavor
+# until a light/visibility consumer reads the flag.
+id: dwarf
+name: Dwarf
+tagline: Built low, built to last.
+description: |
+  Dwarfs run compact and dense — a head shorter than a human and twice as hard
+  to knock over. They shrug off toxins and fatigue that fold others, and their
+  thermographic eyes read heat in the dark. Riggers, deckers, and demolitions
+  types prize the patience that comes with all that stubborn endurance.
+category: humanoid
+starting_alignment: 0
+size: small
+stat_caps:
+  body: 8
+  agility: 6
+  reaction: 5
+  strength: 8
+  willpower: 7
+  logic: 6
+  intuition: 6
+  charisma: 6
+  edge: 6
+cast_cost_modifier: 0
+racial_flags:
+  - common-tongue
+  - thermographic
+priority: 1
