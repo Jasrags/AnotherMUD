@@ -1178,3 +1178,54 @@ func TestTargetPool_EmptyRoutesToHPAndKills(t *testing.T) {
 		t.Errorf("stun monitor must be untouched by an hp swing, got %d want 10", p.Current())
 	}
 }
+
+// stunPoolsOverflow is stunPools with an OverflowTo target — the Shadowrun Stun
+// monitor spilling its excess into hp (SR-M3c stun→Physical overflow).
+func stunPoolsOverflow(kind pool.Kind, max int, overflowTo pool.Kind) *pool.Set {
+	s := pool.NewSet()
+	s.Add(pool.New(kind, max, pool.Rules{Floor: 0, DepletionEvent: true, Nonlethal: true, OverflowTo: overflowTo}))
+	return s
+}
+
+// TestTargetPool_StunOverflowSpillsToHP: a stun swing exceeding the monitor's
+// max knocks the target out (stun crossing) AND the excess lands on hp as
+// Physical damage — but a NON-lethal overflow leaves the target alive, so the
+// stun knock-out still stands (SR5: stun overflows into Physical).
+func TestTargetPool_StunOverflowSpillsToHP(t *testing.T) {
+	atk := Stats{HitMod: 10, DamageBonus: 9, TargetPool: "stun", Subdual: true}
+	rig := newAutoAttackRig(t, atk, Stats{AC: 5}, 10, 50, []int{9, 2}) // ~12 stun
+	rig.target.pools = stunPoolsOverflow("stun", 10, "hp")             // 12 > 10 → 2 overflow to hp
+	rig.phase()(context.Background(), rig.attacker.id, rig.mgr, 0)
+
+	deaths := rig.sink.snapshotDeaths()
+	if len(deaths) != 1 || deaths[0].Vital != "stun" || !deaths[0].Subdual {
+		t.Fatalf("want one nonlethal stun KO (overflow didn't kill): %+v", deaths)
+	}
+	if got := rig.target.vitals.Current(); got >= 50 {
+		t.Errorf("hp = %d, want < 50 — the stun overflow should have spilled onto Vitals", got)
+	}
+	if rig.target.vitals.IsDead() {
+		t.Error("a non-lethal overflow must leave the target alive (knocked out, not killed)")
+	}
+}
+
+// TestTargetPool_StunOverflowLethalSupersedes: when the stun overflow drives hp
+// to zero, the death supersedes the knock-out — exactly one VitalDepleted, on
+// hp (Physical), NOT subdual, and no separate stun-KO event.
+func TestTargetPool_StunOverflowLethalSupersedes(t *testing.T) {
+	atk := Stats{HitMod: 10, DamageBonus: 9, TargetPool: "stun", Subdual: true}
+	rig := newAutoAttackRig(t, atk, Stats{AC: 5}, 10, 3, []int{9, 2}) // ~12 stun
+	rig.target.pools = stunPoolsOverflow("stun", 5, "hp")             // 5 crosses, 7 overflow → hp 3-7 dead
+	rig.phase()(context.Background(), rig.attacker.id, rig.mgr, 0)
+
+	deaths := rig.sink.snapshotDeaths()
+	if len(deaths) != 1 {
+		t.Fatalf("a lethal overflow must emit exactly one depletion (death supersedes KO), got %d: %+v", len(deaths), deaths)
+	}
+	if deaths[0].Vital != VitalHP || deaths[0].Subdual {
+		t.Errorf("depletion = {Vital:%q Subdual:%v}, want {hp, false} (lethal Physical overflow)", deaths[0].Vital, deaths[0].Subdual)
+	}
+	if !rig.target.vitals.IsDead() {
+		t.Error("the target should be dead after a lethal stun overflow into Physical")
+	}
+}

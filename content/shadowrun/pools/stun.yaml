@@ -14,11 +14,17 @@
 #   nonlethal       = a depletion is a KNOCK-OUT, not a kill.
 #   depletion_event = crossing the floor is a reportable KO (drives unconscious).
 #   max_formula     = 8 + ⌈Willpower/2⌉ (SR5 Stun monitor).
+#   overflow_to     = hp — SR5's stun-overflows-into-physical: excess stun past
+#                     the monitor's floor becomes Physical (hp/Vitals, Design 1)
+#                     damage. hp is NOT a pool, so the pool chain surfaces the
+#                     excess and combat spills it onto Vitals (a lethal spill
+#                     supersedes the knock-out).
 #   seed_on_*       = both — a runner and a mob are each stunnable.
 id: stun
 floor: 0
 nonlethal: true
 depletion_event: true
 max_formula: "8 + ceil(willpower / 2)"
+overflow_to: hp
 seed_on_player: true
 seed_on_mob: true

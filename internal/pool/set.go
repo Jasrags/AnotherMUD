@@ -77,13 +77,23 @@ type Crossing struct {
 //
 // An unknown starting kind, or a zero amount, is a no-op returning no
 // crossings.
-func (s *Set) ApplyDamage(k Kind, amount int) []Crossing {
-	var crossed []Crossing
+//
+// escaped/escapedTo surface overflow the chain could NOT route to a pool:
+// when an OverflowTo names a kind that is not a pool in this Set — e.g.
+// Shadowrun's Stun monitor overflowing to `hp`, where the Physical monitor is
+// the Vitals track (Design 1), not a declared pool — the pending amount is
+// returned as escaped (its intended kind as escapedTo) rather than silently
+// dropped, so the owner (combat) can apply it to Vitals. escaped is 0 when the
+// chain terminates normally (no OverflowTo, or overflow fully absorbed).
+func (s *Set) ApplyDamage(k Kind, amount int) (crossed []Crossing, escaped int, escapedTo Kind) {
 	visited := make(map[Kind]bool)
 	for amount > 0 && !visited[k] {
 		visited[k] = true
 		p, ok := s.Get(k)
 		if !ok {
+			// k was named as an OverflowTo target but is not a pool here — surface
+			// the unrouted overflow for the owner to route (stun → hp/Vitals).
+			escaped, escapedTo = amount, k
 			break
 		}
 		_, overflow, didCross := p.ApplyDamage(amount)
@@ -96,7 +106,7 @@ func (s *Set) ApplyDamage(k Kind, amount int) []Crossing {
 		}
 		k, amount = next, overflow
 	}
-	return crossed
+	return crossed, escaped, escapedTo
 }
 
 // Entry is one pool's persisted value. Rules are intentionally absent —

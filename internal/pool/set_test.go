@@ -27,7 +27,7 @@ func TestSet_OverflowRoutesToDeathTrack(t *testing.T) {
 
 	// 13 damage: 10 floors physical (+crosses), 3 overflow routed into the
 	// 3-box death track, which itself floors (+crosses).
-	crossings := s.ApplyDamage("physical", 13)
+	crossings, _, _ := s.ApplyDamage("physical", 13)
 
 	phys, _ := s.Get("physical")
 	over, _ := s.Get("overflow")
@@ -50,7 +50,7 @@ func TestSet_OverflowOnlyReportsDepletionEventPools(t *testing.T) {
 	s.Add(New("physical", 10, Rules{Floor: 0, OverflowTo: "overflow"}))
 	s.Add(NewAt("overflow", 2, 2, Rules{Floor: 0, DepletionEvent: true}))
 
-	crossings := s.ApplyDamage("physical", 12)
+	crossings, _, _ := s.ApplyDamage("physical", 12)
 	want := []Crossing{{Kind: "overflow"}}
 	if !reflect.DeepEqual(crossings, want) {
 		t.Fatalf("crossings = %+v; want %+v", crossings, want)
@@ -62,7 +62,7 @@ func TestSet_NoOverflowWhenAbsorbed(t *testing.T) {
 	s.Add(New("hp", 20, Rules{Floor: 0, OverflowTo: "overflow", DepletionEvent: true}))
 	s.Add(New("overflow", 5, Rules{Floor: 0, DepletionEvent: true}))
 
-	crossings := s.ApplyDamage("hp", 8)
+	crossings, _, _ := s.ApplyDamage("hp", 8)
 	if len(crossings) != 0 {
 		t.Fatalf("crossings = %+v; want none", crossings)
 	}
@@ -80,7 +80,7 @@ func TestSet_OverflowCycleTerminates(t *testing.T) {
 	s.Add(New("a", 5, Rules{Floor: 0, OverflowTo: "b", DepletionEvent: true}))
 	s.Add(New("b", 5, Rules{Floor: 0, OverflowTo: "a", DepletionEvent: true}))
 
-	crossings := s.ApplyDamage("a", 100) // would loop without the visited guard
+	crossings, _, _ := s.ApplyDamage("a", 100) // would loop without the visited guard
 	// a crosses, spills to b, b crosses, spills back to a (already visited) → stop.
 	want := []Crossing{{Kind: "a"}, {Kind: "b"}}
 	if !reflect.DeepEqual(crossings, want) {
@@ -91,7 +91,7 @@ func TestSet_OverflowCycleTerminates(t *testing.T) {
 func TestSet_ApplyDamageUnknownKindNoop(t *testing.T) {
 	s := NewSet()
 	s.Add(New("hp", 20, Rules{Floor: 0}))
-	if c := s.ApplyDamage("ghost", 10); len(c) != 0 {
+	if c, _, _ := s.ApplyDamage("ghost", 10); len(c) != 0 {
 		t.Fatalf("unknown kind should be a no-op; got %+v", c)
 	}
 }
@@ -151,5 +151,21 @@ func TestSet_Fill(t *testing.T) {
 	}
 	if c := half.Current(); c != 20 {
 		t.Fatalf("movement after Fill = %d; want 20 (full)", c)
+	}
+}
+
+// TestSet_ApplyDamageOverflowEscapesToNonPool proves the SR-M3c stun→Physical
+// surfacing: a Stun monitor overflowing to `hp` (which is the Vitals track, not
+// a pool in this Set) crosses its own floor (a nonlethal KO) AND returns the
+// unrouted excess as escaped, so combat can apply it to Vitals rather than drop it.
+func TestSet_ApplyDamageOverflowEscapesToNonPool(t *testing.T) {
+	s := NewSet()
+	s.Add(New("stun", 5, Rules{Floor: 0, DepletionEvent: true, Nonlethal: true, OverflowTo: "hp"}))
+	crossings, escaped, escapedTo := s.ApplyDamage("stun", 8) // 5 floors stun (+cross), 3 escapes to hp
+	if len(crossings) != 1 || crossings[0].Kind != "stun" || !crossings[0].Nonlethal {
+		t.Fatalf("crossings = %+v; want one nonlethal stun crossing", crossings)
+	}
+	if escaped != 3 || escapedTo != "hp" {
+		t.Fatalf("escaped = (%d,%q); want (3, hp) — the unrouted overflow surfaced", escaped, escapedTo)
 	}
 }

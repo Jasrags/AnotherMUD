@@ -740,6 +740,8 @@ func resolveSwing(ctx context.Context, in swingInputs, cfg AutoAttackConfig) swi
 		wasAlive    bool
 		hpRemaining int
 		crossings   []pool.Crossing
+		poolEscaped int       // shadowrun-mvp SR-M3c: overflow the pool chain couldn't route
+		escapedTo   pool.Kind // ...and its intended kind (hp ⇒ spill to Vitals)
 	)
 	if dest == pool.KindHP {
 		hpRemaining, wasAlive = in.target.Vitals().ApplyDamageIfAlive(raw)
@@ -747,7 +749,7 @@ func resolveSwing(ctx context.Context, in swingInputs, cfg AutoAttackConfig) swi
 		wasAlive = !in.target.Vitals().IsDead()
 		if wasAlive {
 			if pools := in.target.Pools(); pools != nil {
-				crossings = pools.ApplyDamage(dest, raw)
+				crossings, poolEscaped, escapedTo = pools.ApplyDamage(dest, raw)
 			}
 		}
 	}
@@ -804,6 +806,29 @@ func resolveSwing(ctx context.Context, in swingInputs, cfg AutoAttackConfig) swi
 			}
 		}
 		return swingContinue
+	}
+
+	// --- stun→Physical overflow (SR-M3c) ---
+	// Excess that spilled past a Stun monitor's floor and was destined for hp
+	// (the Physical monitor is the Vitals track, Design 1 — not a pool, so
+	// pool.Set surfaced it as escaped rather than dropping it) lands on Vitals as
+	// Physical damage. A LETHAL overflow (hp to 0) supersedes the stun knock-out:
+	// emit the death and stop, skipping the nonlethal crossing emit below (the
+	// target is dead, not merely unconscious). A non-lethal overflow applies the
+	// hp damage and falls through — the victim took Physical damage AND is knocked
+	// out by the stun crossing, exactly SR5's "stun overflows into Physical".
+	if poolEscaped > 0 && escapedTo == pool.KindHP {
+		if hpLeft, stillAlive := in.target.Vitals().ApplyDamageIfAlive(poolEscaped); stillAlive && hpLeft <= 0 {
+			cfg.Sink.OnVitalDepleted(ctx, VitalDepleted{
+				VictimID:   in.targetID,
+				VictimName: in.tgtName,
+				AttackerID: in.attackerID,
+				Vital:      VitalHP,
+				Subdual:    false, // overflow into the Physical monitor is lethal
+				RoomID:     in.attackerRoom,
+			})
+			return swingKill
+		}
 	}
 
 	// --- named-pool path (SR-M2): one VitalDepleted per crossing ---
