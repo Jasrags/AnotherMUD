@@ -307,6 +307,20 @@ func Load(ctx context.Context, root string, filter []string, dst *Registries, sp
 		)
 	}
 
+	// Authoring guardrail (sr-m3c-deferred-fixes): a class growth_bonuses source
+	// stat capped below 12 makes the d20 (v-10)/2 growth modifier always <= 0, so
+	// the bonus silently no-ops (SR raw-value attrs cap at 6). Advisory, like the
+	// recipe-economy warnings above.
+	for _, w := range validateGrowthBonuses(dst) {
+		logger.Warn("class growth_bonuses source is inert: its cap under this attribute set is below the d20 growth threshold (12), so (source-10)/2 is always <= 0",
+			slog.String("class", w.Class),
+			slog.String("stat", w.Stat),
+			slog.String("source", w.Source),
+			slog.String("attribute_set", w.Set),
+			slog.Int("source_cap", w.Cap),
+		)
+	}
+
 	// Size-and-wielding §4.1 authoring guardrail: an item that declares BOTH a
 	// size and static companion_slots has the static list silently overridden
 	// by the size-derived equip footprint. Advisory only — the item still loads.
@@ -701,6 +715,66 @@ func validateRecipeEconomy(dst *Registries) []recipeEconomyWarning {
 		}
 	}
 	sort.Slice(warns, func(i, j int) bool { return warns[i].Recipe < warns[j].Recipe })
+	return warns
+}
+
+// growthBonusMinSource is the smallest source-stat value that yields a positive
+// d20 growth modifier: level_up applies max(0, (source-10)/2), which is > 0 only
+// at source >= 12. A source stat capped below this can never contribute.
+const growthBonusMinSource = 12
+
+type growthBonusWarning struct {
+	Class  string
+	Stat   string
+	Source string
+	Set    string
+	Cap    int
+}
+
+// validateGrowthBonuses flags a class whose growth_bonuses names a source stat
+// that no world can push high enough to matter. A class level-up adds
+// max(0, (Effective(source)-10)/2) to the grown stat (level_up.go); for a
+// source stat capped below growthBonusMinSource under some registered attribute
+// set, that modifier is always <= 0, so the bonus is a silent no-op — the SR
+// footgun (raw-value attrs cap at 6, so the d20 modifier never fires). Advisory,
+// like validateRecipeEconomy: a warn per (class, source, capping-set), not a
+// load error. Sorted for deterministic logging.
+func validateGrowthBonuses(dst *Registries) []growthBonusWarning {
+	if dst == nil || dst.Classes == nil || dst.AttributeSets == nil {
+		return nil
+	}
+	var warns []growthBonusWarning
+	for _, c := range dst.Classes.All() {
+		for stat, src := range c.GrowthBonuses {
+			if src == "" {
+				continue
+			}
+			for _, set := range dst.AttributeSets.All() {
+				attr, ok := set.Get(src)
+				if !ok {
+					continue // this set doesn't declare the source stat.
+				}
+				// Cap 0 means "no set-level cap" (race caps / the engine default
+				// apply) — the source can still reach 12, so it's viable. Only an
+				// explicit sub-12 cap guarantees the modifier is dead.
+				if attr.Cap > 0 && attr.Cap < growthBonusMinSource {
+					warns = append(warns, growthBonusWarning{
+						Class: c.ID, Stat: string(stat), Source: string(src),
+						Set: set.ID, Cap: attr.Cap,
+					})
+				}
+			}
+		}
+	}
+	sort.Slice(warns, func(i, j int) bool {
+		if warns[i].Class != warns[j].Class {
+			return warns[i].Class < warns[j].Class
+		}
+		if warns[i].Stat != warns[j].Stat {
+			return warns[i].Stat < warns[j].Stat
+		}
+		return warns[i].Set < warns[j].Set
+	})
 	return warns
 }
 
