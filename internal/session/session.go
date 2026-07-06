@@ -740,6 +740,12 @@ func run(ctx context.Context, c conn.Connection, cfg Config) error {
 		// absent block (fresh character, migrated-from-v4 save) spawns
 		// at full HP via NewVitals. The race/class/level inputs that
 		// would derive real numbers for max HP here are M8.3/M8.4.
+		// NOTE: this seeds Vitals BEFORE the hp_max OnMaxChange listener is
+		// wired (~L769); RestoreBase (~L972) then fires that listener, so the
+		// StatBlock's hp_max reconciles the ceiling afterward. A save that
+		// already encodes the post-bonus maxHP is a round-trip no-op; a future
+		// migration emitting a maxHP below the stat-block value would clamp
+		// current here first, then SetMax raises it back — order matters.
 		vitals:         restorePlayerVitals(loaded.Player.Vitals),
 		pools:          pool.NewSet(),
 		poolDecls:      playerSeedPoolDecls(cfg.Pools),
@@ -5230,6 +5236,21 @@ func (a *connActor) ApplyStartingStats(m map[progression.StatType]int) {
 func (a *connActor) FillResourcePools() {
 	if a.pools != nil {
 		a.pools.Fill()
+	}
+}
+
+// FillVitals tops current HP up to its max. Called once at character creation
+// after StartingStats/StatBonuses may have raised hp_max (a metatype's Physical-
+// monitor bonus — sr-m3c-deferred-fixes): the OnMaxChange→SetMax wiring moved the
+// Vitals ceiling, but SetMax leaves current alone (a raise never auto-heals), so
+// a fresh character with an hp_max bonus would otherwise spawn below full. Heal
+// caps at max, so a character with no hp_max bonus is already full and this is a
+// no-op. Relogin doesn't need it — restorePlayerVitals carries the saved current
+// AND maxHP, and the RestoreBase→OnMaxChange pass reconciles the ceiling, so a
+// returning character is never re-topped from this path.
+func (a *connActor) FillVitals() {
+	if a.vitals != nil {
+		a.vitals.Heal(a.vitals.Max())
 	}
 }
 

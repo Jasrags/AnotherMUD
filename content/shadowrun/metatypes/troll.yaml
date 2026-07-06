@@ -29,6 +29,9 @@ stat_caps:
 stat_bonuses:
   body: 4
   strength: 4
+  # Flat Physical-monitor bump (hp_max) — the sixth world's living cover, "walk
+  # off fire that would drop a squad." The largest metatype toughness bonus.
+  hp_max: 6
 cast_cost_modifier: 0
 racial_flags:
   - common-tongue

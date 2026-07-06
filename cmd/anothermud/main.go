@@ -1236,6 +1236,11 @@ func run() error {
 		// StartingStats above raised a channeler's resource_max via OnMaxChange,
 		// but SetMax leaves current at 0 (level-up semantics), so fill once here.
 		actor.FillResourcePools()
+		// Likewise for HP: a metatype's hp_max StatBonus (an ork/troll's larger
+		// Physical monitor — sr-m3c-deferred-fixes) raised the Vitals ceiling via
+		// OnMaxChange, but SetMax leaves current alone, so top HP to full once at
+		// creation. A metatype with no hp_max bonus is already full ⇒ a no-op.
+		actor.FillVitals()
 		// backgrounds §4: grant the chosen background's starting package once,
 		// applying the pick-one chooser selections (the chosen feat + equipment
 		// package, persisted on the save at creation — v29).

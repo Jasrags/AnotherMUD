@@ -29,6 +29,10 @@ stat_bonuses:
   body: 2
   strength: 2
   willpower: 1
+  # A flat Physical-monitor bump (hp_max) — dwarven endurance, "twice as hard to
+  # knock over." Flat per-metatype toughness; the Body-derived monitor is the
+  # deferred proper-seam alternative (sr-m3c-deferred-fixes).
+  hp_max: 2
 cast_cost_modifier: 0
 racial_flags:
   - common-tongue

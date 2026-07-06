@@ -26,6 +26,8 @@ stat_caps:
 stat_bonuses:
   body: 3
   strength: 2
+  # Flat Physical-monitor bump (hp_max) — "soak a burst and keep walking."
+  hp_max: 3
 cast_cost_modifier: 0
 racial_flags:
   - common-tongue

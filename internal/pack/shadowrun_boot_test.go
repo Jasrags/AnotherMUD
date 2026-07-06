@@ -125,9 +125,10 @@ func TestLoad_ShadowrunBootSlice(t *testing.T) {
 
 // TestLoad_ShadowrunMetatypes is the SR-M3c-2 metatype-roster gate: all five
 // metatypes load, each overriding the core baseline (priority 1), and the four
-// metahumans carry their identity as distinct attribute CAPS + size (RaceFile
-// has no starting-stat bonus — see sr-m3c-deferred-fixes — so a metatype's edge
-// is its ceiling and frame, not a higher seed).
+// metahumans carry their identity as distinct attribute CAPS + size + a starting
+// StatBonuses skew (sr-m3c-deferred-fixes: the starting-attribute bonus + the
+// flat hp_max Physical-monitor bump both shipped) — a metatype's edge is its
+// ceiling, frame, AND a higher seed.
 func TestLoad_ShadowrunMetatypes(t *testing.T) {
 	root, err := filepath.Abs("../../content")
 	if err != nil {
@@ -157,6 +158,14 @@ func TestLoad_ShadowrunMetatypes(t *testing.T) {
 	}
 	if troll.Size != "large" {
 		t.Errorf("troll size = %q, want large (size-and-wielding)", troll.Size)
+	}
+	// Starting skew: the troll's body/strength seed bonus + its flat hp_max
+	// Physical-monitor bump (the largest metatype toughness bonus).
+	if troll.StatBonuses["body"] != 4 || troll.StatBonuses["strength"] != 4 {
+		t.Errorf("troll body/strength bonus = %d/%d, want 4/4", troll.StatBonuses["body"], troll.StatBonuses["strength"])
+	}
+	if troll.StatBonuses["hp_max"] != 6 {
+		t.Errorf("troll hp_max bonus = %d, want 6", troll.StatBonuses["hp_max"])
 	}
 	dwarf, _ := regs.Races.Get("dwarf")
 	if dwarf.Size != "small" {
