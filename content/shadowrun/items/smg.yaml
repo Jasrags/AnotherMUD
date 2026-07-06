@@ -1,0 +1,23 @@
+id: smg
+name: a submachine gun
+type: weapon
+description: |
+  A stubby full-auto bullet hose with a folding stock and a fat magazine — not
+  precise, but it fills a hallway with lead and clears a room in a heartbeat.
+  Loud enough to bring every rent-a-cop on the block.
+tags: [weapon, firearm, ranged, automatic]
+keywords: [smg, submachine gun, gun, firearm]
+eligible_slots: [wield]
+companion_slots: [offhand]
+weapon_damage: "2d6+1"
+weapon_category: smg
+proficiency_tier: martial
+damage_types: [piercing]
+crit_multiplier: 2
+ranged_class: projectile
+ammo_kind: bullet
+ranged_style: firearms
+range_increment: 8
+properties:
+  weight: 4
+  value: 700

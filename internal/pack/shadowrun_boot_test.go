@@ -7,6 +7,7 @@ import (
 
 	"github.com/Jasrags/AnotherMUD/internal/channel"
 	"github.com/Jasrags/AnotherMUD/internal/entities"
+	"github.com/Jasrags/AnotherMUD/internal/item"
 	"github.com/Jasrags/AnotherMUD/internal/pool"
 	"github.com/Jasrags/AnotherMUD/internal/progression"
 	"github.com/Jasrags/AnotherMUD/internal/slot"
@@ -163,5 +164,68 @@ func TestLoad_ShadowrunMetatypes(t *testing.T) {
 	}
 	if ork, _ := regs.Races.Get("ork"); ork.StatCaps["logic"] != 5 {
 		t.Errorf("ork logic cap = %d, want 5 (capped, the sprawl's prejudice in numbers)", ork.StatCaps["logic"])
+	}
+}
+
+// TestLoad_ShadowrunWeaponsAndArmor is the SR-M3c-2 arsenal gate: the weapons
+// and armour decode with their combat identity — crucially the stun baton routes
+// to the Stun monitor (target_pool) while lethal weapons take the default hp
+// (Physical) path, and armour carries an armor_bonus the soak reads.
+func TestLoad_ShadowrunWeaponsAndArmor(t *testing.T) {
+	root, err := filepath.Abs("../../content")
+	if err != nil {
+		t.Fatalf("abs: %v", err)
+	}
+	regs := NewRegistries()
+	if err := RegisterEngineBaselineProperties(regs.Properties); err != nil {
+		t.Fatalf("baseline properties: %v", err)
+	}
+	if err := slot.RegisterEngineBaseline(regs.Slots); err != nil {
+		t.Fatalf("baseline slots: %v", err)
+	}
+	if err := Load(context.Background(), root, []string{"shadowrun"}, regs, nil, nil, nil); err != nil {
+		t.Fatalf("Load shadowrun: %v", err)
+	}
+
+	// The stun baton routes to the Stun monitor; nothing else does.
+	baton, err := regs.Items.Get("shadowrun:stun-baton")
+	if err != nil {
+		t.Fatalf("stun-baton: %v", err)
+	}
+	if baton.TargetPool != "stun" {
+		t.Errorf("stun-baton target_pool = %q, want stun (routes to the Stun monitor → KO)", baton.TargetPool)
+	}
+	for _, id := range []string{"katana", "heavy-pistol", "smg"} {
+		w, err := regs.Items.Get(item.TemplateID("shadowrun:" + id))
+		if err != nil {
+			t.Fatalf("%s: %v", id, err)
+		}
+		if w.TargetPool != "" {
+			t.Errorf("%s target_pool = %q, want empty (lethal → hp/Physical default path)", id, w.TargetPool)
+		}
+	}
+
+	// Firearms are ranged and feed on `bullet` ammo.
+	pistol, _ := regs.Items.Get("shadowrun:heavy-pistol")
+	if pistol.RangedClass != "projectile" || pistol.AmmoKind != "bullet" {
+		t.Errorf("heavy-pistol ranged = (%q,%q), want (projectile, bullet)", pistol.RangedClass, pistol.AmmoKind)
+	}
+
+	// Armour carries the soak rating the channel map reads through `armor`.
+	jacket, err := regs.Items.Get("shadowrun:armored-jacket")
+	if err != nil {
+		t.Fatalf("armored-jacket: %v", err)
+	}
+	if jacket.ArmorBonus != 3 {
+		t.Errorf("armored-jacket armor_bonus = %d, want 3", jacket.ArmorBonus)
+	}
+	hasBody := false
+	for _, s := range jacket.EligibleSlots {
+		if s == "body" {
+			hasBody = true
+		}
+	}
+	if !hasBody {
+		t.Errorf("armored-jacket eligible_slots = %v, want to include body", jacket.EligibleSlots)
 	}
 }

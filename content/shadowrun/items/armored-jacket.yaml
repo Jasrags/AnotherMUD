@@ -1,0 +1,22 @@
+id: armored-jacket
+name: an armored jacket
+type: item
+description: |
+  A street-legal jacket with ballistic weave sewn between the lining and a few
+  discreet trauma plates over the vitals. Looks like fashion, stops like armour —
+  the everyday coat of anyone who expects trouble.
+tags: [armor, wearable, light]
+keywords: [jacket, armored jacket, coat, armor]
+eligible_slots: [body]
+armor_tier: light
+# armor_bonus feeds the Shadowrun soak: the channel map's `mitigation: body +
+# armor` reads the summed worn rating through the wired `armor` input, so this 3
+# subtracts from incoming damage. (It also raises AC for any ac-based mapping,
+# but Shadowrun defense derives from Reaction+Intuition, not armour.)
+armor_bonus: 3
+# Light armour barely restricts movement — a generous max-Dex and no speed hit.
+armor_max_dex: 8
+armor_speed: 30
+properties:
+  weight: 4
+  value: 500

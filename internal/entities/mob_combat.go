@@ -49,7 +49,15 @@ func (m *MobInstance) Stats() combat.Stats {
 	damageBonus := combat.STRBonus(str)
 	mitigation := 0
 	if m.channelMap != nil {
-		lookup := func(name string) int { return m.statBlock.Effective(progression.StatType(name)) }
+		lookup := func(name string) int {
+			if name == channel.InputArmor {
+				// Shadowrun soak input (`mitigation: body + armor`) — the mob mirror
+				// of the player's wornArmorBonus, the same value fed to
+				// combat.Stats.ArmorRating below. 0 for an unarmoured mob.
+				return m.armorRating
+			}
+			return m.statBlock.Effective(progression.StatType(name))
+		}
 		hitMod = m.channelMap.Value(channel.Attack, lookup)
 		ac = m.channelMap.Value(channel.Defense, lookup)
 		damageBonus = m.channelMap.Value(channel.DamageBonus, lookup)

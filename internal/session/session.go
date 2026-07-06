@@ -6099,6 +6099,13 @@ func (a *connActor) Stats() combat.Stats {
 			if name == channelInputDexAC {
 				return a.cappedDexAC()
 			}
+			if name == channel.InputArmor {
+				// Shadowrun soak input (`mitigation: body + armor`): the summed worn-
+				// armour rating, the same lock-free snapshot combat.Stats.ArmorRating
+				// reads. 0 unarmoured, so a mapping that never asks (the fantasy
+				// baseline) is unaffected.
+				return int(a.wornArmorBonus.Load())
+			}
 			return a.statBlock.Effective(progression.StatType(name))
 		}
 		hitMod = a.channelMap.Value(channel.Attack, lookup)

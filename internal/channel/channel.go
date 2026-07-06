@@ -50,6 +50,18 @@ func DefaultValue(ch Channel) int {
 // DefaultDefense is the unmapped-Defense baseline (the legacy AC 10).
 const DefaultDefense = 10
 
+// Synthetic channel-formula inputs: variable names a formula may reference that
+// are NOT stored stats but computed live by the entity producing its combat
+// Stats (the lookup closure special-cases them before falling through to
+// StatBlock.Effective). Kept here — the vocabulary owner — so a content formula
+// and the engine agree on the spelling.
+//
+//   InputArmor — the wearer's summed worn-armour rating (Shadowrun soak:
+//   `mitigation: body + armor`). Players read it from wornArmorBonus, mobs from
+//   their armorRating. (The sibling `dex_ac` input predates this and still lives
+//   next to its cappedDexAC producer in the session package.)
+const InputArmor = "armor"
+
 // Mapping is one pack/ruleset's derivation: a channel → formula table.
 // Built once at pack load (Parse each formula then), evaluated per entity
 // against a stat-lookup. A nil/empty Mapping is valid — every channel

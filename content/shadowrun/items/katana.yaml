@@ -1,0 +1,22 @@
+id: katana
+name: a katana
+type: weapon
+description: |
+  A monofilament-edged blade folded in the old style and kept razor-keen — the
+  street samurai's signature, as much statement as weapon. Silent, legal to
+  almost no one, and lethally fast in trained hands.
+tags: [weapon, blade, melee]
+keywords: [katana, sword, blade]
+size: medium
+eligible_slots: [wield]
+weapon_damage: "2d6"
+weapon_category: sword
+proficiency_tier: martial
+damage_types: [slashing]
+crit_threat_low: 19
+crit_multiplier: 2
+# No target_pool: a lethal blade lands on the Physical monitor (hp/Vitals,
+# Design 1) via the default damage path.
+properties:
+  weight: 2
+  value: 1000

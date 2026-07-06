@@ -1,0 +1,25 @@
+id: stun-baton
+name: a stun baton
+type: weapon
+description: |
+  A hardened baton capped with an electro-shock contact head. It drops a target
+  without punching a hole in them — the tool of choice when you need the mark
+  breathing, or when killing brings more heat than the job is worth.
+tags: [weapon, melee, shock, nonlethal]
+keywords: [baton, stun baton, stunstick, shock]
+size: medium
+eligible_slots: [wield]
+weapon_damage: "2d6"
+weapon_category: club
+proficiency_tier: simple
+damage_types: [bludgeoning]
+crit_multiplier: 2
+# The Shadowrun stun weapon (SR-M3b + SR-M3c): target_pool routes its damage to
+# the defender's Stun monitor instead of the Physical (hp) track. The stun pool
+# is Nonlethal, so crossing its floor knocks the target OUT rather than killing —
+# the whole point of a stun baton. The pool.Rules.Nonlethal supplies the subdual;
+# no separate subdual flag needed.
+target_pool: stun
+properties:
+  weight: 1
+  value: 750

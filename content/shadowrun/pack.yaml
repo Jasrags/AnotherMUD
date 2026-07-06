@@ -46,10 +46,14 @@ content:
   # core baseline reads attributes (hit_mod/ac/str) this world does not use.
   channel_map:
     - channel-map/*.yaml
-  # Metatypes (the playable peoples). SR-M3c-1 ships Human; the other four land
-  # in SR-M3c-2.
+  # Metatypes (the playable peoples). SR-M3c-1 shipped Human; elf/dwarf/ork/troll
+  # land in SR-M3c-2.
   races:
     - metatypes/*.yaml
+  # Weapons, armour, and ammo (SR-M3c-2): firearms + katana + the stun baton
+  # (target_pool: stun) and armour that feeds the Shadowrun soak.
+  items:
+    - items/*.yaml
   areas:
     - areas/*.yaml
   rooms:

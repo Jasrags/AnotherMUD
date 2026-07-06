@@ -1,0 +1,25 @@
+id: heavy-pistol
+name: a heavy pistol
+type: weapon
+description: |
+  A blocky slab of a sidearm, matte and unlovely, chambered for rounds that stop
+  arguments. The grip is worn smooth and the sights are tritium-green — a
+  runner's constant companion when the talking stops.
+tags: [weapon, firearm, ranged]
+keywords: [pistol, heavy pistol, gun, firearm]
+eligible_slots: [wield]
+weapon_damage: "2d6"
+weapon_category: pistol
+proficiency_tier: martial
+damage_types: [piercing]
+crit_multiplier: 2
+# Ranged firearm (ranged-combat §2/§3): spends one round of `bullet` ammo per
+# shot. No target_pool — lethal fire lands on the Physical monitor, which is the
+# hp/Vitals track (Design 1), the engine's default damage path.
+ranged_class: projectile
+ammo_kind: bullet
+ranged_style: firearms
+range_increment: 5
+properties:
+  weight: 2
+  value: 400

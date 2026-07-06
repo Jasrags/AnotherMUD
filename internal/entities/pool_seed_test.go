@@ -3,6 +3,7 @@ package entities
 import (
 	"testing"
 
+	"github.com/Jasrags/AnotherMUD/internal/channel"
 	"github.com/Jasrags/AnotherMUD/internal/pool"
 	"github.com/Jasrags/AnotherMUD/internal/progression"
 )
@@ -76,5 +77,36 @@ func TestSeedPoolInto_NoCeiling(t *testing.T) {
 	}
 	if got := p.Max(); got != 0 {
 		t.Fatalf("edge max = %d; want 0 (inert)", got)
+	}
+}
+
+// TestMobMitigationReadsArmorInput proves the SR-M3c-2 `armor` synthetic
+// channel input is wired: the Shadowrun soak formula `mitigation: body + armor`
+// reads the mob's worn-armour rating (not just Body), through the same lookup
+// special-case as the player's wornArmorBonus. Without the wiring, `armor` would
+// resolve to 0 and mitigation would read Body alone.
+func TestMobMitigationReadsArmorInput(t *testing.T) {
+	s := NewStore()
+	m, err := channel.NewMapping(map[channel.Channel]string{channel.Mitigation: "body + armor"})
+	if err != nil {
+		t.Fatalf("NewMapping: %v", err)
+	}
+	s.SetChannelMap(m)
+
+	tpl := guardTpl()
+	tpl.Stats = map[string]int{"body": 3, "hp_max": 40}
+	tpl.Equipment = nil // no starter gear; armour set explicitly below
+	inst, err := s.SpawnMob(tpl)
+	if err != nil {
+		t.Fatalf("SpawnMob: %v", err)
+	}
+
+	inst.SetArmorRating(4)
+	if got := inst.Stats().Mitigation; got != 7 {
+		t.Fatalf("mitigation = %d, want 7 (body 3 + armor 4 via the wired input)", got)
+	}
+	inst.SetArmorRating(0)
+	if got := inst.Stats().Mitigation; got != 3 {
+		t.Fatalf("mitigation with no armour = %d, want 3 (body 3 alone)", got)
 	}
 }

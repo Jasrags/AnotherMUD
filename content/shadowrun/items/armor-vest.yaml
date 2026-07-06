@@ -1,0 +1,17 @@
+id: armor-vest
+name: an armored vest
+type: item
+description: |
+  A heavier plated vest worn over or under clothing — more protection than a
+  jacket, harder to hide, and stiff enough that you feel it when you move. Corp
+  security and serious runners both swear by one.
+tags: [armor, wearable, medium]
+keywords: [vest, armored vest, plated vest, armor]
+eligible_slots: [body]
+armor_tier: medium
+armor_bonus: 4
+armor_max_dex: 5
+armor_speed: 25
+properties:
+  weight: 7
+  value: 900
