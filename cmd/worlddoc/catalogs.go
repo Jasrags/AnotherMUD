@@ -6,50 +6,157 @@ import (
 	"strings"
 )
 
-// catalogsEmitter writes catalogs.html — reference tables of what the pack ships
-// (mobs, items, recipes, factions, quests) as one page with in-page section
-// links. Derived from the shared parse. Item source/placement (loot, shop,
-// recipe) is deliberately not cross-referenced yet — see the plan's open
-// question — so the item table lists what exists and its facts, not where it drops.
+// catalogsEmitter writes catalogs.html — reference tables of every content type
+// the pack's manifest declares, grouped into sections with an in-page sub-nav.
+// The five gameplay types (mobs/items/recipes/factions/quests) get curated
+// tables; every other declared type is documented generically (id/name/
+// description/fields), so coverage tracks the manifest with no per-type code.
 var catalogsEmitter = emitter{
 	name: "catalogs",
 	render: func(m *worldModel, packDir string) ([]string, error) {
-		secs := []struct {
-			id, title, body string
-			count           int
-		}{
-			{"mobs", "Mobs", catalogMobs(m), len(m.Mobs)},
-			{"items", "Items", catalogItems(m), len(m.Items)},
-			{"recipes", "Recipes", catalogRecipes(m), len(m.Recipes)},
-			{"factions", "Factions", catalogFactions(m), len(m.Factions)},
-			{"quests", "Quests", catalogQuests(m), len(m.Quests)},
+		body, err := renderCatalogs(m)
+		if err != nil {
+			return nil, err
 		}
-
-		var b strings.Builder
-		b.WriteString(`<p class="note">`)
-		links := make([]string, len(secs))
-		for i, s := range secs {
-			links[i] = fmt.Sprintf(`<a href="#%s">%s (%d)</a>`, s.id, esc(s.title), s.count)
-		}
-		b.WriteString(strings.Join(links, " · "))
-		b.WriteString("</p>")
-		for _, s := range secs {
-			fmt.Fprintf(&b, `<h2 id="%s">%s <span class="count %s">%d</span></h2>`,
-				s.id, esc(s.title), countClass(s.count), s.count)
-			if s.count == 0 {
-				fmt.Fprintf(&b, `<p class="empty">No %s.</p>`, esc(strings.ToLower(s.title)))
-				continue
-			}
-			b.WriteString(s.body)
-		}
-
-		lede := "Reference tables of the content this pack ships."
-		page, err := renderPage(m.Pack, "catalogs", "Catalogs", lede, b.String())
+		page, err := renderPage(m.Pack, "catalogs", "Catalogs",
+			"Reference tables of the content this pack ships.", body)
 		if err != nil {
 			return nil, err
 		}
 		return writeSitePage(packDir, "catalogs.html", page)
 	},
+}
+
+// catalogGroups is the display order and membership of the sub-nav groups. Any
+// declared content type not listed here (and not skipped) lands in a trailing
+// "Other" group, so nothing a pack ships goes undocumented.
+var catalogGroups = []struct {
+	title string
+	types []string
+}{
+	{"Characters", []string{"races", "classes", "tracks", "backgrounds", "languages", "feats"}},
+	{"Abilities & Effects", []string{"abilities", "effects", "channel_map", "channels"}},
+	{"Creatures & Items", []string{"mobs", "items", "grades", "rarity", "essence"}},
+	{"World & Crafting", []string{"biomes", "weather_zones", "recipes", "forage_tables", "node_templates", "node_spawn_tables", "loot_tables"}},
+	{"Quests & Factions", []string{"quests", "factions"}},
+	{"Engine", []string{"slots", "theme", "help", "emotes", "ranged_flavor"}},
+}
+
+// catalogSkip is the content types the catalog does not table: areas/rooms are
+// the map + gazetteer, and scripts are Lua code, not data.
+var catalogSkip = map[string]bool{"areas": true, "rooms": true, "scripts": true}
+
+type catSection struct {
+	typ, id, label, body string
+	count                int
+}
+
+// renderCatalogs builds the grouped, manifest-driven catalog body. A load error
+// for any declared type is propagated (not silently dropped), so corrupt content
+// surfaces as a failed render rather than a missing section.
+func renderCatalogs(m *worldModel) (string, error) {
+	// Group order, with every ungrouped-but-declared type appended to "Other" so
+	// nothing a pack ships goes undocumented.
+	type grp struct {
+		title string
+		types []string
+	}
+	assigned := map[string]bool{}
+	order := make([]grp, 0, len(catalogGroups)+1)
+	for _, g := range catalogGroups {
+		order = append(order, grp{g.title, g.types})
+		for _, t := range g.types {
+			assigned[t] = true
+		}
+	}
+	var others []string
+	for t := range m.Content {
+		if !assigned[t] && !catalogSkip[t] {
+			others = append(others, t)
+		}
+	}
+	sort.Strings(others)
+	order = append(order, grp{"Other", others})
+
+	// Resolve each group's non-empty sections.
+	type resolvedGroup struct {
+		title string
+		secs  []catSection
+	}
+	var groups []resolvedGroup
+	for _, g := range order {
+		var secs []catSection
+		for _, t := range g.types {
+			if _, declared := m.Content[t]; !declared || catalogSkip[t] {
+				continue
+			}
+			s, err := resolveCatSection(m, t)
+			if err != nil {
+				return "", err
+			}
+			if s.count > 0 {
+				secs = append(secs, s)
+			}
+		}
+		if len(secs) > 0 {
+			groups = append(groups, resolvedGroup{g.title, secs})
+		}
+	}
+
+	if len(groups) == 0 {
+		return `<p class="empty">This pack declares no catalogable content.</p>`, nil
+	}
+
+	var b strings.Builder
+	// Grouped sub-nav.
+	b.WriteString(`<p class="note">`)
+	for gi, g := range groups {
+		if gi > 0 {
+			b.WriteString("<br>")
+		}
+		fmt.Fprintf(&b, "<strong>%s:</strong> ", esc(g.title))
+		links := make([]string, len(g.secs))
+		for i, s := range g.secs {
+			links[i] = fmt.Sprintf(`<a href="#%s">%s (%d)</a>`, esc(s.id), esc(s.label), s.count)
+		}
+		b.WriteString(strings.Join(links, " · "))
+	}
+	b.WriteString("</p>")
+	// Sections.
+	for _, g := range groups {
+		fmt.Fprintf(&b, "<h2>%s</h2>", esc(g.title))
+		for _, s := range g.secs {
+			fmt.Fprintf(&b, `<h3 id="%s">%s <span class="count %s">%d</span></h3>`,
+				esc(s.id), esc(s.label), countClass(s.count), s.count)
+			b.WriteString(s.body)
+		}
+	}
+	return b.String(), nil
+}
+
+// resolveCatSection produces one content type's section — a curated table for
+// the five gameplay types, a generic table for everything else.
+func resolveCatSection(m *worldModel, typ string) (catSection, error) {
+	s := catSection{typ: typ, id: typ, label: titleize(typ)}
+	switch typ {
+	case "mobs":
+		s.count, s.body = len(m.Mobs), catalogMobs(m)
+	case "items":
+		s.count, s.body = len(m.Items), catalogItems(m)
+	case "recipes":
+		s.count, s.body = len(m.Recipes), catalogRecipes(m)
+	case "factions":
+		s.count, s.body = len(m.Factions), catalogFactions(m)
+	case "quests":
+		s.count, s.body = len(m.Quests), catalogQuests(m)
+	default:
+		recs, err := loadGeneric(m.Base, m.Content[typ])
+		if err != nil {
+			return catSection{}, fmt.Errorf("cataloging %s: %w", typ, err)
+		}
+		s.count, s.body = len(recs), renderGeneric(recs)
+	}
+	return s, nil
 }
 
 func catalogMobs(m *worldModel) string {

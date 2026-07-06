@@ -11,7 +11,8 @@ import (
 // opens where the player starts, tours the world region → area using each area's
 // own description, and ends with a directory of where to find services.
 var guideEmitter = emitter{
-	name: "guide",
+	name:      "guide",
+	worldOnly: true,
 	render: func(m *worldModel, packDir string) ([]string, error) {
 		body := renderGuide(m)
 		page, err := renderPage(m.Pack, "guide", "Player's Guide", "A traveler's orientation, drawn from the world itself.", body)

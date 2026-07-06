@@ -14,7 +14,10 @@ derivation (`internal/world/coords.go`: north = +y, east = +x, up = +z).
 
 The output is a small **styled HTML site** — every page shares a left-sidebar nav
 (section links + a pack switcher) and a common parchment theme lifted from the
-map. It lives under `docs/world/`:
+map. Both **world packs** (wot, starter-world) and the **core library pack**
+(tapestry-core, its shared races/classes/abilities/effects/…) are documented; a
+library has no rooms, so it gets only an Overview + Catalogs (no map/gazetteer/
+health/guide). It lives under `docs/world/`:
 
 - `docs/world/index.html` — the cross-pack landing (a card per world pack; written
   on a full run).
@@ -24,9 +27,13 @@ map. It lives under `docs/world/`:
   "◀ Docs" back link).
 - `docs/world/<pack>/gazetteer.html` — a region→area→room reference (exits with
   door/locked/hidden markers, resident NPCs with roles, per-room notes).
-- `docs/world/<pack>/catalogs.html` — reference tables of what the pack ships
-  (mobs with room placement + roles, items with stats, recipes with inputs→output,
-  factions, quests with reward summaries).
+- `docs/world/<pack>/catalogs.html` — reference tables of **every content type the
+  pack's manifest declares**, grouped (Characters · Abilities · Creatures & Items ·
+  World & Crafting · Quests & Factions · Engine) with an in-page sub-nav. The five
+  gameplay types (mobs/items/recipes/factions/quests) get curated tables; every
+  other declared type (races, classes, feats, abilities, effects, biomes, …) is
+  documented generically (id/name/description/fields), so coverage tracks the
+  manifest with no per-type code.
 - `docs/world/<pack>/health.html` — an authoring-gap audit (report only, never
   fails): unreachable/orphan rooms, dangling exit targets, one-way exits,
   undescribed rooms, empty areas, unknown mob refs, dangling quest givers/reward

@@ -58,28 +58,47 @@ func TestResolvePacksAll(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if !contains(packs, "wot") || !contains(packs, "starter-world") {
-		t.Fatalf("got packs %v, want to include wot and starter-world", packs)
+	// `all` now includes the core library pack alongside the world packs.
+	for _, want := range []string{"wot", "starter-world", "core"} {
+		if !contains(packs, want) {
+			t.Fatalf("got packs %v, want to include %q", packs, want)
+		}
 	}
-	if contains(packs, "core") {
-		t.Fatalf("got packs %v, library pack 'core' must be excluded", packs)
-	}
-	// -pack all seeds from defaultStarts, not the -start flag.
+	// -pack all seeds from defaultStarts, not the -start flag; core (library)
+	// has no seed.
 	if starts["wot"] != "the-green" || starts["starter-world"] != "town-square" {
 		t.Fatalf("got starts %v, want per-pack defaults", starts)
 	}
+	if starts["core"] != "" {
+		t.Fatalf("library pack core should have no start seed, got %q", starts["core"])
+	}
 }
 
-func TestDiscoverWorldPacksSorted(t *testing.T) {
-	got, err := discoverWorldPacks(contentDir)
+func TestDiscoverPacks(t *testing.T) {
+	got, err := discoverPacks(contentDir)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if !sort.StringsAreSorted(got) {
-		t.Fatalf("discoverWorldPacks not sorted: %v", got)
+	kinds := map[string]string{}
+	names := make([]string, len(got))
+	for i, mf := range got {
+		names[i] = mf.Name
+		kinds[mf.Name] = mf.Kind
 	}
-	if contains(got, "core") {
-		t.Fatalf("library pack 'core' leaked into world packs: %v", got)
+	if !sort.StringsAreSorted(names) {
+		t.Fatalf("discoverPacks not sorted: %v", names)
+	}
+	if kinds["core"] != "library" {
+		t.Errorf("core kind = %q, want library", kinds["core"])
+	}
+	if kinds["wot"] != "world" || kinds["starter-world"] != "world" {
+		t.Errorf("world packs misclassified: %v", kinds)
+	}
+	// The manifest content map is populated (drives the generic catalog).
+	for _, mf := range got {
+		if mf.Name == "wot" && len(mf.Content["abilities"]) == 0 {
+			t.Errorf("wot manifest content map missing abilities globs")
+		}
 	}
 }
 
@@ -352,6 +371,60 @@ func TestRenderGuide(t *testing.T) {
 	// Deterministic: identical on repeat renders (no timestamp, stable ordering).
 	if md2 := renderGuide(m); md2 != md {
 		t.Error("renderGuide is not deterministic across calls")
+	}
+}
+
+func TestToGeneric(t *testing.T) {
+	doc := map[string]any{
+		"id":          "kandori",
+		"name":        "Kandori",
+		"description": "A trading nation.\nSecond line ignored.",
+		"gold":        50,
+		"skills":      []any{"barter", "ride"},
+		"stat_caps":   map[string]any{"str": 18, "int": 20},
+	}
+	r := toGeneric(doc, "fallback")
+	if r.ID != "kandori" || r.Name != "Kandori" {
+		t.Fatalf("id/name = %q/%q", r.ID, r.Name)
+	}
+	if r.Desc != "A trading nation." {
+		t.Errorf("desc = %q, want first line only", r.Desc)
+	}
+	// Remaining fields, key-sorted and compacted.
+	joined := strings.Join(r.Fields, " · ")
+	for _, want := range []string{"gold: 50", "skills: barter, ride", "stat_caps: 2 fields"} {
+		if !strings.Contains(joined, want) {
+			t.Errorf("fields %q missing %q", joined, want)
+		}
+	}
+	// No top-level id → filename fallback.
+	if got := toGeneric(map[string]any{"foo": 1}, "grades"); got.ID != "grades" {
+		t.Errorf("fallback id = %q, want grades", got.ID)
+	}
+}
+
+func TestCatalogsCoreLibrary(t *testing.T) {
+	m, err := loadPack(contentDir, "core", "")
+	if err != nil {
+		t.Fatalf("loading core library pack: %v", err)
+	}
+	if m.Kind != "library" {
+		t.Fatalf("core kind = %q, want library", m.Kind)
+	}
+	body, err := renderCatalogs(m)
+	if err != nil {
+		t.Fatalf("rendering core catalogs: %v", err)
+	}
+	// Generic types from the manifest are documented (core ships races, classes,
+	// abilities, …) grouped under Characters.
+	for _, want := range []string{"<h2>Characters</h2>", `<h3 id="races"`, `<h3 id="abilities"`} {
+		if !strings.Contains(body, want) {
+			t.Errorf("core catalog missing %q", want)
+		}
+	}
+	// Core ships no mobs/items, so those curated sections don't appear.
+	if strings.Contains(body, `id="mobs"`) {
+		t.Errorf("core catalog should not have a mobs section")
 	}
 }
 

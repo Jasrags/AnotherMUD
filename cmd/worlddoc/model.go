@@ -152,12 +152,15 @@ type pt struct{ x, y, z int }
 // gazetteer read only Areas/Mobs/Rooms/Coords; the catalog fields below are
 // parsed for the catalogs emitter and ignored by the others.
 type worldModel struct {
-	Pack   string
-	Start  string
-	Areas  map[string]areaYAML
-	Mobs   map[string]mobJSON
-	Rooms  map[string]roomYAML
-	Coords map[string]pt
+	Pack    string
+	Kind    string              // "world" or "library"
+	Base    string              // the pack's content dir (for generic globbing)
+	Content map[string][]string // manifest content map (type → globs)
+	Start   string
+	Areas   map[string]areaYAML
+	Mobs    map[string]mobJSON
+	Rooms   map[string]roomYAML
+	Coords  map[string]pt
 
 	Items    []itemYAML
 	Recipes  []recipeYAML
@@ -170,6 +173,11 @@ type worldModel struct {
 // falls back to a deterministic id-ordered seed and no spawn marker).
 func loadPack(content, pack, start string) (*worldModel, error) {
 	base := filepath.Join(content, pack)
+
+	mf, err := loadManifest(base)
+	if err != nil {
+		return nil, err
+	}
 
 	areas, err := loadAreas(filepath.Join(base, "areas"))
 	if err != nil {
@@ -193,7 +201,9 @@ func loadPack(content, pack, start string) (*worldModel, error) {
 	if err != nil {
 		return nil, fmt.Errorf("loading rooms: %w", err)
 	}
-	if len(rooms) == 0 {
+	// Only a world pack must have rooms; a library (e.g. tapestry-core) ships
+	// shared content — races, classes, abilities — but no world to walk.
+	if mf.isWorld() && len(rooms) == 0 {
 		return nil, fmt.Errorf("no rooms found under %s", base)
 	}
 	items, err := loadAll(filepath.Join(base, "items"), func(i itemYAML) string { return i.ID })
@@ -211,6 +221,9 @@ func loadPack(content, pack, start string) (*worldModel, error) {
 
 	return &worldModel{
 		Pack:     pack,
+		Kind:     mf.Kind,
+		Base:     base,
+		Content:  mf.Content,
 		Start:    start,
 		Areas:    areas,
 		Mobs:     mobs,

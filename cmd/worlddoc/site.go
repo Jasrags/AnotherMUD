@@ -11,21 +11,29 @@ import (
 //go:embed site.css
 var siteCSS string
 
-// siteSections is the fixed sidebar order: key (active marker), label, and the
-// per-pack file it links to.
-var siteSections = []struct{ key, label, file string }{
-	{"overview", "Overview", "index.html"},
-	{"map", "Map", "map.html"},
-	{"gazetteer", "Gazetteer", "gazetteer.html"},
-	{"catalogs", "Catalogs", "catalogs.html"},
-	{"health", "Health", "health.html"},
-	{"guide", "Guide", "guide.html"},
+// siteSections is the fixed sidebar order: key (active marker), label, the
+// per-pack file it links to, and whether it is world-only (hidden for library
+// packs, which have no rooms).
+var siteSections = []struct {
+	key, label, file string
+	worldOnly        bool
+}{
+	{"overview", "Overview", "index.html", false},
+	{"map", "Map", "map.html", true},
+	{"gazetteer", "Gazetteer", "gazetteer.html", true},
+	{"catalogs", "Catalogs", "catalogs.html", false},
+	{"health", "Health", "health.html", true},
+	{"guide", "Guide", "guide.html", true},
 }
 
-// siteNavPacks is the set of world packs shown in the sidebar's pack switcher.
-// The driver sets it (from discovery) before rendering so the switcher lists
-// every pack even on a single-pack run.
-var siteNavPacks []string
+// siteNavPacks is the ordered set of packs shown in the sidebar's pack switcher;
+// siteWorldPacks records which are worlds (vs libraries). The driver sets both
+// from discovery before rendering, so the switcher and section filtering work
+// even on a single-pack run.
+var (
+	siteNavPacks   []string
+	siteWorldPacks = map[string]bool{}
+)
 
 var pageTmpl = template.Must(template.New("page").Parse(`<!doctype html>
 <html lang="en">
@@ -72,11 +80,21 @@ func renderPage(pack, active, title, lede, body string) (string, error) {
 }
 
 func renderNav(pack, active string) string {
+	// A pack not yet in the lookup (e.g. a single named render before discovery)
+	// defaults to world so all sections show.
+	isWorld := true
+	if w, ok := siteWorldPacks[pack]; ok {
+		isWorld = w
+	}
+
 	var b strings.Builder
 	b.WriteString(`<div class="sidebar">`)
 	fmt.Fprintf(&b, `<div class="brand"><h1>%s</h1><small>World Docs</small></div>`, esc(pack))
 	b.WriteString(`<nav>`)
 	for _, s := range siteSections {
+		if s.worldOnly && !isWorld {
+			continue
+		}
 		cls := ""
 		if s.key == active {
 			cls = ` class="active"`

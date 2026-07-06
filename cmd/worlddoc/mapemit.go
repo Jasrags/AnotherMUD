@@ -19,7 +19,8 @@ var templateHTML string
 // region tinting, per-room feature badges, feature filter, feature-aware
 // search, distinct hidden/locked exit rendering, and z-level toggles.
 var mapEmitter = emitter{
-	name: "map",
+	name:      "map",
+	worldOnly: true,
 	render: func(m *worldModel, packDir string) ([]string, error) {
 		world := assemble(m)
 		data, err := json.Marshal(world)

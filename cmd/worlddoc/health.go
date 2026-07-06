@@ -13,7 +13,8 @@ import (
 // factions. Cross-pack ids (containing ":") are assumed to resolve elsewhere and
 // are not flagged.
 var healthEmitter = emitter{
-	name: "health",
+	name:      "health",
+	worldOnly: true,
 	render: func(m *worldModel, packDir string) ([]string, error) {
 		body := renderHealth(m)
 		lede := fmt.Sprintf("Authoring-gap audit — %d rooms across %d areas. Report only: no finding fails a build.", len(m.Rooms), len(m.Areas))

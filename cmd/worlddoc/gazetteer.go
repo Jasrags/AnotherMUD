@@ -13,7 +13,8 @@ import (
 // roles stay consistent with the map, then groups the id-sorted rooms under
 // their area and region.
 var gazetteerEmitter = emitter{
-	name: "gazetteer",
+	name:      "gazetteer",
+	worldOnly: true,
 	render: func(m *worldModel, packDir string) ([]string, error) {
 		w := assemble(m)
 		lede := fmt.Sprintf("Region → area → room reference — %d rooms across %d areas.", len(w.Rooms), len(w.Areas))

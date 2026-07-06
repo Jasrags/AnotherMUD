@@ -22,22 +22,21 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"sort"
 	"strings"
-
-	"gopkg.in/yaml.v3"
 )
 
 // emitter renders a pack's docs into packDir (docs/world/<pack>/), returning
-// every path written (most emit one file; catalogs emit several). New artifacts
-// register here as later phases land.
+// every path written (most emit one file; catalogs emit several). worldOnly
+// emitters need rooms and are skipped for library packs.
 type emitter struct {
-	name   string
-	render func(m *worldModel, packDir string) ([]string, error)
+	name      string
+	worldOnly bool
+	render    func(m *worldModel, packDir string) ([]string, error)
 }
 
 // emitters is the ordered registry. `-emit all` runs each in turn; `-emit <name>`
-// runs just one.
+// runs just one. map/gazetteer/health/guide are world-only (they need rooms);
+// overview + catalogs apply to library packs too.
 var emitters = []emitter{overviewEmitter, mapEmitter, gazetteerEmitter, catalogsEmitter, healthEmitter, guideEmitter}
 
 // defaultStarts seeds the layout BFS (and spawn marker) per known world pack for
@@ -50,7 +49,7 @@ var defaultStarts = map[string]string{
 
 func main() {
 	content := flag.String("content", "./content", "content directory")
-	pack := flag.String("pack", "wot", "pack to render, or 'all' for every kind:world pack")
+	pack := flag.String("pack", "wot", "pack to render, or 'all' for every pack (world + library)")
 	start := flag.String("start", "the-green", "starting room id (spawn / BFS seed); ignored for -pack all")
 	emit := flag.String("emit", "all", "artifact to emit: all, or one of ["+emitterNames()+"]")
 	outdir := flag.String("outdir", filepath.Join("docs", "world"), "output root directory")
@@ -72,10 +71,15 @@ func run(content, pack, start, emit, outdir string) error {
 		return err
 	}
 
-	// Populate the sidebar pack switcher with every world pack (even on a
-	// single-pack run), so navigation between packs always works.
-	if wp, derr := discoverWorldPacks(content); derr == nil {
-		siteNavPacks = wp
+	// Populate the sidebar pack switcher + world-pack lookup from every pack
+	// (even on a single-pack run), so navigation and section filtering work.
+	if all, derr := discoverPacks(content); derr == nil {
+		siteNavPacks = siteNavPacks[:0]
+		siteWorldPacks = map[string]bool{}
+		for _, mf := range all {
+			siteNavPacks = append(siteNavPacks, mf.Name)
+			siteWorldPacks[mf.Name] = mf.isWorld()
+		}
 	}
 
 	single := len(packs) == 1
@@ -95,6 +99,9 @@ func run(content, pack, start, emit, outdir string) error {
 		packDir := filepath.Join(outdir, p)
 		renderFailed := false
 		for _, e := range sel {
+			if e.worldOnly && m.Kind != "world" {
+				continue // library packs have no rooms — skip map/gazetteer/health/guide
+			}
 			paths, err := e.render(m, packDir)
 			if err != nil {
 				// Same per-pack isolation as loadPack: a single named pack
@@ -149,55 +156,26 @@ func resolveEmitters(emit string) ([]emitter, error) {
 }
 
 // resolvePacks expands the -pack flag into the packs to render and their BFS
-// seeds. A named pack uses -start; `all` discovers kind:world packs and seeds
-// each from defaultStarts.
+// seeds. A named pack uses -start; `all` discovers every pack (world + library)
+// and seeds each from defaultStarts (libraries get an empty seed).
 func resolvePacks(content, pack, start string) ([]string, map[string]string, error) {
 	if pack != "all" {
 		return []string{pack}, map[string]string{pack: start}, nil
 	}
-	ps, err := discoverWorldPacks(content)
+	all, err := discoverPacks(content)
 	if err != nil {
 		return nil, nil, err
 	}
-	if len(ps) == 0 {
-		return nil, nil, fmt.Errorf("no kind:world packs found under %s", content)
+	if len(all) == 0 {
+		return nil, nil, fmt.Errorf("no packs found under %s", content)
 	}
-	starts := make(map[string]string, len(ps))
-	for _, p := range ps {
-		starts[p] = defaultStarts[p] // "" when unknown — layout falls back
+	ps := make([]string, 0, len(all))
+	starts := make(map[string]string, len(all))
+	for _, mf := range all {
+		ps = append(ps, mf.Name)
+		starts[mf.Name] = defaultStarts[mf.Name] // "" when unknown — layout falls back
 	}
 	return ps, starts, nil
-}
-
-// discoverWorldPacks returns the directory names of every kind:world pack under
-// content, sorted. Library packs (e.g. tapestry-core) have no world to render
-// and are skipped.
-func discoverWorldPacks(content string) ([]string, error) {
-	entries, err := os.ReadDir(content)
-	if err != nil {
-		return nil, fmt.Errorf("reading content dir %s: %w", content, err)
-	}
-	var out []string
-	for _, e := range entries {
-		if !e.IsDir() {
-			continue
-		}
-		b, err := os.ReadFile(filepath.Join(content, e.Name(), "pack.yaml"))
-		if err != nil {
-			continue // not a pack directory
-		}
-		var mf struct {
-			Kind string `yaml:"kind"`
-		}
-		if err := yaml.Unmarshal(b, &mf); err != nil {
-			return nil, fmt.Errorf("%s/pack.yaml: %w", e.Name(), err)
-		}
-		if mf.Kind == "world" {
-			out = append(out, e.Name())
-		}
-	}
-	sort.Strings(out)
-	return out, nil
 }
 
 func emitterNames() string {

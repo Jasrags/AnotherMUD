@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Catalogs · core</title>
+<style>:root {
+  --ink: #2b2419; --parch: #f4ecd8; --parch2: #ece0c4;
+  --line: #b9a888; --cross: #b8860b; --accent: #7a1f1f;
+  --panel: #fbf6e9; --muted: #8a7c5e; --good: #4a6b3a;
+  --serif: "Iowan Old Style", Georgia, "Times New Roman", serif;
+  --sans: -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body {
+  display: flex; min-height: 100vh; color: var(--ink); font-family: var(--sans);
+  background: radial-gradient(circle at 28% 8%, #f7f0dd, var(--parch2));
+}
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+/* --- sidebar --- */
+.sidebar {
+  width: 240px; flex-shrink: 0; position: sticky; top: 0; align-self: flex-start;
+  height: 100vh; overflow-y: auto; padding: 20px 0;
+  background: linear-gradient(180deg, var(--panel), #efe4ca);
+  border-right: 2px solid var(--line); box-shadow: 2px 0 10px rgba(0,0,0,.08);
+}
+.sidebar .brand { padding: 0 20px 14px; border-bottom: 1px solid var(--line); margin-bottom: 10px; }
+.sidebar .brand h1 { font: 600 20px/1 var(--serif); margin: 0; letter-spacing: .4px; }
+.sidebar .brand small { display: block; font-size: 11px; color: var(--muted); margin-top: 4px; letter-spacing: .5px; text-transform: uppercase; }
+.sidebar .lbl { display: block; font: 600 10px var(--sans); text-transform: uppercase; letter-spacing: .7px; color: var(--muted); padding: 0 20px; margin: 16px 0 6px; }
+.sidebar nav a {
+  display: block; padding: 8px 20px; color: var(--ink); font-size: 14px;
+  border-left: 3px solid transparent; transition: background .12s, border-color .12s;
+}
+.sidebar nav a:hover { background: rgba(122,31,31,.06); text-decoration: none; }
+.sidebar nav a.active { background: rgba(122,31,31,.10); border-left-color: var(--accent); font-weight: 600; }
+.sidebar nav a.current { color: var(--muted); cursor: default; font-weight: 600; }
+.sidebar nav a.current::before { content: "▸ "; color: var(--accent); }
+
+/* --- main --- */
+main { flex: 1; min-width: 0; padding: 34px 48px 80px; max-width: 1160px; }
+.page-head { border-bottom: 2px solid var(--line); padding-bottom: 14px; margin-bottom: 8px; }
+.page-head h1 { font: 600 30px/1.15 var(--serif); margin: 0; }
+.page-head .lede { color: var(--muted); font-size: 14px; margin-top: 8px; max-width: 70ch; }
+
+main h2 {
+  font: 600 22px/1.2 var(--serif); margin: 34px 0 4px; padding-left: 12px;
+  border-left: 4px solid var(--accent);
+}
+main h3 { font: 600 16px/1.2 var(--serif); margin: 22px 0 6px; color: #4a4032; }
+main h2 .id, main h3 .id { font: 400 12px var(--sans); color: var(--muted); margin-left: 8px; }
+main p { line-height: 1.6; max-width: 74ch; }
+main .note { color: var(--muted); font-size: 13px; font-style: italic; margin: 4px 0 0; }
+
+/* --- tables --- */
+table { border-collapse: collapse; width: 100%; margin: 14px 0 8px; font-size: 13.5px; background: var(--panel); box-shadow: 0 1px 4px rgba(0,0,0,.08); }
+thead th { background: var(--ink); color: var(--parch); text-align: left; padding: 8px 12px; font-weight: 600; letter-spacing: .3px; position: sticky; top: 0; }
+tbody td { padding: 7px 12px; border-top: 1px solid #e7dcc2; vertical-align: top; }
+tbody tr:nth-child(even) { background: rgba(185,168,136,.10); }
+tbody tr:hover { background: rgba(122,31,31,.06); }
+td code, .mono { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 12.5px; color: #5a4a2a; }
+
+/* --- cards / entries --- */
+.cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 16px; margin: 18px 0; }
+.card {
+  display: block; padding: 16px 18px; background: var(--panel); border: 1px solid var(--line);
+  border-left: 5px solid var(--accent); border-radius: 10px; box-shadow: 0 2px 6px rgba(0,0,0,.10);
+  transition: box-shadow .12s, transform .12s; color: var(--ink);
+}
+a.card:hover { box-shadow: 0 6px 16px rgba(0,0,0,.18); transform: translateY(-2px); text-decoration: none; }
+.card h3 { margin: 0 0 4px; font: 600 17px/1.2 var(--serif); }
+.card p { margin: 0; font-size: 13px; color: var(--muted); line-height: 1.5; }
+
+.entry { padding: 14px 16px; margin: 12px 0; background: var(--panel); border: 1px solid var(--line); border-left: 4px solid var(--line); border-radius: 8px; }
+.entry h4 { margin: 0 0 8px; font: 600 15px/1.2 var(--serif); }
+.entry h4 .id { font: 400 12px var(--sans); color: var(--muted); margin-left: 6px; }
+.entry ul { margin: 6px 0 0; padding-left: 18px; }
+.entry li { line-height: 1.5; font-size: 13.5px; }
+.entry .attr { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .4px; }
+
+/* --- pills / tags --- */
+.tag { display: inline-block; padding: 1px 8px; border-radius: 10px; background: var(--parch2); font-size: 11.5px; margin: 1px 3px 1px 0; white-space: nowrap; }
+.tag.shop { background: #e7f0d6; } .tag.trainer { background: #f5e2c0; }
+.tag.stable { background: #dfe8f0; } .tag.hire, .tag.recruiter { background: #efe0d0; }
+.tag.hostile { background: #f0d6d6; } .tag.quest { background: #f4eec4; }
+.tag.faction { background: #e6ddf0; } .tag.start { background: #d9e8d2; }
+.tag.craft { background: #e4e0d0; } .tag.dark { background: #d8d2c4; }
+.tag.locked, .tag.hidden { background: #f0dcd6; color: #7a1f1f; }
+.marker { color: var(--accent); font-size: 12px; }
+.marker.cross { color: var(--cross); }
+
+/* --- health counts --- */
+.count { display: inline-block; min-width: 22px; text-align: center; padding: 0 7px; border-radius: 10px; font: 600 12px var(--sans); }
+.count.zero { background: rgba(74,107,58,.18); color: var(--good); }
+.count.some { background: rgba(122,31,31,.14); color: var(--accent); }
+main h2 .count { margin-left: 10px; vertical-align: middle; }
+.empty { color: var(--muted); font-style: italic; }
+
+/* --- back link (on the map) --- */
+.docs-back {
+  position: fixed; left: 14px; top: 14px; z-index: 20; padding: 6px 12px;
+  background: var(--panel); border: 1px solid var(--line); border-radius: 8px;
+  font: 600 12px var(--sans); box-shadow: 0 2px 8px rgba(0,0,0,.18);
+}
+
+@media (max-width: 760px) {
+  body { flex-direction: column; }
+  .sidebar { width: 100%; height: auto; position: static; border-right: none; border-bottom: 2px solid var(--line); }
+  main { padding: 24px 20px 60px; }
+}
+</style>
+</head>
+<body>
+<div class="sidebar"><div class="brand"><h1>core</h1><small>World Docs</small></div><nav><a href="index.html">Overview</a><a class="active" href="catalogs.html">Catalogs</a></nav><span class="lbl">Packs</span><nav><a class="current">core</a><a href="../starter-world/catalogs.html">starter-world</a><a href="../wot/catalogs.html">wot</a></nav></div>
+<main>
+<div class="page-head"><h1>Catalogs</h1><p class="lede">Reference tables of the content this pack ships.</p></div>
+<p class="note"><strong>Characters:</strong> <a href="#races">Races (1)</a> · <a href="#classes">Classes (1)</a> · <a href="#tracks">Tracks (1)</a> · <a href="#backgrounds">Backgrounds (1)</a> · <a href="#feats">Feats (20)</a><br><strong>Abilities &amp; Effects:</strong> <a href="#abilities">Abilities (20)</a> · <a href="#effects">Effects (9)</a> · <a href="#channel_map">Channel Map (1)</a> · <a href="#channels">Channels (1)</a><br><strong>Creatures &amp; Items:</strong> <a href="#rarity">Rarity (1)</a> · <a href="#essence">Essence (1)</a><br><strong>Engine:</strong> <a href="#slots">Slots (2)</a> · <a href="#theme">Theme (1)</a> · <a href="#help">Help (1)</a> · <a href="#emotes">Emotes (7)</a> · <a href="#ranged_flavor">Ranged Flavor (4)</a></p><h2>Characters</h2><h3 id="races">Races <span class="count some">1</span></h3><table><thead><tr><th>ID</th><th>Name</th><th>Description</th><th>Details</th></tr></thead><tbody><tr><td><code>human</code></td><td>Human</td><td>Humans are the most numerous and politically dominant of the</td><td>cast_cost_modifier: 0 · category: humanoid · racial_flags: common-tongue · starting_alignment: 0 · stat_caps: 6 fields</td></tr></tbody></table><h3 id="classes">Classes <span class="count some">1</span></h3><table><thead><tr><th>ID</th><th>Name</th><th>Description</th><th>Details</th></tr></thead><tbody><tr><td><code>fighter</code></td><td>Fighter</td><td>The fighter is the realm&#39;s plain-spoken martial backbone — a</td><td>allowed_categories: humanoid · bound_track: adventurer · growth_bonuses: 1 fields · level_up_flavor: Your stance settles. Each repetition cuts a little cleaner. · path: 13 entries · priority: 0 · proficiency_tiers: simple, martial · save_progressions: 3 fields · starting_alignment: 0 · stat_growth: 2 fields · trains_per_level: 5</td></tr></tbody></table><h3 id="tracks">Tracks <span class="count some">1</span></h3><table><thead><tr><th>ID</th><th>Name</th><th>Description</th><th>Details</th></tr></thead><tbody><tr><td><code>adventurer</code></td><td>Adventurer</td><td>—</td><td>death_penalty: 0 · max_level: 10 · xp_table: 11 entries</td></tr></tbody></table><h3 id="backgrounds">Backgrounds <span class="count some">1</span></h3><table><thead><tr><th>ID</th><th>Name</th><th>Description</th><th>Details</th></tr></thead><tbody><tr><td><code>commoner</code></td><td>Commoner</td><td>You grew up in a settled hearth — a village, a back lane, a farmstead —</td><td>gold: 15 · skills: 1 entries</td></tr></tbody></table><h3 id="feats">Feats <span class="count some">20</span></h3><table><thead><tr><th>ID</th><th>Name</th><th>Description</th><th>Details</th></tr></thead><tbody><tr><td><code>alertness</code></td><td>Alertness</td><td>You have finely tuned senses — +2 to notice what others miss.</td><td>grants: 1 entries</td></tr><tr><td><code>ambidexterity</code></td><td>Ambidexterity</td><td>You are equally adept with either hand — the extra penalty for off-hand attacks is removed.</td><td>grants: 1 entries</td></tr><tr><td><code>blooded</code></td><td>Blooded</td><td>Blood and danger have honed your senses. You gain a +2 bonus to spot hidden threats.</td><td>grants: 1 entries</td></tr><tr><td><code>cleave</code></td><td>Cleave</td><td>When you drop an enemy in melee, you may strike another foe with the same blow&#39;s momentum.</td><td>grants: 1 entries · prerequisites: 1 entries</td></tr><tr><td><code>dodge</code></td><td>Dodge</td><td>You are adept at dodging blows — +1 to your Armor Class.</td><td>grants: 1 entries</td></tr><tr><td><code>great-cleave</code></td><td>Great Cleave</td><td>Your cleaving blows chain from foe to foe, never slowing while enemies keep falling.</td><td>grants: 1 entries · prerequisites: 1 entries</td></tr><tr><td><code>great-fortitude</code></td><td>Great Fortitude</td><td>You are tougher than normal. You gain a +2 bonus on Fortitude saving throws.</td><td>grants: 1 entries</td></tr><tr><td><code>improved-critical</code></td><td>Improved Critical</td><td>Your critical reach with one weapon category widens — you threaten a critical on a lower roll.</td><td>grants: 1 entries · multi_take: per_param</td></tr><tr><td><code>improved-two-weapon-fighting</code></td><td>Improved Two-Weapon Fighting</td><td>Your off hand strikes a second time each round, though the extra blow lands less surely.</td><td>grants: 1 entries · prerequisites: 2 entries</td></tr><tr><td><code>iron-will</code></td><td>Iron Will</td><td>Your will is iron. You gain a +2 bonus on Will saving throws.</td><td>grants: 1 entries</td></tr><tr><td><code>lightning-reflexes</code></td><td>Lightning Reflexes</td><td>You have faster reflexes than normal. You gain a +2 bonus on Reflex saving throws.</td><td>grants: 1 entries</td></tr><tr><td><code>luck-of-heroes</code></td><td>Luck of Heroes</td><td>Fortune favors you. You gain a +1 luck bonus on all saving throws.</td><td>grants: 3 entries</td></tr><tr><td><code>power-attack</code></td><td>Power Attack</td><td>You can trade attack accuracy for raw power — you learn the Power Attack ability.</td><td>grants: 1 entries</td></tr><tr><td><code>sharp-eyed</code></td><td>Sharp-Eyed</td><td>You catch details others overlook — +2 to search and read intent.</td><td>grants: 1 entries</td></tr><tr><td><code>skill-emphasis</code></td><td>Skill Emphasis</td><td>You have a knack for one skill — +3 on its checks.</td><td>grants: 1 entries · multi_take: per_param</td></tr><tr><td><code>stealthy</code></td><td>Stealthy</td><td>You move and conceal yourself with practiced quiet — +2 to hide and sneak.</td><td>grants: 1 entries</td></tr><tr><td><code>strong-soul</code></td><td>Strong Soul</td><td>Your spirit is hardy. You gain a +1 bonus on Fortitude and Will saving throws.</td><td>grants: 2 entries</td></tr><tr><td><code>toughness</code></td><td>Toughness</td><td>You are tougher than normal. You gain +3 maximum hit points each time you take this feat.</td><td>grants: 1 entries · multi_take: stackable</td></tr><tr><td><code>two-weapon-fighting</code></td><td>Two-Weapon Fighting</td><td>You fight more effectively with a weapon in each hand — your two-weapon attack penalties are reduced.</td><td>grants: 1 entries</td></tr><tr><td><code>weapon-focus</code></td><td>Weapon Focus</td><td>You are especially good with one category of weapon — +1 to attack rolls with it.</td><td>grants: 1 entries · multi_take: per_param</td></tr></tbody></table><h2>Abilities &amp; Effects</h2><h3 id="abilities">Abilities <span class="count some">20</span></h3><table><thead><tr><th>ID</th><th>Name</th><th>Description</th><th>Details</th></tr></thead><tbody><tr><td><code>bash</code></td><td>Bash</td><td>—</td><td>apply_save: 2 fields · category: skill · cost: 8 · default_cap: 25 · effect: 4 fields · gain_base_chance: 25 · gain_failure_multiplier: 0.5 · gain_stat: str · gain_stat_scale: 0.1 · pulse_delay: 3 · target_types: enemy · type: active · variance: 0</td></tr><tr><td><code>basic-strike</code></td><td>Basic Strike</td><td>—</td><td>category: skill · damage: 1d4 · default_cap: 25 · gain_base_chance: 25 · gain_failure_multiplier: 0.5 · gain_stat: str · gain_stat_scale: 0.1 · handler: damage · target_types: enemy · type: active · variance: 0</td></tr><tr><td><code>bless</code></td><td>Bless</td><td>—</td><td>category: spell · cost: 8 · default_cap: 30 · effect: 3 fields · gain_base_chance: 20 · gain_failure_multiplier: 0.5 · gain_stat: wis · gain_stat_scale: 0.1 · pulse_delay: 4 · type: active · variance: 0</td></tr><tr><td><code>cleave</code></td><td>Cleave</td><td>—</td><td>category: skill · default_cap: 100 · gain_base_chance: 0 · gain_stat: str · type: passive</td></tr><tr><td><code>cooking</code></td><td>Cooking</td><td>—</td><td>category: skill · default_cap: 25 · gain_base_chance: 30 · gain_failure_multiplier: 0.5 · gain_stat: wis · gain_stat_scale: 0.1 · type: passive</td></tr><tr><td><code>disarm</code></td><td>Disarm</td><td>—</td><td>apply_save: 2 fields · category: skill · cost: 6 · default_cap: 25 · effect: 4 fields · gain_base_chance: 25 · gain_failure_multiplier: 0.5 · gain_stat: dex · gain_stat_scale: 0.1 · pulse_delay: 3 · target_types: enemy · type: active · variance: 0</td></tr><tr><td><code>entangle</code></td><td>Entangle</td><td>—</td><td>apply_save: 2 fields · category: skill · cost: 6 · default_cap: 25 · effect: 4 fields · equipment_slot: wield · equipment_tag: net · gain_base_chance: 25 · gain_failure_multiplier: 0.5 · gain_stat: dex · gain_stat_scale: 0.1 · pulse_delay: 3 · target_types: enemy · type: active · variance: 0</td></tr><tr><td><code>great-cleave</code></td><td>Great Cleave</td><td>—</td><td>category: skill · default_cap: 100 · gain_base_chance: 0 · gain_stat: str · type: passive</td></tr><tr><td><code>heal</code></td><td>Heal</td><td>—</td><td>category: spell · cost: 10 · default_cap: 30 · gain_base_chance: 20 · gain_failure_multiplier: 0.5 · gain_stat: wis · gain_stat_scale: 0.1 · handler: heal · heal: 2d4 · pulse_delay: 2 · type: active · variance: 0</td></tr><tr><td><code>hide</code></td><td>Hide</td><td>—</td><td>category: skill · default_cap: 30 · gain_base_chance: 30 · gain_failure_multiplier: 0.5 · gain_stat: dex · gain_stat_scale: 0.1 · type: passive</td></tr><tr><td><code>kick</code></td><td>Kick</td><td>—</td><td>category: skill · cost: 5 · damage: 1d6 · default_cap: 25 · gain_base_chance: 25 · gain_failure_multiplier: 0.5 · gain_stat: str · gain_stat_scale: 0.1 · handler: damage · pulse_delay: 1 · target_types: enemy · type: active · variance: 0</td></tr><tr><td><code>move-silently</code></td><td>Move Silently</td><td>—</td><td>category: skill · default_cap: 30 · gain_base_chance: 30 · gain_failure_multiplier: 0.5 · gain_stat: dex · gain_stat_scale: 0.1 · type: passive</td></tr><tr><td><code>open-lock</code></td><td>Open Lock</td><td>—</td><td>category: skill · default_cap: 30 · gain_base_chance: 30 · gain_failure_multiplier: 0.5 · gain_stat: dex · gain_stat_scale: 0.1 · type: passive</td></tr><tr><td><code>parry</code></td><td>Parry</td><td>—</td><td>category: skill · default_cap: 25 · gain_base_chance: 15 · gain_failure_multiplier: 1 · gain_stat: dex · gain_stat_scale: 0.1 · hook: defensive · type: passive · variance: 60</td></tr><tr><td><code>perception</code></td><td>Perception</td><td>—</td><td>category: skill · default_cap: 30 · gain_base_chance: 30 · gain_failure_multiplier: 0.5 · gain_stat: wis · gain_stat_scale: 0.1 · type: passive</td></tr><tr><td><code>power-attack</code></td><td>Power Attack</td><td>—</td><td>category: skill · default_cap: 100 · gain_base_chance: 0 · gain_stat: str · type: passive</td></tr><tr><td><code>second-attack</code></td><td>Second Attack</td><td>—</td><td>category: skill · default_cap: 25 · gain_base_chance: 20 · gain_failure_multiplier: 1 · gain_stat: dex · gain_stat_scale: 0.1 · hook: extra_attack · type: passive · variance: 80</td></tr><tr><td><code>slash</code></td><td>Slash</td><td>—</td><td>category: skill · cost: 5 · default_cap: 25 · equipment_slot: wield · equipment_tag: blade · gain_base_chance: 25 · gain_failure_multiplier: 0.5 · gain_stat: dex · gain_stat_scale: 0.1 · pulse_delay: 1 · target_types: enemy · type: active</td></tr><tr><td><code>smithing</code></td><td>Smithing</td><td>—</td><td>category: skill · default_cap: 25 · gain_base_chance: 30 · gain_failure_multiplier: 0.5 · gain_stat: dex · gain_stat_scale: 0.1 · type: passive</td></tr><tr><td><code>trip</code></td><td>Trip</td><td>—</td><td>apply_save: 2 fields · category: skill · cost: 5 · default_cap: 25 · effect: 3 fields · gain_base_chance: 25 · gain_failure_multiplier: 0.5 · gain_stat: dex · gain_stat_scale: 0.1 · pulse_delay: 2 · target_types: enemy · type: active · variance: 0</td></tr></tbody></table><h3 id="effects">Effects <span class="count some">9</span></h3><table><thead><tr><th>ID</th><th>Name</th><th>Description</th><th>Details</th></tr></thead><tbody><tr><td><code>bless</code></td><td>—</td><td>—</td><td>duration: 300 · modifiers: 1 entries</td></tr><tr><td><code>blinded</code></td><td>—</td><td>—</td><td>duration: 5 · flags: condition:blinded</td></tr><tr><td><code>fatigued</code></td><td>—</td><td>—</td><td>duration: 50 · flags: condition:fatigued · modifiers: 2 entries</td></tr><tr><td><code>frightened</code></td><td>—</td><td>—</td><td>duration: 5 · flags: condition:frightened · recurring_save: 2 fields</td></tr><tr><td><code>prone</code></td><td>—</td><td>—</td><td>duration: 5 · flags: condition:prone</td></tr><tr><td><code>stunned</code></td><td>—</td><td>—</td><td>duration: 3 · flags: condition:stunned · recurring_save: 2 fields</td></tr><tr><td><code>unconscious</code></td><td>—</td><td>—</td><td>duration: 10 · flags: condition:unconscious</td></tr><tr><td><code>well-fed</code></td><td>—</td><td>—</td><td>duration: 900 · modifiers: 1 entries · refreshable: true</td></tr><tr><td><code>well-fed-minor</code></td><td>—</td><td>—</td><td>duration: 600 · modifiers: 1 entries · refreshable: true</td></tr></tbody></table><h3 id="channel_map">Channel Map <span class="count some">1</span></h3><table><thead><tr><th>ID</th><th>Name</th><th>Description</th><th>Details</th></tr></thead><tbody><tr><td><code>baseline</code></td><td>—</td><td>—</td><td>channels: 3 fields</td></tr></tbody></table><h3 id="channels">Channels <span class="count some">1</span></h3><table><thead><tr><th>ID</th><th>Name</th><th>Description</th><th>Details</th></tr></thead><tbody><tr><td><code>ooc</code></td><td>—</td><td>—</td><td>buffer_cap: 100 · default_on: true · display_name: ooc · kind: public · persisted: true</td></tr></tbody></table><h2>Creatures &amp; Items</h2><h3 id="rarity">Rarity <span class="count some">1</span></h3><table><thead><tr><th>ID</th><th>Name</th><th>Description</th><th>Details</th></tr></thead><tbody><tr><td><code>rarity</code></td><td>—</td><td>—</td><td>tiers: 4 entries</td></tr></tbody></table><h3 id="essence">Essence <span class="count some">1</span></h3><table><thead><tr><th>ID</th><th>Name</th><th>Description</th><th>Details</th></tr></thead><tbody><tr><td><code>essence</code></td><td>—</td><td>—</td><td>essences: 2 entries</td></tr></tbody></table><h2>Engine</h2><h3 id="slots">Slots <span class="count some">2</span></h3><table><thead><tr><th>ID</th><th>Name</th><th>Description</th><th>Details</th></tr></thead><tbody><tr><td><code>body</code></td><td>body</td><td>—</td><td>label: worn on the body · max: 1</td></tr><tr><td><code>cloak</code></td><td>cloak</td><td>—</td><td>label: worn as cloak · max: 1</td></tr></tbody></table><h3 id="theme">Theme <span class="count some">1</span></h3><table><thead><tr><th>ID</th><th>Name</th><th>Description</th><th>Details</th></tr></thead><tbody><tr><td><code>theme</code></td><td>—</td><td>—</td><td>tags: 38 fields</td></tr></tbody></table><h3 id="help">Help <span class="count some">1</span></h3><table><thead><tr><th>ID</th><th>Name</th><th>Description</th><th>Details</th></tr></thead><tbody><tr><td><code>commands</code></td><td>—</td><td>—</td><td>topics: 6 entries</td></tr></tbody></table><h3 id="emotes">Emotes <span class="count some">7</span></h3><table><thead><tr><th>ID</th><th>Name</th><th>Description</th><th>Details</th></tr></thead><tbody><tr><td><code>bow</code></td><td>—</td><td>—</td><td>display_name: bow · no_target: 2 fields · targeted: 3 fields</td></tr><tr><td><code>grin</code></td><td>—</td><td>—</td><td>display_name: grin · no_target: 2 fields · targeted: 3 fields</td></tr><tr><td><code>laugh</code></td><td>—</td><td>—</td><td>display_name: laugh · no_target: 2 fields · targeted: 3 fields</td></tr><tr><td><code>nod</code></td><td>—</td><td>—</td><td>display_name: nod · no_target: 2 fields · targeted: 3 fields</td></tr><tr><td><code>shrug</code></td><td>—</td><td>—</td><td>display_name: shrug · no_target: 2 fields · targeted: 3 fields</td></tr><tr><td><code>smile</code></td><td>—</td><td>—</td><td>display_name: smile · no_target: 2 fields · targeted: 3 fields</td></tr><tr><td><code>wave</code></td><td>—</td><td>—</td><td>display_name: wave · no_target: 2 fields · targeted: 3 fields</td></tr></tbody></table><h3 id="ranged_flavor">Ranged Flavor <span class="count some">4</span></h3><table><thead><tr><th>ID</th><th>Name</th><th>Description</th><th>Details</th></tr></thead><tbody><tr><td><code>bow</code></td><td>—</td><td>—</td><td>messages: 3 fields</td></tr><tr><td><code>crossbow</code></td><td>—</td><td>—</td><td>messages: 5 fields</td></tr><tr><td><code>default</code></td><td>—</td><td>—</td><td>messages: 5 fields</td></tr><tr><td><code>thrown</code></td><td>—</td><td>—</td><td>messages: 2 fields</td></tr></tbody></table>
+</main>
+</body>
+</html>
