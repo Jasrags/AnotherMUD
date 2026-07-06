@@ -228,4 +228,22 @@ func TestLoad_ShadowrunWeaponsAndArmor(t *testing.T) {
 	if !hasBody {
 		t.Errorf("armored-jacket eligible_slots = %v, want to include body", jacket.EligibleSlots)
 	}
+
+	// The heavier vest completes the pair (bonus + body slot).
+	vest, err := regs.Items.Get("shadowrun:armor-vest")
+	if err != nil {
+		t.Fatalf("armor-vest: %v", err)
+	}
+	if vest.ArmorBonus != 4 {
+		t.Errorf("armor-vest armor_bonus = %d, want 4", vest.ArmorBonus)
+	}
+	hasBody = false
+	for _, s := range vest.EligibleSlots {
+		if s == "body" {
+			hasBody = true
+		}
+	}
+	if !hasBody {
+		t.Errorf("armor-vest eligible_slots = %v, want to include body", vest.EligibleSlots)
+	}
 }

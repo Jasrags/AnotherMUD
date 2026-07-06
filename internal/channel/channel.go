@@ -56,11 +56,17 @@ const DefaultDefense = 10
 // StatBlock.Effective). Kept here — the vocabulary owner — so a content formula
 // and the engine agree on the spelling.
 //
-//   InputArmor — the wearer's summed worn-armour rating (Shadowrun soak:
-//   `mitigation: body + armor`). Players read it from wornArmorBonus, mobs from
-//   their armorRating. (The sibling `dex_ac` input predates this and still lives
-//   next to its cappedDexAC producer in the session package.)
-const InputArmor = "armor"
+//	InputArmor — the wearer's summed worn-armour rating (Shadowrun soak:
+//	`mitigation: body + armor`). Players read it from wornArmorBonus, mobs from
+//	their armorRating.
+//	InputDexAC — the wearer's armour-capped Dex contribution to AC (the WoT d20
+//	`defense: ac + dex_ac`). The PLAYER side computes it via cappedDexAC; the mob
+//	lookup has no producer for it yet (WoT mob AC ignores Dex — see
+//	sr-m3c-deferred-fixes), so a mob formula referencing it reads 0.
+const (
+	InputArmor = "armor"
+	InputDexAC = "dex_ac"
+)
 
 // Mapping is one pack/ruleset's derivation: a channel → formula table.
 // Built once at pack load (Parse each formula then), evaluated per entity

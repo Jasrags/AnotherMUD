@@ -3022,12 +3022,6 @@ func (a *connActor) SetColorEnabled(v bool) {
 // line evicts.
 const tellsSessionHistoryCap = 50
 
-// channelInputDexAC is the synthetic defense-channel variable name (armor-depth
-// §3) the WoT mapping references (`defense: ac + dex_ac`). It is NOT a stored
-// stat — Stats()'s lookup computes it via cappedDexAC. Kept as a const so the
-// engine side and the content formula agree on the spelling.
-const channelInputDexAC = "dex_ac"
-
 // LastTellPartner returns the display name of the most recent
 // tell counterparty for this actor, or "" if none.
 func (a *connActor) LastTellPartner() string {
@@ -6096,7 +6090,7 @@ func (a *connActor) Stats() combat.Stats {
 		// (the WoT d20 mapping: `defense: ac + dex_ac`) references it; the
 		// fantasy baseline (`defense: ac`) never asks, so this stays inert there.
 		lookup := func(name string) int {
-			if name == channelInputDexAC {
+			if name == channel.InputDexAC {
 				return a.cappedDexAC()
 			}
 			if name == channel.InputArmor {
