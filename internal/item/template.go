@@ -88,6 +88,13 @@ type Template struct {
 	// Recorded only — inert until armor depth. Validated at pack load;
 	// normalized lowercase.
 	DamageTypes []string
+	// TargetPool is the pool.Kind this weapon's damage fills — a Shadowrun stun
+	// baton routes to the Stun monitor, a bullet to Physical (shadowrun-mvp
+	// SR-M2/M3b). Empty ⇒ the canonical hp path (every non-Shadowrun weapon).
+	// Normalized lowercase at pack load so it matches the entity's lowercase
+	// pool.Set keys; flowed into combat.Stats.TargetPool by the holder's Stats()
+	// builder.
+	TargetPool string
 	// CritThreatLow is the lowest d20 face that threatens a critical
 	// (weapon-identity §4). Zero means unset — the engine defaults to the
 	// natural maximum (only a 20 crits). Validated at load to be 0 or in

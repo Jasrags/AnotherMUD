@@ -74,6 +74,7 @@ func (m *MobInstance) Stats() combat.Stats {
 		s.Damage = m.weapon
 		s.WeaponName = m.weaponName
 		s.WeaponDamageTypes = append([]string(nil), m.weaponDamageTypes...) // copy: combat.Stats is self-contained
+		s.TargetPool = pool.Kind(m.weaponTargetPool)                        // shadowrun-mvp SR-M3b: a stun-armed mob routes to Stun
 		// Ranged class (ranged-combat §2): a projectile-wielding mob shoots
 		// from range — the round loop opens it at far, applies the per-band
 		// falloff/point-blank, and (via the AmmoFor hook's mob branch) fires
@@ -161,6 +162,15 @@ func (m *MobInstance) SetWeapon(dice combat.DiceExpr, name string, damageTypes [
 // weapon never calls it, so a bite/claw stays lethal (the default).
 func (m *MobInstance) SetWeaponSubdual(subdual bool) {
 	m.weaponSubdual = subdual
+}
+
+// SetWeaponTargetPool installs the mob's equipped-weapon destination monitor
+// (shadowrun-mvp SR-M3b) — the pool.Kind (lowercased string) a stun baton fills
+// so a stun-armed mob's damage routes to the target's Stun track. Called during
+// the spawn pipeline only (EquipMobAtSpawn, after SetWeapon), read lock-free by
+// Stats. Empty (the natural weapon / an ordinary armament) ⇒ the hp path.
+func (m *MobInstance) SetWeaponTargetPool(kind string) {
+	m.weaponTargetPool = kind
 }
 
 // SetOffWeapon installs the mob's OFF-HAND weapon (two-weapon-fighting §2.3) —

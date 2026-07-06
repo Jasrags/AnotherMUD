@@ -72,6 +72,31 @@ func TestItemInstance_WeaponIdentityFields(t *testing.T) {
 	}
 }
 
+// shadowrun-mvp SR-M3b: an ItemInstance snapshots its template's target_pool
+// and exposes it via TargetPool() for the holder's Stats() builder; an ordinary
+// weapon reports "" (the hp path).
+func TestItemInstance_TargetPool(t *testing.T) {
+	s := NewStore()
+	baton, err := s.Spawn(&item.Template{
+		ID: "shadowrun:stun-baton", Name: "a stun baton", Type: "weapon",
+		WeaponDamage: "1d6", TargetPool: "stun",
+	})
+	if err != nil {
+		t.Fatalf("Spawn: %v", err)
+	}
+	if got := baton.TargetPool(); got != "stun" {
+		t.Errorf("TargetPool() = %q, want stun", got)
+	}
+
+	sword, err := s.Spawn(&item.Template{ID: "wot:sword", Name: "a sword", Type: "weapon", WeaponDamage: "1d8"})
+	if err != nil {
+		t.Fatalf("Spawn: %v", err)
+	}
+	if got := sword.TargetPool(); got != "" {
+		t.Errorf("TargetPool() = %q, want empty (hp path)", got)
+	}
+}
+
 // armor-depth §2/§4: weapon damage types and armor resistances snapshot
 // onto the instance and the accessors return fresh, unaliased copies.
 func TestItemInstance_DamageTypesAndResistances(t *testing.T) {

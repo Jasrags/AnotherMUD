@@ -3478,6 +3478,7 @@ func decodeItem(path, ns string) (*item.Template, error) {
 		WeaponCategory:    weaponCategory,
 		ProficiencyTier:   weaponTier,
 		DamageTypes:       damageTypes,
+		TargetPool:        strings.ToLower(strings.TrimSpace(f.TargetPool)),
 		Grade:             strings.ToLower(strings.TrimSpace(f.Grade)),
 		CritThreatLow:     f.CritThreatLow,
 		CritMultiplier:    f.CritMultiplier,

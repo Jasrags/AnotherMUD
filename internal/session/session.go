@@ -3527,6 +3527,10 @@ type weaponInfo struct {
 	// carried into combat.Stats so the defender's per-type resistance can
 	// be selected (armor-depth §4). nil ⇒ untyped.
 	damageTypes []string
+	// targetPool is the pool.Kind (lowercased string) this weapon's damage
+	// fills (shadowrun-mvp SR-M3b); "" ⇒ the hp path. Carried into
+	// combat.Stats.TargetPool so a stun baton routes to the Stun monitor.
+	targetPool string
 	// wieldMode is the size-relative grip this weapon resolves to for THIS
 	// wielder (size-and-wielding §3), derived in recomputeWeaponLocked from
 	// the wielder's size and the weapon's size. Drives the two-handed melee
@@ -3620,6 +3624,7 @@ func (a *connActor) buildWeaponInfoLocked(id entities.EntityID) *weaponInfo {
 		critThreatLow:  it.CritThreatLow(),
 		critMultiplier: it.CritMultiplier(),
 		damageTypes:    it.DamageTypes(),
+		targetPool:     it.TargetPool(),
 		// size-and-wielding §3: resolve the grip for THIS wielder.
 		wieldMode:          size.Mode(it.WeaponSize(), a.sizeLocked()),
 		rangedClass:        it.RangedClass(),
@@ -6150,6 +6155,7 @@ func (a *connActor) Stats() combat.Stats {
 		s.Damage = w.dice
 		s.WeaponName = w.name
 		s.WeaponDamageTypes = append([]string(nil), w.damageTypes...) // copy: don't alias the cached weaponInfo slice
+		s.TargetPool = pool.Kind(w.targetPool)                        // shadowrun-mvp SR-M3b: route damage to the weapon's monitor
 		s.CritThreatLow = w.critThreatLow
 		s.CritMultiplier = w.critMultiplier
 		// Ranged metadata + the §4 Strength rule. The class/ammo/increment
@@ -6263,6 +6269,9 @@ func (a *connActor) Stats() combat.Stats {
 			}
 			s.HitMod -= mainPenalty
 			strBonus := combat.STRBonus(str)
+			// TODO(SR-M3b): OffHandProfile carries no TargetPool — an off-hand stun
+			// weapon routes to hp, not the Stun monitor. Fine for the main-hand-
+			// forward MVP; revisit before authoring dual-wield SR content.
 			s.OffHand = &combat.OffHandProfile{
 				Damage:            offDice,
 				WeaponName:        offName,

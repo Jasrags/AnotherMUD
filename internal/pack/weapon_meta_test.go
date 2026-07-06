@@ -124,3 +124,35 @@ func TestDecodeItem_RejectsNegativeCritMultiplier(t *testing.T) {
 		t.Fatalf("negative crit_multiplier: err = %v, want ErrInvalidContent", err)
 	}
 }
+
+// shadowrun-mvp SR-M3b: a weapon declares target_pool (the monitor its damage
+// fills); it is normalized lowercase at load so it matches the entity's
+// lowercase pool.Set keys. Absent ⇒ empty (the hp path).
+func TestDecodeItem_TargetPool(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "baton.yaml")
+	writeFile(t, path, `
+id: stun-baton
+name: a stun baton
+type: weapon
+weapon_damage: "1d6"
+target_pool: Stun
+`)
+	tpl, err := decodeItem(path, "shadowrun")
+	if err != nil {
+		t.Fatalf("decodeItem: %v", err)
+	}
+	if tpl.TargetPool != "stun" {
+		t.Errorf("TargetPool = %q, want stun (normalized lowercase)", tpl.TargetPool)
+	}
+
+	// An ordinary weapon leaves it empty (the hp path).
+	p2 := filepath.Join(t.TempDir(), "sword.yaml")
+	writeFile(t, p2, "id: sword\nname: a sword\ntype: weapon\nweapon_damage: \"1d8\"\n")
+	tpl2, err := decodeItem(p2, "wot")
+	if err != nil {
+		t.Fatalf("decodeItem: %v", err)
+	}
+	if tpl2.TargetPool != "" {
+		t.Errorf("TargetPool = %q, want empty for an ordinary weapon", tpl2.TargetPool)
+	}
+}

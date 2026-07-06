@@ -143,6 +143,10 @@ type MobInstance struct {
 	// natural weapon, which declares no types). Set during the spawn
 	// pipeline by SetWeapon, read lock-free by Stats.
 	weaponDamageTypes []string
+	// weaponTargetPool is the equipped weapon's destination monitor
+	// (shadowrun-mvp SR-M3b) — a stun baton's Stun track; "" ⇒ the hp path. Set
+	// during the spawn pipeline by SetWeaponTargetPool, read lock-free by Stats.
+	weaponTargetPool string
 	// weaponRangedClass / weaponAmmoKind are the equipped weapon's ranged
 	// metadata (ranged-combat §2), fed into combat.Stats so a bow-wielding mob
 	// shoots from range (opens at far, per-band falloff, point-blank) exactly

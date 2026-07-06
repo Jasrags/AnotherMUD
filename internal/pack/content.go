@@ -88,6 +88,10 @@ type ItemFile struct {
 	WeaponCategory  string   `yaml:"weapon_category,omitempty"`
 	ProficiencyTier string   `yaml:"proficiency_tier,omitempty"`
 	DamageTypes     []string `yaml:"damage_types,omitempty"`
+	// TargetPool names the resource pool this weapon's damage fills — a
+	// Shadowrun stun baton's Stun monitor (shadowrun-mvp SR-M3b). Empty ⇒ the
+	// hp path (every non-Shadowrun weapon). Normalized lowercase at load.
+	TargetPool string `yaml:"target_pool,omitempty"`
 	// Grade is the item's quality-grade key (masterwork §2) from the pack's
 	// `grades:` vocabulary. Empty = ordinary. Normalized lowercase at load.
 	Grade string `yaml:"grade,omitempty"`

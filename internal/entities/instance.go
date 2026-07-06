@@ -117,6 +117,11 @@ type ItemInstance struct {
 	// lifted onto the instance at build. nil = untyped. Read by the combat
 	// path to select a defender's per-type resistance (armor-depth §4).
 	damageTypes []string
+	// targetPool is the pool.Kind this weapon's damage fills (shadowrun-mvp
+	// SR-M3b), lifted from the template (already lowercased at load). Empty ⇒
+	// the hp path. Read by the holder's Stats() builder into
+	// combat.Stats.TargetPool.
+	targetPool string
 	// Ranged weapon metadata (ranged-combat §2), lifted onto the instance at
 	// build (mirrors weaponCategory). rangedClass empty = melee; ammoKind is
 	// what a projectile fires / an ammo item supplies; rangeIncrement is the
@@ -386,6 +391,11 @@ func (it *ItemInstance) CritMultiplier() int { return it.critMultiplier }
 func (it *ItemInstance) DamageTypes() []string {
 	return append([]string(nil), it.damageTypes...)
 }
+
+// TargetPool returns the pool.Kind (as a lowercased string) this weapon's
+// damage fills (shadowrun-mvp SR-M3b); "" for the hp path. Read by the holder's
+// Stats() builder into combat.Stats.TargetPool.
+func (it *ItemInstance) TargetPool() string { return it.targetPool }
 
 // RangedClass returns the weapon's ranged class (ranged-combat §2):
 // "thrown", "projectile", or "" for a melee weapon (or non-weapon).
@@ -668,6 +678,7 @@ func buildInstanceFromTemplate(tpl *item.Template, id EntityID) *ItemInstance {
 		critThreatLow:     tpl.CritThreatLow,
 		critMultiplier:    tpl.CritMultiplier,
 		damageTypes:       damageTypes,
+		targetPool:        tpl.TargetPool,
 		rangedClass:       tpl.RangedClass,
 		ammoKind:          tpl.AmmoKind,
 		rangedStyle:       tpl.RangedStyle,

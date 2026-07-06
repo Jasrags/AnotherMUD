@@ -3,10 +3,12 @@ package session
 import (
 	"testing"
 
+	"github.com/Jasrags/AnotherMUD/internal/combat"
 	"github.com/Jasrags/AnotherMUD/internal/entities"
 	"github.com/Jasrags/AnotherMUD/internal/player"
 	"github.com/Jasrags/AnotherMUD/internal/pool"
 	"github.com/Jasrags/AnotherMUD/internal/progression"
+	"github.com/Jasrags/AnotherMUD/internal/size"
 )
 
 // The data-driven seed (SR-M3a step 3): an actor with content-declared
@@ -156,5 +158,24 @@ func TestResourcePools_StunMonitorRoundTrips(t *testing.T) {
 	}
 	if cur, mx := stun2.Snapshot(); cur != 4 || mx != 10 {
 		t.Fatalf("reloaded stun = %d/%d, want 4/10 (persisted current, re-derived max)", cur, mx)
+	}
+}
+
+// SR-M3b: connActor.Stats threads a wielded weapon's target_pool into
+// combat.Stats.TargetPool, so a player wielding a stun baton routes damage to
+// the target's Stun monitor. An ordinary weapon leaves it empty (the hp path).
+func TestConnActorStats_TargetPool(t *testing.T) {
+	base := map[progression.StatType]int{progression.StatSTR: 10}
+
+	a := &connActor{statBlock: progression.NewWithBase(base)}
+	a.weapon.Store(&weaponInfo{dice: combat.DiceExpr{Count: 1, Sides: 6}, name: "a stun baton", wieldMode: size.OneHanded, targetPool: "stun"})
+	if got := a.Stats().TargetPool; got != "stun" {
+		t.Errorf("Stats.TargetPool = %q, want stun", got)
+	}
+
+	b := &connActor{statBlock: progression.NewWithBase(base)}
+	b.weapon.Store(&weaponInfo{dice: combat.DiceExpr{Count: 1, Sides: 8}, name: "a sword", wieldMode: size.OneHanded})
+	if got := b.Stats().TargetPool; got != "" {
+		t.Errorf("Stats.TargetPool = %q, want empty (hp path)", got)
 	}
 }

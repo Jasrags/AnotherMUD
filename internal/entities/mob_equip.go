@@ -111,17 +111,23 @@ func (s *Store) EquipMobAtSpawn(m *MobInstance, ids []string, items *item.Templa
 				case slots == nil:
 					if !weaponSet {
 						m.SetWeapon(dice, it.Name(), it.DamageTypes(), it.RangedClass(), it.AmmoKind(), it.RangedStyle(), it.WeaponSize())
-						m.SetWeaponSubdual(it.Subdual()) // subdual-damage §2: a mob's nonlethal weapon
+						m.SetWeaponSubdual(it.Subdual())       // subdual-damage §2: a mob's nonlethal weapon
+						m.SetWeaponTargetPool(it.TargetPool()) // shadowrun-mvp SR-M3b: a mob's stun weapon
 						weaponSet = true
 					}
 				case base == slot.WieldSlot && !weaponSet:
 					m.SetWeapon(dice, it.Name(), it.DamageTypes(), it.RangedClass(), it.AmmoKind(), it.RangedStyle(), it.WeaponSize())
-					m.SetWeaponSubdual(it.Subdual()) // subdual-damage §2: a mob's nonlethal weapon
+					m.SetWeaponSubdual(it.Subdual())       // subdual-damage §2: a mob's nonlethal weapon
+					m.SetWeaponTargetPool(it.TargetPool()) // shadowrun-mvp SR-M3b: a mob's stun weapon
 					weaponSet = true
 				case base == slot.OffHandSlot && !offSet:
 					// First off-hand weapon wins. The off-hand slot's Max-1 cap
 					// already prevents a second item landing here, so !offSet is
 					// belt-and-braces, parallel to the main-weapon guard.
+					// TODO(SR-M3b): target_pool is not wired for the off-hand — an
+					// off-hand stun weapon routes to hp, not the Stun monitor
+					// (OffHandProfile carries no TargetPool). Fine for the main-hand-
+					// forward MVP; revisit before authoring dual-wield SR content.
 					m.SetOffWeapon(dice, it.Name(), it.DamageTypes(), it.WeaponSize())
 					offSet = true
 				}
