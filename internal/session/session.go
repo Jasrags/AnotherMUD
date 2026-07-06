@@ -580,34 +580,46 @@ func Handler(cfg Config) func(ctx context.Context, c conn.Connection) error {
 	}
 }
 
-// seedBaseFor resolves the brand-new/returning character's base attribute
-// seed from its world's content-declared attribute set (SR-M1 —
-// shadowrun-mvp.md Appendix A). It maps worldID → the set id the world selects
-// (default the engine `classic`), resolves the AttributeSet, and builds the
-// seed via progression.SeedBaseFromSet (attribute defaults + engine-vital
-// keys). Falls back to progression.DefaultPlayerBase when the registry is
-// absent or the resolved set is unregistered — so a boot with no attribute
-// content still seeds the classic six.
+// resolveAttributeSet resolves the content-declared base attribute set a
+// character's world seeds from + renders `score` from (SR-M1 — shadowrun-mvp.md
+// Appendix A). It maps worldID → the set id the world selects (its manifest
+// `attribute_set:`, default the engine `classic`) and returns the registered
+// AttributeSet, or nil when the registry is absent or the resolved set is
+// unregistered (a boot with no attribute content). Pure + nil-safe.
+func resolveAttributeSet(sets *progression.AttributeSetRegistry, selection map[string]string, worldID string) *progression.AttributeSet {
+	if sets == nil {
+		return nil
+	}
+	setID := ""
+	if selection != nil {
+		setID = selection[worldID]
+	}
+	if setID == "" {
+		setID = progression.ClassicAttributeSetID
+	}
+	set, _ := sets.Get(setID)
+	return set
+}
+
+// seedBaseFromSetOrDefault builds the character's base attribute seed from a
+// resolved attribute set (attribute defaults + engine-vital keys), or falls
+// back to progression.DefaultPlayerBase when the set is nil (a boot with no
+// attribute content still seeds the classic six).
+func seedBaseFromSetOrDefault(set *progression.AttributeSet) map[progression.StatType]int {
+	if set != nil {
+		return progression.SeedBaseFromSet(set)
+	}
+	return progression.DefaultPlayerBase()
+}
+
+// seedBaseFor resolves a world's attribute set and builds its base seed.
 //
 // This is the fix for the "carries both sets" merge bug: because RestoreBase
 // MERGES the persisted snapshot over the constructor seed, seeding a foreign
 // world's keys would leave them behind. Seeding the character's OWN world set
-// means the persisted keys overlay the same keys — no leftovers. Pure +
-// nil-safe so it is unit-tested without a live connActor.
+// means the persisted keys overlay the same keys — no leftovers.
 func seedBaseFor(sets *progression.AttributeSetRegistry, selection map[string]string, worldID string) map[progression.StatType]int {
-	if sets != nil {
-		setID := ""
-		if selection != nil {
-			setID = selection[worldID]
-		}
-		if setID == "" {
-			setID = progression.ClassicAttributeSetID
-		}
-		if set, ok := sets.Get(setID); ok {
-			return progression.SeedBaseFromSet(set)
-		}
-	}
-	return progression.DefaultPlayerBase()
+	return seedBaseFromSetOrDefault(resolveAttributeSet(sets, selection, worldID))
 }
 
 func run(ctx context.Context, c conn.Connection, cfg Config) error {
@@ -685,6 +697,9 @@ func run(ctx context.Context, c conn.Connection, cfg Config) error {
 	}
 
 	floodCfg := cfg.Flood
+	// Resolve the character's world attribute set once (SR-M1): it seeds the
+	// StatBlock AND is held for `score` to render the declared attributes.
+	attrSet := resolveAttributeSet(cfg.AttributeSets, cfg.WorldAttributeSets, loaded.Player.WorldID)
 	a := &connActor{
 		id:            c.ID(),
 		conn:          c,
@@ -711,7 +726,8 @@ func run(ctx context.Context, c conn.Connection, cfg Config) error {
 		light:         cfg.Light,
 		equipment:     make(map[string]entities.EntityID),
 		footprints:    make(map[entities.EntityID][]string),
-		statBlock:     progression.NewWithBase(seedBaseFor(cfg.AttributeSets, cfg.WorldAttributeSets, loaded.Player.WorldID)),
+		statBlock:     progression.NewWithBase(seedBaseFromSetOrDefault(attrSet)),
+		attrSet:       attrSet,
 		progress:      progression.NewProgressionState(),
 		// M7.5: vitals restore from the persisted save when present;
 		// absent block (fresh character, migrated-from-v4 save) spawns
@@ -2052,6 +2068,13 @@ type connActor struct {
 	// of the actor; StatBlock carries its own internal RWMutex so
 	// combat tick reads of Stats() do not serialize on a.mu.
 	statBlock *progression.StatBlock
+
+	// attrSet is the character's resolved base attribute set (SR-M1 — the same
+	// set that seeded statBlock), held so `score` renders the world's declared
+	// attributes in order rather than a hardcoded six. nil when no attribute
+	// content resolved (a degenerate boot); the score sheet falls back to the
+	// classic six then. Immutable after construction.
+	attrSet *progression.AttributeSet
 
 	// vitals is the actor's mutable HP state (M7.1). The pointer is
 	// established at login and never reassigned; combat applies damage
@@ -5205,6 +5228,13 @@ func (a *connActor) LastAbility() string {
 // block's effective (base + modifiers) read.
 func (a *connActor) StatValue(stat progression.StatType) int {
 	return a.statBlock.Effective(stat)
+}
+
+// AttributeSet returns the character's resolved base attribute set (SR-M1),
+// so `score` renders the world's declared attributes in order. nil when no
+// attribute content resolved; the score sheet falls back to the classic six.
+func (a *connActor) AttributeSet() *progression.AttributeSet {
+	return a.attrSet
 }
 
 // applyClass resolves the actor's class id list from save (wot-character-

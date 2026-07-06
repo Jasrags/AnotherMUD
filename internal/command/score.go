@@ -35,6 +35,10 @@ type scoreSubject interface {
 	MovementMax() int
 	StatValue(progression.StatType) int
 	Saves() progression.Saves
+	// AttributeSet is the character's resolved base attribute set (SR-M1), so
+	// the sheet renders the world's declared attributes in order rather than a
+	// hardcoded six. nil → the classic-six fallback.
+	AttributeSet() *progression.AttributeSet
 }
 
 // ScoreHandler implements `score` (aliased `sc`) — the player's character
@@ -55,12 +59,34 @@ func ScoreHandler(ctx context.Context, c *Context) error {
 		d.Mana, d.MaxMana = ss.Mana(), ss.ManaMax()
 		d.MV, d.MaxMV = ss.Movement(), ss.MovementMax()
 		d.HasStats = true
-		d.STR = ss.StatValue(progression.StatSTR)
-		d.INT = ss.StatValue(progression.StatINT)
-		d.WIS = ss.StatValue(progression.StatWIS)
-		d.DEX = ss.StatValue(progression.StatDEX)
-		d.CON = ss.StatValue(progression.StatCON)
-		d.LUCK = ss.StatValue(progression.StatLUCK)
+		// The world's declared attributes in order (SR-M1); each abbrev falls
+		// back to the uppercased id. A boot with no attribute content (set nil)
+		// drops to the classic-six fields below.
+		if set := ss.AttributeSet(); set != nil && len(set.Attributes) > 0 {
+			for _, at := range set.Attributes {
+				ab := at.Abbrev
+				if ab == "" {
+					// Fallback for content that omitted an abbrev; cap the
+					// width so a long id can't crowd the second grid column.
+					ab = strings.ToUpper(string(at.ID))
+					if len(ab) > 4 {
+						ab = ab[:4]
+					}
+				}
+				d.Attrs = append(d.Attrs, scoreAttr{
+					Abbrev:   ab,
+					Value:    ss.StatValue(at.ID),
+					Category: at.Category,
+				})
+			}
+		} else {
+			d.STR = ss.StatValue(progression.StatSTR)
+			d.INT = ss.StatValue(progression.StatINT)
+			d.WIS = ss.StatValue(progression.StatWIS)
+			d.DEX = ss.StatValue(progression.StatDEX)
+			d.CON = ss.StatValue(progression.StatCON)
+			d.LUCK = ss.StatValue(progression.StatLUCK)
+		}
 		// Saving throws (saves §2/§4): derived from class + ability mods.
 		d.HasSaves = true
 		sv := ss.Saves()
@@ -228,6 +254,14 @@ type equipRow struct {
 	Name string
 }
 
+// scoreAttr is one attribute cell on the sheet (SR-M1): its short label, its
+// effective value, and its category (physical/mental/special) for grouping.
+type scoreAttr struct {
+	Abbrev   string
+	Value    int
+	Category string
+}
+
 // scoreData is the rendered character sheet's data, gathered from the
 // actor's interfaces. The Has* flags mark which sections the actor could
 // supply so renderScore omits the rest (a minimal/test actor shows only
@@ -250,7 +284,15 @@ type scoreData struct {
 	Mana, MaxMana int
 	MV, MaxMV     int
 
-	HasStats                      bool
+	// HasStats is true when the actor satisfied scoreSubject (some attribute
+	// data will render). The actual render path is chosen by len(Attrs): the
+	// data-driven grid when non-empty, else the classic-six int fields.
+	HasStats bool
+	// Attrs is the world's declared attributes in render order (SR-M1). When
+	// non-empty the sheet renders these (grouped by category); the STR..LUCK
+	// fields below are the classic-six fallback for a boot with no attribute
+	// content (and keep the older unit tests that populate them valid).
+	Attrs                         []scoreAttr
 	STR, INT, WIS, DEX, CON, LUCK int
 	AC, Hit                       int
 
@@ -383,7 +425,9 @@ func renderScore(d scoreData) string {
 	// two fill the remainder so neither the sustenance line nor item names
 	// truncate (a third equal column would clip both).
 	var attrLines, purseLines, equipLines []string
-	if d.HasStats {
+	if len(d.Attrs) > 0 {
+		attrLines = scAttrGrid(d.Attrs)
+	} else if d.HasStats {
 		attrLines = append(attrLines,
 			scAttr("STR", d.STR, "DEX", d.DEX),
 			scAttr("INT", d.INT, "CON", d.CON),
@@ -542,6 +586,68 @@ func scAttr(s1 string, v1 int, s2 string, v2 int) string {
 		pad = 1
 	}
 	return left + strings.Repeat(" ", pad) + scSub(s2) + " " + scHi(strconv.Itoa(v2))
+}
+
+// scAttrOne formats a lone attribute (the left half of scAttr), for an
+// odd-count category group.
+func scAttrOne(s string, v int) string {
+	return scSub(s) + " " + scHi(strconv.Itoa(v))
+}
+
+// scAttrCategoryOrder is the render order for attribute categories; unknown or
+// empty categories sort after these, in first-seen order. Extend this if a new
+// AttrCategory* constant is added in progression/attributeset.go — otherwise
+// the new category renders in the trailing first-seen group rather than a
+// deliberate slot.
+var scAttrCategoryOrder = []string{
+	progression.AttrCategoryPhysical,
+	progression.AttrCategoryMental,
+	progression.AttrCategorySpecial,
+}
+
+// scAttrGrid renders the world's declared attributes grouped by category, two
+// per line within each group (a category never shares a line with the next),
+// so a Shadowrun sheet reads as Physical / Mental / Special blocks and the
+// classic six group the same way (SR-M1 step 4). Categories render in
+// scAttrCategoryOrder, then any other category in first-seen order;
+// attributes keep their declared order within a category.
+func scAttrGrid(attrs []scoreAttr) []string {
+	buckets := map[string][]scoreAttr{}
+	var firstSeen []string
+	for _, a := range attrs {
+		if _, seen := buckets[a.Category]; !seen {
+			firstSeen = append(firstSeen, a.Category)
+		}
+		buckets[a.Category] = append(buckets[a.Category], a)
+	}
+
+	// Known categories first (fixed order), then the rest in first-seen order.
+	knownCats := map[string]bool{}
+	var cats []string
+	for _, c := range scAttrCategoryOrder {
+		if _, ok := buckets[c]; ok {
+			cats = append(cats, c)
+			knownCats[c] = true
+		}
+	}
+	for _, c := range firstSeen {
+		if !knownCats[c] {
+			cats = append(cats, c)
+		}
+	}
+
+	var lines []string
+	for _, c := range cats {
+		group := buckets[c]
+		for i := 0; i < len(group); i += 2 {
+			if i+1 < len(group) {
+				lines = append(lines, scAttr(group[i].Abbrev, group[i].Value, group[i+1].Abbrev, group[i+1].Value))
+			} else {
+				lines = append(lines, scAttrOne(group[i].Abbrev, group[i].Value))
+			}
+		}
+	}
+	return lines
 }
 
 // scEquipCell formats one worn-equipment cell for the score sheet: the

@@ -36,6 +36,23 @@ func (a *sheetActor) Saves() progression.Saves {
 	return progression.Saves{Fortitude: 4, Reflex: 1, Will: 1}
 }
 
+// AttributeSet exercises the shipped data-driven grid path (SR-M1): the classic
+// six with categories; values come from StatValue. IDs must be lowercase to
+// match the stat block's storage convention (StatValue queries the raw id).
+func (a *sheetActor) AttributeSet() *progression.AttributeSet {
+	return &progression.AttributeSet{
+		ID: progression.ClassicAttributeSetID,
+		Attributes: []progression.Attribute{
+			{ID: progression.StatSTR, Abbrev: "STR", Category: "physical"},
+			{ID: progression.StatINT, Abbrev: "INT", Category: "mental"},
+			{ID: progression.StatWIS, Abbrev: "WIS", Category: "mental"},
+			{ID: progression.StatDEX, Abbrev: "DEX", Category: "physical"},
+			{ID: progression.StatCON, Abbrev: "CON", Category: "physical"},
+			{ID: progression.StatLUCK, Abbrev: "LCK", Category: "special"},
+		},
+	}
+}
+
 func TestScore_Handler(t *testing.T) {
 	f := newConsiderFixture(t)
 	a := &sheetActor{combatActor: newCombatActor("Maerys", "p-1", f.room)}

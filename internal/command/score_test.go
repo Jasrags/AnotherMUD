@@ -165,3 +165,67 @@ func TestChannelingGiftLabel(t *testing.T) {
 		}
 	}
 }
+
+// SR-M1 step 4: when scoreData carries Attrs (the world's declared attribute
+// set), the sheet renders those — grouped by category, in order — instead of
+// the hardcoded six. A Shadowrun-shaped set must show its own abbrevs/values
+// and NOT the classic STR/DEX/... labels.
+func TestRenderScore_DataDrivenAttributes(t *testing.T) {
+	d := scoreData{
+		Name:     "Jax",
+		HasStats: true,
+		Attrs: []scoreAttr{
+			{Abbrev: "BOD", Value: 3, Category: "physical"},
+			{Abbrev: "AGI", Value: 5, Category: "physical"},
+			{Abbrev: "REA", Value: 4, Category: "physical"},
+			{Abbrev: "WIL", Value: 4, Category: "mental"},
+			{Abbrev: "LOG", Value: 6, Category: "mental"},
+			{Abbrev: "EDG", Value: 3, Category: "special"},
+		},
+	}
+	out := renderScore(d)
+
+	for _, want := range []string{
+		"<title>Attributes</title>",
+		"BOD", "AGI", "REA", "WIL", "LOG", "EDG",
+		"<highlight>3</highlight>", // BOD/EDG value
+		"<highlight>6</highlight>", // LOG value
+	} {
+		if !strings.Contains(out, want) {
+			t.Errorf("data-driven sheet missing %q\n%s", want, out)
+		}
+	}
+	// The classic labels must NOT appear for a Shadowrun set.
+	for _, absent := range []string{"STR", "DEX", "CON", "LUCK"} {
+		if strings.Contains(out, absent) {
+			t.Errorf("data-driven sheet leaked the classic label %q\n%s", absent, out)
+		}
+	}
+}
+
+// scAttrGrid groups by category (fixed order physical→mental→special), keeps
+// declared order within a group, and never pairs across a category boundary —
+// so an odd-count group leaves its last attribute on its own line.
+func TestScAttrGrid_GroupsByCategory(t *testing.T) {
+	lines := scAttrGrid([]scoreAttr{
+		{Abbrev: "EDG", Value: 3, Category: "special"}, // declared first, but special sorts last
+		{Abbrev: "BOD", Value: 3, Category: "physical"},
+		{Abbrev: "AGI", Value: 5, Category: "physical"},
+		{Abbrev: "REA", Value: 4, Category: "physical"}, // odd one out in physical
+		{Abbrev: "WIL", Value: 4, Category: "mental"},
+	})
+
+	// physical(BOD,AGI | REA), mental(WIL), special(EDG) → 4 lines.
+	if len(lines) != 4 {
+		t.Fatalf("lines = %d, want 4\n%v", len(lines), lines)
+	}
+	if !strings.Contains(lines[0], "BOD") || !strings.Contains(lines[0], "AGI") {
+		t.Errorf("line 0 = %q, want BOD+AGI paired", lines[0])
+	}
+	if !strings.Contains(lines[1], "REA") || strings.Contains(lines[1], "WIL") {
+		t.Errorf("line 1 = %q, want REA alone (no cross-category pairing)", lines[1])
+	}
+	if !strings.Contains(lines[3], "EDG") {
+		t.Errorf("line 3 = %q, want EDG last (special sorts after physical/mental)", lines[3])
+	}
+}
