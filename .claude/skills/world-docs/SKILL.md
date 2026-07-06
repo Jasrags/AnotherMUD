@@ -1,6 +1,6 @@
 ---
 name: world-docs
-description: Generate documentation for the AnotherMUD world content (rooms, areas, regions, exits, NPCs) from the content packs — today an interactive self-contained HTML map per world pack plus a cross-pack index (gazetteer, catalogs, health report, and player guide land in later phases). Use when the user wants to SEE or document the world — visualize the layout, check how areas connect, eyeball a region, review newly-authored geography, or regenerate the world docs. Triggers include "show me the world map", "visualize the world/content", "what does the map look like", "render the map", "generate world docs", after authoring rooms/areas, or any request to see the geography as a map.
+description: Generate documentation for the AnotherMUD world content (rooms, areas, regions, exits, NPCs) from the content packs — an interactive self-contained HTML map and a region→area→room gazetteer per world pack, plus a cross-pack index (content catalogs, a health report, and a player guide land in later phases). Use when the user wants to SEE or document the world — visualize the layout, check how areas connect, eyeball a region, review newly-authored geography, or regenerate the world docs. Triggers include "show me the world map", "visualize the world/content", "what does the map look like", "render the map", "generate world docs", after authoring rooms/areas, or any request to see the geography as a map.
 user-invocable: true
 ---
 
@@ -15,11 +15,13 @@ derivation (`internal/world/coords.go`: north = +y, east = +x, up = +z).
 Output lives under `docs/world/`:
 
 - `docs/world/<pack>/map.html` — a dependency-free interactive map, one per world pack.
+- `docs/world/<pack>/gazetteer.md` — a region→area→room prose reference (exits with
+  door/locked/hidden markers, resident NPCs with roles, per-room notes).
 - `docs/world/index.md` — a cross-pack table of contents (written on a full run).
 
-The tool is built as a shared parse feeding a registry of **emitters**. Today the
-only emitter is `map`; the gazetteer, content catalogs, world-health report, and
-player guide arrive in later phases (see `docs/plans/world-docs-plan.md`).
+The tool is built as a shared parse feeding a registry of **emitters** (`map`,
+`gazetteer`). Content catalogs, a world-health report, and a player guide arrive
+in later phases (see `docs/plans/world-docs-plan.md`).
 
 ## When to use
 
@@ -41,7 +43,7 @@ go run ./cmd/worlddoc -pack wot -start the-green -emit map   # one pack, map onl
 Flags: `-pack` (`wot` default, or `all` for every kind:world pack), `-start`
 (BFS seed / spawn marker, default `the-green`; ignored for `-pack all`, which
 seeds each pack from a built-in default), `-content` (default `./content`),
-`-emit` (`all` default, or a single emitter — currently `map`), `-outdir`
+`-emit` (`all` default, or a single emitter — `map` or `gazetteer`), `-outdir`
 (default `docs/world`).
 
 Then open the map for the user:

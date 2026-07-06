@@ -36,8 +36,8 @@ type emitter struct {
 }
 
 // emitters is the ordered registry. `-emit all` runs each in turn; `-emit <name>`
-// runs just one. Phase 2 ships the map; gazetteer/catalogs/health/guide append.
-var emitters = []emitter{mapEmitter}
+// runs just one. Catalogs/health/guide append here as later phases land.
+var emitters = []emitter{mapEmitter, gazetteerEmitter}
 
 // defaultStarts seeds the layout BFS (and spawn marker) per known world pack for
 // `-pack all`, where the single -start flag can't apply. Unknown packs fall back

@@ -7,10 +7,12 @@ Generated content documentation, one section per world pack. Derived from the co
 13 rooms · 2 areas
 
 - [map](starter-world/map.html)
+- [gazetteer](starter-world/gazetteer.md)
 
 ## wot
 
 109 rooms · 18 areas
 
 - [map](wot/map.html)
+- [gazetteer](wot/gazetteer.md)
 

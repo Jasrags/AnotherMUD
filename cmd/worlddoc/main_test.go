@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strings"
 	"testing"
 )
 
@@ -33,7 +34,7 @@ func TestResolveEmitters(t *testing.T) {
 	})
 
 	t.Run("unknown errors", func(t *testing.T) {
-		if _, err := resolveEmitters("gazetteer"); err == nil {
+		if _, err := resolveEmitters("no-such-emitter"); err == nil {
 			t.Fatal("expected error for unregistered emitter, got nil")
 		}
 	})
@@ -140,6 +141,60 @@ func TestRunPackAllIsolatesEmitterFailure(t *testing.T) {
 	}
 	if _, statErr := os.Stat(filepath.Join(tmp, "index.md")); statErr != nil {
 		t.Fatalf("cross-pack index was not written: %v", statErr)
+	}
+}
+
+// TestRenderGazetteer covers the acceptance criteria: every room appears
+// exactly once, exits render direction + destination with door/locked/hidden/
+// cross-area markers, and rooms group under region → area (unassigned region
+// last).
+func TestRenderGazetteer(t *testing.T) {
+	w := worldJSON{
+		Pack:    "testpack",
+		Regions: []string{"andor"},
+		Areas: []areaMeta{
+			{ID: "town", Name: "Town", Region: "andor"},
+			{ID: "wild", Name: "Wilds", Region: ""},
+		},
+		Rooms: []roomJSON{
+			{ID: "square", Name: "Square", Area: "town", Region: "andor", Terrain: "road", Spawn: true,
+				Exits: []exitJSON{
+					{Dir: "north", To: "gate", Locked: true, Door: "Iron Gate"},
+					{Dir: "east", To: "field", Cross: true},
+				},
+				Mobs: []mobJSON{{Name: "Guard", Shop: true}}},
+			{ID: "gate", Name: "Gate", Area: "town", Region: "andor", Terrain: "road",
+				Exits: []exitJSON{
+					{Dir: "south", To: "square"},
+					{Dir: "up", To: "secret", Hidden: true},
+				}},
+			{ID: "field", Name: "Field", Area: "wild", Region: "", Terrain: "field", Weather: "plains"},
+		},
+	}
+	md := renderGazetteer(w)
+
+	// Every room appears exactly once (backtick-quoted id).
+	for _, id := range []string{"square", "gate", "field"} {
+		if n := strings.Count(md, "`"+id+"`"); n != 1 {
+			t.Errorf("room %q appears %d times, want exactly 1", id, n)
+		}
+	}
+	// Headers, markers, notes, and roles.
+	wants := []string{
+		"## Andor",
+		"### Town (`town`)",
+		"## Unassigned region",
+		"### Wilds (`wild` · weather: plains)",
+		"north → gate (locked door: Iron Gate)",
+		"east → field (cross-area)",
+		"up → secret (hidden)",
+		"- Notes: start room",
+		"Guard (shop)",
+	}
+	for _, want := range wants {
+		if !strings.Contains(md, want) {
+			t.Errorf("gazetteer missing %q\n---\n%s", want, md)
+		}
 	}
 }
 
