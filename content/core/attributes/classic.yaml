@@ -1,0 +1,23 @@
+# The engine-baseline attribute set (SR-M1 — docs/themes/shadowrun-mvp.md
+# Appendix A). This declares the six classic attributes the engine has always
+# seeded, as content — the REGRESSION GATE for making the base attribute set
+# world-selectable: `classic` must reproduce the old hardcode exactly.
+#
+#   default   = the value DefaultPlayerBase() seeds (10 each).
+#   cap       = the ceiling the `train` verb honors when a race declares no
+#               per-stat cap — DefaultTrainingConfig.DefaultRaceCap (25).
+#   trainable = the DefaultTrainingConfig trainable set (all six).
+#   category  = score-sheet grouping (physical / mental / special).
+#
+# A world pack (e.g. shadowrun) declares its OWN set with a different id; the
+# seed/score/train wiring selects a world's set in the following SR-M1 steps.
+# Order is the canonical StatBlock order; the score sheet renders it in order.
+id: classic
+name: Classic Six
+attributes:
+  - { id: str,  name: Strength,     abbrev: STR, default: 10, cap: 25, trainable: true, category: physical }
+  - { id: int,  name: Intelligence, abbrev: INT, default: 10, cap: 25, trainable: true, category: mental }
+  - { id: wis,  name: Wisdom,       abbrev: WIS, default: 10, cap: 25, trainable: true, category: mental }
+  - { id: dex,  name: Dexterity,    abbrev: DEX, default: 10, cap: 25, trainable: true, category: physical }
+  - { id: con,  name: Constitution, abbrev: CON, default: 10, cap: 25, trainable: true, category: physical }
+  - { id: luck, name: Luck,         abbrev: LCK, default: 10, cap: 25, trainable: true, category: special }

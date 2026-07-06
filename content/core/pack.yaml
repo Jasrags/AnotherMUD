@@ -15,6 +15,14 @@ description: |
 content:
   slots:
     - slots/*.yaml
+  # Base attribute set (SR-M1 — shadowrun-mvp.md Appendix A). The engine
+  # `classic` six; a world seeds characters + the score sheet + the train
+  # gate from the set it selects. Declaring it here is the regression gate —
+  # `classic` reproduces DefaultPlayerBase's six + DefaultTrainingConfig's
+  # trainable set exactly, so making the seed data-driven is a no-op for the
+  # existing worlds.
+  attribute_sets:
+    - attributes/*.yaml
   tracks:
     - tracks/*.yaml
   races:
