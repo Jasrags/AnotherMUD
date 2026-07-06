@@ -5,11 +5,23 @@ description: |
   Neon signage stutters in a dozen languages above a corner that never quite
   dries out. A noodle stand hisses steam into the drizzle; a defunct ATM wears
   a skin of gang tags. Foot traffic hurries past with their collars up and
-  their eyes down. An alley cuts north into the dark.
+  their eyes down. An alley cuts north into the dark, and the street runs east
+  toward the market stalls and the corp towers beyond.
 terrain: outdoors
 exits:
   north: back-alley
-# A safe hub for SR-M3c-1: no combat, no spawns yet — a place to stand, read
-# `score`, and confirm the runner seeded correctly. `safe` also satisfies the
-# training safe-room gate.
+  east: market-street
+# Starter gear on the corner (like the demo town square) so a fresh runner — or a
+# smoke test — can gear up before walking east into the ganger's turf: a katana
+# and a heavy pistol (with a clip) for the kill, a stun baton to take a mark
+# alive, and an armoured jacket for the soak.
+items:
+  - katana
+  - heavy-pistol
+  - ammo-clip
+  - stun-baton
+  - armored-jacket
+# A safe hub: no combat, no spawns — a place to stand, read `score`, gear up, and
+# confirm the runner seeded correctly. `safe` also satisfies the training
+# safe-room gate.
 tags: [safe-room, safe]

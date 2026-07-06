@@ -1,0 +1,12 @@
+id: nuyen
+name: a certified credstick
+type: treasure
+# `currency` triggers the §2.3 auto-convert: picking this up (or looting it from
+# a corpse) credits the runner's balance and removes the item rather than
+# stacking it. `value` is the credited amount. NOTE: the balance/`gold` verb
+# still reads "gold" engine-wide (there is no currency-label seam yet — the
+# nuyen reskin is flavor at the item level; see sr-m3c-deferred-fixes).
+tags: [currency]
+keywords: [credstick, nuyen, cred, money]
+properties:
+  value: 100

@@ -1,0 +1,16 @@
+# Loot for the corp-sec guard (loot-and-corpses §3). Corp payroll runs deeper
+# than a ganger's pockets — a fatter credstick and a chance at her kit.
+id: sec-guard-loot
+guaranteed:
+  - { item: ammo-clip, count: 1 }
+weighted:
+  - { item: nuyen, weight: 2 }
+  - { item: armor-vest, weight: 1 }
+pool_rolls: 1
+rare_bonus:
+  chance: 15
+  entries:
+    - { item: smg, weight: 1 }
+coin:
+  min: 60
+  max: 140

@@ -1,0 +1,14 @@
+id: corp-plaza
+area: seattle
+name: "{C}Corporate Plaza{x}"
+description: |
+  The sprawl falls away into a manicured plaza of mirrored glass and cold steel.
+  A corporate arcology looms overhead, its logo turning slowly against the rain.
+  Security drones drift on patrol, and a guard watches the entrance with the flat
+  patience of someone paid to end trouble. Market Street lies back to the west.
+terrain: outdoors
+exits:
+  west: market-street
+# Corp-sec holds the plaza (neutral — returns fire if you start something).
+mobs:
+  - sec-guard

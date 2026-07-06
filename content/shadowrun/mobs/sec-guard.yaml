@@ -1,0 +1,27 @@
+id: sec-guard
+name: a corporate security guard
+xp_value: 55  # kill experience (grouping.md §4)
+type: npc
+behavior: stationary
+description: |
+  A uniformed corp-sec officer in a plated vest, cyber-eyes tracking everything
+  that moves. An SMG hangs ready on a tactical sling. Professional, bored, and
+  entirely willing to open fire if you give her a reason.
+tags: [humanoid, security, corp]
+keywords: [guard, security, sec, officer]
+# Neutral: she won't start it, but she'll finish it — attack her (or trespass)
+# and she returns fire.
+disposition_rules:
+  default: neutral
+# SMG (ranged, fires free per the mob ammo path) + an armoured vest that feeds
+# her Shadowrun soak (body + armor via the wired mitigation input).
+equipment: [smg, armor-vest]
+stats:
+  hp_max: 28
+  body: 4
+  agility: 4
+  reaction: 4
+  strength: 4
+  willpower: 4
+  intuition: 4
+loot_table: sec-guard-loot

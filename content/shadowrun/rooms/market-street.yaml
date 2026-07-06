@@ -1,0 +1,15 @@
+id: market-street
+area: seattle
+name: "{y}Market Street{x}"
+description: |
+  A gauntlet of soy-noodle carts, knock-off electronics stalls, and vendors
+  hawking everything from stimpatches to stolen commlinks. The crowd is thick
+  and nobody meets your eye. Gang tags mark this as contested turf. The corner
+  lies west; a plaza of glass and steel opens east.
+terrain: outdoors
+exits:
+  west: street-corner
+  east: corp-plaza
+# The ganger works this turf (hostile — he'll start the fight).
+mobs:
+  - ganger

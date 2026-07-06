@@ -8,9 +8,11 @@ import (
 	"github.com/Jasrags/AnotherMUD/internal/channel"
 	"github.com/Jasrags/AnotherMUD/internal/entities"
 	"github.com/Jasrags/AnotherMUD/internal/item"
+	"github.com/Jasrags/AnotherMUD/internal/mob"
 	"github.com/Jasrags/AnotherMUD/internal/pool"
 	"github.com/Jasrags/AnotherMUD/internal/progression"
 	"github.com/Jasrags/AnotherMUD/internal/slot"
+	"github.com/Jasrags/AnotherMUD/internal/world"
 )
 
 // TestLoad_ShadowrunBootSlice is the SR-M3c-1 gate: selecting the `shadowrun`
@@ -321,4 +323,75 @@ func containsStr(ss []string, want string) bool {
 		}
 	}
 	return false
+}
+
+// TestLoad_ShadowrunDistrictAndMobs is the SR-M3c-3 district gate: the walkable
+// district loads with its population placed, and the two mobs carry the combat
+// identity a live gunfight needs — the hostile ganger (starts it) and the
+// neutral corp-sec guard (finishes it), each armed, armoured, and dropping
+// nuyen.
+func TestLoad_ShadowrunDistrictAndMobs(t *testing.T) {
+	root, err := filepath.Abs("../../content")
+	if err != nil {
+		t.Fatalf("abs: %v", err)
+	}
+	regs := NewRegistries()
+	if err := RegisterEngineBaselineProperties(regs.Properties); err != nil {
+		t.Fatalf("baseline properties: %v", err)
+	}
+	if err := slot.RegisterEngineBaseline(regs.Slots); err != nil {
+		t.Fatalf("baseline slots: %v", err)
+	}
+	if err := Load(context.Background(), root, []string{"shadowrun"}, regs, nil, nil, nil); err != nil {
+		t.Fatalf("Load shadowrun: %v", err)
+	}
+
+	for _, id := range []string{"street-corner", "back-alley", "market-street", "corp-plaza"} {
+		if _, err := regs.World.Room("shadowrun:" + world.RoomID(id)); err != nil {
+			t.Errorf("room shadowrun:%s not loaded: %v", id, err)
+		}
+	}
+
+	ganger, err := regs.Mobs.Get("shadowrun:ganger")
+	if err != nil {
+		t.Fatalf("ganger: %v", err)
+	}
+	if ganger.DispositionRules == nil || ganger.DispositionRules.Default != mob.ReactionHostile {
+		t.Errorf("ganger disposition = %v, want hostile", ganger.DispositionRules)
+	}
+	if ganger.XPValue != 30 {
+		t.Errorf("ganger xp_value = %d, want 30", ganger.XPValue)
+	}
+	if ganger.LootTable != "shadowrun:ganger-loot" {
+		t.Errorf("ganger loot_table = %q, want shadowrun:ganger-loot", ganger.LootTable)
+	}
+	if !containsStr(ganger.Equipment, "shadowrun:katana") {
+		t.Errorf("ganger equipment = %v, want a katana", ganger.Equipment)
+	}
+
+	guard, err := regs.Mobs.Get("shadowrun:sec-guard")
+	if err != nil {
+		t.Fatalf("sec-guard: %v", err)
+	}
+	if guard.DispositionRules == nil || guard.DispositionRules.Default != mob.ReactionNeutral {
+		t.Errorf("sec-guard disposition = %v, want neutral", guard.DispositionRules)
+	}
+	if !containsStr(guard.Equipment, "shadowrun:smg") || !containsStr(guard.Equipment, "shadowrun:armor-vest") {
+		t.Errorf("sec-guard equipment = %v, want smg + armor-vest", guard.Equipment)
+	}
+
+	// Nuyen is a currency item (auto-converts to balance on pickup/loot).
+	nuyen, err := regs.Items.Get("shadowrun:nuyen")
+	if err != nil {
+		t.Fatalf("nuyen: %v", err)
+	}
+	isCurrency := false
+	for _, tag := range nuyen.Tags {
+		if tag == "currency" {
+			isCurrency = true
+		}
+	}
+	if !isCurrency {
+		t.Errorf("nuyen tags = %v, want to include currency", nuyen.Tags)
+	}
 }

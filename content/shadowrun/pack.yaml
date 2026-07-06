@@ -67,3 +67,9 @@ content:
     - areas/*.yaml
   rooms:
     - rooms/*.yaml
+  # The district population (SR-M3c-3): a hostile ganger + a corp-sec guard,
+  # each with SR combat stats + gear, dropping nuyen on death.
+  mobs:
+    - mobs/*.yaml
+  loot_tables:
+    - loot_tables/*.yaml

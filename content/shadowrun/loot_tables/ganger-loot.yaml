@@ -1,0 +1,18 @@
+# Loot for the street ganger (loot-and-corpses §3). A little street cred on a
+# credstick, and a chance at his blade.
+id: ganger-loot
+# A weighted pick from his pockets — usually a spare clip, sometimes nothing.
+weighted:
+  - { item: ammo-clip, weight: 2 }
+  - { item: nuyen, weight: 1 }
+pool_rolls: 1
+# A small chance to drop the katana itself (a genuine find on a street punk).
+rare_bonus:
+  chance: 20
+  entries:
+    - { item: katana, weight: 1 }
+# Loose nuyen in his pocket, credited to the killer at corpse creation. (The
+# balance verb still reads "gold" — nuyen is flavor; see sr-m3c-deferred-fixes.)
+coin:
+  min: 20
+  max: 60

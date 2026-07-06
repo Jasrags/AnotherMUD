@@ -1,0 +1,26 @@
+id: ganger
+name: a street ganger
+xp_value: 30  # kill experience (grouping.md §4)
+type: npc
+behavior: stationary
+description: |
+  A wiry gangbanger in a patched synthleather jacket, gang colours sprayed
+  across the back. He works a katana in one hand with more enthusiasm than
+  training, jittering on whatever's in his system, looking for a mark.
+tags: [humanoid, ganger, outlaw]
+keywords: [ganger, thug, gangbanger, punk]
+# Hostile: gangers jump anyone who wanders onto their turf.
+disposition_rules:
+  default: hostile
+# A blade and a patched jacket — the katana routes lethal (Physical); a stun
+# baton to the jaw still KOs him via his Stun monitor.
+equipment: [katana, armored-jacket]
+stats:
+  hp_max: 18
+  body: 3
+  agility: 4
+  reaction: 3
+  strength: 3
+  willpower: 2
+  intuition: 3
+loot_table: ganger-loot
