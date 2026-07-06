@@ -3,6 +3,7 @@ package combat
 import (
 	"context"
 
+	"github.com/Jasrags/AnotherMUD/internal/pool"
 	"github.com/Jasrags/AnotherMUD/internal/world"
 )
 
@@ -719,7 +720,37 @@ func resolveSwing(ctx context.Context, in swingInputs, cfg AutoAttackConfig) swi
 		raw = 1
 	}
 
-	remainingHP, wasAlive := in.target.Vitals().ApplyDamageIfAlive(raw)
+	// §4.5 apply — route the raw damage to its destination monitor.
+	// shadowrun-mvp SR-M2: an attack's Stats.TargetPool names which of the
+	// defender's pools it fills. Empty (every non-Shadowrun weapon) or
+	// pool.KindHP is the canonical Vitals/hp path — byte-identical to
+	// pre-slice behavior, including the killing-blow and massive-damage
+	// rules. A non-empty kind routes through the defender's pool.Set, with a
+	// per-pool KO-vs-death meaning (Rules.Nonlethal) on each crossing.
+	dest := in.atkStats.TargetPool
+	if dest == "" {
+		dest = pool.KindHP
+	}
+
+	// Liveness + apply. The hp path keeps the atomic ApplyDamageIfAlive —
+	// its wasAlive return closes the concurrent-killer race. A named pool
+	// (a stun monitor) never touches hp, so its liveness is a plain Vitals
+	// check and it routes through the defender's pool.Set.
+	var (
+		wasAlive    bool
+		hpRemaining int
+		crossings   []pool.Crossing
+	)
+	if dest == pool.KindHP {
+		hpRemaining, wasAlive = in.target.Vitals().ApplyDamageIfAlive(raw)
+	} else {
+		wasAlive = !in.target.Vitals().IsDead()
+		if wasAlive {
+			if pools := in.target.Pools(); pools != nil {
+				crossings = pools.ApplyDamage(dest, raw)
+			}
+		}
+	}
 	if !wasAlive {
 		// A concurrent damage source (DoT effect, ability, racing swing from a
 		// future parallel phase) killed the target between the early-exit live
@@ -741,33 +772,72 @@ func resolveSwing(ctx context.Context, in swingInputs, cfg AutoAttackConfig) swi
 		RoomID:       in.attackerRoom,
 	})
 
-	if remainingHP <= 0 {
+	// --- hp path: the canonical killing-blow + massive-damage rules ---
+	if dest == pool.KindHP {
+		if hpRemaining <= 0 {
+			cfg.Sink.OnVitalDepleted(ctx, VitalDepleted{
+				VictimID:   in.targetID,
+				VictimName: in.tgtName,
+				AttackerID: in.attackerID,
+				Vital:      VitalHP,
+				// subdual-damage §4: a nonlethal finishing blow knocks out, not kills.
+				Subdual: in.atkStats.Subdual,
+				RoomID:  in.attackerRoom,
+			})
+			// §4.3 "If HP reached zero ... stop further swings." This swing landed the
+			// killing blow, so a Cleave-capable attacker may follow up (Bucket C).
+			return swingKill
+		}
+
+		// saves §4 — massive-damage Fortitude save. A single swing whose applied
+		// damage meets the threshold and did NOT already kill (the branch above
+		// handled that) forces the victim to save; a failure drives the lethal
+		// consequence through the same VitalDepleted death path. A success leaves
+		// the already-applied normal damage untouched. nil MassiveDamage ⇒ rule
+		// disabled (pre-slice behavior). Massive-damage is an hp/physical rule,
+		// so it does not apply to a stun-monitor swing.
+		if cfg.MassiveDamage != nil && raw >= cfg.MassiveDamage.Threshold {
+			if massiveDamageKill(ctx, cfg, in.attackerID, in.targetID, in.tgtName, in.attackerRoom, in.atkStats.Subdual) {
+				// §4.3 stop swinging on a corpse; the massive-damage save killed the
+				// victim by this attacker's swing, so Cleave may follow up (Bucket C).
+				return swingKill
+			}
+		}
+		return swingContinue
+	}
+
+	// --- named-pool path (SR-M2): one VitalDepleted per crossing ---
+	// Each pool that crossed to its floor reports a KILL (Rules.Nonlethal
+	// false — a Physical monitor) or a KNOCK-OUT (Nonlethal true — a Stun
+	// monitor). The weapon's own Subdual flag also forces a KO, so the two
+	// compose: Subdual = weapon-nonlethal OR pool-nonlethal. A lethal
+	// crossing stops the swing on a corpse (Cleave may follow); a pure
+	// knock-out stops the swing on an incapacitated target (no Cleave).
+	lethal, depleted := false, false
+	for _, c := range crossings {
+		// The KO-vs-death meaning is the crossed POOL's (Crossing.Nonlethal,
+		// mirrored from Rules.Nonlethal at the ApplyDamage site), composed with
+		// the weapon's own nonlethal flag: Subdual = weapon-nonlethal OR
+		// pool-nonlethal.
+		subdual := in.atkStats.Subdual || c.Nonlethal
 		cfg.Sink.OnVitalDepleted(ctx, VitalDepleted{
 			VictimID:   in.targetID,
 			VictimName: in.tgtName,
 			AttackerID: in.attackerID,
-			Vital:      VitalHP,
-			// subdual-damage §4: a nonlethal finishing blow knocks out, not kills.
-			Subdual: in.atkStats.Subdual,
-			RoomID:  in.attackerRoom,
+			Vital:      string(c.Kind),
+			Subdual:    subdual,
+			RoomID:     in.attackerRoom,
 		})
-		// §4.3 "If HP reached zero ... stop further swings." This swing landed the
-		// killing blow, so a Cleave-capable attacker may follow up (Bucket C).
+		depleted = true
+		if !subdual {
+			lethal = true
+		}
+	}
+	if lethal {
 		return swingKill
 	}
-
-	// saves §4 — massive-damage Fortitude save. A single swing whose applied
-	// damage meets the threshold and did NOT already kill (the branch above
-	// handled that) forces the victim to save; a failure drives the lethal
-	// consequence through the same VitalDepleted death path. A success leaves
-	// the already-applied normal damage untouched. nil MassiveDamage ⇒ rule
-	// disabled (pre-slice behavior).
-	if cfg.MassiveDamage != nil && raw >= cfg.MassiveDamage.Threshold {
-		if massiveDamageKill(ctx, cfg, in.attackerID, in.targetID, in.tgtName, in.attackerRoom, in.atkStats.Subdual) {
-			// §4.3 stop swinging on a corpse; the massive-damage save killed the
-			// victim by this attacker's swing, so Cleave may follow up (Bucket C).
-			return swingKill
-		}
+	if depleted {
+		return swingStop
 	}
 	return swingContinue
 }

@@ -4,6 +4,7 @@ import (
 	"context"
 	"testing"
 
+	"github.com/Jasrags/AnotherMUD/internal/pool"
 	"github.com/Jasrags/AnotherMUD/internal/world"
 )
 
@@ -16,12 +17,14 @@ type liveCombatant struct {
 	name   string
 	vitals *Vitals
 	stats  Stats
+	pools  *pool.Set
 }
 
 func (l *liveCombatant) CombatantID() CombatantID { return l.id }
 func (l *liveCombatant) Name() string             { return l.name }
 func (l *liveCombatant) Vitals() *Vitals          { return l.vitals }
 func (l *liveCombatant) Stats() Stats             { return l.stats }
+func (l *liveCombatant) Pools() *pool.Set         { return l.pools }
 
 // scriptedRoller serves a programmed sequence of IntN results. Reused
 // from damage_test.go's fixedRoller pattern but kept distinct so the
@@ -53,26 +56,26 @@ const (
 // AC 10, STR 10, no weapon damage = unarmed default) plus a recording
 // sink, a manager engaged on the pair, and a scriptedRoller.
 type autoAttackRig struct {
-	mgr           *Manager
-	sink          *recordingSink
-	attacker      *liveCombatant
-	target        *liveCombatant
-	locator       MapLocator
-	rooms         MapRoomLocator
-	roller        *scriptedRoller
-	passives      PassiveEvaluator                         // nil ⇒ pre-M9.5 behavior
-	critMult      int                                      // 0 ⇒ NewAutoAttack default (DefaultCritMultiplier)
-	massive       *MassiveDamageConfig                     // nil ⇒ saves §4 rule disabled
-	incap         func(CombatantID) bool                   // nil ⇒ never incapacitated (conditions §3)
-	defAdj        func(CombatantID) int                    // nil ⇒ no defender vulnerability (conditions §3)
-	ammoFor        func(CombatantID) (bool, int)           // nil ⇒ no ammo gate (ranged-combat §3)
-	takeLoadedShot func(CombatantID) bool                  // TakeLoadedShot (action-economy §7.1) — nil ⇒ always loaded
-	falloff       int                                      // RangeFalloff (ranged-combat §5.3)
-	pblank        int                                      // PointBlankPenalty (ranged-combat §5.3)
-	kite          func(CombatantID, CombatantID, int) bool // KitePolicy (ranged-combat §5.4)
-	secOff        int                                      // SecondaryOffHandPenalty (two-weapon-fighting §4.3)
-	setBonus      int                                      // SetDamageBonus (special-weapons §4)
-	whipThreshold int                                      // WhipArmorThreshold (subdual-damage §6)
+	mgr            *Manager
+	sink           *recordingSink
+	attacker       *liveCombatant
+	target         *liveCombatant
+	locator        MapLocator
+	rooms          MapRoomLocator
+	roller         *scriptedRoller
+	passives       PassiveEvaluator                         // nil ⇒ pre-M9.5 behavior
+	critMult       int                                      // 0 ⇒ NewAutoAttack default (DefaultCritMultiplier)
+	massive        *MassiveDamageConfig                     // nil ⇒ saves §4 rule disabled
+	incap          func(CombatantID) bool                   // nil ⇒ never incapacitated (conditions §3)
+	defAdj         func(CombatantID) int                    // nil ⇒ no defender vulnerability (conditions §3)
+	ammoFor        func(CombatantID) (bool, int)            // nil ⇒ no ammo gate (ranged-combat §3)
+	takeLoadedShot func(CombatantID) bool                   // TakeLoadedShot (action-economy §7.1) — nil ⇒ always loaded
+	falloff        int                                      // RangeFalloff (ranged-combat §5.3)
+	pblank         int                                      // PointBlankPenalty (ranged-combat §5.3)
+	kite           func(CombatantID, CombatantID, int) bool // KitePolicy (ranged-combat §5.4)
+	secOff         int                                      // SecondaryOffHandPenalty (two-weapon-fighting §4.3)
+	setBonus       int                                      // SetDamageBonus (special-weapons §4)
+	whipThreshold  int                                      // WhipArmorThreshold (subdual-damage §6)
 }
 
 // fakePassives is a deterministic PassiveEvaluator for the §4.2/§4.3
@@ -1038,5 +1041,140 @@ func TestOffHandWhipIndependentOfMainHand(t *testing.T) {
 	}
 	if hits[1].Ineffective || hits[1].Damage == 0 {
 		t.Errorf("off-hand steel swing should bite (not inherit the main whip's anti-armor), got %+v", hits[1])
+	}
+}
+
+// --- shadowrun-mvp SR-M2: typed damage target_pool routing ---
+//
+// An attack's Stats.TargetPool names which of the defender's pools it fills.
+// Empty routes to the canonical Vitals/hp path (every test above); a named
+// kind routes through the defender's pool.Set (Pools()), with a per-pool
+// KO-vs-death meaning (Rules.Nonlethal) on each crossing. hp always lives in
+// Vitals, never in the Set, so a stun swing never touches hp.
+
+// stunPools builds a Set holding one depletion-signalling monitor of the given
+// kind/max — the Shadowrun condition monitor a typed attack fills. nonlethal
+// marks a Stun monitor (crossing = knock-out); false marks a Physical-style
+// monitor (crossing = kill).
+func stunPools(kind pool.Kind, max int, nonlethal bool) *pool.Set {
+	s := pool.NewSet()
+	s.Add(pool.New(kind, max, pool.Rules{Floor: 0, DepletionEvent: true, Nonlethal: nonlethal}))
+	return s
+}
+
+// TestTargetPool_StunFillsMonitorLeavingHPUntouched: a stun swing below the
+// monitor's max fills the Stun pool, deals no depletion, and never touches hp.
+func TestTargetPool_StunFillsMonitorLeavingHPUntouched(t *testing.T) {
+	atk := Stats{HitMod: 10, DamageBonus: 3, TargetPool: "stun", Subdual: true}
+	rig := newAutoAttackRig(t, atk, Stats{AC: 5}, 10, 50, []int{9, 0}) // 1d3=1 +3 = 4 stun
+	rig.target.pools = stunPools("stun", 10, true)                     // 4 < 10 → no crossing
+	rig.phase()(context.Background(), rig.attacker.id, rig.mgr, 0)
+
+	if got := rig.target.vitals.Current(); got != 50 {
+		t.Fatalf("hp must be untouched by a stun hit, got %d want 50", got)
+	}
+	if p, _ := rig.target.pools.Get("stun"); p.Current() != 6 {
+		t.Fatalf("stun monitor current = %d, want 6 (10-4)", p.Current())
+	}
+	if d := len(rig.sink.snapshotDeaths()); d != 0 {
+		t.Fatalf("no VitalDepleted expected below the monitor max, got %d", d)
+	}
+	if h := len(rig.sink.snapshotHits()); h != 1 {
+		t.Fatalf("want 1 hit, got %d", h)
+	}
+}
+
+// TestTargetPool_StunDepletionKnocksOut: filling the Stun monitor to its floor
+// emits one VitalDepleted marked Subdual (knock-out) whose Vital is the stun
+// pool — the death pipeline knocks out instead of killing, and hp is untouched.
+func TestTargetPool_StunDepletionKnocksOut(t *testing.T) {
+	atk := Stats{HitMod: 10, DamageBonus: 9, TargetPool: "stun", Subdual: true}
+	rig := newAutoAttackRig(t, atk, Stats{AC: 5}, 10, 50, []int{9, 2}) // 1d3=3 +9 = 12 stun
+	rig.target.pools = stunPools("stun", 10, true)                     // 12 >= 10 → crosses
+	rig.phase()(context.Background(), rig.attacker.id, rig.mgr, 0)
+
+	deaths := rig.sink.snapshotDeaths()
+	if len(deaths) != 1 {
+		t.Fatalf("want exactly 1 depletion, got %d: %+v", len(deaths), deaths)
+	}
+	if deaths[0].Vital != "stun" {
+		t.Errorf("depletion Vital = %q, want \"stun\"", deaths[0].Vital)
+	}
+	if !deaths[0].Subdual {
+		t.Error("a stun-monitor depletion must be Subdual (knock-out), not a kill")
+	}
+	if got := rig.target.vitals.Current(); got != 50 {
+		t.Errorf("hp must be untouched by a stun KO, got %d want 50", got)
+	}
+}
+
+// TestTargetPool_NonlethalMonitorKOsEvenWithLethalWeapon: the KO-vs-death
+// meaning is the POOL's (Rules.Nonlethal), independent of the weapon — a
+// lethal (non-subdual) attack routed into a Stun monitor still knocks out.
+func TestTargetPool_NonlethalMonitorKOsEvenWithLethalWeapon(t *testing.T) {
+	atk := Stats{HitMod: 10, DamageBonus: 9, TargetPool: "stun"} // Subdual defaults false
+	rig := newAutoAttackRig(t, atk, Stats{AC: 5}, 10, 50, []int{9, 2})
+	rig.target.pools = stunPools("stun", 10, true)
+	rig.phase()(context.Background(), rig.attacker.id, rig.mgr, 0)
+
+	deaths := rig.sink.snapshotDeaths()
+	if len(deaths) != 1 || !deaths[0].Subdual {
+		t.Fatalf("a nonlethal monitor must KO regardless of weapon: %+v", deaths)
+	}
+}
+
+// TestTargetPool_LethalNamedPoolKills: a named monitor whose Rules.Nonlethal is
+// false (a Physical track) crossing to its floor is a KILL (Subdual false) even
+// via the pool-routing path — the control for the stun case.
+func TestTargetPool_LethalNamedPoolKills(t *testing.T) {
+	atk := Stats{HitMod: 10, DamageBonus: 9, TargetPool: "physical"}
+	rig := newAutoAttackRig(t, atk, Stats{AC: 5}, 10, 50, []int{9, 2})
+	rig.target.pools = stunPools("physical", 10, false) // lethal monitor
+	rig.phase()(context.Background(), rig.attacker.id, rig.mgr, 0)
+
+	deaths := rig.sink.snapshotDeaths()
+	if len(deaths) != 1 || deaths[0].Subdual {
+		t.Fatalf("a lethal named-pool crossing must kill (Subdual false): %+v", deaths)
+	}
+	if deaths[0].Vital != "physical" {
+		t.Errorf("Vital = %q, want \"physical\"", deaths[0].Vital)
+	}
+}
+
+// TestTargetPool_NilPoolsLandsHarmlessly: a stun attack against a target with
+// no pool.Set (Pools() nil — a fantasy/WoT mob) still LANDS (a Hit) but moves
+// no vital; the destination monitor does not exist.
+func TestTargetPool_NilPoolsLandsHarmlessly(t *testing.T) {
+	atk := Stats{HitMod: 10, DamageBonus: 3, TargetPool: "stun", Subdual: true}
+	rig := newAutoAttackRig(t, atk, Stats{AC: 5}, 10, 50, []int{9, 0})
+	// rig.target.pools stays nil (the mob default)
+	rig.phase()(context.Background(), rig.attacker.id, rig.mgr, 0)
+
+	if h := len(rig.sink.snapshotHits()); h != 1 {
+		t.Fatalf("want the swing to land, got %d hits", h)
+	}
+	if d := len(rig.sink.snapshotDeaths()); d != 0 {
+		t.Fatalf("nil Pools ⇒ no depletion, got %d", d)
+	}
+	if got := rig.target.vitals.Current(); got != 50 {
+		t.Errorf("hp must be untouched, got %d", got)
+	}
+}
+
+// TestTargetPool_EmptyRoutesToHPAndKills: the default (empty TargetPool) is the
+// canonical hp path — a finishing blow depletes hp with Vital="hp", byte-
+// identical to pre-slice behavior. Locks the equivalence explicitly.
+func TestTargetPool_EmptyRoutesToHPAndKills(t *testing.T) {
+	atk := Stats{HitMod: 10, DamageBonus: 5} // TargetPool empty
+	rig := newAutoAttackRig(t, atk, Stats{AC: 5}, 10, 3, []int{9, 2})
+	rig.target.pools = stunPools("stun", 10, true) // present but never touched
+	rig.phase()(context.Background(), rig.attacker.id, rig.mgr, 0)
+
+	deaths := rig.sink.snapshotDeaths()
+	if len(deaths) != 1 || deaths[0].Vital != VitalHP {
+		t.Fatalf("empty TargetPool must deplete hp, got %+v", deaths)
+	}
+	if p, _ := rig.target.pools.Get("stun"); p.Current() != 10 {
+		t.Errorf("stun monitor must be untouched by an hp swing, got %d want 10", p.Current())
 	}
 }

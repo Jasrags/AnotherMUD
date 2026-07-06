@@ -5,6 +5,7 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/Jasrags/AnotherMUD/internal/pool"
 	"github.com/Jasrags/AnotherMUD/internal/world"
 )
 
@@ -12,13 +13,13 @@ import (
 // for concurrent use so the lock-stress test can record from multiple
 // goroutines.
 type recordingSink struct {
-	mu      sync.Mutex
-	engaged []Engagement
-	ended   []CombatEnded
-	hits    []Hit
-	misses  []Miss
-	evades    []Evade
-	deaths    []VitalDepleted
+	mu          sync.Mutex
+	engaged     []Engagement
+	ended       []CombatEnded
+	hits        []Hit
+	misses      []Miss
+	evades      []Evade
+	deaths      []VitalDepleted
 	saves       []SaveResolved
 	rangedDry   []RangedDry
 	bandChanges []BandChange
@@ -157,6 +158,7 @@ func (s staticCombatant) CombatantID() CombatantID { return s.id }
 func (s staticCombatant) Name() string             { return s.name }
 func (s staticCombatant) Vitals() *Vitals          { return nil }
 func (s staticCombatant) Stats() Stats             { return Stats{} }
+func (s staticCombatant) Pools() *pool.Set         { return nil }
 
 func makeRig(t *testing.T, names ...string) (*Manager, *recordingSink, []CombatantID) {
 	t.Helper()

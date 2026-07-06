@@ -2618,8 +2618,14 @@ func run() error {
 			return false
 		}
 		// Leave the victim ALIVE at 1 HP — the death the subdual blow "dealt" is
-		// converted to a knock-out, not undone.
-		victim.Vitals().SetCurrent(1)
+		// converted to a knock-out, not undone. Only when hp actually reached
+		// zero: a subdual finishing blow floored hp, so restore it to 1. A
+		// shadowrun-mvp SR-M2 Stun-monitor knock-out fills a DIFFERENT pool and
+		// leaves hp untouched (often full) — clamping it to 1 there would
+		// near-kill a healthy victim, so guard on the current value.
+		if victim.Vitals().Current() <= 0 {
+			victim.Vitals().SetCurrent(1)
+		}
 		// Apply the unconscious condition, attributed to the attacker. Apply may
 		// report false if the victim is already unconscious — that is still a
 		// knock-out (a re-knock refreshes the duration, subdual-damage §5), so the
@@ -4672,13 +4678,17 @@ func (s *productionCombatSink) OnVitalDepleted(ctx context.Context, e combat.Vit
 		slog.String("vital", e.Vital),
 		slog.String("room", string(e.RoomID)))
 
-	// Only HP-depletion is a death today. A future stamina/mana
-	// depletion event would land here as a separate code path.
-	if e.Vital != combat.VitalHP {
-		return
-	}
+	// Every VitalDepleted reaching here is a death-or-KO. Combat emits this
+	// event ONLY for pools flagged pool.Rules.DepletionEvent — hp, and the
+	// Shadowrun Physical/Stun monitors (shadowrun-mvp SR-M2) — so a non-lethal
+	// pool (mana, movement) never lands here and there is nothing to filter.
+	// The pipeline below is vital-agnostic: it works off VictimID/AttackerID,
+	// and Subdual (not the Vital string) picks knock-out vs kill. The Vital
+	// string is carried for logging/attribution only.
 
-	// subdual-damage §4: a SUBDUAL finishing blow KNOCKS OUT instead of killing.
+	// subdual-damage §4 / SR-M2: a SUBDUAL depletion KNOCKS OUT instead of killing
+	// (a nonlethal weapon's finishing blow, or a crossing of a Rules.Nonlethal
+	// monitor such as the Stun track).
 	// The knock-out restores the victim to 1 HP, applies the `unconscious`
 	// condition, and disengages it — no corpse, no loot, no kill credit. It
 	// intercepts before the death pipeline; a false return (victim gone / no

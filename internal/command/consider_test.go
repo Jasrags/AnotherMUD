@@ -9,6 +9,7 @@ import (
 	"github.com/Jasrags/AnotherMUD/internal/command"
 	"github.com/Jasrags/AnotherMUD/internal/entities"
 	"github.com/Jasrags/AnotherMUD/internal/mob"
+	"github.com/Jasrags/AnotherMUD/internal/pool"
 	"github.com/Jasrags/AnotherMUD/internal/world"
 )
 
@@ -35,6 +36,7 @@ func newCombatActor(name, playerID string, room *world.Room) *combatActor {
 func (a *combatActor) CombatantID() combat.CombatantID { return a.combatID }
 func (a *combatActor) Vitals() *combat.Vitals          { return a.vitals }
 func (a *combatActor) Stats() combat.Stats             { return a.stats }
+func (a *combatActor) Pools() *pool.Set                { return nil }
 
 // locatorFunc is a tiny command.Locator that hands back a pre-set
 // actor when its name matches. Mirrors the production session.Manager

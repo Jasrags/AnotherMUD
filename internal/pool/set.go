@@ -53,8 +53,14 @@ func (s *Set) Get(k Kind) (*Pool, bool) {
 
 // Crossing reports one pool that transitioned to its Floor during an
 // ApplyDamage call. The owner emits one depletion event per Crossing
-// (the primary pool AND any overflow target the spill filled).
-type Crossing struct{ Kind Kind }
+// (the primary pool AND any overflow target the spill filled). Nonlethal
+// mirrors the crossed pool's Rules.Nonlethal so the owner can pick
+// knock-out vs kill without re-looking-up the pool (shadowrun-mvp SR-M2:
+// a Stun-monitor crossing is a KO).
+type Crossing struct {
+	Kind      Kind
+	Nonlethal bool
+}
 
 // ApplyDamage applies amount to the pool of kind k, then routes any
 // overflow down the OverflowTo chain (Shadowrun's Physical monitor
@@ -82,7 +88,7 @@ func (s *Set) ApplyDamage(k Kind, amount int) []Crossing {
 		}
 		_, overflow, didCross := p.ApplyDamage(amount)
 		if didCross && p.rules.DepletionEvent {
-			crossed = append(crossed, Crossing{Kind: p.kind})
+			crossed = append(crossed, Crossing{Kind: p.kind, Nonlethal: p.rules.Nonlethal})
 		}
 		next := p.rules.OverflowTo
 		if overflow == 0 || next == "" {

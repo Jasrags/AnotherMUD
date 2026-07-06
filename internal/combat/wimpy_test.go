@@ -3,6 +3,8 @@ package combat
 import (
 	"context"
 	"testing"
+
+	"github.com/Jasrags/AnotherMUD/internal/pool"
 )
 
 // wimpyCombatant is a staticCombatant with a tunable wimpy threshold
@@ -19,6 +21,7 @@ func (w *wimpyCombatant) CombatantID() CombatantID { return w.id }
 func (w *wimpyCombatant) Name() string             { return w.name }
 func (w *wimpyCombatant) Vitals() *Vitals          { return w.vitals }
 func (w *wimpyCombatant) Stats() Stats             { return Stats{} }
+func (w *wimpyCombatant) Pools() *pool.Set         { return nil }
 func (w *wimpyCombatant) WimpyThreshold() int      { return w.threshold }
 
 func TestWimpyTriggersFleeAtOrBelowThreshold(t *testing.T) {

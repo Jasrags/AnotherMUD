@@ -5895,6 +5895,15 @@ func (a *connActor) SetShowRoomData(v bool) {
 // pointer itself; the Vitals struct carries its own internal lock).
 func (a *connActor) Vitals() *combat.Vitals { return a.vitals }
 
+// Pools is the actor's full resource-pool set — the combat.Combatant seam
+// a typed attack's TargetPool routes through (shadowrun-mvp SR-M2). hp
+// lives in Vitals, not here, so the canonical damage path never reads this;
+// only a non-empty TargetPool (a Shadowrun stun weapon) does. Like Vitals,
+// the pointer is set at construction and never reassigned, and pool.Set
+// carries its own internal lock, so reading it without a.mu is safe. May be
+// nil for a bare test-built actor that never seeded a set.
+func (a *connActor) Pools() *pool.Set { return a.pools }
+
 // gmcpSender is the subset of telnet.Conn the GMCP vitals flusher
 // needs. Defined here at the use site (small-interface convention)
 // so the session package doesn't import internal/conn/telnet for

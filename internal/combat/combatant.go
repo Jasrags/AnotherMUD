@@ -14,7 +14,11 @@
 // participating in the same combat loop as mobs.
 package combat
 
-import "strings"
+import (
+	"strings"
+
+	"github.com/Jasrags/AnotherMUD/internal/pool"
+)
 
 // CombatantID is the identity used by combat-side code to refer to a
 // combatant. The string space is shared by mobs and players but kept
@@ -91,4 +95,13 @@ type Combatant interface {
 	Name() string
 	Vitals() *Vitals
 	Stats() Stats
+	// Pools is the combatant's full resource-pool set — the destination for
+	// a typed attack's Stats.TargetPool routing (shadowrun-mvp SR-M2: a Stun
+	// monitor a stun weapon fills). hp lives in Vitals, not here, so the
+	// canonical damage path never touches this; only a non-empty TargetPool
+	// routes through it. May return nil for a combatant with no pool set (a
+	// bare test actor, or a mob in a world that declares no extra monitors) —
+	// callers treat nil as "the destination monitor does not exist" and the
+	// swing lands without moving a vital.
+	Pools() *pool.Set
 }

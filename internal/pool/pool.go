@@ -74,6 +74,16 @@ type Rules struct {
 	// turns that into combat.VitalDepleted. A pool that never kills
 	// anything (mana) leaves this false.
 	DepletionEvent bool
+
+	// Nonlethal marks this pool's depletion as a KNOCK-OUT rather than a
+	// death: Shadowrun's Stun monitor floors to unconsciousness, not a
+	// corpse. The Pool never acts on it — the owner reads it (via
+	// Set.Get(kind).Rules()) when turning a Crossing into a
+	// combat.VitalDepleted, and sets the event's death-vs-KO flag from it.
+	// A pool whose depletion is lethal (HP / a Physical monitor) leaves
+	// this false, so the default is death — unchanged for every existing
+	// pool. Only meaningful together with DepletionEvent.
+	Nonlethal bool
 }
 
 // Pool is one named current/max counter with an internal mutex. The

@@ -9,6 +9,7 @@ import (
 	"github.com/Jasrags/AnotherMUD/internal/combat"
 	"github.com/Jasrags/AnotherMUD/internal/gmcp"
 	"github.com/Jasrags/AnotherMUD/internal/player"
+	"github.com/Jasrags/AnotherMUD/internal/pool"
 	"github.com/Jasrags/AnotherMUD/internal/world"
 )
 
@@ -25,6 +26,7 @@ func (f *fakeCombatant) CombatantID() combat.CombatantID { return f.id }
 func (f *fakeCombatant) Name() string                    { return f.name }
 func (f *fakeCombatant) Vitals() *combat.Vitals          { return f.vitals }
 func (f *fakeCombatant) Stats() combat.Stats             { return combat.Stats{} }
+func (f *fakeCombatant) Pools() *pool.Set                { return nil }
 
 // newCombatGmcpActor builds an actor wired to a real combat
 // manager + a MapLocator the test populates with the actor +

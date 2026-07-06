@@ -1,5 +1,7 @@
 package combat
 
+import "github.com/Jasrags/AnotherMUD/internal/pool"
+
 // Ranged class values carried on Stats.RangedClass (ranged-combat §2).
 // These MUST match the item package's RangedThrown / RangedProjectile wire
 // values; combat keeps its own copy so the round loop can branch on the
@@ -167,6 +169,18 @@ type Stats struct {
 	// Mitigation and the per-swing minimum-1 rule still applies after both,
 	// so resistance never zeroes a landed hit.
 	Resistances map[string]int
+
+	// TargetPool is the ATTACKER's weapon-declared destination monitor —
+	// which of the defender's pools this attack fills (shadowrun-mvp SR-M2:
+	// a bullet → the Physical monitor, a stun baton → the Stun monitor).
+	// Empty (or pool.KindHP) routes to the canonical Vitals/hp path,
+	// byte-identical to pre-slice behavior; every non-Shadowrun weapon leaves
+	// it empty. A non-empty kind routes damage through the defender's
+	// pool.Set (Pools()), and each pool that crosses to its floor emits a
+	// VitalDepleted whose death-vs-KO flag comes from that pool's
+	// Rules.Nonlethal. Populated from the wielded weapon by the holder's
+	// Stats() builder.
+	TargetPool pool.Kind
 
 	// OffHand is the off-hand weapon profile for a dual-wielding combatant
 	// (two-weapon-fighting §3). nil ⇒ no off-hand attack (the common case:

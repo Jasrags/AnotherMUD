@@ -106,3 +106,59 @@ func TestOnVitalDepleted_NilKnockOutHookIsLethal(t *testing.T) {
 		t.Fatalf("with no knockOut hook a subdual finish stays lethal (one Kill), got %d", *kills)
 	}
 }
+
+// namedPoolDepletion is a VitalDepleted from a non-hp monitor (shadowrun-mvp
+// SR-M2: the Stun/Physical condition monitors route through a named pool.Kind,
+// not the hp Vital). The production sink must NOT filter these out on the Vital
+// string — Subdual alone picks knock-out vs kill.
+func namedPoolDepletion(vital string, subdual bool) combat.VitalDepleted {
+	return combat.VitalDepleted{
+		VictimID:   combat.NewPlayerCombatantID("victim"),
+		VictimName: "the victim",
+		Vital:      vital,
+		Subdual:    subdual,
+	}
+}
+
+// A Stun-monitor depletion (a named, non-hp pool with Subdual=true) routes to
+// knockOut and suppresses the death pipeline — the same knock-out a subdual
+// weapon gets, reached via SR-M2 target_pool routing. Regression guard: a
+// pre-SR-M2 `Vital != hp` early-return silently dropped this, stranding the
+// victim in combat forever.
+func TestOnVitalDepleted_NamedPoolStunRoutesToKnockOut(t *testing.T) {
+	knocked := 0
+	sink, kills := knockoutTestSink(t, func(context.Context, combat.VitalDepleted) bool {
+		knocked++
+		return true
+	})
+
+	sink.OnVitalDepleted(context.Background(), namedPoolDepletion("stun", true))
+
+	if knocked != 1 {
+		t.Fatalf("a stun-monitor KO should route to knockOut exactly once, got %d", knocked)
+	}
+	if *kills != 0 {
+		t.Fatalf("a knock-out must publish no Kill, got %d", *kills)
+	}
+}
+
+// A lethal named-pool depletion (a non-hp monitor with Subdual=false — a
+// Physical track) runs the ordinary death pipeline (Kill published), NOT
+// knockOut. Control for the stun case, and a guard that the removed
+// `Vital != hp` filter did not skip a genuine named-pool kill.
+func TestOnVitalDepleted_NamedPoolLethalRunsDeathPipeline(t *testing.T) {
+	knocked := 0
+	sink, kills := knockoutTestSink(t, func(context.Context, combat.VitalDepleted) bool {
+		knocked++
+		return true
+	})
+
+	sink.OnVitalDepleted(context.Background(), namedPoolDepletion("physical", false))
+
+	if knocked != 0 {
+		t.Fatalf("a lethal named-pool depletion must not call knockOut, got %d", knocked)
+	}
+	if *kills != 1 {
+		t.Fatalf("a lethal named-pool depletion must publish exactly one Kill, got %d", *kills)
+	}
+}
