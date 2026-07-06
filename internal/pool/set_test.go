@@ -91,8 +91,16 @@ func TestSet_OverflowCycleTerminates(t *testing.T) {
 func TestSet_ApplyDamageUnknownKindNoop(t *testing.T) {
 	s := NewSet()
 	s.Add(New("hp", 20, Rules{Floor: 0}))
-	if c, _, _ := s.ApplyDamage("ghost", 10); len(c) != 0 {
-		t.Fatalf("unknown kind should be a no-op; got %+v", c)
+	// An initial kind that isn't a pool crosses nothing — but it is NOT a total
+	// no-op: the full amount escapes (destined for the unknown kind) so a caller
+	// can route or ignore it rather than have it silently vanish. Combat only
+	// spills escapedTo==hp onto Vitals, so a "ghost" target_pool is inert there.
+	c, escaped, escapedTo := s.ApplyDamage("ghost", 10)
+	if len(c) != 0 {
+		t.Fatalf("unknown kind crosses nothing; got %+v", c)
+	}
+	if escaped != 10 || escapedTo != "ghost" {
+		t.Fatalf("unknown initial kind should escape the full amount; got (%d,%q), want (10,ghost)", escaped, escapedTo)
 	}
 }
 

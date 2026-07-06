@@ -1193,8 +1193,8 @@ func stunPoolsOverflow(kind pool.Kind, max int, overflowTo pool.Kind) *pool.Set 
 // stun knock-out still stands (SR5: stun overflows into Physical).
 func TestTargetPool_StunOverflowSpillsToHP(t *testing.T) {
 	atk := Stats{HitMod: 10, DamageBonus: 9, TargetPool: "stun", Subdual: true}
-	rig := newAutoAttackRig(t, atk, Stats{AC: 5}, 10, 50, []int{9, 2}) // ~12 stun
-	rig.target.pools = stunPoolsOverflow("stun", 10, "hp")             // 12 > 10 → 2 overflow to hp
+	rig := newAutoAttackRig(t, atk, Stats{AC: 5}, 10, 50, []int{9, 2}) // 1d3=2 +9 = 11 stun
+	rig.target.pools = stunPoolsOverflow("stun", 10, "hp")             // 11 > 10 → 1 overflow to hp
 	rig.phase()(context.Background(), rig.attacker.id, rig.mgr, 0)
 
 	deaths := rig.sink.snapshotDeaths()

@@ -91,8 +91,13 @@ func (s *Set) ApplyDamage(k Kind, amount int) (crossed []Crossing, escaped int, 
 		visited[k] = true
 		p, ok := s.Get(k)
 		if !ok {
-			// k was named as an OverflowTo target but is not a pool here — surface
-			// the unrouted overflow for the owner to route (stun → hp/Vitals).
+			// k is not a pool in this Set. Two cases reach here: (1) mid-chain, an
+			// OverflowTo target that isn't a pool — Shadowrun's stun overflowing to
+			// `hp` (the Physical monitor is Vitals, not a pool); (2) first iteration,
+			// the caller passed an initial kind with no matching pool (a weapon whose
+			// target_pool names no declared pool). Both surface the pending amount as
+			// escaped so the owner can route it (combat spills escapedTo==hp onto
+			// Vitals) or ignore it — never a silent drop.
 			escaped, escapedTo = amount, k
 			break
 		}
