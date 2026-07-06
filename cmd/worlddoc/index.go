@@ -8,7 +8,7 @@ import (
 	"strings"
 )
 
-// packResult is what one pack's render produced — counts for the index summary
+// packResult is what one pack's render produced — counts for the landing page
 // plus every artifact path written.
 type packResult struct {
 	Pack  string
@@ -17,43 +17,44 @@ type packResult struct {
 	Paths []string
 }
 
-// writeIndex renders docs/world/index.md — the cross-pack table of contents.
-// Written only on a full (`-pack all`) run so a single-pack render never clobbers
-// the roll-up. No timestamp: the index is a diffable doc, kept churn-free. Link
-// text is the artifact path relative to its pack dir (map.html, catalogs/mobs.md).
-func writeIndex(outDir string, results []packResult) (string, error) {
+// writeLanding renders docs/world/index.html — the cross-pack landing page, a
+// grid of pack cards. Written only on a full (`-pack all`) run. This is the one
+// page assembled outside html/template (it has no sidebar shell), so any dynamic
+// value written here MUST be escaped via esc() first.
+func writeLanding(outDir string, results []packResult) (string, error) {
 	sorted := append([]packResult(nil), results...)
 	sort.Slice(sorted, func(i, j int) bool { return sorted[i].Pack < sorted[j].Pack })
 
-	var b strings.Builder
-	b.WriteString("# World Documentation\n\n")
-	b.WriteString("Generated content documentation, one section per world pack. ")
-	b.WriteString("Derived from the content packs — regenerate with `make worlddoc` or the ")
-	b.WriteString("`world-docs` skill; do not hand-edit.\n\n")
-
+	var cards strings.Builder
+	cards.WriteString(`<div class="cards">`)
 	for _, r := range sorted {
-		b.WriteString(fmt.Sprintf("## %s\n\n", r.Pack))
-		b.WriteString(fmt.Sprintf("%d rooms · %d areas\n\n", r.Rooms, r.Areas))
-		packDir := filepath.Join(outDir, r.Pack)
-		for _, p := range r.Paths {
-			label, err := filepath.Rel(packDir, p)
-			if err != nil {
-				label = filepath.Base(p)
-			}
-			link, err := filepath.Rel(outDir, p)
-			if err != nil {
-				link = p
-			}
-			b.WriteString(fmt.Sprintf("- [%s](%s)\n", filepath.ToSlash(label), filepath.ToSlash(link)))
-		}
-		b.WriteString("\n")
+		fmt.Fprintf(&cards, `<a class="card" href="%s/index.html"><h3>%s</h3><p>%d rooms · %d areas</p></a>`,
+			esc(r.Pack), esc(r.Pack), r.Rooms, r.Areas)
 	}
+	cards.WriteString(`</div>`)
 
-	out := filepath.Join(outDir, "index.md")
+	page := fmt.Sprintf(`<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>World Documentation</title>
+<style>%s</style>
+</head>
+<body>
+<main>
+<div class="page-head"><h1>World Documentation</h1><p class="lede">Generated content documentation, one section per world pack. Derived from the content packs — regenerate with <code>make worlddoc</code> or the world-docs skill; do not hand-edit.</p></div>
+%s
+</main>
+</body>
+</html>
+`, siteCSS, cards.String())
+
 	if err := os.MkdirAll(outDir, 0o755); err != nil {
 		return "", fmt.Errorf("creating output dir: %w", err)
 	}
-	if err := os.WriteFile(out, []byte(b.String()), 0o644); err != nil {
+	out := filepath.Join(outDir, "index.html")
+	if err := os.WriteFile(out, []byte(page), 0o644); err != nil {
 		return "", fmt.Errorf("writing %s: %w", out, err)
 	}
 	return out, nil

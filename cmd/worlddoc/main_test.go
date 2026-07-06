@@ -139,7 +139,7 @@ func TestRunPackAllIsolatesEmitterFailure(t *testing.T) {
 	if _, statErr := os.Stat(filepath.Join(tmp, "starter-world", "map.html")); statErr != nil {
 		t.Fatalf("good pack was not rendered after another pack failed: %v", statErr)
 	}
-	if _, statErr := os.Stat(filepath.Join(tmp, "index.md")); statErr != nil {
+	if _, statErr := os.Stat(filepath.Join(tmp, "index.html")); statErr != nil {
 		t.Fatalf("cross-pack index was not written: %v", statErr)
 	}
 }
@@ -173,23 +173,22 @@ func TestRenderGazetteer(t *testing.T) {
 	}
 	md := renderGazetteer(w)
 
-	// Every room appears exactly once (backtick-quoted id).
-	for _, id := range []string{"square", "gate", "field"} {
-		if n := strings.Count(md, "`"+id+"`"); n != 1 {
-			t.Errorf("room %q appears %d times, want exactly 1", id, n)
-		}
+	// Every room appears exactly once (one entry card per room).
+	if n := strings.Count(md, `<div class="entry">`); n != 3 {
+		t.Errorf("got %d room entries, want 3", n)
 	}
-	// Headers, markers, notes, and roles.
+	// Headers, markers, notes, and roles (as HTML).
 	wants := []string{
-		"## Andor",
-		"### Town (`town`)",
-		"## Unassigned region",
-		"### Wilds (`wild` · weather: plains)",
-		"north → gate (locked door: Iron Gate)",
-		"east → field (cross-area)",
-		"up → secret (hidden)",
-		"- Notes: start room",
-		"Guard (shop)",
+		"<h2>Andor</h2>",
+		"<h3>Town ",
+		"<h2>Unassigned region</h2>",
+		"<h3>Wilds ",
+		"weather: plains",
+		`locked door: Iron Gate`,
+		`<span class="marker cross">cross-area</span>`,
+		`<span class="tag hidden">hidden</span>`,
+		`<span class="tag start">start room</span>`,
+		`<strong>Guard</strong> <span class="tag shop">shop</span>`,
 	}
 	for _, want := range wants {
 		if !strings.Contains(md, want) {
@@ -211,13 +210,23 @@ func TestCatalogMobsPlacement(t *testing.T) {
 		},
 	}
 	md := catalogMobs(m)
-	// guard placed in two rooms, sorted; shop role; faction column populated.
-	if !strings.Contains(md, "| guard | A Guard | shop | queens-guard | gate, square |") {
-		t.Errorf("guard row wrong:\n%s", md)
+	// guard placed in two rooms (sorted), shop role, faction cell populated.
+	wants := []string{
+		"<code>guard</code>",
+		"A Guard",
+		`<span class="tag shop">shop</span>`,
+		`<span class="tag faction">queens-guard</span>`,
+		"<code>gate</code>, <code>square</code>",
+		"<code>drifter</code>",
 	}
-	// drifter has no room placement and no roles/faction → dashes.
-	if !strings.Contains(md, "| drifter | A Drifter | — | — | — |") {
-		t.Errorf("drifter row wrong:\n%s", md)
+	for _, want := range wants {
+		if !strings.Contains(md, want) {
+			t.Errorf("mob catalog missing %q\n---\n%s", want, md)
+		}
+	}
+	// drifter has no roles/faction/rooms → dash cells.
+	if !strings.Contains(md, "<td>—</td>") {
+		t.Errorf("expected dash cells for the placeless drifter:\n%s", md)
 	}
 }
 
@@ -242,15 +251,17 @@ func TestQuestReward(t *testing.T) {
 	}
 }
 
-func TestMdTableEscaping(t *testing.T) {
-	var b strings.Builder
-	mdTable(&b, []string{"A", "B"}, [][]string{{"x|y", "line1\nline2"}})
-	out := b.String()
-	if !strings.Contains(out, `x\|y`) {
-		t.Errorf("pipe not escaped in cell:\n%s", out)
+func TestHtmlTableAndEscaping(t *testing.T) {
+	// htmlTable escapes header text and renders empty cells as a dash.
+	out := htmlTable([]string{"A", "B"}, [][]string{{codeID("x"), ""}})
+	for _, want := range []string{"<th>A</th>", "<th>B</th>", "<td><code>x</code></td>", "<td>—</td>"} {
+		if !strings.Contains(out, want) {
+			t.Errorf("htmlTable missing %q\n%s", want, out)
+		}
 	}
-	if strings.Contains(out, "line1\nline2") {
-		t.Errorf("newline not collapsed in cell:\n%s", out)
+	// esc HTML-escapes dynamic content (the XSS guard for content-derived text).
+	if got := esc(`<script>&"`); got != `&lt;script&gt;&amp;&#34;` {
+		t.Errorf("esc = %q, want escaped", got)
 	}
 }
 
@@ -282,17 +293,17 @@ func TestRenderHealth(t *testing.T) {
 	md := renderHealth(m)
 
 	wants := []string{
-		"## Unreachable rooms (1)",
-		"`d` (D) — area `known`",
-		"## Orphan rooms (1)",
-		"`c` down → `ghost`",              // dangling target
-		"`b` east → `c` (no return exit)", // one-way
-		"## Rooms missing a description (1)",
-		"`empty-area` (Empty)",
-		"`c` references mob `unknown-mob`",
-		"quest `q1` giver `ghost-giver` is not a known mob",
-		"quest `q2` giver `guard` is not placed in any room",
-		"quest `q1` reward references faction `nofaction`",
+		`<h2>Unreachable rooms <span class="count some">1</span>`,
+		"<code>d</code> (D) — area <code>known</code>",
+		`<h2>Orphan rooms <span class="count some">1</span>`,
+		"<code>c</code> down → <code>ghost</code>",              // dangling target
+		"<code>b</code> east → <code>c</code> (no return exit)", // one-way
+		`<h2>Rooms missing a description <span class="count some">1</span>`,
+		"<code>empty-area</code> (Empty)",
+		"<code>c</code> references mob <code>unknown-mob</code>",
+		"quest <code>q1</code> giver <code>ghost-giver</code> is not a known mob",
+		"quest <code>q2</code> giver <code>guard</code> is not placed in any room",
+		"quest <code>q1</code> reward references faction <code>nofaction</code>",
 	}
 	for _, want := range wants {
 		if !strings.Contains(md, want) {
@@ -323,15 +334,15 @@ func TestRenderGuide(t *testing.T) {
 	md := renderGuide(m)
 
 	wants := []string{
-		"You begin in **Square, in Town (Andor)**",
+		"You begin in <strong>Square, in Town (Andor)</strong>",
 		"The heart of town.",
 		"Paths lead north to Forge.",
-		"### Andor",
-		"**Town** — A tidy town.",
-		"- **Square**: shop",
-		"- **Forge**: trainer",
-		"**Shops:** Square (Town)",
-		"**Trainers:** Forge (Town)",
+		"<h3>Andor</h3>",
+		"<strong>Town</strong> — A tidy town.",
+		`<li><strong>Square</strong> <span class="tag shop">shop</span></li>`,
+		`<li><strong>Forge</strong> <span class="tag trainer">trainer</span></li>`,
+		"<strong>Shops:</strong> Square (Town)",
+		"<strong>Trainers:</strong> Forge (Town)",
 	}
 	for _, want := range wants {
 		if !strings.Contains(md, want) {

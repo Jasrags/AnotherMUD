@@ -38,7 +38,7 @@ type emitter struct {
 
 // emitters is the ordered registry. `-emit all` runs each in turn; `-emit <name>`
 // runs just one.
-var emitters = []emitter{mapEmitter, gazetteerEmitter, catalogsEmitter, healthEmitter, guideEmitter}
+var emitters = []emitter{overviewEmitter, mapEmitter, gazetteerEmitter, catalogsEmitter, healthEmitter, guideEmitter}
 
 // defaultStarts seeds the layout BFS (and spawn marker) per known world pack for
 // `-pack all`, where the single -start flag can't apply. Unknown packs fall back
@@ -70,6 +70,12 @@ func run(content, pack, start, emit, outdir string) error {
 	packs, starts, err := resolvePacks(content, pack, start)
 	if err != nil {
 		return err
+	}
+
+	// Populate the sidebar pack switcher with every world pack (even on a
+	// single-pack run), so navigation between packs always works.
+	if wp, derr := discoverWorldPacks(content); derr == nil {
+		siteNavPacks = wp
 	}
 
 	single := len(packs) == 1
@@ -113,10 +119,10 @@ func run(content, pack, start, emit, outdir string) error {
 		results = append(results, pr)
 	}
 
-	// The index is a full-world roll-up: only (re)write it on a `-pack all` run
-	// so a single-pack render never clobbers the cross-pack table of contents.
+	// The landing page is a full-world roll-up: only (re)write it on a `-pack all`
+	// run so a single-pack render never clobbers the cross-pack index.
 	if pack == "all" {
-		idx, err := writeIndex(outdir, results)
+		idx, err := writeLanding(outdir, results)
 		if err != nil {
 			return err
 		}

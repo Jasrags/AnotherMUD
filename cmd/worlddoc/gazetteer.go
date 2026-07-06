@@ -8,22 +8,21 @@ import (
 	"strings"
 )
 
-// gazetteerEmitter renders gazetteer.md — a human-readable region → area → room
-// reference. It reuses assemble() (the map's resolver) so exits, doors, hidden
-// flags, and NPC roles stay consistent with the map, then groups the id-sorted
-// rooms under their area and region.
+// gazetteerEmitter renders gazetteer.html — a region → area → room reference. It
+// reuses assemble() (the map's resolver) so exits, doors, hidden flags, and NPC
+// roles stay consistent with the map, then groups the id-sorted rooms under
+// their area and region.
 var gazetteerEmitter = emitter{
 	name: "gazetteer",
 	render: func(m *worldModel, packDir string) ([]string, error) {
-		md := renderGazetteer(assemble(m))
-		out := filepath.Join(packDir, "gazetteer.md")
-		if err := os.MkdirAll(packDir, 0o755); err != nil {
-			return nil, fmt.Errorf("creating output dir: %w", err)
+		w := assemble(m)
+		lede := fmt.Sprintf("Region → area → room reference — %d rooms across %d areas.", len(w.Rooms), len(w.Areas))
+		body := renderGazetteer(w)
+		page, err := renderPage(m.Pack, "gazetteer", "Gazetteer", lede, body)
+		if err != nil {
+			return nil, err
 		}
-		if err := os.WriteFile(out, []byte(md), 0o644); err != nil {
-			return nil, fmt.Errorf("writing %s: %w", out, err)
-		}
-		return []string{out}, nil
+		return writeSitePage(packDir, "gazetteer.html", page)
 	},
 }
 
@@ -52,7 +51,6 @@ func renderGazetteer(w worldJSON) string {
 	for _, r := range w.Rooms {
 		rows = append(rows, row{region: r.Region, areaID: r.Area, aName: areaName[r.Area], r: r})
 	}
-	// Named regions/areas first (alphabetical), unassigned last; rooms by id.
 	sort.SliceStable(rows, func(i, j int) bool {
 		a, b := rows[i], rows[j]
 		if a.region != b.region {
@@ -68,17 +66,12 @@ func renderGazetteer(w worldJSON) string {
 	})
 
 	var b strings.Builder
-	fmt.Fprintf(&b, "# %s — Gazetteer\n\n", w.Pack)
-	fmt.Fprintf(&b, "Region → area → room reference for the `%s` content pack — %d rooms across %d areas. ",
-		w.Pack, len(w.Rooms), len(w.Areas))
-	b.WriteString("Derived from the pack YAML — regenerate with `make worlddoc` or the `world-docs` skill; do not hand-edit.\n")
-
-	const none = "\x00" // sentinel so an empty region/area id still triggers a header
+	const none = "\x00"
 	curRegion, curArea := none, none
 	for _, rw := range rows {
 		if rw.region != curRegion {
 			curRegion, curArea = rw.region, none
-			fmt.Fprintf(&b, "\n## %s\n", regionTitle(rw.region))
+			fmt.Fprintf(&b, "<h2>%s</h2>", esc(regionTitle(rw.region)))
 		}
 		if rw.areaID != curArea {
 			curArea = rw.areaID
@@ -86,18 +79,18 @@ func renderGazetteer(w worldJSON) string {
 			if title == "" {
 				title = orNone(rw.areaID)
 			}
-			fmt.Fprintf(&b, "\n### %s", title)
 			var annot []string
 			if rw.areaID != "" {
-				annot = append(annot, "`"+rw.areaID+"`")
+				annot = append(annot, codeID(rw.areaID))
 			}
 			if wz := areaWeather[rw.areaID]; wz != "" {
-				annot = append(annot, "weather: "+wz)
+				annot = append(annot, "weather: "+esc(wz))
 			}
+			suffix := ""
 			if len(annot) > 0 {
-				fmt.Fprintf(&b, " (%s)", strings.Join(annot, " · "))
+				suffix = ` <span class="id">` + strings.Join(annot, " · ") + `</span>`
 			}
-			b.WriteString("\n")
+			fmt.Fprintf(&b, "<h3>%s%s</h3>", escName(title), suffix)
 		}
 		writeGazRoom(&b, rw.r)
 	}
@@ -105,96 +98,108 @@ func renderGazetteer(w worldJSON) string {
 }
 
 func writeGazRoom(b *strings.Builder, r roomJSON) {
-	fmt.Fprintf(b, "\n#### %s `%s`\n\n", r.Name, r.ID)
-	fmt.Fprintf(b, "- Terrain: %s\n", orNone(r.Terrain))
+	fmt.Fprintf(b, `<div class="entry"><h4>%s <span class="id">%s</span></h4>`, escName(r.Name), codeID(r.ID))
 
-	var notes []string
-	if r.Spawn {
-		notes = append(notes, "start room")
+	fmt.Fprintf(b, `<div><span class="attr">Terrain</span> %s`, esc(orNone(r.Terrain)))
+	for _, n := range roomNoteTags(r) {
+		b.WriteString(" " + n)
 	}
-	if r.Station {
-		notes = append(notes, "craft station")
-	}
-	if r.Items {
-		notes = append(notes, "items present")
-	}
-	if r.Light == "black" || r.Light == "dark" {
-		notes = append(notes, "dark")
-	}
-	if len(notes) > 0 {
-		fmt.Fprintf(b, "- Notes: %s\n", strings.Join(notes, ", "))
-	}
+	b.WriteString("</div>")
 
-	if len(r.Exits) > 0 {
-		b.WriteString("- Exits:\n")
+	b.WriteString(`<div><span class="attr">Exits</span>`)
+	if len(r.Exits) == 0 {
+		b.WriteString(` <span class="empty">none</span></div>`)
+	} else {
+		b.WriteString("<ul>")
 		for _, e := range r.Exits {
 			var marks []string
 			if e.Cross {
-				marks = append(marks, "cross-area")
+				marks = append(marks, `<span class="marker cross">cross-area</span>`)
 			}
 			switch {
 			case e.Locked && e.Door != "":
-				marks = append(marks, "locked door: "+e.Door)
+				marks = append(marks, tag("locked", "locked door: "+e.Door))
 			case e.Locked:
-				marks = append(marks, "locked")
+				marks = append(marks, tag("locked", "locked"))
 			case e.Door != "":
-				marks = append(marks, "door: "+e.Door)
+				marks = append(marks, tag("", "door: "+e.Door))
 			}
 			if e.Hidden {
-				marks = append(marks, "hidden")
+				marks = append(marks, tag("hidden", "hidden"))
 			}
-			suffix := ""
-			if len(marks) > 0 {
-				suffix = " (" + strings.Join(marks, ", ") + ")"
-			}
-			fmt.Fprintf(b, "    - %s → %s%s\n", e.Dir, e.To, suffix)
+			fmt.Fprintf(b, "<li>%s → %s %s</li>", esc(e.Dir), codeID(e.To), strings.Join(marks, " "))
 		}
-	} else {
-		b.WriteString("- Exits: none\n")
+		b.WriteString("</ul></div>")
 	}
 
 	if len(r.Mobs) > 0 {
-		b.WriteString("- NPCs:\n")
+		b.WriteString(`<div><span class="attr">NPCs</span> `)
+		parts := make([]string, 0, len(r.Mobs))
 		for _, m := range r.Mobs {
-			if roles := mobRoles(m, true); len(roles) > 0 {
-				fmt.Fprintf(b, "    - %s (%s)\n", m.Name, strings.Join(roles, ", "))
-			} else {
-				fmt.Fprintf(b, "    - %s\n", m.Name)
-			}
+			parts = append(parts, npcHTML(m))
 		}
+		b.WriteString(strings.Join(parts, "  ·  "))
+		b.WriteString("</div>")
 	}
+	b.WriteString("</div>")
 }
 
-// mobRoles collapses a mob's flags into human-readable role labels. withFaction
-// appends a "faction: <id>" label (the gazetteer wants it inline; the mob
-// catalog keeps faction in its own column and passes false).
-func mobRoles(m mobJSON, withFaction bool) []string {
-	var r []string
+// roomNoteTags renders the start/craft/items/dark flags as pills.
+func roomNoteTags(r roomJSON) []string {
+	var t []string
+	if r.Spawn {
+		t = append(t, tag("start", "start room"))
+	}
+	if r.Station {
+		t = append(t, tag("craft", "craft station"))
+	}
+	if r.Items {
+		t = append(t, tag("", "items"))
+	}
+	if r.Light == "black" || r.Light == "dark" {
+		t = append(t, tag("dark", "dark"))
+	}
+	return t
+}
+
+// npcHTML renders a mob as its name plus role pills.
+func npcHTML(m mobJSON) string {
+	s := "<strong>" + escName(m.Name) + "</strong>"
+	for _, r := range roleTags(m, true) {
+		s += " " + r
+	}
+	return s
+}
+
+// roleTags renders a mob's roles as colored pills. withFaction appends the
+// faction pill (the mob catalog keeps faction in its own column and omits it).
+func roleTags(m mobJSON, withFaction bool) []string {
+	var t []string
 	if m.Shop {
-		r = append(r, "shop")
+		t = append(t, tag("shop", "shop"))
 	}
 	if m.Trainer {
-		r = append(r, "trainer")
+		t = append(t, tag("trainer", "trainer"))
 	}
 	if m.Stable {
-		r = append(r, "stable")
+		t = append(t, tag("stable", "stable"))
 	}
 	if m.Hireling {
-		r = append(r, "hireling")
+		t = append(t, tag("hire", "hireling"))
 	}
 	if m.Recruiter {
-		r = append(r, "recruiter")
+		t = append(t, tag("recruiter", "recruiter"))
 	}
 	if m.Quest {
-		r = append(r, "quest giver")
+		t = append(t, tag("quest", "quest giver"))
 	}
 	if m.Hostile {
-		r = append(r, "hostile")
+		t = append(t, tag("hostile", "hostile"))
 	}
 	if withFaction && m.Faction != "" {
-		r = append(r, "faction: "+m.Faction)
+		t = append(t, tag("faction", "faction: "+m.Faction))
 	}
-	return r
+	return t
 }
 
 // regionTitle prettifies a region id ("two-rivers" → "Two Rivers"); the empty
@@ -225,4 +230,17 @@ func orNone(s string) string {
 		return "—"
 	}
 	return s
+}
+
+// writeSitePage writes one HTML page into packDir and returns its path (the
+// []string shape every emitter returns).
+func writeSitePage(packDir, name, html string) ([]string, error) {
+	if err := os.MkdirAll(packDir, 0o755); err != nil {
+		return nil, fmt.Errorf("creating output dir: %w", err)
+	}
+	out := filepath.Join(packDir, name)
+	if err := os.WriteFile(out, []byte(html), 0o644); err != nil {
+		return nil, fmt.Errorf("writing %s: %w", out, err)
+	}
+	return []string{out}, nil
 }

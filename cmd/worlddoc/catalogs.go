@@ -2,69 +2,80 @@ package main
 
 import (
 	"fmt"
-	"os"
-	"path/filepath"
 	"sort"
 	"strings"
 )
 
-// catalogsEmitter writes the reference tables under docs/world/<pack>/catalogs/:
-// mobs, items, recipes, factions, and quests. Each is a deterministic Markdown
-// table derived from the shared parse. Item source/placement (loot, shop,
+// catalogsEmitter writes catalogs.html — reference tables of what the pack ships
+// (mobs, items, recipes, factions, quests) as one page with in-page section
+// links. Derived from the shared parse. Item source/placement (loot, shop,
 // recipe) is deliberately not cross-referenced yet — see the plan's open
-// question — so items.md catalogs what exists and its facts, not where it drops.
+// question — so the item table lists what exists and its facts, not where it drops.
 var catalogsEmitter = emitter{
 	name: "catalogs",
 	render: func(m *worldModel, packDir string) ([]string, error) {
-		dir := filepath.Join(packDir, "catalogs")
-		if err := os.MkdirAll(dir, 0o755); err != nil {
-			return nil, fmt.Errorf("creating catalogs dir: %w", err)
-		}
-		files := []struct {
-			name string
-			body string
+		secs := []struct {
+			id, title, body string
+			count           int
 		}{
-			{"mobs.md", catalogMobs(m)},
-			{"items.md", catalogItems(m)},
-			{"recipes.md", catalogRecipes(m)},
-			{"factions.md", catalogFactions(m)},
-			{"quests.md", catalogQuests(m)},
+			{"mobs", "Mobs", catalogMobs(m), len(m.Mobs)},
+			{"items", "Items", catalogItems(m), len(m.Items)},
+			{"recipes", "Recipes", catalogRecipes(m), len(m.Recipes)},
+			{"factions", "Factions", catalogFactions(m), len(m.Factions)},
+			{"quests", "Quests", catalogQuests(m), len(m.Quests)},
 		}
-		paths := make([]string, 0, len(files))
-		for _, f := range files {
-			out := filepath.Join(dir, f.name)
-			if err := os.WriteFile(out, []byte(f.body), 0o644); err != nil {
-				return nil, fmt.Errorf("writing %s: %w", out, err)
+
+		var b strings.Builder
+		b.WriteString(`<p class="note">`)
+		links := make([]string, len(secs))
+		for i, s := range secs {
+			links[i] = fmt.Sprintf(`<a href="#%s">%s (%d)</a>`, s.id, esc(s.title), s.count)
+		}
+		b.WriteString(strings.Join(links, " · "))
+		b.WriteString("</p>")
+		for _, s := range secs {
+			fmt.Fprintf(&b, `<h2 id="%s">%s <span class="count %s">%d</span></h2>`,
+				s.id, esc(s.title), countClass(s.count), s.count)
+			if s.count == 0 {
+				fmt.Fprintf(&b, `<p class="empty">No %s.</p>`, esc(strings.ToLower(s.title)))
+				continue
 			}
-			paths = append(paths, out)
+			b.WriteString(s.body)
 		}
-		return paths, nil
+
+		lede := "Reference tables of the content this pack ships."
+		page, err := renderPage(m.Pack, "catalogs", "Catalogs", lede, b.String())
+		if err != nil {
+			return nil, err
+		}
+		return writeSitePage(packDir, "catalogs.html", page)
 	},
 }
 
 func catalogMobs(m *worldModel) string {
-	// mob id → the rooms that place it (sorted, deduped-by-append order).
 	placement := map[string][]string{}
 	for _, r := range m.Rooms {
 		for _, mid := range r.Mobs {
 			placement[mid] = append(placement[mid], r.ID)
 		}
 	}
-	ids := sortedKeys(m.Mobs)
-	rows := make([][]string, 0, len(ids))
-	for _, id := range ids {
+	rows := make([][]string, 0, len(m.Mobs))
+	for _, id := range sortedKeys(m.Mobs) {
 		mob := m.Mobs[id]
 		rooms := placement[id]
 		sort.Strings(rooms)
+		faction := ""
+		if mob.Faction != "" {
+			faction = tag("faction", mob.Faction)
+		}
 		rows = append(rows, []string{
-			id, mob.Name,
-			joinOrDash(mobRoles(mob, false), ", "),
-			orNone(mob.Faction),
-			joinOrDash(rooms, ", "),
+			codeID(id), escName(mob.Name),
+			strings.Join(roleTags(mob, false), " "),
+			faction,
+			codeList(rooms),
 		})
 	}
-	return catalogDoc(m.Pack, "Mob Catalog", len(rows), "mobs",
-		[]string{"ID", "Name", "Roles", "Faction", "Rooms"}, rows, "")
+	return htmlTable([]string{"ID", "Name", "Roles", "Faction", "Rooms"}, rows)
 }
 
 func catalogItems(m *worldModel) string {
@@ -73,15 +84,14 @@ func catalogItems(m *worldModel) string {
 	rows := make([][]string, 0, len(items))
 	for _, it := range items {
 		rows = append(rows, []string{
-			it.ID, clean(it.Name), orNone(it.Type),
-			propStr(it.Properties, "value"),
-			propStr(it.Properties, "weight"),
-			itemDetails(it),
+			codeID(it.ID), escName(it.Name), esc(orNone(it.Type)),
+			esc(propStr(it.Properties, "value")),
+			esc(propStr(it.Properties, "weight")),
+			esc(itemDetails(it)),
 		})
 	}
-	note := "Placement and source (loot tables, shops, recipes) are not yet cross-referenced."
-	return catalogDoc(m.Pack, "Item Catalog", len(rows), "items",
-		[]string{"ID", "Name", "Type", "Value", "Weight", "Details"}, rows, note)
+	note := `<p class="note">Placement and source (loot tables, shops, recipes) are not yet cross-referenced.</p>`
+	return note + htmlTable([]string{"ID", "Name", "Type", "Value", "Weight", "Details"}, rows)
 }
 
 func catalogRecipes(m *worldModel) string {
@@ -89,15 +99,18 @@ func catalogRecipes(m *worldModel) string {
 	sort.Slice(recipes, func(i, j int) bool { return recipes[i].ID < recipes[j].ID })
 	rows := make([][]string, 0, len(recipes))
 	for _, r := range recipes {
+		inputs := make([]string, 0, len(r.Inputs))
+		for _, x := range r.Inputs {
+			inputs = append(inputs, ioHTML(x))
+		}
 		rows = append(rows, []string{
-			r.ID, clean(r.Name), orNone(r.Discipline),
+			codeID(r.ID), escName(r.Name), esc(orNone(r.Discipline)),
 			fmt.Sprintf("%d", r.StationTier),
-			joinOrDash(ioStrings(r.Inputs), ", "),
-			ioStr(r.Output),
+			strings.Join(inputs, ", "),
+			ioHTML(r.Output),
 		})
 	}
-	return catalogDoc(m.Pack, "Recipe Catalog", len(rows), "recipes",
-		[]string{"ID", "Name", "Discipline", "Station tier", "Inputs", "Output"}, rows, "")
+	return htmlTable([]string{"ID", "Name", "Discipline", "Station tier", "Inputs", "Output"}, rows)
 }
 
 func catalogFactions(m *worldModel) string {
@@ -105,10 +118,9 @@ func catalogFactions(m *worldModel) string {
 	sort.Slice(factions, func(i, j int) bool { return factions[i].ID < factions[j].ID })
 	rows := make([][]string, 0, len(factions))
 	for _, f := range factions {
-		rows = append(rows, []string{f.ID, clean(f.Name), firstLine(f.Description)})
+		rows = append(rows, []string{codeID(f.ID), escName(f.Name), esc(firstLine(f.Description))})
 	}
-	return catalogDoc(m.Pack, "Faction Catalog", len(rows), "factions",
-		[]string{"ID", "Name", "Description"}, rows, "")
+	return htmlTable([]string{"ID", "Name", "Description"}, rows)
 }
 
 func catalogQuests(m *worldModel) string {
@@ -116,54 +128,41 @@ func catalogQuests(m *worldModel) string {
 	sort.Slice(quests, func(i, j int) bool { return quests[i].ID < quests[j].ID })
 	rows := make([][]string, 0, len(quests))
 	for _, q := range quests {
+		giver := ""
+		if q.Giver != "" {
+			giver = codeID(q.Giver)
+		}
 		rows = append(rows, []string{
-			q.ID, clean(q.Name), orNone(q.Classification), orNone(q.Giver),
+			codeID(q.ID), escName(q.Name), esc(orNone(q.Classification)), giver,
 			fmt.Sprintf("%d", len(q.Stages)),
-			questReward(q),
+			esc(questReward(q)),
 		})
 	}
-	return catalogDoc(m.Pack, "Quest Catalog", len(rows), "quests",
-		[]string{"ID", "Name", "Type", "Giver", "Stages", "Reward"}, rows, "")
+	return htmlTable([]string{"ID", "Name", "Type", "Giver", "Stages", "Reward"}, rows)
 }
 
-// catalogDoc assembles a catalog markdown file: a heading, a one-line summary
-// (+ optional note), and the table (or a "none" line when empty).
-func catalogDoc(pack, title string, count int, noun string, headers []string, rows [][]string, note string) string {
-	var b strings.Builder
-	fmt.Fprintf(&b, "# %s — %s\n\n", pack, title)
-	fmt.Fprintf(&b, "%d %s in the `%s` content pack. ", count, noun, pack)
-	b.WriteString("Derived from the pack YAML — regenerate with `make worlddoc` or the `world-docs` skill; do not hand-edit.\n")
-	if note != "" {
-		fmt.Fprintf(&b, "\n> %s\n", note)
+// --- formatting helpers ---
+
+func countClass(n int) string {
+	if n == 0 {
+		return "zero"
 	}
-	b.WriteString("\n")
-	if len(rows) == 0 {
-		fmt.Fprintf(&b, "_No %s._\n", noun)
-		return b.String()
-	}
-	mdTable(&b, headers, rows)
-	return b.String()
+	return "some"
 }
 
-// --- small formatting helpers ---
+func codeList(ids []string) string {
+	parts := make([]string, len(ids))
+	for i, x := range ids {
+		parts[i] = codeID(x)
+	}
+	return strings.Join(parts, ", ")
+}
 
-func mdTable(b *strings.Builder, headers []string, rows [][]string) {
-	writeRow := func(cells []string) {
-		esc := make([]string, len(cells))
-		for i, c := range cells {
-			esc[i] = strings.ReplaceAll(strings.ReplaceAll(c, "|", "\\|"), "\n", " ")
-		}
-		b.WriteString("| " + strings.Join(esc, " | ") + " |\n")
+func ioHTML(x recipeIO) string {
+	if x.Template == "" {
+		return "—"
 	}
-	writeRow(headers)
-	seps := make([]string, len(headers))
-	for i := range seps {
-		seps[i] = "---"
-	}
-	b.WriteString("| " + strings.Join(seps, " | ") + " |\n")
-	for _, r := range rows {
-		writeRow(r)
-	}
+	return fmt.Sprintf("%s ×%d", codeID(x.Template), x.Quantity)
 }
 
 func itemDetails(it itemYAML) string {
@@ -210,21 +209,6 @@ func questReward(q questYAML) string {
 		parts = append(parts, "teaches "+strings.Join(r.Abilities, ", "))
 	}
 	return joinOrDash(parts, "; ")
-}
-
-func ioStrings(io []recipeIO) []string {
-	out := make([]string, 0, len(io))
-	for _, x := range io {
-		out = append(out, ioStr(x))
-	}
-	return out
-}
-
-func ioStr(x recipeIO) string {
-	if x.Template == "" {
-		return "—"
-	}
-	return fmt.Sprintf("%s×%d", x.Template, x.Quantity)
 }
 
 func propStr(p map[string]any, key string) string {

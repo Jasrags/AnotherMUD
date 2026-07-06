@@ -79,7 +79,7 @@ watch-wot: watch
 .PHONY: worlddoc
 worlddoc:
 	$(GO) run ./cmd/worlddoc -pack all
-	@echo "see docs/world/index.md (open docs/world/<pack>/map.html in a browser)"
+	@echo "open docs/world/index.html in a browser"
 
 ## test: run all tests
 .PHONY: test

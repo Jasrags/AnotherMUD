@@ -1,7 +1,13 @@
 # World Documentation — Implementation Plan
 
-**Status:** Shipped — all six phases landed (`cmd/worlddoc`, emitters map /
-gazetteer / catalogs / health / guide, cross-pack index, `world-docs` skill).
+**Status:** Shipped — all six phases landed (`cmd/worlddoc`, emitters overview /
+map / gazetteer / catalogs / health / guide, cross-pack landing, `world-docs`
+skill). **Follow-up (post-plan):** the text artifacts were reworked from Markdown
+into a **styled multi-page HTML site** — a per-pack Overview + left-sidebar nav
+(section links + pack switcher) sharing the map's parchment theme, rendered via
+`html/template` (auto-escaped). This reverses the "Markdown for diffability"
+decision below in favor of rich presentation + navigation; the artifacts are
+generated (regenerate-don't-edit), so diffability mattered less than presentation.
 This doc is kept as the design record; the open questions below remain live.
 **Audience:** the build sequence. **Superseded:** the standalone `cmd/worldmap` +
 `world-map` skill, now one emitter of the larger system.

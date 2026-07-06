@@ -12,25 +12,32 @@ produced by the in-repo Go tool `cmd/worlddoc`, which parses a pack's `areas/`,
 room out with a BFS over the exit graph — mirroring the engine's own coordinate
 derivation (`internal/world/coords.go`: north = +y, east = +x, up = +z).
 
-Output lives under `docs/world/`:
+The output is a small **styled HTML site** — every page shares a left-sidebar nav
+(section links + a pack switcher) and a common parchment theme lifted from the
+map. It lives under `docs/world/`:
 
-- `docs/world/<pack>/map.html` — a dependency-free interactive map, one per world pack.
-- `docs/world/<pack>/gazetteer.md` — a region→area→room prose reference (exits with
+- `docs/world/index.html` — the cross-pack landing (a card per world pack; written
+  on a full run).
+- `docs/world/<pack>/index.html` — the pack's **Overview**: summary, regions, and
+  cards linking to each section.
+- `docs/world/<pack>/map.html` — the dependency-free interactive map (with a
+  "◀ Docs" back link).
+- `docs/world/<pack>/gazetteer.html` — a region→area→room reference (exits with
   door/locked/hidden markers, resident NPCs with roles, per-room notes).
-- `docs/world/<pack>/catalogs/{mobs,items,recipes,factions,quests}.md` — reference
-  tables of what the pack ships (mobs with room placement + roles, items with
-  stats, recipes with inputs→output, factions, quests with reward summaries).
-- `docs/world/<pack>/health.md` — an authoring-gap audit (report only, never fails):
-  unreachable/orphan rooms, dangling exit targets, one-way exits, undescribed
-  rooms, empty areas, unknown mob refs, dangling quest givers/reward factions.
-- `docs/world/<pack>/guide.md` — a player-facing orientation assembled from the
-  world itself: where you start, a region→area tour from area descriptions, and
-  a directory of where to find shops/trainers/quest givers/stables.
-- `docs/world/index.md` — a cross-pack table of contents (written on a full run).
+- `docs/world/<pack>/catalogs.html` — reference tables of what the pack ships
+  (mobs with room placement + roles, items with stats, recipes with inputs→output,
+  factions, quests with reward summaries).
+- `docs/world/<pack>/health.html` — an authoring-gap audit (report only, never
+  fails): unreachable/orphan rooms, dangling exit targets, one-way exits,
+  undescribed rooms, empty areas, unknown mob refs, dangling quest givers/reward
+  factions.
+- `docs/world/<pack>/guide.html` — a player-facing orientation assembled from the
+  world itself: where you start, a region→area tour, and where to find services.
 
-The tool is built as a shared parse feeding a registry of **emitters** (`map`,
-`gazetteer`, `catalogs`, `health`, `guide`). See `docs/plans/world-docs-plan.md`
-for the design.
+The tool is built as a shared parse feeding a registry of **emitters** (`overview`,
+`map`, `gazetteer`, `catalogs`, `health`, `guide`), each rendered into the shared
+page shell (`html/template`, so content is auto-escaped). See
+`docs/plans/world-docs-plan.md` for the design.
 
 ## When to use
 
@@ -43,22 +50,22 @@ for the design.
 From the repo root:
 
 ```bash
-make worlddoc                         # every world pack → docs/world/ (map + index)
+make worlddoc                         # every world pack → docs/world/ (full site)
 # or directly:
-go run ./cmd/worlddoc -pack all       # all kind:world packs + docs/world/index.md
+go run ./cmd/worlddoc -pack all       # all kind:world packs + docs/world/index.html
 go run ./cmd/worlddoc -pack wot -start the-green -emit map   # one pack, map only
 ```
 
 Flags: `-pack` (`wot` default, or `all` for every kind:world pack), `-start`
 (BFS seed / spawn marker, default `the-green`; ignored for `-pack all`, which
 seeds each pack from a built-in default), `-content` (default `./content`),
-`-emit` (`all` default, or a single emitter — `map`, `gazetteer`, `catalogs`,
-`health`, or `guide`), `-outdir` (default `docs/world`).
+`-emit` (`all` default, or a single emitter — `overview`, `map`, `gazetteer`,
+`catalogs`, `health`, or `guide`), `-outdir` (default `docs/world`).
 
 Then open the map for the user:
 
 ```bash
-open docs/world/wot/map.html          # macOS
+open docs/world/index.html            # macOS — the site landing (or wot/map.html for the map)
 ```
 
 (On another platform, give the path; the file is fully self-contained and opens
@@ -115,7 +122,8 @@ it shows up on the next `make worlddoc`:
 2. Run `make worlddoc` (all world packs), or `go run ./cmd/worlddoc` with
    `-pack`/`-start`/`-emit` for a single pack/emitter.
 3. Report the room/area counts from the tool's stdout.
-4. Open the HTML (`open docs/world/<pack>/map.html` on macOS) or give the path.
+4. Open the site (`open docs/world/index.html` on macOS, or `<pack>/map.html` for
+   the map) or give the path.
 
 ## Notes
 
