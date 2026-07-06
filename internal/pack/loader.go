@@ -2405,6 +2405,21 @@ func decodePool(path, ns string) (*pool.Decl, error) {
 	if strings.TrimSpace(f.ID) == "" {
 		return nil, fmt.Errorf("%w: %s: missing 'id'", ErrInvalidContent, path)
 	}
+	maxChannel := strings.TrimSpace(f.MaxChannel)
+	maxFormula := strings.TrimSpace(f.MaxFormula)
+	// A pool's ceiling comes from EITHER a flat stat (max_channel) OR a derived
+	// formula (max_formula) — never both. Two sources would race at seed time;
+	// reject the ambiguity loudly at load rather than silently pick one.
+	if maxChannel != "" && maxFormula != "" {
+		return nil, fmt.Errorf("%w: %s: pool %q sets both max_channel and max_formula (mutually exclusive)", ErrInvalidContent, path, f.ID)
+	}
+	// Validate the formula parses NOW so a malformed expression fails at boot,
+	// not at the first entity seed (the seeder re-parses the stored source).
+	if maxFormula != "" {
+		if _, err := channel.Parse(maxFormula); err != nil {
+			return nil, fmt.Errorf("%w: %s: pool %q max_formula: %v", ErrInvalidContent, path, f.ID, err)
+		}
+	}
 	return &pool.Decl{
 		Kind: pool.Kind(strings.TrimSpace(f.ID)),
 		Rules: pool.Rules{
@@ -2414,7 +2429,8 @@ func decodePool(path, ns string) (*pool.Decl, error) {
 			DepletionEvent: f.DepletionEvent,
 			Nonlethal:      f.Nonlethal,
 		},
-		MaxChannel:   strings.TrimSpace(f.MaxChannel),
+		MaxChannel:   maxChannel,
+		MaxFormula:   maxFormula,
 		SeedOnPlayer: f.SeedOnPlayer,
 		SeedOnMob:    f.SeedOnMob,
 		Pack:         ns,

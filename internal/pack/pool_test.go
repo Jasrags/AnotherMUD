@@ -89,3 +89,64 @@ func TestLoad_MalformedPoolFails(t *testing.T) {
 		t.Fatal("Load: expected error for a pool missing 'id', got nil")
 	}
 }
+
+// A pool declaring a derived `max_formula` decodes it into Decl.MaxFormula
+// (SR-M3c-1). The formula is validated at load; the seeder evaluates it, since
+// StatBlock.Effective cannot evaluate a formula.
+func TestLoad_RegistersPoolFormula(t *testing.T) {
+	root := t.TempDir()
+	pack := filepath.Join(root, "core")
+	writeFile(t, filepath.Join(pack, "pack.yaml"), "name: core\ncontent:\n  pools: [pools/*.yaml]\n")
+	writeFile(t, filepath.Join(pack, "pools/stun.yaml"), `
+id: stun
+floor: 0
+nonlethal: true
+depletion_event: true
+max_formula: "8 + ceil(willpower / 2)"
+seed_on_player: true
+seed_on_mob: true
+`)
+
+	regs := NewRegistries()
+	if err := Load(context.Background(), root, nil, regs, nil, nil, nil); err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	d, ok := regs.Pools.Get("stun")
+	if !ok {
+		t.Fatal("pool 'stun' not registered")
+	}
+	if d.MaxFormula != "8 + ceil(willpower / 2)" {
+		t.Errorf("MaxFormula = %q, want the willpower formula", d.MaxFormula)
+	}
+	if d.MaxChannel != "" {
+		t.Errorf("MaxChannel = %q, want empty (formula path)", d.MaxChannel)
+	}
+}
+
+// A pool that sets BOTH max_channel and max_formula is ambiguous — the loader
+// rejects it rather than silently picking one.
+func TestLoad_PoolBothMaxSourcesFails(t *testing.T) {
+	root := t.TempDir()
+	pack := filepath.Join(root, "core")
+	writeFile(t, filepath.Join(pack, "pack.yaml"), "name: core\ncontent:\n  pools: [pools/*.yaml]\n")
+	writeFile(t, filepath.Join(pack, "pools/bad.yaml"), "id: stun\nmax_channel: hp_stun\nmax_formula: \"8 + ceil(willpower / 2)\"\n")
+
+	regs := NewRegistries()
+	if err := Load(context.Background(), root, nil, regs, nil, nil, nil); err == nil {
+		t.Fatal("Load: expected error for a pool setting both max_channel and max_formula, got nil")
+	}
+}
+
+// A malformed max_formula fails at LOAD (not at first entity seed) so a content
+// typo surfaces at boot with attribution.
+func TestLoad_PoolBadFormulaFails(t *testing.T) {
+	root := t.TempDir()
+	pack := filepath.Join(root, "core")
+	writeFile(t, filepath.Join(pack, "pack.yaml"), "name: core\ncontent:\n  pools: [pools/*.yaml]\n")
+	writeFile(t, filepath.Join(pack, "pools/bad.yaml"), "id: stun\nmax_formula: \"8 + ceil(willpower /\"\n")
+
+	regs := NewRegistries()
+	if err := Load(context.Background(), root, nil, regs, nil, nil, nil); err == nil {
+		t.Fatal("Load: expected error for a malformed max_formula, got nil")
+	}
+}

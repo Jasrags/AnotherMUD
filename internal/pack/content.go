@@ -1031,10 +1031,16 @@ type PoolFile struct {
 	// Nonlethal marks a depletion as a KNOCK-OUT rather than a kill (the Stun
 	// monitor). Only meaningful with DepletionEvent. See pool.Rules.Nonlethal.
 	Nonlethal bool `yaml:"nonlethal,omitempty"`
-	// MaxChannel names the derived channel/stat whose value is this pool's
-	// ceiling ("hp_stun", "resource_max"). Empty ⇒ a zero max (inert until
-	// content grants one).
+	// MaxChannel names a single derived stat whose flat Effective value is this
+	// pool's ceiling ("resource_max", "movement_max"). Empty ⇒ a zero max (inert
+	// until content grants one). Use MaxFormula instead when the ceiling is
+	// DERIVED from attributes.
 	MaxChannel string `yaml:"max_channel,omitempty"`
+	// MaxFormula is a channel-expr formula evaluated for this pool's ceiling
+	// ("8 + ceil(willpower / 2)" for the Stun monitor). Evaluated by the seeder
+	// (StatBlock.Effective cannot evaluate a formula) and re-derived when any
+	// referenced attribute changes. Mutually exclusive with MaxChannel.
+	MaxFormula string `yaml:"max_formula,omitempty"`
 	// SeedOnPlayer / SeedOnMob select which entity kinds instantiate this pool
 	// at creation/spawn.
 	SeedOnPlayer bool `yaml:"seed_on_player,omitempty"`

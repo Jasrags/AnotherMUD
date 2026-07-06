@@ -26,12 +26,24 @@ type Decl struct {
 	// depletion-event, nonlethal). See Rules.
 	Rules Rules
 
-	// MaxChannel names the derived channel/stat whose Effective value is this
-	// pool's ceiling — "hp_stun" (8+⌈Willpower/2⌉) for the Stun monitor,
-	// "resource_max" for mana. Empty ⇒ the pool seeds with a zero max (inert
-	// until content grants one), matching today's default. The seeder binds
-	// OnMaxChange to it so the ceiling tracks the stat.
+	// MaxChannel names a single derived stat whose Effective value is this
+	// pool's ceiling — "resource_max" for mana, "movement_max" for movement.
+	// Empty ⇒ the pool seeds with a zero max (inert until content grants one),
+	// matching today's default. The seeder binds OnMaxChange to it so the
+	// ceiling tracks the stat. Use this when the ceiling IS an attribute's flat
+	// value; use MaxFormula when the ceiling is DERIVED from attributes.
 	MaxChannel string
+
+	// MaxFormula is a channel-expr formula whose evaluated value is this pool's
+	// ceiling — "8 + ceil(willpower / 2)" for Shadowrun's Stun monitor. Unlike
+	// MaxChannel (a flat stat read), this is EVALUATED by the seeder through the
+	// channel/expr engine against the StatBlock lookup, because StatBlock.Effective
+	// only returns base+modifiers and never evaluates a formula. The seeder binds
+	// OnMaxChange to each attribute the formula references (see channel.Expr.Vars)
+	// so the ceiling re-derives when any input changes. Mutually exclusive with
+	// MaxChannel (the loader rejects a decl that sets both). The leaf stores the
+	// raw source, not a compiled Expr, to stay dependency-free (no channel import).
+	MaxFormula string
 
 	// SeedOnPlayer / SeedOnMob select which entity kinds receive this pool at
 	// creation/spawn. mana/movement seed on players; the Shadowrun monitors seed

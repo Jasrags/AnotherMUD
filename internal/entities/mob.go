@@ -1,6 +1,7 @@
 package entities
 
 import (
+	"log/slog"
 	"strings"
 	"sync"
 
@@ -769,15 +770,69 @@ func seedMobPools(m *MobInstance, decls []*pool.Decl) {
 		m.pools = pool.NewSet()
 	}
 	for _, d := range decls {
-		max := 0
-		if d.MaxChannel != "" {
-			max = m.statBlock.Effective(progression.StatType(d.MaxChannel))
+		SeedPoolInto(m.pools, m.statBlock, d.Kind, progression.StatType(d.MaxChannel), d.MaxFormula, d.Rules)
+	}
+}
+
+// SeedPoolInto adds a pool of kind+rules to set, deriving its ceiling from the
+// stat block and binding OnMaxChange listeners so the ceiling tracks its inputs.
+// The ceiling comes from exactly one source (decodePool enforces the mutual
+// exclusion at load):
+//
+//   - formula != "": a channel-expr evaluated against StatBlock.Effective (e.g.
+//     "8 + ceil(willpower / 2)" for Shadowrun's Stun monitor). Re-derived when
+//     ANY attribute the formula references changes, so the seeder binds one
+//     OnMaxChange per channel.Expr.Vars name.
+//   - ch != "": a flat stat read — the ceiling IS Effective(ch) (mana's
+//     resource_max, movement's movement_max).
+//   - both empty: a zero max — an inert pool (cost-bearing actions fizzle) until
+//     content grants a ceiling.
+//
+// StatBlock.Effective returns base+modifiers only and never evaluates a formula,
+// which is exactly why a DERIVED ceiling must take the formula path, not ch —
+// putting "8 + ceil(willpower/2)" in ch would resolve to 0 (no such base stat).
+//
+// Shared by the player seeder (session.seedResourcePools) and the mob seeder
+// above so the two stay in lockstep. Not idempotent on an already-seeded pool:
+// Set.Add replaces the same-kind pool but OnMaxChange is append-only, so a
+// re-seed leaks listeners onto the orphaned pool (the once-per-composition seed
+// contract precludes it; revisit if a hot-reload path re-seeds live entities).
+func SeedPoolInto(set *pool.Set, sb *progression.StatBlock, kind pool.Kind, ch progression.StatType, formula string, rules pool.Rules) {
+	lookup := func(name string) int { return sb.Effective(progression.StatType(name)) }
+
+	max := 0
+	var expr channel.Expr
+	haveFormula := false
+	switch {
+	case formula != "":
+		// The loader (decodePool) validates the formula at boot, so a parse error
+		// here is unreachable via the normal pack path. Fall through to an inert
+		// max-0 pool rather than panic mid-seed if a hand-built decl (test code or
+		// a future loader-skipping path) slips a bad formula through — but log it,
+		// because a silent max-0 nonlethal monitor is a confusing failure (the
+		// entity spawns KO-able on the first hit with no attribution).
+		e, err := channel.Parse(formula)
+		if err != nil {
+			slog.Error("pool max_formula failed to parse; seeding inert pool",
+				"pool", string(kind), "formula", formula, "err", err)
+		} else {
+			expr, haveFormula = e, true
+			max = expr.Eval(lookup)
 		}
-		p := pool.New(d.Kind, max, d.Rules)
-		m.pools.Add(p)
-		if d.MaxChannel != "" {
-			m.statBlock.OnMaxChange(progression.StatType(d.MaxChannel), func(_, newMax int) { p.SetMax(newMax) })
+	case ch != "":
+		max = sb.Effective(ch)
+	}
+
+	p := pool.New(kind, max, rules)
+	set.Add(p)
+
+	switch {
+	case haveFormula:
+		for _, v := range expr.Vars() {
+			sb.OnMaxChange(progression.StatType(v), func(_, _ int) { p.SetMax(expr.Eval(lookup)) })
 		}
+	case ch != "":
+		sb.OnMaxChange(ch, func(_, newMax int) { p.SetMax(newMax) })
 	}
 }
 

@@ -5093,31 +5093,22 @@ func (a *connActor) seedResourcePools() {
 	type poolBind struct {
 		kind    pool.Kind
 		channel progression.StatType
+		formula string
 		rules   pool.Rules
 	}
 	var binds []poolBind
 	if len(a.poolDecls) > 0 {
 		for _, d := range a.poolDecls {
-			binds = append(binds, poolBind{d.Kind, progression.StatType(d.MaxChannel), d.Rules})
+			binds = append(binds, poolBind{d.Kind, progression.StatType(d.MaxChannel), d.MaxFormula, d.Rules})
 		}
 	} else {
 		binds = []poolBind{
-			{poolKindMana, progression.StatResourceMax, pool.Rules{Floor: 0}},
-			{poolKindMovement, progression.StatMovementMax, pool.Rules{Floor: 0}},
+			{poolKindMana, progression.StatResourceMax, "", pool.Rules{Floor: 0}},
+			{poolKindMovement, progression.StatMovementMax, "", pool.Rules{Floor: 0}},
 		}
 	}
 	for _, b := range binds {
-		// A pool with no ceiling channel seeds at max 0 (inert until content
-		// grants one) and needs no OnMaxChange binding.
-		max := 0
-		if b.channel != "" {
-			max = a.statBlock.Effective(b.channel)
-		}
-		p := pool.New(b.kind, max, b.rules)
-		a.pools.Add(p)
-		if b.channel != "" {
-			a.statBlock.OnMaxChange(b.channel, func(_, newMax int) { p.SetMax(newMax) })
-		}
+		entities.SeedPoolInto(a.pools, a.statBlock, b.kind, b.channel, b.formula, b.rules)
 	}
 	// Apply persisted currents AFTER seeding full + binding maxes. SetCurrent
 	// clamps to [floor, live max], so a stale persisted value (max shrank

@@ -129,3 +129,30 @@ func TestMustParse_PanicsOnBad(t *testing.T) {
 	}()
 	MustParse("foo(")
 }
+
+func TestExpr_Vars(t *testing.T) {
+	tests := []struct {
+		name string
+		src  string
+		want []string
+	}{
+		{"constant only", "8 + 2", nil},
+		{"single var", "8 + ceil(willpower / 2)", []string{"willpower"}},
+		{"two vars sorted", "reaction + intuition", []string{"intuition", "reaction"}},
+		{"dedup repeated", "body + body * 2", []string{"body"}},
+		{"nested call + neg", "max(-strength, ceil(agility / 2))", []string{"agility", "strength"}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := MustParse(tt.src).Vars()
+			if len(got) != len(tt.want) {
+				t.Fatalf("Vars(%q) = %v; want %v", tt.src, got, tt.want)
+			}
+			for i := range tt.want {
+				if got[i] != tt.want[i] {
+					t.Fatalf("Vars(%q) = %v; want %v", tt.src, got, tt.want)
+				}
+			}
+		})
+	}
+}

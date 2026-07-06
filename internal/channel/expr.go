@@ -20,6 +20,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"sort"
 	"strconv"
 	"strings"
 	"unicode"
@@ -55,6 +56,49 @@ func (e Expr) Eval(lookup func(name string) int) int {
 	}
 	v := e.root.eval(lookup)
 	return int(math.Round(v))
+}
+
+// Vars returns the distinct attribute names the formula references, in
+// sorted order (deterministic). An arithmetic-only formula ("8 + 2")
+// returns an empty slice. Callers use this to bind reactive listeners:
+// a pool whose ceiling is `8 + ceil(willpower/2)` must recompute when
+// `willpower` changes, so the seeder registers an OnMaxChange on each
+// name Vars reports. Names are already lowercased (Parse lowercases them).
+func (e Expr) Vars() []string {
+	if e.root == nil {
+		return nil
+	}
+	seen := make(map[string]struct{})
+	collectVars(e.root, seen)
+	if len(seen) == 0 {
+		return nil
+	}
+	out := make([]string, 0, len(seen))
+	for name := range seen {
+		out = append(out, name)
+	}
+	sort.Strings(out)
+	return out
+}
+
+// collectVars walks the AST accumulating every varNode name into seen.
+// A type switch (not a node-interface method) keeps the node contract a
+// single eval method; the walk is only needed for Vars.
+func collectVars(n node, seen map[string]struct{}) {
+	switch v := n.(type) {
+	case varNode:
+		seen[string(v)] = struct{}{}
+	case binNode:
+		collectVars(v.l, seen)
+		collectVars(v.r, seen)
+	case negNode:
+		collectVars(v.n, seen)
+	case callNode:
+		for _, a := range v.args {
+			collectVars(a, seen)
+		}
+	}
+	// numNode (and nil) reference no attributes.
 }
 
 // Parse compiles a formula. Stat names are lowercased on parse so a
