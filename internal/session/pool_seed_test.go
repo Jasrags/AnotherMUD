@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/Jasrags/AnotherMUD/internal/entities"
+	"github.com/Jasrags/AnotherMUD/internal/player"
 	"github.com/Jasrags/AnotherMUD/internal/pool"
 	"github.com/Jasrags/AnotherMUD/internal/progression"
 )
@@ -93,5 +94,67 @@ func TestPlayerSeedPoolDecls_FiltersAndNilSafe(t *testing.T) {
 		if !d.SeedOnPlayer {
 			t.Errorf("non-player-seed decl %q leaked through the filter", d.Kind)
 		}
+	}
+}
+
+// SR-M3a step 5 — save round-trip for a NON-CORE pool. A Shadowrun Stun monitor
+// (Nonlethal, not one of the hardcoded mana/movement pair) drained mid-session
+// must persist its current through the v21 pair-list save and restore on the
+// next login — proving the substrate needs no save-version bump for a new kind.
+func TestResourcePools_StunMonitorRoundTrips(t *testing.T) {
+	stunDecl := &pool.Decl{
+		Kind: "stun", Rules: pool.Rules{Floor: 0, Nonlethal: true, DepletionEvent: true},
+		MaxChannel: "hp_stun", SeedOnPlayer: true,
+	}
+	newActor := func(save *player.Save) *connActor {
+		return &connActor{
+			playerID:  "p-1",
+			statBlock: progression.NewWithBase(map[progression.StatType]int{"hp_stun": 10}),
+			equipment: map[string]entities.EntityID{},
+			poolDecls: []*pool.Decl{stunDecl},
+			save:      save,
+		}
+	}
+
+	// Session 1: fresh character, stun seeds full at 10, then a hit drains it to 4.
+	a := newActor(&player.Save{Version: player.CurrentVersion, Name: "Runner"})
+	a.seedResourcePools()
+	stun, ok := a.pools.Get("stun")
+	if !ok {
+		t.Fatal("stun monitor not seeded")
+	}
+	if cur, mx := stun.Snapshot(); cur != 10 || mx != 10 {
+		t.Fatalf("seeded stun = %d/%d, want 10/10", cur, mx)
+	}
+	stun.ApplyDamage(6) // 10 → 4
+
+	// Persist: syncPoolsToSaveLocked writes the drained stun into the save.
+	func() {
+		a.mu.Lock()
+		defer a.mu.Unlock()
+		if !a.syncPoolsToSaveLocked() {
+			t.Fatal("sync: want a change after draining the stun monitor")
+		}
+	}()
+	var savedStun *pool.Entry
+	for i := range a.save.Pools {
+		if a.save.Pools[i].Kind == "stun" {
+			savedStun = &a.save.Pools[i]
+		}
+	}
+	if savedStun == nil || savedStun.Current != 4 {
+		t.Fatalf("save.Pools stun = %+v, want current 4", savedStun)
+	}
+
+	// Session 2: reload from the persisted snapshot (simulating a fresh login).
+	reloaded := append(pool.Snapshot(nil), a.save.Pools...)
+	b := newActor(&player.Save{Version: player.CurrentVersion, Name: "Runner", Pools: reloaded})
+	b.seedResourcePools()
+	stun2, ok := b.pools.Get("stun")
+	if !ok {
+		t.Fatal("stun monitor not re-seeded on reload")
+	}
+	if cur, mx := stun2.Snapshot(); cur != 4 || mx != 10 {
+		t.Fatalf("reloaded stun = %d/%d, want 4/10 (persisted current, re-derived max)", cur, mx)
 	}
 }
