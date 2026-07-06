@@ -47,16 +47,17 @@ import (
 
 // Errors callers may distinguish at the boundary.
 var (
-	ErrMissingArea         = errors.New("room references unknown area")
-	ErrMissingExitRoom     = errors.New("exit references unknown room")
-	ErrMissingItemTemplate = errors.New("room item references unknown template")
-	ErrMissingMobTemplate  = errors.New("room mob references unknown template")
-	ErrMissingSpawnRoom    = errors.New("spawn rule references unknown room")
-	ErrInvalidContent      = errors.New("invalid content file")
-	ErrItemUnknownSlot     = errors.New("item references unknown slot")
-	ErrItemUnknownGrade    = errors.New("item references unknown grade")
-	ErrProjectileNoAmmo    = errors.New("projectile weapon's ammo_kind is supplied by no item")
-	ErrMissingDoorKey      = errors.New("door references unknown key template")
+	ErrMissingArea           = errors.New("room references unknown area")
+	ErrMissingExitRoom       = errors.New("exit references unknown room")
+	ErrMissingItemTemplate   = errors.New("room item references unknown template")
+	ErrMissingMobTemplate    = errors.New("room mob references unknown template")
+	ErrMissingSpawnRoom      = errors.New("spawn rule references unknown room")
+	ErrInvalidContent        = errors.New("invalid content file")
+	ErrItemUnknownSlot       = errors.New("item references unknown slot")
+	ErrItemUnknownGrade      = errors.New("item references unknown grade")
+	ErrProjectileNoAmmo      = errors.New("projectile weapon's ammo_kind is supplied by no item")
+	ErrMissingDoorKey        = errors.New("door references unknown key template")
+	ErrAttributeReservedName = errors.New("attribute name collides with a reserved synthetic combat input")
 )
 
 // Spawner spawns an item template and places the resulting instance
@@ -272,6 +273,16 @@ func Load(ctx context.Context, root string, filter []string, dst *Registries, sp
 	// so a cross-pack key (`other-pack:foo-key`) is visible regardless of
 	// load order (mirrors validateItemSlots).
 	if err := validateDoorKeys(dst); err != nil {
+		return err
+	}
+
+	// Attribute-name reserved-word guard (sr-m3c-deferred-fixes): no content
+	// attribute set may declare a stat key that collides with a synthetic
+	// combat-input name (channel.ReservedInputs) — the combat stat lookup
+	// special-cases those before StatBlock.Effective, so a colliding attribute
+	// would be silently shadowed. Runs after every pack loads so every
+	// registered set is checked (mirrors validateDoorKeys).
+	if err := validateAttributeReservedNames(dst); err != nil {
 		return err
 	}
 
@@ -608,6 +619,27 @@ func validateDoorKeys(dst *Registries) error {
 			}
 			if !dst.Items.Has(item.TemplateID(e.Door.KeyID)) {
 				return fmt.Errorf("%w: room %q door %s key %q", ErrMissingDoorKey, r.ID, dir, e.Door.KeyID)
+			}
+		}
+	}
+	return nil
+}
+
+// validateAttributeReservedNames asserts that no registered attribute set
+// declares a stat key colliding with a synthetic combat-input name
+// (channel.ReservedInputs). The combat stat lookup special-cases those names
+// before StatBlock.Effective, so a colliding attribute would resolve to the
+// synthetic value and never its stored stat — a fail-silent authoring trap.
+// See sr-m3c-deferred-fixes.
+func validateAttributeReservedNames(dst *Registries) error {
+	reserved := make(map[string]struct{}, len(channel.ReservedInputs()))
+	for _, name := range channel.ReservedInputs() {
+		reserved[name] = struct{}{}
+	}
+	for _, set := range dst.AttributeSets.All() {
+		for _, key := range set.Keys() {
+			if _, ok := reserved[string(key)]; ok {
+				return fmt.Errorf("%w: attribute set %q key %q", ErrAttributeReservedName, set.ID, key)
 			}
 		}
 	}

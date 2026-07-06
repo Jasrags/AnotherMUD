@@ -68,6 +68,17 @@ const (
 	InputDexAC = "dex_ac"
 )
 
+// ReservedInputs returns the synthetic-input names the combat stat lookup
+// special-cases before falling through to StatBlock.Effective. A content
+// attribute set MUST NOT declare a stat key with one of these names or the
+// lookup silently shadows the stat (the formula var reads the synthetic value,
+// never the stored attribute). The pack loader asserts this at load time
+// (validateAttributeReservedNames). Kept here so the vocabulary has one owner —
+// add a new Input* const to this slice and the guard covers it for free.
+func ReservedInputs() []string {
+	return []string{InputArmor, InputDexAC}
+}
+
 // Mapping is one pack/ruleset's derivation: a channel → formula table.
 // Built once at pack load (Parse each formula then), evaluated per entity
 // against a stat-lookup. A nil/empty Mapping is valid — every channel
