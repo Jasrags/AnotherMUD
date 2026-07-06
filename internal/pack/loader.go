@@ -155,6 +155,7 @@ func Load(ctx context.Context, root string, filter []string, dst *Registries, sp
 	// load order. Library/baseline packs are loaded but excluded.
 	dst.Worlds = dst.Worlds[:0]
 	dst.Splashes = make(map[string]string)
+	dst.WorldAttributeSets = make(map[string]string)
 	for _, p := range ordered {
 		if !ValidKind(p.Manifest.Kind) {
 			return fmt.Errorf("%w: pack %q: kind %q is not valid (expected \"world\", \"library\", or empty)",
@@ -176,6 +177,13 @@ func Load(ctx context.Context, root string, filter []string, dst *Registries, sp
 				return err
 			}
 			dst.Splashes[p.Namespace()] = splash
+			// Record the world's selected attribute set (SR-M1). Empty →
+			// omitted, so the seed falls back to `classic`. The referenced id
+			// is validated fail-soft at seed time (unknown → classic), not
+			// here, mirroring how a background's home_language resolves.
+			if id := strings.TrimSpace(p.Manifest.AttributeSet); id != "" {
+				dst.WorldAttributeSets[p.Namespace()] = strings.ToLower(id)
+			}
 		}
 	}
 

@@ -1,6 +1,9 @@
 package progression
 
-import "testing"
+import (
+	"maps"
+	"testing"
+)
 
 // classicish is a small well-formed set used across the tests.
 func classicish() *AttributeSet {
@@ -143,5 +146,65 @@ func TestAttributeSetAccessors(t *testing.T) {
 	}
 	if _, ok := s.Get("nope"); ok {
 		t.Error("Get(nope) reported found")
+	}
+}
+
+// classicSet mirrors content/core/attributes/classic.yaml — the six at 10.
+func classicSet() *AttributeSet {
+	return &AttributeSet{
+		ID: ClassicAttributeSetID,
+		Attributes: []Attribute{
+			{ID: StatSTR, Default: 10}, {ID: StatINT, Default: 10}, {ID: StatWIS, Default: 10},
+			{ID: StatDEX, Default: 10}, {ID: StatCON, Default: 10}, {ID: StatLUCK, Default: 10},
+		},
+	}
+}
+
+// The regression invariant (SR-M1 step 3): seeding from the `classic` set must
+// produce byte-identical output to the DefaultPlayerBase hardcode, so a world
+// resolving to `classic` (every world today) seeds exactly as before.
+func TestSeedBaseFromSet_ClassicEqualsDefaultPlayerBase(t *testing.T) {
+	got := SeedBaseFromSet(classicSet())
+	want := DefaultPlayerBase()
+	if !maps.Equal(got, want) {
+		t.Errorf("SeedBaseFromSet(classic) = %v, want DefaultPlayerBase() = %v", got, want)
+	}
+}
+
+// SeedBaseFromSet layers a set's attribute defaults over the engine-vital keys,
+// and a non-classic set yields DIFFERENT attributes but the SAME vital keys.
+func TestSeedBaseFromSet_ComposesVitalsAndAttributes(t *testing.T) {
+	set := &AttributeSet{
+		ID: "sr",
+		Attributes: []Attribute{
+			{ID: "body", Default: 3},
+			{ID: "agility", Default: 4},
+		},
+	}
+	got := SeedBaseFromSet(set)
+
+	if got["body"] != 3 || got["agility"] != 4 {
+		t.Errorf("attributes not seeded: %v", got)
+	}
+	// Engine-vital keys always present regardless of set.
+	if got[StatHPMax] != 20 || got[StatMovementMax] != DefaultMovementMax || got[StatAC] != 10 {
+		t.Errorf("engine-vital keys missing/wrong: %v", got)
+	}
+	// The classic six are NOT present — a Shadowrun character carries only its
+	// own attribute keys (the whole point of the fix).
+	if _, ok := got[StatSTR]; ok {
+		t.Error("SR seed leaked the classic 'str' key — the carries-both-sets bug")
+	}
+}
+
+// A nil set yields the vital base alone (callers resolve the classic fallback
+// before reaching here).
+func TestSeedBaseFromSet_NilSet(t *testing.T) {
+	got := SeedBaseFromSet(nil)
+	if got[StatHPMax] != 20 {
+		t.Errorf("nil set should still carry vital keys: %v", got)
+	}
+	if _, ok := got[StatSTR]; ok {
+		t.Error("nil set should carry no attribute keys")
 	}
 }

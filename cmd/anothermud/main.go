@@ -3146,6 +3146,8 @@ func run() error {
 		Feats:                 registries.Feats,
 		Languages:             registries.Languages,
 		Backgrounds:           registries.Backgrounds,
+		AttributeSets:         registries.AttributeSets,
+		WorldAttributeSets:    registries.WorldAttributeSets,
 		Alignment:             alignmentMgr,
 		Faction:               factionMgr,
 		Reputation:            reputationMgr,

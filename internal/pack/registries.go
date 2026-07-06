@@ -169,6 +169,15 @@ type Registries struct {
 	// active packs declare no world — a configuration the boot rejects.
 	Worlds []string
 
+	// WorldAttributeSets maps a world pack's namespace → the attribute-set id
+	// it selects (its manifest `attribute_set:`), for world packs that declare
+	// one (SR-M1 — shadowrun-mvp.md Appendix A). A world absent from this map
+	// (the common case today) falls back to the engine `classic` set at the
+	// character seed. Populated by Load; the composition root threads it into
+	// session.Config so the actor constructor seeds a character from its
+	// world's set. Not a content registry — loaded-pack metadata like Worlds.
+	WorldAttributeSets map[string]string
+
 	// Splashes maps a world pack's namespace → its connect splash text
 	// (the raw file contents with engine color markup, not yet rendered).
 	// Populated by Load for every kind:world pack (required, validated);
@@ -219,7 +228,8 @@ func NewRegistries() *Registries {
 		Factions:      faction.NewRegistry(faction.DefaultConfig()),
 		// Non-nil per the all-fields-initialized invariant; Load resets and
 		// repopulates it (the active world set is empty until Load runs).
-		Worlds:   []string{},
-		Splashes: map[string]string{},
+		Worlds:             []string{},
+		WorldAttributeSets: map[string]string{},
+		Splashes:           map[string]string{},
 	}
 }

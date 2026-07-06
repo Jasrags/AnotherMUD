@@ -75,6 +75,23 @@ type Manifest struct {
 	// ({Y}…{x}); it is rendered through the theme at display time.
 	Splash string `yaml:"splash,omitempty"`
 
+	// AttributeSet selects which content-declared base attribute set a
+	// world seeds its characters from (SR-M1 — shadowrun-mvp.md Appendix A).
+	// Names an id registered via some pack's `attribute_sets:` content (e.g.
+	// "classic", "shadowrun5"). Empty → the engine `classic` fallback. Only
+	// meaningful on kind:world packs (a library declares attribute-set content
+	// but does not select one for characters).
+	//
+	// BREAKING MIGRATION: changing this after characters of this world exist on
+	// disk corrupts their base stats. The seed uses the NEW set's keys while the
+	// save persists the OLD set's keys, and RestoreBase merges them — leaving
+	// both sets' keys on the character (the carries-both-sets bug this feature
+	// exists to prevent, re-triggered via content). Treat a change like a save
+	// shape change: bump player.CurrentVersion and add a migration that rewrites
+	// the persisted base to the new set, the same discipline the save version
+	// chain follows.
+	AttributeSet string `yaml:"attribute_set,omitempty"`
+
 	// Content paths — only the categories M2 cares about are listed.
 	// Unknown keys are tolerated (no strict YAML decoding) so future
 	// content types do not fail manifests authored ahead of time.

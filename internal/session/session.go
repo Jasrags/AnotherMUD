@@ -217,6 +217,15 @@ type Config struct {
 	// no restriction is enforced.
 	Backgrounds *progression.BackgroundRegistry
 
+	// AttributeSets is the content-declared base attribute-set registry (SR-M1 —
+	// shadowrun-mvp.md Appendix A), and WorldAttributeSets maps a world
+	// namespace → the set id it selects. Held so the actor constructor seeds a
+	// brand-new/returning character from ITS WORLD'S attribute set instead of
+	// the fixed six — the fix for the "carries both sets" merge bug. nil-safe:
+	// a missing registry falls back to progression.DefaultPlayerBase.
+	AttributeSets      *progression.AttributeSetRegistry
+	WorldAttributeSets map[string]string
+
 	// Proficiency is the M9.1 per-entity ability proficiency
 	// manager (spec abilities-and-effects §3). The session-load
 	// path restores the actor's persisted Abilities snapshot into
@@ -571,6 +580,36 @@ func Handler(cfg Config) func(ctx context.Context, c conn.Connection) error {
 	}
 }
 
+// seedBaseFor resolves the brand-new/returning character's base attribute
+// seed from its world's content-declared attribute set (SR-M1 —
+// shadowrun-mvp.md Appendix A). It maps worldID → the set id the world selects
+// (default the engine `classic`), resolves the AttributeSet, and builds the
+// seed via progression.SeedBaseFromSet (attribute defaults + engine-vital
+// keys). Falls back to progression.DefaultPlayerBase when the registry is
+// absent or the resolved set is unregistered — so a boot with no attribute
+// content still seeds the classic six.
+//
+// This is the fix for the "carries both sets" merge bug: because RestoreBase
+// MERGES the persisted snapshot over the constructor seed, seeding a foreign
+// world's keys would leave them behind. Seeding the character's OWN world set
+// means the persisted keys overlay the same keys — no leftovers. Pure +
+// nil-safe so it is unit-tested without a live connActor.
+func seedBaseFor(sets *progression.AttributeSetRegistry, selection map[string]string, worldID string) map[progression.StatType]int {
+	if sets != nil {
+		setID := ""
+		if selection != nil {
+			setID = selection[worldID]
+		}
+		if setID == "" {
+			setID = progression.ClassicAttributeSetID
+		}
+		if set, ok := sets.Get(setID); ok {
+			return progression.SeedBaseFromSet(set)
+		}
+	}
+	return progression.DefaultPlayerBase()
+}
+
 func run(ctx context.Context, c conn.Connection, cfg Config) error {
 	loaded, err := login.Run(ctx, c, cfg.Login)
 	if err != nil {
@@ -672,7 +711,7 @@ func run(ctx context.Context, c conn.Connection, cfg Config) error {
 		light:         cfg.Light,
 		equipment:     make(map[string]entities.EntityID),
 		footprints:    make(map[entities.EntityID][]string),
-		statBlock:     progression.NewWithBase(progression.DefaultPlayerBase()),
+		statBlock:     progression.NewWithBase(seedBaseFor(cfg.AttributeSets, cfg.WorldAttributeSets, loaded.Player.WorldID)),
 		progress:      progression.NewProgressionState(),
 		// M7.5: vitals restore from the persisted save when present;
 		// absent block (fresh character, migrated-from-v4 save) spawns

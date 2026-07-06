@@ -83,35 +83,67 @@ const (
 	StatArmorCheck StatType = "armor_check"
 )
 
-// DefaultPlayerBase returns the engine-default base attribute map
-// applied to a brand-new player. The numbers are the M7.1
-// hardcoded defaults (HitMod=0, AC=10, STR=10, hp_max=20) lifted
-// into the StatBlock-shaped surface; M8.3 (races) and M8.4 (class
-// stat growth) will replace them with derivation from race +
-// class + level.
-//
-// The six classic attributes are seeded at 10 even though only STR
-// is read by combat today, so the M8.4 stat-growth handler has a
-// non-zero baseline to apply growth dice to without first having to
-// roll a character-creation initial roll. The resource (mana / One
-// Power) max stays zero — only a channeler class grants that. The
-// movement max is a flat baseline every character carries: travel now
-// spends it (the movement-cost gate in the move command), so a zero
-// pool would strand a character. Balance (final size, regen rate,
-// biome-weighted cost) is deliberately rough at this stage.
-func DefaultPlayerBase() map[StatType]int {
+// ClassicAttributeSetID is the id of the engine-baseline attribute set (the
+// six classics), declared as content by the core pack (content/core/
+// attributes/classic.yaml). A world that selects no attribute set falls back
+// to this one (SR-M1 — shadowrun-mvp.md Appendix A). Kept in sync with the
+// authored file by TestCorePack_ClassicSetMatchesEngineDefaults.
+const ClassicAttributeSetID = "classic"
+
+// engineVitalBase returns the non-attribute engine-vital seed keys every
+// character carries regardless of its world's attribute set: max HP, the
+// movement pool, and the derived combat keys (hit_mod, ac). The resource
+// (mana / One Power) max stays absent — only a channeler class grants it.
+// These are the keys an AttributeSet does NOT declare; SeedBaseFromSet layers
+// a set's attributes on top of them.
+func engineVitalBase() map[StatType]int {
 	return map[StatType]int{
-		StatSTR:         10,
-		StatINT:         10,
-		StatWIS:         10,
-		StatDEX:         10,
-		StatCON:         10,
-		StatLUCK:        10,
 		StatHPMax:       20,
 		StatMovementMax: DefaultMovementMax,
 		StatHitMod:      0,
 		StatAC:          10,
 	}
+}
+
+// DefaultPlayerBase returns the engine-default base attribute map applied to a
+// brand-new player when no content attribute set is resolvable (the ultimate
+// fallback). It is the classic six at 10 plus the engine-vital keys — kept
+// identical to SeedBaseFromSet over the `classic` set so a world that resolves
+// to `classic` seeds byte-for-byte the same as this hardcode (the SR-M1
+// regression invariant).
+//
+// The six classic attributes are seeded at 10 even though only STR is read by
+// combat today, so the stat-growth handler has a non-zero baseline. The
+// movement max is a flat baseline every character carries: travel spends it
+// (the movement-cost gate), so a zero pool would strand a character.
+func DefaultPlayerBase() map[StatType]int {
+	out := engineVitalBase()
+	out[StatSTR] = 10
+	out[StatINT] = 10
+	out[StatWIS] = 10
+	out[StatDEX] = 10
+	out[StatCON] = 10
+	out[StatLUCK] = 10
+	return out
+}
+
+// SeedBaseFromSet returns the brand-new-character base map for a content
+// attribute set (SR-M1): the engine-vital keys (engineVitalBase) overlaid with
+// the set's declared attribute defaults. This is what a world-aware seed
+// builds instead of the fixed DefaultPlayerBase, so a character's constructor
+// seed carries EXACTLY its world's attribute keys — the fix for the
+// "carries both sets" merge bug (RestoreBase merges over the seed, so a
+// foreign seed key would otherwise survive). A nil set yields the vital base
+// alone (no attributes) — callers resolve the classic fallback before here.
+func SeedBaseFromSet(set *AttributeSet) map[StatType]int {
+	out := engineVitalBase()
+	if set == nil {
+		return out
+	}
+	for k, v := range set.Defaults() {
+		out[k] = v
+	}
+	return out
 }
 
 // DefaultMovementMax is the baseline movement pool every new character

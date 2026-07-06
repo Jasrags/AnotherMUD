@@ -6,6 +6,33 @@ import (
 	"testing"
 )
 
+// A kind:world pack's `attribute_set:` selection is recorded into
+// WorldAttributeSets keyed by namespace (SR-M1 step 3); a world declaring none
+// is absent from the map (→ the classic fallback at seed time).
+func TestLoad_RecordsWorldAttributeSetSelection(t *testing.T) {
+	root := t.TempDir()
+	// A world that selects a set.
+	writeFile(t, filepath.Join(root, "sr/pack.yaml"), "name: sr\nkind: world\nsplash: splash.txt\nattribute_set: Shadowrun5\n")
+	writeFile(t, filepath.Join(root, "sr/splash.txt"), "{Y}SR{x}\n")
+	// A world that selects nothing.
+	writeFile(t, filepath.Join(root, "plain/pack.yaml"), "name: plain\nkind: world\nsplash: splash.txt\n")
+	writeFile(t, filepath.Join(root, "plain/splash.txt"), "{Y}P{x}\n")
+
+	regs := NewRegistries()
+	if err := Load(context.Background(), root, []string{"sr", "plain"}, regs, nil, nil, nil); err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+
+	// Selection recorded, lowercased.
+	if got := regs.WorldAttributeSets["sr"]; got != "shadowrun5" {
+		t.Errorf("WorldAttributeSets[sr] = %q, want shadowrun5 (lowercased)", got)
+	}
+	// A world that selects nothing is absent (→ classic fallback).
+	if _, ok := regs.WorldAttributeSets["plain"]; ok {
+		t.Error("WorldAttributeSets[plain] present; a world selecting no set should be absent")
+	}
+}
+
 // A pack declaring an `attribute_sets:` glob must register the set end-to-end
 // (SR-M1 — shadowrun-mvp.md Appendix A). Mirrors the languages-glob trap: the
 // loader enumerates by manifest, so without the glob the files are silently
