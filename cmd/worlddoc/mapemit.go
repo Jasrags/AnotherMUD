@@ -20,21 +20,21 @@ var templateHTML string
 // search, distinct hidden/locked exit rendering, and z-level toggles.
 var mapEmitter = emitter{
 	name: "map",
-	render: func(m *worldModel, packDir string) (string, error) {
+	render: func(m *worldModel, packDir string) ([]string, error) {
 		world := assemble(m)
 		data, err := json.Marshal(world)
 		if err != nil {
-			return "", fmt.Errorf("marshaling world: %w", err)
+			return nil, fmt.Errorf("marshaling world: %w", err)
 		}
 		html := strings.Replace(templateHTML, "__WORLD_DATA__", string(data), 1)
 		out := filepath.Join(packDir, "map.html")
 		if err := os.MkdirAll(packDir, 0o755); err != nil {
-			return "", fmt.Errorf("creating output dir: %w", err)
+			return nil, fmt.Errorf("creating output dir: %w", err)
 		}
 		if err := os.WriteFile(out, []byte(html), 0o644); err != nil {
-			return "", fmt.Errorf("writing %s: %w", out, err)
+			return nil, fmt.Errorf("writing %s: %w", out, err)
 		}
-		return out, nil
+		return []string{out}, nil
 	},
 }
 

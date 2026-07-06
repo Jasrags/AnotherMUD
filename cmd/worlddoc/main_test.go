@@ -116,18 +116,18 @@ func TestRunPackAllIsolatesEmitterFailure(t *testing.T) {
 	defer func() { emitters = saved }()
 	emitters = []emitter{{
 		name: "map",
-		render: func(m *worldModel, packDir string) (string, error) {
+		render: func(m *worldModel, packDir string) ([]string, error) {
 			if m.Pack == "wot" {
-				return "", fmt.Errorf("boom")
+				return nil, fmt.Errorf("boom")
 			}
 			if err := os.MkdirAll(packDir, 0o755); err != nil {
-				return "", err
+				return nil, err
 			}
 			p := filepath.Join(packDir, "map.html")
 			if err := os.WriteFile(p, []byte("ok"), 0o644); err != nil {
-				return "", err
+				return nil, err
 			}
-			return p, nil
+			return []string{p}, nil
 		},
 	}}
 
@@ -195,6 +195,62 @@ func TestRenderGazetteer(t *testing.T) {
 		if !strings.Contains(md, want) {
 			t.Errorf("gazetteer missing %q\n---\n%s", want, md)
 		}
+	}
+}
+
+func TestCatalogMobsPlacement(t *testing.T) {
+	m := &worldModel{
+		Pack: "testpack",
+		Mobs: map[string]mobJSON{
+			"guard":   {Name: "A Guard", Shop: true, Faction: "queens-guard"},
+			"drifter": {Name: "A Drifter"},
+		},
+		Rooms: map[string]roomYAML{
+			"gate":   {ID: "gate", Mobs: []string{"guard"}},
+			"square": {ID: "square", Mobs: []string{"guard"}},
+		},
+	}
+	md := catalogMobs(m)
+	// guard placed in two rooms, sorted; shop role; faction column populated.
+	if !strings.Contains(md, "| guard | A Guard | shop | queens-guard | gate, square |") {
+		t.Errorf("guard row wrong:\n%s", md)
+	}
+	// drifter has no room placement and no roles/faction → dashes.
+	if !strings.Contains(md, "| drifter | A Drifter | — | — | — |") {
+		t.Errorf("drifter row wrong:\n%s", md)
+	}
+}
+
+func TestQuestReward(t *testing.T) {
+	q := questYAML{}
+	q.Reward.XP = 150
+	q.Reward.Gold = 30
+	q.Reward.Reputation = 120
+	q.Reward.Abilities = []string{"guards-bulwark"}
+	q.Reward.Faction = []struct {
+		Faction string `yaml:"faction"`
+		Delta   int    `yaml:"delta"`
+	}{{Faction: "queens-guard", Delta: 700}}
+
+	got := questReward(q)
+	want := "150 xp; 30 gold; +120 renown; +700 queens-guard; teaches guards-bulwark"
+	if got != want {
+		t.Errorf("questReward = %q, want %q", got, want)
+	}
+	if got := questReward(questYAML{}); got != "—" {
+		t.Errorf("empty reward = %q, want —", got)
+	}
+}
+
+func TestMdTableEscaping(t *testing.T) {
+	var b strings.Builder
+	mdTable(&b, []string{"A", "B"}, [][]string{{"x|y", "line1\nline2"}})
+	out := b.String()
+	if !strings.Contains(out, `x\|y`) {
+		t.Errorf("pipe not escaped in cell:\n%s", out)
+	}
+	if strings.Contains(out, "line1\nline2") {
+		t.Errorf("newline not collapsed in cell:\n%s", out)
 	}
 }
 

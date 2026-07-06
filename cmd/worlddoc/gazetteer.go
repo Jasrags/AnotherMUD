@@ -14,16 +14,16 @@ import (
 // rooms under their area and region.
 var gazetteerEmitter = emitter{
 	name: "gazetteer",
-	render: func(m *worldModel, packDir string) (string, error) {
+	render: func(m *worldModel, packDir string) ([]string, error) {
 		md := renderGazetteer(assemble(m))
 		out := filepath.Join(packDir, "gazetteer.md")
 		if err := os.MkdirAll(packDir, 0o755); err != nil {
-			return "", fmt.Errorf("creating output dir: %w", err)
+			return nil, fmt.Errorf("creating output dir: %w", err)
 		}
 		if err := os.WriteFile(out, []byte(md), 0o644); err != nil {
-			return "", fmt.Errorf("writing %s: %w", out, err)
+			return nil, fmt.Errorf("writing %s: %w", out, err)
 		}
-		return out, nil
+		return []string{out}, nil
 	},
 }
 
@@ -156,7 +156,7 @@ func writeGazRoom(b *strings.Builder, r roomJSON) {
 	if len(r.Mobs) > 0 {
 		b.WriteString("- NPCs:\n")
 		for _, m := range r.Mobs {
-			if roles := mobRoles(m); len(roles) > 0 {
+			if roles := mobRoles(m, true); len(roles) > 0 {
 				fmt.Fprintf(b, "    - %s (%s)\n", m.Name, strings.Join(roles, ", "))
 			} else {
 				fmt.Fprintf(b, "    - %s\n", m.Name)
@@ -165,8 +165,10 @@ func writeGazRoom(b *strings.Builder, r roomJSON) {
 	}
 }
 
-// mobRoles collapses a mob's flags into human-readable role labels.
-func mobRoles(m mobJSON) []string {
+// mobRoles collapses a mob's flags into human-readable role labels. withFaction
+// appends a "faction: <id>" label (the gazetteer wants it inline; the mob
+// catalog keeps faction in its own column and passes false).
+func mobRoles(m mobJSON, withFaction bool) []string {
 	var r []string
 	if m.Shop {
 		r = append(r, "shop")
@@ -189,7 +191,7 @@ func mobRoles(m mobJSON) []string {
 	if m.Hostile {
 		r = append(r, "hostile")
 	}
-	if m.Faction != "" {
+	if withFaction && m.Faction != "" {
 		r = append(r, "faction: "+m.Faction)
 	}
 	return r

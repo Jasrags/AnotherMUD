@@ -28,16 +28,17 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-// emitter renders one artifact for a pack into packDir (docs/world/<pack>/),
-// returning the path written. New artifacts register here as later phases land.
+// emitter renders a pack's docs into packDir (docs/world/<pack>/), returning
+// every path written (most emit one file; catalogs emit several). New artifacts
+// register here as later phases land.
 type emitter struct {
 	name   string
-	render func(m *worldModel, packDir string) (string, error)
+	render func(m *worldModel, packDir string) ([]string, error)
 }
 
 // emitters is the ordered registry. `-emit all` runs each in turn; `-emit <name>`
-// runs just one. Catalogs/health/guide append here as later phases land.
-var emitters = []emitter{mapEmitter, gazetteerEmitter}
+// runs just one. Health/guide append here as later phases land.
+var emitters = []emitter{mapEmitter, gazetteerEmitter, catalogsEmitter}
 
 // defaultStarts seeds the layout BFS (and spawn marker) per known world pack for
 // `-pack all`, where the single -start flag can't apply. Unknown packs fall back
@@ -88,7 +89,7 @@ func run(content, pack, start, emit, outdir string) error {
 		packDir := filepath.Join(outdir, p)
 		renderFailed := false
 		for _, e := range sel {
-			path, err := e.render(m, packDir)
+			paths, err := e.render(m, packDir)
 			if err != nil {
 				// Same per-pack isolation as loadPack: a single named pack
 				// hard-errors; in -pack all mode we log, count, and move on so
@@ -101,8 +102,10 @@ func run(content, pack, start, emit, outdir string) error {
 				renderFailed = true
 				break
 			}
-			pr.Artifacts = append(pr.Artifacts, artifact{Emitter: e.name, Path: path})
-			fmt.Printf("worlddoc: wrote %s — %d rooms, %d areas (pack %q)\n", path, pr.Rooms, pr.Areas, p)
+			pr.Paths = append(pr.Paths, paths...)
+			for _, path := range paths {
+				fmt.Printf("worlddoc: wrote %s (pack %q)\n", path, p)
+			}
 		}
 		if renderFailed {
 			continue // exclude a partially-rendered pack from the index roll-up

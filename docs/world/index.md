@@ -6,13 +6,23 @@ Generated content documentation, one section per world pack. Derived from the co
 
 13 rooms · 2 areas
 
-- [map](starter-world/map.html)
-- [gazetteer](starter-world/gazetteer.md)
+- [map.html](starter-world/map.html)
+- [gazetteer.md](starter-world/gazetteer.md)
+- [catalogs/mobs.md](starter-world/catalogs/mobs.md)
+- [catalogs/items.md](starter-world/catalogs/items.md)
+- [catalogs/recipes.md](starter-world/catalogs/recipes.md)
+- [catalogs/factions.md](starter-world/catalogs/factions.md)
+- [catalogs/quests.md](starter-world/catalogs/quests.md)
 
 ## wot
 
 109 rooms · 18 areas
 
-- [map](wot/map.html)
-- [gazetteer](wot/gazetteer.md)
+- [map.html](wot/map.html)
+- [gazetteer.md](wot/gazetteer.md)
+- [catalogs/mobs.md](wot/catalogs/mobs.md)
+- [catalogs/items.md](wot/catalogs/items.md)
+- [catalogs/recipes.md](wot/catalogs/recipes.md)
+- [catalogs/factions.md](wot/catalogs/factions.md)
+- [catalogs/quests.md](wot/catalogs/quests.md)
 

@@ -8,24 +8,19 @@ import (
 	"strings"
 )
 
-// artifact is one emitted file: the emitter that produced it and its path.
-type artifact struct {
-	Emitter string
-	Path    string
-}
-
 // packResult is what one pack's render produced — counts for the index summary
-// plus every artifact written.
+// plus every artifact path written.
 type packResult struct {
-	Pack      string
-	Rooms     int
-	Areas     int
-	Artifacts []artifact
+	Pack  string
+	Rooms int
+	Areas int
+	Paths []string
 }
 
 // writeIndex renders docs/world/index.md — the cross-pack table of contents.
 // Written only on a full (`-pack all`) run so a single-pack render never clobbers
-// the roll-up. No timestamp: the index is a diffable doc, kept churn-free.
+// the roll-up. No timestamp: the index is a diffable doc, kept churn-free. Link
+// text is the artifact path relative to its pack dir (map.html, catalogs/mobs.md).
 func writeIndex(outDir string, results []packResult) (string, error) {
 	sorted := append([]packResult(nil), results...)
 	sort.Slice(sorted, func(i, j int) bool { return sorted[i].Pack < sorted[j].Pack })
@@ -39,12 +34,17 @@ func writeIndex(outDir string, results []packResult) (string, error) {
 	for _, r := range sorted {
 		b.WriteString(fmt.Sprintf("## %s\n\n", r.Pack))
 		b.WriteString(fmt.Sprintf("%d rooms · %d areas\n\n", r.Rooms, r.Areas))
-		for _, a := range r.Artifacts {
-			rel, err := filepath.Rel(outDir, a.Path)
+		packDir := filepath.Join(outDir, r.Pack)
+		for _, p := range r.Paths {
+			label, err := filepath.Rel(packDir, p)
 			if err != nil {
-				rel = a.Path
+				label = filepath.Base(p)
 			}
-			b.WriteString(fmt.Sprintf("- [%s](%s)\n", a.Emitter, filepath.ToSlash(rel)))
+			link, err := filepath.Rel(outDir, p)
+			if err != nil {
+				link = p
+			}
+			b.WriteString(fmt.Sprintf("- [%s](%s)\n", filepath.ToSlash(label), filepath.ToSlash(link)))
 		}
 		b.WriteString("\n")
 	}

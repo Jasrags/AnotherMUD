@@ -68,10 +68,65 @@ type mobYAML struct {
 	} `yaml:"disposition_rules"`
 }
 
-// questYAML picks just the giver link (quests/*.yaml). A room holding a giver
-// mob gets the quest badge.
+// --- catalog shapes (items/recipes/factions/quests) ---
+
+// itemYAML is the item facts the catalog surfaces. value/weight live under
+// properties; the weapon/armor fields are read only when present.
+type itemYAML struct {
+	ID              string         `yaml:"id"`
+	Name            string         `yaml:"name"`
+	Type            string         `yaml:"type"`
+	Tags            []string       `yaml:"tags"`
+	Properties      map[string]any `yaml:"properties"`
+	EligibleSlots   []string       `yaml:"eligible_slots"`
+	WeaponDamage    string         `yaml:"weapon_damage"`
+	WeaponCategory  string         `yaml:"weapon_category"`
+	ProficiencyTier string         `yaml:"proficiency_tier"`
+	ArmorBonus      any            `yaml:"armor_bonus"`
+	ArmorTier       string         `yaml:"armor_tier"`
+}
+
+type recipeIO struct {
+	Template string `yaml:"template"`
+	Quantity int    `yaml:"quantity"`
+}
+
+type recipeYAML struct {
+	ID          string     `yaml:"id"`
+	Name        string     `yaml:"name"`
+	Discipline  string     `yaml:"discipline"`
+	SkillFloor  int        `yaml:"skill_floor"`
+	StationTier int        `yaml:"station_tier"`
+	Inputs      []recipeIO `yaml:"inputs"`
+	Output      recipeIO   `yaml:"output"`
+}
+
+type factionYAML struct {
+	ID          string `yaml:"id"`
+	Name        string `yaml:"name"`
+	Description string `yaml:"description"`
+}
+
+// questYAML is the full quest record the catalog surfaces; the giver link also
+// feeds the map's quest badge (a room holding a giver mob gets it).
 type questYAML struct {
-	Giver string `yaml:"giver"`
+	ID             string `yaml:"id"`
+	Name           string `yaml:"name"`
+	Classification string `yaml:"classification"`
+	Giver          string `yaml:"giver"`
+	Stages         []struct {
+		ID string `yaml:"id"`
+	} `yaml:"stages"`
+	Reward struct {
+		XP         int      `yaml:"xp"`
+		Gold       int      `yaml:"gold"`
+		Reputation int      `yaml:"reputation"`
+		Abilities  []string `yaml:"abilities"`
+		Faction    []struct {
+			Faction string `yaml:"faction"`
+			Delta   int    `yaml:"delta"`
+		} `yaml:"faction"`
+	} `yaml:"reward"`
 }
 
 // mobJSON is a mob's rendered facts — built by loadMobs, consumed by the
@@ -91,7 +146,9 @@ type mobJSON struct {
 type pt struct{ x, y, z int }
 
 // worldModel is the shared parse of one pack: everything the emitters read.
-// Parse once (loadPack), render many (map, gazetteer, catalogs, …).
+// Parse once (loadPack), render many (map, gazetteer, catalogs, …). The map and
+// gazetteer read only Areas/Mobs/Rooms/Coords; the catalog fields below are
+// parsed for the catalogs emitter and ignored by the others.
 type worldModel struct {
 	Pack   string
 	Start  string
@@ -99,6 +156,11 @@ type worldModel struct {
 	Mobs   map[string]mobJSON
 	Rooms  map[string]roomYAML
 	Coords map[string]pt
+
+	Items    []itemYAML
+	Recipes  []recipeYAML
+	Factions []factionYAML
+	Quests   []questYAML
 }
 
 // loadPack parses one content pack into a worldModel, laying rooms out with a
@@ -111,9 +173,15 @@ func loadPack(content, pack, start string) (*worldModel, error) {
 	if err != nil {
 		return nil, fmt.Errorf("loading areas: %w", err)
 	}
-	questGivers, err := loadQuests(filepath.Join(base, "quests"))
+	quests, err := loadAll(filepath.Join(base, "quests"), func(q questYAML) string { return q.ID })
 	if err != nil {
 		return nil, fmt.Errorf("loading quests: %w", err)
+	}
+	questGivers := make(map[string]bool, len(quests))
+	for _, q := range quests {
+		if q.Giver != "" {
+			questGivers[q.Giver] = true
+		}
 	}
 	mobs, err := loadMobs(filepath.Join(base, "mobs"), questGivers)
 	if err != nil {
@@ -126,15 +194,52 @@ func loadPack(content, pack, start string) (*worldModel, error) {
 	if len(rooms) == 0 {
 		return nil, fmt.Errorf("no rooms found under %s", base)
 	}
+	items, err := loadAll(filepath.Join(base, "items"), func(i itemYAML) string { return i.ID })
+	if err != nil {
+		return nil, fmt.Errorf("loading items: %w", err)
+	}
+	recipes, err := loadAll(filepath.Join(base, "recipes"), func(r recipeYAML) string { return r.ID })
+	if err != nil {
+		return nil, fmt.Errorf("loading recipes: %w", err)
+	}
+	factions, err := loadAll(filepath.Join(base, "factions"), func(f factionYAML) string { return f.ID })
+	if err != nil {
+		return nil, fmt.Errorf("loading factions: %w", err)
+	}
 
 	return &worldModel{
-		Pack:   pack,
-		Start:  start,
-		Areas:  areas,
-		Mobs:   mobs,
-		Rooms:  rooms,
-		Coords: layout(rooms, start),
+		Pack:     pack,
+		Start:    start,
+		Areas:    areas,
+		Mobs:     mobs,
+		Rooms:    rooms,
+		Coords:   layout(rooms, start),
+		Items:    items,
+		Recipes:  recipes,
+		Factions: factions,
+		Quests:   quests,
 	}, nil
+}
+
+// loadAll parses every *.yaml in dir into a []T (skipping records whose id, via
+// the id func, is empty). A missing dir is fine — the pack may ship none.
+func loadAll[T any](dir string, id func(T) string) ([]T, error) {
+	files, _ := filepath.Glob(filepath.Join(dir, "*.yaml"))
+	out := make([]T, 0, len(files))
+	for _, f := range files {
+		b, err := os.ReadFile(f)
+		if err != nil {
+			return nil, fmt.Errorf("%s: %w", f, err)
+		}
+		var v T
+		if err := yaml.Unmarshal(b, &v); err != nil {
+			return nil, fmt.Errorf("%s: %w", f, err)
+		}
+		if id(v) != "" {
+			out = append(out, v)
+		}
+	}
+	return out, nil
 }
 
 // --- loaders ---
@@ -207,27 +312,6 @@ func loadMobs(dir string, questGivers map[string]bool) (map[string]mobJSON, erro
 		}
 	}
 	return out, nil
-}
-
-// loadQuests returns the set of mob ids that give a quest (quests/*.yaml
-// `giver:`). Missing dir is fine — the pack may ship no quests.
-func loadQuests(dir string) (map[string]bool, error) {
-	files, _ := filepath.Glob(filepath.Join(dir, "*.yaml"))
-	givers := make(map[string]bool, len(files))
-	for _, f := range files {
-		b, err := os.ReadFile(f)
-		if err != nil {
-			return nil, fmt.Errorf("%s: %w", f, err)
-		}
-		var q questYAML
-		if err := yaml.Unmarshal(b, &q); err != nil {
-			return nil, fmt.Errorf("%s: %w", f, err)
-		}
-		if q.Giver != "" {
-			givers[q.Giver] = true
-		}
-	}
-	return givers, nil
 }
 
 // --- layout: global BFS over the exit graph with collision spread ---
