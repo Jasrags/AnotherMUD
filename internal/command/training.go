@@ -17,6 +17,9 @@ type TrainingActor interface {
 	SpendTrain() bool
 	RaceID() string
 	HasRoomTag(tag string) bool
+	// AttributeSet is the character's resolved base attribute set (SR-M1),
+	// authoritative for which stats are trainable.
+	AttributeSet() *progression.AttributeSet
 }
 
 // trainingEntityAdapter bridges command.TrainingActor to
@@ -32,6 +35,9 @@ func (e trainingEntityAdapter) TrainsAvailable() int              { return e.a.T
 func (e trainingEntityAdapter) SpendTrain() bool                  { return e.a.SpendTrain() }
 func (e trainingEntityAdapter) RaceID() string                    { return e.a.RaceID() }
 func (e trainingEntityAdapter) HasRoomTag(tag string) bool        { return e.a.HasRoomTag(tag) }
+func (e trainingEntityAdapter) AttributeSet() *progression.AttributeSet {
+	return e.a.AttributeSet()
+}
 
 // TrainHandler implements the M8.6 `train <stat>` verb (spec
 // progression.md §7.4). Resolves through Context.Training and

@@ -18,10 +18,11 @@ type trainsEntity struct {
 	roomTags map[string]bool
 }
 
-func (t *trainsEntity) StatBlock() *StatBlock                   { return t.sb }
-func (t *trainsEntity) TrainsAvailable() int                    { return t.trains }
-func (t *trainsEntity) RaceID() string                          { return t.raceID }
-func (t *trainsEntity) HasRoomTag(tag string) bool              { return t.roomTags[tag] }
+func (t *trainsEntity) StatBlock() *StatBlock       { return t.sb }
+func (t *trainsEntity) TrainsAvailable() int        { return t.trains }
+func (t *trainsEntity) RaceID() string              { return t.raceID }
+func (t *trainsEntity) HasRoomTag(tag string) bool  { return t.roomTags[tag] }
+func (t *trainsEntity) AttributeSet() *AttributeSet { return nil }
 func (t *trainsEntity) SpendTrain() bool {
 	if t.trains <= 0 {
 		return false

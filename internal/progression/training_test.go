@@ -11,10 +11,11 @@ type fakeTrainee struct {
 	trains   int
 	raceID   string
 	roomTags map[string]bool
+	attrSet  *AttributeSet // nil → the training config's Trainable list applies
 }
 
-func (f *fakeTrainee) StatBlock() *StatBlock   { return f.sb }
-func (f *fakeTrainee) TrainsAvailable() int    { return f.trains }
+func (f *fakeTrainee) StatBlock() *StatBlock { return f.sb }
+func (f *fakeTrainee) TrainsAvailable() int  { return f.trains }
 func (f *fakeTrainee) SpendTrain() bool {
 	if f.trains <= 0 {
 		return false
@@ -22,8 +23,9 @@ func (f *fakeTrainee) SpendTrain() bool {
 	f.trains--
 	return true
 }
-func (f *fakeTrainee) RaceID() string             { return f.raceID }
-func (f *fakeTrainee) HasRoomTag(tag string) bool { return f.roomTags[tag] }
+func (f *fakeTrainee) RaceID() string              { return f.raceID }
+func (f *fakeTrainee) HasRoomTag(tag string) bool  { return f.roomTags[tag] }
+func (f *fakeTrainee) AttributeSet() *AttributeSet { return f.attrSet }
 
 // fakeTrainerSource returns a fixed trainer config / name pair.
 type fakeTrainerSource struct {
@@ -38,10 +40,10 @@ func (f fakeTrainerSource) TrainerInRoom(string, string) (*TrainerConfig, string
 
 // fakeProficiency is an in-memory proficiency store.
 type fakeProficiency struct {
-	caps   map[string]int
-	prof   map[string]int
-	known  map[string]bool
-	names  map[string]string
+	caps  map[string]int
+	prof  map[string]int
+	known map[string]bool
+	names map[string]string
 }
 
 func newFakeProf() *fakeProficiency {
@@ -59,8 +61,8 @@ func (f *fakeProficiency) learn(id, name string, cap, prof int) {
 func (f *fakeProficiency) GetCap(_, abilityID string) (int, int, bool) {
 	return f.caps[abilityID], f.prof[abilityID], f.known[abilityID]
 }
-func (f *fakeProficiency) SetCap(_, abilityID string, cap int)            { f.caps[abilityID] = cap }
-func (f *fakeProficiency) AddProficiency(_, abilityID string, delta int)  { f.prof[abilityID] += delta }
+func (f *fakeProficiency) SetCap(_, abilityID string, cap int)           { f.caps[abilityID] = cap }
+func (f *fakeProficiency) AddProficiency(_, abilityID string, delta int) { f.prof[abilityID] += delta }
 func (f *fakeProficiency) AbilityName(abilityID string) (string, bool) {
 	n, ok := f.names[abilityID]
 	return n, ok
@@ -294,5 +296,36 @@ func TestTryPracticeNoTrainer(t *testing.T) {
 	r := mgr.TryPractice(context.Background(), nil, "p1", "slash")
 	if r.Outcome != PracticeNoTrainer {
 		t.Errorf("got %v; want PracticeNoTrainer", r.Outcome)
+	}
+}
+
+// SR-M1 step 5: when the entity carries an attribute set, trainability is
+// gated by THAT set — not the global TrainingConfig. A Shadowrun character
+// trains body (in its set) even though the default config lists only str..luck,
+// and can NOT train str (absent from its set) even though the config allows it.
+func TestTryTrain_AttributeSetGatesTrainable(t *testing.T) {
+	// Raw struct (bypasses Register): ids MUST be lowercase to match Get's
+	// normalized lookup + the stat block's storage keys.
+	set := &AttributeSet{
+		ID: "shadowrun5",
+		Attributes: []Attribute{
+			{ID: "body", Default: 3, Trainable: true},
+			{ID: "edge", Default: 2, Trainable: false}, // present but not trainable
+		},
+	}
+	sb := NewWithBase(map[StatType]int{"body": 3, "edge": 2})
+	tr := &fakeTrainee{sb: sb, trains: 3, attrSet: set}
+	// Default config lists str..luck trainable and NOT body — proving the set,
+	// not the config, drives the gate.
+	mgr := NewTrainingManager(DefaultTrainingConfig(), NewRaceRegistry(), nil, nil)
+
+	if r := mgr.TryTrain(context.Background(), tr, "body"); r.Outcome != TrainSuccess {
+		t.Errorf("train body = %v, want TrainSuccess (in-set + trainable)", r.Outcome)
+	}
+	if r := mgr.TryTrain(context.Background(), tr, "str"); r.Outcome != TrainNotTrainable {
+		t.Errorf("train str = %v, want TrainNotTrainable (not in the SR set, config notwithstanding)", r.Outcome)
+	}
+	if r := mgr.TryTrain(context.Background(), tr, "edge"); r.Outcome != TrainNotTrainable {
+		t.Errorf("train edge = %v, want TrainNotTrainable (in-set but Trainable:false)", r.Outcome)
 	}
 }

@@ -112,6 +112,11 @@ type TrainingConfig struct {
 	// stat training (§7.4 step 3). The default is the six
 	// classic attributes. Content may add/remove via the
 	// SetTrainable runtime setter (which takes mu).
+	//
+	// SR-M1: this list is now only the FALLBACK for an entity whose
+	// AttributeSet() is nil (a degenerate/headless boot). A connected
+	// character resolves trainability from its content-declared attribute
+	// set instead (entityTrainable), so this map does not govern live play.
 	Trainable map[string]bool
 
 	// CatchUpBoost is the proficiency bump (§7.5) applied when
@@ -157,8 +162,28 @@ func (cfg *TrainingConfig) IsTrainable(stat string) bool {
 	return cfg.Trainable[s]
 }
 
+// entityTrainable reports whether stat may be trained for entity (SR-M1 step
+// 4 gate). The character's attribute set is authoritative when present: the
+// stat must be declared in the set AND flagged trainable — so a Shadowrun
+// character trains body/agility while a classic one trains str/dex, without a
+// per-world global config. When the entity has no set (a degenerate boot),
+// fall back to the global TrainingConfig.Trainable list.
+func entityTrainable(entity TrainingEntity, cfg *TrainingConfig, stat string) bool {
+	if set := entity.AttributeSet(); set != nil {
+		a, ok := set.Get(StatType(stat)) // stat is already normalized; Get re-normalizes defensively
+		return ok && a.Trainable
+	}
+	return cfg != nil && cfg.IsTrainable(stat)
+}
+
 // SetTrainable enables or disables stat in the trainable list.
 // Runtime setter used by admin tooling (spec §7.6).
+//
+// SR-M1 narrowed the effect: the Trainable list governs only entities whose
+// AttributeSet() is nil (a degenerate/headless boot). Connected characters
+// resolve trainability from their content-declared attribute set, so this has
+// no effect on live play — a future admin "toggle trainable" verb must edit
+// the world's attribute-set content, not this map.
 func (cfg *TrainingConfig) SetTrainable(stat string, enabled bool) {
 	if cfg == nil {
 		return
@@ -269,6 +294,11 @@ type TrainingEntity interface {
 	// HasRoomTag reports whether the entity's current room
 	// carries tag. Used for the §7.4 step 2 safe-room check.
 	HasRoomTag(tag string) bool
+	// AttributeSet returns the entity's resolved base attribute set (SR-M1),
+	// authoritative for which stats are trainable — a stat must be declared in
+	// the set AND flagged trainable. nil falls back to the global
+	// TrainingConfig.Trainable list.
+	AttributeSet() *AttributeSet
 }
 
 // TrainerSource resolves an in-room trainer for an entity and a target
@@ -311,10 +341,10 @@ type AbilityProficiency interface {
 // No-Trainer outcomes rather than panics — a host that wired
 // training without one of these gets a clean diagnostic.
 type TrainingManager struct {
-	Config       *TrainingConfig
-	Races        *RaceRegistry
-	Trainers     TrainerSource
-	Proficiency  AbilityProficiency
+	Config      *TrainingConfig
+	Races       *RaceRegistry
+	Trainers    TrainerSource
+	Proficiency AbilityProficiency
 }
 
 // NewTrainingManager returns a manager with the supplied
@@ -484,7 +514,7 @@ func (m *TrainingManager) TryTrain(ctx context.Context, entity TrainingEntity, s
 	}
 
 	// §7.4 step 3: trainable-stat gate.
-	if m.Config == nil || !m.Config.IsTrainable(stat) {
+	if !entityTrainable(entity, m.Config, stat) {
 		return TrainResult{
 			Outcome: TrainNotTrainable,
 			Stat:    stat,

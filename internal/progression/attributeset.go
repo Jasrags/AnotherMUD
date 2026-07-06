@@ -116,8 +116,12 @@ func (s *AttributeSet) Caps() map[StatType]int {
 	return out
 }
 
-// TrainableSet returns the string-keyed trainable map the training config
-// consumes (its Trainable field is map[string]bool).
+// TrainableSet returns the string-keyed trainable map in the same shape as
+// TrainingConfig.Trainable. NOTE: the live train gate (entityTrainable) does
+// NOT use this — it calls Get() per-stat to avoid allocating a map per train
+// attempt. This exists for content tooling + the classic-set regression test
+// (TestCorePack_ClassicSetMatchesEngineDefaults); reach for Get, not this, when
+// touching the gate.
 func (s *AttributeSet) TrainableSet() map[string]bool {
 	out := make(map[string]bool, len(s.Attributes))
 	for _, a := range s.Attributes {

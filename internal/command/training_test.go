@@ -41,6 +41,9 @@ func (a *trainActor) SpendTrain() bool {
 func (a *trainActor) RaceID() string             { return a.race }
 func (a *trainActor) HasRoomTag(tag string) bool { return tag == "safe" && a.safe }
 
+// nil set → the training config's Trainable list applies (the classic six).
+func (a *trainActor) AttributeSet() *progression.AttributeSet { return nil }
+
 func (a *trainActor) lastLine() string {
 	a.testActor.mu.Lock()
 	defer a.testActor.mu.Unlock()
