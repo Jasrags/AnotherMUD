@@ -73,6 +73,17 @@ type MobInstance struct {
 	// MobInstance-level locking. Mirrors the player's connActor.statBlock.
 	statBlock *progression.StatBlock
 
+	// pools is the mob's generalized resource-pool set — the combat.Combatant
+	// seam a typed attack's TargetPool routes through (shadowrun-mvp SR-M2/M3a).
+	// hp lives in vitals, not here. Initialized empty at spawn and seeded from
+	// the world's mob-seed pool decls by the Store (SetMobPools + SpawnMob), so
+	// a Shadowrun mob carries a Stun monitor while a fantasy/WoT mob's set stays
+	// empty (behaviorally identical to the nil it returned before — combat
+	// treats "no such monitor" the same either way). Never persisted (mob state
+	// is not saved). Its ceilings track the mob's stats via OnMaxChange, as
+	// vitals' hp_max does.
+	pools *pool.Set
+
 	// channelMap is the active ruleset's stat→combat-channel derivation,
 	// stamped by the Store at spawn (and retro-stamped by SetChannelMap
 	// for mobs spawned during pack Load). Nil in bare test-built mobs.
@@ -692,6 +703,7 @@ func buildMobFromTemplate(tpl *mob.Template, id EntityID) *MobInstance {
 		templateID:   tpl.ID,
 		vitals:       combat.NewVitals(maxHP),
 		statBlock:    sb,
+		pools:        pool.NewSet(), // seeded from mob-seed decls by SpawnMob/SetMobPools
 		race:         tpl.Race,
 		size:         tpl.Size,
 		trainerTier:  tpl.TrainerTier,
@@ -735,6 +747,34 @@ func buildMobFromTemplate(tpl *mob.Template, id EntityID) *MobInstance {
 		}
 	}
 	return mob
+}
+
+// seedMobPools builds m's resource pools from the world's mob-seed pool decls
+// (shadowrun-mvp SR-M3a) — the mob mirror of connActor.seedResourcePools. Each
+// pool's ceiling comes from its max_channel stat (0 when unset — an inert pool)
+// and tracks it via OnMaxChange, exactly as vitals tracks hp_max. Mob pools are
+// never persisted (mob state is not saved), so there is no persisted-current
+// step. Safe to call once per mob: retro-seeding a Load-spawned mob (whose set
+// is still empty) derives cleanly. It is NOT idempotent on an already-seeded
+// mob — pool.Set.Add replaces the same-kind pool, but OnMaxChange is
+// append-only, so a second call leaks a listener onto the orphaned pool (the
+// live pool is still correct). The once-at-composition SetMobPools contract
+// precludes a double-seed; revisit if a hot-reload path re-seeds live mobs.
+func seedMobPools(m *MobInstance, decls []*pool.Decl) {
+	if m.pools == nil {
+		m.pools = pool.NewSet()
+	}
+	for _, d := range decls {
+		max := 0
+		if d.MaxChannel != "" {
+			max = m.statBlock.Effective(progression.StatType(d.MaxChannel))
+		}
+		p := pool.New(d.Kind, max, d.Rules)
+		m.pools.Add(p)
+		if d.MaxChannel != "" {
+			m.statBlock.OnMaxChange(progression.StatType(d.MaxChannel), func(_, newMax int) { p.SetMax(newMax) })
+		}
+	}
 }
 
 // copyMountSpec returns a defensive heap copy of a template's mount spec

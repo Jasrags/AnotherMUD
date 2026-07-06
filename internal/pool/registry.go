@@ -126,3 +126,27 @@ func (r *Registry) All() []*Decl {
 	}
 	return out
 }
+
+// PlayerSeed returns the decls flagged SeedOnPlayer, Kind-sorted — the pools a
+// character's Set is built from at creation/login. Registry-owned pointers;
+// callers MUST NOT mutate them.
+func (r *Registry) PlayerSeed() []*Decl {
+	return r.seeded(func(d *Decl) bool { return d.SeedOnPlayer })
+}
+
+// MobSeed returns the decls flagged SeedOnMob, Kind-sorted — the pools a mob's
+// Set is built from at spawn. Registry-owned pointers; callers MUST NOT mutate
+// them.
+func (r *Registry) MobSeed() []*Decl { return r.seeded(func(d *Decl) bool { return d.SeedOnMob }) }
+
+// seeded returns the decls satisfying keep, preserving All()'s Kind-sorted order.
+func (r *Registry) seeded(keep func(*Decl) bool) []*Decl {
+	all := r.All()
+	out := make([]*Decl, 0, len(all))
+	for _, d := range all {
+		if keep(d) {
+			out = append(out, d)
+		}
+	}
+	return out
+}

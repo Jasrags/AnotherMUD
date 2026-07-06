@@ -11,6 +11,7 @@ import (
 	"github.com/Jasrags/AnotherMUD/internal/channel"
 	"github.com/Jasrags/AnotherMUD/internal/item"
 	"github.com/Jasrags/AnotherMUD/internal/mob"
+	"github.com/Jasrags/AnotherMUD/internal/pool"
 )
 
 // Errors callers may distinguish at the boundary.
@@ -58,6 +59,13 @@ type Store struct {
 	// behavior is identical either way. Set once at composition via
 	// SetChannelMap before any spawn.
 	channelMap *channel.Mapping
+
+	// mobPoolDecls is the active world's mob-seed pool declarations
+	// (shadowrun-mvp SR-M3a). Each spawned mob's pool.Set is seeded from these
+	// (a Shadowrun mob's Stun monitor); nil/empty in fantasy/WoT worlds leaves
+	// every mob set empty. Set once at composition via SetMobPools (which also
+	// retro-seeds mobs spawned during Load), mirroring channelMap.
+	mobPoolDecls []*pool.Decl
 }
 
 // SetChannelMap installs the ruleset's combat-channel derivation, applied
@@ -72,6 +80,28 @@ func (s *Store) SetChannelMap(m *channel.Mapping) {
 	for _, e := range s.byID {
 		if mob, ok := e.(*MobInstance); ok {
 			mob.channelMap = m
+		}
+	}
+}
+
+// SetMobPools installs the ruleset's mob-seed pool declarations (shadowrun-mvp
+// SR-M3a), applied to every subsequently spawned mob AND retro-seeded onto mobs
+// already tracked (those spawned during pack Load, before the decls were built
+// from content). Called once at composition root after Load and before the tick
+// loop starts, so the writes on tracked mobs race nothing. Mirrors
+// SetChannelMap. A nil/empty decl set leaves every mob's pool.Set empty (the
+// fantasy/WoT default). The retro-seed holds the write lock across a
+// seedMobPools call per tracked mob (each taking that mob's statBlock + pool
+// sub-locks) — immaterial as a one-shot startup cost, but a latency spike for
+// concurrent readers if this is ever promoted to a hot-reload path (the same
+// caveat SetChannelMap carries).
+func (s *Store) SetMobPools(decls []*pool.Decl) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.mobPoolDecls = decls
+	for _, e := range s.byID {
+		if mob, ok := e.(*MobInstance); ok {
+			seedMobPools(mob, decls)
 		}
 	}
 }
@@ -309,7 +339,13 @@ func (s *Store) SpawnMob(tpl *mob.Template) (*MobInstance, error) {
 	// publishes a consistent pointer.
 	s.mu.RLock()
 	inst.channelMap = s.channelMap
+	decls := s.mobPoolDecls
 	s.mu.RUnlock()
+	// Seed the mob's resource pools from the world's mob-seed decls (SR-M3a) —
+	// a Shadowrun mob's Stun monitor. Empty decls leave the set empty (fantasy/
+	// WoT). decls is a slice header over an immutable array (set once by
+	// SetMobPools), and inst is not yet tracked, so this needs no lock.
+	seedMobPools(inst, decls)
 	if err := s.Track(inst); err != nil {
 		return nil, fmt.Errorf("spawn mob: tracking new instance: %w", err)
 	}

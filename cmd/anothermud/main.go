@@ -220,6 +220,11 @@ func run() error {
 		channelMap = built
 	}
 	entityStore.SetChannelMap(channelMap)
+	// Mob-seed resource pools (shadowrun-mvp SR-M3a): stamp the store with the
+	// world's mob-seed pool decls so every spawned mob (and any spawned during
+	// Load) gets its monitors — a Shadowrun mob's Stun track. Empty in
+	// fantasy/WoT worlds (no pool declares seed_on_mob), leaving mob sets empty.
+	entityStore.SetMobPools(registries.Pools.MobSeed())
 	// M17.1c: bring scripts online. The Runtime spins up one Sandbox
 	// per discovered script, installs the engine.* API on its LState,
 	// and runs the script body to register handlers. Bus

@@ -26,14 +26,14 @@ func (m *MobInstance) CombatantID() combat.CombatantID {
 // the pointer under its own lock.
 func (m *MobInstance) Vitals() *combat.Vitals { return m.vitals }
 
-// Pools returns the mob's resource-pool set (the combat.Combatant seam a
-// typed attack's TargetPool routes through, shadowrun-mvp SR-M2). Mobs carry
-// no extra monitors in the fantasy/WoT worlds, so this is nil today — combat
-// treats nil as "the destination monitor does not exist" and a stun swing
-// lands without effect. A Shadowrun mob gains a real set (a Stun monitor
-// derived from its Willpower) when metatype monitors land in SR-M3; hp always
-// lives in Vitals, never here.
-func (m *MobInstance) Pools() *pool.Set { return nil }
+// Pools returns the mob's resource-pool set (the combat.Combatant seam a typed
+// attack's TargetPool routes through, shadowrun-mvp SR-M2/M3a). Seeded at spawn
+// from the world's mob-seed pool decls: a Shadowrun mob carries a Stun monitor,
+// a fantasy/WoT mob's set is empty (combat treats an empty set the same as the
+// nil this returned pre-M3a — the destination monitor does not exist, so a stun
+// swing lands without effect). hp always lives in Vitals, never here. nil only
+// in a bare test-built mob that skipped buildMobFromTemplate.
+func (m *MobInstance) Pools() *pool.Set { return m.pools }
 
 // Stats derives the mob's combat stat block from its progression
 // StatBlock (combat §4.4-4.5), applying any live effect modifiers via

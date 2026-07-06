@@ -65,6 +65,31 @@ func TestRegistry_PriorityOverride(t *testing.T) {
 	}
 }
 
+func TestRegistry_PlayerSeedAndMobSeed(t *testing.T) {
+	r := NewRegistry()
+	_ = r.Register(&Decl{Kind: "mana", SeedOnPlayer: true})
+	_ = r.Register(&Decl{Kind: "stun", SeedOnPlayer: true, SeedOnMob: true})
+	_ = r.Register(&Decl{Kind: "wildlife", SeedOnMob: true}) // mob-only
+	_ = r.Register(&Decl{Kind: "inert"})                     // seeds nowhere
+
+	player := kinds(r.PlayerSeed())
+	if !reflect.DeepEqual(player, []Kind{"mana", "stun"}) { // kind-sorted, player-only excludes wildlife/inert
+		t.Errorf("PlayerSeed = %v, want [mana stun]", player)
+	}
+	mob := kinds(r.MobSeed())
+	if !reflect.DeepEqual(mob, []Kind{"stun", "wildlife"}) {
+		t.Errorf("MobSeed = %v, want [stun wildlife]", mob)
+	}
+}
+
+func kinds(ds []*Decl) []Kind {
+	out := make([]Kind, 0, len(ds))
+	for _, d := range ds {
+		out = append(out, d.Kind)
+	}
+	return out
+}
+
 func TestRegistry_AllSortedByKind(t *testing.T) {
 	r := NewRegistry()
 	_ = r.Register(&Decl{Kind: "stun"})

@@ -5134,13 +5134,7 @@ func playerSeedPoolDecls(reg *pool.Registry) []*pool.Decl {
 	if reg == nil {
 		return nil
 	}
-	var out []*pool.Decl
-	for _, d := range reg.All() {
-		if d.SeedOnPlayer {
-			out = append(out, d)
-		}
-	}
-	return out
+	return reg.PlayerSeed()
 }
 
 // Movement returns the actor's current movement pool for the §4.7 skill
