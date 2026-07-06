@@ -1,21 +1,29 @@
 ---
-name: world-map
-description: Render the AnotherMUD world content (rooms, areas, regions, exits, NPCs) into a single self-contained interactive HTML map and open it. Use when the user wants to SEE the world from a map viewpoint — visualize the layout, check how areas connect, eyeball a region, or review newly-authored geography. Triggers include "show me the world map", "visualize the world/content", "what does the map look like", "render the map", after authoring rooms/areas, or any request to see the geography as a map.
+name: world-docs
+description: Generate documentation for the AnotherMUD world content (rooms, areas, regions, exits, NPCs) from the content packs — today an interactive self-contained HTML map per world pack plus a cross-pack index (gazetteer, catalogs, health report, and player guide land in later phases). Use when the user wants to SEE or document the world — visualize the layout, check how areas connect, eyeball a region, review newly-authored geography, or regenerate the world docs. Triggers include "show me the world map", "visualize the world/content", "what does the map look like", "render the map", "generate world docs", after authoring rooms/areas, or any request to see the geography as a map.
 user-invocable: true
 ---
 
-# World Map
+# World Docs
 
-Generate and open an interactive HTML map of the AnotherMUD world content. The
-map is produced by the in-repo Go tool `cmd/worldmap`, which parses a pack's
-`areas/`, `rooms/`, and `mobs/` YAML directly (no server boot) and lays every
+Generate the AnotherMUD world documentation from the content packs. The docs are
+produced by the in-repo Go tool `cmd/worlddoc`, which parses a pack's `areas/`,
+`rooms/`, `mobs/`, and `quests/` YAML directly (no server boot) and lays every
 room out with a BFS over the exit graph — mirroring the engine's own coordinate
-derivation (`internal/world/coords.go`: north = +y, east = +x, up = +z). Output
-is a dependency-free `docs/world/<pack>/map.html`.
+derivation (`internal/world/coords.go`: north = +y, east = +x, up = +z).
+
+Output lives under `docs/world/`:
+
+- `docs/world/<pack>/map.html` — a dependency-free interactive map, one per world pack.
+- `docs/world/index.md` — a cross-pack table of contents (written on a full run).
+
+The tool is built as a shared parse feeding a registry of **emitters**. Today the
+only emitter is `map`; the gazetteer, content catalogs, world-health report, and
+player guide arrive in later phases (see `docs/plans/world-docs-plan.md`).
 
 ## When to use
 
-- The user asks to *see* / *visualize* / *map* the world or a region.
+- The user asks to *see* / *visualize* / *map* / *document* the world or a region.
 - After authoring or editing rooms/areas — to eyeball connectivity and layout.
 - To sanity-check a new region, road, or cross-area seam visually.
 
@@ -24,19 +32,22 @@ is a dependency-free `docs/world/<pack>/map.html`.
 From the repo root:
 
 ```bash
-make worldmap                 # renders docs/world/wot/map.html for the wot pack
-# or directly, with options:
-go run ./cmd/worldmap -pack wot -start the-green
+make worlddoc                         # every world pack → docs/world/ (map + index)
+# or directly:
+go run ./cmd/worlddoc -pack all       # all kind:world packs + docs/world/index.md
+go run ./cmd/worlddoc -pack wot -start the-green -emit map   # one pack, map only
 ```
 
-Flags: `-pack` (default `wot`), `-start` (BFS seed / spawn marker, default
-`the-green`), `-content` (default `./content`), `-out` (defaults to
-`docs/world/<pack>/map.html` when unset).
+Flags: `-pack` (`wot` default, or `all` for every kind:world pack), `-start`
+(BFS seed / spawn marker, default `the-green`; ignored for `-pack all`, which
+seeds each pack from a built-in default), `-content` (default `./content`),
+`-emit` (`all` default, or a single emitter — currently `map`), `-outdir`
+(default `docs/world`).
 
-Then open it for the user:
+Then open the map for the user:
 
 ```bash
-open docs/world/wot/map.html     # macOS
+open docs/world/wot/map.html          # macOS
 ```
 
 (On another platform, give the path; the file is fully self-contained and opens
@@ -72,8 +83,8 @@ in any browser.)
 
 ### Feature detection (what maps to each badge)
 
-The renderer (`cmd/worldmap`) reads these YAML fields directly — add content in
-those shapes and it shows up on the next `make worldmap`:
+The renderer reads these YAML fields directly — add content in those shapes and
+it shows up on the next `make worlddoc`:
 
 | Badge | Source |
 |-------|--------|
@@ -90,17 +101,18 @@ those shapes and it shows up on the next `make worldmap`:
 ## Procedure
 
 1. Confirm you are in the repo root (the tool reads `./content`).
-2. Run `make worldmap` (or the `go run` form for a different pack/start/output).
+2. Run `make worlddoc` (all world packs), or `go run ./cmd/worlddoc` with
+   `-pack`/`-start`/`-emit` for a single pack/emitter.
 3. Report the room/area counts from the tool's stdout.
-4. Open the HTML (`open docs/world/wot/map.html` on macOS) or give the path.
+4. Open the HTML (`open docs/world/<pack>/map.html` on macOS) or give the path.
 
 ## Notes
 
-- The map is **static content** — it reflects the YAML on disk, not a running
+- The docs are **static content** — they reflect the YAML on disk, not a running
   server. Re-run after authoring to refresh.
 - Layout is a best-effort grid from the exit graph; where the world graph folds
   back on itself the BFS spreads colliding rooms to the nearest free cell, so a
   few rooms may sit one cell off true compass position. Exits are always drawn,
   so connectivity stays correct.
-- `docs/world/<pack>/map.html` is a committed generated artifact — regenerate via
-  this skill / `make worldmap` rather than hand-editing it.
+- Everything under `docs/world/` is a committed **generated** artifact —
+  regenerate via this skill / `make worlddoc` rather than hand-editing it.
