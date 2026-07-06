@@ -7,8 +7,13 @@ program (`docs/themes/wot-mechanics-epic.md`,
 on the shipped **weapon-identity** (`weapon-identity.md`, the weapon-metadata
 seam), **ranged-combat** (`ranged-combat.md`, the range-band system reach
 extends), **conditions** (`conditions.md`, the `prone` condition trip applies),
-and **saves** (`saves.md`, the resolved-check primitive). *Spec ahead of code —
-build pending; the increment is sliced so each maneuver ships independently.*
+and **saves** (`saves.md`, the resolved-check primitive). *Shipped 2026-06-17→20 —
+the `special:` maneuver-tag seam + starter set **reach** / **trip** / **disarm**,
+then **set** (vs-charge), **double** (double-weapon off-hand end), **net** (entangle),
+and gear-borne **reputation**. The "bottomless tail" ships per-maneuver as its
+prerequisite lands: **whip** → subdual (done, `subdual-damage.md`); still deferred
+(§5) are swordbreaker weapon-breaking, lance charge (→ mounted combat), and
+sling/improvised-melee ammo (→ an ammo break/loss roll).*
 
 ## 1. Overview
 

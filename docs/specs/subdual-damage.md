@@ -9,8 +9,11 @@ rewrite). It layers on **combat** (`combat.md` §4 damage, §6 the death pipelin
 the cancellable `entity.death.check`), **conditions** (`conditions.md` — it finally
 builds the first **HP-state-adjacent** condition that spec deferred,
 **unconscious**), and **abilities-and-effects** (`abilities-and-effects.md` §5,
-the effect substrate the condition rides). *Spec ahead of code — build pending;
-sliced so each piece ships independently.*
+the effect substrate the condition rides). *Shipped 2026-06-21 — the `unconscious`
+condition + subdual threaded weapon → `combat.Stats` → `VitalDepleted` (knock-out
+at zero instead of death), the whip anti-armor rule, unarmed-as-subdual, and
+mob-attacker subdual. Deferred (§8): intrinsic natural armor for the whip gate +
+the separate-pool/coup-de-grace variants.*
 
 ## 1. Overview
 

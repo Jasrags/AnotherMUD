@@ -13,7 +13,7 @@ the theme-axis plan (its method survives below).
   A single source for "done" is what keeps this list from rotting the way the matrix did.
 - **Specs are the source of truth for behavior; this doc never duplicates it.** A
   specced item links its `docs/specs/<file> §X` — the *what* lives there. An unspecced
-  item's first deliverable *is* a new spec slice (the spec set has grown 17 → **53** as
+  item's first deliverable *is* a new spec slice (the spec set has grown 17 → **64** as
   ideas get promoted; of the write-ahead batch, roles, admin-verbs, and item-decorations
   have since shipped (M19/M20; `who` shipped too, `crafting-and-cooking` at M27,
   `visibility` + `hidden-exits` at M28, and the trade trio — `trade-escrow` /
@@ -24,7 +24,7 @@ the theme-axis plan (its method survives below).
   **Re-verified 2026-06-10:** Biomes, Gathering, and Room coordinates were found *shipped*
   and removed from §1; Player maps + corpse decay trimmed in §2 to their open remainders.
 
-## Status: M0–M27 shipped; specced + greenfield work remains
+## Status: M0–M30 shipped; specced + greenfield work remains
 
 The five original themes — A (Social / M13), B (Modern Client / M16),
 C (World Depth / M15), D (Content Authoring / M17), E (Engine Debt / M14) — are
@@ -361,37 +361,16 @@ old five-theme partition left uncovered.
   trap — overlaps `visibility`/`search`). Medium; spec-first. Shares the "area
   effect over a region" primitive with grenadelike weapons above; a trap/snare
   system would extend the same layer.
-- **Player grouping / party** — a party of players with combat assist plus
-  **XP-sharing and loot-sharing options**. ⚠️ **Greenfield — no grouping exists.**
-  Substrate that's already in place: combat keys kill credit off the **attacker
-  id on `VitalDepleted`** (`combat.md` §10), XP is granted per-entity via
-  `progression.Manager.GrantExperience(entityID, track, amount, source)`, and the
-  room is the shared combat arena. The new system is the **party itself** and its
-  reward rules. Pre-decisions: party model (leader + invite/accept vs. follow);
-  **XP split rule** (even / level-weighted / proximity-gated); **loot rules**
-  (free-for-all / round-robin / leader-only / need-greed) — these attach to the
-  **loot-and-corpses §4 ownership-set seam** (shipped in M22: the corpse already
-  records an owner set + `corpse.MayLoot` checks it; grouping fills the set with
-  party members); **assist / auto-engage** (a party member's attack pulls the
-  rest); party chat (overlaps `chat-channels-and-tells`); shared **quest credit**
-  (overlaps `quests`). Needs a design conversation before a spec.
-- **Hireable mobs (mercenaries, hirelings)** — NPCs a player hires to follow, fight,
-  or guide. ✅ **SCOPED 2026-06-25 →
-  [`docs/proposals/hireable-mobs.md`](proposals/hireable-mobs.md)** (design pass +
-  pre-decisions resolved; spec slice next). ⚠️ **Greenfield (no code yet) — but the
-  substrate is ~70% built.** A hireling is **mounts-but-it-fights**: an owned,
-  specialized `MobInstance` reusing the mount machinery (`MobInstance.OwnerID`,
-  materialize/dematerialize, a persisted owned-record list + logout drain). `follow`
-  shipped (slice 1); grouping shipped (the kill-credit + `corpse.OwnerSet` loot seams
-  it plugs into). The one **Real-Go** piece is a new **AI follow/guard behavior** — which
-  emits the **mob-move signal** `follow.md` deferred, so this also closes follow's
-  mob-leader gap, unblocks the onboarding-guide NPC, and is the shared owned-entity seam
-  the **Shadowrun** spirits + drones need (`shadowrun-pack-plan.md` §3.1). Pre-decisions
-  resolved in the proposal; the one open fork flagged for sign-off is **XP for a
-  hireling's kills** (proposal §5 PD-4 — recommend: XP only for fights the owner joins,
-  not an AFK gold→XP farm). Build sequence: substrate → follow/guard behavior → combat
-  assist + loot → upkeep economy. **The highest-leverage greenfield pick** — one seam,
-  four consumers.
+> **Shipped since this section was written (deleted per the delete-on-ship rule):**
+> **Follow** (`follow.md` — the move-with-leader primitive: `follow`/`unfollow`/`lose`
+> + mob-leader signal), **Player grouping / party** (`grouping.md` — `group`/`join`/
+> `leave`/`gtell`, combat kill-XP even-split, `corpse.OwnerSet` loot-share, assist +
+> `autoassist`, leadership succession, master-looter), and **Hireable mobs**
+> (`hireable-mobs.md` — owned companions that follow+fight, save v33; `hire`/`dismiss`/
+> `order` + stances, combat assist + owner-loot + participation-XP, upkeep +
+> death-ends-contract). Open slivers live in the `follow-arc`, `grouping-arc`, and
+> `hireable-mobs-build-log` memories (grouping §9 XP-split/quest-credit/need-greed;
+> hireable §11 formations/patrol-routes/large-bands).
 - **Input tab-completion — polish only (feature complete)** — all surfaces are
   **LANDED**: Phase 0 substrate; presentation policy (`tab-completion §12`); the
   line-mode `suggest` stopgap; **Phase 1** GMCP `Input.Complete` request/response
@@ -555,8 +534,9 @@ old five-theme partition left uncovered.
 - **Gameplay modules ported from GoMud (greenfield feature cluster)** — GoMud's module
   catalog surfaces several **genuinely-new** gameplay systems we have no spec or code for.
   (Overlap already tracked/shipped: auction → `auction-house` shipped (M29); mail → Mail §2;
-  in-game time → `gameclock` shipped. **Storage/banking, fast travel, missions, world
-  cleanup, follow, and onboarding now have their own §2 entries** — below or above.) ⚠️
+  in-game time → `gameclock` shipped; follow / grouping / hireable-mobs shipped too.
+  **Storage/banking, fast travel, missions, world cleanup, and onboarding still have
+  their own §2 entries** — below or above.) ⚠️
   **Each is greenfield and needs its own spec slice; listed here as a clustered candidate
   pool, not a committed slice.** Best delivered *as modules* if the feature-module seam
   above lands first.
@@ -629,21 +609,14 @@ old five-theme partition left uncovered.
   proven by the corpse sweep — reuse the tick decay-sweep pattern + entity store/placement.
   Pre-decisions: per-item vs. global sweep, rarity-weighted timers; does `bury`/`trash`
   accelerate it; do owned/quest items resist decay; a `*.decayed` event (quest/observer hook).
-- **Player/NPC follow** (GoMud `follow`) — a `follow <name>` primitive: when the target
-  leaves a room, the follower moves with them (`follow stop`/`unfollow`; `follow lose` to
-  shake pursuers). ⚠️ **Greenfield — no follow verb exists.** It is the **shared movement
-  primitive under three other §2 items**: party (auto-move together), hireable mobs (a
-  hireling trails its owner), and the newbie-guide NPC. Substrate: the player-move seam
-  (`player.moved` / `SetRoom`), the room graph. Pre-decisions: consent (auto vs.
-  accept-invite), chains / loops (A→B→A), cross-area + locked/hidden-exit handling,
-  mob-following-player. Best designed alongside **grouping** so they share the
-  move-with-leader mechanic.
 - **Onboarding guide NPC** (GoMud `newbieguide`) — a guide NPC that **follows a new player
   and walks them through first steps until a configurable level cap**, then departs. ⚠️
-  **Greenfield — we have the creation wizard (M12) + MOTD but no in-world onboarding NPC.**
-  Depends on **follow** (the NPC trails the newbie) and mob spawn/AI; cheap once those
-  exist. Pre-decisions: dialogue source (pack Lua vs. config), trigger (spawn on first
-  login under level N), one guide per newbie vs. shared, dismissal.
+  **Greenfield — we have the creation wizard (M12) + MOTD but no in-world onboarding NPC**
+  (SCOPED 2026-07-05, not built — see the `onboarding-guide-scoping` memory). Its
+  dependencies now exist: **follow** shipped (the NPC trails the newbie), and the
+  **hireable-mobs** follow/guard behavior is the shape to reuse. Pre-decisions: dialogue
+  source (pack Lua vs. Go), trigger (spawn on first login under level N), one guide per
+  newbie vs. shared, dismissal.
 - **Moon cycles + weather-driven ambient light** — make night brightness depend on
   **moon phase** and **cloud cover**, not a flat `gloom`. ⚠️ **Greenfield — anticipated and
   deferred by `light-and-darkness §12` ("Moonlight and weather-driven ambient") + the
@@ -715,7 +688,6 @@ need a design pass first.
 
 | Theme | Pulls in | Why design-first |
 |---|---|---|
-| **Gameplay Systems** | hireable mobs, follow, party/grouping | no port reference; needs pre-decisions before a spec. (Visibility, hidden exits, biomes, and gathering are now **specced** and moved to §1; **faction + reputation have since shipped**; hireable mobs is best designed alongside/after grouping, and **follow** is the shared movement primitive under grouping + hirelings + onboarding.) |
 | **WoT Mechanics (EPIC)** | a 12-sub-epic program: weapon/equipment depth, The One Power, skills, feats, conditions, saves, survival, reputation, classes, travel, Shadowspawn; see `themes/wot-mechanics-epic.md` | the WoT RPG is d20; the engine is real-time tick/chance. **Decision 0 RESOLVED — posture A** (translate onto tick/chance; no d20 rewrite, S12 shelved). **Start with S1 `M-Weapon-Identity`** (small); The One Power (S2) is the marquee arc. The d20 tabletop scaffolding is deliberately *not* ported. |
 | **Gameplay content / activities** | procedural missions (escort), fast-travel waypoints, gambling, fishing→gathering, leaderboards, onboarding-guide NPC, dropped-item decay | the GoMud-module cluster — repeatable "things to do." Each is a small standalone spec; best delivered as **feature-modules** if that seam lands first. (Corpse decay already shipped M22.5; only dropped-item decay remains.) |
 | **Player Economy depth** | mail (push delivery / attachment escrow), banking (gold-bank **+ item vault = GoMud `storage`**) + a gold-at-risk rule, zone-tax→coffer gold-sink (from elections) | extends the now-specced trade; banking wants gold-at-risk to matter; zone-tax is a reusable sink worth extracting from elections |

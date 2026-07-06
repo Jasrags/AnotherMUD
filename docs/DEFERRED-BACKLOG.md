@@ -29,6 +29,17 @@ Regenerate by re-scanning the memory deferral files.
 > class** bonus-feat gap (`feats-deferred-fixes` — MEDIUM, blocks martial classes).
 > These shipped after this snapshot; the per-topic memory files are authoritative.
 
+> **Not yet folded in (2026-07-06):** work shipped since the 2026-06-20 body — the
+> **follow → grouping → hireable-mobs** arc (`follow-arc`, `grouping-arc`,
+> `hireable-mobs-build-log` — grouping §9 XP-split/quest-credit/need-greed, hireable
+> §11 formations/patrol-routes), the **action-economy** busy-state arc
+> (`action-economy-deferred-fixes` — MEDIUM raw-string replay wrong-same-keyword),
+> **subdual-damage** (`subdual-damage.md` §8 deferred — natural armor + separate-pool/
+> coup-de-grace), and the **Shadowrun MVP** slices (`sr-m2-deferred-fixes` — MEDIUM-A
+> non-atomic named-pool liveness; `sr-m3c-deferred-fixes` — stun→Physical overflow,
+> `armor` channel input, body-derived Physical hp_max). The per-topic memory files
+> are authoritative until the next regen.
+
 Excludes everything marked RESOLVED/FIXED/CLOSED. Note: several M0→M12 items
 below were later resolved by M14 (Engine-Debt) and the M9.x mob-effect sweep —
 see the per-item RESOLVED tags and the caveats at the bottom.
