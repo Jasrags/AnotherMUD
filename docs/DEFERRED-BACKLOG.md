@@ -67,7 +67,7 @@ TOCTOU) were fixed pre-commit earlier.
 ### Combat / death hardening (mostly doc-contract + missing-test; no known live bug)
 - `m7-2 #1` — combat `EventSink` contract is documentation-only
 - `m7-2 #2` — unbounded combat-list growth (DoS surface)
-- `m7-3 #1` — `removeFromListLocked` aliases the backing slice
+- ~~`m7-3 #1` — `removeFromListLocked` aliases the backing slice~~ — **NOT A LIVE BUG (verified 2026-07-06).** The in-place `append(list[:i], list[i+1:]...)` shift is safe because no un-copied `m.lists` slice ever escapes `m.mu` — every accessor snapshots (`OpponentsOf`/`AllCombatants` copy, `PrimaryTargetOf` returns a value, `DisengageAll` copies before its mutation loop). A latent footgun only, now documented as an INVARIANT comment on `removeFromListLocked`/`PromoteTarget` (a future accessor returning the raw slice would break it → copy-on-out or fresh-slice build). No code behavior change.
 - `m7-5 #2` — `DeathCheck` cancellation contract is doc-only
 - `m7-5 #4` — concurrent killing-blow unit test missing
 - `m7-5 #5` — `VitalsState` YAML decode is unbounded

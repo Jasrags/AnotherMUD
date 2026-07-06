@@ -399,7 +399,9 @@ func (m *Manager) PromoteTarget(c, opponent CombatantID) bool {
 		if i == 0 {
 			return true // already primary; idempotent success.
 		}
-		// Move to head, preserving relative order of the rest.
+		// Move to head, preserving relative order of the rest. In-place reorder
+		// of c's backing array — safe under the same no-slice-escapes
+		// invariant documented on removeFromListLocked.
 		moved := list[i]
 		copy(list[1:i+1], list[0:i])
 		list[0] = moved
@@ -469,6 +471,13 @@ func (m *Manager) AllCombatants() []CombatantID {
 // Does NOT delete the map entry on emptying — that's the caller's
 // responsibility (so Disengage / DisengageAll can decide whether to
 // emit CombatEnded before the delete).
+//
+// INVARIANT: the append below shifts c's backing array in place, which is
+// safe ONLY because no un-copied m.lists slice ever escapes m.mu — every
+// accessor snapshots (OpponentsOf/AllCombatants copy; PrimaryTargetOf returns
+// a value; DisengageAll copies before its mutation loop). If a future accessor
+// returns the raw slice, this in-place mutation would corrupt that holder's
+// view — copy on the way out, or switch this to a fresh-slice build.
 func (m *Manager) removeFromListLocked(c, opp CombatantID) bool {
 	list := m.lists[c]
 	for i, id := range list {
