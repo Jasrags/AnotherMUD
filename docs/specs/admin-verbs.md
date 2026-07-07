@@ -164,8 +164,12 @@ general-purpose admin write.
 - [x] Setting an admin-settable property on a target persists it.
       *(M19.4h: room mobs/items — live write. Persistence applies once
       player property bags land; mobs/items are transient.)*
-- [ ] Setting a tag adds/removes it and updates the tag index.
-      *(deferred — M19.4i+, no runtime tag mutator yet.)*
+- [x] Setting a tag adds/removes it and updates the tag index.
+      *(M19.4i: `set tag add|remove` on a player or mob. A player's tag
+      persists in the AdminTags save bag — a player is not transient; a mob's
+      tag is live-only but re-indexes the store via Retag. Manager-owned
+      namespaces (alignment/faction/reputation) are refused, so a hand-set tag
+      can't desync a manager.)*
 - [x] Setting a vital clamps to its maximum and takes effect immediately.
 - [x] A non-admin-settable or unknown field is refused; a type-mismatched
       value is refused with a usage error, writing nothing.

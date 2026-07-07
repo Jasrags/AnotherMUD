@@ -4313,11 +4313,15 @@ func (a *connActor) Tags() []string {
 	for _, t := range a.factionRankTags {
 		ftags = append(ftags, t)
 	}
+	var admin []string
+	if a.save != nil {
+		admin = append(admin, a.save.AdminTags...)
+	}
 	a.mu.Unlock()
-	if len(a.racialTags) == 0 && at == "" && rt == "" && len(ftags) == 0 {
+	if len(a.racialTags) == 0 && at == "" && rt == "" && len(ftags) == 0 && len(admin) == 0 {
 		return nil
 	}
-	out := make([]string, 0, len(a.racialTags)+2+len(ftags))
+	out := make([]string, 0, len(a.racialTags)+2+len(ftags)+len(admin))
 	out = append(out, a.racialTags...)
 	if at != "" {
 		out = append(out, at)
@@ -4326,7 +4330,92 @@ func (a *connActor) Tags() []string {
 		out = append(out, rt)
 	}
 	out = append(out, ftags...)
+	// Admin-applied free-form tags (admin-verbs §4 `set tag`) — the one
+	// hand-authored, persisted category, kept in its own save bag so the
+	// managers above retain sole ownership of their derived tags.
+	out = append(out, admin...)
 	return out
+}
+
+// AddTag records a free-form admin gameplay tag on the character (admin-verbs
+// §4 `set tag add`). Idempotent — a tag already present (whether admin-applied
+// or manager-derived, e.g. a racial flag) is left as-is so Tags() never
+// double-lists it. Persisted in the save's AdminTags bag; marks the save dirty
+// so autosave commits it and it survives relog. Reports whether it changed.
+// The manager-owned namespaces are refused at the command layer (set.go), not
+// here — this is a neutral bag mutator.
+func (a *connActor) AddTag(tag string) bool {
+	if tag == "" {
+		return false
+	}
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	if a.save == nil {
+		return false
+	}
+	for _, t := range a.save.AdminTags {
+		if t == tag {
+			return false
+		}
+	}
+	// Also skip a tag a manager already contributes (racial flag), so the
+	// admin bag never duplicates a derived tag in Tags().
+	if a.hasDerivedTagLocked(tag) {
+		return false
+	}
+	a.save.AdminTags = append(a.save.AdminTags, tag)
+	a.markDirtyLocked()
+	return true
+}
+
+// RemoveTag drops a free-form admin gameplay tag (admin-verbs §4 `set tag
+// remove`). Only the AdminTags bag is touched — a manager-derived tag cannot
+// be removed here (those clear through their managers), so removing one is a
+// no-op. Marks the save dirty when the set changes. Reports whether it changed.
+func (a *connActor) RemoveTag(tag string) bool {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	if a.save == nil {
+		return false
+	}
+	// Filter in place: the write position (len of out) is always ≤ the read
+	// index, so no element is overwritten before it is read. Reuses the
+	// backing array — same idiom as MobInstance.RemoveTag / SetAlignmentTag.
+	out := a.save.AdminTags[:0]
+	removed := false
+	for _, t := range a.save.AdminTags {
+		if t == tag {
+			removed = true
+			continue
+		}
+		out = append(out, t)
+	}
+	a.save.AdminTags = out
+	if removed {
+		a.markDirtyLocked()
+	}
+	return removed
+}
+
+// hasDerivedTagLocked reports whether a manager-derived tag (racial flag,
+// alignment bucket, faction rank, reputation tier) currently equals tag.
+// Caller holds a.mu. Used by AddTag to keep the admin bag from duplicating a
+// tag a manager already contributes to Tags().
+func (a *connActor) hasDerivedTagLocked(tag string) bool {
+	if tag == a.alignmentTag || tag == a.reputationTierTag {
+		return true
+	}
+	for _, t := range a.racialTags {
+		if t == tag {
+			return true
+		}
+	}
+	for _, t := range a.factionRankTags {
+		if t == tag {
+			return true
+		}
+	}
+	return false
 }
 
 // applyRace resolves the actor's race id from save (taking

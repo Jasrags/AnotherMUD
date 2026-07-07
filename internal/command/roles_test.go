@@ -14,6 +14,43 @@ import (
 type roleActor struct {
 	*namedActor
 	roles map[string]bool
+	tags  []string // admin-applied gameplay tags, for `set tag` on a player target
+}
+
+// AddTag / RemoveTag give the test player the connActor tagger surface
+// (admin-verbs §4 `set tag`) so applyTag can route a player target in
+// command-layer tests. Idempotent, mirroring the real connActor.
+func (r *roleActor) AddTag(tag string) bool {
+	for _, t := range r.tags {
+		if t == tag {
+			return false
+		}
+	}
+	r.tags = append(r.tags, tag)
+	return true
+}
+
+func (r *roleActor) RemoveTag(tag string) bool {
+	out := r.tags[:0]
+	removed := false
+	for _, t := range r.tags {
+		if t == tag {
+			removed = true
+			continue
+		}
+		out = append(out, t)
+	}
+	r.tags = out
+	return removed
+}
+
+func (r *roleActor) hasTag(tag string) bool {
+	for _, t := range r.tags {
+		if t == tag {
+			return true
+		}
+	}
+	return false
 }
 
 func newRoleActor(name, playerID string, roles ...string) *roleActor {

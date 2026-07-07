@@ -2911,18 +2911,32 @@ house's admin moderation (`auction-house.md` §11).
       int coercion / type-mismatch refused / not-admin-settable / unknown /
       reserved-key / player-target refused / usage-panel lists property /
       reuse of vital cases). Full -race suite green.
-- [ ] **M19.4i+ — `set property` on players + the `tag` kind.** Still
-      **substrate-blocked**: player property needs `connActor.Properties()`/
-      `SetProperty` + a property bag on the save + save-integration; the
-      `tag` kind needs a runtime tag mutator (mobs have only
-      `SetAlignmentTag`; players have no mutable gameplay-tag set, and player
-      tags are PARTIAL). admin-verbs §4.
+- [x] **M19.4i — the `tag` kind.** admin-verbs §4. `set tag add|remove
+      <target> <tag>` on a player or mob. Substrate landed on both sides:
+      `MobInstance.AddTag`/`RemoveTag` (in-place, caller re-indexes via the
+      existing `Store.Retag`) and `connActor.AddTag`/`RemoveTag` writing a new
+      **persisted `AdminTags` save bag** (v33→v34, no-op migration) folded into
+      `Tags()`. A player is not transient, so an admin-applied tag survives
+      relog (mob tags stay live-only, mirroring `set property`); the design
+      fork "should a player carry an ad-hoc persisted tag set" resolved to
+      *yes, in its own namespace*. A collision guard refuses any tag in a
+      manager-owned namespace (`alignment_`/`faction:`/`renown:`) so a hand-set
+      tag can't desync the alignment/faction/reputation managers — the tag
+      analogue of `set property` refusing the reserved `template_id`/`room_id`
+      keys. 15 tests across player/entities/session/command; full -race green.
+- [ ] **M19.4j+ — `set property` on players.** Still **substrate-blocked**:
+      needs `connActor.Properties()`/`SetProperty` + a property bag on the save
+      + save-integration (the M14 property-registry save-pipeline gap). Also
+      YAGNI-blocked — no player-settable property is registered today
+      (`quest_grant`/`key_for` are item/mob-oriented), so there is nothing to
+      set until a real player property lands. admin-verbs §4.
 
 **Touches specs:** `roles-and-permissions`, `admin-verbs`,
 `session-lifecycle §5`, `ui-rendering-help §9.5`, `commands-and-dispatch`.
 
-(M19.4i+ — `set property` on players + the `set tag` kind — is left as an
-open, substrate-blocked tail; see `m19-4h-deferred-fixes`.)
+(The `set tag` kind shipped in M19.4i. `set property` on players — M19.4j+ —
+remains an open, substrate-blocked *and* YAGNI-blocked tail; see
+`m19-4h-deferred-fixes`.)
 
 ---
 

@@ -3,6 +3,7 @@ package command
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"strconv"
 	"strings"
 
@@ -10,6 +11,7 @@ import (
 	"github.com/Jasrags/AnotherMUD/internal/economy"
 	"github.com/Jasrags/AnotherMUD/internal/entities"
 	"github.com/Jasrags/AnotherMUD/internal/keyword"
+	"github.com/Jasrags/AnotherMUD/internal/logging"
 	"github.com/Jasrags/AnotherMUD/internal/property"
 	"github.com/Jasrags/AnotherMUD/internal/world"
 )
@@ -33,11 +35,11 @@ type settableKind struct {
 }
 
 // setCatalogue is the admin-settable field catalogue. M19.4c shipped the
-// `vital` kind; M19.4h adds `property` (on room mobs/items). The `tag` kind
-// (admin-verbs §4) is still pending its substrate (no runtime tag mutator on
-// players/mobs). Roles are deliberately absent and never join here —
-// privilege changes go through the separately-audited grant/revoke surface
-// (§4 / roles-and-permissions §4), never an incidental `set`.
+// `vital` kind; M19.4h added `property` (on room mobs/items); M19.4i adds
+// `tag` (add/remove a gameplay tag on a player or mob). Roles are
+// deliberately absent and never join here — privilege changes go through the
+// separately-audited grant/revoke surface (§4 / roles-and-permissions §4),
+// never an incidental `set`.
 var setCatalogue = []settableKind{
 	{
 		name:      "vital",
@@ -50,6 +52,12 @@ var setCatalogue = []settableKind{
 		types:     nil, // free-form: the `type` slot is the property name, validated against the registry
 		appliesTo: "npc, item",
 		apply:     applyProperty,
+	},
+	{
+		name:      "tag",
+		types:     []string{"add", "remove"},
+		appliesTo: "player, npc",
+		apply:     applyTag,
 	},
 	{
 		name:      "gold",
@@ -273,6 +281,118 @@ func parsePropertyValue(t property.ValueType, value string) (any, error) {
 	default:
 		return nil, fmt.Errorf("Property type %s can't be set with a single value.", t)
 	}
+}
+
+// maxTagNameLen caps a `set tag` name so a pathological string can't bloat the
+// save (it lands in Save.AdminTags, written to YAML) or every Tags() snapshot
+// the AI evaluator reads. Admin-only input, but validated at the boundary all
+// the same.
+const maxTagNameLen = 64
+
+// reservedTagNamespaces are the tag prefixes owned by a manager (progression
+// alignment, faction, reputation). A tag in one of these namespaces is derived
+// from the manager's state and reconstructed at login, so `set tag` must never
+// write it directly — a hand-written `alignment_evil` / `faction:x:y` /
+// `renown:z` would desync the owning manager. This is the tag analogue of
+// applyProperty refusing the reserved template_id/room_id property keys. Held
+// as literals (rather than importing three manager packages just for prefix
+// strings); set_test.go feeds real manager tag outputs through the guard so a
+// prefix rename in progression/faction/reputation trips a test.
+var reservedTagNamespaces = []struct{ label, prefix string }{
+	{"alignment", "alignment_"}, // internal/progression: alignment_{evil,neutral,good}
+	{"faction", "faction:"},     // internal/faction: RankTag = "faction:<id>:<rank>"
+	{"reputation", "renown:"},   // internal/reputation: TierTagPrefix
+}
+
+// reservedStructuralTags are engine-synthetic tags whose presence a subsystem
+// depends on for enumeration — removing one silently breaks that subsystem for
+// the entity's lifetime. entities.TagMob is the one that matters here: the AI
+// dispatcher enumerates mobs solely via GetByTag(TagMob), so `set tag remove
+// <mob> mob` would drop the mob out of every AI turn (an inert statue until it
+// respawns). `set tag` refuses these exact tags on either op.
+var reservedStructuralTags = []string{entities.TagMob}
+
+// reservedTagNamespace reports the owning system if tag falls in a
+// manager-owned namespace or is a structural tag, so applyTag can refuse it.
+func reservedTagNamespace(tag string) (label string, reserved bool) {
+	for _, ns := range reservedTagNamespaces {
+		if strings.HasPrefix(tag, ns.prefix) {
+			return ns.label, true
+		}
+	}
+	for _, s := range reservedStructuralTags {
+		if tag == s {
+			return "engine", true
+		}
+	}
+	return "", false
+}
+
+// applyTag adds or removes a free-form gameplay tag on a live player or mob
+// (admin-verbs §4). The `type` slot is the op (add|remove); the value is the
+// tag name. A tag in a manager-owned namespace (alignment / faction /
+// reputation) is refused — those are derived and reconstructed at login, so a
+// direct write would desync the manager (mirrors applyProperty refusing the
+// reserved property keys; roles are likewise never settable via `set`).
+//
+// Scope (M19.4i): a player's tag persists in the AdminTags save bag — a player
+// is not transient, so an admin tag must survive relog — while a room mob's
+// tag is live-only (the mob is transient) but re-indexes the store so a later
+// GetByTag reflects it. Both targets satisfy the AddTag/RemoveTag interface.
+func applyTag(ctx context.Context, c *Context, target any, op, value string) (string, error) {
+	tagger, ok := target.(interface {
+		AddTag(string) bool
+		RemoveTag(string) bool
+	})
+	if !ok {
+		return "", fmt.Errorf("That target cannot carry gameplay tags.")
+	}
+	tag := strings.TrimSpace(value)
+	if tag == "" {
+		return "", fmt.Errorf("Tag name cannot be empty.")
+	}
+	if len(tag) > maxTagNameLen {
+		return "", fmt.Errorf("Tag name is too long (max %d characters).", maxTagNameLen)
+	}
+	if label, reserved := reservedTagNamespace(tag); reserved {
+		return "", fmt.Errorf("Tag %q is owned by the %s system and cannot be set directly.", tag, label)
+	}
+
+	var (
+		changed bool
+		verb    string
+	)
+	switch strings.ToLower(strings.TrimSpace(op)) {
+	case "add":
+		changed, verb = tagger.AddTag(tag), "added"
+	case "remove":
+		changed, verb = tagger.RemoveTag(tag), "removed"
+	default:
+		return "", fmt.Errorf("Unknown tag op %q. Settable: add, remove.", op)
+	}
+
+	// A no-op (tag already present on add, or already absent on remove) writes
+	// nothing, so it is reported like a usage error — the non-nil error makes
+	// SetHandler skip auditAdmin, keeping the audit log to genuine tag changes.
+	if !changed {
+		if verb == "added" {
+			return "", fmt.Errorf("Already tagged %q; nothing changed.", tag)
+		}
+		return "", fmt.Errorf("Not tagged %q; nothing changed.", tag)
+	}
+
+	// A tracked mob mutated its tag list in place; refresh the store's tag
+	// index so GetByTag sees the change. A player (connActor) is not tracked in
+	// the store, so there is nothing to re-index for it.
+	if m, ok := target.(*entities.MobInstance); ok && c.Items != nil {
+		if err := c.Items.Retag(m.ID()); err != nil {
+			logging.From(ctx).Warn("set tag: store retag failed",
+				slog.String("mob", string(m.ID())),
+				slog.String("err", err.Error()))
+		}
+	}
+
+	return fmt.Sprintf("tag %q %s.", tag, verb), nil
 }
 
 // renderSetUsage writes the self-documenting usage panel: the grammar plus

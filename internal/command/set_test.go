@@ -6,7 +6,10 @@ import (
 
 	"github.com/Jasrags/AnotherMUD/internal/economy"
 	"github.com/Jasrags/AnotherMUD/internal/eventbus"
+	"github.com/Jasrags/AnotherMUD/internal/faction"
+	"github.com/Jasrags/AnotherMUD/internal/progression"
 	"github.com/Jasrags/AnotherMUD/internal/property"
+	"github.com/Jasrags/AnotherMUD/internal/reputation"
 )
 
 // setPropRegistry builds a property registry exercising the three relevant
@@ -350,5 +353,185 @@ func TestSetProperty_UsagePanelListsProperty(t *testing.T) {
 	out := allLines(admin.testActor)
 	if !strings.Contains(out, "property") {
 		t.Errorf("usage panel = %q, want it to list the property kind", out)
+	}
+}
+
+// `set tag add <tag> <mob>` writes the live tag, re-indexes the store so a
+// later GetByTag surfaces it, and audits with the kind/type/value (M19.4i).
+func TestSetTag_AddOnMobWritesReindexesAndAudits(t *testing.T) {
+	f := newConsiderFixture(t)
+	bus := eventbus.New()
+	got := captureEvents(t, bus, eventbus.EventAdminAction)
+	admin := adminInRoom(f, "Maerys", "p-admin")
+	env := f.env()
+	env.Bus = bus
+
+	dispatchRole(t, env, admin, "set tag add guard cursed")
+
+	if !f.guard.HasTag("cursed") {
+		t.Error("guard missing the cursed tag after set tag add")
+	}
+	// The store index reflects it once the write-side buckets publish.
+	f.store.SwapTagIndex()
+	if hits := f.store.GetByTag("cursed"); len(hits) != 1 || hits[0].ID() != f.guard.ID() {
+		t.Errorf("GetByTag(cursed) = %v, want [%q]", hits, f.guard.ID())
+	}
+	if len(*got) != 1 {
+		t.Fatalf("admin.action count = %d, want 1", len(*got))
+	}
+	ev := (*got)[0].(eventbus.AdminAction)
+	if ev.Verb != "set" || ev.Target != f.guard.EntityID() || ev.Args != "tag add=cursed" {
+		t.Errorf("event = %+v, want verb=set target=%s args='tag add=cursed'", ev, f.guard.EntityID())
+	}
+}
+
+// `set tag remove <tag> <mob>` drops a previously-added tag.
+func TestSetTag_RemoveOnMob(t *testing.T) {
+	f := newConsiderFixture(t)
+	admin := adminInRoom(f, "Maerys", "p-admin")
+	env := f.env()
+	f.guard.AddTag("cursed")
+
+	dispatchRole(t, env, admin, "set tag remove guard cursed")
+
+	if f.guard.HasTag("cursed") {
+		t.Error("guard still carries cursed after set tag remove")
+	}
+	if !strings.Contains(admin.lastLine(), "removed") {
+		t.Errorf("confirmation = %q, want it to report removal", admin.lastLine())
+	}
+}
+
+// `set tag add <tag> self` tags the admin (a player target) and audits.
+func TestSetTag_AddOnPlayerPersists(t *testing.T) {
+	f := newConsiderFixture(t)
+	bus := eventbus.New()
+	got := captureEvents(t, bus, eventbus.EventAdminAction)
+	admin := adminInRoom(f, "Maerys", "p-admin")
+	env := f.env()
+	env.Bus = bus
+
+	dispatchRole(t, env, admin, "set tag add self vip")
+
+	if !admin.hasTag("vip") {
+		t.Errorf("player missing the vip tag after set tag add self; tags=%v", admin.tags)
+	}
+	if len(*got) != 1 {
+		t.Fatalf("admin.action count = %d, want 1", len(*got))
+	}
+}
+
+// A tag in a manager-owned namespace is refused before any write — an admin
+// cannot hand-author an alignment / faction / reputation tag and desync the
+// owning manager. The tag strings come from the real managers, so a prefix
+// rename in those packages trips this test.
+func TestSetTag_ManagerOwnedNamespacesRefused(t *testing.T) {
+	cases := map[string]string{
+		"alignment":  progression.TagAlignmentEvil,
+		"faction":    faction.RankTag("townsfolk", "friendly"),
+		"reputation": reputation.TierTag("Known Locally"),
+	}
+	for label, tag := range cases {
+		t.Run(label, func(t *testing.T) {
+			f := newConsiderFixture(t)
+			bus := eventbus.New()
+			got := captureEvents(t, bus, eventbus.EventAdminAction)
+			admin := adminInRoom(f, "Maerys", "p-admin")
+			env := f.env()
+			env.Bus = bus
+
+			dispatchRole(t, env, admin, "set tag add guard "+tag)
+
+			if f.guard.HasTag(tag) {
+				t.Errorf("guard carries manager-owned tag %q — guard bypassed", tag)
+			}
+			if !strings.Contains(admin.lastLine(), "cannot be set directly") {
+				t.Errorf("message = %q, want the manager-owned refusal", admin.lastLine())
+			}
+			if len(*got) != 0 {
+				t.Errorf("a refused set must not audit, got %d", len(*got))
+			}
+		})
+	}
+}
+
+// An unknown tag op (neither add nor remove) is refused, writing nothing.
+func TestSetTag_UnknownOpRefused(t *testing.T) {
+	f := newConsiderFixture(t)
+	bus := eventbus.New()
+	got := captureEvents(t, bus, eventbus.EventAdminAction)
+	admin := adminInRoom(f, "Maerys", "p-admin")
+	env := f.env()
+	env.Bus = bus
+
+	dispatchRole(t, env, admin, "set tag frobnicate guard cursed")
+
+	if f.guard.HasTag("cursed") {
+		t.Error("guard tagged despite an unknown op")
+	}
+	if !strings.Contains(admin.lastLine(), "Unknown tag op") {
+		t.Errorf("message = %q, want 'Unknown tag op'", admin.lastLine())
+	}
+	if len(*got) != 0 {
+		t.Errorf("a refused set must not audit, got %d", len(*got))
+	}
+}
+
+// A structural engine tag (entities.TagMob) cannot be removed — doing so
+// would drop the mob out of GetByTag(TagMob) and silence its AI for its
+// lifetime. Refused before any mutation, and no audit fires.
+func TestSetTag_StructuralMobTagRefused(t *testing.T) {
+	f := newConsiderFixture(t)
+	bus := eventbus.New()
+	got := captureEvents(t, bus, eventbus.EventAdminAction)
+	admin := adminInRoom(f, "Maerys", "p-admin")
+	env := f.env()
+	env.Bus = bus
+
+	dispatchRole(t, env, admin, "set tag remove guard mob")
+
+	if !f.guard.HasTag("mob") {
+		t.Error("structural 'mob' tag removed — the AI dispatcher would lose the mob")
+	}
+	if !strings.Contains(admin.lastLine(), "cannot be set directly") {
+		t.Errorf("message = %q, want the structural-tag refusal", admin.lastLine())
+	}
+	if len(*got) != 0 {
+		t.Errorf("a refused set must not audit, got %d", len(*got))
+	}
+}
+
+// A no-op set tag (re-adding a tag already present) writes nothing and does
+// NOT audit — the audit log stays limited to genuine tag changes.
+func TestSetTag_NoOpDoesNotAudit(t *testing.T) {
+	f := newConsiderFixture(t)
+	bus := eventbus.New()
+	got := captureEvents(t, bus, eventbus.EventAdminAction)
+	admin := adminInRoom(f, "Maerys", "p-admin")
+	env := f.env()
+	env.Bus = bus
+	f.guard.AddTag("cursed")
+
+	dispatchRole(t, env, admin, "set tag add guard cursed")
+
+	if !strings.Contains(admin.lastLine(), "Already tagged") {
+		t.Errorf("message = %q, want an 'Already tagged' no-op notice", admin.lastLine())
+	}
+	if len(*got) != 0 {
+		t.Errorf("a no-op set must not audit, got %d", len(*got))
+	}
+}
+
+// The usage panel lists the tag kind with its add/remove ops.
+func TestSetTag_UsagePanelListsTag(t *testing.T) {
+	f := newConsiderFixture(t)
+	admin := adminInRoom(f, "Maerys", "p-admin")
+	env := f.env()
+
+	dispatchRole(t, env, admin, "set")
+
+	out := allLines(admin.testActor)
+	if !strings.Contains(out, "tag") || !strings.Contains(out, "add") || !strings.Contains(out, "remove") {
+		t.Errorf("usage panel = %q, want it to list tag(add, remove)", out)
 	}
 }

@@ -594,6 +594,40 @@ func (m *MobInstance) HasTag(tag string) bool {
 	return false
 }
 
+// AddTag appends a gameplay tag if not already present (admin-verbs §4
+// `set tag`). Idempotent — a tag already on the mob is left as-is. Like
+// SetAlignmentTag this mutates m.tags in place, so the caller is
+// responsible for re-indexing via Store.Retag if the mob is tracked (the
+// store's tag index is refreshed only at Track/Untrack/Retag). Reports
+// whether the set changed.
+func (m *MobInstance) AddTag(tag string) bool {
+	if tag == "" || m.HasTag(tag) {
+		return false
+	}
+	m.tags = append(m.tags, tag)
+	return true
+}
+
+// RemoveTag drops a gameplay tag if present (admin-verbs §4 `set tag`).
+// Idempotent — removing an absent tag is a no-op. Mutates m.tags in place;
+// the caller re-indexes via Store.Retag when the mob is tracked. Reports
+// whether the set changed.
+func (m *MobInstance) RemoveTag(tag string) bool {
+	// Filter in place: the write position is always ≤ the read index, so no
+	// element is overwritten before it is read (same idiom as SetAlignmentTag).
+	out := m.tags[:0]
+	removed := false
+	for _, t := range m.tags {
+		if t == tag {
+			removed = true
+			continue
+		}
+		out = append(out, t)
+	}
+	m.tags = out
+	return removed
+}
+
 // WimpyThreshold reports the mob's HP-percent flee threshold (spec
 // combat §5.1). Read from the template's properties bag at spawn
 // time (key "wimpy_threshold"); 0 (or any non-int / out-of-range

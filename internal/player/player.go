@@ -127,7 +127,7 @@ import (
 // means "knows no recipes beyond what a discipline grants at runtime";
 // the migration injects nothing. A known id whose recipe was removed from
 // content loads cleanly and is ignored at restore (§9), never an error.
-const CurrentVersion = 33
+const CurrentVersion = 34
 
 // Sentinel errors callers may check via errors.Is.
 var (
@@ -441,6 +441,20 @@ type Save struct {
 	// login. A record whose template left content is ignored at materialization,
 	// never an error (fail-soft, like Mounts).
 	Hirelings []HirelingRecord `yaml:"hirelings,omitempty"`
+
+	// AdminTags is the free-form gameplay-tag bag an admin `set tag` writes
+	// onto a character (admin-verbs §4). Distinct from the manager-derived
+	// tags (racial flags, alignment bucket, faction rank, reputation tier),
+	// which their owning managers reconstruct at login: those are never
+	// stored here, and `set tag` refuses to write a tag in a manager-owned
+	// namespace (see internal/command/set.go). This bag is the one category
+	// of character tag that is authored by hand and therefore must persist —
+	// a player is not transient, so an admin-applied tag (a curse, a watch
+	// flag, a party marker) is expected to survive relog. Added in v34;
+	// empty/absent (the common case) writes no `admin_tags:` key and a pre-v34
+	// save round-trips as the empty set. Folded into connActor.Tags() at
+	// runtime so the AI disposition evaluator's `has_tag` rules match on it.
+	AdminTags []string `yaml:"admin_tags,omitempty"`
 }
 
 // HirelingRecord is one hire contract on a player save (hireable-mobs.md §9). It
@@ -706,6 +720,7 @@ var playerMigrations = map[int]func(map[string]any) (map[string]any, error){
 	30: migrateV30toV31,
 	31: migrateV31toV32,
 	32: migrateV32toV33,
+	33: migrateV33toV34,
 }
 
 // migrateV1toV2 adds the empty inventory/equipment blocks introduced
@@ -1159,6 +1174,17 @@ func migrateV31toV32(in map[string]any) (map[string]any, error) {
 // absent `hirelings` key loads as the empty set (the common case — no hireling
 // owned), so absent and stored-empty are correctly indistinguishable.
 func migrateV32toV33(in map[string]any) (map[string]any, error) {
+	return in, nil
+}
+
+// migrateV33toV34 introduces the admin_tags bag (admin-verbs §4 — the
+// free-form gameplay-tag set an admin `set tag` writes onto a character).
+// A no-op: every pre-v34 save had no admin-applied tags, so the field is
+// absent and Restore reads it as the empty set (nil), exactly matching a
+// character no admin has tagged. The manager-derived tags (racial, alignment,
+// faction, reputation) are reconstructed at login as before and were never
+// stored here, so nothing needs backfilling.
+func migrateV33toV34(in map[string]any) (map[string]any, error) {
 	return in, nil
 }
 
