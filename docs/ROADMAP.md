@@ -2924,19 +2924,31 @@ house's admin moderation (`auction-house.md` §11).
       tag can't desync the alignment/faction/reputation managers — the tag
       analogue of `set property` refusing the reserved `template_id`/`room_id`
       keys. 15 tests across player/entities/session/command; full -race green.
-- [ ] **M19.4j+ — `set property` on players.** Still **substrate-blocked**:
-      needs `connActor.Properties()`/`SetProperty` + a property bag on the save
-      + save-integration (the M14 property-registry save-pipeline gap). Also
-      YAGNI-blocked — no player-settable property is registered today
-      (`quest_grant`/`key_for` are item/mob-oriented), so there is nothing to
-      set until a real player property lands. admin-verbs §4.
+- [ ] **M19.4j+ — `set property` on players. HELD — blocked on a consumer,
+      not plumbing** (investigated 2026-07-06, decision: hold). The bag
+      substrate is a clean mirror of the M19.4i `AdminTags` work
+      (`connActor.Properties()`/`SetProperty` + a `Properties map[string]any`
+      save field + a `snapshotSave` deep-copy branch + a v34→v35 no-op
+      migration). But the substrate is not the real blocker: **no
+      admin-settable property is scoped to `player`.** All 9 admin-settable
+      entries in `internal/pack/properties.go` carry `AppliesTo` of item/room
+      only, so even with a bag, `set property <name> <player> <value>` has
+      nothing meaningful to write. Building the bag now would commit save v35
+      for zero capability (speculative generality — YAGNI). It also surfaces a
+      latent gap: `applyProperty` does not enforce `AppliesTo` today (harmless
+      while targets are mobs/items). **Unblock trigger:** a genuine
+      player-scoped admin-settable property lands (e.g. a `gm_note` string) —
+      then build the bag + that property + `AppliesTo` enforcement together as
+      one exercisable slice. admin-verbs §4. See `m19-4h-deferred-fixes`.
 
 **Touches specs:** `roles-and-permissions`, `admin-verbs`,
 `session-lifecycle §5`, `ui-rendering-help §9.5`, `commands-and-dispatch`.
 
 (The `set tag` kind shipped in M19.4i. `set property` on players — M19.4j+ —
-remains an open, substrate-blocked *and* YAGNI-blocked tail; see
-`m19-4h-deferred-fixes`.)
+is **held**: the bag plumbing is easy, but no admin-settable property is scoped
+to `player`, so it would ship save v35 for zero capability. Unblock when a real
+player-scoped property lands. See `m19-4h-deferred-fixes` (incl. the latent
+`AppliesTo`-enforcement gap surfaced during the investigation).)
 
 ---
 
