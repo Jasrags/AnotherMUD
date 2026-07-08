@@ -65,6 +65,30 @@ func TestIACReader_CapturesMultipleGMCPFrames(t *testing.T) {
 	}
 }
 
+// An escaped IAC (IAC IAC = a literal 0xFF byte) inside a GMCP payload is
+// captured as a single 0xFF, not treated as the start of a command or an SE.
+func TestIACReader_CapturesGMCPFrameWithEscapedIAC(t *testing.T) {
+	// Payload "Room.Info {"x":<0xFF>}" — a raw 0xFF mid-JSON, escaped on the wire
+	// as IAC IAC per RFC 854.
+	var payload []byte
+	payload = append(payload, []byte(`Room.Info {"x":`)...)
+	payload = append(payload, iac) // the literal 0xFF the sender means
+	payload = append(payload, '}')
+
+	// On the wire the 0xFF is doubled (IAC IAC) inside the SB … SE frame.
+	var raw []byte
+	raw = append(raw, iac, sb, optGMCP)
+	raw = append(raw, []byte(`Room.Info {"x":`)...)
+	raw = append(raw, iac, iac) // escaped literal 0xFF
+	raw = append(raw, '}')
+	raw = append(raw, iac, se)
+
+	_, frames := drainIACCapturing(t, bytes.NewReader(raw))
+	if len(frames) != 1 || frames[0] != string(payload) {
+		t.Errorf("captured frames = %#v, want exactly [%q] (escaped IAC → single 0xFF)", frames, string(payload))
+	}
+}
+
 // A non-GMCP subnegotiation (e.g. NAWS, option 31) is NOT captured — the hook
 // only fires for option 201.
 func TestIACReader_IgnoresNonGMCPSubneg(t *testing.T) {

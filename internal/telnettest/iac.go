@@ -122,6 +122,10 @@ func (r *iacReader) process(b []byte) {
 		case stSubIAC:
 			switch c {
 			case se:
+				// A zero-byte GMCP subneg carries no package name — a malformed
+				// frame, not a bare announcement (which still sends its name), so
+				// the len>0 guard drops it deliberately rather than firing the
+				// callback with an empty ("", "") package.
 				if r.onGMCP != nil && r.subOpt == optGMCP && len(r.sub) > 0 {
 					r.onGMCP(string(r.sub))
 				}

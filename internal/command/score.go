@@ -190,10 +190,16 @@ func ScoreHandler(ctx context.Context, c *Context) error {
 		// advancement track), not the first-registered track — otherwise a
 		// world-locked character (an SR street-samurai, a WoT armsman) shows the
 		// engine-default "adventurer" that leaks in via the core dependency.
-		// Falls back to the engine default for a classless character.
-		primary := DefaultXPTrack
+		// Falls back to the boot's configured default track for a classless
+		// character (c.DefaultXPTrack, the ANOTHERMUD_DEFAULT_XP_TRACK knob),
+		// then the engine constant — mirroring xp.go / GrantKillXP so score
+		// never disagrees with where XP is actually granted.
+		primary := c.DefaultXPTrack
+		if primary == "" {
+			primary = DefaultXPTrack
+		}
 		if pt, ok := c.Actor.(PrimaryTrackHolder); ok {
-			primary = pt.PrimaryTrack(DefaultXPTrack)
+			primary = pt.PrimaryTrack(primary)
 		}
 		for _, td := range c.Progression.Tracks().All() {
 			if !strings.EqualFold(td.Name, primary) {
