@@ -113,6 +113,15 @@ type ProgressionHolder interface {
 	TrackInfo(mgr *progression.Manager, track string) (progression.TrackInfo, bool)
 }
 
+// PrimaryTrackHolder resolves an actor's headline advancement track — its class
+// bound_track — so the score sheet shows the track the character actually earns
+// on (SR "street", WoT "martial"/"one-power") rather than the first-registered
+// track. Falls back to the given default when the actor is classless. An actor
+// that does not implement this leaves score on the fallback track.
+type PrimaryTrackHolder interface {
+	PrimaryTrack(fallback string) string
+}
+
 // Broadcaster is the small surface a handler needs to address other
 // players in the world. The session manager satisfies it. Handlers
 // MUST tolerate a nil Broadcaster (e.g. unit tests) and skip the

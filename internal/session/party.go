@@ -381,10 +381,14 @@ func (m *Manager) othersLocked(leaderID, exclude string) []string {
 // GrantKillXP awards a lethal kill's experience (grouping.md §4): recipients are
 // the killer's party members present in the kill room (proximity-gated), or just
 // the killer when ungrouped (a party of one). The total is split EVENLY; each
-// share lands on the recipient's default track and is announced. A total or a
-// rounded-to-zero share grants nothing. Called from the mob-killed reward hook.
-func (m *Manager) GrantKillXP(ctx context.Context, prog *progression.Manager, track, killerPID string, room world.RoomID, total int64) {
-	if m == nil || prog == nil || total <= 0 || track == "" || killerPID == "" {
+// share lands on that recipient's PRIMARY track — its class bound_track — so a
+// world-locked character advances its own world's track (SR "street", WoT
+// "martial"/"one-power") rather than the engine default. `fallbackTrack` (the
+// composition-root DefaultXPTrack) is used only for a classless recipient. A
+// total or a rounded-to-zero share grants nothing. Called from the mob-killed
+// reward hook.
+func (m *Manager) GrantKillXP(ctx context.Context, prog *progression.Manager, fallbackTrack, killerPID string, room world.RoomID, total int64) {
+	if m == nil || prog == nil || total <= 0 || fallbackTrack == "" || killerPID == "" {
 		return
 	}
 	recipients := m.killXPRecipients(killerPID, room)
@@ -401,7 +405,7 @@ func (m *Manager) GrantKillXP(ctx context.Context, prog *progression.Manager, tr
 		return
 	}
 	for _, a := range recipients {
-		a.GrantXP(ctx, prog, track, "kill", share)
+		a.GrantXP(ctx, prog, a.PrimaryTrack(fallbackTrack), "kill", share)
 		_ = a.Write(ctx, fmt.Sprintf("You gain %d experience.", share))
 	}
 }

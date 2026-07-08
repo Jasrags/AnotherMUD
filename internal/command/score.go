@@ -186,12 +186,22 @@ func ScoreHandler(ctx context.Context, c *Context) error {
 	}
 
 	if ph, ok := c.Actor.(ProgressionHolder); ok && c.Progression != nil {
-		// Primary track = the first registered track the actor has info
-		// for (adventure today; the score sheet shows one headline level).
+		// Primary track = the actor's class bound_track (its own world's
+		// advancement track), not the first-registered track — otherwise a
+		// world-locked character (an SR street-samurai, a WoT armsman) shows the
+		// engine-default "adventurer" that leaks in via the core dependency.
+		// Falls back to the engine default for a classless character.
+		primary := DefaultXPTrack
+		if pt, ok := c.Actor.(PrimaryTrackHolder); ok {
+			primary = pt.PrimaryTrack(DefaultXPTrack)
+		}
 		for _, td := range c.Progression.Tracks().All() {
+			if !strings.EqualFold(td.Name, primary) {
+				continue
+			}
 			info, ok := ph.TrackInfo(c.Progression, td.Name)
 			if !ok {
-				continue
+				break
 			}
 			d.HasLevel = true
 			d.Track = td.DisplayName

@@ -91,13 +91,13 @@ Content inventory:
 
 **Acceptance criteria**
 - [x] `ANOTHERMUD_PACKS=shadowrun ANOTHERMUD_START_ROOM=shadowrun:<room>` boots with no registry collision alongside `core` (namespaced ids; later-wins channel override). WoT boot unaffected. *(`pack.shadowrun_boot_test.go`; both live combat tests boot it.)*
-- [x] A player creates a Street Samurai (metatype + attribute seed + background) through the wizard. *(both live combat tests create one via the default SR wizard flow.)*
+- [~] A player creates a Street Samurai (metatype + attribute seed + background) through the wizard. *(SELECTABLE — `TestLive_ShadowrunKarmaAdvance` creates a real Street Samurai on "The Long Run" by picking it. GAP: the default flow picks the FIRST option, which is tapestry-core's `fighter`/`adventurer`/`commoner` — shadowrun has no `CreationFlowFor` case, so core classes leak into its creation menu. Needs a `case "shadowrun"` (or world-scoped class filtering) so the Street Samurai is the default, not a core Fighter.)*
 - [x] One combat round resolves **attack → soak → route to Physical/Stun** using only channels + SR-M2 routing (no bespoke SR combat code). *(proven live both routes: `TestLive_ShadowrunStunKnockout` (Stun) + `TestLive_ShadowrunLethalKill` (Physical).)*
 - [x] A stun weapon fills the Stun monitor; overflow knocks the target unconscious rather than killing. *(`TestLive_ShadowrunStunKnockout`; overflow→Physical shipped SR-M3c-3.)*
 - [x] A lethal weapon fills the Physical monitor; worn armor reduces it via `mitigation`. *(`TestLive_ShadowrunLethalKill` — katana kills the armored ganger through its body+armor soak → lootable corpse. The firearm+ammo path uses the same default route; ammo mechanic itself still unexercised.)*
 - [ ] Cyberware equipped/removed shifts the sourced attribute (via `srckey`), visible on `score`. *(no cyberware items authored yet.)*
 - [ ] Nuyen is earned/spent at a shop. *(earned via loot ✅ — auto-credited from ganger/sec-guard corpses; no vendor/shop to spend at yet.)*
-- [ ] Advancement runs on the existing engine (karma-as-XP, D3) — a kill grants karma, a track advances. *(SR mobs carry `xp_value`; the grouping kill-XP seam awards it — not yet asserted on an SR boot.)*
+- [x] Advancement runs on the existing engine (karma-as-XP, D3) — a kill grants karma, a track advances. *(`TestLive_ShadowrunKarmaAdvance`: a ganger kill banks 30 on the street-samurai's `street`/"The Long Run" track, and crossing 100 XP advances it to Level 2. REQUIRED an engine fix — a character's primary track (kill-XP target + `score` headline) now derives from its class `bound_track`, not the global `DefaultXPTrack="adventurer"`. Previously an SR/WoT character earned + displayed the core `adventurer` track and its own world track was inert.)*
 
 **Why third:** with M1+M2 in place this is *mostly content*, and it's the validation gate — a genuinely playable, if simplified, Street Samurai.
 

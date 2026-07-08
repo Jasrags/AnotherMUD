@@ -105,6 +105,30 @@ func (a *connActor) characterLevel() int {
 	return total
 }
 
+// PrimaryTrack resolves the actor's headline advancement track: the bound_track
+// of its first bound class. This is the track a world-locked character actually
+// earns kill-XP on and displays on `score` (character-identity: an SR street-
+// samurai advances "street"/The Long Run, a WoT armsman "martial", not core's
+// engine-default "adventurer"). Multiclass: the first bound class wins. Falls
+// back to the given default when the character is classless or its class has no
+// bound_track. Mirrors characterLevel's bound-track resolution.
+func (a *connActor) PrimaryTrack(fallback string) string {
+	for _, cid := range a.ClassIDs() {
+		a.mu.Lock()
+		bound := ""
+		if a.classes != nil {
+			if cls, ok := a.classes.Get(cid); ok {
+				bound = cls.BoundTrack
+			}
+		}
+		a.mu.Unlock()
+		if bound != "" {
+			return bound
+		}
+	}
+	return fallback
+}
+
 // FeatCredits is declared on connActor in session.go (Phase 2). KnownFeats and
 // the take/list verbs below complete the EPIC S4 Phase 4 feat-actor surface.
 
