@@ -114,6 +114,30 @@ Content inventory:
 
 **Why third:** with M1+M2 in place this is *mostly content*, and it's the validation gate — a genuinely playable, if simplified, Street Samurai.
 
+### SR-M3d — Firearm + ammo: the in-room firefight tail  · **Small (mostly proof + one content call)**
+
+> **STATUS: substrate BUILT + content authored; needs a live proof + one semantics decision.** SR-M3's combat proofs used the katana (melee), leaving the acceptance-[108] "firearm+ammo mechanic unexercised" tail. But the engine's ranged/ammo system already ships and is fully wired: the `AmmoFor` round-loop hook (`cmd/anothermud/main.go:2064` → `session.AmmoConsumer`, `session.go:3412`) spends one matching ammo unit per projectile swing and skips the swing when dry (`OnRangedDry` narrates the click, `main.go:4587`); range bands + a melee-band to-hit penalty exist (`internal/combat/band.go`, autoattack `MeleeBandPenalty`); the `throw`/`shoot`/`load` verbs are registered. The SR firearms are already authored for it — `heavy-pistol`/`smg` carry `ranged_class: projectile` + `ammo_kind: bullet`, `ammo-clip` carries `ammo_kind: bullet`. **So a Street Samurai can wield the pistol and fire it, consuming ammo per shot and clicking empty when dry — today, untested.** This isn't greenfield; it's finish-and-prove.
+
+**The slice:**
+1. **Live proof (the deliverable).** `TestLive_ShadowrunFirearm`: a Street Samurai wields the heavy-pistol, holds a stack of `bullet` ammo, and kills the ganger IN-ROOM (single district = melee band, so firing takes the melee-band penalty — SR5 allows a gun in melee at a penalty). Assert: (a) the ammo count decrements per shot; (b) lethal fire lands on the Physical monitor (default route) through the target's soak — the katana proof, now via a firearm; (c) with ammo exhausted the next shot clicks empty (`RangedDry` → swing skipped + dry-fire narration). Fix whatever it surfaces (e.g. the AmmoConsumer not resolving the SR clip, or the melee-band penalty stalling the fight — buff/`restore` as the other SR live tests do).
+
+2. **The one content decision — clip vs round.** Today the AmmoConsumer spends ONE `ammo-clip` ITEM per shot, so a "clip" reads as a single bullet.
+   - **A — per-shot round (MVP lean):** treat each stackable ammo unit as one round; rename `ammo-clip` → "a box of caseless rounds" so a stack = rounds, one burned per shot. Reuses the bow/arrow model exactly. **Zero engine change** — a content rename + the test.
+   - **B — magazine capacity (post-MVP, own slice):** a clip = N loaded rounds; a `reload` flow consumes a clip and loads N onto a per-weapon loaded-count (distinct from the crossbow's single-shot `ReloadTicks`); each shot decrements; empty → reload. The authentic SR model, but it needs a new weapon-state field + a reload verb/flow — **Medium Go.**
+   Recommend **A** for the MVP firefight; defer **B**.
+
+3. **Verify melee-band firing** (likely already works): a pistol at the melee band fires with `MeleeBandPenalty`; confirm the SR firefight resolves rather than stalling on the penalty.
+
+**Deferred to their own slices (post-MVP polish):** magazine capacity + reload flow (B above); SMG **burst / full-auto** (multiple shots per action, proportionally more ammo — a new action shape); the `shoot` **cross-room** model for SR (corp-plaza sniping across the district — the range bands + Model C already support it; SR content just doesn't place a cross-room engagement yet).
+
+**Acceptance criteria**
+- [ ] A Street Samurai wields the heavy-pistol and kills the ganger in-room; each shot spends one `bullet` unit (ammo count drops).
+- [ ] With ammo exhausted, the next shot clicks empty (`RangedDry`) and is skipped, narrated to the player.
+- [ ] Lethal fire lands on the Physical monitor (default route) with the target's soak applied — same outcome as the katana proof, via a firearm.
+- [ ] Clip-vs-round semantics resolved (Option A: content reads as rounds).
+
+**Size: Small** — a live test + a content rename + whatever the test surfaces. The magazine model (B), burst-fire, and SR cross-room are separate slices.
+
 ### SR-M4 — Essence pool + `degrades: magic`  · **Small Go · OPTIONAL (mage prerequisite)**
 
 `pool.Rules.Degrades` is built but used by nobody (plan §4.4). An `essence` pool whose `current` clamps a `magic` channel max is the textbook use. **Not required for a mundane Street Samurai** — sequence it when the *first mage/adept* is on the table, or as a "close the Essence-is-exotic myth" demo.
