@@ -17,9 +17,11 @@ import (
 // threshold returns -1 (the sentinel for "undefined") and
 // GrantExperience cascades stop immediately.
 type TrackDef struct {
-	// Name is the case-sensitive stable identity. Tracks are looked
-	// up by exact match — content authors that want a different
-	// display string layer that on top.
+	// Name is the stable identity, canonicalized to lowercase at
+	// Register and on lookup (like ability/class/attribute ids), so a
+	// class `bound_track` resolves regardless of authored case.
+	// Content authors that want a display string layer that on
+	// DisplayName below.
 	Name string
 
 	// DisplayName is the human-facing label. Falls back to Name in
@@ -125,11 +127,22 @@ func NewTrackRegistry() *TrackRegistry {
 // loader surfaces a precise error. Cross-cutting validation (does
 // every class's bound track exist?) is the class registry's
 // concern.
+// canonTrackName normalizes a track name to its canonical lookup key —
+// lowercased + trimmed, mirroring ability/attribute id normalization. Track
+// names key BOTH the registry and per-character progression state, and a
+// class's `bound_track` is authored freely, so a `bound_track: Martial` against
+// a registered `martial` must resolve to one key. Without this the grant path
+// (case-sensitive `Get`) silently misses while `score` (EqualFold) still shows
+// a level — XP that appears earned but is never banked.
+func canonTrackName(s string) string {
+	return strings.ToLower(strings.TrimSpace(s))
+}
+
 func (r *TrackRegistry) Register(t *TrackDef) error {
 	if t == nil {
 		return fmt.Errorf("progression: nil TrackDef")
 	}
-	name := strings.TrimSpace(t.Name)
+	name := canonTrackName(t.Name)
 	if name == "" {
 		return fmt.Errorf("progression: track missing name")
 	}
@@ -152,6 +165,7 @@ func (r *TrackRegistry) Register(t *TrackDef) error {
 // miss. Returns a pointer to the registry-owned struct — callers
 // MUST NOT mutate it.
 func (r *TrackRegistry) Get(name string) (*TrackDef, bool) {
+	name = canonTrackName(name)
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 	t, ok := r.tracks[name]
@@ -160,6 +174,7 @@ func (r *TrackRegistry) Get(name string) (*TrackDef, bool) {
 
 // Has reports whether a track is registered under name.
 func (r *TrackRegistry) Has(name string) bool {
+	name = canonTrackName(name)
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 	_, ok := r.tracks[name]

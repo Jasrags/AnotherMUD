@@ -67,6 +67,7 @@ type GrantResult struct {
 // current totals with XPAdded=0); the spec does not specify
 // negative grants here — DeductExperience is the explicit path.
 func (m *Manager) GrantExperience(ctx context.Context, state *ProgressionState, entityID, trackName string, amount int64, source string) GrantResult {
+	trackName = canonTrackName(trackName) // one key for the registry AND the state map
 	if state == nil {
 		return GrantResult{Track: trackName, TrackUnknown: true}
 	}
@@ -140,6 +141,7 @@ type DeductResult struct {
 // below this floor. Emits progression.xp.lost only when actual
 // loss > 0 (spec §5.5).
 func (m *Manager) DeductExperience(ctx context.Context, state *ProgressionState, entityID, trackName string, amount int64) DeductResult {
+	trackName = canonTrackName(trackName) // one key for the registry AND the state map
 	if state == nil {
 		return DeductResult{Track: trackName, TrackUnknown: true}
 	}
@@ -203,6 +205,7 @@ type TrackInfo struct {
 // Returns (zero, false) if the track is unknown. Lazy-inits the
 // state under its lock so subsequent reads see level 1.
 func (m *Manager) GetTrackInfo(state *ProgressionState, trackName string) (TrackInfo, bool) {
+	trackName = canonTrackName(trackName) // canonical key, matching GrantExperience
 	if state == nil {
 		return TrackInfo{}, false
 	}
@@ -240,6 +243,7 @@ func (m *Manager) GetTrackInfo(state *ProgressionState, trackName string) (Track
 // progression.track.reset. The level reset is downward, so no
 // level-up cascade fires (spec §5.7).
 func (m *Manager) ResetTrack(ctx context.Context, state *ProgressionState, entityID, trackName string) {
+	trackName = canonTrackName(trackName) // symmetry with the other entry points — one state key
 	if state == nil {
 		return
 	}

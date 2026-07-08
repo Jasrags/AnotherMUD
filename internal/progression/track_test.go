@@ -129,11 +129,22 @@ func TestTrackRegistryPriorityOverride(t *testing.T) {
 	}
 }
 
-func TestTrackRegistryCaseSensitive(t *testing.T) {
+func TestTrackRegistryCaseInsensitive(t *testing.T) {
+	// Track names are canonicalized (lowercased) at Register + lookup, like
+	// ability/class/attribute ids — so a class `bound_track` and a registered
+	// track resolve to one key regardless of authored case (a mis-cased
+	// bound_track otherwise showed a level on `score` but banked no XP).
 	r := progression.NewTrackRegistry()
 	_ = r.Register(&progression.TrackDef{Name: "Fighter", MaxLevel: 10})
-	if r.Has("fighter") {
-		t.Error("Has(fighter) = true but only Fighter was registered (spec: case-sensitive)")
+	if !r.Has("fighter") {
+		t.Error("Has(fighter) = false; a track registered as Fighter must resolve case-insensitively")
+	}
+	got, ok := r.Get("FIGHTER")
+	if !ok {
+		t.Fatal("Get(FIGHTER) missed a track registered as Fighter")
+	}
+	if got.Name != "fighter" {
+		t.Errorf("Name = %q, want the canonical lowercase %q", got.Name, "fighter")
 	}
 }
 

@@ -405,7 +405,17 @@ func (m *Manager) GrantKillXP(ctx context.Context, prog *progression.Manager, fa
 		return
 	}
 	for _, a := range recipients {
-		a.GrantXP(ctx, prog, a.PrimaryTrack(fallbackTrack), "kill", share)
+		res := a.GrantXP(ctx, prog, a.PrimaryTrack(fallbackTrack), "kill", share)
+		if res.TrackUnknown {
+			// The recipient's primary track isn't registered — a class
+			// `bound_track` typo, or a track from an unloaded pack. Nothing was
+			// banked, so don't claim a phantom "You gain N experience." Logged so
+			// a content author sees the miss instead of it vanishing silently.
+			logging.From(ctx).Warn("kill xp targeted an unknown track — nothing banked",
+				slog.String("event", "kill_xp.track_unknown"),
+				slog.String("track", res.Track))
+			continue
+		}
 		_ = a.Write(ctx, fmt.Sprintf("You gain %d experience.", share))
 	}
 }

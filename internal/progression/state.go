@@ -37,6 +37,7 @@ func NewProgressionState() *ProgressionState {
 // Manager.GrantExperience) lazy-inits to 1 on first interaction
 // per spec §5.3.
 func (s *ProgressionState) Level(track string) int {
+	track = canonTrackName(track) // one key for direct reads AND Manager writes
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	return s.levels[track]
@@ -45,6 +46,7 @@ func (s *ProgressionState) Level(track string) int {
 // XP returns the entity's total XP on track. Returns 0 for an
 // uninitialized track.
 func (s *ProgressionState) XP(track string) int64 {
+	track = canonTrackName(track)
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	return s.xp[track]
@@ -53,6 +55,7 @@ func (s *ProgressionState) XP(track string) int64 {
 // setLocked updates both level and XP under the state's lock.
 // Package-private — callers go through Manager.
 func (s *ProgressionState) setLocked(track string, level int, xp int64) {
+	track = canonTrackName(track)
 	s.levels[track] = level
 	s.xp[track] = xp
 }
@@ -101,11 +104,14 @@ func (s *ProgressionState) Restore(snap ProgressionSnapshot) {
 	s.levels = make(map[string]int, len(snap))
 	s.xp = make(map[string]int64, len(snap))
 	for _, e := range snap {
+		// Canonicalize on load so a pre-fix save with a mixed-case track key
+		// normalizes to the one canonical key rather than orphaning its XP.
+		name := canonTrackName(e.Name)
 		if e.Level > 0 {
-			s.levels[e.Name] = e.Level
+			s.levels[name] = e.Level
 		}
 		if e.XP > 0 {
-			s.xp[e.Name] = e.XP
+			s.xp[name] = e.XP
 		}
 	}
 }
