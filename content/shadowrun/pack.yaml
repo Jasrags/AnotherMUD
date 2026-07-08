@@ -61,6 +61,10 @@ content:
     - backgrounds/*.yaml
   # Weapons, armour, and ammo (SR-M3c-2): firearms + katana + the stun baton
   # (target_pool: stun) and armour that feeds the Shadowrun soak.
+  # The cyberware slot (SR-M3c [98]) — installed augmentations, distinct from
+  # worn gear. Must load before item validation resolves eligible_slots.
+  slots:
+    - slots/*.yaml
   items:
     - items/*.yaml
   areas:

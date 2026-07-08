@@ -1,0 +1,17 @@
+id: cybereyes
+name: cybereyes
+type: item
+description: |
+  Replacement eyes with a smartlink feed, flare compensation, and a low-light
+  layer — the sprawl reads like a map and nothing catches you blind. The
+  attribute shift stands in for that heightened awareness; the low-light /
+  thermographic vision itself is flavor until a light/visibility consumer reads
+  it. (Essence 0.2 — flavor only; SR-M4.)
+tags: [cyberware, augmentation]
+keywords: [cybereyes, eyes, optics, cyberware]
+eligible_slots: [cyberware]
+modifiers:
+  - { stat: intuition, value: 1 }
+properties:
+  weight: 0
+  value: 4000

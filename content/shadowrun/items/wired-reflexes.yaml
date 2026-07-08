@@ -1,0 +1,18 @@
+id: wired-reflexes
+name: wired reflexes
+type: item
+description: |
+  A lattice of synthetic nerve fibre laid alongside your own, trading a sliver
+  of your soul for reaction speed no meat can match. The world slows; you do
+  not. (Essence 2.0 — flavor only in this build; real Essence decay is SR-M4.)
+tags: [cyberware, augmentation]
+keywords: [wired reflexes, reflexes, wires, cyberware]
+# Installed cyberware, not worn gear — occupies the cyberware slot. The modifier
+# rides the standard equip pipeline: on `equip` it adds to Reaction under the
+# item's EquipmentSourceKey; on `unequip` it comes off. Visible on `score`.
+eligible_slots: [cyberware]
+modifiers:
+  - { stat: reaction, value: 2 }
+properties:
+  weight: 0        # inside you — no carry weight
+  value: 39000     # nuyen; the classic Street Samurai chrome is not cheap

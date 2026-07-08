@@ -1,0 +1,9 @@
+# The cyberware slot: installed augmentations, distinct from worn gear so chrome
+# never competes with a jacket or a weapon. Max 3 keeps the MVP loadout small
+# (the Essence budget that would really bound it is SR-M4 — flavor only here).
+# Cyberware items shift SR attributes through the standard equip → srckey → stat
+# pipeline (item modifiers), so equip/unequip raise/lower the attribute on
+# `score` with no bespoke code.
+name: cyberware
+label: installed cyberware
+max: 3

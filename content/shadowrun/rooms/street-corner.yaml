@@ -21,6 +21,11 @@ items:
   - ammo-clip
   - stun-baton
   - armored-jacket
+  # A ripperdoc's sample tray — demo cyberware to `get` + `equip` into the
+  # cyberware slot; each shifts an SR attribute on `score` (SR-M3c [98]).
+  - wired-reflexes
+  - muscle-replacement
+  - cybereyes
 # A safe hub: no combat, no spawns — a place to stand, read `score`, gear up, and
 # confirm the runner seeded correctly. `safe` also satisfies the training
 # safe-room gate.

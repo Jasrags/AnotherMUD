@@ -1,0 +1,16 @@
+id: muscle-replacement
+name: muscle replacement
+type: item
+description: |
+  Vat-grown myomer bundles spliced over your own musculature — you hit harder
+  and shrug off more than your frame has any right to. It aches in the cold and
+  sets off every scanner in the corp zone. (Essence 1.0 — flavor only; SR-M4.)
+tags: [cyberware, augmentation]
+keywords: [muscle replacement, muscle, myomer, cyberware]
+eligible_slots: [cyberware]
+modifiers:
+  - { stat: strength, value: 1 }
+  - { stat: body, value: 1 }
+properties:
+  weight: 0
+  value: 25000
