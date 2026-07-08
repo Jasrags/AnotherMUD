@@ -1,0 +1,17 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "f=$(jq -r \".tool_input.file_path // .tool_response.filePath // empty\"); [ -z \"$f\" ] && exit 0; case \"$f\" in *.go) ;; *) exit 0 ;; esac; gofmt -w \"$f\"; d=$(dirname \"$f\"); out=$(cd \"$d\" && go vet . 2>&1) || { echo \"go vet failed in $d:\" >&2; echo \"$out\" >&2; exit 2; }",
+            "timeout": 60,
+            "statusMessage": "gofmt + go vet"
+          }
+        ]
+      }
+    ]
+  }
+}
