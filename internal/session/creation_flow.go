@@ -95,9 +95,9 @@ var genderOptions = []wizard.Option{
 func CreationFlowFor(world string, races *progression.RaceRegistry, classes *progression.ClassRegistry, backgrounds *progression.BackgroundRegistry, feats *feat.Registry) *wizard.Flow {
 	switch strings.ToLower(strings.TrimSpace(world)) {
 	case "wot":
-		return newWoTCreationFlow(races, classes, backgrounds, feats)
+		return newWoTCreationFlow(world, races, classes, backgrounds, feats)
 	default:
-		return NewCreationFlow(races, classes, backgrounds, feats)
+		return newDefaultCreationFlow(world, races, classes, backgrounds, feats)
 	}
 }
 
@@ -112,11 +112,19 @@ func CreationFlowFor(world string, races *progression.RaceRegistry, classes *pro
 // no backgrounds) so the caller takes the §2 "no flow → immediate commit"
 // path.
 func NewCreationFlow(races *progression.RaceRegistry, classes *progression.ClassRegistry, backgrounds *progression.BackgroundRegistry, feats *feat.Registry) *wizard.Flow {
+	return newDefaultCreationFlow("", races, classes, backgrounds, feats)
+}
+
+// newDefaultCreationFlow is NewCreationFlow with the active world threaded in for
+// menu scoping (a world's own classes/backgrounds hide the tapestry-core
+// baseline; see worldClassFilter). world == "" disables scoping — the shape the
+// unit-test NewCreationFlow wrapper uses.
+func newDefaultCreationFlow(world string, races *progression.RaceRegistry, classes *progression.ClassRegistry, backgrounds *progression.BackgroundRegistry, feats *feat.Registry) *wizard.Flow {
 	if !hasCreationContent(races, classes, backgrounds) {
 		return nil
 	}
 	steps := []wizard.Step{introStep(), genderStep()}
-	steps = appendCreationContent(steps, races, classes, backgrounds, feats, false)
+	steps = appendCreationContent(steps, world, races, classes, backgrounds, feats, false)
 	steps = append(steps, confirmStep())
 	return creationFlow(steps)
 }
@@ -133,12 +141,12 @@ func NewCreationFlow(races *progression.RaceRegistry, classes *progression.Class
 // engine evaluates Skip against the channeling gift chosen two steps earlier);
 // no wizard-engine change is needed. Returns nil on empty content for the same
 // reason NewCreationFlow does.
-func newWoTCreationFlow(races *progression.RaceRegistry, classes *progression.ClassRegistry, backgrounds *progression.BackgroundRegistry, feats *feat.Registry) *wizard.Flow {
+func newWoTCreationFlow(world string, races *progression.RaceRegistry, classes *progression.ClassRegistry, backgrounds *progression.BackgroundRegistry, feats *feat.Registry) *wizard.Flow {
 	if !hasCreationContent(races, classes, backgrounds) {
 		return nil
 	}
 	steps := []wizard.Step{introStep(), genderStep(), channelingStep()}
-	steps = appendCreationContent(steps, races, classes, backgrounds, feats, true)
+	steps = appendCreationContent(steps, world, races, classes, backgrounds, feats, true)
 	steps = append(steps, confirmStep())
 	return creationFlow(steps)
 }
@@ -158,21 +166,66 @@ func hasCreationContent(races *progression.RaceRegistry, classes *progression.Cl
 // channeling gift (the WoT decoupled capability gate, now one dynamic step
 // instead of two Skip-gated ones). The two background-choice steps Skip unless
 // the chosen background offers ≥2 options. Shared by every flow builder.
-func appendCreationContent(steps []wizard.Step, races *progression.RaceRegistry, classes *progression.ClassRegistry, backgrounds *progression.BackgroundRegistry, feats *feat.Registry, giftGated bool) []wizard.Step {
+func appendCreationContent(steps []wizard.Step, world string, races *progression.RaceRegistry, classes *progression.ClassRegistry, backgrounds *progression.BackgroundRegistry, feats *feat.Registry, giftGated bool) []wizard.Step {
 	if races != nil && len(races.All()) > 0 {
 		steps = append(steps, raceStep(raceOptions(races)))
 	}
 	if classes != nil && len(classes.All()) > 0 {
-		steps = append(steps, dynamicClassStep(classes, races, giftGated))
+		steps = append(steps, dynamicClassStep(world, classes, races, giftGated))
 	}
 	if backgrounds != nil && len(backgrounds.All()) > 0 {
 		steps = append(steps,
-			dynamicBackgroundStep(backgrounds, races),
+			dynamicBackgroundStep(world, backgrounds, races),
 			backgroundFeatStep(backgrounds, feats),
 			backgroundEquipmentStep(backgrounds),
 		)
 	}
 	return steps
+}
+
+// worldClassFilter returns a keep-predicate that scopes the creation class menu
+// to the active world's OWN classes when it registered any — hiding the
+// tapestry-core baseline (`fighter`) that every world inherits via the core
+// dependency. A world that ships no classes of its own inherits all registered
+// classes (the core baseline is then the only source). world == "" (the
+// unit-test NewCreationFlow path) disables scoping. Composed with the
+// eligibility + gift filters in dynamicClassStep.
+func worldClassFilter(classes *progression.ClassRegistry, world string) func(*progression.Class) bool {
+	pass := func(*progression.Class) bool { return true }
+	if world == "" || classes == nil {
+		return pass
+	}
+	owns := false
+	for _, c := range classes.All() {
+		if strings.EqualFold(c.Pack, world) {
+			owns = true
+			break
+		}
+	}
+	if !owns {
+		return pass
+	}
+	return func(c *progression.Class) bool { return strings.EqualFold(c.Pack, world) }
+}
+
+// worldBackgroundFilter is worldClassFilter for backgrounds — a world that ships
+// its own backgrounds hides tapestry-core's `commoner`.
+func worldBackgroundFilter(backgrounds *progression.BackgroundRegistry, world string) func(*progression.Background) bool {
+	pass := func(*progression.Background) bool { return true }
+	if world == "" || backgrounds == nil {
+		return pass
+	}
+	owns := false
+	for _, b := range backgrounds.All() {
+		if strings.EqualFold(b.Pack, world) {
+			owns = true
+			break
+		}
+	}
+	if !owns {
+		return pass
+	}
+	return func(b *progression.Background) bool { return strings.EqualFold(b.Pack, world) }
 }
 
 // eligibilityOf returns the (race category, gender) of an in-creation entity,
@@ -192,11 +245,15 @@ func eligibilityOf(ce *creationEntity, races *progression.RaceRegistry) (categor
 // they are further filtered by the chosen channeling gift (Class.AllowsGift) —
 // the WoT capability gate. One dynamic step replaces the prior two Skip-gated
 // gift steps.
-func dynamicClassStep(classes *progression.ClassRegistry, races *progression.RaceRegistry, giftGated bool) *wizard.ChoiceStep {
+func dynamicClassStep(world string, classes *progression.ClassRegistry, races *progression.RaceRegistry, giftGated bool) *wizard.ChoiceStep {
+	worldKeep := worldClassFilter(classes, world)
 	options := func(e wizard.Entity) []wizard.Option {
 		ce := e.(*creationEntity)
 		cat, gen := eligibilityOf(ce, races)
 		return classOptionsFiltered(classes, func(c *progression.Class) bool {
+			if !worldKeep(c) {
+				return false
+			}
 			if !c.EligibleFor(cat, gen) {
 				return false
 			}
@@ -222,12 +279,13 @@ func dynamicClassStep(classes *progression.ClassRegistry, races *progression.Rac
 // dynamicBackgroundStep offers the backgrounds the entity is eligible for (race
 // category + gender) — closing the standing "wizard never calls GetEligible"
 // gap on the same dynamic-options seam.
-func dynamicBackgroundStep(backgrounds *progression.BackgroundRegistry, races *progression.RaceRegistry) *wizard.ChoiceStep {
+func dynamicBackgroundStep(world string, backgrounds *progression.BackgroundRegistry, races *progression.RaceRegistry) *wizard.ChoiceStep {
+	worldKeep := worldBackgroundFilter(backgrounds, world)
 	options := func(e wizard.Entity) []wizard.Option {
 		ce := e.(*creationEntity)
 		cat, gen := eligibilityOf(ce, races)
 		return backgroundOptionsFiltered(backgrounds, func(b *progression.Background) bool {
-			return b.EligibleFor(cat, gen)
+			return worldKeep(b) && b.EligibleFor(cat, gen)
 		})
 	}
 	return &wizard.ChoiceStep{

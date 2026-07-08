@@ -49,23 +49,15 @@ func TestLive_ShadowrunKarmaAdvance(t *testing.T) {
 		t.Fatalf("dial: %v", err)
 	}
 	defer c.Close()
-	// Explicitly select the Shadowrun class + background: the default wizard flow
-	// picks the FIRST offered option, which today is tapestry-core's `fighter`
-	// (on the `adventurer` track) — the shadowrun world has no CreationFlowFor
-	// customization yet, so core classes leak into its creation menu. Selecting
-	// street-samurai gets us a real Street Samurai on the SR `street` track.
-	isNew, err := doLogin(c, "Runner")
-	if err != nil {
-		t.Fatalf("login: %v", err)
-	}
-	// Answers are matched by case-insensitive LABEL prefix (wizard resolveChoice),
-	// not by id — so "Street Samurai"/"Street Kid" (the display labels), not the
-	// hyphenated ids.
-	if err := finishLogin(c, "Runner", isNew, map[string]string{
-		"class":      "Street Samurai",
-		"background": "Street Kid",
-	}); err != nil {
-		t.Fatalf("create Street Samurai: %v", err)
+	// The DEFAULT wizard flow now yields a Street Samurai — the [94] fix.
+	// world-scoped class/background menus mean the shadowrun world offers only
+	// its own `street-samurai`/`street-kid` (tapestry-core's `fighter`/`commoner`
+	// no longer leak in), so createAndLogin's first-option picks build a real
+	// Street Samurai on "The Long Run". If the world-scoping regresses, core
+	// `fighter` returns as the default and the "The Long Run" assertion below
+	// fails — the guard.
+	if err := createAndLogin(c, "Runner"); err != nil {
+		t.Fatalf("create+login: %v", err)
 	}
 
 	send := func(line string) string {

@@ -8,6 +8,75 @@ import (
 	"github.com/Jasrags/AnotherMUD/internal/wizard"
 )
 
+// TestWorldClassFilter covers the [94] fix: a world's creation class menu is
+// scoped to its OWN classes when it ships any (hiding the tapestry-core baseline
+// that leaks in via the dependency), and inherits all registered classes when it
+// ships none.
+func TestWorldClassFilter(t *testing.T) {
+	cr := progression.NewClassRegistry()
+	must := func(c *progression.Class) {
+		t.Helper()
+		if err := cr.Register(c); err != nil {
+			t.Fatalf("register %s: %v", c.ID, err)
+		}
+	}
+	must(&progression.Class{ID: "fighter", Pack: "tapestry-core"})
+	must(&progression.Class{ID: "street-samurai", Pack: "shadowrun"})
+	fighter, _ := cr.Get("fighter")
+	sam, _ := cr.Get("street-samurai")
+
+	// A world that ships its own classes offers ONLY those — core fighter hidden.
+	keep := worldClassFilter(cr, "shadowrun")
+	if keep(fighter) {
+		t.Errorf("core fighter should be hidden from the shadowrun creation menu")
+	}
+	if !keep(sam) {
+		t.Errorf("street-samurai should be offered in shadowrun")
+	}
+	// Case-insensitive pack match.
+	if !worldClassFilter(cr, "SHADOWRUN")(sam) {
+		t.Errorf("world/pack match should be case-insensitive")
+	}
+	// A world that owns NO classes inherits all (the core baseline is the source).
+	inherit := worldClassFilter(cr, "starter-world")
+	if !inherit(fighter) || !inherit(sam) {
+		t.Errorf("a world with no own classes should offer all registered classes")
+	}
+	// world == "" (the unit-test NewCreationFlow path) disables scoping.
+	unscoped := worldClassFilter(cr, "")
+	if !unscoped(fighter) || !unscoped(sam) {
+		t.Errorf("empty world should disable scoping (unfiltered)")
+	}
+}
+
+// TestWorldBackgroundFilter is TestWorldClassFilter for backgrounds — a world
+// that ships its own backgrounds hides tapestry-core's commoner.
+func TestWorldBackgroundFilter(t *testing.T) {
+	br := progression.NewBackgroundRegistry()
+	must := func(b *progression.Background) {
+		t.Helper()
+		if err := br.Register(b); err != nil {
+			t.Fatalf("register %s: %v", b.ID, err)
+		}
+	}
+	must(&progression.Background{ID: "commoner", Pack: "tapestry-core"})
+	must(&progression.Background{ID: "street-kid", Pack: "shadowrun"})
+	commoner, _ := br.Get("commoner")
+	kid, _ := br.Get("street-kid")
+
+	keep := worldBackgroundFilter(br, "shadowrun")
+	if keep(commoner) {
+		t.Errorf("core commoner should be hidden from the shadowrun creation menu")
+	}
+	if !keep(kid) {
+		t.Errorf("street-kid should be offered in shadowrun")
+	}
+	inherit := worldBackgroundFilter(br, "starter-world")
+	if !inherit(commoner) || !inherit(kid) {
+		t.Errorf("a world with no own backgrounds should offer all registered")
+	}
+}
+
 // stepIDs returns the ordered step IDs of a flow (nil flow → nil) for
 // structural comparison.
 func stepIDs(flow *wizard.Flow) []string {
