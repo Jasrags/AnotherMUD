@@ -1,6 +1,7 @@
 id: town-square
 area: town
 name: Town Square
+terrain: road
 description: |
   Worn cobblestones spread out beneath your feet, polished smooth by
   generations of foot-traffic. A weathered notice board leans against

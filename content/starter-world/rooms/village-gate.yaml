@@ -1,6 +1,7 @@
 id: village-gate
 area: wilderness
 name: "{G}The Village Gate{x}"
+terrain: road
 description: |
   A low wooden gatehouse marks the line between Hearthwick and the
   open land beyond. The road back into the village runs north; ahead,
