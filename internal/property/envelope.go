@@ -11,14 +11,14 @@ import "fmt"
 // Complex shapes (lists, maps) fall back to whatever the
 // underlying format serializes naturally.
 type TaggedValue struct {
-	Kind  string      `yaml:"kind"`
-	Value interface{} `yaml:"value"`
+	Kind  string `yaml:"kind"`
+	Value any    `yaml:"value"`
 }
 
 // Wrap returns a TaggedValue carrying v with the appropriate kind
 // string. Returns an error for non-primitive values — the envelope
 // is for primitives only.
-func Wrap(v interface{}) (TaggedValue, error) {
+func Wrap(v any) (TaggedValue, error) {
 	switch x := v.(type) {
 	case string:
 		return TaggedValue{Kind: "string", Value: x}, nil
@@ -38,15 +38,15 @@ func Wrap(v interface{}) (TaggedValue, error) {
 // IsTagged reports whether v looks like a tagged envelope. Accepts
 // both the strongly-typed TaggedValue and a map[string]any with
 // `kind` + `value` keys (YAML's default decode produces the map).
-func IsTagged(v interface{}) bool {
+func IsTagged(v any) bool {
 	switch x := v.(type) {
 	case TaggedValue:
 		return x.Kind != ""
-	case map[string]interface{}:
+	case map[string]any:
 		_, hasKind := x["kind"]
 		_, hasVal := x["value"]
 		return hasKind && hasVal
-	case map[interface{}]interface{}:
+	case map[any]any:
 		_, hasKind := x["kind"]
 		_, hasVal := x["value"]
 		return hasKind && hasVal
@@ -75,11 +75,11 @@ const maxUnwrapDepth = 16
 // today's loader. After maxUnwrapDepth iterations the walk stops
 // and treats the remaining value as the inner — preventing a
 // runaway loop on adversarial input.
-func Unwrap(v interface{}) (inner interface{}, kind string, wasTagged bool) {
+func Unwrap(v any) (inner any, kind string, wasTagged bool) {
 	current := v
 	deepestKind := ""
 	tagged := false
-	for depth := 0; depth < maxUnwrapDepth; depth++ {
+	for range maxUnwrapDepth {
 		k, next, ok := unwrapOne(current)
 		if !ok {
 			return current, deepestKind, tagged
@@ -94,14 +94,14 @@ func Unwrap(v interface{}) (inner interface{}, kind string, wasTagged bool) {
 // unwrapOne returns (kind, innerValue, true) if v is a tagged
 // envelope (either TaggedValue or a map literal); else
 // ("", v, false). One level of unwrapping.
-func unwrapOne(v interface{}) (string, interface{}, bool) {
+func unwrapOne(v any) (string, any, bool) {
 	switch x := v.(type) {
 	case TaggedValue:
 		if x.Kind == "" {
 			return "", v, false
 		}
 		return x.Kind, x.Value, true
-	case map[string]interface{}:
+	case map[string]any:
 		k, hasKind := x["kind"]
 		val, hasVal := x["value"]
 		if !hasKind || !hasVal {
@@ -112,7 +112,7 @@ func unwrapOne(v interface{}) (string, interface{}, bool) {
 			return "", v, false
 		}
 		return ks, val, true
-	case map[interface{}]interface{}:
+	case map[any]any:
 		k, hasKind := x["kind"]
 		val, hasVal := x["value"]
 		if !hasKind || !hasVal {

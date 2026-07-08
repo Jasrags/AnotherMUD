@@ -301,6 +301,7 @@ type CharCombat struct {
 //   - `source` is the SourceAbilityID — the ability that produced
 //     the effect. Empty for admin-applied or world-hook effects;
 //     omitted in that case so the panel can hide the source label.
+//
 // CharWizardStep is the Char.Wizard payload: one rendered
 // character-creation step (spec character-creation §5). Type is one
 // of "info" | "choice" | "text" | "confirm". Options carries the

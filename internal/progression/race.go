@@ -2,6 +2,7 @@ package progression
 
 import (
 	"fmt"
+	"maps"
 	"sort"
 	"strings"
 	"sync"
@@ -125,16 +126,12 @@ func (rg *RaceRegistry) Register(r *Race) error {
 	clone.ID = id
 	if len(r.StatCaps) > 0 {
 		caps := make(map[StatType]int, len(r.StatCaps))
-		for k, v := range r.StatCaps {
-			caps[k] = v
-		}
+		maps.Copy(caps, r.StatCaps)
 		clone.StatCaps = caps
 	}
 	if len(r.StatBonuses) > 0 {
 		bonuses := make(map[StatType]int, len(r.StatBonuses))
-		for k, v := range r.StatBonuses {
-			bonuses[k] = v
-		}
+		maps.Copy(bonuses, r.StatBonuses)
 		clone.StatBonuses = bonuses
 	}
 	if len(r.RacialFlags) > 0 {

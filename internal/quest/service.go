@@ -2,6 +2,7 @@ package quest
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 	"sync"
 )
@@ -256,10 +257,8 @@ func (s *Service) prereqMet(player Player, st *State, p Prerequisite) bool {
 			return false
 		}
 	}
-	for _, q := range p.QuestsNotCompleted {
-		if st.hasCompleted(q) {
-			return false
-		}
+	if slices.ContainsFunc(p.QuestsNotCompleted, st.hasCompleted) {
+		return false
 	}
 	for _, fr := range p.Faction {
 		if fr.Faction == "" {

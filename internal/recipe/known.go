@@ -1,7 +1,7 @@
 package recipe
 
 import (
-	"sort"
+	"slices"
 	"strings"
 	"sync"
 )
@@ -79,7 +79,7 @@ func (m *KnownManager) Recipes(entityID string) []RecipeID {
 	}
 	// Sorting a local copy under the read lock is harmless and keeps the
 	// unlock on a single defer (no early-return lock-leak hazard).
-	sort.Slice(out, func(i, j int) bool { return out[i] < out[j] })
+	slices.Sort(out)
 	return out
 }
 
@@ -170,6 +170,6 @@ func (m *KnownManager) GrantBaseline(entityID, discipline string) []RecipeID {
 	}
 	m.mu.Unlock()
 
-	sort.Slice(learned, func(i, j int) bool { return learned[i] < learned[j] })
+	slices.Sort(learned)
 	return learned
 }

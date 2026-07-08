@@ -256,7 +256,6 @@ func TestGive_MissingArgs(t *testing.T) {
 		{"give sword to", "What target?"},
 	}
 	for _, tc := range cases {
-		tc := tc
 		t.Run(tc.input, func(t *testing.T) {
 			alice.lines = nil
 			dispatchGive(t, f, alice, tc.input)
@@ -280,7 +279,7 @@ func TestGive_ConcurrentExchange(t *testing.T) {
 	f.locator.add(bob)
 
 	const itemsEach = 25
-	for i := 0; i < itemsEach; i++ {
+	for range itemsEach {
 		f.spawnInInventory(t, alice)
 		f.spawnInInventory(t, bob)
 	}
@@ -294,13 +293,13 @@ func TestGive_ConcurrentExchange(t *testing.T) {
 	wg.Add(2)
 	go func() {
 		defer wg.Done()
-		for i := 0; i < itemsEach; i++ {
+		for range itemsEach {
 			_ = r.Dispatch(context.Background(), f.env(), alice, "give sword bob")
 		}
 	}()
 	go func() {
 		defer wg.Done()
-		for i := 0; i < itemsEach; i++ {
+		for range itemsEach {
 			_ = r.Dispatch(context.Background(), f.env(), bob, "give sword alice")
 		}
 	}()

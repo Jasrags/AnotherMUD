@@ -98,12 +98,12 @@ func TestPlacementConcurrentSafe(t *testing.T) {
 	const ops = 200
 
 	var wg sync.WaitGroup
-	for w := 0; w < workers; w++ {
+	for w := range workers {
 		wg.Add(1)
 		go func(w int) {
 			defer wg.Done()
 			id := EntityID(rune('a' + w))
-			for i := 0; i < ops; i++ {
+			for i := range ops {
 				r := world.RoomID(rune('0' + (i % rooms)))
 				p.Place(id, r)
 				_ = p.InRoom(r)

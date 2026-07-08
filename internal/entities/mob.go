@@ -2,6 +2,8 @@ package entities
 
 import (
 	"log/slog"
+	"maps"
+	"slices"
 	"strings"
 	"sync"
 
@@ -334,9 +336,7 @@ func (m *MobInstance) Properties() map[string]any {
 		return nil
 	}
 	out := make(map[string]any, len(m.properties))
-	for k, v := range m.properties {
-		out[k] = v
-	}
+	maps.Copy(out, m.properties)
 	return out
 }
 
@@ -586,12 +586,7 @@ func (m *MobInstance) SetAlignmentTag(tag string) {
 // Used by the AlignmentEntity adapter to detect the admin role
 // bypass (spec §6.4 Shift step 2).
 func (m *MobInstance) HasTag(tag string) bool {
-	for _, t := range m.tags {
-		if t == tag {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(m.tags, tag)
 }
 
 // AddTag appends a gameplay tag if not already present (admin-verbs §4
@@ -692,9 +687,7 @@ func buildMobFromTemplate(tpl *mob.Template, id EntityID) *MobInstance {
 	// instance for direct read access (the spec doesn't dictate
 	// shape; flat keys match how `fill` reads max_charges et al).
 	props := make(map[string]any, len(tpl.Properties)+len(tpl.Stats)+2)
-	for k, v := range tpl.Properties {
-		props[k] = v
-	}
+	maps.Copy(props, tpl.Properties)
 	for k, v := range tpl.Stats {
 		props[k] = v
 	}
@@ -899,9 +892,7 @@ func copyProficiencies(src map[string]int) map[string]int {
 		return nil
 	}
 	dst := make(map[string]int, len(src))
-	for k, v := range src {
-		dst[k] = v
-	}
+	maps.Copy(dst, src)
 	return dst
 }
 

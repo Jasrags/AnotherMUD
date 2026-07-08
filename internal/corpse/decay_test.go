@@ -40,7 +40,7 @@ func (h *decayHarness) placeCorpse(t *testing.T, createdTick uint64, coins int, 
 		t.Fatalf("SpawnContainer: %v", err)
 	}
 	h.placement.Place(cor.ID(), "core:room")
-	for i := 0; i < items; i++ {
+	for range items {
 		it, err := h.store.Spawn(&item.Template{ID: "core:thing", Name: "a thing", Type: "misc"})
 		if err != nil {
 			t.Fatalf("Spawn: %v", err)

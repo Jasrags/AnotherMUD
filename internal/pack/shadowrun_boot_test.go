@@ -3,6 +3,7 @@ package pack
 import (
 	"context"
 	"path/filepath"
+	"slices"
 	"testing"
 
 	"github.com/Jasrags/AnotherMUD/internal/channel"
@@ -327,12 +328,7 @@ func TestLoad_ShadowrunClassAndBackground(t *testing.T) {
 }
 
 func containsStr(ss []string, want string) bool {
-	for _, s := range ss {
-		if s == want {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(ss, want)
 }
 
 // TestLoad_ShadowrunDistrictAndMobs is the SR-M3c-3 district gate: the walkable

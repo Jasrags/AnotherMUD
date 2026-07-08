@@ -164,10 +164,7 @@ func ApplyStatGrowth(
 		}
 		if src, has := cls.GrowthBonuses[stat]; has && src != "" {
 			eff := sb.Effective(src)
-			bonus := (eff - 10) / 2
-			if bonus < 0 {
-				bonus = 0
-			}
+			bonus := max((eff-10)/2, 0)
 			roll += bonus
 		}
 		if roll != 0 {

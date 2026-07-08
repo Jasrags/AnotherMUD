@@ -12,6 +12,7 @@ package size
 
 import (
 	"math"
+	"slices"
 	"strings"
 )
 
@@ -30,12 +31,7 @@ func Names() []string { return append([]string(nil), sizes...) }
 // Valid reports whether name is a known size. The empty string is NOT a size
 // name — callers treat absence as Baseline separately (Resolve does this).
 func Valid(name string) bool {
-	for _, s := range sizes {
-		if s == name {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(sizes, name)
 }
 
 // Resolve normalizes a declared size to its ordinal: empty ⇒ Baseline, a known

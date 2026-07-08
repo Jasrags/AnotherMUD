@@ -491,7 +491,7 @@ func runWizardWith(c *telnettest.Client, answers map[string]string) error {
 	step := regexp.MustCompile(`Choose your [\w ]+:|` + channelingCue + `|\(yes/no\)|` + gamePrompt.String())
 	field := regexp.MustCompile(`Choose your ([\w ]+):`)
 	const maxSteps = 20 // generous guard against an unexpected loop
-	for i := 0; i < maxSteps; i++ {
+	for i := range maxSteps {
 		out, err := c.ExpectTimeout(step, 8*time.Second)
 		if err != nil {
 			return fmt.Errorf("wizard step %d: %w", i, err)

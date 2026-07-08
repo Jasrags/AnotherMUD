@@ -2,6 +2,7 @@ package command_test
 
 import (
 	"context"
+	"slices"
 	"sort"
 	"strings"
 	"testing"
@@ -115,10 +116,8 @@ type fakeHirelingService struct {
 }
 
 func (f *fakeHirelingService) RecruiterOffers(recruiterTemplateIDs []string) []command.HireableOffer {
-	for _, id := range recruiterTemplateIDs {
-		if id == f.recruiterID {
-			return []command.HireableOffer{{TemplateID: f.templateID, Name: f.name, HireCost: f.cost}}
-		}
+	if slices.Contains(recruiterTemplateIDs, f.recruiterID) {
+		return []command.HireableOffer{{TemplateID: f.templateID, Name: f.name, HireCost: f.cost}}
 	}
 	return nil
 }

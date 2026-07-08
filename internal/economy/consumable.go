@@ -2,6 +2,7 @@ package economy
 
 import (
 	"context"
+	"slices"
 
 	"github.com/Jasrags/AnotherMUD/internal/entities"
 )
@@ -227,12 +228,7 @@ func destroyOnEmpty(it *entities.ItemInstance) bool {
 }
 
 func containsID(ids []entities.EntityID, want entities.EntityID) bool {
-	for _, id := range ids {
-		if id == want {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(ids, want)
 }
 
 // hasProp reports whether the property key is present (distinguishes

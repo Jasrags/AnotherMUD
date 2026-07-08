@@ -510,10 +510,9 @@ func gainThreshold(baseChance, prof, effectiveCap int, statFactor, failureMult f
 	if chance <= 0 {
 		return 0
 	}
-	threshold := int(chance)
-	if threshold < 1 {
-		threshold = 1 // a positive fractional chance still rolls.
-	}
+	threshold := max(int(chance),
+		// a positive fractional chance still rolls.
+		1)
 	if threshold > 100 {
 		threshold = 100
 	}

@@ -2,6 +2,7 @@ package command_test
 
 import (
 	"context"
+	"maps"
 	"strings"
 	"testing"
 
@@ -19,9 +20,7 @@ type stubSubscribers struct {
 
 func (s stubSubscribers) Subscribers(_ string) map[string]string {
 	out := make(map[string]string, len(s.subs))
-	for k, v := range s.subs {
-		out[k] = v
-	}
+	maps.Copy(out, s.subs)
 	return out
 }
 

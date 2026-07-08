@@ -34,20 +34,23 @@ func (f *fakeEntity) HasTag(t string) bool { return f.tags[t] }
 // captureSink records every event so tests can assert order +
 // payload.
 type captureSink struct {
-	checks   []checkCall
-	shifted  []shiftedCall
-	buckets  []bucketCall
-	rewrite  int  // if non-zero, override suggestedDelta with this
-	cancel   bool // if true, cancel every check
+	checks  []checkCall
+	shifted []shiftedCall
+	buckets []bucketCall
+	rewrite int  // if non-zero, override suggestedDelta with this
+	cancel  bool // if true, cancel every check
 }
-type checkCall struct{ entityID, reason string; delta int }
+type checkCall struct {
+	entityID, reason string
+	delta            int
+}
 type shiftedCall struct {
 	entityID, reason       string
 	oldValue, newValue, dt int
 	bucketChanged          bool
 }
 type bucketCall struct {
-	entityID         string
+	entityID             string
 	oldBucket, newBucket Bucket
 }
 
@@ -259,7 +262,7 @@ func TestAlignmentShiftBucketChange(t *testing.T) {
 func TestAlignmentHistoryBoundedCapacity(t *testing.T) {
 	m := newTestManager(t, &captureSink{}) // capacity = 3
 	e := newFakeEntity("p:alice")
-	for i := 0; i < 5; i++ {
+	for range 5 {
 		m.Shift(context.Background(), e, 1, "i")
 	}
 	hist := m.History(e.id)
@@ -281,19 +284,19 @@ func TestAlignmentResolveBuckets(t *testing.T) {
 	m := newTestManager(t, nil)
 	// Config: evilThreshold = -50, goodThreshold = 50
 	cases := []struct {
-		name        string
-		set         []string
-		wantMin     *int
-		wantMax     *int
-		minVal      int
-		maxVal      int
+		name           string
+		set            []string
+		wantMin        *int
+		wantMax        *int
+		minVal         int
+		maxVal         int
 		minSet, maxSet bool
 	}{
-		{"evil", []string{"evil"}, nil, intp(-50), 0, -50, false, true},
-		{"good", []string{"good"}, intp(50), nil, 50, 0, true, false},
-		{"neutral", []string{"neutral"}, intp(-49), intp(49), -49, 49, true, true},
-		{"evil+neutral", []string{"evil", "neutral"}, nil, intp(49), 0, 49, false, true},
-		{"good+neutral", []string{"good", "neutral"}, intp(-49), nil, -49, 0, true, false},
+		{"evil", []string{"evil"}, nil, new(-50), 0, -50, false, true},
+		{"good", []string{"good"}, new(50), nil, 50, 0, true, false},
+		{"neutral", []string{"neutral"}, new(-49), new(49), -49, 49, true, true},
+		{"evil+neutral", []string{"evil", "neutral"}, nil, new(49), 0, 49, false, true},
+		{"good+neutral", []string{"good", "neutral"}, new(-49), nil, -49, 0, true, false},
 		{"evil+good (degenerate)", []string{"evil", "good"}, nil, nil, 0, 0, false, false},
 		{"empty", nil, nil, nil, 0, 0, false, false},
 		{"all three", []string{"evil", "neutral", "good"}, nil, nil, 0, 0, false, false},
@@ -340,7 +343,8 @@ func TestNewAlignmentManagerPanicsOnBadConfig(t *testing.T) {
 	NewAlignmentManager(AlignmentConfig{Min: 0, Max: 100, EvilThreshold: -10, GoodThreshold: 10}, nil, nil)
 }
 
-func intp(v int) *int { return &v }
+//go:fix inline
+func intp(v int) *int { return new(v) }
 func deref(p *int) any {
 	if p == nil {
 		return nil

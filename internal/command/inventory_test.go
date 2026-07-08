@@ -223,7 +223,7 @@ func TestGet_ConcurrentGetsOnSameItemPickOneWinner(t *testing.T) {
 	const rounds = 200
 	const contenders = 4
 
-	for round := 0; round < rounds; round++ {
+	for round := range rounds {
 		f := newInvFixture(t)
 		inst := f.spawnInRoom(t, sword())
 
@@ -247,7 +247,7 @@ func TestGet_ConcurrentGetsOnSameItemPickOneWinner(t *testing.T) {
 		var done sync.WaitGroup
 		start.Add(1)
 		var winners int64
-		for i := 0; i < contenders; i++ {
+		for i := range contenders {
 			done.Add(1)
 			actor := actors[i]
 			go func() {

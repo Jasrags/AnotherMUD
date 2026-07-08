@@ -96,10 +96,8 @@ func (h *harness) findCorpse(t *testing.T) *entities.ItemInstance {
 		if !ok {
 			continue
 		}
-		for _, tag := range it.Tags() {
-			if tag == TagCorpse {
-				return it
-			}
+		if slices.Contains(it.Tags(), TagCorpse) {
+			return it
 		}
 	}
 	t.Fatal("no corpse found in room")

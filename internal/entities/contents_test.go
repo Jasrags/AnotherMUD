@@ -84,12 +84,12 @@ func TestContents_ConcurrentPutTake(t *testing.T) {
 
 	var wg sync.WaitGroup
 	wg.Add(workers)
-	for w := 0; w < workers; w++ {
+	for w := range workers {
 		w := w
 		go func() {
 			defer wg.Done()
 			item := EntityID(string(rune('a'+w)) + "-item")
-			for i := 0; i < ops; i++ {
+			for range ops {
 				c.Put("bag", item)
 				_ = c.In("bag")
 				c.Take(item)

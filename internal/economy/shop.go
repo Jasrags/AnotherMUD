@@ -244,10 +244,7 @@ func skillRequirement(tpl *item.Template) (discipline string, level int, ok bool
 	if d == "" {
 		return "", 0, false
 	}
-	level = propInt(tpl.Properties[PropRequiresSkillLevel])
-	if level < 1 {
-		level = 1
-	}
+	level = max(propInt(tpl.Properties[PropRequiresSkillLevel]), 1)
 	return d, level, true
 }
 

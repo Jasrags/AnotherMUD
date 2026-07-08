@@ -94,10 +94,10 @@ func TestAppendMinimap_ReflowAvoidsOrphanWords(t *testing.T) {
 	// None of the words that previously orphaned should appear alone on a
 	// left-column line (the column is everything left of the {x} reset, or
 	// the whole line on a room-only row).
-	for _, line := range strings.Split(out, "\n") {
+	for line := range strings.SplitSeq(out, "\n") {
 		left := line
-		if i := strings.Index(line, "{x}"); i >= 0 {
-			left = line[:i]
+		if before, _, ok := strings.Cut(line, "{x}"); ok {
+			left = before
 		}
 		if w := strings.TrimSpace(left); w == "cluster" || w == "are" {
 			t.Errorf("orphan word on its own line (%q):\n%s", w, out)

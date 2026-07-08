@@ -151,8 +151,8 @@ func ResolveAll(candidates []Named, input string) []Named {
 	}
 
 	filter := lower
-	if strings.HasPrefix(lower, "all.") {
-		filter = strings.TrimPrefix(lower, "all.")
+	if after, ok := strings.CutPrefix(lower, "all."); ok {
+		filter = after
 		if filter == "" {
 			return nil
 		}

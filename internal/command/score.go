@@ -569,10 +569,7 @@ func scXPLine(d scoreData) string {
 // markup placed at a fixed visible column (labelW), so values line up
 // down a column.
 func scKV(label, valueMarkup string, labelW int) string {
-	pad := labelW - len(label)
-	if pad < 1 {
-		pad = 1
-	}
+	pad := max(labelW-len(label), 1)
 	return scSub(label) + strings.Repeat(" ", pad) + valueMarkup
 }
 
@@ -581,10 +578,7 @@ func scKV(label, valueMarkup string, labelW int) string {
 func scAttr(s1 string, v1 int, s2 string, v2 int) string {
 	left := scSub(s1) + " " + scHi(strconv.Itoa(v1))
 	vis := len(s1) + 1 + len(strconv.Itoa(v1))
-	pad := 9 - vis
-	if pad < 1 {
-		pad = 1
-	}
+	pad := max(9-vis, 1)
 	return left + strings.Repeat(" ", pad) + scSub(s2) + " " + scHi(strconv.Itoa(v2))
 }
 
@@ -657,10 +651,7 @@ func scEquipCell(r equipRow) string {
 	if r.Slot == "" && r.Name == "" {
 		return ""
 	}
-	pad := 9 - len(r.Slot)
-	if pad < 1 {
-		pad = 1
-	}
+	pad := max(9-len(r.Slot), 1)
 	return scSub(r.Slot) + strings.Repeat(" ", pad) + r.Name
 }
 

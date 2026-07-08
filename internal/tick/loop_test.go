@@ -24,8 +24,7 @@ func TestLoop_HandlerFiresOnCadence(t *testing.T) {
 	defer cancel()
 
 	var wg sync.WaitGroup
-	wg.Add(1)
-	go func() { defer wg.Done(); _ = loop.Run(ctx) }()
+	wg.Go(func() { ; _ = loop.Run(ctx) })
 	<-loop.Ready()
 
 	// Six ticks: handler "every1" fires 6 times, "every3" fires 2 times
@@ -75,8 +74,7 @@ func TestLoop_PreTickRunsBeforeHandlers(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	var wg sync.WaitGroup
-	wg.Add(1)
-	go func() { defer wg.Done(); _ = loop.Run(ctx) }()
+	wg.Go(func() { ; _ = loop.Run(ctx) })
 	<-loop.Ready()
 
 	m.Advance(10 * time.Millisecond)
@@ -108,8 +106,7 @@ func TestLoop_PanicIsIsolated(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	var wg sync.WaitGroup
-	wg.Add(1)
-	go func() { defer wg.Done(); _ = loop.Run(ctx) }()
+	wg.Go(func() { ; _ = loop.Run(ctx) })
 	<-loop.Ready()
 
 	// sane is registered after bomb, so once sane reflects tick i the

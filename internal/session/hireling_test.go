@@ -75,9 +75,8 @@ func TestConnActor_DrainLiveHirelingsConcurrent(t *testing.T) {
 		a.TrackLiveHireling(ids[i], "test:merc")
 	}
 	var wg sync.WaitGroup
-	wg.Add(1)
-	go func() { defer wg.Done(); _ = a.drainLiveHirelings() }()
-	for i := 0; i < n; i++ {
+	wg.Go(func() { ; _ = a.drainLiveHirelings() })
+	for i := range n {
 		wg.Add(1)
 		go func(id entities.EntityID) { defer wg.Done(); a.UntrackLiveHireling(id) }(ids[i])
 	}

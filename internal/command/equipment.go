@@ -3,6 +3,7 @@ package command
 import (
 	"context"
 	"fmt"
+	"slices"
 	"sort"
 	"strings"
 
@@ -88,10 +89,8 @@ const offhandSlot = "offhand"
 // pass nil, intentionally discarding a sized weapon's static companion slots
 // (the off hand must stay free).
 func withOffhand(companions []string) []string {
-	for _, c := range companions {
-		if c == offhandSlot {
-			return companions
-		}
+	if slices.Contains(companions, offhandSlot) {
+		return companions
 	}
 	return append(append([]string(nil), companions...), offhandSlot)
 }
@@ -459,12 +458,7 @@ const noRemoveTag = "no_remove"
 
 // isNoRemove reports whether it carries the no-remove tag.
 func isNoRemove(it *entities.ItemInstance) bool {
-	for _, t := range it.Tags() {
-		if t == noRemoveTag {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(it.Tags(), noRemoveTag)
 }
 
 // UnequipHandler implements `unequip <item>` per spec §3.4.

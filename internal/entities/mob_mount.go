@@ -1,5 +1,7 @@
 package entities
 
+import "slices"
+
 import "github.com/Jasrags/AnotherMUD/internal/mount"
 
 // This file holds the mount-facing surface of MobInstance (mounts.md §2): is
@@ -104,10 +106,5 @@ func (m *MobInstance) CannotEnterTerrain(terrain string) bool {
 	if m.mountSpec == nil || terrain == "" {
 		return false
 	}
-	for _, t := range m.mountSpec.Impassable {
-		if t == terrain {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(m.mountSpec.Impassable, terrain)
 }

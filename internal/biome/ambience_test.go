@@ -47,8 +47,8 @@ func ambienceFixture(t *testing.T) (*Registry, *recBroadcast) {
 func TestAmbience_DeliversToOccupiedBiomeRoom(t *testing.T) {
 	reg, bc := ambienceFixture(t)
 	rooms := fakeRooms{rooms: []*world.Room{
-		{ID: "a", Terrain: "forest"},  // forest + occupied → line
-		{ID: "b", Terrain: "forest"},  // forest + EMPTY → skipped
+		{ID: "a", Terrain: "forest"},   // forest + occupied → line
+		{ID: "b", Terrain: "forest"},   // forest + EMPTY → skipped
 		{ID: "c", Terrain: "outdoors"}, // baseline, no pool → skipped
 		{ID: "d", Terrain: "void"},     // unregistered → skipped
 	}}

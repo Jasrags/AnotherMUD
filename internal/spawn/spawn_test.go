@@ -390,7 +390,7 @@ func TestScheduler_FiresOnceCadenceElapses(t *testing.T) {
 	sched := NewScheduler(SchedulerConfig{
 		World: w, Bus: bus, DefaultReset: 99, OccupiedModifier: 1.0,
 	})
-	for i := 0; i < 9; i++ {
+	for range 9 {
 		sched.Step(context.Background(), 1)
 	}
 	if fires != 3 {
@@ -418,7 +418,7 @@ func TestScheduler_OccupiedModifierSlowsCadenceWhenPlayersPresent(t *testing.T) 
 		OccupiedModifier: 3.0,
 		Presence:         stubPresence{"town": 1},
 	})
-	for i := 0; i < 6; i++ {
+	for range 6 {
 		sched.Step(context.Background(), 1)
 	}
 	if fires != 1 {
@@ -448,7 +448,7 @@ func TestScheduler_PerAreaModifierOverridesGlobal(t *testing.T) {
 	// Per-area override: 0.5 → cadence 2*0.5=1 (clamped via floor).
 	sched.SetAreaOccupiedModifier("town", 0.5)
 
-	for i := 0; i < 4; i++ {
+	for range 4 {
 		sched.Step(context.Background(), 1)
 	}
 	if fires != 4 {
@@ -462,7 +462,7 @@ func TestScheduler_AreasWithoutRulesAreIgnored(t *testing.T) {
 	var fires int
 	bus.Subscribe(eventbus.EventAreaTick, func(_ context.Context, _ eventbus.Event) { fires++ })
 	sched := NewScheduler(SchedulerConfig{World: w, Bus: bus, DefaultReset: 1})
-	for i := 0; i < 5; i++ {
+	for range 5 {
 		sched.Step(context.Background(), 1)
 	}
 	if fires != 0 {

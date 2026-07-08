@@ -38,10 +38,10 @@ const AdminRoleTag = "admin"
 //   - EvilThreshold < GoodThreshold
 //   - GoodThreshold <= Max
 type AlignmentConfig struct {
-	Min            int
-	Max            int
-	EvilThreshold  int
-	GoodThreshold  int
+	Min             int
+	Max             int
+	EvilThreshold   int
+	GoodThreshold   int
 	HistoryCapacity int
 }
 
@@ -133,11 +133,11 @@ func (nopAlignmentSink) OnAlignmentBucketChanged(context.Context, string, Bucket
 // §6.3). Timestamp is wall clock; the Manager takes a clock.Now
 // closure so tests can drive deterministic timestamps.
 type HistoryEntry struct {
-	At         time.Time
-	Delta      int
-	Reason     string
-	NewValue   int
-	NewBucket  Bucket
+	At        time.Time
+	Delta     int
+	Reason    string
+	NewValue  int
+	NewBucket Bucket
 }
 
 // AlignmentManager owns the spec §6 operations. History lives

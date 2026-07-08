@@ -59,7 +59,7 @@ func TestClock_InitialStateIsNight(t *testing.T) {
 
 func TestClock_AdvancesOneHourPerTicksPerGameHour(t *testing.T) {
 	c := gameclock.New(gameclock.Config{TicksPerGameHour: 10})
-	for i := 0; i < 9; i++ {
+	for i := range 9 {
 		if c.Tick(context.Background()) {
 			t.Fatalf("tick %d: unexpected hour advance", i)
 		}
@@ -77,7 +77,7 @@ func TestClock_AdvancesOneHourPerTicksPerGameHour(t *testing.T) {
 
 func TestClock_DayWrap(t *testing.T) {
 	c := gameclock.New(gameclock.Config{TicksPerGameHour: 1})
-	for i := 0; i < 23; i++ {
+	for range 23 {
 		c.Tick(context.Background())
 	}
 	if c.CurrentHour() != 23 || c.DayCount() != 0 {
@@ -97,7 +97,7 @@ func TestClock_HourChangeFiresEveryAdvance(t *testing.T) {
 	hours := captureHourChanges(bus)
 	c := gameclock.New(gameclock.Config{TicksPerGameHour: 1, Bus: bus})
 
-	for i := 0; i < 5; i++ {
+	for range 5 {
 		c.Tick(context.Background())
 	}
 	if len(*hours) != 5 {
@@ -118,7 +118,7 @@ func TestClock_PeriodChangeFiresOnlyOnTransition(t *testing.T) {
 	// Default boundaries: night at hour 0; dawn at hour 5; day at 8;
 	// dusk at 18; night at 20. Tick through one full day and count
 	// transitions.
-	for i := 0; i < 24; i++ {
+	for range 24 {
 		c.Tick(context.Background())
 	}
 	// Transitions over hours 0→24 with default boundaries:
@@ -168,7 +168,7 @@ func TestClock_PeriodChangeFiresBeforeHourChange(t *testing.T) {
 		mu.Unlock()
 	})
 	c := gameclock.New(gameclock.Config{TicksPerGameHour: 1, Bus: bus})
-	for i := 0; i < 5; i++ {
+	for range 5 {
 		c.Tick(context.Background()) // tick the clock to hour 5 (night → dawn)
 	}
 	mu.Lock()
@@ -190,7 +190,7 @@ func TestClock_HourChangePayloadCarriesDayCount(t *testing.T) {
 	hours := captureHourChanges(bus)
 	c := gameclock.New(gameclock.Config{TicksPerGameHour: 1, Bus: bus})
 	// Advance through a day wrap: 24 ticks puts us at hour 0 day 1.
-	for i := 0; i < 24; i++ {
+	for range 24 {
 		c.Tick(context.Background())
 	}
 	last := (*hours)[len(*hours)-1]
@@ -201,7 +201,7 @@ func TestClock_HourChangePayloadCarriesDayCount(t *testing.T) {
 
 func TestClock_NilBusIsSafe(t *testing.T) {
 	c := gameclock.New(gameclock.Config{TicksPerGameHour: 1})
-	for i := 0; i < 5; i++ {
+	for range 5 {
 		c.Tick(context.Background())
 	}
 	if c.CurrentHour() != 5 {
@@ -222,7 +222,7 @@ func TestClock_ZeroTicksPerGameHourUsesDefault(t *testing.T) {
 	c := gameclock.New(gameclock.Config{TicksPerGameHour: 0})
 	// At the default 600 ticks per hour, 599 ticks should NOT
 	// advance and the 600th SHOULD.
-	for i := 0; i < 599; i++ {
+	for i := range 599 {
 		if c.Tick(context.Background()) {
 			t.Fatalf("tick %d: advanced before reaching 600", i)
 		}
@@ -246,7 +246,7 @@ func TestClock_CustomPeriodBoundaries(t *testing.T) {
 		t.Errorf("hour 0 should be night, got %q", c.CurrentPeriod())
 	}
 	// Tick to hour 10 → Day under these boundaries.
-	for i := 0; i < 10; i++ {
+	for range 10 {
 		c.Tick(context.Background())
 	}
 	if c.CurrentPeriod() != gameclock.PeriodDay {

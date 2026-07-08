@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"sort"
+	"slices"
 	"time"
 
 	"github.com/Jasrags/AnotherMUD/internal/entities"
@@ -152,7 +152,7 @@ func pickExit(r *world.Room, rng interface {
 	for d := range r.Exits {
 		dirs = append(dirs, d)
 	}
-	sort.Slice(dirs, func(i, j int) bool { return dirs[i] < dirs[j] })
+	slices.Sort(dirs)
 	if rng == nil {
 		return dirs[0], true
 	}

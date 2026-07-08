@@ -46,7 +46,7 @@ func TestToleratesDanger(t *testing.T) {
 		{War, true},
 		{Steady, true},
 		{Skittish, false},
-		{Default, false},        // Default == Skittish
+		{Default, false},         // Default == Skittish
 		{Temperament(""), false}, // empty resolves to Default (skittish)
 		{Temperament("bogus"), false},
 	}

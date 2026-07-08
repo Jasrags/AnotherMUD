@@ -120,10 +120,9 @@ func (p Panel) Render() (string, error) {
 	if width <= 0 {
 		width = DefaultPanelWidth
 	}
-	inner := width - 2 // two frame columns
-	if inner < 1 {
-		inner = 1
-	}
+	inner := max(
+		// two frame columns
+		width-2, 1)
 
 	lines := []string{majorRule(inner)}
 	for si, sec := range p.Sections {
@@ -189,10 +188,7 @@ func renderTitle(r Row, inner int) ([]string, error) {
 	}
 	leftBudget := inner - visRight
 	left := truncateVisible(r.left, leftBudget, true)
-	gap := inner - VisibleLength(left) - visRight
-	if gap < 0 {
-		gap = 0
-	}
+	gap := max(inner-VisibleLength(left)-visRight, 0)
 	var b strings.Builder
 	b.WriteString("<title>")
 	b.WriteString(left)
@@ -235,10 +231,7 @@ func renderCells(cells []Cell, dividers bool, inner int) string {
 	if dividers && n > 1 {
 		dividerCols = n - 1
 	}
-	avail := inner - dividerCols
-	if avail < 0 {
-		avail = 0
-	}
+	avail := max(inner-dividerCols, 0)
 
 	fixedSum, fills := 0, 0
 	for _, c := range cells {
@@ -248,10 +241,7 @@ func renderCells(cells []Cell, dividers bool, inner int) string {
 			fixedSum += c.Width
 		}
 	}
-	fillTotal := avail - fixedSum
-	if fillTotal < 0 {
-		fillTotal = 0
-	}
+	fillTotal := max(avail-fixedSum, 0)
 	base, extra := 0, 0
 	if fills > 0 {
 		base = fillTotal / fills

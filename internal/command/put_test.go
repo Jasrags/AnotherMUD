@@ -3,6 +3,7 @@ package command_test
 import (
 	"context"
 	"fmt"
+	"slices"
 	"strings"
 	"sync"
 	"testing"
@@ -140,7 +141,6 @@ func TestPut_HappyPath_CarriedContainer(t *testing.T) {
 
 func TestPut_AcceptsInAndIntoPrepositions(t *testing.T) {
 	for _, input := range []string{"put sword in sack", "put sword into sack"} {
-		input := input
 		t.Run(input, func(t *testing.T) {
 			f := newPutFixture(t)
 			a := newNamedTestActor("Alice", "p-alice", f.room)
@@ -364,7 +364,6 @@ func TestPut_MissingArgs(t *testing.T) {
 		{"put sword in", "What container?"},
 	}
 	for _, tc := range cases {
-		tc := tc
 		t.Run(tc.input, func(t *testing.T) {
 			a.lines = nil
 			dispatchPut(t, f, a, tc.input)
@@ -397,7 +396,7 @@ func TestPut_ConcurrentPutsRaceClean(t *testing.T) {
 	// care about is on the Remove → Put pair, not on the resolver.
 	const items = 50
 	keywords := make([]string, items)
-	for i := 0; i < items; i++ {
+	for i := range items {
 		kw := fmt.Sprintf("gem%d", i)
 		keywords[i] = kw
 		f.spawnInActorInventory(t, a, &item.Template{
@@ -415,12 +414,9 @@ func TestPut_ConcurrentPutsRaceClean(t *testing.T) {
 
 	var wg sync.WaitGroup
 	for _, kw := range keywords {
-		kw := kw
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			_ = r.Dispatch(context.Background(), f.env(), a, "put "+kw+" sack")
-		}()
+		})
 	}
 	wg.Wait()
 
@@ -433,10 +429,5 @@ func TestPut_ConcurrentPutsRaceClean(t *testing.T) {
 }
 
 func inventoryContains(inv []entities.EntityID, id entities.EntityID) bool {
-	for _, e := range inv {
-		if e == id {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(inv, id)
 }

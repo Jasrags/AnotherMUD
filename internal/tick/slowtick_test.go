@@ -31,8 +31,7 @@ func TestLoop_SlowTickObserver_FiresWhenOverThreshold(t *testing.T) {
 		once.Do(func() { m.Advance(2 * threshold) }) // one slow tick, then fast
 	})
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 	go func() { _ = loop.Run(ctx) }()
 	<-loop.Ready()
 
@@ -61,8 +60,7 @@ func TestLoop_SlowTickObserver_SilentWhenFast(t *testing.T) {
 	// Handler does no clock advance, so the tick measures as instantaneous.
 	mustRegister(t, loop, "fast", 1, func(ctx context.Context, n uint64) {})
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 	go func() { _ = loop.Run(ctx) }()
 	<-loop.Ready()
 

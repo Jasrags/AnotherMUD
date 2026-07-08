@@ -25,6 +25,7 @@ package trade
 
 import (
 	"context"
+	"slices"
 
 	"github.com/Jasrags/AnotherMUD/internal/economy"
 	"github.com/Jasrags/AnotherMUD/internal/entities"
@@ -49,12 +50,7 @@ type Party interface {
 
 // holds reports whether p currently has id in its inventory.
 func holds(p Party, id entities.EntityID) bool {
-	for _, have := range p.Inventory() {
-		if have == id {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(p.Inventory(), id)
 }
 
 // CoinMover is the currency seam the custodian moves coin through.

@@ -1,5 +1,7 @@
 package quest
 
+import "slices"
+
 // ObjectiveProgress is a player's progress on one objective of an active
 // quest (§1). Required is copied from the objective's count at the time
 // the stage was entered so progress survives a content count change.
@@ -64,12 +66,7 @@ func (s *State) findActive(questID string) *ActiveQuest {
 }
 
 func (s *State) hasCompleted(questID string) bool {
-	for _, id := range s.Completed {
-		if id == questID {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(s.Completed, questID)
 }
 
 // removeActive drops every active entry for questID, returning whether

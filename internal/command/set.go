@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -320,10 +321,8 @@ func reservedTagNamespace(tag string) (label string, reserved bool) {
 			return ns.label, true
 		}
 	}
-	for _, s := range reservedStructuralTags {
-		if tag == s {
-			return "engine", true
-		}
+	if slices.Contains(reservedStructuralTags, tag) {
+		return "engine", true
 	}
 	return "", false
 }

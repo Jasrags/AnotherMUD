@@ -367,14 +367,12 @@ func TestConcurrentGrants(t *testing.T) {
 	const goroutines = 16
 	const grantsEach = 50
 	var wg sync.WaitGroup
-	for g := 0; g < goroutines; g++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			for i := 0; i < grantsEach; i++ {
+	for range goroutines {
+		wg.Go(func() {
+			for range grantsEach {
 				m.GrantExperience(context.Background(), state, "e1", "fighter", 1, "stress")
 			}
-		}()
+		})
 	}
 	wg.Wait()
 

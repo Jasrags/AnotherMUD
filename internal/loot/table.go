@@ -83,10 +83,7 @@ func RollCoins(c *CoinBlock, r Roller) int {
 	if c == nil {
 		return 0
 	}
-	lo := c.Min
-	if lo < 0 {
-		lo = 0
-	}
+	lo := max(c.Min, 0)
 	hi := c.Max
 	if hi <= lo {
 		return lo

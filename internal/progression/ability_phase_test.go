@@ -411,7 +411,7 @@ func TestDriver_InterruptedTimedCastDoesNotResolve(t *testing.T) {
 
 	queue.Push("p1", QueuedAction{AbilityID: "firebolt"})
 	phase(context.Background(), "player:p1", nil, 0) // begin
-	if _, ok := casts.Interrupt("p1"); !ok {           // a hit lands (slice 2 trigger, simulated)
+	if _, ok := casts.Interrupt("p1"); !ok {         // a hit lands (slice 2 trigger, simulated)
 		t.Fatal("expected an in-flight cast to interrupt")
 	}
 	phase(context.Background(), "player:p1", nil, 1) // nothing in flight → no-op

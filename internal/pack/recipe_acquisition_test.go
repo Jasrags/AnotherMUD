@@ -3,6 +3,7 @@ package pack
 import (
 	"context"
 	"path/filepath"
+	"slices"
 	"testing"
 
 	"github.com/Jasrags/AnotherMUD/internal/loot"
@@ -111,12 +112,7 @@ func shopSells(props map[string]any, id string) bool {
 	if !ok {
 		return false
 	}
-	for _, s := range stringList(shop["sells"]) {
-		if s == id {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(stringList(shop["sells"]), id)
 }
 
 func stringList(v any) []string {
@@ -137,10 +133,5 @@ func stringList(v any) []string {
 }
 
 func contains(xs []string, want string) bool {
-	for _, x := range xs {
-		if x == want {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(xs, want)
 }

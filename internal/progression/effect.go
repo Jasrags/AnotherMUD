@@ -1,6 +1,7 @@
 package progression
 
 import (
+	"slices"
 	"strings"
 
 	"github.com/Jasrags/AnotherMUD/internal/srckey"
@@ -142,12 +143,7 @@ func (e Effect) HasFlag(flag string) bool {
 	if target == "" {
 		return false
 	}
-	for _, f := range e.Flags {
-		if f == target {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(e.Flags, target)
 }
 
 // newEffectFromTemplate constructs a runtime Effect from a

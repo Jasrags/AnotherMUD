@@ -133,10 +133,7 @@ func (s *CurrencyService) AddGold(ctx context.Context, e Entity, delta int, reas
 	// Critical section: the read-compute-write must be atomic against
 	// a concurrent mutation on the same entity (see type doc).
 	s.mu.Lock()
-	next := e.Gold() + delta
-	if next < 0 {
-		next = 0
-	}
+	next := max(e.Gold()+delta, 0)
 	e.SetGold(next)
 	s.mu.Unlock()
 

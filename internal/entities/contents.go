@@ -38,7 +38,7 @@ import "sync"
 //
 // Lock order (load-bearing — future code MUST preserve it):
 //
-//   actor.mu  →  contents.mu  →  entities.Store.mu
+//	actor.mu  →  contents.mu  →  entities.Store.mu
 //
 // The inventory tree builder in internal/session
 // (buildSaveEntriesLocked) reads Contents while holding the actor

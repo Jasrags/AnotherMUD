@@ -17,8 +17,8 @@ type fakeEntity struct {
 	tags []string
 }
 
-func (f *fakeEntity) ID() EntityID  { return f.id }
-func (f *fakeEntity) Type() string  { return f.typ }
+func (f *fakeEntity) ID() EntityID   { return f.id }
+func (f *fakeEntity) Type() string   { return f.typ }
 func (f *fakeEntity) Tags() []string { return f.tags }
 
 func TestStoreTrackAndUntrack(t *testing.T) {
@@ -195,36 +195,30 @@ func TestStoreConcurrentSpawnAndQuery(t *testing.T) {
 
 	var wg sync.WaitGroup
 	const writers, readers, swaps = 8, 8, 4
-	for i := 0; i < writers; i++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			for j := 0; j < 100; j++ {
+	for range writers {
+		wg.Go(func() {
+			for range 100 {
 				if _, err := s.Spawn(tpl); err != nil {
 					t.Errorf("Spawn: %v", err)
 					return
 				}
 			}
-		}()
+		})
 	}
-	for i := 0; i < readers; i++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			for j := 0; j < 100; j++ {
+	for range readers {
+		wg.Go(func() {
+			for range 100 {
 				_ = s.GetByTag("weapon")
 				_ = s.GetByType("item")
 			}
-		}()
+		})
 	}
-	for i := 0; i < swaps; i++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			for j := 0; j < 100; j++ {
+	for range swaps {
+		wg.Go(func() {
+			for range 100 {
 				s.SwapTagIndex()
 			}
-		}()
+		})
 	}
 	wg.Wait()
 

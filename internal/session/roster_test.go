@@ -80,14 +80,12 @@ func TestManagerRoster_ConcurrentSnapshot(t *testing.T) {
 	}()
 
 	var wg sync.WaitGroup
-	for i := 0; i < 4; i++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			for j := 0; j < 200; j++ {
+	for range 4 {
+		wg.Go(func() {
+			for range 200 {
 				_ = roster.OnlineRoster()
 			}
-		}()
+		})
 	}
 	wg.Wait()
 	close(done)

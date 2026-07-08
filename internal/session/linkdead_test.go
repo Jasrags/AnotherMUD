@@ -268,7 +268,7 @@ func TestLinkDeadCleanup_DisabledIsNoOp(t *testing.T) {
 // the same actor; only one wins. Repeats many trials under -race.
 func TestLinkDeadCleanup_RaceWithReattach(t *testing.T) {
 	const trials = 100
-	for i := 0; i < trials; i++ {
+	for i := range trials {
 		mc := clock.NewManual(time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC))
 		mgr := NewManager()
 		r := &world.Room{ID: "x:1"}

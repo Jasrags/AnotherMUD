@@ -44,16 +44,16 @@ func TestScaleByPotency(t *testing.T) {
 		potency float64
 		want    int
 	}{
-		{8, 1.0, 8},   // full potency unchanged
-		{8, 1.5, 12},  // >1 now AMPLIFIES (a power-2 angreal at 0.25/point)
-		{8, 3.5, 28},  // a power-10 sa'angreal
-		{5, 1.5, 8},   // 7.5 rounds to 8
-		{8, 0.5, 4},   // halved (affinity, off-gender weave)
-		{5, 0.5, 3},   // 2.5 rounds to 3
-		{1, 0.5, 1},   // 0.5 rounds to 1
-		{3, 0.5, 2},   // 1.5 rounds to 2
-		{2, 0.25, 1},  // 0.5 rounds to 1
-		{8, 0.75, 6},  // affinity ×1.5 angreal composed (0.5×1.5)
+		{8, 1.0, 8},  // full potency unchanged
+		{8, 1.5, 12}, // >1 now AMPLIFIES (a power-2 angreal at 0.25/point)
+		{8, 3.5, 28}, // a power-10 sa'angreal
+		{5, 1.5, 8},  // 7.5 rounds to 8
+		{8, 0.5, 4},  // halved (affinity, off-gender weave)
+		{5, 0.5, 3},  // 2.5 rounds to 3
+		{1, 0.5, 1},  // 0.5 rounds to 1
+		{3, 0.5, 2},  // 1.5 rounds to 2
+		{2, 0.25, 1}, // 0.5 rounds to 1
+		{8, 0.75, 6}, // affinity ×1.5 angreal composed (0.5×1.5)
 	}
 	for _, tc := range cases {
 		if got := scaleByPotency(tc.amount, tc.potency); got != tc.want {

@@ -436,15 +436,15 @@ func TestMobInstanceProperty_ConcurrentReadWrite(t *testing.T) {
 	const iters = 500
 	done := make(chan struct{})
 	go func() {
-		for i := 0; i < iters; i++ {
+		for i := range iters {
 			inst.SetProperty("wander_next_at", int64(i))
 		}
 		close(done)
 	}()
-	for i := 0; i < iters; i++ {
-		_, _ = inst.Property(PropBehavior)        // PropTemplateID-style read
-		_ = inst.Properties()                    // snapshot read
-		_ = inst.Alignment()                     // internal RLock path
+	for range iters {
+		_, _ = inst.Property(PropBehavior) // PropTemplateID-style read
+		_ = inst.Properties()              // snapshot read
+		_ = inst.Alignment()               // internal RLock path
 	}
 	<-done
 }

@@ -6,7 +6,8 @@ import (
 	"github.com/Jasrags/AnotherMUD/internal/world"
 )
 
-func ptr(l Level) *Level { return &l }
+//go:fix inline
+func ptr(l Level) *Level { return new(l) }
 
 // TestResolve covers the spec §2.2/§2.3 acceptance matrix as a table.
 func TestResolve(t *testing.T) {
@@ -58,17 +59,17 @@ func TestResolve(t *testing.T) {
 		},
 		{
 			name: "override floors a dark night (lamp-lit street pinned dim)",
-			in:   Inputs{Ambient: Gloom, Terrain: world.TerrainOutdoors, IndoorCap: cap, Override: ptr(Dim)},
+			in:   Inputs{Ambient: Gloom, Terrain: world.TerrainOutdoors, IndoorCap: cap, Override: new(Dim)},
 			want: Dim,
 		},
 		{
 			name: "override ceilings ambient (black-pinned vault defeats daylight)",
-			in:   Inputs{Ambient: Lit, Terrain: world.TerrainOutdoors, IndoorCap: cap, Override: ptr(Black)},
+			in:   Inputs{Ambient: Lit, Terrain: world.TerrainOutdoors, IndoorCap: cap, Override: new(Black)},
 			want: Black,
 		},
 		{
 			name: "override is not gated by terrain (pins value underground)",
-			in:   Inputs{Ambient: Lit, Terrain: world.TerrainUnderground, IndoorCap: cap, Override: ptr(Lit)},
+			in:   Inputs{Ambient: Lit, Terrain: world.TerrainUnderground, IndoorCap: cap, Override: new(Lit)},
 			want: Lit,
 		},
 		{
@@ -78,7 +79,7 @@ func TestResolve(t *testing.T) {
 		},
 		{
 			name: "source beats a black-pinned vault (torch in the vault)",
-			in:   Inputs{Ambient: Lit, Terrain: world.TerrainOutdoors, IndoorCap: cap, Override: ptr(Black), Sources: Gloom},
+			in:   Inputs{Ambient: Lit, Terrain: world.TerrainOutdoors, IndoorCap: cap, Override: new(Black), Sources: Gloom},
 			want: Gloom,
 		},
 		{
@@ -99,27 +100,27 @@ func TestResolve(t *testing.T) {
 		// Ambient floor (lamp-lit settlement): lifts dark, never caps bright.
 		{
 			name: "floor lifts a dark night (gloom -> dim lamp-lit street)",
-			in:   Inputs{Ambient: Gloom, Terrain: world.TerrainOutdoors, IndoorCap: cap, AmbientFloor: ptr(Dim)},
+			in:   Inputs{Ambient: Gloom, Terrain: world.TerrainOutdoors, IndoorCap: cap, AmbientFloor: new(Dim)},
 			want: Dim,
 		},
 		{
 			name: "floor does not cap a bright day (noon stays lit)",
-			in:   Inputs{Ambient: Lit, Terrain: world.TerrainOutdoors, IndoorCap: cap, AmbientFloor: ptr(Dim)},
+			in:   Inputs{Ambient: Lit, Terrain: world.TerrainOutdoors, IndoorCap: cap, AmbientFloor: new(Dim)},
 			want: Lit,
 		},
 		{
 			name: "floor is ungated by terrain (lamp reaches an underground room)",
-			in:   Inputs{Ambient: Lit, Terrain: world.TerrainUnderground, IndoorCap: cap, AmbientFloor: ptr(Dim)},
+			in:   Inputs{Ambient: Lit, Terrain: world.TerrainUnderground, IndoorCap: cap, AmbientFloor: new(Dim)},
 			want: Dim,
 		},
 		{
 			name: "pin outranks floor (sealed cellar in a lit village stays black)",
-			in:   Inputs{Ambient: Lit, Terrain: world.TerrainOutdoors, IndoorCap: cap, Override: ptr(Black), AmbientFloor: ptr(Dim)},
+			in:   Inputs{Ambient: Lit, Terrain: world.TerrainOutdoors, IndoorCap: cap, Override: new(Black), AmbientFloor: new(Dim)},
 			want: Black,
 		},
 		{
 			name: "source still beats a floor-lit room (torch over lamps)",
-			in:   Inputs{Ambient: Gloom, Terrain: world.TerrainOutdoors, IndoorCap: cap, AmbientFloor: ptr(Dim), Sources: Lit},
+			in:   Inputs{Ambient: Gloom, Terrain: world.TerrainOutdoors, IndoorCap: cap, AmbientFloor: new(Dim), Sources: Lit},
 			want: Lit,
 		},
 	}
@@ -134,7 +135,7 @@ func TestResolve(t *testing.T) {
 
 func TestResolve_AlwaysInRange(t *testing.T) {
 	// An override above Lit must clamp into range.
-	got := Resolve(Inputs{Ambient: Lit, Terrain: world.TerrainOutdoors, Override: ptr(Level(50))})
+	got := Resolve(Inputs{Ambient: Lit, Terrain: world.TerrainOutdoors, Override: new(Level(50))})
 	if got != Lit {
 		t.Fatalf("Resolve with over-bright override = %v, want Lit", got)
 	}

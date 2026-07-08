@@ -11,6 +11,7 @@
 package mount
 
 import (
+	"slices"
 	"strings"
 
 	"github.com/Jasrags/AnotherMUD/internal/pool"
@@ -61,12 +62,7 @@ func Names() []Temperament { return append([]Temperament(nil), temperaments...) 
 // valid — callers treat absence as Default separately (Resolve does this).
 func Valid(name string) bool {
 	t := Temperament(strings.ToLower(strings.TrimSpace(name)))
-	for _, k := range temperaments {
-		if k == t {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(temperaments, t)
 }
 
 // Resolve normalizes a declared temperament: empty ⇒ Default, a known name ⇒
@@ -77,10 +73,8 @@ func Resolve(name string) Temperament {
 	if t == "" {
 		return Default
 	}
-	for _, k := range temperaments {
-		if k == t {
-			return t
-		}
+	if slices.Contains(temperaments, t) {
+		return t
 	}
 	return Default
 }

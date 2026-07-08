@@ -200,7 +200,7 @@ func TestRuntime_ConcurrentDispatch_NoRace(t *testing.T) {
 
 	const N = 32
 	var wg sync.WaitGroup
-	for i := 0; i < N; i++ {
+	for i := range N {
 		wg.Add(1)
 		go func(i int) {
 			defer wg.Done()

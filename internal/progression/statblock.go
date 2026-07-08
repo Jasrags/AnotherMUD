@@ -23,6 +23,7 @@
 package progression
 
 import (
+	"maps"
 	"sort"
 	"strings"
 	"sync"
@@ -140,9 +141,7 @@ func SeedBaseFromSet(set *AttributeSet) map[StatType]int {
 	if set == nil {
 		return out
 	}
-	for k, v := range set.Defaults() {
-		out[k] = v
-	}
+	maps.Copy(out, set.Defaults())
 	return out
 }
 
@@ -245,9 +244,7 @@ func New() *StatBlock {
 // original without affecting the block.
 func NewWithBase(base map[StatType]int) *StatBlock {
 	b := New()
-	for k, v := range base {
-		b.base[k] = v
-	}
+	maps.Copy(b.base, base)
 	return b
 }
 
@@ -321,9 +318,7 @@ func (b *StatBlock) AllEffective() map[StatType]int {
 	defer b.mu.Unlock()
 	b.recomputeLocked()
 	out := make(map[StatType]int, len(b.effective))
-	for k, v := range b.effective {
-		out[k] = v
-	}
+	maps.Copy(out, b.effective)
 	return out
 }
 
@@ -592,9 +587,7 @@ func (b *StatBlock) recomputeLocked() {
 		return
 	}
 	out := make(map[StatType]int, len(b.base))
-	for k, v := range b.base {
-		out[k] = v
-	}
+	maps.Copy(out, b.base)
 	// stats.Block.Snapshot copies the modifier set under its own
 	// internal lock — no nested-lock hazard, but it's a deep copy on
 	// the hot path. Acceptable at M8.1 scale (modifiers per holder

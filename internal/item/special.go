@@ -1,5 +1,7 @@
 package item
 
+import "slices"
+
 // Special-weapon tags (special-weapons.md §2) — the maneuver behaviors a weapon
 // unlocks. A weapon names the maneuvers it enables; an unlisted tag is an
 // authoring error caught at pack load. Later J slices extend this vocabulary
@@ -39,10 +41,5 @@ func SpecialTagNames() []string { return append([]string(nil), specialTags...) }
 
 // ValidSpecialTag reports whether name is a known special-weapon tag.
 func ValidSpecialTag(name string) bool {
-	for _, t := range specialTags {
-		if t == name {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(specialTags, name)
 }

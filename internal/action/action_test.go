@@ -164,7 +164,7 @@ func TestConcurrentAccess(t *testing.T) {
 	tr := NewTracker()
 	ids := []string{"a", "b", "c", "d"}
 	var wg sync.WaitGroup
-	for i := 0; i < 200; i++ {
+	for i := range 200 {
 		id := ids[i%len(ids)]
 		wg.Add(4)
 		go func() { defer wg.Done(); tr.Begin(id, Action{Kind: reload, ReadyAt: 1, Interruptible: true}) }()

@@ -97,10 +97,10 @@ func TestBackgroundRegistry_AllSorted(t *testing.T) {
 
 func TestBackgroundRegistry_GetEligible(t *testing.T) {
 	br := NewBackgroundRegistry()
-	_ = br.Register(&Background{ID: "open", AllowedCategories: nil})                          // unrestricted
-	_ = br.Register(&Background{ID: "humanonly", AllowedCategories: []string{"humanoid"}})    // category-gated
-	_ = br.Register(&Background{ID: "menonly", AllowedGenders: []string{"male"}})             // gender-gated
-	_ = br.Register(&Background{ID: "dwarfonly", AllowedCategories: []string{"construct"}})   // excludes humanoid
+	_ = br.Register(&Background{ID: "open", AllowedCategories: nil})                        // unrestricted
+	_ = br.Register(&Background{ID: "humanonly", AllowedCategories: []string{"humanoid"}})  // category-gated
+	_ = br.Register(&Background{ID: "menonly", AllowedGenders: []string{"male"}})           // gender-gated
+	_ = br.Register(&Background{ID: "dwarfonly", AllowedCategories: []string{"construct"}}) // excludes humanoid
 
 	got := br.GetEligible("humanoid", "female")
 	ids := map[string]bool{}

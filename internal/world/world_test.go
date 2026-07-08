@@ -41,7 +41,6 @@ func TestParseDirection(t *testing.T) {
 		{"", world.DirInvalid, false},
 	}
 	for _, c := range cases {
-		c := c
 		t.Run(c.in, func(t *testing.T) {
 			t.Parallel()
 			got, ok := world.ParseDirection(c.in)
@@ -350,12 +349,12 @@ func TestRoomDoors_RaceWithMutation(t *testing.T) {
 	done := make(chan struct{})
 	go func() {
 		defer close(done)
-		for i := 0; i < 2000; i++ {
+		for range 2000 {
 			w.OpenDoor("a", world.DirNorth)
 			w.CloseDoor("a", world.DirNorth)
 		}
 	}()
-	for i := 0; i < 2000; i++ {
+	for range 2000 {
 		for _, d := range w.RoomDoors("a") {
 			_ = d.Door.Closed // read a field the mutators write
 		}
@@ -462,9 +461,9 @@ func TestResolveDoorTarget_EmptyAndUnknownRoom(t *testing.T) {
 // TestResetDoorsInArea_RestoresDefaults pins spec §5.4 — area
 // reset restores doors to their DefaultClosed / DefaultLocked.
 func TestResetDoorsInArea_RestoresDefaults(t *testing.T) {
-	d := newDoor()           // closed, unlocked, DefaultClosed=true
-	d.DefaultLocked = true   // pretend the boot state was locked too
-	d.Locked = true          // and lock it now to test re-lock from unlocked
+	d := newDoor()         // closed, unlocked, DefaultClosed=true
+	d.DefaultLocked = true // pretend the boot state was locked too
+	d.Locked = true        // and lock it now to test re-lock from unlocked
 	d.Closed = true
 	w := twoRoomWorld(t, d, nil)
 	w.AddArea(&world.Area{ID: "town"})

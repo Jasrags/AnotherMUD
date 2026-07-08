@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"maps"
 	"math"
 	"os"
 	"path/filepath"
@@ -3100,9 +3101,7 @@ func decodeWeatherZone(path, ns string) (*weather.Zone, error) {
 		z.TimeMessages = make(map[string]map[string]string, len(wf.TimeMessages))
 		for period, terrains := range wf.TimeMessages {
 			out := make(map[string]string, len(terrains))
-			for terrain, msg := range terrains {
-				out[terrain] = msg
-			}
+			maps.Copy(out, terrains)
 			z.TimeMessages[period] = out
 		}
 	}
@@ -4346,9 +4345,7 @@ func copyProperties(src map[string]any) map[string]any {
 		return nil
 	}
 	out := make(map[string]any, len(src))
-	for k, v := range src {
-		out[k] = v
-	}
+	maps.Copy(out, src)
 	return out
 }
 
@@ -4387,7 +4384,7 @@ func validateRoomProperties(r *world.Room, reg *property.Registry, ns string) er
 // — int registers as int, an authoring `1` in YAML decodes as int,
 // while `int64` is reserved for explicit long-form values the engine
 // supplies in code.
-func valueMatchesType(v interface{}, t property.ValueType) bool {
+func valueMatchesType(v any, t property.ValueType) bool {
 	switch t {
 	case property.TypeString:
 		_, ok := v.(string)

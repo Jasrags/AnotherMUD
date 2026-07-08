@@ -203,7 +203,7 @@ func TestRunCreation_RestartCapAbandons(t *testing.T) {
 	loaded := newPlayerLoaded("Bob")
 	// Decline forever: each pass is gender, race, class, "no" → restart.
 	var script []string
-	for i := 0; i < maxCreationRestarts+2; i++ {
+	for range maxCreationRestarts + 2 {
 		script = append(script, "male", "elf", "fighter", "no")
 	}
 	conn := &scriptedConn{inputs: script}

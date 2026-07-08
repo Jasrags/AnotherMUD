@@ -296,12 +296,12 @@ func TestStatBlockConcurrentAccess(t *testing.T) {
 	const iterations = 500
 	var wg sync.WaitGroup
 
-	for g := 0; g < goroutines; g++ {
+	for g := range goroutines {
 		wg.Add(1)
 		go func(id int) {
 			defer wg.Done()
 			src := entities.SourceKey("effect:goroutine-" + string(rune('a'+id%26)))
-			for i := 0; i < iterations; i++ {
+			for i := range iterations {
 				switch i % 4 {
 				case 0:
 					b.AddModifier(src, progression.StatSTR, 1)
@@ -330,9 +330,9 @@ func TestOnMaxChangeFiresOnBaseSet(t *testing.T) {
 		progression.StatHPMax: 40,
 	})
 	var (
-		mu        sync.Mutex
-		oldVals   []int
-		newVals   []int
+		mu      sync.Mutex
+		oldVals []int
+		newVals []int
 	)
 	b.OnMaxChange(progression.StatHPMax, func(oldMax, newMax int) {
 		mu.Lock()

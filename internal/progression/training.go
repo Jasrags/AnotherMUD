@@ -2,6 +2,7 @@ package progression
 
 import (
 	"context"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -70,12 +71,7 @@ func (tc *TrainerConfig) CanTeach(abilityID string) bool {
 		return false
 	}
 	id := strings.ToLower(strings.TrimSpace(abilityID))
-	for _, a := range tc.Teach {
-		if a == id {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(tc.Teach, id)
 }
 
 // TagSkillTrainer is the entity tag a mob carries to advertise

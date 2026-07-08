@@ -44,7 +44,7 @@ func RenderTopic(t *Topic, width int) string {
 	}
 	if t.Body != "" {
 		b.WriteString("\r\n")
-		for _, line := range strings.Split(t.Body, "\n") {
+		for line := range strings.SplitSeq(t.Body, "\n") {
 			b.WriteString("  " + strings.TrimRight(line, "\r") + "\r\n")
 		}
 	}

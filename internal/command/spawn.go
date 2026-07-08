@@ -166,7 +166,7 @@ func (c *Context) spawnItemHere(ctx context.Context, args []string) error {
 
 	var name string
 	spawned := 0
-	for i := 0; i < count; i++ {
+	for range count {
 		id, n, err := c.spawnOneItem(ctx, templateID)
 		if err != nil {
 			if spawned == 0 {
@@ -234,7 +234,7 @@ func (c *Context) spawnMobHere(ctx context.Context, args []string) error {
 
 	var name string
 	spawned := 0
-	for i := 0; i < count; i++ {
+	for range count {
 		id, n, err := c.spawnOneMob(ctx, templateID, room.ID)
 		if err != nil {
 			if spawned == 0 {

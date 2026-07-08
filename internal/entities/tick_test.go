@@ -7,8 +7,8 @@ import (
 	"time"
 
 	"github.com/Jasrags/AnotherMUD/internal/clock"
-	"github.com/Jasrags/AnotherMUD/internal/tick"
 	"github.com/Jasrags/AnotherMUD/internal/item"
+	"github.com/Jasrags/AnotherMUD/internal/tick"
 )
 
 func TestRegisterTagSwapPublishesWritesEveryTick(t *testing.T) {
@@ -25,8 +25,7 @@ func TestRegisterTagSwapPublishesWritesEveryTick(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	var wg sync.WaitGroup
-	wg.Add(1)
-	go func() { defer wg.Done(); _ = loop.Run(ctx) }()
+	wg.Go(func() { ; _ = loop.Run(ctx) })
 	<-loop.Ready()
 
 	tpl := &item.Template{ID: "x", Name: "n", Type: "item", Tags: []string{"weapon"}}

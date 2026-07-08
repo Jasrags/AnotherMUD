@@ -1,6 +1,8 @@
 package session
 
 import (
+	"slices"
+
 	"github.com/Jasrags/AnotherMUD/internal/entities"
 	"github.com/Jasrags/AnotherMUD/internal/progression"
 	"github.com/Jasrags/AnotherMUD/internal/world"
@@ -95,10 +97,5 @@ func selectTrainer(cands []trainerCandidate, abilityID string) (*progression.Tra
 }
 
 func hasTag(tags []string, want string) bool {
-	for _, t := range tags {
-		if t == want {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(tags, want)
 }

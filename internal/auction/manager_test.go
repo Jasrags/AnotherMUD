@@ -3,6 +3,7 @@ package auction
 import (
 	"context"
 	"errors"
+	"slices"
 	"testing"
 	"time"
 
@@ -43,12 +44,7 @@ func (p *fakeParty) Write(_ context.Context, msg string) error {
 }
 
 func (p *fakeParty) holds(id entities.EntityID) bool {
-	for _, have := range p.inv {
-		if have == id {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(p.inv, id)
 }
 
 // realCoin is a minimal CoinMover over the fake party's balance.

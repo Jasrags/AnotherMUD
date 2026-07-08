@@ -83,7 +83,7 @@ func craftFixture(t *testing.T, inputQty int, failRemoveAt int) (*Service, *fake
 	// Spawn the inputs into the store and the crafter's bag.
 	crafter := &fakeCrafter{id: "p1", failRemoveAt: failRemoveAt}
 	var inputIDs []entities.EntityID
-	for i := 0; i < inputQty; i++ {
+	for range inputQty {
 		inst, err := store.Spawn(inTpl)
 		if err != nil {
 			t.Fatalf("spawn input: %v", err)

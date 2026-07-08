@@ -31,6 +31,7 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -279,7 +280,7 @@ func writeSplash(ctx context.Context, lio *lineIO, splash string) error {
 	if strings.TrimSpace(splash) == "" {
 		return lio.writeln(ctx, "Welcome to AnotherMUD.")
 	}
-	for _, line := range strings.Split(splash, "\n") {
+	for line := range strings.SplitSeq(splash, "\n") {
 		if err := lio.writeln(ctx, line); err != nil {
 			return err
 		}
@@ -800,12 +801,7 @@ func (c Config) worldActive(worldID string) bool {
 	if len(c.ActiveWorlds) == 0 {
 		return true
 	}
-	for _, w := range c.ActiveWorlds {
-		if w == worldID {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(c.ActiveWorlds, worldID)
 }
 
 // promptPassword reads a password with echo suppressed, bounded by the

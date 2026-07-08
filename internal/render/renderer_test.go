@@ -121,14 +121,14 @@ func TestRenderConcurrent(t *testing.T) {
 	r := NewColorRenderer(newTestTheme())
 	const n = 50
 	done := make(chan struct{})
-	for i := 0; i < n; i++ {
+	for range n {
 		go func() {
 			defer func() { done <- struct{}{} }()
 			r.RenderAnsi("<highlight>x</highlight>")
 			r.RenderPlain(`<color fg="red">y</color>`)
 		}()
 	}
-	for i := 0; i < n; i++ {
+	for range n {
 		<-done
 	}
 }

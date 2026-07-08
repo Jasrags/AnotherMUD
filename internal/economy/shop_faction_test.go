@@ -16,7 +16,8 @@ func standingFn(faction string, value int) StandingFunc {
 	}
 }
 
-func intp(v int) *int { return &v }
+//go:fix inline
+func intp(v int) *int { return new(v) }
 
 func TestBuy_StandingGateRefusesHostile(t *testing.T) {
 	f := newShopFixture(t, DefaultEconomyConfig())
@@ -24,7 +25,7 @@ func TestBuy_StandingGateRefusesHostile(t *testing.T) {
 	cfg := ShopConfig{
 		Sells:       []string{"core:potion"},
 		Faction:     "wot:queens-guard",
-		MinStanding: intp(0), // must be neutral or better
+		MinStanding: new(0), // must be neutral or better
 	}
 	sh := newShopper("p1", 100)
 
@@ -44,7 +45,7 @@ func TestBuy_StandingGateRefusesHostile(t *testing.T) {
 func TestBuy_StandingGateAdmitsAtFloor(t *testing.T) {
 	f := newShopFixture(t, DefaultEconomyConfig())
 	f.tpls.Add(valTpl("core:potion", "a potion", 20))
-	cfg := ShopConfig{Sells: []string{"core:potion"}, Faction: "wot:queens-guard", MinStanding: intp(0)}
+	cfg := ShopConfig{Sells: []string{"core:potion"}, Faction: "wot:queens-guard", MinStanding: new(0)}
 	sh := newShopper("p1", 100)
 
 	res := f.svc.Buy(context.Background(), sh, "npc1", cfg, "potion", nil, standingFn("wot:queens-guard", 0))
@@ -56,7 +57,7 @@ func TestBuy_StandingGateAdmitsAtFloor(t *testing.T) {
 func TestBuy_StandingGateFailsOpenWhenUnresolved(t *testing.T) {
 	f := newShopFixture(t, DefaultEconomyConfig())
 	f.tpls.Add(valTpl("core:potion", "a potion", 20))
-	cfg := ShopConfig{Sells: []string{"core:potion"}, Faction: "wot:queens-guard", MinStanding: intp(0)}
+	cfg := ShopConfig{Sells: []string{"core:potion"}, Faction: "wot:queens-guard", MinStanding: new(0)}
 	sh := newShopper("p1", 100)
 
 	// nil StandingFunc (no faction wired) → no gate, the purchase proceeds.
@@ -112,7 +113,7 @@ func TestSell_StandingGateRefusesHostile(t *testing.T) {
 	sh := newShopper("p1", 0)
 	inst, _ := f.store.Spawn(valTpl("core:gem", "a gem", 40))
 	sh.AddToInventory(inst.ID())
-	cfg := ShopConfig{Faction: "wot:queens-guard", MinStanding: intp(0)}
+	cfg := ShopConfig{Faction: "wot:queens-guard", MinStanding: new(0)}
 
 	res := f.svc.Sell(context.Background(), sh, "npc1", cfg, "gem", standingFn("wot:queens-guard", -10))
 	if res.Outcome != ShopStandingTooLow {

@@ -2,6 +2,7 @@ package progression
 
 import (
 	"fmt"
+	"slices"
 	"sort"
 	"strings"
 	"sync"
@@ -336,10 +337,5 @@ func categoryAllowed(list []string, value string) bool {
 	if len(list) == 0 {
 		return true
 	}
-	for _, v := range list {
-		if v == value {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(list, value)
 }

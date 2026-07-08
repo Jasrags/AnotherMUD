@@ -25,11 +25,11 @@ func TestItemInstancePropertiesConcurrentAccess(t *testing.T) {
 	}
 
 	var wg sync.WaitGroup
-	for i := 0; i < 8; i++ {
+	for i := range 8 {
 		wg.Add(1)
 		go func(n int) {
 			defer wg.Done()
-			for j := 0; j < 200; j++ {
+			for j := range 200 {
 				it.SetProperty("charges", n+j) // writer
 				_, _ = it.Property("charges")  // single-key reader
 				_ = it.Properties()            // snapshot reader
@@ -212,14 +212,12 @@ func TestDecrementIntConcurrent(t *testing.T) {
 		t.Fatalf("Spawn: %v", err)
 	}
 	var wg sync.WaitGroup
-	for i := 0; i < 4; i++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			for j := 0; j < 250; j++ {
+	for range 4 {
+		wg.Go(func() {
+			for range 250 {
 				it.DecrementInt("fuel", 1)
 			}
-		}()
+		})
 	}
 	wg.Wait()
 	if v, _ := it.Property("fuel"); v.(int) != 0 {

@@ -103,17 +103,17 @@ func TestLive_MasterLooter(t *testing.T) {
 	}
 	slainRe := regexp.MustCompile(`(?i)slain a road bandit|road bandit is dead`)
 	deadline := time.Now().Add(120 * time.Second)
-	var acc string
+	var acc strings.Builder
 	for time.Now().Before(deadline) {
 		out := send(leader, "kill bandit")
-		acc += out + leader.Drain(2000*time.Millisecond)
+		acc.WriteString(out + leader.Drain(2000*time.Millisecond))
 		send(leader, "restore")
-		if slainRe.MatchString(acc) {
+		if slainRe.MatchString(acc.String()) {
 			break
 		}
 	}
-	if !slainRe.MatchString(acc) {
-		t.Fatalf("never slew the bandit within 120s:\n%s", acc)
+	if !slainRe.MatchString(acc.String()) {
+		t.Fatalf("never slew the bandit within 120s:\n%s", acc.String())
 	}
 
 	// The KILLER (leader) is NOT the master → refused during the rights window.

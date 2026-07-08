@@ -19,8 +19,8 @@ type Role int
 const (
 	RoleNone    Role = iota // visible to all (no `role` declared)
 	RolePlayer              // visible to any logged-in player
-	RoleBuilder            // builders + admins (not yet elevated)
-	RoleAdmin              // admins only (not yet elevated)
+	RoleBuilder             // builders + admins (not yet elevated)
+	RoleAdmin               // admins only (not yet elevated)
 )
 
 // ParseRole maps a YAML role string to a Role. An empty/unknown value is

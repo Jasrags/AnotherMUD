@@ -3,6 +3,7 @@ package world
 import (
 	"errors"
 	"fmt"
+	"slices"
 	"sync"
 )
 
@@ -85,12 +86,7 @@ type SpawnRule struct {
 // HasTag reports whether r carries the named tag. O(n) scan; rules
 // typically carry ≤2 tags so this stays cheap.
 func (r SpawnRule) HasTag(tag string) bool {
-	for _, t := range r.Tags {
-		if t == tag {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(r.Tags, tag)
 }
 
 // Exit is a directed edge from one room to a target room id. Doors
@@ -260,12 +256,7 @@ func (r *Room) PropertyBool(key string) (bool, bool) {
 // HasTag reports whether the room carries tag. O(n) scan; rooms carry a
 // handful of tags so this stays cheap. Mirrors SpawnRule.HasTag.
 func (r *Room) HasTag(tag string) bool {
-	for _, t := range r.Tags {
-		if t == tag {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(r.Tags, tag)
 }
 
 // Errors that callers may distinguish at the boundary. ErrDoorClosed

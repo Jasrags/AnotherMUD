@@ -2,6 +2,7 @@ package progression
 
 import (
 	"context"
+	"maps"
 	"sort"
 	"strings"
 	"sync"
@@ -412,15 +413,11 @@ func (m *ProficiencyManager) Snapshot(entityID string) AbilitySnapshot {
 	out := AbilitySnapshot{}
 	if p := m.prof[eid]; len(p) > 0 {
 		out.Proficiency = make(map[string]int, len(p))
-		for k, v := range p {
-			out.Proficiency[k] = v
-		}
+		maps.Copy(out.Proficiency, p)
 	}
 	if c := m.caps[eid]; len(c) > 0 {
 		out.Cap = make(map[string]int, len(c))
-		for k, v := range c {
-			out.Cap[k] = v
-		}
+		maps.Copy(out.Cap, c)
 	}
 	return out
 }

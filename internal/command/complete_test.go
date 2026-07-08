@@ -3,6 +3,7 @@ package command
 import (
 	"context"
 	"reflect"
+	"slices"
 	"strings"
 	"testing"
 
@@ -97,12 +98,7 @@ func tokensOf(cands []Candidate) []string {
 }
 
 func has(ss []string, s string) bool {
-	for _, x := range ss {
-		if x == s {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(ss, s)
 }
 
 // --- §2 target detection ---

@@ -15,15 +15,15 @@ func TestIsValidName(t *testing.T) {
 		{"slot_2", true},
 		{"a", true},
 		{"", false},
-		{"Wield", false},                  // uppercase
-		{"left-hand", false},              // hyphen
-		{"left hand", false},              // space
-		{"_wield", false},                 // leading underscore
-		{"wield_", false},                 // trailing underscore
-		{"left__hand", false},             // consecutive underscores
-		{"2hand", false},                  // leading digit
-		{"weird/slash", false},            // punctuation
-		{"über", false},                   // non-ascii
+		{"Wield", false},       // uppercase
+		{"left-hand", false},   // hyphen
+		{"left hand", false},   // space
+		{"_wield", false},      // leading underscore
+		{"wield_", false},      // trailing underscore
+		{"left__hand", false},  // consecutive underscores
+		{"2hand", false},       // leading digit
+		{"weird/slash", false}, // punctuation
+		{"über", false},        // non-ascii
 	}
 	for _, tc := range cases {
 		if got := IsValidName(tc.in); got != tc.want {

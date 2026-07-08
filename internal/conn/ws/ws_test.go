@@ -247,12 +247,10 @@ func TestConn_Read_ContextCancelReturnsError(t *testing.T) {
 	clientWS, srv := dialServer(t, func(t *testing.T, c *ws.Conn) {
 		ctx, cancel := context.WithCancel(context.Background())
 		var wg sync.WaitGroup
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			_, err := c.Read(ctx)
 			done <- err
-		}()
+		})
 		// Give the Read a moment to block.
 		time.Sleep(50 * time.Millisecond)
 		cancel()

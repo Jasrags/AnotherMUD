@@ -51,13 +51,13 @@ func equipTemplates() *item.Templates {
 		WeaponDamage: "2d6+1",
 	})
 	r.Add(&item.Template{
-		ID:            "core:short-bow",
-		Name:          "a short bow",
-		Type:          "item",
-		Properties:    map[string]any{"slot": "wield"},
-		WeaponDamage:  "1d6",
-		RangedClass:   item.RangedProjectile,
-		AmmoKind:      "arrow",
+		ID:           "core:short-bow",
+		Name:         "a short bow",
+		Type:         "item",
+		Properties:   map[string]any{"slot": "wield"},
+		WeaponDamage: "1d6",
+		RangedClass:  item.RangedProjectile,
+		AmmoKind:     "arrow",
 	})
 	return r
 }

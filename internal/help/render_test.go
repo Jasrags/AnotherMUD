@@ -8,7 +8,7 @@ import (
 func TestRenderTopicSections(t *testing.T) {
 	full := &Topic{
 		ID: "look", Title: "Look", Brief: "Examine your surroundings.",
-		Body: "Shows the current room.\nNames its exits.",
+		Body:   "Shows the current room.\nNames its exits.",
 		Syntax: []string{"look", "look <target>"}, SeeAlso: []string{"examine", "scan"},
 	}
 	out := RenderTopic(full, 40)

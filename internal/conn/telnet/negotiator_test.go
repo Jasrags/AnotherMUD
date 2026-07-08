@@ -323,7 +323,7 @@ func TestNegotiator_IACBetweenLinesDoesNotPolluteRead(t *testing.T) {
 
 	got := make(chan string, 2)
 	go func() {
-		for i := 0; i < 2; i++ {
+		for range 2 {
 			line, _ := server.Read(context.Background())
 			got <- line
 		}

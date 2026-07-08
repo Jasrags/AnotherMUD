@@ -26,7 +26,7 @@ func TestGmcpFloodGate_BurstThenDropNeverDisconnects(t *testing.T) {
 	g := newFloodGate(gmcpFloodConfig(DefaultFloodConfig()), mc)
 	burst := int(DefaultFloodConfig().BurstSize * 2) // gmcp burst = 2× command
 
-	for i := 0; i < burst; i++ {
+	for i := range burst {
 		if d, _ := g.Check(); d != floodAllow {
 			t.Fatalf("frame %d/%d dropped within burst", i, burst)
 		}
@@ -36,7 +36,7 @@ func TestGmcpFloodGate_BurstThenDropNeverDisconnects(t *testing.T) {
 		t.Errorf("over-burst decision = %v, want floodDrop", d)
 	}
 	// Keep spamming: never escalates to disconnect.
-	for i := 0; i < 100; i++ {
+	for i := range 100 {
 		if d, _ := g.Check(); d == floodDisconnect {
 			t.Fatalf("GMCP gate disconnected at spam %d (StrikeThreshold must be 0)", i)
 		}
@@ -54,7 +54,7 @@ func TestGmcpFloodConfig_DisabledWhenCommandFloodZero(t *testing.T) {
 
 func TestFloodGate_DisabledAlwaysAllows(t *testing.T) {
 	g := newFloodGate(FloodConfig{}, clock.NewManual(time.Unix(0, 0)))
-	for i := 0; i < 50; i++ {
+	for i := range 50 {
 		d, warn := g.Check()
 		if d != floodAllow || warn {
 			t.Fatalf("disabled gate i=%d: decision=%v warn=%v", i, d, warn)
@@ -66,7 +66,7 @@ func TestFloodGate_DisabledAlwaysAllows(t *testing.T) {
 // calls succeed, the next one is dropped and warns once.
 func TestFloodGate_BurstThenDrop(t *testing.T) {
 	g, _ := newTestGate()
-	for i := 0; i < 3; i++ {
+	for i := range 3 {
 		if d, _ := g.Check(); d != floodAllow {
 			t.Fatalf("burst call %d returned %v, want allow", i, d)
 		}
@@ -83,7 +83,7 @@ func TestFloodGate_BurstThenDrop(t *testing.T) {
 // "Slow down." is signaled at most once per strike-decay cycle.
 func TestFloodGate_WarnOnceUntilDecay(t *testing.T) {
 	g, mc := newTestGate()
-	for i := 0; i < 3; i++ {
+	for range 3 {
 		g.Check() // drain burst
 	}
 	_, warnA := g.Check()
@@ -95,7 +95,7 @@ func TestFloodGate_WarnOnceUntilDecay(t *testing.T) {
 	// after the next allow cycle should re-warn.
 	mc.Advance(6 * time.Second)
 	// cps=2 → 6s refills past cap. Drain.
-	for i := 0; i < 3; i++ {
+	for i := range 3 {
 		if d, _ := g.Check(); d != floodAllow {
 			t.Fatalf("post-decay refill call %d = %v", i, d)
 		}
@@ -111,7 +111,7 @@ func TestFloodGate_WarnOnceUntilDecay(t *testing.T) {
 func TestFloodGate_DropImmediatelyAfterDecayReWarns(t *testing.T) {
 	g, mc := newTestGate()
 	// Drain burst and rack up 1 strike (with warn).
-	for i := 0; i < 3; i++ {
+	for range 3 {
 		g.Check()
 	}
 	if _, warn := g.Check(); !warn {
@@ -121,7 +121,7 @@ func TestFloodGate_DropImmediatelyAfterDecayReWarns(t *testing.T) {
 	// the decay path mid-Check.
 	mc.Advance(6 * time.Second)
 	// Drain refilled tokens (cap=3).
-	for i := 0; i < 3; i++ {
+	for range 3 {
 		g.Check()
 	}
 	// Now drop: decay should reset warned=false, and this drop must
@@ -135,7 +135,7 @@ func TestFloodGate_DropImmediatelyAfterDecayReWarns(t *testing.T) {
 // Tokens refill over time and the gate allows again.
 func TestFloodGate_RefillOverTime(t *testing.T) {
 	g, mc := newTestGate()
-	for i := 0; i < 3; i++ {
+	for range 3 {
 		g.Check() // drain burst
 	}
 	if d, _ := g.Check(); d != floodDrop {
@@ -156,11 +156,11 @@ func TestFloodGate_RefillOverTime(t *testing.T) {
 // only once).
 func TestFloodGate_StrikeThresholdDisconnects(t *testing.T) {
 	g, _ := newTestGate()
-	for i := 0; i < 3; i++ {
+	for range 3 {
 		g.Check() // drain burst
 	}
 	var got floodDecision
-	for i := 0; i < 3; i++ {
+	for range 3 {
 		got, _ = g.Check()
 	}
 	if got != floodDisconnect {
@@ -178,7 +178,7 @@ func TestFloodGate_TokenCap(t *testing.T) {
 	g.Check() // initialize and use one token (2 left)
 	mc.Advance(1 * time.Hour)
 	// Burst is 3; 2 + many >> 3 must cap at 3, so exactly 3 allows.
-	for i := 0; i < 3; i++ {
+	for i := range 3 {
 		if d, _ := g.Check(); d != floodAllow {
 			t.Fatalf("cap-test allow %d = %v", i, d)
 		}

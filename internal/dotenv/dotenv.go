@@ -75,15 +75,15 @@ func parseLine(raw string) (key, val string, ok bool, err error) {
 	}
 	line = strings.TrimPrefix(line, "export ")
 
-	eq := strings.IndexByte(line, '=')
-	if eq < 0 {
+	before, after, ok0 := strings.Cut(line, "=")
+	if !ok0 {
 		return "", "", false, fmt.Errorf("missing '=' in entry %q", raw)
 	}
-	key = strings.TrimSpace(line[:eq])
+	key = strings.TrimSpace(before)
 	if key == "" {
 		return "", "", false, fmt.Errorf("empty key in entry %q", raw)
 	}
-	val = unquote(strings.TrimSpace(line[eq+1:]))
+	val = unquote(strings.TrimSpace(after))
 	return key, val, true, nil
 }
 

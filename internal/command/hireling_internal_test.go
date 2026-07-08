@@ -18,8 +18,8 @@ func TestParseOrder(t *testing.T) {
 	}{
 		{"sellsword stay", "sellsword", "stay", "", true},
 		{"sellsword follow", "sellsword", "follow", "", true},
-		{"guard", "", "guard", "", true},                  // sole-hireling stance
-		{"follow", "", "follow", "", true},                // sole-hireling stance
+		{"guard", "", "guard", "", true},                        // sole-hireling stance
+		{"follow", "", "follow", "", true},                      // sole-hireling stance
 		{"town guard follow", "town guard", "follow", "", true}, // name contains a keyword
 		{"sellsword attack rat", "sellsword", "attack", "rat", true},
 		{"sellsword attack guard", "sellsword", "attack", "guard", true}, // target is a keyword

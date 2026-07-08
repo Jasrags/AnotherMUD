@@ -17,9 +17,9 @@ func TestScaleMagnitude(t *testing.T) {
 		{"full potency passes through", 5, 1.0, 5},
 		{"above one is inert", 5, 1.5, 5},
 		{"half rounds half up", 5, 0.5, 3},   // 2.5 → 3
-		{"quarter rounds", 7, 0.25, 2},        // 1.75 → 2
-		{"small rounds to zero", 1, 0.25, 0},  // 0.25 → 0
-		{"zero stays zero", 0, 0.5, 0},        // 0
+		{"quarter rounds", 7, 0.25, 2},       // 1.75 → 2
+		{"small rounds to zero", 1, 0.25, 0}, // 0.25 → 0
+		{"zero stays zero", 0, 0.5, 0},       // 0
 		{"negative preserves sign", -4, 0.5, -2},
 		{"negative rounds magnitude", -7, 0.25, -2}, // -(1.75→2)
 		{"zero potency zeroes magnitude", 10, 0, 0},

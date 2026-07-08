@@ -2,6 +2,7 @@ package trade
 
 import (
 	"context"
+	"slices"
 
 	"github.com/Jasrags/AnotherMUD/internal/entities"
 	"github.com/Jasrags/AnotherMUD/internal/escrow"
@@ -18,12 +19,7 @@ type offerSide struct {
 }
 
 func (o *offerSide) hasItem(id entities.EntityID) bool {
-	for _, have := range o.items {
-		if have == id {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(o.items, id)
 }
 
 func (o *offerSide) removeItem(id entities.EntityID) bool {

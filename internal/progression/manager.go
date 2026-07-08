@@ -161,18 +161,13 @@ func (m *Manager) DeductExperience(ctx context.Context, state *ProgressionState,
 
 	state.mu.Lock()
 	curLevel, curXP := m.lazyInitLocked(state, trackName)
-	floor := td.GetXpForLevel(curLevel)
-	if floor < 0 {
+	floor := max(td.GetXpForLevel(curLevel),
 		// Undefined threshold for the current level — treat as 0
 		// (level 1 fallback). Same reasoning as spec §5.5: the
 		// floor on level 1 is "the threshold for level 1, which is
 		// 0".
-		floor = 0
-	}
-	target := curXP - amount
-	if target < floor {
-		target = floor
-	}
+		0)
+	target := max(curXP-amount, floor)
 	actualLoss := curXP - target
 	if actualLoss > 0 {
 		state.xp[trackName] = target
@@ -219,10 +214,7 @@ func (m *Manager) GetTrackInfo(state *ProgressionState, trackName string) (Track
 	level, xp := m.lazyInitLocked(state, trackName)
 	state.mu.Unlock()
 
-	cur := td.GetXpForLevel(level)
-	if cur < 0 {
-		cur = 0
-	}
+	cur := max(td.GetXpForLevel(level), 0)
 	info := TrackInfo{
 		Track:                 trackName,
 		Level:                 level,
@@ -232,19 +224,13 @@ func (m *Manager) GetTrackInfo(state *ProgressionState, trackName string) (Track
 	}
 	if level >= td.MaxLevel {
 		info.XpToNext = 0
-		info.Overflow = xp - cur
-		if info.Overflow < 0 {
-			info.Overflow = 0
-		}
+		info.Overflow = max(xp-cur, 0)
 	} else {
 		next := td.GetXpForLevel(level + 1)
 		if next < 0 {
 			info.XpToNext = 0
 		} else {
-			info.XpToNext = next - xp
-			if info.XpToNext < 0 {
-				info.XpToNext = 0
-			}
+			info.XpToNext = max(next-xp, 0)
 		}
 	}
 	return info, true

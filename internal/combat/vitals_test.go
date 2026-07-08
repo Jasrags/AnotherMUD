@@ -17,7 +17,7 @@ func TestApplyDamageIfAlive_KillingBlowExactlyOnce(t *testing.T) {
 	var killingBlows int64
 	var wg sync.WaitGroup
 	wg.Add(goroutines)
-	for i := 0; i < goroutines; i++ {
+	for range goroutines {
 		go func() {
 			defer wg.Done()
 			remaining, wasAlive := v.ApplyDamageIfAlive(100)
@@ -221,7 +221,7 @@ func TestApplyDamageIfAliveNegativeClampsToZero(t *testing.T) {
 func TestVitalsConcurrency(t *testing.T) {
 	v := NewVitalsAt(1000, 1000)
 	var wg sync.WaitGroup
-	for i := 0; i < 100; i++ {
+	for range 100 {
 		wg.Add(2)
 		go func() {
 			defer wg.Done()

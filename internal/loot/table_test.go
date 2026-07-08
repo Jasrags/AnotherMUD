@@ -153,7 +153,7 @@ func TestRollItems_WeightedDistribution(t *testing.T) {
 	r := rand.New(rand.NewPCG(1, 2))
 	counts := map[string]int{}
 	const n = 10000
-	for i := 0; i < n; i++ {
+	for range n {
 		got := RollItems(tbl, r)
 		if len(got) != 1 {
 			t.Fatalf("want exactly one drop per roll, got %v", got)

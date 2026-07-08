@@ -61,14 +61,12 @@ func TestBadInputTracker_ConcurrentNoLostCounts(t *testing.T) {
 	tr := NewBadInputTracker(clock.NewManual(time.Unix(0, 0)))
 	const goroutines, each = 8, 100
 	var wg sync.WaitGroup
-	for i := 0; i < goroutines; i++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			for j := 0; j < each; j++ {
+	for range goroutines {
+		wg.Go(func() {
+			for range each {
 				tr.Record("spam")
 			}
-		}()
+		})
 	}
 	wg.Wait()
 	snap := tr.Snapshot()
@@ -82,7 +80,7 @@ func TestBadInputTracker_ConcurrentNoLostCounts(t *testing.T) {
 func TestBadInputTracker_DistinctVerbCap(t *testing.T) {
 	tr := NewBadInputTracker(clock.NewManual(time.Unix(0, 0)))
 	tr.Record("known") // recorded before the cap fills
-	for i := 0; i < maxTrackedVerbs+500; i++ {
+	for i := range maxTrackedVerbs + 500 {
 		tr.Record("junk" + strconv.Itoa(i))
 	}
 	if got := len(tr.Snapshot()); got != maxTrackedVerbs {

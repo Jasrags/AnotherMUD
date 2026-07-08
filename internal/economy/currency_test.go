@@ -176,10 +176,10 @@ func TestAddGoldConcurrent(t *testing.T) {
 	const each = 20
 	var wg sync.WaitGroup
 	wg.Add(workers)
-	for i := 0; i < workers; i++ {
+	for range workers {
 		go func() {
 			defer wg.Done()
-			for j := 0; j < each; j++ {
+			for range each {
 				svc.AddGold(context.Background(), e, 1, "concurrent")
 			}
 		}()
@@ -224,7 +224,7 @@ func TestDebitConcurrent(t *testing.T) {
 	results := make(chan bool, workers)
 	var wg sync.WaitGroup
 	wg.Add(workers)
-	for i := 0; i < workers; i++ {
+	for range workers {
 		go func() {
 			defer wg.Done()
 			_, ok := svc.Debit(context.Background(), e, 100, "race")

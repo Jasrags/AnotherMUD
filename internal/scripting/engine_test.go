@@ -73,14 +73,14 @@ func TestEngine_Run_Concurrent_NoSharedState(t *testing.T) {
 	e := fastEngine(t)
 	const N = 8
 	errs := make(chan error, N)
-	for i := 0; i < N; i++ {
+	for range N {
 		go func() {
 			err := e.Run(context.Background(), "p", "s",
 				`leak = leak or "unset"; assert(leak == "unset")`)
 			errs <- err
 		}()
 	}
-	for i := 0; i < N; i++ {
+	for i := range N {
 		if err := <-errs; err != nil {
 			t.Errorf("concurrent Run[%d]: %v", i, err)
 		}

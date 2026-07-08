@@ -3,6 +3,7 @@ package command
 import (
 	"context"
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/Jasrags/AnotherMUD/internal/entities"
@@ -190,10 +191,8 @@ func sourceFillType(it *entities.ItemInstance) (string, bool) {
 	if v, ok := stringProp(it, propFillSource); ok && v != "" {
 		return v, true
 	}
-	for _, t := range it.Tags() {
-		if t == tagFillSource {
-			return defaultFillType, true
-		}
+	if slices.Contains(it.Tags(), tagFillSource) {
+		return defaultFillType, true
 	}
 	return "", false
 }

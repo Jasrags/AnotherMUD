@@ -2,6 +2,7 @@ package economy
 
 import (
 	"context"
+	"maps"
 	"testing"
 
 	"github.com/Jasrags/AnotherMUD/internal/entities"
@@ -40,9 +41,7 @@ func (f *fakeShopper) RemoveFromInventory(id entities.EntityID) bool {
 }
 func (f *fakeShopper) Equipment() map[string]entities.EntityID {
 	out := make(map[string]entities.EntityID, len(f.equip))
-	for k, v := range f.equip {
-		out[k] = v
-	}
+	maps.Copy(out, f.equip)
 	return out
 }
 func (f *fakeShopper) Unequip(slotKey string) (entities.EntityID, bool) {

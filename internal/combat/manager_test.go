@@ -2,6 +2,7 @@ package combat
 
 import (
 	"context"
+	"slices"
 	"sync"
 	"testing"
 
@@ -388,7 +389,7 @@ func TestAllCombatantsListsEveryEngagedEntity(t *testing.T) {
 func TestManagerConcurrentEngageDisengage(t *testing.T) {
 	mgr, _, ids := makeRig(t, "a", "b", "c", "d", "e", "f", "g", "h")
 	var wg sync.WaitGroup
-	for i := 0; i < len(ids); i++ {
+	for i := range ids {
 		for j := i + 1; j < len(ids); j++ {
 			wg.Add(2)
 			go func(a, b CombatantID) {
@@ -407,13 +408,7 @@ func TestManagerConcurrentEngageDisengage(t *testing.T) {
 	for _, a := range ids {
 		for _, opp := range mgr.OpponentsOf(a) {
 			oppList := mgr.OpponentsOf(opp)
-			found := false
-			for _, x := range oppList {
-				if x == a {
-					found = true
-					break
-				}
-			}
+			found := slices.Contains(oppList, a)
 			if !found {
 				t.Errorf("symmetry broken: %s has %s but not vice versa", a, opp)
 			}

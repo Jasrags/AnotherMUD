@@ -42,10 +42,10 @@ func TestVisibleLength(t *testing.T) {
 func TestStripBraces(t *testing.T) {
 	cases := []struct{ in, want string }{
 		{"plain", "plain"},
-		{"{G}green{x}", "green"},          // single-letter ROM code
-		{"{dim}d{/}", "d"},                // attribute + reset tokens
-		{"{yellow}y{/}", "y"},             // full color name
-		{"a{{b", "a{b"},                   // escaped literal brace
+		{"{G}green{x}", "green"},             // single-letter ROM code
+		{"{dim}d{/}", "d"},                   // attribute + reset tokens
+		{"{yellow}y{/}", "y"},                // full color name
+		{"a{{b", "a{b"},                      // escaped literal brace
 		{"the {key} fits", "the {key} fits"}, // unknown token passes through
 		{"no close {here", "no close {here"},
 	}

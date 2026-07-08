@@ -421,7 +421,7 @@ func wrapRoomBody(s string, width int) string {
 		return s
 	}
 	var lines []string
-	for _, ln := range strings.Split(s, "\n") {
+	for ln := range strings.SplitSeq(s, "\n") {
 		lines = append(lines, wrapMarkupLine(ln, width)...)
 	}
 	return strings.Join(lines, "\n")

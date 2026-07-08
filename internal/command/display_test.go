@@ -124,7 +124,7 @@ func leadSpaces(s string) int {
 func TestInventory_StacksIdenticalItems(t *testing.T) {
 	f := newEqFixture(t)
 	a := newTestActor(f.room)
-	for i := 0; i < 3; i++ {
+	for range 3 {
 		f.spawnInInventory(t, swordWithMods(), a)
 	}
 	env := f.env()

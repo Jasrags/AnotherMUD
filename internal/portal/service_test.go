@@ -10,9 +10,9 @@ import (
 // captureSink records every OnPortalOpened / OnPortalClosed call
 // so tests can assert event emission.
 type captureSink struct {
-	mu      sync.Mutex
-	opened  []Portal
-	closed  []Portal
+	mu     sync.Mutex
+	opened []Portal
+	closed []Portal
 }
 
 func (s *captureSink) OnPortalOpened(p Portal) {
@@ -281,7 +281,7 @@ func TestService_ConcurrentCreateRemoveRaceClean(t *testing.T) {
 	const n = 30
 	var wg sync.WaitGroup
 	wg.Add(n)
-	for i := 0; i < n; i++ {
+	for i := range n {
 		i := i
 		go func() {
 			defer wg.Done()

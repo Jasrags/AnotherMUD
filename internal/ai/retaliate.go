@@ -5,7 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
-	"sort"
+	"slices"
 	"time"
 
 	"github.com/Jasrags/AnotherMUD/internal/entities"
@@ -160,7 +160,7 @@ func exitToward(w *world.World, srcID, destRoom world.RoomID) (world.Direction, 
 	for d := range src.Exits {
 		dirs = append(dirs, d)
 	}
-	sort.Slice(dirs, func(i, j int) bool { return dirs[i] < dirs[j] })
+	slices.Sort(dirs)
 	for _, d := range dirs {
 		if src.Exits[d].Target == destRoom {
 			return d, true

@@ -58,10 +58,7 @@ func PassiveScalingBonus(maxBonus, prof int) int {
 	if maxBonus <= 0 || prof <= 0 {
 		return 0
 	}
-	bonus := maxBonus * prof / 100
-	if bonus < 0 {
-		bonus = 0
-	}
+	bonus := max(maxBonus*prof/100, 0)
 	return bonus
 }
 

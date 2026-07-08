@@ -51,11 +51,11 @@ func TestRangedDamageBonus(t *testing.T) {
 	rating2 := 2
 	rating0 := 0
 	cases := []struct {
-		name        string
-		class       string
-		strRating   *int
-		base        int
-		want        int
+		name      string
+		class     string
+		strRating *int
+		base      int
+		want      int
 	}{
 		{"melee keeps full bonus", "", nil, 3, 3},
 		{"melee keeps negative", "", nil, -1, -1},
@@ -80,13 +80,13 @@ func TestRangedDamageBonus(t *testing.T) {
 }
 
 func TestProficient(t *testing.T) {
-	tiers := []string{"martial"}    // class grants all martial
+	tiers := []string{"martial"}           // class grants all martial
 	cats := []string{"two-rivers-longbow"} // ...plus this one exotic kind
 
 	cases := []struct {
-		name       string
+		name        string
 		wTier, wCat string
-		want       bool
+		want        bool
 	}{
 		{"untiered weapon is always proficient", "", "anything", true},
 		{"lowest tier is always proficient", "simple", "club", true},

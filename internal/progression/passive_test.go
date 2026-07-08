@@ -8,10 +8,7 @@ import "testing"
 type constRoller int
 
 func (c constRoller) IntN(n int) int {
-	v := int(c)
-	if v < 0 {
-		v = 0
-	}
+	v := max(int(c), 0)
 	return v % n
 }
 

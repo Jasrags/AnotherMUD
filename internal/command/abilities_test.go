@@ -226,7 +226,7 @@ func TestCast_QueueAtCapacityRefuses(t *testing.T) {
 	f := newAbilityFixture(t)
 	a := newNamedTestActor("Tester", "p-1", nil)
 	// Fill the queue to its limit with valid entries.
-	for i := 0; i < progression.DefaultActionQueueLimit; i++ {
+	for i := range progression.DefaultActionQueueLimit {
 		if !f.queue.Push("p-1", progression.QueuedAction{AbilityID: "bless"}) {
 			t.Fatalf("setup push %d failed", i)
 		}

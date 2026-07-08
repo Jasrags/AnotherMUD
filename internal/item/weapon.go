@@ -6,6 +6,8 @@ package item
 // the tier vocabulary pack-declarable is a later extension; for now an
 // unlisted tier or damage type is an authoring error caught at pack load.
 
+import "slices"
+
 // weaponTiers is the ordered proficiency-tier vocabulary, LOW→HIGH, so a
 // future graduated non-proficient penalty can read the tier distance.
 var weaponTiers = []string{"simple", "martial", "exotic"}
@@ -23,12 +25,7 @@ func LowestTier() string { return weaponTiers[0] }
 // string ("untiered") is NOT a tier name — callers treat absence as
 // LowestTier separately.
 func ValidTier(name string) bool {
-	for _, t := range weaponTiers {
-		if t == name {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(weaponTiers, name)
 }
 
 // The fixed damage-type set (weapon-identity §2). Recorded on weapons;
@@ -47,12 +44,7 @@ func DamageTypeNames() []string { return append([]string(nil), damageTypes...) }
 
 // ValidDamageType reports whether name is a known damage type.
 func ValidDamageType(name string) bool {
-	for _, d := range damageTypes {
-		if d == name {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(damageTypes, name)
 }
 
 // Ranged weapon classes (ranged-combat §2). A weapon that declares no
@@ -75,12 +67,7 @@ func RangedClassNames() []string { return append([]string(nil), rangedClasses...
 // string ("melee") is NOT a ranged class — callers treat absence as melee
 // separately.
 func ValidRangedClass(name string) bool {
-	for _, c := range rangedClasses {
-		if c == name {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(rangedClasses, name)
 }
 
 // RangedDamageBonus applies the ranged-combat §4 Strength rule to a
@@ -132,16 +119,12 @@ func Proficient(grantedTiers, grantedCategories []string, weaponTier, weaponCate
 	if weaponTier == "" || weaponTier == LowestTier() {
 		return true
 	}
-	for _, t := range grantedTiers {
-		if t == weaponTier {
-			return true
-		}
+	if slices.Contains(grantedTiers, weaponTier) {
+		return true
 	}
 	if weaponCategory != "" {
-		for _, c := range grantedCategories {
-			if c == weaponCategory {
-				return true
-			}
+		if slices.Contains(grantedCategories, weaponCategory) {
+			return true
 		}
 	}
 	return false

@@ -1,5 +1,7 @@
 package corpse
 
+import "slices"
+
 import "github.com/Jasrags/AnotherMUD/internal/entities"
 
 // Accessors for the reserved corpse properties (set at creation in
@@ -12,12 +14,7 @@ func IsCorpse(e *entities.ItemInstance) bool {
 	if e == nil {
 		return false
 	}
-	for _, t := range e.Tags() {
-		if t == TagCorpse {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(e.Tags(), TagCorpse)
 }
 
 // Coins returns the corpse's coin-pile amount (0 if absent or wrong type).
@@ -104,10 +101,5 @@ func MayLoot(e *entities.ItemInstance, actorID string, nowTick, window uint64) b
 	if nowTick >= created && nowTick-created >= window {
 		return true
 	}
-	for _, o := range owners {
-		if o == actorID {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(owners, actorID)
 }

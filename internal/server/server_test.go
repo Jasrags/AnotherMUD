@@ -97,7 +97,7 @@ func TestEchoConcurrentClients(t *testing.T) {
 	var wg sync.WaitGroup
 	errs := make(chan error, clients)
 
-	for i := 0; i < clients; i++ {
+	for i := range clients {
 		wg.Add(1)
 		go func(i int) {
 			defer wg.Done()
@@ -119,7 +119,7 @@ func TestEchoConcurrentClients(t *testing.T) {
 				return
 			}
 
-			for j := 0; j < lines; j++ {
+			for j := range lines {
 				msg := "client-" + itoa(i) + "-line-" + itoa(j)
 				if _, err := c.Write([]byte(msg + "\r\n")); err != nil {
 					errs <- err

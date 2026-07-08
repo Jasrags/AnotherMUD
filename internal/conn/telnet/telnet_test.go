@@ -179,12 +179,12 @@ func TestWriteLeavesExistingCRLFIntact(t *testing.T) {
 
 func TestCRLFNormalize(t *testing.T) {
 	cases := map[string]string{
-		"a\nb":       "a\r\nb",   // bare LF expands
-		"a\r\nb":     "a\r\nb",   // existing CRLF intact
-		"\n":         "\r\n",     // leading bare LF
+		"a\nb":       "a\r\nb",     // bare LF expands
+		"a\r\nb":     "a\r\nb",     // existing CRLF intact
+		"\n":         "\r\n",       // leading bare LF
 		"a\n\nb":     "a\r\n\r\nb", // consecutive bare LFs
 		"plain text": "plain text", // no newline, zero-copy
-		"a\rb":       "a\rb",     // bare CR (no LF) left alone
+		"a\rb":       "a\rb",       // bare CR (no LF) left alone
 	}
 	for in, want := range cases {
 		if got := string(crlfNormalize([]byte(in))); got != want {

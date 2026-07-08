@@ -58,10 +58,9 @@ func (g *BackgroundGranter) Grant(ctx context.Context, playerID string, bg *prog
 	}
 	if g.prof != nil {
 		for _, s := range bg.Skills {
-			prof := s.Proficiency
-			if prof < 1 {
-				prof = 1 // baseline trained value (backgrounds §2)
-			}
+			prof := max(s.Proficiency,
+				// baseline trained value (backgrounds §2)
+				1)
 			g.prof.Learn(playerID, s.AbilityID, prof)
 		}
 	}

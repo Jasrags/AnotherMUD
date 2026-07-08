@@ -391,11 +391,11 @@ func (p *ValidationPipeline) Validate(source ValidationEntity, action QueuedActi
 // reason; FizzleOK signals the target step passes.
 //
 // Resolution order:
-//   1. Explicit action.TargetEntityID — must resolve via TargetLookup.
-//      Unresolvable explicit id ⇒ FizzleInvalidTarget.
-//   2. Offensive ability without explicit target ⇒ current combat
-//      target; missing ⇒ FizzleInvalidTarget.
-//   3. Self / buff ability ⇒ source entity id, no fizzle.
+//  1. Explicit action.TargetEntityID — must resolve via TargetLookup.
+//     Unresolvable explicit id ⇒ FizzleInvalidTarget.
+//  2. Offensive ability without explicit target ⇒ current combat
+//     target; missing ⇒ FizzleInvalidTarget.
+//  3. Self / buff ability ⇒ source entity id, no fizzle.
 func (p *ValidationPipeline) resolveTarget(source ValidationEntity, ability *Ability, action QueuedAction) (string, FizzleReason) {
 	if action.TargetEntityID != "" {
 		if !p.targets.ResolveID(action.TargetEntityID) {

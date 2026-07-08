@@ -53,15 +53,15 @@ func TestParseDiceValid(t *testing.T) {
 func TestParseDiceInvalid(t *testing.T) {
 	cases := []string{
 		"",
-		"d6",        // missing count
-		"1d",        // missing sides
-		"1d1",       // sides < 2
-		"0d6",       // count < 1
-		"100d6",     // count > maxDiceCount
-		"1d1001",    // sides > maxDiceSides
-		"1 d 6",    // whitespace inside expression
-		"1d6 + 1",  // whitespace around modifier
-		"1d6+",      // dangling sign
+		"d6",      // missing count
+		"1d",      // missing sides
+		"1d1",     // sides < 2
+		"0d6",     // count < 1
+		"100d6",   // count > maxDiceCount
+		"1d1001",  // sides > maxDiceSides
+		"1 d 6",   // whitespace inside expression
+		"1d6 + 1", // whitespace around modifier
+		"1d6+",    // dangling sign
 		"abc",
 	}
 	for _, c := range cases {
@@ -165,13 +165,13 @@ func TestDiceExprAverage(t *testing.T) {
 		expr string
 		want int
 	}{
-		{"1d6", 3},      // (1*(6+1))/2 = 3
-		{"2d6", 7},      // (2*(6+1))/2 = 7
-		{"1d10", 5},     // (1*(10+1))/2 = 5
-		{"1d10+2", 7},   // 5 + 2
-		{"3d6+1", 11},   // 3*7/2 + 1 = 10 + 1 = 11
-		{"1d2", 1},      // (1*3)/2 = 1 (integer truncation)
-		{"1d4-1", 1},    // (1*5)/2 - 1 = 2 - 1 = 1
+		{"1d6", 3},    // (1*(6+1))/2 = 3
+		{"2d6", 7},    // (2*(6+1))/2 = 7
+		{"1d10", 5},   // (1*(10+1))/2 = 5
+		{"1d10+2", 7}, // 5 + 2
+		{"3d6+1", 11}, // 3*7/2 + 1 = 10 + 1 = 11
+		{"1d2", 1},    // (1*3)/2 = 1 (integer truncation)
+		{"1d4-1", 1},  // (1*5)/2 - 1 = 2 - 1 = 1
 	}
 	for _, c := range cases {
 		d, err := ParseDice(c.expr)

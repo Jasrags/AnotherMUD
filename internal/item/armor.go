@@ -12,6 +12,8 @@ package item
 // set is the fixed bludgeoning/piercing/slashing today and grows (e.g. with
 // elemental types) when a ruleset that needs them lands.
 
+import "slices"
+
 // armorTiers is the ordered armor proficiency-tier vocabulary, LIGHT→HEAVY,
 // so a future graduated rule can read the tier distance. Distinct from the
 // weapon tiers (simple/martial/exotic).
@@ -24,12 +26,7 @@ func ArmorTierNames() []string { return append([]string(nil), armorTiers...) }
 // ValidArmorTier reports whether name is a known armor tier. The empty
 // string ("untiered") is NOT a tier name — callers treat absence separately.
 func ValidArmorTier(name string) bool {
-	for _, t := range armorTiers {
-		if t == name {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(armorTiers, name)
 }
 
 // ArmorProficient reports whether a wearer whose class(es) grant grantedTiers
@@ -42,10 +39,5 @@ func ArmorProficient(grantedTiers []string, armorTier string) bool {
 	if armorTier == "" {
 		return true
 	}
-	for _, t := range grantedTiers {
-		if t == armorTier {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(grantedTiers, armorTier)
 }

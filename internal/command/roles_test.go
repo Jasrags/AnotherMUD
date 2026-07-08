@@ -2,6 +2,7 @@ package command_test
 
 import (
 	"context"
+	"slices"
 	"strings"
 	"testing"
 
@@ -21,10 +22,8 @@ type roleActor struct {
 // (admin-verbs §4 `set tag`) so applyTag can route a player target in
 // command-layer tests. Idempotent, mirroring the real connActor.
 func (r *roleActor) AddTag(tag string) bool {
-	for _, t := range r.tags {
-		if t == tag {
-			return false
-		}
+	if slices.Contains(r.tags, tag) {
+		return false
 	}
 	r.tags = append(r.tags, tag)
 	return true
@@ -45,12 +44,7 @@ func (r *roleActor) RemoveTag(tag string) bool {
 }
 
 func (r *roleActor) hasTag(tag string) bool {
-	for _, t := range r.tags {
-		if t == tag {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(r.tags, tag)
 }
 
 func newRoleActor(name, playerID string, roles ...string) *roleActor {

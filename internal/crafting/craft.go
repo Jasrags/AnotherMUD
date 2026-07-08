@@ -160,7 +160,7 @@ func (s *Service) craftResolved(_ context.Context, c Crafter, rec *recipe.Recipe
 	// output and re-add the consumed inputs (still live, only removed from
 	// the bag), then bail. No loss.
 	produced := make([]*entities.ItemInstance, 0, qty)
-	for i := 0; i < qty; i++ {
+	for range qty {
 		inst, err := s.store.Spawn(tpl)
 		if err != nil {
 			for _, p := range produced {
@@ -273,10 +273,7 @@ func (s *Service) gate(c Crafter, rec *recipe.Recipe, present int) (consume []en
 			Message: "That recipe's output is missing from the world; tell an admin.",
 		}, false
 	}
-	qty = rec.Output.Quantity
-	if qty < 1 {
-		qty = 1
-	}
+	qty = max(rec.Output.Quantity, 1)
 	return consume, ingKeys, tpl, qty, prof, CraftResult{}, true
 }
 
@@ -297,10 +294,7 @@ func evalStationTier(fn StationTierFunc, discipline string) int {
 func (s *Service) gatherInputs(c Crafter, rec *recipe.Recipe) (consume []entities.EntityID, ingKeys []string, missing string) {
 	used := make(map[entities.EntityID]struct{})
 	for _, ing := range rec.Inputs {
-		want := ing.Quantity
-		if want < 1 {
-			want = 1
-		}
+		want := max(ing.Quantity, 1)
 		found := 0
 		for _, id := range c.Inventory() {
 			if _, taken := used[id]; taken {
@@ -340,10 +334,7 @@ func (s *Service) meetsMinQuality(inst *entities.ItemInstance, minKey string) bo
 	if minPos < 0 {
 		return true // unknown floor key — don't gate (fail-soft)
 	}
-	have := ladderPosition(s.rarity, s.rarityKeyOf(inst))
-	if have < 0 {
-		have = 0
-	}
+	have := max(ladderPosition(s.rarity, s.rarityKeyOf(inst)), 0)
 	return have >= minPos
 }
 
@@ -533,8 +524,8 @@ func (s *Service) KnownRecipeNames(eid string) []string {
 }
 
 func localPart(id string) string {
-	if i := strings.IndexByte(id, ':'); i >= 0 {
-		return strings.ToLower(id[i+1:])
+	if _, after, ok := strings.Cut(id, ":"); ok {
+		return strings.ToLower(after)
 	}
 	return strings.ToLower(id)
 }

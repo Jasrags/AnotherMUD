@@ -102,7 +102,7 @@ func MountsHandler(ctx context.Context, c *Context) error {
 		}
 		total := ownedSet[t]
 		stab := stabled[t]
-		for i := 0; i < total; i++ {
+		for i := range total {
 			state := "out in the world"
 			if i < stab {
 				state = "stabled"
@@ -496,10 +496,7 @@ func stableOffers(c *Context, st *entities.MobInstance) []mountOffer {
 	ns := namespaceOf(string(st.TemplateID()))
 	var offers []mountOffer
 	for id, v := range sells {
-		price := intFromAny(v)
-		if price < 0 {
-			price = 0
-		}
+		price := max(intFromAny(v), 0)
 		offers = append(offers, mountOffer{templateID: qualifyAgainst(ns, id), price: price})
 	}
 	sort.Slice(offers, func(i, j int) bool { return offers[i].templateID < offers[j].templateID })
@@ -611,16 +608,16 @@ func sortedKeys(m map[string]int) []string {
 // namespaceOf returns the pack namespace prefix of a qualified id ("ns:leaf" →
 // "ns"), or "" when the id is bare.
 func namespaceOf(qualified string) string {
-	if i := strings.IndexByte(qualified, ':'); i >= 0 {
-		return qualified[:i]
+	if before, _, ok := strings.Cut(qualified, ":"); ok {
+		return before
 	}
 	return ""
 }
 
 // leafOf returns the unqualified leaf of an id ("ns:leaf" → "leaf").
 func leafOf(qualified string) string {
-	if i := strings.IndexByte(qualified, ':'); i >= 0 {
-		return qualified[i+1:]
+	if _, after, ok := strings.Cut(qualified, ":"); ok {
+		return after
 	}
 	return qualified
 }

@@ -77,10 +77,7 @@ func TestManager_StressMixedWorkloadIsRaceClean(t *testing.T) {
 	var wg sync.WaitGroup
 
 	// Movers: each goroutine cycles a slice of residents through rooms.
-	nMovers := runtime.GOMAXPROCS(0)
-	if nMovers < 2 {
-		nMovers = 2
-	}
+	nMovers := max(runtime.GOMAXPROCS(0), 2)
 	for m := 0; m < nMovers; m++ {
 		wg.Add(1)
 		go func(seed int) {
@@ -98,7 +95,7 @@ func TestManager_StressMixedWorkloadIsRaceClean(t *testing.T) {
 	// Broadcasters: SendToRoom + SendToAll. Writes are captured by
 	// fakeConn so this also exercises the actor lock under the manager
 	// snapshot path.
-	for b := 0; b < 2; b++ {
+	for b := range 2 {
 		wg.Add(1)
 		go func(seed int) {
 			defer wg.Done()
@@ -117,7 +114,7 @@ func TestManager_StressMixedWorkloadIsRaceClean(t *testing.T) {
 	// Readers: lookups + Count. These take only the RLock so they
 	// should not block writers; we still want them in the mix to catch
 	// a read racing a moveRoom mutation.
-	for r := 0; r < 2; r++ {
+	for r := range 2 {
 		wg.Add(1)
 		go func(seed int) {
 			defer wg.Done()
@@ -135,9 +132,7 @@ func TestManager_StressMixedWorkloadIsRaceClean(t *testing.T) {
 	// Churn worker: repeatedly Add and Remove each churn-pool actor.
 	// Mixed in alongside SetRoom on the same actor to exercise the
 	// SetRoom-vs-Remove race guard in moveRoom.
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
+	wg.Go(func() {
 		i := 0
 		for ctx.Err() == nil {
 			a := churn[i%len(churn)]
@@ -147,7 +142,7 @@ func TestManager_StressMixedWorkloadIsRaceClean(t *testing.T) {
 			i++
 			atomic.AddInt64(&ops, 1)
 		}
-	}()
+	})
 
 	wg.Wait()
 
@@ -212,7 +207,7 @@ func TestSession_StressConcurrentTakeoverClaims(t *testing.T) {
 	}
 
 	const trials = 200
-	for trial := 0; trial < trials; trial++ {
+	for trial := range trials {
 		mgr := NewManager()
 		r := &world.Room{ID: "x:1"}
 		a, fc := newFakeActor("c1", "p1", "acc1", "Alice", r)
@@ -223,15 +218,13 @@ func TestSession_StressConcurrentTakeoverClaims(t *testing.T) {
 		var winners int64
 		var wg sync.WaitGroup
 		start := make(chan struct{})
-		for i := 0; i < N; i++ {
-			wg.Add(1)
-			go func() {
-				defer wg.Done()
+		for range N {
+			wg.Go(func() {
 				<-start
 				if _, _, ok := performTakeover(context.Background(), cfg, a); ok {
 					atomic.AddInt64(&winners, 1)
 				}
-			}()
+			})
 		}
 		close(start)
 		wg.Wait()

@@ -85,10 +85,7 @@ func DecodeNodeTemplate(data []byte) (*NodeTemplate, error) {
 	if strings.TrimSpace(f.YieldTable) == "" {
 		return nil, fmt.Errorf("node template %q: empty yield_table", f.ID)
 	}
-	charges := f.Charges
-	if charges < 1 {
-		charges = 1
-	}
+	charges := max(f.Charges, 1)
 	return &NodeTemplate{
 		ID:           f.ID,
 		Name:         f.Name,
@@ -125,10 +122,7 @@ func DecodeNodeSpawnTable(data []byte) (*NodeSpawnTable, error) {
 		if strings.TrimSpace(e.Node) == "" {
 			return nil, fmt.Errorf("node spawn table %q: entry[%d] has empty node", f.ID, i)
 		}
-		count := e.Count
-		if count < 1 {
-			count = 1
-		}
+		count := max(e.Count, 1)
 		t.Entries = append(t.Entries, NodeSpawnEntry{Node: e.Node, Count: count, ResetInterval: e.ResetInterval})
 	}
 	if len(t.Entries) == 0 {

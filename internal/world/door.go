@@ -448,4 +448,3 @@ func applyDoorOp(d *DoorState, op doorOp) bool {
 	}
 	return false
 }
-

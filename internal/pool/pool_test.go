@@ -158,7 +158,7 @@ func TestDeplete_DepletesExactlyOnceUnderRace(t *testing.T) {
 	var aboveCount int64
 	var wg sync.WaitGroup
 	wg.Add(goroutines)
-	for i := 0; i < goroutines; i++ {
+	for range goroutines {
 		go func() {
 			defer wg.Done()
 			if p.Deplete() {
@@ -220,7 +220,7 @@ func TestApplyDamage_CrossesExactlyOnceUnderRace(t *testing.T) {
 	var crossedCount int64
 	var wg sync.WaitGroup
 	wg.Add(goroutines)
-	for i := 0; i < goroutines; i++ {
+	for range goroutines {
 		go func() {
 			defer wg.Done()
 			if _, _, crossed := p.ApplyDamage(100); crossed {
@@ -244,11 +244,11 @@ func TestApplyDamage_CrossesExactlyOnceUnderRace(t *testing.T) {
 func TestPool_ConcurrentMixedOps(t *testing.T) {
 	p := New("hp", 1000, Rules{Floor: 0})
 	var wg sync.WaitGroup
-	for i := 0; i < 32; i++ {
+	for i := range 32 {
 		wg.Add(1)
 		go func(n int) {
 			defer wg.Done()
-			for j := 0; j < 100; j++ {
+			for j := range 100 {
 				switch (n + j) % 4 {
 				case 0:
 					p.ApplyDamage(7)

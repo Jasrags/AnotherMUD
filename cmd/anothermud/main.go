@@ -2325,10 +2325,7 @@ func run() error {
 				return
 			}
 			amount := dice.damage.Roll(combatRNG)
-			amount = scaleByPotency(amount, casterWeavePotency(e.SourceID, e.AbilityID))
-			if amount < 1 {
-				amount = 1
-			}
+			amount = max(scaleByPotency(amount, casterWeavePotency(e.SourceID, e.AbilityID)), 1)
 			if _, wasAlive := target.Vitals().ApplyDamageIfAlive(amount); !wasAlive {
 				return // already a corpse; another source owns the death emit.
 			}
@@ -2370,10 +2367,7 @@ func run() error {
 				return
 			}
 			amount := dice.heal.Roll(combatRNG)
-			amount = scaleByPotency(amount, casterWeavePotency(e.SourceID, e.AbilityID))
-			if amount < 1 {
-				amount = 1
-			}
+			amount = max(scaleByPotency(amount, casterWeavePotency(e.SourceID, e.AbilityID)), 1)
 			target.Vitals().Heal(amount)
 			logging.From(ctx).Info("ability.heal",
 				slog.String("source", e.SourceID),
@@ -2396,10 +2390,7 @@ func run() error {
 			if !ok {
 				return // target is not a player (a mob has no madness to soothe)
 			}
-			amount := dice.heal.Roll(combatRNG)
-			if amount < 1 {
-				amount = 1
-			}
+			amount := max(dice.heal.Roll(combatRNG), 1)
 			newVal := a.AddMadness(-amount)
 			logging.From(ctx).Info("ability.heal_mind",
 				slog.String("source", e.SourceID),
@@ -2986,12 +2977,7 @@ func run() error {
 			if !ok {
 				return true
 			}
-			for _, t := range it.Tags() {
-				if t == "no_trade" {
-					return false
-				}
-			}
-			return true
+			return !slices.Contains(it.Tags(), "no_trade")
 		},
 	)
 	auctionMgr.SetNotifier(auctionNotifier{m: notifMgr})
@@ -3009,13 +2995,11 @@ func run() error {
 	}
 
 	var wg sync.WaitGroup
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
+	wg.Go(func() {
 		if err := loop.Run(ctx); err != nil && !errors.Is(err, context.Canceled) {
 			logging.From(ctx).Warn("tick loop exited with error", slog.Any("err", err))
 		}
-	}()
+	})
 
 	logging.From(ctx).Info("anothermud starting",
 		slog.String("addr", ln.Addr().String()),
@@ -3045,12 +3029,7 @@ func run() error {
 			if !ok {
 				return true
 			}
-			for _, t := range it.Tags() {
-				if t == "no_trade" {
-					return false
-				}
-			}
-			return true
+			return !slices.Contains(it.Tags(), "no_trade")
 		},
 		func(id entities.EntityID) string {
 			if e, ok := entityStore.GetByID(id); ok {
@@ -3458,7 +3437,7 @@ func loadConfig() config {
 	}
 	wsOrigins := []string{}
 	if v := envOr("ANOTHERMUD_WS_ORIGINS", ""); v != "" {
-		for _, part := range strings.Split(v, ",") {
+		for part := range strings.SplitSeq(v, ",") {
 			if trimmed := strings.TrimSpace(part); trimmed != "" {
 				wsOrigins = append(wsOrigins, trimmed)
 			}
@@ -3605,7 +3584,7 @@ func envCSVOr(key string, def []string) []string {
 		return def
 	}
 	var out []string
-	for _, part := range strings.Split(v, ",") {
+	for part := range strings.SplitSeq(v, ",") {
 		if t := strings.TrimSpace(part); t != "" {
 			out = append(out, t)
 		}
@@ -3664,14 +3643,14 @@ func parseRoleSeed(s string) map[string][]string {
 		return nil
 	}
 	out := make(map[string][]string)
-	for _, entry := range strings.Split(s, ";") {
+	for entry := range strings.SplitSeq(s, ";") {
 		name, roleList, ok := strings.Cut(entry, ":")
 		name = strings.ToLower(strings.TrimSpace(name))
 		if !ok || name == "" {
 			continue
 		}
 		var roles []string
-		for _, r := range strings.Split(roleList, ",") {
+		for r := range strings.SplitSeq(roleList, ",") {
 			if r = strings.ToLower(strings.TrimSpace(r)); r != "" {
 				roles = append(roles, r)
 			}
@@ -4873,12 +4852,7 @@ func (t combatTagSource) EntityHasTag(id combat.CombatantID, tag string) bool {
 }
 
 func hasTag(tags []string, want string) bool {
-	for _, t := range tags {
-		if t == want {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(tags, want)
 }
 
 // combatMover implements combat.Mover. Players move via

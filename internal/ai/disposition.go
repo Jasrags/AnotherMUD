@@ -2,6 +2,7 @@ package ai
 
 import (
 	"context"
+	"slices"
 	"sync"
 
 	"github.com/Jasrags/AnotherMUD/internal/entities"
@@ -437,21 +438,11 @@ func bucketMatch(allowed []string, player string) bool {
 	if player == "" {
 		return false
 	}
-	for _, b := range allowed {
-		if b == player {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(allowed, player)
 }
 
 func playerHasTag(p PlayerView, tag string) bool {
-	for _, t := range p.Tags {
-		if t == tag {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(p.Tags, tag)
 }
 
 // template resolves m's template via the configured lookup. Returns

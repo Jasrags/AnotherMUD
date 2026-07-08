@@ -219,9 +219,9 @@ func TestFleeMultiExitUsesRoller(t *testing.T) {
 				world.DirWest:  {Target: "tapestry-core:gate"},
 			},
 		},
-		toRoom:                       {ID: toRoom},
-		"tapestry-core:forge":        {ID: "tapestry-core:forge"},
-		"tapestry-core:gate":         {ID: "tapestry-core:gate"},
+		toRoom:                {ID: toRoom},
+		"tapestry-core:forge": {ID: "tapestry-core:forge"},
+		"tapestry-core:gate":  {ID: "tapestry-core:gate"},
 	}
 	id := NewMobCombatantID("rat")
 	cfg.Locator.(MapLocator)[id] = staticCombatant{id: id, name: "rat"}

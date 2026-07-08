@@ -2,6 +2,7 @@ package combat
 
 import (
 	"context"
+	"slices"
 	"sync"
 
 	"github.com/Jasrags/AnotherMUD/internal/world"
@@ -517,10 +518,5 @@ func (m *Manager) lookupName(id CombatantID) string {
 // digit typically), so a slice + scan beats a map per-combatant on
 // memory and on the iteration path that the round loop will use.
 func contains(list []CombatantID, id CombatantID) bool {
-	for _, x := range list {
-		if x == id {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(list, id)
 }

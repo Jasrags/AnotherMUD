@@ -33,7 +33,7 @@ func ParseInput(raw string, cap int) []string {
 		cap = DefaultChainCap
 	}
 	out := make([]string, 0, cap)
-	for _, segment := range strings.Split(raw, ";") {
+	for segment := range strings.SplitSeq(raw, ";") {
 		if len(out) >= cap {
 			break // §4.1 cap reached — drop the rest silently.
 		}
@@ -55,10 +55,7 @@ func ParseInput(raw string, cap int) []string {
 		if len(fields) > 1 {
 			line = verb + " " + strings.Join(fields[1:], " ")
 		}
-		n := count
-		if n < 1 {
-			n = 1
-		}
+		n := max(count, 1)
 		if remaining := cap - len(out); n > remaining {
 			n = remaining
 		}

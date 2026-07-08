@@ -109,15 +109,12 @@ func padRight(s string, width int) string {
 // the map stays in its column.
 func joinBeside(left, right string, leftWidth, gap int) string {
 	var leftLines []string
-	for _, ln := range strings.Split(left, "\n") {
+	for ln := range strings.SplitSeq(left, "\n") {
 		leftLines = append(leftLines, wrapMarkupLine(ln, leftWidth)...)
 	}
 	rightLines := strings.Split(right, "\n")
 
-	rows := len(leftLines)
-	if len(rightLines) > rows {
-		rows = len(rightLines)
-	}
+	rows := max(len(rightLines), len(leftLines))
 	gapStr := strings.Repeat(" ", gap)
 	var b strings.Builder
 	for i := 0; i < rows; i++ {

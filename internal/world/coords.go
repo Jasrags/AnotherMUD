@@ -1,6 +1,6 @@
 package world
 
-import "sort"
+import "slices"
 
 // Coord is an area-local integer (x, y, z) coordinate
 // (room-coordinates §2.1). x is the east(+)/west(−) axis, y is
@@ -122,7 +122,7 @@ func (w *World) DeriveCoordinates() []CoordWarning {
 	for id := range byArea {
 		areaIDs = append(areaIDs, id)
 	}
-	sort.Slice(areaIDs, func(i, j int) bool { return areaIDs[i] < areaIDs[j] })
+	slices.Sort(areaIDs)
 
 	var warnings []CoordWarning
 	for _, aid := range areaIDs {
@@ -149,9 +149,9 @@ func deriveArea(aid AreaID, rooms []*Room) []CoordWarning {
 type areaDeriver struct {
 	aid       AreaID
 	byID      map[RoomID]*Room
-	ids       []RoomID          // ascending; the deterministic processing order
-	placed    map[RoomID]Coord  // rooms assigned a coordinate this run
-	occupancy map[Coord]RoomID  // first room to claim each cell
+	ids       []RoomID         // ascending; the deterministic processing order
+	placed    map[RoomID]Coord // rooms assigned a coordinate this run
+	occupancy map[Coord]RoomID // first room to claim each cell
 	warnings  []CoordWarning
 }
 
@@ -167,7 +167,7 @@ func newAreaDeriver(aid AreaID, rooms []*Room) *areaDeriver {
 		d.byID[r.ID] = r
 		d.ids = append(d.ids, r.ID)
 	}
-	sort.Slice(d.ids, func(i, j int) bool { return d.ids[i] < d.ids[j] })
+	slices.Sort(d.ids)
 	return d
 }
 

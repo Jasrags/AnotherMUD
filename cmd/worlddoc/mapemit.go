@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -217,10 +218,5 @@ func computeFeatures(spawn, items, station bool, light string, locked, hidden bo
 }
 
 func anyMob(mobs []mobJSON, pred func(mobJSON) bool) bool {
-	for _, m := range mobs {
-		if pred(m) {
-			return true
-		}
-	}
-	return false
+	return slices.ContainsFunc(mobs, pred)
 }

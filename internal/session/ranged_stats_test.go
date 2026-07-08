@@ -77,7 +77,7 @@ func TestConsumeAmmo(t *testing.T) {
 	a := newEqActor(t, store)
 
 	// Two plain arrows + one masterwork arrow + a non-ammo item.
-	for i := 0; i < 2; i++ {
+	for range 2 {
 		inst, _ := store.Spawn(&item.Template{
 			ID: "test:arrow", Name: "an arrow", Type: "item", AmmoKind: "arrow",
 		})
@@ -107,7 +107,7 @@ func TestConsumeAmmo(t *testing.T) {
 	// Consume three arrows: each removes exactly one matching instance.
 	// At least one of the three carries the masterwork grade key.
 	sawGrade := false
-	for i := 0; i < 3; i++ {
+	for i := range 3 {
 		grade, ok := a.ConsumeAmmo("arrow")
 		if !ok {
 			t.Fatalf("ConsumeAmmo(arrow) #%d = not consumed, want consumed", i+1)

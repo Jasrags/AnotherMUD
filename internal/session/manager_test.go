@@ -411,27 +411,23 @@ func TestManager_ConcurrentAddRemoveSendToRoom(t *testing.T) {
 
 	const n = 50
 	actors := make([]*connActor, n)
-	for i := 0; i < n; i++ {
+	for i := range n {
 		a, _ := newFakeActor(
 			"c"+itoa(i), "p"+itoa(i), "acc1", "Alice"+itoa(i), r)
 		actors[i] = a
 	}
 
 	var wg sync.WaitGroup
-	for i := 0; i < n; i++ {
+	for i := range n {
 		i := i
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			mgr.Add(actors[i])
-		}()
+		})
 	}
-	for i := 0; i < 20; i++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+	for range 20 {
+		wg.Go(func() {
 			mgr.SendToRoom(context.Background(), r.ID, "hi")
-		}()
+		})
 	}
 	wg.Wait()
 
@@ -440,13 +436,11 @@ func TestManager_ConcurrentAddRemoveSendToRoom(t *testing.T) {
 	}
 
 	wg = sync.WaitGroup{}
-	for i := 0; i < n; i++ {
+	for i := range n {
 		i := i
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			mgr.Remove(actors[i])
-		}()
+		})
 	}
 	wg.Wait()
 	if mgr.Count() != 0 {
@@ -463,7 +457,7 @@ func TestManager_SetRoomRacingRemoveLeavesNoIndexLeak(t *testing.T) {
 	r1 := &world.Room{ID: "x:1"}
 	r2 := &world.Room{ID: "x:2"}
 
-	for i := 0; i < trials; i++ {
+	for i := range trials {
 		mgr := NewManager()
 		a, _ := newFakeActor("c", "p", "acc", "Eve", r1)
 		mgr.Add(a)

@@ -291,7 +291,7 @@ func TestHistory_BoundedFIFO(t *testing.T) {
 	cfg.HistoryCapacity = 3
 	m := NewManager(cfg, &recSink{}, fixedClock())
 	e := newEntity("hero", 0)
-	for i := 0; i < 5; i++ {
+	for range 5 {
 		m.Shift(context.Background(), e, 10, "deed")
 	}
 	h := m.History("hero")

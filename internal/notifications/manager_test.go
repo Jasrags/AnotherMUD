@@ -344,14 +344,14 @@ func TestManager_ConcurrentPublishesRaceClean(t *testing.T) {
 	const n = 20
 	var wg sync.WaitGroup
 	wg.Add(n)
-	for i := 0; i < n; i++ {
+	for i := range n {
 		i := i
 		go func() {
 			defer wg.Done()
 			_ = m.Publish(ctx, Notification{
-				Recipients: []string{"ent-9"},
-				Priority:   PriorityChannel,
-				Text:       "msg",
+				Recipients:  []string{"ent-9"},
+				Priority:    PriorityChannel,
+				Text:        "msg",
 				PublishedAt: time.Now().Add(time.Duration(i) * time.Microsecond),
 			}, map[string]string{"ent-9": "Iris"})
 		}()

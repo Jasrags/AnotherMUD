@@ -100,7 +100,7 @@ const lightSlotKey = "light"
 // HasTag() supplies darkvision. A viewer lacking one simply contributes
 // nothing from it, so the same gather serves players and mobs. Modelled
 // as an empty interface because the two capabilities are independent.
-type LightViewer interface{}
+type LightViewer any
 
 // equipmentHolder / taggable are the optional capability views
 // EffectiveLight asserts a viewer against.

@@ -278,12 +278,9 @@ func TestLoot_ConcurrentLootNoDuplication(t *testing.T) {
 
 	var wg sync.WaitGroup
 	for _, actor := range []command.Actor{a, b} {
-		actor := actor
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			_ = r.Dispatch(context.Background(), env, actor, "loot corpse")
-		}()
+		})
 	}
 	wg.Wait()
 

@@ -390,7 +390,7 @@ func runAutoAttack(ctx context.Context, attackerID CombatantID, mgr *Manager, cf
 		critMultiplier: critMultiplier,
 		attackerRoom:   attackerRoom,
 	}
-	for i := 0; i < swings; i++ {
+	for range swings {
 		switch resolveSwing(ctx, in, cfg) {
 		case swingKill:
 			cleaveFollowUp(ctx, in, mgr, cfg)
@@ -442,10 +442,7 @@ func runAutoAttack(ctx context.Context, attackerID CombatantID, mgr *Manager, cf
 		offIn.damageExpr = offStats.EffectiveDamage()
 		offIn.critThreatLow = offThreatLow
 		offIn.critMultiplier = offMult
-		offHandSwings := off.Attacks
-		if offHandSwings < 1 {
-			offHandSwings = 1
-		}
+		offHandSwings := max(off.Attacks, 1)
 		for i := 0; i < offHandSwings; i++ {
 			// Strike i takes i× the cumulative secondary off-hand penalty (§4.3):
 			// the first strike is unpenalized beyond its baked off-hand penalty.
@@ -715,10 +712,7 @@ func resolveSwing(ctx context.Context, in swingInputs, cfg AutoAttackConfig) swi
 	// The per-swing minimum of 1 still holds, so a landed hit always lands ≥1
 	// even under full soak.
 	soak := in.defStats.Mitigation + TypedResistance(in.defStats.Resistances, in.atkStats.WeaponDamageTypes)
-	raw := dmg + in.atkStats.DamageBonus - soak
-	if raw < 1 {
-		raw = 1
-	}
+	raw := max(dmg+in.atkStats.DamageBonus-soak, 1)
 
 	// §4.5 apply — route the raw damage to its destination monitor.
 	// shadowrun-mvp SR-M2: an attack's Stats.TargetPool names which of the
@@ -1036,7 +1030,7 @@ func SortPlayersFirst(ids []CombatantID) {
 	// rotate the run between w and i so the relative order of
 	// already-classified slots is preserved.
 	w := 0
-	for i := 0; i < len(ids); i++ {
+	for i := range ids {
 		if !isPlayerID(ids[i]) {
 			continue
 		}

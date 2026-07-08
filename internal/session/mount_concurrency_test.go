@@ -26,12 +26,10 @@ func TestConnActor_DrainLiveMountsConcurrent(t *testing.T) {
 	// One goroutine drains (the logout path); others untrack individual ids
 	// (the stable path) concurrently. Whichever wins a given id, it is removed
 	// once — the maps never see a double-delete panic.
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
+	wg.Go(func() {
 		_ = a.drainLiveMounts()
-	}()
-	for i := 0; i < n; i++ {
+	})
+	for i := range n {
 		wg.Add(1)
 		go func(id entities.EntityID) {
 			defer wg.Done()

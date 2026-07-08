@@ -425,7 +425,7 @@ func TestCommit_MidDeliveryItemFailureMakesWhole(t *testing.T) {
 // asserts value conservation regardless of which wins (run with -race).
 func TestConcurrent_WithdrawVsCommit(t *testing.T) {
 	ctx := context.Background()
-	for i := 0; i < 200; i++ {
+	for i := range 200 {
 		cus := newFakeCustodian()
 		cus.give("A", "sword")
 		cus.setGold("B", 100)

@@ -22,12 +22,12 @@ import (
 // cases:
 //
 //   - sb == nil  — caller passed a nil StatBlock; the bootSpawner
-//                  never does because Store.SpawnMob always builds
-//                  one. Treated as no-op rather than panic so a
-//                  future caller can't accidentally crash the boot.
+//     never does because Store.SpawnMob always builds
+//     one. Treated as no-op rather than panic so a
+//     future caller can't accidentally crash the boot.
 //   - cls == nil — caller passed a nil Class; the bootSpawner only
-//                  calls this after a `(*Class, true)` registry hit.
-//                  No-op for the same reason.
+//     calls this after a `(*Class, true)` registry hit.
+//     No-op for the same reason.
 //
 // Spec posture: integer averaging via DiceExpr.Average — 1d6 → 3,
 // 2d6 → 7. The level multiplier is applied AFTER averaging so the

@@ -161,7 +161,7 @@ func TestAutoAttack_ProjectileHitsAtMeleeBand(t *testing.T) {
 	atkStats := Stats{HitMod: 0, RangedClass: RangedProjectile, AmmoKind: "arrow"}
 	defStats := Stats{AC: 10}
 	rig := newAutoAttackRig(t, atkStats, defStats, 10, 20, []int{14, 0}) // d20=15 hit, then 1d3 dmg
-	rig.falloff = 100 // irrelevant at the melee band
+	rig.falloff = 100                                                    // irrelevant at the melee band
 	// A projectile engage auto-opens at far; pull it in to the melee band
 	// (pblank stays 0, so no point-blank penalty for this roll).
 	rig.mgr.AdjustBand(rig.attacker.id, rig.target.id, -farBand())
@@ -203,8 +203,8 @@ func TestAutoAttack_ProjectileShootsWhenNotKiting(t *testing.T) {
 	atkStats := Stats{HitMod: 100, RangedClass: RangedProjectile, AmmoKind: "arrow"}
 	defStats := Stats{AC: 10}
 	rig := newAutoAttackRig(t, atkStats, defStats, 10, 20, []int{5, 0}) // d20 hit + 1d3 dmg
-	rig.mgr.AdjustBand(rig.attacker.id, rig.target.id, +farBand()) // far
-	rig.mgr.AdjustBand(rig.attacker.id, rig.target.id, -1)         // near (room to kite)
+	rig.mgr.AdjustBand(rig.attacker.id, rig.target.id, +farBand())      // far
+	rig.mgr.AdjustBand(rig.attacker.id, rig.target.id, -1)              // near (room to kite)
 	rig.kite = func(CombatantID, CombatantID, int) bool { return false }
 	rig.phase()(context.Background(), rig.attacker.id, rig.mgr, 0)
 

@@ -2,6 +2,7 @@ package progression
 
 import (
 	"context"
+	"slices"
 	"sort"
 	"strings"
 	"sync"
@@ -346,10 +347,8 @@ func (m *EffectManager) HasFlag(entityID, flag string) bool {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 	for _, e := range m.effects[eid] {
-		for _, f := range e.Flags {
-			if f == target {
-				return true
-			}
+		if slices.Contains(e.Flags, target) {
+			return true
 		}
 	}
 	return false
@@ -384,12 +383,7 @@ func (m *EffectManager) RemoveByFlag(ctx context.Context, entityID, flag string)
 		return 0
 	}
 	removed := m.removeMatching(eid, func(e *Effect) bool {
-		for _, f := range e.Flags {
-			if f == target {
-				return true
-			}
-		}
-		return false
+		return slices.Contains(e.Flags, target)
 	})
 	if len(removed) == 0 {
 		return 0

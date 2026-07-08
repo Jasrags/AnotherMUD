@@ -170,7 +170,7 @@ func TestEffectManager_RefreshableReapplyResetsDuration(t *testing.T) {
 		t.Fatal("first Apply returned false")
 	}
 	// Burn the duration down so a refresh is observable.
-	for i := 0; i < 100; i++ {
+	for range 100 {
 		m.Tick(context.Background())
 	}
 	if got := m.Effects("p-1")[0].Remaining; got != 500 {
@@ -302,7 +302,7 @@ func TestEffectManager_TickDecrementsAndExpires(t *testing.T) {
 	}
 	// Permanent doesn't tick. After many ticks long expires
 	// eventually; permanent stays.
-	for i := 0; i < 100; i++ {
+	for range 100 {
 		m.Tick(ctx)
 	}
 	if m.Has("p-1", "long") {
@@ -423,7 +423,7 @@ func TestEffectManager_TickConcurrentRemoveIsSafe(t *testing.T) {
 	// to drive the -race detector through both code paths.
 	tgt := newRecTarget("p-1")
 	m := newManagerForTarget(tgt, nil)
-	for i := 0; i < 50; i++ {
+	for i := range 50 {
 		m.Apply(context.Background(), "p-1", progression.EffectTemplate{
 			ID:        "eff-" + idStr(i),
 			Duration:  3,
@@ -434,13 +434,13 @@ func TestEffectManager_TickConcurrentRemoveIsSafe(t *testing.T) {
 	wg.Add(2)
 	go func() {
 		defer wg.Done()
-		for i := 0; i < 50; i++ {
+		for range 50 {
 			m.Tick(context.Background())
 		}
 	}()
 	go func() {
 		defer wg.Done()
-		for i := 0; i < 50; i++ {
+		for i := range 50 {
 			m.RemoveByID(context.Background(), "p-1", "eff-"+idStr(i))
 		}
 	}()
@@ -554,7 +554,7 @@ func TestEffectManager_RecurringSaveNoResolverRunsFullDuration(t *testing.T) {
 	// No SetSaveResolver → the shake-off save can't roll; effect runs out.
 	ctx := context.Background()
 	m.Apply(ctx, "p-1", stunTemplate(3), "", "")
-	for i := 0; i < 2; i++ {
+	for i := range 2 {
 		m.Tick(ctx)
 		if !m.Has("p-1", "stunned") {
 			t.Fatalf("stun gone after %d ticks with no resolver (should run full duration)", i+1)

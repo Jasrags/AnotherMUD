@@ -26,9 +26,9 @@ type fakeSource struct {
 	factionStandings map[string]int
 }
 
-func (s *fakeSource) EntityID() string                     { return s.id }
-func (s *fakeSource) IsResting() bool                      { return false }
-func (s *fakeSource) Alignment() int                       { return 0 }
+func (s *fakeSource) EntityID() string { return s.id }
+func (s *fakeSource) IsResting() bool  { return false }
+func (s *fakeSource) Alignment() int   { return 0 }
 func (s *fakeSource) MeetsFactionStanding(faction string, min int) bool {
 	if s.factionStandings == nil {
 		return true

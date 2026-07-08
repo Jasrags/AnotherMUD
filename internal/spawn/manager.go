@@ -153,7 +153,7 @@ func (m *Manager) applyRule(ctx context.Context, logger *slog.Logger, areaID wor
 	}
 
 	// Step "for each missing slot: choose template + spawn + track".
-	for slot := 0; slot < missing; slot++ {
+	for range missing {
 		templateID := m.chooseTemplate(rule)
 		id, err := m.spawner.Spawn(ctx, templateID, rule.RoomID)
 		if err != nil {

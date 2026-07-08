@@ -179,7 +179,7 @@ func TestConcurrentApplyRemove(t *testing.T) {
 	// many goroutines to ensure the internal lock guards everything.
 	b := stats.New()
 	var wg sync.WaitGroup
-	for i := 0; i < 50; i++ {
+	for i := range 50 {
 		wg.Add(1)
 		i := i
 		go func() {

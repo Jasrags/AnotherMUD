@@ -79,7 +79,7 @@ func (s *Sandbox) RawState() *lua.LState { return s.L }
 // Lock acquires the sandbox's internal mutex. Paired with Unlock.
 // Callers binding Go-side LGFunctions or reading state must hold
 // this lock — gopher-lua's LState is not safe for concurrent use.
-func (s *Sandbox) Lock()   { s.mu.Lock() }
+func (s *Sandbox) Lock() { s.mu.Lock() }
 
 // Unlock releases the sandbox's internal mutex.
 func (s *Sandbox) Unlock() { s.mu.Unlock() }

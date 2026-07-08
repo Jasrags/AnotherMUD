@@ -4,9 +4,9 @@ import "testing"
 
 func TestParseHex(t *testing.T) {
 	cases := []struct {
-		in       string
-		r, g, b  int
-		ok       bool
+		in      string
+		r, g, b int
+		ok      bool
 	}{
 		{"#FF0000", 255, 0, 0, true},
 		{"ff0000", 255, 0, 0, true},

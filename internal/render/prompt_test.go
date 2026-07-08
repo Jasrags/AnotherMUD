@@ -66,9 +66,9 @@ func TestRenderPromptThenColor(t *testing.T) {
 func TestRenderPromptEdgeBraces(t *testing.T) {
 	v := PromptVitals{HP: 1, MaxHP: 2}
 	cases := map[string]string{
-		"{123}":      "{123}", // non-letters: verbatim
-		"{foo":       "{foo",  // unterminated: verbatim
-		"no braces":  "no braces",
+		"{123}":       "{123}", // non-letters: verbatim
+		"{foo":        "{foo",  // unterminated: verbatim
+		"no braces":   "no braces",
 		"{hp}{maxhp}": "12",
 	}
 	for in, want := range cases {

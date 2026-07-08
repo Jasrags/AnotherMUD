@@ -399,7 +399,7 @@ func (c *Conn) WriteCommand(ctx context.Context, p []byte) (int, error) {
 // graph to add `bytes` for one call. Sentinel return -1 matches the
 // stdlib convention.
 func bytesIndexByte(s []byte, b byte) int {
-	for i := 0; i < len(s); i++ {
+	for i := range s {
 		if s[i] == b {
 			return i
 		}
@@ -419,7 +419,7 @@ func bytesIndexByte(s []byte, b byte) int {
 // '\r'" test reads the INPUT byte, so a source "\r\n" is left intact.
 func crlfNormalize(p []byte) []byte {
 	bare := false
-	for i := 0; i < len(p); i++ {
+	for i := range p {
 		if p[i] == '\n' && (i == 0 || p[i-1] != '\r') {
 			bare = true
 			break
@@ -429,7 +429,7 @@ func crlfNormalize(p []byte) []byte {
 		return p
 	}
 	out := make([]byte, 0, len(p)+8)
-	for i := 0; i < len(p); i++ {
+	for i := range p {
 		if p[i] == '\n' && (i == 0 || p[i-1] != '\r') {
 			out = append(out, '\r', '\n')
 		} else {
@@ -465,7 +465,7 @@ func escapeIAC(p []byte, firstIAC int) []byte {
 // budget runs out.
 func mapEscapedWriteCount(p []byte, nWritten int) int {
 	remain := nWritten
-	for i := 0; i < len(p); i++ {
+	for i := range p {
 		cost := 1
 		if p[i] == tnIAC {
 			cost = 2

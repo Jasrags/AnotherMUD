@@ -116,10 +116,7 @@ func (s *Service) Forage(_ context.Context, g Gatherer, table *ForageTable, now 
 	if err != nil || tpl == nil {
 		return ForageResult{Outcome: ForageOutputUndefined, ItemID: entry.Item}
 	}
-	qty := entry.Qty
-	if qty < 1 {
-		qty = 1
-	}
+	qty := max(entry.Qty, 1)
 	// Spawn transactionally: stage all instances first, and only file them
 	// into the bag once every spawn succeeded. A mid-loop spawn failure
 	// untracks the partial spawns and yields nothing — no orphaned items,

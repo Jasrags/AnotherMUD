@@ -3,6 +3,8 @@ package command_test
 import (
 	"context"
 	"errors"
+	"maps"
+	"slices"
 	"strings"
 	"sync"
 	"testing"
@@ -44,7 +46,6 @@ func TestRegistry_Resolve(t *testing.T) {
 		{"xyz", "", true},       // no match
 	}
 	for _, c := range cases {
-		c := c
 		t.Run(c.verb, func(t *testing.T) {
 			t.Parallel()
 			h := r.Resolve(c.verb)
@@ -374,12 +375,7 @@ func (a *testActor) DiscoverExit(dir world.Direction) bool {
 func (a *testActor) HasTag(tag string) bool {
 	a.mu.Lock()
 	defer a.mu.Unlock()
-	for _, t := range a.tags {
-		if t == tag {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(a.tags, tag)
 }
 
 // IsHidden / HideScore / Hide / Reveal make testActor satisfy the (unexported)
@@ -805,9 +801,7 @@ func (a *testActor) Equipment() map[string]entities.EntityID {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	out := make(map[string]entities.EntityID, len(a.equipment))
-	for k, v := range a.equipment {
-		out[k] = v
-	}
+	maps.Copy(out, a.equipment)
 	return out
 }
 

@@ -12,6 +12,8 @@
 // penalty, and the save-bonus reduction).
 package condition
 
+import "slices"
+
 import "strings"
 
 // Recognized condition flags (conditions §2). A condition effect carries one
@@ -59,12 +61,7 @@ func IsConditionFlag(f string) bool { return strings.HasPrefix(f, flagPrefix) }
 
 // AnyCondition reports whether any flag in the set is a condition flag.
 func AnyCondition(flags []string) bool {
-	for _, f := range flags {
-		if IsConditionFlag(f) {
-			return true
-		}
-	}
-	return false
+	return slices.ContainsFunc(flags, IsConditionFlag)
 }
 
 // Config holds the per-condition magnitudes (conditions §8). All values are

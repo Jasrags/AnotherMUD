@@ -151,7 +151,6 @@ func TestFill_HappyPath_InfiniteFountain(t *testing.T) {
 
 func TestFill_AcceptsImplicitAndExplicitFrom(t *testing.T) {
 	for _, input := range []string{"fill skin fountain", "fill skin from fountain"} {
-		input := input
 		t.Run(input, func(t *testing.T) {
 			f := newPutFixture(t)
 			a := newNamedTestActor("Alice", "p-alice", f.room)
@@ -323,7 +322,6 @@ func TestFill_MissingArgs(t *testing.T) {
 	f.spawnInRoom(t, fountainTpl())
 
 	for _, input := range []string{"fill", "fill skin", "fill skin from"} {
-		input := input
 		t.Run(input, func(t *testing.T) {
 			a.lines = nil
 			dispatchFill(t, f, a, input)

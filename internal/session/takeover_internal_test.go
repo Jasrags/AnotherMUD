@@ -21,15 +21,13 @@ func TestMarkTakenOver_IsOneShotLatch(t *testing.T) {
 	var wins int64
 	var wg sync.WaitGroup
 	start := make(chan struct{})
-	for i := 0; i < N; i++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+	for range N {
+		wg.Go(func() {
 			<-start
 			if a.markTakenOver() {
 				atomic.AddInt64(&wins, 1)
 			}
-		}()
+		})
 	}
 	close(start)
 	wg.Wait()

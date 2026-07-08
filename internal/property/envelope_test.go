@@ -4,7 +4,7 @@ import "testing"
 
 func TestWrap_PrimitivesEach(t *testing.T) {
 	cases := []struct {
-		v        interface{}
+		v        any
 		wantKind string
 	}{
 		{"hello", "string"},
@@ -44,19 +44,19 @@ func TestIsTagged(t *testing.T) {
 	if !IsTagged(TaggedValue{Kind: "int", Value: 1}) {
 		t.Error("TaggedValue: want tagged")
 	}
-	if !IsTagged(map[string]interface{}{"kind": "int", "value": 1}) {
+	if !IsTagged(map[string]any{"kind": "int", "value": 1}) {
 		t.Error("map[string]any: want tagged")
 	}
-	if !IsTagged(map[interface{}]interface{}{"kind": "int", "value": 1}) {
+	if !IsTagged(map[any]any{"kind": "int", "value": 1}) {
 		t.Error("map[any]any: want tagged")
 	}
 	if IsTagged(TaggedValue{}) {
 		t.Error("empty TaggedValue: not tagged")
 	}
-	if IsTagged(map[string]interface{}{"value": 1}) {
+	if IsTagged(map[string]any{"value": 1}) {
 		t.Error("missing kind: not tagged")
 	}
-	if IsTagged(map[string]interface{}{"kind": "int"}) {
+	if IsTagged(map[string]any{"kind": "int"}) {
 		t.Error("missing value: not tagged")
 	}
 	if IsTagged("plain string") {
@@ -76,7 +76,7 @@ func TestUnwrap_TaggedValue(t *testing.T) {
 }
 
 func TestUnwrap_MapStringInterface(t *testing.T) {
-	v := map[string]interface{}{"kind": "string", "value": "hello"}
+	v := map[string]any{"kind": "string", "value": "hello"}
 	inner, kind, ok := Unwrap(v)
 	if !ok || kind != "string" || inner != "hello" {
 		t.Errorf("Unwrap(map) = (%v, %q, %v)", inner, kind, ok)
@@ -84,7 +84,7 @@ func TestUnwrap_MapStringInterface(t *testing.T) {
 }
 
 func TestUnwrap_MapInterfaceInterface(t *testing.T) {
-	v := map[interface{}]interface{}{"kind": "bool", "value": true}
+	v := map[any]any{"kind": "bool", "value": true}
 	inner, kind, ok := Unwrap(v)
 	if !ok || kind != "bool" || inner != true {
 		t.Errorf("Unwrap(yaml-shape map) = (%v, %q, %v)", inner, kind, ok)
@@ -94,11 +94,11 @@ func TestUnwrap_MapInterfaceInterface(t *testing.T) {
 func TestUnwrap_NestedSelfHealing(t *testing.T) {
 	// Spec §4.5 step 2: double-wrapped values must unwrap to the
 	// deepest non-tagged inner value, using the deepest kind tag.
-	inner := map[string]interface{}{
+	inner := map[string]any{
 		"kind":  "int",
 		"value": 42,
 	}
-	outer := map[string]interface{}{
+	outer := map[string]any{
 		"kind":  "float64", // wrong kind on outer — deepest wins
 		"value": inner,
 	}
@@ -128,7 +128,7 @@ func TestUnwrap_NotTagged(t *testing.T) {
 }
 
 func TestUnwrap_EmptyKindIsNotTagged(t *testing.T) {
-	v := map[string]interface{}{"kind": "", "value": 1}
+	v := map[string]any{"kind": "", "value": 1}
 	_, _, ok := Unwrap(v)
 	if ok {
 		t.Error("empty kind: should NOT be treated as tagged")

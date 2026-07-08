@@ -75,12 +75,3 @@ func clamp(l Level) Level {
 	}
 	return l
 }
-
-// max returns the brighter of two levels — the combine operator
-// throughout the resolver (§2.2 "the combine is a maximum").
-func max(a, b Level) Level {
-	if a > b {
-		return a
-	}
-	return b
-}

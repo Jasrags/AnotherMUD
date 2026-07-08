@@ -1,5 +1,7 @@
 package feat
 
+import "slices"
+
 import "strings"
 
 // CharacterView is the read-only character snapshot the prereq evaluator reads
@@ -92,10 +94,8 @@ func classAllowed(allowed, heldClasses []string) bool {
 	}
 	for _, held := range heldClasses {
 		h := strings.ToLower(strings.TrimSpace(held))
-		for _, a := range allowed {
-			if a == h {
-				return true
-			}
+		if slices.Contains(allowed, h) {
+			return true
 		}
 	}
 	return false

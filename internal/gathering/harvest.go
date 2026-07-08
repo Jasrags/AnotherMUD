@@ -87,10 +87,7 @@ func (s *Service) Harvest(_ context.Context, g Gatherer, node *entities.ItemInst
 	if err != nil || tpl == nil {
 		return HarvestResult{Outcome: HarvestOutputUndefined, ItemID: entry.Item}
 	}
-	qty := entry.Qty
-	if qty < 1 {
-		qty = 1
-	}
+	qty := max(entry.Qty, 1)
 	// Stage the yield (spawn but don't file into the bag yet), THEN claim a
 	// charge atomically. Spawning before the claim means a spawn failure
 	// consumes no charge; claiming via TakeCharge means two concurrent

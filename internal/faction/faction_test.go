@@ -300,7 +300,7 @@ func TestHistory_BoundedFIFO(t *testing.T) {
 	def := r.Add(Definition{ID: "core:watch"})
 	m := NewManager(r, nil, fixedClock())
 	e := newEntity("p1")
-	for i := 0; i < 5; i++ {
+	for range 5 {
 		m.Shift(context.Background(), e, def, 10, "x")
 	}
 	h := m.History("p1")

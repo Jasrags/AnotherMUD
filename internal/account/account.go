@@ -276,10 +276,7 @@ func (s *Service) deriveUsernameLocked(email string) string {
 			return candidate
 		}
 		suffix := fmt.Sprintf("%d", i)
-		trimTo := 32 - len(suffix)
-		if trimTo > len(base) {
-			trimTo = len(base)
-		}
+		trimTo := min(32-len(suffix), len(base))
 		candidate = base[:trimTo] + suffix
 	}
 }

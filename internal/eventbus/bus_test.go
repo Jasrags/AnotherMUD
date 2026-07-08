@@ -49,7 +49,7 @@ func TestPublishToUnsubscribedNameIsNoOp(t *testing.T) {
 func TestMultipleSubscribersFireInRegistrationOrder(t *testing.T) {
 	b := eventbus.New()
 	var order []int
-	for i := 0; i < 3; i++ {
+	for i := range 3 {
 		i := i
 		b.Subscribe("ordered", func(ctx context.Context, e eventbus.Event) {
 			order = append(order, i)
@@ -219,16 +219,14 @@ func TestConcurrentSubscribeAndPublish(t *testing.T) {
 	b := eventbus.New()
 	var wg sync.WaitGroup
 	var fired int64
-	for i := 0; i < 50; i++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+	for range 50 {
+		wg.Go(func() {
 			unsub := b.Subscribe("concurrent", func(ctx context.Context, e eventbus.Event) {
 				atomic.AddInt64(&fired, 1)
 			})
 			b.Publish(context.Background(), testEvent{name: "concurrent"})
 			unsub()
-		}()
+		})
 	}
 	wg.Wait()
 }

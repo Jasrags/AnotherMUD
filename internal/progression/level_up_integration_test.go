@@ -123,4 +123,4 @@ func (t levelUpTrampoline) OnLevelUp(ctx context.Context, entityID, track string
 	}
 }
 func (t levelUpTrampoline) OnXPLost(context.Context, string, string, int64, int64) {}
-func (t levelUpTrampoline) OnTrackReset(context.Context, string, string)            {}
+func (t levelUpTrampoline) OnTrackReset(context.Context, string, string)           {}

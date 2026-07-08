@@ -1,6 +1,8 @@
 package entities
 
 import (
+	"maps"
+
 	"github.com/Jasrags/AnotherMUD/internal/channel"
 	"github.com/Jasrags/AnotherMUD/internal/combat"
 	"github.com/Jasrags/AnotherMUD/internal/pool"
@@ -143,9 +145,7 @@ func (m *MobInstance) Stats() combat.Stats {
 	// per-round self-contained-snapshot contract on combat.Stats).
 	if len(m.resistances) > 0 {
 		s.Resistances = make(map[string]int, len(m.resistances))
-		for k, v := range m.resistances {
-			s.Resistances[k] = v
-		}
+		maps.Copy(s.Resistances, m.resistances)
 	}
 	return s
 }

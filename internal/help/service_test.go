@@ -1,6 +1,7 @@
 package help
 
 import (
+	"slices"
 	"strings"
 	"testing"
 )
@@ -189,10 +190,5 @@ func TestRoleResolver_EmptyEntityStaysNone(t *testing.T) {
 }
 
 func containsStr(xs []string, want string) bool {
-	for _, x := range xs {
-		if x == want {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(xs, want)
 }

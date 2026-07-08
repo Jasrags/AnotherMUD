@@ -15,6 +15,7 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"maps"
 	"slices"
 	"sort"
 	"strings"
@@ -863,9 +864,7 @@ func run(ctx context.Context, c conn.Connection, cfg Config) error {
 	// sync loop is safe.
 	if len(loaded.Player.FactionStanding) > 0 {
 		a.factionStanding = make(map[string]int, len(loaded.Player.FactionStanding))
-		for k, v := range loaded.Player.FactionStanding {
-			a.factionStanding[k] = v
-		}
+		maps.Copy(a.factionStanding, loaded.Player.FactionStanding)
 	}
 	// reputation.md §10: restore the single renown score. The tier tag is
 	// derived, re-synced from this score below (outside the lock — the manager's
@@ -3306,9 +3305,7 @@ func snapshotSave(save *player.Save) player.Save {
 	}
 	if save.Equipment != nil {
 		dup := make(map[string]player.EquippedItem, len(save.Equipment))
-		for k, v := range save.Equipment {
-			dup[k] = v
-		}
+		maps.Copy(dup, save.Equipment)
 		out.Equipment = dup
 	}
 	if save.Stats != nil {
@@ -3461,9 +3458,7 @@ func (a *connActor) Equipment() map[string]entities.EntityID {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	out := make(map[string]entities.EntityID, len(a.equipment))
-	for k, v := range a.equipment {
-		out[k] = v
-	}
+	maps.Copy(out, a.equipment)
 	return out
 }
 
@@ -3715,13 +3710,7 @@ func (a *connActor) recomputeWeaponLocked() {
 			minCap = mdx // ArmorMaxDex returns a fresh copy — safe to retain
 		}
 		if t := it.ArmorTier(); t != "" {
-			already := false
-			for _, existing := range tiers {
-				if existing == t {
-					already = true
-					break
-				}
-			}
+			already := slices.Contains(tiers, t)
 			if !already {
 				tiers = append(tiers, t)
 			}
@@ -4214,10 +4203,8 @@ func (a *connActor) LearnLanguage(id string) {
 	if a.save == nil {
 		return
 	}
-	for _, known := range a.save.KnownLanguages {
-		if known == id {
-			return // already known — idempotent
-		}
+	if slices.Contains(a.save.KnownLanguages, id) {
+		return // already known — idempotent
 	}
 	a.save.KnownLanguages = append(a.save.KnownLanguages, id)
 	a.markDirtyLocked()
@@ -4284,10 +4271,7 @@ func (a *connActor) AddMadness(delta int) int {
 	if a.save == nil {
 		return 0
 	}
-	next := a.save.Madness + delta
-	if next < 0 {
-		next = 0
-	}
+	next := max(a.save.Madness+delta, 0)
 	if next == a.save.Madness {
 		// No change (e.g. curing an already-clean target, or decaying at 0) —
 		// don't dirty the save and force a spurious autosave write.
@@ -4353,10 +4337,8 @@ func (a *connActor) AddTag(tag string) bool {
 	if a.save == nil {
 		return false
 	}
-	for _, t := range a.save.AdminTags {
-		if t == tag {
-			return false
-		}
+	if slices.Contains(a.save.AdminTags, tag) {
+		return false
 	}
 	// Also skip a tag a manager already contributes (racial flag), so the
 	// admin bag never duplicates a derived tag in Tags().
@@ -4405,10 +4387,8 @@ func (a *connActor) hasDerivedTagLocked(tag string) bool {
 	if tag == a.alignmentTag || tag == a.reputationTierTag {
 		return true
 	}
-	for _, t := range a.racialTags {
-		if t == tag {
-			return true
-		}
+	if slices.Contains(a.racialTags, tag) {
+		return true
 	}
 	for _, t := range a.factionRankTags {
 		if t == tag {
@@ -4488,10 +4468,7 @@ func (a *connActor) Class() string { return a.ClassID() }
 // Level returns the actor's level on a progression track (quest.Player),
 // defaulting to 1 when the track is uninitialized (spec quests.md §3.2).
 func (a *connActor) Level(track string) int {
-	lvl := a.progress.Level(track)
-	if lvl < 1 {
-		lvl = 1
-	}
+	lvl := max(a.progress.Level(track), 1)
 	return lvl
 }
 
@@ -5003,10 +4980,8 @@ func (a *connActor) shouldRemindHunger(now, interval uint64) bool {
 func (a *connActor) HasTag(tag string) bool {
 	a.mu.Lock()
 	defer a.mu.Unlock()
-	for _, t := range a.racialTags {
-		if t == tag {
-			return true
-		}
+	if slices.Contains(a.racialTags, tag) {
+		return true
 	}
 	if a.alignmentTag == tag {
 		return true
@@ -6233,9 +6208,7 @@ func (a *connActor) Stats() combat.Stats {
 		// Copy out of the shared snapshot: combat.Stats is a self-contained
 		// per-round value (see its doc), so it must not alias a cached map.
 		s.Resistances = make(map[string]int, len(ar.byType))
-		for k, v := range ar.byType {
-			s.Resistances[k] = v
-		}
+		maps.Copy(s.Resistances, ar.byType)
 	}
 	// subdual-damage §6: the defender armor rating (worn armor AC sum) the whip
 	// anti-armor gate reads when THIS actor is the target. 0 when unarmored.

@@ -196,10 +196,7 @@ func (s *SustenanceService) Drain(e SustenanceEntity) (int, Tier) {
 		return 0, TierFamished
 	}
 	s.mu.Lock()
-	next := e.Sustenance() - s.cfg.DrainAmount
-	if next < 0 {
-		next = 0
-	}
+	next := max(e.Sustenance()-s.cfg.DrainAmount, 0)
 	e.SetSustenance(next)
 	s.mu.Unlock()
 	return next, s.cfg.TierOf(next)

@@ -14,6 +14,7 @@
 package stacking
 
 import (
+	"slices"
 	"strings"
 
 	"github.com/Jasrags/AnotherMUD/internal/entities"
@@ -74,10 +75,8 @@ func (s *Service) AddKey(propertyName string) {
 	if name == "" {
 		return
 	}
-	for _, k := range s.extraKeys {
-		if k == name {
-			return
-		}
+	if slices.Contains(s.extraKeys, name) {
+		return
 	}
 	s.extraKeys = append(s.extraKeys, name)
 }

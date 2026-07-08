@@ -51,7 +51,7 @@ func TestLive_MovementSpend(t *testing.T) {
 		steps           = 12
 		defaultStepCost = 2 // ANOTHERMUD_MOVE_COST default
 	)
-	for i := 0; i < steps/2; i++ {
+	for range steps / 2 {
 		walkStep(t, c, "north")
 		walkStep(t, c, "south")
 	}

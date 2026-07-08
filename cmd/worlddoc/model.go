@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"sort"
 	"strings"
 
@@ -419,12 +420,7 @@ func layout(rooms map[string]roomYAML, start string) map[string]pt {
 func clean(s string) string { return strings.TrimSpace(markupRE.ReplaceAllString(s, "")) }
 
 func hasTag(tags []string, want string) bool {
-	for _, t := range tags {
-		if t == want {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(tags, want)
 }
 
 func abs(n int) int {

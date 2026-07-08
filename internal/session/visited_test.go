@@ -157,7 +157,7 @@ func TestAreaTransition_ConcurrentFirstEntryIsOnce(t *testing.T) {
 	var mu sync.Mutex
 	changedCount, firstCount := 0, 0
 	wg.Add(n)
-	for i := 0; i < n; i++ {
+	for range n {
 		go func() {
 			defer wg.Done()
 			_, changed, first := a.AreaTransition("wild")

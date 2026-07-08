@@ -1,6 +1,8 @@
 package entities
 
 import (
+	"maps"
+	"slices"
 	"sync"
 
 	"github.com/Jasrags/AnotherMUD/internal/combat"
@@ -250,9 +252,7 @@ func (it *ItemInstance) Properties() map[string]any {
 		return nil
 	}
 	out := make(map[string]any, len(it.properties))
-	for k, v := range it.properties {
-		out[k] = v
-	}
+	maps.Copy(out, it.properties)
 	return out
 }
 
@@ -436,9 +436,7 @@ func (it *ItemInstance) Resistances() map[string]int {
 		return nil
 	}
 	out := make(map[string]int, len(it.resistances))
-	for k, v := range it.resistances {
-		out[k] = v
-	}
+	maps.Copy(out, it.resistances)
 	return out
 }
 
@@ -446,12 +444,7 @@ func (it *ItemInstance) Resistances() map[string]int {
 // (special-weapons.md §2 — reach / trip / disarm). Tags are normalized lowercase
 // at load, so the caller passes the bare tag constant.
 func (it *ItemInstance) HasSpecial(tag string) bool {
-	for _, t := range it.special {
-		if t == tag {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(it.special, tag)
 }
 
 // TripBonus / DisarmBonus return the DC magnitude this weapon adds to the
@@ -647,9 +640,7 @@ func buildInstanceFromTemplate(tpl *item.Template, id EntityID) *ItemInstance {
 	var resistances map[string]int
 	if len(tpl.Resistances) > 0 {
 		resistances = make(map[string]int, len(tpl.Resistances))
-		for k, v := range tpl.Resistances {
-			resistances[k] = v
-		}
+		maps.Copy(resistances, tpl.Resistances)
 	}
 	// Ranged Strength rating (ranged-combat §4): copy the optional pointer so
 	// the instance never aliases the shared template's pointer.

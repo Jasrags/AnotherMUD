@@ -3,6 +3,7 @@ package entities
 import (
 	"errors"
 	"fmt"
+	"maps"
 	"strconv"
 	"strings"
 	"sync"
@@ -284,9 +285,7 @@ func (s *Store) SwapTagIndex() {
 	next := make(map[string]map[EntityID]Entity, len(s.tagsRead))
 	for tag, bucket := range s.tagsRead {
 		dup := make(map[EntityID]Entity, len(bucket))
-		for id, e := range bucket {
-			dup[id] = e
-		}
+		maps.Copy(dup, bucket)
 		next[tag] = dup
 	}
 	s.tagsWrite = next

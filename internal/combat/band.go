@@ -109,10 +109,7 @@ func (m *Manager) MoveBand(ctx context.Context, subject, opponent CombatantID, r
 	}
 	key := makeBandKey(subject, opponent)
 	cur := m.bands[key]
-	next := cur + delta
-	if next < meleeBand {
-		next = meleeBand
-	}
+	next := max(cur+delta, meleeBand)
 	if next > farBand() {
 		next = farBand()
 	}
@@ -189,10 +186,7 @@ func (m *Manager) AdjustBand(a, b CombatantID, delta int) int {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	key := makeBandKey(a, b)
-	band := m.bands[key] + delta
-	if band < meleeBand {
-		band = meleeBand
-	}
+	band := max(m.bands[key]+delta, meleeBand)
 	if band > farBand() {
 		band = farBand()
 	}

@@ -3,6 +3,7 @@ package telnet
 import (
 	"context"
 	"log/slog"
+	"slices"
 	"sync"
 
 	"github.com/Jasrags/AnotherMUD/internal/logging"
@@ -408,11 +409,9 @@ func (n *negotiator) handleTTYPESubneg(ctx context.Context, payload []byte) {
 	// earlier entry). The RFC 1091 §3 protocol expects the cycle to
 	// terminate when the same name appears twice; "twice in a row"
 	// is the special case of cycle-length-1.
-	for _, seen := range n.caps.TerminalTypes {
-		if seen == name {
-			n.capMu.Unlock()
-			return
-		}
+	if slices.Contains(n.caps.TerminalTypes, name) {
+		n.capMu.Unlock()
+		return
 	}
 	n.caps.TerminalTypes = append(n.caps.TerminalTypes, name)
 	rotations := len(n.caps.TerminalTypes)

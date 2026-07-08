@@ -38,7 +38,7 @@ func TestLive_LeaderSuccession(t *testing.T) {
 	}
 
 	leader := dial("Leadara")
-	first := dial("Firstmate")  // joins first → longest-tenured → successor
+	first := dial("Firstmate")   // joins first → longest-tenured → successor
 	second := dial("Secondmate") // joins second
 
 	send := func(c *telnettest.Client, line string) string {

@@ -98,9 +98,6 @@ func (c Config) DarkvisionViewerFloor(hasDarkvision bool) Level {
 	if !hasDarkvision {
 		return Black
 	}
-	floor := c.DarkvisionFloor
-	if floor > c.DarkvisionCap {
-		floor = c.DarkvisionCap
-	}
+	floor := min(c.DarkvisionFloor, c.DarkvisionCap)
 	return clamp(floor)
 }

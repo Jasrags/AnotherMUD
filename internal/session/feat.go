@@ -415,10 +415,7 @@ func (a *connActor) recordFeatLocked(f *feat.Feat, param string) {
 	if f.MultiTake == feat.MultiTakeStackable {
 		for i := range a.save.KnownFeats {
 			if a.save.KnownFeats[i].FeatID == f.ID {
-				c := a.save.KnownFeats[i].Count
-				if c < 1 {
-					c = 1
-				}
+				c := max(a.save.KnownFeats[i].Count, 1)
 				a.save.KnownFeats[i].Count = c + 1
 				return
 			}

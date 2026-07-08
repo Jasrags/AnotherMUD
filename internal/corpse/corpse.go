@@ -261,7 +261,7 @@ func (s *Service) rollCoins(templateID string) int {
 // `loot corpse`, `loot guard`, and `loot village` all resolve in M22.3.
 func corpseKeywords(mobName string) []string {
 	kws := []string{TagCorpse}
-	for _, w := range strings.Fields(strings.ToLower(mobName)) {
+	for w := range strings.FieldsSeq(strings.ToLower(mobName)) {
 		switch w {
 		case "a", "an", "the", "of":
 			continue

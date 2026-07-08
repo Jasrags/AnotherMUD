@@ -47,8 +47,8 @@ type ThemeRegistry struct {
 	// should use ResolveForTier; compiledByTier carries the full
 	// per-tier set including TrueColor (24-bit RGB SGR) and
 	// Extended (256-color SGR).
-	compiled        map[string]AnsiPair
-	compiledByTier  map[ColorTier]map[string]AnsiPair
+	compiled       map[string]AnsiPair
+	compiledByTier map[ColorTier]map[string]AnsiPair
 }
 
 // NewThemeRegistry returns an empty registry.

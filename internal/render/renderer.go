@@ -53,9 +53,9 @@ func (r *ColorRenderer) RenderAnsi(s string) string {
 //   - ColorTierNone     — equivalent to RenderPlain (no color).
 //   - ColorTierBasic    — ANSI-16 (the M0-era default).
 //   - ColorTierExtended — 256-color SGR for theme entries with
-//                          an HTML hex; ANSI-16 otherwise.
+//     an HTML hex; ANSI-16 otherwise.
 //   - ColorTierTrueColor — 24-bit RGB SGR for theme entries with
-//                          an HTML hex; ANSI-16 otherwise.
+//     an HTML hex; ANSI-16 otherwise.
 //
 // Cache key is (s, tier) so a TrueColor render of a string does
 // not poison a Basic render of the same string.
@@ -183,8 +183,8 @@ func (r *ColorRenderer) scanAngle(s string, i int, ansi bool, tier ColorTier, b 
 
 	// Opening tag. The tag name is the first whitespace-delimited token.
 	name := inner
-	if sp := strings.IndexByte(inner, ' '); sp >= 0 {
-		name = inner[:sp]
+	if before, _, ok := strings.Cut(inner, " "); ok {
+		name = before
 	}
 	lname := strings.ToLower(name)
 

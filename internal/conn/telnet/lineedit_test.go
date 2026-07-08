@@ -56,8 +56,8 @@ type syncBuf struct {
 	b  bytes.Buffer
 }
 
-func (s *syncBuf) write(p []byte)  { s.mu.Lock(); s.b.Write(p); s.mu.Unlock() }
-func (s *syncBuf) String() string  { s.mu.Lock(); defer s.mu.Unlock(); return s.b.String() }
+func (s *syncBuf) write(p []byte) { s.mu.Lock(); s.b.Write(p); s.mu.Unlock() }
+func (s *syncBuf) String() string { s.mu.Lock(); defer s.mu.Unlock(); return s.b.String() }
 
 func drain(c net.Conn) *syncBuf {
 	sb := &syncBuf{}
@@ -117,7 +117,7 @@ func TestCharModeByte_PrintableCapsAtMaxLineBytes(t *testing.T) {
 	_ = drain(client)
 	server.charMode = true
 	var buf []byte
-	for i := 0; i < MaxLineBytes*2; i++ {
+	for i := range MaxLineBytes * 2 {
 		if line, done := server.charModeByte(context.Background(), &buf, 'a'); done {
 			t.Fatalf("unexpected line completion at byte %d: %q", i, line)
 		}

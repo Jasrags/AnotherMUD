@@ -64,10 +64,7 @@ func DecodeForageTable(data []byte) (*ForageTable, error) {
 		if strings.TrimSpace(e.Item) == "" {
 			return nil, fmt.Errorf("forage table %q: entry[%d] has empty item", f.ID, i)
 		}
-		qty := e.Qty
-		if qty < 1 {
-			qty = 1
-		}
+		qty := max(e.Qty, 1)
 		t.Entries = append(t.Entries, ForageEntry{Item: e.Item, Weight: e.Weight, Qty: qty})
 	}
 	if !t.hasSelectableEntry() {

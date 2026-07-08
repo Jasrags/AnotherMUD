@@ -86,7 +86,7 @@ func TestGmcpSupportsCap_RepeatedAddCallsBoundedAcrossInvocations(t *testing.T) 
 	// the map still respects the cap.
 	g := newGmcpState()
 	totalDropped := 0
-	for round := 0; round < 10; round++ {
+	for round := range 10 {
 		// Each round adds 100 fresh names.
 		names := make([]string, 100)
 		for i := range names {

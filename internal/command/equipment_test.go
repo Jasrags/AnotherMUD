@@ -2,6 +2,7 @@ package command_test
 
 import (
 	"context"
+	"slices"
 	"strings"
 	"testing"
 
@@ -51,12 +52,7 @@ func daggerTpl() *item.Template {
 }
 
 func containsID(ids []entities.EntityID, want entities.EntityID) bool {
-	for _, id := range ids {
-		if id == want {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(ids, want)
 }
 
 // eqFixture extends invFixture with a slot registry holding the M5.3

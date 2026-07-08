@@ -165,11 +165,12 @@ func roomNoteTags(r roomJSON) []string {
 
 // npcHTML renders a mob as its name plus role pills.
 func npcHTML(m mobJSON) string {
-	s := "<strong>" + escName(m.Name) + "</strong>"
+	var s strings.Builder
+	s.WriteString("<strong>" + escName(m.Name) + "</strong>")
 	for _, r := range roleTags(m, true) {
-		s += " " + r
+		s.WriteString(" " + r)
 	}
-	return s
+	return s.String()
 }
 
 // roleTags renders a mob's roles as colored pills. withFaction appends the

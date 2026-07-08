@@ -18,7 +18,6 @@ func TestSanitizeForLog(t *testing.T) {
 		{"strips DEL", "a\x7fb", "a�b"},
 	}
 	for _, c := range cases {
-		c := c
 		t.Run(c.name, func(t *testing.T) {
 			t.Parallel()
 			got := sanitizeForLog(c.in)

@@ -2,6 +2,7 @@ package command_test
 
 import (
 	"context"
+	"slices"
 	"strings"
 	"testing"
 
@@ -49,12 +50,7 @@ func offerSvc(t *testing.T) *quest.Service {
 }
 
 func containsStr(s []string, want string) bool {
-	for _, v := range s {
-		if v == want {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(s, want)
 }
 
 func TestTalk_ListsOffers(t *testing.T) {

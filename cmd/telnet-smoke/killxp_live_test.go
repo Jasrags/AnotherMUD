@@ -60,19 +60,19 @@ func TestLive_KillXP(t *testing.T) {
 
 	slainRe := regexp.MustCompile(`(?i)slain a road bandit|road bandit is dead`)
 	deadline := time.Now().Add(120 * time.Second)
-	var acc string
+	var acc strings.Builder
 	for time.Now().Before(deadline) {
 		out := send("kill bandit")
-		acc += out + c.Drain(2000*time.Millisecond)
+		acc.WriteString(out + c.Drain(2000*time.Millisecond))
 		send("restore")
-		if slainRe.MatchString(acc) {
+		if slainRe.MatchString(acc.String()) {
 			break
 		}
 	}
-	if !slainRe.MatchString(acc) {
+	if !slainRe.MatchString(acc.String()) {
 		t.Fatalf("never slew the bandit within 120s")
 	}
-	if !strings.Contains(acc, "You gain 30 experience.") {
-		t.Fatalf("kill did not grant the full 30 XP to the solo killer:\n%s", acc)
+	if !strings.Contains(acc.String(), "You gain 30 experience.") {
+		t.Fatalf("kill did not grant the full 30 XP to the solo killer:\n%s", acc.String())
 	}
 }

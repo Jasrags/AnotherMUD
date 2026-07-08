@@ -235,7 +235,7 @@ func (r *Registry) completeVerb(partial string, isAdmin bool, limit int) ([]Cand
 // the scope the resolver would use for the same token (spec §5).
 func argDefForCursor(defs []ArgDefinition, committed []string) (ArgDefinition, int, bool) {
 	i := 0 // index into committed
-	for defIdx := 0; defIdx < len(defs); defIdx++ {
+	for defIdx := range defs {
 		def := defs[defIdx]
 		// Preposition skip: a committed token matching this arg's
 		// preposition is consumed as the preposition, not the arg.
