@@ -6,6 +6,82 @@ import (
 	"testing"
 )
 
+// drainIACCapturing drains src through an iacReader with a GMCP capture hook,
+// returning the clean text and the captured GMCP payloads in arrival order.
+func drainIACCapturing(t *testing.T, src io.Reader) (string, []string) {
+	t.Helper()
+	var frames []string
+	r := newIACReader(src)
+	r.onGMCP = func(p string) { frames = append(frames, p) }
+	var out []byte
+	buf := make([]byte, 4) // tiny, to force multi-read + straddled sequences
+	for {
+		n, err := r.Read(buf)
+		out = append(out, buf[:n]...)
+		if err != nil {
+			break
+		}
+	}
+	return string(out), frames
+}
+
+func gmcpFrameBytes(payload string) []byte {
+	b := []byte{iac, sb, optGMCP}
+	b = append(b, []byte(payload)...)
+	return append(b, iac, se)
+}
+
+// A GMCP subnegotiation frame is captured whole while surrounding data bytes
+// still stream through cleanly, even when the frame straddles read boundaries.
+func TestIACReader_CapturesGMCPFrame(t *testing.T) {
+	payload := `Room.Info {"num":"starter-world:town-square","x":0,"y":0,"z":0}`
+	var raw []byte
+	raw = append(raw, []byte("hi")...)
+	raw = append(raw, gmcpFrameBytes(payload)...)
+	raw = append(raw, []byte("bye")...)
+
+	text, frames := drainIACCapturing(t, bytes.NewReader(raw))
+	if text != "hibye" {
+		t.Errorf("clean text = %q, want %q", text, "hibye")
+	}
+	if len(frames) != 1 || frames[0] != payload {
+		t.Errorf("captured frames = %#v, want exactly [%q]", frames, payload)
+	}
+}
+
+// Two adjacent GMCP frames are each captured separately (no cross-frame bleed),
+// and the subOpt/sub buffer resets between them.
+func TestIACReader_CapturesMultipleGMCPFrames(t *testing.T) {
+	p1 := `Char.Vitals {"hp":20,"maxhp":20}`
+	p2 := `Room.Info {"num":"x"}`
+	var raw []byte
+	raw = append(raw, gmcpFrameBytes(p1)...)
+	raw = append(raw, gmcpFrameBytes(p2)...)
+
+	// Split every frame across the tiny read buffer via chunkReader too.
+	_, frames := drainIACCapturing(t, bytes.NewReader(raw))
+	if len(frames) != 2 || frames[0] != p1 || frames[1] != p2 {
+		t.Errorf("captured frames = %#v, want [%q %q]", frames, p1, p2)
+	}
+}
+
+// A non-GMCP subnegotiation (e.g. NAWS, option 31) is NOT captured — the hook
+// only fires for option 201.
+func TestIACReader_IgnoresNonGMCPSubneg(t *testing.T) {
+	var raw []byte
+	raw = append(raw, []byte("a")...)
+	raw = append(raw, iac, sb, 31, 0, 80, 0, 24, iac, se) // NAWS 80x24
+	raw = append(raw, []byte("b")...)
+
+	text, frames := drainIACCapturing(t, bytes.NewReader(raw))
+	if text != "ab" {
+		t.Errorf("clean text = %q, want %q", text, "ab")
+	}
+	if len(frames) != 0 {
+		t.Errorf("captured %#v from a non-GMCP subneg; want none", frames)
+	}
+}
+
 // chunkReader hands out the given chunks one per Read, so a test can force a
 // telnet sequence to straddle a read boundary.
 type chunkReader struct {

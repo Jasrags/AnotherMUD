@@ -24,6 +24,7 @@ import (
 	"io"
 	"net"
 	"regexp"
+	"strings"
 	"sync"
 	"time"
 )
@@ -44,7 +45,8 @@ type TB interface {
 // Client is a telnet send/expect session over a single connection.
 type Client struct {
 	conn       net.Conn
-	r          io.Reader // IAC-filtered view of conn (or conn itself, see WithoutIACFilter)
+	r          io.Reader  // IAC-filtered view of conn (or conn itself, see WithoutIACFilter)
+	iac        *iacReader // the filtering reader (nil path unused; kept for GMCP capture wiring)
 	mu         sync.Mutex
 	buf        []byte // clean bytes read but not yet consumed by an Expect
 	timeout    time.Duration
@@ -75,11 +77,48 @@ func WithoutIACFilter() Option {
 	return func(c *Client) { c.r = c.conn }
 }
 
+// WithGMCPCapture registers a callback invoked once per complete GMCP frame the
+// server sends, with the package name and its JSON payload split apart (the
+// payload is "" for a bare package name). The callback fires on the reader
+// goroutine while an Expect/Drain read is in flight, so it MUST NOT call back
+// into this Client (append to your own synchronized store instead). Requires
+// the IAC filter (the default); a no-op under WithoutIACFilter. Pair with
+// ActivateGMCP so the server actually starts sending frames.
+func WithGMCPCapture(fn func(pkg, json string)) Option {
+	return func(c *Client) {
+		if c.iac == nil || fn == nil {
+			return
+		}
+		c.iac.onGMCP = func(raw string) {
+			pkg, payload := raw, ""
+			if i := strings.IndexByte(raw, ' '); i >= 0 {
+				pkg, payload = raw[:i], raw[i+1:]
+			}
+			fn(pkg, payload)
+		}
+	}
+}
+
+// ActivateGMCP sends IAC DO GMCP, telling the server this client accepts GMCP
+// frames. The engine advertises WILL GMCP at boot and starts emitting only
+// after the client's DO; the plain send/expect harness never answers
+// negotiation, so a capture client must call this explicitly after connecting.
+func (c *Client) ActivateGMCP() error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	_ = c.conn.SetWriteDeadline(time.Now().Add(c.timeout))
+	if _, err := c.conn.Write([]byte{iac, doo, optGMCP}); err != nil {
+		return fmt.Errorf("telnettest: activate GMCP: %w", err)
+	}
+	return nil
+}
+
 // New wraps an existing connection. Exposed primarily so tests can drive the
 // client against a net.Pipe() fake server with no real socket.
 func New(conn net.Conn, opts ...Option) *Client {
 	c := &Client{conn: conn, timeout: DefaultTimeout}
-	c.r = newIACReader(conn)
+	c.iac = newIACReader(conn)
+	c.r = c.iac
 	for _, o := range opts {
 		o(c)
 	}

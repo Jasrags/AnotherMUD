@@ -14,6 +14,8 @@ const (
 	wont = 252
 	doo  = 253 // DO
 	dont = 254
+
+	optGMCP = 201 // Generic MUD Communication Protocol subnegotiation option
 )
 
 // iacReader wraps an io.Reader and strips telnet IAC command sequences, yielding
@@ -29,6 +31,13 @@ type iacReader struct {
 	state iacState
 	scrat []byte // reused buffer for raw reads
 	out   []byte // clean bytes not yet handed to the caller
+
+	// onGMCP, when set, is invoked once per complete GMCP (option 201)
+	// subnegotiation frame with the raw payload ("<Package.Name> <json>").
+	// nil leaves GMCP frames dropped like any other subnegotiation.
+	onGMCP func(payload string)
+	subOpt byte   // the option byte of the SB currently being parsed
+	sub    []byte // accumulated GMCP payload for the current SB (option 201 only)
 }
 
 type iacState int
@@ -37,6 +46,7 @@ const (
 	stNormal iacState = iota
 	stIAC             // saw IAC
 	stOption          // saw IAC WILL/WONT/DO/DONT — expect the option byte
+	stSubOpt          // saw IAC SB — expect the subnegotiation option byte
 	stSub             // inside IAC SB … (subnegotiation payload)
 	stSubIAC          // inside SB, saw IAC — expect SE or an escaped IAC
 )
@@ -92,23 +102,35 @@ func (r *iacReader) process(b []byte) {
 			case will, wont, doo, dont:
 				r.state = stOption
 			case sb:
-				r.state = stSub
+				r.state = stSubOpt
 			default:
 				r.state = stNormal // two-byte command (GA, NOP, …): drop
 			}
 		case stOption:
 			r.state = stNormal // drop the option byte
+		case stSubOpt:
+			r.subOpt = c // the option this SB is for (GMCP = 201)
+			r.sub = r.sub[:0]
+			r.state = stSub
 		case stSub:
 			if c == iac {
 				r.state = stSubIAC
+			} else if r.onGMCP != nil && r.subOpt == optGMCP {
+				r.sub = append(r.sub, c) // capture GMCP payload byte
 			}
 			// else: drop subnegotiation payload
 		case stSubIAC:
 			switch c {
 			case se:
+				if r.onGMCP != nil && r.subOpt == optGMCP && len(r.sub) > 0 {
+					r.onGMCP(string(r.sub))
+				}
 				r.state = stNormal
 			case iac:
-				r.state = stSub // escaped IAC inside SB: drop
+				if r.onGMCP != nil && r.subOpt == optGMCP {
+					r.sub = append(r.sub, iac) // escaped IAC inside GMCP payload
+				}
+				r.state = stSub
 			default:
 				r.state = stSub
 			}
