@@ -72,6 +72,17 @@ The damage struct gains two fields (plan §4.3): a damage **`type`** (feeds type
 
 ### SR-M3 — The minimal `shadowrun` world pack  · **mostly Content + small wiring**
 
+> **STATUS: SHIPPED 2026-07-08 — all 8 acceptance criteria proven live.** The
+> playable Street Samurai MVP (SR-M1 → M3) is complete: boot, creation (Street
+> Samurai by default), combat (lethal Physical + stun-KO with soak), cyberware,
+> karma advancement, and the nuyen shop all have live regression tests
+> (`cmd/telnet-smoke/shadowrun_*_live_test.go`). Two engine fixes fell out of it
+> — the class-`bound_track` primary track (`c66cea0`) and world-scoped creation
+> menus (`e15d2a7`) — both of which also fixed the latent WoT equivalents.
+> Post-MVP: SR-M4 (Essence pool) and SR-M5 (karma-ledger advancement) remain
+> optional/deferred; the firearm+ammo mechanic and a Body-derived Physical
+> monitor are the notable open tails (see `sr-m3c-deferred-fixes`).
+
 Stand up `content/shadowrun/` (`kind: world`, depends on `tapestry-core`) and make it bootable. This is the first end-to-end exercise of the channel layer by a **non-WoT** pack.
 
 Content inventory:
@@ -96,7 +107,7 @@ Content inventory:
 - [x] A stun weapon fills the Stun monitor; overflow knocks the target unconscious rather than killing. *(`TestLive_ShadowrunStunKnockout`; overflow→Physical shipped SR-M3c-3.)*
 - [x] A lethal weapon fills the Physical monitor; worn armor reduces it via `mitigation`. *(`TestLive_ShadowrunLethalKill` — katana kills the armored ganger through its body+armor soak → lootable corpse. The firearm+ammo path uses the same default route; ammo mechanic itself still unexercised.)*
 - [x] Cyberware equipped/removed shifts the sourced attribute (via `srckey`), visible on `score`. *(`TestLive_ShadowrunCyberware`: wired reflexes raises Reaction 3→5 on equip, restores on unequip. PURE CONTENT — a `cyberware` slot (max 3) + three implants (wired-reflexes→Reaction, muscle-replacement→Str/Body, cybereyes→Intuition) with item `modifiers`; the standard equip → `EquipmentSourceKey` → stat-block pipeline (equipment.go) applies/removes them, `score` reads the effective attribute. Essence cost is flavor text (SR-M4). Needed a `slots:` glob in the shadowrun manifest — content globs are explicit, not directory-convention.)*
-- [ ] Nuyen is earned/spent at a shop. *(earned via loot ✅ — auto-credited from ganger/sec-guard corpses; no vendor/shop to spend at yet.)*
+- [x] Nuyen is earned/spent at a shop. *(earn: auto-credited from looted ganger/sec-guard corpses. spend: `TestLive_ShadowrunNuyenShop` — a street fixer on the safe corner (`mobs: [fixer]`, `properties.shop.sells`) lets a runner `list` + `buy clip` for 24 nuyen (500→476), item lands in inventory. Standard shop service, no bespoke SR economy code.)*
 - [x] Advancement runs on the existing engine (karma-as-XP, D3) — a kill grants karma, a track advances. *(`TestLive_ShadowrunKarmaAdvance`: a ganger kill banks 30 on the street-samurai's `street`/"The Long Run" track, and crossing 100 XP advances it to Level 2. REQUIRED an engine fix — a character's primary track (kill-XP target + `score` headline) now derives from its class `bound_track`, not the global `DefaultXPTrack="adventurer"`. Previously an SR/WoT character earned + displayed the core `adventurer` track and its own world track was inert.)*
 
 **Why third:** with M1+M2 in place this is *mostly content*, and it's the validation gate — a genuinely playable, if simplified, Street Samurai.

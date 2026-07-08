@@ -26,6 +26,10 @@ items:
   - wired-reflexes
   - muscle-replacement
   - cybereyes
+# A street fixer works the safe corner — `list`/`buy` to spend looted nuyen on
+# gear (SR-M3c [99]). Friendly, so she fits the safe-room (no combat).
+mobs:
+  - fixer
 # A safe hub: no combat, no spawns — a place to stand, read `score`, gear up, and
 # confirm the runner seeded correctly. `safe` also satisfies the training
 # safe-room gate.

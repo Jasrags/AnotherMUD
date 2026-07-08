@@ -1,0 +1,31 @@
+id: fixer
+name: a street fixer
+type: npc
+behavior: stationary
+description: |
+  A rangy woman in a long coat leans against the wall behind a crate of wares,
+  eyes flicking to your gear and pricing it before you've said a word. She deals
+  in whatever a runner needs and never asks what it's for — nuyen up front, no
+  receipts. `list` to see her stock, `buy <item>` to deal.
+tags: [humanoid, shop]
+keywords: [fixer, dealer, shopkeeper, woman]
+# A fixer, not a mark — friendly to everyone; nobody robs the person who sells
+# them ammo.
+disposition_rules:
+  default: friendly
+stats:
+  hp_max: 20
+  body: 3
+  willpower: 3
+# Shop config (economy-survival §3.1). `sells` lists item template ids on offer;
+# the shop block is an arbitrary property map, so ids are NOT namespace-rewritten
+# — qualify them explicitly (shadowrun:<id>). buy_markup/sell_discount fall
+# through to the global 1.2 / 0.5 defaults. A fresh runner's 500 nuyen (street-
+# kid) covers the clip and the pistol; the jacket and chrome are a payday away.
+properties:
+  shop:
+    sells:
+      - shadowrun:ammo-clip
+      - shadowrun:heavy-pistol
+      - shadowrun:armored-jacket
+      - shadowrun:cybereyes
