@@ -51,7 +51,7 @@ The one true prerequisite (plan §4.1). `progression/statblock.go` hardcodes six
 - [x] A world pack can declare its seeded attribute set (id, display name, default, per-attribute cap) as content. *(`attributes/*.yaml` → `progression.AttributeSetRegistry`; core ships `classic`.)*
 - [x] The character seed comes from the *active world's* declaration, not a fixed `DefaultPlayerBase()`. *(The actor constructor resolves worldID → set; the wizard's attribute **point-buy step** is SR-M3.)*
 - [x] `score` renders the active world's attribute names/values (no hardcoded six-stat layout). *(Data-driven `scAttrGrid`, grouped by category.)*
-- [~] Stat caps honor the per-attribute declaration (metatype modifiers layer on top — SR-M3). *(Trainability is set-driven; wiring the set's `Cap` into race-cap enforcement is the SR-M3 tail — see §7 / STATUS above.)*
+- [x] Stat caps honor the per-attribute declaration (metatype modifiers layer on top). *(Every SR metatype declares per-attribute `stat_caps` for all 9 attributes (human 6/edge 7 … troll body 10), and training enforces the race `StatCaps` at raise time (`training.go:544`), so an SR character caps correctly. Residual (LOW, moot for the MVP): the attribute-set's own default `cap` is NOT threaded into that path as the fallback for a race that omits a cap — it falls back to `DefaultRaceCap` 25 — but no shipped SR metatype omits a cap, so it never triggers. Fix-by: a future world whose races don't fully declare `stat_caps`.)*
 - [x] WoT + starter-world boot **unchanged** (their declaration reproduces today's six exactly — a regression gate). *(`TestCorePack_ClassicSetMatchesEngineDefaults` + `SeedBaseFromSet(classic) == DefaultPlayerBase()`.)*
 - [x] A save round-trips a non-default, non-six-sized attribute set. *(The ordered pair-list save already round-trips any key set; proven at the loader/registry layer — an actual `shadowrun` save lands with the pack in SR-M3.)*
 
@@ -61,12 +61,14 @@ The one true prerequisite (plan §4.1). `progression/statblock.go` hardcodes six
 
 The damage struct gains two fields (plan §4.3): a damage **`type`** (feeds type-specific `mitigation` → Ballistic vs Impact) and a **`target_pool`** (which monitor an attack fills → Physical vs Stun). Physical-overflow → death; Stun-overflow → the shipped `unconscious` condition.
 
+> **STATUS: SHIPPED 2026-07-06** (`45ef447` typed-damage `target_pool` routing → `6ea7d5d` weapon `target_pool` field). Proven live end to end by the SR-M3 combat tests — `TestLive_ShadowrunLethalKill` (Physical route + soak) and `TestLive_ShadowrunStunKnockout` (Stun route → KO). Stun-overflow→Physical shipped as SR-M3c-3. Per-type Ballistic/Impact mitigation reuses the WoT S1 typed-resistance path; the SR pack deliberately collapses armor to a single rating (§3), so the per-type *split* isn't exercised in SR content, but the capability is present and SR weapons do carry a `damage_types` (piercing/slashing/…). See `sr-m2-deferred-fixes` for the one open MED (non-atomic named-pool liveness, fine under serial dispatch).
+
 **Acceptance criteria**
-- [ ] A weapon/attack declares a damage `type`; the `mitigation` channel can resist per-type (`armor_ballistic` vs `armor_impact`). Reuse the existing `TypedResistance`/typed-mitigation path from WoT S1.
-- [ ] A weapon/attack declares a `target_pool`; damage routes to that pool (bullet → Physical, stun baton/fist → Stun).
-- [ ] A `target_pool` reaching zero carries a per-pool zero-meaning: Physical → death (existing path), Stun → apply `unconscious` (the subdual seam) rather than kill.
-- [ ] `VitalDepleted` carries the death-vs-KO flag so consumers branch correctly.
-- [ ] Untyped / default-pool attacks behave exactly as today (WoT/starter-world regression gate).
+- [x] A weapon/attack declares a damage `type`; the `mitigation` channel can resist per-type (`armor_ballistic` vs `armor_impact`). Reuse the existing `TypedResistance`/typed-mitigation path from WoT S1. *(mechanism = the reused WoT typed-mitigation path; SR content collapses to one armor rating so the split is unexercised in SR — capability present.)*
+- [x] A weapon/attack declares a `target_pool`; damage routes to that pool (bullet → Physical, stun baton/fist → Stun). *(`45ef447`; both routes proven live.)*
+- [x] A `target_pool` reaching zero carries a per-pool zero-meaning: Physical → death (existing path), Stun → apply `unconscious` (the subdual seam) rather than kill. *(`TestLive_ShadowrunStunKnockout`.)*
+- [x] `VitalDepleted` carries the death-vs-KO flag so consumers branch correctly. *(`Crossing.Nonlethal`; per-crossing KO/death in `internal/combat`.)*
+- [x] Untyped / default-pool attacks behave exactly as today (WoT/starter-world regression gate). *(full `-race` suite green; WoT/starter live tests pass.)*
 
 **Why second:** WoT S1 typed damage wants this regardless, and it yields *both* Ballistic/Impact *and* Physical/Stun in one stroke — the widest engine leverage in the EPIC.
 
