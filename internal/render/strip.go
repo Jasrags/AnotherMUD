@@ -39,6 +39,41 @@ func StripTags(s string) string {
 	return b.String()
 }
 
+// StripTagsLenient is StripTags but tolerant of a stray '<' that has no matching
+// '>': it emits the '<' literally and keeps scanning, instead of dropping the
+// rest of the string. Use for free text — a room description over GMCP, say —
+// where a bare '<' (a measurement like "<2ft", math, an emoticon) is content,
+// not malformed markup. StripTags itself deliberately drops-the-rest for panel
+// width math (well-formed tags only), so that behavior is left unchanged.
+//
+// Limitation: a stray '<' followed later by a well-formed tag's '>' still
+// consumes the span between them (same next-'>' scan as StripTags). Authored
+// prose uses brace color markup, not angle tags, so that mix effectively never
+// occurs; the realistic case — a stray '<' with no later '>' — is handled.
+func StripTagsLenient(s string) string {
+	if !strings.ContainsRune(s, '<') {
+		return s
+	}
+	var b strings.Builder
+	b.Grow(len(s))
+	i := 0
+	for i < len(s) {
+		if s[i] == '<' {
+			end := strings.IndexByte(s[i:], '>')
+			if end < 0 {
+				b.WriteByte('<') // stray '<': keep it, keep scanning
+				i++
+				continue
+			}
+			i += end + 1
+			continue
+		}
+		b.WriteByte(s[i])
+		i++
+	}
+	return b.String()
+}
+
 // VisibleLength returns the number of visible bytes in s after stripping
 // angle markup. Fast path: a string with no '<' has length len(s).
 func VisibleLength(s string) int {

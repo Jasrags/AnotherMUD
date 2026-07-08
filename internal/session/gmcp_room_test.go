@@ -76,10 +76,13 @@ func TestBuildRoomInfoPayload_StripsColorMarkup(t *testing.T) {
 	// renders Name as its room label, so the raw markup must be stripped or it
 	// shows up literally in the client. See clients/mudlet.
 	room := &world.Room{
-		ID:          "town:forge",
-		AreaID:      "town",
-		Name:        "{Y}Hearthwick Forge{x}",
-		Description: "A {r}glowing{x} forge and <b>anvil</b>.",
+		ID:     "town:forge",
+		AreaID: "town",
+		Name:   "{Y}Hearthwick Forge{x}",
+		// A stray '<' ("blade <2ft") is content, not markup — it must survive
+		// while brace + well-formed angle markup are stripped (gmcpPlain uses the
+		// lenient tag strip so the description isn't truncated at the '<').
+		Description: "A {r}glowing{x} forge and <b>anvil</b>, blade <2ft.",
 		Exits:       map[world.Direction]world.Exit{},
 	}
 	got := buildRoomInfoPayload(room)
@@ -87,8 +90,8 @@ func TestBuildRoomInfoPayload_StripsColorMarkup(t *testing.T) {
 	if got.Name != "Hearthwick Forge" {
 		t.Errorf("Name = %q, want %q (brace markup must be stripped)", got.Name, "Hearthwick Forge")
 	}
-	if got.Details != "A glowing forge and anvil." {
-		t.Errorf("Details = %q, want %q (brace + angle markup must be stripped)", got.Details, "A glowing forge and anvil.")
+	if got.Details != "A glowing forge and anvil, blade <2ft." {
+		t.Errorf("Details = %q, want %q (brace + angle markup stripped, stray < kept)", got.Details, "A glowing forge and anvil, blade <2ft.")
 	}
 }
 

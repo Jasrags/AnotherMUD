@@ -18,7 +18,10 @@ import (
 // must not leak into it (a graphical mapper would render the raw codes as its
 // room label). A no-op for strings without markup.
 func gmcpPlain(s string) string {
-	return render.StripBraces(render.StripTags(s))
+	// StripTagsLenient (not StripTags): a room description is free text, so a
+	// stray '<' (e.g. "the blade is <2ft long") is content, not markup — it must
+	// survive to the wire rather than truncate the rest of the description.
+	return render.StripBraces(render.StripTagsLenient(s))
 }
 
 // sendGmcpRoomInfo emits a Room.Info GMCP frame for the actor's

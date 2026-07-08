@@ -24,6 +24,28 @@ func TestStripTags(t *testing.T) {
 	}
 }
 
+func TestStripTagsLenient(t *testing.T) {
+	tests := []struct {
+		name string
+		in   string
+		want string
+	}{
+		{"stray < kept, not dropped", "the blade is <2ft long", "the blade is <2ft long"},
+		{"well-formed tag still stripped", "<highlight>hi</highlight>", "hi"},
+		{"stray < before real prose", "a < b, always", "a < b, always"},
+		{"no angle at all", "plain text", "plain text"},
+		{"tag then stray <", "<b>x</b> and y < z", "x and y < z"},
+		{"brace untouched", "{yellow}hi{/}", "{yellow}hi{/}"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := StripTagsLenient(tt.in); got != tt.want {
+				t.Errorf("StripTagsLenient(%q) = %q, want %q", tt.in, got, tt.want)
+			}
+		})
+	}
+}
+
 func TestVisibleLength(t *testing.T) {
 	inputs := []string{
 		"<highlight>hi</highlight>",
