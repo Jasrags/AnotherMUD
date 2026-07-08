@@ -8,8 +8,18 @@ import (
 	"github.com/Jasrags/AnotherMUD/internal/command"
 	"github.com/Jasrags/AnotherMUD/internal/gmcp"
 	"github.com/Jasrags/AnotherMUD/internal/logging"
+	"github.com/Jasrags/AnotherMUD/internal/render"
 	"github.com/Jasrags/AnotherMUD/internal/world"
 )
+
+// gmcpPlain strips both markup systems (brace shorthand {Y}…{x} and angle
+// tags <…>) from a display string so GMCP carries clean, structured text.
+// GMCP is data for the client to style itself — the terminal's colour markup
+// must not leak into it (a graphical mapper would render the raw codes as its
+// room label). A no-op for strings without markup.
+func gmcpPlain(s string) string {
+	return render.StripBraces(render.StripTags(s))
+}
 
 // sendGmcpRoomInfo emits a Room.Info GMCP frame for the actor's
 // current location to the peer. Event-driven (unlike Char.Vitals'
@@ -82,12 +92,12 @@ func buildRoomInfoPayload(room *world.Room) gmcp.RoomInfo {
 	}
 	info := gmcp.RoomInfo{
 		Num:      string(room.ID),
-		Name:     room.Name,
+		Name:     gmcpPlain(room.Name),
 		Area:     string(room.AreaID),
 		Exits:    exits,
 		Keywords: keywords,
 		Terrain:  room.Terrain,
-		Details:  room.Description,
+		Details:  gmcpPlain(room.Description),
 	}
 	// Area-local coordinate (room-coordinates §5), emitted only for a
 	// placed room. An unplaced room (§4.3) leaves Coord nil and the
