@@ -1,11 +1,13 @@
-<!-- Generated: 2026-06-17 | Go files scanned: 360 (+408 tests) | 64 internal pkgs | Token estimate: ~730 -->
+<!-- Generated: 2026-07-08 | Go files scanned: 360 (+408 tests) | 64 internal pkgs | Token estimate: ~740 -->
 
 # Architecture
 
 Single Go binary (module `github.com/Jasrags/AnotherMUD`, go 1.26). Tick-driven
 MUD engine: one game loop + a typed event bus; everything else is layered
-`internal/` packages. **No web frontend / DB / HTTP routes** — clients are
-telnet/WebSocket line connections; state is YAML save files + content packs.
+`internal/` packages. **No web frontend / DB / HTTP routes today** — clients are
+telnet/WebSocket line connections (a browser web UI over the existing WS+GMCP
+channel is the recorded long-term rich-client direction — docs/BACKLOG.md);
+state is YAML save files + content packs.
 
 ## Entry point
 `cmd/anothermud/main.go` — composition root. Opens account/player stores
@@ -38,7 +40,7 @@ Social        chat, notifications, emote
 Presentation  render, ansi, help
 Networking    conn{telnet,ws}, server, gmcp, mssp
 Content       pack (manifest/loader), script, scripting (gopher-lua sandbox)
-Test infra    telnettest (send/expect telnet driver)
+Test infra    telnettest (send/expect telnet driver + GMCP frame capture)
 ```
 
 ## Core data flow
