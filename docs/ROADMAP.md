@@ -2944,12 +2944,6 @@ house's admin moderation (`auction-house.md` §11).
 **Touches specs:** `roles-and-permissions`, `admin-verbs`,
 `session-lifecycle §5`, `ui-rendering-help §9.5`, `commands-and-dispatch`.
 
-(The `set tag` kind shipped in M19.4i. `set property` on players — M19.4j+ —
-is **held**: the bag plumbing is easy, but no admin-settable property is scoped
-to `player`, so it would ship save v35 for zero capability. Unblock when a real
-player-scoped property lands. See `m19-4h-deferred-fixes` (incl. the latent
-`AppliesTo`-enforcement gap surfaced during the investigation).)
-
 ---
 
 ### M20 — Item Decorations (Rarity & Essence)
