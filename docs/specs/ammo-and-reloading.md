@@ -246,9 +246,13 @@ All numeric magnitudes live here; the prose names behaviors, not values.
 - **Compatibility strictness** — fit by broad **weapon family** (a "heavy-pistol"
   clip) vs. exact weapon id vs. a shared "holder family" that spans several
   weapons. Lean: weapon family.
-- **Mixed-ammo holders.** Homogeneous is assumed (§8); allowing a hand-packed mix
-  (some tracer, some regular) is deferred — niche, and it breaks the
-  one-grade-per-holder simplification.
+- **Mixed-ammo holders. — DEFERRED (decision 2026-07-09).** Homogeneous is the
+  committed model (§8): one grade per holder, captured at fill-from-empty. A
+  hand-packed mix (some tracer, some regular in one clip) is **not planned** — it
+  is niche and breaks the one-grade-per-holder simplification the whole holder
+  model rests on. Revisit only if concrete content or gameplay demands a mixed
+  clip. The **grade-aware swap preference** (prefer fewer special/APDS rounds over
+  more regular when auto-selecting) depends on this and is deferred with it.
 - **Auto-selection order** when several compatible loaded holders are carried:
   `reload` picks the **fullest** carried holder. The **"don't swap for a worse
   holder" guard is now shipped** — if a holder is already inserted and its load is
