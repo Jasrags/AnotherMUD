@@ -7,6 +7,7 @@ import (
 
 	"github.com/Jasrags/AnotherMUD/internal/combat"
 	"github.com/Jasrags/AnotherMUD/internal/entities"
+	"github.com/Jasrags/AnotherMUD/internal/scrap"
 )
 
 // magazineReloader is the session surface for topping up an INTERNALLY-FED
@@ -91,6 +92,11 @@ func ejectHolderToRoom(ctx context.Context, c *Context, tpl string, loaded int) 
 	if e, ok := c.Items.GetByID(id); ok {
 		if h, ok := e.(*entities.ItemInstance); ok {
 			h.SetMagazineLoaded(loaded)
+			// Mark the spent clip as ephemeral scrap so it decays off the ground
+			// after its lifetime (ammo-and-reloading §7). Recoverable until then.
+			if c.NowTick != nil {
+				scrap.Mark(c.Items, h, c.NowTick())
+			}
 		}
 	}
 	c.Placement.Place(id, room.ID)

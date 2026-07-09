@@ -231,3 +231,59 @@ func TestLive_ShadowrunLoadedClipShop(t *testing.T) {
 	}
 	t.Log("shadowrun verified live: a loaded clip bought from the fixer inserted as a full 15/15 with no fill step — preload seeds a pre-loaded holder")
 }
+
+// TestLive_ShadowrunClipDecay proves ejected-clip decay (ammo-and-reloading §7):
+// a spent clip ejected to the ground is recoverable for a lifetime window, then
+// swept. Boots with a 1s lifetime + 1s sweep cadence so the test doesn't wait.
+//
+//	ANOTHERMUD_LIVE=1 go test ./cmd/telnet-smoke -run TestLive_ShadowrunClipDecay -v
+func TestLive_ShadowrunClipDecay(t *testing.T) {
+	if os.Getenv("ANOTHERMUD_LIVE") == "" {
+		t.Skip("set ANOTHERMUD_LIVE=1 to run (boots a real engine subprocess via `go run`)")
+	}
+	addr := bootEngine(t, map[string]string{
+		"ANOTHERMUD_PACKS":                   "shadowrun",
+		"ANOTHERMUD_START_ROOM":              "shadowrun:street-corner",
+		"ANOTHERMUD_ROLE_SEED":               "Litter:admin",
+		"ANOTHERMUD_EJECTED_HOLDER_LIFETIME": "1s",
+		"ANOTHERMUD_CORPSE_DECAY_INTERVAL":   "1s", // the scrap sweep shares this cadence
+	})
+	c, err := telnettest.Dial(addr, telnettest.WithTimeout(12*time.Second))
+	if err != nil {
+		t.Fatalf("dial: %v", err)
+	}
+	defer c.Close()
+	if err := createAndLogin(c, "Litter"); err != nil {
+		t.Fatalf("create+login: %v", err)
+	}
+	send := func(line string) string {
+		t.Helper()
+		_ = c.SendLine(line)
+		out, err := c.ExpectTimeout(gamePrompt, 8*time.Second)
+		if err != nil {
+			t.Fatalf("no prompt after %q: %v", line, err)
+		}
+		return out
+	}
+	// Two loaded clips; insert one, then insert the other to EJECT the first.
+	// Do it in the empty, safe back alley — the street corner keeps a clip on the
+	// ground as starter gear, which would mask the decay.
+	send("get pistol")
+	send("spawn item predator-clip-loaded me")
+	send("spawn item predator-clip-loaded me")
+	send("teleport shadowrun:back-alley")
+	send("equip pistol wield")
+	send("reload") // insert the first clip
+	if out := send("reload"); !strings.Contains(strings.ToLower(out), "ejects") {
+		t.Fatalf("second reload did not eject the first clip:\n%s", out)
+	}
+	if out := send("look"); !strings.Contains(strings.ToLower(out), "clip") {
+		t.Fatalf("the ejected clip is not on the ground:\n%s", out)
+	}
+	// Wait out the lifetime (1s) + a sweep cadence (1s) + margin.
+	time.Sleep(4 * time.Second)
+	if out := send("look"); strings.Contains(strings.ToLower(out), "clip") {
+		t.Fatalf("the ejected clip did not decay off the ground:\n%s", out)
+	}
+	t.Log("shadowrun verified live: an ejected clip lingered recoverable, then decayed off the ground after its lifetime")
+}

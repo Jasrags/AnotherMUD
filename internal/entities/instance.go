@@ -229,6 +229,27 @@ func (it *ItemInstance) Tags() []string {
 	return append([]string(nil), it.tags...)
 }
 
+// HasTag reports whether the item carries a gameplay tag.
+func (it *ItemInstance) HasTag(tag string) bool {
+	for _, t := range it.tags {
+		if t == tag {
+			return true
+		}
+	}
+	return false
+}
+
+// AddTag appends a gameplay tag if absent, mutating the item's tag set in place.
+// The caller re-indexes via Store.Retag when the item is tracked (the store's
+// tag index only refreshes at Track/Untrack/Retag). Reports whether it changed.
+func (it *ItemInstance) AddTag(tag string) bool {
+	if tag == "" || it.HasTag(tag) {
+		return false
+	}
+	it.tags = append(it.tags, tag)
+	return true
+}
+
 // Name returns the display name. Per §2.3, instantiated entities take
 // their name from the template at construction time.
 func (it *ItemInstance) Name() string { return it.name }

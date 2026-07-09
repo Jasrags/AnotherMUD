@@ -70,6 +70,7 @@ import (
 	"github.com/Jasrags/AnotherMUD/internal/recipe"
 	"github.com/Jasrags/AnotherMUD/internal/render"
 	"github.com/Jasrags/AnotherMUD/internal/reputation"
+	"github.com/Jasrags/AnotherMUD/internal/scrap"
 	"github.com/Jasrags/AnotherMUD/internal/scripting"
 	"github.com/Jasrags/AnotherMUD/internal/server"
 	"github.com/Jasrags/AnotherMUD/internal/session"
@@ -1459,6 +1460,17 @@ func run() error {
 		}
 	}); err != nil {
 		return fmt.Errorf("register campfire decay: %w", err)
+	}
+
+	// SR-M3f-2: ejected ammunition-holder decay (ammo-and-reloading §7). A spent
+	// clip a firearm ejects to the ground is recoverable, then swept once its
+	// lifetime elapses so a firefight doesn't permanently litter a room. Shares
+	// the corpse-decay sweep cadence (both are ground-cleanup sweeps).
+	ejectedHolderLifetimeTicks := cadenceTicks(cfg.TickInterval, cfg.EjectedHolderLifetime)
+	if err := loop.Register("scrap-decay", cadenceTicks(cfg.TickInterval, cfg.CorpseDecayInterval), func(ctx context.Context, n uint64) {
+		scrap.Sweep(entityStore, placement, n, ejectedHolderLifetimeTicks)
+	}); err != nil {
+		return fmt.Errorf("register scrap decay: %w", err)
 	}
 
 	// M22.4: autoloot (loot-and-corpses §6). On corpse.created, if the
@@ -3383,6 +3395,7 @@ type config struct {
 	PartyCap               int
 	CorpseOwnershipWindow  time.Duration
 	CorpseLifetime         time.Duration
+	EjectedHolderLifetime  time.Duration
 	CorpseDecayInterval    time.Duration
 	CampfireLifetime       time.Duration
 	CampfireDecayInterval  time.Duration
@@ -3467,6 +3480,7 @@ func loadConfig() config {
 		PartyCap:                envIntOr("ANOTHERMUD_PARTY_CAP", 6),
 		CorpseOwnershipWindow:   envDurationOr("ANOTHERMUD_CORPSE_OWNERSHIP_WINDOW", 60*time.Second),
 		CorpseLifetime:          envDurationOr("ANOTHERMUD_CORPSE_LIFETIME", 5*time.Minute),
+		EjectedHolderLifetime:   envDurationOr("ANOTHERMUD_EJECTED_HOLDER_LIFETIME", 3*time.Minute),
 		CorpseDecayInterval:     envDurationOr("ANOTHERMUD_CORPSE_DECAY_INTERVAL", 3*time.Second),
 		CampfireLifetime:        envDurationOr("ANOTHERMUD_CAMPFIRE_LIFETIME", 10*time.Minute),
 		CampfireDecayInterval:   envDurationOr("ANOTHERMUD_CAMPFIRE_DECAY_INTERVAL", 5*time.Second),

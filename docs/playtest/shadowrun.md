@@ -166,7 +166,9 @@ demo hits.
 - [ ] With a partly-spent clip in the gun, load a second clip (`reload clip` on a
       fresh clip, then `reload`) — "The spent clip ejects and clatters to the
       ground." `look` shows the ejected clip on the floor; `get clip` recovers it
-      (with its remaining rounds) to refill later.
+      (with its remaining rounds) to refill later. Left alone, it **decays** off
+      the ground after `ANOTHERMUD_EJECTED_HOLDER_LIFETIME` (default 3m) so
+      firefights don't permanently litter a room.
 
 ### The loaded gun persists
 
@@ -178,8 +180,8 @@ demo hits.
 > **instant** in this slice — the SR5 reload **action cost** (a Simple/Complex
 > action per the reloading table) is a tracked follow-on. The clip holds an
 > abstract round count (not typed rounds), so masterwork/special ammo in a clip
-> isn't modeled yet (SR-M3f-2). Ejected clips don't decay yet (SR-M3f-2). Still
-> deferred: **SMG burst** and **cross-room `shoot`**.
+> isn't modeled yet (SR-M3f-2 grade-through, planned). Still deferred: **SMG
+> burst** and **cross-room `shoot`**.
 
 ## 41. Cyberware (augmentation on the score sheet)
 

@@ -154,8 +154,9 @@ Content inventory:
 
 ### SR-M3f — Ammo holders + the unified reload (Tier B-lite)  · **Medium–Large Go · SR-M3f-1 + shop SKUs SHIPPED**
 
-> **STATUS: SR-M3f-1 SHIPPED 2026-07-09; SR-M3f-2 shop SKUs SHIPPED 2026-07-09;
-> SR-M3f-2 decay + grade-through planned (own sub-slices, see below).** SR-M3f-1 landed the
+> **STATUS: SR-M3f-1 SHIPPED 2026-07-09; SR-M3f-2 shop SKUs + ejected-clip decay
+> SHIPPED 2026-07-09; SR-M3f-2 grade-through planned (needs SR grade content, see
+> below).** SR-M3f-1 landed the
 > holder model live: the Ares Predator V is holder-fed (`accepts_holder:
 > heavy-pistol`), a new `predator-clip` holds rounds, the unified `reload`
 > fills a clip (`reload clip`) / inserts a clip (`reload`) / ejects the spent
@@ -211,11 +212,15 @@ Content inventory:
   and an **empty clip** (cheap spare) — distinct keywords so `buy loaded` vs
   `buy clip` disambiguate. Live: `TestLive_ShadowrunLoadedClipShop` (buy loaded →
   insert → 15/15, no fill).
-- **Decay — PLANNED (own sub-slice).** An ejected holder lingers then decays,
-  reusing the timed-decay tick pattern of `loot-and-corpses` (a new
-  `ANOTHERMUD_EJECTED_HOLDER_LIFETIME` knob). Needs runtime item-tagging
-  (`ItemInstance.AddTag` + `store.Retag`) so a sweep can find ejected clips by
-  tag, plus the sweep + tick-handler wiring — its own increment.
+- **Decay — SHIPPED 2026-07-09.** An ejected clip lingers recoverable, then a
+  sweep removes it. New `internal/scrap` (a `TagScrap` runtime tag + drop-tick
+  property + `Sweep`); `ItemInstance.AddTag`/`HasTag` added; the eject marks the
+  clip (`scrap.Mark`); a `scrap-decay` tick handler (shares the corpse-decay
+  cadence) + `ANOTHERMUD_EJECTED_HOLDER_LIFETIME` (default 3m). Unit tests
+  `internal/scrap` (expiry / picked-up-skip / clock-skew) + live
+  `TestLive_ShadowrunClipDecay` (eject in the back alley → lingers → decays). A
+  picked-up clip is skipped by the sweep (Placement.Remove single-winner); the
+  stale-tag-on-re-drop edge is a recorded LOW.
 - **Grade-through-holder — PLANNED (own sub-slice, spec §8).** A homogeneous
   holder captures its rounds' grade at fill and applies it per shot, **retiring
   the deferred "typed/masterwork ammo in a magazine" item** (`sr-m3c-deferred-fixes`
