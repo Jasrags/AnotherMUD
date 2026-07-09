@@ -1,0 +1,34 @@
+id: light-crossbow
+name: a light crossbow
+type: weapon
+description: |
+  A compact polymer-stocked crossbow, the prod a single leaf of spring composite
+  spanned by a built-in cocking lever. No skill required and no noise made —
+  point, squeeze, and a bolt crosses the alley before anyone hears a thing. A
+  gutter-runner's answer to a silenced hold-out, at a tenth the price.
+tags: [weapon, crossbow, ranged, silent]
+keywords: [light crossbow, crossbow, bow]
+eligible_slots: [wield]
+companion_slots: [offhand]
+weapon_damage: "1d8"
+weapon_category: crossbow
+proficiency_tier: simple
+damage_types: [piercing]
+crit_threat_low: 19
+crit_multiplier: 2
+# Ranged (ranged-combat §2-§4): a PROJECTILE firing "bolt" ammo. A crossbow's
+# mechanical draw adds no Strength to damage (the default projectile rule, no
+# str_rating). Lethal Physical damage on the hp/Vitals track (Design 1) — no
+# target_pool.
+# SR5 canon (WEAPONS.md): Light Crossbow — Acc 7, DV 5P, AP -1, 4 (m), 300¥. The
+# engine models damage as dice + a soak channel, so DV/AP are flavor.
+ranged_class: projectile
+ammo_kind: bolt
+ranged_style: crossbow
+range_increment: 8
+# Reload-gated (action-economy §7.1): holds one loaded bolt; firing empties it
+# and it must be `load`ed again. A built-in lever spans it — quick.
+reload_ticks: 20
+properties:
+  weight: 6
+  value: 300

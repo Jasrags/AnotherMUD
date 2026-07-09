@@ -1,0 +1,31 @@
+id: bow
+name: a composite bow
+type: weapon
+description: |
+  A matte-black recurve of laminated carbon and spring-steel, its limbs cammed
+  for a savage draw that a street-samurai's chromed arms pull like nothing. No
+  serial, no powder signature, no Matrix trail — just a runner who wanted a
+  target dead without the whole block knowing a gun went off.
+tags: [weapon, bow, ranged, silent]
+keywords: [composite bow, bow, recurve]
+eligible_slots: [wield]
+companion_slots: [offhand]
+weapon_damage: "1d8"
+weapon_category: bow
+proficiency_tier: martial
+damage_types: [piercing]
+crit_multiplier: 3
+# Ranged (ranged-combat §2/§3): a PROJECTILE firing "arrow" ammo from the loose-
+# round feed — no magazine, no reload gate; draw and loose as fast as you can
+# nock. Lethal Physical damage lands on the hp/Vitals track (Design 1), the
+# engine default — so no target_pool.
+# SR5 canon (WEAPONS.md, Ballistic Projectiles): Bow — Acc 6, DV (Rating+2)P,
+# AP -(Rating/4). The engine models damage as dice + a soak channel (not SR's
+# DV/AP), so those are flavor. A martial tier stands in for the Archery skill.
+ranged_class: projectile
+ammo_kind: arrow
+ranged_style: bow
+range_increment: 10
+properties:
+  weight: 3
+  value: 400

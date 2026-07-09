@@ -276,6 +276,82 @@ func TestLoad_ShadowrunWeaponsAndArmor(t *testing.T) {
 	}
 }
 
+// TestLoad_ShadowrunBallisticProjectiles gates the silent-weapon set (WEAPONS.md
+// Ballistic Projectiles): the bow feeds loose arrows (no reload gate), the three
+// crossbows are reload-gated and chamber a bolt via `load`. All are lethal
+// Physical (no target_pool) and share the core bow/crossbow flavor voices.
+func TestLoad_ShadowrunBallisticProjectiles(t *testing.T) {
+	root, err := filepath.Abs("../../content")
+	if err != nil {
+		t.Fatalf("abs: %v", err)
+	}
+	regs := NewRegistries()
+	if err := RegisterEngineBaselineProperties(regs.Properties); err != nil {
+		t.Fatalf("baseline properties: %v", err)
+	}
+	if err := slot.RegisterEngineBaseline(regs.Slots); err != nil {
+		t.Fatalf("baseline slots: %v", err)
+	}
+	if err := Load(context.Background(), root, []string{"shadowrun"}, regs, nil, nil, nil); err != nil {
+		t.Fatalf("Load shadowrun: %v", err)
+	}
+
+	// The bow: a projectile feeding loose `arrow` ammo, no reload gate, no holder.
+	bow, err := regs.Items.Get("shadowrun:bow")
+	if err != nil {
+		t.Fatalf("bow: %v", err)
+	}
+	if bow.RangedClass != "projectile" || bow.AmmoKind != "arrow" {
+		t.Errorf("bow ranged = (%q,%q), want (projectile, arrow)", bow.RangedClass, bow.AmmoKind)
+	}
+	if bow.ReloadTicks != 0 {
+		t.Errorf("bow reload_ticks = %d, want 0 (loose-round feed, no reload gate)", bow.ReloadTicks)
+	}
+	if bow.TargetPool != "" || bow.AcceptsHolder != "" || bow.Magazine != 0 {
+		t.Errorf("bow = (target_pool %q, accepts_holder %q, magazine %d), want (\"\",\"\",0)",
+			bow.TargetPool, bow.AcceptsHolder, bow.Magazine)
+	}
+
+	// The three crossbows: reload-gated, bolt-fed, escalating reload cost.
+	for _, tc := range []struct {
+		id    string
+		ticks int
+	}{
+		{"light-crossbow", 20},
+		{"medium-crossbow", 35},
+		{"heavy-crossbow", 50},
+	} {
+		xbow, err := regs.Items.Get(item.TemplateID("shadowrun:" + tc.id))
+		if err != nil {
+			t.Fatalf("%s: %v", tc.id, err)
+		}
+		if xbow.RangedClass != "projectile" || xbow.AmmoKind != "bolt" {
+			t.Errorf("%s ranged = (%q,%q), want (projectile, bolt)", tc.id, xbow.RangedClass, xbow.AmmoKind)
+		}
+		if xbow.ReloadTicks != tc.ticks {
+			t.Errorf("%s reload_ticks = %d, want %d", tc.id, xbow.ReloadTicks, tc.ticks)
+		}
+		if xbow.TargetPool != "" {
+			t.Errorf("%s target_pool = %q, want empty (lethal → hp/Physical default path)", tc.id, xbow.TargetPool)
+		}
+	}
+
+	// The ammo: loose arrows + bolts, each matched verbatim against a weapon's
+	// ammo_kind. Neither is a holder.
+	for _, tc := range []struct{ id, kind string }{
+		{"arrow", "arrow"},
+		{"bolt", "bolt"},
+	} {
+		ammo, err := regs.Items.Get(item.TemplateID("shadowrun:" + tc.id))
+		if err != nil {
+			t.Fatalf("%s: %v", tc.id, err)
+		}
+		if ammo.AmmoKind != tc.kind || ammo.HolderFits != "" {
+			t.Errorf("%s = (ammo_kind %q, holder_fits %q), want (%q, \"\")", tc.id, ammo.AmmoKind, ammo.HolderFits, tc.kind)
+		}
+	}
+}
+
 // TestLoad_ShadowrunClassAndBackground is the SR-M3c-3 creation-content gate:
 // the Street Samurai class, its bound world track, and the Street Kid background
 // load with the fields the creation flow + level-up + granter read. The default

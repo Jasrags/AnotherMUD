@@ -1,0 +1,18 @@
+id: arrow
+name: an arrow
+type: item
+description: |
+  A carbon-shafted broadhead arrow, matte-black and fletched with synthetic vanes
+  — no muzzle flash, no report, no shell casing for forensics to bag. The quiet
+  runner's round: a bow leaves nothing behind but the body.
+tags: [ammo, ammunition, stackable]
+keywords: [arrow, shaft, broadhead]
+properties:
+  stackable: true
+  weight: 1
+  value: 2
+# Ranged ammunition (ranged-combat §3): a projectile weapon whose ammo_kind is
+# "arrow" spends one of these per shot — the loose-round feed (ammo-and-reloading
+# §2), matched verbatim against the bow's ammo_kind. Out of arrows, the bow looses
+# nothing.
+ammo_kind: arrow

@@ -1,0 +1,33 @@
+id: medium-crossbow
+name: a medium crossbow
+type: weapon
+description: |
+  A heavier frame of machined alloy and carbon, spanned by a short goat's-foot
+  lever bolted to the stock. It throws a bolt hard enough to defeat a lined coat,
+  trading the light model's speed for a quarrel that keeps going after it hits.
+  Popular with wetwork crews who want reach without a report.
+tags: [weapon, crossbow, ranged, silent]
+keywords: [medium crossbow, crossbow, bow]
+eligible_slots: [wield]
+companion_slots: [offhand]
+weapon_damage: "1d10"
+weapon_category: crossbow
+proficiency_tier: simple
+damage_types: [piercing]
+crit_threat_low: 19
+crit_multiplier: 2
+# Ranged (ranged-combat §2-§4): a PROJECTILE firing "bolt" ammo; lethal Physical
+# damage on the hp/Vitals track (Design 1) — no target_pool.
+# SR5 canon (WEAPONS.md): Medium Crossbow — Acc 6, DV 7P, AP -2, 4 (m), 500¥. The
+# engine models damage as dice + a soak channel, so DV/AP are flavor.
+ranged_class: projectile
+ammo_kind: bolt
+ranged_style: crossbow
+range_increment: 10
+# Reload-gated (action-economy §7.1): a goat's-foot lever spans it — slower than
+# the light model's built-in cocking lever. Holds one loaded bolt; `load` to
+# re-span after firing.
+reload_ticks: 35
+properties:
+  weight: 8
+  value: 500

@@ -1,0 +1,18 @@
+id: bolt
+name: a crossbow bolt
+type: item
+description: |
+  A stubby alloy quarrel with a hardened penetrator tip, packed a dozen to a
+  slim polymer sleeve. Heavier than an arrow and made to punch armor plate at the
+  snap of a spanned prod — silent, deniable, and cheaper than a smartgun's worth
+  of caseless.
+tags: [ammo, ammunition, stackable]
+keywords: [bolt, quarrel]
+properties:
+  stackable: true
+  weight: 1
+  value: 2
+# Ranged ammunition (ranged-combat §3): a crossbow (ammo_kind "bolt") spends one
+# of these per shot. A reload-gated crossbow chambers one via `load`; out of
+# bolts, the `load` reports an empty quiver and the crossbow stays unspanned.
+ammo_kind: bolt

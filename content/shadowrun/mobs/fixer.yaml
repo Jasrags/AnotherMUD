@@ -32,5 +32,13 @@ properties:
       - shadowrun:apds-round
       - shadowrun:predator-clip
       - shadowrun:ares-predator-v
+      # Ballistic projectiles (WEAPONS.md) — silent, deniable, no powder
+      # signature. A bow feeds loose arrows; crossbows chamber a bolt via `load`.
+      - shadowrun:bow
+      - shadowrun:arrow
+      - shadowrun:light-crossbow
+      - shadowrun:medium-crossbow
+      - shadowrun:heavy-crossbow
+      - shadowrun:bolt
       - shadowrun:armored-jacket
       - shadowrun:cybereyes

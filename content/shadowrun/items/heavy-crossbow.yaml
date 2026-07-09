@@ -1,0 +1,33 @@
+id: heavy-crossbow
+name: a heavy crossbow
+type: weapon
+description: |
+  A brutal slab of a weapon, its steel prod cranked back by an integral windlass
+  motor whining as it spans. The bolt it launches punches clean through a
+  security door — and the guard behind it — without a sound louder than the
+  motor's hum. Ruinously slow between shots, but at range there is little a
+  corp-sec trooper dreads more from the dark.
+tags: [weapon, crossbow, ranged, silent]
+keywords: [heavy crossbow, crossbow, bow]
+eligible_slots: [wield]
+companion_slots: [offhand]
+weapon_damage: "2d6"
+weapon_category: crossbow
+proficiency_tier: simple
+damage_types: [piercing]
+crit_threat_low: 19
+crit_multiplier: 2
+# Ranged (ranged-combat §2-§4): a PROJECTILE firing "bolt" ammo; lethal Physical
+# damage on the hp/Vitals track (Design 1) — no target_pool.
+# SR5 canon (WEAPONS.md): Heavy Crossbow — Acc 5, DV 10P, AP -3, 4 (m), 1,000¥.
+# The engine models damage as dice + a soak channel, so DV/AP are flavor.
+ranged_class: projectile
+ammo_kind: bolt
+ranged_style: crossbow
+range_increment: 12
+# Reload-gated (action-economy §7.1): a cranked windlass motor spans it — the
+# slowest of the three. Holds one loaded bolt; `load` to re-span after firing.
+reload_ticks: 50
+properties:
+  weight: 9
+  value: 1000
