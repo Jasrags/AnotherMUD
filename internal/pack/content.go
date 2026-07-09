@@ -143,6 +143,11 @@ type ItemFile struct {
 	// declares `magazine` (its capacity) + `ammo_kind` (the round it holds). Empty
 	// = not a holder.
 	HolderFits string `yaml:"holder_fits,omitempty"`
+	// Preload seeds a holder's loaded-round count when it is spawned, so a
+	// PRE-LOADED holder (a clip bought ready-to-use, ammo-and-reloading §6) starts
+	// full. 0 (absent) = spawns empty (lazy-empty). Clamped to the capacity
+	// (magazine) at load. Only meaningful on a holder.
+	Preload int `yaml:"preload,omitempty"`
 	// AcceptsHolder marks a weapon as HOLDER-FED and names the holder family it
 	// takes (ammo-and-reloading §2/§5): firing draws from an inserted holder, and
 	// `reload` swaps holders. Mutually exclusive with `magazine` (which marks an

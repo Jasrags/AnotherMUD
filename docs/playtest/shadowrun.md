@@ -204,12 +204,16 @@ safe-room.
 
 - [ ] `score` — read your nuyen balance (shown as `Gold`; a fresh Street Kid has
       **500**).
-- [ ] `list` — the fixer's wares: a **caseless round**, a **Ares Predator V**, an
-      **armored jacket**, and **cybereyes** (`buy_markup`/`sell_discount` fall
-      through to the engine defaults).
-- [ ] `buy round` — "You buy … for N gold. You have M gold left." — the price
-      comes off your nuyen balance and a caseless round enters inventory. Repeat
-      to stock a magazine's worth for §40.
+- [ ] `list` — the fixer's ammo SKUs (ammo-and-reloading §6) plus gear: a
+      **loaded Ares Predator V clip** (the primary buy — arrives full), a
+      **caseless round** (loose refills), an **empty clip** (a cheap spare to
+      fill), an **Ares Predator V**, an **armored jacket**, and **cybereyes**.
+- [ ] `buy round` — "You buy … for N gold. You have M gold left." — a caseless
+      round enters inventory; repeat to fill a clip (§40).
+- [ ] `buy loaded` — buys a **pre-loaded** clip. `get pistol`, `equip pistol
+      wield`, `reload` — it inserts as a full **(15/15)** with no fill step (the
+      SR5 "carry loaded spares" model). `buy clip` buys an **empty** clip to fill
+      yourself.
 - [ ] Earn the other way: kill the ganger (§39) and `loot corpse` — his loose
       **nuyen credits to your balance** (not an inventory item), same as the core
       coin path.

@@ -708,6 +708,16 @@ func buildInstanceFromTemplate(tpl *item.Template, id EntityID) *ItemInstance {
 	if tpl.Grade != "" {                   // masterwork §6: authored grade rides the template.
 		props[PropGrade] = tpl.Grade
 	}
+	// A pre-loaded holder spawns with rounds already in it (ammo-and-reloading
+	// §6): seed the loaded-round count from the template's Preload (clamped to
+	// capacity). Absent/0 leaves the holder lazy-empty.
+	if tpl.HolderFits != "" && tpl.Preload > 0 {
+		n := tpl.Preload
+		if tpl.Magazine > 0 && n > tpl.Magazine {
+			n = tpl.Magazine
+		}
+		props[propLoadedRounds] = n
+	}
 
 	// §2.3 step 2: tags from the template, minus the implicit tag that
 	// matches the entity's own type (which is implied and never

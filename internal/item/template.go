@@ -154,6 +154,9 @@ type Template struct {
 	// weapon family it fits (ammo-and-reloading §2). A holder also has Magazine
 	// (capacity) + AmmoKind. Empty = not a holder. Normalized lowercase.
 	HolderFits string
+	// Preload seeds a holder's loaded-round count at spawn so a pre-loaded holder
+	// starts full (ammo-and-reloading §6). 0 = spawns empty. Clamped to Magazine.
+	Preload int
 	// AcceptsHolder marks a HOLDER-FED weapon and names the holder family it takes
 	// (ammo-and-reloading §5): it fires from an inserted holder rather than its
 	// own Magazine. Mutually exclusive with Magazine. Empty = not holder-fed.

@@ -1,0 +1,20 @@
+id: predator-clip-loaded
+name: a loaded Ares Predator V clip
+type: item
+description: |
+  An Ares Predator V magazine, packed to its fifteen-round capacity — the
+  standard buy for a runner who'd rather slap in a fresh clip than thumb rounds
+  home under fire.
+tags: [ammo, holder, clip]
+# Distinct from the empty `predator-clip` ("clip") so `buy loaded` vs `buy clip`
+# disambiguate cleanly.
+keywords: [loaded-clip, loaded, loaded magazine]
+# A pre-loaded holder (ammo-and-reloading §6): same clip as `predator-clip`, but
+# `preload` seeds it full at spawn so it arrives ready to load into a gun.
+magazine: 15
+holder_fits: heavy-pistol
+ammo_kind: bullet
+preload: 15
+properties:
+  weight: 1
+  value: 50

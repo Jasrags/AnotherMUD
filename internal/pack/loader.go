@@ -3504,6 +3504,15 @@ func decodeItem(path, ns string) (*item.Template, error) {
 		return nil, fmt.Errorf("%w: %s: a holder-fed weapon (accepts_holder %q) must not also declare magazine (that marks an internally-fed weapon)",
 			ErrInvalidContent, path, acceptsHolder)
 	}
+	// preload seeds a holder's spawn load; only meaningful on a holder, clamped
+	// to its capacity.
+	preload := f.Preload
+	if preload < 0 {
+		preload = 0
+	}
+	if holderFits != "" && preload > f.Magazine {
+		preload = f.Magazine
+	}
 	if f.StrRating != nil && *f.StrRating < 0 {
 		return nil, fmt.Errorf("%w: %s: str_rating %d must be non-negative",
 			ErrInvalidContent, path, *f.StrRating)
@@ -3666,6 +3675,7 @@ func decodeItem(path, ns string) (*item.Template, error) {
 		Magazine:          f.Magazine,
 		ReloadMethod:      reloadMethod,
 		HolderFits:        holderFits,
+		Preload:           preload,
 		AcceptsHolder:     acceptsHolder,
 		StrRating:         strRating,
 		ArmorBonus:        f.ArmorBonus,

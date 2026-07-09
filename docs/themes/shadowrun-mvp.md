@@ -152,9 +152,10 @@ Content inventory:
 
 **Size: Small** — landed as a live test + a content rename. The magazine model (B), burst-fire, and SR cross-room are separate slices.
 
-### SR-M3f — Ammo holders + the unified reload (Tier B-lite)  · **Medium–Large Go · SR-M3f-1 SHIPPED**
+### SR-M3f — Ammo holders + the unified reload (Tier B-lite)  · **Medium–Large Go · SR-M3f-1 + shop SKUs SHIPPED**
 
-> **STATUS: SR-M3f-1 SHIPPED 2026-07-09; SR-M3f-2 planned.** SR-M3f-1 landed the
+> **STATUS: SR-M3f-1 SHIPPED 2026-07-09; SR-M3f-2 shop SKUs SHIPPED 2026-07-09;
+> SR-M3f-2 decay + grade-through planned (own sub-slices, see below).** SR-M3f-1 landed the
 > holder model live: the Ares Predator V is holder-fed (`accepts_holder:
 > heavy-pistol`), a new `predator-clip` holds rounds, the unified `reload`
 > fills a clip (`reload clip`) / inserts a clip (`reload`) / ejects the spent
@@ -203,15 +204,25 @@ Content inventory:
   if it stays additive/`omitempty` like SR-M3e.
 
 **SR-M3f-2 — Ejection decay + shop SKUs + grade-through-holder.**
-- **Decay** — an ejected holder lingers then decays, reusing the timed-decay tick
-  pattern of `loot-and-corpses` (a new `ANOTHERMUD_EJECTED_HOLDER_LIFETIME` knob).
-- **Shop SKUs** — the fixer stocks **loaded clips** (primary buy), **loose
-  rounds** (refills), and **empty clips** (cheap spares).
-- **Grade-through-holder** (spec §8) — a homogeneous holder captures its rounds'
-  grade at fill and applies it per shot, **retiring the deferred "typed/masterwork
-  ammo in a magazine" item** (`sr-m3c-deferred-fixes` SR-M3e tails).
-- **Content** — an Ares Predator V clip (fits heavy-pistol, holds 15, `bullet`);
-  optionally an SMG clip.
+- **Shop SKUs — SHIPPED 2026-07-09.** A `preload` holder field seeds a holder's
+  rounds at spawn (content → loader (clamped to capacity) → template →
+  instance-construction). New `predator-clip-loaded` (preload 15); the fixer now
+  stocks a **loaded clip** (primary buy, arrives full), **loose rounds** (refills),
+  and an **empty clip** (cheap spare) — distinct keywords so `buy loaded` vs
+  `buy clip` disambiguate. Live: `TestLive_ShadowrunLoadedClipShop` (buy loaded →
+  insert → 15/15, no fill).
+- **Decay — PLANNED (own sub-slice).** An ejected holder lingers then decays,
+  reusing the timed-decay tick pattern of `loot-and-corpses` (a new
+  `ANOTHERMUD_EJECTED_HOLDER_LIFETIME` knob). Needs runtime item-tagging
+  (`ItemInstance.AddTag` + `store.Retag`) so a sweep can find ejected clips by
+  tag, plus the sweep + tick-handler wiring — its own increment.
+- **Grade-through-holder — PLANNED (own sub-slice, spec §8).** A homogeneous
+  holder captures its rounds' grade at fill and applies it per shot, **retiring
+  the deferred "typed/masterwork ammo in a magazine" item** (`sr-m3c-deferred-fixes`
+  SR-M3e tails). Needs graded-ammo content (none exists in the SR pack yet) + a
+  grade-capture path (`pullAmmoLocked`/`FillHolder`/inserted-holder state/
+  `ConsumeAmmo`) + grade persistence (`EquippedHolder.Grade` + a loose-holder
+  grade field) — its own increment.
 
 **Deferred (own slices, spec §11 open questions):** reload as a **timed action**
 (instant for the first slice, as SR-M3e); **mixed-ammo** holders (homogeneous

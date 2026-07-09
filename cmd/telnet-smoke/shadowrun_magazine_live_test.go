@@ -186,3 +186,48 @@ func TestLive_ShadowrunLooseClipPersist(t *testing.T) {
 	}
 	t.Log("shadowrun verified live: a filled-but-not-inserted clip kept its 15 rounds across quit + relogin — FillHolder's inventory sync round-trips the loose-holder load")
 }
+
+// TestLive_ShadowrunLoadedClipShop proves the pre-loaded-clip SKU (ammo-and-
+// reloading §6): a runner buys a loaded clip from the fixer and it drops in
+// ready — loading it into the gun reads a full 15/15 with no fill step, because
+// the holder's `preload` seeds it at spawn.
+//
+//	ANOTHERMUD_LIVE=1 go test ./cmd/telnet-smoke -run TestLive_ShadowrunLoadedClipShop -v
+func TestLive_ShadowrunLoadedClipShop(t *testing.T) {
+	if os.Getenv("ANOTHERMUD_LIVE") == "" {
+		t.Skip("set ANOTHERMUD_LIVE=1 to run (boots a real engine subprocess via `go run`)")
+	}
+	addr := bootEngine(t, map[string]string{
+		"ANOTHERMUD_PACKS":      "shadowrun",
+		"ANOTHERMUD_START_ROOM": "shadowrun:street-corner",
+		"ANOTHERMUD_ROLE_SEED":  "Buyer:admin",
+	})
+	c, err := telnettest.Dial(addr, telnettest.WithTimeout(12*time.Second))
+	if err != nil {
+		t.Fatalf("dial: %v", err)
+	}
+	defer c.Close()
+	if err := createAndLogin(c, "Buyer"); err != nil {
+		t.Fatalf("create+login: %v", err)
+	}
+	send := func(line string) string {
+		t.Helper()
+		_ = c.SendLine(line)
+		out, err := c.ExpectTimeout(gamePrompt, 8*time.Second)
+		if err != nil {
+			t.Fatalf("no prompt after %q: %v", line, err)
+		}
+		return out
+	}
+	send("restore") // ensure nuyen; street-kid starts with 500
+	if out := send("buy loaded"); !strings.Contains(strings.ToLower(out), "loaded ares predator v clip") {
+		t.Fatalf("buy loaded did not purchase a loaded clip from the fixer:\n%s", out)
+	}
+	send("get pistol")
+	send("equip pistol wield")
+	// The bought clip is already full → inserting it reads 15/15 with no fill.
+	if out := send("reload"); !strings.Contains(out, "(15/15)") {
+		t.Fatalf("a bought loaded clip did not insert as full (15/15) — preload not seeded:\n%s", out)
+	}
+	t.Log("shadowrun verified live: a loaded clip bought from the fixer inserted as a full 15/15 with no fill step — preload seeds a pre-loaded holder")
+}
