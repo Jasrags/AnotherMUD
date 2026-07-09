@@ -33,12 +33,17 @@ const (
 	// weapon's current loaded-round count. Absent = a full magazine (lazy-full,
 	// see MagazineLoaded); written on fire/reload and persisted with the item.
 	propLoadedRounds = "loaded"
-	// propInsertedHolderTpl / propInsertedHolderLoaded record the ammunition
-	// holder inserted in a holder-fed weapon (ammo-and-reloading §5): the
-	// holder's template id and its current round count. Absent = no holder
-	// inserted. Persisted with the weapon via EquippedItem.Holder.
+	// propInsertedHolderTpl / propInsertedHolderLoaded / propInsertedHolderGrade
+	// record the ammunition holder inserted in a holder-fed weapon
+	// (ammo-and-reloading §5): the holder's template id, its current round count,
+	// and the grade of its rounds (grade-through-holder §8, "" if ungraded).
+	// Absent = no holder inserted. Persisted with the weapon via EquippedItem.Holder.
 	propInsertedHolderTpl    = "inserted_holder"
 	propInsertedHolderLoaded = "inserted_holder_loaded"
+	propInsertedHolderGrade  = "inserted_holder_grade"
+	// propHolderAmmoGrade is the grade of the rounds loaded in a HOLDER item
+	// (ammo-and-reloading §8) — homogeneous, captured at fill. "" = ungraded.
+	propHolderAmmoGrade = "holder_ammo_grade"
 )
 
 // SourceKey is the modifier-source convention from §2.3 step 6 and
@@ -474,16 +479,16 @@ func (it *ItemInstance) AcceptsHolder() string { return it.acceptsHolder }
 // all. The inserted holder is recorded as instance state (template + count), not
 // a live item — insertion consumes the holder item, ejection re-spawns one
 // (ammo-and-reloading §5). Reads 0/"" /false when nothing is inserted.
-func (it *ItemInstance) InsertedHolder() (template string, loaded int, has bool) {
+func (it *ItemInstance) InsertedHolder() (template string, loaded int, grade string, has bool) {
 	it.propsMu.RLock()
 	defer it.propsMu.RUnlock()
 	tv, ok := it.properties[propInsertedHolderTpl]
 	if !ok {
-		return "", 0, false
+		return "", 0, "", false
 	}
 	tpl, _ := tv.(string)
 	if tpl == "" {
-		return "", 0, false
+		return "", 0, "", false
 	}
 	n := 0
 	if lv, ok := it.properties[propInsertedHolderLoaded]; ok {
@@ -492,13 +497,15 @@ func (it *ItemInstance) InsertedHolder() (template string, loaded int, has bool)
 	if n < 0 {
 		n = 0
 	}
-	return tpl, n, true
+	g, _ := it.properties[propInsertedHolderGrade].(string)
+	return tpl, n, g, true
 }
 
-// SetInsertedHolder records the holder inserted in this weapon (its template +
-// loaded-round count). Overwrites any prior inserted holder — the caller is
-// responsible for ejecting the old one first (ammo-and-reloading §5).
-func (it *ItemInstance) SetInsertedHolder(template string, loaded int) {
+// SetInsertedHolder records the holder inserted in this weapon (its template,
+// loaded-round count, and round grade). Overwrites any prior inserted holder —
+// the caller is responsible for ejecting the old one first (ammo-and-reloading
+// §5).
+func (it *ItemInstance) SetInsertedHolder(template string, loaded int, grade string) {
 	if loaded < 0 {
 		loaded = 0
 	}
@@ -509,6 +516,23 @@ func (it *ItemInstance) SetInsertedHolder(template string, loaded int) {
 	}
 	it.properties[propInsertedHolderTpl] = template
 	it.properties[propInsertedHolderLoaded] = loaded
+	it.properties[propInsertedHolderGrade] = grade
+}
+
+// HolderAmmoGrade / SetHolderAmmoGrade carry the grade of the rounds loaded in a
+// HOLDER item (grade-through-holder §8) — set at fill, read at insertion so the
+// grade travels with the clip to the shot. "" = ungraded.
+func (it *ItemInstance) HolderAmmoGrade() string {
+	if v, ok := it.Property(propHolderAmmoGrade); ok {
+		if g, ok := v.(string); ok {
+			return g
+		}
+	}
+	return ""
+}
+
+func (it *ItemInstance) SetHolderAmmoGrade(grade string) {
+	it.SetProperty(propHolderAmmoGrade, grade)
 }
 
 // SetInsertedHolderLoaded updates just the inserted holder's round count (firing
@@ -535,6 +559,7 @@ func (it *ItemInstance) ClearInsertedHolder() {
 	defer it.propsMu.Unlock()
 	delete(it.properties, propInsertedHolderTpl)
 	delete(it.properties, propInsertedHolderLoaded)
+	delete(it.properties, propInsertedHolderGrade)
 }
 
 // MagazineLoaded reports the rounds currently in a magazine weapon. A weapon

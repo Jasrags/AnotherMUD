@@ -1,0 +1,19 @@
+id: apds-round
+name: an APDS round
+type: item
+description: |
+  Armor-Piercing Discarding Sabot — a tungsten dart in a plastic sleeve that
+  strips away down the barrel. It punches through armor plate that shrugs off
+  ordinary caseless, and the tighter flight lands it truer.
+tags: [ammo, ammunition, stackable]
+# Distinct from the caseless "round" so `buy apds` vs `buy round` disambiguate.
+keywords: [apds, apds-round, armor-piercing, sabot]
+properties:
+  stackable: true
+  weight: 0
+  value: 12
+# A graded bullet (ammo-and-reloading §8): same ammo_kind as a caseless round, so
+# it feeds any `bullet` weapon, but its `grade` confers a to-hit bonus. Loaded
+# into a clip, the grade travels with the clip to the shot (grade-through-holder).
+ammo_kind: bullet
+grade: apds

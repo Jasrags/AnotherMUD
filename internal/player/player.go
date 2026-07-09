@@ -520,6 +520,9 @@ type InventoryEntry struct {
 	// wire format and reads as an unloaded weapon on respawn. Additive with a
 	// safe zero-value, so no save-version bump (an old save simply has none).
 	Loaded *int `yaml:"loaded,omitempty"`
+	// Grade persists the grade of a loose HOLDER's loaded rounds
+	// (grade-through-holder §8); empty for ungraded ammo or a non-holder item.
+	Grade string `yaml:"grade,omitempty"`
 }
 
 // EquippedItem is one entry in the persisted equipment map (v3+). The
@@ -544,6 +547,10 @@ type EquippedItem struct {
 type EquippedHolder struct {
 	Template string `yaml:"template"`
 	Loaded   int    `yaml:"loaded"`
+	// Grade is the grade of the holder's loaded rounds (grade-through-holder
+	// §8); empty for ungraded ammo. Round-trips masterwork/special ammo loaded
+	// in an inserted clip.
+	Grade string `yaml:"grade,omitempty"`
 }
 
 // Store is a file-backed player store. Directories live at

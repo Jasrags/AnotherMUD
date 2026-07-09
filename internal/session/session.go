@@ -1483,8 +1483,11 @@ func spawnEntries(ctx context.Context, a *connActor, store *entities.Store, cont
 		if entry.Loaded != nil {
 			inst.SetMagazineLoaded(*entry.Loaded)
 		}
+		if entry.Grade != "" {
+			inst.SetHolderAmmoGrade(entry.Grade)
+		}
 
-		survivor := player.InventoryEntry{Template: entry.Template, Loaded: entry.Loaded}
+		survivor := player.InventoryEntry{Template: entry.Template, Loaded: entry.Loaded, Grade: entry.Grade}
 		if len(entry.Contents) > 0 {
 			if tpl.Type != "container" || contents == nil {
 				// A non-container template carrying nested contents in
@@ -1574,7 +1577,7 @@ func respawnEquipment(ctx context.Context, a *connActor, store *entities.Store, 
 		// Restore an inserted ammunition holder on a holder-fed weapon
 		// (ammo-and-reloading §9) so a loaded firearm stays loaded across relog.
 		if entry.Holder != nil {
-			inst.SetInsertedHolder(entry.Holder.Template, entry.Holder.Loaded)
+			inst.SetInsertedHolder(entry.Holder.Template, entry.Holder.Loaded, entry.Holder.Grade)
 		}
 		// Companion slots are re-derived from the (re-spawned) template, not
 		// persisted (§3.8) — so a spanning item's full footprint is rebuilt
@@ -3202,6 +3205,7 @@ func cloneInventoryEntries(in []player.InventoryEntry) []player.InventoryEntry {
 			Template: e.Template,
 			Contents: cloneInventoryEntries(e.Contents),
 			Loaded:   e.Loaded,
+			Grade:    e.Grade,
 		}
 	}
 	return out
@@ -3463,14 +3467,16 @@ func (a *connActor) ConsumeAmmo(kind string) (string, bool) {
 		if e, ok := a.items.GetByID(wid); ok {
 			if w, isItem := e.(*entities.ItemInstance); isItem {
 				if w.AcceptsHolder() != "" {
-					_, loaded, has := w.InsertedHolder()
+					_, loaded, grade, has := w.InsertedHolder()
 					if !has || loaded <= 0 {
 						return "", false // no holder / empty holder — dry
 					}
 					w.SetInsertedHolderLoaded(loaded - 1)
 					a.syncEquipmentToSaveLocked()
 					a.markDirtyLocked()
-					return "", true
+					// The inserted clip's grade rides the shot (grade-through-
+					// holder §8) — the round loop maps it to a to-hit bonus.
+					return grade, true
 				}
 				if w.Magazine() > 0 {
 					loaded := w.MagazineLoaded()
@@ -3534,7 +3540,7 @@ func (a *connActor) ReloadWieldedMagazine() (before, after, capacity int, isMaga
 	if need <= 0 {
 		return before, before, capacity, true // already full
 	}
-	got := a.pullAmmoLocked(w.AmmoKind(), need)
+	got, _ := a.pullAmmoLocked(w.AmmoKind(), need) // internal magazines ignore ammo grade
 	after = before + got
 	if got > 0 {
 		w.SetMagazineLoaded(after)
@@ -3547,13 +3553,16 @@ func (a *connActor) ReloadWieldedMagazine() (before, after, capacity int, isMaga
 }
 
 // pullAmmoLocked removes up to `max` inventory items whose ammo kind matches
-// `kind`, returning how many it took. The caller holds a.mu. Ammo stacks are
-// separate entity ids (display-grouped), so this removes one id per round.
-func (a *connActor) pullAmmoLocked(kind string, max int) int {
+// `kind`, returning how many it took and the grade of the consumed rounds (from
+// the first one pulled — homogeneous per ammo-and-reloading §8, "" if ungraded).
+// The caller holds a.mu. Ammo stacks are separate entity ids (display-grouped),
+// so this removes one id per round.
+func (a *connActor) pullAmmoLocked(kind string, max int) (int, string) {
 	if kind == "" || max <= 0 || a.items == nil {
-		return 0
+		return 0, ""
 	}
 	got := 0
+	grade := ""
 	for got < max {
 		removed := false
 		for i, id := range a.inventory {
@@ -3567,6 +3576,9 @@ func (a *connActor) pullAmmoLocked(kind string, max int) int {
 			if !ok || it.HolderFits() != "" || it.AmmoKind() != kind {
 				continue
 			}
+			if got == 0 {
+				grade = it.Grade() // the fill's grade, from the first round pulled
+			}
 			a.inventory = append(a.inventory[:i], a.inventory[i+1:]...)
 			got++
 			removed = true
@@ -3579,7 +3591,7 @@ func (a *connActor) pullAmmoLocked(kind string, max int) int {
 	if got > 0 {
 		a.syncInventoryToSaveLocked()
 	}
-	return got
+	return got, grade
 }
 
 // magazineLoadedForSave returns the loaded-round count to persist for entity
@@ -3619,11 +3631,29 @@ func (a *connActor) insertedHolderForSave(id entities.EntityID) *player.Equipped
 	if !ok || w.AcceptsHolder() == "" {
 		return nil
 	}
-	tpl, loaded, has := w.InsertedHolder()
+	tpl, loaded, grade, has := w.InsertedHolder()
 	if !has {
 		return nil
 	}
-	return &player.EquippedHolder{Template: tpl, Loaded: loaded}
+	return &player.EquippedHolder{Template: tpl, Loaded: loaded, Grade: grade}
+}
+
+// holderGradeForSave returns the ammo grade to persist for a loose HOLDER item
+// (grade-through-holder §8), or "" if entity `id` isn't a holder / is ungraded.
+// Caller holds a.mu.
+func (a *connActor) holderGradeForSave(id entities.EntityID) string {
+	if a.items == nil {
+		return ""
+	}
+	e, ok := a.items.GetByID(id)
+	if !ok {
+		return ""
+	}
+	w, ok := e.(*entities.ItemInstance)
+	if !ok || w.HolderFits() == "" {
+		return ""
+	}
+	return w.HolderAmmoGrade()
 }
 
 // InsertHolder loads the fullest compatible loaded holder from inventory into the
@@ -3632,23 +3662,23 @@ func (a *connActor) insertedHolderForSave(id entities.EntityID) *player.Equipped
 // holder's template + remaining rounds so the caller can eject it into the room.
 // outcome: "ok" | "not-holder-fed" (wielded weapon takes no holder) | "no-holder"
 // (no compatible, loaded holder carried).
-func (a *connActor) InsertHolder() (outcome, weapon string, loaded, capacity int, ejectedTpl string, ejectedLoaded int) {
+func (a *connActor) InsertHolder() (outcome, weapon string, loaded, capacity int, ejectedTpl string, ejectedLoaded int, ejectedGrade string) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	if a.items == nil {
-		return "not-holder-fed", "", 0, 0, "", 0
+		return "not-holder-fed", "", 0, 0, "", 0, ""
 	}
 	wid, ok := a.equipment[mainHandSlot]
 	if !ok {
-		return "not-holder-fed", "", 0, 0, "", 0
+		return "not-holder-fed", "", 0, 0, "", 0, ""
 	}
 	ge, ok := a.items.GetByID(wid)
 	if !ok {
-		return "not-holder-fed", "", 0, 0, "", 0
+		return "not-holder-fed", "", 0, 0, "", 0, ""
 	}
 	gun, ok := ge.(*entities.ItemInstance)
 	if !ok || gun.AcceptsHolder() == "" {
-		return "not-holder-fed", "", 0, 0, "", 0
+		return "not-holder-fed", "", 0, 0, "", 0, ""
 	}
 	family := gun.AcceptsHolder()
 	weapon = gun.Name()
@@ -3670,16 +3700,18 @@ func (a *connActor) InsertHolder() (outcome, weapon string, loaded, capacity int
 		}
 	}
 	if best == nil || bestLoaded <= 0 {
-		return "no-holder", weapon, 0, 0, "", 0
+		return "no-holder", weapon, 0, 0, "", 0, ""
 	}
-	// Capture the currently-inserted holder (if any) for ejection.
-	if tpl, l, has := gun.InsertedHolder(); has {
-		ejectedTpl, ejectedLoaded = tpl, l
+	// Capture the currently-inserted holder (if any) for ejection — including
+	// its round grade, so the ejected clip keeps its ammo grade (§8).
+	if tpl, l, g, has := gun.InsertedHolder(); has {
+		ejectedTpl, ejectedLoaded, ejectedGrade = tpl, l, g
 	}
-	// Insert the new holder: record its state on the gun, consume the item.
+	// Insert the new holder: record its state (+ its rounds' grade) on the gun,
+	// consume the item.
 	loaded = bestLoaded
 	capacity = best.Magazine()
-	gun.SetInsertedHolder(string(best.TemplateID()), loaded)
+	gun.SetInsertedHolder(string(best.TemplateID()), loaded, best.HolderAmmoGrade())
 	for i, id := range a.inventory {
 		if id == bestID {
 			a.inventory = append(a.inventory[:i], a.inventory[i+1:]...)
@@ -3689,7 +3721,7 @@ func (a *connActor) InsertHolder() (outcome, weapon string, loaded, capacity int
 	a.syncInventoryToSaveLocked()
 	a.syncEquipmentToSaveLocked()
 	a.markDirtyLocked()
-	return "ok", weapon, loaded, capacity, ejectedTpl, ejectedLoaded
+	return "ok", weapon, loaded, capacity, ejectedTpl, ejectedLoaded, ejectedGrade
 }
 
 // FillHolder tops up an ammunition holder (an inventory item, resolved by the
@@ -3728,10 +3760,16 @@ func (a *connActor) FillHolder(holderID entities.EntityID) (before, after, capac
 	if need <= 0 {
 		return before, before, capacity, true
 	}
-	got := a.pullAmmoLocked(h.AmmoKind(), need)
+	got, grade := a.pullAmmoLocked(h.AmmoKind(), need)
 	after = before + got
 	if got > 0 {
 		h.SetMagazineLoaded(after)
+		// The rounds' grade rides the clip (grade-through-holder §8). Set it when
+		// filling from empty; a top-up keeps the existing grade rather than mixing
+		// (homogeneous holder assumption — a different grade is a known edge).
+		if before == 0 {
+			h.SetHolderAmmoGrade(grade)
+		}
 		// Re-sync inventory AFTER updating the holder's count: pullAmmoLocked
 		// synced with the pre-fill count, and Persist does not re-sync
 		// equipment/inventory, so without this the filled count is lost on the
@@ -6001,7 +6039,7 @@ func (a *connActor) buildSaveEntriesLocked(ids []entities.EntityID) []player.Inv
 		if !ok {
 			continue
 		}
-		entry := player.InventoryEntry{Template: tpl, Loaded: a.magazineLoadedForSave(id)}
+		entry := player.InventoryEntry{Template: tpl, Loaded: a.magazineLoadedForSave(id), Grade: a.holderGradeForSave(id)}
 		if a.contents != nil && a.isContainerLocked(id) {
 			if child := a.buildSaveEntriesLocked(a.contents.In(id)); len(child) > 0 {
 				entry.Contents = child

@@ -22,7 +22,7 @@ type magazineReloader interface {
 // reloading §5): insert a loaded holder into the wielded weapon, or fill a
 // carried holder from loose rounds.
 type holderReloader interface {
-	InsertHolder() (outcome, weapon string, loaded, capacity int, ejectedTpl string, ejectedLoaded int)
+	InsertHolder() (outcome, weapon string, loaded, capacity int, ejectedTpl string, ejectedLoaded int, ejectedGrade string)
 	FillHolder(holderID entities.EntityID) (before, after, capacity int, ok bool)
 }
 
@@ -61,7 +61,7 @@ func reloadHolderFedWeapon(ctx context.Context, c *Context) error {
 	if !ok {
 		return c.Actor.Write(ctx, "You can't reload anything right now.")
 	}
-	outcome, weapon, loaded, capacity, ejectedTpl, ejectedLoaded := reloader.InsertHolder()
+	outcome, weapon, loaded, capacity, ejectedTpl, ejectedLoaded, ejectedGrade := reloader.InsertHolder()
 	switch outcome {
 	case "not-holder-fed":
 		return c.Actor.Write(ctx, "You aren't wielding anything that needs reloading.")
@@ -69,7 +69,7 @@ func reloadHolderFedWeapon(ctx context.Context, c *Context) error {
 		return c.Actor.Write(ctx, fmt.Sprintf("You have no loaded clip to load into %s.", weapon))
 	}
 	if ejectedTpl != "" {
-		ejectHolderToRoom(ctx, c, ejectedTpl, ejectedLoaded)
+		ejectHolderToRoom(ctx, c, ejectedTpl, ejectedLoaded, ejectedGrade)
 	}
 	return c.Actor.Write(ctx, fmt.Sprintf("You slap a fresh clip into %s. (%d/%d)", weapon, loaded, capacity))
 }
@@ -77,7 +77,7 @@ func reloadHolderFedWeapon(ctx context.Context, c *Context) error {
 // ejectHolderToRoom mints the displaced holder (from its template + remaining
 // rounds) and drops it on the floor (ammo-and-reloading §7). Best-effort: with
 // no spawn service / placement / room it simply doesn't eject.
-func ejectHolderToRoom(ctx context.Context, c *Context, tpl string, loaded int) {
+func ejectHolderToRoom(ctx context.Context, c *Context, tpl string, loaded int, grade string) {
 	if c.Spawn == nil || c.Placement == nil || c.Items == nil {
 		return
 	}
@@ -92,6 +92,7 @@ func ejectHolderToRoom(ctx context.Context, c *Context, tpl string, loaded int) 
 	if e, ok := c.Items.GetByID(id); ok {
 		if h, ok := e.(*entities.ItemInstance); ok {
 			h.SetMagazineLoaded(loaded)
+			h.SetHolderAmmoGrade(grade) // the ejected clip keeps its rounds' grade (§8)
 			// Mark the spent clip as ephemeral scrap so it decays off the ground
 			// after its lifetime (ammo-and-reloading §7). Recoverable until then.
 			if c.NowTick != nil {

@@ -65,6 +65,10 @@ content:
   # worn gear. Must load before item validation resolves eligible_slots.
   slots:
     - slots/*.yaml
+  # Ammunition quality grades (grade-through-holder, ammo-and-reloading §8) —
+  # must load before items so a graded round resolves its grade.
+  grades:
+    - grades/*.yaml
   items:
     - items/*.yaml
   areas:

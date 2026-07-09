@@ -152,11 +152,10 @@ Content inventory:
 
 **Size: Small** — landed as a live test + a content rename. The magazine model (B), burst-fire, and SR cross-room are separate slices.
 
-### SR-M3f — Ammo holders + the unified reload (Tier B-lite)  · **Medium–Large Go · SR-M3f-1 + shop SKUs SHIPPED**
+### SR-M3f — Ammo holders + the unified reload (Tier B-lite)  · **Medium–Large Go · COMPLETE**
 
-> **STATUS: SR-M3f-1 SHIPPED 2026-07-09; SR-M3f-2 shop SKUs + ejected-clip decay
-> SHIPPED 2026-07-09; SR-M3f-2 grade-through planned (needs SR grade content, see
-> below).** SR-M3f-1 landed the
+> **STATUS: SR-M3f COMPLETE 2026-07-09 — SR-M3f-1 (holder model) + SR-M3f-2 (shop
+> SKUs, ejected-clip decay, grade-through-holder) all SHIPPED.** SR-M3f-1 landed the
 > holder model live: the Ares Predator V is holder-fed (`accepts_holder:
 > heavy-pistol`), a new `predator-clip` holds rounds, the unified `reload`
 > fills a clip (`reload clip`) / inserts a clip (`reload`) / ejects the spent
@@ -221,13 +220,20 @@ Content inventory:
   `TestLive_ShadowrunClipDecay` (eject in the back alley → lingers → decays). A
   picked-up clip is skipped by the sweep (Placement.Remove single-winner); the
   stale-tag-on-re-drop edge is a recorded LOW.
-- **Grade-through-holder — PLANNED (own sub-slice, spec §8).** A homogeneous
-  holder captures its rounds' grade at fill and applies it per shot, **retiring
-  the deferred "typed/masterwork ammo in a magazine" item** (`sr-m3c-deferred-fixes`
-  SR-M3e tails). Needs graded-ammo content (none exists in the SR pack yet) + a
-  grade-capture path (`pullAmmoLocked`/`FillHolder`/inserted-holder state/
-  `ConsumeAmmo`) + grade persistence (`EquippedHolder.Grade` + a loose-holder
-  grade field) — its own increment.
+- **Grade-through-holder — SHIPPED 2026-07-09.** A homogeneous holder captures
+  its rounds' grade at fill and applies it per shot, **retiring the deferred
+  "typed/masterwork ammo in a magazine" tail.** Added SR grade content
+  (`content/shadowrun/grades/` — `match` +1 / `apds` +2 to-hit; a `grades:` glob
+  loading before items) + a graded `apds-round` (the fixer sells it). Grade path:
+  `pullAmmoLocked` returns the pulled rounds' grade → `FillHolder` sets it on the
+  holder (`HolderAmmoGrade`) → `InsertHolder` moves it onto the inserted-holder
+  state → `ConsumeAmmo` returns it → the round loop maps it to a to-hit bonus.
+  Persists on both the inserted clip (`EquippedHolder.Grade`) and a loose clip
+  (`InventoryEntry.Grade`); an ejected clip keeps its grade. Simplification: the
+  holder is homogeneous — the grade is set at fill-from-empty and kept on a top-up
+  (mixing a different grade keeps the first, a known edge). Deterministic
+  `TestGradeThroughHolder` (fill APDS clip → insert → `ConsumeAmmo` returns
+  "apds"). **SR-M3f-2 complete.**
 
 **Deferred (own slices, spec §11 open questions):** reload as a **timed action**
 (instant for the first slice, as SR-M3e); **mixed-ammo** holders (homogeneous

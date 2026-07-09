@@ -179,9 +179,12 @@ demo hits.
 > `reload` is the firearm verb; `load` still chambers a crossbow. Reload is
 > **instant** in this slice — the SR5 reload **action cost** (a Simple/Complex
 > action per the reloading table) is a tracked follow-on. The clip holds an
-> abstract round count (not typed rounds), so masterwork/special ammo in a clip
-> isn't modeled yet (SR-M3f-2 grade-through, planned). Still deferred: **SMG
-> burst** and **cross-room `shoot`**.
+> **special ammo through a clip:** buy **APDS rounds** from the fixer (`buy
+> apds`), fill a clip with them (`reload clip`), and load it — shots fired from
+> that clip carry the round's grade (a to-hit bonus), because the clip is
+> homogeneous and the grade rides it (grade-through-holder). The grade persists
+> with the clip (carried or inserted). Still deferred: **SMG burst** and
+> **cross-room `shoot`**.
 
 ## 41. Cyberware (augmentation on the score sheet)
 
@@ -208,8 +211,9 @@ safe-room.
       **500**).
 - [ ] `list` — the fixer's ammo SKUs (ammo-and-reloading §6) plus gear: a
       **loaded Ares Predator V clip** (the primary buy — arrives full), a
-      **caseless round** (loose refills), an **empty clip** (a cheap spare to
-      fill), an **Ares Predator V**, an **armored jacket**, and **cybereyes**.
+      **caseless round** (loose refills), an **APDS round** (graded ammo, §40), an
+      **empty clip** (a cheap spare to fill), an **Ares Predator V**, an **armored
+      jacket**, and **cybereyes**.
 - [ ] `buy round` — "You buy … for N gold. You have M gold left." — a caseless
       round enters inventory; repeat to fill a clip (§40).
 - [ ] `buy loaded` — buys a **pre-loaded** clip. `get pistol`, `equip pistol

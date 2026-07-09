@@ -29,6 +29,7 @@ properties:
       # loose rounds (refills), and an empty clip (a cheap spare to fill).
       - shadowrun:predator-clip-loaded
       - shadowrun:ammo-clip
+      - shadowrun:apds-round
       - shadowrun:predator-clip
       - shadowrun:ares-predator-v
       - shadowrun:armored-jacket
