@@ -3508,11 +3508,31 @@ func (a *connActor) ConsumeAmmo(kind string) (string, bool) {
 		}
 		gradeKey := it.Grade()
 		a.inventory = append(a.inventory[:i], a.inventory[i+1:]...)
+		a.untrackConsumedLocked(id) // the round is fired — don't leak it in the store index
 		a.syncInventoryToSaveLocked()
 		a.markDirtyLocked()
 		return gradeKey, true
 	}
 	return "", false
+}
+
+// untrackConsumedLocked removes a fully-consumed inventory item — a spent round,
+// a holder loaded away into a weapon — from the entity store, so it does not leak
+// in the store's id/tag index after leaving the actor's inventory. Caller holds
+// a.mu; Untrack takes the store's own lock, so there's no deadlock. Benign if
+// already untracked. Consumed rounds/holders carry no Contents children (a
+// holder's loaded rounds are an abstract count, not tracked child entities), so a
+// plain Untrack — not untrackTree — is the correct teardown.
+//
+// The Untrack error is deliberately dropped: the only failure is ErrNotTracked
+// (the item already left the store), which is benign here. untrackTree logs the
+// equivalent at Debug, but this seam carries no ctx/logger; the silence is a
+// documented choice, not an oversight.
+func (a *connActor) untrackConsumedLocked(id entities.EntityID) {
+	if a.items == nil {
+		return
+	}
+	_ = a.items.Untrack(id)
 }
 
 // ReloadWieldedMagazine tops up the wielded magazine weapon's loaded rounds from
@@ -3584,6 +3604,7 @@ func (a *connActor) pullAmmoLocked(kind string, max int) (int, string) {
 				grade = it.Grade() // the fill's grade, from the first round pulled
 			}
 			a.inventory = append(a.inventory[:i], a.inventory[i+1:]...)
+			a.untrackConsumedLocked(id) // round consumed (fired or loaded into a holder) — untrack it
 			got++
 			removed = true
 			break
@@ -3722,6 +3743,7 @@ func (a *connActor) InsertHolder() (outcome, weapon string, loaded, capacity int
 			break
 		}
 	}
+	a.untrackConsumedLocked(bestID) // the holder is now the gun's inserted clip, not a carried item
 	a.syncInventoryToSaveLocked()
 	a.syncEquipmentToSaveLocked()
 	a.markDirtyLocked()
