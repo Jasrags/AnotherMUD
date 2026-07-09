@@ -93,6 +93,12 @@ bow takes the non-proficient to-hit penalty.
   item adds its grade's to-hit bonus, **stacks** with a masterwork launcher, and
   is **destroyed on use** (it does not land recoverable even if a thrown-style
   rule would otherwise recover it).
+- **Holder-fed weapons** (a firearm's clip, an autocannon's belt) extend this
+  loose-round model: rounds live in a removable **ammunition holder** that is
+  loaded into the weapon, firing draws from the inserted holder, and reloading
+  swaps holders (ejecting the spent one). The loose-round model here is the
+  internally-fed / feed-the-holder base; see `ammo-and-reloading` for holders,
+  the unified `reload` verb, ejection/decay, and grade-through-holder.
 
 **Acceptance criteria**
 

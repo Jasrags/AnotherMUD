@@ -171,6 +171,16 @@ The verbs players use and the systems that resolve them.
   sustained cross-room combat + multi-room LoS/pursuit deferred). All inside
   `internal/combat` + `internal/command` + `internal/ai`; EPIC sub-epic S1
   increment G *(shipped — Slice A + B + Model C)*.
+- [ammo-and-reloading](ammo-and-reloading.md) — the physical-ammunition model
+  extending `ranged-combat §3` from loose-per-shot to **holder-fed**: loose
+  rounds → **ammunition holders** (clip/magazine/belt/drum/speed-loader) →
+  weapons, the unified **`reload`** verb ("top up the target from the tier
+  below" — load a weapon with a holder, load a holder with rounds, feed an
+  internal weapon's cylinder), spent holders **ejected** to the room and
+  decaying, and ammo **grade carried through the holder** (unblocking masterwork
+  ammo for holder-fed weapons). Ruleset-agnostic; Shadowrun is the reference
+  consumer. *(draft — internally-fed / abstract-magazine precursor shipped in the
+  Shadowrun pack; holder-fed model planned)*.
 - [saves](saves.md) — saving throws (Fortitude / Reflex / Will): three
   derived save values (class strong/weak base + governing-ability
   modifier), the `d20 + bonus vs DC` resolve primitive + the
@@ -649,4 +659,4 @@ highest-impact themes that recur across specs:
 
 ---
 
-<!-- Updated: 2026-06-18 · 58 specs covering the engine substrate, world, action, lifecycle, and presentation layers. Behavior contracts still ahead of code: tag-observers, faction, reputation, the trade trio (trade-escrow, direct-trade, auction-house), area-effects (grenades & room hazards) — greenfield from the equipment.md review. Since-shipped: roles-and-permissions, admin-verbs, item-decorations (M19/M20), loot-and-corpses (M22), tab-completion Phase 0–2, who, light-and-darkness, room-coordinates (M23), player-maps (M24 — Mudlet GMCP wire-shape pending live-client validation), biomes, gathering, crafting-and-cooking (M27), weapon-identity (WoT EPIC S1), masterwork (WoT EPIC S1.H), ranged-combat (WoT EPIC S1.G — Slice A+B + Model C cross-room), armor-depth (WoT EPIC S1.E+D), size-and-wielding (WoT EPIC S1.F), two-weapon-fighting (WoT EPIC S1.K — slices 1-4: off-hand attack, the feats, Improved TWF, mob dual-wield), saves (WoT EPIC S6), conditions (WoT EPIC S5), skills (WoT EPIC S3, substrate), feats (WoT EPIC S4), backgrounds, visibility + hidden-exits (M28), movement-cost (flat→biome-weighted cost gate + encumbrance), character-select (account-first login), character-identity (world-locking, save v23), mounts (core v1 — substrate/persist save v26/acquire+stablemaster/ride+co-located travel/the mount as metered mover; barding + temperament-combat + lead pending). -->
+<!-- Updated: 2026-06-18 · 59 specs covering the engine substrate, world, action, lifecycle, and presentation layers. Behavior contracts still ahead of code: tag-observers, area-effects (grenades & room hazards), ammo-and-reloading (holder-fed reloading — draft; internally-fed/abstract-magazine precursor shipped in the Shadowrun pack). Since-shipped: roles-and-permissions, admin-verbs, item-decorations (M19/M20), loot-and-corpses (M22), tab-completion Phase 0–2, who, light-and-darkness, room-coordinates (M23), player-maps (M24 — Mudlet GMCP wire-shape pending live-client validation), biomes, gathering, crafting-and-cooking (M27), weapon-identity (WoT EPIC S1), masterwork (WoT EPIC S1.H), ranged-combat (WoT EPIC S1.G — Slice A+B + Model C cross-room), armor-depth (WoT EPIC S1.E+D), size-and-wielding (WoT EPIC S1.F), two-weapon-fighting (WoT EPIC S1.K — slices 1-4: off-hand attack, the feats, Improved TWF, mob dual-wield), saves (WoT EPIC S6), conditions (WoT EPIC S5), skills (WoT EPIC S3, substrate), feats (WoT EPIC S4), backgrounds, visibility + hidden-exits (M28), movement-cost (flat→biome-weighted cost gate + encumbrance), character-select (account-first login), character-identity (world-locking, save v23), mounts (core v1 — substrate/persist save v26/acquire+stablemaster/ride+co-located travel/the mount as metered mover; barding + temperament-combat + lead pending). -->
