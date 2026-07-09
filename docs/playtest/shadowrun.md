@@ -75,19 +75,21 @@ Login is account-first (identical to core §1). Create a new account/character;
 the Shadowrun wizard is the **default** flow (no channeling step).
 
 - [ ] Walk the wizard — after the name it prompts, in order:
-      **gender** (Male/Female), then **metatype** ("Choose your race:" — 1) Human
-      2) Elf 3) Dwarf 4) Ork 5) Troll), then **class** ("Choose your class:" —
-      1) Street Samurai — the only class in the MVP), then **background**
-      (1) Street Kid).
+      **gender** (Male/Female), then **metatype** ("Choose your race:" — 1) Dwarf
+      2) Elf 3) Human 4) Ork 5) Troll, alphabetical), then **class** ("Choose
+      your class:" — 1) Street Samurai — the only class in the MVP), then
+      **background** (1) Street Kid).
 - [ ] The **Street Kid** background carries two pick-one choosers: a **feat**
       (Alertness *or* Stealthy) and a **starting kit** (heavy pistol + round +
       jacket / katana + jacket / stun baton + vest). Pick one of each.
 - [ ] Confirm — the character spawns at the **Street Corner**.
-- [ ] `score` (`sc`) — the identity line reads **Gender Metatype Class**
-      (e.g. "Male Human Street Samurai"); the attribute block shows the **eight
-      Shadowrun primaries** — **BOD AGI REA STR WIL LOG INT CHA** — plus **Edge**
-      (not the classic STR/DEX/CON/INT/WIS/CHA six). The advancement track reads
-      **The Long Run** (§43), and **MA 0/0** (a street samurai doesn't channel).
+- [ ] `score` (`sc`) — the identity line reads **Gender Metatype Class** (e.g.
+      "Male Dwarf Street-samurai" — class and background render from their ids,
+      hyphenated), with a **Background** line below it; the attribute block shows
+      the **eight Shadowrun primaries** — **BOD AGI REA STR WIL LOG INT CHA** —
+      plus **Edge** (**EDG**), not the classic STR/DEX/CON/INT/WIS/CHA six. The
+      advancement track reads **Level 1 - The Long Run** (§43), and **MA 0/0**
+      (a street samurai doesn't channel).
 - [ ] `score` purse — **500** nuyen (shown as `Gold`; nuyen is flavor over the
       shared currency — a known cosmetic gap).
 
