@@ -1,4 +1,4 @@
-<!-- Generated: 2026-06-16 | Engine core: tick, eventbus, command, services | Token estimate: ~980 -->
+<!-- Generated: 2026-07-08 | Engine core: tick, eventbus, command, services | Token estimate: ~980 -->
 
 # Engine & Command Flow
 
@@ -42,11 +42,11 @@ raw line ─▶ Fields() ─▶ resolveRegistration(verb)   (exact match, else
 Handlers wired in `main.go`: combat round (`_COMBAT_CADENCE`), `autosave`
 (`Manager.SaveAll` of dirty actors), `idle-sweep`, `linkdead-cleanup`, effect
 ticks, `ability-idle-tick`, vitals regen, `fuel-burn` (lit light-source fuel →
-gutter), `biome-ambience`, `corpse-decay`, `campfire-decay`, `craft-complete`
-(timed crafting), `mount-travel-regen` (ridden/parked mounts recover their
-travel pool, vitals-regen cadence), `ai-tick`/`area-tick` (spawn), GMCP flushers
-(Char.Items/Combat/Effects/Vitals/Experience/Status — cadence-1 poll-and-diff),
-`scripting-schedule`, prompt render. (Canonical table: `docs/specs/README.md`.)
+gutter), `corpse-decay`, `campfire-decay`, `craft-complete` (timed crafting),
+`mount-travel-regen` (ridden/parked mounts recover their travel pool,
+vitals-regen cadence), `ai-tick`/`area-tick` (spawn + door reset + portal expiry),
+GMCP flushers (Char.Items/Combat/Effects/Vitals/Experience/Status/Login/StatusVars — cadence-1
+poll-and-diff), `scripting-schedule`, prompt render. (Canonical table: `docs/specs/README.md`.)
 In-game clock (`gameclock`) is tick-driven, not wall-clock, and **persists**
 (`gameclock.Store` → `saves/clock.yaml`, seeded at boot, flushed on hour
 advance + clean shutdown) so darkness doesn't reset to night on restart.
@@ -61,19 +61,26 @@ Cancellable-event index lives in `docs/specs/README.md`.
 | Service | Pkg | Role |
 |---|---|---|
 | combat.Manager | combat | engage/round/flee/death |
-| progression.Manager + Training/Ability/Proficiency/ActionQueue | progression (6.2k) | XP, tracks, abilities, effects-into-combat |
-| economy.{Currency,Shop,Rest,Consumable}Service | economy | gold, shops, sustenance/rest |
+| progression.Manager + Training/Ability/Proficiency | progression (6.2k) | XP, tracks, abilities, effects-into-combat |
+| economy.{Currency,Shop,Rest,Consumable,Sustenance}Service | economy | gold, shops, sustenance/rest |
 | escrow.Transaction + AuditStore | escrow | stage/commit/rollback atomic value swap; shared trade audit log (consumed by trade + auction) |
 | trade.Manager | trade | synchronous same-room player swap (direct-trade.md) |
 | auction.Manager + Store | auction | async persisted marketplace: list/browse/buyout/collect/expire/admin; versioned listing store w/ serialized item; verbs `auction`/`auctions`/`unlist`/`browse`/`buyout`/`collect`/`auctionremove`/`auctionrefund`; `auction-expire` tick |
 | quest.Service + queststore + questwatch | quest* | accept/advance/turn-in |
 | effect.Manager | effect | buffs/debuffs over ticks |
+| condition | condition | status conditions (combat hooks, player-applied via effects) |
+| feat | feat | player-chosen perks (source-keyed bonuses, known-feat + credit tracking) |
+| grade | grade | item quality grades (to-hit/damage/check/skill seams) |
+| size | size | sized-weapon validation (wield mode determination) |
 | light.Resolver | light | per-viewer effective light; gated at render/look/combat/move chokepoints via `command.EffectiveLight` (held source + room luminous items + darkvision); drives §6 transitions + fuel burn |
 | visibility filter | visibility | per-observer can-see predicate (hide/sneak/invis/search); composed into `BuildResolveContext.CanSee` + render + `who`; pierces darkness/concealment |
-| condition + feat + grade | condition/feat/grade | status conditions (combat hooks), player-chosen perks (source-keyed bonuses), item quality grades (to-hit/damage/check/skill seams) |
+| action.Tracker | action | busy-state / don-doff timers / reload gate; blocks move + combat while busy |
+| faction.Manager | faction | per-character standing (signed value), rank tags, shift events, disposition gate |
+| reputation.Manager | reputation | single-axis renown score (fame/infamy/unknown tier tags), shift events |
 | entities.{Store,Placement,Contents} | entities | items/mobs, room placement, containers |
 | mount service | cmd/anothermud/mountservice.go | materialize/dematerialize an owned mount into a live `MobInstance` (mounts.md §3); `MountInstance` surface (`IsMount`/`OwnerID`/`Travel`/`Temperament`) lives in `entities/mob_mount.go`. Verbs `mounts`/`buymount`/`stable`/`unstable`/`mount`/`dismount` in `command/mount.go`; mounted travel re-points the metered mover so the **mount** spends `travel` per step (not the rider's movement). `mount.before` cancellable event |
-| session.Manager | session (7.1k) | actors, flood/idle/link-dead/takeover, SaveAll |
+| hireling service | cmd/anothermud/hirelingservice.go | materialize/dematerialize owned hirelings; hire/dismiss/order/stances verbs in `command/hireling.go`; owned hirelings follow + assist in combat (same pattern as mounts) |
+| session.Manager | session (7.1k) | actors, flood/idle/link-dead/takeover, SaveAll, party/group membership |
 
 ## Key files
 - `internal/command/registry.go` (dispatch + Registry/Command/Context, ~920 LOC)

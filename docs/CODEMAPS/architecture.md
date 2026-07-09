@@ -1,13 +1,13 @@
-<!-- Generated: 2026-07-08 | Go files scanned: 360 (+408 tests) | 64 internal pkgs | Token estimate: ~740 -->
+<!-- Generated: 2026-07-08 | Go files scanned: 421 non-test (+532 tests) | 72 internal pkgs | Token estimate: ~740 -->
 
 # Architecture
 
-Single Go binary (module `github.com/Jasrags/AnotherMUD`, go 1.26). Tick-driven
+Single Go binary (module `github.com/Jasrags/AnotherMUD`, go 1.26.4). Tick-driven
 MUD engine: one game loop + a typed event bus; everything else is layered
-`internal/` packages. **No web frontend / DB / HTTP routes today** — clients are
+`internal/` packages (72 today). **No web frontend / DB / HTTP routes today** — clients are
 telnet/WebSocket line connections (a browser web UI over the existing WS+GMCP
 channel is the recorded long-term rich-client direction — docs/BACKLOG.md);
-state is YAML save files + content packs.
+state is YAML save files + content packs (4 packs: core, shadowrun, starter-world, wot).
 
 ## Entry point
 `cmd/anothermud/main.go` — composition root. Opens account/player stores

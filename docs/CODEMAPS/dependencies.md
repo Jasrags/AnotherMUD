@@ -1,11 +1,11 @@
-<!-- Generated: 2026-06-17 | External deps + conventions | Token estimate: ~620 -->
+<!-- Generated: 2026-07-08 | External deps + conventions | Token estimate: ~650 -->
 
 # Dependencies & Conventions
 
 Deliberately minimal external surface — 4 third-party modules, no framework, no
 network services. Everything else is stdlib.
 
-## External modules (go.mod, go 1.26)
+## External modules (go.mod, go 1.26.4)
 | Module | Use |
 |---|---|
 | `golang.org/x/crypto` | bcrypt password hashing (`internal/account`) |
@@ -16,7 +16,7 @@ network services. Everything else is stdlib.
 No DB driver, no HTTP framework, no cache, no message broker — state is files +
 in-process tick loop / event bus.
 
-## Internal "shared libraries" (leaf utilities)
+## Internal "shared libraries" (leaf utilities, 72 packages total)
 - `internal/persistence` — atomic tmp→bak→rename file I/O + path safety.
 - `internal/keyword` — shared item/entity match rules (resolver + completion).
 - `internal/eventbus` — typed cancellable/non-cancellable bus.
@@ -25,16 +25,26 @@ in-process tick loop / event bus.
 - `internal/srckey` — modifier-source leaf, breaks the entities↔stats cycle.
 - `internal/logging` — `log/slog` setup carried on ctx (F2).
 - `internal/pool` — generalized resource-pool primitive (vitals/mana/movement/
-  the One Power); a Vitals facade fronts it, save-persisted currents only.
+  the One Power + mob-seed pools); a Vitals facade fronts it, save-persisted
+  currents only (v21+).
 - `internal/channel` — derived-stat formula layer (hand-rolled eval, no
-  code-exec); combat attack/defense/damage/mitigation derive via a content map.
+  code-exec); combat attack/defense/damage/mitigation derive via content map +
+  mob spawn pools (shadowrun stun monitor, etc.).
 - `internal/grade` — item quality-grade vocabulary (masterwork/power-wrought).
+- `internal/condition` — status conditions (KO, sickened, etc.) with combat hooks.
+- `internal/feat` — player-chosen perks (known-feat + credit tracking, source-keyed
+  bonuses, stackable/per-parameter variants).
+- `internal/action` — busy-state tracker + don/doff timers + reload gate for
+  action economy (movement/combat/reload blocking).
+- `internal/size` — sized-weapon validation + wield mode (one-hand/two-hand/etc.).
+- `internal/faction` — per-character standing map, rank tags, shift events (v31+).
+- `internal/reputation` — single-axis renown score, tier tags (v32+).
 - `internal/mount` — near-leaf mount vocabulary: the temperament ladder
   (war/steady/skittish danger-entry gate) + the `travel` pool-kind identity a
-  ridden mount spends; imports only stdlib + the leaf `pool`, so mob/entities/
+  ridden mount spends; imports only stdlib + leaf `pool`, so mob/entities/
   command/session share it without a cycle.
 - `internal/visibility` — per-observer can-see predicate (decoupled via small
-  Observer/Target interfaces; composes darkness + concealment).
+  Observer/Target interfaces; composes darkness + concealment + search).
 - `internal/property` — registry + tagged-value envelope.
 - `internal/light` — pure per-viewer effective-light resolver (level/config/
   resolve/source/fuel/viewer); imports only `world` (terrain) + `gameclock`

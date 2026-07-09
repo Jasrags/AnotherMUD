@@ -1,4 +1,4 @@
-<!-- Generated: 2026-06-17 | Persistence (YAML files) + content packs — no database | Token estimate: ~840 -->
+<!-- Generated: 2026-07-08 | Persistence (YAML files) + content packs — no database | Token estimate: ~900 -->
 
 # Data: Saves & Content
 
@@ -21,15 +21,17 @@ clock.yaml                       global in-game time (CurrentHour, DayCount)
 - **Login is account-first by username** (`character-select`): `index.yaml` keeps
   a username→id map alongside the legacy email→id map (backfilled on load); one
   account holds a roster of characters across worlds.
-- `internal/player` — `player.yaml` carries `version`; `CurrentVersion = 26`
+- `internal/player` — `player.yaml` carries `version`; `CurrentVersion = 34`
   with an **append-only migration chain** (never edit an old migration). Recent
   bumps: v19 backgrounds, v20 feats, v21 resource-pool currents, v22 gender,
-  v23 `WorldID` (world-locking, backfilled from the location namespace),
-  v24 `movement_max` base stat, v25 `madness` (saidin taint accumulator,
-  no-op/0 for non-channelers), v26 `Mounts []MountRecord` (owned-mount list,
-  no-op/nil for the mountless common case). Boolean/string prefs with a safe zero-value
-  (autoloot, wimpy, prompt, `show_room_data`) are added `omitempty` **without** a
-  version bump.
+  v23 `WorldID` (world-locking), v24 `movement_max` base stat, v25 `madness` (saidin
+  taint accumulator), v26 `Mounts []MountRecord` (owned-mount list), v27 `PowerAttackActive`
+  (combat stance), v28 `ChannelingGift` (channeler affinity), v29 `BackgroundFeat`/
+  `BackgroundEquipmentChoice` (creation choices), v30 `KnownLanguages`, v31 `FactionStanding`
+  (per-character standing map), v32 `Reputation` (renown score), v33 `Hirelings`
+  (owned hireling contracts), v34 `AdminTags` (admin-applied gameplay tags).
+  Boolean/string prefs with a safe zero-value (autoloot, auto-assist, wimpy, prompt,
+  `show_room_data`, minimap) are added `omitempty` **without** a version bump.
 - **Equipment save shape**: one entry per equipped item, keyed by its TARGET
   slot key (`{Template, Entity}`). A spanning item (two-hander) is NOT
   duplicated across its footprint — companion keys are re-derived from the
@@ -57,16 +59,18 @@ clock.yaml                       global in-game time (CurrentHour, DayCount)
   owned mount resolves to a resting/stabled record, re-mounted after login).
 
 ## Content packs (`<ANOTHERMUD_CONTENT_DIR>`, default ./content)
-`internal/pack` — manifest/discovery/dep-order/two-phase loader. Three packs ship:
+`internal/pack` — manifest/discovery/dep-order/two-phase loader. Four packs ship:
 `content/core/` (the `tapestry-core` engine baseline — slots/races/classes/tracks/
 abilities/effects/rarity/essence/biomes/channels/feats/backgrounds/conditions/
 theme/help; **no world**), `content/starter-world/` (the default-boot demo village,
-depends on core), and `content/wot/` (a Wheel-of-Time pack in progress, depends on
-core). Manifests declare `kind: world | library` (`character-identity` world-locking).
+depends on core), `content/shadowrun/` (Shadowrun MVP pack — a second world option with
+`shadowrun-primaries` attribute set, street-samurai class, Stun condition monitor, metatypes,
+cyberware slot, depends on core), and `content/wot/` (a Wheel-of-Time pack in progress,
+depends on core). Manifests declare `kind: world | library` (`character-identity` world-locking).
 Registries (roughly load order):
 ```
 theme · slots · races · classes · tracks · abilities · effects ·
-conditions · feats · backgrounds · rarity · essence · channels/channel-map ·
+conditions · feats · backgrounds · rarity · essence · channels/channel-map · pools ·
 biomes · items · grades · mobs · loot_tables · forage/nodes · recipes ·
 emotes · rooms · areas · weather_zones · quests · help · scripts(*.lua)
 ```
