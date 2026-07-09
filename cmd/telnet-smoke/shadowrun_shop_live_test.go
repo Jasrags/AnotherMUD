@@ -66,8 +66,8 @@ func TestLive_ShadowrunNuyenShop(t *testing.T) {
 
 	// The fixer shares the safe corner — `list` finds her shop in the room.
 	wares := send("list")
-	if !strings.Contains(strings.ToLower(wares), "clip of ammunition") {
-		t.Fatalf("the fixer's `list` did not show her wares (no clip of ammunition):\n%s", wares)
+	if !strings.Contains(strings.ToLower(wares), "caseless round") {
+		t.Fatalf("the fixer's `list` did not show her wares (no caseless round):\n%s", wares)
 	}
 
 	// Buy a clip: the price comes off the nuyen balance.
@@ -88,7 +88,7 @@ func TestLive_ShadowrunNuyenShop(t *testing.T) {
 
 	// The clip is now in inventory.
 	inv := send("inventory")
-	if !strings.Contains(strings.ToLower(inv), "clip of ammunition") {
+	if !strings.Contains(strings.ToLower(inv), "caseless round") {
 		t.Fatalf("bought clip not in inventory:\n%s", inv)
 	}
 	t.Logf("shadowrun verified live: bought a clip from the fixer for %d nuyen (%d→%d) — nuyen spent at a shop", price, before, remaining)
