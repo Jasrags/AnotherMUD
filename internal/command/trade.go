@@ -112,7 +112,7 @@ func OfferGoldHandler(ctx context.Context, c *Context) error {
 	}
 	amount, _ := c.Resolved["amount"].(int)
 	if amount <= 0 {
-		return c.Actor.Write(ctx, "Offer how much gold?")
+		return c.Actor.Write(ctx, fmt.Sprintf("Offer how much %s?", c.Money.Name()))
 	}
 	return mapTradeErr(ctx, c, c.Trades.OfferCoin(ctx, me, amount))
 }
@@ -126,7 +126,7 @@ func RescindGoldHandler(ctx context.Context, c *Context) error {
 	}
 	amount, _ := c.Resolved["amount"].(int)
 	if amount <= 0 {
-		return c.Actor.Write(ctx, "Take back how much gold?")
+		return c.Actor.Write(ctx, fmt.Sprintf("Take back how much %s?", c.Money.Name()))
 	}
 	return mapTradeErr(ctx, c, c.Trades.WithdrawCoin(ctx, me, amount))
 }

@@ -511,6 +511,7 @@ func (r *Registry) Dispatch(ctx context.Context, env Env, actor Actor, raw strin
 		Help:                  env.Help,
 		Quests:                env.Quests,
 		Currency:              env.Currency,
+		Money:                 env.Money,
 		Mounts:                env.Mounts,
 		Hirelings:             env.Hirelings,
 		HirelingCap:           env.HirelingCap,

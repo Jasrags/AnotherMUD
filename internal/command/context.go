@@ -117,6 +117,10 @@ type Context struct {
 	Quests *quest.Service
 	// Currency is the M11.1 economy currency service. nil in tests.
 	Currency *economy.CurrencyService
+	// Money is the world's currency-display vocabulary (nuyen/¥ vs gold),
+	// copied from Env at dispatch. Zero value prints as gold. Handlers format
+	// balances via c.Money.Format(n) / c.Money.Name() instead of literal "gold".
+	Money economy.CurrencyLabel
 	// Mounts is the mount lifecycle service (mounts.md §2/§3) — materialize /
 	// dematerialize / name an owned mount. The stable verbs route through it.
 	// nil disables mount verbs (tests / headless).

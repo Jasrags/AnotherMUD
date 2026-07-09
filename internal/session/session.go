@@ -446,6 +446,12 @@ type Config struct {
 	// auto-convert is a no-op (currency items just enter inventory).
 	Currency *economy.CurrencyService
 
+	// CurrencyLabel is the world's money-display vocabulary (nuyen/¥ vs the gold
+	// default), resolved boot-wide from the primary world's manifest `currency:`
+	// block. Threaded to command.Env.Money and used by `score` for the purse
+	// line. Zero value prints as gold, so an unset label degrades safely.
+	CurrencyLabel economy.CurrencyLabel
+
 	// Mounts is the mount lifecycle service (mounts.md §2/§3). Passed
 	// through command.Env so the buymount/stable/unstable verbs can
 	// materialize and dematerialize owned mounts. nil-safe: the verbs

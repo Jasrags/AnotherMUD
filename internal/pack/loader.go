@@ -17,6 +17,7 @@ import (
 	"github.com/Jasrags/AnotherMUD/internal/chat"
 	"github.com/Jasrags/AnotherMUD/internal/combat"
 	"github.com/Jasrags/AnotherMUD/internal/decoration"
+	"github.com/Jasrags/AnotherMUD/internal/economy"
 	"github.com/Jasrags/AnotherMUD/internal/effect"
 	"github.com/Jasrags/AnotherMUD/internal/emote"
 	"github.com/Jasrags/AnotherMUD/internal/faction"
@@ -159,6 +160,7 @@ func Load(ctx context.Context, root string, filter []string, dst *Registries, sp
 	dst.Worlds = dst.Worlds[:0]
 	dst.Splashes = make(map[string]string)
 	dst.WorldAttributeSets = make(map[string]string)
+	dst.WorldCurrencies = make(map[string]economy.CurrencyLabel)
 	for _, p := range ordered {
 		if !ValidKind(p.Manifest.Kind) {
 			return fmt.Errorf("%w: pack %q: kind %q is not valid (expected \"world\", \"library\", or empty)",
@@ -186,6 +188,16 @@ func Load(ctx context.Context, root string, filter []string, dst *Registries, sp
 			// here, mirroring how a background's home_language resolves.
 			if id := strings.TrimSpace(p.Manifest.AttributeSet); id != "" {
 				dst.WorldAttributeSets[p.Namespace()] = strings.ToLower(id)
+			}
+			// Record the world's money-display vocabulary (the nuyen/¥ reskin).
+			// Absent → omitted, so display falls back to the gold default. The
+			// suffix is kept verbatim (a leading space is meaningful: " gold");
+			// only the noun is trimmed. Display-only, never validated as breaking.
+			if cm := p.Manifest.Currency; cm != nil {
+				dst.WorldCurrencies[p.Namespace()] = economy.CurrencyLabel{
+					Noun:   strings.TrimSpace(cm.Name),
+					Suffix: cm.Suffix,
+				}
 			}
 		}
 	}

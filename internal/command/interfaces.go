@@ -313,6 +313,12 @@ type Env struct {
 	// that don't exercise currency; handlers MUST nil-guard.
 	Currency *economy.CurrencyService
 
+	// Money is the world's currency-DISPLAY vocabulary (nuyen/¥ vs the gold
+	// default), resolved boot-wide from the primary world. The zero value prints
+	// as gold, so an unset Money (tests) still formats sensibly. Copied to
+	// Context at dispatch; handlers format balances via c.Money.Format / .Name.
+	Money economy.CurrencyLabel
+
 	// Mounts is the mount lifecycle service (mounts.md §2/§3): materialize /
 	// dematerialize / name an owned mount. The stable verbs (buymount, stable,
 	// unstable) route through it after locating a stable-tagged NPC in the

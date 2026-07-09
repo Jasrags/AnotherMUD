@@ -25,7 +25,7 @@ const (
 func GoldHandler(ctx context.Context, c *Context) error {
 	holder, ok := c.Actor.(economy.Entity)
 	if !ok {
-		return c.Actor.Write(ctx, "You have no gold.")
+		return c.Actor.Write(ctx, fmt.Sprintf("You have no %s.", c.Money.Name()))
 	}
 	// Prefer the service read (honors any future caching/derivation
 	// layer); fall back to the direct read only when currency is
@@ -36,9 +36,9 @@ func GoldHandler(ctx context.Context, c *Context) error {
 		amount = c.Currency.Read(holder)
 	}
 	if amount == 0 {
-		return c.Actor.Write(ctx, "You have no gold.")
+		return c.Actor.Write(ctx, fmt.Sprintf("You have no %s.", c.Money.Name()))
 	}
-	return c.Actor.Write(ctx, fmt.Sprintf("You have %d gold.", amount))
+	return c.Actor.Write(ctx, fmt.Sprintf("You have %s.", c.Money.Format(amount)))
 }
 
 // tryAutoConvert implements the spec §2.3 pickup/give auto-convert

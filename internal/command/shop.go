@@ -29,9 +29,9 @@ func BuyHandler(ctx context.Context, c *Context) error {
 	res := c.Shop.Buy(ctx, shopper, string(npc.ID()), cfg, strings.Join(c.Args, " "), shopSkillChecker(c), shopStandingFunc(c))
 	switch res.Outcome {
 	case economy.ShopOK:
-		return c.Actor.Write(ctx, fmt.Sprintf("You buy %s for %d gold. You have %d gold left.", res.ItemName, res.Price, res.Gold))
+		return c.Actor.Write(ctx, fmt.Sprintf("You buy %s for %s. You have %s left.", res.ItemName, c.Money.Format64(res.Price), c.Money.Format(res.Gold)))
 	case economy.ShopInsufficientGold:
-		return c.Actor.Write(ctx, fmt.Sprintf("%s costs %d gold; you only have %d.", res.ItemName, res.Price, res.Gold))
+		return c.Actor.Write(ctx, fmt.Sprintf("%s costs %s; you only have %s.", res.ItemName, c.Money.Format64(res.Price), c.Money.Format(res.Gold)))
 	case economy.ShopSkillTooLow:
 		return c.Actor.Write(ctx, fmt.Sprintf("%s requires %s skill %d before you can buy it.", capitalize(res.ItemName), res.RequiredSkill, res.RequiredLevel))
 	case economy.ShopStandingTooLow:
@@ -94,7 +94,7 @@ func SellHandler(ctx context.Context, c *Context) error {
 	res := c.Shop.Sell(ctx, shopper, string(npc.ID()), cfg, strings.Join(c.Args, " "), shopStandingFunc(c))
 	switch res.Outcome {
 	case economy.ShopOK:
-		return c.Actor.Write(ctx, fmt.Sprintf("You sell %s for %d gold. You now have %d gold.", res.ItemName, res.Price, res.Gold))
+		return c.Actor.Write(ctx, fmt.Sprintf("You sell %s for %s. You now have %s.", res.ItemName, c.Money.Format64(res.Price), c.Money.Format(res.Gold)))
 	case economy.ShopItemIsNoSell:
 		return c.Actor.Write(ctx, fmt.Sprintf("You can't sell %s here.", res.ItemName))
 	case economy.ShopItemValueZero:
@@ -124,9 +124,9 @@ func ValueHandler(ctx context.Context, c *Context) error {
 	case res.Outcome != economy.ShopOK:
 		return c.Actor.Write(ctx, "The shop doesn't deal in that.")
 	case res.Scope == economy.ScopeInventory:
-		return c.Actor.Write(ctx, fmt.Sprintf("The shop would give you %d gold for %s.", res.Price, res.ItemName))
+		return c.Actor.Write(ctx, fmt.Sprintf("The shop would give you %s for %s.", c.Money.Format64(res.Price), res.ItemName))
 	default:
-		return c.Actor.Write(ctx, fmt.Sprintf("%s costs %d gold here.", res.ItemName, res.Price))
+		return c.Actor.Write(ctx, fmt.Sprintf("%s costs %s here.", res.ItemName, c.Money.Format64(res.Price)))
 	}
 }
 
@@ -143,7 +143,7 @@ func ListHandler(ctx context.Context, c *Context) error {
 	var b strings.Builder
 	b.WriteString("The shop offers:")
 	for _, r := range rows {
-		b.WriteString(fmt.Sprintf("\n  %s — %d gold", r.Name, r.BuyPrice))
+		b.WriteString(fmt.Sprintf("\n  %s — %s", r.Name, c.Money.Format64(r.BuyPrice)))
 	}
 	return c.Actor.Write(ctx, b.String())
 }

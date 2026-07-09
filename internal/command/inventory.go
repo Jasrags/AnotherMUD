@@ -110,7 +110,7 @@ func (c *Context) getFromRoom(ctx context.Context, room *world.Room, toks []stri
 	// coins grabbed) but suppress the ItemPickedUp bus event per §2.3
 	// step 7 — the currency feature emits its own currency.credited.
 	if value, converted := tryAutoConvert(ctx, c, c.Actor, item); converted {
-		_ = c.Actor.Write(ctx, fmt.Sprintf("You pick up %s (%d gold).", item.Name(), value))
+		_ = c.Actor.Write(ctx, fmt.Sprintf("You pick up %s (%s).", item.Name(), c.Money.Format(value)))
 		if c.Broadcaster != nil && c.Actor.Name() != "" {
 			c.Broadcaster.SendToRoom(ctx, room.ID,
 				fmt.Sprintf("%s picks up %s.", c.Actor.Name(), item.Name()),

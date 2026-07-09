@@ -5,6 +5,7 @@ import (
 	"github.com/Jasrags/AnotherMUD/internal/channel"
 	"github.com/Jasrags/AnotherMUD/internal/chat"
 	"github.com/Jasrags/AnotherMUD/internal/decoration"
+	"github.com/Jasrags/AnotherMUD/internal/economy"
 	"github.com/Jasrags/AnotherMUD/internal/effect"
 	"github.com/Jasrags/AnotherMUD/internal/emote"
 	"github.com/Jasrags/AnotherMUD/internal/faction"
@@ -192,6 +193,13 @@ type Registries struct {
 	// theme and hands it to the login front door. Not a content registry —
 	// loaded-pack metadata, like Worlds.
 	Splashes map[string]string
+
+	// WorldCurrencies maps a world pack's namespace → its money-display
+	// vocabulary (the nuyen/¥ reskin vs the gold default). Populated by Load
+	// from each world's manifest `currency:` block; the composition root
+	// resolves the primary world's entry (default gold) and threads it to the
+	// command Env + score. Display-only metadata, like Splashes.
+	WorldCurrencies map[string]economy.CurrencyLabel
 }
 
 // NewRegistries returns a Registries with every field initialized.
@@ -239,5 +247,6 @@ func NewRegistries() *Registries {
 		Worlds:             []string{},
 		WorldAttributeSets: map[string]string{},
 		Splashes:           map[string]string{},
+		WorldCurrencies:    map[string]economy.CurrencyLabel{},
 	}
 }

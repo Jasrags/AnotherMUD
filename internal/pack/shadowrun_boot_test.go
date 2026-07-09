@@ -276,6 +276,42 @@ func TestLoad_ShadowrunWeaponsAndArmor(t *testing.T) {
 	}
 }
 
+// TestLoad_ShadowrunCurrency proves the currency-label seam: the shadowrun world
+// declares nuyen/¥ in its manifest, which the loader records in WorldCurrencies
+// for the composition root to resolve boot-wide. A world with no `currency:`
+// block (fantasy) is absent from the map and falls back to the gold default.
+func TestLoad_ShadowrunCurrency(t *testing.T) {
+	root, err := filepath.Abs("../../content")
+	if err != nil {
+		t.Fatalf("abs: %v", err)
+	}
+	regs := NewRegistries()
+	if err := RegisterEngineBaselineProperties(regs.Properties); err != nil {
+		t.Fatalf("baseline properties: %v", err)
+	}
+	if err := slot.RegisterEngineBaseline(regs.Slots); err != nil {
+		t.Fatalf("baseline slots: %v", err)
+	}
+	if err := Load(context.Background(), root, []string{"shadowrun"}, regs, nil, nil, nil); err != nil {
+		t.Fatalf("Load shadowrun: %v", err)
+	}
+
+	cur, ok := regs.WorldCurrencies["shadowrun"]
+	if !ok {
+		t.Fatal("shadowrun world declared no currency — the manifest currency: block didn't load")
+	}
+	if cur.Noun != "nuyen" || cur.Suffix != "¥" {
+		t.Errorf("shadowrun currency = (%q, %q), want (nuyen, ¥)", cur.Noun, cur.Suffix)
+	}
+	// The reskin flows through to display: "725¥", label "Nuyen".
+	if got := cur.Format(725); got != "725¥" {
+		t.Errorf("Format(725) = %q, want 725¥", got)
+	}
+	if got := cur.Title(); got != "Nuyen" {
+		t.Errorf("Title() = %q, want Nuyen", got)
+	}
+}
+
 // TestLoad_ShadowrunBallisticProjectiles gates the silent-weapon set (WEAPONS.md
 // Ballistic Projectiles): the bow feeds loose arrows (no reload gate), the three
 // crossbows are reload-gated and chamber a bolt via `load`. All are lethal

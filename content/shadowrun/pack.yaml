@@ -29,6 +29,15 @@ splash: splash.txt
 # instead of the classic six (SR-M1). The set itself is declared under the
 # attribute_sets content glob below; this scalar picks it for a shadowrun boot.
 attribute_set: shadowrun-primaries
+# Money display (currency-label seam): the Sixth World runs on nuyen, shown with
+# the ¥ mark as a suffix (725¥) per the SR canon tables. Display-only — the
+# ledger is the same integer balance every world uses; this just reskins how it
+# prints (score purse, shop prices, the `gold` verb, trade/auction). Physical
+# cash doesn't exist (nuyen is electronic, carried on credsticks), so the
+# loose-coin drop paths stay gold-only and SR simply doesn't use them.
+currency:
+  name: nuyen
+  suffix: "¥"
 content:
   # The eight primaries (Body/Agility/Reaction/Strength/Willpower/Logic/
   # Intuition/Charisma) plus Edge (SR-M1). The loader enumerates by this glob,

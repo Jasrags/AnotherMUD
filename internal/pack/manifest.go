@@ -92,10 +92,37 @@ type Manifest struct {
 	// chain follows.
 	AttributeSet string `yaml:"attribute_set,omitempty"`
 
+	// Currency selects this world's money-DISPLAY vocabulary (the Shadowrun
+	// nuyen/¥ reskin vs the "gold" default). Only meaningful on kind:world packs;
+	// resolved boot-wide from the primary world, like Splash. Absent → the gold
+	// default. Display-only — the ledger is a single int either way — so unlike
+	// AttributeSet this is NOT a breaking/migration field; change it freely.
+	Currency *CurrencyManifest `yaml:"currency,omitempty"`
+
 	// Content paths — only the categories M2 cares about are listed.
 	// Unknown keys are tolerated (no strict YAML decoding) so future
 	// content types do not fail manifests authored ahead of time.
 	Content ContentPaths `yaml:"content,omitempty"`
+}
+
+// CurrencyManifest is a world's money-display vocabulary in YAML form (the
+// decoded shape of the manifest `currency:` block), converted to an
+// economy.CurrencyLabel at load. Both fields optional; an omitted field falls
+// back to the gold default at display time.
+type CurrencyManifest struct {
+	// Name is the currency noun for prose ("nuyen"); empty → "gold".
+	Name string `yaml:"name,omitempty"`
+	// Suffix is appended to an amount, INCLUDING any leading space the format
+	// wants: "¥" → "725¥", " gold" → "725 gold". Empty → " gold".
+	//
+	// The leading space is significant beyond spacing: it classifies the unit.
+	// A suffix that starts with a regular ASCII space is treated as a spelled-out
+	// WORD (" gold", " credits") and is dropped from the score purse row, where a
+	// noun label already names the currency (so it reads "Gold: 1,250", not
+	// "Gold: 1,250 gold"). A suffix with no leading space is treated as a SYMBOL
+	// ("¥", "$") and is kept everywhere ("Nuyen: 1,250¥"). So: word units MUST be
+	// written with a leading ASCII space; symbol units MUST hug the number.
+	Suffix string `yaml:"suffix,omitempty"`
 }
 
 // ContentPaths enumerates per-category file globs (spec §2.2 "content"

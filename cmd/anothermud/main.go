@@ -3072,6 +3072,13 @@ func run() error {
 			loginSplash = colorRenderer.RenderPlain(raw)
 		}
 	}
+	// The primary world's money-display vocabulary (currency-label seam): SR
+	// reskins to nuyen/¥, everyone else inherits the gold default. Boot-wide
+	// like the splash above (co-host deferred). Absent → the gold default.
+	currencyLabel := economy.DefaultCurrency
+	if cl, ok := registries.WorldCurrencies[primaryWorld]; ok {
+		currencyLabel = cl
+	}
 	handler := session.Handler(session.Config{
 		World:      w,
 		ChannelMap: channelMap,
@@ -3189,6 +3196,7 @@ func run() error {
 		ChatSubscribers:       subscribers,
 		ChatScrollbacks:       scrollbackLookup,
 		Currency:              currencySvc,
+		CurrencyLabel:         currencyLabel,
 		Mounts:                mountSvc,
 		Hirelings:             hirelingSvc,
 		HirelingCap:           envIntOr("ANOTHERMUD_HIRELING_CAP", 3),

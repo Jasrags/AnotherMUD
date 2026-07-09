@@ -72,13 +72,13 @@ func mapAuctionErr(ctx context.Context, c *Context, err error) error {
 	case err == nil:
 		return nil
 	case errors.Is(err, auction.ErrPriceTooLow):
-		return c.Actor.Write(ctx, fmt.Sprintf("The minimum auction price is %d gold.", c.Auction.Config().MinPrice))
+		return c.Actor.Write(ctx, fmt.Sprintf("The minimum auction price is %s.", c.Money.Format(c.Auction.Config().MinPrice)))
 	case errors.Is(err, auction.ErrNotTradable):
 		return c.Actor.Write(ctx, "That item can't be auctioned.")
 	case errors.Is(err, auction.ErrListingCap):
 		return c.Actor.Write(ctx, "You already have as many auctions running as you're allowed.")
 	case errors.Is(err, auction.ErrCantAfford):
-		return c.Actor.Write(ctx, fmt.Sprintf("You can't afford the %d gold listing fee.", c.Auction.Config().ListingFee))
+		return c.Actor.Write(ctx, fmt.Sprintf("You can't afford the %s listing fee.", c.Money.Format(c.Auction.Config().ListingFee)))
 	case errors.Is(err, auction.ErrNotYours):
 		return c.Actor.Write(ctx, "That isn't your auction.")
 	case errors.Is(err, auction.ErrOwnListing):
@@ -120,7 +120,7 @@ func AuctionHandler(ctx context.Context, c *Context) error {
 	if err := c.Auction.List(ctx, me, it, price); err != nil {
 		return mapAuctionErr(ctx, c, err)
 	}
-	return c.Actor.Write(ctx, fmt.Sprintf("You list %s for %d gold.", it.Name(), price))
+	return c.Actor.Write(ctx, fmt.Sprintf("You list %s for %s.", it.Name(), c.Money.Format(price)))
 }
 
 // AuctionsHandler implements `auctions` — show the caller's own active
@@ -143,7 +143,7 @@ func AuctionsHandler(ctx context.Context, c *Context) error {
 	var b strings.Builder
 	b.WriteString("Your auctions:\n")
 	for i, l := range mine {
-		fmt.Fprintf(&b, " %2d  %-28s %d gold\n", i+1, l.Item.Name, l.Price)
+		fmt.Fprintf(&b, " %2d  %-28s %s\n", i+1, l.Item.Name, c.Money.Format(l.Price))
 	}
 	b.WriteString("(unlist <#> to withdraw one)")
 	return c.Actor.Write(ctx, b.String())
@@ -216,7 +216,7 @@ func BuyoutHandler(ctx context.Context, c *Context) error {
 	if err != nil {
 		return mapAuctionErr(ctx, c, err)
 	}
-	return c.Actor.Write(ctx, fmt.Sprintf("You win %s for %d gold. Collect it at an auctioneer.", won.Item.Name, won.Price))
+	return c.Actor.Write(ctx, fmt.Sprintf("You win %s for %s. Collect it at an auctioneer.", won.Item.Name, c.Money.Format(won.Price)))
 }
 
 // CollectHandler implements `collect` — claim everything waiting for the
@@ -238,7 +238,7 @@ func CollectHandler(ctx context.Context, c *Context) error {
 
 	var got []string
 	if coin := c.Auction.CollectCoin(ctx, me); coin > 0 {
-		got = append(got, fmt.Sprintf("%d gold", coin))
+		got = append(got, c.Money.Format(coin))
 	}
 
 	heldBack := false

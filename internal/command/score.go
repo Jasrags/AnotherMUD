@@ -98,6 +98,7 @@ func ScoreHandler(ctx context.Context, c *Context) error {
 		d.AlignTag = strings.TrimPrefix(ss.AlignmentTag(), "alignment_")
 		d.HasGold = true
 		d.Gold = ss.Gold()
+		d.Money = c.Money
 		d.HasSust = true
 		d.Sust = ss.Sustenance()
 		// Tier thresholds aren't externally configurable (only the drain
@@ -342,6 +343,9 @@ type scoreData struct {
 
 	HasGold bool
 	Gold    int
+	// Money is the world's currency-display vocabulary (nuyen/¥ vs gold),
+	// copied from the Context so the purse row labels + formats correctly.
+	Money economy.CurrencyLabel
 
 	HasSust  bool
 	Sust     int
@@ -451,7 +455,11 @@ func renderScore(d scoreData) string {
 		)
 	}
 	if d.HasGold {
-		purseLines = append(purseLines, scKV("Gold", "<gold>"+commafy(int64(d.Gold))+"</gold>", 12))
+		// Label + amount reskin per the world's currency (nuyen/¥ vs gold). The
+		// <gold> color tag is the semantic "currency" tint (theme.yaml), reused
+		// regardless of the noun. commafy keeps the thousands separator.
+		purseLines = append(purseLines, scKV(d.Money.Title(),
+			"<gold>"+commafy(int64(d.Gold))+d.Money.Symbol()+"</gold>", 12))
 	}
 	if d.HasSust {
 		purseLines = append(purseLines, scKV("Sustenance",

@@ -102,7 +102,7 @@ func GiveHandler(ctx context.Context, c *Context) error {
 	// currency feature emits currency.credited on the recipient).
 	if value, converted := tryAutoConvert(ctx, c, target, item); converted {
 		_ = c.Actor.Write(ctx, fmt.Sprintf("You give %s to %s.", item.Name(), recipName))
-		_ = target.Write(ctx, fmt.Sprintf("%s gives you %s (%d gold).", giverName, item.Name(), value))
+		_ = target.Write(ctx, fmt.Sprintf("%s gives you %s (%s).", giverName, item.Name(), c.Money.Format(value)))
 		if c.Broadcaster != nil && giverName != "" {
 			c.Broadcaster.SendToRoom(ctx, room.ID,
 				fmt.Sprintf("%s gives %s to %s.", giverName, item.Name(), recipName),

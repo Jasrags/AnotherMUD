@@ -143,17 +143,17 @@ func BuyMountHandler(ctx context.Context, c *Context) error {
 		balance = c.Currency.Read(holder)
 	}
 	if balance < offer.price {
-		return c.Actor.Write(ctx, fmt.Sprintf("%s costs %d gold; you only have %d.", capitalize(name), offer.price, balance))
+		return c.Actor.Write(ctx, fmt.Sprintf("%s costs %s; you only have %s.", capitalize(name), c.Money.Format(offer.price), c.Money.Format(balance)))
 	}
 	if c.Currency == nil {
 		return c.Actor.Write(ctx, "You can't pay for that right now.")
 	}
 	left, okDebit := c.Currency.Debit(ctx, holder, offer.price, "buymount:"+offer.templateID)
 	if !okDebit {
-		return c.Actor.Write(ctx, fmt.Sprintf("%s costs %d gold; you only have %d.", capitalize(name), offer.price, balance))
+		return c.Actor.Write(ctx, fmt.Sprintf("%s costs %s; you only have %s.", capitalize(name), c.Money.Format(offer.price), c.Money.Format(balance)))
 	}
 	owner.AddMount(offer.templateID)
-	return c.Actor.Write(ctx, fmt.Sprintf("You buy %s for %d gold; it is stabled here. (You have %d gold left.)", name, offer.price, left))
+	return c.Actor.Write(ctx, fmt.Sprintf("You buy %s for %s; it is stabled here. (You have %s left.)", name, c.Money.Format(offer.price), c.Money.Format(left)))
 }
 
 // UnstableHandler implements `unstable <name>` (mounts.md §3.2): retrieve a

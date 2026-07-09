@@ -109,7 +109,7 @@ func HireHandler(ctx context.Context, c *Context) error {
 	}
 	// Bare `hire` browses the catalog.
 	if len(c.Args) == 0 {
-		return c.Actor.Write(ctx, renderHireOffers(offers))
+		return c.Actor.Write(ctx, renderHireOffers(offers, c.Money))
 	}
 	// A non-positive cap means "no limit" (the int zero-value shouldn't silently
 	// block every hire — mirrors the timeout<=0 = never convention).
@@ -128,11 +128,11 @@ func HireHandler(ctx context.Context, c *Context) error {
 	}
 	balance := c.Currency.Read(holder)
 	if balance < offer.HireCost {
-		return c.Actor.Write(ctx, fmt.Sprintf("%s costs %d gold to hire; you only have %d.", capitalize(offer.Name), offer.HireCost, balance))
+		return c.Actor.Write(ctx, fmt.Sprintf("%s costs %s to hire; you only have %s.", capitalize(offer.Name), c.Money.Format(offer.HireCost), c.Money.Format(balance)))
 	}
 	left, okDebit := c.Currency.Debit(ctx, holder, offer.HireCost, "hire:"+offer.TemplateID)
 	if !okDebit {
-		return c.Actor.Write(ctx, fmt.Sprintf("%s costs %d gold to hire; you only have %d.", capitalize(offer.Name), offer.HireCost, balance))
+		return c.Actor.Write(ctx, fmt.Sprintf("%s costs %s to hire; you only have %s.", capitalize(offer.Name), c.Money.Format(offer.HireCost), c.Money.Format(balance)))
 	}
 	id, err := c.Hirelings.Materialize(ctx, c.Actor.PlayerID(), offer.TemplateID, room.ID)
 	if err != nil {
@@ -142,7 +142,7 @@ func HireHandler(ctx context.Context, c *Context) error {
 	}
 	owner.AddHireling(offer.TemplateID)
 	owner.TrackLiveHireling(id, offer.TemplateID)
-	return c.Actor.Write(ctx, fmt.Sprintf("You hire %s for %d gold. (You have %d gold left.)", offer.Name, offer.HireCost, left))
+	return c.Actor.Write(ctx, fmt.Sprintf("You hire %s for %s. (You have %s left.)", offer.Name, c.Money.Format(offer.HireCost), c.Money.Format(left)))
 }
 
 // recruiterOffersHere returns the hirelings any recruiter NPC in the room hires
@@ -180,11 +180,11 @@ func matchHireableOffer(offers []HireableOffer, query string) (HireableOffer, bo
 }
 
 // renderOffers lists a recruiter's catalog for a bare `hire` (hireable-mobs.md §3.1).
-func renderHireOffers(offers []HireableOffer) string {
+func renderHireOffers(offers []HireableOffer, money economy.CurrencyLabel) string {
 	var b strings.Builder
 	b.WriteString("Available for hire here:")
 	for _, o := range offers {
-		fmt.Fprintf(&b, "\n  %s — %d gold", o.Name, o.HireCost)
+		fmt.Fprintf(&b, "\n  %s — %s", o.Name, money.Format(o.HireCost))
 	}
 	return b.String()
 }
