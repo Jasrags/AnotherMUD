@@ -161,10 +161,14 @@ only characters whose `WorldID` is in the **active world set** may log in.
 
 - A character whose world **is** active proceeds through the normal returning-player
   flow (`login.md`).
-- A character whose world is **not** active: login is **refused** with a clear
-  message ("not available on this world"); where a character roster is presented,
-  it is shown **greyed / unavailable** rather than hidden. It is **never**
-  auto-deleted and **never** loaded into a different world (no silent degrade).
+- A character whose world is **not** active: it may not be entered. Where a
+  character roster is presented, an out-of-world character is **omitted from the
+  selectable list** and instead surfaced as a one-line **awareness footnote** (a
+  count of characters in other worlds) — so the player knows it still exists but
+  isn't offered something it can't act on here. It is **never** auto-deleted and
+  **never** loaded into a different world (no silent degrade). (Earlier this was
+  a greyed, select-then-refuse row; `character-select.md` §3 replaced that with
+  the hide + footnote to cut the clutter and the misleading numbering.)
 - The gate runs at **character selection** (the name / returning-player phase,
   `login.md`) — before any content restore — so an out-of-world character's save
   is never touched, let alone rewritten.
@@ -172,8 +176,9 @@ only characters whose `WorldID` is in the **active world set** may log in.
 **Acceptance criteria**
 
 - [ ] A character whose `WorldID` is in the active world set logs in normally.
-- [ ] A character whose world is not active is refused with a clear message and is
-      shown greyed in any roster — not deleted, not hidden, not loaded elsewhere.
+- [ ] A character whose world is not active is not a selectable roster entry
+      (hidden from the list, surfaced as a footnote count) — not deleted, not
+      loaded elsewhere.
 - [ ] The gate fires before content restore: a refused character's save is read
       for its world stamp but otherwise untouched and never rewritten.
 - [ ] One account may hold characters in multiple worlds simultaneously; the
@@ -271,7 +276,8 @@ The following are externally configurable and not fixed by this spec.
   full active-pack set (brittle) and not a separate ruleset field (extra
   indirection); a library pack can never be a stamp.
 - **Support many worlds, run one per process** (§8). Co-hosting deferred to §9.
-- **A character whose world isn't active: greyed in roster, login refused** (§5).
+- **A character whose world isn't active: hidden from the roster (footnote
+  count), never entered** (§5).
   Never auto-deleted, never silently degraded.
 - **Backfill `WorldID` from the location namespace**, fallback to the default
   world (§4). Deterministic, no operator input.

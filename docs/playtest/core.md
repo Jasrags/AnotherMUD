@@ -185,10 +185,12 @@ account's **roster** or create a new one. One account can hold many characters.
       "Enter the game" puts you back where you left it.
 
 > **World-locking (character-identity):** a character whose world isn't running
-> on this server shows in the roster marked **"(unavailable on this server)"** and
-> can't be selected — picking it replies "…belongs to the "<world>" world, which
-> is not running on this server." (Make a core character on the default boot and a
-> WoT channeler on the `wot` boot — §27 — to see one greyed out under the other.)
+> on this server is **not listed** in the roster — instead a one-line footnote
+> notes the count ("You also have N characters in other worlds not running on
+> this server."). It isn't deleted, just hidden from a boot it can't be played
+> on. (Make a core character on the default boot and a WoT channeler on the `wot`
+> boot — §27 — then boot one world and confirm the other's character is absent
+> from the list but acknowledged in the footnote.)
 
 ## 2. Character creation (new character)
 

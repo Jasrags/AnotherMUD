@@ -371,18 +371,25 @@ type rosterEntry struct {
 // selectFromRoster presents the account's characters (character-select §3-§4,
 // §8) and returns the selected one, or routes to creation. The roster is
 // rebuilt from the account on every iteration so a character-management action
-// (delete) is reflected immediately. An empty roster goes straight to create.
-// An out-of-world character is listed but not selectable (the character-identity
-// §5 world gate, surfaced here). Roster-level actions: create (n), change
-// account password (p), and quit (q). Selecting an available character opens
-// the per-character action menu (§8).
+// (delete) is reflected immediately. A truly empty account (no characters at
+// all) goes straight to create. Out-of-world characters are hidden from the
+// numbered list and surfaced as an awareness footnote (partitionRoster +
+// printRoster) per the character-identity §5 world gate; an account with only
+// out-of-world characters still shows the roster (list + footnote), not create.
+// Roster-level actions: create (n), change account password (p), and quit (q).
+// Selecting an available character opens the per-character action menu (§8).
 func selectFromRoster(ctx context.Context, lio *lineIO, cfg Config, acc *account.Account) (*Loaded, error) {
 	for {
-		entries := buildRoster(ctx, cfg, acc)
-		if len(entries) == 0 {
+		entries, otherWorld := partitionRoster(buildRoster(ctx, cfg, acc))
+		// A brand-new account (no characters at all) drops straight into
+		// creation. An account that HAS characters but none in a world running
+		// here still shows the roster (an empty list plus the awareness
+		// footnote) rather than silently dumping the player into the wizard —
+		// otherwise a wrong-world boot looks like the account was wiped.
+		if len(entries) == 0 && otherWorld == 0 {
 			return createCharacter(ctx, lio, cfg, acc)
 		}
-		if err := printRoster(ctx, lio, entries); err != nil {
+		if err := printRoster(ctx, lio, entries, otherWorld); err != nil {
 			return nil, err
 		}
 		raw, err := lio.readln(ctx, cfg.phaseIdle(PhaseName))
@@ -411,12 +418,12 @@ func selectFromRoster(ctx context.Context, lio *lineIO, cfg Config, acc *account
 			}
 			continue
 		}
+		// Out-of-world characters are no longer listed (partitionRoster hides
+		// them), so the only unavailable entry selectable here is a save that
+		// failed to load — report that specifically.
 		if !e.available {
-			msg := fmt.Sprintf("%q is not available on this server.", e.name)
-			if e.world != "" {
-				msg = fmt.Sprintf("%q belongs to the %q world, which is not running on this server.", e.name, e.world)
-			}
-			if err := lio.writeln(ctx, msg); err != nil {
+			if err := lio.writeln(ctx, fmt.Sprintf(
+				"%q could not be loaded — its save may be corrupt or from a newer version.", e.name)); err != nil {
 				return nil, err
 			}
 			continue
@@ -460,6 +467,27 @@ func buildRoster(ctx context.Context, cfg Config, acc *account.Account) []roster
 		entries = append(entries, rosterEntry{name: name, world: save.WorldID, available: avail, save: save})
 	}
 	return entries
+}
+
+// partitionRoster splits the full roster into the characters shown+selectable
+// here and a count of the rest. Shown = characters in a world running on this
+// server, PLUS any whose save failed to load (world == "" with available ==
+// false — kept visible so a corrupt/newer save isn't silently hidden). The
+// count is the out-of-world characters: loaded fine but belonging to a world
+// not in the active set (character-identity §5). Those are hidden from the
+// numbered list — nothing can be done with them on this boot — and surfaced by
+// the caller as an awareness footnote so a returning player knows the character
+// still exists.
+func partitionRoster(all []rosterEntry) (shown []rosterEntry, otherWorld int) {
+	shown = make([]rosterEntry, 0, len(all))
+	for _, e := range all {
+		if e.world != "" && !e.available {
+			otherWorld++
+			continue
+		}
+		shown = append(shown, e)
+	}
+	return shown, otherWorld
 }
 
 // characterMenu is the per-character action menu shown after selecting an
@@ -592,7 +620,7 @@ func changeAccountPassword(ctx context.Context, lio *lineIO, cfg Config, acc *ac
 // printRoster renders the numbered character roster (character-select §3, §8):
 // each character with its world (name-aligned), an "(unavailable here)" marker
 // when out-of-world, plus the create / password / quit actions and the prompt.
-func printRoster(ctx context.Context, lio *lineIO, entries []rosterEntry) error {
+func printRoster(ctx context.Context, lio *lineIO, entries []rosterEntry, otherWorld int) error {
 	if err := lio.writeln(ctx, "Your characters:"); err != nil {
 		return err
 	}
@@ -608,10 +636,33 @@ func printRoster(ctx context.Context, lio *lineIO, entries []rosterEntry) error 
 		if e.world != "" {
 			line += "  " + e.world
 		}
+		// The only unavailable entry that reaches the printed list is a save
+		// that failed to load (partitionRoster hides out-of-world characters);
+		// flag it so a corrupt/newer save is visible rather than silently gone.
 		if !e.available {
-			line += "  (unavailable here)"
+			line += "  (save unavailable)"
 		}
 		if err := lio.writeln(ctx, line); err != nil {
+			return err
+		}
+	}
+	if len(entries) == 0 {
+		if err := lio.writeln(ctx, "  (none in a world running on this server)"); err != nil {
+			return err
+		}
+	}
+	// Awareness footnote (character-identity §5): the account has characters in
+	// worlds this server isn't running. They aren't listed or selectable here
+	// (nothing to do with them on this boot), but the count reassures a
+	// returning player their character wasn't lost — it's just in another world.
+	if otherWorld > 0 {
+		noun := "character"
+		if otherWorld > 1 {
+			noun = "characters"
+		}
+		if err := lio.writeln(ctx, fmt.Sprintf(
+			"(You also have %d %s in other worlds not running on this server.)",
+			otherWorld, noun)); err != nil {
 			return err
 		}
 	}

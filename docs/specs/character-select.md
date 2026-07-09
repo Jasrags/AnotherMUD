@@ -25,17 +25,21 @@ Login today is **character-name-first** (`login.md` §3): a connection types a
 So a player with several characters — possibly **split across worlds** — should
 **authenticate to their account once**, then see and pick from a **roster** of
 their characters (with per-character world availability), or create a new one.
-This is also where `character-identity.md` §5's "greyed roster" finally has a
-surface: out-of-world characters are listed but unavailable.
+This is also where `character-identity.md` §5's world gate has its roster
+surface: the roster lists only **in-world** characters, and out-of-world
+characters are surfaced as a one-line **awareness footnote** (a count) rather
+than selectable rows — present enough that a returning player knows they weren't
+lost, absent enough that they don't clutter a boot they can't be played on.
 
 ### Core concepts
 
 - **Account authentication** — identifying the account by a dedicated
   **account username** + password (§2), replacing the character-name entry as
   the front door; email is demoted to an optional recovery field.
-- **Roster** — the list of the account's characters presented after auth, each
-  with its name, its world, and whether it is **available** (its world is in the
-  server's active world set) or **unavailable** (greyed).
+- **Roster** — the list of the account's **in-world** characters presented after
+  auth, each with its name and its world (its world in the server's active
+  set). Out-of-world characters are hidden from the list and counted in a
+  footnote.
 - **Selection** — choosing an available roster entry to enter the game, or the
   "create a new character" option.
 
@@ -45,8 +49,9 @@ surface: out-of-world characters are listed but unavailable.
 2. Present a **roster** of the account's characters with per-world availability.
 3. Let the player **select** an available character → Playing, or **create** a
    new one (→ the creation wizard, stamped with the active world).
-4. Render the world gate (`character-identity.md` §5) as greyed, unselectable
-   roster entries — never deleted, never silently degraded.
+4. Honor the world gate (`character-identity.md` §5) by listing only in-world
+   characters and surfacing out-of-world ones as a footnote count — never
+   deleted, never silently degraded.
 
 ### Non-goals
 
@@ -131,32 +136,40 @@ indexed for lookup alongside (and eventually replacing) the email index.
 
 ## 3. The roster
 
-After authentication, the account's characters are presented as a **roster**.
-Each entry shows:
+After authentication, the account's **playable** characters are presented as a
+**roster** — the characters whose world is in the active world set
+(`character-identity.md` §2). Each entry shows:
 
-- the character **name**,
-- its **world** (the `WorldID` stamp), and
-- its **availability** on this server: **available** when its world is in the
-  active world set (`character-identity.md` §2), otherwise **unavailable**
-  (greyed).
+- the character **name**, and
+- its **world** (the `WorldID` stamp).
 
 Rules:
 
-- An **unavailable** (other-world) character is **listed but greyed** — shown so
-  the player knows it exists and where it lives, never hidden, never deleted
-  (`character-identity.md` §5).
-- An **empty** roster (a fresh account, or one with no characters on any world)
-  sends the player straight to create (§4).
+- The numbered, selectable list holds only **in-world** characters (plus any
+  whose save failed to load, kept visible and flagged so a corrupt/newer save is
+  never silently hidden). Out-of-world characters are **not listed** as rows —
+  nothing can be done with them on this boot.
+- **Out-of-world characters are surfaced as a one-line awareness footnote** — a
+  count (e.g. "You also have 2 characters in other worlds not running on this
+  server.") — never deleted, never silently degraded (`character-identity.md`
+  §5). The footnote exists specifically so a returning player on a wrong-world
+  boot knows their character wasn't lost; an empty numbered list *with* a
+  footnote is shown (not routed to create) for exactly this reason.
+- An **empty** roster (a fresh account with **no characters at all** — none in
+  any world) sends the player straight to create (§4).
 - The roster also offers a **create a new character** action.
-- Ordering is stable (policy — e.g. creation order); the available characters
-  are distinguishable from the greyed ones.
+- Ordering is stable (policy — e.g. creation order).
 
 **Acceptance criteria**
 
-- [ ] The roster lists every character on the account with its name, world, and
-      availability.
-- [ ] An other-world character appears greyed/unavailable, not hidden or removed.
-- [ ] An empty roster routes directly to character creation.
+- [ ] The roster lists the account's in-world characters with their name and world.
+- [ ] An out-of-world character is **omitted from the numbered list** but its
+      existence is surfaced as a footnote count, not deleted or silently dropped.
+- [ ] A save that fails to load stays **visible and flagged** (distinct from the
+      out-of-world hide), so it is never silently lost.
+- [ ] A brand-new account (no characters at all) routes directly to creation; an
+      account with only out-of-world characters shows the roster + footnote, not
+      creation.
 - [ ] The roster offers a create-new-character action.
 
 ## 4. Selection
@@ -169,9 +182,11 @@ The player selects a roster entry (by index or name) or the create action:
   `character-identity.md` §5 world gate is satisfied by construction. The
   concurrency check, existing-session resolution, takeover, and link-dead
   reconnect rules (`login.md` §4.3–§4.5) apply at the point of entry, unchanged.
-- **Unavailable (greyed) character** → selection is **refused** with the
-  `character-identity.md` §5 message ("belongs to a world not running here"); the
-  player stays on the roster.
+- **Out-of-world character** → not offered (hidden from the list per §3), so
+  there is no roster row to select. The `character-identity.md` §5 login gate
+  still holds by construction — an out-of-world character is never reachable as
+  a selectable entry on this boot. (A save that failed to load *is* listed;
+  selecting it reports the load failure and returns to the roster.)
 - **Create a new character** → the creation wizard (`character-creation.md`),
   with the new character **stamped with the active world** (`character-identity.md`
   §3). On completion the character is added to the account roster
@@ -182,8 +197,8 @@ The player selects a roster entry (by index or name) or the create action:
 
 - [ ] Selecting an available character loads it and enters Playing, applying the
       existing concurrency/takeover/link-dead rules.
-- [ ] Selecting a greyed character is refused with the world-gate message and
-      returns to the roster.
+- [ ] An out-of-world character is not a selectable row (hidden per §3); the
+      world gate holds by construction.
 - [ ] Creating from the roster runs the creation wizard, stamps the active
       world, adds the character to the account, and enters Playing.
 

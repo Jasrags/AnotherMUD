@@ -350,9 +350,9 @@ How a connection becomes a session becomes a character.
   flow, validation, restart, atomic commit, spawn.
 - [character-select](character-select.md) — account-first login + a
   character **roster**: authenticate the account (email + password), then
-  pick from its characters (across worlds) or create a new one. Other-world
-  characters are listed greyed/unavailable (the surface for
-  `character-identity` §5's world gate); selection/create reuse login's
+  pick from its **in-world** characters or create a new one. Other-world
+  characters are hidden from the list and surfaced as a footnote count (the
+  surface for `character-identity` §5's world gate); selection/create reuse login's
   concurrency + Creating handoff. Revises `login.md`'s name-first entry;
   the account gains a unique username (login key; email demoted to optional)
   + the roster is derived from `account.Characters` + each save's WorldID +
@@ -367,8 +367,8 @@ How a connection becomes a session becomes a character.
 - [character-identity](character-identity.md) — world-locking: a
   character is stamped with a `WorldID` (its leaf ruleset pack) and may
   only log in on a server running that world; an out-of-world character
-  is greyed in the roster and refused, never deleted or silently
-  degraded. One additive save field (v23, backfilled from the location
+  is hidden from the roster (footnote count), never entered, never deleted
+  or silently degraded. One additive save field (v23, backfilled from the location
   namespace) + a login/roster gate; the within-world fail-soft restore is
   unchanged. Co-hosting multiple worlds (and the global-registry
   namespacing it needs) is deferred. Resolves
