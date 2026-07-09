@@ -1,0 +1,32 @@
+id: ares-predator-v
+name: an Ares Predator V
+type: weapon
+description: |
+  The sidearm every runner knows on sight: Ares Chemical's flagship heavy pistol,
+  matte ceramic-and-steel with a smartgun rail and tritium-green sights. Blocky,
+  reliable, and chambered for rounds that stop arguments. The grip is worn smooth
+  — a constant companion when the talking stops.
+tags: [weapon, firearm, ranged]
+# Keep `pistol`/`gun` so existing muscle-memory (and `get pistol`) still resolves
+# it; add the model's own name.
+keywords: [predator, ares predator, ares, pistol, heavy pistol, gun, firearm, sidearm]
+eligible_slots: [wield]
+weapon_damage: "2d6"
+weapon_category: pistol
+proficiency_tier: martial
+damage_types: [piercing]
+crit_multiplier: 2
+# Ranged firearm (ranged-combat §2/§3): spends one round of `bullet` ammo per
+# shot. No target_pool — lethal fire lands on the Physical monitor, which is the
+# hp/Vitals track (Design 1), the engine's default damage path.
+# SR5 canon (WEAPONS.md): Ares Predator V — Acc 5(7), DV 8P, AP -1, SA, 15 (c),
+# 725¥. The engine models damage as dice + a soak channel (not SR's DV/AP), so
+# those are flavor; the magazine (15) + removable-clip reload land in the reload
+# slice.
+ranged_class: projectile
+ammo_kind: bullet
+ranged_style: firearms
+range_increment: 5
+properties:
+  weight: 2
+  value: 725

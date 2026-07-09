@@ -17,7 +17,7 @@ exits:
 # alive, and an armoured jacket for the soak.
 items:
   - katana
-  - heavy-pistol
+  - ares-predator-v
   - ammo-clip
   - stun-baton
   - armored-jacket

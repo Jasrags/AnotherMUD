@@ -26,6 +26,6 @@ properties:
   shop:
     sells:
       - shadowrun:ammo-clip
-      - shadowrun:heavy-pistol
+      - shadowrun:ares-predator-v
       - shadowrun:armored-jacket
       - shadowrun:cybereyes

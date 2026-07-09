@@ -57,7 +57,7 @@ A fresh Street Kid starts with **500 nuyen** and a pick-one starting loadout
 ```
 
 - **Street Corner** is a `safe-room` — no combat. It's the gear-up hub: the
-  **katana**, **heavy pistol**, a **caseless round**, a **stun baton**, an
+  **katana**, **Ares Predator V**, a **caseless round**, a **stun baton**, an
   **armored jacket**, and a ripperdoc's cyberware tray (**wired reflexes**,
   **muscle replacement**, **cybereyes**) all lie on the ground, and a **street
   fixer** runs a shop here (§42).
@@ -80,7 +80,7 @@ the Shadowrun wizard is the **default** flow (no channeling step).
       your class:" — 1) Street Samurai — the only class in the MVP), then
       **background** (1) Street Kid).
 - [ ] The **Street Kid** background carries two pick-one choosers: a **feat**
-      (Alertness *or* Stealthy) and a **starting kit** (heavy pistol + round +
+      (Alertness *or* Stealthy) and a **starting kit** (Ares Predator V + round +
       jacket / katana + jacket / stun baton + vest). Pick one of each.
 - [ ] Confirm — the character spawns at the **Street Corner**.
 - [ ] `score` (`sc`) — the identity line reads **Gender Metatype Class** (e.g.
@@ -127,7 +127,7 @@ ganger.
 > The Stun monitor seeds from **Willpower**; the Physical monitor is the flat
 > hp/Vitals track (Design 1 — not yet Body-derived, a tracked SR-M3 tail).
 
-## 40. Firearms & ammo (the heavy pistol)
+## 40. Firearms & ammo (the Ares Predator V)
 
 A firearm is `ranged_class: projectile` with `ammo_kind: bullet`; it spends one
 matching round per shot from your inventory. Single-district combat is the
@@ -137,7 +137,7 @@ matching round per shot from your inventory. Single-district combat is the
 ### Dry-fire — no ammo
 
 - [ ] On the corner, `get pistol`, `equip pistol wield` — **do not** pick up any
-      rounds yet. `equipment` shows the heavy pistol wielded.
+      rounds yet. `equipment` shows the Ares Predator V wielded.
 - [ ] `teleport shadowrun:market-street`, `kill ganger` — with an empty gun every
       swing **clicks dry**: no shot fires and you deal no damage (the ganger stays
       up). This is the ammo gate skipping the ammoless swing.
@@ -182,7 +182,7 @@ safe-room.
 
 - [ ] `score` — read your nuyen balance (shown as `Gold`; a fresh Street Kid has
       **500**).
-- [ ] `list` — the fixer's wares: a **caseless round**, a **heavy pistol**, an
+- [ ] `list` — the fixer's wares: a **caseless round**, a **Ares Predator V**, an
       **armored jacket**, and **cybereyes** (`buy_markup`/`sell_discount` fall
       through to the engine defaults).
 - [ ] `buy clip` — "You buy … for N gold. You have M gold left." — the price
