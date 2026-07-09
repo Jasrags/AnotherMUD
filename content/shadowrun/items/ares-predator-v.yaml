@@ -21,17 +21,16 @@ crit_multiplier: 2
 # hp/Vitals track (Design 1), the engine's default damage path.
 # SR5 canon (WEAPONS.md): Ares Predator V — Acc 5(7), DV 8P, AP -1, SA, 15 (c),
 # 725¥. The engine models damage as dice + a soak channel (not SR's DV/AP), so
-# those are flavor; the magazine (15) + removable-clip reload land in the reload
-# slice.
+# those are flavor.
 ranged_class: projectile
 ammo_kind: bullet
 ranged_style: firearms
 range_increment: 5
-# Magazine-fed (SR5 "15 (c)" — a 15-round removable clip). Firing draws from the
-# loaded count on the item instance; `reload` refills it from carried caseless
-# rounds. A freshly-picked-up gun reads EMPTY until reloaded.
-magazine: 15
-reload_method: clip
+# Holder-fed (SR5 "15 (c)" — a removable clip). It fires from an inserted
+# `predator-clip` (holder family "heavy-pistol"); `reload` swaps a loaded clip in
+# and ejects the spent one (ammo-and-reloading §5). It carries no rounds itself —
+# the clip does.
+accepts_holder: heavy-pistol
 properties:
   weight: 2
   value: 725

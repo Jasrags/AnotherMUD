@@ -1,0 +1,18 @@
+id: predator-clip
+name: an Ares Predator V clip
+type: item
+description: |
+  A slim polymer magazine cut for the Ares Predator V — fifteen caseless rounds
+  stacked in a spring-fed column. Fill it, slap it home, and rack the slide.
+tags: [ammo, holder, clip]
+keywords: [clip, magazine, predator clip, mag]
+# An ammunition holder (ammo-and-reloading §2): `magazine` is its capacity,
+# `holder_fits` the weapon family it enters, `ammo_kind` the round it holds.
+# Fill it with loose rounds (`reload clip`), then load it into a compatible
+# weapon (`reload`). Spawns EMPTY; a loaded clip is bought pre-loaded (SR-M3f-2).
+magazine: 15
+holder_fits: heavy-pistol
+ammo_kind: bullet
+properties:
+  weight: 1
+  value: 5

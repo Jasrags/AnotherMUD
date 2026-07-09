@@ -250,8 +250,12 @@ All numeric magnitudes live here; the prose names behaviors, not values.
   one-grade-per-holder simplification.
 - **Auto-selection order** when several compatible loaded holders are carried
   (fullest first? a specific-holder `reload <holder> into <weapon>` override?).
+  The shipped SR-M3f-1 picks the fullest carried holder but does **not** compare
+  against the holder already inserted — so `reload` with a mostly-full holder
+  seated and only near-empty spares carried will still eject the good one. A
+  "don't swap for a worse holder" guard (or an explicit-only swap) is open.
 - **Speed-loaders and belts** as holder sub-behaviors (a speed-loader loads an
   internally-fed cylinder in one action; a belt is a large holder) — same model,
   flavor/timing differences, phased after clips.
 
-<!-- Scope: physical ammunition — loose rounds + ammunition holders (clip/magazine/belt/drum/speed-loader) + the unified reload verb (load weapon / load holder / feed internal weapon) + ejection & timed decay of spent holders + grade-through-holder; extends ranged-combat §3 from loose-per-shot to holder-fed, ruleset-agnostic, Shadowrun as reference consumer · Spec style: narrative + acceptance criteria · Detail level: behavior only · Status: draft (holder-fed model planned; internally-fed / abstract-magazine precursor shipped in the Shadowrun pack) -->
+<!-- Scope: physical ammunition — loose rounds + ammunition holders (clip/magazine/belt/drum/speed-loader) + the unified reload verb (load weapon / load holder / feed internal weapon) + ejection & timed decay of spent holders + grade-through-holder; extends ranged-combat §3 from loose-per-shot to holder-fed, ruleset-agnostic, Shadowrun as reference consumer · Spec style: narrative + acceptance criteria · Detail level: behavior only · Status: partly shipped — holder-fed core (holders as items, the unified reload, insertion + fire-from-holder, ejection to the room, persistence) shipped in the Shadowrun pack (SR-M3f-1); ejected-holder DECAY, buying loaded/empty holders, and grade-through-holder are SR-M3f-2 (planned). Internally-fed / abstract-magazine precursor also shipped. -->

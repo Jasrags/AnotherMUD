@@ -3483,6 +3483,27 @@ func decodeItem(path, ns string) (*item.Template, error) {
 	if f.Magazine > 0 && reloadMethod == "" {
 		reloadMethod = "clip"
 	}
+	// Ammo-holder fields (ammo-and-reloading §2). A holder (holder_fits set)
+	// carries rounds and needs both a capacity (magazine) and a round kind
+	// (ammo_kind). A holder-fed weapon (accepts_holder set) fires from an
+	// inserted holder and must NOT also declare its own magazine (that marks an
+	// internally-fed weapon) — the two feed models are mutually exclusive.
+	holderFits := strings.ToLower(strings.TrimSpace(f.HolderFits))
+	acceptsHolder := strings.ToLower(strings.TrimSpace(f.AcceptsHolder))
+	if holderFits != "" {
+		if f.Magazine <= 0 {
+			return nil, fmt.Errorf("%w: %s: an ammunition holder (holder_fits %q) must declare a positive magazine capacity",
+				ErrInvalidContent, path, holderFits)
+		}
+		if ammoKind == "" {
+			return nil, fmt.Errorf("%w: %s: an ammunition holder (holder_fits %q) must declare ammo_kind (the round it holds)",
+				ErrInvalidContent, path, holderFits)
+		}
+	}
+	if acceptsHolder != "" && f.Magazine > 0 {
+		return nil, fmt.Errorf("%w: %s: a holder-fed weapon (accepts_holder %q) must not also declare magazine (that marks an internally-fed weapon)",
+			ErrInvalidContent, path, acceptsHolder)
+	}
 	if f.StrRating != nil && *f.StrRating < 0 {
 		return nil, fmt.Errorf("%w: %s: str_rating %d must be non-negative",
 			ErrInvalidContent, path, *f.StrRating)
@@ -3644,6 +3665,8 @@ func decodeItem(path, ns string) (*item.Template, error) {
 		ReloadTicks:       f.ReloadTicks,
 		Magazine:          f.Magazine,
 		ReloadMethod:      reloadMethod,
+		HolderFits:        holderFits,
+		AcceptsHolder:     acceptsHolder,
 		StrRating:         strRating,
 		ArmorBonus:        f.ArmorBonus,
 		ArmorMaxDex:       armorMaxDex,

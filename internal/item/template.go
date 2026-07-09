@@ -150,6 +150,14 @@ type Template struct {
 	// ReloadMethod names how a magazine weapon reloads (SR5 reloading table).
 	// Empty on a magazine weapon defaults to "clip". Normalized lowercase.
 	ReloadMethod string
+	// HolderFits marks an ammunition HOLDER (clip/magazine/belt) and names the
+	// weapon family it fits (ammo-and-reloading §2). A holder also has Magazine
+	// (capacity) + AmmoKind. Empty = not a holder. Normalized lowercase.
+	HolderFits string
+	// AcceptsHolder marks a HOLDER-FED weapon and names the holder family it takes
+	// (ammo-and-reloading §5): it fires from an inserted holder rather than its
+	// own Magazine. Mutually exclusive with Magazine. Empty = not holder-fed.
+	AcceptsHolder string
 	// StrRating caps the positive Strength damage bonus a projectile weapon
 	// grants (ranged-combat §4 — a composite / Strength-rated bow). nil is
 	// the default projectile rule (no positive Strength bonus; a negative

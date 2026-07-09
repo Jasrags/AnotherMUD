@@ -1571,6 +1571,11 @@ func respawnEquipment(ctx context.Context, a *connActor, store *entities.Store, 
 		if entry.Loaded != nil {
 			inst.SetMagazineLoaded(*entry.Loaded)
 		}
+		// Restore an inserted ammunition holder on a holder-fed weapon
+		// (ammo-and-reloading §9) so a loaded firearm stays loaded across relog.
+		if entry.Holder != nil {
+			inst.SetInsertedHolder(entry.Holder.Template, entry.Holder.Loaded)
+		}
 		// Companion slots are re-derived from the (re-spawned) template, not
 		// persisted (§3.8) — so a spanning item's full footprint is rebuilt
 		// on reload from the saved target key alone.
@@ -3446,25 +3451,37 @@ func (a *connActor) ConsumeAmmo(kind string) (string, bool) {
 	if a.items == nil {
 		return "", false
 	}
-	// Magazine weapon (a firearm): the wielded weapon holds its own loaded
-	// rounds — fire draws from that count on the item instance, not a loose
-	// round from inventory. An empty magazine is a dry click (reload refills
-	// it). The rounds are abstract (a count), so no per-round ammo grade rides
-	// the shot; the weapon's own grade is applied elsewhere in combat.
+	// A firearm draws from the weapon, not a loose round from inventory. Two
+	// feed models (ammo-and-reloading): a HOLDER-FED weapon fires from the
+	// holder inserted in it; an INTERNALLY-FED magazine weapon (SR-M3e) fires
+	// from its own loaded count. An empty feed is a dry click. Rounds are an
+	// abstract count here, so no per-round ammo grade rides the shot (that
+	// lands with the clip in SR-M3f-2); the weapon's own grade is applied
+	// elsewhere in combat. A save re-sync captures the new count since Persist
+	// does not re-sync equipment (combat changes bypass it, like vitals).
 	if wid, ok := a.equipment[mainHandSlot]; ok {
 		if e, ok := a.items.GetByID(wid); ok {
-			if w, isItem := e.(*entities.ItemInstance); isItem && w.Magazine() > 0 {
-				loaded := w.MagazineLoaded()
-				if loaded <= 0 {
-					return "", false // empty magazine — dry
+			if w, isItem := e.(*entities.ItemInstance); isItem {
+				if w.AcceptsHolder() != "" {
+					_, loaded, has := w.InsertedHolder()
+					if !has || loaded <= 0 {
+						return "", false // no holder / empty holder — dry
+					}
+					w.SetInsertedHolderLoaded(loaded - 1)
+					a.syncEquipmentToSaveLocked()
+					a.markDirtyLocked()
+					return "", true
 				}
-				w.SetMagazineLoaded(loaded - 1)
-				// The wielded weapon's magazine count changed; refresh the
-				// equipment save record so the new count persists (Persist does
-				// not re-sync equipment — combat changes bypass it, like vitals).
-				a.syncEquipmentToSaveLocked()
-				a.markDirtyLocked()
-				return "", true
+				if w.Magazine() > 0 {
+					loaded := w.MagazineLoaded()
+					if loaded <= 0 {
+						return "", false // empty magazine — dry
+					}
+					w.SetMagazineLoaded(loaded - 1)
+					a.syncEquipmentToSaveLocked()
+					a.markDirtyLocked()
+					return "", true
+				}
 			}
 		}
 	}
@@ -3474,7 +3491,9 @@ func (a *connActor) ConsumeAmmo(kind string) (string, bool) {
 			continue
 		}
 		it, ok := e.(*entities.ItemInstance)
-		if !ok || it.AmmoKind() != kind {
+		// Skip holders — they carry ammo_kind (the round they hold), but are not
+		// themselves loose rounds (ammo-and-reloading §2).
+		if !ok || it.HolderFits() != "" || it.AmmoKind() != kind {
 			continue
 		}
 		gradeKey := it.Grade()
@@ -3543,7 +3562,9 @@ func (a *connActor) pullAmmoLocked(kind string, max int) int {
 				continue
 			}
 			it, ok := e.(*entities.ItemInstance)
-			if !ok || it.AmmoKind() != kind {
+			// A holder declares ammo_kind (the round it HOLDS), not that it IS a
+			// round — never consume a holder as loose ammo (ammo-and-reloading §2).
+			if !ok || it.HolderFits() != "" || it.AmmoKind() != kind {
 				continue
 			}
 			a.inventory = append(a.inventory[:i], a.inventory[i+1:]...)
@@ -3581,6 +3602,144 @@ func (a *connActor) magazineLoadedForSave(id entities.EntityID) *int {
 		return &n
 	}
 	return nil
+}
+
+// insertedHolderForSave returns the holder-inserted-in-a-weapon record to persist
+// for entity `id`, or nil when it isn't a holder-fed weapon or has no holder
+// inserted (ammo-and-reloading §9). Caller holds a.mu.
+func (a *connActor) insertedHolderForSave(id entities.EntityID) *player.EquippedHolder {
+	if a.items == nil {
+		return nil
+	}
+	e, ok := a.items.GetByID(id)
+	if !ok {
+		return nil
+	}
+	w, ok := e.(*entities.ItemInstance)
+	if !ok || w.AcceptsHolder() == "" {
+		return nil
+	}
+	tpl, loaded, has := w.InsertedHolder()
+	if !has {
+		return nil
+	}
+	return &player.EquippedHolder{Template: tpl, Loaded: loaded}
+}
+
+// InsertHolder loads the fullest compatible loaded holder from inventory into the
+// wielded holder-fed weapon (ammo-and-reloading §5). It records the holder's
+// state on the weapon and consumes the holder item, returning any displaced
+// holder's template + remaining rounds so the caller can eject it into the room.
+// outcome: "ok" | "not-holder-fed" (wielded weapon takes no holder) | "no-holder"
+// (no compatible, loaded holder carried).
+func (a *connActor) InsertHolder() (outcome, weapon string, loaded, capacity int, ejectedTpl string, ejectedLoaded int) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	if a.items == nil {
+		return "not-holder-fed", "", 0, 0, "", 0
+	}
+	wid, ok := a.equipment[mainHandSlot]
+	if !ok {
+		return "not-holder-fed", "", 0, 0, "", 0
+	}
+	ge, ok := a.items.GetByID(wid)
+	if !ok {
+		return "not-holder-fed", "", 0, 0, "", 0
+	}
+	gun, ok := ge.(*entities.ItemInstance)
+	if !ok || gun.AcceptsHolder() == "" {
+		return "not-holder-fed", "", 0, 0, "", 0
+	}
+	family := gun.AcceptsHolder()
+	weapon = gun.Name()
+	// Pick the fullest compatible loaded holder carried.
+	var bestID entities.EntityID
+	var best *entities.ItemInstance
+	bestLoaded := 0
+	for _, id := range a.inventory {
+		e, ok := a.items.GetByID(id)
+		if !ok {
+			continue
+		}
+		h, ok := e.(*entities.ItemInstance)
+		if !ok || h.HolderFits() != family {
+			continue
+		}
+		if n := h.MagazineLoaded(); n > bestLoaded {
+			bestLoaded, bestID, best = n, id, h
+		}
+	}
+	if best == nil || bestLoaded <= 0 {
+		return "no-holder", weapon, 0, 0, "", 0
+	}
+	// Capture the currently-inserted holder (if any) for ejection.
+	if tpl, l, has := gun.InsertedHolder(); has {
+		ejectedTpl, ejectedLoaded = tpl, l
+	}
+	// Insert the new holder: record its state on the gun, consume the item.
+	loaded = bestLoaded
+	capacity = best.Magazine()
+	gun.SetInsertedHolder(string(best.TemplateID()), loaded)
+	for i, id := range a.inventory {
+		if id == bestID {
+			a.inventory = append(a.inventory[:i], a.inventory[i+1:]...)
+			break
+		}
+	}
+	a.syncInventoryToSaveLocked()
+	a.syncEquipmentToSaveLocked()
+	a.markDirtyLocked()
+	return "ok", weapon, loaded, capacity, ejectedTpl, ejectedLoaded
+}
+
+// FillHolder tops up an ammunition holder (an inventory item, resolved by the
+// caller) from carried loose rounds of the holder's kind (ammo-and-reloading §4).
+// Returns the load before/after, the capacity, and whether the target is a
+// holder at all (false → the caller reports it can't be reloaded).
+func (a *connActor) FillHolder(holderID entities.EntityID) (before, after, capacity int, ok bool) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	if a.items == nil {
+		return 0, 0, 0, false
+	}
+	e, found := a.items.GetByID(holderID)
+	if !found {
+		return 0, 0, 0, false
+	}
+	h, isItem := e.(*entities.ItemInstance)
+	if !isItem || h.HolderFits() == "" || h.Magazine() <= 0 {
+		return 0, 0, 0, false
+	}
+	// Only fill a holder the actor actually carries (ownership discipline, like
+	// InsertHolder) — never drain this actor's ammo into an item it doesn't own.
+	inInventory := false
+	for _, id := range a.inventory {
+		if id == holderID {
+			inInventory = true
+			break
+		}
+	}
+	if !inInventory {
+		return 0, 0, 0, false
+	}
+	capacity = h.Magazine()
+	before = h.MagazineLoaded()
+	need := capacity - before
+	if need <= 0 {
+		return before, before, capacity, true
+	}
+	got := a.pullAmmoLocked(h.AmmoKind(), need)
+	after = before + got
+	if got > 0 {
+		h.SetMagazineLoaded(after)
+		// Re-sync inventory AFTER updating the holder's count: pullAmmoLocked
+		// synced with the pre-fill count, and Persist does not re-sync
+		// equipment/inventory, so without this the filled count is lost on the
+		// next save (the loose holder reverts to its pre-fill load).
+		a.syncInventoryToSaveLocked()
+		a.markDirtyLocked()
+	}
+	return before, after, capacity, true
 }
 
 // Equipment returns a snapshot of the actor's currently-equipped items
@@ -3674,6 +3833,7 @@ type weaponInfo struct {
 	rangeIncrement int
 	reloadTicks    int
 	magazine       int
+	acceptsHolder  string
 	strRating      *int
 	// reach is the weapon's reach rating (special-weapons §3) — a numeric
 	// cross-ruleset stat; WoT reads `> 0` as "strikes at the near band". Read by
@@ -3760,6 +3920,7 @@ func (a *connActor) buildWeaponInfoLocked(id entities.EntityID) *weaponInfo {
 		rangeIncrement:     it.RangeIncrement(),
 		reloadTicks:        it.ReloadTicks(),
 		magazine:           it.Magazine(),
+		acceptsHolder:      it.AcceptsHolder(),
 		strRating:          it.StrRating(),
 		reach:              it.Reach(),
 		set:                it.HasSpecial(item.SpecialSet),
@@ -5637,7 +5798,7 @@ func (a *connActor) syncEquipmentToSaveLocked() {
 			// drop policy in syncInventoryToSaveLocked.
 			continue
 		}
-		out[keys[0]] = player.EquippedItem{Template: tpl, Entity: string(id), Loaded: a.magazineLoadedForSave(id)}
+		out[keys[0]] = player.EquippedItem{Template: tpl, Entity: string(id), Loaded: a.magazineLoadedForSave(id), Holder: a.insertedHolderForSave(id)}
 	}
 	a.save.Equipment = out
 }
@@ -6376,6 +6537,7 @@ func (a *connActor) Stats() combat.Stats {
 		s.RangeIncrement = w.rangeIncrement
 		s.ReloadTicks = w.reloadTicks
 		s.Magazine = w.magazine
+		s.AcceptsHolder = w.acceptsHolder
 		s.Reach = w.reach                           // special-weapons §3: strikes at the `near` band too
 		s.Set = w.set                               // special-weapons §4: braced bonus blow vs a charge
 		s.Subdual = w.subdual                       // subdual-damage §2: a nonlethal finish knocks out

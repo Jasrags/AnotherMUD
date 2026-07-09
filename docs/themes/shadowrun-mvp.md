@@ -152,9 +152,21 @@ Content inventory:
 
 **Size: Small** — landed as a live test + a content rename. The magazine model (B), burst-fire, and SR cross-room are separate slices.
 
-### SR-M3f — Ammo holders + the unified reload (Tier B-lite)  · **Medium–Large Go · PLANNED**
+### SR-M3f — Ammo holders + the unified reload (Tier B-lite)  · **Medium–Large Go · SR-M3f-1 SHIPPED**
 
-> **STATUS: PLANNED — spec'd, not built.** Behavior contract:
+> **STATUS: SR-M3f-1 SHIPPED 2026-07-09; SR-M3f-2 planned.** SR-M3f-1 landed the
+> holder model live: the Ares Predator V is holder-fed (`accepts_holder:
+> heavy-pistol`), a new `predator-clip` holds rounds, the unified `reload`
+> fills a clip (`reload clip`) / inserts a clip (`reload`) / ejects the spent
+> clip to the ground, firing draws from the inserted clip, and the inserted clip
+> persists across relog (`EquippedItem.Holder`, no save bump). Loose ammo can no
+> longer be consumed as a holder or vice-versa (`HolderFits` guard). Proven live:
+> `TestLive_ShadowrunFirearm` (clipless→dry→fill→insert→fire), `TestLive_
+> ShadowrunMagazinePersist` (inserted clip survives relogin → fires),
+> `TestLive_ShadowrunReloadPlaytest` (fill/insert/eject/persist walkthrough).
+> **SR-M3f-2** (below) — ejected-clip decay, shop SKUs
+> (loaded/empty clips), grade-through-holder — is the remaining slice. Behavior
+> contract:
 > `docs/specs/ammo-and-reloading.md`. This makes ammunition physical: rounds live
 > in removable **holders** (clip/magazine/belt), holders go *into* the weapon,
 > firing draws from the inserted holder, and `reload` swaps holders — the spent

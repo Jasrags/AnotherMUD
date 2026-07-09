@@ -57,8 +57,8 @@ A fresh Street Kid starts with **500 nuyen** and a pick-one starting loadout
 ```
 
 - **Street Corner** is a `safe-room` — no combat. It's the gear-up hub: the
-  **katana**, **Ares Predator V**, a **caseless round**, a **stun baton**, an
-  **armored jacket**, and a ripperdoc's cyberware tray (**wired reflexes**,
+  **katana**, **Ares Predator V**, a **clip**, a **caseless round**, a **stun
+  baton**, an **armored jacket**, and a ripperdoc's cyberware tray (**wired reflexes**,
   **muscle replacement**, **cybereyes**) all lie on the ground, and a **street
   fixer** runs a shop here (§42).
 - **Market Street** (`e` from the corner) is contested turf — a hostile **street
@@ -127,52 +127,59 @@ ganger.
 > The Stun monitor seeds from **Willpower**; the Physical monitor is the flat
 > hp/Vitals track (Design 1 — not yet Body-derived, a tracked SR-M3 tail).
 
-## 40. Firearms & the magazine (Ares Predator V)
+## 40. Firearms, clips & reloading (Ares Predator V)
 
-A firearm is `ranged_class: projectile` with `ammo_kind: bullet` and a
-**magazine** (the Predator V holds **15 rounds**, SR5 "15 (c)"). Unlike a bow's
-loose arrows, a firearm draws from its **loaded magazine**, not straight from
-your pack: you `reload` rounds into the magazine, then each shot spends one
-loaded round until it runs dry. A freshly-picked-up gun is **empty** until you
-reload it. Single-district combat is the **melee band**, so a gun fires at a
-point-blank penalty (SR5) — buff **Agility** (firearm to-hit = skill + Agility)
-for reliable demo hits.
+A firearm is **holder-fed**: rounds live in a **clip**, the clip goes *into* the
+gun, and firing draws from the inserted clip. The Ares Predator V takes a
+**heavy-pistol clip** (holds **15**, SR5 "15 (c)"). The unified `reload` verb
+"tops up the target from the tier below" — `reload <clip>` loads loose rounds
+into a clip; `reload` loads a clip into the wielded gun (ejecting the spent one).
+Single-district combat is the **melee band**, so a gun fires at a point-blank
+penalty (SR5) — buff **Agility** (firearm to-hit = skill + Agility) for reliable
+demo hits.
 
-### Empty until reloaded
+### Clipless until loaded
 
-- [ ] On the corner, `get pistol`, `equip pistol wield` — it spawns **empty**
-      (0/15). `reload` with nothing in your pack — "You have no rounds left to
-      reload with."
-- [ ] `teleport shadowrun:market-street`, `kill ganger` — an empty gun **clicks
-      dry** every swing (no shot, no damage). This is the magazine gate.
+- [ ] On the corner, `get pistol`, `equip pistol wield`, `get clip` (an **empty**
+      clip lies on the corner). `reload` — "You have no loaded clip to load into
+      an Ares Predator V." (the clip is empty).
+- [ ] `teleport shadowrun:market-street`, `kill ganger` — a gun with no loaded
+      clip **clicks dry** every swing (no shot, no damage).
 
-### Load the magazine, then fire it down
+### Fill a clip, load it, fire it down
 
-- [ ] Get rounds: `buy clip` several times from the fixer (§42), or `get round`
+- [ ] Get rounds: `buy round` several times from the fixer (§42), or `get round`
       on the corner — caseless rounds **stack** in inventory (`i` → `a caseless
       round (xN)`).
-- [ ] `reload` — "You slap a fresh magazine into an Ares Predator V. (N/15)",
-      N being how many rounds you had, capped at 15. Carrying rounds isn't enough
-      — they must be **in the magazine**. `reload` again on a full mag — "It's
-      already fully loaded. (15/15)".
-- [ ] Back at Market Street, `kill ganger` — the pistol **fires**, spending one
-      loaded round per swing (the magazine ticks down); a landed shot is
-      **lethal** (no `target_pool` → the Physical monitor, through the ganger's
-      soak, like the katana). When the magazine empties it **clicks dry** — `reload`
-      to top up and keep firing.
+- [ ] `reload clip` — "You load rounds into an Ares Predator V clip. (N/15)": loose
+      rounds pour into the clip, up to 15. `reload clip` again after buying more →
+      tops it up; on a full clip → "It's already full. (15/15)".
+- [ ] `reload` — "You slap a fresh clip into an Ares Predator V. (15/15)": the
+      loaded clip goes into the gun. Carrying rounds isn't enough, and neither is
+      an empty clip — the clip must be **loaded** and **inserted**.
+- [ ] `kill ganger` — the pistol **fires**, spending one round from the inserted
+      clip per swing; a landed shot is **lethal** (no `target_pool` → the Physical
+      monitor, through the ganger's soak). When the clip empties it **clicks dry**.
 
-### The magazine persists
+### Swapping clips ejects the spent one
 
-- [ ] Reload to full, `quit`, log back in, and `reload` — it reports "already
-      fully loaded. (15/15)": the loaded rounds round-trip through your save, so a
-      loaded gun stays loaded across relog.
+- [ ] With a partly-spent clip in the gun, load a second clip (`reload clip` on a
+      fresh clip, then `reload`) — "The spent clip ejects and clatters to the
+      ground." `look` shows the ejected clip on the floor; `get clip` recovers it
+      (with its remaining rounds) to refill later.
+
+### The loaded gun persists
+
+- [ ] Load a clip into the gun, `quit`, log back in, and `kill ganger` — it
+      **fires**: the inserted clip (and its rounds) round-trips through your save,
+      so a loaded gun stays loaded across relog.
 
 > `reload` is the firearm verb; `load` still chambers a crossbow. Reload is
 > **instant** in this slice — the SR5 reload **action cost** (a Simple/Complex
-> action per the reloading table) is a tracked follow-on. Magazine rounds are
-> abstract (a count, not typed rounds), so masterwork/special ammo loaded into a
-> magazine isn't modeled yet. Still deferred: **SMG burst** and **cross-room
-> `shoot`**.
+> action per the reloading table) is a tracked follow-on. The clip holds an
+> abstract round count (not typed rounds), so masterwork/special ammo in a clip
+> isn't modeled yet (SR-M3f-2). Ejected clips don't decay yet (SR-M3f-2). Still
+> deferred: **SMG burst** and **cross-room `shoot`**.
 
 ## 41. Cyberware (augmentation on the score sheet)
 
@@ -200,7 +207,7 @@ safe-room.
 - [ ] `list` — the fixer's wares: a **caseless round**, a **Ares Predator V**, an
       **armored jacket**, and **cybereyes** (`buy_markup`/`sell_discount` fall
       through to the engine defaults).
-- [ ] `buy clip` — "You buy … for N gold. You have M gold left." — the price
+- [ ] `buy round` — "You buy … for N gold. You have M gold left." — the price
       comes off your nuyen balance and a caseless round enters inventory. Repeat
       to stock a magazine's worth for §40.
 - [ ] Earn the other way: kill the ganger (§39) and `loot corpse` — his loose

@@ -72,10 +72,10 @@ func TestLive_ShadowrunNuyenShop(t *testing.T) {
 
 	// Buy a clip: the price comes off the nuyen balance.
 	buyRe := regexp.MustCompile(`(?i)You buy .* for (\d+) gold\. You have (\d+) gold left\.`)
-	out := send("buy clip")
+	out := send("buy round")
 	bm := buyRe.FindStringSubmatch(out)
 	if bm == nil {
-		t.Fatalf("buy clip did not confirm a purchase (\"You buy … gold left.\"):\n%s", out)
+		t.Fatalf("buy round did not confirm a purchase (\"You buy … gold left.\"):\n%s", out)
 	}
 	price, _ := strconv.Atoi(bm[1])
 	remaining, _ := strconv.Atoi(bm[2])

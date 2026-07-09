@@ -529,9 +529,21 @@ type InventoryEntry struct {
 type EquippedItem struct {
 	Template string `yaml:"template"`
 	Entity   string `yaml:"entity"`
-	// Loaded persists a wielded magazine weapon's loaded-round count across
-	// relog (see InventoryEntry.Loaded). nil = not a firearm / empty magazine.
+	// Loaded persists a wielded INTERNALLY-FED magazine weapon's loaded-round
+	// count across relog (SR-M3e; see InventoryEntry.Loaded). nil = not an
+	// internally-fed firearm / empty magazine.
 	Loaded *int `yaml:"loaded,omitempty"`
+	// Holder persists the ammunition holder inserted in a wielded HOLDER-FED
+	// weapon (ammo-and-reloading §9). nil = no holder inserted / not holder-fed.
+	Holder *EquippedHolder `yaml:"holder,omitempty"`
+}
+
+// EquippedHolder is the persisted state of the holder inserted in a holder-fed
+// weapon: its template id and its remaining round count. Re-established on
+// respawn so a loaded firearm stays loaded across relog.
+type EquippedHolder struct {
+	Template string `yaml:"template"`
+	Loaded   int    `yaml:"loaded"`
 }
 
 // Store is a file-backed player store. Directories live at

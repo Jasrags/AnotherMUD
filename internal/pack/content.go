@@ -138,6 +138,16 @@ type ItemFile struct {
 	// muzzle-loader). Drives the reload action cost + amount. Empty on a
 	// magazine weapon defaults to "clip". Recorded-only for non-magazine weapons.
 	ReloadMethod string `yaml:"reload_method,omitempty"`
+	// HolderFits marks an item as an ammunition HOLDER (clip/magazine/belt) and
+	// names the weapon FAMILY it fits (ammo-and-reloading §2). A holder also
+	// declares `magazine` (its capacity) + `ammo_kind` (the round it holds). Empty
+	// = not a holder.
+	HolderFits string `yaml:"holder_fits,omitempty"`
+	// AcceptsHolder marks a weapon as HOLDER-FED and names the holder family it
+	// takes (ammo-and-reloading §2/§5): firing draws from an inserted holder, and
+	// `reload` swaps holders. Mutually exclusive with `magazine` (which marks an
+	// internally-fed weapon). Empty = not holder-fed.
+	AcceptsHolder string `yaml:"accepts_holder,omitempty"`
 	// Armor depth (armor-depth §2). All optional, recorded-only this slice
 	// (inert until the AC/mitigation/proficiency/check-penalty consumers
 	// land). armor_bonus is the structured AC term; armor_max_dex caps the

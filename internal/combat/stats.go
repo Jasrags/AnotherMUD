@@ -118,6 +118,13 @@ type Stats struct {
 	// wielded weapon by the holder's Stats() builder.
 	Magazine int
 
+	// AcceptsHolder > "" marks the wielded projectile as HOLDER-FED (a firearm
+	// that takes a removable clip/magazine, ammo-and-reloading §5): firing draws
+	// from the inserted holder recorded on the weapon instance (not the weapon's
+	// own Magazine, and not a loose round). "" = internally-fed / loose-round.
+	// Populated from the wielded weapon by the holder's Stats() builder.
+	AcceptsHolder string
+
 	// Reach is the wielded weapon's reach rating (special-weapons §3) — a
 	// numeric, cross-ruleset weapon stat (0 = an ordinary close weapon). In WoT
 	// the round loop reads `Reach > 0` so a reach wielder swings at the `near`

@@ -11,7 +11,7 @@ description: |
   sprawl. Cheap and plentiful; a runner burns one per shot and carries a
   fistful, and they're gone faster than you'd think in a firefight.
 tags: [ammo, ammunition, stackable]
-keywords: [round, rounds, bullet, bullets, ammo, cartridge, clip, magazine]
+keywords: [round, rounds, bullet, bullets, ammo, cartridge]
 properties:
   stackable: true
   weight: 0 # a single round — negligible

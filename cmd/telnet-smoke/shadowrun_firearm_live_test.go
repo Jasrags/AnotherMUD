@@ -67,35 +67,40 @@ func TestLive_ShadowrunFirearm(t *testing.T) {
 	send("set stat agility Runner 6")  // SR firearm to-hit = skill + Agility
 	send("set stat strength Runner 6") // firearm damage bonus (trunc(str/4))
 	send("restore")
-	// Wield the pistol with NO ammo yet — the dry-fire phase depends on it.
+	// Wield the pistol with NO clip inserted — the dry-fire phase depends on it.
 	if out := send("get pistol"); strings.Contains(strings.ToLower(out), "don't see") {
-		t.Fatalf("could not get the heavy pistol from the street corner:\n%s", out)
+		t.Fatalf("could not get the Ares Predator V from the street corner:\n%s", out)
 	}
 	if out := send("equip pistol wield"); !strings.Contains(strings.ToLower(out), "pistol") {
 		t.Fatalf("equip pistol wield did not confirm:\n%s", out)
 	}
 	send("teleport shadowrun:market-street")
 
-	// Phase 1 — the empty click. With no ammo the pistol can't fire; every swing
-	// runs dry and narrates. The runner deals no damage, so the ganger survives.
+	// Phase 1 — the empty click. Holder-fed with no clip inserted, the pistol
+	// can't fire; every swing runs dry. The runner deals no damage.
 	dryRe := regexp.MustCompile(`(?i)no bullet left to shoot`)
 	if !fightUntil(t, send, c, dryRe, 30*time.Second) {
-		t.Fatal("an empty pistol never clicked dry in melee — the AmmoFor gate isn't skipping the ammoless swing")
+		t.Fatal("a clipless pistol never clicked dry in melee — the holder-fed AmmoFor gate isn't skipping the ammoless swing")
 	}
 
-	// Phase 2 — the magazine model: carrying rounds isn't enough, you must
-	// `reload` them into the magazine. Spawn a stack, reload the Predator V, and
-	// the next swings spend loaded rounds; a landed shot deals damage on the
-	// Physical monitor (lethal, no target_pool) through the ganger's soak.
-	send("spawn item ammo-clip 8 me")
-	if out := send("reload"); !strings.Contains(strings.ToLower(out), "fresh magazine") {
-		t.Fatalf("reload did not load the Predator V's magazine from carried rounds:\n%s", out)
+	// Phase 2 — the holder model (ammo-and-reloading §3-§5): a clip must be
+	// FILLED from loose rounds, then LOADED into the weapon. Spawn a clip + a
+	// stack of rounds, `reload clip` to fill it, `reload` to insert it, and the
+	// next swings spend its rounds; a landed shot lands on the Physical monitor
+	// (lethal, no target_pool) through the ganger's soak.
+	send("spawn item predator-clip me")
+	send("spawn item ammo-clip 20 me")
+	if out := send("reload clip"); !strings.Contains(out, "(15/15)") {
+		t.Fatalf("`reload clip` did not fill the clip to 15/15 from loose rounds:\n%s", out)
+	}
+	if out := send("reload"); !strings.Contains(strings.ToLower(out), "fresh clip") || !strings.Contains(out, "(15/15)") {
+		t.Fatalf("`reload` did not insert the loaded clip into the Predator V:\n%s", out)
 	}
 	hitRe := regexp.MustCompile(`(?i)hit a street ganger for \d+ damage`)
 	if !fightUntil(t, send, c, hitRe, 30*time.Second) {
-		t.Fatal("the reloaded pistol never landed a shot on the ganger — the firearm isn't firing/hitting in-room")
+		t.Fatal("the clip-loaded pistol never landed a shot on the ganger — the firearm isn't firing from its inserted holder")
 	}
-	t.Log("shadowrun verified live: empty Ares Predator V clicked dry in melee, then reloaded from carried rounds it fired point-blank and hit the ganger on the Physical monitor")
+	t.Log("shadowrun verified live: a clipless Ares Predator V clicked dry, then a clip filled from loose rounds and loaded into the gun fired point-blank and hit the ganger on the Physical monitor")
 }
 
 // fightUntil keeps the runner engaged with the ganger, `restore`-ing each round,

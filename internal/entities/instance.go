@@ -33,6 +33,12 @@ const (
 	// weapon's current loaded-round count. Absent = a full magazine (lazy-full,
 	// see MagazineLoaded); written on fire/reload and persisted with the item.
 	propLoadedRounds = "loaded"
+	// propInsertedHolderTpl / propInsertedHolderLoaded record the ammunition
+	// holder inserted in a holder-fed weapon (ammo-and-reloading §5): the
+	// holder's template id and its current round count. Absent = no holder
+	// inserted. Persisted with the weapon via EquippedItem.Holder.
+	propInsertedHolderTpl    = "inserted_holder"
+	propInsertedHolderLoaded = "inserted_holder_loaded"
 )
 
 // SourceKey is the modifier-source convention from §2.3 step 6 and
@@ -141,6 +147,8 @@ type ItemInstance struct {
 	reloadTicks    int
 	magazine       int
 	reloadMethod   string
+	holderFits     string
+	acceptsHolder  string
 	strRating      *int
 	// resistances are the armor's per-damage-type damage reduction
 	// (armor-depth §4), keyed by damage type. nil = none. Aggregated across
@@ -430,6 +438,83 @@ func (it *ItemInstance) Magazine() int { return it.magazine }
 // ReloadMethod names how a magazine weapon reloads (SR5 reloading table, e.g.
 // "clip"); empty for a non-magazine weapon.
 func (it *ItemInstance) ReloadMethod() string { return it.reloadMethod }
+
+// HolderFits reports the weapon family this item (an ammunition holder) fits, or
+// "" if the item is not a holder (ammo-and-reloading §2).
+func (it *ItemInstance) HolderFits() string { return it.holderFits }
+
+// AcceptsHolder reports the holder family a holder-fed weapon takes, or "" if the
+// weapon is not holder-fed (ammo-and-reloading §5). A holder-fed weapon fires
+// from its inserted holder (see InsertedHolder), not its own magazine.
+func (it *ItemInstance) AcceptsHolder() string { return it.acceptsHolder }
+
+// InsertedHolder reports the holder currently inserted in this (holder-fed)
+// weapon: its template id, loaded-round count, and whether one is inserted at
+// all. The inserted holder is recorded as instance state (template + count), not
+// a live item — insertion consumes the holder item, ejection re-spawns one
+// (ammo-and-reloading §5). Reads 0/"" /false when nothing is inserted.
+func (it *ItemInstance) InsertedHolder() (template string, loaded int, has bool) {
+	it.propsMu.RLock()
+	defer it.propsMu.RUnlock()
+	tv, ok := it.properties[propInsertedHolderTpl]
+	if !ok {
+		return "", 0, false
+	}
+	tpl, _ := tv.(string)
+	if tpl == "" {
+		return "", 0, false
+	}
+	n := 0
+	if lv, ok := it.properties[propInsertedHolderLoaded]; ok {
+		n, _ = lv.(int)
+	}
+	if n < 0 {
+		n = 0
+	}
+	return tpl, n, true
+}
+
+// SetInsertedHolder records the holder inserted in this weapon (its template +
+// loaded-round count). Overwrites any prior inserted holder — the caller is
+// responsible for ejecting the old one first (ammo-and-reloading §5).
+func (it *ItemInstance) SetInsertedHolder(template string, loaded int) {
+	if loaded < 0 {
+		loaded = 0
+	}
+	it.propsMu.Lock()
+	defer it.propsMu.Unlock()
+	if it.properties == nil {
+		it.properties = make(map[string]any)
+	}
+	it.properties[propInsertedHolderTpl] = template
+	it.properties[propInsertedHolderLoaded] = loaded
+}
+
+// SetInsertedHolderLoaded updates just the inserted holder's round count (firing
+// decrements it). No-op if no holder is inserted.
+func (it *ItemInstance) SetInsertedHolderLoaded(loaded int) {
+	if loaded < 0 {
+		loaded = 0
+	}
+	it.propsMu.Lock()
+	defer it.propsMu.Unlock()
+	if it.properties == nil {
+		return
+	}
+	if tpl, ok := it.properties[propInsertedHolderTpl].(string); !ok || tpl == "" {
+		return
+	}
+	it.properties[propInsertedHolderLoaded] = loaded
+}
+
+// ClearInsertedHolder removes the inserted-holder record (the weapon becomes
+// empty of a holder — e.g. after ejecting without inserting a replacement).
+func (it *ItemInstance) ClearInsertedHolder() {
+	it.propsMu.Lock()
+	defer it.propsMu.Unlock()
+	delete(it.properties, propInsertedHolderTpl)
+	delete(it.properties, propInsertedHolderLoaded)
+}
 
 // MagazineLoaded reports the rounds currently in a magazine weapon. A weapon
 // carries no explicit `loaded` property until it is reloaded or fired, and reads
@@ -724,6 +809,8 @@ func buildInstanceFromTemplate(tpl *item.Template, id EntityID) *ItemInstance {
 		reloadTicks:       tpl.ReloadTicks,
 		magazine:          tpl.Magazine,
 		reloadMethod:      tpl.ReloadMethod,
+		holderFits:        tpl.HolderFits,
+		acceptsHolder:     tpl.AcceptsHolder,
 		strRating:         strRating,
 		resistances:       resistances,
 		armorCheckPenalty: tpl.ArmorCheckPenalty,

@@ -223,9 +223,20 @@ func TestLoad_ShadowrunWeaponsAndArmor(t *testing.T) {
 	if pistol.RangedClass != "projectile" || pistol.AmmoKind != "bullet" {
 		t.Errorf("ares-predator-v ranged = (%q,%q), want (projectile, bullet)", pistol.RangedClass, pistol.AmmoKind)
 	}
-	// The Predator V is magazine-fed (SR5 "15 (c)").
-	if pistol.Magazine != 15 || pistol.ReloadMethod != "clip" {
-		t.Errorf("ares-predator-v magazine = (%d,%q), want (15, clip)", pistol.Magazine, pistol.ReloadMethod)
+	// The Predator V is holder-fed (SR5 "15 (c)"): it takes a heavy-pistol clip
+	// and carries no rounds itself.
+	if pistol.AcceptsHolder != "heavy-pistol" || pistol.Magazine != 0 {
+		t.Errorf("ares-predator-v = (accepts_holder %q, magazine %d), want (heavy-pistol, 0)", pistol.AcceptsHolder, pistol.Magazine)
+	}
+	// The clip is the ammunition holder: capacity 15, fits the heavy-pistol
+	// family, feeds `bullet` rounds.
+	clip, err := regs.Items.Get("shadowrun:predator-clip")
+	if err != nil {
+		t.Fatalf("predator-clip: %v", err)
+	}
+	if clip.Magazine != 15 || clip.HolderFits != "heavy-pistol" || clip.AmmoKind != "bullet" {
+		t.Errorf("predator-clip = (magazine %d, holder_fits %q, ammo_kind %q), want (15, heavy-pistol, bullet)",
+			clip.Magazine, clip.HolderFits, clip.AmmoKind)
 	}
 
 	// Armour carries the soak rating the channel map reads through `armor`.
