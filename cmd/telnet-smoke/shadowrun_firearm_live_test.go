@@ -38,9 +38,10 @@ func TestLive_ShadowrunFirearm(t *testing.T) {
 		t.Skip("set ANOTHERMUD_LIVE=1 to run (boots a real engine subprocess via `go run`)")
 	}
 	addr := bootEngine(t, map[string]string{
-		"ANOTHERMUD_PACKS":      "shadowrun",
-		"ANOTHERMUD_START_ROOM": "shadowrun:street-corner",
-		"ANOTHERMUD_ROLE_SEED":  "Runner:admin",
+		"ANOTHERMUD_PACKS":           "shadowrun",
+		"ANOTHERMUD_START_ROOM":      "shadowrun:street-corner",
+		"ANOTHERMUD_ROLE_SEED":       "Runner:admin",
+		"ANOTHERMUD_RELOAD_DURATION": "0", // instant reload for deterministic asserts
 	})
 	c, err := telnettest.Dial(addr, telnettest.WithTimeout(12*time.Second))
 	if err != nil {

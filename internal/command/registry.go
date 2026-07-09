@@ -537,6 +537,7 @@ func (r *Registry) Dispatch(ctx context.Context, env Env, actor Actor, raw strin
 		Light:                 env.Light,
 		NowTick:               env.NowTick,
 		CorpseOwnershipWindow: env.CorpseOwnershipWindow,
+		ReloadTicks:           env.ReloadTicks,
 		DefaultMoveCost:       env.DefaultMoveCost,
 		Raw:                   trimmed,
 		Verb:                  strings.ToLower(verb),

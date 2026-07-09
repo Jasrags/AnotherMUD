@@ -556,6 +556,10 @@ type Config struct {
 	// for its killer after creation (loot-and-corpses §4/§9). Zero =
 	// no reservation.
 	CorpseOwnershipWindow uint64
+	// ReloadTicks is how long a firearm reload takes as a busy action
+	// (ammo-and-reloading §9). Threaded into command.Env via commandEnv. Zero =
+	// instant reload.
+	ReloadTicks uint64
 
 	// DefaultMoveCost is the flat movement-point cost of a step when the
 	// destination biome configures none (world-rooms-movement §3.3).

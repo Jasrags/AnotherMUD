@@ -449,6 +449,9 @@ type Env struct {
 	// for its owner set after creation (loot-and-corpses §4/§9). Zero
 	// means no reservation (open immediately).
 	CorpseOwnershipWindow uint64
+	// ReloadTicks is how long a firearm reload busy action takes
+	// (ammo-and-reloading §9). Zero → reload completes instantly.
+	ReloadTicks uint64
 	// DefaultMoveCost is the flat movement-point cost of a step when the
 	// destination biome configures none (world-rooms-movement §3.3).
 	// Sourced from ANOTHERMUD_MOVE_COST (default 1).

@@ -238,10 +238,11 @@ All numeric magnitudes live here; the prose names behaviors, not values.
 
 **Still open (non-blocking):**
 
-- **Reload as a timed action.** Reloading (holder swap, or fill) plausibly costs a
-  timed action per reload method (a removable clip is fast; filling a holder is
-  slow). Reuse `action-economy`'s busy-state timer, or leave reload instant for a
-  first slice? (The shipped precursor is instant.)
+- **Reload as a timed action — SHIPPED (single duration).** Reloading is a timed
+  busy action via `action-economy`'s timer (`reload` begins, completes a beat
+  later, a second action mid-reload is refused as busy) — a single configurable
+  duration (`ANOTHERMUD_RELOAD_DURATION`, 0 = instant). **Still open:** per-method
+  Simple-vs-Complex differentiation (a clip swap faster than filling a clip).
 - **Compatibility strictness** — fit by broad **weapon family** (a "heavy-pistol"
   clip) vs. exact weapon id vs. a shared "holder family" that spans several
   weapons. Lean: weapon family.

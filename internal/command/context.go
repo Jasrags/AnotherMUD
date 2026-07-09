@@ -213,6 +213,11 @@ type Context struct {
 	// the loot verb treats every corpse as open.
 	NowTick               func() uint64
 	CorpseOwnershipWindow uint64
+	// ReloadTicks is how long a firearm reload takes as a busy action
+	// (ammo-and-reloading §9): inserting a clip / filling a clip / topping an
+	// internal magazine. Copied from Env at dispatch. 0 (or no Actions/NowTick
+	// substrate) → reload completes instantly.
+	ReloadTicks uint64
 	// DefaultMoveCost is the flat movement-point cost of a step when the
 	// destination biome sets none (world-rooms-movement §3.3). Copied from
 	// Env at dispatch; sourced from ANOTHERMUD_MOVE_COST (default 1). Zero

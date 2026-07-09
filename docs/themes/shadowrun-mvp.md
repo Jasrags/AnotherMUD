@@ -235,8 +235,11 @@ Content inventory:
   `TestGradeThroughHolder` (fill APDS clip → insert → `ConsumeAmmo` returns
   "apds"). **SR-M3f-2 complete.**
 
-**Deferred (own slices, spec §11 open questions):** reload as a **timed action**
-(instant for the first slice, as SR-M3e); **mixed-ammo** holders (homogeneous
+**Follow-ons:** reload as a **timed action** — **SHIPPED 2026-07-09** (a busy
+action via `action-economy`, `ANOTHERMUD_RELOAD_DURATION` default 1s / 0=instant;
+begin → async-complete, a mid-reload action refused as busy; `TestLive_
+ShadowrunReloadTimed`). Still deferred (own slices, spec §11): reload
+**per-method** Simple/Complex differentiation; **mixed-ammo** holders (homogeneous
 assumed); **speed-loaders / belts** as holder sub-behaviors; compatibility
 strictness (weapon-family vs exact-id); auto-select order among several loaded
 holders.

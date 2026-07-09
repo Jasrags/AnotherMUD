@@ -176,9 +176,12 @@ demo hits.
       **fires**: the inserted clip (and its rounds) round-trips through your save,
       so a loaded gun stays loaded across relog.
 
-> `reload` is the firearm verb; `load` still chambers a crossbow. Reload is
-> **instant** in this slice — the SR5 reload **action cost** (a Simple/Complex
-> action per the reloading table) is a tracked follow-on. The clip holds an
+> `reload` is the firearm verb; `load` still chambers a crossbow. Reload is a
+> **timed busy action** (`ANOTHERMUD_RELOAD_DURATION`, default 1s): `reload`
+> reports "You begin reloading." and completes a beat later; a second action
+> mid-reload is refused as busy. (Per-method Simple/Complex differentiation is a
+> refinement; set the knob to 0 for instant.)
+>
 > **special ammo through a clip:** buy **APDS rounds** from the fixer (`buy
 > apds`), fill a clip with them (`reload clip`), and load it — shots fired from
 > that clip carry the round's grade (a to-hit bonus), because the clip is

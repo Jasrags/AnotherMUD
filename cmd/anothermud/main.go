@@ -3232,6 +3232,7 @@ func run() error {
 		// the window itself is a wall-clock knob converted to ticks.
 		NowTick:               loop.TickCount,
 		CorpseOwnershipWindow: cadenceTicks(cfg.TickInterval, cfg.CorpseOwnershipWindow),
+		ReloadTicks:           reloadTicksFor(cfg.TickInterval, cfg.ReloadDuration),
 		DefaultMoveCost:       cfg.DefaultMoveCost,
 		Login: login.Config{
 			Accounts:        accounts,
@@ -3362,6 +3363,16 @@ func autosaveTicks(tickInterval, autosaveInterval time.Duration) uint64 {
 // cadenceTicks is the generic wall-clock → tick conversion used by
 // any handler that wants to fire on a real-time cadence rather than
 // every tick.
+// reloadTicksFor converts a reload duration to ticks, mapping a non-positive
+// duration to 0 (an INSTANT reload — no busy action), unlike cadenceTicks which
+// clamps to a 1-tick minimum. Lets ANOTHERMUD_RELOAD_DURATION=0 disable timing.
+func reloadTicksFor(tickInterval, dur time.Duration) uint64 {
+	if dur <= 0 {
+		return 0
+	}
+	return cadenceTicks(tickInterval, dur)
+}
+
 func cadenceTicks(tickInterval, cadence time.Duration) uint64 {
 	if tickInterval <= 0 || cadence <= 0 {
 		return 1
@@ -3396,6 +3407,7 @@ type config struct {
 	CorpseOwnershipWindow  time.Duration
 	CorpseLifetime         time.Duration
 	EjectedHolderLifetime  time.Duration
+	ReloadDuration         time.Duration
 	CorpseDecayInterval    time.Duration
 	CampfireLifetime       time.Duration
 	CampfireDecayInterval  time.Duration
@@ -3481,6 +3493,7 @@ func loadConfig() config {
 		CorpseOwnershipWindow:   envDurationOr("ANOTHERMUD_CORPSE_OWNERSHIP_WINDOW", 60*time.Second),
 		CorpseLifetime:          envDurationOr("ANOTHERMUD_CORPSE_LIFETIME", 5*time.Minute),
 		EjectedHolderLifetime:   envDurationOr("ANOTHERMUD_EJECTED_HOLDER_LIFETIME", 3*time.Minute),
+		ReloadDuration:          envDurationAllowZero("ANOTHERMUD_RELOAD_DURATION", 1*time.Second),
 		CorpseDecayInterval:     envDurationOr("ANOTHERMUD_CORPSE_DECAY_INTERVAL", 3*time.Second),
 		CampfireLifetime:        envDurationOr("ANOTHERMUD_CAMPFIRE_LIFETIME", 10*time.Minute),
 		CampfireDecayInterval:   envDurationOr("ANOTHERMUD_CAMPFIRE_DECAY_INTERVAL", 5*time.Second),
@@ -3531,6 +3544,21 @@ func envDurationOr(key string, def time.Duration) time.Duration {
 	}
 	d, err := time.ParseDuration(v)
 	if err != nil || d <= 0 {
+		return def
+	}
+	return d
+}
+
+// envDurationAllowZero is envDurationOr but HONORS an explicit 0 (a valid "off"
+// value, e.g. an instant reload) — only an unset/unparseable/negative value
+// falls back to the default.
+func envDurationAllowZero(key string, def time.Duration) time.Duration {
+	v, ok := os.LookupEnv(key)
+	if !ok || v == "" {
+		return def
+	}
+	d, err := time.ParseDuration(v)
+	if err != nil || d < 0 {
 		return def
 	}
 	return d

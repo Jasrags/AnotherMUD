@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/Jasrags/AnotherMUD/internal/action"
 	"github.com/Jasrags/AnotherMUD/internal/combat"
 	"github.com/Jasrags/AnotherMUD/internal/entities"
 	"github.com/Jasrags/AnotherMUD/internal/scrap"
@@ -34,7 +35,9 @@ type holderReloader interface {
 //     loose rounds (SR-M3e); a reload-gated crossbow chambers a bolt (`load`).
 func ReloadHandler(ctx context.Context, c *Context) error {
 	if token := strings.TrimSpace(strings.Join(c.Args, " ")); token != "" {
-		return reloadNamedHolder(ctx, c, token)
+		return beginReloadOrRun(ctx, c, "reloading a clip", func() error {
+			return reloadNamedHolder(ctx, c, token)
+		})
 	}
 
 	cb, ok := c.Actor.(combat.Combatant)
@@ -44,14 +47,47 @@ func ReloadHandler(ctx context.Context, c *Context) error {
 	st := cb.Stats()
 	switch {
 	case st.AcceptsHolder != "":
-		return reloadHolderFedWeapon(ctx, c)
+		return beginReloadOrRun(ctx, c, "reloading", func() error { return reloadHolderFedWeapon(ctx, c) })
 	case st.Magazine > 0:
-		return reloadMagazineWeapon(ctx, c)
+		return beginReloadOrRun(ctx, c, "reloading", func() error { return reloadMagazineWeapon(ctx, c) })
 	case st.RangedClass == combat.RangedProjectile && st.ReloadTicks > 0:
-		return LoadHandler(ctx, c) // a crossbow chambers a bolt via the load path
+		return LoadHandler(ctx, c) // a crossbow chambers a bolt via the load path (its own timer)
 	default:
 		return c.Actor.Write(ctx, "You aren't wielding anything that needs reloading.")
 	}
+}
+
+// beginReloadOrRun makes a firearm reload a timed busy action (ammo-and-reloading
+// §9): phase 1 (a player-typed `reload`) arms a KindReload action and returns;
+// the action-complete sweep replays the command with ReplayAction set, and phase
+// 2 (`do`) performs the actual insert/fill. Mirrors the crossbow `load` timing.
+// Falls back to running immediately when there's no timed-action substrate
+// (headless/tests) or the reload duration is zero.
+func beginReloadOrRun(ctx context.Context, c *Context, label string, do func() error) error {
+	if c.ReplayAction {
+		return do()
+	}
+	if c.Actions == nil || c.NowTick == nil || c.ReloadTicks == 0 {
+		return do()
+	}
+	ider, ok := c.Actor.(interface{ PlayerID() string })
+	if !ok || ider.PlayerID() == "" {
+		return do()
+	}
+	if !c.Actions.Begin(ider.PlayerID(), action.Action{
+		Kind:          KindReload,
+		ReadyAt:       c.NowTick() + c.ReloadTicks,
+		Interruptible: true,
+		Label:         label,
+		Payload:       c.Raw,
+	}) {
+		return c.Actor.Write(ctx, "You're already busy with something.")
+	}
+	if room := c.Actor.Room(); room != nil && c.Broadcaster != nil && c.Actor.Name() != "" {
+		c.Broadcaster.SendToRoom(ctx, room.ID,
+			fmt.Sprintf("%s begins reloading.", c.Actor.Name()), ider.PlayerID())
+	}
+	return c.Actor.Write(ctx, "You begin reloading.")
 }
 
 // reloadHolderFedWeapon inserts a compatible loaded holder into the wielded

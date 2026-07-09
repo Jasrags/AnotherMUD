@@ -24,9 +24,10 @@ func TestLive_ShadowrunMagazinePersist(t *testing.T) {
 		t.Skip("set ANOTHERMUD_LIVE=1 to run (boots a real engine subprocess via `go run`)")
 	}
 	addr := bootEngine(t, map[string]string{
-		"ANOTHERMUD_PACKS":      "shadowrun",
-		"ANOTHERMUD_START_ROOM": "shadowrun:street-corner",
-		"ANOTHERMUD_ROLE_SEED":  "Gunner:admin",
+		"ANOTHERMUD_PACKS":           "shadowrun",
+		"ANOTHERMUD_START_ROOM":      "shadowrun:street-corner",
+		"ANOTHERMUD_ROLE_SEED":       "Gunner:admin",
+		"ANOTHERMUD_RELOAD_DURATION": "0", // instant reload for deterministic asserts
 	})
 
 	// --- Session 1: gear up, reload to full, quit. ---
@@ -124,9 +125,10 @@ func TestLive_ShadowrunLooseClipPersist(t *testing.T) {
 		t.Skip("set ANOTHERMUD_LIVE=1 to run (boots a real engine subprocess via `go run`)")
 	}
 	addr := bootEngine(t, map[string]string{
-		"ANOTHERMUD_PACKS":      "shadowrun",
-		"ANOTHERMUD_START_ROOM": "shadowrun:street-corner",
-		"ANOTHERMUD_ROLE_SEED":  "Filler:admin",
+		"ANOTHERMUD_PACKS":           "shadowrun",
+		"ANOTHERMUD_START_ROOM":      "shadowrun:street-corner",
+		"ANOTHERMUD_ROLE_SEED":       "Filler:admin",
+		"ANOTHERMUD_RELOAD_DURATION": "0", // instant reload for deterministic asserts
 	})
 
 	c, err := telnettest.Dial(addr, telnettest.WithTimeout(12*time.Second))
@@ -198,9 +200,10 @@ func TestLive_ShadowrunLoadedClipShop(t *testing.T) {
 		t.Skip("set ANOTHERMUD_LIVE=1 to run (boots a real engine subprocess via `go run`)")
 	}
 	addr := bootEngine(t, map[string]string{
-		"ANOTHERMUD_PACKS":      "shadowrun",
-		"ANOTHERMUD_START_ROOM": "shadowrun:street-corner",
-		"ANOTHERMUD_ROLE_SEED":  "Buyer:admin",
+		"ANOTHERMUD_PACKS":           "shadowrun",
+		"ANOTHERMUD_START_ROOM":      "shadowrun:street-corner",
+		"ANOTHERMUD_ROLE_SEED":       "Buyer:admin",
+		"ANOTHERMUD_RELOAD_DURATION": "0", // instant reload for deterministic asserts
 	})
 	c, err := telnettest.Dial(addr, telnettest.WithTimeout(12*time.Second))
 	if err != nil {
@@ -245,6 +248,7 @@ func TestLive_ShadowrunClipDecay(t *testing.T) {
 		"ANOTHERMUD_PACKS":                   "shadowrun",
 		"ANOTHERMUD_START_ROOM":              "shadowrun:street-corner",
 		"ANOTHERMUD_ROLE_SEED":               "Litter:admin",
+		"ANOTHERMUD_RELOAD_DURATION":         "0", // instant reload for deterministic asserts
 		"ANOTHERMUD_EJECTED_HOLDER_LIFETIME": "1s",
 		"ANOTHERMUD_CORPSE_DECAY_INTERVAL":   "1s", // the scrap sweep shares this cadence
 	})
@@ -286,4 +290,61 @@ func TestLive_ShadowrunClipDecay(t *testing.T) {
 		t.Fatalf("the ejected clip did not decay off the ground:\n%s", out)
 	}
 	t.Log("shadowrun verified live: an ejected clip lingered recoverable, then decayed off the ground after its lifetime")
+}
+
+// TestLive_ShadowrunReloadTimed proves reload is a TIMED busy action (ammo-and-
+// reloading §9): `reload` begins the action and returns immediately, a second
+// action mid-reload is refused as busy, and the reload completes a beat later
+// (the action-complete sweep replays it). Boots with a 1s reload duration.
+//
+//	ANOTHERMUD_LIVE=1 go test ./cmd/telnet-smoke -run TestLive_ShadowrunReloadTimed -v
+func TestLive_ShadowrunReloadTimed(t *testing.T) {
+	if os.Getenv("ANOTHERMUD_LIVE") == "" {
+		t.Skip("set ANOTHERMUD_LIVE=1 to run (boots a real engine subprocess via `go run`)")
+	}
+	addr := bootEngine(t, map[string]string{
+		"ANOTHERMUD_PACKS":           "shadowrun",
+		"ANOTHERMUD_START_ROOM":      "shadowrun:street-corner",
+		"ANOTHERMUD_ROLE_SEED":       "Timer:admin",
+		"ANOTHERMUD_RELOAD_DURATION": "1s", // a real, short reload time
+	})
+	c, err := telnettest.Dial(addr, telnettest.WithTimeout(12*time.Second))
+	if err != nil {
+		t.Fatalf("dial: %v", err)
+	}
+	defer c.Close()
+	if err := createAndLogin(c, "Timer"); err != nil {
+		t.Fatalf("create+login: %v", err)
+	}
+	send := func(line string) string {
+		t.Helper()
+		_ = c.SendLine(line)
+		out, err := c.ExpectTimeout(gamePrompt, 8*time.Second)
+		if err != nil {
+			t.Fatalf("no prompt after %q: %v", line, err)
+		}
+		return out
+	}
+	send("get pistol")
+	send("equip pistol wield")
+	send("buy loaded") // a full clip in inventory, ready to insert
+
+	// Phase 1: reload begins and returns immediately (no (15/15) yet).
+	out := send("reload")
+	if !strings.Contains(strings.ToLower(out), "begin reloading") {
+		t.Fatalf("reload did not begin as a timed action:\n%s", out)
+	}
+	if strings.Contains(out, "(15/15)") {
+		t.Fatalf("reload completed instantly — it should be a timed action:\n%s", out)
+	}
+	// A second action mid-reload is refused as busy.
+	if busy := send("reload"); !strings.Contains(strings.ToLower(busy), "busy") {
+		t.Fatalf("a reload mid-reload was not refused as busy:\n%s", busy)
+	}
+	// The reload completes a beat later (pushed async by the action sweep).
+	time.Sleep(1500 * time.Millisecond)
+	if comp := c.Drain(1000 * time.Millisecond); !strings.Contains(comp, "(15/15)") {
+		t.Fatalf("the timed reload never completed (no fresh-clip message):\n%s", comp)
+	}
+	t.Log("shadowrun verified live: reload is a timed busy action — it begins immediately, blocks a second action as busy, and completes (clip inserted) a beat later")
 }
