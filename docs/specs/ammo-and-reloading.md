@@ -249,12 +249,15 @@ All numeric magnitudes live here; the prose names behaviors, not values.
 - **Mixed-ammo holders.** Homogeneous is assumed (§8); allowing a hand-packed mix
   (some tracer, some regular) is deferred — niche, and it breaks the
   one-grade-per-holder simplification.
-- **Auto-selection order** when several compatible loaded holders are carried
-  (fullest first? a specific-holder `reload <holder> into <weapon>` override?).
-  The shipped SR-M3f-1 picks the fullest carried holder but does **not** compare
-  against the holder already inserted — so `reload` with a mostly-full holder
-  seated and only near-empty spares carried will still eject the good one. A
-  "don't swap for a worse holder" guard (or an explicit-only swap) is open.
+- **Auto-selection order** when several compatible loaded holders are carried:
+  `reload` picks the **fullest** carried holder. The **"don't swap for a worse
+  holder" guard is now shipped** — if a holder is already inserted and its load is
+  **≥** the best spare's, `reload` declines the swap (outcome `no-benefit`) rather
+  than ejecting a good clip onto the ground to decay for a lesser one. Equal loads
+  also decline (an equal swap only churns a clip for zero gain). Still open: a
+  **grade-aware** preference (keep fewer special/APDS rounds over more regular) —
+  tied to the mixed-ammo question — and an explicit `reload <holder> into
+  <weapon>` override for full manual control.
 - **Speed-loaders and belts** as holder sub-behaviors (a speed-loader loads an
   internally-fed cylinder in one action; a belt is a large holder) — same model,
   flavor/timing differences, phased after clips.

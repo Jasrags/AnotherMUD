@@ -103,6 +103,8 @@ func reloadHolderFedWeapon(ctx context.Context, c *Context) error {
 		return c.Actor.Write(ctx, "You aren't wielding anything that needs reloading.")
 	case "no-holder":
 		return c.Actor.Write(ctx, fmt.Sprintf("You have no loaded clip to load into %s.", weapon))
+	case "no-benefit":
+		return c.Actor.Write(ctx, fmt.Sprintf("No spare clip beats the one already in %s; you keep it. (%d loaded)", weapon, loaded))
 	}
 	if ejectedTpl != "" {
 		ejectHolderToRoom(ctx, c, ejectedTpl, ejectedLoaded, ejectedGrade)

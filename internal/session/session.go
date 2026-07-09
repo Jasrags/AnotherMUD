@@ -3686,7 +3686,13 @@ func (a *connActor) holderGradeForSave(id entities.EntityID) string {
 // state on the weapon and consumes the holder item, returning any displaced
 // holder's template + remaining rounds so the caller can eject it into the room.
 // outcome: "ok" | "not-holder-fed" (wielded weapon takes no holder) | "no-holder"
-// (no compatible, loaded holder carried).
+// (no compatible, loaded holder carried) | "no-benefit" (a holder is already
+// seated and is at least as full as the best spare — swapping would only churn a
+// good clip onto the ground to decay, so it's declined; §11).
+//
+// For "no-benefit", loaded is the seated clip's round count and capacity is 0:
+// the seated holder's capacity isn't retained in the gun's abstract inserted-
+// holder state (only tpl/loaded/grade), and the decline message doesn't print it.
 func (a *connActor) InsertHolder() (outcome, weapon string, loaded, capacity int, ejectedTpl string, ejectedLoaded int, ejectedGrade string) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
@@ -3727,10 +3733,21 @@ func (a *connActor) InsertHolder() (outcome, weapon string, loaded, capacity int
 	if best == nil || bestLoaded <= 0 {
 		return "no-holder", weapon, 0, 0, "", 0, ""
 	}
-	// Capture the currently-inserted holder (if any) for ejection — including
-	// its round grade, so the ejected clip keeps its ammo grade (§8).
-	if tpl, l, g, has := gun.InsertedHolder(); has {
-		ejectedTpl, ejectedLoaded, ejectedGrade = tpl, l, g
+	// Capture the currently-inserted holder (if any) for ejection — including its
+	// round grade, so the ejected clip keeps its ammo grade (§8).
+	seatedTpl, seatedLoaded, seatedGrade, seatedHas := gun.InsertedHolder()
+	// Don't swap away a seated clip that's already at least as full as the best
+	// spare: a naive "always insert the fullest carried" ejects the good clip onto
+	// the ground (where it decays as scrap) and consumes a spare for no gain — or a
+	// loss when the seated clip was fuller (ammo-and-reloading §11). Round-count
+	// only; a grade-aware swap (keep fewer APDS over more regular) is the separate
+	// mixed-ammo question, deliberately out of scope here.
+	if seatedHas && seatedLoaded >= bestLoaded {
+		// capacity 0: the seated holder's size isn't tracked here (see doc note).
+		return "no-benefit", weapon, seatedLoaded, 0, "", 0, ""
+	}
+	if seatedHas {
+		ejectedTpl, ejectedLoaded, ejectedGrade = seatedTpl, seatedLoaded, seatedGrade
 	}
 	// Insert the new holder: record its state (+ its rounds' grade) on the gun,
 	// consume the item.
