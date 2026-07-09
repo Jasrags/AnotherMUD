@@ -152,6 +152,71 @@ Content inventory:
 
 **Size: Small** — landed as a live test + a content rename. The magazine model (B), burst-fire, and SR cross-room are separate slices.
 
+### SR-M3f — Ammo holders + the unified reload (Tier B-lite)  · **Medium–Large Go · PLANNED**
+
+> **STATUS: PLANNED — spec'd, not built.** Behavior contract:
+> `docs/specs/ammo-and-reloading.md`. This makes ammunition physical: rounds live
+> in removable **holders** (clip/magazine/belt), holders go *into* the weapon,
+> firing draws from the inserted holder, and `reload` swaps holders — the spent
+> one **ejects** to the ground (recoverable, then decays). It is partly a
+> **refactor of SR-M3e**: the loaded-round count moves off the gun instance and
+> onto a holder item. Internally-fed weapons (a revolver's cylinder) keep the
+> SR-M3e loose-round model unchanged. Design decisions are settled in the spec
+> (Tier B-lite; recoverable-then-decay; the unified `reload`; homogeneous
+> holders).
+
+**The two slices.**
+
+**SR-M3f-1 — Holders as items + insert + fire-from-holder (the refactor).**
+- **Holder item** — a constrained container (`inventory-equipment-items`): content
+  fields for capacity, accepted round kind, and the weapon **family it fits**;
+  a loaded-round count on the instance (generalize SR-M3e's `loaded` property +
+  `MagazineLoaded`/`SetMagazineLoaded` from "the gun" to "the holder").
+- **Holder-fed weapon** — declares it accepts a holder family (e.g. `accepts_holder`),
+  distinct from an internally-fed weapon's own `magazine`. `combat.Stats` /
+  `weaponInfo` carry it as SR-M3e did the magazine fields.
+- **The inserted-holder relationship** — a holder-fed weapon references its
+  inserted holder (a gun→holder link; either a dedicated field on the weapon
+  instance or the `Contents` nesting, spec §9). Firing (`ConsumeAmmo`) draws from
+  the inserted holder's count instead of the gun's own; empty inserted holder →
+  the existing dry path.
+- **`reload` unification** (spec §3): no-arg on a holder-fed weapon selects a
+  compatible loaded holder from inventory, inserts it, **ejects** the prior
+  holder to the room (basic eject here; decay in -2); `reload <holder>` fills a
+  named holder from loose rounds; internally-fed weapons keep the SR-M3e fill.
+- **Persistence** — the hard part beyond SR-M3e: a holder's load persists whether
+  it's a loose inventory item (extend the `InventoryEntry.Loaded` path) OR
+  **inserted in a weapon** (the `EquippedItem` must carry its inserted holder's
+  template + load, or the inserted holder is its own record). No save-version bump
+  if it stays additive/`omitempty` like SR-M3e.
+
+**SR-M3f-2 — Ejection decay + shop SKUs + grade-through-holder.**
+- **Decay** — an ejected holder lingers then decays, reusing the timed-decay tick
+  pattern of `loot-and-corpses` (a new `ANOTHERMUD_EJECTED_HOLDER_LIFETIME` knob).
+- **Shop SKUs** — the fixer stocks **loaded clips** (primary buy), **loose
+  rounds** (refills), and **empty clips** (cheap spares).
+- **Grade-through-holder** (spec §8) — a homogeneous holder captures its rounds'
+  grade at fill and applies it per shot, **retiring the deferred "typed/masterwork
+  ammo in a magazine" item** (`sr-m3c-deferred-fixes` SR-M3e tails).
+- **Content** — an Ares Predator V clip (fits heavy-pistol, holds 15, `bullet`);
+  optionally an SMG clip.
+
+**Deferred (own slices, spec §11 open questions):** reload as a **timed action**
+(instant for the first slice, as SR-M3e); **mixed-ammo** holders (homogeneous
+assumed); **speed-loaders / belts** as holder sub-behaviors; compatibility
+strictness (weapon-family vs exact-id); auto-select order among several loaded
+holders.
+
+**Acceptance criteria** (from `ammo-and-reloading`)
+- [ ] A holder-fed weapon fires from an inserted holder; `reload` inserts a
+      compatible loaded holder and ejects the prior one (with its remaining rounds).
+- [ ] `reload <holder>` fills a named holder from loose rounds; a holder rejects a
+      round kind different from what it holds.
+- [ ] An ejected holder lands in the room recoverable, then decays.
+- [ ] A holder's load (and grade) persists across relog, carried or inserted.
+- [ ] Masterwork/special rounds confer their grade when fired from a holder.
+- [ ] Internally-fed weapons (the revolver path) are unchanged from SR-M3e.
+
 ### SR-M4 — Essence pool + `degrades: magic`  · **Small Go · OPTIONAL (mage prerequisite)**
 
 `pool.Rules.Degrades` is built but used by nobody (plan §4.4). An `essence` pool whose `current` clamps a `magic` channel max is the textbook use. **Not required for a mundane Street Samurai** — sequence it when the *first mage/adept* is on the table, or as a "close the Essence-is-exotic myth" demo.
