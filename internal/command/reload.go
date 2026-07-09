@@ -5,7 +5,7 @@ import (
 	"fmt"
 )
 
-// ReloadHandler implements the `reload` admin verb (M17.3): re-read
+// ReloadScriptsHandler implements the `reloadscripts` admin verb (M17.3): re-read
 // pack Lua from disk and hot-swap the scripting runtime without a
 // server restart. Touches only the scripting layer — world.World and
 // the content registries are left alone (script-only reload).
@@ -16,7 +16,7 @@ import (
 // composition root supplies the ReloadScripts closure; when it is nil
 // (tests, or a build without scripting) the verb reports that reloading
 // is unavailable rather than pretending to succeed.
-func ReloadHandler(ctx context.Context, c *Context) error {
+func ReloadScriptsHandler(ctx context.Context, c *Context) error {
 	if c.ReloadScripts == nil {
 		return c.Actor.Write(ctx, "Reloading is not enabled.")
 	}

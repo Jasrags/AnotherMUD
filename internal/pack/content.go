@@ -126,6 +126,18 @@ type ItemFile struct {
 	// (a crossbow) and is its load time in engine ticks (action-economy.md §7.1).
 	// 0 (absent) = fires freely (a bow). Validated non-negative at load.
 	ReloadTicks int `yaml:"reload_ticks,omitempty"`
+	// Magazine is a firearm's magazine capacity (the SR5 "Ammo" rating): the
+	// number of rounds it holds loaded. > 0 marks a MAGAZINE weapon — firing
+	// draws from the loaded count on the item instance (not per-shot from
+	// inventory), and `reload` refills it from carried ammo. 0 (absent) = the
+	// per-shot loose-round model (a bow) or the single-chamber ReloadTicks model
+	// (a crossbow). Validated non-negative at load.
+	Magazine int `yaml:"magazine,omitempty"`
+	// ReloadMethod names how a magazine weapon reloads (SR5 reloading table:
+	// clip / speed-loader / internal / cylinder / break / belt / drum /
+	// muzzle-loader). Drives the reload action cost + amount. Empty on a
+	// magazine weapon defaults to "clip". Recorded-only for non-magazine weapons.
+	ReloadMethod string `yaml:"reload_method,omitempty"`
 	// Armor depth (armor-depth §2). All optional, recorded-only this slice
 	// (inert until the AC/mitigation/proficiency/check-penalty consumers
 	// land). armor_bonus is the structured AC term; armor_max_dex caps the

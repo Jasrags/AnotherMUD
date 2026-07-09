@@ -110,6 +110,14 @@ type Stats struct {
 	// ammo per shot. 0 = a freely-firing bow/thrown weapon (unchanged).
 	ReloadTicks int
 
+	// Magazine > 0 marks the wielded projectile as a MAGAZINE weapon (a
+	// firearm): it holds a loaded-round count on the item instance, firing
+	// decrements that count (via the session ammo hook) instead of consuming a
+	// loose round from inventory, and `reload` refills it. 0 = the loose-round
+	// (bow) or single-chamber ReloadTicks (crossbow) model. Populated from the
+	// wielded weapon by the holder's Stats() builder.
+	Magazine int
+
 	// Reach is the wielded weapon's reach rating (special-weapons §3) — a
 	// numeric, cross-ruleset weapon stat (0 = an ordinary close weapon). In WoT
 	// the round loop reads `Reach > 0` so a reach wielder swings at the `near`

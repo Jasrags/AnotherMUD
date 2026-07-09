@@ -127,37 +127,52 @@ ganger.
 > The Stun monitor seeds from **Willpower**; the Physical monitor is the flat
 > hp/Vitals track (Design 1 — not yet Body-derived, a tracked SR-M3 tail).
 
-## 40. Firearms & ammo (the Ares Predator V)
+## 40. Firearms & the magazine (Ares Predator V)
 
-A firearm is `ranged_class: projectile` with `ammo_kind: bullet`; it spends one
-matching round per shot from your inventory. Single-district combat is the
-**melee band**, so a gun fires at a point-blank penalty (SR5) — buff **Agility**
-(firearm to-hit = skill + Agility) if you want reliable hits in a demo.
+A firearm is `ranged_class: projectile` with `ammo_kind: bullet` and a
+**magazine** (the Predator V holds **15 rounds**, SR5 "15 (c)"). Unlike a bow's
+loose arrows, a firearm draws from its **loaded magazine**, not straight from
+your pack: you `reload` rounds into the magazine, then each shot spends one
+loaded round until it runs dry. A freshly-picked-up gun is **empty** until you
+reload it. Single-district combat is the **melee band**, so a gun fires at a
+point-blank penalty (SR5) — buff **Agility** (firearm to-hit = skill + Agility)
+for reliable demo hits.
 
-### Dry-fire — no ammo
+### Empty until reloaded
 
-- [ ] On the corner, `get pistol`, `equip pistol wield` — **do not** pick up any
-      rounds yet. `equipment` shows the Ares Predator V wielded.
-- [ ] `teleport shadowrun:market-street`, `kill ganger` — with an empty gun every
-      swing **clicks dry**: no shot fires and you deal no damage (the ganger stays
-      up). This is the ammo gate skipping the ammoless swing.
+- [ ] On the corner, `get pistol`, `equip pistol wield` — it spawns **empty**
+      (0/15). `reload` with nothing in your pack — "You have no rounds left to
+      reload with."
+- [ ] `teleport shadowrun:market-street`, `kill ganger` — an empty gun **clicks
+      dry** every swing (no shot, no damage). This is the magazine gate.
 
-### Fed — one round per shot
+### Load the magazine, then fire it down
 
-- [ ] Get bullets: on the corner `get round` (the caseless round on the ground)
-      or, better for a sustained fight, `buy clip` a few times from the fixer
-      (§42) — caseless rounds **stack** in your inventory (`i` shows
-      `a caseless round (xN)`).
-- [ ] Back at Market Street, `kill ganger` — the pistol now **fires**, spending
-      **one bullet per shot** (`i` shows the stack shrinking), and a landed shot
-      is **lethal** (no `target_pool` → the Physical monitor, through the ganger's
-      soak, like the katana). Run the stack dry and it clicks empty again;
-      re-supply and it resumes firing next round (no re-engage).
+- [ ] Get rounds: `buy clip` several times from the fixer (§42), or `get round`
+      on the corner — caseless rounds **stack** in inventory (`i` → `a caseless
+      round (xN)`).
+- [ ] `reload` — "You slap a fresh magazine into an Ares Predator V. (N/15)",
+      N being how many rounds you had, capped at 15. Carrying rounds isn't enough
+      — they must be **in the magazine**. `reload` again on a full mag — "It's
+      already fully loaded. (15/15)".
+- [ ] Back at Market Street, `kill ganger` — the pistol **fires**, spending one
+      loaded round per swing (the magazine ticks down); a landed shot is
+      **lethal** (no `target_pool` → the Physical monitor, through the ganger's
+      soak, like the katana). When the magazine empties it **clicks dry** — `reload`
+      to top up and keep firing.
 
-> Resolved as **per-shot rounds** (Option A): the "clip" is a single caseless
-> round, id `ammo-clip`, name "a caseless round". A true **magazine** model
-> (Option B), **SMG burst**, and **cross-room `shoot`** are deferred (see the
-> SR-M3c deferred-fixes memory).
+### The magazine persists
+
+- [ ] Reload to full, `quit`, log back in, and `reload` — it reports "already
+      fully loaded. (15/15)": the loaded rounds round-trip through your save, so a
+      loaded gun stays loaded across relog.
+
+> `reload` is the firearm verb; `load` still chambers a crossbow. Reload is
+> **instant** in this slice — the SR5 reload **action cost** (a Simple/Complex
+> action per the reloading table) is a tracked follow-on. Magazine rounds are
+> abstract (a count, not typed rounds), so masterwork/special ammo loaded into a
+> magazine isn't modeled yet. Still deferred: **SMG burst** and **cross-room
+> `shoot`**.
 
 ## 41. Cyberware (augmentation on the score sheet)
 

@@ -115,7 +115,7 @@ func TestAdminGate_GatesReloadAndXP(t *testing.T) {
 	r := newRegistry(t) // builtins, incl. admin-marked reload + xp
 	plebe := newRoleActor("Bob", "p-2")
 	env := command.Env{AdminRole: "admin"}
-	for _, verb := range []string{"reload", "xp", "grant", "revoke"} {
+	for _, verb := range []string{"reloadscripts", "xp", "grant", "revoke"} {
 		if err := r.Dispatch(context.Background(), env, plebe, verb+" x"); err != nil {
 			t.Fatal(err)
 		}

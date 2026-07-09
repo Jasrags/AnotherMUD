@@ -83,15 +83,19 @@ func TestLive_ShadowrunFirearm(t *testing.T) {
 		t.Fatal("an empty pistol never clicked dry in melee — the AmmoFor gate isn't skipping the ammoless swing")
 	}
 
-	// Phase 2 — the pistol fires once fed. Spawn a stack; the next swings spend a
-	// `bullet` and a landed shot deals damage on the Physical monitor (lethal, no
-	// target_pool) through the ganger's soak.
+	// Phase 2 — the magazine model: carrying rounds isn't enough, you must
+	// `reload` them into the magazine. Spawn a stack, reload the Predator V, and
+	// the next swings spend loaded rounds; a landed shot deals damage on the
+	// Physical monitor (lethal, no target_pool) through the ganger's soak.
 	send("spawn item ammo-clip 8 me")
+	if out := send("reload"); !strings.Contains(strings.ToLower(out), "fresh magazine") {
+		t.Fatalf("reload did not load the Predator V's magazine from carried rounds:\n%s", out)
+	}
 	hitRe := regexp.MustCompile(`(?i)hit a street ganger for \d+ damage`)
 	if !fightUntil(t, send, c, hitRe, 30*time.Second) {
-		t.Fatal("the fed pistol never landed a shot on the ganger — the firearm isn't firing/hitting in-room")
+		t.Fatal("the reloaded pistol never landed a shot on the ganger — the firearm isn't firing/hitting in-room")
 	}
-	t.Log("shadowrun verified live: empty heavy pistol clicked dry in melee, then fed with bullets it fired point-blank and hit the ganger on the Physical monitor")
+	t.Log("shadowrun verified live: empty Ares Predator V clicked dry in melee, then reloaded from carried rounds it fired point-blank and hit the ganger on the Physical monitor")
 }
 
 // fightUntil keeps the runner engaged with the ganger, `restore`-ing each round,

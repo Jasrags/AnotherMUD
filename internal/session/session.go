@@ -1478,8 +1478,13 @@ func spawnEntries(ctx context.Context, a *connActor, store *entities.Store, cont
 		if parentID != "" && contents != nil {
 			contents.Put(parentID, inst.ID())
 		}
+		// Restore a persisted magazine load onto the fresh instance (no-op for a
+		// non-magazine weapon or a nil count).
+		if entry.Loaded != nil {
+			inst.SetMagazineLoaded(*entry.Loaded)
+		}
 
-		survivor := player.InventoryEntry{Template: entry.Template}
+		survivor := player.InventoryEntry{Template: entry.Template, Loaded: entry.Loaded}
 		if len(entry.Contents) > 0 {
 			if tpl.Type != "container" || contents == nil {
 				// A non-container template carrying nested contents in
@@ -1559,6 +1564,12 @@ func respawnEquipment(ctx context.Context, a *connActor, store *entities.Store, 
 				slog.Any("err", err))
 			dropped = append(dropped, slotKey)
 			continue
+		}
+		// Restore a persisted magazine load onto the fresh instance so a
+		// reloaded wielded firearm keeps its rounds across relog (no-op for a
+		// non-magazine weapon or a nil count).
+		if entry.Loaded != nil {
+			inst.SetMagazineLoaded(*entry.Loaded)
 		}
 		// Companion slots are re-derived from the (re-spawned) template, not
 		// persisted (§3.8) — so a spanning item's full footprint is rebuilt
@@ -3185,6 +3196,7 @@ func cloneInventoryEntries(in []player.InventoryEntry) []player.InventoryEntry {
 		out[i] = player.InventoryEntry{
 			Template: e.Template,
 			Contents: cloneInventoryEntries(e.Contents),
+			Loaded:   e.Loaded,
 		}
 	}
 	return out
@@ -3434,6 +3446,28 @@ func (a *connActor) ConsumeAmmo(kind string) (string, bool) {
 	if a.items == nil {
 		return "", false
 	}
+	// Magazine weapon (a firearm): the wielded weapon holds its own loaded
+	// rounds — fire draws from that count on the item instance, not a loose
+	// round from inventory. An empty magazine is a dry click (reload refills
+	// it). The rounds are abstract (a count), so no per-round ammo grade rides
+	// the shot; the weapon's own grade is applied elsewhere in combat.
+	if wid, ok := a.equipment[mainHandSlot]; ok {
+		if e, ok := a.items.GetByID(wid); ok {
+			if w, isItem := e.(*entities.ItemInstance); isItem && w.Magazine() > 0 {
+				loaded := w.MagazineLoaded()
+				if loaded <= 0 {
+					return "", false // empty magazine — dry
+				}
+				w.SetMagazineLoaded(loaded - 1)
+				// The wielded weapon's magazine count changed; refresh the
+				// equipment save record so the new count persists (Persist does
+				// not re-sync equipment — combat changes bypass it, like vitals).
+				a.syncEquipmentToSaveLocked()
+				a.markDirtyLocked()
+				return "", true
+			}
+		}
+	}
 	for i, id := range a.inventory {
 		e, ok := a.items.GetByID(id)
 		if !ok {
@@ -3450,6 +3484,103 @@ func (a *connActor) ConsumeAmmo(kind string) (string, bool) {
 		return gradeKey, true
 	}
 	return "", false
+}
+
+// ReloadWieldedMagazine tops up the wielded magazine weapon's loaded rounds from
+// carried ammo of the weapon's ammo kind. It returns the loaded count before and
+// after, the magazine capacity, and whether the wielded weapon is magazine-fed
+// at all (false → the caller reports there's nothing to reload). A short supply
+// tops up what it can (a partial reload); consumed rounds leave inventory.
+func (a *connActor) ReloadWieldedMagazine() (before, after, capacity int, isMagazine bool) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	if a.items == nil {
+		return 0, 0, 0, false
+	}
+	wid, ok := a.equipment[mainHandSlot]
+	if !ok {
+		return 0, 0, 0, false
+	}
+	e, ok := a.items.GetByID(wid)
+	if !ok {
+		return 0, 0, 0, false
+	}
+	w, ok := e.(*entities.ItemInstance)
+	if !ok || w.Magazine() <= 0 {
+		return 0, 0, 0, false
+	}
+	capacity = w.Magazine()
+	before = w.MagazineLoaded()
+	need := capacity - before
+	if need <= 0 {
+		return before, before, capacity, true // already full
+	}
+	got := a.pullAmmoLocked(w.AmmoKind(), need)
+	after = before + got
+	if got > 0 {
+		w.SetMagazineLoaded(after)
+		// Persist the new magazine count with the equipped weapon (Persist does
+		// not re-sync equipment). pullAmmoLocked already re-synced inventory.
+		a.syncEquipmentToSaveLocked()
+		a.markDirtyLocked()
+	}
+	return before, after, capacity, true
+}
+
+// pullAmmoLocked removes up to `max` inventory items whose ammo kind matches
+// `kind`, returning how many it took. The caller holds a.mu. Ammo stacks are
+// separate entity ids (display-grouped), so this removes one id per round.
+func (a *connActor) pullAmmoLocked(kind string, max int) int {
+	if kind == "" || max <= 0 || a.items == nil {
+		return 0
+	}
+	got := 0
+	for got < max {
+		removed := false
+		for i, id := range a.inventory {
+			e, ok := a.items.GetByID(id)
+			if !ok {
+				continue
+			}
+			it, ok := e.(*entities.ItemInstance)
+			if !ok || it.AmmoKind() != kind {
+				continue
+			}
+			a.inventory = append(a.inventory[:i], a.inventory[i+1:]...)
+			got++
+			removed = true
+			break
+		}
+		if !removed {
+			break
+		}
+	}
+	if got > 0 {
+		a.syncInventoryToSaveLocked()
+	}
+	return got
+}
+
+// magazineLoadedForSave returns the loaded-round count to persist for entity
+// `id`, or nil when there's nothing to store — the item isn't a magazine weapon,
+// or its magazine is empty (an empty/untouched magazine respawns lazy-empty, so
+// storing 0 would only bloat the save). Caller holds a.mu.
+func (a *connActor) magazineLoadedForSave(id entities.EntityID) *int {
+	if a.items == nil {
+		return nil
+	}
+	e, ok := a.items.GetByID(id)
+	if !ok {
+		return nil
+	}
+	w, ok := e.(*entities.ItemInstance)
+	if !ok || w.Magazine() <= 0 {
+		return nil
+	}
+	if n := w.MagazineLoaded(); n > 0 {
+		return &n
+	}
+	return nil
 }
 
 // Equipment returns a snapshot of the actor's currently-equipped items
@@ -3542,6 +3673,7 @@ type weaponInfo struct {
 	rangedStyle    string
 	rangeIncrement int
 	reloadTicks    int
+	magazine       int
 	strRating      *int
 	// reach is the weapon's reach rating (special-weapons §3) — a numeric
 	// cross-ruleset stat; WoT reads `> 0` as "strikes at the near band". Read by
@@ -3627,6 +3759,7 @@ func (a *connActor) buildWeaponInfoLocked(id entities.EntityID) *weaponInfo {
 		rangedStyle:        it.RangedStyle(),
 		rangeIncrement:     it.RangeIncrement(),
 		reloadTicks:        it.ReloadTicks(),
+		magazine:           it.Magazine(),
 		strRating:          it.StrRating(),
 		reach:              it.Reach(),
 		set:                it.HasSpecial(item.SpecialSet),
@@ -5504,7 +5637,7 @@ func (a *connActor) syncEquipmentToSaveLocked() {
 			// drop policy in syncInventoryToSaveLocked.
 			continue
 		}
-		out[keys[0]] = player.EquippedItem{Template: tpl, Entity: string(id)}
+		out[keys[0]] = player.EquippedItem{Template: tpl, Entity: string(id), Loaded: a.magazineLoadedForSave(id)}
 	}
 	a.save.Equipment = out
 }
@@ -5707,7 +5840,7 @@ func (a *connActor) buildSaveEntriesLocked(ids []entities.EntityID) []player.Inv
 		if !ok {
 			continue
 		}
-		entry := player.InventoryEntry{Template: tpl}
+		entry := player.InventoryEntry{Template: tpl, Loaded: a.magazineLoadedForSave(id)}
 		if a.contents != nil && a.isContainerLocked(id) {
 			if child := a.buildSaveEntriesLocked(a.contents.In(id)); len(child) > 0 {
 				entry.Contents = child
@@ -6242,6 +6375,7 @@ func (a *connActor) Stats() combat.Stats {
 		s.RangedStyle = w.rangedStyle
 		s.RangeIncrement = w.rangeIncrement
 		s.ReloadTicks = w.reloadTicks
+		s.Magazine = w.magazine
 		s.Reach = w.reach                           // special-weapons §3: strikes at the `near` band too
 		s.Set = w.set                               // special-weapons §4: braced bonus blow vs a charge
 		s.Subdual = w.subdual                       // subdual-damage §2: a nonlethal finish knocks out

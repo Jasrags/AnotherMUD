@@ -208,7 +208,7 @@ func TestLoad_ShadowrunWeaponsAndArmor(t *testing.T) {
 	if baton.TargetPool != "stun" {
 		t.Errorf("stun-baton target_pool = %q, want stun (routes to the Stun monitor → KO)", baton.TargetPool)
 	}
-	for _, id := range []string{"katana", "heavy-pistol", "smg"} {
+	for _, id := range []string{"katana", "ares-predator-v", "smg"} {
 		w, err := regs.Items.Get(item.TemplateID("shadowrun:" + id))
 		if err != nil {
 			t.Fatalf("%s: %v", id, err)
@@ -219,9 +219,13 @@ func TestLoad_ShadowrunWeaponsAndArmor(t *testing.T) {
 	}
 
 	// Firearms are ranged and feed on `bullet` ammo.
-	pistol, _ := regs.Items.Get("shadowrun:heavy-pistol")
+	pistol, _ := regs.Items.Get("shadowrun:ares-predator-v")
 	if pistol.RangedClass != "projectile" || pistol.AmmoKind != "bullet" {
-		t.Errorf("heavy-pistol ranged = (%q,%q), want (projectile, bullet)", pistol.RangedClass, pistol.AmmoKind)
+		t.Errorf("ares-predator-v ranged = (%q,%q), want (projectile, bullet)", pistol.RangedClass, pistol.AmmoKind)
+	}
+	// The Predator V is magazine-fed (SR5 "15 (c)").
+	if pistol.Magazine != 15 || pistol.ReloadMethod != "clip" {
+		t.Errorf("ares-predator-v magazine = (%d,%q), want (15, clip)", pistol.Magazine, pistol.ReloadMethod)
 	}
 
 	// Armour carries the soak rating the channel map reads through `armor`.

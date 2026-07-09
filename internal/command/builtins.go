@@ -95,6 +95,7 @@ func RegisterBuiltins(r *Registry) error {
 		{Keyword: "gtell", Handler: GtellHandler, Brief: "Send a message to your party.", Syntax: []string{"gtell <message>"}, HandParsed: true, Args: []ArgDefinition{{Name: "message", Type: ArgText}}},
 		{Keyword: "lootmode", Handler: LootModeHandler, Brief: "Set or show your party's loot rules.", Syntax: []string{"lootmode", "lootmode ffa", "lootmode master [<member>]"}, HandParsed: true},
 		{Keyword: "load", Handler: LoadHandler, Brief: "Load a reloadable ranged weapon (a crossbow).", Syntax: []string{"load"}, IsAction: true},
+		{Keyword: "reload", Handler: ReloadHandler, Brief: "Reload a magazine weapon (a firearm).", Syntax: []string{"reload"}, IsAction: true},
 		{Keyword: "inventory", Aliases: []string{"i"}, Handler: InventoryHandler, Brief: "List the items you are carrying.", Syntax: []string{"inventory"}},
 		{Keyword: "equipment", Aliases: []string{"eq"}, Handler: EquipmentHandler, Brief: "Show your equipment slots (empty ones included).", Syntax: []string{"equipment"}},
 
@@ -322,7 +323,7 @@ func RegisterBuiltins(r *Registry) error {
 		// were ungated/bare until the role system landed (the standing
 		// "ungated until roles" verbs the spec §2 calls out).
 		{Keyword: "xp", Handler: XPHandler, Admin: true, Brief: "Grant yourself XP (admin probe).", Syntax: []string{"xp", "xp <amount> [track]"}},
-		{Keyword: "reload", Handler: ReloadHandler, Admin: true, Brief: "Reload pack scripts.", Syntax: []string{"reload"}},
+		{Keyword: "reloadscripts", Handler: ReloadScriptsHandler, Admin: true, Brief: "Reload pack scripts (admin).", Syntax: []string{"reloadscripts"}},
 		// wizinvis (visibility §3.4): toggle admin invisibility — staff walk
 		// unseen by lower ranks (render, target resolution, who). Flag-gated,
 		// does not break on action.

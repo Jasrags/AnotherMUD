@@ -3472,6 +3472,17 @@ func decodeItem(path, ns string) (*item.Template, error) {
 		return nil, fmt.Errorf("%w: %s: reload_ticks %d must be non-negative",
 			ErrInvalidContent, path, f.ReloadTicks)
 	}
+	if f.Magazine < 0 {
+		return nil, fmt.Errorf("%w: %s: magazine %d must be non-negative",
+			ErrInvalidContent, path, f.Magazine)
+	}
+	// reload_method is normalized (lowercase) but not vocabulary-validated —
+	// only "clip" is consumed today; other SR5 methods are recorded-only. A
+	// magazine weapon with no method defaults to "clip".
+	reloadMethod := strings.ToLower(strings.TrimSpace(f.ReloadMethod))
+	if f.Magazine > 0 && reloadMethod == "" {
+		reloadMethod = "clip"
+	}
 	if f.StrRating != nil && *f.StrRating < 0 {
 		return nil, fmt.Errorf("%w: %s: str_rating %d must be non-negative",
 			ErrInvalidContent, path, *f.StrRating)
@@ -3631,6 +3642,8 @@ func decodeItem(path, ns string) (*item.Template, error) {
 		RangedStyle:       rangedStyle,
 		RangeIncrement:    f.RangeIncrement,
 		ReloadTicks:       f.ReloadTicks,
+		Magazine:          f.Magazine,
+		ReloadMethod:      reloadMethod,
 		StrRating:         strRating,
 		ArmorBonus:        f.ArmorBonus,
 		ArmorMaxDex:       armorMaxDex,

@@ -25,7 +25,7 @@ func newReloadAdmin() *roleActor { return newRoleActor("Admin", "p-1", "admin") 
 
 func TestReload_DisabledWhenUnwired(t *testing.T) {
 	a := newReloadAdmin()
-	dispatchReload(t, command.Env{}, a, "reload") // no ReloadScripts
+	dispatchReload(t, command.Env{}, a, "reloadscripts") // no ReloadScripts
 	if got := a.lastLine(); got != "Reloading is not enabled." {
 		t.Errorf("got %q, want disabled message", got)
 	}
@@ -38,7 +38,7 @@ func TestReload_ReportsCount(t *testing.T) {
 		called = true
 		return 3, nil
 	}}
-	dispatchReload(t, env, a, "reload")
+	dispatchReload(t, env, a, "reloadscripts")
 	if !called {
 		t.Error("ReloadScripts closure not invoked")
 	}
@@ -52,7 +52,7 @@ func TestReload_SurfacesError(t *testing.T) {
 	env := command.Env{ReloadScripts: func(context.Context) (int, error) {
 		return 0, errors.New("compile scripts/bad.lua: syntax error near 'end'")
 	}}
-	dispatchReload(t, env, a, "reload")
+	dispatchReload(t, env, a, "reloadscripts")
 	if got := a.lastLine(); got != "Reload failed: compile scripts/bad.lua: syntax error near 'end'" {
 		t.Errorf("got %q, want surfaced error", got)
 	}

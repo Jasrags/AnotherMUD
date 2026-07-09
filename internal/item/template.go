@@ -142,6 +142,14 @@ type Template struct {
 	// (a crossbow) and is its load time in engine ticks (action-economy.md §7.1).
 	// 0 = fires freely (a bow). Validated non-negative at load.
 	ReloadTicks int
+	// Magazine is a firearm's magazine capacity (SR5 "Ammo"). > 0 marks a
+	// MAGAZINE weapon: firing draws from a loaded-round count on the item
+	// instance and `reload` refills it. 0 = per-shot loose rounds (bow) or the
+	// single-chamber ReloadTicks model (crossbow). Validated non-negative.
+	Magazine int
+	// ReloadMethod names how a magazine weapon reloads (SR5 reloading table).
+	// Empty on a magazine weapon defaults to "clip". Normalized lowercase.
+	ReloadMethod string
 	// StrRating caps the positive Strength damage bonus a projectile weapon
 	// grants (ranged-combat §4 — a composite / Strength-rated bow). nil is
 	// the default projectile rule (no positive Strength bonus; a negative

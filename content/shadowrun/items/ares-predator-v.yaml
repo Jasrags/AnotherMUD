@@ -27,6 +27,11 @@ ranged_class: projectile
 ammo_kind: bullet
 ranged_style: firearms
 range_increment: 5
+# Magazine-fed (SR5 "15 (c)" — a 15-round removable clip). Firing draws from the
+# loaded count on the item instance; `reload` refills it from carried caseless
+# rounds. A freshly-picked-up gun reads EMPTY until reloaded.
+magazine: 15
+reload_method: clip
 properties:
   weight: 2
   value: 725

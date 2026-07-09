@@ -514,6 +514,12 @@ type VitalsState struct {
 type InventoryEntry struct {
 	Template string           `yaml:"template"`
 	Contents []InventoryEntry `yaml:"contents,omitempty"`
+	// Loaded persists a magazine weapon's current loaded-round count so a
+	// reloaded firearm keeps its rounds across relog. A pointer so absent
+	// (nil) — the common non-firearm / empty-magazine case — stays out of the
+	// wire format and reads as an unloaded weapon on respawn. Additive with a
+	// safe zero-value, so no save-version bump (an old save simply has none).
+	Loaded *int `yaml:"loaded,omitempty"`
 }
 
 // EquippedItem is one entry in the persisted equipment map (v3+). The
@@ -523,6 +529,9 @@ type InventoryEntry struct {
 type EquippedItem struct {
 	Template string `yaml:"template"`
 	Entity   string `yaml:"entity"`
+	// Loaded persists a wielded magazine weapon's loaded-round count across
+	// relog (see InventoryEntry.Loaded). nil = not a firearm / empty magazine.
+	Loaded *int `yaml:"loaded,omitempty"`
 }
 
 // Store is a file-backed player store. Directories live at

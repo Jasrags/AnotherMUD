@@ -29,6 +29,10 @@ const (
 	// craft) may overwrite it on the instance, where it persists with the
 	// item's other instance properties (masterwork §6).
 	PropGrade = "grade"
+	// propLoadedRounds is the mutable instance property holding a magazine
+	// weapon's current loaded-round count. Absent = a full magazine (lazy-full,
+	// see MagazineLoaded); written on fire/reload and persisted with the item.
+	propLoadedRounds = "loaded"
 )
 
 // SourceKey is the modifier-source convention from §2.3 step 6 and
@@ -135,6 +139,8 @@ type ItemInstance struct {
 	rangedStyle    string
 	rangeIncrement int
 	reloadTicks    int
+	magazine       int
+	reloadMethod   string
 	strRating      *int
 	// resistances are the armor's per-damage-type damage reduction
 	// (armor-depth §4), keyed by damage type. nil = none. Aggregated across
@@ -417,6 +423,47 @@ func (it *ItemInstance) RangeIncrement() int { return it.rangeIncrement }
 // engine ticks; 0 means the weapon fires freely (a bow). action-economy §7.1.
 func (it *ItemInstance) ReloadTicks() int { return it.reloadTicks }
 
+// Magazine is a magazine weapon's capacity (SR5 "Ammo"); 0 means the weapon is
+// not magazine-fed (a bow's loose rounds, or a crossbow's single chamber).
+func (it *ItemInstance) Magazine() int { return it.magazine }
+
+// ReloadMethod names how a magazine weapon reloads (SR5 reloading table, e.g.
+// "clip"); empty for a non-magazine weapon.
+func (it *ItemInstance) ReloadMethod() string { return it.reloadMethod }
+
+// MagazineLoaded reports the rounds currently in a magazine weapon. A weapon
+// carries no explicit `loaded` property until it is reloaded or fired, and reads
+// EMPTY (0) until then — a freshly-spawned or freshly-picked-up firearm must be
+// reloaded before it fires. Once reloaded/fired, an explicit count is stored
+// (SetMagazineLoaded) and persists. Non-magazine weapons read 0.
+func (it *ItemInstance) MagazineLoaded() int {
+	if it.magazine <= 0 {
+		return 0
+	}
+	if v, ok := it.Property(propLoadedRounds); ok {
+		if n, ok := v.(int); ok {
+			return n
+		}
+	}
+	return 0 // lazy-empty: an untouched magazine weapon starts unloaded
+}
+
+// SetMagazineLoaded writes the current loaded-round count (clamped to
+// [0, Magazine]) as an instance property so firing and reload persist. A no-op
+// for a non-magazine weapon.
+func (it *ItemInstance) SetMagazineLoaded(n int) {
+	if it.magazine <= 0 {
+		return
+	}
+	if n < 0 {
+		n = 0
+	}
+	if n > it.magazine {
+		n = it.magazine
+	}
+	it.SetProperty(propLoadedRounds, n)
+}
+
 // StrRating returns the cap on a Strength-rated projectile weapon's
 // positive Strength damage bonus (ranged-combat §4), or nil for the default
 // projectile rule (no positive Strength bonus). The returned pointer is a
@@ -675,6 +722,8 @@ func buildInstanceFromTemplate(tpl *item.Template, id EntityID) *ItemInstance {
 		rangedStyle:       tpl.RangedStyle,
 		rangeIncrement:    tpl.RangeIncrement,
 		reloadTicks:       tpl.ReloadTicks,
+		magazine:          tpl.Magazine,
+		reloadMethod:      tpl.ReloadMethod,
 		strRating:         strRating,
 		resistances:       resistances,
 		armorCheckPenalty: tpl.ArmorCheckPenalty,
