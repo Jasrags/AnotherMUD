@@ -80,6 +80,11 @@ content:
     - grades/*.yaml
   items:
     - items/*.yaml
+  # Pack-declared property keys (loaded before areas/rooms so their
+  # `properties:` bags can reference them). `security` — the SR zone tier — lives
+  # here rather than in the engine baseline, keeping the engine setting-agnostic.
+  properties:
+    - properties/*.yaml
   areas:
     - areas/*.yaml
   rooms:

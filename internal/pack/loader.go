@@ -202,6 +202,28 @@ func Load(ctx context.Context, root string, filter []string, dst *Registries, sp
 		}
 	}
 
+	// Wire the property registry's dependency resolver (property Get §2.4 step 3)
+	// before the content pass validates any `properties:` bag, so a pack can
+	// reference a property declared by a pack it depends on via the bare `name`
+	// shorthand. Maps each pack's namespace → its DIRECT dependencies' namespaces
+	// (sorted for a stable first-hit-wins order — a manifest's dependency map has no
+	// declaration order). A pack that wants a transitive dependency's property must
+	// declare it directly or use the fully-qualified `pack:name` form.
+	if dst.Properties != nil {
+		deps := make(map[string][]string, len(ordered))
+		for _, p := range ordered {
+			ds := make([]string, 0, len(p.Manifest.Dependencies))
+			for depName := range p.Manifest.Dependencies {
+				ds = append(ds, DeriveNamespace(depName))
+			}
+			sort.Strings(ds)
+			deps[p.Namespace()] = ds
+		}
+		dst.Properties.SetDependencyResolver(func(pack string) []string {
+			return deps[pack]
+		})
+	}
+
 	// Phase 2: content pass.
 	var placements []pendingPlacement
 	var mobPlacements []pendingMobPlacement
@@ -987,6 +1009,10 @@ func loadPackContent(ctx context.Context, p Discovered, dst *Registries, scriptC
 	if err != nil {
 		return nil, nil, err
 	}
+	propertyPaths, err := resolveGlobs(p.Dir, p.Manifest.Content.Properties)
+	if err != nil {
+		return nil, nil, err
+	}
 
 	// M17.1b: discover, compile-check, and register pack scripts.
 	// Compile-check at boot is the cheapest place to surface a syntax
@@ -1001,6 +1027,25 @@ func loadPackContent(ctx context.Context, p Discovered, dst *Registries, scriptC
 		logger.Info("pack scripts loaded",
 			slog.String("event", "pack.scripts"),
 			slog.Int("count", len(scriptPaths)))
+	}
+
+	// Content-declared properties register FIRST — before this pack's areas and
+	// rooms, whose `properties:` bags are validated against the registry. Each
+	// installs a pack-scoped key (visible to this pack + its dependents);
+	// shadowing an engine baseline property is a load error (RegisterPack).
+	for _, pp := range propertyPaths {
+		entry, err := decodeProperty(pp)
+		if err != nil {
+			return nil, nil, err
+		}
+		if err := dst.Properties.RegisterPack(ns, entry); err != nil {
+			return nil, nil, fmt.Errorf("%w: %s: %v", ErrInvalidContent, pp, err)
+		}
+	}
+	if len(propertyPaths) > 0 {
+		logger.Info("pack properties declared",
+			slog.String("event", "pack.properties"),
+			slog.Int("count", len(propertyPaths)))
 	}
 
 	// Weather zones load BEFORE areas so an area's `weather_zone`
@@ -4441,6 +4486,62 @@ func validateRoomProperties(r *world.Room, reg *property.Registry, ns string) er
 		}
 	}
 	return nil
+}
+
+// decodeProperty reads a content-declared property file into a property.Entry.
+// The `type` string is mapped to a property.ValueType; `name` is required and
+// the registry enforces snake_case + uniqueness at registration. Pack scoping
+// (Entry.Pack) is set by RegisterPack, so it is left empty here.
+func decodeProperty(path string) (property.Entry, error) {
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		return property.Entry{}, fmt.Errorf("reading property %s: %w", path, err)
+	}
+	var pf PropertyFile
+	if err := yaml.Unmarshal(raw, &pf); err != nil {
+		return property.Entry{}, fmt.Errorf("%w: %s: %v", ErrInvalidContent, path, err)
+	}
+	if strings.TrimSpace(pf.Name) == "" {
+		return property.Entry{}, fmt.Errorf("%w: %s: missing 'name'", ErrInvalidContent, path)
+	}
+	vt, ok := parseValueType(pf.Type)
+	if !ok {
+		return property.Entry{}, fmt.Errorf("%w: %s: unknown property type %q (want one of string/int/int64/float64/bool/map_int/map_string/list_string)",
+			ErrInvalidContent, path, pf.Type)
+	}
+	return property.Entry{
+		Name:          strings.TrimSpace(pf.Name),
+		Type:          vt,
+		Description:   pf.Description,
+		AppliesTo:     pf.AppliesTo,
+		AdminSettable: pf.AdminSettable,
+		Transient:     pf.Transient,
+	}, nil
+}
+
+// parseValueType maps a content `type:` string to a property.ValueType,
+// mirroring property.ValueType.String(). Returns false for an unknown type.
+func parseValueType(s string) (property.ValueType, bool) {
+	switch strings.TrimSpace(s) {
+	case "string":
+		return property.TypeString, true
+	case "int":
+		return property.TypeInt, true
+	case "int64":
+		return property.TypeInt64, true
+	case "float64":
+		return property.TypeFloat64, true
+	case "bool":
+		return property.TypeBool, true
+	case "map_int":
+		return property.TypeMapInt, true
+	case "map_string":
+		return property.TypeMapString, true
+	case "list_string":
+		return property.TypeListString, true
+	default:
+		return 0, false
+	}
 }
 
 // validateAreaProperties is validateRoomProperties for the area property bag:

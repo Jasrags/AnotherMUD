@@ -90,19 +90,55 @@ An **area** carries its own `properties:` bag (the area-level counterpart to the
 room bag), validated the same way (`validateAreaProperties`, `loader.go`): an
 unregistered key or a type mismatch fails the boot. It holds supra-room metadata
 as one setting per district rather than the same value repeated on every room.
-The engine baseline:
+The engine baseline (generic area metadata):
 
 | Key | Type | Meaning |
 |-----|------|---------|
 | `region` | string | Supra-area grouping id (a sprawl / nation / continent tier above the area). |
-| `security` | string | Area danger / enforcement tier — a content-defined string (e.g. the Shadowrun `AAA`…`Z` zones). Classification only; **no engine behavior is wired to it yet** (patrol response is a backlog item). |
 | `level_range` | string | Mob-tuning band hint (e.g. `"1-10"`); descriptive, not an enforced gate. |
 
 Read them off `world.Area` via `Property` / `PropertyString` / `PropertyInt` /
-`PropertyBool`. **Limitation:** there is no content-side property-*declaration*
-path today — a pack cannot register a new area property from YAML, so an
-area-property key must exist in the engine baseline above (or be added there).
-Adding a fourth area property is currently a small engine edit, not pure content.
+`PropertyBool`. Setting-specific area keys are **pack-declared** (§2c) rather than
+baked into the baseline — e.g. Shadowrun's `security` zone tier lives in
+`content/shadowrun/properties/security.yaml`, so `properties: { security: A }` on
+an SR area validates against that pack-scoped key.
+
+### 2c. Pack-declared properties (`content: { properties: [...] }`)
+
+A pack **declares its own property keys** from content — no engine edit needed.
+Add a `properties:` glob to the manifest `content:` block and drop a file per key:
+
+```yaml
+# content/<pack>/pack.yaml
+content:
+  properties: [properties/*.yaml]   # loaded BEFORE this pack's areas/rooms
+```
+
+```yaml
+# content/<pack>/properties/security.yaml
+name: security          # snake_case; the property key
+type: string            # string | int | int64 | float64 | bool | map_int | map_string | list_string
+applies_to: [area]      # optional, diagnostic only (not enforced)
+description: ...         # optional
+admin_settable: false   # optional
+transient: false        # optional — serializer skips it
+```
+
+Rules:
+- The key is **pack-scoped** — namespaced to the declaring pack. A bare
+  `security:` resolves within the declaring pack, and within any pack that lists
+  it as a **direct dependency** (the property registry walks a pack's declared
+  dependencies). To reach a *transitive* dependency's key, declare it directly or
+  use the fully-qualified `pack:name` form.
+- **Shadowing an engine baseline key is a load error** (declare a *new* name, or
+  rely on the baseline `region`/`level_range`).
+- Declared **before** the pack's areas/rooms load, so their `properties:` bags can
+  reference the new keys immediately.
+- An unknown `type:`, a missing `name:`, or a duplicate is a boot error.
+
+This is the content-side counterpart to the engine baseline in `properties.go`.
+Use it for world-specific metadata (a setting's zone tiers, currencies of meaning,
+faction flags) instead of adding to the engine baseline.
 
 ### 2b. Item properties — **free-form** (not validated; engine acts on specific keys)
 
@@ -172,7 +208,8 @@ consistently on the tool item and the node template.
 - **A trainer:** mob with `tags: [skill_trainer]` + a `trainer:` block listing taught abilities.
 - **A safe town room:** `tags: [safe-room]`.
 - **A forge/kitchen:** room `properties: { craft_stations: { smithing: 2 } }`.
-- **A classified district:** area `properties: { region: seattle, security: A, level_range: "1-10" }` (see §2a′).
+- **A classified district:** area `properties: { region: seattle, level_range: "1-10" }` (baseline keys, §2a′); a world-specific key like `security: A` is **pack-declared** (§2c).
+- **A pack-declared property:** manifest `content: { properties: [properties/*.yaml] }` + a `properties/<key>.yaml` with `name`/`type` (§2c).
 - **A weapon:** item `weapon_damage: "1d8"`, `eligible_slots: [wield]`, `properties: { value: N }`.
 - **A torch/lantern:** item with `light` + `lit` + `fuel` properties and the `light` eligible slot.
 - **A gathering tool:** item `tags: [mining-tool]` (any tag); the node template's `required_tool` names the same tag.

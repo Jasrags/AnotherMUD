@@ -40,6 +40,20 @@ type AreaFile struct {
 	Properties map[string]any `yaml:"properties,omitempty"`
 }
 
+// PropertyFile is the YAML shape for one content-declared property
+// (persistence §2.2). It mirrors property.Entry: `name` is the snake_case
+// key, `type` names the value type (string/int/int64/float64/bool/map_int/
+// map_string/list_string), and the rest are optional metadata. Registered
+// pack-scoped at load via property.Registry.RegisterPack.
+type PropertyFile struct {
+	Name          string   `yaml:"name"`
+	Type          string   `yaml:"type"`
+	Description   string   `yaml:"description,omitempty"`
+	AppliesTo     []string `yaml:"applies_to,omitempty"`
+	AdminSettable bool     `yaml:"admin_settable,omitempty"`
+	Transient     bool     `yaml:"transient,omitempty"`
+}
+
 // SpawnRuleFile is the YAML shape for one entry of
 // AreaFile.SpawnRules (spec mobs-ai-spawning §3.5). Bare ids in
 // `room:` and `mob:` resolve against the current pack namespace;

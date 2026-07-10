@@ -1,0 +1,13 @@
+# Shadowrun security-zone tier — a pack-declared area property (the content-side
+# property-declaration path). `security` classifies an area's danger / enforcement
+# level (the AAA…Z zones of docs/shadowrun/sr2075_geography_mud.md): AAA corp HQs
+# with instant lethal response down to Z barrens where law doesn't try. A
+# content-defined string today (no engine behaviour wired yet — the security-zone
+# response system is a backlog item); consumers will read it for patrol response,
+# SIN-gated access, and pricing.
+name: security
+type: string
+applies_to: [area]
+description: >
+  Shadowrun area danger / enforcement tier (AAA, AA, A, B, C, Z). Classification
+  metadata read by security-zone consumers; no engine behaviour wired yet.

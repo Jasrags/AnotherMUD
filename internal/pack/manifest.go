@@ -128,8 +128,17 @@ type CurrencyManifest struct {
 // ContentPaths enumerates per-category file globs (spec §2.2 "content"
 // block). Paths are relative to the pack directory.
 type ContentPaths struct {
-	Areas       []string `yaml:"areas,omitempty"`
-	Rooms       []string `yaml:"rooms,omitempty"`
+	Areas []string `yaml:"areas,omitempty"`
+	Rooms []string `yaml:"rooms,omitempty"`
+	// Properties declares content-defined property keys (persistence §2.2).
+	// Each file registers a PACK-scoped property (namespaced to this pack, and
+	// visible to packs that depend on it); an entry that shadows an engine
+	// baseline property is a load error. Loaded EARLY — before this pack's
+	// areas/rooms — so their `properties:` bags can reference keys this pack
+	// declares. This is the content-side counterpart to the engine baseline in
+	// `properties.go`; it lets a world pack add its own metadata keys without
+	// an engine edit.
+	Properties  []string `yaml:"properties,omitempty"`
 	Items       []string `yaml:"items,omitempty"`
 	Slots       []string `yaml:"slots,omitempty"`
 	Mobs        []string `yaml:"mobs,omitempty"`

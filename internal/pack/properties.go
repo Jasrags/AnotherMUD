@@ -93,21 +93,19 @@ func RegisterEngineBaselineProperties(reg *property.Registry) error {
 		{
 			Name:        "region",
 			Type:        property.TypeString,
-			Description: "Supra-area grouping id (a sprawl / nation / continent tier above the area); content and future systems key economy, presence, and travel off it.",
-			AppliesTo:   []string{"area"},
-		},
-		{
-			Name:        "security",
-			Type:        property.TypeString,
-			Description: "Area danger / enforcement tier (a content-defined string, e.g. the Shadowrun AAA…Z zones); a classification consumers read to drive response, access, and pricing. No engine behavior wired yet.",
+			Description: "Supra-area grouping id (a sprawl / nation / continent tier above the area); content and future systems key economy, presence, and travel off it. Generic area metadata, engine baseline.",
 			AppliesTo:   []string{"area"},
 		},
 		{
 			Name:        "level_range",
 			Type:        property.TypeString,
-			Description: "Planning hint for mob tuning in this area (a band like \"1-10\"); descriptive metadata, not an enforced gate.",
+			Description: "Planning hint for mob tuning in this area (a band like \"1-10\"); descriptive metadata, not an enforced gate. Generic area metadata, engine baseline.",
 			AppliesTo:   []string{"area"},
 		},
+		// NOTE: setting-specific area metadata is now content-declared, not
+		// baked into the engine baseline — e.g. Shadowrun's `security` zone tier
+		// lives in content/shadowrun/properties/security.yaml (dogfooding the
+		// pack property-declaration path), keeping the engine setting-agnostic.
 	}
 	for _, e := range baseline {
 		if err := reg.RegisterEngine(e); err != nil {
