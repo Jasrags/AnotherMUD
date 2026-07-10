@@ -1,0 +1,27 @@
+id: downtown
+name: Downtown Seattle
+description: |
+  The corporate heart of the metroplex: mirrored arcologies and government
+  spires crowd a skyline that never fully darkens, while the streets below run
+  on upscale nightlife, Knight Errant patrols, and the quiet trade of the
+  shadows. This is the first authored district of the Seattle build — the
+  Downtown core the gazetteer says to raise first (sr2075_geography_mud.md,
+  Build order), radiating out to the barrens and corp enclaves later.
+# Reset cadence in ticks; ~30s at the default 100ms tick (mirrors the seattle
+# test area).
+reset_interval: 300
+# Neon-lit sprawl: the district's ad-boards and street lighting keep the streets
+# navigable after dark — full by day, DIM (not gloom) at night — without a light
+# source, exactly as the seattle area floor does. Interiors pin their own light.
+light_floor: dim
+# Outdoor rooms draw rain + day/night ambience from the shared sprawl weather
+# zone (weather_zones/sprawl.yaml).
+weather_zone: sprawl
+# Area classification metadata (the area property bag; see seattle.yaml + the
+# geography doc's master table). Downtown is the corp core: `security: AA`
+# (fast Knight Errant response), region `seattle`, a starter mob-tuning band.
+# Descriptive today — no engine behaviour is wired to these yet.
+properties:
+  region: seattle
+  security: AA
+  level_range: "1-10"

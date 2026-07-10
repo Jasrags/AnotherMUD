@@ -1,0 +1,18 @@
+id: pioneer-square
+area: downtown
+name: "{y}Pioneer Square{x}"
+description: |
+  Old Seattle survives here in soot-black brick and wrought iron, the only
+  stone in Downtown that predates the corps. A pergola sags under a century of
+  rain, and a rusted stairwell descends into the dark below the street, breathing
+  up warm air and the distant sound of a crowd. Metahumans move easier in this
+  quarter; the corp gloss thins east of the Plaza. Westlake Plaza lies west, the
+  Big Rhino's sign burns orange to the east, and the stairs drop down into the
+  Ork Underground.
+terrain: sprawl
+exits:
+  west: downtown-plaza
+  east: the-big-rhino
+# STUB: down should seam into the Ork Underground (biome underground; Z/C
+# security) once that area is authored — the subterranean ork/troll city beneath
+# Downtown. Left unwired for now; add the reverse `up` on the Underground entry.

@@ -1,0 +1,30 @@
+id: knight-errant-officer
+name: a Knight Errant officer
+xp_value: 55  # kill experience (grouping.md §4); on par with corp-sec
+type: npc
+behavior: stationary
+description: |
+  Seattle's law wears Ares Knight Errant grey: a helmeted officer in a plated
+  patrol rig, smartlinked SMG slung and cyber-eyes strobing over the crowd. KE
+  holds the metroplex contract, and in a AA zone like the corporate core their
+  response time is measured in minutes, not hours. She is professional, bored,
+  and entirely willing to escalate if you give her cause.
+tags: [humanoid, security, corp, law]
+keywords: [officer, knight, errant, ke, cop, security]
+# Neutral: she won't start it, but trespass or draw on her and she returns fire
+# (same posture as the corp sec-guard).
+disposition_rules:
+  default: neutral
+# SMG (ranged, fires free on the mob ammo path) + an armoured vest feeding her
+# Shadowrun soak (body + armor via the wired mitigation input).
+equipment: [smg, armor-vest]
+stats:
+  hp_max: 30
+  body: 4
+  agility: 4
+  reaction: 5
+  strength: 4
+  willpower: 4
+  intuition: 4
+# Reuse the existing corp-security loot table (sr guards drop compatible gear).
+loot_table: sec-guard-loot

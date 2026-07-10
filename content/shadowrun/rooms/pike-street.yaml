@@ -1,0 +1,14 @@
+id: pike-street
+area: downtown
+name: "{M}Pike Street{x}"
+description: |
+  The strip comes alive after dark: holo-signage bleeds red and violet across
+  the wet pavement, and the bass from a dozen clubs thuds up through your boots.
+  Hawkers work the crowd with BTL chips and stimpatches, ganger colours mix with
+  corp-kid slumming money, and the smell of soy-grilled skewers hangs in the
+  rain. A doorway crowned in flickering hellfire neon marks the entrance to
+  Dante's Inferno to the south; Westlake Plaza lies back to the north.
+terrain: sprawl
+exits:
+  north: downtown-plaza
+  south: dantes-inferno

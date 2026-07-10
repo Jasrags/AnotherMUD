@@ -1,0 +1,26 @@
+id: dantes-inferno
+area: downtown
+name: "{R}Dante's Inferno{x}"
+description: |
+  Inside, the club is a cathedral of controlled Hell: the main floor throbs with
+  bass and red light, and a spiral of stairs climbs toward the upper circles
+  where the real business is done. This is neutral shadow ground — corp suits,
+  gangers, and deniable assets drink at the same bar under the club's iron rule
+  that nobody starts anything here. A Mr. Johnson waits in a booth along the far
+  wall, watching the door. The street door lets back out onto Pike Street to the
+  north.
+# Interior: shielded from weather + time like the demo forge; the club sets its
+# own light rather than taking the district's neon floor.
+terrain: indoors
+exits:
+  north: pike-street
+properties:
+  # A club floor is dim by design, but lit enough to read a contract by — an
+  # authored override so the interior never drops to gloom regardless of the
+  # hour (light-and-darkness §9, same mechanism as the forge's `lit`).
+  light: dim
+# Neutral shadow ground: a safe hub where the job-giver lives. No combat, no
+# spawns. `safe` also satisfies the training safe-room gate.
+tags: [safe-room, safe]
+mobs:
+  - mr-johnson

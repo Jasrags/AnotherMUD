@@ -1,0 +1,21 @@
+id: downtown-plaza
+area: downtown
+name: "{C}Westlake Plaza{x}"
+description: |
+  Ferrocrete and polished granite open into the plaza at the centre of Downtown,
+  ringed by arcologies whose logos turn slow against the drizzle. A dead fountain
+  holds a skin of rainwater and cigarette ends, and grav-ads drift overhead
+  murmuring corp slogans to no one. Office drones cut across in a hurry, eyes on
+  their commlinks. The corporate canyon of Fifth Avenue runs north, the neon of
+  Pike Street glows south, historic Pioneer Square lies east, and the cold air
+  off Elliott Bay drifts in from the west.
+terrain: sprawl
+exits:
+  north: fifth-avenue
+  south: pike-street
+  east: pioneer-square
+  west: waterfront
+# A safe hub, like the seattle test corner and the demo town square: no combat,
+# no spawns — a place to orient, read `score`, and pick a direction. `safe` also
+# satisfies the training safe-room gate.
+tags: [safe-room, safe]

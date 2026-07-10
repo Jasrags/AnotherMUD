@@ -1,0 +1,23 @@
+id: ork-bartender
+name: the Big Rhino's bartender
+type: npc
+behavior: stationary
+description: |
+  A slab-shouldered ork in a stained apron works the taps with surprising care,
+  tusks framing an easy grin for anyone who isn't looking for trouble. Both
+  forearms are a map of old scars and older tattoos; the sawn-off under the bar
+  is an open secret that keeps the Big Rhino peaceful. He runs the closest thing
+  Downtown has to neutral metahuman ground, and he means to keep it that way.
+tags: [humanoid, metahuman]
+keywords: [bartender, ork, barkeep, rhino]
+# The host of a safe hub — friendly to everyone.
+disposition_rules:
+  default: friendly
+stats:
+  hp_max: 30
+  body: 5
+  strength: 5
+  willpower: 4
+# TODO (shop hook): make the bartender a drinks/rumours vendor — a `properties.
+# shop` block selling soykaf, synthahol, and stimpatches (economy-survival §3.1;
+# mirror the fixer's shop block, qualifying ids as shadowrun:<id>). Skeleton only.

@@ -1,0 +1,24 @@
+id: mr-johnson
+name: a Mr. Johnson
+type: npc
+behavior: stationary
+description: |
+  A composed figure in an expensive, forgettable suit occupies the corner booth,
+  a untraceable commlink face-down on the table and a drink going warm beside it.
+  The face is deliberately unmemorable — synth-tailored, maybe not even the real
+  one. "Mr. Johnson" is what every fixer and corp handler calls themselves when
+  they need deniable work done, and this one is sizing you up for exactly that.
+tags: [humanoid, fixer]
+keywords: [johnson, mr, fixer, suit, handler]
+# The job-giver, not a mark — friendly to everyone; you don't rob the person who
+# hands out the runs.
+disposition_rules:
+  default: friendly
+# Minimal stats (mirrors the fixer): present but not a combatant.
+stats:
+  hp_max: 20
+  body: 3
+  willpower: 4
+# TODO (quest hook): wire Mr. Johnson as a run-giver — a `talk`/`ask johnson`
+# job-offer verb and a quest chain (the iconic Downtown meet at Dante's). See
+# quest turn-in/offer conventions (quests spec). Skeleton only for now.
