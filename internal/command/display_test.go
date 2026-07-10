@@ -301,6 +301,62 @@ func TestEquipment_Colorized(t *testing.T) {
 	}
 }
 
+// capWithArmor is a head-slot armor piece carrying a structured armor bonus,
+// used to prove the worn view surfaces "(Armor N)".
+func capWithArmor() *item.Template {
+	return &item.Template{
+		ID:            "tapestry-core:plated-cap",
+		Name:          "a plated cap",
+		Type:          "armor",
+		Keywords:      []string{"cap"},
+		ArmorBonus:    3,
+		EligibleSlots: []string{"head"},
+	}
+}
+
+func TestEquipment_ShowsModifierEffect(t *testing.T) {
+	// The worn view surfaces an equipped item's mechanical grant inline
+	// (ui-rendering-help §11: mechanics on the self-surface, not the flavor
+	// `look` lens). swordWithMods grants +1 str; the test actor has no
+	// attribute set, so the label falls back to the humanized key ("Str").
+	f := newEqFixture(t)
+	a := newTestActor(f.room)
+	f.spawnInInventory(t, swordWithMods(), a)
+	r := newRegistry(t)
+
+	dispatch(t, r, f.env(), a, "equip sword wield")
+	dispatch(t, r, f.env(), a, "eq")
+
+	if got := a.lastLine(); !strings.Contains(got, "(+1 Str)") {
+		t.Errorf("eq did not show modifier effect, want (+1 Str)\n--- got ---\n%s", got)
+	}
+}
+
+func TestEquipment_ShowsArmorEffect(t *testing.T) {
+	f := newEqFixture(t)
+	a := newTestActor(f.room)
+	f.spawnInInventory(t, capWithArmor(), a)
+	r := newRegistry(t)
+
+	dispatch(t, r, f.env(), a, "equip cap head")
+	dispatch(t, r, f.env(), a, "eq")
+
+	if got := a.lastLine(); !strings.Contains(got, "(Armor 3)") {
+		t.Errorf("eq did not show armor effect, want (Armor 3)\n--- got ---\n%s", got)
+	}
+}
+
+func TestEquipment_EmptySlotHasNoEffectTail(t *testing.T) {
+	// A bare loadout renders no "()" noise on empty slots.
+	f := newEqFixture(t)
+	a := newTestActor(f.room)
+	r := newRegistry(t)
+	dispatch(t, r, f.env(), a, "eq")
+	if got := a.lastLine(); strings.Contains(got, "()") {
+		t.Errorf("empty-slot eq should have no effect tail, got:\n%s", got)
+	}
+}
+
 func TestEquipment_AliasEqDoesNotShadowEquip(t *testing.T) {
 	// Regression: prefix-match would have resolved `eq` to `equip`
 	// (registered earlier in builtins). Explicit alias registration

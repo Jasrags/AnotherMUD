@@ -240,6 +240,13 @@ func gatherScoreEquip(c *Context) []equipRow {
 	if c.Items == nil || c.Slots == nil {
 		return nil
 	}
+	// The world's attribute set gives modifier labels their display name
+	// ("reaction" → "Reaction"); a boot/test actor without one falls back to a
+	// humanized stat key. Read once for the whole gather.
+	var attrs *progression.AttributeSet
+	if ss, ok := c.Actor.(scoreSubject); ok {
+		attrs = ss.AttributeSet()
+	}
 	equipped := c.Actor.Equipment()
 	var rows []equipRow
 	for _, def := range c.Slots.All() {
@@ -254,6 +261,8 @@ func gatherScoreEquip(c *Context) []equipRow {
 					if inst, ok := e.(*entities.ItemInstance); ok {
 						tag := itemRarityTag(inst)
 						row.Name = "<" + tag + ">" + inst.Name() + "</" + tag + ">"
+						row.Effect = itemEffectSummary(attrs, inst)
+						row.Ammo, row.AmmoLoaded = weaponAmmoState(inst)
 					}
 				}
 			}
@@ -263,12 +272,85 @@ func gatherScoreEquip(c *Context) []equipRow {
 	return rows
 }
 
+// itemEffectSummary renders a compact, player-facing description of the
+// mechanical benefits an equipped item grants — the "what does this provide"
+// readout (ui-rendering-help §11: mechanics belong on the self-surface, never
+// on the flavor-only `look` lens). It reads the same data the equip pipeline
+// applies: the item's stat modifiers (+2 Reaction) and its structured armor
+// bonus (Armor 3). Modifier labels resolve through the world's attribute set
+// so they match the score sheet; a stat outside the set (or a nil set) falls
+// back to a humanized key. Returns "" when the item grants nothing mechanical,
+// so a plain item (a torch, a trophy) shows no tail.
+func itemEffectSummary(attrs *progression.AttributeSet, inst *entities.ItemInstance) string {
+	var parts []string
+	for _, m := range inst.Modifiers() {
+		parts = append(parts, fmt.Sprintf("%+d %s", m.Value, statLabel(attrs, m.Stat)))
+	}
+	if ab := inst.ArmorBonus(); ab != 0 {
+		parts = append(parts, fmt.Sprintf("Armor %d", ab))
+	}
+	return strings.Join(parts, ", ")
+}
+
+// weaponAmmoState reports a wielded firearm's load state for the worn readout:
+// a compact tag ("15 rds", "empty", "12/15 rds") plus whether it currently has
+// rounds (for coloring). It covers the two firearm feed models — holder-fed (a
+// pistol taking a clip: the inserted clip's remaining rounds, or "empty" with
+// no/spent clip) and internally-fed magazine (loaded/capacity). A non-firearm
+// (melee, thrown, a bow, or a reload-gated crossbow) returns ("", false), so
+// the readout stays silent for everything a `reload` doesn't apply to. This
+// answers "is my gun loaded?" from the worn view, before combat surfaces it as
+// a dry click.
+func weaponAmmoState(inst *entities.ItemInstance) (label string, loaded bool) {
+	switch {
+	case inst.AcceptsHolder() != "":
+		_, rounds, _, has := inst.InsertedHolder()
+		if has && rounds > 0 {
+			return fmt.Sprintf("%d rds", rounds), true
+		}
+		// No clip and a spent-clip-still-seated (has && rounds==0) both read as
+		// "empty" — the player's next move is `reload` either way, so the
+		// display need not distinguish them. Reload's smart-swap decision lives
+		// in the session InsertHolder path, not here, so this collapse is
+		// display-only.
+		return "empty", false
+	case inst.Magazine() > 0:
+		rounds := inst.MagazineLoaded()
+		return fmt.Sprintf("%d/%d rds", rounds, inst.Magazine()), rounds > 0
+	}
+	return "", false
+}
+
+// statLabel maps a modifier's raw stat key to its display label: the attribute
+// set's declared Name when the key is one of the world's attributes, else a
+// humanized fallback ("hit_mod" → "Hit mod"; titleCase caps only the first
+// rune) so an engine-vital modifier still reads cleanly.
+func statLabel(attrs *progression.AttributeSet, stat string) string {
+	if attrs != nil {
+		if at, ok := attrs.Get(progression.StatType(stat)); ok && at.Name != "" {
+			return at.Name
+		}
+	}
+	return titleCase(strings.ReplaceAll(stat, "_", " "))
+}
+
 // equipRow is one worn-equipment line: the compact slot name ("wield") and
 // the item's display name, already wrapped in its rarity markup by the
 // gatherer. Shared by the score sheet's Equipment column and `eq`.
 type equipRow struct {
 	Slot string
 	Name string
+	// Effect is the compact mechanical readout for an occupied slot
+	// ("+2 Reaction", "Armor 3"), empty for an empty slot or an item that
+	// grants nothing. Rendered by the `eq`/worn view (renderEquipRows); the
+	// packed score-sheet cell omits it to keep its multi-column grid aligned.
+	Effect string
+	// Ammo is the load-state tag for a wielded firearm ("15 rds", "empty",
+	// "12/15 rds"), empty for any non-firearm. AmmoLoaded drives its color
+	// (green when there are rounds, red when empty). Like Effect, rendered by
+	// the worn view only.
+	Ammo       string
+	AmmoLoaded bool
 }
 
 // scoreAttr is one attribute cell on the sheet (SR-M1): its short label, its

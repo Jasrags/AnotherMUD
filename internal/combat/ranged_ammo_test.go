@@ -34,6 +34,54 @@ func TestAutoAttack_ProjectileOutOfAmmo_SkipsSwing(t *testing.T) {
 	}
 }
 
+// A holder-fed firearm (a pistol) that can't fire is UNLOADED, not dry: the
+// RangedDry carries Unloaded=true so the sink narrates "reload first" rather
+// than "out of ammo". The distinction is what tells the player the fix is a
+// reload (the clip is out / absent), not scavenging loose rounds.
+func TestAutoAttack_HolderFedEmpty_MarksUnloaded(t *testing.T) {
+	atkStats := Stats{HitMod: 100, STR: 10, RangedClass: RangedProjectile, AmmoKind: "bullet", AcceptsHolder: "heavy-pistol"}
+	defStats := Stats{AC: 10}
+	rig := newAutoAttackRig(t, atkStats, defStats, 10, 20, nil)
+	rig.ammoFor = func(CombatantID) (bool, int) { return false, 0 }
+	rig.phase()(context.Background(), rig.attacker.id, rig.mgr, 0)
+
+	dry := rig.sink.snapshotRangedDry()
+	if len(dry) != 1 || !dry[0].Unloaded {
+		t.Fatalf("want 1 RangedDry{Unloaded:true} for an empty firearm, got %+v", dry)
+	}
+}
+
+// An internally-fed magazine weapon with an empty magazine is likewise
+// Unloaded (reload it), not dry.
+func TestAutoAttack_MagazineEmpty_MarksUnloaded(t *testing.T) {
+	atkStats := Stats{HitMod: 100, STR: 10, RangedClass: RangedProjectile, AmmoKind: "bullet", Magazine: 15}
+	defStats := Stats{AC: 10}
+	rig := newAutoAttackRig(t, atkStats, defStats, 10, 20, nil)
+	rig.ammoFor = func(CombatantID) (bool, int) { return false, 0 }
+	rig.phase()(context.Background(), rig.attacker.id, rig.mgr, 0)
+
+	dry := rig.sink.snapshotRangedDry()
+	if len(dry) != 1 || !dry[0].Unloaded {
+		t.Fatalf("want 1 RangedDry{Unloaded:true} for an empty magazine, got %+v", dry)
+	}
+}
+
+// A loose-ammo weapon (a bow drawing from the quiver) that runs out is DRY, not
+// unloaded: Unloaded stays false so the message reads "out of arrows", not
+// "reload first" — there is no clip to reseat.
+func TestAutoAttack_BowOutOfAmmo_NotUnloaded(t *testing.T) {
+	atkStats := Stats{HitMod: 100, STR: 10, RangedClass: RangedProjectile, AmmoKind: "arrow"} // no holder, no magazine
+	defStats := Stats{AC: 10}
+	rig := newAutoAttackRig(t, atkStats, defStats, 10, 20, nil)
+	rig.ammoFor = func(CombatantID) (bool, int) { return false, 0 }
+	rig.phase()(context.Background(), rig.attacker.id, rig.mgr, 0)
+
+	dry := rig.sink.snapshotRangedDry()
+	if len(dry) != 1 || dry[0].Unloaded {
+		t.Fatalf("want 1 RangedDry{Unloaded:false} for a loose-ammo bow, got %+v", dry)
+	}
+}
+
 // A projectile swing WITH ammo fires, and the masterwork-ammo to-hit bonus
 // is folded into the swing's roll: a roll that would miss without the bonus
 // hits with it.

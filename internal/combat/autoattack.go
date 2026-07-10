@@ -637,6 +637,14 @@ func resolveSwing(ctx context.Context, in swingInputs, cfg AutoAttackConfig) swi
 		} else if cfg.AmmoFor != nil {
 			canFire, ammoBonus := cfg.AmmoFor(in.attackerID)
 			if !canFire {
+				// A firearm that can't fire is UNLOADED, not out of ammo: a
+				// holder-fed weapon has no (or an empty) clip inserted, a
+				// magazine weapon has an empty magazine — either way the fix is
+				// `reload`, and the sink maps Unloaded → the "reload first"
+				// flavor moment. A loose-ammo weapon (a bow drawing from the
+				// quiver) is genuinely dry — it stays Unloaded=false so the
+				// "out of {ammo}" line reads correctly.
+				unloaded := in.atkStats.AcceptsHolder != "" || in.atkStats.Magazine > 0
 				cfg.Sink.OnRangedDry(ctx, RangedDry{
 					AttackerID:   in.attackerID,
 					TargetID:     in.targetID,
@@ -645,6 +653,7 @@ func resolveSwing(ctx context.Context, in swingInputs, cfg AutoAttackConfig) swi
 					WeaponName:   in.weaponName,
 					AmmoKind:     in.atkStats.AmmoKind,
 					Style:        in.atkStats.RangedStyle,
+					Unloaded:     unloaded,
 					RoomID:       in.attackerRoom,
 				})
 				return swingContinue

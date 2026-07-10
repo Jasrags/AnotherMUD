@@ -168,6 +168,30 @@ func renderEquipRows(header string, rows []equipRow) string {
 		}
 		b.WriteString("  ")
 		b.WriteString(r.Name)
+		// Mechanical readout (ui-rendering-help §11: on the worn/self surface,
+		// not the flavor-only look lens). Subtle so the item name stays the
+		// focus; absent for an empty slot or an item that grants nothing.
+		if r.Effect != "" {
+			b.WriteString("  <subtle>(")
+			b.WriteString(r.Effect)
+			b.WriteString(")</subtle>")
+		}
+		// Firearm load state — green when loaded, red when empty — so a dry gun
+		// is visible here rather than only as a dry click mid-combat. Absent for
+		// anything `reload` doesn't apply to.
+		if r.Ammo != "" {
+			tag := "danger"
+			if r.AmmoLoaded {
+				tag = "good"
+			}
+			b.WriteString("  <")
+			b.WriteString(tag)
+			b.WriteString(">[")
+			b.WriteString(r.Ammo)
+			b.WriteString("]</")
+			b.WriteString(tag)
+			b.WriteString(">")
+		}
 	}
 	return b.String()
 }
