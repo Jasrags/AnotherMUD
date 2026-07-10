@@ -785,6 +785,54 @@ func TestSave_RoundTripsAutoloot(t *testing.T) {
 	}
 }
 
+func TestSave_RoundTripsAutoReload(t *testing.T) {
+	ctx := context.Background()
+	st, _ := newStore(t)
+
+	want := &player.Save{
+		Version:    player.CurrentVersion,
+		ID:         "p-1",
+		AccountID:  "acct-1",
+		Name:       "Gunner",
+		Location:   "tapestry-core:town-square",
+		AutoReload: true,
+	}
+	if err := st.Save(ctx, want); err != nil {
+		t.Fatalf("Save: %v", err)
+	}
+	got, err := st.Load(ctx, "Gunner")
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if !got.AutoReload {
+		t.Errorf("AutoReload = %v, want true (persists across logout/login)", got.AutoReload)
+	}
+}
+
+func TestSave_AutoReloadDefaultsOffWhenAbsent(t *testing.T) {
+	ctx := context.Background()
+	st, _ := newStore(t)
+
+	// An older save that predates the field omits it (omitempty); it must load off.
+	want := &player.Save{
+		Version:   player.CurrentVersion,
+		ID:        "p-1",
+		AccountID: "acct-1",
+		Name:      "Plain",
+		Location:  "tapestry-core:town-square",
+	}
+	if err := st.Save(ctx, want); err != nil {
+		t.Fatalf("Save: %v", err)
+	}
+	got, err := st.Load(ctx, "Plain")
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if got.AutoReload {
+		t.Errorf("AutoReload = %v, want false when absent", got.AutoReload)
+	}
+}
+
 func TestSave_AutolootDefaultsOffWhenAbsent(t *testing.T) {
 	ctx := context.Background()
 	st, _ := newStore(t)

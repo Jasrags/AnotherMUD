@@ -181,6 +181,16 @@ The verbs players use and the systems that resolve them.
   ammo for holder-fed weapons). Ruleset-agnostic; Shadowrun is the reference
   consumer. *(draft — internally-fed / abstract-magazine precursor shipped in the
   Shadowrun pack; holder-fed model planned)*.
+- [autoreload](autoreload.md) — a per-character **preference** that, reactively at
+  fire time, runs the standard timed [ammo-and-reloading](ammo-and-reloading.md)
+  `reload` on a dry wielded weapon instead of a dry attempt — removing the manual
+  keystroke while keeping the cost (same holder selection, busy window, ejection).
+  `autoreload on|off`, default off (opt-in), persisted toggle; two-weapon = main-hand
+  first then off-hand (deferred if the action budget is short); out-of-ammo = report
+  only, rate-limited + ephemeral. A thin decision layer over `ammo-and-reloading` +
+  `action-economy` + `ranged-combat §3`; Shadowrun firearms the reference consumer.
+  *(shipped 2026-07-10 — toggle verb + preference, the firearm-reload peek, and the
+  OnRangedDry trigger that delegates to `reload`)*.
 - [saves](saves.md) — saving throws (Fortitude / Reflex / Will): three
   derived save values (class strong/weak base + governing-ability
   modifier), the `d20 + bonus vs DC` resolve primitive + the
@@ -501,6 +511,9 @@ Each spec calls out what it persists. The aggregate view:
   credits** (the conferred bonuses are derived, not stored;
   [feats](feats.md) §8), **recall address**, **prompt template**,
   **autoloot preference** ([loot-and-corpses](loot-and-corpses.md) §6),
+  **autoreload preference** (an additive `omitempty` boolean toggle — no schema
+  bump, the Autoloot/AutoAssist precedent; absent on older saves loads at the
+  configured default; [autoreload](autoreload.md) §6),
   **faction standing bag + history** ([faction](faction.md) §8 *(spec; build pending)*),
   **renown score** (the single-axis reputation/fame value; the tier tag is
   derived on load, not stored; [reputation](reputation.md) §10 *(spec; build pending)*),
@@ -557,7 +570,10 @@ Each spec calls out what it persists. The aggregate view:
   **biome ambience state** ([biomes](biomes.md) §6) and
   **gathering node/forage state** (node charges + respawn timing,
   per-room forage depletion — transient, respawn fresh on restart —
-  [gathering](gathering.md) §7).
+  [gathering](gathering.md) §7), and the **autoreload no-ammo suppression
+  window** (the per-character/weapon last-notified timestamp behind the
+  rate-limited "nothing to reload with" notice — ephemeral combat state, resets
+  on relogin — [autoreload](autoreload.md) §6).
 
 Details: [persistence](persistence.md), with feature-specific
 sections in [quests](quests.md) §6, [progression](progression.md),
@@ -659,4 +675,4 @@ highest-impact themes that recur across specs:
 
 ---
 
-<!-- Updated: 2026-06-18 · 59 specs covering the engine substrate, world, action, lifecycle, and presentation layers. Behavior contracts still ahead of code: tag-observers, area-effects (grenades & room hazards), ammo-and-reloading (holder-fed reloading — draft; internally-fed/abstract-magazine precursor shipped in the Shadowrun pack). Since-shipped: roles-and-permissions, admin-verbs, item-decorations (M19/M20), loot-and-corpses (M22), tab-completion Phase 0–2, who, light-and-darkness, room-coordinates (M23), player-maps (M24 — Mudlet GMCP wire-shape pending live-client validation), biomes, gathering, crafting-and-cooking (M27), weapon-identity (WoT EPIC S1), masterwork (WoT EPIC S1.H), ranged-combat (WoT EPIC S1.G — Slice A+B + Model C cross-room), armor-depth (WoT EPIC S1.E+D), size-and-wielding (WoT EPIC S1.F), two-weapon-fighting (WoT EPIC S1.K — slices 1-4: off-hand attack, the feats, Improved TWF, mob dual-wield), saves (WoT EPIC S6), conditions (WoT EPIC S5), skills (WoT EPIC S3, substrate), feats (WoT EPIC S4), backgrounds, visibility + hidden-exits (M28), movement-cost (flat→biome-weighted cost gate + encumbrance), character-select (account-first login), character-identity (world-locking, save v23), mounts (core v1 — substrate/persist save v26/acquire+stablemaster/ride+co-located travel/the mount as metered mover; barding + temperament-combat + lead pending). -->
+<!-- Updated: 2026-07-10 · 60 specs covering the engine substrate, world, action, lifecycle, and presentation layers. Behavior contracts still ahead of code: tag-observers, area-effects (grenades & room hazards), ammo-and-reloading (holder-fed reloading — draft; internally-fed/abstract-magazine precursor shipped in the Shadowrun pack). Since-shipped: autoreload (per-character reload-on-dry toggle over ammo-and-reloading — the toggle verb, the firearm-reload peek, and the OnRangedDry trigger delegating to `reload`, 2026-07-10). Since-shipped: roles-and-permissions, admin-verbs, item-decorations (M19/M20), loot-and-corpses (M22), tab-completion Phase 0–2, who, light-and-darkness, room-coordinates (M23), player-maps (M24 — Mudlet GMCP wire-shape pending live-client validation), biomes, gathering, crafting-and-cooking (M27), weapon-identity (WoT EPIC S1), masterwork (WoT EPIC S1.H), ranged-combat (WoT EPIC S1.G — Slice A+B + Model C cross-room), armor-depth (WoT EPIC S1.E+D), size-and-wielding (WoT EPIC S1.F), two-weapon-fighting (WoT EPIC S1.K — slices 1-4: off-hand attack, the feats, Improved TWF, mob dual-wield), saves (WoT EPIC S6), conditions (WoT EPIC S5), skills (WoT EPIC S3, substrate), feats (WoT EPIC S4), backgrounds, visibility + hidden-exits (M28), movement-cost (flat→biome-weighted cost gate + encumbrance), character-select (account-first login), character-identity (world-locking, save v23), mounts (core v1 — substrate/persist save v26/acquire+stablemaster/ride+co-located travel/the mount as metered mover; barding + temperament-combat + lead pending). -->

@@ -75,6 +75,7 @@ func RegisterBuiltins(r *Registry) error {
 			}},
 		{Keyword: "loot", Handler: LootHandler, Brief: "Take everything from a corpse.", Syntax: []string{"loot", "loot <corpse>"}, BreaksConcealment: true},
 		{Keyword: "autoloot", Handler: AutolootHandler, Brief: "Toggle auto-looting your own kills.", Syntax: []string{"autoloot", "autoloot on|off"}},
+		{Keyword: "autoreload", Handler: AutoreloadHandler, Brief: "Toggle auto-reloading a dry firearm from a spare clip.", Syntax: []string{"autoreload", "autoreload on|off"}},
 		{Keyword: "autoassist", Handler: AutoAssistHandler, Brief: "Toggle automatically joining your party's fights.", Syntax: []string{"autoassist", "autoassist on|off"}},
 		{Keyword: "equip", Aliases: []string{"wear", "wield", "hold"}, Handler: EquipHandler, Brief: "Wear or wield an item from your inventory.", Syntax: []string{"equip <item> [slot]"}, Args: []ArgDefinition{{Name: "item", Type: ArgInventory}, {Name: "slot", Type: ArgKeyword, Optional: true}}, IsAction: true},
 		// unequip declares its equipped-item arg + HandParsed so completion

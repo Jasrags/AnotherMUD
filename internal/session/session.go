@@ -971,6 +971,8 @@ func run(ctx context.Context, c conn.Connection, cfg Config) error {
 	a.powerAttack.Store(loaded.Player.PowerAttackActive)
 	// grouping.md §9: seed the auto-assist preference from the persisted save.
 	a.autoAssist.Store(loaded.Player.AutoAssist)
+	// autoreload.md §2: seed the autoreload preference from the persisted save.
+	a.autoreload.Store(loaded.Player.AutoReload)
 
 	// M15.3: hydrate the recall room id from the persisted save.
 	// Empty = no recall point bound (the documented default for
@@ -2346,6 +2348,18 @@ type connActor struct {
 	// also mutate a.save. Persistence: player.Save.Autoloot.
 	autoloot atomic.Bool
 
+	// autoreload is the autoreload.md §2 per-character preference (off by
+	// default). Read on the tick goroutine by the dry-fire autoreload trigger
+	// (AutoReloadOnDry); atomic.Bool keeps that read lock-free (same rationale
+	// as autoloot). The write path takes a.mu to also mutate a.save.
+	// Persistence: player.Save.AutoReload.
+	autoreload atomic.Bool
+	// autoReloadNoticeAt is the last game tick a rate-limited "nothing to
+	// reload with" autoreload notice was shown (autoreload.md §5/§6). Ephemeral
+	// combat state — NOT persisted, resets on relogin (zero value = "never
+	// shown"). atomic so the tick-goroutine trigger reads/writes it lock-free.
+	autoReloadNoticeAt atomic.Uint64
+
 	// powerAttack is the Power Attack combat stance (feats Bucket C — a melee
 	// accuracy-for-power trade). Toggled by `powerattack on|off`; read by
 	// Stats() every combat round, so stored as atomic.Bool to keep that read
@@ -3623,6 +3637,105 @@ func (a *connActor) pullAmmoLocked(kind string, max int) (int, string) {
 		a.syncInventoryToSaveLocked()
 	}
 	return got, grade
+}
+
+// hasMatchingAmmoLocked reports whether the actor carries at least one loose
+// round of `kind` (a read-only mirror of pullAmmoLocked's match: a holder is
+// never a loose round). Caller holds a.mu.
+func (a *connActor) hasMatchingAmmoLocked(kind string) bool {
+	if kind == "" || a.items == nil {
+		return false
+	}
+	for _, id := range a.inventory {
+		e, ok := a.items.GetByID(id)
+		if !ok {
+			continue
+		}
+		it, ok := e.(*entities.ItemInstance)
+		if !ok || it.HolderFits() != "" || it.AmmoKind() != kind {
+			continue
+		}
+		return true
+	}
+	return false
+}
+
+// WieldedFirearmReload is the read-only peek the autoreload trigger (autoreload.md
+// §3/§4) uses to decide its branch WITHOUT mutating: it reports whether the wielded
+// weapon is a firearm autoreload services (holder-fed or internally-fed magazine)
+// and, if so, whether a reload would find ammo now — a compatible loaded holder
+// carried (holder-fed) or a matching loose round carried (magazine). A non-firearm
+// (a bow / crossbow, which keep their own dry narration and manual reload/load)
+// reports isFirearm=false. Selection here mirrors InsertHolder / ReloadWieldedMagazine
+// so the peek and the actual reload never disagree.
+func (a *connActor) WieldedFirearmReload() (isFirearm, canReload bool) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	if a.items == nil {
+		return false, false
+	}
+	wid, ok := a.equipment[mainHandSlot]
+	if !ok {
+		return false, false
+	}
+	e, ok := a.items.GetByID(wid)
+	if !ok {
+		return false, false
+	}
+	w, ok := e.(*entities.ItemInstance)
+	if !ok {
+		return false, false
+	}
+	switch {
+	case w.AcceptsHolder() != "":
+		// Holder-fed: a compatible loaded holder carried would insert. The dry
+		// weapon's seated clip is empty (0 rounds), so the no-benefit guard never
+		// declines here — any spare with rounds beats it (InsertHolder §11).
+		family := w.AcceptsHolder()
+		for _, id := range a.inventory {
+			he, ok := a.items.GetByID(id)
+			if !ok {
+				continue
+			}
+			h, ok := he.(*entities.ItemInstance)
+			if ok && h.HolderFits() == family && h.MagazineLoaded() > 0 {
+				return true, true
+			}
+		}
+		return true, false
+	case w.Magazine() > 0:
+		// Internally-fed magazine: fillable from matching loose rounds carried.
+		return true, a.hasMatchingAmmoLocked(w.AmmoKind())
+	default:
+		return false, false // a bow/crossbow — not an autoreload firearm
+	}
+}
+
+// autoReloadNoticeDue reports whether a rate-limited "nothing to reload with"
+// autoreload notice may show now (autoreload.md §5/§6): true when at least
+// `window` ticks have passed since the last one (or none has shown), and it
+// stamps `now` as the new last-notice tick as a side effect. window 0 means
+// "every dry attempt" (no suppression). Lock-free via the atomic; the trigger
+// runs on the single tick goroutine so the load-then-store needs no CAS.
+func (a *connActor) autoReloadNoticeDue(now, window uint64) bool {
+	if window == 0 {
+		a.autoReloadNoticeAt.Store(now)
+		return true
+	}
+	last := a.autoReloadNoticeAt.Load()
+	// last == 0 is "never shown" — always due. Otherwise gate on the window;
+	// guard the subtraction so a clock that hasn't advanced can't underflow.
+	if last != 0 && now >= last && now-last < window {
+		return false
+	}
+	a.autoReloadNoticeAt.Store(now)
+	return true
+}
+
+// resetAutoReloadNotice clears the no-ammo suppression window after a successful
+// autoreload, so the next genuine dry-out reports immediately (autoreload.md §5).
+func (a *connActor) resetAutoReloadNotice() {
+	a.autoReloadNoticeAt.Store(0)
 }
 
 // magazineLoadedForSave returns the loaded-round count to persist for entity
@@ -6286,6 +6399,28 @@ func (a *connActor) SetAutoloot(on bool) {
 	a.autoloot.Store(on)
 	if a.save != nil {
 		a.save.Autoloot = on
+		a.markDirtyLocked()
+	}
+}
+
+// Autoreload reports the actor's autoreload preference (autoreload.md §2).
+// Lock-free read off the atomic; safe from the tick goroutine (the dry-fire
+// trigger reads it inside the combat sink).
+func (a *connActor) Autoreload() bool {
+	return a.autoreload.Load()
+}
+
+// SetAutoreload updates the autoreload preference and marks the save dirty so
+// it persists on the next autosave. No-op when unchanged.
+func (a *connActor) SetAutoreload(on bool) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	if a.autoreload.Load() == on {
+		return
+	}
+	a.autoreload.Store(on)
+	if a.save != nil {
+		a.save.AutoReload = on
 		a.markDirtyLocked()
 	}
 }

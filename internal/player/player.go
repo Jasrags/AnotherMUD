@@ -249,6 +249,14 @@ type Save struct {
 	// with auto-assist off and round-trip unchanged.
 	AutoAssist bool `yaml:"auto_assist,omitempty"`
 
+	// AutoReload is the per-character autoreload preference (autoreload.md
+	// §2; off by default — opt-in, since an auto-reload spends the shot's
+	// beat and ejects a clip on the wielder's behalf). Added without a
+	// schema bump on the same logic as Autoloot/AutoAssist: the false
+	// zero-value is indistinguishable from "field absent" (omitempty), so
+	// older saves load with autoreload off and round-trip unchanged.
+	AutoReload bool `yaml:"autoreload,omitempty"`
+
 	// PromptTemplate is the player's custom prompt format
 	// (ui-rendering-help §7.1). Empty means "use the engine default".
 	// Added in M10.3b without a schema bump: an absent field decodes to

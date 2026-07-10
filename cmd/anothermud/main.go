@@ -911,6 +911,10 @@ func run() error {
 		sessions:     mgr,
 		nameOf:       combatantName,
 		rangedFlavor: registries.RangedFlavor,
+		// autoreload.md §7 config: master enable (default on) + the rate-limit
+		// window on the no-ammo notice (default 3s, converted to ticks).
+		autoReloadEnabled:      envBoolOr("ANOTHERMUD_AUTORELOAD_ENABLED", true),
+		autoReloadNoAmmoWindow: cadenceTicks(cfg.TickInterval, envDurationOr("ANOTHERMUD_AUTORELOAD_NOAMMO_WINDOW", 3*time.Second)),
 	}
 	combatTags := combatTagSource{
 		entities: entityStore,
@@ -4355,6 +4359,13 @@ type productionCombatSink struct {
 	// rather than leaving a 0-HP zombie). Set after construction once the effect
 	// manager + template registry are wired.
 	knockOut func(ctx context.Context, e combat.VitalDepleted) bool
+	// autoReloadEnabled is the autoreload.md §7 server-level master switch: when
+	// false the feature is off regardless of any character's preference (the dry
+	// firearm always gets the default "reload first" narration). autoReloadNoAmmoWindow
+	// is the minimum ticks between a character's repeated "nothing to reload with"
+	// notices (§5/§6; 0 = every dry attempt). Both are read from the env at boot.
+	autoReloadEnabled      bool
+	autoReloadNoAmmoWindow uint64
 }
 
 // tell sends msg to the combatant if it is an online player (M10 combat
@@ -4644,6 +4655,17 @@ func (s *productionCombatSink) OnRangedDry(ctx context.Context, e combat.RangedD
 		slog.String("weapon", e.WeaponName),
 		slog.String("ammo_kind", e.AmmoKind),
 		slog.String("room", string(e.RoomID)))
+
+	// autoreload.md §3: an UNLOADED firearm (holder-fed / magazine) whose wielder
+	// has autoreload on reloads itself from a spare clip (or reports no ammo,
+	// rate-limited) instead of the default "reload first" narration below. A
+	// genuinely-dry bow (Unloaded=false) and a mob attacker fall through unchanged;
+	// the trigger returns true only when it owned the dry moment.
+	if e.Unloaded && s.autoReloadEnabled && s.sessions != nil &&
+		strings.HasPrefix(string(e.AttackerID), combat.PlayerPrefix) &&
+		s.sessions.AutoReloadOnDry(ctx, combat.EntityIDOf(e.AttackerID), s.autoReloadNoAmmoWindow) {
+		return
+	}
 
 	an := s.nameOf(string(e.AttackerID))
 	weapon := e.WeaponName

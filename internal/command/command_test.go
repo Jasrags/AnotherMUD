@@ -288,6 +288,7 @@ type testActor struct {
 	sleepStartTick uint64
 	sust           int
 	autoloot       bool
+	autoreload     bool
 	autoAssist     bool
 	inCombat       bool
 
@@ -567,6 +568,20 @@ func (a *testActor) SetAutoloot(on bool) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	a.autoloot = on
+}
+
+// Autoreload / SetAutoreload make testActor satisfy the inline preference
+// interface AutoreloadHandler asserts (autoreload.md §2).
+func (a *testActor) Autoreload() bool {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	return a.autoreload
+}
+
+func (a *testActor) SetAutoreload(on bool) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	a.autoreload = on
 }
 
 // AutoAssistEnabled / SetAutoAssist make testActor satisfy the inline
