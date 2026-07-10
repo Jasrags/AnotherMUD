@@ -262,7 +262,7 @@ func gatherScoreEquip(c *Context) []equipRow {
 						tag := itemRarityTag(inst)
 						row.Name = "<" + tag + ">" + inst.Name() + "</" + tag + ">"
 						row.Effect = itemEffectSummary(attrs, inst)
-						row.Ammo, row.AmmoLoaded = weaponAmmoState(inst)
+						row.Ammo, row.AmmoType, row.AmmoLoaded = weaponAmmoState(inst)
 					}
 				}
 			}
@@ -293,32 +293,67 @@ func itemEffectSummary(attrs *progression.AttributeSet, inst *entities.ItemInsta
 }
 
 // weaponAmmoState reports a wielded firearm's load state for the worn readout:
-// a compact tag ("15 rds", "empty", "12/15 rds") plus whether it currently has
-// rounds (for coloring). It covers the two firearm feed models — holder-fed (a
-// pistol taking a clip: the inserted clip's remaining rounds, or "empty" with
-// no/spent clip) and internally-fed magazine (loaded/capacity). A non-firearm
-// (melee, thrown, a bow, or a reload-gated crossbow) returns ("", false), so
-// the readout stays silent for everything a `reload` doesn't apply to. This
-// answers "is my gun loaded?" from the worn view, before combat surfaces it as
-// a dry click.
-func weaponAmmoState(inst *entities.ItemInstance) (label string, loaded bool) {
+// a count tag ("15 rds", "empty", "12/15 rds"), the loaded rounds' type label
+// ("APDS", "standard"; "" when empty), and whether it currently has rounds (for
+// coloring). It covers the two firearm feed models — holder-fed (a pistol
+// taking a clip: the inserted clip's remaining rounds + grade, or "empty" with
+// no/spent clip) and internally-fed magazine (loaded/capacity + grade). A
+// non-firearm (melee, thrown, a bow, or a reload-gated crossbow) returns
+// ("", "", false), so the readout stays silent for everything a `reload`
+// doesn't apply to. Answers "is my gun loaded, and with what?" from the worn
+// view, before combat surfaces it as a dry click.
+func weaponAmmoState(inst *entities.ItemInstance) (count, ammoType string, loaded bool) {
 	switch {
 	case inst.AcceptsHolder() != "":
-		_, rounds, _, has := inst.InsertedHolder()
+		_, rounds, grade, has := inst.InsertedHolder()
 		if has && rounds > 0 {
-			return fmt.Sprintf("%d rds", rounds), true
+			return fmt.Sprintf("%d rds", rounds), ammoTypeLabel(grade), true
 		}
 		// No clip and a spent-clip-still-seated (has && rounds==0) both read as
 		// "empty" — the player's next move is `reload` either way, so the
 		// display need not distinguish them. Reload's smart-swap decision lives
 		// in the session InsertHolder path, not here, so this collapse is
-		// display-only.
-		return "empty", false
+		// display-only. No rounds → no type.
+		return "empty", "", false
 	case inst.Magazine() > 0:
+		// Internally-fed magazines ignore ammo grade (session.go ReloadWieldedMagazine
+		// never sets holder_ammo_grade), so this reads "standard" for every such
+		// weapon today — matching the SR5 simplification, not a missing feature.
 		rounds := inst.MagazineLoaded()
-		return fmt.Sprintf("%d/%d rds", rounds, inst.Magazine()), rounds > 0
+		if rounds > 0 {
+			return fmt.Sprintf("%d/%d rds", rounds, inst.Magazine()), ammoTypeLabel(inst.HolderAmmoGrade()), true
+		}
+		return fmt.Sprintf("%d/%d rds", rounds, inst.Magazine()), "", false
 	}
-	return "", false
+	return "", "", false
+}
+
+// ammoTypeLabel renders a loaded round's type from its grade: the uppercased
+// grade key names a special round ("apds" → "APDS"), and ungraded rounds read
+// as "standard". This is the ammo-type surface for the worn + inventory
+// readouts; grades carry no display name today, so the key is the label (works
+// for acronym grades — a future word-grade would want a grade `name:` field).
+func ammoTypeLabel(grade string) string {
+	if grade == "" {
+		return "standard"
+	}
+	return strings.ToUpper(grade)
+}
+
+// ammoTypeTag wraps an ammo-type label in its color tag: a special round pops
+// in <highlight>, plain "standard" stays <subtle>. Empty label → no tag. Shared
+// by the worn view (renderEquipRows) and the inventory listing so the two read
+// consistently. "standard" is the sentinel ammoTypeLabel emits for ungraded
+// rounds; no grade key is named "standard", so the compare is safe.
+func ammoTypeTag(label string) string {
+	if label == "" {
+		return ""
+	}
+	tag := "highlight"
+	if label == "standard" {
+		tag = "subtle"
+	}
+	return "<" + tag + ">[" + label + "]</" + tag + ">"
 }
 
 // statLabel maps a modifier's raw stat key to its display label: the attribute
@@ -345,11 +380,13 @@ type equipRow struct {
 	// grants nothing. Rendered by the `eq`/worn view (renderEquipRows); the
 	// packed score-sheet cell omits it to keep its multi-column grid aligned.
 	Effect string
-	// Ammo is the load-state tag for a wielded firearm ("15 rds", "empty",
+	// Ammo is the count tag for a wielded firearm ("15 rds", "empty",
 	// "12/15 rds"), empty for any non-firearm. AmmoLoaded drives its color
-	// (green when there are rounds, red when empty). Like Effect, rendered by
-	// the worn view only.
+	// (green when there are rounds, red when empty). AmmoType is the loaded
+	// rounds' type label ("APDS", "standard"; empty when the weapon is empty or
+	// not a firearm). Like Effect, rendered by the worn view only.
 	Ammo       string
+	AmmoType   string
 	AmmoLoaded bool
 }
 

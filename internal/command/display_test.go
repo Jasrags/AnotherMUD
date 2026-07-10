@@ -301,6 +301,50 @@ func TestEquipment_Colorized(t *testing.T) {
 	}
 }
 
+// predatorClip is an ammunition holder template (a clip): two instances of it
+// share a template id, so a real stacking service would merge them — the exact
+// case the per-holder inventory rendering must survive.
+func predatorClip() *item.Template {
+	return &item.Template{
+		ID: "shadowrun:predator-clip", Name: "an Ares Predator V clip", Type: "item",
+		Keywords:   []string{"clip", "mag"},
+		HolderFits: "heavy-pistol", Magazine: 15,
+	}
+}
+
+// Two clips of the SAME template but different load/grade must each show their
+// own state — never collapse to "(x2)" with one state standing in for both.
+// This pins the fix for the stacking/display divergence: the stacking service
+// keys only on template+essence, so it merges these two, and the inventory view
+// must expand the stack per-holder.
+func TestInventory_HoldersListedIndividuallyWithState(t *testing.T) {
+	f := newEqFixture(t)
+	a := newTestActor(f.room)
+	full := f.spawnInInventory(t, predatorClip(), a)
+	full.SetMagazineLoaded(15)
+	full.SetHolderAmmoGrade("apds")
+	_ = f.spawnInInventory(t, predatorClip(), a) // second clip spawns empty
+
+	env := f.env()
+	env.Stacking = stacking.NewService() // real service merges same-template clips
+	r := newRegistry(t)
+	dispatch(t, r, env, a, "inventory")
+
+	got := a.lastLine()
+	for _, want := range []string{
+		"<good>[15/15]</good>",          // the full clip's count
+		"<highlight>[APDS]</highlight>", // ...and its type
+		"<danger>[empty]</danger>",      // the empty clip, shown distinctly
+	} {
+		if !strings.Contains(got, want) {
+			t.Errorf("inventory missing %q — divergent clips not both shown\n--- got ---\n%s", want, got)
+		}
+	}
+	if strings.Contains(got, "(x2)") {
+		t.Errorf("holders must not collapse to a stack count, got:\n%s", got)
+	}
+}
+
 // capWithArmor is a head-slot armor piece carrying a structured armor bonus,
 // used to prove the worn view surfaces "(Armor N)".
 func capWithArmor() *item.Template {

@@ -66,6 +66,25 @@ func InventoryHandler(ctx context.Context, c *Context) error {
 			// than panic in decoratedName(nil).
 			continue
 		}
+		// Ammunition holders (clips/magazines) are listed INDIVIDUALLY — one
+		// line per holder with its own loaded/type state — never collapsed to
+		// "(xN)". The stacking service keys only on template+essence, so two
+		// clips of the same template but different load/grade would otherwise
+		// merge and the annotation would misreport all of them as the first's
+		// state. Expanding the stack here keeps stacking generic (no ammo
+		// concept leaks into it) while each clip shows its true state.
+		if first.HolderFits() != "" && first.Magazine() > 0 {
+			for _, id := range st.ItemIDs {
+				h := byID[id]
+				if h == nil {
+					continue
+				}
+				b.WriteString("\n  ")
+				b.WriteString(decoratedName(c, h))
+				b.WriteString(ammoHolderTags(h))
+			}
+			continue
+		}
 		b.WriteString("\n  ")
 		b.WriteString(decoratedName(c, first))
 		if st.Quantity > 1 {
@@ -75,6 +94,34 @@ func InventoryHandler(ctx context.Context, c *Context) error {
 		}
 	}
 	return c.Actor.Write(ctx, b.String())
+}
+
+// ammoHolderTags returns the inline load-state annotation for an ammunition
+// holder (a clip/magazine): the loaded/capacity count plus the loaded round
+// type — " <good>[15/15]</good> <highlight>[APDS]</highlight>" loaded,
+// " <danger>[empty]</danger>" empty. Returns "" for anything that isn't a
+// holder, so ordinary inventory lines are untouched. Mirrors the worn-view
+// firearm readout (green loaded / red empty; special ammo pops).
+//
+// Guards on HolderFits AND a positive Magazine capacity — the same holder test
+// the session fill/insert paths use — so a mis-authored item that sets
+// HolderFits without a capacity is not treated as a holder. Note the empty
+// wording differs from the wielded-magazine readout (weaponAmmoState shows
+// "0/N rds"; a carried empty clip reads the plainer "empty") — a deliberate
+// per-surface choice, not an oversight.
+func ammoHolderTags(it *entities.ItemInstance) string {
+	if it.HolderFits() == "" || it.Magazine() <= 0 {
+		return "" // not an ammunition holder
+	}
+	loaded, capacity := it.MagazineLoaded(), it.Magazine()
+	if loaded <= 0 {
+		return "  <danger>[empty]</danger>"
+	}
+	out := fmt.Sprintf("  <good>[%d/%d]</good>", loaded, capacity)
+	if typeTag := ammoTypeTag(ammoTypeLabel(it.HolderAmmoGrade())); typeTag != "" {
+		out += "  " + typeTag
+	}
+	return out
 }
 
 // stackItems groups items through the stacking service (M21.1). When no
@@ -176,9 +223,10 @@ func renderEquipRows(header string, rows []equipRow) string {
 			b.WriteString(r.Effect)
 			b.WriteString(")</subtle>")
 		}
-		// Firearm load state — green when loaded, red when empty — so a dry gun
-		// is visible here rather than only as a dry click mid-combat. Absent for
-		// anything `reload` doesn't apply to.
+		// Firearm load state — green count when loaded, red when empty — so a dry
+		// gun is visible here rather than only as a dry click mid-combat, plus
+		// the loaded round type (APDS pops, standard subtle). Absent for anything
+		// `reload` doesn't apply to.
 		if r.Ammo != "" {
 			tag := "danger"
 			if r.AmmoLoaded {
@@ -191,6 +239,10 @@ func renderEquipRows(header string, rows []equipRow) string {
 			b.WriteString("]</")
 			b.WriteString(tag)
 			b.WriteString(">")
+			if typeTag := ammoTypeTag(r.AmmoType); typeTag != "" {
+				b.WriteString("  ")
+				b.WriteString(typeTag)
+			}
 		}
 	}
 	return b.String()

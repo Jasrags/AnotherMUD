@@ -92,29 +92,42 @@ func TestItemEffectSummary_NoMechanicsYieldsEmpty(t *testing.T) {
 	}
 }
 
-func TestWeaponAmmoState_HolderFedLoaded(t *testing.T) {
-	// A holder-fed pistol with a clip inserted reports the clip's rounds.
+func TestWeaponAmmoState_HolderFedLoadedGraded(t *testing.T) {
+	// A holder-fed pistol with an APDS clip reports count + the graded type.
+	inst := spawnInstance(t, &item.Template{
+		ID: "sr:predator", Name: "an Ares Predator V", Type: "weapon",
+		AcceptsHolder: "heavy-pistol",
+	})
+	inst.SetInsertedHolder("sr:predator-clip", 15, "apds")
+	count, typ, loaded := weaponAmmoState(inst)
+	if count != "15 rds" || typ != "APDS" || !loaded {
+		t.Errorf("state = (%q, %q, %v), want (\"15 rds\", \"APDS\", true)", count, typ, loaded)
+	}
+}
+
+func TestWeaponAmmoState_HolderFedLoadedStandard(t *testing.T) {
+	// An ungraded clip reads as "standard".
 	inst := spawnInstance(t, &item.Template{
 		ID: "sr:predator", Name: "an Ares Predator V", Type: "weapon",
 		AcceptsHolder: "heavy-pistol",
 	})
 	inst.SetInsertedHolder("sr:predator-clip", 15, "")
-	label, loaded := weaponAmmoState(inst)
-	if label != "15 rds" || !loaded {
-		t.Errorf("state = (%q, %v), want (\"15 rds\", true)", label, loaded)
+	count, typ, loaded := weaponAmmoState(inst)
+	if count != "15 rds" || typ != "standard" || !loaded {
+		t.Errorf("state = (%q, %q, %v), want (\"15 rds\", \"standard\", true)", count, typ, loaded)
 	}
 }
 
 func TestWeaponAmmoState_HolderFedEmpty(t *testing.T) {
-	// No clip inserted → "empty", uncolored-loaded false. This is jasrags's
-	// actual state: gun equipped, clips loose in inventory.
+	// No clip inserted → "empty", no type, not loaded. This is jasrags's actual
+	// state: gun equipped, clips loose in inventory.
 	inst := spawnInstance(t, &item.Template{
 		ID: "sr:predator", Name: "an Ares Predator V", Type: "weapon",
 		AcceptsHolder: "heavy-pistol",
 	})
-	label, loaded := weaponAmmoState(inst)
-	if label != "empty" || loaded {
-		t.Errorf("state = (%q, %v), want (\"empty\", false)", label, loaded)
+	count, typ, loaded := weaponAmmoState(inst)
+	if count != "empty" || typ != "" || loaded {
+		t.Errorf("state = (%q, %q, %v), want (\"empty\", \"\", false)", count, typ, loaded)
 	}
 }
 
@@ -123,9 +136,9 @@ func TestWeaponAmmoState_MagazineShowsLoadedOverCapacity(t *testing.T) {
 		ID: "sr:revolver", Name: "a revolver", Type: "weapon", Magazine: 6,
 	})
 	inst.SetMagazineLoaded(4)
-	label, loaded := weaponAmmoState(inst)
-	if label != "4/6 rds" || !loaded {
-		t.Errorf("state = (%q, %v), want (\"4/6 rds\", true)", label, loaded)
+	count, typ, loaded := weaponAmmoState(inst)
+	if count != "4/6 rds" || typ != "standard" || !loaded {
+		t.Errorf("state = (%q, %q, %v), want (\"4/6 rds\", \"standard\", true)", count, typ, loaded)
 	}
 }
 
@@ -135,8 +148,29 @@ func TestWeaponAmmoState_NonFirearmSilent(t *testing.T) {
 	inst := spawnInstance(t, &item.Template{
 		ID: "sr:katana", Name: "a katana", Type: "weapon", WeaponDamage: "2d6",
 	})
-	if label, loaded := weaponAmmoState(inst); label != "" || loaded {
-		t.Errorf("state = (%q, %v), want empty", label, loaded)
+	if count, typ, loaded := weaponAmmoState(inst); count != "" || typ != "" || loaded {
+		t.Errorf("state = (%q, %q, %v), want all-empty", count, typ, loaded)
+	}
+}
+
+func TestAmmoTypeLabel(t *testing.T) {
+	if got := ammoTypeLabel("apds"); got != "APDS" {
+		t.Errorf("apds → %q, want APDS", got)
+	}
+	if got := ammoTypeLabel(""); got != "standard" {
+		t.Errorf("ungraded → %q, want standard", got)
+	}
+}
+
+func TestAmmoTypeTag_SpecialPopsStandardSubtle(t *testing.T) {
+	if got := ammoTypeTag("APDS"); got != "<highlight>[APDS]</highlight>" {
+		t.Errorf("APDS tag = %q, want highlight", got)
+	}
+	if got := ammoTypeTag("standard"); got != "<subtle>[standard]</subtle>" {
+		t.Errorf("standard tag = %q, want subtle", got)
+	}
+	if got := ammoTypeTag(""); got != "" {
+		t.Errorf("empty label → %q, want empty", got)
 	}
 }
 
@@ -145,13 +179,14 @@ func TestRenderEquipRows_EffectAndAmmoTags(t *testing.T) {
 	// firearm load state in a color tag keyed on AmmoLoaded: green when there
 	// are rounds, red when empty. Both are absent on rows that don't set them.
 	rows := []equipRow{
-		{Slot: "wield", Name: "<item>an Ares Predator V</item>", Ammo: "15 rds", AmmoLoaded: true},
+		{Slot: "wield", Name: "<item>an Ares Predator V</item>", Ammo: "15 rds", AmmoType: "APDS", AmmoLoaded: true},
 		{Slot: "cyberware", Name: "<item>wired reflexes</item>", Effect: "+2 Reaction"},
 		{Slot: "cloak", Name: "<subtle>(empty)</subtle>"},
 	}
 	got := renderEquipRows("You are wearing:", rows)
 	for _, want := range []string{
-		"<good>[15 rds]</good>",          // loaded firearm → green
+		"<good>[15 rds]</good>",          // loaded firearm count → green
+		"<highlight>[APDS]</highlight>",  // special ammo type → pops
 		"<subtle>(+2 Reaction)</subtle>", // effect tail
 	} {
 		if !strings.Contains(got, want) {
@@ -169,5 +204,49 @@ func TestRenderEquipRows_EmptyFirearmTagIsDanger(t *testing.T) {
 	got := renderEquipRows("You are wearing:", rows)
 	if !strings.Contains(got, "<danger>[empty]</danger>") {
 		t.Errorf("empty firearm should render a danger tag, got:\n%s", got)
+	}
+}
+
+func clipTpl() *item.Template {
+	return &item.Template{
+		ID: "sr:predator-clip", Name: "an Ares Predator V clip", Type: "item",
+		HolderFits: "heavy-pistol", Magazine: 15,
+	}
+}
+
+func TestAmmoHolderTags_LoadedShowsCountAndType(t *testing.T) {
+	clip := spawnInstance(t, clipTpl())
+	clip.SetMagazineLoaded(15)
+	clip.SetHolderAmmoGrade("apds")
+	got := ammoHolderTags(clip)
+	for _, want := range []string{"<good>[15/15]</good>", "<highlight>[APDS]</highlight>"} {
+		if !strings.Contains(got, want) {
+			t.Errorf("clip tags %q missing %q", got, want)
+		}
+	}
+}
+
+func TestAmmoHolderTags_StandardIsSubtle(t *testing.T) {
+	clip := spawnInstance(t, clipTpl())
+	clip.SetMagazineLoaded(15) // ungraded rounds
+	got := ammoHolderTags(clip)
+	if !strings.Contains(got, "<subtle>[standard]</subtle>") {
+		t.Errorf("ungraded clip should read standard/subtle, got %q", got)
+	}
+}
+
+func TestAmmoHolderTags_EmptyClip(t *testing.T) {
+	clip := spawnInstance(t, clipTpl()) // spawns empty (loaded 0)
+	got := ammoHolderTags(clip)
+	if got != "  <danger>[empty]</danger>" {
+		t.Errorf("empty clip tags = %q, want a single danger [empty]", got)
+	}
+}
+
+func TestAmmoHolderTags_NonHolderSilent(t *testing.T) {
+	// An ordinary item (not a holder) gets no annotation.
+	round := spawnInstance(t, &item.Template{ID: "sr:apds", Name: "an APDS round", Type: "item"})
+	if got := ammoHolderTags(round); got != "" {
+		t.Errorf("non-holder should have no tags, got %q", got)
 	}
 }
