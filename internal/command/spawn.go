@@ -288,5 +288,7 @@ func (c *Context) spawnGold(ctx context.Context, args []string) error {
 	}
 	balance := c.Currency.AddGold(ctx, holder, amount, "spawn")
 	auditAdmin(ctx, c, "spawn", c.Actor.PlayerID(), fmt.Sprintf("gold:%d", amount))
-	return c.Actor.Write(ctx, fmt.Sprintf("You conjure %d gold. (You now have %d.)", amount, balance))
+	// Currency-label seam: the confirmation reads "100¥" / "100 gold" even though
+	// the `spawn gold` subcommand keyword stays fixed (it's an input token).
+	return c.Actor.Write(ctx, fmt.Sprintf("You conjure %s. (You now have %s.)", c.Money.Format(amount), c.Money.Format(balance)))
 }
