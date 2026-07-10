@@ -81,10 +81,10 @@ watch-wot: WORLD_PACKS := wot
 watch-wot: WORLD_START_ROOM := wot:the-green
 watch-wot: watch
 
-## watch-shadowrun: live-reload the Shadowrun world (content/shadowrun — SR-M3c)
+## watch-shadowrun: live-reload the Shadowrun world (content/shadowrun — starts in Downtown)
 .PHONY: watch-shadowrun
 watch-shadowrun: WORLD_PACKS := shadowrun
-watch-shadowrun: WORLD_START_ROOM := shadowrun:street-corner
+watch-shadowrun: WORLD_START_ROOM := shadowrun:downtown-plaza
 watch-shadowrun: watch
 
 ## worlddoc: render world documentation for every world pack to docs/world/
