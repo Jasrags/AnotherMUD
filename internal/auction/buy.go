@@ -94,7 +94,7 @@ func (m *Manager) Buyout(ctx context.Context, buyer Party, listingID string) (Li
 	m.appendAudit(ctx, auditSale, listingID, legs)
 
 	// Tell the seller their listing sold (offline-capable, §7). nil-safe.
-	m.notifySeller(ctx, l, "Your auction of "+l.Item.Name+" sold. Collect your gold at an auctioneer.")
+	m.notifySeller(ctx, l, "Your auction of "+l.Item.Name+" sold. Collect your "+m.money.Name()+" at an auctioneer.")
 
 	l.Status = StatusSold
 	l.Buyer = buyer.ID()

@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/Jasrags/AnotherMUD/internal/clock"
+	"github.com/Jasrags/AnotherMUD/internal/economy"
 	"github.com/Jasrags/AnotherMUD/internal/entities"
 	"github.com/Jasrags/AnotherMUD/internal/escrow"
 	"github.com/Jasrags/AnotherMUD/internal/item"
@@ -66,6 +67,7 @@ type Manager struct {
 	tpls  *item.Templates
 	clk   clock.Clock
 	cfg   Config
+	money economy.CurrencyLabel // currency-label seam: "your gold" / "your nuyen" in notices
 
 	// tradable gates non-tradable items (nil → everything tradable).
 	tradable func(entities.EntityID) bool
@@ -98,7 +100,7 @@ func (m *Manager) notifySeller(ctx context.Context, l Listing, text string) {
 // buyout's cancellable commit; audit records every event; coin is the
 // currency seam; items serializes the listed instance and rehydrates it at
 // collect; tpls rehydrates; tradable gates bound items.
-func NewManager(store *Store, audit *escrow.AuditStore, bus escrow.Bus, coin CoinMover, items *entities.Store, tpls *item.Templates, clk clock.Clock, cfg Config, tradable func(entities.EntityID) bool) *Manager {
+func NewManager(store *Store, audit *escrow.AuditStore, bus escrow.Bus, coin CoinMover, items *entities.Store, tpls *item.Templates, clk clock.Clock, cfg Config, tradable func(entities.EntityID) bool, money economy.CurrencyLabel) *Manager {
 	return &Manager{
 		store:    store,
 		audit:    audit,
@@ -108,6 +110,7 @@ func NewManager(store *Store, audit *escrow.AuditStore, bus escrow.Bus, coin Coi
 		tpls:     tpls,
 		clk:      clk,
 		cfg:      cfg,
+		money:    money,
 		tradable: tradable,
 	}
 }

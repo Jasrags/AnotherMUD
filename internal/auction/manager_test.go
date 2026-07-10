@@ -79,7 +79,7 @@ func managerFixture(t *testing.T, cfg Config) (*Manager, *Store, *entities.Store
 	}
 	seller := &fakeParty{id: "alice", name: "Alice", gold: 1000, inv: []entities.EntityID{inst.ID()}}
 
-	m := NewManager(store, nil /*audit*/, nil /*bus*/, realCoin{}, items, tpls, clock.RealClock{}, cfg, nil /*tradable*/)
+	m := NewManager(store, nil /*audit*/, nil /*bus*/, realCoin{}, items, tpls, clock.RealClock{}, cfg, nil /*tradable*/, economy.DefaultCurrency)
 	return m, store, items, seller, inst.ID()
 }
 

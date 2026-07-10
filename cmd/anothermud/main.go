@@ -1543,7 +1543,7 @@ func run() error {
 			return
 		}
 		_ = actor.Write(ctx, fmt.Sprintf("You quickly loot %s from %s.",
-			autolootSummary(taken, coins), target.Name()))
+			autolootSummary(taken, coins, currencyLabel), target.Name()))
 		mgr.SendToRoom(ctx, e.RoomID,
 			fmt.Sprintf("%s quickly loots %s.", actor.Name(), target.Name()),
 			actor.PlayerID())
@@ -3009,6 +3009,7 @@ func run() error {
 			}
 			return !slices.Contains(it.Tags(), "no_trade")
 		},
+		currencyLabel,
 	)
 	auctionMgr.SetNotifier(auctionNotifier{m: notifMgr})
 
@@ -3069,6 +3070,7 @@ func run() error {
 			}
 			return ""
 		},
+		currencyLabel,
 	)
 	// primaryWorld + currencyLabel are resolved once earlier (before the quest
 	// notifier, which now shares currencyLabel for its reward banner). primaryWorld
@@ -3728,13 +3730,14 @@ func parseRoleSeed(s string) map[string][]string {
 // undecorated here (autoloot is a convenience path off the tick
 // goroutine, with no per-actor render Context); the manual loot verb
 // keeps decoration.
-func autolootSummary(items []*entities.ItemInstance, coins int) string {
+func autolootSummary(items []*entities.ItemInstance, coins int, money economy.CurrencyLabel) string {
 	parts := make([]string, 0, len(items)+1)
 	for _, it := range items {
 		parts = append(parts, it.Name())
 	}
 	if coins > 0 {
-		parts = append(parts, fmt.Sprintf("%d gold", coins))
+		// Currency-label seam: "25¥" in Shadowrun, "25 gold" in the fantasy default.
+		parts = append(parts, money.Format(coins))
 	}
 	switch len(parts) {
 	case 0:

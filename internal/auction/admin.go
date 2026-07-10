@@ -62,7 +62,7 @@ func (m *Manager) AdminRefund(ctx context.Context, admin Party, listingID string
 	// Notify both parties (offline-capable).
 	m.notifySeller(ctx, l, "An administrator reversed the sale of "+l.Item.Name+". Collect it at an auctioneer.")
 	if m.notifier != nil && l.Buyer != "" {
-		m.notifier.Notify(ctx, l.Buyer, l.BuyerName, "An administrator refunded your purchase of "+l.Item.Name+". Collect your gold at an auctioneer.")
+		m.notifier.Notify(ctx, l.Buyer, l.BuyerName, "An administrator refunded your purchase of "+l.Item.Name+". Collect your "+m.money.Name()+" at an auctioneer.")
 	}
 	return reversed, nil
 }

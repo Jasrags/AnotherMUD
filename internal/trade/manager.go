@@ -8,6 +8,7 @@ import (
 	"sync"
 	"sync/atomic"
 
+	"github.com/Jasrags/AnotherMUD/internal/economy"
 	"github.com/Jasrags/AnotherMUD/internal/entities"
 	"github.com/Jasrags/AnotherMUD/internal/escrow"
 )
@@ -45,6 +46,7 @@ type Manager struct {
 	coin     CoinMover
 	tradable func(entities.EntityID) bool
 	describe func(entities.EntityID) string // item id -> display name (for offers)
+	money    economy.CurrencyLabel          // currency-label seam: "5 gold" / "5¥" in offers
 
 	seq atomic.Uint64
 }
@@ -52,8 +54,9 @@ type Manager struct {
 // NewManager wires a Manager. bus + audit drive every session's escrow
 // transaction; coin is the currency seam; tradable gates non-tradable items
 // (nil → everything tradable); describe renders item names in offer views
-// (nil → the raw id).
-func NewManager(bus escrow.Bus, audit *escrow.AuditStore, coin CoinMover, tradable func(entities.EntityID) bool, describe func(entities.EntityID) string) *Manager {
+// (nil → the raw id); money is the pack's currency label for coin amounts in
+// offer messages (zero value → the "gold" default).
+func NewManager(bus escrow.Bus, audit *escrow.AuditStore, coin CoinMover, tradable func(entities.EntityID) bool, describe func(entities.EntityID) string, money economy.CurrencyLabel) *Manager {
 	return &Manager{
 		sessions: map[string]*Session{},
 		pending:  map[string]string{},
@@ -63,6 +66,7 @@ func NewManager(bus escrow.Bus, audit *escrow.AuditStore, coin CoinMover, tradab
 		coin:     coin,
 		tradable: tradable,
 		describe: describe,
+		money:    money,
 	}
 }
 
@@ -217,7 +221,7 @@ func (m *Manager) OfferCoin(ctx context.Context, p Party, amount int) error {
 		return err
 	}
 	mine.coin += amount
-	m.changedLocked(ctx, s, fmt.Sprintf("%s adds %d gold to the offer.", p.Name(), amount))
+	m.changedLocked(ctx, s, fmt.Sprintf("%s adds %s to the offer.", p.Name(), m.money.Format(amount)))
 	return nil
 }
 
@@ -243,7 +247,7 @@ func (m *Manager) WithdrawCoin(ctx context.Context, p Party, amount int) error {
 		return err
 	}
 	mine.coin -= amount
-	m.changedLocked(ctx, s, fmt.Sprintf("%s removes %d gold from the offer.", p.Name(), amount))
+	m.changedLocked(ctx, s, fmt.Sprintf("%s removes %s from the offer.", p.Name(), m.money.Format(amount)))
 	return nil
 }
 
@@ -393,7 +397,7 @@ func (m *Manager) offerText(o *offerSide) string {
 		parts = append(parts, m.name(id))
 	}
 	if o.coin > 0 {
-		parts = append(parts, fmt.Sprintf("%d gold", o.coin))
+		parts = append(parts, m.money.Format(o.coin))
 	}
 	if len(parts) == 0 {
 		return "(nothing)"

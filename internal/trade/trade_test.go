@@ -2,6 +2,7 @@ package trade
 
 import (
 	"context"
+	"strings"
 	"testing"
 
 	"github.com/Jasrags/AnotherMUD/internal/economy"
@@ -70,7 +71,33 @@ func (b *fakeBus) PublishCancellable(_ context.Context, e eventbus.CancellableEv
 func newTestManager(bus *fakeBus, bound map[entities.EntityID]bool) *Manager {
 	cur := economy.NewCurrencyService(nil)
 	tradable := func(id entities.EntityID) bool { return !bound[id] }
-	return NewManager(bus, nil, cur, tradable, nil)
+	return NewManager(bus, nil, cur, tradable, nil, economy.DefaultCurrency)
+}
+
+// A coin offer is announced through the pack's currency label (currency-label
+// seam), so a Shadowrun-style label shows "50¥", never "50 gold".
+func TestOfferCoin_UsesCurrencyLabel(t *testing.T) {
+	ctx := context.Background()
+	cur := economy.NewCurrencyService(nil)
+	m := NewManager(&fakeBus{}, nil, cur, nil, nil, economy.CurrencyLabel{Noun: "nuyen", Suffix: "¥"})
+	a := newParty("A", "Alice")
+	b := newParty("B", "Bob")
+	b.gold = 100
+
+	open(t, m, a, b)
+	if err := m.OfferCoin(ctx, b, 50); err != nil {
+		t.Fatalf("offer coin: %v", err)
+	}
+	// Alice (the counterparty) sees Bob's coin offer announced.
+	var saw string
+	for _, line := range a.out {
+		if strings.Contains(line, "adds") {
+			saw = line
+		}
+	}
+	if !strings.Contains(saw, "50¥") || strings.Contains(saw, "gold") {
+		t.Errorf("coin offer message = %q, want it to show 50¥ (not gold)", saw)
+	}
 }
 
 // open is a test helper that runs the symmetric handshake to an open session.
@@ -284,7 +311,7 @@ func TestRescindByQuery(t *testing.T) {
 			return "a steel sword"
 		}
 		return string(id)
-	})
+	}, economy.DefaultCurrency)
 	a := newParty("A", "Alice")
 	a.inv["sword-1"] = true
 	b := newParty("B", "Bob")
