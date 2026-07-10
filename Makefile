@@ -56,10 +56,10 @@ run-wot: WORLD_PACKS := wot
 run-wot: WORLD_START_ROOM := wot:the-green
 run-wot: run
 
-## run-shadowrun: run the Shadowrun world (content/shadowrun — SR-M3c)
+## run-shadowrun: run the Shadowrun world (content/shadowrun — starts in Downtown)
 .PHONY: run-shadowrun
 run-shadowrun: WORLD_PACKS := shadowrun
-run-shadowrun: WORLD_START_ROOM := shadowrun:street-corner
+run-shadowrun: WORLD_START_ROOM := shadowrun:downtown-plaza
 run-shadowrun: run
 
 ## watch: live-reload — rebuild + restart on any .go/.yaml/.lua change (needs air)

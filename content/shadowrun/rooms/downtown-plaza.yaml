@@ -19,3 +19,32 @@ exits:
 # no spawns — a place to orient, read `score`, and pick a direction. `safe` also
 # satisfies the training safe-room gate.
 tags: [safe-room, safe]
+# The gear-up seam (mirrors the seattle test corner). As the district's start
+# room and safe hub, the Plaza is where a fresh runner — booted via
+# `make run-shadowrun` — arms up before heading out. A street vendor works the
+# plaza edge with a tray to `get`+`equip` for free (the demo conceit), and the
+# fixer's `list`/`buy` shop spends looted nuyen on refills and upgrades.
+#
+# NOTE: this deliberately duplicates street-corner's tray. street-corner is the
+# SR-M3c smoke-test harness (its live tests pin START_ROOM=street-corner
+# directly, so they're unaffected by the make target moving here); once those
+# tests migrate to Downtown, the street-corner tray can be retired and this
+# becomes the single gear-up point.
+items:
+  # A katana + heavy pistol (with a clip) for the kill, a stun baton to take a
+  # mark alive, an armoured jacket for the soak.
+  - katana
+  - ares-predator-v
+  - predator-clip
+  - ammo-clip
+  - stun-baton
+  - armored-jacket
+  # A ripperdoc's sample tray — demo cyberware to `get` + `equip` into the
+  # cyberware slot; each shifts an SR attribute on `score` (SR-M3c [98]).
+  - wired-reflexes
+  - muscle-replacement
+  - cybereyes
+# A street fixer works the safe plaza edge — `list`/`buy` to spend looted nuyen
+# on gear (SR-M3c [99]). Friendly, so she fits the safe hub (no combat).
+mobs:
+  - fixer
