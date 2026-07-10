@@ -17,3 +17,12 @@ light_floor: dim
 # The sprawl's perpetual drizzle: outdoor rooms draw weather + time ambience from
 # the sprawl-rain zone (weather_zones/sprawl.yaml).
 weather_zone: sprawl
+# Area classification metadata (the area property bag). `region` groups areas at
+# the sprawl/nation tier above the area; `security` is the Shadowrun danger tier
+# (AAA…Z) consumers will read for response/access/pricing; `level_range` is a
+# mob-tuning hint. Descriptive today — no engine behavior is wired to them yet.
+# See docs/shadowrun/sr2075_geography_mud.md (Builder Conventions).
+properties:
+  region: seattle
+  security: A
+  level_range: "1-10"

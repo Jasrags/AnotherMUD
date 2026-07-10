@@ -46,6 +46,59 @@ type Area struct {
 	// ambient entirely. Validated against the level vocabulary at load;
 	// an unknown value is a boot error.
 	LightFloor string
+
+	// Properties is the free-form area property bag — the area-level
+	// counterpart to Room.Properties. Keys are snake_case and validated
+	// against the engine-wide property registry at load. It carries
+	// supra-room metadata (region, security tier, level_range band) that
+	// content and future systems read off the area. Values are stored raw
+	// and read via the typed Property* accessors. Empty by default;
+	// mutations are content-load-only today (no runtime SetProperty path).
+	Properties map[string]any
+}
+
+// Property returns the raw value stored under key, or (nil, false) when
+// absent. Mirrors Room.Property; use the typed helpers when the registered
+// type is known.
+func (a *Area) Property(key string) (any, bool) {
+	if a == nil || a.Properties == nil {
+		return nil, false
+	}
+	v, ok := a.Properties[key]
+	return v, ok
+}
+
+// PropertyString returns the string value under key, or ("", false) when
+// absent or not a string. Mirrors Room.PropertyString.
+func (a *Area) PropertyString(key string) (string, bool) {
+	v, ok := a.Property(key)
+	if !ok {
+		return "", false
+	}
+	s, ok := v.(string)
+	return s, ok
+}
+
+// PropertyInt returns the int value under key, or (0, false) when absent or
+// not an int. Mirrors Room.PropertyInt.
+func (a *Area) PropertyInt(key string) (int, bool) {
+	v, ok := a.Property(key)
+	if !ok {
+		return 0, false
+	}
+	n, ok := v.(int)
+	return n, ok
+}
+
+// PropertyBool returns the bool value under key, or (false, false) when absent
+// or not a bool. Mirrors Room.PropertyBool.
+func (a *Area) PropertyBool(key string) (bool, bool) {
+	v, ok := a.Property(key)
+	if !ok {
+		return false, false
+	}
+	b, ok := v.(bool)
+	return b, ok
 }
 
 // SpawnRule is one entry in an area's spawn config (spec

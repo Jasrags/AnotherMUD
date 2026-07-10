@@ -43,8 +43,20 @@ func TestLoad_ShadowrunBootSlice(t *testing.T) {
 	if _, err := regs.World.Room("shadowrun:street-corner"); err != nil {
 		t.Errorf("shadowrun starter room not loaded: %v", err)
 	}
-	if _, err := regs.World.Area("shadowrun:seattle"); err != nil {
+	seattle, err := regs.World.Area("shadowrun:seattle")
+	if err != nil {
 		t.Errorf("shadowrun area not loaded: %v", err)
+	} else {
+		// The area property bag carries the gazetteer's classification metadata.
+		if got, ok := seattle.PropertyString("region"); !ok || got != "seattle" {
+			t.Errorf("seattle area region = %q (ok=%v), want seattle", got, ok)
+		}
+		if got, ok := seattle.PropertyString("security"); !ok || got != "A" {
+			t.Errorf("seattle area security = %q (ok=%v), want A", got, ok)
+		}
+		if got, ok := seattle.PropertyString("level_range"); !ok || got != "1-10" {
+			t.Errorf("seattle area level_range = %q (ok=%v), want 1-10", got, ok)
+		}
 	}
 
 	// The shadowrun `human` overrode the core baseline (priority 1) — proven by

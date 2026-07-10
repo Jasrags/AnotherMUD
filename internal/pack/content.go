@@ -30,6 +30,14 @@ type AreaFile struct {
 	// settlement knob (spec light-and-darkness §2.4). Empty (the
 	// default) means the area imposes no floor and rooms ride the sky.
 	LightFloor string `yaml:"light_floor,omitempty"`
+	// Properties is the free-form area property bag — the area-level
+	// counterpart to RoomFile.Properties (M14.5). Each entry's name is
+	// validated against the property registry at load (snake_case,
+	// registered, type-matched). It carries supra-room area metadata
+	// like `region`, `security` (danger/enforcement tier), and
+	// `level_range` (a mob-tuning band hint) that content and future
+	// systems read off the area. Absent → empty.
+	Properties map[string]any `yaml:"properties,omitempty"`
 }
 
 // SpawnRuleFile is the YAML shape for one entry of

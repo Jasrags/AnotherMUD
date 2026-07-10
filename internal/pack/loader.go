@@ -1025,6 +1025,12 @@ func loadPackContent(ctx context.Context, p Discovered, dst *Registries, scriptC
 		if err != nil {
 			return nil, nil, err
 		}
+		// Validate the area property bag against the registry before commit
+		// (same snake-case / registered / type-match contract as rooms), so a
+		// bad area property surfaces at boot, not at first read.
+		if err := validateAreaProperties(a, dst.Properties, ns); err != nil {
+			return nil, nil, fmt.Errorf("%w (in %s)", err, ap)
+		}
 		if err := dst.World.TryAddArea(a); err != nil {
 			return nil, nil, fmt.Errorf("%w (in %s)", err, ap)
 		}
@@ -3032,6 +3038,7 @@ func decodeArea(path, ns string) (*world.Area, error) {
 		SpawnRules:    rules,
 		WeatherZone:   zoneID,
 		LightFloor:    af.LightFloor,
+		Properties:    copyProperties(af.Properties),
 	}, nil
 }
 
@@ -4431,6 +4438,27 @@ func validateRoomProperties(r *world.Room, reg *property.Registry, ns string) er
 		if !valueMatchesType(raw, entry.Type) {
 			return fmt.Errorf("%w: room %q property %q: value %T does not match registered type %s",
 				ErrInvalidContent, r.ID, name, raw, entry.Type)
+		}
+	}
+	return nil
+}
+
+// validateAreaProperties is validateRoomProperties for the area property bag:
+// every entry must be a registered property whose registered type matches the
+// authored value, resolved with `ns` as the current-pack shorthand context.
+func validateAreaProperties(a *world.Area, reg *property.Registry, ns string) error {
+	if a == nil || len(a.Properties) == 0 || reg == nil {
+		return nil
+	}
+	for name, raw := range a.Properties {
+		entry, ok := reg.Get(name, ns)
+		if !ok {
+			return fmt.Errorf("%w: area %q property %q is not registered",
+				ErrInvalidContent, a.ID, name)
+		}
+		if !valueMatchesType(raw, entry.Type) {
+			return fmt.Errorf("%w: area %q property %q: value %T does not match registered type %s",
+				ErrInvalidContent, a.ID, name, raw, entry.Type)
 		}
 	}
 	return nil

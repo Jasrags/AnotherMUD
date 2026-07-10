@@ -84,6 +84,26 @@ boot code (not used by the demo today). `key_for`/`rarity`/`essence`/`lit`/`fuel
 are registered but apply to **items**, not rooms (see `AppliesTo` in
 `properties.go`).
 
+### 2a′. Area properties — **registry-validated** (same contract as rooms)
+
+An **area** carries its own `properties:` bag (the area-level counterpart to the
+room bag), validated the same way (`validateAreaProperties`, `loader.go`): an
+unregistered key or a type mismatch fails the boot. It holds supra-room metadata
+as one setting per district rather than the same value repeated on every room.
+The engine baseline:
+
+| Key | Type | Meaning |
+|-----|------|---------|
+| `region` | string | Supra-area grouping id (a sprawl / nation / continent tier above the area). |
+| `security` | string | Area danger / enforcement tier — a content-defined string (e.g. the Shadowrun `AAA`…`Z` zones). Classification only; **no engine behavior is wired to it yet** (patrol response is a backlog item). |
+| `level_range` | string | Mob-tuning band hint (e.g. `"1-10"`); descriptive, not an enforced gate. |
+
+Read them off `world.Area` via `Property` / `PropertyString` / `PropertyInt` /
+`PropertyBool`. **Limitation:** there is no content-side property-*declaration*
+path today — a pack cannot register a new area property from YAML, so an
+area-property key must exist in the engine baseline above (or be added there).
+Adding a fourth area property is currently a small engine edit, not pure content.
+
 ### 2b. Item properties — **free-form** (not validated; engine acts on specific keys)
 
 Item `properties:` are **not** validated against the registry — you may carry
@@ -152,6 +172,7 @@ consistently on the tool item and the node template.
 - **A trainer:** mob with `tags: [skill_trainer]` + a `trainer:` block listing taught abilities.
 - **A safe town room:** `tags: [safe-room]`.
 - **A forge/kitchen:** room `properties: { craft_stations: { smithing: 2 } }`.
+- **A classified district:** area `properties: { region: seattle, security: A, level_range: "1-10" }` (see §2a′).
 - **A weapon:** item `weapon_damage: "1d8"`, `eligible_slots: [wield]`, `properties: { value: N }`.
 - **A torch/lantern:** item with `light` + `lit` + `fuel` properties and the `light` eligible slot.
 - **A gathering tool:** item `tags: [mining-tool]` (any tag); the node template's `required_tool` names the same tag.

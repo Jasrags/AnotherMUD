@@ -90,6 +90,24 @@ func RegisterEngineBaselineProperties(reg *property.Registry) error {
 			Description: "Per-discipline crafting station tier this room provides (discipline → tier); gates craft attempts + sets the quality ceiling (spec crafting-and-cooking §4).",
 			AppliesTo:   []string{"room"},
 		},
+		{
+			Name:        "region",
+			Type:        property.TypeString,
+			Description: "Supra-area grouping id (a sprawl / nation / continent tier above the area); content and future systems key economy, presence, and travel off it.",
+			AppliesTo:   []string{"area"},
+		},
+		{
+			Name:        "security",
+			Type:        property.TypeString,
+			Description: "Area danger / enforcement tier (a content-defined string, e.g. the Shadowrun AAA…Z zones); a classification consumers read to drive response, access, and pricing. No engine behavior wired yet.",
+			AppliesTo:   []string{"area"},
+		},
+		{
+			Name:        "level_range",
+			Type:        property.TypeString,
+			Description: "Planning hint for mob tuning in this area (a band like \"1-10\"); descriptive metadata, not an enforced gate.",
+			AppliesTo:   []string{"area"},
+		},
 	}
 	for _, e := range baseline {
 		if err := reg.RegisterEngine(e); err != nil {
