@@ -8,8 +8,34 @@ import (
 	"github.com/Jasrags/AnotherMUD/internal/action"
 	"github.com/Jasrags/AnotherMUD/internal/combat"
 	"github.com/Jasrags/AnotherMUD/internal/entities"
+	"github.com/Jasrags/AnotherMUD/internal/keyword"
 	"github.com/Jasrags/AnotherMUD/internal/scrap"
+	"github.com/Jasrags/AnotherMUD/internal/slot"
 )
+
+// namesWieldedWeapon reports whether token keyword-matches the weapon in the
+// wield slot of equip. Used by `reload` to route a weapon-naming token to a
+// weapon reload (not a carried-clip fill), since a firearm and its clip share
+// name-words. Takes the store + equipment map (not the whole Context) so the
+// resolution is a small, directly-testable seam.
+func namesWieldedWeapon(items *entities.Store, equip map[string]entities.EntityID, token string) bool {
+	if items == nil {
+		return false
+	}
+	id, ok := equip[slot.WieldSlot]
+	if !ok {
+		return false
+	}
+	e, ok := items.GetByID(id)
+	if !ok {
+		return false
+	}
+	w, ok := e.(*entities.ItemInstance)
+	if !ok {
+		return false
+	}
+	return keyword.Resolve(asNamed([]*entities.ItemInstance{w}), token) != nil
+}
 
 // magazineReloader is the session surface for topping up an INTERNALLY-FED
 // magazine weapon (SR-M3e — a revolver/cylinder). before/after are the loaded-
@@ -34,7 +60,15 @@ type holderReloader interface {
 //     holder (ejecting the spent one); an internally-fed magazine weapon takes
 //     loose rounds (SR-M3e); a reload-gated crossbow chambers a bolt (`load`).
 func ReloadHandler(ctx context.Context, c *Context) error {
-	if token := strings.TrimSpace(strings.Join(c.Args, " ")); token != "" {
+	// `reload <weapon>` (naming the wielded gun) means the same as bare
+	// `reload` — reload the weapon — NOT "fill a carried clip named <token>".
+	// Only a token that does not name the wielded weapon is a clip to fill.
+	// Without this gate, a token that keyword-matches the wielded weapon (e.g.
+	// "ares", which also matches a clip's name "an Ares Predator V clip") falls
+	// through to clip-filling and confusingly reports the clip already full
+	// while the gun stays empty. A weapon-naming token drops to the feed-model
+	// switch below, identical to bare `reload`.
+	if token := strings.TrimSpace(strings.Join(c.Args, " ")); token != "" && !namesWieldedWeapon(c.Items, c.Actor.Equipment(), token) {
 		return beginReloadOrRun(ctx, c, "reloading a clip", func() error {
 			return reloadNamedHolder(ctx, c, token)
 		})
