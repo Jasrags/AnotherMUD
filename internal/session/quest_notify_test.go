@@ -4,6 +4,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/Jasrags/AnotherMUD/internal/economy"
 	"github.com/Jasrags/AnotherMUD/internal/quest"
 	"github.com/Jasrags/AnotherMUD/internal/world"
 )
@@ -40,7 +41,7 @@ func newNotifierRig(t *testing.T) (quest.EventSink, *fakeConn) {
 		}
 		return ""
 	}
-	return NewQuestNotifier(mgr, reg, giver, itemN, nil), fc
+	return NewQuestNotifier(mgr, reg, giver, itemN, economy.DefaultCurrency, nil), fc
 }
 
 func TestQuestNotifier_ObjectiveProgress(t *testing.T) {

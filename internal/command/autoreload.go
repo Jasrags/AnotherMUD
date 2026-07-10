@@ -1,10 +1,6 @@
 package command
 
-import (
-	"context"
-	"fmt"
-	"strings"
-)
+import "context"
 
 // AutoreloadHandler implements the `autoreload` toggle verb (autoreload.md §2):
 // a per-character preference that auto-reloads a dry wielded firearm from a
@@ -19,21 +15,7 @@ func AutoreloadHandler(ctx context.Context, c *Context) error {
 	if !ok {
 		return c.Actor.Write(ctx, "You can't change that right now.")
 	}
-	if len(c.Args) == 0 {
-		state := "off"
-		if pref.Autoreload() {
-			state = "on"
-		}
-		return c.Actor.Write(ctx, fmt.Sprintf("Autoreload is currently %s. Use 'autoreload on' or 'autoreload off'.", state))
-	}
-	switch strings.ToLower(c.Args[0]) {
-	case "on":
-		pref.SetAutoreload(true)
-		return c.Actor.Write(ctx, "Autoreload enabled — a dry firearm reloads itself from a spare clip when you fire.")
-	case "off":
-		pref.SetAutoreload(false)
-		return c.Actor.Write(ctx, "Autoreload disabled — reload manually when a firearm runs dry.")
-	default:
-		return c.Actor.Write(ctx, "Usage: autoreload [on|off]")
-	}
+	return applyBinaryToggle(ctx, c, "autoreload", pref.Autoreload(), pref.SetAutoreload,
+		"Autoreload enabled — a dry firearm reloads itself from a spare clip when you fire.",
+		"Autoreload disabled — reload manually when a firearm runs dry.")
 }

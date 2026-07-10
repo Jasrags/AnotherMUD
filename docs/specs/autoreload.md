@@ -37,8 +37,11 @@ timed busy action a manual reload is, inheriting its cost and interrupts),
 
 ## 2. The toggle
 
-- `autoreload` with no argument reports the current state without changing it.
-- `autoreload on` / `autoreload off` set the state and confirm the new value.
+- `autoreload` with no argument **flips** the current state and confirms the new
+  value — the standard binary-toggle grammar shared by every simple on/off
+  preference (`autoloot`, `autoassist`, `roomdata`, `minimap`, …).
+- `autoreload on` / `autoreload off` set the state explicitly and confirm it.
+- Any other argument is a usage error and leaves the state unchanged.
 - The state is a **persisted per-character preference** (a sibling of the prompt
   template and other player prefs), unset-safe: a character with no stored value
   takes the configured default (§7).
@@ -46,8 +49,9 @@ timed busy action a manual reload is, inheriting its cost and interrupts),
 **Acceptance criteria**
 
 - [ ] A character has an autoreload preference that persists across sessions.
-- [ ] `autoreload` alone echoes the current state and changes nothing.
-- [ ] `autoreload on` / `autoreload off` set the state and confirm it.
+- [ ] `autoreload` alone flips the state (off→on, on→off) and confirms it.
+- [ ] `autoreload on` / `autoreload off` set the state explicitly and confirm it.
+- [ ] A non-`on`/`off` argument is a usage error and changes nothing.
 - [ ] A freshly created character's state is the configured default (§7).
 
 ## 3. Triggering — reactive, at fire time

@@ -20,7 +20,7 @@ type powerAttackController interface {
 // Attack combat stance (feats Bucket C). While on, the attacker trades to-hit
 // for melee damage every swing.
 //
-//	No argument:   report the current stance.
+//	No argument:   flip the current stance (turning on still needs the feat).
 //	"on":          enter the stance (refused without the Power Attack feat).
 //	"off":         leave the stance.
 //	anything else: usage message.
@@ -30,11 +30,19 @@ func PowerAttackHandler(ctx context.Context, c *Context) error {
 		return c.Actor.Write(ctx, "You can't fight that way.")
 	}
 
+	// No argument flips the stance. Turning it ON still requires the feat; turning
+	// OFF is always allowed. (Unlike the pure prefs, this can't use applyBinaryToggle
+	// — the on-transition is feat-gated.)
 	if len(c.Args) == 0 {
 		if ctrl.PowerAttackActive() {
-			return c.Actor.Write(ctx, "Power Attack is on — you're trading accuracy for power.")
+			ctrl.SetPowerAttack(false)
+			return c.Actor.Write(ctx, "You return to a measured, accurate fighting style.")
 		}
-		return c.Actor.Write(ctx, "Power Attack is off.")
+		if !ctrl.HasPowerAttackFeat() {
+			return c.Actor.Write(ctx, "You don't know how to fight with Power Attack.")
+		}
+		ctrl.SetPowerAttack(true)
+		return c.Actor.Write(ctx, "You set yourself to attack with raw power, trading accuracy for damage.")
 	}
 
 	switch strings.ToLower(c.Args[0]) {

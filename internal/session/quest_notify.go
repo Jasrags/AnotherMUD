@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"strings"
 
+	"github.com/Jasrags/AnotherMUD/internal/economy"
 	"github.com/Jasrags/AnotherMUD/internal/quest"
 )
 
@@ -27,23 +28,26 @@ type questNotifier struct {
 	registry  *quest.Registry
 	giverName func(templateID string) string // mob template id → display name
 	itemName  func(templateID string) string // item template id → display name
+	money     economy.CurrencyLabel          // currency-label seam: reward "gold"/"¥"
 	logger    *slog.Logger
 }
 
 // NewQuestNotifier builds the runtime quest sink. giverName / itemName
 // resolve template ids to display names for turn-in prompts and reward
-// lines; either may be nil (falls back to the raw / short id).
+// lines; either may be nil (falls back to the raw / short id). money is the
+// pack's currency label so the reward banner reads "25¥" / "25 gold".
 func NewQuestNotifier(
 	mgr *Manager,
 	registry *quest.Registry,
 	giverName func(string) string,
 	itemName func(string) string,
+	money economy.CurrencyLabel,
 	logger *slog.Logger,
 ) quest.EventSink {
 	if logger == nil {
 		logger = slog.Default()
 	}
-	return &questNotifier{mgr: mgr, registry: registry, giverName: giverName, itemName: itemName, logger: logger}
+	return &questNotifier{mgr: mgr, registry: registry, giverName: giverName, itemName: itemName, money: money, logger: logger}
 }
 
 // write delivers a line to an online player; an offline recipient is a
@@ -156,7 +160,8 @@ func (n *questNotifier) completionBanner(e quest.CompletedEvent) string {
 		rewards = append(rewards, fmt.Sprintf("%d experience", e.XP))
 	}
 	if e.Gold > 0 {
-		rewards = append(rewards, fmt.Sprintf("%d gold", e.Gold))
+		// Currency-label seam: "25¥" in Shadowrun, "25 gold" in the fantasy default.
+		rewards = append(rewards, n.money.Format(e.Gold))
 	}
 	for _, it := range e.Items {
 		rewards = append(rewards, n.itemLabel(it))

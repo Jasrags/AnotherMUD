@@ -149,23 +149,9 @@ func AutolootHandler(ctx context.Context, c *Context) error {
 	if !ok {
 		return c.Actor.Write(ctx, "You can't change that right now.")
 	}
-	if len(c.Args) == 0 {
-		state := "off"
-		if pref.Autoloot() {
-			state = "on"
-		}
-		return c.Actor.Write(ctx, fmt.Sprintf("Autoloot is currently %s. Use 'autoloot on' or 'autoloot off'.", state))
-	}
-	switch strings.ToLower(c.Args[0]) {
-	case "on":
-		pref.SetAutoloot(true)
-		return c.Actor.Write(ctx, "Autoloot enabled — you will loot your own kills automatically.")
-	case "off":
-		pref.SetAutoloot(false)
-		return c.Actor.Write(ctx, "Autoloot disabled.")
-	default:
-		return c.Actor.Write(ctx, "Usage: autoloot [on|off]")
-	}
+	return applyBinaryToggle(ctx, c, "autoloot", pref.Autoloot(), pref.SetAutoloot,
+		"Autoloot enabled — you will loot your own kills automatically.",
+		"Autoloot disabled.")
 }
 
 // resolveCorpse picks the corpse the loot verb acts on. With no
@@ -222,7 +208,9 @@ func lootMessage(c *Context, corpseName string, items []*entities.ItemInstance, 
 		parts = append(parts, decoratedName(c, it))
 	}
 	if coins > 0 {
-		parts = append(parts, fmt.Sprintf("%d gold", coins))
+		// Route coins through the pack's currency label (currency-label seam) so
+		// Shadowrun reads "25¥", not "25 gold".
+		parts = append(parts, c.Money.Format(coins))
 	}
 	return fmt.Sprintf("You loot %s from %s.", humanList(parts), corpseName)
 }

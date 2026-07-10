@@ -497,7 +497,8 @@ func (c *Context) renderContainerLook(target *entities.ItemInstance) string {
 	}
 	if coins > 0 {
 		b.WriteString("\n  ")
-		b.WriteString(fmt.Sprintf("%d gold", coins))
+		// Currency-label seam: "25¥" in Shadowrun, "25 gold" in the fantasy default.
+		b.WriteString(c.Money.Format(coins))
 	}
 	return b.String()
 }

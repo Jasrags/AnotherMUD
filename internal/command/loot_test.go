@@ -187,25 +187,48 @@ func TestLoot_NothingHere(t *testing.T) {
 	}
 }
 
-func TestAutoloot_ReportsAndToggles(t *testing.T) {
+func TestAutoloot_Toggles(t *testing.T) {
 	f := newLootFixture(t)
 	a := newNamedTestActor("Alice", "p-alice", f.room)
 
-	dispatchLoot(t, f, a, "autoloot")
-	if got := a.lastLine(); got == "" || !contains(got, "off") {
-		t.Errorf("default report = %q, want it to say off", got)
-	}
 	dispatchLoot(t, f, a, "autoloot on")
 	if !a.Autoloot() {
 		t.Error("autoloot on did not enable")
 	}
-	dispatchLoot(t, f, a, "autoloot")
-	if got := a.lastLine(); !contains(got, "on") {
-		t.Errorf("report after enable = %q, want on", got)
-	}
 	dispatchLoot(t, f, a, "autoloot off")
 	if a.Autoloot() {
 		t.Error("autoloot off did not disable")
+	}
+
+	// No argument flips: off → on → off.
+	dispatchLoot(t, f, a, "autoloot")
+	if !a.Autoloot() {
+		t.Error("bare `autoloot` should flip off → on")
+	}
+	dispatchLoot(t, f, a, "autoloot")
+	if a.Autoloot() {
+		t.Error("bare `autoloot` should flip on → off")
+	}
+}
+
+// The loot message renders coins through the pack's currency label (currency-label
+// seam), so a Shadowrun-style label shows "25¥", never "gold".
+func TestLoot_UsesCurrencyLabel(t *testing.T) {
+	f := newLootFixture(t)
+	a := newNamedTestActor("Alice", "p-alice", f.room)
+	f.placeCorpse(t, []string{"player:p-alice"}, 100, 25, ration())
+
+	env := f.env()
+	env.Money = economy.CurrencyLabel{Noun: "nuyen", Suffix: "¥"}
+	r := command.New()
+	if err := command.RegisterBuiltins(r); err != nil {
+		t.Fatalf("RegisterBuiltins: %v", err)
+	}
+	if err := r.Dispatch(context.Background(), env, a, "loot corpse"); err != nil {
+		t.Fatalf("dispatch: %v", err)
+	}
+	if got := a.lastLine(); !contains(got, "25¥") || contains(got, "gold") {
+		t.Errorf("loot message = %q, want it to show 25¥ (not gold)", got)
 	}
 }
 

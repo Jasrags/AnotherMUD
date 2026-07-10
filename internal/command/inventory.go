@@ -240,7 +240,8 @@ func (c *Context) getCoinsFrom(ctx context.Context, room *world.Room, container 
 		return c.Actor.Write(ctx, fmt.Sprintf("There are no coins in %s.", container.Name()))
 	}
 	c.Currency.AddGold(ctx, holder, coins, "loot:"+string(container.ID()))
-	_ = c.Actor.Write(ctx, fmt.Sprintf("You take %d gold from %s.", coins, container.Name()))
+	// Currency-label seam: "25¥" in Shadowrun, "25 gold" in the fantasy default.
+	_ = c.Actor.Write(ctx, fmt.Sprintf("You take %s from %s.", c.Money.Format(coins), container.Name()))
 	if c.Broadcaster != nil && c.Actor.Name() != "" {
 		c.Broadcaster.SendToRoom(ctx, room.ID,
 			fmt.Sprintf("%s takes some coins from %s.", c.Actor.Name(), container.Name()),

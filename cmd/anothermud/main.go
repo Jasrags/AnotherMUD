@@ -966,6 +966,20 @@ func run() error {
 	// messages to the acting player (the old log-only sink left the player
 	// blind). The giver/item name resolvers turn template ids into display
 	// names for the turn-in prompt and the reward banner.
+	// The primary active world (registries.Worlds lists kind:world namespaces in
+	// load order; one world boots today, co-host deferred) + its money-display
+	// vocabulary (currency-label seam): SR reskins to nuyen/¥, everyone else
+	// inherits the gold default. Resolved once here so the quest reward banner
+	// below, the session Config, the connect splash, and the creation flow all
+	// share it.
+	primaryWorld := ""
+	if len(registries.Worlds) > 0 {
+		primaryWorld = registries.Worlds[0]
+	}
+	currencyLabel := economy.DefaultCurrency
+	if cl, ok := registries.WorldCurrencies[primaryWorld]; ok {
+		currencyLabel = cl
+	}
 	questGiverName := func(tid string) string {
 		if t, err := registries.Mobs.Get(mob.TemplateID(tid)); err == nil {
 			return t.Name
@@ -982,7 +996,7 @@ func run() error {
 		Registry: registries.Quests,
 		Persist:  questStore,
 		Rewards:  session.NewQuestRewards(mgr, progressionMgr, proficiencyMgr, registries.Items, entityStore, currencySvc, knownRecipesMgr, factionMgr, reputationMgr, cfg.DefaultXPTrack),
-		Events:   session.NewQuestNotifier(mgr, registries.Quests, questGiverName, questItemNameFn, logging.From(ctx)),
+		Events:   session.NewQuestNotifier(mgr, registries.Quests, questGiverName, questItemNameFn, currencyLabel, logging.From(ctx)),
 		Faction:  session.NewQuestFactionGate(mgr, factionMgr),
 	})
 	questWatcher := questwatch.New(questSvc, entityStore)
@@ -3056,14 +3070,10 @@ func run() error {
 			return ""
 		},
 	)
-	// The primary active world selects the per-pack creation flow
-	// (character-identity §2). registries.Worlds lists kind:world namespaces
-	// in load order; one world boots today (co-host deferred), so the first
-	// entry is the primary. Empty → "" → the engine-default flow.
-	primaryWorld := ""
-	if len(registries.Worlds) > 0 {
-		primaryWorld = registries.Worlds[0]
-	}
+	// primaryWorld + currencyLabel are resolved once earlier (before the quest
+	// notifier, which now shares currencyLabel for its reward banner). primaryWorld
+	// selects the per-pack creation flow (character-identity §2) and the splash.
+	//
 	// Connect splash (character-select §4.1): the primary world's per-pack
 	// splash, rendered through the theme once at boot using the server color
 	// default. Handed to the login front door as final text. Empty when no
@@ -3075,13 +3085,6 @@ func run() error {
 		} else {
 			loginSplash = colorRenderer.RenderPlain(raw)
 		}
-	}
-	// The primary world's money-display vocabulary (currency-label seam): SR
-	// reskins to nuyen/¥, everyone else inherits the gold default. Boot-wide
-	// like the splash above (co-host deferred). Absent → the gold default.
-	currencyLabel := economy.DefaultCurrency
-	if cl, ok := registries.WorldCurrencies[primaryWorld]; ok {
-		currencyLabel = cl
 	}
 	handler := session.Handler(session.Config{
 		World:      w,

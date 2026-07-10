@@ -29,22 +29,8 @@ func RoomDataHandler(ctx context.Context, c *Context) error {
 	if !ok {
 		return c.Actor.Write(ctx, "Room data display is not available.")
 	}
-	want := !v.ShowRoomData()
-	if len(c.Args) > 0 {
-		switch strings.ToLower(c.Args[0]) {
-		case "on":
-			want = true
-		case "off":
-			want = false
-		default:
-			return c.Actor.Write(ctx, "Usage: roomdata [on|off]")
-		}
-	}
-	v.SetShowRoomData(want)
-	if want {
-		return c.Actor.Write(ctx, "Room data display ON.")
-	}
-	return c.Actor.Write(ctx, "Room data display OFF.")
+	return applyBinaryToggle(ctx, c, "roomdata", v.ShowRoomData(), v.SetShowRoomData,
+		"Room data display ON.", "Room data display OFF.")
 }
 
 // AppendRoomData returns base with the admin/builder room-data block

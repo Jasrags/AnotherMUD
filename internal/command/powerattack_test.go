@@ -23,20 +23,34 @@ func (p *powerAttackActor) PowerAttackActive() bool  { return p.active }
 func (p *powerAttackActor) HasPowerAttackFeat() bool { return p.hasFeat }
 func (p *powerAttackActor) SetPowerAttack(on bool)   { p.active = on }
 
-func TestPowerAttack_NoArgReportsState(t *testing.T) {
+// A no-argument `powerattack` flips the stance (off → on with the feat, on → off).
+func TestPowerAttack_NoArgToggles(t *testing.T) {
 	f := newKillFixture(t)
 	r := newRegistry(t)
 	a := newPowerAttackActor("Alice", "p-1", f.room, true)
 
 	dispatchActor(t, r, f.env(), a, "powerattack")
-	if got := a.lastLine(); !strings.Contains(strings.ToLower(got), "off") {
-		t.Errorf("default report = %q, want 'off'", got)
+	if !a.active {
+		t.Error("bare `powerattack` with the feat should flip off → on")
 	}
-
-	a.active = true
 	dispatchActor(t, r, f.env(), a, "powerattack")
-	if got := a.lastLine(); !strings.Contains(strings.ToLower(got), "on") {
-		t.Errorf("active report = %q, want 'on'", got)
+	if a.active {
+		t.Error("bare `powerattack` should flip on → off")
+	}
+}
+
+// Without the feat, a no-argument flip toward on is refused (stance stays off).
+func TestPowerAttack_NoArgFlipNeedsFeatToEnable(t *testing.T) {
+	f := newKillFixture(t)
+	r := newRegistry(t)
+	a := newPowerAttackActor("Alice", "p-1", f.room, false)
+
+	dispatchActor(t, r, f.env(), a, "powerattack")
+	if a.active {
+		t.Error("no-feat flip should not enable Power Attack")
+	}
+	if got := a.lastLine(); !strings.Contains(strings.ToLower(got), "don't know") {
+		t.Errorf("no-feat flip message = %q, want the refusal", got)
 	}
 }
 
