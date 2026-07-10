@@ -210,6 +210,7 @@ v1 is milestone scope.
 | Gathering — ambient forage | the room's biome **forage table** is what `forage` rolls against | [gathering](gathering.md) §2 |
 | Gathering — resource nodes | the room's biome **node spawn table** decides which harvestable nodes spawn there | [gathering](gathering.md) §3 |
 | Mob spawning (optional) | a biome may offer a **spawn table**; the area spawn scheduler MAY draw from each room's biome in addition to area-level spawns. Mob spawning stays area-driven (`mobs-ai-spawning.md`); this is an additive source, not a rewrite (§1.2). | `mobs-ai-spawning.md` §3 |
+| Intrinsic hazard (optional) | a biome may declare an **ambient hazard** — a payload (typed damage ± condition) applied to everyone in a room of that terrain, gated by a carried/worn **protection key** (a `toxic` zone's radiation, a `vacuum` zone's pressure). Derived from the biome, not persisted; the damage layer composes with §3 shielding + §4 ambience. | [area-effects](area-effects.md) §4.6 |
 
 ### 5.1 Acceptance — integration
 
@@ -277,9 +278,12 @@ content.
   weather (a marsh that freezes in winter) would derive from the
   game clock; out of scope, non-persisted like weather when it
   lands.
-- **Biome-gated movement / hazards.** Impassable or damaging
-  biomes (deep water needs swimming, lava) overlap movement and
-  effects; not modeled here.
+- **Biome-gated movement / hazards.** Impassable biomes (deep water
+  needs swimming, lava) overlap movement and are not modeled here.
+  The **damaging** half is now specced — an intrinsic ambient hazard
+  a biome declares (radiation, pressure), gated by carried/worn
+  protection — as [area-effects](area-effects.md) §4.6 (§5 table
+  above); build pending with the rest of that spec.
 
 ---
 

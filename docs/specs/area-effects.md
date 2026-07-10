@@ -1,11 +1,13 @@
-# Area Effects: Grenadelike Weapons and Room Hazards — Feature Specification
+# Area Effects: Grenadelike Weapons, Room Hazards, and Biome Hazards — Feature Specification
 
 **Status:** Draft (spec; build pending) · **Scope:** The engine's first
 **multi-target attack** — a shared *area-effect primitive* (a payload of typed
 damage and/or a condition applied to every eligible creature in a region) and
-its two consumers: **grenadelike weapons** (thrown acid / oil / fireworks with
-direct + splash damage and an ignition state) and **room hazards** (placed,
-persistent caltrops / oil pools that trigger on whoever enters or lingers) ·
+its consumers: **grenadelike weapons** (thrown acid / oil / fireworks with
+direct + splash damage and an ignition state), **room hazards** (placed,
+persistent caltrops / oil pools that trigger on whoever enters or lingers), and
+**biome hazards** (intrinsic, unplaced environmental damage — a `toxic` zone's
+radiation, a `vacuum` zone's pressure — gated by carried/worn protection; §4.6) ·
 **Audience:** Anyone reimplementing or porting this feature in any language.
 
 This document describes *what* the feature must do, not *how* to implement it.
@@ -61,6 +63,13 @@ primitive** and the two systems that consume it.
 - **Room hazard** — a **placed, persistent** payload-emitter attached to a room
   that fires the primitive on a **trigger** (a creature entering, or lingering /
   fighting in the room) until it is cleared or expires (§4).
+- **Biome hazard** — an **intrinsic, unplaced** hazard declared on a *biome* (or a
+  single room) rather than laid down by an actor: a `toxic` zone's radiation, a
+  `vacuum` zone's pressure. Same trigger-fires-the-primitive model as a room hazard,
+  with three differences — it has no placer (environmental), it is gated by a
+  carried/worn **protection key** (a sealed suit, rad gear) that grants immunity, and
+  it is **derived from content, not persisted** (like weather and biome ambience). The
+  "you can't go there without the right gear" layer (§4.6).
 
 ### Goals
 
@@ -267,7 +276,10 @@ A hazard enters the world by:
   the actor's room, recording the actor as **placer** (§2.3);
 - **content / scripting** — an authored or scripted hazard placed at load or by a
   trap-spring event (a content hook, not the full trap system, §8);
-- the **grenade bridge** — an igniting oil flask (§3.4).
+- the **grenade bridge** — an igniting oil flask (§3.4);
+- **intrinsic to a biome / room** — not laid down at all, but declared on the
+  location itself (§4.6): every room of a hazardous biome *is* the hazard, with no
+  placer and no placing action.
 
 A hazard is attached to a **room** (or a room + a footprint the content declares,
 e.g. "the doorway"); v1 treats the footprint as the whole room unless content
@@ -339,6 +351,68 @@ remembers its **placer** so a triggered death is credited correctly ([combat](co
       exempt); a triggered death is credited to the recorded placer, or to no one
       if environmental.
 
+### 4.6 Biome & ambient hazards (intrinsic, unplaced)
+
+Some hazards are not laid down by anyone — they are **intrinsic to a place**: the
+radiation of a `toxic` zone (Glow City), the pressure/anoxia of a `vacuum` zone
+(a hull breach), an acid-fog district. Instead of an actor scattering caltrops,
+the hazard is declared on the **biome** ([biomes](biomes.md)) — so every room of
+that terrain inherits it — or on a **single room** to make one location dangerous
+without a whole biome. It reuses the room-hazard machinery (§4.1–§4.5: the
+primitive, the trigger model, attribution) with **three** differences.
+
+**(a) Environmental — no placer.** An intrinsic hazard has no placer; a death it
+causes is credited to no one (the §4.5 environmental case). It is never *cleared*
+by an action — it is a property of the location, not an object on the floor. It
+ends only when content changes the location (a decontaminated-room override, a
+sealed breach), not via a sweep/smother action.
+
+**(b) A protection / immunity gate.** An intrinsic hazard names a **protection
+key** — a content-declared tag or property a creature can **carry or wear** to be
+exempt (a sealed vacuum suit vs. `vacuum`, rad gear vs. `toxic`, a filter mask vs.
+acid-fog). A creature that holds the protection takes **no** payload; everyone else
+takes it. This is the "you can't go there without the right gear" rule, and it is
+the biome-hazard addition — placed hazards have no immunity concept (caltrops bite
+everyone). Immunity **composes with**, and is distinct from, the per-type
+**resistance** already in the payload (§2.1): resistance *reduces* the damage
+(a rad-adapted ghoul soaks some of Glow City), protection *negates* it entirely
+(a sealed suit takes none). A creature with neither takes the full payload.
+
+**(c) Derived, not persisted.** An intrinsic hazard is **recomputed from the
+biome/room definition at load**, exactly like weather and biome ambience
+([biomes](biomes.md) §6, which the README save surface lists as deliberately
+*not* saved). It is therefore **not** part of the placed-hazard world store (§5):
+there is nothing to persist, because re-reading the pack reconstructs it. This
+cleanly partitions the two families — **placed** hazards are durable world state
+(§5); **intrinsic** hazards are derived content.
+
+Everything else is unchanged. Triggers reuse §4.2 — **on-tick-while-present** is
+the norm (radiation ticks while a runner lingers), and **on-enter** may fire a
+first jolt on arrival. The primitive (§2), the payload (§2.1, incl. its optional
+avoidance save and condition — irradiation can also apply a [conditions](conditions.md)
+flag, e.g. fatigued), and the multi-target announcement (§2.4) are the same; only
+the room copy differs ("The air itself sears your lungs."). An intrinsic hazard
+**composes with the biome's other properties**: a `toxic` / `vacuum` / `underground`
+room already carries its light and movement-cost traits ([biomes](biomes.md),
+[light-and-darkness](light-and-darkness.md), [movement-cost](movement-cost.md)) —
+the ambient hazard is the *damage* layer on top, so a toxic room is dark **and**
+poisonous, and a barrens step is costly **and** (in Glow City) irradiating.
+
+**Acceptance criteria**
+
+- [ ] A biome — or a single-room override — can declare an intrinsic ambient hazard
+      (a payload + trigger) with **no placer**; every creature present takes it per
+      the trigger, environmental death credited to no one (§4.5).
+- [ ] A creature carrying or wearing the hazard's declared **protection key** is
+      exempt; a creature without it is not; per-type **resistance** still reduces the
+      payload independently (immunity negates, resistance mitigates).
+- [ ] An intrinsic hazard is **derived from content and not persisted** — it
+      reconstructs from the biome/room definition on load (like weather/ambience) and
+      is absent from the placed-hazard world store (§5).
+- [ ] An intrinsic hazard composes with the location's light and movement-cost
+      properties rather than replacing them (a toxic room is dark, costly, and
+      damaging at once).
+
 ---
 
 ## 5. Persistence
@@ -362,12 +436,22 @@ The exact store shape (a per-room attachment in a world save vs. a standalone
 hazard store) is an implementation choice constrained only by the durability +
 attribution contracts above; see [persistence](persistence.md).
 
+**Intrinsic biome/room hazards (§4.6) are the opposite case: they are never
+stored.** Because they are declared on the biome/room content and reconstructed at
+load — like weather and biome ambience, which the README save surface lists as
+deliberately not persisted — the placed-hazard store holds only *placed* hazards.
+Restarting the server loses nothing about a biome hazard: re-reading the pack
+recreates it. This keeps the world store bounded to durable, player/scripted
+placements and out of the (potentially vast) set of intrinsically-hazardous rooms.
+
 **Acceptance criteria**
 
 - [ ] A durable placed hazard (its room, payload, trigger, remaining lifetime,
       concealment, placer) round-trips across a restart.
 - [ ] A hazard content-flagged transient is not persisted and is gone after a
       restart.
+- [ ] An intrinsic biome/room hazard (§4.6) is not written to the hazard store; it
+      reconstructs from content on load.
 - [ ] Grenade items need no hazard-specific persistence.
 
 ---
@@ -402,6 +486,8 @@ The following are externally configurable and not fixed by this spec.
 | Reflex extinguish/escape rule for burning targets | §3.3 |
 | Lit-oil-pool payload and burn duration | §3.4 |
 | Hazard roster — payload, trigger model, duration/charges | §4 (content) |
+| Biome/room intrinsic hazard — payload + trigger, declared on the biome or room | §4.6 (content) |
+| Hazard protection keys — the tag/property that grants immunity to a biome hazard | §4.6 (content) |
 | Hazard `hazard`-tick cadence | §4.2 |
 | Hazard clearing method (action vs. skill check) | §4.3 |
 | Hazard concealment / search difficulty | §4.4 (content) |
@@ -443,7 +529,19 @@ The following are externally configurable and not fixed by this spec.
 - **Hazard density / cleanup pressure.** Nothing caps how many hazards a room (or
   the world) accumulates. A field of permanent caltrops everywhere is a growth /
   grief concern; a cap, a global sweep, or mandatory durations may be needed
-  (parallel to corpse decay).
+  (parallel to corpse decay). (Intrinsic biome hazards §4.6 are exempt — they are
+  derived, not accumulated, so they carry no store-growth cost.)
+- **Graduated exposure / dose (biome hazards).** v1 fires a flat payload per tick
+  while present. Radiation/toxins realistically **accumulate a dose** — a rising
+  meter that lingers after you leave, or a save DC that climbs with time-in-zone —
+  rather than a memoryless per-tick hit. A persisted per-character dose is a richer
+  model deferred here; the flat per-tick form is the v1 baseline. Ties to the SR
+  Essence/health track if that lands (`docs/BACKLOG.md` Shadowrun cluster).
+- **Protection degradation.** v1 protection is binary and permanent — hold the
+  sealed suit, take no damage, forever. Consumable/degrading protection (a suit that
+  wears out, an air supply that depletes, a filter that saturates) is a natural
+  follow-on that turns "have the gear" into "manage the gear," but needs a
+  durability/charge model on the protection item; deferred.
 - **Client surfacing.** A room's active hazards are not exposed to a structured
   client channel (GMCP) today; a future HUD/map may want "this room is dangerous."
 - **Balance.** Every number — splash damage, ignition chance, durations, save DCs,

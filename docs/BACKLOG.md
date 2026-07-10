@@ -644,6 +644,78 @@ old five-theme partition left uncovered.
 - **Cross-cutting event catalog** — per-spec event tables exist in `specs/README.md`;
   no aggregated catalog. (Docs/meta, not engine — not a behavior spec.)
 
+### Shadowrun Mechanics (SR sprawl program)
+
+The `shadowrun` gazetteer (`docs/shadowrun/sr2075_geography_mud.md`) is ~80% authorable
+on today's engine (world/biomes/weather/factions/currency/firearms/mobs/shops). These are
+the mechanics it *assumes* that the engine doesn't have yet — each is a future spec slice.
+They cluster into three tiers: cheap-flavor (biome hazards, BTL, mana level), structural
+(the SIN + security-response spine), and large parallel-space programs (Matrix, Astral).
+None block content authoring. Sizes: **S/M/L**.
+
+- **SINs / SINless + legality gating** — **M**. A legal-identity character attribute (a SIN,
+  plus **fake SINs** with a quality rating that can be *burned*) and a **SIN-check gate at
+  zone entries** (a movement/access gate on a new axis), with "SINless = invisible to law."
+  Restricted/Forbidden/Military gear (the tech-tier legality the gazetteer maps to rarity)
+  becomes a *carry/buy consequence* here, not just a display tier. Gate is shaped like the
+  shipped faction access-gate (`faction.md` — room/area access was itself deferred). The
+  spine of "the law reacts to you." Pre-decisions: SIN as a character attribute vs. an item
+  (a datachip); fake-SIN quality → burn-on-failed-check mechanic; where checks fire (area
+  entry vs. specific gate rooms); what "invisible to law" changes mechanically (skips the
+  security-response below).
+- **Security zones as active response** — **M–L**. The zone *label* (AAA→Z) is a content
+  area-property; the new engine piece is the **consequence engine**: a crime committed in a
+  zone raises heat and schedules a **timed patrol response** (1d6 min in AAA, hours in Z),
+  spawning Knight-Errant/corp-sec pursuers. A crime-detection → heat → timed-response-spawn
+  loop, keyed on the zone property. Reuses the tick scheduler + spawn + AI-pursuit (ranged
+  `shoot` retaliation already pursues across a room). Phase it: **v1** = zone tunes patrol
+  density / ambient spawn (pure content); **v2** = active heat→response. Interlocks with
+  SINs (a SINless runner in a Z-zone triggers nothing; a crime in AAA triggers everything).
+- **Cyberware / Bioware + Essence** — **M**. Augments as **implants** — not slot-worn, not
+  droppable, occupying no equipment slot — that grant modifiers (wired reflexes → initiative,
+  smartlink → smartgun to-hit, cybereyes → low-light) at an **Essence cost**. The modifier
+  delivery reuses the effect/modifier surface; the *implant relationship* + the **Essence
+  pool** are new. The Essence pool is already the flagged next SR slice (**SR-M4**), so this
+  is its consuming feature. Pre-decisions: Essence as a capped pool that gates total 'ware;
+  bioware-vs-cyberware Essence-efficiency split; whether 'ware is installed via a street-doc
+  shop interaction (economy) or an admin/creation grant first.
+- **Drones + Rigging** — **M**. Owned recon/combat units overlap **hireable-mobs** (an owned
+  companion that follows + fights), but the SR-specific part is **jumping in** — controlling a
+  drone remotely and *perceiving through it* (perception transfer), closer in shape to the
+  Matrix/Astral dual-presence than to a hireling. Reuse the hireable-mob ownership + combat
+  substrate; the control/perception-transfer layer is new. Pre-decisions: jumped-in control as
+  a possession of the drone-actor vs. issuing orders (hireling model); what the rigger's own
+  body does while jumped in (vulnerable/immobile).
+- **The Matrix** — **L**. Hosts-as-rooms is content, but two features are new engine work:
+  **instanced areas** (per-hacker private copies of a host) and **dual presence** (a body in
+  physical room X while the decker is jacked into a host), plus a hacking action loop (marks,
+  IC-as-mobs — the mobs themselves are content). A parallel navigable space + an access
+  device (commlink/DNI) + perception transfer. Likely **shares a substrate with the Astral
+  Plane** (both are "overlay space + access gate + your attention is elsewhere"). Its own arc.
+- **The Astral Plane** — **L**. Astral projection = leave the body, move on a parallel overlay
+  map that mirrors the physical, **Awakened-only gate**, with **dual-natured** creatures present
+  in both planes and wards as walls. Same "parallel space + access gate + perception transfer"
+  shape as the Matrix — spec the shared substrate once, then the two consumers. Background count
+  / mana (below) shapes the astral landscape. Its own arc; metaplanes/Astral-Quest are endgame
+  (deferred by the gazetteer itself).
+- **Mana level / background count** — **M**. A per-area **magic-potency modifier**: industrial
+  mana-ebb suppresses magic, wilderness mana-flow enhances it, and **background count** (mass-
+  death / toxic imprint) disrupts weaves/drain. New geographic plumbing, but it rides the
+  **channel-layer / affinity potency** seam the One Power already uses (a per-room input into
+  weave potency + drain). Content authors set an area's mana level; the modifier feeds the
+  channeling resolve. Pre-decisions: mana as an area property tier vs. a signed modifier;
+  whether it affects Awakened perception (astral) as well as spellcasting.
+- **BTL / addiction** — **S–M**. Better-Than-Life chips (and other addictive consumables) with
+  a **dependency/withdrawal state**: escalating craving, a withdrawal condition when unfed, a
+  tolerance curve. Rides `conditions` + `effects` + a craving tick; no new substrate, just a new
+  effect family + a persisted dependency counter. Cheap, high-flavor for the barrens.
+- **Environmental hazards by biome** — **S–M**. Ambient typed damage on enter/linger in a
+  hazardous biome (`toxic` radiation, `vacuum` pressure, Glow City), and a sealed-suit/immunity
+  gate. **This is an extension of `area-effects` (room hazards, build-pending), not a new spec**
+  — a biome-wide/ambient variant of the placed-hazard model. Specced into `area-effects.md`
+  (see §"biome & ambient hazards"). Cheapest visible SR win since most of the machinery is the
+  existing hazard spec.
+
 ---
 
 ## 3. Decisions owed (spec open questions)
@@ -692,6 +764,7 @@ need a design pass first.
 | **Gameplay content / activities** | procedural missions (escort), fast-travel waypoints, gambling, fishing→gathering, leaderboards, onboarding-guide NPC, dropped-item decay | the GoMud-module cluster — repeatable "things to do." Each is a small standalone spec; best delivered as **feature-modules** if that seam lands first. (Corpse decay already shipped M22.5; only dropped-item decay remains.) |
 | **Player Economy depth** | mail (push delivery / attachment escrow), banking (gold-bank **+ item vault = GoMud `storage`**) + a gold-at-risk rule, zone-tax→coffer gold-sink (from elections) | extends the now-specced trade; banking wants gold-at-risk to matter; zone-tax is a reusable sink worth extracting from elections |
 | **OLC (online creation)** | in-game world building — `redit`/`medit`/`oedit`/`aedit` for builders | collides with the boot-immutable, file-authored content model; needs the source-of-truth + runtime-mutable-registry pre-decisions first |
+| **Shadowrun Mechanics (SR sprawl program)** | the §2 Shadowrun cluster: SINs + legality gating + security-zone response (the structural spine), cyberware/Essence (SR-M4), drones/rigging, the Matrix + Astral parallel-space programs, mana/background count, BTL/addiction, biome hazards | the `shadowrun` gazetteer is ~80% authorable now; these are the assumed mechanics the engine lacks. Start cheap-flavor (**biome hazards** — extends `area-effects`; **BTL**; **mana level**), then the **SIN + security-response** spine; Matrix/Astral are large parallel-space arcs best specced on a shared substrate. Content authoring is not blocked by any of it. |
 | **Feature-module system** | code-level feature packaging + web admin console; reshapes how the gameplay-module cluster (gambling, leaderboards, alt-characters, …) ships | architectural — `Module` contract + enable/disable model are pre-decisions; the runtime substrate (commands/events/scripting/packs) already exists. GoMud's plugin system is the reference |
 | **Web client (enriched gameplay)** — *stated direction 2026-07-08; Mudlet HUD paused in favor of this* | a browser front-end over the **existing** `internal/conn/ws` WebSocket + `{type,package,data}` GMCP JSON envelope: interactive coordinate map (reuse `Room.Info` x/y/z — validated), drag-drop inventory, crafting/trade forms, real-time HUD, portraits, responsive/mobile. Natural home for the web-admin console above. | **The transport + all 11 engine GMCP packages already exist and are reused wholesale** — only the small Mudlet-specific Lua is set aside (it did its job: proved the coord data is correct). **Decision-0-style fork:** strict shared-GMCP contract (telnet+web on one wire) vs a richer web-only protocol over the same WS envelope — **lean: GMCP baseline + additive web-only message types** so the web client is a *superset* and telnet never breaks. Engine stays the sole authority; the web client is a view. **Prereq when a resource HUD lands:** wire the generalized pool currents (mp/mv/One Power) into `Char.Vitals` — today only hp/maxhp/sustenance emit (`flushGmcpVitals`, session.go). |
 

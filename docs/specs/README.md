@@ -276,16 +276,20 @@ The verbs players use and the systems that resolve them.
   Greenfield from the `equipment.md` review *(spec; build pending)*.
 - [area-effects](area-effects.md) — the engine's first **multi-target attack**: a
   shared *area-effect primitive* (a payload of typed damage and/or a condition
-  applied to everyone in a region, with a friend-or-foe rule) and its two
+  applied to everyone in a region, with a friend-or-foe rule) and its three
   consumers — **grenadelike weapons** (thrown acid/oil/fireworks with direct +
-  splash and an ignition state) and **room hazards** (placed, persistent
-  caltrops/oil pools that trigger on whoever enters or lingers). Reuses
+  splash and an ignition state), **room hazards** (placed, persistent
+  caltrops/oil pools that trigger on whoever enters or lingers), and **biome
+  hazards** (§4.6 — intrinsic, unplaced environmental damage a biome declares:
+  `toxic` radiation, `vacuum` pressure, gated by carried/worn protection; derived
+  from content, not persisted). Reuses
   [combat](combat.md)/[armor-depth](armor-depth.md) (damage + resistance),
   [conditions](conditions.md), [saves](saves.md), [ranged-combat](ranged-combat.md)
-  (the throw), and [visibility](visibility.md) (the hidden-hazard hook); the
-  igniting oil flask *becomes* a hazard, the bridge between the two. Adds a durable
-  placed-hazard world store. Greenfield from the `equipment.md` review
-  *(spec; build pending)*.
+  (the throw), [visibility](visibility.md) (the hidden-hazard hook), and
+  [biomes](biomes.md) (the intrinsic-hazard host); the igniting oil flask *becomes*
+  a hazard, the bridge between the placed forms. Adds a durable placed-hazard world
+  store (intrinsic biome hazards stay derived/unsaved). Greenfield from the
+  `equipment.md` review + the Shadowrun gazetteer *(spec; build pending)*.
 - [trade-escrow](trade-escrow.md) — the shared escrow / atomic-
   transaction primitive (stage value → cancellable commit → all-or-
   nothing or make-whole rollback → audit log). Built once, consumed
@@ -675,4 +679,4 @@ highest-impact themes that recur across specs:
 
 ---
 
-<!-- Updated: 2026-07-10 · 60 specs covering the engine substrate, world, action, lifecycle, and presentation layers. Behavior contracts still ahead of code: tag-observers, area-effects (grenades & room hazards), ammo-and-reloading (holder-fed reloading — draft; internally-fed/abstract-magazine precursor shipped in the Shadowrun pack). Since-shipped: autoreload (per-character reload-on-dry toggle over ammo-and-reloading — the toggle verb, the firearm-reload peek, and the OnRangedDry trigger delegating to `reload`, 2026-07-10). Since-shipped: roles-and-permissions, admin-verbs, item-decorations (M19/M20), loot-and-corpses (M22), tab-completion Phase 0–2, who, light-and-darkness, room-coordinates (M23), player-maps (M24 — Mudlet GMCP wire-shape pending live-client validation), biomes, gathering, crafting-and-cooking (M27), weapon-identity (WoT EPIC S1), masterwork (WoT EPIC S1.H), ranged-combat (WoT EPIC S1.G — Slice A+B + Model C cross-room), armor-depth (WoT EPIC S1.E+D), size-and-wielding (WoT EPIC S1.F), two-weapon-fighting (WoT EPIC S1.K — slices 1-4: off-hand attack, the feats, Improved TWF, mob dual-wield), saves (WoT EPIC S6), conditions (WoT EPIC S5), skills (WoT EPIC S3, substrate), feats (WoT EPIC S4), backgrounds, visibility + hidden-exits (M28), movement-cost (flat→biome-weighted cost gate + encumbrance), character-select (account-first login), character-identity (world-locking, save v23), mounts (core v1 — substrate/persist save v26/acquire+stablemaster/ride+co-located travel/the mount as metered mover; barding + temperament-combat + lead pending). -->
+<!-- Updated: 2026-07-10 · 60 specs covering the engine substrate, world, action, lifecycle, and presentation layers. Behavior contracts still ahead of code: tag-observers, area-effects (grenades, room & biome hazards), ammo-and-reloading (holder-fed reloading — draft; internally-fed/abstract-magazine precursor shipped in the Shadowrun pack). Since-shipped: autoreload (per-character reload-on-dry toggle over ammo-and-reloading — the toggle verb, the firearm-reload peek, and the OnRangedDry trigger delegating to `reload`, 2026-07-10). Since-shipped: roles-and-permissions, admin-verbs, item-decorations (M19/M20), loot-and-corpses (M22), tab-completion Phase 0–2, who, light-and-darkness, room-coordinates (M23), player-maps (M24 — Mudlet GMCP wire-shape pending live-client validation), biomes, gathering, crafting-and-cooking (M27), weapon-identity (WoT EPIC S1), masterwork (WoT EPIC S1.H), ranged-combat (WoT EPIC S1.G — Slice A+B + Model C cross-room), armor-depth (WoT EPIC S1.E+D), size-and-wielding (WoT EPIC S1.F), two-weapon-fighting (WoT EPIC S1.K — slices 1-4: off-hand attack, the feats, Improved TWF, mob dual-wield), saves (WoT EPIC S6), conditions (WoT EPIC S5), skills (WoT EPIC S3, substrate), feats (WoT EPIC S4), backgrounds, visibility + hidden-exits (M28), movement-cost (flat→biome-weighted cost gate + encumbrance), character-select (account-first login), character-identity (world-locking, save v23), mounts (core v1 — substrate/persist save v26/acquire+stablemaster/ride+co-located travel/the mount as metered mover; barding + temperament-combat + lead pending). -->
