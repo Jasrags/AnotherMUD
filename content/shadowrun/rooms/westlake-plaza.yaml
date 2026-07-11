@@ -1,5 +1,5 @@
-id: downtown-plaza
-area: downtown
+id: westlake-plaza
+area: seattle-downtown
 name: "{C}Westlake Plaza{x}"
 description: |
   Ferrocrete and polished granite open into the plaza at the centre of Downtown,
@@ -14,7 +14,7 @@ exits:
   north: fifth-avenue
   south: pike-street
   east: pioneer-square
-  west: waterfront
+  west: elliott-bay-waterfront
 # A safe hub, like the seattle test corner and the demo town square: no combat,
 # no spawns — a place to orient, read `score`, and pick a direction. `safe` also
 # satisfies the training safe-room gate.

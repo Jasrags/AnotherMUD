@@ -1,5 +1,5 @@
 id: fifth-avenue
-area: downtown
+area: seattle-downtown
 name: "{C}Fifth Avenue{x}"
 description: |
   Glass towers rise sheer on either side, close enough that the avenue feels
@@ -10,7 +10,7 @@ description: |
   toward the walled corporate enclaves.
 terrain: sprawl
 exits:
-  south: downtown-plaza
+  south: westlake-plaza
 # STUB: north should eventually seam into the Bellevue corporate enclave (AA;
 # region seattle-bellevue) once that area is authored. Left unwired for now —
 # add the reverse exit on the Bellevue gate room when it lands.

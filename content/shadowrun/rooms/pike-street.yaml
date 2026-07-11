@@ -1,5 +1,5 @@
 id: pike-street
-area: downtown
+area: seattle-downtown
 name: "{M}Pike Street{x}"
 description: |
   The strip comes alive after dark: holo-signage bleeds red and violet across
@@ -10,5 +10,5 @@ description: |
   Dante's Inferno to the south; Westlake Plaza lies back to the north.
 terrain: sprawl
 exits:
-  north: downtown-plaza
+  north: westlake-plaza
   south: dantes-inferno

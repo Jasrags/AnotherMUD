@@ -45,7 +45,7 @@ var emitters = []emitter{overviewEmitter, mapEmitter, gazetteerEmitter, catalogs
 var defaultStarts = map[string]string{
 	"wot":           "the-green",
 	"starter-world": "town-square",
-	"shadowrun":     "downtown-plaza",
+	"shadowrun":     "westlake-plaza",
 }
 
 func main() {

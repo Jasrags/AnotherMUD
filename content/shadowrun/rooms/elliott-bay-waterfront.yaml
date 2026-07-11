@@ -1,5 +1,5 @@
-id: waterfront
-area: downtown
+id: elliott-bay-waterfront
+area: seattle-downtown
 name: "{c}The Elliott Bay Waterfront{x}"
 description: |
   The city gives way to grey water and greyer sky at the edge of Elliott Bay.
@@ -10,7 +10,7 @@ description: |
   manifest. Westlake Plaza and the towers lie back to the east.
 terrain: sprawl
 exits:
-  east: downtown-plaza
+  east: westlake-plaza
 # STUB: a north/south wharf walk and a smuggling-dock interior belong here
 # (industrial biome; the bay is a classic runner smuggling seam per the geography
 # doc). Left unwired for now — extend the waterfront with its own rooms later.

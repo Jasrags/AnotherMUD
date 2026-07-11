@@ -1,5 +1,5 @@
 id: pioneer-square
-area: downtown
+area: seattle-downtown
 name: "{y}Pioneer Square{x}"
 description: |
   Old Seattle survives here in soot-black brick and wrought iron, the only
@@ -11,7 +11,7 @@ description: |
   Ork Underground.
 terrain: sprawl
 exits:
-  west: downtown-plaza
+  west: westlake-plaza
   east: the-big-rhino
 # STUB: down should seam into the Ork Underground (biome underground; Z/C
 # security) once that area is authored — the subterranean ork/troll city beneath
