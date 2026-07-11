@@ -36,8 +36,36 @@ references use the full form). The pack depends on the `tapestry-core` engine ba
   building with 3+ interior rooms gets its own area; smaller buildings are single rooms
   inside their district's area.
 - A **region** is the sprawl or nation level above areas, carried as an area-level
-  `region:` property (e.g. `region: seattle-redmond`). This drives crafting economy, corp
-  presence, and security-zone rules.
+  `region:` property. It is the **sprawl itself** (`region: seattle`), not a district —
+  the district lives in the area id (see *Id naming* below). This drives crafting economy,
+  corp presence, and security-zone rules.
+
+### Id naming (avoid cross-sprawl collisions)
+
+All Shadowrun content shares **one** pack namespace, so every id must be unique across the
+*whole* Sixth World — not just within its own area. The gazetteer repeats district and
+feature names endlessly (every sprawl has a downtown, a waterfront, a central plaza), so
+bare ids like `downtown` / `downtown-plaza` / `waterfront` collide the moment a second
+sprawl is authored. Qualify ids so they stay globally unique:
+
+- **Area id = `<sprawl>-<district>`** — `seattle-downtown`, `seattle-redmond`,
+  `seattle-bellevue`, and later `boston-downtown`, `tokyo-shinjuku`. Every district of a
+  sprawl sorts together under its prefix, and the area's `region:` stays the bare sprawl
+  (`region: seattle`).
+- **Room id = the real, specific place name.** Genuine proper nouns are already unique, so
+  they stay bare: `westlake-plaza`, `pike-street`, `pioneer-square`, `elliott-bay-waterfront`,
+  `dantes-inferno`, `the-big-rhino`. Only *generic* names need qualifying — and prefer the
+  actual place name (Westlake Plaza → `westlake-plaza`, the Elliott Bay waterfront →
+  `elliott-bay-waterfront`) over a bare `downtown-plaza` / `waterfront`. Fall back to a
+  `<sprawl>-<name>` prefix only when a room truly has no specific real-world name.
+- **Mobs / items** follow the same test: a shared archetype stays generic (`ganger`,
+  `sec-guard`, `fixer`, `nuyen`); a place- or faction-specific one qualifies
+  (`knight-errant-officer`, not `officer`).
+
+**Known exception:** the legacy `seattle` **test** area (`street-corner` + three
+smoke-test rooms) predates this convention and keeps its unqualified sprawl-level id until
+its live tests migrate to Downtown, at which point it is retired or renamed. New content
+follows the scheme above.
 
 ### The security zone system (critical — replaces WoT's danger-band concept)
 
