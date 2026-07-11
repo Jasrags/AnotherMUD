@@ -1,0 +1,26 @@
+id: stuffer-shack-clerk
+name: a Stuffer Shack clerk
+type: npc
+behavior: stationary
+description: |
+  A bored wageslave in an Aztechnology-orange Stuffer Shack tabard rings up soykaf
+  and ammo behind ballistic glass, one eye on the security feed. The Shack sells
+  the same forty products in every sprawl on Earth, legally, around the clock.
+  `list` the stock, `buy` what you need.
+tags: [humanoid, shop]
+keywords: [clerk, wageslave, stuffer, shack, cashier]
+# A retail service NPC — friendly to everyone.
+disposition_rules:
+  default: friendly
+stats:
+  hp_max: 18
+  body: 2
+  willpower: 2
+# Legit over-the-counter stock (economy-survival §3.1): ammo + basic defensive
+# armour, the legal end of the gear market. Ids qualified shadowrun:<id>.
+properties:
+  shop:
+    sells:
+      - shadowrun:ammo-clip
+      - shadowrun:predator-clip
+      - shadowrun:armor-vest

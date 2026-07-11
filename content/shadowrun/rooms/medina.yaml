@@ -1,0 +1,15 @@
+id: medina
+area: seattle-bellevue
+name: "{C}Medina{x}"
+description: |
+  Old corporate money hides behind Medina's walls — estates the size of city
+  blocks, drone-patrolled lawns, and a gatehouse of private security who log your
+  approach before you reach the intercom. Uninvited faces are not welcome and
+  rarely get a second warning. Bellevue Square lies back to the west.
+terrain: corp-enclave
+exits:
+  west: bellevue-square
+# Private security holds the gate — neutral, but trespass or draw and the guard
+# escalates (the corp sec-guard archetype). Not a safe-room.
+mobs:
+  - sec-guard

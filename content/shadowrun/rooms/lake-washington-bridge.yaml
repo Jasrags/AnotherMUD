@@ -5,12 +5,13 @@ description: |
   The interstate runs out across Lake Washington on pontoons, rain hammering the
   deck and grey chop slapping the concrete below. Behind you the downtown towers
   wall off the sky to the west; ahead, the Eastside's corporate lights smear the
-  far shore. A cracked overhead sign points north up the 405 toward Redmond,
-  where the grid goes dark and the Barrens begin.
+  far shore, where Bellevue's towers wall off the enclave. The interstate runs on
+  east into Factoria; beyond the corp core the 405 climbs north to the Redmond
+  Barrens.
 terrain: sprawl
 exits:
   west: pike-street
-  north: touristville
-# STUB: east continues onto the Eastside — the Bellevue corporate enclave
-# (seattle-bellevue, AA) attaches here when that district is authored. Its
-# gateway room takes this bridge's `east`; add the reverse `west` there.
+  east: factoria
+# Redmond is no longer reached directly from the bridge: with Bellevue authored,
+# the geography is honest — east into the enclave (Factoria), then north up
+# Bellevue Way / I-405 to the Redmond Barrens.

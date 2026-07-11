@@ -1,0 +1,16 @@
+# The corporate-enclave biome (biomes.md §2): manicured, mirrored, SIN-checked
+# corp territory — Bellevue, arcology grounds, campus cores. Rooms key in via
+# `terrain: corp-enclave`. Outdoors (plazas see the sky), clean and heavily
+# surveilled; easy paving underfoot.
+id: corp-enclave
+name: the corporate enclave
+description: Manicured plazas and mirrored glass — clean, quiet, and watched from every angle.
+weather_shielded: false
+time_shielded: false
+ambience:
+  - A security drone drifts past at head height, lens whirring as it logs your face.
+  - The plaza is spotless — no litter, no graffiti, no one who doesn't belong.
+  - Corp muzak seeps from hidden speakers, relentlessly pleasant.
+  - A SIN-scanner at a shop door chirps green for the citizen ahead of you.
+  - Reflecting pools and clipped hedges sit under the glass towers, immaculate.
+move_cost: 1

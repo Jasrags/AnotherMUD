@@ -1,0 +1,19 @@
+id: seattle-bellevue
+name: Bellevue
+description: |
+  Across Lake Washington from Downtown, Bellevue is the other side of the wall
+  from Redmond — walled, manicured, gated, and wealthy. Corp families live behind
+  SIN-checked gates and private armies; the malls are cathedrals and the lawns
+  are drone-patrolled. To a runner it is a place you infiltrate, not a place you
+  belong: AA security, fast response, and no tolerance for the SINless.
+reset_interval: 300
+# Corp lighting keeps the enclave bright; DIM floor guarantees navigability at
+# any hour (the towers and plazas are never truly dark).
+light_floor: dim
+weather_zone: sprawl
+# Area classification: AA (high-lifestyle corp; constant coverage, specialists on
+# call), seattle region, mid mob-tuning band.
+properties:
+  region: seattle
+  security: AA
+  level_range: "5-15"

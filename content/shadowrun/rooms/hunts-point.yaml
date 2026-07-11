@@ -1,0 +1,14 @@
+id: hunts-point
+area: seattle-bellevue
+name: "{C}Hunt's Point{x}"
+description: |
+  A gated peninsula of the ultra-wealthy, where private marinas cradle corp
+  yachts and the security is AAA in all but name. Camera domes track the single
+  road in, and the lake laps at manicured seawalls. There is nothing here for a
+  runner but trouble and a very short conversation with someone's bodyguards.
+  Bellevue Square lies back to the east.
+terrain: corp-enclave
+exits:
+  east: bellevue-square
+# STUB: a gated mansion interior (locked/hidden exit) belongs here for an
+# infiltration beat — left unwired for now; atmospheric dead-end.
