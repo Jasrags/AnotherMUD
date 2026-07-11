@@ -1,0 +1,30 @@
+id: street-doc
+name: a street doc
+type: npc
+behavior: stationary
+description: |
+  A tired woman in a bloodstained surgical smock works a clinic cobbled from
+  salvage — a dentist's chair, a cracked medtech rig, trays of chrome that fell
+  off the back of a corp truck. She'll patch a bullet wound, fence you a
+  second-hand cyberlimb, and never once ask your name. `list` her stock, `buy`
+  what you can afford.
+tags: [humanoid, shop]
+keywords: [doc, street, doctor, ripperdoc, woman]
+# A service NPC, not a mark — friendly to everyone.
+disposition_rules:
+  default: friendly
+stats:
+  hp_max: 22
+  body: 3
+  willpower: 4
+# Ripperdoc storefront (economy-survival §3.1): armour + second-hand chrome.
+# Ids qualified shadowrun:<id> (the shop bag is not namespace-rewritten).
+properties:
+  shop:
+    sells:
+      - shadowrun:armored-jacket
+      - shadowrun:armor-vest
+      - shadowrun:stun-baton
+      - shadowrun:muscle-replacement
+      - shadowrun:cybereyes
+      - shadowrun:wired-reflexes

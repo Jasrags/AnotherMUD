@@ -1,0 +1,16 @@
+id: lake-washington-bridge
+area: seattle-downtown
+name: "{c}The I-90 Floating Bridge{x}"
+description: |
+  The interstate runs out across Lake Washington on pontoons, rain hammering the
+  deck and grey chop slapping the concrete below. Behind you the downtown towers
+  wall off the sky to the west; ahead, the Eastside's corporate lights smear the
+  far shore. A cracked overhead sign points north up the 405 toward Redmond,
+  where the grid goes dark and the Barrens begin.
+terrain: sprawl
+exits:
+  west: pike-street
+  north: touristville
+# STUB: east continues onto the Eastside — the Bellevue corporate enclave
+# (seattle-bellevue, AA) attaches here when that district is authored. Its
+# gateway room takes this bridge's `east`; add the reverse `west` there.

@@ -1,0 +1,15 @@
+id: avondale
+area: seattle-redmond
+name: "{r}Avondale{x}"
+description: |
+  Gang colours drown every wall — the Rusted Stilettos hold Avondale, and they
+  want you to know it. Stripped cars burn at the kerb, ork silhouettes watch from
+  the rooftops, and the air stinks of scorched plastic and cordite. Nothing here
+  is friendly. Sophocles lies back to the south.
+terrain: barrens
+exits:
+  south: sophocles
+# A hostile dead-end: a Rusted Stiletto jumps anyone who wanders in (the ganger
+# archetype, flavoured as an ork gangbanger by the room).
+mobs:
+  - ganger

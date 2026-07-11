@@ -1,0 +1,17 @@
+# The Barrens biome (biomes.md §2): gutted ferrocrete where the grid gave up and
+# the gangs took over — Redmond, Puyallup, the Z-zones. Rooms key in via
+# `terrain: barrens`. Outdoors (sees the sky, so area rain + day/night reach it);
+# no forage/node tables. Navigable but rough underfoot.
+id: barrens
+name: the Barrens
+description: Gutted ferrocrete and rust, where the grid gave up and the gangs took over.
+weather_shielded: false
+time_shielded: false
+ambience:
+  - A pillar of black smoke leans off a burning barrel a block over.
+  - Somewhere close, a burst of automatic fire stitches the dark, then silence.
+  - Rusted rebar claws out of a collapsed overpass, weeping rain.
+  - A pack of devil rats scatters from a split refuse bag as you pass.
+  - Graffiti layers three gangs deep on every wall still standing.
+# Rubble and wreckage, but still passable at the baseline step cost for now.
+move_cost: 1

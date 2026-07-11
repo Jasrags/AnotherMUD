@@ -11,9 +11,9 @@ description: |
 terrain: sprawl
 exits:
   south: westlake-plaza
-# STUB: north should eventually seam into the Bellevue corporate enclave (AA;
-# region seattle-bellevue) once that area is authored. Left unwired for now —
-# add the reverse exit on the Bellevue gate room when it lands.
+# STUB: north should eventually seam into Everett (I-5 North; seattle-everett,
+# port/industrial) once that district is authored — Everett is due north up the
+# 5. (Bellevue is EAST, off Pike Street's I-90 bridge, not north.) Left unwired.
 # The Knight Errant beat cop who works the corporate core (neutral — she won't
 # start it, but Downtown's fast AA response means she finishes it).
 mobs:

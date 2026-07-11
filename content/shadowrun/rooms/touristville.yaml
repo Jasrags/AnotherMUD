@@ -1,0 +1,22 @@
+id: touristville
+area: seattle-redmond
+name: "{y}Touristville{x}"
+description: |
+  This close to the Bellevue wall the Barrens keep a thin veneer of order —
+  Touristville, the runners call it, a C-zone strip of bars, chop shops, and
+  cash-only clinics the gangs leave mostly alone because it's where they spend.
+  Neon buzzes over puddled ferrocrete; a street doc works a clinic front under a
+  flickering red cross. The floating bridge back to the city lies south, the
+  deeper Barrens open north into Sophocles, the Glow's sick light leaks in from
+  the west, and Downfall's door glows east.
+terrain: barrens
+exits:
+  south: lake-washington-bridge
+  north: sophocles
+  west: glow-city-edge
+  east: downfall
+# The Barrens' safe haven: `safe-room` blocks combat, `safe` satisfies the
+# training gate. A street doc runs the clinic — `list`/`buy` chrome and armour.
+tags: [safe-room, safe]
+mobs:
+  - street-doc

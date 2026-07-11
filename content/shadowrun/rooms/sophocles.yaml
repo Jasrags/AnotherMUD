@@ -1,0 +1,14 @@
+id: sophocles
+area: seattle-redmond
+name: "{c}Sophocles{x}"
+description: |
+  A neighbourhood that still remembers being one — barricades of stacked wrecks
+  channel the street, and hand-lettered signs mark a community clinic and a soup
+  line the locals defend themselves. It's the least wretched corner of the
+  Barrens, which isn't saying much. Touristville's neon glows south; north the
+  wrecks give way to Avondale, where the Rusted Stilettos rule.
+terrain: barrens
+exits:
+  south: touristville
+  north: avondale
+# Community-held: no gang spawn here. The threat is one street north.

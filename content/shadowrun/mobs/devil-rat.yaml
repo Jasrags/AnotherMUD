@@ -1,0 +1,23 @@
+id: devil-rat
+name: a devil rat
+xp_value: 15  # kill experience (grouping.md §4); a low-threat paracritter
+type: npc
+behavior: stationary
+description: |
+  A rat the size of a terrier, ribs showing through mange, eyes gone milky with
+  whatever the Glow did to its blood. It bares yellow incisors and hisses —
+  devil rats hunt in packs, and where there's one the others aren't far.
+tags: [paracritter, vermin]
+keywords: [rat, devil, devilrat, vermin, paracritter]
+# Hostile: a cornered devil rat lunges.
+disposition_rules:
+  default: hostile
+stats:
+  hp_max: 10
+  body: 2
+  agility: 4
+  reaction: 3
+  strength: 2
+  willpower: 2
+  intuition: 3
+# No loot_table: an animal carries no gear or nuyen.

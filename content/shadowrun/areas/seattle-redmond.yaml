@@ -1,0 +1,23 @@
+id: seattle-redmond
+name: The Redmond Barrens
+description: |
+  Northeast of the metroplex, past the Bellevue wall, the grid simply stops:
+  the Redmond Barrens, three-quarters SINless, all gang turf and urban decay,
+  with the radioactive scar of Glow City festering in its southeast. Law doesn't
+  come here — Knight Errant writes it off and lets the gangs sort it out. The
+  classic shadowrunner's backyard: cheap gear, cheaper lives, and nobody asking
+  questions.
+reset_interval: 300
+# Even the Barrens never go fully dark — burning barrels, gang fires, and the
+# glow off the Bellevue wall keep the streets DIM (navigable) at night. True
+# no-utilities blackout is a later refinement.
+light_floor: dim
+weather_zone: sprawl
+# Area classification (the area property bag). Z = the Barrens tier: no law
+# response, gangs rule, constant environmental + gang threat. region groups it
+# under the seattle sprawl; level_range is a mob-tuning hint (see the geography
+# doc's master table).
+properties:
+  region: seattle
+  security: Z
+  level_range: "15-30"
