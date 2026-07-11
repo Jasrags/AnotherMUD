@@ -1,0 +1,16 @@
+id: tarislar
+area: seattle-puyallup
+name: "{r}Tarislar{x}"
+description: |
+  What began as an elven refugee camp hardened into a permanent shantytown —
+  Tarislar, blocks of tarp and salvage where the Ancients fly their colours and
+  outsiders are counted, weighed, and rarely welcomed. Cookfires smoke between
+  the tents; hard elven eyes track you from every doorway. Puyallup City lies
+  back to the west.
+terrain: barrens
+exits:
+  west: puyallup-city
+# Ancients turf — hostile. The ganger archetype, flavoured as an elven
+# go-ganger by the room.
+mobs:
+  - ganger

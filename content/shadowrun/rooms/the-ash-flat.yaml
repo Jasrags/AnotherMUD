@@ -1,0 +1,15 @@
+id: the-ash-flat
+area: seattle-puyallup
+name: "{K}The Ash Flat{x}"
+description: |
+  West of the strip the ground turns to grey powder — volcanic ash off Rainier,
+  drifted knee-deep over whatever used to stand here, still warm in places where
+  the earth vents. Nothing grows; the air tastes of sulphur and old smoke, and
+  toxic shapes are rumoured to walk the deeper flats. Puyallup City's lights are
+  a smudge back to the east.
+terrain: barrens
+exits:
+  east: puyallup-city
+# STUB: west sinks into the toxic ash barrens near the volcano — a future
+# seattle-ash-flats area on a `toxic`/`volcanic` biome (hazard, toxic spirits).
+# Left unwired for now; environmental threat only.

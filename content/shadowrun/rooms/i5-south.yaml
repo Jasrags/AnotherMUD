@@ -1,0 +1,16 @@
+id: i5-south
+area: seattle-downtown
+name: "{c}The I-5 South Interchange{x}"
+description: |
+  South of the stadiums the interstate lifts onto stilts over the SODO flats, a
+  grey river of tail-lights bleeding out of the city toward the southern sprawls.
+  Off-ramps peel away into industrial dark; the reek of the tide flats and diesel
+  hangs under the deck. Downtown's waterfront is back to the north, and the 5
+  runs on south toward the valley and the Puyallup Barrens.
+terrain: sprawl
+exits:
+  north: elliott-bay-waterfront
+  south: puyallup-city
+# STUB: the southern valley districts splice in along here as they're authored —
+# Renton (SR-900, east), Auburn, Tacoma (Federal Way, south). For now the ramp
+# runs straight through to Puyallup; those districts slot between later.

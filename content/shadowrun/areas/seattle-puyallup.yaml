@@ -1,0 +1,18 @@
+id: seattle-puyallup
+name: The Puyallup Barrens
+description: |
+  The metroplex's other great Barrens, sprawled south over volcanic ground with
+  Mount Rainier looming on the skyline and ash fields smoking near its feet.
+  Burned through in gang wars, run by a corrupt local machine, and threaded with
+  smuggling routes — Puyallup is where the Sixth World's cargo moves when nobody
+  wants a manifest. Z-security at heart, a nominal C at its calmest.
+reset_interval: 300
+# Same neon-and-firelight floor as Redmond: DIM (navigable) at night, never a
+# true blackout in the skeleton.
+light_floor: dim
+weather_zone: sprawl
+# Area classification: Z barrens tier, seattle region, mob-tuning band.
+properties:
+  region: seattle
+  security: Z
+  level_range: "15-30"

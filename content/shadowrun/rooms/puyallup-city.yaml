@@ -1,0 +1,20 @@
+id: puyallup-city
+area: seattle-puyallup
+name: "{y}Puyallup City{x}"
+description: |
+  The district's nominal centre, such as it is: a strip of permit-office
+  storefronts and pawn shops run by officials who sell whatever the office is
+  supposed to regulate. Rainier smokes on the southern horizon, ash grit crunches
+  underfoot, and a fixer works the corner where the smuggling routes converge. The
+  interstate runs back north; Tarislar's tents crowd east, Loveland's lights burn
+  south, and the ash flats smoke away to the west.
+terrain: barrens
+exits:
+  north: i5-south
+  east: tarislar
+  south: loveland
+  west: the-ash-flat
+# Contested but functional entry hub — no hostile spawn; a fixer deals here
+# (smuggling-hub vendor). Not a safe-room: this is still the Barrens.
+mobs:
+  - fixer
