@@ -18,7 +18,7 @@ var gazetteerEmitter = emitter{
 	render: func(m *worldModel, packDir string) ([]string, error) {
 		w := assemble(m)
 		lede := fmt.Sprintf("Region → area → room reference — %d rooms across %d areas.", len(w.Rooms), len(w.Areas))
-		body := renderGazetteer(w)
+		body := renderGazetteer(w, roomSpawnIndex(m))
 		page, err := renderPage(m.Pack, "gazetteer", "Gazetteer", lede, body)
 		if err != nil {
 			return nil, err
@@ -30,7 +30,7 @@ var gazetteerEmitter = emitter{
 // renderGazetteer walks the resolved world room-by-room (so every room appears
 // exactly once) grouped region → area → room. Rooms drive the grouping, so an
 // area with no rooms simply doesn't appear (the health report flags those).
-func renderGazetteer(w worldJSON) string {
+func renderGazetteer(w worldJSON, roomSpawns map[string][]string) string {
 	areaName := make(map[string]string, len(w.Areas))
 	for _, a := range w.Areas {
 		areaName[a.ID] = a.Name
@@ -93,12 +93,12 @@ func renderGazetteer(w worldJSON) string {
 			}
 			fmt.Fprintf(&b, "<h3>%s%s</h3>", escName(title), suffix)
 		}
-		writeGazRoom(&b, rw.r)
+		writeGazRoom(&b, rw.r, roomSpawns[rw.r.ID])
 	}
 	return b.String()
 }
 
-func writeGazRoom(b *strings.Builder, r roomJSON) {
+func writeGazRoom(b *strings.Builder, r roomJSON, spawns []string) {
 	fmt.Fprintf(b, `<div class="entry"><h4>%s <span class="id">%s</span></h4>`, escName(r.Name), codeID(r.ID))
 
 	fmt.Fprintf(b, `<div><span class="attr">Terrain</span> %s`, esc(orNone(r.Terrain)))
@@ -142,7 +142,41 @@ func writeGazRoom(b *strings.Builder, r roomJSON) {
 		b.WriteString(strings.Join(parts, "  ·  "))
 		b.WriteString("</div>")
 	}
+	// Quest-scoped spawns (quest-spawns.md): content a run creates here at
+	// runtime, which is absent from the static NPC/item lists above.
+	if len(spawns) > 0 {
+		b.WriteString(`<div><span class="attr">Quest spawns</span> `)
+		b.WriteString(strings.Join(spawns, " · "))
+		b.WriteString("</div>")
+	}
 	b.WriteString("</div>")
+}
+
+// roomSpawnIndex maps a room id to the quest-scoped spawns targeting it
+// (quest-spawns.md) — one entry per quest that spawns there, rendered as
+// "<quest> — N× <template> (<kind>), …". Lets the gazetteer note runtime
+// content the static room lists can't show.
+func roomSpawnIndex(m *worldModel) map[string][]string {
+	out := map[string][]string{}
+	for _, q := range m.Quests {
+		byRoom := map[string][]string{}
+		order := []string{}
+		for _, s := range q.spawns() {
+			if _, seen := byRoom[s.Room]; !seen {
+				order = append(order, s.Room)
+			}
+			n := s.Count
+			if n < 1 {
+				n = 1
+			}
+			byRoom[s.Room] = append(byRoom[s.Room],
+				fmt.Sprintf("%d× %s <subtle>(%s)</subtle>", n, codeID(s.Template), esc(orNone(s.Kind))))
+		}
+		for _, room := range order {
+			out[room] = append(out[room], codeID(q.ID)+" — "+strings.Join(byRoom[room], ", "))
+		}
+	}
+	return out
 }
 
 // roomNoteTags renders the start/craft/items/dark flags as pills.

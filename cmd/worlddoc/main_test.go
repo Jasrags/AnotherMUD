@@ -191,7 +191,7 @@ func TestRenderGazetteer(t *testing.T) {
 			{ID: "field", Name: "Field", Area: "wild", Region: "", Terrain: "field", Weather: "plains"},
 		},
 	}
-	md := renderGazetteer(w)
+	md := renderGazetteer(w, nil)
 
 	// Every room appears exactly once (one entry card per room).
 	if n := strings.Count(md, `<div class="entry">`); n != 3 {

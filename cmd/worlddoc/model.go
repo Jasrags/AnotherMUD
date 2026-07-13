@@ -118,7 +118,8 @@ type questYAML struct {
 	Classification string `yaml:"classification"`
 	Giver          string `yaml:"giver"`
 	Stages         []struct {
-		ID string `yaml:"id"`
+		ID     string           `yaml:"id"`
+		Spawns []questSpawnYAML `yaml:"spawns"`
 	} `yaml:"stages"`
 	Reward struct {
 		XP         int      `yaml:"xp"`
@@ -130,6 +131,25 @@ type questYAML struct {
 			Delta   int    `yaml:"delta"`
 		} `yaml:"faction"`
 	} `yaml:"reward"`
+}
+
+// questSpawnYAML is one quest-scoped spawn entry (quest-spawns.md §2), read so
+// the docs can show what a run creates at runtime — content that is absent from
+// the static room lists because the engine spawns it on stage activation.
+type questSpawnYAML struct {
+	Kind     string `yaml:"kind"`
+	Template string `yaml:"template"`
+	Room     string `yaml:"room"`
+	Count    int    `yaml:"count"`
+}
+
+// spawns flattens a quest's per-stage spawn declarations into one list.
+func (q questYAML) spawns() []questSpawnYAML {
+	var out []questSpawnYAML
+	for _, s := range q.Stages {
+		out = append(out, s.Spawns...)
+	}
+	return out
 }
 
 // mobJSON is a mob's rendered facts — built by loadMobs, consumed by the

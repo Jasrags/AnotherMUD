@@ -267,10 +267,32 @@ func catalogQuests(m *worldModel) string {
 		rows = append(rows, []string{
 			codeID(q.ID), escName(q.Name), esc(orNone(q.Classification)), giver,
 			fmt.Sprintf("%d", len(q.Stages)),
+			questSpawns(q),
 			esc(questReward(q)),
 		})
 	}
-	return htmlTable([]string{"ID", "Name", "Type", "Giver", "Stages", "Reward"}, rows)
+	return htmlTable([]string{"ID", "Name", "Type", "Giver", "Stages", "Spawns", "Reward"}, rows)
+}
+
+// questSpawns renders a quest's quest-scoped spawns (quest-spawns.md) — the
+// mobs/items it creates at runtime, which don't appear in the static room
+// content. One line per entry: "N× <template> (<kind>) → <room>". Empty (a
+// dash) for quests that spawn nothing.
+func questSpawns(q questYAML) string {
+	sp := q.spawns()
+	if len(sp) == 0 {
+		return ""
+	}
+	lines := make([]string, 0, len(sp))
+	for _, s := range sp {
+		n := s.Count
+		if n < 1 {
+			n = 1
+		}
+		lines = append(lines, fmt.Sprintf("%d× %s <subtle>(%s)</subtle> → %s",
+			n, codeID(s.Template), esc(orNone(s.Kind)), codeID(s.Room)))
+	}
+	return strings.Join(lines, "<br>")
 }
 
 // --- formatting helpers ---
