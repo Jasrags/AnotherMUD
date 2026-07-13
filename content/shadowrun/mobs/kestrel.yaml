@@ -1,0 +1,38 @@
+id: kestrel
+name: Kestrel
+type: npc
+behavior: stationary
+description: |
+  A broad-shouldered ork woman holds down the corner booth at the Big Rhino like
+  she owns it — which, in the ways that matter here, she does. Kestrel fixes work
+  for people the corps forgot: metahumans, squatters, the clinics in the Barrens.
+  She pays in nuyen and loyalty both, and she remembers who runs straight. She is
+  everything a Mr. Johnson is not, and she'll be the first to tell you so.
+tags: [humanoid, metahuman, fixer]
+keywords: [kestrel, fixer, ork, woman, handler]
+# A street fixer and a friend to the runners she trusts — friendly to everyone.
+disposition_rules:
+  default: friendly
+stats:
+  hp_max: 26
+  body: 5
+  strength: 4
+  willpower: 4
+# Run-giver: Kestrel is the `giver` for the street-side job line (Protection,
+# Care Package — quests/) — the rival source to the corp Johnson at Dante's.
+# `talk kestrel` surfaces her offers. Free-form patter: `ask kestrel about
+# <topic>` (npc-dialogue.md). Lists rotate on repeat; `default` is the catch-all.
+properties:
+  dialogue:
+    work:
+      - "I don't deal in deniable corp wetwork. My jobs help people who can't help themselves — and yeah, they still pay. `talk` to me and I'll lay one out."
+      - "The streets always need something done. Question is whether you're the kind of runner who does it for more than the nuyen."
+    johnson:
+      - "That suit at Dante's? A corp Johnson would sell you to the same people he hires you to hit, and smile doing it. I won't. Remember who's got your back out here."
+      - "Johnson works for whoever's paying. I work for the neighbourhood. That's the whole difference, and it's the only one that matters."
+    streets: "Downtown's got the Rhino, the Barrens have got each other, and both have got Kestrel. Corps own the towers. They don't own us."
+    pay:
+      - "I pay fair and I pay in more than nuyen — do right by my people and you've got a friend in every squat from here to Puyallup."
+      - "Nobody gets rich running for me. But nobody I trust ever goes hungry, either."
+    kestrel: "Kestrel. I fix things the corps break and the law ignores. Been doing it since before you had chrome, and I'll be doing it after."
+    default: "Hah. I fix problems, chummer, not curiosities. You want work or you want to drink? The Rhino's got both."

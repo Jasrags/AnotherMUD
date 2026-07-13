@@ -1,0 +1,44 @@
+# "Protection" — Kestrel's street-side starter run (quests spec). An OPEN entry
+# point (no prereq) so the rival fixer at the Big Rhino is a real alternative to
+# the corp Johnson from a fresh runner's first minutes. Defend the community
+# corner of the Redmond Barrens from a gang push. Unqualified ids resolve
+# against the shadowrun namespace at load.
+id: protection
+name: Protection
+classification: side
+giver: kestrel
+offer: >-
+  "Straight one to start. The Rusted Stilettos have been pushing into Sophocles —
+  shaking down the clinic, leaning on the soup line, the usual. The folks there
+  can't fight back and the law won't come. So you go, you make the Stilettos
+  regret it, and you tell them Kestrel says the corner's spoken for. You good for
+  that?"
+turn_in: true
+abandonable: true
+prerequisite:
+  min_level: 1
+stages:
+  - id: reach
+    description: The Stilettos are leaning on the community corner at Sophocles, in the Redmond Barrens.
+    hint: Sophocles is in the Redmond Barrens — through Touristville, one step short of Avondale.
+    objectives:
+      - type: visit
+        target: sophocles
+        description: Get to Sophocles in the Redmond Barrens.
+  - id: defend
+    description: Drive the Rusted Stiletto raiders out of Sophocles.
+    hint: The raiders are shaking down the corner — put them down, all three.
+    # Quest-scoped spawns (quest-spawns.md): the raiders push into the otherwise-
+    # peaceful community corner when the runner arrives, and are gone when the
+    # job's done — Sophocles stays a safe corner for everyone not on this run.
+    spawns:
+      - { kind: mob, template: ganger, room: sophocles, count: 3 }
+    objectives:
+      - type: kill
+        target: ganger
+        count: 3
+        description: Drive off the Rusted Stiletto raiders (0/3).
+reward:
+  xp: 150
+  gold: 1800
+  reputation: 2

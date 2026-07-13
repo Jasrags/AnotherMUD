@@ -1,0 +1,13 @@
+id: med-supplies
+name: a case of medical supplies
+type: item
+description: |
+  A hard case packed with stimpatches, trauma sealant, and antibiotics — the kind
+  of gear a Barrens clinic runs out of fast and can't easily replace. Kestrel
+  scraped it together off the books; getting it to the street doc is the job.
+tags: [quest]
+keywords: [supplies, medical, meds, case, medkit]
+properties:
+  weight: 2
+  # A community hand-off, not a payday — no fence value (quests spec).
+  value: 0

@@ -1,0 +1,43 @@
+# "Care Package" — Kestrel's follow-up (quests spec). A deliver run: get a case
+# of medical supplies to the Barrens street doc. Unlocks after Protection, so
+# Kestrel's line mirrors Johnson's board-that-opens-up structure. Delivers to the
+# existing street-doc (loveland/touristville) — no spawned recipient needed.
+# Unqualified ids resolve against the shadowrun namespace at load.
+id: care-package
+name: Care Package
+classification: side
+giver: kestrel
+offer: >-
+  "You did right by Sophocles, so here's one that matters. The clinics in the
+  Barrens are bled dry — no stims, no sealant, nothing. I scraped a case together
+  off the books. Get it to the street doc down in Puyallup, hand to hand. No
+  drop, no middleman. People are hurting for this. Will you run it?"
+# Auto-grant on delivery: the doc's thanks are the payoff, plus Kestrel's nuyen
+# (turn_in defaults false — no return trip).
+abandonable: true
+prerequisite:
+  min_level: 1
+  quests_completed:
+    - protection
+stages:
+  - id: collect
+    description: Pick up the case of medical supplies Kestrel leaves at the Big Rhino.
+    hint: The case is here at the Rhino — pick it up.
+    spawns:
+      - { kind: item, template: med-supplies, room: the-big-rhino }
+    objectives:
+      - type: collect
+        target: med-supplies
+        description: Pick up the case of medical supplies.
+  - id: deliver
+    description: Get the supplies into the street doc's hands in the Puyallup Barrens.
+    hint: A street doc works out of Loveland in Puyallup — `give supplies to doc` in person.
+    objectives:
+      - type: deliver
+        target: med-supplies
+        npc: street-doc
+        description: Deliver the medical supplies to the street doc.
+reward:
+  xp: 150
+  gold: 2000
+  reputation: 2
