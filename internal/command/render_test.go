@@ -366,12 +366,31 @@ func TestRenderRoom_QuestSpawnFilterHidesForeignSpawns(t *testing.T) {
 		t.Errorf("nil filter should show both chips, got %d", got)
 	}
 
-	// A staff viewer bypasses the gate and sees both chips (§10 admin bypass).
-	admin := &roomDataActor{testActor: newNamedTestActor("Gm", "gm", f.room), admin: true}
-	if got := countChips(command.QuestSpawnVisible(admin, "admin")); got != 2 {
-		t.Errorf("staff should bypass the gate and see both chips, got %d", got)
+	// A staff viewer with the bypass ON (default) sees both chips (§10).
+	staff := &staffSpawnActor{testActor: newNamedTestActor("Gm", "gm", f.room), showSpawns: true}
+	if got := countChips(command.QuestSpawnVisible(staff, "admin")); got != 2 {
+		t.Errorf("staff with bypass on should see both chips, got %d", got)
+	}
+
+	// The clutter toggle: a staffer who ran `showspawns off` falls back to
+	// owner-only visibility — they see only their own chip.
+	staff.showSpawns = false
+	if got := countChips(command.QuestSpawnVisible(staff, "admin")); got != 0 {
+		t.Errorf("silenced staff (not an owner here) should see no foreign chips, got %d", got)
 	}
 }
+
+// staffSpawnActor is an admin test actor that also carries the showspawns
+// clutter toggle (command.QuestSpawnViewer), for exercising the §10 bypass and
+// its per-staff silence.
+type staffSpawnActor struct {
+	*testActor
+	showSpawns bool
+}
+
+func (a *staffSpawnActor) HasRole(role string) bool       { return role == "admin" }
+func (a *staffSpawnActor) ShowOtherQuestSpawns() bool     { return a.showSpawns }
+func (a *staffSpawnActor) SetShowOtherQuestSpawns(v bool) { a.showSpawns = v }
 
 func TestRenderRoom_AmbienceCallbackAppendsLine(t *testing.T) {
 	// The ambience callback fires once per render. A non-empty

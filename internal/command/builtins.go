@@ -350,6 +350,7 @@ func RegisterBuiltins(r *Registry) error {
 		// via auditAdmin.
 		{Keyword: "inspect", Handler: InspectHandler, Admin: true, Brief: "Inspect a target's full diagnostic record.", Syntax: []string{"inspect [<target>]"}},
 		{Keyword: "roomdata", Handler: RoomDataHandler, Admin: true, Brief: "Toggle the room metadata block on look (admin/builder).", Syntax: []string{"roomdata", "roomdata on", "roomdata off"}},
+		{Keyword: "showspawns", Handler: ShowSpawnsHandler, Admin: true, Brief: "Toggle seeing other players' quest spawns (admin/builder).", Syntax: []string{"showspawns", "showspawns on", "showspawns off"}},
 
 		// set (M19.4c — admin-verbs §4): the general-purpose admin field
 		// write. `set <kind> <type> <target> <value>` mutates one field on a

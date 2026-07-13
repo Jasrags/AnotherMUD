@@ -105,4 +105,16 @@ func TestLive_QuestSpawnVisibility(t *testing.T) {
 	if got := chipsSeen(alfa); got != 2 {
 		t.Fatalf("staff runner should bypass the gate and see both chips, saw %d", got)
 	}
+
+	// The clutter toggle (§10): Alfa silences the bypass and falls back to
+	// owner-only visibility — she now sees only her own chip. Turning it back on
+	// restores the bypass.
+	send(alfa, "showspawns off")
+	if got := chipsSeen(alfa); got != 1 {
+		t.Fatalf("after `showspawns off` staff should see only her own chip, saw %d", got)
+	}
+	send(alfa, "showspawns on")
+	if got := chipsSeen(alfa); got != 2 {
+		t.Fatalf("after `showspawns on` staff bypass should be restored, saw %d", got)
+	}
 }

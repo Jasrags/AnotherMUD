@@ -184,8 +184,17 @@ func (c *Context) visibilityPredicate() func(string) bool {
 	}
 	// Admin rank (flat roles → binary, §3.4): a staff observer pierces the
 	// admin-invis layer (Score 1); an ordinary viewer (rank 0) does not.
-	if actorIsAdmin(c.Actor, c.AdminRole) {
+	isAdmin := actorIsAdmin(c.Actor, c.AdminRole)
+	if isAdmin {
 		obs.adminRank = adminInvisRank
+	}
+	// Quest-spawn staff bypass (quest-spawns.md §10): a staffer pierces the
+	// gate only when they have NOT silenced the clutter (`showspawns on`, the
+	// default). Otherwise the attached layer carries Score 0 → never pierced,
+	// so they see only their own spawns like an ordinary player.
+	questSpawnBypassScore := 0
+	if isAdmin && viewerShowsOtherQuestSpawns(c.Actor) {
+		questSpawnBypassScore = questSpawnBypassRank
 	}
 	if p, ok := c.Actor.(perceiver); ok {
 		obs.per = p
@@ -209,8 +218,10 @@ func (c *Context) visibilityPredicate() func(string) bool {
 			// Score = the staff rank that bypasses the gate: a staff observer
 			// (adminRank set below) pierces a foreign spawn for moderation /
 			// inspection, mirroring admin-invis; an ordinary viewer (rank 0)
-			// does not (quest-spawns.md §10 admin bypass).
-			layers = append(layers, visibility.Layer{Source: visibility.SourceQuestSpawn, Score: questSpawnBypassRank})
+			// does not (quest-spawns.md §10 admin bypass). A staffer who
+			// silenced the clutter (`showspawns off`) gets Score 0 here — the
+			// bypass is withheld and they see only their own, like a player.
+			layers = append(layers, visibility.Layer{Source: visibility.SourceQuestSpawn, Score: questSpawnBypassScore})
 		}
 		return visibility.CanSee(obs, visTarget{id: id, layers: layers})
 	}
@@ -269,14 +280,19 @@ func questSpawnOwner(e entities.Entity) string {
 // in the viewer's room render. A quest-spawned entity owned by another player
 // is hidden; ordinary entities and the viewer's own spawns show. Staff bypass
 // the gate entirely (moderation/inspection), mirroring the resolve-side admin
-// pierce (§10 admin bypass). Returns nil (show everything) for a staff viewer,
-// or when the viewer has no player identity — tests, headless, and pre-login
-// renders — so those paths keep the legacy behavior. This mirrors the
-// resolve-side SourceQuestSpawn gate so "what you see" and "what you can
-// target" stay consistent (visibility §5.4).
+// pierce (§10 admin bypass) — UNLESS the staffer has silenced the clutter with
+// `showspawns off`, in which case they fall back to owner-only visibility.
+// Returns nil (show everything) for a bypassing staff viewer, or when the
+// viewer has no player identity — tests, headless, and pre-login renders — so
+// those paths keep the legacy behavior. This mirrors the resolve-side
+// SourceQuestSpawn gate so "what you see" and "what you can target" stay
+// consistent (visibility §5.4).
 func QuestSpawnVisible(viewer Actor, adminRole string) func(entities.Entity) bool {
-	if viewer == nil || actorIsAdmin(viewer, adminRole) {
+	if viewer == nil {
 		return nil
+	}
+	if actorIsAdmin(viewer, adminRole) && viewerShowsOtherQuestSpawns(viewer) {
+		return nil // staff bypass in effect
 	}
 	viewerID := viewer.PlayerID()
 	if viewerID == "" {

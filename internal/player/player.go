@@ -294,6 +294,18 @@ type Save struct {
 	// time, so a saved-true flag does nothing for a non-admin.
 	ShowRoomData bool `yaml:"show_room_data,omitempty"`
 
+	// HideOtherQuestSpawns is a staff preference to SILENCE other players'
+	// quest spawns (quest-spawns.md Phase 2 §10 admin bypass). Staff bypass the
+	// per-observer quest-spawn gate by default (they see everyone's spawns for
+	// moderation); a staffer who finds the clutter noisy sets this to fall back
+	// to ordinary owner-only visibility. Stored in the NEGATIVE so the false
+	// zero-value = the default "bypass on / see them" behavior — added without a
+	// schema bump on the same logic as ShowRoomData: absent (omitempty) legacy
+	// saves load with the default and round-trip unchanged. It only affects a
+	// viewer who actually holds the admin role (the bypass gates on the role at
+	// render time), so a saved flag does nothing for a non-admin.
+	HideOtherQuestSpawns bool `yaml:"hide_other_quest_spawns,omitempty"`
+
 	// VisitedRooms is the persisted fog-of-war set (player-maps §3,§8):
 	// the namespaced ids of rooms this character has entered at least
 	// once. The map surfaces draw only visited rooms. Stored as a slice

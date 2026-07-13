@@ -381,14 +381,19 @@ corpses, temporary portals, mounts, and hirelings are all handled.
   role — but a pack that did would let a non-owner interact with a spawn
   that is invisible to them. Harden (route those scans through the
   predicate) if a quest spawn ever gains such a role.
-- **Admin bypass — LANDED.** Staff pierce the quest-spawn gate on both
-  the render and target seams (the `SourceQuestSpawn` layer carries the
-  staff-rank threshold, pierced by `AdminRank`, exactly like admin-invis;
-  the render-side filter shows everything to a staff viewer). An ordinary
-  viewer never pierces (the gate fails closed by default, Score 0). The
-  tradeoff: a staff member playing normally sees other runners' spawns —
-  acceptable for moderation, and gateable behind a per-staff toggle
-  (like the builder room-data toggle) if it becomes noisy.
+- **Admin bypass — LANDED (with per-staff silence toggle).** Staff pierce
+  the quest-spawn gate on both the render and target seams (the
+  `SourceQuestSpawn` layer carries the staff-rank threshold, pierced by
+  `AdminRank`, exactly like admin-invis; the render-side filter shows
+  everything to a staff viewer). An ordinary viewer never pierces (the
+  gate fails closed by default, Score 0). The tradeoff — a staff member
+  playing normally seeing other runners' spawns — is opt-out via the
+  `showspawns on|off` admin verb: `off` withholds the bypass (the
+  staffer's attached layer gets Score 0, and the render filter falls back
+  to owner-only), so they see only their own spawns like an ordinary
+  player; `on` (the default) restores the bypass. The preference persists
+  per character (the negative `HideOtherQuestSpawns` save flag, no schema
+  bump) and only matters while the viewer holds the admin role.
 - **Set-dressing props.** A pure-flavor spawn (a lootless "courier's
   body" object) is expressible as an item spawn today. Whether such
   props deserve a distinct non-interactable `kind` (so they can't be

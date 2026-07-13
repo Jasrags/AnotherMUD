@@ -6530,6 +6530,35 @@ func (a *connActor) SetShowRoomData(v bool) {
 	a.markDirtyLocked()
 }
 
+// ShowOtherQuestSpawns reports whether this (staff) viewer sees other players'
+// quest spawns — the positive sense of the persisted HideOtherQuestSpawns
+// preference (quest-spawns.md §10 admin bypass). Satisfies
+// command.QuestSpawnViewer. Defaults to true (show) when the save is absent
+// (test actors) or the flag is unset, matching the default staff-bypass
+// behavior; the bypass also gates on the admin role, so this is purely the
+// staffer's clutter toggle.
+func (a *connActor) ShowOtherQuestSpawns() bool {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	if a.save == nil {
+		return true
+	}
+	return !a.save.HideOtherQuestSpawns
+}
+
+// SetShowOtherQuestSpawns stores the staff quest-spawn clutter toggle (in the
+// negative HideOtherQuestSpawns field) and marks the save dirty so it persists.
+// A no-op when unchanged or when the save is absent.
+func (a *connActor) SetShowOtherQuestSpawns(show bool) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	if a.save == nil || a.save.HideOtherQuestSpawns == !show {
+		return
+	}
+	a.save.HideOtherQuestSpawns = !show
+	a.markDirtyLocked()
+}
+
 // Vitals returns the actor's mutable HP state. The pointer is set at
 // construction time in run() and is never reassigned for the life of
 // the connActor, so reading it without taking a.mu is safe (the
