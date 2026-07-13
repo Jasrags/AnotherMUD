@@ -2530,6 +2530,25 @@ func run() error {
 		})
 	})
 
+	// Biome ambient hazards (area-effects.md §4.6): intrinsic environmental
+	// damage declared on a `toxic`/`vacuum`-style biome, applied on a tick to
+	// every unprotected creature present. Wired here (not beside biome-ambience)
+	// because it needs combatSink + resolveCombatant, defined above. Derived from
+	// content, never persisted (§5) — no save surface. Players-only, raw damage
+	// in v1 (see the biome-hazards build-log memory).
+	biomeHazards := biome.NewHazardService(registries.Biomes, w, &biomeHazardSink{
+		mgr:     mgr,
+		store:   entityStore,
+		logger:  logging.From(ctx),
+		resolve: resolveCombatant,
+		deplete: combatSink.OnVitalDepleted,
+	})
+	if err := loop.Register("biome-hazard", cadenceTicks(cfg.TickInterval, cfg.BiomeHazardInterval), func(ctx context.Context, _ uint64) {
+		biomeHazards.Tick(ctx)
+	}); err != nil {
+		return fmt.Errorf("register biome-hazard tick: %w", err)
+	}
+
 	abilityPipeline := progression.NewValidationPipeline(
 		registries.Abilities, proficiencyMgr, effectMgr, pulseDelayTracker, abilityTargets,
 	)
@@ -3461,6 +3480,7 @@ type config struct {
 	CampfireLifetime       time.Duration
 	CampfireDecayInterval  time.Duration
 	BiomeAmbienceInterval  time.Duration
+	BiomeHazardInterval    time.Duration
 	ForageCooldown         time.Duration
 	AutosaveInterval       time.Duration
 	IdleSweepInterval      time.Duration
@@ -3547,6 +3567,7 @@ func loadConfig() config {
 		CampfireLifetime:        envDurationOr("ANOTHERMUD_CAMPFIRE_LIFETIME", 10*time.Minute),
 		CampfireDecayInterval:   envDurationOr("ANOTHERMUD_CAMPFIRE_DECAY_INTERVAL", 5*time.Second),
 		BiomeAmbienceInterval:   envDurationOr("ANOTHERMUD_BIOME_AMBIENCE_INTERVAL", 90*time.Second),
+		BiomeHazardInterval:     envDurationOr("ANOTHERMUD_BIOME_HAZARD_INTERVAL", 6*time.Second),
 		ForageCooldown:          envDurationOr("ANOTHERMUD_FORAGE_COOLDOWN", 30*time.Second),
 		AutosaveInterval:        envDurationOr("ANOTHERMUD_AUTOSAVE_INTERVAL", 30*time.Second),
 		IdleSweepInterval:       envDurationOr("ANOTHERMUD_IDLE_SWEEP_INTERVAL", 30*time.Second),
@@ -5011,6 +5032,126 @@ func (s *productionCombatSink) OnVitalDepleted(ctx context.Context, e combat.Vit
 
 	if s.mgr != nil {
 		s.mgr.DisengageAll(ctx, e.VictimID, e.RoomID)
+	}
+}
+
+// biomeHazardSink is the production biome.HazardSink (area-effects.md §4.6):
+// it lists a room's online players, scans their carried/worn items for the
+// protection-key tag (immunity), and applies the hazard payload as flat HP
+// damage that routes an ATTACKER-LESS death (§4.5) through the normal combat
+// death pipeline. v1 is players-only and applies raw damage — per-type
+// resistance soak (§4.6(b)) and mob victims are deferred (see the
+// biome-hazards build-log memory). damageType is carried for logging only
+// until the resistance step lands.
+type biomeHazardSink struct {
+	mgr     *session.Manager
+	store   *entities.Store
+	logger  *slog.Logger
+	resolve func(bareID string) (combat.Combatant, combat.CombatantID, bool)
+	deplete func(ctx context.Context, e combat.VitalDepleted)
+}
+
+// OccupantsInRoom lists the bare ids of online players in the room (v1
+// victims). PlayerInfo.ID is the bare id resolveCombatant / GetByPlayerID
+// both key on.
+func (s *biomeHazardSink) OccupantsInRoom(roomID world.RoomID) []string {
+	if s.mgr == nil {
+		return nil
+	}
+	infos := s.mgr.PlayersInRoom(roomID)
+	ids := make([]string, 0, len(infos))
+	for _, p := range infos {
+		ids = append(ids, p.ID)
+	}
+	return ids
+}
+
+// HasProtection reports whether the victim carries or wears an item bearing
+// protectionKey — total immunity (§4.6(b)). Mirrors gathering.hasToolTag:
+// scan inventory + equipment, resolve each id to an item, match tags
+// case-insensitively.
+func (s *biomeHazardSink) HasProtection(victimID, protectionKey string) bool {
+	if s.mgr == nil || s.store == nil || protectionKey == "" {
+		return false
+	}
+	a, ok := s.mgr.GetByPlayerID(victimID)
+	if !ok {
+		return false
+	}
+	if s.itemBearsTag(a.Inventory(), protectionKey) {
+		return true
+	}
+	eq := a.Equipment()
+	worn := make([]entities.EntityID, 0, len(eq))
+	for _, id := range eq {
+		worn = append(worn, id)
+	}
+	return s.itemBearsTag(worn, protectionKey)
+}
+
+func (s *biomeHazardSink) itemBearsTag(ids []entities.EntityID, tag string) bool {
+	for _, id := range ids {
+		e, ok := s.store.GetByID(id)
+		if !ok {
+			continue
+		}
+		it, ok := e.(*entities.ItemInstance)
+		if !ok {
+			continue
+		}
+		for _, t := range it.Tags() {
+			if strings.EqualFold(t, tag) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// Harm delivers the hazard's flavor line, applies flat HP damage, and — on
+// a killing blow — emits an attacker-less VitalDepleted so the death routes
+// through the standard cancellable death-check/respawn pipeline credited to
+// no one (§4.5). ApplyDamageIfAlive's wasAlive return is the double-death
+// race guard: if another source already dropped the victim this tick, this
+// no-ops the death emit.
+func (s *biomeHazardSink) Harm(ctx context.Context, victimID string, roomID world.RoomID, amount int, damageType, message string) {
+	if s.resolve == nil || s.deplete == nil {
+		return
+	}
+	combatant, cid, ok := s.resolve(victimID)
+	if !ok {
+		return
+	}
+	vit := combatant.Vitals()
+	if vit == nil {
+		return
+	}
+	if message != "" && s.mgr != nil {
+		if a, ok := s.mgr.GetByPlayerID(victimID); ok {
+			_ = a.Write(ctx, "<danger>"+message+"</danger>")
+		}
+	}
+	remaining, wasAlive := vit.ApplyDamageIfAlive(amount)
+	if !wasAlive {
+		return // already a corpse; another source owns the death emit.
+	}
+	if s.logger != nil {
+		s.logger.Debug("biome.hazard_harm",
+			slog.String("victim", victimID),
+			slog.String("room", string(roomID)),
+			slog.Int("amount", amount),
+			slog.String("damage_type", damageType))
+	}
+	// remaining==0 with wasAlive==true is the killing-blow signal
+	// (Vitals.ApplyDamageIfAlive) — emit the attacker-less death exactly once.
+	if remaining == 0 {
+		s.deplete(ctx, combat.VitalDepleted{
+			VictimID:   cid,
+			VictimName: combatant.Name(),
+			AttackerID: "", // environmental: credited to no one (§4.5).
+			Vital:      combat.VitalHP,
+			RoomID:     roomID,
+		})
 	}
 }
 

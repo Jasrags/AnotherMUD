@@ -64,6 +64,14 @@ type Biome struct {
 	// (forest, mountain, cave) opts into a higher figure.
 	MoveCost int
 
+	// Hazard is the intrinsic ambient hazard this biome inflicts on every
+	// unprotected creature present (area-effects.md §4.6): a `toxic` zone's
+	// radiation, a `vacuum` zone's pressure. Nil (the default) means the
+	// biome is harmless — the common case. Derived from content, never
+	// persisted (§5), exactly like ambience/shielding above. Consumed by
+	// the biome-hazard tick (HazardService, hazard.go).
+	Hazard *Hazard
+
 	// Pack records the pack that registered this biome (diagnostic only,
 	// like item/recipe provenance). Empty for engine-scope biomes.
 	Pack string

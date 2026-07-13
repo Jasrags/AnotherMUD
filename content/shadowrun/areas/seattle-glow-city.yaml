@@ -1,0 +1,18 @@
+id: seattle-glow-city
+name: Glow City
+description: |
+  Southeastern Redmond's radioactive heart: the dead reactor zone the Barrens
+  call the Glow. Nothing living belongs here — the rubble ticks on a Geiger
+  counter, the light bleeds sickly green off every surface, and an unshielded
+  runner measures their stay in minutes. Only the desperate, the mutated, and the
+  suited come this deep. The reward for surviving it is whatever the old world
+  left glowing in the ruins.
+reset_interval: 300
+light_floor: dim
+weather_zone: sprawl
+# Endgame Barrens tier — no law, intrinsic radiation hazard (area-effects §4.6),
+# the toughest band in the metroplex skeleton.
+properties:
+  region: seattle
+  security: Z
+  level_range: "25-40"

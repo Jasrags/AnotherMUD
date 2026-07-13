@@ -1,0 +1,17 @@
+id: seattle-ash-flats
+name: The Ash Flats
+description: |
+  West of Puyallup City the ground gives out to Rainier's ash barrens — grey
+  drifts over venting sulphur, the air a slow poison, the light strangled to a
+  permanent dusk. The corrupt local machine writes it off; the smugglers cut
+  through it because nobody else will follow. Toxic shapes are said to walk the
+  deeper flats, but the fumes alone will kill an unsealed runner long before
+  anything with teeth finds them.
+reset_interval: 300
+light_floor: dim
+weather_zone: sprawl
+# Deep Barrens tier — no law, intrinsic toxic hazard (area-effects §4.6).
+properties:
+  region: seattle
+  security: Z
+  level_range: "20-35"

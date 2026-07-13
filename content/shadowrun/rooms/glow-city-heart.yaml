@@ -1,0 +1,13 @@
+id: glow-city-heart
+area: seattle-glow-city
+name: "{G}The Reactor's Heart{x}"
+description: |
+  The deepest point of the Glow: a collapsed containment dome half-sunk in its
+  own melt, radiance pouring up out of the breach like light off water. The air
+  shimmers with heat and worse. Whatever the corps abandoned here still hums under
+  the slag — and whatever crawled in to die around it left things worth a fortune,
+  for anyone who can reach them and walk back out. The only way out is back east.
+terrain: toxic
+exits:
+  east: glow-city
+# The terminal room — environmental threat only, the payoff for a shielded run.

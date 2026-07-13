@@ -1,0 +1,28 @@
+# The toxic (radiation) biome (biomes.md §2 + area-effects.md §4.6): Glow
+# City's radioactive scar in southeastern Redmond, where a reactor died and
+# never stopped dying. Rooms key in via `terrain: toxic`. Outdoors, rough
+# irradiated rubble underfoot, and — unlike every other biome — it HURTS: an
+# intrinsic ambient hazard (§4.6) that irradiates every unprotected creature
+# present each hazard tick. A sealed enviro-suit (tag `rad-shielded`) grants
+# total immunity; without it, the Glow is lethal. Derived from content, never
+# persisted (§5).
+id: toxic
+name: the Glow
+description: A radioactive dead zone of sickly luminescence and ticking rubble, lethal to the unshielded.
+weather_shielded: false
+time_shielded: false
+ambience:
+  - The rubble glows faintly, a sick green luminescence with no source.
+  - Your teeth ache and the air tastes of hot metal and ozone.
+  - Something swollen and hairless skitters away between the slabs.
+  - A dead man's dosimeter lies in the dust, its needle pinned hard to red.
+# Rough irradiated wreckage — costlier to cross than open sprawl.
+move_cost: 2
+# The radiation itself (area-effects.md §4.6). Flat damage per hazard tick to
+# anyone present without the `rad-shielded` protection key. v1: raw damage,
+# no per-type soak.
+hazard:
+  damage: 4
+  damage_type: radiation
+  protection_key: rad-shielded
+  message: The Glow sears through you — your skin prickles and your gums bleed.

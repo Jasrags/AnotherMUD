@@ -10,8 +10,9 @@ description: |
 terrain: barrens
 exits:
   east: touristville
+  # West descends into Glow City proper — the seattle-glow-city area on the
+  # `toxic` biome (radiation hazard, area-effects §4.6, endgame 25+).
+  west: glow-city
 # A glow-mutated devil rat lairs at the Glow's edge (low threat, sets the tone).
 mobs:
   - devil-rat
-# STUB: west descends into Glow City proper — a future seattle-glow-city area on
-# a `toxic` biome (radiation hazard, endgame 25+). Left unwired for now.

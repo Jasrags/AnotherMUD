@@ -1,0 +1,26 @@
+# The ashfall (toxic-volcanic) biome (biomes.md §2 + area-effects.md §4.6):
+# the deep Puyallup ash barrens under Mount Rainier, where the earth vents
+# sulphur and the ash drifts knee-deep over the dead. Rooms key in via
+# `terrain: ashfall`. Outdoors, choking, and — like the Glow — intrinsically
+# hazardous (§4.6): toxic fumes harm every unprotected creature present each
+# hazard tick. The same sealed enviro-suit (tag `rad-shielded`) seals out the
+# fumes. Derived from content, never persisted (§5).
+id: ashfall
+name: the ash barrens
+description: Knee-deep volcanic ash over venting sulphur, the air itself a slow poison.
+weather_shielded: false
+time_shielded: false
+ambience:
+  - Sulphur stings your eyes; grey ash sifts down out of a sunless sky.
+  - The ground is warm underfoot, venting a thin acrid steam.
+  - A charred silhouette juts from a drift where someone stopped and never rose.
+  - Something big shifts out in the haze, then goes still.
+# Knee-deep ash and warm treacherous ground — slow going.
+move_cost: 2
+# The toxic fumes (area-effects.md §4.6). Slightly gentler than the Glow but
+# the same protection key seals them out.
+hazard:
+  damage: 3
+  damage_type: toxic
+  protection_key: rad-shielded
+  message: The fumes claw down your throat — you double over, retching and blind.

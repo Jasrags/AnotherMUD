@@ -10,6 +10,7 @@ description: |
 terrain: barrens
 exits:
   east: puyallup-city
-# STUB: west sinks into the toxic ash barrens near the volcano — a future
-# seattle-ash-flats area on a `toxic`/`volcanic` biome (hazard, toxic spirits).
-# Left unwired for now; environmental threat only.
+  # West sinks into the toxic ash barrens near the volcano — the
+  # seattle-ash-flats area on the `ashfall` biome (toxic hazard,
+  # area-effects §4.6). Environmental threat only.
+  west: deep-ash-flats

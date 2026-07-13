@@ -1,0 +1,14 @@
+id: deep-ash-flats
+area: seattle-ash-flats
+name: "{K}The Deep Ash{x}"
+description: |
+  The strip's edge falls away into open ash barrens. Grey powder drifts to the
+  knee and warm ground vents sulphur through it in slow acrid plumes; every breath
+  is a decision. Rainier looms sunless to the south. The strip's lights are a
+  smudge back east; the flats only deepen west, toward the vents where the smoke
+  is thickest.
+terrain: ashfall
+exits:
+  east: the-ash-flat
+  west: ash-flats-vent
+# Environmental threat only — the fumes are the danger (area-effects §4.6).

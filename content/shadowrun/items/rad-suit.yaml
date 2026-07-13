@@ -1,0 +1,22 @@
+id: rad-suit
+name: a sealed enviro-suit
+type: item
+description: |
+  A hooded, fully-sealed hazard suit — layered rip-stop over a lead-lined
+  bladder, cinched respirator, and a chest dosimeter that clicks steadily. Bulky
+  and stifling, but it is the difference between walking the Glow and dying in
+  it. Seals out radiation and toxic fumes alike.
+# `rad-shielded` is the protection key the toxic/ashfall biomes name
+# (area-effects.md §4.6(b)): carrying OR wearing this suit grants total
+# immunity to their ambient hazard. `wearable` lets it occupy the body slot.
+tags: [wearable, rad-shielded]
+keywords: [suit, enviro-suit, envirosuit, rad-suit, radsuit, hazard suit]
+eligible_slots: [body]
+armor_tier: light
+# A little armour, but its real value is the protection key, not the soak.
+armor_bonus: 1
+armor_max_dex: 6
+armor_speed: 30
+properties:
+  weight: 8
+  value: 2000

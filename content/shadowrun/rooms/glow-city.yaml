@@ -1,0 +1,15 @@
+id: glow-city
+area: seattle-glow-city
+name: "{G}Into the Glow{x}"
+description: |
+  Past the edge the dead zone swallows you whole. Ferrocrete slabs lie canted and
+  fused, glowing that sick reactor-green, and the Geiger tick in your bones
+  becomes a scream. Nothing grows, nothing moves that should. The way back east
+  climbs toward Touristville's lights; deeper west the Glow only worsens, toward
+  the reactor's drowned heart.
+terrain: toxic
+exits:
+  east: glow-city-edge
+  west: glow-city-heart
+# No mobs: the radiation IS the threat here (environmental only). A shielded
+# runner can push through; an unshielded one should already be regretting it.
