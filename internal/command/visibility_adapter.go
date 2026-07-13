@@ -206,7 +206,11 @@ func (c *Context) visibilityPredicate() func(string) bool {
 			layers = append(layers, visibility.Layer{Source: visibility.SourceMagicalInvis})
 		}
 		if _, ok := foreignSpawns[id]; ok {
-			layers = append(layers, visibility.Layer{Source: visibility.SourceQuestSpawn})
+			// Score = the staff rank that bypasses the gate: a staff observer
+			// (adminRank set below) pierces a foreign spawn for moderation /
+			// inspection, mirroring admin-invis; an ordinary viewer (rank 0)
+			// does not (quest-spawns.md §10 admin bypass).
+			layers = append(layers, visibility.Layer{Source: visibility.SourceQuestSpawn, Score: questSpawnBypassRank})
 		}
 		return visibility.CanSee(obs, visTarget{id: id, layers: layers})
 	}
@@ -263,12 +267,18 @@ func questSpawnOwner(e entities.Entity) string {
 // QuestSpawnVisible builds the render-side quest-spawn filter for a viewer
 // (quest-spawns.md Phase 2): it reports whether a placed entity should appear
 // in the viewer's room render. A quest-spawned entity owned by another player
-// is hidden; ordinary entities and the viewer's own spawns show. Returns nil
-// (show everything) when the viewer has no player identity — tests, headless,
-// and pre-login renders — so those paths keep the legacy behavior. This mirrors
-// the resolve-side SourceQuestSpawn gate so "what you see" and "what you can
+// is hidden; ordinary entities and the viewer's own spawns show. Staff bypass
+// the gate entirely (moderation/inspection), mirroring the resolve-side admin
+// pierce (§10 admin bypass). Returns nil (show everything) for a staff viewer,
+// or when the viewer has no player identity — tests, headless, and pre-login
+// renders — so those paths keep the legacy behavior. This mirrors the
+// resolve-side SourceQuestSpawn gate so "what you see" and "what you can
 // target" stay consistent (visibility §5.4).
-func QuestSpawnVisible(viewerID string) func(entities.Entity) bool {
+func QuestSpawnVisible(viewer Actor, adminRole string) func(entities.Entity) bool {
+	if viewer == nil || actorIsAdmin(viewer, adminRole) {
+		return nil
+	}
+	viewerID := viewer.PlayerID()
 	if viewerID == "" {
 		return nil
 	}
@@ -320,6 +330,12 @@ func magicalInvisibleOccupants(c *Context, roomID world.RoomID) map[string]struc
 // carries rank 1 and any admin observer (also rank 1) pierces it while an
 // ordinary observer (rank 0) does not.
 const adminInvisRank = 1
+
+// questSpawnBypassRank is the minimum admin rank that bypasses the quest-spawn
+// existence gate (quest-spawns.md §10 admin bypass) so staff can see/target
+// another player's foreign quest spawns for moderation. Same flat staff tier
+// as admin-invis; an ordinary viewer (rank 0) never pierces.
+const questSpawnBypassRank = adminInvisRank
 
 // adminInvisibleOccupants returns the set of room players currently walking
 // invisibly via `wizinvis` (§3.4), keyed by player id. Empty when the locator

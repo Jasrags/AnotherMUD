@@ -44,27 +44,40 @@ func hideLayer(score int, instance uint64) Layer {
 	return Layer{Source: SourceHide, Score: score, Instance: instance}
 }
 
-// quest-spawns.md Phase 2: a foreign quest spawn (a SourceQuestSpawn layer)
-// is an existence gate that NOTHING pierces — no perception, no see-invisible,
-// no admin rank. The caller attaches it only to non-owned entities, so its
-// presence alone hides the target.
-func TestCanSee_QuestSpawn_NeverPierced(t *testing.T) {
-	tgt := fakeTarget{id: "chip", layers: []Layer{{Source: SourceQuestSpawn}}}
+// quest-spawns.md Phase 2: a foreign quest spawn (a SourceQuestSpawn layer with
+// no configured bypass, Score 0) is an existence gate that NOTHING pierces — no
+// perception, no see-invisible, and no admin rank however high. It fails CLOSED
+// by default.
+func TestCanSee_QuestSpawn_ClosedByDefault(t *testing.T) {
+	tgt := fakeTarget{id: "chip", layers: []Layer{{Source: SourceQuestSpawn}}} // Score 0 = no bypass
 	// A maximally-capable observer still cannot see a foreign spawn.
 	o := &fakeObserver{
 		id: "bystander", piercesDark: true, seesInvisible: true,
 		adminRank: 99, detectsHidden: true, contestWins: true,
 	}
 	if CanSee(o, tgt) {
-		t.Fatal("a foreign quest spawn must be invisible regardless of observer capabilities")
+		t.Fatal("a foreign quest spawn with no configured bypass must be invisible regardless of observer capabilities")
 	}
 	if len(o.contested) != 0 {
 		t.Fatalf("the existence gate must not run a perception contest, got %d", len(o.contested))
 	}
 }
 
+// With a staff-bypass configured (Score = the minimum admin rank), a staff
+// observer of at least that rank pierces the gate while an ordinary viewer does
+// not (§10 admin bypass, mirroring SourceAdminInvis).
+func TestCanSee_QuestSpawn_StaffBypass(t *testing.T) {
+	tgt := fakeTarget{id: "chip", layers: []Layer{{Source: SourceQuestSpawn, Score: 1}}}
+	if staff := (&fakeObserver{id: "gm", adminRank: 1}); !CanSee(staff, tgt) {
+		t.Fatal("a staff observer at the bypass rank must see the foreign spawn")
+	}
+	if pleb := (&fakeObserver{id: "pleb", adminRank: 0}); CanSee(pleb, tgt) {
+		t.Fatal("an ordinary viewer must not pierce the staff-bypass gate")
+	}
+}
+
 // A bypassing caller (admin inspection verb) still short-circuits before the
-// quest-spawn layer is consulted (§2.1).
+// quest-spawn layer is consulted (§2.1), independent of Score.
 func TestCanSee_QuestSpawn_BypassStillWins(t *testing.T) {
 	tgt := fakeTarget{id: "chip", layers: []Layer{{Source: SourceQuestSpawn}}}
 	o := &fakeObserver{id: "admin", bypass: true}

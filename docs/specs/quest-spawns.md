@@ -221,10 +221,10 @@ never leaks to a non-owner.
       (self is never gated out).
 - [x] Two runners on the same stage in the same room each see exactly
       their own spawn set — never the other's.
-- [ ] A bypassing admin inspection verb still reaches a foreign spawn.
-      The visibility primitive honors `Bypass` (unit-tested), but no
-      production verb constructs a bypassing observer for quest spawns
-      yet, so this is primitive-only — see §10 "Admin bypass".
+- [x] Staff bypass the gate: a staff observer sees and can target a
+      foreign spawn (moderation/inspection), mirroring the admin-invis
+      rank pierce; an ordinary viewer never does. The visibility
+      primitive also honors an explicit `Bypass` observer.
 
 ---
 
@@ -381,11 +381,14 @@ corpses, temporary portals, mounts, and hirelings are all handled.
   role — but a pack that did would let a non-owner interact with a spawn
   that is invisible to them. Harden (route those scans through the
   predicate) if a quest spawn ever gains such a role.
-- **Admin bypass.** The visibility primitive honors a `Bypass` observer
-  (proven in unit tests), but no production verb yet constructs a
-  bypassing observer for quest spawns, so an admin cannot currently
-  see/inspect another player's foreign spawn. Wire an explicit admin
-  bypass if debugging foreign spawns becomes necessary.
+- **Admin bypass — LANDED.** Staff pierce the quest-spawn gate on both
+  the render and target seams (the `SourceQuestSpawn` layer carries the
+  staff-rank threshold, pierced by `AdminRank`, exactly like admin-invis;
+  the render-side filter shows everything to a staff viewer). An ordinary
+  viewer never pierces (the gate fails closed by default, Score 0). The
+  tradeoff: a staff member playing normally sees other runners' spawns —
+  acceptable for moderation, and gateable behind a per-staff toggle
+  (like the builder room-data toggle) if it becomes noisy.
 - **Set-dressing props.** A pure-flavor spawn (a lootless "courier's
   body" object) is expressible as an item spawn today. Whether such
   props deserve a distinct non-interactable `kind` (so they can't be

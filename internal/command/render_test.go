@@ -336,7 +336,8 @@ func TestRenderRoom_MarkerDecoratesEntity(t *testing.T) {
 
 // quest-spawns.md Phase 2: a quest spawn owned by another player is withheld
 // from the "You see here" line (the entityVisible filter), while the viewer's
-// own spawn and ordinary items still show. A nil filter (legacy) shows all.
+// own spawn and ordinary items still show. A nil filter (legacy) shows all,
+// and a staff viewer bypasses the gate (§10 admin bypass).
 func TestRenderRoom_QuestSpawnFilterHidesForeignSpawns(t *testing.T) {
 	f := newRenderFixture()
 	f.placeItem(t, &item.Template{ID: "tapestry-core:rock", Name: "a plain rock", Type: "junk"})
@@ -345,9 +346,14 @@ func TestRenderRoom_QuestSpawnFilterHidesForeignSpawns(t *testing.T) {
 	theirs := f.placeItem(t, &item.Template{ID: "sr:chip", Name: "a paydata chip", Type: "treasure"})
 	theirs.SetProperty(questspawn.OwnerProperty, "them")
 
-	// Viewer "me": sees the ordinary rock and their own chip, but exactly one
-	// chip (the foreign one is gone).
-	mineView := command.RenderRoom(f.room, f.place, f.store, nil, nil, nil, light.Lit, nil, command.QuestSpawnVisible("me"))
+	countChips := func(filter func(entities.Entity) bool) int {
+		view := command.RenderRoom(f.room, f.place, f.store, nil, nil, nil, light.Lit, nil, filter)
+		return strings.Count(view, "a paydata chip")
+	}
+
+	// Owner "me": sees the ordinary rock and exactly their own chip.
+	me := newNamedTestActor("Me", "me", f.room) // plain testActor → non-admin
+	mineView := command.RenderRoom(f.room, f.place, f.store, nil, nil, nil, light.Lit, nil, command.QuestSpawnVisible(me, "admin"))
 	if !strings.Contains(mineView, "a plain rock") {
 		t.Errorf("ordinary item must always show:\n%s", mineView)
 	}
@@ -356,9 +362,14 @@ func TestRenderRoom_QuestSpawnFilterHidesForeignSpawns(t *testing.T) {
 	}
 
 	// A nil filter (legacy / headless) shows both chips.
-	allView := command.RenderRoom(f.room, f.place, f.store, nil, nil, nil, light.Lit, nil, nil)
-	if got := strings.Count(allView, "a paydata chip"); got != 2 {
-		t.Errorf("nil filter should show both chips, got %d:\n%s", got, allView)
+	if got := countChips(nil); got != 2 {
+		t.Errorf("nil filter should show both chips, got %d", got)
+	}
+
+	// A staff viewer bypasses the gate and sees both chips (§10 admin bypass).
+	admin := &roomDataActor{testActor: newNamedTestActor("Gm", "gm", f.room), admin: true}
+	if got := countChips(command.QuestSpawnVisible(admin, "admin")); got != 2 {
+		t.Errorf("staff should bypass the gate and see both chips, got %d", got)
 	}
 }
 

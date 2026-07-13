@@ -12,21 +12,32 @@ import (
 )
 
 // TestLive_QuestSpawnVisibility proves quest-spawns.md Phase 2 (per-observer
-// visibility) end to end: two runners both accept the Johnson run and both
-// reach Avondale, so each activation spawns its OWN paydata chip into the
-// shared room. With the owner gate, each runner sees exactly ONE chip (their
-// own) — never the other's — and each can still pick up their own. Without the
-// gate (Phase 1) a `look` here would show two chips.
+// visibility) end to end, both the owner gate and the §10 admin bypass:
 //
-//	ANOTHERMUD_LIVE=1 go test ./cmd/telnet-smoke -run TestLive_QuestSpawnVisibility -v
+//   - Two runners (Alfa, Brava — admin, so they can teleport to drive the run)
+//     both accept the Johnson run and both reach Avondale, so each activation
+//     spawns its OWN paydata chip into the shared room.
+//
+//   - A non-admin bystander (Cleric) stands in Avondale the whole time. She is
+//     on no run and owns nothing, so the gate hides BOTH chips from her — she
+//     sees zero. Under Phase 1 she would have seen two.
+//
+//   - An admin runner (Alfa) bypasses the gate for moderation, so she sees BOTH
+//     chips (her own + the foreign one) — proving the staff bypass is wired.
+//
+//     ANOTHERMUD_LIVE=1 go test ./cmd/telnet-smoke -run TestLive_QuestSpawnVisibility -v
 func TestLive_QuestSpawnVisibility(t *testing.T) {
 	if os.Getenv("ANOTHERMUD_LIVE") == "" {
 		t.Skip("set ANOTHERMUD_LIVE=1 to run (boots a real engine subprocess via `go run`)")
 	}
 	addr := bootEngine(t, map[string]string{
-		"ANOTHERMUD_PACKS":      "shadowrun",
-		"ANOTHERMUD_START_ROOM": "shadowrun:street-corner",
-		// Both admin so each can teleport to the meet and the site.
+		"ANOTHERMUD_PACKS": "shadowrun",
+		// Everyone starts in Avondale so the non-admin bystander can stand at the
+		// spawn site without needing (admin-only) teleport; the runners teleport
+		// away to the meet and back.
+		"ANOTHERMUD_START_ROOM": "shadowrun:avondale",
+		// Only the two runners are admin (teleport to drive the run); Cleric is a
+		// plain player, the non-owner the gate must hide the spawns from.
 		"ANOTHERMUD_ROLE_SEED": "Alfa:admin;Brava:admin",
 	})
 
@@ -44,6 +55,7 @@ func TestLive_QuestSpawnVisibility(t *testing.T) {
 	}
 	alfa := dial("Alfa")
 	brava := dial("Brava")
+	cleric := dial("Cleric") // non-admin bystander, stays in Avondale
 
 	send := func(c *telnettest.Client, line string) string {
 		t.Helper()
@@ -57,13 +69,17 @@ func TestLive_QuestSpawnVisibility(t *testing.T) {
 		}
 		return out
 	}
+	chipsSeen := func(c *telnettest.Client) int {
+		return strings.Count(strings.ToLower(send(c, "look")), "paydata chip")
+	}
 
-	alfa.Drain(800 * time.Millisecond)
-	brava.Drain(800 * time.Millisecond)
+	for _, c := range []*telnettest.Client{alfa, brava, cleric} {
+		c.Drain(800 * time.Millisecond)
+	}
 
-	// Both accept the run at the meet, then both walk into Avondale — each
-	// stage-2 activation spawns that runner's own chip + gangers.
-	accept := func(c *telnettest.Client) {
+	// Each runner accepts the run at the meet, then teleports back into Avondale
+	// — the visit objective completes and stage 2 spawns that runner's own chip.
+	runTo := func(c *telnettest.Client) {
 		t.Helper()
 		send(c, "teleport shadowrun:dantes-inferno")
 		if out := send(c, "accept Redmond Retrieval"); strings.Contains(strings.ToLower(out), "requirements") {
@@ -71,29 +87,22 @@ func TestLive_QuestSpawnVisibility(t *testing.T) {
 		}
 		send(c, "teleport shadowrun:avondale") // visit objective -> stage 2 spawns
 	}
-	accept(alfa)
-	accept(brava)
+	runTo(alfa)
+	runTo(brava)
 
-	// Give the shared room a beat to settle both spawn sets, then look.
-	alfa.Drain(400 * time.Millisecond)
-	brava.Drain(400 * time.Millisecond)
-
-	// Each runner sees exactly one paydata chip: their own. The foreign chip
-	// is gated out (Phase 2). Under Phase 1 this count would be 2.
-	if got := strings.Count(strings.ToLower(send(alfa, "look")), "paydata chip"); got != 1 {
-		t.Fatalf("Alfa should see exactly her own chip, saw %d paydata chips", got)
-	}
-	if got := strings.Count(strings.ToLower(send(brava, "look")), "paydata chip"); got != 1 {
-		t.Fatalf("Brava should see exactly her own chip, saw %d paydata chips", got)
+	// Let both spawn sets settle in the shared room.
+	for _, c := range []*telnettest.Client{alfa, brava, cleric} {
+		c.Drain(400 * time.Millisecond)
 	}
 
-	// Each can still collect her own chip (owner visibility intact end to end).
-	if out := send(alfa, "get chip"); !strings.Contains(strings.ToLower(out), "paydata") &&
-		!strings.Contains(strings.ToLower(out), "pick up") {
-		t.Fatalf("Alfa could not pick up her own paydata chip:\n%s", out)
+	// The gate: the non-admin bystander owns nothing, so BOTH runners' chips are
+	// hidden from her — she sees zero. (Phase 1 would show two.)
+	if got := chipsSeen(cleric); got != 0 {
+		t.Fatalf("non-owner bystander must see no foreign quest spawns, saw %d paydata chips", got)
 	}
-	// Brava's chip is untouched by Alfa's pickup — she still sees exactly one.
-	if got := strings.Count(strings.ToLower(send(brava, "look")), "paydata chip"); got != 1 {
-		t.Fatalf("Brava's chip should be unaffected by Alfa's pickup, saw %d", got)
+
+	// The admin bypass: Alfa is staff, so she sees BOTH chips (her own + Brava's).
+	if got := chipsSeen(alfa); got != 2 {
+		t.Fatalf("staff runner should bypass the gate and see both chips, saw %d", got)
 	}
 }

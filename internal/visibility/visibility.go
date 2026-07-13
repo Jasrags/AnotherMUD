@@ -38,11 +38,11 @@ const (
 	// Phase 2): a mob/item spawned for one player's quest run does not exist
 	// for any other observer. Unlike the perception layers this is an
 	// EXISTENCE gate, not a can-I-perceive-it question, so it fails CLOSED
-	// (§1.2 exception): the pierce rule below returns false, and the caller
-	// attaches the layer ONLY to entities the observer does not own — the
-	// owner never carries the layer (so they see their own set), and a
-	// bypassing caller (admin inspection verb) still short-circuits at
-	// CanSee before layers are consulted.
+	// (§1.2 exception): the caller attaches the layer ONLY to entities the
+	// observer does not own — the owner never carries the layer (so they see
+	// their own set). The pierce rule pierces for no one by default; a caller
+	// may configure a staff bypass by setting the layer's Score to a minimum
+	// admin rank (see pierces), and Bypass() still short-circuits at CanSee.
 	SourceQuestSpawn SourceType = "quest-spawn"
 )
 
@@ -156,10 +156,13 @@ func pierces(o Observer, layer Layer) bool {
 	case SourceQuestSpawn:
 		// Existence gate (quest-spawns.md Phase 2): the layer is attached only
 		// to entities the observer does not own, so its mere presence means
-		// "not yours" — nothing pierces it. Fails CLOSED by design (§1.2
-		// exception); an owning observer never carries the layer, and Bypass()
-		// already short-circuits above for admin inspection.
-		return false
+		// "not yours." Fails CLOSED by design (§1.2 exception) — an owning
+		// observer never carries the layer, and Bypass() already short-circuits
+		// above. A caller MAY grant a staff bypass (moderation/inspection) by
+		// setting layer.Score to the minimum admin rank, exactly like
+		// SourceAdminInvis; Score 0 (the default) pierces for NO ONE, so the
+		// gate stays closed unless a bypass is explicitly configured.
+		return layer.Score > 0 && o.AdminRank() >= layer.Score
 	case SourceHide, SourceSneak:
 		// Roll-gated (§4): a detect trait or a remembered pierce skips the
 		// contest; otherwise run it (and record the result) via the observer.
