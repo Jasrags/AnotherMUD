@@ -17,6 +17,11 @@ prerequisite:
   min_level: 1
   quests_completed:
     - johnsons-run
+  # Corp standing gate (faction.md): the Johnson's wetwork is for corp assets in
+  # good standing — burn the-corps below Neutral running for Kestrel and it locks.
+  faction:
+    - faction: the-corps
+      min_standing: 0
 stages:
   - id: infiltrate
     description: The Ancients' lieutenant holds court in Tarislar, deep in the Puyallup Barrens.
@@ -46,3 +51,8 @@ reward:
   xp: 200
   gold: 2800
   reputation: 2
+  faction:
+    - faction: the-corps
+      delta: 150
+    - faction: the-streets
+      delta: -100

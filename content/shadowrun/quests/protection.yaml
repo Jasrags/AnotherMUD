@@ -42,3 +42,10 @@ reward:
   xp: 150
   gold: 1800
   reputation: 2
+  # Street work (faction.md): standing up for the community lifts the-streets and
+  # costs you with the Megacorps — the mirror of the Johnson's corp jobs.
+  faction:
+    - faction: the-streets
+      delta: 150
+    - faction: the-corps
+      delta: -100

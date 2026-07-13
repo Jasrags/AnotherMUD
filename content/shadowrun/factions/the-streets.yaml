@@ -1,0 +1,11 @@
+# The Streets (faction.md §2) — the metahuman community and shadow underground
+# Kestrel fixes work for. Standing rises by running her street-side jobs and
+# falls by taking the corps' coin against the neighbourhood. The rival axis to
+# the-corps. Rank ladder/bounds/starting default from the engine config.
+id: the-streets
+name: The Streets
+description: |
+  The people the corps forgot — metahumans, squatters, the Barrens clinics, the
+  fixers like Kestrel who keep them alive. They pay in loyalty as much as nuyen,
+  remember who ran straight for them, and have no love for runners who sell their
+  guns to the towers.

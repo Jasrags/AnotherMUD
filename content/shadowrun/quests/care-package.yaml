@@ -19,6 +19,12 @@ prerequisite:
   min_level: 1
   quests_completed:
     - protection
+  # Street standing gate (faction.md): Kestrel's deeper work is for runners the
+  # neighbourhood still trusts — take enough corp coin and the-streets drops below
+  # Neutral, and she stops handing you jobs.
+  faction:
+    - faction: the-streets
+      min_standing: 0
 stages:
   - id: collect
     description: Pick up the case of medical supplies Kestrel leaves at the Big Rhino.
@@ -41,3 +47,8 @@ reward:
   xp: 150
   gold: 2000
   reputation: 2
+  faction:
+    - faction: the-streets
+      delta: 150
+    - faction: the-corps
+      delta: -100

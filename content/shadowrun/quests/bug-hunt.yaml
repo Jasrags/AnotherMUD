@@ -19,6 +19,12 @@ prerequisite:
   # is done and this offer appears alongside it.
   quests_completed:
     - johnsons-run
+  # And only while you're still in the corps' good graces (faction.md): go too
+  # deep with Kestrel's street work and the-corps drops below Neutral, drying up
+  # the Johnson's deeper jobs.
+  faction:
+    - faction: the-corps
+      min_standing: 0
 stages:
   - id: track
     description: Johnson's client wants a devil-rat nest on the edge of Glow City cleared out.
@@ -48,3 +54,8 @@ reward:
   xp: 175
   gold: 2000
   reputation: 1
+  faction:
+    - faction: the-corps
+      delta: 150
+    - faction: the-streets
+      delta: -100

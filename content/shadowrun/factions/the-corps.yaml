@@ -1,0 +1,12 @@
+# The Megacorps (faction.md §2) — the corporate power structure a Mr. Johnson
+# fronts for. Standing rises by running deniable work for corp interests (the
+# Johnson job line) and falls by doing the streets' work against them. The rival
+# axis to the-streets. Rank ladder/bounds/starting default from the engine
+# config (Hostile … Allied, ±1000, start Neutral/0).
+id: the-corps
+name: The Megacorps
+description: |
+  The megacorporations own everything worth owning in the sixth world, and they
+  hire runners through deniable handlers like the Johnsons to do the work their
+  name can't touch. They reward assets who deliver and ask no questions — and
+  they remember which ones went and worked for the other side.

@@ -52,3 +52,10 @@ reward:
   xp: 200
   gold: 2500
   reputation: 2
+  # Corp work (faction.md): running for the Johnson lifts standing with the
+  # Megacorps and costs you with the Streets — the rival axis Kestrel works.
+  faction:
+    - faction: the-corps
+      delta: 150
+    - faction: the-streets
+      delta: -100

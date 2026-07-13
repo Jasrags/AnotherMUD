@@ -102,6 +102,10 @@ content:
     - mobs/*.yaml
   loot_tables:
     - loot_tables/*.yaml
+  # Factions (faction.md) — the corp-vs-street axis the fixer rivalry runs on.
+  # Loaded before quests so quest reward/prereq faction refs resolve.
+  factions:
+    - factions/*.yaml
   # Quests (quests.md). Loaded after mobs/rooms/items so their giver,
   # objective targets, and reward item ids resolve against already-registered
   # world content. "Flanagan's Own" — Brian's dream-bar arc — lives here.
