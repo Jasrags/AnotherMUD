@@ -42,7 +42,7 @@ func RoomDataHandler(ctx context.Context, c *Context) error {
 // builder view appears on room entry, not only on an explicit `look`.
 // viewer may be any Actor; one that does not implement RoleHolder +
 // RoomDataViewer simply gets base back.
-func AppendRoomData(base string, r *world.Room, viewer Actor, adminRole string) string {
+func AppendRoomData(base string, r *world.Room, viewer Actor, adminRole string, extras ...string) string {
 	if r == nil || viewer == nil {
 		return base
 	}
@@ -56,7 +56,16 @@ func AppendRoomData(base string, r *world.Room, viewer Actor, adminRole string) 
 	if rdv, ok := viewer.(RoomDataViewer); !ok || !rdv.ShowRoomData() {
 		return base
 	}
-	return base + "\n" + renderRoomData(r)
+	block := renderRoomData(r)
+	// extras carries the Context-derived lines (resolved biome + hazard, the
+	// effective light level, current weather) that renderRoomData can't build
+	// from the room alone. Optional so the free-function/test callers still work.
+	for _, e := range extras {
+		if strings.TrimSpace(e) != "" {
+			block += "\n" + e
+		}
+	}
+	return base + "\n" + block
 }
 
 // renderRoomWithData renders r for this actor (RenderRoom) and appends
@@ -68,7 +77,56 @@ func (c *Context) renderRoomWithData(r *world.Room, lvl light.Level) string {
 	out := RenderRoom(r, c.Placement, c.Items, c.questMarker(), c.Ambience,
 		c.hostileMarker(), lvl, c.canSeeExit, QuestSpawnVisible(c.Actor, c.AdminRole), c.otherPlayerNames(r.ID)...)
 	out = AppendMinimap(out, r, c.Actor, c.World)
-	return AppendRoomData(out, r, c.Actor, c.AdminRole)
+	return AppendRoomData(out, r, c.Actor, c.AdminRole, c.roomDataExtras(r, lvl))
+}
+
+// roomDataExtras builds the Context-derived room-data lines that
+// renderRoomData can't produce from the room alone: the resolved biome
+// (display name, move cost, ambience count, and — the recent work — its
+// intrinsic ambient hazard), the effective light level for this render, and
+// the current weather when the room is weather-exposed. Returns "" when none
+// of the deps are wired (tests) so the block degrades cleanly to the static
+// fields. Labels render as <subtle> chrome, matching renderRoomData.
+func (c *Context) roomDataExtras(r *world.Room, lvl light.Level) string {
+	if r == nil {
+		return ""
+	}
+	var b strings.Builder
+
+	// Resolved biome + its intrinsic hazard (biomes.md / area-effects.md §4.6).
+	if c.Biomes != nil {
+		if bm, ok := c.Biomes.Resolve(r.Terrain); ok {
+			name := bm.DisplayName
+			if name == "" {
+				name = bm.ID
+			}
+			fmt.Fprintf(&b, "<subtle>biome</subtle> %s (%s)   <subtle>move</subtle> %d   <subtle>ambience</subtle> %d line(s)\n",
+				name, bm.ID, bm.MoveCost, len(bm.Ambience))
+			if bm.Hazard.Active() {
+				prot := bm.Hazard.ProtectionKey
+				if prot == "" {
+					prot = "none"
+				}
+				dtype := bm.Hazard.DamageType
+				if dtype == "" {
+					dtype = "untyped"
+				}
+				fmt.Fprintf(&b, "<subtle>hazard</subtle> %d %s / tick   <subtle>protection</subtle> %s (worn)\n",
+					bm.Hazard.Damage, dtype, prot)
+			}
+		}
+	}
+
+	// Effective light for this render + current weather when exposed.
+	fmt.Fprintf(&b, "<subtle>light</subtle> %s (effective)", lvl.String())
+	if r.WeatherExposed && c.WeatherState != nil {
+		if w := c.WeatherState(r.AreaID); w != "" {
+			fmt.Fprintf(&b, "   <subtle>weather</subtle> %s", w)
+		}
+	}
+	b.WriteString("\n")
+
+	return strings.TrimRight(b.String(), "\n")
 }
 
 // renderRoomData builds the admin/builder metadata block appended to

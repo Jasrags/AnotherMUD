@@ -5,6 +5,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/Jasrags/AnotherMUD/internal/biome"
 	"github.com/Jasrags/AnotherMUD/internal/command"
 	"github.com/Jasrags/AnotherMUD/internal/world"
 )
@@ -59,6 +60,61 @@ func TestLook_RoomDataBlock_ShownForAdminWithToggleOn(t *testing.T) {
 		if !strings.Contains(out, want) {
 			t.Errorf("look output missing %q\n---\n%s", want, out)
 		}
+	}
+}
+
+// The room-data block surfaces the resolved biome and its intrinsic ambient
+// hazard (area-effects.md §4.6) — the builder view a GM needs to see why a
+// `toxic` room is dangerous.
+func TestLook_RoomDataBlock_BiomeAndHazard(t *testing.T) {
+	room := coordTestRoom()
+	room.Terrain = "toxic"
+	reg := biome.NewRegistry()
+	if err := reg.RegisterPack("test", &biome.Biome{
+		ID:          "toxic",
+		DisplayName: "the Glow",
+		MoveCost:    2,
+		Ambience:    []string{"The rubble glows faintly."},
+		Hazard:      &biome.Hazard{Damage: 4, DamageType: "radiation", ProtectionKey: "rad-shielded"},
+	}); err != nil {
+		t.Fatalf("register biome: %v", err)
+	}
+	a := &roomDataActor{testActor: newTestActor(room), admin: true, showData: true}
+	if err := command.LookHandler(context.Background(), &command.Context{Actor: a, Biomes: reg}); err != nil {
+		t.Fatalf("LookHandler: %v", err)
+	}
+	out := a.lastLine()
+	// Assertions target value-side substrings — the block interleaves
+	// <subtle>label</subtle> markup, so "label value" isn't contiguous.
+	for _, want := range []string{
+		"biome", "the Glow (toxic)", "1 line(s)",
+		"hazard", "4 radiation / tick", "rad-shielded (worn)",
+		"(effective)",
+	} {
+		if !strings.Contains(out, want) {
+			t.Errorf("room-data block missing %q\n---\n%s", want, out)
+		}
+	}
+}
+
+// A biome with no hazard shows the biome line but no hazard line.
+func TestLook_RoomDataBlock_BiomeNoHazard(t *testing.T) {
+	room := coordTestRoom()
+	room.Terrain = "sprawl"
+	reg := biome.NewRegistry()
+	if err := reg.RegisterPack("test", &biome.Biome{ID: "sprawl", DisplayName: "the sprawl", MoveCost: 1}); err != nil {
+		t.Fatalf("register biome: %v", err)
+	}
+	a := &roomDataActor{testActor: newTestActor(room), admin: true, showData: true}
+	if err := command.LookHandler(context.Background(), &command.Context{Actor: a, Biomes: reg}); err != nil {
+		t.Fatalf("LookHandler: %v", err)
+	}
+	out := a.lastLine()
+	if !strings.Contains(out, "the sprawl (sprawl)") {
+		t.Errorf("room-data block missing the biome line:\n%s", out)
+	}
+	if strings.Contains(out, "hazard") {
+		t.Errorf("harmless biome should show no hazard line:\n%s", out)
 	}
 }
 
