@@ -111,7 +111,7 @@ func hireableMatches(name, id, q string) bool {
 // (the same path area spawning uses) and stamps ownerID as its owner + marks it a
 // hireling. Returns the live hireling's entity id.
 func (h *hirelingService) Materialize(ctx context.Context, ownerID, templateID string, roomID world.RoomID) (entities.EntityID, error) {
-	id, err := h.spawner.spawnMob(ctx, templateID, roomID)
+	id, err := h.spawner.spawnMob(ctx, templateID, roomID, "")
 	if err != nil {
 		return "", err
 	}

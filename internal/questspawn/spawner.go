@@ -29,14 +29,28 @@ import (
 	"github.com/Jasrags/AnotherMUD/internal/world"
 )
 
+// OwnerProperty is the per-instance property key holding the owning player's
+// id on every quest-spawned entity, and Tag is the marker tag stamped
+// alongside it (quest-spawns.md §4/§9). The visibility layer (Phase 2) reads
+// OwnerProperty to gate a spawn to its owner: an entity carrying a non-empty
+// OwnerProperty is invisible to every observer except that player. Exported so
+// the composition-root primitive stamps them and the command/visibility layer
+// reads them off the same contract.
+const (
+	OwnerProperty = "quest_spawn_owner"
+	Tag           = "quest_spawn"
+)
+
 // Primitive is the engine-side create/destroy seam the spawner drives. The
 // composition root backs it with the same boot spawn pipeline the admin
-// `spawn` verb uses, plus placement/store removal for despawn.
+// `spawn` verb uses, plus placement/store removal for despawn. owner is the
+// spawning player's id, stamped onto the entity as OwnerProperty so the
+// Phase-2 visibility gate can scope the spawn to its owner (§4).
 type Primitive interface {
 	// SpawnMob runs the full mob pipeline into roomID (gear, pools, AI).
-	SpawnMob(ctx context.Context, templateID string, roomID world.RoomID) (entities.EntityID, error)
+	SpawnMob(ctx context.Context, templateID string, roomID world.RoomID, owner string) (entities.EntityID, error)
 	// SpawnItem mints an item and places it on roomID's floor.
-	SpawnItem(ctx context.Context, templateID string, roomID world.RoomID) (entities.EntityID, error)
+	SpawnItem(ctx context.Context, templateID string, roomID world.RoomID, owner string) (entities.EntityID, error)
 	// Despawn removes an entity from the world + store; best-effort and
 	// idempotent (a mob already killed is simply gone).
 	Despawn(id entities.EntityID)
@@ -139,7 +153,7 @@ func (s *Spawner) activate(playerID, questID string, stageIndex int) {
 			n = 1
 		}
 		for i := 0; i < n; i++ {
-			id, err := s.spawnOne(sp)
+			id, err := s.spawnOne(sp, playerID)
 			if err != nil {
 				s.log.WarnContext(s.ctx, "quest spawn failed",
 					"quest", questID, "player", playerID,
@@ -167,13 +181,13 @@ func (s *Spawner) activate(playerID, questID string, stageIndex int) {
 	s.mu.Unlock()
 }
 
-func (s *Spawner) spawnOne(sp quest.Spawn) (entities.EntityID, error) {
+func (s *Spawner) spawnOne(sp quest.Spawn, owner string) (entities.EntityID, error) {
 	room := world.RoomID(sp.Room)
 	switch sp.Kind {
 	case "item":
-		return s.prim.SpawnItem(s.ctx, sp.Template, room)
+		return s.prim.SpawnItem(s.ctx, sp.Template, room, owner)
 	default: // "mob" (kinds are validated at load)
-		return s.prim.SpawnMob(s.ctx, sp.Template, room)
+		return s.prim.SpawnMob(s.ctx, sp.Template, room, owner)
 	}
 }
 

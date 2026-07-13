@@ -20,11 +20,14 @@ of the static world and into the **quest's own lifecycle**: it appears
 when a player reaches the stage that calls for it, is owned by that
 player, and is removed when their quest ends.
 
-This is **Phase 1**: *shared-world, per-player-owned*. Spawned entities
-go into the real room and are visible to everyone there; each player's
-stage activation creates its **own** set, tagged to them for cleanup.
-Per-observer visibility (seeing only *your* spawns) is **Phase 2** and
-explicitly out of scope here (§10).
+**Phase 1** was *shared-world, per-player-owned*: spawned entities went
+into the real room visible to everyone, each player's stage activation
+creating its **own** set, tagged to them for cleanup. **Phase 2 (LANDED)**
+adds *per-observer visibility*: a spawned entity is stamped with its
+owning player's id and gated so **only its owner sees or targets it** —
+the shared-world visual duplication and grab-the-wrong-chip edge are gone
+(§4.2, §10). The rest of the model (ownership, cleanup, re-derivation) is
+unchanged.
 
 ---
 
@@ -59,9 +62,10 @@ stage. The spawned entities:
 
 ### 1.2 Non-goals
 
-- **Per-observer visibility** (Phase 2). In Phase 1 a bystander in the
-  room sees every player's quest spawns. The cost is visual, not
-  mechanical (§10).
+- **Party-shared visibility.** Phase 2 gates a spawn to its single
+  owning player; a party-mate does not see another member's spawns (they
+  each spawn their own set anyway, §4.1). Sharing a run's spawns across a
+  party is deferred with the broader group quest-credit question (§10).
 - **Persisting spawned entities.** Spawned mobs/items are transient like
   every other runtime-created entity; they are re-derived from the
   player's active stage on login, never saved (§8).
@@ -179,29 +183,48 @@ a source-scoped key — is config, §9). Ownership serves two purposes:
   whether this (player, quest, stage) already owns live spawns; if so it
   does not spawn again.
 
-Ownership is **not** visibility (Phase 1). An owned entity is a normal
-shared-world entity — every observer in the room sees it, any player can
-attack a spawned mob, and the `collect`/`kill` watcher credits **the
-acting player** by template match (`quests` §7), so a runner who grabs
-another runner's identical chip still advances their own objective.
+Ownership **drives** visibility (Phase 2). The owner marker is the same
+reference the per-observer visibility gate reads: a spawned entity is
+visible and targetable **only** to its owning player (and a bypassing
+admin inspection verb). The `collect`/`kill` watcher still credits the
+acting player by template match (`quests` §7); with the gate a runner can
+only ever interact with their **own** owned instance, so crediting is
+unambiguous.
 
-### 4.1 Multiplayer in the shared world (Phase 1)
+### 4.1 Multiplayer in the shared world
 
 Because each player's stage activation creates its **own** owned set,
-two players both on stage 2 in the same room produce two chips and two
-ganger pairs. This trades a **visual** oddity (you see the other
-runner's props) for **mechanical** correctness (no contention over a
-single objective item). Phase 2 (§10) resolves the visual side with
-per-observer gating; Phase 1 accepts it.
+two players both on stage 2 in the same room each have their own chip and
+ganger pair placed into the shared room. Phase 2 gates each set to its
+owner, so a runner sees and can target **only** their own — the props
+occupy the same room but do not exist for the other runner. This gives
+both **mechanical** correctness (no contention over a single objective
+item) and **visual** cleanliness (no duplicate props). The gate is an
+existence gate (`visibility` §1.2 exception): it fails closed, so a spawn
+never leaks to a non-owner.
 
 ### Acceptance — ownership
 
-- [ ] Each spawned entity carries an owner reference to its (player,
+- [x] Each spawned entity carries an owner reference to its (player,
       quest, stage).
-- [ ] A stage does not double-spawn for a player who already owns its
+- [x] A stage does not double-spawn for a player who already owns its
       live spawns.
-- [ ] Objective crediting is by template match for the acting player and
+- [x] Objective crediting is by template match for the acting player and
       is unaffected by which owned instance they interact with.
+
+### Acceptance — per-observer visibility (Phase 2)
+
+- [x] A spawned entity is visible and targetable only to its owning
+      player; a non-owner in the same room neither sees it in the room
+      render nor can resolve it as a command target.
+- [x] The owner sees and can interact with their own spawn normally
+      (self is never gated out).
+- [x] Two runners on the same stage in the same room each see exactly
+      their own spawn set — never the other's.
+- [ ] A bypassing admin inspection verb still reaches a foreign spawn.
+      The visibility primitive honors `Bypass` (unit-tested), but no
+      production verb constructs a bypassing observer for quest spawns
+      yet, so this is primitive-only — see §10 "Admin bypass".
 
 ---
 
@@ -332,13 +355,16 @@ corpses, temporary portals, mounts, and hirelings are all handled.
 
 ## 10. Open questions
 
-- **Per-observer visibility (Phase 2).** The headline follow-up: gate a
-  spawned entity so only its owner (and their party?) sees and interacts
-  with it, removing the shared-world visual duplication and the
-  grab-the-wrong-chip edge (§4.1). This extends the per-observer
-  `visibility` predicate from "can X see this shared entity" to "does
-  this entity exist for X at all." Deferred until concurrent play makes
-  the Phase 1 tradeoff bite.
+- **Per-observer visibility (Phase 2) — LANDED.** A spawned entity is
+  gated so only its owner sees and interacts with it, removing the
+  shared-world visual duplication and the grab-the-wrong-chip edge
+  (§4.1). Implemented by stamping the owning player's id on the entity
+  (`questspawn.OwnerProperty` + a `quest_spawn` tag) and adding a
+  `SourceQuestSpawn` existence-gate layer to the per-observer
+  `visibility` predicate (fails closed, §1.2 exception) plus a matching
+  render-side filter so "what you see" and "what you can target" agree.
+  **Party sharing** — should a party-mate see a member's spawns? — is
+  still open, below.
 - **Partial-progress re-derivation.** Should login re-spawn only the
   *shortfall* (one ganger, not two) to match already-credited progress,
   rather than the full stage declaration (§7)? Phase 1 spawns the full
@@ -346,6 +372,20 @@ corpses, temporary portals, mounts, and hirelings are all handled.
 - **Party sharing.** When grouping is active, should one member's quest
   spawns satisfy the whole party, or does each member spawn their own?
   Interacts with group quest-credit (`grouping` open questions).
+- **Gate coverage beyond the render/target seam.** Phase 2 enforces the
+  owner gate on the shared render list and the generic target resolver
+  (`ArgEntity` → `CanSee`). Feature-specific room scans that resolve a
+  *secondary role* directly off room placement (a harvest node, shop NPC,
+  mount, auctioneer, campfire, corpse) do not consult the gate. Latent
+  today — no content stamps a quest spawn with a secondary interactable
+  role — but a pack that did would let a non-owner interact with a spawn
+  that is invisible to them. Harden (route those scans through the
+  predicate) if a quest spawn ever gains such a role.
+- **Admin bypass.** The visibility primitive honors a `Bypass` observer
+  (proven in unit tests), but no production verb yet constructs a
+  bypassing observer for quest spawns, so an admin cannot currently
+  see/inspect another player's foreign spawn. Wire an explicit admin
+  bypass if debugging foreign spawns becomes necessary.
 - **Set-dressing props.** A pure-flavor spawn (a lootless "courier's
   body" object) is expressible as an item spawn today. Whether such
   props deserve a distinct non-interactable `kind` (so they can't be
@@ -373,8 +413,9 @@ corpses, temporary portals, mounts, and hirelings are all handled.
 - `world-rooms-movement` — the per-room entity placement spawns target;
   the `player.moved` event that both advances `visit` and drives the
   stage-1 → stage-2 activation.
-- `visibility` — the per-observer predicate Phase 2 would extend to
-  owner-gate spawns; untouched in Phase 1.
+- `visibility` — the per-observer predicate Phase 2 extends with the
+  `SourceQuestSpawn` existence-gate layer to owner-gate spawns (§4.1,
+  §10).
 - `session-lifecycle` — logout / link-dead sweep that triggers offline
   cleanup, and the login that re-derives spawns.
 - `loot-and-corpses` — the normal corpse/loot lifecycle that owns a

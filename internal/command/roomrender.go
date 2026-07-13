@@ -105,16 +105,23 @@ func (c *Context) hostileMarker() func(*entities.MobInstance) bool {
 // the viewer — the hidden-exits §5.1 filter: an undiscovered secret exit
 // contributes nothing to the exits line. nil shows every exit (legacy / tests
 // / renderers without a per-observer discovery set).
-func RenderRoom(r *world.Room, placement *entities.Placement, items *entities.Store, marker func(templateID string) bool, ambience func(*world.Room) string, hostile func(*entities.MobInstance) bool, lvl light.Level, exitVisible func(world.Direction, world.Exit) bool, players ...string) string {
+// entityVisible, when non-nil, reports whether a placed entity should appear
+// in this viewer's render — the quest-spawns.md Phase-2 owner gate: a quest
+// spawn owned by another player is withheld from the "You see here" line and
+// the gloom coarse-occupant list, so a foreign runner's props are invisible to
+// bystanders. Pass nil (tests, headless, pre-login) to show every placed
+// entity, the legacy behavior. It mirrors the resolve-side SourceQuestSpawn
+// gate (visibility §5.4) so seeing and targeting agree.
+func RenderRoom(r *world.Room, placement *entities.Placement, items *entities.Store, marker func(templateID string) bool, ambience func(*world.Room) string, hostile func(*entities.MobInstance) bool, lvl light.Level, exitVisible func(world.Direction, world.Exit) bool, entityVisible func(entities.Entity) bool, players ...string) string {
 	switch {
 	case lvl <= light.Black:
 		// Suppressed: name, description, occupants all withheld (§5.1).
 		return "<subtle>" + blackRoomText + "</subtle>"
 	case lvl == light.Gloom:
-		return renderGloomRoom(r, placement, items, exitVisible, players)
+		return renderGloomRoom(r, placement, items, exitVisible, entityVisible, players)
 	default:
 		// Lit or Dim: full render; dim mutes the description prose.
-		return renderFullRoom(r, placement, items, marker, ambience, hostile, lvl == light.Dim, exitVisible, players)
+		return renderFullRoom(r, placement, items, marker, ambience, hostile, lvl == light.Dim, exitVisible, entityVisible, players)
 	}
 }
 
@@ -136,7 +143,7 @@ const (
 // rest of the body keeps its semantic colors (a single SGR attribute
 // over plain prose, so no nested-tag reset problem). Both forms degrade
 // to clean text on no-color clients.
-func renderFullRoom(r *world.Room, placement *entities.Placement, items *entities.Store, marker func(templateID string) bool, ambience func(*world.Room) string, hostile func(*entities.MobInstance) bool, dim bool, exitVisible func(world.Direction, world.Exit) bool, players []string) string {
+func renderFullRoom(r *world.Room, placement *entities.Placement, items *entities.Store, marker func(templateID string) bool, ambience func(*world.Room) string, hostile func(*entities.MobInstance) bool, dim bool, exitVisible func(world.Direction, world.Exit) bool, entityVisible func(entities.Entity) bool, players []string) string {
 	var b strings.Builder
 	b.WriteString("<title>")
 	b.WriteString(r.Name)
@@ -157,7 +164,7 @@ func renderFullRoom(r *world.Room, placement *entities.Placement, items *entitie
 			b.WriteString("\n")
 		}
 	}
-	if line := renderRoomEntities(r, placement, items, marker, hostile, players); line != "" {
+	if line := renderRoomEntities(r, placement, items, marker, hostile, entityVisible, players); line != "" {
 		b.WriteString(line)
 		b.WriteString("\n")
 	}
@@ -191,7 +198,7 @@ func reflowDescription(s string) string {
 // by a terse dark line, occupants are coarsened to presence-without-
 // identity (names hidden), and exits render as bare directions with no
 // door/weather detail.
-func renderGloomRoom(r *world.Room, placement *entities.Placement, items *entities.Store, exitVisible func(world.Direction, world.Exit) bool, players []string) string {
+func renderGloomRoom(r *world.Room, placement *entities.Placement, items *entities.Store, exitVisible func(world.Direction, world.Exit) bool, entityVisible func(entities.Entity) bool, players []string) string {
 	var b strings.Builder
 	b.WriteString("<title>")
 	b.WriteString(r.Name)
@@ -201,7 +208,7 @@ func renderGloomRoom(r *world.Room, placement *entities.Placement, items *entiti
 	b.WriteString(gloomRoomText)
 	b.WriteString("{/}")
 	b.WriteString("\n")
-	if line := renderCoarseOccupants(r, placement, items, players); line != "" {
+	if line := renderCoarseOccupants(r, placement, items, entityVisible, players); line != "" {
 		b.WriteString(line)
 		b.WriteString("\n")
 	}
@@ -216,7 +223,7 @@ func renderGloomRoom(r *world.Room, placement *entities.Placement, items *entiti
 // granularity here (one anonymous token per occupant) is the v1
 // default; configurable presence/count/kind granularity (§11) is
 // deferred.
-func renderCoarseOccupants(r *world.Room, placement *entities.Placement, items *entities.Store, players []string) string {
+func renderCoarseOccupants(r *world.Room, placement *entities.Placement, items *entities.Store, entityVisible func(entities.Entity) bool, players []string) string {
 	shapes := make([]string, 0, len(players))
 	for range players {
 		shapes = append(shapes, "someone")
@@ -225,6 +232,11 @@ func renderCoarseOccupants(r *world.Room, placement *entities.Placement, items *
 		for _, id := range placement.InRoom(r.ID) {
 			e, ok := items.GetByID(id)
 			if !ok {
+				continue
+			}
+			// Foreign quest spawns don't exist for this viewer (Phase 2) — omit
+			// even their anonymous gloom shape.
+			if entityVisible != nil && !entityVisible(e) {
 				continue
 			}
 			if _, ok := e.(*entities.MobInstance); ok {
@@ -264,7 +276,7 @@ func renderBareExits(r *world.Room, exitVisible func(world.Direction, world.Exit
 // entity branch is a silent skip rather than a panic because the
 // renderer is on the player-visible path; missing data should look
 // like nothing-here, not a runtime error.
-func renderRoomEntities(r *world.Room, placement *entities.Placement, items *entities.Store, marker func(templateID string) bool, hostile func(*entities.MobInstance) bool, players []string) string {
+func renderRoomEntities(r *world.Room, placement *entities.Placement, items *entities.Store, marker func(templateID string) bool, hostile func(*entities.MobInstance) bool, entityVisible func(entities.Entity) bool, players []string) string {
 	// Other players first (highlighted), then placed mobs/items colored
 	// by kind. The "You see here:" label dims to <subtle> so the names
 	// it introduces carry the visual weight.
@@ -279,6 +291,11 @@ func renderRoomEntities(r *world.Room, placement *entities.Placement, items *ent
 	for _, id := range ids {
 		e, ok := items.GetByID(id)
 		if !ok {
+			continue
+		}
+		// Foreign quest spawns don't exist for this viewer (quest-spawns.md
+		// Phase 2) — omit them from the "You see here" line entirely.
+		if entityVisible != nil && !entityVisible(e) {
 			continue
 		}
 		n, ok := e.(interface{ Name() string })

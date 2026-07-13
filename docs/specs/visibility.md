@@ -78,6 +78,14 @@ that keeps an arbitrary stack of concealments unambiguous.
   ambush/backstab benefit is a combat/abilities concern
   (`combat.md`, `abilities-and-effects.md`); this spec only
   defines what *is seen*, and that an attack *reveals* (§4.5).
+- **One documented exception — quest-spawn ownership.** The v1
+  concealment sources are perception layers that fail *open* (an
+  unknown source ⇒ visible). `quest-spawns.md` Phase 2 reuses this
+  predicate for an *existence* gate (a quest spawn does not exist
+  for a non-owner), which fails *closed* by design. That is the
+  sole non-perception source riding this seam; it is scoped to
+  quest-owned entities and carries its own layer source, so the
+  perception model above is otherwise unchanged.
 
 ### 1.3 Pre-decisions
 

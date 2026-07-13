@@ -16,7 +16,7 @@ import (
 func TestRenderRoom_BlackSuppressesEverything(t *testing.T) {
 	f := newRenderFixture()
 	f.placeItem(t, &item.Template{ID: "x:well", Name: "a stone well", Type: "fixture"})
-	out := command.RenderRoom(f.room, f.place, f.store, nil, nil, nil, light.Black, nil)
+	out := command.RenderRoom(f.room, f.place, f.store, nil, nil, nil, light.Black, nil, nil)
 
 	if strings.Contains(out, "Town Square") {
 		t.Errorf("black render leaked the room name:\n%s", out)
@@ -42,7 +42,7 @@ func TestRenderRoom_GloomObscures(t *testing.T) {
 	f.placeItem(t, &item.Template{ID: "x:well", Name: "a stone well", Type: "fixture"})
 	f.placeMob(t, &mob.Template{ID: "x:rat", Name: "a giant rat", Keywords: []string{"rat"}})
 
-	out := command.RenderRoom(f.room, f.place, f.store, nil, nil, nil, light.Gloom, nil, "Bob")
+	out := command.RenderRoom(f.room, f.place, f.store, nil, nil, nil, light.Gloom, nil, nil, "Bob")
 
 	if !strings.Contains(out, "Town Square") {
 		t.Errorf("gloom should still anchor the room name:\n%s", out)
@@ -76,7 +76,7 @@ func TestRenderRoom_GloomObscures(t *testing.T) {
 func TestRenderRoom_GloomEmptyRoomNoExits(t *testing.T) {
 	f := newRenderFixture()
 	f.room.Exits = nil // no exits
-	out := command.RenderRoom(f.room, f.place, f.store, nil, nil, nil, light.Gloom, nil)
+	out := command.RenderRoom(f.room, f.place, f.store, nil, nil, nil, light.Gloom, nil, nil)
 	if !strings.Contains(out, "<subtle>Exits:</subtle> none") {
 		t.Errorf("gloom exitless room should report no exits:\n%s", out)
 	}
@@ -87,8 +87,8 @@ func TestRenderRoom_GloomEmptyRoomNoExits(t *testing.T) {
 
 func TestRenderRoom_DimIsFullButMuted(t *testing.T) {
 	f := newRenderFixture()
-	full := command.RenderRoom(f.room, f.place, f.store, nil, nil, nil, light.Lit, nil)
-	dim := command.RenderRoom(f.room, f.place, f.store, nil, nil, nil, light.Dim, nil)
+	full := command.RenderRoom(f.room, f.place, f.store, nil, nil, nil, light.Lit, nil, nil)
+	dim := command.RenderRoom(f.room, f.place, f.store, nil, nil, nil, light.Dim, nil, nil)
 
 	// Dim keeps the full body (name, prose, exits) ...
 	if !strings.Contains(dim, "Town Square") || !strings.Contains(dim, "cobblestone") {
@@ -110,7 +110,7 @@ func TestRenderRoom_DimIsFullButMuted(t *testing.T) {
 func TestRenderRoom_LitUnchanged(t *testing.T) {
 	f := newRenderFixture()
 	f.placeItem(t, &item.Template{ID: "x:well", Name: "a stone well", Type: "fixture"})
-	out := command.RenderRoom(f.room, f.place, f.store, nil, nil, nil, light.Lit, nil)
+	out := command.RenderRoom(f.room, f.place, f.store, nil, nil, nil, light.Lit, nil, nil)
 	if !strings.Contains(out, "Town Square") || !strings.Contains(out, "cobblestone") {
 		t.Errorf("lit render dropped body:\n%s", out)
 	}

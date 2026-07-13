@@ -13,8 +13,8 @@ import (
 )
 
 type spawnRec struct {
-	kind, template, room string
-	id                   entities.EntityID
+	kind, template, room, owner string
+	id                          entities.EntityID
 }
 
 // fakePrim records what the spawner asked it to create/destroy, and can be told
@@ -27,7 +27,7 @@ type fakePrim struct {
 	failTemplate string
 }
 
-func (f *fakePrim) mint(kind, tid string, room world.RoomID) (entities.EntityID, error) {
+func (f *fakePrim) mint(kind, tid string, room world.RoomID, owner string) (entities.EntityID, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	if tid == f.failTemplate {
@@ -35,15 +35,15 @@ func (f *fakePrim) mint(kind, tid string, room world.RoomID) (entities.EntityID,
 	}
 	f.n++
 	id := entities.EntityID(fmt.Sprintf("e%d", f.n))
-	f.spawned = append(f.spawned, spawnRec{kind, tid, string(room), id})
+	f.spawned = append(f.spawned, spawnRec{kind, tid, string(room), owner, id})
 	return id, nil
 }
 
-func (f *fakePrim) SpawnMob(_ context.Context, tid string, room world.RoomID) (entities.EntityID, error) {
-	return f.mint("mob", tid, room)
+func (f *fakePrim) SpawnMob(_ context.Context, tid string, room world.RoomID, owner string) (entities.EntityID, error) {
+	return f.mint("mob", tid, room, owner)
 }
-func (f *fakePrim) SpawnItem(_ context.Context, tid string, room world.RoomID) (entities.EntityID, error) {
-	return f.mint("item", tid, room)
+func (f *fakePrim) SpawnItem(_ context.Context, tid string, room world.RoomID, owner string) (entities.EntityID, error) {
+	return f.mint("item", tid, room, owner)
 }
 func (f *fakePrim) Despawn(id entities.EntityID) {
 	f.mu.Lock()
@@ -105,6 +105,28 @@ func TestSpawner_StageAdvancedSpawnsThatStage(t *testing.T) {
 	}
 	if mobs != 2 || items != 1 {
 		t.Errorf("want 2 mobs + 1 item, got %d mobs %d items", mobs, items)
+	}
+}
+
+func TestSpawner_StampsOwnerOnEverySpawn(t *testing.T) {
+	// Phase 2 (quest-spawns.md §4): every spawned entity is stamped with the
+	// owning player's id so the visibility gate can scope it to its owner.
+	s, prim := newSpawner(fakeDefs{"q1": runDef()})
+	s.StageAdvanced(quest.StageAdvancedEvent{PlayerID: "p1", QuestID: "q1", StageIndex: 1})
+	if len(prim.spawned) != 3 {
+		t.Fatalf("setup: want 3 spawns, got %d", len(prim.spawned))
+	}
+	for _, r := range prim.spawned {
+		if r.owner != "p1" {
+			t.Errorf("spawn %+v: owner = %q, want p1", r, r.owner)
+		}
+	}
+	// A second player's activation stamps their own id.
+	s.StageAdvanced(quest.StageAdvancedEvent{PlayerID: "p2", QuestID: "q1", StageIndex: 1})
+	for _, r := range prim.spawned[3:] {
+		if r.owner != "p2" {
+			t.Errorf("p2 spawn %+v: owner = %q, want p2", r, r.owner)
+		}
 	}
 }
 

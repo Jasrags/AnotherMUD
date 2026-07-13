@@ -3848,14 +3848,21 @@ func (b *bootSpawner) SpawnAndPlace(_ context.Context, templateID string, roomID
 // instantiation/equip, §3.3), 8 (loot generation, M22.1), and 9 (ability
 // proficiencies, copied at instantiation) are all wired in spawnMob.
 func (b *bootSpawner) SpawnAndPlaceMob(ctx context.Context, templateID string, roomID world.RoomID) error {
-	_, err := b.spawnMob(ctx, templateID, roomID)
+	_, err := b.spawnMob(ctx, templateID, roomID, "")
 	return err
 }
 
 // spawnMob is the shared implementation behind SpawnAndPlaceMob and
 // the spawn.Spawner adapter. Returns the new entity id so the area
 // reset manager can record the spawn against its rule.
-func (b *bootSpawner) spawnMob(ctx context.Context, templateID string, roomID world.RoomID) (entities.EntityID, error) {
+// spawnMob instantiates a mob template into roomID, running the full pipeline
+// (racial flags, class growth, loot, equipment). owner, when non-empty, stamps
+// the quest-spawn ownership marker (questspawn.OwnerProperty + tag) BEFORE the
+// mob is placed or the MobSpawned event fires, so the Phase-2 visibility gate
+// applies from the instant the mob is observable — never a window where a
+// foreign quest mob is visible/targetable as an unowned entity (quest-spawns.md
+// §4). Non-quest callers pass "".
+func (b *bootSpawner) spawnMob(ctx context.Context, templateID string, roomID world.RoomID, owner string) (entities.EntityID, error) {
 	tpl, err := b.mobTemplates.Get(mob.TemplateID(templateID))
 	if err != nil {
 		return "", fmt.Errorf("mob template lookup: %w", err)
@@ -4006,6 +4013,7 @@ func (b *bootSpawner) spawnMob(ctx context.Context, templateID string, roomID wo
 		}
 	}
 
+	b.stampQuestOwner(inst, owner) // before Place + MobSpawned: no unowned-visible window
 	b.placement.Place(inst.ID(), roomID)
 	if b.bus != nil {
 		b.bus.Publish(ctx, eventbus.MobSpawned{
@@ -4015,6 +4023,27 @@ func (b *bootSpawner) spawnMob(ctx context.Context, templateID string, roomID wo
 		})
 	}
 	return inst.ID(), nil
+}
+
+// stampQuestOwner records the quest-spawn ownership marker on a freshly-created
+// entity (quest-spawns.md §4/§9): the owning player's id under
+// questspawn.OwnerProperty plus the questspawn.Tag marker tag, re-indexed so a
+// GetByTag(questspawn.Tag) audit sees it (the AddTag → Retag contract, mirroring
+// the `set tag` verb). owner "" is a no-op (an ordinary, non-quest spawn). Both
+// ItemInstance and MobInstance satisfy the small interface. MUST be called
+// before the entity is placed/observable so the Phase-2 gate never has a gap.
+func (b *bootSpawner) stampQuestOwner(e interface {
+	ID() entities.EntityID
+	SetProperty(string, any)
+	AddTag(string) bool
+}, owner string) {
+	if owner == "" {
+		return
+	}
+	e.SetProperty(questspawn.OwnerProperty, owner)
+	if e.AddTag(questspawn.Tag) {
+		_ = b.store.Retag(e.ID()) // publish the new tag into the double-buffered index
+	}
 }
 
 // bootSpawnerAdapter wraps *bootSpawner to satisfy spawn.Spawner.
@@ -4034,7 +4063,7 @@ func (a *bootSpawnerAdapter) Spawn(ctx context.Context, templateID string, roomI
 			return a.inner.spawnNode(ctx, templateID, roomID)
 		}
 	}
-	return a.inner.spawnMob(ctx, templateID, roomID)
+	return a.inner.spawnMob(ctx, templateID, roomID, "")
 }
 
 // spawnItem mints an item instance from templateID WITHOUT placing it —
@@ -4055,7 +4084,7 @@ func (b *bootSpawner) spawnItem(templateID string) (*entities.ItemInstance, erro
 type bootSpawnServiceAdapter struct{ inner *bootSpawner }
 
 func (a *bootSpawnServiceAdapter) SpawnMob(ctx context.Context, templateID string, roomID world.RoomID) (entities.EntityID, string, error) {
-	id, err := a.inner.spawnMob(ctx, templateID, roomID)
+	id, err := a.inner.spawnMob(ctx, templateID, roomID, "")
 	if err != nil {
 		return "", "", err
 	}
@@ -4083,15 +4112,18 @@ func (a *bootSpawnServiceAdapter) SpawnItem(_ context.Context, templateID string
 // so Placement.Remove/Untrack no-op).
 type questSpawnPrimitive struct{ boot *bootSpawner }
 
-func (a *questSpawnPrimitive) SpawnMob(ctx context.Context, templateID string, roomID world.RoomID) (entities.EntityID, error) {
-	return a.boot.spawnMob(ctx, templateID, roomID)
+func (a *questSpawnPrimitive) SpawnMob(ctx context.Context, templateID string, roomID world.RoomID, owner string) (entities.EntityID, error) {
+	// spawnMob stamps the owner marker before it places the mob, so there is no
+	// window where a foreign quest mob is observable as an unowned entity.
+	return a.boot.spawnMob(ctx, templateID, roomID, owner)
 }
 
-func (a *questSpawnPrimitive) SpawnItem(_ context.Context, templateID string, roomID world.RoomID) (entities.EntityID, error) {
+func (a *questSpawnPrimitive) SpawnItem(_ context.Context, templateID string, roomID world.RoomID, owner string) (entities.EntityID, error) {
 	inst, err := a.boot.spawnItem(templateID)
 	if err != nil {
 		return "", err
 	}
+	a.boot.stampQuestOwner(inst, owner) // stamp before placement so it is never floor-visible unstamped
 	a.boot.placement.Place(inst.ID(), roomID)
 	return inst.ID(), nil
 }

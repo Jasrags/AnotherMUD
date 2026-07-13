@@ -44,6 +44,35 @@ func hideLayer(score int, instance uint64) Layer {
 	return Layer{Source: SourceHide, Score: score, Instance: instance}
 }
 
+// quest-spawns.md Phase 2: a foreign quest spawn (a SourceQuestSpawn layer)
+// is an existence gate that NOTHING pierces — no perception, no see-invisible,
+// no admin rank. The caller attaches it only to non-owned entities, so its
+// presence alone hides the target.
+func TestCanSee_QuestSpawn_NeverPierced(t *testing.T) {
+	tgt := fakeTarget{id: "chip", layers: []Layer{{Source: SourceQuestSpawn}}}
+	// A maximally-capable observer still cannot see a foreign spawn.
+	o := &fakeObserver{
+		id: "bystander", piercesDark: true, seesInvisible: true,
+		adminRank: 99, detectsHidden: true, contestWins: true,
+	}
+	if CanSee(o, tgt) {
+		t.Fatal("a foreign quest spawn must be invisible regardless of observer capabilities")
+	}
+	if len(o.contested) != 0 {
+		t.Fatalf("the existence gate must not run a perception contest, got %d", len(o.contested))
+	}
+}
+
+// A bypassing caller (admin inspection verb) still short-circuits before the
+// quest-spawn layer is consulted (§2.1).
+func TestCanSee_QuestSpawn_BypassStillWins(t *testing.T) {
+	tgt := fakeTarget{id: "chip", layers: []Layer{{Source: SourceQuestSpawn}}}
+	o := &fakeObserver{id: "admin", bypass: true}
+	if !CanSee(o, tgt) {
+		t.Fatal("a bypassing caller must see even a foreign quest spawn")
+	}
+}
+
 // §2.3: an entity with no concealment layers is visible to every observer
 // (legacy parity).
 func TestCanSee_NoLayers_LegacyVisible(t *testing.T) {

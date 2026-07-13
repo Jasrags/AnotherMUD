@@ -9,6 +9,7 @@ import (
 	"github.com/Jasrags/AnotherMUD/internal/item"
 	"github.com/Jasrags/AnotherMUD/internal/light"
 	"github.com/Jasrags/AnotherMUD/internal/mob"
+	"github.com/Jasrags/AnotherMUD/internal/questspawn"
 	"github.com/Jasrags/AnotherMUD/internal/world"
 )
 
@@ -61,7 +62,7 @@ func (f *renderFixture) placeMob(t *testing.T, tpl *mob.Template) *entities.MobI
 func TestRenderRoom_ReflowsSoftNewlinesKeepsParagraphs(t *testing.T) {
 	r := &world.Room{ID: "ar:o", Name: "Glade",
 		Description: "alpha beta\ngamma delta\n\nsecond paragraph here."}
-	out := command.RenderRoom(r, nil, nil, nil, nil, nil, light.Lit, nil)
+	out := command.RenderRoom(r, nil, nil, nil, nil, nil, light.Lit, nil, nil)
 	if !strings.Contains(out, "alpha beta gamma delta") {
 		t.Errorf("soft newlines should join into a flowing line:\n%s", out)
 	}
@@ -88,7 +89,7 @@ func TestAppendMinimap_ReflowAvoidsOrphanWords(t *testing.T) {
 	w.AddRoom(&world.Room{ID: "nb:x", AreaID: "nb"})
 
 	a := &mapActor{testActor: newTestActor(r), visited: map[string]bool{"wild:o": true}, minimap: true, minimapSize: "large", termWidth: 100}
-	base := command.RenderRoom(r, nil, nil, nil, nil, nil, light.Lit, nil)
+	base := command.RenderRoom(r, nil, nil, nil, nil, nil, light.Lit, nil, nil)
 	out := command.AppendMinimap(base, r, a, w)
 
 	// None of the words that previously orphaned should appear alone on a
@@ -110,7 +111,7 @@ func TestRenderRoom_NilPlacementAndStoreSkipsEntityLine(t *testing.T) {
 	// Pins backward-compat: tests / call sites that don't care about
 	// placement can pass nil for both args without any "you see" line.
 	f := newRenderFixture()
-	out := command.RenderRoom(f.room, nil, nil, nil, nil, nil, light.Lit, nil)
+	out := command.RenderRoom(f.room, nil, nil, nil, nil, nil, light.Lit, nil, nil)
 	if strings.Contains(out, "You see here") {
 		t.Errorf("nil placement+store produced entity line:\n%s", out)
 	}
@@ -126,7 +127,7 @@ func TestRenderRoom_EmptyPlacementSkipsEntityLine(t *testing.T) {
 	// Placement + store supplied but no entities in the room — same
 	// shape as the nil case (no "You see here" line).
 	f := newRenderFixture()
-	out := command.RenderRoom(f.room, f.place, f.store, nil, nil, nil, light.Lit, nil)
+	out := command.RenderRoom(f.room, f.place, f.store, nil, nil, nil, light.Lit, nil, nil)
 	if strings.Contains(out, "You see here") {
 		t.Errorf("empty room produced entity line:\n%s", out)
 	}
@@ -139,7 +140,7 @@ func TestRenderRoom_ListsPlacedItem(t *testing.T) {
 		Name: "a stone well",
 		Type: "fixture",
 	})
-	out := command.RenderRoom(f.room, f.place, f.store, nil, nil, nil, light.Lit, nil)
+	out := command.RenderRoom(f.room, f.place, f.store, nil, nil, nil, light.Lit, nil, nil)
 	if !strings.Contains(out, "<subtle>You see here:</subtle> <item.common>a stone well</item.common>.") {
 		t.Errorf("missing item in render:\n%s", out)
 	}
@@ -158,7 +159,7 @@ func TestRenderRoom_ColorsItemByRarity(t *testing.T) {
 		Type:       "weapon",
 		Properties: map[string]any{"rarity": "rare"},
 	})
-	out := command.RenderRoom(f.room, f.place, f.store, nil, nil, nil, light.Lit, nil)
+	out := command.RenderRoom(f.room, f.place, f.store, nil, nil, nil, light.Lit, nil, nil)
 	if !strings.Contains(out, "<item.rare>a glowing blade</item.rare>") {
 		t.Errorf("rare item not colored by rarity:\n%s", out)
 	}
@@ -175,7 +176,7 @@ func TestRenderRoom_UnknownRarityFallsBackToCommon(t *testing.T) {
 		Type:       "trinket",
 		Properties: map[string]any{"rarity": "mythic"}, // not a theme-colored tier
 	})
-	out := command.RenderRoom(f.room, f.place, f.store, nil, nil, nil, light.Lit, nil)
+	out := command.RenderRoom(f.room, f.place, f.store, nil, nil, nil, light.Lit, nil, nil)
 	if !strings.Contains(out, "<item.common>an odd trinket</item.common>") {
 		t.Errorf("unknown rarity did not fall back to common:\n%s", out)
 	}
@@ -189,7 +190,7 @@ func TestRenderRoom_ListsPlacedMob(t *testing.T) {
 		Type:     "npc",
 		Behavior: "idle",
 	})
-	out := command.RenderRoom(f.room, f.place, f.store, nil, nil, nil, light.Lit, nil)
+	out := command.RenderRoom(f.room, f.place, f.store, nil, nil, nil, light.Lit, nil, nil)
 	if !strings.Contains(out, "<subtle>You see here:</subtle> <present.mob>a village guard</present.mob>.") {
 		t.Errorf("missing mob in render:\n%s", out)
 	}
@@ -203,7 +204,7 @@ func TestRenderRoom_RedensHostileMob(t *testing.T) {
 		ID: "tapestry-core:goblin", Name: "a snarling goblin", Type: "npc", Behavior: "idle",
 	})
 	hostile := func(*entities.MobInstance) bool { return true }
-	out := command.RenderRoom(f.room, f.place, f.store, nil, nil, hostile, light.Lit, nil)
+	out := command.RenderRoom(f.room, f.place, f.store, nil, nil, hostile, light.Lit, nil, nil)
 	if !strings.Contains(out, "<present.hostile>a snarling goblin</present.hostile>") {
 		t.Errorf("hostile mob not reddened:\n%s", out)
 	}
@@ -219,7 +220,7 @@ func TestRenderRoom_ListsOtherPlayers(t *testing.T) {
 	f.placeMob(t, &mob.Template{
 		ID: "tapestry-core:guard", Name: "a village guard", Type: "npc", Behavior: "idle",
 	})
-	out := command.RenderRoom(f.room, f.place, f.store, nil, nil, nil, light.Lit, nil, "Bob")
+	out := command.RenderRoom(f.room, f.place, f.store, nil, nil, nil, light.Lit, nil, nil, "Bob")
 	if !strings.Contains(out, "<subtle>You see here:</subtle> <present.player>Bob</present.player>, <present.mob>a village guard</present.mob>.") {
 		t.Errorf("player not listed with mob:\n%s", out)
 	}
@@ -229,7 +230,7 @@ func TestRenderRoom_PlayersOnlyNoPlacement(t *testing.T) {
 	// A player present in an otherwise-empty room (no placement/store)
 	// still produces the line.
 	f := newRenderFixture()
-	out := command.RenderRoom(f.room, nil, nil, nil, nil, nil, light.Lit, nil, "Bob", "Carol")
+	out := command.RenderRoom(f.room, nil, nil, nil, nil, nil, light.Lit, nil, nil, "Bob", "Carol")
 	if !strings.Contains(out, "<subtle>You see here:</subtle> <present.player>Bob</present.player>, <present.player>Carol</present.player>.") {
 		t.Errorf("players-only render wrong:\n%s", out)
 	}
@@ -245,7 +246,7 @@ func TestRenderRoom_PreservesInsertionOrderAcrossMixedEntities(t *testing.T) {
 	f := newRenderFixture()
 	f.placeItem(t, &item.Template{ID: "tapestry-core:well", Name: "a stone well", Type: "fixture"})
 	f.placeMob(t, &mob.Template{ID: "tapestry-core:guard", Name: "a village guard", Type: "npc", Behavior: "idle"})
-	out := command.RenderRoom(f.room, f.place, f.store, nil, nil, nil, light.Lit, nil)
+	out := command.RenderRoom(f.room, f.place, f.store, nil, nil, nil, light.Lit, nil, nil)
 	idxWell := strings.Index(out, "a stone well")
 	idxGuard := strings.Index(out, "a village guard")
 	if idxWell == -1 || idxGuard == -1 {
@@ -270,7 +271,7 @@ func TestRenderRoom_EmptyNameEntitySilentlySkipped(t *testing.T) {
 	// than the whole line being absent for some other reason).
 	f.placeItem(t, &item.Template{ID: "tapestry-core:well", Name: "a stone well", Type: "fixture"})
 	f.placeItem(t, &item.Template{ID: "tapestry-core:nameless", Name: "", Type: "fixture"})
-	out := command.RenderRoom(f.room, f.place, f.store, nil, nil, nil, light.Lit, nil)
+	out := command.RenderRoom(f.room, f.place, f.store, nil, nil, nil, light.Lit, nil, nil)
 	if !strings.Contains(out, "<subtle>You see here:</subtle> <item.common>a stone well</item.common>.") {
 		t.Errorf("expected named entity intact, empty-name entity omitted:\n%s", out)
 	}
@@ -286,7 +287,7 @@ func TestRenderRoom_EntityLinePlacedBetweenDescriptionAndExits(t *testing.T) {
 	// the test.
 	f := newRenderFixture()
 	f.placeItem(t, &item.Template{ID: "tapestry-core:well", Name: "a stone well", Type: "fixture"})
-	out := command.RenderRoom(f.room, f.place, f.store, nil, nil, nil, light.Lit, nil)
+	out := command.RenderRoom(f.room, f.place, f.store, nil, nil, nil, light.Lit, nil, nil)
 	idxDesc := strings.Index(out, "cobblestone")
 	idxWell := strings.Index(out, "a stone well")
 	idxExits := strings.Index(out, "Exits:")
@@ -306,7 +307,7 @@ func TestRenderRoom_EntityLinePlacedBetweenDescriptionAndExits(t *testing.T) {
 func TestRenderRoom_UnresolvedPlacementIDSilentlySkipped(t *testing.T) {
 	f := newRenderFixture()
 	f.place.Place(entities.EntityID("ghost-id"), f.room.ID)
-	out := command.RenderRoom(f.room, f.place, f.store, nil, nil, nil, light.Lit, nil)
+	out := command.RenderRoom(f.room, f.place, f.store, nil, nil, nil, light.Lit, nil, nil)
 	// Ghost id resolves to nothing; line should be absent OR not
 	// mention any entity name.
 	if strings.Contains(out, "You see here") {
@@ -321,7 +322,7 @@ func TestRenderRoom_MarkerDecoratesEntity(t *testing.T) {
 
 	// marker fires only for the gem template.
 	marker := func(tid string) bool { return tid == "tapestry-core:gem" }
-	out := command.RenderRoom(f.room, f.place, f.store, marker, nil, nil, light.Lit, nil)
+	out := command.RenderRoom(f.room, f.place, f.store, marker, nil, nil, light.Lit, nil, nil)
 
 	// The marker prepends OUTSIDE the rarity tag (sequential, not
 	// nested): "<good>(!)</good> <item.common>a quest gem</item.common>".
@@ -330,6 +331,34 @@ func TestRenderRoom_MarkerDecoratesEntity(t *testing.T) {
 	}
 	if strings.Contains(out, "(!)</good> <item.common>a plain rock") {
 		t.Errorf("non-quest item should not be marked:\n%s", out)
+	}
+}
+
+// quest-spawns.md Phase 2: a quest spawn owned by another player is withheld
+// from the "You see here" line (the entityVisible filter), while the viewer's
+// own spawn and ordinary items still show. A nil filter (legacy) shows all.
+func TestRenderRoom_QuestSpawnFilterHidesForeignSpawns(t *testing.T) {
+	f := newRenderFixture()
+	f.placeItem(t, &item.Template{ID: "tapestry-core:rock", Name: "a plain rock", Type: "junk"})
+	mine := f.placeItem(t, &item.Template{ID: "sr:chip", Name: "a paydata chip", Type: "treasure"})
+	mine.SetProperty(questspawn.OwnerProperty, "me")
+	theirs := f.placeItem(t, &item.Template{ID: "sr:chip", Name: "a paydata chip", Type: "treasure"})
+	theirs.SetProperty(questspawn.OwnerProperty, "them")
+
+	// Viewer "me": sees the ordinary rock and their own chip, but exactly one
+	// chip (the foreign one is gone).
+	mineView := command.RenderRoom(f.room, f.place, f.store, nil, nil, nil, light.Lit, nil, command.QuestSpawnVisible("me"))
+	if !strings.Contains(mineView, "a plain rock") {
+		t.Errorf("ordinary item must always show:\n%s", mineView)
+	}
+	if got := strings.Count(mineView, "a paydata chip"); got != 1 {
+		t.Errorf("owner should see exactly their own chip, got %d:\n%s", got, mineView)
+	}
+
+	// A nil filter (legacy / headless) shows both chips.
+	allView := command.RenderRoom(f.room, f.place, f.store, nil, nil, nil, light.Lit, nil, nil)
+	if got := strings.Count(allView, "a paydata chip"); got != 2 {
+		t.Errorf("nil filter should show both chips, got %d:\n%s", got, allView)
 	}
 }
 
@@ -347,7 +376,7 @@ func TestRenderRoom_AmbienceCallbackAppendsLine(t *testing.T) {
 		}
 		return "A steady rain falls around you."
 	}
-	out := command.RenderRoom(f.room, f.place, f.store, nil, ambience, nil, light.Lit, nil)
+	out := command.RenderRoom(f.room, f.place, f.store, nil, ambience, nil, light.Lit, nil, nil)
 	if called != 1 {
 		t.Errorf("ambience called %d times, want 1", called)
 	}
@@ -374,7 +403,7 @@ func TestRenderRoom_NilAmbienceSkipsLine(t *testing.T) {
 	// Backward-compat: nil ambience must produce the same output
 	// as the pre-M15.4b₂b render path.
 	f := newRenderFixture()
-	out := command.RenderRoom(f.room, f.place, f.store, nil, nil, nil, light.Lit, nil)
+	out := command.RenderRoom(f.room, f.place, f.store, nil, nil, nil, light.Lit, nil, nil)
 	for _, marker := range []string{"weather", "rain", "wind"} {
 		if strings.Contains(out, marker) {
 			t.Errorf("nil ambience produced %q in output:\n%s", marker, out)
@@ -387,7 +416,7 @@ func TestRenderRoom_EmptyAmbienceReturnSkipsLine(t *testing.T) {
 	// no extra blank line, no marker.
 	f := newRenderFixture()
 	ambience := func(*world.Room) string { return "" }
-	out := command.RenderRoom(f.room, f.place, f.store, nil, ambience, nil, light.Lit, nil)
+	out := command.RenderRoom(f.room, f.place, f.store, nil, ambience, nil, light.Lit, nil, nil)
 	// The render output joins with "\n"; an empty ambience must not
 	// inject a stray blank line between description and exits. The
 	// "Exits:" label now renders dimmed (<subtle>).

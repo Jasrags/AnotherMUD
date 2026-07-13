@@ -34,6 +34,16 @@ const (
 	// caller assembles this layer onto a target only when the room is dark
 	// and the target is non-luminous; the primitive just composes it.
 	SourceDarkness SourceType = "darkness"
+	// SourceQuestSpawn is the quest-scoped ownership gate (quest-spawns.md
+	// Phase 2): a mob/item spawned for one player's quest run does not exist
+	// for any other observer. Unlike the perception layers this is an
+	// EXISTENCE gate, not a can-I-perceive-it question, so it fails CLOSED
+	// (§1.2 exception): the pierce rule below returns false, and the caller
+	// attaches the layer ONLY to entities the observer does not own — the
+	// owner never carries the layer (so they see their own set), and a
+	// bypassing caller (admin inspection verb) still short-circuits at
+	// CanSee before layers are consulted.
+	SourceQuestSpawn SourceType = "quest-spawn"
 )
 
 // RollGated reports whether the source resolves through the §4.2 perception
@@ -143,6 +153,13 @@ func pierces(o Observer, layer Layer) bool {
 		return o.SeesInvisible()
 	case SourceAdminInvis:
 		return o.AdminRank() >= layer.Score
+	case SourceQuestSpawn:
+		// Existence gate (quest-spawns.md Phase 2): the layer is attached only
+		// to entities the observer does not own, so its mere presence means
+		// "not yours" — nothing pierces it. Fails CLOSED by design (§1.2
+		// exception); an owning observer never carries the layer, and Bypass()
+		// already short-circuits above for admin inspection.
+		return false
 	case SourceHide, SourceSneak:
 		// Roll-gated (§4): a detect trait or a remembered pierce skips the
 		// contest; otherwise run it (and record the result) via the observer.

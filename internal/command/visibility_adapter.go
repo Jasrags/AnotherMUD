@@ -4,6 +4,7 @@ import (
 	"github.com/Jasrags/AnotherMUD/internal/entities"
 	"github.com/Jasrags/AnotherMUD/internal/light"
 	"github.com/Jasrags/AnotherMUD/internal/progression"
+	"github.com/Jasrags/AnotherMUD/internal/questspawn"
 	"github.com/Jasrags/AnotherMUD/internal/visibility"
 	"github.com/Jasrags/AnotherMUD/internal/world"
 )
@@ -160,7 +161,14 @@ func (c *Context) visibilityPredicate() func(string) bool {
 		magicalInvis = magicalInvisibleOccupants(c, room.ID)
 	}
 
-	if !dark && len(hidden) == 0 && len(adminInvis) == 0 && len(magicalInvis) == 0 {
+	// Quest-spawn term (quest-spawns.md Phase 2): the room's quest-spawned
+	// items/mobs owned by SOMEONE ELSE. Owner-gated existence — a foreign
+	// spawn does not exist for this viewer, so it is concealed unconditionally
+	// (the SourceQuestSpawn layer never pierces). The viewer's OWN spawns are
+	// absent from this set and so carry no layer (self sees own set).
+	foreignSpawns := foreignQuestSpawns(c, room.ID)
+
+	if !dark && len(hidden) == 0 && len(adminInvis) == 0 && len(magicalInvis) == 0 && len(foreignSpawns) == 0 {
 		return nil // nothing concealed from this viewer
 	}
 
@@ -197,7 +205,76 @@ func (c *Context) visibilityPredicate() func(string) bool {
 		if _, ok := magicalInvis[id]; ok {
 			layers = append(layers, visibility.Layer{Source: visibility.SourceMagicalInvis})
 		}
+		if _, ok := foreignSpawns[id]; ok {
+			layers = append(layers, visibility.Layer{Source: visibility.SourceQuestSpawn})
+		}
 		return visibility.CanSee(obs, visTarget{id: id, layers: layers})
+	}
+}
+
+// foreignQuestSpawns returns the room's quest-spawned entities owned by a
+// player OTHER than the observer, keyed by entity id (quest-spawns.md Phase 2).
+// Built by reading the owner marker (questspawn.OwnerProperty) off each placed
+// entity; the observer's own spawns and unmarked (ordinary) entities are
+// excluded. Empty — the common case — when the room holds no quest spawns, so
+// the predicate short-circuits to its legacy permissive path.
+func foreignQuestSpawns(c *Context, roomID world.RoomID) map[string]struct{} {
+	if c.Placement == nil || c.Items == nil {
+		return nil
+	}
+	self := c.Actor.PlayerID()
+	var out map[string]struct{}
+	for _, id := range c.Placement.InRoom(roomID) {
+		e, ok := c.Items.GetByID(id)
+		if !ok {
+			continue
+		}
+		owner := questSpawnOwner(e)
+		if owner == "" || owner == self {
+			continue // ordinary entity, or the viewer's own spawn (self-visible)
+		}
+		if out == nil {
+			out = make(map[string]struct{})
+		}
+		out[string(id)] = struct{}{}
+	}
+	return out
+}
+
+// questSpawnOwner returns the owning player's id stamped on a quest-spawned
+// entity (questspawn.OwnerProperty), or "" for an entity that is not a quest
+// spawn. Both ItemInstance and MobInstance expose Property; anything else (or a
+// non-string value) reads as unowned.
+func questSpawnOwner(e entities.Entity) string {
+	p, ok := e.(interface {
+		Property(string) (any, bool)
+	})
+	if !ok {
+		return ""
+	}
+	v, ok := p.Property(questspawn.OwnerProperty)
+	if !ok {
+		return ""
+	}
+	owner, _ := v.(string)
+	return owner
+}
+
+// QuestSpawnVisible builds the render-side quest-spawn filter for a viewer
+// (quest-spawns.md Phase 2): it reports whether a placed entity should appear
+// in the viewer's room render. A quest-spawned entity owned by another player
+// is hidden; ordinary entities and the viewer's own spawns show. Returns nil
+// (show everything) when the viewer has no player identity — tests, headless,
+// and pre-login renders — so those paths keep the legacy behavior. This mirrors
+// the resolve-side SourceQuestSpawn gate so "what you see" and "what you can
+// target" stay consistent (visibility §5.4).
+func QuestSpawnVisible(viewerID string) func(entities.Entity) bool {
+	if viewerID == "" {
+		return nil
+	}
+	return func(e entities.Entity) bool {
+		owner := questSpawnOwner(e)
+		return owner == "" || owner == viewerID
 	}
 }
 

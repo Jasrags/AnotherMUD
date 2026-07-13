@@ -35,7 +35,7 @@ func (m *mountService) MountName(templateID string) (string, bool) {
 // (the same path area spawning uses) and stamps ownerID as its owner. Returns
 // the live mount's entity id.
 func (m *mountService) Materialize(ctx context.Context, ownerID, templateID string, roomID world.RoomID) (entities.EntityID, error) {
-	id, err := m.spawner.spawnMob(ctx, templateID, roomID)
+	id, err := m.spawner.spawnMob(ctx, templateID, roomID, "")
 	if err != nil {
 		return "", err
 	}
