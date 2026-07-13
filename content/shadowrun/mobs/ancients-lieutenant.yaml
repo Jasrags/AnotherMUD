@@ -1,0 +1,27 @@
+id: ancients-lieutenant
+name: an Ancients lieutenant
+xp_value: 60  # a named-target kill (grouping.md §4) — the Turf War mark
+type: npc
+behavior: stationary
+description: |
+  Where the rank-and-file Ancients wear their gang colours loud, the lieutenant
+  wears his like a threat — a long synthleather coat, a monofilament grin, and a
+  reputation that keeps Tarislar in line. He didn't get the rank by being easy to
+  kill, and the signet on his hand says he speaks for the gang.
+tags: [humanoid, ganger, outlaw]
+keywords: [lieutenant, ancient, ancients, boss, elf, ganger]
+# Hostile: he doesn't parley with runners on his turf.
+disposition_rules:
+  default: hostile
+# A blade and a jacket, like the rank and file but harder — the katana routes
+# lethal (Physical); a stun baton still KOs him via his Stun monitor.
+equipment: [katana, armored-jacket]
+stats:
+  hp_max: 30
+  body: 5
+  agility: 4
+  reaction: 4
+  strength: 4
+  willpower: 3
+  intuition: 3
+loot_table: ganger-loot

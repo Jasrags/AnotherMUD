@@ -1,0 +1,48 @@
+# "Turf War" — Mr. Johnson's wetwork job (quests spec). A named-target
+# assassination + proof-of-hit, contrasting the retrieve (johnsons-run) and
+# exterminate (bug-hunt) shapes. Unlocks after Redmond Retrieval. Unqualified
+# ids resolve against the shadowrun namespace at load.
+id: turf-war
+name: Turf War
+classification: side
+giver: mr-johnson
+offer: >-
+  "This one's a message, not a favour. The Ancients are getting bold down in
+  Puyallup, and my employer wants their lieutenant in Tarislar geeked — publicly
+  enough that the gang gets the point. Bring me his signet ring so I know it's
+  done. Wetwork rates. You in?"
+turn_in: true
+abandonable: true
+prerequisite:
+  min_level: 1
+  quests_completed:
+    - johnsons-run
+stages:
+  - id: infiltrate
+    description: The Ancients' lieutenant holds court in Tarislar, deep in the Puyallup Barrens.
+    hint: Tarislar is Ancients turf, south of the metroplex in Puyallup.
+    objectives:
+      - type: visit
+        target: tarislar
+        description: Reach Tarislar in the Puyallup Barrens.
+  - id: the-hit
+    description: Put down the Ancients lieutenant and take his signet as proof.
+    hint: The lieutenant runs with a couple of gangers; drop him and grab the signet he leaves.
+    # Quest-scoped spawns (quest-spawns.md): the mark, his escort, and the signet
+    # appear when the runner arrives, and are cleaned up when the run ends.
+    spawns:
+      - { kind: mob, template: ancients-lieutenant, room: tarislar }
+      - { kind: mob, template: ganger, room: tarislar, count: 2 }
+      - { kind: item, template: ancients-signet, room: tarislar }
+    objectives:
+      - type: kill
+        target: ancients-lieutenant
+        count: 1
+        description: Geek the Ancients lieutenant.
+      - type: collect
+        target: ancients-signet
+        description: Take the lieutenant's signet ring.
+reward:
+  xp: 200
+  gold: 2800
+  reputation: 2

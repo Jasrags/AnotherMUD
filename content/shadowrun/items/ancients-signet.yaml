@@ -1,0 +1,13 @@
+id: ancients-signet
+name: an Ancients signet ring
+type: item
+description: |
+  A heavy silver ring worked with the Ancients' mark — the kind a gang lieutenant
+  wears to show he speaks for the whole crew. Taken off a cooling hand, it's proof
+  of a job done, and a message the Ancients will understand.
+tags: [quest]
+keywords: [signet, ring, colours, mark]
+properties:
+  weight: 1
+  # Proof of the hit, not a fence's prize — no street value (quests spec).
+  value: 0

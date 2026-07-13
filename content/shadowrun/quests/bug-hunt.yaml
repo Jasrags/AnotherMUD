@@ -1,0 +1,50 @@
+# "Bug Hunt" — Mr. Johnson's extermination job (quests spec). A pure-combat run
+# to contrast the retrieval shape of johnsons-run: clear a paracritter nest,
+# boss included. Unlocks once the runner has proven themselves on Redmond
+# Retrieval. Unqualified ids resolve against the shadowrun namespace at load.
+id: bug-hunt
+name: Bug Hunt
+classification: side
+giver: mr-johnson
+offer: >-
+  "You did clean work in Redmond, so here's a straightforward one. A client's got
+  a building on the edge of Glow City that's crawling with devil rats — and
+  something bigger nesting in the walls. Clear it out, matriarch and all.
+  Extermination pays flat. No paydata, no politics. Interested?"
+turn_in: true
+abandonable: true
+prerequisite:
+  min_level: 1
+  # Unlocks after the starter run — talk to the Johnson once Redmond Retrieval
+  # is done and this offer appears alongside it.
+  quests_completed:
+    - johnsons-run
+stages:
+  - id: track
+    description: Johnson's client wants a devil-rat nest on the edge of Glow City cleared out.
+    hint: The Edge of Glow City is out in the Redmond Barrens, past Sophocles and Avondale.
+    objectives:
+      - type: visit
+        target: glow-city-edge
+        description: Reach the nest on the edge of Glow City.
+  - id: exterminate
+    description: Kill the brood-mother and thin the pack she's spawned.
+    hint: The brood-mother is the big one — put her down, and clear the rats around her.
+    # Quest-scoped spawns (quest-spawns.md): the boss + her pack appear here when
+    # the runner arrives, and are cleaned up when the run ends.
+    spawns:
+      - { kind: mob, template: devil-rat-brood-mother, room: glow-city-edge }
+      - { kind: mob, template: devil-rat, room: glow-city-edge, count: 3 }
+    objectives:
+      - type: kill
+        target: devil-rat-brood-mother
+        count: 1
+        description: Kill the devil-rat brood-mother.
+      - type: kill
+        target: devil-rat
+        count: 3
+        description: Thin the pack (0/3).
+reward:
+  xp: 175
+  gold: 2000
+  reputation: 1

@@ -1,0 +1,27 @@
+id: devil-rat-brood-mother
+name: a devil rat brood-mother
+xp_value: 55  # a real paracritter kill (grouping.md §4) — the Bug Hunt boss
+type: npc
+behavior: stationary
+description: |
+  Bloated to the size of a dog and then some, the brood-mother drags a swollen
+  belly across the rubble, blind milk-white eyes swivelling toward warmth. The
+  Glow twisted her into something that shouldn't breed but does, endlessly — kill
+  her and the nest dies with her.
+tags: [paracritter, vermin]
+keywords: [broodmother, brood, mother, rat, devil, matriarch]
+# Hostile: she defends the nest to the death.
+disposition_rules:
+  default: hostile
+stats:
+  hp_max: 30
+  body: 5
+  agility: 3
+  reaction: 3
+  strength: 4
+  willpower: 3
+  intuition: 3
+# A natural weapon (combat §4.5) — tearing incisors, no gear to loot.
+natural_weapon:
+  name: incisors
+  damage: 1d6+1
