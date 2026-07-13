@@ -92,6 +92,13 @@ quests work without those services, they just grant nothing.
 
 ## 2. Quest definitions
 
+> A stage MAY also declare **quest-scoped spawns** — mobs/items created
+> when the stage becomes active and cleaned up when the quest ends,
+> instead of being pre-placed in the world. That lifecycle is specified
+> separately in [quest-spawns](quest-spawns.md); it hooks the stage
+> activation (§3.1, §4.2) and end (§4.3/§4.5) operations below and adds
+> no objective-advancement logic (§7 is unchanged).
+
 ### 2.1 Registration
 
 Quest definitions register into a single registry keyed by stable
