@@ -5066,10 +5066,12 @@ func (s *biomeHazardSink) OccupantsInRoom(roomID world.RoomID) []string {
 	return ids
 }
 
-// HasProtection reports whether the victim carries or wears an item bearing
-// protectionKey — total immunity (§4.6(b)). Mirrors gathering.hasToolTag:
-// scan inventory + equipment, resolve each id to an item, match tags
-// case-insensitively.
+// HasProtection reports whether the victim WEARS an item bearing protectionKey
+// — total immunity (§4.6(b)). Wear-only by deliberate choice: a sealed suit
+// seals nothing while stuffed in a backpack, so gearing up is a real "don before
+// the Glow" decision rather than a passive carry. Scans equipped items only
+// (not inventory), resolving each id to an item and matching tags
+// case-insensitively (the tag scan mirrors gathering.hasToolTag).
 func (s *biomeHazardSink) HasProtection(victimID, protectionKey string) bool {
 	if s.mgr == nil || s.store == nil || protectionKey == "" {
 		return false
@@ -5077,9 +5079,6 @@ func (s *biomeHazardSink) HasProtection(victimID, protectionKey string) bool {
 	a, ok := s.mgr.GetByPlayerID(victimID)
 	if !ok {
 		return false
-	}
-	if s.itemBearsTag(a.Inventory(), protectionKey) {
-		return true
 	}
 	eq := a.Equipment()
 	worn := make([]entities.EntityID, 0, len(eq))

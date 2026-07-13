@@ -1,6 +1,6 @@
 # Area Effects: Grenadelike Weapons, Room Hazards, and Biome Hazards — Feature Specification
 
-**Status:** Draft · **§4.6 biome hazards SHIPPED** (2026-07-13 — `internal/biome` HazardService + protection-key immunity + attacker-less environmental death; Shadowrun Glow City / Puyallup ash flats content; players-only, raw damage, no persistence per §5). Grenades (§3), placed hazards (§4.1–4.5), and the placed-hazard world store remain build-pending. · **Scope:** The engine's first
+**Status:** Draft · **§4.6 biome hazards SHIPPED** (2026-07-13 — `internal/biome` HazardService + protection-key immunity + attacker-less environmental death; Shadowrun Glow City / Puyallup ash flats content; players-only, raw damage, no persistence per §5). **Implementation note:** the protection key is **wear-only** (an equipped item), a deliberate narrowing of §4.6(b)'s "carry or wear" — a sealed suit seals nothing in a backpack, so gearing up is a real decision. Grenades (§3), placed hazards (§4.1–4.5), and the placed-hazard world store remain build-pending. · **Scope:** The engine's first
 **multi-target attack** — a shared *area-effect primitive* (a payload of typed
 damage and/or a condition applied to every eligible creature in a region) and
 its consumers: **grenadelike weapons** (thrown acid / oil / fireworks with

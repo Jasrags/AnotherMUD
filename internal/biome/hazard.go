@@ -63,9 +63,11 @@ type HazardSink interface {
 	// the room. v1 lists players; mobs are a deferred fast-follow.
 	OccupantsInRoom(roomID world.RoomID) []string
 
-	// HasProtection reports whether victimID carries or wears an item
-	// bearing protectionKey (§4.6(b) immunity). A caller passes a non-empty
-	// key; an empty key is filtered by the service before it calls this.
+	// HasProtection reports whether victimID has the protection that grants
+	// immunity to protectionKey (§4.6(b)). The production sink treats this as
+	// WEAR-only (an equipped item bearing the key), so a sealed suit must be
+	// worn, not merely carried. A caller passes a non-empty key; an empty key
+	// is filtered by the service before it calls this.
 	HasProtection(victimID, protectionKey string) bool
 
 	// Harm applies the payload to victimID and routes an attacker-less

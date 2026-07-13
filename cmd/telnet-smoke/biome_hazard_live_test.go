@@ -23,10 +23,12 @@ var hpRe = regexp.MustCompile(`\[HP (\d+)/(\d+)\]`)
 //     takes the radiation payload on the hazard tick: they see the searing
 //     room-copy line and their HP drops. Environmental — no attacker.
 //
-//   - A runner carrying the sealed enviro-suit (tag `rad-shielded`, the
-//     hazard's protection key) is IMMUNE: standing in the same room across
-//     multiple hazard ticks produces no searing line and no HP loss. This
-//     also exercises the carry-OR-wear rule (the suit is only in inventory).
+//   - A runner WEARING the sealed enviro-suit (tag `rad-shielded`, the hazard's
+//     protection key, equipped to the body slot) is IMMUNE: standing in the same
+//     room across multiple hazard ticks produces no searing line and no HP loss.
+//
+//   - The same runner with the suit only CARRIED (unequipped back to the pack)
+//     is harmed again — proving protection is wear-only, not carry-or-wear.
 //
 //     ANOTHERMUD_LIVE=1 go test ./cmd/telnet-smoke -run TestLive_BiomeHazard -v
 func TestLive_BiomeHazard(t *testing.T) {
@@ -98,14 +100,13 @@ func TestLive_BiomeHazard(t *testing.T) {
 		}
 	}
 
-	// --- Phase 2: carrying the suit → immunity. ------------------------------
+	// --- Phase 2: WEARING the suit → immunity. -------------------------------
+	// Protection is wear-only: spawn the suit, then equip it to the body slot.
+	// Carrying it in the pack must NOT protect (that's Phase 3).
 	send("restore")
-	if out := send("spawn item rad-suit me"); !strings.Contains(strings.ToLower(out), "suit") &&
-		!strings.Contains(strings.ToLower(out), "spawn") {
-		// Non-fatal: some spawn confirmations are terse. Verify via inventory.
-		if inv := send("inventory"); !strings.Contains(strings.ToLower(inv), "suit") {
-			t.Fatalf("rad-suit was not conjured into inventory:\n%s", inv)
-		}
+	send("spawn item rad-suit me")
+	if out := send("equip suit"); !strings.Contains(strings.ToLower(out), "suit") {
+		t.Fatalf("could not equip the enviro-suit to the body slot:\n%s", out)
 	}
 	shielded, _ := hpFrom(send("look"))
 
@@ -115,9 +116,24 @@ func TestLive_BiomeHazard(t *testing.T) {
 
 	if strings.Contains(strings.ToLower(quiet), "sears through you") ||
 		strings.Contains(strings.ToLower(quiet), "the glow sears") {
-		t.Fatalf("shielded runner was harmed by the Glow (protection key ignored):\n%s", quiet)
+		t.Fatalf("worn suit did not protect against the Glow (protection key ignored):\n%s", quiet)
 	}
 	if hp, ok := hpFrom(back); ok && shielded > 0 && hp < shielded {
-		t.Fatalf("shielded HP dropped in the Glow: before %d, after %d (immunity failed)", shielded, hp)
+		t.Fatalf("worn-suit HP dropped in the Glow: before %d, after %d (immunity failed)", shielded, hp)
+	}
+
+	// --- Phase 3: carrying the suit (not worn) → NO immunity. ----------------
+	// Wear-only: unequip the suit back to the pack, and the Glow must bite again.
+	send("restore")
+	if out := send("unequip suit"); !strings.Contains(strings.ToLower(out), "suit") {
+		t.Fatalf("could not unequip the enviro-suit:\n%s", out)
+	}
+	send("teleport shadowrun:glow-city")
+	carried := c.Drain(2500 * time.Millisecond)
+	send("teleport shadowrun:westlake-plaza")
+
+	if !strings.Contains(strings.ToLower(carried), "sears through you") &&
+		!strings.Contains(strings.ToLower(carried), "the glow sears") {
+		t.Fatalf("carrying the suit (not worn) wrongly protected against the Glow:\n%s", carried)
 	}
 }

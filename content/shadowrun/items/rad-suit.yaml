@@ -7,8 +7,9 @@ description: |
   and stifling, but it is the difference between walking the Glow and dying in
   it. Seals out radiation and toxic fumes alike.
 # `rad-shielded` is the protection key the toxic/ashfall biomes name
-# (area-effects.md §4.6(b)): carrying OR wearing this suit grants total
-# immunity to their ambient hazard. `wearable` lets it occupy the body slot.
+# (area-effects.md §4.6(b)): WEARING this suit (body slot) grants total immunity
+# to their ambient hazard — carrying it in a pack does nothing, so you must
+# actually don it before the Glow. `wearable` lets it occupy the body slot.
 tags: [wearable, rad-shielded]
 keywords: [suit, enviro-suit, envirosuit, rad-suit, radsuit, hazard suit]
 eligible_slots: [body]
