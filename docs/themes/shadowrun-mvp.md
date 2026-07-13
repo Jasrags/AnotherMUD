@@ -254,14 +254,20 @@ holders.
 - [ ] Masterwork/special rounds confer their grade when fired from a holder.
 - [ ] Internally-fed weapons (the revolver path) are unchanged from SR-M3e.
 
-### SR-M4 — Essence pool + `degrades: magic`  · **Small Go · OPTIONAL (mage prerequisite)**
+### SR-M4 — Essence pool + `degrades: magic`  · **Small Go · SHIPPED 2026-07-13**
 
-`pool.Rules.Degrades` is built but used by nobody (plan §4.4). An `essence` pool whose `current` clamps a `magic` channel max is the textbook use. **Not required for a mundane Street Samurai** — sequence it when the *first mage/adept* is on the table, or as a "close the Essence-is-exotic myth" demo.
+`pool.Rules.Degrades` is built but used by nobody (plan §4.4). An `essence` pool whose `current` clamps a `magic` channel max is the textbook use. **Not required for a mundane Street Samurai** — sequenced now because the cyberware-as-stat-boost content (SR-M3) already exists and this turns its flavor-text Essence cost into a real, bounded budget.
+
+**Implementation notes (as built)**
+- Essence is stored in **tenths** (max 60 == 6.0) so the integer `pool.Pool` can hold the SR decimal. `item.essence_cost` is authored as the decimal (2.0, 0.2) and converted ×10 at load; `score` renders it back as `X.X`.
+- Essence is **derived, not spent**: `current = max − Σ(essence_cost of installed cyberware)`, recomputed in `connActor.recomputeWeaponLocked` → `setEssenceInstalledLocked` on every equip/unequip. Installing chrome lowers it; removing chrome restores it (symmetric with the reversible cyberware slot). No spend/regen tick touches it.
+- The **equip gate** refuses an install that would exceed the remaining budget (`internal/command/equipment.go`), only where an essence pool exists — `essence_cost` stays inert in any non-Shadowrun world.
+- `degrades: magic` is honored (`applyEssenceDegradesLocked`) by capping a same-Set `magic` pool's max at Essence current (a ratchet). **Inert for a mundane runner** (no magic pool seeded → no target). The Awakened `magic` pool, its units/rounding, and full essence-hole-vs-restore semantics are the mage arc's to settle; the honoring hook + its regression test (a synthetic magic pool) prove the mechanism.
 
 **Acceptance criteria**
-- [ ] An `essence` pool declared in content, starting at 6.
-- [ ] Cyberware install lowers Essence; `pool.degrades: magic` clamps the `magic` channel max at channel-resolve time (a few lines to honor `degrades`).
-- [ ] A mundane character (Magic 0) is unaffected — pure regression.
+- [x] An `essence` pool declared in content, starting at 6 (`content/shadowrun/pools/essence.yaml`, max_formula "60").
+- [x] Cyberware install lowers Essence; `pool.degrades: magic` caps the `magic` pool max at recompute time (honoring hook, tested with a synthetic magic pool).
+- [x] A mundane character (Magic 0) is unaffected — pure regression (no magic pool → the degrades hook is a no-op; `TestEssence_*` + live `TestLive_ShadowrunEssence`).
 
 ### SR-M5 — Advancement fork (Option B, karma-ledger)  · **Real Go · NOT MVP**
 

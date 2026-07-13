@@ -136,6 +136,79 @@ func TestLoad_ShadowrunBootSlice(t *testing.T) {
 	}
 }
 
+// TestLoad_ShadowrunEssencePool is the SR-M4 gate: the `essence` pool loads with
+// a constant tenths ceiling (max_formula "60" == 6.0), degrades the `magic`
+// pool, seeds on the player only, and the three cyberware items carry their
+// authored decimal essence_cost converted to integer tenths.
+func TestLoad_ShadowrunEssencePool(t *testing.T) {
+	root, err := filepath.Abs("../../content")
+	if err != nil {
+		t.Fatalf("abs: %v", err)
+	}
+	regs := NewRegistries()
+	if err := RegisterEngineBaselineProperties(regs.Properties); err != nil {
+		t.Fatalf("baseline properties: %v", err)
+	}
+	if err := slot.RegisterEngineBaseline(regs.Slots); err != nil {
+		t.Fatalf("baseline slots: %v", err)
+	}
+	if err := Load(context.Background(), root, []string{"shadowrun"}, regs, nil, nil, nil); err != nil {
+		t.Fatalf("Load shadowrun: %v", err)
+	}
+
+	essence, ok := regs.Pools.Get("essence")
+	if !ok {
+		t.Fatal("essence pool not declared")
+	}
+	if essence.MaxFormula != "60" {
+		t.Errorf("essence MaxFormula = %q, want the constant \"60\" (6.0 in tenths)", essence.MaxFormula)
+	}
+	if essence.Rules.Degrades != "magic" {
+		t.Errorf("essence degrades %q, want magic", essence.Rules.Degrades)
+	}
+	if essence.Rules.DepletionEvent || essence.Rules.Nonlethal {
+		t.Errorf("essence rules = %+v, want no depletion_event/nonlethal (a build limit, not a KO)", essence.Rules)
+	}
+	if !essence.SeedOnPlayer || essence.SeedOnMob {
+		t.Errorf("essence seeds player=%v mob=%v, want player-only", essence.SeedOnPlayer, essence.SeedOnMob)
+	}
+
+	// The constant formula seeds a full 6.0 (60 tenths) — no attribute vars, so
+	// the ceiling never moves. A runner starts at full humanity.
+	srSet, ok := regs.AttributeSets.Get("shadowrun-primaries")
+	if !ok {
+		t.Fatal("shadowrun-primaries attribute set not loaded")
+	}
+	sb := progression.NewWithBase(progression.SeedBaseFromSet(srSet))
+	set := pool.NewSet()
+	entities.SeedPoolInto(set, sb, "essence", progression.StatType(essence.MaxChannel), essence.MaxFormula, essence.Rules)
+	p, ok := set.Get("essence")
+	if !ok {
+		t.Fatal("essence pool was not seeded")
+	}
+	if cur, max := p.Snapshot(); cur != 60 || max != 60 {
+		t.Fatalf("seeded essence = %d/%d, want 60/60 (6.0 full)", cur, max)
+	}
+
+	// The cyberware items carry their SR decimal essence_cost as integer tenths.
+	for _, tc := range []struct {
+		id   string
+		want int
+	}{
+		{"wired-reflexes", 20},     // 2.0
+		{"muscle-replacement", 10}, // 1.0
+		{"cybereyes", 2},           // 0.2
+	} {
+		it, err := regs.Items.Get(item.TemplateID("shadowrun:" + tc.id))
+		if err != nil {
+			t.Fatalf("%s: %v", tc.id, err)
+		}
+		if it.EssenceCost != tc.want {
+			t.Errorf("%s essence_cost = %d tenths, want %d", tc.id, it.EssenceCost, tc.want)
+		}
+	}
+}
+
 // TestLoad_ShadowrunMetatypes is the SR-M3c-2 metatype-roster gate: all five
 // metatypes load, each overriding the core baseline (priority 1), and the four
 // metahumans carry their identity as distinct attribute CAPS + size + a starting

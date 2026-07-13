@@ -127,6 +127,71 @@ func newRegistry(t *testing.T) *command.Registry {
 	return r
 }
 
+// implantTpl is a cyberware-like item: it carries an Essence cost and (to avoid
+// registering a bespoke slot) is eligible for the baseline `finger` slot. The
+// SR-M4 gate keys on essence_cost, not the slot.
+func implantTpl(id string, cost int) *item.Template {
+	return &item.Template{
+		ID:            item.TemplateID(id),
+		Name:          "an implant",
+		Type:          "item",
+		Keywords:      []string{"implant"},
+		EligibleSlots: []string{"finger"},
+		EssenceCost:   cost,
+	}
+}
+
+// TestEquip_CyberwareEssenceGate is the SR-M4 gate: installing an augmentation
+// whose essence_cost exceeds the runner's remaining Essence is refused, and
+// nothing is equipped. A runner with the headroom installs it fine.
+func TestEquip_CyberwareEssenceGate(t *testing.T) {
+	t.Run("insufficient rejects", func(t *testing.T) {
+		f := newEqFixture(t)
+		a := newTestActor(f.room)
+		a.essenceMax = 60                                                            // 6.0 ceiling
+		a.essence = 10                                                               // only 1.0 left
+		inst := f.spawnInInventory(t, implantTpl("shadowrun:wired-reflexes", 20), a) // costs 2.0
+
+		dispatch(t, newRegistry(t), f.env(), a, "equip implant")
+
+		if _, worn := a.Equipment()["finger"]; worn {
+			t.Error("implant was equipped despite insufficient Essence")
+		}
+		if len(a.Inventory()) != 1 || a.Inventory()[0] != inst.ID() {
+			t.Errorf("implant should remain in inventory, got %v", a.Inventory())
+		}
+		if last := a.lastLine(); !strings.Contains(last, "Essence") || !strings.Contains(last, "2.0") {
+			t.Errorf("reject message = %q, want it to mention the 2.0 Essence cost", last)
+		}
+	})
+
+	t.Run("sufficient installs", func(t *testing.T) {
+		f := newEqFixture(t)
+		a := newTestActor(f.room)
+		a.essenceMax = 60
+		a.essence = 60 // full
+		inst := f.spawnInInventory(t, implantTpl("shadowrun:wired-reflexes", 20), a)
+
+		dispatch(t, newRegistry(t), f.env(), a, "equip implant")
+
+		if got := a.Equipment()["finger:0"]; got != inst.ID() {
+			t.Errorf("implant not installed: equipment[finger] = %q, want %q", got, inst.ID())
+		}
+	})
+
+	t.Run("no essence pool ignores cost", func(t *testing.T) {
+		f := newEqFixture(t)
+		a := newTestActor(f.room) // essenceMax 0 ⇒ no essence system
+		inst := f.spawnInInventory(t, implantTpl("other:trinket", 20), a)
+
+		dispatch(t, newRegistry(t), f.env(), a, "equip implant")
+
+		if got := a.Equipment()["finger:0"]; got != inst.ID() {
+			t.Errorf("cost should be inert without an essence pool: equipment[finger] = %q, want %q", got, inst.ID())
+		}
+	})
+}
+
 func TestEquip_MovesFromInventoryToSlotAndAppliesMods(t *testing.T) {
 	f := newEqFixture(t)
 	a := newTestActor(f.room)

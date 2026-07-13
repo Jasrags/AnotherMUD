@@ -671,14 +671,18 @@ None block content authoring. Sizes: **S/M/L**.
   `shoot` retaliation already pursues across a room). Phase it: **v1** = zone tunes patrol
   density / ambient spawn (pure content); **v2** = active heat→response. Interlocks with
   SINs (a SINless runner in a Z-zone triggers nothing; a crime in AAA triggers everything).
-- **Cyberware / Bioware + Essence** — **M**. Augments as **implants** — not slot-worn, not
-  droppable, occupying no equipment slot — that grant modifiers (wired reflexes → initiative,
-  smartlink → smartgun to-hit, cybereyes → low-light) at an **Essence cost**. The modifier
-  delivery reuses the effect/modifier surface; the *implant relationship* + the **Essence
-  pool** are new. The Essence pool is already the flagged next SR slice (**SR-M4**), so this
-  is its consuming feature. Pre-decisions: Essence as a capped pool that gates total 'ware;
-  bioware-vs-cyberware Essence-efficiency split; whether 'ware is installed via a street-doc
-  shop interaction (economy) or an admin/creation grant first.
+- **Cyberware / Bioware + Essence** — **✅ CORE SHIPPED (SR-M4, 2026-07-13).** Augments as
+  **implants** occupying a `cyberware` slot grant modifiers through the standard
+  equip→srckey→stat pipeline (SR-M3), and **Essence is now a real bounded budget** that each
+  implant spends — install lowers it, remove restores it, an equip gate refuses chrome past
+  the budget, `score` shows it, and `pool.degrades: magic` is honored (inert until a mage
+  pool exists). See the `sr-m4-essence-build-log` memory. **What remains (deferred depth):**
+  the **bioware-vs-cyberware Essence-efficiency split**; installing 'ware via a **street-doc
+  shop interaction** (economy) rather than picking it off a tray; more implant content
+  (smartlink → smartgun to-hit, cybereyes low-light once a visibility consumer reads it,
+  cyberlimbs); and the **Awakened `magic` pool** (a mage/adept class) that turns the
+  `degrades:magic` hook live — its units/rounding + essence-hole-vs-restore semantics are
+  that arc's to settle.
 - **Drones + Rigging** — **M**. Owned recon/combat units overlap **hireable-mobs** (an owned
   companion that follows + fights), but the SR-specific part is **jumping in** — controlling a
   drone remotely and *perceiving through it* (perception transfer), closer in shape to the

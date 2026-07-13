@@ -1,0 +1,30 @@
+# The Shadowrun Essence budget (SR-M4). Essence is the measure of a runner's
+# intact humanity: everyone starts at 6.0, and every piece of cyberware/bioware
+# eats into it. Unlike the Stun monitor this pool is NEVER spent by a tick or
+# regenerated — its current is DERIVED from installed chrome: current = max −
+# Σ(essence_cost of equipped cyberware), recomputed on every equip/unequip
+# (session.setEssenceInstalledLocked, driven by recomputeWeaponLocked). Removing
+# an augment restores the Essence, symmetric with the reversible cyberware slot.
+#
+# Stored in TENTHS because pool.Pool is integer-valued: max 60 == 6.0, and an
+# implant's decimal essence_cost (2.0, 0.2) is multiplied by ten at load. `score`
+# renders it back as the SR decimal. A constant max needs no attribute formula,
+# so max_formula is the bare literal "60" (channel/expr evaluates it, binds no
+# OnMaxChange listeners — the ceiling never moves).
+#
+#   floor           = 0 (Essence bottoms out at 0.0; the equip gate refuses an
+#                     install that would push past it).
+#   degrades: magic = Essence's current caps the MAX of a `magic` pool (SR5:
+#                     losing Essence lowers Magic). INERT for a mundane Street
+#                     Samurai — no `magic` pool is seeded, so the honoring hook
+#                     finds no target and does nothing. It exists so a future
+#                     Awakened metatype (a mage/adept, its own arc) lights up
+#                     for free (the SR-M4 "Magic 0 is unaffected" regression).
+#   seed_on_player  = a runner carries Essence; mobs do not (seed_on_mob false).
+#   NO depletion_event / nonlethal — reaching 0 Essence is a build limit, not a
+#   knock-out or a death.
+id: essence
+floor: 0
+max_formula: "60"
+degrades: magic
+seed_on_player: true

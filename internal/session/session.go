@@ -4157,6 +4157,7 @@ func (a *connActor) recomputeWeaponLocked() {
 		a.armorTiers.Store(nil)
 		a.wornReputation.Store(0)
 		a.wornArmorBonus.Store(0)
+		a.setEssenceInstalledLocked(0) // no cyberware installed ⇒ Essence full (SR-M4)
 		return
 	}
 	keys := make([]string, 0, len(a.equipment))
@@ -4176,8 +4177,9 @@ func (a *connActor) recomputeWeaponLocked() {
 	// armor, and the distinct tiers worn. minCap nil ⇒ no piece caps Dex.
 	var minCap *int
 	var tiers []string
-	var wornRep int   // special-weapons §8: summed visible-gear reputation
-	var wornArmor int // subdual-damage §6: summed worn armor AC contribution
+	var wornRep int          // special-weapons §8: summed visible-gear reputation
+	var wornArmor int        // subdual-damage §6: summed worn armor AC contribution
+	var installedEssence int // SR-M4: summed cyberware Essence cost (tenths)
 	for _, k := range keys {
 		id := a.equipment[k]
 		if seen[id] {
@@ -4192,8 +4194,9 @@ func (a *connActor) recomputeWeaponLocked() {
 			continue
 		}
 		seen[id] = true
-		wornRep += it.Reputation()   // special-weapons §8: visible-gear renown delta
-		wornArmor += it.ArmorBonus() // subdual-damage §6: worn armor rating (whip gate)
+		wornRep += it.Reputation()           // special-weapons §8: visible-gear renown delta
+		wornArmor += it.ArmorBonus()         // subdual-damage §6: worn armor rating (whip gate)
+		installedEssence += it.EssenceCost() // SR-M4: cyberware Essence spend (tenths)
 		for dt, amt := range it.Resistances() {
 			if resist == nil {
 				resist = make(map[string]int)
@@ -4233,6 +4236,47 @@ func (a *connActor) recomputeWeaponLocked() {
 	}
 	a.wornReputation.Store(int64(wornRep))
 	a.wornArmorBonus.Store(int64(wornArmor))
+	a.setEssenceInstalledLocked(installedEssence) // SR-M4: derive Essence from installed chrome
+}
+
+// setEssenceInstalledLocked refreshes the Essence pool current to reflect the
+// Essence spent by currently-installed cyberware (SR-M4). Essence is DERIVED,
+// not spent: current = max − Σ installed cost, so installing chrome lowers it
+// and removing chrome restores it, symmetric with the reversible cyberware
+// slot. A no-op in any world that declares no `essence` pool. Caller holds a.mu
+// (the pool has its own lock; this only reads the essence pool, never a.mu
+// state). Called from recomputeWeaponLocked, so every equip/unequip and the
+// respawn-equipment reseat keeps Essence consistent.
+func (a *connActor) setEssenceInstalledLocked(installed int) {
+	p, ok := a.resourcePool(poolKindEssence)
+	if !ok {
+		return
+	}
+	p.SetCurrent(p.Max() - installed) // SetCurrent clamps to [floor, max]
+	a.applyEssenceDegradesLocked(p)
+}
+
+// applyEssenceDegradesLocked honors pool.Rules.Degrades for the Essence pool
+// (SR-M4): Essence's current caps the MAX of the pool it degrades (Essence →
+// Magic). Inert for a mundane runner — a world with no `magic` pool has no
+// target, so this is a no-op (the SR-M4 "Magic 0 is unaffected" regression).
+//
+// The cap is a RATCHET DOWN (SR5: Magic lost to Essence loss is permanent), so
+// it only lowers the target max, never raises it. Full essence-hole vs
+// restore-on-recovery semantics are resolved with the mage arc that introduces
+// the Magic pool — until then no content exercises this path.
+func (a *connActor) applyEssenceDegradesLocked(essence *pool.Pool) {
+	deg := essence.Rules().Degrades
+	if deg == "" {
+		return
+	}
+	target, ok := a.resourcePool(pool.Kind(deg))
+	if !ok {
+		return // no consumer (mundane runner: no magic pool) — regression-safe no-op
+	}
+	if cur := essence.Current(); cur < target.Max() {
+		target.SetMax(cur)
+	}
 }
 
 // IsWeaponProficient reports whether the actor may wield their current
@@ -5613,6 +5657,11 @@ func (a *connActor) CurrentTarget() (string, bool) {
 const (
 	poolKindMana     = pool.Kind("mana")
 	poolKindMovement = pool.Kind("movement")
+	// poolKindEssence is the Shadowrun Essence budget (SR-M4): a pool whose
+	// current is DERIVED (max − Σ installed cyberware essence_cost), not spent
+	// by a tick or regenerated. Stored in tenths (max 60 == 6.0). Only a world
+	// that declares an `essence` pool seeds it; every other world reads 0/0.
+	poolKindEssence = pool.Kind("essence")
 )
 
 // resourcePool returns the actor's pool of the given kind. Nil-safe for
@@ -5723,6 +5772,26 @@ func (a *connActor) ManaMax() int {
 // is seeded). See ManaMax for why this is distinct from Movement().
 func (a *connActor) MovementMax() int {
 	if p, ok := a.resourcePool(poolKindMovement); ok {
+		return p.Max()
+	}
+	return 0
+}
+
+// Essence returns the actor's current Essence in tenths (Shadowrun SR-M4),
+// 0 when no essence pool is seeded (any non-Shadowrun world). Derived from
+// installed cyberware (max − Σ essence_cost), refreshed by the equip recompute.
+func (a *connActor) Essence() int {
+	if p, ok := a.resourcePool(poolKindEssence); ok {
+		return p.Current()
+	}
+	return 0
+}
+
+// EssenceMax returns the actor's Essence ceiling in tenths (60 == 6.0 for a
+// Shadowrun runner), 0 when no essence pool is seeded. Callers use max == 0 to
+// mean "this world has no Essence" and skip rendering it.
+func (a *connActor) EssenceMax() int {
+	if p, ok := a.resourcePool(poolKindEssence); ok {
 		return p.Max()
 	}
 	return 0

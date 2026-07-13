@@ -310,6 +310,13 @@ type testActor struct {
 	mv    int
 	mvMax int
 
+	// Shadowrun Essence budget for the cyberware equip gate (SR-M4), in tenths.
+	// essenceMax 0 (the default) means no essence pool, so the gate stands down
+	// and essence_cost is inert — the behavior every non-cyberware equip test
+	// relies on.
+	essence    int
+	essenceMax int
+
 	// Concealment state for the visibility hide verbs (visibility §3.1).
 	hidden          bool
 	hideScore       int    // HideScore() return (0 ⇒ default test value below)
@@ -634,6 +641,21 @@ func (a *testActor) DeductMovement(n int) {
 	if a.mv -= n; a.mv < 0 {
 		a.mv = 0
 	}
+}
+
+// Essence / EssenceMax make testActor satisfy the essenceActor the cyberware
+// equip gate looks for (SR-M4). With the default essenceMax 0 the gate stands
+// down, so essence_cost is inert for every non-cyberware equip test.
+func (a *testActor) Essence() int {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	return a.essence
+}
+
+func (a *testActor) EssenceMax() int {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	return a.essenceMax
 }
 
 // RestState / SetRestState / SetRestTarget / SetSleepStart make

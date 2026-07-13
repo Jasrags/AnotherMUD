@@ -6,10 +6,13 @@ description: |
   layer — the sprawl reads like a map and nothing catches you blind. The
   attribute shift stands in for that heightened awareness; the low-light /
   thermographic vision itself is flavor until a light/visibility consumer reads
-  it. (Essence 0.2 — flavor only; SR-M4.)
+  it.
 tags: [cyberware, augmentation]
 keywords: [cybereyes, eyes, optics, cyberware]
+# essence_cost (SR-M4): cheap chrome — only 0.2 Essence, so a runner can stack
+# several sensory augments before the budget bites.
 eligible_slots: [cyberware]
+essence_cost: 0.2
 modifiers:
   - { stat: intuition, value: 1 }
 properties:

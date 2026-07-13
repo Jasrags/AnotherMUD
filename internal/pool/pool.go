@@ -60,11 +60,19 @@ type Rules struct {
 	// by the Pool itself.
 	OverflowTo Kind
 
-	// Degrades names a derived channel whose MAX this pool's Current
-	// value caps — Essence's Current caps the "magic" channel. Empty ⇒
-	// caps nothing. The Pool only stores the name; the owner reads it
-	// and pushes Current into the channel (the one Essence-specific
-	// line, kept out of the generic counter).
+	// Degrades names another pool in the same Set whose MAX this pool's
+	// Current value caps — Essence's Current caps the "magic" pool's max.
+	// Empty ⇒ caps nothing. The Pool only stores the name; the owner reads
+	// it and pushes Current into the target's SetMax (the one Essence-
+	// specific line, kept out of the generic counter).
+	//
+	// SCALE CONTRACT: the cap is a RAW value comparison — this pool and the
+	// pool it degrades MUST be authored on the same numeric scale, or the
+	// cap is nonsense. Essence is stored in tenths (max 60 == 6.0), so a
+	// future "magic" pool it degrades must also be tenths (max 60 == 6.0),
+	// NOT whole SR points (1-6). There is no runtime guard for this yet
+	// because no consumer exists — see the SR-M4 deferred fix (fix-by: the
+	// mage/Awakened arc that first authors a "magic" pool).
 	Degrades string
 
 	// DepletionEvent advertises that the owner SHOULD emit a depletion

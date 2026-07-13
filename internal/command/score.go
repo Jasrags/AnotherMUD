@@ -33,6 +33,12 @@ type scoreSubject interface {
 	ManaMax() int
 	Movement() int
 	MovementMax() int
+	// Essence / EssenceMax are the Shadowrun Essence budget in TENTHS (SR-M4;
+	// 60 == 6.0). A world with no essence pool reads 0/0, which the sheet takes
+	// as "no Essence" and omits the line — so the field is inert everywhere but
+	// Shadowrun.
+	Essence() int
+	EssenceMax() int
 	StatValue(progression.StatType) int
 	Saves() progression.Saves
 	// AttributeSet is the character's resolved base attribute set (SR-M1), so
@@ -58,6 +64,7 @@ func ScoreHandler(ctx context.Context, c *Context) error {
 		d.HasResources = true
 		d.Mana, d.MaxMana = ss.Mana(), ss.ManaMax()
 		d.MV, d.MaxMV = ss.Movement(), ss.MovementMax()
+		d.Essence, d.MaxEssence = ss.Essence(), ss.EssenceMax()
 		d.HasStats = true
 		// The world's declared attributes in order (SR-M1); each abbrev falls
 		// back to the uppercased id. A boot with no attribute content (set nil)
@@ -419,6 +426,9 @@ type scoreData struct {
 	HasResources  bool
 	Mana, MaxMana int
 	MV, MaxMV     int
+	// Essence / MaxEssence are the Shadowrun Essence budget in tenths (SR-M4).
+	// MaxEssence == 0 ⇒ the world has no Essence, so the sheet omits the line.
+	Essence, MaxEssence int
 
 	// HasStats is true when the actor satisfied scoreSubject (some attribute
 	// data will render). The actual render path is chosen by len(Attrs): the
@@ -543,6 +553,13 @@ func renderScore(d scoreData) string {
 		// show 0/0 (no resource_max), which is the honest reading.
 		combatCol = append(combatCol, scSub("MA")+" <mana>"+fmt.Sprintf("%d/%d", d.Mana, d.MaxMana)+
 			"</mana>    "+scSub("MV")+" <mv>"+fmt.Sprintf("%d/%d", d.MV, d.MaxMV)+"</mv>")
+	}
+	if d.MaxEssence > 0 {
+		// Essence (Shadowrun SR-M4): stored in tenths, shown as the SR decimal.
+		// Only a world that declares an `essence` pool reaches here, so the line
+		// is Shadowrun-only. Current falls as cyberware is installed.
+		combatCol = append(combatCol, scKV("Essence",
+			scHi(fmt.Sprintf("%s / %s", tenths(d.Essence), tenths(d.MaxEssence))), 12))
 	}
 	if d.HasSaves {
 		// Fortitude / Reflex / Will (saves §2). Compact so the row fits the
@@ -815,6 +832,16 @@ func scTier(value, max int, fullTag, text string) string {
 
 func scHi(s string) string  { return "<highlight>" + s + "</highlight>" }
 func scSub(s string) string { return "<subtle>" + s + "</subtle>" }
+
+// tenths renders an integer count of tenths as a one-decimal string (32 → "3.2",
+// 60 → "6.0"), the display form for Shadowrun Essence (SR-M4). Negatives are
+// clamped to 0 — Essence never floors below zero.
+func tenths(v int) string {
+	if v < 0 {
+		v = 0
+	}
+	return fmt.Sprintf("%d.%d", v/10, v%10)
+}
 
 // madnessBand coarsens a saidin-taint score into an ominous qualitative band for
 // the score sheet (WoT S2 Phase 4+). The number is deliberately hidden behind

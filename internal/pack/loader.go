@@ -3645,6 +3645,15 @@ func decodeItem(path, ns string) (*item.Template, error) {
 		return nil, fmt.Errorf("%w: %s: magazine %d must be non-negative",
 			ErrInvalidContent, path, f.Magazine)
 	}
+	// essence_cost (Shadowrun SR-M4): the SR decimal an installed augmentation
+	// spends is stored as integer tenths (the essence pool, like every pool, is
+	// integer-valued). Convert authored 2.0 → 20, 0.2 → 2, rounding half-away.
+	// Negative is rejected — an implant cannot refund Essence.
+	if f.EssenceCost < 0 {
+		return nil, fmt.Errorf("%w: %s: essence_cost %.2f must be non-negative",
+			ErrInvalidContent, path, f.EssenceCost)
+	}
+	essenceCost := int(math.Round(f.EssenceCost * 10))
 	// reload_method is normalized (lowercase) but not vocabulary-validated —
 	// only "clip" is consumed today; other SR5 methods are recorded-only. A
 	// magazine weapon with no method defaults to "clip".
@@ -3862,6 +3871,7 @@ func decodeItem(path, ns string) (*item.Template, error) {
 		DoubleDamage:      doubleDamage,
 		ArmorSpeed:        f.ArmorSpeed,
 		Reputation:        f.Reputation,
+		EssenceCost:       essenceCost,
 	}, nil
 }
 

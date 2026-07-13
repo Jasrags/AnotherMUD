@@ -4,10 +4,12 @@ type: item
 description: |
   Vat-grown myomer bundles spliced over your own musculature — you hit harder
   and shrug off more than your frame has any right to. It aches in the cold and
-  sets off every scanner in the corp zone. (Essence 1.0 — flavor only; SR-M4.)
+  sets off every scanner in the corp zone.
 tags: [cyberware, augmentation]
 keywords: [muscle replacement, muscle, myomer, cyberware]
+# essence_cost (SR-M4): 1.0 Essence for the myomer graft.
 eligible_slots: [cyberware]
+essence_cost: 1.0
 modifiers:
   - { stat: strength, value: 1 }
   - { stat: body, value: 1 }

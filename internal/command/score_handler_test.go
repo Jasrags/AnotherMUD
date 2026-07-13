@@ -26,6 +26,8 @@ func (a *sheetActor) Mana() int            { return 0 }
 func (a *sheetActor) ManaMax() int         { return 0 }
 func (a *sheetActor) Movement() int        { return 0 }
 func (a *sheetActor) MovementMax() int     { return 0 }
+func (a *sheetActor) Essence() int         { return 0 }
+func (a *sheetActor) EssenceMax() int      { return 0 }
 func (a *sheetActor) StatValue(s progression.StatType) int {
 	return map[progression.StatType]int{
 		progression.StatSTR: 16, progression.StatINT: 10, progression.StatWIS: 12,

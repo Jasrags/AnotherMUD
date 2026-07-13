@@ -214,6 +214,11 @@ type ItemFile struct {
 	DoubleDamage string `yaml:"double_damage,omitempty"`
 	ArmorSpeed   int    `yaml:"armor_speed,omitempty"`
 	Reputation   int    `yaml:"reputation,omitempty"`
+	// EssenceCost is the Essence a piece of installed cyberware spends while
+	// equipped (Shadowrun SR-M4). Authored as the SR DECIMAL (2.0, 0.2); the
+	// loader converts to the integer tenths item.Template.EssenceCost stores.
+	// Negative is rejected at load. 0/omitted ⇒ ordinary gear (no Essence cost).
+	EssenceCost float64 `yaml:"essence_cost,omitempty"`
 }
 
 // ModifierFile is one entry of an ItemFile.Modifiers list.

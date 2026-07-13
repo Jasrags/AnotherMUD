@@ -4,13 +4,16 @@ type: item
 description: |
   A lattice of synthetic nerve fibre laid alongside your own, trading a sliver
   of your soul for reaction speed no meat can match. The world slows; you do
-  not. (Essence 2.0 — flavor only in this build; real Essence decay is SR-M4.)
+  not.
 tags: [cyberware, augmentation]
 keywords: [wired reflexes, reflexes, wires, cyberware]
 # Installed cyberware, not worn gear — occupies the cyberware slot. The modifier
 # rides the standard equip pipeline: on `equip` it adds to Reaction under the
 # item's EquipmentSourceKey; on `unequip` it comes off. Visible on `score`.
+# essence_cost (SR-M4): installing this spends 2.0 Essence off the runner's
+# budget; removing it restores the Essence.
 eligible_slots: [cyberware]
+essence_cost: 2.0
 modifiers:
   - { stat: reaction, value: 2 }
 properties:

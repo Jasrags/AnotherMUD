@@ -77,6 +77,15 @@ type sizedActor interface {
 	Size() string
 }
 
+// essenceActor optionally exposes the wearer's Shadowrun Essence budget so the
+// equip path can gate cyberware installation (SR-M4). connActor implements it;
+// a world with no essence pool reports EssenceMax 0, which stands the gate down
+// so `essence_cost` is inert outside Shadowrun. Both values are in tenths.
+type essenceActor interface {
+	Essence() int
+	EssenceMax() int
+}
+
 // offhandSlot is the base name of the hand a two-handed weapon ties up
 // (slot.RegisterEngineBaseline). Used to derive a sized two-handed weapon's
 // footprint (size-and-wielding §4.1).
@@ -173,6 +182,21 @@ func EquipHandler(ctx context.Context, c *Context) error {
 	// slot from a mismatched item.
 	if !slot.IsEligible(eligible, def.Name) {
 		return c.Actor.Write(ctx, fmt.Sprintf("You can't equip %s in the %s slot.", item.Name(), def.Name))
+	}
+
+	// Cyberware Essence gate (SR-M4): installing an augmentation spends Essence;
+	// refuse the install if the runner lacks the headroom. Essence current
+	// already reflects installed chrome (max − Σ cost), so the available budget
+	// IS the current value — allowed iff current ≥ cost. Only cyberware
+	// (essence_cost > 0) trips this, and only where an essence pool exists
+	// (EssenceMax > 0), so ordinary gear and every non-Shadowrun world skip it.
+	// Checked BEFORE any displacement so a rejected install disturbs nothing.
+	if cost := item.EssenceCost(); cost > 0 {
+		if ea, ok := c.Actor.(essenceActor); ok && ea.EssenceMax() > 0 && ea.Essence() < cost {
+			return c.Actor.Write(ctx, fmt.Sprintf(
+				"Installing %s would cost %s Essence, but you have only %s left.",
+				item.Name(), tenths(cost), tenths(ea.Essence())))
+		}
 	}
 
 	// §3.4 step 5: compute the footprint — the target slot plus the item's

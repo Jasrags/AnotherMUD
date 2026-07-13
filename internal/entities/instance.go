@@ -207,6 +207,10 @@ type ItemInstance struct {
 	doubleDamage combat.DiceExpr
 	armorSpeed   int
 	reputation   int
+	// essenceCost is the Essence (in tenths) this item spends while installed as
+	// cyberware (Shadowrun SR-M4). 0 for ordinary gear. Read by the equip
+	// recompute to derive the wearer's essence pool current (max − Σ installed).
+	essenceCost int
 }
 
 // ID implements Entity.
@@ -651,6 +655,11 @@ func (it *ItemInstance) DoubleDamage() (combat.DiceExpr, bool) {
 func (it *ItemInstance) ArmorSpeed() int { return it.armorSpeed }
 func (it *ItemInstance) Reputation() int { return it.reputation }
 
+// EssenceCost returns the Essence (in tenths) this item spends while installed
+// as cyberware (Shadowrun SR-M4); 0 for ordinary gear. The equip recompute sums
+// it across installed augmentations to derive the wearer's essence pool current.
+func (it *ItemInstance) EssenceCost() int { return it.essenceCost }
+
 // Angreal returns the item's One Power amplification rating and gender gate
 // (wot-the-one-power.md S2). ok is false (power 0, gender "") for an item that
 // is not an angreal. When ok, gender is "male"/"female" and power is positive
@@ -883,5 +892,6 @@ func buildInstanceFromTemplate(tpl *item.Template, id EntityID) *ItemInstance {
 		doubleDamage:      doubleDamage,
 		armorSpeed:        tpl.ArmorSpeed,
 		reputation:        tpl.Reputation,
+		essenceCost:       tpl.EssenceCost,
 	}
 }

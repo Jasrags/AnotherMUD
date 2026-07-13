@@ -258,6 +258,13 @@ type Template struct {
 	// while equipped (the source's masterwork +1 / Trolloc scythesword −2). 0 ⇒
 	// none. Inert until S8 reputation reads it.
 	Reputation int
+	// EssenceCost is the Essence a piece of installed cyberware/bioware spends
+	// while equipped, in TENTHS (Shadowrun SR-M4 — wired reflexes 2.0 → 20,
+	// cybereyes 0.2 → 2). Stored as an integer of tenths because the essence
+	// pool (like every pool.Pool) is integer-valued; content authors the SR
+	// decimal and the loader multiplies by ten. 0 ⇒ costs no Essence (ordinary
+	// gear). The essence pool's current is derived as max − Σ installed cost.
+	EssenceCost int
 }
 
 // Errors callers may distinguish at the boundary.
