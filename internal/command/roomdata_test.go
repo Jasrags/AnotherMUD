@@ -7,6 +7,8 @@ import (
 
 	"github.com/Jasrags/AnotherMUD/internal/biome"
 	"github.com/Jasrags/AnotherMUD/internal/command"
+	"github.com/Jasrags/AnotherMUD/internal/entities"
+	"github.com/Jasrags/AnotherMUD/internal/item"
 	"github.com/Jasrags/AnotherMUD/internal/world"
 )
 
@@ -115,6 +117,53 @@ func TestLook_RoomDataBlock_BiomeNoHazard(t *testing.T) {
 	}
 	if strings.Contains(out, "hazard") {
 		t.Errorf("harmless biome should show no hazard line:\n%s", out)
+	}
+}
+
+// The block lists live occupants — mobs and loose items on the floor — by
+// name + template id, so a builder sees exactly what is in the room.
+func TestLook_RoomDataBlock_Occupants(t *testing.T) {
+	room := coordTestRoom()
+	store := entities.NewStore()
+	place := entities.NewPlacement()
+	guard, err := store.SpawnMob(guardTplForConsider())
+	if err != nil {
+		t.Fatalf("SpawnMob: %v", err)
+	}
+	place.Place(guard.ID(), room.ID)
+	coin, err := store.Spawn(&item.Template{ID: "test:coin", Name: "a gold coin", Type: "item"})
+	if err != nil {
+		t.Fatalf("Spawn item: %v", err)
+	}
+	place.Place(coin.ID(), room.ID)
+
+	a := &roomDataActor{testActor: newTestActor(room), admin: true, showData: true}
+	if err := command.LookHandler(context.Background(), &command.Context{Actor: a, Placement: place, Items: store}); err != nil {
+		t.Fatalf("LookHandler: %v", err)
+	}
+	out := a.lastLine()
+	for _, want := range []string{
+		"a village guard <tapestry-core:village-guard>", // mob: name + template id
+		"a gold coin <test:coin>",                       // loose item: name + template id
+	} {
+		if !strings.Contains(out, want) {
+			t.Errorf("room-data occupants missing %q\n---\n%s", want, out)
+		}
+	}
+}
+
+// A hidden (secret) exit is marked in the builder exits line — the block
+// shows it unconditionally (unlike the per-observer player view).
+func TestLook_RoomDataBlock_HiddenExit(t *testing.T) {
+	room := coordTestRoom()
+	room.Exits[world.DirWest] = world.Exit{Target: "core:vault", Hidden: true, SearchDifficulty: 20}
+	a := &roomDataActor{testActor: newTestActor(room), admin: true, showData: true}
+	if err := command.LookHandler(context.Background(), &command.Context{Actor: a}); err != nil {
+		t.Fatalf("LookHandler: %v", err)
+	}
+	out := a.lastLine()
+	if !strings.Contains(out, "w -> core:vault (hidden, dc 20)") {
+		t.Errorf("hidden exit not marked in the builder exits line:\n%s", out)
 	}
 }
 

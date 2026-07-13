@@ -6,6 +6,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/Jasrags/AnotherMUD/internal/entities"
 	"github.com/Jasrags/AnotherMUD/internal/light"
 	"github.com/Jasrags/AnotherMUD/internal/world"
 )
@@ -117,6 +118,34 @@ func (c *Context) roomDataExtras(r *world.Room, lvl light.Level) string {
 		}
 	}
 
+	// Live occupants (mobs + loose items on the room floor), by template id +
+	// name. The builder block lists ALL of them — hidden, invisible, and
+	// other players' quest spawns included — since a GM wants ground truth,
+	// not the per-observer view. Sorted for a deterministic dump.
+	if c.Placement != nil && c.Items != nil {
+		var mobs, items []string
+		for _, id := range c.Placement.InRoom(r.ID) {
+			e, ok := c.Items.GetByID(id)
+			if !ok {
+				continue
+			}
+			switch v := e.(type) {
+			case *entities.MobInstance:
+				mobs = append(mobs, fmt.Sprintf("%s <%s>", v.Name(), v.TemplateID()))
+			case *entities.ItemInstance:
+				items = append(items, fmt.Sprintf("%s <%s>", v.Name(), v.TemplateID()))
+			}
+		}
+		sort.Strings(mobs)
+		sort.Strings(items)
+		if len(mobs) > 0 {
+			fmt.Fprintf(&b, "<subtle>mobs </subtle> %s\n", strings.Join(mobs, ", "))
+		}
+		if len(items) > 0 {
+			fmt.Fprintf(&b, "<subtle>items</subtle> %s\n", strings.Join(items, ", "))
+		}
+	}
+
 	// Effective light for this render + current weather when exposed.
 	fmt.Fprintf(&b, "<subtle>light</subtle> %s (effective)", lvl.String())
 	if r.WeatherExposed && c.WeatherState != nil {
@@ -196,7 +225,7 @@ func renderRoomData(r *world.Room) string {
 		type row struct{ key, line string }
 		rows := make([]row, 0, len(r.Exits))
 		for d, e := range r.Exits {
-			rows = append(rows, row{key: d.Long(), line: fmt.Sprintf("%s -> %s%s", d.Short(), e.Target, doorSuffix(e))})
+			rows = append(rows, row{key: d.Long(), line: fmt.Sprintf("%s -> %s%s%s", d.Short(), e.Target, doorSuffix(e), hiddenSuffix(e))})
 		}
 		sort.Slice(rows, func(i, j int) bool { return rows[i].key < rows[j].key })
 		for i, rw := range rows {
@@ -225,6 +254,20 @@ func renderRoomData(r *world.Room) string {
 	}
 
 	return strings.TrimRight(b.String(), "\n")
+}
+
+// hiddenSuffix renders a secret exit's concealment for the builder exits
+// line (hidden-exits §2), or "" when the exit is not hidden. The builder
+// block shows hidden exits unconditionally (unlike the player view, which
+// filters them per-observer), with the search DC when authored.
+func hiddenSuffix(e world.Exit) string {
+	if !e.Hidden {
+		return ""
+	}
+	if e.SearchDifficulty > 0 {
+		return fmt.Sprintf(" (hidden, dc %d)", e.SearchDifficulty)
+	}
+	return " (hidden)"
 }
 
 // doorSuffix renders an exit's door state for the builder exits line, or
