@@ -19,6 +19,19 @@ stats:
   hp_max: 20
   body: 3
   willpower: 4
-# TODO (quest hook): wire Mr. Johnson as a run-giver — a `talk`/`ask johnson`
-# job-offer verb and a quest chain (the iconic Downtown meet at Dante's). See
-# quest turn-in/offer conventions (quests spec). Skeleton only for now.
+# Run-giver: Mr. Johnson is the `giver` for "Redmond Retrieval" (quests/
+# johnsons-run) — `talk johnson` surfaces the meet and, once the chip is
+# recovered, the payout. His free-form patter is separate: `ask johnson about
+# <topic>` (npc-dialogue.md). Lists rotate on repeat; `default` is the catch-all.
+properties:
+  dialogue:
+    run:
+      - "The work? A courier for a competitor went down in the Redmond Barrens carrying paydata my employer wants back. Recover it. The Rusted Stilettos got there first, so go loud or go clever — your call."
+      - "Simple retrieval. One chip, one dead courier, one gang sitting on it in Avondale. `talk` to me when you want the details on record."
+    pay:
+      - "Nuyen up front is for amateurs and people I don't trust. Deliver, and the number is more than fair."
+      - "You do the job, you get paid. You cross me, you never work this sprawl again. That's the whole contract."
+    stilettos: "Rusted Stilettos. Ork gang, Avondale, mean as a cornered devil rat. They don't know what they're sitting on — only that it's worth killing over. Don't disappoint them."
+    johnson: "There is no Mr. Johnson. There's the work, and whether you're the kind of runner who finishes it. Names are a liability out here."
+    sprawl: "Seattle eats runners who ask too many questions. Do the job. Don't wonder whose data it is or where it's going."
+    default: "I deal in deniable work, not conversation. You want a job or not? `talk` to me."

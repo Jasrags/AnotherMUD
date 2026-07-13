@@ -941,6 +941,19 @@ type QuestStageFile struct {
 	Description string               `yaml:"description,omitempty"`
 	Hint        string               `yaml:"hint,omitempty"`
 	Objectives  []QuestObjectiveFile `yaml:"objectives,omitempty"`
+	// Spawns are this stage's quest-scoped mobs/items (quest-spawns.md §2),
+	// created when the stage activates. Optional; absent = no spawns.
+	Spawns []QuestSpawnFile `yaml:"spawns,omitempty"`
+}
+
+// QuestSpawnFile is the YAML shape for one quest-scoped spawn entry
+// (quest-spawns.md §2). kind is "mob" or "item"; template/room are ids the
+// loader namespace-qualifies; count defaults to 1.
+type QuestSpawnFile struct {
+	Kind     string `yaml:"kind"`
+	Template string `yaml:"template"`
+	Room     string `yaml:"room,omitempty"`
+	Count    int    `yaml:"count,omitempty"`
 }
 
 // QuestObjectiveFile is the YAML shape for a quest objective.

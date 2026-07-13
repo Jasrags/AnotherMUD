@@ -1,0 +1,54 @@
+# "Redmond Retrieval" — Mr. Johnson's run (quests spec). The iconic Downtown
+# meet: talk to the Johnson at Dante's Inferno, run the job out in the Redmond
+# Barrens, come back for the payout. Unqualified ids (giver, objective targets,
+# reward items) resolve against the pack namespace (shadowrun) at load.
+id: johnsons-run
+name: Redmond Retrieval
+classification: main
+giver: mr-johnson
+# The meet, shown when a runner `talk`s to Mr. Johnson at Dante's.
+offer: >-
+  "You look like someone who finishes what they start. Here's the work: a
+  courier for a competitor went down in the Redmond Barrens, and he was carrying
+  optical paydata that belongs to my employer. The Rusted Stilettos got to the
+  body first — go to Avondale, deal with them, and bring me that chip. Nuyen and
+  no questions. We never spoke."
+# Turn-in: run the job in the world, then return to the Johnson at Dante's and
+# `talk` to hand over the chip and collect the payout.
+turn_in: true
+abandonable: true
+prerequisite:
+  min_level: 1
+stages:
+  - id: site
+    description: Mr. Johnson's paydata is on a dead courier in Avondale, Rusted Stilettos turf.
+    hint: Avondale is the northern dead-end of the Redmond Barrens — through Touristville and Sophocles.
+    objectives:
+      - type: visit
+        target: avondale
+        description: Reach Avondale in the Redmond Barrens.
+  - id: job
+    description: Put down the Stilettos stripping the body and recover the paydata chip.
+    hint: Two Rusted Stilettos hold Avondale; the chip is on the ground by the courier.
+    # Quest-scoped spawns (quest-spawns.md): the two scavengers + the courier's
+    # chip are created in Avondale when this stage activates (i.e. the moment the
+    # runner reaches it in stage 1), and cleaned up when the run ends — not
+    # pre-placed at boot. `room` is explicit because this stage has no visit
+    # objective to default it from.
+    spawns:
+      - { kind: mob, template: ganger, room: avondale, count: 2 }
+      - { kind: item, template: paydata-chip, room: avondale }
+    objectives:
+      - type: kill
+        target: ganger
+        count: 2
+        description: Drop the Rusted Stilettos (0/2).
+      - type: collect
+        target: paydata-chip
+        description: Recover the optical paydata chip.
+reward:
+  # A real payday: karma (xp), a fat nuyen cut (shown as Y on the score sheet),
+  # and a little street rep for pulling a clean run.
+  xp: 200
+  gold: 2500
+  reputation: 2

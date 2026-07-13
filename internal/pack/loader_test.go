@@ -2211,6 +2211,116 @@ reward:
 	}
 }
 
+func TestLoadQuestSpawnsQualifyAndDefault(t *testing.T) {
+	root := t.TempDir()
+	pack := filepath.Join(root, "core")
+	writeFile(t, filepath.Join(pack, "pack.yaml"), `
+name: tapestry-core
+content:
+  quests: [quests/*.yaml]
+`)
+	writeFile(t, filepath.Join(pack, "quests/q.yaml"), `
+id: run
+name: Run
+giver: johnson
+stages:
+  - id: site
+    objectives:
+      - type: visit
+        target: avondale
+    spawns:
+      - { kind: item, template: chip }
+  - id: job
+    objectives:
+      - type: kill
+        target: ganger
+        count: 2
+    spawns:
+      - { kind: mob, template: ganger, room: avondale, count: 2 }
+      - { kind: item, template: other-pack:widget, room: avondale }
+`)
+	regs := NewRegistries()
+	if err := Load(context.Background(), root, nil, regs, nil, nil, nil); err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	d, ok := regs.Quests.Lookup("tapestry-core:run")
+	if !ok {
+		t.Fatal("quest not registered")
+	}
+	// Stage 0: room omitted -> defaults to the visit objective's (qualified)
+	// target; count omitted -> 1; template qualified against the pack.
+	s0 := d.Stages[0].Spawns
+	if len(s0) != 1 {
+		t.Fatalf("stage 0 spawns = %d, want 1", len(s0))
+	}
+	if s0[0].Kind != "item" || s0[0].Template != "tapestry-core:chip" || s0[0].Room != "tapestry-core:avondale" || s0[0].Count != 1 {
+		t.Errorf("stage 0 spawn = %+v, want {item tapestry-core:chip tapestry-core:avondale 1}", s0[0])
+	}
+	// Stage 1: explicit room + count; qualified cross-pack template passes through.
+	s1 := d.Stages[1].Spawns
+	if len(s1) != 2 {
+		t.Fatalf("stage 1 spawns = %d, want 2", len(s1))
+	}
+	if s1[0].Kind != "mob" || s1[0].Template != "tapestry-core:ganger" || s1[0].Room != "tapestry-core:avondale" || s1[0].Count != 2 {
+		t.Errorf("stage 1 mob spawn = %+v", s1[0])
+	}
+	if s1[1].Template != "other-pack:widget" {
+		t.Errorf("qualified cross-pack template = %q, want other-pack:widget", s1[1].Template)
+	}
+}
+
+func TestLoadQuestSpawnsRejectInvalid(t *testing.T) {
+	cases := map[string]string{
+		"bad kind": `
+id: q
+name: Q
+stages:
+  - id: s
+    spawns:
+      - { kind: creature, template: ganger, room: r }
+`,
+		"missing template": `
+id: q
+name: Q
+stages:
+  - id: s
+    spawns:
+      - { kind: mob, room: r }
+`,
+		"room omitted no visit": `
+id: q
+name: Q
+stages:
+  - id: s
+    objectives:
+      - type: kill
+        target: ganger
+    spawns:
+      - { kind: mob, template: ganger }
+`,
+		"over cap": `
+id: q
+name: Q
+stages:
+  - id: s
+    spawns:
+      - { kind: mob, template: ganger, room: r, count: 99 }
+`,
+	}
+	for name, quest := range cases {
+		t.Run(name, func(t *testing.T) {
+			root := t.TempDir()
+			pack := filepath.Join(root, "core")
+			writeFile(t, filepath.Join(pack, "pack.yaml"), "name: tapestry-core\ncontent:\n  quests: [quests/*.yaml]\n")
+			writeFile(t, filepath.Join(pack, "quests/q.yaml"), quest)
+			regs := NewRegistries()
+			if err := Load(context.Background(), root, nil, regs, nil, nil, nil); err == nil {
+				t.Fatalf("Load should reject %q spawn but succeeded", name)
+			}
+		})
+	}
+}
+
 func TestLoadQuestRejectsMissingStages(t *testing.T) {
 	root := t.TempDir()
 	pack := filepath.Join(root, "core")

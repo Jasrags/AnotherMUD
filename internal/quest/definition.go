@@ -27,6 +27,23 @@ type Stage struct {
 	Description string
 	Hint        string
 	Objectives  []Objective
+	// Spawns are the quest-scoped mobs/items created when this stage becomes
+	// a player's active stage, and cleaned up when the quest ends
+	// (quest-spawns.md). Empty is the common case (static or no props). The
+	// spawn lifecycle lives outside this package (internal/questspawn); the
+	// model only carries the declaration so the service can hand it to the
+	// spawner via the stage index.
+	Spawns []Spawn
+}
+
+// Spawn declares one quest-scoped entity to instantiate on stage activation
+// (quest-spawns.md §2). Kind is "mob" or "item"; Template and Room are
+// namespace-qualified ids (by the loader); Count is normalized to >= 1.
+type Spawn struct {
+	Kind     string
+	Template string
+	Room     string
+	Count    int
 }
 
 // FactionRequirement gates acceptance on a minimum faction standing

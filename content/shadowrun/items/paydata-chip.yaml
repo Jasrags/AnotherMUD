@@ -1,0 +1,14 @@
+id: paydata-chip
+name: an optical paydata chip
+type: item
+description: |
+  A sliver of optical storage in a scratched, anonymous casing — the kind a
+  courier swallows or palms when a run goes bad. Whatever's encrypted on it, a
+  Mr. Johnson wants it back badly enough to pay a runner and not ask how. Worth
+  nothing to a fence and everything to the right buyer.
+tags: [quest]
+keywords: [chip, paydata, datachip, data]
+properties:
+  weight: 1
+  # No street value — it's not for fencing, it's for delivering (quests spec).
+  value: 0

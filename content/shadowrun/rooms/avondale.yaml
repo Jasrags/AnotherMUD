@@ -9,7 +9,11 @@ description: |
 terrain: barrens
 exits:
   south: sophocles
-# A hostile dead-end: a Rusted Stiletto jumps anyone who wanders in (the ganger
-# archetype, flavoured as an ork gangbanger by the room).
+# A hostile dead-end: a Rusted Stiletto holds the turf whether or not anyone is
+# running a job here (static world flavour). The run's extra scavengers + the
+# courier's chip are NOT placed here — they are spawned by the quest when a
+# runner reaches this stage and cleaned up when it ends (quest-spawns.md; see
+# the `spawns` block in quests/johnsons-run.yaml), so the world isn't littered
+# with quest props for players who aren't on the run.
 mobs:
   - ganger

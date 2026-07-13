@@ -64,6 +64,7 @@ import (
 	"github.com/Jasrags/AnotherMUD/internal/portal"
 	"github.com/Jasrags/AnotherMUD/internal/progression"
 	"github.com/Jasrags/AnotherMUD/internal/quest"
+	"github.com/Jasrags/AnotherMUD/internal/questspawn"
 	"github.com/Jasrags/AnotherMUD/internal/queststore"
 	"github.com/Jasrags/AnotherMUD/internal/questwatch"
 	"github.com/Jasrags/AnotherMUD/internal/rangedflavor"
@@ -992,11 +993,19 @@ func run() error {
 		}
 		return ""
 	}
+	// The quest event sink fans out to two consumers (quest.MultiSink): the
+	// session notifier (player-facing banners) and the quest-spawn lifecycle
+	// (quest-spawns.md — spawn a stage's declared content on activation, clean
+	// it up on quest end). The spawner drives the same boot spawn pipeline the
+	// admin `spawn` verb uses, via the questSpawnPrimitive adapter over the
+	// already-built bootSpawner.
+	questNotifier := session.NewQuestNotifier(mgr, registries.Quests, questGiverName, questItemNameFn, currencyLabel, logging.From(ctx))
+	questSpawner := questspawn.New(ctx, &questSpawnPrimitive{boot: spawner}, registries.Quests, logging.From(ctx))
 	questSvc := quest.NewService(quest.Config{
 		Registry: registries.Quests,
 		Persist:  questStore,
 		Rewards:  session.NewQuestRewards(mgr, progressionMgr, proficiencyMgr, registries.Items, entityStore, currencySvc, knownRecipesMgr, factionMgr, reputationMgr, cfg.DefaultXPTrack),
-		Events:   session.NewQuestNotifier(mgr, registries.Quests, questGiverName, questItemNameFn, currencyLabel, logging.From(ctx)),
+		Events:   quest.MultiSink{questNotifier, questSpawner},
 		Faction:  session.NewQuestFactionGate(mgr, factionMgr),
 	})
 	questWatcher := questwatch.New(questSvc, entityStore)
@@ -4054,6 +4063,31 @@ func (a *bootSpawnServiceAdapter) SpawnItem(_ context.Context, templateID string
 		return "", "", err
 	}
 	return inst.ID(), inst.Name(), nil
+}
+
+// questSpawnPrimitive adapts the boot spawn pipeline to questspawn.Primitive
+// (quest-spawns.md): SpawnMob runs the full mob pipeline into a room, SpawnItem
+// mints an item and places it on the room floor, and Despawn removes an entity
+// from the world + store (best-effort — an already-killed mob is simply gone,
+// so Placement.Remove/Untrack no-op).
+type questSpawnPrimitive struct{ boot *bootSpawner }
+
+func (a *questSpawnPrimitive) SpawnMob(ctx context.Context, templateID string, roomID world.RoomID) (entities.EntityID, error) {
+	return a.boot.spawnMob(ctx, templateID, roomID)
+}
+
+func (a *questSpawnPrimitive) SpawnItem(_ context.Context, templateID string, roomID world.RoomID) (entities.EntityID, error) {
+	inst, err := a.boot.spawnItem(templateID)
+	if err != nil {
+		return "", err
+	}
+	a.boot.placement.Place(inst.ID(), roomID)
+	return inst.ID(), nil
+}
+
+func (a *questSpawnPrimitive) Despawn(id entities.EntityID) {
+	a.boot.placement.Remove(id)
+	_ = a.boot.store.Untrack(id)
 }
 
 // wireBiomeNodeSpawnRules generates per-room resource-node spawn rules from

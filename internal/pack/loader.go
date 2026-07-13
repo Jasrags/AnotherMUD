@@ -2168,11 +2168,16 @@ func decodeQuest(path, ns, packDir string) (*quest.Definition, error) {
 				Description: of.Description,
 			})
 		}
+		spawns, err := decodeQuestSpawns(sf, si, ns, path, objs)
+		if err != nil {
+			return nil, err
+		}
 		stages = append(stages, quest.Stage{
 			ID:          sf.ID,
 			Description: sf.Description,
 			Hint:        sf.Hint,
 			Objectives:  objs,
+			Spawns:      spawns,
 		})
 	}
 
@@ -2254,6 +2259,68 @@ func decodeQuest(path, ns, packDir string) (*quest.Definition, error) {
 		Script:  f.Script,
 		PackDir: packDir,
 	}, nil
+}
+
+// questSpawnCapPerStage bounds the total entities a single stage may spawn
+// (quest-spawns.md §2 / §9) — a runaway guard, not a gameplay limit.
+const questSpawnCapPerStage = 32
+
+// decodeQuestSpawns validates and namespace-qualifies a stage's `spawns` block
+// (quest-spawns.md §2). kind must be mob|item; template is required and
+// qualified; room is qualified, defaulting to the stage's first `visit`
+// objective target (a room) when omitted; count defaults to 1. Unresolvable or
+// invalid entries are load-time errors (the quest names concrete content it
+// owns). objs are the already-qualified objectives of the same stage, used for
+// the room default. Returns nil for a stage with no spawns.
+func decodeQuestSpawns(sf QuestStageFile, si int, ns, path string, objs []quest.Objective) ([]quest.Spawn, error) {
+	if len(sf.Spawns) == 0 {
+		return nil, nil
+	}
+	// The room to default an omitted spawn.room to: the first visit objective's
+	// (already-qualified) target in this stage, if any.
+	defaultRoom := ""
+	for _, o := range objs {
+		if strings.EqualFold(o.Type, "visit") && o.Target != "" {
+			defaultRoom = o.Target
+			break
+		}
+	}
+	out := make([]quest.Spawn, 0, len(sf.Spawns))
+	total := 0
+	for spi, spf := range sf.Spawns {
+		field := fmt.Sprintf("stage[%d].spawn[%d]", si, spi)
+		kind := strings.ToLower(strings.TrimSpace(spf.Kind))
+		if kind != "mob" && kind != "item" {
+			return nil, fmt.Errorf("%w: %s: %s.kind %q must be \"mob\" or \"item\"", ErrInvalidContent, path, field, spf.Kind)
+		}
+		if strings.TrimSpace(spf.Template) == "" {
+			return nil, fmt.Errorf("%w: %s: %s.template is required", ErrInvalidContent, path, field)
+		}
+		template, err := qualifyID(spf.Template, ns)
+		if err != nil {
+			return nil, fmt.Errorf("%w: %s: %s.template: %v", ErrInvalidContent, path, field, err)
+		}
+		room := defaultRoom
+		if strings.TrimSpace(spf.Room) != "" {
+			room, err = qualifyID(spf.Room, ns)
+			if err != nil {
+				return nil, fmt.Errorf("%w: %s: %s.room: %v", ErrInvalidContent, path, field, err)
+			}
+		}
+		if room == "" {
+			return nil, fmt.Errorf("%w: %s: %s.room omitted and the stage has no visit objective to default from", ErrInvalidContent, path, field)
+		}
+		count := spf.Count
+		if count < 1 {
+			count = 1
+		}
+		total += count
+		if total > questSpawnCapPerStage {
+			return nil, fmt.Errorf("%w: %s: stage[%d] spawns %d entities, over the per-stage cap of %d", ErrInvalidContent, path, si, total, questSpawnCapPerStage)
+		}
+		out = append(out, quest.Spawn{Kind: kind, Template: template, Room: room, Count: count})
+	}
+	return out, nil
 }
 
 // qualifyOptional namespace-qualifies id when non-empty; an empty id
