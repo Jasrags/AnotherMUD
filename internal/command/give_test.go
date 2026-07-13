@@ -60,8 +60,9 @@ func (s *stubLocator) PlayersInRoom(roomID world.RoomID) []command.Actor {
 // tests: world + store + placement + locator + bus.
 type giveFixture struct {
 	*invFixture
-	locator *stubLocator
-	bus     *eventbus.Bus
+	locator  *stubLocator
+	bus      *eventbus.Bus
+	contents *entities.Contents
 }
 
 func newGiveFixture(t *testing.T) *giveFixture {
@@ -70,6 +71,7 @@ func newGiveFixture(t *testing.T) *giveFixture {
 		invFixture: newInvFixture(t),
 		locator:    &stubLocator{},
 		bus:        eventbus.New(),
+		contents:   entities.NewContents(),
 	}
 }
 
@@ -77,6 +79,7 @@ func (f *giveFixture) env() command.Env {
 	e := f.invFixture.env()
 	e.Locator = f.locator
 	e.Bus = f.bus
+	e.Contents = f.contents
 	return e
 }
 
@@ -178,13 +181,45 @@ func TestGive_TargetNotInRoom(t *testing.T) {
 	if len(alice.Inventory()) != 1 || alice.Inventory()[0] != inst.ID() {
 		t.Errorf("inventory mutated on failed give: %v", alice.Inventory())
 	}
-	// M17.2d₄: the `target` player arg reports its standardized
-	// not-found sentinel (the missing target name is no longer echoed).
-	if !strings.Contains(alice.lastLine(), "No player by that name") {
-		t.Errorf("reply = %q, want player not-found message", alice.lastLine())
+	// The `target` give-recipient arg reports its standardized not-found
+	// sentinel (player or NPC — the missing target name is no longer echoed).
+	if !strings.Contains(alice.lastLine(), "No one here by that name to give to") {
+		t.Errorf("reply = %q, want give-target not-found message", alice.lastLine())
 	}
 	if emitted {
 		t.Error("ItemGiven emitted on failure")
+	}
+}
+
+func TestGive_ToNPC_EmitsItemGivenForDeliver(t *testing.T) {
+	// Giving an item to an NPC (the quest `deliver` path) removes it from the
+	// giver and emits ItemGiven with the MOB's RecipientID + the item template
+	// — exactly what questwatch.onItemGiven matches to advance a deliver
+	// objective. Without this, deliver-to-npc quests could never complete.
+	f := newGiveFixture(t)
+	alice := newNamedTestActor("Alice", "p-alice", f.room)
+	f.locator.add(alice)
+	inst := f.spawnInInventory(t, alice)
+	npc := spawnMobInRoom(t, f.invFixture, muteTpl()) // keyword "ork"
+
+	var got []eventbus.ItemGiven
+	f.bus.Subscribe(eventbus.EventItemGiven, func(_ context.Context, e eventbus.Event) {
+		got = append(got, e.(eventbus.ItemGiven))
+	})
+
+	dispatchGive(t, f, alice, "give sword ork")
+
+	if len(alice.Inventory()) != 0 {
+		t.Errorf("item still in giver inventory after give-to-npc: %v", alice.Inventory())
+	}
+	if len(got) != 1 {
+		t.Fatalf("expected 1 ItemGiven event, got %d", len(got))
+	}
+	if got[0].RecipientID != npc.ID() {
+		t.Errorf("ItemGiven RecipientID = %q, want the NPC's id %q", got[0].RecipientID, npc.ID())
+	}
+	if got[0].TemplateID != string(inst.TemplateID()) {
+		t.Errorf("ItemGiven TemplateID = %q, want %q", got[0].TemplateID, inst.TemplateID())
 	}
 }
 
@@ -214,11 +249,11 @@ func TestGive_RejectsSelfGive(t *testing.T) {
 	if len(alice.Inventory()) != 1 || alice.Inventory()[0] != inst.ID() {
 		t.Errorf("self-give moved item: %v", alice.Inventory())
 	}
-	// M17.2d₄: the player arg excludes self from candidates, so
-	// `give sword alice` (alice == actor) misses with the player
+	// The give-recipient arg excludes self from candidates, so
+	// `give sword alice` (alice == actor) misses with the give-target
 	// not-found sentinel rather than the old bespoke self-give copy.
-	if !strings.Contains(alice.lastLine(), "No player by that name") {
-		t.Errorf("reply = %q, want player not-found (self excluded)", alice.lastLine())
+	if !strings.Contains(alice.lastLine(), "No one here by that name to give to") {
+		t.Errorf("reply = %q, want give-target not-found (self excluded)", alice.lastLine())
 	}
 }
 

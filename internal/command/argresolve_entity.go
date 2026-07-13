@@ -247,6 +247,7 @@ var (
 	ErrEntityNotInRoom    = errors.New("You don't see that here.")
 	ErrPlayerNotInRoom    = errors.New("No player by that name.")
 	ErrNpcNotInRoom       = errors.New("No such mob here.")
+	ErrGiveTargetNotFound = errors.New("No one here by that name to give to.")
 	ErrContainerNotFound  = errors.New("You don't see a container by that name.")
 	ErrNotVisible         = errors.New("You don't see that.")
 	ErrNotFindable        = errors.New("You don't see that.")
@@ -358,6 +359,21 @@ func resolveNPC(in ResolverInput) (ResolverOutput, error) {
 	}
 	ent := match.(EntityCandidate)
 	return ResolverOutput{Value: entityRefFrom(ent), Consumed: 1}, nil
+}
+
+// resolveGiveTarget resolves a give recipient: a player OR a mob in the room.
+// Players are tried first (the common case) then mobs (the quest-deliver case),
+// so `give x bob` prefers a player named bob over a mob. The resolved
+// EntityRef.Type lets GiveHandler pick the player-transfer vs give-to-mob path.
+func resolveGiveTarget(in ResolverInput) (ResolverOutput, error) {
+	ents := visibleEntities(in, in.Context.RoomEntities)
+	if match := keyword.Resolve(entitiesAsNamed(filterEntityType(ents, entityTypePlayer)), in.Tokens[0]); match != nil {
+		return ResolverOutput{Value: entityRefFrom(match.(EntityCandidate)), Consumed: 1}, nil
+	}
+	if match := keyword.Resolve(entitiesAsNamed(filterEntityType(ents, entityTypeMob)), in.Tokens[0]); match != nil {
+		return ResolverOutput{Value: entityRefFrom(match.(EntityCandidate)), Consumed: 1}, nil
+	}
+	return ResolverOutput{}, ErrGiveTargetNotFound
 }
 
 // resolveContainer tries inventory containers first, then room

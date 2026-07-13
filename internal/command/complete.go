@@ -320,6 +320,8 @@ func scopeFor(t ArgType, rc ResolveContext) []keyword.Named {
 		return entitiesAsNamed(filterEntityType(rc.RoomEntities, entityTypePlayer))
 	case ArgNPC:
 		return entitiesAsNamed(filterEntityType(rc.RoomEntities, entityTypeMob))
+	case ArgGiveTarget:
+		return entitiesAsNamed(rc.RoomEntities) // players + mobs are valid recipients
 	case ArgFindable:
 		return append(itemsAsNamed(rc.Inventory), itemsAsNamed(rc.RoomItems)...)
 	case ArgVisible:

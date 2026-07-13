@@ -51,6 +51,51 @@ func GiveHandler(ctx context.Context, c *Context) error {
 	// recipient Actor by the resolved exact name so the two-actor
 	// transfer below has a real handle.
 	tref, _ := c.Resolved["target"].(EntityRef)
+
+	// Give to an NPC (the quest `deliver` path): the resolver matched a mob, not
+	// a player. The NPC takes the item into its contents and an ItemGiven event
+	// fires so a deliver objective can advance (quests §7). No currency
+	// auto-convert (an NPC has no gold purse) and no two-actor player transfer.
+	if tref.Type == entityTypeMob {
+		// The NPC files the item into its Contents, so a missing Contents index
+		// must fail BEFORE we remove the item from the giver — otherwise the
+		// item would be orphaned (gone from inventory, in no container),
+		// breaking the entities.Contents "exactly one container" invariant.
+		// Mirrors the up-front guard in put.go / loot.go. Always wired in
+		// production (main.go); this catches a partially-wired test/script ctx.
+		if c.Contents == nil {
+			return c.Actor.Write(ctx, "You can't hand anything over right now.")
+		}
+		npc := findMobByKeyword(c, room.ID, tref.Name)
+		if npc == nil {
+			return c.Actor.Write(ctx, fmt.Sprintf("%q isn't here.", tref.Name))
+		}
+		item, ok := resolvedItemInstance(c, "item")
+		if !ok {
+			return c.Actor.Write(ctx, "You aren't carrying that.")
+		}
+		if !c.Actor.RemoveFromInventory(item.ID()) {
+			return c.Actor.Write(ctx, "You aren't carrying that.")
+		}
+		c.Contents.Put(npc.ID(), item.ID())
+		giverName := c.Actor.Name()
+		_ = c.Actor.Write(ctx, fmt.Sprintf("You give %s to %s.", item.Name(), npc.Name()))
+		if c.Broadcaster != nil && giverName != "" {
+			c.Broadcaster.SendToRoom(ctx, room.ID,
+				fmt.Sprintf("%s gives %s to %s.", giverName, item.Name(), npc.Name()),
+				c.Actor.PlayerID(), "")
+		}
+		c.Publish(ctx, eventbus.ItemGiven{
+			GiverID:     holderEntityIDForPlayer(c.Actor.PlayerID()),
+			RecipientID: npc.ID(),
+			RoomID:      room.ID,
+			ItemID:      item.ID(),
+			ItemName:    item.Name(),
+			TemplateID:  string(item.TemplateID()),
+		})
+		return nil
+	}
+
 	target := c.Locator.FindInRoom(room.ID, tref.Name)
 	if target == nil {
 		return c.Actor.Write(ctx, fmt.Sprintf("%q isn't here.", tref.Name))

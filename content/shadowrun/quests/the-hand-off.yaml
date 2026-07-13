@@ -1,0 +1,48 @@
+# "The Hand-Off" — Mr. Johnson's courier run (quests spec). A deliver-shaped
+# job: pick up a package at the meet, carry it across the sprawl, and put it in
+# the recipient's hands. Exercises the `deliver` objective (give <item> to
+# <npc>). Unlocks after Redmond Retrieval. Unqualified ids resolve against the
+# shadowrun namespace at load.
+id: the-hand-off
+name: The Hand-Off
+classification: side
+giver: mr-johnson
+offer: >-
+  "This one's about discretion, not muscle. A package needs hand-delivery — no
+  Matrix, no drones — to a contact down in Puyallup who spooks easy. Pick it up
+  here at the meet, take it to them in Loveland, and put it in their hands
+  personally. Quiet work, good pay. You in?"
+# Auto-grant on delivery: the contact settles up on the spot — no return trip to
+# the Johnson (turn_in defaults false).
+abandonable: true
+prerequisite:
+  min_level: 1
+  quests_completed:
+    - johnsons-run
+stages:
+  - id: pickup
+    description: Collect the package Johnson leaves for you at Dante's Inferno.
+    hint: The package is right here at the meet — pick it up.
+    # Quest-scoped spawn (quest-spawns.md): the package appears at the meet on
+    # accept, and is cleaned up (out of the contact's hands) when the run ends.
+    spawns:
+      - { kind: item, template: courier-package, room: dantes-inferno }
+    objectives:
+      - type: collect
+        target: courier-package
+        description: Pick up the sealed courier package.
+  - id: deliver
+    description: Hand the package to the contact waiting in Loveland, deep in the Puyallup Barrens.
+    hint: The contact is in Loveland — get there and `give package to contact` in person.
+    # The recipient appears in Loveland once you've got the package.
+    spawns:
+      - { kind: mob, template: shadow-contact, room: loveland }
+    objectives:
+      - type: deliver
+        target: courier-package
+        npc: shadow-contact
+        description: Put the package in the contact's hands in Loveland.
+reward:
+  xp: 150
+  gold: 2200
+  reputation: 1

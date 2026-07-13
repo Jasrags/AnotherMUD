@@ -148,6 +148,7 @@ func NewArgResolverRegistry() *ArgResolverRegistry {
 	r.resolvers[ArgEntity] = resolveEntity
 	r.resolvers[ArgPlayer] = resolvePlayer
 	r.resolvers[ArgNPC] = resolveNPC
+	r.resolvers[ArgGiveTarget] = resolveGiveTarget
 	r.resolvers[ArgContainer] = resolveContainer
 	r.resolvers[ArgVisible] = resolveVisible
 	r.resolvers[ArgFindable] = resolveFindable

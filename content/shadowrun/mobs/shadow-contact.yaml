@@ -1,0 +1,17 @@
+id: shadow-contact
+name: a nervous contact
+type: npc
+behavior: stationary
+description: |
+  A jittery figure in a hooded jacket keeps their back to the wall and their eyes
+  on the door, waiting for a hand-off they'd rather not be seen making. They don't
+  give a name — they just want the package, and then to be somewhere else.
+tags: [humanoid]
+keywords: [contact, hooded, figure, nervous]
+# The recipient of a courier run — friendly; you're here to hand over, not fight.
+disposition_rules:
+  default: friendly
+stats:
+  hp_max: 15
+  body: 2
+  willpower: 3

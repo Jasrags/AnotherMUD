@@ -24,10 +24,15 @@ const (
 	ArgEntity    ArgType = "entity"
 	ArgPlayer    ArgType = "player"
 	ArgNPC       ArgType = "npc"
-	ArgContainer ArgType = "container"
-	ArgVisible   ArgType = "visible"
-	ArgFindable  ArgType = "findable"
-	ArgDoor      ArgType = "door"
+	// ArgGiveTarget resolves a give recipient — a player OR a mob in the room
+	// (player preferred on a tie). Mobs are valid recipients so a package can
+	// be handed to an NPC (the quest `deliver` objective). GiveHandler branches
+	// on the resolved EntityRef.Type.
+	ArgGiveTarget ArgType = "give_target"
+	ArgContainer  ArgType = "container"
+	ArgVisible    ArgType = "visible"
+	ArgFindable   ArgType = "findable"
+	ArgDoor       ArgType = "door"
 	// ArgQuest enumerates the quests offered to the actor by NPCs in the
 	// current room (the OffersFrom set `talk` shows) for completion. Used
 	// by `accept`, which stays HandParsed — the type exists for the
@@ -69,6 +74,7 @@ var engineArgTypes = map[ArgType]struct{}{
 	ArgEntity:      {},
 	ArgPlayer:      {},
 	ArgNPC:         {},
+	ArgGiveTarget:  {},
 	ArgContainer:   {},
 	ArgVisible:     {},
 	ArgFindable:    {},

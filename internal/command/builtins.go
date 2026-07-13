@@ -61,7 +61,7 @@ func RegisterBuiltins(r *Registry) error {
 				{Name: "container", Type: ArgContainer, Prepositions: []string{"from"}},
 			}},
 		{Keyword: "drop", Handler: DropHandler, Brief: "Drop an item from your inventory.", Syntax: []string{"drop <item>"}, BreaksConcealment: true, Args: []ArgDefinition{{Name: "item", Type: ArgInventory}}},
-		{Keyword: "give", Handler: GiveHandler, Brief: "Give an item to another character.", Syntax: []string{"give <item> to <target>"}, BreaksConcealment: true, Args: []ArgDefinition{{Name: "item", Type: ArgInventory}, {Name: "target", Type: ArgPlayer, Prepositions: []string{"to"}}}},
+		{Keyword: "give", Handler: GiveHandler, Brief: "Give an item to another character or an NPC.", Syntax: []string{"give <item> to <target>"}, BreaksConcealment: true, Args: []ArgDefinition{{Name: "item", Type: ArgInventory}, {Name: "target", Type: ArgGiveTarget, Prepositions: []string{"to"}}}},
 		{Keyword: "put", Handler: PutHandler, Brief: "Put an item into a container.", Syntax: []string{"put <item> in <container>"}, BreaksConcealment: true, Args: []ArgDefinition{{Name: "item", Type: ArgInventory}, {Name: "container", Type: ArgContainer, Prepositions: []string{"in", "into"}}}},
 		// fill <target> [from] <source>: a carried vessel filled from a
 		// room source (the well). HandParsed (the handler runs

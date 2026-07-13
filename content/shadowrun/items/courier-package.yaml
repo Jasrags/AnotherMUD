@@ -1,0 +1,13 @@
+id: courier-package
+name: a sealed courier package
+type: item
+description: |
+  A flat, unmarked package sealed with a tamper-strip and a thumbprint lock — the
+  kind of hand-off a fixer trusts to a runner and not the Matrix. Whatever's
+  inside, you're paid to deliver it, not to open it.
+tags: [quest]
+keywords: [package, parcel, delivery, sealed]
+properties:
+  weight: 1
+  # Not for fencing — it's a delivery, not a score (quests spec).
+  value: 0
