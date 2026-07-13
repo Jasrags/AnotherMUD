@@ -177,7 +177,14 @@ func RegisterBuiltins(r *Registry) error {
 		// Quests (M10.10).
 		// talk declares an npc arg + HandParsed so completion enumerates
 		// room NPCs (quest givers); the handler resolves the raw term.
-		{Keyword: "talk", Aliases: []string{"ask"}, Handler: TalkHandler, Brief: "Talk to a quest giver to hear offers or turn in a quest.", Syntax: []string{"talk <npc>"},
+		{Keyword: "talk", Handler: TalkHandler, Brief: "Talk to a quest giver to hear offers or turn in a quest.", Syntax: []string{"talk <npc>"},
+			HandParsed: true, Args: []ArgDefinition{{Name: "npc", Type: ArgNPC}}},
+		// ask is the free-form dialogue verb: `ask <npc> about <topic>` speaks
+		// the NPC's content-authored dialogue line (lore/rumours/hints). With
+		// no "about <topic>" it falls through to the quest-giver behavior, so
+		// `ask <npc>` remains a synonym for `talk <npc>`. Same npc arg +
+		// HandParsed shape as talk so completion enumerates room NPCs.
+		{Keyword: "ask", Handler: AskHandler, Brief: "Ask an NPC about a topic (or talk to a quest giver).", Syntax: []string{"ask <npc> about <topic>", "ask <npc>"},
 			HandParsed: true, Args: []ArgDefinition{{Name: "npc", Type: ArgNPC}}},
 		// accept declares a `quest` arg + HandParsed so completion
 		// enumerates the room givers' offers (the bare quest id round-trips

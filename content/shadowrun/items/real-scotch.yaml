@@ -1,0 +1,15 @@
+id: real-scotch
+name: a dram of real scotch
+type: item
+description: |
+  Actual grain whisky, distilled the slow way before the world went synthetic —
+  the bottle lives under the bar and comes out for people Doug decides are worth
+  it. Real alcohol is a luxury good in the sixth world, taxed and smuggled in
+  equal measure. One dram costs what a night of synthahol does. Worth it.
+tags: [food, consumable, valuable]
+keywords: [scotch, whisky, whiskey, dram, real]
+properties:
+  weight: 1
+  value: 50
+  consume_method: drink
+  sustenance_value: 12

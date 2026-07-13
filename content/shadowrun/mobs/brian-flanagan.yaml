@@ -1,0 +1,40 @@
+id: brian-flanagan
+name: Brian Flanagan
+type: npc
+behavior: stationary
+description: |
+  A sharp young hotshot works the far end of the bar like it's a stage — bottles
+  arc through the neon, the shaker spins behind his back, and he never stops
+  talking. He's Doug's protégé and, to hear him tell it, the best flair bartender
+  in the sprawl. What he really wants is his own place, his name over the door,
+  out from under the old man's shadow. Ask him about it and you won't get him to
+  stop. He builds a mean Red Eye — order one off Doug's menu and watch him work.
+tags: [humanoid]
+keywords: [brian, flanagan, bartender, barkeep, flair, kid]
+# Junior barkeep at a safe hub — friendly to everyone.
+disposition_rules:
+  default: friendly
+stats:
+  hp_max: 24
+  body: 4
+  strength: 4
+  willpower: 3
+# Doug runs the till (see doug-coughlin's shop block); Brian is the showman and
+# the gossip. He does NOT carry a shop of his own on purpose — one vendor per bar
+# keeps `list`/`buy` unambiguous in the room.
+#
+# Quest giver: Brian is the `giver` for the "Flanagan's Own" questline (see
+# content/shadowrun/quests/) — `talk brian` surfaces the offer + turn-in. His
+# free-form dialogue below is separate flavour: `ask brian about <topic>`.
+properties:
+  dialogue:
+    # `ask brian about <topic>` — his patter. Lists rotate on repeat.
+    bar:
+      - "My own place. Chrome bar, private booths, a name over the door nobody has to whisper. I've got it all drawn up. All I need is the nuyen and the nerve."
+      - "Doug says owning a bar in this town is a good way to lose a bar. I say Doug never had the vision."
+    "red eye": "The Red Eye? My invention. Layered, shaken behind the back, cracked egg and a wince of hot sauce. Doug pours it — but nobody builds it like me."
+    doug: "The old man taught me everything. Doesn't mean he's right about everything. There's a difference between surviving and living, chummer."
+    flair:
+      - "Watch this — bottle over the shoulder, off the elbow, caught behind the back. Not a drop spilled."
+      - "Anybody can pour a drink. I make it a performance. That's the difference between a bartender and an artist."
+    default: "Ha! Stick around, order something flashy, and I'll tell you all about it."

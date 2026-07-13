@@ -1,0 +1,58 @@
+id: doug-coughlin
+name: Doug Coughlin
+type: npc
+behavior: stationary
+description: |
+  A weathered man in his fifties works the long bar with the unhurried economy of
+  someone who has poured ten thousand drinks and heard every story twice. The
+  datajack scar behind his ear and the way his eyes clock every exit say he ran
+  the shadows once; the easy patter and the bottles arranged just so say he found
+  something quieter to be good at. He deals in synthahol, soykaf, and information,
+  and he has a law for every occasion. `list` his pours, `buy <drink>` to settle
+  in — and `ask doug about <something>` if you want the wisdom for free.
+tags: [humanoid, shop]
+keywords: [doug, coughlin, bartender, barkeep, veteran, man]
+# The host of neutral shadow ground and the man who knows things — friendly to
+# everyone; nobody starts trouble with the bartender at Dante's.
+disposition_rules:
+  default: friendly
+stats:
+  hp_max: 28
+  body: 4
+  strength: 4
+  willpower: 5
+# Shop config (economy-survival §3.1), mirroring the fixer: `sells` lists item
+# template ids, qualified shadowrun:<id> (the shop block is an arbitrary property
+# map, so ids are NOT namespace-rewritten). buy_markup/sell_discount fall through
+# to the global 1.2 / 0.5 defaults. The Red Eye is Brian's invention — Doug pours
+# it, Brian showboats it (see brian-flanagan). Fulfils the drinks/rumour vendor
+# TODO first sketched on ork-bartender.yaml.
+properties:
+  shop:
+    sells:
+      - shadowrun:synthahol
+      - shadowrun:soykaf
+      - shadowrun:red-eye-cocktail
+      - shadowrun:real-scotch
+  # Free-form dialogue (the `ask <npc> about <topic>` verb): each topic maps to a
+  # line, or a LIST of lines that rotates on repeat — so `ask doug about laws`
+  # cycles Coughlin's Laws. Topic keys match case-insensitively; `default` is the
+  # catch-all. This is Doug's whole character: the wisdom is the point.
+  dialogue:
+    laws:
+      - "Coughlin's Law: bury the dead. They stink up the joint."
+      - "Coughlin's Law: anything else is always something better."
+      - "Coughlin's Law: never show surprise. Never lose your cool."
+      - "Coughlin's Law: the world is your oyster... use your fork."
+      - "Coughlin's Law: leave while you still look good."
+      - "Coughlin's Law: bartenders are the aristocrats of the working class."
+    work:
+      - "You want work, you talk to the suit in the booth. I just pour. But I hear things — and the Barrens are hungry this month."
+      - "Runs come and go. The trick isn't finding one. It's living to spend the nuyen."
+    brian: "The kid? All flash and ambition. Reminds me of me, which is exactly what worries me. He'll learn — or he won't."
+    shadows:
+      - "I ran the shadows once. You know how many of us make it to my age behind a bar instead of under a slab? Not many. Do the math."
+      - "Everybody in this town's got a second face. The trick is knowing which one's talking to you."
+    scotch: "Real grain whisky, not the synth. Costs what it costs because somebody smuggled it past three checkpoints. Savor it."
+    doug: "Doug Coughlin. I've poured drinks in every sprawl worth the name, and a few that weren't. Now I pour them here."
+    default: "Hah. I've got a law for most things, but not that. Buy a drink and think on it."

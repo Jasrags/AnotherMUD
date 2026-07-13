@@ -8,8 +8,10 @@ import (
 	"github.com/Jasrags/AnotherMUD/internal/quest"
 )
 
-// TalkHandler implements `talk <npc>` (alias `ask`) — the quest giver
-// interaction surface (quests.md §3 discovery / §4.3 turn-in). Talking to
+// TalkHandler implements `talk <npc>` — the quest giver interaction surface
+// (quests.md §3 discovery / §4.3 turn-in). The `ask` verb (dialogue.go) is a
+// separate command that delegates here when given no "about <topic>" clause,
+// so `ask <npc>` stays identical to `talk <npc>`. Talking to
 // an NPC in the room does two things, in order:
 //
 //  1. Claims every quest of yours that is ready to turn in at this giver

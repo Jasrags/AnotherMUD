@@ -1,0 +1,15 @@
+id: synthahol
+name: a glass of synthahol
+type: item
+description: |
+  The house pour: engineered ethanol-analog that hits like the real thing and
+  clears your system on command, so you can drink all night and drive the getaway
+  sober. Tastes faintly of the flavor pack someone dialed in — this one's meant
+  to be whiskey. Every bar in the sprawl serves it; nobody pretends it's good.
+tags: [food, consumable]
+keywords: [synthahol, drink, glass, whiskey]
+properties:
+  weight: 1
+  value: 5
+  consume_method: drink
+  sustenance_value: 8

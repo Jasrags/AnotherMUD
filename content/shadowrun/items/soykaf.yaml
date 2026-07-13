@@ -1,0 +1,14 @@
+id: soykaf
+name: a mug of soykaf
+type: item
+description: |
+  Hot, brown, and only technically coffee — reconstituted soy caffeine that keeps
+  the whole sixth world upright. Doug pours it black for anyone who needs to sober
+  up before a meet. It won't win a taste test, but it works.
+tags: [food, consumable]
+keywords: [soykaf, coffee, mug, kaf]
+properties:
+  weight: 1
+  value: 4
+  consume_method: drink
+  sustenance_value: 6

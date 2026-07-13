@@ -1,0 +1,44 @@
+# "Flanagan's Own" — Brian's dream-bar questline (quests spec).
+# Unqualified ids (giver, objective targets, reward items) resolve against the
+# pack namespace (shadowrun) at load, so `brian-flanagan` -> shadowrun:brian-
+# flanagan, `devil-rat` -> shadowrun:devil-rat, etc.
+id: flanagans-own
+name: Flanagan's Own
+classification: side
+giver: brian-flanagan
+# The giver's pitch, shown when a player `talk`s to Brian (quest discovery).
+offer: >-
+  "Okay, listen — I found the spot. Edge of Glow City, dirt cheap, and I know
+  why: the place is crawling with devil rats. You clear 'em out, scope whether
+  it's even standing, and I'll cut you in on the first bar in the Barrens with my
+  name over the door. Whaddaya say, chummer?"
+# Turn-in quest: the objectives complete out in the world, but the reward is
+# claimed by returning to Brian and `talk`ing to him — not auto-granted.
+turn_in: true
+abandonable: true
+prerequisite:
+  min_level: 1
+stages:
+  - id: scout
+    description: Brian wants you to scope the prospective bar site on the edge of Glow City.
+    hint: The Edge of Glow City is out in the Puyallup Barrens, past the glow line.
+    objectives:
+      - type: visit
+        target: glow-city-edge
+        description: Scout the site on the edge of Glow City.
+  - id: exterminate
+    description: The place is infested. Clear out the devil rats nesting in Brian's future bar.
+    hint: Devil rats prowl the Edge of Glow City. Put down three.
+    objectives:
+      - type: kill
+        target: devil-rat
+        count: 3
+        description: Exterminate the devil rats (0/3).
+reward:
+  # Nuyen is the SR currency; the `gold` reward field reskins to ¥ on display
+  # (economy CurrencyLabel). A runner's cut of the venture.
+  xp: 150
+  gold: 1500
+  # "First one's on me" — Brian stands you his signature cocktail.
+  items:
+    - red-eye-cocktail

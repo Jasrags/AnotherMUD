@@ -1,0 +1,15 @@
+id: red-eye-cocktail
+name: a Red Eye
+type: item
+description: |
+  Brian's showpiece — a layered scarlet cocktail he builds behind his back with
+  the shaker spinning, finished with a cracked raw egg and a wince of hot sauce.
+  It looks like a wound in a glass and tastes better than it has any right to.
+  He'll tell you he invented it. He probably did.
+tags: [food, consumable, valuable]
+keywords: [red eye, redeye, cocktail, drink]
+properties:
+  weight: 1
+  value: 25
+  consume_method: drink
+  sustenance_value: 15
