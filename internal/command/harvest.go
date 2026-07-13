@@ -94,6 +94,9 @@ func (c *Context) resolveNodeInRoom(roomID world.RoomID, query string) *entities
 		if !ok {
 			continue
 		}
+		if c.questSpawnBlockedFrom(e) {
+			continue // foreign quest spawn — not interactable (quest-spawns.md Phase 2)
+		}
 		it, ok := e.(*entities.ItemInstance)
 		if !ok || !hasTag(it.Tags(), gathering.NodeTag) {
 			continue

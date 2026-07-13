@@ -91,6 +91,9 @@ func campfireInRoom(c *Context, roomID world.RoomID) bool {
 		if !ok {
 			continue
 		}
+		if c.questSpawnBlockedFrom(e) {
+			continue // foreign quest spawn — not interactable (quest-spawns.md Phase 2)
+		}
 		if it, ok := e.(*entities.ItemInstance); ok && hasTag(it.Tags(), campfire.Tag) {
 			return true
 		}

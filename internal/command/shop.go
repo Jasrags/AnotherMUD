@@ -188,6 +188,9 @@ func findShopInRoom(c *Context, roomID world.RoomID) *entities.MobInstance {
 		if !ok {
 			continue
 		}
+		if c.questSpawnBlockedFrom(e) {
+			continue // foreign quest spawn — not interactable (quest-spawns.md Phase 2)
+		}
 		mob, ok := e.(*entities.MobInstance)
 		if !ok {
 			continue

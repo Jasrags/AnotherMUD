@@ -996,7 +996,19 @@ func run() error {
 	// admin `spawn` verb uses, via the questSpawnPrimitive adapter over the
 	// already-built bootSpawner.
 	questNotifier := session.NewQuestNotifier(mgr, registries.Quests, questGiverName, questItemNameFn, currencyLabel, logging.From(ctx))
-	questSpawner := questspawn.New(ctx, &questSpawnPrimitive{boot: spawner}, registries.Quests, logging.From(ctx))
+	questSpawnPrim := &questSpawnPrimitive{
+		boot: spawner,
+		// Clear a despawned quest item from its owner's live session bag on
+		// cleanup (quest-spawns.md §5 / Phase 1b) — the connActor inventory the
+		// store removal cannot reach. No-op when the owner is offline (their bag
+		// isn't loaded; the id drops with the character's despawn anyway).
+		removeFromBag: func(playerID string, id entities.EntityID) {
+			if a, ok := mgr.GetByPlayerID(playerID); ok {
+				a.RemoveFromInventory(id)
+			}
+		},
+	}
+	questSpawner := questspawn.New(ctx, questSpawnPrim, registries.Quests, logging.From(ctx))
 	questSvc := quest.NewService(quest.Config{
 		Registry: registries.Quests,
 		Persist:  questStore,
@@ -4110,7 +4122,16 @@ func (a *bootSpawnServiceAdapter) SpawnItem(_ context.Context, templateID string
 // mints an item and places it on the room floor, and Despawn removes an entity
 // from the world + store (best-effort — an already-killed mob is simply gone,
 // so Placement.Remove/Untrack no-op).
-type questSpawnPrimitive struct{ boot *bootSpawner }
+type questSpawnPrimitive struct {
+	boot *bootSpawner
+	// removeFromBag clears a despawned quest item from its owner's session
+	// inventory (quest-spawns.md §5: cleanup targets survivors "in the owner's
+	// inventory"). A picked-up item lives in the connActor's own inventory list,
+	// which the store/placement/Contents removals below do not touch — without
+	// this, a collected quest item would linger as a dangling id in the bag +
+	// save after turn-in. nil in tests / headless (no session layer).
+	removeFromBag func(playerID string, id entities.EntityID)
+}
 
 func (a *questSpawnPrimitive) SpawnMob(ctx context.Context, templateID string, roomID world.RoomID, owner string) (entities.EntityID, error) {
 	// spawnMob stamps the owner marker before it places the mob, so there is no
@@ -4130,15 +4151,42 @@ func (a *questSpawnPrimitive) SpawnItem(_ context.Context, templateID string, ro
 
 func (a *questSpawnPrimitive) Despawn(id entities.EntityID) {
 	// Remove wherever the entity currently lives (quest-spawns.md §5: "on a
-	// room floor, in a container, or in the owner's inventory"): the room
-	// placement index, a carried/world container's Contents index, then the
-	// store id index. Each is a best-effort single-winner claim — an entity
-	// already gone (a killed spawn mob) simply no-ops. (A collected item in a
-	// player's SESSION inventory is not reachable here — that is the Phase-1b
-	// session-hook deferral, spec §5/§7.)
+	// room floor, in a container, or in the owner's inventory"). First clear it
+	// from its owner's SESSION inventory (the connActor bag, which the
+	// store/placement/Contents removals below do not reach): read the stamped
+	// owner marker off the entity BEFORE it is untracked, then drop the id from
+	// that player's bag. Then remove from the room placement index, a
+	// carried/world container's Contents index, and finally the store id index.
+	// Each is a best-effort single-winner claim — an entity already gone (a
+	// killed spawn mob) simply no-ops.
+	if a.removeFromBag != nil {
+		if owner := a.questSpawnOwnerOf(id); owner != "" {
+			a.removeFromBag(owner, id)
+		}
+	}
 	a.boot.placement.Remove(id)
 	a.boot.contents.Take(id)
 	_ = a.boot.store.Untrack(id)
+}
+
+// questSpawnOwnerOf reads the owning player's id stamped on a quest-spawned
+// entity (questspawn.OwnerProperty), or "" if the entity is gone or unmarked.
+// Read before Untrack, since Untrack drops it from the store.
+func (a *questSpawnPrimitive) questSpawnOwnerOf(id entities.EntityID) string {
+	e, ok := a.boot.store.GetByID(id)
+	if !ok {
+		return ""
+	}
+	p, ok := e.(interface{ Property(string) (any, bool) })
+	if !ok {
+		return ""
+	}
+	v, ok := p.Property(questspawn.OwnerProperty)
+	if !ok {
+		return ""
+	}
+	owner, _ := v.(string)
+	return owner
 }
 
 // wireBiomeNodeSpawnRules generates per-room resource-node spawn rules from

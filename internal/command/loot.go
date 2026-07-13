@@ -193,6 +193,9 @@ func (c *Context) roomCorpses(roomID world.RoomID) []*entities.ItemInstance {
 		if !ok {
 			continue
 		}
+		if c.questSpawnBlockedFrom(e) {
+			continue // foreign quest spawn — not interactable (quest-spawns.md Phase 2)
+		}
 		if it, ok := e.(*entities.ItemInstance); ok && corpse.IsCorpse(it) {
 			out = append(out, it)
 		}

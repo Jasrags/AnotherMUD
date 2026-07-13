@@ -104,12 +104,14 @@ func New(ctx context.Context, prim Primitive, defs Definitions, log *slog.Logger
 
 // --- quest.EventSink ---
 
-// Started spawns the first stage's content on accept (quest-spawns.md §3).
-func (s *Spawner) Started(e quest.StartedEvent) { s.activate(e.PlayerID, e.QuestID, 0) }
+// Started spawns the first stage's content on accept (quest-spawns.md §3). A
+// fresh accept has no prior progress, so nothing is skipped.
+func (s *Spawner) Started(e quest.StartedEvent) { s.activate(e.PlayerID, e.QuestID, 0, nil) }
 
-// StageAdvanced spawns the newly-active stage's content (quest-spawns.md §3).
+// StageAdvanced spawns the newly-active stage's content (quest-spawns.md §3). A
+// just-activated stage starts at zero progress, so nothing is skipped.
 func (s *Spawner) StageAdvanced(e quest.StageAdvancedEvent) {
-	s.activate(e.PlayerID, e.QuestID, e.StageIndex)
+	s.activate(e.PlayerID, e.QuestID, e.StageIndex, nil)
 }
 
 // Completed removes the quest's surviving spawns (quest-spawns.md §5).
@@ -127,12 +129,22 @@ func (s *Spawner) ReadyToTurnIn(quest.ReadyToTurnInEvent)         {}
 // activate spawns stageIndex's declared content for the player, once. The
 // idempotency guard means a redundant trigger (or a re-fire) does not
 // duplicate. Spawning runs outside the lock; only the small map ops hold it.
-func (s *Spawner) activate(playerID, questID string, stageIndex int) {
+//
+// progress is the player's live objective progress for this stage, supplied
+// only by login re-derivation (§7); nil on a fresh accept/advance. When
+// present, an item spawn whose matching `collect` objective is already complete
+// is skipped — re-deriving a stage whose chip was already grabbed must not drop
+// a second, uncollected chip into the room (the §10 partial-progress surplus).
+// Only completed collects are skipped: kill shortfalls stay a full respawn (the
+// extra kills are harmless, and under-spawning a kill target could strand an
+// objective uncompletable), which is the safe half of the open question.
+func (s *Spawner) activate(playerID, questID string, stageIndex int, progress []quest.ObjectiveProgress) {
 	def, ok := s.defs.Lookup(questID)
 	if !ok || stageIndex < 0 || stageIndex >= len(def.Stages) {
 		return
 	}
-	spawns := def.Stages[stageIndex].Spawns
+	stage := def.Stages[stageIndex]
+	spawns := stage.Spawns
 	if len(spawns) == 0 {
 		return
 	}
@@ -148,6 +160,9 @@ func (s *Spawner) activate(playerID, questID string, stageIndex int) {
 
 	var ids []entities.EntityID
 	for _, sp := range spawns {
+		if sp.Kind == "item" && collectSatisfied(stage.Objectives, progress, sp.Template) {
+			continue // already collected on a prior login — don't respawn (§10)
+		}
 		n := sp.Count
 		if n < 1 {
 			n = 1
@@ -232,7 +247,9 @@ func (s *Spawner) ReactivatePlayer(playerID string) {
 		return
 	}
 	for _, aq := range st.Active {
-		s.activate(playerID, aq.QuestID, aq.StageIndex)
+		// Pass the live objective progress so an already-collected quest item is
+		// not re-spawned as an extra uncollected copy (§7/§10).
+		s.activate(playerID, aq.QuestID, aq.StageIndex, aq.Objectives)
 	}
 }
 
@@ -263,4 +280,28 @@ func (s *Spawner) CleanupPlayer(playerID string) {
 
 func activationKey(playerID, questID string, stageIndex int) string {
 	return playerID + "|" + questID + "|" + strconv.Itoa(stageIndex)
+}
+
+// collectSatisfied reports whether template has a matching `collect` objective
+// in objs whose progress is already complete (quest-spawns.md §10 re-derive
+// surplus). It joins the stage's objective defs (which carry Target/Type) to the
+// live progress (which carries the count by ObjectiveID). Returns false — spawn
+// normally — when progress is absent (a fresh accept/advance), no collect
+// objective targets the template (a set-dressing item), or the objective is
+// still incomplete.
+func collectSatisfied(objs []quest.Objective, progress []quest.ObjectiveProgress, template string) bool {
+	if len(progress) == 0 {
+		return false
+	}
+	for _, o := range objs {
+		if o.Type != "collect" || o.Target != template {
+			continue
+		}
+		for _, p := range progress {
+			if p.ObjectiveID == o.ID {
+				return p.Complete()
+			}
+		}
+	}
+	return false
 }

@@ -222,6 +222,54 @@ func TestSpawner_ReactivatePlayerReDerivesActiveStage(t *testing.T) {
 	}
 }
 
+// re-deriving a stage whose collect objective is already complete must NOT
+// respawn the item (quest-spawns.md §10 surplus), but the kill targets still
+// respawn in full (the safe half — extra kills are harmless).
+func TestSpawner_ReDeriveSkipsCollectedItem(t *testing.T) {
+	def := &quest.Definition{
+		ID: "q1",
+		Stages: []quest.Stage{{
+			ID: "job",
+			Objectives: []quest.Objective{
+				{ID: "kill-gangers", Type: "kill", Target: "ganger", Count: 2},
+				{ID: "get-chip", Type: "collect", Target: "chip", Count: 1},
+			},
+			Spawns: []quest.Spawn{
+				{Kind: "mob", Template: "ganger", Room: "avondale", Count: 2},
+				{Kind: "item", Template: "chip", Room: "avondale", Count: 1},
+			},
+		}},
+	}
+	s, prim := newSpawner(fakeDefs{"q1": def})
+	// The chip is already collected (collect objective complete), one ganger is
+	// still alive (kill 1/2).
+	s.SetQuestState(fakeState{"p1": {Active: []quest.ActiveQuest{{
+		QuestID: "q1", StageIndex: 0,
+		Objectives: []quest.ObjectiveProgress{
+			{ObjectiveID: "kill-gangers", Current: 1, Required: 2},
+			{ObjectiveID: "get-chip", Current: 1, Required: 1},
+		},
+	}}}})
+
+	s.ReactivatePlayer("p1")
+
+	mobs, items := 0, 0
+	for _, r := range prim.spawned {
+		switch r.kind {
+		case "mob":
+			mobs++
+		case "item":
+			items++
+		}
+	}
+	if items != 0 {
+		t.Errorf("a completed collect objective must not respawn its item, got %d items", items)
+	}
+	if mobs != 2 {
+		t.Errorf("kill targets should respawn in full (safe half), got %d mobs", mobs)
+	}
+}
+
 func TestSpawner_ReactivatePlayerNoStateOrNoQuestsIsNoop(t *testing.T) {
 	s, prim := newSpawner(fakeDefs{"q1": runDef()})
 	s.ReactivatePlayer("p1") // no quest state wired

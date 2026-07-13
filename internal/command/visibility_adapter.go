@@ -275,6 +275,27 @@ func questSpawnOwner(e entities.Entity) string {
 	return owner
 }
 
+// questSpawnBlockedFrom reports whether a placed entity is a quest spawn the
+// actor must not see or interact with (quest-spawns.md Phase 2): a foreign
+// spawn — owned by another player — blocks unless the viewer is a bypassing
+// staffer (admin with `showspawns` on). It is the defensive guard the
+// feature-specific room scans (loot, harvest, shop, mount, auction, campfire)
+// apply so the owner gate holds beyond the generic ArgEntity / render seam —
+// e.g. a future quest-spawned mob that also carries a shop or node role would
+// otherwise be interactable by non-owners. A non-quest entity and the viewer's
+// own spawn never block.
+func (c *Context) questSpawnBlockedFrom(e entities.Entity) bool {
+	owner := questSpawnOwner(e)
+	if owner == "" || c.Actor == nil || owner == c.Actor.PlayerID() {
+		return false
+	}
+	// Staff bypass mirrors the gate (owner + the `showspawns` clutter toggle).
+	if actorIsAdmin(c.Actor, c.AdminRole) && viewerShowsOtherQuestSpawns(c.Actor) {
+		return false
+	}
+	return true
+}
+
 // QuestSpawnVisible builds the render-side quest-spawn filter for a viewer
 // (quest-spawns.md Phase 2): it reports whether a placed entity should appear
 // in the viewer's room render. A quest-spawned entity owned by another player

@@ -400,6 +400,9 @@ func findMountTargetInRoom(c *Context, roomID world.RoomID, query string) (*enti
 		if !ok {
 			continue
 		}
+		if c.questSpawnBlockedFrom(e) {
+			continue // foreign quest spawn — not interactable (quest-spawns.md Phase 2)
+		}
 		m, ok := e.(*entities.MobInstance)
 		if !ok || !templateMatches(m.Name(), string(m.TemplateID()), q) {
 			continue
@@ -458,6 +461,9 @@ func findStableInRoom(c *Context, roomID world.RoomID) *entities.MobInstance {
 		e, ok := c.Items.GetByID(id)
 		if !ok {
 			continue
+		}
+		if c.questSpawnBlockedFrom(e) {
+			continue // foreign quest spawn — not interactable (quest-spawns.md Phase 2)
 		}
 		m, ok := e.(*entities.MobInstance)
 		if !ok {
@@ -547,6 +553,9 @@ func myLiveMountsInRoom(c *Context, owner mountOwner, roomID world.RoomID) []*en
 		e, ok := c.Items.GetByID(id)
 		if !ok {
 			continue
+		}
+		if c.questSpawnBlockedFrom(e) {
+			continue // foreign quest spawn — not interactable (quest-spawns.md Phase 2)
 		}
 		m, ok := e.(*entities.MobInstance)
 		if !ok || !m.IsMount() {

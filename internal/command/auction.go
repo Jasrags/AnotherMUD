@@ -58,6 +58,9 @@ func auctioneerInRoom(c *Context, roomID world.RoomID) bool {
 		if !ok {
 			continue
 		}
+		if c.questSpawnBlockedFrom(e) {
+			continue // foreign quest spawn — not interactable (quest-spawns.md Phase 2)
+		}
 		if mob, ok := e.(*entities.MobInstance); ok && hasTag(mob.Tags(), auction.TagAuctioneer) {
 			return true
 		}

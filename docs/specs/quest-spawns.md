@@ -259,14 +259,15 @@ awarded stands.
 
 ### Acceptance — cleanup
 
-- [ ] Completing a quest removes its surviving owned spawns, including a
-      collected spawn item still in the player's inventory.
-- [ ] Abandoning a quest removes its surviving owned spawns.
-- [ ] A player going offline removes their live owned spawns; they are
+- [x] Completing a quest removes its surviving owned spawns, including a
+      collected spawn item still in the player's inventory (the owner
+      marker lets cleanup reach the picked-up item in the session bag).
+- [x] Abandoning a quest removes its surviving owned spawns.
+- [x] A player going offline removes their live owned spawns; they are
       recreated on next login while the stage is still active (§7).
-- [ ] Cleanup never removes corpses/loot of already-killed spawn mobs,
+- [x] Cleanup never removes corpses/loot of already-killed spawn mobs,
       nor any already-granted reward.
-- [ ] Cleanup removes only entities carrying that quest's owner
+- [x] Cleanup removes only entities carrying that quest's owner
       reference — never unrelated content in the same room.
 
 ---
@@ -365,22 +366,24 @@ corpses, temporary portals, mounts, and hirelings are all handled.
   render-side filter so "what you see" and "what you can target" agree.
   **Party sharing** — should a party-mate see a member's spawns? — is
   still open, below.
-- **Partial-progress re-derivation.** Should login re-spawn only the
-  *shortfall* (one ganger, not two) to match already-credited progress,
-  rather than the full stage declaration (§7)? Phase 1 spawns the full
-  set for simplicity.
+- **Partial-progress re-derivation — safe half LANDED.** Login re-derive
+  now skips an *item* spawn whose matching `collect` objective is already
+  complete (no second, uncollected chip when a mid-run reconnect
+  re-activates the stage). `kill` shortfalls still respawn in full — under-
+  spawning a kill target risks stranding an objective uncompletable, and
+  the extra kills are harmless, so distributing a kill shortfall across
+  multiple spawn entries is deliberately left for later.
 - **Party sharing.** When grouping is active, should one member's quest
   spawns satisfy the whole party, or does each member spawn their own?
   Interacts with group quest-credit (`grouping` open questions).
-- **Gate coverage beyond the render/target seam.** Phase 2 enforces the
-  owner gate on the shared render list and the generic target resolver
-  (`ArgEntity` → `CanSee`). Feature-specific room scans that resolve a
-  *secondary role* directly off room placement (a harvest node, shop NPC,
-  mount, auctioneer, campfire, corpse) do not consult the gate. Latent
-  today — no content stamps a quest spawn with a secondary interactable
-  role — but a pack that did would let a non-owner interact with a spawn
-  that is invisible to them. Harden (route those scans through the
-  predicate) if a quest spawn ever gains such a role.
+- **Gate coverage beyond the render/target seam — HARDENED.** Phase 2
+  enforces the owner gate on the shared render list and the generic target
+  resolver (`ArgEntity` → `CanSee`). The feature-specific room scans that
+  resolve a *secondary role* directly off room placement (harvest node,
+  shop NPC, mount, auctioneer, campfire, corpse) now apply a shared
+  `questSpawnBlockedFrom` guard, so a non-owner cannot interact with a
+  foreign quest spawn even if a future pack stamps it with such a role.
+  Still latent (no content does this today), but no longer a hole.
 - **Admin bypass — LANDED (with per-staff silence toggle).** Staff pierce
   the quest-spawn gate on both the render and target seams (the
   `SourceQuestSpawn` layer carries the staff-rank threshold, pierced by

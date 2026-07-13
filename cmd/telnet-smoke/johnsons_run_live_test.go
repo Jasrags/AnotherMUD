@@ -133,4 +133,10 @@ func TestLive_JohnsonsRun(t *testing.T) {
 	if got := after - before; got < 2000 {
 		t.Fatalf("Redmond Retrieval payout too small: +%d nuyen (want ~2500)", got)
 	}
+
+	// The collected chip is a quest spawn — turn-in cleanup removes it from the
+	// runner's bag (quest-spawns.md §5 / Phase 1b), so it is not a souvenir.
+	if out := send("inventory"); strings.Contains(strings.ToLower(out), "paydata") {
+		t.Fatalf("the paydata chip should be cleaned from inventory after turn-in:\n%s", out)
+	}
 }
