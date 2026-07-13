@@ -289,6 +289,13 @@ func Load(ctx context.Context, root string, filter []string, dst *Registries, sp
 		return err
 	}
 
+	// Quest-scoped spawn references (mob/item templates + rooms) must resolve,
+	// too (quest-spawns.md §2 — a typo fails the pack, not the run). Same
+	// after-all-packs timing as validateSpawnRules so cross-pack refs resolve.
+	if err := validateQuestSpawns(dst); err != nil {
+		return err
+	}
+
 	// Item slot references (eligible + companion) must resolve against the
 	// fully-populated slot registry. Runs after every pack has loaded so a
 	// slot defined by a later pack is visible (mirrors validateSpawnRules).
@@ -424,6 +431,34 @@ func validateSpawnRules(dst *Registries) error {
 			if rule.Rare != "" {
 				if !dst.Mobs.Has(mob.TemplateID(rule.Rare)) {
 					return fmt.Errorf("%w: area %q spawn_rules[%d].rare %q", ErrMissingMobTemplate, area.ID, i, rule.Rare)
+				}
+			}
+		}
+	}
+	return nil
+}
+
+// validateQuestSpawns verifies that every quest-scoped spawn (quest-spawns.md
+// §2) names a room and a mob/item template that resolve in the fully-populated
+// registries. Runs after all packs load so cross-pack (dependency) references
+// are valid, mirroring validateSpawnRules. A miss is a load-time error: a spawn
+// declaration names concrete content the quest owns, so a typo should fail the
+// pack rather than surface as a swallowed runtime warning at stage activation.
+func validateQuestSpawns(dst *Registries) error {
+	for _, def := range dst.Quests.All() {
+		for si, stage := range def.Stages {
+			for spi, sp := range stage.Spawns {
+				if _, err := dst.World.Room(world.RoomID(sp.Room)); err != nil {
+					return fmt.Errorf("%w: quest %q stage[%d].spawn[%d].room %q", ErrMissingSpawnRoom, def.ID, si, spi, sp.Room)
+				}
+				if sp.Kind == "item" {
+					if !dst.Items.Has(item.TemplateID(sp.Template)) {
+						return fmt.Errorf("%w: quest %q stage[%d].spawn[%d].template %q", ErrMissingItemTemplate, def.ID, si, spi, sp.Template)
+					}
+					continue
+				}
+				if !dst.Mobs.Has(mob.TemplateID(sp.Template)) {
+					return fmt.Errorf("%w: quest %q stage[%d].spawn[%d].template %q", ErrMissingMobTemplate, def.ID, si, spi, sp.Template)
 				}
 			}
 		}
@@ -2265,13 +2300,16 @@ func decodeQuest(path, ns, packDir string) (*quest.Definition, error) {
 // (quest-spawns.md §2 / §9) — a runaway guard, not a gameplay limit.
 const questSpawnCapPerStage = 32
 
-// decodeQuestSpawns validates and namespace-qualifies a stage's `spawns` block
-// (quest-spawns.md §2). kind must be mob|item; template is required and
-// qualified; room is qualified, defaulting to the stage's first `visit`
-// objective target (a room) when omitted; count defaults to 1. Unresolvable or
-// invalid entries are load-time errors (the quest names concrete content it
-// owns). objs are the already-qualified objectives of the same stage, used for
-// the room default. Returns nil for a stage with no spawns.
+// decodeQuestSpawns validates the SHAPE of a stage's `spawns` block and
+// namespace-qualifies its ids (quest-spawns.md §2). kind must be mob|item;
+// template is required and qualified; room is qualified, defaulting to the
+// stage's first `visit` objective target (a room) when omitted; count defaults
+// to 1; the per-stage total is capped. objs are the already-qualified
+// objectives of the same stage, used for the room default. Whether the
+// qualified template/room ids actually RESOLVE is checked post-load in
+// validateQuestSpawns (once every pack's registries are populated, so
+// cross-pack dependency refs are visible) — a miss there fails the pack too.
+// Returns nil for a stage with no spawns.
 func decodeQuestSpawns(sf QuestStageFile, si int, ns, path string, objs []quest.Objective) ([]quest.Spawn, error) {
 	if len(sf.Spawns) == 0 {
 		return nil, nil

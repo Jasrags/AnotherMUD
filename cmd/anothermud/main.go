@@ -4086,7 +4086,15 @@ func (a *questSpawnPrimitive) SpawnItem(_ context.Context, templateID string, ro
 }
 
 func (a *questSpawnPrimitive) Despawn(id entities.EntityID) {
+	// Remove wherever the entity currently lives (quest-spawns.md §5: "on a
+	// room floor, in a container, or in the owner's inventory"): the room
+	// placement index, a carried/world container's Contents index, then the
+	// store id index. Each is a best-effort single-winner claim — an entity
+	// already gone (a killed spawn mob) simply no-ops. (A collected item in a
+	// player's SESSION inventory is not reachable here — that is the Phase-1b
+	// session-hook deferral, spec §5/§7.)
 	a.boot.placement.Remove(id)
+	a.boot.contents.Take(id)
 	_ = a.boot.store.Untrack(id)
 }
 

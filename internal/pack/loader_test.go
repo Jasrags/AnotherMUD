@@ -2217,8 +2217,17 @@ func TestLoadQuestSpawnsQualifyAndDefault(t *testing.T) {
 	writeFile(t, filepath.Join(pack, "pack.yaml"), `
 name: tapestry-core
 content:
+  areas: [areas/*.yaml]
+  rooms: [rooms/*.yaml]
+  mobs: [mobs/*.yaml]
+  items: [items/*.yaml]
   quests: [quests/*.yaml]
 `)
+	// The spawn targets must resolve — load-time validation is real (§2).
+	writeFile(t, filepath.Join(pack, "areas/x.yaml"), "id: x\nname: X")
+	writeFile(t, filepath.Join(pack, "rooms/avondale.yaml"), "id: avondale\narea: x\nname: Avondale")
+	writeFile(t, filepath.Join(pack, "mobs/ganger.yaml"), "id: ganger\nname: a ganger\nbehavior: stationary")
+	writeFile(t, filepath.Join(pack, "items/chip.yaml"), "id: chip\nname: a chip\ntype: item")
 	writeFile(t, filepath.Join(pack, "quests/q.yaml"), `
 id: run
 name: Run
@@ -2237,7 +2246,7 @@ stages:
         count: 2
     spawns:
       - { kind: mob, template: ganger, room: avondale, count: 2 }
-      - { kind: item, template: other-pack:widget, room: avondale }
+      - { kind: item, template: chip, room: avondale }
 `)
 	regs := NewRegistries()
 	if err := Load(context.Background(), root, nil, regs, nil, nil, nil); err != nil {
@@ -2256,7 +2265,7 @@ stages:
 	if s0[0].Kind != "item" || s0[0].Template != "tapestry-core:chip" || s0[0].Room != "tapestry-core:avondale" || s0[0].Count != 1 {
 		t.Errorf("stage 0 spawn = %+v, want {item tapestry-core:chip tapestry-core:avondale 1}", s0[0])
 	}
-	// Stage 1: explicit room + count; qualified cross-pack template passes through.
+	// Stage 1: explicit room + count; both entries qualified against the pack.
 	s1 := d.Stages[1].Spawns
 	if len(s1) != 2 {
 		t.Fatalf("stage 1 spawns = %d, want 2", len(s1))
@@ -2264,8 +2273,49 @@ stages:
 	if s1[0].Kind != "mob" || s1[0].Template != "tapestry-core:ganger" || s1[0].Room != "tapestry-core:avondale" || s1[0].Count != 2 {
 		t.Errorf("stage 1 mob spawn = %+v", s1[0])
 	}
-	if s1[1].Template != "other-pack:widget" {
-		t.Errorf("qualified cross-pack template = %q, want other-pack:widget", s1[1].Template)
+	if s1[1].Kind != "item" || s1[1].Template != "tapestry-core:chip" {
+		t.Errorf("stage 1 item spawn = %+v", s1[1])
+	}
+}
+
+// TestLoadQuestSpawnsRejectUnresolved covers the load-time existence check
+// (§2): a well-formed spawn whose template/room does not resolve fails the
+// pack rather than surfacing as a swallowed runtime warning.
+func TestLoadQuestSpawnsRejectUnresolved(t *testing.T) {
+	cases := map[string]string{
+		"unknown mob template": `
+      - { kind: mob, template: gangor, room: avondale }
+`,
+		"unknown item template": `
+      - { kind: item, template: chp, room: avondale }
+`,
+		"unknown room": `
+      - { kind: mob, template: ganger, room: nowhere }
+`,
+	}
+	for name, spawn := range cases {
+		t.Run(name, func(t *testing.T) {
+			root := t.TempDir()
+			pack := filepath.Join(root, "core")
+			writeFile(t, filepath.Join(pack, "pack.yaml"), `
+name: tapestry-core
+content:
+  areas: [areas/*.yaml]
+  rooms: [rooms/*.yaml]
+  mobs: [mobs/*.yaml]
+  items: [items/*.yaml]
+  quests: [quests/*.yaml]
+`)
+			writeFile(t, filepath.Join(pack, "areas/x.yaml"), "id: x\nname: X")
+			writeFile(t, filepath.Join(pack, "rooms/avondale.yaml"), "id: avondale\narea: x\nname: Avondale")
+			writeFile(t, filepath.Join(pack, "mobs/ganger.yaml"), "id: ganger\nname: a ganger\nbehavior: stationary")
+			writeFile(t, filepath.Join(pack, "items/chip.yaml"), "id: chip\nname: a chip\ntype: item")
+			writeFile(t, filepath.Join(pack, "quests/q.yaml"), "id: q\nname: Q\nstages:\n  - id: s\n    spawns:"+spawn)
+			regs := NewRegistries()
+			if err := Load(context.Background(), root, nil, regs, nil, nil, nil); err == nil {
+				t.Fatalf("Load should reject unresolved spawn (%s) but succeeded", name)
+			}
+		})
 	}
 }
 

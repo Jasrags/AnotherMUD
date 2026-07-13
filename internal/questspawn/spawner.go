@@ -137,6 +137,13 @@ func (s *Spawner) activate(playerID, questID string, stageIndex int) {
 		}
 	}
 	if len(ids) == 0 {
+		// Every spawn failed — release the activation claim so a later re-fire
+		// (login re-derivation, Phase 1b) can retry, rather than leaving the
+		// stage permanently marked done with nothing spawned (a non-abandonable
+		// quest would otherwise strand uncompletable).
+		s.mu.Lock()
+		delete(s.active, key)
+		s.mu.Unlock()
 		return
 	}
 	s.mu.Lock()
