@@ -13,6 +13,7 @@ import (
 	"github.com/Jasrags/AnotherMUD/internal/entities"
 	"github.com/Jasrags/AnotherMUD/internal/keyword"
 	"github.com/Jasrags/AnotherMUD/internal/logging"
+	"github.com/Jasrags/AnotherMUD/internal/pool"
 	"github.com/Jasrags/AnotherMUD/internal/property"
 	"github.com/Jasrags/AnotherMUD/internal/world"
 )
@@ -43,8 +44,12 @@ type settableKind struct {
 // never an incidental `set`.
 var setCatalogue = []settableKind{
 	{
-		name:      "vital",
-		types:     []string{"hp"},
+		name: "vital",
+		// A hint for the usage panel — the common cross-ruleset vitals. The
+		// actual settable set is the target's own pools (applyVital is
+		// data-driven), so a ruleset's extra monitors (e.g. Shadowrun `stun`)
+		// are settable too and surface in the per-target "Unknown vital" error.
+		types:     []string{"hp", "mana", "movement"},
 		appliesTo: "player, npc",
 		apply:     applyVital,
 	},
@@ -183,21 +188,60 @@ func applyGold(ctx context.Context, c *Context, target any, typeName, value stri
 	return fmt.Sprintf("Gold set to %d.", c.Currency.Read(holder)), nil
 }
 
+// applyVital sets a live vital on the target, clamped to its pool's
+// [floor, max] (admin-verbs §4). It is data-driven: `hp` routes through the
+// canonical Vitals facade (pool.KindHP), and any other kind routes to a named
+// resource pool the target actually carries — mana, movement, the One Power
+// (its mana pool), the Shadowrun stun monitor, and any future content-declared
+// pool, with no code change to add one. An unknown kind lists the target's own
+// settable vitals so a GM sees exactly what this character/mob exposes. The
+// value must be numeric; a non-numeric value is a usage error that writes
+// nothing.
 func applyVital(ctx context.Context, c *Context, target any, typeName, value string) (string, error) {
 	cb, ok := target.(combat.Combatant)
 	if !ok {
 		return "", fmt.Errorf("That target has no vitals to set.")
 	}
-	if !strings.EqualFold(typeName, "hp") {
-		return "", fmt.Errorf("Unknown vital %q. Settable vitals: hp.", typeName)
-	}
 	n, err := strconv.Atoi(strings.TrimSpace(value))
 	if err != nil {
 		return "", fmt.Errorf("Vital value must be a whole number.")
 	}
-	newHP := cb.Vitals().SetCurrent(n)
-	_, max := cb.Vitals().Snapshot()
-	return fmt.Sprintf("HP set to %d/%d.", newHP, max), nil
+	kind := strings.ToLower(strings.TrimSpace(typeName))
+
+	// hp is the canonical Vitals track (pool.KindHP); set it through the Vitals
+	// facade so the combat/hp vocabulary stays the single entry point.
+	if kind == string(pool.KindHP) {
+		newHP := cb.Vitals().SetCurrent(n)
+		_, max := cb.Vitals().Snapshot()
+		return fmt.Sprintf("HP set to %d/%d.", newHP, max), nil
+	}
+
+	// Any other kind is a named resource pool (mana / movement / stun / …).
+	if pools := cb.Pools(); pools != nil {
+		if p, ok := pools.Get(pool.Kind(kind)); ok {
+			cur := p.SetCurrent(n)
+			_, max := p.Snapshot()
+			return fmt.Sprintf("%s set to %d/%d.", strings.ToUpper(kind), cur, max), nil
+		}
+	}
+	return "", fmt.Errorf("Unknown vital %q. Settable vitals: %s.", typeName, settableVitals(cb))
+}
+
+// settableVitals lists the vitals a target actually exposes: hp (always, via
+// Vitals) plus every named pool it carries, in the deterministic Snapshot
+// order. Drives the applyVital error so a GM sees the character's real surface
+// rather than a hardcoded list that drifts per ruleset.
+func settableVitals(cb combat.Combatant) string {
+	kinds := []string{string(pool.KindHP)}
+	if pools := cb.Pools(); pools != nil {
+		for _, e := range pools.Snapshot() {
+			if e.Kind == pool.KindHP {
+				continue // hp is the Vitals facade, not a declared pool — no dupe.
+			}
+			kinds = append(kinds, string(e.Kind))
+		}
+	}
+	return strings.Join(kinds, ", ")
 }
 
 // applyProperty writes a registered, admin-settable property onto a live
