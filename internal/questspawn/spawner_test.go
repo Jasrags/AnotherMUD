@@ -55,6 +55,10 @@ type fakeDefs map[string]*quest.Definition
 
 func (d fakeDefs) Lookup(id string) (*quest.Definition, bool) { def, ok := d[id]; return def, ok }
 
+type fakeState map[string]*quest.State
+
+func (f fakeState) Snapshot(playerID string) *quest.State { return f[playerID] }
+
 func runDef() *quest.Definition {
 	return &quest.Definition{
 		ID: "q1",
@@ -177,6 +181,56 @@ func TestSpawner_SpawnErrorSkipsEntryWithoutCrashing(t *testing.T) {
 	s.Abandoned(quest.AbandonedEvent{PlayerID: "p1", QuestID: "q1"})
 	if len(prim.despawned) != 1 {
 		t.Fatalf("cleanup should despawn only the 1 successfully-spawned entity, got %d", len(prim.despawned))
+	}
+}
+
+func TestSpawner_ReactivatePlayerReDerivesActiveStage(t *testing.T) {
+	s, prim := newSpawner(fakeDefs{"q1": runDef()})
+	s.SetQuestState(fakeState{"p1": {Active: []quest.ActiveQuest{{QuestID: "q1", StageIndex: 1}}}})
+
+	// Login re-derive spawns the active stage's content.
+	s.ReactivatePlayer("p1")
+	if len(prim.spawned) != 3 {
+		t.Fatalf("re-derive should spawn the active stage's 3 entities, got %d", len(prim.spawned))
+	}
+	// Idempotent: a redundant re-derive (already spawned) does not duplicate.
+	s.ReactivatePlayer("p1")
+	if len(prim.spawned) != 3 {
+		t.Fatalf("re-derive duplicated spawns: got %d, want 3", len(prim.spawned))
+	}
+}
+
+func TestSpawner_ReactivatePlayerNoStateOrNoQuestsIsNoop(t *testing.T) {
+	s, prim := newSpawner(fakeDefs{"q1": runDef()})
+	s.ReactivatePlayer("p1") // no quest state wired
+	s.SetQuestState(fakeState{})
+	s.ReactivatePlayer("p1") // player has no state
+	s.SetQuestState(fakeState{"p1": {}})
+	s.ReactivatePlayer("p1") // player has no active quests
+	if len(prim.spawned) != 0 {
+		t.Fatalf("re-derive with no active quests must be a no-op, got %d", len(prim.spawned))
+	}
+}
+
+func TestSpawner_CleanupPlayerDespawnsAllAndAllowsReDerive(t *testing.T) {
+	s, prim := newSpawner(fakeDefs{"q1": runDef()})
+	s.StageAdvanced(quest.StageAdvancedEvent{PlayerID: "p1", QuestID: "q1", StageIndex: 1})
+	s.StageAdvanced(quest.StageAdvancedEvent{PlayerID: "p2", QuestID: "q1", StageIndex: 1})
+	if len(prim.spawned) != 6 {
+		t.Fatalf("setup: want 6 spawns, got %d", len(prim.spawned))
+	}
+
+	// Logout cleanup removes only p1's 3 (p2 stays online).
+	s.CleanupPlayer("p1")
+	if len(prim.despawned) != 3 {
+		t.Fatalf("CleanupPlayer should despawn the player's 3 owned entities, got %d", len(prim.despawned))
+	}
+
+	// After cleanup, re-login re-derives fresh (activation keys were cleared).
+	s.SetQuestState(fakeState{"p1": {Active: []quest.ActiveQuest{{QuestID: "q1", StageIndex: 1}}}})
+	s.ReactivatePlayer("p1")
+	if len(prim.spawned) != 9 {
+		t.Fatalf("re-derive after cleanup should spawn again: total %d, want 9", len(prim.spawned))
 	}
 }
 

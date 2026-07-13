@@ -58,6 +58,13 @@ type Manager struct {
 	// to depend on the unexported actor type.
 	onRemove func(playerID string)
 
+	// onAdd mirrors onRemove for the enter-the-world side: invoked after Add
+	// has indexed a player (fresh login or character-select into the world),
+	// outside Manager.mu, with the entering player's id. Set via SetOnAdd from
+	// the composition root to hook session-arrival events (quest-scoped spawn
+	// re-derivation — quest-spawns.md §7). nil-safe.
+	onAdd func(playerID string)
+
 	// mounts dematerializes a departing actor's live mounts on full Remove
 	// (mounts.md §9, §10): a logged-out owner's retrieved mount resolves to
 	// its stabled record — the live creature must leave the world so it is
@@ -150,6 +157,15 @@ func (m *Manager) SetPartyCap(n int) {
 // unregister). The callback receives the gone-actor's player id
 // and runs outside Manager.mu. Safe to call once at startup;
 // subsequent calls overwrite.
+// SetOnAdd installs a callback fired after every Add (a player entering the
+// world). The callback receives the entering player's id and runs outside
+// Manager.mu. Safe to call once at startup; subsequent calls overwrite.
+func (m *Manager) SetOnAdd(fn func(playerID string)) {
+	m.mu.Lock()
+	m.onAdd = fn
+	m.mu.Unlock()
+}
+
 func (m *Manager) SetOnRemove(fn func(playerID string)) {
 	m.mu.Lock()
 	m.onRemove = fn
@@ -200,8 +216,8 @@ func (m *Manager) Add(a *connActor) {
 	acct := a.accountID
 
 	m.mu.Lock()
-	defer m.mu.Unlock()
 	if _, exists := m.byConn[a.id]; exists {
+		m.mu.Unlock()
 		return
 	}
 	m.byConn[a.id] = a
@@ -216,6 +232,14 @@ func (m *Manager) Add(a *connActor) {
 	}
 	if roomID != "" && pid != "" {
 		m.addToRoomLocked(roomID, pid, a)
+	}
+	cb := m.onAdd
+	m.mu.Unlock()
+
+	// Arrival hook fires outside the lock (quest-spawn re-derivation, §7),
+	// mirroring how Remove invokes onRemove.
+	if cb != nil && pid != "" {
+		cb(pid)
 	}
 }
 

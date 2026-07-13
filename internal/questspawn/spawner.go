@@ -48,17 +48,30 @@ type Definitions interface {
 	Lookup(questID string) (*quest.Definition, bool)
 }
 
+// QuestState reads a player's live quest progress for login re-derivation
+// (quest-spawns.md §7). *quest.Service satisfies it. Late-bound via
+// SetQuestState because the service is constructed after the spawner (the
+// spawner is one of the service's own event sinks).
+type QuestState interface {
+	Snapshot(playerID string) *quest.State
+}
+
 // Spawner implements quest.EventSink for the spawn lifecycle.
 type Spawner struct {
-	ctx  context.Context
-	prim Primitive
-	defs Definitions
-	log  *slog.Logger
+	ctx   context.Context
+	prim  Primitive
+	defs  Definitions
+	state QuestState // late-bound (SetQuestState); nil disables login re-derive
+	log   *slog.Logger
 
 	mu     sync.Mutex
 	owned  map[string]map[string][]entities.EntityID // player -> quest -> spawned ids
 	active map[string]struct{}                       // "player|quest|stage" -> spawned once
 }
+
+// SetQuestState wires the quest-progress source for login re-derivation (§7).
+// Called once from the composition root after the quest service exists.
+func (s *Spawner) SetQuestState(state QuestState) { s.state = state }
 
 // New builds a Spawner. ctx carries the logger/cancellation for spawn calls.
 func New(ctx context.Context, prim Primitive, defs Definitions, log *slog.Logger) *Spawner {
@@ -178,6 +191,50 @@ func (s *Spawner) cleanup(playerID, questID string) {
 		}
 	}
 	prefix := playerID + "|" + questID + "|"
+	for k := range s.active {
+		if strings.HasPrefix(k, prefix) {
+			delete(s.active, k)
+		}
+	}
+	s.mu.Unlock()
+
+	for _, id := range ids {
+		s.prim.Despawn(id)
+	}
+}
+
+// ReactivatePlayer re-derives a player's active-stage spawns on login
+// (quest-spawns.md §7). For each of the player's active quests it re-activates
+// the currently-active stage; activate is idempotent, so if the spawns already
+// exist (a link-dead reconnect that was never cleaned) this is a no-op. Called
+// from the composition root's session-Add hook. No-op if no quest state is
+// wired (headless/tests).
+func (s *Spawner) ReactivatePlayer(playerID string) {
+	if s.state == nil {
+		return
+	}
+	st := s.state.Snapshot(playerID)
+	if st == nil {
+		return
+	}
+	for _, aq := range st.Active {
+		s.activate(playerID, aq.QuestID, aq.StageIndex)
+	}
+}
+
+// CleanupPlayer despawns every entity a player owns across all their quests and
+// forgets their activation keys — the logout / link-dead-reap cleanup
+// (quest-spawns.md §5/§7) so the shared world does not accumulate orphaned quest
+// content while the player is offline. Their active-stage spawns are recreated
+// by ReactivatePlayer on next login.
+func (s *Spawner) CleanupPlayer(playerID string) {
+	s.mu.Lock()
+	var ids []entities.EntityID
+	for _, qids := range s.owned[playerID] {
+		ids = append(ids, qids...)
+	}
+	delete(s.owned, playerID)
+	prefix := playerID + "|"
 	for k := range s.active {
 		if strings.HasPrefix(k, prefix) {
 			delete(s.active, k)

@@ -351,13 +351,9 @@ func run() error {
 	const notifQueueCap = 50
 	notifStore := notifications.NewStore(cfg.SaveDir, notifQueueCap)
 	notifMgr := notifications.NewManager(notifStore, notifQueueCap, clk)
-	mgr.SetOnRemove(func(playerID string) {
-		// Bridge session.Manager.Remove → notifications.Manager.Unregister.
-		// Background ctx because session.Manager has no per-call ctx;
-		// errors are logged inside Unregister via the notif store's
-		// own logger.
-		_ = notifMgr.Unregister(context.Background(), playerID)
-	})
+	// Session arrival/departure hooks (SetOnAdd / SetOnRemove) are wired once
+	// the quest-spawn lifecycle exists (search "SetOnAdd"), so the departure
+	// hook can compose notification-unregister with quest-spawn cleanup.
 
 	// M13.6: channel registry + engine baseline. Baseline channels
 	// are registered programmatically in v1; the pack-loaded
@@ -1007,6 +1003,21 @@ func run() error {
 		Rewards:  session.NewQuestRewards(mgr, progressionMgr, proficiencyMgr, registries.Items, entityStore, currencySvc, knownRecipesMgr, factionMgr, reputationMgr, cfg.DefaultXPTrack),
 		Events:   quest.MultiSink{questNotifier, questSpawner},
 		Faction:  session.NewQuestFactionGate(mgr, factionMgr),
+	})
+
+	// Quest-spawn session lifecycle (quest-spawns.md §7): give the spawner the
+	// quest-state source for login re-derivation, then hook session arrival /
+	// departure. On Add (a player enters the world — quest state is already
+	// loaded by then) re-derive their active-stage spawns; on Remove (quit or
+	// link-dead reap) despawn everything they own. The departure hook composes
+	// the notification-unregister that used to live earlier.
+	questSpawner.SetQuestState(questSvc)
+	mgr.SetOnAdd(func(playerID string) {
+		questSpawner.ReactivatePlayer(playerID)
+	})
+	mgr.SetOnRemove(func(playerID string) {
+		_ = notifMgr.Unregister(context.Background(), playerID)
+		questSpawner.CleanupPlayer(playerID)
 	})
 	questWatcher := questwatch.New(questSvc, entityStore)
 	// §7.2 quest_grant item side channel: resolve a picker's id to a
