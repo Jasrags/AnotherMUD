@@ -178,11 +178,36 @@ func catalogMobs(m *worldModel) string {
 		rows = append(rows, []string{
 			codeID(id), escName(mob.Name),
 			strings.Join(roleTags(mob, false), " "),
+			dialogueCell(mob.Dialogue),
 			faction,
 			codeList(rooms),
 		})
 	}
-	return htmlTable([]string{"ID", "Name", "Roles", "Faction", "Rooms"}, rows)
+	return htmlTable([]string{"ID", "Name", "Roles", "Dialogue", "Faction", "Rooms"}, rows)
+}
+
+// dialogueCell renders an NPC's `ask about <topic>` table (npc-dialogue.md) as a
+// collapsed disclosure: the summary lists the topic keys, and expanding it shows
+// each topic's line(s). Empty when the NPC has no dialogue (htmlTable renders a
+// dash). Line text is escaped; the topic keys drive the summary.
+func dialogueCell(topics []dialogueTopic) string {
+	if len(topics) == 0 {
+		return ""
+	}
+	names := make([]string, len(topics))
+	for i, t := range topics {
+		names[i] = t.Topic
+	}
+	var b strings.Builder
+	fmt.Fprintf(&b, "<details class=\"dialogue\"><summary>%s</summary><dl>", esc(strings.Join(names, ", ")))
+	for _, t := range topics {
+		fmt.Fprintf(&b, "<dt>%s</dt>", esc(t.Topic))
+		for _, ln := range t.Lines {
+			fmt.Fprintf(&b, "<dd>%s</dd>", esc(ln))
+		}
+	}
+	b.WriteString("</dl></details>")
+	return b.String()
 }
 
 func catalogItems(m *worldModel) string {

@@ -144,6 +144,17 @@ type mobJSON struct {
 	Hostile   bool   `json:"hostile"`
 	Quest     bool   `json:"quest"`
 	Faction   string `json:"faction"`
+	// Dialogue is the mob's `ask <npc> about <topic>` table (npc-dialogue.md),
+	// surfaced in the catalogs mobs table. Excluded from the map JSON (json:"-")
+	// — it's reference prose, not a map feature.
+	Dialogue []dialogueTopic `json:"-"`
+}
+
+// dialogueTopic is one row of an NPC's dialogue table: the topic key and the
+// one-or-more lines it answers with (a list rotates in-game).
+type dialogueTopic struct {
+	Topic string
+	Lines []string
 }
 
 type pt struct{ x, y, z int }
@@ -325,9 +336,59 @@ func loadMobs(dir string, questGivers map[string]bool) (map[string]mobJSON, erro
 			Hostile:   m.Disposition.Default == "hostile",
 			Quest:     questGivers[m.ID],
 			Faction:   m.Faction,
+			Dialogue:  parseDialogue(m.Properties["dialogue"]),
 		}
 	}
 	return out, nil
+}
+
+// parseDialogue reads a mob's `properties.dialogue` map (npc-dialogue.md §2)
+// into an ordered topic list. Each value is a single line or a list of lines;
+// topics sort alphabetically with the `default` fallback moved to the end so it
+// reads last. Returns nil when there is no dialogue.
+func parseDialogue(raw any) []dialogueTopic {
+	mp, ok := raw.(map[string]any)
+	if !ok || len(mp) == 0 {
+		return nil
+	}
+	keys := make([]string, 0, len(mp))
+	for k := range mp {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	// The catch-all reads best last, regardless of alpha order.
+	sort.SliceStable(keys, func(i, j int) bool {
+		return keys[j] == "default" && keys[i] != "default"
+	})
+	topics := make([]dialogueTopic, 0, len(keys))
+	for _, k := range keys {
+		if lines := dialogueLines(mp[k]); len(lines) > 0 {
+			topics = append(topics, dialogueTopic{Topic: k, Lines: lines})
+		}
+	}
+	return topics
+}
+
+// dialogueLines normalizes a topic value (a string or a YAML list of strings)
+// into a trimmed, non-empty slice of lines.
+func dialogueLines(v any) []string {
+	switch x := v.(type) {
+	case string:
+		if s := strings.TrimSpace(x); s != "" {
+			return []string{s}
+		}
+	case []any:
+		out := make([]string, 0, len(x))
+		for _, e := range x {
+			if s, ok := e.(string); ok {
+				if s = strings.TrimSpace(s); s != "" {
+					out = append(out, s)
+				}
+			}
+		}
+		return out
+	}
+	return nil
 }
 
 // --- layout: global BFS over the exit graph with collision spread ---

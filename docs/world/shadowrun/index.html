@@ -106,6 +106,13 @@ main h2 .count { margin-left: 10px; vertical-align: middle; }
   font: 600 12px var(--sans); box-shadow: 0 2px 8px rgba(0,0,0,.18);
 }
 
+/* --- NPC dialogue disclosure (catalogs mobs table) --- */
+details.dialogue > summary { cursor: pointer; color: var(--accent); font-size: 12.5px; }
+details.dialogue[open] > summary { margin-bottom: 4px; }
+details.dialogue dl { margin: 2px 0 0; }
+details.dialogue dt { font-weight: 600; color: #4a4032; margin-top: 5px; font-size: 12.5px; }
+details.dialogue dd { margin: 1px 0 0 12px; font-style: italic; color: var(--ink); font-size: 12.5px; }
+
 @media (max-width: 760px) {
   body { flex-direction: column; }
   .sidebar { width: 100%; height: auto; position: static; border-right: none; border-bottom: 2px solid var(--line); }
