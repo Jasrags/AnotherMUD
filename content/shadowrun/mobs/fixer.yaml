@@ -28,7 +28,7 @@ properties:
       # Ammo SKUs (ammo-and-reloading §6): a pre-loaded clip (the primary buy),
       # loose rounds (refills), and an empty clip (a cheap spare to fill).
       - shadowrun:predator-clip-loaded
-      - shadowrun:ammo-clip
+      - shadowrun:caseless-round
       - shadowrun:apds-round
       - shadowrun:predator-clip
       - shadowrun:ares-predator-v

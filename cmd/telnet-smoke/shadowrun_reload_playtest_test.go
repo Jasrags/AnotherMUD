@@ -99,7 +99,7 @@ func TestLive_ShadowrunReloadPlaytest(t *testing.T) {
 	// Ejection: load a SECOND clip, insert it — the first (partly-spent) clip
 	// ejects to the ground.
 	send("spawn item predator-clip me")
-	send("spawn item ammo-clip 20 me")
+	send("spawn item caseless-round 20 me")
 	step("fill a fresh clip", "reload clip")
 	step("reload → swap clips; the spent one ejects to the ground", "reload")
 	step("look — the ejected clip is on the floor", "look")

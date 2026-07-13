@@ -21,6 +21,6 @@ stats:
 properties:
   shop:
     sells:
-      - shadowrun:ammo-clip
+      - shadowrun:caseless-round
       - shadowrun:predator-clip
       - shadowrun:armor-vest

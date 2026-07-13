@@ -90,7 +90,7 @@ func TestLive_ShadowrunFirearm(t *testing.T) {
 	// next swings spend its rounds; a landed shot lands on the Physical monitor
 	// (lethal, no target_pool) through the ganger's soak.
 	send("spawn item predator-clip me")
-	send("spawn item ammo-clip 20 me")
+	send("spawn item caseless-round 20 me")
 	if out := send("reload clip"); !strings.Contains(out, "(15/15)") {
 		t.Fatalf("`reload clip` did not fill the clip to 15/15 from loose rounds:\n%s", out)
 	}

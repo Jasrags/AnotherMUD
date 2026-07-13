@@ -26,7 +26,7 @@ feat_options:
 # have scraped together — the gunslinger, the blade, or the non-lethal
 # specialist. All items are shadowrun-pack gear (SR-M3c-2).
 equipment_packages:
-  - [ares-predator-v, ammo-clip, armored-jacket]
+  - [ares-predator-v, caseless-round, armored-jacket]
   - [katana, armored-jacket]
   - [stun-baton, armor-vest]
 gold: 500

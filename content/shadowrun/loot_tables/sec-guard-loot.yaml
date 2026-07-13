@@ -2,7 +2,7 @@
 # than a ganger's pockets — a fatter credstick and a chance at her kit.
 id: sec-guard-loot
 guaranteed:
-  - { item: ammo-clip, count: 1 }
+  - { item: caseless-round, count: 1 }
 weighted:
   - { item: nuyen, weight: 2 }
   - { item: armor-vest, weight: 1 }

@@ -1,9 +1,10 @@
 # SR-M3d — clip-vs-round resolved as per-shot round (Option A): each stackable
 # unit is ONE caseless round, spent per shot via the ranged/ammo pipeline (the
 # arrow model). The magazine model (a clip = N loaded rounds + a reload flow) is
-# the deferred Option B. The id stays `ammo-clip` so shop/room/loot refs hold;
-# only the display reads as a round now.
-id: ammo-clip
+# the deferred Option B. The id was `ammo-clip` (a legacy handle from the clip
+# model); renamed to `caseless-round` so the id matches the display and a
+# `spawn item caseless-round` reads as expected.
+id: caseless-round
 name: a caseless round
 type: item
 description: |

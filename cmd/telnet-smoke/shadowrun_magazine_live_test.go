@@ -60,7 +60,7 @@ func TestLive_ShadowrunMagazinePersist(t *testing.T) {
 	send1("equip pistol wield")
 	// Fill a clip and load it into the gun (a full 15/15 inserted holder).
 	send1("spawn item predator-clip me")
-	send1("spawn item ammo-clip 20 me")
+	send1("spawn item caseless-round 20 me")
 	if out := send1("reload clip"); !strings.Contains(out, "(15/15)") {
 		t.Fatalf("reload clip did not fill the clip to 15/15:\n%s", out)
 	}
@@ -150,7 +150,7 @@ func TestLive_ShadowrunLooseClipPersist(t *testing.T) {
 	send("spawn item predator-clip me")
 	// Exactly enough to fill the clip once; the few rounds left over are < a full
 	// magazine, so a REVERTED clip couldn't refill to 15 in session 2.
-	send("spawn item ammo-clip 15 me")
+	send("spawn item caseless-round 15 me")
 	if out := send("reload clip"); !strings.Contains(out, "(15/15)") {
 		t.Fatalf("reload clip did not fill the loose clip to 15/15:\n%s", out)
 	}

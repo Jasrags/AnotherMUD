@@ -116,13 +116,13 @@ Content inventory:
 
 ### SR-M3d — Firearm + ammo: the in-room firefight tail  · **Small (mostly proof + one content call)**
 
-> **STATUS: SHIPPED 2026-07-08.** As scoped, this was finish-and-prove, not greenfield: the engine's ranged/ammo system already shipped and was fully wired (the `AmmoFor` round-loop hook `main.go:2064` → `session.AmmoConsumer` spends one ammo unit per projectile swing and skips the swing dry via `OnRangedDry`; range bands + melee-band penalty; `throw`/`shoot`/`load` verbs), and the SR firearms were already authored (`heavy-pistol`/`smg` `ranged_class: projectile` + `ammo_kind: bullet`). `TestLive_ShadowrunFirearm` proves it live — an empty heavy pistol clicks dry in melee ("no bullet left to shoot"), then fed with rounds it fires point-blank and hits the ganger on the Physical monitor (soak applied, no target_pool). The clip-vs-round call resolved **Option A** (per-shot round): `ammo-clip` renamed to "a caseless round" (each stackable unit = one shot, the arrow model; id kept so shop/room refs hold). The **magazine model (Option B)** shipped as its own slice — **SR-M3e** below; SMG burst-fire and SR cross-room `shoot` remain deferred.
+> **STATUS: SHIPPED 2026-07-08.** As scoped, this was finish-and-prove, not greenfield: the engine's ranged/ammo system already shipped and was fully wired (the `AmmoFor` round-loop hook `main.go:2064` → `session.AmmoConsumer` spends one ammo unit per projectile swing and skips the swing dry via `OnRangedDry`; range bands + melee-band penalty; `throw`/`shoot`/`load` verbs), and the SR firearms were already authored (`heavy-pistol`/`smg` `ranged_class: projectile` + `ammo_kind: bullet`). `TestLive_ShadowrunFirearm` proves it live — an empty heavy pistol clicks dry in melee ("no bullet left to shoot"), then fed with rounds it fires point-blank and hits the ganger on the Physical monitor (soak applied, no target_pool). The clip-vs-round call resolved **Option A** (per-shot round): `caseless-round` renamed to "a caseless round" (each stackable unit = one shot, the arrow model; id kept so shop/room refs hold). The **magazine model (Option B)** shipped as its own slice — **SR-M3e** below; SMG burst-fire and SR cross-room `shoot` remain deferred.
 
 **The slice:**
 1. **Live proof (the deliverable).** `TestLive_ShadowrunFirearm`: a Street Samurai wields the heavy-pistol, holds a stack of `bullet` ammo, and kills the ganger IN-ROOM (single district = melee band, so firing takes the melee-band penalty — SR5 allows a gun in melee at a penalty). Assert: (a) the ammo count decrements per shot; (b) lethal fire lands on the Physical monitor (default route) through the target's soak — the katana proof, now via a firearm; (c) with ammo exhausted the next shot clicks empty (`RangedDry` → swing skipped + dry-fire narration). Fix whatever it surfaces (e.g. the AmmoConsumer not resolving the SR clip, or the melee-band penalty stalling the fight — buff/`restore` as the other SR live tests do).
 
-2. **The one content decision — clip vs round.** Today the AmmoConsumer spends ONE `ammo-clip` ITEM per shot, so a "clip" reads as a single bullet.
-   - **A — per-shot round (MVP lean):** treat each stackable ammo unit as one round; rename `ammo-clip` → "a box of caseless rounds" so a stack = rounds, one burned per shot. Reuses the bow/arrow model exactly. **Zero engine change** — a content rename + the test.
+2. **The one content decision — clip vs round.** Today the AmmoConsumer spends ONE `caseless-round` ITEM per shot, so a "clip" reads as a single bullet.
+   - **A — per-shot round (MVP lean):** treat each stackable ammo unit as one round; rename `caseless-round` → "a box of caseless rounds" so a stack = rounds, one burned per shot. Reuses the bow/arrow model exactly. **Zero engine change** — a content rename + the test.
    - **B — magazine capacity (post-MVP, own slice):** a clip = N loaded rounds; a `reload` flow consumes a clip and loads N onto a per-weapon loaded-count (distinct from the crossbow's single-shot `ReloadTicks`); each shot decrements; empty → reload. The authentic SR model, but it needs a new weapon-state field + a reload verb/flow — **Medium Go.**
    Recommend **A** for the MVP firefight; defer **B**.
 
@@ -134,7 +134,7 @@ Content inventory:
 - [x] A Street Samurai wields the heavy-pistol and fires it at the ganger in-room; each shot spends one `bullet` unit. *(`TestLive_ShadowrunFirearm`; consumption proven by the empty click after depletion.)*
 - [x] With ammo exhausted, the shot clicks empty (`RangedDry`) and is skipped, narrated to the player ("no bullet left to shoot").
 - [x] Lethal fire lands on the Physical monitor (default route) with the target's soak applied — a firearm hit deals damage like the katana proof. *(the pistol has no target_pool → Physical; hits observed through the ganger's body+armor soak.)*
-- [x] Clip-vs-round semantics resolved — **Option A**, per-shot round (`ammo-clip` → "a caseless round").
+- [x] Clip-vs-round semantics resolved — **Option A**, per-shot round (`caseless-round` → "a caseless round").
 
 ### SR-M3e — Magazine model + reload (Option B)  · **Medium Go · SHIPPED 2026-07-08**
 
