@@ -78,6 +78,15 @@ type Manager struct {
 	// creature does not). nil disables the teardown. Set once via SetHirelings.
 	hirelings command.HirelingService
 
+	// Onboarding-guide lifecycle (onboarding-guide.md): the guide service +
+	// the world's guide template + the graduation level cap. The Manager owns the
+	// whole lifecycle (spawn on enter, trail on move, graduate on level-up, drain
+	// on logout). guides nil OR guideTemplate "" disables the feature. Set once
+	// via SetGuides.
+	guides        command.GuideService
+	guideTemplate string
+	guideLevelCap int
+
 	// action-economy.md timed-action sweep. actionTracker holds in-flight
 	// occupations; actionCommands + actionEnv replay a completed action's
 	// command with ReplayAction set so its consumer performs the deferred
@@ -190,6 +199,17 @@ func (m *Manager) SetHirelings(svc command.HirelingService) {
 	m.mu.Unlock()
 }
 
+// SetGuides installs the onboarding-guide lifecycle service + the world's guide
+// template + the graduation level cap (onboarding-guide.md). Set once at startup;
+// nil svc or empty template disables the feature (no guide ever spawns).
+func (m *Manager) SetGuides(svc command.GuideService, template string, levelCap int) {
+	m.mu.Lock()
+	m.guides = svc
+	m.guideTemplate = template
+	m.guideLevelCap = levelCap
+	m.mu.Unlock()
+}
+
 // Add registers a freshly-logged-in actor across every index. The
 // actor's manager back-reference is set so subsequent SetRoom calls
 // can keep the by-room index in sync.
@@ -293,6 +313,7 @@ func (m *Manager) Remove(a *connActor) {
 	cb := m.onRemove
 	mounts := m.mounts
 	hirelings := m.hirelings
+	guides := m.guides
 	m.mu.Unlock()
 
 	// Dematerialize the departing actor's live mounts (mounts.md §9, §10):
@@ -316,6 +337,16 @@ func (m *Manager) Remove(a *connActor) {
 	if hirelings != nil {
 		for _, id := range a.drainLiveHirelings() {
 			hirelings.Dematerialize(context.Background(), id)
+		}
+	}
+
+	// Dematerialize the departing actor's live onboarding guide (onboarding-guide.md):
+	// the guide is transient, so it simply leaves the world; a returning character
+	// below the graduation level re-acquires one via the login gate.
+	// DrainLiveGuide reads-and-clears atomically (shoo-race safe).
+	if guides != nil {
+		if id, ok := a.DrainLiveGuide(); ok {
+			guides.Dematerialize(context.Background(), id)
 		}
 	}
 

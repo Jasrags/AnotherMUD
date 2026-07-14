@@ -225,6 +225,7 @@ func RegisterBuiltins(r *Registry) error {
 		{Keyword: "unstable", Aliases: []string{"retrieve"}, Handler: UnstableHandler, Brief: "Retrieve a stabled mount.", Syntax: []string{"unstable <mount>"}},
 		{Keyword: "hire", Handler: HireHandler, Brief: "Hire a companion to follow and fight for you.", Syntax: []string{"hire <name>"}, HandParsed: true},
 		{Keyword: "dismiss", Handler: DismissHandler, Brief: "Dismiss a hireling you've hired.", Syntax: []string{"dismiss <name|number>"}, HandParsed: true},
+		{Keyword: "shoo", Handler: ShooHandler, Brief: "Send your onboarding guide away.", Syntax: []string{"shoo"}},
 		{Keyword: "hirelings", Handler: HirelingsHandler, Brief: "List the hirelings under your contract.", Syntax: []string{"hirelings"}},
 		{Keyword: "order", Handler: OrderHandler, Brief: "Order a hireling: follow, stay, guard, or attack <target>.", Syntax: []string{"order <name|number|all> follow|stay|guard", "order <name|number|all> attack <target>"}, HandParsed: true},
 

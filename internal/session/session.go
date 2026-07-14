@@ -464,6 +464,12 @@ type Config struct {
 	Hirelings   command.HirelingService
 	HirelingCap int
 
+	// Guides is the onboarding-guide lifecycle service (onboarding-guide.md).
+	// Passed through command.Env so the `shoo` verb can dematerialize the live
+	// guide; the Manager also holds it (SetGuides) for the spawn/trail/graduate
+	// lifecycle. nil / empty guide template disables the feature.
+	Guides command.GuideService
+
 	// Spawn is the admin builder-spawn service (command SpawnService). Passed
 	// through command.Env so the `spawn` verb can mint items/mobs into the world.
 	Spawn command.SpawnService
@@ -1115,6 +1121,12 @@ func run(ctx context.Context, c conn.Connection, cfg Config) error {
 	// room — a persisted hire contract puts the help back at the owner's side on
 	// login. Post-Add so the actor is placed and reachable first.
 	rematerializeHirelings(ctx, cfg, a)
+
+	// onboarding-guide.md §Materialization: a new or returning character below the
+	// graduation level is met by a guide at their side. Live-only + level-gated,
+	// so this runs on both creation and login and self-declines once graduated.
+	// Post-Add so the actor is placed and the arrival broadcast reaches the room.
+	cfg.Manager.SpawnGuideFor(ctx, a)
 
 	// M12.2: publish character.created AFTER commit + placement (§6.4
 	// step 6) so the class-path processor's level-1 grant runs only for a
@@ -2449,6 +2461,12 @@ type connActor struct {
 	// durable save.Hirelings list; drained + dematerialized on logout (§9). The
 	// stance (§8) is transient too — reset to follow on re-materialize. Guarded by a.mu.
 	liveHirelings map[entities.EntityID]liveHireling
+
+	// liveGuide is the entity id of this character's materialized onboarding guide
+	// (onboarding-guide.md), or empty when none. Exactly one per character. Purely
+	// transient — never persisted; re-materialized on login by the level gate, and
+	// drained + dematerialized on logout. Guarded by a.mu.
+	liveGuide entities.EntityID
 
 	// mountedOn is the entity id of the mount this character is currently
 	// riding (mounts.md §4.3), or empty when on foot. Transient — the live

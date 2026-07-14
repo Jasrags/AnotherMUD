@@ -191,6 +191,10 @@ func run() error {
 	// hirelingSvc materializes/dematerializes owned hirelings over the same spawn
 	// pipeline; the hire/dismiss verbs route through it (hireable-mobs.md §2/§3).
 	hirelingSvc := &hirelingService{spawner: spawner, store: entityStore}
+	// guideSvc materializes/dematerializes a new character's onboarding guide over
+	// the same spawn pipeline (onboarding-guide.md); the Manager drives its
+	// lifecycle and the `shoo` verb routes dismissal through it.
+	guideSvc := &guideService{spawner: spawner, store: entityStore}
 	// M17.1b: a sandboxed scripting.Engine is the ScriptCompiler the
 	// pack loader uses to syntax-check each pack-supplied Lua file
 	// at boot. M17.1c reuses the same Engine via a Runtime that
@@ -315,6 +319,10 @@ func run() error {
 	mgr.SetMounts(mountSvc)
 	// Dematerialize a departing owner's live hirelings on logout (hireable-mobs.md §9).
 	mgr.SetHirelings(hirelingSvc)
+	// onboarding-guide.md: the guide lifecycle (spawn on enter / trail / graduate /
+	// drain). Empty ANOTHERMUD_GUIDE_TEMPLATE (the default) leaves the feature off,
+	// so a world opts in by naming its guide mob; the cap defaults to level 3.
+	mgr.SetGuides(guideSvc, envOr("ANOTHERMUD_GUIDE_TEMPLATE", ""), envIntOr("ANOTHERMUD_GUIDE_LEVEL_CAP", 3))
 	// grouping.md §7: party size cap (ANOTHERMUD_PARTY_CAP, default 6).
 	mgr.SetPartyCap(cfg.PartyCap)
 
@@ -1207,7 +1215,14 @@ func run() error {
 		if !ok {
 			return
 		}
-		actor, ok := mgr.GetByPlayerID(e.EntityID)
+		// The LevelUp event's EntityID is a combatant-id-string ("player:<id>",
+		// from GrantExperience via CombatantIDString); strip the prefix to the
+		// player id GetByPlayerID keys on — the same CutPrefix the XP/faction
+		// reactions below use. Without this the ENTIRE level-up reaction
+		// (class-path grant, feat-slot credit, guide graduation) silently no-ops
+		// on every level-up, because GetByPlayerID misses the prefixed id.
+		pid, _ := strings.CutPrefix(e.EntityID, combat.PlayerPrefix)
+		actor, ok := mgr.GetByPlayerID(pid)
 		if !ok {
 			return // player logged out between cascade emit and dispatch
 		}
@@ -1215,13 +1230,18 @@ func run() error {
 		// seam). ClassPathProcessor.Apply gates on the class's BoundTrack, so
 		// only the class bound to this level-up's track grants its Path.
 		for _, classID := range actor.ClassIDs() {
-			classPath.Apply(ctx, e.EntityID, classID, e.Track, e.NewLevel)
+			// pid (bare, stripped above), NOT e.EntityID: classPath.Apply →
+			// ProficiencyManager.Teach + the "you learned X" notifier, and
+			// ApplyStatGrowth → the trains crediter, all key players by the BARE
+			// id (see notifierAdapter's own comment). Passing the prefixed id
+			// would silently drop the ability grant, its notice, and trains.
+			classPath.Apply(ctx, pid, classID, e.Track, e.NewLevel)
 			if cls, ok := registries.Classes.Get(classID); ok {
 				// Spec §4.6 step 2: no track gate — stat growth runs on
 				// every level-up regardless of track. (M8.4 ROADMAP
 				// acceptance criterion: documented decision.) Per-track
 				// stat-growth gating is a future multiclass-tuning concern.
-				progression.ApplyStatGrowth(ctx, cls, actor.StatBlock(), growthRoller, trainsCrediter, e.EntityID)
+				progression.ApplyStatGrowth(ctx, cls, actor.StatBlock(), growthRoller, trainsCrediter, pid)
 			}
 		}
 		// feats §2.2 (EPIC S4 Phase 2): bank a feat slot for every 3rd
@@ -1236,6 +1256,10 @@ func run() error {
 		if n := feat.CreditsForLevelChange(e.OldLevel, e.NewLevel); n > 0 {
 			actor.CreditFeats(n)
 		}
+		// onboarding-guide.md §Graduation: a level-up reaching the graduation level
+		// retires the onboarding guide (GraduateGuide gates on this new level, so a
+		// sub-cap level-up / capless world / graduated character does nothing).
+		mgr.GraduateGuide(ctx, pid, e.NewLevel)
 	})
 
 	// backgrounds §4: the one-time starting-package granter (skills/items/gold).
@@ -2773,6 +2797,9 @@ func run() error {
 		// stay at their side (a hireling is glued to its owner, not an independent
 		// trailer).
 		mgr.PullHirelings(ctx, e.PlayerID, e.From, e.To)
+		// onboarding-guide.md §Trailing: an owner's move relocates their bound
+		// guide to stay at their side, the same way a hireling trails.
+		mgr.PullGuide(ctx, e.PlayerID, e.From, e.To)
 	})
 
 	// follow.md §3 (mob-leader following): a mob's move pulls along any players
@@ -3259,6 +3286,7 @@ func run() error {
 		CurrencyLabel:         currencyLabel,
 		Mounts:                mountSvc,
 		Hirelings:             hirelingSvc,
+		Guides:                guideSvc,
 		HirelingCap:           envIntOr("ANOTHERMUD_HIRELING_CAP", 3),
 		Spawn:                 &bootSpawnServiceAdapter{inner: spawner},
 		RangedFlavor:          registries.RangedFlavor,

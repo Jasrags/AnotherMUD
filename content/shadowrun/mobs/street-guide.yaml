@@ -1,0 +1,24 @@
+id: street-guide
+name: "{c}Patch{x}, a street kid"
+type: npc
+behavior: stationary
+description: |
+  A wiry kid in a patched bomber jacket, maybe sixteen, with the wary eyes of
+  someone who grew up counting exits. Rook sends Patch to shadow the new blood
+  through their first runs — point out the fixers, keep them off the wrong turf,
+  and haul back word if they don't come home. Patch doesn't fight; Patch survives,
+  which out here is the harder skill. (`shoo` if you'd rather walk alone.)
+tags: [humanoid, guide]
+keywords: [patch, kid, guide, street kid]
+# The onboarding guide (onboarding-guide.md), materialized per-player by the guide
+# service — NOT placed in any room's mob list. Friendly + stationary so it never
+# picks a fight or wanders off; the Manager relocates it to trail its owner and
+# retires it at the graduation level (ANOTHERMUD_GUIDE_LEVEL_CAP). Referenced by
+# ANOTHERMUD_GUIDE_TEMPLATE=shadowrun:street-guide (the shadowrun make targets).
+disposition_rules:
+  default: friendly
+stats:
+  hp_max: 16
+  body: 2
+  agility: 4
+  willpower: 3

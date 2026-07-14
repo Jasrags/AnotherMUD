@@ -237,6 +237,11 @@ type MobInstance struct {
 	// one entity type. Set at materialization under ownerMu (read by look/combat
 	// to tell a henchman from a steed). Zero value false = an ordinary mob/mount.
 	hireling bool
+	// guide marks this owned mob as an onboarding guide (onboarding-guide.md): a
+	// friendly, non-combat teaching NPC bound to its owner. A THIRD owned-mob role
+	// over the shared ownerID, distinct from hireling (no fight/upkeep/loot/XP) and
+	// mount. Set at materialization under ownerMu. Zero value false = ordinary.
+	guide bool
 }
 
 // Proficiency reports the mob's proficiency for abilityID (M9.5 #3).

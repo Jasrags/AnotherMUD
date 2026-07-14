@@ -58,6 +58,7 @@ func commandEnv(cfg Config) command.Env {
 		Money:                 cfg.CurrencyLabel,
 		Mounts:                cfg.Mounts,
 		Hirelings:             cfg.Hirelings,
+		Guides:                cfg.Guides,
 		HirelingCap:           cfg.HirelingCap,
 		Spawn:                 cfg.Spawn,
 		RangedFlavor:          cfg.RangedFlavor,

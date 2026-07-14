@@ -329,6 +329,9 @@ type Env struct {
 	// HirelingCap is the simultaneous-hireling cap (§3.3).
 	Hirelings   HirelingService
 	HirelingCap int
+	// Guides is the onboarding-guide lifecycle service (onboarding-guide.md): the
+	// `shoo` verb dematerializes the live guide through it. nil disables it.
+	Guides GuideService
 
 	// Spawn is the admin builder-spawn service (spawn.go): the `spawn` verb
 	// mints an item/mob/currency into the world through it. nil disables the

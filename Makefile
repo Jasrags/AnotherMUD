@@ -21,8 +21,10 @@ VERSION     ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo 
 # or use the `*-wot` convenience targets below.
 WORLD_PACKS      ?=
 WORLD_START_ROOM ?=
+# Extra per-world env (e.g. the onboarding-guide template); target-specific.
+WORLD_EXTRA_ENV  ?=
 # Recursive (=) so target-specific overrides (e.g. run-wot) resolve at recipe time.
-RUN_ENV           = ANOTHERMUD_PACKS=$(WORLD_PACKS) ANOTHERMUD_START_ROOM=$(WORLD_START_ROOM)
+RUN_ENV           = ANOTHERMUD_PACKS=$(WORLD_PACKS) ANOTHERMUD_START_ROOM=$(WORLD_START_ROOM) $(WORLD_EXTRA_ENV)
 
 # Cross-compile matrix for `make release`.
 RELEASE_TARGETS := \
@@ -60,6 +62,7 @@ run-wot: run
 .PHONY: run-shadowrun
 run-shadowrun: WORLD_PACKS := shadowrun
 run-shadowrun: WORLD_START_ROOM := shadowrun:the-flop
+run-shadowrun: WORLD_EXTRA_ENV := ANOTHERMUD_GUIDE_TEMPLATE=shadowrun:street-guide
 run-shadowrun: run
 
 ## watch: live-reload — rebuild + restart on any .go/.yaml/.lua change (needs air)
@@ -85,6 +88,7 @@ watch-wot: watch
 .PHONY: watch-shadowrun
 watch-shadowrun: WORLD_PACKS := shadowrun
 watch-shadowrun: WORLD_START_ROOM := shadowrun:the-flop
+watch-shadowrun: WORLD_EXTRA_ENV := ANOTHERMUD_GUIDE_TEMPLATE=shadowrun:street-guide
 watch-shadowrun: watch
 
 ## worlddoc: render world documentation for every world pack to docs/world/

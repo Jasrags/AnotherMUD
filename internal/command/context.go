@@ -131,6 +131,10 @@ type Context struct {
 	// the simultaneous-hireling cap (§3.3).
 	Hirelings   HirelingService
 	HirelingCap int
+	// Guides is the onboarding-guide lifecycle service (onboarding-guide.md):
+	// the `shoo` verb dematerializes the character's live guide through it. nil
+	// disables the guide feature (tests / a world with no guide template).
+	Guides GuideService
 	// Spawn is the admin builder-spawn service (spawn.go): mint an item/mob
 	// from a template into the world. The `spawn` verb routes through it. nil
 	// disables the verb (tests / headless).

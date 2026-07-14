@@ -194,6 +194,16 @@ existing systems.
    `westlake-plaza` up. The default start (`make run-shadowrun` / `watch-shadowrun`)
    is repointed to `shadowrun:the-flop`. Tests: `pack.TestShadowrun_StarterAreaReachability`,
    live `TestLive_ShadowrunSafehouse`. *(Trailing-guide behavior is step 3.)*
-3. **Onboarding-guide slice 1** (the trailing mentor) — upgrades the mentor in
-   place (`onboarding-guide-scoping`). *(Next.)*
-4. **Later:** karma trainer (§6); qualities system (own spec).
+3. **Onboarding-guide slice 1** (the trailing mentor) — ✅ **SHIPPED 2026-07-13.**
+   A generic, opt-in trailing-guide engine (`docs/specs/onboarding-guide.md`): a
+   friendly NPC materializes at a new character's side on world-entry, trails them
+   on every move, and departs at a graduation level (`ANOTHERMUD_GUIDE_LEVEL_CAP`,
+   default 3), with a `shoo` verb to send it off. Shadowrun wires **Patch** (mob
+   `street-guide`) via `ANOTHERMUD_GUIDE_TEMPLATE=shadowrun:street-guide` (the make
+   targets). A simplified mirror of the hireling machinery (own `IsGuide` marker,
+   `liveGuide` overlay, `guideService`, Manager-driven spawn/trail/graduate/drain).
+   Tests: `session.TestGuideOverlay_*`, live `TestLive_ShadowrunGuide` +
+   `TestLive_ShadowrunGuideGraduates`. *(Slice 2 — situational tips — is deferred
+   in the spec's Open Questions.)*
+4. **Later:** karma trainer (§6); qualities system (own spec); guide situational
+   tips (onboarding-guide slice 2).
