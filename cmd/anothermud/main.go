@@ -5113,10 +5113,16 @@ func (s *biomeHazardSink) HasProtection(victimID, protectionKey string) bool {
 	for _, id := range eq {
 		worn = append(worn, id)
 	}
-	return s.itemBearsTag(worn, protectionKey)
+	return s.itemProvidesProtection(worn, protectionKey)
 }
 
-func (s *biomeHazardSink) itemBearsTag(ids []entities.EntityID, tag string) bool {
+// itemProvidesProtection reports whether any of the given (worn) items confers
+// the protection key — either intrinsically (a protection TAG on the item, e.g. a
+// sealed enviro-suit) or via an installed MODIFICATION that grants it
+// (item-modification §6 → area-effects §4.6: a rad-shielding mod slotted into an
+// armor vest). The mod path lets a runner earn hazard immunity by modding gear,
+// not only by owning a dedicated suit.
+func (s *biomeHazardSink) itemProvidesProtection(ids []entities.EntityID, key string) bool {
 	for _, id := range ids {
 		e, ok := s.store.GetByID(id)
 		if !ok {
@@ -5127,7 +5133,12 @@ func (s *biomeHazardSink) itemBearsTag(ids []entities.EntityID, tag string) bool
 			continue
 		}
 		for _, t := range it.Tags() {
-			if strings.EqualFold(t, tag) {
+			if strings.EqualFold(t, key) {
+				return true
+			}
+		}
+		for _, p := range it.GrantedProtections() {
+			if strings.EqualFold(p, key) {
 				return true
 			}
 		}

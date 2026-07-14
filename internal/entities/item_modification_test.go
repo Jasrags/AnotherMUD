@@ -168,6 +168,45 @@ func TestRestoreInstalledMod_RebuildsFromTemplate(t *testing.T) {
 	}
 }
 
+func TestInstallMod_GrantsAndReversesProtection(t *testing.T) {
+	s := NewStore()
+	host := armorHost(t, s, 9, 0)
+	if got := host.GrantedProtections(); got != nil {
+		t.Fatalf("GrantedProtections before = %v, want nil", got)
+	}
+	// A chemical-seal-style mod grants the rad-shielded protection key while worn
+	// (item-modification §6 → area-effects §4.6 immunity).
+	seal, _ := s.Spawn(&item.Template{
+		ID: "sr:chem-seal", Name: "a chemical seal", Type: "item",
+		ModHost: "armor", ModCapacityCost: 6, Protection: []string{"rad-shielded"},
+	})
+	if err := host.InstallMod(seal); err != nil {
+		t.Fatalf("InstallMod: %v", err)
+	}
+	if got := host.GrantedProtections(); len(got) != 1 || got[0] != "rad-shielded" {
+		t.Fatalf("GrantedProtections after install = %v, want [rad-shielded]", got)
+	}
+	// Removing the mod removes the protection.
+	if _, ok := host.RemoveMod("seal"); !ok {
+		t.Fatal("RemoveMod failed")
+	}
+	if got := host.GrantedProtections(); got != nil {
+		t.Fatalf("GrantedProtections after remove = %v, want nil", got)
+	}
+}
+
+func TestRestoreInstalledMod_RebuildsProtection(t *testing.T) {
+	s := NewStore()
+	host := armorHost(t, s, 9, 0)
+	host.RestoreInstalledMod(&item.Template{
+		ID: "sr:chem-seal", Name: "a chemical seal", Type: "item",
+		ModHost: "armor", ModCapacityCost: 6, Protection: []string{"rad-shielded"},
+	})
+	if got := host.GrantedProtections(); len(got) != 1 || got[0] != "rad-shielded" {
+		t.Fatalf("GrantedProtections after restore = %v, want [rad-shielded]", got)
+	}
+}
+
 func TestUnmodifiedItem_UnchangedBehavior(t *testing.T) {
 	s := NewStore()
 	// An item with no capacity + no mods returns exactly its intrinsic fields.

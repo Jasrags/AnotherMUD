@@ -233,6 +233,10 @@ type ItemFile struct {
 	// mutually exclusive with mod_capacity_cost (a mod uses one admission rule).
 	Mounts          []string `yaml:"mounts,omitempty"`
 	AccessoryMounts []string `yaml:"accessory_mounts,omitempty"`
+	// Protection is the set of environmental protection keys a modification grants
+	// its host while worn (item-modification §6 → biome-hazard immunity, area-
+	// effects §4.6). Normalized lowercase at load; meaningful only on a mod.
+	Protection []string `yaml:"protection,omitempty"`
 }
 
 // ModifierFile is one entry of an ItemFile.Modifiers list.

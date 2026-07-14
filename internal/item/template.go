@@ -293,6 +293,14 @@ type Template struct {
 	// capacity). Requires ModHost set; mutually exclusive with ModCapacityCost.
 	// Normalized lowercase.
 	AccessoryMounts []string
+	// Protection is the set of environmental protection keys a MODIFICATION grants
+	// its host while the host is worn (item-modification §6 — a new contribution
+	// channel; the first consumer is the biome-hazard immunity gate, area-effects
+	// §4.6). A worn host with an installed mod granting a hazard's protection_key
+	// makes the wearer immune, exactly as an intrinsic protection tag does. Keys
+	// are content-declared (matched verbatim against a biome's protection_key);
+	// normalized lowercase. Meaningful only on a mod (ModHost set).
+	Protection []string
 }
 
 // Errors callers may distinguish at the boundary.

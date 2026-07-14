@@ -1,0 +1,21 @@
+id: chemical-seal
+name: a chemical seal kit
+type: item
+description: |
+  A gasketed liner, sealed seams, and a small rebreather bladder that turn an
+  ordinary set of armor into a closed environment. Slotted into a vest, it keeps
+  the sprawl's poisons and the Glow's radiation on the outside where they belong —
+  at the cost of a big chunk of the garment's mod space.
+tags: [armor-mod]
+keywords: [seal, chemical seal, kit, chem]
+# Item modification (item-modification.md §3): an armor MODIFICATION. SR5 Chemical
+# Seal has Capacity [6]. Its effect is a sealed environment — while the modded
+# armor is worn it grants the `rad-shielded` protection key, the same immunity a
+# dedicated enviro-suit's tag confers, so the wearer shrugs off the toxic /
+# radiation biome hazards (area-effects.md §4.6).
+mod_host: armor
+mod_capacity_cost: 6
+protection: [rad-shielded]
+properties:
+  weight: 2
+  value: 3000

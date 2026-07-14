@@ -416,9 +416,12 @@ acceptance criteria below mark what shipped vs. the design target.
       v1; mobs deferred**) takes it per the trigger, environmental death credited to
       no one (§4.5).
 - [ ] A creature **wearing** the hazard's declared **protection key** is exempt; a
-      creature without it is not. *(Shipped: **wear-only**. The (b) "carry or wear"
-      and the independent per-type **resistance** step are the **design target,
-      deferred** — the v1 path applies the raw payload with immunity-negates-only.)*
+      creature without it is not. The key may be borne intrinsically (a worn item's
+      tag) **or granted by an installed armor modification** (item-modification §6 —
+      a rad-shielding / chemical-seal mod slotted into worn armor). *(Shipped:
+      **wear-only**. The (b) "carry or wear" and the independent per-type
+      **resistance** step are the **design target, deferred** — the v1 path applies
+      the raw payload with immunity-negates-only.)*
 - [ ] An intrinsic hazard is **derived from content and not persisted** — it
       reconstructs from the biome/room definition on load (like weather/ambience) and
       is absent from the placed-hazard world store (§5).
