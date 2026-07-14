@@ -14,13 +14,15 @@ This document describes *what* the feature must do, not *how* to implement it.
 Specific damage, splash sizes, ignition chances, durations, and prices are policy
 that lives in configuration or content (see §7).
 
-Both halves are **greenfield**: every other attack in the engine is **one
-attacker against one defender** ([combat](combat.md) §4). Nothing applies a
-payload to *everyone in a region*, and nothing leaves a persistent, triggering
-effect on a room. The two systems are specced together because they share that
-single primitive (§2): a grenade applies it once on impact; a hazard applies it
-repeatedly to whoever enters. The lit oil pool is the bridge — a thrown oil flask
-that ignites *becomes* a room hazard (§3.4). This feature layers on
+The **thrown and placed forms** are **greenfield** (the intrinsic biome form,
+§4.6, has since shipped): every other attack in the engine is **one attacker
+against one defender** ([combat](combat.md) §4). Nothing applies a payload to
+*everyone in a region*, and nothing leaves a persistent, triggering effect on a
+room. The consumers are specced together because they share that single
+primitive (§2): a grenade applies it once on impact; a placed hazard applies it
+repeatedly to whoever enters; the intrinsic biome hazard applies it to whoever
+lingers. The lit oil pool is the bridge — a thrown oil flask that ignites
+*becomes* a room hazard (§3.4). This feature layers on
 [combat](combat.md) (the damage step), [weapon-identity](weapon-identity.md) +
 [armor-depth](armor-depth.md) (damage types + resistance), [conditions](conditions.md)
 (the condition payload), [saves](saves.md) (the Reflex-to-avoid), [ranged-combat](ranged-combat.md)
@@ -154,7 +156,7 @@ Every area effect names a **source** and applies a friend-or-foe rule:
   does **not** catch its thrower (they are not at the landing point); a placed
   hazard's layer **can** be caught if they later enter the field (the layer must
   remember where they put it) — but the policy is configurable (§7), and a hazard
-  records its **placer** for attribution (kill credit, §6) regardless.
+  records its **placer** for attribution (kill credit, §2.4/§4.5) regardless.
 - **ally exemption is out of scope** (no grouping system); v1 admits every
   creature in the region except as the source-exemption above carves out.
 
@@ -398,14 +400,25 @@ room already carries its light and movement-cost traits ([biomes](biomes.md),
 the ambient hazard is the *damage* layer on top, so a toxic room is dark **and**
 poisonous, and a barrens step is costly **and** (in Glow City) irradiating.
 
+**Shipped-scope note (v1).** The shipped biome-hazard path deliberately narrows
+the primitive it "reuses": it applies the payload **directly** and does **not**
+emit the cancellable `area_effect.before` (§2.4 step 1), so there is no ward /
+admin veto of ambient damage yet (add it when a veto consumer appears); it
+applies **raw** damage with **no per-type resistance step** (immunity negates,
+resistance is deferred, §2.1); the protection gate is **wear-only** (not the
+(b) "carry or wear"); and it strikes **players only** (mobs deferred). The
+acceptance criteria below mark what shipped vs. the design target.
+
 **Acceptance criteria**
 
 - [ ] A biome — or a single-room override — can declare an intrinsic ambient hazard
-      (a payload + trigger) with **no placer**; every creature present takes it per
-      the trigger, environmental death credited to no one (§4.5).
-- [ ] A creature carrying or wearing the hazard's declared **protection key** is
-      exempt; a creature without it is not; per-type **resistance** still reduces the
-      payload independently (immunity negates, resistance mitigates).
+      (a payload + trigger) with **no placer**; every creature present (**players in
+      v1; mobs deferred**) takes it per the trigger, environmental death credited to
+      no one (§4.5).
+- [ ] A creature **wearing** the hazard's declared **protection key** is exempt; a
+      creature without it is not. *(Shipped: **wear-only**. The (b) "carry or wear"
+      and the independent per-type **resistance** step are the **design target,
+      deferred** — the v1 path applies the raw payload with immunity-negates-only.)*
 - [ ] An intrinsic hazard is **derived from content and not persisted** — it
       reconstructs from the biome/room definition on load (like weather/ambience) and
       is absent from the placed-hazard world store (§5).
@@ -547,4 +560,3 @@ The following are externally configurable and not fixed by this spec.
 - **Balance.** Every number — splash damage, ignition chance, durations, save DCs,
   caltrop bite — is policy (§7) tuned once the systems are playable, mirroring the
   movement-cost / mounts balance notes.
-```

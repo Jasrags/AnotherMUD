@@ -160,6 +160,25 @@ The verbs players use and the systems that resolve them.
   yet). The mechanical grade stays independent of the cosmetic rarity/essence
   decoration (`item-decorations` §1.1). EPIC sub-epic S1 increment H
   *(shipped 2026-06-16)*.
+- [item-modification](item-modification.md) — **capacity + installed mods**: a
+  host item carries a bounded modification budget; **modifications are items**
+  that install into a compatible host, consume capacity (flat or `[Rating]`-
+  scaled), and, while the host is equipped, fold their effects into the host's
+  contribution through the existing equip modifier pipeline. Installed mods are
+  durable per-instance state (save-version bump), generalizing the inserted-ammo-
+  holder precedent (`ammo-and-reloading`). Carved out of
+  `inventory-equipment-items`' item-modification non-goal; ruleset-agnostic,
+  Shadowrun armor the reference consumer. Scoped to **Core-source armor + armor
+  mods** for now *(greenfield — spec ahead of code; build pending)*.
+- [weapon-accessories](weapon-accessories.md) — the **second admission rule** of
+  item modification: a weapon exposes a fixed set of **named mount points**
+  (barrel / under-barrel / side / top / stock / internal), each holding one
+  accessory that declares which mount(s) it fits — **slot occupancy, not a
+  capacity budget**. Reuses `item-modification`'s substrate (mod-is-an-item /
+  install-remove / instance persistence / equip aggregation / presentation) and
+  its save-version bump; owns only the mount-slot admission test. Scoped to
+  **Core-source weapons + accessories**; the smartgun↔smartlink pairing is a
+  flagged follow-on *(greenfield — spec ahead of code; build pending)*.
 - [ranged-combat](ranged-combat.md) — thrown/projectile weapons via **abstract
   per-engagement range bands** (far → near → melee) *within one room* — an archer
   opens at range and gets shots while a melee opponent closes band by band, with
@@ -615,6 +634,7 @@ composition root):
 | `scripting-schedule` | 1 | [scripting-and-packs](scripting-and-packs.md) (the `engine.schedule` primitive) |
 | `gmcp-vitals-flush` / `-items-` / `-combat-` / `-effects-` / `-experience-` / `-charstatus-` | 1 each | [networking-protocols](networking-protocols.md) (GMCP package layer) |
 | `biome-ambience` | configured | [biomes](biomes.md) §4 |
+| `biome-hazard` (intrinsic ambient environmental damage) | configured | [area-effects](area-effects.md) §4.6 |
 | `node-respawn` / `forage-regen` *(spec; build pending)* | configured | [gathering](gathering.md) §3, §5 |
 | `corpse-decay` | configured | [loot-and-corpses](loot-and-corpses.md) §7 |
 | `hazard` (room-hazard on-tick trigger + expiry/decay) *(spec; build pending)* | configured | [area-effects](area-effects.md) §4.2–§4.3 |

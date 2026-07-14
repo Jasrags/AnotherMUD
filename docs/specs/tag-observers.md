@@ -35,9 +35,11 @@ opportunity*.
   index is maintained directly by the entity store's tracking operations
   and its tick-boundary buffer swap. Tag-change notification is for
   *other* reactions, not for keeping the index current.
-- Notifications are a decoupling seam: the entity (or the store) that
-  mutates a tag does not know or care who reacts. Reactors subscribe; the
-  mutator publishes.
+- Notifications are a decoupling seam: the code that mutates a tag does not
+  know or care who reacts. Reactors subscribe; the mutating operation
+  publishes — from a bus-holding caller layer, **not** from inside the
+  entity store (§3 explains why the publish cannot live at the mutation
+  method itself).
 
 ### 1.1 What this is *not*
 
@@ -47,7 +49,7 @@ opportunity*.
 - Not a gate. Tag changes are facts, announced after they happen. A
   subscriber cannot veto a tag change by handling its notification (a
   *cancellable* tag-change would be a different feature with a different
-  contract — §6).
+  contract — §7).
 - Not per-tag filtering machinery. The notification carries the entity and
   the tag; a subscriber that cares about one tag checks the payload. The
   engine does not maintain per-tag subscriber lists unless a consumer's
@@ -67,10 +69,17 @@ opportunity*.
   the same way tags are normalized elsewhere). It carries enough to let a
   subscriber resolve the entity and decide relevance; it does not carry a
   snapshot of the whole tag set.
-- In-place tag mutations that re-tag an entity (the store's `Retag`-style
-  path) fire the corresponding add/remove notifications for the tags that
-  actually changed, so a re-tag is observably the diff, not a blanket
-  "something changed".
+- **Single-tag** add/remove carry the real state change — the mutator's
+  `if set.Add(tag)` guard already reports whether the set changed — so their
+  notifications are exact. **Bulk re-tag is harder:** the store's
+  `Retag`-style path rebuilds an entity's buckets **wholesale** and keeps
+  **no snapshot of the prior set**, so it cannot emit a per-tag diff for
+  free. Emitting "observably the diff, not a blanket 'something changed'"
+  for a bulk re-tag requires new machinery (snapshot the old set before the
+  rewrite, or have the bulk mutators — `SetAlignmentTag`, racial-flag
+  application — return what changed). Which of those, and whether bulk
+  re-tag emits the exact diff or a coarser signal, is a **build-time design
+  task** (§7), not a free consequence of the existing path.
 
 **Acceptance — the notification**
 
@@ -78,8 +87,11 @@ opportunity*.
       tag fires a removed-notification.
 - [ ] Adding a present tag or removing an absent tag fires nothing.
 - [ ] The payload carries the entity identity and the changed tag.
-- [ ] A re-tag fires add/remove notifications for exactly the tags that
-      changed.
+- [ ] Single-tag add/remove fire exact add/remove notifications (the change
+      guard already exists on the mutator).
+- [ ] Bulk re-tag's notification granularity (exact diff vs. a coarser
+      signal) is resolved as a build-time design task — the existing
+      `Retag` holds no prior-set snapshot to diff against (§7).
 
 ---
 
@@ -95,10 +107,28 @@ opportunity*.
   (register on spawn, unregister on despawn) and scatters subscription
   across the codebase; the bus centralizes it and matches every other
   reactive seam in this engine.
-- Because it is the bus, the existing bus guarantees apply: publication is
-  synchronous to the mutation, re-entrancy is bounded by the bus's own
-  rules, and a slow subscriber is the subscriber's problem, not the
-  mutator's.
+- **Where the publish lives — the import-cycle constraint (load-bearing).**
+  Tags mutate inside `internal/entities`, but `eventbus` **imports**
+  `entities`, so `entities` **cannot** import `eventbus` — the store
+  documents this exact cycle. The publish therefore is **not** emitted at
+  the mutation method itself. It is emitted by the **caller layer that
+  already holds the bus** (the layers that call the mutators today — the
+  command layer, the decay/scrap path, the progression/alignment path), or
+  via a small **injected publisher interface** handed to the store (the
+  `srckey`-style leaf precedent for breaking the cycle). This mirrors how
+  spawning emits its "spawned" event from the spawn caller, not from inside
+  the entity constructor. **There is no single mutation chokepoint:**
+  `Retag` has several callers and the alignment path does not route through
+  it at all today, so the publish points must be **enumerated per caller**
+  when this is built — the main reason this spec is not yet a drop-in build.
+- Because it rides the bus, the bus's dispatch guarantees apply —
+  publication is synchronous to the publishing call, and a slow subscriber
+  is the subscriber's problem, not the mutator's. **Re-entrancy is the
+  publisher's/handler's responsibility, not the bus's:** the bus permits a
+  handler to publish again, so a tag-add handler that itself adds a tag will
+  recurse with **no engine-enforced limit** (the repo convention: re-entrant
+  dispatch is used deliberately but must be guarded against unbounded
+  loops). A tag-mutating reactor must guard its own recursion.
 
 **Acceptance — mechanism**
 
@@ -106,6 +136,9 @@ opportunity*.
       receives it.
 - [ ] No per-entity registration/unregistration is required to receive
       tag-change events.
+- [ ] The publish is emitted from a bus-holding caller layer (or an injected
+      publisher), **never** from inside `internal/entities` (the import-cycle
+      constraint); every mutation caller that must notify is enumerated.
 
 ---
 
@@ -113,7 +146,7 @@ opportunity*.
 
 This is the subtle part. The tag index is **double-buffered**: a tag
 added now becomes visible to `get-by-tag` readers only after the next
-tick-boundary buffer swap (`world-rooms-movement.md` §4). The
+tick-boundary buffer swap (`world-rooms-movement.md` §3.4). The
 notification, however, fires **immediately** at mutation time.
 
 - Therefore a subscriber reacting to `entity.tag_added` and immediately
@@ -169,10 +202,23 @@ no save surface.
   subscriber inspects every tag event" costly, a per-tag subscription
   index could be added. Deferred until volume proves it — premature
   otherwise.
+- **Bulk re-tag diff granularity (build-time design task).** Single-tag
+  add/remove notify exactly (§2), but the store's `Retag` rebuilds buckets
+  with no prior-set snapshot, so a bulk re-tag cannot emit a per-tag diff
+  for free. Decide, when built, whether to snapshot-and-diff in `Retag`,
+  make the bulk mutators (`SetAlignmentTag`, racial-flag application) return
+  what changed, or accept a coarser "re-tagged" signal for bulk paths.
+- **Generic vs. entity-specific events.** Alignment bucket changes already
+  emit a dedicated `alignment.bucket.changed` event, and `SetAlignmentTag`
+  does not re-index through `Retag` today. If the alignment path also
+  published generic `entity.tag_*` events, a subscriber could **double-fire**.
+  The relationship between the generic tag events and existing
+  entity-specific events must be settled so a mutation is announced once.
 - **Mob vs player scope.** Whether tag-change events fire for all tracked
-  entities (mobs included) or only players. The reference fires for any
-  entity; the conservative default here is all tracked entities, since the
-  payload lets a subscriber filter cheaply.
+  entities (mobs **and items**, not only players) or a narrower set. The
+  store re-tags items too (the decay and set-command paths drive `Retag` on
+  item instances), so "all tracked entities" is the conservative default;
+  the payload lets a subscriber filter cheaply.
 - **Consumer-driven shape.** The exact payload and whether old/new
   adjacency matters (e.g. "replaced tag A with B") should be confirmed
   against the first real consumer rather than guessed now.
@@ -181,7 +227,7 @@ no save surface.
 
 ## Cross-references
 
-- `world-rooms-movement.md` §4 — the tag index and its double-buffer
+- `world-rooms-movement.md` §3.4 — the tag index and its double-buffer
   swap, whose timing §4 here depends on.
 - `eventbus` (the typed bus the notifications ride) — see the cancellable-
   events and registry tables in this README.
