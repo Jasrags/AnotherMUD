@@ -28,15 +28,24 @@ func ValidTier(name string) bool {
 	return slices.Contains(weaponTiers, name)
 }
 
-// The fixed damage-type set (weapon-identity §2). Recorded on weapons;
-// inert until the armor-depth slice gives damage types an effect.
+// The damage-type set (weapon-identity §2). The physical trio is the
+// weapon-identity baseline; the environmental types are consumed by armor
+// resistances vs. biome hazards (area-effects §4.6 — radiation/toxic are the
+// keys the Shadowrun toxic/ashfall zones deal). Making the vocabulary
+// pack-declarable (armor-depth §9) is a later extension; for now an unlisted
+// type is an authoring error caught at pack load.
 const (
 	DamageBludgeoning = "bludgeoning"
 	DamagePiercing    = "piercing"
 	DamageSlashing    = "slashing"
+	DamageRadiation   = "radiation"
+	DamageToxic       = "toxic"
 )
 
-var damageTypes = []string{DamageBludgeoning, DamagePiercing, DamageSlashing}
+var damageTypes = []string{
+	DamageBludgeoning, DamagePiercing, DamageSlashing,
+	DamageRadiation, DamageToxic,
+}
 
 // DamageTypeNames returns a copy of the valid damage-type vocabulary.
 // Used for validation error messages.

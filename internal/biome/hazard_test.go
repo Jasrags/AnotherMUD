@@ -12,7 +12,8 @@ import (
 // real session or combat manager.
 type fakeHazardSink struct {
 	occupants map[world.RoomID][]string
-	protected map[string]string // victimID -> the key they hold
+	protected map[string]string         // victimID -> the immunity key they hold
+	resist    map[string]map[string]int // victimID -> damageType -> soak
 	harmed    []harmCall
 }
 
@@ -30,6 +31,10 @@ func (f *fakeHazardSink) OccupantsInRoom(roomID world.RoomID) []string {
 
 func (f *fakeHazardSink) HasProtection(victimID, protectionKey string) bool {
 	return f.protected[victimID] == protectionKey
+}
+
+func (f *fakeHazardSink) Resistance(victimID, damageType string) int {
+	return f.resist[victimID][damageType]
 }
 
 func (f *fakeHazardSink) Harm(_ context.Context, victimID string, roomID world.RoomID, amount int, damageType, message string) {
@@ -72,6 +77,57 @@ func TestHazardService_HarmsUnprotectedOccupants(t *testing.T) {
 	}
 	if got.amount != 4 || got.damageType != "radiation" || got.roomID != "glow" || got.message != "It sears." {
 		t.Errorf("payload mismatch: %+v", got)
+	}
+}
+
+func TestHazardService_ResistanceMitigatesPayload(t *testing.T) {
+	reg := hazardRegistry(t, &Hazard{Damage: 4, DamageType: "radiation", Message: "It sears."})
+	rooms := roomLister{{ID: "glow", Terrain: "toxic"}}
+	sink := &fakeHazardSink{
+		occupants: map[world.RoomID][]string{"glow": {"bare", "shielded", "sealed"}},
+		// "shielded" soaks 3 of 4 radiation (partial); "sealed" soaks 4+ (full).
+		resist: map[string]map[string]int{
+			"shielded": {"radiation": 3},
+			"sealed":   {"radiation": 5},
+		},
+	}
+	svc := NewHazardService(reg, rooms, sink)
+
+	svc.Tick(context.Background())
+
+	// bare takes 4, shielded takes 1, sealed takes nothing (fully absorbed).
+	if len(sink.harmed) != 2 {
+		t.Fatalf("want 2 harms (sealed fully soaks), got %d: %+v", len(sink.harmed), sink.harmed)
+	}
+	got := map[string]int{}
+	for _, h := range sink.harmed {
+		got[h.victimID] = h.amount
+	}
+	if got["bare"] != 4 {
+		t.Errorf("bare amount = %d, want 4 (no resistance)", got["bare"])
+	}
+	if got["shielded"] != 1 {
+		t.Errorf("shielded amount = %d, want 1 (4 - 3 soak)", got["shielded"])
+	}
+	if _, harmed := got["sealed"]; harmed {
+		t.Error("sealed should take no damage (resistance >= payload)")
+	}
+}
+
+func TestHazardService_ResistanceIgnoredWhenHazardUntyped(t *testing.T) {
+	// A hazard with no damage type takes no resistance — resistance is per-type.
+	reg := hazardRegistry(t, &Hazard{Damage: 3, Message: "Fumes."})
+	rooms := roomLister{{ID: "ash", Terrain: "toxic"}}
+	sink := &fakeHazardSink{
+		occupants: map[world.RoomID][]string{"ash": {"runner"}},
+		resist:    map[string]map[string]int{"runner": {"radiation": 99}},
+	}
+	svc := NewHazardService(reg, rooms, sink)
+
+	svc.Tick(context.Background())
+
+	if len(sink.harmed) != 1 || sink.harmed[0].amount != 3 {
+		t.Fatalf("untyped hazard should ignore resistance and deal 3, got %+v", sink.harmed)
 	}
 }
 

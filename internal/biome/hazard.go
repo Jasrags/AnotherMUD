@@ -70,6 +70,13 @@ type HazardSink interface {
 	// is filtered by the service before it calls this.
 	HasProtection(victimID, protectionKey string) bool
 
+	// Resistance reports victimID's per-type damage reduction for damageType
+	// (armor-depth §4) — the soak the wearer's armor + its installed mods
+	// provide against this hazard's damage (§4.6(b): resistance mitigates,
+	// distinct from immunity which negates). 0 when the victim has none, no
+	// damage type is carried, or the victim is unresolvable.
+	Resistance(victimID, damageType string) int
+
 	// Harm applies the payload to victimID and routes an attacker-less
 	// death (§4.5), delivering the room-copy message to the victim. It owns
 	// the double-death race guard (Vitals.ApplyDamageIfAlive) and messaging.
@@ -113,7 +120,18 @@ func (s *HazardService) Tick(ctx context.Context) {
 			if h.ProtectionKey != "" && s.sink.HasProtection(victimID, h.ProtectionKey) {
 				continue // §4.6(b): the protection key negates the payload entirely.
 			}
-			s.sink.Harm(ctx, victimID, room.ID, h.Damage, h.DamageType, h.Message)
+			// §4.6(b): resistance MITIGATES (immunity negates). Subtract the
+			// victim's per-type soak from the payload; a hazard with no damage
+			// type takes no resistance. Environmental damage may be fully
+			// absorbed (floor at 0) — enough shielding means no harm this tick.
+			amount := h.Damage
+			if h.DamageType != "" {
+				amount -= s.sink.Resistance(victimID, h.DamageType)
+			}
+			if amount <= 0 {
+				continue // fully soaked — no damage, no death check.
+			}
+			s.sink.Harm(ctx, victimID, room.ID, amount, h.DamageType, h.Message)
 		}
 	}
 }

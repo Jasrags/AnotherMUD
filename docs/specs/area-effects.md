@@ -404,10 +404,12 @@ poisonous, and a barrens step is costly **and** (in Glow City) irradiating.
 the primitive it "reuses": it applies the payload **directly** and does **not**
 emit the cancellable `area_effect.before` (§2.4 step 1), so there is no ward /
 admin veto of ambient damage yet (add it when a veto consumer appears); it
-applies **raw** damage with **no per-type resistance step** (immunity negates,
-resistance is deferred, §2.1); the protection gate is **wear-only** (not the
-(b) "carry or wear"); and it strikes **players only** (mobs deferred). The
-acceptance criteria below mark what shipped vs. the design target.
+the protection gate is **wear-only** (not the (b) "carry or wear"); and it strikes
+**players only** (mobs deferred). Per-type **resistance now applies** (§4.6(b):
+immunity negates, resistance mitigates) — the wearer's armor + its installed mods
+soak the payload, and environmental damage may be **fully absorbed** (floor at 0)
+when the soak meets the payload. The acceptance criteria below mark what shipped
+vs. the design target.
 
 **Acceptance criteria**
 
@@ -418,10 +420,13 @@ acceptance criteria below mark what shipped vs. the design target.
 - [ ] A creature **wearing** the hazard's declared **protection key** is exempt; a
       creature without it is not. The key may be borne intrinsically (a worn item's
       tag) **or granted by an installed armor modification** (item-modification §6 —
-      a rad-shielding / chemical-seal mod slotted into worn armor). *(Shipped:
-      **wear-only**. The (b) "carry or wear" and the independent per-type
-      **resistance** step are the **design target, deferred** — the v1 path applies
-      the raw payload with immunity-negates-only.)*
+      a chemical-seal mod slotted into worn armor). *(Shipped: **wear-only**; the (b)
+      "carry or wear" is still the design target.)*
+- [ ] A hazard's **per-type resistance** reduces the payload independently of
+      immunity (§4.6(b)): the wearer's armor + installed-mod resistance for the
+      hazard's damage type is soaked, floored at zero (full absorption allowed for
+      environmental damage). A rad-shielding-liner mod (`resistances: {radiation: N}`)
+      mitigates Glow-City radiation; a chemical-seal mod negates it outright. *(Shipped.)*
 - [ ] An intrinsic hazard is **derived from content and not persisted** — it
       reconstructs from the biome/room definition on load (like weather/ambience) and
       is absent from the placed-hazard world store (§5).

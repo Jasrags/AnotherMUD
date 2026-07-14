@@ -5064,13 +5064,13 @@ func (s *productionCombatSink) OnVitalDepleted(ctx context.Context, e combat.Vit
 }
 
 // biomeHazardSink is the production biome.HazardSink (area-effects.md §4.6):
-// it lists a room's online players, scans their carried/worn items for the
-// protection-key tag (immunity), and applies the hazard payload as flat HP
-// damage that routes an ATTACKER-LESS death (§4.5) through the normal combat
-// death pipeline. v1 is players-only and applies raw damage — per-type
-// resistance soak (§4.6(b)) and mob victims are deferred (see the
-// biome-hazards build-log memory). damageType is carried for logging only
-// until the resistance step lands.
+// it lists a room's online players, scans their worn items for the protection
+// key — intrinsic tag OR installed-mod-granted (immunity) — subtracts the
+// victim's per-type resistance from the payload (soak; §4.6(b): immunity
+// negates, resistance mitigates), and applies the remainder as HP damage that
+// routes an ATTACKER-LESS death (§4.5) through the normal combat death pipeline.
+// Mob victims are still deferred (v1 is players-only; see the biome-hazards
+// build-log memory).
 type biomeHazardSink struct {
 	mgr     *session.Manager
 	store   *entities.Store
@@ -5114,6 +5114,23 @@ func (s *biomeHazardSink) HasProtection(victimID, protectionKey string) bool {
 		worn = append(worn, id)
 	}
 	return s.itemProvidesProtection(worn, protectionKey)
+}
+
+// Resistance reports the victim's per-type damage reduction for damageType
+// (area-effects §4.6(b): resistance mitigates). It reads the victim's already-
+// computed combat resistances — the single source of truth, aggregated from worn
+// armor + its installed mods at recompute time — so a rad-shielding mod slotted
+// into worn armor soaks radiation with no separate summation here. 0 when the
+// victim is unresolvable or carries no matching resistance.
+func (s *biomeHazardSink) Resistance(victimID, damageType string) int {
+	if s.resolve == nil || damageType == "" {
+		return 0
+	}
+	cb, _, ok := s.resolve(victimID)
+	if !ok {
+		return 0
+	}
+	return combat.TypedResistance(cb.Stats().Resistances, []string{damageType})
 }
 
 // itemProvidesProtection reports whether any of the given (worn) items confers

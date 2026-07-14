@@ -1,0 +1,22 @@
+id: radiation-shielding
+name: a radiation shielding liner
+type: item
+description: |
+  A thin lead-polymer liner that slips inside an armor shell. It won't seal you
+  against the Glow the way a full enviro-suit does, but it takes the edge off the
+  rads — and it barely touches the garment's mod space.
+tags: [armor-mod]
+keywords: [shielding, radiation, liner, rad]
+# Item modification (item-modification.md §3): an armor MODIFICATION. SR5 Radiation
+# Shielding has Capacity [Rating]; this is a Rating-2 liner (each rating authored
+# as its own template, item-modification §3). Unlike the chemical-seal kit (full
+# immunity via a protection key), this MITIGATES: it soaks 2 of the radiation a
+# toxic/Glow-City biome hazard deals each tick (area-effects.md §4.6(b) — resistance
+# reduces, immunity negates). Cheaper + smaller than a full seal.
+mod_host: armor
+mod_capacity_cost: 2
+resistances:
+  radiation: 2
+properties:
+  weight: 1
+  value: 400
