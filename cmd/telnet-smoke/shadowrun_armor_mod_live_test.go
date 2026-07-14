@@ -52,22 +52,19 @@ func TestLive_ArmorModHazardProtection(t *testing.T) {
 		return strings.Contains(s, "sears through you") || strings.Contains(s, "the glow sears")
 	}
 
-	// Mod a modifiable vest with a chemical-seal kit, then wear it.
-	// Use the LIGHT armored jacket (also a modifiable host, capacity 12): light
-	// armor dons instantly, so it is actually worn before we step into the Glow —
-	// a medium vest triggers the slow-armor don timer and would still be buckling.
+	// The runner STARTS with an armored jacket (light — capacity 12; dons
+	// instantly). Wear it, then mod it WHILE WORN (item-modification §5). We do
+	// NOT spawn a second jacket — that would make "jacket" ambiguous.
 	send("restore")
-	send("spawn item armored-jacket me")
 	send("spawn item chemical-seal me")
-	if out := send("modify jacket seal"); !strings.Contains(strings.ToLower(out), "install") {
-		t.Fatalf("modify jacket seal did not install the mod:\n%s", out)
-	}
 	if out := send("equip jacket"); !strings.Contains(strings.ToLower(out), "equip") {
-		t.Fatalf("could not equip the modded jacket:\n%s", out)
+		t.Fatalf("could not equip the starting jacket:\n%s", out)
+	}
+	if out := send("modify jacket seal"); !strings.Contains(strings.ToLower(out), "install") {
+		t.Fatalf("modify-while-worn did not install the mod:\n%s", out)
 	}
 
-	// Into the Glow: the mod-granted rad-shielded key must confer immunity across
-	// several hazard ticks — no searing line.
+	// Phase 1: a mod installed while worn confers immunity immediately — no sear.
 	base, ok := hpFrom(send("look"))
 	if !ok {
 		t.Fatal("could not read baseline HP from the prompt")
@@ -75,12 +72,24 @@ func TestLive_ArmorModHazardProtection(t *testing.T) {
 	send("teleport shadowrun:glow-city")
 	quiet := c.Drain(3000 * time.Millisecond) // ~3 hazard ticks
 	back := send("teleport shadowrun:westlake-plaza")
-
 	if seared(quiet) {
-		t.Fatalf("mod-sealed vest did not protect against the Glow (mod protection ignored):\n%s", quiet)
+		t.Fatalf("a mod installed while worn did not protect against the Glow:\n%s", quiet)
 	}
 	if hp, ok := hpFrom(back); ok && base > 0 && hp < base {
-		t.Fatalf("mod-sealed HP dropped in the Glow: before %d, after %d (mod immunity failed)", base, hp)
+		t.Fatalf("mod-sealed HP dropped in the Glow: before %d, after %d (immunity failed)", base, hp)
+	}
+
+	// Phase 2: REMOVE the mod while still worn — the protection must reverse live,
+	// so the Glow bites again on the next visit (item-modification §5).
+	send("restore")
+	if out := send("unmodify jacket seal"); !strings.Contains(strings.ToLower(out), "pocket") {
+		t.Fatalf("unmodify-while-worn did not remove the mod:\n%s", out)
+	}
+	send("teleport shadowrun:glow-city")
+	bitten := c.Drain(2500 * time.Millisecond)
+	send("teleport shadowrun:westlake-plaza")
+	if !seared(bitten) {
+		t.Fatalf("removing the seal while worn did not reverse the protection (still immune):\n%s", bitten)
 	}
 }
 

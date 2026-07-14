@@ -86,6 +86,15 @@ type Actor interface {
 	// — returns it to inventory, and reverses its stat modifiers. Returns
 	// the removed entity id and true on success.
 	Unequip(slotKey string) (entities.EntityID, bool)
+	// RefreshEquipped re-applies the stat-modifier group for an item that is
+	// ALREADY equipped, after its contribution changed in place (a mod was
+	// installed/removed on it while worn — item-modification §5). Swaps the
+	// item's EquipmentSourceKey group for mods and recomputes derived stats
+	// (resistances etc.). No-op (returns false) if the item is not equipped.
+	RefreshEquipped(id entities.EntityID, mods []stats.Modifier) bool
+	// InCombat reports whether the actor is currently engaged — used to gate
+	// bench actions (modifying worn gear) out of a firefight.
+	InCombat() bool
 
 	// MarkContentsDirty re-syncs the actor's persisted inventory tree
 	// from runtime state and flips the save dirty bit. Called by

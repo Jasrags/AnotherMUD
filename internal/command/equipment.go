@@ -10,6 +10,7 @@ import (
 	"github.com/Jasrags/AnotherMUD/internal/combat"
 	"github.com/Jasrags/AnotherMUD/internal/entities"
 	"github.com/Jasrags/AnotherMUD/internal/eventbus"
+	"github.com/Jasrags/AnotherMUD/internal/grade"
 	"github.com/Jasrags/AnotherMUD/internal/keyword"
 	"github.com/Jasrags/AnotherMUD/internal/light"
 	"github.com/Jasrags/AnotherMUD/internal/progression"
@@ -102,6 +103,54 @@ func withOffhand(companions []string) []string {
 		return companions
 	}
 	return append(append([]string(nil), companions...), offhandSlot)
+}
+
+// equipModifiers builds the stat-modifier group an equipped item contributes
+// under its EquipmentSourceKey: its effective Modifiers (item-modification §6
+// folds installed-mod modifiers into these), a graded WEAPON's to-hit/damage
+// (masterwork §3), a worn armor's grade-reduced check penalty (armor-depth §6),
+// and its armor bonus (armor-depth §3). `hasty` applies the §7 hasty-don
+// degradation (−1 armor bonus / +1 check). Shared by the equip path and the
+// modify-while-worn refresh (item-modification §5) so the two cannot drift.
+func equipModifiers(item *entities.ItemInstance, grades *grade.Registry, hasty bool) []stats.Modifier {
+	mods := make([]stats.Modifier, 0, len(item.Modifiers()))
+	for _, m := range item.Modifiers() {
+		mods = append(mods, stats.Modifier{Stat: m.Stat, Value: m.Value})
+	}
+	if grades != nil {
+		if _, isWeapon := item.WeaponDamage(); isWeapon {
+			if g, ok := grades.Get(item.Grade()); ok {
+				if g.WeaponToHit != 0 {
+					mods = append(mods, stats.Modifier{Stat: combat.StatKeyHitMod, Value: g.WeaponToHit})
+				}
+				if g.WeaponDamage != 0 {
+					mods = append(mods, stats.Modifier{Stat: combat.StatKeyDamageMod, Value: g.WeaponDamage})
+				}
+			}
+		}
+	}
+	penalty := item.ArmorCheckPenalty()
+	if hasty {
+		penalty++
+	}
+	if penalty > 0 {
+		if grades != nil {
+			if g, ok := grades.Get(item.Grade()); ok {
+				penalty -= g.ArmorCheckImprove
+			}
+		}
+		if penalty > 0 {
+			mods = append(mods, stats.Modifier{Stat: statKeyArmorCheck, Value: penalty})
+		}
+	}
+	ab := item.ArmorBonus()
+	if hasty && ab > 0 {
+		ab--
+	}
+	if ab != 0 {
+		mods = append(mods, stats.Modifier{Stat: string(progression.StatAC), Value: ab})
+	}
+	return mods
 }
 
 func EquipHandler(ctx context.Context, c *Context) error {
@@ -297,73 +346,12 @@ func EquipHandler(ctx context.Context, c *Context) error {
 		c.Actor.Unequip(d.key)
 	}
 
-	// Translate the item's transient modifier list into the holder-side
-	// Modifier form; equip groups them under one EquipmentSourceKey(item)
-	// for reversible removal (§3.4 step 9 — applied once per item, not per
-	// footprint key).
-	mods := make([]stats.Modifier, 0, len(item.Modifiers()))
-	for _, m := range item.Modifiers() {
-		mods = append(mods, stats.Modifier{Stat: m.Stat, Value: m.Value})
-	}
-	// Masterwork grade (masterwork §3): a graded WEAPON adds its grade-scaled
-	// bonuses while wielded, delivered as stat modifiers under the SAME
-	// EquipmentSourceKey so they compose with the item's own modifiers and
-	// the combat channels, and reverse cleanly on unequip — no new
-	// resolution path. A graded weapon adds to-hit (hit_mod); a power-wrought
-	// weapon ALSO adds flat damage (damage_mod, composed into the damage_bonus
-	// channel post-crit, masterwork §3). Armor-check / tool-skill grades are
-	// later increments.
-	if c.Grades != nil {
-		if _, isWeapon := item.WeaponDamage(); isWeapon {
-			if g, ok := c.Grades.Get(item.Grade()); ok {
-				if g.WeaponToHit != 0 {
-					mods = append(mods, stats.Modifier{Stat: combat.StatKeyHitMod, Value: g.WeaponToHit})
-				}
-				if g.WeaponDamage != 0 {
-					mods = append(mods, stats.Modifier{Stat: combat.StatKeyDamageMod, Value: g.WeaponDamage})
-				}
-			}
-		}
-	}
-	// Armor check penalty (armor-depth §6) + masterwork armor grade
-	// (masterwork §3): a worn armor/shield's check penalty reduces the
-	// wearer's Str/Dex skill checks; a quality grade IMPROVES (reduces) that
-	// penalty, floored at zero. Applied as an armor_check stat modifier the
-	// skill check subtracts, under the SAME EquipmentSourceKey so it stacks
-	// across pieces and reverses cleanly on unequip.
-	// Hasty-don degradation (armor-depth §7): a hastily-donned slow armor wears
-	// one step worse on BOTH the check penalty (+1) and the armor bonus (−1, below)
-	// until it is taken off and re-donned properly. Inert for a normal don, for
-	// light gear (which has no don timer), and on the replay's own re-seat.
+	// The item's stat-modifier group, applied once under one
+	// EquipmentSourceKey(item) for reversible removal (§3.4 step 9). Built by
+	// the shared equipModifiers helper so the equip path and the
+	// modify-while-worn refresh (item-modification §5) cannot drift.
 	hastyArmor := c.HastyDon && isSlowArmor(item)
-	penalty := item.ArmorCheckPenalty()
-	if hastyArmor {
-		penalty++
-	}
-	if penalty > 0 {
-		if c.Grades != nil {
-			if g, ok := c.Grades.Get(item.Grade()); ok {
-				penalty -= g.ArmorCheckImprove
-			}
-		}
-		if penalty > 0 {
-			mods = append(mods, stats.Modifier{Stat: statKeyArmorCheck, Value: penalty})
-		}
-	}
-	// Armor bonus (armor-depth §3): a worn armor/shield's structured AC
-	// contribution applies as an `ac` stat modifier under the SAME
-	// EquipmentSourceKey — additive, stacking across distinct pieces (body
-	// armor + shield), reversing cleanly on unequip. The defense channel reads
-	// `ac`, so this makes armor harder-to-hit in EVERY ruleset; the max-Dex
-	// cap (WoT only, via the synthetic `dex_ac` channel input) is computed at
-	// recompute time, not here.
-	ab := item.ArmorBonus()
-	if hastyArmor && ab > 0 {
-		ab-- // §7: one step worse until re-donned
-	}
-	if ab != 0 {
-		mods = append(mods, stats.Modifier{Stat: string(progression.StatAC), Value: ab})
-	}
+	mods := equipModifiers(item, c.Grades, hastyArmor)
 
 	if !c.Actor.Equip(footprint, item.ID(), mods) {
 		// TOCTOU: inventory lost the item between resolve and equip (a

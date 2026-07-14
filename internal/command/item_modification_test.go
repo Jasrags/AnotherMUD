@@ -143,6 +143,65 @@ func TestUnmodify_RemovesAndReturnsMod(t *testing.T) {
 	}
 }
 
+func TestModify_WornHostReappliesModifiersLive(t *testing.T) {
+	r := newRegistry(t)
+	f := newEqFixture(t)
+	a := newTestActor(f.room)
+	// A modifiable helm — the `head` slot exists in the test baseline (`body`
+	// does not), so it can actually be equipped in the harness.
+	host := f.spawnInInventory(t, &item.Template{
+		ID: "sr:helm", Name: "an armored helm", Type: "item",
+		Tags: []string{"armor"}, Keywords: []string{"helm"},
+		EligibleSlots: []string{"head"}, Capacity: 9,
+	}, a)
+	// A mod granting a generic stat modifier, so the worn re-apply is observable
+	// in the host's equipment modifier group.
+	_ = f.spawnInInventory(t, &item.Template{
+		ID: "sr:plate", Name: "a trauma plate", Type: "item", Keywords: []string{"plate"},
+		ModHost: "armor", ModCapacityCost: 3, Modifiers: []item.Modifier{{Stat: "ac", Value: 2}},
+	}, a)
+
+	// Equip the host, THEN modify it while worn — the effect must land immediately.
+	dispatch(t, r, f.env(), a, "equip helm")
+	dispatch(t, r, f.env(), a, "modify helm plate")
+
+	if len(host.InstalledMods()) != 1 {
+		t.Fatalf("mod not installed on the worn host: %d installed", len(host.InstalledMods()))
+	}
+	var ac int
+	for _, m := range a.mods[entities.EquipmentSourceKey(host.ID())] {
+		if m.Stat == "ac" {
+			ac += m.Value
+		}
+	}
+	if ac != 2 {
+		t.Fatalf("worn re-apply did not push the mod's +2 ac into the equipment group: got ac=%d", ac)
+	}
+	if out := a.lastLine(); !strings.Contains(out, "install") {
+		t.Errorf("install cue = %q", out)
+	}
+}
+
+func TestModify_WornHostBarredInCombat(t *testing.T) {
+	r := newRegistry(t)
+	f := newEqFixture(t)
+	a := newTestActor(f.room)
+	_ = f.spawnInInventory(t, &item.Template{
+		ID: "sr:helm", Name: "an armored helm", Type: "item",
+		Tags: []string{"armor"}, Keywords: []string{"helm"},
+		EligibleSlots: []string{"head"}, Capacity: 9,
+	}, a)
+	_ = f.spawnInInventory(t, modWeaveTpl(), a)
+
+	dispatch(t, r, f.env(), a, "equip helm")
+	a.inCombat = true
+	dispatch(t, r, f.env(), a, "modify helm weave")
+
+	if out := a.lastLine(); !strings.Contains(out, "firefight") {
+		t.Errorf("expected a combat-gate refusal, got %q", out)
+	}
+}
+
 // collectInv resolves inventory ids to item instances for assertions.
 func collectInv(store *entities.Store, ids []entities.EntityID) []*entities.ItemInstance {
 	out := make([]*entities.ItemInstance, 0, len(ids))

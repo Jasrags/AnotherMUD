@@ -4666,6 +4666,30 @@ func (a *connActor) Unequip(slotKey string) (entities.EntityID, bool) {
 	return id, true
 }
 
+// RefreshEquipped re-applies the stat-modifier group for an item that is ALREADY
+// equipped, after its contribution changed in place — a mod installed/removed on
+// it while worn (item-modification §5). It swaps the item's EquipmentSourceKey
+// group for mods and recomputes derived stats (resistances etc.), leaving the
+// footprint untouched (the item never leaves its slot). No-op if the item is not
+// currently equipped. The caller rebuilds mods from the item's now-effective
+// contribution (equipModifiers) so the equip and refresh paths cannot drift.
+func (a *connActor) RefreshEquipped(id entities.EntityID, mods []stats.Modifier) bool {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	if _, worn := a.footprints[id]; !worn {
+		return false
+	}
+	src := entities.EquipmentSourceKey(id)
+	a.statBlock.RemoveBySource(src)
+	if len(mods) > 0 {
+		a.statBlock.AddModifiers(src, mods)
+	}
+	a.recomputeWeaponLocked()
+	a.syncStatsToSaveLocked()
+	a.markDirtyLocked()
+	return true
+}
+
 // StatsHas reports whether the holder's stat block carries any
 // modifiers under src. Test-facing helper; production code goes
 // through the equip/unequip mutations.

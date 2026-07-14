@@ -142,12 +142,14 @@ nothing until installed into a host and the host is equipped/used.
 
 ## 4. Installing a modification
 
-**v1 scope (Slice A).** Both the host and the mod are resolved from the actor's
-**inventory**, and the host must be **carried (unequipped)** to be modified — a
-bench action. This keeps effect aggregation (§6) computed fresh on the next equip
-and avoids any reverse-while-worn recompute; the "reverse a mod on an *equipped*
-host" convenience of §5 is deferred. Modifying worn gear tells the player to take
-it off first.
+**Host resolution.** The mod is resolved from the actor's **inventory**; the host
+may be **carried or worn**. Modifying **worn** gear re-applies the host's equip
+modifier group and recomputes immediately, so the change takes effect live (§6) —
+a resistance/protection mod updates on the recompute, an AC/stat-modifier mod via
+the re-applied group. Working on **worn** gear is a bench action **barred in
+combat** (the don-doff gate); carried gear is always free to modify. *(Slice A
+first shipped inventory-only, requiring unequip; Slice C dropped that restriction
+with the live re-apply.)*
 
 Installing moves a mod from the actor's inventory **into a host** the actor
 holds, subject to validation:

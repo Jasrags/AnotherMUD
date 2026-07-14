@@ -887,6 +887,23 @@ func (a *testActor) Equip(footprint []string, id entities.EntityID, mods []stats
 	return false
 }
 
+// RefreshEquipped mirrors connActor: swap the worn item's modifier group in
+// place so tests can assert modify-while-worn re-applies (item-modification §5).
+func (a *testActor) RefreshEquipped(id entities.EntityID, mods []stats.Modifier) bool {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	if _, worn := a.footprints[id]; !worn {
+		return false
+	}
+	if a.mods == nil {
+		a.mods = make(map[entities.SourceKey][]stats.Modifier)
+	}
+	dup := make([]stats.Modifier, len(mods))
+	copy(dup, mods)
+	a.mods[entities.EquipmentSourceKey(id)] = dup
+	return true
+}
+
 // MarkContentsDirty is a no-op for the test actor — the testActor
 // does not persist, so there is no save tree to re-sync. The
 // connActor implementation is what production exercises (see

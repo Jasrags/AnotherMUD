@@ -32,10 +32,14 @@ func resolveCarried(c *Context, token string) (*entities.ItemInstance, bool) {
 	return it, ok
 }
 
-// namesEquippedItem reports whether token keyword-matches something the actor is
-// wearing/wielding — so `modify` can tell a player to take it off first rather
-// than just "you aren't carrying that".
-func namesEquippedItem(c *Context, token string) bool {
+// resolveModHost resolves the host of a modify/unmodify operation from the
+// actor's INVENTORY or EQUIPMENT, reporting whether the resolved host is
+// currently worn/wielded (item-modification §5 — worn hosts are modifiable, with
+// a live re-apply). Inventory is checked first; equipment second.
+func resolveModHost(c *Context, token string) (host *entities.ItemInstance, worn bool, ok bool) {
+	if h, found := resolveCarried(c, token); found {
+		return h, false, true
+	}
 	ids := make([]entities.EntityID, 0, len(c.Actor.Equipment()))
 	seen := make(map[entities.EntityID]bool)
 	for _, id := range c.Actor.Equipment() {
@@ -45,7 +49,12 @@ func namesEquippedItem(c *Context, token string) bool {
 		seen[id] = true
 		ids = append(ids, id)
 	}
-	return keyword.Resolve(asNamed(collectItems(c.Items, ids)), token) != nil
+	if named := keyword.Resolve(asNamed(collectItems(c.Items, ids)), token); named != nil {
+		if h, isItem := named.(*entities.ItemInstance); isItem {
+			return h, true, true
+		}
+	}
+	return nil, false, false
 }
 
 // upFirst capitalizes the first rune so an item name can open a sentence.
@@ -64,12 +73,9 @@ func ModifyHandler(ctx context.Context, c *Context) error {
 	if len(c.Args) == 0 {
 		return c.Actor.Write(ctx, "Modify what? (modify <armor> [modification])")
 	}
-	host, ok := resolveCarried(c, c.Args[0])
+	host, worn, ok := resolveModHost(c, c.Args[0])
 	if !ok {
-		if namesEquippedItem(c, c.Args[0]) {
-			return c.Actor.Write(ctx, "Take it off first — you can only modify gear you're carrying.")
-		}
-		return c.Actor.Write(ctx, fmt.Sprintf("You aren't carrying %q.", c.Args[0]))
+		return c.Actor.Write(ctx, fmt.Sprintf("You aren't carrying or wearing %q.", c.Args[0]))
 	}
 	if !host.IsModifiable() {
 		return c.Actor.Write(ctx, fmt.Sprintf("%s can't be modified.", upFirst(host.Name())))
@@ -78,6 +84,12 @@ func ModifyHandler(ctx context.Context, c *Context) error {
 	// One arg: the info form (§8) — capacity/mounts + installed mods.
 	if len(c.Args) == 1 {
 		return c.Actor.Write(ctx, modInfoLines(host))
+	}
+
+	// Modifying WORN gear is a bench action — barred in a firefight (§5 /
+	// the action-economy don-doff gate). Carried gear is always free to work on.
+	if worn && c.Actor.InCombat() {
+		return c.Actor.Write(ctx, "You can't re-work your gear in the middle of a firefight.")
 	}
 
 	// Two args: install a carried modification. The admission rule is chosen by
@@ -117,6 +129,13 @@ func ModifyHandler(ctx context.Context, c *Context) error {
 	// Installed: the mod is now host state, not a carried entity — consume it.
 	c.Actor.RemoveFromInventory(mod.ID())
 	_ = c.Items.Untrack(mod.ID())
+	// A WORN host's contribution just changed — re-apply its modifier group and
+	// recompute so the mod takes effect immediately (item-modification §5).
+	// Resistances/protection refresh via the recompute; a stat-modifier/AC mod via
+	// the re-applied group. A carried host applies everything on its next equip.
+	if worn {
+		c.Actor.RefreshEquipped(host.ID(), equipModifiers(host, c.Grades, false))
+	}
 	if mount != "" {
 		return c.Actor.Write(ctx, fmt.Sprintf("You attach %s to %s's %s mount.", mod.Name(), host.Name(), mount))
 	}
@@ -132,19 +151,24 @@ func UnmodifyHandler(ctx context.Context, c *Context) error {
 	if len(c.Args) < 2 {
 		return c.Actor.Write(ctx, "Remove which modification from what? (unmodify <armor> <modification>)")
 	}
-	host, ok := resolveCarried(c, c.Args[0])
+	host, worn, ok := resolveModHost(c, c.Args[0])
 	if !ok {
-		if namesEquippedItem(c, c.Args[0]) {
-			return c.Actor.Write(ctx, "Take it off first — you can only modify gear you're carrying.")
-		}
-		return c.Actor.Write(ctx, fmt.Sprintf("You aren't carrying %q.", c.Args[0]))
+		return c.Actor.Write(ctx, fmt.Sprintf("You aren't carrying or wearing %q.", c.Args[0]))
 	}
 	if !host.IsModifiable() || len(host.InstalledMods()) == 0 {
 		return c.Actor.Write(ctx, fmt.Sprintf("%s has no modifications to remove.", upFirst(host.Name())))
 	}
+	if worn && c.Actor.InCombat() {
+		return c.Actor.Write(ctx, "You can't re-work your gear in the middle of a firefight.")
+	}
 	removed, ok := host.RemoveMod(c.Args[1])
 	if !ok {
 		return c.Actor.Write(ctx, fmt.Sprintf("%s has no modification matching %q.", upFirst(host.Name()), c.Args[1]))
+	}
+	// A WORN host's contribution just shrank — re-apply its modifier group and
+	// recompute so the removed mod's effect reverses immediately (§5).
+	if worn {
+		c.Actor.RefreshEquipped(host.ID(), equipModifiers(host, c.Grades, false))
 	}
 	// Re-spawn the modification as a carried item (§5 — recovered by default).
 	note := capacityNote(host)
