@@ -233,11 +233,11 @@ spec's own surface is the mount vocabulary and per-item mount declarations.
 
 ## 9. Open questions
 
-- **Smartgun ↔ smartlink pairing.** The Smartgun System (External/Internal) is
-  Core and central to a street samurai, but its bonus needs a matching smartlink
-  (cybereye/goggles). Deciding where the paired bonus is computed — and how it
-  reads the wielder's cyberware — is the main follow-on; v1 attaches the smartgun
-  and records its presence so the pairing can light up later without re-authoring.
+- **Smartgun ↔ smartlink pairing — SHIPPED.** The paired bonus is computed at the
+  combat to-hit seam: mods carry a general `Grants` capability channel, a smartgun
+  accessory grants `smartgun`, a smartlink cybereye enhancement grants `smartlink`,
+  and the attacker gets a flat to-hit bonus only with both (the smartgun on the
+  wielded weapon + a worn smartlink). Shown on `score`; see `item-modification.md`.
 - **Multi-mount / `both` occupancy.** The reference set's `both` (e.g. a mounted
   under-barrel weapon) and cross-mount accessories need the "consumes a set of
   mounts" shape (§3). Few Core accessories use it; confirm the data shape before

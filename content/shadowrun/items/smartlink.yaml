@@ -1,0 +1,19 @@
+id: smartlink
+name: a smartlink
+type: item
+description: |
+  A neural targeting bus that drops into a cybereye's capacity — the gun's reticle,
+  ammo count, and ballistics feed painted straight onto your vision. Useless on its
+  own; paired with a smartgun it puts the round exactly where you're looking.
+tags: [cyberware-mod]
+keywords: [smartlink, link, targeting]
+# Cyberware-cluster ENHANCEMENT (item-modification.md §3): fits a cybereye host,
+# SR5 Smartlink [3]. Its whole value is the PAIRING — it `grants: [smartlink]`, and
+# combat adds a to-hit bonus only when the runner ALSO wields a weapon with a
+# smartgun accessory (weapon-accessories.md). No live modifier on its own.
+mod_host: cybereye
+mod_capacity_cost: 3
+grants: [smartlink]
+properties:
+  weight: 0
+  value: 4000

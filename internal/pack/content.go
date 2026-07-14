@@ -237,6 +237,10 @@ type ItemFile struct {
 	// its host while worn (item-modification §6 → biome-hazard immunity, area-
 	// effects §4.6). Normalized lowercase at load; meaningful only on a mod.
 	Protection []string `yaml:"protection,omitempty"`
+	// Grants is the set of general capability keys a modification confers while
+	// equipped (item-modification §6 → the smartlink↔smartgun pairing). Normalized
+	// lowercase at load; meaningful only on a mod.
+	Grants []string `yaml:"grants,omitempty"`
 }
 
 // ModifierFile is one entry of an ItemFile.Modifiers list.

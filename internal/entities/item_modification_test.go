@@ -195,6 +195,35 @@ func TestInstallMod_GrantsAndReversesProtection(t *testing.T) {
 	}
 }
 
+func TestInstallMod_GrantsCapability(t *testing.T) {
+	s := NewStore()
+	// A cybereye host + a smartlink enhancement that grants the "smartlink"
+	// capability. (Uses the armor rule here — the mechanic is host-agnostic.)
+	host := armorHost(t, s, 9, 0)
+	link, _ := s.Spawn(&item.Template{
+		ID: "sr:smartlink", Name: "a smartlink", Type: "item",
+		ModHost: "armor", ModCapacityCost: 3, Grants: []string{"smartlink"},
+	})
+	if host.ProvidesCapability("smartlink") {
+		t.Fatal("host provides smartlink before install")
+	}
+	if err := host.InstallMod(link); err != nil {
+		t.Fatalf("InstallMod: %v", err)
+	}
+	if got := host.GrantedCapabilities(); len(got) != 1 || got[0] != "smartlink" {
+		t.Fatalf("GrantedCapabilities = %v, want [smartlink]", got)
+	}
+	if !host.ProvidesCapability("SMARTLINK") { // case-insensitive
+		t.Fatal("ProvidesCapability(smartlink) = false after install")
+	}
+	if _, ok := host.RemoveMod("smartlink"); !ok {
+		t.Fatal("RemoveMod failed")
+	}
+	if host.ProvidesCapability("smartlink") {
+		t.Fatal("capability not reversed on remove")
+	}
+}
+
 func TestRestoreInstalledMod_RebuildsProtection(t *testing.T) {
 	s := NewStore()
 	host := armorHost(t, s, 9, 0)

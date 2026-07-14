@@ -55,3 +55,7 @@ properties:
       # Cyberware-cluster enhancement (item-modification.md) — `modify cybereyes
       # vision` slots it into a cybereye's capacity before you install the eyes.
       - shadowrun:cybereye-vision-enhancement
+      # Smartlink↔smartgun pairing: a smartlink drops into a cybereye, a smartgun
+      # system onto a weapon's mount; carrying both grants the to-hit bonus.
+      - shadowrun:smartlink
+      - shadowrun:smartgun-system

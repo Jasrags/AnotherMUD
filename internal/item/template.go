@@ -301,6 +301,14 @@ type Template struct {
 	// are content-declared (matched verbatim against a biome's protection_key);
 	// normalized lowercase. Meaningful only on a mod (ModHost set).
 	Protection []string
+	// Grants is the set of general CAPABILITY keys a MODIFICATION confers on its
+	// host while equipped (item-modification §6). Unlike Protection (a hazard-
+	// immunity consumer), these are opaque content-declared flags a cross-item
+	// runtime consumer keys off — the first is the smartlink↔smartgun pairing: a
+	// smartlink cybereye enhancement grants "smartlink", a smartgun weapon
+	// accessory grants "smartgun", and combat adds a to-hit bonus when the attacker
+	// has both. Normalized lowercase. Meaningful only on a mod (ModHost set).
+	Grants []string
 }
 
 // Errors callers may distinguish at the boundary.

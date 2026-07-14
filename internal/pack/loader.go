@@ -3682,6 +3682,11 @@ func decodeItem(path, ns string) (*item.Template, error) {
 		return nil, fmt.Errorf("%w: %s: protection set without mod_host (only a modification grants protection)",
 			ErrInvalidContent, path)
 	}
+	modGrants := normalizeLowerDedup(f.Grants)
+	if len(modGrants) > 0 && modHost == "" {
+		return nil, fmt.Errorf("%w: %s: grants set without mod_host (only a modification grants a capability)",
+			ErrInvalidContent, path)
+	}
 	if len(mounts) > 0 && f.Capacity > 0 {
 		return nil, fmt.Errorf("%w: %s: a host declares mounts (mount rule) OR capacity (capacity rule), not both",
 			ErrInvalidContent, path)
@@ -3920,6 +3925,7 @@ func decodeItem(path, ns string) (*item.Template, error) {
 		Mounts:            mounts,
 		AccessoryMounts:   accessoryMounts,
 		Protection:        modProtection,
+		Grants:            modGrants,
 	}, nil
 }
 

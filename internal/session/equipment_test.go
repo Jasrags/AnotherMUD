@@ -492,3 +492,52 @@ func TestRespawnEquipment_RecomputesFromItem_DropsDeletedModContribution(t *test
 		t.Fatal("recomputed equip group not applied under the new source id")
 	}
 }
+
+// TestEquippedCapability_SmartlinkAndSmartgun covers the pairing helpers
+// (item-modification §6): a smartlink installed in a worn host is found by
+// HasEquippedCapability, and a smartgun accessory on the WIELDED weapon by
+// WieldedWeaponHasCapability.
+func TestEquippedCapability_SmartlinkAndSmartgun(t *testing.T) {
+	store := entities.NewStore()
+	a := newEqActor(t, store)
+
+	// A worn cybereye host carrying a smartlink capability (any equipped slot).
+	eye, _ := store.Spawn(&item.Template{
+		ID: "sr:eye", Name: "cybereyes", Type: "item",
+		Tags: []string{"cybereye"}, EligibleSlots: []string{"head"}, Capacity: 4,
+	})
+	link, _ := store.Spawn(&item.Template{
+		ID: "sr:smartlink", Name: "a smartlink", Type: "item",
+		ModHost: "cybereye", ModCapacityCost: 3, Grants: []string{"smartlink"},
+	})
+	if err := eye.InstallMod(link); err != nil {
+		t.Fatalf("install smartlink: %v", err)
+	}
+	a.AddToInventory(eye.ID())
+	a.Equip([]string{"head"}, eye.ID(), nil)
+
+	// A wielded weapon carrying a smartgun accessory.
+	gun, _ := store.Spawn(&item.Template{
+		ID: "sr:gun", Name: "a pistol", Type: "weapon", WeaponDamage: "2d6",
+		EligibleSlots: []string{slot.WieldSlot}, Mounts: []string{"top"},
+	})
+	smartgun, _ := store.Spawn(&item.Template{
+		ID: "sr:smartgun", Name: "a smartgun system", Type: "item",
+		ModHost: "weapon", AccessoryMounts: []string{"top"}, Grants: []string{"smartgun"},
+	})
+	if _, err := gun.AttachAccessory(smartgun); err != nil {
+		t.Fatalf("attach smartgun: %v", err)
+	}
+	a.AddToInventory(gun.ID())
+	a.Equip([]string{slot.WieldSlot}, gun.ID(), nil)
+
+	if !a.HasEquippedCapability("smartlink") {
+		t.Error("HasEquippedCapability(smartlink) = false with a worn smartlink eye")
+	}
+	if !a.WieldedWeaponHasCapability("smartgun") {
+		t.Error("WieldedWeaponHasCapability(smartgun) = false with a smartgun on the wielded weapon")
+	}
+	if a.HasEquippedCapability("nope") {
+		t.Error("HasEquippedCapability(nope) = true for an unheld capability")
+	}
+}

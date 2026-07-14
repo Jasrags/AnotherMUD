@@ -53,8 +53,19 @@ type scoreSubject interface {
 // Self-only; `consider <target>` sizes up others. Rendered as a framed,
 // color-tagged bento panel (render.Panel, ui-rendering-help §8); color
 // degrades cleanly and the frame is ASCII so no glyph fallback is needed.
+// smartlinkChecker is the optional capability the score sheet probes to show the
+// smartlink↔smartgun pairing status (item-modification §6). connActor satisfies
+// it; a test fake that doesn't simply omits the line.
+type smartlinkChecker interface {
+	HasEquippedCapability(key string) bool
+	WieldedWeaponHasCapability(key string) bool
+}
+
 func ScoreHandler(ctx context.Context, c *Context) error {
 	d := scoreData{Name: c.Actor.Name()}
+	if sc, ok := c.Actor.(smartlinkChecker); ok {
+		d.Smartlink = sc.HasEquippedCapability("smartlink") && sc.WieldedWeaponHasCapability("smartgun")
+	}
 
 	if ss, ok := c.Actor.(scoreSubject); ok {
 		d.Gender = titleCase(ss.Gender())
@@ -414,6 +425,9 @@ type scoreData struct {
 	Gender      string
 	Race, Class string
 	Background  string
+	// Smartlink marks the smartlink↔smartgun pairing as active (a worn smartlink
+	// + a wielded smartgun weapon, item-modification §6) so the sheet shows it.
+	Smartlink bool
 	// Languages is the comma-joined display names of the character's known
 	// tongues (languages.md §4); empty hides the row.
 	Languages string
@@ -517,6 +531,9 @@ func renderScore(d scoreData) string {
 	}
 	if d.Background != "" {
 		charCol = append(charCol, scKV("Background", scHi(d.Background), 11))
+	}
+	if d.Smartlink {
+		charCol = append(charCol, scKV("Smartlink", scHi("active"), 11))
 	}
 	if d.Gift != "" {
 		charCol = append(charCol, scKV("The Power", scHi(d.Gift), 11))

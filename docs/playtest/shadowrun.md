@@ -379,6 +379,25 @@ Essence covers the cluster). The fixer sells a **vision enhancement chip**.
 - [ ] `unmodify cybereyes vision` while the eyes are worn — INT drops by 1 live
       (the chip pops back to inventory), same modify-worn re-apply as armor.
 
+### Smartlink ↔ smartgun pairing (cross-domain)
+
+The one mechanic that ties two host domains together: a **smartlink** (a cybereye
+enhancement) + a **smartgun** (a weapon accessory) grant a to-hit bonus — but only
+when you have **both**, and are **wielding** the smart gun. `score` shows a
+**"Smartlink: active"** line when the pairing is live (default `+2` to-hit,
+`ANOTHERMUD_SMARTLINK_BONUS`). The fixer sells both.
+
+- [ ] `score` — no Smartlink line yet.
+- [ ] Fit the smartlink: `spawn item cybereyes me`, `buy smartlink` (or spawn),
+      `modify cybereyes smartlink` (cost 3), `equip cybereyes`. `score` — **still no
+      Smartlink line** (a smartlink alone is inert; you need the gun).
+- [ ] Fit the smartgun: `buy smartgun` (or spawn), `equip pistol wield`,
+      `modify pistol smartgun` (onto the top/under-barrel mount). `score` — the
+      **"Smartlink: active"** line now shows: both halves present + the gun wielded.
+- [ ] `unequip pistol` (or `unmodify pistol smartgun`) — the line disappears; the
+      bonus is gone. Fighting the ganger (§39) with the pairing active lands shots
+      more reliably (the +2 rides the same to-hit seam as the darkness/armor terms).
+
 ### Persistence
 
 - [ ] Install a mod, `quit`, log back in — `modify jacket` (or `look jacket`) still
@@ -409,9 +428,9 @@ Essence covers the cluster). The fixer sells a **vision enhancement chip**.
   Damping**) is **not authored yet** — each needs a damage/detection mechanic that
   doesn't exist (fire/cold/electrical damage, thermographic detection). **Cyberware
   clusters** are shipped (cybereye + vision-enhancement chip) with zero engine
-  change; still open are **cyberlimbs** as a second cluster host and the fuller
-  enhancement catalog (the **smartlink↔smartgun** pairing, vision modes that need a
-  light/visibility consumer). One known edge: a **hastily-donned** piece modified while
+  change; the **smartlink↔smartgun** pairing is shipped (score cue + to-hit bonus).
+  Still open: **cyberlimbs** as a second cluster host and more enhancements (vision
+  modes that need a light/visibility consumer). One known edge: a **hastily-donned** piece modified while
   worn loses its degradation (low exposure; recorded in the item-modification build
   log).
 - Record any mismatch as a `BUG:` note next to the step; file the real ones into

@@ -1994,11 +1994,30 @@ func run() error {
 	conditionImpact := func(bareID string) condition.Impact {
 		return condition.Resolve(effectMgr.Flags(bareID), condCfg)
 	}
+	// item-modification §6: the smartlink↔smartgun pairing. A flat to-hit BONUS
+	// when the attacker wears a smartlink (a cybereye enhancement granting
+	// "smartlink") AND wields a weapon with a smartgun accessory (granting
+	// "smartgun") — SR5's smart-gear combo on the tick/chance model. Both halves
+	// required; either alone does nothing. Players only (mob smart gear is a later
+	// pass). Composes additively through the same HitModAdjust seam.
+	attackerSmartlinkBonus := func(id combat.CombatantID) int {
+		if cfg.SmartlinkBonus == 0 || !strings.HasPrefix(string(id), combat.PlayerPrefix) {
+			return 0
+		}
+		a, ok := mgr.GetByPlayerID(string(id)[len(combat.PlayerPrefix):])
+		if !ok {
+			return 0
+		}
+		if a.HasEquippedCapability("smartlink") && a.WieldedWeaponHasCapability("smartgun") {
+			return cfg.SmartlinkBonus
+		}
+		return 0
+	}
 	hitModAdjust := func(id combat.CombatantID) int {
 		// conditions §3 — the attacker-penalty half (prone/blinded/fear)
 		// composes additively here alongside darkness + proficiency.
 		condPenalty := -conditionImpact(combat.EntityIDOf(id)).AttackerHitPenalty
-		return attackerDarknessPenalty(id) + attackerProficiencyPenalty(id) + attackerArmorPenalty(id) + condPenalty
+		return attackerDarknessPenalty(id) + attackerProficiencyPenalty(id) + attackerArmorPenalty(id) + condPenalty + attackerSmartlinkBonus(id)
 	}
 
 	// baseSaveBonus resolves a bare entity's class+ability save on an axis,
@@ -3495,6 +3514,7 @@ type config struct {
 	FleeCooldown           time.Duration
 	CritMultiplier         int
 	NonProficientPenalty   int
+	SmartlinkBonus         int
 	MassiveDamageThreshold int
 	MassiveDamageDC        int
 	DefaultMoveCost        int
@@ -3582,6 +3602,7 @@ func loadConfig() config {
 		FleeCooldown:            envDurationOr("ANOTHERMUD_FLEE_COOLDOWN", 15*time.Second),
 		CritMultiplier:          envIntOr("ANOTHERMUD_CRIT_MULTIPLIER", combat.DefaultCritMultiplier),
 		NonProficientPenalty:    envIntOr("ANOTHERMUD_NONPROFICIENT_PENALTY", combat.DefaultNonProficientPenalty),
+		SmartlinkBonus:          envIntOr("ANOTHERMUD_SMARTLINK_BONUS", 2),
 		MassiveDamageThreshold:  envIntOr("ANOTHERMUD_MASSIVE_DAMAGE_THRESHOLD", combat.DefaultMassiveDamageThreshold),
 		MassiveDamageDC:         envIntOr("ANOTHERMUD_MASSIVE_DAMAGE_DC", combat.DefaultMassiveDamageDC),
 		DefaultMoveCost:         envIntOr("ANOTHERMUD_MOVE_COST", 2),

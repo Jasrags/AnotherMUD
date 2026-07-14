@@ -4685,6 +4685,52 @@ func (a *connActor) RefreshEquipped(id entities.EntityID, mods []stats.Modifier)
 	return true
 }
 
+// HasEquippedCapability reports whether ANY item the actor has equipped provides
+// the given capability key — intrinsically (a tag) or via an installed mod
+// (item-modification §6). Reads the live equipped set; used by the
+// smartlink↔smartgun pairing to check for a worn smartlink.
+func (a *connActor) HasEquippedCapability(key string) bool {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	if a.items == nil {
+		return false
+	}
+	seen := make(map[entities.EntityID]bool, len(a.equipment))
+	for _, id := range a.equipment {
+		if seen[id] {
+			continue
+		}
+		seen[id] = true
+		if e, ok := a.items.GetByID(id); ok {
+			if it, ok := e.(*entities.ItemInstance); ok && it.ProvidesCapability(key) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// WieldedWeaponHasCapability reports whether the actor's MAIN-hand weapon provides
+// the given capability key (item-modification §6) — e.g. a smartgun accessory, so
+// the smartlink bonus applies only to shots from the smart gun itself.
+func (a *connActor) WieldedWeaponHasCapability(key string) bool {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	if a.items == nil {
+		return false
+	}
+	id, ok := a.equipment[mainHandSlot]
+	if !ok {
+		return false
+	}
+	e, ok := a.items.GetByID(id)
+	if !ok {
+		return false
+	}
+	it, ok := e.(*entities.ItemInstance)
+	return ok && it.ProvidesCapability(key)
+}
+
 // StatsHas reports whether the holder's stat block carries any
 // modifiers under src. Test-facing helper; production code goes
 // through the equip/unequip mutations.

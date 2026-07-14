@@ -74,9 +74,15 @@ instance state; expose an install/remove flow.
   `cybereye` tag, enhancements are `mod_host: cybereye` mods, and the effect rides
   the standard equip pipeline while the eyes are worn. Cluster enhancements are
   **capacity-gated and essence-free** (the shell's Essence covers the cluster;
-  SR-M4), so the Essence system is untouched. Still open: cyberlimbs as a second
-  cluster host, the fuller enhancement catalog (smartlink pairing, vision modes),
-  and essence-costed *standalone* enhancements.
+  SR-M4), so the Essence system is untouched. The **smartlink↔smartgun pairing**
+  (the one cross-domain runtime mechanic) has also shipped: mods carry a general
+  `Grants []string` capability channel (alongside `Protection`), a smartlink
+  cybereye enhancement grants `smartlink`, a smartgun weapon accessory grants
+  `smartgun`, and combat adds a flat to-hit bonus (`ANOTHERMUD_SMARTLINK_BONUS`,
+  default 2) only when the attacker wears the smartlink *and* wields the smartgun
+  weapon (shown on `score`). Still open: cyberlimbs as a second cluster host, more
+  enhancements (vision modes need a light/visibility consumer), and essence-costed
+  *standalone* enhancements.
 - **Crafting / installation skill checks / an Armorer facility.** Whether
   installation requires an NPC (an armorer, like the ripperdoc gates cyberware),
   a skill test, time, or tools is out of scope — v1 is a direct player command

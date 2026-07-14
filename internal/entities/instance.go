@@ -47,6 +47,9 @@ type InstalledMod struct {
 	// Protection is the environmental protection keys this mod grants its host
 	// while worn (item-modification §6 → biome-hazard immunity, area-effects §4.6).
 	Protection []string
+	// Grants is the general capability keys this mod confers on its host while
+	// equipped (item-modification §6 → the smartlink↔smartgun pairing).
+	Grants []string
 }
 
 // Reserved property keys with engine-defined semantics. Listed here
@@ -269,6 +272,10 @@ type ItemInstance struct {
 	// grants its host while worn (item-modification §6 → biome-hazard immunity).
 	// Write-once at build.
 	protection []string
+	// grants is the set of general capability keys this MODIFICATION confers on
+	// its host while equipped (item-modification §6 → smartlink↔smartgun pairing).
+	// Write-once at build.
+	grants []string
 }
 
 // ID implements Entity.
@@ -812,6 +819,41 @@ func (it *ItemInstance) GrantedProtections() []string {
 	return out
 }
 
+// GrantedCapabilities returns the general capability keys conferred by the
+// modifications installed in THIS host (the union across installed mods) — e.g. a
+// smartlink cybereye or a smartgun weapon, read by the cross-item pairing at
+// combat time (item-modification §6). nil when no installed mod grants any.
+func (it *ItemInstance) GrantedCapabilities() []string {
+	it.propsMu.RLock()
+	defer it.propsMu.RUnlock()
+	if len(it.installedMods) == 0 {
+		return nil
+	}
+	var out []string
+	seen := make(map[string]bool)
+	for _, m := range it.installedMods {
+		for _, k := range m.Grants {
+			if !seen[k] {
+				seen[k] = true
+				out = append(out, k)
+			}
+		}
+	}
+	return out
+}
+
+// ProvidesCapability reports whether this item confers capability key — either an
+// installed mod grants it (GrantedCapabilities) or the item declares it
+// intrinsically (a tag, for a monolithic capability item). Case-insensitive.
+func (it *ItemInstance) ProvidesCapability(key string) bool {
+	for _, c := range it.GrantedCapabilities() {
+		if strings.EqualFold(c, key) {
+			return true
+		}
+	}
+	return it.HasTag(key)
+}
+
 // InstalledMods returns a snapshot of the modifications installed in this host
 // (§7), for display and persistence. Fresh slice; callers cannot alias.
 func (it *ItemInstance) InstalledMods() []InstalledMod {
@@ -926,6 +968,7 @@ func (it *ItemInstance) AttachAccessory(acc *ItemInstance) (string, error) {
 		Resistances: cloneIntMap(acc.resistances),
 		Modifiers:   append([]InstanceModifier(nil), acc.modifiers...),
 		Protection:  append([]string(nil), acc.protection...),
+		Grants:      append([]string(nil), acc.grants...),
 	}
 	it.propsMu.Lock()
 	defer it.propsMu.Unlock()
@@ -980,6 +1023,7 @@ func (it *ItemInstance) InstallMod(mod *ItemInstance) error {
 		Resistances:  cloneIntMap(mod.resistances),
 		Modifiers:    append([]InstanceModifier(nil), mod.modifiers...),
 		Protection:   append([]string(nil), mod.protection...),
+		Grants:       append([]string(nil), mod.grants...),
 	}
 	it.propsMu.Lock()
 	defer it.propsMu.Unlock()
@@ -1025,6 +1069,7 @@ func (it *ItemInstance) RestoreInstalledMod(tpl *item.Template) {
 		Resistances:  cloneIntMap(tpl.Resistances),
 		Modifiers:    modifiersFromTemplate(tpl),
 		Protection:   append([]string(nil), tpl.Protection...),
+		Grants:       append([]string(nil), tpl.Grants...),
 	}
 	it.propsMu.Lock()
 	defer it.propsMu.Unlock()
@@ -1314,6 +1359,7 @@ func buildInstanceFromTemplate(tpl *item.Template, id EntityID) *ItemInstance {
 		mounts:            append([]string(nil), tpl.Mounts...),
 		accessoryMounts:   append([]string(nil), tpl.AccessoryMounts...),
 		protection:        append([]string(nil), tpl.Protection...),
+		grants:            append([]string(nil), tpl.Grants...),
 		// installedMods starts empty — a freshly built item carries no mods;
 		// the save-respawn path re-adds them (item-modification §7).
 	}

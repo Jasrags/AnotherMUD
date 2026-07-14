@@ -1,0 +1,18 @@
+id: smartgun-system
+name: a smartgun system
+type: item
+description: |
+  An external smartgun package — muzzle sensor, barrel collar, and a wireless link
+  that streams the weapon's targeting data to a smartlink. Clamps to the
+  under-barrel or top rail. Only pays off if the shooter's running a smartlink.
+tags: [weapon-accessory]
+keywords: [smartgun, smart, system]
+# Weapon ACCESSORY (weapon-accessories.md §3): SR5 Smartgun System, External (Core)
+# — fits the under-barrel or top mount. It `grants: [smartgun]`; the to-hit bonus
+# comes from the smartlink PAIRING (item-modification §6), not the accessory alone.
+mod_host: weapon
+accessory_mounts: [under-barrel, top]
+grants: [smartgun]
+properties:
+  weight: 0
+  value: 2000
