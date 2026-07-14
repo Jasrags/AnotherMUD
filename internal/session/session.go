@@ -1042,7 +1042,7 @@ func run(ctx context.Context, c conn.Connection, cfg Config) error {
 	// or autosave can't observe a partial inventory.
 	if cfg.Items != nil && cfg.Templates != nil {
 		respawnInventory(ctx, a, cfg.Items, cfg.Contents, cfg.Templates, loaded.Player.Inventory)
-		respawnEquipment(ctx, a, cfg.Items, cfg.Templates, cfg.Slots, loaded.Player.Equipment)
+		respawnEquipment(ctx, a, cfg.Items, cfg.Templates, cfg.Slots, cfg.Grades, loaded.Player.Equipment)
 	}
 
 	// Keep the save's location in sync with the room we actually placed
@@ -1541,20 +1541,19 @@ func spawnEntries(ctx context.Context, a *connActor, store *entities.Store, cont
 }
 
 // respawnEquipment creates fresh ItemInstances for each persisted
-// equipment entry and reattaches the persisted stat-block source keys
-// from the saved entity ids to the freshly-minted ones (§3.5). Slot
-// keys with unknown templates are dropped; the modifier set under
-// their old source key stays orphaned in the block until the next
-// Persist trims via syncStatsToSaveLocked (a.stats has no entry for
-// the dropped slot — the orphan is in a.save.Stats, not a.stats).
-// To keep the runtime block clean we also drop the matching modifier
-// set when a template lookup fails.
-//
-// Entries with an empty Entity id (legacy v2-migrated saves, §3.5
-// open question) install the item but skip the rebind — no source
-// key exists to migrate, so the modifier set is effectively absent
-// for that slot until the player re-equips.
-func respawnEquipment(ctx context.Context, a *connActor, store *entities.Store, tpls *item.Templates, slots *slot.Registry, saved map[string]player.EquippedItem) {
+// equipment entry and re-derives each item's stat-block modifier group
+// from the CURRENT item + its surviving installed mods (§3.5) — rather
+// than rebinding the persisted (possibly stale) group. This drops the
+// old source key and applies a freshly-computed group under the new id,
+// so a mod deleted from content between save and load leaves no stale
+// contribution, and content value changes take effect on relog
+// (item-modification §7). Slot keys with unknown host templates are
+// dropped entirely. Legacy v2-migrated entries (empty Entity id) have
+// no old source key to drop but still get their recomputed group — so
+// their modifiers are present on login, no longer absent until re-equip.
+// `grades` is the masterwork registry so a graded weapon re-derives its
+// to-hit/damage; nil (tests) skips grade bonuses.
+func respawnEquipment(ctx context.Context, a *connActor, store *entities.Store, tpls *item.Templates, slots *slot.Registry, grades *grade.Registry, saved map[string]player.EquippedItem) {
 	if len(saved) == 0 {
 		return
 	}
@@ -1615,23 +1614,19 @@ func respawnEquipment(ctx context.Context, a *connActor, store *entities.Store, 
 		// on reload from the saved target key alone.
 		survivors = append(survivors, respawned{slot: slotKey, newID: inst.ID(), companions: inst.CompanionSlots()})
 
-		if entry.Entity == "" {
-			// Migrated-from-v2 entry: no old source key to rebind. The
-			// modifier set is absent for this slot until re-equip.
-			continue
+		// Recompute the equip modifier group from the CURRENT item + its surviving
+		// installed mods, rather than rebinding the persisted (possibly stale)
+		// group — so a mod deleted from content between save and load no longer
+		// leaves its old contribution in the stat block, and content value changes
+		// take effect on relog (item-modification §7 robustness). Drop the old
+		// source key (if any — a v2-migrated entry has none), then apply the fresh
+		// group under the new id. hasty-don degradation is transient, not persisted,
+		// so the rebuild is un-degraded (grades nil in tests → skips grade bonuses).
+		if entry.Entity != "" {
+			a.statBlock.RemoveBySource(entities.EquipmentSourceKey(entities.EntityID(entry.Entity)))
 		}
-		oldSrc := entities.EquipmentSourceKey(entities.EntityID(entry.Entity))
-		newSrc := entities.EquipmentSourceKey(inst.ID())
-		if !a.statBlock.RebindSource(oldSrc, newSrc) {
-			// Either the persisted stat block had no entry for the old
-			// id (item was equipped but contributed no modifiers — fine)
-			// or the new source key collided with an existing entry
-			// (programming error — log and move on; the slot is still
-			// equipped, just without modifier reattachment).
-			logging.From(ctx).Debug("equipment: source-key rebind no-op",
-				slog.String("slot_key", slotKey),
-				slog.String("old", string(oldSrc)),
-				slog.String("new", string(newSrc)))
+		if mods := command.EquipModifiers(inst, grades, false); len(mods) > 0 {
+			a.statBlock.AddModifiers(entities.EquipmentSourceKey(inst.ID()), mods)
 		}
 	}
 

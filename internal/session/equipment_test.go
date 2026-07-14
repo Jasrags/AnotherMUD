@@ -128,7 +128,7 @@ func TestRoundTrip_UnequipAfterRestartReversesMods(t *testing.T) {
 	if err := slot.RegisterEngineBaseline(slots); err != nil {
 		t.Fatalf("RegisterEngineBaseline: %v", err)
 	}
-	respawnEquipment(ctx, a2, store2, tpls, slots, saved.Equipment)
+	respawnEquipment(ctx, a2, store2, tpls, slots, nil, saved.Equipment)
 
 	// The new instance has a different id from the saved one.
 	id2 := a2.Equipment()["wield"]
@@ -376,7 +376,7 @@ func TestEquipSpanning_SaveOneEntryAndRespawnReexpands(t *testing.T) {
 	if err := slot.RegisterEngineBaseline(slots); err != nil {
 		t.Fatalf("RegisterEngineBaseline: %v", err)
 	}
-	respawnEquipment(ctx, a2, store2, tpls, slots, saved.Equipment)
+	respawnEquipment(ctx, a2, store2, tpls, slots, nil, saved.Equipment)
 
 	eq := a2.Equipment()
 	id2 := eq["wield"]
@@ -431,4 +431,64 @@ func newTestTemplates(t *testing.T, tpl *item.Template) *item.Templates {
 		t.Fatalf("TryAdd: %v", err)
 	}
 	return reg
+}
+
+// TestRespawnEquipment_RecomputesFromItem_DropsDeletedModContribution proves the
+// item-modification §7 robustness fix: on respawn the equip modifier group is
+// REBUILT from the current item, so a mod deleted from content between save and
+// load no longer leaves its stale contribution in the stat block.
+func TestRespawnEquipment_RecomputesFromItem_DropsDeletedModContribution(t *testing.T) {
+	ctx := context.Background()
+
+	// SESSION 1: a modifiable armor host with a +2 armor mod installed, equipped
+	// with the mod's contribution baked into its equip group (AC 5 = host 3 + 2),
+	// then "saved".
+	store1 := entities.NewStore()
+	a1 := newEqActor(t, store1)
+	hostTpl := &item.Template{
+		ID: "test:vest", Name: "a vest", Type: "item",
+		Tags: []string{"armor"}, Keywords: []string{"vest"},
+		EligibleSlots: []string{"head"}, Capacity: 9, ArmorBonus: 3,
+	}
+	modTpl := &item.Template{
+		ID: "test:plate", Name: "a trauma plate", Type: "item",
+		ModHost: "armor", ModCapacityCost: 3, ArmorBonus: 2,
+	}
+	host, _ := store1.Spawn(hostTpl)
+	mod, _ := store1.Spawn(modTpl)
+	if err := host.InstallMod(mod); err != nil {
+		t.Fatalf("install mod: %v", err)
+	}
+	a1.AddToInventory(host.ID())
+	a1.Equip([]string{"head"}, host.ID(), []stats.Modifier{{Stat: string(progression.StatAC), Value: 5}})
+	saved := *a1.save
+
+	// SESSION 2: content DELETED the mod — the registry holds only the host.
+	store2 := entities.NewStore()
+	a2 := &connActor{
+		save:       &saved,
+		items:      store2,
+		equipment:  make(map[string]entities.EntityID),
+		footprints: make(map[entities.EntityID][]string),
+		statBlock:  progression.New(),
+	}
+	a2.statBlock.RestoreModifiers(saved.Stats)
+	stale := a2.statBlock.Effective(progression.StatAC) // restored stale save: +5
+
+	tpls := newTestTemplates(t, hostTpl) // mod NOT registered → deleted
+	slots := slot.NewRegistry()
+	if err := slot.RegisterEngineBaseline(slots); err != nil {
+		t.Fatalf("baseline: %v", err)
+	}
+	respawnEquipment(ctx, a2, store2, tpls, slots, nil, saved.Equipment)
+
+	fresh := a2.statBlock.Effective(progression.StatAC)
+	// The recompute rebuilds AC from the current item (host 3; deleted mod gone),
+	// so the stale +2 is dropped: AC falls by exactly 2 versus the restored save.
+	if stale-fresh != 2 {
+		t.Fatalf("deleted mod's +2 not dropped on respawn: stale AC %d, fresh AC %d (want a drop of 2)", stale, fresh)
+	}
+	if newID := a2.Equipment()["head"]; newID == "" || !a2.statBlock.HasSource(entities.EquipmentSourceKey(newID)) {
+		t.Fatal("recomputed equip group not applied under the new source id")
+	}
 }

@@ -10,16 +10,16 @@ import (
 	"github.com/Jasrags/AnotherMUD/internal/keyword"
 )
 
-// Item modification verbs (item-modification.md — Slice A, capacity).
+// Item modification verbs (item-modification.md).
 //
-//   - `modify <armor>`            — show the host's capacity + installed mods.
-//   - `modify <armor> <mod>`      — install a carried modification into a carried host.
-//   - `unmodify <armor> <mod>`    — remove an installed modification back to inventory.
+//   - `modify <host>`            — show the host's capacity/mounts + installed mods.
+//   - `modify <host> <mod>`      — install a carried modification into the host.
+//   - `unmodify <host> <mod>`    — remove an installed modification back to inventory.
 //
-// v1 scope decision: both the host and the modification are resolved from the
-// actor's INVENTORY. A host must be carried (unequipped) to be modified — a bench
-// action — so the effect aggregation is always computed fresh on the next equip
-// and there is no reverse-while-worn recompute (item-modification §5 note).
+// The mod is resolved from the actor's inventory; the host may be carried OR worn
+// (§5). Modifying a WORN host re-applies its equip modifier group + recomputes so
+// the change lands live, and is barred in combat (the don-doff gate); a carried
+// host applies everything on its next equip.
 
 // resolveCarried keyword-matches token against the actor's carried items.
 func resolveCarried(c *Context, token string) (*entities.ItemInstance, bool) {
@@ -134,7 +134,7 @@ func ModifyHandler(ctx context.Context, c *Context) error {
 	// Resistances/protection refresh via the recompute; a stat-modifier/AC mod via
 	// the re-applied group. A carried host applies everything on its next equip.
 	if worn {
-		c.Actor.RefreshEquipped(host.ID(), equipModifiers(host, c.Grades, false))
+		c.Actor.RefreshEquipped(host.ID(), EquipModifiers(host, c.Grades, false))
 	}
 	if mount != "" {
 		return c.Actor.Write(ctx, fmt.Sprintf("You attach %s to %s's %s mount.", mod.Name(), host.Name(), mount))
@@ -168,7 +168,7 @@ func UnmodifyHandler(ctx context.Context, c *Context) error {
 	// A WORN host's contribution just shrank — re-apply its modifier group and
 	// recompute so the removed mod's effect reverses immediately (§5).
 	if worn {
-		c.Actor.RefreshEquipped(host.ID(), equipModifiers(host, c.Grades, false))
+		c.Actor.RefreshEquipped(host.ID(), EquipModifiers(host, c.Grades, false))
 	}
 	// Re-spawn the modification as a carried item (§5 — recovered by default).
 	note := capacityNote(host)

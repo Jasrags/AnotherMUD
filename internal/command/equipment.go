@@ -105,14 +105,16 @@ func withOffhand(companions []string) []string {
 	return append(append([]string(nil), companions...), offhandSlot)
 }
 
-// equipModifiers builds the stat-modifier group an equipped item contributes
+// EquipModifiers builds the stat-modifier group an equipped item contributes
 // under its EquipmentSourceKey: its effective Modifiers (item-modification §6
 // folds installed-mod modifiers into these), a graded WEAPON's to-hit/damage
 // (masterwork §3), a worn armor's grade-reduced check penalty (armor-depth §6),
 // and its armor bonus (armor-depth §3). `hasty` applies the §7 hasty-don
-// degradation (−1 armor bonus / +1 check). Shared by the equip path and the
-// modify-while-worn refresh (item-modification §5) so the two cannot drift.
-func equipModifiers(item *entities.ItemInstance, grades *grade.Registry, hasty bool) []stats.Modifier {
+// degradation (−1 armor bonus / +1 check). Shared by the equip path, the
+// modify-while-worn refresh (item-modification §5), and the login/respawn
+// recompute (so a returning player's equip modifiers are rebuilt from current
+// content, not a stale save) — the single builder keeps them from drifting.
+func EquipModifiers(item *entities.ItemInstance, grades *grade.Registry, hasty bool) []stats.Modifier {
 	mods := make([]stats.Modifier, 0, len(item.Modifiers()))
 	for _, m := range item.Modifiers() {
 		mods = append(mods, stats.Modifier{Stat: m.Stat, Value: m.Value})
@@ -351,7 +353,7 @@ func EquipHandler(ctx context.Context, c *Context) error {
 	// the shared equipModifiers helper so the equip path and the
 	// modify-while-worn refresh (item-modification §5) cannot drift.
 	hastyArmor := c.HastyDon && isSlowArmor(item)
-	mods := equipModifiers(item, c.Grades, hastyArmor)
+	mods := EquipModifiers(item, c.Grades, hastyArmor)
 
 	if !c.Actor.Equip(footprint, item.ID(), mods) {
 		// TOCTOU: inventory lost the item between resolve and equip (a
