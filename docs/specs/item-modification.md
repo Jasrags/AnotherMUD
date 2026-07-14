@@ -68,10 +68,15 @@ instance state; expose an install/remove flow.
   hosts + **armor** mods. **Weapon** modification uses a *different admission
   rule* (named mount slots) specified separately in `weapon-accessories.md`,
   layered on this spec's substrate — not "the same machinery," only the same
-  substrate. **Cyberware cluster** modification (enhancements into a
-  cybereye/cyberlimb) reuses *this* spec's capacity rule as another host domain,
-  but is deferred and interacts with Essence (SR-M4, shipped) and ware grades,
-  which are their own features. No weapon/cyberware content here.
+  substrate. **Cyberware cluster** modification (enhancements into a cybereye)
+  reuses *this* spec's capacity rule as a third host domain and **has since
+  shipped** with **zero engine changes** — a cybereye declares a `capacity` + a
+  `cybereye` tag, enhancements are `mod_host: cybereye` mods, and the effect rides
+  the standard equip pipeline while the eyes are worn. Cluster enhancements are
+  **capacity-gated and essence-free** (the shell's Essence covers the cluster;
+  SR-M4), so the Essence system is untouched. Still open: cyberlimbs as a second
+  cluster host, the fuller enhancement catalog (smartlink pairing, vision modes),
+  and essence-costed *standalone* enhancements.
 - **Crafting / installation skill checks / an Armorer facility.** Whether
   installation requires an NPC (an armorer, like the ripperdoc gates cyberware),
   a skill test, time, or tools is out of scope — v1 is a direct player command

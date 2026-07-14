@@ -255,9 +255,11 @@ generic progression engine, exercised on the SR track.
 ## 44. Item modification — armor mods & weapon accessories
 
 Gear is **modifiable**: an armor piece carries a **capacity** budget that
-**modifications** consume, and a weapon exposes **mount points** each accessory
-clips onto. A mod's effect (soak, environmental protection, a to-hit steadier)
-rides the normal equip pipeline while the host is worn/wielded. The verbs are
+**modifications** consume, a weapon exposes **mount points** each accessory clips
+onto, and a **cybereye** carries a capacity its enhancements slot into (three host
+domains, one rule). A mod's effect (soak, environmental protection, a to-hit
+steadier, sharper perception) rides the normal equip pipeline while the host is
+worn/wielded/installed. The verbs are
 `modify` (install / show) and `unmodify` (remove); the fixer (§42) stocks the
 whole catalog. Backed by `shadowrun_armor_mod_live_test.go`.
 
@@ -357,6 +359,26 @@ A **radiation shielding liner** doesn't seal you, it *reduces* the radiation.
       of a firefight."** Modding worn gear is a bench action; carried gear is always
       free to work on.
 
+### Cyberware clusters — enhancements into a cybereye (third host domain)
+
+The **same capacity rule** applies to cyberware: a **cybereye** carries a capacity
+budget (SR5 R1 = **4**) that **enhancements** install into — chrome you assemble
+before you jack it in. Cluster enhancements are **essence-free** (the shell's
+Essence covers the cluster). The fixer sells a **vision enhancement chip**.
+
+- [ ] `spawn item cybereyes me` (or `get cybereyes` from the corner tray),
+      `buy vision` (or `spawn item cybereye-vision-enhancement me`).
+- [ ] `modify cybereyes vision` — **"You install a vision enhancement chip into
+      cybereyes. (2 capacity free.)"** — the chip (cost **2**) drops into the eye's
+      capacity of 4. `modify cybereyes` shows **capacity 4 (2 used, 2 free)**.
+- [ ] `score` — note **INT**. `equip cybereyes` — INT rises by **2**: the shell's
+      own **+1** *plus* the enhancement's **+1**, both applied while the eyes are
+      worn. (`unequip cybereyes` drops both back.)
+- [ ] Essence check: the enhancement adds **no** Essence — installing it doesn't
+      move your Essence budget; only the cybereye shell's 0.2 does (as in §41).
+- [ ] `unmodify cybereyes vision` while the eyes are worn — INT drops by 1 live
+      (the chip pops back to inventory), same modify-worn re-apply as armor.
+
 ### Persistence
 
 - [ ] Install a mod, `quit`, log back in — `modify jacket` (or `look jacket`) still
@@ -386,8 +408,10 @@ A **radiation shielding liner** doesn't seal you, it *reduces* the radiation.
   Core set (**Fire Resistance, Insulation, Nonconductivity, Shock Frills, Thermal
   Damping**) is **not authored yet** — each needs a damage/detection mechanic that
   doesn't exist (fire/cold/electrical damage, thermographic detection). **Cyberware
-  modification** (enhancements into a cybereye's capacity) reuses the same rule but
-  is a later host domain. One known edge: a **hastily-donned** piece modified while
+  clusters** are shipped (cybereye + vision-enhancement chip) with zero engine
+  change; still open are **cyberlimbs** as a second cluster host and the fuller
+  enhancement catalog (the **smartlink↔smartgun** pairing, vision modes that need a
+  light/visibility consumer). One known edge: a **hastily-donned** piece modified while
   worn loses its degradation (low exposure; recorded in the item-modification build
   log).
 - Record any mismatch as a `BUG:` note next to the step; file the real ones into

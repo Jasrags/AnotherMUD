@@ -52,3 +52,6 @@ properties:
       - shadowrun:chemical-seal
       # Weapon accessory (weapon-accessories.md) — `modify <weapon> laser`.
       - shadowrun:laser-sight
+      # Cyberware-cluster enhancement (item-modification.md) — `modify cybereyes
+      # vision` slots it into a cybereye's capacity before you install the eyes.
+      - shadowrun:cybereye-vision-enhancement

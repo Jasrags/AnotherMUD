@@ -1,0 +1,22 @@
+id: cybereye-vision-enhancement
+name: a vision enhancement chip
+type: item
+description: |
+  A perception-boosting optical package — edge detection, contrast lift, motion
+  flags — that drops into a cybereye's spare capacity. The world gets sharper; you
+  notice the things that get runners killed.
+tags: [cyberware-mod]
+keywords: [vision, enhancement, chip, optics]
+# Cyberware-cluster ENHANCEMENT (item-modification.md §3 — the capacity rule, third
+# host domain). It fits a `cybereye` host (mod_host), consuming 2 of its capacity
+# (SR5 Vision Enhancement [Rating]; this is a Rating-2 chip). While the host eyes
+# are worn it sharpens perception — a +1 Intuition shift through the same equip
+# modifier pipeline the shell itself uses (item-modification §6). No essence_cost:
+# a cluster enhancement is capacity-gated, not essence-gated.
+mod_host: cybereye
+mod_capacity_cost: 2
+modifiers:
+  - { stat: intuition, value: 1 }
+properties:
+  weight: 0
+  value: 1000

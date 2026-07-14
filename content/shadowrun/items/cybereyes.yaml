@@ -7,12 +7,19 @@ description: |
   attribute shift stands in for that heightened awareness; the low-light /
   thermographic vision itself is flavor until a light/visibility consumer reads
   it.
-tags: [cyberware, augmentation]
+tags: [cyberware, augmentation, cybereye]
 keywords: [cybereyes, eyes, optics, cyberware]
 # essence_cost (SR-M4): cheap chrome — only 0.2 Essence, so a runner can stack
 # several sensory augments before the budget bites.
 eligible_slots: [cyberware]
 essence_cost: 0.2
+# Cyberware CLUSTER (item-modification.md — the capacity rule, third host domain):
+# a cybereye carries a capacity budget (SR5 Cybereyes R1 = 4) that ENHANCEMENTS
+# (mod_host: cybereye) install into with `modify cybereyes <enhancement>`. Cluster
+# enhancements are capacity-gated and essence-free — the shell's 0.2 Essence covers
+# the whole cluster. The base +1 intuition below is the shell's own optics; installed
+# enhancements add on top when the eyes are worn.
+capacity: 4
 modifiers:
   - { stat: intuition, value: 1 }
 properties:
