@@ -54,12 +54,14 @@ func TestLive_ShadowrunNuyenShop(t *testing.T) {
 	}
 
 	// Starting nuyen (the street-kid background's 500), read off the score purse.
-	goldRe := regexp.MustCompile(`(?i)Gold\s+(\d+)`)
+	// The SR currency reskin renders the purse as "Nuyen  <amount>¥" (currency
+	// label Title + Symbol), not the generic "Gold" noun.
+	goldRe := regexp.MustCompile(`(?i)Nuyen\s+([\d,]+)¥`)
 	m := goldRe.FindStringSubmatch(send("score"))
 	if m == nil {
-		t.Fatal("no Gold on the score sheet")
+		t.Fatal("no Nuyen purse on the score sheet")
 	}
-	before, _ := strconv.Atoi(m[1])
+	before, _ := strconv.Atoi(strings.ReplaceAll(m[1], ",", ""))
 	if before <= 0 {
 		t.Fatalf("a fresh Street Samurai has %d nuyen; want > 0 (street-kid grants 500)", before)
 	}
@@ -70,15 +72,16 @@ func TestLive_ShadowrunNuyenShop(t *testing.T) {
 		t.Fatalf("the fixer's `list` did not show her wares (no caseless round):\n%s", wares)
 	}
 
-	// Buy a clip: the price comes off the nuyen balance.
-	buyRe := regexp.MustCompile(`(?i)You buy .* for (\d+) gold\. You have (\d+) gold left\.`)
+	// Buy a clip: the price comes off the nuyen balance. The buy line reskins to
+	// nuyen too ("You buy X for <n>¥. You have <n>¥ left.").
+	buyRe := regexp.MustCompile(`(?i)You buy .* for ([\d,]+)¥\. You have ([\d,]+)¥ left\.`)
 	out := send("buy round")
 	bm := buyRe.FindStringSubmatch(out)
 	if bm == nil {
-		t.Fatalf("buy round did not confirm a purchase (\"You buy … gold left.\"):\n%s", out)
+		t.Fatalf("buy round did not confirm a purchase (\"You buy … ¥ left.\"):\n%s", out)
 	}
-	price, _ := strconv.Atoi(bm[1])
-	remaining, _ := strconv.Atoi(bm[2])
+	price, _ := strconv.Atoi(strings.ReplaceAll(bm[1], ",", ""))
+	remaining, _ := strconv.Atoi(strings.ReplaceAll(bm[2], ",", ""))
 	if price <= 0 {
 		t.Fatalf("clip cost %d nuyen; want > 0 (a real spend)", price)
 	}
