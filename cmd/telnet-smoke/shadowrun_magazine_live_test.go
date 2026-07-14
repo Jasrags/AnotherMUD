@@ -269,17 +269,26 @@ func TestLive_ShadowrunClipDecay(t *testing.T) {
 		}
 		return out
 	}
-	// Two loaded clips; insert one, then insert the other to EJECT the first.
-	// Do it in the empty, safe back alley — the street corner keeps a clip on the
-	// ground as starter gear, which would mask the decay.
+	// Get an ejected clip onto the ground to watch it decay. The InsertHolder
+	// smart-swap only ejects a seated clip that is STRICTLY emptier than the best
+	// spare (ammo-and-reloading §11 — two equally-full clips no longer churn), so
+	// seat a PARTIAL clip (5/15) and then insert a full 15/15 spare: the emptier
+	// seated clip is ejected. Do it in the empty, safe back alley — the street
+	// corner keeps a starter clip on the ground that would mask the decay.
 	send("get pistol")
-	send("spawn item predator-clip-loaded me")
-	send("spawn item predator-clip-loaded me")
-	send("teleport shadowrun:back-alley")
 	send("equip pistol wield")
-	send("reload") // insert the first clip
-	if out := send("reload"); !strings.Contains(strings.ToLower(out), "ejects") {
-		t.Fatalf("second reload did not eject the first clip:\n%s", out)
+	send("spawn item predator-clip me")    // an empty clip
+	send("spawn item caseless-round 5 me") // a few loose rounds → a partial fill
+	send("teleport shadowrun:back-alley")
+	// A partial fill (< 15/15) — the exact count varies with the starting kit's
+	// loose rounds, but anything under 15 is strictly emptier than the full spare.
+	if out := send("reload clip"); strings.Contains(out, "(15/15)") || !strings.Contains(out, "/15)") {
+		t.Fatalf("reload clip should partially fill the clip (< 15/15) so the full spare can eject it:\n%s", out)
+	}
+	send("reload")                             // seat the 5/15 clip
+	send("spawn item predator-clip-loaded me") // a full 15/15 spare
+	if out := send("reload"); !strings.Contains(strings.ToLower(out), "eject") {
+		t.Fatalf("inserting a full spare did not eject the emptier seated clip:\n%s", out)
 	}
 	if out := send("look"); !strings.Contains(strings.ToLower(out), "clip") {
 		t.Fatalf("the ejected clip is not on the ground:\n%s", out)
