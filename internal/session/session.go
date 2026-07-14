@@ -973,6 +973,12 @@ func run(ctx context.Context, c conn.Connection, cfg Config) error {
 	a.wimpyThreshold.Store(int32(clampWimpy(loaded.Player.WimpyThreshold)))
 	// M22.4: seed the autoloot preference from the persisted save.
 	a.autoloot.Store(loaded.Player.Autoloot)
+	// ui-rendering-help §12: seed the contextual-tips state from the save.
+	a.tipsDisabled = loaded.Player.TipsDisabled
+	a.tipsSeen = make(map[string]struct{}, len(loaded.Player.TipsSeen))
+	for _, id := range loaded.Player.TipsSeen {
+		a.tipsSeen[id] = struct{}{}
+	}
 	// feats Bucket C: seed the Power Attack stance from the persisted save.
 	a.powerAttack.Store(loaded.Player.PowerAttackActive)
 	// grouping.md §9: seed the auto-assist preference from the persisted save.
@@ -2361,6 +2367,15 @@ type connActor struct {
 	// (same rationale as wimpyThreshold). The write path takes a.mu to
 	// also mutate a.save. Persistence: player.Save.Autoloot.
 	autoloot atomic.Bool
+
+	// Contextual tips (ui-rendering-help §12): one-time newbie hints. tipsSeen
+	// is the shown-once set; tipsDisabled is the opt-out (tips default ON). Both
+	// guarded by a.mu (the seen-set is a map, and the coupled a.save write must
+	// be atomic with the flag), seeded from the save at login. The `tips` verb
+	// and the room-view tip seam mutate them. Persistence: player.Save.TipsSeen /
+	// TipsDisabled.
+	tipsDisabled bool
+	tipsSeen     map[string]struct{}
 
 	// autoreload is the autoreload.md §2 per-character preference (off by
 	// default). Read on the tick goroutine by the dry-fire autoreload trigger
@@ -6609,6 +6624,74 @@ func (a *connActor) SetAutoloot(on bool) {
 	a.autoloot.Store(on)
 	if a.save != nil {
 		a.save.Autoloot = on
+		a.markDirtyLocked()
+	}
+}
+
+// ShowTipOnce shows a one-time contextual tip and reports whether it was
+// actually shown (ui-rendering-help §12). Returns false — no output — when tips
+// are disabled or this id was already shown, so callers can fall through to the
+// next candidate. The seen id is recorded and persisted (bounded by the fixed
+// tip catalogue). The write happens outside the lock so a slow client can't
+// stall other mutators. Implements command.TipShower.
+func (a *connActor) ShowTipOnce(ctx context.Context, id, text string) bool {
+	a.mu.Lock()
+	if a.tipsDisabled {
+		a.mu.Unlock()
+		return false
+	}
+	if a.tipsSeen == nil {
+		a.tipsSeen = make(map[string]struct{})
+	}
+	if _, seen := a.tipsSeen[id]; seen {
+		a.mu.Unlock()
+		return false
+	}
+	a.tipsSeen[id] = struct{}{}
+	if a.save != nil {
+		a.save.TipsSeen = append(a.save.TipsSeen, id)
+		a.markDirtyLocked()
+	}
+	a.mu.Unlock()
+
+	_ = a.Write(ctx, "<subtle>Tip: "+text+"</subtle>")
+	return true
+}
+
+// TipsEnabled reports whether one-time contextual tips are on for this
+// character. Implements command.TipController.
+func (a *connActor) TipsEnabled() bool {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	return !a.tipsDisabled
+}
+
+// SetTipsEnabled toggles contextual tips and persists the choice. No-op when
+// unchanged. Implements command.TipController.
+func (a *connActor) SetTipsEnabled(on bool) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	if a.tipsDisabled == !on {
+		return
+	}
+	a.tipsDisabled = !on
+	if a.save != nil {
+		a.save.TipsDisabled = !on
+		a.markDirtyLocked()
+	}
+}
+
+// ResetTips re-arms every contextual tip (clears the shown-once set) and turns
+// tips back on, so the introductory hints show again. Implements
+// command.TipController.
+func (a *connActor) ResetTips() {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	a.tipsSeen = make(map[string]struct{})
+	a.tipsDisabled = false
+	if a.save != nil {
+		a.save.TipsSeen = nil
+		a.save.TipsDisabled = false
 		a.markDirtyLocked()
 	}
 }

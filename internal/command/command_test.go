@@ -291,6 +291,9 @@ type testActor struct {
 	autoreload     bool
 	autoAssist     bool
 	inCombat       bool
+	tipsActive     bool // opt-in: only fire contextual tips in tests that want them
+	tipsDisabled   bool
+	tipsSeen       map[string]struct{}
 
 	craftPending crafting.PendingCraft
 	hasCraft     bool
@@ -794,6 +797,47 @@ func (a *testActor) Write(ctx context.Context, msg string) error {
 	defer a.mu.Unlock()
 	a.lines = append(a.lines, msg)
 	return nil
+}
+
+// Contextual-tips capability (TipShower + TipController) mirroring the session
+// actor: shown-once set + opt-out, in-memory.
+func (a *testActor) ShowTipOnce(ctx context.Context, id, text string) bool {
+	a.mu.Lock()
+	// Opt-in: the shared fake stays silent for the many room-view tests that
+	// don't care about tips; a tip test sets tipsActive to exercise firing.
+	if !a.tipsActive || a.tipsDisabled {
+		a.mu.Unlock()
+		return false
+	}
+	if a.tipsSeen == nil {
+		a.tipsSeen = map[string]struct{}{}
+	}
+	if _, seen := a.tipsSeen[id]; seen {
+		a.mu.Unlock()
+		return false
+	}
+	a.tipsSeen[id] = struct{}{}
+	a.mu.Unlock()
+	return a.Write(ctx, "<subtle>Tip: "+text+"</subtle>") == nil
+}
+
+func (a *testActor) TipsEnabled() bool {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	return !a.tipsDisabled
+}
+
+func (a *testActor) SetTipsEnabled(on bool) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	a.tipsDisabled = !on
+}
+
+func (a *testActor) ResetTips() {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	a.tipsSeen = map[string]struct{}{}
+	a.tipsDisabled = false
 }
 
 func (a *testActor) ColorEnabled() bool {

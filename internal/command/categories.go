@@ -99,6 +99,7 @@ var commandCategories = map[string]string{
 	"suggest":     catGeneral,
 	"tabcomplete": catGeneral,
 	"daylight":    catGeneral,
+	"tips":        catGeneral,
 
 	// Movement & Travel.
 	"map":      catMovement,

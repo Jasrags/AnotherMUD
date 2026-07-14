@@ -47,7 +47,12 @@ func (c *Context) writeRoomView(ctx context.Context, r *world.Room, lvl light.Le
 	if banner := c.areaTransitionBanner(r); banner != "" {
 		view = banner + "\n" + view
 	}
-	return c.Actor.Write(ctx, view)
+	if err := c.Actor.Write(ctx, view); err != nil {
+		return err
+	}
+	// One-time contextual tips after the room is shown (ui-rendering-help §12).
+	c.maybeShowRoomTips(ctx, r, lvl)
+	return nil
 }
 
 // areaTransitionBanner returns the leave/enter zone-line when the actor

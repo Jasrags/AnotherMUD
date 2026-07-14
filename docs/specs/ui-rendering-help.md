@@ -869,7 +869,7 @@ without consulting the originating template.
 Authoring a description is never required. When a target has none, the
 appearance lens renders a **generic fallback** that still names the
 target (a "nothing special about &lt;name&gt;" line). The fallback
-wording is policy (§13).
+wording is policy (§14).
 
 Players carry **no authored description**. Their appearance is
 **generated** at render time (§11.3).
@@ -929,7 +929,7 @@ the look handler then renders the generic fallback rather than an empty
 or malformed line.
 
 The composition (fragment order, article handling, which fragments are
-included) is policy (§13).
+included) is policy (§14).
 
 **Acceptance criteria**
 
@@ -957,7 +957,7 @@ numbers** (no hit points, no armor value):
   wounding). The viewer must itself be a combatant for this read; when
   it is not, the threat phrase is omitted and only the condition shows.
 
-The descriptor bands and the threat-read bands are both policy (§13).
+The descriptor bands and the threat-read bands are both policy (§14).
 `consider` resolves creatures only; an item is not a `consider` target.
 Self-references point the player at the self sheet instead of rendering.
 
@@ -975,7 +975,64 @@ Self-references point the player at the self sheet instead of rendering.
 
 ---
 
-## 12. Observable events
+## 12. Contextual tips
+
+Contextual tips are **one-time hints** that surface the right command
+at the moment a player first meets a situation — a gentle,
+opt-out layer on top of the pull-based help of §9–§10. They are aimed
+at new players and never repeat.
+
+### 12.1 Model
+
+- Each tip has a stable **id** and a short line of copy. The catalogue
+  of tips (ids + copy + when each fires) is policy.
+- A tip fires **once ever per character**: the shown-once set is
+  per-character state that persists across logout (a character who saw
+  a tip never sees it again, even after relog).
+- Tips are **opt-out**, on by default. A player can disable them, and
+  re-arm them (clear the shown-once set and re-enable) — the `tips`
+  verb (§12.3) owns this.
+
+### 12.2 The room-view trigger
+
+The committed trigger is the **arrival render** — the shared path that
+shows a room after a look or any movement (walk, flee, recall,
+teleport). After the room is written, at most **one** not-yet-seen tip
+is shown, chosen from an ordered candidate list: a general orientation
+tip first (pointing at `help` / the getting-started guide), then
+situational tips whose condition holds in the current room (a merchant
+present → the shopping tip; loose items on the ground → the pick-up
+tip; darkness → the light-source tip). Because each tip fires once,
+this drip-feeds a new player one fresh hint per room as they encounter
+each situation, and falls silent once all relevant tips are seen.
+
+A disabled player is skipped before any situational condition is
+evaluated, so opting out costs nothing. The specific tip ids, their
+copy, and their firing conditions are policy (§14). The login-spawn
+render is not a trigger in this version — the first look or step is.
+
+### 12.3 The `tips` verb
+
+- `tips` (no argument) reports whether tips are on or off (it does not
+  toggle — checking a preference must not change it).
+- `tips on` / `tips off` set the opt-out; the choice persists.
+- `tips reset` re-arms every tip (clears the shown-once set) and turns
+  tips back on, so the introductory hints show again.
+
+**Acceptance criteria**
+
+- [ ] A tip is shown at most once ever per character; the shown-once
+      set survives logout.
+- [ ] At most one new tip is shown per room view; already-seen tips are
+      skipped, letting the next relevant one show later.
+- [ ] With tips disabled, no tip is shown and no situational condition
+      is evaluated.
+- [ ] `tips` reports state without changing it; `on`/`off` persist;
+      `reset` re-arms and re-enables.
+
+---
+
+## 13. Observable events
 
 The UI / rendering / help feature emits no engine events.
 Help loading is observed via the pack-loading log path
@@ -989,7 +1046,7 @@ networking spec's GMCP section.
 
 ---
 
-## 13. Configuration surface
+## 14. Configuration surface
 
 The following are externally configurable and not fixed by
 this spec.
@@ -1012,7 +1069,7 @@ this spec.
 
 ---
 
-## 14. Open questions / future work
+## 15. Open questions / future work
 
 - **Hyphen vs underscore color names.** Literal color tags
   use `bright-red`; brace shorthand uses `bright_red`. The

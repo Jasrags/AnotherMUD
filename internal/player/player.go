@@ -127,7 +127,7 @@ import (
 // means "knows no recipes beyond what a discipline grants at runtime";
 // the migration injects nothing. A known id whose recipe was removed from
 // content loads cleanly and is ignored at restore (§9), never an error.
-const CurrentVersion = 35
+const CurrentVersion = 36
 
 // Sentinel errors callers may check via errors.Is.
 var (
@@ -475,6 +475,20 @@ type Save struct {
 	// save round-trips as the empty set. Folded into connActor.Tags() at
 	// runtime so the AI disposition evaluator's `has_tag` rules match on it.
 	AdminTags []string `yaml:"admin_tags,omitempty"`
+
+	// TipsDisabled is the per-character opt-out for one-time contextual tips
+	// (ui-rendering-help §12). Stored as the INVERSE of the enabled state so the
+	// v36 migration stays a pure no-op on the Autoloot precedent: tips default
+	// ON, and an absent/false `tips_disabled` (omitempty) is exactly the default,
+	// so a pre-v36 save loads with tips enabled and round-trips unchanged. The
+	// `tips` verb writes it.
+	TipsDisabled bool `yaml:"tips_disabled,omitempty"`
+
+	// TipsSeen is the set of contextual-tip ids already shown to this character,
+	// so each tip fires once ever (ui-rendering-help §12). Bounded by the fixed
+	// engine tip catalogue. Mirrors SeenAreas: a bounded []string with set
+	// semantics, absent on a fresh character, no schema bump beyond the field.
+	TipsSeen []string `yaml:"tips_seen,omitempty"`
 }
 
 // HirelingRecord is one hire contract on a player save (hireable-mobs.md §9). It
@@ -779,6 +793,7 @@ var playerMigrations = map[int]func(map[string]any) (map[string]any, error){
 	32: migrateV32toV33,
 	33: migrateV33toV34,
 	34: migrateV34toV35,
+	35: migrateV35toV36,
 }
 
 // migrateV1toV2 adds the empty inventory/equipment blocks introduced
@@ -1253,6 +1268,15 @@ func migrateV33toV34(in map[string]any) (map[string]any, error) {
 // respawn — exactly a fresh, unmodded host. The contribution is re-derived from
 // each mod's template at load, never stored.
 func migrateV34toV35(in map[string]any) (map[string]any, error) {
+	return in, nil
+}
+
+// migrateV35toV36 introduces the contextual-tips fields (ui-rendering-help §12 —
+// `tips_disabled` opt-out + `tips_seen` shown-once set). A no-op: tips default ON
+// and disabled is stored as the inverse, so an absent `tips_disabled` reads as
+// enabled and an absent `tips_seen` reads as the empty set — exactly a fresh
+// character who has seen no tips. Nothing to backfill.
+func migrateV35toV36(in map[string]any) (map[string]any, error) {
 	return in, nil
 }
 
