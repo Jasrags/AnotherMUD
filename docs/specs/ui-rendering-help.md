@@ -820,6 +820,15 @@ and full topics are one drill-down away via `help <category>` (§9.7)
 and `help <command>` (§10.1) — the index itself lists keywords only, so
 it stays scannable regardless of how many commands exist.
 
+The same categorized catalog is also exposed to rich clients as a GMCP
+push (a `Char.Commands` package: an ordered list of categories, each
+with its commands' keyword / brief / primary-syntax), so a graphical or
+web client can render clickable command menus without scraping `help`
+output. The push is role-filtered identically to the index (the admin
+group only reaches admins) and is shipped once per session, like other
+static identity packages. The GMCP wire shape is a transport/feature
+concern (see `docs/specs/networking-protocols.md`), not specified here.
+
 **Acceptance criteria**
 
 - [ ] Bare `help` groups commands under category headers in the

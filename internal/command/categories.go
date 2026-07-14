@@ -1,5 +1,7 @@
 package command
 
+import "sort"
+
 // Command categorization for the help index (ui-rendering-help §9.7). The
 // Command struct carries a free-form Category string, but assigning it inline
 // on all ~146 builtin literals would scatter the taxonomy across the file and
@@ -236,6 +238,79 @@ var commandCategories = map[string]string{
 	"ask":     catQuests,
 	"accept":  catQuests,
 	"abandon": catQuests,
+}
+
+// CatalogCommand is one discoverable command in the grouped command catalog —
+// the menu-facing view a rich client (GMCP Char.Commands) renders as a clickable
+// entry. Syntax is the primary usage line (synthesized from typed args, else the
+// first hand-authored syntax).
+type CatalogCommand struct {
+	Keyword string
+	Brief   string
+	Syntax  string
+}
+
+// CatalogCategory groups CatalogCommands under a display category, in the same
+// canonical order and titles the help index uses.
+type CatalogCategory struct {
+	Key      string
+	Title    string
+	Commands []CatalogCommand
+}
+
+// Catalog returns the discoverable commands grouped by category in the canonical
+// help order (categoryOrder), for pushing to rich clients or any menu UI. It
+// mirrors the bare-help index's grouping and role gate: admin commands (and the
+// admin category) are included only when includeAdmin is true, empty categories
+// are omitted, and categories outside categoryOrder render after the canonical
+// ones, alphabetically, so nothing is dropped. Commands()' bare-Register /
+// alias exclusions mean ability verbs and un-metadata'd verbs never appear.
+func (r *Registry) Catalog(includeAdmin bool) []CatalogCategory {
+	byCat := make(map[string][]CatalogCommand)
+	for _, ci := range r.Commands() {
+		if ci.Admin && !includeAdmin {
+			continue
+		}
+		byCat[ci.Category] = append(byCat[ci.Category], catalogCommand(ci))
+	}
+
+	out := make([]CatalogCategory, 0, len(byCat))
+	seen := make(map[string]bool, len(categoryOrder))
+	appendCat := func(key, title string) {
+		list := byCat[key]
+		if len(list) == 0 {
+			return
+		}
+		out = append(out, CatalogCategory{Key: key, Title: title, Commands: list})
+	}
+	for _, m := range categoryOrder {
+		seen[m.Key] = true
+		appendCat(m.Key, m.Title)
+	}
+	leftover := make([]string, 0)
+	for key := range byCat {
+		if !seen[key] {
+			leftover = append(leftover, key)
+		}
+	}
+	sort.Strings(leftover)
+	for _, key := range leftover {
+		appendCat(key, categoryTitle(key))
+	}
+	return out
+}
+
+// catalogCommand projects a CommandInfo into its catalog view, choosing the
+// primary syntax line the same way help generation does (synthesized from typed
+// args when present, else the first hand-authored syntax line).
+func catalogCommand(ci CommandInfo) CatalogCommand {
+	syntax := ""
+	if len(ci.Args) > 0 {
+		syntax = synthesizeSyntax(ci.Keyword, ci.Args)
+	} else if len(ci.Syntax) > 0 {
+		syntax = ci.Syntax[0]
+	}
+	return CatalogCommand{Keyword: ci.Keyword, Brief: ci.Brief, Syntax: syntax}
 }
 
 // categoryFor resolves the help category for a builtin command: the explicit

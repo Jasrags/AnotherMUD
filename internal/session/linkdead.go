@@ -132,6 +132,9 @@ func (a *connActor) reattach(newConn conn.Connection, now time.Time) bool {
 	// gets fresh Char.Login + Char.StatusVars + Char.Status
 	// baseline frames on reattach.
 	a.resetGmcpCharStatusShadow()
+	// Re-emit the Char.Commands catalog so the new peer's menu gets a
+	// baseline (ui-rendering-help §10.4).
+	a.resetGmcpCommandsShadow()
 	return true
 }
 

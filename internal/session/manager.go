@@ -87,6 +87,15 @@ type Manager struct {
 	guideTemplate string
 	guideLevelCap int
 
+	// Char.Commands catalog (ui-rendering-help §10.4): the categorized command
+	// list pushed once per session for menu-capable clients. Static per role, so
+	// the two role tiers are pre-marshalled once at boot via SetCommandCatalog —
+	// player-visible and admin-visible — and the flusher picks by the actor's
+	// admin role. nil (unset) disables the push. Guarded by m.mu.
+	cmdCatalogPlayer    []byte
+	cmdCatalogAdmin     []byte
+	cmdCatalogAdminRole string
+
 	// action-economy.md timed-action sweep. actionTracker holds in-flight
 	// occupations; actionCommands + actionEnv replay a completed action's
 	// command with ReplayAction set so its consumer performs the deferred

@@ -518,6 +518,16 @@ func run() error {
 		return fmt.Errorf("register gmcp-charstatus-flush tick: %w", err)
 	}
 
+	// Char.Commands catalog (ui-rendering-help §10.4): the categorized command
+	// list for menu-capable clients, pre-built per role tier and pushed once per
+	// session (emit-once, like Char.StatusVars).
+	mgr.SetCommandCatalog(ctx, cmds, cfg.AdminRole)
+	if err := loop.Register("gmcp-commands-flush", 1, func(ctx context.Context, _ uint64) {
+		mgr.FlushGmcpCommands(ctx)
+	}); err != nil {
+		return fmt.Errorf("register gmcp-commands-flush tick: %w", err)
+	}
+
 	// M11.3: sustenance drain (spec economy-survival §4.4). The service
 	// owns the value semantics + tier/multiplier helpers; the world-tick
 	// handler decrements every logged-in player's pool at DrainCadence

@@ -463,3 +463,35 @@ func TestCharWizardStep_SecretEmitsWhenSet(t *testing.T) {
 		t.Errorf("secret text step must carry secret:true, got %q", got)
 	}
 }
+
+func TestCharCommands_FullPayloadShape(t *testing.T) {
+	payload := gmcp.CharCommands{Categories: []gmcp.CharCommandCategory{{
+		Key:   "combat",
+		Title: "Combat",
+		Commands: []gmcp.CharCommand{
+			{Keyword: "kill", Brief: "Attack a target.", Syntax: "kill [target]"},
+			{Keyword: "flee"},
+		},
+	}}}
+	data, err := json.Marshal(payload)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var back gmcp.CharCommands
+	if err := json.Unmarshal(data, &back); err != nil {
+		t.Fatal(err)
+	}
+	if len(back.Categories) != 1 || back.Categories[0].Key != "combat" || len(back.Categories[0].Commands) != 2 {
+		t.Errorf("round-trip mismatch: %s", data)
+	}
+	// Optional brief/syntax omit when empty.
+	if got := string(data); !strings.Contains(got, `"keyword":"flee"`) || strings.Contains(got, `"keyword":"flee","brief"`) {
+		t.Errorf("flee should omit empty brief/syntax: %s", got)
+	}
+}
+
+func TestCharCommands_PackageConstant(t *testing.T) {
+	if gmcp.PackageCharCommands != "Char.Commands" {
+		t.Errorf("PackageCharCommands = %q", gmcp.PackageCharCommands)
+	}
+}

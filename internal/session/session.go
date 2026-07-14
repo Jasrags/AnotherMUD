@@ -2610,6 +2610,13 @@ type connActor struct {
 	gmcpStatusVarsSent  bool
 	gmcpLastStatus      gmcp.CharStatus
 	gmcpLastStatusValid bool
+	// gmcpCommandsSent gates the emit-once Char.Commands catalog push (the
+	// menu-facing categorized command list, ui-rendering-help §10.4). Static
+	// per role for a session, so it ships once on the first GMCP-active flush
+	// after login and re-ships on link-dead reattach. Guarded by its own mutex
+	// so the compare-and-set doesn't contend with the Char.Status diff.
+	gmcpCommandsMu   sync.Mutex
+	gmcpCommandsSent bool
 	// recentTells is a session-scoped ring of recently-received tell
 	// lines for the `tells` verb (a brief review of what scrolled past).
 	// In-memory only. Capped by tellsSessionHistoryCap. Guarded by mu.
