@@ -19,10 +19,11 @@ import (
 // the melee band, where a gun fires at a penalty per SR5). Two behaviours,
 // deterministically decoupled so neither depends on the ganger's hp:
 //
-//   - DRY FIRST (no ammo): engaging with an empty gun clicks empty every swing
-//     (the AmmoFor hook returns can't-fire → RangedDry → the ranged-flavor "dry"
-//     line). The runner does no damage, so the ganger stays up while we observe
-//     the empty click.
+//   - UNLOADED FIRST (no clip): engaging with a clipless holder-fed gun clicks
+//     empty every swing (the AmmoFor hook returns can't-fire → RangedDry with
+//     Unloaded set → the "isn't loaded, reload first" flavor line — distinct from
+//     the ammo-EXHAUSTED "dry" line). The runner does no damage, so the ganger
+//     stays up while we observe the empty click.
 //
 //   - THEN HIT (spawn a stack): the same pistol now fires, spending one `bullet`
 //     per shot, and a landed shot is lethal — no target_pool, so it lands on the
@@ -79,9 +80,14 @@ func TestLive_ShadowrunFirearm(t *testing.T) {
 
 	// Phase 1 — the empty click. Holder-fed with no clip inserted, the pistol
 	// can't fire; every swing runs dry. The runner deals no damage.
-	dryRe := regexp.MustCompile(`(?i)no bullet left to shoot`)
-	if !fightUntil(t, send, c, dryRe, 30*time.Second) {
-		t.Fatal("a clipless pistol never clicked dry in melee — the holder-fed AmmoFor gate isn't skipping the ammoless swing")
+	// A clipless holder-fed pistol is UNLOADED, not out of ammo — the AmmoFor gate
+	// returns can't-fire, the swing is skipped, and RangedDry{Unloaded:true} maps
+	// to the "reload first" line (autoattack.go: AcceptsHolder != "" ⇒ Unloaded).
+	// (The "no {ammo} left to shoot" DRY line is the ammo-EXHAUSTED case — a bow
+	// drawing an empty quiver — not a never-loaded gun.)
+	unloadedRe := regexp.MustCompile(`(?i)isn't loaded`)
+	if !fightUntil(t, send, c, unloadedRe, 30*time.Second) {
+		t.Fatal("a clipless pistol never clicked empty in melee — the holder-fed AmmoFor gate isn't skipping the unloaded swing")
 	}
 
 	// Phase 2 — the holder model (ammo-and-reloading §3-§5): a clip must be
