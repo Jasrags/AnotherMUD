@@ -41,4 +41,14 @@ properties:
       - shadowrun:heavy-crossbow
       - shadowrun:bolt
       - shadowrun:armored-jacket
+      - shadowrun:armor-vest
       - shadowrun:cybereyes
+      # Armor modifications (item-modification.md) — slot these into a modifiable
+      # jacket/vest with `modify <armor> <mod>`. Physical soak, environmental
+      # resistance, or a full seal, traded against the garment's capacity.
+      - shadowrun:ballistic-weave
+      - shadowrun:chemical-protection
+      - shadowrun:radiation-shielding
+      - shadowrun:chemical-seal
+      # Weapon accessory (weapon-accessories.md) — `modify <weapon> laser`.
+      - shadowrun:laser-sight

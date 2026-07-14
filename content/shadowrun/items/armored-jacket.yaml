@@ -17,6 +17,9 @@ armor_bonus: 3
 # Light armour barely restricts movement — a generous max-Dex and no speed hit.
 armor_max_dex: 8
 armor_speed: 30
+# Item modification (item-modification.md §2): SR5 Armor Jacket Capacity = 12 —
+# more mod space than the heavier vest (9), the tradeoff for its lower rating.
+capacity: 12
 properties:
   weight: 4
   value: 500

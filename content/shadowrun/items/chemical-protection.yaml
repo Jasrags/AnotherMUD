@@ -1,0 +1,22 @@
+id: chemical-protection
+name: a chemical protection layer
+type: item
+description: |
+  A reactive under-layer of neutralizing gel packs and sealed seams. It won't seal
+  you the way a full chem kit does, but it eats the worst of a toxin cloud — handy
+  in the Puyallup ash flats where the air itself is the enemy.
+tags: [armor-mod]
+keywords: [chemical, protection, layer, chem]
+# Item modification (item-modification.md §3): an armor MODIFICATION. SR5 Chemical
+# Protection has Capacity [Rating]; this is a Rating-2 layer (each rating authored
+# as its own template, item-modification §3). It MITIGATES toxin damage — soaks 2
+# of the `toxic` payload the ashfall / Puyallup biome hazard deals each tick
+# (area-effects.md §4.6(b): resistance reduces, immunity negates). Cheaper +
+# smaller than the full chemical-seal kit.
+mod_host: armor
+mod_capacity_cost: 2
+resistances:
+  toxic: 2
+properties:
+  weight: 1
+  value: 400
