@@ -1,0 +1,18 @@
+id: ballistic-weave
+name: a ballistic weave insert
+type: item
+description: |
+  A slab of layered aramid-and-ceramic weave cut to slot into an armor liner. It
+  soaks bullets a little better at the cost of some of the garment's mod space.
+tags: [armor-mod]
+keywords: [weave, ballistic, insert, ballistic weave]
+# Item modification (item-modification.md §3): a MODIFICATION that fits an armor
+# host, consuming 3 of its capacity, and granting piercing (ballistic) soak while
+# the host is worn.
+mod_host: armor
+mod_capacity_cost: 3
+resistances:
+  piercing: 2
+properties:
+  weight: 1
+  value: 500

@@ -1,14 +1,45 @@
 package entities
 
 import (
+	"errors"
 	"maps"
 	"slices"
+	"strings"
 	"sync"
 
 	"github.com/Jasrags/AnotherMUD/internal/combat"
 	"github.com/Jasrags/AnotherMUD/internal/item"
 	"github.com/Jasrags/AnotherMUD/internal/srckey"
 )
+
+// Item-modification errors (item-modification.md §4). Callers distinguish these
+// at the command boundary to emit a distinct refusal cue.
+var (
+	// ErrNotModifiable — the host declares no capacity budget (§2).
+	ErrNotModifiable = errors.New("item is not modifiable")
+	// ErrNotAModification — the item is not a modification (no host-compat key, §3).
+	ErrNotAModification = errors.New("item is not a modification")
+	// ErrModIncompatible — the mod's host class does not match the host (§4 step 1).
+	ErrModIncompatible = errors.New("modification does not fit this host")
+	// ErrModNoCapacity — the mod's cost exceeds the host's free capacity (§4 step 2).
+	ErrModNoCapacity = errors.New("not enough free capacity")
+)
+
+// InstalledMod is one modification installed into a host item
+// (item-modification.md §3/§7). Its effect is SNAPSHOTTED from the mod item at
+// install so the equip/recompute aggregation seams need no template registry
+// (they read the host's effective Modifiers/ArmorBonus/ArmorCheckPenalty/
+// Resistances, §6). Recorded as durable host-instance state; the mod's template
+// id is what persists (§7), the rest is re-derived from the template on load.
+type InstalledMod struct {
+	TemplateID   item.TemplateID
+	Name         string
+	CapacityCost int
+	ArmorBonus   int
+	ArmorCheck   int
+	Resistances  map[string]int
+	Modifiers    []InstanceModifier
+}
 
 // Reserved property keys with engine-defined semantics. Listed here
 // because they participate in §2.3 instantiation rules.
@@ -211,6 +242,16 @@ type ItemInstance struct {
 	// cyberware (Shadowrun SR-M4). 0 for ordinary gear. Read by the equip
 	// recompute to derive the wearer's essence pool current (max − Σ installed).
 	essenceCost int
+	// Item modification (item-modification.md — Slice A). capacity is a HOST's
+	// mod budget (0 ⇒ unmodifiable); modHost/modCapacityCost mark a MODIFICATION
+	// (its host class + cost). installedMods is the host's durable set of
+	// installed modifications — mutated at install/remove and read by the
+	// effective Modifiers/ArmorBonus/ArmorCheckPenalty/Resistances accessors,
+	// so it is guarded by propsMu like the property bag.
+	capacity        int
+	modHost         string
+	modCapacityCost int
+	installedMods   []InstalledMod
 }
 
 // ID implements Entity.
@@ -390,10 +431,24 @@ func (it *ItemInstance) TakeCharge(key string) (remaining int, taken bool) {
 	return v, true
 }
 
-// Modifiers returns the transient per-instance stat modifiers (§2.3
-// step 6). Equip-time application reads this list; nothing else writes
-// to it post-Spawn.
-func (it *ItemInstance) Modifiers() []InstanceModifier { return it.modifiers }
+// Modifiers returns the EFFECTIVE per-instance stat modifiers: the item's own
+// (§2.3 step 6) plus every installed modification's (item-modification §6). The
+// equip path reads this to build the wearer's modifier group, so a mod's stat
+// bonuses apply while the host is worn and reverse on unequip. Installed-mod
+// modifiers carry no meaningful Source (equip re-groups everything under the
+// host's EquipmentSourceKey).
+func (it *ItemInstance) Modifiers() []InstanceModifier {
+	it.propsMu.RLock()
+	defer it.propsMu.RUnlock()
+	if len(it.installedMods) == 0 {
+		return it.modifiers
+	}
+	out := append([]InstanceModifier(nil), it.modifiers...)
+	for _, m := range it.installedMods {
+		out = append(out, m.Modifiers...)
+	}
+	return out
+}
 
 // TemplateID returns the source template id (§2.3 step 5).
 func (it *ItemInstance) TemplateID() item.TemplateID { return it.templateID }
@@ -611,14 +666,26 @@ func (it *ItemInstance) StrRating() *int {
 	return &v
 }
 
-// Resistances returns the armor's per-damage-type damage reduction
-// (armor-depth §4) as a fresh map; nil when the item grants none.
+// Resistances returns the EFFECTIVE per-damage-type damage reduction
+// (armor-depth §4): the armor's own plus every installed modification's
+// (item-modification §6 — the typed-field aggregation path a Fire Resistance mod
+// rides). A fresh map; nil when neither the item nor its mods grant any.
 func (it *ItemInstance) Resistances() map[string]int {
-	if len(it.resistances) == 0 {
+	it.propsMu.RLock()
+	defer it.propsMu.RUnlock()
+	if len(it.resistances) == 0 && len(it.installedMods) == 0 {
 		return nil
 	}
-	out := make(map[string]int, len(it.resistances))
+	out := make(map[string]int, len(it.resistances)+len(it.installedMods))
 	maps.Copy(out, it.resistances)
+	for _, m := range it.installedMods {
+		for dt, amt := range m.Resistances {
+			out[dt] += amt
+		}
+	}
+	if len(out) == 0 {
+		return nil
+	}
 	return out
 }
 
@@ -672,15 +739,173 @@ func (it *ItemInstance) Angreal() (power int, gender string, ok bool) {
 	return it.angrealPower, it.angrealGender, true
 }
 
-// ArmorCheckPenalty returns the magnitude (non-negative) of the penalty
-// this armor imposes on Str/Dex skill checks while worn (armor-depth §6);
-// 0 for an item that imposes none.
-func (it *ItemInstance) ArmorCheckPenalty() int { return it.armorCheckPenalty }
+// ArmorCheckPenalty returns the EFFECTIVE Str/Dex skill-check penalty magnitude
+// (armor-depth §6): the armor's own plus every installed modification's
+// (item-modification §6). 0 when neither imposes any.
+func (it *ItemInstance) ArmorCheckPenalty() int {
+	it.propsMu.RLock()
+	defer it.propsMu.RUnlock()
+	total := it.armorCheckPenalty
+	for _, m := range it.installedMods {
+		total += m.ArmorCheck
+	}
+	return total
+}
 
-// ArmorBonus returns the item's structured additive AC contribution
-// (armor-depth §3); 0 when it grants none. The equip path applies it as an
-// `ac` stat modifier, stacking across distinct worn pieces.
-func (it *ItemInstance) ArmorBonus() int { return it.armorBonus }
+// Capacity returns the host's modification budget (item-modification §2); 0 ⇒
+// the item is unmodifiable. Write-once at build, so lock-free.
+func (it *ItemInstance) Capacity() int { return it.capacity }
+
+// IsModification reports whether this item is a modification (declares a
+// host-compat key, §3). ModHost / ModCapacityCost are meaningful only then.
+func (it *ItemInstance) IsModification() bool { return it.modHost != "" }
+
+// ModHost returns the host class a modification fits (§3 host-compat key), or
+// "" if the item is not a modification.
+func (it *ItemInstance) ModHost() string { return it.modHost }
+
+// ModCapacityCost returns a modification's capacity cost (§3); 0 for a non-mod.
+func (it *ItemInstance) ModCapacityCost() int { return it.modCapacityCost }
+
+// InstalledMods returns a snapshot of the modifications installed in this host
+// (§7), for display and persistence. Fresh slice; callers cannot alias.
+func (it *ItemInstance) InstalledMods() []InstalledMod {
+	it.propsMu.RLock()
+	defer it.propsMu.RUnlock()
+	return append([]InstalledMod(nil), it.installedMods...)
+}
+
+// UsedCapacity is the sum of installed mods' costs (§2); FreeCapacity is
+// budget − used, never negative (the install rule enforces it).
+func (it *ItemInstance) UsedCapacity() int {
+	it.propsMu.RLock()
+	defer it.propsMu.RUnlock()
+	return it.usedCapacityLocked()
+}
+
+func (it *ItemInstance) usedCapacityLocked() int {
+	used := 0
+	for _, m := range it.installedMods {
+		used += m.CapacityCost
+	}
+	return used
+}
+
+// FreeCapacity returns the host's remaining modification budget (§2).
+func (it *ItemInstance) FreeCapacity() int { return it.Capacity() - it.UsedCapacity() }
+
+// InstallMod installs mod into this host (item-modification §4). It validates
+// modifiability, host compatibility, and free capacity, then SNAPSHOTS the mod's
+// contribution onto the host (§6) so the equip/recompute seams read it without a
+// registry. Returns a sentinel error on refusal; the caller consumes the mod
+// item only on success. The mod's cost is the mod template's ModCapacityCost.
+func (it *ItemInstance) InstallMod(mod *ItemInstance) error {
+	if it.Capacity() <= 0 {
+		return ErrNotModifiable
+	}
+	if mod == nil || !mod.IsModification() {
+		return ErrNotAModification
+	}
+	if !it.HasTag(mod.ModHost()) {
+		return ErrModIncompatible
+	}
+	cost := mod.ModCapacityCost()
+	rec := InstalledMod{
+		TemplateID:   mod.templateID,
+		Name:         mod.name,
+		CapacityCost: cost,
+		ArmorBonus:   mod.armorBonus,        // intrinsic — a mod is never itself modded
+		ArmorCheck:   mod.armorCheckPenalty, // (so field == effective accessor)
+		Resistances:  cloneIntMap(mod.resistances),
+		Modifiers:    append([]InstanceModifier(nil), mod.modifiers...),
+	}
+	it.propsMu.Lock()
+	defer it.propsMu.Unlock()
+	if it.usedCapacityLocked()+cost > it.capacity {
+		return ErrModNoCapacity
+	}
+	it.installedMods = append(it.installedMods, rec)
+	return nil
+}
+
+// RemoveMod removes the first installed mod matching token (a case-insensitive
+// substring of its name, or its exact template id; empty token matches the
+// first). Returns the removed record (so the caller can re-spawn the mod item
+// from its TemplateID, §5) and whether one was removed.
+func (it *ItemInstance) RemoveMod(token string) (InstalledMod, bool) {
+	token = strings.ToLower(strings.TrimSpace(token))
+	it.propsMu.Lock()
+	defer it.propsMu.Unlock()
+	for i, m := range it.installedMods {
+		if token == "" || string(m.TemplateID) == token || strings.Contains(strings.ToLower(m.Name), token) {
+			it.installedMods = slices.Delete(it.installedMods, i, i+1)
+			return m, true
+		}
+	}
+	return InstalledMod{}, false
+}
+
+// RestoreInstalledMod re-adds a modification recorded in a save (item-modification
+// §7), re-deriving its contribution from the mod's template. Used only by the
+// load/respawn path (which has the template registry); it does not re-validate
+// capacity (saved state is trusted, and content that shrank a budget must not
+// silently drop a persisted mod). Skips a nil/non-mod template defensively.
+func (it *ItemInstance) RestoreInstalledMod(tpl *item.Template) {
+	if tpl == nil || tpl.ModHost == "" {
+		return
+	}
+	rec := InstalledMod{
+		TemplateID:   tpl.ID,
+		Name:         tpl.Name,
+		CapacityCost: tpl.ModCapacityCost,
+		ArmorBonus:   tpl.ArmorBonus,
+		ArmorCheck:   tpl.ArmorCheckPenalty,
+		Resistances:  cloneIntMap(tpl.Resistances),
+		Modifiers:    modifiersFromTemplate(tpl),
+	}
+	it.propsMu.Lock()
+	defer it.propsMu.Unlock()
+	it.installedMods = append(it.installedMods, rec)
+}
+
+// cloneIntMap returns a fresh copy of m, or nil when m is empty — so an
+// InstalledMod never aliases a template's or another instance's map.
+func cloneIntMap(m map[string]int) map[string]int {
+	if len(m) == 0 {
+		return nil
+	}
+	out := make(map[string]int, len(m))
+	maps.Copy(out, m)
+	return out
+}
+
+// modifiersFromTemplate builds the source-less InstanceModifier list a restored
+// mod contributes (equip re-groups them under the host's EquipmentSourceKey, so
+// the Source is intentionally empty here).
+func modifiersFromTemplate(tpl *item.Template) []InstanceModifier {
+	if len(tpl.Modifiers) == 0 {
+		return nil
+	}
+	out := make([]InstanceModifier, 0, len(tpl.Modifiers))
+	for _, m := range tpl.Modifiers {
+		out = append(out, InstanceModifier{Stat: m.Stat, Value: m.Value})
+	}
+	return out
+}
+
+// ArmorBonus returns the EFFECTIVE structured additive AC contribution
+// (armor-depth §3): the item's own plus every installed modification's
+// (item-modification §6). 0 when neither grants any. The equip path applies it
+// as an `ac` stat modifier, stacking across distinct worn pieces.
+func (it *ItemInstance) ArmorBonus() int {
+	it.propsMu.RLock()
+	defer it.propsMu.RUnlock()
+	total := it.armorBonus
+	for _, m := range it.installedMods {
+		total += m.ArmorBonus
+	}
+	return total
+}
 
 // ArmorMaxDex returns the cap this armor places on the wearer's Dex
 // contribution to AC (armor-depth §3), or nil for no cap (full Dex applies).
@@ -893,5 +1118,10 @@ func buildInstanceFromTemplate(tpl *item.Template, id EntityID) *ItemInstance {
 		armorSpeed:        tpl.ArmorSpeed,
 		reputation:        tpl.Reputation,
 		essenceCost:       tpl.EssenceCost,
+		capacity:          tpl.Capacity,
+		modHost:           tpl.ModHost,
+		modCapacityCost:   tpl.ModCapacityCost,
+		// installedMods starts empty — a freshly built item carries no mods;
+		// the save-respawn path re-adds them (item-modification §7).
 	}
 }

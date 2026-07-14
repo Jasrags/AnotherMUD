@@ -299,7 +299,7 @@ func (c *Context) lookAtTarget(ctx context.Context, toks []string) error {
 				if target.Type() == entities.ContainerType || corpse.IsCorpse(target) {
 					return c.Actor.Write(ctx, c.renderContainerLook(target))
 				}
-				return c.Actor.Write(ctx, describeThing(decoratedName(c, target), target.Description()))
+				return c.Actor.Write(ctx, describeThing(decoratedName(c, target), withModLook(target)))
 			}
 		}
 		return c.Actor.Write(ctx, tooDarkToSeeText)
@@ -312,7 +312,7 @@ func (c *Context) lookAtTarget(ctx context.Context, toks []string) error {
 			if target.Type() == entities.ContainerType || corpse.IsCorpse(target) {
 				return c.Actor.Write(ctx, c.renderContainerLook(target))
 			}
-			return c.Actor.Write(ctx, describeThing(decoratedName(c, target), target.Description()))
+			return c.Actor.Write(ctx, describeThing(decoratedName(c, target), withModLook(target)))
 		}
 	}
 

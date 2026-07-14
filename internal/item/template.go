@@ -265,6 +265,22 @@ type Template struct {
 	// decimal and the loader multiplies by ten. 0 ⇒ costs no Essence (ordinary
 	// gear). The essence pool's current is derived as max − Σ installed cost.
 	EssenceCost int
+	// Item modification (item-modification.md — Slice A: capacity). Two roles on
+	// one item family:
+	//
+	// Capacity is a modifiable HOST's total modification budget (§2). > 0 marks
+	// the item as accepting installed mods whose costs sum to at most this;
+	// 0/absent ⇒ unmodifiable (unchanged from today). Validated non-negative.
+	Capacity int
+	// ModHost marks the item as a MODIFICATION and names the host class it fits
+	// (§3 host-compatibility key) — this slice: "armor". A mod installs only into
+	// a host carrying a matching tag (§4). Empty ⇒ not a mod. Normalized lowercase.
+	ModHost string
+	// ModCapacityCost is a modification's capacity cost — how much of a host's
+	// budget it consumes (§3/§4). v1 is a flat cost (each rating authored as its
+	// own template, §3). Meaningful only when ModHost is set; validated
+	// non-negative.
+	ModCapacityCost int
 }
 
 // Errors callers may distinguish at the boundary.

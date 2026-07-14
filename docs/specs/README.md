@@ -169,7 +169,8 @@ The verbs players use and the systems that resolve them.
   holder precedent (`ammo-and-reloading`). Carved out of
   `inventory-equipment-items`' item-modification non-goal; ruleset-agnostic,
   Shadowrun armor the reference consumer. Scoped to **Core-source armor + armor
-  mods** for now *(greenfield — spec ahead of code; build pending)*.
+  mods** for now *(Slice A — capacity + install/remove + equip aggregation +
+  save v35 — SHIPPED; the mount-slot rule for weapons remains pending)*.
 - [weapon-accessories](weapon-accessories.md) — the **second admission rule** of
   item modification: a weapon exposes a fixed set of **named mount points**
   (barrel / under-barrel / side / top / stock / internal), each holding one

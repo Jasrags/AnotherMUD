@@ -97,6 +97,8 @@ func RegisterBuiltins(r *Registry) error {
 		{Keyword: "lootmode", Handler: LootModeHandler, Brief: "Set or show your party's loot rules.", Syntax: []string{"lootmode", "lootmode ffa", "lootmode master [<member>]"}, HandParsed: true},
 		{Keyword: "load", Handler: LoadHandler, Brief: "Load a reloadable ranged weapon (a crossbow).", Syntax: []string{"load"}, IsAction: true},
 		{Keyword: "reload", Handler: ReloadHandler, Brief: "Reload a firearm (or fill a clip: reload <clip>).", Syntax: []string{"reload", "reload <clip>"}, IsAction: true, HandParsed: true},
+		{Keyword: "modify", Handler: ModifyHandler, Brief: "Install a modification into carried armor (or show its capacity).", Syntax: []string{"modify <armor>", "modify <armor> <modification>"}, HandParsed: true},
+		{Keyword: "unmodify", Handler: UnmodifyHandler, Brief: "Remove an installed modification from carried armor.", Syntax: []string{"unmodify <armor> <modification>"}, HandParsed: true},
 		{Keyword: "inventory", Aliases: []string{"i"}, Handler: InventoryHandler, Brief: "List the items you are carrying.", Syntax: []string{"inventory"}},
 		{Keyword: "equipment", Aliases: []string{"eq"}, Handler: EquipmentHandler, Brief: "Show your equipment slots (empty ones included).", Syntax: []string{"equipment"}},
 

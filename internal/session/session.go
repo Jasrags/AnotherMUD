@@ -1510,8 +1510,11 @@ func spawnEntries(ctx context.Context, a *connActor, store *entities.Store, cont
 		if entry.Grade != "" {
 			inst.SetHolderAmmoGrade(entry.Grade)
 		}
+		// Re-add persisted item modifications (item-modification §7) onto the
+		// fresh host; unknown mod templates are logged + skipped.
+		restoreInstalledMods(ctx, inst, tpls, entry.Mods, a.PlayerName())
 
-		survivor := player.InventoryEntry{Template: entry.Template, Loaded: entry.Loaded, Grade: entry.Grade}
+		survivor := player.InventoryEntry{Template: entry.Template, Loaded: entry.Loaded, Grade: entry.Grade, Mods: entry.Mods}
 		if len(entry.Contents) > 0 {
 			if tpl.Type != "container" || contents == nil {
 				// A non-container template carrying nested contents in
@@ -1603,6 +1606,10 @@ func respawnEquipment(ctx context.Context, a *connActor, store *entities.Store, 
 		if entry.Holder != nil {
 			inst.SetInsertedHolder(entry.Holder.Template, entry.Holder.Loaded, entry.Holder.Grade)
 		}
+		// Re-add persisted item modifications (item-modification §7) BEFORE the
+		// equip modifier group is applied below, so a modded host's effective
+		// Modifiers/ArmorBonus/Resistances include its mods when equipped.
+		restoreInstalledMods(ctx, inst, tpls, entry.Mods, a.PlayerName())
 		// Companion slots are re-derived from the (re-spawned) template, not
 		// persisted (§3.8) — so a spanning item's full footprint is rebuilt
 		// on reload from the saved target key alone.
@@ -3798,6 +3805,50 @@ func (a *connActor) insertedHolderForSave(id entities.EntityID) *player.Equipped
 		return nil
 	}
 	return &player.EquippedHolder{Template: tpl, Loaded: loaded, Grade: grade}
+}
+
+// installedModsForSave returns the template ids of the modifications installed
+// in the item with id, for persistence (item-modification §7). nil for an
+// unmodded / unmodifiable item or an untracked id — so an ordinary item stays
+// out of the wire format.
+func (a *connActor) installedModsForSave(id entities.EntityID) []string {
+	if a.items == nil {
+		return nil
+	}
+	e, ok := a.items.GetByID(id)
+	if !ok {
+		return nil
+	}
+	host, ok := e.(*entities.ItemInstance)
+	if !ok {
+		return nil
+	}
+	mods := host.InstalledMods()
+	if len(mods) == 0 {
+		return nil
+	}
+	out := make([]string, 0, len(mods))
+	for _, m := range mods {
+		out = append(out, string(m.TemplateID))
+	}
+	return out
+}
+
+// restoreInstalledMods re-adds each persisted modification (by template id) onto
+// a freshly respawned host (item-modification §7). An unknown mod template is
+// logged and skipped (content removed since the save), never fatal.
+func restoreInstalledMods(ctx context.Context, host *entities.ItemInstance, tpls *item.Templates, modIDs []string, who string) {
+	for _, id := range modIDs {
+		modTpl, err := tpls.Get(item.TemplateID(id))
+		if err != nil {
+			logging.From(ctx).Warn("item-mod: dropping unknown mod template",
+				slog.String("mod_template_id", id),
+				slog.String("player", who),
+				slog.Any("err", err))
+			continue
+		}
+		host.RestoreInstalledMod(modTpl)
+	}
 }
 
 // holderGradeForSave returns the ammo grade to persist for a loose HOLDER item
@@ -6085,7 +6136,7 @@ func (a *connActor) syncEquipmentToSaveLocked() {
 			// drop policy in syncInventoryToSaveLocked.
 			continue
 		}
-		out[keys[0]] = player.EquippedItem{Template: tpl, Entity: string(id), Loaded: a.magazineLoadedForSave(id), Holder: a.insertedHolderForSave(id)}
+		out[keys[0]] = player.EquippedItem{Template: tpl, Entity: string(id), Loaded: a.magazineLoadedForSave(id), Holder: a.insertedHolderForSave(id), Mods: a.installedModsForSave(id)}
 	}
 	a.save.Equipment = out
 }
@@ -6288,7 +6339,7 @@ func (a *connActor) buildSaveEntriesLocked(ids []entities.EntityID) []player.Inv
 		if !ok {
 			continue
 		}
-		entry := player.InventoryEntry{Template: tpl, Loaded: a.magazineLoadedForSave(id), Grade: a.holderGradeForSave(id)}
+		entry := player.InventoryEntry{Template: tpl, Loaded: a.magazineLoadedForSave(id), Grade: a.holderGradeForSave(id), Mods: a.installedModsForSave(id)}
 		if a.contents != nil && a.isContainerLocked(id) {
 			if child := a.buildSaveEntriesLocked(a.contents.In(id)); len(child) > 0 {
 				entry.Contents = child

@@ -3654,6 +3654,23 @@ func decodeItem(path, ns string) (*item.Template, error) {
 			ErrInvalidContent, path, f.EssenceCost)
 	}
 	essenceCost := int(math.Round(f.EssenceCost * 10))
+	// Item modification (item-modification.md — Slice A). A host declares a
+	// non-negative capacity budget; a modification declares mod_host (the host
+	// class it fits) + a non-negative capacity cost. mod_host is normalized
+	// lowercase; mod_capacity_cost is meaningful only on a mod.
+	if f.Capacity < 0 {
+		return nil, fmt.Errorf("%w: %s: capacity %d must be non-negative",
+			ErrInvalidContent, path, f.Capacity)
+	}
+	if f.ModCapacityCost < 0 {
+		return nil, fmt.Errorf("%w: %s: mod_capacity_cost %d must be non-negative",
+			ErrInvalidContent, path, f.ModCapacityCost)
+	}
+	modHost := strings.ToLower(strings.TrimSpace(f.ModHost))
+	if modHost == "" && f.ModCapacityCost > 0 {
+		return nil, fmt.Errorf("%w: %s: mod_capacity_cost %d set without mod_host (only a modification consumes capacity)",
+			ErrInvalidContent, path, f.ModCapacityCost)
+	}
 	// reload_method is normalized (lowercase) but not vocabulary-validated —
 	// only "clip" is consumed today; other SR5 methods are recorded-only. A
 	// magazine weapon with no method defaults to "clip".
@@ -3872,6 +3889,9 @@ func decodeItem(path, ns string) (*item.Template, error) {
 		ArmorSpeed:        f.ArmorSpeed,
 		Reputation:        f.Reputation,
 		EssenceCost:       essenceCost,
+		Capacity:          f.Capacity,
+		ModHost:           modHost,
+		ModCapacityCost:   f.ModCapacityCost,
 	}, nil
 }
 

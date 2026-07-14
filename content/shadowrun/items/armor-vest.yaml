@@ -12,6 +12,9 @@ armor_tier: medium
 armor_bonus: 4
 armor_max_dex: 5
 armor_speed: 25
+# Item modification (item-modification.md §2): an armored vest offers a
+# modification capacity budget mods install into (SR5 armor Capacity = 9).
+capacity: 9
 properties:
   weight: 7
   value: 900

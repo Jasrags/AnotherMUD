@@ -127,7 +127,7 @@ import (
 // means "knows no recipes beyond what a discipline grants at runtime";
 // the migration injects nothing. A known id whose recipe was removed from
 // content loads cleanly and is ignored at restore (§9), never an error.
-const CurrentVersion = 34
+const CurrentVersion = 35
 
 // Sentinel errors callers may check via errors.Is.
 var (
@@ -543,6 +543,11 @@ type InventoryEntry struct {
 	// Grade persists the grade of a loose HOLDER's loaded rounds
 	// (grade-through-holder §8); empty for ungraded ammo or a non-holder item.
 	Grade string `yaml:"grade,omitempty"`
+	// Mods persists the modification template ids installed in a modifiable HOST
+	// item (item-modification §7). nil/empty for an unmodded or unmodifiable item.
+	// The contribution is re-derived from each template on respawn
+	// (RestoreInstalledMod); only the ids persist (v35).
+	Mods []string `yaml:"mods,omitempty"`
 }
 
 // EquippedItem is one entry in the persisted equipment map (v3+). The
@@ -559,6 +564,10 @@ type EquippedItem struct {
 	// Holder persists the ammunition holder inserted in a wielded HOLDER-FED
 	// weapon (ammo-and-reloading §9). nil = no holder inserted / not holder-fed.
 	Holder *EquippedHolder `yaml:"holder,omitempty"`
+	// Mods persists the modification template ids installed in a wielded/worn
+	// modifiable HOST (item-modification §7). nil/empty for an unmodded item.
+	// Re-derived per template on respawn (RestoreInstalledMod); ids only (v35).
+	Mods []string `yaml:"mods,omitempty"`
 }
 
 // EquippedHolder is the persisted state of the holder inserted in a holder-fed
@@ -769,6 +778,7 @@ var playerMigrations = map[int]func(map[string]any) (map[string]any, error){
 	31: migrateV31toV32,
 	32: migrateV32toV33,
 	33: migrateV33toV34,
+	34: migrateV34toV35,
 }
 
 // migrateV1toV2 adds the empty inventory/equipment blocks introduced
@@ -1233,6 +1243,16 @@ func migrateV32toV33(in map[string]any) (map[string]any, error) {
 // faction, reputation) are reconstructed at login as before and were never
 // stored here, so nothing needs backfilling.
 func migrateV33toV34(in map[string]any) (map[string]any, error) {
+	return in, nil
+}
+
+// migrateV34toV35 introduces installed item modifications (item-modification.md
+// §7 — the `mods` list of template ids on a modifiable host item in inventory or
+// equipment). A no-op: every pre-v35 save has no modded items, so the `mods` key
+// is absent on every InventoryEntry/EquippedItem and reads as nil (no mods) on
+// respawn — exactly a fresh, unmodded host. The contribution is re-derived from
+// each mod's template at load, never stored.
+func migrateV34toV35(in map[string]any) (map[string]any, error) {
 	return in, nil
 }
 

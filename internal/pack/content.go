@@ -219,6 +219,14 @@ type ItemFile struct {
 	// loader converts to the integer tenths item.Template.EssenceCost stores.
 	// Negative is rejected at load. 0/omitted ⇒ ordinary gear (no Essence cost).
 	EssenceCost float64 `yaml:"essence_cost,omitempty"`
+	// Item modification (item-modification.md — Slice A). capacity is a HOST's
+	// mod budget (> 0 ⇒ modifiable); mod_host marks a MODIFICATION and names the
+	// host class it fits ("armor"); mod_capacity_cost is how much of a host's
+	// budget the mod consumes. All validated non-negative; mod_host normalized
+	// lowercase. Absent ⇒ an ordinary, unmodifiable, non-mod item.
+	Capacity        int    `yaml:"capacity,omitempty"`
+	ModHost         string `yaml:"mod_host,omitempty"`
+	ModCapacityCost int    `yaml:"mod_capacity_cost,omitempty"`
 }
 
 // ModifierFile is one entry of an ItemFile.Modifiers list.
