@@ -1,0 +1,38 @@
+id: ripperdoc
+name: "{c}Scalpel{x}, a ripperdoc"
+type: npc
+behavior: stationary
+description: |
+  Scalpel earned the name honestly. She works fast and clean under a rack of
+  surgical lamps, hands steady from a lifetime of cutting chrome into meat that
+  couldn't afford a real clinic — cybereyes for a lookout, a new arm for a runner
+  who lost the old one to a chainsaw, plating under the skin of anyone who plans
+  to keep breathing. No SIN, no records, no questions. Nuyen up front. `list` the
+  chrome on offer; `buy <item>` and she'll cut you.
+tags: [humanoid, shop]
+keywords: [scalpel, ripperdoc, doc, cutter, surgeon, woman]
+# A service NPC, not a mark — friendly to everyone; you don't rob the person who
+# holds a laser scalpel to your spine.
+disposition_rules:
+  default: friendly
+stats:
+  hp_max: 24
+  body: 3
+  logic: 5
+  willpower: 4
+# The real ripperdoc storefront — the deep chrome stock the tutorial chop-doc
+# only teases (economy-survival §3.1). Cyberware installs and spends Essence via
+# the standard equip pipeline (SR-M4); Scalpel just sells it. Ids qualified
+# shadowrun:<id> (the shop bag is not namespace-rewritten).
+properties:
+  shop:
+    sells:
+      # Reflexes — the cheap bioware edge up to the brutal cyber overclock.
+      - shadowrun:reaction-enhancers
+      - shadowrun:wired-reflexes
+      # Muscle — vat myomer or a whole new arm.
+      - shadowrun:muscle-replacement
+      - shadowrun:cyberarm
+      # Senses + survival.
+      - shadowrun:cybereyes
+      - shadowrun:dermal-plating

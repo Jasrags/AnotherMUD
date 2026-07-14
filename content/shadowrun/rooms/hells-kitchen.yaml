@@ -11,6 +11,8 @@ description: |
 terrain: indoors
 exits:
   west: loveland
+  # Down a ladder behind the stalls to Scalpel's chop-shop (the real ripperdoc).
+  down: chrome-den
 properties:
   light: lit
 # A safe social hub and a gentle rest spot — the vitals-regen heartbeat gives a

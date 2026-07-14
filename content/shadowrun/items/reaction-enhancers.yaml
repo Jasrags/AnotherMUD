@@ -1,0 +1,18 @@
+id: reaction-enhancers
+name: reaction enhancers
+type: item
+description: |
+  Cultured nerve tissue threaded into your spine — not the brutal overclock of
+  wired reflexes, just a clean, quiet edge on how fast the world reaches you. The
+  bioware barely dents your soul; a good doc calls it the smart runner's first buy.
+tags: [cyberware, augmentation, bioware]
+keywords: [reaction enhancers, enhancers, reaction, bioware, cyberware]
+# Bioware — Essence-efficient (0.3) next to cyber reflexes. Stacks its +1 Reaction
+# with wired reflexes for a runner who can spare the slot and the soul.
+eligible_slots: [cyberware]
+essence_cost: 0.3
+modifiers:
+  - { stat: reaction, value: 1 }
+properties:
+  weight: 0
+  value: 23000

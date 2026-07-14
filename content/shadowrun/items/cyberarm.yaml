@@ -1,0 +1,18 @@
+id: cyberarm
+name: an obsidian cyberarm
+type: item
+description: |
+  A full-replacement cyberlimb in matte obsidian myomer — it hits like a
+  hydraulic ram and never tires, though you'll feel the phantom weight of the
+  meat arm it replaced on the cold nights. Corp-sec clock it on sight; that's the
+  price of a fist that dents a car door.
+tags: [cyberware, augmentation]
+keywords: [cyberarm, cyber arm, arm, cyberlimb, obsidian, cyberware]
+# A cyberlimb: raw Strength for the price of a whole arm. essence_cost 1.0.
+eligible_slots: [cyberware]
+essence_cost: 1.0
+modifiers:
+  - { stat: strength, value: 2 }
+properties:
+  weight: 0
+  value: 42000

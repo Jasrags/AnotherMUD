@@ -1,0 +1,19 @@
+id: dermal-plating
+name: dermal plating
+type: item
+description: |
+  Sheets of impact-resistant composite bonded under your skin — you read as
+  faintly wrong to the touch and unmistakably armoured to a blade. It never comes
+  off, never rattles a scanner as a weapon, and turns a knife that would have
+  opened you into a bruise.
+tags: [cyberware, augmentation]
+keywords: [dermal plating, dermal, plating, armor, cyberware]
+# Subdermal armour: the armor_bonus rides the same soak path worn armour uses
+# (recomputeWeaponLocked sums it into the mitigation channel), so it stacks under
+# your jacket. essence_cost 1.5 — heavier chrome than the sensory implants.
+eligible_slots: [cyberware]
+essence_cost: 1.5
+armor_bonus: 2
+properties:
+  weight: 0
+  value: 31000
