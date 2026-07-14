@@ -185,8 +185,15 @@ existing systems.
    `cyberarm`) so the real doc out-stocks the tutorial chop-doc. Bought chrome
    installs + spends Essence via SR-M4. Tests: `pack.TestShadowrun_RipperdocReachableFromStart`,
    live `TestLive_ShadowrunRipperdocClinic`.
-2. **Starter-area rooms + shops + stationary mentor** (§3–§5) — the front door,
-   reusing shops; repoint the default start. *(Next.)*
+2. **Starter-area rooms + shops + stationary mentor** (§3–§5) — ✅ **SHIPPED
+   2026-07-13.** A dedicated `seattle-safehouse` area of three safe rooms:
+   `the-flop` (spawn; the mentor **Rook** = mob `fixer-mentor`, stationary,
+   `ask rook about <topic>` orientation) → `the-fixers-table` (east; the existing
+   `fixer` gear shop) → `the-back-room` (west; the existing `street-doc` as the
+   tutorial chop-doc). Graduation is a two-way stairwell: `the-flop` down ↔
+   `westlake-plaza` up. The default start (`make run-shadowrun` / `watch-shadowrun`)
+   is repointed to `shadowrun:the-flop`. Tests: `pack.TestShadowrun_StarterAreaReachability`,
+   live `TestLive_ShadowrunSafehouse`. *(Trailing-guide behavior is step 3.)*
 3. **Onboarding-guide slice 1** (the trailing mentor) — upgrades the mentor in
-   place (`onboarding-guide-scoping`).
+   place (`onboarding-guide-scoping`). *(Next.)*
 4. **Later:** karma trainer (§6); qualities system (own spec).

@@ -1,0 +1,39 @@
+id: fixer-mentor
+name: "{G}Rook{x}, your fixer"
+type: npc
+behavior: stationary
+description: |
+  A broad man gone grey at the temples, easy in a chair that's seen a hundred
+  green runners come through this flop. Rook doesn't run the shadows anymore — he
+  makes the calls, moves the talent, and takes his cut — but he remembers being
+  where you are, which is more than most fixers can say. He nods you toward the
+  gun table and the chop-doc. `ask rook about` getting started, gear, chrome, the
+  streets, nuyen, or combat.
+tags: [humanoid, mentor]
+keywords: [rook, fixer, mentor, contact, man]
+# A mentor, not a mark — friendly to everyone; he's your first contact.
+disposition_rules:
+  default: friendly
+stats:
+  hp_max: 20
+  body: 3
+  logic: 4
+  willpower: 4
+# v1 onboarding is stationary tips via `ask rook about <topic>` (dialogue.go —
+# exact case-insensitive key match + a default nudge). The TRAILING guide (a mob
+# that follows the newbie and greets on spawn) is a later slice — the scoped
+# onboarding-guide — that upgrades this mentor in place. Topic keys advertised in
+# the description above so a player knows the exact words to ask.
+properties:
+  dialogue:
+    started: "First run? Rule one: you're a professional, not a hero. `look` around, `map` the block, and don't die. Ask me about gear, chrome, the streets, nuyen, or combat when you're ready."
+    getting: "First run? Rule one: you're a professional, not a hero. `look` around, `map` the block, and don't die. Ask me about gear, chrome, the streets, nuyen, or combat."
+    gear: "Guns and armor are through the east door — my dealer's holding a table. A pistol, a spare clip, a jacket for the soak. `list` her stock and `buy` what keeps you breathing. You can't spend nuyen dead."
+    chrome:
+      - "Chrome? The doc's in the back room, west. Starter wares — the kind a rookie can almost afford. Every piece costs you a sliver of your soul, so watch your Essence on `score`."
+      - "Cyberware's how a runner stops being just meat. The chop-doc out back sells the cheap stuff; for real chrome you go see Scalpel down in the Puyallup Barrens. Mind your Essence — it doesn't grow back."
+    streets: "When you're geared and ready, take the stairs down. That's Westlake Plaza — Downtown Seattle — and the whole sprawl runs out from there. Head out and make your name."
+    downtown: "Down the stairs is Westlake, the heart of Downtown. Corp towers, crowds, and every direction leads somewhere that'll pay or kill you. Go when you're ready."
+    nuyen: "Money comes from finishing runs and stripping whatever's left of whoever tried to stop you. Nobody hands a runner a paycheck — earn it, spend it on chrome and ammo, repeat."
+    combat: "Trouble finds runners. `kill` what you're paid to, `flee` what you can't beat, and never start a fight that isn't on the contract. Set your `wimpy` so you bug out before the lights go."
+    default: "I deal in work and advice, not small talk. `ask rook about` getting started, gear, chrome, the streets, nuyen, or combat."

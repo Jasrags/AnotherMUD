@@ -1,0 +1,17 @@
+id: seattle-safehouse
+name: The Safehouse
+description: |
+  A fixer's flop tucked above a Downtown alley — three rooms of salvaged furniture,
+  a gun table, and a back-room chop-doc, where a runner too green to know better
+  gets staked, geared, and pointed at the sprawl. Safe, quiet, and the last easy
+  place you'll stand before Seattle starts charging you for the air.
+reset_interval: 300
+# Interior squat: pinned lit, shielded from weather + the day/night cycle.
+light_floor: lit
+weather_zone: sprawl
+# Onboarding zone — a safe, low-tier front door (shadowrun-starter-area.md). The
+# whole area is a safe-room; graduation is the stairs down to Downtown.
+properties:
+  region: seattle
+  security: B
+  level_range: "1-5"

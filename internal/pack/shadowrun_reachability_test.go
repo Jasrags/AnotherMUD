@@ -31,12 +31,12 @@ func reachableFrom(w *world.World, start world.RoomID) map[world.RoomID]bool {
 	return seen
 }
 
-// TestShadowrun_RipperdocReachableFromStart pins the reachability concern behind
-// the first-real-street-doc build: a player who spawns at the real Downtown start
-// (shadowrun:westlake-plaza, the make run-shadowrun start) can WALK to Scalpel's
-// Chrome Den in the Puyallup Barrens — no teleport, no stranded content. Also
-// confirms the tutorial chop-doc's room (Loveland) is reachable.
-func TestShadowrun_RipperdocReachableFromStart(t *testing.T) {
+// TestShadowrun_StarterAreaReachability pins the onboarding path: a player who
+// spawns in the safehouse (shadowrun:the-flop, the make run-shadowrun start) can
+// WALK through the whole world on foot — the graduation into Downtown, the deep
+// ripperdoc (Scalpel's Chrome Den in Puyallup), and the tutorial chop-doc's strip
+// (Loveland) — with no teleport and no stranded content.
+func TestShadowrun_StarterAreaReachability(t *testing.T) {
 	root, err := filepath.Abs("../../content")
 	if err != nil {
 		t.Fatalf("abs: %v", err)
@@ -52,19 +52,39 @@ func TestShadowrun_RipperdocReachableFromStart(t *testing.T) {
 		t.Fatalf("Load shadowrun: %v", err)
 	}
 
-	const start = world.RoomID("shadowrun:westlake-plaza")
+	const start = world.RoomID("shadowrun:the-flop")
 	if _, err := regs.World.Room(start); err != nil {
-		t.Fatalf("the Downtown start room %s does not exist: %v", start, err)
+		t.Fatalf("the safehouse start room %s does not exist: %v", start, err)
 	}
 	reachable := reachableFrom(regs.World, start)
 
 	for _, want := range []world.RoomID{
-		"shadowrun:chrome-den", // the first real street-doc (Scalpel's clinic)
-		"shadowrun:loveland",   // the tutorial chop-doc's strip
+		"shadowrun:the-fixers-table", // the safehouse gear shop
+		"shadowrun:the-back-room",    // the tutorial chop-doc room
+		"shadowrun:westlake-plaza",   // graduation into Downtown
+		"shadowrun:chrome-den",       // the first real street-doc (Scalpel's clinic)
+		"shadowrun:loveland",         // the tutorial chop-doc's strip
 	} {
 		if !reachable[want] {
-			t.Errorf("%s is NOT reachable on foot from %s — the doc is stranded", want, start)
+			t.Errorf("%s is NOT reachable on foot from %s — stranded content", want, start)
 		}
+	}
+
+	// Graduation is a two-way stairwell: the flop drops to Westlake, Westlake
+	// climbs back up to the flop (so a graduated runner can revisit the fixer).
+	flop, err := regs.World.Room(start)
+	if err != nil {
+		t.Fatalf("flop room missing: %v", err)
+	}
+	if down, ok := flop.Exits[world.DirDown]; !ok || down.Target != "shadowrun:westlake-plaza" {
+		t.Errorf("the-flop down-exit = %v (ok=%v), want shadowrun:westlake-plaza", down.Target, ok)
+	}
+	plaza, err := regs.World.Room("shadowrun:westlake-plaza")
+	if err != nil {
+		t.Fatalf("westlake-plaza room missing: %v", err)
+	}
+	if up, ok := plaza.Exits[world.DirUp]; !ok || up.Target != "shadowrun:the-flop" {
+		t.Errorf("westlake-plaza up-exit = %v (ok=%v), want shadowrun:the-flop", up.Target, ok)
 	}
 
 	// The Chrome Den's back-and-forth wiring is symmetric (you can leave again).
@@ -72,8 +92,7 @@ func TestShadowrun_RipperdocReachableFromStart(t *testing.T) {
 	if err != nil {
 		t.Fatalf("chrome-den room missing: %v", err)
 	}
-	up, ok := den.Exits[world.DirUp]
-	if !ok || up.Target != "shadowrun:hells-kitchen" {
+	if up, ok := den.Exits[world.DirUp]; !ok || up.Target != "shadowrun:hells-kitchen" {
 		t.Errorf("chrome-den up-exit = %v (ok=%v), want shadowrun:hells-kitchen", up.Target, ok)
 	}
 }

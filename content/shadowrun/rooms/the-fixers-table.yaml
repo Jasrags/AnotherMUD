@@ -1,0 +1,15 @@
+id: the-fixers-table
+area: seattle-safehouse
+name: "{Y}The Gun Table{x}"
+description: |
+  A folding table under a bare bulb, laid out with the tools of the trade — a
+  heavy pistol on an oiled rag, a rack of clips, a bow for quiet work, an armored
+  jacket thrown over a chair. The fixer's dealer works this corner of the flop,
+  pricing your gear before you've reached for it. Buy what keeps you alive; nuyen
+  is easier to earn back than blood. The couch and the trid-wall are back west.
+terrain: indoors
+exits:
+  west: the-flop
+tags: [safe-room, safe]
+mobs:
+  - fixer

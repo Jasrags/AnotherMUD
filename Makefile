@@ -56,10 +56,10 @@ run-wot: WORLD_PACKS := wot
 run-wot: WORLD_START_ROOM := wot:the-green
 run-wot: run
 
-## run-shadowrun: run the Shadowrun world (content/shadowrun — starts in Downtown)
+## run-shadowrun: run the Shadowrun world (content/shadowrun — starts in the safehouse)
 .PHONY: run-shadowrun
 run-shadowrun: WORLD_PACKS := shadowrun
-run-shadowrun: WORLD_START_ROOM := shadowrun:westlake-plaza
+run-shadowrun: WORLD_START_ROOM := shadowrun:the-flop
 run-shadowrun: run
 
 ## watch: live-reload — rebuild + restart on any .go/.yaml/.lua change (needs air)
@@ -81,10 +81,10 @@ watch-wot: WORLD_PACKS := wot
 watch-wot: WORLD_START_ROOM := wot:the-green
 watch-wot: watch
 
-## watch-shadowrun: live-reload the Shadowrun world (content/shadowrun — starts in Downtown)
+## watch-shadowrun: live-reload the Shadowrun world (content/shadowrun — starts in the safehouse)
 .PHONY: watch-shadowrun
 watch-shadowrun: WORLD_PACKS := shadowrun
-watch-shadowrun: WORLD_START_ROOM := shadowrun:westlake-plaza
+watch-shadowrun: WORLD_START_ROOM := shadowrun:the-flop
 watch-shadowrun: watch
 
 ## worlddoc: render world documentation for every world pack to docs/world/

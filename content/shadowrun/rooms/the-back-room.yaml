@@ -1,0 +1,16 @@
+id: the-back-room
+area: seattle-safehouse
+name: "{R}The Back Room{x}"
+description: |
+  A back room that smells of disinfectant and cheap coffee: a reclining chair, a
+  tray of second-hand chrome, and a street doc who does the cutting off the books.
+  This is where a runner gets their first taste of augmentation — starter wares
+  only, the kind that fit a rookie's budget and a rookie's nerve. For the real
+  chrome, the doc will tell you, you go find Scalpel down in the Puyallup Barrens.
+  The flop's front room is back east.
+terrain: indoors
+exits:
+  east: the-flop
+tags: [safe-room, safe]
+mobs:
+  - street-doc
