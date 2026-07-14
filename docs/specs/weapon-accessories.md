@@ -11,6 +11,16 @@ effect aggregation; presentation) rather than restating it. Layers on
 pipeline), `weapon-identity` / `ranged-combat` / `ammo-and-reloading` (the
 weapons being modified). Shadowrun firearms are the reference consumer.
 
+**v1 implementation note (SHIPPED 2026-07-14).** Built on the item-modification
+substrate: the same `installedMods` list, effect aggregation, and `Mods` save
+field (template ids) carry accessories, so **no new save field and no version
+bump** — a mount is **re-derived deterministically at load** (re-seated on the
+first free compatible mount in declared order). The `modify` / `unmodify` verbs
+are **unified** with the capacity rule and dispatch on the host: a mount host
+routes to the mount rule, a capacity host to the budget rule. As in Slice A, the
+host must be **carried (unequipped)** to attach/detach. v1 occupies exactly **one
+mount per accessory** (the multi-mount `both` form, §3, stays deferred).
+
 ## 1. Overview
 
 A firearm has a fixed physical geometry — a barrel, an under-barrel rail, sides,

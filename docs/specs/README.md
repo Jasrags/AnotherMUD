@@ -177,9 +177,11 @@ The verbs players use and the systems that resolve them.
   accessory that declares which mount(s) it fits — **slot occupancy, not a
   capacity budget**. Reuses `item-modification`'s substrate (mod-is-an-item /
   install-remove / instance persistence / equip aggregation / presentation) and
-  its save-version bump; owns only the mount-slot admission test. Scoped to
-  **Core-source weapons + accessories**; the smartgun↔smartlink pairing is a
-  flagged follow-on *(greenfield — spec ahead of code; build pending)*.
+  its `Mods` save field with **no new version bump** (mounts re-derived at load);
+  owns only the mount-slot admission test. Scoped to **Core-source weapons +
+  accessories**; the smartgun↔smartlink pairing is a flagged follow-on
+  *(SHIPPED 2026-07-14 — `modify`/`unmodify` verbs unified across both admission
+  rules)*.
 - [ranged-combat](ranged-combat.md) — thrown/projectile weapons via **abstract
   per-engagement range bands** (far → near → melee) *within one room* — an archer
   opens at range and gets shots while a melee opponent closes band by band, with

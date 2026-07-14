@@ -3671,6 +3671,26 @@ func decodeItem(path, ns string) (*item.Template, error) {
 		return nil, fmt.Errorf("%w: %s: mod_capacity_cost %d set without mod_host (only a modification consumes capacity)",
 			ErrInvalidContent, path, f.ModCapacityCost)
 	}
+	// Weapon accessories (weapon-accessories.md §2/§3): normalize the mount lists.
+	// An accessory (accessory_mounts set) must declare mod_host and must NOT also
+	// declare a capacity cost — a mod installs by the mount rule OR the capacity
+	// rule, never both.
+	mounts := normalizeLowerDedup(f.Mounts)
+	accessoryMounts := normalizeLowerDedup(f.AccessoryMounts)
+	if len(mounts) > 0 && f.Capacity > 0 {
+		return nil, fmt.Errorf("%w: %s: a host declares mounts (mount rule) OR capacity (capacity rule), not both",
+			ErrInvalidContent, path)
+	}
+	if len(accessoryMounts) > 0 {
+		if modHost == "" {
+			return nil, fmt.Errorf("%w: %s: accessory_mounts set without mod_host (a mount accessory names the host class it fits)",
+				ErrInvalidContent, path)
+		}
+		if f.ModCapacityCost > 0 {
+			return nil, fmt.Errorf("%w: %s: a modification declares accessory_mounts (mount rule) OR mod_capacity_cost (capacity rule), not both",
+				ErrInvalidContent, path)
+		}
+	}
 	// reload_method is normalized (lowercase) but not vocabulary-validated —
 	// only "clip" is consumed today; other SR5 methods are recorded-only. A
 	// magazine weapon with no method defaults to "clip".
@@ -3892,6 +3912,8 @@ func decodeItem(path, ns string) (*item.Template, error) {
 		Capacity:          f.Capacity,
 		ModHost:           modHost,
 		ModCapacityCost:   f.ModCapacityCost,
+		Mounts:            mounts,
+		AccessoryMounts:   accessoryMounts,
 	}, nil
 }
 

@@ -71,16 +71,18 @@ func ModifyHandler(ctx context.Context, c *Context) error {
 		}
 		return c.Actor.Write(ctx, fmt.Sprintf("You aren't carrying %q.", c.Args[0]))
 	}
-	if host.Capacity() <= 0 {
+	if !host.IsModifiable() {
 		return c.Actor.Write(ctx, fmt.Sprintf("%s can't be modified.", upFirst(host.Name())))
 	}
 
-	// One arg: the info form (§8) — capacity + installed mods.
+	// One arg: the info form (§8) — capacity/mounts + installed mods.
 	if len(c.Args) == 1 {
 		return c.Actor.Write(ctx, modInfoLines(host))
 	}
 
-	// Two args: install a carried modification (§4).
+	// Two args: install a carried modification. The admission rule is chosen by
+	// the host — a capacity budget (item-modification §4) or named mount slots
+	// (weapon-accessories §4).
 	modToken := c.Args[1]
 	mod, ok := resolveCarried(c, modToken)
 	if !ok {
@@ -92,18 +94,32 @@ func ModifyHandler(ctx context.Context, c *Context) error {
 	if !mod.IsModification() {
 		return c.Actor.Write(ctx, fmt.Sprintf("%s isn't a modification.", upFirst(mod.Name())))
 	}
-	switch err := host.InstallMod(mod); {
+	var mount string
+	var err error
+	if host.Capacity() > 0 {
+		err = host.InstallMod(mod)
+	} else {
+		mount, err = host.AttachAccessory(mod)
+	}
+	switch {
 	case errors.Is(err, entities.ErrModIncompatible):
 		return c.Actor.Write(ctx, fmt.Sprintf("%s doesn't fit %s.", upFirst(mod.Name()), host.Name()))
+	case errors.Is(err, entities.ErrNotAModification):
+		return c.Actor.Write(ctx, fmt.Sprintf("%s isn't an accessory for %s.", upFirst(mod.Name()), host.Name()))
 	case errors.Is(err, entities.ErrModNoCapacity):
 		return c.Actor.Write(ctx, fmt.Sprintf("%s needs %d capacity, but %s has only %d free.",
 			upFirst(mod.Name()), mod.ModCapacityCost(), host.Name(), host.FreeCapacity()))
+	case errors.Is(err, entities.ErrMountOccupied):
+		return c.Actor.Write(ctx, fmt.Sprintf("%s has no free mount that fits %s.", upFirst(host.Name()), mod.Name()))
 	case err != nil:
 		return c.Actor.Write(ctx, fmt.Sprintf("You can't install %s into %s.", mod.Name(), host.Name()))
 	}
 	// Installed: the mod is now host state, not a carried entity — consume it.
 	c.Actor.RemoveFromInventory(mod.ID())
 	_ = c.Items.Untrack(mod.ID())
+	if mount != "" {
+		return c.Actor.Write(ctx, fmt.Sprintf("You attach %s to %s's %s mount.", mod.Name(), host.Name(), mount))
+	}
 	return c.Actor.Write(ctx, fmt.Sprintf("You install %s into %s. (%d capacity free.)",
 		mod.Name(), host.Name(), host.FreeCapacity()))
 }
@@ -123,7 +139,7 @@ func UnmodifyHandler(ctx context.Context, c *Context) error {
 		}
 		return c.Actor.Write(ctx, fmt.Sprintf("You aren't carrying %q.", c.Args[0]))
 	}
-	if host.Capacity() <= 0 || len(host.InstalledMods()) == 0 {
+	if !host.IsModifiable() || len(host.InstalledMods()) == 0 {
 		return c.Actor.Write(ctx, fmt.Sprintf("%s has no modifications to remove.", upFirst(host.Name())))
 	}
 	removed, ok := host.RemoveMod(c.Args[1])
@@ -131,20 +147,27 @@ func UnmodifyHandler(ctx context.Context, c *Context) error {
 		return c.Actor.Write(ctx, fmt.Sprintf("%s has no modification matching %q.", upFirst(host.Name()), c.Args[1]))
 	}
 	// Re-spawn the modification as a carried item (§5 — recovered by default).
+	note := capacityNote(host)
 	if c.Spawn == nil {
-		return c.Actor.Write(ctx, fmt.Sprintf("You pry %s out of %s. (%d capacity free.)",
-			removed.Name, host.Name(), host.FreeCapacity()))
+		return c.Actor.Write(ctx, fmt.Sprintf("You pry %s out of %s.%s", removed.Name, host.Name(), note))
 	}
 	id, _, err := c.Spawn.SpawnItem(ctx, string(removed.TemplateID))
 	if err != nil {
 		// Content removed since install: the mod can't be re-materialized. The
 		// slot is freed regardless; tell the player it was lost.
-		return c.Actor.Write(ctx, fmt.Sprintf("You pry %s out of %s, but it crumbles. (%d capacity free.)",
-			removed.Name, host.Name(), host.FreeCapacity()))
+		return c.Actor.Write(ctx, fmt.Sprintf("You pry %s out of %s, but it crumbles.%s", removed.Name, host.Name(), note))
 	}
 	c.Actor.AddToInventory(id)
-	return c.Actor.Write(ctx, fmt.Sprintf("You remove %s from %s and pocket it. (%d capacity free.)",
-		removed.Name, host.Name(), host.FreeCapacity()))
+	return c.Actor.Write(ctx, fmt.Sprintf("You remove %s from %s and pocket it.%s", removed.Name, host.Name(), note))
+}
+
+// capacityNote is the " (N capacity free.)" suffix for a capacity host, or "" for
+// a mount host (which has no numeric budget).
+func capacityNote(host *entities.ItemInstance) string {
+	if host.Capacity() > 0 {
+		return fmt.Sprintf(" (%d capacity free.)", host.FreeCapacity())
+	}
+	return ""
 }
 
 // withModLook appends a one-line capacity/mods summary to a modifiable host's
@@ -163,26 +186,43 @@ func withModLook(it *entities.ItemInstance) string {
 	}
 }
 
-// modLookLine is the one-line capacity summary shown on look/examine; "" for an
-// unmodifiable item.
+// modLookLine is the one-line modification summary shown on look/examine; "" for
+// an unmodifiable item.
 func modLookLine(it *entities.ItemInstance) string {
-	if it.Capacity() <= 0 {
+	switch {
+	case len(it.Mounts()) > 0: // mount host (weapon-accessories §8)
+		mods := it.InstalledMods()
+		if len(mods) == 0 {
+			return fmt.Sprintf("Accessory mounts: %d (all free).", len(it.Mounts()))
+		}
+		names := make([]string, 0, len(mods))
+		for _, m := range mods {
+			names = append(names, m.Name)
+		}
+		return fmt.Sprintf("Accessory mounts: %d (%d free). Attached: %s.",
+			len(it.Mounts()), len(it.FreeMounts()), strings.Join(names, ", "))
+	case it.Capacity() > 0: // capacity host (item-modification §8)
+		mods := it.InstalledMods()
+		if len(mods) == 0 {
+			return fmt.Sprintf("Capacity %d (all free).", it.Capacity())
+		}
+		names := make([]string, 0, len(mods))
+		for _, m := range mods {
+			names = append(names, m.Name)
+		}
+		return fmt.Sprintf("Capacity %d (%d free). Installed: %s.",
+			it.Capacity(), it.FreeCapacity(), strings.Join(names, ", "))
+	default:
 		return ""
 	}
-	mods := it.InstalledMods()
-	if len(mods) == 0 {
-		return fmt.Sprintf("Capacity %d (all free).", it.Capacity())
-	}
-	names := make([]string, 0, len(mods))
-	for _, m := range mods {
-		names = append(names, m.Name)
-	}
-	return fmt.Sprintf("Capacity %d (%d free). Installed: %s.",
-		it.Capacity(), it.FreeCapacity(), strings.Join(names, ", "))
 }
 
-// modInfoLines renders the host's capacity + installed-mod list (§8).
+// modInfoLines renders the host's capacity/mounts + installed-mod list (§8),
+// dispatching on the host's admission rule.
 func modInfoLines(host *entities.ItemInstance) string {
+	if len(host.Mounts()) > 0 {
+		return mountInfoLines(host)
+	}
 	mods := host.InstalledMods()
 	if len(mods) == 0 {
 		return fmt.Sprintf("%s has %d capacity, all free — no modifications installed.",
@@ -193,6 +233,25 @@ func modInfoLines(host *entities.ItemInstance) string {
 		upFirst(host.Name()), host.Capacity(), host.UsedCapacity(), host.FreeCapacity())
 	for _, m := range mods {
 		fmt.Fprintf(&b, "\n  - %s [%d]", m.Name, m.CapacityCost)
+	}
+	return b.String()
+}
+
+// mountInfoLines lists a weapon host's mount points, each with its occupant or
+// "(empty)" (weapon-accessories §8).
+func mountInfoLines(host *entities.ItemInstance) string {
+	occupant := make(map[string]string)
+	for _, m := range host.InstalledMods() {
+		occupant[m.Mount] = m.Name
+	}
+	var b strings.Builder
+	fmt.Fprintf(&b, "%s — accessory mounts:", upFirst(host.Name()))
+	for _, mount := range host.Mounts() {
+		if name, ok := occupant[mount]; ok {
+			fmt.Fprintf(&b, "\n  - %s: %s", mount, name)
+		} else {
+			fmt.Fprintf(&b, "\n  - %s: (empty)", mount)
+		}
 	}
 	return b.String()
 }

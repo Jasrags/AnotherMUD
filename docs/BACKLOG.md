@@ -70,9 +70,14 @@ go straight into a milestone.
 | Property-registry save-pipeline integration | persistence §2 / §4.4 | registry substrate exists (M14.4); not wired into the save pipeline — m14 |
 | Slow-tick observability — full breakdown / routing | time-and-clock §5 | core **shipped**: `Loop.SetSlowTickObserver` times each tick, warns (`slog`) when it exceeds a threshold (`ANOTHERMUD_SLOW_TICK_THRESHOLD`, default = tick interval); reports total + handlers. Remaining: the §5 event-queue/command components (no such tick phases in this engine) + admin-channel / OTel routing (a consumer on the callback seam) |
 | Reactive tag observers | **tag-observers §2–§4** (new) | `entity.tag_added/removed` bus events for non-index reactors. Substrate ahead of a consumer. Ported from Tapestry `ITagObserver` |
-| Weapon accessories (mount slots) | **weapon-accessories §1–9** (new) | Slice B of item modification. **Slice A (armor capacity) SHIPPED** 2026-07-14 (`internal/entities` InstalledMod + `modify`/`unmodify`, save v35). Remaining: the weapon **mount-slot** admission rule (named barrel/under-barrel/side/top/stock/internal mounts, one accessory each), reusing A's substrate (install/remove, per-instance persistence, equip aggregation). Scope: **Core-source** weapons + accessories; cyberware clusters are a later capacity host domain (same rule). Smartgun↔smartlink pairing deferred |
 
 > **Shipped since this table was written (deleted per the delete-on-ship rule):**
+> **Item modification** (`item-modification.md` + `weapon-accessories.md`) — both
+> slices shipped 2026-07-14: armor **capacity** (host budget + `modify`/`unmodify`,
+> save v35) and weapon **mount slots** (named mounts, one accessory each, no extra
+> bump), on one substrate (`internal/entities` InstalledMod + effective accessors).
+> Cyberware clusters remain a later capacity host domain; smartgun↔smartlink pairing deferred.
+
 > **Biomes** + **Gathering** (the `biomes-gathering-plan.md` arc — `internal/biome`,
 > `internal/gathering`, `forage`/`harvest` verbs, recipe re-point) and **Room
 > coordinates** (M23 — `internal/world/coords.go`). The remaining slivers from those

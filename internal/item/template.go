@@ -281,6 +281,18 @@ type Template struct {
 	// own template, §3). Meaningful only when ModHost is set; validated
 	// non-negative.
 	ModCapacityCost int
+	// Mounts is a modifiable WEAPON host's set of exposed mount points
+	// (weapon-accessories.md §2 — barrel/under-barrel/side/top/stock/internal).
+	// Each mount holds at most one accessory. Empty ⇒ the weapon accepts no
+	// accessories. Normalized lowercase at load. A host uses the mount-slot rule
+	// (Mounts) OR the capacity rule (Capacity), not both.
+	Mounts []string
+	// AccessoryMounts is a MODIFICATION's compatible mount points
+	// (weapon-accessories.md §3): the mounts it may occupy on a weapon host.
+	// Non-empty ⇒ the mod is a mount ACCESSORY (installed by the mount rule, not
+	// capacity). Requires ModHost set; mutually exclusive with ModCapacityCost.
+	// Normalized lowercase.
+	AccessoryMounts []string
 }
 
 // Errors callers may distinguish at the boundary.

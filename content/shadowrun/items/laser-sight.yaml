@@ -1,0 +1,20 @@
+id: laser-sight
+name: a laser sight
+type: item
+description: |
+  A compact laser designator that clamps to a rail. Paints a dot where the round
+  will land, steadying a hurried shot — mounts under the barrel or up top.
+tags: [weapon-accessory]
+keywords: [laser, sight, laser sight]
+# Weapon accessory (weapon-accessories.md §3): fits a weapon host on either the
+# under-barrel or top mount (one mount, whichever is free first). Grants a small
+# to-hit steadying bonus while the host is wielded, via the standard equip
+# modifier path (item-modification §6).
+mod_host: weapon
+accessory_mounts: [under-barrel, top]
+modifiers:
+  - stat: hit_mod
+    value: 1
+properties:
+  weight: 1
+  value: 125

@@ -227,6 +227,12 @@ type ItemFile struct {
 	Capacity        int    `yaml:"capacity,omitempty"`
 	ModHost         string `yaml:"mod_host,omitempty"`
 	ModCapacityCost int    `yaml:"mod_capacity_cost,omitempty"`
+	// Mounts (weapon-accessories.md §2) is a weapon host's exposed mount points;
+	// AccessoryMounts (§3) is a mount accessory's compatible mounts. Both
+	// normalized lowercase at load. accessory_mounts requires mod_host and is
+	// mutually exclusive with mod_capacity_cost (a mod uses one admission rule).
+	Mounts          []string `yaml:"mounts,omitempty"`
+	AccessoryMounts []string `yaml:"accessory_mounts,omitempty"`
 }
 
 // ModifierFile is one entry of an ItemFile.Modifiers list.

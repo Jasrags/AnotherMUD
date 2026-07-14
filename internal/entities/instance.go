@@ -23,6 +23,8 @@ var (
 	ErrModIncompatible = errors.New("modification does not fit this host")
 	// ErrModNoCapacity — the mod's cost exceeds the host's free capacity (§4 step 2).
 	ErrModNoCapacity = errors.New("not enough free capacity")
+	// ErrMountOccupied — no compatible mount is free (weapon-accessories.md §4).
+	ErrMountOccupied = errors.New("no compatible mount is free")
 )
 
 // InstalledMod is one modification installed into a host item
@@ -39,6 +41,9 @@ type InstalledMod struct {
 	ArmorCheck   int
 	Resistances  map[string]int
 	Modifiers    []InstanceModifier
+	// Mount is the weapon mount point this accessory occupies
+	// (weapon-accessories.md §4); "" for a capacity-rule armor mod.
+	Mount string
 }
 
 // Reserved property keys with engine-defined semantics. Listed here
@@ -252,6 +257,11 @@ type ItemInstance struct {
 	modHost         string
 	modCapacityCost int
 	installedMods   []InstalledMod
+	// Weapon accessories (weapon-accessories.md — Slice B). mounts is a weapon
+	// host's exposed mount points; accessoryMounts is a mount accessory's
+	// compatible mounts. Both write-once at build (like capacity/modHost).
+	mounts          []string
+	accessoryMounts []string
 }
 
 // ID implements Entity.
@@ -794,6 +804,118 @@ func (it *ItemInstance) usedCapacityLocked() int {
 // FreeCapacity returns the host's remaining modification budget (§2).
 func (it *ItemInstance) FreeCapacity() int { return it.Capacity() - it.UsedCapacity() }
 
+// --- Weapon accessories (mount slots — weapon-accessories.md, Slice B) ---
+
+// Mounts returns the mount points this weapon host exposes (§2); nil for a
+// non-mount host. Write-once at build, so lock-free.
+func (it *ItemInstance) Mounts() []string { return append([]string(nil), it.mounts...) }
+
+// AccessoryMounts returns the mounts a mount accessory may occupy (§3); nil for a
+// non-accessory. Write-once at build, so lock-free.
+func (it *ItemInstance) AccessoryMounts() []string {
+	return append([]string(nil), it.accessoryMounts...)
+}
+
+// IsAccessory reports whether the item is a mount accessory (declares compatible
+// mounts, §3). Distinct from a capacity mod (IsModification with a cost).
+func (it *ItemInstance) IsAccessory() bool { return len(it.accessoryMounts) > 0 }
+
+// IsModifiable reports whether the item accepts modifications at all — a capacity
+// host (Capacity > 0) or a mount host (exposes mounts).
+func (it *ItemInstance) IsModifiable() bool { return it.capacity > 0 || len(it.mounts) > 0 }
+
+// OccupiedMounts returns the mounts currently taken by installed accessories, and
+// FreeMounts the exposed mounts that are still open (weapon-accessories §2/§4).
+func (it *ItemInstance) OccupiedMounts() []string {
+	it.propsMu.RLock()
+	defer it.propsMu.RUnlock()
+	return it.occupiedMountsLocked()
+}
+
+func (it *ItemInstance) occupiedMountsLocked() []string {
+	var out []string
+	for _, m := range it.installedMods {
+		if m.Mount != "" {
+			out = append(out, m.Mount)
+		}
+	}
+	return out
+}
+
+// FreeMounts returns this host's exposed mounts that hold no accessory.
+func (it *ItemInstance) FreeMounts() []string {
+	it.propsMu.RLock()
+	defer it.propsMu.RUnlock()
+	return it.freeMountsLocked()
+}
+
+func (it *ItemInstance) freeMountsLocked() []string {
+	occupied := make(map[string]bool, len(it.installedMods))
+	for _, m := range it.installedMods {
+		if m.Mount != "" {
+			occupied[m.Mount] = true
+		}
+	}
+	var out []string
+	for _, mount := range it.mounts {
+		if !occupied[mount] {
+			out = append(out, mount)
+		}
+	}
+	return out
+}
+
+// AttachAccessory installs a mount accessory into this weapon host
+// (weapon-accessories.md §4). It validates that the host exposes mounts, the item
+// is an accessory, and a compatible mount is free — then records it on the chosen
+// mount (the first free mount, in the host's declared order, that the accessory
+// fits) and snapshots its contribution (§6). Returns the chosen mount, or a
+// sentinel error on refusal. v1 occupies exactly ONE mount per accessory (the
+// multi-mount `both` form is deferred).
+func (it *ItemInstance) AttachAccessory(acc *ItemInstance) (string, error) {
+	if len(it.mounts) == 0 {
+		return "", ErrNotModifiable
+	}
+	if acc == nil || !acc.IsAccessory() {
+		return "", ErrNotAModification
+	}
+	fits := make(map[string]bool, len(acc.accessoryMounts))
+	for _, m := range acc.accessoryMounts {
+		fits[m] = true
+	}
+	rec := InstalledMod{
+		TemplateID:  acc.templateID,
+		Name:        acc.name,
+		ArmorBonus:  acc.armorBonus,
+		ArmorCheck:  acc.armorCheckPenalty,
+		Resistances: cloneIntMap(acc.resistances),
+		Modifiers:   append([]InstanceModifier(nil), acc.modifiers...),
+	}
+	it.propsMu.Lock()
+	defer it.propsMu.Unlock()
+	// A mount the host exposes, the accessory fits, and nothing else occupies.
+	compatible := false
+	for _, mount := range it.freeMountsLocked() {
+		if fits[mount] {
+			rec.Mount = mount
+			it.installedMods = append(it.installedMods, rec)
+			return mount, nil
+		}
+	}
+	// Distinguish "the accessory fits no mount this host has" (incompatible) from
+	// "every compatible mount is taken" (occupied).
+	for _, mount := range it.mounts {
+		if fits[mount] {
+			compatible = true
+			break
+		}
+	}
+	if !compatible {
+		return "", ErrModIncompatible
+	}
+	return "", ErrMountOccupied
+}
+
 // InstallMod installs mod into this host (item-modification §4). It validates
 // modifiability, host compatibility, and free capacity, then SNAPSHOTS the mod's
 // contribution onto the host (§6) so the equip/recompute seams read it without a
@@ -803,7 +925,10 @@ func (it *ItemInstance) InstallMod(mod *ItemInstance) error {
 	if it.Capacity() <= 0 {
 		return ErrNotModifiable
 	}
-	if mod == nil || !mod.IsModification() {
+	// A mount accessory installs by the mount rule (AttachAccessory), never by
+	// capacity — refuse it here so a capacity host can't absorb one for free
+	// (mirror of AttachAccessory's !IsAccessory guard).
+	if mod == nil || !mod.IsModification() || mod.IsAccessory() {
 		return ErrNotAModification
 	}
 	if !it.HasTag(mod.ModHost()) {
@@ -865,6 +990,33 @@ func (it *ItemInstance) RestoreInstalledMod(tpl *item.Template) {
 	}
 	it.propsMu.Lock()
 	defer it.propsMu.Unlock()
+	// A mount accessory on a mount host reclaims a mount deterministically — the
+	// first free compatible mount, in the host's declared order. The persisted
+	// install order reproduces a valid layout (weapon-accessories §4/§6). The
+	// mount itself is derived, not persisted, so re-seating is stable.
+	if len(tpl.AccessoryMounts) > 0 {
+		if len(it.mounts) == 0 {
+			// The host lost its mount capability entirely since the save — drop
+			// the accessory rather than fall through and re-add it mountless
+			// (which would apply its effect invisibly, forever).
+			return
+		}
+		fits := make(map[string]bool, len(tpl.AccessoryMounts))
+		for _, m := range tpl.AccessoryMounts {
+			fits[strings.ToLower(strings.TrimSpace(m))] = true
+		}
+		for _, mount := range it.freeMountsLocked() {
+			if fits[mount] {
+				rec.Mount = mount
+				break
+			}
+		}
+		if rec.Mount == "" {
+			// Content shrank the weapon's mounts since the save: no seat left.
+			// Skip rather than double-occupy a mount.
+			return
+		}
+	}
 	it.installedMods = append(it.installedMods, rec)
 }
 
@@ -1121,6 +1273,8 @@ func buildInstanceFromTemplate(tpl *item.Template, id EntityID) *ItemInstance {
 		capacity:          tpl.Capacity,
 		modHost:           tpl.ModHost,
 		modCapacityCost:   tpl.ModCapacityCost,
+		mounts:            append([]string(nil), tpl.Mounts...),
+		accessoryMounts:   append([]string(nil), tpl.AccessoryMounts...),
 		// installedMods starts empty — a freshly built item carries no mods;
 		// the save-respawn path re-adds them (item-modification §7).
 	}

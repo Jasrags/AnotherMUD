@@ -31,6 +31,9 @@ range_increment: 5
 # and ejects the spent one (ammo-and-reloading §5). It carries no rounds itself —
 # the clip does.
 accepts_holder: heavy-pistol
+# Weapon accessory mounts (weapon-accessories.md §2): the smartgun rail + frame
+# give this pistol three mount points; each holds one accessory.
+mounts: [barrel, top, under-barrel]
 properties:
   weight: 2
   value: 725
