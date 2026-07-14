@@ -798,6 +798,36 @@ based on the query's status field.
 - [ ] Disambiguation rows align ids in a column.
 - [ ] No-match terminates with CR-LF.
 
+### 10.4 Command index (bare `help`)
+
+`help` with no argument renders a **grouped command index**: every
+category the requester can see, each shown as a header followed by a
+compact grid of its command keywords. The categories render in a
+**canonical order** (not alphabetically) so related groups sit
+together — general first, then the movement / communication / combat /
+items progression — with any category outside the canonical list
+(pack-defined categories, or the default bucket that dynamically
+registered ability verbs fall into) appended after, alphabetically, so
+no command is ever hidden. A group the requester can't see (e.g. the
+admin group at player tier) comes back empty from `List` and is
+skipped.
+
+The **category vocabulary and order** are policy. Command→category
+assignment for engine builtins is engine-owned (it tracks the engine's
+own verbs and lives beside their briefs); content packs remain free to
+author topics in any category, including new ones. Per-command briefs
+and full topics are one drill-down away via `help <category>` (§9.7)
+and `help <command>` (§10.1) — the index itself lists keywords only, so
+it stays scannable regardless of how many commands exist.
+
+**Acceptance criteria**
+
+- [ ] Bare `help` groups commands under category headers in the
+      canonical order, keywords only.
+- [ ] Categories outside the canonical order render after it,
+      alphabetically; none are dropped.
+- [ ] A category with no requester-visible topics is omitted.
+
 ---
 
 ## 11. Look and the appearance lens

@@ -174,7 +174,7 @@ func RegisterBuiltins(r *Registry) error {
 		{Keyword: "overchannel", Handler: OverchannelHandler, Brief: "Draw a weave past your safe reserve, at real risk.", Syntax: []string{"overchannel <weave>", "overchannel <weave> <target>"}, BreaksConcealment: true},
 
 		// Help (M10.5).
-		{Keyword: "help", Handler: HelpHandler, Brief: "Find help on commands and topics.", Syntax: []string{"help", "help <topic>"}, Category: "general"},
+		{Keyword: "help", Handler: HelpHandler, Brief: "Find help on commands and topics.", Syntax: []string{"help", "help <topic>"}},
 
 		// Quests (M10.10).
 		// talk declares an npc arg + HandParsed so completion enumerates
@@ -393,6 +393,10 @@ func RegisterBuiltins(r *Registry) error {
 		{Keyword: "complete", Handler: CompleteHandler, Admin: true, Brief: "Show completion candidates for a partial line (debug).", Syntax: []string{"complete <partial line>"}},
 	}
 	for _, c := range commands {
+		// Apply the centralized help taxonomy (categories.go) so grouping
+		// lives in one reviewable table rather than scattered across the
+		// literals above.
+		c.Category = categoryFor(c)
 		if err := r.RegisterCommand(c); err != nil {
 			return err
 		}

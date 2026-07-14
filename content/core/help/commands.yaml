@@ -17,7 +17,7 @@ topics:
 
   - id: look
     title: Look
-    category: commands
+    category: general
     brief: Examine your surroundings.
     body: |
       Look shows the name and description of the room you are in, the
@@ -29,7 +29,7 @@ topics:
 
   - id: movement
     title: Movement
-    category: commands
+    category: movement
     brief: Move between rooms.
     body: |
       Travel by typing a direction: north, south, east, west, up, or
@@ -44,7 +44,7 @@ topics:
 
   - id: map
     title: Maps
-    category: commands
+    category: movement
     brief: Read the area map and find your way around.
     body: |
       The world is drawn one area at a time. Two views share the same
@@ -76,7 +76,7 @@ topics:
 
   - id: minimap
     title: Minimap
-    category: commands
+    category: movement
     brief: Toggle the active minimap or set its size.
     body: |
       The minimap is the small framed map drawn beside the room
@@ -102,7 +102,7 @@ topics:
 
   - id: combat
     title: Combat
-    category: commands
+    category: combat
     brief: Fighting, fleeing, and staying alive.
     body: |
       Attack a target with 'kill <target>'. Once fighting, you trade

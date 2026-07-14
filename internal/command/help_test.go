@@ -39,10 +39,16 @@ func TestHelpHandlerTopic(t *testing.T) {
 }
 
 func TestHelpHandlerIndex(t *testing.T) {
+	// The bare-help index groups commands under category headers (titles), with
+	// each group a grid of verb keywords. The test service uses categories
+	// outside categoryOrder ("commands"/"magic"), which render as leftover
+	// groups titled from the key.
 	a := dispatchHelp(t, helpSvc(t), "")
 	out := a.lastLine()
-	if !strings.Contains(out, "Categories:") || !strings.Contains(out, "commands") || !strings.Contains(out, "magic") {
-		t.Errorf("help index = %q", out)
+	for _, want := range []string{"Command Categories", "Commands", "Magic", "look", "cast", "spells"} {
+		if !strings.Contains(out, want) {
+			t.Errorf("help index missing %q:\n%q", want, out)
+		}
 	}
 }
 
