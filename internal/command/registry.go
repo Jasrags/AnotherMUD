@@ -562,7 +562,17 @@ func (r *Registry) Dispatch(ctx context.Context, env Env, actor Actor, raw strin
 			logging.From(ctx).Debug("argres warning", "verb", c.Verb, "warning", w)
 		}
 		if err != nil {
-			return actor.Write(ctx, err.Error())
+			// Usage-on-error: a missing required argument is a "you typed the
+			// verb but not its operands" mistake, so append the command's
+			// synthesized usage line (ui-rendering-help §10.4) — the player
+			// learns the shape rather than just seeing "What <arg>?". Other
+			// resolution failures (a named target that doesn't resolve) already
+			// carry a specific message, so the usage echo would only be noise.
+			msg := err.Error()
+			if errors.Is(err, ErrMissingRequired) {
+				msg += "\r\n" + usageLine(reg.keyword, reg.args)
+			}
+			return actor.Write(ctx, msg)
 		}
 		c.Resolved = resolved
 	}

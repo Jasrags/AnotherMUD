@@ -186,6 +186,15 @@ func GenerateHelpTopics(r *Registry, svc *help.Service) {
 	}
 }
 
+// usageLine renders a command's synthesized syntax as a subtle usage hint. The
+// dispatcher appends it after a missing-argument resolution error so the player
+// learns the command's shape instead of just seeing "What <arg>?" (§5.4 /
+// ui-rendering-help §10.4). Only meaningful for typed commands (len(args) > 0),
+// which is exactly the dispatch branch that calls it.
+func usageLine(keyword string, args []ArgDefinition) string {
+	return "<subtle>Usage: " + synthesizeSyntax(keyword, args) + "</subtle>"
+}
+
 // synthesizeSyntax builds a command's syntax line from its typed-argument
 // declaration (commands-and-dispatch §8): the keyword followed by each
 // argument rendered as `[name]` (required) or `([name])` (optional), with a

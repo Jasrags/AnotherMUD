@@ -475,6 +475,25 @@ The final result is `(success, named map, error)`. The first
 required-arg failure short-circuits; the error string is what
 gets sent back to the player.
 
+**Usage-on-error.** When the short-circuit is specifically a
+*missing required argument* (step 2 / step 3 — the player typed
+the verb but not its operands), the dispatcher appends the
+command's synthesized usage line (see §8 and `ui-rendering-help`
+§10.4) below the "What &lt;argName&gt;?" prompt, so the player
+learns the command's shape. A resolver *value* failure (step 4 —
+a token is present but invalid, or a named target doesn't
+resolve) already carries a specific message and does NOT get the
+usage echo. Hand-parsed commands (§5, those that resolve their
+own arguments) are outside this path; each surfaces its own
+guidance.
+
+**Acceptance criteria**
+
+- [ ] A missing required argument sends the prompt plus the
+      synthesized usage line.
+- [ ] A present-but-invalid token sends only the resolver's
+      message, no usage line.
+
 ### 5.5 Ordinal selectors
 
 For type that accept ordinal selection (inventory, room item,

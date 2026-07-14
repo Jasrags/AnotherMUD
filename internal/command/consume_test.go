@@ -2,6 +2,7 @@ package command_test
 
 import (
 	"context"
+	"strings"
 	"testing"
 
 	"github.com/Jasrags/AnotherMUD/internal/command"
@@ -96,11 +97,13 @@ func TestUseVerb_RejectsNonConsumable(t *testing.T) {
 
 func TestEatVerb_NoArgsPrompts(t *testing.T) {
 	env, a, _ := consumeRig(t, map[string]any{"consume_method": "eat"})
-	// M17.2d: missing required arg now yields the §5.4 dispatcher
-	// prompt instead of the old hand-rolled "Eat what?".
+	// M17.2d: missing required arg now yields the §5.4 dispatcher prompt
+	// instead of the old hand-rolled "Eat what?". Usage-on-error then appends
+	// the synthesized usage line (ui-rendering-help §10.4).
 	dispatchConsume(t, env, a, "eat")
-	if a.lastLine() != "What item?" {
-		t.Errorf("output = %q, want 'What item?'", a.lastLine())
+	out := a.lastLine()
+	if !strings.Contains(out, "What item?") || !strings.Contains(out, "Usage: eat [item]") {
+		t.Errorf("output = %q, want 'What item?' + usage line", out)
 	}
 }
 
