@@ -116,3 +116,4 @@ topics:
       - "wimpy <percent>"
       - "consider <target>"
     keywords: [combat, fight, kill, attack, flee, wimpy, consider]
+    see_also: [kill, flee, consider, getting-started, grouping]

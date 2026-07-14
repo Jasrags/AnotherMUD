@@ -977,6 +977,14 @@ func TestLoadRealCorePack(t *testing.T) {
 	} else if def.Scope != slot.Scope("tapestry-core") {
 		t.Errorf("cloak.Scope = %q, want tapestry-core", def.Scope)
 	}
+
+	// Narrative player guides from content/core/help/guides.yaml load through
+	// decodeHelp — catches YAML/authoring errors in the guides.
+	for _, id := range []string{"getting-started", "trading", "crafting", "grouping", "survival"} {
+		if !regs.Help.HasTopic(id) {
+			t.Errorf("missing help guide %q", id)
+		}
+	}
 }
 
 func TestLoadItemsHappyPath(t *testing.T) {

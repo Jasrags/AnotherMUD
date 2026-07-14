@@ -60,6 +60,12 @@ func renderHelpIndex(svc *help.Service, entityID string) string {
 	b.WriteString("<title>Help — Command Categories</title>\r\n")
 	b.WriteString("<subtle>Type 'help <category>' to see a group's commands with descriptions,\r\n")
 	b.WriteString("or 'help <command>' for details on a single command.</subtle>\r\n")
+	// New-player nudge, only when the pack ships the guide (a pack without it
+	// shouldn't dead-end). getting-started is a role-less topic, so any tier
+	// can read it; HasTopic is enough here.
+	if svc.HasTopic("getting-started") {
+		b.WriteString("<subtle>New here? Start with 'help getting-started'.</subtle>\r\n")
+	}
 
 	any := false
 	rendered := make(map[string]bool)

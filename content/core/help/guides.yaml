@@ -1,0 +1,176 @@
+# Narrative player guides (ui-rendering-help §9.1). These are topic-level
+# overviews that orient a player around a whole activity, distinct from the
+# per-command topics generated from command metadata. Each lands in its
+# activity's category so it surfaces in the grouped help index next to the
+# commands it explains, and cross-links via see_also.
+topics:
+  - id: getting-started
+    title: Getting Started
+    category: general
+    brief: New here? Read this first.
+    body: |
+      Welcome. Here is everything you need for your first hour.
+
+      LOOK AROUND
+        'look' shows the room you are in, who and what is here, and the
+        exits. Type it any time you lose your bearings. 'score' shows your
+        own character - health, level, and attributes.
+
+      MOVE
+        Travel by typing a direction: north, south, east, west, up, or
+        down (shortcuts n, s, e, w, u, d). 'map' draws the part of the
+        area you have explored; a minimap sits beside each room. When you
+        find a safe spot to call home, 'recall set' binds it, and 'recall'
+        brings you back there later.
+
+      STAY ALIVE
+        Fighting drains your health; 'rest' or 'sleep' to recover faster,
+        and 'wake' to get up. Hunger and thirst tick down over time - keep
+        food and drink on hand and 'eat' or 'drink' when prompted.
+
+      HANDLE THINGS
+        'get' picks items up, 'inventory' (or 'i') lists what you carry,
+        'equip' (or 'wear'/'wield') puts on armour and weapons, and
+        'equipment' shows your slots. 'drop' and 'give' pass items along.
+
+      FIGHT
+        'consider <target>' sizes up a foe first. 'kill <target>' attacks;
+        from there you trade blows each round automatically. 'flee' tries
+        to escape, and 'wimpy <percent>' flees for you when your health
+        gets low. See 'help combat'.
+
+      FIND SOMETHING TO DO
+        'quests' lists what you have taken on. Talk to the folk you meet -
+        'talk <npc>' hears them out and 'ask <npc> about <topic>' digs for
+        rumours and lore.
+
+      GET UNSTUCK
+        'help' lists every command by group. 'help <group>' shows a
+        group's commands with descriptions, and 'help <command>' explains
+        one. If you mistype a command, it will show you how to use it.
+    syntax:
+      - "look"
+      - "score"
+      - "help"
+    keywords: [start, started, starting, begin, beginner, newbie, new, tutorial, intro, guide, basics, help]
+    see_also: [look, movement, combat, trading, grouping, quests]
+
+  - id: trading
+    title: Trading & Money
+    category: trade
+    brief: Shops, player trades, and the auction house.
+    body: |
+      There are three ways to move goods and coin.
+
+      SHOPS
+        Where a shopkeeper stands, 'list' shows the wares, 'buy <item>'
+        purchases one, and 'sell <item>' offloads what you carry. 'value
+        <item>' asks what a shop would pay before you commit. 'gold' shows
+        your purse.
+
+      TRADING FACE TO FACE
+        With another player in the room, 'trade <player>' opens a swap.
+        Each side builds an offer with 'offer <item>' and 'offergold
+        <amount>' (and 'rescind' / 'rescindgold' to take something back).
+        When both sides 'confirm' an unchanged offer, the exchange happens
+        at once - neither party can be cheated mid-swap. 'decline' calls it
+        off.
+
+      THE AUCTION HOUSE
+        At an auctioneer, 'auction <item> <price>' lists an item for
+        buyout. 'browse' searches the listings, 'buyout <#>' purchases one
+        outright, and 'collect' picks up your proceeds and any won or
+        returned items. 'auctions' shows your own active listings and
+        'unlist <#>' withdraws one.
+    keywords: [trade, trading, shop, shops, shopping, buy, sell, market, auction, money, gold, economy, merchant]
+    see_also: [buy, sell, trade, auction, browse, getting-started]
+
+  - id: crafting
+    title: Crafting & Gathering
+    category: crafting
+    brief: Gather materials and make things.
+    body: |
+      Making things has three parts: learn a craft, gather materials, and
+      work them into goods.
+
+      LEARN A DISCIPLINE
+        Find the right trainer and 'learn <discipline>' to pick up a
+        craft. Some recipes come from scrolls instead - 'read <item>'
+        studies one and adds it to what you know.
+
+      GATHER MATERIALS
+        Out in the wild, 'forage' (or 'gather') turns up ingredients from
+        the land around you, and 'harvest <node>' works a resource node you
+        can see. What you find depends on the terrain you are standing in.
+
+      MAKE THINGS
+        'craft' on its own lists the recipes you know; 'craft <recipe>'
+        makes one, provided you have the materials and any station it
+        needs. Cooking often wants a fire - 'build campfire' raises an
+        improvised one on the spot.
+    keywords: [craft, crafting, cook, cooking, gather, gathering, forage, harvest, recipe, recipes, make, station, campfire]
+    see_also: [craft, learn, forage, harvest, getting-started]
+
+  - id: grouping
+    title: Groups & Companions
+    category: groups
+    brief: Travel and fight alongside others.
+    body: |
+      You do not have to adventure alone.
+
+      FOLLOWING
+        'follow <target>' travels in someone's wake - when they move, you
+        move with them. 'unfollow' stops, and 'lose' shakes off anyone
+        trailing you.
+
+      PARTIES
+        'group <player>' invites someone to your party; they 'join' to
+        accept. 'group' on its own shows the roster. 'gtell <message>'
+        talks to the party privately, and 'assist <ally>' jumps into the
+        fight an ally is in. 'leave' departs a party, 'disband' dissolves
+        the one you lead, and 'promote' hands leadership on. 'lootmode'
+        sets how the party shares spoils; 'autoassist' joins party fights
+        automatically.
+
+      HIRELINGS
+        Some NPCs will fight for coin - 'hire <name>' takes one on, and
+        'hirelings' lists those under contract. 'order' directs them
+        (follow, stay, guard, or attack a target) and 'dismiss' releases
+        one.
+
+      MOUNTS
+        'mounts' lists the beasts you own; 'mount <mount>' climbs aboard to
+        travel faster and 'dismount' gets down. Buy and stable them at a
+        stablemaster.
+    keywords: [group, grouping, party, follow, join, companions, hireling, hirelings, mount, mounts, assist, team]
+    see_also: [group, follow, hire, mounts, getting-started]
+
+  - id: survival
+    title: Rest & Survival
+    category: survival
+    brief: Health, hunger, rest, and darkness.
+    body: |
+      Staying alive is more than winning fights.
+
+      RECOVERING
+        Health, and other pools, come back on their own over time - faster
+        while you 'rest', faster still while you 'sleep'. 'wake' (or
+        'stand') gets you back on your feet. You cannot fight lying down,
+        so rest somewhere safe.
+
+      FOOD AND DRINK
+        Hunger and thirst tick down as you go. 'eat <food>' and 'drink
+        <item>' top them back up; let them run out and you will feel it.
+        Keep provisions in your pack.
+
+      LIGHT AND DARK
+        Some places are pitch dark. A torch or lantern helps - 'light
+        <item>' kindles one you carry and 'extinguish' puts it out.
+        'daylight' (or 'time') tells you the hour and how well you can see
+        right now.
+
+      CARRYING
+        Everything you carry has weight, and hauling too much slows you
+        down. Check 'inventory' and shed what you do not need.
+    keywords: [rest, sleep, survival, hunger, thirst, food, drink, eat, health, heal, recover, light, dark, torch, encumbrance, weight]
+    see_also: [rest, eat, light, getting-started]
