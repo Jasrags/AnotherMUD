@@ -4,7 +4,7 @@ Manual QA for the **Shadowrun** street-samurai slice (SR-M1 attribute set →
 SR-M2 typed damage → SR-M3 the playable pack). This is a **separate world** on
 the same engine — a different boot, a different character, its own district. The
 core/starter-world guide (`core.md`) and the Wheel of Time guide (`wot.md`) are
-siblings; the section numbers here (**§37–§43**) continue the guide-wide anchor
+siblings; the section numbers here (**§37–§44**) continue the guide-wide anchor
 sequence.
 
 > Format: `- [ ] command` — what should happen. Mark `[x]` on pass; add a
@@ -252,6 +252,117 @@ generic progression engine, exercised on the SR track.
 > SR framing of the same track XP. A dedicated **karma ledger** (SR-M5) and the
 > **Essence** pool that cyberware would erode (SR-M4) are post-MVP, deferred.
 
+## 44. Item modification — armor mods & weapon accessories
+
+Gear is **modifiable**: an armor piece carries a **capacity** budget that
+**modifications** consume, and a weapon exposes **mount points** each accessory
+clips onto. A mod's effect (soak, environmental protection, a to-hit steadier)
+rides the normal equip pipeline while the host is worn/wielded. The verbs are
+`modify` (install / show) and `unmodify` (remove); the fixer (§42) stocks the
+whole catalog. Backed by `shadowrun_armor_mod_live_test.go`.
+
+> **Fast-hazard boot (for the Glow tests below).** The environmental hazard ticks
+> on `ANOTHERMUD_BIOME_HAZARD_INTERVAL` (default is slow) — add it to the §37 boot
+> so the Glow bites within a beat:
+> ```sh
+> ANOTHERMUD_BIOME_HAZARD_INTERVAL=1s ANOTHERMUD_PACKS=shadowrun make run
+> ```
+
+### The catalog (the fixer stocks mods)
+
+- [ ] At the fixer (§42), `list` — alongside the guns/ammo it now sells an
+      **armored vest**, and the modifications: a **ballistic weave insert**, a
+      **chemical protection layer**, a **radiation shielding liner**, a **chemical
+      seal kit**, and a **laser sight**.
+- [ ] `buy weave`, `buy seal`, `buy laser` (or `get` the armored jacket on the
+      corner) — each enters inventory like any item; a mod is inert until installed.
+
+### Armor capacity — install, inspect, remove
+
+An armored **jacket** has capacity **12** (light — dons instantly); the heavier
+**vest** has **9**. Mods consume that budget; you can't fit everything.
+
+- [ ] `modify jacket` (host only) — shows the budget: **"An armored jacket has 12
+      capacity, all free — no modifications installed."**
+- [ ] `modify jacket weave` — **"You install a ballistic weave insert into an
+      armored jacket. (9 capacity free.)"** — the weave (cost **3**) is consumed
+      from inventory and recorded on the jacket.
+- [ ] `modify jacket` again — the info form now lists it: **"An armored jacket —
+      capacity 12 (3 used, 9 free): - a ballistic weave insert [3]"**.
+- [ ] `look jacket` — the description gains a **"Capacity 12 (9 free). Installed:
+      a ballistic weave insert."** line.
+- [ ] Over-fill: try to add a mod whose cost exceeds the free budget — refused,
+      **naming the shortfall** ("… needs N capacity, but an armored jacket has only
+      M free."). A wrong-domain mod (a weapon accessory into armor) is refused too.
+- [ ] `unmodify jacket weave` — **"You remove a ballistic weave insert from an
+      armored jacket and pocket it. (12 capacity free.)"** — the mod returns to
+      inventory (re-installable) and the capacity frees up.
+
+### Weapon accessories — mount slots
+
+A weapon exposes named **mounts** (barrel / under-barrel / side / top / stock /
+internal); each holds **one** accessory. The Ares Predator V exposes
+**barrel · top · under-barrel**.
+
+- [ ] `get pistol` (or buy one), `modify pistol` — lists the mounts, each
+      **(empty)**.
+- [ ] `modify pistol laser` — **"You attach a laser sight to an Ares Predator V's
+      top mount."** — it seats on the first free compatible mount (the laser fits
+      top *or* under-barrel).
+- [ ] `modify pistol` — the mount now shows its occupant: **"top: a laser sight"**.
+- [ ] Occupancy: install a second accessory that only fits an already-taken mount
+      — refused (**"… has no free mount that fits …"**), *not* silently double-seated.
+- [ ] `unmodify pistol laser` — detaches it back to inventory, freeing the mount.
+
+### The mod matters — ballistic soak in a fight
+
+- [ ] `modify jacket weave` (piercing/ballistic resistance **2**), `equip jacket`,
+      `teleport shadowrun:market-street`, `kill ganger` while the ganger shoots or
+      the pistol trades fire — the weave **soaks 2 off each piercing hit** through
+      the same `mitigation` channel armor uses (§39). Compare kill speed with the
+      weave installed vs. removed.
+
+### Environmental protection — surviving the Glow (immunity)
+
+**Glow City** (`shadowrun:glow-city`, radiation) and the **Puyallup ash flats**
+(`shadowrun:the-ash-flat`, toxins) deal intrinsic hazard damage each tick unless
+you're protected. A **chemical seal kit** grants total immunity (SR sealed
+environment) while the modded armor is worn.
+
+- [ ] Baseline: `restore`, `teleport shadowrun:glow-city`, wait a couple ticks —
+      **"The Glow sears through you …"** and your **HP drops** (environmental — no
+      attacker). `teleport shadowrun:street-corner` back to safety.
+- [ ] `equip jacket`, `modify jacket seal` (cost **6**), return to the Glow and
+      dwell — **no searing line, no HP loss**. The mod-granted **`rad-shielded`**
+      key confers immunity exactly as a dedicated enviro-suit's tag would.
+- [ ] `unmodify jacket seal`, back to the Glow — it **bites again**. Removing the
+      mod reverses the protection.
+
+### Environmental resistance — taking the edge off (soak)
+
+A **radiation shielding liner** doesn't seal you, it *reduces* the radiation.
+
+- [ ] `modify jacket shielding` (radiation resistance **2**, cost **2**), into the
+      Glow — you still take the searing line, but the **HP loss per tick is
+      smaller** (payload minus your soak; enough shielding fully absorbs it). This
+      is the partial-soak counterpart to the seal's full immunity.
+
+### Modify worn armor (the bench isn't required)
+
+- [ ] With the jacket **equipped**, `modify jacket weave` — installs **while worn**
+      and the effect lands immediately (no take-it-off step). `unmodify` likewise
+      reverses live.
+- [ ] Combat gate: on **Market Street** with the ganger engaged (`kill ganger`),
+      `modify jacket seal` — refused: **"You can't re-work your gear in the middle
+      of a firefight."** Modding worn gear is a bench action; carried gear is always
+      free to work on.
+
+### Persistence
+
+- [ ] Install a mod, `quit`, log back in — `modify jacket` (or `look jacket`) still
+      shows it installed; a modded piece round-trips through your save. A worn
+      modded piece keeps its effect on relog too.
+
 ---
 
 ## Notes / known gaps (Shadowrun)
@@ -269,5 +380,15 @@ generic progression engine, exercised on the SR track.
   is flat, not Body-derived (§39); no Essence pool or karma ledger yet (§43).
 - **Deferred combat depth:** magazine model, SMG burst, and cross-room `shoot`
   for the SR pack are recorded in the SR-M3c deferred-fixes memory.
+- **Item modification (§44):** the shipped Core armor mods are the ones with live
+  consumers — ballistic weave (soak), chemical protection / seal + radiation
+  shielding (hazard toxin/rad), and the laser sight accessory. The rest of the
+  Core set (**Fire Resistance, Insulation, Nonconductivity, Shock Frills, Thermal
+  Damping**) is **not authored yet** — each needs a damage/detection mechanic that
+  doesn't exist (fire/cold/electrical damage, thermographic detection). **Cyberware
+  modification** (enhancements into a cybereye's capacity) reuses the same rule but
+  is a later host domain. One known edge: a **hastily-donned** piece modified while
+  worn loses its degradation (low exposure; recorded in the item-modification build
+  log).
 - Record any mismatch as a `BUG:` note next to the step; file the real ones into
   `docs/BACKLOG.md` or a `m<N>-deferred-fixes` memory afterward.
