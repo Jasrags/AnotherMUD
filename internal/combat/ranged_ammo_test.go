@@ -257,6 +257,43 @@ func TestAutoAttack_MagnificationDoesNotHelpPointBlank(t *testing.T) {
 	}
 }
 
+// Firing modes (ranged-combat §5.5): burst fire's recoil is an uncompensated
+// to-hit penalty — a marginal single-shot HIT becomes a burst MISS.
+func TestAutoAttack_BurstFireRecoilPenalty(t *testing.T) {
+	atkStats := Stats{HitMod: 0, RangedClass: RangedProjectile, AmmoKind: "bullet", FireMode: FireModeBurst}
+	defStats := Stats{AC: 12}
+	rig := newAutoAttackRig(t, atkStats, defStats, 10, 20, []int{11}) // d20 = 12
+	rig.fireModes = DefaultFireModes()                                // burst: recoil 2
+	rig.falloff = 0                                                   // isolate the recoil from band falloff
+	rig.phase()(context.Background(), rig.attacker.id, rig.mgr, 0)
+
+	// 12 - 2 (burst recoil) = 10 < AC 12 → miss. (A single-shot 12 >= 12 hits.)
+	if m := len(rig.sink.snapshotMisses()); m != 1 {
+		t.Fatalf("burst recoil should drop a marginal hit to a miss: got %d miss / %d hit",
+			m, len(rig.sink.snapshotHits()))
+	}
+}
+
+// Burst fire adds a damage bonus to a hit (more rounds on target). A 1d2 weapon
+// rolling its low face deals 1 base; burst folds in +2 → 3.
+func TestAutoAttack_BurstFireDamageBonus(t *testing.T) {
+	d2, err := ParseDice("1d2")
+	if err != nil {
+		t.Fatalf("ParseDice: %v", err)
+	}
+	atkStats := Stats{HitMod: 0, RangedClass: RangedProjectile, AmmoKind: "bullet", FireMode: FireModeBurst, Damage: d2}
+	defStats := Stats{AC: 1}
+	rig := newAutoAttackRig(t, atkStats, defStats, 10, 50, []int{9, 0}) // d20 = 10 (hit, no crit), then 1d2 low face (1)
+	rig.fireModes = DefaultFireModes()                                  // burst: +2 damage
+	rig.falloff = 0
+	rig.phase()(context.Background(), rig.attacker.id, rig.mgr, 0)
+
+	hits := rig.sink.snapshotHits()
+	if len(hits) != 1 || hits[0].Damage != 3 {
+		t.Fatalf("burst damage should be 1 (die) + 2 (burst bonus) = 3, got %+v", hits)
+	}
+}
+
 // The same projectile roll HITS at the melee band (no falloff there) — proving
 // the miss above was the band falloff, not the roll.
 func TestAutoAttack_ProjectileHitsAtMeleeBand(t *testing.T) {

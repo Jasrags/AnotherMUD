@@ -131,6 +131,7 @@ var commandCategories = map[string]string{
 	"autoassist":  catCombat,
 	"throw":       catCombat,
 	"shoot":       catCombat,
+	"firemode":    catCombat,
 	"advance":     catCombat,
 	"withdraw":    catCombat,
 	"flee":        catCombat,

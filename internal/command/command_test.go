@@ -343,6 +343,11 @@ type testActor struct {
 	// (e.g. carrying the see_invisible / darkvision trait, visibility §4.3).
 	tags []string
 
+	// fireMode / wieldedModes back the FireMode/SetFireMode/WieldedFireModes
+	// capability the `firemode` verb asserts (ranged-combat §5.5).
+	fireMode     string
+	wieldedModes []string
+
 	// discoveredExits backs the exitDiscoverer capability (hidden-exits §3).
 	discoveredExits map[world.Direction]bool
 
@@ -387,6 +392,27 @@ func (a *testActor) HasTag(tag string) bool {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	return slices.Contains(a.tags, tag)
+}
+
+// FireMode / SetFireMode / WieldedFireModes make testActor satisfy the fire-mode
+// capability the `firemode` verb asserts (ranged-combat §5.5).
+func (a *testActor) FireMode() string {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	if a.fireMode == "" {
+		return "single"
+	}
+	return a.fireMode
+}
+func (a *testActor) SetFireMode(mode string) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	a.fireMode = mode
+}
+func (a *testActor) WieldedFireModes() []string {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	return append([]string(nil), a.wieldedModes...)
 }
 
 // IsHidden / HideScore / Hide / Reveal make testActor satisfy the (unexported)

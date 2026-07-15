@@ -110,6 +110,14 @@ type Stats struct {
 	// falloff; inert in Slice A.
 	RangeIncrement int
 
+	// FireMode is the attacker's active firing mode (ranged-combat §5.5) —
+	// "single"/"burst"/"auto" — already clamped to the wielded weapon's
+	// supported set by the holder's Stats() builder. Empty ⇒ single. Consulted
+	// only for projectiles; combat resolves it to a FireModeEffect via
+	// Config.FireModes (damage bonus + recoil), and the host reads it for the
+	// per-attack ammo count.
+	FireMode string
+
 	// HasRangeMagnification marks an attacker whose optics magnify the target
 	// (SR5 Vision Magnification — a cybereye grant): the projectile range-band
 	// falloff (ranged-combat §5.3) is computed as if the target were

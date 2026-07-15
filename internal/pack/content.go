@@ -141,9 +141,10 @@ type ItemFile struct {
 	// crossbow / thrown / a future firearm. A pack's ranged_flavor vocabulary
 	// keys off it; empty resolves to the default style, then the engine floor.
 	// Presentational only — validated leniently (an unknown value is tolerated).
-	RangedStyle    string `yaml:"ranged_style,omitempty"`
-	RangeIncrement int    `yaml:"range_increment,omitempty"`
-	StrRating      *int   `yaml:"str_rating,omitempty"`
+	RangedStyle    string   `yaml:"ranged_style,omitempty"`
+	RangeIncrement int      `yaml:"range_increment,omitempty"`
+	FireModes      []string `yaml:"fire_modes,omitempty"`
+	StrRating      *int     `yaml:"str_rating,omitempty"`
 	// ReloadTicks marks a projectile weapon that must be RELOADED between shots
 	// (a crossbow) and is its load time in engine ticks (action-economy.md §7.1).
 	// 0 (absent) = fires freely (a bow). Validated non-negative at load.

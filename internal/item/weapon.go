@@ -72,6 +72,25 @@ var rangedClasses = []string{RangedThrown, RangedProjectile}
 // Used for validation error messages.
 func RangedClassNames() []string { return append([]string(nil), rangedClasses...) }
 
+// Firing modes (ranged-combat §5.5). A weapon's FireModes is a subset of these.
+// "single" is always available implicitly (the default); "burst"/"auto" trade
+// ammo + accuracy for damage. The names are the content contract + the combat
+// effect-map keys.
+const (
+	FireModeSingle = "single"
+	FireModeBurst  = "burst"
+	FireModeAuto   = "auto"
+)
+
+var fireModes = []string{FireModeSingle, FireModeBurst, FireModeAuto}
+
+// ValidFireMode reports whether name is a known firing mode.
+func ValidFireMode(name string) bool { return slices.Contains(fireModes, name) }
+
+// FireModeNames returns a copy of the valid firing-mode vocabulary (for
+// validation error messages and the `firemode` verb's usage).
+func FireModeNames() []string { return append([]string(nil), fireModes...) }
+
 // ValidRangedClass reports whether name is a known ranged class. The empty
 // string ("melee") is NOT a ranged class — callers treat absence as melee
 // separately.

@@ -18,6 +18,7 @@ ranged_class: projectile
 ammo_kind: bullet
 ranged_style: firearms
 range_increment: 6
+fire_modes: [single, burst]
 properties:
   weight: 2
   value: 270

@@ -138,6 +138,13 @@ type Template struct {
 	// (ranged-combat §2, §5.3). Zero means unset. Inert until Slice B's
 	// range bands consume it. Validated non-negative at load.
 	RangeIncrement int
+	// FireModes lists the selectable firing modes a ranged weapon supports
+	// (ranged-combat §5.5) — a subset of {single, burst, auto}. A burst/auto
+	// mode trades ammo + accuracy (recoil) for damage; the player picks the
+	// active mode with `firemode`, clamped to this set. Empty (the default, and
+	// all melee/thrown) means single-fire only — the pre-fire-modes behavior.
+	// Normalized lowercase + validated against the known set at load.
+	FireModes []string
 	// ReloadTicks marks a projectile weapon that must be reloaded between shots
 	// (a crossbow) and is its load time in engine ticks (action-economy.md §7.1).
 	// 0 = fires freely (a bow). Validated non-negative at load.

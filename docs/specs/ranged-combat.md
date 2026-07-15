@@ -195,6 +195,38 @@ new distance the ranged model adds.
 - [ ] Advance closes a band and withdraw opens one; withdraw is distinct from flee
       (in-room vs leaving the room) and the two compose.
 
+### 5.5 Firing modes
+
+A firearm may support several **firing modes** — single, burst, full-auto. A mode
+trades **ammunition and accuracy for damage**:
+
+- A weapon declares the modes it supports (content); **single is always
+  available** regardless. Melee/thrown and single-shot firearms have no extra
+  modes.
+- The attacker selects the active mode (the `firemode` verb). The selection is
+  **transient** — a tactical choice, not a persisted preference — and is
+  **clamped** to the wielded weapon at resolve time (a mode the current weapon
+  can't fire resolves to single).
+- Each mode has a configurable effect (§8): the **rounds consumed** per attack, a
+  **damage bonus** (more lead on target), and a **recoil to-hit penalty** (the
+  climb of an uncompensated burst). Single is the identity (one round, no bonus,
+  no penalty). The recoil penalty is what **recoil compensation** (a later slice)
+  offsets.
+- Only **projectiles** consult the mode. The per-attack round cost is spent
+  through the same ammunition path as a single shot (§3); a burst that outruns the
+  remaining ammo fires the rounds it has rather than a dry click.
+
+**Acceptance criteria**
+
+- [ ] A weapon fires single by default; `firemode` reports and sets the mode, and
+      refuses a mode the wielded weapon does not support (single always allowed).
+- [ ] Burst/full-auto apply a damage bonus and a recoil to-hit penalty to a
+      projectile attack; single leaves the attack unchanged.
+- [ ] Burst/full-auto consume the configured rounds per attack; melee/thrown and
+      single-fire are unaffected.
+- [ ] The selection is clamped to the wielded weapon (switching to a weapon that
+      lacks the mode falls back to single) and is not persisted across sessions.
+
 ## 6. Phasing: A first, then B
 
 Slice **A** (§2–§4) is shippable on its own and adds concrete, useful weapons —
@@ -240,6 +272,7 @@ flat adjustment) — correct, just without the distance play.
 | Range-increment falloff | The to-hit penalty per range increment of distance (§5.3). | policy magnitude |
 | Point-blank penalty | The to-hit penalty for a ranged weapon used at the melee band (§5.3). | a mild penalty |
 | Vision-magnification bands | How many bands closer a magnifying attacker treats the target for the range falloff (§5.3). | one band |
+| Firing-mode effects | Per mode (single/burst/auto): rounds consumed, damage bonus, recoil to-hit penalty (§5.5). | single 1/0/0 · burst 3/+2/−2 · auto 6/+4/−4 |
 | Close/advance cadence | How many bands a combatant may advance/withdraw per round (§5.2, §5.4). | one band per round |
 | Strength rules | Full on thrown / none-positive on projectile / capped on Strength-rated (§4). | the source rules |
 | Out-of-ammo behavior | What happens when a projectile weapon has no matching ammo (§3). | the attack fails with a reason |

@@ -2114,6 +2114,9 @@ func run() error {
 		massiveThreshold = combat.DefaultMassiveDamageThreshold
 	}
 	kiteChance := envIntOr("ANOTHERMUD_KITE_CHANCE", 50) // ranged-mob kite probability (%)
+	// Firing modes (ranged-combat §5.5): shared by combat (damage bonus + recoil)
+	// and the AmmoFor consumer (rounds per attack) below.
+	fireModeCfg := combat.DefaultFireModes()
 	autoAttackPhase := combat.NewAutoAttack(combat.AutoAttackConfig{
 		Locator:        combatLocator,
 		RoomLocator:    combatLocator,
@@ -2157,6 +2160,7 @@ func run() error {
 		RangeFalloff:       envIntOr("ANOTHERMUD_RANGE_FALLOFF", 2),
 		PointBlankPenalty:  envIntOr("ANOTHERMUD_POINT_BLANK_PENALTY", 4),
 		MagnificationBands: envIntOr("ANOTHERMUD_VISION_MAGNIFICATION_BANDS", 1),
+		FireModes:          fireModeCfg,
 		// two-weapon-fighting §4.3: each off-hand strike after the first (Improved
 		// Two-Weapon Fighting) takes this cumulative to-hit penalty. The source's -5.
 		SecondaryOffHandPenalty: envIntOr("ANOTHERMUD_TWF_SECONDARY_OFFHAND_PENALTY", 5),
@@ -2186,9 +2190,20 @@ func run() error {
 			if !ok {
 				return true, 0 // no inventory (mob) — fire freely
 			}
-			gradeKey, consumed := consumer.ConsumeAmmo(c.Stats().AmmoKind)
+			st := c.Stats()
+			gradeKey, consumed := consumer.ConsumeAmmo(st.AmmoKind)
 			if !consumed {
 				return false, 0
+			}
+			// Firing mode (ranged-combat §5.5): burst/auto spend several rounds per
+			// attack. The FIRST round gates the shot (consumed above); the rest are
+			// best-effort — a near-empty magazine still fires its last rounds as a
+			// short burst rather than a dry click. Resolve the round count through
+			// the shared fallback (single/unknown ⇒ 1 round) so combat and this
+			// consumer never disagree. The mode's damage/recoil is applied combat-side.
+			rounds := combat.FireModeEffectFor(fireModeCfg, st.FireMode).Rounds
+			for i := 1; i < rounds; i++ {
+				consumer.ConsumeAmmo(st.AmmoKind)
 			}
 			bonus := 0
 			if registries.Grades != nil {

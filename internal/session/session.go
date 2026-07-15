@@ -2079,6 +2079,12 @@ type connActor struct {
 	// and read lock-free by Stats(); nil means no off-hand weapon. Stats() grants
 	// the off-hand attack only when this resolves the LIGHT wield mode (§2.2).
 	offWeapon atomic.Pointer[weaponInfo]
+	// fireMode is the actor's selected firing mode (ranged-combat §5.5),
+	// set by the `firemode` verb and read lock-free by Stats() on the combat
+	// tick (same atomic discipline as `weapon`). nil ⇒ the "single" default.
+	// Transient — a tactical choice, NOT persisted (resets to single each
+	// session). Stats() clamps it to the wielded weapon's supported set.
+	fireMode atomic.Pointer[string]
 	// armorResist caches the actor's aggregated per-damage-type resistance
 	// from worn armor (armor-depth §4), recomputed on equip/unequip/login
 	// (recomputeWeaponLocked, lock-held) and read LOCK-FREE in Stats() —
@@ -4117,6 +4123,7 @@ type weaponInfo struct {
 	ammoKind       string
 	rangedStyle    string
 	rangeIncrement int
+	fireModes      []string
 	reloadTicks    int
 	magazine       int
 	acceptsHolder  string
@@ -4204,6 +4211,7 @@ func (a *connActor) buildWeaponInfoLocked(id entities.EntityID) *weaponInfo {
 		ammoKind:           it.AmmoKind(),
 		rangedStyle:        it.RangedStyle(),
 		rangeIncrement:     it.RangeIncrement(),
+		fireModes:          it.FireModes(),
 		reloadTicks:        it.ReloadTicks(),
 		magazine:           it.Magazine(),
 		acceptsHolder:      it.AcceptsHolder(),
@@ -4705,6 +4713,48 @@ func (a *connActor) RefreshEquipped(id entities.EntityID, mods []stats.Modifier)
 	a.syncStatsToSaveLocked()
 	a.markDirtyLocked()
 	return true
+}
+
+// FireMode returns the actor's selected firing mode (ranged-combat §5.5),
+// defaulting to single. Lock-free (atomic) so the combat tick's Stats() read
+// never blocks on a session-side change.
+func (a *connActor) FireMode() string {
+	if p := a.fireMode.Load(); p != nil {
+		return *p
+	}
+	return combat.FireModeSingle
+}
+
+// SetFireMode records the actor's chosen firing mode. Stored verbatim; Stats()
+// clamps it to the wielded weapon's supported set at read time, so a mode the
+// current weapon can't fire resolves to single until a supporting weapon is held.
+// Transient — not persisted (a tactical choice, resets to single each session).
+func (a *connActor) SetFireMode(mode string) {
+	m := mode
+	a.fireMode.Store(&m)
+}
+
+// WieldedFireModes returns the firing modes the actor's main-hand weapon supports
+// (for the `firemode` verb's validation + usage), or nil when unarmed or the
+// weapon is single-fire only.
+func (a *connActor) WieldedFireModes() []string {
+	if w := a.weapon.Load(); w != nil {
+		return append([]string(nil), w.fireModes...)
+	}
+	return nil
+}
+
+// clampFireMode returns mode when the wielded weapon supports it, else single. A
+// weapon with no declared modes (melee, or a single-shot firearm) is always
+// single — an actor who selected burst then wielded a pistol fires single.
+func clampFireMode(mode string, supported []string) string {
+	if mode == "" || mode == combat.FireModeSingle {
+		return combat.FireModeSingle
+	}
+	if slices.Contains(supported, mode) {
+		return mode
+	}
+	return combat.FireModeSingle
 }
 
 // HasEquippedCapability reports whether ANY item the actor has equipped provides
@@ -7084,6 +7134,9 @@ func (a *connActor) Stats() combat.Stats {
 		// gear (a cybereye grant), read here in the armed path since only a
 		// projectile (w != nil) consults it.
 		s.HasRangeMagnification = a.HasEquippedCapability(combat.VisionMagnificationCapability)
+		// Firing mode (ranged-combat §5.5): the actor's selected mode, clamped to
+		// what THIS weapon supports (a mode the weapon can't fire → single).
+		s.FireMode = clampFireMode(a.FireMode(), w.fireModes)
 		s.ReloadTicks = w.reloadTicks
 		s.Magazine = w.magazine
 		s.AcceptsHolder = w.acceptsHolder

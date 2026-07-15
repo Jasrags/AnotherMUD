@@ -145,6 +145,7 @@ func RegisterBuiltins(r *Registry) error {
 			HandParsed: true, BreaksConcealment: true, Args: []ArgDefinition{{Name: "target", Type: ArgEntity}}},
 		{Keyword: "shoot", Aliases: []string{"fire"}, Handler: ShootHandler, Brief: "Loose a projectile at a target in an adjacent room.", Syntax: []string{"shoot <target> <direction>"},
 			HandParsed: true, BreaksConcealment: true},
+		{Keyword: "firemode", Handler: FireModeHandler, Brief: "Set a weapon's firing mode (single/burst/auto).", Syntax: []string{"firemode", "firemode single|burst|auto"}},
 		{Keyword: "advance", Handler: AdvanceHandler, Brief: "Close one range band toward melee.", Syntax: []string{"advance"}, BreaksConcealment: true},
 		{Keyword: "withdraw", Handler: WithdrawHandler, Brief: "Open one range band (kite), staying in the room.", Syntax: []string{"withdraw"}, BreaksConcealment: true},
 		{Keyword: "flee", Handler: FleeHandler, Brief: "Try to escape from combat.", Syntax: []string{"flee"}},

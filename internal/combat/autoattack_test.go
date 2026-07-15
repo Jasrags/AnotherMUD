@@ -73,6 +73,7 @@ type autoAttackRig struct {
 	falloff        int                                      // RangeFalloff (ranged-combat §5.3)
 	pblank         int                                      // PointBlankPenalty (ranged-combat §5.3)
 	magBands       int                                      // MagnificationBands (ranged-combat §5.3)
+	fireModes      map[string]FireModeEffect                // FireModes (ranged-combat §5.5)
 	kite           func(CombatantID, CombatantID, int) bool // KitePolicy (ranged-combat §5.4)
 	secOff         int                                      // SecondaryOffHandPenalty (two-weapon-fighting §4.3)
 	setBonus       int                                      // SetDamageBonus (special-weapons §4)
@@ -127,6 +128,7 @@ func (r *autoAttackRig) phase() PhaseFunc {
 		RangeFalloff:            r.falloff,
 		PointBlankPenalty:       r.pblank,
 		MagnificationBands:      r.magBands,
+		FireModes:               r.fireModes,
 		KitePolicy:              r.kite,
 		SecondaryOffHandPenalty: r.secOff,
 		SetDamageBonus:          r.setBonus,

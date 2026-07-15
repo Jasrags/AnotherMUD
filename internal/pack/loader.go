@@ -3641,6 +3641,15 @@ func decodeItem(path, ns string) (*item.Template, error) {
 		return nil, fmt.Errorf("%w: %s: reload_ticks %d must be non-negative",
 			ErrInvalidContent, path, f.ReloadTicks)
 	}
+	// Firing modes (ranged-combat §5.5): normalized lowercase + deduped, each
+	// validated against the known vocabulary so an authoring typo fails the pack.
+	fireModes := normalizeLowerDedup(f.FireModes)
+	for _, m := range fireModes {
+		if !item.ValidFireMode(m) {
+			return nil, fmt.Errorf("%w: %s: fire_modes entry %q is not a known firing mode %v",
+				ErrInvalidContent, path, m, item.FireModeNames())
+		}
+	}
 	if f.Magazine < 0 {
 		return nil, fmt.Errorf("%w: %s: magazine %d must be non-negative",
 			ErrInvalidContent, path, f.Magazine)
@@ -3896,6 +3905,7 @@ func decodeItem(path, ns string) (*item.Template, error) {
 		AmmoKind:          ammoKind,
 		RangedStyle:       rangedStyle,
 		RangeIncrement:    f.RangeIncrement,
+		FireModes:         fireModes,
 		ReloadTicks:       f.ReloadTicks,
 		Magazine:          f.Magazine,
 		ReloadMethod:      reloadMethod,

@@ -191,6 +191,7 @@ type ItemInstance struct {
 	ammoKind       string
 	rangedStyle    string
 	rangeIncrement int
+	fireModes      []string
 	reloadTicks    int
 	magazine       int
 	reloadMethod   string
@@ -535,6 +536,10 @@ func (it *ItemInstance) RangedStyle() string { return it.rangedStyle }
 // RangeIncrement returns the weapon's distance-falloff unit (ranged-combat
 // §2); zero when unset. Inert until Slice B's range bands.
 func (it *ItemInstance) RangeIncrement() int { return it.rangeIncrement }
+
+// FireModes returns a copy of the weapon's supported firing modes (ranged-combat
+// §5.5) — a subset of {single, burst, auto}. Empty means single-fire only.
+func (it *ItemInstance) FireModes() []string { return append([]string(nil), it.fireModes...) }
 
 // ReloadTicks is the load time of a reload-gated projectile (a crossbow), in
 // engine ticks; 0 means the weapon fires freely (a bow). action-economy §7.1.
@@ -1331,6 +1336,7 @@ func buildInstanceFromTemplate(tpl *item.Template, id EntityID) *ItemInstance {
 		ammoKind:          tpl.AmmoKind,
 		rangedStyle:       tpl.RangedStyle,
 		rangeIncrement:    tpl.RangeIncrement,
+		fireModes:         append([]string(nil), tpl.FireModes...),
 		reloadTicks:       tpl.ReloadTicks,
 		magazine:          tpl.Magazine,
 		reloadMethod:      tpl.ReloadMethod,

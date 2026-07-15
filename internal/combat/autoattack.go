@@ -106,6 +106,11 @@ type AutoAttackConfig struct {
 	// band's penalty (or none). It never touches the point-blank penalty.
 	// Policy (§8); 0 means magnification has no effect.
 	MagnificationBands int
+	// FireModes maps a firing-mode name (Stats.FireMode) to its effect
+	// (ranged-combat §5.5): rounds consumed, damage bonus, recoil to-hit
+	// penalty. A nil/empty table (tests/headless) leaves ranged fire at
+	// single-shot terms — the pre-fire-modes behavior. See DefaultFireModes.
+	FireModes map[string]FireModeEffect
 	// SecondaryOffHandPenalty is the cumulative to-hit penalty applied to each
 	// off-hand strike AFTER the first when Improved Two-Weapon Fighting grants
 	// more than one (two-weapon-fighting §4.3): strike i (0-based) takes
@@ -377,6 +382,14 @@ func runAutoAttack(ctx context.Context, attackerID CombatantID, mgr *Manager, cf
 			}
 			hitMod -= cfg.RangeFalloff * effBand
 		}
+		// Firing mode (ranged-combat §5.5): the active mode (single/burst/auto)
+		// trades accuracy for damage — an uncompensated recoil to-hit penalty
+		// and a damage bonus. Single (or an unconfigured FireModes table) is the
+		// identity, so ordinary single-shot fire is unchanged. The per-attack
+		// ammo cost (Rounds) is spent host-side in AmmoFor, not here.
+		eff := cfg.FireModeEffectOf(atkStats.FireMode)
+		hitMod -= eff.Recoil
+		atkStats.DamageBonus += eff.DamageBonus
 	}
 
 	// special-weapons §4 — set vs a charge. A braced `set` weapon answering a foe
