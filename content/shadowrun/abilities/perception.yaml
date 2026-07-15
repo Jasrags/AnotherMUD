@@ -10,4 +10,8 @@ gain_failure_multiplier: 0.5
 gain_stat: intuition
 gain_stat_scale: 0.1
 skill_category: physical
+# Defaulting penalty (skills §2.1): an untrained runner notices less. Must be set
+# on the override too — a priority-1 override replaces the core ability by id, so
+# it doesn't inherit core Perception's default_penalty.
+default_penalty: 2
 priority: 1

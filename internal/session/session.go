@@ -772,6 +772,7 @@ func run(ctx context.Context, c conn.Connection, cfg Config) error {
 		prof:          cfg.Proficiency,
 		hideSkill:     hideSkill,
 		sneakSkill:    sneakSkill,
+		abilities:     cfg.Abilities,
 		known:         cfg.Known,
 		combat:        cfg.Combat,
 		combatLocator: cfg.CombatLocator,
@@ -1976,6 +1977,13 @@ type connActor struct {
 	hideSkill  string
 	sneakSkill string
 
+	// abilities is the ability registry (from Config.Abilities), held so skill
+	// consumers can read a skill's metadata — the §2.1 defaulting fields
+	// (TrainedOnly / DefaultPenalty) the perception check applies to an untrained
+	// perceiver. nil-safe: a nil registry means no defaulting penalty (the
+	// pre-defaulting behavior), so tests without a registry are unaffected.
+	abilities *progression.AbilityRegistry
+
 	// known is the per-character known-recipe manager reference
 	// (crafting-and-cooking §7, §9), captured at construction. Persist
 	// snapshots the actor's known recipes into save before write; logout
@@ -3061,7 +3069,40 @@ func (a *connActor) PerceptionBonus() int {
 	// SkillBonus (proficiency 0 = the bare Wis modifier, the pre-skill
 	// behavior); the Alertness/Sharp-Eyed feat axis stays additive on top.
 	prof := a.skillProficiency(skillAbilityPerception)
-	return progression.SkillBonus(prof, sb.Effective(progression.StatWIS), progression.DefaultSkillConfig()) + a.FeatSkillBonus(skillPerception)
+	// Defaulting (skills §2.1): an untrained perceiver — everyone can try to
+	// notice things, so Perception is defaultable, not trained-only — takes the
+	// skill's default penalty. Perception is the canonical defaulting consumer:
+	// training sharpens awareness, its absence dulls it. A trained perceiver
+	// (prof > 0) takes no penalty; content that sets no default_penalty is
+	// unchanged.
+	bonus := progression.SkillBonus(prof, sb.Effective(progression.StatWIS), progression.DefaultSkillConfig()) + a.FeatSkillBonus(skillPerception)
+	return bonus - a.skillDefaultPenalty(skillAbilityPerception, prof)
+}
+
+// skillDefaultPenalty returns the §2.1 defaulting penalty (a positive magnitude
+// to subtract) an UNTRAINED actor takes on a defaultable skill check, or 0 when
+// trained, when the ability declares no penalty, or when the registry isn't
+// wired. It resolves the skill's TrainedOnly/DefaultPenalty through the shared
+// progression.SkillDefaulting primitive — the same gate the `pick` verb uses.
+//
+// CALLER CONTRACT: this is for DEFAULTABLE skills only. It reads solely the
+// penalty half of SkillDefaulting and ignores `allowed`, because a bonus-only
+// consumer (perception always resolves — it never refuses a check) has no way to
+// deny the attempt. So a TRAINED-ONLY skill routed through here would silently
+// resolve at 0 penalty instead of being refused — a trained-only skill needs a
+// REFUSING consumer (like `pick`), not this bonus fold. Perception is authored
+// defaultable, so the gap is inert; do not wire a trained-only skill through a
+// bonus-only path without adding a refusal.
+func (a *connActor) skillDefaultPenalty(skillID string, prof int) int {
+	if a.abilities == nil {
+		return 0
+	}
+	ab, ok := a.abilities.Get(skillID)
+	if !ok {
+		return 0
+	}
+	_, penalty := progression.SkillDefaulting(ab, prof > 0)
+	return penalty
 }
 
 // ContestOutcome reports this observer's remembered result against a

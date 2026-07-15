@@ -36,6 +36,50 @@ func TestVisibility_FoldSkillProficiency(t *testing.T) {
 	}
 }
 
+// TestPerceptionBonus_UntrainedDefaultPenalty — skills §2.1 defaulting: an
+// untrained perceiver (no proficiency) takes the Perception skill's default
+// penalty; training it removes the penalty. Perception is the canonical
+// defaultable consumer — everyone can try, training sharpens it.
+func TestPerceptionBonus_UntrainedDefaultPenalty(t *testing.T) {
+	reg := progression.NewAbilityRegistry()
+	if err := reg.Register(&progression.Ability{
+		ID: "perception", Type: progression.AbilityPassive, Category: progression.AbilitySkill,
+		GainStat: progression.StatWIS, DefaultCap: 100, DefaultPenalty: 2,
+	}); err != nil {
+		t.Fatalf("register perception: %v", err)
+	}
+
+	a := newFeatActor(t, 0)
+	a.abilities = reg
+	// Untrained: no proficiency manager → prof 0 → the bare Wis modifier MINUS
+	// the default penalty.
+	untrained := a.PerceptionBonus()
+
+	// Train it: prof 1 (bonus 0 at this proficiency) with the penalty removed, so
+	// the only change is the +2 penalty coming off.
+	mgr := progression.NewProficiencyManager(reg, progression.ProficiencyConfig{DefaultLearnCap: 100})
+	a.prof = mgr
+	mgr.Learn(a.playerID, "perception", 1)
+	trained := a.PerceptionBonus()
+
+	if trained != untrained+2 {
+		t.Errorf("trained perception = %d, untrained = %d; want a +2 swing (default penalty removed)", trained, untrained)
+	}
+
+	// A registry that declares no penalty leaves an untrained perceiver unchanged
+	// (the pre-defaulting behavior).
+	regNoPen := progression.NewAbilityRegistry()
+	_ = regNoPen.Register(&progression.Ability{
+		ID: "perception", Type: progression.AbilityPassive, Category: progression.AbilitySkill,
+		GainStat: progression.StatWIS, DefaultCap: 100, // no DefaultPenalty
+	})
+	b := newFeatActor(t, 0)
+	b.abilities = regNoPen
+	if got := b.PerceptionBonus(); got != untrained+2 {
+		t.Errorf("no-penalty untrained perception = %d, want %d (bare Wis, no penalty)", got, untrained+2)
+	}
+}
+
 func TestResolveStealthSkills(t *testing.T) {
 	// Unset / unlisted world → the two-axis engine default.
 	if h, s := resolveStealthSkills(nil, "wot"); h != skillAbilityHide || s != skillAbilityMoveSilently {

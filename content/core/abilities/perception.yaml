@@ -6,16 +6,24 @@
 # the active `search` for hidden exits. Improves through use every time you
 # `search`.
 #
-# Untrained use is allowed (proficiency 0 reproduces the pre-skill behavior:
-# the bare Wisdom modifier). NOTE: the string "perception" is also the feat-
-# bonus axis (Alertness / Sharp-Eyed target it); that is a SEPARATE system
-# (FeatSkillBonus) whose contribution is additive on top of this proficiency.
+# Untrained use is allowed — Perception is DEFAULTABLE (skills §2.1), not
+# trained-only: anyone can try to notice things. An untrained perceiver (no
+# proficiency) resolves at the bare Wisdom modifier MINUS the default_penalty
+# below; training removes that penalty and adds the proficiency bonus. NOTE: the
+# string "perception" is also the feat-bonus axis (Alertness / Sharp-Eyed target
+# it); that is a SEPARATE system (FeatSkillBonus) whose contribution is additive
+# on top of this proficiency.
 id: perception
 name: Perception
 type: passive
 category: skill
 
 default_cap: 30
+
+# Defaulting penalty (skills §2.1): the to-notice penalty an untrained perceiver
+# takes, consumed by the perception check (PerceptionBonus). Modest — awareness
+# is partly innate (Wisdom) — but training visibly sharpens it.
+default_penalty: 2
 
 # Keys off Wisdom — awareness (skills §2/§3; visibility §4.2).
 gain_base_chance: 30
