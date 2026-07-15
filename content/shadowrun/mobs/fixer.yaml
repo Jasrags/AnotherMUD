@@ -50,6 +50,10 @@ properties:
       - shadowrun:ingram-valiant
       - shadowrun:defiance-ex-shocker
       - shadowrun:taser-dart
+      # Flamethrower (fire damage) — burns through the unprotected; feeds fuel
+      # canisters. Counter it with a fire-resistance liner (armor mod, below).
+      - shadowrun:shiawase-arms-blazer
+      - shadowrun:fuel-canister
       # Melee — silent, deniable, scanner-proof.
       - shadowrun:combat-knife
       - shadowrun:sword
@@ -83,6 +87,7 @@ properties:
       - shadowrun:ballistic-weave
       - shadowrun:chemical-protection
       - shadowrun:radiation-shielding
+      - shadowrun:fire-resistance
       - shadowrun:chemical-seal
       # Weapon accessory (weapon-accessories.md) — `modify <weapon> laser`.
       - shadowrun:laser-sight

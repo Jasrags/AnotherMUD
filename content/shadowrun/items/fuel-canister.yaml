@@ -1,0 +1,14 @@
+id: fuel-canister
+name: a fuel canister
+type: item
+description: |
+  A squat pressurized cylinder of gelled accelerant — the thickened, clinging kind
+  that sticks and burns. It feeds a flamethrower's gout of fire; screw it in, prime
+  the igniter, and don't stand downwind.
+tags: [ammo, ammunition, stackable, flammable]
+keywords: [fuel, canister, fuel canister, gel, accelerant]
+ammo_kind: fuel
+properties:
+  stackable: true
+  weight: 1
+  value: 40

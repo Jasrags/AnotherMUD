@@ -110,13 +110,13 @@ func TestProficient(t *testing.T) {
 }
 
 func TestDamageTypeVocabulary(t *testing.T) {
-	for _, dt := range []string{"bludgeoning", "piercing", "slashing"} {
+	for _, dt := range []string{"bludgeoning", "piercing", "slashing", "radiation", "toxic", "fire"} {
 		if !ValidDamageType(dt) {
 			t.Errorf("ValidDamageType(%q) = false, want true", dt)
 		}
 	}
-	if ValidDamageType("fire") {
-		t.Error("ValidDamageType(fire) = true, want false")
+	if ValidDamageType("cold") {
+		t.Error("ValidDamageType(cold) = true, want false (not yet in the vocabulary)")
 	}
 	if ValidDamageType("") {
 		t.Error(`ValidDamageType("") = true, want false`)

@@ -1,0 +1,33 @@
+id: shiawase-arms-blazer
+name: a Shiawase Arms Blazer
+type: weapon
+description: |
+  A boxy, menacing flamethrower with a stubby nozzle and a fuel tank slung
+  underneath — it doesn't fire bullets, it fires a roaring gout of clinging,
+  burning gel. Short-ranged and terrifying: nobody argues with a wall of flame, and
+  nothing ballistic armor does keeps the heat out. Feeds fuel canisters; empties
+  them fast on full burn.
+tags: [weapon, firearm, ranged, incendiary]
+keywords: [blazer, shiawase, shiawase arms blazer, flamethrower, flamer, gun]
+eligible_slots: [wield]
+companion_slots: [offhand]
+weapon_damage: "2d6+2"
+weapon_category: flamethrower
+proficiency_tier: martial
+# The whole point: it deals FIRE damage (the fire damage type). Ordinary ballistic
+# armor still soaks it (general Mitigation — the AP that lets real fire bypass
+# armor is a separate, unmodeled mechanic), but a fire-resistance liner soaks it
+# specifically, and a foe with none feels every degree.
+damage_types: [fire]
+crit_multiplier: 2
+# A gout of fire is short-ranged — a low increment, so accuracy falls off fast.
+ranged_class: projectile
+ammo_kind: fuel
+ranged_style: firearms
+range_increment: 3
+# SR5 Blazer: SA/BF/FA. Burst/full-auto pour on more fuel for more fire (the
+# firing-mode damage bonus) at a recoil-like control penalty.
+fire_modes: [single, burst, auto]
+properties:
+  weight: 6
+  value: 2200

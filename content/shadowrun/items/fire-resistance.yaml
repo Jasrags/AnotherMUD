@@ -1,0 +1,21 @@
+id: fire-resistance
+name: a fire-resistance liner
+type: item
+description: |
+  A layer of aramid weave and heat-reflective foil that slots into a garment's
+  lining — it won't stop a bullet, but it drinks the heat from a flare, a fire
+  spell, or a flamethrower's kiss. Cheap insurance for anyone who works where the
+  sprawl burns.
+tags: [armor-mod]
+keywords: [fire resistance, fire-resistance, fire liner, heat, insulation]
+# Armor MODIFICATION (item-modification.md §3): SR5 Fire Resistance [Rating]. It
+# fits an armor host and grants a per-type FIRE resistance (resistances: {fire}),
+# soaked out of incoming fire damage (combat TypedResistance) — the defensive
+# counter to the flamethrower / fire weapons. A Rating-2 liner here.
+mod_host: armor
+mod_capacity_cost: 2
+resistances:
+  fire: 2
+properties:
+  weight: 1
+  value: 500

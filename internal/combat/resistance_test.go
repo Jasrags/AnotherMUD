@@ -24,6 +24,10 @@ func TestTypedResistance(t *testing.T) {
 		{"unmatched type", res, []string{"bludgeoning"}, 0},
 		{"first-match precedence", res, []string{"slashing", "piercing"}, 3},
 		{"first miss then match", res, []string{"bludgeoning", "piercing"}, 1},
+		// Fire is a first-class type: a fire weapon vs fire-resistant gear is soaked
+		// by that resistance (a flamethrower vs a fire-resistance liner).
+		{"fire resistance soaks fire", map[string]int{"fire": 4}, []string{"fire"}, 4},
+		{"no fire resistance", map[string]int{"radiation": 2}, []string{"fire"}, 0},
 	}
 	for _, tc := range cases {
 		if got := TypedResistance(tc.res, tc.types); got != tc.want {

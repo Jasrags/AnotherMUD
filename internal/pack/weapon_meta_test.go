@@ -79,7 +79,7 @@ func TestDecodeItem_RejectsUnknownTier(t *testing.T) {
 
 func TestDecodeItem_RejectsUnknownDamageType(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "item.yaml")
-	writeFile(t, path, "id: x\nname: a thing\ntype: weapon\ndamage_types: [fire]\n")
+	writeFile(t, path, "id: x\nname: a thing\ntype: weapon\ndamage_types: [cold]\n")
 	_, err := decodeItem(path, "wot")
 	if !errors.Is(err, ErrInvalidContent) {
 		t.Fatalf("err = %v, want ErrInvalidContent for unknown damage type", err)

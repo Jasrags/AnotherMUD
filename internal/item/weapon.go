@@ -40,11 +40,17 @@ const (
 	DamageSlashing    = "slashing"
 	DamageRadiation   = "radiation"
 	DamageToxic       = "toxic"
+	// DamageFire is an energy damage type (a flamethrower, a fire spell). Like
+	// radiation/toxic it is a first-class type: a weapon deals it and armor may
+	// resist it (resistances: {fire: N}). It is soaked by general armor
+	// (Mitigation) the same as any type — bypassing armor is the separate,
+	// unmodeled AP mechanic — but fire-resistant gear soaks it specifically.
+	DamageFire = "fire"
 )
 
 var damageTypes = []string{
 	DamageBludgeoning, DamagePiercing, DamageSlashing,
-	DamageRadiation, DamageToxic,
+	DamageRadiation, DamageToxic, DamageFire,
 }
 
 // DamageTypeNames returns a copy of the valid damage-type vocabulary.
