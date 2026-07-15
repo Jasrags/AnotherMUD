@@ -1,0 +1,21 @@
+id: insulation
+name: an insulation liner
+type: item
+description: |
+  A quilted thermal liner of aerogel batting and reflective film that slots into a
+  garment's lining — it holds body heat in and the killing cold out. The runner who
+  works the Arctic arcologies, a cryo-spray ambush, or a walk-in freezer gunfight
+  swears by one.
+tags: [armor-mod]
+keywords: [insulation, insulation liner, thermal, cold, insulated]
+# Armor MODIFICATION (item-modification.md §3): SR5 Insulation [Rating]. It fits an
+# armor host and grants a per-type COLD resistance (resistances: {cold}), soaked
+# out of incoming cold damage (combat TypedResistance) — the defensive counter to a
+# cold weapon or a freezing environment. A Rating-2 liner here.
+mod_host: armor
+mod_capacity_cost: 2
+resistances:
+  cold: 2
+properties:
+  weight: 1
+  value: 500

@@ -11,7 +11,7 @@ eligible_slots: [wield]
 weapon_damage: "2d6"
 weapon_category: taser
 proficiency_tier: simple
-damage_types: [bludgeoning]
+damage_types: [electrical]
 crit_multiplier: 2
 # The taser routes its damage to the defender's Stun monitor (target_pool), so
 # crossing that floor knocks the target OUT rather than killing — a ranged

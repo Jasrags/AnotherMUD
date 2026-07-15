@@ -1,0 +1,21 @@
+id: nonconductivity
+name: a nonconductivity liner
+type: item
+description: |
+  A grounded mesh of insulating polymer woven through a garment's lining — it bleeds
+  a shock harmlessly to ground before it can stop a heart. The answer to stun batons,
+  taser darts, and the live rail nobody warned you about.
+tags: [armor-mod]
+keywords: [nonconductivity, nonconductive, insulated, electrical, shock, grounding]
+# Armor MODIFICATION (item-modification.md §3): SR5 Nonconductivity [Rating]. It
+# fits an armor host and grants a per-type ELECTRICAL resistance
+# (resistances: {electrical}), soaked out of incoming electrical damage (combat
+# TypedResistance) — the counter to shock weapons (stun batons, tasers) whose jolt
+# is electrical. A Rating-2 liner here.
+mod_host: armor
+mod_capacity_cost: 2
+resistances:
+  electrical: 2
+properties:
+  weight: 1
+  value: 500

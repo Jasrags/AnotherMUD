@@ -88,6 +88,8 @@ properties:
       - shadowrun:chemical-protection
       - shadowrun:radiation-shielding
       - shadowrun:fire-resistance
+      - shadowrun:insulation
+      - shadowrun:nonconductivity
       - shadowrun:chemical-seal
       # Weapon accessory (weapon-accessories.md) — `modify <weapon> laser`.
       - shadowrun:laser-sight

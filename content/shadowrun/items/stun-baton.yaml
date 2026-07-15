@@ -12,7 +12,7 @@ eligible_slots: [wield]
 weapon_damage: "2d6"
 weapon_category: club
 proficiency_tier: simple
-damage_types: [bludgeoning]
+damage_types: [electrical]
 crit_multiplier: 2
 # The Shadowrun stun weapon (SR-M3b + SR-M3c): target_pool routes its damage to
 # the defender's Stun monitor instead of the Physical (hp) track. The stun pool

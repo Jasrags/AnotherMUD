@@ -28,6 +28,10 @@ func TestTypedResistance(t *testing.T) {
 		// by that resistance (a flamethrower vs a fire-resistance liner).
 		{"fire resistance soaks fire", map[string]int{"fire": 4}, []string{"fire"}, 4},
 		{"no fire resistance", map[string]int{"radiation": 2}, []string{"fire"}, 0},
+		// The energy types are symmetric: insulation soaks cold, nonconductivity
+		// soaks the electrical jolt of a stun baton / taser.
+		{"insulation soaks cold", map[string]int{"cold": 3}, []string{"cold"}, 3},
+		{"nonconductivity soaks electrical", map[string]int{"electrical": 2}, []string{"electrical"}, 2},
 	}
 	for _, tc := range cases {
 		if got := TypedResistance(tc.res, tc.types); got != tc.want {

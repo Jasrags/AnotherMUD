@@ -119,10 +119,9 @@ func TestDecodeItem_RejectsNegativeArmorCheckPenalty(t *testing.T) {
 
 func TestDecodeItem_RejectsBadResistanceType(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "item.yaml")
-	writeFile(t, path, "id: x\nname: x\ntype: armor\nresistances:\n  cold: 3\n")
-	// `cold` is not in the current damage-type vocabulary (fire IS now — the
-	// flamethrower slice added it); it becomes valid when a ruleset extends the
-	// vocabulary further (e.g. an Insulation armor-mod slice).
+	writeFile(t, path, "id: x\nname: x\ntype: armor\nresistances:\n  sonic: 3\n")
+	// `sonic` is not in the damage-type vocabulary (fire/cold/electrical ARE now);
+	// it becomes valid when a ruleset extends the vocabulary further.
 	_, err := decodeItem(path, "wot")
 	if !errors.Is(err, ErrInvalidContent) {
 		t.Fatalf("decodeItem err = %v, want ErrInvalidContent for unknown resistance type", err)
