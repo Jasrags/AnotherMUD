@@ -4,7 +4,7 @@ Manual QA for the **Shadowrun** street-samurai slice (SR-M1 attribute set →
 SR-M2 typed damage → SR-M3 the playable pack). This is a **separate world** on
 the same engine — a different boot, a different character, its own district. The
 core/starter-world guide (`core.md`) and the Wheel of Time guide (`wot.md`) are
-siblings; the section numbers here (**§37–§44**) continue the guide-wide anchor
+siblings; the section numbers here (**§37–§48**) continue the guide-wide anchor
 sequence.
 
 > Format: `- [ ] command` — what should happen. Mark `[x]` on pass; add a
@@ -406,6 +406,69 @@ when you have **both**, and are **wielding** the smart gun. `score` shows a
 
 ---
 
+## 45. The arms bazaar — Core weapons & armor
+
+The fixer's stock grew: a full **Core weapon line** (hold-out → heavy pistols,
+revolver, SMGs, assault rifles, a sniper, a shotgun, an LMG, a stun taser, and
+melee — knife/sword/axe/baton) and a **Core armor line** by tier (armored clothing,
+suits, jumpsuit, chameleon suit, full body armor) plus a **helmet** and **off-hand
+shields**. Armor soak sums across *every* worn slot — body, head, and off-hand.
+
+- [ ] At the fixer (§42), `list` — the catalog now spans the gun and armor tables.
+- [ ] `buy helmet`, `buy ballistic shield`, `buy full body armor`. `equip helmet`
+      (head), `equip shield` (off hand), `equip full body armor` (body) — three
+      pieces, three slots, one stacked soak. `score` shows the combined armor.
+- [ ] Non-cyber eyewear: `buy low-light goggles`, `equip goggles` — they take the
+      new **eyes** slot (no surgery, no Essence). Backed by
+      `shadowrun_gear_features_live_test.go`.
+
+## 46. Firing modes — single / burst / full-auto
+
+An automatic weapon (SMG, assault rifle, machine pistol, LMG, the flamethrower)
+supports **firing modes**. Burst and full-auto trade **ammunition and accuracy for
+damage**; `firemode` picks the mode.
+
+- [ ] Wield an automatic weapon (`buy hk-227` / `wield smg`). `firemode` — reports
+      the current mode and what the weapon supports.
+- [ ] `firemode burst` (3 rounds, +damage, −accuracy), `firemode auto` (6 rounds,
+      more of both). Fight the ganger (§39) on each — auto chews the magazine fast
+      but hits harder.
+- [ ] Wield a pistol and `firemode auto` — refused; a semi-auto can't chatter.
+      `firemode single` is always accepted.
+
+### Recoil compensation
+
+A weapon's **RC** offsets the firing-mode recoil (the accuracy loss), floored at
+zero — a well-compensated gun fires burst as pure upside.
+
+- [ ] Compare burst on an **AK-97** (rc 0 — the kick bites) vs an **Ares Alpha**
+      (rc 2 — fully tames burst's −2). The Alpha's burst lands like a single shot.
+
+## 47. Fire & the flamethrower
+
+`fire` is a real damage type now. The **Shiawase Arms Blazer** flamethrower deals
+it, feeds **fuel canisters**, and (being SA/BF/FA) composes with firing modes.
+
+- [ ] `buy blazer`, `buy fuel canister` (a few), `wield blazer`, `firemode auto`.
+      Torch the ganger (§39) — ordinary ballistic armor doesn't help him much.
+- [ ] The counter: `buy fire-resistance` liner, `modify jacket fire` (§44), wear
+      it. A fire-resistant target soaks the flame specifically — the right defense
+      vs a flamethrower, where a plain vest isn't.
+
+## 48. Armor penetration (AP)
+
+A weapon's **AP** reduces the defender's armor soak — bypassing armor, never the
+creature's toughness or a typed resistance. It applies to melee and ranged alike.
+
+- [ ] Fight an armored foe with a low-AP weapon, then a high-AP one — a **katana**
+      (ap 3) or **Ranger Arms SM-5** (ap 5) cuts through soak an SMG (ap 0) can't.
+      The heavier the target's armor, the more AP matters.
+- [ ] AP + fire don't stack against a fire liner: the flamethrower's AP eats the
+      *ballistic* soak, but the fire-resistance liner (§47) still soaks the flame —
+      the specialized defense survives penetration.
+
+---
+
 ## Notes / known gaps (Shadowrun)
 
 - **This is a separate boot.** `ANOTHERMUD_PACKS=shadowrun` — the core and WoT
@@ -419,8 +482,16 @@ when you have **both**, and are **wielding** the smart gun. `score` shows a
   monitor → no corpse). This is the SR-M2 typed-damage payoff.
 - **Cosmetic/tracked gaps:** nuyen renders as "gold" (§42); the Physical monitor
   is flat, not Body-derived (§39); no Essence pool or karma ledger yet (§43).
-- **Deferred combat depth:** magazine model, SMG burst, and cross-room `shoot`
-  for the SR pack are recorded in the SR-M3c deferred-fixes memory.
+- **Firing modes / RC / AP / fire (§46–§48) — known limits:** firing modes'
+  burst/auto consume rounds best-effort (a near-empty magazine still fires a short
+  burst); **recoil compensation** comes from the weapon only — accessory RC
+  (gas-vent, foregrip) is deferred; **AP** is a *weapon* stat — per-round **ammo
+  AP** (APDS) is deferred (APDS gives only a to-hit bonus today); **fire** is a
+  damage type soaked by fire-resistant gear, but it does not yet ignite / deal
+  damage-over-time, and there is no cold/electrical type yet (Insulation /
+  Nonconductivity armor mods wait on those).
+- **Deferred combat depth:** the magazine model and cross-room `shoot` for the SR
+  pack are recorded in the SR-M3c deferred-fixes memory.
 - **Item modification (§44):** the shipped Core armor mods are the ones with live
   consumers — ballistic weave (soak), chemical protection / seal + radiation
   shielding (hazard toxin/rad), and the laser sight accessory. The rest of the
