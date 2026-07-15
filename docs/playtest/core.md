@@ -555,6 +555,11 @@ Needs a GMCP-capable client (e.g. Mudlet) and `ANOTHERMUD_WS_ADDR=:4001`.
       same as telnet.
 - [ ] GMCP: the client receives `Char.Vitals`, `Char.Status`, `Room.Info`,
       `Comm.Channel`, etc. as you play (inspect the client's GMCP debug view).
+- [ ] `Char.Vitals` carries `hp/maxhp`, the fixed `mp/mv` slots (mana/movement),
+      **and** a generalized `pools` map keyed by pool-kind — e.g. a WoT channeler
+      shows `mana` (the One Power), an SR runner shows `essence`/`stun`. Spend a
+      pool (a weave, or take stun damage) and a fresh `Char.Vitals` frame reflects
+      it. Empty (max-0) pools are omitted, so a non-caster shows no `mana`.
 - [ ] GMCP tab-completion (`Input.Complete`): send
       `Input.Complete {"line":"get s"}` (client→server) — you get an
       `Input.Complete.List` reply with candidates + `common` prefix. See
