@@ -592,6 +592,44 @@ The following are externally configurable and not fixed by this spec.
   [economy-survival](economy-survival.md) hook. The control is written so a fare
   gate slots in without reshaping the model; the fare *policy* (price, pass
   types, evasion) is deferred.
+- **Keyed / access-restricted destinations** *(design decided 2026-07-15; build
+  pending)*. Some stops are not public: a rider may **select** (send the car to) a
+  restricted floor only while carrying a credential that clears it — the hotel
+  model, where a card reaches the public floors and your own guest floor but
+  nothing else. **Decided design:**
+  - **Credential = a dedicated `keycard` item** (distinct from, but generalizing,
+    a plain door key), carrying the access it grants **and a security rating** —
+    the difficulty a later forge/hack must beat. A keycard clears a stop **either**
+    by a specific **key id** **or** by an access **tag / clearance**, and a stop
+    may require either — so one "corp-sec" card opens a whole class of floors while
+    a guest card opens exactly one (**hybrid** from the start).
+  - **Enforced at selection only** (`press`/`call`), never at alighting: you can't
+    send the car to a floor you can't clear, but you can ride a car an authorized
+    rider (or the schedule) sent there and step out. **Tailgating a badge-holder
+    is a feature**, not a leak.
+  - **Bypass:** a **master keycard** item and/or a **security role** clears every
+    stop (the stealable maintenance spike; an admin force-open).
+  - Scoped to **on-demand elevators first**; a scheduled subway stops everywhere,
+    so restricting one is an alighting/turnstile concern that rides in with
+    **Fares** above.
+
+  **Gaps to fill:** (1) a per-stop access declaration — `Stop` gains a required
+  key id and/or access tag (public when unset); (2) a **`keycard` item type**
+  (granted key ids + access tags, plus a security rating), distinct from the
+  door-key it generalizes; (3) the check needs the actor's **inventory + roles,
+  which the transit service lacks** — the `press` command builds an access oracle
+  (holds a clearing keycard? a master card? the security role?) and passes it into
+  `Service.Press`, keeping the tick loop inventory-blind; (4) keep this
+  **credential gate distinct from the presence-lock** the landing door already
+  carries (that lock only stops boarding an *absent* car — orthogonal to who may
+  ride where); (5) denied-selection feedback + a panel marking restricted floors
+  (`[40] Penthouse [LOCKED]`). **No new save shape** — keycards are ordinary
+  carried items; stop access and card grants are content. The keycard's security
+  rating is the substrate for later **forged cards** (an illicitly-crafted keycard
+  — a crafting/economy hook) and **hacking / decking** (a skill or Matrix action
+  that beats the rating to bypass or grant access — layers on a future decking
+  system + the skill-check primitive); pairs with the out-of-service lockdown
+  below (revokes all access at once).
 - **Express vs. local.** Skip-stop service (an express that passes intermediate
   stops without stopping) is pure content once the queue exists — a per-request
   "non-stop to *S*" flag — but the rider-facing selection UI and the interaction
