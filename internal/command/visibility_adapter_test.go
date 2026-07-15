@@ -98,6 +98,66 @@ func TestVisObserver_NoPerceptionCannotContest(t *testing.T) {
 	}
 }
 
+// Ultrasound (§4.3) sets DetectsHidden, which auto-pierces a hide layer with
+// NO perceiver or roller — echolocation reveals the physical body without a
+// perception contest. A plain observer (detectsHidden false, no perception)
+// cannot see the same hidden target.
+func TestVisObserver_DetectsHiddenAutoPiercesHide(t *testing.T) {
+	tgt := visTarget{id: "rogue", layers: []visibility.Layer{hideLayer(30, 5)}}
+
+	sonar := visObserver{id: "obs", detectsHidden: true} // no per/roller at all
+	if !visibility.CanSee(sonar, tgt) {
+		t.Error("detect-hidden (ultrasound) must auto-pierce a hide layer without a contest")
+	}
+
+	blind := visObserver{id: "obs"} // no detect, no perception
+	if visibility.CanSee(blind, tgt) {
+		t.Error("a plain observer with no perception must not see the hidden target")
+	}
+}
+
+// Ultrasound sets PiercesDarkness, so a target concealed only by a SourceDarkness
+// layer is seen; without it (a viewer with no light and no sonar) the darkness
+// layer conceals.
+func TestVisObserver_PiercesDarknessLayer(t *testing.T) {
+	tgt := visTarget{id: "thug", layers: []visibility.Layer{{Source: visibility.SourceDarkness}}}
+
+	sonar := visObserver{id: "obs", piercesDark: true}
+	if !visibility.CanSee(sonar, tgt) {
+		t.Error("piercesDark (ultrasound/light) must pierce a darkness layer")
+	}
+
+	dark := visObserver{id: "obs", piercesDark: false}
+	if visibility.CanSee(dark, tgt) {
+		t.Error("a viewer who cannot pierce darkness must not see a dark-concealed target")
+	}
+}
+
+// Non-leakage invariant: ultrasound (detectsHidden + piercesDark, but no
+// see-invisible and no admin rank) pierces darkness and hide, but must NOT
+// defeat magical invisibility, admin invisibility, or the quest-spawn existence
+// gate — those have their own counters. Guards the containment claim so a future
+// change to the pierce dispatch can't silently widen ultrasound.
+func TestVisObserver_UltrasoundDoesNotPierceInvisOrGates(t *testing.T) {
+	sonar := visObserver{id: "obs", detectsHidden: true, piercesDark: true}
+	cases := []struct {
+		name  string
+		layer visibility.Layer
+	}{
+		{"magical-invis", visibility.Layer{Source: visibility.SourceMagicalInvis}},
+		{"admin-invis", visibility.Layer{Source: visibility.SourceAdminInvis, Score: 1}},
+		{"quest-spawn", visibility.Layer{Source: visibility.SourceQuestSpawn, Score: 1}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			tgt := visTarget{id: "x", layers: []visibility.Layer{tc.layer}}
+			if visibility.CanSee(sonar, tgt) {
+				t.Errorf("ultrasound must NOT pierce a %s layer", tc.name)
+			}
+		})
+	}
+}
+
 // End-to-end through CanSee: a hidden target is seen iff the contest is won;
 // once pierced, a second CanSee skips the roll (sticky), so even a now-losing
 // roller still sees the target.

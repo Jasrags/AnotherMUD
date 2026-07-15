@@ -343,6 +343,18 @@ a contest:
 - `see_in_dark` — pierces darkness (§3.3).
 - `detect_hidden` — auto-pierces (or grants a large perception
   bonus to — policy §8) hide and sneak.
+- `ultrasound` — an active-echolocation sense that perceives the
+  **physical**. It pierces **darkness** (echolocation is not sight)
+  and auto-pierces **hide/sneak** (a body echoes whether or not it
+  is seen) — i.e. it grants both `see_in_dark` and `detect_hidden`
+  in one counter. It does **not** defeat magical invisibility (that
+  keeps its own `see_invisible` counter) nor the admin/quest-spawn
+  gates. It feeds the **visibility filter only**, not the light
+  system: an ultrasound viewer still sees no room *prose* in the
+  dark (they gain spatial awareness, not vision) but can detect and
+  target occupants. Sourced like the light vision modes — a race
+  tag or an equipped grant (a cybereye enhancement). *Defeated-by-
+  silence is a future counter (needs a room-silence property).*
 - Admin rank — pierces admin invisibility of lower/equal rank
   (§3.4) and, by convention, all roll-based concealment for
   staff comfort (policy §8; defaults to "admins see all when

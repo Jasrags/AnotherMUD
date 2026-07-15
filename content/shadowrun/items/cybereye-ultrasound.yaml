@@ -1,0 +1,23 @@
+id: cybereye-ultrasound
+name: an ultrasound sensor
+type: item
+description: |
+  An active sonar emitter-and-pickup grafted into a cybereye's spare capacity. It
+  paints the world in sound too high to hear, and the echoes come back as shape:
+  the sensor doesn't care about light or a chameleon suit's shimmer — it hears the
+  body, the wall, the blade in the dark. Loud, if you know how to listen for it,
+  and blind in true silence.
+tags: [cyberware-mod]
+keywords: [ultrasound, sonar, echolocation, sensor]
+# Cyberware-cluster ENHANCEMENT (item-modification.md §3): fits a cybereye host,
+# SR5 Ultrasound Sensor [2]. It `grants: [ultrasound]`; while the host eyes are
+# worn the runner has active echolocation — a perception of the PHYSICAL that
+# pierces darkness and auto-detects hidden/sneaking foes (visibility §3/§4.3),
+# regardless of light. No live stat modifier; the sense IS the effect. (It does
+# NOT defeat magical invisibility — that has its own see-invisible counter.)
+mod_host: cybereye
+mod_capacity_cost: 2
+grants: [ultrasound]
+properties:
+  weight: 0
+  value: 1000

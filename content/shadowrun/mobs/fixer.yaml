@@ -60,6 +60,9 @@ properties:
       # thermographic` / `... low-light`, then wear the eyes.
       - shadowrun:cybereye-thermographic
       - shadowrun:cybereye-low-light
+      # Ultrasound sensor (visibility §3/§4.3) — active sonar that pierces
+      # darkness AND detects hidden/sneaking foes, regardless of light.
+      - shadowrun:cybereye-ultrasound
       # Smartlink↔smartgun pairing: a smartlink drops into a cybereye, a smartgun
       # system onto a weapon's mount; carrying both grants the to-hit bonus.
       - shadowrun:smartlink

@@ -44,16 +44,18 @@ type perceiver interface {
 }
 
 // visObserver adapts a viewer to visibility.Observer. PiercesDarkness comes
-// from the light system; the roll-gated path (hide/sneak) delegates to the
-// optional perceiver + a d20 roller. SeesInvisible/AdminRank/DetectsHidden
-// stay at "pierces nothing" until the invisibility/detect-trait slices.
+// from the light system (plus ultrasound); the roll-gated path (hide/sneak)
+// delegates to the optional perceiver + a d20 roller, unless DetectsHidden
+// auto-pierces it (the detect-hidden trait or ultrasound). SeesInvisible/
+// AdminRank are set by the invisibility/admin terms in visibilityPredicate.
 type visObserver struct {
-	id          string
-	piercesDark bool
-	seesInvis   bool               // the see_invisible counter (§4.3) → pierces magical invis
-	adminRank   int                // 0 = ordinary; ≥1 = staff (pierces admin-invis of ≤ rank)
-	per         perceiver          // nil ⇒ cannot pierce roll-gated concealment
-	roller      progression.Roller // nil ⇒ ditto (no contest possible)
+	id            string
+	piercesDark   bool
+	seesInvis     bool               // the see_invisible counter (§4.3) → pierces magical invis
+	detectsHidden bool               // the detect-hidden counter (§4.3) → auto-pierces hide/sneak
+	adminRank     int                // 0 = ordinary; ≥1 = staff (pierces admin-invis of ≤ rank)
+	per           perceiver          // nil ⇒ cannot pierce roll-gated concealment
+	roller        progression.Roller // nil ⇒ ditto (no contest possible)
 }
 
 func (o visObserver) VisibilityID() string  { return o.id }
@@ -61,7 +63,7 @@ func (o visObserver) Bypass() bool          { return false }
 func (o visObserver) PiercesDarkness() bool { return o.piercesDark }
 func (o visObserver) SeesInvisible() bool   { return o.seesInvis }
 func (o visObserver) AdminRank() int        { return o.adminRank }
-func (o visObserver) DetectsHidden() bool   { return false }
+func (o visObserver) DetectsHidden() bool   { return o.detectsHidden }
 
 // InvisibleFlag is the effect flag that makes an entity magically invisible
 // (visibility §3.4): any active effect carrying it conceals the bearer behind
@@ -73,6 +75,16 @@ const (
 	InvisibleFlag    = "invisible"
 	SeeInvisibleFlag = "see_invisible"
 )
+
+// UltrasoundFlag is the capability key for ultrasound (active echolocation) —
+// a sense that reveals the PHYSICAL, so it defeats visual concealment
+// (visibility §3, §4.3): it pierces darkness (echolocation is not light) and
+// auto-detects hidden/sneaking occupants (a body echoes whether or not it is
+// seen). Sourced like the light vision modes: a racial tag (HasTag) OR an
+// equipped grant (a cybereye `grants: [ultrasound]`, item-modification §6). It
+// does NOT pierce magical invisibility (that has its own see-invisible counter)
+// nor the admin/quest-spawn gates. Defeat-by-silence is a future counter.
+const UltrasoundFlag = "ultrasound"
 
 // AlreadyPierced reports a remembered WINNING contest, so the filter
 // short-circuits to visible without re-rolling (§4.1). A remembered LOSS is
@@ -172,15 +184,25 @@ func (c *Context) visibilityPredicate() func(string) bool {
 		return nil // nothing concealed from this viewer
 	}
 
+	// Ultrasound (§3, §4.3): an echolocation sense that reveals the physical, so
+	// it pierces darkness (not light-dependent) AND auto-detects hidden/sneaking
+	// occupants. Sourced racially or from a cybereye grant.
+	hasUltrasound := c.viewerHasUltrasound()
+
 	obs := visObserver{
 		id: c.Actor.PlayerID(),
 		// !dark = the viewer is in an adequately lit room (above Black, with
 		// their own light/darkvision already folded into EffectiveLight), so
-		// darkness is not a barrier for them. When dark, a SourceDarkness layer
-		// is appended below and this false correctly fails to pierce it.
-		piercesDark: !dark,
+		// darkness is not a barrier for them. Ultrasound also pierces darkness
+		// (echolocation is not sight). When dark and neither holds, a
+		// SourceDarkness layer is appended below and this false fails to pierce.
+		piercesDark: !dark || hasUltrasound,
 		seesInvis:   seesInvis,
-		roller:      c.SkillRoller,
+		// Detect-hidden auto-pierces roll-gated hide/sneak without a contest
+		// (§4.3): the detect_hidden trait/effect (previously wired only for exit
+		// discovery) OR ultrasound.
+		detectsHidden: hasUltrasound || c.actorDetectsHidden(),
+		roller:        c.SkillRoller,
 	}
 	// Admin rank (flat roles → binary, §3.4): a staff observer pierces the
 	// admin-invis layer (Score 1); an ordinary viewer (rank 0) does not.
@@ -333,6 +355,20 @@ func (c *Context) viewerSeesInvisible() bool {
 		return true
 	}
 	return c.Effects != nil && c.Effects.HasFlag(c.Actor.PlayerID(), SeeInvisibleFlag)
+}
+
+// viewerHasUltrasound reports whether the actor has ultrasound (§3, §4.3):
+// sourced from a racial tag (HasTag, like darkvision) OR an equipped capability
+// (a cybereye enhancement's `grants: [ultrasound]`, item-modification §6). Feeds
+// both the darkness pierce and the hidden-detect terms in visibilityPredicate.
+func (c *Context) viewerHasUltrasound() bool {
+	if t, ok := c.Actor.(taggable); ok && t.HasTag(UltrasoundFlag) {
+		return true
+	}
+	if v, ok := c.Actor.(visionCapable); ok && v.HasEquippedCapability(UltrasoundFlag) {
+		return true
+	}
+	return false
 }
 
 // magicalInvisibleOccupants returns the set of room players carrying an active
