@@ -1,0 +1,21 @@
+id: actioneer-business-clothes
+name: a set of Actioneer business clothes
+type: item
+description: |
+  A sharp corporate suit with the discreet armor of a bodyguard's wardrobe — cut to
+  flatter, lined to stop a knife or a light round. It walks you past a lobby guard
+  and into a boardroom without a second glance, and keeps you breathing if the
+  meeting goes sideways.
+tags: [armor, wearable, light]
+keywords: [actioneer, business clothes, suit, armor, clothes]
+eligible_slots: [body]
+# SR5 Actioneer Business Clothes (Core): rating 8, Capacity 8. LIGHT tier — the
+# social-infiltration armor, better rated than plain armored clothing.
+armor_tier: light
+armor_bonus: 3
+armor_max_dex: 8
+armor_speed: 30
+capacity: 8
+properties:
+  weight: 3
+  value: 1500

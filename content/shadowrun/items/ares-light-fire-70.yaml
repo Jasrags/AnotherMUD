@@ -1,0 +1,22 @@
+id: ares-light-fire-70
+name: an Ares Light Fire 70
+type: weapon
+description: |
+  A slim, high-capacity light pistol — quiet-running, easy to conceal, a favorite of
+  operators who value a low profile over stopping power. It won't drop a troll, but
+  it'll ruin anyone else's evening.
+tags: [weapon, firearm, ranged]
+keywords: [light fire, ares light fire, light fire 70, light pistol, pistol, gun]
+eligible_slots: [wield]
+weapon_damage: "1d6+2"
+weapon_category: pistol
+proficiency_tier: martial
+damage_types: [piercing]
+crit_multiplier: 2
+ranged_class: projectile
+ammo_kind: bullet
+ranged_style: firearms
+range_increment: 5
+properties:
+  weight: 1
+  value: 200

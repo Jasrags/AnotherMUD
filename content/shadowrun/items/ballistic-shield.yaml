@@ -1,0 +1,20 @@
+id: ballistic-shield
+name: a ballistic shield
+type: item
+description: |
+  A slab of layered composite with a view slit and a forearm grip — the breaching
+  team's mobile wall. Strapped to the off arm it turns aside fire that would punch
+  through a vest, at the cost of a hand and a lot of weight. You advance behind it;
+  you do not sprint.
+tags: [armor, wearable]
+keywords: [ballistic shield, shield, riot]
+# Worn in the off hand (inventory-equipment-items §3.3) — it cannot share the hand
+# with a two-handed weapon or an off-hand weapon; equipping it displaces them.
+eligible_slots: [offhand]
+# SR5 Ballistic Shield (Core): +6 armor. A big soak bonus summed onto worn armor,
+# but it ties up the off hand and hampers nimble work (armor check penalty).
+armor_bonus: 3
+armor_check_penalty: 2
+properties:
+  weight: 6
+  value: 1200

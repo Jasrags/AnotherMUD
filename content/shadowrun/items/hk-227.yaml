@@ -1,0 +1,23 @@
+id: hk-227
+name: an HK-227
+type: weapon
+description: |
+  A sleek, well-balanced submachine gun with a folding stock and a smooth
+  full-auto cycle — the corporate security standard, and a runner's reliable
+  workhorse. It fills a corridor without fuss and reloads without complaint.
+tags: [weapon, firearm, ranged, automatic]
+keywords: [hk-227, hk227, hk, smg, submachine gun, gun]
+eligible_slots: [wield]
+companion_slots: [offhand]
+weapon_damage: "2d6+1"
+weapon_category: smg
+proficiency_tier: martial
+damage_types: [piercing]
+crit_multiplier: 2
+ranged_class: projectile
+ammo_kind: bullet
+ranged_style: firearms
+range_increment: 8
+properties:
+  weight: 3
+  value: 730

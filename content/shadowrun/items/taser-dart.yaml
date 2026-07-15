@@ -1,0 +1,13 @@
+id: taser-dart
+name: a taser dart
+type: item
+description: |
+  A barbed contact dart trailing a hair-thin wire — fired, it bites cloth or skin
+  and dumps a stunning charge down the line. Spent after one shot.
+tags: [ammo, ammunition, stackable]
+keywords: [taser dart, dart, taser, cartridge]
+ammo_kind: taser-dart
+properties:
+  stackable: true
+  weight: 0
+  value: 50

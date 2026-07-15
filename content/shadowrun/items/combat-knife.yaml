@@ -1,0 +1,18 @@
+id: combat-knife
+name: a combat knife
+type: weapon
+description: |
+  A matte-black fighting knife, blood-grooved and balanced for the hand — quiet,
+  deniable, and always legal to almost no one. The tool for work that must not make
+  a sound.
+tags: [weapon, blade, melee]
+keywords: [combat knife, knife, blade]
+eligible_slots: [wield, offhand]
+weapon_damage: "1d6+1"
+weapon_category: knife
+proficiency_tier: simple
+damage_types: [piercing]
+crit_multiplier: 2
+properties:
+  weight: 1
+  value: 300

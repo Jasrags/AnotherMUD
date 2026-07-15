@@ -1,0 +1,23 @@
+id: ceska-black-scorpion
+name: a Ceska Black Scorpion
+type: weapon
+description: |
+  A compact machine pistol that spits bursts from a fat magazine — the smuggler's
+  friend, small enough to hide and loud enough to clear a doorway. Accuracy is a
+  suggestion; volume is the point.
+tags: [weapon, firearm, ranged, automatic]
+keywords: [black scorpion, ceska, scorpion, machine pistol, pistol, gun]
+eligible_slots: [wield]
+companion_slots: [offhand]
+weapon_damage: "2d6"
+weapon_category: machine-pistol
+proficiency_tier: martial
+damage_types: [piercing]
+crit_multiplier: 2
+ranged_class: projectile
+ammo_kind: bullet
+ranged_style: firearms
+range_increment: 6
+properties:
+  weight: 2
+  value: 270

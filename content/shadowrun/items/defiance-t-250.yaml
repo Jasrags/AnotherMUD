@@ -1,0 +1,23 @@
+id: defiance-t-250
+name: a Defiance T-250
+type: weapon
+description: |
+  A brutal, no-nonsense shotgun — pump-action, wide-throated, and devastating up
+  close. It doesn't so much aim as gesture, and at across-the-room range that's more
+  than enough. The bouncer's persuader and the breacher's key.
+tags: [weapon, firearm, ranged]
+keywords: [t-250, t250, defiance, defiance t-250, shotgun, gun]
+eligible_slots: [wield]
+companion_slots: [offhand]
+weapon_damage: "2d6+2"
+weapon_category: shotgun
+proficiency_tier: martial
+damage_types: [piercing]
+crit_multiplier: 2
+ranged_class: projectile
+ammo_kind: bullet
+ranged_style: firearms
+range_increment: 6
+properties:
+  weight: 4
+  value: 450

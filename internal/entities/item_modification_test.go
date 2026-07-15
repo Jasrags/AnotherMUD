@@ -224,6 +224,33 @@ func TestInstallMod_GrantsCapability(t *testing.T) {
 	}
 }
 
+// A monolithic worn capability item (no installed mods) provides its capability
+// through an intrinsic TAG — the path low-light goggles / a racial-grant item
+// rely on, distinct from the installed-mod grant path above.
+func TestProvidesCapability_IntrinsicTag(t *testing.T) {
+	s := NewStore()
+	goggles, err := s.Spawn(&item.Template{
+		ID: "sr:low-light-goggles", Name: "a pair of low-light goggles", Type: "item",
+		Tags: []string{"eyewear", "low-light"},
+	})
+	if err != nil {
+		t.Fatalf("Spawn: %v", err)
+	}
+	if !goggles.ProvidesCapability("low-light") {
+		t.Error("a worn item must provide a capability declared as an intrinsic tag")
+	}
+	if goggles.ProvidesCapability("thermographic") {
+		t.Error("must not provide a capability it does not carry")
+	}
+	// The intrinsic-tag path is case-SENSITIVE (HasTag exact match), unlike the
+	// installed-mod path (EqualFold). Harmless here — capability keys are fixed
+	// lowercase constants and content tags are authored lowercase — but asserted
+	// so the asymmetry is a documented, intentional contract, not a latent bug.
+	if goggles.ProvidesCapability("LOW-LIGHT") {
+		t.Error("intrinsic-tag path is exact-match; a case variant should not match (documents the asymmetry)")
+	}
+}
+
 func TestRestoreInstalledMod_RebuildsProtection(t *testing.T) {
 	s := NewStore()
 	host := armorHost(t, s, 9, 0)

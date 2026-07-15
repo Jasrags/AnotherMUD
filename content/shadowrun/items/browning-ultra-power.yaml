@@ -1,0 +1,22 @@
+id: browning-ultra-power
+name: a Browning Ultra-Power
+type: weapon
+description: |
+  A big, honest heavy pistol — steel-framed, hard-hitting, and utterly reliable. No
+  smartgun tricks, just a heavy round put where you point it. The professional's
+  plain answer to a hard problem.
+tags: [weapon, firearm, ranged]
+keywords: [browning, ultra-power, ultra power, heavy pistol, pistol, gun]
+eligible_slots: [wield]
+weapon_damage: "2d6"
+weapon_category: pistol
+proficiency_tier: martial
+damage_types: [piercing]
+crit_multiplier: 2
+ranged_class: projectile
+ammo_kind: bullet
+ranged_style: firearms
+range_increment: 5
+properties:
+  weight: 2
+  value: 640

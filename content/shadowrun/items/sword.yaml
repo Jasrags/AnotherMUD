@@ -1,0 +1,20 @@
+id: sword
+name: a sword
+type: weapon
+description: |
+  A straight, well-kept blade — anachronistic in an age of smartguns, and exactly
+  why some runners carry one. It never runs dry, never jams, and never trips a
+  weapon scanner. In trained hands it ends things quietly and fast.
+tags: [weapon, blade, melee]
+keywords: [sword, blade]
+size: medium
+eligible_slots: [wield]
+weapon_damage: "2d6"
+weapon_category: sword
+proficiency_tier: martial
+damage_types: [slashing]
+crit_threat_low: 19
+crit_multiplier: 2
+properties:
+  weight: 2
+  value: 500

@@ -1,0 +1,19 @@
+id: low-light-goggles
+name: a pair of low-light goggles
+type: item
+description: |
+  Bulky wraparound goggles with a photon-amplification layer — the cheap, no-chrome
+  way to own the dark. They ride heavy on the nose and mark you as someone expecting
+  trouble, but they need no surgery and cost no Essence: strap them on and the faint
+  glow of the sprawl resolves into clear grey light.
+tags: [wearable, eyewear, low-light]
+keywords: [goggles, low-light goggles, low-light, nightvision, specs]
+# Worn eyewear (the `eyes` slot, core baseline): a NON-cyber alternative to a
+# cybereye low-light mod. The `low-light` tag IS the capability — ProvidesCapability
+# reads a monolithic worn item's capability from its tags, so while these are worn
+# the low-light vision mode lights up (light-and-darkness §4) with no surgery and no
+# Essence cost. Cheaper and reversible, at the cost of an eyes slot and visible bulk.
+eligible_slots: [eyes]
+properties:
+  weight: 1
+  value: 250

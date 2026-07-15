@@ -1,0 +1,19 @@
+id: extendable-baton
+name: an extendable baton
+type: weapon
+description: |
+  A telescoping steel baton that snaps out to full length with a flick of the wrist —
+  legal, deniable, and a lot of leverage in a small package. It collapses back into a
+  pocket when the talking resumes.
+tags: [weapon, melee]
+keywords: [extendable baton, baton, stick, club]
+size: medium
+eligible_slots: [wield, offhand]
+weapon_damage: "1d6+1"
+weapon_category: club
+proficiency_tier: simple
+damage_types: [bludgeoning]
+crit_multiplier: 2
+properties:
+  weight: 1
+  value: 100

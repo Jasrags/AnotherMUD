@@ -1,0 +1,18 @@
+id: helmet
+name: a helmet
+type: item
+description: |
+  A plain armored helmet — polymer shell, padded liner, chin strap. It won't win
+  any fashion contests, but it turns the round that would have ended the run and
+  keeps your skull between you and the sprawl.
+tags: [armor, wearable]
+keywords: [helmet, helm, head]
+eligible_slots: [head]
+# SR5 Helmet (Core): +2 armor, Capacity +2. Worn on the head (stacks its soak on
+# top of body armor — the worn-armor sum spans all slots). A modest, cheap,
+# always-worth-it piece; its small capacity hosts sensor/vision add-ons.
+armor_bonus: 1
+capacity: 2
+properties:
+  weight: 1
+  value: 100

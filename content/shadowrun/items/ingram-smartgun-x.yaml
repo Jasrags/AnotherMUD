@@ -1,0 +1,27 @@
+id: ingram-smartgun-x
+name: an Ingram Smartgun X
+type: weapon
+description: |
+  A submachine gun built around an integral smartgun system — muzzle sensor, recoil
+  compensation, and a targeting feed baked into the frame. Pair it with a smartlink
+  and the burst goes exactly where you're looking; run it blind and it's still a
+  solid bullet hose.
+# `smartgun` is an INTRINSIC capability tag (not a bolt-on accessory): the internal
+# smartgun pairs with a worn smartlink for the to-hit bonus (item-modification §6),
+# read via WieldedWeaponHasCapability → ProvidesCapability → the tag.
+tags: [weapon, firearm, ranged, automatic, smartgun]
+keywords: [ingram, smartgun, smartgun x, ingram smartgun, smg, gun]
+eligible_slots: [wield]
+companion_slots: [offhand]
+weapon_damage: "2d6+1"
+weapon_category: smg
+proficiency_tier: martial
+damage_types: [piercing]
+crit_multiplier: 2
+ranged_class: projectile
+ammo_kind: bullet
+ranged_style: firearms
+range_increment: 8
+properties:
+  weight: 3
+  value: 800

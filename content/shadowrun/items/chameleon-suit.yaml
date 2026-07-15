@@ -1,0 +1,24 @@
+id: chameleon-suit
+name: a chameleon suit
+type: item
+description: |
+  A form-fitting bodysuit sheathed in ruthenium polymer — a skin of programmable
+  cells that drink in the surroundings and paint them back across you. Stand still
+  and you all but vanish; move and you shimmer like heat off asphalt. Armor and
+  invisibility cloak in one, prized by infiltrators who'd rather never be seen at all.
+tags: [armor, wearable, medium]
+keywords: [chameleon suit, chameleon, suit, ruthenium, armor]
+eligible_slots: [body]
+# SR5 Chameleon Suit (Core): rating 9, Capacity 9. MEDIUM tier. The ruthenium
+# shimmer (a Sneak/infiltration boon in SR) is DESCRIBED but mechanically inert
+# for now — the engine's hide/sneak concealment is skill-scored, not armor-sourced;
+# a worn-item stealth bonus is a future consumer. Today it is medium armor with a
+# distinctive look.
+armor_tier: medium
+armor_bonus: 4
+armor_max_dex: 6
+armor_speed: 25
+capacity: 9
+properties:
+  weight: 3
+  value: 1700

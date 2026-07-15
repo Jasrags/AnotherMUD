@@ -1,0 +1,23 @@
+id: ruger-super-warhawk
+name: a Ruger Super Warhawk
+type: weapon
+description: |
+  A hand cannon — a heavy-frame revolver chambered for a round that punches through
+  engine blocks and cheap cyberlimbs alike. Six shots, slow to reload, and each one
+  a statement. It kicks like a mule and drops like a landslide.
+tags: [weapon, firearm, ranged]
+keywords: [warhawk, ruger, super warhawk, revolver, pistol, gun]
+eligible_slots: [wield]
+weapon_damage: "2d6+1"
+weapon_category: revolver
+proficiency_tier: martial
+damage_types: [piercing]
+crit_threat_low: 19
+crit_multiplier: 2
+ranged_class: projectile
+ammo_kind: bullet
+ranged_style: firearms
+range_increment: 5
+properties:
+  weight: 2
+  value: 400

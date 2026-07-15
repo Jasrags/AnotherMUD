@@ -1,0 +1,23 @@
+id: ak-97
+name: an AK-97
+type: weapon
+description: |
+  The sprawl's most common assault rifle — cheap, ugly, and utterly unkillable. It
+  eats mud, grit, and neglect and keeps chewing through targets. Everybody's first
+  long gun, and plenty of runners' last.
+tags: [weapon, firearm, ranged, automatic]
+keywords: [ak-97, ak97, ak, assault rifle, rifle, gun]
+eligible_slots: [wield]
+companion_slots: [offhand]
+weapon_damage: "2d6+2"
+weapon_category: rifle
+proficiency_tier: martial
+damage_types: [piercing]
+crit_multiplier: 2
+ranged_class: projectile
+ammo_kind: bullet
+ranged_style: firearms
+range_increment: 15
+properties:
+  weight: 4
+  value: 950

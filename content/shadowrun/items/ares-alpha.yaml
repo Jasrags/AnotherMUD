@@ -1,0 +1,23 @@
+id: ares-alpha
+name: an Ares Alpha
+type: weapon
+description: |
+  A top-of-the-line assault rifle with integral recoil compensation and a smartgun
+  feed — the corp-military standard, hard-hitting and precise. Heavy in the hand and
+  heavier on the wallet, but it puts every round on target.
+tags: [weapon, firearm, ranged, automatic]
+keywords: [ares alpha, alpha, assault rifle, rifle, gun]
+eligible_slots: [wield]
+companion_slots: [offhand]
+weapon_damage: "2d6+2"
+weapon_category: rifle
+proficiency_tier: martial
+damage_types: [piercing]
+crit_multiplier: 2
+ranged_class: projectile
+ammo_kind: bullet
+ranged_style: firearms
+range_increment: 16
+properties:
+  weight: 5
+  value: 2650

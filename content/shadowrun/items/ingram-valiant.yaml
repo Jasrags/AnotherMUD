@@ -1,0 +1,23 @@
+id: ingram-valiant
+name: an Ingram Valiant
+type: weapon
+description: |
+  A belt-fed light machine gun with a bipod and an appetite — it lays down a wall of
+  fire that pins a whole room. Heavy, hungry for ammo, and not remotely subtle, but
+  when you need suppression, nothing else will do.
+tags: [weapon, firearm, ranged, automatic]
+keywords: [valiant, ingram valiant, lmg, machine gun, gun]
+eligible_slots: [wield]
+companion_slots: [offhand]
+weapon_damage: "3d6"
+weapon_category: machine-gun
+proficiency_tier: martial
+damage_types: [piercing]
+crit_multiplier: 2
+ranged_class: projectile
+ammo_kind: bullet
+ranged_style: firearms
+range_increment: 12
+properties:
+  weight: 8
+  value: 5800

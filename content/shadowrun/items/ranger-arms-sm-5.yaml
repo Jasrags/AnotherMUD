@@ -1,0 +1,24 @@
+id: ranger-arms-sm-5
+name: a Ranger Arms SM-5
+type: weapon
+description: |
+  A precision sniper rifle that breaks down into a briefcase and reassembles in
+  seconds — the assassin's tool of choice. One patient breath, one squeeze, and a
+  target three rooftops away simply stops being a problem.
+tags: [weapon, firearm, ranged]
+keywords: [sm-5, sm5, ranger arms, ranger, sniper rifle, sniper, rifle, gun]
+eligible_slots: [wield]
+companion_slots: [offhand]
+weapon_damage: "3d6+1"
+weapon_category: rifle
+proficiency_tier: martial
+damage_types: [piercing]
+crit_threat_low: 19
+crit_multiplier: 2
+ranged_class: projectile
+ammo_kind: bullet
+ranged_style: firearms
+range_increment: 25
+properties:
+  weight: 6
+  value: 28000

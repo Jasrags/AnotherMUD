@@ -1,0 +1,18 @@
+id: riot-shield
+name: a riot shield
+type: item
+description: |
+  A tall transparent polycarbonate shield, the kind Lone Star lines up behind when
+  a protest turns ugly. Lighter than a ballistic slab and built to shove and absorb
+  rather than stop a rifle, but strapped to the off arm it still turns a beating
+  into a bad afternoon.
+tags: [armor, wearable]
+keywords: [riot shield, shield, riot]
+eligible_slots: [offhand]
+# SR5 Riot Shield (Core): +6 armor. Off-hand soak like the ballistic shield —
+# cheaper and lighter, the crowd-control cousin.
+armor_bonus: 3
+armor_check_penalty: 2
+properties:
+  weight: 5
+  value: 1000

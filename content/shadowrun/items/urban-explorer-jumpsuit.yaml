@@ -1,0 +1,22 @@
+id: urban-explorer-jumpsuit
+name: an Urban Explorer jumpsuit
+type: item
+description: |
+  A one-piece armored coverall built for the runner who lives in the sprawl's
+  underside — reinforced knees and elbows, sealed seams, pockets everywhere. Not
+  subtle, but tough and practical, and it takes a helmet that clips right to the
+  collar.
+tags: [armor, wearable, medium]
+keywords: [urban explorer, jumpsuit, coverall, armor, suit]
+eligible_slots: [body]
+# SR5 Urban Explorer Jumpsuit (Core): rating 9, Capacity 9. MEDIUM tier — more
+# protection than a coat, at the cost of a slower don and tighter max-Dex. Its
+# matching helmet is a separate head piece.
+armor_tier: medium
+armor_bonus: 4
+armor_max_dex: 6
+armor_speed: 25
+capacity: 9
+properties:
+  weight: 5
+  value: 650

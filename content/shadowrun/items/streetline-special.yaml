@@ -1,0 +1,22 @@
+id: streetline-special
+name: a Streetline Special
+type: weapon
+description: |
+  A flat matte hold-out pistol that all but disappears in a waistband — no rail, no
+  frills, a handful of rounds and a short, ugly bark. The gun you carry when the gun
+  can't be found.
+tags: [weapon, firearm, ranged]
+keywords: [streetline, streetline special, holdout, hold-out, pistol, gun]
+eligible_slots: [wield]
+weapon_damage: "1d6+1"
+weapon_category: pistol
+proficiency_tier: simple
+damage_types: [piercing]
+crit_multiplier: 2
+ranged_class: projectile
+ammo_kind: bullet
+ranged_style: firearms
+range_increment: 4
+properties:
+  weight: 1
+  value: 120

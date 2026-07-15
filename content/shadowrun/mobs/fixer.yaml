@@ -32,6 +32,29 @@ properties:
       - shadowrun:apds-round
       - shadowrun:predator-clip
       - shadowrun:ares-predator-v
+      # Core firearms line (WEAPONS reference) — pistols → machine pistol → SMG →
+      # assault rifle → sniper → shotgun → LMG. All fire loose `bullet` ammo
+      # (caseless-round / apds). The Ingram has an internal smartgun (pairs with a
+      # smartlink); the Defiance EX Shocker is a ranged stun weapon (taser darts).
+      - shadowrun:streetline-special
+      - shadowrun:ares-light-fire-70
+      - shadowrun:browning-ultra-power
+      - shadowrun:ruger-super-warhawk
+      - shadowrun:ceska-black-scorpion
+      - shadowrun:hk-227
+      - shadowrun:ingram-smartgun-x
+      - shadowrun:ak-97
+      - shadowrun:ares-alpha
+      - shadowrun:ranger-arms-sm-5
+      - shadowrun:defiance-t-250
+      - shadowrun:ingram-valiant
+      - shadowrun:defiance-ex-shocker
+      - shadowrun:taser-dart
+      # Melee — silent, deniable, scanner-proof.
+      - shadowrun:combat-knife
+      - shadowrun:sword
+      - shadowrun:combat-axe
+      - shadowrun:extendable-baton
       # Ballistic projectiles (WEAPONS.md) — silent, deniable, no powder
       # signature. A bow feeds loose arrows; crossbows chamber a bolt via `load`.
       - shadowrun:bow
@@ -42,6 +65,17 @@ properties:
       - shadowrun:bolt
       - shadowrun:armored-jacket
       - shadowrun:armor-vest
+      # Core armor line (WEAPONS/ARMOR reference) — body armor by tier, plus a
+      # helmet and off-hand shields. All feed the `mitigation: body + armor` soak.
+      - shadowrun:armor-clothing
+      - shadowrun:actioneer-business-clothes
+      - shadowrun:lined-coat
+      - shadowrun:urban-explorer-jumpsuit
+      - shadowrun:chameleon-suit
+      - shadowrun:full-body-armor
+      - shadowrun:helmet
+      - shadowrun:ballistic-shield
+      - shadowrun:riot-shield
       - shadowrun:cybereyes
       # Armor modifications (item-modification.md) — slot these into a modifiable
       # jacket/vest with `modify <armor> <mod>`. Physical soak, environmental
@@ -66,6 +100,9 @@ properties:
       # Vision magnification (ranged-combat §5.3) — telescopic optics that cut the
       # range-band to-hit falloff on a projectile shot (treats the target closer).
       - shadowrun:cybereye-magnification
+      # Non-cyber eyewear (the `eyes` slot) — low-light vision with no surgery or
+      # Essence, for a runner who hasn't gone under the knife.
+      - shadowrun:low-light-goggles
       # Smartlink↔smartgun pairing: a smartlink drops into a cybereye, a smartgun
       # system onto a weapon's mount; carrying both grants the to-hit bonus.
       - shadowrun:smartlink

@@ -1,0 +1,25 @@
+id: full-body-armor
+name: a suit of full body armor
+type: item
+description: |
+  Hardened trauma plates over a sealed bodysuit — the heaviest armor a runner can
+  wear and still walk. It turns pistol rounds like rain and shrugs off shrapnel, but
+  it is a slow, loud, unmistakable thing to put on: you wear this when you are
+  expecting a war, not a conversation. It takes a matching helmet and full
+  environmental sealing.
+tags: [armor, wearable, heavy]
+keywords: [full body armor, full body, body armor, armor, plate]
+eligible_slots: [body]
+# SR5 Full Body Armor (Core): rating 15, Capacity 15. HEAVY tier — a big soak
+# bonus and the most mod capacity of any suit, paid for with a tight max-Dex, a
+# slow don, and a check penalty (non-proficient wearers suffer it on to-hit too,
+# armor-depth §5). Its capacity hosts the chemical-seal / environmental mods.
+armor_tier: heavy
+armor_bonus: 6
+armor_max_dex: 3
+armor_check_penalty: 1
+armor_speed: 20
+capacity: 15
+properties:
+  weight: 12
+  value: 2000

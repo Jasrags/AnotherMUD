@@ -1,0 +1,26 @@
+id: defiance-ex-shocker
+name: a Defiance EX Shocker
+type: weapon
+description: |
+  A single-shot taser pistol that fires a barbed dart trailing a live wire — one
+  clean hit and the target folds, twitching, without a drop of blood spilled. The
+  professional's answer to "we need this one breathing."
+tags: [weapon, firearm, ranged, shock, nonlethal]
+keywords: [ex shocker, defiance ex shocker, shocker, taser, stun gun, gun]
+eligible_slots: [wield]
+weapon_damage: "2d6"
+weapon_category: taser
+proficiency_tier: simple
+damage_types: [bludgeoning]
+crit_multiplier: 2
+# The taser routes its damage to the defender's Stun monitor (target_pool), so
+# crossing that floor knocks the target OUT rather than killing — a ranged
+# counterpart to the stun baton. Fires taser-dart ammo.
+target_pool: stun
+ranged_class: projectile
+ammo_kind: taser-dart
+ranged_style: firearms
+range_increment: 4
+properties:
+  weight: 1
+  value: 250

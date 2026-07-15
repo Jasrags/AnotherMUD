@@ -1,0 +1,20 @@
+id: lined-coat
+name: a lined coat
+type: item
+description: |
+  A long duster with a ballistic weave stitched through the lining — the classic
+  shadowrunner's coat. It hides a lot of gear in its folds, shrugs off a glancing
+  round, and looks like nothing more than a way to stay dry in the acid drizzle.
+tags: [armor, wearable, light]
+keywords: [lined coat, coat, duster, armor]
+eligible_slots: [body]
+# SR5 Lined Coat (Core): rating 9, Capacity 9. LIGHT tier — the iconic runner coat,
+# a touch less nimble than a suit but the same easy don.
+armor_tier: light
+armor_bonus: 3
+armor_max_dex: 7
+armor_speed: 30
+capacity: 9
+properties:
+  weight: 4
+  value: 900

@@ -1,0 +1,21 @@
+id: armor-clothing
+name: a set of armored clothing
+type: item
+description: |
+  Streetwear with a secret: ballistic panels sewn into an ordinary-looking jacket
+  and slacks. It reads as civilian, weighs like civilian, and stops a lot more than
+  civilian — the runner's everyday second skin when a vest would draw the wrong eyes.
+tags: [armor, wearable, light]
+keywords: [armored clothing, clothing, armor, clothes]
+eligible_slots: [body]
+# SR5 Armor Clothing (Core): rating 6, Capacity 6. Translated to the engine's
+# tier scale — LIGHT armor (instant don, generous max-Dex), a small soak bonus,
+# and the SR capacity for mods.
+armor_tier: light
+armor_bonus: 2
+armor_max_dex: 8
+armor_speed: 30
+capacity: 6
+properties:
+  weight: 3
+  value: 450

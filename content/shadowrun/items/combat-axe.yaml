@@ -1,0 +1,20 @@
+id: combat-axe
+name: a combat axe
+type: weapon
+description: |
+  A brutal two-handed war axe of modern composite and mono-edged steel — the trophy
+  weapon of trolls and street-samurai who want their message unmistakable. It cleaves
+  armor, doors, and arguments with equal finality.
+tags: [weapon, blade, melee, heavy]
+keywords: [combat axe, axe, war axe]
+size: medium
+eligible_slots: [wield]
+weapon_damage: "2d6+1"
+weapon_category: axe
+proficiency_tier: martial
+damage_types: [slashing]
+crit_threat_low: 19
+crit_multiplier: 2
+properties:
+  weight: 5
+  value: 4000
