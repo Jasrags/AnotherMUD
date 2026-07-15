@@ -2055,11 +2055,53 @@ func run() error {
 		}
 		return 0
 	}
+	// skills §7: the weapon-skill to-hit model. When the wielded weapon binds a
+	// skill (content opt-in, per-pack), to-hit reads the wielder's proficiency in
+	// THAT skill (the same proficiency→bonus scale a skill check uses) instead of
+	// the binary proficient/not penalty — so a trained pistoleer out-hits a
+	// dabbler, and a weapon whose skill they lack defaults at the non-proficient
+	// penalty. Players only in v1 (mobs have no skill store; they keep the binary
+	// model). Returns (mod, true) when the skill model applies, (0, false) to fall
+	// back to the binary proficiency-set penalty.
+	weaponSkillCfg := progression.DefaultSkillConfig()
+	attackerWeaponSkillMod := func(id combat.CombatantID) (int, bool) {
+		if !strings.HasPrefix(string(id), combat.PlayerPrefix) {
+			return 0, false
+		}
+		bareID := string(id)[len(combat.PlayerPrefix):]
+		a, ok := mgr.GetByPlayerID(bareID)
+		if !ok {
+			return 0, false
+		}
+		skill := a.WieldedWeaponSkill()
+		if skill == "" {
+			return 0, false // weapon uses the binary proficiency-set model
+		}
+		// Read through the same combat-goroutine proficiency surface combat's
+		// passive abilities use (RLock-safe); player path delegates to the
+		// player proficiency manager.
+		prof, _ := passiveProficiency.Proficiency(bareID, skill)
+		if prof <= 0 {
+			// Untrained in the bound skill — default at the non-proficient
+			// penalty (every combat skill is defaultable). §7.
+			return -cfg.NonProficientPenalty, true
+		}
+		return progression.ProficiencyBonus(prof, weaponSkillCfg), true
+	}
 	hitModAdjust := func(id combat.CombatantID) int {
 		// conditions §3 — the attacker-penalty half (prone/blinded/fear)
 		// composes additively here alongside darkness + proficiency.
 		condPenalty := -conditionImpact(combat.EntityIDOf(id)).AttackerHitPenalty
-		return attackerDarknessPenalty(id) + attackerProficiencyPenalty(id) + attackerArmorPenalty(id) + condPenalty + attackerSmartlinkBonus(id)
+		// The proficiency term is EITHER the weapon-skill bonus (skills §7, when
+		// the weapon binds a skill) OR the binary non-proficient penalty
+		// (weapon-identity §3) — a per-weapon choice.
+		profTerm := 0
+		if skillMod, hasSkill := attackerWeaponSkillMod(id); hasSkill {
+			profTerm = skillMod
+		} else {
+			profTerm = attackerProficiencyPenalty(id)
+		}
+		return attackerDarknessPenalty(id) + profTerm + attackerArmorPenalty(id) + condPenalty + attackerSmartlinkBonus(id)
 	}
 
 	// baseSaveBonus resolves a bare entity's class+ability save on an axis,

@@ -10,6 +10,7 @@ keywords: [light fire, ares light fire, light fire 70, light pistol, pistol, gun
 eligible_slots: [wield]
 weapon_damage: "1d6+2"
 weapon_category: pistol
+weapon_skill: pistols
 proficiency_tier: martial
 damage_types: [piercing]
 crit_multiplier: 2

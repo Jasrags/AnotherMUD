@@ -11,6 +11,7 @@ size: medium
 eligible_slots: [wield]
 weapon_damage: "2d6"
 weapon_category: club
+weapon_skill: clubs
 proficiency_tier: simple
 damage_types: [electrical]
 crit_multiplier: 2

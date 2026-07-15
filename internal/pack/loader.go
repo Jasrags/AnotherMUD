@@ -3595,6 +3595,7 @@ func decodeItem(path, ns string) (*item.Template, error) {
 	// lowest tier at proficiency-check time, §3); absent types are untyped.
 	weaponCategory := strings.ToLower(strings.TrimSpace(f.WeaponCategory))
 	weaponTier := strings.ToLower(strings.TrimSpace(f.ProficiencyTier))
+	weaponSkill := strings.ToLower(strings.TrimSpace(f.WeaponSkill))
 	if weaponTier != "" && !item.ValidTier(weaponTier) {
 		return nil, fmt.Errorf("%w: %s: proficiency_tier %q is not a known weapon tier %v",
 			ErrInvalidContent, path, weaponTier, item.WeaponTierNames())
@@ -3909,6 +3910,7 @@ func decodeItem(path, ns string) (*item.Template, error) {
 		CompanionSlots:    companion,
 		WeaponCategory:    weaponCategory,
 		ProficiencyTier:   weaponTier,
+		WeaponSkill:       weaponSkill,
 		DamageTypes:       damageTypes,
 		TargetPool:        strings.ToLower(strings.TrimSpace(f.TargetPool)),
 		Grade:             strings.ToLower(strings.TrimSpace(f.Grade)),

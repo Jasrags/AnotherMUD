@@ -11,6 +11,7 @@ size: medium
 eligible_slots: [wield]
 weapon_damage: "2d6"
 weapon_category: sword
+weapon_skill: blades
 proficiency_tier: martial
 ap: 3
 damage_types: [slashing]

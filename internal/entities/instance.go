@@ -162,6 +162,7 @@ type ItemInstance struct {
 	// Write-once at construction — no mutex needed.
 	weaponCategory  string
 	proficiencyTier string
+	weaponSkill     string
 	// critThreatLow / critMultiplier are the weapon-identity §4 critical
 	// parameters lifted onto the instance at build (mirrors weaponDamage).
 	// Zero means unset — the combat resolver applies the engine defaults.
@@ -502,6 +503,11 @@ func (it *ItemInstance) WeaponSize() string { return it.weaponSize }
 // §2), empty for an untiered weapon (treated as the lowest tier). Read by
 // the equip path that computes proficiency.
 func (it *ItemInstance) ProficiencyTier() string { return it.proficiencyTier }
+
+// WeaponSkill returns the skill id this weapon binds under the weapon-skill
+// to-hit model (skills §7), empty when the weapon uses the binary
+// proficiency-set model. Read by the to-hit hook.
+func (it *ItemInstance) WeaponSkill() string { return it.weaponSkill }
 
 // CritThreatLow returns the weapon's critical threat-low (weapon-identity
 // §4), zero when unset (the combat resolver then uses the natural max).
@@ -1339,6 +1345,7 @@ func buildInstanceFromTemplate(tpl *item.Template, id EntityID) *ItemInstance {
 		companionSlots:    companion,
 		weaponCategory:    tpl.WeaponCategory,
 		proficiencyTier:   tpl.ProficiencyTier,
+		weaponSkill:       tpl.WeaponSkill,
 		weaponSize:        tpl.Size,
 		critThreatLow:     tpl.CritThreatLow,
 		critMultiplier:    tpl.CritMultiplier,

@@ -4101,6 +4101,10 @@ type weaponInfo struct {
 	// tier means "untiered" (treated as the lowest tier, §3).
 	category string
 	tier     string
+	// weaponSkill is the bound skill id under the weapon-skill to-hit model
+	// (skills §7); empty ⇒ the binary proficiency-set model. Captured here so
+	// the to-hit hook reads it off the snapshot without re-fetching the item.
+	weaponSkill string
 	// critThreatLow / critMultiplier are the weapon's §4 critical params
 	// carried into combat.Stats. Zero ⇒ the resolver applies its defaults.
 	critThreatLow  int
@@ -4232,7 +4236,19 @@ func (a *connActor) buildWeaponInfoLocked(id entities.EntityID) *weaponInfo {
 		doubleDamage:       doubleDamageOf(it),
 		tripBonus:          it.TripBonus(),
 		disarmBonus:        it.DisarmBonus(),
+		weaponSkill:        it.WeaponSkill(),
 	}
+}
+
+// WieldedWeaponSkill returns the bound skill id of the currently-wielded weapon
+// under the weapon-skill to-hit model (skills §7), or "" when the actor is
+// unarmed or the weapon uses the binary proficiency-set model. Read on the
+// combat goroutine via the HitModAdjust seam; the weapon pointer is atomic.
+func (a *connActor) WieldedWeaponSkill() string {
+	if w := a.weapon.Load(); w != nil {
+		return w.weaponSkill
+	}
+	return ""
 }
 
 // doubleDamageOf returns a weapon's double-weapon second-end dice, or the zero

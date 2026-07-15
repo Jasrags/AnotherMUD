@@ -272,7 +272,17 @@ Skills surface without a new framework:
   another's); this slice ships the un-opposed DC form, and the opposed form is a
   thin extension the visibility slice adds.
 
-## 7. Combat as a skill consumer: weapon-skill to-hit (extends the baseline; build-pending)
+## 7. Combat as a skill consumer: weapon-skill to-hit (extends the baseline)
+
+**Status:** the **to-hit read + defaulting SHIPPED** (2026-07-15 — a weapon binds a
+skill via `weapon_skill`; a player wielding it has their to-hit read that skill's
+proficiency bonus, or the non-proficient penalty when untrained; per-weapon /
+per-pack, with mobs and skill-less weapons on the unchanged binary model). The
+**train-on-attack** half (each attack rolling a use-gain on the bound skill) is
+**deferred** to a follow-up — the bound skills currently grow via `practice`/
+`train`, not yet by fighting. Mob weapon-skill ratings (so grunts use the model
+too) are also deferred.
+
 
 Combat may consume the skill system the same way lockpicking does — a wielded
 weapon binds a skill, and the attack roll incorporates it. This is a **per-pack

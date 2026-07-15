@@ -126,10 +126,13 @@ This plan's slices are the **SR content** that lands on top:
   background grants still show under "Other" alongside SR Sneaking (reconcile
   when the stealth consumer is wired to Sneaking); Locksmith/social/technical
   skills are learnable via trainers, not yet granted.
-- **Slice B — the weapon map.** Bind each SR weapon to its skill (§4) and select
-  the weapon-skill to-hit model for the pack. This is the slice that makes the
-  system *felt* — Pistols ≠ Automatics in a gunfight, and combat trains the
-  specific skill.
+- **Slice B — the weapon map. SHIPPED 2026-07-15** (with engine `skills.md §7`).
+  Each SR weapon binds its skill via `weapon_skill` (§4): Predator/Light Fire →
+  pistols, Ares Alpha/Ingram/SMG → automatics, katana/sword → blades, batons →
+  clubs. A player wielding one has to-hit read that skill's proficiency (Pistols
+  ≠ Automatics), or the non-proficient penalty when untrained. *Deferred to a
+  follow-up:* combat does not yet **train** the bound skill on each attack (grows
+  via `practice`/`train` for now), and mobs keep the binary model.
 - **Slice C — near-term consumers** (each a tiny, independent follow-on):
   Survival → biome-hazard/forage; First Aid → a `first aid` heal verb;
   Con/Intimidation → a disposition check; Negotiation → shop-price haggling;

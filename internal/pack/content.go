@@ -107,9 +107,12 @@ type ItemFile struct {
 	// against the fixed bludgeoning/piercing/slashing set. An absent tier
 	// is "untiered" (treated as the lowest tier, §3); absent types are
 	// untyped.
-	WeaponCategory  string   `yaml:"weapon_category,omitempty"`
-	ProficiencyTier string   `yaml:"proficiency_tier,omitempty"`
-	DamageTypes     []string `yaml:"damage_types,omitempty"`
+	WeaponCategory  string `yaml:"weapon_category,omitempty"`
+	ProficiencyTier string `yaml:"proficiency_tier,omitempty"`
+	// WeaponSkill binds this weapon to a skill for the weapon-skill to-hit model
+	// (skills §7). Empty ⇒ the binary proficiency-set model.
+	WeaponSkill string   `yaml:"weapon_skill,omitempty"`
+	DamageTypes []string `yaml:"damage_types,omitempty"`
 	// TargetPool names the resource pool this weapon's damage fills — a
 	// Shadowrun stun baton's Stun monitor (shadowrun-mvp SR-M3b). Empty ⇒ the
 	// hp path (every non-Shadowrun weapon). Normalized lowercase at load.

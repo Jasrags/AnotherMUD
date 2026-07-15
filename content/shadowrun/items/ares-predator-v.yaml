@@ -13,6 +13,7 @@ keywords: [predator, ares predator, ares, pistol, heavy pistol, gun, firearm, si
 eligible_slots: [wield]
 weapon_damage: "2d6"
 weapon_category: pistol
+weapon_skill: pistols
 proficiency_tier: martial
 ap: 1
 damage_types: [piercing]

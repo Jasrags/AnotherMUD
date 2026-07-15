@@ -83,6 +83,12 @@ type Template struct {
 	// "untiered" — treated as the lowest tier (universally proficient, §3).
 	// Validated at pack load; normalized lowercase.
 	ProficiencyTier string
+	// WeaponSkill is the skill id this weapon binds under the weapon-skill
+	// to-hit model (skills §7): the wielder's proficiency in this skill feeds
+	// to-hit (and, later, trains on use). Empty ⇒ the binary proficiency-set
+	// model (weapon-identity §3) — a per-pack choice, selected by content.
+	// Normalized lowercase.
+	WeaponSkill string
 	// DamageTypes are the weapon's damage type(s) (weapon-identity §2) from
 	// the fixed bludgeoning/piercing/slashing set. nil means untyped.
 	// Recorded only — inert until armor depth. Validated at pack load;

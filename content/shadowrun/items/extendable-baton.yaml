@@ -11,6 +11,7 @@ size: medium
 eligible_slots: [wield, offhand]
 weapon_damage: "1d6+1"
 weapon_category: club
+weapon_skill: clubs
 proficiency_tier: simple
 damage_types: [bludgeoning]
 crit_multiplier: 2

@@ -33,6 +33,26 @@ func TestSkillBonus_ProficiencyAndStat(t *testing.T) {
 	}
 }
 
+// ProficiencyBonus is the proficiency-only term (no attribute modifier) the
+// weapon-skill to-hit model uses (skills §7): the attribute is already in the
+// attack channel, so only the rating contributes here.
+func TestProficiencyBonus_RatingOnly(t *testing.T) {
+	cfg := DefaultSkillConfig() // scale 0.2
+	cases := []struct {
+		prof, want int
+	}{
+		{0, 0},    // untrained → 0 (the caller applies a default penalty)
+		{1, 0},    // freshly granted → neutral, no penalty
+		{50, 10},  // journeyman → +10
+		{100, 20}, // master → +20
+	}
+	for _, c := range cases {
+		if got := ProficiencyBonus(c.prof, cfg); got != c.want {
+			t.Errorf("ProficiencyBonus(%d) = %d, want %d", c.prof, got, c.want)
+		}
+	}
+}
+
 func TestResolveSkillCheck_MeetsDCSucceeds(t *testing.T) {
 	// roll 12 + bonus 8 = 20 vs DC 20 → success (>= passes).
 	out := ResolveSkillCheck(d20Roll(12), 8, 20)

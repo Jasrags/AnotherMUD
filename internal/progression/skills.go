@@ -31,7 +31,16 @@ func DefaultSkillConfig() SkillConfig {
 // governing ability's effective score, run through the same AbilityModifier
 // `(score-10)/2` the saves use, so a stat buff helps the skill for free.
 func SkillBonus(proficiency, statScore int, cfg SkillConfig) int {
-	return int(float64(proficiency)*cfg.ProficiencyBonusScale) + AbilityModifier(statScore)
+	return ProficiencyBonus(proficiency, cfg) + AbilityModifier(statScore)
+}
+
+// ProficiencyBonus is the proficiency-only term of a skill bonus (skills §3) —
+// floor(proficiency * scale), WITHOUT the governing-ability modifier. Used where
+// the attribute term is supplied separately: the weapon-skill to-hit model
+// (skills §7) adds this to an attack whose linked attribute already rides the
+// attack channel.
+func ProficiencyBonus(proficiency int, cfg SkillConfig) int {
+	return int(float64(proficiency) * cfg.ProficiencyBonusScale)
 }
 
 // SkillOutcome is the result of one resolved skill check (skills §3). It
