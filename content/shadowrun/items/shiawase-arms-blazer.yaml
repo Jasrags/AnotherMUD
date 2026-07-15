@@ -28,6 +28,7 @@ range_increment: 3
 # SR5 Blazer: SA/BF/FA. Burst/full-auto pour on more fuel for more fire (the
 # firing-mode damage bonus) at a recoil-like control penalty.
 fire_modes: [single, burst, auto]
+rc: 1
 properties:
   weight: 6
   value: 2200

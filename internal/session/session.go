@@ -4124,6 +4124,7 @@ type weaponInfo struct {
 	rangedStyle    string
 	rangeIncrement int
 	fireModes      []string
+	recoilComp     int
 	reloadTicks    int
 	magazine       int
 	acceptsHolder  string
@@ -4212,6 +4213,7 @@ func (a *connActor) buildWeaponInfoLocked(id entities.EntityID) *weaponInfo {
 		rangedStyle:        it.RangedStyle(),
 		rangeIncrement:     it.RangeIncrement(),
 		fireModes:          it.FireModes(),
+		recoilComp:         it.RecoilComp(),
 		reloadTicks:        it.ReloadTicks(),
 		magazine:           it.Magazine(),
 		acceptsHolder:      it.AcceptsHolder(),
@@ -7137,6 +7139,9 @@ func (a *connActor) Stats() combat.Stats {
 		// Firing mode (ranged-combat §5.5): the actor's selected mode, clamped to
 		// what THIS weapon supports (a mode the weapon can't fire → single).
 		s.FireMode = clampFireMode(a.FireMode(), w.fireModes)
+		// Recoil compensation (§5.6): the wielded weapon's inherent RC, offsetting
+		// the firing mode's recoil at combat time.
+		s.RecoilComp = w.recoilComp
 		s.ReloadTicks = w.reloadTicks
 		s.Magazine = w.magazine
 		s.AcceptsHolder = w.acceptsHolder

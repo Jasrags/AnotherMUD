@@ -19,6 +19,7 @@ ammo_kind: bullet
 ranged_style: firearms
 range_increment: 16
 fire_modes: [single, burst, auto]
+rc: 2
 properties:
   weight: 5
   value: 2650

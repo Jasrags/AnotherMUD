@@ -145,6 +145,11 @@ type Template struct {
 	// all melee/thrown) means single-fire only — the pre-fire-modes behavior.
 	// Normalized lowercase + validated against the known set at load.
 	FireModes []string
+	// RecoilComp is the weapon's inherent recoil compensation (SR5 "RC"): it
+	// reduces the to-hit penalty a burst/full-auto firing mode imposes
+	// (ranged-combat §5.5/§5.6), floored at zero. 0 (the default) = no
+	// compensation — the full recoil bites. Validated non-negative at load.
+	RecoilComp int
 	// ReloadTicks marks a projectile weapon that must be reloaded between shots
 	// (a crossbow) and is its load time in engine ticks (action-economy.md §7.1).
 	// 0 = fires freely (a bow). Validated non-negative at load.

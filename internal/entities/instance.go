@@ -192,6 +192,7 @@ type ItemInstance struct {
 	rangedStyle    string
 	rangeIncrement int
 	fireModes      []string
+	recoilComp     int
 	reloadTicks    int
 	magazine       int
 	reloadMethod   string
@@ -540,6 +541,11 @@ func (it *ItemInstance) RangeIncrement() int { return it.rangeIncrement }
 // FireModes returns a copy of the weapon's supported firing modes (ranged-combat
 // §5.5) — a subset of {single, burst, auto}. Empty means single-fire only.
 func (it *ItemInstance) FireModes() []string { return append([]string(nil), it.fireModes...) }
+
+// RecoilComp returns the weapon's inherent recoil compensation (SR5 "RC"), which
+// reduces a burst/full-auto firing mode's recoil to-hit penalty (ranged-combat
+// §5.6). 0 for weapons without it.
+func (it *ItemInstance) RecoilComp() int { return it.recoilComp }
 
 // ReloadTicks is the load time of a reload-gated projectile (a crossbow), in
 // engine ticks; 0 means the weapon fires freely (a bow). action-economy §7.1.
@@ -1337,6 +1343,7 @@ func buildInstanceFromTemplate(tpl *item.Template, id EntityID) *ItemInstance {
 		rangedStyle:       tpl.RangedStyle,
 		rangeIncrement:    tpl.RangeIncrement,
 		fireModes:         append([]string(nil), tpl.FireModes...),
+		recoilComp:        tpl.RecoilComp,
 		reloadTicks:       tpl.ReloadTicks,
 		magazine:          tpl.Magazine,
 		reloadMethod:      tpl.ReloadMethod,

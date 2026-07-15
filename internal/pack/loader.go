@@ -3650,6 +3650,10 @@ func decodeItem(path, ns string) (*item.Template, error) {
 				ErrInvalidContent, path, m, item.FireModeNames())
 		}
 	}
+	if f.RecoilComp < 0 {
+		return nil, fmt.Errorf("%w: %s: rc %d must be non-negative",
+			ErrInvalidContent, path, f.RecoilComp)
+	}
 	if f.Magazine < 0 {
 		return nil, fmt.Errorf("%w: %s: magazine %d must be non-negative",
 			ErrInvalidContent, path, f.Magazine)
@@ -3906,6 +3910,7 @@ func decodeItem(path, ns string) (*item.Template, error) {
 		RangedStyle:       rangedStyle,
 		RangeIncrement:    f.RangeIncrement,
 		FireModes:         fireModes,
+		RecoilComp:        f.RecoilComp,
 		ReloadTicks:       f.ReloadTicks,
 		Magazine:          f.Magazine,
 		ReloadMethod:      reloadMethod,

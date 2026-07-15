@@ -227,6 +227,29 @@ trades **ammunition and accuracy for damage**:
 - [ ] The selection is clamped to the wielded weapon (switching to a weapon that
       lacks the mode falls back to single) and is not persisted across sessions.
 
+### 5.6 Recoil compensation
+
+A weapon (and, later, its accessories) may carry **recoil compensation** — a value
+that **reduces the firing mode's recoil to-hit penalty** (§5.5), floored at zero.
+
+- A weapon declares its inherent compensation (content). The compensation is
+  subtracted from the active mode's recoil; a weapon whose compensation meets or
+  exceeds the recoil fires that mode with **no accuracy loss** (burst becomes pure
+  upside — more damage, more ammo, same aim).
+- Compensation **never becomes a to-hit bonus**: surplus beyond the mode's recoil
+  is wasted (the net penalty floors at zero, no better than a single shot).
+- It applies only to the recoil penalty, not the point-blank or range falloff
+  (those are distance, not muzzle climb), and only to projectiles.
+
+**Acceptance criteria**
+
+- [ ] A weapon's recoil compensation reduces the active mode's recoil penalty,
+      floored at zero; a fully-compensated burst suffers no to-hit loss.
+- [ ] Surplus compensation grants no to-hit bonus (net penalty never goes below
+      zero).
+- [ ] Compensation affects only the recoil, not the point-blank or range-falloff
+      penalties.
+
 ## 6. Phasing: A first, then B
 
 Slice **A** (§2–§4) is shippable on its own and adds concrete, useful weapons —
@@ -273,6 +296,7 @@ flat adjustment) — correct, just without the distance play.
 | Point-blank penalty | The to-hit penalty for a ranged weapon used at the melee band (§5.3). | a mild penalty |
 | Vision-magnification bands | How many bands closer a magnifying attacker treats the target for the range falloff (§5.3). | one band |
 | Firing-mode effects | Per mode (single/burst/auto): rounds consumed, damage bonus, recoil to-hit penalty (§5.5). | single 1/0/0 · burst 3/+2/−2 · auto 6/+4/−4 |
+| Recoil compensation | A weapon's inherent recoil compensation, reducing the firing-mode recoil penalty (§5.6). | per weapon (content) |
 | Close/advance cadence | How many bands a combatant may advance/withdraw per round (§5.2, §5.4). | one band per round |
 | Strength rules | Full on thrown / none-positive on projectile / capped on Strength-rated (§4). | the source rules |
 | Out-of-ammo behavior | What happens when a projectile weapon has no matching ammo (§3). | the attack fails with a reason |

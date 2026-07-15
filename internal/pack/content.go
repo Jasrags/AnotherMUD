@@ -144,6 +144,7 @@ type ItemFile struct {
 	RangedStyle    string   `yaml:"ranged_style,omitempty"`
 	RangeIncrement int      `yaml:"range_increment,omitempty"`
 	FireModes      []string `yaml:"fire_modes,omitempty"`
+	RecoilComp     int      `yaml:"rc,omitempty"`
 	StrRating      *int     `yaml:"str_rating,omitempty"`
 	// ReloadTicks marks a projectile weapon that must be RELOADED between shots
 	// (a crossbow) and is its load time in engine ticks (action-economy.md §7.1).

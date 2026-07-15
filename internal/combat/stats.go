@@ -110,6 +110,13 @@ type Stats struct {
 	// falloff; inert in Slice A.
 	RangeIncrement int
 
+	// RecoilComp is the attacker's recoil compensation (ranged-combat §5.6),
+	// summed from the wielded weapon (and, later, accessories). It reduces the
+	// active firing mode's recoil to-hit penalty, floored at zero — so a
+	// well-compensated weapon fires burst/auto with little or no accuracy loss.
+	// Consulted only for projectiles; 0 leaves the full recoil in place.
+	RecoilComp int
+
 	// FireMode is the attacker's active firing mode (ranged-combat §5.5) —
 	// "single"/"burst"/"auto" — already clamped to the wielded weapon's
 	// supported set by the holder's Stats() builder. Empty ⇒ single. Consulted

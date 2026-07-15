@@ -388,7 +388,9 @@ func runAutoAttack(ctx context.Context, attackerID CombatantID, mgr *Manager, cf
 		// identity, so ordinary single-shot fire is unchanged. The per-attack
 		// ammo cost (Rounds) is spent host-side in AmmoFor, not here.
 		eff := cfg.FireModeEffectOf(atkStats.FireMode)
-		hitMod -= eff.Recoil
+		// Recoil compensation (§5.6) offsets the mode's recoil, floored at zero —
+		// a well-compensated weapon suffers little or no accuracy loss on burst.
+		hitMod -= max(0, eff.Recoil-atkStats.RecoilComp)
 		atkStats.DamageBonus += eff.DamageBonus
 	}
 

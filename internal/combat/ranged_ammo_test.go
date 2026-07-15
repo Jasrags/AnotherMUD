@@ -274,6 +274,41 @@ func TestAutoAttack_BurstFireRecoilPenalty(t *testing.T) {
 	}
 }
 
+// Recoil compensation (ranged-combat §5.6) offsets the firing mode's recoil: the
+// same marginal shot that burst-recoil dropped to a miss LANDS when the weapon
+// fully compensates (RecoilComp 2 vs burst recoil 2).
+func TestAutoAttack_RecoilCompensationRestoresShot(t *testing.T) {
+	atkStats := Stats{HitMod: 0, RangedClass: RangedProjectile, AmmoKind: "bullet", FireMode: FireModeBurst, RecoilComp: 2}
+	defStats := Stats{AC: 12}
+	rig := newAutoAttackRig(t, atkStats, defStats, 10, 20, []int{11, 0}) // d20 = 12, then damage
+	rig.fireModes = DefaultFireModes()                                   // burst recoil 2
+	rig.falloff = 0
+	rig.phase()(context.Background(), rig.attacker.id, rig.mgr, 0)
+
+	// 12 - max(0, 2-2) = 12 >= AC 12 → hit. (Uncompensated: 12-2 = 10 → miss.)
+	if h := len(rig.sink.snapshotHits()); h != 1 {
+		t.Fatalf("recoil compensation should restore the burst shot: got %d hit / %d miss",
+			h, len(rig.sink.snapshotMisses()))
+	}
+}
+
+// Over-compensation does not become a to-hit BONUS: RC beyond the mode's recoil
+// floors at zero net penalty, no better than a single shot's accuracy.
+func TestAutoAttack_RecoilCompensationFloorsAtZero(t *testing.T) {
+	atkStats := Stats{HitMod: 0, RangedClass: RangedProjectile, AmmoKind: "bullet", FireMode: FireModeBurst, RecoilComp: 10}
+	defStats := Stats{AC: 13}                                         // a single shot (roll 12) would miss AC 13; RC can't push it over
+	rig := newAutoAttackRig(t, atkStats, defStats, 10, 20, []int{11}) // d20 = 12
+	rig.fireModes = DefaultFireModes()
+	rig.falloff = 0
+	rig.phase()(context.Background(), rig.attacker.id, rig.mgr, 0)
+
+	// 12 - max(0, 2-10) = 12 < AC 13 → miss (no bonus from surplus RC).
+	if m := len(rig.sink.snapshotMisses()); m != 1 {
+		t.Fatalf("surplus recoil comp must not grant a to-hit bonus: got %d miss / %d hit",
+			m, len(rig.sink.snapshotHits()))
+	}
+}
+
 // Burst fire adds a damage bonus to a hit (more rounds on target). A 1d2 weapon
 // rolling its low face deals 1 base; burst folds in +2 → 3.
 func TestAutoAttack_BurstFireDamageBonus(t *testing.T) {
