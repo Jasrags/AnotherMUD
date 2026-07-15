@@ -8,11 +8,12 @@ description: |
   on you, and that anonymity is worth more than any diploma when you run the
   shadows.
 # Starting skills (backgrounds §2) — the barrens curriculum, granted at a novice
-# proficiency. All three are tapestry-core abilities (SR depends on core).
+# proficiency. Sneaking is the SR pack's single stealth skill (manifest
+# stealth_skill: sneaking) — it feeds BOTH the hide and sneak concealment checks,
+# so the runner no longer carries the two inert core hide/move-silently skills.
+# Perception is the SR priority-1 override of the core ability (id preserved).
 skills:
-  - ability: hide
-    proficiency: 15
-  - ability: move-silently
+  - ability: sneaking
     proficiency: 15
   - ability: perception
     proficiency: 10

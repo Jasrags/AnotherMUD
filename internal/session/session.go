@@ -227,6 +227,13 @@ type Config struct {
 	AttributeSets      *progression.AttributeSetRegistry
 	WorldAttributeSets map[string]string
 
+	// WorldStealthSkills maps a world namespace → the single skill id both
+	// concealment axes read for that world (skills §2 — SR's `sneaking` merging
+	// D&D's hide + move-silently). Held so the actor constructor resolves ITS
+	// WORLD'S stealth skill for HideScore/SneakDifficulty. A world absent from
+	// the map falls back to the two-axis engine default (hide / move-silently).
+	WorldStealthSkills map[string]string
+
 	// Pools is the content-declared resource-pool registry (shadowrun-mvp
 	// SR-M3a). Held so the actor constructor seeds a character's pool.Set from
 	// the active world's player-seed pool decls (mana/movement in core, plus a
@@ -630,6 +637,22 @@ func resolveAttributeSet(sets *progression.AttributeSetRegistry, selection map[s
 	return set
 }
 
+// resolveStealthSkills resolves the two skill ability ids the concealment
+// consumers read for a character's world (skills §2). A world that declares a
+// manifest `stealth_skill:` (SR: `sneaking`) merges D&D's two stealth skills
+// into one, so BOTH the hide axis and the sneak axis read that single id;
+// otherwise the engine two-axis default applies (hide / move-silently). Pure +
+// nil-safe: an absent selection or unlisted world yields the defaults, so a
+// fantasy boot is unchanged.
+func resolveStealthSkills(selection map[string]string, worldID string) (hideSkill, sneakSkill string) {
+	if selection != nil {
+		if id := selection[worldID]; id != "" {
+			return id, id
+		}
+	}
+	return skillAbilityHide, skillAbilityMoveSilently
+}
+
 // seedBaseFromSetOrDefault builds the character's base attribute seed from a
 // resolved attribute set (attribute defaults + engine-vital keys), or falls
 // back to progression.DefaultPlayerBase when the set is nil (a boot with no
@@ -729,6 +752,10 @@ func run(ctx context.Context, c conn.Connection, cfg Config) error {
 	// Resolve the character's world attribute set once (SR-M1): it seeds the
 	// StatBlock AND is held for `score` to render the declared attributes.
 	attrSet := resolveAttributeSet(cfg.AttributeSets, cfg.WorldAttributeSets, loaded.Player.WorldID)
+	// Resolve the character's stealth skill(s) once (skills §2): SR routes both
+	// concealment axes through its single `sneaking`; a fantasy world keeps the
+	// hide / move-silently split.
+	hideSkill, sneakSkill := resolveStealthSkills(cfg.WorldStealthSkills, loaded.Player.WorldID)
 	a := &connActor{
 		id:            c.ID(),
 		conn:          c,
@@ -743,6 +770,8 @@ func run(ctx context.Context, c conn.Connection, cfg Config) error {
 		faction:       cfg.Faction,
 		reputation:    cfg.Reputation,
 		prof:          cfg.Proficiency,
+		hideSkill:     hideSkill,
+		sneakSkill:    sneakSkill,
 		known:         cfg.Known,
 		combat:        cfg.Combat,
 		combatLocator: cfg.CombatLocator,
@@ -1937,6 +1966,16 @@ type connActor struct {
 	// when nil, abilities neither persist nor flush.
 	prof *progression.ProficiencyManager
 
+	// hideSkill / sneakSkill are the skill ability ids the two concealment
+	// consumers read (skills §2), resolved once from the character's world at
+	// construction. The engine default is the two-axis fantasy model
+	// (hide / move-silently); a world that declares a manifest `stealth_skill:`
+	// (SR: `sneaking`) points BOTH at that one id, so its single Sneaking skill
+	// actually feeds HideScore and SneakDifficulty. Never empty after
+	// construction (resolveStealthSkills always fills both).
+	hideSkill  string
+	sneakSkill string
+
 	// known is the per-character known-recipe manager reference
 	// (crafting-and-cooking §7, §9), captured at construction. Persist
 	// snapshots the actor's known recipes into save before write; logout
@@ -2840,6 +2879,27 @@ func (a *connActor) skillProficiency(abilityID string) int {
 	return prof
 }
 
+// HideSkill / SneakSkill return the skill ability id this character's world
+// binds to each concealment axis (skills §2), read by both the concealment
+// difficulty (HideScore/SneakDifficulty) and the use-gain the hide/sneak verbs
+// roll — so the same skill that gates a check also grows from the activity. The
+// empty-field fallback to the engine axis default keeps a directly-constructed
+// connActor (test fakes that skip the run-path constructor) on the two-axis
+// model. Part of the concealer/sneaker capability interfaces (hide.go).
+func (a *connActor) HideSkill() string {
+	if a.hideSkill == "" {
+		return skillAbilityHide
+	}
+	return a.hideSkill
+}
+
+func (a *connActor) SneakSkill() string {
+	if a.sneakSkill == "" {
+		return skillAbilityMoveSilently
+	}
+	return a.sneakSkill
+}
+
 // HideScore computes the would-be concealment difficulty for a hide
 // attempt (visibility.md §3.1 / §8: proficiency + governing stat + mods).
 // v1 is a base plus the actor's DEX modifier — stealthy/agile characters
@@ -2859,7 +2919,7 @@ func (a *connActor) HideScore() int {
 	// SkillBonus (= proficiency term + the Dex modifier); at proficiency 0 this
 	// equals the bare Dex modifier — the pre-skill behavior. The Stealthy feat
 	// axis stays additive on top.
-	prof := a.skillProficiency(skillAbilityHide)
+	prof := a.skillProficiency(a.HideSkill())
 	return baseHideDC + progression.SkillBonus(prof, sb.Effective(progression.StatDEX), progression.DefaultSkillConfig()) + a.FeatSkillBonus(skillStealth)
 }
 
@@ -2940,7 +3000,7 @@ func (a *connActor) SneakDifficulty() int {
 	// Move Silently proficiency folds in via SkillBonus (proficiency 0 = the
 	// bare Dex modifier, the pre-skill behavior); the Stealthy feat axis stays
 	// additive on top.
-	prof := a.skillProficiency(skillAbilityMoveSilently)
+	prof := a.skillProficiency(a.SneakSkill())
 	return baseSneakDC + progression.SkillBonus(prof, sb.Effective(progression.StatDEX), progression.DefaultSkillConfig()) + a.FeatSkillBonus(skillStealth)
 }
 

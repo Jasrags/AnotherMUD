@@ -38,6 +38,11 @@ attribute_set: shadowrun-primaries
 currency:
   name: nuyen
   suffix: "¥"
+# Stealth-skill selection (skills §2): SR5 merges D&D's Hide + Move Silently into
+# one AGI skill, Sneaking. This routes BOTH concealment axes (the `hide` and
+# `sneak` verbs' checks AND their use-gain) through the single `sneaking` skill,
+# so a runner has one Stealth skill instead of the two-axis fantasy default.
+stealth_skill: sneaking
 content:
   # The eight primaries (Body/Agility/Reaction/Strength/Willpower/Logic/
   # Intuition/Charisma) plus Edge (SR-M1). The loader enumerates by this glob,

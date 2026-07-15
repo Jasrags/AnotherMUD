@@ -186,6 +186,16 @@ type Registries struct {
 	// world's set. Not a content registry — loaded-pack metadata like Worlds.
 	WorldAttributeSets map[string]string
 
+	// WorldStealthSkills maps a world pack's namespace → the single skill
+	// ability id both concealment axes read (its manifest `stealth_skill:`), for
+	// world packs that merge D&D's hide + move-silently into one skill (SR:
+	// `sneaking`, skills §2). A world absent from this map (the common case)
+	// falls back to the engine two-axis default (hide / move-silently). Populated
+	// by Load; the composition root threads it into session.Config so the actor
+	// constructor resolves its world's stealth skill. Not a content registry —
+	// loaded-pack metadata, like WorldAttributeSets.
+	WorldStealthSkills map[string]string
+
 	// Splashes maps a world pack's namespace → its connect splash text
 	// (the raw file contents with engine color markup, not yet rendered).
 	// Populated by Load for every kind:world pack (required, validated);
@@ -246,6 +256,7 @@ func NewRegistries() *Registries {
 		// repopulates it (the active world set is empty until Load runs).
 		Worlds:             []string{},
 		WorldAttributeSets: map[string]string{},
+		WorldStealthSkills: map[string]string{},
 		Splashes:           map[string]string{},
 		WorldCurrencies:    map[string]economy.CurrencyLabel{},
 	}

@@ -9,15 +9,13 @@ import (
 	"github.com/Jasrags/AnotherMUD/internal/world"
 )
 
-// Skill ability ids whose use-based proficiency the visibility verbs train
-// (skills §2 — EPIC S3). Hide/Move Silently fold into the hider's concealment
-// difficulty; Perception (collapsing Spot/Listen/Search) into the observer's
-// contest. Mirrors skillOpenLock (door.go).
-const (
-	skillHide         = "hide"
-	skillMoveSilently = "move-silently"
-	skillPerception   = "perception"
-)
+// skillPerception is the observer-side skill (collapsing Spot/Listen/Search)
+// the `search` verb trains (skills §2 — EPIC S3). The hider-side ids (hide /
+// move-silently, or a world's merged stealth skill) are resolved per-character
+// and reached through concealer.HideSkill / sneaker.SneakSkill rather than a
+// command-package constant, so a world that merges them (SR: `sneaking`) trains
+// the right skill.
+const skillPerception = "perception"
 
 // rollSkillGain rolls one use-based proficiency gain for a skill the actor just
 // exercised — the same loop the `pick` verb runs for Open Lock. success scales
@@ -45,6 +43,11 @@ type concealer interface {
 	IsHidden() bool
 	// HideScore computes the would-be concealment difficulty (§4.2).
 	HideScore() int
+	// HideSkill is the skill ability id the hide check reads and the verb trains
+	// (skills §2) — the world's stealth skill (SR: `sneaking`), or `hide` by
+	// default. Kept on the capability so the verb trains the SAME skill the
+	// concealment difficulty consumed, not a hardcoded axis id.
+	HideSkill() string
 	// Hide commits concealment at score and returns the new instance id (§4.1).
 	Hide(score int) uint64
 	// Reveal clears hide concealment, returning whether it was hidden.
@@ -60,6 +63,10 @@ type sneaker interface {
 	IsSneaking() bool
 	// SneakDifficulty computes the would-be per-observer contest score (§3.2).
 	SneakDifficulty() int
+	// SneakSkill is the skill ability id the sneak check reads and the verb
+	// trains (skills §2) — the world's stealth skill (SR: `sneaking`), or
+	// `move-silently` by default. Mirrors HideSkill on the concealer.
+	SneakSkill() string
 	// Sneak commits sneaking at score and returns the new instance id.
 	Sneak(score int) uint64
 	// Unsneak clears sneaking, returning whether it was sneaking.
@@ -91,9 +98,11 @@ func HideHandler(ctx context.Context, c *Context) error {
 
 	score := h.HideScore()
 	h.Hide(score)
-	// The act of hiding trains the Hide skill (use-gain; skills §2). Concealment
-	// always establishes — the contest comes later — so this is a successful use.
-	rollSkillGain(c, skillHide, true)
+	// The act of hiding trains the actor's stealth skill (use-gain; skills §2) —
+	// the same id the HideScore check read, so SR's `sneaking` grows from hiding
+	// (not the inert core `hide`). Concealment always establishes — the contest
+	// comes later — so this is a successful use.
+	rollSkillGain(c, h.HideSkill(), true)
 	if c.Bus != nil {
 		c.Bus.Publish(ctx, eventbus.EntityConcealed{
 			EntityID:   c.Actor.PlayerID(),
@@ -159,8 +168,9 @@ func SneakHandler(ctx context.Context, c *Context) error {
 		return c.Actor.Write(ctx, "You can't sneak here.")
 	}
 	s.Sneak(s.SneakDifficulty())
-	// Beginning to sneak trains the Move Silently skill (use-gain; skills §2).
-	rollSkillGain(c, skillMoveSilently, true)
+	// Beginning to sneak trains the actor's stealth skill (use-gain; skills §2) —
+	// the same id SneakDifficulty read, so SR's `sneaking` grows from sneaking.
+	rollSkillGain(c, s.SneakSkill(), true)
 	if c.Bus != nil {
 		c.Bus.Publish(ctx, eventbus.EntityConcealed{
 			EntityID:   c.Actor.PlayerID(),

@@ -99,6 +99,16 @@ type Manifest struct {
 	// AttributeSet this is NOT a breaking/migration field; change it freely.
 	Currency *CurrencyManifest `yaml:"currency,omitempty"`
 
+	// StealthSkill selects the single skill ability that BOTH concealment axes
+	// (hide + move-silently) read for this world (skills §2 — SR merges D&D's
+	// two stealth skills into one "Sneaking"). Only meaningful on kind:world
+	// packs. Absent → the engine default, where the hide verb reads the `hide`
+	// ability and the sneak verb reads `move-silently` (the two-axis fantasy
+	// model). Set it to a single id (SR: `sneaking`) to route both verbs' checks
+	// through that one proficiency. Behavior-only, not a save field — change it
+	// freely.
+	StealthSkill string `yaml:"stealth_skill,omitempty"`
+
 	// Content paths — only the categories M2 cares about are listed.
 	// Unknown keys are tolerated (no strict YAML decoding) so future
 	// content types do not fail manifests authored ahead of time.

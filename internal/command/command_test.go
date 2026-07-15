@@ -432,6 +432,11 @@ func (a *testActor) HideScore() int {
 	return 12
 }
 
+// HideSkill / SneakSkill report the axis-default stealth skill ids (the fake
+// has no world, so it stays on the two-axis model).
+func (a *testActor) HideSkill() string  { return "hide" }
+func (a *testActor) SneakSkill() string { return "move-silently" }
+
 func (a *testActor) Hide(score int) uint64 {
 	a.mu.Lock()
 	defer a.mu.Unlock()

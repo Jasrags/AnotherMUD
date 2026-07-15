@@ -160,6 +160,7 @@ func Load(ctx context.Context, root string, filter []string, dst *Registries, sp
 	dst.Worlds = dst.Worlds[:0]
 	dst.Splashes = make(map[string]string)
 	dst.WorldAttributeSets = make(map[string]string)
+	dst.WorldStealthSkills = make(map[string]string)
 	dst.WorldCurrencies = make(map[string]economy.CurrencyLabel)
 	for _, p := range ordered {
 		if !ValidKind(p.Manifest.Kind) {
@@ -188,6 +189,13 @@ func Load(ctx context.Context, root string, filter []string, dst *Registries, sp
 			// here, mirroring how a background's home_language resolves.
 			if id := strings.TrimSpace(p.Manifest.AttributeSet); id != "" {
 				dst.WorldAttributeSets[p.Namespace()] = strings.ToLower(id)
+			}
+			// Record the world's stealth-skill selection (skills §2): the single
+			// skill both concealment axes read. Absent → omitted, so the two-axis
+			// engine default (hide / move-silently) applies. Lower-cased to match
+			// how ability ids are canonicalized at Register.
+			if id := strings.TrimSpace(p.Manifest.StealthSkill); id != "" {
+				dst.WorldStealthSkills[p.Namespace()] = strings.ToLower(id)
 			}
 			// Record the world's money-display vocabulary (the nuyen/¥ reskin).
 			// Absent → omitted, so display falls back to the gold default. The

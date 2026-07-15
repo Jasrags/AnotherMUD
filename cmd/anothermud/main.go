@@ -3420,6 +3420,7 @@ func run() error {
 		Backgrounds:           registries.Backgrounds,
 		AttributeSets:         registries.AttributeSets,
 		WorldAttributeSets:    registries.WorldAttributeSets,
+		WorldStealthSkills:    registries.WorldStealthSkills,
 		Pools:                 registries.Pools,
 		Alignment:             alignmentMgr,
 		Faction:               factionMgr,
