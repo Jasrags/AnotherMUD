@@ -72,6 +72,7 @@ type autoAttackRig struct {
 	takeLoadedShot func(CombatantID) bool                   // TakeLoadedShot (action-economy §7.1) — nil ⇒ always loaded
 	falloff        int                                      // RangeFalloff (ranged-combat §5.3)
 	pblank         int                                      // PointBlankPenalty (ranged-combat §5.3)
+	magBands       int                                      // MagnificationBands (ranged-combat §5.3)
 	kite           func(CombatantID, CombatantID, int) bool // KitePolicy (ranged-combat §5.4)
 	secOff         int                                      // SecondaryOffHandPenalty (two-weapon-fighting §4.3)
 	setBonus       int                                      // SetDamageBonus (special-weapons §4)
@@ -125,6 +126,7 @@ func (r *autoAttackRig) phase() PhaseFunc {
 		TakeLoadedShot:          r.takeLoadedShot,
 		RangeFalloff:            r.falloff,
 		PointBlankPenalty:       r.pblank,
+		MagnificationBands:      r.magBands,
 		KitePolicy:              r.kite,
 		SecondaryOffHandPenalty: r.secOff,
 		SetDamageBonus:          r.setBonus,

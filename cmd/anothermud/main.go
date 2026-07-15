@@ -2154,8 +2154,9 @@ func run() error {
 		// deferred (ranged-combat §9).
 		// ranged-combat §5.3: a projectile's per-band to-hit falloff (per band
 		// of distance) and the point-blank penalty firing at the melee band.
-		RangeFalloff:      envIntOr("ANOTHERMUD_RANGE_FALLOFF", 2),
-		PointBlankPenalty: envIntOr("ANOTHERMUD_POINT_BLANK_PENALTY", 4),
+		RangeFalloff:       envIntOr("ANOTHERMUD_RANGE_FALLOFF", 2),
+		PointBlankPenalty:  envIntOr("ANOTHERMUD_POINT_BLANK_PENALTY", 4),
+		MagnificationBands: envIntOr("ANOTHERMUD_VISION_MAGNIFICATION_BANDS", 1),
 		// two-weapon-fighting §4.3: each off-hand strike after the first (Improved
 		// Two-Weapon Fighting) takes this cumulative to-hit penalty. The source's -5.
 		SecondaryOffHandPenalty: envIntOr("ANOTHERMUD_TWF_SECONDARY_OFFHAND_PENALTY", 5),

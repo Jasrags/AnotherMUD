@@ -63,6 +63,9 @@ properties:
       # Ultrasound sensor (visibility §3/§4.3) — active sonar that pierces
       # darkness AND detects hidden/sneaking foes, regardless of light.
       - shadowrun:cybereye-ultrasound
+      # Vision magnification (ranged-combat §5.3) — telescopic optics that cut the
+      # range-band to-hit falloff on a projectile shot (treats the target closer).
+      - shadowrun:cybereye-magnification
       # Smartlink↔smartgun pairing: a smartlink drops into a cybereye, a smartgun
       # system onto a weapon's mount; carrying both grants the to-hit bonus.
       - shadowrun:smartlink

@@ -203,6 +203,60 @@ func TestAutoAttack_ProjectileShootsFromRangeWithFalloff(t *testing.T) {
 	}
 }
 
+// Vision Magnification (ranged-combat §5.3): the SAME far shot that misses under
+// full falloff HITS when the attacker's optics treat the target one band closer
+// (magBands 1 → far becomes the nearer band's smaller falloff). Same roll, same
+// band, opposite outcome — proving magnification cut the range penalty.
+func TestAutoAttack_ProjectileMagnificationReducesFalloff(t *testing.T) {
+	// AC 25 sits between the far-band penalty and the magnified (one-band-closer)
+	// penalty for a raw-15 roll with falloff 10: far (band 2) → 15-20 misses;
+	// magnified to band 1 → 15-10 = 5 ... so pick numbers that straddle AC.
+	// raw 15, falloff 10, farBand = 2: unmagnified 15-20 = -5; magnified 15-10 = 5.
+	// AC 0 → magnified (5) hits, unmagnified (-5) misses.
+	atkStats := Stats{HitMod: 0, RangedClass: RangedProjectile, AmmoKind: "arrow", HasRangeMagnification: true}
+	defStats := Stats{AC: 0}
+	rig := newAutoAttackRig(t, atkStats, defStats, 10, 20, []int{14, 0}) // d20=15, then dmg
+	rig.falloff = 10
+	rig.magBands = 1
+	rig.mgr.AdjustBand(rig.attacker.id, rig.target.id, +farBand())
+	rig.phase()(context.Background(), rig.attacker.id, rig.mgr, 0)
+
+	if h := len(rig.sink.snapshotHits()); h != 1 {
+		t.Fatalf("magnification should pull a far shot into hitting range: got %d hit / %d miss",
+			h, len(rig.sink.snapshotMisses()))
+	}
+
+	// Control: without magnification the identical far shot misses.
+	atkNoMag := Stats{HitMod: 0, RangedClass: RangedProjectile, AmmoKind: "arrow"}
+	rig2 := newAutoAttackRig(t, atkNoMag, defStats, 10, 20, []int{14})
+	rig2.falloff = 10
+	rig2.magBands = 1 // config present, but the attacker lacks the capability
+	rig2.mgr.AdjustBand(rig2.attacker.id, rig2.target.id, +farBand())
+	rig2.phase()(context.Background(), rig2.attacker.id, rig2.mgr, 0)
+	if m := len(rig2.sink.snapshotMisses()); m != 1 {
+		t.Fatalf("without magnification the far shot must still miss: got %d miss / %d hit",
+			m, len(rig2.sink.snapshotHits()))
+	}
+}
+
+// Invariant: Vision Magnification does NOT reduce the point-blank penalty — it
+// helps at range, not up close. At the melee band a magnified projectile still
+// eats the full point-blank penalty and misses.
+func TestAutoAttack_MagnificationDoesNotHelpPointBlank(t *testing.T) {
+	atkStats := Stats{HitMod: 0, RangedClass: RangedProjectile, AmmoKind: "arrow", HasRangeMagnification: true}
+	defStats := Stats{AC: 10}
+	rig := newAutoAttackRig(t, atkStats, defStats, 10, 20, []int{14}) // raw 15
+	rig.pblank = 10                                                   // 15 - 10 = 5 < AC 10 → miss
+	rig.magBands = 5                                                  // generous, but must not touch point-blank
+	rig.mgr.AdjustBand(rig.attacker.id, rig.target.id, -farBand())    // pull to melee band
+	rig.phase()(context.Background(), rig.attacker.id, rig.mgr, 0)
+
+	if m := len(rig.sink.snapshotMisses()); m != 1 {
+		t.Fatalf("magnification must not offset the point-blank penalty: got %d miss / %d hit",
+			m, len(rig.sink.snapshotHits()))
+	}
+}
+
 // The same projectile roll HITS at the melee band (no falloff there) — proving
 // the miss above was the band falloff, not the roll.
 func TestAutoAttack_ProjectileHitsAtMeleeBand(t *testing.T) {

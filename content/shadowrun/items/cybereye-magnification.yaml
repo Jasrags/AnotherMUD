@@ -1,0 +1,22 @@
+id: cybereye-magnification
+name: a vision magnification mod
+type: item
+description: |
+  A zoom package for a cybereye — telescopic optics that pull a distant target
+  in close and hold it steady. The mark across the lot fills your vision like
+  they're an arm's length away; the shot that would have been a prayer becomes a
+  sure thing. No help in a knife-fight — but at range, it changes the math.
+tags: [cyberware-mod]
+keywords: [magnification, zoom, scope, telescopic]
+# Cyberware-cluster ENHANCEMENT (item-modification.md §3): fits a cybereye host,
+# SR5 Vision Magnification [1]. It `grants: [vision-magnification]`; while the host
+# eyes are worn a projectile attack treats its target as one range band closer,
+# cutting the distance to-hit falloff (ranged-combat §5.3). It does nothing at the
+# melee band (magnification does not help up close). No live stat modifier; the
+# reduced range penalty IS the effect.
+mod_host: cybereye
+mod_capacity_cost: 1
+grants: [vision-magnification]
+properties:
+  weight: 0
+  value: 800

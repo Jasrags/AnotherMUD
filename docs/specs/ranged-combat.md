@@ -166,6 +166,12 @@ new distance the ranged model adds.
   a range-increment to-hit adjustment (§2). Using a ranged weapon **at the melee
   band** is allowed but takes a configurable point-blank penalty (awkward up
   close) — so a switch to a melee sidearm is the natural play once closed.
+- **Vision magnification** (an attacker capability — magnifying optics, e.g. a
+  cybereye grant) reduces the distance falloff by treating the target as a
+  configurable number of bands **closer** (floored at the melee band, i.e. no
+  falloff — never a bonus). It applies only to the **range** falloff, never the
+  point-blank penalty (optics do not help up close). Sourced like the other
+  vision modes — an attacker property from equipped gear or a racial trait.
 
 ### 5.4 Advance and withdraw (kiting)
 
@@ -233,6 +239,7 @@ flat adjustment) — correct, just without the distance play.
 | Range-band vocabulary | The ordered far→melee band names (§5.1). | the WoT pack bands (e.g. far / near / melee) |
 | Range-increment falloff | The to-hit penalty per range increment of distance (§5.3). | policy magnitude |
 | Point-blank penalty | The to-hit penalty for a ranged weapon used at the melee band (§5.3). | a mild penalty |
+| Vision-magnification bands | How many bands closer a magnifying attacker treats the target for the range falloff (§5.3). | one band |
 | Close/advance cadence | How many bands a combatant may advance/withdraw per round (§5.2, §5.4). | one band per round |
 | Strength rules | Full on thrown / none-positive on projectile / capped on Strength-rated (§4). | the source rules |
 | Out-of-ammo behavior | What happens when a projectile weapon has no matching ammo (§3). | the attack fails with a reason |

@@ -99,6 +99,13 @@ type AutoAttackConfig struct {
 	// thrown auto-close instead.
 	RangeFalloff      int
 	PointBlankPenalty int
+	// MagnificationBands is how many range bands closer an attacker with
+	// Stats.HasRangeMagnification (SR5 Vision Magnification optics) treats its
+	// target for the §5.3 range falloff: the falloff is computed at
+	// max(0, band-MagnificationBands), so a magnified far shot suffers a nearer
+	// band's penalty (or none). It never touches the point-blank penalty.
+	// Policy (§8); 0 means magnification has no effect.
+	MagnificationBands int
 	// SecondaryOffHandPenalty is the cumulative to-hit penalty applied to each
 	// off-hand strike AFTER the first when Improved Two-Weapon Fighting grants
 	// more than one (two-weapon-fighting §4.3): strike i (0-based) takes
@@ -360,7 +367,15 @@ func runAutoAttack(ctx context.Context, attackerID CombatantID, mgr *Manager, cf
 		if band == meleeBand {
 			hitMod -= cfg.PointBlankPenalty
 		} else {
-			hitMod -= cfg.RangeFalloff * band
+			// Vision Magnification (ranged-combat §5.3): optics pull the target
+			// closer, so the falloff is computed at a nearer band (floored at
+			// melee-equivalent = no falloff). Never reduces the point-blank
+			// penalty above — magnification does not help up close.
+			effBand := band
+			if atkStats.HasRangeMagnification {
+				effBand = max(0, band-cfg.MagnificationBands)
+			}
+			hitMod -= cfg.RangeFalloff * effBand
 		}
 	}
 

@@ -12,6 +12,13 @@ const (
 	RangedProjectile = "projectile"
 )
 
+// VisionMagnificationCapability is the equipped-capability grant key (a cybereye
+// enhancement's `grants: [vision-magnification]`) that sets
+// Stats.HasRangeMagnification. The holder's Stats() builder checks it against the
+// attacker's equipped gear; the string is the content contract (item-modification
+// §6), kept here as the single source of truth for the combat consumer.
+const VisionMagnificationCapability = "vision-magnification"
+
 // Stats is the per-combatant derived stat block the hit and damage
 // rolls consume (spec combat §4.4-4.5). M7.1 carries only what combat
 // itself reads; richer attributes (DEX, CON, race, class, derived
@@ -102,6 +109,15 @@ type Stats struct {
 	// (ranged-combat §2). Zero = unset. Carried for Slice B's band to-hit
 	// falloff; inert in Slice A.
 	RangeIncrement int
+
+	// HasRangeMagnification marks an attacker whose optics magnify the target
+	// (SR5 Vision Magnification — a cybereye grant): the projectile range-band
+	// falloff (ranged-combat §5.3) is computed as if the target were
+	// Config.MagnificationBands bands closer, so a far shot is more accurate. It
+	// never reduces the point-blank penalty (magnification does not help up
+	// close). An attacker property, sourced from equipped capabilities by the
+	// holder's Stats() builder; inert for melee/thrown and for non-projectiles.
+	HasRangeMagnification bool
 
 	// ReloadTicks > 0 marks the wielded projectile as RELOAD-GATED (a crossbow):
 	// it holds one loaded shot, firing consumes that loaded state, and reloading

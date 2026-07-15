@@ -7079,6 +7079,11 @@ func (a *connActor) Stats() combat.Stats {
 		s.AmmoKind = w.ammoKind
 		s.RangedStyle = w.rangedStyle
 		s.RangeIncrement = w.rangeIncrement
+		// Vision Magnification (ranged-combat §5.3): the attacker's optics reduce
+		// the projectile range-band falloff. An attacker property from equipped
+		// gear (a cybereye grant), read here in the armed path since only a
+		// projectile (w != nil) consults it.
+		s.HasRangeMagnification = a.HasEquippedCapability(combat.VisionMagnificationCapability)
 		s.ReloadTicks = w.reloadTicks
 		s.Magazine = w.magazine
 		s.AcceptsHolder = w.acceptsHolder
