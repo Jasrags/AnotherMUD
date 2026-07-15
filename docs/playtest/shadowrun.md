@@ -457,8 +457,15 @@ it, feeds **fuel canisters**, and (being SA/BF/FA) composes with firing modes.
 - [ ] Other energy types: **cold** and **electrical** work the same way. Buy the
       **insulation** liner (soaks cold) or the **nonconductivity** liner (soaks
       electrical), `modify jacket insulation` / `... nonconductivity`. A stun baton
-      / taser now deals *electrical* — nonconductivity blunts the shock. (No Core
-      cold weapon yet; cold is defense-side until one is authored.)
+      / taser now deals *electrical* — nonconductivity blunts the shock.
+- [ ] Cold, offensively: `buy cryo projector`, `buy coolant canister`, `wield cryo`
+      — the flamethrower's cold twin freezes the unprotected; an insulation liner
+      soaks it.
+- [ ] Cold, environmentally — **the Deep Freeze**: from the Edge of Glow City go
+      `north` into a breached cold-storage vault (the `cryo` biome). Unshielded, the
+      killing cold bites each tick (HP drops); `buy coldsuit`, `wear suit`, and the
+      `cold-sealed` seal lets you loot the caskets — the cold sibling of the Glow
+      (§ radiation). Backed by `cold_hazard_live_test.go`.
 
 ## 48. Armor penetration (AP)
 
@@ -497,8 +504,10 @@ creature's toughness or a typed resistance. It applies to melee and ranged alike
   fired round (APDS grade — §48); mixed-ammo bursts ride only the first round's
   grade; **fire / cold / electrical** are
   damage types soaked by the matching liner (fire-resistance / insulation /
-  nonconductivity), but fire does not yet ignite / deal damage-over-time, and
-  there is no Core cold weapon or cold hazard yet (cold is defense-side).
+  nonconductivity), each with a weapon dealing it (flamethrower / cryo projector /
+  shock weapons); cold also has a biome hazard (the Deep Freeze), alongside the
+  radiation (Glow) and toxin (ashfall) hazards. Fire does not yet ignite / deal
+  damage-over-time.
 - **Deferred combat depth:** the magazine model and cross-room `shoot` for the SR
   pack are recorded in the SR-M3c deferred-fixes memory.
 - **Item modification (§44):** the shipped Core armor mods are the ones with live
