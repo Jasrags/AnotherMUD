@@ -19,7 +19,7 @@ slice of the sequence:
 
 - **core.md** — §0–§26, §28–§31, §36
 - **wot.md** — §27, §32, §33 (ranged, both boots), §34, §35
-- **shadowrun.md** — §37–§44
+- **shadowrun.md** — §37–§50
 
 (§33 "Ranged combat" is one chapter in **wot.md**: its *thrown* half runs on the
 default boot, its *projectile/range-band* half on the WoT boot.)

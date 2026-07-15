@@ -517,6 +517,51 @@ then wear the eyes) or worn **eyewear** (the new `eyes` slot, no surgery):
 
 ---
 
+## 50. Skills — Sneaking, weapon skills & training (skills §2/§7)
+
+SR5 resolves an action as **skill + attribute**, and this boot runs the
+weapon-skill combat model: a wielded weapon binds a skill, to-hit reads that
+skill's rating, and each swing trains it. SR also merges D&D's two stealth
+skills into one **Sneaking** (Agility).
+
+### The skills sheet
+
+- [ ] `skills` on a fresh Street Samurai — a **grouped** sheet: *Combat —
+      Firearms* (Pistols, Automatics, Longarms, Heavy Weapons), *Combat — Close
+      Combat* (Blades, Clubs, Unarmed Combat, Throwing Weapons), *Physical —
+      Stealth* (**Sneaking**), plus Perception — each with a 3-letter attribute
+      tag like `(AGI)`. There is **one** Sneaking skill, not a separate Hide and
+      Move Silently.
+
+### Stealth trains Sneaking (Slice C)
+
+- [ ] `hide` (then `unhide` and repeat) — with `ANOTHERMUD_SKILL_GAIN_NOTIFY_STEP=1`
+      you see **"You feel your Sneaking improve."** Hiding AND sneaking both train
+      the single Sneaking skill — the merged SR stealth skill actually feeds the
+      concealment check, and no inert core `hide`/`move-silently` skill lingers on
+      the sheet.
+
+### Weapon skills — to-hit + train-on-attack (§7)
+
+- [ ] Wield a bound weapon (the **stun baton → Clubs**, the **Predator →
+      Pistols**, a **katana → Blades**) and fight the Market Street ganger — each
+      swing trains the bound skill, so mid-fight you see **"You feel your Clubs
+      improve."** (step 1) or the milestone line (default). A trained pistoleer
+      out-hits a dabbler: to-hit reads the skill's rating, not a flat proficient/
+      not flag.
+- [ ] An **untrained** weapon defaults at the non-proficient penalty rather than
+      being refused (every combat skill is defaultable).
+
+### Mobs use the model too (mob weapon-skill ratings)
+
+- [ ] The **Knight Errant officer** (Corporate Core) is *trained* — she carries
+      an Automatics rating (50), so her smartlinked SMG fires on the weapon-skill
+      model and she's markedly more accurate than an unrated street punk with the
+      same gun. The ganger, "more enthusiasm than training," stays on the plain
+      always-proficient model. (The bonus is felt in hit-rate, not printed.)
+
+---
+
 ## Notes / known gaps (Shadowrun)
 
 - **This is a separate boot.** `ANOTHERMUD_PACKS=shadowrun` — the core and WoT

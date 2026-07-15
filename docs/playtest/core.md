@@ -975,6 +975,34 @@ The forge cellar's **iron door** (`down`, to the vault) is **pickable**
 > (hide/search/spot) are owned by the **visibility** spec and call the same
 > `ResolveSkillCheck` primitive; crafting disciplines are skills too (§22).
 
+### Skill-improvement feedback
+
+Every use-based skill (Open Lock, hide/sneak, search, weapon skills, crafting)
+announces progress as it climbs, instead of the proficiency silently ticking up
+on the sheet.
+
+- [ ] After several `pick iron` attempts, watch for **"You feel your Open Lock
+      improve."** — it prints when the proficiency crosses a milestone (every
+      **`ANOTHERMUD_SKILL_GAIN_NOTIFY_STEP`** points, default **10**). Boot with
+      `ANOTHERMUD_SKILL_GAIN_NOTIFY_STEP=1` to see the line on the *first* gain.
+- [ ] The line fires only for real skills — a passive combat proc (Basic Strike)
+      training in the background stays silent.
+
+### Defaulting: trained-only vs. defaultable (skills §2.1)
+
+A skill is either **trained-only** (you can't attempt it untrained) or
+**defaultable** (anyone may try, at a penalty when untrained).
+
+- [ ] **Open Lock is trained-only.** A character who never learned it — an
+      untrained class, or `forget open-lock` if available — gets "You don't know
+      how to pick locks." on `pick iron`, not a rolled attempt. (The fighter
+      learns it at creation, so use a non-fighter or an admin to see the refusal.)
+- [ ] **Perception is defaultable.** An untrained perceiver still searches/spots,
+      but at a flat **−2** default penalty (content `default_penalty`); a trained
+      one takes no penalty. The effect is on the *spot contest and hidden-exit
+      search* (§24), not a visible number — a character with no Perception is
+      simply worse at finding hidden things than one who trained it.
+
 ## 28. Movement cost & encumbrance
 
 Walking spends **movement points (MV)** from a pool, and rough terrain costs

@@ -992,7 +992,13 @@ func run() error {
 	// the session manager. Fires on the tick goroutine (weapon-skill train) and on
 	// command goroutines (pick/hide/sneak/craft); actor.Write is safe from both,
 	// like the other combat/notifier writes. Uses the run ctx for its logger.
-	const skillGainNotifyStep = 10 // notify once per this many proficiency points
+	// Milestone step: notify once per this many proficiency points. Env-tunable
+	// (a live smoke test sets it to 1 to see the line on the first gain); a value
+	// < 1 is coerced to 1 so every gain notifies rather than dividing by zero.
+	skillGainNotifyStep := envIntOr("ANOTHERMUD_SKILL_GAIN_NOTIFY_STEP", 10)
+	if skillGainNotifyStep < 1 {
+		skillGainNotifyStep = 1
+	}
 	proficiencyMgr.SetGainObserver(func(entityID, abilityID string, oldProf, newProf int) {
 		if newProf/skillGainNotifyStep == oldProf/skillGainNotifyStep {
 			return // no milestone crossed this gain

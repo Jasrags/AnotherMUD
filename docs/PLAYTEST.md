@@ -10,7 +10,7 @@ session (its own server boot and its own character):
   channeling (§27), masterwork (§32), ranged combat (§33), faction (§34),
   reputation (§35).
 - **[docs/playtest/shadowrun.md](playtest/shadowrun.md)** — the Street Samurai
-  MVP (`ANOTHERMUD_PACKS=shadowrun …`): §37–§43.
+  MVP (`ANOTHERMUD_PACKS=shadowrun …`): §37–§50.
 
 Section numbers are guide-wide anchors — `§6` is always Combat, wherever it
 lives. Start at [the index](playtest/README.md).
