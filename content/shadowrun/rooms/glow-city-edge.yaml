@@ -13,6 +13,9 @@ exits:
   # West descends into Glow City proper — the seattle-glow-city area on the
   # `toxic` biome (radiation hazard, area-effects §4.6, endgame 25+).
   west: glow-city
+  # North: a breached cold-storage facility — the `cryo` biome's freezing
+  # hazard (area-effects §4.6), the cold counterpart to the Glow's radiation.
+  north: cold-storage-dock
 # A glow-mutated devil rat lairs at the Glow's edge (low threat, sets the tone).
 mobs:
   - devil-rat

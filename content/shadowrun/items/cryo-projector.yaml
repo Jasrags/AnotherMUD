@@ -1,0 +1,34 @@
+id: cryo-projector
+name: a cryo projector
+type: weapon
+description: |
+  The flamethrower's cold twin: a squat industrial sprayer that fires a gout of
+  liquid cryogen instead of fire. What it touches flash-freezes — flesh goes
+  brittle, joints seize, and the cold cuts through anything not specifically
+  insulated against it. Short-ranged and cruel, feeding coolant canisters it drains
+  fast on a wide-open spray.
+tags: [weapon, firearm, ranged, cryogenic]
+keywords: [cryo, cryo projector, freeze projector, freezer, projector, gun]
+eligible_slots: [wield]
+companion_slots: [offhand]
+weapon_damage: "2d6+2"
+weapon_category: cryo-projector
+proficiency_tier: martial
+# It deals COLD damage (the cold damage type). Ordinary armor soaks it like any
+# type, but an insulation liner soaks it specifically and a plain vest barely
+# helps — the offensive counterpart to the deep-freeze biome hazard.
+damage_types: [cold]
+crit_multiplier: 2
+# Short-ranged spray — a low increment, accuracy falls off fast (like the flamethrower).
+ranged_class: projectile
+ammo_kind: coolant
+ranged_style: firearms
+range_increment: 3
+# A wide freezing spray: single/burst/full-auto, with some inherent control.
+fire_modes: [single, burst, auto]
+rc: 1
+# The cryo stream shears through unprotected flesh — modest armor penetration.
+ap: 2
+properties:
+  weight: 6
+  value: 2400

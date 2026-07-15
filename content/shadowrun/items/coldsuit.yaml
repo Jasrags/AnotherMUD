@@ -1,0 +1,21 @@
+id: coldsuit
+name: a thermal survival suit
+type: item
+description: |
+  A fully-sealed cold-weather suit — heated underlayer, windproof shell, and a
+  rebreather that keeps your own breath from frosting your lungs. Bulky and slow,
+  but it is the difference between walking the deep freeze and becoming another
+  frozen exhibit. Seals the killing cold out entirely.
+# `cold-sealed` is the protection key the cryo biome names (area-effects.md
+# §4.6(b)): WEARING this suit (body slot) grants total immunity to the freeze —
+# carried in a pack it does nothing. The cold sibling of the rad enviro-suit.
+tags: [wearable, cold-sealed]
+keywords: [coldsuit, thermal suit, survival suit, cold suit, thermal]
+eligible_slots: [body]
+armor_tier: light
+armor_bonus: 1
+armor_max_dex: 6
+armor_speed: 30
+properties:
+  weight: 8
+  value: 2000

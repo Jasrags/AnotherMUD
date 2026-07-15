@@ -1,0 +1,28 @@
+# The cryo (deep-freeze) biome (biomes.md §2 + area-effects.md §4.6): a breached
+# cold-storage facility where the cryogenic coolant lines ruptured and never
+# stopped venting. Rooms key in via `terrain: cryo`. Indoors, rimed in frost, and
+# — like the Glow's radiation and the ash barrens' fumes — intrinsically hazardous
+# (§4.6): the killing cold bites every unprotected creature present each hazard
+# tick. A sealed thermal suit (tag `cold-sealed`) grants total immunity; an
+# insulation liner (cold resistance) takes the edge off. Derived from content,
+# never persisted (§5). The cold counterpart to the toxic/ashfall hazards.
+id: cryo
+name: the deep freeze
+description: A frost-choked cold-storage ruin venting cryogenic coolant, killing-cold to the unshielded.
+weather_shielded: true
+time_shielded: true
+ambience:
+  - Your breath freezes and falls as glittering dust; the cold has teeth.
+  - Frost creeps visibly across every surface, fed by a hissing ruptured line.
+  - A body sits frozen mid-step in the rime, perfectly preserved, decades dead.
+  - The coolant fog rolls low across the floor, and your fingers go numb and white.
+# Frost-slick footing and knee-deep coolant fog — slow, treacherous going.
+move_cost: 2
+# The killing cold (area-effects.md §4.6). Flat damage per hazard tick to anyone
+# present without the `cold-sealed` protection key; a cold-resistant liner soaks
+# part of it (the A2 resistance path).
+hazard:
+  damage: 4
+  damage_type: cold
+  protection_key: cold-sealed
+  message: The cold sinks its teeth into you — your fingers whiten and your breath tears like ice.

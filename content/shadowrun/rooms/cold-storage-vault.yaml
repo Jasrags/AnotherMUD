@@ -1,0 +1,14 @@
+id: cold-storage-vault
+area: seattle-cold-storage
+name: "{C}The Vault{x}"
+description: |
+  The heart of the freeze. Rows of cryo-caskets stand fogged and silent, their
+  occupants preserved mid-scream, and the ruptured coolant main vents an endless
+  white breath across the floor. The cold here is a physical weight, a hand closing
+  around your chest. Whatever the corp hid in these caskets, it is still here — and
+  so is the killing chill. Back south is the only warmth.
+terrain: cryo
+exits:
+  south: cold-storage-dock
+# Environmental only — the cold IS the threat, like the Glow's radiation. A
+# cold-sealed suit lets a runner loot the caskets; an unsealed one won't last.

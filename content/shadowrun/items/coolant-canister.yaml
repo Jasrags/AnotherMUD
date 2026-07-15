@@ -1,0 +1,14 @@
+id: coolant-canister
+name: a coolant canister
+type: item
+description: |
+  A frost-rimed pressure bottle of liquid cryogen — the same stuff that keeps a
+  cold-storage vault cold, decanted for less gentle use. It feeds a cryo projector's
+  gout of freezing spray. Handle it bare-handed and lose the skin.
+tags: [ammo, ammunition, stackable, cryogenic]
+keywords: [coolant, canister, coolant canister, cryogen, cryo]
+ammo_kind: coolant
+properties:
+  stackable: true
+  weight: 1
+  value: 40

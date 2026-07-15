@@ -54,6 +54,11 @@ properties:
       # canisters. Counter it with a fire-resistance liner (armor mod, below).
       - shadowrun:shiawase-arms-blazer
       - shadowrun:fuel-canister
+      # Cryo projector (cold damage) — the flamethrower's cold twin; feeds coolant.
+      # An insulation liner soaks it; a thermal suit seals the deep freeze out.
+      - shadowrun:cryo-projector
+      - shadowrun:coolant-canister
+      - shadowrun:coldsuit
       # Melee — silent, deniable, scanner-proof.
       - shadowrun:combat-knife
       - shadowrun:sword

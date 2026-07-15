@@ -1,0 +1,17 @@
+id: seattle-cold-storage
+name: The Deep Freeze
+description: |
+  A cryogenic cold-storage facility off the Redmond strip, breached and abandoned
+  when the coolant lines blew. What the corp kept frozen here — organs, bodies,
+  colder secrets — is still frozen, and so is anyone who lingers too long without a
+  thermal suit. The cold counterpart to the Glow: not radiation but a killing chill,
+  and the same rule — come sealed, or don't come at all.
+reset_interval: 300
+light_floor: gloom
+weather_zone: sprawl
+# Barrens tier — no law, intrinsic cold hazard (area-effects §4.6), the cold
+# sibling of Glow City in the metroplex skeleton.
+properties:
+  region: seattle
+  security: Z
+  level_range: "20-35"
