@@ -88,6 +88,45 @@ skill flagged **trained-only** cannot be attempted without proficiency.
       zero (stat modifier only); a trained-only skill is refused without
       proficiency.
 
+### 2.1 Optional catalog metadata (extends the baseline; build-pending)
+
+Beyond the governing stat, a skill may carry optional catalog metadata a world
+uses to organize and gate its skill list. All are optional; a skill that omits
+them behaves exactly as the shipped baseline (the lockpicking skill declares
+none). This is **content metadata, not new mechanics** — the check primitive
+(§3) is unchanged; the metadata only organizes the catalog, drives the grouped
+display (§5), and parameterizes the untrained penalty.
+
+- **Linked attribute** — a dedicated check-stat, for when a world names the check
+  attribute distinctly from the gain stat (they coincide in the baseline). When
+  set, its modifier feeds the check.
+- **Skill group** — a named family (a firearms group, a stealth group) a skill
+  belongs to, for grouped display and future bulk-training.
+- **Skill category** — a top-level class (combat / physical / social /
+  technical / …) for the top-level grouping of a skill list.
+- **Defaultable + default penalty** — whether an untrained character may attempt
+  the skill (the untrained-at-proficiency-zero path above) and the penalty
+  applied to that attempt. A non-defaultable skill is the existing
+  **trained-only** case.
+
+The **rating scale is unchanged** by this metadata: proficiency stays 0–100 with
+the trainer-gated cap as the ceiling (§2). A setting whose source material uses a
+smaller rating band translates that band to a proficiency + cap **at authoring
+time** (as damage codes and prices are translated), and may render its own scale
+in a pack-scoped display — but the stored value and the check math never change,
+and no other world's display is affected.
+
+**Acceptance criteria**
+
+- [ ] A skill may declare a group and a category; a skill that omits them is
+      unaffected and renders in the existing flat list.
+- [ ] A defaultable skill's untrained attempt applies the configured default
+      penalty; a non-defaultable (trained-only) skill is refused untrained.
+- [ ] A distinct linked attribute, when declared, is the check attribute; when
+      absent, the gain stat serves (baseline behavior).
+- [ ] The proficiency scale and check math are unchanged by the metadata; any
+      setting-specific rating band is an authoring-time + display concern only.
+
 ## 3. The skill-check primitive (B)
 
 A single resolution function every skill consumer calls — the analog of
@@ -110,8 +149,8 @@ The **skill bonus** is composed from the character's skill state:
 bonus = proficiency-bonus(proficiency) + AbilityModifier(governing-stat score)
 ```
 
-- **proficiency-bonus** maps the 1–100 proficiency onto the d20 bonus scale by a
-  configurable factor (§7) — a novice contributes ~nothing, a master a large
+- **proficiency-bonus** maps the 0–100 proficiency onto the d20 bonus scale by a
+  configurable factor (§8) — a novice contributes ~nothing, a master a large
   bonus. This is the WoT "ranks" term, sourced from use-based proficiency
   instead of point-buy.
 - **AbilityModifier** is the existing `(score − 10) / 2` d20 modifier of the
@@ -186,12 +225,20 @@ Skills surface without a new framework:
 - A **`skills`** listing shows the actor's known skills (the `skill`-category
   abilities they hold) with proficiency and cap — the same data the `abilities`
   view reads, filtered to skills.
+- **Optional grouping.** When a skill declares a category and/or group (§2.1),
+  the listing groups by category then group, and tags each skill with its linked
+  attribute. A skill (or a whole world) that declares no such metadata renders
+  the existing flat list unchanged — the grouping is presentation only and does
+  not alter the value shown (still proficiency + cap).
 - Skill checks narrate through the **skill-resolved event** (the consumer
   renders "You pick the lock." / "You fail to pick the lock.").
 
 **Acceptance criteria**
 
 - [ ] `skills` lists the actor's known skills with proficiency / cap.
+- [ ] When skills declare category/group metadata, the listing groups by category
+      then group with a linked-attribute tag; without it, the flat list is
+      unchanged.
 - [ ] A resolved skill check produces a player-visible line at its consumer.
 
 ## 6. Interaction with existing systems
@@ -217,19 +264,58 @@ Skills surface without a new framework:
   another's); this slice ships the un-opposed DC form, and the opposed form is a
   thin extension the visibility slice adds.
 
-## 7. Configuration surface
+## 7. Combat as a skill consumer: weapon-skill to-hit (extends the baseline; build-pending)
+
+Combat may consume the skill system the same way lockpicking does — a wielded
+weapon binds a skill, and the attack roll incorporates it. This is a **per-pack
+model choice**, not a global change; the engine offers both and a world selects
+one through content:
+
+- **Binary-proficiency model (the shipped default).** A weapon is inside or
+  outside the wielder's proficiency set; a weapon outside it takes a flat to-hit
+  penalty (`combat`/weapon-identity). There is no per-weapon skill rating. A
+  d20-style setting keeps this.
+- **Weapon-skill model (opt-in).** A weapon declares a **bound skill**; the
+  attack roll adds that skill's proficiency-derived bonus — the *same* mapping
+  the skill check uses (§3) — and each attack **trains the bound skill** through
+  the existing use-gain (a hit gains full, a miss a reduced amount), bounded by
+  the skill's cap. An attacker untrained in a *defaultable* bound skill attacks
+  at the default penalty (§2.1) rather than being refused. A setting whose combat
+  is a skill-plus-attribute contest uses this.
+
+Both models ride the same to-hit adjustment seam and are chosen by content, so no
+single model is forced on the engine. The **attribute term of the attack is
+unchanged** (it flows from the existing attack channel); the weapon-skill model
+adds the *rating* term and the train-on-use loop, and the coarse proficiency-set
+grant/cap remains available as the class-access mechanism.
+
+**Acceptance criteria**
+
+- [ ] A weapon may bind a skill; under the weapon-skill model the attack roll adds
+      that skill's proficiency-derived bonus, and a different bound skill yields a
+      different bonus.
+- [ ] Under the weapon-skill model, each attack trains the bound skill through the
+      existing use-gain, bounded by its cap.
+- [ ] An attacker untrained in a defaultable bound skill attacks at the default
+      penalty, not refused.
+- [ ] The model is a per-pack choice: a world that binds no weapon skills retains
+      the shipped binary-proficiency behavior, unchanged.
+
+## 8. Configuration surface
 
 | Setting | Meaning | Default (engine) |
 |---|---|---|
-| Proficiency-bonus factor | Maps a 1–100 proficiency onto the d20 skill-bonus scale (§3). | a factor that makes a master skill a large bonus and a novice ~zero |
+| Proficiency-bonus factor | Maps a 0–100 proficiency onto the d20 skill-bonus scale (§3). | a factor that makes a master skill a large bonus and a novice ~zero |
 | Lockpick retry friction | The cooldown / friction applied after a failed pick (§4) so a lock isn't free-retried to certainty. | the WoT pack value |
 | Default skill cap | The proficiency cap a freshly learned skill starts at before trainers raise it (§2). | the existing ability default cap |
 | Open-Lock pick difficulties | Per-door pick difficulty (the DC) — already door content (§4). | per-door content values |
+| Default (untrained) penalty | The to-hit / check penalty on a defaultable skill attempted untrained (§2.1, §7). | per-pack; the shipped binary model's non-proficient penalty |
+| Weapon → bound-skill map | Which skill a weapon binds under the weapon-skill model (§7). | content (per weapon); unset ⇒ binary-proficiency model |
 
 All numeric magnitudes live here per spec convention; the prose names
 behaviors, not values.
 
-## 8. Decisions (resolved at slice start)
+## 9. Decisions (resolved at slice start)
 
 - **Check model — d20 + skill bonus vs DC.** Mirrors the shipped `saves`
   primitive (one check idiom across to-hit / saves / skills) and matches the
