@@ -984,6 +984,29 @@ func run() error {
 		registries.Abilities,
 		progression.DefaultProficiencyConfig(),
 	)
+	// Skills feedback (skills §3.5): a "you feel your <skill> improve" line when a
+	// use-based gain crosses a milestone. Milestone-gated (every skillGainNotifyStep
+	// points) so repeated practice doesn't spam a line per point; scoped to real
+	// skills (category skill) so passive combat procs that also ride the
+	// proficiency store stay silent. Delivered on the player's own connection via
+	// the session manager. Fires on the tick goroutine (weapon-skill train) and on
+	// command goroutines (pick/hide/sneak/craft); actor.Write is safe from both,
+	// like the other combat/notifier writes. Uses the run ctx for its logger.
+	const skillGainNotifyStep = 10 // notify once per this many proficiency points
+	proficiencyMgr.SetGainObserver(func(entityID, abilityID string, oldProf, newProf int) {
+		if newProf/skillGainNotifyStep == oldProf/skillGainNotifyStep {
+			return // no milestone crossed this gain
+		}
+		ab, ok := registries.Abilities.Get(abilityID)
+		if !ok || ab.Category != progression.AbilitySkill {
+			return // unknown, or not a player-facing skill (silent)
+		}
+		a, ok := mgr.GetByPlayerID(entityID)
+		if !ok {
+			return // disconnected between gain and notify — a routine race
+		}
+		_ = a.Write(ctx, fmt.Sprintf("<good>You feel your %s improve.</good>", ab.DisplayName))
+	})
 
 	// Crafting Phase 1: per-character known-recipe manager. Holds the
 	// recipe registry so it can drop ids removed from content on restore

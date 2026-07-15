@@ -68,6 +68,29 @@ type ProficiencyManager struct {
 	mu   sync.RWMutex
 	prof map[string]map[string]int // entityID -> abilityID -> proficiency
 	caps map[string]map[string]int // entityID -> abilityID -> cap
+
+	// gainObserver, when set, is called after a use-based gain increments an
+	// entity's proficiency (skills — the felt "your skill improves" feedback).
+	// Fired only from RollUseGain (a deliberate skill USE), NOT from the low-level
+	// AddProficiency, so passive combat procs and trainer practice — which have
+	// their own messaging — do not trigger it. Called with the id pair and the
+	// before/after proficiency, AFTER the manager lock is released, so the host's
+	// callback may message the player without risking the manager lock. Optional;
+	// nil ⇒ silent (the pre-feedback behavior). Set once at construction, so it
+	// takes no lock.
+	gainObserver GainObserver
+}
+
+// GainObserver is notified after a use-based proficiency gain (skills feedback).
+// oldProf/newProf bracket the single-point increment; the host applies its own
+// cadence policy (e.g. milestone lines) and player delivery.
+type GainObserver func(entityID, abilityID string, oldProf, newProf int)
+
+// SetGainObserver installs the use-gain feedback observer (skills). Construction-
+// time wiring only (the composition root) — not safe to change once the manager
+// is live, matching the other write-once host seams.
+func (m *ProficiencyManager) SetGainObserver(o GainObserver) {
+	m.gainObserver = o
 }
 
 // NewProficiencyManager returns a manager bound to registry. A nil
@@ -271,10 +294,21 @@ func (m *ProficiencyManager) SetCap(entityID, abilityID string, capValue int) {
 //
 // Satisfies the AbilityProficiency seam (training.go).
 func (m *ProficiencyManager) AddProficiency(entityID, abilityID string, delta int) {
+	m.addProficiency(entityID, abilityID, delta)
+}
+
+// addProficiency is the locked increment behind AddProficiency, returning the
+// proficiency BEFORE and AFTER the clamp. RollUseGain uses the returned values to
+// feed the gain observer the ACTUAL stored before/after pair rather than an
+// optimistic prof+1 computed from an earlier unlocked read — so a concurrent
+// mutation of the same (entity, ability) between the gain roll and the increment
+// can't make the player-visible milestone math report a stale value. Returns
+// (0,0) for a no-op (empty id or zero delta).
+func (m *ProficiencyManager) addProficiency(entityID, abilityID string, delta int) (oldProf, newProf int) {
 	eid := normalizeID(entityID)
 	aid := normalizeID(abilityID)
 	if eid == "" || aid == "" || delta == 0 {
-		return
+		return 0, 0
 	}
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -289,7 +323,9 @@ func (m *ProficiencyManager) AddProficiency(entityID, abilityID string, delta in
 	if !ok {
 		current = 1
 	}
-	m.prof[eid][aid] = clampProf(current+delta, capValue)
+	updated := clampProf(current+delta, capValue)
+	m.prof[eid][aid] = updated
+	return current, updated
 }
 
 // GetCap implements the AbilityProficiency seam used by
@@ -351,7 +387,16 @@ func (m *ProficiencyManager) RollUseGain(entityID, abilityID string, hit bool, r
 		return false
 	}
 	if roller.IntN(100)+1 <= threshold {
-		m.AddProficiency(entityID, abilityID, 1)
+		oldProf, newProf := m.addProficiency(entityID, abilityID, 1)
+		// Skills feedback: report the increment to the host observer (nil ⇒ silent)
+		// with the ACTUAL stored before/after pair from the locked increment — not
+		// an optimistic prof+1 off the earlier unlocked read — so a concurrent
+		// same-(entity,ability) mutation can't feed the milestone math a stale value.
+		// A no-op increment (newProf == oldProf, e.g. already at cap via a racing
+		// gain) reports nothing. Fired outside the manager lock.
+		if m.gainObserver != nil && newProf != oldProf {
+			m.gainObserver(entityID, abilityID, oldProf, newProf)
+		}
 		return true
 	}
 	return false

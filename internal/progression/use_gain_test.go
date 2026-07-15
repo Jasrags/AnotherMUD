@@ -29,6 +29,45 @@ func TestRollUseGain_LearnedAbilityGains(t *testing.T) {
 	}
 }
 
+func TestRollUseGain_GainObserverFiresOnIncrement(t *testing.T) {
+	m := newGainMgr(t, 100)
+	m.Learn("e1", "smithing", 5)
+
+	type call struct {
+		entity, ability string
+		oldP, newP      int
+	}
+	var got []call
+	m.SetGainObserver(func(entityID, abilityID string, oldProf, newProf int) {
+		got = append(got, call{entityID, abilityID, oldProf, newProf})
+	})
+
+	// A gain fires the observer with the before/after proficiency.
+	if !m.RollUseGain("e1", "smithing", true, fixedRoller{v: 0}, nil) {
+		t.Fatal("expected a gain")
+	}
+	if len(got) != 1 || got[0] != (call{"e1", "smithing", 5, 6}) {
+		t.Fatalf("observer calls = %+v, want one (e1, smithing, 5, 6)", got)
+	}
+
+	// A non-gain (high roll → threshold miss) must NOT fire the observer.
+	if m.RollUseGain("e1", "smithing", true, fixedRoller{v: 99}, nil) {
+		t.Fatal("expected no gain on a high roll at prof 6")
+	}
+	if len(got) != 1 {
+		t.Errorf("observer fired on a non-gain: %+v", got)
+	}
+}
+
+func TestRollUseGain_NilGainObserverIsSafe(t *testing.T) {
+	m := newGainMgr(t, 100)
+	m.Learn("e1", "smithing", 1)
+	// No observer set — a gain must not panic.
+	if !m.RollUseGain("e1", "smithing", true, fixedRoller{v: 0}, nil) {
+		t.Fatal("expected a gain")
+	}
+}
+
 func TestRollUseGain_UnlearnedNeverGains(t *testing.T) {
 	m := newGainMgr(t, 100)
 	// Not learned → no gain regardless of roll.
