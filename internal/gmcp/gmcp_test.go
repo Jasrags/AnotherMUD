@@ -27,7 +27,7 @@ func TestCharVitals_OptionalFieldsOmitWhenZero(t *testing.T) {
 	// without those systems emits a minimal payload.
 	out, _ := json.Marshal(gmcp.CharVitals{HP: 50, MaxHP: 75})
 	got := string(out)
-	for _, key := range []string{"mp", "maxmp", "mv", "maxmv", "sustenance"} {
+	for _, key := range []string{"mp", "maxmp", "mv", "maxmv", "sustenance", "pools"} {
 		if strings.Contains(got, `"`+key+`"`) {
 			t.Errorf("optional field %q should not emit at zero, got %q", key, got)
 		}
@@ -49,6 +49,22 @@ func TestCharVitals_AllFieldsEmitWhenSet(t *testing.T) {
 	want := `{"hp":50,"maxhp":100,"mp":30,"maxmp":60,"mv":70,"maxmv":80,"sustenance":90}`
 	if string(out) != want {
 		t.Errorf("full payload = %q, want %q", string(out), want)
+	}
+}
+
+func TestCharVitals_GeneralizedPoolsEmit(t *testing.T) {
+	// The generalized `pools` map carries any pool by engine kind — including
+	// kinds with no fixed slot (the Shadowrun Essence budget); each entry
+	// serializes as {cur,max}.
+	out, _ := json.Marshal(gmcp.CharVitals{
+		HP: 20, MaxHP: 20,
+		Pools: map[string]gmcp.PoolVital{
+			"essence": {Cur: 55, Max: 60},
+		},
+	})
+	want := `{"hp":20,"maxhp":20,"pools":{"essence":{"cur":55,"max":60}}}`
+	if string(out) != want {
+		t.Errorf("pools payload = %q, want %q", string(out), want)
 	}
 }
 

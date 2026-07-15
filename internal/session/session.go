@@ -9,6 +9,7 @@
 package session
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -2628,8 +2629,13 @@ type connActor struct {
 	// with the actor's own mutators (write paths don't dirty-flag
 	// — see the Manager.FlushGmcpVitals doc for why poll-and-diff
 	// is preferred over instrumentation at every Vitals mutator).
-	gmcpVitalsMu        sync.Mutex
-	gmcpLastVitals      gmcp.CharVitals
+	gmcpVitalsMu sync.Mutex
+	// gmcpLastVitalsJSON is the marshaled bytes of the last-sent Char.Vitals
+	// payload (not the struct): the payload now carries a `pools` map, so the
+	// struct is no longer ==-comparable — the poll-and-diff compares the wire
+	// bytes instead. Deterministic because encoding/json sorts map keys, so an
+	// unchanged snapshot marshals to identical bytes and is correctly skipped.
+	gmcpLastVitalsJSON  []byte
 	gmcpLastVitalsValid bool // false = never sent / reset; next flush emits unconditionally
 
 	// gmcpItems* are the M16.4c per-location shadows for
@@ -6140,6 +6146,36 @@ func (a *connActor) resourceSnapshot(kind pool.Kind) (cur, max int) {
 	return 0, 0
 }
 
+// poolVitals is the generalized Char.Vitals `pools` view (web-client prereq):
+// every non-HP resource pool the character has, keyed by engine kind, so a rich
+// client renders one bar per pool (the WoT One Power, mana, movement, essence, …)
+// without a fixed field per pool. Reads the pool.Set's thread-safe, deterministically
+// -ordered Snapshot. Returns nil for a bare/pre-pool actor (a test fake or a
+// degenerate boot), so the payload's `pools` key is omitted rather than empty.
+func (a *connActor) poolVitals() map[string]gmcp.PoolVital {
+	if a.pools == nil {
+		return nil
+	}
+	snap := a.pools.Snapshot()
+	if len(snap) == 0 {
+		return nil
+	}
+	out := make(map[string]gmcp.PoolVital, len(snap))
+	for _, e := range snap {
+		// Skip pools the character doesn't actually have (max 0) — a non-caster's
+		// seeded-but-empty mana pool is noise a HUD would draw as a dead bar.
+		// Mirrors the fixed mp/mv fields omitting at zero.
+		if e.Max <= 0 {
+			continue
+		}
+		out[string(e.Kind)] = gmcp.PoolVital{Cur: e.Current, Max: e.Max}
+	}
+	if len(out) == 0 {
+		return nil
+	}
+	return out
+}
+
 // Race returns the actor's resolved race for §4.7 cost adjustment.
 // nil when raceless; AdjustCost handles the nil case.
 func (a *connActor) Race() *progression.Race { return a.race }
@@ -7104,31 +7140,43 @@ func (a *connActor) flushGmcpVitals(ctx context.Context) {
 		return
 	}
 	hp, hpMax := a.vitals.Snapshot()
+	// Resource pools on the wire (web-client prereq): the fixed mp/mv slots carry
+	// mana/movement (the Tapestry-compatible subset), and the generalized `pools`
+	// map carries EVERY pool — mana, movement, the WoT One Power, essence, … —
+	// keyed by engine kind so a rich client renders a bar per pool. resourceSnapshot
+	// and poolVitals are nil-safe (a bare/pre-pool actor emits neither).
+	mana, manaMax := a.resourceSnapshot(poolKindMana)
+	mv, mvMax := a.resourceSnapshot(poolKindMovement)
 	payload := gmcp.CharVitals{
 		HP:         hp,
 		MaxHP:      hpMax,
+		MP:         mana,
+		MaxMP:      manaMax,
+		MV:         mv,
+		MaxMV:      mvMax,
 		Sustenance: a.Sustenance(),
+		Pools:      a.poolVitals(),
 	}
-
-	a.gmcpVitalsMu.Lock()
-	// Skip the send when we've sent the same payload before. The
-	// valid flag distinguishes "never sent" (always emit) from
-	// "sent and matches" (skip) — without it, a fresh-reset
-	// shadow at zero would silently swallow a legitimate
-	// HP=0/MaxHP=0 snapshot (player dead at link-dead reconnect).
-	if a.gmcpLastVitalsValid && a.gmcpLastVitals == payload {
-		a.gmcpVitalsMu.Unlock()
-		return
-	}
-	a.gmcpLastVitals = payload
-	a.gmcpLastVitalsValid = true
-	a.gmcpVitalsMu.Unlock()
 
 	data, err := json.Marshal(payload)
 	if err != nil {
 		// Marshal never fails on this struct shape; defensive only.
 		return
 	}
+
+	a.gmcpVitalsMu.Lock()
+	// Skip the send when we've sent the same payload before, comparing the
+	// marshaled bytes (the payload's `pools` map makes the struct non-comparable).
+	// The valid flag distinguishes "never sent" (always emit) from "sent and
+	// matches" (skip) — without it, a fresh-reset shadow would silently swallow a
+	// legitimate unchanged snapshot (e.g. HP=0/MaxHP=0 at link-dead reconnect).
+	if a.gmcpLastVitalsValid && bytes.Equal(a.gmcpLastVitalsJSON, data) {
+		a.gmcpVitalsMu.Unlock()
+		return
+	}
+	a.gmcpLastVitalsJSON = data
+	a.gmcpLastVitalsValid = true
+	a.gmcpVitalsMu.Unlock()
 	// SendGmcp drops silently when the peer's Core.Supports set
 	// excludes the package, so we don't pre-check SupportsPackage.
 	// A real I/O error means the wire's broken; log at debug so

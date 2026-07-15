@@ -10,8 +10,24 @@ import (
 	"github.com/Jasrags/AnotherMUD/internal/combat"
 	"github.com/Jasrags/AnotherMUD/internal/gmcp"
 	"github.com/Jasrags/AnotherMUD/internal/player"
+	"github.com/Jasrags/AnotherMUD/internal/pool"
 	"github.com/Jasrags/AnotherMUD/internal/world"
 )
+
+// seedTestPools gives an actor a realistic pool set: mana (which the WoT One
+// Power rides — it fills the fixed mp slot) at 8/10, movement at 30/30, and an
+// Essence pool (Shadowrun — NO fixed Char.Vitals slot) at 55/60. Essence proves
+// the generalized `pools` map carries what the fixed mp/mv fields can't.
+func seedTestPools(a *connActor) {
+	a.pools = pool.NewSet()
+	mana := pool.New(poolKindMana, 10, pool.Rules{Floor: 0})
+	mana.SetCurrent(8)
+	a.pools.Add(mana)
+	a.pools.Add(pool.New(poolKindMovement, 30, pool.Rules{Floor: 0}))
+	ess := pool.New(poolKindEssence, 60, pool.Rules{Floor: 0})
+	ess.SetCurrent(55)
+	a.pools.Add(ess)
+}
 
 // gmcpFakeConn extends fakeConn with the GMCP sender interface so
 // the flusher's type-assertion succeeds. Records every SendGmcp
@@ -154,6 +170,89 @@ func TestFlushGmcpVitals_SendsOnSustenanceChange(t *testing.T) {
 	}
 	if !strings.Contains(string(frames[1].payload), `"sustenance":75`) {
 		t.Errorf("post-sustenance payload = %s, want sustenance:75", frames[1].payload)
+	}
+}
+
+func TestFlushGmcpVitals_IncludesGeneralizedPools(t *testing.T) {
+	// web-client prereq: every non-HP pool rides the generalized `pools` map,
+	// keyed by engine kind — the WoT One Power (which has no fixed mp/mv slot)
+	// included. Movement also fills its fixed mv slot for the baseline client.
+	a, fc := newGmcpActor("p-pools", 50, 100)
+	seedTestPools(a)
+	fc.setActive(true)
+
+	a.flushGmcpVitals(context.Background())
+	frames := fc.framesSnapshot()
+	if len(frames) != 1 {
+		t.Fatalf("flush emitted %d frames, want 1", len(frames))
+	}
+	var got gmcp.CharVitals
+	if err := json.Unmarshal(frames[0].payload, &got); err != nil {
+		t.Fatalf("payload unmarshal: %v", err)
+	}
+	// Mana (the WoT One Power's pool): fixed mp slot AND the map.
+	if got.MP != 8 || got.MaxMP != 10 {
+		t.Errorf("fixed mp = %d/%d, want 8/10", got.MP, got.MaxMP)
+	}
+	if m := got.Pools["mana"]; m.Cur != 8 || m.Max != 10 {
+		t.Errorf("pools[mana] = %+v, want {8 10}", m)
+	}
+	// Movement: fixed mv slot AND the map.
+	if got.MV != 30 || got.MaxMV != 30 {
+		t.Errorf("fixed mv = %d/%d, want 30/30", got.MV, got.MaxMV)
+	}
+	// Essence (Shadowrun): generalized map ONLY — no fixed slot. This is the
+	// case the fixed mp/mv fields can't represent.
+	if e := got.Pools["essence"]; e.Cur != 55 || e.Max != 60 {
+		t.Errorf("pools[essence] = %+v, want {55 60}", e)
+	}
+}
+
+func TestFlushGmcpVitals_SendsOnPoolCurrentChange(t *testing.T) {
+	// Spending a pool that has NO fixed slot (Essence) must still trigger a
+	// resend — the byte-diff sees the `pools` map change even though hp/mp/mv are
+	// unchanged.
+	a, fc := newGmcpActor("p-pools", 50, 100)
+	seedTestPools(a)
+	fc.setActive(true)
+	a.flushGmcpVitals(context.Background()) // baseline
+
+	p, ok := a.pools.Get(poolKindEssence)
+	if !ok {
+		t.Fatal("essence pool missing")
+	}
+	p.SetCurrent(50) // a fresh cyberware install burned Essence
+
+	a.flushGmcpVitals(context.Background())
+	frames := fc.framesSnapshot()
+	if len(frames) != 2 {
+		t.Fatalf("post-spend flush count = %d, want 2", len(frames))
+	}
+	if !strings.Contains(string(frames[1].payload), `"essence":{"cur":50,"max":60}`) {
+		t.Errorf("post-spend payload = %s, want essence cur:50", frames[1].payload)
+	}
+}
+
+func TestFlushGmcpVitals_OmitsEmptyPoolsFromMap(t *testing.T) {
+	// A pool the character doesn't have (a non-caster's seeded mana at max 0) is
+	// filtered from the generalized map — no dead bar for a HUD.
+	a, fc := newGmcpActor("p-nomana", 50, 100)
+	a.pools = pool.NewSet()
+	a.pools.Add(pool.New(poolKindMana, 0, pool.Rules{Floor: 0})) // max 0 → omitted
+	a.pools.Add(pool.New(poolKindMovement, 30, pool.Rules{Floor: 0}))
+	fc.setActive(true)
+
+	a.flushGmcpVitals(context.Background())
+	frames := fc.framesSnapshot()
+	if len(frames) != 1 {
+		t.Fatalf("flush emitted %d frames, want 1", len(frames))
+	}
+	got := string(frames[0].payload)
+	if strings.Contains(got, `"mana"`) {
+		t.Errorf("empty (max-0) mana pool should be omitted from the map:\n%s", got)
+	}
+	if !strings.Contains(got, `"movement"`) {
+		t.Errorf("movement pool should be present:\n%s", got)
 	}
 }
 

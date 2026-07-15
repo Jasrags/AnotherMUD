@@ -132,11 +132,14 @@ const (
 // current vital pools (hit points, mana, movement, sustenance).
 //
 // Tapestry shape: `hp` / `maxhp` for hit points, `mp` / `maxmp`
-// for mana, `mv` / `maxmv` for movement. The engine ships HP
-// today; mana and movement are absent so their fields stay zero
-// and serialize via `omitempty`. Sustenance is engine-specific
-// (no Tapestry analogue) but emits under the obvious lowercase
-// short key for consistency with the other pools.
+// for mana, `mv` / `maxmv` for movement. Sustenance is engine-
+// specific (no Tapestry analogue) but emits under the obvious
+// lowercase short key for consistency with the other pools. The
+// `pools` map generalizes beyond the fixed slots: it carries EVERY
+// non-HP pool (mana, movement, the WoT One Power, essence, …) keyed
+// by engine kind, so a rich client renders any setting's resources
+// without a fixed field per pool (the fixed mp/mv stay for a
+// baseline client).
 //
 // Zero values for hp/maxhp emit explicitly (not omitempty) —
 // "HP 0" is meaningful (the player is dead) and a client panel
@@ -152,6 +155,24 @@ type CharVitals struct {
 	MV         int `json:"mv,omitempty"`
 	MaxMV      int `json:"maxmv,omitempty"`
 	Sustenance int `json:"sustenance,omitempty"`
+	// Pools is the generalized, ruleset-agnostic view of every non-HP resource
+	// pool the character has, keyed by the pool's engine KIND ("mana",
+	// "movement", "essence", "stun", …). The fixed mp/mv fields above are the
+	// Tapestry-compatible SUBSET — mana (which is also the WoT One Power's pool)
+	// and movement — a baseline client reads. Pools carries those AND the kinds
+	// that have no fixed slot (the Shadowrun Essence budget and Stun monitor, and
+	// any future pool), so a richer client (the web HUD) renders one bar per entry
+	// without baking in any one setting's vocabulary. Omitted when the character
+	// has no pools (a bare boot / a pre-pool test actor).
+	Pools map[string]PoolVital `json:"pools,omitempty"`
+}
+
+// PoolVital is one resource pool's current + maximum, the value type of
+// CharVitals.Pools. Keyed there by engine pool-kind so a client draws a labeled
+// bar (cur/max) per pool generically.
+type PoolVital struct {
+	Cur int `json:"cur"`
+	Max int `json:"max"`
 }
 
 // RoomInfo is the spec §7 Room.Info payload — the actor's current
