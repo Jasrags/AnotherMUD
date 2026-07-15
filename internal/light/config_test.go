@@ -73,6 +73,20 @@ func TestDarkvisionViewerFloor(t *testing.T) {
 	}
 }
 
+func TestDefaultConfig_VisionModeFloors(t *testing.T) {
+	c := DefaultConfig()
+	// Thermographic is an unconditional see-in-the-dark floor at Gloom,
+	// combined through ViewerFloor's effect-flag path.
+	if got := c.ViewerFloor(false, []string{ThermographicFlag}); got != Gloom {
+		t.Fatalf("thermographic floor = %v, want Gloom", got)
+	}
+	// Low-light names its target level (Dim); the conditional lift lives at
+	// the call site, this field only supplies the level.
+	if c.LowLightFloor != Dim {
+		t.Fatalf("LowLightFloor = %v, want Dim", c.LowLightFloor)
+	}
+}
+
 func TestDarkvisionViewerFloor_CapBoundsFloor(t *testing.T) {
 	// A floor configured above the cap is bounded down to the cap —
 	// darkvision is never daylight (§4).

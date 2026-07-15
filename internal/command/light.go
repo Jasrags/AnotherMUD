@@ -122,8 +122,16 @@ func EffectiveLight(resolver *light.Resolver, room *world.Room, viewer LightView
 	if resolver == nil || room == nil {
 		return light.Lit
 	}
-	sources, floor := viewerLightTerms(resolver, viewer, room, items, placement)
-	return resolver.Effective(room, sources, floor)
+	sources, floor, lowLight := viewerLightTerms(resolver, viewer, room, items, placement)
+	lvl := resolver.Effective(room, sources, floor)
+	if !lowLight {
+		return lvl
+	}
+	// Gate low-light on the room's viewer-floor-independent light (the real
+	// photons: held/room sources + sky), NOT the floored lvl — so low-light
+	// amplifies actual light and never a darkvision/thermographic floor, which
+	// synthesize sight from none.
+	return liftLowLight(resolver, lvl, resolver.Effective(room, sources, light.Black))
 }
 
 // EffectiveLightForPeriod is EffectiveLight resolved against an explicit
@@ -134,21 +142,69 @@ func EffectiveLightForPeriod(resolver *light.Resolver, room *world.Room, viewer 
 	if resolver == nil || room == nil {
 		return light.Lit
 	}
-	sources, floor := viewerLightTerms(resolver, viewer, room, items, placement)
-	return resolver.EffectiveForPeriod(room, sources, floor, period)
+	sources, floor, lowLight := viewerLightTerms(resolver, viewer, room, items, placement)
+	lvl := resolver.EffectiveForPeriod(room, sources, floor, period)
+	if !lowLight {
+		return lvl
+	}
+	return liftLowLight(resolver, lvl, resolver.EffectiveForPeriod(room, sources, light.Black, period))
+}
+
+// visionCapable is the optional capability view supplying gear-sourced
+// vision modes: a viewer that can report whether any equipped item
+// grants a named capability (a cybereye enhancement's `grants`, per
+// item-modification §6). Structurally satisfied by the session actor;
+// mobs and login-time viewers that lack it simply contribute no
+// gear-sourced vision.
+type visionCapable interface {
+	HasEquippedCapability(key string) bool
 }
 
 // viewerLightTerms gathers the per-viewer Sources and ViewerFloor terms
-// (held light + room luminous items; darkvision floor) shared by the
-// clock and period-explicit resolutions.
-func viewerLightTerms(resolver *light.Resolver, viewer LightViewer, room *world.Room, items *entities.Store, placement *entities.Placement) (sources, floor light.Level) {
+// (held light + room luminous items; darkvision + thermographic floor)
+// plus whether the viewer has low-light vision, shared by the clock and
+// period-explicit resolutions. Vision modes are dual-sourced: a racial
+// tag (like darkvision — an SR metatype declares thermographic/low-light
+// in its flags) OR an equipped capability (a cybereye enhancement).
+func viewerLightTerms(resolver *light.Resolver, viewer LightViewer, room *world.Room, items *entities.Store, placement *entities.Placement) (sources, floor light.Level, lowLight bool) {
 	sources = gatherRoomSources(viewer, room, items, placement)
 	hasDarkvision := false
+	var effectFlags []string
 	if t, ok := viewer.(taggable); ok {
 		hasDarkvision = t.HasTag(light.DarkvisionFlag)
+		if t.HasTag(light.ThermographicFlag) {
+			effectFlags = append(effectFlags, light.ThermographicFlag)
+		}
+		if t.HasTag(light.LowLightFlag) {
+			lowLight = true
+		}
 	}
-	floor = resolver.Config().ViewerFloor(hasDarkvision, nil)
-	return sources, floor
+	if v, ok := viewer.(visionCapable); ok {
+		if v.HasEquippedCapability(light.ThermographicFlag) {
+			effectFlags = append(effectFlags, light.ThermographicFlag)
+		}
+		if v.HasEquippedCapability(light.LowLightFlag) {
+			lowLight = true
+		}
+	}
+	floor = resolver.Config().ViewerFloor(hasDarkvision, effectFlags)
+	return sources, floor, lowLight
+}
+
+// liftLowLight raises a low-light viewer to the configured LowLightFloor
+// when the room affords real light — roomLight is the level resolved with
+// NO viewer floor (the actual photons: held/room sources + sky), so
+// low-light amplifies genuine faint light (≥ Gloom) and never a
+// darkvision/thermographic floor, which synthesize sight from none. A
+// room with no real light (roomLight Black) leaves a low-light viewer
+// exactly where the floor left them — a pitch-black room stays black.
+// Only called when the viewer has low-light; a no-op if lvl already meets
+// the floor.
+func liftLowLight(resolver *light.Resolver, lvl, roomLight light.Level) light.Level {
+	if f := resolver.Config().LowLightFloor; roomLight >= light.Gloom && lvl < f {
+		return f
+	}
+	return lvl
 }
 
 // gatherRoomSources returns the brightest lit-source contribution for a

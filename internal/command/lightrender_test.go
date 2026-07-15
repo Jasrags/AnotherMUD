@@ -119,17 +119,25 @@ func TestRenderRoom_LitUnchanged(t *testing.T) {
 	}
 }
 
-// lightViewer is a stub satisfying command.LightViewer + HasTag for the
-// EffectiveLight gather tests.
+// lightViewer is a stub satisfying command.LightViewer + HasTag +
+// HasEquippedCapability for the EffectiveLight gather tests. `tags`
+// models racial-flag sourcing (darkvision/thermographic/low-light); `caps`
+// models gear-sourced vision modes (a cybereye enhancement's grants).
 type lightViewer struct {
 	equip      map[string]entities.EntityID
 	darkvision bool
+	tags       map[string]bool
+	caps       map[string]bool
 }
 
 func (v lightViewer) Equipment() map[string]entities.EntityID { return v.equip }
 func (v lightViewer) HasTag(tag string) bool {
-	return v.darkvision && tag == light.DarkvisionFlag
+	if v.darkvision && tag == light.DarkvisionFlag {
+		return true
+	}
+	return v.tags[tag]
 }
+func (v lightViewer) HasEquippedCapability(key string) bool { return v.caps[key] }
 
 func newLightResolver(period string) *light.Resolver {
 	return light.NewResolver(light.DefaultConfig(), fixedPeriodSource(period))
@@ -207,6 +215,106 @@ func TestEffectiveLight_DarkvisionFloor(t *testing.T) {
 	v := lightViewer{darkvision: true}
 	if got := command.EffectiveLight(res, f.room, v, f.store, f.place); got != light.Gloom {
 		t.Fatalf("underground + darkvision = %v, want Gloom", got)
+	}
+}
+
+// Vision modes (light-and-darkness §4). Thermographic is an unconditional
+// floor (gear or racial), like darkvision; low-light is a conditional lift
+// that only helps when the room already affords some light.
+
+func TestEffectiveLight_ThermographicFromCyber(t *testing.T) {
+	f := newRenderFixture()
+	f.room.Terrain = world.TerrainUnderground
+	res := newLightResolver(gameclock.PeriodDay)
+	// A cybereye-granted thermographic mode floors a pitch-black room to Gloom,
+	// exactly like racial darkvision.
+	v := lightViewer{caps: map[string]bool{light.ThermographicFlag: true}}
+	if got := command.EffectiveLight(res, f.room, v, f.store, f.place); got != light.Gloom {
+		t.Fatalf("underground + thermographic = %v, want Gloom", got)
+	}
+}
+
+func TestEffectiveLight_ThermographicFromRace(t *testing.T) {
+	f := newRenderFixture()
+	f.room.Terrain = world.TerrainUnderground
+	res := newLightResolver(gameclock.PeriodDay)
+	// A metatype racial tag sources the same floor as the cyber path.
+	v := lightViewer{tags: map[string]bool{light.ThermographicFlag: true}}
+	if got := command.EffectiveLight(res, f.room, v, f.store, f.place); got != light.Gloom {
+		t.Fatalf("underground + racial thermographic = %v, want Gloom", got)
+	}
+}
+
+func TestEffectiveLight_LowLightNoLiftInTotalDark(t *testing.T) {
+	f := newRenderFixture()
+	f.room.Terrain = world.TerrainUnderground
+	res := newLightResolver(gameclock.PeriodDay)
+	// Low-light amplifies existing light; a sealed pitch-black room offers none,
+	// so the viewer stays blind (Black) — the SR distinction from thermographic.
+	v := lightViewer{caps: map[string]bool{light.LowLightFlag: true}}
+	if got := command.EffectiveLight(res, f.room, v, f.store, f.place); got != light.Black {
+		t.Fatalf("underground + low-light (no ambient) = %v, want Black", got)
+	}
+}
+
+func TestEffectiveLight_LowLightAmplifiesFaintLight(t *testing.T) {
+	f := newRenderFixture()
+	f.room.Terrain = world.TerrainUnderground
+	res := newLightResolver(gameclock.PeriodDay)
+	// A gloom-luminous item gives the room a faint glow (base Gloom); low-light
+	// pulls it up to clear (Dim).
+	lamp := f.placeItem(t, &item.Template{
+		ID: "x:emberlamp", Name: "a dying ember", Type: "light",
+		Properties: map[string]any{"light": "gloom"},
+	})
+	lamp.SetProperty(light.PropItemLit, true)
+	// Baseline: a plain viewer sees only Gloom.
+	if got := command.EffectiveLight(res, f.room, lightViewer{}, f.store, f.place); got != light.Gloom {
+		t.Fatalf("underground + gloom ember (plain) = %v, want Gloom", got)
+	}
+	// Low-light lifts that faint glow to Dim.
+	v := lightViewer{caps: map[string]bool{light.LowLightFlag: true}}
+	if got := command.EffectiveLight(res, f.room, v, f.store, f.place); got != light.Dim {
+		t.Fatalf("underground + gloom ember + low-light = %v, want Dim", got)
+	}
+}
+
+func TestEffectiveLight_ThermographicPlusLowLightStaysGloomInDark(t *testing.T) {
+	f := newRenderFixture()
+	f.room.Terrain = world.TerrainUnderground
+	res := newLightResolver(gameclock.PeriodDay)
+	// A runner with BOTH cyber vision modes in a sealed pitch-black room:
+	// thermographic floors to Gloom (heat shapes), but low-light finds no REAL
+	// light to amplify (roomLight is Black), so it does NOT lift to Dim. Low-light
+	// amplifies photons, not a thermographic floor.
+	v := lightViewer{caps: map[string]bool{
+		light.ThermographicFlag: true,
+		light.LowLightFlag:      true,
+	}}
+	if got := command.EffectiveLight(res, f.room, v, f.store, f.place); got != light.Gloom {
+		t.Fatalf("underground + thermographic + low-light (no real light) = %v, want Gloom", got)
+	}
+}
+
+func TestEffectiveLight_LowLightAmplifiesHeldTorch(t *testing.T) {
+	f := newRenderFixture()
+	f.room.Terrain = world.TerrainUnderground
+	res := newLightResolver(gameclock.PeriodDay)
+	// A held torch is REAL light; low-light amplifies it from Gloom to Dim.
+	torch, err := f.store.Spawn(&item.Template{
+		ID: "x:torch2", Name: "a torch", Type: "light",
+		Properties: map[string]any{"light": "gloom"},
+	})
+	if err != nil {
+		t.Fatalf("Spawn: %v", err)
+	}
+	torch.SetProperty(light.PropItemLit, true)
+	v := lightViewer{
+		equip: map[string]entities.EntityID{"light": torch.ID()},
+		caps:  map[string]bool{light.LowLightFlag: true},
+	}
+	if got := command.EffectiveLight(res, f.room, v, f.store, f.place); got != light.Dim {
+		t.Fatalf("underground + held torch + low-light = %v, want Dim", got)
 	}
 }
 

@@ -17,6 +17,22 @@ package light
 // passes the result to Config.ViewerFloor.
 const DarkvisionFlag = "darkvision"
 
+// Vision-mode flags (spec §4). A viewer acquires a vision mode either
+// racially (a race tag, like darkvision) or from gear (an equipped
+// capability — a cybereye enhancement's `grants`, or eyewear). The call
+// site gathers both sources and feeds the flags to the light floor.
+//
+//   - ThermographicFlag: see by heat in total darkness — an
+//     unconditional floor (Config.EffectFloors, defaulting to Gloom),
+//     mechanically the gear/heat analogue of racial darkvision.
+//   - LowLightFlag: amplify faint light — a CONDITIONAL lift to
+//     Config.LowLightFloor that helps only when the room affords some
+//     light, so it grants nothing in a sealed pitch-black room.
+const (
+	ThermographicFlag = "thermographic"
+	LowLightFlag      = "low-light"
+)
+
 // EffectFloorFor returns the brightest floor among the viewer's active
 // effect flags, per the Config.EffectFloors map (flag → floor). A
 // viewer with no matching flag gets Black (no contribution). This is

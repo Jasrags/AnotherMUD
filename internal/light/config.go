@@ -28,10 +28,19 @@ type Config struct {
 	// EffectFloors maps an active-effect flag to the per-viewer light
 	// floor it grants while present (§4 light/sight effects). A
 	// cast-light or infravision effect carries one of these flags;
-	// EffectFloorFor reads them. Empty by default — content adds a
-	// light effect and the operator lists its flag here so the floor
-	// it grants is configurable, not hardcoded (§11).
+	// EffectFloorFor reads them. Content adds a light effect and the
+	// operator lists its flag here so the floor it grants is
+	// configurable, not hardcoded (§11). Vision modes plug in the same
+	// way: ThermographicFlag maps here (an unconditional see-in-the-dark
+	// floor), listed by DefaultConfig.
 	EffectFloors map[string]Level
+	// LowLightFloor is the level a viewer with low-light vision is lifted
+	// to — but only when the room already affords SOME light (resolved
+	// ≥ Gloom). Unlike DarkvisionFloor/EffectFloors (unconditional
+	// floors), low-light amplifies faint light and grants nothing in
+	// total darkness; the conditional lives at the call site
+	// (command.EffectiveLight), this field only names the target level.
+	LowLightFloor Level
 	// CombatHitPenalty maps an attacker's effective light level to the
 	// to-hit penalty (a non-negative magnitude) they suffer in combat
 	// (§5.3): brighter is better, `lit` is zero, and the penalty only
@@ -54,6 +63,15 @@ func DefaultConfig() Config {
 		IndoorCap:       Dim,
 		DarkvisionFloor: Gloom,
 		DarkvisionCap:   Gloom,
+		// Vision modes (light-and-darkness §4). Thermographic is an
+		// unconditional floor — a heat picture reads shapes in pitch dark,
+		// exactly like racial darkvision, so it floors at Gloom.
+		// Low-light amplifies existing light (conditional, so not an
+		// EffectFloor) and lifts a lit-enough room to Dim.
+		EffectFloors: map[string]Level{
+			ThermographicFlag: Gloom,
+		},
+		LowLightFloor: Dim,
 		CombatHitPenalty: map[Level]int{
 			Lit:   0,
 			Dim:   1,

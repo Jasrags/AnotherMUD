@@ -308,6 +308,18 @@ Effective light is per-viewer because some viewers see in the dark:
   viewer's floor for a duration via the effect system
   (`abilities-and-effects.md`). They contribute to the same
   `viewerCap` term.
+- **Vision modes** are per-viewer sight granted either racially (a race
+  flag, like darkvision) or by gear (an equipped capability — e.g. a
+  cybereye enhancement's grant). Two are defined:
+  - **Thermographic** — an **unconditional floor** (heat is visible in
+    total darkness), configured like a light-effect floor (default
+    `gloom`). Mechanically it is the gear/heat analogue of racial
+    darkvision.
+  - **Low-light** — a **conditional lift**: it raises effective light to
+    the configured low-light level (default `dim`) **only when the room
+    already affords some light** (resolved ≥ `gloom`). Low-light
+    amplifies faint light; it grants **nothing** in true darkness, which
+    is what distinguishes it from thermographic/darkvision.
 - Because the render and action paths are already per-viewer, no new
   plumbing is required — the resolver is called with the viewer in
   hand.
@@ -320,6 +332,12 @@ Effective light is per-viewer because some viewers see in the dark:
       (`gloom` by default) from darkvision alone.
 - [ ] A light/sight effect raises the viewer's floor for its duration
       and stops on expiry.
+- [ ] A thermographic viewer (racial flag or equipped grant) is floored
+      to at least the configured thermographic level in any room,
+      including total darkness.
+- [ ] A low-light viewer in a room with some ambient (resolved ≥ `gloom`)
+      is lifted to the configured low-light level, but a low-light viewer
+      in total darkness (`black`) still sees nothing.
 - [ ] Two viewers in the same room can have different effective light.
 
 ---
@@ -566,6 +584,8 @@ The following are externally configurable and not fixed by this spec.
 | Fuel burn cadence and amount | §3.2 |
 | Darkvision floor and cap | §4 |
 | Light-effect floor and duration | §4 |
+| Thermographic vision floor (a light-effect floor entry) | §4 |
+| Low-light vision lift level | §4 |
 | Terse-`gloom` and `black` render strings | §5.1 |
 | Occupant-coarsening granularity at `gloom` (presence / count / kind) | §5.1 |
 | Examination/reading minimum level | §5.2 |

@@ -2,11 +2,11 @@ id: cybereyes
 name: cybereyes
 type: item
 description: |
-  Replacement eyes with a smartlink feed, flare compensation, and a low-light
-  layer — the sprawl reads like a map and nothing catches you blind. The
-  attribute shift stands in for that heightened awareness; the low-light /
-  thermographic vision itself is flavor until a light/visibility consumer reads
-  it.
+  Replacement eyes with a smartlink feed and a spare optical bus — the sprawl
+  reads like a map and nothing catches you blind. The base shell's +1 intuition
+  stands in for that heightened awareness; slot a `thermographic` or `low-light`
+  vision mod into its capacity (`modify cybereyes thermographic`) and the eyes
+  actually pierce the dark.
 tags: [cyberware, augmentation, cybereye]
 keywords: [cybereyes, eyes, optics, cyberware]
 # essence_cost (SR-M4): cheap chrome — only 0.2 Essence, so a runner can stack

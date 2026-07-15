@@ -1,0 +1,21 @@
+id: cybereye-thermographic
+name: a thermographic vision mod
+type: item
+description: |
+  A thermal-imaging layer for a cybereye — the world repaints itself in heat.
+  Warm bodies glow through pitch dark, a just-fired gun runs hot in the hand, and
+  the vent a runner just crawled out of still holds their shape. Where there is no
+  light at all, there is still heat, and heat is enough.
+tags: [cyberware-mod]
+keywords: [thermographic, thermo, heat vision, infrared]
+# Cyberware-cluster ENHANCEMENT (item-modification.md §3): fits a cybereye host,
+# SR5 Thermographic Vision [1]. It `grants: [thermographic]`; while the host eyes
+# are worn the runner sees by heat — an unconditional light floor (Gloom) that
+# lets them make out shapes in total darkness (light-and-darkness §4), the gear
+# analogue of racial darkvision. No live stat modifier; the sight IS the effect.
+mod_host: cybereye
+mod_capacity_cost: 1
+grants: [thermographic]
+properties:
+  weight: 0
+  value: 500

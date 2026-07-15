@@ -1,0 +1,21 @@
+id: cybereye-low-light
+name: a low-light vision mod
+type: item
+description: |
+  A photon-amplification layer for a cybereye — starlight, a distant neon sign, the
+  bleed under a door, all pulled up to a clear grey daylight. It cannot make light
+  where there is none, but give it the faintest glow and the dark loses its cover.
+tags: [cyberware-mod]
+keywords: [low-light, lowlight, light amplification, night vision]
+# Cyberware-cluster ENHANCEMENT (item-modification.md §3): fits a cybereye host,
+# SR5 Low-Light Vision [1]. It `grants: [low-light]`; while the host eyes are worn
+# the runner amplifies faint light — a CONDITIONAL lift (light-and-darkness §4):
+# any room that affords some light reads as clear (Dim), but a sealed pitch-black
+# room stays black (low-light amplifies, it does not see heat — that is
+# thermographic). No live stat modifier; the sight IS the effect.
+mod_host: cybereye
+mod_capacity_cost: 1
+grants: [low-light]
+properties:
+  weight: 0
+  value: 500
