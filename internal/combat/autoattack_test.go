@@ -79,6 +79,7 @@ type autoAttackRig struct {
 	secOff         int                                      // SecondaryOffHandPenalty (two-weapon-fighting §4.3)
 	setBonus       int                                      // SetDamageBonus (special-weapons §4)
 	whipThreshold  int                                      // WhipArmorThreshold (subdual-damage §6)
+	onSwing        func(CombatantID, bool)                  // OnSwingResolved (skills §7) — nil ⇒ no train hook
 }
 
 // fakePassives is a deterministic PassiveEvaluator for the §4.2/§4.3
@@ -134,6 +135,7 @@ func (r *autoAttackRig) phase() PhaseFunc {
 		SecondaryOffHandPenalty: r.secOff,
 		SetDamageBonus:          r.setBonus,
 		WhipArmorThreshold:      r.whipThreshold,
+		OnSwingResolved:         r.onSwing,
 	})
 }
 
@@ -152,6 +154,47 @@ func (r *autoAttackRig) ammoForWrapped() func(CombatantID) (bool, int, int) {
 		canFire, toHit := r.ammoFor(id)
 		return canFire, toHit, r.ammoAP
 	}
+}
+
+// TestAutoAttack_OnSwingResolvedReportsHitAndMiss — skills §7 train-on-attack
+// seam: every resolved weapon swing calls OnSwingResolved with the attacker id
+// and whether the swing landed. A landed blow reports hit=true, a miss hit=false
+// — the host uses this to roll a use-gain on the wielded weapon's bound skill.
+func TestAutoAttack_OnSwingResolvedReportsHitAndMiss(t *testing.T) {
+	type swing struct {
+		id  CombatantID
+		hit bool
+	}
+
+	t.Run("landed blow reports hit=true", func(t *testing.T) {
+		// HitMod 100 vs AC 10 → guaranteed hit; roll 9 (d20=10) is an ordinary hit.
+		rig := newAutoAttackRig(t, Stats{HitMod: 100, STR: 10}, Stats{AC: 10}, 10, 20, []int{
+			9, // d20: 9+1 = 10, hits
+			0, // damage 1d3: 0+1 = 1
+		})
+		var got []swing
+		rig.onSwing = func(id CombatantID, hit bool) { got = append(got, swing{id, hit}) }
+		rig.phase()(context.Background(), rig.attacker.id, rig.mgr, 0)
+
+		if len(got) != 1 || !got[0].hit || got[0].id != rig.attacker.id {
+			t.Fatalf("want one hit=true swing for %s, got %+v", rig.attacker.id, got)
+		}
+	})
+
+	t.Run("miss reports hit=false", func(t *testing.T) {
+		// HitMod -100 vs AC 100 → guaranteed miss; roll 5 (d20=6) is a plain miss
+		// (not a fumble, which would still report hit=false anyway).
+		rig := newAutoAttackRig(t, Stats{HitMod: -100, STR: 10}, Stats{AC: 100}, 10, 20, []int{
+			5, // d20: 5+1 = 6, misses
+		})
+		var got []swing
+		rig.onSwing = func(id CombatantID, hit bool) { got = append(got, swing{id, hit}) }
+		rig.phase()(context.Background(), rig.attacker.id, rig.mgr, 0)
+
+		if len(got) != 1 || got[0].hit || got[0].id != rig.attacker.id {
+			t.Fatalf("want one hit=false swing for %s, got %+v", rig.attacker.id, got)
+		}
+	})
 }
 
 func TestAutoAttackNaturalTwentyAlwaysHits(t *testing.T) {

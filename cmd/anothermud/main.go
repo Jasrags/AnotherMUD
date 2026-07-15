@@ -2088,6 +2088,37 @@ func run() error {
 		}
 		return progression.ProficiencyBonus(prof, weaponSkillCfg), true
 	}
+	// skills §7 train-on-attack: the other half of the weapon-skill model. Each
+	// weapon swing rolls a use-based gain on the wielded weapon's bound skill (a
+	// landed blow at the full rate, a miss the reduced rate) — the same use-gain
+	// path crafting/gathering/passives ride. Mirrors attackerWeaponSkillMod's
+	// boundary: players only (mobs have no skill store and never train), and a
+	// weapon that binds no skill trains nothing (the binary proficiency-set
+	// model). Runs on the tick goroutine (combatRNG is single-goroutine-safe
+	// here, same as the swing rolls), and RollUseGain locks the proficiency
+	// manager itself. An untrained-but-defaulting attacker gains nothing —
+	// RollUseGain only advances a LEARNED skill, so a bound skill must be Learned
+	// (via a class grant / trainer) before fighting improves it, the same
+	// convention every use-gain skill follows. It reads the CURRENTLY wielded
+	// weapon's skill — safe because the callback fires synchronously inside the
+	// swing resolution on the same tick-goroutine call stack (no yield, no weapon
+	// swap can interleave); a future refactor that moves the callback off that
+	// stack would need to capture the swing's weapon instead.
+	trainWeaponSkill := func(id combat.CombatantID, hit bool) {
+		if !strings.HasPrefix(string(id), combat.PlayerPrefix) {
+			return
+		}
+		bareID := string(id)[len(combat.PlayerPrefix):]
+		a, ok := mgr.GetByPlayerID(bareID)
+		if !ok {
+			return
+		}
+		skill := a.WieldedWeaponSkill()
+		if skill == "" {
+			return // binary proficiency-set model: no bound skill to train.
+		}
+		proficiencyMgr.RollUseGain(bareID, skill, hit, combatRNG, passiveStatReader)
+	}
 	hitModAdjust := func(id combat.CombatantID) int {
 		// conditions §3 — the attacker-penalty half (prone/blinded/fear)
 		// composes additively here alongside darkness + proficiency.
@@ -2199,6 +2230,10 @@ func run() error {
 		Passives:       passiveResolver,
 		CritMultiplier: cfg.CritMultiplier,
 		HitModAdjust:   hitModAdjust,
+		// skills §7 train-on-attack: each resolved weapon swing rolls a use-gain
+		// on the wielder's bound weapon skill (players + skill-binding weapons
+		// only; the binary model trains nothing).
+		OnSwingResolved: trainWeaponSkill,
 		// conditions §3: a stunned attacker skips its swings; a prone/
 		// stunned/blinded defender is easier to hit. Both read the target's
 		// live condition flags through the shared conditionImpact fold.

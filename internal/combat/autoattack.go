@@ -150,6 +150,25 @@ type AutoAttackConfig struct {
 	// boot that does not wire it) — combat then behaves exactly as before
 	// this slice. When non-nil, FortBonus MUST be set.
 	MassiveDamage *MassiveDamageConfig
+	// OnSwingResolved fires after each of this attacker's weapon swings, with
+	// hit reporting whether the swing landed (a landed-but-ineffective whip lash
+	// counts as a landed blow). It is the skills §7 train-on-attack seam: the
+	// host rolls a use-based gain on the wielded weapon's bound skill (a hit
+	// gains at the full rate, a miss the reduced rate). ONLY real weapon swings
+	// call it — ability/weave damage routes through the sink directly and must
+	// never train a weapon skill. Keyed on the full attacker CombatantID.
+	// nil-safe: no training (tests/headless and any pack that binds no weapon
+	// skills — the pre-skills-§7 behavior).
+	OnSwingResolved func(attackerID CombatantID, hit bool)
+}
+
+// notifySwing reports one weapon-swing outcome to the OnSwingResolved hook
+// (skills §7 train-on-attack). nil-safe so a config without the hook — every
+// test and any boot that binds no weapon skills — is unaffected.
+func (cfg *AutoAttackConfig) notifySwing(attackerID CombatantID, hit bool) {
+	if cfg.OnSwingResolved != nil {
+		cfg.OnSwingResolved(attackerID, hit)
+	}
 }
 
 // MassiveDamageConfig parameterizes the saves §4 massive-damage save. All
@@ -711,6 +730,7 @@ func resolveSwing(ctx context.Context, in swingInputs, cfg AutoAttackConfig) swi
 			IsFumble:     outcome.fumble,
 			RoomID:       in.attackerRoom,
 		})
+		cfg.notifySwing(in.attackerID, false) // skills §7 train-on-attack: a miss trains at the reduced rate.
 		return swingContinue
 	}
 
@@ -733,6 +753,7 @@ func resolveSwing(ctx context.Context, in swingInputs, cfg AutoAttackConfig) swi
 			Ineffective:  true,
 			RoomID:       in.attackerRoom,
 		})
+		cfg.notifySwing(in.attackerID, true) // skills §7: the lash LANDED (it wrapped the foe) — a landed blow trains.
 		return swingContinue
 	}
 
@@ -817,6 +838,7 @@ func resolveSwing(ctx context.Context, in swingInputs, cfg AutoAttackConfig) swi
 		Subdual:      in.atkStats.Subdual,
 		RoomID:       in.attackerRoom,
 	})
+	cfg.notifySwing(in.attackerID, true) // skills §7: a landed blow trains the wielded weapon's bound skill at the full rate.
 
 	// --- hp path: the canonical killing-blow + massive-damage rules ---
 	if dest == pool.KindHP {

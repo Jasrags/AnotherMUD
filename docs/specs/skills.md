@@ -278,10 +278,13 @@ Skills surface without a new framework:
 skill via `weapon_skill`; a player wielding it has their to-hit read that skill's
 proficiency bonus, or the non-proficient penalty when untrained; per-weapon /
 per-pack, with mobs and skill-less weapons on the unchanged binary model). The
-**train-on-attack** half (each attack rolling a use-gain on the bound skill) is
-**deferred** to a follow-up — the bound skills currently grow via `practice`/
-`train`, not yet by fighting. Mob weapon-skill ratings (so grunts use the model
-too) are also deferred.
+**train-on-attack** half (each resolved weapon swing rolls the existing use-gain
+on the bound skill — a landed blow at the full rate, a miss the reduced rate)
+**also SHIPPED** (2026-07-15) via a nil-safe `OnSwingResolved` callback on the
+auto-attack seam, so only real weapon swings train and ability/weave damage never
+leaks weapon-skill gain; an untrained-but-defaulting attacker gains nothing (the
+use-gain only advances a *learned* skill). Mob weapon-skill ratings (so grunts use
+the model too) remain deferred.
 
 
 Combat may consume the skill system the same way lockpicking does — a wielded
