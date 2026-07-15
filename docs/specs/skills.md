@@ -332,6 +332,7 @@ grant/cap remains available as the class-access mechanism.
 | Open-Lock pick difficulties | Per-door pick difficulty (the DC) — already door content (§4). | per-door content values |
 | Default (untrained) penalty | The to-hit / check penalty on a defaultable skill attempted untrained (§2.1, §7). | per-pack; the shipped binary model's non-proficient penalty |
 | Weapon → bound-skill map | Which skill a weapon binds under the weapon-skill model (§7). | content (per weapon); unset ⇒ binary-proficiency model |
+| Per-world stealth skill | The single skill both concealment axes (hide + move-silently) read + train for a world that merges them (§2). | per-world content (SR: one merged skill); unset ⇒ the two-axis default |
 
 All numeric magnitudes live here per spec convention; the prose names
 behaviors, not values.
