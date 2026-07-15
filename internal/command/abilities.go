@@ -89,10 +89,11 @@ func SkillsHandler(ctx context.Context, c *Context) error {
 	}
 	entityID := abilityEntityID(c.Actor)
 	type row struct {
-		name      string
-		prof, cap int
+		name, group, category, attr string
+		prof, capV                  int
 	}
 	var rows []row
+	grouped := false // any skill declaring category/group flips this (skills §5)
 	widest := 0
 	for _, e := range c.Proficiency.LearnedAbilities(entityID) {
 		ab, ok := c.Abilities.Get(e.ID)
@@ -104,7 +105,19 @@ func SkillsHandler(ctx context.Context, c *Context) error {
 			name = e.ID
 		}
 		capValue, _, _ := c.Proficiency.GetCap(entityID, e.ID)
-		rows = append(rows, row{name: name, prof: e.Value, cap: capValue})
+		// The linked attribute serves as the display tag; falls back to the gain
+		// stat (the baseline where check-stat == gain-stat).
+		attr := string(ab.LinkedAttribute)
+		if attr == "" {
+			attr = string(ab.GainStat)
+		}
+		rows = append(rows, row{
+			name: name, group: ab.SkillGroup, category: ab.SkillCategory,
+			attr: attr, prof: e.Value, capV: capValue,
+		})
+		if ab.SkillCategory != "" || ab.SkillGroup != "" {
+			grouped = true
+		}
 		if len(name) > widest {
 			widest = len(name)
 		}
@@ -112,15 +125,96 @@ func SkillsHandler(ctx context.Context, c *Context) error {
 	if len(rows) == 0 {
 		return c.Actor.Write(ctx, "You haven't learned any skills yet.")
 	}
+
+	// Flat list — byte-identical to the pre-metadata baseline for any world that
+	// declares no skill category/group (skills §5).
+	if !grouped {
+		sort.SliceStable(rows, func(i, j int) bool {
+			return strings.ToLower(rows[i].name) < strings.ToLower(rows[j].name)
+		})
+		var b strings.Builder
+		b.WriteString("Your skills:\n")
+		for _, r := range rows {
+			b.WriteString(fmt.Sprintf("  %-*s  %d/%d\n", widest, r.name, r.prof, r.capV))
+		}
+		return c.Actor.Write(ctx, strings.TrimRight(b.String(), "\n"))
+	}
+
+	// Grouped by category then group then name (skills §2.1/§5); an uncategorized
+	// or ungrouped skill sorts last within its tier.
 	sort.SliceStable(rows, func(i, j int) bool {
+		if ci, cj := skillSortKey(rows[i].category), skillSortKey(rows[j].category); ci != cj {
+			return ci < cj
+		}
+		if gi, gj := skillSortKey(rows[i].group), skillSortKey(rows[j].group); gi != gj {
+			return gi < gj
+		}
 		return strings.ToLower(rows[i].name) < strings.ToLower(rows[j].name)
 	})
 	var b strings.Builder
 	b.WriteString("Your skills:\n")
+	// Track the header by its NORMALIZED key (the same key used to sort), not the
+	// raw field, so two files authoring the same category with different casing
+	// ("combat" vs "Combat") don't print a duplicate header at their boundary.
+	curCat, curGroup, first := "", "", true
 	for _, r := range rows {
-		b.WriteString(fmt.Sprintf("  %-*s  %d/%d\n", widest, r.name, r.prof, r.cap))
+		catKey, groupKey := skillSortKey(r.category), skillSortKey(r.group)
+		if first || catKey != curCat || groupKey != curGroup {
+			if !first {
+				b.WriteString("\n")
+			}
+			b.WriteString(skillHeader(r.category, r.group) + "\n")
+			curCat, curGroup, first = catKey, groupKey, false
+		}
+		tag := ""
+		if r.attr != "" {
+			tag = "  (" + attrAbbrev(r.attr) + ")"
+		}
+		b.WriteString(fmt.Sprintf("  %-*s  %d/%d%s\n", widest, r.name, r.prof, r.capV, tag))
 	}
 	return c.Actor.Write(ctx, strings.TrimRight(b.String(), "\n"))
+}
+
+// skillSortKey lowercases a category/group name for stable ordering and sorts
+// empty (uncategorized/ungrouped) names last.
+func skillSortKey(s string) string {
+	if s == "" {
+		return "\xff"
+	}
+	return strings.ToLower(s)
+}
+
+// skillHeader renders a "Category — Group" listing header (title-cased);
+// an empty category reads "Other", an empty group drops the " — Group" tail.
+func skillHeader(category, group string) string {
+	cat := titleCaseWords(category)
+	if cat == "" {
+		cat = "Other"
+	}
+	if group == "" {
+		return cat
+	}
+	return cat + " — " + titleCaseWords(group)
+}
+
+// attrAbbrev renders a linked-attribute tag as its first three letters uppercased
+// (the SR 3-letter convention — agility→AGI, logic→LOG; dex→DEX unchanged).
+func attrAbbrev(attr string) string {
+	a := strings.ToUpper(strings.TrimSpace(attr))
+	if len(a) > 3 {
+		return a[:3]
+	}
+	return a
+}
+
+// titleCaseWords capitalizes each space-separated word ("close combat" →
+// "Close Combat"), so a lowercase-authored category/group still reads well.
+func titleCaseWords(s string) string {
+	fields := strings.Fields(s)
+	for i, w := range fields {
+		fields[i] = strings.ToUpper(w[:1]) + strings.ToLower(w[1:])
+	}
+	return strings.Join(fields, " ")
 }
 
 // CastHandler implements the generic `cast <ability> [target]` verb.

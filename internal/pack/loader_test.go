@@ -1845,6 +1845,11 @@ gain_base_chance: 25
 gain_failure_multiplier: 0.5
 gain_stat: dex
 gain_stat_scale: 0.1
+linked_attribute: agility
+skill_group: Close Combat
+skill_category: combat
+trained_only: true
+default_penalty: 4
 elements:
   - Fire
   - air
@@ -1874,6 +1879,22 @@ category: skill
 	}
 	if a.GainStat != "dex" {
 		t.Errorf("GainStat = %q, want dex", a.GainStat)
+	}
+	// Skill catalog metadata (skills §2.1).
+	if a.LinkedAttribute != "agility" {
+		t.Errorf("LinkedAttribute = %q, want agility", a.LinkedAttribute)
+	}
+	if a.SkillGroup != "Close Combat" {
+		t.Errorf("SkillGroup = %q, want Close Combat", a.SkillGroup)
+	}
+	if a.SkillCategory != "combat" {
+		t.Errorf("SkillCategory = %q, want combat", a.SkillCategory)
+	}
+	if !a.TrainedOnly {
+		t.Error("TrainedOnly = false, want true")
+	}
+	if a.DefaultPenalty != 4 {
+		t.Errorf("DefaultPenalty = %d, want 4", a.DefaultPenalty)
 	}
 	if a.Pack != "tapestry-core" {
 		t.Errorf("Pack = %q", a.Pack)

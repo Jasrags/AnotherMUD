@@ -118,6 +118,34 @@ type Ability struct {
 	// the proficiency-manager default.
 	GainStatScale float64
 
+	// --- Skill catalog metadata (skills §2.1; optional, skill category) ---
+	// All default to zero/empty: a skill that declares none renders in the flat
+	// list and behaves exactly as the shipped baseline (lockpicking declares
+	// none). This slice parses + stores them and drives the grouped `skills`
+	// display; the untrained-refusal / default-penalty behavior is a later slice.
+
+	// LinkedAttribute is the check-stat when a skill names its check attribute
+	// distinctly from GainStat (skills §2.1). Empty ⇒ GainStat serves as the
+	// check attribute (the baseline — e.g. lockpicking's Dexterity).
+	LinkedAttribute StatType
+
+	// SkillGroup is an optional named family (a firearms/stealth group) for the
+	// grouped skills display (skills §2.1/§5). Empty ⇒ ungrouped.
+	SkillGroup string
+
+	// SkillCategory is an optional top-level class (combat/physical/social/…)
+	// for the top-level grouping of the skills listing (skills §2.1/§5). Empty ⇒
+	// the flat, uncategorized list.
+	SkillCategory string
+
+	// TrainedOnly reports that an untrained character may NOT attempt the skill
+	// (skills §2.1 — the non-defaultable case). Default false ⇒ defaultable.
+	TrainedOnly bool
+
+	// DefaultPenalty is the penalty applied to a defaulting (untrained) attempt
+	// (skills §2.1/§7). Consumed by the check/combat paths in a later slice.
+	DefaultPenalty int
+
 	// Cost is the unmodified resource cost (spec §2.2 / §4.7).
 	// Race-adjusted at validation + deduction time. Zero means
 	// no resource check (the §4.3 step 9 check is skipped).
@@ -309,6 +337,10 @@ func (r *AbilityRegistry) Register(a *Ability) error {
 		clone.DefaultCap = 100
 	}
 	clone.GainStat = StatType(strings.ToLower(strings.TrimSpace(string(a.GainStat))))
+	// LinkedAttribute is a stat id like GainStat — keep it lowercase-canonical
+	// so the future check-math slice can look it up against the attribute set
+	// (case-sensitive) without rediscovering this.
+	clone.LinkedAttribute = StatType(strings.ToLower(strings.TrimSpace(string(a.LinkedAttribute))))
 	// A negative failure multiplier is meaningless (gain can't be
 	// negative); normalize to 0 so rollGain's `<= 0 ⇒ default 1.0`
 	// guard treats it as "unset". A value > 1.0 (miss gains faster

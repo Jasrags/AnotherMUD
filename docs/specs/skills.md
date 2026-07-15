@@ -88,7 +88,15 @@ skill flagged **trained-only** cannot be attempted without proficiency.
       zero (stat modifier only); a trained-only skill is refused without
       proficiency.
 
-### 2.1 Optional catalog metadata (extends the baseline; build-pending)
+### 2.1 Optional catalog metadata (extends the baseline)
+
+**Status:** metadata fields + the grouped display (§5) **SHIPPED** (engine Slice A,
+2026-07-15 — `linked_attribute` / `skill_group` / `skill_category` /
+`trained_only` / `default_penalty` on the ability content type; the `skills`
+listing groups when they are present). The **untrained-refusal + default-penalty
+behavior** (a defaulting attempt at `−default_penalty`; a `trained_only` skill
+refused) is parsed+stored but not yet *applied* — it awaits the check/combat
+consumer (§7 and a defaulting slice).
 
 Beyond the governing stat, a skill may carry optional catalog metadata a world
 uses to organize and gate its skill list. All are optional; a skill that omits

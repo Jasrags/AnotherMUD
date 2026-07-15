@@ -291,3 +291,91 @@ func TestCast_SteddingStillsThePower(t *testing.T) {
 		t.Errorf("weave wrongly blocked outside stedding: %q", got)
 	}
 }
+
+// --- skills listing (skills §5: grouped when metadata present, else flat) ---
+
+// A world with no skill category/group metadata renders the flat list unchanged
+// (no group headers, no attribute tags) — the WoT/baseline behavior.
+func TestSkills_FlatWhenNoMetadata(t *testing.T) {
+	f := newAbilityFixture(t) // "kick" is a skill with no catalog metadata
+	f.prof.Learn("p-1", "kick", 20)
+	f.prof.SetCap("p-1", "kick", 25)
+	a := newNamedTestActor("Tester", "p-1", nil)
+	ctx := &command.Context{Actor: a, Proficiency: f.prof, Abilities: f.reg}
+	if err := command.SkillsHandler(context.Background(), ctx); err != nil {
+		t.Fatalf("SkillsHandler: %v", err)
+	}
+	got := a.lastLine()
+	if !strings.Contains(got, "Kick") || !strings.Contains(got, "20/25") {
+		t.Errorf("flat skills = %q", got)
+	}
+	if strings.Contains(got, "—") || strings.Contains(got, "(") {
+		t.Errorf("flat mode should carry no group headers / attribute tags: %q", got)
+	}
+}
+
+// A world whose skills declare category/group renders grouped by category then
+// group, with a linked-attribute tag — the SR-style listing.
+func TestSkills_GroupedWhenMetadataPresent(t *testing.T) {
+	f := newAbilityFixture(t)
+	mustRegister(t, f.reg, &progression.Ability{
+		ID: "pistols", DisplayName: "Pistols", Type: progression.AbilityActive,
+		Category: progression.AbilitySkill, LinkedAttribute: "agility",
+		SkillGroup: "Firearms", SkillCategory: "combat",
+	})
+	mustRegister(t, f.reg, &progression.Ability{
+		ID: "sneaking", DisplayName: "Sneaking", Type: progression.AbilityActive,
+		Category: progression.AbilitySkill, LinkedAttribute: "agility",
+		SkillGroup: "Stealth", SkillCategory: "physical",
+	})
+	f.prof.Learn("p-1", "pistols", 63)
+	f.prof.SetCap("p-1", "pistols", 80)
+	f.prof.Learn("p-1", "sneaking", 41)
+	f.prof.SetCap("p-1", "sneaking", 60)
+	a := newNamedTestActor("Tester", "p-1", nil)
+	ctx := &command.Context{Actor: a, Proficiency: f.prof, Abilities: f.reg}
+	if err := command.SkillsHandler(context.Background(), ctx); err != nil {
+		t.Fatalf("SkillsHandler: %v", err)
+	}
+	got := a.lastLine()
+	for _, want := range []string{
+		"Combat — Firearms", "Pistols", "63/80", "(AGI)",
+		"Physical — Stealth", "Sneaking", "41/60",
+	} {
+		if !strings.Contains(got, want) {
+			t.Errorf("grouped skills %q missing %q", got, want)
+		}
+	}
+	// Categories sort alphabetically: Combat before Physical.
+	if strings.Index(got, "Combat — Firearms") > strings.Index(got, "Physical — Stealth") {
+		t.Errorf("category ordering wrong:\n%s", got)
+	}
+}
+
+// Two skills authored with the same category in different casing must share one
+// header, not print it twice (the header-change check keys off the normalized
+// sort key, not the raw field).
+func TestSkills_GroupedInconsistentCategoryCasingDedupes(t *testing.T) {
+	f := newAbilityFixture(t)
+	mustRegister(t, f.reg, &progression.Ability{
+		ID: "pistols", DisplayName: "Pistols", Type: progression.AbilityActive,
+		Category: progression.AbilitySkill, LinkedAttribute: "agility",
+		SkillGroup: "Firearms", SkillCategory: "combat",
+	})
+	mustRegister(t, f.reg, &progression.Ability{
+		ID: "longarms", DisplayName: "Longarms", Type: progression.AbilityActive,
+		Category: progression.AbilitySkill, LinkedAttribute: "agility",
+		SkillGroup: "Firearms", SkillCategory: "Combat", // capital C — same category
+	})
+	f.prof.Learn("p-1", "pistols", 30)
+	f.prof.Learn("p-1", "longarms", 40)
+	a := newNamedTestActor("Tester", "p-1", nil)
+	ctx := &command.Context{Actor: a, Proficiency: f.prof, Abilities: f.reg}
+	if err := command.SkillsHandler(context.Background(), ctx); err != nil {
+		t.Fatalf("SkillsHandler: %v", err)
+	}
+	got := a.lastLine()
+	if n := strings.Count(got, "Firearms"); n != 1 {
+		t.Errorf("expected one Firearms header, got %d:\n%s", n, got)
+	}
+}

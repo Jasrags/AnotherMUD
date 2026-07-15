@@ -661,7 +661,13 @@ type AbilityFile struct {
 	GainFailureMultiplier float64 `yaml:"gain_failure_multiplier,omitempty"`
 	GainStat              string  `yaml:"gain_stat,omitempty"`
 	GainStatScale         float64 `yaml:"gain_stat_scale,omitempty"`
-	Priority              int     `yaml:"priority,omitempty"`
+	// Skill catalog metadata (skills §2.1; optional, skill category only).
+	LinkedAttribute string `yaml:"linked_attribute,omitempty"`
+	SkillGroup      string `yaml:"skill_group,omitempty"`
+	SkillCategory   string `yaml:"skill_category,omitempty"`
+	TrainedOnly     bool   `yaml:"trained_only,omitempty"`
+	DefaultPenalty  int    `yaml:"default_penalty,omitempty"`
+	Priority        int    `yaml:"priority,omitempty"`
 	// M9.3 validation surface (spec abilities-and-effects §2.2, §4.3).
 	Cost       int `yaml:"cost,omitempty"`
 	PulseDelay int `yaml:"pulse_delay,omitempty"`
