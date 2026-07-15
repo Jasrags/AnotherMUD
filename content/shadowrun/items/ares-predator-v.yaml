@@ -14,6 +14,7 @@ eligible_slots: [wield]
 weapon_damage: "2d6"
 weapon_category: pistol
 proficiency_tier: martial
+ap: 1
 damage_types: [piercing]
 crit_multiplier: 2
 # Ranged firearm (ranged-combat §2/§3): spends one round of `bullet` ammo per

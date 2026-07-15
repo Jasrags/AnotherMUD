@@ -11,6 +11,7 @@ eligible_slots: [wield, offhand]
 weapon_damage: "1d6+1"
 weapon_category: knife
 proficiency_tier: simple
+ap: 3
 damage_types: [piercing]
 crit_multiplier: 2
 properties:

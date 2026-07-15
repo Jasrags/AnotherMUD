@@ -13,6 +13,7 @@ companion_slots: [offhand]
 weapon_damage: "1d8"
 weapon_category: crossbow
 proficiency_tier: simple
+ap: 1
 damage_types: [piercing]
 crit_threat_low: 19
 crit_multiplier: 2

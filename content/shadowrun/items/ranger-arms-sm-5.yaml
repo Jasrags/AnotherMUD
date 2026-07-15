@@ -12,6 +12,7 @@ companion_slots: [offhand]
 weapon_damage: "3d6+1"
 weapon_category: rifle
 proficiency_tier: martial
+ap: 5
 damage_types: [piercing]
 crit_threat_low: 19
 crit_multiplier: 2

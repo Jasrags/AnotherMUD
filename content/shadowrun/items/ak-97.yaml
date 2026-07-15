@@ -12,6 +12,7 @@ companion_slots: [offhand]
 weapon_damage: "2d6+2"
 weapon_category: rifle
 proficiency_tier: martial
+ap: 2
 damage_types: [piercing]
 crit_multiplier: 2
 ranged_class: projectile

@@ -193,6 +193,7 @@ type ItemInstance struct {
 	rangeIncrement int
 	fireModes      []string
 	recoilComp     int
+	armorPen       int
 	reloadTicks    int
 	magazine       int
 	reloadMethod   string
@@ -546,6 +547,11 @@ func (it *ItemInstance) FireModes() []string { return append([]string(nil), it.f
 // reduces a burst/full-auto firing mode's recoil to-hit penalty (ranged-combat
 // §5.6). 0 for weapons without it.
 func (it *ItemInstance) RecoilComp() int { return it.recoilComp }
+
+// ArmorPen returns the weapon's armor penetration (SR5 "AP"), which reduces the
+// defender's armor-derived soak, capped at their worn-armor rating (combat §4).
+// 0 for weapons without it.
+func (it *ItemInstance) ArmorPen() int { return it.armorPen }
 
 // ReloadTicks is the load time of a reload-gated projectile (a crossbow), in
 // engine ticks; 0 means the weapon fires freely (a bow). action-economy §7.1.
@@ -1344,6 +1350,7 @@ func buildInstanceFromTemplate(tpl *item.Template, id EntityID) *ItemInstance {
 		rangeIncrement:    tpl.RangeIncrement,
 		fireModes:         append([]string(nil), tpl.FireModes...),
 		recoilComp:        tpl.RecoilComp,
+		armorPen:          tpl.ArmorPen,
 		reloadTicks:       tpl.ReloadTicks,
 		magazine:          tpl.Magazine,
 		reloadMethod:      tpl.ReloadMethod,

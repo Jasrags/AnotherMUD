@@ -4125,6 +4125,7 @@ type weaponInfo struct {
 	rangeIncrement int
 	fireModes      []string
 	recoilComp     int
+	armorPen       int
 	reloadTicks    int
 	magazine       int
 	acceptsHolder  string
@@ -4214,6 +4215,7 @@ func (a *connActor) buildWeaponInfoLocked(id entities.EntityID) *weaponInfo {
 		rangeIncrement:     it.RangeIncrement(),
 		fireModes:          it.FireModes(),
 		recoilComp:         it.RecoilComp(),
+		armorPen:           it.ArmorPen(),
 		reloadTicks:        it.ReloadTicks(),
 		magazine:           it.Magazine(),
 		acceptsHolder:      it.AcceptsHolder(),
@@ -7142,6 +7144,9 @@ func (a *connActor) Stats() combat.Stats {
 		// Recoil compensation (§5.6): the wielded weapon's inherent RC, offsetting
 		// the firing mode's recoil at combat time.
 		s.RecoilComp = w.recoilComp
+		// Armor penetration (combat §4): the wielded weapon's AP, reducing a
+		// defender's armor soak up to their worn-armor rating.
+		s.ArmorPen = w.armorPen
 		s.ReloadTicks = w.reloadTicks
 		s.Magazine = w.magazine
 		s.AcceptsHolder = w.acceptsHolder

@@ -750,7 +750,13 @@ func resolveSwing(ctx context.Context, in swingInputs, cfg AutoAttackConfig) swi
 	// attacker's weapon types (armor-depth §4) — the two compose additively.
 	// The per-swing minimum of 1 still holds, so a landed hit always lands ≥1
 	// even under full soak.
-	soak := in.defStats.Mitigation + TypedResistance(in.defStats.Resistances, in.atkStats.WeaponDamageTypes)
+	// Armor penetration (combat §4 / ranged-combat AP): the attacker's AP reduces
+	// the defender's Mitigation, but only up to the worn-armor rating — it
+	// bypasses armor, not the creature's innate toughness. Typed resistances
+	// (below) are unaffected, so a fire-resistant liner still soaks a high-AP
+	// flamethrower. Inert (Mitigation already 0) in AC-based rulesets.
+	armorPen := min(in.atkStats.ArmorPen, in.defStats.ArmorRating)
+	soak := max(0, in.defStats.Mitigation-armorPen) + TypedResistance(in.defStats.Resistances, in.atkStats.WeaponDamageTypes)
 	raw := max(dmg+in.atkStats.DamageBonus-soak, 1)
 
 	// §4.5 apply — route the raw damage to its destination monitor.

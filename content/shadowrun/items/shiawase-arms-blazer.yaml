@@ -14,6 +14,7 @@ companion_slots: [offhand]
 weapon_damage: "2d6+2"
 weapon_category: flamethrower
 proficiency_tier: martial
+ap: 6
 # The whole point: it deals FIRE damage (the fire damage type). Ordinary ballistic
 # armor still soaks it (general Mitigation — the AP that lets real fire bypass
 # armor is a separate, unmodeled mechanic), but a fire-resistance liner soaks it

@@ -3654,6 +3654,10 @@ func decodeItem(path, ns string) (*item.Template, error) {
 		return nil, fmt.Errorf("%w: %s: rc %d must be non-negative",
 			ErrInvalidContent, path, f.RecoilComp)
 	}
+	if f.ArmorPen < 0 {
+		return nil, fmt.Errorf("%w: %s: ap %d must be non-negative (author AP as a positive magnitude)",
+			ErrInvalidContent, path, f.ArmorPen)
+	}
 	if f.Magazine < 0 {
 		return nil, fmt.Errorf("%w: %s: magazine %d must be non-negative",
 			ErrInvalidContent, path, f.Magazine)
@@ -3911,6 +3915,7 @@ func decodeItem(path, ns string) (*item.Template, error) {
 		RangeIncrement:    f.RangeIncrement,
 		FireModes:         fireModes,
 		RecoilComp:        f.RecoilComp,
+		ArmorPen:          f.ArmorPen,
 		ReloadTicks:       f.ReloadTicks,
 		Magazine:          f.Magazine,
 		ReloadMethod:      reloadMethod,

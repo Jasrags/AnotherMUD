@@ -51,6 +51,48 @@ func TestAutoAttack_TypedResistanceReducesDamage(t *testing.T) {
 	}
 }
 
+// Armor penetration reduces the defender's Mitigation, but only up to their
+// worn-armor rating — it bypasses armor, never the innate toughness (body).
+func TestAutoAttack_ArmorPenReducesSoakCappedAtArmor(t *testing.T) {
+	// Defender: Mitigation 5 (think body 2 + armor 3), worn-armor rating 3.
+	def := Stats{AC: 1, Mitigation: 5, ArmorRating: 3}
+	dmgWithAP := func(ap int) int {
+		atk := Stats{HitMod: 100, DamageBonus: 10, Damage: DiceExpr{1, 1, 0}, ArmorPen: ap}
+		rig := newAutoAttackRig(t, atk, def, 10, 500, []int{9, 0}) // always hit; 1d1 → 1
+		rig.phase()(context.Background(), rig.attacker.id, rig.mgr, 0)
+		hits := rig.sink.snapshotHits()
+		if len(hits) != 1 {
+			t.Fatalf("want 1 hit, got %d", len(hits))
+		}
+		return hits[0].Damage
+	}
+	if noAP := dmgWithAP(0); noAP != 6 { // 1 + 10 − 5 soak
+		t.Fatalf("baseline damage = %d, want 6 (1 + 10 − 5 soak)", noAP)
+	}
+	if got := dmgWithAP(3); got != 9 { // soak 5 − min(3,3) = 2 → 1 + 10 − 2
+		t.Errorf("AP 3 vs armor 3: damage = %d, want 9 (3 soak bypassed)", got)
+	}
+	if got := dmgWithAP(10); got != 9 { // capped at armor 3 — body soak intact
+		t.Errorf("surplus AP must not penetrate body soak: damage = %d, want 9", got)
+	}
+}
+
+// AP bypasses the general armor soak but NOT a typed resistance — a fire-
+// resistant liner still soaks a high-AP fire weapon (the flamethrower vs a fire
+// liner interaction).
+func TestAutoAttack_ArmorPenLeavesTypedResistance(t *testing.T) {
+	atk := Stats{HitMod: 100, DamageBonus: 10, Damage: DiceExpr{1, 1, 0}, WeaponDamageTypes: []string{"fire"}, ArmorPen: 10}
+	def := Stats{AC: 1, Mitigation: 4, ArmorRating: 4, Resistances: map[string]int{"fire": 3}}
+	rig := newAutoAttackRig(t, atk, def, 10, 500, []int{9, 0})
+	rig.phase()(context.Background(), rig.attacker.id, rig.mgr, 0)
+
+	// AP 10 (capped at armor 4) removes all Mitigation → soak = 0 + 3 fire = 3.
+	hits := rig.sink.snapshotHits()
+	if len(hits) != 1 || hits[0].Damage != 8 { // 1 + 10 − 3
+		t.Fatalf("fire resistance must survive AP: got %+v, want damage 8", hits)
+	}
+}
+
 func TestAutoAttack_ResistanceComposesWithMitigation(t *testing.T) {
 	// Scalar Mitigation (type-agnostic) and per-type Resistance compose
 	// additively: 1 + 5 − 2 (mitigation) − 3 (slashing resistance) = 1.

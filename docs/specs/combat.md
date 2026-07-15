@@ -302,6 +302,17 @@ baseline `damage_bonus`; `mitigation` is a **single** scalar today
 incoming damage's type selects the resistance — without otherwise
 changing this step.
 
+**Armor penetration.** A weapon may carry an **armor-penetration**
+value (SR "AP", authored as a positive magnitude) that reduces the
+defender's `mitigation` before it is subtracted. Penetration is
+**capped at the defender's worn-armor rating** — it bypasses *armor*,
+never the creature's innate toughness (the body portion of a
+soak-based `mitigation`) — and the net soak floors at zero. It does
+**not** reduce a per-type resistance (armor-depth §4): a specialized
+liner (a fire-resistant lining vs a high-AP flamethrower) still soaks
+its type. Penetration is inert in AC-based rulesets, where armor is
+to-hit (AC), not soak, so `mitigation` is already zero.
+
 **Acceptance criteria**
 
 - [ ] An attacker with no primary target or a dead/missing/distant

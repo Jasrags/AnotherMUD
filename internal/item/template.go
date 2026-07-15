@@ -150,6 +150,13 @@ type Template struct {
 	// (ranged-combat §5.5/§5.6), floored at zero. 0 (the default) = no
 	// compensation — the full recoil bites. Validated non-negative at load.
 	RecoilComp int
+	// ArmorPen is the weapon's armor penetration (SR5 "AP", authored as a
+	// positive magnitude). It reduces the defender's armor-derived soak
+	// (Mitigation) at combat time, CAPPED at the worn-armor rating — so it
+	// bypasses armor, never the creature's innate toughness or a typed
+	// resistance. 0 (the default) = no penetration. Inert in AC-based rulesets
+	// (WoT), where armor is AC not soak. Validated non-negative at load.
+	ArmorPen int
 	// ReloadTicks marks a projectile weapon that must be reloaded between shots
 	// (a crossbow) and is its load time in engine ticks (action-economy.md §7.1).
 	// 0 = fires freely (a bow). Validated non-negative at load.

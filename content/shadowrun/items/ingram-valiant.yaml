@@ -12,6 +12,7 @@ companion_slots: [offhand]
 weapon_damage: "3d6"
 weapon_category: machine-gun
 proficiency_tier: martial
+ap: 2
 damage_types: [piercing]
 crit_multiplier: 2
 ranged_class: projectile

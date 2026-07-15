@@ -12,6 +12,7 @@ eligible_slots: [wield]
 weapon_damage: "2d6"
 weapon_category: sword
 proficiency_tier: martial
+ap: 2
 damage_types: [slashing]
 crit_threat_low: 19
 crit_multiplier: 2

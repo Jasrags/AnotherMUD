@@ -110,6 +110,14 @@ type Stats struct {
 	// falloff; inert in Slice A.
 	RangeIncrement int
 
+	// ArmorPen is the attacker's weapon armor penetration (SR5 "AP", a positive
+	// magnitude). It reduces the DEFENDER's armor-derived soak (Mitigation),
+	// capped at the defender's ArmorRating — so it bypasses worn armor but never
+	// the creature's innate toughness (the body portion of Mitigation) nor a
+	// typed resistance. 0 leaves soak unchanged; inert in AC-based rulesets where
+	// Mitigation is 0.
+	ArmorPen int
+
 	// RecoilComp is the attacker's recoil compensation (ranged-combat §5.6),
 	// summed from the wielded weapon (and, later, accessories). It reduces the
 	// active firing mode's recoil to-hit penalty, floored at zero — so a
