@@ -454,6 +454,11 @@ it, feeds **fuel canisters**, and (being SA/BF/FA) composes with firing modes.
 - [ ] The counter: `buy fire-resistance` liner, `modify jacket fire` (§44), wear
       it. A fire-resistant target soaks the flame specifically — the right defense
       vs a flamethrower, where a plain vest isn't.
+- [ ] Other energy types: **cold** and **electrical** work the same way. Buy the
+      **insulation** liner (soaks cold) or the **nonconductivity** liner (soaks
+      electrical), `modify jacket insulation` / `... nonconductivity`. A stun baton
+      / taser now deals *electrical* — nonconductivity blunts the shock. (No Core
+      cold weapon yet; cold is defense-side until one is authored.)
 
 ## 48. Armor penetration (AP)
 
@@ -490,10 +495,10 @@ creature's toughness or a typed resistance. It applies to melee and ranged alike
   burst); **recoil compensation** comes from the weapon only — accessory RC
   (gas-vent, foregrip) is deferred; **AP** comes from the weapon AND the
   fired round (APDS grade — §48); mixed-ammo bursts ride only the first round's
-  grade; **fire** is a
-  damage type soaked by fire-resistant gear, but it does not yet ignite / deal
-  damage-over-time, and there is no cold/electrical type yet (Insulation /
-  Nonconductivity armor mods wait on those).
+  grade; **fire / cold / electrical** are
+  damage types soaked by the matching liner (fire-resistance / insulation /
+  nonconductivity), but fire does not yet ignite / deal damage-over-time, and
+  there is no Core cold weapon or cold hazard yet (cold is defense-side).
 - **Deferred combat depth:** the magazine model and cross-room `shoot` for the SR
   pack are recorded in the SR-M3c deferred-fixes memory.
 - **Item modification (§44):** the shipped Core armor mods are the ones with live
