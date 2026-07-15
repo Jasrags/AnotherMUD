@@ -318,10 +318,13 @@ The verbs players use and the systems that resolve them.
   path); state is **derived-not-persisted** (like weather/portals) with a
   never-strand deposit at shutdown (cf. [mounts](mounts.md) §6). Fares, express
   service, multi-car lines, and a crush hazard are §11 open questions.
-  **Elevator v1 SHIPPED** 2026-07-15 (`internal/transit` — on-demand car +
-  state machine + `press`/`call`/`enter`/`out` + the ACHE building; also wired
-  the previously-unused keyword-exit traversal, so portals are now usable too).
-  Scheduled/subway policy + fares + multi-car pending.
+  **Elevator + subway SHIPPED** 2026-07-15 (`internal/transit` — car state
+  machine + both call policies: the ACHE express **elevator** (on-demand,
+  `press <code>`/`call`, real directional doors) and the Downtown Metro
+  **subway** (scheduled — a self-running timetable train, ping-pong route);
+  `axis`/`car_noun` reskins the motion prose. Also wired the previously-unused
+  keyword-exit traversal, so portals are now usable too). Fares + multi-car +
+  the crush hazard pending.
 - [area-effects](area-effects.md) — the engine's first **multi-target attack**: a
   shared *area-effect primitive* (a payload of typed damage and/or a condition
   applied to everyone in a region, with a friend-or-foe rule) and its three

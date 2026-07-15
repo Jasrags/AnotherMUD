@@ -41,6 +41,8 @@ type lineFile struct {
 	ID          string     `yaml:"id"`
 	Name        string     `yaml:"name"`
 	Policy      string     `yaml:"policy"`
+	Axis        string     `yaml:"axis"`
+	CarNoun     string     `yaml:"car_noun"`
 	Car         string     `yaml:"car_room"`
 	DoorDir     string     `yaml:"door_direction"`
 	DoorName    string     `yaml:"door_name"`
@@ -130,6 +132,8 @@ func decodeLine(path, ns string) (Line, error) {
 		ID:          qualify(lf.ID, ns),
 		Name:        strings.TrimSpace(lf.Name),
 		Policy:      policy,
+		Horizontal:  strings.EqualFold(strings.TrimSpace(lf.Axis), "horizontal"),
+		CarNoun:     strings.ToLower(strings.TrimSpace(orDefault(lf.CarNoun, "car"))),
 		Car:         world.RoomID(qualify(lf.Car, ns)),
 		DoorDir:     dir,
 		DoorName:    strings.TrimSpace(orDefault(lf.DoorName, defaultDoorName)),

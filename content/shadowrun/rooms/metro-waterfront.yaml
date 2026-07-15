@@ -1,0 +1,12 @@
+id: metro-waterfront
+area: seattle-metro
+name: "{c}Metro — Waterfront Station{x}"
+description: |
+  The end of the line: a damp platform where the tunnel air turns to salt and the
+  tiles sweat with the bay above. A lone maintenance drone works a seized fare gate,
+  and the transit board shows the train reversing here for the run back inland.
+  Stairs climb up to the Elliott Bay waterfront. The train doors open to the north —
+  step `north` to board when one's in.
+terrain: indoors
+exits:
+  up: elliott-bay-waterfront

@@ -1,0 +1,25 @@
+# The Downtown Metro — the transit slice's SCHEDULED line (docs/specs/transit.md
+# §4.2). Same conveyance machine as the ACHE elevator, but policy: scheduled — the
+# train follows a fixed timetable (ping-ponging the stop list) regardless of riders
+# or calls, instead of being summoned. You board during its dwell at a platform.
+#
+# axis: horizontal + car_noun: train reskins the motion prose (the train "pulls
+# out" and "rushes through" a station, rather than an elevator's ascend/descend).
+id: downtown-metro
+name: the Downtown Metro
+policy: scheduled
+axis: horizontal
+car_noun: train
+car_room: metro-train
+door_direction: north       # walk north on the platform to board the open train
+door_name: train door       # singular for the "The train door is closed." line
+out_keyword: out
+travel_steps: 4             # a longer haul between stations than a single floor
+dwell_steps: 5              # boarding window while the train sits at a platform
+warn_steps: 1
+default_stop: 0             # the train seeds at the Financial District platform
+safe_landing: metro-financial
+stops:
+  - { landing: metro-financial,  label: Financial District, code: F }
+  - { landing: metro-pike,       label: Pike Station,       code: P }
+  - { landing: metro-waterfront, label: Waterfront Station, code: W }

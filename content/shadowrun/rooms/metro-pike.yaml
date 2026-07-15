@@ -1,0 +1,12 @@
+id: metro-pike
+area: seattle-metro
+name: "{c}Metro — Pike Station{x}"
+description: |
+  The Pike platform runs louder than the others — buskers work the tunnel mouth,
+  a soy-noodle cart steams by the turnstiles, and BTL dealers drift the crowd
+  where the Knight Errant cams don't quite reach. Stairs climb up to the neon of
+  Pike Street. The train doors open to the north when a train pulls in — step
+  `north` to board.
+terrain: indoors
+exits:
+  up: pike-street

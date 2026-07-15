@@ -1,13 +1,17 @@
 # Transit: Elevators, Subways, and Conveyances — Feature Specification
 
-**Status:** Draft (spec) · **elevator v1 SHIPPED** (2026-07-15 — on-demand
-`internal/transit` service + car state machine + the ACHE elevator in the
-Shadowrun pack; live-verified). The landing→car doorway is a **real directional
-door** (a `world.Door` the service keeps closed+locked while the car is away and
-unlocks+opens on arrival) — riders **walk through the open doors** to board and
-`out` to alight; `press <code>` (e.g. `press C`) selects a floor and `call`
-summons the car. Still pending:
-the **scheduled** subway policy, fares, multi-car lines, the crush hazard (§11),
+**Status:** Draft (spec) · **elevator + subway SHIPPED** (2026-07-15 —
+`internal/transit` service + car state machine + both call policies, in the
+Shadowrun pack; live-verified). **On-demand** = the ACHE express elevator
+(summon with `call`, pick a floor with `press <code>`). **Scheduled** = the
+Downtown Metro, a subway whose train follows a fixed timetable (ping-ponging the
+stop list) regardless of riders — you board during its dwell at a platform, no
+calls. The landing→car doorway is a **real directional door** (a `world.Door`
+the service keeps closed+locked while the car is away and unlocks+opens on
+arrival) — riders **walk through the open doors** to board and `out` to alight.
+An `axis`/`car_noun` reskins the motion prose (an elevator ascends/descends; a
+train pulls out / rushes through). Still pending:
+fares, multi-car lines, the crush hazard (§11),
 the **hold** action (§6.1 — a rider can't yet extend dwell / re-open closing
 doors; `DOORS_CLOSING` always proceeds), and the **active never-strand deposit**
 (§6.2 — v1 relies on the boot-reseed-open-doors invariant, so `safe_landing` is
@@ -502,6 +506,11 @@ ride in prose and a rich client (GMCP) can render it structurally:
 - **Doors opening / closing / held** — to the car interior and the current
   landing.
 - **Departure** — to the car interior and the departed landing.
+- **Next stop** — the on-board destination cue, to the car interior as the doors
+  close (a subway PA call, an elevator panel light).
+- **Approaching** — to the *destination* landing one beat before arrival, so
+  riders waiting there see the conveyance coming (only on legs long enough to
+  announce; a single-step hop arrives too fast).
 - **Indicator update** — current stop, direction of travel, and door state,
   exposed as a car room property and pushed to riders as it changes (the
   floor/station display). A landing may expose a next-arrival indicator under
@@ -560,6 +569,7 @@ The following are externally configurable and not fixed by this spec.
 | Landing-door **direction** + display name (the walk-through doorway) | §3.2, §8 (content) |
 | Call policy per line — on-demand vs. scheduled | §4 (content) |
 | Scheduled timetable — stop sequence and cadence | §4.2 (content) |
+| Motion prose — `axis` (vertical/horizontal) + `car_noun` (car/train) | §5.3, §9 (content) |
 | Per-hop travel time between adjacent stops | §5.3 |
 | Door dwell window (open duration before departure) | §6.1 |
 | Hold behavior — dwell extension amount and any repeat/hold cap | §6.1 |

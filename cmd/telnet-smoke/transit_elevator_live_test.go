@@ -69,6 +69,11 @@ func TestLive_TransitElevator(t *testing.T) {
 	// Press the top-floor button by its code and ride up.
 	has(send("press X"), "Corporate Suites", "pressed the top-floor button [X]")
 
+	// On-board next-stop cue: the panel names the destination as it departs.
+	if _, err := c.ExpectTimeout(regexp.MustCompile(`panel lights: Corporate Suites`), 15*time.Second); err != nil {
+		t.Fatalf("no on-board next-stop announcement: %v", err)
+	}
+
 	// The ride is asynchronous (the transit tick handler drives it): wait for the
 	// passing-floor flavor and the arrival chime.
 	arr, err := c.ExpectTimeout(regexp.MustCompile(`doors open on Corporate Suites`), 15*time.Second)
@@ -87,11 +92,14 @@ func TestLive_TransitElevator(t *testing.T) {
 	has(send("down"), "Residential Enclave", "took the fire stairs down")
 	has(send("north"), "Elevator door is closed", "elevator door closed on a floor the car isn't at")
 
-	// Call the car to this floor; when it arrives the doors open and you board.
+	// Call the car to this floor; while waiting, the platform shows it approaching
+	// before the doors open, and then you board.
 	has(send("call"), "call button", "summoned the car")
-	if _, err := c.ExpectTimeout(regexp.MustCompile(`doors open`), 15*time.Second); err != nil {
+	appr, err := c.ExpectTimeout(regexp.MustCompile(`doors open`), 15*time.Second)
+	if err != nil {
 		t.Fatalf("called car never arrived at Residential: %v", err)
 	}
+	has(appr, "the car is arriving", "approaching cue on the platform before the doors opened")
 	has(send("north"), "Inside the Elevator", "boarded after the called car arrived")
 
 	t.Log("elevator verified: rode Ground->Corporate, closed-door refusal on the wrong floor, call+board after arrival")

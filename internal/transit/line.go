@@ -68,8 +68,14 @@ type Line struct {
 	ID string
 	// Name is the rider-facing name of the conveyance.
 	Name string
-	// Policy is on-demand (v1) or scheduled (reserved).
+	// Policy is on-demand (the elevator) or scheduled (the subway).
 	Policy CallPolicy
+	// Horizontal picks the motion prose: a vertical line (elevator) ascends and
+	// descends; a horizontal line (subway/monorail) pulls out and rushes on.
+	Horizontal bool
+	// CarNoun is the rider-facing word for the conveyance in motion prose
+	// ("car" for an elevator, "train" for a subway). Defaults to "car".
+	CarNoun string
 	// Stops is the ordered stop list; index distance is hop distance (§5.3).
 	Stops []Stop
 	// Car is the orphan room that is the car interior (§3.1).

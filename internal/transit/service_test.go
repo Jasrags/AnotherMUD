@@ -248,3 +248,68 @@ func currentStop(s *Service) int {
 	defer s.mu.Unlock()
 	return s.cars["sr:express"].stop
 }
+
+// scheduledLine is a 3-stop horizontal line with no dwell / warn and one
+// travel step per hop, so each Step is a clean beat to assert the timetable on.
+func scheduledLine() Line {
+	return Line{
+		ID: "sr:metro", Name: "the metro", Policy: PolicyScheduled, Horizontal: true,
+		CarNoun: "train", Car: rCar, DoorDir: world.DirNorth, DoorName: "train door",
+		DoorKeyID: "transit-control", OutKeyword: "out",
+		TravelSteps: 1, DwellSteps: 0, WarnSteps: 0, DefaultStop: 0, SafeLanding: rG,
+		Stops: []Stop{
+			{Landing: rG, Label: "Financial District", Code: "F"},
+			{Landing: rC, Label: "Pike Station", Code: "P"},
+			{Landing: rR, Label: "Waterfront Station", Code: "W"},
+		},
+	}
+}
+
+func TestScheduled_AutoCyclesAndPingPongs(t *testing.T) {
+	w := fourFloorWorld()
+	s := NewService(w, &fakeBcast{})
+	if err := s.AddLine(scheduledLine()); err != nil {
+		t.Fatalf("AddLine: %v", err)
+	}
+	at := func() int {
+		s.mu.Lock()
+		defer s.mu.Unlock()
+		return s.cars["sr:metro"].stop
+	}
+	// No calls are ever made: the train runs itself. With 0 dwell/warn and 1
+	// travel step, each stop is reached the step after the doors close.
+	// Collect the visited sequence over enough steps to reach the far end and
+	// come back — proving it reverses at the terminus rather than wrapping.
+	seen := []int{at()}
+	for i := 0; i < 12; i++ {
+		stepN(s, 1)
+		if cur := at(); cur != seen[len(seen)-1] {
+			seen = append(seen, cur)
+		}
+	}
+	// 0 -> 1 -> 2 -> 1 -> 0 -> 1 ... (ping-pong), never a 2 -> 0 wrap.
+	want := []int{0, 1, 2, 1, 0}
+	for i, w := range want {
+		if i >= len(seen) || seen[i] != w {
+			t.Fatalf("visited sequence = %v, want prefix %v", seen, want)
+		}
+	}
+}
+
+func TestScheduled_RefusesCallAndDestination(t *testing.T) {
+	w := fourFloorWorld()
+	s := NewService(w, &fakeBcast{})
+	if err := s.AddLine(scheduledLine()); err != nil {
+		t.Fatalf("AddLine: %v", err)
+	}
+	// A call at a platform doesn't summon; it's informational.
+	msg, handled := s.Press(context.Background(), rC, "", "p1")
+	if !handled || !strings.Contains(msg, "schedule") {
+		t.Fatalf("platform press msg=%q handled=%v", msg, handled)
+	}
+	// A press inside the car doesn't pick a destination.
+	msg, handled = s.Press(context.Background(), rCar, "W", "p1")
+	if !handled || !strings.Contains(msg, "fixed route") {
+		t.Fatalf("in-car press msg=%q handled=%v", msg, handled)
+	}
+}

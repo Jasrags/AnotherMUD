@@ -1,0 +1,18 @@
+id: seattle-metro
+name: The Downtown Metro
+description: |
+  The Metroplex Transit Authority's underground line beneath Downtown — a single
+  loop of tiled platforms and ozone-smelling tunnels that shuttles wageslaves and
+  runners alike between the corporate canyon, the Pike strip, and the waterfront.
+  The trains run themselves on a fixed schedule; you catch one when it's in.
+  (docs/specs/transit.md — the scheduled-policy subway; the same conveyance
+  machine as the ACHE elevator, running a timetable instead of taking calls.)
+reset_interval: 300
+# Lit underground platforms (strip-lit, so no vision gear needed) shielded from
+# weather and the day/night cycle.
+light_floor: lit
+weather_zone: sprawl
+properties:
+  region: seattle
+  security: B
+  level_range: "1-10"

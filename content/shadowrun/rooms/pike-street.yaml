@@ -16,3 +16,5 @@ exits:
   # East seam out of Downtown: the I-90 floating bridge to the Eastside, and
   # north off it to the Redmond Barrens (seattle-redmond).
   east: lake-washington-bridge
+  # Stairs down to the Pike Station platform of the Downtown Metro.
+  down: metro-pike

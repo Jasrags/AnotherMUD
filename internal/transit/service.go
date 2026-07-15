@@ -32,6 +32,30 @@ type car struct {
 
 	timer        uint64 // steps remaining in the current phase
 	transitTotal uint64 // full transit duration, for passing-floor flavor
+
+	// schedDir is the scheduled-policy travel direction (+1 up the stop list,
+	// -1 down); it flips at either end so the car ping-pongs the line (§4.2).
+	// Unused on-demand.
+	schedDir int
+}
+
+// advanceSchedule returns the next stop a scheduled car should visit, flipping
+// schedDir at the ends of the line so it runs end-to-end and reverses. Returns
+// the current stop for a degenerate one-stop line.
+func (c *car) advanceSchedule() int {
+	n := len(c.line.Stops)
+	if n <= 1 {
+		return c.stop
+	}
+	if c.schedDir == 0 {
+		c.schedDir = 1
+	}
+	next := c.stop + c.schedDir
+	if next < 0 || next >= n {
+		c.schedDir = -c.schedDir
+		next = c.stop + c.schedDir
+	}
+	return next
 }
 
 // outMsg is a deferred room broadcast, collected under the lock and flushed
@@ -107,6 +131,9 @@ func (s *Service) AddLine(l Line) error {
 	}
 	line := l // own a stable copy
 	c := &car{line: &line, stop: line.DefaultStop, state: StateIdle}
+	if line.Policy == PolicyScheduled {
+		c.timer = line.DwellSteps // hold at the origin before the first departure
+	}
 	s.cars[line.ID] = c
 	s.carLine[line.Car] = line.ID
 	for _, st := range line.Stops {
@@ -177,6 +204,10 @@ func (s *Service) pressLocked(room world.RoomID, arg, actorID string) (string, [
 	// Inside the car: pick a destination.
 	if id, ok := s.carLine[room]; ok {
 		c := s.cars[id]
+		if c.line.Policy == PolicyScheduled {
+			// A scheduled line follows a fixed route — no rider-chosen stop.
+			return "The " + shortName(c.line) + " runs a fixed route; stay aboard and it will reach your stop.", nil, true
+		}
 		idx := resolveStopArg(c.line, arg)
 		if idx < 0 {
 			return "Press which floor? Try `press " + firstCode(c.line) + "`.", nil, true
@@ -192,6 +223,11 @@ func (s *Service) pressLocked(room world.RoomID, arg, actorID string) (string, [
 	// At a landing: summon the car here.
 	if id, ok := s.landingLine[room]; ok {
 		c := s.cars[id]
+		if c.line.Policy == PolicyScheduled {
+			// Can't summon a scheduled line off-schedule (§4.2) — it comes when
+			// it comes. Boarding happens during its dwell at the platform.
+			return "The " + shortName(c.line) + " runs on a schedule — wait on the platform and it will arrive.", nil, true
+		}
 		stopIdx := c.line.stopIndexByLanding(room)
 		if stopIdx == c.stop && c.state == StateIdle {
 			return "The " + shortName(c.line) + " is already here, doors open.", nil, true
@@ -237,8 +273,21 @@ func (s *Service) stepCar(ctx context.Context, c *car, tick uint64, out *[]outMs
 		if c.timer > 0 {
 			c.timer-- // dwell countdown
 		}
-		if len(c.queue) == 0 || c.timer > 0 {
-			return
+		if c.timer > 0 {
+			return // still dwelling with the doors open
+		}
+		if len(c.queue) == 0 {
+			// On-demand: idle with the doors open until a call arrives.
+			// Scheduled: the timetable is the queue — advance to the next stop
+			// on the route (§4.2, §4.3), so the car runs regardless of riders.
+			if c.line.Policy != PolicyScheduled {
+				return
+			}
+			next := c.advanceSchedule()
+			if next == c.stop {
+				return
+			}
+			c.queue = append(c.queue, next)
 		}
 		target := c.queue[0]
 		if target == c.stop {
@@ -272,14 +321,25 @@ func (s *Service) stepCar(ctx context.Context, c *car, tick uint64, out *[]outMs
 		c.timer = c.line.TravelSteps * uint64(hops)
 		c.transitTotal = c.timer
 		land := c.line.Stops[c.stop].Landing
-		dir := "descends"
-		if up {
-			dir = "ascends"
+		noun := carNoun(c.line)
+		if c.line.Horizontal {
+			*out = append(*out,
+				outMsg{room: c.line.Car, text: "The " + noun + " pulls out, wheels singing on the rail."},
+				outMsg{room: land, text: "The doors close and the " + noun + " pulls out of the station."},
+			)
+		} else {
+			verb := "descends"
+			if up {
+				verb = "ascends"
+			}
+			*out = append(*out,
+				outMsg{room: c.line.Car, text: "The " + noun + " " + verb + ", the floor humming underfoot."},
+				outMsg{room: land, text: "The doors close and the " + noun + " " + verb + " away."},
+			)
 		}
-		*out = append(*out,
-			outMsg{room: c.line.Car, text: "The car " + dir + ", the floor humming underfoot."},
-			outMsg{room: land, text: "The doors close and the car " + dir + " away."},
-		)
+		// Tell the riders where they're headed (spec §9 — the on-board next-stop
+		// cue). Announced once, as the doors close.
+		*out = append(*out, outMsg{room: c.line.Car, text: nextStopLine(c.line, c.line.Stops[c.target].Label)})
 		logTransit(ctx, c, tick, "depart")
 
 	case StateInTransit:
@@ -287,6 +347,12 @@ func (s *Service) stepCar(ctx context.Context, c *car, tick uint64, out *[]outMs
 			c.timer--
 		}
 		s.announcePassing(c, out)
+		if c.timer == 1 {
+			// One beat from the destination: warn the platform there so anyone
+			// waiting sees it coming (spec §9). Only fires on legs longer than a
+			// single step; a one-step hop arrives too fast to announce.
+			*out = append(*out, outMsg{room: c.line.Stops[c.target].Landing, text: approachingLine(c.line)})
+		}
 		if c.timer > 0 {
 			return
 		}
@@ -324,7 +390,11 @@ func (s *Service) announcePassing(c *car, out *[]outMsg) {
 	if inter == c.target || inter < 0 || inter >= len(c.line.Stops) {
 		return
 	}
-	*out = append(*out, outMsg{room: c.line.Car, text: "The car passes " + c.line.Stops[inter].Label + "."})
+	verb := "passes"
+	if c.line.Horizontal {
+		verb = "rushes through"
+	}
+	*out = append(*out, outMsg{room: c.line.Car, text: "The " + carNoun(c.line) + " " + verb + " " + c.line.Stops[inter].Label + "."})
 }
 
 // flush delivers deferred broadcasts after s.mu is released.
@@ -423,6 +493,33 @@ func capitalize(s string) string {
 		return s
 	}
 	return strings.ToUpper(s[:1]) + s[1:]
+}
+
+// carNoun is the rider-facing word for a line's conveyance in motion prose,
+// defaulting to "car" when a line leaves it unset (test-built lines).
+func carNoun(l *Line) string {
+	if l.CarNoun == "" {
+		return "car"
+	}
+	return l.CarNoun
+}
+
+// nextStopLine is the on-board next-stop announcement emitted as the doors close
+// (spec §9). A subway calls the stop over a PA; an elevator lights the panel.
+func nextStopLine(l *Line, label string) string {
+	if l.Horizontal {
+		return `A synthetic voice crackles: "Next stop — ` + label + `."`
+	}
+	return "The panel lights: " + label + "."
+}
+
+// approachingLine is the platform-side "it's coming" cue emitted one beat before
+// arrival (spec §9), for riders waiting at the destination.
+func approachingLine(l *Line) string {
+	if l.Horizontal {
+		return "Headlights swell in the tunnel — a " + carNoun(l) + " is pulling in."
+	}
+	return "A soft ping, and the floor indicator lights — the " + carNoun(l) + " is arriving."
 }
 
 // doorKeywords derives the door's match tokens from its name (mirrors the

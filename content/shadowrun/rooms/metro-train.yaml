@@ -1,0 +1,13 @@
+id: metro-train
+area: seattle-metro
+name: "{W}Aboard the Metro{x}"
+description: |
+  A swaying tube of scratched polycarbonate and flickering strip-light, hand-straps
+  swinging from the ceiling rail. A route display cycles the stops — Financial
+  District, Pike Station, Waterfront — and counts down to the next. There are no
+  buttons to press: the train runs its own route. When the doors open, `out` steps
+  you onto the platform.
+terrain: indoors
+# Orphan room reached only through the train doors. The transit service binds the
+# alight side ("out") to the current platform and toggles each platform's north
+# door as the train arrives and leaves (transit.md §3, scheduled policy §4.2).
