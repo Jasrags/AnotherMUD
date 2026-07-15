@@ -69,14 +69,15 @@ type AutoAttackConfig struct {
 	// It is called once per swing ONLY when the attacker's wielded weapon is
 	// a projectile (Stats.RangedClass == projectile). The host consumes one
 	// matching ammo unit from the attacker's inventory and returns
-	// canFire=true plus any masterwork-ammo to-hit bonus; with no matching
-	// ammo it returns canFire=false and the swing is skipped (a RangedDry
-	// event, the attacker stays engaged). Keyed on the full attacker
-	// CombatantID. nil-safe: a nil hook fires every projectile swing with no
-	// ammo bonus (tests/headless and any boot that doesn't wire ammo) — combat
-	// then treats a bow like an infinite-ammo melee weapon. Thrown and melee
-	// weapons never call this hook.
-	AmmoFor func(attackerID CombatantID) (canFire bool, toHitBonus int)
+	// canFire=true plus the fired round's graded bonuses — a to-hit bonus
+	// (masterwork ammo) and an armor-penetration bonus (APDS, combat §4.5),
+	// each folded into this swing only. With no matching ammo it returns
+	// canFire=false and the swing is skipped (a RangedDry event, the attacker
+	// stays engaged). Keyed on the full attacker CombatantID. nil-safe: a nil
+	// hook fires every projectile swing with no ammo bonus (tests/headless and
+	// any boot that doesn't wire ammo) — combat then treats a bow like an
+	// infinite-ammo melee weapon. Thrown and melee weapons never call this hook.
+	AmmoFor func(attackerID CombatantID) (canFire bool, toHitBonus, armorPen int)
 
 	// TakeLoadedShot drives reload-gated projectiles — a crossbow, Stats.ReloadTicks
 	// > 0 (action-economy.md §7.1). When the wielded weapon is reload-gated the
@@ -665,7 +666,7 @@ func resolveSwing(ctx context.Context, in swingInputs, cfg AutoAttackConfig) swi
 				return swingContinue
 			}
 		} else if cfg.AmmoFor != nil {
-			canFire, ammoBonus := cfg.AmmoFor(in.attackerID)
+			canFire, ammoBonus, ammoAP := cfg.AmmoFor(in.attackerID)
 			if !canFire {
 				// A firearm that can't fire is UNLOADED, not out of ammo: a
 				// holder-fed weapon has no (or an empty) clip inserted, a
@@ -689,6 +690,10 @@ func resolveSwing(ctx context.Context, in swingInputs, cfg AutoAttackConfig) swi
 				return swingContinue
 			}
 			swingHitMod += ammoBonus
+			// Graded ammo (APDS) adds its armor penetration to this swing's AP,
+			// so the soak step (§4.5) reads weapon AP + round AP together. A
+			// per-swing copy — the mutation does not leak to later rounds.
+			in.atkStats.ArmorPen += ammoAP
 		}
 	}
 

@@ -2181,19 +2181,19 @@ func run() error {
 			}
 			return combatRNG.IntN(100) < kiteChance
 		},
-		AmmoFor: func(attackerID combat.CombatantID) (bool, int) {
+		AmmoFor: func(attackerID combat.CombatantID) (bool, int, int) {
 			c, ok := combatLocator.LookupCombatant(attackerID)
 			if !ok {
-				return false, 0
+				return false, 0, 0
 			}
 			consumer, ok := c.(session.AmmoConsumer)
 			if !ok {
-				return true, 0 // no inventory (mob) — fire freely
+				return true, 0, 0 // no inventory (mob) — fire freely
 			}
 			st := c.Stats()
 			gradeKey, consumed := consumer.ConsumeAmmo(st.AmmoKind)
 			if !consumed {
-				return false, 0
+				return false, 0, 0
 			}
 			// Firing mode (ranged-combat §5.5): burst/auto spend several rounds per
 			// attack. The FIRST round gates the shot (consumed above); the rest are
@@ -2205,13 +2205,18 @@ func run() error {
 			for i := 1; i < rounds; i++ {
 				consumer.ConsumeAmmo(st.AmmoKind)
 			}
-			bonus := 0
+			// The fired round's grade (masterwork ammo / APDS) rides the shot: a
+			// to-hit bonus AND, for APDS, armor penetration (combat §4.5). Both
+			// come from the FIRST round's grade — a burst's later rounds' grades
+			// are not tracked (mixed-ammo, a known deferral).
+			bonus, ap := 0, 0
 			if registries.Grades != nil {
 				if g, gok := registries.Grades.Get(gradeKey); gok {
 					bonus = g.WeaponToHit
+					ap = g.WeaponAP
 				}
 			}
-			return true, bonus
+			return true, bonus, ap
 		},
 		// Reload-gated projectiles (a crossbow, action-economy.md §7.1): the round
 		// loop atomically takes the wielder's chambered shot (check-and-clear)

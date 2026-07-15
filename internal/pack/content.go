@@ -793,6 +793,7 @@ type GradeEntry struct {
 	Order             int    `yaml:"order"`
 	WeaponToHit       int    `yaml:"weapon_to_hit,omitempty"`
 	WeaponDamage      int    `yaml:"weapon_damage,omitempty"`
+	WeaponAP          int    `yaml:"weapon_ap,omitempty"`
 	ArmorCheckImprove int    `yaml:"armor_check_improve,omitempty"`
 	ToolSkill         int    `yaml:"tool_skill,omitempty"`
 	Unbreakable       bool   `yaml:"unbreakable,omitempty"`

@@ -69,6 +69,7 @@ type autoAttackRig struct {
 	incap          func(CombatantID) bool                   // nil ⇒ never incapacitated (conditions §3)
 	defAdj         func(CombatantID) int                    // nil ⇒ no defender vulnerability (conditions §3)
 	ammoFor        func(CombatantID) (bool, int)            // nil ⇒ no ammo gate (ranged-combat §3)
+	ammoAP         int                                      // graded-ammo AP (APDS) the wrapper adds as AmmoFor's 3rd return
 	takeLoadedShot func(CombatantID) bool                   // TakeLoadedShot (action-economy §7.1) — nil ⇒ always loaded
 	falloff        int                                      // RangeFalloff (ranged-combat §5.3)
 	pblank         int                                      // PointBlankPenalty (ranged-combat §5.3)
@@ -123,7 +124,7 @@ func (r *autoAttackRig) phase() PhaseFunc {
 		MassiveDamage:           r.massive,
 		Incapacitated:           r.incap,
 		DefenderHitAdjust:       r.defAdj,
-		AmmoFor:                 r.ammoFor,
+		AmmoFor:                 r.ammoForWrapped(),
 		TakeLoadedShot:          r.takeLoadedShot,
 		RangeFalloff:            r.falloff,
 		PointBlankPenalty:       r.pblank,
@@ -134,6 +135,23 @@ func (r *autoAttackRig) phase() PhaseFunc {
 		SetDamageBonus:          r.setBonus,
 		WhipArmorThreshold:      r.whipThreshold,
 	})
+}
+
+// ammoForWrapped adapts the rig's 2-value ammoFor fake (+ the ammoAP knob) to the
+// 3-value AmmoFor hook. When there is neither an ammo hook nor AP configured it
+// returns nil, preserving the "nil AmmoFor fires every projectile swing freely"
+// contract the existing tests rely on.
+func (r *autoAttackRig) ammoForWrapped() func(CombatantID) (bool, int, int) {
+	if r.ammoFor == nil && r.ammoAP == 0 {
+		return nil
+	}
+	return func(id CombatantID) (bool, int, int) {
+		if r.ammoFor == nil {
+			return true, 0, r.ammoAP
+		}
+		canFire, toHit := r.ammoFor(id)
+		return canFire, toHit, r.ammoAP
+	}
 }
 
 func TestAutoAttackNaturalTwentyAlwaysHits(t *testing.T) {

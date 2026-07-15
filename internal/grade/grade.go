@@ -66,6 +66,11 @@ type Grade struct {
 	// wielded (masterwork §3, combat §4.5) — added post-crit-multiply.
 	// Ordinary grades leave this zero (only power-wrought buffs damage).
 	WeaponDamage int
+	// WeaponAP is the armor penetration a graded AMMUNITION round confers to
+	// the shot it feeds (SR5 APDS, combat §4.5): it adds to the attacker's AP
+	// for that swing, bypassing armor soak. Zero for ordinary grades. The
+	// round-fed analogue of a weapon's intrinsic `ap`.
+	WeaponAP int
 	// ArmorCheckImprove is the amount a graded ARMOR/SHIELD reduces the
 	// magnitude of its armor check penalty while worn (masterwork §3,
 	// armor-depth §6), floored at zero. Does not change armor bonus / max-Dex.

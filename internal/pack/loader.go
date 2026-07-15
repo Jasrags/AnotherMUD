@@ -2008,6 +2008,7 @@ func decodeGrades(path string) ([]grade.Grade, error) {
 			Order:             g.Order,
 			WeaponToHit:       g.WeaponToHit,
 			WeaponDamage:      g.WeaponDamage,
+			WeaponAP:          g.WeaponAP,
 			ArmorCheckImprove: g.ArmorCheckImprove,
 			ToolSkill:         g.ToolSkill,
 			Unbreakable:       g.Unbreakable,

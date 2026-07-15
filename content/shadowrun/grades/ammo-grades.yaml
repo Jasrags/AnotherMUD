@@ -1,14 +1,17 @@
 # Ammunition quality grades for the Sixth World (masterwork.md §2, reused for
 # ammo). A graded round confers a small accuracy bonus through the same
-# `weapon_to_hit` seam a masterwork weapon uses — the engine models damage as
-# dice + soak, so SR5's AP/DV effects collapse to a to-hit lift here (a known
-# simplification; ranged-combat §3 + ammo-and-reloading §8). The grade rides the
+# `weapon_to_hit` seam a masterwork weapon uses; APDS additionally confers
+# `weapon_ap` — real armor penetration folded into the shot's soak step (combat
+# §4.5), the round-fed analogue of a weapon's intrinsic `ap`. The grade rides the
 # round, and — loaded into a clip — travels with the clip to the shot
 # (grade-through-holder).
 grades:
   - key: match
     order: 1
     weapon_to_hit: 1
+  # Armor-Piercing Discarding Sabot: a modest accuracy lift AND armor penetration
+  # (SR5 AP -4) — the round that gets through armor an ordinary caseless can't.
   - key: apds
     order: 2
-    weapon_to_hit: 2
+    weapon_to_hit: 1
+    weapon_ap: 4

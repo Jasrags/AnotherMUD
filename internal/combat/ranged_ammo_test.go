@@ -257,6 +257,33 @@ func TestAutoAttack_MagnificationDoesNotHelpPointBlank(t *testing.T) {
 	}
 }
 
+// APDS (graded ammo) carries armor penetration into the shot: the round's AP is
+// added to the swing's effective AP and bypasses armor soak, even on a weapon
+// whose own AP is 0. (combat §4.5 — the round-fed analogue of weapon `ap`.)
+func TestAutoAttack_AmmoAPBypassesArmor(t *testing.T) {
+	// Defender: Mitigation 5 (body 2 + armor 3), worn-armor rating 3.
+	def := Stats{AC: 1, Mitigation: 5, ArmorRating: 3}
+	dmgWithAmmoAP := func(ap int) int {
+		// Weapon AP 0; the ammo supplies the penetration. 1d1 → 1 fixed damage.
+		atk := Stats{HitMod: 100, DamageBonus: 10, Damage: DiceExpr{1, 1, 0}, RangedClass: RangedProjectile, AmmoKind: "bullet"}
+		rig := newAutoAttackRig(t, atk, def, 10, 500, []int{9, 0}) // always hit; 1d1 → 1
+		rig.ammoFor = func(CombatantID) (bool, int) { return true, 0 }
+		rig.ammoAP = ap
+		rig.phase()(context.Background(), rig.attacker.id, rig.mgr, 0)
+		hits := rig.sink.snapshotHits()
+		if len(hits) != 1 {
+			t.Fatalf("want 1 hit, got %d", len(hits))
+		}
+		return hits[0].Damage
+	}
+	if plain := dmgWithAmmoAP(0); plain != 6 { // 1 + 10 − 5 soak
+		t.Fatalf("regular ammo damage = %d, want 6 (full soak)", plain)
+	}
+	if apds := dmgWithAmmoAP(3); apds != 9 { // soak 5 − min(3,3) = 2 → 1 + 10 − 2
+		t.Errorf("APDS (ammo AP 3) should bypass 3 armor: damage = %d, want 9", apds)
+	}
+}
+
 // Firing modes (ranged-combat §5.5): burst fire's recoil is an uncompensated
 // to-hit penalty — a marginal single-shot HIT becomes a burst MISS.
 func TestAutoAttack_BurstFireRecoilPenalty(t *testing.T) {
