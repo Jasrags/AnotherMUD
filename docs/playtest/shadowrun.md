@@ -466,6 +466,9 @@ creature's toughness or a typed resistance. It applies to melee and ranged alike
 - [ ] AP + fire don't stack against a fire liner: the flamethrower's AP eats the
       *ballistic* soak, but the fire-resistance liner (§47) still soaks the flame —
       the specialized defense survives penetration.
+- [ ] Ammo-fed AP: `buy apds`, `reload clip apds` (or fire loose), and the **APDS**
+      round adds its own penetration (SR AP -4) on top of the weapon's — the
+      armor-piercing round that gets through what caseless can't.
 
 ---
 
@@ -485,8 +488,9 @@ creature's toughness or a typed resistance. It applies to melee and ranged alike
 - **Firing modes / RC / AP / fire (§46–§48) — known limits:** firing modes'
   burst/auto consume rounds best-effort (a near-empty magazine still fires a short
   burst); **recoil compensation** comes from the weapon only — accessory RC
-  (gas-vent, foregrip) is deferred; **AP** is a *weapon* stat — per-round **ammo
-  AP** (APDS) is deferred (APDS gives only a to-hit bonus today); **fire** is a
+  (gas-vent, foregrip) is deferred; **AP** comes from the weapon AND the
+  fired round (APDS grade — §48); mixed-ammo bursts ride only the first round's
+  grade; **fire** is a
   damage type soaked by fire-resistant gear, but it does not yet ignite / deal
   damage-over-time, and there is no cold/electrical type yet (Insulation /
   Nonconductivity armor mods wait on those).
