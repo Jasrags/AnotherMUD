@@ -125,6 +125,10 @@ type Context struct {
 	// dematerialize / name an owned mount. The stable verbs route through it.
 	// nil disables mount verbs (tests / headless).
 	Mounts MountService
+	// Transit is the conveyance call-control service (transit.md §4). The
+	// press/call verbs route through it. nil disables them (tests / worlds
+	// without conveyances); the handler nil-guards.
+	Transit TransitService
 	// Hirelings is the hireling lifecycle service (hireable-mobs.md): materialize
 	// / dematerialize / resolve hireable templates. The hire/dismiss verbs route
 	// through it. nil disables hireling verbs (tests / headless). HirelingCap is

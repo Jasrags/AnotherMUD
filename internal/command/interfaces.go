@@ -333,6 +333,9 @@ type Env struct {
 	// unstable) route through it after locating a stable-tagged NPC in the
 	// room. nil disables mount verbs; handlers MUST nil-guard.
 	Mounts MountService
+	// Transit is the conveyance call-control service (transit.md §4): the
+	// press/call verbs route through it. nil disables them; handlers nil-guard.
+	Transit TransitService
 	// Hirelings is the hireling lifecycle service (hireable-mobs.md): the
 	// hire/dismiss verbs route through it. nil disables hireling verbs.
 	// HirelingCap is the simultaneous-hireling cap (§3.3).

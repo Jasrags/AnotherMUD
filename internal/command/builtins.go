@@ -302,6 +302,18 @@ func RegisterBuiltins(r *Registry) error {
 		// Spec: docs/specs/recall.md.
 		{Keyword: "recall", Handler: RecallHandler, Brief: "Return to your bound recall point.", Syntax: []string{"recall", "recall set"}},
 
+		// Transit call control (transit.md §8). Inside an elevator car,
+		// `press <floor>` sends it to that floor; at a landing, `press` or
+		// `call` summons the car. nil Transit → a generic reply.
+		{Keyword: "press", Aliases: []string{"call"}, Handler: pressHandler, Brief: "Press an elevator button / call the car.", Syntax: []string{"press <floor>", "call"}},
+
+		// Keyword-exit traversal (world-rooms-movement §3.6, transit.md §8):
+		// `enter <keyword>` steps through a named doorway (an elevator, a
+		// portal); `out` steps back out an "out" doorway (an elevator car).
+		// Free of the movement-cost pool — a keyword step is effortless.
+		{Keyword: "enter", Aliases: []string{"board"}, Handler: enterHandler, Brief: "Step through a doorway (an elevator, a portal).", Syntax: []string{"enter <keyword>"}},
+		{Keyword: "out", Aliases: []string{"exit"}, Handler: outHandler, Brief: "Step out through an 'out' doorway.", Syntax: []string{"out"}},
+
 		// Hide / reveal (visibility.md §3.1): conceal the actor in its
 		// current room; emerge voluntarily. Discovery by others is the
 		// per-observer perception contest (visibility §4).

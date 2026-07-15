@@ -345,9 +345,12 @@ func originNotes(origin *world.Room, w *world.World) string {
 			notes = append(notes, dir.Long()+" → "+MapAreaName(w, target.AreaID))
 		}
 	}
-	if len(origin.KeywordExits) > 0 {
-		kws := make([]string, 0, len(origin.KeywordExits))
-		for k := range origin.KeywordExits {
+	// Snapshot keyword exits under the world read lock — the transit tick
+	// handler rebinds/unbinds these maps concurrently (an unlocked range races).
+	// w is nil in some render-only tests; skip the (portal) note there.
+	if kwExits := keywordExitsSnapshot(w, origin.ID); len(kwExits) > 0 {
+		kws := make([]string, 0, len(kwExits))
+		for k := range kwExits {
 			kws = append(kws, k)
 		}
 		sort.Strings(kws)

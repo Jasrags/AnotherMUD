@@ -80,6 +80,7 @@ import (
 	"github.com/Jasrags/AnotherMUD/internal/stacking"
 	"github.com/Jasrags/AnotherMUD/internal/tick"
 	"github.com/Jasrags/AnotherMUD/internal/trade"
+	"github.com/Jasrags/AnotherMUD/internal/transit"
 	"github.com/Jasrags/AnotherMUD/internal/visibility"
 	"github.com/Jasrags/AnotherMUD/internal/weather"
 	"github.com/Jasrags/AnotherMUD/internal/world"
@@ -726,6 +727,37 @@ func run() error {
 		}
 	})
 	_ = portalSvc // retained for future verb wiring (M15.2b admin verb)
+
+	// transit.md: conveyance service (elevators, and later subways). Loads each
+	// active pack's transit/*.yaml, seeds every car IDLE at its default stop
+	// with the doorway bound, and steps the ride state machine on a fixed
+	// cadence. Ride events (chimes, doors, passing floors) broadcast to the car
+	// + landing via the session manager. Derived-not-persisted (spec §10): the
+	// boot seed's open doors are the never-strand guarantee (§6.2).
+	transitSvc := transit.NewService(w, mgr)
+	transitLines, err := transit.Load(cfg.ContentDir, cfg.Packs)
+	if err != nil {
+		return fmt.Errorf("loading transit lines: %w", err)
+	}
+	for _, line := range transitLines {
+		if err := transitSvc.AddLine(line); err != nil {
+			return fmt.Errorf("registering transit line %s: %w", line.ID, err)
+		}
+	}
+	if len(transitLines) > 0 {
+		transitCadence := cadenceTicks(cfg.TickInterval, cfg.TransitCadence)
+		if transitCadence == 0 {
+			transitCadence = 1
+		}
+		if err := loop.Register("transit-step", transitCadence, func(ctx context.Context, n uint64) {
+			transitSvc.Step(ctx, n)
+		}); err != nil {
+			return fmt.Errorf("registering transit-step handler: %w", err)
+		}
+		logging.From(ctx).Info("transit lines loaded",
+			slog.String("event", "transit.loaded"),
+			slog.Int("count", len(transitLines)))
+	}
 
 	scheduler := spawn.NewScheduler(spawn.SchedulerConfig{
 		World:            w,
@@ -3335,6 +3367,7 @@ func run() error {
 		Currency:              currencySvc,
 		CurrencyLabel:         currencyLabel,
 		Mounts:                mountSvc,
+		Transit:               transitSvc,
 		Hirelings:             hirelingSvc,
 		Guides:                guideSvc,
 		HirelingCap:           envIntOr("ANOTHERMUD_HIRELING_CAP", 3),
@@ -3542,6 +3575,7 @@ type config struct {
 	LogFormat              string
 	TickInterval           time.Duration
 	CombatCadence          time.Duration
+	TransitCadence         time.Duration
 	FleeCooldown           time.Duration
 	CritMultiplier         int
 	NonProficientPenalty   int
@@ -3630,6 +3664,7 @@ func loadConfig() config {
 		LogFormat:               strings.ToLower(envOr("ANOTHERMUD_LOG_FORMAT", "text")),
 		TickInterval:            envDurationOr("ANOTHERMUD_TICK_INTERVAL", 100*time.Millisecond),
 		CombatCadence:           envDurationOr("ANOTHERMUD_COMBAT_CADENCE", 3*time.Second),
+		TransitCadence:          envDurationOr("ANOTHERMUD_TRANSIT_CADENCE", time.Second),
 		FleeCooldown:            envDurationOr("ANOTHERMUD_FLEE_COOLDOWN", 15*time.Second),
 		CritMultiplier:          envIntOr("ANOTHERMUD_CRIT_MULTIPLIER", combat.DefaultCritMultiplier),
 		NonProficientPenalty:    envIntOr("ANOTHERMUD_NONPROFICIENT_PENALTY", combat.DefaultNonProficientPenalty),

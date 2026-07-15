@@ -102,7 +102,9 @@ func TestRenderLocalMap_DownAndPortalAnnotated(t *testing.T) {
 	w.AddRoom(o)
 	w.AddRoom(mapRoom("ar:dn", "underground", 0, 0, -1, nil))
 
-	out, ok := renderLocalMap(must(w.LocalWindow("ar:o", 2)), "ar:o", visitedFunc("ar:o"), nil)
+	// Pass the real world: keyword-exit notes are read via w.KeywordExitsSnapshot
+	// (lock-safe against the transit tick handler), not off the room struct.
+	out, ok := renderLocalMap(must(w.LocalWindow("ar:o", 2)), "ar:o", visitedFunc("ar:o"), w)
 	if !ok {
 		t.Fatal("expected centerable")
 	}

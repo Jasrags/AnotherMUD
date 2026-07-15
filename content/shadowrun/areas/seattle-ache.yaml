@@ -1,0 +1,21 @@
+id: seattle-ache
+name: The ACHE
+description: |
+  The Arcology Commercial and Housing Enclave — the mirrored ziggurat that was the
+  Renraku Arcology before 2059, before the AI sealed a hundred thousand people
+  inside and only some walked back out. Reclaimed, renamed, re-leased: forty-odd
+  floors of shopping concourse, wageslave housing, and corporate suites stacked
+  into a self-contained city that never has to touch the street. The blast doors to
+  the sealed sublevels are still welded shut. (docs/specs/transit.md — the elevator
+  slice; the ACHE is the sr2075 gazetteer's Downtown arcology landmark.)
+reset_interval: 300
+# Interior arcology: pinned lit, shielded from weather + the day/night cycle
+# (mirrors the safehouse + clinic interiors).
+light_floor: lit
+weather_zone: sprawl
+# Corp core: `security: A` (fast response, one notch under Downtown's AA), region
+# seattle, starter mob-tuning band. Descriptive metadata (no engine hook yet).
+properties:
+  region: seattle
+  security: A
+  level_range: "1-10"

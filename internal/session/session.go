@@ -458,6 +458,11 @@ type Config struct {
 	// report "no stable here" when unwired.
 	Mounts command.MountService
 
+	// Transit is the conveyance call-control service (transit.md §4). Passed
+	// through command.Env so the press/call verbs can drive elevators. nil-safe:
+	// the verbs report "nothing to press here" when unwired.
+	Transit command.TransitService
+
 	// Hirelings is the hireling lifecycle service (hireable-mobs.md §2/§3).
 	// Passed through command.Env so the hire/dismiss verbs can materialize and
 	// dematerialize owned hirelings. HirelingCap is the simultaneous cap (§3.3).

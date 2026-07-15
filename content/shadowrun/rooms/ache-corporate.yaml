@@ -1,0 +1,12 @@
+id: ache-corporate
+area: seattle-ache
+name: "{C}ACHE — Corporate Suites{x}"
+description: |
+  The high floors, where the air smells filtered and the carpet swallows every
+  footfall. Frosted-glass frontages hide mid-tier subsidiaries and shell offices;
+  a wall of armoured window looks out over the sprawl, the rain far below turned to
+  a grey haze of neon. A receptionist drone tracks you across the lobby on silent
+  bearings. The elevator bank is the only way down — the fire stairs dead-end here.
+terrain: indoors
+exits:
+  down: ache-residential

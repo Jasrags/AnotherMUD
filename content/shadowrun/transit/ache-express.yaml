@@ -1,0 +1,29 @@
+# The ACHE express elevator — the transit slice's first line (docs/specs/transit.md).
+# A short vertical, on-demand line: one car serving four floors of the arcology.
+# Ids are unqualified and resolve against the shadowrun namespace.
+#
+# The landing->car doorway is a real directional DOOR (door_direction): each floor
+# has a north exit into the car carrying the elevator doors, kept closed+locked
+# while the car is away and opened when it arrives. You board by walking `north`
+# through the open doors; inside, `out` steps you back onto the current floor.
+#
+# Timings are in Step units — one Step is one firing of the transit tick handler
+# (ANOTHERMUD_TRANSIT_CADENCE, default 1s). So: 2s to cross each floor, doors dwell
+# open 6s before departing, 1s doors-closing warning.
+id: ache-express
+name: the ACHE express elevator
+policy: on-demand
+car_room: ache-elevator-car
+door_direction: north       # walk this way at a floor to board the open car
+door_name: elevator door    # singular so the blocked-move line reads "The elevator door is closed."
+out_keyword: out            # type this in the car to step out
+travel_steps: 2             # per floor crossed
+dwell_steps: 6              # doors-open boarding window
+warn_steps: 1               # doors-closing warning
+default_stop: 0             # seed at the Ground Concourse on boot
+safe_landing: ache-concourse
+stops:
+  - { landing: ache-concourse,   label: Ground Concourse,     code: G }
+  - { landing: ache-commercial,  label: Commercial Concourse, code: C }
+  - { landing: ache-residential, label: Residential Enclave,   code: R }
+  - { landing: ache-corporate,   label: Corporate Suites,      code: X }

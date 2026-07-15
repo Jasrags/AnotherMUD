@@ -105,3 +105,24 @@ func (w *World) HasKeywordExit(srcID RoomID, keyword string) bool {
 	_, present := src.KeywordExits[key]
 	return present
 }
+
+// KeywordExitsSnapshot returns a copy of srcID's keyword exits (keyword ->
+// target room id), taken under the read lock. Callers that iterate or display a
+// room's keyword exits MUST use this rather than ranging over Room.KeywordExits
+// directly: the transit service and portals mutate that map from other
+// goroutines under the write lock, so an unlocked range is a data race (a
+// concurrent map read/write is a fatal runtime error). Returns nil for a missing
+// room or one with no keyword exits.
+func (w *World) KeywordExitsSnapshot(srcID RoomID) map[string]RoomID {
+	w.mu.RLock()
+	defer w.mu.RUnlock()
+	src, ok := w.rooms[srcID]
+	if !ok || len(src.KeywordExits) == 0 {
+		return nil
+	}
+	out := make(map[string]RoomID, len(src.KeywordExits))
+	for k, e := range src.KeywordExits {
+		out[k] = e.Target
+	}
+	return out
+}
