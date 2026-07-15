@@ -10,4 +10,9 @@ gain_failure_multiplier: 0.5
 gain_stat: agility
 gain_stat_scale: 0.1
 skill_category: technical
+# Trained-only (skills §2.1): Locksmith can't be defaulted — the `pick` verb
+# refuses an untrained runner (SkillDefaulting reads this field). Must be set on
+# the override too: a priority-1 override replaces the core ability by id, so it
+# does not inherit core Open Lock's trained_only.
+trained_only: true
 priority: 1

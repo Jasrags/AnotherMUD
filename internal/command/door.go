@@ -134,19 +134,30 @@ func handlePick(ctx context.Context, c *Context, src world.RoomID, dir world.Dir
 	if !door.Locked {
 		return c.Actor.Write(ctx, fmt.Sprintf("%s isn't locked.", capitalize(door.Name)))
 	}
-	// Trained-only (skills §2): no proficiency ⇒ you don't know how.
+	// Defaulting (skills §2.1): Open Lock is authored trained-only, so an
+	// untrained actor is refused ("you don't know how") rather than defaulting.
+	// The gate is now content-driven — SkillDefaulting reads the ability's
+	// TrainedOnly/DefaultPenalty rather than the verb hardcoding the refusal, so
+	// a pack that marks the skill defaultable would let an untrained picker try
+	// at the default penalty instead. Resolve the ability once here (also reused
+	// for the governing stat below).
 	prof, trained := c.Proficiency.Proficiency(c.Actor.PlayerID(), skillOpenLock)
-	if !trained {
+	var skillDef *progression.Ability
+	if c.Abilities != nil {
+		if ab, ok := c.Abilities.Get(skillOpenLock); ok {
+			skillDef = ab
+		}
+	}
+	allowed, defaultPenalty := progression.SkillDefaulting(skillDef, trained)
+	if !allowed {
 		return c.Actor.Write(ctx, "You don't know how to pick locks.")
 	}
 
 	// Governing stat = the skill ability's gain stat (Open Lock keys off
 	// Dexterity); default Dex when the ability isn't loaded.
 	gov := progression.StatDEX
-	if c.Abilities != nil {
-		if ab, ok := c.Abilities.Get(skillOpenLock); ok && ab.GainStat != "" {
-			gov = ab.GainStat
-		}
+	if skillDef != nil && skillDef.GainStat != "" {
+		gov = skillDef.GainStat
 	}
 	sv, _ := c.Actor.(statValuer)
 	statScore := 10
@@ -154,6 +165,11 @@ func handlePick(ctx context.Context, c *Context, src world.RoomID, dir world.Dir
 		statScore = sv.StatValue(gov)
 	}
 	bonus := progression.SkillBonus(prof, statScore, progression.DefaultSkillConfig())
+	// Defaulting penalty (skills §2.1): inert for Open Lock (trained-only, so a
+	// defaulter is already refused above), but applied here so the same seam
+	// carries the penalty for any defaultable skill that routes through this
+	// path. A positive magnitude subtracted from the bonus.
+	bonus -= defaultPenalty
 	// EPIC S4 Phase 3c: a Skill Emphasis feat on this skill adds a flat bonus.
 	if fb, ok := c.Actor.(featSkillBonuser); ok {
 		bonus += fb.FeatSkillBonus(skillOpenLock)

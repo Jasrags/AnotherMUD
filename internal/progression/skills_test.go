@@ -53,6 +53,34 @@ func TestProficiencyBonus_RatingOnly(t *testing.T) {
 	}
 }
 
+func TestSkillDefaulting(t *testing.T) {
+	trainedOnly := &Ability{ID: "open-lock", TrainedOnly: true, DefaultPenalty: 4}
+	defaultable := &Ability{ID: "hide", TrainedOnly: false, DefaultPenalty: 4}
+	freeDefault := &Ability{ID: "spot", TrainedOnly: false, DefaultPenalty: 0}
+
+	cases := []struct {
+		name        string
+		ab          *Ability
+		trained     bool
+		wantAllowed bool
+		wantPenalty int
+	}{
+		{"trained actor always attempts freely", trainedOnly, true, true, 0},
+		{"untrained refused on a trained-only skill", trainedOnly, false, false, 0},
+		{"untrained defaults at the penalty", defaultable, false, true, 4},
+		{"untrained free-defaults when penalty is zero", freeDefault, false, true, 0},
+		{"nil ability defaults freely (permissive)", nil, false, true, 0},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			allowed, penalty := SkillDefaulting(c.ab, c.trained)
+			if allowed != c.wantAllowed || penalty != c.wantPenalty {
+				t.Errorf("SkillDefaulting = (%v, %d), want (%v, %d)", allowed, penalty, c.wantAllowed, c.wantPenalty)
+			}
+		})
+	}
+}
+
 func TestResolveSkillCheck_MeetsDCSucceeds(t *testing.T) {
 	// roll 12 + bonus 8 = 20 vs DC 20 → success (>= passes).
 	out := ResolveSkillCheck(d20Roll(12), 8, 20)

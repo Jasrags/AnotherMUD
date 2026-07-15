@@ -43,6 +43,28 @@ func ProficiencyBonus(proficiency int, cfg SkillConfig) int {
 	return int(float64(proficiency) * cfg.ProficiencyBonusScale)
 }
 
+// SkillDefaulting decides whether an actor may attempt a skill they are not
+// trained in, and the penalty that defaulting attempt carries (skills §2.1). A
+// TRAINED actor always attempts freely — (true, 0). An UNTRAINED actor is
+// refused when the skill is trained-only (a lock they don't know how to pick);
+// otherwise they DEFAULT, at a positive penalty magnitude the caller subtracts
+// from the check bonus (0 ⇒ free defaulting, the pre-field behavior). A nil
+// ability defaults freely — no metadata means the permissive pre-slice
+// behavior, so an un-authored skill never becomes accidentally refusing.
+//
+// The returned penalty is a positive magnitude (subtract it): `bonus -= penalty`.
+// Keeping it unsigned matches how the other check penalties (armor-check) are
+// applied at the call sites.
+func SkillDefaulting(ab *Ability, trained bool) (allowed bool, penalty int) {
+	if trained || ab == nil {
+		return true, 0
+	}
+	if ab.TrainedOnly {
+		return false, 0
+	}
+	return true, ab.DefaultPenalty
+}
+
 // SkillOutcome is the result of one resolved skill check (skills §3). It
 // carries the full roll detail — not just the boolean — so a consumer can
 // render the math and a future degrees-of-success consumer can read the margin

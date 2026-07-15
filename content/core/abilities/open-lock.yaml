@@ -23,3 +23,8 @@ gain_failure_multiplier: 0.5
 # nudges the gain roll (skills §2/§3).
 gain_stat: dex
 gain_stat_scale: 0.1
+
+# Trained-only (skills §2.1): lockpicking is a learned craft — an untrained
+# character can't default into it, so the `pick` verb refuses them. Consumed by
+# progression.SkillDefaulting at the check site (internal/command/door.go).
+trained_only: true

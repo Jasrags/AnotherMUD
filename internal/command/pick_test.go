@@ -43,6 +43,9 @@ func pickEnv(t *testing.T, f *doorFixture, playerID string, prof, face int) comm
 	if err := abilities.Register(&progression.Ability{
 		ID: "open-lock", Type: progression.AbilityPassive, Category: progression.AbilitySkill,
 		GainStat: progression.StatDEX, DefaultCap: 100,
+		// Mirror the content: Open Lock is trained-only, so the untrained-refused
+		// gate is now the field-driven SkillDefaulting path (skills §2.1).
+		TrainedOnly: true,
 	}); err != nil {
 		t.Fatalf("register open-lock: %v", err)
 	}
@@ -222,6 +225,40 @@ func TestPickVerb_UntrainedRefused(t *testing.T) {
 	d2, _ := f.world.GetDoor("a", world.DirNorth)
 	if !d2.Locked {
 		t.Error("an untrained actor picked the lock")
+	}
+}
+
+// TestPickVerb_DefaultableSkillLetsUntrainedAttempt — skills §2.1 defaulting:
+// when Open Lock is authored DEFAULTABLE (TrainedOnly=false) with a default
+// penalty, an untrained actor is NOT refused — they attempt at the penalty. This
+// proves the field-driven SkillDefaulting gate in door.go (the trained-only
+// refusal is content, not hardcoded). A nat-20 succeeds regardless of the
+// penalty, so the lock opens and the actor was clearly allowed to try.
+func TestPickVerb_DefaultableSkillLetsUntrainedAttempt(t *testing.T) {
+	f := newDoorFixture(t, pickableGate("village-key", 15), nil)
+	a := newNamedTestActor("Picker", "p-pick", f.roomA(t))
+
+	abilities := progression.NewAbilityRegistry()
+	if err := abilities.Register(&progression.Ability{
+		ID: "open-lock", Type: progression.AbilityPassive, Category: progression.AbilitySkill,
+		GainStat: progression.StatDEX, DefaultCap: 100,
+		TrainedOnly: false, DefaultPenalty: 4, // defaultable, at a -4 penalty
+	}); err != nil {
+		t.Fatalf("register open-lock: %v", err)
+	}
+	env := f.env()
+	env.Abilities = abilities
+	env.Proficiency = progression.NewProficiencyManager(abilities, progression.DefaultProficiencyConfig())
+	env.SkillRoller = pickRoller{raw: 19} // nat-20 → auto-succeed despite the default penalty
+
+	dispatchDoorEnv(t, env, a, "pick gate")
+
+	if got := a.lastLine(); strings.Contains(got, "don't know how to pick") {
+		t.Fatalf("a defaultable skill must not refuse an untrained picker, got %q", got)
+	}
+	d2, _ := f.world.GetDoor("a", world.DirNorth)
+	if d2.Locked {
+		t.Error("untrained defaulting pick on a nat-20 should have opened the lock")
 	}
 }
 
