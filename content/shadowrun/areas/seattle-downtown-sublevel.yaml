@@ -1,0 +1,14 @@
+id: seattle-downtown-sublevel
+name: Downtown Sublevel
+description: |
+  The dead maintenance warren beneath Westlake — service tunnels, transformer
+  vaults, and transit stubs the corp council walled off and forgot. No lighting, no
+  patrols, no reason to be here unless you're moving something that shouldn't be
+  seen. A pocket of true darkness under the neon.
+reset_interval: 300
+# No `light_floor`: unlike the lit Downtown streets above, the sublevel's rooms
+# keep whatever darkness their own terrain / `light` pin dictates — genuine black.
+weather_zone: sprawl
+properties:
+  region: seattle
+  security: D

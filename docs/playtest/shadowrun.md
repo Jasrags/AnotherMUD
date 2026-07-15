@@ -4,7 +4,7 @@ Manual QA for the **Shadowrun** street-samurai slice (SR-M1 attribute set →
 SR-M2 typed damage → SR-M3 the playable pack). This is a **separate world** on
 the same engine — a different boot, a different character, its own district. The
 core/starter-world guide (`core.md`) and the Wheel of Time guide (`wot.md`) are
-siblings; the section numbers here (**§37–§48**) continue the guide-wide anchor
+siblings; the section numbers here (**§37–§49**) continue the guide-wide anchor
 sequence.
 
 > Format: `- [ ] command` — what should happen. Mark `[x]` on pass; add a
@@ -481,6 +481,39 @@ creature's toughness or a typed resistance. It applies to melee and ranged alike
 - [ ] Ammo-fed AP: `buy apds`, `reload clip apds` (or fire loose), and the **APDS**
       round adds its own penetration (SR AP -4) on top of the weapon's — the
       armor-piercing round that gets through what caseless can't.
+
+## 49. Seeing in the dark — vision modes
+
+Cyberware and eyewear read the dark in four ways (light-and-darkness §4,
+visibility §4.3, ranged-combat §5.3):
+
+- **Thermographic** — see by heat in total darkness (an unconditional see-in-dark).
+- **Low-light** — amplify faint light to clear sight (does nothing in true black —
+  it needs *some* light to boost).
+- **Ultrasound** — echolocation that pierces darkness AND detects hidden/sneaking
+  foes, regardless of light (a visibility sense, not a light one).
+- **Vision magnification** — telescopic optics that cut the range-band to-hit
+  falloff on a projectile shot (a ranged-accuracy aid, not a dark-sight one).
+
+They are sourced two ways — a **cybereye** enhancement (`modify cybereyes <mode>`,
+then wear the eyes) or worn **eyewear** (the new `eyes` slot, no surgery):
+
+- [ ] From the Westlake tray, `get cybereyes`, `get thermographic`, `modify
+      cybereyes thermographic`, `equip cybereyes`. Or `get low-light goggles`,
+      `equip goggles` — the goggles take the eyes slot.
+- [ ] The dark room: from Westlake Plaza go `down` into the **maintenance
+      sublevel**. As a **human** (no racial dark vision), `look` reads *pitch black,
+      you can see nothing* — name, prose, and exits all withheld. `modify cybereyes
+      thermographic` + `equip cybereyes`, go back down, and the room resolves (heat
+      vision floors it to gloom — shapes and the name return). Backed by
+      `vision_modes_live_test.go`.
+
+> **Metatype matters.** A **dwarf** or **troll** carries *thermographic* natively,
+> so they read the sublevel without gear — thermographic cyber is redundant for
+> them. An **elf** or **ork** has *low-light* (which needs some ambient, so it does
+> nothing in the truly-black sublevel). A **human** has neither, so the dark room
+> is where their vision gear earns its nuyen. Ultrasound and magnification show
+> their effect against hidden foes / at range, not in room prose.
 
 ---
 

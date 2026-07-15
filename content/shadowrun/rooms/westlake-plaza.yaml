@@ -17,6 +17,10 @@ exits:
   west: elliott-bay-waterfront
   # Up a stairwell off the alley to the fixer's safehouse (the starter flop).
   up: the-flop
+  # Down a service stair into the dead-lit maintenance sublevel — pitch black
+  # (underground), the one place vision gear (thermographic / a light) earns its
+  # nuyen (light-and-darkness §9; vision-modes).
+  down: downtown-substation
 # A safe hub, like the seattle test corner and the demo town square: no combat,
 # no spawns — a place to orient, read `score`, and pick a direction. `safe` also
 # satisfies the training safe-room gate.
@@ -46,6 +50,11 @@ items:
   - wired-reflexes
   - muscle-replacement
   - cybereyes
+  # A thermographic cybereye enhancement + low-light goggles — vision gear for the
+  # dark maintenance sublevel below (`down`). `modify cybereyes thermographic`,
+  # then wear the eyes, and the black tunnel resolves.
+  - cybereye-thermographic
+  - low-light-goggles
 # A street fixer works the safe plaza edge — `list`/`buy` to spend looted nuyen
 # on gear (SR-M3c [99]). Friendly, so she fits the safe hub (no combat).
 mobs:
