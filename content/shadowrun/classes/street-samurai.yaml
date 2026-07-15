@@ -45,6 +45,30 @@ path:
     ability: perception
   - level: 2
     ability: power-attack
+  # The SR active-skill roster (sr-skills-plan.md content Slice A): a street
+  # samurai starts trained (novice) across the weapon skills + Sneaking, so a
+  # fresh runner reads a full grouped `skills` sheet. These are visible +
+  # trainable now; they gate combat once the weapon-skill to-hit engine slice
+  # (skills.md §7) lands. Locksmith / social / technical skills are learnable
+  # via trainers, not granted here.
+  - level: 1
+    ability: pistols
+  - level: 1
+    ability: automatics
+  - level: 1
+    ability: longarms
+  - level: 1
+    ability: heavy-weapons
+  - level: 1
+    ability: blades
+  - level: 1
+    ability: clubs
+  - level: 1
+    ability: unarmed-combat
+  - level: 1
+    ability: throwing-weapons
+  - level: 1
+    ability: sneaking
 
 # Weapon proficiency (weapon-identity §3): simple + martial. Pistols, SMGs, and
 # the katana are martial; the stun baton is simple. Exotic gear (a monofilament

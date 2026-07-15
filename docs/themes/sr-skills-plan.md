@@ -114,9 +114,18 @@ whose skill the wielder hasn't trained defaults at the penalty (`skills.md`
 The engine work is a separate track (`skills.md` §2.1/§5/§7 → its own slices).
 This plan's slices are the **SR content** that lands on top:
 
-- **Slice A — the roster.** The ~18 skill ability YAMLs with linked attribute /
-  group / category / defaultable (§3). Re-identify Open Lock → Locksmith. Grant
-  the combat skills through the Street Samurai class/background.
+- **Slice A — the roster. SHIPPED 2026-07-15.** The 18 skill ability YAMLs
+  (`content/shadowrun/abilities/*.yaml`, new `abilities` manifest glob) with
+  `gain_stat` (= linked attribute) + `skill_group` + `skill_category`; the Street
+  Samurai class path grants the 8 combat skills + Sneaking at novice, so a fresh
+  runner reads a grouped SR sheet. **Locksmith** = a `priority: 1` override of
+  the core `open-lock` id (keeps the `pick` verb working, reskins the name +
+  links it to Agility + Technical); **Perception** = a `priority: 1` override of
+  core `perception` (Intuition, Physical). Live: `TestLive_ShadowrunSkills`.
+  *Follow-ups (→ Slice C):* the core `hide`/`move-silently` the street-kid
+  background grants still show under "Other" alongside SR Sneaking (reconcile
+  when the stealth consumer is wired to Sneaking); Locksmith/social/technical
+  skills are learnable via trainers, not yet granted.
 - **Slice B — the weapon map.** Bind each SR weapon to its skill (§4) and select
   the weapon-skill to-hit model for the pack. This is the slice that makes the
   system *felt* — Pistols ≠ Automatics in a gunfight, and combat trains the

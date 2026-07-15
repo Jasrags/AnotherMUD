@@ -1,0 +1,12 @@
+# Sneaking — SR active skill (sr-skills-plan.md; engine skills.md §2.1).
+id: sneaking
+name: Sneaking
+type: passive
+category: skill
+default_cap: 30
+gain_base_chance: 30
+gain_failure_multiplier: 0.5
+gain_stat: agility
+gain_stat_scale: 0.1
+skill_group: Stealth
+skill_category: physical

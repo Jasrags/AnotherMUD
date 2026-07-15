@@ -1,0 +1,12 @@
+# Negotiation — SR active skill (sr-skills-plan.md; engine skills.md §2.1).
+id: negotiation
+name: Negotiation
+type: passive
+category: skill
+default_cap: 30
+gain_base_chance: 30
+gain_failure_multiplier: 0.5
+gain_stat: charisma
+gain_stat_scale: 0.1
+skill_group: Influence
+skill_category: social

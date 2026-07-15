@@ -68,6 +68,13 @@ content:
     - classes/*.yaml
   backgrounds:
     - backgrounds/*.yaml
+  # The SR active-skill roster (sr-skills-plan.md; engine = skills.md §2.1/§5):
+  # skill abilities carrying linked_attribute / skill_group / skill_category so
+  # the `skills` listing renders grouped SR-style. open-lock + perception here
+  # override the core abilities (priority 1) to reskin them as Locksmith /
+  # SR Perception; the rest are new. Depends on core (skills inherit its shape).
+  abilities:
+    - abilities/*.yaml
   # Weapons, armour, and ammo (SR-M3c-2): firearms + katana + the stun baton
   # (target_pool: stun) and armour that feeds the Shadowrun soak.
   # The cyberware slot (SR-M3c [98]) — installed augmentations, distinct from
