@@ -114,12 +114,14 @@ func (s *Store) EquipMobAtSpawn(m *MobInstance, ids []string, items *item.Templa
 						m.SetWeapon(dice, it.Name(), it.DamageTypes(), it.RangedClass(), it.AmmoKind(), it.RangedStyle(), it.WeaponSize())
 						m.SetWeaponSubdual(it.Subdual())       // subdual-damage §2: a mob's nonlethal weapon
 						m.SetWeaponTargetPool(it.TargetPool()) // shadowrun-mvp SR-M3b: a mob's stun weapon
+						m.SetWeaponSkill(it.WeaponSkill())     // skills §7: a rated mob uses the weapon-skill model
 						weaponSet = true
 					}
 				case base == slot.WieldSlot && !weaponSet:
 					m.SetWeapon(dice, it.Name(), it.DamageTypes(), it.RangedClass(), it.AmmoKind(), it.RangedStyle(), it.WeaponSize())
 					m.SetWeaponSubdual(it.Subdual())       // subdual-damage §2: a mob's nonlethal weapon
 					m.SetWeaponTargetPool(it.TargetPool()) // shadowrun-mvp SR-M3b: a mob's stun weapon
+					m.SetWeaponSkill(it.WeaponSkill())     // skills §7: a rated mob uses the weapon-skill model
 					weaponSet = true
 				case base == slot.OffHandSlot && !offSet:
 					// First off-hand weapon wins. The off-hand slot's Max-1 cap

@@ -215,6 +215,56 @@ func TestEquipMobAtSpawnSetsDamageTypesAndResistances(t *testing.T) {
 	}
 }
 
+// skills §7 mob ratings: an equipped weapon's bound skill (weapon_skill) is
+// captured onto the mob at spawn, so the host's weapon-skill to-hit read can put
+// a rated grunt on the weapon-skill model. A weapon binding no skill leaves it
+// empty (the binary model).
+func TestEquipMobAtSpawnCapturesWeaponSkill(t *testing.T) {
+	r := item.NewTemplates()
+	r.Add(&item.Template{
+		ID: "core:trained-blade", Name: "a trained blade", Type: "weapon",
+		Properties:   map[string]any{"slot": "wield"},
+		WeaponDamage: "1d6", WeaponSkill: "blades",
+	})
+	r.Add(&item.Template{
+		ID: "core:plain-club", Name: "a plain club", Type: "weapon",
+		Properties:   map[string]any{"slot": "wield"},
+		WeaponDamage: "1d4", // no WeaponSkill → binary model
+	})
+
+	spawn := func(t *testing.T) *MobInstance {
+		t.Helper()
+		s := NewStore()
+		inst, err := s.SpawnMob(guardTpl())
+		if err != nil {
+			t.Fatalf("SpawnMob: %v", err)
+		}
+		return inst
+	}
+
+	t.Run("skill-bound weapon captured", func(t *testing.T) {
+		inst := spawn(t)
+		s := NewStore()
+		if _, err := s.EquipMobAtSpawn(inst, []string{"core:trained-blade"}, r, NewContents(), mobEqSlots()); err != nil {
+			t.Fatalf("EquipMobAtSpawn: %v", err)
+		}
+		if got := inst.WieldedWeaponSkill(); got != "blades" {
+			t.Errorf("WieldedWeaponSkill = %q, want blades", got)
+		}
+	})
+
+	t.Run("unbound weapon leaves it empty", func(t *testing.T) {
+		inst := spawn(t)
+		s := NewStore()
+		if _, err := s.EquipMobAtSpawn(inst, []string{"core:plain-club"}, r, NewContents(), mobEqSlots()); err != nil {
+			t.Fatalf("EquipMobAtSpawn: %v", err)
+		}
+		if got := inst.WieldedWeaponSkill(); got != "" {
+			t.Errorf("WieldedWeaponSkill = %q, want empty (binary model)", got)
+		}
+	})
+}
+
 func TestEquipMobAtSpawnFirstWeaponWins(t *testing.T) {
 	s := NewStore()
 	inst, err := s.SpawnMob(guardTpl())

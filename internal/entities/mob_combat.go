@@ -178,6 +178,23 @@ func (m *MobInstance) SetWeaponSubdual(subdual bool) {
 	m.weaponSubdual = subdual
 }
 
+// SetWeaponSkill installs the mob's equipped-weapon bound skill id (skills §7 —
+// the weapon-skill to-hit model). Called during the spawn pipeline only
+// (EquipMobAtSpawn, after SetWeapon), read lock-free by the host's to-hit read —
+// the same write-once-at-spawn contract as SetWeaponSubdual. Empty (a natural
+// weapon, or a weapon binding no skill) leaves the mob on the binary model.
+func (m *MobInstance) SetWeaponSkill(skill string) {
+	m.weaponSkill = skill
+}
+
+// WieldedWeaponSkill returns the mob's equipped-weapon bound skill id, or "" for
+// a natural / non-skill-binding weapon (skills §7). The mob mirror of
+// connActor.WieldedWeaponSkill: the host's weapon-skill to-hit closure reads it
+// so a rated mob uses the weapon-skill model, an unrated one the binary model.
+func (m *MobInstance) WieldedWeaponSkill() string {
+	return m.weaponSkill
+}
+
 // SetWeaponTargetPool installs the mob's equipped-weapon destination monitor
 // (shadowrun-mvp SR-M3b) — the pool.Kind (lowercased string) a stun baton fills
 // so a stun-armed mob's damage routes to the target's Stun track. Called during

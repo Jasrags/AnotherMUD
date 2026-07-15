@@ -26,5 +26,13 @@ stats:
   strength: 4
   willpower: 4
   intuition: 4
+# Weapon-skill rating (skills §7 mob ratings): KE trains its officers, so she
+# shoots her smartlinked SMG on the weapon-skill to-hit model — her Automatics
+# proficiency feeds a rating bonus (+floor(prof*scale) to hit) that an untrained
+# street punk with the same gun never gets. Only mobs that carry a rating for
+# their weapon's bound skill use the model; an unrated mob (the ganger) stays on
+# the always-proficient binary model, so this is purely additive.
+proficiencies:
+  automatics: 50
 # Reuse the existing corp-security loot table (sr guards drop compatible gear).
 loot_table: sec-guard-loot

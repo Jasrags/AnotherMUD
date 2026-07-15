@@ -140,6 +140,16 @@ type MobInstance struct {
 	// then read by combat — no lock, like proficiencies/race.
 	weapon     combat.DiceExpr
 	weaponName string
+	// weaponSkill is the equipped weapon's bound skill id (skills §7 — the
+	// weapon-skill to-hit model), captured from the item template at spawn. ""
+	// (a natural weapon, or a weapon that binds no skill) ⇒ the mob stays on the
+	// binary always-proficient model. When set AND the mob carries a positive
+	// proficiency in that skill (its content Proficiencies map), the host's
+	// weapon-skill to-hit read uses the rating bonus instead — so a "trained"
+	// grunt out-fights an unrated one. Set during the spawn pipeline by
+	// SetWeaponSkill, read lock-free by combat (same write-once-at-spawn contract
+	// as weaponName).
+	weaponSkill string
 	// weaponDamageTypes are the equipped weapon's damage type(s)
 	// (weapon-identity §2), fed into combat.Stats so a defender's per-type
 	// resistance applies (armor-depth §4). nil = untyped (the default for a

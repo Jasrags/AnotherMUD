@@ -2065,26 +2065,45 @@ func run() error {
 	// back to the binary proficiency-set penalty.
 	weaponSkillCfg := progression.DefaultSkillConfig()
 	attackerWeaponSkillMod := func(id combat.CombatantID) (int, bool) {
-		if !strings.HasPrefix(string(id), combat.PlayerPrefix) {
-			return 0, false
+		bareID := combat.EntityIDOf(id)
+		isPlayer := strings.HasPrefix(string(id), combat.PlayerPrefix)
+		// Resolve the attacker's MAIN wielded-weapon bound skill — player or mob.
+		// Both expose WieldedWeaponSkill() (off-hand weapons are never skill-bound
+		// here — the off-hand carries no skill field); a mob reads it off the
+		// weapon it spawned with (skills §7 mob ratings). An unresolvable id (a
+		// despawn race, or a store id that isn't a mob) leaves skill empty and
+		// falls through to the binary model below — deliberately conflated with
+		// "genuinely unrated", matching the player branch's not-found handling.
+		var skill string
+		if isPlayer {
+			a, ok := mgr.GetByPlayerID(bareID)
+			if !ok {
+				return 0, false
+			}
+			skill = a.WieldedWeaponSkill()
+		} else if ent, ok := entityStore.GetByID(entities.EntityID(bareID)); ok {
+			if mob, ok := ent.(*entities.MobInstance); ok {
+				skill = mob.WieldedWeaponSkill()
+			}
 		}
-		bareID := string(id)[len(combat.PlayerPrefix):]
-		a, ok := mgr.GetByPlayerID(bareID)
-		if !ok {
-			return 0, false
-		}
-		skill := a.WieldedWeaponSkill()
 		if skill == "" {
-			return 0, false // weapon uses the binary proficiency-set model
+			return 0, false // natural / unbound weapon → the binary proficiency-set model
 		}
 		// Read through the same combat-goroutine proficiency surface combat's
-		// passive abilities use (RLock-safe); player path delegates to the
-		// player proficiency manager.
+		// passive abilities use (RLock-safe): a player resolves through the player
+		// proficiency manager, a mob through the entity store's content map.
 		prof, _ := passiveProficiency.Proficiency(bareID, skill)
 		if prof <= 0 {
-			// Untrained in the bound skill — default at the non-proficient
-			// penalty (every combat skill is defaultable). §7.
-			return -cfg.NonProficientPenalty, true
+			if isPlayer {
+				// Untrained in the bound skill — default at the non-proficient
+				// penalty (every combat skill is defaultable). §7.
+				return -cfg.NonProficientPenalty, true
+			}
+			// A mob wielding a skill-bound weapon but carrying NO rating for it
+			// stays on the always-proficient binary model (no penalty). Mob
+			// weapon-skill is purely additive: author a proficiency to make the
+			// grunt "trained" — existing unrated mobs are unchanged.
+			return 0, false
 		}
 		return progression.ProficiencyBonus(prof, weaponSkillCfg), true
 	}
