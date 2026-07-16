@@ -48,7 +48,16 @@ compose the flag with any world target:
 ```bash
 make run-shadowrun WS_ADDR=:4001   # essence + stun bars
 make run-wot        WS_ADDR=:4001   # the One Power (create a channeler)
-make watch-wot      WS_ADDR=:4001   # …with live-reload
+```
+
+Under live-reload (`air`), use the `watch-web` family — the WebSocket listener
+survives every rebuild, so keep the browser open and reconnect:
+
+```bash
+make watch-web                 # starter-world, live-reload + WS on :4001
+make watch-web-wot             # WoT
+make watch-web-shadowrun       # Shadowrun
+# or compose the flag with any watch target: make watch-wot WS_ADDR=:4001
 ```
 
 ### The manual way

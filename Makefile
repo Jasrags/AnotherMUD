@@ -110,6 +110,26 @@ watch-shadowrun: WORLD_START_ROOM := shadowrun:the-flop
 watch-shadowrun: WORLD_EXTRA_ENV := ANOTHERMUD_GUIDE_TEMPLATE=shadowrun:street-guide
 watch-shadowrun: watch
 
+## watch-web: live-reload + the web client (WebSocket on :4001) — open clients/web/index.html
+.PHONY: watch-web
+watch-web: WS_ADDR := :4001
+watch-web: watch
+
+## watch-web-wot: live-reload the WoT world + the web client (WebSocket on :4001)
+.PHONY: watch-web-wot
+watch-web-wot: WORLD_PACKS := wot
+watch-web-wot: WORLD_START_ROOM := wot:the-green
+watch-web-wot: WS_ADDR := :4001
+watch-web-wot: watch
+
+## watch-web-shadowrun: live-reload the Shadowrun world + the web client (WebSocket on :4001)
+.PHONY: watch-web-shadowrun
+watch-web-shadowrun: WORLD_PACKS := shadowrun
+watch-web-shadowrun: WORLD_START_ROOM := shadowrun:the-flop
+watch-web-shadowrun: WORLD_EXTRA_ENV := ANOTHERMUD_GUIDE_TEMPLATE=shadowrun:street-guide
+watch-web-shadowrun: WS_ADDR := :4001
+watch-web-shadowrun: watch
+
 ## worlddoc: render world documentation for every world pack to docs/world/
 .PHONY: worlddoc
 worlddoc:
