@@ -1,0 +1,14 @@
+# The Halloweeners (faction.md §2) — the fire-obsessed Redmond go-gang out of
+# Hollywood, ruled by Samhain from Jackal's Lantern. Standing rises by running
+# their initiation and jobs, and falls hard by geeking their own (the engine
+# OnKillDelta, default -100). A runner in good standing is a "contact" the gang
+# won't torch on sight; everyone else is fuel. Rank ladder/bounds/starting
+# default come from the engine config.
+id: halloweeners
+name: The Halloweeners
+description: |
+  Redmond's arsonist gang, who turned Halloween into a way of life and fear into
+  a business model. They burn for fun, for money, and for the sheer joy of the
+  flames, and they remember the handful of outsiders who ran with them and proved
+  they weren't afraid of the fire. To everyone else, the Halloweeners are a mask
+  in the dark and the smell of accelerant a heartbeat too late.

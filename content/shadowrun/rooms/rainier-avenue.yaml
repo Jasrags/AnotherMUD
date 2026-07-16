@@ -1,0 +1,18 @@
+id: rainier-avenue
+area: seattle-renton
+name: "{C}Rainier Avenue{x}"
+description: |
+  The district's spine runs dead straight between rows of corrugated warehouses
+  and shuttered machine shops, their loading docks yawning onto a street rutted by
+  freight haulers. Neon still burns in a few windows — a noodle stand, a pawnshop,
+  a body shop with a hand-lettered sign — but half the frontages are boarded, and
+  the drizzle beads on razor wire strung along every fence. A Humanis Policlub
+  banner hangs from a lamppost to the north, HUMAN IS the message; the freight
+  yards clatter away to the east; and south a warm smell of grease drifts up from
+  Greasy Ben's. West the ramp climbs back toward the interstate.
+terrain: industrial
+exits:
+  west: rainier-ave-ramp
+  east: renton-freight-yards
+  north: humanis-hall
+  south: greasy-bens

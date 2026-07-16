@@ -1,0 +1,16 @@
+id: blood-mountain-turf
+area: seattle-renton
+name: "{r}Blood Mountain Turf{x}"
+description: |
+  Past the last fence the yards give way to the Boys' own ground: a burned-out
+  block of gutted row houses and a dead strip mall, every surface claimed in the
+  red-and-black of the Blood Mountain Boys. Bikes lean against a bonfire barrel;
+  the go-gang runs this stretch of the valley and taxes anything that crosses it.
+  Strangers are marks, and marks who wander in this deep are expected to pay one
+  way or another. The freight yards and the way out lie back north.
+terrain: industrial
+exits:
+  north: renton-freight-yards
+mobs:
+  - ganger
+  - ganger

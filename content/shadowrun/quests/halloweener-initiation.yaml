@@ -1,0 +1,55 @@
+# "Trial by Fire" — the Halloweeners' initiation run (quests spec). Sparkler,
+# the gang's recruiter, sends a hopeful to hit their rivals the Rusted Stilettos
+# and bring back proof. Completing it earns Halloweener standing — enough to be
+# read as a contact (faction.md §6), so the grunts and Samhain stop treating the
+# runner as fuel. The entry point to the faction; no faction prereq.
+id: halloweener-initiation
+name: Trial by Fire
+classification: side
+giver: halloweener-recruiter
+offer: >-
+  Sparkler spins his igniter and grins. "You wanna run with us? Then show us you
+  ain't afraid of the fire. The Rusted Stilettos been mouthing off up in Avondale
+  — go geek one of 'em and bring me his colours off the body. No colours, no
+  proof, no deal. Do that, and Hollywood's your turf too. Chicken out, and don't
+  come back."
+turn_in: true
+abandonable: true
+prerequisite:
+  min_level: 1
+stages:
+  - id: into-the-turf
+    description: The Rusted Stilettos hold Avondale, north through Sophocles in the Redmond Barrens.
+    hint: Avondale is Stiletto turf — north of Sophocles, deeper into the Barrens.
+    objectives:
+      - type: visit
+        target: avondale
+        description: Reach Avondale, the Rusted Stilettos' turf.
+  - id: the-burn
+    description: Put a Stiletto down and take his colours off the body — the only proof Sparkler will accept.
+    hint: Geek a Rusted Stiletto in Avondale and grab the colours he drops.
+    # Quest-scoped spawns (quest-spawns.md): a Stiletto and his colours appear
+    # when the runner arrives and are cleaned up when the run ends.
+    spawns:
+      - { kind: mob, template: ganger, room: avondale }
+      - { kind: item, template: stiletto-colours, room: avondale }
+    objectives:
+      - type: kill
+        target: ganger
+        count: 1
+        description: Geek a Rusted Stiletto in Avondale.
+      - type: collect
+        target: stiletto-colours
+        description: Take the Stiletto's colours as proof.
+reward:
+  xp: 180
+  gold: 1500
+  reputation: 1
+  # The initiation trophy — welcome to the gang. Wear it and Hollywood knows you.
+  items:
+    - jack-o-lantern-mask
+  # The earn that matters: enough Halloweener standing to read as a contact, so
+  # the grunts and Samhain (min_standing rule) no longer attack on sight.
+  faction:
+    - faction: halloweeners
+      delta: 150

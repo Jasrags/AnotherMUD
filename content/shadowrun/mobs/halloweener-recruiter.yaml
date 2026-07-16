@@ -1,0 +1,28 @@
+id: halloweener-recruiter
+name: Sparkler
+type: npc
+behavior: stationary
+description: |
+  Not every Halloweener wants to kill you the second you turn up — Sparkler is the
+  one they send to the edge of the turf to look for talent. A lean ork with a
+  half-melted plastic pumpkin pushed up on his forehead and a welder's igniter
+  spinning through his fingers, he watches newcomers with a grin that's almost
+  friendly, sizing up who might be crazy enough to run with the fire. If you look
+  the part, he's got a way in — a job to prove you're not just another mark.
+tags: [humanoid, halloweener, ganger]
+keywords: [sparkler, recruiter, halloweener, ork, contact]
+# The gang's outward face — neutral by default, so a stranger can approach him to
+# take the initiation. He carries the faction, so geeking him still costs standing.
+disposition_rules:
+  default: neutral
+# Faction membership: killing him shifts the killer's Halloweener standing by the
+# on-kill delta (faction.md §5.2).
+faction: halloweeners
+stats:
+  hp_max: 22
+  body: 4
+  agility: 4
+  reaction: 3
+  strength: 3
+  willpower: 3
+  intuition: 3

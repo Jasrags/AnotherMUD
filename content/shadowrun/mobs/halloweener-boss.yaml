@@ -1,0 +1,40 @@
+id: halloweener-boss
+name: Samhain
+xp_value: 65  # a named-boss kill (grouping.md §4) — the Halloweener warlord
+type: npc
+behavior: stationary
+description: |
+  The closest thing the Halloweeners have to a king holds court behind a wall of
+  guttering jack-o'-lanterns: Samhain, a slab of burn-scarred muscle in a grinning
+  pumpkin mask he is said never to remove, wreathed in the reek of fuel gel. He
+  built the gang's legend one fire at a time and wears the Blazer on his back like
+  a crown — a Shiawase Arms flamethrower, and he loves nothing in this world more
+  than an excuse to use it. Runners come to Jackal's Lantern to deal with the
+  Halloweeners; the smart ones come with something Samhain wants.
+tags: [humanoid, ganger, halloweener, outlaw]
+keywords: [samhain, halloweener, boss, king, warlord, freak, masked]
+# Hostile to a stranger who hasn't bought his welcome — only the fire. But a
+# runner who's run for the gang (Halloweener standing at or above a contact,
+# faction.md §6) is met as one of Samhain's own, not as fuel.
+disposition_rules:
+  default: hostile
+  rules:
+    - faction: halloweeners
+      min_standing: 1
+      reaction: neutral
+# Faction membership (faction.md §5.2): killing Samhain shifts the killer's
+# Halloweener standing hard by the on-kill delta.
+faction: halloweeners
+# The Shiawase Arms Blazer (a flamethrower — ranged fire, fires free on the mob
+# ammo path; a fire-resistance liner is the only real answer) and an armoured
+# jacket. The Blazer drops to his corpse — a payday, if you can take it off him.
+equipment: [shiawase-arms-blazer, armored-jacket]
+stats:
+  hp_max: 34
+  body: 5
+  agility: 4
+  reaction: 4
+  strength: 5
+  willpower: 4
+  intuition: 3
+loot_table: halloweener-loot

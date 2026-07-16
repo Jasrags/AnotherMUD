@@ -5,12 +5,22 @@ description: |
   South of the stadiums the interstate lifts onto stilts over the SODO flats, a
   grey river of tail-lights bleeding out of the city toward the southern sprawls.
   Off-ramps peel away into industrial dark; the reek of the tide flats and diesel
-  hangs under the deck. Downtown's waterfront is back to the north, and the 5
-  runs on south toward the valley and the Puyallup Barrens.
+  hangs under the deck. This is where Downtown frays into the barrens beyond — the
+  concrete pillars are tagged with grinning jack-o'-lanterns in dripping orange
+  paint, the Halloweeners marking how far their reach has crept up the 5. Downtown's
+  waterfront is back to the north, and the 5 runs on south toward the valley and
+  the Puyallup Barrens.
 terrain: sprawl
 exits:
   north: elliott-bay-waterfront
   south: puyallup-city
-# STUB: the southern valley districts splice in along here as they're authored —
-# Renton (SR-900, east), Auburn, Tacoma (Federal Way, south). For now the ramp
-# runs straight through to Puyallup; those districts slot between later.
+  east: rainier-ave-ramp
+# The Halloweeners' Downtown-fringe reach (sr2075_geography_mud.md): a lone scout
+# tagging the interchange, a warning that the Barrens are closer than Downtown
+# likes to admit. A runner with Halloweener standing (min_standing rule) is left
+# be; everyone else is fair game.
+mobs:
+  - halloweener
+# Renton splices in east along the SR-900 spur (rainier-ave-ramp). The remaining
+# southern valley districts still stub off here as they're authored — Auburn,
+# Tacoma (Federal Way, south); for now the ramp runs straight through to Puyallup.

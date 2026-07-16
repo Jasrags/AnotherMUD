@@ -1,0 +1,14 @@
+id: stiletto-colours
+name: a Rusted Stiletto's colours
+type: item
+description: |
+  A battered synthleather cut in the Rusted Stilettos' rust-and-black, the gang's
+  blade-and-gear patch sewn across the back and half-burned at one corner. Taken
+  off a Stiletto's body, it's the kind of proof that can't be faked — the sort of
+  trophy one gang brings another to say a debt's been paid in the only currency
+  the barrens respect.
+tags: [tradegood, trophy]
+keywords: [colours, colors, cut, jacket, stiletto, patch, proof]
+properties:
+  weight: 1
+  value: 40

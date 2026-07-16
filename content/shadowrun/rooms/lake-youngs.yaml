@@ -1,0 +1,18 @@
+id: lake-youngs
+area: seattle-renton
+name: "{C}Lake Youngs Housing{x}"
+description: |
+  A wall and a hired guard mark the line where Renton pretends to be somewhere
+  else: Lake Youngs, the district's one respectable enclave, a cul-de-sac of
+  trimmed lawns and micro-AA security bought by residents who work corp jobs and
+  drive home fast. The contrast with the flats below is the point — clean
+  pavement, working lights, a drone on a slow orbit overhead. The guard clocks
+  everyone who comes up the access road, and the SINless are not welcome to
+  linger. The road runs back south to the ramp and the real Renton.
+terrain: industrial
+# A bought-and-paid-for pocket of order — the guard keeps it a safe-room.
+tags: [safe-room, safe]
+exits:
+  south: rainier-ave-ramp
+mobs:
+  - sec-guard

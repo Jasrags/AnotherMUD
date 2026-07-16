@@ -1,0 +1,21 @@
+id: seattle-renton
+name: Renton
+description: |
+  South of the lake and east of the interstate, Renton is where the sprawl does
+  its dirty work: warehouses, rail yards, and small manufacturing under a
+  permanent grey drizzle, a working-class district that has definitely seen
+  better days. It runs more gangs than anywhere but the Redmond Barrens, and it
+  is Humanis Policlub country — the anti-metahuman club keeps its Seattle hall
+  here, and the sentiment on the street matches. B-security means the patrols are
+  thin and slow; the Mafia and the Yakuza both work the freight, and a runner who
+  keeps their head down can find cheap chrome and cheaper trouble in equal measure.
+reset_interval: 300
+weather_zone: sprawl
+# Area classification: B (mid residential/industrial; patrols thin, response
+# slow — the working sprawl, not the corp core and not the lawless barrens),
+# seattle region, mid mob-tuning band. No light_floor — the failing sodium lamps
+# leave stretches genuinely dark after nightfall.
+properties:
+  region: seattle
+  security: B
+  level_range: "5-15"

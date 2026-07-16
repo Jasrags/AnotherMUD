@@ -1,0 +1,35 @@
+id: greasy-ben
+name: Greasy Ben
+type: npc
+behavior: stationary
+description: |
+  A broad, balding ork in a stained apron works the griddle and the surgical tray
+  with the same pair of hands, a cigarette welded to his lip through both. Thirty
+  years of frying soy and fitting cheap chrome have made him a Renton institution:
+  he'll feed you, patch you, and sell you second-hand cyberware off the back of a
+  corp truck, and he has never once asked a customer's name. `list` his stock,
+  `buy` what you can carry.
+tags: [humanoid, shop]
+keywords: [ben, greasy, ork, cook, doc, bodyshop]
+# A fixture, not a mark — friendly to everyone; you don't rob the man who patches
+# your bullet wounds and fries your breakfast.
+disposition_rules:
+  default: friendly
+stats:
+  hp_max: 26
+  body: 4
+  strength: 4
+  willpower: 4
+# Diner-and-body-shop stock (economy-survival §3.1): cheap second-hand armour and
+# chrome — the runner-resource tier, a step below Scalpel's Chrome Den. Ids
+# qualified shadowrun:<id> (the shop bag is not namespace-rewritten).
+properties:
+  shop:
+    sells:
+      - shadowrun:armored-jacket
+      - shadowrun:armor-vest
+      - shadowrun:combat-knife
+      - shadowrun:extendable-baton
+      - shadowrun:muscle-replacement
+      - shadowrun:cybereyes
+      - shadowrun:wired-reflexes

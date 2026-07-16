@@ -1,0 +1,21 @@
+id: underground-barkeep
+name: the Deep Hole's barkeep
+type: npc
+behavior: stationary
+description: |
+  A broad troll matron works the taps of the Deep Hole with the unhurried
+  authority of someone who has run this room for decades and buried the people
+  who tested her. Her tusks are capped in scavenged chrome and her forearms could
+  bend rebar; she pours home-brew for the community and keeps a weathered eye on
+  everyone who ducks through her door. She hears everything that happens in the
+  Underground, and forgets none of it.
+tags: [humanoid, metahuman]
+keywords: [barkeep, troll, matron, bartender, host]
+# The host of a safe hub — friendly to everyone who behaves.
+disposition_rules:
+  default: friendly
+stats:
+  hp_max: 38
+  body: 7
+  strength: 7
+  willpower: 5

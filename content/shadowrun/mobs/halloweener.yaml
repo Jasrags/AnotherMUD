@@ -1,0 +1,36 @@
+id: halloweener
+name: a Halloweener
+xp_value: 32  # kill experience (grouping.md §4)
+type: npc
+behavior: stationary
+description: |
+  A wiry punk in a leering jack-o'-lantern mask and a jacket stitched with
+  charred trophies, thumbing a lighter open and shut, open and shut. The
+  Halloweeners run on fear and fire — arson is their art and terror their point —
+  and this one has the twitchy, delighted look of someone hoping you'll give him
+  a reason. An Ares Light Fire pistol rides his hip, and he means the name.
+tags: [humanoid, ganger, halloweener, outlaw]
+keywords: [halloweener, ganger, punk, masked, freak, weener]
+# Hostile to strangers — but a runner who's earned Halloweener standing (a
+# "contact", faction.md §6) is one of theirs and walks the turf unmolested.
+disposition_rules:
+  default: hostile
+  rules:
+    - faction: halloweeners
+      min_standing: 1
+      reaction: neutral
+# Faction membership (faction.md §5.2): geeking a Halloweener shifts the killer's
+# standing with the gang by the on-kill delta.
+faction: halloweeners
+# The aptly-named Ares Light Fire 70 (a light pistol — fires free on the mob ammo
+# path) plus a trophy jacket for a little soak.
+equipment: [ares-light-fire-70, armored-jacket]
+stats:
+  hp_max: 18
+  body: 3
+  agility: 4
+  reaction: 3
+  strength: 3
+  willpower: 2
+  intuition: 3
+loot_table: halloweener-loot

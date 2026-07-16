@@ -1,0 +1,20 @@
+# Loot for the Halloweeners (loot-and-corpses §3). Barrens gangers who deal in
+# fire, fear, and the BTL trade — their pockets carry ammo, a hot chip to fence,
+# and, rarely, the gang's own mask.
+id: halloweener-loot
+# A weighted pick from the pockets — usually spare rounds or a fenceable BTL chip.
+weighted:
+  - { item: caseless-round, weight: 3 }
+  - { item: btl-chip, weight: 2 }
+  - { item: nuyen, weight: 1 }
+pool_rolls: 1
+# A small chance to drop the gang's colours — a jack-o'-lantern mask off a
+# geeked Halloweener (a find, and a disguise).
+rare_bonus:
+  chance: 15
+  entries:
+    - { item: jack-o-lantern-mask, weight: 1 }
+# Loose nuyen in the pocket, credited to the killer at corpse creation.
+coin:
+  min: 25
+  max: 70

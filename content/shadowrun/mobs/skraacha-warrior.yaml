@@ -1,0 +1,29 @@
+id: skraacha-warrior
+name: a Skraacha warrior
+type: npc
+behavior: stationary
+description: |
+  A big scarred ork in salvaged riot armour, the Skraacha tusk-and-shovel painted
+  across the breastplate. He is not a gangbanger looking for a mark — he is a
+  soldier of the undercity, and he watches you with the flat assessing calm of
+  someone who has decided exactly what he is willing to do to keep his people
+  safe. Behave, and he'll nod you past. Don't, and you'll learn why the law
+  leaves the Underground to the Skraacha.
+tags: [humanoid, metahuman, skraacha]
+keywords: [skraacha, warrior, ork, defender, soldier]
+# Not a mark and not a mugger — the community's militia. Friendly to anyone who
+# doesn't bring trouble down here; the disposition system turns him hostile only
+# if attacked.
+disposition_rules:
+  default: friendly
+# Riot gear and a heavy stick — he answers trouble with a beating (subdual), not
+# a killing, unless pressed.
+equipment: [extendable-baton, armored-jacket]
+stats:
+  hp_max: 34
+  body: 6
+  agility: 3
+  reaction: 4
+  strength: 6
+  willpower: 5
+  intuition: 3

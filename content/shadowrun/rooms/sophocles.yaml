@@ -6,9 +6,12 @@ description: |
   channel the street, and hand-lettered signs mark a community clinic and a soup
   line the locals defend themselves. It's the least wretched corner of the
   Barrens, which isn't saying much. Touristville's neon glows south; north the
-  wrecks give way to Avondale, where the Rusted Stilettos rule.
+  wrecks give way to Avondale, where the Rusted Stilettos rule; and east, past a
+  wall the locals keep barricaded, the scorched marquees of Hollywood burn — the
+  Halloweeners' ghetto, and no one here goes that way by choice.
 terrain: barrens
 exits:
   south: touristville
   north: avondale
+  east: redmond-hollywood
 # Community-held: no gang spawn here. The threat is one street north.

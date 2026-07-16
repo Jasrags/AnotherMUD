@@ -1,0 +1,18 @@
+id: jack-o-lantern-mask
+name: a jack-o'-lantern mask
+type: item
+description: |
+  The Halloweeners' colours worn on the face: a grinning carved-pumpkin mask in
+  scorched orange resin, the eyes and rictus cut jagged, the inside stained with
+  soot and old sweat. Wearing one marks you as somebody who runs with the fire —
+  a warning to the sprawl and a passport in Hollywood. It turns a glancing blow,
+  which is not why anyone wears it.
+tags: [armor, wearable, halloweener]
+keywords: [mask, jack-o-lantern, jackolantern, pumpkin, halloweener]
+eligible_slots: [head]
+# A trophy first, armour second: a token +1 to the worn-armour soak so it's worth
+# keeping on, but the point is what it says about who you run with.
+armor_bonus: 1
+properties:
+  weight: 1
+  value: 250

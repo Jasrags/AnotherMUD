@@ -1,0 +1,18 @@
+# The industrial biome (sr2075_geography_mud.md — the default terrain for
+# Renton, Everett, Tacoma): warehouses, freight yards, small manufacturing, and
+# the reek of the tide flats. Rooms key in via `terrain: industrial`. Outdoors
+# (the sky is there, grey and low), paved and rutted underfoot, and loud — the
+# working, grinding underside of the sprawl the corp towers are built on.
+id: industrial
+name: the industrial flats
+description: Warehouses, rail spurs, and freight docks — the sprawl's working underside, grey and grinding.
+weather_shielded: false
+time_shielded: false
+ambience:
+  - A container crane groans somewhere out of sight, hauling steel through the drizzle.
+  - The ground shudders as a freight train grinds along a rail spur, couplings crashing.
+  - Diesel and brine hang thick in the air, the reek of the tide flats never far off.
+  - A forklift beeps in reverse behind a chain-link fence topped with razor wire.
+  - Rust weeps down a corrugated wall in long orange streaks under a dead sodium lamp.
+  - Somewhere a loose sheet of roofing metal bangs against its frame in the wind.
+move_cost: 1

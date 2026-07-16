@@ -1,0 +1,16 @@
+id: the-pumpkin-lot
+area: seattle-redmond
+name: "{r}The Pumpkin Lot{x}"
+description: |
+  A cleared lot the Halloweeners keep as a playground, strung end to end with
+  jack-o'-lanterns on wire and lit by a dozen oil-drum fires that never go out.
+  A torched car sits gutted at the centre like an altar, ringed with the melted
+  slag of past celebrations, and the reek of accelerant sits so thick it stings.
+  This is where the gang comes to burn things and each other for fun; strangers
+  are simply more fuel. Hollywood's dead marquees lie back south.
+terrain: barrens
+exits:
+  south: redmond-hollywood
+mobs:
+  - halloweener
+  - halloweener

@@ -1,0 +1,17 @@
+id: humanis-hall
+area: seattle-renton
+name: "{R}Humanis Hall{x}"
+description: |
+  A blunt cinderblock lodge behind a chain-link fence, the Humanis Policlub's
+  Seattle hall broadcasts its politics from a banner over the door: HUMANITY
+  FIRST, and a crossed-out silhouette of a horned metahuman beneath it. Pickups
+  with club decals crowd the lot; hard-eyed men in matching jackets loiter on the
+  steps, tracking anyone with the wrong bone structure. It is legal, which is the
+  worst part — the law here is thin and sympathetic, and a troll or an ork who
+  lingers will not linger long. Rainier Avenue runs back south toward the yards.
+terrain: industrial
+exits:
+  south: rainier-avenue
+mobs:
+  - humanis-thug
+  - humanis-thug

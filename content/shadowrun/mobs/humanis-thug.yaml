@@ -1,0 +1,28 @@
+id: humanis-thug
+name: a Humanis thug
+xp_value: 35  # kill experience (grouping.md §4)
+type: npc
+behavior: stationary
+description: |
+  A heavyset human in a Humanis Policlub jacket, HUMANITY FIRST stitched across
+  the back over a crossed-out metahuman silhouette. He carries himself like a man
+  who has never been told no by anyone he considers his lesser, one hand resting
+  on a collapsed baton, the other cracking his knuckles. His politics are legal;
+  his fists are the part that isn't.
+tags: [humanoid, humanis, outlaw]
+keywords: [thug, humanis, policlub, bigot, man]
+# Hostile: Humanis toughs jump anyone who doesn't fit their idea of "human" —
+# and jump runners who wander onto their steps regardless.
+disposition_rules:
+  default: hostile
+# A club jacket and a telescoping baton — the baton routes subdual (a beating,
+# not a killing), knocking a mark out via the Stun monitor.
+equipment: [extendable-baton, armored-jacket]
+stats:
+  hp_max: 22
+  body: 4
+  agility: 3
+  reaction: 3
+  strength: 4
+  willpower: 3
+  intuition: 2

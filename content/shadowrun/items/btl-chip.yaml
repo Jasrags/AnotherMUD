@@ -1,0 +1,16 @@
+id: btl-chip
+name: a BTL chip
+type: item
+description: |
+  A Better-Than-Life chip: a sliver of optical storage loaded with an illegal
+  sim-sense recording cranked past every safety limit, meant to be jacked
+  straight into the brain. Wireheads chase the high until it kills them, and the
+  barrens run on the trade. This one's hot merchandise — worth real nuyen to a
+  fixer who moves that kind of weight, and a felony to be caught holding.
+tags: [contraband, btl, tradegood]
+keywords: [chip, btl, betterthanlife, moddoll, tradegood]
+# Fenceable contraband — no worn/used effect (the wirehead high isn't modelled);
+# its worth is what a fixer pays for it. `sell` it or offload it in the shadows.
+properties:
+  weight: 0
+  value: 400

@@ -1,0 +1,16 @@
+id: the-cistern
+area: seattle-underground
+name: "{C}The Old Cistern{x}"
+description: |
+  Away from the market's din, a vast brick cistern holds a pool of still black
+  water and a stillness that is almost sound. This is where the undercity comes
+  to be quiet: offerings of candle-stubs and scrap ring the water's edge, and the
+  air has the faint charge that the community's shamans call the flow — a stable
+  vein of mana running through the old stone, the spiritual heart of a people who
+  made a home in the dark. Even the Skraacha lower their voices here. The market
+  lies back north.
+terrain: underground
+# A place of quiet — safe, and by long custom no one brings violence to it.
+tags: [safe-room, safe]
+exits:
+  north: underground-market

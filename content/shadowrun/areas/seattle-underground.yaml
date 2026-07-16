@@ -1,0 +1,25 @@
+id: seattle-underground
+name: The Ork Underground
+description: |
+  Beneath Pioneer Square the ork and troll community that was driven off the
+  surface built a city of its own — a warren of old Seattle's buried streets,
+  cisterns, and service tunnels, lit by strung work-lamps and warmed by its own
+  crowded life. It has an economy, a culture, and a government the surface barely
+  acknowledges, and it is growing more organized and more assertive every year.
+  The law does not come down here; the Skraacha do, an ork gang turned community
+  defenders who keep the inhabited quarters safe and the deep tunnels to
+  themselves. A surprisingly stable mana flow runs through the rock — the
+  spiritual life of a people who made a home out of the dark.
+reset_interval: 300
+weather_zone: sprawl
+# Strung work-lamps light the inhabited undercity — DIM floor keeps the community
+# quarters navigable; the deep unclaimed tunnels are darker by description.
+light_floor: dim
+# Area classification: Z (barrens-sub — the law does not reach here), seattle
+# region, high mob-tuning band. The Skraacha carve out safe-room quarters within
+# it (the market, the dive, the hall, the shrine); the warrens and the deep dark
+# are where the Z rating bites.
+properties:
+  region: seattle
+  security: Z
+  level_range: "15-25"

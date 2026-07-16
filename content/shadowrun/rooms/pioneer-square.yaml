@@ -13,6 +13,7 @@ terrain: sprawl
 exits:
   west: westlake-plaza
   east: the-big-rhino
-# STUB: down should seam into the Ork Underground (biome underground; Z/C
-# security) once that area is authored — the subterranean ork/troll city beneath
-# Downtown. Left unwired for now; add the reverse `up` on the Underground entry.
+  down: underground-stair
+# `down` seams into the Ork Underground (seattle-underground, biome underground,
+# Z security) — the subterranean ork/troll city; the reverse `up` lives on
+# underground-stair.

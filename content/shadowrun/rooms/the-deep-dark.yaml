@@ -1,0 +1,19 @@
+id: the-deep-dark
+area: seattle-underground
+name: "{r}The Deep Dark{x}"
+description: |
+  Below the last of the lamps the undercity gives up on being a city at all: a
+  flooded service tunnel where the water reaches your shins and the only light is
+  what you brought. This is unclaimed ground, past where even the Skraacha bother
+  to patrol, and the sounds in the black — skittering, the wet slither of
+  something large, a chorus of hungry squeaks — belong to the devil-rat broods
+  that nest in the drowned dark. Runners come down here for what people hide where
+  no one follows. Most of them come back up. The warrens and the light lie back
+  up above.
+terrain: underground
+exits:
+  up: the-warrens
+mobs:
+  - devil-rat
+  - devil-rat
+  - devil-rat-brood-mother
