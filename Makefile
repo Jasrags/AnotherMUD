@@ -74,15 +74,20 @@ run-shadowrun: WORLD_START_ROOM := shadowrun:the-flop
 run-shadowrun: WORLD_EXTRA_ENV := ANOTHERMUD_GUIDE_TEMPLATE=shadowrun:street-guide
 run-shadowrun: run
 
-## run-web: run the starter-world demo with the web client (WebSocket on :4001)
-.PHONY: run-web
-run-web: WS_ADDR := :4001
-run-web:
-	@echo "Web client: opening clients/web/index.html — press Connect (URL ws://localhost$(WS_ADDR)/mud)."
+# open-web: best-effort open the browser client. Runs as the FIRST prerequisite
+# of every *-web target so the page opens before the blocking server/air starts
+# (make runs prerequisites left-to-right). Not listed in help — it's internal.
+.PHONY: open-web
+open-web:
+	@echo "Web client: opening clients/web/index.html — press Connect (ws://localhost:4001/mud)."
 	@(command -v open >/dev/null 2>&1 && open clients/web/index.html) \
 		|| (command -v xdg-open >/dev/null 2>&1 && xdg-open clients/web/index.html) \
 		|| echo "  (open clients/web/index.html manually)"
-	$(RUN_ENV) $(GO) run $(CMD_PKG)
+
+## run-web: run the starter-world demo with the web client (WebSocket on :4001)
+.PHONY: run-web
+run-web: WS_ADDR := :4001
+run-web: open-web run
 
 ## watch: live-reload — rebuild + restart on any .go/.yaml/.lua change (needs air)
 .PHONY: watch
@@ -110,17 +115,17 @@ watch-shadowrun: WORLD_START_ROOM := shadowrun:the-flop
 watch-shadowrun: WORLD_EXTRA_ENV := ANOTHERMUD_GUIDE_TEMPLATE=shadowrun:street-guide
 watch-shadowrun: watch
 
-## watch-web: live-reload + the web client (WebSocket on :4001) — open clients/web/index.html
+## watch-web: live-reload + the web client (WebSocket on :4001), opens the client
 .PHONY: watch-web
 watch-web: WS_ADDR := :4001
-watch-web: watch
+watch-web: open-web watch
 
 ## watch-web-wot: live-reload the WoT world + the web client (WebSocket on :4001)
 .PHONY: watch-web-wot
 watch-web-wot: WORLD_PACKS := wot
 watch-web-wot: WORLD_START_ROOM := wot:the-green
 watch-web-wot: WS_ADDR := :4001
-watch-web-wot: watch
+watch-web-wot: open-web watch
 
 ## watch-web-shadowrun: live-reload the Shadowrun world + the web client (WebSocket on :4001)
 .PHONY: watch-web-shadowrun
@@ -128,7 +133,7 @@ watch-web-shadowrun: WORLD_PACKS := shadowrun
 watch-web-shadowrun: WORLD_START_ROOM := shadowrun:the-flop
 watch-web-shadowrun: WORLD_EXTRA_ENV := ANOTHERMUD_GUIDE_TEMPLATE=shadowrun:street-guide
 watch-web-shadowrun: WS_ADDR := :4001
-watch-web-shadowrun: watch
+watch-web-shadowrun: open-web watch
 
 ## worlddoc: render world documentation for every world pack to docs/world/
 .PHONY: worlddoc
