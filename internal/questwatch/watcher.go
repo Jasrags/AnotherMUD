@@ -70,6 +70,7 @@ func (w *Watcher) Subscribe(bus *eventbus.Bus) {
 	bus.Subscribe(eventbus.EventMobKilled, w.onMobKilled)
 	bus.Subscribe(eventbus.EventItemPickedUp, w.onItemPickedUp)
 	bus.Subscribe(eventbus.EventItemGiven, w.onItemGiven)
+	bus.Subscribe(eventbus.EventItemConsumed, w.onItemConsumed)
 	bus.Subscribe(eventbus.EventPlayerMoved, w.onPlayerMoved)
 }
 
@@ -132,6 +133,27 @@ func (w *Watcher) maybeGrant(inst *entities.ItemInstance, holder string) {
 	}
 	if player, ok := w.grant(holder); ok {
 		w.svc.Accept(player, questID, true)
+	}
+}
+
+// onItemConsumed advances `use` objectives whose target is the consumed
+// item's template id, for the actor (§7.1). The event carries only the
+// instance id and fires BEFORE the instance is destroyed (economy §6.2), so
+// the template is resolved through the store; a missing instance is tolerated
+// (§7.4).
+func (w *Watcher) onItemConsumed(_ context.Context, e eventbus.Event) {
+	ev, ok := e.(eventbus.ItemConsumed)
+	if !ok || ev.ActorID == "" {
+		return
+	}
+	inst := w.itemInstance(ev.ItemID)
+	if inst == nil {
+		return
+	}
+	if target := string(inst.TemplateID()); target != "" {
+		w.svc.AdvanceMatching(string(ev.ActorID), "use", func(o quest.Objective) bool {
+			return o.Target == target
+		})
 	}
 }
 

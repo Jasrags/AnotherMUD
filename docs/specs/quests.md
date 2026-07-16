@@ -590,12 +590,19 @@ service so events emit correctly.
 | item picked up | `collect` | objective target equals the picked-up item's template id |
 | item given | `deliver` | objective target equals the item template id AND objective npc equals the recipient's template id |
 | player moved | `visit` | objective target equals the destination room id |
+| item consumed | `use` | objective target equals the consumed item's template id |
 
-The four canonical objective types — `kill`, `collect`, `deliver`,
-`visit` — are the engine-recognized auto-tracked types. Content
-MAY use additional type strings, but those must be advanced
+The five canonical objective types — `kill`, `collect`, `deliver`,
+`visit`, `use` — are the engine-recognized auto-tracked types.
+Content MAY use additional type strings, but those must be advanced
 explicitly via the service's `advance objective` call (typically
 from a script hook); the watcher will ignore them.
+
+The `use` mapping fires on the item-consumed event (a drink, a
+scroll read, a one-shot device — economy-survival §6.2). The event
+carries only the consumed instance id; because it fires *before*
+the instance is destroyed, the watcher resolves the template id
+through the entity store, tolerating a missing instance (§7.4).
 
 ### 7.2 Side-channel advancement
 
@@ -631,8 +638,10 @@ payload is silently ignored.
 
 **Acceptance criteria**
 
-- [ ] The watcher subscribes to exactly the four world events
+- [ ] The watcher subscribes to exactly the five world events
       listed in §7.1 and translates them per the table.
+- [ ] A `use` objective advances when the source player consumes
+      an item whose template id equals the objective target.
 - [ ] Custom (non-canonical) objective types are advanced only
       by explicit calls, not by the watcher.
 - [ ] Item-pickup honors `quest_grant` on the template and

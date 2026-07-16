@@ -29,6 +29,7 @@ func allTypesQuest() *quest.Definition {
 			{ID: "s-collect-1", Type: "collect", Target: "core:gem", Count: 1},
 			{ID: "s-deliver-2", Type: "deliver", Target: "core:letter", NPC: "core:mayor", Count: 1},
 			{ID: "s-visit-3", Type: "visit", Target: "core:home", Count: 1},
+			{ID: "s-use-4", Type: "use", Target: "core:potion", Count: 1},
 		}}},
 	}
 }
@@ -143,6 +144,27 @@ func TestMissingEntityTolerated(t *testing.T) {
 	}
 }
 
+func TestUseAdvances(t *testing.T) {
+	svc, store, w := setup(t)
+	potion, _ := store.Spawn(&item.Template{ID: "core:potion", Name: "Potion", Type: "consumable"})
+	w.onItemConsumed(context.Background(), eventbus.ItemConsumed{ActorID: "p1", ItemID: potion.ID()})
+	if progressOf(t, svc, "s-use-4") != 1 {
+		t.Error("use did not advance via template resolution")
+	}
+	// consuming an unrelated item doesn't advance
+	rock, _ := store.Spawn(&item.Template{ID: "core:rock", Name: "Rock", Type: "junk"})
+	w.onItemConsumed(context.Background(), eventbus.ItemConsumed{ActorID: "p1", ItemID: rock.ID()})
+	if progressOf(t, svc, "s-use-4") != 1 {
+		t.Error("non-matching use advanced")
+	}
+	// missing actor is ignored; a missing instance is tolerated (no panic)
+	w.onItemConsumed(context.Background(), eventbus.ItemConsumed{ItemID: potion.ID()})
+	w.onItemConsumed(context.Background(), eventbus.ItemConsumed{ActorID: "p1", ItemID: "ghost"})
+	if progressOf(t, svc, "s-use-4") != 1 {
+		t.Error("use advanced on missing actor / missing instance")
+	}
+}
+
 func TestSubscribeRoutesThroughBus(t *testing.T) {
 	svc, store, w := setup(t)
 	bus := eventbus.New()
@@ -151,7 +173,12 @@ func TestSubscribeRoutesThroughBus(t *testing.T) {
 	if progressOf(t, svc, "s-kill-0") != 1 {
 		t.Error("bus-published kill did not advance through subscription")
 	}
-	_ = store
+	// item-consumed routes through the subscription too (§7.1 use)
+	potion, _ := store.Spawn(&item.Template{ID: "core:potion", Name: "Potion", Type: "consumable"})
+	bus.Publish(context.Background(), eventbus.ItemConsumed{ActorID: "p1", ItemID: potion.ID()})
+	if progressOf(t, svc, "s-use-4") != 1 {
+		t.Error("bus-published consume did not advance through subscription")
+	}
 }
 
 func TestQuestGrantOnPickup(t *testing.T) {
