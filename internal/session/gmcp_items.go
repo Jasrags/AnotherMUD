@@ -28,6 +28,7 @@ func (m *Manager) FlushGmcpItems(ctx context.Context) {
 	}
 	craftSvc := m.craft
 	shopSvc, money := m.shop, m.money
+	questSvc := m.quests
 	m.mu.RUnlock()
 
 	for _, a := range snapshot {
@@ -46,6 +47,10 @@ func (m *Manager) FlushGmcpItems(ctx context.Context) {
 		// the sell list track money + carried items (this pass's inputs); it's
 		// contextual (closed when not at a shop). nil shopSvc is a no-op.
 		a.flushGmcpShop(ctx, shopSvc, money)
+		// web-client-plan P3 Slice C: the rich quest journal. Objective progress
+		// changes as the player plays, so it rides the same poll pass. nil questSvc
+		// (quests unwired) is a no-op.
+		a.flushGmcpQuests(ctx, questSvc)
 	}
 }
 
@@ -214,5 +219,8 @@ func (a *connActor) resetGmcpItemsShadow() {
 	// The Char.Shop trade-form shadow shares the same lock + reattach seam.
 	a.gmcpShopValid = false
 	a.gmcpShopLast = nil
+	// The Char.Quests journal shadow shares the same lock + reattach seam.
+	a.gmcpQuestsValid = false
+	a.gmcpQuestsLast = nil
 	a.gmcpItemsMu.Unlock()
 }

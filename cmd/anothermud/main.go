@@ -1106,6 +1106,9 @@ func run() error {
 	// link-dead reap) despawn everything they own. The departure hook composes
 	// the notification-unregister that used to live earlier.
 	questSpawner.SetQuestState(questSvc)
+	// web-client-plan P3 Slice C: the items flush pass emits the rich Char.Quests
+	// journal for GMCP clients, projected read-only from the quest service.
+	mgr.SetQuests(questSvc)
 	mgr.SetOnAdd(func(playerID string) {
 		questSpawner.ReactivatePlayer(playerID)
 	})

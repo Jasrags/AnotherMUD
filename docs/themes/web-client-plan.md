@@ -80,6 +80,7 @@ Illustrative (per-feature design settles the exact names/shapes):
 |---|---|---|
 | Map | `Room.Info` (id, exits, coords, ambience) | `Room.Map` — a walkable neighborhood graph / fog state for the interactive map |
 | Inventory | `Char.Items.List` | `Char.Inventory` — structured items with slots + affordances for drag-drop |
+| Journal | (`quests` verb text) | `Char.Quests` — active quests with stage + per-objective progress and an abandon action |
 | Forms | (typed commands) | `Client.Form` (server→client form spec) + `Client.Form.Submit` (client→server) |
 | Intents | (typed commands) | `Client.Do` — a structured intent (e.g. `{verb:"equip", item, slot}`) |
 
@@ -209,11 +210,29 @@ correctness precondition.
     by `internal/gmcp` payload-shape tests, `internal/economy` ShopForm unit
     tests, `internal/session` flusher tests (`gmcp_shop_test.go`), and the
     env-gated `TestLive_GmcpShop`.
+  - **Slice C — the quest journal. DONE (`Char.Quests`).** The journal form:
+    `Char.Quests` (server→client) carries the character's ACTIVE quests, each
+    with its display name + classification, the current stage's description +
+    optional hint, and the per-objective progress rows (current/required + a
+    `complete` flag) — mirroring the `quests` verb's journal panel. An
+    awaiting-turn-in quest surfaces an `awaitingTurnIn` flag (the client shows a
+    "ready to turn in" badge; turn-in is done by returning to the giver, not a
+    bare command, so there is no submit button for it). Each abandonable quest
+    carries `abandonable: true` + an `abandonCmd` (`abandon <id>`) the client
+    sends verbatim (the authority invariant — no new server verb). Built
+    read-only in the session flusher from `quest.Service.Snapshot` +
+    `Definition` (the SAME projection `command.QuestsHandler` renders, so the
+    panel and the CLI never drift). Emitted poll-and-diff on the same items pass
+    as the craft/shop forms, so accepting a quest, advancing an objective, or
+    completing a stage all re-emit. The web client renders a Journal panel that
+    hides when there are no active quests. Guarded by `internal/gmcp`
+    payload-shape tests, `internal/session` flusher tests (`gmcp_quests_test.go`),
+    and the env-gated `TestLive_GmcpQuests`.
   - **Slice B++ — remaining forms.** Direct trade + auction forms, portraits,
     responsive/mobile — each one additive package (server state) + a plain-command
-    submit, never new authority. Three concrete form packages now exist
-    (`Char.Recipes`, `Char.Shop`, and any next); if a shared shape earns its keep,
-    generalize then — not before.
+    submit, never new authority. Four concrete form packages now exist
+    (`Char.Recipes`, `Char.Shop`, `Char.Quests`, and any next); if a shared shape
+    earns its keep, generalize then — not before.
 
 ## 5. Open questions (non-blocking; settle when the phase reaches them)
 

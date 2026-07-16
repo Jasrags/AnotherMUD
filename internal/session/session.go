@@ -2699,6 +2699,11 @@ type connActor struct {
 	// trade form. Same marshaled-bytes shadow under gmcpItemsMu, same flush pass.
 	gmcpShopLast  []byte
 	gmcpShopValid bool
+	// gmcpQuests* are the web-client-plan P3 Slice C shadow for the rich
+	// Char.Quests journal. Same marshaled-bytes shadow under gmcpItemsMu, same
+	// flush pass.
+	gmcpQuestsLast  []byte
+	gmcpQuestsValid bool
 
 	// gmcpCombat* are the M16.4d shadow for Char.Combat. Single
 	// snapshot per actor since each player has at most one primary

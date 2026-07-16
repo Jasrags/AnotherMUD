@@ -183,6 +183,28 @@ const (
 	// server-side through the world's CurrencyLabel (¥ vs gold), so the client
 	// stays free of currency vocabulary. Extends Char.* per the §2.2 rule.
 	PackageCharShop = "Char.Shop"
+
+	// PackageCharQuests — the RICH quest journal (web-client-plan P3 Slice C): the
+	// character's ACTIVE quests, each with its display name + classification, the
+	// current stage's description/hint, and the per-objective progress rows
+	// (have/need counts + a complete flag) — mirroring the `quests` verb's journal
+	// panel. A superset of that plain-text listing (which stays for a baseline
+	// client): a capable client renders a live journal that ticks objective
+	// progress up as the player plays and offers an Abandon button per abandonable
+	// quest. A baseline client ignores this package (the additive-contract
+	// invariant).
+	//
+	// Poll-and-diff like Char.Shop (rides the same items flush pass, at most one
+	// frame per session per tick, only when the snapshot changed) — so an
+	// objective advancing, a stage completing, or a quest being accepted/turned in
+	// re-emits, and the panel updates without a round-trip.
+	//
+	// Ruleset-agnostic: the only submit `cmd` is the Abandon action, an exact
+	// `abandon <quest-id>` a player could type (the authority invariant) — no new
+	// server authority. Turn-in is done by returning to the giver (not a bare
+	// command), so an awaiting-turn-in quest surfaces a status flag rather than a
+	// button. Extends Char.* per the §2.2 rule.
+	PackageCharQuests = "Char.Quests"
 )
 
 // Char.Items "location" string constants per spec §7. Tapestry-
@@ -524,6 +546,57 @@ type ShopItem struct {
 	Qty        int    `json:"qty,omitempty"`
 	Cmd        string `json:"cmd"`
 	Affordable bool   `json:"affordable"`
+}
+
+// CharQuests is the Char.Quests payload (web-client-plan P3 Slice C) — the quest
+// journal: the character's active quests with the data a client needs to render
+// a live journal panel and abandon a quest with one click.
+//
+// The slice is non-nil (possibly empty) so it marshals as JSON `[]`, never the
+// `null` that would be ambiguous with "no change" (the builder makes it). An
+// empty list is a meaningful state ("no active quests") the panel renders.
+type CharQuests struct {
+	Quests []QuestEntry `json:"quests"`
+}
+
+// QuestEntry is one active quest in a CharQuests journal.
+//
+//   - id — the quest id (opaque row key; also the abandon token).
+//   - name — the display name the panel renders (falls back to id server-side).
+//   - classification — main / side / daily (empty when unset).
+//   - stage — the current stage's description (the "what to do now" line);
+//     empty when the stage has none.
+//   - hint — the current stage's optional hint line; omitted when empty.
+//   - objectives — the current stage's per-objective progress rows.
+//   - awaitingTurnIn — true for a turn-in quest whose objectives are all done
+//     but whose reward is unclaimed: the panel shows a "ready to turn in" badge
+//     (turn-in is done by returning to the giver, not a bare command, so there
+//     is no submit button for it).
+//   - abandonable — whether `abandon` will drop this quest; the panel enables
+//     the Abandon button only when true.
+//   - abandonCmd — the FULL command to drop it (`abandon <id>`), sent verbatim
+//     as a plain command (the authority invariant); empty when not abandonable.
+type QuestEntry struct {
+	ID             string           `json:"id"`
+	Name           string           `json:"name"`
+	Classification string           `json:"classification,omitempty"`
+	Stage          string           `json:"stage,omitempty"`
+	Hint           string           `json:"hint,omitempty"`
+	Objectives     []QuestObjective `json:"objectives"`
+	AwaitingTurnIn bool             `json:"awaitingTurnIn,omitempty"`
+	Abandonable    bool             `json:"abandonable"`
+	AbandonCmd     string           `json:"abandonCmd,omitempty"`
+}
+
+// QuestObjective is one objective-progress row in a QuestEntry: the display
+// description plus the current/required counts (current < required marks the
+// shortfall a client shows as in-progress) and a convenience complete flag so
+// the client checks the box without recomputing.
+type QuestObjective struct {
+	Desc     string `json:"desc"`
+	Current  int    `json:"current"`
+	Required int    `json:"required"`
+	Complete bool   `json:"complete"`
 }
 
 // CharCombat is the spec §7 Char.Combat payload — the actor's

@@ -18,6 +18,7 @@ import (
 	"github.com/Jasrags/AnotherMUD/internal/light"
 	"github.com/Jasrags/AnotherMUD/internal/logging"
 	"github.com/Jasrags/AnotherMUD/internal/progression"
+	"github.com/Jasrags/AnotherMUD/internal/quest"
 	"github.com/Jasrags/AnotherMUD/internal/world"
 )
 
@@ -91,6 +92,12 @@ type Manager struct {
 	// Char.Shop emission. Set once at startup via SetShop.
 	shop  *economy.ShopService
 	money economy.CurrencyLabel
+
+	// quests builds the rich Char.Quests journal (web-client-plan P3 Slice C) on
+	// the items flush pass. Read-only use (Snapshot + Definition never mutate).
+	// nil disables the Char.Quests emission (a build without quests wired). Set
+	// once at startup via SetQuests.
+	quests *quest.Service
 
 	// Onboarding-guide lifecycle (onboarding-guide.md): the guide service +
 	// the world's guide template + the graduation level cap. The Manager owns the
@@ -238,6 +245,15 @@ func (m *Manager) SetShop(svc *economy.ShopService, money economy.CurrencyLabel)
 	m.mu.Lock()
 	m.shop = svc
 	m.money = money
+	m.mu.Unlock()
+}
+
+// SetQuests installs the quest service used to build the Char.Quests journal
+// (web-client-plan P3 Slice C) on the items flush pass. Set once at startup;
+// nil-safe (no Char.Quests frames when the service is unset).
+func (m *Manager) SetQuests(svc *quest.Service) {
+	m.mu.Lock()
+	m.quests = svc
 	m.mu.Unlock()
 }
 

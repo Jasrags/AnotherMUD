@@ -47,6 +47,9 @@ const el = {
   shopMoney: $("shop-money"),
   shopBuy: $("shop-buy"),
   shopSell: $("shop-sell"),
+  quests: $("p-quests"),
+  questsCount: $("quests-count"),
+  questsList: $("quests-list"),
 };
 
 const escapeHtml = (s) =>
@@ -227,6 +230,7 @@ const gmcpHandlers = {
   "Char.Inventory": renderInventory,
   "Char.Recipes": renderRecipes,
   "Char.Shop": renderShop,
+  "Char.Quests": renderQuests,
   // Char.Items.List / Char.StatusVars / Comm.Channel.Text / Char.Wizard are
   // received but not yet surfaced — dispatched to a no-op so unknown packages
   // never throw. (Char.Inventory is the P3 richer superset of Char.Items.List.)
@@ -524,6 +528,79 @@ function renderShop(d) {
 // A buy/sell button sends its command; cancels any active click-to-walk.
 el.shop.addEventListener("click", (e) => {
   const b = e.target.closest(".shop-btn");
+  if (b && !b.disabled && b.dataset.cmd && conn.socket) {
+    walkTo = null;
+    sendCommand(b.dataset.cmd);
+  }
+});
+
+/* ── Quest journal (Char.Quests, P3 Slice C) ──────────────────────
+ * The rich journal package, mirroring the in-game `quests` verb: the active
+ * quests with the current stage's description/hint and per-objective progress
+ * (have/need + a done flag). Each abandonable quest carries an Abandon button
+ * with the FULL `abandon <id>` command, so a click sends exactly what a player
+ * would type (the authority invariant). Turn-in is done by returning to the
+ * giver (not a bare command), so an awaiting-turn-in quest shows a badge, not a
+ * button. Nothing here decides quest state — it is a view over the journal. */
+
+// objectiveLine renders one objective: description, have/need, and a checkbox
+// glyph, marked complete when current >= required.
+function objectiveLine(o) {
+  const done = o.complete;
+  const mark = done ? "☑" : "☐";
+  return `<li class="quest-obj${done ? " quest-obj-done" : ""}">
+    <span class="quest-obj-mark" aria-hidden="true">${mark}</span>
+    <span class="quest-obj-desc">${escapeHtml(o.desc || "")}</span>
+    <span class="quest-obj-qty">${o.current}/${o.required}</span>
+  </li>`;
+}
+
+// questCard renders one active quest: name + classification, an optional "ready
+// to turn in" badge, the current stage line + hint, the objective list, and an
+// Abandon button (only when abandonable).
+function questCard(q) {
+  const cls = q.classification
+    ? `<span class="quest-class">${escapeHtml(q.classification)}</span>`
+    : "";
+  const badge = q.awaitingTurnIn
+    ? `<span class="quest-badge">ready to turn in</span>`
+    : "";
+  const stage = q.stage ? `<div class="quest-stage">${escapeHtml(q.stage)}</div>` : "";
+  const hint = q.hint ? `<div class="quest-hint">${escapeHtml(q.hint)}</div>` : "";
+  const objs = (q.objectives || []).map(objectiveLine).join("");
+  const abandon = q.abandonable
+    ? `<div class="quest-actions"><button class="quest-btn" type="button" data-cmd="${escapeHtml(
+        q.abandonCmd || ""
+      )}">Abandon</button></div>`
+    : "";
+  return `<div class="quest${q.awaitingTurnIn ? " quest-ready" : ""}">
+    <div class="quest-head"><span class="quest-name">${escapeHtml(
+      q.name || ""
+    )}</span>${cls}${badge}</div>
+    ${stage}${hint}
+    <ul class="quest-objs">${objs}</ul>
+    ${abandon}
+  </div>`;
+}
+
+function renderQuests(d) {
+  const quests = (d && d.quests) || [];
+  // Hide the panel entirely for a character with no active quests, so a fresh
+  // player's HUD isn't cluttered with an empty Journal section.
+  if (!quests.length) {
+    el.quests.hidden = true;
+    el.questsList.innerHTML = "";
+    el.questsCount.textContent = "";
+    return;
+  }
+  el.quests.hidden = false;
+  el.questsCount.textContent = `${quests.length} active`;
+  el.questsList.innerHTML = quests.map(questCard).join("");
+}
+
+// An Abandon button sends its command; cancels any active click-to-walk.
+el.quests.addEventListener("click", (e) => {
+  const b = e.target.closest(".quest-btn");
   if (b && !b.disabled && b.dataset.cmd && conn.socket) {
     walkTo = null;
     sendCommand(b.dataset.cmd);

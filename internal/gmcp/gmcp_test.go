@@ -280,6 +280,60 @@ func TestCharShop_ClosedOmitsHeaderAndEmitsEmptyArrays(t *testing.T) {
 	}
 }
 
+func TestCharQuests_PackageConstant(t *testing.T) {
+	if gmcp.PackageCharQuests != "Char.Quests" {
+		t.Errorf("PackageCharQuests = %q, want Char.Quests", gmcp.PackageCharQuests)
+	}
+}
+
+func TestCharQuests_PayloadShape(t *testing.T) {
+	// One in-progress abandonable quest (a done objective + an outstanding one,
+	// classification + hint present) and one awaiting-turn-in quest that is NOT
+	// abandonable (so no abandonCmd, and the badge flag rides through).
+	out, _ := json.Marshal(gmcp.CharQuests{
+		Quests: []gmcp.QuestEntry{
+			{
+				ID: "starter-world:rat-cellar", Name: "Clear the Cellar", Classification: "side",
+				Stage: "Descend into the cellar and deal with the rats.", Hint: "Try the trapdoor behind the bar.",
+				Objectives: []gmcp.QuestObjective{
+					{Desc: "reach the cellar", Current: 1, Required: 1, Complete: true},
+					{Desc: "kill cellar rats", Current: 2, Required: 5, Complete: false},
+				},
+				Abandonable: true, AbandonCmd: "abandon starter-world:rat-cellar",
+			},
+			{
+				ID: "starter-world:lost-locket", Name: "The Lost Locket", Classification: "main",
+				Stage: "Return the locket to Mara.",
+				Objectives: []gmcp.QuestObjective{
+					{Desc: "deliver the locket", Current: 1, Required: 1, Complete: true},
+				},
+				AwaitingTurnIn: true, Abandonable: false,
+			},
+		},
+	})
+	want := `{"quests":[` +
+		`{"id":"starter-world:rat-cellar","name":"Clear the Cellar","classification":"side",` +
+		`"stage":"Descend into the cellar and deal with the rats.","hint":"Try the trapdoor behind the bar.",` +
+		`"objectives":[{"desc":"reach the cellar","current":1,"required":1,"complete":true},` +
+		`{"desc":"kill cellar rats","current":2,"required":5,"complete":false}],` +
+		`"abandonable":true,"abandonCmd":"abandon starter-world:rat-cellar"},` +
+		`{"id":"starter-world:lost-locket","name":"The Lost Locket","classification":"main",` +
+		`"stage":"Return the locket to Mara.",` +
+		`"objectives":[{"desc":"deliver the locket","current":1,"required":1,"complete":true}],` +
+		`"awaitingTurnIn":true,"abandonable":false}` +
+		`]}`
+	if string(out) != want {
+		t.Errorf("payload = %q,\nwant       %q", string(out), want)
+	}
+}
+
+func TestCharQuests_EmptySliceMarshalsAsArray(t *testing.T) {
+	out, _ := json.Marshal(gmcp.CharQuests{Quests: []gmcp.QuestEntry{}})
+	if string(out) != `{"quests":[]}` {
+		t.Errorf("empty payload = %q, want {\"quests\":[]}", string(out))
+	}
+}
+
 func TestCharCombat_NotInCombatOmitsTargetFields(t *testing.T) {
 	// in_combat=false → just the flag; target_* fields all omit
 	// so the panel can hide the target tile.
