@@ -2704,6 +2704,11 @@ type connActor struct {
 	// flush pass.
 	gmcpQuestsLast  []byte
 	gmcpQuestsValid bool
+	// gmcpTrade* are the web-client-plan P3 Slice B++ shadow for the rich
+	// Char.Trade direct-trade form. Same marshaled-bytes shadow under gmcpItemsMu,
+	// same flush pass.
+	gmcpTradeLast  []byte
+	gmcpTradeValid bool
 
 	// gmcpCombat* are the M16.4d shadow for Char.Combat. Single
 	// snapshot per actor since each player has at most one primary

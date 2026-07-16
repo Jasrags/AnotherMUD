@@ -334,6 +334,49 @@ func TestCharQuests_EmptySliceMarshalsAsArray(t *testing.T) {
 	}
 }
 
+func TestCharTrade_PackageConstant(t *testing.T) {
+	if gmcp.PackageCharTrade != "Char.Trade" {
+		t.Errorf("PackageCharTrade = %q, want Char.Trade", gmcp.PackageCharTrade)
+	}
+}
+
+func TestCharTrade_OpenPayloadShape(t *testing.T) {
+	// An open trade: my side has an item (with a rescind cmd) + coin, confirmed;
+	// their side has one item (display-only, no cmd) + no coin, not confirmed.
+	out, _ := json.Marshal(gmcp.CharTrade{
+		Open: true,
+		Mine: gmcp.TradeSide{
+			Party:     "Alice",
+			Items:     []gmcp.TradeGood{{Name: "a steel dagger", Cmd: "rescind a steel dagger"}},
+			Coin:      "50¥",
+			Confirmed: true,
+		},
+		Theirs: gmcp.TradeSide{
+			Party: "Bob",
+			Items: []gmcp.TradeGood{{Name: "a medkit"}},
+		},
+	})
+	want := `{"open":true,` +
+		`"mine":{"party":"Alice","items":[{"name":"a steel dagger","cmd":"rescind a steel dagger"}],"coin":"50¥","confirmed":true},` +
+		`"theirs":{"party":"Bob","items":[{"name":"a medkit"}],"confirmed":false}}`
+	if string(out) != want {
+		t.Errorf("payload = %q,\nwant       %q", string(out), want)
+	}
+}
+
+func TestCharTrade_ClosedEmitsEmptySides(t *testing.T) {
+	// Not trading: open=false, header fields omit, both sides' items marshal as [].
+	out, _ := json.Marshal(gmcp.CharTrade{
+		Open:   false,
+		Mine:   gmcp.TradeSide{Items: []gmcp.TradeGood{}},
+		Theirs: gmcp.TradeSide{Items: []gmcp.TradeGood{}},
+	})
+	want := `{"open":false,"mine":{"items":[],"confirmed":false},"theirs":{"items":[],"confirmed":false}}`
+	if string(out) != want {
+		t.Errorf("closed payload = %q, want %q", string(out), want)
+	}
+}
+
 func TestCharCombat_NotInCombatOmitsTargetFields(t *testing.T) {
 	// in_combat=false → just the flag; target_* fields all omit
 	// so the panel can hide the target tile.

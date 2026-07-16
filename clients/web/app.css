@@ -877,6 +877,128 @@ input:disabled {
   background: oklch(from var(--danger) l c h / 0.22);
 }
 
+/* Direct-trade form (Char.Trade, P3 Slice B++) */
+.panel-trade .panel-title {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+.trade-partner {
+  font-family: var(--mono);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  color: var(--accent-dim);
+}
+.trade-cols {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.6rem;
+}
+.trade-col {
+  min-width: 0;
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  padding: 0.4rem 0.45rem;
+}
+.trade-heading {
+  margin: 0 0 0.35rem;
+  font-size: var(--text-xs);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-faint);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.3rem;
+}
+.trade-check {
+  font-weight: 700;
+  color: var(--good);
+}
+.trade-check[data-confirmed="true"] {
+  /* a confirmed side gets a subtle glow so both-confirmed reads at a glance */
+  text-shadow: 0 0 6px oklch(from var(--good) l c h / 0.6);
+}
+.trade-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+.trade-list .empty {
+  font-size: var(--text-xs);
+  font-style: italic;
+  color: var(--text-faint);
+}
+.trade-good {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.3rem;
+  font-size: var(--text-xs);
+  color: var(--text-dim);
+}
+.trade-good-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.trade-coin .trade-good-name {
+  font-family: var(--mono);
+  color: var(--warn);
+}
+.trade-rescind {
+  flex: 0 0 auto;
+  font: inherit;
+  font-size: var(--text-xs);
+  line-height: 1;
+  color: var(--danger);
+  background: transparent;
+  border: 1px solid oklch(from var(--danger) l c h / 0.3);
+  border-radius: 999px;
+  width: 1.15rem;
+  height: 1.15rem;
+  cursor: pointer;
+  transition: background var(--dur) var(--ease);
+}
+.trade-rescind:hover {
+  background: oklch(from var(--danger) l c h / 0.18);
+}
+.trade-actions {
+  display: flex;
+  gap: 0.4rem;
+  margin-top: 0.6rem;
+}
+.trade-btn {
+  flex: 1 1 0;
+  font: inherit;
+  font-size: var(--text-xs);
+  font-weight: 600;
+  text-transform: lowercase;
+  border-radius: 999px;
+  padding: 0.25rem 0.7rem;
+  cursor: pointer;
+  transition: background var(--dur) var(--ease);
+}
+.trade-confirm {
+  color: var(--good);
+  background: oklch(from var(--good) l c h / 0.12);
+  border: 1px solid oklch(from var(--good) l c h / 0.35);
+}
+.trade-confirm:hover {
+  background: oklch(from var(--good) l c h / 0.24);
+}
+.trade-decline {
+  color: var(--danger);
+  background: oklch(from var(--danger) l c h / 0.1);
+  border: 1px solid oklch(from var(--danger) l c h / 0.3);
+}
+.trade-decline:hover {
+  background: oklch(from var(--danger) l c h / 0.22);
+}
+
 /* Effects */
 .effects {
   list-style: none;

@@ -51,6 +51,10 @@ func (m *Manager) FlushGmcpItems(ctx context.Context) {
 		// changes as the player plays, so it rides the same poll pass. nil questSvc
 		// (quests unwired) is a no-op.
 		a.flushGmcpQuests(ctx, questSvc)
+		// web-client-plan P3 Slice B++: the rich direct-trade form. Contextual
+		// (closed when not trading) and reads the per-actor trade manager directly,
+		// so it needs no snapshot service. nil a.trades is a no-op.
+		a.flushGmcpTrade(ctx)
 	}
 }
 
@@ -222,5 +226,8 @@ func (a *connActor) resetGmcpItemsShadow() {
 	// The Char.Quests journal shadow shares the same lock + reattach seam.
 	a.gmcpQuestsValid = false
 	a.gmcpQuestsLast = nil
+	// The Char.Trade direct-trade form shadow shares the same lock + reattach seam.
+	a.gmcpTradeValid = false
+	a.gmcpTradeLast = nil
 	a.gmcpItemsMu.Unlock()
 }

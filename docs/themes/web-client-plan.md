@@ -81,6 +81,7 @@ Illustrative (per-feature design settles the exact names/shapes):
 | Map | `Room.Info` (id, exits, coords, ambience) | `Room.Map` — a walkable neighborhood graph / fog state for the interactive map |
 | Inventory | `Char.Items.List` | `Char.Inventory` — structured items with slots + affordances for drag-drop |
 | Journal | (`quests` verb text) | `Char.Quests` — active quests with stage + per-objective progress and an abandon action |
+| Trade | (`trade` verb text) | `Char.Trade` — live two-party staging (both offers + confirm flags), rescind/confirm/decline actions |
 | Forms | (typed commands) | `Client.Form` (server→client form spec) + `Client.Form.Submit` (client→server) |
 | Intents | (typed commands) | `Client.Do` — a structured intent (e.g. `{verb:"equip", item, slot}`) |
 
@@ -228,11 +229,27 @@ correctness precondition.
     hides when there are no active quests. Guarded by `internal/gmcp`
     payload-shape tests, `internal/session` flusher tests (`gmcp_quests_test.go`),
     and the env-gated `TestLive_GmcpQuests`.
-  - **Slice B++ — remaining forms.** Direct trade + auction forms, portraits,
-    responsive/mobile — each one additive package (server state) + a plain-command
-    submit, never new authority. Four concrete form packages now exist
-    (`Char.Recipes`, `Char.Shop`, `Char.Quests`, and any next); if a shared shape
-    earns its keep, generalize then — not before.
+  - **Slice B++ — the direct-trade form. DONE (`Char.Trade`).** The live two-party
+    trade panel, and the second CONTEXTUAL package: `Char.Trade` (server→client)
+    carries an `open` flag (false + empty sides when the player has no trade, so the
+    client hides the panel) plus, when open, both sides' staged offers from the
+    VIEWER's perspective — each side's items, pre-formatted coin, and a `confirmed`
+    flag that ticks as either party stages value (the surface plain text serves
+    worst — you must re-type `trade` to re-read it). Built read-only by
+    `trade.Manager.View` (the same offer data the `trade` verb prints, structured).
+    Submit is plain: the viewer's own items carry a `rescind <name>` command, and the
+    whole trade is confirmed/cancelled with the fixed `confirm` / `decline` verbs the
+    client sends literally (authority invariant — the partner's items are display-
+    only; the server is the sole judge of the swap, requiring both confirms). Emitted
+    poll-and-diff on the same items pass, so an offer added on EITHER side re-emits.
+    The web client renders a two-column staging panel. Guarded by `internal/gmcp`
+    payload-shape tests, an `internal/trade` `View` unit test, and `internal/session`
+    flusher tests (`gmcp_trade_test.go`).
+  - **Slice B++ — remaining forms.** The auction-house form, portraits, responsive/
+    mobile — each one additive package (server state) + a plain-command submit, never
+    new authority. Five concrete form packages now exist (`Char.Recipes`, `Char.Shop`,
+    `Char.Quests`, `Char.Trade`, and any next); if a shared shape earns its keep,
+    generalize then — not before.
 
 ## 5. Open questions (non-blocking; settle when the phase reaches them)
 

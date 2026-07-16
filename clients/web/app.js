@@ -50,6 +50,13 @@ const el = {
   quests: $("p-quests"),
   questsCount: $("quests-count"),
   questsList: $("quests-list"),
+  trade: $("p-trade"),
+  tradePartner: $("trade-partner"),
+  tradeMineList: $("trade-mine-list"),
+  tradeMineCheck: $("trade-mine-check"),
+  tradeTheirsList: $("trade-theirs-list"),
+  tradeTheirsCheck: $("trade-theirs-check"),
+  tradeTheirsName: $("trade-theirs-name"),
 };
 
 const escapeHtml = (s) =>
@@ -231,6 +238,7 @@ const gmcpHandlers = {
   "Char.Recipes": renderRecipes,
   "Char.Shop": renderShop,
   "Char.Quests": renderQuests,
+  "Char.Trade": renderTrade,
   // Char.Items.List / Char.StatusVars / Comm.Channel.Text / Char.Wizard are
   // received but not yet surfaced — dispatched to a no-op so unknown packages
   // never throw. (Char.Inventory is the P3 richer superset of Char.Items.List.)
@@ -601,6 +609,59 @@ function renderQuests(d) {
 // An Abandon button sends its command; cancels any active click-to-walk.
 el.quests.addEventListener("click", (e) => {
   const b = e.target.closest(".quest-btn");
+  if (b && !b.disabled && b.dataset.cmd && conn.socket) {
+    walkTo = null;
+    sendCommand(b.dataset.cmd);
+  }
+});
+
+/* ── Direct-trade form (Char.Trade, P3 Slice B++) ─────────────────
+ * The live two-party trade panel, shown only while a trade is open (open=true).
+ * Two columns — your staged offer and the partner's — each with items, coin, and
+ * a confirmed check that ticks as either side stages value (the surface plain
+ * text serves worst). Your items carry a `rescind <item>` command; the whole
+ * trade is confirmed/cancelled with the fixed `confirm` / `decline` verbs. A
+ * click sends exactly what a player would type (the authority invariant); the
+ * server is the sole judge of the swap (both sides must confirm). */
+
+// tradeGood renders one staged item: name, plus (on your side only) a rescind
+// button carrying its full command.
+function tradeGood(g) {
+  const btn = g.cmd
+    ? `<button class="trade-rescind" type="button" data-cmd="${escapeHtml(g.cmd)}" title="Remove from your offer">×</button>`
+    : "";
+  return `<div class="trade-good"><span class="trade-good-name">${escapeHtml(g.name || "")}</span>${btn}</div>`;
+}
+
+// tradeSide fills one column: the staged items (or "(nothing)"), an optional coin
+// line, and the confirmed check glyph.
+function tradeSide(side, listEl, checkEl) {
+  const items = (side && side.items) || [];
+  const rows = items.map(tradeGood);
+  if (side && side.coin) {
+    rows.push(`<div class="trade-good trade-coin"><span class="trade-good-name">${escapeHtml(side.coin)}</span></div>`);
+  }
+  listEl.innerHTML = rows.length ? rows.join("") : `<div class="empty">(nothing offered)</div>`;
+  checkEl.textContent = side && side.confirmed ? "✓" : "";
+  checkEl.dataset.confirmed = String(!!(side && side.confirmed));
+}
+
+function renderTrade(d) {
+  // Closed (not trading) → hide the panel entirely.
+  if (!d || !d.open) {
+    el.trade.hidden = true;
+    return;
+  }
+  el.trade.hidden = false;
+  el.tradePartner.textContent = (d.theirs && d.theirs.party) || "";
+  el.tradeTheirsName.textContent = (d.theirs && d.theirs.party) || "Partner";
+  tradeSide(d.mine, el.tradeMineList, el.tradeMineCheck);
+  tradeSide(d.theirs, el.tradeTheirsList, el.tradeTheirsCheck);
+}
+
+// Rescind / Confirm / Decline buttons send their command; cancel any walk.
+el.trade.addEventListener("click", (e) => {
+  const b = e.target.closest("[data-cmd]");
   if (b && !b.disabled && b.dataset.cmd && conn.socket) {
     walkTo = null;
     sendCommand(b.dataset.cmd);

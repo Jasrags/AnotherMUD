@@ -62,6 +62,15 @@ No build step, no dependencies — three static files (`index.html`, `app.css`,
     full `abandon <id>` command — a click sends exactly what a player would type
     (the authority invariant; no new server verb). A rich superset of the
     `quests` verb; a baseline client ignores it.
+  - **Trade** — the live direct-trade panel from the `Char.Trade` package (P3
+    Slice B++), shown only while a trade is open (`open`). Two columns — your
+    staged offer and the partner's — each with items, coin, and a **confirmed**
+    check that ticks as either side stages value. Your items carry a `rescind
+    <item>` button; the whole trade is confirmed/cancelled with the fixed
+    `confirm` / `decline` verbs — a click sends exactly what a player would type
+    (the authority invariant; the server requires both sides to confirm before
+    the swap). A rich superset of the `trade` verb's offer text; a baseline
+    client ignores it.
   - **Effects** — active effects from `Char.Effects`.
   - **Progression** — per-track level/XP bars from `Char.Experience`.
   - **Identity** — name/account/race/class from `Char.Login` + `Char.Status`.
@@ -149,11 +158,12 @@ in through the normal prompts (create an account / character just like telnet).
 
 - **`ws://` is unencrypted.** For anything past localhost use `wss://` behind a
   TLS terminator; see the WebSocket TLS/rate-limit deferral (`m16-5`).
-- **Enriched packages, so far.** Five rich additive packages are surfaced beyond
+- **Enriched packages, so far.** Six rich additive packages are surfaced beyond
   the baseline: `Room.Map` (the neighbourhood map, P2), `Char.Inventory` (the
   structured inventory panel, P3 Slice A), `Char.Recipes` (the craft form, P3
-  Slice B), `Char.Shop` (the trade form, P3 Slice B+), and `Char.Quests` (the
-  journal, P3 Slice C). Still on the wire but
+  Slice B), `Char.Shop` (the shop form, P3 Slice B+), `Char.Quests` (the
+  journal, P3 Slice C), and `Char.Trade` (the direct-trade form, P3 Slice B++).
+  Still on the wire but
   not yet surfaced: `Char.Items.List` (superseded by `Char.Inventory` for the
   panel), `Char.StatusVars`, `Comm.Channel.Text`, and `Char.Wizard` — dispatched
   to a no-op, so they never error. Direct-trade + auction **forms** follow the

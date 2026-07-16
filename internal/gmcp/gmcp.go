@@ -205,6 +205,28 @@ const (
 	// command), so an awaiting-turn-in quest surfaces a status flag rather than a
 	// button. Extends Char.* per the §2.2 rule.
 	PackageCharQuests = "Char.Quests"
+
+	// PackageCharTrade — the RICH direct-trade form (web-client-plan P3 Slice B++):
+	// the CONTEXTUAL live view of an open player-to-player trade. A superset of the
+	// `trade` verb's offer text: both sides' staged offers (items + coin) and each
+	// side's confirmed flag, from the viewer's perspective. A capable client renders
+	// a two-column staging panel that updates as either party adds/removes value —
+	// exactly the surface plain text serves worst (you must re-type `trade` to
+	// re-read it). A baseline client ignores it (the additive-contract invariant).
+	//
+	// CONTEXTUAL like Char.Shop: `open` is false (and both sides empty) when the
+	// player has no trade in progress, so the client hides the panel. Poll-and-diff
+	// on the same items flush pass, so an offer added on EITHER side, a coin change,
+	// or a confirm re-emits and the panel ticks live.
+	//
+	// Ruleset-agnostic: the submit `cmd`s are exact commands a player types —
+	// `rescind <item>` to pull one of YOUR staged items, and the fixed `confirm` /
+	// `decline` for the whole trade (the client sends those two literally, like it
+	// does movement) — all reducing to the existing trade verbs (the authority
+	// invariant). Their side is display-only. Coin is pre-formatted server-side via
+	// the CurrencyLabel, so the wire carries no currency vocabulary. Extends Char.*
+	// per the §2.2 rule.
+	PackageCharTrade = "Char.Trade"
 )
 
 // Char.Items "location" string constants per spec §7. Tapestry-
@@ -597,6 +619,50 @@ type QuestObjective struct {
 	Current  int    `json:"current"`
 	Required int    `json:"required"`
 	Complete bool   `json:"complete"`
+}
+
+// CharTrade is the Char.Trade payload (web-client-plan P3 Slice B++) — the live
+// direct-trade form. CONTEXTUAL: when the player has no open trade, `open` is
+// false and both sides are empty (the client hides the panel).
+//
+// Mine/Theirs are from the viewer's perspective (the same session projects
+// differently for each party). Both sides' Items slices are non-nil (possibly
+// empty) so they marshal as `[]`, never the `null` that's ambiguous with "no
+// change" (the builder makes them).
+type CharTrade struct {
+	// Open is true while a trade session is in progress; false hides the panel.
+	Open bool `json:"open"`
+	// Mine is the viewer's own staged half; Theirs is the partner's half.
+	Mine   TradeSide `json:"mine"`
+	Theirs TradeSide `json:"theirs"`
+}
+
+// TradeSide is one party's staged half of a CharTrade.
+//
+//   - party — the party's display name (panel column header); omitted when closed.
+//   - items — the items staged into this side's offer.
+//   - coin — the pre-formatted coin in this offer ("50¥" / "50 gold"); omitted
+//     when zero, so a client reads absent as "no coin".
+//   - confirmed — whether this side has confirmed the CURRENT pair (any offer
+//     change on either side clears both — the bait-and-switch guard). The panel
+//     shows a check and enables the swap only when both sides are confirmed.
+type TradeSide struct {
+	Party     string      `json:"party,omitempty"`
+	Items     []TradeGood `json:"items"`
+	Coin      string      `json:"coin,omitempty"`
+	Confirmed bool        `json:"confirmed"`
+}
+
+// TradeGood is one staged item row in a TradeSide.
+//
+//   - name — the display name the panel renders.
+//   - cmd — the FULL command to pull this item from the offer (`rescind <name>`),
+//     sent verbatim as a plain command (the authority invariant). Present only on
+//     the viewer's OWN side (you can only rescind your own staged items); the
+//     partner's items are display-only, so their cmd is omitted.
+type TradeGood struct {
+	Name string `json:"name"`
+	Cmd  string `json:"cmd,omitempty"`
 }
 
 // CharCombat is the spec §7 Char.Combat payload — the actor's

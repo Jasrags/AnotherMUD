@@ -120,6 +120,28 @@
             </div>
           </section>
 
+          <!-- Direct-trade form (Char.Trade, P3 Slice B++) -->
+          <section class="panel panel-trade" id="p-trade" hidden>
+            <h2 class="panel-title">
+              <span>Trade</span>
+              <span class="trade-partner" id="trade-partner"></span>
+            </h2>
+            <div class="trade-cols">
+              <div class="trade-col" id="trade-mine">
+                <h3 class="trade-heading">You <span class="trade-check" id="trade-mine-check"></span></h3>
+                <div class="trade-list" id="trade-mine-list"></div>
+              </div>
+              <div class="trade-col" id="trade-theirs">
+                <h3 class="trade-heading"><span id="trade-theirs-name">Partner</span> <span class="trade-check" id="trade-theirs-check"></span></h3>
+                <div class="trade-list" id="trade-theirs-list"></div>
+              </div>
+            </div>
+            <div class="trade-actions">
+              <button class="trade-btn trade-confirm" type="button" data-cmd="confirm">Confirm</button>
+              <button class="trade-btn trade-decline" type="button" data-cmd="decline">Cancel</button>
+            </div>
+          </section>
+
           <!-- Quest journal (Char.Quests, P3 Slice C) -->
           <section class="panel panel-quests" id="p-quests" hidden>
             <h2 class="panel-title">
