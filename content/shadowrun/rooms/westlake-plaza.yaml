@@ -6,11 +6,13 @@ description: |
   ringed by arcologies whose logos turn slow against the drizzle. A dead fountain
   holds a skin of rainwater and cigarette ends, and grav-ads drift overhead
   murmuring corp slogans to no one. Office drones cut across in a hurry, eyes on
-  their commlinks. At the plaza's edge, where the grav-ads' glare thins to
-  shadow, a fixer in a long coat leans over a crate of wares — the sprawl's quiet
-  commerce running on under the corporate gaze. The corporate canyon of Fifth
-  Avenue runs north, the neon of Pike Street glows south, historic Pioneer Square
-  lies east, and the cold air off Elliott Bay drifts in from the west.
+  their commlinks, and a Knight Errant patrol lingers at the north end — nobody
+  runs open commerce under this much corporate glass. Real business happens off
+  the plaza: up a stairwell off the alley your fixer keeps a flop, and the docs
+  who cut chrome work the Barrens and the undercity, well out of the light. The
+  corporate canyon of Fifth Avenue runs north, the neon of Pike Street glows
+  south, historic Pioneer Square lies east, and the cold air off Elliott Bay
+  drifts in from the west.
 terrain: sprawl
 exits:
   north: fifth-avenue
@@ -20,24 +22,27 @@ exits:
   # Up a stairwell off the alley to the fixer's safehouse (the starter flop).
   up: the-flop
   # Down a service stair into the dead-lit maintenance sublevel — pitch black
-  # (underground), the one place vision gear (thermographic / a light) earns its
-  # nuyen (light-and-darkness §9; vision-modes).
+  # (underground), where vision gear (thermographic / a light) earns its nuyen
+  # (light-and-darkness §9; vision-modes). Source that gear first from a ripperdoc
+  # (chrome-den) or a street doc (the-back-room) — it is no longer handed out here.
   down: downtown-substation
 # A safe hub, like the seattle test corner and the demo town square: no combat,
 # no spawns — a place to orient, read `score`, and pick a direction. `safe` also
 # satisfies the training safe-room gate.
 tags: [safe-room, safe]
-# The gear-up seam (mirrors the seattle test corner). As the district's start
-# room and safe hub, the Plaza is where a fresh runner — booted via
-# `make run-shadowrun` — arms up before heading out. A street vendor works the
-# plaza edge with a tray to `get`+`equip` for free (the demo conceit), and the
-# fixer's `list`/`buy` shop spends looted nuyen on refills and upgrades.
+# The starter drop. As the district's start room and safe hub, the Plaza is
+# where a fresh runner — booted via `make run-shadowrun` — grabs a first loadout
+# before heading out. A fixer left a go-bag stashed against the dead fountain:
+# weapons + armor to `get`+`equip` for free (the demo conceit). Deliberately NOT
+# a vendor and NOT chrome — open commerce and ripperdoc wares don't belong under
+# Downtown's corporate/Knight-Errant surveillance. The `list`/`buy` shop lives
+# one `up` step away at the fixer's flop (the-fixers-table / the Gun Table), and
+# cyberware lives with the docs (chrome-den, the-back-room). This keeps the plaza
+# reading as Downtown while the real business stays in the shadows where it fits.
 #
-# NOTE: this deliberately duplicates street-corner's tray. street-corner is the
-# SR-M3c smoke-test harness (its live tests pin START_ROOM=street-corner
-# directly, so they're unaffected by the make target moving here); once those
-# tests migrate to Downtown, the street-corner tray can be retired and this
-# becomes the single gear-up point.
+# NOTE: street-corner still carries the old open-vendor tray; it is the SR-M3c
+# smoke-test harness (its live tests pin START_ROOM=street-corner directly), so
+# it stays as-is until those tests migrate — then its tray can be retired too.
 items:
   # A katana + heavy pistol (with a clip) for the kill, a stun baton to take a
   # mark alive, an armoured jacket for the soak.
@@ -47,19 +52,3 @@ items:
   - caseless-round
   - stun-baton
   - armored-jacket
-  # A ripperdoc's sample tray — demo cyberware to `get` + `equip` into the
-  # cyberware slot; each shifts an SR attribute on `score` (SR-M3c [98]).
-  - wired-reflexes
-  - muscle-replacement
-  - cybereyes
-  # A thermographic cybereye enhancement + low-light goggles — vision gear for the
-  # dark maintenance sublevel below (`down`). `modify cybereyes thermographic`,
-  # then wear the eyes, and the black tunnel resolves.
-  - cybereye-thermographic
-  - low-light-goggles
-# A street fixer works the safe plaza edge — `list`/`buy` to spend looted nuyen
-# on gear (SR-M3c [99]). Friendly, so she fits the safe hub (no combat). The
-# STARTER-tier `street-fixer` (lean kit — refills, sidearms, basic armor); the
-# full black-market arsenal lives at the deep hubs (see mobs/fixer.yaml).
-mobs:
-  - street-fixer
