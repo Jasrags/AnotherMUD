@@ -355,7 +355,7 @@ input:disabled {
 }
 .bar {
   display: grid;
-  grid-template-columns: 2.4rem 1fr auto;
+  grid-template-columns: 3.6rem 1fr auto;
   align-items: center;
   gap: 0.5rem;
   font-size: var(--text-xs);
@@ -363,18 +363,20 @@ input:disabled {
 .bar-label {
   color: var(--text-dim);
   text-transform: uppercase;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.04em;
   font-weight: 600;
+  white-space: nowrap;
 }
 .bar-track {
   height: 9px;
   border-radius: 999px;
-  background: oklch(from var(--surface-3) l c h / 0.9);
+  background: var(--surface-3);
   overflow: hidden;
   box-shadow: inset 0 1px 2px oklch(0% 0 0 / 0.35);
 }
 .bar-fill {
   height: 100%;
+  min-width: 2px; /* a sliver at very low values, so it's never fully invisible */
   border-radius: 999px;
   transition: width var(--dur) var(--ease);
 }
@@ -383,17 +385,19 @@ input:disabled {
   color: var(--text-dim);
   font-variant-numeric: tabular-nums;
 }
+/* Solid semantic fills — no relative-color (oklch from) so they render in every
+   browser; the level is the fill width. */
 .bar-hp .bar-fill {
-  background: linear-gradient(90deg, oklch(from var(--hp) calc(l - 0.1) c h), var(--hp));
+  background: var(--hp);
 }
 .bar-mp .bar-fill {
-  background: linear-gradient(90deg, oklch(from var(--mp) calc(l - 0.1) c h), var(--mp));
+  background: var(--mp);
 }
 .bar-mv .bar-fill {
-  background: linear-gradient(90deg, oklch(from var(--mv) calc(l - 0.1) c h), var(--mv));
+  background: var(--mv);
 }
 .bar-pool .bar-fill {
-  background: linear-gradient(90deg, oklch(from var(--pool) calc(l - 0.1) c h), var(--pool));
+  background: var(--pool);
 }
 .sustenance {
   margin-top: 0.5rem;

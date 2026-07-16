@@ -235,9 +235,15 @@ function dispatchGmcp(pkg, data) {
 const POOL_META = {
   mana: { label: "MP", cls: "bar-mp" },
   movement: { label: "MV", cls: "bar-mv" },
+  one_power: { label: "OP", cls: "bar-mp" },
+  essence: { label: "ESS", cls: "bar-pool" },
+  stun: { label: "STUN", cls: "bar-pool" },
 };
+// A short label for a pool kind: a known alias, else the kind upper-cased and
+// capped so it fits the fixed label column (no mid-word truncation surprises
+// like "ESSENC").
 function poolLabel(kind) {
-  return (POOL_META[kind] && POOL_META[kind].label) || kind.replace(/_/g, " ").slice(0, 6);
+  return (POOL_META[kind] && POOL_META[kind].label) || kind.replace(/_/g, " ").toUpperCase().slice(0, 5);
 }
 
 function bar(label, cur, max, cls) {

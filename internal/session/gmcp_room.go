@@ -75,10 +75,12 @@ func (a *connActor) sendGmcpRoomInfo(ctx context.Context, room *world.Room) {
 	a.sendGmcpRoomMap(ctx, room)
 }
 
-// defaultRoomMapRadius is the Room.Map BFS step bound when Config.RoomMapRadius
-// is unset — a few rooms out, enough to see the immediate surroundings without a
-// heavy frame on every step.
-const defaultRoomMapRadius = 3
+// defaultRoomMapRadius is the Room.Map BFS bound when Config.RoomMapRadius is
+// unset (0): the WHOLE AREA (-1, unbounded), so the web map shows the same rooms
+// as the in-game `map` verb. A positive ANOTHERMUD_ROOM_MAP_RADIUS bounds it —
+// useful for a very large area where a whole-area frame on every transition
+// would be heavy.
+const defaultRoomMapRadius = -1
 
 // sendGmcpRoomMap emits a Room.Map GMCP frame — the local neighbourhood graph
 // around room (web-client-plan P2) — to the peer. Same transition seam and
@@ -95,7 +97,7 @@ func (a *connActor) sendGmcpRoomMap(ctx context.Context, room *world.Room) {
 		return
 	}
 	radius := a.roomMapRadius
-	if radius <= 0 {
+	if radius == 0 { // unset ⇒ whole area (matches the `map` verb); negative also means whole area
 		radius = defaultRoomMapRadius
 	}
 	win, err := a.world.LocalWindow(room.ID, radius)
