@@ -34,6 +34,25 @@ invariant).
 
 ## Run it
 
+### The quick way — `make run-web`
+
+```bash
+make run-web            # starter-world + WebSocket on :4001, opens the client
+```
+
+This boots the engine with the WS listener on `:4001`, relaxes the origin check
+for local dev, and opens `index.html`. Just press **Connect** (the default URL
+`ws://localhost:4001/mud` already matches). For a themed world's richer HUD,
+compose the flag with any world target:
+
+```bash
+make run-shadowrun WS_ADDR=:4001   # essence + stun bars
+make run-wot        WS_ADDR=:4001   # the One Power (create a channeler)
+make watch-wot      WS_ADDR=:4001   # …with live-reload
+```
+
+### The manual way
+
 ### 1. Start the server with the WebSocket listener on
 
 The WS listener is **off by default**. Enable it (and, for a browser opened from

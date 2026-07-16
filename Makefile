@@ -23,8 +23,17 @@ WORLD_PACKS      ?=
 WORLD_START_ROOM ?=
 # Extra per-world env (e.g. the onboarding-guide template); target-specific.
 WORLD_EXTRA_ENV  ?=
+# WebSocket listener for the browser client (clients/web). Empty = off (the
+# telnet-only default). Set a listen addr to turn it on: `make run WS_ADDR=:4001`,
+# `make run-shadowrun WS_ADDR=:4001`, `make watch-wot WS_ADDR=:4001`, or just
+# `make run-web`. Enabling it also skips the WS origin check so a browser opened
+# from file:// (origin null) can connect — DEV ONLY; in production set
+# ANOTHERMUD_WS_ORIGINS to real origins instead.
+WS_ADDR          ?=
+# $(if ...) resolves at recipe time, so a target-specific WS_ADDR (run-web) is seen.
+WS_ENV            = $(if $(WS_ADDR),ANOTHERMUD_WS_ADDR=$(WS_ADDR) ANOTHERMUD_WS_INSECURE_SKIP_VERIFY=true )
 # Recursive (=) so target-specific overrides (e.g. run-wot) resolve at recipe time.
-RUN_ENV           = ANOTHERMUD_PACKS=$(WORLD_PACKS) ANOTHERMUD_START_ROOM=$(WORLD_START_ROOM) $(WORLD_EXTRA_ENV)
+RUN_ENV           = ANOTHERMUD_PACKS=$(WORLD_PACKS) ANOTHERMUD_START_ROOM=$(WORLD_START_ROOM) $(WORLD_EXTRA_ENV) $(WS_ENV)
 
 # Cross-compile matrix for `make release`.
 RELEASE_TARGETS := \
@@ -64,6 +73,16 @@ run-shadowrun: WORLD_PACKS := shadowrun
 run-shadowrun: WORLD_START_ROOM := shadowrun:the-flop
 run-shadowrun: WORLD_EXTRA_ENV := ANOTHERMUD_GUIDE_TEMPLATE=shadowrun:street-guide
 run-shadowrun: run
+
+## run-web: run the starter-world demo with the web client (WebSocket on :4001)
+.PHONY: run-web
+run-web: WS_ADDR := :4001
+run-web:
+	@echo "Web client: opening clients/web/index.html — press Connect (URL ws://localhost$(WS_ADDR)/mud)."
+	@(command -v open >/dev/null 2>&1 && open clients/web/index.html) \
+		|| (command -v xdg-open >/dev/null 2>&1 && xdg-open clients/web/index.html) \
+		|| echo "  (open clients/web/index.html manually)"
+	$(RUN_ENV) $(GO) run $(CMD_PKG)
 
 ## watch: live-reload — rebuild + restart on any .go/.yaml/.lua change (needs air)
 .PHONY: watch
