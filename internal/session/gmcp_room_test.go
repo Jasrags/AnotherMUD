@@ -329,6 +329,57 @@ func TestSendGmcpRoomInfo_OmitsLightWhenUnwired(t *testing.T) {
 	}
 }
 
+func TestBuildRoomMapPayload_NodesExitsVisited(t *testing.T) {
+	mk := func(id, name string, x, y, z int, exits map[world.Direction]world.RoomID) world.WindowRoom {
+		ex := make(map[world.Direction]world.Exit, len(exits))
+		for d, target := range exits {
+			ex[d] = world.Exit{Target: target}
+		}
+		return world.WindowRoom{
+			Room:  &world.Room{ID: world.RoomID(id), Name: name, Exits: ex},
+			Coord: world.Coord{X: x, Y: y, Z: z},
+		}
+	}
+	win := world.Window{
+		Origin: "town:square",
+		Area:   "town",
+		Rooms: []world.WindowRoom{
+			mk("town:road", "{Y}North Road{x}", 0, 1, 0, map[world.Direction]world.RoomID{world.DirSouth: "town:square"}),
+			mk("town:square", "Town Square", 0, 0, 0, map[world.Direction]world.RoomID{world.DirNorth: "town:road"}),
+		},
+	}
+	// Nothing in the persisted fog set — proves the center is forced visited (you
+	// stand in it) while the seen-but-unentered road stays unvisited (fog).
+	visited := map[string]bool{}
+
+	got := buildRoomMapPayload(win, "town:square", 3, func(id string) bool { return visited[id] })
+
+	if got.Center != "town:square" || got.Radius != 3 {
+		t.Fatalf("center/radius = %q/%d, want town:square/3", got.Center, got.Radius)
+	}
+	if len(got.Rooms) != 2 {
+		t.Fatalf("nodes = %d, want 2", len(got.Rooms))
+	}
+	byID := map[string]gmcp.RoomMapNode{}
+	for _, n := range got.Rooms {
+		byID[n.Num] = n
+	}
+	sq := byID["town:square"]
+	if !sq.Visited || sq.Exits["n"] != "town:road" || sq.X != 0 || sq.Y != 0 {
+		t.Errorf("square node = %+v (want visited, exits[n]=town:road, 0,0)", sq)
+	}
+	road := byID["town:road"]
+	if road.Visited { // fog: seen on the map but not entered
+		t.Errorf("road should be unvisited (fog), got visited")
+	}
+	if road.Name != "North Road" { // colour markup stripped
+		t.Errorf("road name = %q, want stripped 'North Road'", road.Name)
+	}
+	if road.Exits["s"] != "town:square" || road.Y != 1 {
+		t.Errorf("road node = %+v (want exits[s]=town:square, y=1)", road)
+	}
+}
+
 type fixedClockPeriod string
 
 func (f fixedClockPeriod) CurrentPeriod() string { return string(f) }

@@ -34,6 +34,16 @@ const (
 	// contract.
 	PackageRoomInfo = "Room.Info"
 
+	// PackageRoomMap — the local NEIGHBOURHOOD graph around the actor
+	// (web-client-plan P2): the placed same-area rooms within a radius,
+	// each with coords, exits, and the viewer's fog-of-war visited flag.
+	// A rich ADDITIVE package (a superset of Room.Info's single room) that
+	// a capable client renders as a walkable map showing UNexplored
+	// neighbours, not just where the player has been. Emitted alongside
+	// Room.Info on every transition; a client that doesn't understand it
+	// simply ignores it (the additive-contract invariant).
+	PackageRoomMap = "Room.Map"
+
 	// PackageCharItemsList — full item list at a named location.
 	// LocationInventory and LocationWear are the two locations
 	// M16.4c ships; room placement and container contents follow
@@ -229,6 +239,35 @@ type RoomInfo struct {
 	X        *int              `json:"x,omitempty"`
 	Y        *int              `json:"y,omitempty"`
 	Z        *int              `json:"z,omitempty"`
+}
+
+// RoomMap is the Room.Map payload (web-client-plan P2) — the local
+// neighbourhood a client draws as a walkable map. `center` is the actor's
+// current room id (which `rooms` entry to highlight); `radius` is the BFS
+// step bound the server used. `rooms` are the placed, same-area rooms within
+// that radius (ascending by id), each carrying its coordinate, directional
+// exits (short dir → target id), and the viewer's fog-of-war `visited` flag —
+// so the client can dim UNvisited neighbours the player can see-but-hasn't-
+// entered. A ruleset-agnostic structure: pure topology + coordinates, no
+// setting vocabulary.
+type RoomMap struct {
+	Center string        `json:"center"`
+	Radius int           `json:"radius"`
+	Rooms  []RoomMapNode `json:"rooms"`
+}
+
+// RoomMapNode is one room in a RoomMap. Exits maps a short direction
+// (n/s/e/w/u/d/…) to the target room id — the client draws an edge when the
+// target is another node, and resolves a click-to-walk step by matching the
+// direction. `visited` is per-viewer fog-of-war.
+type RoomMapNode struct {
+	Num     string            `json:"num"`
+	Name    string            `json:"name,omitempty"`
+	X       int               `json:"x"`
+	Y       int               `json:"y"`
+	Z       int               `json:"z"`
+	Exits   map[string]string `json:"exits,omitempty"`
+	Visited bool              `json:"visited"`
 }
 
 // CharItem is one entry in a Char.Items.List payload.

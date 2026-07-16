@@ -211,6 +211,7 @@ const gmcpHandlers = {
   "Char.Vitals": renderVitals,
   "Char.Combat": renderCombat,
   "Room.Info": renderRoom,
+  "Room.Map": renderRoomMap,
   "Char.Effects": renderEffects,
   "Char.Experience": renderXp,
   // Char.Items.List / Char.StatusVars / Comm.Channel.Text / Char.Wizard are
@@ -327,15 +328,19 @@ function renderXp(d) {
     .join("");
 }
 
-/* ── Room + minimap ──────────────────────────────────────────── */
-const rooms = new Map(); // num → {x,y,z,name,exits}
+/* ── Room + neighbourhood map ─────────────────────────────────────
+ * Room.Info drives the Location panel and a fallback minimap (visited rooms
+ * only, accumulated as you walk). Room.Map (P2) is the rich additive package:
+ * the server-computed neighbourhood — including rooms you can SEE but haven't
+ * entered — with fog-of-war flags, so the map shows what's ahead. A click
+ * walks there: the client paths on the graph and sends move commands (an intent
+ * that reduces to existing commands — no new server verb). A baseline client
+ * that ignores Room.Map keeps the visited-only fallback. */
+const rooms = new Map(); // num → {x,y,z,name,exits}  — Room.Info accumulation (fallback)
 let current = null;
-
-const OPPOSITE = {
-  north: "south", south: "north", east: "west", west: "east",
-  up: "down", down: "up", northeast: "southwest", southwest: "northeast",
-  northwest: "southeast", southeast: "northwest",
-};
+let nbhd = null; // {center, nodes: Map(num → {num,x,y,z,name,exits,visited})} — Room.Map
+let mapHits = []; // [{num, sx, sy}] from the last draw, for click hit-testing
+let walkTo = null; // click-to-walk target room id
 
 function renderRoom(d) {
   el.room.hidden = false;
@@ -354,58 +359,130 @@ function renderRoom(d) {
     .join("");
 
   if (d.num) {
-    rooms.set(d.num, {
-      x: d.x, y: d.y, z: d.z ?? 0, name: d.name, exits,
-    });
+    rooms.set(d.num, { x: d.x, y: d.y, z: d.z ?? 0, name: d.name, exits });
     current = d.num;
   }
   drawMinimap();
 }
 
-// Clicking an exit sends the matching move command — an INTENT that reduces to
-// the existing command surface (the P1 authority invariant: no new server verb).
+// Room.Map (P2): the local neighbourhood graph. Re-centres each transition;
+// advances an in-progress click-to-walk toward its target.
+function renderRoomMap(d) {
+  const nodes = new Map();
+  for (const n of d.rooms || []) nodes.set(n.num, n);
+  nbhd = { center: d.center, nodes };
+  current = d.center;
+  advanceWalk();
+  drawMinimap();
+}
+
+// Clicking an exit sends the matching move command; cancels any active walk.
 el.roomExits.addEventListener("click", (e) => {
   const b = e.target.closest(".exit-btn");
-  if (b && conn.socket) sendCommand(b.dataset.dir);
+  if (b && conn.socket) {
+    walkTo = null;
+    sendCommand(b.dataset.dir);
+  }
 });
+
+// Click a map node → walk there. The path is computed client-side (a view
+// concern, like tab-completion); every STEP is a move command the server
+// validates independently, so a locked door simply stops the walk.
+el.minimap.addEventListener("click", (e) => {
+  if (!conn.socket || !mapHits.length) return;
+  const rect = el.minimap.getBoundingClientRect();
+  const cx = ((e.clientX - rect.left) / rect.width) * el.minimap.width;
+  const cy = ((e.clientY - rect.top) / rect.height) * el.minimap.height;
+  let best = null;
+  let bestD = 20 * 20; // hit radius²
+  for (const h of mapHits) {
+    const dx = h.sx - cx, dy = h.sy - cy, dist = dx * dx + dy * dy;
+    if (dist < bestD) { bestD = dist; best = h.num; }
+  }
+  if (best && best !== current) {
+    walkTo = best;
+    advanceWalk();
+  }
+});
+
+// advanceWalk sends the next step toward walkTo, re-pathing from wherever we
+// actually are (each successful move produces a fresh Room.Map that re-invokes
+// this). A blocked move produces no Room.Map, so the walk simply pauses.
+function advanceWalk() {
+  if (!walkTo || !nbhd) return;
+  if (walkTo === nbhd.center) { walkTo = null; return; } // arrived
+  const dir = firstStep(nbhd, nbhd.center, walkTo);
+  if (!dir) { walkTo = null; return; } // no longer reachable within the map window
+  sendCommand(dir);
+}
+
+// firstStep BFS-es the neighbourhood graph and returns the short direction of
+// the first move on a shortest path from → to, or null if unreachable in-window.
+function firstStep(nb, from, to) {
+  const seen = new Set([from]);
+  const queue = [[from, null]];
+  while (queue.length) {
+    const [num, firstDir] = queue.shift();
+    const node = nb.nodes.get(num);
+    if (!node || !node.exits) continue;
+    for (const dir of Object.keys(node.exits)) {
+      const target = node.exits[dir];
+      if (seen.has(target)) continue;
+      const step = firstDir || dir;
+      if (target === to) return step;
+      if (nb.nodes.has(target)) { seen.add(target); queue.push([target, step]); }
+    }
+  }
+  return null;
+}
 
 function drawMinimap() {
   const cvs = el.minimap;
   const ctx = cvs.getContext("2d");
   const W = cvs.width, H = cvs.height;
   ctx.clearRect(0, 0, W, H);
-  if (!current || !rooms.has(current)) return;
-  const cz = rooms.get(current).z;
+  mapHits = [];
+  if (!current) return;
 
-  // Rooms on the current z-plane with known coords.
-  const plane = [];
-  for (const [num, r] of rooms) {
-    if (r.z === cz && r.x != null && r.y != null) plane.push({ num, ...r });
+  // Prefer the rich Room.Map neighbourhood (has fog flags + unvisited rooms);
+  // fall back to the visited-only Room.Info accumulation.
+  let source, hasFog;
+  if (nbhd && nbhd.nodes.has(current)) {
+    source = [...nbhd.nodes.values()];
+    hasFog = true;
+  } else {
+    source = [...rooms.entries()].map(([num, r]) => ({ num, ...r, visited: true }));
+    hasFog = false;
   }
+  const cz = (nbhd && nbhd.nodes.get(current)) ? nbhd.nodes.get(current).z : (rooms.get(current) || {}).z ?? 0;
+
+  const plane = source.filter((r) => (r.z ?? 0) === cz && r.x != null && r.y != null);
   if (!plane.length) return;
+  const byNum = new Map(plane.map((r) => [r.num, r]));
 
   const xs = plane.map((r) => r.x), ys = plane.map((r) => r.y);
   const minX = Math.min(...xs), maxX = Math.max(...xs);
   const minY = Math.min(...ys), maxY = Math.max(...ys);
   const pad = 24;
   const spanX = Math.max(1, maxX - minX), spanY = Math.max(1, maxY - minY);
-  const step = Math.min((W - pad * 2) / spanX, (H - pad * 2) / spanY, 34) || 20;
-  const ox = W / 2 - ((minX + maxX) / 2) * step;
-  const oy = H / 2 + ((minY + maxY) / 2) * step; // y grows up → invert
-  const px = (r) => ox + r.x * step;
-  const py = (r) => oy - r.y * step;
+  const stepPx = Math.min((W - pad * 2) / spanX, (H - pad * 2) / spanY, 34) || 20;
+  const ox = W / 2 - ((minX + maxX) / 2) * stepPx;
+  const oy = H / 2 + ((minY + maxY) / 2) * stepPx; // y grows up → invert
+  const px = (r) => ox + r.x * stepPx;
+  const py = (r) => oy - r.y * stepPx;
 
-  const accent = getComputedStyle(document.documentElement).getPropertyValue("--accent").trim() || "#4fd";
-  const dim = getComputedStyle(document.documentElement).getPropertyValue("--line-strong").trim() || "#556";
+  const cssVar = (n, fb) => getComputedStyle(document.documentElement).getPropertyValue(n).trim() || fb;
+  const accent = cssVar("--accent", "#4fd");
+  const dim = cssVar("--line-strong", "#556");
+  const text = cssVar("--text-faint", "#889");
 
-  // Edges (only when both endpoints are known on this plane).
+  // Edges (both endpoints on this plane).
   ctx.strokeStyle = dim;
   ctx.lineWidth = 1.5;
   for (const r of plane) {
     for (const dir of Object.keys(r.exits || {})) {
-      const target = r.exits[dir];
-      const t = rooms.get(target);
-      if (t && t.z === cz && t.x != null) {
+      const t = byNum.get(r.exits[dir]);
+      if (t) {
         ctx.beginPath();
         ctx.moveTo(px(r), py(r));
         ctx.lineTo(px(t), py(t));
@@ -413,20 +490,35 @@ function drawMinimap() {
       }
     }
   }
-  // Nodes.
+  // Nodes: current highlighted; visited solid; unvisited (fog) hollow.
   for (const r of plane) {
+    const sx = px(r), sy = py(r);
+    mapHits.push({ num: r.num, sx, sy });
     const isCur = r.num === current;
-    ctx.fillStyle = isCur ? accent : dim;
-    ctx.beginPath();
-    ctx.arc(px(r), py(r), isCur ? 5.5 : 3.5, 0, Math.PI * 2);
-    ctx.fill();
+    const visited = r.visited !== false;
     if (isCur) {
+      ctx.fillStyle = accent;
+      ctx.beginPath();
+      ctx.arc(sx, sy, 5.5, 0, Math.PI * 2);
+      ctx.fill();
       ctx.strokeStyle = accent;
       ctx.globalAlpha = 0.35;
       ctx.beginPath();
-      ctx.arc(px(r), py(r), 10, 0, Math.PI * 2);
+      ctx.arc(sx, sy, 10, 0, Math.PI * 2);
       ctx.stroke();
       ctx.globalAlpha = 1;
+    } else if (visited || !hasFog) {
+      ctx.fillStyle = dim;
+      ctx.beginPath();
+      ctx.arc(sx, sy, 3.5, 0, Math.PI * 2);
+      ctx.fill();
+    } else {
+      // Fog: seen on the map but not yet entered — hollow.
+      ctx.strokeStyle = text;
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.arc(sx, sy, 3.5, 0, Math.PI * 2);
+      ctx.stroke();
     }
   }
 }
@@ -511,6 +603,7 @@ el.inputForm.addEventListener("submit", (e) => {
   e.preventDefault();
   const text = el.cmd.value;
   if (!conn.socket) return;
+  walkTo = null; // a manual command cancels an in-progress click-to-walk
   sendCommand(text);
   if (text.trim() && el.cmd.type !== "password") {
     history.push(text);

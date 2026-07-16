@@ -3376,6 +3376,8 @@ func run() error {
 	handler := session.Handler(session.Config{
 		World:      w,
 		ChannelMap: channelMap,
+		// web-client P2: BFS step bound for the Room.Map GMCP neighbourhood.
+		RoomMapRadius: envIntOr("ANOTHERMUD_ROOM_MAP_RADIUS", 3),
 		// subdual-damage §6: unarmed players knock out rather than kill (the
 		// faithful d20/WoT default); ANOTHERMUD_UNARMED_SUBDUAL=false disables it.
 		UnarmedSubdual: envBoolOr("ANOTHERMUD_UNARMED_SUBDUAL", true),

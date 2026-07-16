@@ -439,6 +439,7 @@ input:disabled {
   border: 1px solid var(--line);
   border-radius: var(--radius-sm);
   display: block;
+  cursor: pointer; /* click a node to walk there (P2) */
 }
 .exits {
   display: flex;

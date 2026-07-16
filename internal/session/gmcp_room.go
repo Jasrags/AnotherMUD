@@ -70,6 +70,85 @@ func (a *connActor) sendGmcpRoomInfo(ctx context.Context, room *world.Room) {
 			slog.String("room", string(room.ID)),
 			slog.Any("err", err))
 	}
+	// web-client P2: the rich neighbourhood package rides the same transition.
+	// A baseline client ignores it; a map client draws the walkable local graph.
+	a.sendGmcpRoomMap(ctx, room)
+}
+
+// defaultRoomMapRadius is the Room.Map BFS step bound when Config.RoomMapRadius
+// is unset — a few rooms out, enough to see the immediate surroundings without a
+// heavy frame on every step.
+const defaultRoomMapRadius = 3
+
+// sendGmcpRoomMap emits a Room.Map GMCP frame — the local neighbourhood graph
+// around room (web-client-plan P2) — to the peer. Same transition seam and
+// same no-op guards as sendGmcpRoomInfo (nil room, non-GMCP conn, GMCP inactive),
+// plus a nil-world guard (a worldless test boot emits no map). The neighbourhood
+// is a.world.LocalWindow (the shared map seam) intersected with the viewer's
+// fog-of-war visited set.
+func (a *connActor) sendGmcpRoomMap(ctx context.Context, room *world.Room) {
+	if room == nil || a.world == nil {
+		return
+	}
+	sender, ok := a.conn.(gmcpSender)
+	if !ok || !sender.GmcpActive() {
+		return
+	}
+	radius := a.roomMapRadius
+	if radius <= 0 {
+		radius = defaultRoomMapRadius
+	}
+	win, err := a.world.LocalWindow(room.ID, radius)
+	if err != nil {
+		return
+	}
+	payload := buildRoomMapPayload(win, room.ID, radius, a.HasVisited)
+	data, err := json.Marshal(payload)
+	if err != nil {
+		return
+	}
+	if err := sender.SendGmcp(ctx, gmcp.PackageRoomMap, data); err != nil {
+		logging.From(ctx).Debug("gmcp room.map send failed",
+			slog.String("player", a.PlayerName()),
+			slog.String("room", string(room.ID)),
+			slog.Any("err", err))
+	}
+}
+
+// buildRoomMapPayload converts a world.Window into the Room.Map payload:
+// each placed room becomes a node with its coordinate, short-form directional
+// exits (target ids), and the viewer's visited flag (via hasVisited). Pure over
+// its inputs — the fog check is injected so it is testable without a live actor.
+func buildRoomMapPayload(win world.Window, center world.RoomID, radius int, hasVisited func(string) bool) gmcp.RoomMap {
+	nodes := make([]gmcp.RoomMapNode, 0, len(win.Rooms))
+	for _, wr := range win.Rooms {
+		var exits map[string]string
+		if len(wr.Room.Exits) > 0 {
+			exits = make(map[string]string, len(wr.Room.Exits))
+			for dir, exit := range wr.Room.Exits {
+				short := dir.Short()
+				if short == "" {
+					continue
+				}
+				exits[short] = string(exit.Target)
+			}
+		}
+		id := string(wr.Room.ID)
+		// The center room is definitionally visited — you are standing in it —
+		// even if the persisted fog set hasn't recorded it yet (a fresh character's
+		// start room is marked on its first move, after this login-spawn frame).
+		visited := id == string(center) || hasVisited(id)
+		nodes = append(nodes, gmcp.RoomMapNode{
+			Num:     id,
+			Name:    gmcpPlain(wr.Room.Name),
+			X:       wr.Coord.X,
+			Y:       wr.Coord.Y,
+			Z:       wr.Coord.Z,
+			Exits:   exits,
+			Visited: visited,
+		})
+	}
+	return gmcp.RoomMap{Center: string(center), Radius: radius, Rooms: nodes}
 }
 
 // buildRoomInfoPayload converts a world.Room into the spec §7

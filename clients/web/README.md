@@ -22,8 +22,12 @@ No build step, no dependencies — three static files (`index.html`, `app.css`,
     runner's `essence`/`stun`). Renders any world's resources without hardcoding.
   - **Combat** — target + target HP from `Char.Combat`.
   - **Location** — name/area/terrain/light/coords from `Room.Info`, clickable
-    exit chips (each sends the matching move command), and a **coordinate
-    minimap** plotting the rooms you've seen on the current z-plane.
+    exit chips, and a **neighbourhood map**. The map is driven by the `Room.Map`
+    package (P2): the server-computed local graph including rooms you can *see
+    but haven't entered* (drawn hollow — fog of war). **Click any room to walk
+    there** — the client paths on the graph and sends move commands step by step,
+    so a locked door just stops the walk. Without `Room.Map` (a baseline server)
+    it degrades to a visited-only minimap.
   - **Effects** — active effects from `Char.Effects`.
   - **Progression** — per-track level/XP bars from `Char.Experience`.
   - **Identity** — name/account/race/class from `Char.Login` + `Char.Status`.

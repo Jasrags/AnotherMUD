@@ -135,10 +135,18 @@ correctness precondition.
   command (authority invariant). Proved C end-to-end with **zero server change**;
   guarded by `TestLive_WebClientWSFrontDoor` (a real WS client hits the running
   `/mud`). De-risked the theme — the wire as it stands already drives a real HUD.
-- **P2 — first rich additive package + intent.** One vertical slice that needs
-  the additive contract: e.g. an interactive map (`Room.Map` server→client) whose
-  node-click walks there (a `Client.Do`/move intent client→server). Establishes
-  the additive-package + intent-reduces-to-command pattern.
+- **P2 — first rich additive package + intent. DONE.** `Room.Map` (server→client):
+  the local neighbourhood graph from `world.LocalWindow` — placed same-area rooms
+  within `ANOTHERMUD_ROOM_MAP_RADIUS` (default 3), each with coords, exits, and
+  the viewer's fog-of-war `visited` flag — emitted alongside `Room.Info` on every
+  transition (a baseline client ignores it). The web client draws it as a
+  neighbourhood map (unentered rooms hollow) and **click-to-walk**: the client
+  paths on the graph and sends move commands step by step, so every step is
+  server-validated and a locked door stops the walk (the intent reduces to
+  existing commands — no new server verb). Guarded by `TestLive_GmcpRoomMap` (real
+  login → Room.Map on the wire → re-centres on a step). This establishes the
+  additive-package pattern; further packages (structured inventory, forms) follow
+  the same shape.
 - **P3+ — enriched surfaces.** Structured inventory (drag-drop → equip/drop),
   crafting/trade **forms** (`Client.Form` + submit → the craft/trade services),
   portraits, responsive/mobile. Each is one additive package (server state) + one

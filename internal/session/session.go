@@ -77,6 +77,11 @@ type Config struct {
 	Players  *player.Store
 	Login    login.Config
 
+	// RoomMapRadius is the BFS step bound for the Room.Map GMCP neighbourhood
+	// (web-client P2) — how many rooms out the map reaches from the actor. 0 uses
+	// the package default (defaultRoomMapRadius) at emit time.
+	RoomMapRadius int
+
 	// Items is the runtime entity store. Item instantiation, get/drop,
 	// and inventory restoration all go through it. May be nil only in
 	// tests that don't exercise inventory.
@@ -768,6 +773,8 @@ func run(ctx context.Context, c conn.Connection, cfg Config) error {
 		colorTier:     readColorTier(c),
 		save:          loaded.Player,
 		players:       cfg.Players,
+		world:         cfg.World,
+		roomMapRadius: cfg.RoomMapRadius,
 		faction:       cfg.Faction,
 		reputation:    cfg.Reputation,
 		prof:          cfg.Proficiency,
@@ -1960,6 +1967,15 @@ type connActor struct {
 	accountID string
 
 	players *player.Store
+
+	// world is the room graph (from Config.World), held so sendGmcpRoomMap can
+	// BFS the local neighbourhood for the Room.Map GMCP package (web-client P2).
+	// nil-safe: a nil world simply suppresses Room.Map (tests / a worldless boot).
+	world *world.World
+	// roomMapRadius is the BFS step bound for Room.Map (how many rooms out the
+	// neighbourhood reaches). From Config.RoomMapRadius; 0 falls back to the
+	// package default at emit time.
+	roomMapRadius int
 
 	// prof is the M9.1 ProficiencyManager reference captured at
 	// actor construction. Persist snapshots the actor's
