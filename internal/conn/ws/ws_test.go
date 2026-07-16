@@ -98,6 +98,43 @@ func TestConn_Write_EmitsTextEnvelope(t *testing.T) {
 	}
 }
 
+// TestConn_WriteCommand_IsNoOp — telnet IAC command sequences (e.g. the login
+// flow's WILL/WONT ECHO around a password prompt) must NOT reach a WS client.
+// If they leaked to Write, the invalid 0xFF byte would JSON-marshal to a literal
+// replacement char (`�`) the browser renders as garbage. WriteCommand drops
+// them, so the client's first frame is the marker text, IAC-free.
+func TestConn_WriteCommand_IsNoOp(t *testing.T) {
+	iacWillEcho := []byte{0xFF, 0xFB, 0x01} // IAC WILL ECHO
+	done := make(chan struct{})
+	clientWS, srv := dialServer(t, func(t *testing.T, c *ws.Conn) {
+		if n, err := c.WriteCommand(context.Background(), iacWillEcho); err != nil || n != len(iacWillEcho) {
+			t.Errorf("WriteCommand = (%d, %v), want (%d, nil)", n, err, len(iacWillEcho))
+		}
+		if _, err := c.Write(context.Background(), []byte("marker")); err != nil {
+			t.Errorf("Write: %v", err)
+		}
+		close(done)
+		_, _ = c.Read(context.Background())
+	})
+	defer srv.Close()
+	defer clientWS.Close(websocket.StatusNormalClosure, "")
+
+	<-done
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	_, data, err := clientWS.Read(ctx)
+	if err != nil {
+		t.Fatalf("client Read: %v", err)
+	}
+	// The first frame is the marker — WriteCommand emitted nothing before it.
+	if !strings.Contains(string(data), "marker") {
+		t.Errorf("first frame = %s, want the marker text (WriteCommand should emit nothing)", data)
+	}
+	if strings.Contains(string(data), "�") {
+		t.Errorf("frame carries a replacement char from a leaked IAC byte: %q", data)
+	}
+}
+
 func TestConn_SendGmcp_EmitsGmcpEnvelope(t *testing.T) {
 	sent := make(chan struct{})
 	clientWS, srv := dialServer(t, func(t *testing.T, c *ws.Conn) {

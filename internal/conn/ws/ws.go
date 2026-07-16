@@ -139,6 +139,17 @@ func (c *Conn) Write(ctx context.Context, p []byte) (int, error) {
 	return len(p), nil
 }
 
+// WriteCommand is a no-op on WebSocket. It satisfies the login flow's
+// commandWriter interface so telnet IAC command sequences — e.g. the WILL/WONT
+// ECHO the password prompt sends to mask input — are DROPPED here instead of
+// falling through to Write, where JSON-marshalling the invalid 0xFF (IAC) byte
+// surfaces as a literal replacement char (`�`) in the browser. A WS client has
+// no IAC layer (§6.5: echo suppress/restore are no-ops); it masks the password
+// locally. Returns len(p) so the caller's byte accounting is satisfied.
+func (c *Conn) WriteCommand(_ context.Context, p []byte) (int, error) {
+	return len(p), nil
+}
+
 // Close implements conn.Connection. Safe to call more than once
 // — coder/websocket.Close is idempotent on a closed socket.
 func (c *Conn) Close() error {

@@ -51,10 +51,13 @@ func TestLive_WebClientWSFrontDoor(t *testing.T) {
 	}
 	defer c.Close(websocket.StatusNormalClosure, "done")
 
-	// Read frames until a text envelope carries the login banner (the account
-	// username prompt). Everything the browser sees flows through this same path.
+	// Read frames; on the username prompt send a fresh username to reach the
+	// PASSWORD prompt — the one place login emits telnet IAC echo-mask bytes.
+	// Assert NO text frame carries a replacement char: a leaked IAC 0xFF byte
+	// JSON-marshals to `�` and renders as garbage (`��`) in the browser.
 	var acc strings.Builder
-	for i := 0; i < 25; i++ {
+	sentUser, sawPassword := false, false
+	for i := 0; i < 40 && !sawPassword; i++ {
 		rctx, rcancel := context.WithTimeout(ctx, 5*time.Second)
 		_, data, err := c.Read(rctx)
 		rcancel()
@@ -71,10 +74,25 @@ func TestLive_WebClientWSFrontDoor(t *testing.T) {
 		var s string
 		_ = json.Unmarshal(env.Data, &s)
 		acc.WriteString(s)
-		if strings.Contains(strings.ToLower(acc.String()), "username") {
-			t.Log("web-client WS front door verified: dialed /mud, received the login banner as {type:text}")
-			return
+		lower := strings.ToLower(acc.String())
+		if !sentUser && strings.Contains(lower, "username") {
+			sentUser = true
+			if err := c.Write(ctx, websocket.MessageText, []byte(`{"type":"command","data":"WebProbe"}`)); err != nil {
+				t.Fatalf("send username: %v", err)
+			}
+		}
+		if sentUser && strings.Contains(lower, "password") {
+			sawPassword = true
 		}
 	}
-	t.Fatalf("no login-banner text frame over WS; accumulated:\n%s", acc.String())
+	if !sentUser {
+		t.Fatalf("never saw the username prompt over WS:\n%s", acc.String())
+	}
+	if !sawPassword {
+		t.Fatalf("never reached the password prompt over WS:\n%s", acc.String())
+	}
+	if strings.Contains(acc.String(), "�") {
+		t.Fatalf("WS login stream carries a replacement char — leaked telnet IAC (the `��` bug):\n%q", acc.String())
+	}
+	t.Log("web-client WS login verified: username → password prompt, no leaked IAC bytes")
 }
