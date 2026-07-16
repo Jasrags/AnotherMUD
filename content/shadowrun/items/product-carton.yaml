@@ -1,0 +1,14 @@
+id: product-carton
+name: a taped soy-sauce carton
+type: item
+description: |
+  A dented Stuffer Shack shipping carton, SOY SAUCE — 24CT stencilled on the
+  side and wound in three extra loops of packing tape. It's heavier than sauce,
+  and something inside shifts that isn't liquid. You're paid to walk it, not to
+  open it.
+tags: [quest]
+keywords: [carton, box, sauce, product, package]
+properties:
+  weight: 2
+  # A delivery, not a score — no fencing value (quests spec).
+  value: 0

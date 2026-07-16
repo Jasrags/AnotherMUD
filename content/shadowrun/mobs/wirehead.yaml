@@ -1,0 +1,26 @@
+id: wirehead
+name: a twitching wirehead
+xp_value: 25 # kill experience (grouping.md §4)
+type: npc
+behavior: stationary
+description: |
+  A hollow-eyed addict with a chipjack scabbed into one temple and a dead BTL
+  still half-jacked, chasing a high that ran out hours ago. He found the drop
+  before you did and won't let go of it — not for reason, not for nuyen, only for
+  force. His hands shake, but the knife in one of them doesn't care.
+tags: [humanoid, outlaw]
+keywords: [wirehead, addict, junkie, chiphead, squatter]
+# Hostile: too far gone to bargain; he'll gut anyone who reaches for the carton.
+disposition_rules:
+  default: hostile
+# A scavenged blade — routes lethal (Physical); a stun baton still KOs him via
+# his Stun monitor. Weaker and more desperate than a turf ganger.
+equipment: [combat-knife]
+stats:
+  hp_max: 16
+  body: 2
+  agility: 3
+  reaction: 2
+  strength: 2
+  willpower: 1
+  intuition: 2

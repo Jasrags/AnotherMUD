@@ -1,0 +1,58 @@
+# "The Soy Sauce Run" — the Stuffer Shack line cook's smuggling gig (quests
+# spec). The street-side counterpart to the corp Johnson's runs: recover the
+# cook's stashed "product" from a Puyallup drop a wirehead is squatting on, then
+# smuggle it back through Bellevue security to the back kitchen. A kill + collect
+# then deliver, giver == recipient (hand it back to the cook). Street work, so
+# it earns the-streets and sours the-corps. Unqualified ids resolve against the
+# shadowrun namespace at load.
+id: soy-sauce-run
+name: The Soy Sauce Run
+classification: side
+giver: stuffer-shack-cook
+offer: >-
+  "You want the real menu? Then make yourself useful. My supplier left a carton
+  for me down in Puyallup — soy sauce, officially — but some strung-out wirehead's
+  parked on the drop and I can't exactly walk off my shift to go argue it. Get
+  down to Hell's Kitchen, take the carton off him, and carry it back through
+  Bellevue security like it's your groceries. Cash on delivery. Keep it quiet."
+# Completes on hand-back to the cook — no separate turn-in (turn_in defaults false).
+abandonable: true
+prerequisite:
+  # A back-alley entry gig — open to any runner who's found the back kitchen; no
+  # prior job required. It's the street-side alternative to the Johnson's ladder.
+  min_level: 1
+stages:
+  - id: recover
+    description: The cook's supplier left a carton at a drop in Hell's Kitchen — and a wirehead's sitting on it.
+    hint: Hell's Kitchen is down in the Puyallup barrens. Put the wirehead down and take the carton.
+    # Quest-scoped spawns (quest-spawns.md): the squatter + the drop appear when
+    # the runner arrives, and are cleaned up when the run ends. A dedicated guard
+    # (not a generic ganger) so the kill can't be satisfied by unrelated fights.
+    spawns:
+      - { kind: mob, template: wirehead, room: hells-kitchen }
+      - { kind: item, template: product-carton, room: hells-kitchen }
+    objectives:
+      - type: kill
+        target: wirehead
+        count: 1
+        description: Run the wirehead off the drop.
+      - type: collect
+        target: product-carton
+        description: Take the taped soy-sauce carton.
+  - id: smuggle
+    description: Carry the carton back through Bellevue security to the cook in the Stuffer Shack kitchen.
+    hint: Back to the Stuffer Shack under Bellevue Square — `give carton to cook` in the back kitchen.
+    objectives:
+      - type: deliver
+        target: product-carton
+        npc: stuffer-shack-cook
+        description: Put the carton in the cook's hands in the back kitchen.
+reward:
+  xp: 140
+  gold: 1500
+  reputation: 1
+  faction:
+    - faction: the-streets
+      delta: 150
+    - faction: the-corps
+      delta: -75
