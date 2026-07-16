@@ -196,6 +196,50 @@ func TestCharInventory_EmptySlicesMarshalAsArrays(t *testing.T) {
 	}
 }
 
+func TestCharRecipes_PackageConstant(t *testing.T) {
+	if gmcp.PackageCharRecipes != "Char.Recipes" {
+		t.Errorf("PackageCharRecipes = %q, want Char.Recipes", gmcp.PackageCharRecipes)
+	}
+}
+
+func TestCharRecipes_PayloadShape(t *testing.T) {
+	// A craftable recipe (all gates met, no block reason, station omitted at 0)
+	// and a blocked one (missing ingredient, station tier surfaced, no cmd sent
+	// by the client but still carried).
+	out, _ := json.Marshal(gmcp.CharRecipes{
+		Recipes: []gmcp.CraftRecipe{
+			{
+				ID: "starter-world:campfire-stew", Name: "campfire stew", Discipline: "cooking",
+				Ingredients: []gmcp.RecipeIngredient{{Name: "a hunk of meat", Need: 1, Have: 2}},
+				StationMet:  true, SkillMet: true, Craftable: true,
+				Cmd: "craft campfire-stew",
+			},
+			{
+				ID: "starter-world:iron-sword", Name: "an iron sword", Discipline: "smithing",
+				Ingredients: []gmcp.RecipeIngredient{{Name: "an iron bar", Need: 2, Have: 0}},
+				Station:     2, StationMet: false, SkillMet: true, Craftable: false,
+				Blocked: "missing ingredients", Cmd: "craft iron-sword",
+			},
+		},
+	})
+	want := `{"recipes":[` +
+		`{"id":"starter-world:campfire-stew","name":"campfire stew","discipline":"cooking",` +
+		`"ingredients":[{"name":"a hunk of meat","need":1,"have":2}],"stationMet":true,"skillMet":true,"craftable":true,"cmd":"craft campfire-stew"},` +
+		`{"id":"starter-world:iron-sword","name":"an iron sword","discipline":"smithing",` +
+		`"ingredients":[{"name":"an iron bar","need":2,"have":0}],"station":2,"stationMet":false,"skillMet":true,"craftable":false,"blocked":"missing ingredients","cmd":"craft iron-sword"}` +
+		`]}`
+	if string(out) != want {
+		t.Errorf("payload = %q,\nwant       %q", string(out), want)
+	}
+}
+
+func TestCharRecipes_EmptySliceMarshalsAsArray(t *testing.T) {
+	out, _ := json.Marshal(gmcp.CharRecipes{Recipes: []gmcp.CraftRecipe{}})
+	if string(out) != `{"recipes":[]}` {
+		t.Errorf("empty payload = %q, want {\"recipes\":[]}", string(out))
+	}
+}
+
 func TestCharCombat_NotInCombatOmitsTargetFields(t *testing.T) {
 	// in_combat=false → just the flag; target_* fields all omit
 	// so the panel can hide the target tile.

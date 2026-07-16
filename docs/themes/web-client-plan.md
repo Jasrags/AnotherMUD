@@ -168,10 +168,33 @@ correctness precondition.
     builder/flusher tests (`gmcp_inventory_test.go`), and the env-gated
     `TestLive_GmcpInventory` (live boot: carried + the 9-slot worn layout on the
     wire).
-  - **Slice B+ — forms.** Crafting/trade **forms** (`Client.Form` + submit → the
-    craft/trade services), portraits, responsive/mobile. Each is one additive
-    package (server state) + one intent (client→command), never new authority.
-    The web-admin console (BACKLOG) is a natural tenant.
+  - **Slice B — the craft form. DONE (`Char.Recipes`).** The first form:
+    `Char.Recipes` (server→client) — the character's KNOWN recipes with, per
+    recipe, the ingredients it needs (have/need counts), the required station
+    tier + whether the present station (room ∪ carried tools) meets it, whether
+    the skill floor is met, an overall craftable-now flag, a short plain-text
+    block reason when not, and the full `craft <recipe>` submit command. A rich
+    superset of the `craft` no-arg listing (which stays plain text for a
+    baseline client). Built read-only by `crafting.Service.CraftForm` (mirrors
+    Craft's skill/station/ingredient gates without mutating), emitted
+    poll-and-diff on the same `gmcp-items-flush` pass as `Char.Inventory` (so
+    have/need updates as ingredients are gathered and station-met flips at a
+    forge). **Naming note:** the §2.2 sketch said `Client.Form`, but its own
+    rule — "extend `Char.*` for a richer view of an existing concept; reserve
+    `Client.*` for UI-control" — puts craftable recipes under `Char.*`. Submit
+    is NOT a new inbound package: each row's `cmd` is a plain `craft <local-part>`
+    the client sends verbatim (the authority invariant, identical to Slice A's
+    affordances). The web client renders a Crafting panel (greying out
+    unmakeable rows, ingredient shortfalls in red) that a non-crafter simply
+    hides. Guarded by `internal/gmcp` payload-shape tests,
+    `internal/crafting` CraftForm unit tests, `internal/session`
+    builder/flusher tests (`gmcp_recipes_test.go`), and the env-gated
+    `TestLive_GmcpRecipes` (login → Char.Recipes on the wire). Trade forms and
+    the web-admin console (BACKLOG) follow the same concrete-package pattern.
+  - **Slice B+ — more forms.** Trade forms (shop buy/sell, direct trade,
+    auction), portraits, responsive/mobile — each one additive package (server
+    state) + a plain-command submit, never new authority. If a third form lands,
+    generalize the concrete packages into a shared shape then (not before).
 
 ## 5. Open questions (non-blocking; settle when the phase reaches them)
 

@@ -11,6 +11,7 @@ import (
 	"github.com/Jasrags/AnotherMUD/internal/action"
 	"github.com/Jasrags/AnotherMUD/internal/combat"
 	"github.com/Jasrags/AnotherMUD/internal/command"
+	"github.com/Jasrags/AnotherMUD/internal/crafting"
 	"github.com/Jasrags/AnotherMUD/internal/economy"
 	"github.com/Jasrags/AnotherMUD/internal/entities"
 	"github.com/Jasrags/AnotherMUD/internal/eventbus"
@@ -77,6 +78,12 @@ type Manager struct {
 	// it is never orphaned or duplicated on return (the contract persists; the
 	// creature does not). nil disables the teardown. Set once via SetHirelings.
 	hirelings command.HirelingService
+
+	// craft is the crafting service used to build the rich Char.Recipes craft
+	// form (web-client-plan P3, Slice B) on the items flush pass. Read-only use
+	// (CraftForm never mutates). nil disables the Char.Recipes emission (a build
+	// without crafting wired). Set once at startup via SetCraft.
+	craft *crafting.Service
 
 	// Onboarding-guide lifecycle (onboarding-guide.md): the guide service +
 	// the world's guide template + the graduation level cap. The Manager owns the
@@ -205,6 +212,15 @@ func (m *Manager) SetMounts(svc command.MountService) {
 func (m *Manager) SetHirelings(svc command.HirelingService) {
 	m.mu.Lock()
 	m.hirelings = svc
+	m.mu.Unlock()
+}
+
+// SetCraft installs the crafting service used to build the Char.Recipes craft
+// form (web-client-plan P3, Slice B) on the items flush pass. Set once at
+// startup; nil-safe (no Char.Recipes frames when unset).
+func (m *Manager) SetCraft(svc *crafting.Service) {
+	m.mu.Lock()
+	m.craft = svc
 	m.mu.Unlock()
 }
 

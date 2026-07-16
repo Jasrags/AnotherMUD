@@ -2683,6 +2683,11 @@ type connActor struct {
 	// gmcp-items-flush pass as the Char.Items.List shadow above.
 	gmcpInventoryLast  []byte
 	gmcpInventoryValid bool
+	// gmcpRecipes* are the web-client-plan P3 Slice B shadow for the rich
+	// Char.Recipes craft form. Marshaled-bytes shadow (like Char.Inventory);
+	// guarded by gmcpItemsMu — it rides the same gmcp-items-flush pass.
+	gmcpRecipesLast  []byte
+	gmcpRecipesValid bool
 
 	// gmcpCombat* are the M16.4d shadow for Char.Combat. Single
 	// snapshot per actor since each player has at most one primary

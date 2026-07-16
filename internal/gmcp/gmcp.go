@@ -140,6 +140,28 @@ const (
 	// pre-actor, so these frames go straight on the connection
 	// rather than through the per-actor flusher.
 	PackageCharWizard = "Char.Wizard"
+
+	// PackageCharRecipes — the RICH craft form (web-client-plan P3, Slice B):
+	// the character's KNOWN recipes with, per recipe, the ingredients it needs
+	// (with have/need counts), the required station tier + whether it is met,
+	// whether the skill floor is met, an overall craftable-now flag, and the
+	// full `craft <recipe>` command to submit. A rich superset of the `craft`
+	// no-arg listing (which stays as plain text for a baseline client): a
+	// capable client renders a craft PANEL that greys out unmakeable recipes
+	// and submits with one click; a baseline client ignores this package (the
+	// additive-contract invariant).
+	//
+	// Poll-and-diff like Char.Inventory (rides the same items flush pass, at
+	// most one frame per session per tick, only when the snapshot changed) —
+	// so have/need counts update as the crafter gathers ingredients and the
+	// station-met flag flips when they walk to a forge.
+	//
+	// Ruleset-agnostic: the submit `cmd` is the exact command a player would
+	// type (`craft <local-part>`), an intent that reduces to the existing craft
+	// verb (the authority invariant) — no new server authority. Following the
+	// §2.2 namespace rule, this extends Char.* (a richer view of an existing
+	// concept) rather than the reserved Client.* UI-control space.
+	PackageCharRecipes = "Char.Recipes"
 )
 
 // Char.Items "location" string constants per spec §7. Tapestry-
@@ -391,6 +413,55 @@ type WornItem struct {
 	Name    string      `json:"name,omitempty"`
 	Detail  string      `json:"detail,omitempty"`
 	Actions []InvAction `json:"actions,omitempty"`
+}
+
+// CharRecipes is the Char.Recipes payload (web-client-plan P3, Slice B) — the
+// craft form: the character's known recipes with the data a client needs to
+// render an interactive craft panel and submit a craft with one click.
+//
+// The slice is non-nil (possibly empty) so it marshals as JSON `[]`, never the
+// `null` that would be ambiguous with "no change" (the builder makes it).
+type CharRecipes struct {
+	Recipes []CraftRecipe `json:"recipes"`
+}
+
+// CraftRecipe is one known recipe in a CharRecipes form.
+//
+//   - id — the recipe id (opaque row key).
+//   - name — the display name the panel renders.
+//   - discipline — the crafting proficiency it uses (smithing, cooking, …).
+//   - ingredients — the inputs it consumes, each with the have/need counts a
+//     client greys the row on.
+//   - station — the required station tier (0 = anywhere; omitted when 0).
+//   - stationMet — whether the present station (room ∪ carried tools) meets it.
+//   - skillMet — whether the crafter's discipline proficiency meets the floor.
+//   - craftable — the AND of skillMet, stationMet, and having every ingredient:
+//     the one flag a client enables the submit button on.
+//   - blocked — a short plain-text reason when not craftable ("need a forge",
+//     "missing ingredients", "not skilled enough"), for a tooltip. "" when
+//     craftable. Plain text keeps the wire ruleset-agnostic.
+//   - cmd — the FULL command to submit (`craft <local-part>`), sent verbatim as
+//     a plain command (the authority invariant); never a new server verb.
+type CraftRecipe struct {
+	ID          string             `json:"id"`
+	Name        string             `json:"name"`
+	Discipline  string             `json:"discipline,omitempty"`
+	Ingredients []RecipeIngredient `json:"ingredients"`
+	Station     int                `json:"station,omitempty"`
+	StationMet  bool               `json:"stationMet"`
+	SkillMet    bool               `json:"skillMet"`
+	Craftable   bool               `json:"craftable"`
+	Blocked     string             `json:"blocked,omitempty"`
+	Cmd         string             `json:"cmd"`
+}
+
+// RecipeIngredient is one input line in a CraftRecipe: the display name plus the
+// quantity needed and the quantity the crafter currently has (have < need marks
+// the shortfall a client highlights).
+type RecipeIngredient struct {
+	Name string `json:"name"`
+	Need int    `json:"need"`
+	Have int    `json:"have"`
 }
 
 // CharCombat is the spec §7 Char.Combat payload — the actor's

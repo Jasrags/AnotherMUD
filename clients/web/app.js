@@ -40,6 +40,8 @@ const el = {
   inventory: $("p-inventory"),
   invWorn: $("inv-worn"),
   invCarried: $("inv-carried"),
+  recipes: $("p-recipes"),
+  recipesList: $("recipes-list"),
 };
 
 const escapeHtml = (s) =>
@@ -218,6 +220,7 @@ const gmcpHandlers = {
   "Char.Effects": renderEffects,
   "Char.Experience": renderXp,
   "Char.Inventory": renderInventory,
+  "Char.Recipes": renderRecipes,
   // Char.Items.List / Char.StatusVars / Comm.Channel.Text / Char.Wizard are
   // received but not yet surfaced — dispatched to a no-op so unknown packages
   // never throw. (Char.Inventory is the P3 richer superset of Char.Items.List.)
@@ -395,6 +398,70 @@ function renderInventory(d) {
 el.inventory.addEventListener("click", (e) => {
   const b = e.target.closest(".inv-btn");
   if (b && conn.socket) {
+    walkTo = null;
+    sendCommand(b.dataset.cmd);
+  }
+});
+
+/* ── Craft form (Char.Recipes, P3 Slice B) ────────────────────────
+ * The rich craft-form package, mirroring the in-game `craft` verb: the known
+ * recipes with per-ingredient have/need counts, station + skill gates, and a
+ * craftable-now flag. Each row's "Craft" button carries the FULL command
+ * (`craft <recipe>`), so a click sends exactly what a player would type (the
+ * authority invariant). The server is the sole judge of whether a craft
+ * succeeds — greying an unmakeable row is a hint, never a gate. */
+
+// ingredientLine renders one input: name and have/need, marked short when the
+// crafter lacks the required quantity.
+function ingredientLine(ing) {
+  const short = ing.have < ing.need ? " ingredient-short" : "";
+  return `<li class="ingredient${short}"><span class="ingredient-name">${escapeHtml(
+    ing.name || ""
+  )}</span><span class="ingredient-qty">${ing.have}/${ing.need}</span></li>`;
+}
+
+// recipeRow renders one recipe card: name, discipline, ingredient list, and a
+// Craft button (disabled + reason when the recipe isn't craftable now).
+function recipeRow(r) {
+  const ings = (r.ingredients || []).map(ingredientLine).join("");
+  const disc = r.discipline
+    ? `<span class="recipe-disc">${escapeHtml(r.discipline)}</span>`
+    : "";
+  const blocked = !r.craftable;
+  const btn = blocked
+    ? `<button class="recipe-btn" type="button" disabled title="${escapeHtml(
+        r.blocked || ""
+      )}">Craft</button><span class="recipe-blocked">${escapeHtml(r.blocked || "")}</span>`
+    : `<button class="recipe-btn" type="button" data-cmd="${escapeHtml(
+        r.cmd || ""
+      )}">Craft</button>`;
+  return `<div class="recipe${blocked ? " recipe-blocked-row" : ""}">
+    <div class="recipe-head"><span class="recipe-name">${escapeHtml(
+      r.name || ""
+    )}</span>${disc}</div>
+    <ul class="ingredients">${ings}</ul>
+    <div class="recipe-actions">${btn}</div>
+  </div>`;
+}
+
+function renderRecipes(d) {
+  const recipes = (d && d.recipes) || [];
+  // Hide the panel entirely for a character who knows no recipes, so a
+  // non-crafter's HUD isn't cluttered with an empty Crafting section.
+  if (!recipes.length) {
+    el.recipes.hidden = true;
+    el.recipesList.innerHTML = "";
+    return;
+  }
+  el.recipes.hidden = false;
+  el.recipesList.innerHTML = recipes.map(recipeRow).join("");
+}
+
+// A Craft button sends its command; like the inventory buttons it cancels any
+// active click-to-walk (a manual action interrupts the walk).
+el.recipes.addEventListener("click", (e) => {
+  const b = e.target.closest(".recipe-btn");
+  if (b && !b.disabled && b.dataset.cmd && conn.socket) {
     walkTo = null;
     sendCommand(b.dataset.cmd);
   }

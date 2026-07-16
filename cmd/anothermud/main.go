@@ -1966,6 +1966,9 @@ func run() error {
 		proficiencyMgr, registries.Rarity, stdRoller{}, crafting.DefaultConfig(),
 		passiveStatReader,
 	)
+	// web-client-plan P3 Slice B: the items flush pass emits the rich
+	// Char.Recipes craft form for GMCP clients, built from this same service.
+	mgr.SetCraft(craftSvc)
 
 	// Gathering (gathering.md §2): the `forage` verb rolls the room biome's
 	// forage table. The Service owns the quality roll + item spawn + the

@@ -7,6 +7,7 @@ import (
 
 	"github.com/Jasrags/AnotherMUD/internal/crafting"
 	"github.com/Jasrags/AnotherMUD/internal/entities"
+	"github.com/Jasrags/AnotherMUD/internal/world"
 )
 
 // Crafting station property keys (crafting-and-cooking §4). A room declares
@@ -92,12 +93,24 @@ func (c *Context) beginTimedCraft(ctx context.Context, busy crafting.CraftBusy, 
 
 // craftStationTier reports the present station tier for discipline at the
 // crafter's location: the max of the room's declared station tier and any
-// portable tool the crafter carries for that discipline (§4).
+// portable tool the crafter carries for that discipline (§4). Thin wrapper over
+// the exported CraftStationTier so the `craft` verb and the Char.Recipes flusher
+// (web-client-plan P3) share one station computation.
 func craftStationTier(c *Context, discipline string) int {
+	return CraftStationTier(c.Actor.Room(), c.Items, c.Placement, c.Actor.Inventory(), discipline)
+}
+
+// CraftStationTier reports the present crafting station tier for discipline at a
+// location: the max of the room's declared station tier (crafting-and-cooking
+// §4), any ground-placed station entity in the room (a built campfire), and any
+// portable tool in inventory serving that discipline. Exported so the session
+// layer can build the same station gate for the Char.Recipes craft form without
+// duplicating the property-reading logic. A nil items/placement store simply
+// contributes nothing (tier stays at the room's declared value, or 0).
+func CraftStationTier(room *world.Room, items *entities.Store, placement *entities.Placement, inventory []entities.EntityID, discipline string) int {
 	discipline = strings.ToLower(strings.TrimSpace(discipline))
 	tier := 0
 
-	room := c.Actor.Room()
 	if room != nil {
 		if raw, ok := room.Property(propCraftStations); ok {
 			if t := disciplineTier(raw, discipline); t > tier {
@@ -109,9 +122,9 @@ func craftStationTier(c *Context, discipline string) int {
 	// Ground-placed station entities (a built campfire, §4): an item in the
 	// room carrying craft_stations contributes its tier, symmetric with a
 	// fixed room station.
-	if room != nil && c.Items != nil && c.Placement != nil {
-		for _, id := range c.Placement.InRoom(room.ID) {
-			e, ok := c.Items.GetByID(id)
+	if room != nil && items != nil && placement != nil {
+		for _, id := range placement.InRoom(room.ID) {
+			e, ok := items.GetByID(id)
 			if !ok {
 				continue
 			}
@@ -127,9 +140,9 @@ func craftStationTier(c *Context, discipline string) int {
 		}
 	}
 
-	if c.Items != nil {
-		for _, id := range c.Actor.Inventory() {
-			e, ok := c.Items.GetByID(id)
+	if items != nil {
+		for _, id := range inventory {
+			e, ok := items.GetByID(id)
 			if !ok {
 				continue
 			}

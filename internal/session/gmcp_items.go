@@ -26,6 +26,7 @@ func (m *Manager) FlushGmcpItems(ctx context.Context) {
 	for _, a := range m.byConn {
 		snapshot = append(snapshot, a)
 	}
+	craftSvc := m.craft
 	m.mu.RUnlock()
 
 	for _, a := range snapshot {
@@ -36,6 +37,10 @@ func (m *Manager) FlushGmcpItems(ctx context.Context) {
 		// web-client-plan P3: the rich structured inventory rides the same
 		// poll pass (same snapshot inputs). A baseline client ignores it.
 		a.flushGmcpInventory(ctx)
+		// web-client-plan P3 Slice B: the rich craft form. Recipe craftability
+		// tracks ingredient possession, so it shares the inventory poll's
+		// inputs. nil craftSvc (crafting unwired) is a no-op.
+		a.flushGmcpRecipes(ctx, craftSvc)
 	}
 }
 
@@ -198,5 +203,8 @@ func (a *connActor) resetGmcpItemsShadow() {
 	// The rich Char.Inventory shadow shares this lock + reattach seam.
 	a.gmcpInventoryValid = false
 	a.gmcpInventoryLast = nil
+	// The Char.Recipes craft-form shadow shares the same lock + reattach seam.
+	a.gmcpRecipesValid = false
+	a.gmcpRecipesLast = nil
 	a.gmcpItemsMu.Unlock()
 }
