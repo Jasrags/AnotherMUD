@@ -55,6 +55,10 @@ func (m *Manager) FlushGmcpItems(ctx context.Context) {
 		// (closed when not trading) and reads the per-actor trade manager directly,
 		// so it needs no snapshot service. nil a.trades is a no-op.
 		a.flushGmcpTrade(ctx)
+		// web-client-plan P3 Slice B++: the rich auction-house form. Contextual
+		// (closed when not at an auctioneer), priced by the same CurrencyLabel as
+		// the shop. Reads the per-actor auction manager directly. nil is a no-op.
+		a.flushGmcpAuction(ctx, money)
 	}
 }
 
@@ -229,5 +233,8 @@ func (a *connActor) resetGmcpItemsShadow() {
 	// The Char.Trade direct-trade form shadow shares the same lock + reattach seam.
 	a.gmcpTradeValid = false
 	a.gmcpTradeLast = nil
+	// The Char.Auction house form shadow shares the same lock + reattach seam.
+	a.gmcpAuctionValid = false
+	a.gmcpAuctionLast = nil
 	a.gmcpItemsMu.Unlock()
 }

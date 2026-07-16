@@ -227,6 +227,28 @@ const (
 	// the CurrencyLabel, so the wire carries no currency vocabulary. Extends Char.*
 	// per the §2.2 rule.
 	PackageCharTrade = "Char.Trade"
+
+	// PackageCharAuction — the RICH auction-house form (web-client-plan P3 Slice
+	// B++): the CONTEXTUAL marketplace when the player stands at an auctioneer. A
+	// superset of the `browse` + `auctions` + `collect` verbs: the active listings
+	// (priced + marked affordable, the viewer's own flagged), the total active
+	// count, and the viewer's pending pickups + proceeds. A capable client renders
+	// a listings panel with one-click buyout; a baseline client ignores it (the
+	// additive-contract invariant).
+	//
+	// CONTEXTUAL like Char.Shop: `open` is false (and listings empty) when no
+	// auctioneer is present, so the client hides the panel. Poll-and-diff on the
+	// same items flush pass, so a new listing, a buyout, a spent coin, or the
+	// expiry tick re-emits — and, because closing times count down, the payload
+	// changes as listings approach expiry.
+	//
+	// Ruleset-agnostic: the submit `cmd`s are exact commands a player types —
+	// `buyout <ref>` for another seller's listing, `unlist <ref>` for your own,
+	// and the fixed `collect` for pending pickups/proceeds — all reducing to the
+	// existing auction verbs (the authority invariant). Prices are pre-formatted
+	// server-side through the world CurrencyLabel, so the wire carries no currency
+	// vocabulary. Extends Char.* per the §2.2 rule.
+	PackageCharAuction = "Char.Auction"
 )
 
 // Char.Items "location" string constants per spec §7. Tapestry-
@@ -663,6 +685,62 @@ type TradeSide struct {
 type TradeGood struct {
 	Name string `json:"name"`
 	Cmd  string `json:"cmd,omitempty"`
+}
+
+// CharAuction is the Char.Auction payload (web-client-plan P3 Slice B++) — the
+// auction-house form. CONTEXTUAL: when no auctioneer is present, `open` is false
+// and the listings are empty (the client hides the panel).
+//
+// The Listings slice is non-nil (possibly empty) so it marshals as `[]`, never
+// the `null` that's ambiguous with "no change" (the builder makes it).
+type CharAuction struct {
+	// Open is true when an auctioneer access point is present; false hides the panel.
+	Open bool `json:"open"`
+	// Money is the shopper's pre-formatted balance ("1,250¥"); omitted when closed.
+	Money string `json:"money,omitempty"`
+	// Listings is the active marketplace (first page, soonest-closing).
+	Listings []AuctionItem `json:"listings"`
+	// Total is the total active-listing count; when it exceeds len(Listings) the
+	// panel notes "showing N of Total — use browse". Omitted when zero.
+	Total int `json:"total,omitempty"`
+	// Collect is the viewer's pending pickups + proceeds (the collect affordance).
+	Collect AuctionCollect `json:"collect"`
+}
+
+// AuctionItem is one active listing row in a CharAuction.
+//
+//   - name — the item's display name.
+//   - price — the PRE-FORMATTED buyout price ("725¥"), server-side via the world
+//     CurrencyLabel.
+//   - seller — the seller's display name (omitted when empty).
+//   - closesIn — a compact pre-formatted time-to-expiry ("3m", "2h 10m"); omitted
+//     when empty.
+//   - mine — true for the viewer's OWN listing: the client offers unlist, not
+//     buyout, and never greys it for affordability.
+//   - affordable — buyout rows: whether the viewer can pay (a client greys the
+//     button when false). Always true / irrelevant on a `mine` row.
+//   - cmd — the FULL command to submit (`buyout <ref>` for others, `unlist <ref>`
+//     for your own), sent verbatim as a plain command (the authority invariant).
+type AuctionItem struct {
+	Name       string `json:"name"`
+	Price      string `json:"price"`
+	Seller     string `json:"seller,omitempty"`
+	ClosesIn   string `json:"closesIn,omitempty"`
+	Mine       bool   `json:"mine,omitempty"`
+	Affordable bool   `json:"affordable"`
+	Cmd        string `json:"cmd"`
+}
+
+// AuctionCollect is the viewer's pending-pickup summary in a CharAuction.
+//
+//   - items — the count of held items waiting to be collected; omitted when 0.
+//   - coin — the pre-formatted pending proceeds ("300¥"); omitted when none.
+//   - cmd — the fixed `collect` command, present only when something waits (items
+//     > 0 or coin present), so the client shows a Collect button only then.
+type AuctionCollect struct {
+	Items int    `json:"items,omitempty"`
+	Coin  string `json:"coin,omitempty"`
+	Cmd   string `json:"cmd,omitempty"`
 }
 
 // CharCombat is the spec §7 Char.Combat payload — the actor's

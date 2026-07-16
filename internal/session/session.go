@@ -793,6 +793,7 @@ func run(ctx context.Context, c conn.Connection, cfg Config) error {
 		placement:     cfg.Placement,
 		adminRole:     cfg.AdminRole,
 		trades:        cfg.Trades,
+		auction:       cfg.Auction,
 		light:         cfg.Light,
 		equipment:     make(map[string]entities.EntityID),
 		footprints:    make(map[entities.EntityID][]string),
@@ -2709,6 +2710,11 @@ type connActor struct {
 	// same flush pass.
 	gmcpTradeLast  []byte
 	gmcpTradeValid bool
+	// gmcpAuction* are the web-client-plan P3 Slice B++ shadow for the rich
+	// Char.Auction house form. Same marshaled-bytes shadow under gmcpItemsMu,
+	// same flush pass.
+	gmcpAuctionLast  []byte
+	gmcpAuctionValid bool
 
 	// gmcpCombat* are the M16.4d shadow for Char.Combat. Single
 	// snapshot per actor since each player has at most one primary
@@ -2774,7 +2780,12 @@ type connActor struct {
 	// disables trading. SetRoom / teardown use it to cancel an open trade on
 	// separation / disconnect. The cancel is invoked WITHOUT holding a.mu
 	// (lock order: trade.Manager.mu → actor.mu).
-	trades        *trade.Manager
+	trades *trade.Manager
+	// auction is the auction-house manager (auction-house.md), set once at
+	// construction and never mutated, so it is read without a.mu. nil disables
+	// the Char.Auction form (web-client-plan P3 Slice B++). Read-only use here
+	// (the Form projection never mutates); the auction verbs drive listing/buyout.
+	auction       *auction.Manager
 	flood         *floodGate
 	gmcpFlood     *floodGate   // inbound-GMCP rate limit, separate from the command gate
 	floodCfg      *FloodConfig // retained so reattach() can rebuild a fresh bucket

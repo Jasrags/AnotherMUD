@@ -82,6 +82,7 @@ Illustrative (per-feature design settles the exact names/shapes):
 | Inventory | `Char.Items.List` | `Char.Inventory` — structured items with slots + affordances for drag-drop |
 | Journal | (`quests` verb text) | `Char.Quests` — active quests with stage + per-objective progress and an abandon action |
 | Trade | (`trade` verb text) | `Char.Trade` — live two-party staging (both offers + confirm flags), rescind/confirm/decline actions |
+| Auction | (`browse`/`collect` verb text) | `Char.Auction` — active listings (priced, closing countdown) + pending collectibles, buyout/unlist/collect actions |
 | Forms | (typed commands) | `Client.Form` (server→client form spec) + `Client.Form.Submit` (client→server) |
 | Intents | (typed commands) | `Client.Do` — a structured intent (e.g. `{verb:"equip", item, slot}`) |
 
@@ -245,11 +246,28 @@ correctness precondition.
     The web client renders a two-column staging panel. Guarded by `internal/gmcp`
     payload-shape tests, an `internal/trade` `View` unit test, and `internal/session`
     flusher tests (`gmcp_trade_test.go`).
-  - **Slice B++ — remaining forms.** The auction-house form, portraits, responsive/
-    mobile — each one additive package (server state) + a plain-command submit, never
-    new authority. Five concrete form packages now exist (`Char.Recipes`, `Char.Shop`,
-    `Char.Quests`, `Char.Trade`, and any next); if a shared shape earns its keep,
-    generalize then — not before.
+  - **Slice B++ — the auction-house form. DONE (`Char.Auction`).** The marketplace
+    form, and the third CONTEXTUAL package: `Char.Auction` (server→client) carries an
+    `open` flag (false + empty listings when no auctioneer is present, so the client
+    hides the panel) plus, when open, the shopper's formatted balance, the active
+    listings (first page, soonest-closing — each priced + marked affordable + carrying
+    a compact closing countdown, the viewer's own flagged), the total active count,
+    and the viewer's pending pickups + proceeds. Built read-only by
+    `auction.Manager.Form` (composing the existing `Browse` + pending-pickup queries);
+    the session formats prices via the world `CurrencyLabel` + judges affordability
+    against the viewer's balance (like `Char.Shop`). Submit is plain: `buyout <ref>`
+    for another seller's listing, `unlist <ref>` for your own, and the fixed `collect`
+    for pending pickups (authority invariant — no new server verb). Emitted poll-and-
+    diff on the same items pass, so a new listing / buyout / spent coin re-emits;
+    closing times count down at per-minute granularity so the panel ticks without
+    re-emitting every tick. The web client renders a listings panel with a collect
+    banner. Guarded by `internal/gmcp` payload-shape tests, an `internal/auction`
+    `Form` unit test, and `internal/session` flusher tests (`gmcp_auction_test.go`).
+  - **Slice B++ — remaining forms.** Portraits, responsive/mobile — each one additive
+    package (server state) + a plain-command submit, never new authority. Six concrete
+    form packages now exist (`Char.Recipes`, `Char.Shop`, `Char.Quests`, `Char.Trade`,
+    `Char.Auction`, and any next); if a shared shape earns its keep, generalize then —
+    not before.
 
 ## 5. Open questions (non-blocking; settle when the phase reaches them)
 

@@ -57,6 +57,11 @@ const el = {
   tradeTheirsList: $("trade-theirs-list"),
   tradeTheirsCheck: $("trade-theirs-check"),
   tradeTheirsName: $("trade-theirs-name"),
+  auction: $("p-auction"),
+  auctionMoney: $("auction-money"),
+  auctionCollect: $("auction-collect"),
+  auctionList: $("auction-list"),
+  auctionMore: $("auction-more"),
 };
 
 const escapeHtml = (s) =>
@@ -239,6 +244,7 @@ const gmcpHandlers = {
   "Char.Shop": renderShop,
   "Char.Quests": renderQuests,
   "Char.Trade": renderTrade,
+  "Char.Auction": renderAuction,
   // Char.Items.List / Char.StatusVars / Comm.Channel.Text / Char.Wizard are
   // received but not yet surfaced — dispatched to a no-op so unknown packages
   // never throw. (Char.Inventory is the P3 richer superset of Char.Items.List.)
@@ -662,6 +668,76 @@ function renderTrade(d) {
 // Rescind / Confirm / Decline buttons send their command; cancel any walk.
 el.trade.addEventListener("click", (e) => {
   const b = e.target.closest("[data-cmd]");
+  if (b && !b.disabled && b.dataset.cmd && conn.socket) {
+    walkTo = null;
+    sendCommand(b.dataset.cmd);
+  }
+});
+
+/* ── Auction-house form (Char.Auction, P3 Slice B++) ──────────────
+ * The contextual marketplace panel, shown only when the player stands at an
+ * auctioneer (open=true). The active listings (priced, with a closing-time
+ * countdown), each row a Buy button carrying its `buyout <ref>` command — greyed
+ * when unaffordable, or shown as "yours" with an `unlist <ref>` for your own. A
+ * collect banner appears when items/proceeds wait. Nothing here decides a sale;
+ * a click sends the same command a player would type (the authority invariant). */
+
+// auctionRow renders one listing: name, seller, closing time, price, and a
+// buy/unlist button (or a greyed buy when unaffordable).
+function auctionRow(o) {
+  const meta = [];
+  if (o.seller) meta.push(`<span class="auction-seller">${escapeHtml(o.seller)}</span>`);
+  if (o.closesIn) meta.push(`<span class="auction-time">${escapeHtml(o.closesIn)}</span>`);
+  let btn;
+  if (o.mine) {
+    btn = `<button class="auction-btn auction-unlist" type="button" data-cmd="${escapeHtml(o.cmd || "")}" title="Your listing — withdraw it">unlist</button>`;
+  } else if (!o.affordable) {
+    btn = `<button class="auction-btn" type="button" disabled title="You can't afford that.">buy</button>`;
+  } else {
+    btn = `<button class="auction-btn" type="button" data-cmd="${escapeHtml(o.cmd || "")}">buy</button>`;
+  }
+  return `<div class="auction-item${o.mine ? " auction-mine" : ""}${!o.mine && !o.affordable ? " auction-locked" : ""}">
+    <div class="auction-row1"><span class="auction-name">${escapeHtml(o.name || "")}</span><span class="auction-price">${escapeHtml(o.price || "")}</span></div>
+    <div class="auction-row2"><span class="auction-meta">${meta.join(" · ")}</span>${btn}</div>
+  </div>`;
+}
+
+function renderAuction(d) {
+  // Closed (not at an auctioneer) → hide the panel entirely.
+  if (!d || !d.open) {
+    el.auction.hidden = true;
+    return;
+  }
+  el.auction.hidden = false;
+  el.auctionMoney.textContent = d.money || "";
+
+  // Collect banner: shown only when items/proceeds wait (collect.cmd present).
+  const c = d.collect || {};
+  if (c.cmd) {
+    const bits = [];
+    if (c.items) bits.push(`${c.items} item${c.items > 1 ? "s" : ""}`);
+    if (c.coin) bits.push(c.coin);
+    el.auctionCollect.hidden = false;
+    el.auctionCollect.innerHTML =
+      `<button class="auction-btn auction-collect-btn" type="button" data-cmd="${escapeHtml(c.cmd)}">Collect ${escapeHtml(bits.join(" + "))}</button>`;
+  } else {
+    el.auctionCollect.hidden = true;
+    el.auctionCollect.innerHTML = "";
+  }
+
+  const listings = d.listings || [];
+  el.auctionList.innerHTML = listings.length
+    ? listings.map(auctionRow).join("")
+    : `<div class="empty">Nothing for sale.</div>`;
+
+  // "showing N of Total" note when there are more listings than this page.
+  el.auctionMore.textContent =
+    d.total && d.total > listings.length ? `showing ${listings.length} of ${d.total} — use \`browse\`` : "";
+}
+
+// A buy / unlist / collect button sends its command; cancels any click-to-walk.
+el.auction.addEventListener("click", (e) => {
+  const b = e.target.closest(".auction-btn");
   if (b && !b.disabled && b.dataset.cmd && conn.socket) {
     walkTo = null;
     sendCommand(b.dataset.cmd);

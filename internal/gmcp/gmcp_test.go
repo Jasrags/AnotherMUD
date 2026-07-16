@@ -377,6 +377,44 @@ func TestCharTrade_ClosedEmitsEmptySides(t *testing.T) {
 	}
 }
 
+func TestCharAuction_PackageConstant(t *testing.T) {
+	if gmcp.PackageCharAuction != "Char.Auction" {
+		t.Errorf("PackageCharAuction = %q, want Char.Auction", gmcp.PackageCharAuction)
+	}
+}
+
+func TestCharAuction_OpenPayloadShape(t *testing.T) {
+	// An open house: an affordable listing (buyout), the viewer's OWN listing
+	// (unlist, no affordable-grey), and pending collectibles.
+	out, _ := json.Marshal(gmcp.CharAuction{
+		Open:  true,
+		Money: "500¥",
+		Listings: []gmcp.AuctionItem{
+			{Name: "a katana", Price: "300¥", Seller: "Kaz", ClosesIn: "2h 10m", Affordable: true, Cmd: "buyout 4"},
+			{Name: "my old vest", Price: "80¥", Seller: "You", ClosesIn: "45m", Mine: true, Affordable: true, Cmd: "unlist 7"},
+		},
+		Total:   5,
+		Collect: gmcp.AuctionCollect{Items: 1, Coin: "120¥", Cmd: "collect"},
+	})
+	want := `{"open":true,"money":"500¥","listings":[` +
+		`{"name":"a katana","price":"300¥","seller":"Kaz","closesIn":"2h 10m","affordable":true,"cmd":"buyout 4"},` +
+		`{"name":"my old vest","price":"80¥","seller":"You","closesIn":"45m","mine":true,"affordable":true,"cmd":"unlist 7"}` +
+		`],"total":5,"collect":{"items":1,"coin":"120¥","cmd":"collect"}}`
+	if string(out) != want {
+		t.Errorf("payload = %q,\nwant       %q", string(out), want)
+	}
+}
+
+func TestCharAuction_ClosedEmitsEmptyListings(t *testing.T) {
+	// Not at an auctioneer: open=false, header omits, listings marshal as [],
+	// and an empty collect object emits (no waiting items/coin).
+	out, _ := json.Marshal(gmcp.CharAuction{Open: false, Listings: []gmcp.AuctionItem{}})
+	want := `{"open":false,"listings":[],"collect":{}}`
+	if string(out) != want {
+		t.Errorf("closed payload = %q, want %q", string(out), want)
+	}
+}
+
 func TestCharCombat_NotInCombatOmitsTargetFields(t *testing.T) {
 	// in_combat=false → just the flag; target_* fields all omit
 	// so the panel can hide the target tile.
