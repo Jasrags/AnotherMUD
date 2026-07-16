@@ -159,9 +159,10 @@ func TestLive_CoreWalkthrough(t *testing.T) {
 		noHuh("§13 recall", cmd("recall"))
 	})
 
-	// §10 Quests — the Forge Errand auto-grant loop.
+	// §10 Quests — the Forge Errand auto-grant loop. Maerys the training-master
+	// stands in the training yard (west of the square), not the forge.
 	t.Run("quests", func(t *testing.T) {
-		at("forge")
+		at("training-yard")
 		want("§10 talk master", cmd("talk master"), "Forge Errand")
 		noHuh("§10 accept", cmd("accept Forge Errand"))
 		want("§10 journal", cmd("quests"), "Forge Errand")

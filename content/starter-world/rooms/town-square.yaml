@@ -6,10 +6,12 @@ description: |
   Worn cobblestones spread out beneath your feet, polished smooth by
   generations of foot-traffic. A weathered notice board leans against
   the side of the well at the square's centre. Streets lead off to the
-  north and east, and the south road runs out toward open country.
+  north and east, a fenced training yard opens to the west, and the
+  south road runs out toward open country.
 exits:
   north: forge
   east: market
+  west: training-yard
   south: village-gate
 items:
   - well

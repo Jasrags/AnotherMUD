@@ -1,0 +1,21 @@
+id: training-yard
+area: town
+name: "The Training Yard"
+description: |
+  A fenced square of packed earth opens off the west side of the square, its
+  ground worn bare by generations of drilling boots. Straw practice dummies list
+  on their stakes, hacked half to splinters, and a rack of blunted swords and
+  staves leans against the palings. Wood cracks on wood in a steady rhythm as
+  the village militia run their forms, and the air carries dust and old sweat.
+  The square lies back east through the gate.
+terrain: grassland
+exits:
+  east: town-square
+# A safe practice ground: `safe-room` blocks real combat here (this is drill,
+# not a brawl — combat §2.1), and `safe` satisfies the training safe-room gate
+# (progression §7.4) so Maerys can drill you. This is the thematically-correct
+# home for the combat trainer, who previously had to share the smithy for want
+# of a yard.
+tags: [safe-room, safe]
+mobs:
+  - training-master

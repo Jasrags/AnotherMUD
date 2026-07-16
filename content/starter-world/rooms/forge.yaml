@@ -40,5 +40,4 @@ properties:
   craft_stations:
     smithing: 2
 mobs:
-  - training-master
   - blacksmith

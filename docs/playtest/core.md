@@ -103,7 +103,7 @@ trainer (Maerys, §8). So most `cast …` steps work on a brand-new fighter — 
 ```
    Forge Nook  ·· (hidden: `search` in the Forge — §30)
         |
-   Hearthwick Forge (Maerys trainer; Brandr blacksmith)   [indoors, lit]
+   Hearthwick Forge (Brandr blacksmith)                   [indoors, lit]
         |   down: oak door (plain)
    Forge Cellar (iron key; pine torch)                     [underground, dim]
         |   down: iron door (locked / pickable — §26)
@@ -111,8 +111,9 @@ trainer (Maerys, §8). So most `cast …` steps work on a brand-new fighter — 
 
    Forge
      |
-   Market Row — Town Square — Village Gate
-   (Marta cook)   (safe hub)        |
+   Training Yard — Market Row — Town Square — Village Gate
+   (Maerys trainer)  (Marta cook)  (safe hub)        |
+   (w of the Square)
                                   Long-Grass Meadow   (grassland · bandit arena)
                                      |  e
                                   The Forest's Edge   (forest · forage)
@@ -216,12 +217,14 @@ rejected with "Names must use ASCII letters only."), then walks the choice steps
 ## 3. Movement & rooms
 
 - [x] `look` — renders room name, description, exits, and entities present.
-- [x] `north` / `n` — move to the Forge; `look` shows Maerys the Training
-      Master.
-- [ ] `look maerys` (`look master`) at the Forge — her **description** prints
-      (the appearance lens: broad-shouldered woman, scarred forearms…).
+- [x] `north` / `n` — move to the Forge; `look` shows Brandr the blacksmith.
+      `west` from the Square reaches the **Training Yard**, where `look` shows
+      Maerys the Training Master.
+- [ ] `look maerys` (`look master`) at the Training Yard — her **description**
+      prints (the appearance lens: broad-shouldered woman, scarred forearms…).
       Looking *at a creature* works now — it used to say "you don't see that."
-- [x] `south`, `east`, `west` — move between Forge/Square/Market/Gate.
+- [x] `north`, `south`, `east`, `west` — move between Square/Forge/Gate/Market/
+      Training Yard.
 - [x] `s` from the Gate — you reach the Meadow (the bandit is here).
 - [x] Try a direction with no exit (e.g. `up`) — "You cannot go that way."
 - [x] **Chaining:** `n;s` runs both in order (you go north then back south).
@@ -353,8 +356,8 @@ After killing the bandit (Meadow):
 - [x] `abilities` (`abi`) — lists learned abilities + proficiencies.
 - [ ] `train str` — spends a train credit, raises STR (a fresh fighter has
       starting trains; level-ups grant 5 more each).
-- [ ] At the Forge, `practice slash` (Maerys teaches slash/parry) — raises the
-      ability's cap.
+- [ ] At the Training Yard, `practice slash` (Maerys teaches slash/parry) —
+      raises the ability's cap.
 - [ ] `cast bless` / `cast heal` — self buff/heal (a fresh fighter has both);
       resolves on the next pulse whether in combat or idle (out-of-combat drain).
       bless bumps AC/hit (check `score`); heal restores HP (only visible if
@@ -383,17 +386,18 @@ In **Market Row** (merchant):
 
 ## 10. Quests
 
-Quest giver is **Maerys** (the training master) in the Forge. She offers
+Quest giver is **Maerys** (the training master) in the Training Yard (west of
+the Square). She offers
 two quests — **Forge Errand** (auto-grant) and **Gate Patrol** (turn-in)
 — so you can exercise both reward styles plus the new progress messaging.
 
 ### Discover & accept (the `talk` verb)
 
-- [x] At the Forge, `talk master` (`ask master`) — Maerys lists her offers
+- [x] At the Training Yard, `talk master` (`ask master`) — Maerys lists her offers
       (**Forge Errand**, **Gate Patrol**), each with its pitch and an
       `accept <name>` line. This is how you discover a quest without already
       knowing its name.
-- [x] **`accept` completes the offers:** at the Forge, `accept ` + **TAB** (raw
+- [x] **`accept` completes the offers:** at the Training Yard, `accept ` + **TAB** (raw
       telnet) — or `suggest accept ` — lists Maerys's quests by their bare id
       (`forge-errand`, `gate-patrol`); `accept ga` + TAB → `accept gate-patrol`.
       No more typing the full multi-word name. Completion only lists quests
@@ -417,7 +421,8 @@ two quests — **Forge Errand** (auto-grant) and **Gate Patrol** (turn-in)
 - [ ] `s` to the **Meadow**, `kill bandit` — a kill progress line, then
       "**Gate Patrol complete!** Return to a training master to claim your
       reward." — note the reward is **withheld** (check `gold`: unchanged).
-- [ ] Return to the Forge (`n`, `n`, `n`) and `talk master` — *now* the
+- [ ] Return to Maerys (`n`, `n`, `w` — Meadow → Gate → Square → Training Yard)
+      and `talk master` — *now* the
       reward is handed over: completion banner with 100 experience + 25 gold
       + a healing draught. `quests` no longer lists it.
 
@@ -617,7 +622,7 @@ type. (Trailing space is trimmed, so type a partial letter: `suggest get s`.)
 - [x] In Town Square, `suggest get s` — lists the matching room items
       (`sword   a short sword`, …); `suggest get sw` narrows to the sword.
 - [x] `suggest dr` — verb completion: `Commands: drop, drink`.
-- [x] At the Forge, `suggest kill ma` — single match → `→ kill maerys
+- [x] At the Training Yard, `suggest kill ma` — single match → `→ kill maerys
       (Maerys the Training Master)`.
 - [x] `suggest get sw` somewhere with no items — `No suggestions for "get sw".`
 - [x] `suggest` with no args — guidance ("Suggest what? …").
