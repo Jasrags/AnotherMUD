@@ -62,6 +62,68 @@ func TestWrapMarkupLine(t *testing.T) {
 	}
 }
 
+// TestWrapMarkupLine_ColorRunReopensAcrossLines pins the color-aware wrap: a
+// color run (brace or tag) that spans a wrap boundary must close each line and
+// re-open on the next, so a run isn't left un-colored after line 1 (the
+// symptom under the side-by-side minimap, which resets per line).
+func TestWrapMarkupLine_ColorRunReopensAcrossLines(t *testing.T) {
+	// One color run wrapping the whole line → every wrapped line re-opens {y} and
+	// closes with {x}, so all lines carry the color (not just the first).
+	lines := wrapMarkupLine("{y}alpha bravo charlie delta echo foxtrot{x}", 13)
+	if len(lines) < 2 {
+		t.Fatalf("expected multiple wrapped lines, got %v", lines)
+	}
+	for i, ln := range lines {
+		if !strings.HasPrefix(ln, "{y}") {
+			t.Errorf("line %d %q does not re-open the {y} color run", i, ln)
+		}
+		if !strings.HasSuffix(ln, "{x}") {
+			t.Errorf("line %d %q is not closed with a reset", i, ln)
+		}
+		if markupWidth(ln) > 13 {
+			t.Errorf("line %d %q exceeds width 13 (%d)", i, ln, markupWidth(ln))
+		}
+	}
+	// Visible text is preserved (markup discounted).
+	var visible []string
+	for _, ln := range lines {
+		visible = append(visible, strings.TrimSuffix(strings.TrimPrefix(ln, "{y}"), "{x}"))
+	}
+	if got := strings.Join(visible, " "); got != "alpha bravo charlie delta echo foxtrot" {
+		t.Errorf("wrap altered visible text: %q", got)
+	}
+}
+
+// TestWrapMarkupLine_TagRunSplitMidRun covers a semantic <tag> name split across
+// the wrap: the continuation line re-opens the tag so the whole name stays
+// colored (the yellow-name-drops-on-wrap symptom).
+func TestWrapMarkupLine_TagRunSplitMidRun(t *testing.T) {
+	// Force a break inside "<mob>Brian Flanagan</mob>".
+	lines := wrapMarkupLine("aa bb <mob>Brian Flanagan</mob> cc", 12)
+	joined := strings.Join(lines, "\n")
+	if !strings.Contains(joined, "<mob>Brian") {
+		t.Fatalf("expected the name to split; got %q", lines)
+	}
+	// The line that carries "Flanagan" must re-open <mob> (else it renders
+	// un-colored).
+	for _, ln := range lines {
+		if strings.Contains(ln, "Flanagan") && !strings.Contains(ln, "<mob>") {
+			t.Errorf("continuation line %q lost the <mob> color for 'Flanagan'", ln)
+		}
+	}
+}
+
+// TestWrapMarkupLine_PlainUnchanged guards the common no-color path: a plain
+// line gains no stray reset tokens.
+func TestWrapMarkupLine_PlainUnchanged(t *testing.T) {
+	lines := wrapMarkupLine("one two three four five six", 9)
+	for _, ln := range lines {
+		if strings.Contains(ln, "{x}") {
+			t.Errorf("plain wrap added a stray reset: %q", ln)
+		}
+	}
+}
+
 // joinBeside aligns the right block at a fixed column even when left
 // lines carry zero-width markup, and resets color at the boundary.
 func TestJoinBeside_AlignsAndResets(t *testing.T) {

@@ -60,9 +60,21 @@ func markupWidth(s string) int {
 	return utf8.RuneCountInString(render.StripBraces(render.StripTags(s)))
 }
 
-// wrapMarkupLine word-wraps one line to width visible columns, keeping
-// each word's markup attached. Width math discounts markup. A single
-// word wider than width is left whole (no mid-word break).
+// markupReset is the reset token appended to close a wrapped line whose color
+// run continues onto the next line, so every wrapped line is self-contained.
+const markupReset = "{x}"
+
+// wrapMarkupLine word-wraps one line to width visible columns, keeping each
+// word's markup attached. Width math discounts markup. A single word wider than
+// width is left whole (no mid-word break).
+//
+// The wrap is COLOR-RUN AWARE: when a break falls inside an open color run (a
+// `{code}`/`<tag>` not yet closed), the current line is closed with a reset and
+// the continuation line RE-OPENS the active markup. Without this, a name or a
+// description wrapped across lines loses its color on every line after the
+// first — visibly so under the side-by-side minimap (joinBeside appends a reset
+// per line) and in any per-line-framed client. Re-opening makes each wrapped
+// line stand on its own, correct regardless of how it's later concatenated.
 func wrapMarkupLine(line string, width int) []string {
 	if markupWidth(line) <= width {
 		return []string{line}
@@ -72,24 +84,83 @@ func wrapMarkupLine(line string, width int) []string {
 		return []string{""}
 	}
 	var lines []string
+	var open []string // active (unclosed) color markers, in emit order
 	cur, curW := "", 0
+
+	// flush appends the current line, closing an open color run so the line is
+	// self-contained (harmless when nothing is open).
+	flush := func() {
+		if cur == "" {
+			return
+		}
+		if len(open) > 0 {
+			cur += markupReset
+		}
+		lines = append(lines, cur)
+	}
+	// start begins a new line with the active color markers re-emitted (zero
+	// visible width) so a run split across the break keeps its color.
+	start := func(word string, ww int) {
+		cur = strings.Join(open, "") + word
+		curW = ww
+	}
+
 	for _, w := range words {
 		ww := markupWidth(w)
 		switch {
 		case cur == "":
-			cur, curW = w, ww
+			start(w, ww)
 		case curW+1+ww > width:
-			lines = append(lines, cur)
-			cur, curW = w, ww
+			flush()
+			start(w, ww)
 		default:
 			cur += " " + w
 			curW += 1 + ww
 		}
+		trackOpenMarkup(w, &open) // update AFTER placing the word
 	}
-	if cur != "" {
-		lines = append(lines, cur)
-	}
+	flush()
 	return lines
+}
+
+// trackOpenMarkup updates the stack of active (unclosed) color markers by
+// scanning one word's markup tokens: a `{code}` or opening `<tag>` pushes, a
+// closing `</tag>` pops, and the `{x}` reset clears all (it is a full SGR reset,
+// matching the renderer). Only color state is tracked — the markers are re-
+// emitted verbatim on a continuation line, so the renderer reproduces the state.
+func trackOpenMarkup(word string, open *[]string) {
+	for i := 0; i < len(word); {
+		switch word[i] {
+		case '{':
+			j := strings.IndexByte(word[i:], '}')
+			if j < 0 {
+				return
+			}
+			tok := word[i : i+j+1]
+			if strings.EqualFold(tok, markupReset) {
+				*open = (*open)[:0] // reset clears everything
+			} else {
+				*open = append(*open, tok)
+			}
+			i += j + 1
+		case '<':
+			j := strings.IndexByte(word[i:], '>')
+			if j < 0 {
+				return
+			}
+			tok := word[i : i+j+1]
+			if strings.HasPrefix(tok, "</") {
+				if len(*open) > 0 {
+					*open = (*open)[:len(*open)-1]
+				}
+			} else {
+				*open = append(*open, tok)
+			}
+			i += j + 1
+		default:
+			i++
+		}
+	}
 }
 
 // padRight pads s with spaces to width visible columns (no truncation;
