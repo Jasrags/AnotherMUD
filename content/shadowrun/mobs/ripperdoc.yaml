@@ -26,6 +26,9 @@ stats:
 # shadowrun:<id> (the shop bag is not namespace-rewritten).
 properties:
   shop:
+    # A chrome clinic deals in chrome — not iron, not ammo (economy-survival
+    # §3.6a). Explicit so the lane can't drift if the stock list grows.
+    buys: [cyberware]
     sells:
       # Reflexes — the cheap bioware edge up to the brutal cyber overclock.
       - shadowrun:reaction-enhancers

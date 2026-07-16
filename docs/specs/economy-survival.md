@@ -237,17 +237,51 @@ shop-list rendering.
 1. **Resolve inventory item by query** (§3.8). If no match,
    return `ItemNotInInventory`.
 2. If the item carries the `no_sell` tag, return `ItemIsNoSell`.
-3. Read the item's value. If zero or missing, return
+3. **Category gate (§3.6a).** If the shop does not deal in the
+   item's category, return `ItemNotAccepted`. A specialist buys
+   only in its trade — a ripperdoc takes chrome, not a rifle.
+4. Read the item's value. If zero or missing, return
    `ItemValueZero`.
-4. Compute the sell price.
-5. Publish a **cancellable** `shop.sell` event. If cancelled,
+5. Compute the sell price.
+6. Publish a **cancellable** `shop.sell` event. If cancelled,
    return `ItemNotForSale` (sic — the event-cancel result
    uses the same reason as the no-shop-match path).
-6. If the item is currently equipped, auto-unequip silently
+7. If the item is currently equipped, auto-unequip silently
    so the player isn't left wearing what they sold.
-7. Remove the item from the player's contents; untrack it.
-8. Credit the player with the sell price.
-9. Return `Ok` with item name, price, updated gold.
+8. Remove the item from the player's contents; untrack it.
+9. Credit the player with the sell price.
+10. Return `Ok` with item name, price, updated gold.
+
+#### 3.6a Buy category gate
+
+A shop buys from a player only goods in the **trades it deals
+in**, keyed off item **category tags** (e.g. `weapon`, `armor`,
+`cyberware`, `ammo`, `food`, `tradegood`). The gate is a per-shop
+allowlist of accepted category tags:
+
+- **Explicit `buys`.** A shop may declare the category tags it
+  accepts. An item is accepted when it carries at least one of
+  them. Explicit tags are matched verbatim — any tag the author
+  writes (including ones outside the derivation vocabulary).
+- **Sells-derived default.** When a shop declares no `buys`, its
+  accepted set is derived from the **category tags of its own
+  `sells` stock** — so a shop that sells armor and chrome buys
+  back armor and chrome with no extra authoring. Only tags in a
+  known category vocabulary are collected for derivation, so a
+  descriptive tag shared across items (`leather`, `wearable`,
+  `stackable`, `ranged`) never widens the set.
+- **Fall open.** A shop with no `buys` and no categorizable
+  `sells` accepts anything — preserving prior behavior for
+  ungated / uncategorized vendors.
+
+`value` on a held item the shop won't buy does not quote a
+payout; it reports the item as not something the shop deals in
+(it may still resolve as a **buy** price if the shop stocks it).
+
+Designating **general fences** (broad `buys`) versus **specialists**
+(narrow `buys` or a single-category sells list) is a deliberate
+world-design lever: it gives players clear places to offload loot
+while keeping a clinic from buying assault rifles.
 
 ### 3.7 Stock resolution
 
@@ -310,7 +344,16 @@ either.
 - [ ] Buy fires the cancellable pre-event before charging.
 - [ ] Sell auto-unequips silently before transferring.
 - [ ] `no_sell` items reject sale.
-- [ ] Value returns inventory price first, then stock price.
+- [ ] A shop refuses to buy an item whose category is outside
+      its `buys` allowlist (`ItemNotAccepted`).
+- [ ] A shop with no `buys` derives its accepted categories from
+      its `sells` stock; a descriptive tag shared across items
+      does not widen the set.
+- [ ] A shop with no `buys` and no categorizable `sells` buys
+      anything (fall open).
+- [ ] Value returns inventory price first, then stock price;
+      a held item outside the shop's `buys` does not quote a
+      payout.
 
 ---
 
@@ -647,6 +690,7 @@ this spec.
 |---|---|
 | Global shop buy markup and sell discount | §3.1 |
 | Per-shop markup / discount overrides | §3.1 |
+| Per-shop `buys` category allowlist (else sells-derived) | §3.6a |
 | Sustenance tier thresholds (full / hungry mins) | §4.2 |
 | Sustenance tier regen multipliers | §4.3 |
 | Sustenance drain amount, cadence, reminder interval | §4.4 |

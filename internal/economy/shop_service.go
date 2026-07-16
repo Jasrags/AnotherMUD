@@ -194,6 +194,11 @@ func (s *ShopService) Sell(ctx context.Context, sh Shopper, npcID string, shop S
 	if instanceHasTag(inst, TagNoSell) {
 		return SellResult{Outcome: ShopItemIsNoSell, ItemName: inst.Name()}
 	}
+	// §3.6a category gate: the shop only buys goods in the trades it deals in
+	// (a ripperdoc won't buy your AK). Checked before value/pricing.
+	if !s.acceptsSale(shop, inst) {
+		return SellResult{Outcome: ShopItemNotAccepted, ItemName: inst.Name()}
+	}
 	value := instanceValue(inst)
 	if value <= 0 {
 		return SellResult{Outcome: ShopItemValueZero, ItemName: inst.Name()}
@@ -214,6 +219,58 @@ func (s *ShopService) Sell(ctx context.Context, sh Shopper, npcID string, shop S
 
 	newGold := s.currency.AddGold(ctx, sh, int(price), "shop_sell:"+npcID)
 	return SellResult{Outcome: ShopOK, ItemName: inst.Name(), Price: price, Gold: newGold}
+}
+
+// acceptsSale reports whether shop will buy inst, per its §3.6a category gate.
+// The accepted category set is ShopConfig.Buys when authored, else derived from
+// the shop's Sells stock. An empty accepted set falls open (the shop buys
+// anything), so ungated / uncategorized shops keep their prior behavior.
+func (s *ShopService) acceptsSale(shop ShopConfig, inst *entities.ItemInstance) bool {
+	accepted := s.acceptedCategories(shop)
+	if len(accepted) == 0 {
+		return true
+	}
+	for _, t := range inst.Tags() {
+		if accepted[strings.ToLower(strings.TrimSpace(t))] {
+			return true
+		}
+	}
+	return false
+}
+
+// acceptedCategories resolves a shop's buy-side category allowlist (§3.6a). An
+// explicit ShopConfig.Buys wins and is matched verbatim (any tag the author
+// lists). With no Buys, the set is DERIVED from the category-vocabulary tags
+// (categoryTags) carried by the shop's Sells templates — so a shop that sells
+// armor + chrome buys back armor + chrome with no extra authoring. Returns an
+// empty map when nothing can be derived; the caller treats that as "buys
+// anything".
+func (s *ShopService) acceptedCategories(shop ShopConfig) map[string]bool {
+	if len(shop.Buys) > 0 {
+		set := make(map[string]bool, len(shop.Buys))
+		for _, t := range shop.Buys {
+			if t = strings.ToLower(strings.TrimSpace(t)); t != "" {
+				set[t] = true
+			}
+		}
+		return set
+	}
+	if s.tpls == nil {
+		return nil
+	}
+	set := map[string]bool{}
+	for _, id := range shop.Sells {
+		tpl, err := s.tpls.Get(item.TemplateID(id))
+		if err != nil {
+			continue
+		}
+		for _, t := range tpl.Tags {
+			if lt := strings.ToLower(strings.TrimSpace(t)); categoryTags[lt] {
+				set[lt] = true
+			}
+		}
+	}
+	return set
 }
 
 // ValueScope distinguishes which price Value returned (spec §3.9).
@@ -240,7 +297,10 @@ type ValueResult struct {
 // first (sell price), then stock (buy price). A held item shows the
 // price the player would receive, not the shop's asking price.
 func (s *ShopService) Value(_ context.Context, sh Shopper, shop ShopConfig, query string, standing StandingFunc) ValueResult {
-	if inst, _ := s.resolveInventory(sh, query); inst != nil {
+	// A held item quotes the shop's payout only if the shop actually deals in it
+	// (§3.6a); otherwise fall through to stock so the query can still resolve as
+	// a buy price, and failing that report not-for-sale.
+	if inst, _ := s.resolveInventory(sh, query); inst != nil && s.acceptsSale(shop, inst) {
 		return ValueResult{
 			Outcome:  ShopOK,
 			ItemName: inst.Name(),

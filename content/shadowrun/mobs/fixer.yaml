@@ -34,6 +34,10 @@ stats:
 # kid) covers the clip and the pistol; the jacket and chrome are a payday away.
 properties:
   shop:
+    # A full-service fixer / black-market fence: takes weapons, ammo, armor,
+    # chrome, the mods that fit them, and general loot (tradegoods, contraband,
+    # salvage) off a runner's hands (economy-survival §3.6a).
+    buys: [weapon, ammo, armor, cyberware, weapon-accessory, armor-mod, cyberware-mod, tradegood, contraband, component]
     sells:
       # Ammo SKUs (ammo-and-reloading §6): a pre-loaded clip (the primary buy),
       # loose rounds (refills), and an empty clip (a cheap spare to fill).

@@ -21,6 +21,10 @@ stats:
 # Ids qualified shadowrun:<id> (the shop bag is not namespace-rewritten).
 properties:
   shop:
+    # Chrome + armor, the trades a back-alley clinic works (economy-survival
+    # §3.6a). Explicit so the stun baton in stock doesn't open the whole weapon
+    # category to sell-backs.
+    buys: [cyberware, armor]
     sells:
       - shadowrun:armored-jacket
       - shadowrun:armor-vest

@@ -26,6 +26,33 @@ const (
 	PropRequiresSkillLevel = "requires_skill_level"
 )
 
+// categoryTags is the closed vocabulary of item "category" tags the sell-side
+// buy gate derives a shop's accepted set from (economy-survival §3.6a). Only
+// these tags are treated as a good's CATEGORY when deriving that set from the
+// shop's Sells stock; descriptive tags (metal, wearable, stackable, ranged, …)
+// are ignored, so selling one leather item doesn't make a shop accept every
+// leather thing. An EXPLICIT ShopConfig.Buys is NOT restricted to this set — an
+// author may gate on any tag. New good categories must be added here to
+// participate in sells-derived defaults.
+var categoryTags = map[string]bool{
+	"weapon":     true,
+	"armor":      true,
+	"ammo":       true,
+	"cyberware":  true,
+	"food":       true,
+	"consumable": true,
+	"ingredient": true,
+	"tool":       true,
+	"gear":       true,
+	"clothing":   true,
+	"scroll":     true,
+	"container":  true,
+	"component":  true,
+	"tradegood":  true,
+	"contraband": true,
+	"fuel":       true,
+}
+
 // SkillChecker reports whether a buyer meets a stock item's purchase skill
 // gate (discipline at >= level). The command layer builds it from the
 // proficiency manager + the buyer's id, keeping the economy package free of
@@ -60,7 +87,16 @@ func DefaultEconomyConfig() EconomyConfig {
 // global defaults only when positive — zero / unset falls through
 // (§3.1, §3.3).
 type ShopConfig struct {
-	Sells        []string
+	Sells []string
+	// Buys is the player→shop sale category gate (economy-survival §3.6a): the
+	// shop buys a player's item only when it carries at least one of these
+	// category tags. Author-declared tags are matched verbatim (any tag allowed).
+	// When empty, the accepted set is DERIVED from the category tags of the shop's
+	// Sells stock (a shop that sells armor+chrome buys back armor+chrome) — see
+	// ShopService.acceptedCategories. A shop with neither Buys nor a resolvable
+	// Sells category falls open (buys anything), preserving prior behavior for
+	// ungated / uncategorized shops.
+	Buys         []string
 	BuyMarkup    float64
 	SellDiscount float64
 	// Faction is the shop's faction affiliation (faction.md §6), a faction id
@@ -192,6 +228,11 @@ const (
 	// access floor (faction.md §6 "refuse hostiles"). The faction id + required
 	// standing ride along so the caller can report them.
 	ShopStandingTooLow
+	// ShopItemNotAccepted — the shop does not deal in the item's category
+	// (economy-survival §3.6a): the item carries none of the shop's accepted
+	// category tags. Distinct from ShopItemIsNoSell (the item refuses sale
+	// anywhere) — this particular shop just doesn't handle that kind of good.
+	ShopItemNotAccepted
 )
 
 // Listing is one row of a shop's offered stock (spec §3.4).

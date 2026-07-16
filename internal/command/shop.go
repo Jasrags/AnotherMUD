@@ -97,6 +97,8 @@ func SellHandler(ctx context.Context, c *Context) error {
 		return c.Actor.Write(ctx, fmt.Sprintf("You sell %s for %s. You now have %s.", res.ItemName, c.Money.Format64(res.Price), c.Money.Format(res.Gold)))
 	case economy.ShopItemIsNoSell:
 		return c.Actor.Write(ctx, fmt.Sprintf("You can't sell %s here.", res.ItemName))
+	case economy.ShopItemNotAccepted:
+		return c.Actor.Write(ctx, fmt.Sprintf("The shopkeeper doesn't deal in %s.", res.ItemName))
 	case economy.ShopItemValueZero:
 		return c.Actor.Write(ctx, fmt.Sprintf("The shop won't give you anything for %s.", res.ItemName))
 	case economy.ShopItemNotInInventory:
@@ -235,7 +237,10 @@ func shopConfigFromMob(mob *entities.MobInstance) economy.ShopConfig {
 		return economy.ShopConfig{}
 	}
 	return economy.ShopConfig{
-		Sells:        stringSlice(block["sells"]),
+		Sells: stringSlice(block["sells"]),
+		// buys §3.6a: the category tags this shop will buy from a player. Omitted
+		// = derive the accepted set from the categories the shop sells.
+		Buys:         stringSlice(block["buys"]),
 		BuyMarkup:    floatProp(block["buy_markup"]),
 		SellDiscount: floatProp(block["sell_discount"]),
 		// Faction §6: affiliation + optional access floor + favored-customer

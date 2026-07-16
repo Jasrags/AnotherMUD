@@ -25,6 +25,10 @@ stats:
 # qualified shadowrun:<id> (the shop bag is not namespace-rewritten).
 properties:
   shop:
+    # Half diner, all fence: Ben takes weapons, ammo, armor, chrome, and general
+    # salvage off a runner's hands (economy-survival §3.6a) — the Barrens' junk
+    # sink where a fresh haul turns into nuyen.
+    buys: [weapon, ammo, armor, cyberware, tradegood, contraband, component]
     sells:
       - shadowrun:armored-jacket
       - shadowrun:armor-vest

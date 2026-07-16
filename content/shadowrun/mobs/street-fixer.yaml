@@ -31,6 +31,10 @@ stats:
 # (shadowrun:<id>). Every id here is a subset of the black-market fixer's stock.
 properties:
   shop:
+    # A gun-runner buys back the gear it sells — iron, ammo, armor, and the
+    # accessories that bolt onto them (economy-survival §3.6a). No chrome; that's
+    # the docs' trade.
+    buys: [weapon, ammo, armor, weapon-accessory]
     sells:
       # Ammo + refills — a loaded clip (the primary buy), loose rounds, AP
       # rounds, and an empty clip to fill.
