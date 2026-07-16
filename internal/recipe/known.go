@@ -68,6 +68,37 @@ func (m *KnownManager) Knows(entityID string, id RecipeID) bool {
 	return ok
 }
 
+// Forget removes id from entityID's known set, returning whether it changed
+// (false when the recipe wasn't known — an idempotent no-op). The mirror of
+// Learn, for the admin `revoke recipe` path.
+func (m *KnownManager) Forget(entityID string, id RecipeID) bool {
+	if id == "" {
+		return false
+	}
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	set := m.known[entityID]
+	if set == nil {
+		return false
+	}
+	if _, ok := set[id]; !ok {
+		return false
+	}
+	delete(set, id)
+	return true
+}
+
+// Defined reports whether id is a real recipe in the content registry (not
+// whether any character knows it). Used to validate an admin grant before
+// adding an id to a character's set. With no registry wired, every id is
+// accepted (mirrors Restore's permissive fallback).
+func (m *KnownManager) Defined(id RecipeID) bool {
+	if m.reg == nil {
+		return true
+	}
+	return m.reg.Has(id)
+}
+
 // Recipes returns entityID's known recipe ids, sorted for determinism.
 func (m *KnownManager) Recipes(entityID string) []RecipeID {
 	m.mu.RLock()

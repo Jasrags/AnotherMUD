@@ -188,6 +188,7 @@ below are the conventional baseline.
 |---|---|
 | `inspect` | Read-only dump of a target's stats, vitals, equipment, properties, levels, and roles. Bypass-visible. The diagnostic verb. |
 | `set` | Mutate one field on a target (§4). |
+| `grant` / `revoke` | Add/remove a set-membership attribute on an online player: `grant <kind> <value> to <player>`. Kinds: role (roles-and-permissions), feat, ability (alias skill), recipe, language (§5.1). The scalar counterpart is `set`; the shape is add/remove, not set-a-number. |
 | `teleport` (`goto`) | Move the actor to a target room or to a player; or, with a target, move that player. Publishes the normal room-change events for each moved entity. |
 | `announce` | Broadcast a message to every connected session, attributed as an administrative announcement, distinct from any channel. |
 | `restore` | Set a target's vitals to full and top off its sustenance (hunger/thirst) when it carries one. The mercy verb. |
@@ -197,6 +198,44 @@ below are the conventional baseline.
 Verbs that mutate persistent state persist through the normal save path;
 verbs that move entities reuse the normal movement/teleport events so
 observers, GMCP, and the prompt all update as usual.
+
+### 5.1 grant / revoke — the set-membership attribute verb
+
+`grant`/`revoke` operate on a character's **set-membership attributes** — the
+things you either have or don't. A **mandatory kind** names which set:
+
+| Kind | Grants | Store |
+|---|---|---|
+| `role` | a permission role | roles-and-permissions §4 (unchanged semantics) |
+| `feat` | a player-chosen perk | the feat set (applies its stat/ability grants) |
+| `ability` (alias `skill`) | a learned ability/skill | the proficiency set (learned at novice) |
+| `recipe` | a known crafting recipe | the known-recipe set |
+| `language` | a known language | the known-language set |
+
+Shared behavior across kinds:
+
+- **Gated** on the granting role (§2), like all admin verbs.
+- **Online-only** target in v1 (offline grants deferred). Not-online is refused.
+- **Idempotent** — granting a held attribute / revoking an unheld one changes
+  nothing and reports the no-op.
+- **Validated** — a value that names no real feat/ability/recipe/language is
+  refused with a per-kind message; an unknown kind lists the kinds.
+- **Roles keep their full semantics** — the self-block (a character can't
+  grant/revoke their *own* roles) and the observable role events
+  (roles-and-permissions §7). The non-role kinds are additive attribute grants:
+  self-grant is allowed (not an escalation) and they emit no bespoke event in v1
+  (add one when a consumer needs it).
+- The scalar counterpart is `set` (§4): numeric fields (stats, vitals) are
+  *set/adjusted*, not toggled — a different shape that stays on `set`.
+
+**Acceptance — grant/revoke**
+
+- [ ] `grant <kind> <value> to <player>` adds the attribute to an online target;
+      `revoke … from …` removes it. Both refuse a non-admin and an offline target.
+- [ ] Each kind validates its value; an unknown kind is refused with the kind list.
+- [ ] Re-granting / revoking-an-unheld is an idempotent no-op.
+- [ ] Roles retain the self-block and the role-granted/revoked events; a non-role
+      attribute may be self-granted and emits no bespoke event.
 
 **Acceptance — baseline verbs**
 

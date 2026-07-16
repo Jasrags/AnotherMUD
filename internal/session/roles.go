@@ -11,13 +11,13 @@ import (
 // RoleTargetResolver bridges the grant/revoke verbs' player-name lookup to
 // the session manager (roles-and-permissions §4). It resolves an ONLINE
 // character by name to its live connActor (which satisfies
-// command.RoleController); offline targets are not resolved in v1 (§9).
+// command.GrantTarget); offline targets are not resolved in v1 (§9).
 type RoleTargetResolver struct {
 	Manager *Manager
 }
 
 // ResolveRoleTarget implements command.RoleTargetResolver.
-func (r RoleTargetResolver) ResolveRoleTarget(name string) (command.RoleController, bool) {
+func (r RoleTargetResolver) ResolveRoleTarget(name string) (command.GrantTarget, bool) {
 	if r.Manager == nil {
 		return nil, false
 	}

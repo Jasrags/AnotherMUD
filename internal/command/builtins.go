@@ -339,8 +339,8 @@ func RegisterBuiltins(r *Registry) error {
 		// dispatcher gates them on the admin role and hides them from
 		// non-admins in help. The handler ALSO self-gates on the granting
 		// role (§4) — the granting role may differ from the admin role.
-		{Keyword: "grant", Handler: GrantHandler, Admin: true, Brief: "Grant a role to another player.", Syntax: []string{"grant <role> to <player>"}},
-		{Keyword: "revoke", Handler: RevokeHandler, Admin: true, Brief: "Revoke a role from another player.", Syntax: []string{"revoke <role> from <player>"}},
+		{Keyword: "grant", Handler: GrantHandler, Admin: true, Brief: "Grant a role/feat/ability/recipe/language to another player.", Syntax: []string{"grant <kind> <value> to <player>"}},
+		{Keyword: "revoke", Handler: RevokeHandler, Admin: true, Brief: "Revoke a role/feat/ability/recipe/language from another player.", Syntax: []string{"revoke <kind> <value> from <player>"}},
 
 		// Admin verbs (M19.3 — admin-verbs §2). Admin-marked → dispatcher
 		// gates them on the admin role, hidden from non-admins in help.

@@ -10,12 +10,13 @@ import (
 	"github.com/Jasrags/AnotherMUD/internal/eventbus"
 )
 
-// roleActor is a namedActor plus the command.RoleController surface, so it
-// can act as the granter (c.Actor) and as a grant target.
+// roleActor is a namedActor plus the command.GrantTarget surface, so it
+// can act as the granter (c.Actor, via HasRole) and as a grant target.
 type roleActor struct {
 	*namedActor
 	roles map[string]bool
-	tags  []string // admin-applied gameplay tags, for `set tag` on a player target
+	attrs map[string]bool // non-role grantables (kind:value), for the generalized grant/revoke
+	tags  []string        // admin-applied gameplay tags, for `set tag` on a player target
 }
 
 // AddTag / RemoveTag give the test player the connActor tagger surface
@@ -80,10 +81,44 @@ func (r *roleActor) Revoke(role string) bool {
 	return true
 }
 
-// fakeRoleResolver maps lowercased names to online role targets.
-type fakeRoleResolver map[string]command.RoleController
+// GrantAttribute / RevokeAttribute make roleActor a command.GrantTarget: the
+// `role` kind delegates to Grant/Revoke; any other kind is a generic membership
+// set (kind:value) so the generalized command's non-role path is exercisable.
+func (r *roleActor) GrantAttribute(kind, value string) (bool, error) {
+	if kind == "role" {
+		return r.Grant(value), nil
+	}
+	if r.attrs == nil {
+		r.attrs = map[string]bool{}
+	}
+	k := kind + ":" + strings.ToLower(value)
+	if r.attrs[k] {
+		return false, nil
+	}
+	r.attrs[k] = true
+	return true, nil
+}
 
-func (f fakeRoleResolver) ResolveRoleTarget(name string) (command.RoleController, bool) {
+func (r *roleActor) RevokeAttribute(kind, value string) (bool, error) {
+	if kind == "role" {
+		return r.Revoke(value), nil
+	}
+	k := kind + ":" + strings.ToLower(value)
+	if r.attrs == nil || !r.attrs[k] {
+		return false, nil
+	}
+	delete(r.attrs, k)
+	return true, nil
+}
+
+func (r *roleActor) hasAttr(kind, value string) bool {
+	return r.attrs[kind+":"+strings.ToLower(value)]
+}
+
+// fakeRoleResolver maps lowercased names to online grant targets.
+type fakeRoleResolver map[string]command.GrantTarget
+
+func (f fakeRoleResolver) ResolveRoleTarget(name string) (command.GrantTarget, bool) {
 	c, ok := f[strings.ToLower(strings.TrimSpace(name))]
 	return c, ok
 }
@@ -105,7 +140,7 @@ func TestGrant_RefusesNonGranterWithoutDisclosure(t *testing.T) {
 	alice := newRoleActor("Alice", "p-alice") // no admin role
 	env := command.Env{Bus: bus, GrantingRole: "admin", RoleTargetResolver: fakeRoleResolver{"bob": bob}}
 
-	dispatchRole(t, env, alice, "grant builder to bob")
+	dispatchRole(t, env, alice, "grant role builder to bob")
 
 	if bob.HasRole("builder") {
 		t.Error("a non-granter must not be able to grant")
@@ -128,7 +163,7 @@ func TestGrant_GrantsAndPublishes(t *testing.T) {
 	admin := newRoleActor("Maerys", "p-admin", "admin")
 	env := command.Env{Bus: bus, GrantingRole: "admin", RoleTargetResolver: fakeRoleResolver{"bob": bob}}
 
-	dispatchRole(t, env, admin, "grant Builder to bob")
+	dispatchRole(t, env, admin, "grant role Builder to bob")
 
 	if !bob.HasRole("builder") {
 		t.Error("target should hold the granted role (normalized)")
@@ -150,7 +185,7 @@ func TestGrant_IdempotentNoEvent(t *testing.T) {
 	admin := newRoleActor("Maerys", "p-admin", "admin")
 	env := command.Env{Bus: bus, GrantingRole: "admin", RoleTargetResolver: fakeRoleResolver{"bob": bob}}
 
-	dispatchRole(t, env, admin, "grant builder to bob")
+	dispatchRole(t, env, admin, "grant role builder to bob")
 
 	if len(*got) != 0 {
 		t.Errorf("idempotent grant should not publish, got %d", len(*got))
@@ -168,7 +203,7 @@ func TestRevoke_RevokesAndPublishes(t *testing.T) {
 	admin := newRoleActor("Maerys", "p-admin", "admin")
 	env := command.Env{Bus: bus, GrantingRole: "admin", RoleTargetResolver: fakeRoleResolver{"bob": bob}}
 
-	dispatchRole(t, env, admin, "revoke builder from bob")
+	dispatchRole(t, env, admin, "revoke role builder from bob")
 
 	if bob.HasRole("builder") {
 		t.Error("role should be revoked")
@@ -189,7 +224,7 @@ func TestRevoke_IdempotentNoEvent(t *testing.T) {
 	admin := newRoleActor("Maerys", "p-admin", "admin")
 	env := command.Env{Bus: bus, GrantingRole: "admin", RoleTargetResolver: fakeRoleResolver{"bob": bob}}
 
-	dispatchRole(t, env, admin, "revoke builder from bob")
+	dispatchRole(t, env, admin, "revoke role builder from bob")
 	if len(*got) != 0 {
 		t.Errorf("idempotent revoke should not publish, got %d", len(*got))
 	}
@@ -202,7 +237,7 @@ func TestGrant_SelfBlocked(t *testing.T) {
 	admin := newRoleActor("Maerys", "p-admin", "admin")
 	env := command.Env{Bus: bus, GrantingRole: "admin", RoleTargetResolver: fakeRoleResolver{"maerys": admin}}
 
-	dispatchRole(t, env, admin, "grant builder to maerys")
+	dispatchRole(t, env, admin, "grant role builder to maerys")
 
 	if admin.HasRole("builder") {
 		t.Error("self-grant must be blocked even for an admin")
@@ -219,7 +254,7 @@ func TestGrant_SelfBlocked(t *testing.T) {
 func TestGrant_TargetNotOnline(t *testing.T) {
 	admin := newRoleActor("Maerys", "p-admin", "admin")
 	env := command.Env{GrantingRole: "admin", RoleTargetResolver: fakeRoleResolver{}}
-	dispatchRole(t, env, admin, "grant builder to ghost")
+	dispatchRole(t, env, admin, "grant role builder to ghost")
 	if !strings.Contains(strings.ToLower(admin.lastLine()), "online") {
 		t.Errorf("message = %q, want a not-online refusal", admin.lastLine())
 	}
@@ -229,27 +264,78 @@ func TestGrant_TargetNotOnline(t *testing.T) {
 func TestGrant_ResolverNilDisabled(t *testing.T) {
 	admin := newRoleActor("Maerys", "p-admin", "admin")
 	env := command.Env{GrantingRole: "admin"} // no RoleTargetResolver
-	dispatchRole(t, env, admin, "grant builder to bob")
+	dispatchRole(t, env, admin, "grant role builder to bob")
 	if !strings.Contains(admin.lastLine(), "not enabled") {
 		t.Errorf("message = %q, want 'not enabled'", admin.lastLine())
 	}
 }
 
-// Bad argument forms render usage; the lenient parser accepts both
-// `grant <role> to <player>` and `grant <role> <player>`.
+// Bad argument forms render usage; the parser accepts both
+// `grant <kind> <value> to <player>` and `grant <kind> <value> <player>`.
 func TestGrant_UsageAndLenientParse(t *testing.T) {
 	admin := newRoleActor("Maerys", "p-admin", "admin")
 	bob := newRoleActor("Bob", "p-bob")
 	env := command.Env{GrantingRole: "admin", RoleTargetResolver: fakeRoleResolver{"bob": bob}}
 
-	dispatchRole(t, env, admin, "grant builder") // too few args
+	dispatchRole(t, env, admin, "grant role builder") // too few args (no target)
 	if !strings.Contains(admin.lastLine(), "Usage") {
 		t.Errorf("message = %q, want usage", admin.lastLine())
 	}
 
-	// No preposition — lenient parse should still work.
-	dispatchRole(t, env, admin, "grant builder bob")
+	// No preposition — the parser still works.
+	dispatchRole(t, env, admin, "grant role builder bob")
 	if !bob.HasRole("builder") {
-		t.Error("`grant <role> <player>` (no preposition) should work")
+		t.Error("`grant <kind> <value> <player>` (no preposition) should work")
+	}
+}
+
+// The mandatory kind is validated: an unknown kind renders an error listing the
+// kinds and changes nothing.
+func TestGrant_UnknownKindRefused(t *testing.T) {
+	admin := newRoleActor("Maerys", "p-admin", "admin")
+	bob := newRoleActor("Bob", "p-bob")
+	env := command.Env{GrantingRole: "admin", RoleTargetResolver: fakeRoleResolver{"bob": bob}}
+
+	// The pre-generalization form `grant admin to bob` now parses kind="admin",
+	// which is not a known kind.
+	dispatchRole(t, env, admin, "grant admin to bob")
+	if !strings.Contains(admin.lastLine(), "Unknown kind") {
+		t.Errorf("message = %q, want an unknown-kind error", admin.lastLine())
+	}
+	if bob.HasRole("admin") {
+		t.Error("an unknown kind must not mutate anything")
+	}
+}
+
+// A non-role kind (feat) grants and revokes through the generalized path.
+func TestGrant_NonRoleKind(t *testing.T) {
+	admin := newRoleActor("Maerys", "p-admin", "admin")
+	bob := newRoleActor("Bob", "p-bob")
+	env := command.Env{GrantingRole: "admin", RoleTargetResolver: fakeRoleResolver{"bob": bob}}
+
+	dispatchRole(t, env, admin, "grant feat power-attack to bob")
+	if !bob.hasAttr("feat", "power-attack") {
+		t.Error("feat grant should land on the target")
+	}
+	// `skill` is an alias for `ability`.
+	dispatchRole(t, env, admin, "grant skill pistols to bob")
+	if !bob.hasAttr("ability", "pistols") {
+		t.Error("`skill` alias should grant an ability")
+	}
+	dispatchRole(t, env, admin, "revoke feat power-attack from bob")
+	if bob.hasAttr("feat", "power-attack") {
+		t.Error("feat revoke should remove it")
+	}
+}
+
+// The self-block is ROLE-only: an admin may grant themselves a non-role
+// attribute (a test feat) — that's not privilege escalation.
+func TestGrant_NonRoleSelfAllowed(t *testing.T) {
+	admin := newRoleActor("Maerys", "p-admin", "admin")
+	env := command.Env{GrantingRole: "admin", RoleTargetResolver: fakeRoleResolver{"maerys": admin}}
+
+	dispatchRole(t, env, admin, "grant feat power-attack to maerys")
+	if !admin.hasAttr("feat", "power-attack") {
+		t.Error("self-granting a non-role attribute should be allowed")
 	}
 }

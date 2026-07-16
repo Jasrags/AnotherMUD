@@ -533,8 +533,14 @@ while closed, and the two sides stay in sync.
 - [x] `purge bandit` — removes the mob from the world.
 - [x] `announce Server test in progress` — all connected players see the
       broadcast.
-- [x] `grant builder to playerone` then `revoke builder from playerone` — role changes (playerone
-      sees nothing player-facing; verify via `inspect playerone`).
+- [ ] `grant role builder to playerone` then `revoke role builder from playerone` — role
+      changes (playerone sees nothing player-facing; verify via `inspect playerone`).
+      The verb now takes a KIND: `grant <kind> <value> to <player>` where kind is
+      role / feat / ability (alias skill) / recipe / language. Try
+      `grant feat power-attack to playerone`, `grant skill pistols to playerone`,
+      `grant language ogier to playerone` — verify each via `inspect playerone`.
+      A bogus value ("no feat named …") or unknown kind is refused; the old
+      un-kinded `grant admin to playerone` now reports an unknown kind.
 - [x] `xp 1000` — grants XP to yourself (admin probe).
 - [x] `reload` — reloads pack Lua scripts. The **count comes back to your
       client**: "Reloaded N script(s)." (core ships one — `track_kills.lua`).

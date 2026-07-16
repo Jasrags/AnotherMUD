@@ -10,17 +10,34 @@ import (
 	"github.com/Jasrags/AnotherMUD/internal/logging"
 )
 
-// RoleController is the authorization surface the grant/revoke verbs need
-// on a character: the read check (HasRole) plus the mutators (Grant/Revoke),
-// each reporting whether the set actually changed. The session connActor
-// satisfies it. Defined here so the command package doesn't import session.
-type RoleController interface {
-	HasRole(role string) bool
-	Grant(role string) bool  // returns whether the set changed (idempotent)
-	Revoke(role string) bool // returns whether the set changed (idempotent)
-	Name() string
+// GrantTarget is the mutation surface the generalized grant/revoke verbs need
+// on the TARGET character: identity plus the polymorphic attribute mutators.
+// GrantAttribute/RevokeAttribute dispatch a canonical kind ("role"/"feat"/
+// "ability"/"recipe"/"language") to the right store, returning whether the set
+// changed (idempotency) and a user-facing error when the value doesn't name a
+// real thing. The session connActor satisfies it; defined here so the command
+// package doesn't import session.
+type GrantTarget interface {
 	PlayerID() string
+	Name() string
+	GrantAttribute(kind, value string) (changed bool, err error)
+	RevokeAttribute(kind, value string) (changed bool, err error)
 }
+
+// grantKinds maps a kind keyword (including the `skill` alias for `ability`) to
+// its canonical name. The command owns this vocabulary; the target's
+// GrantAttribute owns the mutation.
+var grantKinds = map[string]string{
+	"role":     "role",
+	"feat":     "feat",
+	"ability":  "ability",
+	"skill":    "ability", // alias
+	"recipe":   "recipe",
+	"language": "language",
+}
+
+// grantKindList is the canonical kind set for the usage message.
+var grantKindList = []string{"role", "feat", "ability", "recipe", "language"}
 
 // RoleHolder is the minimal read surface the dispatcher's admin gate needs
 // from an actor — just the authorization check (admin-verbs §2). connActor
@@ -34,131 +51,153 @@ type RoleHolder interface {
 // Env.AdminRole is unset (admin-verbs §8 — conventionally `admin`).
 const defaultAdminRole = "admin"
 
-// RoleTargetResolver maps a player name to the live RoleController of an
-// ONLINE character (roles-and-permissions §4 — v1 grants/revokes target
-// online players; offline targets are deferred per §9). Returns
-// (nil, false) when no such player is currently logged in.
+// RoleTargetResolver maps a player name to the live GrantTarget of an ONLINE
+// character (admin-verbs — v1 grants/revokes target online players; offline
+// targets are deferred). Returns (nil, false) when no such player is currently
+// logged in. (Name kept for back-compat; it now resolves a full GrantTarget.)
 type RoleTargetResolver interface {
-	ResolveRoleTarget(name string) (RoleController, bool)
+	ResolveRoleTarget(name string) (GrantTarget, bool)
 }
 
-// defaultGrantingRole is used when Context.GrantingRole is unset so role
-// administration still works out of the box (roles-and-permissions §8 —
-// the granting role is configuration, conventionally `admin`).
+// defaultGrantingRole is used when Context.GrantingRole is unset so grant
+// administration still works out of the box (admin-verbs §8 — the granting role
+// is configuration, conventionally `admin`).
 const defaultGrantingRole = "admin"
 
-// GrantHandler implements `grant <role> to <player>`
-// (roles-and-permissions §4): an actor holding the granting role grants a
-// role to another online character.
+// GrantHandler implements `grant <kind> <value> to <player>` (admin-verbs): an
+// actor holding the granting role adds an attribute (role/feat/ability/recipe/
+// language) to another online character.
 func GrantHandler(ctx context.Context, c *Context) error {
-	return roleChange(ctx, c, true)
+	return grantChange(ctx, c, true)
 }
 
-// RevokeHandler implements `revoke <role> from <player>`.
+// RevokeHandler implements `revoke <kind> <value> from <player>`.
 func RevokeHandler(ctx context.Context, c *Context) error {
-	return roleChange(ctx, c, false)
+	return grantChange(ctx, c, false)
 }
 
-// roleChange is the shared grant/revoke path. granting selects the
-// direction; everything else (gate, parse, self-block, idempotency, event)
-// is identical.
-func roleChange(ctx context.Context, c *Context, granting bool) error {
+// grantChange is the shared grant/revoke path across all kinds. granting
+// selects the direction; the gate, parse, self-block, idempotency, and the
+// (role-only) event are otherwise identical.
+func grantChange(ctx context.Context, c *Context, granting bool) error {
 	verb, prep, done := "grant", "to", "Granted"
 	if !granting {
 		verb, prep, done = "revoke", "from", "Revoked"
 	}
 
-	// Gate + parse + resolve the target (refusals written inside). A nil
-	// target means a refusal already went out; return its (possible) write
-	// error.
-	target, role, refusal := resolveRoleChange(ctx, c, verb, prep)
+	// Gate + parse + resolve (refusals written inside). A nil target means a
+	// refusal already went out; return its (possible) write error.
+	target, kind, value, refusal := resolveGrantChange(ctx, c, verb, prep)
 	if target == nil {
 		return refusal
 	}
 
-	var changed bool
+	var (
+		changed bool
+		err     error
+	)
 	if granting {
-		changed = target.Grant(role)
+		changed, err = target.GrantAttribute(kind, value)
 	} else {
-		changed = target.Revoke(role)
+		changed, err = target.RevokeAttribute(kind, value)
+	}
+	if err != nil {
+		// A validation failure (no such feat/ability/recipe/language) — the
+		// target's error text is user-appropriate.
+		return c.Actor.Write(ctx, capitalize(err.Error())+".")
 	}
 	if !changed {
-		// Idempotent no-op (§2): granting a held role / revoking an unheld
-		// one changes nothing and emits no event.
+		// Idempotent no-op: granting a held attribute / revoking an unheld one.
 		state := "already has"
 		if !granting {
 			state = "doesn't have"
 		}
-		return c.Actor.Write(ctx, fmt.Sprintf("%s %s the %q role.", target.Name(), state, role))
+		return c.Actor.Write(ctx, fmt.Sprintf("%s %s the %q %s.", target.Name(), state, value, kind))
 	}
 
-	// §7 — emit the observable fact, only on an actual change.
-	if granting {
-		c.Publish(ctx, eventbus.RoleGranted{Actor: c.Actor.PlayerID(), Target: target.PlayerID(), Role: role})
-	} else {
-		c.Publish(ctx, eventbus.RoleRevoked{Actor: c.Actor.PlayerID(), Target: target.PlayerID(), Role: role})
+	// Roles keep their observable events (the role-change subscriber / audit key
+	// on them). Other kinds are v1-silent — add a per-kind event when a consumer
+	// needs one. Only on an actual change.
+	if kind == "role" {
+		if granting {
+			c.Publish(ctx, eventbus.RoleGranted{Actor: c.Actor.PlayerID(), Target: target.PlayerID(), Role: value})
+		} else {
+			c.Publish(ctx, eventbus.RoleRevoked{Actor: c.Actor.PlayerID(), Target: target.PlayerID(), Role: value})
+		}
 	}
-	logging.From(ctx).Info("role "+verb,
+	logging.From(ctx).Info(verb+" "+kind,
 		slog.String("actor", c.Actor.PlayerID()),
 		slog.String("target", target.PlayerID()),
-		slog.String("role", role))
+		slog.String("kind", kind),
+		slog.String("value", value))
 
-	return c.Actor.Write(ctx, fmt.Sprintf("%s %q %s %s.", done, role, prep, target.Name()))
+	return c.Actor.Write(ctx, fmt.Sprintf("%s %s %q %s %s.", done, kind, value, prep, target.Name()))
 }
 
-// resolveRoleChange runs the gate → parse → resolve → self-block prologue
-// shared by grant and revoke. On any refusal it writes the message and
-// returns a nil target (with the Write's error, if any); on success it
-// returns the resolved (target, normalized-role).
-func resolveRoleChange(ctx context.Context, c *Context, verb, prep string) (RoleController, string, error) {
+// resolveGrantChange runs the gate → parse → kind-resolve → target-resolve →
+// self-block prologue. On any refusal it writes the message and returns a nil
+// target; on success it returns (target, canonical kind, value).
+func resolveGrantChange(ctx context.Context, c *Context, verb, prep string) (GrantTarget, string, string, error) {
 	grantingRole := c.GrantingRole
 	if grantingRole == "" {
 		grantingRole = defaultGrantingRole
 	}
 
-	// Gate: the actor must hold the granting role. Refuse WITHOUT
-	// disclosing the gating role's existence or name (§3) — a generic
-	// refusal, the same an unprivileged player gets for anything.
-	actor, ok := c.Actor.(RoleController)
+	// Gate: the actor must hold the granting role. Refuse WITHOUT disclosing the
+	// gating role's existence or name — a generic refusal.
+	actor, ok := c.Actor.(RoleHolder)
 	if !ok || !actor.HasRole(grantingRole) {
-		return nil, "", c.Actor.Write(ctx, "You can't do that.")
+		return nil, "", "", c.Actor.Write(ctx, "You can't do that.")
 	}
 
-	role, targetName, ok := parseRoleArgs(c.Args)
+	kindWord, value, targetName, ok := parseGrantArgs(c.Args)
 	if !ok {
-		return nil, "", c.Actor.Write(ctx, fmt.Sprintf("Usage: %s <role> %s <player>", verb, prep))
+		return nil, "", "", c.Actor.Write(ctx, fmt.Sprintf(
+			"Usage: %s <kind> <value> %s <player>  (kinds: %s)", verb, prep, strings.Join(grantKindList, ", ")))
 	}
-	role = strings.ToLower(strings.TrimSpace(role))
+	kind, ok := grantKinds[strings.ToLower(kindWord)]
+	if !ok {
+		return nil, "", "", c.Actor.Write(ctx, fmt.Sprintf(
+			"Unknown kind %q. Kinds: %s.", kindWord, strings.Join(grantKindList, ", ")))
+	}
+	// All grantable ids are lower-case by convention (roles are case-insensitive;
+	// feat/ability/recipe/language are authored lower-case), so normalize here —
+	// the display, the event, and the mutation all see the canonical form.
+	value = strings.ToLower(value)
 
 	if c.RoleTargetResolver == nil {
-		return nil, "", c.Actor.Write(ctx, "Role administration is not enabled.")
+		return nil, "", "", c.Actor.Write(ctx, "Grant administration is not enabled.")
 	}
 	target, ok := c.RoleTargetResolver.ResolveRoleTarget(targetName)
 	if !ok {
-		return nil, "", c.Actor.Write(ctx, fmt.Sprintf("No one named %q is online.", targetName))
+		return nil, "", "", c.Actor.Write(ctx, fmt.Sprintf("No one named %q is online.", targetName))
 	}
 
-	// §1.1 — not self-service: a character cannot grant or revoke their own
-	// roles, even an admin. Privilege comes from someone else (or the seed).
-	if target.PlayerID() != "" && target.PlayerID() == c.Actor.PlayerID() {
-		return nil, "", c.Actor.Write(ctx, fmt.Sprintf("You can't %s roles %s yourself.", verb, prep))
+	// Not self-service for ROLES: a character cannot grant/revoke their own
+	// roles, even an admin (privilege comes from someone else). Non-role
+	// attributes (a test feat/skill) may be self-granted — that's not an
+	// escalation, and it's convenient for GMing.
+	if kind == "role" && target.PlayerID() != "" && target.PlayerID() == c.Actor.PlayerID() {
+		return nil, "", "", c.Actor.Write(ctx, fmt.Sprintf("You can't %s roles %s yourself.", verb, prep))
 	}
 
-	return target, role, nil
+	return target, kind, value, nil
 }
 
-// parseRoleArgs extracts (role, targetName) from `<role> [to|from] <player>`.
-// Lenient on the middle preposition: role is the first token, target the
-// last, so both `grant admin alice` and `grant admin to alice` parse. ok is
-// false with fewer than two meaningful tokens or when role == target.
-func parseRoleArgs(args []string) (role, target string, ok bool) {
-	if len(args) < 2 {
-		return "", "", false
+// parseGrantArgs extracts (kind, value, targetName) from
+// `<kind> <value> [to|from] <player>`. kind is the first token, value the
+// second, target the last (the middle preposition is optional and ignored, and
+// values are single-token content ids). ok is false with fewer than three
+// meaningful tokens.
+func parseGrantArgs(args []string) (kind, value, target string, ok bool) {
+	if len(args) < 3 {
+		return "", "", "", false
 	}
-	role = strings.TrimSpace(args[0])
+	kind = strings.TrimSpace(args[0])
+	value = strings.TrimSpace(args[1])
 	target = strings.TrimSpace(args[len(args)-1])
-	if role == "" || target == "" || strings.EqualFold(role, target) {
-		return "", "", false
+	if kind == "" || value == "" || target == "" {
+		return "", "", "", false
 	}
-	return role, target, true
+	return kind, value, target, true
 }
