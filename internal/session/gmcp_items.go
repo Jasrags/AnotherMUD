@@ -33,6 +33,9 @@ func (m *Manager) FlushGmcpItems(ctx context.Context) {
 			continue
 		}
 		a.flushGmcpItems(ctx)
+		// web-client-plan P3: the rich structured inventory rides the same
+		// poll pass (same snapshot inputs). A baseline client ignores it.
+		a.flushGmcpInventory(ctx)
 	}
 }
 
@@ -192,5 +195,8 @@ func (a *connActor) resetGmcpItemsShadow() {
 	a.gmcpItemsLastValid = false
 	a.gmcpItemsLastInv = nil
 	a.gmcpItemsLastWear = nil
+	// The rich Char.Inventory shadow shares this lock + reattach seam.
+	a.gmcpInventoryValid = false
+	a.gmcpInventoryLast = nil
 	a.gmcpItemsMu.Unlock()
 }

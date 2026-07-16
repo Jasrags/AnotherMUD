@@ -147,11 +147,31 @@ correctness precondition.
   login → Room.Map on the wire → re-centres on a step). This establishes the
   additive-package pattern; further packages (structured inventory, forms) follow
   the same shape.
-- **P3+ — enriched surfaces.** Structured inventory (drag-drop → equip/drop),
-  crafting/trade **forms** (`Client.Form` + submit → the craft/trade services),
-  portraits, responsive/mobile. Each is one additive package (server state) + one
-  intent (client→command), never new authority. The web-admin console (BACKLOG)
-  is a natural tenant.
+- **P3 — enriched surfaces.**
+  - **Slice A — structured inventory. DONE (full `inventory`/`equipment`
+    parity).** `Char.Inventory` (server→client): the actor's carried + worn
+    items, mirroring the two CLI verbs. Carried items are **stacked** (M21
+    `stacking.Service` — 18 bolts on one row), except ammunition holders (clips),
+    listed individually with their own load state. Worn is the **full slot
+    layout in registration order, empty slots included** (via the slot registry),
+    a spanning item under each slot it fills. Every item carries an optional
+    plain-text **detail** (a clip's `15/15 APDS`, `Armor 4`, `+1 Intuition`, a
+    wielded gun's `7 rds APDS`) and its **affordances** as `{label, cmd}` pairs:
+    `equip`/`unequip`/`drop` plus `reload` (a holder-fed firearm) / `load` (a
+    reload-gated crossbow). Each `cmd` is the FULL command string (bare `reload`
+    for a wielded gun vs `reload <clip>` for a carried clip), so the client sends
+    exactly what a player would type — the authority invariant, no new server
+    verb. A rich superset of `Char.Items.List` (which stays for baseline
+    clients), emitted on the same `gmcp-items-flush` poll pass with its own
+    marshaled-bytes shadow; a baseline client ignores it. Ruleset-agnostic wire.
+    Guarded by `internal/gmcp` payload-shape tests, `internal/session`
+    builder/flusher tests (`gmcp_inventory_test.go`), and the env-gated
+    `TestLive_GmcpInventory` (live boot: carried + the 9-slot worn layout on the
+    wire).
+  - **Slice B+ — forms.** Crafting/trade **forms** (`Client.Form` + submit → the
+    craft/trade services), portraits, responsive/mobile. Each is one additive
+    package (server state) + one intent (client→command), never new authority.
+    The web-admin console (BACKLOG) is a natural tenant.
 
 ## 5. Open questions (non-blocking; settle when the phase reaches them)
 

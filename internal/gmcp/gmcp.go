@@ -52,6 +52,21 @@ const (
 	// changed since last emission.
 	PackageCharItemsList = "Char.Items.List"
 
+	// PackageCharInventory — the RICH structured inventory (web-client-plan
+	// P3): carried + worn items with per-item AFFORDANCES (the actions that
+	// apply: equip/unequip/drop) and, for worn items, the slot they occupy.
+	// A superset of Char.Items.List's flat {id,name} pairs — a capable client
+	// renders a real inventory panel with per-item action buttons; a baseline
+	// client keeps consuming Char.Items.List and ignores this one (the
+	// additive-contract invariant). Poll-and-diff like Char.Items.List; at
+	// most one frame per session per tick, only when the snapshot changed.
+	//
+	// Ruleset-agnostic: `actions` carry generic ENGINE-COMMAND verbs (equip/
+	// unequip/drop), NOT setting vocabulary — the client sends `<action>
+	// <keyword>`, an intent that reduces to the exact command a player would
+	// type (the authority invariant). No new server authority is introduced.
+	PackageCharInventory = "Char.Inventory"
+
 	// PackageCharCombat — current combat status: in-combat flag,
 	// primary target name + id + HP. Poll-and-diff like
 	// Char.Vitals; at most one frame per session per tick, only
@@ -304,6 +319,78 @@ type CharItem struct {
 type CharItemsList struct {
 	Location string     `json:"location"`
 	Items    []CharItem `json:"items"`
+}
+
+// CharInventory is the Char.Inventory payload (web-client-plan P3) — the
+// actor's carried and worn items with per-item affordances, mirroring what the
+// in-game `inventory`/`equipment` verbs show. Richer than Char.Items.List
+// (which stays for baseline clients): it groups by carried vs. worn, stacks
+// identical items, carries a per-item mechanical detail line, names the slot a
+// worn item occupies (empty slots included), and tags each item with the
+// actions that apply — so a client can draw a working inventory panel without
+// a second round-trip.
+//
+// Both slices are non-nil (possibly empty) — a nil slice marshals as JSON
+// `null`, ambiguous with "no change"; the builder initializes via make(...)
+// so the wire always carries `[]`.
+type CharInventory struct {
+	Carried []InventoryItem `json:"carried"`
+	Worn    []WornItem      `json:"worn"`
+}
+
+// InvAction is one affordance on an inventory/worn item: a display label plus
+// the FULL command string to send. Carrying the whole command (not just a verb
+// the client appends an argument to) keeps the authority invariant airtight and
+// handles the cases where the argument differs from the item's keyword — a worn
+// firearm's `reload` targets the wielded weapon (bare `reload`, no arg), while a
+// carried clip's `reload <clip>` fills that clip. The client renders `label` and
+// sends `cmd` verbatim; `cmd` is always a command a player could type.
+type InvAction struct {
+	Label string `json:"label"`
+	Cmd   string `json:"cmd"`
+}
+
+// InventoryItem is one carried (unequipped) row in a CharInventory.
+//
+//   - id — the runtime entity id (opaque row key; the stack's first item).
+//   - name — the display name the panel renders.
+//   - qty — the stack size when stack-identical items are grouped into one row
+//     (inventory-equipment-items §5), e.g. 12 crossbow bolts on one line. Omitted
+//     when 1 (a client reads a missing qty as a single item). Ammunition holders
+//     (clips) are listed INDIVIDUALLY (never stacked) so each shows its own load
+//     state, matching the CLI.
+//   - detail — an optional plain-text mechanical readout (a clip's "15/15 APDS"
+//     / "empty"), the ruleset-agnostic analogue of the CLI's inline ammo tag.
+//   - actions — the affordances that apply (equip/drop/reload), each a
+//     {label, cmd}. Generic command verbs, not setting vocabulary.
+type InventoryItem struct {
+	ID      string      `json:"id"`
+	Name    string      `json:"name"`
+	Qty     int         `json:"qty,omitempty"`
+	Detail  string      `json:"detail,omitempty"`
+	Actions []InvAction `json:"actions"`
+}
+
+// WornItem is one equipment-slot row in a CharInventory — occupied OR empty, in
+// slot-registration order, mirroring the `equipment` verb (so the panel shows
+// the full slot layout, not just filled slots).
+//
+//   - slot — the equipment slot name (always present; the row's group key).
+//   - empty — true for an unoccupied slot; the id/name/detail/actions omit.
+//   - id/name — the equipped item (occupied rows only).
+//   - detail — an optional plain-text mechanical readout: stat modifiers +
+//     armor bonus ("+1 Intuition", "Armor 4") and a wielded firearm's ammo
+//     state ("7 rds APDS" / "empty"), the analogue of the CLI's worn readout.
+//   - actions — the affordances (unequip, plus reload/load for a wielded
+//     ranged weapon), each a {label, cmd}. A spanning item (a two-handed weapon)
+//     appears under each slot it fills, exactly as the `equipment` verb lists it.
+type WornItem struct {
+	Slot    string      `json:"slot"`
+	Empty   bool        `json:"empty,omitempty"`
+	ID      string      `json:"id,omitempty"`
+	Name    string      `json:"name,omitempty"`
+	Detail  string      `json:"detail,omitempty"`
+	Actions []InvAction `json:"actions,omitempty"`
 }
 
 // CharCombat is the spec §7 Char.Combat payload — the actor's

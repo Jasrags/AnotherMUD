@@ -775,6 +775,8 @@ func run(ctx context.Context, c conn.Connection, cfg Config) error {
 		players:       cfg.Players,
 		world:         cfg.World,
 		roomMapRadius: cfg.RoomMapRadius,
+		stacking:      cfg.Stacking,
+		slots:         cfg.Slots,
 		faction:       cfg.Faction,
 		reputation:    cfg.Reputation,
 		prof:          cfg.Proficiency,
@@ -1976,6 +1978,16 @@ type connActor struct {
 	// neighbourhood reaches). From Config.RoomMapRadius; 0 falls back to the
 	// package default at emit time.
 	roomMapRadius int
+	// stacking is the M21 stack-grouping service (from Config.Stacking), held so
+	// the Char.Inventory flusher (web-client P3) collapses stack-identical carried
+	// items into one row with a quantity — the same grouping the CLI `inventory`
+	// display uses. nil-safe: a nil service falls back to one row per item.
+	stacking *stacking.Service
+	// slots is the equipment-slot registry (from Config.Slots), held so the
+	// Char.Inventory flusher enumerates EVERY slot in registration order —
+	// including empty ones — the way the `equipment` verb does. nil-safe: a nil
+	// registry falls back to listing only occupied slots.
+	slots *slot.Registry
 
 	// prof is the M9.1 ProficiencyManager reference captured at
 	// actor construction. Persist snapshots the actor's
@@ -2665,6 +2677,12 @@ type connActor struct {
 	gmcpItemsLastInv   []gmcp.CharItem
 	gmcpItemsLastWear  []gmcp.CharItem
 	gmcpItemsLastValid bool
+	// gmcpInventory* are the web-client-plan P3 shadow for the rich
+	// Char.Inventory package. Marshaled-bytes shadow (like Char.Vitals) since
+	// the payload nests slices; guarded by gmcpItemsMu — it rides the same
+	// gmcp-items-flush pass as the Char.Items.List shadow above.
+	gmcpInventoryLast  []byte
+	gmcpInventoryValid bool
 
 	// gmcpCombat* are the M16.4d shadow for Char.Combat. Single
 	// snapshot per actor since each player has at most one primary

@@ -37,6 +37,9 @@ const el = {
   effectsList: $("effects-list"),
   xp: $("p-xp"),
   xpTracks: $("xp-tracks"),
+  inventory: $("p-inventory"),
+  invWorn: $("inv-worn"),
+  invCarried: $("inv-carried"),
 };
 
 const escapeHtml = (s) =>
@@ -214,9 +217,10 @@ const gmcpHandlers = {
   "Room.Map": renderRoomMap,
   "Char.Effects": renderEffects,
   "Char.Experience": renderXp,
+  "Char.Inventory": renderInventory,
   // Char.Items.List / Char.StatusVars / Comm.Channel.Text / Char.Wizard are
-  // received but not yet surfaced in P1 — dispatched to a no-op so unknown
-  // packages never throw. (P2+ add panels; the wire already carries them.)
+  // received but not yet surfaced — dispatched to a no-op so unknown packages
+  // never throw. (Char.Inventory is the P3 richer superset of Char.Items.List.)
 };
 
 function dispatchGmcp(pkg, data) {
@@ -333,6 +337,68 @@ function renderXp(d) {
     })
     .join("");
 }
+
+/* ── Inventory (Char.Inventory, P3) ───────────────────────────────
+ * The rich structured-inventory package, mirroring the in-game inventory/
+ * equipment verbs: carried + worn items, stacked counts, a mechanical detail
+ * line (ammo/armor/mods), the full worn-slot layout (empties included), and
+ * per-item action buttons. Each action carries its FULL command string, so a
+ * click sends exactly the command a player would type (the authority
+ * invariant). Nothing here computes game state — it is a view + a richer input
+ * surface over the existing equip/unequip/drop/reload/load commands. */
+
+// actionButtons renders one button per affordance; each carries the full
+// command to send (data-cmd), so the client never guesses an argument.
+function actionButtons(actions) {
+  return (actions || [])
+    .map(
+      (a) =>
+        `<button class="inv-btn" type="button" data-cmd="${escapeHtml(a.cmd)}">${escapeHtml(a.label)}</button>`
+    )
+    .join("");
+}
+
+// itemRow renders an occupied row: name, optional stack count, optional detail
+// (ammo/armor/mods), and its action buttons.
+function itemRow(item) {
+  const qty = item.qty > 1 ? `<span class="inv-qty">×${item.qty}</span>` : "";
+  const detail = item.detail ? `<span class="inv-detail">${escapeHtml(item.detail)}</span>` : "";
+  return `<div class="inv-item">
+    <span class="inv-name">${escapeHtml(item.name || "")}${qty}${detail}</span>
+    <span class="inv-actions">${actionButtons(item.actions)}</span>
+  </div>`;
+}
+
+// wornRow renders one equipment slot: the slot label plus either "(empty)" or
+// the equipped item's row.
+function wornRow(w) {
+  const body = w.empty
+    ? `<span class="inv-empty">(empty)</span>`
+    : itemRow(w);
+  return `<div class="inv-slot-row"><span class="inv-slot">${escapeHtml(w.slot || "")}</span>${body}</div>`;
+}
+
+function renderInventory(d) {
+  el.inventory.hidden = false;
+  const worn = (d && d.worn) || [];
+  const carried = (d && d.carried) || [];
+  el.invWorn.innerHTML = worn.length
+    ? worn.map(wornRow).join("")
+    : `<div class="empty">No equipment slots.</div>`;
+  el.invCarried.innerHTML = carried.length
+    ? carried.map(itemRow).join("")
+    : `<div class="empty">Nothing carried.</div>`;
+}
+
+// An action button sends its command; cancels any active click-to-walk (a
+// manual action interrupts the walk, same as typing a command).
+el.inventory.addEventListener("click", (e) => {
+  const b = e.target.closest(".inv-btn");
+  if (b && conn.socket) {
+    walkTo = null;
+    sendCommand(b.dataset.cmd);
+  }
+});
 
 /* ── Room + neighbourhood map ─────────────────────────────────────
  * Room.Info drives the Location panel and a fallback minimap (visited rooms

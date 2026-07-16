@@ -152,6 +152,50 @@ func TestCharItems_LocationConstants(t *testing.T) {
 	}
 }
 
+func TestCharInventory_PackageConstant(t *testing.T) {
+	if gmcp.PackageCharInventory != "Char.Inventory" {
+		t.Errorf("PackageCharInventory = %q, want Char.Inventory", gmcp.PackageCharInventory)
+	}
+}
+
+func TestCharInventory_PayloadShape(t *testing.T) {
+	// A carried stacked item with a drop action, a carried clip with an ammo
+	// detail + reload action, an occupied worn slot with a detail, and an empty
+	// worn slot (id/name/detail/actions all omitted).
+	out, _ := json.Marshal(gmcp.CharInventory{
+		Carried: []gmcp.InventoryItem{
+			{ID: "item:2", Name: "a crossbow bolt", Qty: 12, Actions: []gmcp.InvAction{{Label: "drop", Cmd: "drop bolt"}}},
+			{ID: "item:4", Name: "an Ares Predator V clip", Detail: "15/15 APDS", Actions: []gmcp.InvAction{{Label: "reload", Cmd: "reload clip"}, {Label: "drop", Cmd: "drop clip"}}},
+		},
+		Worn: []gmcp.WornItem{
+			{Slot: "body", ID: "item:3", Name: "an armored vest", Detail: "Armor 4", Actions: []gmcp.InvAction{{Label: "unequip", Cmd: "unequip vest"}}},
+			{Slot: "head", Empty: true},
+		},
+	})
+	want := `{"carried":[` +
+		`{"id":"item:2","name":"a crossbow bolt","qty":12,"actions":[{"label":"drop","cmd":"drop bolt"}]},` +
+		`{"id":"item:4","name":"an Ares Predator V clip","detail":"15/15 APDS","actions":[{"label":"reload","cmd":"reload clip"},{"label":"drop","cmd":"drop clip"}]}` +
+		`],"worn":[` +
+		`{"slot":"body","id":"item:3","name":"an armored vest","detail":"Armor 4","actions":[{"label":"unequip","cmd":"unequip vest"}]},` +
+		`{"slot":"head","empty":true}` +
+		`]}`
+	if string(out) != want {
+		t.Errorf("payload = %q,\nwant       %q", string(out), want)
+	}
+}
+
+func TestCharInventory_EmptySlicesMarshalAsArrays(t *testing.T) {
+	// Non-nil empty slices must serialize as [] (not null) so a client reading
+	// "carried is empty" isn't ambiguous with "no change".
+	out, _ := json.Marshal(gmcp.CharInventory{
+		Carried: []gmcp.InventoryItem{},
+		Worn:    []gmcp.WornItem{},
+	})
+	if string(out) != `{"carried":[],"worn":[]}` {
+		t.Errorf("empty payload = %q, want {\"carried\":[],\"worn\":[]}", string(out))
+	}
+}
+
 func TestCharCombat_NotInCombatOmitsTargetFields(t *testing.T) {
 	// in_combat=false → just the flag; target_* fields all omit
 	// so the panel can hide the target tile.

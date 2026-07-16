@@ -28,6 +28,15 @@ No build step, no dependencies — three static files (`index.html`, `app.css`,
     there** — the client paths on the graph and sends move commands step by step,
     so a locked door just stops the walk. Without `Room.Map` (a baseline server)
     it degrades to a visited-only minimap.
+  - **Inventory** — carried + worn items from the `Char.Inventory` package (P3),
+    mirroring the in-game `inventory`/`equipment` verbs: the full worn-slot
+    layout (empty slots included), carried items with **stack counts** (a
+    crossbow bolt ×18), a **mechanical detail** line (a clip's `15/15 APDS`,
+    armor's `Armor 4`, cyberware's `+1 Intuition`, a wielded gun's `7 rds APDS`),
+    and per-item **action buttons** (`equip`/`unequip`/`drop`/`reload`/`load`).
+    Each action carries its full command, so a click sends exactly what a player
+    would type (the authority invariant; no new server verb). A rich superset of
+    `Char.Items.List`; a baseline client ignores it.
   - **Effects** — active effects from `Char.Effects`.
   - **Progression** — per-track level/XP bars from `Char.Experience`.
   - **Identity** — name/account/race/class from `Char.Login` + `Char.Status`.
@@ -115,10 +124,12 @@ in through the normal prompts (create an account / character just like telnet).
 
 - **`ws://` is unencrypted.** For anything past localhost use `wss://` behind a
   TLS terminator; see the WebSocket TLS/rate-limit deferral (`m16-5`).
-- **No enriched packages yet.** P1 consumes only the *existing* 11 GMCP packages.
-  Rich additive packages (interactive map beyond `Room.Info`, structured
-  inventory, forms) are **P2+** — see the plan doc. `Char.Items.List`,
-  `Char.StatusVars`, `Comm.Channel.Text`, and `Char.Wizard` arrive on the wire
-  but aren't surfaced yet (dispatched to a no-op, so they never error).
+- **Enriched packages, so far.** Two rich additive packages are surfaced beyond
+  the baseline: `Room.Map` (the neighbourhood map, P2) and `Char.Inventory` (the
+  structured inventory panel, P3). Still on the wire but not yet surfaced:
+  `Char.Items.List` (superseded by `Char.Inventory` for the panel),
+  `Char.StatusVars`, `Comm.Channel.Text`, and `Char.Wizard` — dispatched to a
+  no-op, so they never error. Crafting/trade **forms** (`Client.Form`) are the
+  next P3 slice — see the plan doc.
 - **Password masking is a heuristic** (the prompt text mentions "password").
   It's a local convenience, not a security boundary.
