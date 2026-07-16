@@ -127,12 +127,14 @@ correctness precondition.
 
 - **P0 — DONE.** WS+GMCP transport, coordinate `Room.Info`, generalized
   `Char.Vitals.pools`. The baseline data a HUD/map needs is already on the wire.
-- **P1 — the superset baseline (no new packages).** A browser client shell:
-  connect over WS, send `command` envelopes, render `text`, and consume the
-  *existing* 11 GMCP packages — a resource HUD from `Char.Vitals` (incl. the pools
-  map), a map from `Room.Info` coords, combat/effects/experience panels. Proves C
-  end-to-end with zero server change. This is the first real deliverable and
-  de-risks the whole theme.
+- **P1 — the superset baseline (no new packages). DONE (`f179749`) → `clients/web/`.**
+  A pure-browser shell (no build step): connect over WS, send `command`, render
+  `text` (ANSI→HTML), and consume the existing packages — a resource HUD from
+  `Char.Vitals` (incl. the `pools` map), a coordinate minimap from `Room.Info`,
+  and combat/effects/experience/identity panels. Clicking an exit sends the move
+  command (authority invariant). Proved C end-to-end with **zero server change**;
+  guarded by `TestLive_WebClientWSFrontDoor` (a real WS client hits the running
+  `/mud`). De-risked the theme — the wire as it stands already drives a real HUD.
 - **P2 — first rich additive package + intent.** One vertical slice that needs
   the additive contract: e.g. an interactive map (`Room.Map` server→client) whose
   node-click walks there (a `Client.Do`/move intent client→server). Establishes
