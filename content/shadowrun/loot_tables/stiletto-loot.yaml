@@ -1,0 +1,16 @@
+# Loot for the Rusted Stilettos (loot-and-corpses §3). Barrens ork muscle — a
+# spare blade, street cred on a stick, and now and then the gang's own colours.
+id: stiletto-loot
+weighted:
+  - { item: caseless-round, weight: 2 }
+  - { item: nuyen, weight: 1 }
+pool_rolls: 1
+# A small chance to drop the gang's colours off the body — proof, or a disguise.
+rare_bonus:
+  chance: 20
+  entries:
+    - { item: stiletto-colours, weight: 2 }
+    - { item: combat-knife, weight: 1 }
+coin:
+  min: 25
+  max: 65

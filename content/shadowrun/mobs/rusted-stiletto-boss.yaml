@@ -1,0 +1,36 @@
+id: rusted-stiletto-boss
+name: Rebar
+xp_value: 66  # a named-boss kill (grouping.md §4) — the Stiletto warlord
+type: npc
+behavior: stationary
+description: |
+  Rebar earned his name and his rank the same way — with a length of reinforcing
+  steel and a refusal to go down. A troll the size of a doorway in rust-and-black
+  plate, he runs the Rusted Stilettos out of the Avondale chop-shop and has held
+  the biggest turf in the Barrens for longer than most gangers stay alive. He
+  does not negotiate with strangers and he does not forget a slight; the Blazer
+  scars on his hide are courtesy of the Halloweeners, and he intends to return
+  them with interest.
+tags: [humanoid, metahuman, ganger, stiletto, outlaw]
+keywords: [rebar, stiletto, boss, troll, warlord, ganger]
+# Hostile to outsiders — but a runner who's run for the Stilettos (standing at or
+# above a contact, faction.md §6) is one of Rebar's own.
+disposition_rules:
+  default: hostile
+  rules:
+    - faction: rusted-stilettos
+      min_standing: 1
+      reaction: neutral
+faction: rusted-stilettos
+# A length of rebar (a brutal club) and heavy plate — reliable melee, no ammo to
+# manage. The combat axe stands in for the signature steel; it drops on death.
+equipment: [combat-axe, armor-vest]
+stats:
+  hp_max: 40
+  body: 7
+  agility: 3
+  reaction: 3
+  strength: 7
+  willpower: 4
+  intuition: 3
+loot_table: stiletto-loot

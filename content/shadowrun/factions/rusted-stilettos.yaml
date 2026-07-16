@@ -1,0 +1,14 @@
+# The Rusted Stilettos (faction.md §2) — the ork-and-troll go-gang that holds
+# Avondale in the Redmond Barrens, major territory holders and casually
+# anti-human. The Halloweeners' rivals: run for one and you burn the other. A
+# runner in good standing is a "brother" they won't jump; everyone else is prey.
+# Rank ladder/bounds/starting default come from the engine config.
+id: rusted-stilettos
+name: The Rusted Stilettos
+description: |
+  Ork and troll muscle in rust-and-black synthleather, the Rusted Stilettos hold
+  the biggest turf in the Redmond Barrens by being the meanest thing in it. They
+  run on metahuman solidarity and human resentment in equal measure, and they
+  have a long memory for who stood with them and who burned them — the
+  Halloweeners chief among the latter. Cross them and the whole gang comes for
+  you; run with them and you've got the roughest friends in Redmond.

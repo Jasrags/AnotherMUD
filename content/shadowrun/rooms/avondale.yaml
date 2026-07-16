@@ -4,16 +4,16 @@ name: "{r}Avondale{x}"
 description: |
   Gang colours drown every wall — the Rusted Stilettos hold Avondale, and they
   want you to know it. Stripped cars burn at the kerb, ork silhouettes watch from
-  the rooftops, and the air stinks of scorched plastic and cordite. Nothing here
-  is friendly. Sophocles lies back to the south.
+  the rooftops, and the air stinks of scorched plastic and cordite. This is the
+  heart of the turf: Rebar holds court here, and nothing near him is friendly.
+  The chop-shop and the only way out lie back to the south.
 terrain: barrens
 exits:
-  south: sophocles
-# A hostile dead-end: a Rusted Stiletto holds the turf whether or not anyone is
-# running a job here (static world flavour). The run's extra scavengers + the
-# courier's chip are NOT placed here — they are spawned by the quest when a
-# runner reaches this stage and cleaned up when it ends (quest-spawns.md; see
-# the `spawns` block in quests/johnsons-run.yaml), so the world isn't littered
-# with quest props for players who aren't on the run.
+  south: stiletto-garage
+# The Stiletto stronghold: Rebar (the boss) and his muscle hold it whether or not
+# anyone is running a job here (static world flavour). Quest props are spawned in
+# by the quests that need them and cleaned up after (quest-spawns.md), so the
+# world isn't littered for players who aren't on the run.
 mobs:
-  - ganger
+  - rusted-stiletto-boss
+  - rusted-stiletto

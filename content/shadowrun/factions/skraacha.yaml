@@ -1,0 +1,14 @@
+# The Skraacha (faction.md §2) — the ork gang turned community defenders and
+# de-facto government of the Ork Underground. Unlike the Barrens go-gangs they
+# are not hostile by default: they protect their own and welcome those who help
+# the undercity. Standing rises by defending the community and falls hard by
+# preying on it — cross the Skraacha and the militia hunts you through their own
+# tunnels. Rank ladder/bounds/starting default come from the engine config.
+id: skraacha
+name: The Skraacha
+description: |
+  Once an ork gang, now the shield and the law of the Ork Underground: the
+  Skraacha keep the undercity's quarters safe, settle its disputes, and answer
+  anyone who brings violence to their people. They remember who stood with the
+  community and who bled it. Earn their trust and you walk the tunnels as a
+  friend; betray it, and there is nowhere down here the Skraacha cannot reach you.

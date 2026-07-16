@@ -1,0 +1,58 @@
+# "Rust Never Sleeps" — the Rusted Stilettos' initiation run (quests spec), the
+# mirror of the Halloweeners' "Trial by Fire". Grinder sends a hopeful to hit the
+# rival Halloweeners in Hollywood and bring back a mask. Completing it earns
+# Stiletto standing (enough to be read as a contact, faction.md §6) AND burns
+# Halloweener standing — the two-sided Redmond gang war, made mechanical.
+id: stiletto-initiation
+name: Rust Never Sleeps
+classification: side
+giver: stiletto-recruiter
+offer: >-
+  Grinder's grinder-arm spins up with a shriek. "So you wanna run with the
+  Stilettos. Fine. Those Halloweener freaks been torching our turf and I'm sick
+  of it. Get up to their Pumpkin Lot, geek one of the masked drekheads, and bring
+  me his mask off the body. You do that, you're rust-and-black. You don't, you're
+  nothing — same as always."
+turn_in: true
+abandonable: true
+prerequisite:
+  min_level: 1
+stages:
+  - id: into-hollywood
+    description: The Halloweeners hold Hollywood, east of Sophocles in the Redmond Barrens.
+    hint: The Pumpkin Lot is Halloweener turf — through Hollywood, east of Sophocles.
+    objectives:
+      - type: visit
+        target: the-pumpkin-lot
+        description: Reach the Pumpkin Lot, the Halloweeners' turf.
+  - id: the-hit
+    description: Put a Halloweener down and take his mask off the body — the proof Grinder wants.
+    hint: Geek a Halloweener in the Pumpkin Lot and grab the jack-o'-lantern mask he drops.
+    # Quest-scoped spawns (quest-spawns.md): a Halloweener and a mask appear when
+    # the runner arrives and are cleaned up when the run ends.
+    spawns:
+      - { kind: mob, template: halloweener, room: the-pumpkin-lot }
+      - { kind: item, template: jack-o-lantern-mask, room: the-pumpkin-lot }
+    objectives:
+      - type: kill
+        target: halloweener
+        count: 1
+        description: Geek a Halloweener in the Pumpkin Lot.
+      - type: collect
+        target: jack-o-lantern-mask
+        description: Take the Halloweener's mask as proof.
+reward:
+  xp: 180
+  gold: 1500
+  reputation: 1
+  # The initiation trophy — welcome to the gang; wear the colours and Avondale
+  # knows you.
+  items:
+    - stiletto-colours
+  # The earn that matters — enough Stiletto standing to read as a contact — and
+  # the cost: burning the Halloweeners hard the other way (the gang war).
+  faction:
+    - faction: rusted-stilettos
+      delta: 150
+    - faction: halloweeners
+      delta: -100

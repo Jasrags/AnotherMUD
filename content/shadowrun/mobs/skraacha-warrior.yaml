@@ -11,11 +11,19 @@ description: |
   leaves the Underground to the Skraacha.
 tags: [humanoid, metahuman, skraacha]
 keywords: [skraacha, warrior, ork, defender, soldier]
-# Not a mark and not a mugger — the community's militia. Friendly to anyone who
-# doesn't bring trouble down here; the disposition system turns him hostile only
-# if attacked.
+# The community's militia: friendly to anyone who doesn't bring trouble down
+# here — but a runner who's PREYED on the undercity (Skraacha standing fallen
+# below Neutral, faction.md §6) is a known enemy, and the Skraacha hunt their
+# own tunnels. An untouched runner reads at the starting Neutral and is welcomed.
 disposition_rules:
   default: friendly
+  rules:
+    - faction: skraacha
+      max_standing: -1
+      reaction: hostile
+# Faction membership (faction.md §5.2): killing a Skraacha shifts the killer's
+# standing with the community hard by the on-kill delta.
+faction: skraacha
 # Riot gear and a heavy stick — he answers trouble with a beating (subdual), not
 # a killing, unless pressed.
 equipment: [extendable-baton, armored-jacket]

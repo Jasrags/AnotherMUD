@@ -1,0 +1,49 @@
+# "Vermin" — the Skraacha's community-defence run (quests spec). The Skraacha
+# warrior, being friendly, gives it directly (no recruiter needed): the devil-rat
+# broods in the deep dark are multiplying and threatening the warrens, and the
+# undercity needs them culled. Completing it earns Skraacha standing — the way an
+# outsider becomes a friend of the community rather than a stranger in it.
+id: skraacha-cull
+name: Vermin
+classification: side
+giver: skraacha-warrior
+offer: >-
+  The Skraacha warrior looks you over and, deciding you'll do, speaks low. "You
+  want to be more than a stranger down here? Then earn it. The devil-rat broods in
+  the deep dark are spilling up into the warrens — they've taken children. Go down
+  and put the brood-mother in the ground, and thin her get while you're at it. Do
+  that, and the Underground owes you."
+turn_in: true
+abandonable: true
+prerequisite:
+  min_level: 1
+stages:
+  - id: into-the-deep
+    description: The broods nest in the deep dark, the flooded tunnels below the warrens.
+    hint: Head down through the warrens, west of the market, to the deep dark.
+    objectives:
+      - type: visit
+        target: the-deep-dark
+        description: Reach the deep dark below the warrens.
+  - id: the-cull
+    description: Put down the devil-rat brood-mother and thin her brood.
+    hint: Kill the brood-mother and a few of the devil rats nesting in the deep dark.
+    objectives:
+      - type: kill
+        target: devil-rat-brood-mother
+        count: 1
+        description: Kill the devil-rat brood-mother.
+      - type: kill
+        target: devil-rat
+        count: 2
+        description: Thin the devil-rat brood.
+reward:
+  xp: 170
+  gold: 1200
+  reputation: 1
+  # The earn that matters: enough Skraacha standing to be counted a friend of the
+  # undercity. Prey on the community instead and this axis runs the other way —
+  # below Neutral, the Skraacha turn hostile.
+  faction:
+    - faction: skraacha
+      delta: 150

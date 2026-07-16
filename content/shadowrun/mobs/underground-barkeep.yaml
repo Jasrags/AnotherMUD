@@ -11,9 +11,12 @@ description: |
   Underground, and forgets none of it.
 tags: [humanoid, metahuman]
 keywords: [barkeep, troll, matron, bartender, host]
-# The host of a safe hub — friendly to everyone who behaves.
+# The host of a safe hub — friendly to everyone who behaves. A pillar of the
+# community: she carries the Skraacha faction, so spilling blood in her bar costs
+# the killer standing with the whole undercity (faction.md §5.2).
 disposition_rules:
   default: friendly
+faction: skraacha
 stats:
   hp_max: 38
   body: 7

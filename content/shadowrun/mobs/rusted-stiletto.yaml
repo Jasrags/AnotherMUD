@@ -1,0 +1,36 @@
+id: rusted-stiletto
+name: a Rusted Stiletto
+xp_value: 34  # kill experience (grouping.md §4)
+type: npc
+behavior: stationary
+description: |
+  A heavyset ork in rust-and-black synthleather, the gang's blade-and-gear patch
+  across the back and a monofilament stiletto worked between scarred knuckles. The
+  Rusted Stilettos hold Avondale by being meaner than whatever else the Barrens
+  can throw, and this one eyes you the way the gang eyes anyone who isn't one of
+  theirs — as something between an intruder and a meal.
+tags: [humanoid, metahuman, ganger, stiletto, outlaw]
+keywords: [stiletto, rusted, ganger, ork, punk]
+# Hostile to outsiders — but a runner who's earned Stiletto standing (a contact,
+# faction.md §6) runs the turf as a brother.
+disposition_rules:
+  default: hostile
+  rules:
+    - faction: rusted-stilettos
+      min_standing: 1
+      reaction: neutral
+# Faction membership (faction.md §5.2): geeking a Stiletto shifts the killer's
+# standing with the gang by the on-kill delta.
+faction: rusted-stilettos
+# A monofilament blade and a jacket — the stiletto routes lethal (Physical); a
+# stun baton still KOs him via his Stun monitor.
+equipment: [combat-knife, armored-jacket]
+stats:
+  hp_max: 22
+  body: 4
+  agility: 4
+  reaction: 3
+  strength: 4
+  willpower: 3
+  intuition: 2
+loot_table: stiletto-loot

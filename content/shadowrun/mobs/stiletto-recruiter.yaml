@@ -1,0 +1,26 @@
+id: stiletto-recruiter
+name: Grinder
+type: npc
+behavior: stationary
+description: |
+  Grinder runs the Avondale chop-shop and, when Rebar allows it, the gang's
+  recruiting: a wiry ork with a cybernetic arm ending in a permanently-mounted
+  angle grinder, sparks and all. He talks to outsiders where the rank and file
+  would just swing, because someone has to size up the strays who wander in
+  looking for work — and lately the Stilettos need every blade they can get
+  against the Halloweeners.
+tags: [humanoid, metahuman, stiletto, ganger]
+keywords: [grinder, recruiter, stiletto, ork, contact, mechanic]
+# The gang's outward face — neutral by default, so a stranger can approach for the
+# initiation. He carries the faction, so geeking him still costs standing.
+disposition_rules:
+  default: neutral
+faction: rusted-stilettos
+stats:
+  hp_max: 24
+  body: 4
+  agility: 4
+  reaction: 3
+  strength: 4
+  willpower: 3
+  intuition: 3

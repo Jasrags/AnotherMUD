@@ -1,0 +1,17 @@
+id: stiletto-garage
+area: seattle-redmond
+name: "{y}The Avondale Chop-Shop{x}"
+description: |
+  The Rusted Stilettos run their turf from a gutted auto-shop on the Avondale
+  line, bays full of stripped bikes and hot cars in mid-rebirth, the air blue with
+  cutting-torch smoke. This is the gang's front door and its business end both:
+  Grinder works the recruiting here where an outsider can still be talked to,
+  because past this point, deeper into Avondale, the Stilettos do their talking
+  with steel. Sophocles and its barricades lie back south; the heart of the turf
+  waits north.
+terrain: barrens
+exits:
+  south: sophocles
+  north: avondale
+mobs:
+  - stiletto-recruiter

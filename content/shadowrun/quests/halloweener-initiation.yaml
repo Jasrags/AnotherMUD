@@ -28,14 +28,15 @@ stages:
   - id: the-burn
     description: Put a Stiletto down and take his colours off the body — the only proof Sparkler will accept.
     hint: Geek a Rusted Stiletto in Avondale and grab the colours he drops.
-    # Quest-scoped spawns (quest-spawns.md): a Stiletto and his colours appear
-    # when the runner arrives and are cleaned up when the run ends.
+    # Quest-scoped spawns (quest-spawns.md): the proof appears when the runner
+    # arrives and is cleaned up when the run ends. The Stilettos themselves are
+    # the real, static occupants of Avondale (Rebar and his crew) — no need to
+    # spawn a mark.
     spawns:
-      - { kind: mob, template: ganger, room: avondale }
       - { kind: item, template: stiletto-colours, room: avondale }
     objectives:
       - type: kill
-        target: ganger
+        target: rusted-stiletto
         count: 1
         description: Geek a Rusted Stiletto in Avondale.
       - type: collect
@@ -49,7 +50,10 @@ reward:
   items:
     - jack-o-lantern-mask
   # The earn that matters: enough Halloweener standing to read as a contact, so
-  # the grunts and Samhain (min_standing rule) no longer attack on sight.
+  # the grunts and Samhain (min_standing rule) no longer attack on sight — and the
+  # cost: burning a Stiletto turns the whole rust-and-black crew against you.
   faction:
     - faction: halloweeners
       delta: 150
+    - faction: rusted-stilettos
+      delta: -100
