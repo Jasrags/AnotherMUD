@@ -3,6 +3,8 @@ package economy
 import (
 	"context"
 	"testing"
+
+	"github.com/Jasrags/AnotherMUD/internal/item"
 )
 
 // seedSaleItem spawns a tagged item into the shopper's inventory and returns
@@ -94,6 +96,32 @@ func TestSell_CategoryGate(t *testing.T) {
 			t.Fatalf("Outcome = %v, want ShopOK (ungated shop buys anything)", res.Outcome)
 		}
 	})
+}
+
+// TestShopBuysAnything covers the boot-audit helper: explicit Buys or a
+// derivable Sells category is NOT open; a shop with neither IS.
+func TestShopBuysAnything(t *testing.T) {
+	tpls := item.NewTemplates()
+	tpls.Add(valTpl("sr:armored-jacket", "an armored jacket", 200, "armor", "wearable"))
+	tpls.Add(valTpl("sr:silver-bar", "a silver bar", 500, "valuable", "metal")) // descriptors only
+
+	tests := []struct {
+		name string
+		cfg  ShopConfig
+		want bool
+	}{
+		{name: "explicit buys is not open", cfg: ShopConfig{Buys: []string{"cyberware"}}, want: false},
+		{name: "derivable sells is not open", cfg: ShopConfig{Sells: []string{"sr:armored-jacket"}}, want: false},
+		{name: "descriptor-only sells falls open", cfg: ShopConfig{Sells: []string{"sr:silver-bar"}}, want: true},
+		{name: "empty shop falls open", cfg: ShopConfig{}, want: true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := ShopBuysAnything(tpls, tt.cfg); got != tt.want {
+				t.Errorf("ShopBuysAnything = %v, want %v", got, tt.want)
+			}
+		})
+	}
 }
 
 // TestValue_CategoryGate: `value` on a held item the shop won't buy should not

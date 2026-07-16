@@ -246,6 +246,12 @@ func (s *ShopService) acceptsSale(shop ShopConfig, inst *entities.ItemInstance) 
 // empty map when nothing can be derived; the caller treats that as "buys
 // anything".
 func (s *ShopService) acceptedCategories(shop ShopConfig) map[string]bool {
+	return deriveAcceptedCategories(s.tpls, shop)
+}
+
+// deriveAcceptedCategories is the tpls-parameterized core of acceptedCategories,
+// shared with the boot-time ShopBuysAnything audit so both read the same vocab.
+func deriveAcceptedCategories(tpls *item.Templates, shop ShopConfig) map[string]bool {
 	if len(shop.Buys) > 0 {
 		set := make(map[string]bool, len(shop.Buys))
 		for _, t := range shop.Buys {
@@ -255,12 +261,12 @@ func (s *ShopService) acceptedCategories(shop ShopConfig) map[string]bool {
 		}
 		return set
 	}
-	if s.tpls == nil {
+	if tpls == nil {
 		return nil
 	}
 	set := map[string]bool{}
 	for _, id := range shop.Sells {
-		tpl, err := s.tpls.Get(item.TemplateID(id))
+		tpl, err := tpls.Get(item.TemplateID(id))
 		if err != nil {
 			continue
 		}
@@ -271,6 +277,15 @@ func (s *ShopService) acceptedCategories(shop ShopConfig) map[string]bool {
 		}
 	}
 	return set
+}
+
+// ShopBuysAnything reports whether a shop's §3.6a buy gate is effectively open —
+// no explicit Buys and no category derivable from its Sells stock — so it will
+// buy any item. Boot-time callers warn on these so a shop that silently falls
+// open (stock tagged only with descriptors, or a category tag outside the
+// categoryTags vocabulary) surfaces at load rather than going quiet.
+func ShopBuysAnything(tpls *item.Templates, shop ShopConfig) bool {
+	return len(deriveAcceptedCategories(tpls, shop)) == 0
 }
 
 // ValueScope distinguishes which price Value returned (spec §3.9).

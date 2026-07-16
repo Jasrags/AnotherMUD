@@ -232,9 +232,27 @@ func shopConfigFromMob(mob *entities.MobInstance) economy.ShopConfig {
 	if !ok {
 		return economy.ShopConfig{}
 	}
+	cfg, _ := shopConfigFromRaw(raw)
+	return cfg
+}
+
+// ShopConfigFromProperties reads a shop config out of a template/entity property
+// map (the `shop` key). ok is false when there is no shop block — used by the
+// boot-time buy-gate audit to walk mob templates without an entities.MobInstance.
+func ShopConfigFromProperties(props map[string]any) (economy.ShopConfig, bool) {
+	if props == nil {
+		return economy.ShopConfig{}, false
+	}
+	return shopConfigFromRaw(props[shopProp])
+}
+
+// shopConfigFromRaw parses a `shop` property value (a normalized YAML map) into a
+// ShopConfig. ok is false when raw is absent or not a map. Shared by the
+// mob-instance and property-map entry points so both decode identically.
+func shopConfigFromRaw(raw any) (economy.ShopConfig, bool) {
 	block, ok := raw.(map[string]any)
 	if !ok {
-		return economy.ShopConfig{}
+		return economy.ShopConfig{}, false
 	}
 	return economy.ShopConfig{
 		Sells: stringSlice(block["sells"]),
@@ -251,7 +269,7 @@ func shopConfigFromMob(mob *entities.MobInstance) economy.ShopConfig {
 		MinStanding:  blockIntPtr(block["min_standing"]),
 		AllyStanding: blockInt(block["ally_standing"]),
 		AllyDiscount: floatProp(block["ally_discount"]),
-	}
+	}, true
 }
 
 // blockString coerces a shop-block value to a trimmed string, "" when absent /

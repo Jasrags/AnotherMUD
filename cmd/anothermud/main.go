@@ -1031,6 +1031,23 @@ func run() error {
 	// cancellable sink for shop.buy/shop.sell.
 	shopSvc := economy.NewShopService(registries.Items, entityStore, currencySvc, economy.DefaultEconomyConfig(), &shopSink{bus: bus})
 
+	// §3.6a buy-gate audit: warn on any shop whose accepted buy categories can't
+	// be derived — no explicit `buys:` list and no category-tagged `sells:` stock
+	// — so it silently falls open to buying anything. Surfaces authoring gaps (a
+	// category tag outside the economy vocabulary, or stock tagged only with
+	// descriptors) at boot instead of leaving them quiet.
+	for _, tpl := range registries.Mobs.All() {
+		shopCfg, isShop := command.ShopConfigFromProperties(tpl.Properties)
+		if !isShop {
+			continue
+		}
+		if economy.ShopBuysAnything(registries.Items, shopCfg) {
+			logging.From(ctx).Warn("shop buys anything (no derivable buy categories)",
+				"mob", string(tpl.ID),
+				"hint", "add an explicit `buys:` list or give `sells:` items category tags")
+		}
+	}
+
 	// M10.7-M10.10: quest service, now that the reward dependencies
 	// (manager, progression, proficiency, item templates, entity store,
 	// currency) all exist. Rewards grant XP / abilities / items / gold on
