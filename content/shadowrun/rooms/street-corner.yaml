@@ -5,8 +5,10 @@ description: |
   Neon signage stutters in a dozen languages above a corner that never quite
   dries out. A noodle stand hisses steam into the drizzle; a defunct ATM wears
   a skin of gang tags. Foot traffic hurries past with their collars up and
-  their eyes down. An alley cuts north into the dark, and the street runs east
-  toward the market stalls and the corp towers beyond.
+  their eyes down. Beside the noodle stand a fixer in a long coat leans over a
+  crate of wares, pricing your gear before you've said a word. An alley cuts
+  north into the dark, and the street runs east toward the market stalls and the
+  corp towers beyond.
 terrain: sprawl
 exits:
   north: back-alley

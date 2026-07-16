@@ -6,9 +6,11 @@ description: |
   ringed by arcologies whose logos turn slow against the drizzle. A dead fountain
   holds a skin of rainwater and cigarette ends, and grav-ads drift overhead
   murmuring corp slogans to no one. Office drones cut across in a hurry, eyes on
-  their commlinks. The corporate canyon of Fifth Avenue runs north, the neon of
-  Pike Street glows south, historic Pioneer Square lies east, and the cold air
-  off Elliott Bay drifts in from the west.
+  their commlinks. At the plaza's edge, where the grav-ads' glare thins to
+  shadow, a fixer in a long coat leans over a crate of wares — the sprawl's quiet
+  commerce running on under the corporate gaze. The corporate canyon of Fifth
+  Avenue runs north, the neon of Pike Street glows south, historic Pioneer Square
+  lies east, and the cold air off Elliott Bay drifts in from the west.
 terrain: sprawl
 exits:
   north: fifth-avenue

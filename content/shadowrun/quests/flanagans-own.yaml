@@ -21,7 +21,7 @@ prerequisite:
 stages:
   - id: scout
     description: Brian wants you to scope the prospective bar site on the edge of Glow City.
-    hint: The Edge of Glow City is out in the Puyallup Barrens, past the glow line.
+    hint: The Edge of Glow City is out in the Redmond Barrens, past the glow line.
     objectives:
       - type: visit
         target: glow-city-edge
