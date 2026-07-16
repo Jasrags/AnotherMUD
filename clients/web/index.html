@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>AnotherMUD — Web Client</title>
+    <link rel="stylesheet" href="app.css" />
+  </head>
+  <body>
+    <div class="app">
+      <!-- Connection bar -->
+      <header class="topbar">
+        <div class="brand">
+          <span class="brand-mark" aria-hidden="true"></span>
+          <span class="brand-name">AnotherMUD</span>
+          <span class="brand-sub">web client · P1</span>
+        </div>
+        <form class="conn" id="conn-form" autocomplete="off">
+          <label class="sr-only" for="conn-url">Server WebSocket URL</label>
+          <input
+            id="conn-url"
+            class="conn-url"
+            type="text"
+            spellcheck="false"
+            value="ws://localhost:4001/mud"
+            aria-label="Server WebSocket URL"
+          />
+          <button id="conn-btn" class="btn btn-primary" type="submit">Connect</button>
+          <span id="conn-status" class="conn-status" data-state="offline">
+            <span class="dot" aria-hidden="true"></span>
+            <span class="conn-label">Offline</span>
+          </span>
+        </form>
+      </header>
+
+      <main class="stage">
+        <!-- Terminal -->
+        <section class="terminal-wrap" aria-label="Game terminal">
+          <div id="terminal" class="terminal" role="log" aria-live="polite" tabindex="0"></div>
+          <form class="input-bar" id="input-form" autocomplete="off">
+            <span class="prompt-glyph" aria-hidden="true">›</span>
+            <input
+              id="cmd"
+              class="cmd"
+              type="text"
+              spellcheck="false"
+              autocapitalize="off"
+              placeholder="Type a command and press Enter…"
+              aria-label="Command input"
+              disabled
+            />
+            <button class="btn" id="send-btn" type="submit" disabled>Send</button>
+          </form>
+        </section>
+
+        <!-- HUD -->
+        <aside class="hud" aria-label="Character HUD">
+          <!-- Identity -->
+          <section class="panel panel-identity" id="p-identity" hidden>
+            <div class="ident-name" id="ident-name">—</div>
+            <div class="ident-sub" id="ident-sub"></div>
+          </section>
+
+          <!-- Vitals -->
+          <section class="panel" id="p-vitals" hidden>
+            <h2 class="panel-title">Vitals</h2>
+            <div class="bars" id="vitals-bars"></div>
+            <div class="sustenance" id="vitals-sustenance"></div>
+          </section>
+
+          <!-- Combat -->
+          <section class="panel panel-combat" id="p-combat" hidden>
+            <h2 class="panel-title">Combat</h2>
+            <div id="combat-body"></div>
+          </section>
+
+          <!-- Room -->
+          <section class="panel" id="p-room" hidden>
+            <h2 class="panel-title">Location</h2>
+            <div class="room-name" id="room-name">—</div>
+            <div class="room-meta" id="room-meta"></div>
+            <canvas class="minimap" id="minimap" width="220" height="220" aria-label="Local map"></canvas>
+            <div class="exits" id="room-exits"></div>
+          </section>
+
+          <!-- Effects -->
+          <section class="panel" id="p-effects" hidden>
+            <h2 class="panel-title">Effects</h2>
+            <ul class="effects" id="effects-list"></ul>
+          </section>
+
+          <!-- Experience -->
+          <section class="panel" id="p-xp" hidden>
+            <h2 class="panel-title">Progression</h2>
+            <div class="tracks" id="xp-tracks"></div>
+          </section>
+        </aside>
+      </main>
+    </div>
+
+    <script src="app.js"></script>
+  </body>
+</html>
