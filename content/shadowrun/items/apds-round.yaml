@@ -12,6 +12,9 @@ properties:
   stackable: true
   weight: 0
   value: 12
+  # sin-and-legality.md §2: armor-piercing ammo is Forbidden (SR5 "F"). Shadow
+  # supply only.
+  legality: forbidden
 # A graded bullet (ammo-and-reloading §8): same ammo_kind as a caseless round, so
 # it feeds any `bullet` weapon, but its `grade` confers a to-hit bonus. Loaded
 # into a clip, the grade travels with the clip to the shot (grade-through-holder).

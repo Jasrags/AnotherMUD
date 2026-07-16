@@ -1,0 +1,43 @@
+id: ares-arms-clerk
+name: an Ares Arms sales associate
+type: npc
+behavior: stationary
+description: |
+  Crisp corporate uniform, practiced smile, and a SIN-scanner mounted at the
+  counter that greets you before he does. This is a licensed Ares Arms boutique
+  on the corporate strip — chrome cases, glass shelves, and a strict policy: valid
+  credentials and the right permits, or nothing leaves the store. Everything here
+  is legal, taxed, and traceable. `list` to browse, `buy <item>` to deal — if your
+  papers clear.
+tags: [humanoid, shop]
+keywords: [clerk, associate, salesman, ares, ares arms, shopkeeper]
+# A legitimate corporate storefront under Downtown's AA security — friendly to a
+# paying customer, and the Knight Errant response is a room away if anyone tries
+# anything.
+disposition_rules:
+  default: friendly
+stats:
+  hp_max: 20
+  body: 3
+  willpower: 3
+# Shop config (economy-survival §3.1 + sin-and-legality.md §4). requires_license
+# makes this the LEGIT tier of the two-tier market: the counter scanner checks
+# every customer, so a SINless buyer is refused, and a restricted good (the
+# Predator needs a firearms license) needs a matching permit on a carried
+# credential. Contrast the black-market fixer, who sells the same Predator — and
+# forbidden goods the fixer stocks — to anyone, no papers. Ids are qualified
+# explicitly (the shop block is not namespace-rewritten).
+properties:
+  shop:
+    requires_license: true
+    # Sells legal and restricted goods only — a legit store never stocks
+    # forbidden goods (the fixer handles those). The Predator (restricted:
+    # firearms) needs a firearms license; the armor vest / clothing are legal and
+    # sell to anyone carrying any valid credential.
+    sells:
+      - shadowrun:ares-predator-v
+      - shadowrun:predator-clip-loaded
+      - shadowrun:caseless-round
+      - shadowrun:armor-vest
+      - shadowrun:armored-jacket
+    buys: [weapon, ammo, armor]

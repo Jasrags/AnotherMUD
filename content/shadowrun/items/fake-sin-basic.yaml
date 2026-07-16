@@ -1,0 +1,21 @@
+id: fake-sin-basic
+name: a basic fake SIN
+type: item
+description: |
+  A rating-2 System Identification Number burned onto a commlink cred-stick: a
+  passable citizen identity stitched together from dead records and a plausible
+  face. Good enough to satisfy a bored store clerk's scanner and carry a firearms
+  permit, but it won't survive a hard look from anyone who cares. Every runner's
+  first set of papers.
+tags: [credential, tradegood]
+keywords: [sin, fake sin, basic sin, credstick, papers, id]
+properties:
+  weight: 0
+  value: 5000
+  # sin-and-legality.md §3: a carried credential. `permits` clears restricted
+  # goods whose `permit` matches; here a firearms license. `credential_rating`
+  # is authored for the deferred Slice 2 verification/burn check — INERT in
+  # Slice 1 (the market gate never reads it). SR pricing: a fake SIN ≈ rating
+  # × 2,500¥.
+  permits: [firearms]
+  credential_rating: 2

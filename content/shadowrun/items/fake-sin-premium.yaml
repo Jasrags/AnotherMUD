@@ -1,0 +1,19 @@
+id: fake-sin-premium
+name: a premium fake SIN
+type: item
+description: |
+  A rating-4 SIN with the paper trail to back it up — tax filings, a rental
+  history, a decade of mundane purchases seeded into the grid by a forger who
+  charges accordingly. It carries both a firearms and a cyberware license and
+  holds up to the kind of scrutiny that burns a cheap fake on sight. This is what
+  you flash when you want to walk into a real store and walk out with real chrome.
+tags: [credential, tradegood]
+keywords: [sin, fake sin, premium sin, credstick, papers, id]
+properties:
+  weight: 0
+  value: 20000
+  # sin-and-legality.md §3: a higher-grade credential clearing two permit
+  # categories. `credential_rating` 4 is authored for the deferred Slice 2
+  # verification/burn check — INERT in Slice 1.
+  permits: [firearms, cyberware]
+  credential_rating: 4

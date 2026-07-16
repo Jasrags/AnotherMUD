@@ -114,6 +114,11 @@ type ShopConfig struct {
 	// pricing; it is capped (allyDiscountFor) so prices never invert.
 	AllyStanding int
 	AllyDiscount float64
+	// RequiresLicense marks a legitimate storefront that scans every customer
+	// (sin-and-legality.md §4): the buyer must carry a valid credential, and a
+	// restricted good needs a matching permit. Default false = a shadow vendor
+	// that applies no legality check (sells forbidden goods to anyone).
+	RequiresLicense bool
 }
 
 // buyerStanding resolves the buyer's standing with the shop's faction. ok=false
@@ -233,6 +238,18 @@ const (
 	// category tags. Distinct from ShopItemIsNoSell (the item refuses sale
 	// anywhere) — this particular shop just doesn't handle that kind of good.
 	ShopItemNotAccepted
+	// ShopSINRequired — a requires_license storefront refused a buyer carrying no
+	// valid credential (sin-and-legality.md §4.1). Skinned per pack as "no valid
+	// SIN".
+	ShopSINRequired
+	// ShopLicenseRequired — the buyer holds a credential but none lists the
+	// restricted item's permit (sin-and-legality.md §4.2). The required permit
+	// rides along (BuyResult.RequiredPermit) so the caller can name it.
+	ShopLicenseRequired
+	// ShopForbiddenGoods — a requires_license storefront won't sell a forbidden
+	// good regardless of papers (sin-and-legality.md §4.3). A backstop; legit
+	// shops normally don't stock contraband.
+	ShopForbiddenGoods
 )
 
 // Listing is one row of a shop's offered stock (spec §3.4).

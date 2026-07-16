@@ -39,3 +39,7 @@ mounts: [barrel, top, under-barrel]
 properties:
   weight: 2
   value: 725
+  # sin-and-legality.md §2: a heavy pistol is Restricted (SR5 "5R") — a legit
+  # store sells it only to a customer whose credential carries a firearms license.
+  legality: restricted
+  permit: firearms

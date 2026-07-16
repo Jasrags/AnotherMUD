@@ -285,6 +285,14 @@ The verbs players use and the systems that resolve them.
   Design ahead of code.
 - [economy-survival](economy-survival.md) — currency, shops,
   sustenance, rest, consumables.
+- [sin-and-legality](sin-and-legality.md) — the **legality / licensing**
+  extension of economy §3: gear tagged `legal` / `restricted` /
+  `forbidden`, a `requires_license` storefront that scans customers,
+  and carried **credential** items (permits) that clear the gate — a
+  two-tier legit-vs-shadow market. Setting-agnostic engine; the SR pack
+  skins a credential as a **fake SIN** and a permit as a **license**
+  (`sin` verb alias). Slice 1 = the market gate (no save bump);
+  verification / burn is a deferred Slice 2.
 - [crafting-and-cooking](crafting-and-cooking.md) — recipes,
   crafting skills (proficiency), tiered crafting stations, the
   quality roll (output = a rarity tier), recipe acquisition; and

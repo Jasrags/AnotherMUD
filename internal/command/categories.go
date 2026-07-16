@@ -178,6 +178,7 @@ var commandCategories = map[string]string{
 	"affects":   catCharacter,
 	"standing":  catCharacter,
 	"languages": catCharacter,
+	"licenses":  catCharacter,
 	"train":     catCharacter,
 	"practice":  catCharacter,
 	"learn":     catCharacter,

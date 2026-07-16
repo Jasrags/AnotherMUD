@@ -36,6 +36,12 @@ func BuyHandler(ctx context.Context, c *Context) error {
 		return c.Actor.Write(ctx, fmt.Sprintf("%s requires %s skill %d before you can buy it.", capitalize(res.ItemName), res.RequiredSkill, res.RequiredLevel))
 	case economy.ShopStandingTooLow:
 		return c.Actor.Write(ctx, "The shopkeeper refuses to deal with the likes of you.")
+	case economy.ShopSINRequired:
+		return c.Actor.Write(ctx, "The clerk runs a scanner over you and frowns. \"No valid credentials, no sale.\"")
+	case economy.ShopLicenseRequired:
+		return c.Actor.Write(ctx, fmt.Sprintf("%s is restricted — you'd need a valid %s license to buy it here.", capitalize(res.ItemName), res.RequiredPermit))
+	case economy.ShopForbiddenGoods:
+		return c.Actor.Write(ctx, fmt.Sprintf("No legitimate shop will sell you %s over the counter. Try the shadows.", res.ItemName))
 	default:
 		return c.Actor.Write(ctx, "The shop doesn't sell that.")
 	}
@@ -269,6 +275,9 @@ func shopConfigFromRaw(raw any) (economy.ShopConfig, bool) {
 		MinStanding:  blockIntPtr(block["min_standing"]),
 		AllyStanding: blockInt(block["ally_standing"]),
 		AllyDiscount: floatProp(block["ally_discount"]),
+		// requires_license §4: a legitimate storefront that scans customers and
+		// gates by item legality. Omitted = a shadow vendor (no legality check).
+		RequiresLicense: blockBool(block["requires_license"]),
 	}, true
 }
 
@@ -292,6 +301,13 @@ func blockInt(v any) int {
 	default:
 		return 0
 	}
+}
+
+// blockBool coerces a shop-block scalar to bool, false when absent / non-bool.
+// A YAML `true`/`false` decodes to a Go bool; a stray string is not coerced.
+func blockBool(v any) bool {
+	b, _ := v.(bool)
+	return b
 }
 
 // blockIntPtr coerces a numeric shop-block scalar to *int, nil when the key is

@@ -115,6 +115,9 @@ type BuyResult struct {
 	// ShopStandingTooLow outcome (faction.md §6) so the caller can report it.
 	RequiredStanding int
 	Faction          string
+	// RequiredPermit names the license category a ShopLicenseRequired refusal
+	// lacked (sin-and-legality.md §4.2) so the caller can report it.
+	RequiredPermit string
 }
 
 // Buy purchases an item from the shop's stock (spec §3.5). The player
@@ -132,6 +135,12 @@ func (s *ShopService) Buy(ctx context.Context, sh Shopper, npcID string, shop Sh
 	tpl := resolveStock(s.tpls, shop, query)
 	if tpl == nil {
 		return BuyResult{Outcome: ShopItemNotForSale}
+	}
+	// sin-and-legality.md §4 licensing gate: a requires_license storefront refuses
+	// a SINless buyer / a restricted good without a matching permit / any forbidden
+	// good, before pricing/charging. A shadow vendor (default) never refuses here.
+	if outcome, permit := s.refusesLicense(sh, shop, tpl); outcome != ShopOK {
+		return BuyResult{Outcome: outcome, ItemName: tpl.Name, RequiredPermit: permit}
 	}
 	// §7 availability by skill level: refuse a gated item the buyer's
 	// proficiency can't meet, before pricing/charging.

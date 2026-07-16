@@ -23,3 +23,6 @@ fire_modes: [single, burst, auto]
 properties:
   weight: 4
   value: 950
+  # sin-and-legality.md §2: a full-auto assault rifle is Forbidden (SR5 "F") — no
+  # legit store sells it over the counter, papers or not. Black-market only.
+  legality: forbidden

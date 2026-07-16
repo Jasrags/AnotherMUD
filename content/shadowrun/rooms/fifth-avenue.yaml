@@ -25,3 +25,7 @@ exits:
 # start it, but Downtown's fast AA response means she finishes it).
 mobs:
   - knight-errant-officer
+  # The licensed Ares Arms boutique on the corporate strip — the LEGIT tier of
+  # the market (sin-and-legality.md §4): its counter scanner gates every sale on
+  # a valid credential + the right permit, unlike the shadows' fixers.
+  - ares-arms-clerk

@@ -157,6 +157,7 @@ func RegisterBuiltins(r *Registry) error {
 		{Keyword: "practice", Handler: PracticeHandler, Brief: "Raise an ability's cap at a trainer.", Syntax: []string{"practice <ability>"}},
 		{Keyword: "feats", Handler: FeatsHandler, Brief: "List your feats and available feat slots.", Syntax: []string{"feats"}},
 		{Keyword: "languages", Aliases: []string{"langs"}, Handler: LanguagesHandler, Brief: "List the languages you speak.", Syntax: []string{"languages"}},
+		{Keyword: "licenses", Aliases: []string{"sin", "credentials"}, Handler: LicensesHandler, Brief: "Show the identity credentials you are carrying.", Syntax: []string{"licenses"}},
 		{Keyword: "feat", Handler: FeatHandler, Brief: "Spend a feat slot to take a feat.", Syntax: []string{"feat <name> [target]"}},
 		{Keyword: "learn", Handler: LearnHandler, Brief: "Learn a crafting discipline from a trainer.", Syntax: []string{"learn <discipline>"}},
 		{Keyword: "craft", Handler: CraftHandler, Brief: "Craft an item from a known recipe.", Syntax: []string{"craft", "craft <recipe>"}},

@@ -658,16 +658,21 @@ They cluster into three tiers: cheap-flavor (biome hazards, BTL, mana level), st
 (the SIN + security-response spine), and large parallel-space programs (Matrix, Astral).
 None block content authoring. Sizes: **S/M/L**.
 
-- **SINs / SINless + legality gating** — **M**. A legal-identity character attribute (a SIN,
-  plus **fake SINs** with a quality rating that can be *burned*) and a **SIN-check gate at
-  zone entries** (a movement/access gate on a new axis), with "SINless = invisible to law."
-  Restricted/Forbidden/Military gear (the tech-tier legality the gazetteer maps to rarity)
-  becomes a *carry/buy consequence* here, not just a display tier. Gate is shaped like the
-  shipped faction access-gate (`faction.md` — room/area access was itself deferred). The
-  spine of "the law reacts to you." Pre-decisions: SIN as a character attribute vs. an item
-  (a datachip); fake-SIN quality → burn-on-failed-check mechanic; where checks fire (area
-  entry vs. specific gate rooms); what "invisible to law" changes mechanically (skips the
-  security-response below).
+- **SINs / SINless + legality gating** — **✅ SLICE 1 SHIPPED (2026-07-16, `sin-and-legality.md`).**
+  The **two-tier market gate**: item `legality` (`legal`/`restricted`/`forbidden`) + a
+  `permit` category, a `requires_license` storefront that scans customers, and carried
+  **credential** items (fake SINs) whose `permits` clear the gate — SR content skins it as
+  SINs/licenses (`sin`/`licenses` verb), engine stays setting-agnostic; **no save bump**
+  (credentials are items). The pre-decision "SIN as attribute vs. item" resolved to **item**.
+  Demo: a licensed Ares Arms boutique on Fifth Avenue (legit tier) vs. the fixers (shadow
+  tier); restricted Predator + forbidden AK-97/APDS + restricted dermal plating; the fixer
+  sells rated fake SINs. **Deferred to Slice 2 (`sin-and-legality.md` §7):** verification /
+  **burn** (a scan roll against `credential_rating` — authored-but-inert today — that burns a
+  fake on failure; needs a check primitive + burned-state carrier + scanner content), the
+  active/broadcast-SIN model, and a **SIN-check gate at zone entries** (the movement/access
+  axis, interlocking with the security-response engine below). "SINless = invisible to law"
+  lands with that security-response work, not this slice. Remaining adjacent: **Lifestyle
+  upkeep** (a sustenance-style drain) and **contraband-on-movement / fast-travel** gating.
 - **Security zones as active response** — **M–L**. The zone *label* (AAA→Z) is a content
   area-property; the new engine piece is the **consequence engine**: a crime committed in a
   zone raises heat and schedules a **timed patrol response** (1d6 min in AAA, hours in Z),

@@ -17,3 +17,8 @@ armor_bonus: 2
 properties:
   weight: 0
   value: 31000
+  # sin-and-legality.md §2: implanted armour is Restricted (SR5 "12R") — a legit
+  # clinic installs it only for a customer whose credential carries a cyberware
+  # license.
+  legality: restricted
+  permit: cyberware

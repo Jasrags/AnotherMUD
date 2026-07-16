@@ -133,3 +133,10 @@ properties:
       # system onto a weapon's mount; carrying both grants the to-hit bonus.
       - shadowrun:smartlink
       - shadowrun:smartgun-system
+      # Fake SINs (sin-and-legality.md §3) — forged citizen identities that let a
+      # runner walk into a legit store and clear its scanner. The basic (rating 2)
+      # carries a firearms license; the premium (rating 4) adds cyberware and
+      # holds up to harder scrutiny. A payday's investment that opens the legal
+      # market — `licenses` (or `sin`) shows what papers you're holding.
+      - shadowrun:fake-sin-basic
+      - shadowrun:fake-sin-premium
