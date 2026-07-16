@@ -1,0 +1,15 @@
+id: soydog
+name: a Stuffer Shack soydog
+type: item
+description: |
+  A soy-protein tube in a soy bun, microwaved to the exact temperature of
+  "technically hot" and squirted with a stripe of something orange. The wrapper
+  promises REAL MEAT FLAVOR (analog). It is warm, it is filling, and after a
+  double shift nobody's complaining.
+tags: [food, consumable]
+keywords: [soydog, dog, hotdog, tube]
+properties:
+  weight: 1
+  value: 3
+  consume_method: eat
+  sustenance_value: 10

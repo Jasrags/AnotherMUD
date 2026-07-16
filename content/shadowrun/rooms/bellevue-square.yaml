@@ -5,17 +5,18 @@ description: |
   The heart of the enclave: a cathedral of retail under a vaulted glass roof,
   where corp families shop behind SIN-gates and private security outnumbers the
   customers. Everything gleams; nothing is out of place. A Knight Errant officer
-  watches the concourse with unhurried menace, and a Stuffer Shack franchise
-  glows in one corner, open all hours. Factoria lies south, the exec enclaves
-  east and west, and Bellevue Way runs north toward the 405.
+  watches the concourse with unhurried menace. In one corner an escalator drops
+  to the lower food court, where a Stuffer Shack glows orange and open all hours.
+  Factoria lies south, the exec enclaves east and west, and Bellevue Way runs
+  north toward the 405.
 terrain: corp-enclave
 exits:
   south: factoria
   north: bellevue-way
   east: medina
   west: hunts-point
+  down: stuffer-shack
 # A public, heavily-policed concourse: safe-room (nobody brawls under KE's eye).
 tags: [safe-room, safe]
 mobs:
   - knight-errant-officer
-  - stuffer-shack-clerk

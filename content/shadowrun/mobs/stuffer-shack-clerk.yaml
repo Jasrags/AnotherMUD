@@ -3,10 +3,11 @@ name: a Stuffer Shack clerk
 type: npc
 behavior: stationary
 description: |
-  A bored wageslave in an Aztechnology-orange Stuffer Shack tabard rings up soykaf
-  and ammo behind ballistic glass, one eye on the security feed. The Shack sells
-  the same forty products in every sprawl on Earth, legally, around the clock.
-  `list` the stock, `buy` what you need.
+  A bored wageslave in an Aztechnology-orange Stuffer Shack tabard works the
+  counter of the sprawl's most inevitable franchise: soykaf and soydogs under a
+  heat lamp, a wall of NutriSoy in forty flavors, the same forty in every Shack
+  on Earth — legal, cheap, and open around the clock. The register never closes,
+  and by the look of him neither does his shift.
 tags: [humanoid, shop]
 keywords: [clerk, wageslave, stuffer, shack, cashier]
 # A retail service NPC — friendly to everyone.
@@ -16,11 +17,13 @@ stats:
   hp_max: 18
   body: 2
   willpower: 2
-# Legit over-the-counter stock (economy-survival §3.1): ammo + basic defensive
-# armour, the legal end of the gear market. Ids qualified shadowrun:<id>.
+# Over-the-counter convenience stock (economy-survival §3.1): soy food + drink,
+# the legal front-of-house menu. The illicit product moves in the back kitchen,
+# off the register (see stuffer-shack-cook). Ids qualified shadowrun:<id>.
 properties:
   shop:
     sells:
-      - shadowrun:caseless-round
-      - shadowrun:predator-clip
-      - shadowrun:armor-vest
+      - shadowrun:soydog
+      - shadowrun:nutrisoy-chips
+      - shadowrun:soykaf
+      - shadowrun:synthahol

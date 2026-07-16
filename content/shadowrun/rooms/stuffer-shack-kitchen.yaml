@@ -1,0 +1,19 @@
+id: stuffer-shack-kitchen
+area: seattle-bellevue
+name: "{r}Stuffer Shack — Back Kitchen{x}"
+description: |
+  Behind the counter the franchise drops its smile: a cramped galley of fryers,
+  reconstitution vats, and a floor slick with soy grease under a flickering tube.
+  A single camera points pointedly at the wall it can't see past. This is where
+  the real menu lives — the line cook heats the food out front and moves other
+  product back here, quiet and cash-only, one eye on the door south to the
+  counter.
+terrain: indoors
+# Not a safe-room: the back of the house runs off the register and off the KE
+# feed. No spawns wired, but the concourse's protection ends at the swing door.
+properties:
+  light: dim
+exits:
+  south: stuffer-shack
+mobs:
+  - stuffer-shack-cook

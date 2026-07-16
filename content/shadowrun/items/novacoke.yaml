@@ -1,0 +1,15 @@
+id: novacoke
+name: a dose of novacoke
+type: item
+description: |
+  A twist of shimmering pink powder — a designer stimulant cut for the street,
+  the barrens' favorite way to feel invincible for an hour and worthless for a
+  day. Illegal in every enclave and sold in every alley. The back-of-house crew
+  moves it in soy-sauce packets, one hand washing the other.
+# Fenceable contraband, like the BTL chip: the stim high isn't modelled, so its
+# worth is what it moves for — buy it in the back, run it to a fixer for more.
+tags: [contraband, drug, tradegood]
+keywords: [novacoke, coke, nova, dose, powder, drug]
+properties:
+  weight: 0
+  value: 60

@@ -1,0 +1,27 @@
+id: stuffer-shack-cook
+name: a Stuffer Shack line cook
+type: npc
+behavior: stationary
+description: |
+  A wiry ork in a grease-slick apron works the fryers with one hand and the
+  security blind spot with the other. He'll heat your soydog and, if his read of
+  you comes back clean, sell you something the front counter can't. Nothing about
+  the second transaction touches the register.
+tags: [humanoid, shop]
+keywords: [cook, ork, line, dishwasher, worker, dealer]
+# A back-of-house dealer — wary, not hostile. Deals discreetly, cash only.
+disposition_rules:
+  default: neutral
+stats:
+  hp_max: 22
+  body: 4
+  willpower: 3
+# Off-book stock (economy-survival §3.1): fenceable contraband and a stim
+# cocktail, the illegal end of the menu the front counter can't ring up. Ids
+# qualified shadowrun:<id>.
+properties:
+  shop:
+    sells:
+      - shadowrun:novacoke
+      - shadowrun:btl-chip
+      - shadowrun:red-eye-cocktail

@@ -1,0 +1,22 @@
+id: stuffer-shack
+area: seattle-bellevue
+name: "{Y}Stuffer Shack{x}"
+description: |
+  Orange light and the hum of coolers: a Stuffer Shack crammed into a
+  lower-concourse corner, open all hours and proud of nothing. A counter of
+  scratched plastic runs one wall, a soykaf machine wheezing beside a heat-lamp
+  tray of soydogs, and chest-high shelves sag under NutriSoy in every number. A
+  wageslave works the register behind smeared ballistic glass. Steam and the
+  clatter of fryers drift from the kitchen north, and an escalator climbs back up
+  to the main concourse.
+terrain: indoors
+exits:
+  up: bellevue-square
+  north: stuffer-shack-kitchen
+# A bright, franchised, camera-covered storefront: safe-room like the concourse
+# above it — the trouble, such as it is, keeps to the back.
+properties:
+  light: lit
+tags: [safe-room, safe]
+mobs:
+  - stuffer-shack-clerk

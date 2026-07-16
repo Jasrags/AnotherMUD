@@ -1,0 +1,15 @@
+id: nutrisoy-chips
+name: a bag of NutriSoy chips
+type: item
+description: |
+  A crackling foil bag of extruded soy crisps, dusted in a flavor labeled only
+  by a number. They taste of salt and static and vanish by the handful. The
+  Shack stacks them to the ceiling; every runner has crushed a bag against a
+  keyboard at four in the morning.
+tags: [food, consumable]
+keywords: [chips, nutrisoy, crisps, bag, snack]
+properties:
+  weight: 0
+  value: 2
+  consume_method: eat
+  sustenance_value: 5
