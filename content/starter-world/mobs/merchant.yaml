@@ -21,6 +21,10 @@ disposition_rules:
 # namespaced (starter-world:<id>).
 properties:
   shop:
+    # A general-goods trader and the town's junk-sink: buys most portable wares
+    # a returning adventurer wants to offload (economy-survival §3.6a). The smith
+    # and cook keep their own narrower trades (weapons/tools, food).
+    buys: [weapon, armor, tool, gear, food, consumable, valuable, component, container, ingredient]
     sells:
       - starter-world:healing-draught
       - starter-world:leather-cap

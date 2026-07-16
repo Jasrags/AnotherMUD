@@ -18,6 +18,10 @@ disposition_rules:
   default: friendly
 properties:
   shop:
+    # A city general dealer — the capital's junk-sink where a returning party
+    # unloads salvage for coin (economy-survival §3.6a). Buys broadly across the
+    # portable trades; innkeepers/smiths keep their narrower lanes.
+    buys: [weapon, armor, tool, gear, food, consumable, valuable, component, container, ingredient, clothing, light, fuel]
     sells:
       - wot:trail-rations
       - wot:waterskin

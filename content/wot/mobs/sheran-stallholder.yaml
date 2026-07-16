@@ -18,6 +18,9 @@ disposition_rules:
   default: friendly
 properties:
   shop:
+    # Market Sheran's stallholder — the village's general market outlet
+    # (economy-survival §3.6a). Buys broadly across the portable trades.
+    buys: [weapon, armor, tool, gear, food, consumable, valuable, component, container, ingredient, clothing, light, fuel]
     sells:
       - wot:trail-rations
       - wot:waterskin

@@ -18,6 +18,9 @@ disposition_rules:
   default: friendly
 properties:
   shop:
+    # Baerlon's general dealer — the mining town's junk-sink and outfitter
+    # (economy-survival §3.6a). Buys broadly across the portable trades.
+    buys: [weapon, armor, tool, gear, food, consumable, valuable, component, container, ingredient, clothing, light, fuel]
     sells:
       - wot:trail-rations
       - wot:waterskin

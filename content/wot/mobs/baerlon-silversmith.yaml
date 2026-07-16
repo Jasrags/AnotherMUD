@@ -30,6 +30,11 @@ trainer:
     - silversmithing
 properties:
   shop:
+    # A silversmith deals in valuables — silver, plate, worked pieces — not iron
+    # or provisions (economy-survival §3.6a). Explicit because the stock's tags
+    # (valuable/metal) are descriptors, not categories, so without this the
+    # derived set would be empty and the shop would fall open to buying anything.
+    buys: [valuable]
     sells:
       # The practice stock: a silver bar is the silversmithing input, so a new
       # smith can learn -> buy a bar -> work it without a gathering chain (the
