@@ -125,6 +125,11 @@ This guarantees that progress records — which key on objective id
 — survive content edits that don't change semantics (e.g.
 reordering descriptions, fixing typos).
 
+A hand-authored objective id MUST NOT contain a colon (`:`): the
+§7.2 `quest_advance` payload splits on its final colon to separate
+the quest term from the objective id, so a colon in the id would
+make that objective unreachable via the side channel.
+
 ### 2.3 Required fields
 
 A definition MUST carry:
@@ -617,7 +622,13 @@ explicit, content-driven advancement and grant:
 - **`quest_advance` on the event payload.** If the event data
   carries a `quest_advance` string of the form
   `<packId>:<questId>:<objectiveId>`, the watcher MUST parse it
-  and advance the named objective by 1. Malformed strings are
+  and advance the named objective by 1. The objective id is the
+  final colon-separated segment; everything before it is the
+  quest term, resolved (bare or namespaced) through the registry.
+  The pickup handler populates the payload from the picked-up
+  item's `quest_advance` property; a script that publishes the
+  event MAY set it directly. Malformed strings, unknown quests,
+  and objectives the holder is not currently tracking are
   silently ignored.
 
 ### 7.3 Room grant on entry

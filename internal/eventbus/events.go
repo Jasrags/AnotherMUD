@@ -400,6 +400,12 @@ type ItemPickedUp struct {
 	HolderID entities.EntityID
 	RoomID   world.RoomID
 	ItemID   entities.EntityID
+	// QuestAdvance is the optional §7.2 quest_advance side channel: a string
+	// of the form "<packId>:<questId>:<objectiveId>" that the quest watcher
+	// parses and advances by 1 for the holder. Populated by the pickup command
+	// from the item's quest_advance property; a script publishing this event
+	// MAY set it directly. Empty = no advancement. Malformed = silently ignored.
+	QuestAdvance string
 }
 
 // Name implements Event.

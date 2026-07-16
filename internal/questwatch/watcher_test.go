@@ -165,6 +165,27 @@ func TestUseAdvances(t *testing.T) {
 	}
 }
 
+func TestQuestAdvanceSideChannel(t *testing.T) {
+	svc, store, w := setup(t)
+	rock, _ := store.Spawn(&item.Template{ID: "core:rock", Name: "Rock", Type: "junk"})
+	// A "<quest>:<objective>" payload advances the named objective by 1 for the
+	// holder — even for an item that matches no collect objective (§7.2).
+	w.onItemPickedUp(context.Background(), eventbus.ItemPickedUp{
+		HolderID: "p1", ItemID: rock.ID(), QuestAdvance: "q:s-kill-0",
+	})
+	if progressOf(t, svc, "s-kill-0") != 1 {
+		t.Error("quest_advance payload did not advance the named objective")
+	}
+	// Malformed (no separator) and unknown-quest payloads are silently ignored.
+	w.onItemPickedUp(context.Background(), eventbus.ItemPickedUp{HolderID: "p1", ItemID: rock.ID(), QuestAdvance: "garbage"})
+	w.onItemPickedUp(context.Background(), eventbus.ItemPickedUp{HolderID: "p1", ItemID: rock.ID(), QuestAdvance: "nope:s-kill-0"})
+	// An empty objective segment (trailing colon) is ignored too.
+	w.onItemPickedUp(context.Background(), eventbus.ItemPickedUp{HolderID: "p1", ItemID: rock.ID(), QuestAdvance: "q:"})
+	if progressOf(t, svc, "s-kill-0") != 1 {
+		t.Error("malformed / unknown quest_advance advanced")
+	}
+}
+
 func TestSubscribeRoutesThroughBus(t *testing.T) {
 	svc, store, w := setup(t)
 	bus := eventbus.New()

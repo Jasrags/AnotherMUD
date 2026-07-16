@@ -8,6 +8,7 @@ package questwatch
 
 import (
 	"context"
+	"strings"
 
 	"github.com/Jasrags/AnotherMUD/internal/combat"
 	"github.com/Jasrags/AnotherMUD/internal/entities"
@@ -18,10 +19,11 @@ import (
 
 // Watcher subscribes quest tracking to the world event bus.
 //
-// Still deferred: `quest_advance` on the pickup payload (the event
-// carries no such field — a scripting-era channel). The item-template
-// `quest_grant` side channel (§7.2) is wired when an Accept resolver
-// is provided via SetItemGrant; the room-side variant (M14.6) is
+// §7.2 side channels: the `quest_advance` pickup-payload channel is wired
+// (maybeAdvance) — the pickup command carries the item's quest_advance
+// property onto the event, and a script publishing the event MAY set it
+// directly. The item-template `quest_grant` channel is wired when an Accept
+// resolver is provided via SetItemGrant; the room-side variant (M14.6) is
 // wired through SetRoomGrant.
 type Watcher struct {
 	svc   *quest.Service
@@ -112,6 +114,32 @@ func (w *Watcher) onItemPickedUp(_ context.Context, e eventbus.Event) {
 		})
 	}
 	w.maybeGrant(inst, holder)
+	// quest_advance is conceptually item-independent, but it sits after the
+	// inst!=nil gate above: safe today because Publish dispatches synchronously
+	// from the pickup site while the instance is still in the store. If
+	// ItemPickedUp is ever published async, or from a site where the item may
+	// already be gone, hoist this above the gate so the payload isn't lost.
+	w.maybeAdvance(ev.QuestAdvance, holder)
+}
+
+// maybeAdvance honors the §7.2 quest_advance side channel on the pickup event
+// payload: a "<packId>:<questId>:<objectiveId>" string advances the named
+// objective by 1 for the holder. The objective id is the segment after the
+// last colon; everything before it is the quest term, resolved (bare or
+// namespaced) through the registry. Malformed strings and unknown quests are
+// silently ignored (§7.2); AdvanceObjective itself no-ops when the holder is
+// not on that quest or the objective is absent/complete.
+func (w *Watcher) maybeAdvance(payload, holder string) {
+	payload = strings.TrimSpace(payload)
+	i := strings.LastIndex(payload, ":")
+	if i <= 0 || i == len(payload)-1 {
+		return // no separator, or an empty quest term / objective id
+	}
+	questID, ok := w.svc.ResolveID(payload[:i])
+	if !ok {
+		return
+	}
+	w.svc.AdvanceObjective(holder, questID, payload[i+1:], 1)
 }
 
 // maybeGrant honors the §7.2 quest_grant property on the picked-up item:

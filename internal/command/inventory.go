@@ -127,10 +127,15 @@ func (c *Context) getFromRoom(ctx context.Context, room *world.Room, toks []stri
 			fmt.Sprintf("%s picks up %s.", c.Actor.Name(), item.Name()),
 			c.Actor.PlayerID())
 	}
+	qa, _ := item.Property("quest_advance")
+	questAdvance, _ := qa.(string)
 	c.Publish(ctx, eventbus.ItemPickedUp{
 		HolderID: holderEntityIDForPlayer(c.Actor.PlayerID()),
 		RoomID:   room.ID,
 		ItemID:   item.ID(),
+		// §7.2 quest_advance side channel: carry the picked-up item's
+		// quest_advance property onto the event for the watcher to parse.
+		QuestAdvance: questAdvance,
 	})
 	return nil
 }
