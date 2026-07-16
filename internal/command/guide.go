@@ -19,6 +19,13 @@ type GuideService interface {
 	// Dematerialize removes a live guide from the world (shoo / graduation / logout)
 	// — the inverse of Materialize. Reports whether one was present and removed.
 	Dematerialize(ctx context.Context, id entities.EntityID) bool
+	// DematerializeOwnedBy removes EVERY live guide currently owned by ownerID from
+	// the world and returns how many were removed (onboarding-guide.md — the
+	// one-guide-per-owner invariant). The guide-spawn path calls it before
+	// materializing a fresh guide, so a guide stranded by a prior session (a
+	// reconnect/relogin that built a new session without draining the old guide) is
+	// swept rather than accumulating. Empty ownerID is a no-op.
+	DematerializeOwnedBy(ctx context.Context, ownerID string) int
 }
 
 // guideOwner is the per-character live-guide surface the connActor satisfies

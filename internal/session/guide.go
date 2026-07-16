@@ -79,6 +79,18 @@ func (m *Manager) SpawnGuideFor(ctx context.Context, a *connActor) {
 	if room == nil {
 		return
 	}
+	// Sweep any guide stranded by a PRIOR session for this character before
+	// spawning a fresh one (onboarding-guide.md — one guide per owner). The
+	// HasLiveGuide gate above only sees THIS connActor's guide; a guide left in
+	// the world by an earlier session (a reconnect/relogin that built a new
+	// connActor without draining the old guide) would otherwise accumulate every
+	// login. Reached only when HasLiveGuide is false, so anything found here is a
+	// stray, never the live one. Idempotent + self-healing: a fresh login clears
+	// strays left by an earlier one.
+	if n := svc.DematerializeOwnedBy(ctx, a.PlayerID()); n > 0 {
+		logging.From(ctx).Info("guide sweep removed stranded guides",
+			slog.String("player_id", a.PlayerID()), slog.Int("count", n))
+	}
 	id, err := svc.Materialize(ctx, a.PlayerID(), template, room.ID)
 	if err != nil {
 		logging.From(ctx).Warn("guide materialize failed",

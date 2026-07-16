@@ -270,6 +270,40 @@ func (s *Store) GetByType(typ string) []Entity {
 	return out
 }
 
+// GuidesOwnedBy returns the entity ids of every tracked onboarding-guide mob
+// currently owned by ownerID (onboarding-guide.md). The guide-spawn path uses it
+// to sweep a guide stranded by a PRIOR session before materializing a fresh one,
+// enforcing the one-guide-per-owner invariant even when a re-entry built a new
+// session without draining the old guide. Filters on the engine-authoritative
+// IsGuide() + OwnerID() (set at materialization), not a content tag, so it holds
+// across worlds. Reads the id index directly (not the double-buffered tag index),
+// so a guide spawned earlier this tick is still found. Empty ownerID returns nil.
+//
+// Mob pointers are gathered under s.mu, then the IsGuide()/OwnerID() predicates
+// (which take each mob's own ownerMu) run AFTER releasing s.mu, so the two locks
+// are never held nested.
+func (s *Store) GuidesOwnedBy(ownerID string) []EntityID {
+	if ownerID == "" {
+		return nil
+	}
+	s.mu.RLock()
+	mobs := make([]*MobInstance, 0, len(s.byID))
+	for _, e := range s.byID {
+		if m, ok := e.(*MobInstance); ok {
+			mobs = append(mobs, m)
+		}
+	}
+	s.mu.RUnlock()
+
+	var out []EntityID
+	for _, m := range mobs {
+		if m.IsGuide() && m.OwnerID() == ownerID {
+			out = append(out, m.ID())
+		}
+	}
+	return out
+}
+
 // SwapTagIndex publishes the write-side tag index to readers and
 // initializes a fresh write side seeded from the new read side. Called
 // at every tick boundary by the registered tick handler (spec §3.7

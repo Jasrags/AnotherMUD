@@ -45,6 +45,23 @@ func (g *guideService) Materialize(ctx context.Context, ownerID, templateID stri
 	return id, nil
 }
 
+// DematerializeOwnedBy removes every live guide owned by ownerID (onboarding-guide.md
+// — the one-guide-per-owner invariant). SpawnGuideFor calls this before materializing
+// a fresh guide so a guide stranded by a prior session (a reconnect/relogin that built
+// a new session without draining the old guide) is swept rather than accumulating.
+// Returns how many were removed. Reads the owner-scoped guide set straight from the
+// store (IsGuide + OwnerID, engine-authoritative), so it finds ALL strays, not just a
+// last-tracked one.
+func (g *guideService) DematerializeOwnedBy(ctx context.Context, ownerID string) int {
+	removed := 0
+	for _, id := range g.store.GuidesOwnedBy(ownerID) {
+		if g.Dematerialize(ctx, id) {
+			removed++
+		}
+	}
+	return removed
+}
+
 // Dematerialize removes a live guide from the world (shoo / graduation / logout):
 // out of its room and out of the entity store. Reports whether it was present.
 func (g *guideService) Dematerialize(ctx context.Context, id entities.EntityID) bool {

@@ -318,3 +318,42 @@ func TestSpawnContainer_TracksWithRuntimeIdentity(t *testing.T) {
 		t.Errorf("duplicate id %q", c.ID())
 	}
 }
+
+func TestStoreGuidesOwnedBy(t *testing.T) {
+	s := NewStore()
+
+	// A guide owned by p-1, a second guide owned by p-1 (a stranded duplicate),
+	// a guide owned by p-2, a non-guide mob owned by p-1, and a plain mob.
+	mk := func(name, owner string, guide bool) EntityID {
+		m, err := s.SpawnMob(&mob.Template{ID: mob.TemplateID(name), Name: name, Type: "npc"})
+		if err != nil {
+			t.Fatalf("SpawnMob(%s): %v", name, err)
+		}
+		if owner != "" {
+			m.SetOwner(owner)
+		}
+		m.SetGuide(guide)
+		return m.ID()
+	}
+	g1 := mk("guide-a", "p-1", true)
+	g2 := mk("guide-b", "p-1", true) // a stranded second guide for the same owner
+	mk("guide-c", "p-2", true)       // another owner's guide — must not match
+	mk("hireling", "p-1", false)     // owned by p-1 but not a guide
+	mk("wild-mob", "", false)        // ownerless plain mob
+
+	got := s.GuidesOwnedBy("p-1")
+	if len(got) != 2 {
+		t.Fatalf("GuidesOwnedBy(p-1) returned %d ids, want 2 (%v)", len(got), got)
+	}
+	found := map[EntityID]bool{got[0]: true, got[1]: true}
+	if !found[g1] || !found[g2] {
+		t.Errorf("GuidesOwnedBy(p-1) = %v, want both %s and %s", got, g1, g2)
+	}
+
+	if got := s.GuidesOwnedBy("p-3"); len(got) != 0 {
+		t.Errorf("GuidesOwnedBy(unknown owner) = %v, want empty", got)
+	}
+	if got := s.GuidesOwnedBy(""); got != nil {
+		t.Errorf("GuidesOwnedBy(\"\") = %v, want nil", got)
+	}
+}
