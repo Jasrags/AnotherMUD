@@ -119,6 +119,11 @@ type ShopConfig struct {
 	// restricted good needs a matching permit. Default false = a shadow vendor
 	// that applies no legality check (sells forbidden goods to anyone).
 	RequiresLicense bool
+	// ScannerRating is the DC of this store's §7 SIN scan: buying a restricted
+	// good rolls d20 + the fake's credential_rating against it, and a failure
+	// burns the fake. 0 (or unset) = the store checks papers but never rolls
+	// (Slice-1 behavior). Only meaningful when RequiresLicense.
+	ScannerRating int
 }
 
 // buyerStanding resolves the buyer's standing with the shop's faction. ok=false
@@ -250,6 +255,10 @@ const (
 	// good regardless of papers (sin-and-legality.md §4.3). A backstop; legit
 	// shops normally don't stock contraband.
 	ShopForbiddenGoods
+	// ShopSINBurned — the store's §7 scan caught the buyer's fake on a restricted
+	// purchase: the credential is burned and the sale refused. The burned fake's
+	// name rides along (BuyResult.BurnedCredential).
+	ShopSINBurned
 )
 
 // Listing is one row of a shop's offered stock (spec §3.4).

@@ -64,7 +64,7 @@ func TestBuy_SkillGateRefusedBelow(t *testing.T) {
 	cfg := ShopConfig{Sells: []string{"core:scroll"}}
 	sh := newShopper("p1", 1000) // plenty of gold; the gate is skill, not gold
 
-	res := f.svc.Buy(context.Background(), sh, "npc1", cfg, "scroll", checker("smithing", 10), nil)
+	res := f.svc.Buy(context.Background(), sh, "npc1", cfg, "scroll", checker("smithing", 10), nil, nil)
 	if res.Outcome != ShopSkillTooLow {
 		t.Fatalf("outcome = %v, want ShopSkillTooLow", res.Outcome)
 	}
@@ -88,7 +88,7 @@ func TestBuy_SkillGatePassesAtThreshold(t *testing.T) {
 	cfg := ShopConfig{Sells: []string{"core:scroll"}}
 	sh := newShopper("p1", 1000)
 
-	res := f.svc.Buy(context.Background(), sh, "npc1", cfg, "scroll", checker("smithing", 25), nil)
+	res := f.svc.Buy(context.Background(), sh, "npc1", cfg, "scroll", checker("smithing", 25), nil, nil)
 	if res.Outcome != ShopOK {
 		t.Fatalf("outcome = %v, want ShopOK at the skill threshold", res.Outcome)
 	}
@@ -104,7 +104,7 @@ func TestBuy_NilCheckerIgnoresGate(t *testing.T) {
 	sh := newShopper("p1", 1000)
 
 	// A nil checker means no gating — the gated scroll buys freely.
-	res := f.svc.Buy(context.Background(), sh, "npc1", cfg, "scroll", nil, nil)
+	res := f.svc.Buy(context.Background(), sh, "npc1", cfg, "scroll", nil, nil, nil)
 	if res.Outcome != ShopOK {
 		t.Fatalf("outcome = %v, want ShopOK with a nil checker", res.Outcome)
 	}

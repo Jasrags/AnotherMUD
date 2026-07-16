@@ -30,6 +30,12 @@ stats:
 properties:
   shop:
     requires_license: true
+    # scanner_rating §7: the counter scanner's DC. Buying a RESTRICTED good (the
+    # Predator) rolls d20 + the fake's credential_rating against this; a failure
+    # burns the fake and refuses the sale. A basic (r2) fake clears this ~55% of
+    # the time, a premium (r4) ~65% — the premium earns its price at the counter.
+    # Legal goods (vest, jacket, clip) never trigger a scan.
+    scanner_rating: 10
     # Sells legal and restricted goods only — a legit store never stocks
     # forbidden goods (the fixer handles those). The Predator (restricted:
     # firearms) needs a firearms license; the armor vest / clothing are legal and

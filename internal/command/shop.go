@@ -8,6 +8,7 @@ import (
 	"github.com/Jasrags/AnotherMUD/internal/economy"
 	"github.com/Jasrags/AnotherMUD/internal/entities"
 	"github.com/Jasrags/AnotherMUD/internal/faction"
+	"github.com/Jasrags/AnotherMUD/internal/progression"
 	"github.com/Jasrags/AnotherMUD/internal/world"
 )
 
@@ -26,7 +27,7 @@ func BuyHandler(ctx context.Context, c *Context) error {
 	if len(c.Args) == 0 {
 		return c.Actor.Write(ctx, "Buy what?")
 	}
-	res := c.Shop.Buy(ctx, shopper, string(npc.ID()), cfg, strings.Join(c.Args, " "), shopSkillChecker(c), shopStandingFunc(c))
+	res := c.Shop.Buy(ctx, shopper, string(npc.ID()), cfg, strings.Join(c.Args, " "), shopSkillChecker(c), shopStandingFunc(c), shopScanner(c))
 	switch res.Outcome {
 	case economy.ShopOK:
 		return c.Actor.Write(ctx, fmt.Sprintf("You buy %s for %s. You have %s left.", res.ItemName, c.Money.Format64(res.Price), c.Money.Format(res.Gold)))
@@ -42,6 +43,12 @@ func BuyHandler(ctx context.Context, c *Context) error {
 		return c.Actor.Write(ctx, fmt.Sprintf("%s is restricted — you'd need a valid %s license to buy it here.", capitalize(res.ItemName), res.RequiredPermit))
 	case economy.ShopForbiddenGoods:
 		return c.Actor.Write(ctx, fmt.Sprintf("No legitimate shop will sell you %s over the counter. Try the shadows.", res.ItemName))
+	case economy.ShopSINBurned:
+		// The scan caught the fake: it burned in the gate (an instance property
+		// write). Persist that by re-syncing the inventory tree + flipping the
+		// save dirty bit, so the burn survives a relog (sin-and-legality.md §7).
+		c.Actor.MarkContentsDirty()
+		return c.Actor.Write(ctx, fmt.Sprintf("The counter scanner flags %s as forged — it locks the record and voids the credential. %s is burned; the sale is refused.", res.ItemName, capitalize(res.BurnedCredential)))
 	default:
 		return c.Actor.Write(ctx, "The shop doesn't sell that.")
 	}
@@ -85,6 +92,20 @@ func shopStandingFunc(c *Context) economy.StandingFunc {
 			return 0, false
 		}
 		return c.Faction.Get(fe, def), true
+	}
+}
+
+// shopScanner builds the sin-and-legality.md §7 SIN-scan roller for the buyer, or
+// nil when no d20 source is wired (the gate then fails open — no scan, nothing
+// burns, mirroring a nil skill checker). The economy package stays free of the
+// progression import — the command layer owns the roll (mirrors shopSkillChecker).
+// d20 + the fake's rating vs the store's scanner rating; a failure burns the fake.
+func shopScanner(c *Context) economy.LicenseScanner {
+	if c.SkillRoller == nil {
+		return nil
+	}
+	return func(credentialRating, scannerRating int) bool {
+		return progression.ResolveSkillCheck(c.SkillRoller, credentialRating, scannerRating).Success
 	}
 }
 
@@ -278,6 +299,9 @@ func shopConfigFromRaw(raw any) (economy.ShopConfig, bool) {
 		// requires_license §4: a legitimate storefront that scans customers and
 		// gates by item legality. Omitted = a shadow vendor (no legality check).
 		RequiresLicense: blockBool(block["requires_license"]),
+		// scanner_rating §7: the DC of the store's SIN scan on a restricted buy.
+		// Omitted / 0 = checks papers but never rolls a scan (Slice-1 behavior).
+		ScannerRating: blockInt(block["scanner_rating"]),
 	}, true
 }
 

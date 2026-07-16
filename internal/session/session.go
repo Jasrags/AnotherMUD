@@ -1563,11 +1563,16 @@ func spawnEntries(ctx context.Context, a *connActor, store *entities.Store, cont
 		if entry.Grade != "" {
 			inst.SetHolderAmmoGrade(entry.Grade)
 		}
+		// Restore a burned credential's spent state (sin-and-legality.md §7) onto
+		// the fresh instance so a relog does not un-burn a caught fake.
+		if entry.Burned {
+			inst.SetProperty(economy.PropBurned, true)
+		}
 		// Re-add persisted item modifications (item-modification §7) onto the
 		// fresh host; unknown mod templates are logged + skipped.
 		restoreInstalledMods(ctx, inst, tpls, entry.Mods, a.PlayerName())
 
-		survivor := player.InventoryEntry{Template: entry.Template, Loaded: entry.Loaded, Grade: entry.Grade, Mods: entry.Mods}
+		survivor := player.InventoryEntry{Template: entry.Template, Loaded: entry.Loaded, Grade: entry.Grade, Mods: entry.Mods, Burned: entry.Burned}
 		if len(entry.Contents) > 0 {
 			if tpl.Type != "container" || contents == nil {
 				// A non-container template carrying nested contents in
@@ -4073,6 +4078,26 @@ func (a *connActor) holderGradeForSave(id entities.EntityID) string {
 		return ""
 	}
 	return w.HolderAmmoGrade()
+}
+
+// itemBurnedForSave reports whether a carried item is a burned credential
+// (sin-and-legality.md §7), so the burn persists across relog. Reads the
+// instance flag the economy gate set; false for every non-credential.
+func (a *connActor) itemBurnedForSave(id entities.EntityID) bool {
+	if a.items == nil {
+		return false
+	}
+	e, ok := a.items.GetByID(id)
+	if !ok {
+		return false
+	}
+	inst, ok := e.(*entities.ItemInstance)
+	if !ok {
+		return false
+	}
+	b, _ := inst.Property(economy.PropBurned)
+	v, _ := b.(bool)
+	return v
 }
 
 // InsertHolder loads the fullest compatible loaded holder from inventory into the
@@ -6709,7 +6734,7 @@ func (a *connActor) buildSaveEntriesLocked(ids []entities.EntityID) []player.Inv
 		if !ok {
 			continue
 		}
-		entry := player.InventoryEntry{Template: tpl, Loaded: a.magazineLoadedForSave(id), Grade: a.holderGradeForSave(id), Mods: a.installedModsForSave(id)}
+		entry := player.InventoryEntry{Template: tpl, Loaded: a.magazineLoadedForSave(id), Grade: a.holderGradeForSave(id), Mods: a.installedModsForSave(id), Burned: a.itemBurnedForSave(id)}
 		if a.contents != nil && a.isContainerLocked(id) {
 			if child := a.buildSaveEntriesLocked(a.contents.In(id)); len(child) > 0 {
 				entry.Contents = child

@@ -30,7 +30,7 @@ func TestBuy_StandingGateRefusesHostile(t *testing.T) {
 	sh := newShopper("p1", 100)
 
 	// Hostile (-50) is refused before any charge.
-	res := f.svc.Buy(context.Background(), sh, "npc1", cfg, "potion", nil, standingFn("wot:queens-guard", -50))
+	res := f.svc.Buy(context.Background(), sh, "npc1", cfg, "potion", nil, standingFn("wot:queens-guard", -50), nil)
 	if res.Outcome != ShopStandingTooLow {
 		t.Fatalf("hostile buy = %v, want ShopStandingTooLow", res.Outcome)
 	}
@@ -48,7 +48,7 @@ func TestBuy_StandingGateAdmitsAtFloor(t *testing.T) {
 	cfg := ShopConfig{Sells: []string{"core:potion"}, Faction: "wot:queens-guard", MinStanding: new(0)}
 	sh := newShopper("p1", 100)
 
-	res := f.svc.Buy(context.Background(), sh, "npc1", cfg, "potion", nil, standingFn("wot:queens-guard", 0))
+	res := f.svc.Buy(context.Background(), sh, "npc1", cfg, "potion", nil, standingFn("wot:queens-guard", 0), nil)
 	if res.Outcome != ShopOK {
 		t.Fatalf("at-floor buy = %v, want ShopOK", res.Outcome)
 	}
@@ -61,12 +61,12 @@ func TestBuy_StandingGateFailsOpenWhenUnresolved(t *testing.T) {
 	sh := newShopper("p1", 100)
 
 	// nil StandingFunc (no faction wired) → no gate, the purchase proceeds.
-	if res := f.svc.Buy(context.Background(), sh, "npc1", cfg, "potion", nil, nil); res.Outcome != ShopOK {
+	if res := f.svc.Buy(context.Background(), sh, "npc1", cfg, "potion", nil, nil, nil); res.Outcome != ShopOK {
 		t.Errorf("nil standing = %v, want ShopOK (fail open)", res.Outcome)
 	}
 	// A resolver that doesn't know this faction (ok=false) also fails open.
 	sh2 := newShopper("p2", 100)
-	if res := f.svc.Buy(context.Background(), sh2, "npc1", cfg, "potion", nil, standingFn("wot:other", -999)); res.Outcome != ShopOK {
+	if res := f.svc.Buy(context.Background(), sh2, "npc1", cfg, "potion", nil, standingFn("wot:other", -999), nil); res.Outcome != ShopOK {
 		t.Errorf("unknown-faction standing = %v, want ShopOK (fail open)", res.Outcome)
 	}
 }
@@ -83,12 +83,12 @@ func TestBuy_AllyDiscountLowersPrice(t *testing.T) {
 	sh := newShopper("p1", 100)
 
 	// Below ally threshold → full price 24.
-	if res := f.svc.Buy(context.Background(), sh, "npc1", cfg, "potion", nil, standingFn("wot:queens-guard", 50)); res.Price != 24 {
+	if res := f.svc.Buy(context.Background(), sh, "npc1", cfg, "potion", nil, standingFn("wot:queens-guard", 50), nil); res.Price != 24 {
 		t.Errorf("non-ally price = %d, want 24", res.Price)
 	}
 	// Ally → 24 * (1-0.25) = 18.
 	sh2 := newShopper("p2", 100)
-	if res := f.svc.Buy(context.Background(), sh2, "npc1", cfg, "potion", nil, standingFn("wot:queens-guard", 250)); res.Price != 18 {
+	if res := f.svc.Buy(context.Background(), sh2, "npc1", cfg, "potion", nil, standingFn("wot:queens-guard", 250), nil); res.Price != 18 {
 		t.Errorf("ally price = %d, want 18 (25%% off 24)", res.Price)
 	}
 }

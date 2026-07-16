@@ -127,7 +127,7 @@ import (
 // means "knows no recipes beyond what a discipline grants at runtime";
 // the migration injects nothing. A known id whose recipe was removed from
 // content loads cleanly and is ignored at restore (§9), never an error.
-const CurrentVersion = 36
+const CurrentVersion = 37
 
 // Sentinel errors callers may check via errors.Is.
 var (
@@ -562,6 +562,11 @@ type InventoryEntry struct {
 	// The contribution is re-derived from each template on respawn
 	// (RestoreInstalledMod); only the ids persist (v35).
 	Mods []string `yaml:"mods,omitempty"`
+	// Burned persists a credential item's spent state (sin-and-legality.md §7): a
+	// fake SIN whose store scan failed is burned and clears no gate. Re-hydrated
+	// onto the credential instance at login the same way Loaded is (v37). false /
+	// omitted for every non-credential and every unspent fake.
+	Burned bool `yaml:"burned,omitempty"`
 }
 
 // EquippedItem is one entry in the persisted equipment map (v3+). The
@@ -794,6 +799,7 @@ var playerMigrations = map[int]func(map[string]any) (map[string]any, error){
 	33: migrateV33toV34,
 	34: migrateV34toV35,
 	35: migrateV35toV36,
+	36: migrateV36toV37,
 }
 
 // migrateV1toV2 adds the empty inventory/equipment blocks introduced
@@ -1277,6 +1283,14 @@ func migrateV34toV35(in map[string]any) (map[string]any, error) {
 // enabled and an absent `tips_seen` reads as the empty set — exactly a fresh
 // character who has seen no tips. Nothing to backfill.
 func migrateV35toV36(in map[string]any) (map[string]any, error) {
+	return in, nil
+}
+
+// migrateV36toV37 introduces InventoryEntry.Burned (sin-and-legality.md §7 — a
+// spent fake SIN). A no-op: the field is an additive bool with a safe zero value,
+// so an absent `burned` on any pre-v37 inventory entry reads as "not burned",
+// exactly a fake nobody has scanned. Nothing to backfill.
+func migrateV36toV37(in map[string]any) (map[string]any, error) {
 	return in, nil
 }
 

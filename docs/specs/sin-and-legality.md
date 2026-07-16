@@ -1,8 +1,9 @@
 # Legality & Licensing (SIN)
 
 > **Layer:** Action/interaction — an extension of [economy-survival](economy-survival.md) §3 (shops).
-> **Status:** Slice 1 (this doc) — the two-tier market gate. Slice 2 (verification / burn) is
-> deferred; see §7.
+> **Status:** Slice 1 — the two-tier market gate (§2–§6). **Slice 2 — verification / burn (§7)** —
+> the scan roll that burns a fake on failure. Slice 3+ (zone-entry checks, lifestyle upkeep) stay
+> deferred; see §8.
 >
 > **Setting-agnostic engine, per-pack vocabulary.** The engine names this mechanism
 > **legality** (a gear property), **licensing** (a shop that demands a credential), and
@@ -79,9 +80,13 @@ credential item as it likes — a fake SIN, a forged writ, a guild token.
 - A credential with an empty / absent `permits` list still counts as a **valid identity**
   (it clears the `requires_license` presence gate and any restricted item that names *no*
   permit), but clears no specific permit category.
-- `credential_rating` (optional, integer): **inert this slice.** Authored as forward-looking
-  flavor (a rating-N fake SIN); consumed only by the Slice 2 verification check (§7). The
-  Slice 1 gate never reads it.
+- `credential_rating` (optional, integer): the fake's quality. In Slice 1 it is inert; in
+  **Slice 2 (§7)** it is the bonus the scan roll adds — a higher-rated fake resists scrutiny.
+  Absent → 0 (a fake that relies entirely on the die).
+- `burned` (runtime instance state, persisted): set when a scan fails (§7). A burned credential
+  clears **no** gate — the presence and permit checks (§4) treat it as if it were not carried —
+  and is flagged as spent by the `licenses` verb (§5). It is a per-instance flag (one fake
+  burns; other carried credentials are untouched) and survives a relog.
 
 ### Acceptance criteria
 
@@ -106,7 +111,10 @@ For a `requires_license` shop, purchasing an item resolves in order:
    entire gate — shadow vendors never ask.
 2. **Restricted → permit.** If the resolved item is `restricted`, some single carried
    credential must list the item's `permit` in its `permits` (or the item must name no
-   permit). No matching permit → refused (`LicenseRequired`, naming the permit).
+   permit). No matching permit → refused (`LicenseRequired`, naming the permit). When a
+   credential *does* clear the permit, buying a restricted good is the scrutiny trigger for
+   the **scan (§7)**: the store rolls against the fake, and a failure burns it and refuses
+   the sale (`SINBurned`).
 3. **Forbidden.** A `forbidden` item at a `requires_license` shop is refused
    (`ForbiddenGoods`) — a legitimate store does not sell contraband regardless of papers.
    In practice content simply does not stock forbidden goods in a legal shop; the rule is a
@@ -128,6 +136,9 @@ gates. This is what makes today's fixers "the shadows".
       credential and no permit (only the pre-existing gates apply).
 - [ ] The gate reads only **carried** items — an equipped-but-not-carried credential does not
       count this slice (documented limitation; revisit if it surprises players).
+- [ ] A **burned** credential (§7) is excluded from every check here — it neither satisfies the
+      presence gate nor clears a permit; a buyer whose only credential is burned is treated as
+      SINless.
 - [ ] Listings / stock completion at a `requires_license` shop are unaffected (the shop still
       *shows* its stock; the gate bites on the buy attempt). A later slice may hide unbuyable
       stock the way the §7 skill gate hides items.
@@ -143,6 +154,8 @@ state.
 
 - [ ] `licenses` with no carried credential prints a "no valid credential / SINless" line.
 - [ ] `licenses` lists each carried credential item by name with its permit categories.
+- [ ] A **burned** credential (§7) is listed but marked spent/useless, so the player knows to
+      replace it rather than wondering why the store still refuses them.
 - [ ] The `sin` alias resolves to the same handler (registered by the SR pack's vocabulary;
       a pack without the alias still has `licenses`).
 
@@ -154,23 +167,70 @@ state.
 | `permit` | item template property | *(none)* | Permit category clearing a `restricted` item. |
 | `credential` | item template tag | *(absent)* | Marks the item as a carried identity credential. |
 | `permits` | item template property | *(empty)* | Permit categories a credential clears. |
-| `credential_rating` | item template property | *(none)* | **Inert this slice**; Slice 2 verification input. |
+| `credential_rating` | item template property | `0` | The fake's quality — the bonus the §7 scan roll adds. |
 | `requires_license` | shop block | `false` | Shop scans customers and gates by legality. |
+| `scanner_rating` | shop block | `0` | The §7 scan DC. `0` (or unset) = the store checks papers but never rolls a scan (Slice-1 behavior). |
 
-No new `ANOTHERMUD_*` knobs and **no save-version bump** — credentials are items and the gate
-is stateless.
+**Slice 1** adds no `ANOTHERMUD_*` knobs and no save bump — the gate is stateless. **Slice 2**
+adds the persisted `burned` flag: `InventoryEntry.Burned`, a **save-version bump** with an
+additive migration (absent → not burned), re-hydrated onto the credential instance at login the
+same way a magazine's loaded-round count is (`inventory-equipment-items`).
 
-## 7. Open questions / deferred (Slice 2 and beyond)
+## 7. Verification & burn (Slice 2)
 
-- **Verification & burn (Slice 2).** The risk layer: a scan (border check, legitimate-store
-  scanner, a cop's SIN check) rolls against a fake credential's `credential_rating`; a failed
-  roll **burns** it (a persisted or item-level "burned" flag) so it no longer clears gates.
-  This needs a check primitive (`skills.md` / `saves.md`), a burned-state carrier, and
-  scanner content — it is the depth that makes buying a *higher-rated* fake matter. Slice 1
-  deliberately ships the market divide first so the risk has something to protect.
-- **Equipped vs. carried.** Slice 1 checks carried items only. If "broadcast one SIN at a
-  time" matters (it does for burn — a scan burns the *broadcast* credential), Slice 2 likely
-  introduces an active/broadcast credential rather than "any carried".
+The risk layer. A `requires_license` store carries a `scanner_rating` — its scrutiny. When a
+buyer attempts to purchase a **restricted** good and a carried credential clears its permit
+(§4.2), the store **scans** that credential before completing the sale. This is the *only*
+scan trigger this slice: a legal-good purchase clears on presence with no scan, and a
+`scanner_rating` of 0 (or unset) means the store checks papers but never rolls — the Slice-1
+behavior. (Higher-DC checkpoint / cop scans on a new access axis are Slice 3, §8.)
+
+### The scan
+
+The scan is one skill-check-shaped roll (`skills.md` §3): `d20 + credential_rating` vs.
+`scanner_rating`. The natural-1-fails / natural-20-succeeds edges apply, as everywhere. On
+**success** the fake holds and the sale completes normally. On **failure** the credential is
+**burned** and the sale is **refused** (`SINBurned`, naming the fake).
+
+- The credential scanned is the one that cleared the permit; when several carried credentials
+  clear it, the **highest-rated** is used (the runner flashes their best fake) — that is the
+  one at risk.
+- A higher `credential_rating` is strictly better odds, which is the whole point: it makes a
+  premium fake worth its price.
+
+### Burn
+
+A burned credential is a spent fake. It clears no gate (§4 treats it as absent) and shows as
+useless under `licenses` (§5). The player must acquire a new one. Burn is a **persisted
+per-instance flag** (`InventoryEntry.Burned`): only the scanned fake burns, other carried
+credentials are untouched, and the state survives a relog (re-hydrated onto the instance at
+login like a magazine's loaded count).
+
+### Acceptance criteria
+
+- [ ] A scan fires only when buying a **restricted** good at a `requires_license` shop whose
+      `scanner_rating > 0` and whose permit a non-burned carried credential clears.
+- [ ] Buying a **legal** good never triggers a scan (presence gate only).
+- [ ] A `scanner_rating` of 0 / unset never rolls — the store keeps Slice-1 behavior.
+- [ ] On scan success the sale completes and the credential is unchanged.
+- [ ] On scan failure the credential is marked burned and the sale is refused (`SINBurned`);
+      the buyer is not charged.
+- [ ] Only the highest-rated matching credential is scanned/burned; other credentials are
+      untouched.
+- [ ] A burned credential is excluded from all §4 checks and marked spent under §5.
+- [ ] The burned flag round-trips through save/load (a relog does not un-burn a fake).
+- [ ] The scan is deterministic under a seeded roller (mirrors the `pick` / `search` checks).
+
+## 8. Open questions / deferred (Slice 3 and beyond)
+
+- **Zone-entry / checkpoint scans (Slice 3).** A higher-DC scan on a movement/access axis —
+  a border, a corp-zone turnstile, a cop's stop — rather than at a store counter. This is the
+  identity half of the **security-response** program (`docs/BACKLOG.md`): "SINless = invisible
+  to law" and "a crime raises heat." It shares this slice's scan + burn primitives but adds an
+  access gate and a heat/response consumer.
+- **Active / broadcast credential.** This slice scans "the highest-rated matching carried
+  credential". A full broadcast model (the player *chooses* which SIN to present, and only
+  that one is ever scanned) is deferred until a checkpoint scan makes the choice matter.
 - **Sell-side legality.** Should a legitimate shop refuse to *buy* obviously-forbidden goods
   from a SINless seller? Left to the existing buy-category gate for now.
 - **Lifestyle upkeep** (a periodic drain à la sustenance) and **contraband on movement / fast

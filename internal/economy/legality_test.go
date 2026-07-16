@@ -4,6 +4,7 @@ import (
 	"context"
 	"testing"
 
+	"github.com/Jasrags/AnotherMUD/internal/entities"
 	"github.com/Jasrags/AnotherMUD/internal/item"
 )
 
@@ -32,15 +33,24 @@ func legalityTpl(id, name, band, permit string) *item.Template {
 	return &item.Template{ID: item.TemplateID(id), Name: name, Type: "item", Properties: props}
 }
 
+// ratedCredTpl is credTpl plus a credential_rating (the §7 scan bonus).
+func ratedCredTpl(id, name string, rating int, permits ...string) *item.Template {
+	tpl := credTpl(id, name, permits...)
+	tpl.Properties[PropCredentialRating] = rating
+	return tpl
+}
+
 // giveCredential spawns a credential template into the store and hands it to the
-// shopper's inventory, mirroring a carried fake SIN.
-func giveCredential(t *testing.T, f *shopFixture, sh *fakeShopper, tpl *item.Template) {
+// shopper's inventory, mirroring a carried fake SIN. Returns the live instance so
+// a test can assert its burned state.
+func giveCredential(t *testing.T, f *shopFixture, sh *fakeShopper, tpl *item.Template) *entities.ItemInstance {
 	t.Helper()
 	inst, err := f.store.Spawn(tpl)
 	if err != nil {
 		t.Fatalf("spawn credential: %v", err)
 	}
 	sh.AddToInventory(inst.ID())
+	return inst
 }
 
 func TestBuy_LicenseGate(t *testing.T) {
@@ -119,7 +129,7 @@ func TestBuy_LicenseGate(t *testing.T) {
 			}
 			cfg := ShopConfig{Sells: []string{string(tt.stock.ID)}, RequiresLicense: tt.requires}
 
-			res := f.svc.Buy(context.Background(), sh, npc, cfg, tt.stock.Name, nil, nil)
+			res := f.svc.Buy(context.Background(), sh, npc, cfg, tt.stock.Name, nil, nil, nil)
 			if res.Outcome != tt.want {
 				t.Fatalf("outcome = %v, want %v", res.Outcome, tt.want)
 			}
@@ -132,6 +142,112 @@ func TestBuy_LicenseGate(t *testing.T) {
 			}
 		})
 	}
+}
+
+// scanPass / scanFail are deterministic LicenseScanners for the §7 tests.
+func scanPass(int, int) bool { return true }
+func scanFail(int, int) bool { return false }
+
+func TestBuy_Scan(t *testing.T) {
+	const npc = "clerk1"
+	pistol := legalityTpl("sr:pistol", "a heavy pistol", LegalityRestricted, "firearms")
+
+	t.Run("scan pass sells and leaves the credential intact", func(t *testing.T) {
+		f := newShopFixture(t, DefaultEconomyConfig())
+		f.tpls.Add(pistol)
+		sh := newShopper("p1", 100_000)
+		inst := giveCredential(t, f, sh, ratedCredTpl("sr:sin", "a fake SIN", 4, "firearms"))
+		cfg := ShopConfig{Sells: []string{"sr:pistol"}, RequiresLicense: true, ScannerRating: 10}
+
+		res := f.svc.Buy(context.Background(), sh, npc, cfg, "pistol", nil, nil, scanPass)
+		if res.Outcome != ShopOK {
+			t.Fatalf("outcome = %v, want ShopOK", res.Outcome)
+		}
+		if credentialBurned(inst) {
+			t.Error("credential burned on a passing scan")
+		}
+	})
+
+	t.Run("scan fail burns the credential and refuses the sale", func(t *testing.T) {
+		f := newShopFixture(t, DefaultEconomyConfig())
+		f.tpls.Add(pistol)
+		sh := newShopper("p1", 100_000)
+		inst := giveCredential(t, f, sh, ratedCredTpl("sr:sin", "a fake SIN", 2, "firearms"))
+		cfg := ShopConfig{Sells: []string{"sr:pistol"}, RequiresLicense: true, ScannerRating: 10}
+
+		res := f.svc.Buy(context.Background(), sh, npc, cfg, "pistol", nil, nil, scanFail)
+		if res.Outcome != ShopSINBurned {
+			t.Fatalf("outcome = %v, want ShopSINBurned", res.Outcome)
+		}
+		if res.BurnedCredential != "a fake SIN" {
+			t.Errorf("BurnedCredential = %q, want %q", res.BurnedCredential, "a fake SIN")
+		}
+		if !credentialBurned(inst) {
+			t.Error("credential not burned after a failed scan")
+		}
+		if sh.gold != 100_000 {
+			t.Errorf("gold = %d, want 100000 (no charge on a burned refusal)", sh.gold)
+		}
+		// A burned credential no longer clears the gate — a retry reads as SINless.
+		if res2 := f.svc.Buy(context.Background(), sh, npc, cfg, "pistol", nil, nil, scanFail); res2.Outcome != ShopSINRequired {
+			t.Errorf("retry with a burned SIN = %v, want ShopSINRequired", res2.Outcome)
+		}
+	})
+
+	t.Run("scanner_rating 0 never rolls (slice-1 behavior)", func(t *testing.T) {
+		f := newShopFixture(t, DefaultEconomyConfig())
+		f.tpls.Add(pistol)
+		sh := newShopper("p1", 100_000)
+		inst := giveCredential(t, f, sh, ratedCredTpl("sr:sin", "a fake SIN", 2, "firearms"))
+		cfg := ShopConfig{Sells: []string{"sr:pistol"}, RequiresLicense: true, ScannerRating: 0}
+
+		// Even a failing scanner is never consulted when scanner_rating is 0.
+		if res := f.svc.Buy(context.Background(), sh, npc, cfg, "pistol", nil, nil, scanFail); res.Outcome != ShopOK {
+			t.Fatalf("outcome = %v, want ShopOK", res.Outcome)
+		}
+		if credentialBurned(inst) {
+			t.Error("credential burned though scanner_rating was 0")
+		}
+	})
+
+	t.Run("legal good never triggers a scan", func(t *testing.T) {
+		f := newShopFixture(t, DefaultEconomyConfig())
+		vest := legalityTpl("sr:vest", "an armor vest", LegalityLegal, "")
+		f.tpls.Add(vest)
+		sh := newShopper("p1", 100_000)
+		inst := giveCredential(t, f, sh, ratedCredTpl("sr:sin", "a fake SIN", 2))
+		cfg := ShopConfig{Sells: []string{"sr:vest"}, RequiresLicense: true, ScannerRating: 10}
+
+		if res := f.svc.Buy(context.Background(), sh, npc, cfg, "vest", nil, nil, scanFail); res.Outcome != ShopOK {
+			t.Fatalf("legal-good outcome = %v, want ShopOK (no scan)", res.Outcome)
+		}
+		if credentialBurned(inst) {
+			t.Error("credential burned buying a legal good")
+		}
+	})
+
+	t.Run("highest-rated matching credential is the one scanned", func(t *testing.T) {
+		f := newShopFixture(t, DefaultEconomyConfig())
+		f.tpls.Add(pistol)
+		sh := newShopper("p1", 100_000)
+		low := giveCredential(t, f, sh, ratedCredTpl("sr:sin-lo", "a cheap SIN", 2, "firearms"))
+		high := giveCredential(t, f, sh, ratedCredTpl("sr:sin-hi", "a premium SIN", 5, "firearms"))
+		cfg := ShopConfig{Sells: []string{"sr:pistol"}, RequiresLicense: true, ScannerRating: 10}
+
+		var scannedRating int
+		record := func(credRating, _ int) bool { scannedRating = credRating; return false }
+		res := f.svc.Buy(context.Background(), sh, npc, cfg, "pistol", nil, nil, record)
+
+		if scannedRating != 5 {
+			t.Errorf("scanned rating = %d, want 5 (the best fake)", scannedRating)
+		}
+		if res.BurnedCredential != "a premium SIN" || !credentialBurned(high) {
+			t.Errorf("burned = %q / high-burned=%v, want the premium SIN burned", res.BurnedCredential, credentialBurned(high))
+		}
+		if credentialBurned(low) {
+			t.Error("the cheap SIN burned though the premium was presented")
+		}
+	})
 }
 
 func TestCarriedCredentials(t *testing.T) {

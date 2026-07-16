@@ -118,6 +118,9 @@ type BuyResult struct {
 	// RequiredPermit names the license category a ShopLicenseRequired refusal
 	// lacked (sin-and-legality.md §4.2) so the caller can report it.
 	RequiredPermit string
+	// BurnedCredential names the fake SIN the §7 scan just burned on a
+	// ShopSINBurned outcome, so the caller can report which paper is now spent.
+	BurnedCredential string
 }
 
 // Buy purchases an item from the shop's stock (spec §3.5). The player
@@ -125,7 +128,7 @@ type BuyResult struct {
 // creation fails (spec §9 open question, kept as-is). check is the buyer's
 // §7 skill predicate: a gated item below the buyer's proficiency is refused
 // (ShopSkillTooLow) before any charge. A nil check never gates.
-func (s *ShopService) Buy(ctx context.Context, sh Shopper, npcID string, shop ShopConfig, query string, check SkillChecker, standing StandingFunc) BuyResult {
+func (s *ShopService) Buy(ctx context.Context, sh Shopper, npcID string, shop ShopConfig, query string, check SkillChecker, standing StandingFunc, scan LicenseScanner) BuyResult {
 	// faction.md §6 access gate: a hostile buyer is refused all trade before
 	// any stock resolution / pricing / charge.
 	if shop.refusesStanding(standing) {
@@ -136,11 +139,13 @@ func (s *ShopService) Buy(ctx context.Context, sh Shopper, npcID string, shop Sh
 	if tpl == nil {
 		return BuyResult{Outcome: ShopItemNotForSale}
 	}
-	// sin-and-legality.md §4 licensing gate: a requires_license storefront refuses
-	// a SINless buyer / a restricted good without a matching permit / any forbidden
-	// good, before pricing/charging. A shadow vendor (default) never refuses here.
-	if outcome, permit := s.refusesLicense(sh, shop, tpl); outcome != ShopOK {
-		return BuyResult{Outcome: outcome, ItemName: tpl.Name, RequiredPermit: permit}
+	// sin-and-legality.md §4/§7 licensing gate: a requires_license storefront
+	// refuses a SINless buyer / a restricted good without a matching permit / any
+	// forbidden good, and on a restricted purchase rolls the scan that burns a
+	// caught fake — all before pricing/charging. A shadow vendor (default) never
+	// gates here.
+	if g := s.refusesLicense(sh, shop, tpl, scan); g.Outcome != ShopOK {
+		return BuyResult{Outcome: g.Outcome, ItemName: tpl.Name, RequiredPermit: g.Permit, BurnedCredential: g.Burned}
 	}
 	// §7 availability by skill level: refuse a gated item the buyer's
 	// proficiency can't meet, before pricing/charging.

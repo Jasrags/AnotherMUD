@@ -30,9 +30,14 @@ func LicensesHandler(ctx context.Context, c *Context) error {
 	for _, cred := range creds {
 		b.WriteString("\n  ")
 		b.WriteString(cred.Name)
-		if len(cred.Permits) > 0 {
+		switch {
+		case cred.Burned:
+			// A spent fake (sin-and-legality.md §7) — flagged so the player knows
+			// to replace it rather than wondering why stores keep refusing them.
+			b.WriteString(" — BURNED (flagged, useless)")
+		case len(cred.Permits) > 0:
 			b.WriteString(fmt.Sprintf(" — licensed for: %s", strings.Join(cred.Permits, ", ")))
-		} else {
+		default:
 			b.WriteString(" — identity only, no licenses")
 		}
 	}
