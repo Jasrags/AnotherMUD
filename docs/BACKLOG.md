@@ -658,7 +658,7 @@ They cluster into three tiers: cheap-flavor (biome hazards, BTL, mana level), st
 (the SIN + security-response spine), and large parallel-space programs (Matrix, Astral).
 None block content authoring. Sizes: **S/M/L**.
 
-- **SINs / SINless + legality gating** — **✅ SLICES 1 + 2 SHIPPED (2026-07-16, `sin-and-legality.md`).**
+- **SINs / SINless + legality gating** — **✅ SLICES 1 + 2 + 3 SHIPPED (2026-07-16, `sin-and-legality.md`).**
   **Slice 1 — the two-tier market gate:** item `legality` (`legal`/`restricted`/`forbidden`)
   + a `permit` category, a `requires_license` storefront that scans customers, and carried
   **credential** items (fake SINs) whose `permits` clear the gate — SR content skins it as
@@ -669,14 +669,17 @@ None block content authoring. Sizes: **S/M/L**.
   login) so it clears no gate and shows spent under `licenses`, and refuses the sale. Only the
   highest-rated matching fake is scanned; the roll reuses the `skills.md` check primitive
   (command layer owns the d20 roller via a `LicenseScanner` func, mirroring `SkillChecker`).
-  Demo: the licensed Ares Arms boutique on Fifth Avenue (`scanner_rating: 10`) vs. the fixers
-  (no scan); restricted Predator + forbidden AK-97/APDS + restricted dermal plating; the fixer
-  sells rated fake SINs (basic r2 / premium r4). **Deferred to Slice 3 (`sin-and-legality.md`
-  §8):** a higher-DC **SIN-check gate at zone entries / checkpoints** (the movement/access axis,
-  interlocking with the security-response engine below — "SINless = invisible to law" lands
-  there), the **active/broadcast-SIN** model (choose which fake to present), **sell-side
-  legality**, **Lifestyle upkeep** (a sustenance-style drain), and **contraband-on-movement /
-  fast-travel** gating.
+  **Slice 3 — movement checkpoints:** a destination room with `checkpoint_scanner`
+  (DC) + optional `checkpoint_permit` scans a mover's credentials on entry (§7.1); the same
+  scan/burn on the movement axis (refused crossing costs no movement; gate in the volition move
+  command, primitive stays unconditional). Demo: the Corporate Enclave turnstile north of Fifth
+  Avenue (`checkpoint_permit: corporate`, DC 14) — only a premium fake (now carrying `corporate`)
+  reaches it, and it burns more often than the store (DC 10). **Deferred to Slice 4
+  (`sin-and-legality.md` §8):** the **security-response / heat** engine (crime → heat → timed
+  patrol; "SINless = invisible to law" becomes mechanical — see "Security zones as active
+  response" below), the **active/broadcast-SIN** model (choose which fake to present),
+  **directional/exit-level** checkpoints, **sell-side legality**, **Lifestyle upkeep**, and
+  **contraband-on-movement / fast-travel** gating.
 - **Security zones as active response** — **M–L**. The zone *label* (AAA→Z) is a content
   area-property; the new engine piece is the **consequence engine**: a crime committed in a
   zone raises heat and schedules a **timed patrol response** (1d6 min in AAA, hours in Z),

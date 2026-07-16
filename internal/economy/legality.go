@@ -220,20 +220,87 @@ func (s *ShopService) refusesLicense(sh Shopper, shop ShopConfig, tpl *item.Temp
 	}
 	// Pick the highest-rated matching credential — the runner flashes their best
 	// fake, and that is the one at risk in the scan (§7).
-	var best *carriedCredential
-	for i := range valid {
-		if valid[i].Permits[permit] && (best == nil || valid[i].Rating > best.Rating) {
-			best = &valid[i]
-		}
-	}
+	best := pickCredential(valid, permit)
 	if best == nil {
 		return licenseGate{Outcome: ShopLicenseRequired, Permit: permit}
 	}
 	// §7 scan: the store rolls only when it has scrutiny (ScannerRating > 0) and a
 	// scanner is wired. A failed roll burns the presented fake and refuses the sale.
-	if shop.ScannerRating > 0 && scan != nil && !scan(best.Rating, shop.ScannerRating) {
-		best.Inst.SetProperty(PropBurned, true)
-		return licenseGate{Outcome: ShopSINBurned, Burned: best.Name}
+	if burned, name := runScan(best, shop.ScannerRating, scan); burned {
+		return licenseGate{Outcome: ShopSINBurned, Burned: name}
 	}
 	return licenseGate{Outcome: ShopOK}
+}
+
+// pickCredential returns the highest-rated non-burned credential that clears
+// permit (empty ⇒ any valid credential — an identity-only check), or nil when
+// none qualifies. Shared by the shop restricted-good gate (§4.2) and the movement
+// checkpoint gate (§7.1) so the "flash your best fake" rule stays identical.
+func pickCredential(valid []carriedCredential, permit string) *carriedCredential {
+	var best *carriedCredential
+	for i := range valid {
+		if permit != "" && !valid[i].Permits[permit] {
+			continue
+		}
+		if best == nil || valid[i].Rating > best.Rating {
+			best = &valid[i]
+		}
+	}
+	return best
+}
+
+// runScan rolls the §7 scan against the chosen credential, burning it on a
+// failure. No scrutiny (scannerRating <= 0 or a nil scanner) never burns. Returns
+// whether the fake burned and its name. Shared so the burn write is identical at
+// the store counter and the movement checkpoint.
+func runScan(cred *carriedCredential, scannerRating int, scan LicenseScanner) (burned bool, name string) {
+	if scannerRating > 0 && scan != nil && !scan(cred.Rating, scannerRating) {
+		cred.Inst.SetProperty(PropBurned, true)
+		return true, cred.Name
+	}
+	return false, cred.Name
+}
+
+// CheckpointOutcome is the result of a movement-checkpoint credential scan
+// (sin-and-legality.md §7.1).
+type CheckpointOutcome int
+
+const (
+	// CheckpointOK — the mover's credentials cleared the checkpoint.
+	CheckpointOK CheckpointOutcome = iota
+	// CheckpointNoSIN — the mover carries no valid (unburned) credential.
+	CheckpointNoSIN
+	// CheckpointNoPermit — the mover has a credential but none clears the
+	// checkpoint's required permit.
+	CheckpointNoPermit
+	// CheckpointBurned — the scan caught the presented fake: it is burned and the
+	// crossing is refused. The burned fake's name rides along.
+	CheckpointBurned
+)
+
+// CheckpointScan runs a movement checkpoint's credential gate (sin-and-legality.md
+// §7.1): the mover must carry a valid credential, clearing an optional required
+// permit, and — unlike a store's legal-goods check — an identity checkpoint scans
+// even with no permit (a border verifies the SIN is real). A failed scan burns
+// the presented fake. scan may be nil / scannerRating <= 0 (no roll, nothing
+// burns). The name is the burned fake on a CheckpointBurned result.
+func (s *ShopService) CheckpointScan(sh Shopper, permit string, scannerRating int, scan LicenseScanner) (CheckpointOutcome, string) {
+	permit = strings.ToLower(strings.TrimSpace(permit))
+	var valid []carriedCredential
+	for _, c := range s.buyerCredentials(sh) {
+		if !c.Burned {
+			valid = append(valid, c)
+		}
+	}
+	if len(valid) == 0 {
+		return CheckpointNoSIN, ""
+	}
+	best := pickCredential(valid, permit)
+	if best == nil {
+		return CheckpointNoPermit, ""
+	}
+	if burned, name := runScan(best, scannerRating, scan); burned {
+		return CheckpointBurned, name
+	}
+	return CheckpointOK, ""
 }

@@ -2,8 +2,9 @@
 
 > **Layer:** Action/interaction — an extension of [economy-survival](economy-survival.md) §3 (shops).
 > **Status:** Slice 1 — the two-tier market gate (§2–§6). **Slice 2 — verification / burn (§7)** —
-> the scan roll that burns a fake on failure. Slice 3+ (zone-entry checks, lifestyle upkeep) stay
-> deferred; see §8.
+> the scan roll that burns a fake on failure. **Slice 3 — movement checkpoints (§7.1)** — the same
+> scan on a movement/access threshold. Slice 4+ (the security-response / heat consumer, active-
+> broadcast SIN, lifestyle upkeep) stay deferred; see §8.
 >
 > **Setting-agnostic engine, per-pack vocabulary.** The engine names this mechanism
 > **legality** (a gear property), **licensing** (a shop that demands a credential), and
@@ -170,6 +171,8 @@ state.
 | `credential_rating` | item template property | `0` | The fake's quality — the bonus the §7 scan roll adds. |
 | `requires_license` | shop block | `false` | Shop scans customers and gates by legality. |
 | `scanner_rating` | shop block | `0` | The §7 scan DC. `0` (or unset) = the store checks papers but never rolls a scan (Slice-1 behavior). |
+| `checkpoint_scanner` | room property | `0` | The §7.1 movement-checkpoint scan DC. `> 0` makes the room an access-controlled threshold; `0` / unset = not a checkpoint. |
+| `checkpoint_permit` | room property | *(none)* | The §7.1 access license a mover must carry to cross. Absent = an identity-only checkpoint (any valid credential is scanned). |
 
 **Slice 1** adds no `ANOTHERMUD_*` knobs and no save bump — the gate is stateless. **Slice 2**
 adds the persisted `burned` flag: `InventoryEntry.Burned`, a **save-version bump** with an
@@ -221,16 +224,48 @@ login like a magazine's loaded count).
 - [ ] The burned flag round-trips through save/load (a relog does not un-burn a fake).
 - [ ] The scan is deterministic under a seeded roller (mirrors the `pick` / `search` checks).
 
-## 8. Open questions / deferred (Slice 3 and beyond)
+### 7.1 Movement checkpoints (Slice 3)
 
-- **Zone-entry / checkpoint scans (Slice 3).** A higher-DC scan on a movement/access axis —
-  a border, a corp-zone turnstile, a cop's stop — rather than at a store counter. This is the
-  identity half of the **security-response** program (`docs/BACKLOG.md`): "SINless = invisible
-  to law" and "a crime raises heat." It shares this slice's scan + burn primitives but adds an
-  access gate and a heat/response consumer.
-- **Active / broadcast credential.** This slice scans "the highest-rated matching carried
-  credential". A full broadcast model (the player *chooses* which SIN to present, and only
-  that one is ever scanned) is deferred until a checkpoint scan makes the choice matter.
+A checkpoint is a **destination room** that scans a mover's credentials on entry — a corp-zone
+turnstile, a border. A room opts in with `checkpoint_scanner` (the scan DC, > 0) and an optional
+`checkpoint_permit` (the access license the mover must carry). Crossing **into** the room runs
+the same credential logic as the store gate, then the §7 scan; a failure burns the presented
+fake and **refuses the step** (the mover stays put). It is the same scan + burn primitives as
+§7, on the movement axis instead of the buy axis.
+
+- The check runs in the player-volition move command, **before** the movement-cost spend, so a
+  refused crossing costs nothing. The move *primitive* stays unconditional (mob / scripted /
+  admin moves are never gated), exactly like the hidden-exit and darkness gates.
+- **SINless** (no valid credential) → refused. **No matching permit** → refused (no scan — the
+  license isn't there to check). Otherwise the highest-rated matching fake is scanned.
+- Unlike the store's legal-goods path, an **identity-only** checkpoint (no `checkpoint_permit`)
+  still **scans** — a border verifies the SIN is real regardless of licenses.
+- A checkpoint DC is typically **stricter** than a store counter, so even a good fake burns
+  often enough to make the crossing a genuine risk.
+
+Acceptance criteria:
+
+- [ ] A room with no positive `checkpoint_scanner` is not a checkpoint (no gate).
+- [ ] A SINless mover and a mover lacking the required permit are both refused, in place.
+- [ ] A cleared scan lets the step commit; a failed scan burns the fake and refuses the step.
+- [ ] A no-permit refusal runs **no** scan (nothing burns).
+- [ ] An identity-only checkpoint (`checkpoint_permit` absent) scans the best carried credential.
+- [ ] A burn at a checkpoint persists (same `InventoryEntry.Burned` path as §7).
+- [ ] The gate runs before the movement-cost spend (a refused crossing costs no movement).
+
+## 8. Open questions / deferred (Slice 4 and beyond)
+
+- **Security-response / heat (Slice 4).** The consequence engine the checkpoint feeds: a crime
+  (or a burned-at-a-scan flag) raises **heat** in a security zone and schedules a timed patrol
+  response (`docs/BACKLOG.md` "Security zones as active response"). "SINless = invisible to law"
+  becomes mechanical here — the identity axis (§7.1) gates *access*; heat gates *pursuit*.
+- **Active / broadcast credential.** §7 / §7.1 scan "the highest-rated matching carried
+  credential". A full broadcast model (the player *chooses* which SIN to present — flash a
+  throwaway to protect the premium — and only that one is ever scanned) is deferred; it needs a
+  `broadcast` verb + a persisted active-SIN threaded through both the store and checkpoint gates.
+- **Directional / exit-level checkpoints.** §7.1 gates a *room* on entry (from every direction).
+  A finer model gates a specific *exit* (one threshold, one direction) and would carry the
+  checkpoint data on the exit rather than the destination room.
 - **Sell-side legality.** Should a legitimate shop refuse to *buy* obviously-forbidden goods
   from a SINless seller? Left to the existing buy-category gate for now.
 - **Lifestyle upkeep** (a periodic drain à la sustenance) and **contraband on movement / fast

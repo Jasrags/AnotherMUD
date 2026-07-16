@@ -12,8 +12,9 @@ keywords: [sin, fake sin, premium sin, credstick, papers, id]
 properties:
   weight: 0
   value: 20000
-  # sin-and-legality.md §3: a higher-grade credential clearing two permit
-  # categories. `credential_rating` 4 is authored for the deferred Slice 2
-  # verification/burn check — INERT in Slice 1.
-  permits: [firearms, cyberware]
+  # sin-and-legality.md §3: a higher-grade credential clearing three permit
+  # categories — firearms + cyberware for legit shops, and `corporate` for the
+  # Fifth Avenue enclave checkpoint (§7.1), so only a premium fake opens the
+  # corporate strip. credential_rating 4 is the §7 scan bonus.
+  permits: [firearms, cyberware, corporate]
   credential_rating: 4

@@ -548,6 +548,16 @@ func movementHandler(dir world.Direction) Handler {
 		if blocked, _ := dst.PropertyBool(PropRoomDarkBlocked); c.Light != nil && dstLvl <= light.Black && blocked {
 			return c.Actor.Write(ctx, darkBlockedText)
 		}
+		// SIN checkpoint gate (sin-and-legality.md §7.1): a destination room may be
+		// an access-controlled threshold (a corp turnstile, a border) that scans
+		// the mover's credentials before letting them cross. Refuses a SINless / no-
+		// permit mover, and on a failed scan burns the presented fake and refuses
+		// the step. Placed before the movement-cost spend so a refused crossing
+		// costs nothing; the move primitive stays unconditional (mob/scripted/admin
+		// moves never hit this player-volition gate). Off unless the room opts in.
+		if blocked, err := checkpointBlocks(ctx, c, dst); blocked {
+			return err
+		}
 		// Movement-cost gate (world-rooms-movement §3.3): walking spends
 		// movement points. The move primitive stays unconditional on
 		// resource availability — the spend lives here, in the

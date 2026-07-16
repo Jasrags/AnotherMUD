@@ -18,9 +18,11 @@ exits:
   # Stairs down to the Financial District platform of the Downtown Metro (the
   # scheduled subway line; docs/specs/transit.md §4.2).
   down: metro-financial
-# STUB: north should eventually seam into Everett (I-5 North; seattle-everett,
-# port/industrial) once that district is authored — Everett is due north up the
-# 5. (Bellevue is EAST, off Pike Street's I-90 bridge, not north.) Left unwired.
+  # North into the walled corporate enclaves (the room's own prose): a SIN
+  # checkpoint gates the turnstile — a `corporate` access license + a scan
+  # (sin-and-legality.md §7.1). (Everett up the I-5 was the old stub for this
+  # exit; deferred until that district is authored — the enclave uses it now.)
+  north: corp-enclave-gate
 # The Knight Errant beat cop who works the corporate core (neutral — she won't
 # start it, but Downtown's fast AA response means she finishes it).
 mobs:

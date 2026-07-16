@@ -1,0 +1,26 @@
+id: corp-enclave-gate
+area: seattle-downtown
+name: "{C}Corporate Enclave — Turnstile Plaza{x}"
+description: |
+  Past the turnstiles the rain stops — the enclave is roofed in smartglass and
+  smells of filtered air and money. Manicured planters, a mirror-still reflecting
+  pool, and not a single face you'd see in the barrens. A ring of SIN-scanners
+  arches the entrance you just cleared; corp-sec in pressed grey watch from
+  alcoves, unhurried. This is space you are permitted to occupy, and only just.
+  Fifth Avenue and the honest rain lie back to the south.
+terrain: sprawl
+# An authored interior override so the roofed enclave reads as lit regardless of
+# the hour (light-and-darkness §9), matching the ache/club interiors.
+properties:
+  light: dim
+  # SIN checkpoint (sin-and-legality.md §7.1): crossing NORTH out of Fifth Avenue
+  # into the enclave scans the mover's credentials. checkpoint_permit demands a
+  # `corporate` access license (a basic firearms-only fake is turned back with no
+  # scan; a premium fake carrying `corporate` is scanned), and the DC-14
+  # checkpoint_scanner is stricter than the Ares Arms counter (10) — even a good
+  # fake burns here often enough to make the crossing a real risk. A SINless
+  # runner never gets in. Leaving south is never gated.
+  checkpoint_permit: corporate
+  checkpoint_scanner: 14
+exits:
+  south: fifth-avenue

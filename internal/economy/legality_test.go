@@ -250,6 +250,86 @@ func TestBuy_Scan(t *testing.T) {
 	})
 }
 
+func TestCheckpointScan(t *testing.T) {
+	t.Run("no credential is turned back", func(t *testing.T) {
+		f := newShopFixture(t, DefaultEconomyConfig())
+		sh := newShopper("p1", 0)
+		out, _ := f.svc.CheckpointScan(sh, "corporate", 14, scanPass)
+		if out != CheckpointNoSIN {
+			t.Fatalf("out = %v, want CheckpointNoSIN", out)
+		}
+	})
+
+	t.Run("credential without the permit is turned back (no scan)", func(t *testing.T) {
+		f := newShopFixture(t, DefaultEconomyConfig())
+		sh := newShopper("p1", 0)
+		inst := giveCredential(t, f, sh, ratedCredTpl("sr:sin", "a fake SIN", 3, "firearms"))
+		out, _ := f.svc.CheckpointScan(sh, "corporate", 14, scanFail)
+		if out != CheckpointNoPermit {
+			t.Fatalf("out = %v, want CheckpointNoPermit", out)
+		}
+		if credentialBurned(inst) {
+			t.Error("credential burned though its permit never matched (no scan should run)")
+		}
+	})
+
+	t.Run("matching permit + scan pass clears the checkpoint", func(t *testing.T) {
+		f := newShopFixture(t, DefaultEconomyConfig())
+		sh := newShopper("p1", 0)
+		inst := giveCredential(t, f, sh, ratedCredTpl("sr:sin", "a fake SIN", 4, "corporate"))
+		out, _ := f.svc.CheckpointScan(sh, "corporate", 14, scanPass)
+		if out != CheckpointOK {
+			t.Fatalf("out = %v, want CheckpointOK", out)
+		}
+		if credentialBurned(inst) {
+			t.Error("credential burned on a passing scan")
+		}
+	})
+
+	t.Run("scan fail burns the fake and refuses the crossing", func(t *testing.T) {
+		f := newShopFixture(t, DefaultEconomyConfig())
+		sh := newShopper("p1", 0)
+		inst := giveCredential(t, f, sh, ratedCredTpl("sr:sin", "a premium SIN", 4, "corporate"))
+		out, name := f.svc.CheckpointScan(sh, "corporate", 14, scanFail)
+		if out != CheckpointBurned || name != "a premium SIN" {
+			t.Fatalf("out=%v name=%q, want CheckpointBurned / a premium SIN", out, name)
+		}
+		if !credentialBurned(inst) {
+			t.Error("credential not burned after a failed checkpoint scan")
+		}
+		// A burned fake no longer clears the checkpoint — a retry reads as SINless.
+		if out2, _ := f.svc.CheckpointScan(sh, "corporate", 14, scanFail); out2 != CheckpointNoSIN {
+			t.Errorf("retry with a burned SIN = %v, want CheckpointNoSIN", out2)
+		}
+	})
+
+	t.Run("identity-only checkpoint (no permit) still scans", func(t *testing.T) {
+		f := newShopFixture(t, DefaultEconomyConfig())
+		sh := newShopper("p1", 0)
+		inst := giveCredential(t, f, sh, ratedCredTpl("sr:sin", "a fake SIN", 2))
+		out, _ := f.svc.CheckpointScan(sh, "", 14, scanFail)
+		if out != CheckpointBurned {
+			t.Fatalf("out = %v, want CheckpointBurned (identity checkpoints scan)", out)
+		}
+		if !credentialBurned(inst) {
+			t.Error("identity-only checkpoint did not burn the fake on a failed scan")
+		}
+	})
+
+	t.Run("scannerRating 0 never rolls", func(t *testing.T) {
+		f := newShopFixture(t, DefaultEconomyConfig())
+		sh := newShopper("p1", 0)
+		inst := giveCredential(t, f, sh, ratedCredTpl("sr:sin", "a fake SIN", 2, "corporate"))
+		out, _ := f.svc.CheckpointScan(sh, "corporate", 0, scanFail)
+		if out != CheckpointOK {
+			t.Fatalf("out = %v, want CheckpointOK (no scan at rating 0)", out)
+		}
+		if credentialBurned(inst) {
+			t.Error("credential burned though scannerRating was 0")
+		}
+	})
+}
+
 func TestCarriedCredentials(t *testing.T) {
 	f := newShopFixture(t, DefaultEconomyConfig())
 	sh := newShopper("p1", 100)

@@ -1,0 +1,11 @@
+# SIN-checkpoint access permit — a pack-declared ROOM property (sin-and-legality.md
+# §7.1). The optional access category a carried credential must clear to cross a
+# checkpoint room (paired with checkpoint_scanner). Absent = an identity-only
+# checkpoint (any valid, unburned credential is scanned). Read by the movement-
+# checkpoint gate in the command layer.
+name: checkpoint_permit
+type: string
+applies_to: [room]
+description: >
+  SIN checkpoint access permit. The license category a credential must carry to
+  clear the checkpoint (sin-and-legality.md §7.1); absent = identity-only.

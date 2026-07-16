@@ -1,0 +1,12 @@
+# SIN-checkpoint scan DC — a pack-declared ROOM property (sin-and-legality.md
+# §7.1). A positive value makes the room an access-controlled threshold: crossing
+# INTO it scans the mover's credentials (d20 + the fake's credential_rating vs
+# this DC), and a failed scan burns the presented fake and turns the mover back.
+# 0 / absent = not a checkpoint. Read by the movement-checkpoint gate in the
+# command layer; no engine behaviour without it, keeping the engine setting-agnostic.
+name: checkpoint_scanner
+type: int
+applies_to: [room]
+description: >
+  SIN checkpoint scan DC. A positive value gates entry to the room on a credential
+  scan (sin-and-legality.md §7.1); a failed scan burns the presented fake SIN.
