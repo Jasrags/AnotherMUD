@@ -15,7 +15,7 @@ exits:
   north: bellevue-way
   east: medina
   west: hunts-point
-  down: stuffer-shack
+  down: food-court
 # A public, heavily-policed concourse: safe-room (nobody brawls under KE's eye).
 tags: [safe-room, safe]
 mobs:

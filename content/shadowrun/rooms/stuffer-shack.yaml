@@ -7,11 +7,11 @@ description: |
   scratched plastic runs one wall, a soykaf machine wheezing beside a heat-lamp
   tray of soydogs, and chest-high shelves sag under NutriSoy in every number. A
   wageslave works the register behind smeared ballistic glass. Steam and the
-  clatter of fryers drift from the kitchen north, and an escalator climbs back up
-  to the main concourse.
+  clatter of fryers drift from the kitchen north, and the franchise opens south
+  onto the mall food court.
 terrain: indoors
 exits:
-  up: bellevue-square
+  south: food-court
   north: stuffer-shack-kitchen
 # A bright, franchised, camera-covered storefront: safe-room like the concourse
 # above it — the trouble, such as it is, keeps to the back.
