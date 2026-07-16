@@ -1,0 +1,19 @@
+id: hot-btl-chip
+name: a hot BTL chip
+type: item
+description: |
+  A sliver of optical chip in a scratched datajack sleeve, still warm from
+  someone else's skull. Better-Than-Life: jack it and the recorded sim floods
+  your head raw and uncut — someone else's last hours, real as your own. Kestrel
+  won't put an unknown chip in her own wetware, which is why she's paying you to.
+  `use` it to jack in.
+tags: [contraband, btl]
+keywords: [chip, btl, btl chip, hot chip, hot]
+properties:
+  weight: 0
+  # Worthless to fence — a hot chip Kestrel handed you to test, not to sell.
+  value: 0
+  # Jacked, not eaten or drunk. The generic `use` verb consumes any item that
+  # declares a consume_method, firing item.consumed → the quest `use` objective
+  # (quests.md §7.1). A dedicated `jack` verb doesn't exist; `use chip` works.
+  consume_method: jack

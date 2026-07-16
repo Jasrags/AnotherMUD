@@ -1,0 +1,44 @@
+# "Hot Chips" — Kestrel's `use`-objective run (quests.md §7.1 `use`). She pulled
+# a BTL chip off a runner who didn't make it out of Redmond and won't jack an
+# unknown sim into her own wetware, so she pays you to be the guinea pig: jack
+# the chip, tell her what's on it. This is the demo quest for the item-consumed →
+# `use` objective mapping. Unqualified ids resolve against the shadowrun
+# namespace at load.
+id: hot-chips
+name: Hot Chips
+classification: side
+giver: kestrel
+offer: >-
+  "Got a chip off a runner who didn't make it out of Redmond — BTL, still warm.
+  Could be gold, could be dead air, could be a black-hammer trap that fries the
+  first skull that jacks it. That's where you come in, omae. I slide you the
+  chip, you jack it somewhere quiet, and you tell me what you rode. I don't put
+  unknown sim in my own head. You in?"
+turn_in: true
+abandonable: true
+prerequisite:
+  min_level: 1
+stages:
+  - id: jack
+    description: Kestrel slid a hot BTL chip across the bar. Take it and jack in.
+    hint: "`get chip` off the bar, then `use chip` to jack the sim."
+    # Quest-scoped spawn (quest-spawns.md): Kestrel's chip appears on the Big
+    # Rhino's bar for this runner only, and is cleaned up if the run is abandoned.
+    spawns:
+      - { kind: item, template: hot-btl-chip, room: the-big-rhino }
+    objectives:
+      - type: collect
+        target: hot-btl-chip
+        description: Take the BTL chip Kestrel slid across the bar.
+      - type: use
+        target: hot-btl-chip
+        description: Jack the chip and ride the sim.
+reward:
+  xp: 120
+  gold: 900
+  reputation: 1
+  # A personal favor for a street fixer — lifts you with the streets, no corp
+  # blowback (faction.md).
+  faction:
+    - faction: the-streets
+      delta: 50
