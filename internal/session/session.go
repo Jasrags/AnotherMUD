@@ -791,6 +791,7 @@ func run(ctx context.Context, c conn.Connection, cfg Config) error {
 		items:         cfg.Items,
 		contents:      cfg.Contents,
 		placement:     cfg.Placement,
+		adminRole:     cfg.AdminRole,
 		trades:        cfg.Trades,
 		light:         cfg.Light,
 		equipment:     make(map[string]entities.EntityID),
@@ -2123,6 +2124,12 @@ type connActor struct {
 	placement *entities.Placement
 	light     *light.Resolver
 
+	// adminRole is the world's admin role string (cfg.AdminRole), retained so
+	// the GMCP flushers can build the quest-spawn visibility predicate
+	// (command.QuestSpawnVisible) the same way the room renderer does — an admin
+	// sees foreign quest spawns, a bystander does not. Empty disables the bypass.
+	adminRole string
+
 	// inventory holds the runtime entity ids the actor is carrying.
 	// Mutations go through AddToInventory / RemoveFromInventory and
 	// flip the dirty bit so autosave commits the new contents.
@@ -2688,6 +2695,10 @@ type connActor struct {
 	// guarded by gmcpItemsMu — it rides the same gmcp-items-flush pass.
 	gmcpRecipesLast  []byte
 	gmcpRecipesValid bool
+	// gmcpShop* are the web-client-plan P3 Slice B+ shadow for the rich Char.Shop
+	// trade form. Same marshaled-bytes shadow under gmcpItemsMu, same flush pass.
+	gmcpShopLast  []byte
+	gmcpShopValid bool
 
 	// gmcpCombat* are the M16.4d shadow for Char.Combat. Single
 	// snapshot per actor since each player has at most one primary

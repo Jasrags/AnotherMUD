@@ -240,6 +240,46 @@ func TestCharRecipes_EmptySliceMarshalsAsArray(t *testing.T) {
 	}
 }
 
+func TestCharShop_PackageConstant(t *testing.T) {
+	if gmcp.PackageCharShop != "Char.Shop" {
+		t.Errorf("PackageCharShop = %q, want Char.Shop", gmcp.PackageCharShop)
+	}
+}
+
+func TestCharShop_OpenPayloadShape(t *testing.T) {
+	// An open shop: one affordable buy row, one unaffordable buy row, and one
+	// grouped sell row (qty). Prices are pre-formatted strings.
+	out, _ := json.Marshal(gmcp.CharShop{
+		Open:       true,
+		Shopkeeper: "Hans the Trader",
+		Money:      "100¥",
+		Buy: []gmcp.ShopItem{
+			{Name: "a ration", Price: "12¥", Cmd: "buy ration", Affordable: true},
+			{Name: "a suit of plate", Price: "1200¥", Cmd: "buy plate", Affordable: false},
+		},
+		Sell: []gmcp.ShopItem{
+			{Name: "a caseless round", Price: "5¥", Qty: 2, Cmd: "sell round", Affordable: true},
+		},
+	})
+	want := `{"open":true,"shopkeeper":"Hans the Trader","money":"100¥","buy":[` +
+		`{"name":"a ration","price":"12¥","cmd":"buy ration","affordable":true},` +
+		`{"name":"a suit of plate","price":"1200¥","cmd":"buy plate","affordable":false}` +
+		`],"sell":[` +
+		`{"name":"a caseless round","price":"5¥","qty":2,"cmd":"sell round","affordable":true}` +
+		`]}`
+	if string(out) != want {
+		t.Errorf("payload = %q,\nwant       %q", string(out), want)
+	}
+}
+
+func TestCharShop_ClosedOmitsHeaderAndEmitsEmptyArrays(t *testing.T) {
+	// Not at a shop: open=false, header fields omit, offer slices marshal as [].
+	out, _ := json.Marshal(gmcp.CharShop{Open: false, Buy: []gmcp.ShopItem{}, Sell: []gmcp.ShopItem{}})
+	if string(out) != `{"open":false,"buy":[],"sell":[]}` {
+		t.Errorf("closed payload = %q, want {\"open\":false,\"buy\":[],\"sell\":[]}", string(out))
+	}
+}
+
 func TestCharCombat_NotInCombatOmitsTargetFields(t *testing.T) {
 	// in_combat=false → just the flag; target_* fields all omit
 	// so the panel can hide the target tile.

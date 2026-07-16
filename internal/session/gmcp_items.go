@@ -27,6 +27,7 @@ func (m *Manager) FlushGmcpItems(ctx context.Context) {
 		snapshot = append(snapshot, a)
 	}
 	craftSvc := m.craft
+	shopSvc, money := m.shop, m.money
 	m.mu.RUnlock()
 
 	for _, a := range snapshot {
@@ -41,6 +42,10 @@ func (m *Manager) FlushGmcpItems(ctx context.Context) {
 		// tracks ingredient possession, so it shares the inventory poll's
 		// inputs. nil craftSvc (crafting unwired) is a no-op.
 		a.flushGmcpRecipes(ctx, craftSvc)
+		// web-client-plan P3 Slice B+: the rich shop/trade form. Affordability +
+		// the sell list track money + carried items (this pass's inputs); it's
+		// contextual (closed when not at a shop). nil shopSvc is a no-op.
+		a.flushGmcpShop(ctx, shopSvc, money)
 	}
 }
 
@@ -206,5 +211,8 @@ func (a *connActor) resetGmcpItemsShadow() {
 	// The Char.Recipes craft-form shadow shares the same lock + reattach seam.
 	a.gmcpRecipesValid = false
 	a.gmcpRecipesLast = nil
+	// The Char.Shop trade-form shadow shares the same lock + reattach seam.
+	a.gmcpShopValid = false
+	a.gmcpShopLast = nil
 	a.gmcpItemsMu.Unlock()
 }

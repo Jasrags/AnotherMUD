@@ -42,6 +42,11 @@ const el = {
   invCarried: $("inv-carried"),
   recipes: $("p-recipes"),
   recipesList: $("recipes-list"),
+  shop: $("p-shop"),
+  shopTitle: $("shop-title"),
+  shopMoney: $("shop-money"),
+  shopBuy: $("shop-buy"),
+  shopSell: $("shop-sell"),
 };
 
 const escapeHtml = (s) =>
@@ -221,6 +226,7 @@ const gmcpHandlers = {
   "Char.Experience": renderXp,
   "Char.Inventory": renderInventory,
   "Char.Recipes": renderRecipes,
+  "Char.Shop": renderShop,
   // Char.Items.List / Char.StatusVars / Comm.Channel.Text / Char.Wizard are
   // received but not yet surfaced — dispatched to a no-op so unknown packages
   // never throw. (Char.Inventory is the P3 richer superset of Char.Items.List.)
@@ -461,6 +467,63 @@ function renderRecipes(d) {
 // active click-to-walk (a manual action interrupts the walk).
 el.recipes.addEventListener("click", (e) => {
   const b = e.target.closest(".recipe-btn");
+  if (b && !b.disabled && b.dataset.cmd && conn.socket) {
+    walkTo = null;
+    sendCommand(b.dataset.cmd);
+  }
+});
+
+/* ── Trade form (Char.Shop, P3 Slice B+) ──────────────────────────
+ * The contextual shop panel, shown only when the player stands at a shop
+ * (open=true). Two columns — the shop's stock to buy (greyed when unaffordable)
+ * and the player's sellable items — each row a button carrying its full
+ * `buy <token>` / `sell <token>` command. Nothing here decides a sale; a click
+ * sends the same command a player would type, and the server is the sole judge
+ * (the authority invariant). */
+
+// shopRow renders one buy/sell offer: name, optional qty, price, and a button
+// carrying the full command (disabled + labelled when unaffordable).
+function shopRow(o, verb) {
+  const qty = o.qty > 1 ? `<span class="shop-qty">×${o.qty}</span>` : "";
+  const price = `<span class="shop-price">${escapeHtml(o.price || "")}</span>`;
+  const locked = verb === "buy" && !o.affordable;
+  const btn = locked
+    ? `<button class="shop-btn" type="button" disabled title="You can't afford that.">${verb}</button>`
+    : `<button class="shop-btn" type="button" data-cmd="${escapeHtml(o.cmd || "")}">${verb}</button>`;
+  return `<div class="shop-item${locked ? " shop-locked" : ""}">
+    <span class="shop-name">${escapeHtml(o.name || "")}${qty}</span>
+    <span class="shop-meta">${price}${btn}</span>
+  </div>`;
+}
+
+function renderShop(d) {
+  // Closed (not at a shop) → hide the panel entirely.
+  if (!d || !d.open) {
+    el.shop.hidden = true;
+    return;
+  }
+  el.shop.hidden = false;
+  el.shopTitle.textContent = d.shopkeeper || "Shop";
+  el.shopMoney.textContent = d.money || "";
+  if (d.refused) {
+    const closed = `<div class="empty">The shopkeeper refuses to deal with you.</div>`;
+    el.shopBuy.innerHTML = closed;
+    el.shopSell.innerHTML = "";
+    return;
+  }
+  const buy = d.buy || [];
+  const sell = d.sell || [];
+  el.shopBuy.innerHTML = buy.length
+    ? buy.map((o) => shopRow(o, "buy")).join("")
+    : `<div class="empty">Nothing for sale.</div>`;
+  el.shopSell.innerHTML = sell.length
+    ? sell.map((o) => shopRow(o, "sell")).join("")
+    : `<div class="empty">Nothing to sell.</div>`;
+}
+
+// A buy/sell button sends its command; cancels any active click-to-walk.
+el.shop.addEventListener("click", (e) => {
+  const b = e.target.closest(".shop-btn");
   if (b && !b.disabled && b.dataset.cmd && conn.socket) {
     walkTo = null;
     sendCommand(b.dataset.cmd);

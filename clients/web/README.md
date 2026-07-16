@@ -45,6 +45,14 @@ No build step, no dependencies — three static files (`index.html`, `app.css`,
     click sends exactly what a player would type (the authority invariant; no
     new server verb). The panel hides itself for a character who knows no
     recipes. A rich superset of the `craft` listing; a baseline client ignores it.
+  - **Shop** — the trade form from the `Char.Shop` package (P3 Slice B+), shown
+    only when the player stands at a shop (`open`). Two columns: the shop's stock
+    to **buy** (greyed when unaffordable) and the player's items to **sell**
+    (grouped with a qty), each row a button carrying its full `buy <token>` /
+    `sell <token>` command — a click sends exactly what a player would type (the
+    authority invariant; no new server verb). Prices are pre-formatted
+    server-side via the world currency (¥ vs gold). A rich superset of
+    `list`/`value`; a baseline client ignores it.
   - **Effects** — active effects from `Char.Effects`.
   - **Progression** — per-track level/XP bars from `Char.Experience`.
   - **Identity** — name/account/race/class from `Char.Login` + `Char.Status`.
@@ -132,13 +140,13 @@ in through the normal prompts (create an account / character just like telnet).
 
 - **`ws://` is unencrypted.** For anything past localhost use `wss://` behind a
   TLS terminator; see the WebSocket TLS/rate-limit deferral (`m16-5`).
-- **Enriched packages, so far.** Three rich additive packages are surfaced beyond
+- **Enriched packages, so far.** Four rich additive packages are surfaced beyond
   the baseline: `Room.Map` (the neighbourhood map, P2), `Char.Inventory` (the
-  structured inventory panel, P3 Slice A), and `Char.Recipes` (the craft form, P3
-  Slice B). Still on the wire but not yet surfaced: `Char.Items.List` (superseded
-  by `Char.Inventory` for the panel), `Char.StatusVars`, `Comm.Channel.Text`, and
-  `Char.Wizard` — dispatched to a no-op, so they never error. Trade **forms**
-  follow the same concrete-package + plain-command-submit shape — see the plan
-  doc.
+  structured inventory panel, P3 Slice A), `Char.Recipes` (the craft form, P3
+  Slice B), and `Char.Shop` (the trade form, P3 Slice B+). Still on the wire but
+  not yet surfaced: `Char.Items.List` (superseded by `Char.Inventory` for the
+  panel), `Char.StatusVars`, `Comm.Channel.Text`, and `Char.Wizard` — dispatched
+  to a no-op, so they never error. Direct-trade + auction **forms** follow the
+  same concrete-package + plain-command-submit shape — see the plan doc.
 - **Password masking is a heuristic** (the prompt text mentions "password").
   It's a local convenience, not a security boundary.

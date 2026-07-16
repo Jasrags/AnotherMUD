@@ -162,6 +162,27 @@ const (
 	// §2.2 namespace rule, this extends Char.* (a richer view of an existing
 	// concept) rather than the reserved Client.* UI-control space.
 	PackageCharRecipes = "Char.Recipes"
+
+	// PackageCharShop — the RICH shop/trade form (web-client-plan P3 Slice B+):
+	// the CONTEXTUAL buy/sell surface when the player stands at a shop. A superset
+	// of the `list`/`value` verbs: the shop's buy-side stock (each row priced +
+	// marked affordable) and the player's sell-side carried items (grouped by kind
+	// with a qty + sell price), each row carrying the full `buy <token>` /
+	// `sell <token>` command. A capable client renders a two-column shop panel; a
+	// baseline client ignores it (the additive-contract invariant).
+	//
+	// UNLIKE the always-on craft form, a shop is contextual — the payload's `open`
+	// flag is false (and the offer lists empty) when no shop is in the room, so
+	// the client hides the panel. Poll-and-diff like Char.Recipes (rides the items
+	// flush pass), so entering/leaving a shop, spending money, or picking up a
+	// sellable item all re-emit.
+	//
+	// Ruleset-agnostic: the submit `cmd` is the exact command a player would type
+	// (`buy <token>`/`sell <token>`), reducing to the existing shop verbs (the
+	// authority invariant) — no new server authority. Prices are pre-formatted
+	// server-side through the world's CurrencyLabel (¥ vs gold), so the client
+	// stays free of currency vocabulary. Extends Char.* per the §2.2 rule.
+	PackageCharShop = "Char.Shop"
 )
 
 // Char.Items "location" string constants per spec §7. Tapestry-
@@ -462,6 +483,47 @@ type RecipeIngredient struct {
 	Name string `json:"name"`
 	Need int    `json:"need"`
 	Have int    `json:"have"`
+}
+
+// CharShop is the Char.Shop payload (web-client-plan P3 Slice B+) — the trade
+// form. It is CONTEXTUAL: when the player is not at a shop, `open` is false and
+// both offer slices are empty (the client hides the panel).
+//
+// Both slices are non-nil (possibly empty) so they marshal as `[]`, never the
+// `null` that's ambiguous with "no change" (the builder makes them).
+type CharShop struct {
+	// Open is true when a shop NPC is present in the room; false hides the panel.
+	Open bool `json:"open"`
+	// Shopkeeper is the shop NPC's name (panel header); omitted when closed.
+	Shopkeeper string `json:"shopkeeper,omitempty"`
+	// Money is the shopper's pre-formatted balance ("1,250¥" / "50 gold");
+	// omitted when closed.
+	Money string `json:"money,omitempty"`
+	// Refused is true when the shop's faction access floor turns this shopper
+	// away (faction.md §6): the shop is Open but Buy/Sell are empty.
+	Refused bool `json:"refused,omitempty"`
+	// Buy is the shop's stock; Sell is the player's sellable carried items.
+	Buy  []ShopItem `json:"buy"`
+	Sell []ShopItem `json:"sell"`
+}
+
+// ShopItem is one buy- or sell-side row in a CharShop.
+//
+//   - name — the display name the panel renders.
+//   - price — the PRE-FORMATTED price ("725¥"), server-side via the world's
+//     CurrencyLabel so the client carries no currency vocabulary.
+//   - qty — the stack size on a sell row (how many the player carries); omitted
+//     when 1 (a client reads absent as 1). Always omitted on buy rows.
+//   - cmd — the FULL command to submit (`buy <token>` / `sell <token>`), sent
+//     verbatim as a plain command (the authority invariant).
+//   - affordable — buy rows: whether the shopper can pay (a client greys the
+//     button when false). Always true on sell rows.
+type ShopItem struct {
+	Name       string `json:"name"`
+	Price      string `json:"price"`
+	Qty        int    `json:"qty,omitempty"`
+	Cmd        string `json:"cmd"`
+	Affordable bool   `json:"affordable"`
 }
 
 // CharCombat is the spec §7 Char.Combat payload — the actor's

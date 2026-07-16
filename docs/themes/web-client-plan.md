@@ -191,10 +191,29 @@ correctness precondition.
     builder/flusher tests (`gmcp_recipes_test.go`), and the env-gated
     `TestLive_GmcpRecipes` (login → Char.Recipes on the wire). Trade forms and
     the web-admin console (BACKLOG) follow the same concrete-package pattern.
-  - **Slice B+ — more forms.** Trade forms (shop buy/sell, direct trade,
-    auction), portraits, responsive/mobile — each one additive package (server
-    state) + a plain-command submit, never new authority. If a third form lands,
-    generalize the concrete packages into a shared shape then (not before).
+  - **Slice B+ — the shop form. DONE (`Char.Shop`).** The trade form, and the
+    first CONTEXTUAL package: `Char.Shop` (server→client) carries an `open` flag
+    (false + empty offers when the player is not at a shop, so the client hides
+    the panel) plus, when open, the shop NPC's name, the shopper's formatted
+    balance, a `buy` list (the shop's skill-passable stock, each row priced +
+    marked affordable), and a `sell` list (the player's carried sellable items,
+    grouped by kind with a qty + sell price). Faction access-refusal surfaces as
+    `refused`. Built read-only by `economy.ShopService.ShopForm` (mirrors the
+    buy/sell gates — faction §6, the §7 skill gate, no-sell/zero-value — and
+    prices through the same `buyPrice`/`sellPrice`); the session formats prices
+    via the world `CurrencyLabel` so the wire carries no currency vocabulary.
+    Emitted poll-and-diff on the same items pass as the craft form, so entering/
+    leaving a shop, spending money, or picking up a sellable item all re-emit.
+    Submit is a plain `buy <token>`/`sell <token>` command (authority invariant —
+    no new server verb). The web client renders a two-column shop panel. Guarded
+    by `internal/gmcp` payload-shape tests, `internal/economy` ShopForm unit
+    tests, `internal/session` flusher tests (`gmcp_shop_test.go`), and the
+    env-gated `TestLive_GmcpShop`.
+  - **Slice B++ — remaining forms.** Direct trade + auction forms, portraits,
+    responsive/mobile — each one additive package (server state) + a plain-command
+    submit, never new authority. Three concrete form packages now exist
+    (`Char.Recipes`, `Char.Shop`, and any next); if a shared shape earns its keep,
+    generalize then — not before.
 
 ## 5. Open questions (non-blocking; settle when the phase reaches them)
 

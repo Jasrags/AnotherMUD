@@ -211,6 +211,16 @@ func mobHasTag(mob *entities.MobInstance, tag string) bool {
 	return false
 }
 
+// ShopConfigFromMob reads the shop config block off the mob's properties (spec
+// §3.1), exported so the session layer can build the same config for the
+// Char.Shop trade form (web-client-plan P3 Slice B+) without duplicating the
+// property-parsing. The pack loader normalizes nested YAML maps to
+// map[string]any; missing/malformed fields fall back to the global defaults (an
+// empty Sells list yields an empty shop).
+func ShopConfigFromMob(mob *entities.MobInstance) economy.ShopConfig {
+	return shopConfigFromMob(mob)
+}
+
 // shopConfigFromMob reads the shop config block off the mob's
 // properties (spec §3.1). The pack loader normalizes nested YAML maps
 // to map[string]any. Missing / malformed fields fall back to the

@@ -85,6 +85,13 @@ type Manager struct {
 	// without crafting wired). Set once at startup via SetCraft.
 	craft *crafting.Service
 
+	// shop + money build the rich Char.Shop trade form (web-client-plan P3 Slice
+	// B+) on the items flush pass: the shop service prices the offers (read-only
+	// ShopForm), the CurrencyLabel formats them for display. nil shop disables the
+	// Char.Shop emission. Set once at startup via SetShop.
+	shop  *economy.ShopService
+	money economy.CurrencyLabel
+
 	// Onboarding-guide lifecycle (onboarding-guide.md): the guide service +
 	// the world's guide template + the graduation level cap. The Manager owns the
 	// whole lifecycle (spawn on enter, trail on move, graduate on level-up, drain
@@ -221,6 +228,16 @@ func (m *Manager) SetHirelings(svc command.HirelingService) {
 func (m *Manager) SetCraft(svc *crafting.Service) {
 	m.mu.Lock()
 	m.craft = svc
+	m.mu.Unlock()
+}
+
+// SetShop installs the shop service + currency label used to build the Char.Shop
+// trade form (web-client-plan P3 Slice B+) on the items flush pass. Set once at
+// startup; nil-safe (no Char.Shop frames when the service is unset).
+func (m *Manager) SetShop(svc *economy.ShopService, money economy.CurrencyLabel) {
+	m.mu.Lock()
+	m.shop = svc
+	m.money = money
 	m.mu.Unlock()
 }
 

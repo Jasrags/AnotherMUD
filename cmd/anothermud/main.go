@@ -1056,6 +1056,9 @@ func run() error {
 	if cl, ok := registries.WorldCurrencies[primaryWorld]; ok {
 		currencyLabel = cl
 	}
+	// web-client-plan P3 Slice B+: the items flush pass emits the rich Char.Shop
+	// trade form for GMCP clients, priced by the shop service + this label.
+	mgr.SetShop(shopSvc, currencyLabel)
 	questGiverName := func(tid string) string {
 		if t, err := registries.Mobs.Get(mob.TemplateID(tid)); err == nil {
 			return t.Name
