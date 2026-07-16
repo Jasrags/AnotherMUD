@@ -293,6 +293,14 @@ The verbs players use and the systems that resolve them.
   skins a credential as a **fake SIN** and a permit as a **license**
   (`sin` verb alias). Slice 1 = the market gate (no save bump);
   verification / burn is a deferred Slice 2.
+- [security-response](security-response.md) — the **heat** consequence
+  engine: a crime (v1: a kill) in a policed **zone** (`security` area
+  tier `AAA…Z`) raises per-player heat; crossing the tier threshold
+  dispatches a timed **patrol response** that spawns law mobs and
+  **grudge-hunts the offender** — fast/hard downtown, never in the
+  barrens. Ties to `sin-and-legality`: a valid SIN lets the law track
+  you to your current room, SINless lets you slip the net. Runtime
+  heat (no save bump).
 - [crafting-and-cooking](crafting-and-cooking.md) — recipes,
   crafting skills (proficiency), tiered crafting stations, the
   quality roll (output = a rarity tier), recipe acquisition; and

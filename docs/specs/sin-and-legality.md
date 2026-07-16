@@ -255,10 +255,12 @@ Acceptance criteria:
 
 ## 8. Open questions / deferred (Slice 4 and beyond)
 
-- **Security-response / heat (Slice 4).** The consequence engine the checkpoint feeds: a crime
-  (or a burned-at-a-scan flag) raises **heat** in a security zone and schedules a timed patrol
-  response (`docs/BACKLOG.md` "Security zones as active response"). "SINless = invisible to law"
-  becomes mechanical here — the identity axis (§7.1) gates *access*; heat gates *pursuit*.
+- **Security-response / heat — ✅ SHIPPED (v1, `security-response.md`).** The consequence engine
+  the checkpoint feeds: a crime (v1: a kill) in a policed zone raises **heat** and schedules a
+  timed patrol that grudge-hunts the offender. "SINless = invisible to law" is mechanical there —
+  the identity axis (§7.1) gates *access*, heat gates *pursuit*, and a valid vs. burned/absent
+  SIN is what lets the law track the offender to their current room (`security-response.md` §4).
+  Still deferred there: a **burned-SIN-at-a-scan** heat source, non-kill crimes, and escalation.
 - **Active / broadcast credential.** §7 / §7.1 scan "the highest-rated matching carried
   credential". A full broadcast model (the player *chooses* which SIN to present — flash a
   throwaway to protect the premium — and only that one is ever scanned) is deferred; it needs a

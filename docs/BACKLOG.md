@@ -680,14 +680,19 @@ None block content authoring. Sizes: **S/M/L**.
   response" below), the **active/broadcast-SIN** model (choose which fake to present),
   **directional/exit-level** checkpoints, **sell-side legality**, **Lifestyle upkeep**, and
   **contraband-on-movement / fast-travel** gating.
-- **Security zones as active response** — **M–L**. The zone *label* (AAA→Z) is a content
-  area-property; the new engine piece is the **consequence engine**: a crime committed in a
-  zone raises heat and schedules a **timed patrol response** (1d6 min in AAA, hours in Z),
-  spawning Knight-Errant/corp-sec pursuers. A crime-detection → heat → timed-response-spawn
-  loop, keyed on the zone property. Reuses the tick scheduler + spawn + AI-pursuit (ranged
-  `shoot` retaliation already pursues across a room). Phase it: **v1** = zone tunes patrol
-  density / ambient spawn (pure content); **v2** = active heat→response. Interlocks with
-  SINs (a SINless runner in a Z-zone triggers nothing; a crime in AAA triggers everything).
+- **Security zones as active response** — **✅ v1 SHIPPED (2026-07-16, `security-response.md`).**
+  The **consequence engine**: a player kill in a policed zone (its AREA's `security` tier AAA→Z)
+  raises per-player **heat**; crossing the tier threshold schedules a **timed patrol response**
+  (fast/many downtown, none in Z) that spawns Knight-Errant responders (`internal/security`
+  HeatTracker) and **grudge-hunts the offender** via `SetRetaliation` — the offender's current
+  room if they carry a valid SIN, the crime scene if SINless (the "invisible to law" tie-in,
+  `security-response.md` §4). Reuses the tick scheduler + `spawnMob` + the ranged-`shoot`
+  retaliation pursuit; runtime-only (no save bump). **Deferred (`security-response.md` §7):**
+  **non-kill crimes** (provoke/theft, and the tightest — a **burned SIN at a scan** as a heat
+  source), **lawful-victim discrimination** (self-defence should be free — needs a victim tag),
+  **escalation waves / a wanted level**, **heat persistence**, and **de-escalation** (bribery /
+  a Lone Star contact). The v1-that-was-planned as "zone tunes patrol density (pure content)" was
+  skipped in favour of shipping the active heat→response loop directly.
 - **Cyberware / Bioware + Essence** — **✅ CORE SHIPPED (SR-M4, 2026-07-13).** Augments as
   **implants** occupying a `cyberware` slot grant modifiers through the standard
   equip→srckey→stat pipeline (SR-M3), and **Essence is now a real bounded budget** that each

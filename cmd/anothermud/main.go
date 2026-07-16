@@ -73,6 +73,7 @@ import (
 	"github.com/Jasrags/AnotherMUD/internal/reputation"
 	"github.com/Jasrags/AnotherMUD/internal/scrap"
 	"github.com/Jasrags/AnotherMUD/internal/scripting"
+	"github.com/Jasrags/AnotherMUD/internal/security"
 	"github.com/Jasrags/AnotherMUD/internal/server"
 	"github.com/Jasrags/AnotherMUD/internal/session"
 	"github.com/Jasrags/AnotherMUD/internal/slot"
@@ -1793,6 +1794,72 @@ func run() error {
 			mgr.DropMobLeader(ctx, e.MobID, e.MobName)
 		}
 	})
+
+	// security-response.md: the heat consequence engine. A player kill in a policed
+	// zone (its AREA's `security` tier) raises heat; crossing the tier threshold
+	// dispatches a timed patrol that spawns responders and grudge-hunts the
+	// offender at their current room (valid SIN) or the crime scene (SINless). All
+	// runtime — no persistence. The responder template + tuning are env-configurable;
+	// a world that sets no `security` tier resolves to unpoliced, so the system
+	// never fires (starter-world / WoT are unaffected).
+	securityResponder := envOr("ANOTHERMUD_SECURITY_RESPONDER", "shadowrun:knight-errant-officer")
+	securitySweep := time.Duration(envIntOr("ANOTHERMUD_SECURITY_SWEEP_SECONDS", 1)) * time.Second
+	heatTracker := security.New(security.Config{
+		Enabled:       envBoolOr("ANOTHERMUD_SECURITY_ENABLED", true),
+		DecayPerSweep: envIntOr("ANOTHERMUD_SECURITY_DECAY", 3),
+	}, security.Deps{
+		TierOf: func(roomID world.RoomID) security.Tier {
+			room, rerr := w.Room(roomID)
+			if rerr != nil {
+				return security.TierNone
+			}
+			area, aerr := w.Area(room.AreaID)
+			if aerr != nil {
+				return security.TierNone
+			}
+			s, _ := area.PropertyString("security")
+			return security.ParseTier(s)
+		},
+		PlayerRoom:  mgr.PlayerRoom,
+		HasValidSIN: mgr.HasValidCredential,
+		Now:         loop.TickCount,
+		SpawnResponder: func(ctx context.Context, roomID world.RoomID, targetPlayerID string) {
+			eid, serr := spawner.spawnMob(ctx, securityResponder, roomID, "")
+			if serr != nil {
+				logging.From(ctx).Warn("security: responder spawn failed",
+					slog.String("template", securityResponder),
+					slog.String("room_id", string(roomID)),
+					slog.Any("err", serr))
+				return
+			}
+			// Stamp the grudge so the responder engages the offender. We spawn INTO
+			// the hunt room and grudge the SAME room, so on the next AI tick
+			// tryRetaliate takes its already-co-located branch and engages at once
+			// (a "spawn already hunting" use of the grudge, not a cross-room chase).
+			// If the offender has since moved, the round loop's per-round co-location
+			// re-check disengages harmlessly (autoattack §4.1).
+			if e, ok := entityStore.GetByID(eid); ok {
+				if m, mok := e.(*entities.MobInstance); mok {
+					m.SetRetaliation(targetPlayerID, string(roomID))
+				}
+			}
+		},
+	})
+	// Crime intake: attribute each kill to the responsible player (killer or
+	// hireling owner) and feed it to the heat engine. A wild-mob / scripted kill
+	// has no responsible player and raises no heat.
+	bus.Subscribe(eventbus.EventMobKilled, func(ctx context.Context, ev eventbus.Event) {
+		e, ok := ev.(eventbus.MobKilled)
+		if !ok || e.KillerID == "" {
+			return
+		}
+		if pid, _ := responsiblePlayer(entityStore, e.KillerID); pid != "" {
+			heatTracker.OnKill(ctx, pid, e.RoomID)
+		}
+	})
+	if err := loop.Register("security-response", cadenceTicks(cfg.TickInterval, securitySweep), heatTracker.Sweep); err != nil {
+		return fmt.Errorf("register security-response tick: %w", err)
+	}
 
 	// hireable-mobs.md §7: recurring hireling upkeep. Each owner is charged each
 	// live hireling's upkeep on the cadence; one they can't pay departs. The

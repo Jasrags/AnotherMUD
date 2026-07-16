@@ -458,6 +458,39 @@ func (m *Manager) GetByPlayerID(id string) (*connActor, bool) {
 	return s, ok
 }
 
+// PlayerRoom returns the online player's current room id and true, or ("",
+// false) when the player is offline or unplaced. The security heat engine uses it
+// to hunt a SIN-tracked offender at their current location (security-response.md
+// §4).
+func (m *Manager) PlayerRoom(playerID string) (world.RoomID, bool) {
+	a, ok := m.GetByPlayerID(playerID)
+	if !ok {
+		return "", false
+	}
+	room := a.Room()
+	if room == nil {
+		return "", false
+	}
+	return room.ID, true
+}
+
+// HasValidCredential reports whether the online player carries a valid (unburned)
+// credential — a fake SIN (sin-and-legality.md §3). The security heat engine reads
+// it to decide whether the law can track the offender (security-response.md §4);
+// an offline player, or one with no shop service wired, reads as false (off grid).
+func (m *Manager) HasValidCredential(playerID string) bool {
+	a, ok := m.GetByPlayerID(playerID)
+	if !ok || m.shop == nil {
+		return false
+	}
+	for _, c := range m.shop.CarriedCredentials(a) {
+		if !c.Burned {
+			return true
+		}
+	}
+	return false
+}
+
 // CombatantByPlayerID returns the live combat.Combatant for an online
 // player id, used by the combat.Locator adapter wired in main. Returns
 // (nil, false) when the player is not online — the round loop's
