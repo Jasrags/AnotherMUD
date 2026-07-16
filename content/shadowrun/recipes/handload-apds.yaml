@@ -1,0 +1,31 @@
+# Demo Armorer recipe (crafting-and-cooking.md) — the first Shadowrun craft,
+# authored to exercise the Char.Recipes web craft-form (web-client-plan P3
+# Slice B). Handloading: a runner seats tungsten darts into caseless cases to
+# turn cheap ammo into armor-piercing APDS handloads (§8 economy — the output is
+# worth more than the inputs).
+#
+# Deliberately easy to test: skill_floor 0 (any character who KNOWS it can make
+# it — no Armorer training required) and station_tier 0 (craftable anywhere, no
+# reloading bench needed yet), so the only gate is having the components. Two
+# distinct inputs, ×2 each, so the web craft panel shows a multi-line have/need
+# readout you can watch flip from red to green as you spawn the parts:
+#
+#   grant recipe handload-apds to <you>   (the recipe appears, greyed: 0/2, 0/2)
+#   spawn item tungsten-dart me           (×2)
+#   spawn item caseless-round me          (×2)   → panel goes craftable
+#   craft handload-apds                   (or click Craft) → 2 APDS rounds
+#
+# Raise skill_floor / station_tier later to make it a real Armorer bench craft.
+id: handload-apds
+name: handload APDS rounds
+discipline: armorer
+skill_floor: 0
+station_tier: 0
+time_pulses: 0
+acquisition: baseline
+inputs:
+  - { template: tungsten-dart, quantity: 2 }
+  - { template: caseless-round, quantity: 2 }
+output:
+  template: apds-round
+  quantity: 2

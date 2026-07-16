@@ -4,8 +4,10 @@ import (
 	"slices"
 	"testing"
 
+	"github.com/Jasrags/AnotherMUD/internal/player"
 	"github.com/Jasrags/AnotherMUD/internal/progression"
 	"github.com/Jasrags/AnotherMUD/internal/recipe"
+	"github.com/Jasrags/AnotherMUD/internal/world"
 )
 
 // wireGrantActor builds a connActor with every grantable store wired: feats
@@ -73,6 +75,53 @@ func TestGrantAttribute_AllKinds(t *testing.T) {
 				t.Errorf("target still has %s %q after revoke", c.kind, c.value)
 			}
 		})
+	}
+}
+
+// TestGrantRecipe_DefaultsToRoomPackNamespace verifies a bare recipe id passed
+// to `grant recipe` resolves against the actor's current pack namespace (the fix
+// mirroring `spawn item`): a runner standing in shadowrun:the-flop can
+// `grant recipe handload-apds` without typing the namespace, and revoke it the
+// same way. A fully-qualified id still works verbatim, and an id that names no
+// recipe in any namespace still errors.
+func TestGrantRecipe_DefaultsToRoomPackNamespace(t *testing.T) {
+	recipes := recipe.NewRegistry()
+	recipes.Add(&recipe.Recipe{ID: "shadowrun:handload-apds", DisplayName: "handload APDS rounds", Discipline: "armorer"})
+	a := &connActor{
+		id:       "c-1",
+		playerID: "p-1",
+		room:     &world.Room{ID: "shadowrun:the-flop"},
+		known:    recipe.NewKnownManager(recipes),
+		save:     &player.Save{ID: "p-1", Name: "Runner"},
+	}
+
+	// Bare id → resolves against the room's pack namespace and is learned under
+	// the fully-qualified id (what the registry/save/craft form expect).
+	changed, err := a.GrantAttribute("recipe", "handload-apds")
+	if err != nil || !changed {
+		t.Fatalf("grant bare recipe = (%v, %v), want (true, nil)", changed, err)
+	}
+	if !a.known.Knows("p-1", "shadowrun:handload-apds") {
+		t.Errorf("known set lacks the namespaced id after a bare grant")
+	}
+
+	// Revoke by the same bare id resolves + removes it.
+	changed, err = a.RevokeAttribute("recipe", "handload-apds")
+	if err != nil || !changed {
+		t.Fatalf("revoke bare recipe = (%v, %v), want (true, nil)", changed, err)
+	}
+	if a.known.Knows("p-1", "shadowrun:handload-apds") {
+		t.Errorf("recipe still known after a bare revoke")
+	}
+
+	// A fully-qualified id still grants verbatim.
+	if changed, err := a.GrantAttribute("recipe", "shadowrun:handload-apds"); err != nil || !changed {
+		t.Fatalf("grant qualified recipe = (%v, %v), want (true, nil)", changed, err)
+	}
+
+	// A bare id that names no recipe in any namespace still errors.
+	if _, err := a.GrantAttribute("recipe", "nonesuch"); err == nil {
+		t.Error("granting an unknown recipe should error")
 	}
 }
 

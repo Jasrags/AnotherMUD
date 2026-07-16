@@ -147,6 +147,45 @@ func (a *connActor) revokeAbility(id string) (bool, error) {
 
 // --- recipe ---
 
+// resolveRecipeID qualifies a bare recipe id against the actor's current pack
+// namespace, mirroring how `spawn item` resolves a bare template id (spawn.go
+// roomNamespace/spawnCandidates). Recipe ids are namespace-qualified content
+// (unlike the bare-global feat/ability/language ids the other grants take), so a
+// bare `handload-apds` must be qualified to `shadowrun:handload-apds` to match
+// the registry. A fully-qualified id ("pack:foo") is used verbatim; a bare id is
+// tried as-typed first (a defined bare id wins), then qualified with the room's
+// pack namespace. Returns the first candidate the known-manager recognizes as
+// Defined, else the id verbatim (so the caller's "no recipe named" error names
+// what the admin actually typed).
+func (a *connActor) resolveRecipeID(km *recipe.KnownManager, id string) recipe.RecipeID {
+	if strings.Contains(id, ":") || km.Defined(recipe.RecipeID(id)) {
+		return recipe.RecipeID(id)
+	}
+	if ns := a.roomNamespace(); ns != "" {
+		if qualified := recipe.RecipeID(ns + ":" + id); km.Defined(qualified) {
+			return qualified
+		}
+	}
+	return recipe.RecipeID(id)
+}
+
+// roomNamespace returns the pack namespace of the actor's current room (the
+// prefix before ':' in a namespaced room id, e.g. "shadowrun" from
+// "shadowrun:the-flop"). Empty when there's no room or the id carries no
+// namespace. Mirrors command.roomNamespace; kept here so the grant path needn't
+// reach into the command layer. Takes a.mu (via Room()) — call outside any held
+// lock.
+func (a *connActor) roomNamespace() string {
+	room := a.Room()
+	if room == nil {
+		return ""
+	}
+	if i := strings.IndexByte(string(room.ID), ':'); i > 0 {
+		return string(room.ID)[:i]
+	}
+	return ""
+}
+
 func (a *connActor) grantRecipe(id string) (bool, error) {
 	id = strings.TrimSpace(id)
 	a.mu.Lock()
@@ -155,10 +194,11 @@ func (a *connActor) grantRecipe(id string) (bool, error) {
 	if km == nil {
 		return false, errors.New("recipes aren't enabled on this world")
 	}
-	if !km.Defined(recipe.RecipeID(id)) {
+	rid := a.resolveRecipeID(km, id)
+	if !km.Defined(rid) {
 		return false, fmt.Errorf("no recipe named %q", id)
 	}
-	if !km.Learn(pid, recipe.RecipeID(id)) {
+	if !km.Learn(pid, rid) {
 		return false, nil // already known
 	}
 	a.markDirty()
@@ -170,7 +210,10 @@ func (a *connActor) revokeRecipe(id string) (bool, error) {
 	a.mu.Lock()
 	km, pid := a.known, a.playerID
 	a.mu.Unlock()
-	if km == nil || !km.Forget(pid, recipe.RecipeID(id)) {
+	if km == nil {
+		return false, nil
+	}
+	if !km.Forget(pid, a.resolveRecipeID(km, id)) {
 		return false, nil
 	}
 	a.markDirty()

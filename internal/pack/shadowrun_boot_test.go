@@ -59,6 +59,39 @@ func TestLoad_ShadowrunBootSlice(t *testing.T) {
 		}
 	}
 
+	// The demo Armorer recipe registered (crafting-and-cooking + web-client-plan
+	// P3 Slice B craft form): namespaced id, resolvable inputs/output. Confirms
+	// the pack's recipes/ glob is wired and the recipe survived the loader's
+	// output-template validation (an unknown output would be silently skipped).
+	rec, err := regs.Recipes.Get("shadowrun:handload-apds")
+	if err != nil {
+		t.Errorf("demo recipe shadowrun:handload-apds not registered: %v", err)
+	} else {
+		if rec.Discipline != "armorer" {
+			t.Errorf("handload-apds discipline = %q, want armorer", rec.Discipline)
+		}
+		if rec.Output.Template != "shadowrun:apds-round" {
+			t.Errorf("handload-apds output = %q, want shadowrun:apds-round", rec.Output.Template)
+		}
+		// Every input template must resolve against the registered item set (an
+		// unresolvable input would make the recipe uncraftable at runtime); the
+		// two demo components are the tungsten dart + the caseless round.
+		wantInputs := map[string]bool{"shadowrun:tungsten-dart": false, "shadowrun:caseless-round": false}
+		for _, in := range rec.Inputs {
+			if _, err := regs.Items.Get(item.TemplateID(in.Template)); err != nil {
+				t.Errorf("handload-apds input %q not a registered item template", in.Template)
+			}
+			if _, expected := wantInputs[in.Template]; expected {
+				wantInputs[in.Template] = true
+			}
+		}
+		for tpl, seen := range wantInputs {
+			if !seen {
+				t.Errorf("handload-apds missing expected input %q (inputs=%+v)", tpl, rec.Inputs)
+			}
+		}
+	}
+
 	// The shadowrun `human` overrode the core baseline (priority 1) — proven by
 	// a cap key only the SR metatype declares (agility isn't a classic attribute).
 	human, ok := regs.Races.Get("human")

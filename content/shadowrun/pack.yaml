@@ -114,6 +114,11 @@ content:
     - mobs/*.yaml
   loot_tables:
     - loot_tables/*.yaml
+  # Crafting recipes (crafting-and-cooking.md). The Armorer skill's bench work —
+  # handloading ammunition and the like. Loaded after items so recipe input/
+  # output templates resolve.
+  recipes:
+    - recipes/*.yaml
   # Factions (faction.md) — the corp-vs-street axis the fixer rivalry runs on.
   # Loaded before quests so quest reward/prereq faction refs resolve.
   factions:

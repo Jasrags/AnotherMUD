@@ -1,0 +1,18 @@
+# Demo crafting component (crafting-and-cooking.md) — the penetrator core an
+# Armorer seats into a caseless case to handload APDS (see recipes/handload-apds).
+# Authored to give the Char.Recipes web craft-form (web-client-plan P3 Slice B) a
+# real second ingredient to show. Not part of any economy/loot yet: spawn it to
+# test — `spawn item tungsten-dart me`.
+id: tungsten-dart
+name: a tungsten dart
+type: item
+description: |
+  A slim tungsten-alloy penetrator, machined to a needle point and wrapped in a
+  discarding plastic sabot. On its own it's just a heavy sliver of metal; seated
+  into a caseless case, it becomes an armor-piercing round.
+tags: [component, crafting, stackable]
+keywords: [dart, tungsten, tungsten-dart, penetrator, sabot]
+properties:
+  stackable: true
+  weight: 0
+  value: 5
