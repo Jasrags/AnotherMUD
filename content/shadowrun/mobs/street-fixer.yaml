@@ -1,0 +1,60 @@
+id: street-fixer
+name: a street fixer
+type: npc
+behavior: stationary
+description: |
+  A rangy woman in a long coat works a crate of wares, eyes flicking over your
+  gear and pricing it before you've said a word. She keeps the basics a fresh
+  runner burns through — ammo, a sidearm, a jacket to soak a round — nuyen up
+  front, no receipts. `list` to see her stock, `buy <item>` to deal.
+tags: [humanoid, shop]
+keywords: [fixer, dealer, shopkeeper, woman]
+# A fixer, not a mark — friendly to everyone; nobody robs the person who sells
+# them ammo.
+disposition_rules:
+  default: friendly
+stats:
+  hp_max: 20
+  body: 3
+  willpower: 3
+# The STARTER-tier fixer (placement-audit catalog tiering, 2026-07-16): the lean
+# street kit a new runner actually needs — ammo refills, entry sidearms, basic
+# armor, and the smartlink upgrade path. The heavy weapons line (SMG/AR/sniper/
+# shotgun/LMG + the flamethrower/cryo exotics), the full armor range + shields,
+# and the deep cyberware/eyeware mods live with the black-market `fixer` in the
+# undercity market, the barrens bar, and the smuggling hub. Placed at the two
+# start rooms (westlake-plaza, street-corner) and the rookie gun-table
+# (the-fixers-table), so a fresh runner's first fixer isn't a walking arsenal.
+#
+# Shop config (economy-survival §3.1): the `sells` block is an arbitrary property
+# map, so ids are NOT namespace-rewritten — qualify them explicitly
+# (shadowrun:<id>). Every id here is a subset of the black-market fixer's stock.
+properties:
+  shop:
+    sells:
+      # Ammo + refills — a loaded clip (the primary buy), loose rounds, AP
+      # rounds, and an empty clip to fill.
+      - shadowrun:predator-clip-loaded
+      - shadowrun:caseless-round
+      - shadowrun:apds-round
+      - shadowrun:predator-clip
+      # Entry sidearms — a replacement heavy pistol, a holdout, a light pistol.
+      - shadowrun:ares-predator-v
+      - shadowrun:streetline-special
+      - shadowrun:ares-light-fire-70
+      # Melee + quiet ranged — silent, deniable, scanner-proof.
+      - shadowrun:combat-knife
+      - shadowrun:extendable-baton
+      - shadowrun:bow
+      - shadowrun:arrow
+      # Basic armor tier — clothing, the jacket, a vest, a helmet.
+      - shadowrun:armor-clothing
+      - shadowrun:armored-jacket
+      - shadowrun:armor-vest
+      - shadowrun:helmet
+      # First upgrade path — a smartlink (into a cybereye) + a smartgun system
+      # (onto a weapon mount); carrying both grants the to-hit bonus.
+      - shadowrun:smartlink
+      - shadowrun:smartgun-system
+      # No-surgery night vision (the eyes slot) — for a runner not yet chromed.
+      - shadowrun:low-light-goggles

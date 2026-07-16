@@ -58,6 +58,8 @@ items:
   - cybereye-thermographic
   - low-light-goggles
 # A street fixer works the safe plaza edge — `list`/`buy` to spend looted nuyen
-# on gear (SR-M3c [99]). Friendly, so she fits the safe hub (no combat).
+# on gear (SR-M3c [99]). Friendly, so she fits the safe hub (no combat). The
+# STARTER-tier `street-fixer` (lean kit — refills, sidearms, basic armor); the
+# full black-market arsenal lives at the deep hubs (see mobs/fixer.yaml).
 mobs:
-  - fixer
+  - street-fixer

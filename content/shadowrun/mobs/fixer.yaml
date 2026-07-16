@@ -1,14 +1,15 @@
 id: fixer
-name: a street fixer
+name: a black-market fixer
 type: npc
 behavior: stationary
 description: |
   A rangy woman in a long coat leans against the wall behind a crate of wares,
   eyes flicking to your gear and pricing it before you've said a word. She deals
-  in whatever a runner needs and never asks what it's for — nuyen up front, no
-  receipts. `list` to see her stock, `buy <item>` to deal.
+  in whatever a runner needs — from a spare clip to a milspec rifle to the chrome
+  under your skin — and never asks what it's for. Nuyen up front, no receipts.
+  `list` to see her stock, `buy <item>` to deal.
 tags: [humanoid, shop]
-keywords: [fixer, dealer, shopkeeper, woman]
+keywords: [fixer, dealer, shopkeeper, woman, black-market]
 # A fixer, not a mark — friendly to everyone; nobody robs the person who sells
 # them ammo.
 disposition_rules:
@@ -17,6 +18,15 @@ stats:
   hp_max: 20
   body: 3
   willpower: 3
+# The VETERAN / black-market tier (placement-audit catalog tiering, 2026-07-16):
+# the full arsenal — heavy weapons, exotics (flamethrower/cryo), the whole armor
+# range + shields, and the deep cyberware/eyeware mods. Placed at the deep hubs
+# where it fits the fiction: the undercity black market (underground-market), the
+# neutral barrens bar (downfall), and the smuggling hub (puyallup-city). The lean
+# STARTER kit — refills, entry sidearms, basic armor, the smartlink path — is the
+# sibling `street-fixer`, at the start rooms + the rookie gun-table, so a fresh
+# runner's first fixer isn't a walking arsenal.
+#
 # Shop config (economy-survival §3.1). `sells` lists item template ids on offer;
 # the shop block is an arbitrary property map, so ids are NOT namespace-rewritten
 # — qualify them explicitly (shadowrun:<id>). buy_markup/sell_discount fall

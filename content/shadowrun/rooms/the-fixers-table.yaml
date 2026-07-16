@@ -11,5 +11,8 @@ terrain: indoors
 exits:
   west: the-flop
 tags: [safe-room, safe]
+# The STARTER-tier `street-fixer` (lean kit — the pistol/clips/bow/jacket the
+# prose above lays out); the full black-market arsenal is at the deep hubs (see
+# mobs/fixer.yaml).
 mobs:
-  - fixer
+  - street-fixer
