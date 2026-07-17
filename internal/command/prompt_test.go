@@ -26,6 +26,13 @@ func newPromptActor() *promptActor {
 func (p *promptActor) PromptTemplate() string     { return p.template }
 func (p *promptActor) SetPromptTemplate(t string) { p.template = t }
 
+// DefaultPromptTemplate mirrors the production actor: the pool-adaptive
+// default. This fake reports a mana-bearing default so the show-default
+// test asserts against a stable, mana-inclusive string.
+func (p *promptActor) DefaultPromptTemplate() string {
+	return render.DefaultPromptTemplate(render.PromptVitals{MaxMana: 8})
+}
+
 func dispatchPrompt(t *testing.T, a command.Actor, input string) {
 	t.Helper()
 	r := newRegistry(t)
@@ -58,7 +65,7 @@ func TestPrompt_ShowDefaultWhenUnset(t *testing.T) {
 	if !strings.Contains(strings.ToLower(got), "default") {
 		t.Errorf("output %q should identify the default", got)
 	}
-	if !strings.Contains(got, render.DefaultPromptTemplate) {
+	if !strings.Contains(got, a.DefaultPromptTemplate()) {
 		t.Errorf("output %q should include the default template", got)
 	}
 }

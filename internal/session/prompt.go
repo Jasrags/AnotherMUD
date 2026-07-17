@@ -67,6 +67,14 @@ func (a *connActor) flushPrompt(ctx context.Context) error {
 	return err
 }
 
+// DefaultPromptTemplate implements command.promptController: the actor's
+// pool-adaptive default template (mana segment only when it actually has a
+// mana pool). Bare `prompt` shows this so a mana-less archetype is told the
+// same default it sees, not a canonical one with a dead [MA].
+func (a *connActor) DefaultPromptTemplate() string {
+	return render.DefaultPromptTemplate(a.promptVitals())
+}
+
 // promptVitals snapshots the values the prompt tokens read. HP comes
 // from the combat Vitals; mana/movement report their live pool current
 // and max separately (real pools landed with the generalized-pool

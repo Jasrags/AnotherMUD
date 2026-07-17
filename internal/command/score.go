@@ -593,10 +593,17 @@ func renderScore(d scoreData) string {
 		)
 	}
 	if d.HasResources {
-		// MA/MV are real pools (WoT S2): current/max like HP. Non-channelers
-		// show 0/0 (no resource_max), which is the honest reading.
-		combatCol = append(combatCol, scSub("MA")+" <mana>"+fmt.Sprintf("%d/%d", d.Mana, d.MaxMana)+
-			"</mana>    "+scSub("MV")+" <mv>"+fmt.Sprintf("%d/%d", d.MV, d.MaxMV)+"</mv>")
+		// MA/MV are real pools (WoT S2): current/max like HP. MV always shows
+		// (everyone moves); MA only when the character has a mana pool
+		// (MaxMana > 0), so a mana-less archetype (a Shadowrun street samurai)
+		// isn't shown a dead 0/0 — matching the adaptive prompt default.
+		mvCol := scSub("MV") + " <mv>" + fmt.Sprintf("%d/%d", d.MV, d.MaxMV) + "</mv>"
+		if d.MaxMana > 0 {
+			combatCol = append(combatCol, scSub("MA")+" <mana>"+fmt.Sprintf("%d/%d", d.Mana, d.MaxMana)+
+				"</mana>    "+mvCol)
+		} else {
+			combatCol = append(combatCol, mvCol)
+		}
 	}
 	if d.MaxEssence > 0 {
 		// Essence (Shadowrun SR-M4): stored in tenths, shown as the SR decimal.

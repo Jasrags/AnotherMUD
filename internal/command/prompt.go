@@ -4,8 +4,6 @@ import (
 	"context"
 	"fmt"
 	"strings"
-
-	"github.com/Jasrags/AnotherMUD/internal/render"
 )
 
 // MaxPromptTemplateLen bounds a player-set prompt template
@@ -26,6 +24,12 @@ type promptController interface {
 	// the save dirty, and flags a prompt refresh so the change shows on
 	// the next flush (§7.3).
 	SetPromptTemplate(template string)
+	// DefaultPromptTemplate returns the player's *effective* default
+	// template (unrendered, {token} placeholders intact) — the one they
+	// get when no custom template is set. It is pool-adaptive, so a
+	// mana-less archetype's default omits the mana segment; bare `prompt`
+	// shows this so what the player is told matches what they see (§7.1).
+	DefaultPromptTemplate() string
 }
 
 // PromptHandler implements the `prompt` verb (ui-rendering-help §7.4):
@@ -67,7 +71,7 @@ func showPrompt(ctx context.Context, c *Context, ctrl promptController) error {
 			"Your prompt:\r\n"+tpl+"\r\nUse `prompt default` to reset it.")
 	}
 	return c.Actor.Write(ctx,
-		"Your prompt is the default:\r\n"+render.DefaultPromptTemplate+
+		"Your prompt is the default:\r\n"+ctrl.DefaultPromptTemplate()+
 			"\r\nUse `prompt <template>` to change it.")
 }
 

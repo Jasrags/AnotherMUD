@@ -47,6 +47,36 @@ func TestRenderPromptDefaultTemplate(t *testing.T) {
 	}
 }
 
+// The default template is pool-adaptive: the mana segment appears only
+// when the character has a mana pool (MaxMana > 0). A mana-less archetype
+// (a Shadowrun street samurai) gets no dead [MA 0/0].
+func TestDefaultPromptTemplateAdaptive(t *testing.T) {
+	caster := DefaultPromptTemplate(PromptVitals{MaxMana: 8})
+	if !strings.Contains(caster, "[MA {mana}/{maxmana}]") {
+		t.Errorf("caster default %q should include the mana segment", caster)
+	}
+
+	sam := DefaultPromptTemplate(PromptVitals{MaxMana: 0})
+	if strings.Contains(sam, "MA") || strings.Contains(sam, "mana") {
+		t.Errorf("mana-less default %q should omit the mana segment", sam)
+	}
+	// HP and MV always show, for everyone.
+	for _, want := range []string{"[HP {hp}/{maxhp}]", "[MV {mv}/{maxmv}]"} {
+		if !strings.Contains(sam, want) {
+			t.Errorf("default %q missing always-on segment %q", sam, want)
+		}
+	}
+
+	// A rendered mana-less prompt has no unsubstituted braces and no MA.
+	got := RenderPrompt("", PromptVitals{HP: 7, MaxHP: 26, MV: 28, MaxMV: 30})
+	if strings.Contains(got, "MA") {
+		t.Errorf("rendered mana-less prompt %q should not contain MA", got)
+	}
+	if strings.ContainsRune(got, '{') {
+		t.Errorf("rendered prompt %q still has an unsubstituted brace", got)
+	}
+}
+
 // The prompt's semantic tags must survive RenderPrompt so the color
 // renderer can resolve them afterwards (the two stages compose).
 func TestRenderPromptThenColor(t *testing.T) {

@@ -5,11 +5,31 @@ import (
 	"strings"
 )
 
-// DefaultPromptTemplate is used when a player has no prompt_template set
-// (ui-rendering-help §7.1). It uses semantic color tags (<hp>/<mana>/
-// <mv>) which the color renderer resolves downstream; the {token}
-// placeholders are substituted by RenderPrompt first.
-const DefaultPromptTemplate = "<hp>[HP {hp}/{maxhp}]</hp> <mana>[MA {mana}/{maxmana}]</mana> <mv>[MV {mv}/{maxmv}]</mv>> "
+// DefaultPromptTemplate returns the fallback template used when a player
+// has no prompt_template set (ui-rendering-help §7.1). It is *adaptive*:
+// HP and MV always show, but the mana segment appears only when the
+// character actually has a mana pool (MaxMana > 0). A mana-less archetype
+// — a Shadowrun street samurai — therefore sees no dead `[MA 0/0]`, while
+// a mage or a WoT channeler keeps it. The varying thing is which resource
+// pools the character has, not its class — so future optional pools (a
+// decker's Matrix monitor, a rigger's vehicle) extend this the same way,
+// with a segment gated on their own non-zero max, rather than via a
+// per-class template table. Only the mana segment branches today.
+//
+// It uses semantic color tags (<hp>/<mana>/<mv>) which the color renderer
+// resolves downstream; the {token} placeholders are substituted by
+// RenderPrompt first. Player-set templates are unaffected — they render
+// exactly as typed, mana segment or not.
+func DefaultPromptTemplate(v PromptVitals) string {
+	var b strings.Builder
+	b.Grow(64)
+	b.WriteString("<hp>[HP {hp}/{maxhp}]</hp> ")
+	if v.MaxMana > 0 {
+		b.WriteString("<mana>[MA {mana}/{maxmana}]</mana> ")
+	}
+	b.WriteString("<mv>[MV {mv}/{maxmv}]</mv>> ")
+	return b.String()
+}
 
 // PromptVitals carries the values the prompt token table substitutes
 // (§7.2). All are plain integers; formatting is the template's job.
@@ -37,7 +57,7 @@ type PromptVitals struct {
 // `<...>` semantic tags, not `{...}` brace shorthand (§7.1).
 func RenderPrompt(template string, v PromptVitals) string {
 	if template == "" {
-		template = DefaultPromptTemplate
+		template = DefaultPromptTemplate(v)
 	}
 	if !strings.ContainsRune(template, '{') {
 		return template
