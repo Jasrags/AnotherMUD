@@ -22,8 +22,15 @@ import (
 // exactly as typed, mana segment or not.
 func DefaultPromptTemplate(v PromptVitals) string {
 	var b strings.Builder
-	b.Grow(64)
+	b.Grow(80)
 	b.WriteString("<hp>[HP {hp}/{maxhp}]</hp> ")
+	// Stun sits right after HP: the two are a pair of condition monitors
+	// (Physical=HP, Stun) in Shadowrun, where every character has both. It
+	// shows only when the character has a stun pool (MaxStun > 0), so a
+	// pack without one never renders it.
+	if v.MaxStun > 0 {
+		b.WriteString("<stun>[ST {stun}/{maxstun}]</stun> ")
+	}
 	if v.MaxMana > 0 {
 		b.WriteString("<mana>[MA {mana}/{maxmana}]</mana> ")
 	}
@@ -36,6 +43,8 @@ func DefaultPromptTemplate(v PromptVitals) string {
 type PromptVitals struct {
 	HP      int
 	MaxHP   int
+	Stun    int
+	MaxStun int
 	Mana    int
 	MaxMana int
 	MV      int
@@ -100,6 +109,10 @@ func promptTokenValue(token string, v PromptVitals) string {
 		return strconv.Itoa(v.HP)
 	case "maxhp":
 		return strconv.Itoa(v.MaxHP)
+	case "stun":
+		return strconv.Itoa(v.Stun)
+	case "maxstun":
+		return strconv.Itoa(v.MaxStun)
 	case "mana":
 		return strconv.Itoa(v.Mana)
 	case "maxmana":

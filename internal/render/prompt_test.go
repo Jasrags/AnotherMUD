@@ -67,6 +67,24 @@ func TestDefaultPromptTemplateAdaptive(t *testing.T) {
 		}
 	}
 
+	// Stun is the same adaptive rule: shown only when the character has a
+	// stun pool (MaxStun > 0), and it sits right after HP.
+	stunless := DefaultPromptTemplate(PromptVitals{MaxHP: 26})
+	if strings.Contains(stunless, "ST") || strings.Contains(stunless, "stun") {
+		t.Errorf("stun-less default %q should omit the stun segment", stunless)
+	}
+	runner := DefaultPromptTemplate(PromptVitals{MaxStun: 11})
+	if !strings.Contains(runner, "[ST {stun}/{maxstun}]") {
+		t.Errorf("stun-bearing default %q should include the stun segment", runner)
+	}
+	// Order: HP, then ST, then MV (no mana here).
+	if hp, st := strings.Index(runner, "[HP"), strings.Index(runner, "[ST"); hp < 0 || st < hp {
+		t.Errorf("stun segment should follow HP in %q", runner)
+	}
+	if got := RenderPrompt("", PromptVitals{HP: 7, MaxHP: 26, Stun: 10, MaxStun: 11, MV: 28, MaxMV: 30}); !strings.Contains(got, "ST 10/11") {
+		t.Errorf("rendered runner prompt %q should show ST 10/11", got)
+	}
+
 	// A rendered mana-less prompt has no unsubstituted braces and no MA.
 	got := RenderPrompt("", PromptVitals{HP: 7, MaxHP: 26, MV: 28, MaxMV: 30})
 	if strings.Contains(got, "MA") {

@@ -22,6 +22,8 @@ func (a *sheetActor) Gender() string       { return "male" }
 func (a *sheetActor) Alignment() int       { return 0 }
 func (a *sheetActor) AlignmentTag() string { return "alignment_neutral" } // raw tag id; sheet strips the prefix
 func (a *sheetActor) Gold() int            { return 1000 }
+func (a *sheetActor) Stun() int            { return 0 }
+func (a *sheetActor) StunMax() int         { return 0 }
 func (a *sheetActor) Mana() int            { return 0 }
 func (a *sheetActor) ManaMax() int         { return 0 }
 func (a *sheetActor) Movement() int        { return 0 }

@@ -8,6 +8,7 @@
 tags:
   # Vital pools — used by the prompt template and score/status output.
   hp:    { fg: green,  html: "#33CC33" }
+  stun:  { fg: cyan,   html: "#33CCCC" }
   mana:  { fg: blue,   html: "#3366FF" }
   mv:    { fg: yellow, html: "#CCCC33" }
 

@@ -6236,6 +6236,11 @@ const (
 	// by a tick or regenerated. Stored in tenths (max 60 == 6.0). Only a world
 	// that declares an `essence` pool seeds it; every other world reads 0/0.
 	poolKindEssence = pool.Kind("essence")
+	// poolKindStun is the Shadowrun Stun condition monitor (SR-M3a): a
+	// nonlethal damage track (max = 8 + ⌈Willpower/2⌉) that subdual hits
+	// fill and that overflows into hp. Every Shadowrun character has one;
+	// worlds that declare no `stun` pool read 0/0 and never show it.
+	poolKindStun = pool.Kind("stun")
 )
 
 // resourcePool returns the actor's pool of the given kind. Nil-safe for
@@ -6337,6 +6342,26 @@ func (a *connActor) Mana() int {
 // current/max separately, not current/current.
 func (a *connActor) ManaMax() int {
 	if p, ok := a.resourcePool(poolKindMana); ok {
+		return p.Max()
+	}
+	return 0
+}
+
+// Stun returns the actor's current Stun condition monitor (Shadowrun
+// SR-M3a) — the live pool current, 0 when no stun pool is seeded (any
+// non-Shadowrun world).
+func (a *connActor) Stun() int {
+	if p, ok := a.resourcePool(poolKindStun); ok {
+		return p.Current()
+	}
+	return 0
+}
+
+// StunMax returns the actor's Stun monitor ceiling (0 when no stun pool
+// is seeded). Callers use max == 0 to mean "this world has no Stun
+// monitor" and skip rendering it — like ManaMax/EssenceMax.
+func (a *connActor) StunMax() int {
+	if p, ok := a.resourcePool(poolKindStun); ok {
 		return p.Max()
 	}
 	return 0

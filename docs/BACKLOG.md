@@ -105,6 +105,17 @@ No spec exists yet. The first deliverable is a new `docs/specs/` file (and the
 pre-decision it depends on). These are where genuinely-new *systems* live — the gap the
 old five-theme partition left uncovered.
 
+- **Prompt template polish (deferred from the adaptive-prompt work, 2026-07-17)** —
+  the **default** prompt is now pool-adaptive (`render.DefaultPromptTemplate(PromptVitals)`:
+  HP/MV always, ST/MA gated on the stun/mana pool existing). Two follow-ups were
+  consciously deferred: **(a) conditional-segment syntax for player-set _custom_
+  templates** — a grammar like `[?stun:[ST {stun}/{maxstun}] ]` that suppresses a
+  segment when its pool max is 0, so a hand-written template can adapt the way the
+  default does (today a custom template renders `{stun}`/`{mana}` literally → `0/0`
+  for a pool-less char). **(b) a currency segment in the default** — skipped in favor
+  of the stun monitor; add an adaptive `[{nuyen}]`/`[{gold}]` segment (pack
+  `CurrencyLabel`) gated on economy being active if wanted. Both are small; neither
+  changes a save. See `internal/render/prompt.go`.
 - **Mail / parcels (addressed items + gold)** — send a message *with attachments*
   (items and/or gold) to another player, claimed later. ⚠️ **Greenfield — no Tapestry
   reference.** Today: text-only **offline tells** (M13.2) on the notifications queue; no

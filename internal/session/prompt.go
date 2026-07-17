@@ -88,11 +88,14 @@ func (a *connActor) promptVitals() render.PromptVitals {
 	// never seeded a pool.Set) and reads current+max atomically, so a
 	// concurrent regen tick can't tear the pair into a transient current >
 	// max. A drained pool shows current < max instead of the old stub.
+	stun, maxStun := a.resourceSnapshot(poolKindStun)
 	mana, maxMana := a.resourceSnapshot(poolKindMana)
 	mv, maxMV := a.resourceSnapshot(poolKindMovement)
 	return render.PromptVitals{
 		HP:      hp,
 		MaxHP:   maxHP,
+		Stun:    stun,
+		MaxStun: maxStun,
 		Mana:    mana,
 		MaxMana: maxMana,
 		MV:      mv,

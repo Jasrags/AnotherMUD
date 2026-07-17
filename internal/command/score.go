@@ -29,6 +29,11 @@ type scoreSubject interface {
 	AlignmentTag() string
 	Gold() int
 	Sustenance() int
+	// Stun / StunMax are the Shadowrun Stun condition monitor (SR-M3a). A
+	// world with no stun pool reads 0/0, which the sheet takes as "no Stun
+	// monitor" and omits — inert everywhere but Shadowrun, like Essence.
+	Stun() int
+	StunMax() int
 	Mana() int
 	ManaMax() int
 	Movement() int
@@ -73,6 +78,7 @@ func ScoreHandler(ctx context.Context, c *Context) error {
 		d.Class = titleCase(ss.ClassID())
 		d.Background = titleCase(ss.BackgroundID())
 		d.HasResources = true
+		d.Stun, d.MaxStun = ss.Stun(), ss.StunMax()
 		d.Mana, d.MaxMana = ss.Mana(), ss.ManaMax()
 		d.MV, d.MaxMV = ss.Movement(), ss.MovementMax()
 		d.Essence, d.MaxEssence = ss.Essence(), ss.EssenceMax()
@@ -452,6 +458,7 @@ type scoreData struct {
 	HasVitals     bool
 	HP, MaxHP     int
 	HasResources  bool
+	Stun, MaxStun int
 	Mana, MaxMana int
 	MV, MaxMV     int
 	// Essence / MaxEssence are the Shadowrun Essence budget in tenths (SR-M4).
@@ -593,17 +600,20 @@ func renderScore(d scoreData) string {
 		)
 	}
 	if d.HasResources {
-		// MA/MV are real pools (WoT S2): current/max like HP. MV always shows
-		// (everyone moves); MA only when the character has a mana pool
-		// (MaxMana > 0), so a mana-less archetype (a Shadowrun street samurai)
-		// isn't shown a dead 0/0 — matching the adaptive prompt default.
-		mvCol := scSub("MV") + " <mv>" + fmt.Sprintf("%d/%d", d.MV, d.MaxMV) + "</mv>"
-		if d.MaxMana > 0 {
-			combatCol = append(combatCol, scSub("MA")+" <mana>"+fmt.Sprintf("%d/%d", d.Mana, d.MaxMana)+
-				"</mana>    "+mvCol)
-		} else {
-			combatCol = append(combatCol, mvCol)
+		// Condition monitors + movement, each a real pool shown current/max like
+		// HP. MV always shows (everyone moves); ST (Shadowrun Stun monitor) and
+		// MA (mana / WoT One Power) show only when the character has that pool
+		// (max > 0), so a stun-less or mana-less archetype isn't shown a dead
+		// 0/0 — matching the adaptive prompt default. Order: ST, MA, MV.
+		var parts []string
+		if d.MaxStun > 0 {
+			parts = append(parts, scSub("ST")+" <stun>"+fmt.Sprintf("%d/%d", d.Stun, d.MaxStun)+"</stun>")
 		}
+		if d.MaxMana > 0 {
+			parts = append(parts, scSub("MA")+" <mana>"+fmt.Sprintf("%d/%d", d.Mana, d.MaxMana)+"</mana>")
+		}
+		parts = append(parts, scSub("MV")+" <mv>"+fmt.Sprintf("%d/%d", d.MV, d.MaxMV)+"</mv>")
+		combatCol = append(combatCol, strings.Join(parts, "    "))
 	}
 	if d.MaxEssence > 0 {
 		// Essence (Shadowrun SR-M4): stored in tenths, shown as the SR decimal.
