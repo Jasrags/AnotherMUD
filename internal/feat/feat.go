@@ -112,6 +112,12 @@ type Feat struct {
 	// Priority drives override semantics: higher wins on an id collision;
 	// equal priority is a no-op (existing entry retained).
 	Priority int
+
+	// KarmaCost, when > 0, makes this feat a buyable QUALITY in a karma-ledger
+	// world (SR-M5b): the `improve` verb grants it for this many karma instead of
+	// spending a feat slot. 0 = not karma-buyable (feat-slot only). A scalar, so
+	// Register's shallow clone copies it automatically.
+	KarmaCost int
 }
 
 // Registry holds feat definitions keyed by case-insensitive id. Mirrors the

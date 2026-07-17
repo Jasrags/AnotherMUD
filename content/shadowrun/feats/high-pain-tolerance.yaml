@@ -1,0 +1,12 @@
+# High Pain Tolerance (SR5 positive quality) — a karma-buyable, STACKABLE
+# quality (SR-M5b): each `improve high-pain-tolerance` spends karma to soak more
+# punishment before going down (+3 max HP per rank, riding the stackable Count
+# multiplier like core Toughness). A distinct SR-owned id so the karma economy
+# stays out of the setting-neutral core feats.
+id: high-pain-tolerance
+name: High Pain Tolerance
+description: You shrug off wounds that would drop others — you gain +3 maximum hit points each time you take this.
+karma_cost: 7
+multi_take: stackable
+grants:
+  - { kind: max_hp, magnitude: 3 }

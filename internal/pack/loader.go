@@ -26,6 +26,7 @@ import (
 	"github.com/Jasrags/AnotherMUD/internal/grade"
 	"github.com/Jasrags/AnotherMUD/internal/help"
 	"github.com/Jasrags/AnotherMUD/internal/item"
+	"github.com/Jasrags/AnotherMUD/internal/karma"
 	"github.com/Jasrags/AnotherMUD/internal/light"
 	"github.com/Jasrags/AnotherMUD/internal/logging"
 	"github.com/Jasrags/AnotherMUD/internal/loot"
@@ -162,6 +163,7 @@ func Load(ctx context.Context, root string, filter []string, dst *Registries, sp
 	dst.WorldAttributeSets = make(map[string]string)
 	dst.WorldStealthSkills = make(map[string]string)
 	dst.WorldAdvancement = make(map[string]string)
+	dst.WorldKarmaCosts = make(map[string]karma.Costs)
 	dst.WorldCurrencies = make(map[string]economy.CurrencyLabel)
 	for _, p := range ordered {
 		if !ValidKind(p.Manifest.Kind) {
@@ -219,6 +221,16 @@ func Load(ctx context.Context, root string, filter []string, dst *Registries, sp
 				// default — level-track; leave the world out of the map.
 			case AdvancementKarmaLedger:
 				dst.WorldAdvancement[p.Namespace()] = adv
+				// A karma-ledger world may tune the `improve` spend prices
+				// (SR-M5b). Record the block with canon defaults filled in for any
+				// omitted knob; an absent block leaves the world out of the map, so
+				// the actor resolves karma.DefaultCosts. Ignored for level-track.
+				if kc := p.Manifest.KarmaCosts; kc != nil {
+					dst.WorldKarmaCosts[p.Namespace()] = karma.Costs{
+						SkillMult:     kc.SkillMult,
+						AttributeMult: kc.AttributeMult,
+					}.WithDefaults()
+				}
 			default:
 				return fmt.Errorf("%w: pack %q: advancement %q is not valid (expected %q or %q)",
 					ErrInvalidContent, p.Manifest.Name, p.Manifest.Advancement,
@@ -2916,6 +2928,7 @@ func decodeFeat(path, ns string) (*feat.Feat, error) {
 		AllowedClasses: append([]string(nil), f.AllowedClasses...),
 		Pack:           ns,
 		Priority:       f.Priority,
+		KarmaCost:      f.KarmaCost,
 	}, nil
 }
 

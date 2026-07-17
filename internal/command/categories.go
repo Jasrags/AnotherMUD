@@ -183,6 +183,7 @@ var commandCategories = map[string]string{
 	"bribe":     catEconomy,
 	"train":     catCharacter,
 	"practice":  catCharacter,
+	"improve":   catCharacter,
 	"learn":     catCharacter,
 
 	// Rest & Survival.

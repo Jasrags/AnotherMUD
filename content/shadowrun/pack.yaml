@@ -51,6 +51,14 @@ stealth_skill: sneaking
 # only (its bound_track never accrues, so power-attack@2 is unreachable by
 # leveling — it becomes a karma purchase). Canon-faithful SR5 progression.
 advancement: karma-ledger
+# Karma-ledger spend prices for the `improve` verb (SR-M5b), stated explicitly at
+# the SR5 canon defaults: a skill-cap tier raise costs new-tier-rank × 2, and an
+# attribute +1 costs new-value × 5. Tunable per world; omit the block to inherit
+# these same defaults. (Qualities are priced individually via each feat's
+# karma_cost, not by these multipliers.)
+karma_costs:
+  skill_mult: 2
+  attribute_mult: 5
 content:
   # The eight primaries (Body/Agility/Reaction/Strength/Willpower/Logic/
   # Intuition/Charisma) plus Edge (SR-M1). The loader enumerates by this glob,
@@ -88,6 +96,11 @@ content:
   # SR Perception; the rest are new. Depends on core (skills inherit its shape).
   abilities:
     - abilities/*.yaml
+  # Karma-buyable qualities (SR-M5b) — SR-owned positive-quality feats carrying a
+  # karma_cost, granted via `improve <quality>`. Distinct ids from the core feats
+  # so the karma economy stays SR-flavored.
+  feats:
+    - feats/*.yaml
   # Weapons, armour, and ammo (SR-M3c-2): firearms + katana + the stun baton
   # (target_pool: stun) and armour that feeds the Shadowrun soak.
   # The cyberware slot (SR-M3c [98]) — installed augmentations, distinct from

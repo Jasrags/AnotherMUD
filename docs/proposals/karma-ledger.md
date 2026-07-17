@@ -1,6 +1,6 @@
 # Proposal: Karma-ledger advancement (SR-M5)
 
-**Status:** Partially shipped — SR-M5a landed (substrate + routing + score); SR-M5b (the `improve` spend verb) pending · **Type:** Engine slice (pluggable advancement strategy) · **Audience:** engine + content
+**Status:** Shipped — SR-M5a (substrate + routing + score) and SR-M5b (the `improve` spend verb) both landed · **Type:** Engine slice (pluggable advancement strategy) · **Audience:** engine + content
 **Feeds:** [`docs/themes/shadowrun-mvp.md`](../themes/shadowrun-mvp.md) §SR-M5 (Decision D3, Option B)
 **Builds on:** [`docs/specs/progression.md`](../specs/progression.md) (the level-track engine), the SR-M1 `attribute_set` world-scoping pattern (the mirror this reuses), [`docs/specs/skills.md`](../specs/skills.md) (0-100 proficiency + trainer-cap — the karma-buy target)
 
@@ -38,17 +38,37 @@ The strategy is resolved exactly like the SR-M1 attribute set: `Manifest.Advance
 
 Gates: `internal/karma` unit tests, player save round-trip (`TestSave_Karma*`), pack load + unknown-rejection (`TestLoad_ShadowrunAdvancement` / `TestLoad_UnknownAdvancementRejected`), the resolver unit (`TestNewAdvancementLedger`), and the live e2e (`TestLive_ShadowrunKarmaAdvance` — a level-less runner banks 30 karma from a ganger kill).
 
-## 5. Pending — SR-M5b (the `improve` spend verb)
+## 5. Shipped — SR-M5b (the `improve` spend verb)
 
-`improve <thing>` spends karma to raise a target at `cost = new-rating × multiplier`:
+`improve <target> [param]` spends karma to raise one of three things; a no-arg
+`improve` lists what's raisable, each cost, and the balance. Resolution order is
+attribute → skill → quality (first kind that owns the name handles it). Every
+spend is atomic: `SpendKarma` (the ledger's insufficient-balance gate) succeeds
+first, then the raise applies.
 
-- **skill** — raise the ability's trainer-**cap** (skills are 0-100 proficiency + a trainer cap; karma-buy raises the ceiling, use-based gain fills toward it — the pinned skills-D4 model). SR mult ≈ ×2.
-- **attribute** — +1 to a primary base stat, mult ≈ ×5, enforced against the metatype cap (SR-M1's per-attribute `Cap`).
-- **quality** — grant a feat (qualities = the feat system); cost = the quality's karma value. Burning negative qualities is a later refinement.
+- **skill** — the ability's trainer-**cap** rises one tier on the existing
+  Novice/Apprentice/Journeyman/Master ladder (`progression.NextTier` +
+  `ProficiencyManager.SetCap`); an unlearned skill is `Learn`ed on first buy.
+  Cost = `new-tier-rank × SkillMult` (rank 1–4). Persists via the existing
+  `syncAbilitiesToSaveLocked`.
+- **attribute** — +1 to the primary's base (`StatBlock.AdjustBase`), gated on the
+  metatype/race `StatCaps` ceiling; channels re-derive on the next read (pull),
+  pool maxes via the `OnMaxChange` push — no manual recompute. Cost =
+  `new-value × AttributeMult`. Persisted with `syncStatsToSaveLocked`.
+- **quality** — grants a feat carrying `karma_cost > 0` (`GrantFeat`), mirroring
+  `TakeFeat`'s validation (already-held / per-param / prerequisites) but spending
+  karma instead of a feat slot. A world opts feats into the karma economy by
+  tagging them; SR ships its own `content/shadowrun/feats/` qualities
+  (Ambidextrous, High Pain Tolerance) with distinct ids so core stays neutral.
 
-No-arg `improve` lists improvable targets + costs + the current balance. Cost multipliers are content/config knobs (a per-strategy or per-world table), not hardcoded.
+Cost multipliers are a **per-world manifest block** (`karma_costs: { skill_mult,
+attribute_mult }`), resolved on the actor at login (`karma.Costs.WithDefaults`
+fills any omitted knob with the SR canon ×2/×5), so a zero/negative multiplier
+can't create a free buy.
 
-Open questions for M5b: where the skill-cap raise lives (a new `SpendKarma`-gated progression API vs. an ability-cap mutation); whether attribute raises re-derive channels/pools reactively (they must — the SR channel map reads primaries); the quality catalog's karma-cost source (feat metadata vs. a separate qualities table).
+Deferred (post-v1): burning negative qualities; karma-for-nuyen / initiation
+grades; a listing that also shows unlearned skills; attribute raises gating on
+Effective vs. Base (v1 uses Base — the permanent value karma buys).
 
 ## 6. Configuration surface
 

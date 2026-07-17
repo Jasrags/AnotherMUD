@@ -1172,6 +1172,11 @@ type FeatFile struct {
 	MultiTake      string           `yaml:"multi_take,omitempty"`
 	AllowedClasses []string         `yaml:"allowed_classes,omitempty"`
 	Priority       int              `yaml:"priority,omitempty"`
+	// KarmaCost, when > 0, makes this feat a buyable QUALITY in a karma-ledger
+	// world (SR-M5b): `improve <feat>` grants it for this many karma. Absent / 0
+	// means the feat is not karma-buyable (it is earned via feat slots only) —
+	// so a world opts individual feats into the karma economy by tagging them.
+	KarmaCost int `yaml:"karma_cost,omitempty"`
 }
 
 // FeatGrantFile is one bonus a feat confers (EPIC S4 Phase 3 — §2.4). Kind

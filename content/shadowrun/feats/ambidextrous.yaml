@@ -1,0 +1,12 @@
+# Ambidextrous (SR5 positive quality) — a karma-buyable QUALITY (SR-M5b): a
+# runner spends karma via `improve ambidextrous` to fight as accurately with the
+# off hand as the main hand. Reuses the off_hand_hit grant (two-weapon-fighting
+# §4.1). A distinct id from core's `ambidexterity` so it is an SR-owned quality,
+# not an override — the karma economy stays SR-flavored and core stays neutral.
+# Single take. karma_cost makes it appear in `improve` and priceable in karma.
+id: ambidextrous
+name: Ambidextrous
+description: You handle a weapon in either hand with equal skill — the off-hand attack penalty is removed.
+karma_cost: 4
+grants:
+  - { kind: off_hand_hit, magnitude: 4 }

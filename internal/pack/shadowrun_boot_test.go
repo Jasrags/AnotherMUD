@@ -459,6 +459,21 @@ func TestLoad_ShadowrunAdvancement(t *testing.T) {
 	if _, ok := regs.WorldAdvancement["tapestry-core"]; ok {
 		t.Errorf("the engine baseline should carry no advancement entry (it is not a world)")
 	}
+	// The manifest's karma_costs block lands in WorldKarmaCosts at the SR canon values.
+	if kc := regs.WorldKarmaCosts["shadowrun"]; kc.SkillMult != 2 || kc.AttributeMult != 5 {
+		t.Errorf("shadowrun karma costs = %+v, want {SkillMult:2 AttributeMult:5}", kc)
+	}
+	// The two SR-owned karma qualities loaded, each carrying a karma_cost.
+	for id, wantCost := range map[string]int{"ambidextrous": 4, "high-pain-tolerance": 7} {
+		f, ok := regs.Feats.Get(id)
+		if !ok {
+			t.Errorf("SR quality %q did not load", id)
+			continue
+		}
+		if f.KarmaCost != wantCost {
+			t.Errorf("%q karma_cost = %d, want %d", id, f.KarmaCost, wantCost)
+		}
+	}
 }
 
 // TestLoad_UnknownAdvancementRejected proves a typo in the manifest

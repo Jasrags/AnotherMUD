@@ -242,6 +242,11 @@ type Config struct {
 	// kill/quest rewards into it instead of onto a progression track (SR-M5).
 	WorldAdvancement map[string]string
 
+	// WorldKarmaCosts maps a karma-ledger world namespace → its `improve` spend
+	// multipliers (SR-M5b). A world absent from the map uses karma.DefaultCosts.
+	// Held so the actor resolves ITS WORLD'S prices at login.
+	WorldKarmaCosts map[string]karma.Costs
+
 	// WorldStealthSkills maps a world namespace → the single skill id both
 	// concealment axes read for that world (skills §2 — SR's `sneaking` merging
 	// D&D's hide + move-silently). Held so the actor constructor resolves ITS
@@ -673,6 +678,20 @@ func newAdvancementLedger(selection map[string]string, worldID string) *karma.Le
 	return nil
 }
 
+// resolveKarmaCosts resolves the `improve` spend price table for a character's
+// world (SR-M5b). A world that declared a manifest `karma_costs:` block is in
+// the map (already default-filled at load); every other world — including a
+// karma-ledger world that tuned nothing — resolves to the SR canon defaults.
+// Pure + nil-safe.
+func resolveKarmaCosts(selection map[string]karma.Costs, worldID string) karma.Costs {
+	if selection != nil {
+		if c, ok := selection[worldID]; ok {
+			return c.WithDefaults()
+		}
+	}
+	return karma.DefaultCosts()
+}
+
 // resolveStealthSkills resolves the two skill ability ids the concealment
 // consumers read for a character's world (skills §2). A world that declares a
 // manifest `stealth_skill:` (SR: `sneaking`) merges D&D's two stealth skills
@@ -812,7 +831,12 @@ func run(ctx context.Context, c conn.Connection, cfg Config) error {
 		security:      cfg.Security,
 		// SR-M5: a karma-ledger world gives the character a spendable ledger
 		// (nil for the default level-track world). Restored from save below.
-		karma:         newAdvancementLedger(cfg.WorldAdvancement, loaded.Player.WorldID),
+		karma: newAdvancementLedger(cfg.WorldAdvancement, loaded.Player.WorldID),
+		// SR-M5b: the `improve` spend prices for this character's world (default
+		// SR canon when the world declares no karma_costs:), and the race registry
+		// for the attribute-cap gate.
+		karmaCosts:    resolveKarmaCosts(cfg.WorldKarmaCosts, loaded.Player.WorldID),
+		races:         cfg.Races,
 		prof:          cfg.Proficiency,
 		hideSkill:     hideSkill,
 		sneakSkill:    sneakSkill,
@@ -2423,6 +2447,13 @@ type connActor struct {
 	// bank karma here instead of onto a track, and `improve` spends from it. The
 	// ledger carries its own lock, so it is read/written without a.mu.
 	karma *karma.Ledger
+	// karmaCosts is the `improve` verb's spend price table (SR-M5b), resolved
+	// from the character's world at login (default SR canon when unset). Only
+	// meaningful alongside a non-nil karma ledger. Immutable after construction.
+	karmaCosts karma.Costs
+	// races is the race registry, retained so the `improve` attribute path can
+	// read the character's metatype stat-cap ceiling (SR-M5b). nil-safe.
+	races *progression.RaceRegistry
 	// renown is the actor's single renown score (reputation.md §10): fame +,
 	// infamy −, Unknown 0. Restored from save.Reputation on login, written
 	// through SetRenown (which mirrors into the save). Guarded by a.mu.

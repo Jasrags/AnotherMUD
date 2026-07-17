@@ -135,6 +135,13 @@ type Manifest struct {
 	// rejected at load so a typo can't silently fall back to level-track.
 	Advancement string `yaml:"advancement,omitempty"`
 
+	// KarmaCosts tunes the `improve` verb's spend prices for a karma-ledger world
+	// (SR-M5b): the per-rating multipliers for buying up a skill / an attribute.
+	// Only meaningful when Advancement is karma-ledger; ignored otherwise. Absent
+	// (or a partial block) falls back to the SR5 canon defaults (skill ×2,
+	// attribute ×5). Behavior/tuning-only — not a save field.
+	KarmaCosts *KarmaCostManifest `yaml:"karma_costs,omitempty"`
+
 	// Content paths — only the categories M2 cares about are listed.
 	// Unknown keys are tolerated (no strict YAML decoding) so future
 	// content types do not fail manifests authored ahead of time.
@@ -159,6 +166,18 @@ type CurrencyManifest struct {
 	// ("¥", "$") and is kept everywhere ("Nuyen: 1,250¥"). So: word units MUST be
 	// written with a leading ASCII space; symbol units MUST hug the number.
 	Suffix string `yaml:"suffix,omitempty"`
+}
+
+// KarmaCostManifest is the manifest `karma_costs:` block — the per-rating spend
+// multipliers for the karma-ledger `improve` verb (SR-M5b). Each field is
+// optional; a zero/absent value falls back to the SR5 canon default at resolve
+// time (karma.Costs.WithDefaults), so a world can override one knob and inherit
+// the other.
+type KarmaCostManifest struct {
+	// SkillMult prices a skill-cap tier raise (cost = new-tier-rank × this).
+	SkillMult int64 `yaml:"skill_mult,omitempty"`
+	// AttributeMult prices an attribute +1 (cost = new-value × this).
+	AttributeMult int64 `yaml:"attribute_mult,omitempty"`
 }
 
 // ContentPaths enumerates per-category file globs (spec §2.2 "content"

@@ -3575,6 +3575,7 @@ func run() error {
 		WorldAttributeSets:    registries.WorldAttributeSets,
 		WorldStealthSkills:    registries.WorldStealthSkills,
 		WorldAdvancement:      registries.WorldAdvancement,
+		WorldKarmaCosts:       registries.WorldKarmaCosts,
 		Pools:                 registries.Pools,
 		Alignment:             alignmentMgr,
 		Faction:               factionMgr,

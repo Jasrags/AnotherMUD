@@ -112,3 +112,31 @@ func TestConcurrentGrantSpend_RaceSafe(t *testing.T) {
 		t.Errorf("current went negative: %d", l.Current())
 	}
 }
+
+func TestDefaultCosts(t *testing.T) {
+	d := DefaultCosts()
+	if d.SkillMult != 2 || d.AttributeMult != 5 {
+		t.Errorf("DefaultCosts = %+v, want {SkillMult:2 AttributeMult:5}", d)
+	}
+}
+
+func TestWithDefaults_FillsNonPositive(t *testing.T) {
+	tests := []struct {
+		name string
+		in   Costs
+		want Costs
+	}{
+		{"both zero -> canon", Costs{}, Costs{2, 5}},
+		{"skill only -> attr filled", Costs{SkillMult: 3}, Costs{3, 5}},
+		{"attr only -> skill filled", Costs{AttributeMult: 8}, Costs{2, 8}},
+		{"both set -> unchanged", Costs{SkillMult: 4, AttributeMult: 9}, Costs{4, 9}},
+		{"negative -> canon", Costs{SkillMult: -1, AttributeMult: -2}, Costs{2, 5}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := tt.in.WithDefaults(); got != tt.want {
+				t.Errorf("WithDefaults(%+v) = %+v, want %+v", tt.in, got, tt.want)
+			}
+		})
+	}
+}

@@ -14,6 +14,7 @@ import (
 	"github.com/Jasrags/AnotherMUD/internal/grade"
 	"github.com/Jasrags/AnotherMUD/internal/help"
 	"github.com/Jasrags/AnotherMUD/internal/item"
+	"github.com/Jasrags/AnotherMUD/internal/karma"
 	"github.com/Jasrags/AnotherMUD/internal/loot"
 	"github.com/Jasrags/AnotherMUD/internal/mob"
 	"github.com/Jasrags/AnotherMUD/internal/pool"
@@ -207,6 +208,13 @@ type Registries struct {
 	// at login. Not a content registry — loaded-pack metadata, like Worlds.
 	WorldAdvancement map[string]string
 
+	// WorldKarmaCosts maps a karma-ledger world's namespace → its `improve` spend
+	// multipliers (its manifest `karma_costs:`), for worlds that override the SR5
+	// canon defaults (SR-M5b). A world absent from this map uses karma.DefaultCosts.
+	// Populated by Load only for karma-ledger worlds; the composition root threads
+	// it into session.Config so the actor resolves its world's prices at login.
+	WorldKarmaCosts map[string]karma.Costs
+
 	// Splashes maps a world pack's namespace → its connect splash text
 	// (the raw file contents with engine color markup, not yet rendered).
 	// Populated by Load for every kind:world pack (required, validated);
@@ -269,6 +277,7 @@ func NewRegistries() *Registries {
 		WorldAttributeSets: map[string]string{},
 		WorldStealthSkills: map[string]string{},
 		WorldAdvancement:   map[string]string{},
+		WorldKarmaCosts:    map[string]karma.Costs{},
 		Splashes:           map[string]string{},
 		WorldCurrencies:    map[string]economy.CurrencyLabel{},
 	}
